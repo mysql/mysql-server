@@ -1,52 +1,67 @@
 show tables;
-Tables_in_mysql
-columns_priv
-db
-func
-help_category
-help_keyword
-help_relation
-help_topic
-host
-proc
-tables_priv
-user
+Tables_in_mysql	table_type
+columns_priv	BASE TABLE
+db	BASE TABLE
+func	BASE TABLE
+help_category	BASE TABLE
+help_keyword	BASE TABLE
+help_relation	BASE TABLE
+help_topic	BASE TABLE
+host	BASE TABLE
+proc	BASE TABLE
+tables_priv	BASE TABLE
+time_zone	BASE TABLE
+time_zone_leap_second	BASE TABLE
+time_zone_name	BASE TABLE
+time_zone_transition	BASE TABLE
+time_zone_transition_type	BASE TABLE
+user	BASE TABLE
 show tables;
-Tables_in_test
+Tables_in_test	table_type
 grant ALL on *.* to test@localhost identified by "gambling";
 grant ALL on *.* to test@127.0.0.1 identified by "gambling";
 show tables;
-Tables_in_mysql
-columns_priv
-db
-func
-help_category
-help_keyword
-help_relation
-help_topic
-host
-proc
-tables_priv
-user
+Tables_in_mysql	table_type
+columns_priv	BASE TABLE
+db	BASE TABLE
+func	BASE TABLE
+help_category	BASE TABLE
+help_keyword	BASE TABLE
+help_relation	BASE TABLE
+help_topic	BASE TABLE
+host	BASE TABLE
+proc	BASE TABLE
+tables_priv	BASE TABLE
+time_zone	BASE TABLE
+time_zone_leap_second	BASE TABLE
+time_zone_name	BASE TABLE
+time_zone_transition	BASE TABLE
+time_zone_transition_type	BASE TABLE
+user	BASE TABLE
 show tables;
-Tables_in_test
-update mysql.user set password=old_password("gambling2") where user="test";
+Tables_in_test	table_type
+update mysql.user set password=old_password("gambling2") where user=_binary"test";
 flush privileges;
 set password=old_password('gambling3');
 show tables;
-Tables_in_mysql
-columns_priv
-db
-func
-help_category
-help_keyword
-help_relation
-help_topic
-host
-proc
-tables_priv
-user
+Tables_in_mysql	table_type
+columns_priv	BASE TABLE
+db	BASE TABLE
+func	BASE TABLE
+help_category	BASE TABLE
+help_keyword	BASE TABLE
+help_relation	BASE TABLE
+help_topic	BASE TABLE
+host	BASE TABLE
+proc	BASE TABLE
+tables_priv	BASE TABLE
+time_zone	BASE TABLE
+time_zone_leap_second	BASE TABLE
+time_zone_name	BASE TABLE
+time_zone_transition	BASE TABLE
+time_zone_transition_type	BASE TABLE
+user	BASE TABLE
 show tables;
-Tables_in_test
-delete from mysql.user where user="test";
+Tables_in_test	table_type
+delete from mysql.user where user=_binary"test";
 flush privileges;

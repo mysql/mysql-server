@@ -19,6 +19,9 @@
 
 
 #include "myisam.h"
+
+#ifdef HAVE_RTREE_KEYS
+
 #include "rt_index.h"
 
 #define MAX_REC_LENGTH 1024
@@ -31,6 +34,51 @@ static void create_record1(char *record,uint rownr);
 static void print_record(char * record,my_off_t offs,const char * tail);
 static  int run_test(const char *filename);
 
+static double rt_data[]=
+{
+  /*1*/  0,10,0,10,
+  /*2*/  5,15,0,10,
+  /*3*/  0,10,5,15,
+  /*4*/  10,20,10,20,
+  /*5*/  0,10,0,10,
+  /*6*/  5,15,0,10,
+  /*7*/  0,10,5,15,
+  /*8*/  10,20,10,20,
+  /*9*/  0,10,0,10,
+  /*10*/  5,15,0,10,
+  /*11*/  0,10,5,15,
+  /*12*/  10,20,10,20,
+  /*13*/  0,10,0,10,
+  /*14*/  5,15,0,10,
+  /*15*/  0,10,5,15,
+  /*16*/  10,20,10,20,
+  /*17*/  5,15,0,10,
+  /*18*/  0,10,5,15,
+  /*19*/  10,20,10,20,
+  /*20*/  0,10,0,10,
+
+  /*1*/  100,110,0,10,
+  /*2*/  105,115,0,10,
+  /*3*/  100,110,5,15,
+  /*4*/  110,120,10,20,
+  /*5*/  100,110,0,10,
+  /*6*/  105,115,0,10,
+  /*7*/  100,110,5,15,
+  /*8*/  110,120,10,20,
+  /*9*/  100,110,0,10,
+  /*10*/  105,115,0,10,
+  /*11*/  100,110,5,15,
+  /*12*/  110,120,10,20,
+  /*13*/  100,110,0,10,
+  /*14*/  105,115,0,10,
+  /*15*/  100,110,5,15,
+  /*16*/  110,120,10,20,
+  /*17*/  105,115,0,10,
+  /*18*/  100,110,5,15,
+  /*19*/  110,120,10,20,
+  /*20*/  100,110,0,10,
+  -1
+};
 
 int main(int argc __attribute__((unused)),char *argv[] __attribute__((unused)))
 {
@@ -39,8 +87,7 @@ int main(int argc __attribute__((unused)),char *argv[] __attribute__((unused)))
 }
 
 
-
-int run_test(const char *filename)
+static int run_test(const char *filename)
 {
   MI_INFO        *file;
   MI_UNIQUEDEF   uniquedef;
@@ -48,6 +95,7 @@ int run_test(const char *filename)
   MI_COLUMNDEF   recinfo[20];
   MI_KEYDEF      keyinfo[20];
   HA_KEYSEG      keyseg[20];
+  key_range	range;
 
   int silent=0;
   int opt_unique=0;
@@ -55,7 +103,7 @@ int run_test(const char *filename)
   int key_type=HA_KEYTYPE_DOUBLE;
   int key_length=8;
   int null_fields=0;
-  int nrecords=300;
+  int nrecords=sizeof(rt_data)/(sizeof(double)*4);/* 3000;*/
   int rec_length=0;
   int uniques=0;
   int i;
@@ -66,14 +114,11 @@ int run_test(const char *filename)
   int upd= 10;
   ha_rows hrows;
   
-  
-  
   /* Define a column for NULLs and DEL markers*/
   
   recinfo[0].type=FIELD_NORMAL;
   recinfo[0].length=1; /* For NULL bits */
   rec_length=1;
-  
   
   /* Define 2*ndims columns for coordinates*/
   
@@ -82,7 +127,6 @@ int run_test(const char *filename)
     recinfo[i].length=key_length;
     rec_length+=key_length;
   }
-  
   
   /* Define a key with 2*ndims segments */
   
@@ -101,8 +145,7 @@ int run_test(const char *filename)
     keyinfo[0].seg[i].language=default_charset_info->number;
   }
   
-  
-  if(!silent)
+  if (!silent)
     printf("- Creating isam-file\n");
   
   bzero((char*) &create_info,sizeof(create_info));
@@ -115,15 +158,11 @@ int run_test(const char *filename)
                 recinfo,uniques,&uniquedef,&create_info,create_flag))
     goto err;
   
-  
-  
-  
-  if(!silent)
+  if (!silent)
     printf("- Open isam-file\n");
   
   if (!(file=mi_open(filename,2,HA_OPEN_ABORT_IF_LOCKED)))
     goto err;
-  
 
   if (!silent)
     printf("- Writing key:s\n");
@@ -144,10 +183,8 @@ int run_test(const char *filename)
     }
   }
 
-
-  if((error=read_with_pos(file,silent)))
+  if ((error=read_with_pos(file,silent)))
     goto err;
-
 
   if (!silent)
     printf("- Reading rows with key\n");
@@ -160,22 +197,18 @@ int run_test(const char *filename)
     bzero((char*) read_record,MAX_REC_LENGTH);
     error=mi_rkey(file,read_record,0,record+1,0,HA_READ_MBR_EQUAL);
     
-    if(error && error!=HA_ERR_KEY_NOT_FOUND)
+    if (error && error!=HA_ERR_KEY_NOT_FOUND)
     {
       printf("     mi_rkey: %3d  errno: %3d\n",error,my_errno);
       goto err;
     }
-    if(error == HA_ERR_KEY_NOT_FOUND)
+    if (error == HA_ERR_KEY_NOT_FOUND)
     {
       print_record(record,mi_position(file),"  NOT FOUND\n");
       continue;
     }
     print_record(read_record,mi_position(file),"\n");
   }
-
-
-
-
 
   if (!silent)
     printf("- Deleting rows\n");
@@ -184,7 +217,7 @@ int run_test(const char *filename)
     my_errno=0;
     bzero((char*) read_record,MAX_REC_LENGTH);
     error=mi_rrnd(file,read_record,i == 0 ? 0L : HA_OFFSET_ERROR);
-    if(error)
+    if (error)
     {
       printf("pos: %2d  mi_rrnd: %3d  errno: %3d\n",i,error,my_errno);
       goto err;
@@ -192,13 +225,12 @@ int run_test(const char *filename)
     print_record(read_record,mi_position(file),"\n");
 
     error=mi_delete(file,read_record);
-    if(error)
+    if (error)
     {
       printf("pos: %2d mi_delete: %3d errno: %3d\n",i,error,my_errno);
       goto err;
     }
   }
-
 
   if (!silent)
     printf("- Updating rows with position\n");
@@ -207,9 +239,9 @@ int run_test(const char *filename)
     my_errno=0;
     bzero((char*) read_record,MAX_REC_LENGTH);
     error=mi_rrnd(file,read_record,i == 0 ? 0L : HA_OFFSET_ERROR);
-    if(error)
+    if (error)
     {
-      if(error==HA_ERR_RECORD_DELETED)
+      if (error==HA_ERR_RECORD_DELETED)
         continue;
       printf("pos: %2d  mi_rrnd: %3d  errno: %3d\n",i,error,my_errno);
       goto err;
@@ -219,18 +251,15 @@ int run_test(const char *filename)
     printf("\t-> ");
     print_record(record,mi_position(file),"\n");
     error=mi_update(file,read_record,record);
-    if(error)
+    if (error)
     {
       printf("pos: %2d  mi_update: %3d  errno: %3d\n",i,error,my_errno);
       goto err;
     }
   }
 
-
-  if((error=read_with_pos(file,silent)))
+  if ((error=read_with_pos(file,silent)))
     goto err;
-
-
 
   if (!silent)
     printf("- Test mi_rkey then a sequence of mi_rnext_same\n");
@@ -246,24 +275,19 @@ int run_test(const char *filename)
   print_record(read_record,mi_position(file),"  mi_rkey\n");
   row_count=1;
 
-
-  do {
-    if((error=mi_rnext_same(file,read_record)))
+  for (;;)
+  {
+    if ((error=mi_rnext_same(file,read_record)))
     {
-      if(error==HA_ERR_END_OF_FILE)
+      if (error==HA_ERR_END_OF_FILE)
         break;
       printf("mi_next: %3d  errno: %3d\n",error,my_errno);
       goto err;
     }
     print_record(read_record,mi_position(file),"  mi_rnext_same\n");
       row_count++;
-  }while(1);
+  }
   printf("     %d rows\n",row_count);
-
-
-
-
-
 
   if (!silent)
     printf("- Test mi_rfirst then a sequence of mi_rnext\n");
@@ -277,10 +301,11 @@ int run_test(const char *filename)
   row_count=1;
   print_record(read_record,mi_position(file),"  mi_frirst\n");
   
-  for(i=0;i<nrecords;i++) {
-    if((error=mi_rnext(file,read_record,0)))
+  for (i=0;i<nrecords;i++)
+  {
+    if ((error=mi_rnext(file,read_record,0)))
     {
-      if(error==HA_ERR_END_OF_FILE)
+      if (error==HA_ERR_END_OF_FILE)
         break;
       printf("mi_next: %3d  errno: %3d\n",error,my_errno);
       goto err;
@@ -290,15 +315,17 @@ int run_test(const char *filename)
   }
   printf("     %d rows\n",row_count);
 
-
   if (!silent)
     printf("- Test mi_records_in_range()\n");
 
   create_record1(record, nrecords*4/5);
   print_record(record,0,"\n");
-  hrows=mi_records_in_range(file,0,record+1,0,HA_READ_MBR_INTERSECT,record+1,0,0);
+  
+  range.key= record+1;
+  range.length= 1000;                           /* Big enough */
+  range.flag= HA_READ_MBR_INTERSECT;
+  hrows= mi_records_in_range(file,0, &range, (key_range*) 0);
   printf("     %ld rows\n", (long) hrows);
-
 
   if (mi_close(file)) goto err;
   my_end(MY_CHECK_ERROR);
@@ -307,7 +334,7 @@ int run_test(const char *filename)
   
 err:
   printf("got error: %3d when using myisam-database\n",my_errno);
-  return 1;           /* skipp warning */
+  return 1;           /* skip warning */
 }
 
 
@@ -325,11 +352,11 @@ static int read_with_pos (MI_INFO * file,int silent)
     my_errno=0;
     bzero((char*) read_record,MAX_REC_LENGTH);
     error=mi_rrnd(file,read_record,i == 0 ? 0L : HA_OFFSET_ERROR);
-    if(error)
+    if (error)
     {
-      if(error==HA_ERR_END_OF_FILE)
+      if (error==HA_ERR_END_OF_FILE)
         break;
-      if(error==HA_ERR_RECORD_DELETED)
+      if (error==HA_ERR_RECORD_DELETED)
         continue;
       printf("pos: %2d  mi_rrnd: %3d  errno: %3d\n",i,error,my_errno);
       return error;
@@ -399,7 +426,7 @@ static void create_record1(char *record,uint rownr)
 }
 
 
-static void create_record(char *record,uint rownr)
+static void create_record0(char *record,uint rownr)
 {
    int i;
    char * pos;
@@ -419,3 +446,23 @@ static void create_record(char *record,uint rownr)
       pos+=sizeof(c);
    }
 }
+
+static void create_record(char *record,uint rownr)
+{
+   int i;
+   char *pos;
+   double *data= rt_data+rownr*4;
+   record[0]=0x01; /* DEL marker */
+   for ( pos=record+1, i=0; i<ndims*2; i++)
+   {
+      float8store(pos,data[i]);
+      pos+=8;
+   }
+}
+
+#else
+int main(int argc __attribute__((unused)),char *argv[] __attribute__((unused)))
+{
+  exit(0);
+}
+#endif /*HAVE_RTREE_KEYS*/

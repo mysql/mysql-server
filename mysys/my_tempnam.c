@@ -105,12 +105,13 @@ my_string my_tempnam(const char *dir, const char *pfx,
   }
 #ifdef OS2
   /* changing environ variable doesn't work with VACPP */
-  char  buffer[256];
-  sprintf( buffer, "TMP=%s", dir);
+  char  buffer[256], *end;
+  buffer[sizeof[buffer)-1]= 0;
+  end= strxnmov(buffer, sizeof(buffer)-1, (char*) "TMP=", dir, NullS);
   /* remove ending backslash */
-  if (buffer[strlen(buffer)-1] == '\\')
-     buffer[strlen(buffer)-1] = '\0';
-  putenv( buffer);
+  if (end[-1] == '\\')
+    end[-1]= 0;
+  putenv(buffer);
 #elif !defined(__NETWARE__)
   old_env=(char**)environ;
   if (dir)
@@ -160,7 +161,7 @@ my_string my_tempnam(const char *dir, const char *pfx,
 
   for (length=0 ; length < 8 && uniq ; length++)
   {
-    *end_pos++= _dig_vec[(int) (uniq & 31)];
+    *end_pos++= _dig_vec_upper[(int) (uniq & 31)];
     uniq >>= 5;
   }
   VOID(strmov(end_pos,TMP_EXT));

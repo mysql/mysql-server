@@ -1,0 +1,740 @@
+use test;
+test_sequence
+------ basic tests ------
+drop table if exists t1, t_many_col_types ;
+create table t1
+(
+a int, b varchar(30),
+primary key(a)
+) engine = 'MYISAM'  ;
+create table t_many_col_types 
+(
+c1  tinyint, c2  smallint, c3  mediumint, c4  int,
+c5  integer, c6  bigint, c7  float, c8  double,
+c9  double precision, c10 real, c11 decimal(7, 4), c12 numeric(8, 4),
+c13 date, c14 datetime, c15 timestamp(14), c16 time,
+c17 year, c18 bit, c19 bool, c20 char,
+c21 char(10), c22 varchar(30), c23 tinyblob, c24 tinytext,
+c25 blob, c26 text, c27 mediumblob, c28 mediumtext,
+c29 longblob, c30 longtext, c31 enum('one', 'two', 'three'),
+c32 set('monday', 'tuesday', 'wednesday'),
+primary key(c1)
+) engine = 'MYISAM'  ;
+delete from t1 ;
+insert into t1 values (1,'one');
+insert into t1 values (2,'two');
+insert into t1 values (3,'three');
+insert into t1 values (4,'four');
+commit ;
+delete from t_many_col_types ;
+insert into t_many_col_types
+set c1= 1, c2= 1, c3= 1, c4= 1, c5= 1, c6= 1, c7= 1, c8= 1, c9= 1,
+c10= 1, c11= 1, c12 = 1,
+c13= '2004-02-29', c14= '2004-02-29 11:11:11', c15= '2004-02-29 11:11:11',
+c16= '11:11:11', c17= '2004',
+c18= 1, c19=true, c20= 'a', c21= '123456789a', 
+c22= '123456789a123456789b123456789c', c23= 'tinyblob', c24= 'tinytext',
+c25= 'blob', c26= 'text', c27= 'mediumblob', c28= 'mediumtext',
+c29= 'longblob', c30= 'longtext', c31='one', c32= 'monday';
+insert into t_many_col_types
+set c1= 9, c2= 9, c3= 9, c4= 9, c5= 9, c6= 9, c7= 9, c8= 9, c9= 9,
+c10= 9, c11= 9, c12 = 9,
+c13= '2004-02-29', c14= '2004-02-29 11:11:11', c15= '2004-02-29 11:11:11',
+c16= '11:11:11', c17= '2004',
+c18= 1, c19=false, c20= 'a', c21= '123456789a', 
+c22= '123456789a123456789b123456789c', c23= 'tinyblob', c24= 'tinytext',
+c25= 'blob', c26= 'text', c27= 'mediumblob', c28= 'mediumtext',
+c29= 'longblob', c30= 'longtext', c31='two', c32= 'tuesday';
+PREPARE stmt FROM ' select * from t1 where a = ? ' ;
+SET @var= 2 ;
+EXECUTE stmt USING @var ;
+a	b
+2	two
+select * from t1 where a = @var ;
+a	b
+2	two
+DEALLOCATE PREPARE stmt ;
+prepare stmt1 from ' select 1 as my_col ' ;
+prepare stmt1 from ' select ? as my_col ' ;
+prepare ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+prepare stmt1 ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+prepare stmt1 from ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+prepare_garbage stmt1 from ' select 1 ' ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'prepare_garbage stmt1 from ' select 1 '' at line 1
+prepare stmt1 from_garbage ' select 1 ' ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'from_garbage ' select 1 '' at line 1
+prepare stmt1 from ' select_garbage 1 ' ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select_garbage 1' at line 1
+prepare from ' select 1 ' ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'from ' select 1 '' at line 1
+prepare stmt1 ' select 1 ' ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' select 1 '' at line 1
+prepare ? from ' select ? as my_col ' ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '? from ' select ? as my_col '' at line 1
+set @arg00='select 1 as my_col';
+prepare stmt1 from @arg00;
+set @arg00='';
+prepare stmt1 from @arg00;
+ERROR 42000: Query was empty
+set @arg00=NULL;
+prepare stmt1 from @arg01;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NULL' at line 1
+prepare stmt1 from ' select * from t1 where a <= 2 ' ;
+prepare stmt1 from ' select * from t1 where x <= 2 ' ;
+ERROR 42S22: Unknown column 'x' in 'where clause'
+drop table if exists not_exist ;
+prepare stmt1 from ' select * from not_exist where a <= 2 ' ;
+ERROR 42S02: Table 'test.not_exist' doesn't exist
+prepare stmt1 from ' insert into t1 values(? ' ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+prepare stmt1 from ' select a, b from t1
+                     where a=? and where ' ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'where' at line 2
+execute never_prepared ;
+ERROR HY000: Unknown prepared statement handler (never_prepared) given to EXECUTE
+prepare stmt1 from ' select * from t1 where a <= 2 ' ;
+prepare stmt1 from ' select * from not_exist where a <= 2 ' ;
+ERROR 42S02: Table 'test.not_exist' doesn't exist
+execute stmt1 ;
+ERROR HY000: Unknown prepared statement handler (stmt1) given to EXECUTE
+create table to_be_dropped
+(
+a int primary key,
+b char(30),
+c int
+);
+insert into to_be_dropped( a, b, c) values( 1, 'original table', 1);
+prepare stmt2 from ' select * from to_be_dropped ' ;
+execute stmt2 ;
+a	b	c
+1	original table	1
+drop table to_be_dropped ;
+execute stmt2 ;
+ERROR 42S02: Table 'test.to_be_dropped' doesn't exist
+create table to_be_dropped
+(
+a int primary key,
+b char(30),
+c int
+);
+insert into to_be_dropped( a, b, c) values( 9, 'recreated table', 9);
+execute stmt2 ;
+a	b	c
+9	recreated table	9
+drop table to_be_dropped ;
+create table to_be_dropped
+(
+a int primary key,
+c int,
+b char(30)
+);
+insert into to_be_dropped( a, b, c) values( 9, 'recreated table', 9);
+execute stmt2 ;
+a	b	c
+9	recreated table	9
+drop table to_be_dropped ;
+create table to_be_dropped
+(
+a int primary key,
+b char(30),
+c int,
+d timestamp default current_timestamp
+);
+insert into to_be_dropped( a, b, c) values( 9, 'recreated table', 9);
+execute stmt2 ;
+a	b	c
+9	recreated table	9
+drop table to_be_dropped ;
+create table to_be_dropped
+(
+a int primary key,
+d timestamp default current_timestamp,
+b char(30),
+c int
+);
+insert into to_be_dropped( a, b, c) values( 9, 'recreated table', 9);
+execute stmt2 ;
+a	b	c
+9	recreated table	9
+drop table to_be_dropped ;
+create table to_be_dropped
+(
+a timestamp default '2004-02-29 18:01:59',
+b char(30),
+c int
+);
+insert into to_be_dropped( b, c) values( 'recreated table', 9);
+execute stmt2 ;
+a	b	c
+2004-02-29 18:01:59	recreated table	9
+drop table to_be_dropped ;
+create table to_be_dropped
+(
+f1 int primary key,
+f2 char(30),
+f3 int
+);
+insert into to_be_dropped( f1, f2, f3) values( 9, 'recreated table', 9);
+execute stmt2 ;
+ERROR 42S22: Unknown column 'to_be_dropped.a' in 'field list'
+drop table to_be_dropped ;
+prepare stmt1 from ' select * from t1 where a <= 2 ' ;
+execute stmt1 ;
+a	b
+1	one
+2	two
+set @arg00=1 ;
+set @arg01='two' ;
+prepare stmt1 from ' select * from t1 where a <= ? ' ;
+execute stmt1 using @arg00;
+a	b
+1	one
+execute stmt1 ;
+ERROR HY000: Incorrect arguments to EXECUTE
+execute stmt1 using @arg00, @arg01;
+ERROR HY000: Incorrect arguments to EXECUTE
+execute stmt1 using @not_set;
+a	b
+deallocate prepare never_prepared ;
+ERROR HY000: Unknown prepared statement handler (never_prepared) given to DEALLOCATE PREPARE
+prepare stmt1 from ' select * from t1 where a <= 2 ' ;
+prepare stmt1 from ' select * from not_exist where a <= 2 ' ;
+ERROR 42S02: Table 'test.not_exist' doesn't exist
+deallocate prepare stmt1;
+ERROR HY000: Unknown prepared statement handler (stmt1) given to DEALLOCATE PREPARE
+create table to_be_dropped
+(
+a int primary key,
+b char(10)
+);
+prepare stmt2 from ' select a,b from to_be_dropped where a <= 2 ' ;
+drop table to_be_dropped ;
+deallocate prepare stmt2;
+prepare stmt1 from ' select a from t1 where a <= 2 ' ;
+prepare stmt2 from ' select b from t1 where a <= 2 ' ;
+execute stmt2 ;
+b
+one
+two
+execute stmt1 ;
+a
+1
+2
+prepare stmt1 from ' select a from t1 where a <= 2 ' ;
+prepare stmt2 from ' select a from t1 where a <= 2 ' ;
+execute stmt2 ;
+a
+1
+2
+execute stmt1 ;
+a
+1
+2
+deallocate prepare stmt1 ;
+execute stmt2 ;
+a
+1
+2
+test_sequence
+------ show and misc tests ------
+drop table if exists t2;
+create table t2 
+(
+a int primary key, b char(10)
+);
+prepare stmt4 from ' show databases ';
+execute stmt4;
+Database
+mysql
+test
+prepare stmt4 from ' show tables from test like ''t2%'' ';
+execute stmt4;
+Tables_in_test (t2%)	table_type
+t2	BASE TABLE
+prepare stmt4 from ' show columns from t2 from test like ''a%'' ';
+execute stmt4;
+Field	Type	Null	Key	Default	Extra
+a	int(11)		PRI	0	
+create index t2_idx on t2(b);
+prepare stmt4 from ' show index from t2 from test ';
+execute stmt4;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t2	0	PRIMARY	1	a	A	0	NULL	NULL		BTREE	
+t2	1	t2_idx	1	b	A	NULL	NULL	NULL	YES	BTREE	
+prepare stmt4 from ' show table status from test like ''t2%'' ';
+execute stmt4;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t2	MyISAM	9	Fixed	0	0	0	64424509439	1024	0	NULL	#	#	#	latin1_swedish_ci	NULL		
+prepare stmt4 from ' show table status from test like ''t_many_col_types%'' ';
+execute stmt4;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t_many_col_types	MyISAM	9	Dynamic	2	220	440	4294967295	2048	0	NULL	#	#	#	latin1_swedish_ci	NULL		
+prepare stmt4 from ' show status like ''Threads_running'' ';
+execute stmt4;
+Variable_name	Value
+Threads_running	1
+prepare stmt4 from ' show variables like ''sql_mode'' ';
+execute stmt4;
+Variable_name	Value
+sql_mode	
+prepare stmt4 from ' show engine bdb logs ';
+execute stmt4;
+prepare stmt4 from ' show full processlist ';
+execute stmt4;
+Id	User	Host	db	Command	Time	State	Info
+number	root	localhost	test	Query	0	NULL	show full processlist
+prepare stmt4 from ' show grants for user ';
+prepare stmt4 from ' show create table t2 ';
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+prepare stmt4 from ' show master status ';
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+prepare stmt4 from ' show master logs ';
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+prepare stmt4 from ' show slave status ';
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+prepare stmt4 from ' show warnings limit 20 ';
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+prepare stmt4 from ' show errors limit 20 ';
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+prepare stmt4 from ' show storage engines ';
+execute stmt4;
+Engine	Support	Comment
+MyISAM	YES/NO	Default engine as of MySQL 3.23 with great performance
+HEAP	YES/NO	Alias for MEMORY
+MEMORY	YES/NO	Hash based, stored in memory, useful for temporary tables
+MERGE	YES/NO	Collection of identical MyISAM tables
+MRG_MYISAM	YES/NO	Alias for MERGE
+ISAM	YES/NO	Obsolete storage engine, now replaced by MyISAM
+MRG_ISAM	YES/NO	Obsolete storage engine, now replaced by MERGE
+InnoDB	YES/NO	Supports transactions, row-level locking, and foreign keys
+INNOBASE	YES/NO	Alias for INNODB
+BDB	YES/NO	Supports transactions and page-level locking
+BERKELEYDB	YES/NO	Alias for BDB
+NDBCLUSTER	YES/NO	Clustered, fault-tolerant, memory-based tables
+NDB	YES/NO	Alias for NDBCLUSTER
+EXAMPLE	YES/NO	Example storage engine
+ARCHIVE	YES/NO	Archive storage engine
+drop table if exists tx;
+prepare stmt1 from ' drop table if exists tx ' ;
+execute stmt1 ;
+Warnings:
+Note	1051	Unknown table 'tx'
+prepare stmt1 from ' drop table tx ' ;
+execute stmt1 ;
+ERROR 42S02: Unknown table 'tx'
+prepare stmt1 from ' prepare stmt2 from '' select 1 ''  ' ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' select 1 '' at line 1
+prepare stmt1 from ' execute stmt2 ' ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'stmt2' at line 1
+prepare stmt1 from ' deallocate prepare never_prepared ' ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'never_prepared' at line 1
+prepare stmt4 from ' use test ' ;
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+prepare stmt3 from ' create database drop_me ';
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+create database drop_me ;
+prepare stmt3 from ' drop database drop_me ';
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+drop database drop_me ;
+prepare stmt3 from ' grant all on test.t1 to drop_user@localhost
+identified by ''looser'' ';
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+grant all on test.t1 to drop_user@localhost
+identified by 'looser' ;
+prepare stmt3 from ' revoke all privileges on test.t1 from 
+drop_user@localhost ';
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+revoke all privileges on test.t1 from drop_user@localhost ;
+prepare stmt3 from ' drop user drop_user@localhost ';
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+drop user drop_user@localhost;
+prepare stmt3 from ' describe t2 ';
+execute stmt3;
+Field	Type	Null	Key	Default	Extra
+a	int(11)		PRI	0	
+b	char(10)	YES	MUL	NULL	
+drop table t2 ;
+execute stmt3;
+ERROR 42S02: Table 'test.t2' doesn't exist
+prepare stmt3 from ' lock tables t1 read ' ;
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+prepare stmt3 from ' unlock tables ' ;
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+prepare stmt1 from ' load data infile ''data.txt''
+into table t1 fields terminated by ''\t'' ';
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+prepare stmt1 from ' select * into outfile ''data.txt'' from t1 ';
+execute stmt1 ;
+prepare stmt1 from ' optimize table t1 ' ;
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+prepare stmt1 from ' analyze table t1 ' ;
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+prepare stmt1 from ' checksum table t1 ' ;
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+prepare stmt1 from ' repair table t1 ' ;
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+prepare stmt1 from ' restore table t1 from ''data.txt'' ' ;
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+prepare stmt1 from ' handler t1 open ';
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+prepare stmt3 from ' commit ' ;
+prepare stmt3 from ' rollback ' ;
+prepare stmt4 from ' SET sql_mode=ansi ';
+execute stmt4;
+select 'a' || 'b' ;
+'a' || 'b'
+ab
+prepare stmt4 from ' SET sql_mode="" ';
+execute stmt4;
+select 'a' || 'b' ;
+'a' || 'b'
+0
+prepare stmt5 from ' select ''a'' || ''b'' ' ;
+execute stmt5;
+'a' || 'b'
+0
+SET sql_mode=ansi;
+execute stmt5;
+'a' || 'b'
+0
+SET sql_mode="";
+prepare stmt1 from ' flush local privileges ' ;
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+prepare stmt1 from ' reset query cache ' ;
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+prepare stmt1 from ' KILL 0 ';
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+prepare stmt1 from ' explain select a from t1 order by b ';
+execute stmt1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Name	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					id	8	3	1	N	32801	0	8
+def					select_type	253	19	6	N	1	31	63
+def					table	253	64	2	N	1	31	63
+def					type	253	10	3	N	1	31	63
+def					possible_keys	253	4096	0	Y	0	31	63
+def					key	253	64	0	Y	0	31	63
+def					key_len	253	4096	0	Y	0	31	63
+def					ref	253	1024	0	Y	0	31	63
+def					rows	8	10	1	N	32801	0	8
+def					Extra	253	255	14	N	1	31	63
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using filesort
+SET @arg00=1 ;
+prepare stmt1 from ' explain select a from t1 where a > ? order by b ';
+execute stmt1 using @arg00;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Name	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					id	8	3	1	N	32801	0	8
+def					select_type	253	19	6	N	1	31	63
+def					table	253	64	2	N	1	31	63
+def					type	253	10	5	N	1	31	63
+def					possible_keys	253	4096	7	Y	0	31	63
+def					key	253	64	7	Y	0	31	63
+def					key_len	253	4096	1	Y	0	31	63
+def					ref	253	1024	0	Y	0	31	63
+def					rows	8	10	1	N	32801	0	8
+def					Extra	253	255	27	N	1	31	63
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	3	Using where; Using filesort
+test_sequence
+------ create/drop/alter/rename tests ------
+drop table if exists t2, t3;
+prepare stmt_drop from ' drop table if exists t2 ' ;
+execute stmt_drop;
+prepare stmt_create from ' create table t2 (
+                             a int primary key, b char(10)) ';
+execute stmt_create;
+prepare stmt3 from ' create table t3 like t2 ';
+execute stmt3;
+drop table t3;
+set @arg00=1;
+prepare stmt3 from ' create table t3 (m int) select ? as m ' ;
+execute stmt3 using @arg00;
+select m from t3;
+m
+1
+drop table t3;
+prepare stmt3 from ' create index t2_idx on t2(b) ';
+prepare stmt3 from ' drop index t2_idx on t2 ' ;
+prepare stmt3 from ' alter table t2 drop primary key ';
+drop table if exists new_t2;
+prepare stmt3 from ' rename table t2 to new_t2 ';
+execute stmt3;
+execute stmt3;
+ERROR 42S01: Table 'new_t2' already exists
+rename table new_t2 to t2;
+drop table t2;
+test_sequence
+------ big statement tests ------
+select 'ABC' as my_const_col from t1 where
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 ;
+my_const_col
+ABC
+ABC
+ABC
+ABC
+prepare stmt1 from ' select ''ABC'' as my_const_col FROM t1 WHERE
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 AND
+1 = 1 ' ;
+execute stmt1 ;
+my_const_col
+ABC
+ABC
+ABC
+ABC
+execute stmt1 ;
+my_const_col
+ABC
+ABC
+ABC
+ABC
+select 'ABC' as my_const_col FROM t1 WHERE
+'1234567890123456789012345678901234567890123456789012345678901234567890'
+= '1234567890123456789012345678901234567890123456789012345678901234567890' AND
+'1234567890123456789012345678901234567890123456789012345678901234567890'
+= '1234567890123456789012345678901234567890123456789012345678901234567890' AND
+'1234567890123456789012345678901234567890123456789012345678901234567890'
+= '1234567890123456789012345678901234567890123456789012345678901234567890' AND
+'1234567890123456789012345678901234567890123456789012345678901234567890'
+= '1234567890123456789012345678901234567890123456789012345678901234567890' AND
+'1234567890123456789012345678901234567890123456789012345678901234567890'
+= '1234567890123456789012345678901234567890123456789012345678901234567890' AND
+'1234567890123456789012345678901234567890123456789012345678901234567890'
+= '1234567890123456789012345678901234567890123456789012345678901234567890' AND
+'1234567890123456789012345678901234567890123456789012345678901234567890'
+= '1234567890123456789012345678901234567890123456789012345678901234567890' AND
+'1234567890123456789012345678901234567890123456789012345678901234567890'
+= '1234567890123456789012345678901234567890123456789012345678901234567890' AND
+'1234567890123456789012345678901234567890123456789012345678901234567890'
+= '1234567890123456789012345678901234567890123456789012345678901234567890' ;
+my_const_col
+ABC
+ABC
+ABC
+ABC
+prepare stmt1 from ' select ''ABC'' as my_const_col FROM t1 WHERE
+''1234567890123456789012345678901234567890123456789012345678901234567890''
+= ''1234567890123456789012345678901234567890123456789012345678901234567890'' AND
+''1234567890123456789012345678901234567890123456789012345678901234567890''
+= ''1234567890123456789012345678901234567890123456789012345678901234567890'' AND
+''1234567890123456789012345678901234567890123456789012345678901234567890''
+= ''1234567890123456789012345678901234567890123456789012345678901234567890'' AND
+''1234567890123456789012345678901234567890123456789012345678901234567890''
+= ''1234567890123456789012345678901234567890123456789012345678901234567890'' AND
+''1234567890123456789012345678901234567890123456789012345678901234567890''
+= ''1234567890123456789012345678901234567890123456789012345678901234567890'' AND
+''1234567890123456789012345678901234567890123456789012345678901234567890''
+= ''1234567890123456789012345678901234567890123456789012345678901234567890'' AND
+''1234567890123456789012345678901234567890123456789012345678901234567890''
+= ''1234567890123456789012345678901234567890123456789012345678901234567890'' AND
+''1234567890123456789012345678901234567890123456789012345678901234567890''
+= ''1234567890123456789012345678901234567890123456789012345678901234567890'' AND
+''1234567890123456789012345678901234567890123456789012345678901234567890''
+= ''1234567890123456789012345678901234567890123456789012345678901234567890'' ';
+execute stmt1 ;
+my_const_col
+ABC
+ABC
+ABC
+ABC
+execute stmt1 ;
+my_const_col
+ABC
+ABC
+ABC
+ABC
+set @arg00= 1;
+set @arg01= 1;
+set @arg02= 1;
+set @arg03= 1;
+set @arg04= 1;
+set @arg05= 1;
+set @arg06= 1;
+set @arg07= 1;
+set @arg10= 1;
+set @arg11= 1;
+set @arg12= 1;
+set @arg13= 1;
+set @arg14= 1;
+set @arg15= 1;
+set @arg16= 1;
+set @arg17= 1;
+set @arg20= 1;
+set @arg21= 1;
+set @arg22= 1;
+set @arg23= 1;
+set @arg24= 1;
+set @arg25= 1;
+set @arg26= 1;
+set @arg27= 1;
+set @arg30= 1;
+set @arg31= 1;
+set @arg32= 1;
+set @arg33= 1;
+set @arg34= 1;
+set @arg35= 1;
+set @arg36= 1;
+set @arg37= 1;
+set @arg40= 1;
+set @arg41= 1;
+set @arg42= 1;
+set @arg43= 1;
+set @arg44= 1;
+set @arg45= 1;
+set @arg46= 1;
+set @arg47= 1;
+set @arg50= 1;
+set @arg51= 1;
+set @arg52= 1;
+set @arg53= 1;
+set @arg54= 1;
+set @arg55= 1;
+set @arg56= 1;
+set @arg57= 1;
+set @arg60= 1;
+set @arg61= 1;
+select 'ABC' as my_const_col FROM t1 WHERE
+@arg00=@arg00 and @arg00=@arg00 and @arg00=@arg00 and @arg00=@arg00 and
+@arg00=@arg00 and @arg00=@arg00 and @arg00=@arg00 and @arg00=@arg00 and
+@arg00=@arg00 and @arg00=@arg00 and @arg00=@arg00 and @arg00=@arg00 and
+@arg00=@arg00 and @arg00=@arg00 and @arg00=@arg00 and @arg00=@arg00 and
+@arg00=@arg00 and @arg00=@arg00 and @arg00=@arg00 and @arg00=@arg00 and
+@arg00=@arg00 and @arg00=@arg00 and @arg00=@arg00 and @arg00=@arg00 and
+@arg00=@arg00 ;
+my_const_col
+ABC
+ABC
+ABC
+ABC
+prepare stmt1 from ' select ''ABC'' as my_const_col FROM t1 WHERE
+ ? = ?  and  ? = ?  and  ? = ?  and  ? = ?  and
+ ? = ?  and  ? = ?  and  ? = ?  and  ? = ?  and
+ ? = ?  and  ? = ?  and  ? = ?  and  ? = ?  and
+ ? = ?  and  ? = ?  and  ? = ?  and  ? = ?  and
+ ? = ?  and  ? = ?  and  ? = ?  and  ? = ?  and
+ ? = ?  and  ? = ?  and  ? = ?  and  ? = ?  and
+ ? = ?  ' ;
+execute stmt1 using 
+@arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, 
+@arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
+@arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, 
+@arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, 
+@arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, 
+@arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, 
+@arg00, @arg00;
+my_const_col
+ABC
+ABC
+ABC
+ABC
+execute stmt1 using 
+@arg00, @arg01, @arg02, @arg03, @arg04, @arg05, @arg06, @arg07, 
+@arg10, @arg11, @arg12, @arg13, @arg14, @arg15, @arg16, @arg17,
+@arg20, @arg21, @arg22, @arg23, @arg24, @arg25, @arg26, @arg27, 
+@arg30, @arg31, @arg32, @arg33, @arg34, @arg35, @arg36, @arg37, 
+@arg40, @arg41, @arg42, @arg43, @arg44, @arg45, @arg46, @arg47, 
+@arg50, @arg51, @arg52, @arg53, @arg54, @arg55, @arg56, @arg57, 
+@arg60, @arg61 ;
+my_const_col
+ABC
+ABC
+ABC
+ABC
+drop table t1 ;

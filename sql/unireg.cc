@@ -45,11 +45,29 @@ static bool make_empty_rec(int file, enum db_type table_type,
 			   List<create_field> &create_fields,
 			   uint reclength,uint null_fields);
 
+/*
+  Create a frm (table definition) file
 
-int rea_create_table(THD *thd, my_string file_name,
-		     HA_CREATE_INFO *create_info,
-		     List<create_field> &create_fields,
-		     uint keys, KEY *key_info)
+  SYNOPSIS
+    mysql_create_frm()
+    thd			Thread handler
+    file_name		Name of file (including database and .frm)
+    create_info		create info parameters
+    create_fields	Fields to create
+    keys		number of keys to create
+    key_info		Keys to create
+    db_file		Handler to use. May be zero, in which case we use
+    			create_info->db_type
+  RETURN
+    0  ok
+    1  error
+*/
+
+bool mysql_create_frm(THD *thd, my_string file_name,
+		      HA_CREATE_INFO *create_info,
+		      List<create_field> &create_fields,
+		      uint keys, KEY *key_info,
+		      handler *db_file)
 {
   uint reclength,info_length,screens,key_info_length,maxlength,null_fields;
   File file;
@@ -57,13 +75,13 @@ int rea_create_table(THD *thd, my_string file_name,
   uchar fileinfo[64],forminfo[288],*keybuff;
   TYPELIB formnames;
   uchar *screen_buff;
-  handler *db_file;
   DBUG_ENTER("rea_create_table");
 
   formnames.type_names=0;
   if (!(screen_buff=pack_screens(create_fields,&info_length,&screens,0)))
     DBUG_RETURN(1);
-  db_file=get_new_handler((TABLE*) 0, create_info->db_type);
+  if (db_file == NULL)
+    db_file=get_new_handler((TABLE*) 0, create_info->db_type);
   if (pack_header(forminfo, create_info->db_type,create_fields,info_length,
 		  screens, create_info->table_options, db_file))
   {
@@ -150,10 +168,11 @@ int rea_create_table(THD *thd, my_string file_name,
 
   my_free((gptr) screen_buff,MYF(0));
   my_free((gptr) keybuff, MYF(0));
-  if (my_sync(file, MYF(MY_WME)))
+
+  if (opt_sync_frm && !(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+      my_sync(file, MYF(MY_WME)))
     goto err2;
-  if (my_close(file,MYF(MY_WME)) ||
-      ha_create_table(file_name,create_info,0))
+  if (my_close(file,MYF(MY_WME)))
     goto err3;
   DBUG_RETURN(0);
 
@@ -165,6 +184,43 @@ err2:
 err3:
   my_delete(file_name,MYF(0));
   DBUG_RETURN(1);
+} /* mysql_create_frm */
+
+
+/*
+  Create a frm (table definition) file and the tables
+
+  SYNOPSIS
+    mysql_create_frm()
+    thd			Thread handler
+    file_name		Name of file (including database and .frm)
+    create_info		create info parameters
+    create_fields	Fields to create
+    keys		number of keys to create
+    key_info		Keys to create
+    db_file		Handler to use. May be zero, in which case we use
+    			create_info->db_type
+  RETURN
+    0  ok
+    1  error
+*/
+
+int rea_create_table(THD *thd, my_string file_name,
+		     HA_CREATE_INFO *create_info,
+		     List<create_field> &create_fields,
+		     uint keys, KEY *key_info)
+{
+  DBUG_ENTER("rea_create_table");
+
+  if (mysql_create_frm(thd, file_name, create_info,
+  		       create_fields, keys, key_info, NULL))
+    DBUG_RETURN(1);
+  if (ha_create_table(file_name,create_info,0))
+  {
+    my_delete(file_name,MYF(0));    
+    DBUG_RETURN(1);
+  }
+  DBUG_RETURN(0);
 } /* rea_create_table */
 
 
@@ -351,8 +407,12 @@ static bool pack_header(uchar *forminfo, enum db_type table_type,
 					   MTYP_NOEMPTY_BIT);
       no_empty++;
     }
-    if ((MTYP_TYPENR(field->unireg_check) == Field::TIMESTAMP_FIELD ||
-	 f_packtype(field->pack_flag) == (int) FIELD_TYPE_TIMESTAMP) &&
+    /* 
+      We mark first TIMESTAMP field with NOW() in DEFAULT or ON UPDATE 
+      as auto-update field.
+    */
+    if (field->sql_type == FIELD_TYPE_TIMESTAMP &&
+        MTYP_TYPENR(field->unireg_check) != Field::NONE &&
 	!time_stamp_pos)
       time_stamp_pos=(int) field->offset+1;
     length=field->pack_length;
@@ -471,7 +531,12 @@ static bool pack_fields(File file,List<create_field> &create_fields)
     buff[12]= (uchar) field->interval_id;
     buff[13]= (uchar) field->sql_type; 
     if (field->sql_type == FIELD_TYPE_GEOMETRY)
+    {
       buff[14]= (uchar) field->geom_type;
+#ifndef HAVE_SPATIAL
+      DBUG_ASSERT(0);                           // Should newer happen
+#endif
+    }
     else if (field->charset) 
       buff[14]= (uchar) field->charset->number;
     else
@@ -567,6 +632,7 @@ static bool make_empty_rec(File file,enum db_type table_type,
     DBUG_RETURN(1);
   }
 
+  table.in_use= current_thd;
   table.db_low_byte_first= handler->low_byte_first();
   table.blob_ptr_size=portable_sizeof_char_ptr;
 

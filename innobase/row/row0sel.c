@@ -930,7 +930,9 @@ row_sel_try_search_shortcut(
 	ut_ad(node->read_view);
 	ut_ad(plan->unique_search);
 	ut_ad(!plan->must_get_clust);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 	
 	row_sel_open_pcur(node, plan, TRUE, mtr);
 
@@ -1754,7 +1756,7 @@ row_sel_step(
 		return(NULL);
 	} else {
 		/* SQL error detected */
-		printf("SQL error %lu\n", (ulong) err);
+		fprintf(stderr, "SQL error %lu\n", (ulong) err);
 
 		que_thr_handle_error(thr, DB_ERROR, NULL, 0);
 
@@ -1804,7 +1806,7 @@ fetch_step(
 	
 	if (sel_node->state == SEL_NODE_CLOSED) {
 		/* SQL error detected */
-		printf("SQL error %lu\n", (ulong) DB_ERROR);
+		fprintf(stderr, "SQL error %lu\n", (ulong)DB_ERROR);
 
 		que_thr_handle_error(thr, DB_ERROR, NULL, 0);
 
@@ -1865,12 +1867,12 @@ row_printf_step(
 	while (arg) {
 		dfield_print_also_hex(que_node_get_val(arg));
 
-		printf(" ::: ");
+		fputs(" ::: ", stderr);
 
 		arg = que_node_get_next(arg);
 	}
 
-	printf("\n");
+	putc('\n', stderr);
 
 	/* Fetch next row to print */
 
@@ -1979,9 +1981,10 @@ row_sel_convert_mysql_key_to_innobase(
 			MySQL */
 			if (key_ptr[data_offset + 1] != 0) {
 				ut_print_timestamp(stderr);
-			        fprintf(stderr,
-"  InnoDB: Error: BLOB or TEXT prefix > 255 bytes in query to table %s\n",
-				 index->table_name);
+				fputs(
+"  InnoDB: Error: BLOB or TEXT prefix > 255 bytes in query to table ", stderr);
+				ut_print_name(stderr, index->table_name);
+				putc('\n', stderr);
 			}
 
 			data_len = key_ptr[data_offset];
@@ -2032,8 +2035,7 @@ row_sel_convert_mysql_key_to_innobase(
 					  (ulong) data_field_len,
 					  (ulong) (key_ptr - key_end));
 			fflush(stderr);
-			ut_print_buf(original_key_ptr, key_len);
-			fflush(stdout);
+			ut_print_buf(stderr, original_key_ptr, key_len);
 			fprintf(stderr, "\n");
 
 			if (!is_null) {
@@ -2066,21 +2068,19 @@ row_sel_store_row_id_to_prebuilt(
 {
 	byte*	data;
 	ulint	len;
-	char	err_buf[1000];
-
 	data = rec_get_nth_field(index_rec,
 			dict_index_get_sys_col_pos(index, DATA_ROW_ID), &len);
 
 	if (len != DATA_ROW_ID_LEN) {
-		rec_sprintf(err_buf, 900, index_rec);
-
 	        fprintf(stderr,
-"InnoDB: Error: Row id field is wrong length %lu in table %s index %s\n"
-"InnoDB: Field number %lu, record:\n%s\n",
-		      (ulong) len, index->table_name, index->name,
-		      (ulong) dict_index_get_sys_col_pos(index, DATA_ROW_ID),
-		      err_buf);
-		ut_a(0);
+"InnoDB: Error: Row id field is wrong length %lu in ", (ulong) len);
+		dict_index_name_print(stderr, index);
+		fprintf(stderr, "\n"
+"InnoDB: Field number %lu, record:\n",
+			(ulong) dict_index_get_sys_col_pos(index, DATA_ROW_ID));
+		rec_print(stderr, index_rec);
+		putc('\n', stderr);
+		ut_error;
 	}
 
 	ut_memcpy(prebuilt->row_id, data, len);
@@ -2363,8 +2363,7 @@ row_sel_get_clust_rec_for_mysql(
 	rec_t*		old_vers;
 	ulint		err;
 	trx_t*		trx;
-	char		err_buf[1000];
-	
+
 	*out_rec = NULL;
 	
 	row_build_row_ref_in_tuple(prebuilt->clust_ref, sec_index, rec);
@@ -2397,26 +2396,21 @@ row_sel_get_clust_rec_for_mysql(
 		    || prebuilt->select_lock_type != LOCK_NONE) {
 
 		        ut_print_timestamp(stderr);
-			fprintf(stderr,
-                "  InnoDB: error clustered record for sec rec not found\n"
-                "InnoDB: index %s table %s\n", sec_index->name,
-					       sec_index->table->name);
+			fputs("  InnoDB: error clustered record"
+				" for sec rec not found\n"
+				"InnoDB: ", stderr);
+			dict_index_name_print(stderr, sec_index);
+			fputs("\n"
+				"InnoDB: sec index record ", stderr);
+			rec_print(stderr, rec);
+			fputs("\n"
+				"InnoDB: clust index record ", stderr);
+			rec_print(stderr, clust_rec);
+			putc('\n', stderr);
+			trx_print(stderr, thr_get_trx(thr));
 
-			rec_sprintf(err_buf, 900, rec);
-			fprintf(stderr,
-		"InnoDB: sec index record %s\n", err_buf);
-
-			rec_sprintf(err_buf, 900, clust_rec);
-			fprintf(stderr,
-			 "InnoDB: clust index record %s\n", err_buf);
-
-			trx = thr_get_trx(thr);
-			trx_print(err_buf, trx);
-
-			fprintf(stderr,
-                "%s\nInnoDB: Make a detailed bug report and send it\n",
-                                                        err_buf);
-			fprintf(stderr, "InnoDB: to mysql@lists.mysql.com\n");
+			fputs("\n"
+"InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n", stderr);
 		}
 
 		clust_rec = NULL;
@@ -2577,10 +2571,35 @@ row_sel_pop_cached_row_for_mysql(
 					row */
 	row_prebuilt_t*	prebuilt)	/* in: prebuilt struct */
 {
-	ut_ad(prebuilt->n_fetch_cached > 0);
+	ulint			i;
+	mysql_row_templ_t*	templ;
+	byte*			cached_rec;
+        ut_ad(prebuilt->n_fetch_cached > 0);
+	
+	if (prebuilt->keep_other_fields_on_keyread)
+	{
+		/* Copy cache record field by field, don't touch fields that 
+		are not covered by current key */
+		cached_rec = 
+			prebuilt->fetch_cache[prebuilt->fetch_cache_first];
 
-	ut_memcpy(buf, prebuilt->fetch_cache[prebuilt->fetch_cache_first],
-						prebuilt->mysql_row_len);
+		for (i = 0; i < prebuilt->n_template; i++) {
+			templ = prebuilt->mysql_template + i;
+			ut_memcpy(
+				buf + templ->mysql_col_offset, 
+				cached_rec + templ->mysql_col_offset,
+				templ->mysql_col_len);
+
+			if (templ->mysql_null_bit_mask)
+				buf[templ->mysql_null_byte_offset] &= 
+					cached_rec[templ->mysql_null_byte_offset];
+		}
+	}
+	else
+	{
+		ut_memcpy(buf, prebuilt->fetch_cache[prebuilt->fetch_cache_first],
+				prebuilt->mysql_row_len);
+	}
 	prebuilt->n_fetch_cached--;
 	prebuilt->fetch_cache_first++;
 
@@ -2765,18 +2784,30 @@ row_search_for_mysql(
 	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
 		fprintf(stderr,
 		"InnoDB: Error: trying to free a corrupt\n"
-		"InnoDB: table handle. Magic n %lu, table name %s\n",
-		(ulong) prebuilt->magic_n, prebuilt->table->name);
+		"InnoDB: table handle. Magic n %lu, table name ",
+		(ulong) prebuilt->magic_n);
+		ut_print_name(stderr, prebuilt->table->name);
+		putc('\n', stderr);
 
 		mem_analyze_corruption((byte*)prebuilt);
 
+		ut_error;
+	}
+
+	if (trx->n_mysql_tables_in_use == 0) {
+		fputs(
+"InnoDB: Error: MySQL is trying to perform a SELECT\n"
+"InnoDB: but it has not locked any tables in ::external_lock()!\n",
+                      stderr);
+		trx_print(stderr, trx);
+                fputc('\n', stderr);
 		ut_a(0);
 	}
 
-/*	printf("Match mode %lu\n search tuple ", match_mode);
+/*	fprintf(stderr, "Match mode %lu\n search tuple ", (ulong) match_mode);
 	dtuple_print(search_tuple);
 	
-	printf("N tables locked %lu\n", trx->mysql_n_tables_locked);
+	fprintf(stderr, "N tables locked %lu\n", trx->mysql_n_tables_locked);
 */
 	/*-------------------------------------------------------------*/
 	/* PHASE 0: Release a possible s-latch we are holding on the
@@ -2800,7 +2831,7 @@ row_search_for_mysql(
 	/* PHASE 1: Try to pop the row from the prefetch cache */
 
 	if (direction == 0) {
-		trx->op_info = (char *) "starting index read";
+		trx->op_info = "starting index read";
 	
 		prebuilt->n_rows_fetched = 0;
 		prebuilt->n_fetch_cached = 0;
@@ -2811,7 +2842,7 @@ row_search_for_mysql(
 			row_prebuild_sel_graph(prebuilt);
 		}
 	} else {
-		trx->op_info = (char *) "fetching rows";
+		trx->op_info = "fetching rows";
 
 		if (prebuilt->n_rows_fetched == 0) {
 			prebuilt->fetch_direction = direction;
@@ -2819,7 +2850,7 @@ row_search_for_mysql(
 
 		if (direction != prebuilt->fetch_direction) {
 			if (prebuilt->n_fetch_cached > 0) {
-				ut_a(0);
+				ut_error;
 				/* TODO: scrollable cursor: restore cursor to
 				the place of the latest returned row,
 				or better: prevent caching for a scroll
@@ -2836,7 +2867,7 @@ row_search_for_mysql(
 			prebuilt->n_rows_fetched++;
 
 			srv_n_rows_read++;
-			trx->op_info = (char *) "";
+			trx->op_info = "";
 
 			return(DB_SUCCESS);
 		}
@@ -2848,7 +2879,7 @@ row_search_for_mysql(
 		    	cache, but the cache was not full at the time of the
 		    	popping: no more rows can exist in the result set */
 		    
-			trx->op_info = (char *) "";
+			trx->op_info = "";
 		    	return(DB_RECORD_NOT_FOUND);
 		}
 		
@@ -2874,7 +2905,16 @@ row_search_for_mysql(
 	if (match_mode == ROW_SEL_EXACT
 	    && index->type & DICT_UNIQUE
 	    && dtuple_get_n_fields(search_tuple)
-				== dict_index_get_n_unique(index)) {
+					== dict_index_get_n_unique(index)
+	    && (index->type & DICT_CLUSTERED
+		 || !dtuple_contains_null(search_tuple))) {
+
+		/* Note above that a UNIQUE secondary index can contain many
+		rows with the same key value if one of the columns is the SQL
+		null. A clustered index under MySQL can never contain null
+		columns because we demand that all the columns in primary key
+		are non-null. */
+
 		unique_search = TRUE;
 
 		/* Even if the condition is unique, MySQL seems to try to
@@ -2884,12 +2924,10 @@ row_search_for_mysql(
 
 		if (direction != 0 && !prebuilt->used_in_HANDLER) {
         
-			trx->op_info = (char *) "";
+			trx->op_info = "";
 			return(DB_RECORD_NOT_FOUND);
 		}
 	}
-
-	mtr_start(&mtr);
 
 	mtr_start(&mtr);
 
@@ -2953,7 +2991,8 @@ row_search_for_mysql(
 	
  				mtr_commit(&mtr);
 
- 				/* printf("%s shortcut\n", index->name); */
+				/* ut_print_name(stderr, index->name);
+				fputs(" shortcut\n", stderr); */
 
 				srv_n_rows_read++;
 				
@@ -2966,7 +3005,7 @@ row_search_for_mysql(
 					trx->has_search_latch = FALSE;
 				}    	
 				
-				trx->op_info = (char *) "";
+				trx->op_info = "";
 				
 				/* NOTE that we do NOT store the cursor
 				position */
@@ -2977,8 +3016,8 @@ row_search_for_mysql(
 
  				mtr_commit(&mtr);
 
-				/* printf("%s record not found 2\n",
-							index->name); */
+				/* ut_print_name(stderr, index->name);
+				fputs(" record not found 2\n", stderr); */
 
 				if (trx->search_latch_timeout > 0
 				    && trx->has_search_latch) {
@@ -2989,7 +3028,7 @@ row_search_for_mysql(
 					trx->has_search_latch = FALSE;
 				}
 
-				trx->op_info = (char *) "";
+				trx->op_info = "";
 
 				/* NOTE that we do NOT store the cursor
 				position */
@@ -3072,6 +3111,16 @@ shortcut_fails_too_big_rec:
 	if (!prebuilt->sql_stat_start) {
 		/* No need to set an intention lock or assign a read view */
 
+		if (trx->read_view == NULL
+		    && prebuilt->select_lock_type == LOCK_NONE) {
+
+			fputs(
+"InnoDB: Error: MySQL is trying to perform a consistent read\n"
+"InnoDB: but the read view is not assigned!\n", stderr);
+			trx_print(stderr, trx);
+                        fputc('\n', stderr);
+			ut_a(0);
+		}
 	} else if (prebuilt->select_lock_type == LOCK_NONE) {
 		/* This is a consistent read */	
 		/* Assign a read view for the query */
@@ -3098,8 +3147,9 @@ rec_loop:
 	
 	rec = btr_pcur_get_rec(pcur);
 /*
-	printf("Using index %s cnt %lu ", index->name, cnt);
-	printf("; Page no %lu\n",
+	fputs("Using ", stderr);
+	dict_index_name_print(stderr, index);
+	fprintf(stderr, " cnt %lu ; Page no %lu\n", cnt,
 			buf_frame_get_page_no(buf_frame_align(rec)));
 	rec_print(rec);
 */
@@ -3145,12 +3195,14 @@ rec_loop:
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
 "  InnoDB: Index corruption: rec offs %lu next offs %lu, page no %lu,\n"
-"InnoDB: index %s, table %s. Run CHECK TABLE to table. You may need to\n"
+"InnoDB: ",
+				(ulong) (rec - buf_frame_align(rec)),
+				(ulong) next_offs,
+				(ulong) buf_frame_get_page_no(rec));
+			dict_index_name_print(stderr, index);
+			fputs(". Run CHECK TABLE. You may need to\n"
 "InnoDB: restore from a backup, or dump + drop + reimport the table.\n",
-			   (ulong) (rec - buf_frame_align(rec)),
-			   (ulong) next_offs,
-			   (ulong) buf_frame_get_page_no(rec), index->name,
-			   index->table_name);
+			      stderr);
 		
 			err = DB_CORRUPTION;
 
@@ -3161,11 +3213,13 @@ rec_loop:
 
 			fprintf(stderr,
 "InnoDB: Index corruption: rec offs %lu next offs %lu, page no %lu,\n"
-"InnoDB: index %s, table %s. We try to skip the rest of the page.\n",
+"InnoDB: ",
 			   (ulong) (rec - buf_frame_align(rec)),
 			   (ulong) next_offs,
-			   (ulong) buf_frame_get_page_no(rec), index->name,
-			   index->table_name);
+			   (ulong) buf_frame_get_page_no(rec));
+			dict_index_name_print(stderr, index);
+			fputs(". We try to skip the rest of the page.\n",
+				stderr);
 
 			btr_pcur_move_to_last_on_page(pcur, &mtr);
 
@@ -3177,12 +3231,14 @@ rec_loop:
 		if (!rec_validate(rec) || !btr_index_rec_validate(rec, index,
 								FALSE)) {
 			fprintf(stderr,
-"InnoDB: Index record corruption: rec offs %lu next offs %lu, page no %lu,\n"
-"InnoDB: index %s, table %s. We try to skip the record.\n",
+"InnoDB: Index corruption: rec offs %lu next offs %lu, page no %lu,\n"
+"InnoDB: ",
 			   (ulong) (rec - buf_frame_align(rec)),
 			   (ulong) next_offs,
-			   (ulong) buf_frame_get_page_no(rec), index->name,
-			   index->table_name);
+			   (ulong) buf_frame_get_page_no(rec));
+			dict_index_name_print(stderr, index);
+			fputs(". We try to skip the record.\n",
+				stderr);
 
 			goto next_rec;
 		}
@@ -3199,7 +3255,7 @@ rec_loop:
 		/* Test if the index record matches completely to search_tuple
 		in prebuilt: if not, then we return with DB_RECORD_NOT_FOUND */
 
-		/* printf("Comparing rec and search tuple\n"); */
+		/* fputs("Comparing rec and search tuple\n", stderr); */
 		
 		if (0 != cmp_dtuple_rec(search_tuple, rec)) {
 
@@ -3219,7 +3275,8 @@ rec_loop:
 			btr_pcur_store_position(pcur, &mtr);
 
 			ret = DB_RECORD_NOT_FOUND;
- 			/* printf("%s record not found 3\n", index->name); */
+			/* ut_print_name(stderr, index->name);
+			fputs(" record not found 3\n", stderr); */
 			
 			goto normal_return;
 		}
@@ -3244,7 +3301,8 @@ rec_loop:
 			btr_pcur_store_position(pcur, &mtr);
 
 			ret = DB_RECORD_NOT_FOUND;
- 			/* printf("%s record not found 4\n", index->name); */
+			/* ut_print_name(stderr, index->name);
+			fputs(" record not found 4\n", stderr); */
 
 			goto normal_return;
 		}
@@ -3514,9 +3572,10 @@ lock_wait_or_error:
 		goto rec_loop;
 	}
 
-	/* printf("Using index %s cnt %lu ret value %lu err\n", index->name,
-							cnt, err); */
-	trx->op_info = (char *) "";
+/*	fputs("Using ", stderr);
+	dict_index_name_print(stderr, index);
+	fprintf(stderr, " cnt %lu ret value %lu err\n", cnt, err); */
+	trx->op_info = "";
 
 	return(err);
 
@@ -3532,13 +3591,14 @@ normal_return:
 		ret = DB_SUCCESS;
 	}
 
-	/* printf("Using index %s cnt %lu ret value %lu\n", index->name,
-							cnt, err); */
+/*	fputs("Using ", stderr);
+	dict_index_name_print(stderr, index);
+	fprintf(stderr, " cnt %lu ret value %lu err\n", cnt, err); */
 	if (ret == DB_SUCCESS) {
 		srv_n_rows_read++;
 	}
 
-	trx->op_info = (char *) "";
+	trx->op_info = "";
 
 	return(ret);
 }
@@ -3550,11 +3610,11 @@ consistent read result, or store it to the query cache. */
 ibool
 row_search_check_if_query_cache_permitted(
 /*======================================*/
-				/* out: TRUE if storing or retrieving from
-				the query cache is permitted */
-	trx_t*	trx,		/* in: transaction object */
-	char*	norm_name)	/* in: concatenation of database name, '/'
-				char, table name */
+					/* out: TRUE if storing or retrieving
+					from the query cache is permitted */
+	trx_t*		trx,		/* in: transaction object */
+	const char*	norm_name)	/* in: concatenation of database name,
+					'/' char, table name */
 {
 	dict_table_t*	table;
 	ibool		ret 	= FALSE;

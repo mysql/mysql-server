@@ -17,20 +17,7 @@
 #include "mysys_priv.h"
 
 #ifndef HAVE_COMPRESS
-
-/* minimal set of defines for using crc32() from zlib codebase */
-#define _ZLIB_H
-#define ZEXPORT
-#define Z_NULL  0
-#define OF(args)  args
 #undef DYNAMIC_CRC_TABLE
-typedef uchar  Byte;
-typedef uchar  Bytef;
-typedef uint   uInt;
-typedef ulong  uLong;
-typedef ulong  uLongf;
-
 #include "../zlib/crc32.c"
-
 #endif
 

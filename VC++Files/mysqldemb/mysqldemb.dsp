@@ -19,6 +19,8 @@ CFG=mysqldemb - Win32 Debug
 !MESSAGE
 !MESSAGE "mysqldemb - Win32 Release" (based on "Win32 (x86) Static Library")
 !MESSAGE "mysqldemb - Win32 Debug" (based on "Win32 (x86) Static Library")
+!MESSAGE "mysqldemb - Win32 classic" (based on "Win32 (x86) Static Library")
+!MESSAGE "mysqldemb - Win32 pro" (based on "Win32 (x86) Static Library")
 !MESSAGE
 
 # Begin Project
@@ -41,7 +43,7 @@ RSC=rc.exe
 # PROP Intermediate_Dir "release"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_MBCS" /D "_LIB" /YX /FD /c
-# ADD CPP /nologo /MT /W3 /O2 /I "../include" /I "../regex" /I "../sql" /I "../bdb/build_win32" /I "../zlib" /D "WIN32" /D "NDEBUG" /D "_MBCS" /D "_LIB" /D "USE_SYMDIR" /D "SIGNAL_WITH_VIO_CLOSE" /D "HAVE_DLOPEN" /D "EMBEDDED_LIBRARY" /D "MYSQL_SERVER" /D "HAVE_INNOBASE_DB" /D "DBUG_OFF" /D "USE_TLS" /D "__WIN__" /FD /c
+# ADD CPP /nologo /MT /W3 /O2 /I "../include" /I "../regex" /I "../libmysqld" /I "../sql" /I "../bdb/build_win32" /I "../zlib" /D "WIN32" /D "NDEBUG" /D "_MBCS" /D "_LIB" /D "SIGNAL_WITH_VIO_CLOSE" /D "HAVE_DLOPEN" /D "EMBEDDED_LIBRARY" /D "MYSQL_SERVER" /D "HAVE_INNOBASE_DB" /D "DBUG_OFF" /D "USE_TLS" /D "__WIN__" /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x416 /d "NDEBUG"
 # ADD RSC /l 0x416 /d "NDEBUG"
@@ -65,7 +67,7 @@ LIB32=xilink6.exe -lib
 # PROP Intermediate_Dir "Debug"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_MBCS" /D "_LIB" /YX /FD /GZ /c
-# ADD CPP /nologo /MTd /W3 /Z7 /Od /I "../zlib" /I "../include" /I "../regex" /I "../sql" /I "../bdb/build_win32" /D "WIN32" /D "_DEBUG" /D "_MBCS" /D "_LIB" /D "USE_SYMDIR" /D "SIGNAL_WITH_VIO_CLOSE" /D "HAVE_DLOPEN" /D "EMBEDDED_LIBRARY" /D "MYSQL_SERVER" /D "HAVE_INNOBASE_DB" /D "USE_TLS" /D "__WIN__" /FD /GZ /c
+# ADD CPP /nologo /MTd /W3 /Z7 /Od /I "../zlib" /I "../include" /I "../regex" /I "../libmysqld" /I "../sql" /I "../bdb/build_win32" /D "WIN32" /D "_DEBUG" /D "_MBCS" /D "_LIB" /D "USE_SYMDIR" /D "SIGNAL_WITH_VIO_CLOSE" /D "HAVE_DLOPEN" /D "EMBEDDED_LIBRARY" /D "MYSQL_SERVER" /D "HAVE_INNOBASE_DB" /D "USE_TLS" /D "__WIN__" /FD /GZ /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x416 /d "_DEBUG"
 # ADD RSC /l 0x416 /d "_DEBUG"
@@ -74,7 +76,56 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo
-# ADD LIB32 /nologo
+# ADD LIB32 /nologo /out:"../lib_debug/mysqldemb.lib"
+
+!ELSEIF  "$(CFG)" == "mysqldemb - Win32 classic"
+
+# PROP BASE Use_MFC 0
+# PROP BASE Use_Debug_Libraries 0
+# PROP BASE Output_Dir "mysqldemb___Win32_classic"
+# PROP BASE Intermediate_Dir "mysqldemb___Win32_classic"
+# PROP BASE Target_Dir ""
+# PROP Use_MFC 0
+# PROP Use_Debug_Libraries 0
+# PROP Output_Dir "classic"
+# PROP Intermediate_Dir "classic"
+# PROP Target_Dir ""
+# ADD BASE CPP /nologo /MT /W3 /O2 /I "../include" /I "../regex" /I "../libmysqld" /I "../sql" /I "../zlib" /D "WIN32" /D "_MBCS" /D "_LIB" /D "USE_SYMDIR" /D "SIGNAL_WITH_VIO_CLOSE" /D "HAVE_DLOPEN" /D "EMBEDDED_LIBRARY" /D "MYSQL_SERVER" /D "DBUG_OFF" /D "USE_TLS" /D "__WIN__" /D "NDEBUG"  /FD /c
+# SUBTRACT BASE CPP /YX
+# ADD CPP /nologo /MT /W3 /O2 /I "../include" /I "../regex" /I "../libmysqld" /I "../sql" /I "../zlib" /D "WIN32" /D "_LIB" /D "SIGNAL_WITH_VIO_CLOSE" /D "HAVE_DLOPEN" /D "EMBEDDED_LIBRARY" /D "MYSQL_SERVER" /D "USE_TLS" /D "__WIN__" /D LICENSE=Commercial /D "DBUG_OFF" /D "_MBCS" /D "NDEBUG"  /FD  /c
+# SUBTRACT CPP /YX
+# ADD BASE RSC /l 0x416 /d "NDEBUG"
+# ADD RSC /l 0x416 /d "NDEBUG"
+BSC32=bscmake.exe
+# ADD BASE BSC32 /nologo
+# ADD BSC32 /nologo
+LIB32=xilink6.exe -lib
+# ADD BASE LIB32 /nologo
+# ADD LIB32 /nologo /out:"..\lib_classic\mysqldemb.lib"
+
+!ELSEIF  "$(CFG)" == "mysqldemb - Win32 pro"
+
+# PROP BASE Use_MFC 0
+# PROP BASE Use_Debug_Libraries 0
+# PROP BASE Output_Dir "mysqldemb___Win32_pro"
+# PROP BASE Intermediate_Dir "mysqldemb___Win32_pro"
+# PROP BASE Target_Dir ""
+# PROP Use_MFC 0
+# PROP Use_Debug_Libraries 0
+# PROP Output_Dir "pro"
+# PROP Intermediate_Dir "pro"
+# PROP Target_Dir ""
+# ADD BASE CPP /nologo /MT /W3 /O2 /I "../include" /I "../regex" /I "../libmysqld" /I "../sql" /I "../zlib" /D "WIN32" /D "_MBCS" /D "_LIB" /D "USE_SYMDIR" /D "SIGNAL_WITH_VIO_CLOSE" /D "HAVE_DLOPEN" /D "EMBEDDED_LIBRARY" /D "MYSQL_SERVER" /D "HAVE_INNOBASE_DB" /D "DBUG_OFF" /D "USE_TLS" /D "__WIN__" /D "NDEBUG"  /FD /c
+# SUBTRACT BASE CPP /YX
+# ADD CPP /nologo /MT /W3 /O2 /I "../include" /I "../regex" /I "../libmysqld" /I "../sql" /I "../zlib" /D "WIN32" /D "_LIB" /D "SIGNAL_WITH_VIO_CLOSE" /D "EMBEDDED_LIBRARY" /D "USE_TLS" /D "__WIN__" /D "USE_SYMDIR" /D "MYSQL_SERVER" /D LICENSE=Commercial /D "_MBCS" /D "HAVE_DLOPEN" /D "HAVE_INNOBASE_DB" /D "DBUG_OFF" /D "NDEBUG" /D "_WINDOWS" /D "_CONSOLE" /FD /D MYSQL_SERVER_SUFFIX=-pro /c
+# ADD BASE RSC /l 0x416 /d "NDEBUG"
+# ADD RSC /l 0x416 /d "NDEBUG"
+BSC32=bscmake.exe
+# ADD BASE BSC32 /nologo
+# ADD BSC32 /nologo
+LIB32=xilink6.exe -lib
+# ADD BASE LIB32 /nologo
+# ADD LIB32 /nologo /out:"..\lib_pro\mysqldemb.lib"
 
 !ENDIF
 
@@ -82,6 +133,8 @@ LIB32=xilink6.exe -lib
 
 # Name "mysqldemb - Win32 Release"
 # Name "mysqldemb - Win32 Debug"
+# Name "mysqldemb - Win32 classic"
+# Name "mysqldemb - Win32 pro"
 # Begin Source File
 
 SOURCE=..\sql\derror.cpp
@@ -217,10 +270,6 @@ SOURCE=..\sql\mf_iocache.cpp
 # Begin Source File
 
 SOURCE=..\sql\net_serv.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=..\sql\opt_ft.cpp
 # End Source File
 # Begin Source File
 

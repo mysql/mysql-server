@@ -7,6 +7,7 @@ compilation module but is included in mem0mem.*.
 Created 6/8/1994 Heikki Tuuri
 *************************************************************************/
 
+#ifdef UNIV_MEM_DEBUG
 extern mutex_t	mem_hash_mutex;
 extern ulint	mem_current_allocated_memory;
 
@@ -53,7 +54,7 @@ void
 mem_hash_insert(
 /*============*/
 	mem_heap_t*	heap,	   /* in: the created heap */
-	char*		file_name, /* in: file name of creation */
+	const char*	file_name, /* in: file name of creation */
 	ulint		line);	   /* in: line where created */
 /*******************************************************************
 Removes a memory heap (which is going to be freed by the caller)
@@ -68,7 +69,7 @@ void
 mem_hash_remove(
 /*============*/
 	mem_heap_t*	heap,	   /* in: the heap to be freed */
-	char*		file_name, /* in: file name of freeing */
+	const char*	file_name, /* in: file name of freeing */
 	ulint		line);	   /* in: line where freed */
 
 
@@ -89,3 +90,4 @@ mem_field_trailer_set_check(byte* field, ulint check);
 
 ulint
 mem_field_trailer_get_check(byte* field);
+#endif /* UNIV_MEM_DEBUG */

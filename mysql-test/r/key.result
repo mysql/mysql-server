@@ -34,10 +34,10 @@ INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','N','N','N','N');
 INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','N','N','N','N');
 INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','','','','');
 Warnings:
-Warning	1264	Data truncated for column 'transityes' at row 1
-Warning	1264	Data truncated for column 'shopsyes' at row 1
-Warning	1264	Data truncated for column 'schoolsyes' at row 1
-Warning	1264	Data truncated for column 'petsyes' at row 1
+Warning	1265	Data truncated for column 'transityes' at row 1
+Warning	1265	Data truncated for column 'shopsyes' at row 1
+Warning	1265	Data truncated for column 'schoolsyes' at row 1
+Warning	1265	Data truncated for column 'petsyes' at row 1
 INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','Y','Y','Y','Y');
 INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','Y','Y','Y','Y');
 INSERT INTO t1 VALUES (900,'Vancouver','Shared/Roomate','Y','Y','Y','Y');
@@ -156,8 +156,8 @@ CREATE TABLE t1 (c CHAR(10) NOT NULL,i INT NOT NULL AUTO_INCREMENT,
 UNIQUE (c,i));
 INSERT INTO t1 (c) VALUES (NULL),(NULL);
 Warnings:
-Warning	1262	Data truncated, NULL supplied to NOT NULL column 'c' at row 1
-Warning	1262	Data truncated, NULL supplied to NOT NULL column 'c' at row 2
+Warning	1263	Data truncated; NULL supplied to NOT NULL column 'c' at row 1
+Warning	1263	Data truncated; NULL supplied to NOT NULL column 'c' at row 2
 SELECT * FROM t1;
 c	i
 	1
@@ -184,4 +184,54 @@ NULL	1
 NULL	2
 a	1
 a	2
+drop table t1;
+create table t1 (i int, a char(200), b text, unique (a), unique (b(300))) charset utf8;
+insert t1 values (1, repeat('a',210), repeat('b', 310));
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+insert t1 values (2, repeat(0xD0B1,215), repeat(0xD0B1, 310));
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+select i, length(a), length(b), char_length(a), char_length(b) from t1;
+i	length(a)	length(b)	char_length(a)	char_length(b)
+1	200	310	200	310
+2	400	620	200	310
+select i from t1 where a=repeat(_utf8 'a',200);
+i
+1
+select i from t1 where a=repeat(_utf8 0xD0B1,200);
+i
+2
+select i from t1 where b=repeat(_utf8 'b',310);
+i
+1
+drop table t1;
+CREATE TABLE t1 (id int unsigned auto_increment, name char(50), primary key (id)) engine=myisam;
+insert into t1 (name) values ('a'), ('b'),('c'),('d'),('e'),('f'),('g');
+explain select 1 from t1 where id =2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	Using index
+explain select 1 from t1 where id =2 or id=3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	PRIMARY	PRIMARY	4	NULL	7	Using where; Using index
+explain select name from t1 where id =2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
+ALTER TABLE t1 DROP PRIMARY KEY, ADD INDEX (id);
+explain select 1 from t1 where id =2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	id	id	4	const	1	Using index
+drop table t1;
+CREATE TABLE t1 (numeropost mediumint(8) unsigned NOT NULL default '0', numreponse int(10) unsigned NOT NULL auto_increment, PRIMARY KEY (numeropost,numreponse), UNIQUE KEY numreponse (numreponse));
+INSERT INTO t1 (numeropost,numreponse) VALUES ('1','1'),('1','2'),('2','3'),('2','4');
+SELECT numeropost FROM t1 WHERE numreponse='1';
+numeropost
+1
+EXPLAIN SELECT numeropost FROM t1 WHERE numreponse='1';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	const	numreponse	numreponse	4	const	1	Using index
+FLUSH TABLES;
+SELECT numeropost FROM t1 WHERE numreponse='1';
+numeropost
+1
 drop table t1;

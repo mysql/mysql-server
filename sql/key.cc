@@ -156,9 +156,28 @@ void key_restore(TABLE *table,byte *key,uint idx,uint key_length)
 } /* key_restore */
 
 
-	/* Compare if a key has changed */
+/*
+  Compare if a key has changed
 
-int key_cmp(TABLE *table,const byte *key,uint idx,uint key_length)
+  SYNOPSIS
+    key_cmp_if_same()
+    table		TABLE
+    key			key to compare to row
+    idx			Index used
+    key_length		Length of key
+
+  NOTES
+    In theory we could just call field->cmp() for all field types,
+    but as we are only interested if a key has changed (not if the key is
+    larger or smaller than the previous value) we can do things a bit
+    faster by using memcmp() instead.
+
+  RETURN
+    0	If key is equal
+    1	Key has changed
+*/
+
+bool key_cmp_if_same(TABLE *table,const byte *key,uint idx,uint key_length)
 {
   uint length;
   KEY_PART_INFO *key_part;
@@ -182,9 +201,9 @@ int key_cmp(TABLE *table,const byte *key,uint idx,uint key_length)
     }
     if (key_part->key_part_flag & (HA_BLOB_PART | HA_VAR_LENGTH))
     {
-      if (key_part->field->key_cmp(key, key_part->length+2))
+      if (key_part->field->key_cmp(key, key_part->length+ HA_KEY_BLOB_LENGTH))
 	return 1;
-      length=key_part->length+2;
+      length=key_part->length+HA_KEY_BLOB_LENGTH;
     }
     else
     {
@@ -233,7 +252,7 @@ void key_unpack(String *to,TABLE *table,uint idx)
     }
     if ((field=key_part->field))
     {
-      field->val_str(&tmp,&tmp);
+      field->val_str(&tmp);
       if (key_part->length < field->pack_length())
 	tmp.length(min(tmp.length(),key_part->length));
       to->append(tmp);
@@ -280,4 +299,57 @@ bool check_if_key_used(TABLE *table, uint idx, List<Item> &fields)
       (table->file->table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX))
     return check_if_key_used(table, table->primary_key, fields);
   return 0;
+}
+
+
+/*
+  Compare key in row to a given key
+
+  SYNOPSIS
+    key_cmp()
+    key_part		Key part handler
+    key			Key to compare to value in table->record[0]
+    key_length		length of 'key'
+
+  RETURN
+    The return value is SIGN(key_in_row - range_key):
+
+    0			Key is equal to range or 'range' == 0 (no range)
+   -1			Key is less than range
+    1			Key is larger than range
+*/
+
+int key_cmp(KEY_PART_INFO *key_part, const byte *key, uint key_length)
+{
+  uint store_length;
+
+  for (const byte *end=key + key_length;
+       key < end;
+       key+= store_length, key_part++)
+  {
+    int cmp;
+    store_length= key_part->store_length;
+    if (key_part->null_bit)
+    {
+      /* This key part allows null values; NULL is lower than everything */
+      register bool field_is_null= key_part->field->is_null();
+      if (*key)                                 // If range key is null
+      {
+	/* the range is expecting a null value */
+	if (!field_is_null)
+	  return 1;                             // Found key is > range
+        /* null -- exact match, go to next key part */
+	continue;
+      }
+      else if (field_is_null)
+	return -1;                              // NULL is less than any value
+      key++;					// Skip null byte
+      store_length--;
+    }
+    if ((cmp=key_part->field->key_cmp((byte*) key, key_part->length)) < 0)
+      return -1;
+    if (cmp > 0)
+      return 1;
+  }
+  return 0;                                     // Keys are equal
 }

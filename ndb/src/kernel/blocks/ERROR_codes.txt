@@ -1,0 +1,429 @@
+Next QMGR 1
+Next NDBCNTR 1000
+Next NDBFS 2000
+Next DBACC 3001
+Next DBTUP 4007
+Next DBLQH 5036
+Next DBDICT 6006
+Next DBDIH 7173
+Next DBTC 8035
+Next CMVMI 9000
+Next BACKUP 10022
+Next DBUTIL 11002
+Next DBTUX 12001
+Next SUMA 13001
+
+TESTING NODE FAILURE, ARBITRATION
+---------------------------------
+
+911 - 919:
+Crash president when he starts to run in ArbitState 1-9.
+
+910: Crash new president after node crash
+
+ERROR CODES FOR TESTING NODE FAILURE, GLOBAL CHECKPOINT HANDLING:
+-----------------------------------------------------------------
+
+7000:
+Insert system error in master when global checkpoint is idle.
+
+7001:
+Insert system error in master after receiving GCP_PREPARE from
+all nodes in the cluster.
+
+7002:
+Insert system error in master after receiving GCP_NODEFINISH from
+all nodes in the cluster.
+
+7003:
+Insert system error in master after receiving GCP_SAVECONF from
+all nodes in the cluster.
+
+7004:
+Insert system error in master after completing global checkpoint with
+all nodes in the cluster.
+
+7005:
+Insert system error in GCP participant when receiving GCP_PREPARE.
+
+7006:
+Insert system error in GCP participant when receiving GCP_COMMIT.
+
+7007:
+Insert system error in GCP participant when receiving GCP_TCFINISHED.
+
+7008:
+Insert system error in GCP participant when receiving COPY_GCICONF.
+
+5000:
+Insert system error in GCP participant when receiving GCP_SAVEREQ.
+
+5007:
+Delay GCP_SAVEREQ by 10 secs
+
+ERROR CODES FOR TESTING NODE FAILURE, LOCAL CHECKPOINT HANDLING:
+-----------------------------------------------------------------
+
+7009:
+Insert system error in master when local checkpoint is idle.
+
+7010:
+Insert system error in master when local checkpoint is in the
+state clcpStatus = CALCULATE_KEEP_GCI.
+
+7011:
+Stop local checkpoint in the state CALCULATE_KEEP_GCI.
+
+7012:
+Restart local checkpoint after stopping in CALCULATE_KEEP_GCI.
+
+Method:
+1) Error 7011 in master, wait until report of stopped.
+2) Error xxxx in participant to crash it.
+3) Error 7012 in master to start again.
+
+7013:
+Insert system error in master when local checkpoint is in the
+state clcpStatus = COPY_GCI before sending COPY_GCIREQ.
+
+7014:
+Insert system error in master when local checkpoint is in the
+state clcpStatus = TC_CLOPSIZE before sending TC_CLOPSIZEREQ.
+
+7015:
+Insert system error in master when local checkpoint is in the
+state clcpStatus = START_LCP_ROUND before sending START_LCP_ROUND.
+
+7016:
+Insert system error in master when local checkpoint is in the
+state clcpStatus = START_LCP_ROUND after receiving LCP_REPORT.
+
+7017:
+Insert system error in master when local checkpoint is in the
+state clcpStatus = TAB_COMPLETED.
+
+7018:
+Insert system error in master when local checkpoint is in the
+state clcpStatus = TAB_SAVED before sending DIH_LCPCOMPLETE.
+
+7019:
+Insert system error in master when local checkpoint is in the
+state clcpStatus = IDLE before sending CONTINUEB(ZCHECK_TC_COUNTER).
+
+7020:
+Insert system error in local checkpoint participant at reception of
+COPY_GCIREQ.
+
+7075: Master
+Don't send any LCP_FRAG_ORD(last=true)
+And crash when all have "not" been sent
+
+8000: Crash particpant when receiving TCGETOPSIZEREQ
+8001: Crash particpant when receiving TC_CLOPSIZEREQ
+5010: Crash any when receiving LCP_FRAGORD
+
+7021: Crash in  master when receiving START_LCP_REQ
+7022: Crash in !master when receiving START_LCP_REQ
+
+7023: Crash in  master when sending START_LCP_CONF
+7024: Crash in !master when sending START_LCP_CONF
+
+7025: Crash in  master when receiving LCP_FRAG_REP
+7016: Crash in !master when receiving LCP_FRAG_REP
+
+7026: Crash in  master when changing state to LCP_TAB_COMPLETED 
+7017: Crash in !master when changing state to LCP_TAB_COMPLETED 
+
+7027: Crash in  master when changing state to LCP_TAB_SAVED
+7018: Crash in  master when changing state to LCP_TAB_SAVED
+
+ERROR CODES FOR TESTING NODE FAILURE, FAILURE IN COPY FRAGMENT PROCESS:
+-----------------------------------------------------------------------
+
+5002:
+Insert node failure in starting node when receiving a tuple copied from the copy node
+as part of copy fragment process.
+5003:
+Insert node failure when receiving ABORT signal.
+
+5004:
+Insert node failure handling when receiving COMMITREQ.
+
+5005:
+Insert node failure handling when receiving COMPLETEREQ.
+
+5006:
+Insert node failure handling when receiving ABORTREQ.
+
+These error code can be combined with error codes for testing time-out
+handling in DBTC to ensure that node failures are also well handled in
+time-out handling. They can also be used to test multiple node failure
+handling.
+
+ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBLQH
+-------------------------------------------------
+5011:
+Delay execution of COMMIT signal 2 seconds to generate time-out.
+
+5012 (use 5017):
+First delay execution of COMMIT signal 2 seconds to generate COMMITREQ.
+Delay execution of COMMITREQ signal 2 seconds to generate time-out.
+
+5013:
+Delay execution of COMPLETE signal 2 seconds to generate time-out.
+
+5014 (use 5018):
+First delay execution of COMPLETE signal 2 seconds to generate COMPLETEREQ.
+Delay execution of COMPLETEREQ signal 2 seconds to generate time-out.
+
+5015:
+Delay execution of ABORT signal 2 seconds to generate time-out.
+
+5016: (ABORTREQ only as part of take-over)
+Delay execution of ABORTREQ signal 2 seconds to generate time-out.
+
+5031: lqhKeyRef, ZNO_TC_CONNECT_ERROR
+5032: lqhKeyRef, ZTEMPORARY_REDO_LOG_FAILURE
+5033: lqhKeyRef, ZTAIL_PROBLEM_IN_LOG_ERROR
+
+5034: Don't pop scan queue
+
+5035: Delay ACC_CONTOPCONT
+
+ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBTC
+-------------------------------------------------
+8040:
+Delay execution of ABORTED signal 2 seconds to generate time-out.
+
+8041:
+Delay execution of COMMITTED signal 2 seconds to generate time-out.
+8042 (use 8046):
+Delay execution of COMMITTED signal 2 seconds to generate COMMITCONF.
+Delay execution of COMMITCONF signal 2 seconds to generate time-out.
+
+8043:
+Delay execution of COMPLETED signal 2 seconds to generate time-out.
+
+8044 (use 8047):
+Delay execution of COMPLETED signal 2 seconds to generate COMPLETECONF.
+Delay execution of COMPLETECONF signal 2 seconds to generate time-out.
+
+8045: (ABORTCONF only as part of take-over)
+Delay execution of ABORTCONF signal 2 seconds to generate time-out.
+
+ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBTC
+-------------------------------------------------
+
+8003: Throw away a LQHKEYCONF in state STARTED
+8004: Throw away a LQHKEYCONF in state RECEIVING
+8005: Throw away a LQHKEYCONF in state REC_COMMITTING
+8006: Throw away a LQHKEYCONF in state START_COMMITTING
+
+8007: Ignore send of LQHKEYREQ in state STARTED
+8008: Ignore send of LQHKEYREQ in state START_COMMITTING
+
+8009: Ignore send of LQHKEYREQ+ATTRINFO in state STARTED
+8010: Ignore send of LQHKEYREQ+ATTRINFO in state START_COMMITTING
+
+8011: Abort at send of CONTINUEB(ZSEND_ATTRINFO) in state STARTED
+8012: Abort at send of CONTINUEB(ZSEND_ATTRINFO) in state START_COMMITTING
+
+8013: Ignore send of CONTINUEB(ZSEND_COMPLETE_LOOP) (should crash eventually)
+8014: Ignore send of CONTINUEB(ZSEND_COMMIT_LOOP) (should crash eventually)
+
+8015: Ignore ATTRINFO signal in DBTC in state REC_COMMITTING
+8016: Ignore ATTRINFO signal in DBTC in state RECEIVING
+
+8017: Return immediately from DIVERIFYCONF (should crash eventually)
+8018: Throw away a COMMITTED signal
+8019: Throw away a COMPLETED signal
+
+TESTING TAKE-OVER FUNCTIONALITY IN DBTC
+---------------------------------------
+
+8002: Crash when sending LQHKEYREQ
+8029: Crash when receiving LQHKEYCONF
+8030: Crash when receiving COMMITTED
+8031: Crash when receiving COMPLETED
+8020: Crash when all COMMITTED has arrived
+8021: Crash when all COMPLETED has arrived
+8022: Crash when all LQHKEYCONF has arrived
+
+COMBINATION OF TIME-OUT + CRASH
+-------------------------------
+
+8023 (use 8024): Ignore LQHKEYCONF and crash when ABORTED signal arrives by setting 8024
+8025 (use 8026): Ignore COMMITTED and crash when COMMITCONF signal arrives by setting 8026
+8027 (use 8028): Ignore COMPLETED and crash when COMPLETECONF signal arrives by setting 8028
+
+ABORT OF TCKEYREQ
+-----------------
+
+8032: No free TC records any more
+
+
+CMVMI
+-----
+9000 Set RestartOnErrorInsert to restart -n
+9998 Enter endless loop (trigger watchdog)
+9999 Crash system immediatly
+
+Test Crashes in handling node restarts
+--------------------------------------
+
+7121: Crash after receiving permission to start (START_PERMCONF) in starting
+      node.
+7122: Crash master when receiving request for permission to start (START_PERMREQ).
+7123: Crash any non-starting node when receiving information about a starting node
+      (START_INFOREQ)
+7124: Respond negatively on an info request (START_INFOREQ)
+7125: Stop an invalidate Node LCP process in the middle to test if START_INFOREQ
+      stopped by long-running processes are handled in a correct manner.
+7126: Allow node restarts for all nodes (used in conjunction with 7025)
+7127: Crash when receiving a INCL_NODEREQ message.
+7128: Crash master after receiving all INCL_NODECONF from all nodes
+7129: Crash master after receiving all INCL_NODECONF from all nodes and releasing
+      the lock on the dictionary
+7130: Crash starting node after receiving START_MECONF
+7131: Crash when receiving START_COPYREQ in master node
+7132: Crash when receiving START_COPYCONF in starting node
+
+DICT:
+6000  Crash during NR when receiving DICTSTARTREQ
+6001  Crash during NR when receiving SCHEMA_INFO
+6002  Crash during NR soon after sending GET_TABINFO_REQ
+
+LQH:
+5026  Crash when receiving COPY_ACTIVEREQ
+5027  Crash when receiving STAT_RECREQ
+
+Test Crashes in handling take over
+----------------------------------
+
+7133: Crash when receiving START_TOREQ
+7134: Crash master after receiving all START_TOCONF
+7135: Crash master after copying table 0 to starting node
+7136: Crash master after completing copy of tables
+7137: Crash master after adding a fragment before copying it
+7138: Crash when receiving CREATE_FRAGREQ in prepare phase
+7139: Crash when receiving CREATE_FRAGREQ in commit phase
+7140: Crash master when receiving all CREATE_FRAGCONF in prepare phase
+7141: Crash master when receiving all CREATE_FRAGCONF in commit phase
+7142: Crash master when receiving COPY_FRAGCONF
+7143: Crash master when receiving COPY_ACTIVECONF
+7144: Crash when receiving END_TOREQ
+7145: Crash master after receiving first END_TOCONF
+7146: Crash master after receiving all END_TOCONF
+7147: Crash master after receiving first START_TOCONF
+7148: Crash master after receiving first CREATE_FRAGCONF
+7152: Crash master after receiving first UPDATE_TOCONF
+7153: Crash master after receiving all UPDATE_TOCONF
+7154: Crash when receiving UPDATE_TOREQ
+7155: Crash master when completing writing start take over info
+7156: Crash master when completing writing end take over info
+
+Test failures in various states in take over functionality
+----------------------------------------------------------
+7157: Block take over at start take over
+7158: Block take over at sending of START_TOREQ
+7159: Block take over at selecting next fragment
+7160: Block take over at creating new fragment
+7161: Block take over at sending of CREATE_FRAGREQ in prepare phase
+7162: Block take over at sending of CREATE_FRAGREQ in commit phase
+7163: Block take over at sending of UPDATE_TOREQ at end of copy frag
+7164: Block take over at sending of END_TOREQ
+7169: Block take over at sending of UPDATE_TOREQ at end of copy
+
+5008: Crash at reception of EMPTY_LCPREQ (at master take over after NF)
+5009: Crash at sending of EMPTY_LCPCONF (at master take over after NF)
+
+Test Crashes in Handling Graceful Shutdown
+------------------------------------------
+7065: Crash when receiving STOP_PERMREQ in master
+7066: Crash when receiving STOP_PERMREQ in slave
+7067: Crash when receiving DIH_SWITCH_REPLICA_REQ
+7068: Crash when receiving DIH_SWITCH_REPLICA_CONF
+
+
+Backup Stuff:
+------------------------------------------
+10001: Crash on NODE_FAILREP in Backup coordinator
+10002: Crash on NODE_FAILREP when coordinatorTakeOver
+10003: Crash on PREP_CREATE_TRIG_{CONF/REF} (only coordinator)
+10004: Crash on START_BACKUP_{CONF/REF} (only coordinator)
+10005: Crash on CREATE_TRIG_{CONF/REF} (only coordinator)
+10006: Crash on WAIT_GCP_REF (only coordinator)
+10007: Crash on WAIT_GCP_CONF (only coordinator)
+10008: Crash on WAIT_GCP_CONF during start of backup (only coordinator)
+10009: Crash on WAIT_GCP_CONF during stop of backup (only coordinator)
+10010: Crash on BACKUP_FRAGMENT_CONF (only coordinator)
+10011: Crash on BACKUP_FRAGMENT_REF (only coordinator)
+10012: Crash on DROP_TRIG_{CONF/REF} (only coordinator)
+10013: Crash on STOP_BACKUP_{CONF/REF} (only coordinator)
+10014: Crash on DEFINE_BACKUP_REQ (participant)
+10015: Crash on START_BACKUP_REQ (participant)
+10016: Crash on BACKUP_FRAGMENT_REQ (participant)
+10017: Crash on SCAN_FRAGCONF (participant)
+10018: Crash on FSAPPENDCONF (participant)
+10019: Crash on TRIG_ATTRINFO (participant)
+10020: Crash on STOP_BACKUP_REQ (participant)
+10021: Crash on NODE_FAILREP in participant not becoming coordinator
+
+10022: Fake no backup records at DEFINE_BACKUP_REQ (participant)
+10023: Abort backup by error at reception of UTIL_SEQUENCE_CONF (code 300)
+10024: Abort backup by error at reception of DEFINE_BACKUP_CONF (code 301)
+10025: Abort backup by error at reception of CREATE_TRIG_CONF last (code 302)
+10026: Abort backup by error at reception of START_BACKUP_CONF (code 303)
+10027: Abort backup by error at reception of DEFINE_BACKUP_REQ at master (code 304)
+10028: Abort backup by error at reception of BACKUP_FRAGMENT_CONF at master (code 305)
+10029: Abort backup by error at reception of FSAPPENDCONF in slave (FileOrScanError = 5)
+10030: Simulate buffer full from trigger execution => abort backup
+
+11001: Send UTIL_SEQUENCE_REF (in master)
+
+5028:  Crash when receiving LQHKEYREQ (in non-master)
+
+Drop Table/Index:
+-----------------
+4001: Crash on REL_TABMEMREQ in TUP
+4002: Crash on DROP_TABFILEREQ in TUP
+4003: Fail next trigger create in TUP
+8033: Fail next trigger create in TC
+8034: Fail next index create in TC
+
+System Restart:
+---------------
+
+5020: Force system to read pages form file when executing prepare operation record
+3000: Delay writing of datapages in ACC when LCP is started
+4000: Delay writing of datapages in TUP when LCP is started
+7070: Set TimeBetweenLcp to min value
+7071: Set TimeBetweenLcp to max value
+7072: Split START_FRAGREQ into several log nodes
+7073: Don't include own node in START_FRAGREQ
+7074: 7072 + 7073
+
+Scan:
+------
+
+5021: Crash when receiving SCAN_NEXTREQ if sender is own node
+5022: Crash when receiving SCAN_NEXTREQ if sender is NOT own node
+5023: Drop SCAN_NEXTREQ if sender is own node
+5024: Drop SCAN_NEXTREQ if sender is NOT own node
+5025: Delay SCAN_NEXTREQ 1 second if sender is NOT own node
+5030: Drop all SCAN_NEXTREQ until node is shutdown with SYSTEM_ERROR
+      because of scan fragment timeout
+
+Test routing of signals:
+-----------------------
+4006: Turn on routing of TRANSID_AI signals from TUP
+5029: Turn on routing of KEYINFO20 signals from LQH
+
+Ordered index:
+--------------
+
+Dbdict:
+-------
+6003 Crash in participant @ CreateTabReq::Prepare
+6004 Crash in participant @ CreateTabReq::Commit
+6005 Crash in participant @ CreateTabReq::CreateDrop

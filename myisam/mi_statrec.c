@@ -202,7 +202,7 @@ int _mi_read_static_record(register MI_INFO *info, register my_off_t pos,
 
 int _mi_read_rnd_static_record(MI_INFO *info, byte *buf,
 			       register my_off_t filepos,
-			       my_bool skipp_deleted_blocks)
+			       my_bool skip_deleted_blocks)
 {
   int locked,error,cache_read;
   uint cache_length;
@@ -212,13 +212,13 @@ int _mi_read_rnd_static_record(MI_INFO *info, byte *buf,
   cache_read=0;
   cache_length=0;
   if (info->opt_flag & WRITE_CACHE_USED &&
-      (info->rec_cache.pos_in_file <= filepos || skipp_deleted_blocks) &&
+      (info->rec_cache.pos_in_file <= filepos || skip_deleted_blocks) &&
       flush_io_cache(&info->rec_cache))
     DBUG_RETURN(my_errno);
   if (info->opt_flag & READ_CACHE_USED)
   {						/* Cache in use */
     if (filepos == my_b_tell(&info->rec_cache) &&
-	(skipp_deleted_blocks || !filepos))
+	(skip_deleted_blocks || !filepos))
     {
       cache_read=1;				/* Read record using cache */
       cache_length=(uint) (info->rec_cache.read_end - info->rec_cache.read_pos);

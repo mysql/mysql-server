@@ -375,6 +375,7 @@ protected:
   void invalidate(THD* thd, TABLE_LIST *tables_used,
 		  my_bool using_transactions);
   void invalidate(CHANGED_TABLE_LIST *tables_used);
+  void invalidate_locked_for_write(TABLE_LIST *tables_used);
   void invalidate(THD* thd, TABLE *table, my_bool using_transactions);
   void invalidate(THD *thd, const char *key, uint32  key_length,
 		  my_bool using_transactions);
@@ -392,7 +393,7 @@ protected:
   void destroy();
 
   friend void query_cache_insert(NET *net, const char *packet, ulong length);
-  friend void query_cache_end_of_result(NET *net);
+  friend void query_cache_end_of_result(THD *thd);
   friend void query_cache_abort(NET *net);
 
   /*
@@ -416,7 +417,7 @@ protected:
 
 extern Query_cache query_cache;
 extern TYPELIB query_cache_type_typelib;
-void query_cache_end_of_result(NET *net);
+void query_cache_end_of_result(THD *thd);
 void query_cache_abort(NET *net);
 
 #endif

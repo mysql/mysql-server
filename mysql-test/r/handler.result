@@ -6,7 +6,7 @@ insert into t1 values
 (20,"ggg"),(21,"hhh"),(22,"iii");
 handler t1 open as t2;
 handler t2 read a=(SELECT 1);
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1)' at line 1
 handler t2 read a first;
 a	b
 14	aaa
@@ -51,7 +51,7 @@ handler t2 read a=(16);
 a	b
 16	ccc
 handler t2 read a=(19,"fff");
-ERROR 42000: Too many key parts specified. Max 1 parts allowed
+ERROR 42000: Too many key parts specified; max 1 parts allowed
 handler t2 read b=(19,"fff");
 a	b
 19	fff
@@ -135,7 +135,7 @@ handler t2 read next;
 a	b
 19	fff
 handler t2 read last;
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 handler t2 close;
 handler t1 open as t2;
 drop table t1;
@@ -173,5 +173,35 @@ handler t1 open;
 handler t1 read a=(W);
 ERROR 42S22: Unknown column 'W' in 'field list'
 handler t1 read a=(a);
-ERROR HY000: Wrong arguments to HANDLER ... READ
+ERROR HY000: Incorrect arguments to HANDLER ... READ
+drop table t1;
+create table t1 (a char(5));
+insert into t1 values ("Ok");
+handler t1 open as t;
+handler t read first;
+a
+Ok
+use mysql;
+handler t read first;
+a
+Ok
+handler t close;
+handler test.t1 open as t;
+handler t read first;
+a
+Ok
+handler t close;
+use test;
+drop table t1;
+create table t1 ( a int, b int, INDEX a (a) );
+insert into t1 values (1,2), (2,1);
+handler t1 open;
+handler t1 read a=(1) where b=2;
+a	b
+1	2
+handler t1 read a=(1) where b=3;
+a	b
+handler t1 read a=(1) where b=1;
+a	b
+handler t1 close;
 drop table t1;

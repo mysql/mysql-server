@@ -32,7 +32,7 @@ target_sources = 	libmysql.c password.c manager.c \
 			get_password.c errmsg.c
 
 mystringsobjects =	strmov.lo strxmov.lo strxnmov.lo strnmov.lo \
-			strmake.lo strend.lo \
+			strmake.lo strend.lo strtod.lo \
 			strnlen.lo strfill.lo is_prefix.lo \
 			int2str.lo str2int.lo strinstr.lo strcont.lo \
 			strcend.lo bcmp.lo ctype-latin1.lo \
@@ -42,7 +42,8 @@ mystringsobjects =	strmov.lo strxmov.lo strxnmov.lo strnmov.lo \
 			ctype-big5.lo ctype-czech.lo ctype-euc_kr.lo \
 			ctype-win1250ch.lo ctype-utf8.lo ctype-extra.lo \
 			ctype-ucs2.lo ctype-gb2312.lo ctype-gbk.lo \
-			ctype-sjis.lo ctype-tis620.lo ctype-ujis.lo xml.lo
+			ctype-sjis.lo ctype-tis620.lo ctype-ujis.lo \
+			ctype-uca.lo xml.lo
 
 mystringsextra= 	strto.c
 dbugobjects =		dbug.lo # IT IS IN SAFEMALLOC.C sanity.lo
@@ -50,7 +51,7 @@ mysysheaders =		mysys_priv.h my_static.h
 vioheaders =		vio_priv.h
 mysysobjects1 =		my_init.lo my_static.lo my_malloc.lo my_realloc.lo \
 			my_create.lo my_delete.lo mf_tempfile.lo my_open.lo \
-			my_read.lo my_write.lo errors.lo \
+			my_file.lo my_read.lo my_write.lo errors.lo \
 			my_error.lo my_getwd.lo my_div.lo \
 			mf_pack.lo my_messnc.lo mf_dirname.lo mf_fn_ext.lo\
 			mf_wcomp.lo typelib.lo safemalloc.lo my_alloc.lo \
@@ -64,7 +65,7 @@ mysysobjects1 =		my_init.lo my_static.lo my_malloc.lo my_realloc.lo \
 			my_pread.lo mf_cache.lo md5.lo sha1.lo\
 			my_getopt.lo my_gethostbyname.lo my_port.lo
 sqlobjects =		net.lo
-sql_cmn_objects =	pack.lo client.lo
+sql_cmn_objects =	pack.lo client.lo my_time.lo
 
 # Not needed in the minimum library
 mysysobjects2 =		my_lib.lo

@@ -22,15 +22,15 @@ pkginclude_HEADERS =	my_dbug.h m_string.h my_sys.h my_list.h my_xml.h \
 			errmsg.h my_global.h my_net.h my_alloc.h \
 			my_getopt.h sslopt-longopts.h my_dir.h typelib.h \
 			sslopt-vars.h sslopt-case.h sql_common.h keycache.h \
-			sql_state.h $(BUILT_SOURCES)
+			sql_state.h mysql_time.h $(BUILT_SOURCES)
 noinst_HEADERS =	config-win.h config-os2.h config-netware.h \
 			nisam.h heap.h merge.h my_bitmap.h\
 			myisam.h myisampack.h myisammrg.h ft_global.h\
-			mysys_err.h my_base.h \
+			mysys_err.h my_base.h help_start.h help_end.h \
 			my_nosys.h my_alarm.h queues.h rijndael.h sha1.h \
 			my_aes.h my_tree.h hash.h thr_alarm.h \
 			thr_lock.h t_ctype.h violite.h md5.h \
-			mysql_version.h.in my_handler.h
+			mysql_version.h.in my_handler.h my_time.h
 
 # mysql_version.h are generated
 SUPERCLEANFILES =	mysql_version.h my_config.h
@@ -39,23 +39,23 @@ SUPERCLEANFILES =	mysql_version.h my_config.h
 DISTCLEANFILES =	sched.h $(SUPERCLEANFILES)
 
 clean:
-	$(RM) -f readline/*
+	$(RM) -fr readline
 distclean:
-	$(RM) -f readline/*
+	$(RM) -fr readline
 
 all-local:		my_config.h
 
 # Since we include my_config.h it better exist from the beginning
 link_sources:
 	$(CP) ../config.h my_config.h
-	$(RM) -f readline/*
+	-$(RM) -fr readline
 	@readline_h_ln_cmd@
 
 # Keep automake happy 
 
 my_config.h: ../config.h
 	$(CP) ../config.h my_config.h
-	$(RM) -f readline/*
+	-$(RM) -fr readline
 	@readline_h_ln_cmd@
 
 # These files should not be included in distributions since they are

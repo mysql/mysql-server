@@ -18,15 +18,15 @@
 #include <m_string.h>
 #include <stdarg.h>
 #include <m_ctype.h>
-#include <assert.h>
 
 /*
   Limited snprintf() implementations
 
   IMPLEMENTION:
     Supports following formats:
-    %#d
-    %#u
+    %#[l]d
+    %#[l]u
+    %#[l]x
     %#.#s	Note #.# is skiped
 
   RETURN
@@ -47,7 +47,7 @@ int my_snprintf(char* to, size_t n, const char* fmt, ...)
 int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
 {
   char *start=to, *end=to+n-1;
-  uint length, num_state, pre_zero;
+  uint length, num_state, pre_zero, have_long;
 
   for (; *fmt ; fmt++)
   {
@@ -62,7 +62,7 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
     /* Read max fill size (only used with %d and %u) */
     if (*fmt == '-')
       fmt++;
-    length= num_state= pre_zero= 0;
+    length= num_state= pre_zero= have_long= 0;
     for (;; fmt++)
     {
       if (my_isdigit(&my_charset_latin1,*fmt))
@@ -80,7 +80,10 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
       num_state= 1;
     }
     if (*fmt == 'l')
+    {
       fmt++;
+      have_long= 1;
+    }
     if (*fmt == 's')				/* String parameter */
     {
       reg2 char	*par = va_arg(ap, char *);
@@ -92,20 +95,29 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
       to=strnmov(to,par,plen);
       continue;
     }
-    else if (*fmt == 'd' || *fmt == 'u')	/* Integer parameter */
+    else if (*fmt == 'd' || *fmt == 'u'|| *fmt== 'x')	/* Integer parameter */
     {
-      register int iarg;
+      register long larg;
       uint res_length, to_length;
       char *store_start= to, *store_end;
-      char buff[16];
+      char buff[32];
 
       if ((to_length= (uint) (end-to)) < 16 || length)
 	store_start= buff;
-      iarg = va_arg(ap, int);
-      if (*fmt == 'd')
-	store_end= int10_to_str((long) iarg, store_start, -10);
+      if (have_long)
+        larg = va_arg(ap, long);
       else
-	store_end= int10_to_str((long) (uint) iarg, store_start, 10);
+        if (*fmt == 'd')
+          larg = va_arg(ap, int);
+        else
+          larg= (long) (uint) va_arg(ap, int);
+      if (*fmt == 'd')
+	store_end= int10_to_str(larg, store_start, -10);
+      else
+        if (*fmt== 'u')
+          store_end= int10_to_str(larg, store_start, 10);
+        else
+          store_end= int2str(larg, store_start, 16, 0);
       if ((res_length= (uint) (store_end - store_start)) > to_length)
 	break;					/* num doesn't fit in output */
       /* If %#d syntax was used, we have to pre-zero/pre-space the string */
@@ -146,7 +158,7 @@ static void my_printf(const char * fmt, ...)
   n = my_vsnprintf(buf, sizeof(buf)-1,fmt, ar);
   printf(buf);
   printf("n=%d, strlen=%d\n", n, strlen(buf));
-  if (buf[sizeof(buf)-1] != OVERRUN_SENTRY)
+  if ((uchar) buf[sizeof(buf)-1] != OVERRUN_SENTRY)
   {
     fprintf(stderr, "Buffer overrun\n");
     abort();
@@ -167,6 +179,7 @@ int main()
   my_printf("Hello '%s' hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh\n", "hack");
   my_printf("Hello hhhhhhhhhhhhhh %d sssssssssssssss\n", 1);
   my_printf("Hello  %u\n", 1);
+  my_printf("Hex:   %lx  '%6lx'\n", 32, 65);
   my_printf("conn %ld to: '%-.64s' user: '%-.32s' host:\
  `%-.64s' (%-.64s)", 1, 0,0,0,0);
   return 0;

@@ -39,8 +39,9 @@ dict_hdr_get(
 	
 	header = DICT_HDR + buf_page_get(DICT_HDR_SPACE, DICT_HDR_PAGE_NO,
 							RW_X_LATCH, mtr);
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(header, SYNC_DICT_HEADER);
-
+#endif /* UNIV_SYNC_DEBUG */
 	return(header);
 }
 
@@ -64,18 +65,19 @@ dict_hdr_get_new_id(
 
 	dict_hdr = dict_hdr_get(&mtr);
 
-	id = mtr_read_dulint(dict_hdr + type, MLOG_8BYTES, &mtr); 
+	id = mtr_read_dulint(dict_hdr + type, &mtr); 
 
 	/* Add some dummy code here because otherwise pgcc seems to
 	compile wrong */
 
 	if (0 == ut_dulint_cmp(id, ut_dulint_max)) {
-		printf("Max id\n");
+		/* TO DO: remove this code, or make it conditional */
+		ut_dbg_null_ptr = 0;
 	}
 
 	id = ut_dulint_add(id, 1);
 	
-	mlog_write_dulint(dict_hdr + type, id, MLOG_8BYTES, &mtr); 
+	mlog_write_dulint(dict_hdr + type, id, &mtr); 
 
 	mtr_commit(&mtr);
 
@@ -94,7 +96,9 @@ dict_hdr_flush_row_id(void)
 	dulint		id;
 	mtr_t		mtr;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	id = dict_sys->row_id;
 
@@ -102,7 +106,7 @@ dict_hdr_flush_row_id(void)
 
 	dict_hdr = dict_hdr_get(&mtr);
 	
-	mlog_write_dulint(dict_hdr + DICT_HDR_ROW_ID, id, MLOG_8BYTES, &mtr); 
+	mlog_write_dulint(dict_hdr + DICT_HDR_ROW_ID, id, &mtr); 
 
 	mtr_commit(&mtr);
 }				
@@ -138,20 +142,16 @@ dict_hdr_create(
 	/* Start counting row, table, index, and tree ids from
 	DICT_HDR_FIRST_ID */
 	mlog_write_dulint(dict_header + DICT_HDR_ROW_ID,
-				ut_dulint_create(0, DICT_HDR_FIRST_ID),
-				MLOG_8BYTES, mtr);
+				ut_dulint_create(0, DICT_HDR_FIRST_ID), mtr);
 
 	mlog_write_dulint(dict_header + DICT_HDR_TABLE_ID,
-				ut_dulint_create(0, DICT_HDR_FIRST_ID),
-				MLOG_8BYTES, mtr);
+				ut_dulint_create(0, DICT_HDR_FIRST_ID), mtr);
 
 	mlog_write_dulint(dict_header + DICT_HDR_INDEX_ID,
-				ut_dulint_create(0, DICT_HDR_FIRST_ID),
-				MLOG_8BYTES, mtr);
+				ut_dulint_create(0, DICT_HDR_FIRST_ID), mtr);
 
 	mlog_write_dulint(dict_header + DICT_HDR_MIX_ID,
-				ut_dulint_create(0, DICT_HDR_FIRST_ID),
-				MLOG_8BYTES, mtr);
+				ut_dulint_create(0, DICT_HDR_FIRST_ID), mtr);
 
 	/* Create the B-tree roots for the clustered indexes of the basic
 	system tables */
@@ -247,36 +247,33 @@ dict_boot(void)
 	dict_sys->row_id = ut_dulint_add(
 			     ut_dulint_align_up(
 				mtr_read_dulint(dict_hdr + DICT_HDR_ROW_ID,
-							MLOG_8BYTES, &mtr),
+							&mtr),
 				DICT_HDR_ROW_ID_WRITE_MARGIN),
 			     DICT_HDR_ROW_ID_WRITE_MARGIN);
 
 	/* Insert into the dictionary cache the descriptions of the basic
 	system tables */
 	/*-------------------------*/
-	table = dict_mem_table_create((char *) "SYS_TABLES", DICT_HDR_SPACE,8);
+	table = dict_mem_table_create("SYS_TABLES", DICT_HDR_SPACE,8);
 
-	dict_mem_table_add_col(table, (char *) "NAME", DATA_BINARY, 0, 0, 0);
-	dict_mem_table_add_col(table, (char *) "ID", DATA_BINARY, 0, 0, 0);
-	dict_mem_table_add_col(table, (char *) "N_COLS", DATA_INT, 0, 4, 0);
-	dict_mem_table_add_col(table, (char *) "TYPE", DATA_INT, 0, 4, 0);
-	dict_mem_table_add_col(table, (char *) "MIX_ID", DATA_BINARY, 0, 0, 0);
-	dict_mem_table_add_col(table, (char *) "MIX_LEN", DATA_INT, 0, 4, 0);
-	dict_mem_table_add_col(table, (char *) "CLUSTER_NAME", DATA_BINARY, 
-			       0, 0, 0);
-	dict_mem_table_add_col(table, (char *) "SPACE", DATA_INT, 0, 4, 0);
+	dict_mem_table_add_col(table, "NAME", DATA_BINARY, 0, 0, 0);
+	dict_mem_table_add_col(table, "ID", DATA_BINARY, 0, 0, 0);
+	dict_mem_table_add_col(table, "N_COLS", DATA_INT, 0, 4, 0);
+	dict_mem_table_add_col(table, "TYPE", DATA_INT, 0, 4, 0);
+	dict_mem_table_add_col(table, "MIX_ID", DATA_BINARY, 0, 0, 0);
+	dict_mem_table_add_col(table, "MIX_LEN", DATA_INT, 0, 4, 0);
+	dict_mem_table_add_col(table, "CLUSTER_NAME", DATA_BINARY, 0, 0, 0);
+	dict_mem_table_add_col(table, "SPACE", DATA_INT, 0, 4, 0);
 
 	table->id = DICT_TABLES_ID;
 	
 	dict_table_add_to_cache(table);
 	dict_sys->sys_tables = table;
 	
-	index = dict_mem_index_create((char *) "SYS_TABLES", (char *) 
-				      "CLUST_IND",
-				      DICT_HDR_SPACE,
-				      DICT_UNIQUE | DICT_CLUSTERED, 1);
+	index = dict_mem_index_create("SYS_TABLES", "CLUST_IND",
+			DICT_HDR_SPACE, DICT_UNIQUE | DICT_CLUSTERED, 1);
 
-	dict_mem_index_add_field(index, (char *) "NAME", 0, 0);
+	dict_mem_index_add_field(index, "NAME", 0, 0);
 
 	index->page_no = mtr_read_ulint(dict_hdr + DICT_HDR_TABLES,
 							MLOG_4BYTES, &mtr);
@@ -284,52 +281,50 @@ dict_boot(void)
 
 	ut_a(dict_index_add_to_cache(table, index));
 	/*-------------------------*/
-	index = dict_mem_index_create((char *) "SYS_TABLES",
-				      (char *) "ID_IND", DICT_HDR_SPACE,
-				      DICT_UNIQUE, 1);
-	dict_mem_index_add_field(index, (char *) "ID", 0, 0);
+	index = dict_mem_index_create("SYS_TABLES", "ID_IND",
+			DICT_HDR_SPACE, DICT_UNIQUE, 1);
+	dict_mem_index_add_field(index, "ID", 0, 0);
 
 	index->page_no = mtr_read_ulint(dict_hdr + DICT_HDR_TABLE_IDS,
 							MLOG_4BYTES, &mtr);
 	index->id = DICT_TABLE_IDS_ID;
 	ut_a(dict_index_add_to_cache(table, index));
 	/*-------------------------*/
-	table = dict_mem_table_create((char *) "SYS_COLUMNS",DICT_HDR_SPACE,7);
+	table = dict_mem_table_create("SYS_COLUMNS",DICT_HDR_SPACE,7);
 
-	dict_mem_table_add_col(table, (char *) "TABLE_ID", DATA_BINARY,0,0,0);
-	dict_mem_table_add_col(table, (char *) "POS", DATA_INT, 0, 4, 0);
-	dict_mem_table_add_col(table, (char *) "NAME", DATA_BINARY, 0, 0, 0);
-	dict_mem_table_add_col(table, (char *) "MTYPE", DATA_INT, 0, 4, 0);
-	dict_mem_table_add_col(table, (char *) "PRTYPE", DATA_INT, 0, 4, 0);
-	dict_mem_table_add_col(table, (char *) "LEN", DATA_INT, 0, 4, 0);
-	dict_mem_table_add_col(table, (char *) "PREC", DATA_INT, 0, 4, 0);
+	dict_mem_table_add_col(table, "TABLE_ID", DATA_BINARY,0,0,0);
+	dict_mem_table_add_col(table, "POS", DATA_INT, 0, 4, 0);
+	dict_mem_table_add_col(table, "NAME", DATA_BINARY, 0, 0, 0);
+	dict_mem_table_add_col(table, "MTYPE", DATA_INT, 0, 4, 0);
+	dict_mem_table_add_col(table, "PRTYPE", DATA_INT, 0, 4, 0);
+	dict_mem_table_add_col(table, "LEN", DATA_INT, 0, 4, 0);
+	dict_mem_table_add_col(table, "PREC", DATA_INT, 0, 4, 0);
 	
 	table->id = DICT_COLUMNS_ID;
 
 	dict_table_add_to_cache(table);
 	dict_sys->sys_columns = table;
 
-	index = dict_mem_index_create((char *) "SYS_COLUMNS",
-				      (char *) "CLUST_IND", DICT_HDR_SPACE,
-				      DICT_UNIQUE | DICT_CLUSTERED, 2);
+	index = dict_mem_index_create("SYS_COLUMNS", "CLUST_IND",
+			DICT_HDR_SPACE, DICT_UNIQUE | DICT_CLUSTERED, 2);
 
-	dict_mem_index_add_field(index, (char *) "TABLE_ID", 0, 0);
-	dict_mem_index_add_field(index, (char *) "POS", 0, 0);
+	dict_mem_index_add_field(index, "TABLE_ID", 0, 0);
+	dict_mem_index_add_field(index, "POS", 0, 0);
 
 	index->page_no = mtr_read_ulint(dict_hdr + DICT_HDR_COLUMNS,
 							MLOG_4BYTES, &mtr);
 	index->id = DICT_COLUMNS_ID;
 	ut_a(dict_index_add_to_cache(table, index));
 	/*-------------------------*/
-	table = dict_mem_table_create((char *) "SYS_INDEXES",DICT_HDR_SPACE,7);
+	table = dict_mem_table_create("SYS_INDEXES",DICT_HDR_SPACE,7);
 
-	dict_mem_table_add_col(table, (char *) "TABLE_ID", DATA_BINARY, 0,0,0);
-	dict_mem_table_add_col(table, (char *) "ID", DATA_BINARY, 0, 0, 0);
-	dict_mem_table_add_col(table, (char *) "NAME", DATA_BINARY, 0, 0, 0);
-	dict_mem_table_add_col(table, (char *) "N_FIELDS", DATA_INT, 0, 4, 0);
-	dict_mem_table_add_col(table, (char *) "TYPE", DATA_INT, 0, 4, 0);
-	dict_mem_table_add_col(table, (char *) "SPACE", DATA_INT, 0, 4, 0);
-	dict_mem_table_add_col(table, (char *) "PAGE_NO", DATA_INT, 0, 4, 0);
+	dict_mem_table_add_col(table, "TABLE_ID", DATA_BINARY, 0,0,0);
+	dict_mem_table_add_col(table, "ID", DATA_BINARY, 0, 0, 0);
+	dict_mem_table_add_col(table, "NAME", DATA_BINARY, 0, 0, 0);
+	dict_mem_table_add_col(table, "N_FIELDS", DATA_INT, 0, 4, 0);
+	dict_mem_table_add_col(table, "TYPE", DATA_INT, 0, 4, 0);
+	dict_mem_table_add_col(table, "SPACE", DATA_INT, 0, 4, 0);
+	dict_mem_table_add_col(table, "PAGE_NO", DATA_INT, 0, 4, 0);
 
 	/* The '+ 2' below comes from the 2 system fields */
 #if DICT_SYS_INDEXES_PAGE_NO_FIELD != 6 + 2
@@ -343,34 +338,32 @@ dict_boot(void)
 	dict_table_add_to_cache(table);
 	dict_sys->sys_indexes = table;
 
-	index = dict_mem_index_create((char *) "SYS_INDEXES",
-				      (char *) "CLUST_IND", DICT_HDR_SPACE,
-				      DICT_UNIQUE | DICT_CLUSTERED, 2);
+	index = dict_mem_index_create("SYS_INDEXES", "CLUST_IND",
+			DICT_HDR_SPACE, DICT_UNIQUE | DICT_CLUSTERED, 2);
 
-	dict_mem_index_add_field(index, (char *) "TABLE_ID", 0, 0);
-	dict_mem_index_add_field(index, (char *) "ID", 0, 0);
+	dict_mem_index_add_field(index, "TABLE_ID", 0, 0);
+	dict_mem_index_add_field(index, "ID", 0, 0);
 
 	index->page_no = mtr_read_ulint(dict_hdr + DICT_HDR_INDEXES,
 							MLOG_4BYTES, &mtr);
 	index->id = DICT_INDEXES_ID;
 	ut_a(dict_index_add_to_cache(table, index));
 	/*-------------------------*/
-	table = dict_mem_table_create((char *) "SYS_FIELDS", DICT_HDR_SPACE,3);
+	table = dict_mem_table_create("SYS_FIELDS", DICT_HDR_SPACE,3);
 
-	dict_mem_table_add_col(table, (char *) "INDEX_ID", DATA_BINARY, 0,0,0);
-	dict_mem_table_add_col(table, (char *) "POS", DATA_INT, 0, 4, 0);
-	dict_mem_table_add_col(table, (char *) "COL_NAME", DATA_BINARY, 0,0,0);
+	dict_mem_table_add_col(table, "INDEX_ID", DATA_BINARY, 0,0,0);
+	dict_mem_table_add_col(table, "POS", DATA_INT, 0, 4, 0);
+	dict_mem_table_add_col(table, "COL_NAME", DATA_BINARY, 0,0,0);
 
 	table->id = DICT_FIELDS_ID;
 	dict_table_add_to_cache(table);
 	dict_sys->sys_fields = table;
 
-	index = dict_mem_index_create((char *) "SYS_FIELDS", 
-				      (char *) "CLUST_IND", DICT_HDR_SPACE,
-				      DICT_UNIQUE | DICT_CLUSTERED, 2);
+	index = dict_mem_index_create("SYS_FIELDS", "CLUST_IND",
+			DICT_HDR_SPACE, DICT_UNIQUE | DICT_CLUSTERED, 2);
 
-	dict_mem_index_add_field(index, (char *) "INDEX_ID", 0, 0);
-	dict_mem_index_add_field(index, (char *) "POS", 0, 0);
+	dict_mem_index_add_field(index, "INDEX_ID", 0, 0);
+	dict_mem_index_add_field(index, "POS", 0, 0);
 
 	index->page_no = mtr_read_ulint(dict_hdr + DICT_HDR_FIELDS,
 						MLOG_4BYTES, &mtr);

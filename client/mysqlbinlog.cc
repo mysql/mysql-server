@@ -1,4 +1,4 @@
-/* Copyright (C) 2001-2003 MySQL AB
+/* Copyright (C) 2001-2004 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,7 +32,6 @@
 #undef MYSQL_SERVER
 #include "client_priv.h"
 #include <time.h>
-#include <assert.h>
 #include "log_event.h"
 /* That one is necessary for defines of OPTION_NO_FOREIGN_KEY_CHECKS etc */
 #include "mysql_priv.h" 
@@ -49,9 +48,9 @@ ulong server_id = 0;
 // needed by net_serv.c
 ulong bytes_sent = 0L, bytes_received = 0L;
 ulong mysqld_net_retry_count = 10L;
+ulong open_files_limit;
 uint test_flags = 0; 
 static uint opt_protocol= 0;
-
 static FILE *result_file;
 
 #ifndef DBUG_OFF
@@ -61,7 +60,7 @@ static const char *load_default_groups[]= { "mysqlbinlog","client",0 };
 
 void sql_print_error(const char *format, ...);
 
-static bool one_database = 0;
+static bool one_database=0, to_last_remote_log= 0;
 static const char* database= 0;
 static my_bool force_opt= 0, short_form= 0, remote_opt= 0;
 static ulonglong offset = 0;
@@ -75,42 +74,70 @@ static short binlog_flags = 0;
 static MYSQL* mysql = NULL;
 static const char* dirname_for_local_load= 0;
 
-static void dump_local_log_entries(const char* logname);
-static void dump_remote_log_entries(const char* logname);
-static void dump_log_entries(const char* logname);
-static void dump_remote_file(NET* net, const char* fname);
+/*
+  check_header() will set the pointer below.
+  Why do we need here a pointer on an event instead of an event ?
+  This is because the event will be created (alloced) in read_log_event()
+  (which returns a pointer) in check_header().
+*/
+Format_description_log_event* description_event; 
+
+static int dump_local_log_entries(const char* logname);
+static int dump_remote_log_entries(const char* logname);
+static int dump_log_entries(const char* logname);
+static int dump_remote_file(NET* net, const char* fname);
 static void die(const char* fmt, ...);
 static MYSQL* safe_connect();
 
+
 class Load_log_processor
 {
-  char target_dir_name[MY_NFILE];
+  char target_dir_name[FN_REFLEN];
   int target_dir_name_len;
   DYNAMIC_ARRAY file_names;
 
-  const char *create_file(Create_file_log_event *ce);
-  void append_to_file(const char* fname, int flags, 
-		      gptr data, uint size)
+  /*
+    Looking for new uniquie filename that doesn't exist yet by 
+    adding postfix -%x
+
+    SYNOPSIS 
+       create_unique_file()
+       
+       filename       buffer for filename
+       file_name_end  tail of buffer that should be changed
+                      should point to a memory enough to printf("-%x",..)
+
+    RETURN VALUES
+      values less than 0      - can't find new filename
+      values great or equal 0 - created file with found filename
+  */
+  File create_unique_file(char *filename, char *file_name_end)
     {
-      File file;
-      if (((file= my_open(fname,flags,MYF(MY_WME))) < 0) ||
-	  my_write(file,(byte*) data,size,MYF(MY_WME|MY_NABP)) ||
-	  my_close(file,MYF(MY_WME)))
-	exit(1);
+      File res;
+      /* If we have to try more than 1000 times, something is seriously wrong */
+      for (uint version= 0; version<1000; version++)
+      {
+	sprintf(file_name_end,"-%x",version);
+	if ((res= my_create(filename,0,
+			    O_CREAT|O_EXCL|O_BINARY|O_WRONLY,MYF(0)))!=-1)
+	  return res;
+      }
+      return -1;
     }
 
 public:
-  Load_log_processor()
-    {
-      init_dynamic_array(&file_names,sizeof(Create_file_log_event*),
-			 100,100 CALLER_INFO);
-    }
-
+  Load_log_processor() {}
   ~Load_log_processor()
-    {
-      destroy();
-      delete_dynamic(&file_names);
-    }
+  {
+    destroy();
+    delete_dynamic(&file_names);
+  }
+
+  int init()
+  {
+    return init_dynamic_array(&file_names,sizeof(Create_file_log_event*),
+			      100,100 CALLER_INFO);
+  }
 
   void init_by_dir_name(const char *dir)
     {
@@ -147,82 +174,262 @@ public:
       *ptr= 0;
       return res;
     }
-  void process(Create_file_log_event *ce)
-    {
-      const char *fname= create_file(ce);
-      append_to_file(fname,O_CREAT|O_EXCL|O_BINARY|O_WRONLY,ce->block,
-		     ce->block_len);
-    }
-  void process(Append_block_log_event *ae)
-    {
-      Create_file_log_event* ce= (ae->file_id < file_names.elements) ?
-          *((Create_file_log_event**)file_names.buffer + ae->file_id) : 0;
-        
-      if (ce)
-        append_to_file(ce->fname,O_APPEND|O_BINARY|O_WRONLY, ae->block,
-		       ae->block_len);
-      else
-      {
-        /*
-          There is no Create_file event (a bad binlog or a big
-          --position). Assuming it's a big --position, we just do nothing and
-          print a warning.
-        */
-	fprintf(stderr,"Warning: ignoring Append_block as there is no \
-Create_file event for file_id: %u\n",ae->file_id);
-      }
-    }
+  int process(Create_file_log_event *ce);
+  int process(Append_block_log_event *ae);
+  File prepare_new_file_for_old_format(Load_log_event *le, char *filename);
+  int load_old_format_file(NET* net, const char *server_fname,
+			   uint server_fname_len, File file);
 };
 
 
-const char *Load_log_processor::create_file(Create_file_log_event *ce)
+
+File Load_log_processor::prepare_new_file_for_old_format(Load_log_event *le,
+							 char *filename)
+{
+  uint len;
+  char *tail;
+  File file;
+  
+  fn_format(filename, le->fname, target_dir_name, "", 1);
+  len= strlen(filename);
+  tail= filename + len;
+  
+  if ((file= create_unique_file(filename,tail)) < 0)
+  {
+    sql_print_error("Could not construct local filename %s",filename);
+    return -1;
+  }
+  
+  le->set_fname_outside_temp_buf(filename,len+strlen(tail));
+  
+  return file;
+}
+
+
+int Load_log_processor::load_old_format_file(NET* net, const char*server_fname,
+					     uint server_fname_len, File file)
+{
+  char buf[FN_REFLEN+1];
+  buf[0] = 0;
+  memcpy(buf + 1, server_fname, server_fname_len + 1);
+  if (my_net_write(net, buf, server_fname_len +2) || net_flush(net))
+  {
+    sql_print_error("Failed  requesting the remote dump of %s", server_fname);
+    return -1;
+  }
+  
+  for (;;)
+  {
+    uint packet_len = my_net_read(net);
+    if (packet_len == 0)
+    {
+      if (my_net_write(net, "", 0) || net_flush(net))
+      {
+	sql_print_error("Failed sending the ack packet");
+	return -1;
+      }
+      /*
+	we just need to send something, as the server will read but
+	not examine the packet - this is because mysql_load() sends 
+	an OK when it is done
+      */
+      break;
+    }
+    else if (packet_len == packet_error)
+    {
+      sql_print_error("Failed reading a packet during the dump of %s ", 
+		      server_fname);
+      return -1;
+    }
+    
+    if (my_write(file, (byte*) net->read_pos, packet_len,MYF(MY_WME|MY_NABP)))
+      return -1;
+  }
+  
+  return 0;
+}
+
+
+int Load_log_processor::process(Create_file_log_event *ce)
 {
   const char *bname= ce->fname+dirname_length(ce->fname);
   uint blen= ce->fname_len - (bname-ce->fname);
   uint full_len= target_dir_name_len + blen + 9 + 9 + 1;
-  uint version= 0;
-  char *tmp, *ptr;
+  int error= 0;
+  char *fname, *ptr;
+  File file;
+  DBUG_ENTER("Load_log_processor::process");
 
-  if (!(tmp= my_malloc(full_len,MYF(MY_WME))) ||
-      set_dynamic(&file_names,(gptr)&ce,ce->file_id))
+  if (set_dynamic(&file_names,(gptr)&ce,ce->file_id))
   {
-    die("Could not construct local filename %s%s",target_dir_name,bname);
-    return 0;
+    sql_print_error("Could not construct local filename %s%s",
+		    target_dir_name,bname);
+    DBUG_RETURN(-1);
   }
+  if (!(fname= my_malloc(full_len,MYF(MY_WME))))
+    DBUG_RETURN(-1);
 
-  memcpy(tmp, target_dir_name, target_dir_name_len);
-  ptr= tmp+ target_dir_name_len;
+  memcpy(fname, target_dir_name, target_dir_name_len);
+  ptr= fname + target_dir_name_len;
   memcpy(ptr,bname,blen);
   ptr+= blen;
   ptr+= my_sprintf(ptr,(ptr,"-%x",ce->file_id));
 
-  /*
-    Note that this code has a possible race condition if there was was
-    many simultaneous clients running which tried to create files at the same
-    time. Fortunately this should never be the case.
-
-    A better way to do this would be to use 'create_tmp_file() and avoid this
-    race condition altogether on the expense of getting more cryptic file
-    names.
-  */
-  for (;;)
+  if ((file= create_unique_file(fname,ptr)) < 0)
   {
-    sprintf(ptr,"-%x",version);
-    if (access(tmp,F_OK))
-      break;
-    /* If we have to try more than 1000 times, something is seriously wrong */
-    if (version++ > 1000)
-    {
-      die("Could not construct local filename %s%s",target_dir_name,bname);
-      return 0;
-    }
+    sql_print_error("Could not construct local filename %s%s",
+		    target_dir_name,bname);
+    DBUG_RETURN(-1);
   }
-  ce->set_fname_outside_temp_buf(tmp,strlen(tmp));
-  return tmp;
+  ce->set_fname_outside_temp_buf(fname,strlen(fname));
+
+  if (my_write(file,(byte*) ce->block,ce->block_len,MYF(MY_WME|MY_NABP)))
+    error= -1;
+  if (my_close(file, MYF(MY_WME)))
+    error= -1;
+  DBUG_RETURN(error);
+}
+
+
+int Load_log_processor::process(Append_block_log_event *ae)
+{
+  DBUG_ENTER("Load_log_processor::process");
+  Create_file_log_event* ce= ((ae->file_id < file_names.elements) ?
+			      *((Create_file_log_event**)file_names.buffer +
+				ae->file_id) :
+			      0);
+
+  if (ce)
+  {
+    File file;
+    int error= 0;
+    if (((file= my_open(ce->fname,
+			O_APPEND|O_BINARY|O_WRONLY,MYF(MY_WME))) < 0))
+      DBUG_RETURN(-1);
+    if (my_write(file,(byte*)ae->block,ae->block_len,MYF(MY_WME|MY_NABP)))
+      error= -1;
+    if (my_close(file,MYF(MY_WME)))
+      error= -1;
+    DBUG_RETURN(error);
+  }
+
+  /*
+    There is no Create_file event (a bad binlog or a big
+    --position). Assuming it's a big --position, we just do nothing and
+    print a warning.
+  */
+  fprintf(stderr,"Warning: ignoring Append_block as there is no \
+Create_file event for file_id: %u\n",ae->file_id);
+  DBUG_RETURN(-1);
 }
 
 
 Load_log_processor load_processor;
+
+
+int process_event(ulonglong *rec_count, LAST_EVENT_INFO *last_event_info,
+                  Log_event *ev, my_off_t pos)
+{
+  char ll_buff[21];
+  DBUG_ENTER("process_event");
+
+  if ((*rec_count) >= offset)
+  {
+    if (!short_form)
+      fprintf(result_file, "# at %s\n",llstr(pos,ll_buff));
+    
+    switch (ev->get_type_code()) {
+    case QUERY_EVENT:
+      if (one_database)
+      {
+	const char * log_dbname = ((Query_log_event*)ev)->db;
+	if ((log_dbname != NULL) && (strcmp(log_dbname, database)))
+	  goto end;
+      }
+      ev->print(result_file, short_form, last_event_info);
+      break;
+    case CREATE_FILE_EVENT:
+    {
+      Create_file_log_event* ce= (Create_file_log_event*)ev;
+      if (one_database)
+      {
+	/*
+	  We test if this event has to be ignored. If yes, we don't save 
+	      this event; this will have the good side-effect of ignoring all 
+	      related Append_block and Exec_load.
+	      Note that Load event from 3.23 is not tested.
+	*/
+	const char * log_dbname = ce->db;            
+	if ((log_dbname != NULL) && (strcmp(log_dbname, database)))
+	  goto end;				// Next event
+      }
+      /*
+	We print the event, but with a leading '#': this is just to inform 
+	the user of the original command; the command we want to execute 
+	will be a derivation of this original command (we will change the 
+	filename and use LOCAL), prepared in the 'case EXEC_LOAD_EVENT' 
+	below.
+      */
+      ce->print(result_file, short_form, last_event_info, TRUE);
+      // If this binlog is not 3.23 ; why this test??
+      if (description_event->binlog_version >= 3)
+      {
+	if (load_processor.process(ce))
+	  break;				// Error
+	ev= 0;
+      }
+      break;
+    }
+    case APPEND_BLOCK_EVENT:
+      ev->print(result_file, short_form, last_event_info);
+      if (load_processor.process((Append_block_log_event*) ev))
+	break;					// Error
+      break;
+    case EXEC_LOAD_EVENT:
+    {
+      ev->print(result_file, short_form, last_event_info);
+      Execute_load_log_event *exv= (Execute_load_log_event*)ev;
+      Create_file_log_event *ce= load_processor.grab_event(exv->file_id);
+      /*
+	if ce is 0, it probably means that we have not seen the Create_file
+	event (a bad binlog, or most probably --position is after the
+	Create_file event). Print a warning comment.
+      */
+      if (ce)
+      {
+	ce->print(result_file, short_form, last_event_info, TRUE);
+	my_free((char*)ce->fname,MYF(MY_WME));
+	delete ce;
+      }
+      else
+	fprintf(stderr,"Warning: ignoring Exec_load as there is no \
+Create_file event for file_id: %u\n",exv->file_id);
+      break;
+    }
+    case FORMAT_DESCRIPTION_EVENT:
+      delete description_event;
+      description_event= (Format_description_log_event*) ev;
+      ev->print(result_file, short_form, last_event_info);
+      /*
+        We don't want this event to be deleted now, so let's hide it (I
+        (Guilhem) should later see if this triggers a non-serious Valgrind
+        error). Not serious error, because we will free description_event
+        later.
+      */
+      ev= 0;
+      break;
+    default:
+      ev->print(result_file, short_form, last_event_info);
+    }
+  }
+
+end:
+  (*rec_count)++;
+  if (ev)
+    delete ev;
+  DBUG_RETURN(0);
+}
+
 
 static struct my_option my_long_options[] =
 {
@@ -259,18 +466,28 @@ static struct my_option my_long_options[] =
   {"read-from-remote-server", 'R', "Read binary logs from a MySQL server",
    (gptr*) &remote_opt, (gptr*) &remote_opt, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
+  {"open_files_limit", OPT_OPEN_FILES_LIMIT,
+   "Used to reserve file descriptors for usage by this program",
+   (gptr*) &open_files_limit, (gptr*) &open_files_limit, 0, GET_ULONG,
+   REQUIRED_ARG, MY_NFILE, 8, OS_FILE_LIMIT, 0, 1, 0},
   {"short-form", 's', "Just show the queries, no extra info.",
    (gptr*) &short_form, (gptr*) &short_form, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"socket", 'S', "Socket file to use for connection.",
-   (gptr*) &sock, (gptr*) &sock, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 
+   (gptr*) &sock, (gptr*) &sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 
    0, 0},
+  {"to-last-log", 't', "Requires -R. Will not stop at the end of the \
+requested binlog but rather continue printing until the end of the last \
+binlog of the MySQL server. If you send the output to the same MySQL server, \
+that may lead to an endless loop.",
+   (gptr*) &to_last_remote_log, (gptr*) &to_last_remote_log, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "Connect to the remote server as username.",
    (gptr*) &user, (gptr*) &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
-  {"local-load", 'l', "Prepare files for local load in directory.",
+  {"local-load", 'l', "Prepare local temporary files for LOAD DATA INFILE in the specified directory.",
    (gptr*) &dirname_for_local_load, (gptr*) &dirname_for_local_load, 0,
-   GET_STR_ALLOC, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Print version and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -290,6 +507,10 @@ void sql_print_error(const char *format,...)
 static void cleanup()
 {
   my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
+  my_free((char*) database, MYF(MY_ALLOW_ZERO_PTR));
+  my_free((char*) host, MYF(MY_ALLOW_ZERO_PTR));
+  my_free((char*) user, MYF(MY_ALLOW_ZERO_PTR));
+  my_free((char*) dirname_for_local_load, MYF(MY_ALLOW_ZERO_PTR));
 }
 
 static void die(const char* fmt, ...)
@@ -301,12 +522,16 @@ static void die(const char* fmt, ...)
   fprintf(stderr, "\n");
   va_end(args);
   cleanup();
+  my_end(0);
   exit(1);
 }
 
+#include <help_start.h>
+
 static void print_version()
 {
-  printf("%s Ver 2.5 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
+  printf("%s Ver 3.1 for %s at %s\n", my_progname, SYSTEM_TYPE, MACHINE_TYPE);
+  NETWARE_SET_SCREEN_MODE(1);
 }
 
 
@@ -325,36 +550,7 @@ the mysql command line client\n\n");
   my_print_variables(my_long_options);
 }
 
-static void dump_remote_file(NET* net, const char* fname)
-{
-  char buf[FN_REFLEN+1];
-  uint len = (uint) strlen(fname);
-  buf[0] = 0;
-  memcpy(buf + 1, fname, len + 1);
-  if(my_net_write(net, buf, len +2) || net_flush(net))
-    die("Failed  requesting the remote dump of %s", fname);
-  for(;;)
-    {
-      uint packet_len = my_net_read(net);
-      if(packet_len == 0)
-	{
-	  if(my_net_write(net, "", 0) || net_flush(net))
-	    die("Failed sending the ack packet");
-
-	  // we just need to send something, as the server will read but
-	  // not examine the packet - this is because mysql_load() sends an OK when it is done
-	  break;
-	}
-      else if(packet_len == packet_error)
-	die("Failed reading a packet during the dump of %s ", fname);
-
-      if(!short_form)
-	(void)my_fwrite(result_file, (byte*) net->read_pos, packet_len,MYF(0));
-    }
-
-  fflush(result_file);
-}
-
+#include <help_end.h>
 
 extern "C" my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
@@ -430,6 +626,7 @@ static int parse_args(int *argc, char*** argv)
 static MYSQL* safe_connect()
 {
   MYSQL *local_mysql = mysql_init(NULL);
+
   if (!local_mysql)
     die("Failed on mysql_init");
 
@@ -441,12 +638,11 @@ static MYSQL* safe_connect()
   return local_mysql;
 }
 
-static void dump_log_entries(const char* logname)
+static int dump_log_entries(const char* logname)
 {
   if (remote_opt)
-    dump_remote_log_entries(logname);
-  else
-    dump_local_log_entries(logname);  
+    return dump_remote_log_entries(logname);
+  return dump_local_log_entries(logname);  
 }
 
 /*
@@ -509,24 +705,26 @@ static int check_master_version(MYSQL* mysql,
 }
 
 
-/*
-  I thought I'd wait for both dump_*_log_entries to be merged, but it's not
-  yet, so I must update this one too.
-*/
-
-static void dump_remote_log_entries(const char* logname)
+static int dump_remote_log_entries(const char* logname)
 
 {
   char buf[128];
   LAST_EVENT_INFO last_event_info;
-  uint len;
+  uint len, logname_len;
   NET* net = &mysql->net;
-  Format_description_log_event* description_event; 
+  DBUG_ENTER("dump_remote_log_entries");
 
   if (check_master_version(mysql, &description_event))
-    die("Could not find server version");
+  {
+    fprintf(stderr, "Could not find server version");
+    DBUG_RETURN(1);
+  }
   if (!description_event || !description_event->is_valid())
-    die("Invalid Format_description log event; could be out of memory");
+  {
+    fprintf(stderr, "Invalid Format_description log event; \
+could be out of memory");
+    DBUG_RETURN(1);
+  }
 
   if (!position)
     position = BIN_LOG_HEADER_SIZE;
@@ -537,58 +735,109 @@ static void dump_remote_log_entries(const char* logname)
   }
   int4store(buf, position);
   int2store(buf + BIN_LOG_HEADER_SIZE, binlog_flags);
-  len = (uint) strlen(logname);
+  logname_len = (uint) strlen(logname);
   int4store(buf + 6, 0);
-  memcpy(buf + 10, logname,len);
-  if (simple_command(mysql, COM_BINLOG_DUMP, buf, len + 10, 1))
-    die("Error sending the log dump command");
+  memcpy(buf + 10, logname, logname_len);
+  if (simple_command(mysql, COM_BINLOG_DUMP, buf, logname_len + 10, 1))
+  {
+    fprintf(stderr,"Got fatal error sending the log dump command\n");
+    DBUG_RETURN(1);
+  }
+
+  my_off_t old_off= position;  
+  ulonglong rec_count= 0;
+  char fname[FN_REFLEN+1];
 
   for (;;)
   {
     const char *error;
     len = net_safe_read(mysql);
     if (len == packet_error)
-      die("Error reading packet from server: %s", mysql_error(mysql));
+    {
+      fprintf(stderr, "Got error reading packet from server: %s\n",
+	      mysql_error(mysql));
+      DBUG_RETURN(1);
+    }
     if (len < 8 && net->read_pos[0] == 254)
       break; // end of data
     DBUG_PRINT("info",( "len= %u, net->read_pos[5] = %d\n",
 			len, net->read_pos[5]));
     Log_event *ev = Log_event::read_log_event((const char*) net->read_pos + 1 ,
-					      len - 1, &error, description_event);
-    if (ev)
+					      len - 1, &error,
+                                              description_event);
+    if (!ev)
     {
-      switch (ev->get_type_code())
+      fprintf(stderr, "Could not construct log event object\n");
+      DBUG_RETURN(1);
+    }   
+
+    Log_event_type type= ev->get_type_code();
+    if (description_event->binlog_version >=3 || (type != LOAD_EVENT && type != CREATE_FILE_EVENT))
+    {
+      /*
+        If this is a Rotate event, maybe it's the end of the requested binlog;
+        in this case we are done (stop transfer).
+        This is suitable for binlogs, not relay logs (but for now we don't read
+        relay logs remotely because the server is not able to do that). If one
+        day we read relay logs remotely, then we will have a problem with the
+        detection below: relay logs contain Rotate events which are about the
+        binlogs, so which would trigger the end-detection below.
+      */
+      if (type == ROTATE_EVENT)
       {
-      case FORMAT_DESCRIPTION_EVENT:
-        delete description_event;
-        description_event= (Format_description_log_event*) ev;
-        ev->print(result_file, short_form, &last_event_info);
-        break;
-      case ROTATE_EVENT:
-        /* see comments in sql/slave.cc:process_io_rotate() */
-        if (description_event->binlog_version >= 4)
+        Rotate_log_event *rev= (Rotate_log_event *)ev;
+        /*
+          If this is a fake Rotate event, and not about our log, we can stop
+          transfer. If this a real Rotate event (so it's not about our log,
+          it's in our log describing the next log), we print it (because it's
+          part of our log) and then we will stop when we receive the fake one
+          soon.
+        */
+        if ((rev->when == 0) && !to_last_remote_log)
         {
-          delete description_event;
-          /* start from format 3 (MySQL 4.0) again */
-          description_event= new Format_description_log_event(3);
-          if (!description_event || !description_event->is_valid())
-            die("Invalid Format_description log event; could be out of memory");
+          if ((rev->ident_len != logname_len) ||
+              memcmp(rev->new_log_ident, logname, logname_len))
+            DBUG_RETURN(0);
+          /*
+            Otherwise, this is a fake Rotate for our log, at the very beginning
+            for sure. Skip it.
+          */
+          continue;
         }
-        ev->print(result_file, short_form, &last_event_info);
-        delete ev;
-        break;
-      case LOAD_EVENT:
-        dump_remote_file(net, ((Load_log_event*)ev)->fname);
-        /* fall through */
-      default:
-        ev->print(result_file, short_form, &last_event_info);
-        delete ev;
       }
+      if (process_event(&rec_count,&last_event_info,ev,old_off))
+ 	DBUG_RETURN(1);
     }
     else
-      die("Could not construct log event object");
+    {
+      Load_log_event *le= (Load_log_event*)ev;
+      const char *old_fname= le->fname;
+      uint old_len= le->fname_len;
+      File file;
+      
+      if ((file= load_processor.prepare_new_file_for_old_format(le,fname)) < 0)
+ 	DBUG_RETURN(1);
+      
+      if (process_event(&rec_count,&last_event_info,ev,old_off))
+      {
+ 	my_close(file,MYF(MY_WME));
+ 	DBUG_RETURN(1);
+      }
+      if (load_processor.load_old_format_file(net,old_fname,old_len,file))
+      {
+ 	my_close(file,MYF(MY_WME));
+ 	DBUG_RETURN(1);
+      }
+      my_close(file,MYF(MY_WME));
+    }
+    /*
+      Let's adjust offset for remote log as for local log to produce 
+      similar text. As we don't print the fake Rotate event, all events are
+      real so we can simply add the length.
+    */
+    old_off+= len-1;
   }
-  delete description_event;
+  DBUG_RETURN(0);
 }
 
 
@@ -687,35 +936,32 @@ at offset %lu ; this could be a log format error or read error",
 }
 
 
-static void dump_local_log_entries(const char* logname)
+static int dump_local_log_entries(const char* logname)
 {
   File fd = -1;
   IO_CACHE cache,*file= &cache;
   ulonglong rec_count = 0;
   LAST_EVENT_INFO last_event_info;
   byte tmp_buff[BIN_LOG_HEADER_SIZE];
-  /* 
-     check_header() will set the pointer below.
-     Why do we need here a pointer on an event instead of an event ?
-     This is because the event will be created (alloced) in read_log_event()
-     (which returns a pointer) in check_header().
-  */
-  Format_description_log_event* description_event; 
+  int error= 0;
 
   if (logname && logname[0] != '-')
   {
     if ((fd = my_open(logname, O_RDONLY | O_BINARY, MYF(MY_WME))) < 0)
-      exit(1);
+      return 1;
     if (init_io_cache(file, fd, 0, READ_CACHE, (my_off_t) position, 0,
 		      MYF(MY_WME | MY_NABP)))
-      exit(1);
+    {
+      my_close(fd, MYF(MY_WME));
+      return 1;
+    }
     check_header(file, &description_event);
   }
   else // reading from stdin; TODO: check that it works
   {
     if (init_io_cache(file, fileno(result_file), 0, READ_CACHE, (my_off_t) 0,
 		      0, MYF(MY_WME | MY_NABP | MY_DONT_CHECK_FILESIZE)))
-      exit(1);
+      return 1;
     check_header(file, &description_event);
     if (position)
     {
@@ -726,7 +972,10 @@ static void dump_local_log_entries(const char* logname)
       {
 	tmp=min(length,sizeof(buff));
 	if (my_b_read(file, buff, (uint) tmp))
-	  exit(1);
+        {
+          error= 1;
+          goto end;
+        }
       }
     }
     file->pos_in_file=position;
@@ -736,8 +985,11 @@ static void dump_local_log_entries(const char* logname)
   if (!description_event || !description_event->is_valid())
     die("Invalid Format_description log event; could be out of memory");
 
-  if (!position)
-    my_b_read(file, tmp_buff, BIN_LOG_HEADER_SIZE); // Skip header
+  if (!position && my_b_read(file, tmp_buff, BIN_LOG_HEADER_SIZE))
+  {
+    error= 1;
+    goto end;
+  }
   for (;;)
   {
     char llbuff[21];
@@ -747,123 +999,39 @@ static void dump_local_log_entries(const char* logname)
     if (!ev)
     {
       if (file->error)
-	die("\
-Could not read entry at offset %s : Error in log format or read error",
-	    llstr(old_off,llbuff));
+      {
+	fprintf(stderr,
+                "Could not read entry at offset %s:"
+                "Error in log format or read error\n",
+                llstr(old_off,llbuff));
+        error= 1;
+      }
       // file->error == 0 means EOF, that's OK, we break in this case
       break;
     }
-    if (rec_count >= offset)
-    {
-      if (!short_form)
-        fprintf(result_file, "# at %s\n",llstr(old_off,llbuff));
-      
-      switch (ev->get_type_code()) {
-      case QUERY_EVENT:
-        if (one_database)
-        {
-          const char * log_dbname = ((Query_log_event*)ev)->db;
-          if ((log_dbname != NULL) && (strcmp(log_dbname, database)))
-          {
-            rec_count++;
-            delete ev;
-            continue; // next
-          }
-        }
-	ev->print(result_file, short_form, &last_event_info);
-        break;
-      case CREATE_FILE_EVENT:
-      {
-	Create_file_log_event* ce= (Create_file_log_event*)ev;
-        if (one_database)
-        {
-          /*
-            We test if this event has to be ignored. If yes, we don't save this
-            event; this will have the good side-effect of ignoring all related
-            Append_block and Exec_load.
-            Note that Load event from 3.23 is not tested.
-          */
-          const char * log_dbname = ce->db;            
-          if ((log_dbname != NULL) && (strcmp(log_dbname, database)))
-          {
-            rec_count++;
-            delete ev;
-            continue; // next
-          }
-        }
-        /*
-          We print the event, but with a leading '#': this is just to inform
-	  the user of the original command; the command we want to execute
-	  will be a derivation of this original command (we will change the
-	  filename and use LOCAL), prepared in the 'case EXEC_LOAD_EVENT'
-	  below.
-        */
-	ce->print(result_file, short_form, &last_event_info, true);
-	load_processor.process(ce);
-	ev= 0;
-	break;
-      }
-      case APPEND_BLOCK_EVENT:
-	ev->print(result_file, short_form, &last_event_info);
-	load_processor.process((Append_block_log_event*)ev);
-	break;
-      case EXEC_LOAD_EVENT:
-      {
-	ev->print(result_file, short_form, &last_event_info);
-	Execute_load_log_event *exv= (Execute_load_log_event*)ev;
-	Create_file_log_event *ce= load_processor.grab_event(exv->file_id);
-        /*
-          if ce is 0, it probably means that we have not seen the Create_file
-          event (a bad binlog, or most probably --position is after the
-          Create_file event). Print a warning comment.
-        */
-        if (ce)
-        {
-          ce->print(result_file, short_form, &last_event_info,true);
-          my_free((char*)ce->fname,MYF(MY_WME));
-          delete ce;
-        }
-        else
-          fprintf(stderr,"Warning: ignoring Exec_load as there is no \
-Create_file event for file_id: %u\n",exv->file_id);
-	break;
-      }
-      case FORMAT_DESCRIPTION_EVENT:
-        delete description_event;
-        description_event= (Format_description_log_event*) ev;
-	ev->print(result_file, short_form, &last_event_info);
-        break;
-      case ROTATE_EVENT:
-        /* see comments in sql/slave.cc:process_io_rotate() */
-        if (description_event->binlog_version >= 4)
-        {
-          delete description_event;
-          /* start from format 3 (MySQL 4.0) again */
-          description_event= new Format_description_log_event(3);
-          if (!description_event || !description_event->is_valid())
-            die("Invalid Format_description log event; could be out of memory");
-        }
-	ev->print(result_file, short_form, &last_event_info);
-        break;
-      default:
-	ev->print(result_file, short_form, &last_event_info);
-      }
-    }
-    rec_count++;
-    if (ev && ev->get_type_code()!=FORMAT_DESCRIPTION_EVENT)
-      delete ev; /* otherwise, deleted in the end */
+   if (process_event(&rec_count,&last_event_info,ev,old_off))
+   {
+     error= 1;
+     break;
+   }
   }
+
+end:
   if (fd >= 0)
     my_close(fd, MYF(MY_WME));
   end_io_cache(file);
   delete description_event;
+  return error;
 }
 
 
 int main(int argc, char** argv)
 {
   static char **defaults_argv;
+  int exit_value;
   MY_INIT(argv[0]);
+  DBUG_ENTER("main");
+  DBUG_PROCESS(argv[0]);
 
   parse_args(&argc, (char***)&argv);
   defaults_argv=argv;
@@ -872,9 +1040,10 @@ int main(int argc, char** argv)
   {
     usage();
     free_defaults(defaults_argv);
-    return -1;
+    exit(1);
   }
 
+  my_set_max_open_files(open_files_limit);
   if (remote_opt)
     mysql = safe_connect();
 
@@ -884,16 +1053,28 @@ int main(int argc, char** argv)
   {
     if (init_tmpdir(&tmpdir, 0))
       exit(1);
-    dirname_for_local_load= my_tmpdir(&tmpdir);
+    dirname_for_local_load= my_strdup(my_tmpdir(&tmpdir), MY_WME);
   }
 
+  if (load_processor.init())
+    exit(1);
   if (dirname_for_local_load)
     load_processor.init_by_dir_name(dirname_for_local_load);
   else
     load_processor.init_by_cur_dir();
 
+  exit_value= 0;
+  fprintf(result_file,
+	  "/*!40019 SET @@session.max_insert_delayed_threads=0*/;\n");
   while (--argc >= 0)
-    dump_log_entries(*(argv++));
+  {
+    if (dump_log_entries(*(argv++)))
+    {
+      exit_value=1;
+      break;
+    }
+  }
+
   if (tmpdir.list)
     free_tmpdir(&tmpdir);
   if (result_file != stdout)
@@ -902,8 +1083,10 @@ int main(int argc, char** argv)
     mysql_close(mysql);
   cleanup();
   free_defaults(defaults_argv);
+  my_free_open_file_info();
   my_end(0);
-  return 0;
+  exit(exit_value);
+  DBUG_RETURN(exit_value);			// Keep compilers happy
 }
 
 /*

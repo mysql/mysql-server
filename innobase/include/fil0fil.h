@@ -19,7 +19,7 @@ Created 10/25/1995 Heikki Tuuri
 /* When mysqld is run, the default directory "." is the mysqld datadir, but in
 ibbackup we must set it explicitly; the patgh must NOT contain the trailing
 '/' or '\' */
-extern char*	fil_path_to_mysql_datadir;
+extern const char*	fil_path_to_mysql_datadir;
 
 /* Initial size of a single-table tablespace in pages */
 #define FIL_IBD_FILE_INITIAL_SIZE	4
@@ -132,11 +132,12 @@ Appends a new file to the chain of files of a space. File must be closed. */
 void
 fil_node_create(
 /*============*/
-	char*	name,	/* in: file name (file must be closed) */
-	ulint	size,	/* in: file size in database blocks, rounded downwards
-			to an integer */
-	ulint	id,	/* in: space id where to append */
-	ibool	is_raw);/* in: TRUE if a raw device or a raw disk partition */
+	const char*	name,	/* in: file name (file must be closed) */
+	ulint		size,	/* in: file size in database blocks, rounded
+				downwards to an integer */
+	ulint		id,	/* in: space id where to append */
+	ibool		is_raw);/* in: TRUE if a raw device or
+				a raw disk partition */
 /********************************************************************
 Drops files from the start of a file space, so that its size is cut by
 the amount given. */
@@ -155,10 +156,10 @@ there is an error, prints an error message to the .err log. */
 ibool
 fil_space_create(
 /*=============*/
-			/* out: TRUE if success */
-	char*	name,	/* in: space name */
-	ulint	id,	/* in: space id */
-	ulint	purpose);/* in: FIL_TABLESPACE, or FIL_LOG if log */
+				/* out: TRUE if success */
+	const char*	name,	/* in: space name */
+	ulint		id,	/* in: space id */
+	ulint		purpose);/* in: FIL_TABLESPACE, or FIL_LOG if log */
 /***********************************************************************
 Frees a space object from a the tablespace memory cache. Closes the files in
 the chain but does not delete them. */
@@ -247,10 +248,12 @@ fil_read_flushed_lsn_and_arch_log_no(
 	os_file_t data_file,		/* in: open data file */
 	ibool	one_read_already,	/* in: TRUE if min and max parameters
 					below already contain sensible data */
-	dulint*	min_flushed_lsn,	/* in/out: */
+#ifdef UNIV_LOG_ARCHIVE
 	ulint*	min_arch_log_no,	/* in/out: */
-	dulint*	max_flushed_lsn,	/* in/out: */
-	ulint*	max_arch_log_no);	/* in/out: */
+	ulint*	max_arch_log_no,	/* in/out: */
+#endif /* UNIV_LOG_ARCHIVE */
+	dulint*	min_flushed_lsn,	/* in/out: */
+	dulint*	max_flushed_lsn);	/* in/out: */
 /***********************************************************************
 Increments the count of pending insert buffer page merges, if space is not
 being deleted. */
@@ -327,14 +330,15 @@ tablespace memory cache. */
 ibool
 fil_rename_tablespace(
 /*==================*/
-				/* out: TRUE if success */
-	char*	old_name,	/* in: old table name in the standard
-				databasename/tablename format of InnoDB, or
-				NULL if we do the rename based on the space
-				id only */
-	ulint	id,		/* in: space id */
-	char*	new_name);	/* in: new table name in the standard
-				databasename/tablename format of InnoDB */
+					/* out: TRUE if success */
+	const char*	old_name,	/* in: old table name in the standard
+					databasename/tablename format of
+					InnoDB, or NULL if we do the rename
+					based on the space id only */
+	ulint		id,		/* in: space id */
+	const char*	new_name);	/* in: new table name in the standard
+					databasename/tablename format
+					of InnoDB */
 /***********************************************************************
 Creates a new single-table tablespace to a database directory of MySQL.
 Database directories are under the 'datadir' of MySQL. The datadir is the
@@ -344,14 +348,16 @@ path '.'. */
 ulint
 fil_create_new_single_table_tablespace(
 /*===================================*/
-				/* out: DB_SUCCESS or error code */
-	ulint*	space_id,	/* in/out: space id; if this is != 0, then
-				this is an input parameter, otherwise
-				output */
-	char*	tablename,	/* in: the table name in the usual
-				databasename/tablename format of InnoDB */
-	ulint	size);		/* in: the initial size of the tablespace file
-				in pages, must be > 0 */
+					/* out: DB_SUCCESS or error code */
+	ulint*		space_id,	/* in/out: space id; if this is != 0,
+					then this is an input parameter,
+					otherwise output */
+	const char*	tablename,	/* in: the table name in the usual
+					databasename/tablename format
+					of InnoDB */
+	ulint		size);		/* in: the initial size of the
+					tablespace file in pages,
+					must be >= FIL_IBD_FILE_INITIAL_SIZE */
 /************************************************************************
 Tries to open a single-table tablespace and checks the space id is right in
 it. If does not succeed, prints an error message to the .err log. This
@@ -362,10 +368,10 @@ protection of the dictionary mutex, so that two users cannot race here. */
 ibool
 fil_open_single_table_tablespace(
 /*=============================*/
-			/* out: TRUE if success */
-	ulint	id,	/* in: space id */
-	char*	name);	/* in: table name in the databasename/tablename
-			format */
+				/* out: TRUE if success */
+	ulint		id,	/* in: space id */
+	const char*	name);	/* in: table name in the
+				databasename/tablename format */
 /************************************************************************
 It is possible, though very improbable, that the lsn's in the tablespace to be
 imported have risen above the current system lsn, if a lengthy purge, ibuf
@@ -379,12 +385,12 @@ lsn's just by looking at that flush lsn. */
 ibool
 fil_reset_too_high_lsns(
 /*====================*/
-				/* out: TRUE if success */
-	char*	name,		/* in: table name in the databasename/tablename
-				format */
-	dulint	current_lsn);	/* in: reset lsn's if the lsn stamped to
-				FIL_PAGE_FILE_FLUSH_LSN in the first page is
-				too high */
+					/* out: TRUE if success */
+	const char*	name,		/* in: table name in the
+					databasename/tablename format */
+	dulint		current_lsn);	/* in: reset lsn's if the lsn stamped
+					to FIL_PAGE_FILE_FLUSH_LSN in the
+					first page is too high */
 /************************************************************************
 At the server startup, if we need crash recovery, scans the database
 directories under the MySQL datadir, looking for .ibd files. Those files are
@@ -436,20 +442,22 @@ there may be many tablespaces which are not yet in the memory cache. */
 ibool
 fil_space_for_table_exists_in_mem(
 /*==============================*/
-				/* out: TRUE if a matching tablespace
-				exists in the memory cache */
-	ulint	id,		/* in: space id */
-	char*	name,		/* in: table name in the standard
-				'databasename/tablename' format */
-	ibool	mark_space,	/* in: in crash recovery, at database startup
-				we mark all spaces which have an associated
-				table in the InnoDB data dictionary, so that
-				we can print a warning about orphaned
-				tablespaces */
-	ibool	print_error_if_does_not_exist);
-				/* in: print detailed error information to
-				the .err log if a matching tablespace is
-				not found from memory */
+					/* out: TRUE if a matching tablespace
+					exists in the memory cache */
+	ulint		id,		/* in: space id */
+	const char*	name,		/* in: table name in the standard
+					'databasename/tablename' format */
+	ibool		mark_space,	/* in: in crash recovery, at database
+					startup we mark all spaces which have
+					an associated table in the InnoDB
+					data dictionary, so that
+					we can print a warning about orphaned
+					tablespaces */
+	ibool		print_error_if_does_not_exist);
+					/* in: print detailed error
+					information to the .err log if a
+					matching tablespace is not found from
+					memory */
 /**************************************************************************
 Tries to extend a data file so that it would accommodate the number of pages
 given. The tablespace must be cached in the memory cache. If the space is big

@@ -112,20 +112,6 @@ dulint
 log_get_lsn(void);
 /*=============*/
 			/* out: current lsn */
-/****************************************************************************
-Gets the online backup lsn. */
-UNIV_INLINE
-dulint
-log_get_online_backup_lsn_low(void);
-/*===============================*/
-/****************************************************************************
-Gets the online backup state. */
-UNIV_INLINE
-ibool
-log_get_online_backup_state_low(void);
-/*=================================*/
-				/* out: online backup state, the caller must
-				own the log_sys mutex */
 /**********************************************************
 Initializes the log. */
 
@@ -324,20 +310,6 @@ log_archived_file_name_gen(
 	char*	buf,	/* in: buffer where to write */
 	ulint	id,	/* in: group id */
 	ulint	file_no);/* in: file number */
-/**********************************************************
-Switches the database to the online backup state. */
-
-ulint
-log_switch_backup_state_on(void);
-/*============================*/
-			/* out: DB_SUCCESS or DB_ERROR */
-/**********************************************************
-Switches the online backup state off. */
-
-ulint
-log_switch_backup_state_off(void);
-/*=============================*/
-			/* out: DB_SUCCESS or DB_ERROR */
 /************************************************************************
 Checks that there is enough free space in the log to start a new query step.
 Flushes the log buffer or makes a new checkpoint if necessary. NOTE: this
@@ -364,7 +336,6 @@ Writes a buffer to a log file group. */
 void
 log_group_write_buf(
 /*================*/
-	ulint		type,		/* in: LOG_FLUSH or LOG_RECOVER */
 	log_group_t*	group,		/* in: log group */
 	byte*		buf,		/* in: buffer */
 	ulint		len,		/* in: buffer len; must be divisible
@@ -511,8 +482,7 @@ Prints info of the log. */
 void
 log_print(
 /*======*/
-	char*	buf,	/* in/out: buffer where to print */
-	char*	buf_end);/* in: buffer end */
+	FILE*	file);	/* in: file where to print */
 /**********************************************************
 Peeks the current lsn. */
 
@@ -876,13 +846,6 @@ struct log_struct{
 	os_event_t	archiving_on;	/* if archiving has been stopped,
 					a thread can wait for this event to
 					become signaled */
-	/* Fields involved in online backups */
-	ibool		online_backup_state;
-					/* TRUE if the database is in the
-					online backup state */
-	dulint		online_backup_lsn;
-					/* lsn when the state was changed to
-					the online backup state */
 };
 
 #define LOG_ARCH_ON		71

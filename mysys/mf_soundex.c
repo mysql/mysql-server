@@ -28,6 +28,10 @@
 *								*
 *	As an extension if remove_garbage is set then all non-	*
 *	alpha characters are skipped				*
+*                                                               *
+*       Note, that this implementation corresponds to the       *
+*       original version of the algorithm, not to the more      *
+*       popular "enhanced" version, described by Knuth.         *
 ****************************************************************/
 
 #include "mysys_priv.h"
@@ -48,7 +52,7 @@ void soundex(CHARSET_INFO * cs,register my_string out_pntr, my_string in_pntr,
 
   if (remove_garbage)
   {
-    while (*in_pntr && my_isspace(cs,*in_pntr))	/* Skipp pre-space */
+    while (*in_pntr && !my_isalpha(cs,*in_pntr)) /* Skip pre-space */
       in_pntr++;
   }
   *out_pntr++ = map[(uchar)*in_pntr];	/* Copy first letter		 */
@@ -78,7 +82,7 @@ void soundex(CHARSET_INFO * cs,register my_string out_pntr, my_string in_pntr,
 
   /*
     If alpha, map input letter to soundex code.
-    If not alpha and remove_garbage is set then skipp to next char
+    If not alpha and remove_garbage is set then skip to next char
     else return 0
     */
 
@@ -94,7 +98,7 @@ static char get_scode(CHARSET_INFO * cs,char **ptr, pbool remove_garbage)
   ch=my_toupper(cs,**ptr);
   if (ch < 'A' || ch > 'Z')
   {
-    if (my_isalpha(cs,ch))		/* If exetended alfa (country spec) */
+    if (my_isalpha(cs,ch))		/* If extended alfa (country spec) */
       return '0';			/* threat as vokal */
     return 0;				/* Can't map */
   }

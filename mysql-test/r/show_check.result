@@ -43,7 +43,7 @@ wait_timeout	28800
 show variables like "this_doesn't_exists%";
 Variable_name	Value
 show table status from test like "this_doesn't_exists%";
-Name	Type	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 show databases;
 Database
 mysql
@@ -88,20 +88,37 @@ drop table t2;
 create table t1 (
 test_set set( 'val1', 'val2', 'val3' ) not null default '',
 name char(20) default 'O''Brien' comment 'O''Brien as default',
-c int not null comment 'int column'
+c int not null comment 'int column',
+`c-b` int comment 'name with a minus',
+`space 2` int comment 'name with a space'
   ) comment = 'it\'s a table' ;
-show create table t1 ;
+show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `test_set` set('val1','val2','val3') NOT NULL default '',
   `name` char(20) default 'O''Brien' COMMENT 'O''Brien as default',
-  `c` int(11) NOT NULL default '0' COMMENT 'int column'
+  `c` int(11) NOT NULL default '0' COMMENT 'int column',
+  `c-b` int(11) default NULL COMMENT 'name with a minus',
+  `space 2` int(11) default NULL COMMENT 'name with a space'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='it''s a table'
+set sql_quote_show_create=0;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE t1 (
+  test_set set('val1','val2','val3') NOT NULL default '',
+  `name` char(20) default 'O''Brien' COMMENT 'O''Brien as default',
+  c int(11) NOT NULL default '0' COMMENT 'int column',
+  `c-b` int(11) default NULL COMMENT 'name with a minus',
+  `space 2` int(11) default NULL COMMENT 'name with a space'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='it''s a table'
+set sql_quote_show_create=1;
 show full columns from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 test_set	set('val1','val2','val3')	latin1_swedish_ci					select,insert,update,references	
 name	char(20)	latin1_swedish_ci	YES		O'Brien		select,insert,update,references	O'Brien as default
 c	int(11)	NULL			0		select,insert,update,references	int column
+c-b	int(11)	NULL	YES		NULL		select,insert,update,references	name with a minus
+space 2	int(11)	NULL	YES		NULL		select,insert,update,references	name with a space
 drop table t1;
 create table t1 (a int not null, unique aa (a));
 show create table t1;
@@ -127,7 +144,6 @@ insert into t1 values (1);
 show open tables;
 Database	Table	In_use	Name_locked
 test	t1	0	0
-mysql	proc	0	0
 drop table t1;
 create table t1 (a int not null, b VARCHAR(10), INDEX (b) ) AVG_ROW_LENGTH=10 CHECKSUM=1 COMMENT="test" ENGINE=MYISAM MIN_ROWS=10 MAX_ROWS=100 PACK_KEYS=1 DELAY_KEY_WRITE=1 ROW_FORMAT=fixed;
 show create table t1;
@@ -209,7 +225,7 @@ t1	CREATE TABLE `t1` (
   `empty_char` char(0) default NULL,
   `type_char` char(2) default NULL,
   `type_varchar` varchar(10) default NULL,
-  `type_timestamp` timestamp NOT NULL,
+  `type_timestamp` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
   `type_date` date NOT NULL default '0000-00-00',
   `type_time` time NOT NULL default '00:00:00',
   `type_datetime` datetime NOT NULL default '0000-00-00 00:00:00',
@@ -249,3 +265,138 @@ c	decimal(4,3)	YES		NULL
 d	double(4,3)	YES		NULL	
 f	float(4,3)	YES		NULL	
 drop table t1;
+SET @old_sql_mode= @@sql_mode, sql_mode= '';
+SET @old_sql_quote_show_create= @@sql_quote_show_create, sql_quote_show_create= OFF;
+CREATE TABLE `a/b` (i INT);
+ERROR 42000: Incorrect table name 'a/b'
+SET sql_mode= '';
+SET sql_quote_show_create= OFF;
+CREATE TABLE t1 (i INT);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE t1 (
+  i int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1;
+CREATE TABLE `table` (i INT);
+SHOW CREATE TABLE `table`;
+Table	Create Table
+table	CREATE TABLE `table` (
+  i int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE `table`;
+SET sql_quote_show_create= @old_sql_quote_show_create;
+SET sql_mode= @old_sql_mode;
+select @@max_heap_table_size;
+@@max_heap_table_size
+1047552
+CREATE TABLE t1 (
+a int(11) default NULL,
+KEY a TYPE BTREE (a)
+) ENGINE=HEAP;
+CREATE TABLE t2 (
+b int(11) default NULL,
+index(b)
+) ENGINE=HEAP;
+CREATE TABLE t3 (
+a int(11) default NULL,
+b int(11) default NULL,
+KEY a TYPE BTREE (a),
+index(b)
+) ENGINE=HEAP;
+insert into t1 values (1),(2);
+insert into t2 values (1),(2);
+insert into t3 values (1,1),(2,2);
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	HEAP	9	Fixed	2	5	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t2	HEAP	9	Fixed	2	5	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t3	HEAP	9	Fixed	2	9	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+insert into t1 values (3),(4);
+insert into t2 values (3),(4);
+insert into t3 values (3,3),(4,4);
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	HEAP	9	Fixed	4	5	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t2	HEAP	9	Fixed	4	5	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t3	HEAP	9	Fixed	4	9	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+insert into t1 values (5);
+insert into t2 values (5);
+insert into t3 values (5,5);
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	HEAP	9	Fixed	5	5	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t2	HEAP	9	Fixed	5	5	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t3	HEAP	9	Fixed	5	9	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+delete from t1 where a=3;
+delete from t2 where b=3;
+delete from t3 where a=3;
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	HEAP	9	Fixed	4	5	#	#	#	5	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t2	HEAP	9	Fixed	4	5	#	#	#	5	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t3	HEAP	9	Fixed	4	9	#	#	#	9	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+delete from t1;
+delete from t2;
+delete from t3;
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	HEAP	9	Fixed	0	5	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t2	HEAP	9	Fixed	0	5	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t3	HEAP	9	Fixed	0	9	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+insert into t1 values (5);
+insert into t2 values (5);
+insert into t3 values (5,5);
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	HEAP	9	Fixed	1	5	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t2	HEAP	9	Fixed	1	5	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t3	HEAP	9	Fixed	1	9	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+delete from t1 where a=5;
+delete from t2 where b=5;
+delete from t3 where a=5;
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	HEAP	9	Fixed	0	5	#	#	#	5	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t2	HEAP	9	Fixed	0	5	#	#	#	5	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+t3	HEAP	9	Fixed	0	9	#	#	#	9	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+drop table t1, t2, t3;
+create database test_$1;
+show create database test_$1;
+Database	Create Database
+test_$1	CREATE DATABASE `test_$1` /*!40100 DEFAULT CHARACTER SET latin1 */
+create table test_$1.t1(a int);
+insert into test_$1.t1 values(1);
+grant select on `test_$1`.* to mysqltest_1@localhost;
+grant usage  on `test_$1`.* to mysqltest_2@localhost;
+grant drop   on `test_$1`.* to mysqltest_3@localhost;
+select * from t1;
+a
+1
+show create database test_$1;
+Database	Create Database
+test_$1	CREATE DATABASE `test_$1` /*!40100 DEFAULT CHARACTER SET latin1 */
+drop table t1;
+ERROR 42000: Access denied for user 'mysqltest_1'@'localhost' to database 'test_$1'
+drop database test_$1;
+ERROR 42000: Access denied for user 'mysqltest_1'@'localhost' to database 'test_$1'
+select * from test_$1.t1;
+ERROR 42000: Access denied for user 'mysqltest_2'@'localhost' to database 'test_$1'
+show create database test_$1;
+ERROR 42000: Access denied for user 'mysqltest_2'@'localhost' to database 'test_$1'
+drop table test_$1.t1;
+ERROR 42000: Access denied for user 'mysqltest_2'@'localhost' to database 'test_$1'
+drop database test_$1;
+ERROR 42000: Access denied for user 'mysqltest_2'@'localhost' to database 'test_$1'
+select * from test_$1.t1;
+ERROR 42000: Access denied for user 'mysqltest_3'@'localhost' to database 'test_$1'
+show create database test_$1;
+ERROR 42000: Access denied for user 'mysqltest_3'@'localhost' to database 'test_$1'
+drop table test_$1.t1;
+drop database test_$1;
+set names binary;
+delete from mysql.user 
+where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
+delete from mysql.db   
+where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
+flush privileges;

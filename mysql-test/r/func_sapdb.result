@@ -119,6 +119,8 @@ timestamp("2001-12-01", "01:01:01.999999")
 select timestamp("2001-13-01", "01:01:01.000001");
 timestamp("2001-13-01", "01:01:01.000001")
 NULL
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '2001-13-01'
 select timestamp("2001-12-01", "25:01:01");
 timestamp("2001-12-01", "25:01:01")
 2001-12-02 01:01:01
@@ -137,12 +139,16 @@ date("1997-12-31 23:59:59.000001")
 select date("1997-13-31 23:59:59.000001");
 date("1997-13-31 23:59:59.000001")
 NULL
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '1997-13-31 23:59:59.000001'
 select time("1997-12-31 23:59:59.000001");
 time("1997-12-31 23:59:59.000001")
 23:59:59.000001
 select time("1997-12-31 25:59:59.000001");
 time("1997-12-31 25:59:59.000001")
 NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: '1997-12-31 25:59:59.000001'
 select microsecond("1997-12-31 23:59:59.000001");
 microsecond("1997-12-31 23:59:59.000001")
 1
@@ -159,14 +165,14 @@ time("1997-12-31 23:59:59.000001") as f9;
 describe t1;
 Field	Type	Null	Key	Default	Extra
 f1	date			0000-00-00	
-f2	datetime			0000-00-00 00:00:00	
-f3	time			00:00:00	
+f2	datetime	YES		NULL	
+f3	time	YES		NULL	
 f4	time			00:00:00	
 f5	time			00:00:00	
 f6	time			00:00:00	
-f7	datetime			0000-00-00 00:00:00	
-f8	date			0000-00-00	
-f9	time			00:00:00	
+f7	datetime	YES		NULL	
+f8	date	YES		NULL	
+f9	time	YES		NULL	
 select * from t1;
 f1	f2	f3	f4	f5	f6	f7	f8	f9
 1997-01-01	1998-01-02 01:01:00	49:01:01	46:58:57	-23:59:59	10:11:12	2001-12-01 01:01:01	1997-12-31	23:59:59
@@ -199,3 +205,18 @@ NULL	NULL	NULL	NULL
 NULL	NULL	NULL	NULL
 00:00:00	-24:00:00	24:00:00	NULL
 drop table t1, test;
+select addtime("-01:01:01.01", "-23:59:59.1") as a;
+a
+-25:01:00.110000
+select microsecond("1997-12-31 23:59:59.01") as a;
+a
+10000
+select microsecond(19971231235959.01) as a;
+a
+10000
+select date_add("1997-12-31",INTERVAL "10.09" SECOND_MICROSECOND) as a;
+a
+1997-12-31 00:00:10.090000
+select str_to_date("2003-01-02 10:11:12.0012", "%Y-%m-%d %H:%i:%S.%f");
+str_to_date("2003-01-02 10:11:12.0012", "%Y-%m-%d %H:%i:%S.%f")
+2003-01-02 10:11:12.001200

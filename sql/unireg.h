@@ -48,7 +48,7 @@
 #define MAX_ALIAS_NAME 256
 #define MAX_FIELD_NAME 34			/* Max colum name length +2 */
 #define MAX_SYS_VAR_LENGTH 32
-#define MAX_KEY 32				/* Max used keys */
+#define MAX_KEY 64				/* Max used keys */
 #define MAX_REF_PARTS 16			/* Max parts used as ref */
 #define MAX_KEY_LENGTH 1024			/* max possible key */
 #if SIZEOF_OFF_T > 4
@@ -139,6 +139,7 @@
 #define DONT_GIVE_ERROR		256	/* Don't do frm_error on openfrm  */
 #define READ_SCREENS		1024	/* Read screens, info and helpfile */
 #define DELAYED_OPEN		4096	/* Open table later */
+#define NO_ERR_ON_NEW_FRM	8192	/* stop error sending on new format */
 
 #define SC_INFO_LENGTH 4		/* Form format constant */
 #define TE_INFO_LENGTH 3

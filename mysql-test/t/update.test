@@ -125,7 +125,6 @@ insert into t1 (F1,F2,F3,cnt,groupid) values ('0','0','0',1,6),
 ('0','1','2',1,5), ('0','2','0',1,3), ('1','0','1',1,2),
 ('1','2','1',1,1), ('1','2','2',1,1), ('2','0','1',2,4),
 ('2','2','0',1,7);
-
-delete from t1 using t1 m1,t1 m2 where m1.groupid=m2.groupid and (m1.cnt < m2.cnt or m1.cnt=m2.cnt and m1.F3>m2.F3);
+delete from m1 using t1 m1,t1 m2 where m1.groupid=m2.groupid and (m1.cnt < m2.cnt or m1.cnt=m2.cnt and m1.F3>m2.F3);
 select * from t1;
 drop table t1;

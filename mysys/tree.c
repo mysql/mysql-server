@@ -170,8 +170,8 @@ void delete_tree(TREE* tree)
 
 void reset_tree(TREE* tree)
 {
+  /* do not free mem_root, just mark blocks as free */
   free_tree(tree, MYF(MY_MARK_BLOCKS_FREE));
-  /* do not my_free() mem_root if applicable, just mark blocks as free */
 }
 
 
@@ -188,10 +188,14 @@ static void delete_tree_element(TREE *tree, TREE_ELEMENT *element)
   }
 }
 
-	/* Code for insert, search and delete of elements */
-	/*   parent[0] = & parent[-1][0]->left ||
-	     parent[0] = & parent[-1][0]->right */
 
+/*
+  insert, search and delete of elements
+
+  The following should be true:
+    parent[0] = & parent[-1][0]->left ||
+    parent[0] = & parent[-1][0]->right
+*/
 
 TREE_ELEMENT *tree_insert(TREE *tree, void *key, uint key_size, 
                           void* custom_arg)
@@ -232,8 +236,7 @@ TREE_ELEMENT *tree_insert(TREE *tree, void *key, uint key_size,
     if (tree->with_delete)
       element=(TREE_ELEMENT *) my_malloc(alloc_size, MYF(MY_WME));
     else
-      element=(TREE_ELEMENT *)
-	alloc_root(&tree->mem_root,alloc_size);
+      element=(TREE_ELEMENT *) alloc_root(&tree->mem_root,alloc_size);
     if (!element)
       return(NULL);
     **parent=element;
@@ -251,9 +254,9 @@ TREE_ELEMENT *tree_insert(TREE *tree, void *key, uint key_size,
     }
     else
       memcpy((byte*) element+tree->offset_to_key,key,(size_t) key_size);
-    element->count=1;				/* May give warning in purify */
+    element->count=1;			/* May give warning in purify */
     tree->elements_in_tree++;
-    rb_insert(tree,parent,element);		/* rebalance tree */
+    rb_insert(tree,parent,element);	/* rebalance tree */
   }
   else
   {
@@ -320,6 +323,8 @@ int tree_delete(TREE *tree, void *key, void *custom_arg)
     rb_delete_fixup(tree,parent);
   if (tree->free)
     (*tree->free)(ELEMENT_KEY(tree,element), free_free, tree->custom_arg);
+  /* This doesn't include key_size, but better than nothing */
+  tree->allocated-= sizeof(TREE_ELEMENT)+tree->size_of_element;
   my_free((gptr) element,MYF(0));
   tree->elements_in_tree--;
   return 0;
@@ -476,7 +481,6 @@ ha_rows tree_record_pos(TREE *tree, const void *key,
   TREE_ELEMENT *element= tree->root;
   double left= 1;
   double right= tree->elements_in_tree;
-  ha_rows last_equal_pos= HA_POS_ERROR;
 
   while (element != &tree->null_element)
   {
@@ -485,9 +489,6 @@ ha_rows tree_record_pos(TREE *tree, const void *key,
     {
       switch (flag) {
       case HA_READ_KEY_EXACT:
-        last_equal_pos= (ha_rows) ((left + right) / 2);
-        cmp= 1;
-        break;
       case HA_READ_BEFORE_KEY:
         cmp= 1;
         break;
@@ -511,7 +512,6 @@ ha_rows tree_record_pos(TREE *tree, const void *key,
   }
   switch (flag) {
   case HA_READ_KEY_EXACT:
-    return last_equal_pos;
   case HA_READ_BEFORE_KEY:
     return (ha_rows) right;
   case HA_READ_AFTER_KEY:

@@ -392,6 +392,11 @@ struct tm *gmtime_r(const time_t *clock, struct tm *res);
 #define pthread_condattr_destroy pthread_condattr_delete
 #endif
 
+/* FSU THREADS */
+#if !defined(HAVE_PTHREAD_KEY_DELETE) && !defined(pthread_key_delete)
+#define pthread_key_delete(A) pthread_dummy(0)
+#endif
+
 #ifdef HAVE_CTHREADS_WRAPPER			/* For MacOSX */
 #define pthread_cond_destroy(A) pthread_dummy(0)
 #define pthread_mutex_destroy(A) pthread_dummy(0)

@@ -4,11 +4,11 @@ create table t1
 key1 int not null, 
 key2 int not null, 
 INDEX i1(key1),
-INDEX i2(key2),
+INDEX i2(key2)
 ) engine=innodb;
 explain select * from t1 where key1 < 5 or key2 > 197;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	8	Using where
+1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	8	Using sort_union(i1,i2); Using where
 select * from t1 where key1 < 5 or key2 > 197;
 key1	key2
 0	200
@@ -18,7 +18,7 @@ key1	key2
 4	196
 explain select * from t1 where key1 < 3 or key2 > 195;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	8	Using where
+1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	8	Using sort_union(i1,i2); Using where
 select * from t1 where key1 < 3 or key2 > 195;
 key1	key2
 0	200
@@ -34,7 +34,7 @@ update t1 set str1='aaa', str2='bbb', str3=concat(key2, '-', key1 div 2, '_' ,if
 alter table t1 add primary key (str1, zeroval, str2, str3);
 explain select * from t1 where key1 < 5 or key2 > 197;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	8	Using where
+1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	8	Using sort_union(i1,i2); Using where
 select * from t1 where key1 < 5 or key2 > 197;
 key1	key2	str1	zeroval	str2	str3
 4	196	aaa	0	bbb	196-2_a
@@ -44,7 +44,7 @@ key1	key2	str1	zeroval	str2	str3
 0	200	aaa	0	bbb	200-0_a
 explain select * from t1 where key1 < 3 or key2 > 195;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	8	Using where
+1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	8	Using sort_union(i1,i2); Using where
 select * from t1 where key1 < 3 or key2 > 195;
 key1	key2	str1	zeroval	str2	str3
 4	196	aaa	0	bbb	196-2_a

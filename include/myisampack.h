@@ -21,6 +21,10 @@
   better compression
 */
 
+/* these two are for uniformity */
+#define mi_sint1korr(A) (int8)(*A)
+#define mi_uint1korr(A) (uint8)(*A)
+
 #define mi_sint2korr(A) (int16) (((int16) ((uchar) (A)[1])) +\
 				 ((int16) ((int16) (A)[0]) << 8))
 #define mi_sint3korr(A) ((int32) ((((uchar) (A)[0]) & 128) ? \
@@ -74,6 +78,9 @@
 				    (((uint32) ((uchar) (A)[1])) << 16) +\
 				    (((uint32) ((uchar) (A)[0])) << 24))) <<\
 				    32))
+
+/* This one is for uniformity */
+#define mi_int1store(T,A) *((uchar*)(T))= (uchar) (A)
 
 #define mi_int2store(T,A)  { uint def_temp= (uint) (A) ;\
 			     *((uchar*) ((T)+1))= (uchar)(def_temp); \

@@ -64,15 +64,15 @@ public:
     char *s=buf; int i;
     for (i=sizeof(buffer)-1; i>=0 ; i--)
     {
-      if ((*s=_dig_vec[buffer[i] >> 4]) != '0')
+      if ((*s=_dig_vec_upper[buffer[i] >> 4]) != '0')
         break;
-      if ((*s=_dig_vec[buffer[i] & 15]) != '0')
+      if ((*s=_dig_vec_upper[buffer[i] & 15]) != '0')
         break;
     }
     for (s++, i-- ; i>=0 ; i--)
     {
-      *s++=_dig_vec[buffer[i] >> 4];
-      *s++=_dig_vec[buffer[i] & 15];
+      *s++=_dig_vec_upper[buffer[i] >> 4];
+      *s++=_dig_vec_upper[buffer[i] & 15];
     }
     *s=0;
     return buf;
@@ -91,7 +91,16 @@ template <> class Bitmap<64>
   ulonglong map;
 public:
   Bitmap<64>() { }
+#if defined(__NETWARE__)
+  /*
+    Metwork compiler gives error on Bitmap<64>
+    Changed to Bitmap, since in this case also it will proper construct
+    this class
+  */
+  explicit Bitmap(uint prefix_to_set) { set_prefix(prefix_to_set); }
+#else
   explicit Bitmap<64>(uint prefix_to_set) { set_prefix(prefix_to_set); }
+#endif
   void init() { }
   void init(uint prefix_to_set) { set_prefix(prefix_to_set); }
   uint length() const { return 64; }

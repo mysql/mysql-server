@@ -92,11 +92,11 @@ with mem_free. */
 void*
 mem_alloc_func_noninline(
 /*=====================*/
-				/* out, own: free storage, NULL if did not
-				succeed */
-	ulint   n,              /* in: desired number of bytes */
-	char*  	file_name,	/* in: file name where created */
-	ulint   line		/* in: line where created */
+					/* out, own: free storage,
+					NULL if did not succeed */
+	ulint		n,		/* in: desired number of bytes */
+	const char*	file_name,	/* in: file name where created */
+	ulint		line		/* in: line where created */
 	)
 {
 	return(mem_alloc_func(n, file_name, line));	
@@ -108,18 +108,18 @@ Creates a memory heap block where data can be allocated. */
 mem_block_t*
 mem_heap_create_block(
 /*==================*/
-			/* out, own: memory heap block, NULL if did not
-			succeed */
-	mem_heap_t* heap,/* in: memory heap or NULL if first block should
-			be created */
-	ulint	n,	/* in: number of bytes needed for user data, or
-			if init_block is not NULL, its size in bytes */
-	void*	init_block, /* in: init block in fast create, type must be
-			MEM_HEAP_DYNAMIC */
-	ulint 	type,	/* in: type of heap: MEM_HEAP_DYNAMIC, or
-			MEM_HEAP_BUFFER possibly ORed to MEM_HEAP_BTR_SEARCH */
-	char*  	file_name,/* in: file name where created */
-	ulint 	line)   /* in: line where created */
+				/* out, own: memory heap block,
+				NULL if did not succeed */
+	mem_heap_t*	heap,	/* in: memory heap or NULL if first block
+				should be created */
+	ulint		n,	/* in: number of bytes needed for user data, or
+				if init_block is not NULL, its size in bytes */
+	void*		init_block, /* in: init block in fast create,
+				type must be MEM_HEAP_DYNAMIC */
+	ulint		type,	/* in: type of heap: MEM_HEAP_DYNAMIC or
+				MEM_HEAP_BUFFER */
+	const char*	file_name,/* in: file name where created */
+	ulint		line)	/* in: line where created */
 {
 	mem_block_t*	block;
 	ulint		len;
@@ -196,12 +196,7 @@ mem_heap_create_block(
 	mem_block_set_start(block, MEM_BLOCK_HEADER_SIZE);
 
 	block->free_block = NULL;
-
-	if (init_block != NULL) {
-		block->init_block = TRUE;
-	} else {
-		block->init_block = FALSE;
-	}
+	block->init_block = (init_block != NULL);
 
 	ut_ad((ulint)MEM_BLOCK_HEADER_SIZE < len);
 
@@ -294,13 +289,13 @@ mem_heap_block_free(
 	init_block = block->init_block;
 	block->magic_n = MEM_FREED_BLOCK_MAGIC_N;
 	
-	#ifdef UNIV_MEM_DEBUG
+#ifdef UNIV_MEM_DEBUG
 	/* In the debug version we set the memory to a random combination
 	of hex 0xDE and 0xAD. */
 
 	mem_erase_buf((byte*)block, len);
 
-	#endif
+#endif
 
 	if (init_block) {
 		/* Do not have to free: do nothing */

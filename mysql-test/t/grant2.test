@@ -1,3 +1,5 @@
+SET NAMES binary;
+
 #
 # GRANT tests that require several connections
 # (usually it's GRANT, reconnect as another user, try something)
@@ -15,6 +17,7 @@ grant all privileges on `my\_%`.* to mysqltest_1@localhost with grant option;
 connect (user1,localhost,mysqltest_1,,);
 connection user1;
 select current_user();
+select current_user;
 grant all privileges on `my\_1`.* to mysqltest_2@localhost with grant option;
 --error 1044
 grant all privileges on `my_%`.* to mysqltest_3@localhost with grant option;

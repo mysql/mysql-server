@@ -28,11 +28,17 @@ int mysql_union(THD *thd, LEX *lex, select_result *result,
 		SELECT_LEX_UNIT *unit)
 {
   DBUG_ENTER("mysql_union");
-  int res= 0;
-  if (!(res= unit->prepare(thd, result)))
+  int res, res_cln;
+  if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK)))
     res= unit->exec();
-  res|= unit->cleanup();
-  DBUG_RETURN(res);
+  if (res == 0 && thd->cursor && thd->cursor->is_open())
+  {
+    thd->cursor->set_unit(unit);
+    res_cln= 0;
+  }
+  else
+    res_cln= unit->cleanup();
+  DBUG_RETURN(res?res:res_cln);
 }
 
 
@@ -41,7 +47,7 @@ int mysql_union(THD *thd, LEX *lex, select_result *result,
 ***************************************************************************/
 
 select_union::select_union(TABLE *table_par)
-  :table(table_par), not_describe(0)
+  :table(table_par)
 {
   bzero((char*) &info,sizeof(info));
   /*
@@ -106,12 +112,50 @@ bool select_union::flush()
 }
 
 
-int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result)
+/*
+  initialization procedures before fake_select_lex preparation()
+
+  SYNOPSIS
+    st_select_lex_unit::init_prepare_fake_select_lex()
+    thd		- thread handler
+
+  RETURN
+    options of SELECT
+*/
+
+ulong
+st_select_lex_unit::init_prepare_fake_select_lex(THD *thd) 
+{
+  ulong options_tmp= thd->options | fake_select_lex->options;
+  thd->lex->current_select= fake_select_lex;
+  offset_limit_cnt= global_parameters->offset_limit;
+  select_limit_cnt= global_parameters->select_limit +
+    global_parameters->offset_limit;
+
+  if (select_limit_cnt < global_parameters->select_limit)
+    select_limit_cnt= HA_POS_ERROR;		// no limit
+  if (select_limit_cnt == HA_POS_ERROR)
+    options_tmp&= ~OPTION_FOUND_ROWS;
+  else if (found_rows_for_union && !thd->lex->describe)
+    options_tmp|= OPTION_FOUND_ROWS;
+  fake_select_lex->ftfunc_list_alloc.empty();
+  fake_select_lex->ftfunc_list= &fake_select_lex->ftfunc_list_alloc;
+  fake_select_lex->table_list.link_in_list((byte *)&result_table_list,
+					   (byte **)
+					   &result_table_list.next_local);
+  return options_tmp;
+}
+
+
+int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
+				ulong additional_options)
 {
   SELECT_LEX *lex_select_save= thd_arg->lex->current_select;
   SELECT_LEX *sl, *first_select;
   select_result *tmp_result;
   DBUG_ENTER("st_select_lex_unit::prepare");
+
+  describe= test(additional_options & SELECT_DESCRIBE);
 
   /*
     result object should be reassigned even if preparing already done for
@@ -120,7 +164,26 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result)
   result= sel_result;
 
   if (prepared)
+  {
+    if (describe)
+    {
+      /* fast reinit for EXPLAIN */
+      for (sl= first_select_in_union(); sl; sl= sl->next_select())
+      {
+	sl->join->result= result;
+	select_limit_cnt= HA_POS_ERROR;
+	offset_limit_cnt= 0;
+	if (!sl->join->procedure &&
+	    result->prepare(sl->join->fields_list, this))
+	{
+	  DBUG_RETURN(1);
+	}
+	sl->join->select_options|= SELECT_DESCRIBE;
+	sl->join->reinit();
+      }
+    }
     DBUG_RETURN(0);
+  }
   prepared= 1;
   res= 0;
   
@@ -133,8 +196,9 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result)
   {
     if (!(tmp_result= union_result= new select_union(0)))
       goto err;
-    union_result->not_describe= 1;
     union_result->tmp_table_param.init();
+    if (describe)
+      tmp_result= sel_result;
   }
   else
   {
@@ -145,15 +209,16 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result)
 
   for (;sl; sl= sl->next_select())
   {
+    sl->options|=  SELECT_NO_UNLOCK;
     JOIN *join= new JOIN(thd_arg, sl->item_list, 
-			 sl->options | thd_arg->options | SELECT_NO_UNLOCK,
+			 sl->options | thd_arg->options | additional_options,
 			 tmp_result);
+    if (!join)
+      goto err;
+
     thd_arg->lex->current_select= sl;
-    offset_limit_cnt= sl->offset_limit;
-    select_limit_cnt= sl->select_limit+sl->offset_limit;
-    if (select_limit_cnt < sl->select_limit)
-      select_limit_cnt= HA_POS_ERROR;		// no limit
-    if (select_limit_cnt == HA_POS_ERROR || sl->braces)
+    set_limit(sl, sl);
+    if (sl->braces)
       sl->options&= ~OPTION_FOUND_ROWS;
     
     res= join->prepare(&sl->ref_pointer_array,
@@ -176,6 +241,7 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result)
       Item *item_tmp;
       while ((item_tmp= it++))
       {
+	/* Error's in 'new' will be detected after loop */
 	types.push_back(new Item_type_holder(thd_arg, item_tmp));
       }
 
@@ -201,12 +267,13 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result)
     }
   }
 
+  // it is not single select
   if (first_select->next_select())
   {
     union_result->tmp_table_param.field_count= types.elements;
     if (!(table= create_tmp_table(thd_arg,
 				  &union_result->tmp_table_param, types,
-				  (ORDER*) 0, !union_option, 1, 
+				  (ORDER*) 0, (bool) union_distinct, 1, 
 				  (first_select_in_union()->options |
 				   thd_arg->options |
 				   TMP_TABLE_ALL_COLUMNS),
@@ -220,14 +287,53 @@ int st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result)
     result_table_list.table= table;
     union_result->set_table(table);
 
-    item_list.empty();
     thd_arg->lex->current_select= lex_select_save;
+    if (!item_list.elements)
     {
+      Item_arena *arena= thd->current_arena;
+      Item_arena backup;
+      if (arena)
+	thd->set_n_backup_item_arena(arena, &backup);
       Field **field;
       for (field= table->field; *field; field++)
       {
-	if (item_list.push_back(new Item_field(*field)))
+	Item_field *item= new Item_field(*field);
+	if (!item || item_list.push_back(item))
+	{
+	  if (arena)
+	    thd->restore_backup_item_arena(arena, &backup);
 	  DBUG_RETURN(-1);
+	}
+      }
+      if (arena)
+      {
+	thd->restore_backup_item_arena(arena, &backup);
+
+	/* prepare fake select to initialize it correctly */
+	ulong options_tmp= init_prepare_fake_select_lex(thd);
+        /*
+          it should be done only once (because item_list builds only onece
+          per statement)
+        */
+        DBUG_ASSERT(fake_select_lex->join == 0);
+	if (!(fake_select_lex->join= new JOIN(thd, item_list, thd->options,
+					      result)))
+	{
+	  fake_select_lex->table_list.empty();
+	  DBUG_RETURN(-1);
+	}
+	fake_select_lex->item_list= item_list;
+
+	thd_arg->lex->current_select= fake_select_lex;
+	res= fake_select_lex->join->
+	  prepare(&fake_select_lex->ref_pointer_array,
+		  (TABLE_LIST*) fake_select_lex->table_list.first,
+		  0, 0,
+		  fake_select_lex->order_list.elements,
+		  (ORDER*) fake_select_lex->order_list.first,
+		  (ORDER*) NULL, NULL, (ORDER*) NULL,
+		  fake_select_lex, this);
+	fake_select_lex->table_list.empty();
       }
     }
   }
@@ -251,17 +357,23 @@ int st_select_lex_unit::exec()
   ulonglong add_rows=0;
   DBUG_ENTER("st_select_lex_unit::exec");
 
-  if (executed && !uncacheable)
+  if (executed && !uncacheable && !describe)
     DBUG_RETURN(0);
   executed= 1;
   
-  if (uncacheable || !item || !item->assigned())
+  if (uncacheable || !item || !item->assigned() || describe)
   {
-    if (optimized && item && item->assigned())
+    if (optimized && item)
     {
-      item->assigned(0); // We will reinit & rexecute unit
-      item->reset();
-      table->file->delete_all_rows();
+      if (item->assigned())
+      {
+        item->assigned(0); // We will reinit & rexecute unit
+        item->reset();
+        table->file->delete_all_rows();
+      }
+      /* re-enabling indexes for next subselect iteration */
+      if (union_distinct && table->file->enable_indexes(HA_KEY_SWITCH_ALL))
+        DBUG_ASSERT(1);
     }
     for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
     {
@@ -272,7 +384,7 @@ int st_select_lex_unit::exec()
 	res= sl->join->reinit();
       else
       {
-	if (sl != global_parameters)
+	if (sl != global_parameters && !describe)
 	{
 	  offset_limit_cnt= sl->offset_limit;
 	  select_limit_cnt= sl->select_limit+sl->offset_limit;
@@ -284,7 +396,7 @@ int st_select_lex_unit::exec()
 	    We can't use LIMIT at this stage if we are using ORDER BY for the
 	    whole query
 	  */
-	  if (sl->order_list.first)
+	  if (sl->order_list.first || describe)
 	    select_limit_cnt= HA_POS_ERROR;
 	  else
 	    select_limit_cnt= sl->select_limit+sl->offset_limit;
@@ -307,33 +419,18 @@ int st_select_lex_unit::exec()
 	  sl->options|= found_rows_for_union;
 	}
 	sl->join->select_options=sl->options;
-	/*
-	  As far as union share table space we should reassign table map,
-	  which can be spoiled by 'prepare' of JOIN of other UNION parts
-	  if it use same tables
-	*/
-	uint tablenr=0;
-	for (TABLE_LIST *table_list= (TABLE_LIST*) sl->table_list.first;
-	     table_list;
-	     table_list= table_list->next, tablenr++)
-	{
-	  if (table_list->shared)
-	  {
-	    /*
-	      review notes: Check it carefully. I still can't understand
-	      why I should not touch table->used_keys. For my point of
-	      view we should do here same procedura as it was done by
-	      setup_table
-	    */
-	    setup_table_map(table_list->table, table_list, tablenr);
-	  }
-	}
 	res= sl->join->optimize();
       }
       if (!res)
       {
 	records_at_start= table->file->records;
 	sl->join->exec();
+        if (sl == union_distinct)
+	{
+	  if (table->file->disable_indexes(HA_KEY_SWITCH_ALL))
+	    DBUG_RETURN(1);
+	  table->no_keyread=1;
+	}
 	res= sl->join->error;
 	offset_limit_cnt= sl->offset_limit;
 	if (!res && union_result->flush())
@@ -365,8 +462,6 @@ int st_select_lex_unit::exec()
   optimized= 1;
 
   /* Send result to 'result' */
-
-
   res= -1;
   {
     List<Item_func_match> empty_list;
@@ -374,30 +469,21 @@ int st_select_lex_unit::exec()
 
     if (!thd->is_fatal_error)				// Check if EOM
     {
-      ulong options_tmp= thd->options;
-      thd->lex->current_select= fake_select_lex;
-      offset_limit_cnt= global_parameters->offset_limit;
-      select_limit_cnt= global_parameters->select_limit +
-	global_parameters->offset_limit;
-
-      if (select_limit_cnt < global_parameters->select_limit)
-	select_limit_cnt= HA_POS_ERROR;		// no limit
-      if (select_limit_cnt == HA_POS_ERROR)
-	options_tmp&= ~OPTION_FOUND_ROWS;
-      else if (found_rows_for_union && !thd->lex->describe)
-	options_tmp|= OPTION_FOUND_ROWS;
-      fake_select_lex->ftfunc_list= &empty_list;
-      fake_select_lex->table_list.link_in_list((byte *)&result_table_list,
-					       (byte **)
-					       &result_table_list.next);
+      ulong options_tmp= init_prepare_fake_select_lex(thd);
       JOIN *join= fake_select_lex->join;
       if (!join)
       {
 	/*
-	  allocate JOIN for fake select only once (privent
+	  allocate JOIN for fake select only once (prevent
 	  mysql_select automatic allocation)
 	*/
-	fake_select_lex->join= new JOIN(thd, item_list, thd->options, result);
+	if (!(fake_select_lex->join= new JOIN(thd, item_list,
+					      fake_select_lex->options, result)))
+	{
+	  fake_select_lex->table_list.empty();
+	  DBUG_RETURN(-1);
+	}
+
 	/*
 	  Fake st_select_lex should have item list for correctref_array
 	  allocation.
@@ -407,12 +493,14 @@ int st_select_lex_unit::exec()
       else
       {
 	JOIN_TAB *tab,*end;
-	for (tab=join->join_tab,end=tab+join->tables ; tab != end ; tab++)
+	for (tab=join->join_tab, end=tab+join->tables ;
+	     tab && tab != end ;
+	     tab++)
 	{
 	  delete tab->select;
 	  delete tab->quick;
 	}
-	join->init(thd, item_list, thd->options, result);
+	join->init(thd, item_list, fake_select_lex->options, result);
       }
       res= mysql_select(thd, &fake_select_lex->ref_pointer_array,
 			&result_table_list,
@@ -420,8 +508,10 @@ int st_select_lex_unit::exec()
 			global_parameters->order_list.elements,
 			(ORDER*)global_parameters->order_list.first,
 			(ORDER*) NULL, NULL, (ORDER*) NULL,
-			options_tmp | SELECT_NO_UNLOCK,
+			fake_select_lex->options | SELECT_NO_UNLOCK,
 			result, this, fake_select_lex);
+
+      fake_select_lex->table_list.empty();
       if (!res)
 	thd->limit_found_rows = (ulonglong)table->file->records + add_rows;
       /*
@@ -438,22 +528,40 @@ int st_select_lex_unit::exec()
 int st_select_lex_unit::cleanup()
 {
   int error= 0;
+  JOIN *join;
   DBUG_ENTER("st_select_lex_unit::cleanup");
+
+  if (cleaned)
+  {
+    DBUG_RETURN(0);
+  }
+  cleaned= 1;
 
   if (union_result)
   {
     delete union_result;
+    union_result=0; // Safety
     if (table)
       free_tmp_table(thd, table);
     table= 0; // Safety
   }
-  JOIN *join;
+
   for (SELECT_LEX *sl= first_select_in_union(); sl; sl= sl->next_select())
   {
     if ((join= sl->join))
     {
       error|= sl->join->cleanup();
       delete join;
+    }
+    else
+    {
+      // it can be DO/SET with subqueries
+      for (SELECT_LEX_UNIT *lex_unit= sl->first_inner_unit();
+	   lex_unit != 0;
+	   lex_unit= lex_unit->next_unit())
+      {
+	error|= lex_unit->cleanup();
+      }
     }
   }
   if (fake_select_lex && (join= fake_select_lex->join))
@@ -463,5 +571,57 @@ int st_select_lex_unit::cleanup()
     error|= join->cleanup();
     delete join;
   }
+
   DBUG_RETURN(error);
+}
+
+
+void st_select_lex_unit::reinit_exec_mechanism()
+{
+  prepared= optimized= executed= 0;
+#ifndef DBUG_OFF
+  if (first_select()->next_select())
+  {
+    List_iterator_fast<Item> it(item_list);
+    Item *field;
+    while ((field= it++))
+    {
+      /*
+	we can't cleanup here, because it broke link to temporary table field,
+	but have to drop fixed flag to allow next fix_field of this field
+	during re-executing
+      */
+      field->fixed= 0;
+    }
+  }
+#endif
+}
+
+
+/*
+  change select_result object of unit
+
+  SYNOPSIS
+    st_select_lex_unit::change_result()
+    result	new select_result object
+    old_result	old select_result object
+
+  RETURN
+    0 - OK
+    -1 - error
+*/
+
+int st_select_lex_unit::change_result(select_subselect *result,
+				      select_subselect *old_result)
+{
+  int res= 0;
+  for (SELECT_LEX *sl= first_select_in_union(); sl; sl= sl->next_select())
+  {
+    if (sl->join && sl->join->result == old_result)
+      if ((res= sl->join->change_result(result)))
+	return (res);
+  }
+  if (fake_select_lex && fake_select_lex->join)
+    res= fake_select_lex->join->change_result(result);
+  return (res);
 }

@@ -30,15 +30,27 @@ static uint _mi_keynr(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *page,
 		      uchar *keypos,uint *ret_max_key);
 
 
-	/* If start_key = 0 assume read from start */
-	/* If end_key = 0 assume read to end */
-	/* Returns HA_POS_ERROR on error */
+/*
+  Estimate how many records there is in a given range
 
-ha_rows mi_records_in_range(MI_INFO *info, int inx, const byte *start_key,
-			    uint start_key_len,
-			    enum ha_rkey_function start_search_flag,
-			    const byte *end_key, uint end_key_len,
-			    enum ha_rkey_function end_search_flag)
+  SYNOPSIS
+    mi_records_in_range()
+    info		MyISAM handler
+    inx			Index to use
+    min_key		Min key. Is = 0 if no min range
+    max_key		Max key. Is = 0 if no max range
+
+  NOTES
+    We should ONLY return 0 if there is no rows in range
+
+  RETURN
+    HA_POS_ERROR  error (or we can't estimate number of rows)
+    number	  Estimated number of rows
+*/
+  
+
+ha_rows mi_records_in_range(MI_INFO *info, int inx, key_range *min_key,
+                            key_range *max_key)
 {
   ha_rows start_pos,end_pos,res;
   DBUG_ENTER("mi_records_in_range");
@@ -53,28 +65,34 @@ ha_rows mi_records_in_range(MI_INFO *info, int inx, const byte *start_key,
     rw_rdlock(&info->s->key_root_lock[inx]);
 
   switch(info->s->keyinfo[inx].key_alg){
+#ifdef HAVE_RTREE_KEYS
   case HA_KEY_ALG_RTREE:
-    {
-      uchar * key_buff;
-      if (start_key_len == 0)
-        start_key_len=USE_WHOLE_KEY;
-      key_buff=info->lastkey+info->s->base.max_key_length;
-      start_key_len= _mi_pack_key(info,inx,key_buff,(uchar*) start_key,
-				  start_key_len, (HA_KEYSEG**) 0);
-      res=rtree_estimate(info, inx, key_buff, start_key_len, myisam_read_vec[start_search_flag]);
-      res=res?res:1;
-      break;
-    }
+  {
+    uchar * key_buff;
+    uint start_key_len;
+
+    key_buff= info->lastkey+info->s->base.max_key_length;
+    start_key_len= _mi_pack_key(info,inx, key_buff,
+                                (uchar*) min_key->key, min_key->length,
+                                (HA_KEYSEG**) 0);
+    res= rtree_estimate(info, inx, key_buff, start_key_len,
+                        myisam_read_vec[min_key->flag]);
+    res= res ? res : 1;                       /* Don't return 0 */
+    break;
+  }
+#endif
   case HA_KEY_ALG_BTREE:
   default:
-    start_pos= (start_key ?
-	      _mi_record_pos(info,start_key,start_key_len,start_search_flag) :
-	      (ha_rows) 0);
-    end_pos=   (end_key ?
-	      _mi_record_pos(info,end_key,end_key_len,end_search_flag) :
-	      info->state->records+ (ha_rows) 1);
-    res=end_pos < start_pos ? (ha_rows) 0 :
-	      (end_pos == start_pos ? (ha_rows) 1 : end_pos-start_pos);
+    start_pos= (min_key ?
+                _mi_record_pos(info, min_key->key, min_key->length, 
+                               min_key->flag) :
+                (ha_rows) 0);
+    end_pos=   (max_key ?
+                _mi_record_pos(info, max_key->key, max_key->length,
+                               max_key->flag) :
+                info->state->records+ (ha_rows) 1);
+    res= (end_pos < start_pos ? (ha_rows) 0 :
+          (end_pos == start_pos ? (ha_rows) 1 : end_pos-start_pos));
     if (start_pos == HA_POS_ERROR || end_pos == HA_POS_ERROR)
       res=HA_POS_ERROR;
   }

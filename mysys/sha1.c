@@ -342,7 +342,7 @@ static void SHA1ProcessMessageBlock(SHA1_CONTEXT *context)
 
 */
 
-void SHA1PadMessage(SHA1_CONTEXT *context)
+static void SHA1PadMessage(SHA1_CONTEXT *context)
 {
   /*
     Check to see if the current message block is too small to hold

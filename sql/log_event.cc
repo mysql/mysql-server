@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000-2004 MySQL AB
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -56,11 +56,21 @@ static void pretty_print_str(FILE* file, char* str, int len)
 #endif /* MYSQL_CLIENT */
 
 
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
+
+static void clear_all_errors(THD *thd, struct st_relay_log_info *rli)
+{
+  thd->query_error = 0;
+  thd->clear_error();
+  *rli->last_slave_error = 0;
+  rli->last_slave_errno = 0;
+}
+
+
 /*
-  ignored_error_code()
+  Ignore error code specified on command line
 */
 
-#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 inline int ignored_error_code(int err_code)
 {
   return ((err_code == ER_SLAVE_IGNORED_TABLE) ||
@@ -73,7 +83,7 @@ inline int ignored_error_code(int err_code)
   pretty_print_str()
 */
 
-#ifndef MYSQL_CLIENT
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 static char *pretty_print_str(char *packet, char *str, int len)
 {
   char *end= str + len;
@@ -190,6 +200,29 @@ static inline int read_str(char * &buf, char *buf_end, char * &str,
   str= buf+1;
   buf+= (uint) len+1;
   return 0;
+}
+
+/*
+  Transforms a string into "" or its expression in 0x... form.
+*/
+static char *str_to_hex(char *to, char *from, uint len)
+{
+  char *p= to;
+  if (len)
+  {
+    p= strmov(p, "0x");
+    for (uint i= 0; i < len; i++, p+= 2)
+    {
+      /* val[i] is char. Casting to uchar helps greatly if val[i] < 0 */
+      uint tmp= (uint) (uchar) from[i];
+      p[0]= _dig_vec_upper[tmp >> 4];
+      p[1]= _dig_vec_upper[tmp & 15];
+    }
+    *p= 0;
+  }
+  else
+    p= strmov(p, "\"\"");
+  return p; // pointer to end 0 of 'to'
 }
 
 /*
@@ -349,6 +382,8 @@ Log_event::Log_event(const char* buf,
 
 int Log_event::exec_event(struct st_relay_log_info* rli)
 {
+  DBUG_ENTER("Log_event::exec_event");
+
   /*
     rli is null when (as far as I (Guilhem) know)
     the caller is
@@ -401,7 +436,7 @@ int Log_event::exec_event(struct st_relay_log_info* rli)
       rli->last_master_timestamp= when;
     }
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -595,6 +630,7 @@ end:
 #else
 #define UNLOCK_MUTEX
 #define LOCK_MUTEX
+#define max_allowed_packet (*mysql_get_parameters()->p_max_allowed_packet)
 #endif
 
 /*
@@ -998,7 +1034,7 @@ int Query_log_event::write_data(IO_CACHE* file)
     int8store(start, sql_mode);
     start+= 8;
   }
-  if (catalog)
+  if (catalog_len >= 0) // i.e. "catalog inited" (false for 4.0 events)
   {
     *(start++)= Q_CATALOG_CODE;
     *(start++)= (uchar) catalog_len;
@@ -1047,7 +1083,9 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 	     0 : LOG_EVENT_THREAD_SPECIFIC_F, using_trans),
    data_buf(0), query(query_arg), catalog(thd_arg->catalog),
    db(thd_arg->db), q_len((uint32) query_length),
-   error_code(thd_arg->killed != THD::NOT_KILLED ? thd->killed_errno() : thd_arg->net.last_errno),
+   error_code((thd_arg->killed != THD::NOT_KILLED) ?
+              ((thd_arg->system_thread & SYSTEM_THREAD_DELAYED_INSERT) ?
+               0 : thd->killed_errno()) : thd_arg->net.last_errno),
    thread_id(thd_arg->thread_id),
    /* save the original thread id; we already know the server id */
    slave_proxy_id(thd_arg->variables.pseudo_thread_id),
@@ -1081,7 +1119,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 Query_log_event::Query_log_event(const char* buf, uint event_len,
                                  const Format_description_log_event *description_event)
   :Log_event(buf, description_event), data_buf(0), query(NULL),
-   catalog(NULL), db(NULL), catalog_len(0), status_vars_len(0),
+   db(NULL), catalog_len(-1), status_vars_len(0),
    flags2_inited(0), sql_mode_inited(0)
 {
   ulong data_len;
@@ -1176,9 +1214,10 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
         not need (and want) to change start_dup (because this would cut the
         previously marked status vars).
       */
+      pos++;
       if (start_dup==end)
-        start_dup= ++pos;
-      pos+= catalog_len+1;
+        start_dup= pos;
+      pos+= catalog_len+1; // counting the end '\0'
       break;
     default:
       /* That's why you must write status vars in growing order of code */
@@ -1198,11 +1237,15 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   
   const char* tmp_buf= data_buf;
   /* Now set event's pointers to point to bits of the new string */
-  if (catalog_len)
+  if (catalog_len >= 0) // we have seen a catalog (zero-length or not)
   {
     catalog= tmp_buf;
     tmp_buf+= (uint) (end-start_dup); /* "seek" to db */
   }
+#ifndef DBUG_OFF
+  else
+    catalog= 0; // for DBUG_PRINT 
+#endif
   db= tmp_buf;
   query= tmp_buf + db_len + 1;
   q_len = data_buf + data_len - query;
@@ -1230,15 +1273,15 @@ void Query_log_event::print(FILE* file, bool short_form,
 	    (ulong) thread_id, (ulong) exec_time, error_code);
   }
 
-  bool same_db = 0;
+  bool different_db= 1;
 
   if (db && last_event_info->db)
   {
-    if (!(same_db = !memcmp(last_event_info->db, db, db_len + 1)))
+    if ((different_db = memcmp(last_event_info->db, db, db_len + 1)))
       memcpy(last_event_info->db, db, db_len + 1);
   }
   
-  if (db && db[0] && !same_db)
+  if (db && db[0] && different_db)
     fprintf(file, "use %s;\n", db);
   end=int10_to_str((long) when, strmov(buff,"SET TIMESTAMP="),10);
   *end++=';';
@@ -1340,7 +1383,14 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     END of the current log event (COMMIT). We save it in rli so that InnoDB can
     access it.
   */
+#if MYSQL_VERSION_ID < 50000
+  rli->future_group_master_log_pos= log_pos + get_event_len() -
+    (rli->mi->old_format ? (LOG_EVENT_HEADER_LEN - OLD_HEADER_LEN) : 0);
+#else
+  /* In 5.0 we store the end_log_pos in the relay log so no problem */
   rli->future_group_master_log_pos= log_pos;
+#endif
+  clear_all_errors(thd, rli);
 
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
@@ -1350,9 +1400,9 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     VOID(pthread_mutex_lock(&LOCK_thread_count));
     thd->query_id = query_id++;
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
-    thd->query_error= 0;				// clear error
-    thd->clear_error();
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
+    mysql_log.write(thd,COM_QUERY,"%s",thd->query);
+    DBUG_PRINT("query",("%s",thd->query));
 
     if (flags2_inited)
       /*
@@ -1378,97 +1428,103 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
 	(ulong) ((thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE) |
 		 (sql_mode & ~(ulong) MODE_NO_DIR_IN_CREATE));
     
-    /*
-      Sanity check to make sure the master did not get a really bad
-      error on the query (for example, if the query on the master was killed, we
-      don't want to play it on the slave, because we don't know how much of it
-      we have to play).
-    */
-    if (ignored_error_code((expected_error = error_code)) ||
+    if (ignored_error_code((expected_error= error_code)) ||
 	!check_expected_error(thd,rli,expected_error))
-    {
-      mysql_log.write(thd,COM_QUERY,"%s",thd->query);
-      DBUG_PRINT("query",("%s",thd->query));
       mysql_parse(thd, thd->query, q_len);
-
+    else
+    {
       /*
-        If we expected a non-zero error code, and we don't get the same error
-        code, and none of them should be ignored.
+        The query got a really bad error on the master (thread killed etc),
+        which could be inconsistent. Parse it to test the table names: if the
+        replicate-*-do|ignore-table rules say "this query must be ignored" then
+        we exit gracefully; otherwise we warn about the bad error and tell DBA
+        to check/fix it.
       */
-      DBUG_PRINT("info",("expected_error: %d  last_errno: %d",
-			 expected_error, thd->net.last_errno));
-      if ((expected_error != (actual_error= thd->net.last_errno)) &&
-	  expected_error &&
-	  !ignored_error_code(actual_error) &&
-	  !ignored_error_code(expected_error))
+      if (mysql_test_parse_for_slave(thd, thd->query, q_len))
+        clear_all_errors(thd, rli);        /* Can ignore query */
+      else
       {
-	slave_print_error(rli, 0,
+        slave_print_error(rli,expected_error, 
                           "\
-Query '%s' caused different errors on master and slave. \
-Error on master: '%s' (%d), Error on slave: '%s' (%d). \
-Default database: '%s'",
-                          query,
-                          ER_SAFE(expected_error),
-                          expected_error,
-                          actual_error ? thd->net.last_error: "no error",
-                          actual_error,
-                          print_slave_db_safe(db));
-	thd->query_error= 1;
-      }
-      /*
-        If we get the same error code as expected, or they should be ignored. 
-      */
-      else if (expected_error == actual_error ||
-	       ignored_error_code(actual_error))
-      {
-	DBUG_PRINT("info",("error ignored"));
-	thd->query_error = 0;
-	*rli->last_slave_error = 0;
-	rli->last_slave_errno = 0;
-      }
-      /*
-        Other cases: mostly we expected no error and get one.
-      */
-      else if (thd->query_error || thd->is_fatal_error)
-      {
-        slave_print_error(rli,actual_error,
-			  "Error '%s' on query '%s'. Default database: '%s'",
-                          (actual_error ? thd->net.last_error :
-			   "unexpected success or fatal error"),
-			  query,
-                          print_slave_db_safe(db));
+Query partially completed on the master (error on master: %d) \
+and was aborted. There is a chance that your master is inconsistent at this \
+point. If you are sure that your master is ok, run this query manually on the \
+slave and then restart the slave with SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1; \
+START SLAVE; . Query: '%s'", expected_error, thd->query);
         thd->query_error= 1;
       }
-      /*
-        TODO: compare the values of "affected rows" around here. Something
-        like:
-        if ((uint32) affected_in_event != (uint32) affected_on_slave)
-        {
-        sql_print_error("Slave: did not get the expected number of affected \
-        rows running query from master - expected %d, got %d (this numbers \
-        should have matched modulo 4294967296).", 0, ...);
-        thd->query_error = 1;
-        }
-        We may also want an option to tell the slave to ignore "affected"
-        mismatch. This mismatch could be implemented with a new ER_ code, and
-        to ignore it you would use --slave-skip-errors...
-        
-        To do the comparison we need to know the value of "affected" which the
-        above mysql_parse() computed. And we need to know the value of
-        "affected" in the master's binlog. Both will be implemented later. The
-        important thing is that we now have the format ready to log the values
-        of "affected" in the binlog. So we can release 5.0.0 before effectively
-        logging "affected" and effectively comparing it.
-      */
-    } 
+      goto end;
+    }
+ 
     /*
-      End of sanity check. If the test was false, the query got a really bad
-      error on the master, which could be inconsistent. check_expected_error()
-      already printed the message to stderr and rli, to tell the DBA to fix
-      things, and it has set thd->query_error to 1.
+      If we expected a non-zero error code, and we don't get the same error
+      code, and none of them should be ignored.
+    */
+    DBUG_PRINT("info",("expected_error: %d  last_errno: %d",
+ 		       expected_error, thd->net.last_errno));
+    if ((expected_error != (actual_error= thd->net.last_errno)) &&
+ 	expected_error &&
+ 	!ignored_error_code(actual_error) &&
+ 	!ignored_error_code(expected_error))
+    {
+      slave_print_error(rli, 0,
+ 			"\
+Query caused different errors on master and slave. \
+Error on master: '%s' (%d), Error on slave: '%s' (%d). \
+Default database: '%s'. Query: '%s'",
+ 			ER_SAFE(expected_error),
+ 			expected_error,
+ 			actual_error ? thd->net.last_error: "no error",
+ 			actual_error,
+			print_slave_db_safe(db), query);
+      thd->query_error= 1;
+    }
+    /*
+      If we get the same error code as expected, or they should be ignored. 
+    */
+    else if (expected_error == actual_error ||
+ 	     ignored_error_code(actual_error))
+    {
+      DBUG_PRINT("info",("error ignored"));
+      clear_all_errors(thd, rli);
+    }
+    /*
+      Other cases: mostly we expected no error and get one.
+    */
+    else if (thd->query_error || thd->is_fatal_error)
+    {
+      slave_print_error(rli,actual_error,
+			"Error '%s' on query. Default database: '%s'. Query: '%s'",
+ 			(actual_error ? thd->net.last_error :
+ 			 "unexpected success or fatal error"),
+			print_slave_db_safe(db), query);
+      thd->query_error= 1;
+    }
+
+    /*
+      TODO: compare the values of "affected rows" around here. Something
+      like:
+      if ((uint32) affected_in_event != (uint32) affected_on_slave)
+      {
+      sql_print_error("Slave: did not get the expected number of affected \
+      rows running query from master - expected %d, got %d (this numbers \
+      should have matched modulo 4294967296).", 0, ...);
+      thd->query_error = 1;
+      }
+      We may also want an option to tell the slave to ignore "affected"
+      mismatch. This mismatch could be implemented with a new ER_ code, and
+      to ignore it you would use --slave-skip-errors...
+        
+      To do the comparison we need to know the value of "affected" which the
+      above mysql_parse() computed. And we need to know the value of
+      "affected" in the master's binlog. Both will be implemented later. The
+      important thing is that we now have the format ready to log the values
+      of "affected" in the binlog. So we can release 5.0.0 before effectively
+      logging "affected" and effectively comparing it.
     */
   } /* End of if (db_ok(... */
 
+end:
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   /*
     Probably we have set thd->query, thd->db, thd->catalog to point to places
@@ -1480,7 +1536,9 @@ Default database: '%s'",
     TEMPORARY TABLE don't suffer from these assignments to 0 as DROP TEMPORARY
     TABLE uses the db.table syntax).
   */
-  thd->db= thd->query= thd->catalog =0;	
+  thd->db= thd->catalog= 0;	        // prevent db from being freed
+  thd->query= 0;			// just to be sure
+  thd->query_length= 0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   // assume no convert for next query unless set explictly
 #ifdef TO_BE_REMOVED
@@ -1603,6 +1661,11 @@ int Start_log_event_v3::write_data(IO_CACHE* file)
 int Start_log_event_v3::exec_event(struct st_relay_log_info* rli)
 {
   DBUG_ENTER("Start_log_event_v3::exec_event");
+  /*
+    If the I/O thread has not started, mi->old_format is BINLOG_FORMAT_CURRENT
+    (that's what the MASTER_INFO constructor does), so the test below is not
+    perfect at all.
+  */
   switch (rli->relay_log.description_event_for_exec->binlog_version)
   {
   case 3:
@@ -1634,7 +1697,7 @@ int Start_log_event_v3::exec_event(struct st_relay_log_info* rli)
     {
       slave_print_error(rli, 0, "\
 Rolling back unfinished transaction (no COMMIT or ROLLBACK) from relay log. \
-Probably cause is that the master died while writing the transaction to it's \
+A probable cause is that the master died while writing the transaction to its \
 binary log.");
       return(1);
     }
@@ -1924,7 +1987,7 @@ void Load_log_event::pack_info(Protocol *protocol)
     18 + fname_len + 2 +                    // "LOAD DATA INFILE 'file''"
     7 +					    // LOCAL
     9 +                                     // " REPLACE or IGNORE "
-    11 + table_name_len +                   // "INTO TABLE table"
+    13 + table_name_len*2 +                 // "INTO TABLE `table`"
     21 + sql_ex.field_term_len*4 + 2 +      // " FIELDS TERMINATED BY 'str'"
     23 + sql_ex.enclosed_len*4 + 2 +        // " OPTIONALLY ENCLOSED BY 'str'"
     12 + sql_ex.escaped_len*4 + 2 +         // " ESCAPED BY 'str'"
@@ -1955,42 +2018,25 @@ void Load_log_event::pack_info(Protocol *protocol)
   else if (sql_ex.opt_flags & IGNORE_FLAG)
     pos= strmov(pos, " IGNORE ");
 
-  pos= strmov(pos ,"INTO TABLE ");
+  pos= strmov(pos ,"INTO TABLE `");
   memcpy(pos, table_name, table_name_len);
   pos+= table_name_len;
 
-  if (sql_ex.field_term_len)
-  {
-    pos= strmov(pos, " FIELDS TERMINATED BY ");
-    pos= pretty_print_str(pos, sql_ex.field_term, sql_ex.field_term_len);
-  }
+  /* We have to create all optinal fields as the default is not empty */
+  pos= strmov(pos, "` FIELDS TERMINATED BY ");
+  pos= pretty_print_str(pos, sql_ex.field_term, sql_ex.field_term_len);
+  if (sql_ex.opt_flags & OPT_ENCLOSED_FLAG)
+    pos= strmov(pos, " OPTIONALLY ");
+  pos= strmov(pos, " ENCLOSED BY ");
+  pos= pretty_print_str(pos, sql_ex.enclosed, sql_ex.enclosed_len);
 
-  if (sql_ex.enclosed_len)
-  {
-    if (sql_ex.opt_flags & OPT_ENCLOSED_FLAG)
-      pos= strmov(pos, " OPTIONALLY ");
-    pos= strmov(pos, " ENCLOSED BY ");
-    pos= pretty_print_str(pos, sql_ex.enclosed, sql_ex.enclosed_len);
-  }
+  pos= strmov(pos, " ESCAPED BY ");
+  pos= pretty_print_str(pos, sql_ex.escaped, sql_ex.escaped_len);
 
-  if (sql_ex.escaped_len)
-  {
-    pos= strmov(pos, " ESCAPED BY ");
-    pos= pretty_print_str(pos, sql_ex.escaped, sql_ex.escaped_len);
-  }
-
-  bool line_lexem_added= false;
-  if (sql_ex.line_term_len)
-  {
-    pos= strmov(pos, " LINES TERMINATED BY ");
-    pos= pretty_print_str(pos, sql_ex.line_term, sql_ex.line_term_len);
-    line_lexem_added= true;
-  }
-
+  pos= strmov(pos, " LINES TERMINATED BY ");
+  pos= pretty_print_str(pos, sql_ex.line_term, sql_ex.line_term_len);
   if (sql_ex.line_start_len)
   {
-    if (!line_lexem_added)
-      pos= strmov(pos," LINES");
     pos= strmov(pos, " STARTING BY ");
     pos= pretty_print_str(pos, sql_ex.line_start, sql_ex.line_start_len);
   }
@@ -2079,7 +2125,7 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
    num_fields(0),fields(0),
    field_lens(0),field_block_len(0),
    table_name(table_name_arg ? table_name_arg : ""),
-   db(db_arg), fname(ex->file_name)
+   db(db_arg), fname(ex->file_name), local_fname(FALSE)
 {
   time_t end_time;
   time(&end_time);
@@ -2161,22 +2207,24 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
 
 Load_log_event::Load_log_event(const char *buf, uint event_len,
                                const Format_description_log_event *description_event)
-  :Log_event(buf, description_event),num_fields(0),fields(0),
+  :Log_event(buf, description_event), num_fields(0), fields(0),
    field_lens(0),field_block_len(0),
-   table_name(0),db(0),fname(0)
+   table_name(0), db(0), fname(0), local_fname(FALSE)
 {
-  if (!event_len) // derived class, will call copy_log_event() itself
-    return;
+  DBUG_ENTER("Load_log_event");
   /*
     I (Guilhem) manually tested replication of LOAD DATA INFILE for 3.23->5.0,
     4.0->5.0 and 5.0->5.0 and it works.
   */
-  copy_log_event(buf, event_len,
-                 ((buf[EVENT_TYPE_OFFSET] == LOAD_EVENT) ?
-                  LOAD_HEADER_LEN + 
-                  description_event->common_header_len :
-                  LOAD_HEADER_LEN + LOG_EVENT_HEADER_LEN),
-                 description_event);
+  if (event_len)
+    copy_log_event(buf, event_len,
+                   ((buf[EVENT_TYPE_OFFSET] == LOAD_EVENT) ?
+                    LOAD_HEADER_LEN + 
+                    description_event->common_header_len :
+                    LOAD_HEADER_LEN + LOG_EVENT_HEADER_LEN),
+                   description_event);
+  /* otherwise it's a derived class, will call copy_log_event() itself */
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2188,6 +2236,7 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
                                    int body_offset,
                                    const Format_description_log_event *description_event)
 {
+  DBUG_ENTER("Load_log_event::copy_log_event");
   uint data_len;
   char* buf_end = (char*)buf + event_len;
   /* this is the beginning of the post-header */
@@ -2200,19 +2249,19 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
   num_fields = uint4korr(data_head + L_NUM_FIELDS_OFFSET);
 	  
   if ((int) event_len < body_offset)
-    return 1;
+    DBUG_RETURN(1);
   /*
     Sql_ex.init() on success returns the pointer to the first byte after
     the sql_ex structure, which is the start of field lengths array.
   */
-  if (!(field_lens=(uchar*)sql_ex.init((char*)buf + body_offset,
-		  buf_end,
-		  buf[EVENT_TYPE_OFFSET] != LOAD_EVENT)))
-    return 1;
+  if (!(field_lens= (uchar*)sql_ex.init((char*)buf + body_offset,
+                                        buf_end,
+                                        buf[EVENT_TYPE_OFFSET] != LOAD_EVENT)))
+    DBUG_RETURN(1);
   
   data_len = event_len - body_offset;
   if (num_fields > data_len) // simple sanity check against corruption
-    return 1;
+    DBUG_RETURN(1);
   for (uint i = 0; i < num_fields; i++)
     field_block_len += (uint)field_lens[i] + 1;
 
@@ -2228,7 +2277,7 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
     DATA INFILE in a completely different way (as a plain-text query) since 4.1
     or 5.0 (Dmitri's WL#874)
   */
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -2246,6 +2295,7 @@ void Load_log_event::print(FILE* file, bool short_form, LAST_EVENT_INFO* last_ev
 void Load_log_event::print(FILE* file, bool short_form, LAST_EVENT_INFO* last_event_info,
 			   bool commented)
 {
+  DBUG_ENTER("Load_log_event::print");
   if (!short_form)
   {
     print_header(file);
@@ -2253,14 +2303,21 @@ void Load_log_event::print(FILE* file, bool short_form, LAST_EVENT_INFO* last_ev
 	    thread_id, exec_time);
   }
 
-  bool same_db = 0;
+  bool different_db= 1;
   if (db && last_event_info->db)
   {
-    if (!(same_db = !memcmp(last_event_info->db, db, db_len + 1)))
+    /*
+      If the database is different from the one of the previous statement, we
+      need to print the "use" command, and we update the last_db.
+      But if commented, the "use" is going to be commented so we should not
+      update the last_db.
+    */
+    if ((different_db= memcmp(last_event_info->db, db, db_len + 1)) &&
+        !commented)
       memcpy(last_event_info->db, db, db_len + 1);
   }
   
-  if (db && db[0] && !same_db)
+  if (db && db[0] && different_db)
     fprintf(file, "%suse %s;\n", 
             commented ? "# " : "",
             db);
@@ -2276,43 +2333,27 @@ void Load_log_event::print(FILE* file, bool short_form, LAST_EVENT_INFO* last_ev
   else if (sql_ex.opt_flags & IGNORE_FLAG)
     fprintf(file," IGNORE ");
   
-  fprintf(file, "INTO TABLE %s ", table_name);
-  if (sql_ex.field_term)
-  {
-    fprintf(file, " FIELDS TERMINATED BY ");
-    pretty_print_str(file, sql_ex.field_term, sql_ex.field_term_len);
-  }
+  fprintf(file, "INTO TABLE `%s`", table_name);
+  fprintf(file, " FIELDS TERMINATED BY ");
+  pretty_print_str(file, sql_ex.field_term, sql_ex.field_term_len);
 
-  if (sql_ex.enclosed)
-  {
-    if (sql_ex.opt_flags & OPT_ENCLOSED_FLAG)
-      fprintf(file," OPTIONALLY ");
-    fprintf(file, " ENCLOSED BY ");
-    pretty_print_str(file, sql_ex.enclosed, sql_ex.enclosed_len);
-  }
+  if (sql_ex.opt_flags & OPT_ENCLOSED_FLAG)
+    fprintf(file," OPTIONALLY ");
+  fprintf(file, " ENCLOSED BY ");
+  pretty_print_str(file, sql_ex.enclosed, sql_ex.enclosed_len);
      
-  if (sql_ex.escaped)
-  {
-    fprintf(file, " ESCAPED BY ");
-    pretty_print_str(file, sql_ex.escaped, sql_ex.escaped_len);
-  }
+  fprintf(file, " ESCAPED BY ");
+  pretty_print_str(file, sql_ex.escaped, sql_ex.escaped_len);
      
-  bool line_lexem_added= false;
-  if (sql_ex.line_term)
-  {
-    fprintf(file," LINES TERMINATED BY ");
-    pretty_print_str(file, sql_ex.line_term, sql_ex.line_term_len);
-    line_lexem_added= true;
-  }
+  fprintf(file," LINES TERMINATED BY ");
+  pretty_print_str(file, sql_ex.line_term, sql_ex.line_term_len);
+
 
   if (sql_ex.line_start)
   {
-    if (!line_lexem_added)
-      fprintf(file," LINES");
     fprintf(file," STARTING BY ");
     pretty_print_str(file, sql_ex.line_start, sql_ex.line_start_len);
   }
-     
   if ((long) skip_lines > 0)
     fprintf(file, " IGNORE %ld LINES", (long) skip_lines);
 
@@ -2333,6 +2374,7 @@ void Load_log_event::print(FILE* file, bool short_form, LAST_EVENT_INFO* last_ev
   }
 
   fprintf(file, ";\n");
+  DBUG_VOID_RETURN;
 }
 #endif /* MYSQL_CLIENT */
 
@@ -2385,14 +2427,29 @@ void Load_log_event::set_fields(List<Item> &field_list)
 int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli, 
 			       bool use_rli_only_for_errors)
 {
+  char *load_data_query= 0;
   thd->db= (char*) rewrite_db(db);
   DBUG_ASSERT(thd->query == 0);
-  thd->query = 0;				// Should not be needed
-  thd->query_error = 0;
-
-  /* Saved for InnoDB, see comment in Query_log_event::exec_event() */
-  rli->future_group_master_log_pos= log_pos; 
+  thd->query_length= 0;                         // Should not be needed
+  thd->query_error= 0;
+  clear_all_errors(thd, rli);
   /*
+    Usually mysql_init_query() is called by mysql_parse(), but we need it here
+    as the present method does not call mysql_parse().
+  */
+  mysql_init_query(thd, 0, 0);
+  if (!use_rli_only_for_errors)
+  {
+    /* Saved for InnoDB, see comment in Query_log_event::exec_event() */
+#if MYSQL_VERSION_ID < 50000
+    rli->future_group_master_log_pos= log_pos + get_event_len() -
+      (rli->mi->old_format ? (LOG_EVENT_HEADER_LEN - OLD_HEADER_LEN) : 0);
+#else
+    rli->future_group_master_log_pos= log_pos;
+#endif
+  }
+ 
+   /*
     We test replicate_*_db rules. Note that we have already prepared the file
     to load, even if we are going to ignore and delete it now. So it is
     possible that we did a lot of disk writes for nothing. In other words, a
@@ -2410,6 +2467,13 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
     VOID(pthread_mutex_lock(&LOCK_thread_count));
     thd->query_id = query_id++;
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
+    /*
+      Initing thd->row_count is not necessary in theory as this variable has no
+      influence in the case of the slave SQL thread (it is used to generate a
+      "data truncated" warning but which is absorbed and never gets to the
+      error log); still we init it to avoid a Valgrind message.
+    */
+    mysql_reset_errors(thd);
 
     TABLE_LIST tables;
     bzero((char*) &tables,sizeof(tables));
@@ -2417,6 +2481,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
     tables.alias = tables.real_name = (char*)table_name;
     tables.lock_type = TL_WRITE;
     tables.updating= 1;
+
     // the table will be opened in mysql_load    
     if (table_rules_on && !tables_ok(thd, &tables))
     {
@@ -2428,6 +2493,19 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
     {
       char llbuff[22];
       enum enum_duplicates handle_dup;
+      /*
+        Make a simplified LOAD DATA INFILE query, for the information of the
+        user in SHOW PROCESSLIST. Note that db is known in the 'db' column.
+      */
+      if ((load_data_query= (char *) my_alloca(18 + strlen(fname) + 14 +
+                                               strlen(tables.real_name) + 8)))
+      {
+        thd->query_length= (uint)(strxmov(load_data_query,
+                                          "LOAD DATA INFILE '", fname,
+                                          "' INTO TABLE `", tables.real_name,
+                                          "` <...>", NullS) - load_data_query);
+        thd->query= load_data_query;
+      }
       if (sql_ex.opt_flags & REPLACE_FLAG)
 	handle_dup= DUP_REPLACE;
       else if (sql_ex.opt_flags & IGNORE_FLAG)
@@ -2509,9 +2587,14 @@ Slave: load data infile on table '%s' at log position %s in log \
   }
 	    
   thd->net.vio = 0; 
-  /* Same reason as in Query_log_event::exec_event() */
-  thd->db= thd->catalog= 0; 
+  VOID(pthread_mutex_lock(&LOCK_thread_count));
+  thd->db= thd->catalog= 0;
+  thd->query= 0;
+  thd->query_length= 0;
+  VOID(pthread_mutex_unlock(&LOCK_thread_count));
   close_thread_tables(thd);
+  if (load_data_query)
+    my_afree(load_data_query);
   if (thd->query_error)
   {
     /* this err/sql_errno code is copy-paste from send_error() */
@@ -2598,12 +2681,13 @@ Rotate_log_event::Rotate_log_event(const char* buf, uint event_len,
                                    const Format_description_log_event* description_event)
   :Log_event(buf, description_event) ,new_log_ident(NULL),alloced(0)
 {
+  DBUG_ENTER("Rotate_log_event::Rotate_log_event(char*,...)");
   // The caller will ensure that event_len is what we have at EVENT_LEN_OFFSET
   uint8 header_size= description_event->common_header_len;
   uint8 post_header_len= description_event->post_header_len[ROTATE_EVENT-1];
   uint ident_offset;
   if (event_len < header_size)
-    return;
+    DBUG_VOID_RETURN;
   buf += header_size;
   pos = post_header_len ? uint8korr(buf + R_POS_OFFSET) : 4;
   ident_len = (uint)(event_len -
@@ -2614,8 +2698,9 @@ Rotate_log_event::Rotate_log_event(const char* buf, uint event_len,
 					     ident_offset,
 					     (uint) ident_len,
 					     MYF(MY_WME))))
-    return;
+    DBUG_VOID_RETURN;
   alloced = 1;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2884,7 +2969,7 @@ int Rand_log_event::exec_event(struct st_relay_log_info* rli)
 void User_var_log_event::pack_info(Protocol* protocol)
 {
   char *buf= 0;
-  uint val_offset= 2 + name_len;
+  uint val_offset= 4 + name_len;
   uint event_len= val_offset;
 
   if (is_null)
@@ -2908,16 +2993,21 @@ void User_var_log_event::pack_info(Protocol* protocol)
       event_len= longlong10_to_str(uint8korr(val), buf + val_offset,-10)-buf;
       break;
     case STRING_RESULT:
-      /*
-	This is correct as pack_info is used for SHOW BINLOG command
-	only. But be carefull this is may be incorrect in other cases as
-	string may contain \ and '.
-      */
-      event_len= val_offset + 2 + val_len;
-      buf= my_malloc(event_len, MYF(MY_WME));
-      buf[val_offset]= '\'';
-      memcpy(buf + val_offset + 1, val, val_len);
-      buf[val_offset + val_len + 1]= '\'';
+      /* 15 is for 'COLLATE' and other chars */
+      buf= my_malloc(event_len+val_len*2+1+2*MY_CS_NAME_SIZE+15, MYF(MY_WME));
+      CHARSET_INFO *cs;
+      if (!(cs= get_charset(charset_number, MYF(0))))
+      {
+        strmov(buf+val_offset, "???");
+        event_len+= 3;
+      }
+      else
+      {
+        char *p= strxmov(buf + val_offset, "_", cs->csname, " ", NullS);
+        p= str_to_hex(p, val, val_len);
+        p= strxmov(p, " COLLATE ", cs->name, NullS);
+        event_len= p-buf;
+      }
       break;
     case ROW_RESULT:
     default:
@@ -2926,8 +3016,10 @@ void User_var_log_event::pack_info(Protocol* protocol)
     }
   }
   buf[0]= '@';
-  buf[1+name_len]= '=';
-  memcpy(buf+1, name, name_len);
+  buf[1]= '`';
+  buf[2+name_len]= '`';
+  buf[3+name_len]= '=';
+  memcpy(buf+2, name, name_len);
   protocol->store(buf, event_len, &my_charset_bin);
   my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
 }
@@ -3020,8 +3112,9 @@ void User_var_log_event::print(FILE* file, bool short_form, LAST_EVENT_INFO* las
     fprintf(file, "\tUser_var\n");
   }
 
-  fprintf(file, "SET @");
+  fprintf(file, "SET @`");
   my_fwrite(file, (byte*) name, (uint) (name_len), MYF(MY_NABP | MY_WME));
+  fprintf(file, "`");
 
   if (is_null)
   {
@@ -3041,7 +3134,43 @@ void User_var_log_event::print(FILE* file, bool short_form, LAST_EVENT_INFO* las
       fprintf(file, ":=%s;\n", int_buf);
       break;
     case STRING_RESULT:
-      fprintf(file, ":='%s';\n", val);
+    {
+      /*
+        Let's express the string in hex. That's the most robust way. If we
+        print it in character form instead, we need to escape it with
+        character_set_client which we don't know (we will know it in 5.0, but
+        in 4.1 we don't know it easily when we are printing
+        User_var_log_event). Explanation why we would need to bother with
+        character_set_client (quoting Bar):
+        > Note, the parser doesn't switch to another unescaping mode after
+        > it has met a character set introducer.
+        > For example, if an SJIS client says something like:
+        > SET @a= _ucs2 \0a\0b'
+        > the string constant is still unescaped according to SJIS, not
+        > according to UCS2.
+      */
+      char *hex_str;
+      CHARSET_INFO *cs;
+
+      if (!(hex_str= (char *)my_alloca(2*val_len+1+2))) // 2 hex digits / byte
+        break; // no error, as we are 'void'
+      str_to_hex(hex_str, val, val_len);
+      /*
+        For proper behaviour when mysqlbinlog|mysql, we need to explicitely
+        specify the variable's collation. It will however cause problems when
+        people want to mysqlbinlog|mysql into another server not supporting the
+        character set. But there's not much to do about this and it's unlikely.
+      */
+      if (!(cs= get_charset(charset_number, MYF(0))))
+        /*
+          Generate an unusable command (=> syntax error) is probably the best
+          thing we can do here.
+        */
+        fprintf(file, ":=???;\n");
+      else
+        fprintf(file, ":=_%s %s COLLATE %s;\n", cs->csname, hex_str, cs->name);
+      my_afree(hex_str);
+    }
       break;
     case ROW_RESULT:
     default:
@@ -3062,7 +3191,9 @@ void User_var_log_event::print(FILE* file, bool short_form, LAST_EVENT_INFO* las
 int User_var_log_event::exec_event(struct st_relay_log_info* rli)
 {
   Item *it= 0;
-  CHARSET_INFO *charset= get_charset(charset_number, MYF(0));
+  CHARSET_INFO *charset;
+  if (!(charset= get_charset(charset_number, MYF(MY_WME))))
+    return 1;
   LEX_STRING user_var_name;
   user_var_name.str= name;
   user_var_name.length= name_len;
@@ -3098,6 +3229,10 @@ int User_var_log_event::exec_event(struct st_relay_log_info* rli)
     }
   }
   Item_func_set_user_var e(user_var_name, it);
+  /*
+    Item_func_set_user_var can't substitute something else on its place =>
+    0 can be passed as last argument (reference on item)
+  */
   e.fix_fields(thd, 0, 0);
   e.update_hash(val, val_len, type, charset, DERIVATION_NONE);
   free_root(&thd->mem_root,0);
@@ -3330,10 +3465,12 @@ Create_file_log_event(THD* thd_arg, sql_exchange* ex,
 		      char* block_arg, uint block_len_arg, bool using_trans)
   :Load_log_event(thd_arg,ex,db_arg,table_name_arg,fields_arg,handle_dup,
 		  using_trans),
-   fake_base(0),block(block_arg),block_len(block_len_arg),
+   fake_base(0), block(block_arg), event_buf(0), block_len(block_len_arg),
    file_id(thd_arg->file_id = mysql_bin_log.next_file_id())
 {
+  DBUG_ENTER("Create_file_log_event");
   sql_ex.force_new_format();
+  DBUG_VOID_RETURN;
 }
 #endif /* !MYSQL_CLIENT */
 
@@ -3389,18 +3526,20 @@ Create_file_log_event::Create_file_log_event(const char* buf, uint len,
                                              const Format_description_log_event* description_event)
   :Load_log_event(buf,0,description_event),fake_base(0),block(0),inited_from_old(0)
 {
+  DBUG_ENTER("Create_file_log_event::Create_file_log_event(char*,...)");
   uint block_offset;
   uint header_len= description_event->common_header_len;
   uint8 load_header_len= description_event->post_header_len[LOAD_EVENT-1];
   uint8 create_file_header_len= description_event->post_header_len[CREATE_FILE_EVENT-1];
-  if (copy_log_event(buf,len,
+  if (!(event_buf= my_memdup((byte*) buf, len, MYF(MY_WME))) ||
+      copy_log_event(event_buf,len,
                      ((buf[EVENT_TYPE_OFFSET] == LOAD_EVENT) ?
                       load_header_len + header_len :
                       (fake_base ? (header_len+load_header_len) :
                        (header_len+load_header_len) +
                        create_file_header_len)),
                      description_event))
-    return;
+    DBUG_VOID_RETURN;
   if (description_event->binlog_version!=1)
   {
     file_id= uint4korr(buf + 
@@ -3429,6 +3568,7 @@ Create_file_log_event::Create_file_log_event(const char* buf, uint len,
     sql_ex.force_new_format();
     inited_from_old = 1;
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -3497,7 +3637,7 @@ void Create_file_log_event::pack_info(Protocol *protocol)
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Create_file_log_event::exec_event(struct st_relay_log_info* rli)
 {
-  char fname_buf[FN_REFLEN+10];
+  char proc_info[17+FN_REFLEN+10], *fname_buf= proc_info+17;
   char *p;
   int fd = -1;
   IO_CACHE file;
@@ -3506,6 +3646,8 @@ int Create_file_log_event::exec_event(struct st_relay_log_info* rli)
   bzero((char*)&file, sizeof(file));
   p = slave_load_file_stem(fname_buf, file_id, server_id);
   strmov(p, ".info");			// strmov takes less code than memcpy
+  strnmov(proc_info, "Making temp file ", 17); // no end 0
+  thd->proc_info= proc_info;
   if ((fd = my_open(fname_buf, O_WRONLY|O_CREAT|O_BINARY|O_TRUNC,
 		    MYF(MY_WME))) < 0 ||
       init_io_cache(&file, fd, IO_SIZE, WRITE_CACHE, (my_off_t)0, 0,
@@ -3549,6 +3691,7 @@ err:
     end_io_cache(&file);
   if (fd >= 0)
     my_close(fd, MYF(0));
+  thd->proc_info= 0;
   return error ? 1 : Log_event::exec_event(rli);
 }
 #endif /* defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
@@ -3582,15 +3725,17 @@ Append_block_log_event::Append_block_log_event(const char* buf, uint len,
                                                const Format_description_log_event* description_event)
   :Log_event(buf, description_event),block(0)
 {
+  DBUG_ENTER("Append_block_log_event::Append_block_log_event(char*,...)");
   uint8 common_header_len= description_event->common_header_len; 
   uint8 append_block_header_len=
     description_event->post_header_len[APPEND_BLOCK_EVENT-1];
   uint total_header_len= common_header_len+append_block_header_len;
   if (len < total_header_len)
-    return;
+    DBUG_VOID_RETURN;
   file_id= uint4korr(buf + common_header_len + AB_FILE_ID_OFFSET);
   block= (char*)buf + total_header_len;
   block_len= len - total_header_len;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -3649,12 +3794,15 @@ void Append_block_log_event::pack_info(Protocol *protocol)
 #if defined( HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Append_block_log_event::exec_event(struct st_relay_log_info* rli)
 {
-  char fname[FN_REFLEN+10];
+  char proc_info[17+FN_REFLEN+10], *fname= proc_info+17;
   char *p= slave_load_file_stem(fname, file_id, server_id);
   int fd;
   int error = 1;
+  DBUG_ENTER("Append_block_log_event::exec_event");
 
   memcpy(p, ".data", 6);
+  strnmov(proc_info, "Making temp file ", 17); // no end 0
+  thd->proc_info= proc_info;
   if ((fd = my_open(fname, O_WRONLY|O_APPEND|O_BINARY, MYF(MY_WME))) < 0)
   {
     slave_print_error(rli,my_errno, "Error in Append_block event: could not open file '%s'", fname);
@@ -3670,7 +3818,8 @@ int Append_block_log_event::exec_event(struct st_relay_log_info* rli)
 err:
   if (fd >= 0)
     my_close(fd, MYF(0));
-  return error ? error : Log_event::exec_event(rli);
+  thd->proc_info= 0;
+  DBUG_RETURN(error ? error : Log_event::exec_event(rli));
 }
 #endif
 
@@ -3880,6 +4029,16 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
     lev->exec_event is the place where the table is loaded (it calls
     mysql_load()).
   */
+
+#if MYSQL_VERSION_ID < 40100
+    rli->future_master_log_pos= log_pos + get_event_len() -
+      (rli->mi->old_format ? (LOG_EVENT_HEADER_LEN - OLD_HEADER_LEN) : 0);
+#elif MYSQL_VERSION_ID < 50000
+    rli->future_group_master_log_pos= log_pos + get_event_len() -
+      (rli->mi->old_format ? (LOG_EVENT_HEADER_LEN - OLD_HEADER_LEN) : 0);
+#else
+    rli->future_group_master_log_pos= log_pos;
+#endif
   if (lev->exec_event(0,rli,1)) 
   {
     /*

@@ -15,6 +15,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "myisamdef.h"
+
+#ifdef HAVE_SPATIAL
+
 #include "sp_defs.h"
 
 static int sp_add_point_to_mbr(uchar *(*wkb), uchar *end, uint n_dims, 
@@ -284,3 +287,5 @@ static int sp_get_geometry_mbr(uchar *(*wkb), uchar *end, uint n_dims,
   }
   return res;
 }
+
+#endif /*HAVE_SPATIAL*/

@@ -760,8 +760,6 @@ err:
 int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
 {
   int slave_errno= 0;
-  if (!thd)
-    thd = current_thd;
   int thread_mask;
   DBUG_ENTER("start_slave");
   
@@ -1299,7 +1297,8 @@ int show_binlog_events(THD* thd)
     Format_description_log_event(3); /* MySQL 4.0 by default */ 
 
   Log_event::init_show_field_list(&field_list);
-  if (protocol-> send_fields(&field_list, 1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(-1);
 
   if (mysql_bin_log.is_open())
@@ -1428,7 +1427,8 @@ int show_binlog_info(THD* thd)
   field_list.push_back(new Item_empty_string("Binlog_Do_DB",255));
   field_list.push_back(new Item_empty_string("Binlog_Ignore_DB",255));
 
-  if (protocol->send_fields(&field_list, 1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(-1);
   protocol->prepare_for_resend();
 
@@ -1478,7 +1478,8 @@ int show_binlogs(THD* thd)
   }
 
   field_list.push_back(new Item_empty_string("Log_name", 255));
-  if (protocol->send_fields(&field_list, 1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
   mysql_bin_log.lock_index();
   index_file=mysql_bin_log.get_index_file();

@@ -31,15 +31,16 @@ static const char *grant_names[]={
   "select","insert","update","delete","create","drop","reload","shutdown",
   "process","file","grant","references","index","alter"};
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 static TYPELIB grant_types = { sizeof(grant_names)/sizeof(char **),
                                "grant_types",
                                grant_names};
-
-static int mysql_find_files(THD *thd,List<char> *files, const char *db,
-                            const char *path, const char *wild, bool dir);
+#endif
 
 static int
 store_create_info(THD *thd, TABLE *table, String *packet);
+static int
+view_store_create_info(THD *thd, TABLE_LIST *table, String *packet);
 
 
 /*
@@ -65,7 +66,8 @@ mysqld_show_dbs(THD *thd,const char *wild)
     strxmov(end," (",wild,")",NullS);
   field_list.push_back(field);
 
-  if (protocol->send_fields(&field_list,1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
   if (mysql_find_files(thd,&files,NullS,mysql_data_home,wild,1))
     DBUG_RETURN(1);
@@ -106,7 +108,8 @@ int mysqld_show_open_tables(THD *thd,const char *wild)
   field_list.push_back(new Item_return_int("In_use", 1, MYSQL_TYPE_TINY));
   field_list.push_back(new Item_return_int("Name_locked", 4, MYSQL_TYPE_TINY));
 
-  if (protocol->send_fields(&field_list,1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
   if (!(open_list=list_open_tables(thd,wild)) && thd->is_fatal_error)
@@ -142,6 +145,9 @@ int mysqld_show_tables(THD *thd,const char *db,const char *wild)
   List<char> files;
   char *file_name;
   Protocol *protocol= thd->protocol;
+  uint len;
+  bool show_type = !test(thd->variables.sql_mode &
+                         (MODE_NO_FIELD_OPTIONS | MODE_MYSQL323));
   DBUG_ENTER("mysqld_show_tables");
 
   field->name=(char*) thd->alloc(20+(uint) strlen(db)+
@@ -150,10 +156,14 @@ int mysqld_show_tables(THD *thd,const char *db,const char *wild)
   if (wild && wild[0])
     strxmov(end," (",wild,")",NullS);
   field->max_length=NAME_LEN;
-  (void) sprintf(path,"%s/%s",mysql_data_home,db);
-  (void) unpack_dirname(path,path);
+  (void) my_snprintf(path, FN_LEN, "%s/%s", mysql_data_home, db);
+  end= path + (len= unpack_dirname(path,path));
+  len= FN_LEN - len;
   field_list.push_back(field);
-  if (protocol->send_fields(&field_list,1))
+  if (show_type)
+    field_list.push_back(new Item_empty_string("table_type", 10));
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
   if (mysql_find_files(thd,&files,db,path,wild,0))
     DBUG_RETURN(-1);
@@ -162,6 +172,24 @@ int mysqld_show_tables(THD *thd,const char *db,const char *wild)
   {
     protocol->prepare_for_resend();
     protocol->store(file_name, system_charset_info);
+    if (show_type)
+    {
+      my_snprintf(end, len, "/%s%s", file_name, reg_ext);
+      switch (mysql_frm_type(path))
+      {
+      case FRMTYPE_ERROR:
+        protocol->store("ERROR", system_charset_info);
+        break;
+      case FRMTYPE_TABLE:
+        protocol->store("BASE TABLE", system_charset_info);
+        break;
+      case FRMTYPE_VIEW:
+        protocol->store("VIEW", system_charset_info);
+        break;
+      default:
+        DBUG_ASSERT(0); // this should be impossible
+      }
+    }
     if (protocol->write())
       DBUG_RETURN(-1);
   }
@@ -179,11 +207,12 @@ int mysqld_show_storage_engines(THD *thd)
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_show_storage_engines");
 
-  field_list.push_back(new Item_empty_string("Type",10));
+  field_list.push_back(new Item_empty_string("Engine",10));
   field_list.push_back(new Item_empty_string("Support",10));
   field_list.push_back(new Item_empty_string("Comment",80));
 
-  if (protocol->send_fields(&field_list,1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
   const char *default_type_name= 
@@ -219,29 +248,33 @@ struct show_privileges_st {
   const char *comment;
 };
 
-
-/*
-  TODO:  Update with new privileges
-*/
 static struct show_privileges_st sys_privileges[]=
 {
-  {"Select", "Tables",  "To retrieve rows from table"},
-  {"Insert", "Tables",  "To insert data into tables"},
-  {"Update", "Tables",  "To update existing rows "},
-  {"Delete", "Tables",  "To delete existing rows"},
-  {"Index",  "Tables",  "To create or drop indexes"},
-  {"Alter",  "Tables",  "To alter the table"},
+  {"Alter", "Tables",  "To alter the table"},
   {"Create", "Databases,Tables,Indexes",  "To create new databases and tables"},
-  {"Drop",   "Databases,Tables", "To drop databases and tables"},
-  {"Grant",  "Databases,Tables", "To give to other users those privileges you possess"},
-  {"References", "Databases,Tables", "To have references on tables"},
-  {"Reload",  "Server Admin", "To reload or refresh tables, logs and privileges"},
-  {"Shutdown","Server Admin", "To shutdown the server"},
+  {"Create temporary tables","Databases","To use CREATE TEMPORARY TABLE"},
+  {"Create view", "Tables",  "To create new views"},
+  {"Delete", "Tables",  "To delete existing rows"},
+  {"Drop", "Databases,Tables", "To drop databases, tables, and views"},
+  {"File", "File access on server",   "To read and write files on the server"},
+  {"Grant option",  "Databases,Tables", "To give to other users those privileges you possess"},
+  {"Index", "Tables",  "To create or drop indexes"},
+  {"Insert", "Tables",  "To insert data into tables"},
+  {"Lock tables","Databases","To use LOCK TABLES (together with SELECT privilege)"},
   {"Process", "Server Admin", "To view the plain text of currently executing queries"},
-  {"File",    "File access on server",   "To read and write files on the server"},
+  {"References", "Databases,Tables", "To have references on tables"},
+  {"Reload", "Server Admin", "To reload or refresh tables, logs and privileges"},
+  {"Replication client","Server Admin","To ask where the slave or master servers are"},
+  {"Replication slave","Server Admin","To read binary log events from the master"},
+  {"Select", "Tables",  "To retrieve rows from table"},
+  {"Show databases","Server Admin","To see all databases with SHOW DATABASES"},
+  {"Show view","Tables","To see views with SHOW CREATE VIEW"},
+  {"Shutdown","Server Admin", "To shut down the server"},
+  {"Super","Server Admin","To use KILL thread, SET GLOBAL, CHANGE MASTER, etc."},
+  {"Update", "Tables",  "To update existing rows"},
+  {"Usage","Server Admin","No privileges - allow connect only"},
   {NullS, NullS, NullS}
 };
-
 
 int mysqld_show_privileges(THD *thd)
 {
@@ -253,7 +286,8 @@ int mysqld_show_privileges(THD *thd)
   field_list.push_back(new Item_empty_string("Context",15));
   field_list.push_back(new Item_empty_string("Comment",NAME_LEN));
 
-  if (protocol->send_fields(&field_list,1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
   show_privileges_st *privilege= sys_privileges;
@@ -299,11 +333,11 @@ static struct show_column_type_st sys_column_types[]=
 {
   {"tinyint",
     1,  "-128",  "127",  0,  0,  "YES",  "YES",
-    "NO",   "YES", "YES",  "NO",  "NULL,0",  
-    "A very small integer"}, 
+    "NO",   "YES", "YES",  "NO",  "NULL,0",
+    "A very small integer"},
   {"tinyint unsigned",
-    1,  "0"   ,  "255",  0,  0,  "YES",  "YES",  
-    "YES",  "YES",  "YES",  "NO",  "NULL,0", 
+    1,  "0"   ,  "255",  0,  0,  "YES",  "YES",
+    "YES",  "YES",  "YES",  "NO",  "NULL,0",
     "A very small integer"},
 };
 
@@ -328,7 +362,8 @@ int mysqld_show_column_types(THD *thd)
   field_list.push_back(new Item_empty_string("Default",NAME_LEN));
   field_list.push_back(new Item_empty_string("Comment",NAME_LEN));
 
-  if (protocol->send_fields(&field_list,1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
   /* TODO: Change the loop to not use 'i' */
@@ -357,7 +392,7 @@ int mysqld_show_column_types(THD *thd)
 }
 
 
-static int
+int
 mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
                  const char *wild, bool dir)
 {
@@ -365,7 +400,9 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
   char *ext;
   MY_DIR *dirp;
   FILEINFO *file;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint col_access=thd->col_access;
+#endif
   TABLE_LIST table_list;
   DBUG_ENTER("mysql_find_files");
 
@@ -416,7 +453,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
       {
 	if (lower_case_table_names)
 	{
-	  if (wild_case_compare(system_charset_info,file->name,wild))
+	  if (wild_case_compare(files_charset_info, file->name, wild))
 	    continue;
 	}
 	else if (wild_compare(file->name,wild,0))
@@ -430,7 +467,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
       table_list.db= (char*) db;
       table_list.real_name=file->name;
       table_list.grant.privilege=col_access;
-      if (check_grant(thd,TABLE_ACLS,&table_list,1,1))
+      if (check_grant(thd, TABLE_ACLS, &table_list, 1, UINT_MAX, 1))
         continue;
     }
 #endif
@@ -465,7 +502,9 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
   (void) sprintf(path,"%s/%s",mysql_data_home,db);
   (void) unpack_dirname(path,path);
   field_list.push_back(item=new Item_empty_string("Name",NAME_LEN));
-  field_list.push_back(item=new Item_empty_string("Type",10));
+  field_list.push_back(item=new Item_empty_string("Engine",10));
+  item->maybe_null=1;
+  field_list.push_back(item=new Item_int("Version", (longlong) 0, 21));
   item->maybe_null=1;
   field_list.push_back(item=new Item_empty_string("Row_format",10));
   item->maybe_null=1;
@@ -497,7 +536,8 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
   item->maybe_null=1;
   field_list.push_back(item=new Item_empty_string("Comment",80));
   item->maybe_null=1;
-  if (protocol->send_fields(&field_list,1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
   if (mysql_find_files(thd,&files,db,path,wild,0))
@@ -511,23 +551,30 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
     protocol->store(file_name, system_charset_info);
     table_list.db=(char*) db;
     table_list.real_name= table_list.alias= file_name;
+    table_list.select_lex= &thd->lex->select_lex;
     if (lower_case_table_names)
       my_casedn_str(files_charset_info, file_name);
-    if (!(table = open_ltable(thd, &table_list, TL_READ)))
+    if (open_and_lock_tables(thd, &table_list))
     {
       for (uint i=2 ; i < field_list.elements ; i++)
         protocol->store_null();
       // Send error to Comment field
       protocol->store(thd->net.last_error, system_charset_info);
-      thd->net.last_error[0]=0;
+      thd->clear_error();
+    }
+    else if (table_list.view)
+    {
+      for (uint i= 2; i < field_list.elements; i++)
+        protocol->store_null();
+      protocol->store("view", system_charset_info);
     }
     else
     {
-      struct tm tm_tmp;
       const char *str;
-      handler *file=table->file;
+      handler *file= (table= table_list.table)->file;
       file->info(HA_STATUS_VARIABLE | HA_STATUS_TIME | HA_STATUS_NO_LOCK);
       protocol->store(file->table_type(), system_charset_info);
+      protocol->store((ulonglong) table->frm_version);
       str= ((table->db_options_in_use & HA_OPTION_COMPRESS_RECORD) ?
 	    "Compressed" :
 	    (table->db_options_in_use & HA_OPTION_PACK_RECORD) ?
@@ -556,24 +603,21 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
         protocol->store_null();
       else
       {
-        localtime_r(&file->create_time,&tm_tmp);
-	localtime_to_TIME(&time, &tm_tmp);
+        thd->variables.time_zone->gmt_sec_to_TIME(&time, file->create_time);
         protocol->store(&time);
       }
       if (!file->update_time)
         protocol->store_null();
       else
       {
-        localtime_r(&file->update_time,&tm_tmp);
-	localtime_to_TIME(&time, &tm_tmp);
+        thd->variables.time_zone->gmt_sec_to_TIME(&time, file->update_time);
         protocol->store(&time);
       }
       if (!file->check_time)
         protocol->store_null();
       else
       {
-        localtime_r(&file->check_time,&tm_tmp);
-	localtime_to_TIME(&time, &tm_tmp);
+        thd->variables.time_zone->gmt_sec_to_TIME(&time, file->check_time);
         protocol->store(&time);
       }
       str= (table->table_charset ? table->table_charset->name : "default");
@@ -628,8 +672,8 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
 	if (comment != table->comment)
 	  my_free(comment,MYF(0));
       }
-      close_thread_tables(thd,0);
     }
+    close_thread_tables(thd, 0);
     if (protocol->write())
       DBUG_RETURN(-1);
   }
@@ -655,11 +699,13 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
   DBUG_PRINT("enter",("db: %s  table: %s",table_list->db,
                       table_list->real_name));
 
-  if (!(table = open_ltable(thd, table_list, TL_UNLOCK)))
+  table_list->lock_type= TL_UNLOCK;
+  if (open_and_lock_tables(thd, table_list))
   {
     send_error(thd);
     DBUG_RETURN(1);
   }
+  table= table_list->table;
   file=table->file;
   file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -682,7 +728,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
   }
         // Send first number of fields and records
   if (protocol->send_records_num(&field_list, (ulonglong)file->records) ||
-      protocol->send_fields(&field_list,0))
+      protocol->send_fields(&field_list, Protocol::SEND_EOF))
     DBUG_RETURN(1);
   restore_record(table,default_values);      // Get empty record
 
@@ -692,18 +738,13 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
     if (!wild || !wild[0] || 
         !wild_case_compare(system_charset_info, field->field_name,wild))
     {
-#ifdef NOT_USED
-      if (thd->col_access & TABLE_ACLS ||
-          ! check_grant_column(thd,table,field->field_name,
-                               (uint) strlen(field->field_name),1))
-#endif
       {
         byte *pos;
         uint flags=field->flags;
         String type(tmp,sizeof(tmp), system_charset_info);
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
         uint col_access;
-        bool null_default_value=0;
-
+#endif
 	protocol->prepare_for_resend();
         protocol->store(field->field_name, system_charset_info);
         field->sql_type(type);
@@ -711,6 +752,12 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
 	if (verbose)
 	  protocol->store(field->has_charset() ? field->charset()->name : "NULL",
 			system_charset_info);
+        /*
+          Altough TIMESTAMP fields can't contain NULL as its value they
+          will accept NULL if you will try to insert such value and will
+          convert it to current TIMESTAMP. So YES here means that NULL 
+          is allowed for assignment but can't be returned.
+        */
         pos=(byte*) ((flags & NOT_NULL_FLAG) &&
                      field->type() != FIELD_TYPE_TIMESTAMP ?
                      "" : "YES");
@@ -720,16 +767,24 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
                      (field->flags & MULTIPLE_KEY_FLAG) ? "MUL":"");
         protocol->store((char*) pos, system_charset_info);
 
-        if (field->type() == FIELD_TYPE_TIMESTAMP ||
-            field->unireg_check == Field::NEXT_NUMBER)
-          null_default_value=1;
-        if (!null_default_value && !field->is_null())
+        if (table->timestamp_field == field &&
+            field->unireg_check != Field::TIMESTAMP_UN_FIELD)
+        {
+          /*
+            We have NOW() as default value but we use CURRENT_TIMESTAMP form
+            because it is more SQL standard comatible
+          */
+          protocol->store("CURRENT_TIMESTAMP", system_charset_info);
+        }
+        else if (field->unireg_check != Field::NEXT_NUMBER &&
+                 !field->is_null())
         {                                               // Not null by default
           type.set(tmp, sizeof(tmp), field->charset());
-          field->val_str(&type,&type);
+          field->val_str(&type);
           protocol->store(type.ptr(),type.length(),type.charset());
         }
-        else if (field->maybe_null() || null_default_value)
+        else if (field->unireg_check == Field::NEXT_NUMBER ||
+                 field->maybe_null())
           protocol->store_null();                       // Null as default
         else
           protocol->store("",0, system_charset_info);	// empty string
@@ -744,7 +799,10 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
 	  /* Add grant options & comments */
 	  end=tmp;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-	  col_access= get_column_grant(thd,table_list,field) & COL_ACLS;
+          col_access= get_column_grant(thd, &table_list->grant,
+                                       table_list->db,
+                                       table_list->real_name,
+                                       field->field_name) & COL_ACLS;
 	  for (uint bitnr=0; col_access ; col_access>>=1,bitnr++)
 	  {
 	    if (col_access & 1)
@@ -782,14 +840,24 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   DBUG_PRINT("enter",("db: %s  table: %s",table_list->db,
                       table_list->real_name));
 
-  /* Only one table for now */
-  if (!(table = open_ltable(thd, table_list, TL_UNLOCK)))
+  /* Only one table for now, but VIEW can involve several tables */
+  if (open_and_lock_tables(thd, table_list))
   {
     send_error(thd);
     DBUG_RETURN(1);
   }
+  /* TODO: add environment variables show when it become possible */
+  if (thd->lex->only_view && !table_list->view)
+  {
+    my_error(ER_WRONG_OBJECT, MYF(0), table_list->db,
+             table_list->real_name, "VIEW");
+    DBUG_RETURN(-1);
+  }
+  table= table_list->table;
 
-  if (store_create_info(thd, table, &buffer))
+  if ((table_list->view ?
+       view_store_create_info(thd, table_list, &buffer) :
+       store_create_info(thd, table, &buffer)))
     DBUG_RETURN(-1);
 
   List<Item> field_list;
@@ -798,20 +866,122 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   field_list.push_back(new Item_empty_string("Create Table",
 					     max(buffer.length(),1024)));
 
-  if (protocol->send_fields(&field_list, 1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
   protocol->prepare_for_resend();
-  protocol->store(table->table_name, system_charset_info);
   buffer.length(0);
-  if (store_create_info(thd, table, &buffer))
-    DBUG_RETURN(-1);
+  if (table_list->view)
+  {
+    protocol->store(table_list->view_name.str, system_charset_info);
+    if (view_store_create_info(thd, table_list, &buffer))
+      DBUG_RETURN(-1);
+  }
+  else
+  {
+    protocol->store(table->table_name, system_charset_info);
+    if (store_create_info(thd, table, &buffer))
+      DBUG_RETURN(-1);
+  }
   protocol->store(buffer.ptr(), buffer.length(), buffer.charset());
+
   if (protocol->write())
     DBUG_RETURN(1);
   send_eof(thd);
   DBUG_RETURN(0);
 }
 
+int mysqld_show_create_db(THD *thd, char *dbname,
+			  HA_CREATE_INFO *create_info)
+{
+  int length;
+  char	path[FN_REFLEN];
+  char buff[2048];
+  String buffer(buff, sizeof(buff), system_charset_info);
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  uint db_access;
+#endif
+  bool found_libchar;
+  HA_CREATE_INFO create;
+  uint create_options = create_info ? create_info->options : 0;
+  Protocol *protocol=thd->protocol;
+  DBUG_ENTER("mysql_show_create_db");
+
+  if (check_db_name(dbname))
+  {
+    net_printf(thd,ER_WRONG_DB_NAME, dbname);
+    DBUG_RETURN(1);
+  }
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  if (test_all_bits(thd->master_access,DB_ACLS))
+    db_access=DB_ACLS;
+  else
+    db_access= (acl_get(thd->host,thd->ip, thd->priv_user,dbname,0) |
+		thd->master_access);
+  if (!(db_access & DB_ACLS) && (!grant_option || check_grant_db(thd,dbname)))
+  {
+    net_printf(thd,ER_DBACCESS_DENIED_ERROR,
+	       thd->priv_user, thd->host_or_ip, dbname);
+    mysql_log.write(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
+		    thd->priv_user, thd->host_or_ip, dbname);
+    DBUG_RETURN(1);
+  }
+#endif
+
+  (void) sprintf(path,"%s/%s",mysql_data_home, dbname);
+  length=unpack_dirname(path,path);		// Convert if not unix
+  found_libchar= 0;
+  if (length && path[length-1] == FN_LIBCHAR)
+  {
+    found_libchar= 1;
+    path[length-1]=0;				// remove ending '\'
+  }
+  if (access(path,F_OK))
+  {
+    net_printf(thd,ER_BAD_DB_ERROR,dbname);
+    DBUG_RETURN(1);
+  }
+  if (found_libchar)
+    path[length-1]= FN_LIBCHAR;
+  strmov(path+length, MY_DB_OPT_FILE);
+  load_db_opt(thd, path, &create);
+
+  List<Item> field_list;
+  field_list.push_back(new Item_empty_string("Database",NAME_LEN));
+  field_list.push_back(new Item_empty_string("Create Database",1024));
+
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+    DBUG_RETURN(1);
+
+  protocol->prepare_for_resend();
+  protocol->store(dbname, strlen(dbname), system_charset_info);
+  buffer.length(0);
+  buffer.append("CREATE DATABASE ", 16);
+  if (create_options & HA_LEX_CREATE_IF_NOT_EXISTS)
+    buffer.append("/*!32312 IF NOT EXISTS*/ ", 25);
+  append_identifier(thd, &buffer, dbname, strlen(dbname));
+
+  if (create.default_table_charset)
+  {
+    buffer.append(" /*!40100", 9);
+    buffer.append(" DEFAULT CHARACTER SET ", 23);
+    buffer.append(create.default_table_charset->csname);
+    if (!(create.default_table_charset->state & MY_CS_PRIMARY))
+    {
+      buffer.append(" COLLATE ", 9);
+      buffer.append(create.default_table_charset->name);
+    }
+    buffer.append(" */", 3);
+  }
+  protocol->store(buffer.ptr(), buffer.length(), buffer.charset());
+
+  if (protocol->write())
+    DBUG_RETURN(1);
+  send_eof(thd);
+  DBUG_RETURN(0);
+}
 
 int
 mysqld_show_logs(THD *thd)
@@ -824,11 +994,12 @@ mysqld_show_logs(THD *thd)
   field_list.push_back(new Item_empty_string("Type",10));
   field_list.push_back(new Item_empty_string("Status",10));
 
-  if (protocol->send_fields(&field_list,1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
 #ifdef HAVE_BERKELEY_DB
-  if (!berkeley_skip && berkeley_show_logs(protocol))
+  if ((have_berkeley_db == SHOW_OPTION_YES) && berkeley_show_logs(protocol))
     DBUG_RETURN(-1);
 #endif
 
@@ -873,7 +1044,8 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
   field_list.push_back(new Item_empty_string("Comment",255));
   item->maybe_null=1;
 
-  if (protocol->send_fields(&field_list,1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
   KEY *key_info=table->key_info;
@@ -892,7 +1064,7 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
       str=(key_part->field ? key_part->field->field_name :
 	   "?unknown field?");
       protocol->store(str, system_charset_info);
-      if (table->file->index_flags(i) & HA_READ_ORDER)
+      if (table->file->index_flags(i, j, 0) & HA_READ_ORDER)
         protocol->store(((key_part->key_part_flag & HA_REVERSE_SORT) ?
 			 "D" : "A"), 1, system_charset_info);
       else
@@ -907,9 +1079,8 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
         protocol->store_null();
 
       /* Check if we have a key part that only uses part of the field */
-      if (!key_part->field ||
-          key_part->length !=
-          table->field[key_part->fieldnr-1]->key_length())
+      if (!(key_info->flags & HA_FULLTEXT) && (!key_part->field ||
+          key_part->length != table->field[key_part->fieldnr-1]->key_length()))
         protocol->store_tiny((longlong) key_part->length);
       else
         protocol->store_null();
@@ -961,7 +1132,8 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
       field_list.push_back(new Item_field(field));
   }
   restore_record(table,default_values);              // Get empty record
-  if (thd->protocol->send_fields(&field_list,2))
+  if (thd->protocol->send_fields(&field_list, Protocol::SEND_DEFAULTS |
+                                              Protocol::SEND_EOF))
     DBUG_VOID_RETURN;
   net_flush(&thd->net);
   DBUG_VOID_RETURN;
@@ -997,26 +1169,85 @@ mysqld_dump_create_info(THD *thd, TABLE *table, int fd)
   DBUG_RETURN(0);
 }
 
+/*
+  Go through all character combinations and ensure that sql_lex.cc can
+  parse it as an identifer.
+
+  SYNOPSIS
+  require_quotes()
+  name			attribute name
+  name_length		length of name
+
+  RETURN
+    #	Pointer to conflicting character
+    0	No conflicting character
+*/
+
+static const char *require_quotes(const char *name, uint name_length)
+{
+  uint length;
+  const char *end= name + name_length;
+
+  for ( ; name < end ; name++)
+  {
+    uchar chr= (uchar) *name;
+    length= my_mbcharlen(system_charset_info, chr);
+    if (length == 1 && !system_charset_info->ident_map[chr])
+      return name;
+  }
+  return 0;
+}
+
+
+static void append_quoted_simple_identifier(String *packet, char quote_char,
+					    const char *name, uint length)
+{
+  packet->append(&quote_char, 1, system_charset_info);
+  packet->append(name, length, system_charset_info);
+  packet->append(&quote_char, 1, system_charset_info);
+}  
+
 
 void
 append_identifier(THD *thd, String *packet, const char *name, uint length)
 {
-  char qtype;
-  if (thd->variables.sql_mode & MODE_ANSI_QUOTES)
-    qtype= '\"';
-  else
-    qtype= '`';
+  const char *name_end;
+  char quote_char;
 
-  if (thd->options & OPTION_QUOTE_SHOW_CREATE)
-  {
-    packet->append(&qtype, 1);
-    packet->append(name, length, system_charset_info);
-    packet->append(&qtype, 1);
-  }
+  if (thd->variables.sql_mode & MODE_ANSI_QUOTES)
+    quote_char= '\"';
   else
+    quote_char= '`';
+
+  if (is_keyword(name,length))
   {
-    packet->append(name, length, system_charset_info);
+    append_quoted_simple_identifier(packet, quote_char, name, length);
+    return;
   }
+
+  if (!require_quotes(name, length))
+  {
+    if (!(thd->options & OPTION_QUOTE_SHOW_CREATE))
+      packet->append(name, length, system_charset_info);
+    else
+      append_quoted_simple_identifier(packet, quote_char, name, length);
+    return;
+  }
+
+  /* The identifier must be quoted as it includes a quote character */
+
+  packet->reserve(length*2 + 2);
+  packet->append(&quote_char, 1, system_charset_info);
+
+  for (name_end= name+length ; name < name_end ; name+= length)
+  {
+    char chr= *name;
+    length= my_mbcharlen(system_charset_info, chr);
+    if (length == 1 && chr == quote_char)
+      packet->append(&quote_char, 1, system_charset_info);
+    packet->append(name, length, packet->charset());
+  }
+  packet->append(&quote_char, 1, system_charset_info);
 }
 
 
@@ -1044,8 +1275,8 @@ static int
 store_create_info(THD *thd, TABLE *table, String *packet)
 {
   List<Item> field_list;
-  char tmp[MAX_FIELD_WIDTH], *for_str, buff[128], *end;
-  String type(tmp, sizeof(tmp),&my_charset_bin);
+  char tmp[MAX_FIELD_WIDTH], *for_str, buff[128], *end, *alias;
+  String type(tmp, sizeof(tmp), system_charset_info);
   Field **ptr,*field;
   uint primary_key;
   KEY *key_info;
@@ -1070,12 +1301,15 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     packet->append("CREATE TEMPORARY TABLE ", 23);
   else
     packet->append("CREATE TABLE ", 13);
-  append_identifier(thd,packet, table->real_name, strlen(table->real_name));
+  alias= (lower_case_table_names == 2 ? table->table_name :
+	  table->real_name);
+  append_identifier(thd, packet, alias, strlen(alias));
   packet->append(" (\n", 3);
 
   for (ptr=table->field ; (field= *ptr); ptr++)
   {
     bool has_default;
+    bool has_now_default;
     uint flags = field->flags;
 
     if (ptr != table->field)
@@ -1086,51 +1320,57 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     packet->append(' ');
     // check for surprises from the previous call to Field::sql_type()
     if (type.ptr() != tmp)
-      type.set(tmp, sizeof(tmp),&my_charset_bin);
+      type.set(tmp, sizeof(tmp), system_charset_info);
 
     field->sql_type(type);
-    packet->append(type.ptr(),type.length());
+    packet->append(type.ptr(), type.length(), system_charset_info);
 
-    if (field->has_charset())
+    if (field->has_charset() && !limited_mysql_mode && !foreign_db_mode)
     {
-      if (field->charset() == &my_charset_bin)
-        packet->append(" binary", 7);
-      else if (!limited_mysql_mode && !foreign_db_mode)
+      if (field->charset() != table->table_charset)
       {
-	if (field->charset() != table->table_charset)
-	{
-	  packet->append(" character set ", 15);
-	  packet->append(field->charset()->csname);
-	}
-	/* 
-	  For string types dump collation name only if 
-	  collation is not primary for the given charset
-	*/
-	if (!(field->charset()->state & MY_CS_PRIMARY))
-	{
-	  packet->append(" collate ", 9);
-	  packet->append(field->charset()->name);
-	}
+	packet->append(" character set ", 15);
+	packet->append(field->charset()->csname);
+      }
+      /* 
+	For string types dump collation name only if 
+	collation is not primary for the given charset
+      */
+      if (!(field->charset()->state & MY_CS_PRIMARY))
+      {
+	packet->append(" collate ", 9);
+	packet->append(field->charset()->name);
       }
     }
 
     if (flags & NOT_NULL_FLAG)
       packet->append(" NOT NULL", 9);
 
+
+    /* 
+      Again we are using CURRENT_TIMESTAMP instead of NOW because it is
+      more standard 
+    */
+    has_now_default= table->timestamp_field == field && 
+                     field->unireg_check != Field::TIMESTAMP_UN_FIELD;
+    
     has_default= (field->type() != FIELD_TYPE_BLOB &&
-		  field->type() != FIELD_TYPE_TIMESTAMP &&
-		  field->unireg_check != Field::NEXT_NUMBER);
+		  field->unireg_check != Field::NEXT_NUMBER &&
+                  !((foreign_db_mode || limited_mysql_mode) &&
+                    has_now_default));
 
     if (has_default)
     {
       packet->append(" default ", 9);
-      if (!field->is_null())
+      if (has_now_default)
+        packet->append("CURRENT_TIMESTAMP",17);
+      else if (!field->is_null())
       {                                             // Not null by default
         type.set(tmp, sizeof(tmp), field->charset());
-        field->val_str(&type,&type);
+        field->val_str(&type);
 	if (type.length())
 	{
-   	  String def_val;
+	  String def_val;
 	  /* convert to system_charset_info == utf8 */
 	  def_val.copy(type.ptr(), type.length(), field->charset(),
 		       system_charset_info);
@@ -1142,8 +1382,13 @@ store_create_info(THD *thd, TABLE *table, String *packet)
       else if (field->maybe_null())
         packet->append("NULL", 4);                    // Null as default
       else
-        packet->append(tmp,0);
+        packet->append(tmp);
     }
+
+    if (!foreign_db_mode && !limited_mysql_mode &&
+        table->timestamp_field == field && 
+        field->unireg_check != Field::TIMESTAMP_DN_FIELD)
+      packet->append(" on update CURRENT_TIMESTAMP",28);
 
     if (field->unireg_check == Field::NEXT_NUMBER && !foreign_db_mode)
       packet->append(" auto_increment", 15 );
@@ -1167,7 +1412,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     bool found_primary=0;
     packet->append(",\n  ", 4);
 
-    if (i == primary_key && !strcmp(key_info->name,"PRIMARY"))
+    if (i == primary_key && !strcmp(key_info->name, primary_key_name))
     {
       found_primary=1;
       packet->append("PRIMARY ", 8);
@@ -1235,7 +1480,10 @@ store_create_info(THD *thd, TABLE *table, String *packet)
   packet->append("\n)", 2);
   if (!(thd->variables.sql_mode & MODE_NO_TABLE_OPTIONS) && !foreign_db_mode)
   {
-    packet->append(" ENGINE=", 8);
+    if (thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40))
+      packet->append(" TYPE=", 6);
+    else
+      packet->append(" ENGINE=", 8);
     packet->append(file->table_type());
     
     if (table->table_charset &&
@@ -1307,6 +1555,35 @@ store_create_info(THD *thd, TABLE *table, String *packet)
 }
 
 
+static int
+view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
+{
+  my_bool foreign_db_mode= (thd->variables.sql_mode & (MODE_POSTGRESQL |
+                                                       MODE_ORACLE |
+                                                       MODE_MSSQL |
+                                                       MODE_DB2 |
+                                                       MODE_MAXDB |
+                                                       MODE_ANSI)) != 0;
+  buff->append("CREATE ", 7);
+  if(!foreign_db_mode && (table->algorithm == VIEW_ALGORITHM_MERGE ||
+                          table->algorithm == VIEW_ALGORITHM_TMEPTABLE))
+  {
+    buff->append("ALGORITHM=", 10);
+    if (table->algorithm == VIEW_ALGORITHM_TMEPTABLE)
+      buff->append("TMPTABLE ", 9);
+    else
+      buff->append("MERGE ", 6);
+  }
+  buff->append("VIEW ", 5);
+  buff->append(table->view_db.str, table->view_db.length);
+  buff->append('.');
+  buff->append(table->view_name.str, table->view_name.length);
+  buff->append(" AS ", 4);
+  buff->append(table->query.str, table->query.length);
+  return 0;
+}
+
+
 /****************************************************************************
   Return info about all processes
   returns for each thread: thread id, user, host, db, command, info
@@ -1350,7 +1627,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   field->maybe_null=1;
   field_list.push_back(field=new Item_empty_string("Info",max_query_length));
   field->maybe_null=1;
-  if (protocol->send_fields(&field_list,1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_VOID_RETURN;
 
   VOID(pthread_mutex_lock(&LOCK_thread_count)); // For unlink from list
@@ -1361,13 +1639,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
     while ((tmp=it++))
     {
       struct st_my_thread_var *mysys_var;
-#ifndef EMBEDDED_LIBRARY
-      if ((tmp->net.vio || tmp->system_thread) &&
+      if ((tmp->vio_ok() || tmp->system_thread) &&
           (!user || (tmp->user && !strcmp(tmp->user,user))))
-#else
-      if (tmp->system_thread &&
-          (!user || (tmp->user && !strcmp(tmp->user,user))))
-#endif
       {
         thread_info *thd_info=new thread_info;
 
@@ -1418,10 +1691,13 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         thd_info->query=0;
         if (tmp->query)
         {
-	  /* query_length is always set before tmp->query */
+	  /* 
+            query_length is always set to 0 when we set query = NULL; see
+	    the comment in sql_class.h why this prevents crashes in possible
+            races with query_length
+          */
           uint length= min(max_query_length, tmp->query_length);
-          thd_info->query=(char*) thd->memdup(tmp->query,length+1);
-          thd_info->query[length]=0;
+          thd_info->query=(char*) thd->strmake(tmp->query,length);
         }
         thread_infos.append(thd_info);
       }
@@ -1488,7 +1764,8 @@ int mysqld_show_collations(THD *thd, const char *wild)
   field_list.push_back(new Item_empty_string("Compiled",30));
   field_list.push_back(new Item_return_int("Sortlen",3, FIELD_TYPE_SHORT));
 
-  if (protocol->send_fields(&field_list, 1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
   for ( cs= all_charsets ; cs < all_charsets+255 ; cs++ )
@@ -1541,7 +1818,8 @@ int mysqld_show_charsets(THD *thd, const char *wild)
   field_list.push_back(new Item_empty_string("Default collation",60));
   field_list.push_back(new Item_return_int("Maxlen",3, FIELD_TYPE_SHORT));
 
-  if (protocol->send_fields(&field_list, 1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
   for ( cs= all_charsets ; cs < all_charsets+255 ; cs++ )
@@ -1575,7 +1853,8 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 
   field_list.push_back(new Item_empty_string("Variable_name",30));
   field_list.push_back(new Item_empty_string("Value",256));
-  if (protocol->send_fields(&field_list,1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1); /* purecov: inspected */
   null_lex_str.str= 0;				// For sys_var->value_ptr()
   null_lex_str.length= 0;
@@ -1649,10 +1928,10 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 	break;
       case SHOW_SLAVE_RUNNING:
       {
-	LOCK_ACTIVE_MI;
+	pthread_mutex_lock(&LOCK_active_mi);
 	end= strmov(buff, (active_mi->slave_running &&
 			   active_mi->rli.slave_running) ? "ON" : "OFF");
-	UNLOCK_ACTIVE_MI;
+	pthread_mutex_unlock(&LOCK_active_mi);
 	break;
       }
 #endif /* HAVE_REPLICATION */
@@ -1664,6 +1943,11 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
         if (!(pos= *(char**) value))
           pos= "";
         end= strend(pos);
+        break;
+      }
+      case SHOW_DOUBLE:
+      {
+        end= buff + sprintf(buff, "%f", *(double*) value);
         break;
       }
 #ifdef HAVE_OPENSSL
@@ -1842,6 +2126,7 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
 
 #endif /* HAVE_OPENSSL */
       case SHOW_KEY_CACHE_LONG:
+      case SHOW_KEY_CACHE_CONST_LONG:
 	value= (value-(char*) &dflt_key_cache_var)+ (char*) sql_key_cache;
 	end= int10_to_str(*(long*) value, buff, 10);
         break;

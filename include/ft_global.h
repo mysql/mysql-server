@@ -52,7 +52,7 @@ extern const char *ft_precompiled_stopwords[];
 extern ulong ft_min_word_len;
 extern ulong ft_max_word_len;
 extern ulong ft_query_expansion_limit;
-extern const char *ft_boolean_syntax;
+extern char  ft_boolean_syntax[15];
 
 int ft_init_stopwords(void);
 void ft_free_stopwords(void);
@@ -63,6 +63,7 @@ void ft_free_stopwords(void);
 #define FT_EXPAND 4   /* query expansion */
 
 FT_INFO *ft_init_search(uint,void *, uint, byte *, uint, byte *);
+my_bool ft_boolean_check_syntax_string(const byte *);
 
 #ifdef  __cplusplus
 }

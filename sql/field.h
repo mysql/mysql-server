@@ -45,15 +45,29 @@ public:
 
   char		*ptr;			// Position to field in record
   uchar		*null_ptr;		// Byte where null_bit is
+  /*
+    Note that you can use table->in_use as replacement for current_thd member 
+    only inside of val_*() and store() members (e.g. you can't use it in cons)
+  */
   struct st_table *table;		// Pointer for table
+  struct st_table *orig_table;		// Pointer to original table
   const char	*table_name,*field_name;
   LEX_STRING	comment;
   ulong		query_id;		// For quick test of used fields
   /* Field is part of the following keys */
   key_map	key_start,part_of_key,part_of_sortkey;
+  /* 
+    We use three additional unireg types for TIMESTAMP to overcome limitation 
+    of current binary format of .frm file. We'd like to be able to support 
+    NOW() as default and on update value for such fields but unable to hold 
+    this info anywhere except unireg_check field. This issue will be resolved
+    in more clean way with transition to new text based .frm format.
+    See also comment for Field_timestamp::Field_timestamp().
+  */
   enum utype  { NONE,DATE,SHIELD,NOEMPTY,CASEUP,PNR,BGNR,PGNR,YES,NO,REL,
 		CHECK,EMPTY,UNKNOWN_FIELD,CASEDN,NEXT_NUMBER,INTERVAL_FIELD,
-		BIT_FIELD, TIMESTAMP_FIELD,CAPITALIZE,BLOB_FIELD};
+                BIT_FIELD, TIMESTAMP_OLD_FIELD, CAPITALIZE, BLOB_FIELD,
+                TIMESTAMP_DN_FIELD, TIMESTAMP_UN_FIELD, TIMESTAMP_DNUN_FIELD};
   enum geometry_type
   {
     GEOM_GEOMETRY = 0, GEOM_POINT = 1, GEOM_LINESTRING = 2, GEOM_POLYGON = 3,
@@ -77,18 +91,31 @@ public:
   uint32	field_length;		// Length of field
   uint16	flags;
   uchar		null_bit;		// Bit used to test null bit
-  uint          abs_offset;             // use only in group_concat
 
   Field(char *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,uchar null_bit_arg,
 	utype unireg_check_arg, const char *field_name_arg,
 	struct st_table *table_arg);
   virtual ~Field() {}
+  /* Store functions returns 1 on overflow and -1 on fatal error */
   virtual int  store(const char *to,uint length,CHARSET_INFO *cs)=0;
   virtual int  store(double nr)=0;
   virtual int  store(longlong nr)=0;
   virtual void store_time(TIME *ltime,timestamp_type t_type);
   virtual double val_real(void)=0;
   virtual longlong val_int(void)=0;
+  inline String *val_str(String *str) { return val_str(str, str); }
+  /*
+     val_str(buf1, buf2) gets two buffers and should use them as follows:
+     if it needs a temp buffer to convert result to string - use buf1
+       example Field_tiny::val_str()
+     if the value exists as a string already - use buf2
+       example Field_string::val_str()
+     consequently, buf2 may be created as 'String buf;' - no memory
+     will be allocated for it. buf1 will be allocated to hold a
+     value if it's too small. Using allocated buffer for buf2 may result in
+     an unnecessary free (and later, may be an alloc).
+     This trickery is used to decrease a number of malloc calls.
+  */
   virtual String *val_str(String*,String *)=0;
   virtual Item_result result_type () const=0;
   virtual Item_result cmp_type () const { return result_type(); }
@@ -151,7 +178,7 @@ public:
   inline bool real_maybe_null(void) { return null_ptr != 0; }
   virtual void make_field(Send_field *)=0;
   virtual void sort_string(char *buff,uint length)=0;
-  virtual bool optimize_range(uint idx);
+  virtual bool optimize_range(uint idx, uint part);
   virtual bool store_for_compare() { return 0; }
   virtual void free() {}
   Field *new_field(MEM_ROOT *root, struct st_table *new_table)
@@ -190,7 +217,8 @@ public:
     { memcpy(buff,ptr,length); }
   inline void set_image(char *buff,uint length, CHARSET_INFO *cs)
     { memcpy(ptr,buff,length); }
-  virtual void get_key_image(char *buff,uint length, CHARSET_INFO *cs, imagetype type)
+  virtual void get_key_image(char *buff,uint length, CHARSET_INFO *cs,
+			     imagetype type)
     { get_image(buff,length,cs); }
   virtual void set_key_image(char *buff,uint length, CHARSET_INFO *cs)
     { set_image(buff,length,cs); }
@@ -223,6 +251,10 @@ public:
   {
     return pack(to,from,max_length);
   }
+  virtual const char *unpack_key(char* to, const char *from, uint max_length)
+  {
+    return unpack(to,from);
+  }
   virtual uint packed_col_length(const char *to, uint length)
   { return length;}
   virtual uint max_packed_col_length(uint max_length)
@@ -240,9 +272,20 @@ public:
   virtual CHARSET_INFO *charset(void) const { return &my_charset_bin; }
   virtual bool has_charset(void) const { return FALSE; }
   virtual void set_charset(CHARSET_INFO *charset) { }
-  void set_warning(const unsigned int level, const unsigned int code);
+  bool set_warning(const unsigned int level, const unsigned int code, 
+                   int cuted_increment);
+  void set_datetime_warning(const uint level, const uint code, 
+                            const char *str, uint str_len,
+                            timestamp_type ts_type, int cuted_increment);
+  void set_datetime_warning(const uint level, const uint code, 
+                            longlong nr, timestamp_type ts_type,
+                            int cuted_increment);
+  void set_datetime_warning(const uint level, const uint code, 
+                            double nr, timestamp_type ts_type);
   virtual field_cast_enum field_cast_type()= 0;
   bool field_cast_compatible(field_cast_enum type);
+  /* maximum possible display length */
+  virtual uint32 max_length()= 0;
   friend bool reopen_table(THD *,struct st_table *,bool);
   friend int cre_myisam(my_string name, register TABLE *form, uint options,
 			ulonglong auto_increment_value);
@@ -312,6 +355,7 @@ public:
   CHARSET_INFO *charset(void) const { return field_charset; }
   void set_charset(CHARSET_INFO *charset) { field_charset=charset; }
   bool binary() const { return field_charset->state & MY_CS_BINSORT ? 1 : 0; }
+  uint32 max_length() { return field_length; }
   friend class create_field;
 };
 
@@ -342,6 +386,7 @@ public:
   void overflow(bool negative);
   bool zero_pack() const { return 0; }
   void sql_type(String &str) const;
+  uint32 max_length() { return field_length; }
   field_cast_enum field_cast_type() { return FIELD_CAST_DECIMAL; }
 };
 
@@ -373,6 +418,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 1; }
   void sql_type(String &str) const;
+  uint32 max_length() { return 4; }
   field_cast_enum field_cast_type() { return FIELD_CAST_TINY; }
 };
 
@@ -409,6 +455,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 2; }
   void sql_type(String &str) const;
+  uint32 max_length() { return 6; }
   field_cast_enum field_cast_type() { return FIELD_CAST_SHORT; }
 };
 
@@ -440,6 +487,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 3; }
   void sql_type(String &str) const;
+  uint32 max_length() { return 8; }
   field_cast_enum field_cast_type() { return FIELD_CAST_MEDIUM; }
 };
 
@@ -476,6 +524,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 4; }
   void sql_type(String &str) const;
+  uint32 max_length() { return 11; }
   field_cast_enum field_cast_type() { return FIELD_CAST_LONG; }
 };
 
@@ -515,6 +564,7 @@ public:
   uint32 pack_length() const { return 8; }
   void sql_type(String &str) const;
   bool store_for_compare() { return 1; }
+  uint32 max_length() { return 20; }
   field_cast_enum field_cast_type() { return FIELD_CAST_LONGLONG; }
 };
 #endif
@@ -549,6 +599,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return sizeof(float); }
   void sql_type(String &str) const;
+  uint32 max_length() { return 24; }
   field_cast_enum field_cast_type() { return FIELD_CAST_FLOAT; }
 };
 
@@ -583,6 +634,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return sizeof(double); }
   void sql_type(String &str) const;
+  uint32 max_length() { return 53; }
   field_cast_enum field_cast_type() { return FIELD_CAST_DOUBLE; }
 };
 
@@ -613,6 +665,7 @@ public:
   uint32 pack_length() const { return 0; }
   void sql_type(String &str) const;
   uint size_of() const { return sizeof(*this); }
+  uint32 max_length() { return 4; }
   field_cast_enum field_cast_type() { return FIELD_CAST_NULL; }
 };
 
@@ -643,7 +696,11 @@ public:
   void set_time();
   virtual void set_default()
   {
-    set_time();
+    if (table->timestamp_field == this &&
+        unireg_check != TIMESTAMP_UN_FIELD)
+      set_time();
+    else
+      Field::set_default();
   }
   inline long get_timestamp()
   {
@@ -658,6 +715,7 @@ public:
   bool get_date(TIME *ltime,uint fuzzydate);
   bool get_time(TIME *ltime);
   field_cast_enum field_cast_type() { return FIELD_CAST_TIMESTAMP; }
+  void set_timestamp_offsets();
 };
 
 
@@ -679,6 +737,7 @@ public:
   String *val_str(String*,String *);
   bool send_binary(Protocol *protocol);
   void sql_type(String &str) const;
+  bool store_for_compare() { return 1; }
   field_cast_enum field_cast_type() { return FIELD_CAST_YEAR; }
 };
 
@@ -770,6 +829,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
+  bool get_date(TIME *ltime, uint fuzzydate);
   bool send_binary(Protocol *protocol);
   bool get_time(TIME *ltime);
   int cmp(const char *,const char*);
@@ -860,7 +920,8 @@ public:
   uint max_packed_col_length(uint max_length);
   uint size_of() const { return sizeof(*this); }
   enum_field_types real_type() const { return FIELD_TYPE_STRING; }
-  bool has_charset(void) const { return TRUE; }
+  bool has_charset(void) const
+  { return charset() == &my_charset_bin ? FALSE : TRUE; }
   field_cast_enum field_cast_type() { return FIELD_CAST_STRING; }
 };
 
@@ -907,13 +968,13 @@ public:
   uint max_packed_col_length(uint max_length);
   uint size_of() const { return sizeof(*this); }
   enum_field_types real_type() const { return FIELD_TYPE_VAR_STRING; }
-  bool has_charset(void) const { return TRUE; }
+  bool has_charset(void) const
+  { return charset() == &my_charset_bin ? FALSE : TRUE; }
   field_cast_enum field_cast_type() { return FIELD_CAST_VARSTRING; }
 };
 
 
 class Field_blob :public Field_str {
-  bool geom_flag;
 protected:
   uint packlength;
   String value;				// For temporaries
@@ -926,7 +987,7 @@ public:
 	     struct st_table *table_arg, CHARSET_INFO *cs)
     :Field_str((char*) 0,len_arg, maybe_null_arg ? (uchar*) "": 0,0,
 	       NONE, field_name_arg, table_arg, cs),
-    geom_flag(true), packlength(4)
+    packlength(4)
   {
     flags|= BLOB_FLAG;
   }
@@ -950,12 +1011,17 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const
   { return (uint32) (packlength+table->blob_ptr_size); }
+  inline uint32 max_data_length() const
+  {
+    return (uint32) (((ulonglong) 1 << (packlength*8)) -1);
+  }
   void reset(void) { bzero(ptr, packlength+sizeof(char*)); }
   void reset_fields() { bzero((char*) &value,sizeof(value)); }
   void store_length(uint32 number);
   inline uint32 get_length(uint row_offset=0)
   { return get_length(ptr+row_offset); }
   uint32 get_length(const char *ptr);
+  void put_length(char *pos, uint32 length);
   inline void get_ptr(char **str)
     {
       memcpy_fixed(str,ptr+packlength,sizeof(char*));
@@ -988,6 +1054,7 @@ public:
   const char *unpack(char *to, const char *from);
   char *pack_key(char *to, const char *from, uint max_length);
   char *pack_key_from_key_image(char* to, const char *from, uint max_length);
+  const char *unpack_key(char* to, const char *from, uint max_length);
   int pack_cmp(const char *a, const char *b, uint key_length);
   int pack_cmp(const char *b, uint key_length);
   uint packed_col_length(const char *col_ptr, uint length);
@@ -999,9 +1066,10 @@ public:
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
   field_cast_enum field_cast_type() { return FIELD_CAST_BLOB; }
+  uint32 max_length();
 };
 
-
+#ifdef HAVE_SPATIAL
 class Field_geom :public Field_blob {
 public:
   enum geometry_type geom_type;
@@ -1029,7 +1097,7 @@ public:
   void set_key_image(char *buff,uint length, CHARSET_INFO *cs);
   field_cast_enum field_cast_type() { return FIELD_CAST_GEOM; }
 };
-
+#endif /*HAVE_SPATIAL*/
 
 class Field_enum :public Field_str {
 protected:
@@ -1066,7 +1134,7 @@ public:
   uint size_of() const { return sizeof(*this); }
   enum_field_types real_type() const { return FIELD_TYPE_ENUM; }
   virtual bool zero_pack() const { return 0; }
-  bool optimize_range(uint idx) { return 0; }
+  bool optimize_range(uint idx, uint part) { return 0; }
   bool eq_def(Field *field);
   bool has_charset(void) const { return TRUE; }
   field_cast_enum field_cast_type() { return FIELD_CAST_ENUM; }
@@ -1177,8 +1245,8 @@ Field *make_field(char *ptr, uint32 field_length,
 		  struct st_table *table);
 uint pack_length_to_packflag(uint type);
 uint32 calc_pack_length(enum_field_types type,uint32 length);
-bool set_field_to_null(Field *field);
-bool set_field_to_null_with_conversions(Field *field, bool no_conversions);
+int set_field_to_null(Field *field);
+int set_field_to_null_with_conversions(Field *field, bool no_conversions);
 bool test_if_int(const char *str, int length, const char *int_end,
 		 CHARSET_INFO *cs);
 

@@ -1,0 +1,1279 @@
+use test;
+drop table if exists t1, t_many_col_types ;
+create table t1
+(
+a int, b varchar(30),
+primary key(a)
+) engine = 'HEAP'  ;
+drop table if exists t_many_col_types;
+create table t_many_col_types 
+(
+c1  tinyint, c2  smallint, c3  mediumint, c4  int,
+c5  integer, c6  bigint, c7  float, c8  double,
+c9  double precision, c10 real, c11 decimal(7, 4), c12 numeric(8, 4),
+c13 date, c14 datetime, c15 timestamp(14), c16 time,
+c17 year, c18 bit, c19 bool, c20 char,
+c21 char(10), c22 varchar(30), c23 char(100), c24 char(100),
+c25 char(100), c26 char(100), c27 char(100), c28 char(100),
+c29 char(100), c30 char(100), c31 enum('one', 'two', 'three'),
+c32 set('monday', 'tuesday', 'wednesday'),
+primary key(c1)
+) engine = 'HEAP'  ;
+delete from t1 ;
+insert into t1 values (1,'one');
+insert into t1 values (2,'two');
+insert into t1 values (3,'three');
+insert into t1 values (4,'four');
+commit ;
+delete from t_many_col_types ;
+insert into t_many_col_types
+set c1= 1, c2= 1, c3= 1, c4= 1, c5= 1, c6= 1, c7= 1, c8= 1, c9= 1,
+c10= 1, c11= 1, c12 = 1,
+c13= '2004-02-29', c14= '2004-02-29 11:11:11', c15= '2004-02-29 11:11:11',
+c16= '11:11:11', c17= '2004',
+c18= 1, c19=true, c20= 'a', c21= '123456789a', 
+c22= '123456789a123456789b123456789c', c23= 'tinyblob', c24= 'tinytext',
+c25= 'blob', c26= 'text', c27= 'mediumblob', c28= 'mediumtext',
+c29= 'longblob', c30= 'longtext', c31='one', c32= 'monday';
+insert into t_many_col_types
+set c1= 9, c2= 9, c3= 9, c4= 9, c5= 9, c6= 9, c7= 9, c8= 9, c9= 9,
+c10= 9, c11= 9, c12 = 9,
+c13= '2004-02-29', c14= '2004-02-29 11:11:11', c15= '2004-02-29 11:11:11',
+c16= '11:11:11', c17= '2004',
+c18= 1, c19=false, c20= 'a', c21= '123456789a', 
+c22= '123456789a123456789b123456789c', c23= 'tinyblob', c24= 'tinytext',
+c25= 'blob', c26= 'text', c27= 'mediumblob', c28= 'mediumtext',
+c29= 'longblob', c30= 'longtext', c31='two', c32= 'tuesday';
+test_sequence
+------ simple select tests ------
+set @arg00='SELECT' ;
+prepare stmt1 from ' ? a from t1 where a=1 ';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '? a from t1 where a=1' at line 1
+set @arg00=1 ;
+select @arg00, b from t1 where a=1 ;
+@arg00	b
+1	one
+prepare stmt1 from ' select ?, b from t1 where a=1 ' ;
+execute stmt1 using @arg00 ;
+?	b
+1	one
+set @arg00='lion' ;
+select @arg00, b from t1 where a=1 ;
+@arg00	b
+lion	one
+prepare stmt1 from ' select ?, b from t1 where a=1 ' ;
+execute stmt1 using @arg00 ;
+?	b
+lion	one
+set @arg00=NULL ;
+select @arg00, b from t1 where a=1 ;
+@arg00	b
+NULL	one
+prepare stmt1 from ' select ?, b from t1 where a=1 ' ;
+execute stmt1 using @arg00 ;
+?	b
+NULL	one
+set @arg00=1 ;
+select b, a - @arg00 from t1 where a=1 ;
+b	a - @arg00
+one	0
+prepare stmt1 from ' select b, a - ? from t1 where a=1 ' ;
+execute stmt1 using @arg00 ;
+b	a - ?
+one	0
+set @arg00='MySQL' ;
+select substr(@arg00,1,2) from t1 where a=1 ;
+substr(@arg00,1,2)
+My
+prepare stmt1 from ' select substr(?,1,2) from t1 where a=1 ' ;
+execute stmt1 using @arg00 ;
+substr(?,1,2)
+My
+set @arg00=3 ;
+select substr('MySQL',@arg00,5) from t1 where a=1 ;
+substr('MySQL',@arg00,5)
+SQL
+prepare stmt1 from ' select substr(''MySQL'',?,5) from t1 where a=1 ' ;
+execute stmt1 using @arg00 ;
+substr('MySQL',?,5)
+SQL
+select substr('MySQL',1,@arg00) from t1 where a=1 ;
+substr('MySQL',1,@arg00)
+MyS
+prepare stmt1 from ' select substr(''MySQL'',1,?) from t1 where a=1 ' ;
+execute stmt1 using @arg00 ;
+substr('MySQL',1,?)
+MyS
+set @arg00='MySQL' ;
+select a , concat(@arg00,b) from t1 ;
+a	concat(@arg00,b)
+1	MySQLone
+2	MySQLtwo
+3	MySQLthree
+4	MySQLfour
+prepare stmt1 from ' select a , concat(?,b) from t1 ' ;
+execute stmt1 using @arg00;
+a	concat(?,b)
+1	MySQLone
+2	MySQLtwo
+3	MySQLthree
+4	MySQLfour
+select a , concat(b,@arg00) from t1 ;
+a	concat(b,@arg00)
+1	oneMySQL
+2	twoMySQL
+3	threeMySQL
+4	fourMySQL
+prepare stmt1 from ' select a , concat(b,?) from t1 ' ;
+execute stmt1 using @arg00;
+a	concat(b,?)
+1	oneMySQL
+2	twoMySQL
+3	threeMySQL
+4	fourMySQL
+set @arg00='MySQL' ;
+select group_concat(@arg00,b) from t1 
+group by 'a' ;
+group_concat(@arg00,b)
+MySQLone,MySQLtwo,MySQLthree,MySQLfour
+prepare stmt1 from ' select group_concat(?,b) from t1
+group by ''a'' ' ;
+execute stmt1 using @arg00;
+group_concat(?,b)
+MySQLone,MySQLtwo,MySQLthree,MySQLfour
+select group_concat(b,@arg00) from t1 
+group by 'a' ;
+group_concat(b,@arg00)
+oneMySQL,twoMySQL,threeMySQL,fourMySQL
+prepare stmt1 from ' select group_concat(b,?) from t1
+group by ''a'' ' ;
+execute stmt1 using @arg00;
+group_concat(b,?)
+oneMySQL,twoMySQL,threeMySQL,fourMySQL
+set @arg00='first' ;
+set @arg01='second' ;
+set @arg02=NULL;
+select @arg00, @arg01 from t1 where a=1 ;
+@arg00	@arg01
+first	second
+prepare stmt1 from ' select ?, ? from t1 where a=1 ' ;
+execute stmt1 using @arg00, @arg01 ;
+?	?
+first	second
+execute stmt1 using @arg02, @arg01 ;
+?	?
+NULL	second
+execute stmt1 using @arg00, @arg02 ;
+?	?
+first	NULL
+execute stmt1 using @arg02, @arg02 ;
+?	?
+NULL	NULL
+drop table if exists new_tab ;
+create table new_tab (id1 int(11) not null default '0',
+value2 varchar(100), value1 varchar(100)) ;
+insert into new_tab values (1,'hh','hh'),(2,'hh','hh'),
+(1,'ii','ii'),(2,'ii','ii') ;
+prepare stmt1 from ' select id1,value1 from new_tab where id1=? or value1=? ' ;
+set @arg00=1 ;
+set @arg01='hh' ;
+execute stmt1 using @arg00, @arg01 ;
+id1	value1
+1	hh
+2	hh
+1	ii
+drop table new_tab ;
+drop table if exists new_tab ;
+create table new_tab(session_id  char(9) not null) ;
+insert into new_tab values ('abc') ;
+prepare stmt1 from ' select * from new_tab
+where ?=''1111'' and session_id = ''abc'' ' ;
+set @arg00='abc' ;
+execute stmt1 using @arg00 ;
+session_id
+set @arg00='1111' ;
+execute stmt1 using @arg00 ;
+session_id
+abc
+set @arg00='abc' ;
+execute stmt1 using @arg00 ;
+session_id
+drop table new_tab ;
+set @arg00='FROM' ;
+select a @arg00 t1 where a=1 ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@arg00 t1 where a=1' at line 1
+prepare stmt1 from ' select a ? t1 where a=1 ' ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '? t1 where a=1' at line 1
+set @arg00='t1' ;
+select a from @arg00 where a=1 ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@arg00 where a=1' at line 1
+prepare stmt1 from ' select a from ? where a=1 ' ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '? where a=1' at line 1
+set @arg00='WHERE' ;
+select a from t1 @arg00 a=1 ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@arg00 a=1' at line 1
+prepare stmt1 from ' select a from t1 ? a=1 ' ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '? a=1' at line 1
+set @arg00=1 ;
+select a FROM t1 where a=@arg00 ;
+a
+1
+prepare stmt1 from ' select a FROM t1 where a=? ' ;
+execute stmt1 using @arg00 ;
+a
+1
+set @arg00=1000 ;
+execute stmt1 using @arg00 ;
+a
+set @arg00=NULL ;
+select a FROM t1 where a=@arg00 ;
+a
+prepare stmt1 from ' select a FROM t1 where a=? ' ;
+execute stmt1 using @arg00 ;
+a
+set @arg00=4 ;
+select a FROM t1 where a=sqrt(@arg00) ;
+a
+2
+prepare stmt1 from ' select a FROM t1 where a=sqrt(?) ' ;
+execute stmt1 using @arg00 ;
+a
+2
+set @arg00=NULL ;
+select a FROM t1 where a=sqrt(@arg00) ;
+a
+prepare stmt1 from ' select a FROM t1 where a=sqrt(?) ' ;
+execute stmt1 using @arg00 ;
+a
+set @arg00=2 ;
+set @arg01=3 ;
+select a FROM t1 where a in (@arg00,@arg01);
+a
+2
+3
+prepare stmt1 from ' select a FROM t1 where a in (?,?) ';
+execute stmt1 using @arg00, @arg01;
+a
+2
+3
+prepare stmt1 from ' select b FROM t1 where b like ? ';
+set @arg00='two' ;
+execute stmt1 using @arg00 ;
+b
+two
+set @arg00='tw%' ;
+execute stmt1 using @arg00 ;
+b
+two
+set @arg00='%wo' ;
+execute stmt1 using @arg00 ;
+b
+two
+set @arg00='>' ;
+select a FROM t1 where a @arg00 1 ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@arg00 1' at line 1
+prepare stmt1 from ' select a FROM t1 where a ? 1 ' ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '? 1' at line 1
+set @arg00=1 ;
+select a,b FROM t1 where a is not NULL
+AND b is not NULL group by a - @arg00 ;
+a	b
+1	one
+2	two
+3	three
+4	four
+prepare stmt1 from ' select a,b FROM t1 where a is not NULL
+AND b is not NULL group by a - ? ' ;
+execute stmt1 using @arg00 ;
+a	b
+1	one
+2	two
+3	three
+4	four
+set @arg00='two' ;
+select a,b FROM t1 where a is not NULL
+AND b is not NULL having b <> @arg00 ;
+a	b
+1	one
+3	three
+4	four
+prepare stmt1 from ' select a,b FROM t1 where a is not NULL
+AND b is not NULL having b <> ? ' ;
+execute stmt1 using @arg00 ;
+a	b
+1	one
+3	three
+4	four
+set @arg00=1 ;
+select a,b FROM t1 where a is not NULL
+AND b is not NULL order by a - @arg00 ;
+a	b
+1	one
+2	two
+3	three
+4	four
+prepare stmt1 from ' select a,b FROM t1 where a is not NULL
+AND b is not NULL order by a - ? ' ;
+execute stmt1 using @arg00 ;
+a	b
+1	one
+2	two
+3	three
+4	four
+set @arg00=2 ;
+select a,b from t1 order by 2 ;
+a	b
+4	four
+1	one
+3	three
+2	two
+prepare stmt1 from ' select a,b from t1
+order by ? ';
+execute stmt1 using @arg00;
+a	b
+4	four
+1	one
+3	three
+2	two
+set @arg00=1 ;
+execute stmt1 using @arg00;
+a	b
+1	one
+2	two
+3	three
+4	four
+set @arg00=0 ;
+execute stmt1 using @arg00;
+ERROR 42S22: Unknown column '?' in 'order clause'
+set @arg00=1;
+prepare stmt1 from ' select a,b from t1
+limit 1 ';
+execute stmt1 ;
+a	b
+1	one
+prepare stmt1 from ' select a,b from t1
+limit ? ';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '?' at line 2
+set @arg00='b' ;
+set @arg01=0 ;
+set @arg02=2 ;
+set @arg03=2 ;
+select sum(a), @arg00 from t1 where a > @arg01
+and b is not null group by substr(b,@arg02)
+having sum(a) <> @arg03 ;
+sum(a)	@arg00
+3	b
+1	b
+4	b
+prepare stmt1 from ' select sum(a), ? from t1 where a > ?
+and b is not null group by substr(b,?)
+having sum(a) <> ? ';
+execute stmt1 using @arg00, @arg01, @arg02, @arg03;
+sum(a)	?
+3	b
+1	b
+4	b
+test_sequence
+------ join tests ------
+select first.a as a1, second.a as a2 
+from t1 first, t1 second
+where first.a = second.a ;
+a1	a2
+1	1
+2	2
+3	3
+4	4
+prepare stmt1 from ' select first.a as a1, second.a as a2 
+        from t1 first, t1 second
+        where first.a = second.a ';
+execute stmt1 ;
+a1	a2
+1	1
+2	2
+3	3
+4	4
+set @arg00='ABC';
+set @arg01='two';
+set @arg02='one';
+select first.a, @arg00, second.a FROM t1 first, t1 second
+where @arg01 = first.b or first.a = second.a or second.b = @arg02;
+a	@arg00	a
+1	ABC	1
+2	ABC	1
+3	ABC	1
+4	ABC	1
+2	ABC	2
+2	ABC	3
+3	ABC	3
+2	ABC	4
+4	ABC	4
+prepare stmt1 from ' select first.a, ?, second.a FROM t1 first, t1 second
+                    where ? = first.b or first.a = second.a or second.b = ? ';
+execute stmt1 using @arg00, @arg01, @arg02;
+a	?	a
+1	ABC	1
+2	ABC	1
+3	ABC	1
+4	ABC	1
+2	ABC	2
+2	ABC	3
+3	ABC	3
+2	ABC	4
+4	ABC	4
+test_sequence
+------ subquery tests ------
+prepare stmt1 from ' select a, b FROM t1 outer_table where
+   a = (select a from t1 where b = ''two'') ';
+execute stmt1 ;
+a	b
+2	two
+set @arg00='two' ;
+select a, b FROM t1 outer_table where
+a = (select a from t1 where b = 'two' ) and b=@arg00 ;
+a	b
+2	two
+prepare stmt1 from ' select a, b FROM t1 outer_table where
+   a = (select a from t1 where b = ''two'') and b=? ';
+execute stmt1 using @arg00;
+a	b
+2	two
+set @arg00='two' ;
+select a, b FROM t1 outer_table where
+a = (select a from t1 where b = @arg00 ) and b='two' ;
+a	b
+2	two
+prepare stmt1 from ' select a, b FROM t1 outer_table where
+   a = (select a from t1 where b = ? ) and b=''two'' ' ;
+execute stmt1 using @arg00;
+a	b
+2	two
+set @arg00=3 ;
+set @arg01='three' ;
+select a,b FROM t1 where (a,b) in (select 3, 'three');
+a	b
+3	three
+select a FROM t1 where (a,b) in (select @arg00,@arg01);
+a
+3
+prepare stmt1 from ' select a FROM t1 where (a,b) in (select ?, ?) ';
+execute stmt1 using @arg00, @arg01;
+a
+3
+set @arg00=1 ;
+set @arg01='two' ;
+set @arg02=2 ;
+set @arg03='two' ;
+select a, @arg00, b FROM t1 outer_table where
+b=@arg01 and a = (select @arg02 from t1 where b = @arg03 ) ;
+a	@arg00	b
+2	1	two
+prepare stmt1 from ' select a, ?, b FROM t1 outer_table where
+   b=? and a = (select ? from t1 where b = ? ) ' ;
+execute stmt1 using @arg00, @arg01, @arg02, @arg03 ;
+a	?	b
+2	1	two
+prepare stmt1 from ' select a, b FROM t1 outer_table where
+   a = (select a from t1 where b = outer_table.b ) ';
+execute stmt1 ;
+a	b
+1	one
+2	two
+3	three
+4	four
+set @arg00='two' ;
+select a, b FROM t1 outer_table where
+a = (select a from t1 where b = outer_table.b ) and b=@arg00 ;
+a	b
+2	two
+prepare stmt1 from ' select a, b FROM t1 outer_table where
+   a = (select a from t1 where b = outer_table.b) and b=? ';
+execute stmt1 using @arg00;
+a	b
+2	two
+set @arg00=2 ;
+select a, b FROM t1 outer_table where
+a = (select a from t1 where a = @arg00 and b = outer_table.b) and b='two' ;
+a	b
+2	two
+prepare stmt1 from ' select a, b FROM t1 outer_table where
+   a = (select a from t1 where a = ? and b = outer_table.b) and b=''two'' ' ;
+execute stmt1 using @arg00;
+a	b
+2	two
+set @arg00=2 ;
+select a, b FROM t1 outer_table where
+a = (select a from t1 where outer_table.a = @arg00 and a=2) and b='two' ;
+a	b
+2	two
+prepare stmt1 from ' select a, b FROM t1 outer_table where
+   a = (select a from t1 where outer_table.a = ? and a=2) and b=''two'' ' ;
+execute stmt1 using @arg00;
+a	b
+2	two
+set @arg00=1 ;
+set @arg01='two' ;
+set @arg02=2 ;
+set @arg03='two' ;
+select a, @arg00, b FROM t1 outer_table where
+b=@arg01 and a = (select @arg02 from t1 where outer_table.b = @arg03
+and outer_table.a=a ) ;
+a	@arg00	b
+2	1	two
+prepare stmt1 from ' select a, ?, b FROM t1 outer_table where
+   b=? and a = (select ? from t1 where outer_table.b = ? 
+                   and outer_table.a=a ) ' ;
+execute stmt1 using @arg00, @arg01, @arg02, @arg03 ;
+a	?	b
+2	1	two
+set @arg00=1 ;
+set @arg01=0 ;
+select a, @arg00 
+from ( select a - @arg00 as a from t1 where a=@arg00 ) as t2
+where a=@arg01;
+a	@arg00
+0	1
+prepare stmt1 from ' select a, ? 
+                    from ( select a - ? as a from t1 where a=? ) as t2
+                    where a=? ';
+execute stmt1 using @arg00, @arg00, @arg00, @arg01 ;
+a	?
+0	1
+drop table if exists t2 ;
+create table t2 as select * from t_many_col_types;
+set @stmt= ' SELECT
+   (SELECT SUM(c1 + c12 + 0.0) FROM t2 
+    where (t_many_col_types.c2 - 0e-3) = t2.c2
+    GROUP BY t_many_col_types.c15 LIMIT 1) as scalar_s,
+   exists (select 1.0e+0 from t2 
+           where t2.c3 * 9.0000000000 = t_many_col_types.c4) as exists_s,
+   c5 * 4 in (select c6 + 0.3e+1 from t2) as in_s,
+   (c7 - 4, c8 - 4) in (select c9 + 4.0, c10 + 40e-1 from t2) as in_row_s
+FROM t_many_col_types,
+(select c25 x, c32 y from t2) tt WHERE x = c25 ' ;
+prepare stmt1 from @stmt ;
+execute stmt1 ;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Name	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					scalar_s	5	21	7	Y	32768	4	8
+def					exists_s	8	1	1	N	32769	0	8
+def					in_s	8	21	1	Y	32768	0	8
+def					in_row_s	8	21	1	Y	32768	0	8
+scalar_s	exists_s	in_s	in_row_s
+2.0000	0	1	0
+18.0000	1	0	1
+2.0000	0	1	0
+18.0000	1	0	1
+execute stmt1 ;
+scalar_s	exists_s	in_s	in_row_s
+2.0000	0	1	0
+18.0000	1	0	1
+2.0000	0	1	0
+18.0000	1	0	1
+set @stmt= concat('explain ',@stmt);
+prepare stmt1 from @stmt ;
+execute stmt1 ;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Name	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					id	8	3	1	N	32801	0	8
+def					select_type	253	19	18	N	1	31	63
+def					table	253	64	16	N	1	31	63
+def					type	253	10	3	N	1	31	63
+def					possible_keys	253	4096	0	Y	0	31	63
+def					key	253	64	0	Y	0	31	63
+def					key_len	253	4096	0	Y	0	31	63
+def					ref	253	1024	0	Y	0	31	63
+def					rows	8	10	1	N	32801	0	8
+def					Extra	253	255	44	N	1	31	63
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t_many_col_types	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	<derived6>	ALL	NULL	NULL	NULL	NULL	2	Using where
+6	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	
+5	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+4	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using temporary; Using filesort
+execute stmt1 ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t_many_col_types	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	<derived6>	ALL	NULL	NULL	NULL	NULL	2	Using where
+6	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	
+5	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+4	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using temporary; Using filesort
+set @stmt= ' SELECT
+   (SELECT SUM(c1+c12+?) FROM t2 where (t_many_col_types.c2-?)=t2.c2
+    GROUP BY t_many_col_types.c15 LIMIT 1) as scalar_s,
+   exists (select ? from t2 
+           where t2.c3*?=t_many_col_types.c4) as exists_s,
+   c5*? in (select c6+? from t2) as in_s,
+   (c7-?, c8-?) in (select c9+?, c10+? from t2) as in_row_s
+FROM t_many_col_types,
+(select c25 x, c32 y from t2) tt WHERE x =c25 ' ;
+set @arg00= 0.0 ;
+set @arg01= 0e-3 ;
+set @arg02= 1.0e+0 ;
+set @arg03= 9.0000000000 ;
+set @arg04= 4 ;
+set @arg05= 0.3e+1 ;
+set @arg06= 4 ;
+set @arg07= 4 ;
+set @arg08= 4.0 ;
+set @arg09= 40e-1 ;
+prepare stmt1 from @stmt ;
+execute stmt1 using @arg00, @arg01, @arg02, @arg03, @arg04, @arg05, @arg06,
+@arg07, @arg08, @arg09 ;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Name	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					scalar_s	5	23	2	Y	32768	31	8
+def					exists_s	8	1	1	N	32769	0	8
+def					in_s	8	21	1	Y	32768	0	8
+def					in_row_s	8	21	1	Y	32768	0	8
+scalar_s	exists_s	in_s	in_row_s
+2	0	1	0
+18	1	0	1
+2	0	1	0
+18	1	0	1
+execute stmt1 using @arg00, @arg01, @arg02, @arg03, @arg04, @arg05, @arg06,
+@arg07, @arg08, @arg09 ;
+scalar_s	exists_s	in_s	in_row_s
+2	0	1	0
+18	1	0	1
+2	0	1	0
+18	1	0	1
+set @stmt= concat('explain ',@stmt);
+prepare stmt1 from @stmt ;
+execute stmt1 using @arg00, @arg01, @arg02, @arg03, @arg04, @arg05, @arg06,
+@arg07, @arg08, @arg09 ;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Name	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					id	8	3	1	N	32801	0	8
+def					select_type	253	19	18	N	1	31	63
+def					table	253	64	16	N	1	31	63
+def					type	253	10	3	N	1	31	63
+def					possible_keys	253	4096	0	Y	0	31	63
+def					key	253	64	0	Y	0	31	63
+def					key_len	253	4096	0	Y	0	31	63
+def					ref	253	1024	0	Y	0	31	63
+def					rows	8	10	1	N	32801	0	8
+def					Extra	253	255	44	N	1	31	63
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t_many_col_types	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	<derived6>	ALL	NULL	NULL	NULL	NULL	2	Using where
+6	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	
+5	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+4	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using temporary; Using filesort
+execute stmt1 using @arg00, @arg01, @arg02, @arg03, @arg04, @arg05, @arg06,
+@arg07, @arg08, @arg09 ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t_many_col_types	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	<derived6>	ALL	NULL	NULL	NULL	NULL	2	Using where
+6	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	
+5	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+4	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using temporary; Using filesort
+drop table t2 ;
+test_sequence
+------ union tests ------
+prepare stmt1 from ' select a FROM t1 where a=1
+                     union distinct
+                     select a FROM t1 where a=1 ';
+execute stmt1 ;
+a
+1
+execute stmt1 ;
+a
+1
+prepare stmt1 from ' select a FROM t1 where a=1
+                     union all
+                     select a FROM t1 where a=1 ';
+execute stmt1 ;
+a
+1
+1
+set @arg00=1 ;
+select @arg00 FROM t1 where a=1
+union distinct
+select 1 FROM t1 where a=1;
+@arg00
+1
+prepare stmt1 from ' select ? FROM t1 where a=1
+                     union distinct
+                     select 1 FROM t1 where a=1 ' ;
+execute stmt1 using @arg00;
+?
+1
+set @arg00=1 ;
+select 1 FROM t1 where a=1
+union distinct
+select @arg00 FROM t1 where a=1;
+1
+1
+prepare stmt1 from ' select 1 FROM t1 where a=1
+                     union distinct
+                     select ? FROM t1 where a=1 ' ;
+execute stmt1 using @arg00;
+1
+1
+set @arg00='a' ;
+select @arg00 FROM t1 where a=1
+union distinct
+select @arg00 FROM t1 where a=1;
+@arg00
+a
+prepare stmt1 from ' select ? FROM t1 where a=1
+                     union distinct
+                     select ? FROM t1 where a=1 ';
+execute stmt1 using @arg00, @arg00;
+?
+a
+prepare stmt1 from ' select ? 
+                     union distinct
+                     select ? ';
+execute stmt1 using @arg00, @arg00;
+?
+a
+set @arg00='a' ;
+set @arg01=1 ;
+set @arg02='a' ;
+set @arg03=2 ;
+select @arg00 FROM t1 where a=@arg01
+union distinct
+select @arg02 FROM t1 where a=@arg03;
+@arg00
+a
+prepare stmt1 from ' select ? FROM t1 where a=?
+                     union distinct
+                     select ? FROM t1 where a=? ' ;
+execute stmt1 using @arg00, @arg01, @arg02, @arg03;
+?
+a
+set @arg00=1 ;
+prepare stmt1 from ' select sum(a) + 200, ? from t1
+union distinct
+select sum(a) + 200, 1 from t1
+group by b ' ;
+execute stmt1 using @arg00;
+sum(a) + 200	?
+210	1
+204	1
+201	1
+203	1
+202	1
+set @Oporto='Oporto' ;
+set @Lisboa='Lisboa' ;
+set @0=0 ;
+set @1=1 ;
+set @2=2 ;
+set @3=3 ;
+set @4=4 ;
+select @Oporto,@Lisboa,@0,@1,@2,@3,@4 ;
+@Oporto	@Lisboa	@0	@1	@2	@3	@4
+Oporto	Lisboa	0	1	2	3	4
+select sum(a) + 200 as the_sum, @Oporto as the_town from t1
+group by b
+union distinct
+select sum(a) + 200, @Lisboa from t1
+group by b ;
+the_sum	the_town
+204	Oporto
+201	Oporto
+203	Oporto
+202	Oporto
+204	Lisboa
+201	Lisboa
+203	Lisboa
+202	Lisboa
+prepare stmt1 from ' select sum(a) + 200 as the_sum, ? as the_town from t1
+                     group by b
+                     union distinct
+                     select sum(a) + 200, ? from t1
+                     group by b ' ;
+execute stmt1 using @Oporto, @Lisboa;
+the_sum	the_town
+204	Oporto
+201	Oporto
+203	Oporto
+202	Oporto
+204	Lisboa
+201	Lisboa
+203	Lisboa
+202	Lisboa
+select sum(a) + 200 as the_sum, @Oporto as the_town from t1
+where a > @1
+group by b
+union distinct
+select sum(a) + 200, @Lisboa from t1
+where a > @2
+group by b ;
+the_sum	the_town
+204	Oporto
+203	Oporto
+202	Oporto
+204	Lisboa
+203	Lisboa
+prepare stmt1 from ' select sum(a) + 200 as the_sum, ? as the_town from t1
+                     where a > ?
+                     group by b
+                     union distinct
+                     select sum(a) + 200, ? from t1
+                     where a > ?
+                     group by b ' ;
+execute stmt1 using @Oporto, @1, @Lisboa, @2;
+the_sum	the_town
+204	Oporto
+203	Oporto
+202	Oporto
+204	Lisboa
+203	Lisboa
+select sum(a) + 200 as the_sum, @Oporto as the_town from t1
+where a > @1
+group by b
+having avg(a) > @2
+union distinct
+select sum(a) + 200, @Lisboa from t1
+where a > @2
+group by b 
+having avg(a) > @3;
+the_sum	the_town
+204	Oporto
+203	Oporto
+204	Lisboa
+prepare stmt1 from ' select sum(a) + 200 as the_sum, ? as the_town from t1
+                     where a > ?
+                     group by b
+                     having avg(a) > ?
+                     union distinct
+                     select sum(a) + 200, ? from t1
+                     where a > ?
+                     group by b
+                     having avg(a) > ? ';
+execute stmt1 using @Oporto, @1, @2, @Lisboa, @2, @3;
+the_sum	the_town
+204	Oporto
+203	Oporto
+204	Lisboa
+test_sequence
+------ explain select tests ------
+prepare stmt1 from ' select * from t_many_col_types ' ;
+execute stmt1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Name	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t_many_col_types	t_many_col_types	c1	c1	1	4	1	N	49155	0	63
+def	test	t_many_col_types	t_many_col_types	c2	c2	2	6	1	Y	32768	0	63
+def	test	t_many_col_types	t_many_col_types	c3	c3	9	9	1	Y	32768	0	63
+def	test	t_many_col_types	t_many_col_types	c4	c4	3	11	1	Y	32768	0	63
+def	test	t_many_col_types	t_many_col_types	c5	c5	3	11	1	Y	32768	0	63
+def	test	t_many_col_types	t_many_col_types	c6	c6	8	20	1	Y	32768	0	63
+def	test	t_many_col_types	t_many_col_types	c7	c7	4	12	1	Y	32768	31	63
+def	test	t_many_col_types	t_many_col_types	c8	c8	5	22	1	Y	32768	31	63
+def	test	t_many_col_types	t_many_col_types	c9	c9	5	22	1	Y	32768	31	63
+def	test	t_many_col_types	t_many_col_types	c10	c10	5	22	1	Y	32768	31	63
+def	test	t_many_col_types	t_many_col_types	c11	c11	0	9	6	Y	32768	4	63
+def	test	t_many_col_types	t_many_col_types	c12	c12	0	10	6	Y	32768	4	63
+def	test	t_many_col_types	t_many_col_types	c13	c13	10	10	10	Y	128	0	63
+def	test	t_many_col_types	t_many_col_types	c14	c14	12	19	19	Y	128	0	63
+def	test	t_many_col_types	t_many_col_types	c15	c15	7	19	19	N	1217	0	63
+def	test	t_many_col_types	t_many_col_types	c16	c16	11	8	8	Y	128	0	63
+def	test	t_many_col_types	t_many_col_types	c17	c17	13	4	4	Y	32864	0	63
+def	test	t_many_col_types	t_many_col_types	c18	c18	1	1	1	Y	32768	0	63
+def	test	t_many_col_types	t_many_col_types	c19	c19	1	1	1	Y	32768	0	63
+def	test	t_many_col_types	t_many_col_types	c20	c20	254	1	1	Y	0	0	8
+def	test	t_many_col_types	t_many_col_types	c21	c21	253	10	10	Y	0	0	8
+def	test	t_many_col_types	t_many_col_types	c22	c22	253	30	30	Y	0	0	8
+def	test	t_many_col_types	t_many_col_types	c23	c23	253	100	8	Y	0	0	8
+def	test	t_many_col_types	t_many_col_types	c24	c24	253	100	8	Y	0	0	8
+def	test	t_many_col_types	t_many_col_types	c25	c25	253	100	4	Y	0	0	8
+def	test	t_many_col_types	t_many_col_types	c26	c26	253	100	4	Y	0	0	8
+def	test	t_many_col_types	t_many_col_types	c27	c27	253	100	10	Y	0	0	8
+def	test	t_many_col_types	t_many_col_types	c28	c28	253	100	10	Y	0	0	8
+def	test	t_many_col_types	t_many_col_types	c29	c29	253	100	8	Y	0	0	8
+def	test	t_many_col_types	t_many_col_types	c30	c30	253	100	8	Y	0	0	8
+def	test	t_many_col_types	t_many_col_types	c31	c31	254	5	3	Y	256	0	8
+def	test	t_many_col_types	t_many_col_types	c32	c32	254	24	7	Y	2048	0	8
+c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13	c14	c15	c16	c17	c18	c19	c20	c21	c22	c23	c24	c25	c26	c27	c28	c29	c30	c31	c32
+1	1	1	1	1	1	1	1	1	1	1.0000	1.0000	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	1	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	one	monday
+9	9	9	9	9	9	9	9	9	9	9.0000	9.0000	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	0	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	two	tuesday
+test_sequence
+------ delete tests ------
+delete from t1 ;
+insert into t1 values (1,'one');
+insert into t1 values (2,'two');
+insert into t1 values (3,'three');
+insert into t1 values (4,'four');
+commit ;
+delete from t_many_col_types ;
+insert into t_many_col_types
+set c1= 1, c2= 1, c3= 1, c4= 1, c5= 1, c6= 1, c7= 1, c8= 1, c9= 1,
+c10= 1, c11= 1, c12 = 1,
+c13= '2004-02-29', c14= '2004-02-29 11:11:11', c15= '2004-02-29 11:11:11',
+c16= '11:11:11', c17= '2004',
+c18= 1, c19=true, c20= 'a', c21= '123456789a', 
+c22= '123456789a123456789b123456789c', c23= 'tinyblob', c24= 'tinytext',
+c25= 'blob', c26= 'text', c27= 'mediumblob', c28= 'mediumtext',
+c29= 'longblob', c30= 'longtext', c31='one', c32= 'monday';
+insert into t_many_col_types
+set c1= 9, c2= 9, c3= 9, c4= 9, c5= 9, c6= 9, c7= 9, c8= 9, c9= 9,
+c10= 9, c11= 9, c12 = 9,
+c13= '2004-02-29', c14= '2004-02-29 11:11:11', c15= '2004-02-29 11:11:11',
+c16= '11:11:11', c17= '2004',
+c18= 1, c19=false, c20= 'a', c21= '123456789a', 
+c22= '123456789a123456789b123456789c', c23= 'tinyblob', c24= 'tinytext',
+c25= 'blob', c26= 'text', c27= 'mediumblob', c28= 'mediumtext',
+c29= 'longblob', c30= 'longtext', c31='two', c32= 'tuesday';
+prepare stmt1 from 'delete from t1 where a=2' ;
+execute stmt1;
+select a,b from t1 where a=2;
+a	b
+execute stmt1;
+insert into t1 values(0,NULL);
+set @arg00=NULL;
+prepare stmt1 from 'delete from t1 where b=?' ;
+execute stmt1 using @arg00;
+select a,b from t1 where b is NULL ;
+a	b
+0	NULL
+set @arg00='one';
+execute stmt1 using @arg00;
+select a,b from t1 where b=@arg00;
+a	b
+prepare stmt1 from 'truncate table t1' ;
+test_sequence
+------ update tests ------
+delete from t1 ;
+insert into t1 values (1,'one');
+insert into t1 values (2,'two');
+insert into t1 values (3,'three');
+insert into t1 values (4,'four');
+commit ;
+delete from t_many_col_types ;
+insert into t_many_col_types
+set c1= 1, c2= 1, c3= 1, c4= 1, c5= 1, c6= 1, c7= 1, c8= 1, c9= 1,
+c10= 1, c11= 1, c12 = 1,
+c13= '2004-02-29', c14= '2004-02-29 11:11:11', c15= '2004-02-29 11:11:11',
+c16= '11:11:11', c17= '2004',
+c18= 1, c19=true, c20= 'a', c21= '123456789a', 
+c22= '123456789a123456789b123456789c', c23= 'tinyblob', c24= 'tinytext',
+c25= 'blob', c26= 'text', c27= 'mediumblob', c28= 'mediumtext',
+c29= 'longblob', c30= 'longtext', c31='one', c32= 'monday';
+insert into t_many_col_types
+set c1= 9, c2= 9, c3= 9, c4= 9, c5= 9, c6= 9, c7= 9, c8= 9, c9= 9,
+c10= 9, c11= 9, c12 = 9,
+c13= '2004-02-29', c14= '2004-02-29 11:11:11', c15= '2004-02-29 11:11:11',
+c16= '11:11:11', c17= '2004',
+c18= 1, c19=false, c20= 'a', c21= '123456789a', 
+c22= '123456789a123456789b123456789c', c23= 'tinyblob', c24= 'tinytext',
+c25= 'blob', c26= 'text', c27= 'mediumblob', c28= 'mediumtext',
+c29= 'longblob', c30= 'longtext', c31='two', c32= 'tuesday';
+prepare stmt1 from 'update t1 set b=''a=two'' where a=2' ;
+execute stmt1;
+select a,b from t1 where a=2;
+a	b
+2	a=two
+execute stmt1;
+select a,b from t1 where a=2;
+a	b
+2	a=two
+set @arg00=NULL;
+prepare stmt1 from 'update t1 set b=? where a=2' ;
+execute stmt1 using @arg00;
+select a,b from t1 where a=2;
+a	b
+2	NULL
+set @arg00='two';
+execute stmt1 using @arg00;
+select a,b from t1 where a=2;
+a	b
+2	two
+set @arg00=2;
+prepare stmt1 from 'update t1 set b=NULL where a=?' ;
+execute stmt1 using @arg00;
+select a,b from t1 where a=@arg00;
+a	b
+2	NULL
+update t1 set b='two' where a=@arg00;
+set @arg00=2000;
+execute stmt1 using @arg00;
+select a,b from t1 where a=@arg00;
+a	b
+set @arg00=2;
+set @arg01=22;
+prepare stmt1 from 'update t1 set a=? where a=?' ;
+execute stmt1 using @arg00, @arg00;
+select a,b from t1 where a=@arg00;
+a	b
+2	two
+execute stmt1 using @arg01, @arg00;
+select a,b from t1 where a=@arg01;
+a	b
+22	two
+execute stmt1 using @arg00, @arg01;
+select a,b from t1 where a=@arg00;
+a	b
+2	two
+set @arg00=NULL;
+set @arg01=2;
+execute stmt1 using @arg00, @arg01;
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+select a,b from t1;
+a	b
+1	one
+0	two
+3	three
+4	four
+set @arg00=0;
+execute stmt1 using @arg01, @arg00;
+select a,b from t1;
+a	b
+1	one
+2	two
+3	three
+4	four
+set @arg00=23;
+set @arg01='two';
+set @arg02=2;
+set @arg03='two';
+set @arg04=2;
+drop table if exists t2;
+create table t2 as select a,b from t1 ;
+prepare stmt1 from 'update t1 set a=? where b=?
+                    and a in (select ? from t2
+                              where b = ? or a = ?)';
+execute stmt1 using @arg00, @arg01, @arg02, @arg03, @arg04 ;
+select a,b from t1 where a = @arg00 ;
+a	b
+23	two
+prepare stmt1 from 'update t1 set a=? where b=?
+                    and a not in (select ? from t2
+                              where b = ? or a = ?)';
+execute stmt1 using @arg04, @arg01, @arg02, @arg03, @arg00 ;
+select a,b from t1 ;
+a	b
+1	one
+2	two
+3	three
+4	four
+drop table t2 ;
+set @arg00=1;
+prepare stmt1 from 'update t1 set b=''bla''
+where a=2
+limit 1';
+execute stmt1 ;
+select a,b from t1 where b = 'bla' ;
+a	b
+2	bla
+prepare stmt1 from 'update t1 set b=''bla''
+where a=2
+limit ?';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '?' at line 3
+test_sequence
+------ insert tests ------
+delete from t1 ;
+insert into t1 values (1,'one');
+insert into t1 values (2,'two');
+insert into t1 values (3,'three');
+insert into t1 values (4,'four');
+commit ;
+delete from t_many_col_types ;
+insert into t_many_col_types
+set c1= 1, c2= 1, c3= 1, c4= 1, c5= 1, c6= 1, c7= 1, c8= 1, c9= 1,
+c10= 1, c11= 1, c12 = 1,
+c13= '2004-02-29', c14= '2004-02-29 11:11:11', c15= '2004-02-29 11:11:11',
+c16= '11:11:11', c17= '2004',
+c18= 1, c19=true, c20= 'a', c21= '123456789a', 
+c22= '123456789a123456789b123456789c', c23= 'tinyblob', c24= 'tinytext',
+c25= 'blob', c26= 'text', c27= 'mediumblob', c28= 'mediumtext',
+c29= 'longblob', c30= 'longtext', c31='one', c32= 'monday';
+insert into t_many_col_types
+set c1= 9, c2= 9, c3= 9, c4= 9, c5= 9, c6= 9, c7= 9, c8= 9, c9= 9,
+c10= 9, c11= 9, c12 = 9,
+c13= '2004-02-29', c14= '2004-02-29 11:11:11', c15= '2004-02-29 11:11:11',
+c16= '11:11:11', c17= '2004',
+c18= 1, c19=false, c20= 'a', c21= '123456789a', 
+c22= '123456789a123456789b123456789c', c23= 'tinyblob', c24= 'tinytext',
+c25= 'blob', c26= 'text', c27= 'mediumblob', c28= 'mediumtext',
+c29= 'longblob', c30= 'longtext', c31='two', c32= 'tuesday';
+prepare stmt1 from 'insert into t1 values(5, ''five'' )';
+execute stmt1;
+select a,b from t1 where a = 5;
+a	b
+5	five
+set @arg00='six' ;
+prepare stmt1 from 'insert into t1 values(6, ? )';
+execute stmt1 using @arg00;
+select a,b from t1 where b = @arg00;
+a	b
+6	six
+execute stmt1 using @arg00;
+ERROR 23000: Duplicate entry '6' for key 1
+set @arg00=NULL ;
+prepare stmt1 from 'insert into t1 values(0, ? )';
+execute stmt1 using @arg00;
+select a,b from t1 where b is NULL;
+a	b
+0	NULL
+set @arg00=8 ;
+set @arg01='eight' ;
+prepare stmt1 from 'insert into t1 values(?, ? )';
+execute stmt1 using @arg00, @arg01 ;
+select a,b from t1 where b = @arg01;
+a	b
+8	eight
+set @arg00=81 ;
+set @arg01='8-1' ;
+set @arg02=82 ;
+set @arg03='8-2' ;
+prepare stmt1 from 'insert into t1 values(?,?),(?,?)';
+execute stmt1 using @arg00, @arg01, @arg02, @arg03 ;
+select a,b from t1 where a in (@arg00,@arg02) ;
+a	b
+81	8-1
+82	8-2
+set @arg00=9 ;
+set @arg01='nine' ;
+prepare stmt1 from 'insert into t1 set a=?, b=? ';
+execute stmt1 using @arg00, @arg01 ;
+select a,b from t1 where a = @arg00 ;
+a	b
+9	nine
+set @arg00=6 ;
+set @arg01=1 ;
+prepare stmt1 from 'insert into t1 set a=?, b=''sechs''
+                    on duplicate key update a=a + ?, b=concat(b,''modified'') ';
+execute stmt1 using @arg00, @arg01;
+select * from t1;
+a	b
+1	one
+2	two
+3	three
+4	four
+5	five
+7	sixmodified
+0	NULL
+8	eight
+81	8-1
+82	8-2
+9	nine
+set @arg00=81 ;
+set @arg01=1 ;
+execute stmt1 using @arg00, @arg01;
+ERROR 23000: Duplicate entry '82' for key 1
+set @1000=1000 ;
+set @x1000_2="x1000_2" ;
+set @x1000_3="x1000_3" ;
+set @x1000="x1000" ;
+set @1100=1100 ;
+set @x1100="x1100" ;
+set @100=100 ;
+set @updated="updated" ;
+insert into t1 values(1000,'x1000_1') ;
+insert into t1 values(@1000,@x1000_2),(@1000,@x1000_3)
+on duplicate key update a = a + @100, b = concat(b,@updated) ;
+select a,b from t1 where a >= 1000 ;
+a	b
+1100	x1000_1updated
+1000	x1000_3
+delete from t1 where a >= 1000 ;
+insert into t1 values(1000,'x1000_1') ;
+prepare stmt1 from ' insert into t1 values(?,?),(?,?)
+               on duplicate key update a = a + ?, b = concat(b,?) ';
+execute stmt1 using @1000, @x1000_2, @1000, @x1000_3, @100, @updated ;
+select a,b from t1 where a >= 1000 ;
+a	b
+1000	x1000_3
+1100	x1000_1updated
+delete from t1 where a >= 1000 ;
+insert into t1 values(1000,'x1000_1') ;
+execute stmt1 using @1000, @x1000_2, @1100, @x1000_3, @100, @updated ;
+select a,b from t1 where a >= 1000 ;
+a	b
+1200	x1000_1updatedupdated
+delete from t1 where a >= 1000 ;
+prepare stmt1 from ' replace into t1 (a,b) select 100, ''hundred'' ';
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+set @duplicate='duplicate ' ;
+set @1000=1000 ;
+set @5=5 ;
+select a,b from t1 where a < 5 ;
+a	b
+1	one
+2	two
+3	three
+4	four
+0	NULL
+insert into t1 select a + @1000, concat(@duplicate,b) from t1
+where a < @5 ;
+affected rows: 5
+info: Records: 5  Duplicates: 0  Warnings: 0
+select a,b from t1 where a >= 1000 ;
+a	b
+1002	duplicate two
+1001	duplicate one
+1003	duplicate three
+1004	duplicate four
+1000	NULL
+delete from t1 where a >= 1000 ;
+prepare stmt1 from ' insert into t1 select a + ?, concat(?,b) from t1
+where a < ? ' ;
+execute stmt1 using @1000, @duplicate, @5;
+affected rows: 5
+info: Records: 5  Duplicates: 0  Warnings: 0
+select a,b from t1 where a >= 1000 ;
+a	b
+1000	NULL
+1004	duplicate four
+1003	duplicate three
+1002	duplicate two
+1001	duplicate one
+delete from t1 where a >= 1000 ;
+set @float=1.00;
+set @five='five' ;
+drop table if exists t2;
+create table t2 like t1 ;
+insert into t2 (b,a) 
+select @duplicate, sum(first.a) from t1 first, t1 second
+where first.a <> @5 and second.b = first.b
+and second.b <> @five
+group by second.b
+having sum(second.a) > @2
+union
+select b, a + @100 from t1
+where (a,b) in ( select sqrt(a+@1)+CAST(@float AS signed),b 
+from t1);
+affected rows: 8
+info: Records: 8  Duplicates: 0  Warnings: 0
+select a,b from t2;
+a	b
+81	duplicate
+82	duplicate
+8	duplicate
+4	duplicate
+9	duplicate
+7	duplicate
+3	duplicate
+103	three
+delete from t2 ;
+prepare stmt1 from ' insert into t2 (b,a) 
+select ?, sum(first.a)
+  from t1 first, t1 second 
+  where first.a <> ? and second.b = first.b and second.b <> ?
+  group by second.b
+  having sum(second.a) > ?
+union
+select b, a + ? from t1
+  where (a,b) in ( select sqrt(a+?)+CAST(? AS signed),b 
+                 from t1 ) ' ;
+execute stmt1 using @duplicate, @5, @five, @2, @100, @1, @float ;
+affected rows: 8
+info: Records: 8  Duplicates: 0  Warnings: 0
+select a,b from t2;
+a	b
+81	duplicate
+82	duplicate
+8	duplicate
+4	duplicate
+9	duplicate
+7	duplicate
+3	duplicate
+103	three
+drop table t2;
+drop table t1, t_many_col_types;

@@ -147,12 +147,14 @@ static struct my_option my_long_options[] =
 
 static const char *load_default_groups[]= { "mysqlimport","client",0 };
 
+#include <help_start.h>
+
 static void print_version(void)
 {
   printf("%s  Ver %s Distrib %s, for %s (%s)\n" ,my_progname,
 	  IMPORT_VERSION, MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
+  NETWARE_SET_SCREEN_MODE(1);
 }
-
 
 
 static void usage(void)
@@ -173,6 +175,7 @@ file. The SQL command 'LOAD DATA INFILE' is used to import the rows.\n");
   my_print_variables(my_long_options);
 }
 
+#include <help_end.h>
 
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
@@ -238,7 +241,8 @@ static int get_options(int *argc, char ***argv)
     fprintf(stderr, "You can't use --ignore (-i) and --replace (-r) at the same time.\n");
     return(1);
   }
-  if (!(charset_info= get_charset_by_csname(default_charset,
+  if (strcmp(default_charset, charset_info->csname) &&
+      !(charset_info= get_charset_by_csname(default_charset,
   					    MY_CS_PRIMARY, MYF(MY_WME))))
     exit(1);
   if (*argc < 2)

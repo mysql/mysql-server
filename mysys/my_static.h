@@ -19,6 +19,7 @@
   a shared library
 */
 
+C_MODE_START
 #include <signal.h>
 
 #define MAX_SIGNALS	10		/* Max signals under a dont-allow */
@@ -68,6 +69,9 @@ extern byte	*sf_min_adress,*sf_max_adress;
 extern uint	sf_malloc_count;
 extern struct st_irem *sf_malloc_root;
 
+extern struct st_my_file_info my_file_info_default[MY_NFILE];
+
 #if defined(THREAD) && !defined(__WIN__)
 extern sigset_t my_signals;		/* signals blocked by mf_brkhant */
 #endif
+C_MODE_END

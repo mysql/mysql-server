@@ -29,7 +29,8 @@ select grp,group_concat(c order by c) from t1 group by grp;
 select grp,group_concat(c order by c desc) from t1 group by grp;
 select grp,group_concat(d order by a) from t1 group by grp;
 select grp,group_concat(d order by a desc) from t1 group by grp;
-select grp,group_concat(a order by a,d+c) from t1 group by grp;
+select grp,group_concat(a order by a,d+c-ascii(c)-a) from t1 group by grp;
+select grp,group_concat(a order by d+c-ascii(c),a) from t1 group by grp;
 select grp,group_concat(c order by 1) from t1 group by grp;
 select grp,group_concat(c order by "c") from t1 group by grp;
 select grp,group_concat(distinct c order by c) from t1 group by grp;
@@ -50,27 +51,17 @@ select grp,group_concat(c order by grp desc) from t1 group by grp order by grp;
 select grp, group_concat(a separator "")+0 from t1 group by grp;
 select grp, group_concat(a separator "")+0.0 from t1 group by grp;
 select grp, ROUND(group_concat(a separator "")) from t1 group by grp;
+drop table t1;
 
 # Test NULL values
 
-drop table t1;
 create table t1 (grp int, c char(10));
-insert into t1 values (1,NULL);
-insert into t1 values (2,"b");
-insert into t1 values (2,NULL);
-insert into t1 values (3,"E");
-insert into t1 values (3,NULL);
-insert into t1 values (3,"D");
-insert into t1 values (3,NULL);
-insert into t1 values (3,NULL);
-insert into t1 values (3,"D");
-insert into t1 values (4,"");
-insert into t1 values (5,NULL);
+insert into t1 values (1,NULL),(2,"b"),(2,NULL),(3,"E"),(3,NULL),(3,"D"),(3,NULL),(3,NULL),(3,"D"),(4,""),(5,NULL);
 select grp,group_concat(c order by c) from t1 group by grp;
 
 # Test warnings
 
-set group_concat_max_len = 5;
+set group_concat_max_len = 4;
 select grp,group_concat(c) from t1 group by grp;
 show warnings;
 set group_concat_max_len = 1024;
@@ -92,7 +83,7 @@ insert into t1 values (4,'www.host.com'), (5,'www.google.com'),(5,'www.help.com'
 insert into t2 values (1,4), (5,4), (5,5);
 # Make this order independent
 --replace_result www.help.com X www.host.com X www.google.com X
-select REQ_ID, Group_Concat(URL) as URL from t1, t2 where 
+select REQ_ID, Group_Concat(URL) as URL from t1, t2 where
 t2.URL_ID = t1.URL_ID group by REQ_ID;
 # check min/max function
 --replace_result www.help.com X www.host.com X www.google.com X
@@ -118,8 +109,12 @@ drop table t2;
 
 # check having
 create table t1 (bar varchar(32));
-insert into t1 values('test'),('test2');
-select * from t1 having group_concat(bar)='';
+insert into t1 values('test1'),('test2');
+select group_concat(bar order by concat(bar,bar)) from t1;
+select group_concat(bar order by concat(bar,bar) desc) from t1;
+select bar from t1 having group_concat(bar)='';
+select bar from t1 having instr(group_concat(bar), "test") > 0;
+select bar from t1 having instr(group_concat(bar order by concat(bar,bar) desc), "test2,test1") > 0;
 drop table t1;
 
 # ORDER BY fix_fields()
@@ -130,3 +125,79 @@ insert into t2 values (1),(2),(3);
 select  group_concat(a1 order by (t1.a IN (select a0 from t2))) from t1;
 select  group_concat(a1 order by (t1.a)) from t1;
 drop table t1, t2;
+
+#
+# Problem with GROUP BY (Bug #2695)
+#
+
+CREATE TABLE t1 (id1 tinyint(4) NOT NULL, id2 tinyint(4) NOT NULL);
+INSERT INTO t1 VALUES (1, 1),(1, 2),(1, 3),(1, 4),(1, 5),(2, 1),(2, 2),(2, 3);
+CREATE TABLE t2 (id1 tinyint(4) NOT NULL);
+INSERT INTO t2 VALUES (1),(2),(3),(4),(5);
+SELECT t1.id1, GROUP_CONCAT(t1.id2 ORDER BY t1.id2 ASC) AS concat_id FROM t1, t2 WHERE t1.id1 = t2.id1 AND t1.id1=1 GROUP BY t1.id1;
+SELECT t1.id1, GROUP_CONCAT(t1.id2 ORDER BY t1.id2 ASC) AS concat_id FROM t1, t2 WHERE t1.id1 = t2.id1 GROUP BY t1.id1;
+SELECT t1.id1, GROUP_CONCAT(t1.id2 ORDER BY t1.id2 DESC) AS concat_id FROM t1, t2 WHERE t1.id1 = t2.id1 GROUP BY t1.id1;
+SELECT t1.id1, GROUP_CONCAT(t1.id2 ORDER BY 6-t1.id2 ASC) AS concat_id FROM t1, t2 WHERE t1.id1 = t2.id1 GROUP BY t1.id1;
+
+# The following failed when it was run twice:
+SELECT t1.id1, GROUP_CONCAT(t1.id2,6-t1.id2 ORDER BY 6-t1.id2 ASC) AS concat_id FROM t1, t2 WHERE t1.id1 = t2.id1 GROUP BY t1.id1;
+SELECT t1.id1, GROUP_CONCAT(t1.id2,6-t1.id2 ORDER BY 6-t1.id2 ASC) AS concat_id FROM t1, t2 WHERE t1.id1 = t2.id1 GROUP BY t1.id1;
+
+SELECT t1.id1, GROUP_CONCAT(t1.id2,"/",6-t1.id2 ORDER BY 1+0,6-t1.id2,t1.id2 ASC) AS concat_id FROM t1, t2 WHERE t1.id1 = t2.id1 GROUP BY t1.id1;
+drop table t1,t2;
+
+#
+# Problem with distinct (Bug #3381)
+#
+
+create table t1 (s1 char(10), s2 int not null);
+insert into t1 values ('a',2),('b',2),('c',1),('a',3),('b',4),('c',4);
+select distinct s1 from t1 order by s2,s1;
+select group_concat(distinct s1) from t1;
+select group_concat(distinct s1 order by s2) from t1 where s2 < 4;
+# The following is wrong and needs to be fixed ASAP
+select group_concat(distinct s1 order by s2) from t1;
+drop table t1;
+
+#
+# Test with subqueries (Bug #3319)
+#
+
+create table t1 (a int, c int);
+insert into t1 values (1, 2), (2, 3), (2, 4), (3, 5);
+create table t2 (a int, c int);
+insert into t2 values (1, 5), (2, 4), (3, 3), (3,3);
+select group_concat(c) from t1;
+select group_concat(c order by (select c from t2 where t2.a=t1.a limit 1)) as grp from t1;
+
+select group_concat(c order by (select mid(group_concat(c order by a),1,5) from t2 where t2.a=t1.a)) as grp from t1;
+select group_concat(c order by (select mid(group_concat(c order by a),1,5) from t2 where t2.a=t1.a) desc) as grp from t1;
+
+# The following returns random results as we are sorting on blob addresses
+# select group_concat(c order by (select group_concat(c order by a) from t2 where t2.a=t1.a)) as grp from t1;
+# select group_concat(c order by (select group_concat(c) from t2 where a=t1.a)) as grp from t1;
+
+select a,c,(select group_concat(c order by a) from t2 where a=t1.a) as grp from t1 order by grp;
+drop table t1,t2;
+
+#
+# group_concat of expression with GROUP BY and external GROUP BY
+#
+CREATE TABLE t1 ( a int );
+CREATE TABLE t2 ( a int );
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1), (2);
+SELECT GROUP_CONCAT(t1.a*t2.a ORDER BY t2.a) FROM t1, t2 GROUP BY t1.a;
+DROP TABLE t1, t2;
+
+#
+# Bug #4035: group_concat() and HAVING
+#
+
+CREATE TABLE t1 (a char(4));
+INSERT INTO t1 VALUES ('John'), ('Anna'), ('Bill');
+SELECT GROUP_CONCAT(a SEPARATOR '||') AS names FROM t1 
+  HAVING names LIKE '%An%';
+SELECT GROUP_CONCAT(a SEPARATOR '###') AS names FROM t1 
+  HAVING LEFT(names, 1) ='J';
+DROP TABLE t1;

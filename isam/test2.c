@@ -526,7 +526,7 @@ int main(int argc, char *argv[])
     if (j != 0 && k != 0)
     {
       if (j > k)
-	swap(int,j,k);
+	swap_variables(int, j, k);
       sprintf(key,"%6d",j);
       sprintf(key2,"%6d",k);
       range_records=nisam_records_in_range(file,0,key,0,HA_READ_AFTER_KEY,

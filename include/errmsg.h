@@ -14,8 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Error messages for mysql clients */
-/* error messages for the demon is in share/language/errmsg.sys */
+/* Error messages for MySQL clients */
+/* (Error messages for the daemon are in share/language/errmsg.sys) */
 
 #ifdef	__cplusplus
 extern "C" {
@@ -63,27 +63,30 @@ extern const char *client_errors[];	/* Error messages */
 #define CR_PROBE_MASTER_CONNECT 2025
 #define CR_SSL_CONNECTION_ERROR 2026
 #define CR_MALFORMED_PACKET     2027
+#define CR_WRONG_LICENSE	2028
 
 /* new 4.1 error codes */
-#define CR_NULL_POINTER		2028
-#define CR_NO_PREPARE_STMT	2029
-#define CR_NOT_ALL_PARAMS_BOUND	2030
-#define CR_DATA_TRUNCATED	2031
-#define CR_NO_PARAMETERS_EXISTS 2032
-#define CR_INVALID_PARAMETER_NO 2033
-#define CR_INVALID_BUFFER_USE	2034
-#define CR_UNSUPPORTED_PARAM_TYPE 2035
+#define CR_NULL_POINTER		2029
+#define CR_NO_PREPARE_STMT	2030
+#define CR_PARAMS_NOT_BOUND	2031
+#define CR_DATA_TRUNCATED	2032
+#define CR_NO_PARAMETERS_EXISTS 2033
+#define CR_INVALID_PARAMETER_NO 2034
+#define CR_INVALID_BUFFER_USE	2035
+#define CR_UNSUPPORTED_PARAM_TYPE 2036
 
-#define CR_SHARED_MEMORY_CONNECTION             2036
-#define CR_SHARED_MEMORY_CONNECT_REQUEST_ERROR  2037
-#define CR_SHARED_MEMORY_CONNECT_ANSWER_ERROR   2038
-#define CR_SHARED_MEMORY_CONNECT_FILE_MAP_ERROR 2039
-#define CR_SHARED_MEMORY_CONNECT_MAP_ERROR      2040
-#define CR_SHARED_MEMORY_FILE_MAP_ERROR         2041
-#define CR_SHARED_MEMORY_MAP_ERROR              2042
-#define CR_SHARED_MEMORY_EVENT_ERROR     	2043
-#define CR_SHARED_MEMORY_CONNECT_ABANDODED_ERROR 2044
-#define CR_SHARED_MEMORY_CONNECT_SET_ERROR      2045
-#define CR_CONN_UNKNOW_PROTOCOL 		2046
-#define CR_INVALID_CONN_HANDLE			2047
-#define CR_SECURE_AUTH                          2048
+#define CR_SHARED_MEMORY_CONNECTION             2037
+#define CR_SHARED_MEMORY_CONNECT_REQUEST_ERROR  2038
+#define CR_SHARED_MEMORY_CONNECT_ANSWER_ERROR   2039
+#define CR_SHARED_MEMORY_CONNECT_FILE_MAP_ERROR 2040
+#define CR_SHARED_MEMORY_CONNECT_MAP_ERROR      2041
+#define CR_SHARED_MEMORY_FILE_MAP_ERROR         2042
+#define CR_SHARED_MEMORY_MAP_ERROR              2043
+#define CR_SHARED_MEMORY_EVENT_ERROR     	2044
+#define CR_SHARED_MEMORY_CONNECT_ABANDONED_ERROR 2045
+#define CR_SHARED_MEMORY_CONNECT_SET_ERROR      2046
+#define CR_CONN_UNKNOW_PROTOCOL 		2047
+#define CR_INVALID_CONN_HANDLE			2048
+#define CR_SECURE_AUTH                          2049
+#define CR_FETCH_CANCELED                       2050
+#define CR_NO_DATA                              2051

@@ -7,11 +7,11 @@ b	text	YES		NULL
 c	blob	YES		NULL	
 d	mediumtext	YES		NULL	
 e	longtext	YES		NULL	
-CREATE TABLE t2 (a char(257), b varchar(70000) binary, c varchar(70000000));
+CREATE TABLE t2 (a char(257), b varbinary(70000), c varchar(70000000));
 Warnings:
-Warning	1245	Converting column 'a' from CHAR to TEXT
-Warning	1245	Converting column 'b' from CHAR to BLOB
-Warning	1245	Converting column 'c' from CHAR to TEXT
+Warning	1246	Converting column 'a' from CHAR to TEXT
+Warning	1246	Converting column 'b' from CHAR to BLOB
+Warning	1246	Converting column 'c' from CHAR to TEXT
 show columns from t2;
 Field	Type	Null	Key	Default	Extra
 a	text	YES		NULL	
@@ -27,7 +27,7 @@ t3	CREATE TABLE `t3` (
 drop table t1,t2,t3
 #;
 CREATE TABLE t1 (a char(257) default "hello");
-ERROR 42000: Too big column length for column 'a' (max = 255). Use BLOB instead
+ERROR 42000: Column length too big for column 'a' (max = 255); use BLOB instead
 CREATE TABLE t2 (a blob default "hello");
 ERROR 42000: BLOB/TEXT column 'a' can't have a default value
 drop table if exists t1,t2;
@@ -57,7 +57,7 @@ select * from t1;
 a
 Where
 drop table t1;
-create table t1 (t text,c char(10),b blob, d char(10) binary);
+create table t1 (t text,c char(10),b blob, d binary(10));
 insert into t1 values (NULL,NULL,NULL,NULL);
 insert into t1 values ("","","","");
 insert into t1 values ("hello","hello","hello","hello");
@@ -73,14 +73,14 @@ Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 t	text	latin1_swedish_ci	YES		NULL		select,insert,update,references	
 c	varchar(10)	latin1_swedish_ci	YES		NULL		select,insert,update,references	
 b	blob	NULL	YES		NULL		select,insert,update,references	
-d	varchar(10)	binary	YES		NULL		select,insert,update,references	
+d	varbinary(10)	NULL	YES		NULL		select,insert,update,references	
 lock tables t1 WRITE;
 show full fields from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 t	text	latin1_swedish_ci	YES		NULL		select,insert,update,references	
 c	varchar(10)	latin1_swedish_ci	YES		NULL		select,insert,update,references	
 b	blob	NULL	YES		NULL		select,insert,update,references	
-d	varchar(10)	binary	YES		NULL		select,insert,update,references	
+d	varbinary(10)	NULL	YES		NULL		select,insert,update,references	
 unlock tables;
 select t from t1 where t like "hello";
 t
@@ -346,9 +346,17 @@ HELLO MY	1
 a	1
 hello	1
 drop table t1;
-create table t1 (a text, key (a(300)));
-ERROR HY000: Incorrect sub part key. The used key part isn't a string, the used length is longer than the key part or the storage engine doesn't support unique sub keys
-create table t1 (a text, key (a(255)));
+create table t1 (a text, unique (a(2100)));
+ERROR 42000: Specified key was too long; max key length is 1000 bytes
+create table t1 (a text, key (a(2100)));
+Warnings:
+Warning	1071	Specified key was too long; max key length is 1000 bytes
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` text,
+  KEY `a` (`a`(1000))
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 CREATE TABLE t1 (
 t1_id bigint(21) NOT NULL auto_increment,
@@ -499,7 +507,7 @@ coercibility(load_file('../../std_data/words.dat'));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select high_priority no_cache charset(load_file(_latin1'../../std_data/words.dat')) AS `charset(load_file('../../std_data/words.dat'))`,collation(load_file(_latin1'../../std_data/words.dat')) AS `collation(load_file('../../std_data/words.dat'))`,coercibility(load_file(_latin1'../../std_data/words.dat')) AS `coercibility(load_file('../../std_data/words.dat'))`
+Note	1003	select sql_no_cache charset(load_file(_latin1'../../std_data/words.dat')) AS `charset(load_file('../../std_data/words.dat'))`,collation(load_file(_latin1'../../std_data/words.dat')) AS `collation(load_file('../../std_data/words.dat'))`,coercibility(load_file(_latin1'../../std_data/words.dat')) AS `coercibility(load_file('../../std_data/words.dat'))`
 update t1 set imagem=load_file('../../std_data/words.dat') where id=1;
 select if(imagem is null, "ERROR", "OK"),length(imagem) from t1 where id = 1;
 if(imagem is null, "ERROR", "OK")	length(imagem)
@@ -655,4 +663,10 @@ id	txt
 1	Chevy
 2	Chevy 
 4	Ford
+drop table t1;
+CREATE TABLE t1 ( i int(11) NOT NULL default '0',    c text NOT NULL, PRIMARY KEY  (i), KEY (c(1),c(1)));
+INSERT t1 VALUES (1,''),(2,''),(3,'asdfh'),(4,'');
+select max(i) from t1 where c = '';
+max(i)
+4
 drop table t1;

@@ -271,8 +271,27 @@ uint my_charpos_mb(CHARSET_INFO *cs __attribute__((unused)),
     b+= (mblen= my_ismbchar(cs,b,e)) ? mblen : 1;
     pos--;
   }
-  return b-b0;
+  return pos ? e+2-b0 : b-b0;
 }
+
+uint my_well_formed_len_mb(CHARSET_INFO *cs,
+			   const char *b, const char *e, uint pos)
+{
+  my_wc_t wc;
+  int mblen;
+  const char *b_start= b;
+  
+  while (pos)
+  {
+    if ((mblen= cs->cset->mb_wc(cs, &wc, (uchar*) b, (uchar*) e)) <0)
+      break;
+    b+= mblen;
+    pos--;
+  }
+  return b - b_start;
+}
+
+
 
 uint my_instr_mb(CHARSET_INFO *cs,
                  const char *b, uint b_length, 
@@ -303,7 +322,7 @@ uint my_instr_mb(CHARSET_INFO *cs,
       int mblen;
       
       if (!cs->coll->strnncoll(cs, (unsigned char*) b,   s_length, 
-      				   (unsigned char*) s, s_length))
+      				   (unsigned char*) s, s_length, 0))
       {
         if (nmatch)
         {
@@ -328,30 +347,26 @@ uint my_instr_mb(CHARSET_INFO *cs,
   return 0;
 }
 
+
 /* BINARY collations handlers for MB charsets */
 
 static int my_strnncoll_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
 				const uchar *s, uint slen,
-				const uchar *t, uint tlen)
+				const uchar *t, uint tlen,
+                                my_bool t_is_prefix)
 {
-  int cmp= memcmp(s,t,min(slen,tlen));
-  return cmp ? cmp : (int) (slen - tlen);
+  uint len=min(slen,tlen);
+  int cmp= memcmp(s,t,len);
+  return cmp ? cmp : (int) ((t_is_prefix ? len : slen) - tlen);
 }
 
-static int my_strnncollsp_mb_bin(CHARSET_INFO * cs,
-                               const uchar *s, uint slen,
-                               const uchar *t, uint tlen)
+static int my_strnncollsp_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
+                                 const uchar *s, uint slen,
+                                 const uchar *t, uint tlen)
 {
-  int len, cmp;
-
-  for ( ; slen && my_isspace(cs, s[slen-1]) ; slen--);
-  for ( ; tlen && my_isspace(cs, t[tlen-1]) ; tlen--);
-
-  len  = ( slen > tlen ) ? tlen : slen;
-
-  cmp= memcmp(s,t,len);
-  return cmp ? cmp : (int) (slen - tlen);
+  return my_strnncoll_mb_bin(cs,s,slen,t,tlen,0);
 }
+
 
 static int my_strnxfrm_mb_bin(CHARSET_INFO *cs __attribute__((unused)),
 			    uchar * dest, uint len,
@@ -506,6 +521,7 @@ static int my_wildcmp_mb_bin(CHARSET_INFO *cs,
 
 MY_COLLATION_HANDLER my_collation_mb_bin_handler =
 {
+    NULL,		/* init */
     my_strnncoll_mb_bin,
     my_strnncollsp_mb_bin,
     my_strnxfrm_mb_bin,

@@ -1,4 +1,4 @@
-# Example mysql config file for small systems.
+# Example MySQL config file for small systems.
 #
 # This is for a system with little memory (<= 64M) where MySQL is only used
 # from time to time and it's important that the mysqld daemon
@@ -10,9 +10,9 @@
 # installation this directory is @localstatedir@) or
 # ~/.my.cnf to set user-specific options.
 #
-# One can in this file use all long options that the program supports.
-# If you want to know which options a program support, run the program
-# with --help option.
+# In this file, you can use all long options that a program supports.
+# If you want to know which options a program supports, run the program
+# with the "--help" option.
 
 # The following options will be passed to all MySQL clients
 [client]
@@ -31,6 +31,8 @@ key_buffer = 16K
 max_allowed_packet = 1M
 table_cache = 4
 sort_buffer_size = 64K
+read_buffer_size = 256K
+read_rnd_buffer_size = 256K
 net_buffer_length = 2K
 thread_stack = 64K
 

@@ -337,15 +337,12 @@ SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_german2_ci;
 latin1_f	count(*)
 A	4
 AD	2
-AE	2
-Ä	2
+AE	4
 AF	2
 B	2
-SS	2
-ß	1
+SS	3
 U	2
-UE	2
-Ü	2
+UE	4
 Y	2
 Z	2
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_general_ci;
@@ -431,13 +428,10 @@ A
 AD
 AE
 AF
-Ä
 B
 U
 UE
-Ü
 SS
-ß
 Y
 Z
 SELECT DISTINCT latin1_f COLLATE latin1_general_ci FROM t1;
@@ -509,8 +503,8 @@ ALTER TABLE t1 CHARACTER SET latin1 COLLATE latin1_bin;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `latin1_f` char(32) character set latin1 collate latin1_bin default NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `latin1_f` char(32) collate latin1_bin default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_bin
 SHOW FIELDS FROM  t1;
 Field	Type	Null	Key	Default	Extra
 latin1_f	char(32)	YES		NULL	
@@ -525,7 +519,7 @@ explain extended SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select high_priority charset(_latin1'a') AS `charset('a')`,collation(_latin1'a') AS `collation('a')`,coercibility(_latin1'a') AS `coercibility('a')`,(_latin1'a' = _latin1'A') AS `'a'='A'`
+Note	1003	select charset(_latin1'a') AS `charset('a')`,collation(_latin1'a') AS `collation('a')`,coercibility(_latin1'a') AS `coercibility('a')`,(_latin1'a' = _latin1'A') AS `'a'='A'`
 SET CHARACTER SET koi8r;
 SHOW VARIABLES LIKE 'collation_client';
 Variable_name	Value
@@ -540,4 +534,51 @@ CREATE TABLE t1
 s2 CHAR(5) COLLATE latin1_swedish_ci);
 SELECT * FROM t1 WHERE s1 = s2;
 ERROR HY000: Illegal mix of collations (latin1_german1_ci,IMPLICIT) and (latin1_swedish_ci,IMPLICIT) for operation '='
+DROP TABLE t1;
+SET NAMES latin1;
+CREATE TABLE t1 
+(s1 char(10) COLLATE latin1_german1_ci,
+s2 char(10) COLLATE latin1_swedish_ci,
+KEY(s1),
+KEY(s2));
+INSERT INTO t1 VALUES ('a','a');
+INSERT INTO t1 VALUES ('b','b');
+INSERT INTO t1 VALUES ('c','c');
+INSERT INTO t1 VALUES ('d','d');
+INSERT INTO t1 VALUES ('e','e');
+INSERT INTO t1 VALUES ('f','f');
+INSERT INTO t1 VALUES ('g','g');
+INSERT INTO t1 VALUES ('h','h');
+INSERT INTO t1 VALUES ('i','i');
+INSERT INTO t1 VALUES ('j','j');
+EXPLAIN SELECT * FROM t1 WHERE s1='a';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	s1	s1	11	const	1	Using where
+EXPLAIN SELECT * FROM t1 WHERE s2='a';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	s2	s2	11	const	1	Using where
+EXPLAIN SELECT * FROM t1 WHERE s1='a' COLLATE latin1_german1_ci;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	s1	s1	11	const	1	Using where
+EXPLAIN SELECT * FROM t1 WHERE s2='a' COLLATE latin1_german1_ci;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	s2	NULL	NULL	NULL	10	Using where
+EXPLAIN SELECT * FROM t1 WHERE s1 BETWEEN 'a' AND 'b' COLLATE latin1_german1_ci;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	s1	s1	11	NULL	2	Using where
+EXPLAIN SELECT * FROM t1 WHERE s2 BETWEEN 'a' AND 'b' COLLATE latin1_german1_ci;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	s2	NULL	NULL	NULL	10	Using where
+EXPLAIN SELECT * FROM t1 WHERE s1 IN  ('a','b' COLLATE latin1_german1_ci);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	s1	s1	11	NULL	2	Using where
+EXPLAIN SELECT * FROM t1 WHERE s2 IN  ('a','b' COLLATE latin1_german1_ci);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	s2	NULL	NULL	NULL	10	Using where
+EXPLAIN SELECT * FROM t1 WHERE s1 LIKE 'a' COLLATE latin1_german1_ci;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	s1	s1	11	NULL	1	Using where
+EXPLAIN SELECT * FROM t1 WHERE s2 LIKE 'a' COLLATE latin1_german1_ci;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	s2	NULL	NULL	NULL	10	Using where
 DROP TABLE t1;

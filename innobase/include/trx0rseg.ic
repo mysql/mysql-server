@@ -24,7 +24,9 @@ trx_rsegf_get(
 
 	header = TRX_RSEG + buf_page_get(space, page_no, RW_X_LATCH, mtr);
 
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(header, SYNC_RSEG_HEADER);
+#endif /* UNIV_SYNC_DEBUG */
 
 	return(header);
 }
@@ -45,7 +47,9 @@ trx_rsegf_get_new(
 
 	header = TRX_RSEG + buf_page_get(space, page_no, RW_X_LATCH, mtr);
 
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(header, SYNC_RSEG_HEADER_NEW);
+#endif /* UNIV_SYNC_DEBUG */
 
 	return(header);
 }
@@ -64,7 +68,7 @@ trx_rsegf_get_nth_undo(
 	if (n >= TRX_RSEG_N_SLOTS) {
 		fprintf(stderr,
 		"InnoDB: Error: trying to get slot %lu of rseg\n", (unsigned long) n);
-		ut_a(0);
+		ut_error;
 	}
 
 	return(mtr_read_ulint(rsegf + TRX_RSEG_UNDO_SLOTS +
@@ -85,7 +89,7 @@ trx_rsegf_set_nth_undo(
 	if (n >= TRX_RSEG_N_SLOTS) {
 		fprintf(stderr,
 		"InnoDB: Error: trying to set slot %lu of rseg\n", (unsigned long) n);
-		ut_a(0);
+		ut_error;
 	}
 
 	mlog_write_ulint(rsegf + TRX_RSEG_UNDO_SLOTS + n * TRX_RSEG_SLOT_SIZE,

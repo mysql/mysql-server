@@ -1,0 +1,317 @@
+-- source include/have_ndb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7;
+--enable_warnings
+
+#
+# Basic test to show that the NDB 
+# table handler is working
+#
+
+#
+# Create a normal table with primary key
+#
+CREATE TABLE t1 (
+  pk1 INT NOT NULL PRIMARY KEY,
+  attr1 INT NOT NULL
+) ENGINE=ndbcluster;
+
+INSERT INTO t1 VALUES (9410,9412);
+  
+SELECT pk1 FROM t1;
+SELECT * FROM t1;
+SELECT t1.* FROM t1;
+
+# Update on record by primary key
+UPDATE t1 SET attr1=1 WHERE pk1=9410;
+SELECT * FROM t1;
+
+# Can't UPDATE PK! Test that correct error is returned
+-- error 1112
+UPDATE t1 SET pk1=2 WHERE attr1=1;
+SELECT * FROM t1;
+
+# Delete the record
+DELETE FROM t1;
+SELECT * FROM t1;
+
+# Insert more records and update them all at once
+INSERT INTO t1 VALUES (9410,9412), (9411, 9413), (9408, 8765),
+(7,8), (8,9), (9,10), (10,11), (11,12), (12,13), (13,14);
+UPDATE t1 SET attr1 = 9999;
+SELECT * FROM t1 ORDER BY pk1;
+
+UPDATE t1 SET attr1 = 9998 WHERE pk1 < 1000;
+SELECT * FROM t1 ORDER BY pk1;
+
+UPDATE t1 SET attr1 = 9997 WHERE attr1 = 9999;
+SELECT * FROM t1 ORDER BY pk1;
+
+# Delete one record by specifying pk
+DELETE FROM t1 WHERE pk1 = 9410;
+SELECT * FROM t1 ORDER BY pk1;
+
+# Delete all from table
+DELETE FROM t1;
+SELECT * FROM t1;
+
+# Insert three records with attr1=4 and two with attr1=5
+# Delete all with attr1=4
+INSERT INTO t1 values (1, 4), (2, 4), (3, 5), (4, 4), (5, 5);
+DELETE FROM t1 WHERE attr1=4;
+SELECT * FROM t1 order by pk1;
+DELETE FROM t1;
+
+# Insert two records and delete one
+INSERT INTO t1 VALUES (9410,9412), (9411, 9413);
+DELETE FROM t1 WHERE pk1 = 9410;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+#
+# Create table without primary key
+# a hidden primary key column is created by handler
+#
+CREATE TABLE t1 (id INT, id2 int) engine=ndbcluster;
+INSERT INTO t1 values(3456, 7890);
+SELECT * FROM t1;
+UPDATE t1 SET id=2 WHERE id2=12;
+SELECT * FROM t1;
+UPDATE t1 SET id=1234 WHERE id2=7890;
+SELECT * FROM t1;
+DELETE FROM t1;
+
+INSERT INTO t1 values(3456, 7890), (3456, 7890), (3456, 7890);
+SELECT * FROM t1;
+DELETE FROM t1 WHERE id = 3456;
+
+DROP TABLE t1;
+
+# test create with the keyword "engine=NDBCLUSTER"
+CREATE TABLE t1 (
+  pk1 INT NOT NULL PRIMARY KEY,
+  attr1 INT NOT NULL
+) ENGINE=NDBCLUSTER;
+
+INSERT INTO t1 values(1, 9999);
+
+DROP TABLE t1;
+
+# test create with the keyword "engine=NDB"
+CREATE TABLE t1 (
+  pk1 INT NOT NULL PRIMARY KEY,
+  attr1 INT NOT NULL
+) ENGINE=NDB;
+
+INSERT INTO t1 values(1, 9999);
+
+DROP TABLE t1;
+
+
+#
+# A more extensive test with a lot more records
+#
+
+CREATE TABLE t2 (
+  a bigint unsigned NOT NULL PRIMARY KEY,
+  b int unsigned not null,
+  c int unsigned
+) engine=ndbcluster;
+
+CREATE TABLE t3 (
+  a bigint unsigned NOT NULL,
+  b bigint unsigned not null,
+  c bigint unsigned,
+  PRIMARY KEY(a)
+) engine=ndbcluster;
+
+CREATE TABLE t4 (
+  a bigint unsigned NOT NULL,
+  b bigint unsigned not null,
+  c bigint unsigned NOT NULL,
+  d int unsigned,
+  PRIMARY KEY(a, b, c)
+) engine=ndbcluster;
+
+
+#
+# insert more records into tables
+#
+let $1=1000;
+disable_query_log;
+while ($1)
+{
+ eval insert into t2 values($1, $1+9, 5);
+ eval insert into t3 values($1, $1+9, 5);
+ eval insert into t4 values($1, $1+9, 5, $1+26000);
+ dec $1;
+}
+enable_query_log;
+
+
+#
+# delete every other record in the tables
+#
+let $1=1000;
+disable_query_log;
+while ($1)
+{
+ eval delete from t2 where a=$1;
+ eval delete from t3 where a=$1;
+ eval delete from t4 where a=$1 and b=$1+9 and c=5;
+ dec $1;
+ dec $1;
+}
+enable_query_log;
+
+
+select * from t2 where a = 7 order by b;
+select * from t2 where a = 7 order by a;
+select * from t2 where a = 7 order by 2;
+select * from t2 where a = 7 order by c;
+
+select * from t2 where a = 7 and b = 16 order by b;
+select * from t2 where a = 7 and b = 16 order by a;
+select * from t2 where a = 7 and b = 17 order by a;
+select * from t2 where a = 7 and b != 16 order by b;
+
+select * from t2 where a = 7 and b = 16 and c = 5 order by b;
+select * from t2 where a = 7 and b = 16 and c = 5 order by a;
+select * from t2 where a = 7 and b = 16 and c = 6 order by a;
+select * from t2 where a = 7 and b != 16 and c = 5 order by b;
+
+select * from t3 where a = 7 order by b;
+select * from t3 where a = 7 order by a;
+select * from t3 where a = 7 order by 2;
+select * from t3 where a = 7 order by c;
+
+select * from t3 where a = 7 and b = 16 order by b;
+select * from t3 where a = 7 and b = 16 order by a;
+select * from t3 where a = 7 and b = 17 order by a;
+select * from t3 where a = 7 and b != 16 order by b;
+
+select * from t4 where a = 7 order by b;
+select * from t4 where a = 7 order by a;
+select * from t4 where a = 7 order by 2;
+select * from t4 where a = 7 order by c;
+
+select * from t4 where a = 7 and b = 16 order by b;
+select * from t4 where a = 7 and b = 16 order by a;
+select * from t4 where a = 7 and b = 17 order by a;
+select * from t4 where a = 7 and b != 16 order by b;
+
+#
+# update records
+#
+let $1=1000;
+disable_query_log;
+while ($1)
+{
+ eval update t2 set c=$1 where a=$1;
+ eval update t3 set c=7 where a=$1 and b=$1+9 and c=5;
+ eval update t4 set d=$1+21987 where a=$1 and b=$1+9 and c=5;
+ dec $1;
+ dec $1;
+}
+enable_query_log;
+
+delete from t2;
+delete from t3;
+delete from t4;
+
+drop table t2;
+drop table t3;
+drop table t4;
+
+#
+# Test delete and update from table with 3 keys
+#
+
+CREATE TABLE t5 (
+  a bigint unsigned NOT NULL,
+  b bigint unsigned not null,
+  c bigint unsigned NOT NULL,
+  d int unsigned,
+  PRIMARY KEY(a, b, c)
+) engine=ndbcluster;
+
+insert into t5 values(10, 19, 5, 26010);
+
+delete from t5 where a=10 and b=19 and c=5;
+
+select * from t5;
+
+insert into t5 values(10, 19, 5, 26010);
+
+update t5 set d=21997 where a=10 and b=19 and c=5;
+
+select * from t5;
+
+delete from t5;
+
+drop table t5;
+
+#
+# Test using table with a char(255) column first in table
+#
+
+CREATE TABLE t6 (
+  adress char(255),
+  a int NOT NULL PRIMARY KEY,
+  b int
+) engine = NDB;
+
+insert into t6 values
+ ("Nice road 3456", 1, 23),
+ ("Street Road 78", 3, 92),
+ ("Road street 89C", 5, 71),
+ (NULL, 7, NULL);
+select * from t6 order by a;
+select a, b from t6 order by a;
+
+update t6 set adress="End of road 09" where a=3;
+update t6 set b=181, adress="Street 76" where a=7;
+select * from t6 order by a;
+select * from t6 where a=1;
+delete from t6 where a=1;
+select * from t6 order by a;
+delete from t6 where b=71;
+select * from t6 order by a;
+
+drop table t6;
+
+#
+# Test using table with a char(255) column first in table and a 
+# primary key consisting of two columns
+#
+
+CREATE TABLE t7 (
+  adress char(255),
+  a int NOT NULL,
+  b int,
+  c int NOT NULL,
+  PRIMARY KEY(a, c)	
+) engine = NDB;
+
+insert into t7 values
+ ("Highway 3456", 1, 23, 2),
+ ("Street Road 78", 3, 92, 3),
+ ("Main street 89C", 5, 71, 4),
+ (NULL, 8, NULL, 12);
+select * from t7 order by a;
+select a, b from t7 order by a;
+
+update t7 set adress="End of road 09" where a=3;
+update t7 set adress="Gatuvägen 90C" where a=5 and c=4;
+update t7 set adress="No adress" where adress is NULL;
+select * from t7 order by a;
+select * from t7 where a=1 and c=2;
+delete from t7 where a=1;
+delete from t7 where a=3 and c=3;
+delete from t7 where a=5 and c=4;
+select * from t7;
+delete from t7 where b=23;
+select * from t7;
+
+drop table t7;

@@ -86,7 +86,7 @@ the count drops to zero. */
 /* When mysqld is run, the default directory "." is the mysqld datadir,
 but in the MySQL Embedded Server Library and ibbackup it is not the default
 directory, and we must set the base file path explicitly */
-char*	fil_path_to_mysql_datadir	= (char*)".";
+const char*	fil_path_to_mysql_datadir	= ".";
 
 ulint	fil_n_pending_log_flushes		= 0;
 ulint	fil_n_pending_tablespace_flushes	= 0;
@@ -274,7 +274,7 @@ fil_get_space_id_for_table(
 /*=======================*/
 				/* out: space id, ULINT_UNDEFINED if not
 				found */
-	char*	name);		/* in: table name in the standard
+	const char*	name);	/* in: table name in the standard
 				'databasename/tablename' format */
 
 
@@ -390,16 +390,16 @@ Appends a new file to the chain of files of a space. File must be closed. */
 void
 fil_node_create(
 /*============*/
-	char*	name,	/* in: file name (file must be closed) */
-	ulint	size,	/* in: file size in database blocks, rounded downwards
-			to an integer */
-	ulint	id,	/* in: space id where to append */
-	ibool	is_raw)	/* in: TRUE if a raw device or a raw disk partition */
+	const char*	name,	/* in: file name (file must be closed) */
+	ulint		size,	/* in: file size in database blocks, rounded
+				downwards to an integer */
+	ulint		id,	/* in: space id where to append */
+	ibool		is_raw)	/* in: TRUE if a raw device or
+				a raw disk partition */
 {
 	fil_system_t*	system	= fil_system;
 	fil_node_t*	node;
 	fil_space_t*	space;
-	char*		name2;
 
 	ut_a(system);
 	ut_a(name);
@@ -408,11 +408,7 @@ fil_node_create(
 
 	node = mem_alloc(sizeof(fil_node_t));
 
-	name2 = mem_alloc(ut_strlen(name) + 1);
-
-	ut_strcpy(name2, name);
-
-	node->name = name2;
+	node->name = mem_strdup(name);
 	node->open = FALSE;
 
 	ut_a(!is_raw || srv_start_raw_disk_in_use);
@@ -433,7 +429,7 @@ fil_node_create(
 		fprintf(stderr,
 "  InnoDB: Error: Could not find tablespace %lu for\n"
 "InnoDB: file %s from the tablespace memory cache.\n", (ulong) id, name);
-		mem_free(name2);
+		mem_free(node->name);
 
 		mem_free(node);
 
@@ -467,8 +463,9 @@ fil_node_open_file(
 	ulint		size_high;
 	ibool		ret;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(system->mutex)));
-
+#endif /* UNIV_SYNC_DEBUG */
 	ut_a(node->n_pending == 0);
 	ut_a(node->open == FALSE);
 
@@ -534,7 +531,9 @@ fil_node_close_file(
 	ibool	ret;
 
 	ut_ad(node && system);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(system->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_a(node->open);
 	ut_a(node->n_pending == 0);
 	ut_a(node->n_pending_flushes == 0);
@@ -577,8 +576,9 @@ fil_try_to_close_file_in_LRU(
 	fil_system_t*	system		= fil_system;
 	fil_node_t*	node;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(system->mutex)));
-
+#endif /* UNIV_SYNC_DEBUG */
 	node = UT_LIST_GET_LAST(system->LRU);
 
 	if (print_info) {
@@ -632,7 +632,9 @@ fil_mutex_enter_and_prepare_for_io(
 	ulint		count		= 0;
 	ulint		count2		= 0;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&(system->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 retry:
 	mutex_enter(&(system->mutex));
 
@@ -742,7 +744,9 @@ fil_node_free(
 	fil_space_t*	space)	/* in: space where the file node is chained */
 {
 	ut_ad(node && system && space);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(system->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_a(node->magic_n == FIL_NODE_MAGIC_N);
 	ut_a(node->n_pending == 0);
 
@@ -805,14 +809,13 @@ there is an error, prints an error message to the .err log. */
 ibool
 fil_space_create(
 /*=============*/
-			/* out: TRUE if success */
-	char*	name,	/* in: space name */
-	ulint	id,	/* in: space id */
-	ulint	purpose)/* in: FIL_TABLESPACE, or FIL_LOG if log */
+				/* out: TRUE if success */
+	const char*	name,	/* in: space name */
+	ulint		id,	/* in: space id */
+	ulint		purpose)/* in: FIL_TABLESPACE, or FIL_LOG if log */
 {
 	fil_system_t*	system		= fil_system;
 	fil_space_t*	space;	
-	char*		name2;
 	ulint		namesake_id;
 try_again:
 	/*printf(
@@ -877,11 +880,7 @@ try_again:
 
 	space = mem_alloc(sizeof(fil_space_t));
 
-	name2 = mem_alloc(ut_strlen(name) + 1);
-
-	ut_strcpy(name2, name);
-
-	space->name = name2;
+	space->name = mem_strdup(name);
 	space->id = id;
 
 	system->tablespace_version++;
@@ -1316,12 +1315,11 @@ fil_write_lsn_and_arch_no_to_file(
 	ulint	sum_of_sizes,	/* in: combined size of previous files in
 				space, in database pages */
 	dulint	lsn,		/* in: lsn to write */
-	ulint	arch_log_no)	/* in: archived log number to write */
+	ulint	arch_log_no	/* in: archived log number to write */
+	__attribute__((unused)))
 {
 	byte*	buf1;
 	byte*	buf;
-
-	UT_NOT_USED(arch_log_no);
 
 	buf1 = mem_alloc(2 * UNIV_PAGE_SIZE);
 	buf = ut_align(buf1, UNIV_PAGE_SIZE);
@@ -1401,17 +1399,17 @@ fil_read_flushed_lsn_and_arch_log_no(
 	os_file_t data_file,		/* in: open data file */
 	ibool	one_read_already,	/* in: TRUE if min and max parameters
 					below already contain sensible data */
-	dulint*	min_flushed_lsn,	/* in/out: */
+#ifdef UNIV_LOG_ARCHIVE
 	ulint*	min_arch_log_no,	/* in/out: */
-	dulint*	max_flushed_lsn,	/* in/out: */
-	ulint*	max_arch_log_no)	/* in/out: */
+	ulint*	max_arch_log_no,	/* in/out: */
+#endif /* UNIV_LOG_ARCHIVE */
+	dulint*	min_flushed_lsn,	/* in/out: */
+	dulint*	max_flushed_lsn)	/* in/out: */
 {
 	byte*	buf;
 	byte*	buf2;
 	dulint	flushed_lsn;
-        ulint   arch_log_no     = 0;    /* since InnoDB does not archive
-                                        its own logs under MySQL, this
-                                        parameter is not relevant */
+
 	buf2 = ut_malloc(2 * UNIV_PAGE_SIZE);
 	/* Align the memory for a possible read from a raw device */
 	buf = ut_align(buf2, UNIV_PAGE_SIZE);
@@ -1425,9 +1423,10 @@ fil_read_flushed_lsn_and_arch_log_no(
 	if (!one_read_already) {
 		*min_flushed_lsn = flushed_lsn;
 		*max_flushed_lsn = flushed_lsn;
+#ifdef UNIV_LOG_ARCHIVE
 		*min_arch_log_no = arch_log_no;
 		*max_arch_log_no = arch_log_no;
-
+#endif /* UNIV_LOG_ARCHIVE */
 		return;
 	}
 
@@ -1437,12 +1436,14 @@ fil_read_flushed_lsn_and_arch_log_no(
 	if (ut_dulint_cmp(*max_flushed_lsn, flushed_lsn) < 0) {
 		*max_flushed_lsn = flushed_lsn;
 	}
+#ifdef UNIV_LOG_ARCHIVE
 	if (*min_arch_log_no > arch_log_no) {
 		*min_arch_log_no = arch_log_no;
 	}
 	if (*max_arch_log_no < arch_log_no) {
 		*max_arch_log_no = arch_log_no;
 	}
+#endif /* UNIV_LOG_ARCHIVE */
 }
 
 /*================ SINGLE-TABLE TABLESPACES ==========================*/
@@ -1512,33 +1513,31 @@ fil_decr_pending_ibuf_merges(
 	mutex_exit(&(system->mutex));
 }
 
-/************************************************************
-Creates the database directory for a table if it does not exist yet. */
 static
 void
 fil_create_directory_for_tablename(
 /*===============================*/
-	char*	name)	/* in: name in the standard 'databasename/tablename'
-			format */
+	const char*	name)	/* in: name in the standard
+				'databasename/tablename' format */
 {
-	char*	ptr;
-	char	path[OS_FILE_MAX_PATH];
+	const char*	namend;
+	char*		path;
+	ulint		len;
 
-	sprintf(path, "%s/%s", fil_path_to_mysql_datadir, name);
+	len = strlen(fil_path_to_mysql_datadir);
+	namend = strchr(name, '/');
+	ut_a(namend);
+	path = mem_alloc(len + (namend - name) + 2);
 
-	ptr = path + ut_strlen(path);
-
-	while (*ptr != '/') {
-		ptr--;
-
-		ut_a(ptr >= path);
-	}
-
-	*ptr = '\0';
+	memcpy(path, fil_path_to_mysql_datadir, len);
+	path[len] = '/';
+	memcpy(path + len + 1, name, namend - name);
+	path[len + (namend - name) + 1] = 0;
 
 	srv_normalize_path_for_win(path);
 
 	ut_a(os_file_create_directory(path, FALSE));
+	mem_free(path);
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -1548,16 +1547,18 @@ static
 void
 fil_op_write_log(
 /*=============*/
-	ulint	type,		/* in: MLOG_FILE_CREATE, MLOG_FILE_DELETE, or
-                        	MLOG_FILE_RENAME */
-	ulint	space_id,	/* in: space id */
-	char*	name,		/* in: table name in the familiar
-				'databasename/tablename' format, or the file
-				path in the case of MLOG_FILE_DELETE */ 
-	char*	new_name,	/* in: if type is MLOG_FILE_RENAME, the new
-				table name in the 'databasename/tablename'
-				format */
-	mtr_t*	mtr)		/* in: mini-transaction handle */
+	ulint		type,		/* in: MLOG_FILE_CREATE,
+					MLOG_FILE_DELETE, or
+					MLOG_FILE_RENAME */
+	ulint		space_id,	/* in: space id */
+	const char*	name,		/* in: table name in the familiar
+					'databasename/tablename' format, or
+					the file path in the case of
+					MLOG_FILE_DELETE */ 
+	const char*	new_name,	/* in: if type is MLOG_FILE_RENAME,
+					the new table name in the
+					'databasename/tablename' format */
+	mtr_t*		mtr)		/* in: mini-transaction handle */
 {
 	byte*	log_ptr;
 
@@ -1618,10 +1619,10 @@ fil_op_log_parse_or_replay(
 				the tablespace in question; otherwise
 				ignored */
 {
-	ulint	name_len;
-	ulint	new_name_len;
-	char*	name;
-	char*	new_name	= NULL;
+	ulint		name_len;
+	ulint		new_name_len;
+	const char*	name;
+	const char*	new_name	= NULL;
 
 	if (end_ptr < ptr + 2) {
 
@@ -1637,7 +1638,7 @@ fil_op_log_parse_or_replay(
 		return(NULL);
 	}
 
-	name = (char*) ptr;
+	name = (const char*) ptr;
 
 	ptr += name_len;
 
@@ -1656,7 +1657,7 @@ fil_op_log_parse_or_replay(
 			return(NULL);
 		}
 
-		new_name = (char*) ptr;
+		new_name = (const char*) ptr;
 
 		ptr += new_name_len;
 	}
@@ -1749,7 +1750,7 @@ fil_delete_tablespace(
 	fil_space_t*	space;
 	fil_node_t*	node;
 	ulint		count		= 0;
-	char		path[OS_FILE_MAX_PATH];
+	char*		path;
 
 	ut_a(id != 0);
 stop_ibuf_merges:
@@ -1806,10 +1807,7 @@ try_again:
 	}	
 
 	ut_a(space);
-	ut_a(strlen(space->name) < OS_FILE_MAX_PATH);
 	ut_a(space->n_pending_ibuf_merges == 0);
-
-	strcpy(path, space->name);
 
 	space->is_being_deleted = TRUE;
 
@@ -1834,6 +1832,8 @@ try_again:
 		goto try_again;
 	}
 
+	path = mem_strdup(space->name);
+
 	mutex_exit(&(system->mutex));
 #ifndef UNIV_HOTBACKUP
 	/* Invalidate in the buffer pool all pages belonging to the
@@ -1851,28 +1851,29 @@ try_again:
 
 	if (success) {
 		success = os_file_delete(path);
-
-		if (success) {
-			/* Write a log record about the deletion of the .ibd
-			file, so that ibbackup can replay it in the
-			--apply-log phase. We use a dummy mtr and the familiar
-			log write mechanism. */
-#ifndef UNIV_HOTBACKUP
-			{
-			mtr_t		mtr;
-
-			/* When replaying the operation in ibbackup, do not try
-			to write any log record */
-			mtr_start(&mtr);
-
-			fil_op_write_log(MLOG_FILE_DELETE, id, path,
-								NULL, &mtr);
-			mtr_commit(&mtr);
-			}
-#endif
-			return(TRUE);
-		}
 	}
+
+	if (success) {
+#ifndef UNIV_HOTBACKUP
+		/* Write a log record about the deletion of the .ibd
+		file, so that ibbackup can replay it in the
+		--apply-log phase. We use a dummy mtr and the familiar
+		log write mechanism. */
+		mtr_t		mtr;
+
+		/* When replaying the operation in ibbackup, do not try
+		to write any log record */
+		mtr_start(&mtr);
+
+		fil_op_write_log(MLOG_FILE_DELETE, id, path, NULL, &mtr);
+		mtr_commit(&mtr);
+#endif
+		mem_free(path);
+
+		return(TRUE);
+	}
+
+	mem_free(path);
 
 	return(FALSE);
 }
@@ -1919,11 +1920,11 @@ fil_rename_tablespace_in_mem(
 				/* out: TRUE if success */
 	fil_space_t*	space,	/* in: tablespace memory object */
 	fil_node_t*	node,	/* in: file node of that tablespace */
-	char*		path)	/* in: new name */
+	const char*	path)	/* in: new name */
 {
 	fil_system_t*	system		= fil_system;
 	fil_space_t*	space2;
-	char*		old_name	= space->name;
+	const char*	old_name	= space->name;
 	
 	HASH_SEARCH(name_hash, system->name_hash, ut_fold_string(old_name),
 			       space2, 0 == strcmp(old_name, space2->name));
@@ -1948,15 +1949,35 @@ fil_rename_tablespace_in_mem(
 	mem_free(space->name);
 	mem_free(node->name);
 
-	space->name = mem_alloc(strlen(path) + 1);
-	node->name = mem_alloc(strlen(path) + 1);
-
-	strcpy(space->name, path);
-	strcpy(node->name, path);
+	space->name = mem_strdup(path);
+	node->name = mem_strdup(path);
 
 	HASH_INSERT(fil_space_t, name_hash, system->name_hash,
 						ut_fold_string(path), space);
 	return(TRUE);
+}
+
+/***********************************************************************
+Allocates a file name for a single-table tablespace.
+The string must be freed by caller with mem_free(). */
+static
+char*
+fil_make_ibd_name(
+/*==============*/
+					/* out, own: file name */
+	const char*	name)		/* in: table name */
+{
+	ulint	namelen		= strlen(name);
+	ulint	dirlen		= strlen(fil_path_to_mysql_datadir);
+	char*	filename	= mem_alloc(namelen + dirlen + sizeof "/.ibd");
+
+	memcpy(filename, fil_path_to_mysql_datadir, dirlen);
+	filename[dirlen] = '/';
+	memcpy(filename + dirlen + 1, name, namelen);
+	memcpy(filename + dirlen + namelen + 1, ".ibd", sizeof ".ibd");
+
+	srv_normalize_path_for_win(filename);
+	return(filename);
 }
 
 /***********************************************************************
@@ -1966,28 +1987,29 @@ tablespace memory cache. */
 ibool
 fil_rename_tablespace(
 /*==================*/
-				/* out: TRUE if success */
-	char*	old_name,	/* in: old table name in the standard
-				databasename/tablename format of InnoDB, or
-				NULL if we do the rename based on the space
-				id only */
-	ulint	id,		/* in: space id */
-	char*	new_name)	/* in: new table name in the standard
-				databasename/tablename format of InnoDB */
+					/* out: TRUE if success */
+	const char*	old_name,	/* in: old table name in the standard
+					databasename/tablename format of
+					InnoDB, or NULL if we do the rename
+					based on the space id only */
+	ulint		id,		/* in: space id */
+	const char*	new_name)	/* in: new table name in the standard
+					databasename/tablename format
+					of InnoDB */
 {
 	fil_system_t*	system		= fil_system;
 	ibool		success;
 	fil_space_t*	space;
 	fil_node_t*	node;
 	ulint		count		= 0;
-	char*		path		= NULL;
+	char*		path;
 	ibool		old_name_was_specified 		= TRUE;
-	char		old_path[OS_FILE_MAX_PATH];
+	char*		old_path;
 
 	ut_a(id != 0);
 	
 	if (old_name == NULL) {
-		old_name = (char*)"(name not specified)";
+		old_name = "(name not specified)";
 		old_name_was_specified = FALSE;
 	}
 retry:
@@ -2061,48 +2083,33 @@ retry:
 	/* Check that the old name in the space is right */
 
 	if (old_name_was_specified) {
-		ut_a(strlen(old_name) + strlen(fil_path_to_mysql_datadir)
-						< OS_FILE_MAX_PATH - 10);
-		sprintf(old_path, "%s/%s.ibd", fil_path_to_mysql_datadir,
-								old_name);
-		srv_normalize_path_for_win(old_path);
+		old_path = fil_make_ibd_name(old_name);
 
 		ut_a(strcmp(space->name, old_path) == 0);
 		ut_a(strcmp(node->name, old_path) == 0);
 	} else {
-		sprintf(old_path, "%s", space->name);
+		old_path = mem_strdup(space->name);
 	}
 
 	/* Rename the tablespace and the node in the memory cache */
-	
-	ut_a(strlen(new_name) + strlen(fil_path_to_mysql_datadir)
-						< OS_FILE_MAX_PATH - 10);
-	path = mem_alloc(OS_FILE_MAX_PATH);
-
-	sprintf(path, "%s/%s.ibd", fil_path_to_mysql_datadir, new_name);
-
-	srv_normalize_path_for_win(path);
-
+	path = fil_make_ibd_name(new_name);
 	success = fil_rename_tablespace_in_mem(space, node, path);
 
-	if (!success) {
+	if (success) {
+		success = os_file_rename(old_path, path);
 
-		goto func_exit;	
+		if (!success) {
+			/* We have to revert the changes we made
+			to the tablespace memory cache */
+
+			ut_a(fil_rename_tablespace_in_mem(space, node,
+								old_path));
+		}
 	}
 
-	success = os_file_rename(old_path, path);
+	mem_free(path);
+	mem_free(old_path);
 
-	if (!success) {
-		/* We have to revert the changes we made to the tablespace
-		memory cache */
-
-		ut_a(fil_rename_tablespace_in_mem(space, node, old_path));
-	}
-
-func_exit:
-	if (path) {
-		mem_free(path);
-	}
 	space->stop_ios = FALSE;
 
 	mutex_exit(&(system->mutex));
@@ -2130,30 +2137,28 @@ path '.'. */
 ulint
 fil_create_new_single_table_tablespace(
 /*===================================*/
-				/* out: DB_SUCCESS or error code */
-	ulint*	space_id,	/* in/out: space id; if this is != 0, then
-				this is an input parameter, otherwise
-				output */
-	char*	tablename,	/* in: the table name in the usual
-				databasename/tablename format of InnoDB */
-	ulint	size)		/* in: the initial size of the tablespace file
-				in pages, must be >= FIL_IBD_FILE_INITIAL_SIZE
-				*/
+					/* out: DB_SUCCESS or error code */
+	ulint*		space_id,	/* in/out: space id; if this is != 0,
+					then this is an input parameter,
+					otherwise output */
+	const char*	tablename,	/* in: the table name in the usual
+					databasename/tablename format
+					of InnoDB */
+	ulint		size)		/* in: the initial size of the
+					tablespace file in pages,
+					must be >= FIL_IBD_FILE_INITIAL_SIZE */
 {
 	os_file_t       file;
 	ibool		ret;
 	ulint		err;
+	byte*		buf2;
 	byte*		page;
 	ibool		success;
-	char		path[OS_FILE_MAX_PATH];
+	char*		path;
 
 	ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
 
-	ut_a(strlen(tablename) + strlen(fil_path_to_mysql_datadir)
-						< OS_FILE_MAX_PATH - 10);
-	sprintf(path, "%s/%s.ibd", fil_path_to_mysql_datadir, tablename);
-
-	srv_normalize_path_for_win(path);
+	path = fil_make_ibd_name(tablename);
 	
 	file = os_file_create(path, OS_FILE_CREATE, OS_FILE_NORMAL,
 						    OS_DATA_FILE, &ret);
@@ -2176,26 +2181,32 @@ fil_create_new_single_table_tablespace(
 "InnoDB: resolve the problem by removing the file %s\n"
 "InnoDB: under the 'datadir' of MySQL.\n", path);
 
+			mem_free(path);
 			return(DB_TABLESPACE_ALREADY_EXISTS);
 		}
 
 		if (err == OS_FILE_DISK_FULL) {
 
+			mem_free(path);
 			return(DB_OUT_OF_FILE_SPACE);
 		}
 
+		mem_free(path);
 		return(DB_ERROR);
 	}
 
-	page = ut_malloc(UNIV_PAGE_SIZE);
+	buf2 = ut_malloc(2 * UNIV_PAGE_SIZE);
+	/* Align the memory for file i/o if we might have O_DIRECT set */
+	page = ut_align(buf2, UNIV_PAGE_SIZE);
 
 	ret = os_file_set_size(path, file, size * UNIV_PAGE_SIZE, 0);
 	
 	if (!ret) {
-		ut_free(page);
+		ut_free(buf2);
 		os_file_close(file);
 		os_file_delete(path);
 
+		mem_free(path);
 		return(DB_OUT_OF_FILE_SPACE);
 	}
 
@@ -2206,10 +2217,13 @@ fil_create_new_single_table_tablespace(
 	/* printf("Creating tablespace %s id %lu\n", path, *space_id); */
 
 	if (*space_id == ULINT_UNDEFINED) {
-		ut_free(page);
+		ut_free(buf2);
+	error_exit:
 		os_file_close(file);
+	error_exit2:
 		os_file_delete(path);
 
+		mem_free(path);
 		return(DB_ERROR);
 	}
 
@@ -2230,16 +2244,12 @@ fil_create_new_single_table_tablespace(
 
 	ret = os_file_write(path, file, page, 0, 0, UNIV_PAGE_SIZE);
 
-	ut_free(page);
+	ut_free(buf2);
 
 	if (!ret) {
 		fprintf(stderr,
 "InnoDB: Error: could not write the first page to tablespace %s\n", path);
-
-		os_file_close(file);
-		os_file_delete(path);
-
-		return(DB_ERROR);
+		goto error_exit;
 	}
 
 	ret = os_file_flush(file);
@@ -2247,27 +2257,19 @@ fil_create_new_single_table_tablespace(
 	if (!ret) {
 		fprintf(stderr,
 "InnoDB: Error: file flush of tablespace %s failed\n", path);
-
-		os_file_close(file);
-		os_file_delete(path);
-
-		return(DB_ERROR);
+		goto error_exit;
 	}
 
 	os_file_close(file);
 
 	if (*space_id == ULINT_UNDEFINED) {
-		os_file_delete(path);
-
-		return(DB_ERROR);
+		goto error_exit2;
 	}
 
 	success = fil_space_create(path, *space_id, FIL_TABLESPACE);
 	
 	if (!success) {
-		os_file_delete(path);
-
-		return(DB_ERROR);
+		goto error_exit2;
 	}	
 
 	fil_node_create(path, size, *space_id, FALSE);
@@ -2283,6 +2285,7 @@ fil_create_new_single_table_tablespace(
 	mtr_commit(&mtr);
 	}
 #endif
+	mem_free(path);
 	return(DB_SUCCESS);
 }
 
@@ -2299,16 +2302,17 @@ lsn's just by looking at that flush lsn. */
 ibool
 fil_reset_too_high_lsns(
 /*====================*/
-				/* out: TRUE if success */
-	char*	name,		/* in: table name in the databasename/tablename
-				format */
-	dulint	current_lsn)	/* in: reset lsn's if the lsn stamped to
-				FIL_PAGE_FILE_FLUSH_LSN in the first page is
-				too high */
+					/* out: TRUE if success */
+	const char*	name,		/* in: table name in the
+					databasename/tablename format */
+	dulint		current_lsn)	/* in: reset lsn's if the lsn stamped
+					to FIL_PAGE_FILE_FLUSH_LSN in the
+					first page is too high */
 {
 	os_file_t	file;
 	char*		filepath;
 	byte*		page;
+	byte*		buf2;
 	dulint		flush_lsn;
 	ulint		space_id;
 	ib_longlong	file_size;
@@ -2316,25 +2320,21 @@ fil_reset_too_high_lsns(
 	ulint		page_no;
 	ibool		success;
 
-	filepath = ut_malloc(OS_FILE_MAX_PATH);
-
-	ut_a(strlen(name) < OS_FILE_MAX_PATH - 10);
-
-	sprintf(filepath, "%s/%s.ibd", fil_path_to_mysql_datadir, name);
-					
-	srv_normalize_path_for_win(filepath);
+	filepath = fil_make_ibd_name(name);
 
 	file = os_file_create_simple_no_error_handling(filepath, OS_FILE_OPEN,
 						OS_FILE_READ_WRITE, &success);
 	if (!success) {
-		ut_free(filepath);
+		mem_free(filepath);
 
 		return(FALSE);
 	}
 
 	/* Read the first page of the tablespace */
 
-	page = ut_malloc(UNIV_PAGE_SIZE);
+	buf2 = ut_malloc(2 * UNIV_PAGE_SIZE);
+	/* Align the memory for file i/o if we might have O_DIRECT set */
+	page = ut_align(buf2, UNIV_PAGE_SIZE);
 
 	success = os_file_read(file, page, 0, 0, UNIV_PAGE_SIZE);
 	if (!success) {
@@ -2421,8 +2421,8 @@ fil_reset_too_high_lsns(
 	success = os_file_flush(file);
 func_exit:
 	os_file_close(file);
-	ut_free(page);
-	ut_free(filepath);
+	ut_free(buf2);
+	mem_free(filepath);
 
 	return(success);
 }
@@ -2439,25 +2439,20 @@ closes it after we have looked at the space id in it. */
 ibool
 fil_open_single_table_tablespace(
 /*=============================*/
-			/* out: TRUE if success */
-	ulint	id,	/* in: space id */
-	char*	name)	/* in: table name in the databasename/tablename
-			format */
+				/* out: TRUE if success */
+	ulint		id,	/* in: space id */
+	const char*	name)	/* in: table name in the
+				databasename/tablename format */
 {
 	os_file_t	file;
 	char*		filepath;
 	ibool		success;
+	byte*		buf2;
 	byte*		page;
 	ulint		space_id;
 	ibool		ret		= TRUE;
 
-	filepath = ut_malloc(OS_FILE_MAX_PATH);
-
-	ut_a(strlen(name) < OS_FILE_MAX_PATH - 10);
-
-	sprintf(filepath, "%s/%s.ibd", fil_path_to_mysql_datadir, name);
-					
-	srv_normalize_path_for_win(filepath);
+	filepath = fil_make_ibd_name(name);
 
 	file = os_file_create_simple_no_error_handling(filepath, OS_FILE_OPEN,
 						OS_FILE_READ_ONLY, &success);
@@ -2476,14 +2471,16 @@ fil_open_single_table_tablespace(
 "InnoDB: You can look from section 15.1 of http://www.innodb.com/ibman.html\n"
 "InnoDB: how to resolve the issue.\n");
 
-		ut_free(filepath);
+		mem_free(filepath);
 
 		return(FALSE);
 	}
 
 	/* Read the first page of the tablespace */
 
-	page = ut_malloc(UNIV_PAGE_SIZE);
+	buf2 = ut_malloc(2 * UNIV_PAGE_SIZE);
+	/* Align the memory for file i/o if we might have O_DIRECT set */
+	page = ut_align(buf2, UNIV_PAGE_SIZE);
 
 	success = os_file_read(file, page, 0, 0, UNIV_PAGE_SIZE);
 
@@ -2520,11 +2517,33 @@ fil_open_single_table_tablespace(
 	fil_node_create(filepath, 0, space_id, FALSE);
 func_exit:
 	os_file_close(file);
-	ut_free(page);
-	ut_free(filepath);
+	ut_free(buf2);
+	mem_free(filepath);
 
 	return(ret);
 }
+
+#ifdef UNIV_HOTBACKUP
+/***********************************************************************
+Allocates a file name for an old version of a single-table tablespace.
+The string must be freed by caller with mem_free()! */
+static
+char*
+fil_make_ibbackup_old_name(
+/*=======================*/
+					/* out, own: file name */
+	const char*	name)		/* in: original file name */
+{
+	static const char suffix[] = "_ibbackup_old_vers_";
+	ulint	len	= strlen(name);
+	char*	path	= mem_alloc(len + (15 + sizeof suffix));
+
+	memcpy(path, name, len);
+	memcpy(path + len, suffix, (sizeof suffix) - 1);
+	ut_sprintf_timestamp_without_extra_chars(path + len + sizeof suffix);
+	return(path);
+}
+#endif /* UNIV_HOTBACKUP */
 
 /************************************************************************
 Opens an .ibd file and adds the associated single-table tablespace to the
@@ -2533,13 +2552,14 @@ static
 void
 fil_load_single_table_tablespace(
 /*=============================*/
-	char*	dbname,		/* in: database name */
-	char*	filename)	/* in: file name (not a path), including the
-				.ibd extension */
+	const char*	dbname,		/* in: database name */
+	const char*	filename)	/* in: file name (not a path),
+					including the .ibd extension */
 {
 	os_file_t	file;
 	char*		filepath;
 	ibool		success;
+	byte*		buf2;
 	byte*		page;
 	ulint		space_id;
 	ulint		size_low;
@@ -2548,10 +2568,8 @@ fil_load_single_table_tablespace(
 #ifdef UNIV_HOTBACKUP
 	fil_space_t*	space;
 #endif
-	filepath = ut_malloc(OS_FILE_MAX_PATH);
-
-	ut_a(strlen(dbname) + strlen(filename) 
-	+ strlen(fil_path_to_mysql_datadir) < OS_FILE_MAX_PATH - 100);
+	filepath = mem_alloc(strlen(dbname) + strlen(filename) 
+			+ strlen(fil_path_to_mysql_datadir) + 3);
 
 	sprintf(filepath, "%s/%s/%s", fil_path_to_mysql_datadir, dbname,
 								filename);
@@ -2565,11 +2583,30 @@ fil_load_single_table_tablespace(
 
 	        fprintf(stderr,
 "InnoDB: Error: could not open single-table tablespace file\n"
-"InnoDB: %s!", filepath);
+"InnoDB: %s!\n"
+"InnoDB: We do not continue crash recovery, because the table will become\n"
+"InnoDB: corrupt if we cannot apply the log records in the InnoDB log to it.\n"
+"InnoDB: To fix the problem and start mysqld:\n"
+"InnoDB: 1) If there is a permission problem in the file and mysqld cannot\n"
+"InnoDB: open the file, you should modify the permissions.\n"
+"InnoDB: 2) If the table is not needed, or you can restore it from a backup,\n"
+"InnoDB: then you can remove the .ibd file, and InnoDB will do a normal\n"
+"InnoDB: crash recovery and ignore that table.\n"
+"InnoDB: 3) If the file system or the disk is broken, and you cannot remove\n"
+"InnoDB: the .ibd file, you can set innodb_force_recovery > 0 in my.cnf\n"
+"InnoDB: and force InnoDB to continue crash recovery here.\n", filepath);
 
-		ut_free(filepath);
+		mem_free(filepath);
 
-		return;
+		if (srv_force_recovery > 0) {
+			fprintf(stderr,
+"InnoDB: innodb_force_recovery was set to %lu. Continuing crash recovery\n"
+"InnoDB: even though we cannot access the .ibd file of this table.\n",
+							srv_force_recovery);
+			return;
+		}
+
+		exit(1);
 	}
 
 	success = os_file_get_size(file, &size_low, &size_high);
@@ -2580,13 +2617,35 @@ fil_load_single_table_tablespace(
 
 	        fprintf(stderr,
 "InnoDB: Error: could not measure the size of single-table tablespace file\n"
-"InnoDB: %s!", filepath);
+"InnoDB: %s!\n"
+"InnoDB: We do not continue crash recovery, because the table will become\n"
+"InnoDB: corrupt if we cannot apply the log records in the InnoDB log to it.\n"
+"InnoDB: To fix the problem and start mysqld:\n"
+"InnoDB: 1) If there is a permission problem in the file and mysqld cannot\n"
+"InnoDB: access the file, you should modify the permissions.\n"
+"InnoDB: 2) If the table is not needed, or you can restore it from a backup,\n"
+"InnoDB: then you can remove the .ibd file, and InnoDB will do a normal\n"
+"InnoDB: crash recovery and ignore that table.\n"
+"InnoDB: 3) If the file system or the disk is broken, and you cannot remove\n"
+"InnoDB: the .ibd file, you can set innodb_force_recovery > 0 in my.cnf\n"
+"InnoDB: and force InnoDB to continue crash recovery here.\n", filepath);
 
 		os_file_close(file);
-		ut_free(filepath);
+		mem_free(filepath);
 
-		return;
+		if (srv_force_recovery > 0) {
+			fprintf(stderr,
+"InnoDB: innodb_force_recovery was set to %lu. Continuing crash recovery\n"
+"InnoDB: even though we cannot access the .ibd file of this table.\n",
+							srv_force_recovery);
+			return;
+		}
+
+		exit(1);
 	}
+
+	/* TODO: What to do in other cases where we cannot access an .ibd
+	file during a crash recovery? */
 
 	/* Every .ibd file is created >= 4 pages in size. Smaller files
 	cannot be ok. */
@@ -2600,14 +2659,16 @@ fil_load_single_table_tablespace(
 			(ulong) size_high,
 			(ulong) size_low, (ulong) (4 * UNIV_PAGE_SIZE));
 		os_file_close(file);
-		ut_free(filepath);
+		mem_free(filepath);
 
 		return;
 	}
 #endif
 	/* Read the first page of the tablespace if the size big enough */
 
-	page = ut_malloc(UNIV_PAGE_SIZE);
+	buf2 = ut_malloc(2 * UNIV_PAGE_SIZE);
+	/* Align the memory for file i/o if we might have O_DIRECT set */
+	page = ut_align(buf2, UNIV_PAGE_SIZE);
 
 	if (size >= FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
 		success = os_file_read(file, page, 0, 0, UNIV_PAGE_SIZE);
@@ -2640,16 +2701,12 @@ fil_load_single_table_tablespace(
 				filepath, space_id, filepath, size);
 		os_file_close(file);
 
-		new_path = ut_malloc(OS_FILE_MAX_PATH);
-
-		sprintf(new_path, "%s_ibbackup_old_vers_", filepath);
-		ut_sprintf_timestamp_without_extra_chars(
-					new_path + ut_strlen(new_path));
+		new_path = fil_make_ibbackup_old_name(filepath);
 		ut_a(os_file_rename(filepath, new_path));
 
-		ut_free(page);
-		ut_free(filepath);
-		ut_free(new_path);
+		ut_free(buf2);
+		mem_free(filepath);
+		mem_free(new_path);
 
 		return;
 	}
@@ -2677,18 +2734,15 @@ fil_load_single_table_tablespace(
 								space->name);
 		os_file_close(file);
 
-		new_path = ut_malloc(OS_FILE_MAX_PATH);
+		new_path = fil_make_ibbackup_old_name(filepath);
 
-		sprintf(new_path, "%s_ibbackup_old_vers_", filepath);
-		ut_sprintf_timestamp_without_extra_chars(
-					new_path + ut_strlen(new_path));
 		mutex_exit(&(fil_system->mutex));
 
 		ut_a(os_file_rename(filepath, new_path));
 
-		ut_free(page);
-		ut_free(filepath);
-		ut_free(new_path);
+		ut_free(buf2);
+		mem_free(filepath);
+		mem_free(new_path);
 
 		return;
 	}
@@ -2707,8 +2761,8 @@ fil_load_single_table_tablespace(
 	fil_node_create(filepath, 0, space_id, FALSE);
 func_exit:
 	os_file_close(file);
-	ut_free(page);
-	ut_free(filepath);
+	ut_free(buf2);
+	mem_free(filepath);
 }
 
 /************************************************************************
@@ -2725,7 +2779,8 @@ fil_load_single_table_tablespaces(void)
 			/* out: DB_SUCCESS or error number */
 {
 	int		ret;
-	char*		dbpath;
+	char*		dbpath		= NULL;
+	ulint		dbpath_len	= 100;
 	os_file_dir_t	dir;
 	os_file_dir_t	dbdir;
 	os_file_stat_t	dbinfo;
@@ -2740,7 +2795,7 @@ fil_load_single_table_tablespaces(void)
 		return(DB_ERROR);
 	}
 
-	dbpath = ut_malloc(OS_FILE_MAX_PATH);
+	dbpath = mem_alloc(dbpath_len);
 
 	/* Scan all directories under the datadir. They are the database
 	directories of MySQL. */
@@ -2748,6 +2803,7 @@ fil_load_single_table_tablespaces(void)
 	ret = os_file_readdir_next_file(fil_path_to_mysql_datadir, dir,
 								&dbinfo);
 	while (ret == 0) {
+		ulint len;
 		/* printf("Looking at %s in datadir\n", dbinfo.name); */
 
 		if (dbinfo.type == OS_FILE_TYPE_FILE
@@ -2758,9 +2814,18 @@ fil_load_single_table_tablespaces(void)
 
 		/* We found a symlink or a directory; try opening it to see
 		if a symlink is a directory */
-		
-		ut_a(strlen(dbinfo.name) < OS_FILE_MAX_PATH - 10);
 
+		len = strlen(fil_path_to_mysql_datadir)
+				+ strlen (dbinfo.name) + 2;
+		if (len > dbpath_len) {
+			dbpath_len = len;
+
+			if (dbpath) {
+				mem_free(dbpath);
+			}
+
+			dbpath = mem_alloc(dbpath_len);
+		}
 		sprintf(dbpath, "%s/%s", fil_path_to_mysql_datadir,
 								dbinfo.name);
 		srv_normalize_path_for_win(dbpath);
@@ -2810,7 +2875,7 @@ next_datadir_item:
 								dir, &dbinfo);
 	}
 
-	ut_free(dbpath);
+	mem_free(dbpath);
 
 	/* At the end of directory we should get 1 as the return value, -1
 	if there was an error */
@@ -2943,32 +3008,33 @@ there may be many tablespaces which are not yet in the memory cache. */
 ibool
 fil_space_for_table_exists_in_mem(
 /*==============================*/
-				/* out: TRUE if a matching tablespace exists
-				in the memory cache */
-	ulint	id,		/* in: space id */
-	char*	name,		/* in: table name in the standard
-				'databasename/tablename' format */
-	ibool	mark_space,	/* in: in crash recovery, at database startup
-				we mark all spaces which have an associated
-				table in the InnoDB data dictionary, so that
-				we can print a warning about orphaned
-				tablespaces */
-	ibool	print_error_if_does_not_exist)
-				/* in: print detailed error information to
-				the .err log if a matching tablespace is
-				not found from memory */
+					/* out: TRUE if a matching tablespace
+					exists in the memory cache */
+	ulint		id,		/* in: space id */
+	const char*	name,		/* in: table name in the standard
+					'databasename/tablename' format */
+	ibool		mark_space,	/* in: in crash recovery, at database
+					startup we mark all spaces which have
+					an associated table in the InnoDB
+					data dictionary, so that
+					we can print a warning about orphaned
+					tablespaces */
+	ibool		print_error_if_does_not_exist)
+					/* in: print detailed error
+					information to the .err log if a
+					matching tablespace is not found from
+					memory */
 {
 	fil_system_t*	system		= fil_system;
 	fil_space_t*	namespace;
 	fil_space_t*	space;
-	char		path[OS_FILE_MAX_PATH];
+	char*		path;
 
 	ut_ad(system);
 
 	mutex_enter(&(system->mutex));
 
-	sprintf(path, "%s/%s.ibd", fil_path_to_mysql_datadir, name);
-	srv_normalize_path_for_win(path);
+	path = fil_make_ibd_name(name);
 
 	/* Look if there is a space with the same id */
 
@@ -2987,6 +3053,7 @@ fil_space_for_table_exists_in_mem(
 			space->mark = TRUE;
 		}
 
+		mem_free(path);
 		mutex_exit(&(system->mutex));
 
 		return(TRUE);
@@ -2994,6 +3061,7 @@ fil_space_for_table_exists_in_mem(
 
 	if (!print_error_if_does_not_exist) {
 		
+		mem_free(path);
 		mutex_exit(&(system->mutex));
 		
 		return(FALSE);
@@ -3023,6 +3091,7 @@ fil_space_for_table_exists_in_mem(
 "InnoDB: You can look from section 15.1 of http://www.innodb.com/ibman.html\n"
 "InnoDB: how to resolve the issue.\n");
 
+		mem_free(path);
 		mutex_exit(&(system->mutex));
 
 		return(FALSE);
@@ -3046,11 +3115,13 @@ fil_space_for_table_exists_in_mem(
 "InnoDB: You can look from section 15.1 of http://www.innodb.com/ibman.html\n"
 "InnoDB: how to resolve the issue.\n");
 
+		mem_free(path);
 		mutex_exit(&(system->mutex));
 
 		return(FALSE);
 	}
 
+	mem_free(path);
 	mutex_exit(&(system->mutex));
 
 	return(FALSE);
@@ -3065,20 +3136,19 @@ fil_get_space_id_for_table(
 /*=======================*/
 				/* out: space id, ULINT_UNDEFINED if not
 				found */
-	char*	name)		/* in: table name in the standard
+	const char*	name)	/* in: table name in the standard
 				'databasename/tablename' format */
 {
 	fil_system_t*	system		= fil_system;
 	fil_space_t*	namespace;
 	ulint		id		= ULINT_UNDEFINED;
-	char		path[OS_FILE_MAX_PATH];
+	char*		path;
 
 	ut_ad(system);
 
 	mutex_enter(&(system->mutex));
 
-	sprintf(path, "%s/%s.ibd", fil_path_to_mysql_datadir, name);
-	srv_normalize_path_for_win(path);
+	path = fil_make_ibd_name(name);
 
 	/* Look if there is a space with the same name; the name is the
 	directory path to the file */
@@ -3089,6 +3159,8 @@ fil_get_space_id_for_table(
 	if (namespace) {
 		id = namespace->id;
 	}	
+
+	mem_free(path);
 
 	mutex_exit(&(system->mutex));
 
@@ -3218,7 +3290,7 @@ fil_extend_space_to_desired_size(
 /************************************************************************
 Extends all tablespaces to the size stored in the space header. During the
 ibbackup --apply-log phase we extended the spaces on-demand so that log records
-could be appllied, but that may have left spaces still too small compared to
+could be applied, but that may have left spaces still too small compared to
 the size stored in the space header. */
 
 void
@@ -3383,7 +3455,9 @@ fil_node_prepare_for_io(
 	fil_space_t*	space)	/* in: space */
 {
 	ut_ad(node && system && space);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(system->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	
 	if (system->n_open > system->max_n_open + 5) {
 		ut_print_timestamp(stderr);
@@ -3427,7 +3501,9 @@ fil_node_complete_io(
 {
 	ut_ad(node);
 	ut_ad(system);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(system->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	ut_a(node->n_pending > 0);
 	
@@ -3561,7 +3637,7 @@ fil_io(
 			space->name, (ulong) byte_offset, (ulong) len,
 			(ulong) type);
  			
-			ut_a(0);
+			ut_error;
 		}
 
 		if (node->size > block_offset) {
@@ -3718,7 +3794,7 @@ fil_aio_wait(
 	ut_ad(fil_validate());
 
 	if (os_aio_use_native_aio) {
-		srv_io_thread_op_info[segment] = (char *) "handle native aio";
+		srv_set_io_thread_op_info(segment, "native aio handle");
 #ifdef WIN_ASYNC_IO
 		ret = os_aio_windows_handle(segment, 0, (void**) &fil_node,
 					    &message, &type);
@@ -3726,10 +3802,10 @@ fil_aio_wait(
 		ret = os_aio_posix_handle(segment, &fil_node, &message);
 #else
 		ret = 0; /* Eliminate compiler warning */
-		ut_a(0);
+		ut_error;
 #endif
 	} else {
-		srv_io_thread_op_info[segment] =(char *)"handle simulated aio";
+		srv_set_io_thread_op_info(segment, "simulated aio handle");
 
 		ret = os_aio_simulated_handle(segment, (void**) &fil_node,
 	                                               &message, &type);
@@ -3737,7 +3813,7 @@ fil_aio_wait(
 	
 	ut_a(ret);
 
-	srv_io_thread_op_info[segment] = (char *) "complete io for fil node";
+	srv_set_io_thread_op_info(segment, "complete io for fil node");
 
 	mutex_enter(&(system->mutex));
 
@@ -3754,11 +3830,10 @@ fil_aio_wait(
 	open, and use a special i/o thread to serve insert buffer requests. */
 
 	if (buf_pool_is_block(message)) {
-		srv_io_thread_op_info[segment] =
-		  (char *) "complete io for buf page";
+		srv_set_io_thread_op_info(segment, "complete io for buf page");
 		buf_page_io_complete(message);
 	} else {
-		srv_io_thread_op_info[segment] =(char *) "complete io for log";
+		srv_set_io_thread_op_info(segment, "complete io for log");
 		log_io_complete(message);
 	}
 }
@@ -3839,7 +3914,9 @@ retry:
 
 			mutex_exit(&(system->mutex));
 
-			/* printf("Flushing to file %s\n", node->name); */
+			/* fprintf(stderr, "Flushing to file %s\n",
+				node->name); */
+
 			os_file_flush(file);		
 
 			mutex_enter(&(system->mutex));

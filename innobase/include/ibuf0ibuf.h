@@ -177,15 +177,6 @@ ibuf_page_low(
 	mtr_t*	mtr);	/* in: mtr which will contain an x-latch to the
 			bitmap page if the page is not one of the fixed
 			address ibuf pages */
-/*************************************************************************
-Checks if an index page has so much free space that the free bit should
-be set TRUE in the ibuf bitmap. */
-
-ibool
-ibuf_index_page_has_free(
-/*=====================*/
-			/* out: TRUE if there is enough free space */
-	page_t*	page);	/* in: non-unique secondary index page */
 /***************************************************************************
 Frees excess pages from the ibuf free list. This function is called when an OS
 thread calls fsp services to allocate a new file segment, or a new page to a
@@ -299,8 +290,7 @@ Prints info of ibuf. */
 void
 ibuf_print(
 /*=======*/
-	char*	buf,	/* in/out: buffer where to print */
-	char*	buf_end);/* in: buffer end */
+	FILE*	file);	/* in: file where to print */
 
 #define IBUF_HEADER_PAGE_NO	FSP_IBUF_HEADER_PAGE_NO
 #define IBUF_TREE_ROOT_PAGE_NO	FSP_IBUF_TREE_ROOT_PAGE_NO

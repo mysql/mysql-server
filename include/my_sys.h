@@ -121,6 +121,13 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_ERRNO_EDOM		33
 #define MY_ERRNO_ERANGE		34
 
+	/* Bits for get_date timeflag */
+#define GETDATE_DATE_TIME	1
+#define GETDATE_SHORT_DATE	2
+#define GETDATE_HHMMSSTIME	4
+#define GETDATE_GMT		8
+#define GETDATE_FIXEDLENGTH	16
+
 	/* defines when allocating data */
 #ifdef SAFEMALLOC
 #define my_malloc(SZ,FLAG) _mymalloc((SZ), __FILE__, __LINE__, FLAG )
@@ -202,25 +209,12 @@ extern char NEAR curr_dir[];		/* Current directory for user */
 extern int (*error_handler_hook)(uint my_err, const char *str,myf MyFlags);
 extern int (*fatal_error_handler_hook)(uint my_err, const char *str,
 				       myf MyFlags);
+extern uint my_file_limit;
 
 /* charsets */
 extern CHARSET_INFO *default_charset_info;
 extern CHARSET_INFO *all_charsets[256];
 extern CHARSET_INFO compiled_charsets[];
-
-extern uint get_charset_number(const char *cs_name, uint cs_flags);
-extern uint get_collation_number(const char *name);
-extern const char *get_charset_name(uint cs_number);
-
-extern CHARSET_INFO *get_charset(uint cs_number, myf flags);
-extern CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags);
-extern CHARSET_INFO *get_charset_by_csname(const char *cs_name,
-					   uint cs_flags, myf my_flags);
-extern void free_charsets(void);
-extern char *get_charsets_dir(char *buf);
-extern my_bool my_charset_same(CHARSET_INFO *cs1, CHARSET_INFO *cs2);
-extern my_bool init_compiled_charsets(myf flags);
-extern void add_compiled_collation(CHARSET_INFO *cs);
 
 /* statistics */
 extern ulong	my_cache_w_requests, my_cache_write, my_cache_r_requests,
@@ -288,14 +282,16 @@ enum file_type
   FILE_BY_MKSTEMP, FILE_BY_DUP
 };
 
-extern struct my_file_info
+struct st_my_file_info
 {
   my_string		name;
   enum file_type	type;
 #if defined(THREAD) && !defined(HAVE_PREAD)
   pthread_mutex_t	mutex;
 #endif
-} my_file_info[MY_NFILE];
+};
+
+extern struct st_my_file_info *my_file_info;
 
 typedef struct st_my_tmpdir
 {
@@ -423,6 +419,11 @@ typedef struct st_io_cache		/* Used when cacheing files */
   IO_CACHE_CALLBACK pre_read;
   IO_CACHE_CALLBACK post_read;
   IO_CACHE_CALLBACK pre_close;
+  /*
+    Counts the number of times, when we were forced to use disk. We use it to
+    increase the binlog_cache_disk_use status variable.
+  */
+  ulong disk_writes;
   void* arg;				/* for use by pre/post_read */
   char *file_name;			/* if used with 'open_cached_file' */
   char *dir,*prefix;
@@ -618,7 +619,7 @@ extern void pack_dirname(my_string to,const char *from);
 extern uint unpack_dirname(my_string to,const char *from);
 extern uint cleanup_dirname(my_string to,const char *from);
 extern uint system_filename(my_string to,const char *from);
-extern my_string unpack_filename(my_string to,const char *from);
+extern uint unpack_filename(my_string to,const char *from);
 extern my_string intern_filename(my_string to,const char *from);
 extern my_string directory_file_name(my_string dst, const char *src);
 extern int pack_filename(my_string to, const char *name, size_s max_length);
@@ -675,9 +676,9 @@ extern int my_b_safe_write(IO_CACHE *info,const byte *Buffer,uint Count);
 
 extern int my_block_write(IO_CACHE *info, const byte *Buffer,
 			  uint Count, my_off_t pos);
-extern int _flush_io_cache(IO_CACHE *info, int need_append_buffer_lock);
+extern int my_b_flush_io_cache(IO_CACHE *info, int need_append_buffer_lock);
 
-#define flush_io_cache(info) _flush_io_cache((info),1)
+#define flush_io_cache(info) my_b_flush_io_cache((info),1)
 
 extern int end_io_cache(IO_CACHE *info);
 extern uint my_b_fill(IO_CACHE *info);
@@ -726,11 +727,14 @@ extern void my_free_lock(byte *ptr,myf flags);
 #define my_free_lock(A,B) my_free((A),(B))
 #endif
 #define alloc_root_inited(A) ((A)->min_malloc != 0)
+#define clear_alloc_root(A) bzero((void *) (A), sizeof(MEM_ROOT))
 extern void init_alloc_root(MEM_ROOT *mem_root, uint block_size,
 			    uint pre_alloc_size);
 extern gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size);
 extern void free_root(MEM_ROOT *root, myf MyFLAGS);
 extern void set_prealloc_root(MEM_ROOT *root, char *ptr);
+extern void reset_root_defaults(MEM_ROOT *mem_root, uint block_size,
+                                uint prealloc_size);
 extern char *strdup_root(MEM_ROOT *root,const char *str);
 extern char *strmake_root(MEM_ROOT *root,const char *str,uint len);
 extern char *memdup_root(MEM_ROOT *root,const char *str,uint len);
@@ -744,8 +748,31 @@ extern byte *my_compress_alloc(const byte *packet, ulong *len, ulong *complen);
 extern ha_checksum my_checksum(ha_checksum crc, const byte *mem, uint count);
 extern uint my_bit_log2(ulong value);
 extern uint my_count_bits(ulonglong v);
+extern uint my_count_bits_ushort(ushort v);
 extern void my_sleep(ulong m_seconds);
 extern ulong crc32(ulong crc, const uchar *buf, uint len);
+extern uint my_set_max_open_files(uint files);
+void my_free_open_file_info(void);
+
+ulonglong my_getsystime(void);
+my_bool my_gethwaddr(uchar *to);
+
+/* character sets */
+extern uint get_charset_number(const char *cs_name, uint cs_flags);
+extern uint get_collation_number(const char *name);
+extern const char *get_charset_name(uint cs_number);
+
+extern CHARSET_INFO *get_charset(uint cs_number, myf flags);
+extern CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags);
+extern CHARSET_INFO *get_charset_by_csname(const char *cs_name,
+					   uint cs_flags, myf my_flags);
+extern void free_charsets(void);
+extern char *get_charsets_dir(char *buf);
+extern my_bool my_charset_same(CHARSET_INFO *cs1, CHARSET_INFO *cs2);
+extern my_bool init_compiled_charsets(myf flags);
+extern void add_compiled_collation(CHARSET_INFO *cs);
+extern ulong escape_string_for_mysql(CHARSET_INFO *charset_info, char *to,
+                                     const char *from, ulong length);
 
 #ifdef __WIN__
 extern my_bool have_tcpip;		/* Is set if tcpip is used */

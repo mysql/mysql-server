@@ -15,6 +15,10 @@ Created 9/20/1997 Heikki Tuuri
 #include "hash0hash.h"
 #include "log0log.h"
 
+#ifdef UNIV_HOTBACKUP
+extern ibool	recv_replay_file_ops;
+#endif /* UNIV_HOTBACKUP */
+
 /***********************************************************************
 Reads the checkpoint info needed in hot backup. */
 
@@ -132,20 +136,25 @@ recv_reset_logs(
 	dulint	lsn,		/* in: reset to this lsn rounded up to
 				be divisible by OS_FILE_LOG_BLOCK_SIZE,
 				after which we add LOG_BLOCK_HDR_SIZE */
+#ifdef UNIV_LOG_ARCHIVE
 	ulint	arch_log_no,	/* in: next archived log file number */
+#endif /* UNIV_LOG_ARCHIVE */
 	ibool	new_logs_created);/* in: TRUE if resetting logs is done
 				at the log creation; FALSE if it is done
 				after archive recovery */
+#ifdef UNIV_HOTBACKUP
 /**********************************************************
 Creates new log files after a backup has been restored. */
 
 void
 recv_reset_log_files_for_backup(
 /*============================*/
-	char*	log_dir,	/* in: log file directory path */
-	ulint	n_log_files,	/* in: number of log files */
-	ulint	log_file_size,	/* in: log file size */
-	dulint	lsn);		/* in: new start lsn */
+	const char*	log_dir,	/* in: log file directory path */
+	ulint		n_log_files,	/* in: number of log files */
+	ulint		log_file_size,	/* in: log file size */
+	dulint		lsn);		/* in: new start lsn, must be
+					divisible by OS_FILE_LOG_BLOCK_SIZE */
+#endif /* UNIV_HOTBACKUP */
 /************************************************************
 Creates the recovery system. */
 
@@ -183,6 +192,7 @@ void
 recv_apply_log_recs_for_backup(void);
 /*================================*/
 #endif
+#ifdef UNIV_LOG_ARCHIVE
 /************************************************************
 Recovers from archived log files, and also from log files, if they exist. */
 
@@ -203,6 +213,7 @@ Completes recovery from archive. */
 void
 recv_recovery_from_archive_finish(void);
 /*===================================*/
+#endif /* UNIV_LOG_ARCHIVE */
 /***********************************************************************
 Checks that a replica of a space is identical to the original space. */
 
@@ -331,7 +342,9 @@ extern ibool		recv_no_ibuf_operations;
 extern ibool		recv_needed_recovery;
 
 extern ibool            recv_lsn_checks_on;
+#ifdef UNIV_HOTBACKUP
 extern ibool		recv_is_making_a_backup;
+#endif /* UNIV_HOTBACKUP */
 extern ulint		recv_max_parsed_page_no;
 
 /* Size of the parsing buffer; it must accommodate RECV_SCAN_SIZE many

@@ -1,4 +1,4 @@
-#! /bin/sh                   
+#! /bin/sh
 
 # debug
 #set -x
@@ -29,7 +29,7 @@ rm -f */*.linux
 ./configure --without-innodb --without-docs
 
 # build	tools only
-make clean config.h
+make clean all-local
 (cd dbug; make libdbug.a)
 (cd strings; make libmystrings.a)
 (cd mysys; make libmysys.a)
@@ -43,8 +43,13 @@ make clean config.h
 (cd extra; make comp_err)
 (cd libmysql; make conf_to_src)
 (cd libmysql_r; make conf_to_src)
+# so the file will be linked
+(cd sql; make sql_yacc.cc)
 (cd sql; make gen_lex_hash)
 (cd strings; make conf_to_src)
+
+# so the file will be linked
+(cd sql; make sql_yacc.cc)
 
 # copying required linux tools
 cp extra/comp_err extra/comp_err.linux

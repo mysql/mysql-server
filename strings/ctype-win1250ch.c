@@ -38,7 +38,6 @@
  */
 
 #define REAL_MYSQL
-
 #ifdef REAL_MYSQL
 
 #include "my_global.h"
@@ -445,103 +444,74 @@ static struct wordvalue doubles[] = {
 		break;							\
 	}
 
-#define IS_END(p, src, len)	(!(*p))
-
-#if UNUSED
-static int my_strcoll_win1250ch(const uchar * s1, const uchar * s2) {
-	int v1, v2;
-	const uchar * p1, * p2;
-	int pass1 = 0, pass2 = 0;
-	int diff;
-
-	p1 = s1;	p2 = s2;
-
-	do {
-		NEXT_CMP_VALUE(s1, p1, pass1, v1, 0);
-		NEXT_CMP_VALUE(s2, p2, pass2, v2, 0);
-		diff = v1 - v2;
-		if (diff != 0)		return diff;
-	} while (v1);
-	return 0;
-}
-#endif
-
-#ifdef UNUSED
-static int my_strxfrm_win1250ch(uchar * dest, const uchar * src, int len) {
-	int value;
-	const uchar * p;
-	int pass = 0;
-	int totlen = 0;
-	p = src;
-
-	do {
-		NEXT_CMP_VALUE(src, p, pass, value, 0);
-		if (totlen <= len)
-			dest[totlen] = value;
-		totlen++;
-	} while (value);
-	return totlen;
-}
-#endif
-
-#undef IS_END
-
 #define IS_END(p, src, len)	(((char *)p - (char *)src) >= (len))
 
 static int my_strnncoll_win1250ch(CHARSET_INFO *cs __attribute__((unused)), 
-				const uchar * s1, uint len1,
-				const uchar * s2, uint len2) {
-	int v1, v2;
-	const uchar * p1, * p2;
-	int pass1 = 0, pass2 = 0;
-	int diff;
+				  const uchar * s1, uint len1,
+                                  const uchar * s2, uint len2,
+                                  my_bool s2_is_prefix)
+{
+  int v1, v2;
+  const uchar * p1, * p2;
+  int pass1 = 0, pass2 = 0;
+  int diff;
 
-	p1 = s1;	p2 = s2;
+  if (s2_is_prefix && len1 > len2)
+    len1=len2;
 
-	do {
-		NEXT_CMP_VALUE(s1, p1, pass1, v1, (int)len1);
-		NEXT_CMP_VALUE(s2, p2, pass2, v2, (int)len2);
-		diff = v1 - v2;
-		if (diff != 0)		return diff;
-	} while (v1);
-	return 0;
+  p1 = s1;	p2 = s2;
+
+  do
+  {
+    NEXT_CMP_VALUE(s1, p1, pass1, v1, (int)len1);
+    NEXT_CMP_VALUE(s2, p2, pass2, v2, (int)len2);
+    if ((diff = v1 - v2))
+      return diff;
+  } while (v1);
+  return 0;
 }
+
+
+/*
+  TODO: Has to be fixed as strnncollsp in ctype-simple
+*/
 
 static
 int my_strnncollsp_win1250ch(CHARSET_INFO * cs, 
-			const uchar *s, uint slen, 
-			const uchar *t, uint tlen)
+			     const uchar *s, uint slen, 
+			     const uchar *t, uint tlen)
 {
-  for ( ; slen && my_isspace(cs, s[slen-1]) ; slen--);
-  for ( ; tlen && my_isspace(cs, t[tlen-1]) ; tlen--);
-  return my_strnncoll_win1250ch(cs,s,slen,t,tlen);
+  for ( ; slen && s[slen-1] == ' ' ; slen--);
+  for ( ; tlen && t[tlen-1] == ' ' ; tlen--);
+  return my_strnncoll_win1250ch(cs,s,slen,t,tlen,0);
 }
 
 
 static int my_strnxfrm_win1250ch(CHARSET_INFO * cs  __attribute__((unused)),
-			  uchar * dest, uint len, 
-			  const uchar * src, uint srclen) {
-	int value;
-	const uchar * p;
-	int pass = 0;
-	uint totlen = 0;
-	p = src;
+				 uchar * dest, uint len, 
+				 const uchar * src, uint srclen)
+{
+  int value;
+  const uchar * p;
+  int pass = 0;
+  uint totlen = 0;
+  p = src;
 
-	do {
-		NEXT_CMP_VALUE(src, p, pass, value, (int)srclen);
-		if (totlen <= len)
-			dest[totlen] = value;
-		totlen++;
-	} while (value) ;
-	return totlen;
+  do {
+    NEXT_CMP_VALUE(src, p, pass, value, (int)srclen);
+    if (totlen <= len)
+      dest[totlen] = value;
+    totlen++;
+  } while (value) ;
+  return totlen;
 }
 
 #undef IS_END
 
-
 #ifdef REAL_MYSQL
 
-static uchar NEAR like_range_prefix_min_win1250ch[] = {
+static uchar NEAR like_range_prefix_min_win1250ch[] =
+{
 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
@@ -598,86 +568,88 @@ static uchar NEAR like_range_prefix_max_win1250ch[] = {
 ** optimized !
 */
 
-static my_bool my_like_range_win1250ch(CHARSET_INFO *cs __attribute__((unused)),
-	const char *ptr, uint ptr_length,
-	int escape, int w_one, int w_many,
-	uint res_length,
-	char *min_str, char *max_str,
-	uint *min_length, uint *max_length) {
+static my_bool
+my_like_range_win1250ch(CHARSET_INFO *cs __attribute__((unused)),
+			const char *ptr, uint ptr_length,
+			pbool escape, pbool w_one, pbool w_many,
+			uint res_length,
+			char *min_str, char *max_str,
+			uint *min_length, uint *max_length)
+{
 
-	int was_other_than_min = 0;
-	const char *end = ptr + ptr_length;
-	char *min_org = min_str;
-	char *min_end = min_str + res_length;
+  int only_min_found= 1;
+  const char *end = ptr + ptr_length;
+  char *min_org = min_str;
+  char *min_end = min_str + res_length;
 
-	/* return 1; */
+  /* return 1; */
 
-	for (; ptr != end && min_str != min_end ; ptr++) {
-		if (*ptr == w_one) {		/* '_' in SQL */
-			break;
-		}
-		if (*ptr == w_many) {	/* '%' in SQL */
-			break;
-		}
-		if (*ptr == escape && ptr + 1 != end) {	/* Skip escape */
-			ptr++;
-		}
-		*min_str = like_range_prefix_min_win1250ch[(uint)(*ptr)];
-		if (*min_str != min_sort_char) {
-			was_other_than_min = 1;
-		}
-		min_str++;
-		*max_str++ = like_range_prefix_max_win1250ch[(uint)(*ptr)];
-	}
+  for (; ptr != end && min_str != min_end ; ptr++)
+  {
+    if (*ptr == escape && ptr+1 != end)
+      ptr++;					/* Skip escape */
+    else if (*ptr == w_one || *ptr == w_many)	/* '_' or '%' in SQL */
+      break;
+    *min_str = like_range_prefix_min_win1250ch[(uint)(*ptr)];
+    if (*min_str != min_sort_char)
+      only_min_found= 0;
+    min_str++;
+    *max_str++ = like_range_prefix_max_win1250ch[(uint)(*ptr)];
+  }
 
-	*min_length = (uint) (min_str - min_org);
-	*max_length = res_length;
-	while (min_str != min_end) {
-		*min_str++ = min_sort_char;
-		*max_str++ = max_sort_char;
-	}
-	if (! was_other_than_min) {
-		return 1;
-	}
-
-	return 0;
+  *min_length = (uint) (min_str - min_org);
+  *max_length = res_length;
+  while (min_str != min_end)
+  {
+    *min_str++ = min_sort_char;
+    *max_str++ = max_sort_char;
+  }
+  return (only_min_found);
 }
 
 
 static MY_COLLATION_HANDLER my_collation_czech_ci_handler =
 {
-    my_strnncoll_win1250ch,
-    my_strnncollsp_win1250ch,
-    my_strnxfrm_win1250ch,
-    my_like_range_win1250ch,
-    my_wildcmp_8bit,
-    my_strcasecmp_8bit,
-    my_instr_simple,
-    my_hash_sort_simple
+  NULL,				/* init */
+  my_strnncoll_win1250ch,
+  my_strnncollsp_win1250ch,
+  my_strnxfrm_win1250ch,
+  my_like_range_win1250ch,
+  my_wildcmp_8bit,
+  my_strcasecmp_8bit,
+  my_instr_simple,
+  my_hash_sort_simple
 };
+
 
 CHARSET_INFO my_charset_cp1250_czech_ci =
 {
-    34,0,0,			/* number    */
-    MY_CS_COMPILED|MY_CS_STRNXFRM,		/* state     */
-    "cp1250",			/* cs name    */
-    "cp1250_czech_ci",		/* name      */
-    "",				/* comment   */
-    ctype_win1250ch,
-    to_lower_win1250ch,
-    to_upper_win1250ch,
-    sort_order_win1250ch,
-    tab_cp1250_uni,		/* tab_to_uni   */
-    idx_uni_cp1250,		/* tab_from_uni */
-    "","",
-    2,				/* strxfrm_multiply */
-    1,				/* mbmaxlen  */
-    0,
-    &my_charset_8bit_handler,
-    &my_collation_czech_ci_handler
+  34,0,0,			/* number    */
+  MY_CS_COMPILED|MY_CS_STRNXFRM,		/* state     */
+  "cp1250",			/* cs name    */
+  "cp1250_czech_cs",		/* name      */
+  "",				/* comment   */
+  NULL,				/* tailoring */
+  ctype_win1250ch,
+  to_lower_win1250ch,
+  to_upper_win1250ch,
+  sort_order_win1250ch,
+  NULL,				/* contractions */
+  NULL,				/* sort_order_big*/
+  tab_cp1250_uni,		/* tab_to_uni   */
+  idx_uni_cp1250,		/* tab_from_uni */
+  NULL,				/* state_map    */
+  NULL,				/* ident_map    */
+  2,				/* strxfrm_multiply */
+  1,				/* mbminlen  */
+  1,				/* mbmaxlen  */
+  0,				/* min_sort_char */
+  0,				/* max_sort_char */
+  &my_charset_8bit_handler,
+  &my_collation_czech_ci_handler
 };
 
 
-#endif
+#endif /* REAL_MYSQL */
 
-#endif
+#endif /* HAVE_CHARSET_cp1250 */

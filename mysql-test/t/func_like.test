@@ -25,6 +25,33 @@ select * from t1 where a like "%abc\d%";
 
 drop table t1;
 
+create table t1 (a varchar(10), key(a));
+
+#
+# Bug #2231
+#
+insert into t1 values ('a'), ('a\\b');
+select * from t1 where a like 'a\\%' escape '#';
+select * from t1 where a like 'a\\%' escape '#' and a like 'a\\\\b';
+
+#
+# Bug #4200: Prepared statement parameter as argument to ESCAPE
+#
+prepare stmt1 from 'select * from t1 where a like \'a\\%\' escape ?';
+set @esc='#';
+execute stmt1 using @esc;  
+deallocate prepare stmt1;
+
+drop table t1;
+
+#
+# Bug #2885: like and datetime
+#
+
+create table t1 (a datetime);
+insert into t1 values ('2004-03-11 12:00:21');
+select * from t1 where a like '2004-03-11 12:00:21';
+drop table t1;
 
 #
 # Test like with non-default character set
@@ -43,4 +70,23 @@ SELECT * FROM t1 WHERE a LIKE '%Æù×Á%';
 SELECT * FROM t1 WHERE a LIKE '%Æù×%';
 SELECT * FROM t1 WHERE a LIKE 'Æù×Á%';
 
+DROP TABLE t1;
+
+# Bug #2547 Strange "like" behaviour in tables with default charset=cp1250
+# Test like with non-default character set using TurboBM
+#
+SET NAMES cp1250;
+CREATE TABLE t1 (a varchar(250) NOT NULL) DEFAULT CHARACTER SET=cp1250;
+INSERT INTO t1 VALUES
+('Techni Tapes Sp. z o.o.'),
+('Pojazdy Szynowe PESA Bydgoszcz SA Holding'),
+('AKAPESTER 1 P.P.H.U.'),
+('Pojazdy Szynowe PESA Bydgoszcz S A Holding'),
+('PPUH PESKA-I Maria Struniarska');
+
+select * from t1 where a like '%PESA%';
+select * from t1 where a like '%PESA %';
+select * from t1 where a like '%PES%';
+select * from t1 where a like '%PESKA%';
+select * from t1 where a like '%ESKA%';
 DROP TABLE t1;

@@ -66,7 +66,7 @@ int find_type(my_string x, TYPELIB *typelib, uint full_name)
     if (! *j)
     {
       while (*i == ' ')
-	i++;					/* skipp_end_space */
+	i++;					/* skip_end_space */
       if (! *i)
 	DBUG_RETURN(pos+1);
     }

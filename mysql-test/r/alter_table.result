@@ -1,4 +1,5 @@
 drop table if exists t1,t2;
+drop database if exists mysqltest;
 create table t1 (
 col1 int not null auto_increment primary key,
 col2 varchar(30) not null,
@@ -85,6 +86,45 @@ OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 DROP TABLE t1;
+create table t1 (i int unsigned not null auto_increment primary key);
+insert into t1 values (null),(null),(null),(null);
+alter table t1 drop i,add i int unsigned not null auto_increment, drop primary key, add primary key (i);
+select * from t1;
+i
+1
+2
+3
+4
+drop table t1;
+create table t1 (name char(15));
+insert into t1 (name) values ("current");
+create database mysqltest;
+create table mysqltest.t1 (name char(15));
+insert into mysqltest.t1 (name) values ("mysqltest");
+select * from t1;
+name
+current
+select * from mysqltest.t1;
+name
+mysqltest
+alter table t1 rename mysqltest.t1;
+ERROR 42S01: Table 't1' already exists
+select * from t1;
+name
+current
+select * from mysqltest.t1;
+name
+mysqltest
+drop table t1;
+drop database mysqltest;
+create database mysqltest;
+create table mysqltest.t1 (a int,b int,c int);
+grant all on mysqltest.t1 to mysqltest_1@localhost;
+alter table t1 rename t2;
+ERROR 42000: insert command denied to user 'mysqltest_1'@'localhost' for table 't2'
+revoke all privileges on mysqltest.t1 from mysqltest_1@localhost;
+delete from mysql.user where user=_binary'mysqltest_1';
+drop database mysqltest;
 create table t1 (n1 int not null, n2 int, n3 int, n4 float,
 unique(n1),
 key (n1, n2, n3, n4),
@@ -141,16 +181,6 @@ t1	1	n4	1	n4	A	10	NULL	NULL	YES	BTREE
 t1	1	n4	2	n1	A	10	NULL	NULL		BTREE	
 t1	1	n4	3	n2	A	10	NULL	NULL	YES	BTREE	
 t1	1	n4	4	n3	A	10	NULL	NULL	YES	BTREE	
-drop table t1;
-create table t1 (i int unsigned not null auto_increment primary key);
-insert into t1 values (null),(null),(null),(null);
-alter table t1 drop i,add i int unsigned not null auto_increment, drop primary key, add primary key (i);
-select * from t1;
-i
-1
-2
-3
-4
 drop table t1;
 create table t1 (i int unsigned not null auto_increment primary key);
 alter table t1 rename t2;
@@ -291,7 +321,7 @@ alter table t1 change a a char(10) character set cp1251;
 select a,hex(a) from t1;
 a	hex(a)
 ‘≈”‘	F2E5F1F2
-alter table t1 change a a char(10) binary;
+alter table t1 change a a binary(10);
 select a,hex(a) from t1;
 a	hex(a)
 ÚÂÒÚ	F2E5F1F2
@@ -330,7 +360,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(10) character set koi8r default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-alter table t1 CHARACTER SET latin1;
+alter table t1 CONVERT TO CHARACTER SET latin1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -342,6 +372,22 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(10) character set latin1 default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=cp1251
+drop table t1;
+create table t1 (myblob longblob,mytext longtext) 
+default charset latin1 collate latin1_general_cs;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `myblob` longblob,
+  `mytext` longtext collate latin1_general_cs
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_general_cs
+alter table t1 character set latin2;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `myblob` longblob,
+  `mytext` longtext character set latin1 collate latin1_general_cs
+) ENGINE=MyISAM DEFAULT CHARSET=latin2
 drop table t1;
 CREATE TABLE t1 (
 Host varchar(16) binary NOT NULL default '',
@@ -412,3 +458,21 @@ t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE
 t1	0	PRIMARY	2	User	A	0	NULL	NULL		BTREE	
 t1	1	Host	1	Host	A	NULL	NULL	NULL		BTREE	disabled
 DROP TABLE t1;
+CREATE TABLE t1 (a int PRIMARY KEY, b INT UNIQUE);
+ALTER TABLE t1 DROP PRIMARY KEY;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL default '0',
+  `b` int(11) default NULL,
+  UNIQUE KEY `b` (`b`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+ALTER TABLE t1 DROP PRIMARY KEY;
+ERROR 42000: Can't DROP 'PRIMARY'; check that column/key exists
+DROP TABLE t1;
+create table t1 (a int, b int, key(a));
+insert into t1 values (1,1), (2,2);
+alter table t1 drop key no_such_key;
+ERROR 42000: Can't DROP 'no_such_key'; check that column/key exists
+alter table t1 drop key a;
+drop table t1;

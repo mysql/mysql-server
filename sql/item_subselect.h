@@ -26,6 +26,7 @@ class JOIN;
 class select_subselect;
 class subselect_engine;
 class Item_bool_func2;
+class Item_arena;
 
 /* base class for subselects */
 
@@ -35,22 +36,30 @@ class Item_subselect :public Item_result_field
 protected:
   /* thread handler, will be assigned in fix_fields only */
   THD *thd;
+  /* Item_arena used or 0 */
+  Item_arena *arena;
   /* substitution instead of subselect in case of optimization */
   Item *substitution;
+  /* unit of subquery */
+  st_select_lex_unit *unit;
   /* engine that perform execution of subselect (single select or union) */
   subselect_engine *engine;
+  /* old engine if engine was changed */
+  subselect_engine *old_engine;
   /* cache of used external tables */
-  table_map used_tables_cache; 
+  table_map used_tables_cache;
   /* allowed number of columns (1 for single value subqueries) */
   uint max_columns;
   /* work with 'substitution' */
   bool have_to_be_excluded;
-  /* cache of constante state */
+  /* cache of constant state */
   bool const_item_cache;
 
 public:
   /* changed engine indicator */
   bool engine_changed;
+  /* subquery is transformed */
+  bool changed;
 
   enum trans_res {RES_OK, RES_REDUCE, RES_ERROR};
   enum subs_type {UNKNOWN_SUBS, SINGLEROW_SUBS,
@@ -60,20 +69,22 @@ public:
 
   virtual subs_type substype() { return UNKNOWN_SUBS; }
 
-  /* 
+  /*
      We need this method, because some compilers do not allow 'this'
      pointer in constructor initialization list, but we need pass pointer
      to subselect Item class to select_subselect classes constructor.
   */
-  virtual void init (st_select_lex *select_lex, 
+  virtual void init (st_select_lex *select_lex,
 		     select_subselect *result);
 
   ~Item_subselect();
-  virtual void reset() 
+  void cleanup();
+  virtual void reset()
   {
     null_value= 1;
   }
   virtual trans_res select_transformer(JOIN *join);
+  virtual trans_res no_select_transform() { return RES_OK; }
   bool assigned() { return value_assigned; }
   void assigned(bool a) { value_assigned= a; }
   enum Type type() const;
@@ -89,10 +100,12 @@ public:
   bool const_item() const;
   inline table_map get_used_tables_cache() { return used_tables_cache; }
   inline bool get_const_item_cache() { return const_item_cache; }
+  Item *get_tmp_table_item(THD *thd);
   void update_used_tables();
   void print(String *str);
   bool change_engine(subselect_engine *eng)
   {
+    old_engine= engine;
     engine= eng;
     engine_changed= 1;
     return eng == 0;
@@ -115,6 +128,7 @@ public:
   Item_singlerow_subselect(st_select_lex *select_lex);
   Item_singlerow_subselect() :Item_subselect(), value(0), row (0) {}
 
+  void cleanup();
   subs_type substype() { return SINGLEROW_SUBS; }
 
   void reset();
@@ -127,7 +141,7 @@ public:
   void fix_length_and_dec();
 
   uint cols();
-  Item* el(uint i) { return (Item*)row[i]; }
+  Item* el(uint i) { return my_reinterpret_cast(Item*)(row[i]); }
   Item** addr(uint i) { return (Item**)row + i; }
   bool check_cols(uint c);
   bool null_inside();
@@ -196,7 +210,6 @@ public:
   Item_in_subselect(Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect()
     :Item_exists_subselect(), abort_on_null(0), transformed(0), upper_not(0)
-     
   {}
 
   subs_type substype() { return IN_SUBS; }
@@ -207,6 +220,7 @@ public:
     was_null= 0;
   }
   trans_res select_transformer(JOIN *join);
+  trans_res no_select_transform();
   trans_res single_value_transformer(JOIN *join,
 				     Comp_creator *func);
   trans_res row_value_transformer(JOIN * join);
@@ -261,7 +275,8 @@ public:
     maybe_null= 0;
   }
   virtual ~subselect_engine() {}; // to satisfy compiler
-  
+  virtual void cleanup()= 0;
+
   // set_thd should be called before prepare()
   void set_thd(THD *thd_arg) { thd= thd_arg; }
   THD * get_thd() { return thd; }
@@ -276,6 +291,7 @@ public:
   virtual table_map upper_select_const_tables()= 0;
   static table_map calc_const_tables(TABLE_LIST *);
   virtual void print(String *str)= 0;
+  virtual int change_item(Item_subselect *si, select_subselect *result)= 0;
 };
 
 
@@ -290,6 +306,7 @@ public:
   subselect_single_select_engine(st_select_lex *select,
 				 select_subselect *result,
 				 Item_subselect *item);
+  void cleanup();
   int prepare();
   void fix_length_and_dec(Item_cache** row);
   int exec();
@@ -298,6 +315,7 @@ public:
   void exclude();
   table_map upper_select_const_tables();
   void print (String *str);
+  int change_item(Item_subselect *si, select_subselect *result);
 };
 
 
@@ -308,6 +326,7 @@ public:
   subselect_union_engine(st_select_lex_unit *u,
 			 select_subselect *result,
 			 Item_subselect *item);
+  void cleanup();
   int prepare();
   void fix_length_and_dec(Item_cache** row);
   int exec();
@@ -316,6 +335,7 @@ public:
   void exclude();
   table_map upper_select_const_tables();
   void print (String *str);
+  int change_item(Item_subselect *si, select_subselect *result);
 };
 
 
@@ -335,6 +355,7 @@ public:
     set_thd(thd_arg);
   }
   ~subselect_uniquesubquery_engine();
+  void cleanup();
   int prepare();
   void fix_length_and_dec(Item_cache** row);
   int exec();
@@ -343,6 +364,7 @@ public:
   void exclude();
   table_map upper_select_const_tables() { return 0; }
   void print (String *str);
+  int change_item(Item_subselect *si, select_subselect *result);
 };
 
 

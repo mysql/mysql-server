@@ -32,10 +32,17 @@
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"
 #endif
+#ifdef HAVE_EXAMPLE_DB
+#include "examples/ha_example.h"
+#endif
+#ifdef HAVE_ARCHIVE_DB
+#include "examples/ha_archive.h"
+#endif
 #ifdef HAVE_INNOBASE_DB
 #include "ha_innodb.h"
-#else
-#define innobase_query_caching_of_table_permitted(X,Y,Z) 1
+#endif
+#ifdef HAVE_NDBCLUSTER_DB
+#include "ha_ndbcluster.h"
 #endif
 #include <myisampack.h>
 #include <errno.h>
@@ -48,34 +55,42 @@ ulong ha_read_count, ha_write_count, ha_delete_count, ha_update_count,
       ha_read_key_count, ha_read_next_count, ha_read_prev_count,
       ha_read_first_count, ha_read_last_count,
       ha_commit_count, ha_rollback_count,
-      ha_read_rnd_count, ha_read_rnd_next_count;
+      ha_read_rnd_count, ha_read_rnd_next_count, ha_discover_count;
 
 static SHOW_COMP_OPTION have_yes= SHOW_OPTION_YES;
 
 struct show_table_type_st sys_table_types[]=
 {
   {"MyISAM",	&have_yes,
-   "Default type from 3.23 with great performance", DB_TYPE_MYISAM},
+   "Default engine as of MySQL 3.23 with great performance", DB_TYPE_MYISAM},
   {"HEAP",	&have_yes,
-   "Hash based, stored in memory, useful for temporary tables", DB_TYPE_HEAP},
+   "Alias for MEMORY", DB_TYPE_HEAP},
   {"MEMORY",	&have_yes,
-   "Alias for HEAP", DB_TYPE_HEAP},
+   "Hash based, stored in memory, useful for temporary tables", DB_TYPE_HEAP},
   {"MERGE",	&have_yes,
    "Collection of identical MyISAM tables", DB_TYPE_MRG_MYISAM},
   {"MRG_MYISAM",&have_yes,
    "Alias for MERGE", DB_TYPE_MRG_MYISAM},
   {"ISAM",	&have_isam,
-   "Obsolete table type; Is replaced by MyISAM", DB_TYPE_ISAM},
+   "Obsolete storage engine, now replaced by MyISAM", DB_TYPE_ISAM},
   {"MRG_ISAM",  &have_isam,
-   "Obsolete table type; Is replaced by MRG_MYISAM", DB_TYPE_MRG_ISAM},
+   "Obsolete storage engine, now replaced by MERGE", DB_TYPE_MRG_ISAM},
   {"InnoDB",	&have_innodb,
-   "Supports transactions, row-level locking and foreign keys", DB_TYPE_INNODB},
+   "Supports transactions, row-level locking, and foreign keys", DB_TYPE_INNODB},
   {"INNOBASE",	&have_innodb,
    "Alias for INNODB", DB_TYPE_INNODB},
   {"BDB",	&have_berkeley_db,
    "Supports transactions and page-level locking", DB_TYPE_BERKELEY_DB},
   {"BERKELEYDB",&have_berkeley_db,
    "Alias for BDB", DB_TYPE_BERKELEY_DB},
+  {"NDBCLUSTER", &have_ndbcluster,
+   "Clustered, fault-tolerant, memory-based tables", DB_TYPE_NDBCLUSTER},
+  {"NDB", &have_ndbcluster,
+   "Alias for NDBCLUSTER", DB_TYPE_NDBCLUSTER},
+  {"EXAMPLE",&have_example_db,
+   "Example storage engine", DB_TYPE_EXAMPLE_DB},
+  {"ARCHIVE",&have_archive_db,
+   "Archive storage engine", DB_TYPE_ARCHIVE_DB},
   {NullS, NULL, NullS, DB_TYPE_UNKNOWN}
 };
 
@@ -91,15 +106,16 @@ TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 
 enum db_type ha_resolve_by_name(const char *name, uint namelen)
 {
-  if (!my_strcasecmp(&my_charset_latin1, name, "DEFAULT")) {
-    return(enum db_type) current_thd->variables.table_type;
+  THD *thd=current_thd;
+  if (thd && !my_strcasecmp(&my_charset_latin1, name, "DEFAULT")) {
+    return (enum db_type) thd->variables.table_type;
   }
   
   show_table_type_st *types;
   for (types= sys_table_types; types->type; types++)
   {
     if (!my_strcasecmp(&my_charset_latin1, name, types->type))
-      return(enum db_type)types->db_type;
+      return (enum db_type) types->db_type;
   }
   return DB_TYPE_UNKNOWN;
 }
@@ -120,34 +136,21 @@ const char *ha_get_storage_engine(enum db_type db_type)
 
 enum db_type ha_checktype(enum db_type database_type)
 {
+  show_table_type_st *types;
+  for (types= sys_table_types; types->type; types++)
+  {
+    if ((database_type == types->db_type) && 
+	(*types->value == SHOW_OPTION_YES))
+      return database_type;
+  }
+
   switch (database_type) {
-#ifdef HAVE_BERKELEY_DB
-  case DB_TYPE_BERKELEY_DB:
-    if (berkeley_skip) break;
-    return (database_type);
-#endif
-#ifdef HAVE_INNOBASE_DB
-  case DB_TYPE_INNODB:
-    if (innodb_skip) break;
-    return (database_type);
-#endif
 #ifndef NO_HASH
   case DB_TYPE_HASH:
-#endif
-#ifdef HAVE_ISAM
-  case DB_TYPE_ISAM:
-    if (isam_skip) break;
     return (database_type);
-  case DB_TYPE_MRG_ISAM:
-    return (isam_skip ? DB_TYPE_MRG_MYISAM : database_type);
-#else
+#endif
   case DB_TYPE_MRG_ISAM:
     return (DB_TYPE_MRG_MYISAM);
-#endif
-  case DB_TYPE_HEAP:
-  case DB_TYPE_MYISAM:
-  case DB_TYPE_MRG_MYISAM:
-    return (database_type);			/* Database exists on system */
   default:
     break;
   }
@@ -165,7 +168,8 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
 {
   switch (db_type) {
 #ifndef NO_HASH
-  return new ha_hash(table);
+  case DB_TYPE_HASH:
+    return new ha_hash(table);
 #endif
 #ifdef HAVE_ISAM
   case DB_TYPE_MRG_ISAM:
@@ -184,6 +188,18 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
   case DB_TYPE_INNODB:
     return new ha_innobase(table);
 #endif
+#ifdef HAVE_EXAMPLE_DB
+  case DB_TYPE_EXAMPLE_DB:
+    return new ha_example(table);
+#endif
+#ifdef HAVE_ARCHIVE_DB
+  case DB_TYPE_ARCHIVE_DB:
+    return new ha_archive(table);
+#endif
+#ifdef HAVE_NDBCLUSTER_DB
+  case DB_TYPE_NDBCLUSTER:
+    return new ha_ndbcluster(table);
+#endif
   case DB_TYPE_HEAP:
     return new ha_heap(table);
   default:					// should never happen
@@ -201,32 +217,56 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
   }
 }
 
+bool ha_caching_allowed(THD* thd, char* table_key,
+                        uint key_length, uint8 cache_type)
+{
+#ifdef HAVE_INNOBASE_DB
+  if (cache_type == HA_CACHE_TBL_ASKTRANSACT)
+    return innobase_query_caching_of_table_permitted(thd, table_key, key_length);
+#endif
+  return 1;
+}
+
 int ha_init()
 {
+  int error= 0;
 #ifdef HAVE_BERKELEY_DB
-  if (!berkeley_skip)
+  if (have_berkeley_db == SHOW_OPTION_YES)
   {
-    int error;
-    if ((error=berkeley_init()))
-      return error;
-    if (!berkeley_skip)				// If we couldn't use handler
-      opt_using_transactions=1;
+    if (berkeley_init())
+    {
+      have_berkeley_db= SHOW_OPTION_DISABLED;	// If we couldn't use handler
+      error= 1;
+    }
     else
-      have_berkeley_db=SHOW_OPTION_DISABLED;
+      opt_using_transactions=1;
   }
 #endif
 #ifdef HAVE_INNOBASE_DB
-  if (!innodb_skip)
+  if (have_innodb == SHOW_OPTION_YES)
   {
     if (innobase_init())
-      return -1;
-    if (!innodb_skip)				// If we couldn't use handler
-      opt_using_transactions=1;
+    {
+      have_innodb= SHOW_OPTION_DISABLED;	// If we couldn't use handler
+      error= 1;
+    }
     else
-      have_innodb=SHOW_OPTION_DISABLED;
+      opt_using_transactions=1;
   }
 #endif
-  return 0;
+#ifdef HAVE_NDBCLUSTER_DB
+  if (have_ndbcluster == SHOW_OPTION_YES)
+  {
+    if (ndbcluster_init())
+    {
+      have_ndbcluster= SHOW_OPTION_DISABLED;
+      error= 1;
+    }
+    else
+      opt_using_transactions=1;
+  }
+#endif
+  return error;
 }
 
 	/* close, flush or restart databases */
@@ -246,12 +286,16 @@ int ha_panic(enum ha_panic_function flag)
   error|=mi_panic(flag);
   error|=myrg_panic(flag);
 #ifdef HAVE_BERKELEY_DB
-  if (!berkeley_skip)
+  if (have_berkeley_db == SHOW_OPTION_YES)
     error|=berkeley_end();
 #endif
 #ifdef HAVE_INNOBASE_DB
-  if (!innodb_skip)
+  if (have_innodb == SHOW_OPTION_YES)
     error|=innobase_end();
+#endif
+#ifdef HAVE_NDBCLUSTER_DB
+  if (have_ndbcluster == SHOW_OPTION_YES)
+    error|=ndbcluster_end();
 #endif
   return error;
 } /* ha_panic */
@@ -259,16 +303,24 @@ int ha_panic(enum ha_panic_function flag)
 void ha_drop_database(char* path)
 {
 #ifdef HAVE_INNOBASE_DB
-  if (!innodb_skip)
+  if (have_innodb == SHOW_OPTION_YES)
     innobase_drop_database(path);
+#endif
+#ifdef HAVE_NDBCLUSTER_DB
+  if (have_ndbcluster == SHOW_OPTION_YES)
+    ndbcluster_drop_database(path);
 #endif
 }
 
 void ha_close_connection(THD* thd)
 {
 #ifdef HAVE_INNOBASE_DB
-  if (!innodb_skip)
+  if (have_innodb == SHOW_OPTION_YES)
     innobase_close_connection(thd);
+#endif
+#ifdef HAVE_NDBCLUSTER_DB
+  if (have_ndbcluster == SHOW_OPTION_YES)
+    ndbcluster_close_connection(thd);
 #endif
 }
 
@@ -331,17 +383,25 @@ int ha_report_binlog_offset_and_commit(THD *thd,
 #ifdef HAVE_INNOBASE_DB
   THD_TRANS *trans;
   trans = &thd->transaction.all;
-  if (trans->innobase_tid)
+  if (trans->innodb_active_trans)
   {
+    /*
+      If we updated some InnoDB tables (innodb_active_trans is true), the
+      binlog coords will be reported into InnoDB during the InnoDB commit
+      (innobase_report_binlog_offset_and_commit). But if we updated only
+      non-InnoDB tables, we need an explicit call to report it.
+    */
     if ((error=innobase_report_binlog_offset_and_commit(thd,
-							trans->innobase_tid,
-							log_file_name,
-							end_offset)))
+                                                        trans->innobase_tid,
+                                                        log_file_name,
+                                                        end_offset)))
     {
       my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
       error=1;
     }
   }
+  else if (opt_innodb_safe_binlog) // Don't report if not useful
+    innobase_store_binlog_offset_and_flush_log(log_file_name, end_offset);
 #endif
   return error;
 }
@@ -415,10 +475,36 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
 	my_b_tell(&thd->transaction.trans_log))
     {
       mysql_bin_log.write(thd, &thd->transaction.trans_log, 1);
+      statistic_increment(binlog_cache_use, &LOCK_status);
+      if (thd->transaction.trans_log.disk_writes != 0)
+      {
+        /* 
+          We have to do this after addition of trans_log to main binlog since
+          this operation can cause flushing of end of trans_log to disk. 
+        */
+        statistic_increment(binlog_cache_disk_use, &LOCK_status);
+        thd->transaction.trans_log.disk_writes= 0;
+      }
       reinit_io_cache(&thd->transaction.trans_log,
 		      WRITE_CACHE, (my_off_t) 0, 0, 1);
       thd->transaction.trans_log.end_of_file= max_binlog_cache_size;
     }
+#ifdef HAVE_NDBCLUSTER_DB
+    if (trans->ndb_tid)
+    {
+      if ((error=ndbcluster_commit(thd,trans->ndb_tid)))
+      {
+	if (error == -1)
+	  my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
+	else
+	    ndbcluster_print_error(error);
+        error=1;
+      }
+      if (trans == &thd->transaction.all)
+        operation_done= transaction_commited= 1;
+      trans->ndb_tid=0;
+    }
+#endif
 #ifdef HAVE_BERKELEY_DB
     if (trans->bdb_tid)
     {
@@ -472,6 +558,21 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
   if (opt_using_transactions)
   {
     bool operation_done=0;
+#ifdef HAVE_NDBCLUSTER_DB
+    if (trans->ndb_tid)
+    {
+      if ((error=ndbcluster_rollback(thd, trans->ndb_tid)))
+      {
+	if (error == -1)
+	  my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), error);	  
+	else
+	  ndbcluster_print_error(error);
+        error=1;
+      }
+      trans->ndb_tid = 0;
+      operation_done=1;
+    }
+#endif
 #ifdef HAVE_BERKELEY_DB
     if (trans->bdb_tid)
     {
@@ -496,28 +597,40 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
       operation_done=1;
     }
 #endif
-    if (trans == &thd->transaction.all)
+    if ((trans == &thd->transaction.all) && mysql_bin_log.is_open())
     {
       /* 
-         Update the binary log with a BEGIN/ROLLBACK block if we have cached some
-         queries and we updated some non-transactional table. Such cases should
-         be rare (updating a non-transactional table inside a transaction...).
+         Update the binary log with a BEGIN/ROLLBACK block if we have
+         cached some queries and we updated some non-transactional
+         table. Such cases should be rare (updating a
+         non-transactional table inside a transaction...).  Count disk
+         writes to trans_log in any case.
       */
-      if (unlikely((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) &&
-                   mysql_bin_log.is_open() &&
-                   my_b_tell(&thd->transaction.trans_log)))
-        mysql_bin_log.write(thd, &thd->transaction.trans_log, 0);
+      if (my_b_tell(&thd->transaction.trans_log))
+      {
+        if (unlikely(thd->options & OPTION_STATUS_NO_TRANS_UPDATE))
+          mysql_bin_log.write(thd, &thd->transaction.trans_log, 0);
+        statistic_increment(binlog_cache_use, &LOCK_status);
+        if (thd->transaction.trans_log.disk_writes != 0)
+        {
+          /* 
+            We have to do this after addition of trans_log to main binlog since
+            this operation can cause flushing of end of trans_log to disk. 
+          */
+          statistic_increment(binlog_cache_disk_use, &LOCK_status);
+          thd->transaction.trans_log.disk_writes= 0;
+        }
+      }
       /* Flushed or not, empty the binlog cache */
       reinit_io_cache(&thd->transaction.trans_log,
                       WRITE_CACHE, (my_off_t) 0, 0, 1);
       thd->transaction.trans_log.end_of_file= max_binlog_cache_size;
+      if (operation_done)
+        thd->transaction.cleanup();
     }
     thd->variables.tx_isolation=thd->session_tx_isolation;
     if (operation_done)
-    {
       statistic_increment(ha_rollback_count,&LOCK_status);
-      thd->transaction.cleanup();
-    }
   }
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
@@ -535,12 +648,12 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
   simply truncate the binlog cache, we lose the part of the binlog cache where
   the update is. If we want to not lose it, we need to write the SAVEPOINT
   command and the ROLLBACK TO SAVEPOINT command to the binlog cache. The latter
-  is easy: it's just write at the end of the binlog cache, but the former should
-  be *inserted* to the place where the user called SAVEPOINT. The solution is
-  that when the user calls SAVEPOINT, we write it to the binlog cache (so no
-  need to later insert it). As transactions are never intermixed in the binary log
-  (i.e. they are serialized), we won't have conflicts with savepoint names when
-  using mysqlbinlog or in the slave SQL thread.
+  is easy: it's just write at the end of the binlog cache, but the former
+  should be *inserted* to the place where the user called SAVEPOINT. The
+  solution is that when the user calls SAVEPOINT, we write it to the binlog
+  cache (so no need to later insert it). As transactions are never intermixed
+  in the binary log (i.e. they are serialized), we won't have conflicts with
+  savepoint names when using mysqlbinlog or in the slave SQL thread.
   Then when ROLLBACK TO SAVEPOINT is called, if we updated some
   non-transactional table, we don't truncate the binlog cache but instead write
   ROLLBACK TO SAVEPOINT to it; otherwise we truncate the binlog cache (which
@@ -569,7 +682,7 @@ int ha_rollback_to_savepoint(THD *thd, char *savepoint_name)
       my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), error);
       error=1;
     }
-    else
+    else if (mysql_bin_log.is_open())
     {
       /* 
          Write ROLLBACK TO SAVEPOINT to the binlog cache if we have updated some
@@ -577,7 +690,6 @@ int ha_rollback_to_savepoint(THD *thd, char *savepoint_name)
          from the SAVEPOINT command.
       */
       if (unlikely((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) &&
-                   mysql_bin_log.is_open() &&
                    my_b_tell(&thd->transaction.trans_log)))
       {
         Query_log_event qinfo(thd, thd->query, thd->query_length, TRUE);
@@ -606,23 +718,26 @@ Return value: always 0, that is, succeeds always
 
 int ha_savepoint(THD *thd, char *savepoint_name)
 {
-  my_off_t binlog_cache_pos=0;
   int error=0;
   DBUG_ENTER("ha_savepoint");
 #ifdef USING_TRANSACTIONS
   if (opt_using_transactions)
   {
-    binlog_cache_pos=my_b_tell(&thd->transaction.trans_log);
-#ifdef HAVE_INNOBASE_DB
-    innobase_savepoint(thd,savepoint_name, binlog_cache_pos);
-#endif
-    /* Write it to the binary log (see comments of ha_rollback_to_savepoint). */
+    /* Write it to the binary log (see comments of ha_rollback_to_savepoint) */
     if (mysql_bin_log.is_open())
     {
+#ifdef HAVE_INNOBASE_DB
+      innobase_savepoint(thd,savepoint_name,
+                         my_b_tell(&thd->transaction.trans_log));
+#endif
       Query_log_event qinfo(thd, thd->query, thd->query_length, TRUE);
       if (mysql_bin_log.write(&qinfo))
 	error= 1;
     }
+#ifdef HAVE_INNOBASE_DB
+    else
+      innobase_savepoint(thd,savepoint_name,0);
+#endif
   }
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
@@ -632,11 +747,13 @@ bool ha_flush_logs()
 {
   bool result=0;
 #ifdef HAVE_BERKELEY_DB
-  if (!berkeley_skip && berkeley_flush_logs())
+  if ((have_berkeley_db == SHOW_OPTION_YES) && 
+      berkeley_flush_logs())
     result=1;
 #endif
 #ifdef HAVE_INNOBASE_DB
-  if (!innodb_skip && innobase_flush_logs())
+  if ((have_innodb == SHOW_OPTION_YES) && 
+      innobase_flush_logs())
     result=1;
 #endif
   return result;
@@ -649,13 +766,22 @@ bool ha_flush_logs()
 
 int ha_delete_table(enum db_type table_type, const char *path)
 {
+  char tmp_path[FN_REFLEN];
   handler *file=get_new_handler((TABLE*) 0, table_type);
   if (!file)
     return ENOENT;
+  if (lower_case_table_names == 2 && !(file->table_flags() & HA_FILE_BASED))
+  {
+    /* Ensure that table handler get path in lower case */
+    strmov(tmp_path, path);
+    my_casedn_str(files_charset_info, tmp_path);
+    path= tmp_path;
+  }
   int error=file->delete_table(path);
   delete file;
   return error;
 }
+
 
 void ha_store_ptr(byte *buff, uint pack_length, my_off_t pos)
 {
@@ -761,46 +887,6 @@ int handler::ha_open(const char *name, int mode, int test_if_locked)
   DBUG_RETURN(error);
 }
 
-int handler::check(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  return HA_ADMIN_NOT_IMPLEMENTED;
-}
-
-int handler::backup(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  return HA_ADMIN_NOT_IMPLEMENTED;
-}
-
-int handler::restore(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  return HA_ADMIN_NOT_IMPLEMENTED;
-}
-
-int handler::repair(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  return HA_ADMIN_NOT_IMPLEMENTED;
-}
-
-int handler::optimize(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  return HA_ADMIN_NOT_IMPLEMENTED;
-}
-
-int handler::analyze(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  return HA_ADMIN_NOT_IMPLEMENTED;
-}
-
-int handler::assign_to_keycache(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  return HA_ADMIN_NOT_IMPLEMENTED;
-}
-
-int handler::preload_keys(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  return HA_ADMIN_NOT_IMPLEMENTED;
-}
-
 /*
   Read first row (only) from a table
   This is never called for InnoDB or BDB tables, as these table types
@@ -818,32 +904,20 @@ int handler::read_first_row(byte * buf, uint primary_key)
     If there is very few deleted rows in the table, find the first row by
     scanning the table.
   */
-  if (deleted < 10 || primary_key >= MAX_KEY || 
-      !(index_flags(primary_key) & HA_READ_ORDER))
+  if (deleted < 10 || primary_key >= MAX_KEY)
   {
-    (void) rnd_init();
+    (void) ha_rnd_init(1);
     while ((error= rnd_next(buf)) == HA_ERR_RECORD_DELETED) ;
-    (void) rnd_end();
+    (void) ha_rnd_end();
   }
   else
   {
     /* Find the first row through the primary key */
-    (void) index_init(primary_key);
+    (void) ha_index_init(primary_key);
     error=index_first(buf);
-    (void) index_end();
+    (void) ha_index_end();
   }
   DBUG_RETURN(error);
-}
-
-
-/*
-  The following function is only needed for tables that may be temporary tables
-  during joins
-*/
-
-int handler::restart_rnd_next(byte *buf, byte *pos)
-{
-  return HA_ERR_WRONG_COMMAND;
 }
 
 
@@ -877,11 +951,11 @@ void handler::update_auto_increment()
       table->auto_increment_field_not_null &&
       current_thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO)
   {
-    table->auto_increment_field_not_null= false;
+    table->auto_increment_field_not_null= FALSE;
     auto_increment_column_changed=0;
     DBUG_VOID_RETURN;
   }
-  table->auto_increment_field_not_null= false;
+  table->auto_increment_field_not_null= FALSE;
   thd=current_thd;
   if ((nr=thd->next_insert_id))
     thd->next_insert_id=0;			// Clear after use
@@ -1026,12 +1100,42 @@ void handler::print_error(int error, myf errflag)
     break;
   default:
     {
-      my_error(ER_GET_ERRNO,errflag,error);
+      /* The error was "unknown" to this function.
+	 Ask handler if it has got a message for this error */
+      bool temporary= FALSE;
+      String str;
+      temporary= get_error_message(error, &str);
+      if (!str.is_empty())
+      {
+	const char* engine= table_type();
+	if (temporary)
+	  my_error(ER_GET_TEMPORARY_ERRMSG,MYF(0),error,str.ptr(),engine);
+	else
+	  my_error(ER_GET_ERRMSG,MYF(0),error,str.ptr(),engine);
+      }
+      else       
+	my_error(ER_GET_ERRNO,errflag,error);
       DBUG_VOID_RETURN;
     }
   }
   my_error(textno,errflag,table->table_name,error);
   DBUG_VOID_RETURN;
+}
+
+
+/* 
+   Return an error message specific to this handler
+   
+   SYNOPSIS
+   error        error code previously returned by handler
+   buf          Pointer to String where to add error message
+   
+   Returns true if this is a temporary error
+ */
+
+bool handler::get_error_message(int error, String* buf)
+{
+  return FALSE;
 }
 
 
@@ -1090,7 +1194,7 @@ int handler::index_next_same(byte *buf, const byte *key, uint keylen)
   int error;
   if (!(error=index_next(buf)))
   {
-    if (key_cmp(table, key, active_index, keylen))
+    if (key_cmp_if_same(table, key, active_index, keylen))
     {
       table->status=STATUS_NOT_FOUND;
       error=HA_ERR_END_OF_FILE;
@@ -1100,40 +1204,21 @@ int handler::index_next_same(byte *buf, const byte *key, uint keylen)
 }
 
 
-/*
-  This is called to delete all rows in a table
-  If the handler don't support this, then this function will
-  return HA_ERR_WRONG_COMMAND and MySQL will delete the rows one
-  by one.
-*/
-
-int handler::delete_all_rows()
-{
-  return (my_errno=HA_ERR_WRONG_COMMAND);
-}
-
-bool handler::caching_allowed(THD* thd, char* table_key,
-			      uint key_length, uint8 cache_type)
-{
-  if (cache_type == HA_CACHE_TBL_ASKTRANSACT)
-    return innobase_query_caching_of_table_permitted(thd, table_key,
-						     key_length);
-  else
-    return 1;
-}
-
 /****************************************************************************
 ** Some general functions that isn't in the handler class
 ****************************************************************************/
 
-	/* Initiates table-file and calls apropriate database-creator */
-	/* Returns 1 if something got wrong */
+/*
+  Initiates table-file and calls apropriate database-creator
+  Returns 1 if something got wrong
+*/
 
 int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
 		    bool update_create_info)
 {
   int error;
   TABLE table;
+  char name_buff[FN_REFLEN];
   DBUG_ENTER("ha_create_table");
 
   if (openfrm(name,"",0,(uint) READ_ALL, 0, &table))
@@ -1141,22 +1226,20 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
   if (update_create_info)
   {
     update_create_info_from_table(create_info, &table);
-    if (table.file->table_flags() & HA_DROP_BEFORE_CREATE)
-      table.file->delete_table(name);		// Needed for BDB tables
   }
+  if (lower_case_table_names == 2 &&
+      !(table.file->table_flags() & HA_FILE_BASED))
+  {
+    /* Ensure that handler gets name in lower case */
+    strmov(name_buff, name);
+    my_casedn_str(files_charset_info, name_buff);
+    name= name_buff;
+  }
+
   error=table.file->create(name,&table,create_info);
   VOID(closefrm(&table));
   if (error)
-  {
-    if (table.db_type == DB_TYPE_INNODB)
-    {
-      /* Creation of InnoDB table cannot fail because of an OS error:
-	 put error as the number */
-      my_error(ER_CANT_CREATE_TABLE,MYF(ME_BELL+ME_WAITTANG),name,error);
-    }
-    else
-      my_error(ER_CANT_CREATE_TABLE,MYF(ME_BELL+ME_WAITTANG),name,my_errno);
-  }
+    my_error(ER_CANT_CREATE_TABLE,MYF(ME_BELL+ME_WAITTANG),name,error);
   DBUG_RETURN(error != 0);
 }
 
@@ -1260,4 +1343,153 @@ int ha_change_key_cache(KEY_CACHE *old_key_cache,
 {
   mi_change_key_cache(old_key_cache, new_key_cache);
   return 0;
+}
+
+
+/*
+  Try to discover one table from handler(s)
+*/
+
+int ha_discover(const char* dbname, const char* name,
+               const void** frmblob, uint* frmlen)
+{
+  int error= 1; // Table does not exist in any handler
+  DBUG_ENTER("ha_discover");
+  DBUG_PRINT("enter", ("db: %s, name: %s", dbname, name));
+#ifdef HAVE_NDBCLUSTER_DB
+  if (have_ndbcluster == SHOW_OPTION_YES)
+    error= ndbcluster_discover(dbname, name, frmblob, frmlen);
+#endif
+  if (!error)
+    statistic_increment(ha_discover_count,&LOCK_status);
+  DBUG_RETURN(error);
+}
+
+
+/*
+  Read first row between two ranges.
+  Store ranges for future calls to read_range_next
+
+  SYNOPSIS
+    read_range_first()
+    start_key		Start key. Is 0 if no min range
+    end_key		End key.  Is 0 if no max range
+    eq_range_arg	Set to 1 if start_key == end_key		
+    sorted		Set to 1 if result should be sorted per key
+
+  NOTES
+    Record is read into table->record[0]
+
+  RETURN
+    0			Found row
+    HA_ERR_END_OF_FILE	No rows in range
+    #			Error code
+*/
+
+int handler::read_range_first(const key_range *start_key,
+			      const key_range *end_key,
+			      bool eq_range_arg, bool sorted)
+{
+  int result;
+  DBUG_ENTER("handler::read_range_first");
+
+  eq_range= eq_range_arg;
+  end_range= 0;
+  if (end_key)
+  {
+    end_range= &save_end_range;
+    save_end_range= *end_key;
+    key_compare_result_on_equal= ((end_key->flag == HA_READ_BEFORE_KEY) ? 1 :
+				  (end_key->flag == HA_READ_AFTER_KEY) ? -1 : 0);
+  }
+  range_key_part= table->key_info[active_index].key_part;
+
+  if (!start_key)			// Read first record
+    result= index_first(table->record[0]);
+  else
+    result= index_read(table->record[0],
+		       start_key->key,
+		       start_key->length,
+		       start_key->flag);
+  if (result)
+    DBUG_RETURN((result == HA_ERR_KEY_NOT_FOUND ||
+		 result == HA_ERR_END_OF_FILE) ? HA_ERR_END_OF_FILE :
+		result);
+
+  DBUG_RETURN (compare_key(end_range) <= 0 ? 0 : HA_ERR_END_OF_FILE);
+}
+
+
+/*
+  Read next row between two ranges.
+
+  SYNOPSIS
+    read_range_next()
+
+  NOTES
+    Record is read into table->record[0]
+
+  RETURN
+    0			Found row
+    HA_ERR_END_OF_FILE	No rows in range
+    #			Error code
+*/
+
+int handler::read_range_next()
+{
+  int result;
+  DBUG_ENTER("handler::read_range_next");
+
+  if (eq_range)
+  {
+    /* We trust that index_next_same always gives a row in range */
+    DBUG_RETURN(index_next_same(table->record[0],
+                                end_range->key,
+                                end_range->length));
+  }
+  result= index_next(table->record[0]);
+  if (result)
+    DBUG_RETURN(result);
+  DBUG_RETURN(compare_key(end_range) <= 0 ? 0 : HA_ERR_END_OF_FILE);
+}
+
+
+/*
+  Compare if found key (in row) is over max-value
+
+  SYNOPSIS
+    compare_key
+    range		range to compare to row. May be 0 for no range
+ 
+  NOTES
+    See key.cc::key_cmp() for details
+
+  RETURN
+    The return value is SIGN(key_in_row - range_key):
+
+    0			Key is equal to range or 'range' == 0 (no range)
+   -1			Key is less than range
+    1			Key is larger than range
+*/
+
+int handler::compare_key(key_range *range)
+{
+  int cmp;
+  if (!range)
+    return 0;					// No max range
+  cmp= key_cmp(range_key_part, range->key, range->length);
+  if (!cmp)
+    cmp= key_compare_result_on_equal;
+  return cmp;
+}
+
+int handler::index_read_idx(byte * buf, uint index, const byte * key,
+			     uint key_len, enum ha_rkey_function find_flag)
+{
+  int error= ha_index_init(index);
+  if (!error)
+    error= index_read(buf, key, key_len, find_flag);
+  if (!error)
+    error= ha_index_end();
+  return error;
 }

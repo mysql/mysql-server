@@ -8637,6 +8637,7 @@ my_mb_wc_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
 
 static MY_COLLATION_HANDLER my_collation_ci_handler =
 {
+  NULL,			/* init */
   my_strnncoll_simple,  /* strnncoll  */
   my_strnncollsp_simple,
   my_strnxfrm_simple,	/* strnxfrm   */
@@ -8649,10 +8650,12 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
 
 static MY_CHARSET_HANDLER my_charset_handler=
 {
+  NULL,			/* init */
   ismbchar_euc_kr,
   mbcharlen_euc_kr,
   my_numchars_mb,
   my_charpos_mb,
+  my_well_formed_len_mb,
   my_lengthsp_8bit,
   my_mb_wc_euc_kr,	/* mb_wc   */
   my_wc_mb_euc_kr,	/* wc_mb   */
@@ -8680,17 +8683,22 @@ CHARSET_INFO my_charset_euckr_korean_ci=
     "euckr",		/* cs name    */
     "euckr_korean_ci",	/* name */
     "",			/* comment    */
+    NULL,		/* tailoring */
     ctype_euc_kr,
     to_lower_euc_kr,
     to_upper_euc_kr,
     sort_order_euc_kr,
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    "",
-    "",
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
+    1,			/* mbminlen   */
     2,			/* mbmaxlen   */
-    0,
+    0,			/* min_sort_char */
+    255,		/* max_sort_char */
     &my_charset_handler,
     &my_collation_ci_handler
 };
@@ -8703,17 +8711,22 @@ CHARSET_INFO my_charset_euckr_bin=
     "euckr",		/* cs name    */
     "euckr_bin",	/* name */
     "",			/* comment    */
+    NULL,		/* tailoring */
     ctype_euc_kr,
     to_lower_euc_kr,
     to_upper_euc_kr,
     sort_order_euc_kr,
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    "",
-    "",
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
+    1,			/* mbminlen   */
     2,			/* mbmaxlen   */
-    0,
+    0,			/* min_sort_char */
+    255,		/* max_sort_char */
     &my_charset_handler,
     &my_collation_mb_bin_handler
 };

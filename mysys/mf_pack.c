@@ -43,7 +43,7 @@ void pack_dirname(my_string to, const char *from)
   (void) intern_filename(to,from);		/* Change to intern name */
 
 #ifdef FN_DEVCHAR
-  if ((start=strrchr(to,FN_DEVCHAR)) != 0)	/* Skipp device part */
+  if ((start=strrchr(to,FN_DEVCHAR)) != 0)	/* Skip device part */
     start++;
   else
 #endif
@@ -131,7 +131,7 @@ uint cleanup_dirname(register my_string to, const char *from)
   from_ptr=(my_string) from;
 #ifdef FN_DEVCHAR
   if ((pos=strrchr(from_ptr,FN_DEVCHAR)) != 0)
-  {						/* Skipp device part */
+  {						/* Skip device part */
     length=(uint) (pos-from_ptr)+1;
     start=strnmov(buff,from_ptr,length); from_ptr+=length;
   }
@@ -146,7 +146,7 @@ uint cleanup_dirname(register my_string to, const char *from)
     if (*pos == FN_LIBCHAR)
     {
       if ((uint) (pos-start) > length && bcmp(pos-length,parent,length) == 0)
-      {						/* If .../../; skipp prev */
+      {						/* If .../../; skip prev */
 	pos-=length;
 	if (pos != start)
 	{					 /* not /../ */
@@ -195,7 +195,7 @@ uint cleanup_dirname(register my_string to, const char *from)
 	  pos--;			/* Remove dupplicate '/' */
       }
       else if (pos-start > 1 && pos[-1] == FN_CURLIB && pos[-2] == FN_LIBCHAR)
-	pos-=2;					/* Skipp /./ */
+	pos-=2;					/* Skip /./ */
       else if (pos > buff+1 && pos[-1] == FN_HOMELIB && pos[-2] == FN_LIBCHAR)
       {					/* Found ..../~/  */
 	buff[0]=FN_HOMELIB;
@@ -347,11 +347,25 @@ static my_string NEAR_F expand_tilde(my_string *path)
   return (my_string) 0;
 }
 
-	/* fix filename so it can be used by open, create .. */
-	/* to may be == from */
-	/* Returns to */
 
-my_string unpack_filename(my_string to, const char *from)
+/*
+  Fix filename so it can be used by open, create
+
+  SYNOPSIS
+    unpack_filename()
+    to		Store result here. Must be at least of size FN_REFLEN.
+    from	Filename in unix format (with ~)
+
+  RETURN
+    # length of to
+
+  NOTES
+    to may be == from
+    ~ will only be expanded if total length < FN_REFLEN
+*/
+
+
+uint unpack_filename(my_string to, const char *from)
 {
   uint length,n_length;
   char buff[FN_REFLEN];
@@ -362,17 +376,17 @@ my_string unpack_filename(my_string to, const char *from)
   if (n_length+strlen(from+length) < FN_REFLEN)
   {
     (void) strmov(buff+n_length,from+length);
-    (void) system_filename(to,buff);		/* Fix to usably filename */
+    length= system_filename(to,buff);		/* Fix to usably filename */
   }
   else
-    (void) system_filename(to,from);		/* Fix to usably filename */
-  DBUG_RETURN(to);
+    length= system_filename(to,from);		/* Fix to usably filename */
+  DBUG_RETURN(length);
 } /* unpack_filename */
 
 
 	/* Convert filename (unix standard) to system standard */
 	/* Used before system command's like open(), create() .. */
-	/* Returns to */
+	/* Returns length of to */
 
 uint system_filename(my_string to, const char *from)
 {
@@ -395,7 +409,7 @@ uint system_filename(my_string to, const char *from)
   libchar_found=0;
   (void) strmov(buff,from);			 /* If to == from */
   from_pos= buff;
-  if ((pos=strrchr(from_pos,FN_DEVCHAR)))	/* Skipp device part */
+  if ((pos=strrchr(from_pos,FN_DEVCHAR)))	/* Skip device part */
   {
     pos++;
     to_pos=strnmov(to,from_pos,(size_s) (pos-from_pos));
@@ -405,7 +419,7 @@ uint system_filename(my_string to, const char *from)
     to_pos=to;
 
   if (from_pos[0] == FN_CURLIB && from_pos[1] == FN_LIBCHAR)
-    from_pos+=2;				/* Skipp './' */
+    from_pos+=2;				/* Skip './' */
   if (strchr(from_pos,FN_LIBCHAR))
   {
     *(to_pos++) = FN_C_BEFORE_DIR;
@@ -473,7 +487,7 @@ my_string intern_filename(my_string to, const char *from)
 
   convert_dirname(buff,from,NullS);		/* change '<>' to '[]' */
   from_pos=buff;
-  if ((pos=strrchr(from_pos,FN_DEVCHAR)))	/* Skipp device part */
+  if ((pos=strrchr(from_pos,FN_DEVCHAR)))	/* Skip device part */
   {
     pos++;
     to_pos=strnmov(to,from_pos,(size_s) (pos-from_pos));

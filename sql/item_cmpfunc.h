@@ -63,10 +63,12 @@ public:
   inline int compare() { return (this->*func)(); }
 
   int compare_string();		 // compare args[0] & args[1]
+  int compare_binary_string();	 // compare args[0] & args[1]
   int compare_real();            // compare args[0] & args[1]
   int compare_int();             // compare args[0] & args[1]
   int compare_row();             // compare args[0] & args[1]
   int compare_e_string();	 // compare args[0] & args[1]
+  int compare_e_binary_string(); // compare args[0] & args[1]
   int compare_e_real();          // compare args[0] & args[1]
   int compare_e_int();           // compare args[0] & args[1]
   int compare_e_row();           // compare args[0] & args[1]
@@ -82,7 +84,7 @@ public:
   Item_bool_func() :Item_int_func() {}
   Item_bool_func(Item *a) :Item_int_func(a) {}
   Item_bool_func(Item *a,Item *b) :Item_int_func(a,b) {}
-  Item_bool_func(THD *thd, Item_bool_func &item) :Item_int_func(thd, item) {}
+  Item_bool_func(THD *thd, Item_bool_func *item) :Item_int_func(thd, item) {}
   void fix_length_and_dec() { decimals=0; max_length=1; }
 };
 
@@ -91,9 +93,11 @@ class Item_in_optimizer: public Item_bool_func
 {
 protected:
   Item_cache *cache;
+  bool save_cache;
 public:
   Item_in_optimizer(Item *a, Item_in_subselect *b):
-    Item_bool_func(a, (Item *)b), cache(0) {}
+    Item_bool_func(a, my_reinterpret_cast(Item *)(b)), cache(0), save_cache(0)
+  {}
   bool fix_fields(THD *, struct st_table_list *, Item **);
   bool fix_left(THD *thd, struct st_table_list *tables, Item **ref);
   bool is_null();
@@ -105,8 +109,10 @@ public:
     Item_in_optimizer return NULL, else it evaluate Item_in_subselect.
   */
   longlong val_int();
+  void cleanup();
   const char *func_name() const { return "<in_optimizer>"; }
   Item_cache **get_cache() { return &cache; }
+  void keep_top_level_cache();
 };
 
 class Comp_creator
@@ -191,17 +197,30 @@ public:
   bool have_rev_func() const { return rev_functype() != UNKNOWN_FUNC; }
   void print(String *str) { Item_func::print_op(str); }
   bool is_null() { return test(args[0]->is_null() || args[1]->is_null()); }
+  CHARSET_INFO *compare_collation() { return cmp.cmp_collation.collation; }
 
   friend class  Arg_comparator;
 };
 
 class Item_bool_rowready_func2 :public Item_bool_func2
 {
+  Item *orig_a, *orig_b; /* propagate_const can change parameters */
 public:
-  Item_bool_rowready_func2(Item *a,Item *b) :Item_bool_func2(a,b)
+  Item_bool_rowready_func2(Item *a,Item *b) :Item_bool_func2(a,b),
+    orig_a(a), orig_b(b)
   {
     allowed_arg_cols= a->cols();
   }
+  void cleanup()
+  {
+    DBUG_ENTER("Item_bool_rowready_func2::cleanup");
+    Item_bool_func2::cleanup();
+    tmp_arg[0]= orig_a;
+    tmp_arg[1]= orig_b;
+    DBUG_VOID_RETURN;
+  }
+  Item *neg_transformer(THD *thd);
+  virtual Item *negated_item();
 };
 
 class Item_func_not :public Item_bool_func
@@ -211,7 +230,41 @@ public:
   longlong val_int();
   enum Functype functype() const { return NOT_FUNC; }
   const char *func_name() const { return "not"; }
-  Item *neg_transformer();
+  Item *neg_transformer(THD *thd);
+};
+
+
+/*
+  The class Item_func_trig_cond is used for guarded predicates 
+  which are employed only for internal purposes.
+  A guarded predicates is an object consisting of an a regular or
+  a guarded predicate P and a pointer to a boolean guard variable g. 
+  A guarded predicate P/g is evaluated to true if the value of the
+  guard g is false, otherwise it is evaluated to the same value that
+  the predicate P: val(P/g)= g ? val(P):true.
+  Guarded predicates allow us to include predicates into a conjunction
+  conditionally. Currently they are utilized for pushed down predicates
+  in queries with outer join operations.
+
+  In the future, probably, it makes sense to extend this class to
+  the objects consisting of three elements: a predicate P, a pointer
+  to a variable g and a firing value s with following evaluation
+  rule: val(P/g,s)= g==s? val(P) : true. It will allow us to build only
+  one item for the objects of the form P/g1/g2... 
+
+  Objects of this class are built only for query execution after
+  the execution plan has been already selected. That's why this
+  class needs only val_int out of generic methods. 
+*/
+
+class Item_func_trig_cond: public Item_bool_func
+{
+  bool *trig_var;
+public:
+  Item_func_trig_cond(Item *a, bool *f) : Item_bool_func(a) { trig_var= f; }
+  longlong val_int() { return *trig_var ? args[0]->val_int() : 1; }
+  enum Functype functype() const { return TRIG_COND_FUNC; };
+  const char *func_name() const { return "trigcond"; };
 };
 
 class Item_func_not_all :public Item_func_not
@@ -238,7 +291,7 @@ public:
   enum Functype rev_functype() const { return EQ_FUNC; }
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return "="; }
-  Item *neg_transformer();
+  Item *negated_item();
 };
 
 class Item_func_equal :public Item_bool_rowready_func2
@@ -251,6 +304,7 @@ public:
   enum Functype rev_functype() const { return EQUAL_FUNC; }
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return "<=>"; }
+  Item* neg_transformer(THD *thd) { return 0; }
 };
 
 
@@ -263,7 +317,7 @@ public:
   enum Functype rev_functype() const { return LE_FUNC; }
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return ">="; }
-  Item *neg_transformer();
+  Item *negated_item();
 };
 
 
@@ -276,7 +330,7 @@ public:
   enum Functype rev_functype() const { return LT_FUNC; }
   cond_result eq_cmp_result() const { return COND_FALSE; }
   const char *func_name() const { return ">"; }
-  Item *neg_transformer();
+  Item *negated_item();
 };
 
 
@@ -289,7 +343,7 @@ public:
   enum Functype rev_functype() const { return GE_FUNC; }
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return "<="; }
-  Item *neg_transformer();
+  Item *negated_item();
 };
 
 
@@ -302,7 +356,7 @@ public:
   enum Functype rev_functype() const { return GT_FUNC; }
   cond_result eq_cmp_result() const { return COND_FALSE; }
   const char *func_name() const { return "<"; }
-  Item *neg_transformer();
+  Item *negated_item();
 };
 
 
@@ -315,7 +369,7 @@ public:
   cond_result eq_cmp_result() const { return COND_FALSE; }
   optimize_type select_optimize() const { return OPTIMIZE_KEY; } 
   const char *func_name() const { return "<>"; }
-  Item *neg_transformer();
+  Item *negated_item();
 };
 
 
@@ -332,6 +386,7 @@ public:
   const char *func_name() const { return "between"; }
   void fix_length_and_dec();
   void print(String *str);
+  CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
 };
 
 
@@ -392,6 +447,7 @@ public:
   enum Item_result result_type () const { return cached_result_type; }
   bool fix_fields(THD *thd,struct st_table_list *tlist, Item **ref)
   {
+    DBUG_ASSERT(fixed == 0);
     args[0]->top_level_item();
     return Item_func::fix_fields(thd, tlist, ref);
   }
@@ -471,6 +527,7 @@ public:
   const char *func_name() const { return "case"; }
   void print(String *str);
   Item *find_item(String *str);
+  CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
 };
 
 
@@ -705,16 +762,15 @@ class Item_func_in :public Item_int_func
   }
   longlong val_int();
   void fix_length_and_dec();
-  ~Item_func_in()
-  {
-    cleanup(); /* This is not called by Item::~Item() */
-  }
   void cleanup()
   {
+    DBUG_ENTER("Item_func_in::cleanup");
+    Item_int_func::cleanup();
     delete array;
     delete in_item;
     array= 0;
     in_item= 0;
+    DBUG_VOID_RETURN;
   }
   optimize_type select_optimize() const
     { return array ? OPTIMIZE_KEY : OPTIMIZE_NONE; }
@@ -722,6 +778,7 @@ class Item_func_in :public Item_int_func
   enum Functype functype() const { return IN_FUNC; }
   const char *func_name() const { return " IN "; }
   bool nulls_in_row();
+  CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
 };
 
 /* Functions used by where clause */
@@ -761,7 +818,8 @@ public:
   }
   table_map not_null_tables() const { return 0; }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
-  Item *neg_transformer();
+  Item *neg_transformer(THD *thd);
+  CHARSET_INFO *compare_collation() { return args[0]->collation.collation; }
 };
 
 /* Functions used by HAVING for rewriting IN subquery */
@@ -793,16 +851,15 @@ public:
   }
   const char *func_name() const { return "isnotnull"; }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
-  table_map not_null_tables() const { return 0; }
-  Item *neg_transformer();
+  table_map not_null_tables() const { return used_tables(); }
+  Item *neg_transformer(THD *thd);
   void print(String *str);
+  CHARSET_INFO *compare_collation() { return args[0]->collation.collation; }
 };
 
 
 class Item_func_like :public Item_bool_func2
 {
-  char escape;
-
   // Turbo Boyer-Moore data
   bool        canDoTurboBM;	// pattern is '%abcd%' case
   const char* pattern;
@@ -818,11 +875,14 @@ class Item_func_like :public Item_bool_func2
   bool turboBM_matches(const char* text, int text_len) const;
   enum { alphabet_size = 256 };
 
+  Item *escape_item;
+
 public:
-  Item_func_like(Item *a,Item *b, char* escape_arg)
-    :Item_bool_func2(a,b), escape(*escape_arg), canDoTurboBM(false),
-    pattern(0), pattern_len(0), bmGs(0), bmBc(0)
-  {}
+  char escape;
+
+  Item_func_like(Item *a,Item *b, Item *escape_arg)
+    :Item_bool_func2(a,b), canDoTurboBM(false), pattern(0), pattern_len(0), 
+     bmGs(0), bmBc(0), escape_item(escape_arg) {}
   longlong val_int();
   enum Functype functype() const { return LIKE_FUNC; }
   optimize_type select_optimize() const;
@@ -845,11 +905,12 @@ class Item_func_regex :public Item_bool_func
 public:
   Item_func_regex(Item *a,Item *b) :Item_bool_func(a,b),
     regex_compiled(0),regex_is_const(0) {}
-  ~Item_func_regex();
+  void cleanup();
   longlong val_int();
   bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
   const char *func_name() const { return "regexp"; }
   void print(String *str) { print_op(str); }
+  CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
 };
 
 #else
@@ -885,10 +946,9 @@ public:
     list.push_back(i1);
     list.push_back(i2);
   }
-  Item_cond(THD *thd, Item_cond &item);
+  Item_cond(THD *thd, Item_cond *item);
   Item_cond(List<Item> &nlist)
     :Item_bool_func(), list(nlist), abort_on_null(0) {}
-  ~Item_cond() { list.delete_elements(); }
   bool add(Item *item) { return list.push_back(item); }
   bool fix_fields(THD *, struct st_table_list *, Item **ref);
 
@@ -902,7 +962,7 @@ public:
   void top_level_item() { abort_on_null=1; }
   void copy_andor_arguments(THD *thd, Item_cond *item);
   bool walk(Item_processor processor, byte *arg);
-  void neg_arguments();
+  void neg_arguments(THD *thd);
 };
 
 
@@ -911,7 +971,7 @@ class Item_cond_and :public Item_cond
 public:
   Item_cond_and() :Item_cond() {}
   Item_cond_and(Item *i1,Item *i2) :Item_cond(i1,i2) {}
-  Item_cond_and(THD *thd, Item_cond_and &item) :Item_cond(thd, item) {}
+  Item_cond_and(THD *thd, Item_cond_and *item) :Item_cond(thd, item) {}
   Item_cond_and(List<Item> &list): Item_cond(list) {}
   enum Functype functype() const { return COND_AND_FUNC; }
   longlong val_int();
@@ -919,11 +979,11 @@ public:
   Item* copy_andor_structure(THD *thd)
   {
     Item_cond_and *item;
-    if((item= new Item_cond_and(thd, *this)))
+    if ((item= new Item_cond_and(thd, this)))
        item->copy_andor_arguments(thd, this);
     return item;
   }
-  Item *neg_transformer();
+  Item *neg_transformer(THD *thd);
 };
 
 class Item_cond_or :public Item_cond
@@ -931,7 +991,7 @@ class Item_cond_or :public Item_cond
 public:
   Item_cond_or() :Item_cond() {}
   Item_cond_or(Item *i1,Item *i2) :Item_cond(i1,i2) {}
-  Item_cond_or(THD *thd, Item_cond_or &item) :Item_cond(thd, item) {}
+  Item_cond_or(THD *thd, Item_cond_or *item) :Item_cond(thd, item) {}
   Item_cond_or(List<Item> &list): Item_cond(list) {}
   enum Functype functype() const { return COND_OR_FUNC; }
   longlong val_int();
@@ -940,11 +1000,11 @@ public:
   Item* copy_andor_structure(THD *thd)
   {
     Item_cond_or *item;
-    if((item= new Item_cond_or(thd, *this)))
+    if ((item= new Item_cond_or(thd, this)))
       item->copy_andor_arguments(thd, this);
     return item;
   }
-  Item *neg_transformer();
+  Item *neg_transformer(THD *thd);
 };
 
 
@@ -968,14 +1028,11 @@ public:
 
 /* Some usefull inline functions */
 
-inline Item *and_conds(Item *a,Item *b)
+inline Item *and_conds(Item *a, Item *b)
 {
   if (!b) return a;
   if (!a) return b;
-  Item *cond=new Item_cond_and(a,b);
-  if (cond)
-    cond->update_used_tables();
-  return cond;
+  return new Item_cond_and(a, b);
 }
 
 Item *and_expressions(Item *a, Item *b, Item **org_item);

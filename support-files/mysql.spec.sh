@@ -16,13 +16,14 @@ Summary(pt_BR): MySQL: Um servidor SQL rápido e confiável.
 Group(pt_BR):	Aplicações/Banco_de_Dados
 Version:	@MYSQL_NO_DASH_VERSION@
 Release:	%{release}
-Copyright:	GPL
+License:	GPL
 Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/mysql-%{mysql_version}.tar.gz
 URL:		http://www.mysql.com/
 Packager:	Lenz Grimmer <build@mysql.com>
 Vendor:		MySQL AB
 Requires: fileutils sh-utils
 Provides:	msqlormysql MySQL-server mysql
+BuildPrereq: ncurses-devel
 Obsoletes:	mysql
 
 # Think about what you use here since the first step is to
@@ -220,7 +221,8 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
             --includedir=%{_includedir} \
             --mandir=%{_mandir} \
 	    --enable-thread-safe-client \
-	    --with-comment=\"Official MySQL RPM\";
+	    --with-comment=\"Official MySQL RPM\" \
+	    --with-readline ;
 	    # Add this for more debugging support
 	    # --with-debug
 	    # Add this for MyISAM RAID support:
@@ -258,10 +260,11 @@ export PATH
 # Build the 4.0 Max binary (includes BDB and UDFs and therefore
 # cannot be linked statically against the patched glibc)
 
-# If we want to compile with RAID using gcc 3, we need to use
-# gcc instead of g++ to avoid linking problems (RAID code is written in C++)
-test -z $CXX && test -z $CC && if gcc -v 2>&1 | grep 'gcc version 3' > /dev/null 2>&1
+# Use gcc for C and C++ code (to avoid a dependency on libstdc++ and
+# including exceptions into the code
+if [ -z "$CXX" -a -z "$CC" ]
 then
+	export CC="gcc"
 	export CXX="gcc"
 fi
 
@@ -289,7 +292,7 @@ install -m 644 libmysqld/libmysqld.a $RBR%{_libdir}/mysql
 
 # Save manual to avoid rebuilding
 mv Docs/manual.ps Docs/manual.ps.save
-make distclean
+make clean
 mv Docs/manual.ps.save Docs/manual.ps
 
 # RPM:s destroys Makefile.in files, so we generate them here
@@ -394,7 +397,7 @@ useradd -M -r -d $mysql_datadir -s /bin/bash -c "MySQL server" mysql 2> /dev/nul
 chown -R mysql $mysql_datadir
 
 # Initiate databases
-mysql_install_db --rpm
+mysql_install_db --rpm --user=mysql
 
 # Change permissions again to fix any new files.
 chown -R mysql $mysql_datadir
@@ -468,6 +471,7 @@ fi
 %attr(755, root, root) %{_bindir}/isamlog
 %attr(755, root, root) %{_bindir}/my_print_defaults
 %attr(755, root, root) %{_bindir}/myisamchk
+%attr(755, root, root) %{_bindir}/myisam_ftdump
 %attr(755, root, root) %{_bindir}/myisamlog
 %attr(755, root, root) %{_bindir}/myisampack
 %attr(755, root, root) %{_bindir}/mysql_convert_table_format
@@ -478,6 +482,7 @@ fi
 %attr(755, root, root) %{_bindir}/mysql_install_db
 %attr(755, root, root) %{_bindir}/mysql_secure_installation
 %attr(755, root, root) %{_bindir}/mysql_setpermission
+%attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
 %attr(755, root, root) %{_bindir}/mysql_zap
 %attr(755, root, root) %{_bindir}/mysqlbug
 %attr(755, root, root) %{_bindir}/mysqld_multi
@@ -495,7 +500,7 @@ fi
 %attr(755, root, root) %{_sbindir}/rcmysql
 %attr(644, root, root) %{_libdir}/mysql/mysqld.sym
 
-%attr(644, root, root) %{_sysconfdir}/logrotate.d/mysql
+%attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
 %attr(755, root, root) %{_sysconfdir}/init.d/mysql
 
 %attr(755, root, root) %{_datadir}/mysql/
@@ -574,6 +579,37 @@ fi
 # The spec file changelog only includes changes made to the spec file
 # itself
 %changelog 
+* Wed Jun 30 2004 Lenz Grimmer <lenz@mysql.com>
+
+- fixed server postinstall (mysql_install_db was called with the wrong
+  parameter)
+
+* Thu Jun 24 2004 Lenz Grimmer <lenz@mysql.com>
+
+- added mysql_tzinfo_to_sql to the server subpackage
+- run "make clean" instead of "make distclean"
+
+* Mon Apr 05 2004 Lenz Grimmer <lenz@mysql.com>
+
+- added ncurses-devel to the build prerequisites (BUG 3377)
+
+* Thu Feb 12 2004 Lenz Grimmer <lenz@mysql.com>
+
+- when using gcc, _always_ use CXX=gcc 
+- replaced Copyright with License field (Copyright is obsolete)
+
+* Tue Feb 03 2004 Lenz Grimmer <lenz@mysql.com>
+
+- added myisam_ftdump to the Server package
+
+* Tue Jan 13 2004 Lenz Grimmer <lenz@mysql.com>
+
+- link the mysql client against libreadline instead of libedit (BUG 2289)
+
+* Mon Dec 22 2003 Lenz Grimmer <lenz@mysql.com>
+
+- marked /etc/logrotate.d/mysql as a config file (BUG 2156)
+
 * Fri Dec 13 2003 Lenz Grimmer <lenz@mysql.com>
 
 - fixed file permissions (BUG 1672)

@@ -2,7 +2,8 @@ LIBRARY		LIBMYSQL
 DESCRIPTION	'MySQL 4.1 Client Library'
 VERSION		6.0
 EXPORTS
-	_dig_vec
+	_dig_vec_lower
+	_dig_vec_upper
 	bmove_upp
 	delete_dynamic
 	free_defaults
@@ -16,7 +17,6 @@ EXPORTS
 	list_add
 	list_delete
 	load_defaults
-	max_allowed_packet
 	my_end
 	my_getopt_print_errors
 	my_init
@@ -24,17 +24,18 @@ EXPORTS
 	my_memdup
 	my_no_flags_free
 	my_path
+	mysql_get_parameters
 	my_print_help
 	my_print_variables
 	my_realloc
 	my_strdup
-	my_thread_end
-	my_thread_init
+	mysql_thread_end
+	mysql_thread_init
 	myodbc_remove_escape
 	mysql_affected_rows
 	mysql_autocommit
-	mysql_bind_param
-	mysql_bind_result
+	mysql_stmt_bind_param
+	mysql_stmt_bind_result
 	mysql_change_user
 	mysql_character_set_name
 	mysql_close
@@ -46,9 +47,9 @@ EXPORTS
 	mysql_errno
 	mysql_error
 	mysql_escape_string
-	mysql_execute
-	mysql_fetch
-	mysql_fetch_column
+	mysql_stmt_execute
+	mysql_stmt_fetch
+	mysql_stmt_fetch_column
 	mysql_fetch_field
 	mysql_fetch_field_direct
 	mysql_fetch_fields
@@ -78,11 +79,10 @@ EXPORTS
 	mysql_num_rows
 	mysql_odbc_escape_string
 	mysql_options
-	mysql_param_count
-	mysql_param_result
+	mysql_stmt_param_count
+	mysql_stmt_param_metadata
 	mysql_ping
-	mysql_prepare
-	mysql_get_metadata
+	mysql_stmt_result_metadata
 	mysql_query
 	mysql_read_query_result
 	mysql_real_connect
@@ -93,7 +93,7 @@ EXPORTS
 	mysql_row_seek
 	mysql_row_tell
 	mysql_select_db
-	mysql_send_long_data
+	mysql_stmt_send_long_data
 	mysql_send_query
 	mysql_shutdown
 	mysql_ssl_set
@@ -114,7 +114,9 @@ EXPORTS
 	mysql_thread_safe
 	mysql_use_result
 	mysql_warning_count
-	net_buffer_length
+	mysql_stmt_sqlstate
+	mysql_sqlstate
+	mysql_get_server_version
 	set_dynamic
 	strcend
 	strcont
@@ -124,3 +126,21 @@ EXPORTS
 	strmake
 	strmov
 	strxmov
+	mysql_stmt_prepare
+	mysql_stmt_init
+	mysql_stmt_insert_id
+	mysql_stmt_attr_get
+	mysql_stmt_attr_set
+	mysql_stmt_field_count
+	client_errors
+	mysql_set_local_infile_default
+	mysql_set_local_infile_handler
+	mysql_disable_reads_from_master
+	mysql_disable_rpl_parse
+	mysql_enable_reads_from_master
+	mysql_enable_rpl_parse
+	mysql_master_query
+	mysql_rpl_parse_enabled
+	mysql_rpl_probe
+	mysql_rpl_query_type
+	mysql_slave_query

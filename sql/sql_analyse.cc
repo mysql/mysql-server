@@ -187,7 +187,9 @@ bool test_if_number(NUM_INFO *info, const char *str, uint str_len)
   }
   if (str == end && info->integers)
   {
-    info->ullval = (ulonglong) strtoull(begin ,NULL, 10);
+    char *endpos= (char*) end;
+    int error;
+    info->ullval= (ulonglong) my_strtoll10(begin, &endpos, &error);
     if (info->integers == 1)
       return 0;			     // a single number can't be zerofill
     info->maybe_zerofill = 1;
@@ -199,7 +201,9 @@ bool test_if_number(NUM_INFO *info, const char *str, uint str_len)
       return 0;
     if ((str + 1) == end)	     // number was something like '123[.eE]'
     {
-      info->ullval = (ulonglong) strtoull(begin, NULL, 10);
+      char *endpos= (char*) str;
+      int error;
+      info->ullval= (ulonglong) my_strtoll10(begin, &endpos, &error);
       return 1;
     }
     if (*str == 'e' || *str == 'E')  // number may be something like '1e+50'
@@ -218,14 +222,16 @@ bool test_if_number(NUM_INFO *info, const char *str, uint str_len)
     for (str++; *(end - 1) == '0'; end--);  // jump over zeros at the end
     if (str == end)		     // number was something like '123.000'
     {
-      info->ullval = (ulonglong) strtoull(begin, NULL, 10);
+      char *endpos= (char*) str;
+      int error;
+      info->ullval= (ulonglong) my_strtoll10(begin, &endpos, &error);
       return 1;
     }
     for (; str != end && my_isdigit(system_charset_info,*str); str++)
       info->decimals++;
     if (str == end)
     {
-      info->dval = atod(begin);
+      info->dval = my_atof(begin);
       return 1;
     }
   }

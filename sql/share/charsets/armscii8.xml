@@ -114,7 +114,7 @@
 </map>
 </collation>
 
-<collation name="armscii_bin"	flag="binary"/>
+<collation name="armscii8_bin"	flag="binary"/>
 
 </charset>
 

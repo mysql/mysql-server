@@ -25,7 +25,7 @@ CFG=strings - Win32 Debug
 # PROP AllowPerConfigDependencies 0
 # PROP Scc_ProjName ""
 # PROP Scc_LocalPath ""
-CPP=cl.exe
+CPP=xicl6.exe
 RSC=rc.exe
 
 !IF  "$(CFG)" == "strings - Win32 Release"
@@ -48,7 +48,7 @@ RSC=rc.exe
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LIB32=link.exe -lib
+LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo /out:"..\lib_release\strings.lib"
 
@@ -65,14 +65,14 @@ LIB32=link.exe -lib
 # PROP Intermediate_Dir "debug"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /Z7 /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /YX /FD /c
-# ADD CPP /nologo /G6 /MTd /W3 /Z7 /Od /Gf /I "../include" /D "_DEBUG" /D "SAFEMALLOC" /D "_WINDOWS" /FD /c
+# ADD CPP /nologo /G6 /MTd /W3 /Z7 /Od /Gf /I "../include" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x409
 # ADD RSC /l 0x409
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LIB32=link.exe -lib
+LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo /out:"..\lib_debug\strings.lib"
 
@@ -84,10 +84,6 @@ LIB32=link.exe -lib
 # Name "strings - Win32 Debug"
 # Begin Source File
 
-SOURCE=.\atof.c
-# End Source File
-# Begin Source File
-
 SOURCE=.\bchange.c
 # End Source File
 # Begin Source File
@@ -97,10 +93,6 @@ SOURCE=.\bcmp.c
 # Begin Source File
 
 SOURCE=.\bfill.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\bmove.c
 # End Source File
 # Begin Source File
 
@@ -116,11 +108,19 @@ SOURCE=".\ctype-big5.c"
 # End Source File
 # Begin Source File
 
+SOURCE=".\ctype-bin.c"
+# End Source File
+# Begin Source File
+
 SOURCE=".\ctype-czech.c"
 # End Source File
 # Begin Source File
 
 SOURCE=".\ctype-euc_kr.c"
+# End Source File
+# Begin Source File
+
+SOURCE=".\ctype-extra.c"
 # End Source File
 # Begin Source File
 
@@ -132,7 +132,15 @@ SOURCE=".\ctype-gbk.c"
 # End Source File
 # Begin Source File
 
-SOURCE=".\ctype-latin1_de.c"
+SOURCE=".\ctype-latin1.c"
+# End Source File
+# Begin Source File
+
+SOURCE=".\ctype-mb.c"
+# End Source File
+# Begin Source File
+
+SOURCE=".\ctype-simple.c"
 # End Source File
 # Begin Source File
 
@@ -144,7 +152,19 @@ SOURCE=".\ctype-tis620.c"
 # End Source File
 # Begin Source File
 
+SOURCE=".\ctype-ucs2.c"
+# End Source File
+# Begin Source File
+
 SOURCE=".\ctype-ujis.c"
+# End Source File
+# Begin Source File
+
+SOURCE=".\ctype-utf8.c"
+# End Source File
+# Begin Source File
+
+SOURCE=".\ctype-win1250ch.c"
 # End Source File
 # Begin Source File
 
@@ -168,6 +188,14 @@ SOURCE=.\longlong2str.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\my_strtoll10.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\my_vsnprintf.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\r_strinstr.c
 # End Source File
 # Begin Source File
@@ -176,15 +204,7 @@ SOURCE=.\str2int.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\strappend.c
-# End Source File
-# Begin Source File
-
 SOURCE=.\strcend.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\strcont.c
 # End Source File
 # Begin Source File
 
@@ -196,10 +216,6 @@ SOURCE=.\strfill.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\strinstr.c
-# End Source File
-# Begin Source File
-
 SOURCE=.\strmake.c
 # End Source File
 # Begin Source File
@@ -208,15 +224,11 @@ SOURCE=.\strmov.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\strnlen.c
-# End Source File
-# Begin Source File
-
 SOURCE=.\strnmov.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\strstr.c
+SOURCE=.\strtod.c
 # End Source File
 # Begin Source File
 
@@ -241,6 +253,10 @@ SOURCE=.\strxmov.c
 # Begin Source File
 
 SOURCE=.\strxnmov.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\xml.c
 # End Source File
 # End Target
 # End Project

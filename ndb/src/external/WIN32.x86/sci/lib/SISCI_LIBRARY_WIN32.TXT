@@ -1,0 +1,77 @@
+SISCI_API LIBRARIES AND LINKING
+===============================
+
+
+/MD, /ML, /MT  (Use Run-Time Library)
+
+
+
+sisci_api.lib      - Single threaded
+
+sisci_api_md.lib   - Multithreaded DLL
+
+sisci_api_mt.lib   - Multithreaded
+
+
+
+
+With these libraries, you can select either single-threaded or multithreaded run-time routines, 
+indicate that a multithreaded module is a dynamic-link library (DLL), and select the retail 
+or debug version of the library.
+
+Note   Having more than one copy of the run-time libraries in a process can cause problems, 
+because static data in one copy is not shared with the other copy. To ensure that your process 
+contains only one copy, avoid mixing static and dynamic versions of the run-time libraries. 
+The linker will prevent you from linking with both static and dynamic versions within one .EXE file, 
+but you can still end up with two (or more) copies of the run-time libraries. 
+For example, a dynamic-link library linked with the static (non-DLL) versions of the run-time 
+libraries can cause problems when used with an .EXE file that was linked with the dynamic (DLL) 
+version of the run-time libraries. (You should also avoid mixing the debug and non-debug versions 
+of the libraries in one process.)
+
+
+MD Multithreaded
+----------------
+
+/MD Multithreaded DLL Defines _MT and _DLL so that both multithread- and DLL-specific versions 
+of the run-time routines are selected from the standard .H files. This option also causes the 
+compiler to place the library name MSVCRT.LIB into the .OBJ file. 
+Applications compiled with this option are statically linked to MSVCRT.LIB. This library provides 
+a layer of code that allows the linker to resolve external references. The actual working code is 
+contained in MSVCRT.DLL, which must be available at run time to applications linked with MSVCRT.LIB. 
+
+
+/MDd Debug Multithreaded DLL  Defines _DEBUG, _MT, and _DLL so that debug multithread- and DLL-specific 
+versions of the run-time routines are selected from the standard .H files. It also causes the compiler
+to place the library name MSVCRTD.LIB into the .OBJ file.  
+
+
+ML Single-Threaded
+------------------
+
+
+/ML Single-Threaded  Causes the compiler to place the library name LIBC.LIB into the .OBJ file so 
+that the linker will use LIBC.LIB to resolve external symbols. This is the compiler’s default action. 
+LIBC.LIB does not provide multithread support.  
+
+
+/MLd Debug Single-Threaded  Defines _DEBUG and causes the compiler to place the library name LIBCD.LIB 
+into the .OBJ file so that the linker will use LIBCD.LIB to resolve external symbols. LIBCD.LIB does 
+not provide multithread support.  
+
+
+MT Multithreaded
+----------------
+
+
+/MT Multithreaded  Defines _MT so that multithread-specific versions of the run-time routines are 
+selected from the standard header (.H) files. This option also causes the compiler to place the library 
+name LIBCMT.LIB into the .OBJ file so that the linker will use LIBCMT.LIB to resolve external symbols. 
+
+Either /MT or /MD (or their debug equivalents /MTd or /MDd) is required to create multithreaded programs.  
+/MTd Debug Multithreaded  Defines _DEBUG and _MT. Defining _MT causes multithread-specific versions of
+the run-time routines to be selected from the standard .H files. This option also causes the compiler 
+to place the library name LIBCMTD.LIB into the .OBJ file so that the linker will use LIBCMTD.LIB to 
+resolve external symbols. Either /MTd or /MDd (or their non-debug equivalents /MT or MD) is required to
+create multithreaded programs.  
+

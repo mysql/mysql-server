@@ -14,6 +14,6 @@ update t1 set n = 3;
 unlock tables;
 show status like 'Table_lock%';
 Variable_name	Value
-Table_locks_immediate	4
+Table_locks_immediate	3
 Table_locks_waited	1
 drop table t1;

@@ -13,8 +13,8 @@
 # (@localstatedir@ for this installation) or to
 # ~/.my.cnf to set user-specific options.
 #
-# In this file, you can use all long options that the program supports.
-# If you want to know the options a program supports, run the program
+# In this file, you can use all long options that a program supports.
+# If you want to know which options a program supports, run the program
 # with the "--help" option.
 #
 # More detailed information about the individual options can also be
@@ -71,7 +71,7 @@ max_connections = 100
 # the host will be blocked from connecting to the MySQL server until
 # "FLUSH HOSTS" has been run or the server was restarted. Invalid
 # passwords and other errors during the connect phase result in
-# increasing this value. See the "Aborted_Connects" status variable for
+# increasing this value. See the "Aborted_connects" status variable for
 # global counter.
 max_connect_errors = 10
 
@@ -111,14 +111,14 @@ max_heap_table_size = 64M
 
 # Sort buffer is used to perform sorts for some ORDER BY and GROUP BY
 # queries. If sorted data does not fit into the sort buffer, a disk
-# based merge sort is used instead - See "sort_merge_passes". Allocated
-# per thread if sort is needed.
+# based merge sort is used instead - See the "Sort_merge_passes"
+# status variable. Allocated per thread if sort is needed.
 sort_buffer_size = 8M
 
 # This buffer is used for the optimization of full JOINs (JOINs without
 # indexes). Such JOINs are very bad for performance in most cases
 # anyway, but setting this variable to a large value reduces the
-# performance impact. See the "select_full_join" status variable for a
+# performance impact. See the "Select_full_join" status variable for a
 # count of full JOINs. Allocated per thread if full join is found
 join_buffer_size = 8M
 
@@ -317,7 +317,7 @@ key_buffer_size = 32M
 read_buffer_size = 2M
 
 # When reading rows in sorted order after a sort, the rows are read
-# through this buffer to avoid a disk seeks. You can improve ORDER BY
+# through this buffer to avoid disk seeks. You can improve ORDER BY
 # performance a lot, if set this to a high value.
 # Allocated per thread, when needed.
 read_rnd_buffer_size = 16M
@@ -331,7 +331,7 @@ read_rnd_buffer_size = 16M
 bulk_insert_buffer_size = 64M
 
 # This buffer is allocated when MySQL needs to rebuild the index in
-# REPAIR, OPTIMZE, ALTER table statements as well as in LOAD DATA INFILE
+# REPAIR, OPTIMIZE, ALTER table statements as well as in LOAD DATA INFILE
 # into an empty table. It is allocated per thread so be careful with
 # large settings.
 myisam_sort_buffer_size = 128M

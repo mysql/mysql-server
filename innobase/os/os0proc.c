@@ -515,83 +515,6 @@ os_mem_alloc_nocache(
 #endif
 }
 
-#ifdef notdefined
-/********************************************************************
-Creates a new process. */
-
-ibool
-os_process_create(
-/*==============*/
-	char*		name,	/* in: name of the executable to start
-				or its full path name */
-	char*		cmd,	/* in: command line for the starting
-				process, or NULL if no command line
-				specified */
-	os_process_t*	proc,	/* out: handle to the process */
-	os_process_id_t* id)	/* out: process id */
-
-{
-	BOOL			ret;
-	PROCESS_INFORMATION	pinfo;
-	STARTUPINFO		sinfo;
-
-	/* The following assignments are default for the startupinfo
-	structure */
-	sinfo.cb		= sizeof(STARTUPINFO);
-	sinfo.lpReserved	= NULL;
-	sinfo.lpDesktop		= NULL;
-	sinfo.cbReserved2	= 0;
-	sinfo.lpReserved	= NULL;
-	
-	ret = CreateProcess(name,
-			      cmd,
-			      NULL,	/* No security attributes */
-			      NULL,	/* No thread security attrs */
-			      FALSE,	/* Do not inherit handles */
-			      0,	/* No creation flags */
-			      NULL,	/* No environment */
-			      NULL,	/* Same current directory */
-			      &sinfo,
-			      &pinfo);
-
-	*proc = pinfo.hProcess;
-	*id   = pinfo.dwProcessId;
-
-	return(ret);
-}
-
-/**************************************************************************
-Exits a process. */
-
-void
-os_process_exit(
-/*============*/
-	ulint	code)	/* in: exit code */
-{
-	ExitProcess((UINT)code);
-}
-
-/**************************************************************************
-Gets a process exit code. */
-
-ibool
-os_process_get_exit_code(
-/*=====================*/
-				/* out: TRUE if succeed, FALSE if fail */
-	os_process_t	proc,	/* in: handle to the process */
-	ulint*		code)	/* out: exit code */
-{
-	DWORD		ex_code;
-	BOOL		ret;
-
-	ret = GetExitCodeProcess(proc, &ex_code);
-
-	*code = (ulint)ex_code;
-	
-	return(ret);
-}
-#endif /* notdedfined */
-
 /********************************************************************
 Sets the priority boost for threads released from waiting within the current
 process. */
@@ -616,9 +539,8 @@ os_process_set_priority_boost(
 /* Does not do anything currently!
 	SetProcessPriorityBoost(GetCurrentProcess(), no_boost);
 */
-	printf(
-        "Warning: process priority boost setting currently not functional!\n"
-	);
+	fputs("Warning: process priority boost setting currently not functional!\n",
+		stderr);
 #else
 	UT_NOT_USED(do_boost);
 #endif

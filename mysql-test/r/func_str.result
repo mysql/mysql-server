@@ -84,9 +84,9 @@ bbbb	bb	bbbbbbbb	aaaa	bbbb
 select replace(concat(lcase(concat('THIS',' ','IS',' ','A',' ')),ucase('false'),' ','test'),'FALSE','REAL') ;
 replace(concat(lcase(concat('THIS',' ','IS',' ','A',' ')),ucase('false'),' ','test'),'FALSE','REAL')
 this is a REAL test
-select soundex(''),soundex('he'),soundex('hello all folks');
-soundex('')	soundex('he')	soundex('hello all folks')
-	H000	H4142
+select soundex(''),soundex('he'),soundex('hello all folks'),soundex('#3556 in bugdb');
+soundex('')	soundex('he')	soundex('hello all folks')	soundex('#3556 in bugdb')
+	H000	H4142	I51231
 select 'mood' sounds like 'mud';
 'mood' sounds like 'mud'
 1
@@ -192,6 +192,15 @@ length(quote(concat(char(0),"test")))
 select hex(quote(concat(char(224),char(227),char(230),char(231),char(232),char(234),char(235))));
 hex(quote(concat(char(224),char(227),char(230),char(231),char(232),char(234),char(235))))
 27E0E3E6E7E8EAEB27
+select unhex(hex("foobar")), hex(unhex("1234567890ABCDEF")), unhex("345678"), unhex(NULL);
+unhex(hex("foobar"))	hex(unhex("1234567890ABCDEF"))	unhex("345678")	unhex(NULL)
+foobar	1234567890ABCDEF	4Vx	NULL
+select hex(unhex("1")), hex(unhex("12")), hex(unhex("123")), hex(unhex("1234")), hex(unhex("12345")), hex(unhex("123456"));
+hex(unhex("1"))	hex(unhex("12"))	hex(unhex("123"))	hex(unhex("1234"))	hex(unhex("12345"))	hex(unhex("123456"))
+01	12	0123	1234	012345	123456
+select length(unhex(md5("abrakadabra")));
+length(unhex(md5("abrakadabra")))
+16
 select reverse("");
 reverse("")
 
@@ -216,6 +225,8 @@ substring_index("www.tcx.se","",3)
 select length(repeat("a",100000000)),length(repeat("a",1000*64));
 length(repeat("a",100000000))	length(repeat("a",1000*64))
 NULL	64000
+Warnings:
+Warning	1301	Result of repeat() was larger than max_allowed_packet (1048576) - truncated
 select position("0" in "baaa" in (1)),position("0" in "1" in (1,2,3)),position("sql" in ("mysql"));
 position("0" in "baaa" in (1))	position("0" in "1" in (1,2,3))	position("sql" in ("mysql"))
 1	0	3
@@ -268,6 +279,43 @@ INSERT INTO t1 VALUES (1, 'a545f661efdd1fb66fdee3aab79945bf');
 SELECT 1 FROM t1 WHERE tmp=AES_DECRYPT(tmp,"password");
 1
 DROP TABLE t1;
+CREATE TABLE t1 (
+wid int(10) unsigned NOT NULL auto_increment,
+data_podp date default NULL,
+status_wnio enum('nowy','podp','real','arch') NOT NULL default 'nowy',
+PRIMARY KEY(wid)
+);
+INSERT INTO t1 VALUES (8,NULL,'real');
+INSERT INTO t1 VALUES (9,NULL,'nowy');
+SELECT elt(status_wnio,data_podp) FROM t1 GROUP BY wid;
+elt(status_wnio,data_podp)
+NULL
+NULL
+DROP TABLE t1;
+CREATE TABLE t1 (title text) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('Congress reconvenes in September to debate welfare and adult education');
+INSERT INTO t1 VALUES ('House passes the CAREERS bill');
+SELECT CONCAT("</a>",RPAD("",(55 - LENGTH(title)),".")) from t1;
+CONCAT("</a>",RPAD("",(55 - LENGTH(title)),"."))
+NULL
+</a>..........................
+DROP TABLE t1;
+CREATE TABLE t1 (i int, j int);
+INSERT INTO t1 VALUES (1,1),(2,2);
+SELECT DISTINCT i, ELT(j, '345', '34') FROM t1;
+i	ELT(j, '345', '34')
+1	345
+2	34
+DROP TABLE t1;
+create table t1(a char(4));
+insert into t1 values ('one'),(NULL),('two'),('four');
+select a, quote(a), isnull(quote(a)), quote(a) is null, ifnull(quote(a), 'n') from t1;
+a	quote(a)	isnull(quote(a))	quote(a) is null	ifnull(quote(a), 'n')
+one	'one'	0	0	'one'
+NULL	NULL	1	1	n
+two	'two'	0	0	'two'
+four	'four'	0	0	'four'
+drop table t1;
 select 1=_latin1'1';
 1=_latin1'1'
 1
@@ -302,6 +350,8 @@ select concat(_latin1'a',_latin2'a',_latin5'a');
 ERROR HY000: Illegal mix of collations (latin1_swedish_ci,COERCIBLE), (latin2_general_ci,COERCIBLE), (latin5_turkish_ci,COERCIBLE) for operation 'concat'
 select concat(_latin1'a',_latin2'a',_latin5'a',_latin7'a');
 ERROR HY000: Illegal mix of collations for operation 'concat'
+select concat_ws(_latin1'a',_latin2'a');
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,COERCIBLE) and (latin2_general_ci,COERCIBLE) for operation 'concat_ws'
 select FIELD('b','A','B');
 FIELD('b','A','B')
 2
@@ -480,6 +530,9 @@ latin2_general_ci	3
 select collation(replace(_latin2'abcd',_latin2'b',_latin2'B')), coercibility(replace(_latin2'abcd',_latin2'b',_latin2'B'));
 collation(replace(_latin2'abcd',_latin2'b',_latin2'B'))	coercibility(replace(_latin2'abcd',_latin2'b',_latin2'B'))
 latin2_general_ci	3
+select collation(encode('abcd','ab')), coercibility(encode('abcd','ab'));
+collation(encode('abcd','ab'))	coercibility(encode('abcd','ab'))
+binary	3
 create table t1 
 select
 bin(130),
@@ -511,10 +564,11 @@ quote(_latin2'ab'),
 soundex(_latin2'ab'),
 substring(_latin2'ab',1),
 insert(_latin2'abcd',2,3,_latin2'ef'),
-replace(_latin2'abcd',_latin2'b',_latin2'B')
+replace(_latin2'abcd',_latin2'b',_latin2'B'),
+encode('abcd','ab')
 ;
 Warnings:
-Warning	1264	Data truncated for column 'format(130,10)' at row 1
+Warning	1265	Data truncated for column 'format(130,10)' at row 1
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -547,7 +601,8 @@ t1	CREATE TABLE `t1` (
   `soundex(_latin2'ab')` char(4) character set latin2 NOT NULL default '',
   `substring(_latin2'ab',1)` char(2) character set latin2 NOT NULL default '',
   `insert(_latin2'abcd',2,3,_latin2'ef')` char(6) character set latin2 NOT NULL default '',
-  `replace(_latin2'abcd',_latin2'b',_latin2'B')` char(4) character set latin2 NOT NULL default ''
+  `replace(_latin2'abcd',_latin2'b',_latin2'B')` char(4) character set latin2 NOT NULL default '',
+  `encode('abcd','ab')` binary(4) NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select SUBSTR('abcdefg',3,2);
@@ -576,27 +631,6 @@ select * from t7
 where concat(s1 collate latin1_general_ci,s1 collate latin1_swedish_ci) = 'AA';
 ERROR HY000: Illegal mix of collations (latin1_general_ci,EXPLICIT) and (latin1_swedish_ci,EXPLICIT) for operation 'concat'
 drop table t7;
-CREATE TABLE t1 (
-wid int(10) unsigned NOT NULL auto_increment,
-data_podp date default NULL,
-status_wnio enum('nowy','podp','real','arch') NOT NULL default 'nowy',
-PRIMARY KEY(wid),
-);
-INSERT INTO t1 VALUES (8,NULL,'real');
-INSERT INTO t1 VALUES (9,NULL,'nowy');
-SELECT elt(status_wnio,data_podp) FROM t1 GROUP BY wid;
-elt(status_wnio,data_podp)
-NULL
-NULL
-DROP TABLE t1;
-CREATE TABLE t1 (title text) ENGINE=MyISAM;
-INSERT INTO t1 VALUES ('Congress reconvenes in September to debate welfare and adult education');
-INSERT INTO t1 VALUES ('House passes the CAREERS bill');
-SELECT CONCAT("</a>",RPAD("",(55 - LENGTH(title)),".")) from t1;
-CONCAT("</a>",RPAD("",(55 - LENGTH(title)),"."))
-NULL
-</a>..........................
-DROP TABLE t1;
 select substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2),substring_index("1abcd;2abcd;3abcd;4abcd", ';', -2);
 substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2)	substring_index("1abcd;2abcd;3abcd;4abcd", ';', -2)
 1abcd;2abcd	3abcd;4abcd
@@ -604,4 +638,38 @@ explain extended select md5('hello'), sha('abc'), sha1('abc'), soundex(''), 'moo
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select high_priority md5(_latin1'hello') AS `md5('hello')`,sha(_latin1'abc') AS `sha('abc')`,sha(_latin1'abc') AS `sha1('abc')`,soundex(_latin1'') AS `soundex('')`,(soundex(_latin1'mood') = soundex(_latin1'mud')) AS `'mood' sounds like 'mud'`,aes_decrypt(aes_encrypt(_latin1'abc',_latin1'1'),_latin1'1') AS `aes_decrypt(aes_encrypt('abc','1'),'1')`,concat(_latin1'*',repeat(_latin1' ',5),_latin1'*') AS `concat('*',space(5),'*')`,reverse(_latin1'abc') AS `reverse('abc')`,rpad(_latin1'a',4,_latin1'1') AS `rpad('a',4,'1')`,lpad(_latin1'a',4,_latin1'1') AS `lpad('a',4,'1')`,concat_ws(_latin1',',_latin1'',NULL,_latin1'a') AS `concat_ws(',','',NULL,'a')`,make_set(255,_latin2'a',_latin2'b',_latin2'c') AS `make_set(255,_latin2'a',_latin2'b',_latin2'c')`,elt(2,1) AS `elt(2,1)`,locate(_latin1'a',_latin1'b',2) AS `locate("a","b",2)`,format(130,10) AS `format(130,10)`,char(0) AS `char(0)`,conv(130,16,10) AS `conv(130,16,10)`,hex(130) AS `hex(130)`,(_latin1'HE' collate _latin1'BINARY') AS `binary 'HE'`,export_set(255,_latin2'y',_latin2'n',_latin2' ') AS `export_set(255,_latin2'y',_latin2'n',_latin2' ')`,field((_latin1'b' collate _latin1'latin1_bin'),_latin1'A',_latin1'B') AS `FIELD('b' COLLATE latin1_bin,'A','B')`,find_in_set(_latin1'B',_latin1'a,b,c,d') AS `FIND_IN_SET(_latin1'B',_latin1'a,b,c,d')`,collation(conv(130,16,10)) AS `collation(conv(130,16,10))`,coercibility(conv(130,16,10)) AS `coercibility(conv(130,16,10))`,length(_latin1'\n	\r\0\\_\\%\\') AS `length('\n\t\r\b\0\_\%\\')`,bit_length(_latin1'\n	\r\0\\_\\%\\') AS `bit_length('\n\t\r\b\0\_\%\\')`,bit_length(_latin1'\n	\r\0\\_\\%\\') AS `bit_length('\n\t\r\b\0\_\%\\')`,concat(_latin1'monty',_latin1' was here ',_latin1'again') AS `concat('monty',' was here ','again')`,length(_latin1'hello') AS `length('hello')`,char(ascii(_latin1'h')) AS `char(ascii('h'))`,ord(_latin1'h') AS `ord('h')`,quote((1 / 0)) AS `quote(1/0)`,crc32(_latin1'123') AS `crc32("123")`,replace(_latin1'aaaa',_latin1'a',_latin1'b') AS `replace('aaaa','a','b')`,insert(_latin1'txs',2,1,_latin1'hi') AS `insert('txs',2,1,'hi')`,left(_latin2'a',1) AS `left(_latin2'a',1)`,right(_latin2'a',1) AS `right(_latin2'a',1)`,lcase(_latin2'a') AS `lcase(_latin2'a')`,ucase(_latin2'a') AS `ucase(_latin2'a')`,substr(_latin1'abcdefg',3,2) AS `SUBSTR('abcdefg',3,2)`,substr_index(_latin1'1abcd;2abcd;3abcd;4abcd',_latin1';',2) AS `substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2)`,trim(_latin2' a ') AS `trim(_latin2' a ')`,ltrim(_latin2' a ') AS `ltrim(_latin2' a ')`,rtrim(_latin2' a ') AS `rtrim(_latin2' a ')`,decode(encode(repeat(_latin1'a',100000))) AS `decode(encode(repeat("a",100000),"monty"),"monty")`
+Note	1003	select md5(_latin1'hello') AS `md5('hello')`,sha(_latin1'abc') AS `sha('abc')`,sha(_latin1'abc') AS `sha1('abc')`,soundex(_latin1'') AS `soundex('')`,(soundex(_latin1'mood') = soundex(_latin1'mud')) AS `'mood' sounds like 'mud'`,aes_decrypt(aes_encrypt(_latin1'abc',_latin1'1'),_latin1'1') AS `aes_decrypt(aes_encrypt('abc','1'),'1')`,concat(_latin1'*',repeat(_latin1' ',5),_latin1'*') AS `concat('*',space(5),'*')`,reverse(_latin1'abc') AS `reverse('abc')`,rpad(_latin1'a',4,_latin1'1') AS `rpad('a',4,'1')`,lpad(_latin1'a',4,_latin1'1') AS `lpad('a',4,'1')`,concat_ws(_latin1',',_latin1'',NULL,_latin1'a') AS `concat_ws(',','',NULL,'a')`,make_set(255,_latin2'a',_latin2'b',_latin2'c') AS `make_set(255,_latin2'a',_latin2'b',_latin2'c')`,elt(2,1) AS `elt(2,1)`,locate(_latin1'a',_latin1'b',2) AS `locate("a","b",2)`,format(130,10) AS `format(130,10)`,char(0) AS `char(0)`,conv(130,16,10) AS `conv(130,16,10)`,hex(130) AS `hex(130)`,(_latin1'HE' collate _latin1'BINARY') AS `binary 'HE'`,export_set(255,_latin2'y',_latin2'n',_latin2' ') AS `export_set(255,_latin2'y',_latin2'n',_latin2' ')`,field((_latin1'b' collate _latin1'latin1_bin'),_latin1'A',_latin1'B') AS `FIELD('b' COLLATE latin1_bin,'A','B')`,find_in_set(_latin1'B',_latin1'a,b,c,d') AS `FIND_IN_SET(_latin1'B',_latin1'a,b,c,d')`,collation(conv(130,16,10)) AS `collation(conv(130,16,10))`,coercibility(conv(130,16,10)) AS `coercibility(conv(130,16,10))`,length(_latin1'\n	\r\0\\_\\%\\') AS `length('\n\t\r\b\0\_\%\\')`,bit_length(_latin1'\n	\r\0\\_\\%\\') AS `bit_length('\n\t\r\b\0\_\%\\')`,bit_length(_latin1'\n	\r\0\\_\\%\\') AS `bit_length('\n\t\r\b\0\_\%\\')`,concat(_latin1'monty',_latin1' was here ',_latin1'again') AS `concat('monty',' was here ','again')`,length(_latin1'hello') AS `length('hello')`,char(ascii(_latin1'h')) AS `char(ascii('h'))`,ord(_latin1'h') AS `ord('h')`,quote((1 / 0)) AS `quote(1/0)`,crc32(_latin1'123') AS `crc32("123")`,replace(_latin1'aaaa',_latin1'a',_latin1'b') AS `replace('aaaa','a','b')`,insert(_latin1'txs',2,1,_latin1'hi') AS `insert('txs',2,1,'hi')`,left(_latin2'a',1) AS `left(_latin2'a',1)`,right(_latin2'a',1) AS `right(_latin2'a',1)`,lcase(_latin2'a') AS `lcase(_latin2'a')`,ucase(_latin2'a') AS `ucase(_latin2'a')`,substr(_latin1'abcdefg',3,2) AS `SUBSTR('abcdefg',3,2)`,substr_index(_latin1'1abcd;2abcd;3abcd;4abcd',_latin1';',2) AS `substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2)`,trim(_latin2' a ') AS `trim(_latin2' a ')`,ltrim(_latin2' a ') AS `ltrim(_latin2' a ')`,rtrim(_latin2' a ') AS `rtrim(_latin2' a ')`,decode(encode(repeat(_latin1'a',100000))) AS `decode(encode(repeat("a",100000),"monty"),"monty")`
+SELECT lpad(12345, 5, "#");
+lpad(12345, 5, "#")
+12345
+SELECT conv(71, 10, 36), conv('1Z', 36, 10);
+conv(71, 10, 36)	conv('1Z', 36, 10)
+1Z	71
+create table t1 (id int(1), str varchar(10)) DEFAULT CHARSET=utf8;
+insert into t1 values (1,'aaaaaaaaaa'), (2,'bbbbbbbbbb');
+create table t2 (id int(1), str varchar(10)) DEFAULT CHARSET=utf8;
+insert into t2 values (1,'cccccccccc'), (2,'dddddddddd');
+select substring(concat(t1.str, t2.str), 1, 15) "name" from t1, t2 
+where t2.id=t1.id order by name;
+name
+aaaaaaaaaaccccc
+bbbbbbbbbbddddd
+drop table t1, t2;
+create table t1 (c1 INT, c2 INT UNSIGNED);
+insert into t1 values ('21474836461','21474836461');
+Warnings:
+Warning	1265	Data truncated for column 'c1' at row 1
+Warning	1265	Data truncated for column 'c2' at row 1
+insert into t1 values ('-21474836461','-21474836461');
+Warnings:
+Warning	1265	Data truncated for column 'c1' at row 1
+Warning	1265	Data truncated for column 'c2' at row 1
+show warnings;
+Level	Code	Message
+Warning	1265	Data truncated for column 'c1' at row 1
+Warning	1265	Data truncated for column 'c2' at row 1
+select * from t1;
+c1	c2
+2147483647	4294967295
+-2147483648	0
+drop table t1;

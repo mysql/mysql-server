@@ -10,7 +10,7 @@ drop table if exists t0, t1, t2, t3,t4;
 create table t0
 (
   key1 int not null, 
-  INDEX i1(key1),
+  INDEX i1(key1)
 );
 
 --disable_query_log
@@ -192,7 +192,7 @@ create table t4 (
   index i1b (key1b, key1a),
   
   index i2_1(key2, key2_1),
-  index i2_2(key2, key2_1),  
+  index i2_2(key2, key2_1)
 );
 
 insert into t4 select key1,key1,key1 div 10, key1 % 10, key1 % 10, key1 from t0;
@@ -267,5 +267,15 @@ select * from t3 where
   key5=5 or key6=6 or key7=7 or key8=8 or
   key9=9 or keyA=10 or keyB=11 or keyC=12; 
 
+# Test for Bug#3183
+explain select * from t0 where key1 < 3 or key2 < 4;
+select * from t0 where key1 < 3 or key2 < 4;
+
+update t0 set key8=123 where key1 < 3 or key2 < 4;
+select * from t0 where key1 < 3 or key2 < 4;
+
+delete from t0 where key1 < 3 or key2 < 4;
+select * from t0 where key1 < 3 or key2 < 4;
+select count(*) from t0;
 
 drop table t0, t1, t2, t3, t4; 

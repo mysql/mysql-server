@@ -5,6 +5,8 @@
 drop table if exists t1;
 --enable_warnings
 
+SET NAMES binary;
+
 #
 # Test that SSL options works properly
 #
@@ -53,6 +55,8 @@ delete from mysql.db where user='mysqltest_1';
 delete from mysql.tables_priv where user='mysqltest_1';
 delete from mysql.columns_priv where user='mysqltest_1';
 flush privileges;
+--error 1141
+show grants for mysqltest_1@localhost;
 
 #
 # Test what happens when you have same table and colum level grants
@@ -100,28 +104,77 @@ select 1;	-- To test that the previous command didn't cause problems
 create table t1 (a int);
 grant ALL PRIVILEGES on *.* to drop_user2@localhost with GRANT OPTION;
 show grants for drop_user2@localhost;
-revoke all privileges, grant from drop_user2@localhost;
+revoke all privileges, grant option from drop_user2@localhost;
 drop user drop_user2@localhost;
 
 grant ALL PRIVILEGES on *.* to drop_user@localhost with GRANT OPTION;
 grant ALL PRIVILEGES on test.* to drop_user@localhost with GRANT OPTION;
 grant select(a) on test.t1 to drop_user@localhost;
 show grants for drop_user@localhost;
-revoke all privileges, grant from drop_user@localhost;
+
+#
+# Bug3086
+#
+set sql_mode=ansi_quotes;
+show grants for drop_user@localhost;
+set sql_mode=default;
+
+set sql_quote_show_create=0;
+show grants for drop_user@localhost;
+set sql_mode="ansi_quotes";
+show grants for drop_user@localhost;
+set sql_quote_show_create=1;
+show grants for drop_user@localhost;
+set sql_mode="";
+show grants for drop_user@localhost;
+
+revoke all privileges, grant option from drop_user@localhost;
 show grants for drop_user@localhost;
 drop user drop_user@localhost;
---error 1268
-revoke all privileges, grant from drop_user@localhost;
+--error 1269
+revoke all privileges, grant option from drop_user@localhost;
 
 grant select(a) on test.t1 to drop_user1@localhost;
 grant select on test.t1 to drop_user2@localhost;
 grant select on test.* to drop_user3@localhost;
 grant select on *.* to drop_user4@localhost;
---error 1267
+--error 1268
 drop user drop_user1@localhost, drop_user2@localhost, drop_user3@localhost,
 drop_user4@localhost;
-revoke all privileges, grant from drop_user1@localhost, drop_user2@localhost,
+revoke all privileges, grant option from drop_user1@localhost, drop_user2@localhost,
 drop_user3@localhost, drop_user4@localhost;
 drop user drop_user1@localhost, drop_user2@localhost, drop_user3@localhost,
 drop_user4@localhost;
 drop table t1;
+grant usage on *.* to mysqltest_1@localhost identified by "password";
+grant select, update, insert on test.* to mysqltest@localhost;
+show grants for mysqltest_1@localhost;
+drop user mysqltest_1@localhost;
+
+#
+# Bug #3403 Wrong encodin in SHOW GRANTS output
+#
+SET NAMES koi8r;
+CREATE DATABASE бд;
+USE бд;
+CREATE TABLE таб (кол int);
+
+GRANT SELECT ON бд.* TO юзер@localhost;
+SHOW GRANTS FOR юзер@localhost;
+REVOKE SELECT ON бд.* FROM юзер@localhost;
+
+GRANT SELECT ON бд.таб TO юзер@localhost;
+SHOW GRANTS FOR юзер@localhost;
+REVOKE SELECT ON бд.таб FROM юзер@localhost;
+
+GRANT SELECT (кол) ON бд.таб TO юзер@localhost;
+SHOW GRANTS FOR юзер@localhost;
+REVOKE SELECT (кол) ON бд.таб FROM юзер@localhost;
+
+DROP DATABASE бд;
+SET NAMES latin1;
+
+#
+# just SHOW PRIVILEGES test
+#
+SHOW PRIVILEGES;

@@ -203,13 +203,9 @@ trx_sig_send(
 	ulint		type,		/* in: signal type */
 	ulint		sender,		/* in: TRX_SIG_SELF or
 					TRX_SIG_OTHER_SESS */
-	ibool		reply,		/* in: TRUE if the sender of the signal
-					wants reply after the operation induced
-					by the signal is completed; if type
-					is TRX_SIG_END_WAIT, this must be
-					FALSE */
 	que_thr_t*	receiver_thr,	/* in: query thread which wants the
-					reply, or NULL */
+					reply, or NULL; if type is
+					TRX_SIG_END_WAIT, this must be NULL */
 	trx_savept_t* 	savept,		/* in: possible rollback savepoint, or
 					NULL */
 	que_thr_t**	next_thr);	/* in/out: next query thread to run;
@@ -225,7 +221,6 @@ been handled. */
 void
 trx_sig_reply(
 /*==========*/
-	trx_t*		trx,		/* in: trx handle */
 	trx_sig_t*	sig,		/* in: signal */
 	que_thr_t**	next_thr);	/* in/out: next query thread to run;
 					if the value which is passed in is
@@ -280,14 +275,15 @@ trx_commit_step(
 	que_thr_t*	thr);	/* in: query thread */
 /**************************************************************************
 Prints info about a transaction to the standard output. The caller must
-own the kernel mutex. */
+own the kernel mutex and must have called
+innobase_mysql_prepare_print_arbitrary_thd(), unless he knows that MySQL or
+InnoDB cannot meanwhile change the info printed here. */
 
 void
 trx_print(
 /*======*/
-	char*	buf,	/* in/out: buffer where to print, must be at least
-			800 bytes */
-	trx_t* trx); 	/* in: transaction */
+	FILE*	f,	/* in: output stream */
+	trx_t*	trx);	/* in: transaction */
 
 
 /* Signal to a transaction */
@@ -297,15 +293,9 @@ struct trx_sig_struct{
 					TRX_SIG_BEING_HANDLED */
 	ulint		sender;		/* TRX_SIG_SELF or
 					TRX_SIG_OTHER_SESS */
-	ibool		reply;		/* TRUE if the sender of the signal
+	que_thr_t*	receiver;	/* non-NULL if the sender of the signal
 					wants reply after the operation induced
-					by the signal is completed; if this
-					field is TRUE and the receiver field
-					below is NULL, then a SUCCESS message
-					is sent to the client of the session
-					to which this trx belongs */
-	que_thr_t*	receiver;	/* query thread which wants the reply,
-					or NULL */
+					by the signal is completed */
 	trx_savept_t	savept;		/* possible rollback savepoint */
 	UT_LIST_NODE_T(trx_sig_t)
 			signals;	/* queue of pending signals to the
@@ -325,7 +315,7 @@ struct trx_struct{
 	ulint		magic_n;
 	/* All the next fields are protected by the kernel mutex, except the
 	undo logs which are protected by undo_mutex */
-	char*		op_info;	/* English text describing the
+	const char*	op_info;	/* English text describing the
 					current operation, or an empty
 					string */
 	ulint		type;		/* TRX_USER, TRX_PURGE */
@@ -368,7 +358,7 @@ struct trx_struct{
 	char**		mysql_query_str;/* pointer to the field in mysqld_thd
 					which contains the pointer to the
 					current SQL query string */
-	char*		mysql_log_file_name;
+	const char*	mysql_log_file_name;
 					/* if MySQL binlog is used, this field
 					contains a pointer to the latest file
 					name; this is NULL if binlog is not
@@ -376,7 +366,7 @@ struct trx_struct{
 	ib_longlong	mysql_log_offset;/* if MySQL binlog is used, this field
 					contains the end offset of the binlog
 					entry */
-	char*		mysql_master_log_file_name;
+	const char*	mysql_master_log_file_name;
 					/* if the database server is a MySQL
 					replication slave, we have here the
 					master binlog name up to which
@@ -433,6 +423,9 @@ struct trx_struct{
 	lock_t*		auto_inc_lock;	/* possible auto-inc lock reserved by
 					the transaction; note that it is also
 					in the lock list trx_locks */
+	ulint		n_lock_table_exp;/* number of explicit table locks
+					(LOCK TABLES) reserved by the
+					transaction, stored in trx_locks */
 	UT_LIST_NODE_T(trx_t)
 			trx_list;	/* list of transactions */
 	UT_LIST_NODE_T(trx_t)

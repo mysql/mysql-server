@@ -18,7 +18,6 @@
 #include <m_string.h>
 #include <stdlib.h>
 #include <my_getopt.h>
-#include <assert.h>
 #include <my_sys.h>
 #include <mysys_err.h>
 
@@ -285,6 +284,19 @@ int handle_options(int *argc, char ***argv,
 	    return EXIT_AMBIGUOUS_OPTION;
 	  }
 	}
+	if ((optp->var_type & GET_TYPE_MASK) == GET_DISABLED)
+	{
+	  if (my_getopt_print_errors)
+	    fprintf(stderr,
+		    "%s: %s: Option '%s' used, but is disabled\n", my_progname,
+		    option_is_loose ? "WARNING" : "ERROR", opt_str);
+	  if (option_is_loose)
+	  {
+	    (*argc)--;
+	    continue;
+	  }
+	  return EXIT_OPTION_DISABLED;
+	}
 	if (must_be_var && (optp->var_type & GET_TYPE_MASK) == GET_NO_ARG)
 	{
 	  if (my_getopt_print_errors)
@@ -311,9 +323,11 @@ int handle_options(int *argc, char ***argv,
 	      --enable-'option-name'.
 	      *optend was set to '0' if one used --disable-option
 	      */
-	    *((my_bool*) value)= (my_bool) (!optend || *optend == '1');
-	    (*argc)--;	    
-	    get_one_option(optp->id, optp, argument);
+	    my_bool tmp= (my_bool) (!optend || *optend == '1');
+	    *((my_bool*) value)= tmp;
+	    (*argc)--;
+	    get_one_option(optp->id, optp,
+			   tmp ? (char*) "1" : disabled_my_option);
 	    continue;
 	  }
 	  argument= optend;
@@ -327,8 +341,8 @@ int handle_options(int *argc, char ***argv,
 	  {
 	    if (!optend) /* No argument -> enable option */
 	      *((my_bool*) value)= (my_bool) 1;
-	    else /* If argument differs from 0, enable option, else disable */
-	      *((my_bool*) value)= (my_bool) atoi(optend) != 0;
+            else
+              argument= optend;
 	  }
 	}
 	else if (optp->arg_type == REQUIRED_ARG && !optend)
@@ -358,6 +372,14 @@ int handle_options(int *argc, char ***argv,
 	    {
 	      /* Option recognized. Find next what to do with it */
 	      opt_found= 1;
+	      if ((optp->var_type & GET_TYPE_MASK) == GET_DISABLED)
+	      {
+		if (my_getopt_print_errors)
+		  fprintf(stderr,
+			  "%s: ERROR: Option '-%c' used, but is disabled\n",
+			  my_progname, optp->id);
+		return EXIT_OPTION_DISABLED;
+	      }
 	      if ((optp->var_type & GET_TYPE_MASK) == GET_BOOL &&
 		  optp->arg_type == NO_ARG)
 	      {
@@ -375,18 +397,25 @@ int handle_options(int *argc, char ***argv,
 		  /* This is in effect a jump out of the outer loop */
 		  optend= (char*) " ";
 		}
-		else if (optp->arg_type == REQUIRED_ARG)
+		else
 		{
+                  if (optp->arg_type == OPT_ARG)
+                  {
+                    if (optp->var_type == GET_BOOL)
+                      *((my_bool*) optp->value)= (my_bool) 1;
+                    get_one_option(optp->id, optp, argument);
+                    continue;
+                  }
 		  /* Check if there are more arguments after this one */
-		  if (!*++pos)
+		  if (!pos[1])
 		  {
-		    if (my_getopt_print_errors)
-		      fprintf(stderr,
-			      "%s: option '-%c' requires an argument\n",
-			      my_progname, optp->id);
-		    return EXIT_ARGUMENT_REQUIRED;
+                    if (my_getopt_print_errors)
+                      fprintf(stderr,
+                              "%s: option '-%c' requires an argument\n",
+                              my_progname, optp->id);
+                    return EXIT_ARGUMENT_REQUIRED;
 		  }
-		  argument= *pos;
+		  argument= *++pos;
 		  (*argc)--;
 		  /* the other loop will break, because *optend + 1 == 0 */
 		}
@@ -502,6 +531,9 @@ static int setval(const struct my_option *opts, gptr *value, char *argument,
       return EXIT_NO_PTR_TO_VARIABLE;
 
     switch ((opts->var_type & GET_TYPE_MASK)) {
+    case GET_BOOL: /* If argument differs from 0, enable option, else disable */
+      *((my_bool*) result_pos)= (my_bool) atoi(argument) != 0;
+      break;
     case GET_INT:
     case GET_UINT:           /* fall through */
       *((int*) result_pos)= (int) getopt_ll(argument, opts, &err);
@@ -550,7 +582,7 @@ static int findopt(char *optpat, uint length,
 		   const struct my_option **opt_res,
 		   char **ffname)
 {
-  int count;
+  uint count;
   struct my_option *opt= (struct my_option *) *opt_res;
 
   for (count= 0; opt->name; opt++)
@@ -562,7 +594,8 @@ static int findopt(char *optpat, uint length,
 	*ffname= (char *) opt->name;	/* We only need to know one prev */
       if (!opt->name[length])		/* Exact match */
 	return 1;
-      count++;
+      if (!count || strcmp(*ffname, opt->name)) /* Don't count synonyms */
+	count++;
     }
   }
   return count;
@@ -633,18 +666,15 @@ static longlong eval_num_suffix (char *argument, int *error, char *option_name)
 static longlong getopt_ll(char *arg, const struct my_option *optp, int *err)
 {
   longlong num;
+  ulonglong block_size= (optp->block_size ? (ulonglong) optp->block_size : 1L);
   
   num= eval_num_suffix(arg, err, (char*) optp->name);
-  if (num < (longlong) optp->min_value)
-    num= (longlong) optp->min_value;
-  else if (num > 0 && (ulonglong) num > (ulonglong) (ulong) optp->max_value
-	   && optp->max_value) /* if max value is not set -> no upper limit */
+  if (num > 0 && (ulonglong) num > (ulonglong) (ulong) optp->max_value &&
+      optp->max_value) /* if max value is not set -> no upper limit */
     num= (longlong) (ulong) optp->max_value;
-  num= ((num - (longlong) optp->sub_size) / (optp->block_size ?
-					     (ulonglong) optp->block_size :
-					     1L));
-  return (longlong) (num * (optp->block_size ? (ulonglong) optp->block_size :
-			    1L));
+  num= ((num - (longlong) optp->sub_size) / block_size);
+  num= (longlong) (num * block_size);
+  return max(num, optp->min_value);
 }
 
 /*
@@ -758,6 +788,8 @@ static void init_variables(const struct my_option *options)
 
   Print help for all options and variables.
 */
+
+#include <help_start.h>
 
 void my_print_help(const struct my_option *options)
 {
@@ -882,9 +914,12 @@ void my_print_variables(const struct my_option *options)
 	longlong2str(*((ulonglong*) value), buff, 10);
 	printf("%s\n", buff);
 	break;
-      default: /* dummy default to avoid compiler warnings */
+      default:
+	printf("(Disabled)\n");
 	break;
       }
     }
   }
 }
+
+#include <help_end.h>

@@ -30,14 +30,8 @@
   flush_io_cache().  
 */
 
-#define MAP_TO_USE_RAID
 #include "mysql_priv.h"
 #ifdef HAVE_REPLICATION
-#ifdef HAVE_AIOWAIT
-#include <mysys_err.h>
-#include <errno.h>
-static void my_aiowait(my_aio_result *result);
-#endif
 
 extern "C" {
 

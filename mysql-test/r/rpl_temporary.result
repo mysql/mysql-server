@@ -5,8 +5,21 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 reset master;
+SET @save_select_limit=@@session.sql_select_limit;
+SET @@session.sql_select_limit=10, @@session.pseudo_thread_id=100;
+ERROR HY000: Access denied; you need the SUPER privilege for this operation
+SELECT @@session.sql_select_limit = @save_select_limit;
+@@session.sql_select_limit = @save_select_limit
+1
+SET @@session.sql_select_limit=10, @@session.sql_log_bin=0;
+ERROR HY000: Access denied; you need the SUPER privilege for this operation
+SELECT @@session.sql_select_limit = @save_select_limit;
+@@session.sql_select_limit = @save_select_limit
+1
 SET @@session.pseudo_thread_id=100;
-ERROR HY000: Access denied. You need the SUPER privilege for this operation
+SET @@session.pseudo_thread_id=connection_id();
+SET @@session.sql_log_bin=0;
+SET @@session.sql_log_bin=1;
 drop table if exists t1,t2;
 create table t1(f int);
 create table t2(f int);
@@ -26,17 +39,18 @@ f
 show binlog events;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	4	Format_desc	1	95	Server ver: VERSION, Binlog ver: 4
-master-bin.000001	95	Query	1	174	use `test`; create table t1(f int)
-master-bin.000001	174	Query	1	253	use `test`; create table t2(f int)
-master-bin.000001	253	Query	1	372	use `test`; insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10)
-master-bin.000001	372	Query	1	461	use `test`; create temporary table t3(f int)
-master-bin.000001	461	Query	1	559	use `test`; insert into t3 select * from t1 where f<6
-master-bin.000001	559	Query	1	648	use `test`; create temporary table t3(f int)
-master-bin.000001	648	Query	1	743	use `test`; insert into t2 select count(*) from t3
-master-bin.000001	743	Query	1	842	use `test`; insert into t3 select * from t1 where f>=4
-master-bin.000001	842	Query	1	922	use `test`; drop temporary table t3
-master-bin.000001	922	Query	1	1017	use `test`; insert into t2 select count(*) from t3
-master-bin.000001	1017	Query	1	1097	use `test`; drop temporary table t3
+master-bin.000001	95	Query	1	178	use `test`; drop table if exists t1,t2
+master-bin.000001	178	Query	1	257	use `test`; create table t1(f int)
+master-bin.000001	257	Query	1	336	use `test`; create table t2(f int)
+master-bin.000001	336	Query	1	455	use `test`; insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10)
+master-bin.000001	455	Query	1	544	use `test`; create temporary table t3(f int)
+master-bin.000001	544	Query	1	642	use `test`; insert into t3 select * from t1 where f<6
+master-bin.000001	642	Query	1	731	use `test`; create temporary table t3(f int)
+master-bin.000001	731	Query	1	826	use `test`; insert into t2 select count(*) from t3
+master-bin.000001	826	Query	1	925	use `test`; insert into t3 select * from t1 where f>=4
+master-bin.000001	925	Query	1	1005	use `test`; drop temporary table t3
+master-bin.000001	1005	Query	1	1100	use `test`; insert into t2 select count(*) from t3
+master-bin.000001	1100	Query	1	1180	use `test`; drop temporary table t3
 drop table t1, t2;
 use test;
 SET TIMESTAMP=1040323920;

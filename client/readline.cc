@@ -31,7 +31,8 @@ static char *intern_read_line(LINE_BUFFER *buffer,ulong *out_length);
 LINE_BUFFER *batch_readline_init(ulong max_size,FILE *file)
 {
   LINE_BUFFER *line_buff;
-  if (!(line_buff=(LINE_BUFFER*) my_malloc(sizeof(*line_buff),MYF(MY_WME))))
+  if (!(line_buff=(LINE_BUFFER*)
+        my_malloc(sizeof(*line_buff),MYF(MY_WME | MY_ZEROFILL))))
     return 0;
   if (init_line_buffer(line_buff,fileno(file),IO_SIZE,max_size))
   {
@@ -67,11 +68,12 @@ void batch_readline_end(LINE_BUFFER *line_buff)
 }
 
 
-LINE_BUFFER *batch_readline_command(my_string str)
+LINE_BUFFER *batch_readline_command(LINE_BUFFER *line_buff, my_string str)
 {
-  LINE_BUFFER *line_buff;
-  if (!(line_buff=(LINE_BUFFER*) my_malloc(sizeof(*line_buff),MYF(MY_WME))))
-    return 0;
+  if (!line_buff)
+    if (!(line_buff=(LINE_BUFFER*)
+          my_malloc(sizeof(*line_buff),MYF(MY_WME | MY_ZEROFILL))))
+      return 0;
   if (init_line_buffer_from_string(line_buff,str))
   {
     my_free((char*) line_buff,MYF(0));
@@ -88,7 +90,6 @@ LINE_BUFFER *batch_readline_command(my_string str)
 static bool
 init_line_buffer(LINE_BUFFER *buffer,File file,ulong size,ulong max_buffer)
 {
-  bzero((char*) buffer,sizeof(buffer[0]));
   buffer->file=file;
   buffer->bufread=size;
   buffer->max_size=max_buffer;
@@ -100,19 +101,26 @@ init_line_buffer(LINE_BUFFER *buffer,File file,ulong size,ulong max_buffer)
   return 0;
 }
 
-
+/*
+  init_line_buffer_from_string can be called on the same buffer
+  several times. the resulting buffer will contain a
+  concatenation of all strings separated by spaces
+*/
 static bool init_line_buffer_from_string(LINE_BUFFER *buffer,my_string str)
 {
-  uint length;
-  bzero((char*) buffer,sizeof(buffer[0]));
-  length=(uint) strlen(str);
-  if (!(buffer->buffer=buffer->start_of_line=buffer->end_of_line=
-	(char*)my_malloc(length+2,MYF(MY_FAE))))
+  uint old_length=buffer->end - buffer->buffer;
+  uint length= (uint) strlen(str);
+  if (!(buffer->buffer= buffer->start_of_line= buffer->end_of_line=
+	(char*)my_realloc(buffer->buffer, old_length+length+2,
+                          MYF(MY_FAE|MY_ALLOW_ZERO_PTR))))
     return 1;
-  memcpy(buffer->buffer,str,length);
-  buffer->buffer[length]='\n';
-  buffer->buffer[length+1]=0;
-  buffer->end=buffer->buffer+length+1;
+  buffer->end= buffer->buffer + old_length;
+  if (old_length)
+    buffer->end[-1]=' ';
+  memcpy(buffer->end, str, length);
+  buffer->end[length]= '\n';
+  buffer->end[length+1]= 0;
+  buffer->end+= length+1;
   buffer->eof=1;
   buffer->max_size=1;
   return 0;

@@ -11,7 +11,7 @@ create table t1 (b char(0) not null);
 create table if not exists t1 (b char(0) not null);
 insert into t1 values (""),(null);
 Warnings:
-Warning	1262	Data truncated, NULL supplied to NOT NULL column 'b' at row 2
+Warning	1263	Data truncated; NULL supplied to NOT NULL column 'b' at row 2
 select * from t1;
 b
 
@@ -35,7 +35,7 @@ drop table if exists t1;
 Warnings:
 Note	1051	Unknown table 't1'
 create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) engine=heap;
-ERROR 42000: Incorrect table definition; There can only be one auto column and it must be defined as a key
+ERROR 42000: Incorrect table definition; there can be only one auto column and it must be defined as a key
 create table not_existing_database.test (a int);
 Got one of the listed errors
 create table `a/a` (a int);
@@ -44,6 +44,12 @@ create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ERROR 42000: Incorrect table name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 create table a (`aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` int);
 ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+create table test (a datetime default now());
+ERROR 42000: Invalid default value for 'a'
+create table test (a datetime on update now());
+ERROR HY000: Invalid ON UPDATE clause for 'a' column
+create table test (a int default 100 auto_increment);
+ERROR 42000: Invalid default value for 'a'
 create table 1ea10 (1a20 int,1e int);
 insert into 1ea10 values(1,1);
 select 1ea10.1a20,1e+ 1e+10 from 1ea10;
@@ -104,9 +110,9 @@ drop table t2;
 create table t2 select CAST("2001-12-29" AS DATE) as d, CAST("20:45:11" AS TIME) as t, CAST("2001-12-29  20:45:11" AS DATETIME) as dt;
 describe t2;
 Field	Type	Null	Key	Default	Extra
-d	date			0000-00-00	
-t	time			00:00:00	
-dt	datetime			0000-00-00 00:00:00	
+d	date	YES		NULL	
+t	time	YES		NULL	
+dt	datetime	YES		NULL	
 drop table t1,t2;
 create table t1 (a tinyint);
 create table t2 (a int) select * from t1;
@@ -262,6 +268,18 @@ a	b
 0	2
 3	4
 drop table t1;
+create table `t1 `(a int);
+ERROR 42000: Incorrect table name 't1 '
+create database `db1 `;
+ERROR 42000: Incorrect database name 'db1 '
+create table t1(`a ` int);
+ERROR 42000: Incorrect column name 'a '
+create table t1 (a int,);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+create table t1 (a int,,b int);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'b int)' at line 1
+create table t1 (,b int);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'b int)' at line 1
 create table t1 (a int, key(a));
 create table t2 (b int, foreign key(b) references t1(a), key(b));
 drop table if exists t1,t2;
@@ -396,12 +414,12 @@ Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
 b	bigint(11)			0	
 c	bigint(10)			0	
-d	date			0000-00-00	
+d	date	YES		NULL	
 e	char(1)				
-f	datetime			0000-00-00 00:00:00	
-g	time			00:00:00	
+f	datetime	YES		NULL	
+g	time	YES		NULL	
 h	longblob				
-dd	time			00:00:00	
+dd	time	YES		NULL	
 select * from t2;
 a	b	c	d	e	f	g	h	dd
 1	-7	7	2000-01-01	b	2000-01-01 00:00:00	05:04:03	yet another binary data	02:00:00
@@ -456,6 +474,20 @@ Field	Type	Null	Key	Default	Extra
 name	varchar(10)	YES		NULL	
 age	smallint(6)	YES		-1	
 drop table t1, t2;
+create table t1(cenum enum('a'), cset set('b'));
+create table t2(cenum enum('a','a'), cset set('b','b'));
+Warnings:
+Note	1291	Column 'cenum' has duplicated value 'a' in ENUM
+Note	1291	Column 'cset' has duplicated value 'b' in SET
+create table t3(cenum enum('a','A','a','c','c'), cset set('b','B','b','d','d'));
+Warnings:
+Note	1291	Column 'cenum' has duplicated value 'a' in ENUM
+Note	1291	Column 'cenum' has duplicated value 'A' in ENUM
+Note	1291	Column 'cenum' has duplicated value 'c' in ENUM
+Note	1291	Column 'cset' has duplicated value 'b' in SET
+Note	1291	Column 'cset' has duplicated value 'B' in SET
+Note	1291	Column 'cset' has duplicated value 'd' in SET
+drop table t1, t2, t3;
 create database test_$1;
 use test_$1;
 select database();
@@ -468,3 +500,55 @@ NULL
 select database();
 database()
 NULL
+use test;
+create table t1 (a int, index `primary` (a));
+ERROR 42000: Incorrect index name 'primary'
+create table t1 (a int, index `PRIMARY` (a));
+ERROR 42000: Incorrect index name 'PRIMARY'
+create table t1 (`primary` int, index(`primary`));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `primary` int(11) default NULL,
+  KEY `primary_2` (`primary`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+create table t2 (`PRIMARY` int, index(`PRIMARY`));
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `PRIMARY` int(11) default NULL,
+  KEY `PRIMARY_2` (`PRIMARY`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+create table t3 (a int);
+alter table t3 add index `primary` (a);
+ERROR 42000: Incorrect index name 'primary'
+alter table t3 add index `PRIMARY` (a);
+ERROR 42000: Incorrect index name 'PRIMARY'
+create table t4 (`primary` int);
+alter table t4 add index(`primary`);
+show create table t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `primary` int(11) default NULL,
+  KEY `primary_2` (`primary`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+create table t5 (`PRIMARY` int);
+alter table t5 add index(`PRIMARY`);
+show create table t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `PRIMARY` int(11) default NULL,
+  KEY `PRIMARY_2` (`PRIMARY`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1, t2, t3, t4, t5;
+CREATE TABLE t1(id varchar(10) NOT NULL PRIMARY KEY, dsc longtext);
+INSERT INTO t1 VALUES ('5000000001', NULL),('5000000003', 'Test'),('5000000004', NULL);
+CREATE TABLE t2(id varchar(15) NOT NULL, proc varchar(100) NOT NULL, runID varchar(16) NOT NULL, start datetime NOT NULL, PRIMARY KEY  (id,proc,runID,start));
+INSERT INTO t2 VALUES ('5000000001', 'proc01', '20031029090650', '2003-10-29 13:38:40'),('5000000001', 'proc02', '20031029090650', '2003-10-29 13:38:51'),('5000000001', 'proc03', '20031029090650', '2003-10-29 13:38:11'),('5000000002', 'proc09', '20031024013310', '2003-10-24 01:33:11'),('5000000002', 'proc09', '20031024153537', '2003-10-24 15:36:04'),('5000000004', 'proc01', '20031024013641', '2003-10-24 01:37:29'),('5000000004', 'proc02', '20031024013641', '2003-10-24 01:37:39');
+CREATE TABLE t3  SELECT t1.dsc,COUNT(DISTINCT t2.id) AS countOfRuns  FROM t1 LEFT JOIN t2 ON (t1.id=t2.id) GROUP BY t1.id;
+SELECT * FROM t3;
+dsc	countOfRuns
+NULL	1
+Test	0
+NULL	1
+drop table t1, t2, t3;

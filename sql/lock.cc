@@ -240,7 +240,7 @@ void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock)
   {
     if (sql_lock->locks[i]->type >= TL_WRITE_ALLOW_READ)
     {
-      swap(THR_LOCK_DATA *,*lock,sql_lock->locks[i]);
+      swap_variables(THR_LOCK_DATA *, *lock, sql_lock->locks[i]);
       lock++;
       found++;
     }
@@ -259,7 +259,7 @@ void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock)
   {
     if ((uint) sql_lock->table[i]->reginfo.lock_type >= TL_WRITE_ALLOW_READ)
     {
-      swap(TABLE *,*table,sql_lock->table[i]);
+      swap_variables(TABLE *, *table, sql_lock->table[i]);
       table++;
       found++;
     }
@@ -445,14 +445,27 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
   return sql_lock;
 }
 
+
 /*****************************************************************************
-**  Lock table based on the name.
-**  This is used when we need total access to a closed, not open table
+  Lock table based on the name.
+  This is used when we need total access to a closed, not open table
 *****************************************************************************/
 
 /*
   Lock and wait for the named lock.
-  Returns 0 on ok
+
+  SYNOPSIS
+    lock_and_wait_for_table_name()
+    thd			Thread handler
+    table_list		Lock first table in this list
+
+
+  NOTES
+    Works together with global read lock.
+
+  RETURN
+    0	ok
+    1	error
 */
 
 int lock_and_wait_for_table_name(THD *thd, TABLE_LIST *table_list)
@@ -482,26 +495,44 @@ end:
 
 /*
   Put a not open table with an old refresh version in the table cache.
-  This will force any other threads that uses the table to release it
-  as soon as possible.
-  One must have a lock on LOCK_open !
-  Return values:
-   < 0 error
-   == 0 table locked
-   > 0  table locked, but someone is using it
+
+  SYNPOSIS
+    lock_table_name()
+    thd			Thread handler
+    table_list		Lock first table in this list
+
+  WARNING
+    If you are going to update the table, you should use
+    lock_and_wait_for_table_name instead of this function as this works
+    together with 'FLUSH TABLES WITH READ LOCK'
+
+  NOTES
+    This will force any other threads that uses the table to release it
+    as soon as possible.
+
+  REQUIREMENTS
+    One must have a lock on LOCK_open !
+
+  RETURN:
+    < 0 error
+    == 0 table locked
+    > 0  table locked, but someone is using it
 */
 
 int lock_table_name(THD *thd, TABLE_LIST *table_list)
 {
   TABLE *table;
   char  key[MAX_DBKEY_LENGTH];
-  char *db= table_list->db ? table_list->db : (thd->db ? thd->db : (char*) "");
+  char *db= table_list->db;
   uint  key_length;
   DBUG_ENTER("lock_table_name");
+  DBUG_PRINT("enter",("db: %s  name: %s", db, table_list->real_name));
+
   safe_mutex_assert_owner(&LOCK_open);
 
   key_length=(uint) (strmov(strmov(key,db)+1,table_list->real_name)
 		     -key)+ 1;
+
 
   /* Only insert the table if we haven't insert it already */
   for (table=(TABLE*) hash_search(&open_cache,(byte*) key,key_length) ;
@@ -534,6 +565,7 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
   DBUG_RETURN(0);
 }
 
+
 void unlock_table_name(THD *thd, TABLE_LIST *table_list)
 {
   if (table_list->table)
@@ -543,9 +575,10 @@ void unlock_table_name(THD *thd, TABLE_LIST *table_list)
   }
 }
 
+
 static bool locked_named_table(THD *thd, TABLE_LIST *table_list)
 {
-  for (; table_list ; table_list=table_list->next)
+  for (; table_list ; table_list=table_list->next_local)
   {
     if (table_list->table && table_is_used(table_list->table,0))
       return 1;
@@ -583,6 +616,10 @@ bool wait_for_locked_table_names(THD *thd, TABLE_LIST *table_list)
     table_list		Names of tables to lock
 
   NOTES
+    If you are just locking one table, you should use
+    lock_and_wait_for_table_name().
+
+  REQUIREMENTS
     One must have a lock on LOCK_open when calling this
 
   RETURN
@@ -595,7 +632,7 @@ bool lock_table_names(THD *thd, TABLE_LIST *table_list)
   bool got_all_locks=1;
   TABLE_LIST *lock_table;
 
-  for (lock_table=table_list ; lock_table ; lock_table=lock_table->next)
+  for (lock_table= table_list; lock_table; lock_table= lock_table->next_local)
   {
     int got_lock;
     if ((got_lock=lock_table_name(thd,lock_table)) < 0)
@@ -638,7 +675,9 @@ end:
 void unlock_table_names(THD *thd, TABLE_LIST *table_list,
 			TABLE_LIST *last_table)
 {
-  for (TABLE_LIST *table=table_list ; table != last_table ; table=table->next)
+  for (TABLE_LIST *table= table_list;
+       table != last_table;
+       table= table->next_local)
     unlock_table_name(thd,table);
   pthread_cond_broadcast(&COND_refresh);
 }

@@ -25,6 +25,23 @@ create procedure syntaxerror(t int)|
 #--error 1126
 #create function foo returns real soname "foo.so"|
 
+
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+create table t3 ( x int )|
+insert into t3 values (2), (3)|
+
+create procedure bad_into(out param int)
+  select x from t3 into param|
+
+--error 1172
+call bad_into(@x)|
+
+drop procedure bad_into|
+drop table t3|
+
+
 create procedure proc1()
   set @x = 42|
 
@@ -32,18 +49,18 @@ create function func1() returns int
   return 42|
 
 # Can't create recursively
---error 1287
+--error 1302
 create procedure foo()
   create procedure bar() set @x=3|
---error 1287
+--error 1302
 create procedure foo()
   create function bar() returns double return 2.3|
 
 # Already exists
---error 1288
+--error 1303
 create procedure proc1()
   set @x = 42|
---error 1288
+--error 1303
 create function func1() returns int
   return 42|
 
@@ -51,39 +68,39 @@ drop procedure proc1|
 drop function func1|
 
 # Does not exist
---error 1289
+--error 1304
 alter procedure foo|
---error 1289
+--error 1304
 alter function foo|
---error 1289
+--error 1304
 drop procedure foo|
---error 1289
+--error 1304
 drop function foo|
---error 1289
+--error 1304
 call foo()|
 drop procedure if exists foo|
---error 1289
+--error 1304
 show create procedure foo|
 
 # LEAVE/ITERATE with no match
---error 1292
+--error 1307
 create procedure foo()
 foo: loop
   leave bar;
 end loop|
---error 1292
+--error 1307
 create procedure foo()
 foo: loop
   iterate bar;
 end loop|
---error 1292
+--error 1307
 create procedure foo()
 foo: begin
   iterate foo;
 end|
 
 # Redefining label
---error 1293 
+--error 1308
 create procedure foo()
 foo: loop
   foo: loop
@@ -92,7 +109,7 @@ foo: loop
 end loop foo|
 
 # End label mismatch
---error 1294
+--error 1309
 create procedure foo()
 foo: loop
   set @x=2;
@@ -107,12 +124,12 @@ end|
 drop procedure foo|
 
 # RETURN in FUNCTION only
---error 1297
+--error 1312
 create procedure foo()
   return 42|
 
 # Doesn't allow queries in FUNCTIONs (for now :-( )
---error 1298
+--error 1313
 create function foo() returns int
 begin
   declare x int;
@@ -126,19 +143,19 @@ create procedure p(x int)
 create function f(x int) returns int
   return x+42|
 
---error 1302
+--error 1317
 call p()|
---error 1302
+--error 1317
 call p(1, 2)|
---error 1302
+--error 1317
 select f()|
---error 1302
+--error 1317
 select f(1, 2)|
 
 drop procedure p|
 drop function f|
 
---error 1303
+--error 1318
 create procedure p(val int, out res int)
 begin
   declare x int default 0;
@@ -152,7 +169,7 @@ begin
   end if;
 end|
 
---error 1303
+--error 1318
 create procedure p(val int, out res int)
 begin
   declare x int default 0;
@@ -167,7 +184,7 @@ begin
   end if;
 end|
 
---error 1304
+--error 1319
 create function f(val int) returns int
 begin
   declare x int;
@@ -185,12 +202,12 @@ begin
   end if;
 end|
 
---error 1305
+--error 1320
 select f(10)|
 
 drop function f|
 
---error 1306
+--error 1321
 create procedure p()
 begin
   declare c cursor for insert into test.t1 values ("foo", 42);
@@ -199,7 +216,7 @@ begin
   close c;
 end|
 
---error 1307
+--error 1322
 create procedure p()
 begin
   declare x int;
@@ -209,7 +226,7 @@ begin
   close c;
 end|
 
---error 1308
+--error 1323
 create procedure p()
 begin
   declare c cursor for select * from test.t;
@@ -231,7 +248,7 @@ begin
   open c;
   close c;
 end|
---error 1309
+--error 1324
 call p()|
 drop procedure p|
 
@@ -243,11 +260,11 @@ begin
   close c;
   close c;
 end|
---error 1310
+--error 1325
 call p()|
 drop procedure p|
 
---error 1289
+--error 1304
 alter procedure bar3 sql security invoker|
 --error 1059
 alter procedure bar3 name
@@ -261,11 +278,11 @@ drop table if exists t1|
 create table t1 (val int, x float)|
 insert into t1 values (42, 3.1), (19, 1.2)|
 
---error 1311
+--error 1326
 create procedure p()
 begin
-  declare c cursor for select * from t1;
   declare x int;
+  declare c cursor for select * from t1;
 
   open c;
   fetch c into x, y;
@@ -274,60 +291,88 @@ end|
 
 create procedure p()
 begin
-  declare c cursor for select * from t1;
   declare x int;
+  declare c cursor for select * from t1;
 
   open c;
   fetch c into x;
   close c;
 end|
---error 1312
+--error 1327
 call p()|
 drop procedure p|
 
 create procedure p()
 begin
-  declare c cursor for select * from t1;
   declare x int;
   declare y float;
   declare z int;
+  declare c cursor for select * from t1;
 
   open c;
   fetch c into x, y, z;
   close c;
 end|
---error 1312
+--error 1327
 call p()|
 drop procedure p|
 
---error 1314
+--error 1329
 create procedure p(in x int, x char(10))
 begin
 end|
---error 1314
+--error 1329
 create function p(x int, x char(10))
 begin
 end|
 
---error 1315
+--error 1330
 create procedure p()
 begin
   declare x float;
   declare x int;
 end|
 
---error 1316
+--error 1331	
 create procedure p()
 begin
   declare c condition for 1064;
   declare c condition for 1065;
 end|
 
---error 1317
+--error 1332
 create procedure p()
 begin
   declare c cursor for select * from t1;
   declare c cursor for select field from t1;
+end|
+
+# USE is not allowed
+--error 1335
+create procedure u()
+  use sptmp|
+
+# Enforced standard order of declarations
+--error 1336
+create procedure p()
+begin
+  declare c cursor for select * from t1;
+  declare x int;
+end|
+--error 1336
+create procedure p()
+begin
+  declare x int;
+  declare continue handler for sqlstate '42S99' set x = 1;
+  declare foo condition for sqlstate '42S99';
+end|
+
+--error 1337
+create procedure p()
+begin
+  declare x int;
+  declare continue handler for sqlstate '42S99' set x = 1;
+  declare c cursor for select * from t1;
 end|
 
 #
@@ -347,13 +392,13 @@ drop procedure bug1965|
 #
 # BUG#1966
 #
---error 1311
+--error 1326
 select 1 into a|
 
 #
 # BUG#336
 #
---error 1319
+--error 1334
 create procedure bug336(id char(16))
 begin
   declare x int;
@@ -363,7 +408,7 @@ end|
 #
 # BUG#1654
 #
---error 1298
+--error 1313
 create function bug1654()
   returns int
 return (select sum(t.data) from test.t2 t)|
@@ -372,7 +417,7 @@ return (select sum(t.data) from test.t2 t)|
 # BUG#1653
 #
 --disable_warnings
-drop table if exists table_1|
+drop table if exists t3|
 --enable_warnings
 create table t3 (column_1_0 int)|
 
@@ -401,7 +446,7 @@ begin
   fetch c1 into v1;
 end|
 
---error 1310
+--error 1325
 call bug2259()|
 drop procedure bug2259|
 
@@ -420,6 +465,125 @@ insert into t1 values (666, 51.3)|
 call bug2272()|
 delete from t1|
 drop procedure bug2272|
+
+#
+# BUG#2329
+#
+create procedure bug2329_1()
+begin
+  declare v int;
+
+  insert into t1 (v) values (5);
+end|
+
+create procedure bug2329_2()
+begin
+  declare v int;
+
+  replace t1 set v = 5;
+end|
+
+--error 1054
+call bug2329_1()|
+--error 1054
+call bug2329_2()|
+drop procedure bug2329_1|
+drop procedure bug2329_2|
+
+#
+# BUG#3287
+#
+create function bug3287() returns int
+begin
+  declare v int default null;
+
+  case
+    when v is not null then return 1;
+  end case;
+  return 2;
+end|
+--error 1338
+select bug3287()|
+drop function bug3287|
+
+create procedure bug3287(x int)
+case x
+when 0 then
+  insert into test.t1 values (x, 0.1);
+when 1 then
+  insert into test.t1 values (x, 1.1);
+end case|
+--error 1338
+call bug3287(2)|
+drop procedure bug3287|
+
+#
+# BUG#3297
+#
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+create table t3 (s1 int, primary key (s1))|
+insert into t3 values (5),(6)|
+
+create procedure bug3279(out y int) 
+begin
+  declare x int default 0;
+  begin
+    declare exit handler for sqlexception set x = x+1;
+    insert into t3 values (5);
+  end;
+  if x < 2 then
+    set x = x+1;
+    insert into t3 values (6);
+  end if;
+  set y = x;
+end|
+
+set @x = 0|
+--error 1062
+call bug3279(@x)|
+select @x|
+drop procedure bug3279|
+drop table t3|
+
+#
+# BUG#3339
+#
+--error 1049
+create procedure nodb.bug3339() begin end|
+
+#
+# BUG#2653
+#
+create procedure bug2653_1(a int, out b int)
+  set b = aa|
+
+create procedure bug2653_2(a int, out b int)
+begin
+  if aa < 0 then
+    set b = - a;
+  else
+    set b = a;
+  end if;
+end|
+
+--error 1054
+call bug2653_1(1, @b)|
+--error 1054
+call bug2653_2(2, @b)|
+
+drop procedure bug2653_1|
+drop procedure bug2653_2|
+
+#
+# BUG#4344
+#
+--error 1356
+create procedure bug4344() drop procedure bug4344|
+--error 1356
+create procedure bug4344() drop function bug4344|
+
 
 drop table t1|
 

@@ -42,7 +42,7 @@ FILE *my_fopen(const char *FileName, int Flags, myf MyFlags)
       on some OS (SUNOS). Actually the filename save isn't that important
       so we can ignore if this doesn't work.
     */
-    if ((uint) fileno(fd) >= MY_NFILE)
+    if ((uint) fileno(fd) >= my_file_limit)
     {
       thread_safe_increment(my_stream_opened,&THR_LOCK_open);
       DBUG_RETURN(fd);				/* safeguard */
@@ -91,7 +91,7 @@ int my_fclose(FILE *fd, myf MyFlags)
   }
   else
     my_stream_opened--;
-  if ((uint) file < MY_NFILE && my_file_info[file].type != UNOPEN)
+  if ((uint) file < my_file_limit && my_file_info[file].type != UNOPEN)
   {
     my_file_info[file].type = UNOPEN;
     my_free(my_file_info[file].name, MYF(MY_ALLOW_ZERO_PTR));
@@ -123,11 +123,11 @@ FILE *my_fdopen(File Filedes, const char *name, int Flags, myf MyFlags)
   {
     pthread_mutex_lock(&THR_LOCK_open);
     my_stream_opened++;
-    if (Filedes < MY_NFILE)
+    if ((uint) Filedes < (uint) my_file_limit)
     {
       if (my_file_info[Filedes].type != UNOPEN)
       {
-        my_file_opened--;			/* File is opened with my_open ! */
+        my_file_opened--;		/* File is opened with my_open ! */
       }
       else
       {

@@ -83,7 +83,9 @@ srv_que_task_enqueue_low(
 {
 	ut_ad(thr);
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	UT_LIST_ADD_LAST(queue, srv_sys->tasks, thr);
 
@@ -100,6 +102,8 @@ srv_que_task_enqueue(
 	que_thr_t*	thr)	/* in: query thread */
 {
 	ut_ad(thr);
+
+	ut_a(0);	/* Under MySQL this is never called */
 
 	mutex_enter(&kernel_mutex);
 	

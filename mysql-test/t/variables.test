@@ -136,7 +136,7 @@ set big_tables="OFFF";
 set unknown_variable=1;
 --error 1232
 set max_join_size="hello";
---error 1285
+--error 1286
 set storage_engine=UNKNOWN_TABLE_TYPE;
 --error 1231
 set storage_engine=INNODB, big_tables=2;
@@ -147,11 +147,15 @@ set SESSION query_cache_size=10000;
 set GLOBAL storage_engine=DEFAULT;
 --error 1115
 set character_set_client=UNKNOWN_CHARACTER_SET;
---error 1272
+--error 1273
 set collation_connection=UNKNOWN_COLLATION;
+--error 1231
+set character_set_client=NULL;
+--error 1231
+set collation_connection=NULL;
 --error 1228
 set global autocommit=1;
---error 1228
+--error 1238
 select @@global.timestamp;
 --error 1193
 set @@version='';
@@ -159,7 +163,7 @@ set @@version='';
 set @@concurrent_insert=1;
 --error 1228
 set @@global.sql_auto_is_null=1;
---error 1228
+--error 1238
 select @@global.sql_auto_is_null;
 --error 1229
 set myisam_max_sort_file_size=100;
@@ -279,6 +283,30 @@ drop table t1,t2;
 select @@xxxxxxxxxx;
 select 1;
 
+--error 1238
+select @@session.key_buffer_size;
+
+--error 1229
+set ft_boolean_syntax = @@init_connect;
+--error 1231
+set global ft_boolean_syntax = @@init_connect;
+--error 1229
+set init_connect = NULL;
+set global init_connect = NULL;
+--error 1229
+set ft_boolean_syntax = @@init_connect;
+--error 1231
+set global ft_boolean_syntax = @@init_connect;
+
+# Bug#3754 SET GLOBAL myisam_max_sort_file_size doesn't work as
+# expected: check that there is no overflow when 64-bit unsigned
+# variables are set
+
+set global myisam_max_sort_file_size=4294967296;
+--replace_result 4294967296 MAX_FILE_SIZE 2146435072 MAX_FILE_SIZE
+show global variables like 'myisam_max_sort_file_size';
+set global myisam_max_sort_file_size=default;
+
 #
 # swap
 #
@@ -295,3 +323,16 @@ set @a=1, @b=2;
 set @a=@b, @b=@a;
 select @a, @b;
 
+#
+# Bug#2586:Disallow global/session/local as structured var. instance names
+#
+--error 1064
+set @@global.global.key_buffer_size= 1;
+--error 1064
+set GLOBAL global.key_buffer_size= 1;
+--error 1064
+SELECT @@global.global.key_buffer_size;
+--error 1064
+SELECT @@global.session.key_buffer_size;
+--error 1064
+SELECT @@global.local.key_buffer_size;

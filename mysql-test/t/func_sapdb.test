@@ -98,3 +98,9 @@ SELECT TIMEDIFF(t1, t4) As ttt, TIMEDIFF(t2, t3) As qqq,
        TIMEDIFF(t3, t2) As eee, TIMEDIFF(t2, t4) As rrr from test;
 
 drop table t1, test;
+
+select addtime("-01:01:01.01", "-23:59:59.1") as a;
+select microsecond("1997-12-31 23:59:59.01") as a;
+select microsecond(19971231235959.01) as a;
+select date_add("1997-12-31",INTERVAL "10.09" SECOND_MICROSECOND) as a;
+select str_to_date("2003-01-02 10:11:12.0012", "%Y-%m-%d %H:%i:%S.%f");

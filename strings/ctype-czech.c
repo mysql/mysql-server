@@ -165,169 +165,148 @@ static struct wordvalue doubles[] = {
 	Na konci pøipojíme znak 0
  */
 
-#define ADD_TO_RESULT(dest, len, totlen, value)				\
-	if ((totlen) < (len)) { dest[totlen] = value; } (totlen++);
-
-#define NEXT_CMP_VALUE(src, p, store, pass, value, len)			\
-	while (1)		/* we will make a loop */		\
-		{							\
-		if (IS_END(p, src, len))				\
-				/* when we are at the end of string */	\
-			{	/* return either 0 for end of string */	\
-					/* or 1 for end of pass */	\
-			if (pass == 3)	{ value = 0; break; }		\
-			if (pass == 0)	p = store;			\
-			else		p = src;			\
-			value = 1; pass++; break;			\
-			}						\
-					/* not at end of string */	\
-		value = CZ_SORT_TABLE[pass][*p];			\
-									\
-		if (value == 0)	{ p++; continue; } /* ignore value */	\
-		if (value == 2)		/* space */			\
-			{						\
-			const uchar * tmp;				\
-			const uchar * runner = ++p;			\
-			while (!(IS_END(runner, src, len)) && (CZ_SORT_TABLE[pass][*runner] == 2))							\
-				runner++;	/* skip all spaces */	\
-			if (IS_END(runner, src, len) && SKIP_TRAILING_SPACES)										\
-				p = runner;				\
-			if ((pass <= 2) && !(IS_END(runner, src, len)))	\
-				p = runner;				\
-			if (IS_END(p, src, len))			\
-				continue;				\
-				/* we switch passes */			\
-			if (pass > 1)					\
-				break;					\
-			tmp = p;					\
-			if (pass == 0)	pass = 1;			\
-			else		pass = 0;			\
-			p = store; store = tmp;				\
-			break;						\
-			}						\
-		if (value == 255)					\
-			{						\
-			int i;						\
-			for (i = 0; i < (int) sizeof(doubles); i++)	\
-				{					\
-				const char * pattern = doubles[i].word;	\
-				const char * q = (const char *) p;	\
-				int j = 0;				\
-				while (pattern[j])			\
-					{				\
-					if (IS_END(q, src, len) || (*q != pattern[j]))									\
-						{ break ; }		\
-					j++; q++;			\
-					}				\
-				if (!(pattern[j]))			\
-					{				\
-					value = (int)(doubles[i].outvalue[pass]);									\
-					p = (const uchar *) q - 1;			\
-					break;				\
-					}				\
-				}					\
-			}						\
-		p++;							\
-		break;							\
-		}
-
-#define IS_END(p, src, len)	(!(*p))
-
-#if 0
-/* Function strcoll, with Czech sorting, for zero terminated strings */
-static int my_strcoll_czech(const uchar * s1, const uchar * s2)
-	{
-	int v1, v2;
-	const uchar * p1, * p2, * store1, * store2;
-	int pass1 = 0, pass2 = 0;
-	int diff;
-
-	p1 = s1;	p2 = s2;
-	store1 = s1;	store2 = s2;
-
-	do
-		{
-		NEXT_CMP_VALUE(s1, p1, store1, pass1, v1, 0);
-		NEXT_CMP_VALUE(s2, p2, store2, pass2, v2, 0);
-		diff = v1 - v2;
-		if (diff != 0)		return diff;
-		}
-	while (v1);
-	return 0;
-	}
-#endif
-
-#if 0
-/* Function strxfrm, with Czech sorting, for zero terminated strings */
-static int my_strxfrm_czech(uchar * dest, const uchar * src, int len)
-{
-	int value;
-	const uchar * p, * store;
-	int pass = 0;
-	int totlen = 0;
-	p = store = src;
-
-	do
-		{
-		NEXT_CMP_VALUE(src, p, store, pass, value, 0);
-		ADD_TO_RESULT(dest, len, totlen, value);
-		}
-	while (value);
-	return totlen;
-	}
-#endif
-
-
-#undef IS_END
-
+#define ADD_TO_RESULT(dest, len, totlen, value)			\
+if ((totlen) < (len)) { dest[totlen] = value; } (totlen++);
 #define IS_END(p, src, len)	(((char *)p - (char *)src) >= (len))
 
-/* Function strnncoll, actually strcoll, with Czech sorting, which expect
-   the length of the strings being specified */
+#define NEXT_CMP_VALUE(src, p, store, pass, value, len)		\
+while (1)						\
+{							\
+  if (IS_END(p, src, len))				\
+  {							\
+    /* when we are at the end of string */		\
+    /* return either 0 for end of string */		\
+   /* or 1 for end of pass */				\
+   value= 0;						\
+   if (pass != 3)					\
+   {							\
+     p= (pass++ == 0) ? store : src;			\
+     value = 1;						\
+   }							\
+   break;						\
+  }							\
+  /* not at end of string */				\
+  value = CZ_SORT_TABLE[pass][*p];			\
+  if (value == 0)					\
+  { p++; continue; } /* ignore value */			\
+  if (value == 2) /* space */				\
+  {							\
+    const uchar * tmp;					\
+    const uchar * runner = ++p;				\
+    while (!(IS_END(runner, src, len)) && (CZ_SORT_TABLE[pass][*runner] == 2)) \
+     runner++;	/* skip all spaces */			\
+    if (IS_END(runner, src, len) && SKIP_TRAILING_SPACES) \
+      p = runner;					\
+    if ((pass <= 2) && !(IS_END(runner, src, len)))	\
+      p = runner;					\
+    if (IS_END(p, src, len))				\
+      continue;						\
+    /* we switch passes */				\
+    if (pass > 1)					\
+      break;						\
+    tmp = p;						\
+    pass= 1-pass;					\
+    p = store; store = tmp;				\
+    break;						\
+  }							\
+  if (value == 255)					\
+  {							\
+    int i;						\
+    for (i = 0; i < (int) sizeof(doubles); i++)		\
+    {							\
+      const char * pattern = doubles[i].word;		\
+      const char * q = (const char *) p;		\
+      int j = 0;					\
+      while (pattern[j])				\
+      {							\
+	if (IS_END(q, src, len) || (*q != pattern[j]))	\
+	 break;						\
+	j++; q++;					\
+      }							\
+      if (!(pattern[j]))				\
+      {							\
+	value = (int)(doubles[i].outvalue[pass]);	\
+	p= (const uchar *) q - 1;			\
+	break;						\
+      }							\
+    }							\
+  }							\
+  p++;							\
+  break;						\
+}
+
+/*
+  Function strnncoll, actually strcoll, with Czech sorting, which expect
+  the length of the strings being specified
+*/
+
 static int my_strnncoll_czech(CHARSET_INFO *cs __attribute__((unused)),
-                       const uchar * s1, uint len1, 
-                       const uchar * s2, uint len2)
-	{
-	int v1, v2;
-	const uchar * p1, * p2, * store1, * store2;
-	int pass1 = 0, pass2 = 0;
-	int diff;
+			      const uchar * s1, uint len1, 
+			      const uchar * s2, uint len2,
+                              my_bool s2_is_prefix)
+{
+  int v1, v2;
+  const uchar * p1, * p2, * store1, * store2;
+  int pass1 = 0, pass2 = 0;
 
-	p1 = s1;	p2 = s2;
-	store1 = s1;	store2 = s2;
+  if (s2_is_prefix && len1 > len2)
+    len1=len2;
 
-	do
-		{
-		NEXT_CMP_VALUE(s1, p1, store1, pass1, v1, (int)len1);
-		NEXT_CMP_VALUE(s2, p2, store2, pass2, v2, (int)len2);
-		diff = v1 - v2;
+  p1 = s1;	p2 = s2;
+  store1 = s1;	store2 = s2;
 
-		if (diff != 0)		return diff;
-		}
-	while (v1);
-	return 0;
-	}
+  do
+  {
+    int diff;
+    NEXT_CMP_VALUE(s1, p1, store1, pass1, v1, (int)len1);
+    NEXT_CMP_VALUE(s2, p2, store2, pass2, v2, (int)len2);
+    if ((diff = v1 - v2))
+      return diff;
+  }
+  while (v1);
+  return 0;
+}
 
-/* Function strnxfrm, actually strxfrm, with Czech sorting, which expect
-   the length of the strings being specified */
+
+
+/*
+  TODO: Fix this one to compare strings as they are done in ctype-simple1
+*/
+
+static
+int my_strnncollsp_czech(CHARSET_INFO * cs, 
+			const uchar *s, uint slen, 
+			const uchar *t, uint tlen)
+{
+  for ( ; slen && s[slen-1] == ' ' ; slen--);
+  for ( ; tlen && t[tlen-1] == ' ' ; tlen--);
+  return my_strnncoll_czech(cs,s,slen,t,tlen,0);
+}
+
+
+/*
+  Function strnxfrm, actually strxfrm, with Czech sorting, which expect
+  the length of the strings being specified
+*/
+
 static int my_strnxfrm_czech(CHARSET_INFO *cs __attribute__((unused)), 
-                      uchar * dest, uint len,
-                      const uchar * src, uint srclen)
-	{
-	int value;
-	const uchar * p, * store;
-	int pass = 0;
-	int totlen = 0;
-	p = src;	store = src;
+			     uchar * dest, uint len,
+			     const uchar * src, uint srclen)
+{
+  int value;
+  const uchar * p, * store;
+  int pass = 0;
+  int totlen = 0;
+  p = src;	store = src;
 
-	do
-		{
-		NEXT_CMP_VALUE(src, p, store, pass, value, (int)srclen);
-		ADD_TO_RESULT(dest, (int)len, totlen, value);
-		}
-	while (value);
-	return totlen;
-	}
+  do
+  {
+    NEXT_CMP_VALUE(src, p, store, pass, value, (int)srclen);
+    ADD_TO_RESULT(dest, (int)len, totlen, value);
+  }
+  while (value);
+  return totlen;
+}
 
 #undef IS_END
 
@@ -379,10 +358,11 @@ static int my_strnxfrm_czech(CHARSET_INFO *cs __attribute__((unused)),
 #define EXAMPLE
 
 static my_bool my_like_range_czech(CHARSET_INFO *cs __attribute__((unused)),
-                            const char *ptr,uint ptr_length,
-                            int escape, int w_one, int w_many,
-		            uint res_length, char *min_str,char *max_str,
-		            uint *min_length,uint *max_length)
+				   const char *ptr,uint ptr_length,
+				   pbool escape, pbool w_one, pbool w_many,
+				   uint res_length, char *min_str,
+				   char *max_str,
+				   uint *min_length,uint *max_length)
 {
 #ifdef EXAMPLE
   uchar value;
@@ -594,18 +574,9 @@ static MY_UNI_IDX idx_uni_8859_2[]={
 };
 
 
-static
-int my_strnncollsp_czech(CHARSET_INFO * cs, 
-			const uchar *s, uint slen, 
-			const uchar *t, uint tlen)
-{
-  for ( ; slen && my_isspace(cs, s[slen-1]) ; slen--);
-  for ( ; tlen && my_isspace(cs, t[tlen-1]) ; tlen--);
-  return my_strnncoll_czech(cs,s,slen,t,tlen);
-}
-
 static MY_COLLATION_HANDLER my_collation_latin2_czech_ci_handler =
 {
+  NULL,			/* init */
   my_strnncoll_czech,
   my_strnncollsp_czech,
   my_strnxfrm_czech,
@@ -621,18 +592,24 @@ CHARSET_INFO my_charset_latin2_czech_ci =
     2,0,0,				/* number */
     MY_CS_COMPILED|MY_CS_STRNXFRM,	/* state      */
     "latin2",				/* cs name    */
-    "latin2_czech_ci",			/* name */
+    "latin2_czech_cs",			/* name */
     "",					/* comment    */
+    NULL,				/* tailoring */
     ctype_czech,
     to_lower_czech,
     to_upper_czech,
     sort_order_czech,
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
     tab_8859_2_uni,	/* tab_to_uni   */
     idx_uni_8859_2,	/* tab_from_uni */
-    "","",
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
     4,			/* strxfrm_multiply */
+    1,			/* mbminlen   */
     1,			/* mbmaxlen  */
-    0,
+    0,			/* min_sort_char */
+    0,			/* max_sort_char */
     &my_charset_8bit_handler,
     &my_collation_latin2_czech_ci_handler
 };

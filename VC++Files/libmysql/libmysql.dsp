@@ -43,7 +43,7 @@ RSC=rc.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /YX /FD /c
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "." /I "..\include" /I "../zlib" /D "NDEBUG" /D "DBUG_OFF" /D "_WINDOWS" /D "USE_TLS" /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "." /I "..\include" /I "../zlib" /D "DBUG_OFF" /D "_WINDOWS" /D "USE_TLS" /D "NDEBUG" /D "MYSQL_CLIENT" /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /o "NUL" /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /o "NUL" /win32
@@ -76,7 +76,7 @@ PostBuild_Cmds=xcopy release\libmysql.lib ..\lib_release /y
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MTd /W3 /Gm /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /YX /FD /c
-# ADD CPP /nologo /G6 /MTd /W3 /Z7 /Od /I "." /I "..\include" /I "../zlib" /D "_DEBUG" /D "_WINDOWS" /D "SAFE_MUTEX" /D "USE_TLS" /FD /c
+# ADD CPP /nologo /G6 /MTd /W3 /Z7 /Od /I "." /I "..\include" /I "../zlib" /D "_DEBUG" /D "_WINDOWS" /D "SAFE_MUTEX" /D "USE_TLS" /D "MYSQL_CLIENT" /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE MTL /nologo /D "_DEBUG" /mktyplib203 /o "NUL" /win32
 # ADD MTL /nologo /D "_DEBUG" /mktyplib203 /o "NUL" /win32
@@ -92,7 +92,7 @@ LINK32=xilink6.exe
 # Begin Special Build Tool
 SOURCE="$(InputPath)"
 PostBuild_Desc=Move DLL export lib
-PostBuild_Cmds=xcopy ..\lib_debug\libmysql.dll C:\winnt\system32\ /y	xcopy     debug\libmysql.lib ..\lib_debug\ /y
+PostBuild_Cmds=xcopy ..\lib_debug\libmysql.dll %windir%\system32\ /y	xcopy     debug\libmysql.lib ..\lib_debug\ /y
 # End Special Build Tool
 
 !ENDIF
@@ -176,6 +176,10 @@ SOURCE="..\strings\ctype-sjis.c"
 # Begin Source File
 
 SOURCE="..\strings\ctype-tis620.c"
+# End Source File
+# Begin Source File
+
+SOURCE="..\strings\ctype-uca.c"
 # End Source File
 # Begin Source File
 
@@ -423,6 +427,10 @@ SOURCE=.\pack.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\my_time.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\password.c
 # End Source File
 # Begin Source File
@@ -487,11 +495,19 @@ SOURCE=..\strings\strnmov.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\strings\strtod.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\strings\strtoll.c
 # End Source File
 # Begin Source File
 
 SOURCE=..\strings\strxmov.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\strings\strxnmov.c
 # End Source File
 # Begin Source File
 

@@ -14,82 +14,95 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*
-  Defines: int2str(), itoa(), ltoa()
-
-  int2str(dst, radix, val)
-  converts the (long) integer "val" to character form and moves it to
-  the destination string "dst" followed by a terminating NUL.  The
-  result is normally a pointer to this NUL character, but if the radix
-  is dud the result will be NullS and nothing will be changed.
-
-  If radix is -2..-36, val is taken to be SIGNED.
-  If radix is  2.. 36, val is taken to be UNSIGNED.
-  That is, val is signed if and only if radix is.  You will normally
-  use radix -10 only through itoa and ltoa, for radix 2, 8, or 16
-  unsigned is what you generally want.
-
-  _dig_vec is public just in case someone has a use for it.
-  The definitions of itoa and ltoa are actually macros in m_string.h,
-  but this is where the code is.
-
-  Note: The standard itoa() returns a pointer to the argument, when int2str
-	returns the pointer to the end-null.
-	itoa assumes that 10 -base numbers are allways signed and other arn't.
-*/
-
 #include <my_global.h>
 #include "m_string.h"
 
-char NEAR _dig_vec[] =
+/*
+  _dig_vec arrays are public because they are used in several outer places.
+*/
+char NEAR _dig_vec_upper[] =
   "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+char NEAR _dig_vec_lower[] =
+  "0123456789abcdefghijklmnopqrstuvwxyz";
 
 
-char *int2str(register long int val, register char *dst, register int radix)
+/*
+  Convert integer to its string representation in given scale of notation.
+   
+  SYNOPSIS
+    int2str()
+      val     - value to convert
+      dst     - points to buffer where string representation should be stored
+      radix   - radix of scale of notation
+      upcase  - set to 1 if we should use upper-case digits
+
+  DESCRIPTION
+    Converts the (long) integer value to its character form and moves it to 
+    the destination buffer followed by a terminating NUL. 
+    If radix is -2..-36, val is taken to be SIGNED, if radix is  2..36, val is
+    taken to be UNSIGNED. That is, val is signed if and only if radix is. 
+    All other radixes treated as bad and nothing will be changed in this case.
+
+    For conversion to decimal representation (radix is -10 or 10) one can use
+    optimized int10_to_str() function.
+
+  RETURN VALUE
+    Pointer to ending NUL character or NullS if radix is bad.
+*/
+  
+char *
+int2str(register long int val, register char *dst, register int radix, 
+        int upcase)
 {
   char buffer[65];
   register char *p;
   long int new_val;
+  char *dig_vec= upcase ? _dig_vec_upper : _dig_vec_lower;
 
-  if (radix < 0) {
-    if (radix < -36 || radix > -2) return NullS;
-    if (val < 0) {
+  if (radix < 0)
+  {
+    if (radix < -36 || radix > -2)
+      return NullS;
+    if (val < 0)
+    {
       *dst++ = '-';
       val = -val;
     }
     radix = -radix;
-  } else {
-    if (radix > 36 || radix < 2) return NullS;
   }
-  /*  The slightly contorted code which follows is due to the
-      fact that few machines directly support unsigned long / and %.
-      Certainly the VAX C compiler generates a subroutine call.  In
-      the interests of efficiency (hollow laugh) I let this happen
-      for the first digit only; after that "val" will be in range so
-      that signed integer division will do.  Sorry 'bout that.
-      CHECK THE CODE PRODUCED BY YOUR C COMPILER.  The first % and /
-      should be unsigned, the second % and / signed, but C compilers
-      tend to be extraordinarily sensitive to minor details of style.
-      This works on a VAX, that's all I claim for it.
-      */
+  else if (radix > 36 || radix < 2)
+    return NullS;
+
+  /*
+    The slightly contorted code which follows is due to the fact that
+    few machines directly support unsigned long / and %.  Certainly
+    the VAX C compiler generates a subroutine call.  In the interests
+    of efficiency (hollow laugh) I let this happen for the first digit
+    only; after that "val" will be in range so that signed integer
+    division will do.  Sorry 'bout that.  CHECK THE CODE PRODUCED BY
+    YOUR C COMPILER.  The first % and / should be unsigned, the second
+    % and / signed, but C compilers tend to be extraordinarily
+    sensitive to minor details of style.  This works on a VAX, that's
+    all I claim for it.
+  */
   p = &buffer[sizeof(buffer)-1];
   *p = '\0';
   new_val=(ulong) val / (ulong) radix;
-  *--p = _dig_vec[(uchar) ((ulong) val- (ulong) new_val*(ulong) radix)];
+  *--p = dig_vec[(uchar) ((ulong) val- (ulong) new_val*(ulong) radix)];
   val = new_val;
 #ifdef HAVE_LDIV
   while (val != 0)
   {
     ldiv_t res;
     res=ldiv(val,radix);
-    *--p = _dig_vec[res.rem];
+    *--p = dig_vec[res.rem];
     val= res.quot;
   }
 #else
   while (val != 0)
   {
     new_val=val/radix;
-    *--p = _dig_vec[(uchar) (val-new_val*radix)];
+    *--p = dig_vec[(uchar) (val-new_val*radix)];
     val= new_val;
   }
 #endif
@@ -99,8 +112,21 @@ char *int2str(register long int val, register char *dst, register int radix)
 
 
 /*
-  This is a faster version of the above optimized for the normal case of
-   radix 10 / -10
+  Converts integer to its string representation in decimal notation.
+   
+  SYNOPSIS
+    int10_to_str()
+      val     - value to convert
+      dst     - points to buffer where string representation should be stored
+      radix   - flag that shows whenever val should be taken as signed or not
+
+  DESCRIPTION
+    This is version of int2str() function which is optimized for normal case
+    of radix 10/-10. It takes only sign of radix parameter into account and 
+    not its absolute value.
+
+  RETURN VALUE
+    Pointer to ending NUL character.
 */
 
 char *int10_to_str(long int val,char *dst,int radix)
@@ -133,22 +159,3 @@ char *int10_to_str(long int val,char *dst,int radix)
   while ((*dst++ = *p++) != 0) ;
   return dst-1;
 }
-
-
-#ifdef USE_MY_ITOA
-
-	/* Change to less general itoa interface */
-
-char *my_itoa(int val, char *dst, int radix)
-{
-  VOID(int2str((long) val,dst,(radix == 10 ? -10 : radix)));
-  return dst;
-}
-
-char *my_ltoa(long int val, char *dst, int radix)
-{
-  VOID(int2str((long) val,dst,(radix == 10 ? -10 : radix)));
-  return dst;
-}
-
-#endif

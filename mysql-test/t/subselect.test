@@ -9,12 +9,12 @@ SELECT (SELECT 1) UNION SELECT (SELECT 2);
 explain extended SELECT (SELECT 1) UNION SELECT (SELECT 2);
 SELECT (SELECT (SELECT 0 UNION SELECT 0));
 explain extended SELECT (SELECT (SELECT 0 UNION SELECT 0));
--- error 1246
+-- error 1247
 SELECT (SELECT 1 FROM (SELECT 1) as b HAVING a=1) as a;
--- error 1246
+-- error 1247
 SELECT (SELECT 1 FROM (SELECT 1) as b HAVING b=1) as a,(SELECT 1 FROM (SELECT 1) as c HAVING a=1) as b;
 SELECT (SELECT 1),MAX(1) FROM (SELECT 1) as a;
--- error 1246
+-- error 1247
 SELECT (SELECT a) as a;
 EXPLAIN EXTENDED SELECT 1 FROM (SELECT 1 as a) as b  HAVING (SELECT a)=1;
 SELECT 1 FROM (SELECT 1 as a) as b HAVING (SELECT a)=1;
@@ -24,7 +24,7 @@ SELECT 1 as a FROM (SELECT 1) as b HAVING (SELECT a)=1;
 -- error 1054
 SELECT 1 FROM (SELECT (SELECT a) b) c;
 SELECT * FROM (SELECT 1 as id) b WHERE id IN (SELECT * FROM (SELECT 1 as id) c ORDER BY id);
--- error 1240
+-- error 1241
 SELECT * FROM (SELECT 1) a  WHERE 1 IN (SELECT 1,1);
 SELECT 1 IN (SELECT 1);
 SELECT 1 FROM (SELECT 1 as a) b WHERE 1 IN (SELECT (SELECT a));
@@ -51,7 +51,7 @@ SELECT (SELECT 'b',2,'a') = ROW(1.5,2,'a');
 SELECT (SELECT 1.5,2,'a') = ROW(1.5,'c','a');
 SELECT (SELECT 1.5,'c','a') = ROW(1.5,2,'a');
 
--- error 1240
+-- error 1241
 SELECT (SELECT * FROM (SELECT 'test' a,'test' b) a);
 
 SELECT 1 as a,(SELECT a+a) b,(SELECT b);
@@ -63,7 +63,7 @@ create table t4 (a int not null, b int not null);
 insert into t1 values (2);
 insert into t2 values (1,7),(2,7);
 insert into t4 values (4,8),(3,8),(5,9);
--- error 1246
+-- error 1247
 select (select a from t1 where t1.a = a1) as a2, (select b from t2 where t2.b=a2) as a1;
 select (select a from t1 where t1.a=t2.a), a from t2;
 select (select a from t1 where t1.a=t2.b), a from t2;
@@ -103,9 +103,9 @@ select * from t3 where a >= any (select b from t2);
 explain extended select * from t3 where a >= any (select b from t2);
 select * from t3 where a >= all (select b from t2);
 delete from t2 where a=100;
--- error 1240
+-- error 1241
 select * from t3 where a in (select a,b from t2);
--- error 1240
+-- error 1241
 select * from t3 where a in (select * from t2);
 insert into t4 values (12,7),(1,7),(10,9),(9,6),(7,6),(3,9),(1,10);
 -- empty set
@@ -121,7 +121,7 @@ select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a)
 insert into t5 values (2);
 select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a), a from t2;
 explain extended select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a), a from t2;
--- error 1241
+-- error 1242
 select (select a from t1 where t1.a=t2.a union all select a from t5 where t5.a=t2.a), a from t2;
 create table t6 (patient_uq int, clinic_uq int, index i1 (clinic_uq));
 create table t7( uq int primary key, name char(25));
@@ -135,7 +135,7 @@ explain extended select * from t6 where exists (select * from t7 where uq = clin
 select * from t1 where a= (select a from t2,t4 where t2.b=t4.b);
 
 # different tipes & group functions
-drop table if exists t1,t2,t3;
+drop table t1,t2,t3;
 
 CREATE TABLE t3 (a varchar(20),b char(1) NOT NULL default '0');
 INSERT INTO t3 VALUES ('W','a'),('A','c'),('J','b');
@@ -158,14 +158,14 @@ INSERT INTO t8 (pseudo,email) VALUES ('joce','test');
 INSERT INTO t8 (pseudo,email) VALUES ('joce1','test1');
 INSERT INTO t8 (pseudo,email) VALUES ('2joce1','2test1');
 EXPLAIN EXTENDED SELECT pseudo,(SELECT email FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce')) FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce');
--- error 1240
+-- error 1241
 SELECT pseudo FROM t8 WHERE pseudo=(SELECT pseudo,email FROM
 t8 WHERE pseudo='joce');
--- error 1240
+-- error 1241
 SELECT pseudo FROM t8 WHERE pseudo=(SELECT * FROM t8 WHERE
 pseudo='joce');
 SELECT pseudo FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce');
--- error 1241
+-- error 1242
 SELECT pseudo FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo LIKE '%joce%');
 
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8;
@@ -185,7 +185,7 @@ EXPLAIN EXTENDED SELECT (SELECT DISTINCT date FROM t1 WHERE date='2002-08-03');
 SELECT DISTINCT date FROM t1 WHERE date='2002-08-03';
 SELECT (SELECT DISTINCT date FROM t1 WHERE date='2002-08-03');
 SELECT 1 FROM t1 WHERE 1=(SELECT 1 UNION SELECT 1) UNION ALL SELECT 1;
--- error 1241
+-- error 1242
 SELECT 1 FROM t1 WHERE 1=(SELECT 1 UNION ALL SELECT 1) UNION SELECT 1;
 EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1=(SELECT 1 UNION SELECT 1);
 drop table t1;
@@ -242,9 +242,9 @@ CREATE TABLE `t1` (
 ) ENGINE=MyISAM ROW_FORMAT=FIXED;
 
 INSERT INTO t1 (numeropost,maxnumrep) VALUES (1,0),(2,1);
--- error 1241
+-- error 1242
 select numeropost as a FROM t1 GROUP BY (SELECT 1 FROM t1 HAVING a=1);
--- error 1241
+-- error 1242
 select numeropost as a FROM t1 ORDER BY (SELECT 1 FROM t1 HAVING a=1);
 drop table t1;
 
@@ -256,7 +256,7 @@ drop table t1;
 #iftest
 CREATE TABLE t1 (field char(1) NOT NULL DEFAULT 'b');
 INSERT INTO t1 VALUES ();
--- error 1241
+-- error 1242
 SELECT field FROM t1 WHERE 1=(SELECT 1 UNION ALL SELECT 1 FROM (SELECT 1) a HAVING field='b');
 drop table t1;
 
@@ -269,13 +269,13 @@ CREATE TABLE `t1` (
   UNIQUE KEY `numreponse` (`numreponse`),
   KEY `pseudo` (`pseudo`,`numeropost`)
 ) ENGINE=MyISAM;
--- error 1246
+-- error 1247
 SELECT (SELECT numeropost FROM t1 HAVING numreponse=a),numreponse FROM (SELECT * FROM t1) as a;
 -- error 1054
 SELECT numreponse, (SELECT numeropost FROM t1 HAVING numreponse=a) FROM (SELECT * FROM t1) as a;
 SELECT numreponse, (SELECT numeropost FROM t1 HAVING numreponse=1) FROM (SELECT * FROM t1) as a;
 INSERT INTO t1 (numeropost,numreponse,pseudo) VALUES (1,1,'joce'),(1,2,'joce'),(1,3,'test');
--- error 1241
+-- error 1242
 EXPLAIN EXTENDED SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT 1 FROM t1 WHERE numeropost='1');
 EXPLAIN EXTENDED SELECT MAX(numreponse) FROM t1 WHERE numeropost='1';
 EXPLAIN EXTENDED SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT MAX(numreponse) FROM t1 WHERE numeropost='1');
@@ -294,7 +294,7 @@ insert into t2 values (1, 21),(2, 22),(3, 23);
 select * from t1;
 -- error 1093
 update t1 set b= (select b from t1);
--- error 1241
+-- error 1242
 update t1 set b= (select b from t2);
 update t1 set b= (select b from t2 where t1.a = t2.a);
 select * from t1;
@@ -309,7 +309,7 @@ select * from t1;
 select * from t1 where b = (select b from t2 where t1.a = t2.a);
 -- error 1093
 delete from t1 where b = (select b from t1);
--- error 1241
+-- error 1242
 delete from t1 where b = (select b from t2);
 delete from t1 where b = (select b from t2 where t1.a = t2.a);
 select * from t1;
@@ -327,7 +327,7 @@ select * from t11;
 select * from t12;
 -- error 1093
 delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b = (select b from t12 where t11.a = t12.a);
--- error 1241
+-- error 1242
 delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b = (select b from t2);
 delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b = (select b from t2 where t11.a = t2.a);
 select * from t11;
@@ -342,7 +342,7 @@ insert into t2 values (1);
 insert into t3 values (1),(2);
 -- error 1093
 INSERT INTO t1 (x) VALUES ((SELECT x FROM t1));
--- error 1241
+-- error 1242
 INSERT INTO t1 (x) VALUES ((SELECT b FROM t3));
 INSERT INTO t1 (x) VALUES ((SELECT a FROM t2));
 select * from t1;
@@ -375,7 +375,7 @@ insert into t3 values (1),(2);
 select * from t1;
 -- error 1093
 replace into t1 (x, y) VALUES ((SELECT x FROM t1), (SELECT a+1 FROM t2));
--- error 1241
+-- error 1242
 replace into t1 (x, y) VALUES ((SELECT a FROM t3), (SELECT a+1 FROM t2));
 replace into t1 (x, y) VALUES ((SELECT a FROM t2), (SELECT a+1 FROM t2));
 select * from t1;
@@ -411,7 +411,7 @@ INSERT INTO t2 VALUES ((SELECT id FROM t2));
 SELECT * FROM t2;
 CREATE TABLE t1 (id int(11) default NULL, KEY id (id)) ENGINE=MyISAM CHARSET=latin1;
 INSERT INTO t1 values (1),(1);
--- error 1241
+-- error 1242
 UPDATE t2 SET id=(SELECT * FROM t1);
 drop table t2, t1;
 
@@ -527,7 +527,7 @@ set @a:=(SELECT a from t1);
 
 CREATE TABLE t1 (a int, KEY(a)); 
 HANDLER t1 OPEN;
--- error 1149
+-- error 1064
 HANDLER t1 READ a=((SELECT 1));
 HANDLER t1 CLOSE;
 drop table t1;
@@ -678,7 +678,7 @@ CREATE TABLE `t1` (
   `id` mediumint(8) unsigned NOT NULL auto_increment,
   `pseudo` varchar(35) character set latin1 NOT NULL default '',
   PRIMARY KEY  (`id`),
-  UNIQUE KEY `pseudo` (`pseudo`),
+  UNIQUE KEY `pseudo` (`pseudo`)
 ) ENGINE=MyISAM PACK_KEYS=1 ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 (pseudo) VALUES ('test');
 SELECT 0 IN (SELECT 1 FROM t1 a);
@@ -781,7 +781,7 @@ CREATE TABLE `t1` (
   `email` varchar(60) NOT NULL default '',
   PRIMARY KEY  (`id`),
   UNIQUE KEY `email` (`email`),
-  UNIQUE KEY `pseudo` (`pseudo`),
+  UNIQUE KEY `pseudo` (`pseudo`)
 ) ENGINE=MyISAM CHARSET=latin1 PACK_KEYS=1 ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 (id,pseudo,email) VALUES (1,'test','test'),(2,'test1','test1');
 SELECT pseudo as a, pseudo as b FROM t1 GROUP BY (SELECT a) ORDER BY (SELECT id*1);
@@ -872,9 +872,9 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (s1 CHAR(5) COLLATE latin1_german1_ci,
                  s2 CHAR(5) COLLATE latin1_swedish_ci);
 INSERT INTO t1 VALUES ('z','?');
--- error 1266
+-- error 1267
 select * from t1 where s1 > (select max(s2) from t1);
--- error 1266
+-- error 1267
 select * from t1 where s1 > any (select max(s2) from t1);
 drop table t1;
 
@@ -892,7 +892,7 @@ drop table t1, t2;
 # row union
 #
 create table t1 (s1 char(5));
--- error 1240
+-- error 1241
 select (select 'a','b' from t1 union select 'a','b' from t1) from t1;
 insert into t1 values ('tttt');
 select * from t1 where ('a','b')=(select 'a','b' from t1 union select 'a','b' from t1);
@@ -957,7 +957,7 @@ CREATE TABLE t1 (id int(11) default NULL) ENGINE=MyISAM CHARSET=latin1;
 INSERT INTO t1 VALUES (1),(5);
 CREATE TABLE t2 (id int(11) default NULL) ENGINE=MyISAM CHARSET=latin1;
 INSERT INTO t2 VALUES (2),(6);
--- error 1240
+-- error 1241
 select * from t1 where (1,2,6) in (select * from t2);
 DROP TABLE t1,t2;
 
@@ -967,7 +967,7 @@ DROP TABLE t1,t2;
 create table t1 (s1 int);
 insert into t1 values (1);
 insert into t1 values (2);
--- error 1241
+-- error 1242
 set sort_buffer_size = (select s1 from t1);
 do (select * from t1);
 drop table t1;
@@ -979,7 +979,7 @@ create table t1 (s1 char);
 insert into t1 values ('e');
 select * from t1 where 'f' > any (select s1 from t1);
 select * from t1 where 'f' > any (select s1 from t1 union select s1 from t1);
-explain select * from t1 where 'f' > any (select s1 from t1 union select s1 from t1);
+explain extended select * from t1 where 'f' > any (select s1 from t1 union select s1 from t1);
 drop table t1;
 
 #
@@ -1014,3 +1014,216 @@ INSERT INTO t1 VALUES (1,1,'1A3240'), (1,2,'4W2365');
 INSERT INTO t2 VALUES (100, 200, 'C');
 SELECT DISTINCT COLC FROM t1 WHERE COLA = (SELECT COLA FROM t2 WHERE COLB = 200 AND COLC ='C' LIMIT 1);
 DROP TABLE t1, t2;
+
+CREATE TABLE t1 (a int(1));
+INSERT INTO t1 VALUES (1),(1),(1),(1),(1),(2),(3),(4),(5);
+SELECT DISTINCT (SELECT a) FROM t1 LIMIT 100;
+DROP TABLE t1;
+
+#
+# Bug 2198
+#
+
+create table t1 (a int, b decimal(13, 3)); 
+insert into t1 values (1, 0.123);
+select a, (select max(b) from t1) into outfile "subselect.out.file.1" from t1;
+delete from t1;
+load data infile "subselect.out.file.1" into table t1;
+select * from t1;
+drop table t1;
+
+#
+# Bug 2479
+#
+
+CREATE TABLE `t1` (
+  `id` int(11) NOT NULL auto_increment,
+  `id_cns` tinyint(3) unsigned NOT NULL default '0',
+  `tipo` enum('','UNO','DUE') NOT NULL default '',
+  `anno_dep` smallint(4) unsigned zerofill NOT NULL default '0000',
+  `particolare` mediumint(8) unsigned NOT NULL default '0',
+  `generale` mediumint(8) unsigned NOT NULL default '0',
+  `bis` tinyint(3) unsigned NOT NULL default '0',
+  PRIMARY KEY  (`id`),
+  UNIQUE KEY `idx_cns_gen_anno` (`anno_dep`,`id_cns`,`generale`,`particolare`),
+  UNIQUE KEY `idx_cns_par_anno` (`id_cns`,`anno_dep`,`tipo`,`particolare`,`bis`)
+);
+INSERT INTO `t1` VALUES (1,16,'UNO',1987,2048,9681,0),(2,50,'UNO',1987,1536,13987,0),(3,16,'UNO',1987,2432,14594,0),(4,16,'UNO',1987,1792,13422,0),(5,16,'UNO',1987,1025,10240,0),(6,16,'UNO',1987,1026,7089,0);
+CREATE TABLE `t2` (
+  `id` tinyint(3) unsigned NOT NULL auto_increment,
+  `max_anno_dep` smallint(6) unsigned NOT NULL default '0',
+  PRIMARY KEY  (`id`)
+);
+INSERT INTO `t2` VALUES (16,1987),(50,1990),(51,1990);
+
+SELECT cns.id, cns.max_anno_dep, cns.max_anno_dep = (SELECT s.anno_dep FROM t1 AS s WHERE s.id_cns = cns.id ORDER BY s.anno_dep DESC LIMIT 1) AS PIPPO FROM t2 AS cns;
+
+DROP TABLE t1, t2;
+
+#
+# GLOBAL LIMIT
+#
+create table t1 (a int);
+insert into t1 values (1), (2), (3);
+SET SQL_SELECT_LIMIT=1;
+select sum(a) from (select * from t1) as a;
+select 2 in (select * from t1);
+SET SQL_SELECT_LIMIT=default;
+drop table t1;
+
+#
+# Bug #3118: subselect + order by
+#
+
+CREATE TABLE t1 (a int, b int, INDEX (a));
+INSERT INTO t1 VALUES (1, 1), (1, 2), (1, 3);
+SELECT * FROM t1 WHERE a = (SELECT MAX(a) FROM t1 WHERE a = 1) ORDER BY b;
+DROP TABLE t1;
+
+# Item_cond fix field
+#
+create table t1(val varchar(10));
+insert into t1 values ('aaa'), ('bbb'),('eee'),('mmm'),('ppp');
+select count(*) from t1 as w1 where w1.val in (select w2.val from t1 as w2 where w2.val like 'm%') and w1.val in (select w3.val from t1 as w3 where w3.val like 'e%');
+drop table t1;
+
+#
+# ref_or_null replacing with ref
+#
+create table t1 (id int not null, text varchar(20) not null default '', primary key (id));
+insert into t1 (id, text) values (1, 'text1'), (2, 'text2'), (3, 'text3'), (4, 'text4'), (5, 'text5'), (6, 'text6'), (7, 'text7'), (8, 'text8'), (9, 'text9'), (10, 'text10'), (11, 'text11'), (12, 'text12');
+select * from t1 where id not in (select id from t1 where id < 8);
+select * from t1 as tt where not exists (select id from t1 where id < 8 and (id = tt.id or id is null) having id is not null);
+explain extended select * from t1 where id not in (select id from t1 where id < 8);
+explain extended select * from t1 as tt where not exists (select id from t1 where id < 8 and (id = tt.id or id is null) having id is not null);
+insert into t1 (id, text) values (1000, 'text1000'), (1001, 'text1001');
+create table t2 (id int not null, text varchar(20) not null default '', primary key (id));
+insert into t2 (id, text) values (1, 'text1'), (2, 'text2'), (3, 'text3'), (4, 'text4'), (5, 'text5'), (6, 'text6'), (7, 'text7'), (8, 'text8'), (9, 'text9'), (10, 'text10'), (11, 'text1'), (12, 'text2'), (13, 'text3'), (14, 'text4'), (15, 'text5'), (16, 'text6'), (17, 'text7'), (18, 'text8'), (19, 'text9'), (20, 'text10'),(21, 'text1'), (22, 'text2'), (23, 'text3'), (24, 'text4'), (25, 'text5'), (26, 'text6'), (27, 'text7'), (28, 'text8'), (29, 'text9'), (30, 'text10'), (31, 'text1'), (32, 'text2'), (33, 'text3'), (34, 'text4'), (35, 'text5'), (36, 'text6'), (37, 'text7'), (38, 'text8'), (39, 'text9'), (40, 'text10'), (41, 'text1'), (42, 'text2'), (43, 'text3'), (44, 'text4'), (45, 'text5'), (46, 'text6'), (47, 'text7'), (48, 'text8'), (49, 'text9'), (50, 'text10');
+select * from t1 a left join t2 b on (a.id=b.id or b.id is null) join t1 c on (if(isnull(b.id), 1000, b.id)=c.id);
+explain extended select * from t1 a left join t2 b on (a.id=b.id or b.id is null) join t1 c on (if(isnull(b.id), 1000, b.id)=c.id);
+drop table t1,t2;
+
+#
+# Static tables & rund() in subqueries
+#
+create table t1 (a int);
+insert into t1 values (1);
+explain select benchmark(1000, (select a from t1 where a=sha(rand())));
+drop table t1;
+
+#
+# bug 3188
+#
+create table t1(id int);
+create table t2(id int);
+create table t3(flag int);
+-- error 1064
+select (select * from t3 where id not null) from t1, t2;
+drop table t1,t2,t3;
+
+#
+# aggregate functions (Bug #3505)
+#
+CREATE TABLE t1 (id INT);
+CREATE TABLE t2 (id INT);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1);
+SELECT t1.id, ( SELECT COUNT(t.id) FROM t2 AS t WHERE t.id = t1.id ) AS c FROM t1 LEFT JOIN t2 USING (id);
+SELECT t1.id, ( SELECT COUNT(t.id) FROM t2 AS t WHERE t.id = t1.id ) AS c FROM t1 LEFT JOIN t2 USING (id) ORDER BY t1.id;
+DROP TABLE t1,t2;
+
+#
+# ALL/ANY test
+#
+CREATE TABLE t1 ( a int, b int );
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3);
+SELECT a FROM t1 WHERE a > ANY ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a < ANY ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a = ANY ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a >= ANY ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a <= ANY ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a <> ANY ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a > ALL ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a < ALL ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a = ALL ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a >= ALL ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a <= ALL ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a <> ALL ( SELECT a FROM t1 WHERE b = 2 );
+ALTER TABLE t1 ADD INDEX (a);
+SELECT a FROM t1 WHERE a > ANY ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a < ANY ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a = ANY ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a >= ANY ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a <= ANY ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a <> ANY ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a > ALL ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a < ALL ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a = ALL ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a >= ALL ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a <= ALL ( SELECT a FROM t1 WHERE b = 2 );
+SELECT a FROM t1 WHERE a <> ALL ( SELECT a FROM t1 WHERE b = 2 );
+DROP TABLE t1;
+
+#
+# SELECT(EXISTS * ...)optimisation
+#
+create table t1 (a int, b int);
+insert into t1 values (1,2),(3,4);
+select * from t1 up where exists (select * from t1 where t1.a=up.a);
+explain extended select * from t1 up where exists (select * from t1 where t1.a=up.a);
+drop table t1;
+
+#
+# Bug #4102: subselect in HAVING
+#
+
+CREATE TABLE t1 (t1_a int);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (t2_a int, t2_b int, PRIMARY KEY (t2_a, t2_b));
+INSERT INTO t2 VALUES (1, 1), (1, 2);
+SELECT * FROM t1, t2 table2 WHERE t1_a = 1 AND table2.t2_a = 1
+  HAVING table2.t2_b = (SELECT MAX(t2_b) FROM t2 WHERE t2_a = table2.t2_a);
+DROP TABLE t1, t2;
+
+#
+# Test problem with NULL and derived tables (Bug #4097)
+#
+
+CREATE TABLE t1 (id int(11) default NULL,name varchar(10) default NULL);
+INSERT INTO t1 VALUES (1,'Tim'),(2,'Rebecca'),(3,NULL);
+CREATE TABLE t2 (id int(11) default NULL, pet varchar(10) default NULL);
+INSERT INTO t2 VALUES (1,'Fido'),(2,'Spot'),(3,'Felix');
+SELECT a.*, b.* FROM (SELECT * FROM t1) AS a JOIN t2 as b on a.id=b.id;
+drop table t1,t2;
+
+#
+# outer fields resolving in INSERT/REPLACE and CRETE with SELECT
+#
+CREATE TABLE t1 ( a int, b int );
+CREATE TABLE t2 ( c int, d int );
+INSERT INTO t1 VALUES (1,2), (2,3), (3,4);
+SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);
+INSERT INTO t2 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);
+select * from t2;
+CREATE TABLE t3 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);
+select * from t3;
+prepare stmt1 from "INSERT INTO t2 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);";
+execute stmt1;
+deallocate prepare stmt1;
+select * from t2;
+drop table t3;
+prepare stmt1 from "CREATE TABLE t3 SELECT a AS abc, b FROM t1 WHERE b = (SELECT MIN(b) FROM t1 WHERE a=abc);";
+execute stmt1;
+select * from t3;
+deallocate prepare stmt1;
+DROP TABLE t1, t2, t3;
+
+#
+# Aggregate function comparation with ALL/ANY/SOME subselect
+#
+CREATE TABLE `t1` ( `a` int(11) default NULL) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+insert into t1 values (1);
+CREATE TABLE `t2` ( `b` int(11) default NULL, `a` int(11) default NULL) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+insert into t2 values (1,2);
+select t000.a, count(*) `C` FROM t1 t000 GROUP BY t000.a HAVING count(*) > ALL (SELECT count(*) FROM t2 t001 WHERE t001.a=1);
+drop table t1,t2;

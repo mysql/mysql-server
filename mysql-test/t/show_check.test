@@ -53,9 +53,14 @@ drop table t2;
 create table t1 (
   test_set set( 'val1', 'val2', 'val3' ) not null default '',
   name char(20) default 'O''Brien' comment 'O''Brien as default',
-  c int not null comment 'int column'
+  c int not null comment 'int column',
+  `c-b` int comment 'name with a minus',
+  `space 2` int comment 'name with a space'
   ) comment = 'it\'s a table' ;
-show create table t1 ;
+show create table t1;
+set sql_quote_show_create=0;
+show create table t1;
+set sql_quote_show_create=1;
 show full columns from t1;
 drop table t1;
 
@@ -137,3 +142,175 @@ drop table t1;
 create table t1 (c decimal(3,3), d double(3,3), f float(3,3));
 show columns from t1;
 drop table t1;
+
+#
+# Test for Bug #2593 "SHOW CREATE TABLE doesn't properly double quotes"
+#
+
+SET @old_sql_mode= @@sql_mode, sql_mode= '';
+SET @old_sql_quote_show_create= @@sql_quote_show_create, sql_quote_show_create= OFF;
+
+######### hook for WL#1324 #
+--error 1103
+CREATE TABLE `a/b` (i INT);
+# the above test should WORK when WL#1324 is done,
+# it should be removed and
+# the following part should be uncommented then
+#########################################################
+# begin of part that must be uncommented when WL#1324 is done
+#########################################################
+#CREATE TABLE ```ab``cd``` (i INT);
+#SHOW CREATE TABLE ```ab``cd```;
+#DROP TABLE ```ab``cd```;
+
+#CREATE TABLE ```ab````cd``` (i INT);
+#SHOW CREATE TABLE ```ab````cd```;
+#DROP TABLE ```ab````cd```;
+#
+#CREATE TABLE ```a` (i INT);
+#SHOW CREATE TABLE ```a`;
+#DROP TABLE ```a`;
+#
+#SET sql_mode= 'ANSI_QUOTES';
+#
+#CREATE TABLE """a" (i INT);
+#SHOW CREATE TABLE """a";
+#DROP TABLE """a";
+#
+#Bug #4374 SHOW TABLE STATUS FROM ignores collation_connection
+#set names latin1;
+#create database `ä`;
+#create table `ä`.`ä` (a int) engine=heap;
+#--replace_column 7 # 8 # 9 #
+#show table status from `ä` LIKE 'ä';
+#drop database `ä`;
+#########################################################
+# end of part that must be uncommented when WL#1324 is done
+#########################################################
+
+# to test quotes around keywords.. :
+
+SET sql_mode= '';
+SET sql_quote_show_create= OFF;
+
+CREATE TABLE t1 (i INT);
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+CREATE TABLE `table` (i INT);
+SHOW CREATE TABLE `table`;
+DROP TABLE `table`;
+
+SET sql_quote_show_create= @old_sql_quote_show_create;
+SET sql_mode= @old_sql_mode;
+
+#
+# Test for bug #2719 "Heap tables status shows wrong or missing data."
+#
+
+select @@max_heap_table_size;
+
+CREATE TABLE t1 (
+ a int(11) default NULL,
+ KEY a TYPE BTREE (a)
+) ENGINE=HEAP;
+
+CREATE TABLE t2 (
+ b int(11) default NULL,
+ index(b)
+) ENGINE=HEAP;
+
+CREATE TABLE t3 (
+ a int(11) default NULL,
+ b int(11) default NULL,
+ KEY a TYPE BTREE (a),
+ index(b)
+) ENGINE=HEAP;
+
+insert into t1 values (1),(2);
+insert into t2 values (1),(2);
+insert into t3 values (1,1),(2,2);
+--replace_column 7 # 8 # 9 #
+show table status;
+insert into t1 values (3),(4);
+insert into t2 values (3),(4);
+insert into t3 values (3,3),(4,4);
+--replace_column 7 # 8 # 9 #
+show table status;
+insert into t1 values (5);
+insert into t2 values (5);
+insert into t3 values (5,5);
+--replace_column 7 # 8 # 9 #
+show table status;
+delete from t1 where a=3;
+delete from t2 where b=3;
+delete from t3 where a=3;
+--replace_column 7 # 8 # 9 #
+show table status;
+delete from t1;
+delete from t2;
+delete from t3;
+--replace_column 7 # 8 # 9 #
+show table status;
+insert into t1 values (5);
+insert into t2 values (5);
+insert into t3 values (5,5);
+--replace_column 7 # 8 # 9 #
+show table status;
+delete from t1 where a=5;
+delete from t2 where b=5;
+delete from t3 where a=5;
+--replace_column 7 # 8 # 9 #
+show table status;
+
+drop table t1, t2, t3;
+
+#
+# Test for bug #3342 SHOW CREATE DATABASE seems to require DROP privilege
+#
+
+create database test_$1;
+show create database test_$1;
+create table test_$1.t1(a int);
+insert into test_$1.t1 values(1);
+grant select on `test_$1`.* to mysqltest_1@localhost;
+grant usage  on `test_$1`.* to mysqltest_2@localhost;
+grant drop   on `test_$1`.* to mysqltest_3@localhost;
+
+connect (con1,localhost,mysqltest_1,,test_$1);
+connection con1;
+select * from t1;
+show create database test_$1;
+--error 1044
+drop table t1;
+--error 1044
+drop database test_$1;
+
+connect (con2,localhost,mysqltest_2,,test);
+connection con2;
+--error 1044
+select * from test_$1.t1;
+--error 1044
+show create database test_$1;
+--error 1044
+drop table test_$1.t1;
+--error 1044
+drop database test_$1;
+
+connect (con3,localhost,mysqltest_3,,test);
+connection con3;
+--error 1044
+select * from test_$1.t1;
+--error 1044
+show create database test_$1;
+drop table test_$1.t1;
+drop database test_$1;
+
+connection default;
+set names binary;
+delete from mysql.user 
+where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
+delete from mysql.db   
+where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
+flush privileges;
+

@@ -2,6 +2,15 @@ DROP TABLE IF EXISTS t1,t2;
 DROP DATABASE IF EXISTS test_$1;
 create database test_$1;
 create table test_$1.r1 (i int) raid_type=1;
+create table test_$1.r2 (i int) raid_type=1 raid_chunks=32;
+drop database test_$1;
+create database test_$1;
+create table test_$1.r2 (i int) raid_type=1 raid_chunks=257;
+show create table test_$1.r2;
+Table	Create Table
+r2	CREATE TABLE `r2` (
+  `i` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 RAID_TYPE=striped RAID_CHUNKS=255 RAID_CHUNKSIZE=256
 drop database test_$1;
 CREATE TABLE t1 (
 id int unsigned not null auto_increment primary key,

@@ -43,12 +43,7 @@ parse_arguments() {
       --basedir=*) MY_BASEDIR_VERSION=`echo "$arg" | sed -e "s;--basedir=;;"` ;;
       --datadir=*) DATADIR=`echo "$arg" | sed -e "s;--datadir=;;"` ;;
       --pid-file=*) pid_file=`echo "$arg" | sed -e "s;--pid-file=;;"` ;;
-      --user=*)
-        if test $SET_USER -eq 0
-        then
-          user=`echo "$arg" | sed -e "s;--[^=]*=;;"` ; SET_USER=1
-        fi
-        ;;
+      --user=*) user=`echo "$arg" | sed -e "s;--[^=]*=;;"` ; SET_USER=1 ;;
 
       # these two might have been set in a [mysqld_safe] section of my.cnf
       # they are added to mysqld command line to override settings from my.cnf
@@ -114,7 +109,6 @@ else
   ledir=@libexecdir@
 fi
 
-safe_mysql_unix_port=${mysql_unix_port:-${MYSQL_UNIX_PORT:-@MYSQL_UNIX_ADDR@}}
 user=@MYSQLD_USER@
 niceness=0
 
@@ -129,7 +123,6 @@ fi
 # these rely on $DATADIR by default, so we'll set them later on
 pid_file=
 err_log=
-SET_USER=0
 
 # Get first arguments from the my.cnf file, groups [mysqld] and [mysqld_safe]
 # and then merge with the command line arguments
@@ -147,8 +140,15 @@ else
 fi
 
 args=
-parse_arguments `$print_defaults --loose-verbose $defaults mysqld server mysqld_safe safe_mysqld`
+SET_USER=2
+parse_arguments `$print_defaults --loose-verbose $defaults mysqld server`
+if test $SET_USER -eq 2
+then
+  SET_USER=0
+fi
+parse_arguments `$print_defaults --loose-verbose $defaults mysqld_safe safe_mysqld`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
+safe_mysql_unix_port=${mysql_unix_port:-${MYSQL_UNIX_PORT:-@MYSQL_UNIX_ADDR@}}
 
 if test ! -x $ledir/$MYSQLD
 then
@@ -156,6 +156,8 @@ then
   echo "Please do a cd to the mysql installation directory and restart"
   echo "this script from there as follows:"
   echo "./bin/mysqld_safe".
+  echo "See http://dev.mysql.com/doc/mysql/en/mysqld_safe.html for more"
+  echo "information"
   exit 1
 fi
 

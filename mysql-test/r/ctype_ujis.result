@@ -64,3 +64,65 @@ select 'A' like 'a';
 select 'A' like 'a' collate ujis_bin;
 'A' like 'a' collate ujis_bin
 0
+set @ujis1= _ujis     0x8EA18EA28EA38EA48EA58EA68EA78EA88EA98EAA8EAB8EAC8EAD8EAE8EAF;
+set @ujis2= _ujis 0x8EB08EB18EB28EB38EB48EB58EB68EB78EB88EB98EBA8EBB8EBC8EBD8EBE8EBF;
+set @ujis3= _ujis 0x8EC08EC18EC28EC38EC48EC58EC68EC78EC88EC98ECA8ECB8ECC8ECD8ECE8ECF;
+set @ujis4= _ujis 0x8ED08ED18ED28ED38ED48ED58ED68ED78ED88ED98EDA8EDB8EDC8EDD8EDE8EDF;
+select hex(@utf81:= CONVERT(@ujis1 USING utf8));
+hex(@utf81:= CONVERT(@ujis1 USING utf8))
+EFBDA1EFBDA2EFBDA3EFBDA4EFBDA5EFBDA6EFBDA7EFBDA8EFBDA9EFBDAAEFBDABEFBDACEFBDADEFBDAEEFBDAF
+select hex(@utf82:= CONVERT(@ujis2 USING utf8));
+hex(@utf82:= CONVERT(@ujis2 USING utf8))
+EFBDB0EFBDB1EFBDB2EFBDB3EFBDB4EFBDB5EFBDB6EFBDB7EFBDB8EFBDB9EFBDBAEFBDBBEFBDBCEFBDBDEFBDBEEFBDBF
+select hex(@utf83:= CONVERT(@ujis3 USING utf8));
+hex(@utf83:= CONVERT(@ujis3 USING utf8))
+EFBE80EFBE81EFBE82EFBE83EFBE84EFBE85EFBE86EFBE87EFBE88EFBE89EFBE8AEFBE8BEFBE8CEFBE8DEFBE8EEFBE8F
+select hex(@utf84:= CONVERT(@ujis4 USING utf8));
+hex(@utf84:= CONVERT(@ujis4 USING utf8))
+EFBE90EFBE91EFBE92EFBE93EFBE94EFBE95EFBE96EFBE97EFBE98EFBE99EFBE9AEFBE9BEFBE9CEFBE9DEFBE9EEFBE9F
+select @ujis1 = CONVERT(@utf81 USING ujis);
+@ujis1 = CONVERT(@utf81 USING ujis)
+1
+select @ujis2 = CONVERT(@utf82 USING ujis);
+@ujis2 = CONVERT(@utf82 USING ujis)
+1
+select @ujis3 = CONVERT(@utf83 USING ujis);
+@ujis3 = CONVERT(@utf83 USING ujis)
+1
+select @ujis4 = CONVERT(@utf84 USING ujis);
+@ujis4 = CONVERT(@utf84 USING ujis)
+1
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 't1'
+create table t1 (c1 varchar(8)) default character set 'ujis';
+insert into t1 values (0xA4A2),(0xA2A2),(0xA4A2);
+select c1 as 'no index' from t1 where c1 like cast(concat(0xA4A2, '%') as char character set ujis);
+no index
+あ
+あ
+create index idx_c1 on t1(c1);
+select c1 as 'using index' from t1 where c1 like cast(concat(0xA4A2, '%') as char character set ujis);
+using index
+あ
+あ
+select c1 as 'no index' from t1 where c1 like cast(concat('%',0xA4A2, '%') as char character set ujis);
+no index
+あ
+あ
+drop table t1;
+CREATE TABLE t1 (
+a char(1) NOT NULL default '',
+b enum('あ','い') default NULL
+) CHARACTER SET ujis;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(1) NOT NULL default '',
+  `b` enum('あ','い') default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=ujis
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+a	char(1)				
+b	enum('あ','い')	YES		NULL	
+DROP TABLE t1;

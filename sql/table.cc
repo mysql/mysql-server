@@ -20,7 +20,8 @@
 #include "mysql_priv.h"
 #include <errno.h>
 #include <m_ctype.h>
-
+#include "md5.h"
+#include "sql_acl.h"
 
 	/* Functions defined in this file */
 
@@ -30,11 +31,11 @@ static void fix_type_pointers(const char ***array, TYPELIB *point_to_type,
 static uint find_field(TABLE *form,uint start,uint length);
 
 
-static byte* get_field_name(Field *buff,uint *length,
+static byte* get_field_name(Field **buff,uint *length,
 			    my_bool not_used __attribute__((unused)))
 {
-  *length= (uint) strlen(buff->field_name);
-  return (byte*) buff->field_name;
+  *length= (uint) strlen((*buff)->field_name);
+  return (byte*) (*buff)->field_name;
 }
 
 /*
@@ -57,6 +58,7 @@ static byte* get_field_name(Field *buff,uint *length,
    2    Error (see frm_error)
    3    Wrong data in .frm file
    4    Error (see frm_error)
+   5    It is new format of .frm file
 */
 
 int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
@@ -81,17 +83,46 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   uchar *null_pos;
   uint null_bit, new_frm_ver, field_pack_length;
   SQL_CRYPT *crypted=0;
+  MEM_ROOT *old_root;
   DBUG_ENTER("openfrm");
   DBUG_PRINT("enter",("name: '%s'  form: %lx",name,outparam));
+
+  error=1;
+
+  if ((file=my_open(fn_format(index_file, name, "", reg_ext,
+			      MY_UNPACK_FILENAME),
+		    O_RDONLY | O_SHARE,
+		    MYF(0)))
+      < 0)
+  {
+    goto err_w_init;
+  }
+
+  if (my_read(file,(byte*) head,64,MYF(MY_NABP)))
+  {
+    goto err_w_init;
+  }
+
+  if (memcmp(head, "TYPE=", 5) == 0)
+  {
+    // new .frm
+    my_close(file,MYF(MY_WME));
+
+    if (db_stat & NO_ERR_ON_NEW_FRM)
+      DBUG_RETURN(5);
+
+    // caller can't process new .frm
+    error= 4;
+    goto err_w_init;
+  }
 
   bzero((char*) outparam,sizeof(*outparam));
   outparam->blob_ptr_size=sizeof(char*);
   disk_buff=NULL; record= NULL; keynames=NullS;
   outparam->db_stat = db_stat;
-  error=1;
 
   init_sql_alloc(&outparam->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
-  MEM_ROOT *old_root=my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC);
+  old_root= my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC);
   my_pthread_setspecific_ptr(THR_MALLOC,&outparam->mem_root);
 
   outparam->real_name=strdup_root(&outparam->mem_root,
@@ -101,19 +132,11 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   if (!outparam->real_name || !outparam->table_name)
     goto err_end;
 
-  if ((file=my_open(fn_format(index_file,name,"",reg_ext,4),
-		    O_RDONLY | O_SHARE,
-		    MYF(0)))
-      < 0)
-  {
-    goto err_end; /* purecov: inspected */
-  }
   error=4;
   if (!(outparam->path= strdup_root(&outparam->mem_root,name)))
     goto err_not_open;
   *fn_ext(outparam->path)='\0';		// Remove extension
 
-  if (my_read(file,(byte*) head,64,MYF(MY_NABP))) goto err_not_open;
   if (head[0] != (uchar) 254 || head[1] != 1 ||
       (head[2] != FRM_VER && head[2] != FRM_VER+1 && head[2] != FRM_VER+3))
     goto err_not_open;				/* purecov: inspected */
@@ -126,6 +149,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     goto err_not_open;				/* purecov: inspected */
   *fn_ext(index_file)='\0';			// Remove .frm extension
 
+  outparam->frm_version= head[2];
   outparam->db_type=ha_checktype((enum db_type) (uint) *(head+3));
   outparam->db_create_options=db_create_options=uint2korr(head+30);
   outparam->db_options_in_use=outparam->db_create_options;
@@ -166,9 +190,9 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     outparam->keys=      keys=      disk_buff[0];
     outparam->key_parts= key_parts= disk_buff[1];
   }
-  outparam->keys_for_keyread.init(keys);
+  outparam->keys_for_keyread.init(0);
   outparam->keys_in_use.init(keys);
-  outparam->read_only_keys.init(0);
+  outparam->read_only_keys.init(keys);
   outparam->quick_keys.init();
   outparam->used_keys.init();
   outparam->keys_in_use_for_query.init();
@@ -405,8 +429,13 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
       // charset and geometry_type share the same byte in frm
       if (field_type == FIELD_TYPE_GEOMETRY)
       {
+#ifdef HAVE_SPATIAL
 	geom_type= (Field::geometry_type) strpos[14];
 	charset= &my_charset_bin;
+#else
+	error= 4;  // unsupported field type
+	goto err_not_open;
+#endif
       }
       else
       {
@@ -460,7 +489,6 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
       goto err_not_open;			/* purecov: inspected */
     }
     reg_field->comment=comment;
-    reg_field->set_charset(charset);
     if (!(reg_field->flags & NOT_NULL_FLAG))
     {
       if ((null_bit<<=1) == 256)
@@ -474,15 +502,15 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     if (outparam->timestamp_field == reg_field)
       outparam->timestamp_field_offset=i;
     if (use_hash)
-      (void) my_hash_insert(&outparam->name_hash,(byte*) *field_ptr); // Will never fail
+      (void) my_hash_insert(&outparam->name_hash,(byte*) field_ptr); // Will never fail
   }
   *field_ptr=0;					// End marker
 
   /* Fix key->name and key_part->field */
   if (key_parts)
   {
-    uint primary_key=(uint) (find_type((char*) "PRIMARY",&outparam->keynames,
-				       3)-1);
+    uint primary_key=(uint) (find_type((char*) primary_key_name,
+				       &outparam->keynames, 3) - 1);
     uint ha_option=outparam->file->table_flags();
     keyinfo=outparam->key_info;
     key_part=keyinfo->key_part;
@@ -490,19 +518,10 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     for (uint key=0 ; key < outparam->keys ; key++,keyinfo++)
     {
       uint usable_parts=0;
-      ulong index_flags;
       keyinfo->name=(char*) outparam->keynames.type_names[key];
       /* Fix fulltext keys for old .frm files */
       if (outparam->key_info[key].flags & HA_FULLTEXT)
 	outparam->key_info[key].algorithm= HA_KEY_ALG_FULLTEXT;
-
-      /* This has to be done after the above fulltext correction */
-      index_flags=outparam->file->index_flags(key);
-      if (!(index_flags & HA_KEY_READ_ONLY))
-      {
-	outparam->read_only_keys.set_bit(key);
-	outparam->keys_for_keyread.clear_bit(key);
-      }
 
       if (primary_key >= MAX_KEY && (keyinfo->flags & HA_NOSAME))
       {
@@ -549,7 +568,6 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	    keyinfo->key_length+= HA_KEY_NULL_LENGTH;
 	  }
 	  if (field->type() == FIELD_TYPE_BLOB ||
-	      field->type() == FIELD_TYPE_GEOMETRY ||
 	      field->real_type() == FIELD_TYPE_VAR_STRING)
 	  {
 	    if (field->type() == FIELD_TYPE_BLOB)
@@ -574,14 +592,13 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	  if (field->key_length() == key_part->length &&
 	      !(field->flags & BLOB_FLAG))
 	  {
-	    if ((index_flags & HA_KEY_READ_ONLY) &&
-		(field->key_type() != HA_KEYTYPE_TEXT ||
-		 (!(ha_option & HA_KEY_READ_WRONG_STR) &&
-		  !(keyinfo->flags & HA_FULLTEXT))))
+            if (outparam->file->index_flags(key, i, 0) & HA_KEYREAD_ONLY)
+            {
+              outparam->read_only_keys.clear_bit(key);
+              outparam->keys_for_keyread.set_bit(key);
 	      field->part_of_key.set_bit(key);
-	    if ((field->key_type() != HA_KEYTYPE_TEXT ||
-		 !(keyinfo->flags & HA_FULLTEXT)) &&
-		!(index_flags & HA_WRONG_ASCII_ORDER))
+            }
+	    if (outparam->file->index_flags(key, i, 1) & HA_READ_ORDER)
 	      field->part_of_sortkey.set_bit(key);
 	  }
 	  if (!(key_part->key_part_flag & HA_REVERSE_SORT) &&
@@ -695,8 +712,9 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   if (db_stat)
   {
     int err;
+    unpack_filename(index_file,index_file);
     if ((err=(outparam->file->
-	      ha_open(unpack_filename(index_file,index_file),
+	      ha_open(index_file,
 		      (db_stat & HA_READ_ONLY ? O_RDONLY : O_RDWR),
 		      (db_stat & HA_OPEN_TEMPORARY ? HA_OPEN_TMP_TABLE :
 		       ((db_stat & HA_WAIT_IF_LOCKED) ||
@@ -722,6 +740,13 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     (void) hash_check(&outparam->name_hash);
 #endif
   DBUG_RETURN (0);
+
+ err_w_init:
+  //awoid problem with uninitialized data
+  bzero((char*) outparam,sizeof(*outparam));
+  outparam->real_name= (char*)name+dirname_length(name);
+  old_root= my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC);
+  disk_buff= 0;
 
  err_not_open:
   x_free((gptr) disk_buff);
@@ -939,7 +964,8 @@ static void frm_error(int error, TABLE *form, const char *name, myf errortype)
     break;
   case 2:
   {
-    datext=form->file ? *form->file->bas_ext() : "";
+    datext= form->file ? *form->file->bas_ext() : "";
+    datext= datext==NullS ? "" : datext;
     err_no= (my_errno == ENOENT) ? ER_FILE_NOT_FOUND : (my_errno == EAGAIN) ?
       ER_FILE_USED : ER_CANT_OPEN_FILE;
     my_error(err_no,errortype,
@@ -1128,12 +1154,17 @@ File create_frm(register my_string name, uint reclength, uchar *fileinfo,
   char fill[IO_SIZE];
 
 #if SIZEOF_OFF_T > 4
-  /* Fix this in MySQL 4.0;  The current limit is 4G rows (QQ) */
+  /* Fix this when we have new .frm files;  Current limit is 4G rows (QQ) */
   if (create_info->max_rows > ~(ulong) 0)
     create_info->max_rows= ~(ulong) 0;
   if (create_info->min_rows > ~(ulong) 0)
     create_info->min_rows= ~(ulong) 0;
 #endif
+  /*
+    Ensure that raid_chunks can't be larger than 255, as this would cause
+    problems with drop database
+  */
+  set_if_smaller(create_info->raid_chunks, 255);
 
   if ((file=my_create(name,CREATE_MODE,O_RDWR | O_TRUNC,MYF(MY_WME))) >= 0)
   {
@@ -1222,7 +1253,7 @@ bool get_field(MEM_ROOT *mem, Field *field, String *res)
   String str(buff,sizeof(buff),&my_charset_bin);
   uint length;
 
-  field->val_str(&str,&str);
+  field->val_str(&str);
   if (!(length= str.length()))
     return 1;
   to= strmake_root(mem, str.ptr(), length);
@@ -1250,7 +1281,7 @@ char *get_field(MEM_ROOT *mem, Field *field)
   String str(buff,sizeof(buff),&my_charset_bin);
   uint length;
 
-  field->val_str(&str,&str);
+  field->val_str(&str);
   length= str.length();
   if (!length || !(to= (char*) alloc_root(mem,length+1)))
     return NullS;
@@ -1277,14 +1308,17 @@ char *get_field(MEM_ROOT *mem, Field *field)
 
 bool check_db_name(char *name)
 {
-   char *start=name;
+  char *start=name;
+  /* Used to catch empty names and names with end space */
+  bool last_char_is_space= TRUE;
 
-  if (lower_case_table_names)
+  if (lower_case_table_names && name != any_db)
     my_casedn_str(files_charset_info, name);
 
   while (*name)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
+    last_char_is_space= my_isspace(default_charset_info, *name);
     if (use_mb(system_charset_info))
     {
       int len=my_ismbchar(system_charset_info, name, 
@@ -1295,19 +1329,22 @@ bool check_db_name(char *name)
         continue;
       }
     }
+#else
+    last_char_is_space= *name==' ';
 #endif
     if (*name == '/' || *name == '\\' || *name == FN_LIBCHAR ||
 	*name == FN_EXTCHAR)
       return 1;
     name++;
   }
-  return (uint) (name - start) > NAME_LEN || name == start;
+  return last_char_is_space || (uint) (name - start) > NAME_LEN;
 }
 
 
 /*
   Allow anything as a table name, as long as it doesn't contain an
   a '/', or a '.' character
+  or ' ' at the end
   returns 1 on error
 */
 
@@ -1317,10 +1354,17 @@ bool check_table_name(const char *name, uint length)
   const char *end= name+length;
   if (!length || length > NAME_LEN)
     return 1;
+#if defined(USE_MB) && defined(USE_MB_IDENT)
+  bool last_char_is_space= FALSE;
+#else
+  if (name[length-1]==' ')
+    return 1;
+#endif
 
   while (name != end)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
+    last_char_is_space= my_isspace(default_charset_info, *name);
     if (use_mb(system_charset_info))
     {
       int len=my_ismbchar(system_charset_info, name, end);
@@ -1335,16 +1379,23 @@ bool check_table_name(const char *name, uint length)
       return 1;
     name++;
   }
+#if defined(USE_MB) && defined(USE_MB_IDENT)
+  return last_char_is_space;
+#else
   return 0;
+#endif
 }
+
 
 bool check_column_name(const char *name)
 {
   const char *start= name;
-
+  bool last_char_is_space= TRUE;
+  
   while (*name)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
+    last_char_is_space= my_isspace(default_charset_info, *name);
     if (use_mb(system_charset_info))
     {
       int len=my_ismbchar(system_charset_info, name, 
@@ -1355,13 +1406,15 @@ bool check_column_name(const char *name)
         continue;
       }
     }
+#else
+    last_char_is_space= *name==' ';
 #endif
     if (*name == NAMES_SEP_CHAR)
       return 1;
     name++;
   }
   /* Error if empty or too long column name */
-  return (name == start || (uint) (name - start) > NAME_LEN);
+  return last_char_is_space || (uint) (name - start) > NAME_LEN;
 }
 
 /*
@@ -1384,6 +1437,209 @@ db_type get_table_type(const char *name)
       (head[2] != FRM_VER && head[2] != FRM_VER+1 && head[2] != FRM_VER+3))
     DBUG_RETURN(DB_TYPE_UNKNOWN);
   DBUG_RETURN(ha_checktype((enum db_type) (uint) *(head+3)));
+}
+
+
+/*
+  calculate md5 of query
+
+  SYNOPSIS
+    st_table_list::calc_md5()
+    buffer	buffer for md5 writing
+*/
+void  st_table_list::calc_md5(char *buffer)
+{
+  my_MD5_CTX context;
+  unsigned char digest[16];
+  my_MD5Init (&context);
+  my_MD5Update (&context,(unsigned char *) query.str, query.length);
+  my_MD5Final (digest, &context);
+  sprintf((char *) buffer,
+	    "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+	    digest[0], digest[1], digest[2], digest[3],
+	    digest[4], digest[5], digest[6], digest[7],
+	    digest[8], digest[9], digest[10], digest[11],
+	    digest[12], digest[13], digest[14], digest[15]);
+}
+
+
+/*
+  set ancestor TABLE for table place holder of VIEW
+
+  SYNOPSIS
+    st_table_list::set_ancestor()
+*/
+void st_table_list::set_ancestor()
+{
+  if (ancestor->ancestor)
+    ancestor->set_ancestor();
+  table= ancestor->table;
+  ancestor->table->grant= grant;
+}
+
+
+/*
+  setup fields of placeholder of merged VIEW
+
+  SYNOPSIS
+    st_table_list::setup_ancestor()
+    thd		- thread handler
+    conds       - condition of this JOIN
+
+  RETURN
+    0 - OK
+    1 - error
+
+  TODO: for several substituted table last set up table (or maybe subtree,
+  it depends on future join implementation) will contain all fields of VIEW
+  (to be able call fix_fields() for them. All other will looks like empty
+  (without fields) for name resolving, but substituted expressions will
+  return correct used tables mask.
+*/
+bool st_table_list::setup_ancestor(THD *thd, Item **conds)
+{
+  Item **transl;
+  SELECT_LEX *select= &view->select_lex;
+  SELECT_LEX *current_select_save= thd->lex->current_select;
+  Item *item;
+  List_iterator_fast<Item> it(select->item_list);
+  uint i= 0;
+  bool save_set_query_id= thd->set_query_id;
+  bool save_wrapper= thd->lex->select_lex.no_wrap_view_item;
+  DBUG_ENTER("st_table_list::setup_ancestor");
+
+  if (ancestor->ancestor &&
+      ancestor->setup_ancestor(thd, conds))
+    DBUG_RETURN(1);
+
+  if (field_translation)
+  {
+    /* prevent look up in SELECTs tree */
+    thd->lex->current_select= &thd->lex->select_lex;
+    thd->set_query_id= 1;
+    /* this view was prepared already on previous PS/SP execution */
+    Item **end= field_translation + select->item_list.elements;
+    for (Item **i= field_translation; i < end; i++)
+    {
+      //TODO: fix for several tables in VIEW
+      uint want_privilege= ancestor->table->grant.want_privilege;
+      /* real rights will be checked in VIEW field */
+      ancestor->table->grant.want_privilege= 0;
+      if (!(*i)->fixed && (*i)->fix_fields(thd, ancestor, i))
+        goto err;
+      ancestor->table->grant.want_privilege= want_privilege;
+    }
+    goto ok;
+  }
+
+  /* view fields translation table */
+  if (!(transl=
+	(Item**)(thd->current_arena ?
+                 thd->current_arena :
+                 thd)->alloc(select->item_list.elements * sizeof(Item*))))
+  {
+    DBUG_RETURN(1);
+  }
+
+  /* prevent look up in SELECTs tree */
+  thd->lex->current_select= &thd->lex->select_lex;
+  thd->lex->select_lex.no_wrap_view_item= 1;
+
+  /*
+    Resolve all view items against ancestor table.
+
+    TODO: do it only for real used fields "on demand" to mark really
+    used fields correctly.
+  */
+  thd->set_query_id= 1;
+  while ((item= it++))
+  {
+    //TODO: fix for several tables in VIEW
+    uint want_privilege= ancestor->table->grant.want_privilege;
+    /* real rights will be checked in VIEW field */
+    ancestor->table->grant.want_privilege= 0;
+    if (!item->fixed && item->fix_fields(thd, ancestor, &item))
+    {
+      goto err;
+    }
+    ancestor->table->grant.want_privilege= want_privilege;
+    transl[i++]= item;
+  }
+  field_translation= transl;
+  //TODO: sort this list? Use hash for big number of fields
+
+  if (where)
+  {
+    Item_arena *arena= thd->current_arena, backup;
+    if (!where->fixed && where->fix_fields(thd, ancestor, &where))
+      goto err;
+
+    if (arena)
+    thd->set_n_backup_item_arena(arena, &backup);
+    if (outer_join)
+    {
+      /*
+        Store WHERE condition to ON expression for outer join, because we
+        can't use WHERE to correctly execute jeft joins on VIEWs and  this
+        expression will not be moved to WHERE condition (i.e. will be clean
+        correctly for PS/SP)
+      */
+      on_expr= and_conds(on_expr, where);
+    }
+    else
+    {
+      /*
+        It is conds of JOIN, but it will be stored in st_select_lex::prep_where
+        for next reexecution
+      */
+      *conds= and_conds(*conds, where);
+    }
+    if (arena)
+      thd->restore_backup_item_arena(arena, &backup);
+  }
+
+ok:
+  thd->lex->select_lex.no_wrap_view_item= save_wrapper;
+  thd->lex->current_select= current_select_save;
+  thd->set_query_id= save_set_query_id;
+  DBUG_RETURN(0);
+
+err:
+  /* Hide "Unknown column" error */
+  if (thd->net.last_errno == ER_BAD_FIELD_ERROR)
+  {
+    thd->clear_error();
+    my_error(ER_VIEW_INVALID, MYF(0), view_db.str, view_name.str);
+  }
+  thd->lex->select_lex.no_wrap_view_item= save_wrapper;
+  thd->lex->current_select= current_select_save;
+  thd->set_query_id= save_set_query_id;
+  DBUG_RETURN(1);
+}
+
+
+void Field_iterator_view::set(TABLE_LIST *table)
+{
+  ptr= table->field_translation;
+  array_end= ptr + table->view->select_lex.item_list.elements;
+}
+
+
+const char *Field_iterator_table::name()
+{
+  return (*ptr)->field_name;
+}
+
+
+Item *Field_iterator_table::item(THD *thd)
+{
+  return new Item_field(thd, *ptr);
+}
+
+
+const char *Field_iterator_view::name()
+{
+  return (*ptr)->name;
 }
 
 

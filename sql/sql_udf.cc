@@ -120,6 +120,7 @@ void udf_init()
   udf_func *tmp;
   TABLE_LIST tables;
   READ_RECORD read_record_info;
+  TABLE *table;
   int error;
   DBUG_ENTER("ufd_init");
 
@@ -149,16 +150,14 @@ void udf_init()
   tables.lock_type = TL_READ;
   tables.db=new_thd->db;
 
-  if (open_and_lock_tables(new_thd, &tables))
+  if (simple_open_n_lock_tables(new_thd, &tables))
   {
     DBUG_PRINT("error",("Can't open udf table"));
-    sql_print_error("Can't open mysql/func table");
-    close_thread_tables(new_thd);
-    delete new_thd;
-    DBUG_VOID_RETURN;
+    sql_print_error("Can't open the mysql/func table. Please run the mysql_install_db script to create it.");
+    goto end;
   }
 
-  TABLE *table = tables.table;
+  table= tables.table;
   init_read_record(&read_record_info, new_thd, table, NULL,1,0);
   while (!(error = read_record_info.read_record(&read_record_info)))
   {
@@ -206,6 +205,8 @@ void udf_init()
     sql_print_error(ER(ER_GET_ERRNO), my_errno);
   end_read_record(&read_record_info);
   new_thd->version--;				// Force close to free memory
+
+end:
   close_thread_tables(new_thd);
   delete new_thd;
   /* Remember that we don't have a THD */
@@ -297,7 +298,11 @@ udf_func *find_udf(const char *name,uint length,bool mark_used)
   DBUG_ENTER("find_udf");
 
   /* TODO: This should be changed to reader locks someday! */
-  rw_rdlock(&THR_LOCK_udf);  
+  if (mark_used)
+    rw_wrlock(&THR_LOCK_udf);  /* Called during fix_fields */
+  else
+    rw_rdlock(&THR_LOCK_udf);  /* Called during parsing */
+
   if ((udf=(udf_func*) hash_search(&udf_hash,(byte*) name,
 				   length ? length : (uint) strlen(name))))
   {
@@ -473,7 +478,7 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   if (!(udf=(udf_func*) hash_search(&udf_hash,(byte*) udf_name->str,
 				    (uint) udf_name->length)))
   {
-    net_printf(thd, ER_FUNCTION_NOT_DEFINED, udf_name);
+    net_printf(thd, ER_FUNCTION_NOT_DEFINED, udf_name->str);
     goto err;
   }
   del_udf(udf);

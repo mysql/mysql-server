@@ -84,7 +84,7 @@ insert into t2 values (1, 21),(2, 12),(3, 23);
 select * from t11;
 select * from t12;
 select * from t2;
--- error 1241
+-- error 1242
 delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b <> (select b from t2 where t11.a < t2.a);
 select * from t11;
 select * from t12;
@@ -92,9 +92,20 @@ delete ignore t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b <> (select
 select * from t11;
 select * from t12;
 insert into t11 values (2, 12);
--- error 1241
+-- error 1242
 delete from t11 where t11.b <> (select b from t2 where t11.a < t2.a);
 select * from t11;
 delete ignore from t11 where t11.b <> (select b from t2 where t11.a < t2.a);
 select * from t11;
 drop table t11, t12, t2;
+
+#
+# Bug #4198: deletion and KEYREAD
+#
+
+create table t1 (a int, b int, unique key (a), key (b));
+insert into t1 values (3, 3), (7, 7);
+delete t1 from t1 where a = 3;
+check table t1;
+select * from t1;
+drop table t1;

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000,2004 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 class ha_heap: public handler
 {
   HP_INFO *file;
+  key_map btree_keys;
 
  public:
   ha_heap(TABLE *table): handler(table), file(0) {}
@@ -39,27 +40,25 @@ class ha_heap: public handler
   const char **bas_ext() const;
   ulong table_flags() const
   {
-    return (HA_READ_RND_SAME | HA_NO_INDEX | HA_KEYPOS_TO_RNDPOS |
-	    HA_NO_BLOBS | HA_NULL_KEY | HA_REC_NOT_IN_SEQ);
+    return (HA_FAST_KEY_READ | HA_NO_BLOBS | HA_NULL_IN_KEY |
+            HA_REC_NOT_IN_SEQ | HA_READ_RND_SAME |
+            HA_CAN_INSERT_DELAYED);
   }
-  ulong index_flags(uint inx) const
+  ulong index_flags(uint inx, uint part, bool all_parts) const
   {
     return ((table->key_info[inx].algorithm == HA_KEY_ALG_BTREE) ?
-	    (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER) :
-	    (HA_ONLY_WHOLE_INDEX | HA_WRONG_ASCII_ORDER |
-	     HA_NOT_READ_PREFIX_LAST));
+	    HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_READ_RANGE :
+	    HA_ONLY_WHOLE_INDEX);
   }
-  uint max_record_length() const { return HA_MAX_REC_LENGTH; }
-  uint max_keys()          const { return MAX_KEY; }
-  uint max_key_parts()     const { return MAX_REF_PARTS; }
-  uint max_key_length()    const { return HA_MAX_REC_LENGTH; }
+  const key_map *keys_to_use_for_scanning() { return &btree_keys; }
+  uint max_supported_keys()          const { return MAX_KEY; }
   double scan_time() { return (double) (records+deleted) / 20.0+10; }
   double read_time(uint index, uint ranges, ha_rows rows)
   { return (double) rows /  20.0+1; }
-  virtual bool fast_key_read() { return 1;}
 
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
+  void set_keys_for_scanning(void);
   int write_row(byte * buf);
   int update_row(const byte * old_data, byte * new_data);
   int delete_row(const byte * buf);
@@ -73,19 +72,18 @@ class ha_heap: public handler
   int index_prev(byte * buf);
   int index_first(byte * buf);
   int index_last(byte * buf);
-  int rnd_init(bool scan=1);
+  int rnd_init(bool scan);
   int rnd_next(byte *buf);
   int rnd_pos(byte * buf, byte *pos);
   void position(const byte *record);
   void info(uint);
   int extra(enum ha_extra_function operation);
-  int reset(void);
   int external_lock(THD *thd, int lock_type);
   int delete_all_rows(void);
-  ha_rows records_in_range(int inx, const byte *start_key,uint start_key_len,
-			   enum ha_rkey_function start_search_flag,
-			   const byte *end_key,uint end_key_len,
-			   enum ha_rkey_function end_search_flag);
+  int disable_indexes(uint mode);
+  int enable_indexes(uint mode);
+  int indexes_are_disabled(void);
+  ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
   int delete_table(const char *from);
   int rename_table(const char * from, const char * to);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
@@ -93,5 +91,10 @@ class ha_heap: public handler
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     enum thr_lock_type lock_type);
-
+  int cmp_ref(const byte *ref1, const byte *ref2)
+  {
+    HEAP_PTR ptr1=*(HEAP_PTR*)ref1;
+    HEAP_PTR ptr2=*(HEAP_PTR*)ref2;
+    return ptr1 < ptr2? -1 : (ptr1 > ptr2? 1 : 0);
+  }
 };

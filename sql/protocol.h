@@ -18,7 +18,6 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
-#define PACKET_BUFFET_EXTRA_ALLOC	1024
 
 class i_string;
 class THD;
@@ -30,24 +29,33 @@ class Protocol
 protected:
   THD	 *thd;
   String *packet;
-  String convert;
+  String *convert;
   uint field_pos;
 #ifndef DEBUG_OFF
   enum enum_field_types *field_types;
 #endif
   uint field_count;
+#ifndef EMBEDDED_LIBRARY
   bool net_store_data(const char *from, uint length);
-#ifdef EMBEDDED_LIBRARY
+#else
+  virtual bool net_store_data(const char *from, uint length);
   char **next_field;
   MYSQL_FIELD *next_mysql_field;
   MEM_ROOT *alloc;
 #endif
+  bool store_string_aux(const char *from, uint length,
+                        CHARSET_INFO *fromcs, CHARSET_INFO *tocs);
 public:
   Protocol() {}
   Protocol(THD *thd_arg) { init(thd_arg); }
   virtual ~Protocol() {}
   void init(THD* thd_arg);
-  virtual bool send_fields(List<Item> *list, uint flag);
+
+  static const uint SEND_NUM_ROWS= 1;
+  static const uint SEND_DEFAULTS= 2;
+  static const uint SEND_EOF= 4;
+  virtual bool send_fields(List<Item> *list, uint flags);
+
   bool send_records_num(List<Item> *list, ulonglong records);
   bool store(I_List<i_string> *str_list);
   bool store(const char *from, CHARSET_INFO *cs);
@@ -160,7 +168,7 @@ public:
     prev_record= &data;
     return Protocol_simple::prepare_for_send(item_list);
   }
-  bool send_fields(List<Item> *list, uint flag);
+  bool send_fields(List<Item> *list, uint flags);
   bool write();
   uint get_field_count() { return field_count; }
 };
@@ -175,9 +183,4 @@ char *net_store_length(char *packet,uint length);
 char *net_store_data(char *to,const char *from, uint length);
 char *net_store_data(char *to,int32 from);
 char *net_store_data(char *to,longlong from);
-
-#ifdef EMBEDDED_LIBRARY
-bool setup_params_data(struct st_prep_stmt *stmt);
-bool setup_params_data_withlog(struct st_prep_stmt *stmt);
-#endif
 

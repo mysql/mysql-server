@@ -6,7 +6,7 @@ DROP TABLE IF EXISTS t1, `"t"1`;
 
 CREATE TABLE t1(a int);
 INSERT INTO t1 VALUES (1), (2);
---exec $MYSQL_DUMP --skip-all --skip-comments -X test t1
+--exec $MYSQL_DUMP --skip-create --skip-comments -X test t1
 DROP TABLE t1;
 
 #
@@ -16,7 +16,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (a decimal(240, 20));
 INSERT INTO t1 VALUES ("1234567890123456789012345678901234567890"),
 ("0987654321098765432109876543210987654321");
---exec $MYSQL_DUMP --skip-comments test t1
+--exec $MYSQL_DUMP --compact test t1
 DROP TABLE t1;
 
 #
@@ -28,12 +28,38 @@ INSERT INTO t1 VALUES (-9e999999);
 # The following replaces is here because some systems replaces the above
 # double with '-inf' and others with MAX_DOUBLE
 --replace_result (-1.79769313486232e+308) (RES) (NULL) (RES)
---exec $MYSQL_DUMP --skip-comments test t1
+--exec $MYSQL_DUMP --compact test t1
+DROP TABLE t1;
+
+#
+# Bug #3361 mysqldump quotes DECIMAL values inconsistently
+#
+
+CREATE TABLE t1 (a DECIMAL(10,5), b FLOAT);
+
+# check at first how mysql work with quoted decimal
+
+INSERT INTO t1 VALUES (1.2345, 2.3456);
+INSERT INTO t1 VALUES ('1.2345', 2.3456);
+INSERT INTO t1 VALUES ("1.2345", 2.3456);
+
+SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='ANSI_QUOTES';
+INSERT INTO t1 VALUES (1.2345, 2.3456);
+INSERT INTO t1 VALUES ('1.2345', 2.3456);
+--error 1054
+INSERT INTO t1 VALUES ("1.2345", 2.3456);
+SET SQL_MODE=@OLD_SQL_MODE;
+
+# check how mysqldump make quoting
+--exec $MYSQL_DUMP --compact test t1
+--exec $MYSQL_DUMP --compact --skip-create test t1
+--exec $MYSQL_DUMP --skip-create --skip-comments test t1
+--exec $MYSQL_DUMP --skip-opt --extended-insert --skip-comments test t1
 DROP TABLE t1;
 
 CREATE TABLE t1(a int, b text, c varchar(3));
 INSERT INTO t1 VALUES (1, "test", "tes"), (2, "TEST", "TES");
---exec $MYSQL_DUMP --skip-all --skip-comments -X test t1
+--exec $MYSQL_DUMP --skip-create --compact -X test t1
 DROP TABLE t1;
 
 #
@@ -42,14 +68,62 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (`a"b"` char(2));
 INSERT INTO t1 VALUES ("1\""), ("\"2");
---exec $MYSQL_DUMP --skip-all --skip-comments -X test t1
+--exec $MYSQL_DUMP --compact --skip-create -X test t1
 DROP TABLE t1;
 
 #
 # Bug #1994
+# Bug #4261
 #
 
 CREATE TABLE t1 (a  VARCHAR(255)) DEFAULT CHARSET koi8r;
-INSERT INTO t1  VALUES (_koi8r x'C1C2C3C4C5');
---exec $MYSQL_DUMP --skip-comments test t1
+INSERT INTO t1  VALUES (_koi8r x'C1C2C3C4C5'), (NULL);
+--exec $MYSQL_DUMP --skip-comments --skip-extended-insert test t1
 DROP TABLE t1;
+
+#
+# Bug #2634
+#
+
+CREATE TABLE t1 (a int) ENGINE=MYISAM;
+INSERT INTO t1 VALUES (1), (2);
+--exec $MYSQL_DUMP --skip-comments --compatible=mysql40 test t1
+--exec $MYSQL_DUMP --skip-comments --compatible=mysql323 test t1
+DROP TABLE t1;
+
+#
+# Bug #2592 'mysqldump doesn't quote "tricky" names correctly'
+#
+
+create table ```a` (i int);
+--exec $MYSQL_DUMP --compact test
+drop table ```a`;
+
+#
+# Bug #2591 "mysqldump quotes names inconsistently"
+#
+
+create table t1(a int);
+--exec $MYSQL_DUMP --comments=0 test
+--exec $MYSQL_DUMP --comments=0 --compatible=ansi test
+set global sql_mode='ANSI_QUOTES';
+--exec $MYSQL_DUMP --comments=0 test
+--exec $MYSQL_DUMP --comments=0 --compatible=ansi test
+set global sql_mode='';
+drop table t1;
+
+#
+# Bug #2705 'mysqldump --tab extra output'
+#
+
+create table t1(a int);
+insert into t1 values (1),(2),(3);
+--exec $MYSQL_DUMP --skip-comments --tab=$MYSQL_TEST_DIR/var/tmp/ test
+--exec cat $MYSQL_TEST_DIR/var/tmp/t1.sql
+--exec cat $MYSQL_TEST_DIR/var/tmp/t1.txt
+--exec rm $MYSQL_TEST_DIR/var/tmp/t1.sql
+--exec rm $MYSQL_TEST_DIR/var/tmp/t1.txt
+--exec $MYSQL_DUMP --tab=$MYSQL_TEST_DIR/var/tmp/ test
+--exec rm $MYSQL_TEST_DIR/var/tmp/t1.sql
+--exec rm $MYSQL_TEST_DIR/var/tmp/t1.txt
+drop table t1;

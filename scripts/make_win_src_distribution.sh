@@ -161,13 +161,16 @@ vreplace()
   done
 }
 
-for d in 4.0.XX-gpl 4.0.XX-pro 4.0.XX-classic
-do
-  cd $BASE/InstallShield/$d/String\ Tables/0009-English
-  vreplace value.shl
-  cd ../../Setup\ Files/Compressed\ Files/Language\ Independent/OS\ Independent
-  vreplace infolist.txt
-done
+if test -d $BASE/InstallShield
+then
+  for d in 4.1.XX-gpl 4.1.XX-pro 4.1.XX-classic
+  do
+    cd $BASE/InstallShield/$d/String\ Tables/0009-English
+    vreplace value.shl
+    cd ../../Setup\ Files/Compressed\ Files/Language\ Independent/OS\ Independent
+    vreplace infolist.txt
+  done
+fi
 
 #
 # Move all error message files to root directory
@@ -288,6 +291,12 @@ do
 done
 
 #
+# support files
+#
+mkdir $BASE/support-files
+cp support-files/*.cnf $BASE/support-files
+
+#
 # Raw dirs from source tree
 #
 
@@ -302,10 +311,11 @@ do
 done
 
 #
-# Fix some windows files
+# Fix some windows files to avoid compiler warnings
 #
 
-./extra/replace std:: "" -- $BASE/sql/sql_yacc.cpp
+./extra/replace std:: "" < $BASE/sql/sql_yacc.cpp | sed '/^ *switch (yytype)$/ { N; /\n *{$/ { N; /\n *default:$/ { N; /\n *break;$/ { N; /\n *}$/ d; };};};} ' > $BASE/sql/sql_yacc.cpp-new
+mv $BASE/sql/sql_yacc.cpp-new $BASE/sql/sql_yacc.cpp
 
 unix_to_dos $BASE/README
 mv $BASE/README $BASE/README.txt
@@ -316,7 +326,7 @@ mv $BASE/README $BASE/README.txt
 
 if [ -d $BASE/SSL/SCCS ]
 then
-  find $BASE -type d -name SCCS | xargs rm -r -f
+  find $BASE/ -type d -name SCCS -printf " \"%p\"" | xargs rm -r -f
 fi
 
 #
@@ -326,6 +336,10 @@ fi
 if [ -f scripts/mysql_install_db ]; then
   print_debug "Initializing the 'data' directory"
   scripts/mysql_install_db --no-defaults --windows --datadir=$BASE/data
+  if test "$?" = 1
+  then
+    exit 1;
+  fi
 fi
 
 #

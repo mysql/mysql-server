@@ -109,9 +109,9 @@ must be reset explicitly by calling sync_os_reset_event. */
 os_event_t
 os_event_create(
 /*============*/
-			/* out: the event handle */
-	char*	name)	/* in: the name of the event, if NULL
-			the event is created without a name */
+				/* out: the event handle */
+	const char*	name)	/* in: the name of the event, if NULL
+				the event is created without a name */
 {
 #ifdef __WIN__
         os_event_t event;
@@ -166,9 +166,9 @@ reset when a single thread is released. Works only in Windows. */
 os_event_t
 os_event_create_auto(
 /*=================*/
-			/* out: the event handle */
-	char*	name)	/* in: the name of the event, if NULL
-			the event is created without a name */
+				/* out: the event handle */
+	const char*	name)	/* in: the name of the event, if NULL
+				the event is created without a name */
 {
         os_event_t event;
 
@@ -430,9 +430,9 @@ mutex semaphore of InnoDB itself (mutex_t) should be used where possible. */
 os_mutex_t
 os_mutex_create(
 /*============*/
-			/* out: the mutex handle */
-	char*	name)	/* in: the name of the mutex, if NULL
-			the mutex is created without a name */
+				/* out: the mutex handle */
+	const char*	name)	/* in: the name of the mutex, if NULL
+				the mutex is created without a name */
 {
 #ifdef __WIN__
 	HANDLE		mutex;

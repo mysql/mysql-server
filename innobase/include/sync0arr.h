@@ -51,7 +51,7 @@ sync_array_reserve_cell(
         sync_array_t*	arr,	/* in: wait array */
         void*   	object, /* in: pointer to the object to wait for */
         ulint		type,	/* in: lock request type */
-        char*		file,	/* in: file where requested */
+	const char*	file,	/* in: file where requested */
         ulint		line,	/* in: line where requested */
         ulint*   	index); /* out: index of the reserved cell */
 /**********************************************************************
@@ -95,7 +95,7 @@ void
 sync_arr_wake_threads_if_sema_free(void);
 /*====================================*/
 /**************************************************************************
-Prints warnings of long semaphore waits to stderr. Currently > 120 sec. */
+Prints warnings of long semaphore waits to stderr. */
 
 void
 sync_array_print_long_waits(void);
@@ -114,8 +114,7 @@ Prints info of the wait array. */
 void
 sync_array_print_info(
 /*==================*/
-	char*		buf,	/* in/out: buffer where to print */
-	char*		buf_end,/* in: buffer end */
+	FILE*		file,	/* in: file where to print */
 	sync_array_t*	arr);	/* in: wait array */
 
 

@@ -1,4 +1,5 @@
 drop table if exists t1;
+SET NAMES binary;
 delete from mysql.user where user='mysqltest_1';
 delete from mysql.db where user='mysqltest_1';
 flush privileges;
@@ -9,8 +10,8 @@ GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' REQUIRE CIPHER 'EDH-RSA-DES-CBC3
 GRANT SELECT ON `mysqltest`.* TO 'mysqltest_1'@'localhost'
 grant delete on mysqltest.* to mysqltest_1@localhost;
 select * from mysql.user where user="mysqltest_1";
-Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections
-localhost	mysqltest_1		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	SPECIFIED	EDH-RSA-DES-CBC3-SHA			0	0	0
+Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections
+localhost	mysqltest_1		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N							0	0	0
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' REQUIRE CIPHER 'EDH-RSA-DES-CBC3-SHA'
@@ -61,7 +62,7 @@ revoke LOCK TABLES, ALTER on mysqltest.* from mysqltest_1@localhost;
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
-GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, CREATE TEMPORARY TABLES ON `mysqltest`.* TO 'mysqltest_1'@'localhost' WITH GRANT OPTION
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, CREATE TEMPORARY TABLES, CREATE VIEW, SHOW VIEW ON `mysqltest`.* TO 'mysqltest_1'@'localhost' WITH GRANT OPTION
 revoke all privileges on mysqltest.* from mysqltest_1@localhost;
 delete from mysql.user where user='mysqltest_1';
 flush privileges;
@@ -76,6 +77,8 @@ delete from mysql.db where user='mysqltest_1';
 delete from mysql.tables_priv where user='mysqltest_1';
 delete from mysql.columns_priv where user='mysqltest_1';
 flush privileges;
+show grants for mysqltest_1@localhost;
+ERROR 42000: There is no such grant defined for user 'mysqltest_1' on host 'localhost'
 create table t1 (a int);
 GRANT select,update,insert on t1 to mysqltest_1@localhost;
 GRANT select (a), update (a),insert(a), references(a) on t1 to mysqltest_1@localhost;
@@ -127,7 +130,7 @@ delete from mysql.columns_priv where user='mysqltest_1' or user="mysqltest_2" or
 flush privileges;
 drop table t1;
 GRANT FILE on mysqltest.*  to mysqltest_1@localhost;
-ERROR HY000: Wrong usage of DB GRANT and GLOBAL PRIVILEGES
+ERROR HY000: Incorrect usage of DB GRANT and GLOBAL PRIVILEGES
 select 1;
 1
 1
@@ -136,7 +139,7 @@ grant ALL PRIVILEGES on *.* to drop_user2@localhost with GRANT OPTION;
 show grants for drop_user2@localhost;
 Grants for drop_user2@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'drop_user2'@'localhost' WITH GRANT OPTION
-revoke all privileges, grant from drop_user2@localhost;
+revoke all privileges, grant option from drop_user2@localhost;
 drop user drop_user2@localhost;
 grant ALL PRIVILEGES on *.* to drop_user@localhost with GRANT OPTION;
 grant ALL PRIVILEGES on test.* to drop_user@localhost with GRANT OPTION;
@@ -146,12 +149,43 @@ Grants for drop_user@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'drop_user'@'localhost' WITH GRANT OPTION
 GRANT ALL PRIVILEGES ON `test`.* TO 'drop_user'@'localhost' WITH GRANT OPTION
 GRANT SELECT (a) ON `test`.`t1` TO 'drop_user'@'localhost'
-revoke all privileges, grant from drop_user@localhost;
+set sql_mode=ansi_quotes;
+show grants for drop_user@localhost;
+Grants for drop_user@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT ALL PRIVILEGES ON "test".* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT SELECT (a) ON "test"."t1" TO 'drop_user'@'localhost'
+set sql_mode=default;
+set sql_quote_show_create=0;
+show grants for drop_user@localhost;
+Grants for drop_user@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT ALL PRIVILEGES ON test.* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT SELECT (a) ON test.t1 TO 'drop_user'@'localhost'
+set sql_mode="ansi_quotes";
+show grants for drop_user@localhost;
+Grants for drop_user@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT ALL PRIVILEGES ON test.* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT SELECT (a) ON test.t1 TO 'drop_user'@'localhost'
+set sql_quote_show_create=1;
+show grants for drop_user@localhost;
+Grants for drop_user@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT ALL PRIVILEGES ON "test".* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT SELECT (a) ON "test"."t1" TO 'drop_user'@'localhost'
+set sql_mode="";
+show grants for drop_user@localhost;
+Grants for drop_user@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT ALL PRIVILEGES ON `test`.* TO 'drop_user'@'localhost' WITH GRANT OPTION
+GRANT SELECT (a) ON `test`.`t1` TO 'drop_user'@'localhost'
+revoke all privileges, grant option from drop_user@localhost;
 show grants for drop_user@localhost;
 Grants for drop_user@localhost
 GRANT USAGE ON *.* TO 'drop_user'@'localhost'
 drop user drop_user@localhost;
-revoke all privileges, grant from drop_user@localhost;
+revoke all privileges, grant option from drop_user@localhost;
 ERROR HY000: Can't revoke all privileges, grant for one or more of the requested users
 grant select(a) on test.t1 to drop_user1@localhost;
 grant select on test.t1 to drop_user2@localhost;
@@ -160,8 +194,63 @@ grant select on *.* to drop_user4@localhost;
 drop user drop_user1@localhost, drop_user2@localhost, drop_user3@localhost,
 drop_user4@localhost;
 ERROR HY000: Can't drop one or more of the requested users
-revoke all privileges, grant from drop_user1@localhost, drop_user2@localhost,
+revoke all privileges, grant option from drop_user1@localhost, drop_user2@localhost,
 drop_user3@localhost, drop_user4@localhost;
 drop user drop_user1@localhost, drop_user2@localhost, drop_user3@localhost,
 drop_user4@localhost;
 drop table t1;
+grant usage on *.* to mysqltest_1@localhost identified by "password";
+grant select, update, insert on test.* to mysqltest@localhost;
+show grants for mysqltest_1@localhost;
+Grants for mysqltest_1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' IDENTIFIED BY PASSWORD '*2470C0C06DEE42FD1618BB99005ADCA2EC9D1E19'
+drop user mysqltest_1@localhost;
+SET NAMES koi8r;
+CREATE DATABASE бд;
+USE бд;
+CREATE TABLE таб (кол int);
+GRANT SELECT ON бд.* TO юзер@localhost;
+SHOW GRANTS FOR юзер@localhost;
+Grants for юзер@localhost
+GRANT USAGE ON *.* TO 'юзер'@'localhost'
+GRANT SELECT ON `бд`.* TO 'юзер'@'localhost'
+REVOKE SELECT ON бд.* FROM юзер@localhost;
+GRANT SELECT ON бд.таб TO юзер@localhost;
+SHOW GRANTS FOR юзер@localhost;
+Grants for юзер@localhost
+GRANT USAGE ON *.* TO 'юзер'@'localhost'
+GRANT SELECT ON `бд`.`таб` TO 'юзер'@'localhost'
+REVOKE SELECT ON бд.таб FROM юзер@localhost;
+GRANT SELECT (кол) ON бд.таб TO юзер@localhost;
+SHOW GRANTS FOR юзер@localhost;
+Grants for юзер@localhost
+GRANT USAGE ON *.* TO 'юзер'@'localhost'
+GRANT SELECT (кол) ON `бд`.`таб` TO 'юзер'@'localhost'
+REVOKE SELECT (кол) ON бд.таб FROM юзер@localhost;
+DROP DATABASE бд;
+SET NAMES latin1;
+SHOW PRIVILEGES;
+Privilege	Context	Comment
+Alter	Tables	To alter the table
+Create	Databases,Tables,Indexes	To create new databases and tables
+Create temporary tables	Databases	To use CREATE TEMPORARY TABLE
+Create view	Tables	To create new views
+Delete	Tables	To delete existing rows
+Drop	Databases,Tables	To drop databases, tables, and views
+File	File access on server	To read and write files on the server
+Grant option	Databases,Tables	To give to other users those privileges you possess
+Index	Tables	To create or drop indexes
+Insert	Tables	To insert data into tables
+Lock tables	Databases	To use LOCK TABLES (together with SELECT privilege)
+Process	Server Admin	To view the plain text of currently executing queries
+References	Databases,Tables	To have references on tables
+Reload	Server Admin	To reload or refresh tables, logs and privileges
+Replication client	Server Admin	To ask where the slave or master servers are
+Replication slave	Server Admin	To read binary log events from the master
+Select	Tables	To retrieve rows from table
+Show databases	Server Admin	To see all databases with SHOW DATABASES
+Show view	Tables	To see views with SHOW CREATE VIEW
+Shutdown	Server Admin	To shut down the server
+Super	Server Admin	To use KILL thread, SET GLOBAL, CHANGE MASTER, etc.
+Update	Tables	To update existing rows
+Usage	Server Admin	No privileges - allow connect only

@@ -318,7 +318,7 @@ static int run_test(const char *filename)
   return (0);
 err:
   printf("got error: %3d when using myisam-database\n",my_errno);
-  return 1;			/* skipp warning */
+  return 1;			/* skip warning */
 }
 
 

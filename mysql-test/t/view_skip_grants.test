@@ -1,0 +1,14 @@
+--disable_warnings
+drop table if exists t1,v1;
+drop view if exists t1,v1;
+--enable_warnings
+use test;
+
+#
+# test that we can create VIEW if privileges check switched off
+#
+create table t1 (field1 INT);
+CREATE VIEW v1 AS SELECT field1 FROM t1;
+
+drop view v1;
+drop table t1

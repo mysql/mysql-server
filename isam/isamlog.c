@@ -144,7 +144,7 @@ static void get_options(register int *argc, register char ***argv)
       switch((option=*pos)) {
       case '#':
 	DBUG_PUSH (++pos);
-	pos=" ";				/* Skipp rest of arg */
+	pos=" ";				/* Skip rest of arg */
 	break;
       case 'c':
 	if (! *++pos)

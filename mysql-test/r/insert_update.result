@@ -60,10 +60,48 @@ explain extended SELECT *, VALUES(a) FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
 Warnings:
-Note	1003	select high_priority test.t1.a AS `a`,test.t1.b AS `b`,test.t1.c AS `c`,values(test.t1.a) AS `VALUES(a)` from test.t1
+Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,values(`test`.`t1`.`a`) AS `VALUES(a)` from `test`.`t1`
 explain extended select * from t1 where values(a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	select high_priority test.t1.a AS `a`,test.t1.b AS `b`,test.t1.c AS `c` from test.t1
+Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1`
 DROP TABLE t1;
+create table t1(a int primary key, b int);
+insert into t1 values(1,1),(2,2),(3,3),(4,4),(5,5);
+select * from t1;
+a	b
+1	1
+2	2
+3	3
+4	4
+5	5
+insert into t1 values(4,14),(5,15),(6,16),(7,17),(8,18)
+on duplicate key update b=b+10;
+affected rows: 7
+info: Records: 5  Duplicates: 2  Warnings: 0
+select * from t1;
+a	b
+1	1
+2	2
+3	3
+4	14
+5	15
+6	16
+7	17
+8	18
+replace into t1 values(5,25),(6,26),(7,27),(8,28),(9,29);
+affected rows: 9
+info: Records: 5  Duplicates: 4  Warnings: 0
+select * from t1;
+a	b
+1	1
+2	2
+3	3
+4	14
+5	25
+6	26
+7	27
+8	28
+9	29
+drop table t1;

@@ -30,14 +30,14 @@ Item *create_func_acos(Item* a)
 
 Item *create_func_aes_encrypt(Item* a, Item* b)
 {
-  return new Item_func_aes_encrypt(a, b); 
+  return new Item_func_aes_encrypt(a, b);
 }
-     
+
 Item *create_func_aes_decrypt(Item* a, Item* b)
 {
   return new Item_func_aes_decrypt(a, b);
 }
-        
+
 Item *create_func_ascii(Item* a)
 {
   return new Item_func_ascii(a);
@@ -83,6 +83,11 @@ Item *create_func_connection_id(void)
 Item *create_func_conv(Item* a, Item *b, Item *c)
 {
   return new Item_func_conv(a,b,c);
+}
+
+Item *create_func_convert_tz(Item* a, Item *b, Item *c)
+{
+  return new Item_func_convert_tz(a,b,c);
 }
 
 Item *create_func_cos(Item* a)
@@ -145,7 +150,7 @@ Item *create_func_found_rows(void)
 {
   THD *thd=current_thd;
   thd->lex->safe_to_cache_query= 0;
-  return new Item_int(NullS,(longlong) thd->found_rows(),21);
+  return new Item_func_found_rows();
 }
 
 Item *create_func_from_days(Item* a)
@@ -364,7 +369,7 @@ Item *create_func_space(Item *a)
   CHARSET_INFO *cs= current_thd->variables.collation_connection;
   Item *sp;
   
-  if (cs->state & MY_CS_NONTEXT)
+  if (cs->mbminlen > 1)
   {
     sp= new Item_string("",0,cs);
     if (sp)
@@ -417,6 +422,16 @@ Item *create_func_ucase(Item* a)
   return new Item_func_ucase(a);
 }
 
+Item *create_func_unhex(Item* a)
+{
+  return new Item_func_unhex(a);
+}
+
+Item *create_func_uuid(void)
+{
+  return new Item_func_uuid();
+}
+
 Item *create_func_version(void)
 {
   return new Item_string(NullS,server_version, 
@@ -446,6 +461,7 @@ Item *create_func_cast(Item *a, Cast_target cast_type, int len,
 {
   Item *res;
   LINT_INIT(res);
+
   switch (cast_type) {
   case ITEM_CAST_BINARY: 	res= new Item_func_binary(a); break;
   case ITEM_CAST_SIGNED_INT:	res= new Item_func_signed(a); break;
@@ -478,6 +494,7 @@ Item *create_func_quote(Item* a)
   return new Item_func_quote(a);
 }
 
+#ifdef HAVE_SPATIAL
 Item *create_func_as_wkt(Item *a)
 {
   return new Item_func_as_wkt(a);
@@ -637,6 +654,7 @@ Item *create_func_point(Item *a, Item *b)
 {
   return new Item_func_point(a, b);
 }
+#endif /*HAVE_SPATIAL*/
 
 Item *create_func_crc32(Item* a)
 {

@@ -60,7 +60,6 @@ static int file_info_compare(void *cmp_arg, void *a,void *b);
 static int test_if_open(struct file_info *key,element_count count,
 			struct test_if_open_param *param);
 static void fix_blob_pointers(MI_INFO *isam,byte *record);
-static uint set_maximum_open_files(uint);
 static int test_when_accessed(struct file_info *key,element_count count,
 			      struct st_access_param *access_param);
 static void file_info_free(struct file_info *info);
@@ -89,9 +88,8 @@ int main(int argc, char **argv)
 
   log_filename=myisam_log_filename;
   get_options(&argc,&argv);
- /* Nr of isam-files */
-  max_files=(set_maximum_open_files(min(max_files,8))-6)/2;
-
+  /* Number of MyISAM files we can have open at one time */
+  max_files= (my_set_max_open_files(min(max_files,8))-6)/2;
   if (update)
     printf("Trying to %s MyISAM files according to log '%s'\n",
 	   (recover ? "recover" : "update"),log_filename);
@@ -123,6 +121,7 @@ int main(int argc, char **argv)
     printf("Had to do %d re-open because of too few possibly open files\n",
 	   re_open_count);
   VOID(mi_panic(HA_PANIC_CLOSE));
+  my_free_open_file_info();
   my_end(test_info ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
   exit(error);
   return 0;				/* No compiler warning */
@@ -146,7 +145,7 @@ static void get_options(register int *argc, register char ***argv)
       switch((option=*pos)) {
       case '#':
 	DBUG_PUSH (++pos);
-	pos=" ";				/* Skipp rest of arg */
+	pos=" ";				/* Skip rest of arg */
 	break;
       case 'c':
 	if (! *++pos)
@@ -730,38 +729,6 @@ static void fix_blob_pointers(MI_INFO *info, byte *record)
     memcpy_fixed(record+blob->offset+blob->pack_length,&pos,sizeof(char*));
     pos+=_mi_calc_blob_length(blob->pack_length,record+blob->offset);
   }
-}
-
-static uint set_maximum_open_files(uint maximum_files)
-{
-#if defined(HAVE_GETRUSAGE) && defined(RLIMIT_NOFILE)
-  struct rlimit rlimit;
-  int old_max;
-
-  if (maximum_files > MY_NFILE)
-    maximum_files=MY_NFILE;			/* Don't crash my_open */
-
-  if (!getrlimit(RLIMIT_NOFILE,&rlimit))
-  {
-    old_max=rlimit.rlim_max;
-    if (maximum_files && (int) maximum_files > old_max)
-      rlimit.rlim_max=maximum_files;
-    rlimit.rlim_cur=rlimit.rlim_max;
-    if (setrlimit(RLIMIT_NOFILE,&rlimit))
-    {
-      if (old_max != (int) maximum_files)
-      {						/* Set as much as we can */
-	rlimit.rlim_max=rlimit.rlim_cur=old_max;
-	setrlimit(RLIMIT_NOFILE,&rlimit);
-      }
-    }
-    getrlimit(RLIMIT_NOFILE,&rlimit);		/* Read if broken setrlimit */
-    if (maximum_files && maximum_files < rlimit.rlim_cur)
-      VOID(fprintf(stderr,"Warning: Error from setrlimit: Max open files is %d\n",old_max));
-    return rlimit.rlim_cur;
-  }
-#endif
-  return min(maximum_files,MY_NFILE);
 }
 
 	/* close the file with hasn't been accessed for the longest time */

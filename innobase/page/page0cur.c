@@ -16,11 +16,12 @@ Created 10/4/1994 Heikki Tuuri
 #include "log0recv.h"
 #include "rem0cmp.h"
 
-ulint	page_cur_short_succ	= 0;
-
-ulint	page_rnd	= 976722341;
+static ulint	page_rnd	= 976722341;
 
 #ifdef PAGE_CUR_ADAPT
+# ifdef UNIV_SEARCH_PERF_STAT
+ulint	page_cur_short_succ	= 0;
+# endif /* UNIV_SEARCH_PERF_STAT */
 
 /********************************************************************
 Tries a search shortcut based on the last insert. */
@@ -478,6 +479,7 @@ page_cur_insert_rec_write_log(
 	ulint	i;
 
 	ut_a(rec_size < UNIV_PAGE_SIZE);
+	ut_ad(rec_size == rec_get_size(insert_rec));
 
 	log_ptr = mlog_open(mtr, 30 + MLOG_BUF_MARGIN);
 
@@ -630,7 +632,7 @@ page_cur_parse_insert_rec(
 	}
 
 	extra_info_yes = end_seg_len & 0x1UL;
-	end_seg_len = end_seg_len / 2;
+	end_seg_len >>= 1;
 
 	if (end_seg_len >= UNIV_PAGE_SIZE) {
 		recv_sys->found_corrupt_log = TRUE;
@@ -693,7 +695,7 @@ page_cur_parse_insert_rec(
 		mismatch_index = rec_get_size(cursor_rec) - end_seg_len;
 	} 
 	
-	if (mismatch_index + end_seg_len < 1024) {
+	if (mismatch_index + end_seg_len < sizeof buf1) {
 		buf = buf1;
 	} else {
 		buf = mem_alloc(mismatch_index + end_seg_len);
@@ -702,8 +704,9 @@ page_cur_parse_insert_rec(
 	/* Build the inserted record to buf */
 	
         if (mismatch_index >= UNIV_PAGE_SIZE) {
-               printf(
-		"Is short %lu, info_bits %lu, offset %lu, o_offset %lu\n"
+		fprintf(stderr,
+			"Is short %lu, info_bits %lu, offset %lu, "
+			"o_offset %lu\n"
                     "mismatch index %lu, end_seg_len %lu\n"
                     "parsed len %lu\n",
 		    (ulong) is_short, (ulong) info_bits, (ulong) offset,
@@ -711,12 +714,12 @@ page_cur_parse_insert_rec(
 		    (ulong) mismatch_index, (ulong) end_seg_len,
 		    (ulong) (ptr - ptr2));
 
-	       printf("Dump of 300 bytes of log:\n");
-	       ut_print_buf(ptr2, 300);
+		fputs("Dump of 300 bytes of log:\n", stderr);
+		ut_print_buf(stderr, ptr2, 300);
 
 	       buf_page_print(page);
 
-	       ut_a(0);
+	       ut_error;
 	}
 
 	ut_memcpy(buf, rec_get_start(cursor_rec), mismatch_index);
@@ -728,7 +731,7 @@ page_cur_parse_insert_rec(
 
 	page_cur_rec_insert(&cursor, buf + origin_offset, mtr);
 
-	if (mismatch_index + end_seg_len >= 1024) {
+	if (buf != buf1) {
 
 		mem_free(buf);
 	}

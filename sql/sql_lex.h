@@ -22,6 +22,7 @@ class Table_ident;
 class sql_exchange;
 class LEX_COLUMN;
 class sp_head;
+class sp_name;
 class sp_instr;
 class sp_pcontext;
 
@@ -82,7 +83,8 @@ enum enum_sql_command {
   SQLCOM_DROP_PROCEDURE, SQLCOM_ALTER_PROCEDURE,SQLCOM_ALTER_FUNCTION,
   SQLCOM_SHOW_CREATE_PROC, SQLCOM_SHOW_CREATE_FUNC,
   SQLCOM_SHOW_STATUS_PROC, SQLCOM_SHOW_STATUS_FUNC,
-
+  SQLCOM_PREPARE, SQLCOM_EXECUTE, SQLCOM_DEALLOCATE_PREPARE,
+  SQLCOM_CREATE_VIEW, SQLCOM_DROP_VIEW,
   /* This should be the last !!! */
   SQLCOM_END
 };
@@ -94,6 +96,23 @@ enum enum_sql_command {
 enum suid_behaviour
 {
   IS_DEFAULT_SUID= 0, IS_NOT_SUID, IS_SUID
+};
+
+#define DERIVED_SUBQUERY	1
+#define DERIVED_VIEW		2
+
+enum enum_view_create_mode
+{
+  VIEW_CREATE_NEW,		// check that there are not such VIEW/table
+  VIEW_ALTER,			// check that VIEW .frm with such name exists
+  VIEW_CREATE_OR_REPLACE	// check only that there are not such table
+};
+
+enum enum_drop_mode
+{
+  DROP_DEFAULT, // mode is not specified
+  DROP_CASCADE, // CASCADE option
+  DROP_RESTRICT // RESTRICT option
 };
 
 typedef List<Item> List_item;
@@ -185,8 +204,8 @@ enum tablespace_op_type
     e||+-------------------------+             ||
      V|            neighbor      |             V|
      unit1.1<+==================>unit1.2       unit2.1
-     fake1.1                                   fake2.1
-     select1.1.1 select 1.1.2    select1.2.1   select2.1.1 select2.1.2
+     fake1.1
+     select1.1.1 select 1.1.2    select1.2.1   select2.1.1
                                                |^
                                                ||
                                                V|
@@ -243,6 +262,7 @@ public:
       UNCACHEABLE_DEPENDENT
       UNCACHEABLE_RAND
       UNCACHEABLE_SIDEEFFECT
+      UNCACHEABLE_EXPLAIN
   */
   uint8 uncacheable;
   enum sub_select_type linkage;
@@ -290,6 +310,8 @@ public:
 
   friend class st_select_lex_unit;
   friend bool mysql_new_select(struct st_lex *lex, bool move_down);
+  friend my_bool mysql_make_view (File_parser *parser,
+				  TABLE_LIST *table);
 private:
   void fast_exclude();
 };
@@ -315,7 +337,8 @@ protected:
   ulong found_rows_for_union;
   bool  prepared, // prepare phase already performed for UNION (unit)
     optimized, // optimize phase already performed for UNION (unit)
-    executed; // already executed
+    executed, // already executed
+    cleaned;
 
 public:
   // list of fields which points to temporary table for union
@@ -341,39 +364,50 @@ public:
   Item_subselect *item;
   /* thread handler */
   THD *thd;
-  /* fake SELECT_LEX for union processing */
+  /*
+    SELECT_LEX for hidden SELECT in onion which process global
+    ORDER BY and LIMIT
+  */
   st_select_lex *fake_select_lex;
 
-  uint union_option;
+  st_select_lex *union_distinct; /* pointer to the last UNION DISTINCT */
+  bool describe; /* union exec() called for EXPLAIN */
 
   void init_query();
-  bool create_total_list(THD *thd, st_lex *lex, TABLE_LIST **result,
-			 bool check_current_derived);
   st_select_lex_unit* master_unit();
   st_select_lex* outer_select();
-  st_select_lex* first_select() { return (st_select_lex*) slave; }
+  st_select_lex* first_select()
+  {
+    return my_reinterpret_cast(st_select_lex*)(slave);
+  }
   st_select_lex* first_select_in_union() 
   { 
-    return (st_select_lex*) slave;
+    return my_reinterpret_cast(st_select_lex*)(slave);
   }
-  st_select_lex_unit* next_unit() { return (st_select_lex_unit*) next; }
+  st_select_lex_unit* next_unit()
+  {
+    return my_reinterpret_cast(st_select_lex_unit*)(next);
+  }
   st_select_lex* return_after_parsing() { return return_to; }
   void exclude_level();
   void exclude_tree();
 
   /* UNION methods */
-  int prepare(THD *thd, select_result *result);
+  int prepare(THD *thd, select_result *result, ulong additional_options);
   int exec();
   int cleanup();
+  inline void unclean() { cleaned= 0; }
+  void reinit_exec_mechanism();
 
+  bool check_updateable(char *db, char *table);
   void print(String *str);
 
-  friend void mysql_init_query(THD *thd, bool lexonly);
+  ulong init_prepare_fake_select_lex(THD *thd);
+  int change_result(select_subselect *result, select_subselect *old_result);
+  void set_limit(st_select_lex *values, st_select_lex *sl);
+
+  friend void mysql_init_query(THD *thd, uchar *buf, uint length, bool lexonly);
   friend int subselect_union_engine::exec();
-private:
-  bool create_total_list_n_last_return(THD *thd, st_lex *lex,
-				       TABLE_LIST ***result,
-				       bool check_current_derived);
 };
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
 
@@ -386,11 +420,11 @@ public:
   char *db, *db1, *table1, *db2, *table2;      	/* For outer join using .. */
   Item *where, *having;                         /* WHERE & HAVING clauses */
   Item *prep_where; /* saved WHERE clause for prepared statement processing */
+  /* point on lex in which it was created, used in view subquery detection */
+  st_lex *parent_lex;
   enum olap_type olap;
   SQL_LIST	      table_list, group_list;   /* FROM & GROUP BY clauses */
   List<Item>          item_list; /* list of fields & expressions */
-  List<Item>          item_list_copy; /* For SPs */
-  byte                *table_list_first_copy; /* For SPs */
   List<String>        interval_list, use_index, *use_index_ptr,
 		      ignore_index, *ignore_index_ptr;
   /* 
@@ -400,11 +434,15 @@ public:
   List<Item_func_match> *ftfunc_list;
   List<Item_func_match> ftfunc_list_alloc;
   JOIN *join; /* after JOIN::prepare it is pointer to corresponding JOIN */
-  const char *type; /* type of select for EXPLAIN */
+  List<TABLE_LIST> top_join_list; /* join list of the top level          */
+  List<TABLE_LIST> *join_list;    /* list for the currently parsed join  */
+  TABLE_LIST *embedding;          /* table embedding to the above list   */
+  const char *type;               /* type of select for EXPLAIN          */
 
   SQL_LIST order_list;                /* ORDER clause */
   List<List_item>     expr_list;
   List<List_item>     when_list;      /* WHEN clause (expression) */
+  SQL_LIST *gorder_list;
   ha_rows select_limit, offset_limit; /* LIMIT clause parameters */
   // Arrays of pointers to top elements of all_fields list
   Item **ref_pointer_array;
@@ -418,6 +456,11 @@ public:
   uint cond_count;      /* number of arguments of and/or/xor in where/having */
   enum_parsing_place parsing_place; /* where we are parsing expression */
   bool with_sum_func;   /* sum function indicator */
+  /* 
+    PS or SP cond natural joins was alredy processed with permanent
+    arena and all additional items which we need alredy stored in it
+  */
+  bool conds_processed_with_permanent_arena;
 
   ulong table_join_options;
   uint in_sum_expr;
@@ -426,6 +469,17 @@ public:
   bool  braces;   	/* SELECT ... UNION (SELECT ... ) <- this braces */
   /* TRUE when having fix field called in processing of this SELECT */
   bool having_fix_field;
+  /* explicit LIMIT clause was used */
+  bool explicit_limit;
+  /*
+    there are subquery in HAVING clause => we can't close tables before
+    query processing end even if we use temporary table
+  */
+  bool subquery_in_having;
+  bool first_execution; /* first execution in SP or PS */
+  bool first_cond_optimization;
+  /* do not wrap view fields with Item_ref */
+  bool no_wrap_view_item;
 
   /* 
      SELECT for SELECT command st_select_lex. Used to privent scaning
@@ -488,6 +542,12 @@ public:
 				List<String> *ignore_index= 0,
                                 LEX_STRING *option= 0);
   TABLE_LIST* get_table_list();
+  bool init_nested_join(THD *thd);
+  TABLE_LIST *end_nested_join(THD *thd);
+  TABLE_LIST *nest_last_join(THD *thd);
+  void save_names_for_using_list(TABLE_LIST *tab1, TABLE_LIST *tab2);
+  void add_joined_table(TABLE_LIST *table);
+  TABLE_LIST *convert_right_join();
   List<Item>* get_item_list();
   List<String>* get_use_index();
   List<String>* get_ignore_index();
@@ -502,7 +562,7 @@ public:
   
   bool test_limit();
 
-  friend void mysql_init_query(THD *thd, bool lexonly);
+  friend void mysql_init_query(THD *thd, uchar *buf, uint length, bool lexonly);
   st_select_lex() {}
   void make_empty_select()
   {
@@ -510,12 +570,36 @@ public:
     init_select();
   }
   bool setup_ref_array(THD *thd, uint order_group_num);
+  bool check_updateable(char *db, char *table);
   void print(THD *thd, String *str);
   static void print_order(String *str, ORDER *order);
   void print_limit(THD *thd, String *str);
+  void fix_prepare_information(THD *thd, Item **conds);
 };
 typedef class st_select_lex SELECT_LEX;
 
+#define ALTER_ADD_COLUMN	1
+#define ALTER_DROP_COLUMN	2
+#define ALTER_CHANGE_COLUMN	4
+#define ALTER_ADD_INDEX		8
+#define ALTER_DROP_INDEX	16
+#define ALTER_RENAME		32
+#define ALTER_ORDER		64
+#define ALTER_OPTIONS		128
+
+typedef struct st_alter_info
+{
+  List<Alter_drop>            drop_list;
+  List<Alter_column>          alter_list;
+  uint                        flags;
+  enum enum_enable_or_disable keys_onoff;
+  enum tablespace_op_type     tablespace_op;
+  bool                        is_simple;
+
+  st_alter_info(){clear();}
+  void clear(){keys_onoff= LEAVE_AS_IS;tablespace_op= NO_TABLESPACE_OP;}
+  void reset(){drop_list.empty();alter_list.empty();clear();}
+} ALTER_INFO;
 
 struct st_sp_chistics
 {
@@ -548,18 +632,18 @@ typedef struct st_lex
   String *wild;
   sql_exchange *exchange;
   select_result *result;
-  Item *default_value;
+  Item *default_value, *on_update_value;
   LEX_STRING *comment, name_and_length;
   LEX_USER *grant_user;
   gptr yacc_yyss,yacc_yyvs;
   THD *thd;
   CHARSET_INFO *charset;
-  SQL_LIST *gorder_list;
+  TABLE_LIST *query_tables;	/* global list of all tables in this query */
+  /* last element next_global of previous list */
+  TABLE_LIST **query_tables_last;
 
   List<key_part_spec> col_list;
   List<key_part_spec> ref_list;
-  List<Alter_drop>    drop_list;
-  List<Alter_column>  alter_list;
   List<String>	      interval_list;
   List<LEX_USER>      users_list;
   List<LEX_COLUMN>    columns;
@@ -568,7 +652,8 @@ typedef struct st_lex
   List<Item>	      *insert_list,field_list,value_list;
   List<List_item>     many_values;
   List<set_var_base>  var_list;
-  List<Item>          param_list;
+  List<Item_param>    param_list;
+  List<LEX_STRING>    view_list; // view list (list of field names in view)
   SQL_LIST	      proc_list, auxilliary_table_list, save_list;
   TYPELIB	      *interval;
   create_field	      *last_field;
@@ -587,24 +672,46 @@ typedef struct st_lex
   enum enum_tx_isolation tx_isolation;
   enum enum_ha_read_modes ha_read_mode;
   enum ha_rkey_function ha_rkey_mode;
-  enum enum_enable_or_disable alter_keys_onoff;
   enum enum_var_type option_type;
-  enum tablespace_op_type tablespace_op;
+  enum enum_view_create_mode create_view_mode;
+  enum enum_drop_mode drop_mode;
   uint uint_geom_type;
   uint grant, grant_tot_col, which_columns;
   uint fk_delete_opt, fk_update_opt, fk_match_option;
-  uint param_count;
   uint slave_thd_opt;
   uint8 describe;
-  bool drop_primary, drop_if_exists, drop_temporary, local_file;
-  bool in_comment, ignore_space, verbose, simple_alter, no_write_to_binlog;
-  bool derived_tables;
+  uint8 derived_tables;
+  uint8 create_view_algorithm;
+  bool drop_if_exists, drop_temporary, local_file, one_shot_set;
+  bool in_comment, ignore_space, verbose, no_write_to_binlog;
+  /* special JOIN::prepare mode: changing of query is prohibited */
+  bool view_prepare_mode;
   bool safe_to_cache_query;
+  bool variables_used;
+  ALTER_INFO alter_info;
+  /* Prepared statements SQL syntax:*/
+  LEX_STRING prepared_stmt_name; /* Statement name (in all queries) */
+  /* 
+    Prepared statement query text or name of variable that holds the
+    prepared statement (in PREPARE ... queries)
+  */
+  LEX_STRING prepared_stmt_code; 
+  /* If true, prepared_stmt_code is a name of variable that holds the query */
+  bool prepared_stmt_code_is_varref;
+  /* Names of user variables holding parameters (in EXECUTE) */
+  List<LEX_STRING> prepared_stmt_params; 
   sp_head *sphead;
+  sp_name *spname;
   bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
   sp_pcontext *spcont;
   HASH spfuns;		/* Called functions */
   st_sp_chistics sp_chistics;
+  bool only_view;       /* used for SHOW CREATE TABLE/VIEW */
+  /*
+    field_list was created for view and should be removed before PS/SP
+    rexecuton
+  */
+  bool empty_field_list_on_rset;
 
   st_lex()
   {
@@ -636,16 +743,33 @@ typedef struct st_lex
       un->uncacheable|= cause;
     }
   }
+  TABLE_LIST *unlink_first_table(bool *link_to_local);
+  void link_first_table_back(TABLE_LIST *first, bool link_to_local);
+  void first_lists_tables_same();
+
+  bool can_be_merged();
+  bool can_use_merged();
+  bool only_view_structure();
 } LEX;
 
+struct st_lex_local: public st_lex
+{
+  static void *operator new(size_t size)
+  {
+    return (void*) sql_alloc((uint) size);
+  }
+  static void *operator new(size_t size, MEM_ROOT *mem_root)
+  {
+    return (void*) alloc_root(mem_root, (uint) size);
+  }
+  static void operator delete(void *ptr,size_t size) {}
+};
 
 void lex_init(void);
 void lex_free(void);
-LEX *lex_start(THD *thd, uchar *buf,uint length);
+void lex_start(THD *thd, uchar *buf,uint length);
 void lex_end(LEX *lex);
 
 extern pthread_key(LEX*,THR_LEX);
-
-extern LEX_STRING tmp_table_alias;
 
 #define current_lex (current_thd->lex)

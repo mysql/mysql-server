@@ -82,8 +82,8 @@ int ha_myisammrg::close(void)
 int ha_myisammrg::write_row(byte * buf)
 {
   statistic_increment(ha_write_count,&LOCK_status);
-  if (table->time_stamp)
-    update_timestamp(buf+table->time_stamp-1);
+  if (table->timestamp_default_now)
+    update_timestamp(buf+table->timestamp_default_now-1);
   if (table->next_number_field && buf == table->record[0])
       update_auto_increment();
   return myrg_write(file,buf);
@@ -92,8 +92,8 @@ int ha_myisammrg::write_row(byte * buf)
 int ha_myisammrg::update_row(const byte * old_data, byte * new_data)
 {
   statistic_increment(ha_update_count,&LOCK_status);
-  if (table->time_stamp)
-    update_timestamp(new_data+table->time_stamp-1);
+  if (table->timestamp_on_update_now)
+    update_timestamp(new_data+table->timestamp_on_update_now);
   return myrg_update(file,old_data,new_data);
 }
 
@@ -199,19 +199,13 @@ void ha_myisammrg::position(const byte *record)
   ha_store_ptr(ref, ref_length, (my_off_t) position);
 }
 
-ha_rows ha_myisammrg::records_in_range(int inx,
-				    const byte *start_key,uint start_key_len,
-				    enum ha_rkey_function start_search_flag,
-				    const byte *end_key,uint end_key_len,
-				    enum ha_rkey_function end_search_flag)
+
+ha_rows ha_myisammrg::records_in_range(uint inx, key_range *min_key,
+                                       key_range *max_key)
 {
-  return (ha_rows) myrg_records_in_range(file,
-				       inx,
-				       start_key,start_key_len,
-				       start_search_flag,
-				       end_key,end_key_len,
-				       end_search_flag);
+  return (ha_rows) myrg_records_in_range(file, (int) inx, min_key, max_key);
 }
+
 
 void ha_myisammrg::info(uint flag)
 {
@@ -269,12 +263,6 @@ int ha_myisammrg::extra_opt(enum ha_extra_function operation, ulong cache_size)
   if ((specialflag & SPECIAL_SAFE_MODE) && operation == HA_EXTRA_WRITE_CACHE)
     return 0;
   return myrg_extra(file, operation, (void*) &cache_size);
-}
-
-
-int ha_myisammrg::reset(void)
-{
-  return myrg_extra(file,HA_EXTRA_RESET,0);
 }
 
 int ha_myisammrg::external_lock(THD *thd, int lock_type)
@@ -359,7 +347,7 @@ void ha_myisammrg::update_create_info(HA_CREATE_INFO *create_info)
 
       create_info->merge_list.elements++;
       (*create_info->merge_list.next) = (byte*) ptr;
-      create_info->merge_list.next= (byte**) &ptr->next;
+      create_info->merge_list.next= (byte**) &ptr->next_local;
     }
     *create_info->merge_list.next=0;
   }
@@ -386,8 +374,8 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
 
   if (!(table_names= (char**) thd->alloc((create_info->merge_list.elements+1)*
 					 sizeof(char*))))
-    DBUG_RETURN(1);
-  for (pos=table_names ; tables ; tables=tables->next)
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+  for (pos= table_names; tables; tables= tables->next_local)
   {
     char *table_name;
     TABLE **tbl= 0;
@@ -399,7 +387,7 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
 			       mysql_real_data_home,
 			       tables->db, tables->real_name);
       if (!(table_name= thd->strmake(buff, length)))
-	DBUG_RETURN(1);
+	DBUG_RETURN(HA_ERR_OUT_OF_MEM);
     }
     else
       table_name=(*tbl)->path;

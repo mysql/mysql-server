@@ -1,0 +1,192 @@
+Protocols involving SUMA:
+
+
+
+USER                      SUMA                    UTIL
+========================================================
+CREATE_SUBID_REQ
+------------------------->
+                          UTIL_SEQUENCE
+                          ---------------------->
+                          <----------------------
+CREATE_SUBID_CONF
+<-------------------------
+ 
+
+
+
+USER                      SUMA                    DICT
+========================================================
+SUB_CREATE_REQ
+------------------------->
+                          case SelectiveTableSnapshot:
+                          GET_TABLEID
+                          ---------------------->
+                          <----------------------
+SUB_CREATE_CONF
+<-------------------------
+
+
+
+
+
+USER                      SUMA                    DICT
+========================================================
+SUB_SYNC_REQ::MetaData
+------------------------->
+                          case DatabaseSnapshot:
+                          LIST_TABLES
+                          ---------------------->
+                          <----------------------
+for each table...
+                          GET_TABINFO
+                          ---------------------->
+                          <----------------------
+SUB_META_DATA                                     DIH
+<-------------------------                       =======
+                          DI_FCOUNT
+                          ---------------------->
+                          <----------------------
+                          DI_GETPRIM
+                          ---------------------->
+                          <----------------------
+..end for each table
+SUB_SYNC_CONF
+<-------------------------
+
+
+
+
+USER                      SUMA                    LQH
+========================================================
+SUB_SYNC_REQ::TableData
+------------------------->
+for each table...
+			  SCAN_FRAG_REQ
+                          ---------------------->
+			  ATTRINFO
+                          ---------------------->
+			  SCAN_FRAG_CONF
+                          <----------------------
+SUB_SYNC_CONTINUE
+<-------------------------
+------------------------->
+			  SCAN_NEXTREQ
+                          ---------------------->
+...end for each table
+
+
+
+??????????
+			  SCAN_HBREP
+                          <----------------------
+
+
+
+USER                      SUMA 
+===============================
+SUB_START_REQ::MetaData
+------------------------->
+SUB_START_CONF
+<-------------------------
+
+
+
+USER                      SUMA                    TUP
+========================================================
+SUB_START_REQ::TableData
+------------------------->
+for each table...
+                          CREATE_TRIG
+                          ---------------------->
+                          <----------------------
+...end for each table
+SUB_START_CONF
+<-------------------------
+
+
+USER                      SUMA                    XXX
+========================================================
+                          TRANSID_AI
+                          <----------------------
+SUB_TABLE_DATA
+<-------------------------
+
+
+
+
+
+USER                      SUMA                    XXX
+========================================================
+			  TRIG_ATTRINFO
+                          <----------------------
+			  FIRE_TRIG_ORD
+                          <----------------------
+SUB_TABLE_DATA
+<-------------------------
+
+
+
+USER                      SUMA                    XXX
+========================================================
+			  SUB_GCP_COMPLETE_REP
+                          <----------------------
+SUB_GCP_COMPLETE_REP
+<-------------------------
+
+for event only:
+SUB_GCP_COMPLETE_ACK
+------------------------->
+			  when all subscribers have sent ACK on gci
+			  send to all other suma's in node group:
+			  SUB_GCP_COMPLETE_ACK
+                          ---------------------->
+
+
+USER                      SUMA 
+===============================
+SUB_STOP_REQ
+------------------------->
+SUB_STOP_CONF
+<-------------------------
+
+
+
+USER                      SUMA 
+===============================
+SUB_REMOVE_REQ
+------------------------->
+SUB_REMOVE_CONF
+<-------------------------
+
+
+
+MASTER SUMA		  RESTARTING SUMA
+=========================================
+INCL_NODEREQ
+<---------------------------------------------------------
+for each subscription...
+SUB_CREATE_REQ
+------------------------->...
+<-------------------------
+SUB_SYNC_REQ::MetaData
+------------------------->...
+<-------------------------
+... end for each subscription
+
+
+			  SUMA_START_ME (sent asynchronously in start phase 5 to all suma's in node group)
+<-------------------------
+			  ------------------------->
+
+for each subscriber...
+SUB_START_REQ (not before SUMA_START_ME)
+------------------------->
+<-------------------------
+... end for each subscriber
+
+SUMA_HANDOVER_REQ
+------------------------->
+			  SUMA_HANDOVER_CONF (to all suma's in node group)
+<-------------------------
+			  ------------------------->

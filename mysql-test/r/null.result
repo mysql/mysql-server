@@ -6,7 +6,7 @@ explain extended select null,\N,isnull(null),isnull(1/0),isnull(1/0 = null),ifnu
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select high_priority NULL AS `NULL`,NULL AS `NULL`,isnull(NULL) AS `isnull(null)`,isnull((1 / 0)) AS `isnull(1/0)`,isnull(((1 / 0) = NULL)) AS `isnull(1/0 = null)`,ifnull(NULL,1) AS `ifnull(null,1)`,ifnull(NULL,_latin1'TRUE') AS `ifnull(null,"TRUE")`,ifnull(_latin1'TRUE',_latin1'ERROR') AS `ifnull("TRUE","ERROR")`,isnull((1 / 0)) AS `1/0 is null`,(1 is not null) AS `1 is not null`
+Note	1003	select NULL AS `NULL`,NULL AS `NULL`,isnull(NULL) AS `isnull(null)`,isnull((1 / 0)) AS `isnull(1/0)`,isnull(((1 / 0) = NULL)) AS `isnull(1/0 = null)`,ifnull(NULL,1) AS `ifnull(null,1)`,ifnull(NULL,_latin1'TRUE') AS `ifnull(null,"TRUE")`,ifnull(_latin1'TRUE',_latin1'ERROR') AS `ifnull("TRUE","ERROR")`,isnull((1 / 0)) AS `1/0 is null`,(1 is not null) AS `1 is not null`
 select 1 | NULL,1 & NULL,1+NULL,1-NULL;
 1 | NULL	1 & NULL	1+NULL	1-NULL
 NULL	NULL	NULL	NULL
@@ -32,7 +32,7 @@ explain extended select 2 between null and 1,2 between 3 AND NULL,NULL between 1
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select high_priority (2 between NULL and 1) AS `2 between null and 1`,(2 between 3 and NULL) AS `2 between 3 AND NULL`,(NULL between 1 and 2) AS `NULL between 1 and 2`,(2 between NULL and 3) AS `2 between NULL and 3`,(2 between 1 and NULL) AS `2 between 1 AND null`
+Note	1003	select (2 between NULL and 1) AS `2 between null and 1`,(2 between 3 and NULL) AS `2 between 3 AND NULL`,(NULL between 1 and 2) AS `NULL between 1 and 2`,(2 between NULL and 3) AS `2 between NULL and 3`,(2 between 1 and NULL) AS `2 between 1 AND null`
 SELECT NULL AND NULL, 1 AND NULL, NULL AND 1, NULL OR NULL, 0 OR NULL, NULL OR 0;
 NULL AND NULL	1 AND NULL	NULL AND 1	NULL OR NULL	0 OR NULL	NULL OR 0
 NULL	NULL	NULL	NULL	NULL	NULL
@@ -49,7 +49,7 @@ explain extended select inet_ntoa(null),inet_aton(null),inet_aton("122.256"),ine
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select high_priority inet_ntoa(NULL) AS `inet_ntoa(null)`,inet_aton(NULL) AS `inet_aton(null)`,inet_aton(_latin1'122.256') AS `inet_aton("122.256")`,inet_aton(_latin1'122.226.') AS `inet_aton("122.226.")`,inet_aton(_latin1'') AS `inet_aton("")`
+Note	1003	select inet_ntoa(NULL) AS `inet_ntoa(null)`,inet_aton(NULL) AS `inet_aton(null)`,inet_aton(_latin1'122.256') AS `inet_aton("122.256")`,inet_aton(_latin1'122.226.') AS `inet_aton("122.226.")`,inet_aton(_latin1'') AS `inet_aton("")`
 create table t1 (x int);
 insert into t1 values (null);
 select * from t1 where x != 0;
@@ -91,45 +91,45 @@ drop table t1;
 CREATE TABLE t1 (a varchar(16) NOT NULL, b smallint(6) NOT NULL, c datetime NOT NULL, d smallint(6) NOT NULL);
 INSERT INTO t1 SET a = "", d= "2003-01-14 03:54:55";
 Warnings:
-Warning	1264	Data truncated for column 'd' at row 1
+Warning	1265	Data truncated for column 'd' at row 1
 UPDATE t1 SET d=1/NULL;
 Warnings:
-Warning	1264	Data truncated for column 'd' at row 1
+Warning	1265	Data truncated for column 'd' at row 1
 UPDATE t1 SET d=NULL;
 Warnings:
-Warning	1262	Data truncated, NULL supplied to NOT NULL column 'd' at row 1
+Warning	1263	Data truncated; NULL supplied to NOT NULL column 'd' at row 1
 INSERT INTO t1 (a) values (null);
 ERROR 23000: Column 'a' cannot be null
 INSERT INTO t1 (a) values (1/null);
 ERROR 23000: Column 'a' cannot be null
 INSERT INTO t1 (a) values (null),(null);
 Warnings:
-Warning	1262	Data truncated, NULL supplied to NOT NULL column 'a' at row 1
-Warning	1262	Data truncated, NULL supplied to NOT NULL column 'a' at row 2
+Warning	1263	Data truncated; NULL supplied to NOT NULL column 'a' at row 1
+Warning	1263	Data truncated; NULL supplied to NOT NULL column 'a' at row 2
 INSERT INTO t1 (b) values (null);
 ERROR 23000: Column 'b' cannot be null
 INSERT INTO t1 (b) values (1/null);
 ERROR 23000: Column 'b' cannot be null
 INSERT INTO t1 (b) values (null),(null);
 Warnings:
-Warning	1262	Data truncated, NULL supplied to NOT NULL column 'b' at row 1
-Warning	1262	Data truncated, NULL supplied to NOT NULL column 'b' at row 2
+Warning	1263	Data truncated; NULL supplied to NOT NULL column 'b' at row 1
+Warning	1263	Data truncated; NULL supplied to NOT NULL column 'b' at row 2
 INSERT INTO t1 (c) values (null);
 ERROR 23000: Column 'c' cannot be null
 INSERT INTO t1 (c) values (1/null);
 ERROR 23000: Column 'c' cannot be null
 INSERT INTO t1 (c) values (null),(null);
 Warnings:
-Warning	1262	Data truncated, NULL supplied to NOT NULL column 'c' at row 1
-Warning	1262	Data truncated, NULL supplied to NOT NULL column 'c' at row 2
+Warning	1263	Data truncated; NULL supplied to NOT NULL column 'c' at row 1
+Warning	1263	Data truncated; NULL supplied to NOT NULL column 'c' at row 2
 INSERT INTO t1 (d) values (null);
 ERROR 23000: Column 'd' cannot be null
 INSERT INTO t1 (d) values (1/null);
 ERROR 23000: Column 'd' cannot be null
 INSERT INTO t1 (d) values (null),(null);
 Warnings:
-Warning	1262	Data truncated, NULL supplied to NOT NULL column 'd' at row 1
-Warning	1262	Data truncated, NULL supplied to NOT NULL column 'd' at row 2
+Warning	1263	Data truncated; NULL supplied to NOT NULL column 'd' at row 1
+Warning	1263	Data truncated; NULL supplied to NOT NULL column 'd' at row 2
 select * from t1;
 a	b	c	d
 	0	0000-00-00 00:00:00	0
@@ -153,3 +153,6 @@ explain select * from t1 where a between 2 and 3 or b is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	idx	idx	4	NULL	2	Using where
 drop table t1;
+select cast(NULL as signed);
+cast(NULL as signed)
+NULL

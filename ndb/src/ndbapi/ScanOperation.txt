@@ -1,0 +1,10 @@
+x) NdbConnection (main)
+m_theFirstCursorOperation -> y
+
+y) NdbScanOperation
+m_transConnection -> x
+theNdbCon -> z
+
+z) NdbConnection (scan)
+theScanningOp -> y
+theFirstOpInList -> y (until after openScan)

@@ -16,18 +16,18 @@
 
 #called from the top level Makefile
 
-
 MYSQLDATAdir =		$(localstatedir)
 MYSQLSHAREdir =		$(pkgdatadir)
 MYSQLBASEdir=		$(prefix)
 INCLUDES =		@MT_INCLUDES@ \
-			@bdb_includes@ @innodb_includes@ \
+			@bdb_includes@ @innodb_includes@ @ndbcluster_includes@ \
 			-I$(top_srcdir)/include -I$(top_srcdir)/regex \
 			-I$(srcdir) $(openssl_includes)
 WRAPLIBS=		@WRAPLIBS@
 SUBDIRS =		share
 libexec_PROGRAMS =	mysqld
 noinst_PROGRAMS =	gen_lex_hash
+bin_PROGRAMS =		mysql_tzinfo_to_sql
 gen_lex_hash_LDFLAGS =  @NOINST_LDFLAGS@
 LDADD =			@isam_libs@ \
 			../myisam/libmyisam.a \
@@ -37,11 +37,12 @@ LDADD =			@isam_libs@ \
 			../mysys/libmysys.a \
 			../dbug/libdbug.a \
 			../regex/libregex.a \
-			../strings/libmystrings.a
+			../strings/libmystrings.a 
 
 mysqld_LDADD =		@MYSQLD_EXTRA_LDFLAGS@ \
 			@bdb_libs@ @innodb_libs@ @pstack_libs@ \
                         @innodb_system_libs@ \
+			@ndbcluster_libs@ @ndbcluster_system_libs@ \
 			$(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS) @LIBDL@ @openssl_libs@
 noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			item_strfunc.h item_timefunc.h item_uniq.h \
@@ -49,16 +50,18 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			mysql_priv.h item_geofunc.h sql_bitmap.h \
 			procedure.h sql_class.h sql_lex.h sql_list.h \
 			sql_manager.h sql_map.h sql_string.h unireg.h \
-			field.h handler.h \
+			field.h handler.h mysqld_suffix.h \
 			ha_isammrg.h ha_isam.h ha_myisammrg.h\
 			ha_heap.h ha_myisam.h ha_berkeley.h ha_innodb.h \
-			opt_range.h opt_ft.h protocol.h \
+			ha_ndbcluster.h opt_range.h protocol.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h\
 			lex.h lex_symbol.h sql_acl.h sql_crypt.h  \
 			log_event.h sql_repl.h slave.h \
 			stacktrace.h sql_sort.h sql_cache.h set_var.h \
-			spatial.h gstream.h client_settings.h \
-			sp_head.h sp_pcontext.h sp_rcontext.h sp.h sp_cache.h
+			spatial.h gstream.h client_settings.h tzfile.h \
+                        tztime.h examples/ha_example.h examples/ha_archive.h \
+			sp_head.h sp_pcontext.h sp_rcontext.h sp.h sp_cache.h \
+			parse_file.h sql_view.h
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
 			item_cmpfunc.cc item_strfunc.cc item_timefunc.cc \
@@ -76,22 +79,27 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			procedure.cc item_uniq.cc sql_test.cc \
 			log.cc log_event.cc init.cc derror.cc sql_acl.cc \
 			unireg.cc des_key_file.cc \
-			time.cc opt_range.cc opt_sum.cc opt_ft.cc \
+			discover.cc time.cc opt_range.cc opt_sum.cc \
 		   	records.cc filesort.cc handler.cc \
 		        ha_heap.cc ha_myisam.cc ha_myisammrg.cc \
 	                ha_berkeley.cc ha_innodb.cc \
-			ha_isam.cc ha_isammrg.cc \
+			ha_isam.cc ha_isammrg.cc ha_ndbcluster.cc \
 			sql_db.cc sql_table.cc sql_rename.cc sql_crypt.cc \
 			sql_load.cc mf_iocache.cc field_conv.cc sql_show.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \
 			slave.cc sql_repl.cc sql_union.cc sql_derived.cc \
 			client.c sql_client.cc mini_client_errors.c pack.c\
-			stacktrace.c repl_failsafe.h repl_failsafe.cc sql_olap.cc\
+			stacktrace.c repl_failsafe.h repl_failsafe.cc \
+			sql_olap.cc sql_view.cc \
 			gstream.cc spatial.cc sql_help.cc protocol_cursor.cc \
+			tztime.cc my_time.c \
+			examples/ha_example.cc examples/ha_archive.cc \
 			sp_head.cc sp_pcontext.cc  sp_rcontext.cc sp.cc \
-			sp_cache.cc
+			sp_cache.cc parse_file.cc
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
+mysql_tzinfo_to_sql_SOURCES =   mysql_tzinfo_to_sql.cc
+mysql_tzinfo_to_sql_LDADD =     $(LDADD) $(CXXLDFLAGS)
 
 DEFS =			-DMYSQL_SERVER \
 			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
@@ -103,16 +111,25 @@ BUILT_SOURCES =		sql_yacc.cc sql_yacc.h
 EXTRA_DIST =		udf_example.cc $(BUILT_SOURCES)
 AM_YFLAGS =		-d
 
-link_sources:
+mysql_tzinfo_to_sql.cc:
+	rm -f mysql_tzinfo_to_sql.cc
+	@LN_CP_F@ tztime.cc mysql_tzinfo_to_sql.cc
+
+link_sources: mysql_tzinfo_to_sql.cc
 	rm -f mini_client_errors.c
 	@LN_CP_F@ ../libmysql/errmsg.c mini_client_errors.c
 	rm -f pack.c
 	@LN_CP_F@ ../sql-common/pack.c pack.c
 	rm -f client.c
 	@LN_CP_F@ ../sql-common/client.c client.c
+	rm -f my_time.c
+	@LN_CP_F@ ../sql-common/my_time.c my_time.c
 
 gen_lex_hash.o:		gen_lex_hash.cc lex.h
 			$(CXXCOMPILE) -c $(INCLUDES) $<
+
+mysql_tzinfo_to_sql.o:	$(mysql_tzinfo_to_sql_SOURCES)
+			$(CXXCOMPILE) -c $(INCLUDES) -DTZINFO2SQL $<
 
 # Try to get better dependencies for the grammar. Othervise really bad
 # things like different grammars for different pars of MySQL can

@@ -8342,18 +8342,14 @@ my_mb_wc_euc_jp(CHARSET_INFO *cs,my_wc_t *pwc, const uchar *s, const uchar *e)
 static int
 my_wc_mb_euc_jp(CHARSET_INFO *c,my_wc_t wc, unsigned char *s, unsigned char *e)
 {
-  unsigned char buf[2];
   unsigned char c1;
-  int ret,jp;
-
+  int jp;
+  
   if (s >= e)
     return MY_CS_TOOSMALL;
   
   if ((int) wc < 0x80)
   { 
-    if (s>e)
-      return MY_CS_TOOSMALL;
-      
     *s= (uchar) wc;
     return 1;
   }
@@ -8368,22 +8364,21 @@ my_wc_mb_euc_jp(CHARSET_INFO *c,my_wc_t wc, unsigned char *s, unsigned char *e)
     s[1]=jp&0xFF;
     return 2;
   }
-
-  ret=my_wc_mb_jisx0201(c,wc,buf,buf+2);
-  if (ret==1)
-  {
-    if (s+1>e)
-      return MY_CS_TOOSMALL;
-      
-    s[0]=0x8E;
-    s[1]=buf[0];
-    return 1;
-  }
   
-
-  if ((jp=my_uni_jisx0212_onechar(wc)))
+  /* Half width Katakana */
+  if (my_wc_mb_jisx0201(c,wc,s,e) == 1)
   {
     if (s+2>e)
+      return MY_CS_TOOSMALL;
+    s[1]= s[0];
+    s[0]= 0x8E;
+    return 2;
+  }
+  
+  
+  if ((jp=my_uni_jisx0212_onechar(wc)))
+  {
+    if (s+3>e)
       return MY_CS_TOOSMALL;
       
     jp+=0x8080;
@@ -8393,7 +8388,7 @@ my_wc_mb_euc_jp(CHARSET_INFO *c,my_wc_t wc, unsigned char *s, unsigned char *e)
     return 3;
   }
   
-
+  
   /* User defined range */
   if (wc>=0xE000 && wc<0xE3AC)
   { 
@@ -8428,6 +8423,7 @@ my_wc_mb_euc_jp(CHARSET_INFO *c,my_wc_t wc, unsigned char *s, unsigned char *e)
 
 static MY_COLLATION_HANDLER my_collation_ci_handler =
 {
+    NULL,		/* init */
     my_strnncoll_simple,/* strnncoll    */
     my_strnncollsp_simple,
     my_strnxfrm_simple,	/* strnxfrm     */
@@ -8440,13 +8436,15 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
 
 static MY_CHARSET_HANDLER my_charset_handler=
 {
+    NULL,		/* init */
     ismbchar_ujis,
     mbcharlen_ujis,
     my_numchars_mb,
     my_charpos_mb,
+    my_well_formed_len_mb,
     my_lengthsp_8bit,
-    my_mb_wc_euc_jp,	 /* mb_wc       */
-    my_wc_mb_euc_jp,	 /* wc_mb       */
+    my_mb_wc_euc_jp,	/* mb_wc       */
+    my_wc_mb_euc_jp,	/* wc_mb       */
     my_caseup_str_mb,
     my_casedn_str_mb,
     my_caseup_mb,
@@ -8472,16 +8470,22 @@ CHARSET_INFO my_charset_ujis_japanese_ci=
     "ujis",		/* cs name    */
     "ujis_japanese_ci",	/* name         */
     "",			/* comment      */
+    NULL,		/* tailoring    */
     ctype_ujis,
     to_lower_ujis,
     to_upper_ujis,
     sort_order_ujis,
+    NULL,		/* sort_order_big*/
+    NULL,		/* contractions */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    "","",
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
+    1,			/* mbminlen     */
     3,			/* mbmaxlen     */
-    0,
+    0,			/* min_sort_char */
+    255,		/* max_sort_char */
     &my_charset_handler,
     &my_collation_ci_handler
 };
@@ -8494,16 +8498,22 @@ CHARSET_INFO my_charset_ujis_bin=
     "ujis",		/* cs name    */
     "ujis_bin",		/* name         */
     "",			/* comment      */
+    NULL,		/* tailoring    */
     ctype_ujis,
     to_lower_ujis,
     to_upper_ujis,
     sort_order_ujis,
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    "","",
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
+    1,			/* mbminlen     */
     3,			/* mbmaxlen     */
-    0,
+    0,			/* min_sort_char */
+    255,		/* max_sort_char */
     &my_charset_handler,
     &my_collation_mb_bin_handler
 };

@@ -23,6 +23,11 @@
 #define mysql_unix_port mysql_inix_port1
 #define mysql_port mysql_port1
 
+extern "C"
+{
+  extern unsigned long max_allowed_packet, net_buffer_length;
+}
+
 static int fake_argc= 1;
 static char *fake_argv[]= {(char *)"", 0};
 static const char *fake_groups[] = { "server", "embedded", 0 };
@@ -41,6 +46,22 @@ C_MODE_START
 #undef ER
 #include "errmsg.h"
 #include <sql_common.h>
+
+void embedded_get_error(MYSQL *mysql)
+{
+  THD *thd=(THD *) mysql->thd;
+  NET *net= &mysql->net;
+  if ((net->last_errno= thd->net.last_errno))
+  {
+    memcpy(net->last_error, thd->net.last_error, sizeof(net->last_error));
+    memcpy(net->sqlstate, thd->net.sqlstate, sizeof(net->sqlstate));
+  }
+  else
+  {
+    net->last_error[0]= 0;
+    strmov(net->sqlstate, not_error_sqlstate);
+  }
+}
 
 static my_bool
 emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
@@ -86,16 +107,8 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   if (!skip_check)
     result= thd->net.last_errno ? -1 : 0;
 
-  if ((net->last_errno= thd->net.last_errno))
-  {
-    memcpy(net->last_error, thd->net.last_error, sizeof(net->last_error));
-    memcpy(net->sqlstate, thd->net.sqlstate, sizeof(net->sqlstate));
-  }
-  else
-  {
-    net->last_error[0]= 0;
-    strmov(net->sqlstate, not_error_sqlstate);
-  }
+  embedded_get_error(mysql);
+  mysql->server_status= thd->server_status;
   mysql->warning_count= ((THD*)mysql->thd)->total_warn_count;
   return result;
 }
@@ -188,19 +201,27 @@ static int emb_stmt_execute(MYSQL_STMT *stmt)
     thd->data= 0;
   }
   if (emb_advanced_command(stmt->mysql, COM_EXECUTE,0,0,
-			   (const char*)&stmt->stmt_id,sizeof(stmt->stmt_id),1)
-      || emb_mysql_read_query_result(stmt->mysql))
+			   (const char*)&stmt->stmt_id,sizeof(stmt->stmt_id),
+			   1) ||
+      emb_mysql_read_query_result(stmt->mysql))
   {
     NET *net= &stmt->mysql->net;
     set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);
     DBUG_RETURN(1);
   }
+  stmt->affected_rows= stmt->mysql->affected_rows;
+  stmt->insert_id= stmt->mysql->insert_id;
   DBUG_RETURN(0);
 }
 
-MYSQL_DATA *emb_read_binary_rows(MYSQL_STMT *stmt)
+int emb_read_binary_rows(MYSQL_STMT *stmt)
 {
-  return emb_read_rows(stmt->mysql, 0, 0);
+  MYSQL_DATA *data;
+  if (!(data= emb_read_rows(stmt->mysql, 0, 0)))
+    return 1;
+  stmt->result= *data;
+  my_free((char *) data, MYF(0));
+  return 0;
 }
 
 int emb_unbuffered_fetch(MYSQL *mysql, char **row)
@@ -230,9 +251,10 @@ static void emb_free_embedded_thd(MYSQL *mysql)
     free_rows(thd->data);
   thread_count--;
   delete thd;
+  mysql->thd=0;
 }
 
-static const char * emb_read_statistic(MYSQL *mysql)
+static const char * emb_read_statistics(MYSQL *mysql)
 {
   THD *thd= (THD*)mysql->thd;
   return thd->net.last_error;
@@ -244,6 +266,25 @@ static MYSQL_RES * emb_mysql_store_result(MYSQL *mysql)
   return mysql_store_result(mysql);
 }
 
+my_bool emb_next_result(MYSQL *mysql)
+{
+  THD *thd= (THD*)mysql->thd;
+  DBUG_ENTER("emb_next_result");
+
+  if (emb_advanced_command(mysql, COM_QUERY,0,0,
+			   thd->query_rest.ptr(),thd->query_rest.length(),1) ||
+      emb_mysql_read_query_result(mysql))
+    DBUG_RETURN(1);
+
+  DBUG_RETURN(0);				/* No more results */
+}
+
+int emb_read_change_user_result(MYSQL *mysql, 
+				char *buff __attribute__((unused)),
+				const char *passwd __attribute__((unused)))
+{
+  return mysql_errno(mysql);
+}
 
 MYSQL_METHODS embedded_methods= 
 {
@@ -258,7 +299,9 @@ MYSQL_METHODS embedded_methods=
   emb_read_binary_rows,
   emb_unbuffered_fetch,
   emb_free_embedded_thd,
-  emb_read_statistic
+  emb_read_statistics,
+  emb_next_result,
+  emb_read_change_user_result
 };
 
 C_MODE_END
@@ -304,15 +347,16 @@ char **		copy_arguments_ptr= 0;
 
 int init_embedded_server(int argc, char **argv, char **groups)
 {
-  char glob_hostname[FN_REFLEN];
-
-  /* This mess is to allow people to call the init function without
-   * having to mess with a fake argv */
+  /*
+    This mess is to allow people to call the init function without
+    having to mess with a fake argv
+   */
   int *argcp;
   char ***argvp;
   int fake_argc = 1;
   char *fake_argv[] = { (char *)"", 0 };
   const char *fake_groups[] = { "server", "embedded", 0 };
+  my_bool acl_error;
   if (argc)
   {
     argcp= &argc;
@@ -354,16 +398,17 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   error_handler_hook = my_message_sql;
 
+  acl_error= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (acl_init((THD *)0, opt_noacl))
+  if (!(acl_error= acl_init((THD *)0, opt_noacl)) &&
+      !opt_noacl)
+    (void) grant_init((THD *)0);
+#endif
+  if (acl_error || my_tz_init((THD *)0, default_tz_name, opt_bootstrap))
   {
     mysql_server_end();
     return 1;
   }
-  if (!opt_noacl)
-    (void) grant_init((THD *)0);
-
-#endif
 
   init_max_user_conn();
   init_update_queries();
@@ -375,28 +420,11 @@ int init_embedded_server(int argc, char **argv, char **groups)
     udf_init();
 #endif
 
-  if (opt_bin_log)
-  {
-    if (!opt_bin_logname)
-    {
-      char tmp[FN_REFLEN];
-      /* TODO: The following should be using fn_format();  We just need to
-	 first change fn_format() to cut the file name if it's too long.
-      */
-      strmake(tmp,glob_hostname,FN_REFLEN-5);
-      strmov(strcend(tmp,'.'),"-bin");
-      opt_bin_logname=my_strdup(tmp,MYF(MY_WME));
-    }
-    open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
-	     opt_binlog_index_name, LOG_BIN, 0, 0, max_binlog_size);
-    using_update_log=1;
-  }
-
   (void) thr_setconcurrency(concurrency);	// 10 by default
 
   if (
 #ifdef HAVE_BERKELEY_DB
-      !berkeley_skip ||
+      (have_berkeley_db == SHOW_OPTION_YES) ||
 #endif
       (flush_time && flush_time != ~(ulong) 0L))
   {
@@ -478,7 +506,18 @@ void *create_embedded_thd(int client_flag, char *db)
   return thd;
 }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
+#ifdef NO_EMBEDDED_ACCESS_CHECKS
+int check_embedded_connection(MYSQL *mysql)
+{
+  THD *thd= (THD*)mysql->thd;
+  thd->host= (char*)my_localhost;
+  thd->host_or_ip= thd->host;
+  thd->user= my_strdup(mysql->user, MYF(0));
+  thd->priv_user= thd->user;
+  return check_user(thd, COM_CONNECT, NULL, 0, thd->db, true);
+}
+
+#else
 int check_embedded_connection(MYSQL *mysql)
 {
   THD *thd= (THD*)mysql->thd;
@@ -486,9 +525,13 @@ int check_embedded_connection(MYSQL *mysql)
   char scramble_buff[SCRAMBLE_LENGTH];
   int passwd_len;
 
-  thd->host= mysql->options.client_ip ?
-    mysql->options.client_ip : (char*)my_localhost;
-  thd->ip= thd->host;
+  if (mysql->options.client_ip)
+  {
+    thd->host= my_strdup(mysql->options.client_ip, MYF(0));
+    thd->ip= my_strdup(thd->host, MYF(0));
+  }
+  else
+    thd->host= (char*)my_localhost;
   thd->host_or_ip= thd->host;
 
   if (acl_check_host(thd->host,thd->ip))
@@ -497,7 +540,7 @@ int check_embedded_connection(MYSQL *mysql)
     goto err;
   }
 
-  thd->user= mysql->user;
+  thd->user= my_strdup(mysql->user, MYF(0));
   if (mysql->passwd && mysql->passwd[0])
   {
     memset(thd->scramble, 55, SCRAMBLE_LENGTH); // dummy scramble
@@ -525,7 +568,7 @@ err:
 
 C_MODE_END
 
-bool Protocol::send_fields(List<Item> *list, uint flag)
+bool Protocol::send_fields(List<Item> *list, uint flags)
 {
   List_iterator_fast<Item> it(*list);
   Item                     *item;
@@ -565,19 +608,29 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
     client_field->org_name_length=	strlen(client_field->org_name);
     client_field->org_table_length=	strlen(client_field->org_table);
     client_field->charsetnr=		server_field.charsetnr;
+
+    client_field->catalog= strdup_root(field_alloc, "std");
+    client_field->catalog_length= 3;
     
     if (INTERNAL_NUM_FIELD(client_field))
       client_field->flags|= NUM_FLAG;
 
-    if (flag & 2)
+    if (flags & Protocol::SEND_DEFAULTS)
     {
       char buff[80];
       String tmp(buff, sizeof(buff), default_charset_info), *res;
 
       if (!(res=item->val_str(&tmp)))
-	client_field->def= strdup_root(field_alloc, "");
+      {
+	client_field->def_length= 0;
+	client_field->def= strmake_root(field_alloc, "",0);
+      }
       else
-	client_field->def= strdup_root(field_alloc, tmp.ptr());
+      {
+	client_field->def_length= res->length();
+	client_field->def= strmake_root(field_alloc, res->ptr(),
+					client_field->def_length);
+      }
     }
     else
       client_field->def=0;
@@ -652,7 +705,10 @@ send_ok(THD *thd,ha_rows affected_rows,ulonglong id,const char *message)
   mysql->affected_rows= affected_rows;
   mysql->insert_id= id;
   if (message)
+  {
     strmake(thd->net.last_error, message, sizeof(thd->net.last_error)-1);
+    mysql->info= thd->net.last_error;
+  }
   DBUG_VOID_RETURN;
 }
 

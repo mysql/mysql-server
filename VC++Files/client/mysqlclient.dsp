@@ -19,6 +19,7 @@ CFG=mysqlclient - Win32 Debug
 !MESSAGE
 !MESSAGE "mysqlclient - Win32 Release" (based on "Win32 (x86) Static Library")
 !MESSAGE "mysqlclient - Win32 Debug" (based on "Win32 (x86) Static Library")
+!MESSAGE "mysqlclient - Win32 authent" (based on "Win32 (x86) Static Library")
 !MESSAGE
 
 # Begin Project
@@ -41,7 +42,7 @@ RSC=rc.exe
 # PROP Intermediate_Dir "release"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /YX /FD /c
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../" /D "NDEBUG" /D "DBUG_OFF" /D "_WINDOWS" /D "USE_TLS" /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../" /D "DBUG_OFF" /D "_WINDOWS" /D "USE_TLS" /D "MYSQL_CLIENT" /D "NDEBUG" /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x409
 # ADD RSC /l 0x409
@@ -65,7 +66,7 @@ LIB32=xilink6.exe -lib
 # PROP Intermediate_Dir "debug"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /Z7 /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /YX /FD /c
-# ADD CPP /nologo /G6 /MTd /W3 /Z7 /Od /I "../include" /I "../" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /D "USE_TLS" /FD /c
+# ADD CPP /nologo /G6 /MTd /W3 /Z7 /Od /I "../include" /I "../" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /D "USE_TLS" /D "MYSQL_CLIENT" /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x409
 # ADD RSC /l 0x409
@@ -76,12 +77,38 @@ LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo /out:"..\lib_debug\mysqlclient.lib"
 
+!ELSEIF  "$(CFG)" == "mysqlclient - Win32 authent"
+
+# PROP BASE Use_MFC 0
+# PROP BASE Use_Debug_Libraries 0
+# PROP BASE Output_Dir "mysqlclient___Win32_authent"
+# PROP BASE Intermediate_Dir "mysqlclient___Win32_authent"
+# PROP BASE Target_Dir ""
+# PROP Use_MFC 0
+# PROP Use_Debug_Libraries 0
+# PROP Output_Dir "authent"
+# PROP Intermediate_Dir "authent"
+# PROP Target_Dir ""
+# ADD BASE CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../" /D "DBUG_OFF" /D "_WINDOWS" /D "USE_TLS" /D "MYSQL_CLIENT" /D "NDEBUG" /FD /c
+# SUBTRACT BASE CPP /YX
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /I "../" /D "DBUG_OFF" /D "_WINDOWS" /D "USE_TLS" /D "MYSQL_CLIENT" /D "NDEBUG" /D "CHECK_LICENSE" /D LICENSE=Commercial /FD /c
+# SUBTRACT CPP /YX
+# ADD BASE RSC /l 0x409
+# ADD RSC /l 0x409
+BSC32=bscmake.exe
+# ADD BASE BSC32 /nologo
+# ADD BSC32 /nologo
+LIB32=xilink6.exe -lib
+# ADD BASE LIB32 /nologo /out:"..\lib_release\mysqlclient.lib"
+# ADD LIB32 /nologo /out:"..\lib_authent\mysqlclient.lib"
+
 !ENDIF
 
 # Begin Target
 
 # Name "mysqlclient - Win32 Release"
 # Name "mysqlclient - Win32 Debug"
+# Name "mysqlclient - Win32 authent"
 # Begin Source File
 
 SOURCE=..\mysys\array.c
@@ -157,6 +184,10 @@ SOURCE="..\strings\ctype-sjis.c"
 # Begin Source File
 
 SOURCE="..\strings\ctype-tis620.c"
+# End Source File
+# Begin Source File
+
+SOURCE="..\strings\ctype-uca.c"
 # End Source File
 # Begin Source File
 
@@ -252,6 +283,8 @@ SOURCE=..\mysys\mf_iocache2.c
 
 # ADD CPP /Od
 
+!ELSEIF  "$(CFG)" == "mysqlclient - Win32 authent"
+
 !ENDIF
 
 # End Source File
@@ -307,6 +340,10 @@ SOURCE=..\mysys\my_div.c
 # Begin Source File
 
 SOURCE=..\mysys\my_error.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\mysys\my_file.c
 # End Source File
 # Begin Source File
 
@@ -398,6 +435,10 @@ SOURCE=..\mysys\my_tempnam.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\libmysql\my_time.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\mysys\my_thr_init.c
 # End Source File
 # Begin Source File
@@ -483,6 +524,10 @@ SOURCE=..\strings\strnlen.c
 # Begin Source File
 
 SOURCE=..\strings\strnmov.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\strings\strtod.c
 # End Source File
 # Begin Source File
 

@@ -11,7 +11,7 @@ path=`dirname $0`
 # repository direcotry
 repo_dir=`pwd`
 
-# build direcotry
+# build directory
 build_dir="$HOME/mydev"
 wine_build_dir="F:/mydev"
 
@@ -160,16 +160,26 @@ sed -e "s;WINE_BUILD_DIR;$wine_build_dir;g" \
   -e "s;VERSION;$version;g" $mwenv.org > $mwenv
 chmod +rwx $mwenv
 
-#edit the def file versions
+# edit the def file versions
 echo "updating *.def file versions..."
 nlm_version=`echo "$version" | sed -e "s;\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\).*;\1, \2, \3;"`
 
 for file in ./netware/*.def
 do
-mv -f $file $file.org
-sed -e "s;VERSION.*;VERSION $nlm_version;g" $file.org > $file 
-rm $file.org
+  mv -f $file $file.org
+  sed -e "s;VERSION.*;VERSION $nlm_version;g" $file.org > $file
+  rm $file.org
 done
+
+# create the libmysql.imp file in netware folder from libmysql/libmysql.def
+# file
+echo "generating llibmysql.imp file..."
+awk 'BEGIN{x=0;}  x==1 {print $1;next} /EXPORTS/{x=1}' libmysql/libmysql.def > netware/libmysql.imp
+
+# create the libmysql.imp file in netware folder from libmysql/libmysql.def file
+echo "generating llibmysql.imp file..."
+awk 'BEGIN{x=0;}  x==1 {print $1;next} /EXPORTS/{x=1}' libmysql/libmysql.def > netware/libmysql.imp
+
 
 # build linux tools
 echo "compiling linux tools..."
@@ -183,5 +193,3 @@ then
 fi
 
 echo "done"
-
-

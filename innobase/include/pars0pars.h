@@ -21,7 +21,9 @@ extern int	yydebug;
 /* If the following is set TRUE, the lexer will print the SQL string
 as it tokenizes it */
 
+#ifdef UNIV_SQL_DEBUG
 extern ibool	pars_print_lexed;
+#endif /* UNIV_SQL_DEBUG */
 
 /* Global variable used while parsing a single procedure or query : the code is
 NOT re-entrant */
@@ -72,8 +74,8 @@ Parses an SQL string returning the query graph. */
 que_t*
 pars_sql(
 /*=====*/
-			/* out, own: the query graph */
-	char*	str);	/* in: SQL string */
+				/* out, own: the query graph */
+	const char*	str);	/* in: SQL string */
 /*****************************************************************
 Retrieves characters to the lexical analyzer. */
 
@@ -85,19 +87,12 @@ pars_get_lex_chars(
 	int	max_size);	/* in: maximum number of characters which fit
 				in the buffer */
 /*****************************************************************
-Instructs the lexical analyzer to stop when it receives the EOF integer. */
-
-int
-yywrap(void);
-/*========*/
-		/* out: returns TRUE */
-/*****************************************************************
 Called by yyparse on error. */
 
 void
 yyerror(
 /*====*/
-        char*	s);	/* in: error message string */
+	const char*	s);	/* in: error message string */
 /*************************************************************************
 Parses a variable declaration. */
 
@@ -390,41 +385,18 @@ pars_procedure_definition(
 					table */
 	sym_node_t*	param_list,	/* in: parameter declaration list */
 	que_node_t*	stat_list);	/* in: statement list */
-/*****************************************************************
-Reads stored procedure input parameter values from a buffer. */
 
-void
-pars_proc_read_input_params_from_buf(
-/*=================================*/
-	que_t*	graph,	/* in: query graph which contains a stored procedure */
-	byte*	buf);	/* in: buffer */
-/*****************************************************************
-Writes stored procedure output parameter values to a buffer. */
-
-ulint
-pars_proc_write_output_params_to_buf(
-/*=================================*/
-	byte*	buf,	/* in: buffer which must be big enough */
-	que_t*	graph);	/* in: query graph which contains a stored procedure */
 /*****************************************************************
 Parses a stored procedure call, when this is not within another stored
-procedure, that is, the client issues a procedure call directly. */
+procedure, that is, the client issues a procedure call directly.
+In MySQL/InnoDB, stored InnoDB procedures are invoked via the
+parsed procedure tree, not via InnoDB SQL, so this function is not used. */
 
 que_fork_t*
 pars_stored_procedure_call(
 /*=======================*/
 					/* out: query graph */
 	sym_node_t*	sym_node);	/* in: stored procedure name */
-/*****************************************************************
-Writes info about query parameter markers (denoted with '?' in ODBC) into a
-buffer. */
-
-ulint
-pars_write_query_param_info(
-/*========================*/
-				/* out: number of bytes used for info in buf */
-	byte*		buf,	/* in: buffer which must be big enough */
-	que_fork_t*	graph);	/* in: parsed query graph */
 /**********************************************************************
 Completes a query graph by adding query thread and fork nodes
 above it and prepares the graph for running. The fork created is of
@@ -477,18 +449,6 @@ struct proc_node_struct{
 	sym_node_t*	param_list;	/* input and output parameters */
 	que_node_t*	stat_list;	/* statement list */
 	sym_tab_t*	sym_tab;	/* symbol table of this procedure */
-	dict_proc_t*	dict_proc;	/* stored procedure node in the
-					dictionary cache, if defined */
-};
-
-/* Stored procedure call node */
-struct call_node_struct{
-	que_common_t	common;		/* type: QUE_NODE_CALL */
-	sym_node_t*	proc_name;	/* stored procedure name */
-	dict_proc_t*	procedure_def;	/* pointer to a stored procedure graph
-					in the dictionary stored procedure
-					cache */
-	sym_tab_t*	sym_tab;	/* symbol table of this query */
 };
 
 /* elsif-element node */

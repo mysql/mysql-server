@@ -1,0 +1,78 @@
+#! /usr/local/bin/perl
+
+use strict;
+use Getopt::Long;
+
+sub usage {
+    print <<END;
+ngcalc -- calculate node groups and table fragments
+usage: ngcalc [ options ] f1 f2 ...
+-g num	number of node groups (default 2)
+-r num	number of replicas (default 2)
+-n list	comma-separated list of db nodes (default 1,2,...)
+fX	number of fragments per node group in table X (e.g. 1,2,8)
+        (all replicas count as same fragment)
+END
+    exit(1);
+};
+
+use vars qw($cnoOfNodeGroups $cnoReplicas $nodeArray);
+
+$cnoOfNodeGroups = 2;
+$cnoReplicas = 2;
+GetOptions(
+    "g=i" => \$cnoOfNodeGroups,
+    "r=i" => \$cnoReplicas,
+    "n=s" => \$nodeArray,
+) or &usage;
+
+my @tableList = @ARGV;
+
+$cnoOfNodeGroups > 0 or &usage;
+$cnoReplicas > 0 or &usage;
+if (! defined($nodeArray)) {
+    $nodeArray = join(',', 1..($cnoOfNodeGroups*$cnoReplicas));
+}
+$nodeArray =~ /^\d+(,\d+)*$/ or &usage;
+my @nodeArray = split(/,/, $nodeArray);
+@nodeArray == $cnoOfNodeGroups*$cnoReplicas or &usage;
+
+my @nodeGroupRecord;
+for (my $i = 0; $i < $cnoOfNodeGroups; $i++) {
+    my $rec = {};
+    my $nodes = [];
+    for (my $j = 0; $j < $cnoReplicas; $j++) {
+	push(@$nodes, $nodeArray[$i * $cnoReplicas + $j]);
+    }
+    $rec->{nodesInGroup} = $nodes;
+    $rec->{nodeCount} = $cnoReplicas;
+    $rec->{nextReplicaNode} = 0;
+    $nodeGroupRecord[$i] = $rec;
+    print "NG $i: ", join(" ", @{$rec->{nodesInGroup}}), "\n";
+}
+
+# see Dbdih::execCREATE_FRAGMENTATION_REQ
+
+my $c_nextNodeGroup = 0;
+for (my $t = 0; $t < @tableList; $t++) {
+    use integer;
+    my $f = $tableList[$t];
+    my $ng = $c_nextNodeGroup++;
+    $c_nextNodeGroup = 0 if $c_nextNodeGroup == $cnoOfNodeGroups;
+    my $noOfFragments = $f * $cnoOfNodeGroups;
+    my @fragments;
+    for (my $fragNo = 0; $fragNo < $noOfFragments; $fragNo++) {
+	my $rec = $nodeGroupRecord[$ng];
+	my $max = $rec->{nodeCount};
+	my $ind = $rec->{nextReplicaNode};
+	$rec->{nextReplicaNode} = ($ind + 1 >= $max ? 0 : $ind + 1);
+	for (my $replicaNo = 0; $replicaNo < $cnoReplicas; $replicaNo++) {
+	    my $nodeId = $rec->{nodesInGroup}[$ind++];
+	    push(@fragments, $nodeId);
+	    $ind = ($ind == $max ? 0 : $ind);
+	}
+	$ng++;
+	$ng = ($ng == $cnoOfNodeGroups ? 0 : $ng);
+    }
+    printf "%02d %s\n", $t, join(" ", @fragments);
+}

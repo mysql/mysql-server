@@ -22,9 +22,8 @@ extern my_string	mysql_unix_port;
 			     CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONNECTION)
 
 sig_handler pipe_sig_handler(int sig __attribute__((unused)));
-my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list);
 void read_user_name(char *name);
-my_bool send_file_to_server(MYSQL *mysql, const char *filename);
+my_bool handle_local_infile(MYSQL *mysql, const char *net_filename);
 
 /*
   Let the user specify that we don't want SIGPIPE;  This doesn't however work
@@ -55,17 +54,12 @@ my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt);
 MYSQL_DATA * cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
 				   uint fields);
 int cli_stmt_execute(MYSQL_STMT *stmt);
-MYSQL_DATA * cli_read_binary_rows(MYSQL_STMT *stmt);
+int cli_read_binary_rows(MYSQL_STMT *stmt);
 int cli_unbuffered_fetch(MYSQL *mysql, char **row);
-const char * cli_read_statistic(MYSQL *mysql);
+const char * cli_read_statistics(MYSQL *mysql);
+int cli_read_change_user_result(MYSQL *mysql, char *buff, const char *passwd);
 
 #ifdef EMBEDDED_LIBRARY
 int init_embedded_server(int argc, char **argv, char **groups);
 void end_embedded_server();
-
-#else
-/* Prevent warnings of unused parameters */
-#define init_embedded_server(a,b,c) ((void)a, (void)b, (void)c, 0)
-#define end_embedded_server()
 #endif /*EMBEDDED_LIBRARY*/
-

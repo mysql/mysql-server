@@ -102,37 +102,6 @@ os_mem_alloc_nocache(
 /*=================*/
 			/* out: allocated memory */
 	ulint	n);	/* in: number of bytes */
-#ifdef notdefined
-/********************************************************************
-Creates a new process. */
-
-ibool
-os_process_create(
-/*==============*/
-	char*		name,	/* in: name of the executable to start
-				or its full path name */
-	char*		cmd,	/* in: command line for the starting
-				process, or NULL if no command line
-				specified */
-	os_process_t*	proc,	/* out: handle to the process */
-	os_process_id_t* id);	/* out: process id */
-/**************************************************************************
-Exits a process. */
-
-void
-os_process_exit(
-/*============*/
-	ulint	code);	/* in: exit code */
-/**************************************************************************
-Gets process exit code. */
-
-ibool
-os_process_get_exit_code(
-/*=====================*/
-				/* out: TRUE if succeed, FALSE if fail */
-	os_process_t	proc,	/* in: handle to the process */
-	ulint*		code);	/* out: exit code */
-#endif
 /********************************************************************
 Sets the priority boost for threads released from waiting within the current
 process. */

@@ -16,20 +16,15 @@
 
 #include "myrg_def.h"
 
-ha_rows myrg_records_in_range(MYRG_INFO *info, int inx, const byte *start_key,
-                              uint start_key_len,
-                              enum ha_rkey_function start_search_flag,
-                              const byte *end_key, uint end_key_len,
-                              enum ha_rkey_function end_search_flag)
+ha_rows myrg_records_in_range(MYRG_INFO *info, int inx,
+                              key_range *min_key, key_range *max_key)
 {
   ha_rows records=0, res;
   MYRG_TABLE *table;
 
   for (table=info->open_tables ; table != info->end_table ; table++)
   {
-    res=mi_records_in_range(table->table, inx,
-                start_key, start_key_len, start_search_flag,
-                  end_key,   end_key_len,   end_search_flag);
+    res= mi_records_in_range(table->table, inx, min_key, max_key);
     if (res == HA_POS_ERROR)
       return HA_POS_ERROR; 
     if (records > HA_POS_ERROR - res)

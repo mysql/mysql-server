@@ -50,6 +50,72 @@ void init_alloc_root(MEM_ROOT *mem_root, uint block_size,
   DBUG_VOID_RETURN;
 }
 
+/*
+  SYNOPSIS
+    reset_root_defaults()
+    mem_root        memory root to change defaults of
+    block_size      new value of block size. Must be 
+                    greater than ~68 bytes (the exact value depends on
+                    platform and compilation flags)
+    pre_alloc_size  new size of preallocated block. If not zero,
+                    must be equal to or greater than block size,
+                    otherwise means 'no prealloc'.
+  DESCRIPTION
+    Function aligns and assigns new value to block size; then it tries to
+    reuse one of existing blocks as prealloc block, or malloc new one of
+    requested size. If no blocks can be reused, all unused blocks are freed
+    before allocation.
+ */
+
+void reset_root_defaults(MEM_ROOT *mem_root, uint block_size,
+                         uint pre_alloc_size __attribute__((unused)))
+{
+  mem_root->block_size= block_size-MALLOC_OVERHEAD-sizeof(USED_MEM)-8;
+#if !(defined(HAVE_purify) && defined(EXTRA_DEBUG))
+  if (pre_alloc_size)
+  {
+    uint size= pre_alloc_size + ALIGN_SIZE(sizeof(USED_MEM));
+    if (!mem_root->pre_alloc || mem_root->pre_alloc->size != size)
+    {
+      USED_MEM *mem, **prev= &mem_root->free;
+      /*
+        Free unused blocks, so that consequent calls
+        to reset_root_defaults won't eat away memory.
+      */
+      while (*prev)
+      {
+        mem= *prev;
+        if (mem->size == size)
+        {
+          /* We found a suitable block, no need to do anything else */
+          mem_root->pre_alloc= mem;
+          return;
+        }
+        if (mem->left + ALIGN_SIZE(sizeof(USED_MEM)) == mem->size)
+        {
+          /* remove block from the list and free it */
+          *prev= mem->next;
+          my_free((gptr) mem, MYF(0));
+        }
+        else
+          prev= &mem->next;
+      }
+      /* Allocate new prealloc block and add it to the end of free list */
+      if ((mem= (USED_MEM *) my_malloc(size, MYF(0))))
+      {
+        mem->size= size; 
+        mem->left= pre_alloc_size;
+        mem->next= *prev;
+        *prev= mem_root->pre_alloc= mem; 
+      }
+    }
+  }
+  else
+#endif
+    mem_root->pre_alloc= 0;
+}
+
+
 gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size)
 {
 #if defined(HAVE_purify) && defined(EXTRA_DEBUG)

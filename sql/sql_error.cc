@@ -43,6 +43,7 @@ This file contains the implementation of error and warnings related
 ***********************************************************************/
 
 #include "mysql_priv.h"
+#include "sp_rcontext.h"
 
 /*
   Store a new message in an error object
@@ -107,6 +108,9 @@ MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
     mysql_reset_errors(thd);
 
   MYSQL_ERROR *err= NULL;
+
+  if (thd->spcont && thd->spcont->find_handler(code))
+    DBUG_RETURN(NULL);
 
   if (thd->warn_list.elements < thd->variables.max_error_count)
   {
@@ -181,7 +185,8 @@ my_bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
   field_list.push_back(new Item_return_int("Code",4, MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Message",MYSQL_ERRMSG_SIZE));
 
-  if (thd->protocol->send_fields(&field_list,1))
+  if (thd->protocol->send_fields(&field_list,
+                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
   MYSQL_ERROR *err;

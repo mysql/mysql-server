@@ -1,0 +1,1 @@
+select * from mysql.user as t1, mysql.user as t2, mysql.user as t3;

@@ -154,7 +154,8 @@ enum options_mc {
   OPT_KEY_CACHE_BLOCK_SIZE, OPT_MYISAM_BLOCK_SIZE,
   OPT_READ_BUFFER_SIZE, OPT_WRITE_BUFFER_SIZE, OPT_SORT_BUFFER_SIZE,
   OPT_SORT_KEY_BLOCKS, OPT_DECODE_BITS, OPT_FT_MIN_WORD_LEN,
-  OPT_FT_MAX_WORD_LEN, OPT_FT_MAX_WORD_LEN_FOR_SORT, OPT_MAX_RECORD_LENGTH
+  OPT_FT_MAX_WORD_LEN, OPT_FT_MAX_WORD_LEN_FOR_SORT, OPT_FT_STOPWORD_FILE,
+  OPT_MAX_RECORD_LENGTH
 };
 
 static struct my_option my_long_options[] =
@@ -170,7 +171,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory where character sets are.",
-   (gptr*) &set_charset_name, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &charsets_dir, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"check", 'c',
    "Check table for errors.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -253,7 +254,7 @@ static struct my_option my_long_options[] =
    0, GET_ULL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"set-character-set", OPT_SET_CHARSET,
    "Change the character set used by the index",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &set_charset_name, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"set-variable", 'O',
    "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -327,14 +328,21 @@ static struct my_option my_long_options[] =
   { "ft_max_word_len", OPT_FT_MAX_WORD_LEN, "", (gptr*) &ft_max_word_len,
     (gptr*) &ft_max_word_len, 0, GET_ULONG, REQUIRED_ARG, HA_FT_MAXCHARLEN, 10,
     HA_FT_MAXCHARLEN, 0, 1, 0},
-  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  { "ft_stopword_file", OPT_FT_STOPWORD_FILE,
+    "Use stopwords from this file instead of built-in list.",
+    (gptr*) &ft_stopword_file, (gptr*) &ft_stopword_file, 0, GET_STR,
+    REQUIRED_ARG, 0, 0, 0, 0, 0, 0}
 };
 
+
+#include <help_start.h>
 
 static void print_version(void)
 {
   printf("%s  Ver 2.7 for %s at %s\n", my_progname, SYSTEM_TYPE,
 	 MACHINE_TYPE);
+  NETWARE_SET_SCREEN_MODE(1);
 }
 
 
@@ -354,13 +362,13 @@ static void usage(void)
                       this option is deprecated; you can set variables\n\
                       directly with '--variable-name=value'.\n\
   -t, --tmpdir=path   Path for temporary files. Multiple paths can be\n\
-                      specified, separated by "
-#if defined( __WIN__) || defined(OS2)
-   "semicolon (;)"
+                      specified, separated by ");
+#if defined( __WIN__) || defined(OS2) || defined(__NETWARE__)
+   puts("semicolon (;)");
 #else
-   "colon (:)"
+   puts("colon (:)");
 #endif
-                      ", they will be used\n\
+                      puts(", they will be used\n\
                       in a round-robin fashion.\n\
   -s, --silent	      Only print errors.  One can use two -s to make\n\
 		      myisamchk very silent.\n\
@@ -447,6 +455,7 @@ static void usage(void)
   my_print_variables(my_long_options);
 }
 
+#include <help_end.h>
 
 	 /* Read options */
 
@@ -1380,7 +1389,7 @@ static void descript(MI_CHECK *param, register MI_INFO *info, my_string name)
       }
       if (buff[0] == ',')
 	strmov(buff,buff+2);
-      int2str((long) share->rec[field].length,length,10);
+      int10_to_str((long) share->rec[field].length,length,10);
       null_bit[0]=null_pos[0]=0;
       if (share->rec[field].null_bit)
       {
@@ -1676,9 +1685,19 @@ err:
   DBUG_RETURN(1);
 } /* sort_record_index */
 
-int *killed_ptr(void *thd)
+
+
+/*
+  Check if myisamchk was killed by a signal
+  This is overloaded by other programs that want to be able to abort
+  sorting
+*/
+
+static int not_killed= 0;
+
+volatile int *killed_ptr(MI_CHECK *param)
 {
-  return (int *)thd; /* always NULL */
+  return &not_killed;			/* always NULL */
 }
 
 	/* print warnings and errors */

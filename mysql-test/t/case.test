@@ -63,14 +63,14 @@ CREATE TABLE t1 SELECT
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
---error 1266
+--error 1267
 SELECT CASE 
   WHEN 1 
   THEN _latin1'a' COLLATE latin1_danish_ci 
   ELSE _latin1'a' COLLATE latin1_swedish_ci
   END;
 
---error 1269
+--error 1270
 SELECT CASE _latin1'a' COLLATE latin1_general_ci
   WHEN _latin1'a' COLLATE latin1_danish_ci  THEN 1
   WHEN _latin1'a' COLLATE latin1_swedish_ci THEN 2
@@ -93,9 +93,9 @@ CASE _latin1'a' WHEN _latin1'A' COLLATE latin1_bin        THEN '1' ELSE 2 END
 #
 # Check COALESCE argument types aggregation
 
---error 1266
+--error 1267
 CREATE TABLE t1 SELECT COALESCE(_latin1'a',_latin2'a');
---error 1266
+--error 1267
 CREATE TABLE t1 SELECT COALESCE('a' COLLATE latin1_swedish_ci,'b' COLLATE latin1_bin);
 CREATE TABLE t1 SELECT 
  COALESCE(1), COALESCE(1.0),COALESCE('a'),

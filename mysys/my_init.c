@@ -19,10 +19,6 @@
 #include "mysys_err.h"
 #include <m_string.h>
 #include <m_ctype.h>
-#ifdef HAVE_GETRUSAGE
-#include <sys/resource.h>
-/* extern int     getrusage(int, struct rusage *); */
-#endif
 #include <signal.h>
 #ifdef VMS
 #include <my_static.c>
@@ -131,6 +127,7 @@ void my_end(int infoflag)
   FILE *info_file;
   if (!(info_file=DBUG_FILE))
     info_file=stderr;
+  DBUG_PRINT("info",("Shutting down"));
   if (infoflag & MY_CHECK_ERROR || info_file != stderr)
   {					/* Test if some file is left open */
     if (my_file_opened | my_stream_opened)
@@ -242,8 +239,13 @@ static void my_win_init(void)
 
   setlocale(LC_CTYPE, "");             /* To get right sortorder */
 
-  /* Clear the OS system variable TZ and avoid the 100% CPU usage */
+#if defined(_MSC_VER) && (_MSC_VER < 1300)
+  /* 
+    Clear the OS system variable TZ and avoid the 100% CPU usage
+    Only for old versions of Visual C++
+  */
   _putenv( "TZ=" ); 
+#endif  
   _tzset();
 
   /* apre la chiave HKEY_LOCAL_MACHINES\software\MySQL */
@@ -352,13 +354,15 @@ static my_bool win32_init_tcp_ip()
 
 
 #ifdef __NETWARE__
-/****************************************************************************
-  Do basic initialisation for netware needed by most programs
-****************************************************************************/
+/*
+  Basic initialisation for netware
+*/
 
 static void netware_init()
 {
   char cwd[PATH_MAX], *name;
+
+  DBUG_ENTER("netware_init");
 
   /* init only if we are not a client library */
   if (my_progname)
@@ -397,5 +401,7 @@ static void netware_init()
       }
     }
   }
+
+  DBUG_VOID_RETURN;
 }
 #endif /* __NETWARE__ */

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2004 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -140,7 +140,7 @@ static struct my_option my_long_options[] =
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"port", 'P', "Port number to use for connection.", (gptr*) &tcp_port,
-   (gptr*) &tcp_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &tcp_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0, 0},
   {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory).",
     0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"relative", 'r',
@@ -440,6 +440,7 @@ static my_bool sql_connect(MYSQL *mysql, uint wait)
   }
 }
 
+
 /*
   Execute a command.
   Return 0 on ok
@@ -450,6 +451,14 @@ static my_bool sql_connect(MYSQL *mysql, uint wait)
 static int execute_commands(MYSQL *mysql,int argc, char **argv)
 {
   const char *status;
+  /*
+    MySQL documentation relies on the fact that mysqladmin will
+    execute commands in the order specified, e.g.
+    mysqladmin -u root flush-privileges password "newpassword"
+    to reset a lost root password.
+    If this behaviour is ever changed, Docs should be notified.
+  */
+
   struct rand_struct rand_st;
 
   for (; argc > 0 ; argv++,argc--)
@@ -500,7 +509,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 	  !stat(pidfile, &pidfile_status))
 	last_modified= pidfile_status.st_mtime;
 
-      if (mysql_shutdown(mysql))
+      if (mysql_shutdown(mysql, SHUTDOWN_DEFAULT))
       {
 	my_printf_error(0,"shutdown failed; error: '%s'",MYF(ME_BELL),
 			mysql_error(mysql));
@@ -787,9 +796,26 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       }
       if (mysql_query(mysql,buff))
       {
-	my_printf_error(0,"unable to change password; error: '%s'",
-			MYF(ME_BELL),mysql_error(mysql));
-	return -1;
+	if (mysql_errno(mysql)!=1290)
+	{
+	  my_printf_error(0,"unable to change password; error: '%s'",
+			  MYF(ME_BELL),mysql_error(mysql));
+	  return -1;
+	}
+	else
+	{
+	  /*
+	    We don't try to execute 'update mysql.user set..'
+	    because we can't perfectly find out the host
+	   */
+	  my_printf_error(0,"\n"
+			  "You cannot use 'password' command as mysqld runs\n"
+			  " with grant tables disabled (was started with"
+			  " --skip-grant-tables).\n"
+			  "Use: \"mysqladmin flush-privileges password '*'\""
+			  " instead", MYF(ME_BELL));
+	  return -1;
+	}
       }
       argc--; argv++;
       break;
@@ -848,11 +874,13 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
   return 0;
 }
 
+#include <help_start.h>
 
 static void print_version(void)
 {
   printf("%s  Ver %s Distrib %s, for %s on %s\n",my_progname,ADMIN_VERSION,
 	 MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
+  NETWARE_SET_SCREEN_MODE(1);
 }
 
 
@@ -895,6 +923,8 @@ static void usage(void)
   version		Get version info from server");
 }
 
+#include <help_end.h>
+
 static int drop_db(MYSQL *mysql, const char *db)
 {
   char name_buff[FN_REFLEN+20], buf[10];
@@ -931,24 +961,24 @@ static void nice_time(ulong sec,char *buff)
   {
     tmp=sec/(3600L*24);
     sec-=3600L*24*tmp;
-    buff=int2str(tmp,buff,10);
+    buff=int10_to_str(tmp, buff, 10);
     buff=strmov(buff,tmp > 1 ? " days " : " day ");
   }
   if (sec >= 3600L)
   {
     tmp=sec/3600L;
     sec-=3600L*tmp;
-    buff=int2str(tmp,buff,10);
+    buff=int10_to_str(tmp, buff, 10);
     buff=strmov(buff,tmp > 1 ? " hours " : " hour ");
   }
   if (sec >= 60)
   {
     tmp=sec/60;
     sec-=60*tmp;
-    buff=int2str(tmp,buff,10);
+    buff=int10_to_str(tmp, buff, 10);
     buff=strmov(buff," min ");
   }
-  strmov(int2str(sec,buff,10)," sec");
+  strmov(int10_to_str(sec, buff, 10)," sec");
 }
 
 

@@ -32,8 +32,11 @@ Created 10/4/1994 Heikki Tuuri
 				 which extend it */
 #define	PAGE_CUR_DBG	6
 
-
+#ifdef PAGE_CUR_ADAPT
+# ifdef UNIV_SEARCH_PERF_STAT
 extern ulint	page_cur_short_succ;
+# endif /* UNIV_SEARCH_PERF_STAT */
+#endif /* PAGE_CUR_ADAPT */
 
 /*************************************************************
 Gets pointer to the page frame where the cursor is positioned. */

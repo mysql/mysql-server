@@ -808,3 +808,92 @@ insert into t2 select * from t1;
 
 delete t1,t2 from t2,t1 where t1.a<'B' and t2.b=t1.b;
 drop table t1,t2;
+
+#
+# Test index only read (Bug #2509)
+#
+create table t1 (a char(10), key(a), b int not null, key(b)) engine=bdb;
+insert into t1 values ('a',1),('A',2);
+explain select a from t1;
+select a from t1;
+explain select b from t1;
+select b from t1;
+alter table t1 modify a char(10) binary;
+explain select a from t1;
+select a from t1;
+drop table t1;
+
+#
+# bug#2686 - index_merge select on BerkeleyDB table with varchar PK causes mysqld to crash
+#
+
+create table t1(
+  pk1 text not null, pk2 text not null, pk3 char(4),
+  key1 int, key2 int,
+  primary key(pk1(4), pk2(4), pk3), key(key1), key(key2)
+) engine=bdb;
+insert into t1 values (concat('aaa-', repeat('A', 4000)),
+  concat('eee-', repeat('e', 4000)), 'a++a', 1, 1);
+insert into t1 values (concat('bbb-', repeat('B', 4000)),
+  concat('ggg-', repeat('G', 4000)), 'b++b', 1, 1);
+select substring(pk1, 1, 4), substring(pk1, 4001),
+       substring(pk2, 1, 4), substring(pk2, 4001), pk3, key1, key2
+       from t1 force index(key1, key2) where key1 < 3 or key2 < 3;
+drop table t1;
+
+#
+# bug#2688 - Wrong index_merge query results for BDB table with variable length primary key
+#
+
+create table t1 (
+  pk1 varchar(8) not null default '',
+  pk2 varchar(4) not null default '',
+  key1 int(11) default null,
+  key2 int(11) default null,
+  primary key  (pk1,pk2),
+  key key1 (key1),
+  key key2 (key2)) engine=bdb;
+insert into t1 values ('','empt',2,2),  ('a','a--a',2,2),
+  ('bb','b--b',2,2),  ('ccc','c--c',2,2),  ('dddd','d--d',2,2);
+select * from t1 force index(key1, key2) where key1 < 3 or key2 < 3;
+drop table t1;
+
+
+#
+# Bug #4000: problem with active cursor.
+#
+
+set autocommit=0;
+create table t1(b varchar(30)) engine=bdb;
+insert into t1 values ('one');
+commit;
+select b FROM t1 outer_table where
+exists (select 'two' from t1 where 'two' = outer_table.b);
+drop table t1;
+set autocommit=1;
+
+#
+# Bug #4089: subselect and open cursor.
+#
+
+create table t1(a int primary key, b varchar(30)) engine=bdb;
+insert into t1 values (1,'one'), (2,'two'), (3,'three'), (4,'four');
+create table t2 like t1;
+insert t2 select * from t1;
+select a from t1 where a in (select a from t2);
+delete from t2;
+insert into t2 (a, b)
+  select a, b from t1 where (a, b) in (select a, b from t1);
+select * from t2;
+drop table t1, t2;
+
+#
+# Bug #4304: TRUNCATE <table of type BDB> , wrong result
+#
+
+create table t1 (a int, b varchar(30), primary key(a)) engine = bdb;
+insert into t1 values (1,'one');
+commit;
+truncate t1;
+select * from t1;
+drop table t1;

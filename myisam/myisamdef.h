@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000,2004 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -249,6 +249,8 @@ struct st_myisam_info {
   my_off_t last_search_keypage;		/* Last keypage when searching */
   my_off_t dupp_key_pos;
   ha_checksum checksum;
+  /* QQ: the folloing two xxx_length fields should be removed,
+     as they are not compatible with parallel repair */
   ulong packed_length,blob_length;	/* Length of found, packed record */
   int  dfile;				/* The datafile */
   uint opt_flag;			/* Optim. for space/speed */
@@ -414,6 +416,8 @@ typedef struct st_mi_sort_param
 
 #define MI_MIN_SIZE_BULK_INSERT_TREE 16384             /* this is per key */
 #define MI_MIN_ROWS_TO_USE_BULK_INSERT 100
+#define MI_MIN_ROWS_TO_DISABLE_INDEXES 100
+#define MI_MIN_ROWS_TO_USE_WRITE_CACHE 10
 
 /* The UNIQUE check is done with a hashed long key */
 
@@ -577,7 +581,8 @@ extern byte *mi_alloc_rec_buff(MI_INFO *,ulong, byte**);
 
 extern ulong _mi_rec_unpack(MI_INFO *info,byte *to,byte *from,
 			    ulong reclength);
-extern my_bool _mi_rec_check(MI_INFO *info,const char *record, byte *packpos);
+extern my_bool _mi_rec_check(MI_INFO *info,const char *record, byte *packpos,
+                             ulong reclength);
 extern int _mi_write_part_record(MI_INFO *info,my_off_t filepos,ulong length,
 				 my_off_t next_filepos,byte **record,
 				 ulong *reclength,int *flag);
@@ -679,6 +684,9 @@ uint mi_uniquedef_write(File file, MI_UNIQUEDEF *keydef);
 char *mi_uniquedef_read(char *ptr, MI_UNIQUEDEF *keydef);
 uint mi_recinfo_write(File file, MI_COLUMNDEF *recinfo);
 char *mi_recinfo_read(char *ptr, MI_COLUMNDEF *recinfo);
+extern int mi_disable_indexes(MI_INFO *info);
+extern int mi_enable_indexes(MI_INFO *info);
+extern int mi_indexes_are_disabled(MI_INFO *info);
 ulong _my_calc_total_blob_length(MI_INFO *info, const byte *record);
 ha_checksum mi_checksum(MI_INFO *info, const byte *buf);
 ha_checksum mi_static_checksum(MI_INFO *info, const byte *buf);
@@ -703,7 +711,7 @@ int mi_open_keyfile(MYISAM_SHARE *share);
 void mi_setup_functions(register MYISAM_SHARE *share);
 
     /* Functions needed by mi_check */
-int *killed_ptr(void *thd);
+volatile int *killed_ptr(MI_CHECK *param);
 void mi_check_print_error _VARARGS((MI_CHECK *param, const char *fmt,...));
 void mi_check_print_warning _VARARGS((MI_CHECK *param, const char *fmt,...));
 void mi_check_print_info _VARARGS((MI_CHECK *param, const char *fmt,...));

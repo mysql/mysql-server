@@ -78,7 +78,7 @@ character-set=latin1
 "Chave especificada longa demais. O comprimento de chave máximo permitido é %d",
 "Coluna chave '%-.64s' não existe na tabela",
 "Coluna BLOB '%-.64s' não pode ser utilizada na especificação de chave para o tipo de tabela usado",
-"Comprimento da coluna '%-.64s' grande demais (max = %d). Use BLOB em seu lugar",
+"Comprimento da coluna '%-.64s' grande demais (max = %d); use BLOB em seu lugar",
 "Definição incorreta de tabela. Somente é permitido um único campo auto-incrementado e ele tem que ser definido como chave",
 "%s: Pronto para conexões\n",
 "%s: 'Shutdown' normal\n",
@@ -94,7 +94,7 @@ character-set=latin1
 "Registros: %ld - Deletados: %ld - Ignorados: %ld - Avisos: %ld",
 "Registros: %ld - Duplicados: %ld",
 "Sub parte da chave incorreta. A parte da chave usada não é uma 'string' ou o comprimento usado é maior que parte da chave ou o manipulador de tabelas não suporta sub chaves únicas",
-"Você não pode deletar todas as colunas com ALTER TABLE. Use DROP TABLE em seu lugar",
+"Você não pode deletar todas as colunas com ALTER TABLE; use DROP TABLE em seu lugar",
 "Não se pode fazer DROP '%-.64s'. Confira se esta coluna/chave existe",
 "Registros: %ld - Duplicados: %ld - Avisos: %ld",
 "You can't specify target table '%-.64s' for update in FROM clause",
@@ -123,8 +123,8 @@ character-set=latin1
 "Tabelas demais. O MySQL pode usar somente %d tabelas em uma junção (JOIN)",
 "Colunas demais",
 "Tamanho de linha grande demais. O máximo tamanho de linha, não contando BLOBs, é %d. Você tem que mudar alguns campos para BLOBs",
-"Estouro da pilha do 'thread'. Usados %ld de uma pilha de %ld . Use 'mysqld -O thread_stack=#' para especificar uma pilha maior, se necessário",
-"Dependência cruzada encontrada em junção externa (OUTER JOIN).  Examine as condições utilizadas nas cláusulas 'ON'",
+"Estouro da pilha do 'thread'. Usados %ld de uma pilha de %ld. Use 'mysqld -O thread_stack=#' para especificar uma pilha maior, se necessário",
+"Dependência cruzada encontrada em junção externa (OUTER JOIN); examine as condições utilizadas nas cláusulas 'ON'",
 "Coluna '%-.64s' é usada com única (UNIQUE) ou índice (INDEX), mas não está definida como não-nula (NOT NULL)",
 "Não pode carregar a função '%-.64s'",
 "Não pode inicializar a função '%-.64s' - '%-.80s'",
@@ -205,7 +205,7 @@ character-set=latin1
 "Esta operação não pode ser realizada com um 'slave' em execução. Execute STOP SLAVE primeiro",
 "Esta operação requer um 'slave' em execução. Configure  o 'slave' e execute START SLAVE",
 "O servidor não está configurado como 'slave'. Acerte o arquivo de configuração ou use CHANGE MASTER TO",
-"Não pode inicializar a estrutura de informação do 'master'. Verifique as permissões em 'master.info'",
+"Could not initialize master info structure, more error messages can be found in the MySQL error log",
 "Não conseguiu criar 'thread' de 'slave'. Verifique os recursos do sistema",
 "Usuário '%-.64s' já possui mais que o valor máximo de conexões (max_user_connections) ativas",
 "Você pode usar apenas expressões constantes com SET",
@@ -232,7 +232,7 @@ character-set=latin1
 "Opção '%s' usada duas vezes no comando",
 "Usuário '%-.64s' tem excedido o '%s' recurso (atual valor: %ld)",
 "Acesso negado. Você precisa o privilégio %-.128s para essa operação",
-"Variável '%-.64s' é uma LOCAL variável e não pode ser usada com SET GLOBAL",
+"Variável '%-.64s' é uma SESSION variável e não pode ser usada com SET GLOBAL",
 "Variável '%-.64s' é uma GLOBAL variável e deve ser configurada com SET GLOBAL",
 "Variável '%-.64s' não tem um valor padrão",
 "Variável '%-.64s' não pode ser configurada para o valor de '%-.64s'",
@@ -242,28 +242,29 @@ character-set=latin1
 "Esta versão de MySQL não suporta ainda '%s'",
 "Obteve fatal erro %d: '%-.128s' do master quando lendo dados do binary log",
 "Slave SQL thread ignorado a consulta devido às normas de replicação-*-tabela",
+"Variable '%-.64s' is a %s variable",
 "Definição errada da chave estrangeira para '%-.64s': %s",
 "Referência da chave e referência da tabela não coincidem",
 "Operand should contain %d column(s)",
 "Subconsulta retorna mais que 1 registro",
-"Desconhecido manipulador de declaração preparado (%ld) determinado para %s",
+"Desconhecido manipulador de declaração preparado (%.*s) determinado para %s",
 "Banco de dado de ajuda corrupto ou não existente",
 "Referência cíclica em subconsultas",
 "Convertendo coluna '%s' de %s para %s",
 "Referência '%-.64s' não suportada (%s)",
 "Cada tabela derivada deve ter seu próprio alias",
 "Select %u foi reduzido durante otimização",
-"Tabela '%-.64s' de um dos SELECT's não pode ser usada em %-.32s",
+"Tabela '%-.64s' de um dos SELECTs não pode ser usada em %-.32s",
 "Cliente não suporta o protocolo de autenticação exigido pelo servidor; considere a atualização do cliente MySQL",
 "Todas as partes de uma SPATIAL KEY devem ser NOT NULL",
 "COLLATION '%s' não é válida para CHARACTER SET '%s'",
 "O slave já está rodando",
 "O slave já está parado",
 "Tamanho muito grande dos dados des comprimidos. O máximo tamanho é %d. (provavelmente, o comprimento dos dados descomprimidos está corrupto)",
-"Z_MEM_ERROR: Não suficiente memória disponível para zlib",
-"Z_BUF_ERROR: Não suficiente espaço no buffer emissor para zlib (provavelmente, o comprimento dos dados descomprimidos está corrupto)",
-"Z_DATA_ERROR: Dados de entrada está corrupto para zlib",
-"%d linha(s) foi(foram) cortada(s) por group_concat()",
+"ZLIB: Não suficiente memória disponível",
+"ZLIB: Não suficiente espaço no buffer emissor (provavelmente, o comprimento dos dados descomprimidos está corrupto)",
+"ZLIB: Dados de entrada está corrupto",
+"%d linha(s) foram cortada(s) por GROUP_CONCAT()",
 "Conta de registro é menor que a conta de coluna na linha %ld",
 "Conta de registro é maior que a conta de coluna na linha %ld",
 "Dado truncado, NULL fornecido para NOT NULL coluna '%s' na linha %ld",
@@ -278,7 +279,7 @@ character-set=latin1
 "Variável '%-.64s' não é uma variável componente (Não pode ser usada como XXXX.variável_nome)",
 "Collation desconhecida: '%-.64s'",
 "SSL parâmetros em CHANGE MASTER são ignorados porque este escravo MySQL foi compilado sem o SSL suporte. Os mesmos podem ser usados mais tarde quando o escravo MySQL com SSL seja iniciado.",
-"Servidor está rodando em --secure-auth modo, porêm '%s@%s' tem senha no formato antigo; por favor troque a senha para o novo formato",
+"Servidor está rodando em --secure-auth modo, porêm '%s'@'%s' tem senha no formato antigo; por favor troque a senha para o novo formato",
 "Campo ou referência '%-.64s%s%-.64s%s%-.64s' de SELECT #%d foi resolvido em SELECT #%d",
 "Parâmetro ou combinação de parâmetros errado para START SLAVE UNTIL",
 "É recomendado para rodar com --skip-slave-start quando fazendo replicação passo-por-passo com START SLAVE UNTIL, de outra forma você não está seguro em caso de inesperada reinicialição do mysqld escravo",
@@ -290,7 +291,21 @@ character-set=latin1
 "Key cache desconhecida '%-.100s'",
 "MySQL foi inicializado em modo --skip-name-resolve. Você necesita reincializá-lo sem esta opção para este grant funcionar",
 "Motor de tabela desconhecido '%s'",
-"'%s' é desatualizado. Use '%s' em seu lugar.",
+"'%s' é desatualizado. Use '%s' em seu lugar",
+"A tabela destino %-.100s do %s não é atualizável",
+"O recurso '%s' foi desativado; você necessita MySQL construído com '%s' para ter isto funcionando",
+"O servidor MySQL está rodando com a opção %s razão pela qual não pode executar esse commando",
+"Coluna '%-.100s' tem valor duplicado '%-.64s' em %s"
+"Truncado errado %-.32s valor: '%-.128s'"
+"Incorreta definição de tabela; Pode ter somente uma coluna TIMESTAMP com CURRENT_TIMESTAMP em DEFAULT ou ON UPDATE cláusula"
+"Inválida cláusula ON UPDATE para campo '%-.64s'",
+"This command is not supported in the prepared statement protocol yet",
+"Got error %d '%-.100s' from %s",
+"Got temporary error %d '%-.100s' from %s",
+"Unknown or incorrect time zone: '%-.64s'",
+"Invalid TIMESTAMP value in column '%s' at row %ld",
+"Invalid %s character string: '%.64s'",
+"Result of %s() was larger than max_allowed_packet (%d) - truncated"
 "Can't create a %s from within another stored routine"
 "%s %s already exists"
 "%s %s does not exist"
@@ -303,10 +318,10 @@ character-set=latin1
 "SELECT in a stored procedure must have INTO"
 "RETURN is only allowed in a FUNCTION"
 "Statements like SELECT, INSERT, UPDATE (and others) are not allowed in a FUNCTION"
-"The update log is deprecated and replaced by the binary log. SET SQL_LOG_UPDATE has been ignored."
-"The update log is deprecated and replaced by the binary log. SET SQL_LOG_UPDATE has been translated to SET SQL_LOG_BIN."
+"The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been ignored"
+"The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been translated to SET SQL_LOG_BIN"
 "Query execution was interrupted"
-"Wrong number of arguments for %s %s, expected %u, got %u"
+"Incorrect number of arguments for %s %s; expected %u, got %u"
 "Undefined CONDITION: %s"
 "No RETURN found in FUNCTION %s"
 "FUNCTION %s ended without RETURN"
@@ -316,7 +331,7 @@ character-set=latin1
 "Cursor is already open"
 "Cursor is not open"
 "Undeclared variable: %s"
-"Wrong number of FETCH variables"
+"Incorrect number of FETCH variables"
 "No data to FETCH"
 "Duplicate parameter: %s"
 "Duplicate variable: %s"
@@ -324,3 +339,25 @@ character-set=latin1
 "Duplicate cursor: %s"
 "Failed to ALTER %s %s"
 "Subselect value not supported"
+"USE is not allowed in a stored procedure"
+"Variable or condition declaration after cursor or handler declaration"
+"Cursor declaration after handler declaration"
+"Case not found for CASE statement"
+"Configuration file '%-.64s' is too big"
+"Malformed file type header in file '%-.64s'"
+"Unexpected end of file while parsing comment '%-.64s'"
+"Error while parsing parameter '%-.64s' (line: '%-.64s')"
+"Unexpected end of file while skipping unknown parameter '%-.64s'"
+"EXPLAIN/SHOW can not be issued; lacking privileges for underlying table"
+"File '%-.64s' has unknown type '%-.64s' in its header"
+"'%-.64s.%-.64s' is not %s"
+"Column '%-.64s' is not updatable"
+"View's SELECT contains a subquery in the FROM clause"
+"View's SELECT contains a PROCEDURE clause"
+"View's SELECT contains a variable or parameter" 
+"View's SELECT contains a temporary table '%-.64s'"
+"View's SELECT and view's field list have different column counts"
+"View merge algorithm can't be used here for now (assumed undefined algorithm)"
+"View being updated does not have complete key of underlying table in it"
+"View '%-.64s.%-.64s' references invalid table(s) or column(s)"
+"Can't drop a %s from within another stored routine"

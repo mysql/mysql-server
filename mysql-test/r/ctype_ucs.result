@@ -47,16 +47,25 @@ t1	CREATE TABLE `t1` (
   `r` char(10) character set ucs2 NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1;
+create table t2(f1 Char(30));
+insert into t2 values ("103000"), ("22720000"), ("3401200"), ("78000");
+select lpad(f1, 12, "-o-/") from t2;
+lpad(f1, 12, "-o-/")
+-o-/-o103000
+-o-/22720000
+-o-/-3401200
+-o-/-o-78000
+drop table t2;
 SET NAMES koi8r;
 SET character_set_connection=ucs2;
 create table t1 (a varchar(10) character set ucs2, key(a));
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
 explain select * from t1 where a like 'abc%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	21	NULL	1	Using where; Using index
+1	SIMPLE	t1	index	a	a	21	NULL	5	Using where; Using index
 explain select * from t1 where a like concat('abc','%');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	21	NULL	1	Using where; Using index
+1	SIMPLE	t1	index	a	a	21	NULL	5	Using where; Using index
 select * from t1 where a like "abc%";
 a
 abc
@@ -77,6 +86,9 @@ a
 test
 select * from t1 where a like "%a%";
 a
+a
+abc
+abcd
 select * from t1 where a like "%abcd%";
 a
 abcd
@@ -84,6 +96,78 @@ select * from t1 where a like "%abc\d%";
 a
 abcd
 drop table t1;
+select 'AA' like 'AA';
+'AA' like 'AA'
+1
+select 'AA' like 'A%A';
+'AA' like 'A%A'
+1
+select 'AA' like 'A%%A';
+'AA' like 'A%%A'
+1
+select 'AA' like 'AA%';
+'AA' like 'AA%'
+1
+select 'AA' like '%AA%';
+'AA' like '%AA%'
+1
+select 'AA' like '%A';
+'AA' like '%A'
+1
+select 'AA' like '%AA';
+'AA' like '%AA'
+1
+select 'AA' like 'A%A%';
+'AA' like 'A%A%'
+1
+select 'AA' like '_%_%';
+'AA' like '_%_%'
+1
+select 'AA' like '%A%A';
+'AA' like '%A%A'
+1
+select 'AAA'like 'A%A%A';
+'AAA'like 'A%A%A'
+1
+select 'AZ' like 'AZ';
+'AZ' like 'AZ'
+1
+select 'AZ' like 'A%Z';
+'AZ' like 'A%Z'
+1
+select 'AZ' like 'A%%Z';
+'AZ' like 'A%%Z'
+1
+select 'AZ' like 'AZ%';
+'AZ' like 'AZ%'
+1
+select 'AZ' like '%AZ%';
+'AZ' like '%AZ%'
+1
+select 'AZ' like '%Z';
+'AZ' like '%Z'
+1
+select 'AZ' like '%AZ';
+'AZ' like '%AZ'
+1
+select 'AZ' like 'A%Z%';
+'AZ' like 'A%Z%'
+1
+select 'AZ' like '_%_%';
+'AZ' like '_%_%'
+1
+select 'AZ' like '%A%Z';
+'AZ' like '%A%Z'
+1
+select 'AZ' like 'A_';
+'AZ' like 'A_'
+1
+select 'AZ' like '_Z';
+'AZ' like '_Z'
+1
+select 'AMZ'like 'A%M%Z';
+'AMZ'like 'A%M%Z'
+1
 CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET ucs2);
 INSERT INTO t1 VALUES ('ÆÙ×Á'),('æÙ×Á'),('Æù×Á'),('ÆÙ÷Á'),('ÆÙ×á'),('æù÷á');
 INSERT INTO t1 VALUES ('ÆÙ×ÁÐÒÏÌÄÖ'),('æÙ×ÁÐÒÏÌÄÖ'),('Æù×ÁÐÒÏÌÄÖ'),('ÆÙ÷ÁÐÒÏÌÄÖ');
@@ -173,6 +257,12 @@ SELECT * FROM t1 WHERE word LIKE _ucs2 x'00630061005F';
 word
 cat
 DROP TABLE t1;
+select insert(_ucs2 0x006100620063,10,2,_ucs2 0x006400650066);
+insert(_ucs2 0x006100620063,10,2,_ucs2 0x006400650066)
+abc
+select insert(_ucs2 0x006100620063,1,2,_ucs2 0x006400650066);
+insert(_ucs2 0x006100620063,1,2,_ucs2 0x006400650066)
+defc
 SET NAMES latin1;
 CREATE TABLE t1 (
 word VARCHAR(64),
@@ -269,4 +359,108 @@ aardvar
 aardvara
 aardvark
 aardvarz
+DROP TABLE t1;
+SELECT HEX(_ucs2 0x0);
+HEX(_ucs2 0x0)
+0000
+SELECT HEX(_ucs2 0x01);
+HEX(_ucs2 0x01)
+0001
+SELECT HEX(_ucs2 0x012);
+HEX(_ucs2 0x012)
+0012
+SELECT HEX(_ucs2 0x0123);
+HEX(_ucs2 0x0123)
+0123
+SELECT HEX(_ucs2 0x01234);
+HEX(_ucs2 0x01234)
+00001234
+SELECT HEX(_ucs2 0x012345);
+HEX(_ucs2 0x012345)
+00012345
+SELECT HEX(_ucs2 0x0123456);
+HEX(_ucs2 0x0123456)
+00123456
+SELECT HEX(_ucs2 0x01234567);
+HEX(_ucs2 0x01234567)
+01234567
+SELECT HEX(_ucs2 0x012345678);
+HEX(_ucs2 0x012345678)
+000012345678
+SELECT HEX(_ucs2 0x0123456789);
+HEX(_ucs2 0x0123456789)
+000123456789
+SELECT HEX(_ucs2 0x0123456789A);
+HEX(_ucs2 0x0123456789A)
+00123456789A
+SELECT HEX(_ucs2 0x0123456789AB);
+HEX(_ucs2 0x0123456789AB)
+0123456789AB
+SELECT HEX(_ucs2 0x0123456789ABC);
+HEX(_ucs2 0x0123456789ABC)
+0000123456789ABC
+SELECT HEX(_ucs2 0x0123456789ABCD);
+HEX(_ucs2 0x0123456789ABCD)
+000123456789ABCD
+SELECT HEX(_ucs2 0x0123456789ABCDE);
+HEX(_ucs2 0x0123456789ABCDE)
+00123456789ABCDE
+SELECT HEX(_ucs2 0x0123456789ABCDEF);
+HEX(_ucs2 0x0123456789ABCDEF)
+0123456789ABCDEF
+SELECT hex(cast(0xAA as char character set ucs2));
+hex(cast(0xAA as char character set ucs2))
+00AA
+SELECT hex(convert(0xAA using ucs2));
+hex(convert(0xAA using ucs2))
+00AA
+CREATE TABLE t1 (a char(10) character set ucs2);
+INSERT INTO t1 VALUES (0xA),(0xAA),(0xAAA),(0xAAAA),(0xAAAAA);
+SELECT HEX(a) FROM t1;
+HEX(a)
+000A
+00AA
+0AAA
+AAAA
+000AAAAA
+DROP TABLE t1;
+CREATE TABLE t1 (a varchar(10) character set ucs2);
+INSERT INTO t1 VALUES (0xA),(0xAA),(0xAAA),(0xAAAA),(0xAAAAA);
+SELECT HEX(a) FROM t1;
+HEX(a)
+000A
+00AA
+0AAA
+AAAA
+000AAAAA
+DROP TABLE t1;
+CREATE TABLE t1 (a text character set ucs2);
+INSERT INTO t1 VALUES (0xA),(0xAA),(0xAAA),(0xAAAA),(0xAAAAA);
+SELECT HEX(a) FROM t1;
+HEX(a)
+000A
+00AA
+0AAA
+AAAA
+000AAAAA
+DROP TABLE t1;
+CREATE TABLE t1 (a mediumtext character set ucs2);
+INSERT INTO t1 VALUES (0xA),(0xAA),(0xAAA),(0xAAAA),(0xAAAAA);
+SELECT HEX(a) FROM t1;
+HEX(a)
+000A
+00AA
+0AAA
+AAAA
+000AAAAA
+DROP TABLE t1;
+CREATE TABLE t1 (a longtext character set ucs2);
+INSERT INTO t1 VALUES (0xA),(0xAA),(0xAAA),(0xAAAA),(0xAAAAA);
+SELECT HEX(a) FROM t1;
+HEX(a)
+000A
+00AA
+0AAA
+AAAA
+000AAAAA
 DROP TABLE t1;

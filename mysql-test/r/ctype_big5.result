@@ -1,0 +1,10 @@
+drop table if exists t1;
+SET NAMES big5;
+CREATE TABLE t1 (c CHAR(10) CHARACTER SET big5, KEY(c));
+INSERT INTO t1 VALUES ('aaa'),('aaaa'),('aaaaa');
+SELECT * FROM t1 WHERE c LIKE 'aaa%';
+c
+aaa
+aaaa
+aaaaa
+DROP TABLE t1;

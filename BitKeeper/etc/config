@@ -71,3 +71,4 @@ hours:
 [arjen:]checkout:get
 [nick:]checkout:get
 checkout:edit
+eoln:unix

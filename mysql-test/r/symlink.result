@@ -64,9 +64,7 @@ t9	CREATE TABLE `t9` (
   PRIMARY KEY  (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 DATA DIRECTORY='TEST_DIR/var/tmp/' INDEX DIRECTORY='TEST_DIR/var/run/'
 drop database mysqltest;
-create table t1 (a int not null) type=myisam;
-Warnings:
-Warning	1286	'TYPE=database_engine' is deprecated. Use 'ENGINE=database_engine' instead.
+create table t1 (a int not null) engine=myisam;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
