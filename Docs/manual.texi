@@ -48605,7 +48605,7 @@ Active mailing list member.
 @item Luuk de Boer @email{luuk@@wxs.nl}
 Ported (and extended) the benchmark suite to @code{DBI}/@code{DBD}. Have
 been of great help with @code{crash-me} and running benchmarks. Some new
-date functions. The mysql_setpermissions script.
+date functions. The @code{mysql_setpermissions} script.
 @item Jay Flaherty @email{fty@@mediapulse.com}
 Big parts of the Perl @code{DBI}/@code{DBD} section in the manual.
 @item Paul Southworth @email{pauls@@etext.org}, Ray Loyzaga @email{yar@@cs.su.oz.au}
@@ -48636,7 +48636,7 @@ MySQL server.
 Configure updates for Tru64, large file support and better TCP wrappers
 support.
 @item John Birrell
-Emulation of pthread_mutex() for OS/2.
+Emulation of @code{pthread_mutex()} for OS/2.
 @item Benjamin Pflugmann
 Extended @code{MERGE} tables to handle @code{INSERTS}. Active member
 on the MySQL mailing lists.
@@ -50857,7 +50857,7 @@ a feature.
 
 @itemize @bullet
 @item
-Fixed bug in 3.23.19; @code{DELETE FROM tbl_name} removed the .frm file.
+Fixed bug in 3.23.19; @code{DELETE FROM tbl_name} removed the @file{.frm} file.
 @item
 Added @code{SHOW CREATE TABLE}.
 @end itemize
@@ -50869,7 +50869,7 @@ Added @code{SHOW CREATE TABLE}.
 @itemize @bullet
 @item
 Changed copyright for all files to GPL for the server code and utilities and
-LGPL for the client libraries.
+to LGPL for the client libraries.
 @item
 Fixed bug where all rows matching weren't updated on a @code{MyISAM} table
 when doing update based on key on a table with many keys and some key changed
@@ -50879,11 +50879,11 @@ The Linux MySQL RPM's and binaries are now statically linked with
 a linuxthread version that has faster mutex handling when used with
 MySQL.
 @item
-@code{ORDER BY} can now uses @code{REF} keys to find subset the rows
-that needs to be sorted.
+@code{ORDER BY} can now use @code{REF} keys to find subsets of the rows
+that need to be sorted.
 @item
-Changed name of @code{print_defaults} to @code{my_print_defaults} to avoid
-name confusion.
+Changed name of @code{print_defaults} program to @code{my_print_defaults}
+to avoid name confusion.
 @item
 Fixed @code{NULLIF()} to work according to ANSI SQL99.
 @item
@@ -50893,14 +50893,18 @@ parameters to @code{mysqld}.
 Fixed bug that destroyed index when doing @code{myisamchk --sort-records}
 on a table with prefix compressed index.
 @item
-Added pack_isam and myisampack to the standard MySQL distribution.
+Added @code{pack_isam} and @code{myisampack} to the standard MySQL
+distribution.
 @item
 Added the syntax @code{BEGIN WORK} (the same as @code{BEGIN}).
 @item
 Fixed core dump bug when using @code{ORDER BY} on a @code{CONV()} expression.
-@item Added @code{LOAD TABLE FROM MASTER}
-@item Added @code{FLUSH MASTER} and @code{FLUSH SLAVE}
-@item Fixed big/little endian problem in the replication
+@item
+Added @code{LOAD TABLE FROM MASTER}.
+@item
+Added @code{FLUSH MASTER} and @code{FLUSH SLAVE}.
+@item
+Fixed big/little endian problem in the replication.
 @end itemize
 
 
@@ -50911,18 +50915,18 @@ Fixed core dump bug when using @code{ORDER BY} on a @code{CONV()} expression.
 @item
 Fixed a problem from 3.23.17 when choosing character set on the client side.
 @item
-Added @code{FLUSH TABLES WITH READ LOCK} to make a global lock suitable to
-make a copy of MySQL data files.
+Added @code{FLUSH TABLES WITH READ LOCK} to make a global lock suitable for
+making a copy of MySQL data files.
 @item
 @code{CREATE TABLE ... SELECT ... PROCEDURE} now works.
 @item
-Internal temporary tables will now uses compressed index when using
+Internal temporary tables will now use compressed index when using
 @code{GROUP BY} on @code{VARCHAR/CHAR} columns.
 @item
 Fixed a problem when locking the same table with both a @code{READ} and a
 @code{WRITE} lock.
 @item
-Fixed problem with myisamchk and @code{RAID} tables.
+Fixed problem with @code{myisamchk} and @code{RAID} tables.
 @end itemize
 
 
@@ -50931,7 +50935,7 @@ Fixed problem with myisamchk and @code{RAID} tables.
 
 @itemize @bullet
 @item
-Fixed a bug in @code{find_in_set()} when the first argument was @code{NULL}.
+Fixed a bug in @code{FIND_IN_SET()} when the first argument was @code{NULL}.
 @item
 Added table locks to Berkeley DB.
 @item
@@ -50941,7 +50945,7 @@ table had only one matching row.
 Added 4 sample @code{my.cnf} example files in the @file{support-files}
 directory.
 @item
-Fixed @code{duplicated key} problem when doing big @code{GROUP BY}'s.
+Fixed @code{duplicated key} problem when doing big @code{GROUP BY} operations.
 (This bug was probably introduced in 3.23.15.)
 @item
 Changed syntax for @code{INNER JOIN} to match ANSI SQL.
@@ -50959,19 +50963,20 @@ Fixed that @code{USE INDEX} works with @code{PRIMARY} keys.
 @item
 Added @code{BEGIN} statement to start a transaction in @code{AUTOCOMMIT} mode.
 @item
-Added symbolic links support for Windows.
+Added support for symbolic links for Windows.
 @item
-Changed protocol to let client know if the server is in AUTOCOMMIT mode
-and if there is a pending transaction.  If there is a pending transaction
+Changed protocol to let client know if the server is in @code{AUTOCOMMIT} mode
+and if there is a pending transaction.  If there is a pending transaction,
 the client library will give an error before reconnecting to the server to
 let the client know that the server did a rollback.
-The protocol is still backward compatible with old clients
+The protocol is still backward compatible with old clients.
 @item
 @code{KILL} now works on a thread that is locked on a 'write' to a dead client.
 @item
 Fixed memory leak in the replication slave thread.
 @item
-Added new option @code{log-slave-updates} to allow daisy-chaining the slaves.
+Added new @code{log-slave-updates} option to @code{mysqld}, to allow
+daisy-chaining the slaves.
 @item
 Fixed compile error on FreeBSD and other systems where @code{pthread_t}
 is not the same as @code{int}.
@@ -50981,7 +50986,7 @@ Fixed master shutdown aborting the slave thread.
 Fixed a race condition in @code{INSERT DELAYED} code when doing
 @code{ALTER TABLE}.
 @item
-Added deadlock detection sanity checks to @code{INSERT DELAYED}
+Added deadlock detection sanity checks to @code{INSERT DELAYED}.
 @end itemize
 
 
@@ -50990,7 +50995,7 @@ Added deadlock detection sanity checks to @code{INSERT DELAYED}
 
 @itemize @bullet
 @item
-Added option @code{TYPE=QUICK} to @code{CHECK} and @code{REPAIR}.
+Added @code{TYPE=QUICK} option to @code{CHECK} and to @code{REPAIR}.
 @item
 Fixed bug in @code{REPAIR TABLE} when the table was in use by other threads.
 @item
@@ -51010,9 +51015,9 @@ Fixed bug in handling of masked IP numbers in the privilege tables.
 Fixed bug with @code{delayed_key_writes} tables and @code{CHECK TABLE}.
 @item
 Added @code{replicate-do-db} and @code{replicate-ignore-db} options to
-restrict which databases get replicated
+@code{mysqld}, to restrict which databases get replicated.
 @item
-Added @code{SQL_LOG_BIN} option
+Added @code{SQL_LOG_BIN} option.
 @end itemize
 
 
@@ -51047,9 +51052,9 @@ Don't write @code{INSERT DELAYED} to update log if @code{SQL_LOG_UPDATE=0}.
 @item
 Fixed problem with @code{REPLACE} on @code{HEAP} tables.
 @item
-Added possible character sets and time zone to @code{SHOW VARIABLES}.
+Added possible character sets and time zone to @code{SHOW VARIABLES} output.
 @item
-Fixed bug in locking code that could result it locking problems with
+Fixed bug in locking code that could result in locking problems with
 concurrent inserts under high load.
 @item
 Fixed a problem with @code{DELETE} of many rows on a table with
@@ -51061,14 +51066,14 @@ Fixed a bug in reconnect (at the client side) where it didn't free memory
 properly in some contexts.
 @item
 Fixed problems in update log when using @code{LAST_INSERT_ID()} to update
-a table with an auto_increment key.
+a table with an @code{AUTO_INCREMENT} key.
 @item
-Added function @code{NULLIF()}.
+Added @code{NULLIF()} function.
 @item
 Fixed bug when using @code{LOAD DATA INFILE} on a table with
 @code{BLOB/TEXT} columns.
 @item
-Optimised MyISAM to be faster when inserting keys in sorted order.
+Optimised @code{MyISAM} to be faster when inserting keys in sorted order.
 @item
 @code{EXPLAIN SELECT ...} now also prints out whether MySQL needs to
 create a temporary table or use file sorting when resolving the @code{SELECT}.
@@ -51076,15 +51081,15 @@ create a temporary table or use file sorting when resolving the @code{SELECT}.
 Added optimisation to skip @code{ORDER BY} parts where the part is a
 constant expression in the @code{WHERE} part.  Indexes can now be used
 even if the @code{ORDER BY} doesn't match the index exactly, as long as
-all the not used index parts and all the extra @code{ORDER BY}
+all the unused index parts and all the extra @code{ORDER BY}
 columns are constants in the @code{WHERE} clause.  @xref{MySQL indexes}.
 @item
-@code{UPDATE} and @code{DELETE} on a whole unique key in the @code{WHERE} part,
-is now faster than before.
+@code{UPDATE} and @code{DELETE} on a whole unique key in the @code{WHERE} part
+are now faster than before.
 @item
-Changed @code{RAID_CHUNKSIZE} to be in 1024 byte increments.
+Changed @code{RAID_CHUNKSIZE} to be in 1024-byte increments.
 @item
-Fixed coredump in LOAD_FILE(NULL).
+Fixed coredump in @code{LOAD_FILE(NULL)}.
 @end itemize
 
 
@@ -51112,7 +51117,8 @@ Fixed that @code{DROP TABLE} is logged in the update log.
 Fixed problem when searching on @code{DECIMAL()} key field
 where the column data contained leading zeros.
 @item
-Fix bug in @code{myisamchk} when the auto_increment isn't the first key.
+Fix bug in @code{myisamchk} when the @code{AUTO_INCREMENT} column isn't
+the first key.
 @item
 Allow @code{DATETIME} in ISO8601 format: 2000-03-12T12:00:00
 @item
@@ -51125,7 +51131,8 @@ Added @code{mysql_thread_safe()} function to the MySQL C API.
 @item
 Added the @code{UMASK_DIR} environment variable.
 @item
-Added function @code{CONNECTION_ID()}.
+Added @code{CONNECTION_ID()} function to return the client connection thread
+ID.
 @item
 When using @code{=} on @code{BLOB} or @code{VARCHAR BINARY} keys, where
 only a part of the column was indexed, the whole column of the result
@@ -51147,13 +51154,14 @@ Fixed problem when doing locks on the same table more than 2 times in
 the same @code{LOCK TABLE} command; This fixed the problem one got when running
 the test-ATIS test with @code{--fast} or @code{--check-only-changed}.
 @item
-Added option @code{SQL_BUFFER_RESULT} to @code{SELECT}.
+Added @code{SQL_BUFFER_RESULT} option to @code{SELECT}.
 @item
 Removed end space from double/float numbers in results from temporary
 tables.
+@item
 Added @code{CHECK TABLE} command.
 @item
-Added changes for MyISAM in 3.23.12 that didn't get into the source
+Added changes for @code{MyISAM} in 3.23.12 that didn't get into the source
 distribution because of CVS problems.
 @item
 Fixed bug so that @code{mysqladmin shutdown} will wait for the local server
@@ -51161,8 +51169,8 @@ to close down.
 @item
 Fixed a possible endless loop when calculating timestamp.
 @item
-Added @code{print_defaults} to the @file{.rpm} files. Removed @code{mysqlbug}
-from the client @file{.rpm} file.
+Added @code{print_defaults} program to the @file{.rpm} files. Removed
+@code{mysqlbug} from the client @file{.rpm} file.
 @end itemize
 
 
@@ -51174,7 +51182,8 @@ from the client @file{.rpm} file.
 Fixed bug in @code{MyISAM} involving @code{REPLACE ... SELECT ...} which could
 give a corrupted table.
 @item
-Fixed bug in @code{myisamchk} where it wrongly reset the auto_increment value.
+Fixed bug in @code{myisamchk} where it wrongly reset the @code{AUTO_INCREMENT}
+value.
 @item
 LOTS of patches for Linux Alpha. MySQL now appears to be relatively
 stable on Alpha.
@@ -51187,17 +51196,17 @@ addition, the new code is MUCH faster.
 @item
 Added patches to make MySQL compile on Mac OS X.
 @item
-Added option @code{IF NOT EXISTS} to @code{CREATE DATABASE}.
+Added @code{IF NOT EXISTS} clause to @code{CREATE DATABASE}.
 @item
-Added options @code{--all-databases} and @code{--databases} to @code{mysqldump}
+Added @code{--all-databases} and @code{--databases} options to @code{mysqldump}
 to allow dumping of many databases at the same time.
 @item
 Fixed bug in compressed @code{DECIMAL()} index in @code{MyISAM} tables.
 @item
 Fixed bug when storing 0 into a timestamp.
 @item
-When doing @code{mysqladmin shutdown} on a local connection, @code{mysqladmin} now
-waits until the pidfile is gone before terminating.
+When doing @code{mysqladmin shutdown} on a local connection, @code{mysqladmin}
+now waits until the PID file is gone before terminating.
 @item
 Fixed core dump with some @code{COUNT(DISTINCT ...)} queries.
 @item
@@ -51222,12 +51231,12 @@ parameters in @code{SELECT}.
 @item
 Allow the @code{ALTER TABLE tbl_name ADD (field_list)} syntax.
 @item
-Fixed problem with optimiser that could sometimes use wrong keys.
+Fixed problem with optimiser that could sometimes use incorrect keys.
 @item
 Fixed that @code{GRANT/REVOKE ALL PRIVILEGES} doesn't affect
 @code{GRANT OPTION}.
 @item
-Removed extra @code{)} from the output of @code{SHOW GRANTS}
+Removed extra @code{)} from the output of @code{SHOW GRANTS}.
 @item
 Fixed problem when storing numbers in timestamps.
 @item
@@ -51240,11 +51249,11 @@ MySQL databases. By Tim Bunce.
 @item
 New more secure @code{mysqlaccess}. Thanks to Steve Harvey for this.
 @item
-Added options @code{--i-am-a-dummy} and @code{--safe-updates} to @code{mysql}.
+Added @code{--i-am-a-dummy} and @code{--safe-updates} options to @code{mysql}.
 @item
-Added variables @code{select_limit} and @code{max_join_size} to @code{mysql}.
+Added @code{select_limit} and @code{max_join_size} variables to @code{mysql}.
 @item
-Added sql variables: @code{SQL_MAX_JOIN_SIZE} and @code{SQL_SAFE_UPDATES}.
+Added @code{SQL_MAX_JOIN_SIZE} and @code{SQL_SAFE_UPDATES} options.
 @item
 Added @code{READ LOCAL} lock that doesn't lock the table for concurrent
 inserts. (This is used by @code{mysqldump}.)
@@ -51252,7 +51261,7 @@ inserts. (This is used by @code{mysqldump}.)
 Changed that @code{LOCK TABLES ... READ} doesn't anymore allow concurrent
 inserts.
 @item
-Added option @code{--skip-delay-key-write} to @code{mysqld}.
+Added @code{--skip-delay-key-write} option to @code{mysqld}.
 @item
 Fixed security problem in the protocol regarding password checking.
 @item
@@ -51269,7 +51278,7 @@ to make things safe for old clients.
 
 @itemize @bullet
 @item
-Fixed bug in 3.23.9 where memory wasn't properly freed when doing
+Fixed bug in 3.23.9 where memory wasn't properly freed when using
 @code{LOCK TABLES}.
 @end itemize
 
