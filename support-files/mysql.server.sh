@@ -178,7 +178,7 @@ case "$mode" in
       # delete lock for RedHat / SuSE
       if test -f /var/lock/subsys/mysql
       then
-        rm /var/lock/subsys/mysql
+        rm -f /var/lock/subsys/mysql
       fi
     else
       echo "No mysqld pid file found. Looked for $pid_file."
