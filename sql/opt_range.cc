@@ -931,8 +931,11 @@ get_mm_leaf(Field *field,KEY_PART *key_part,
     if (!(res= value->val_str(&tmp)))
       DBUG_RETURN(&null_element);
 
-    // Check if this was a function. This should have be optimized away
-    // in the sql_select.cc
+    /*
+      TODO:
+      Check if this was a function. This should have be optimized away
+      in the sql_select.cc
+    */
     if (res != &tmp)
     {
       tmp.copy(*res);				// Get own copy
@@ -1011,8 +1014,10 @@ get_mm_leaf(Field *field,KEY_PART *key_part,
       type != Item_func::EQUAL_FUNC)
     DBUG_RETURN(0);				// Can't optimize this
 
-  /* We can't always use indexes when comparing a string index to a number */
-  /* cmp_type() is checked to allow compare of dates to numbers */
+  /*
+    We can't always use indexes when comparing a string index to a number
+    cmp_type() is checked to allow compare of dates to numbers
+  */
   if (field->result_type() == STRING_RESULT &&
       value->result_type() != STRING_RESULT &&
       field->cmp_type() != value->result_type())
@@ -1020,6 +1025,7 @@ get_mm_leaf(Field *field,KEY_PART *key_part,
 
   if (value->save_in_field(field))
   {
+    /* This happens when we try to insert a NULL field in a not null column */
     if (type == Item_func::EQUAL_FUNC)
     {
       /* convert column_name <=> NULL -> column_name IS NULL */
@@ -1029,14 +1035,14 @@ get_mm_leaf(Field *field,KEY_PART *key_part,
       *str = 1;
       DBUG_RETURN(new SEL_ARG(field,str,str));
     }
-    DBUG_RETURN(&null_element);			// NULL is never true
+    DBUG_RETURN(&null_element);			// cmp with NULL is never true
   }
   // Get local copy of key
   char *str= (char*) sql_alloc(key_part->part_length+maybe_null);
   if (!str)
     DBUG_RETURN(0);
   if (maybe_null)
-    *str=0;					// Not NULL
+    *str= (char) field->is_real_null();		// Set to 1 if null
   field->get_key_image(str+maybe_null,key_part->part_length);
   if (!(tree=new SEL_ARG(field,str,str)))
     DBUG_RETURN(0);

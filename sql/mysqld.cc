@@ -739,7 +739,11 @@ static sig_handler print_signal_warning(int sig)
 void unireg_end(int signal_number __attribute__((unused)))
 {
   clean_up();
+#ifdef SIGNALS_DONT_BREAK_READ
+  exit(0);
+#else
   pthread_exit(0);				// Exit is in main thread
+#endif
 }
 
 
