@@ -1629,7 +1629,7 @@ int mysql_assign_to_keycache(THD* thd, TABLE_LIST* tables,
 			     LEX_STRING *key_cache_name)
 {
   HA_CHECK_OPT check_opt;
-  KEY_CACHE_VAR *key_cache;
+  KEY_CACHE *key_cache;
   DBUG_ENTER("mysql_assign_to_keycache");
 
   check_opt.init();
@@ -1644,8 +1644,7 @@ int mysql_assign_to_keycache(THD* thd, TABLE_LIST* tables,
   check_opt.key_cache= key_cache;
   DBUG_RETURN(mysql_admin_table(thd, tables, &check_opt,
 				"assign_to_keycache", TL_READ_NO_INSERT, 0, 
-                                HA_OPEN_TO_ASSIGN, 0,
-				&handler::assign_to_keycache));
+                                0, 0, &handler::assign_to_keycache));
 }
 
 
@@ -1674,14 +1673,14 @@ int mysql_assign_to_keycache(THD* thd, TABLE_LIST* tables,
     0	  ok
 */
 
-int reassign_keycache_tables(THD *thd, KEY_CACHE_VAR *src_cache, 
-                             KEY_CACHE_VAR *dst_cache)
+int reassign_keycache_tables(THD *thd, KEY_CACHE *src_cache, 
+                             KEY_CACHE *dst_cache)
 {
   DBUG_ENTER("reassign_keycache_tables");
 
   DBUG_ASSERT(src_cache != dst_cache);
   DBUG_ASSERT(src_cache->in_init);
-  src_cache->buff_size= 0;			// Free key cache
+  src_cache->param_buff_size= 0;		// Free key cache
   ha_resize_key_cache(src_cache);
   ha_change_key_cache(src_cache, dst_cache);
   DBUG_RETURN(0);            
@@ -1946,7 +1945,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   ulonglong next_insert_id;
   uint save_time_stamp,db_create_options, used_fields;
   enum db_type old_db_type,new_db_type;
-  thr_lock_type lock_type;
   DBUG_ENTER("mysql_alter_table");
 
   thd->proc_info="init";
@@ -2786,7 +2784,6 @@ int mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
   for (table= tables; table; table= table->next)
   {
     char table_name[NAME_LEN*2+2];
-    bool fatal_error= 0;
     TABLE *t;
 
     strxmov(table_name, table->db ,".", table->real_name, NullS);

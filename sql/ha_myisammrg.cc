@@ -39,7 +39,6 @@ const char **ha_myisammrg::bas_ext() const
 int ha_myisammrg::open(const char *name, int mode, uint test_if_locked)
 {
   char name_buff[FN_REFLEN];
-  KEY_CACHE_VAR *key_cache;
 
   DBUG_PRINT("info", ("ha_myisammrg::open"));
   if (!(file=myrg_open(fn_format(name_buff,name,"","",2 | 4), mode,
@@ -312,11 +311,11 @@ THR_LOCK_DATA **ha_myisammrg::store_lock(THD *thd,
 static void split_file_name(const char *file_name,
 			    LEX_STRING *db, LEX_STRING *name)
 {
-  uint name_length, dir_length, prefix_length;
+  uint dir_length, prefix_length;
   char buff[FN_REFLEN];
 
   db->length= 0;
-  name_length= (uint) (strmake(buff, file_name, sizeof(buff)-1) - buff);
+  strmake(buff, file_name, sizeof(buff)-1);
   dir_length= dirname_length(buff);
   if (dir_length > 1)
   {

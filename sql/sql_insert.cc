@@ -1467,6 +1467,8 @@ void select_insert::send_error(uint errcode,const char *err)
 bool select_insert::send_eof()
 {
   int error,error2;
+  DBUG_ENTER("select_insert::send_eof");
+
   if (!(error=table->file->extra(HA_EXTRA_NO_CACHE)))
     error=table->file->activate_all_index(thd);
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
@@ -1499,20 +1501,18 @@ bool select_insert::send_eof()
     table->file->print_error(error,MYF(0));
     //TODO error should be sent at the query processing end
     ::send_error(thd);
-    return 1;
+    DBUG_RETURN(1);
   }
+
+  char buff[160];
+  if (info.handle_duplicates == DUP_IGNORE)
+    sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
+	    (ulong) (info.records - info.copied), (ulong) thd->cuted_fields);
   else
-  {
-    char buff[160];
-    if (info.handle_duplicates == DUP_IGNORE)
-      sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
-	      (ulong) (info.records - info.copied), (ulong) thd->cuted_fields);
-    else
-      sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
-	      (ulong) info.deleted, (ulong) thd->cuted_fields);
-    ::send_ok(thd,info.copied+info.deleted,last_insert_id,buff);
-    return 0;
-  }
+    sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
+	    (ulong) info.deleted, (ulong) thd->cuted_fields);
+  ::send_ok(thd,info.copied+info.deleted,last_insert_id,buff);
+  DBUG_RETURN(0);
 }
 
 

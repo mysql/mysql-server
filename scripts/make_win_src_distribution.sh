@@ -282,7 +282,7 @@ touch $BASE/innobase/ib_config.h
 #
 
 cd $SOURCE
-for i in COPYING COPYING.LIB ChangeLog README \
+for i in COPYING ChangeLog README \
          INSTALL-SOURCE INSTALL-WIN \
          INSTALL-WIN-SOURCE \
          Docs/manual_toc.html  Docs/manual.html \

@@ -61,22 +61,26 @@ bool hostname_cache_init()
 {
   host_entry tmp;
   uint offset= (uint) ((char*) (&tmp.ip) - (char*) &tmp);
-  (void) pthread_mutex_init(&LOCK_hostname,MY_MUTEX_INIT_SLOW);
-
   if (!(hostname_cache=new hash_filo(HOST_CACHE_SIZE, offset,
 				     sizeof(struct in_addr),NULL,
 				     (hash_free_key) free,
 				     &my_charset_latin1)))
     return 1;
   hostname_cache->clear();
+  (void) pthread_mutex_init(&LOCK_hostname,MY_MUTEX_INIT_SLOW);
   return 0;
 }
 
 void hostname_cache_free()
 {
-  (void) pthread_mutex_destroy(&LOCK_hostname);
-  delete hostname_cache;
+  if (hostname_cache)
+  {
+    (void) pthread_mutex_destroy(&LOCK_hostname);
+    delete hostname_cache;
+    hostname_cache= 0;
+  }
 }
+
 
 static void add_hostname(struct in_addr *in,const char *name)
 {

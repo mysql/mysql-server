@@ -84,7 +84,8 @@ completes, we decrement the count and return the file node to the LRU-list if
 the count drops to zero. */
 
 /* When mysqld is run, the default directory "." is the mysqld datadir,
-but in ibbackup we must set it explicitly */
+but in the MySQL Embedded Server Library and ibbackup it is not the default
+directory, and we must set the base file path explicitly */
 char*	fil_path_to_mysql_datadir	= (char*)".";
 
 ulint	fil_n_pending_log_flushes		= 0;
@@ -1567,7 +1568,7 @@ fil_op_write_log(
 	
 	mlog_close(mtr, log_ptr);
 
-	mlog_catenate_string(mtr, name, ut_strlen(name) + 1);
+	mlog_catenate_string(mtr, (byte*) name, ut_strlen(name) + 1);
 
 	if (type == MLOG_FILE_RENAME) {
 		log_ptr = mlog_open(mtr, 30);
@@ -1576,7 +1577,8 @@ fil_op_write_log(
 	
 		mlog_close(mtr, log_ptr);
 
-		mlog_catenate_string(mtr, new_name, ut_strlen(new_name) + 1);
+		mlog_catenate_string(mtr, (byte*) new_name,
+						ut_strlen(new_name) + 1);
 	}
 }
 #endif
@@ -1630,7 +1632,7 @@ fil_op_log_parse_or_replay(
 		return(NULL);
 	}
 
-	name = ptr;
+	name = (char*) ptr;
 
 	ptr += name_len;
 
@@ -1649,7 +1651,7 @@ fil_op_log_parse_or_replay(
 			return(NULL);
 		}
 
-		new_name = ptr;
+		new_name = (char*) ptr;
 
 		ptr += new_name_len;
 	}
@@ -1696,7 +1698,9 @@ fil_op_log_parse_or_replay(
 
 			if (fil_get_space_id_for_table(new_name)
 			    == ULINT_UNDEFINED) {
-				ut_a(fil_rename_tablespace(name, space_id,
+				/* We do not care of the old name, that is
+				why we pass NULL as the first argument */
+				ut_a(fil_rename_tablespace(NULL, space_id,
 								new_name));
 			}
 		}
@@ -1956,7 +1960,9 @@ fil_rename_tablespace(
 /*==================*/
 				/* out: TRUE if success */
 	char*	old_name,	/* in: old table name in the standard
-				databasename/tablename format of InnoDB */
+				databasename/tablename format of InnoDB, or
+				NULL if we do the rename based on the space
+				id only */
 	ulint	id,		/* in: space id */
 	char*	new_name)	/* in: new table name in the standard
 				databasename/tablename format of InnoDB */
@@ -1967,9 +1973,15 @@ fil_rename_tablespace(
 	fil_node_t*	node;
 	ulint		count		= 0;
 	char*		path		= NULL;
+	ibool		old_name_was_specified 		= TRUE;
 	char		old_path[OS_FILE_MAX_PATH];
 
 	ut_a(id != 0);
+	
+	if (old_name == NULL) {
+		old_name = (char*)"(name not specified)";
+		old_name_was_specified = FALSE;
+	}
 retry:
 	count++;
 
@@ -2038,16 +2050,19 @@ retry:
 	}
 
 	/* Check that the old name in the space is right */
-	
-	ut_a(strlen(old_name) + strlen(fil_path_to_mysql_datadir)
+
+	if (old_name_was_specified) {
+		ut_a(strlen(old_name) + strlen(fil_path_to_mysql_datadir)
 						< OS_FILE_MAX_PATH - 10);
+		sprintf(old_path, "%s/%s.ibd", fil_path_to_mysql_datadir,
+								old_name);
+		srv_normalize_path_for_win(old_path);
 
-	sprintf(old_path, "%s/%s.ibd", fil_path_to_mysql_datadir, old_name);
-
-	srv_normalize_path_for_win(old_path);
-
-	ut_a(strcmp(space->name, old_path) == 0);
-	ut_a(strcmp(node->name, old_path) == 0);
+		ut_a(strcmp(space->name, old_path) == 0);
+		ut_a(strcmp(node->name, old_path) == 0);
+	} else {
+		sprintf(old_path, "%s", space->name);
+	}
 
 	/* Rename the tablespace and the node in the memory cache */
 	
@@ -2066,8 +2081,6 @@ retry:
 		goto func_exit;	
 	}
 
-	/* printf("Renaming tablespace %s to %s id %lu\n", path, old_path, id);
-	*/
 	success = os_file_rename(old_path, path);
 
 	if (!success) {

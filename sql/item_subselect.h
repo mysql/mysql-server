@@ -263,7 +263,7 @@ public:
   virtual ~subselect_engine() {}; // to satisfy compiler
   
   // set_thd should be called before prepare()
-  void set_thd(THD *thd) { this->thd= thd; }
+  void set_thd(THD *thd_arg) { thd= thd_arg; }
   THD * get_thd() { return thd; }
   virtual int prepare()= 0;
   virtual void fix_length_and_dec(Item_cache** row)= 0;
@@ -328,11 +328,11 @@ protected:
 public:
 
   // constructor can assign THD because it will be called after JOIN::prepare
-  subselect_uniquesubquery_engine(THD *thd, st_join_table *tab_arg,
+  subselect_uniquesubquery_engine(THD *thd_arg, st_join_table *tab_arg,
 				  Item_subselect *subs, Item *where)
     :subselect_engine(subs, 0), tab(tab_arg), cond(where)
   {
-    set_thd(thd);
+    set_thd(thd_arg);
   }
   ~subselect_uniquesubquery_engine();
   int prepare();

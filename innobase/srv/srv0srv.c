@@ -995,7 +995,7 @@ srv_console(
 		srv_dec_thread_count(SRV_CONSOLE);
 	}
 	
-	return(0);
+	return(0);				/* Not reached */
 }
 
 /*************************************************************************
@@ -3286,7 +3286,7 @@ suspend_thread:
 	os_thread_exit(NULL);
 
 #ifndef __WIN__
-        return(NULL);
+        return(NULL);				/* Not reached */
 #else
 	return(0);
 #endif

@@ -329,8 +329,8 @@ static int examine_log(my_string file_name, char **table_names)
   bzero((gptr) com_count,sizeof(com_count));
   init_tree(&tree,0,0,sizeof(file_info),(qsort_cmp2) file_info_compare,1,
 	    (tree_element_free) file_info_free, NULL);
-  VOID(init_key_cache(dflt_keycache,KEY_CACHE_BLOCK_SIZE,KEY_CACHE_SIZE,
-                      &dflt_key_cache_var));
+  VOID(init_key_cache(dflt_key_cache,KEY_CACHE_BLOCK_SIZE,KEY_CACHE_SIZE,
+                      0,0));
   files_open=0; access_time=0;
   while (access_time++ != number_of_commands &&
 	 !my_b_read(&cache,(byte*) head,9))
@@ -622,7 +622,7 @@ static int examine_log(my_string file_name, char **table_names)
       goto end;
     }
   }
-  end_key_cache(dflt_keycache,1);
+  end_key_cache(dflt_key_cache,1);
   delete_tree(&tree);
   VOID(end_io_cache(&cache));
   VOID(my_close(file,MYF(0)));
@@ -642,7 +642,7 @@ static int examine_log(my_string file_name, char **table_names)
 	       llstr(isamlog_filepos,llbuff)));
   fflush(stderr);
  end:
-  end_key_cache(dflt_keycache,1);
+  end_key_cache(dflt_key_cache,1);
   delete_tree(&tree);
   VOID(end_io_cache(&cache));
   VOID(my_close(file,MYF(0)));

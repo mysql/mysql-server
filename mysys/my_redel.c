@@ -19,10 +19,10 @@
 #include <my_dir.h>
 #include <m_string.h>
 #include "mysys_err.h"
-#if defined(HAVE_SYS_UTIME_H)
-#include <sys/utime.h>
-#elif defined(HAVE_UTIME_H)
+#if defined(HAVE_UTIME_H)
 #include <utime.h>
+#elif defined(HAVE_SYS_UTIME_H)
+#include <sys/utime.h>
 #elif !defined(HPUX10)
 struct utimbuf {
   time_t actime;
