@@ -64,7 +64,7 @@ INSERT INTO t1 VALUES ("1\""), ("\"2");
 DROP TABLE t1;
 CREATE TABLE t1 (a  VARCHAR(255)) DEFAULT CHARSET koi8r;
 INSERT INTO t1  VALUES (_koi8r x'C1C2C3C4C5');
--- MySQL dump 10.2
+-- MySQL dump 10.3
 --
 -- Host: localhost    Database: test
 -- ------------------------------------------------------
