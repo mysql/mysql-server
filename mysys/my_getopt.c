@@ -293,7 +293,7 @@ int handle_options(int *argc, char ***argv,
 	      */
 	    *((my_bool*) optp->value)= 	(my_bool) (!optend || *optend == '1');
 	    (*argc)--;	    
-	    continue; // For GET_BOOL get_one_option() shouldn't be called
+	    continue; /* For GET_BOOL get_one_option() shouldn't be called */
 	  }
 	  argument= optend;
 	}
@@ -341,16 +341,16 @@ int handle_options(int *argc, char ***argv,
 	      if (optp->var_type == GET_BOOL && optp->arg_type == NO_ARG)
 	      {
 		*((my_bool*) optp->value)= (my_bool) 1;
-		continue; // For GET_BOOL get_one_option() shouldn't be called
+		continue; /* For GET_BOOL get_one_option() shouldn't be called */
 	      }
 	      else if (optp->arg_type == REQUIRED_ARG ||
 		       optp->arg_type == OPT_ARG)
 	      {
 		if (*(optend + 1))
 		{
-		  // The rest of the option is option argument
+		  /* The rest of the option is option argument */
 		  argument= optend + 1;
-		  // This is in effect a jump out of the outer loop
+		  /* This is in effect a jump out of the outer loop */
 		  optend= (char*) " ";
 		}
 		else if (optp->arg_type == REQUIRED_ARG)
@@ -573,7 +573,7 @@ static longlong getopt_ll (char *arg, const struct my_option *optp, int *err)
   if (num < (longlong) optp->min_value)
     num= (longlong) optp->min_value;
   else if (num > 0 && (ulonglong) num > (ulonglong) (ulong) optp->max_value
-	   && optp->max_value) // if max value is not set -> no upper limit
+	   && optp->max_value) /* if max value is not set -> no upper limit */
     num= (longlong) (ulong) optp->max_value;
   num= ((num - (longlong) optp->sub_size) / (optp->block_size ?
 					     (ulonglong) optp->block_size :
@@ -597,7 +597,7 @@ static ulonglong getopt_ull (char *arg, const struct my_option *optp, int *err)
   if (num < (ulonglong) optp->min_value)
     num= (ulonglong) optp->min_value;
   else if (num > 0 && (ulonglong) num > (ulonglong) (ulong) optp->max_value
-	   && optp->max_value) // if max value is not set -> no upper limit
+	   && optp->max_value) /* if max value is not set -> no upper limit */
     num= (ulonglong) (ulong) optp->max_value;
   num= ((num - (ulonglong) optp->sub_size) / (optp->block_size ?
 					      (ulonglong) optp->block_size :
@@ -717,7 +717,7 @@ void my_print_help(const struct my_option *options)
 	for (line_end= comment + comment_space; *line_end != ' '; line_end--);
 	for (; comment != line_end; comment++)
 	  putchar(*comment);
-	comment++; // skip the space, as a newline will take it's place now
+	comment++; /* skip the space, as a newline will take it's place now */
 	putchar('\n');
 	for (col= 0; col < name_space; col++)
 	  putchar(' ');
