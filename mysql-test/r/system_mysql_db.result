@@ -85,7 +85,7 @@ user	CREATE TABLE `user` (
 show create table func;
 Table	Create Table
 func	CREATE TABLE `func` (
-  `name` char(64) NOT NULL default '',
+  `name` char(64) binary NOT NULL default '',
   `ret` tinyint(1) NOT NULL default '0',
   `dl` char(128) NOT NULL default '',
   `type` enum('function','aggregate') NOT NULL default 'function',
