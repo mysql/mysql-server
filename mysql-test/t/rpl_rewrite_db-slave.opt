@@ -1,0 +1,1 @@
+"--replicate-rewrite-db=mysqltest1->test"
