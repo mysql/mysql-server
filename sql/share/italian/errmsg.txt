@@ -165,7 +165,7 @@ character-set=latin1
 "Rilevato un timeout ricevendo i pacchetti di comunicazione",
 "Rilevato un errore inviando i pacchetti di comunicazione",
 "Rilevato un timeout inviando i pacchetti di comunicazione",
-"La stringa di risposta e` piu` lunga di max_allowed_packet",
+"La stringa di risposta e` piu` lunga di 'max_allowed_packet'",
 "Il tipo di tabella usata non supporta colonne di tipo BLOB/TEXT",
 "Il tipo di tabella usata non supporta colonne di tipo AUTO_INCREMENT",
 "L'inserimento ritardato (INSERT DELAYED) non puo` essere usato con la tabella '%-.64s', perche` soggetta a lock da 'LOCK TABLES'",

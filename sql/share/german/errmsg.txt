@@ -177,7 +177,7 @@ character-set=latin1
 "Zeitüberschreitung beim Lesen eines Kommunikationspakets",
 "Fehler beim Schreiben eines Kommunikationspakets",
 "Zeitüberschreitung beim Schreiben eines Kommunikationspakets",
-"Ergebnis ist länger als max_allowed_packet",
+"Ergebnis ist länger als 'max_allowed_packet'",
 "Der verwendete Tabellentyp unterstützt keine BLOB- und TEXT-Spalten",
 "Der verwendete Tabellentyp unterstützt keine AUTO_INCREMENT-Spalten",
 "INSERT DELAYED kann nicht auf Tabelle '%-.64s' angewendet werden, da diese mit LOCK TABLES gesperrt ist",

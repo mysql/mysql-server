@@ -167,7 +167,7 @@ character-set=latin2
 "Idotullepes a kommunikacios adatcsomagok olvasasa soran",
 "Hiba a kommunikacios csomagok irasa soran",
 "Idotullepes a kommunikacios csomagok irasa soran",
-"Ez eredmeny sztring nagyobb, mint a lehetseges maximum: max_allowed_packet",
+"Ez eredmeny sztring nagyobb, mint a lehetseges maximum: 'max_allowed_packet'",
 "A hasznalt tabla tipus nem tamogatja a BLOB/TEXT mezoket",
 "A hasznalt tabla tipus nem tamogatja az AUTO_INCREMENT tipusu mezoket",
 "Az INSERT DELAYED nem hasznalhato a '%-.64s' tablahoz, mert a tabla zarolt (LOCK TABLES)",

@@ -165,7 +165,7 @@ character-set=latin1
 "Fick 'timeout' vid läsning från klienten",
 "Fick ett fel vid skrivning till klienten",
 "Fick 'timeout' vid skrivning till klienten",
-"Resultatsträngen är längre än max_allowed_packet",
+"Resultatsträngen är längre än 'max_allowed_packet'",
 "Den använda tabelltypen kan inte hantera BLOB/TEXT-kolumner",
 "Den använda tabelltypen kan inte hantera AUTO_INCREMENT-kolumner",
 "INSERT DELAYED kan inte användas med tabell '%-.64s', emedan den är låst med LOCK TABLES",

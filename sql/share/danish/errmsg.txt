@@ -168,7 +168,7 @@ character-set=latin1
 "Timeout-fejl ved læsning af kommunukations-pakker (communication packets)",
 "Fik fejlmeddelelse ved skrivning af kommunukations-pakker (communication packets)",
 "Timeout-fejl ved skrivning af kommunukations-pakker (communication packets)",
-"Strengen med resultater er større end max_allowed_packet",
+"Strengen med resultater er større end 'max_allowed_packet'",
 "Denne tabeltype understøtter ikke brug af BLOB og TEXT kolonner",
 "Denne tabeltype understøtter ikke brug af AUTO_INCREMENT kolonner",
 "INSERT DELAYED kan ikke bruges med tabellen '%-.64s', fordi tabellen er låst med LOCK TABLES",
