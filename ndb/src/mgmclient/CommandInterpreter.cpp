@@ -97,7 +97,7 @@ private:
   void executeShow(char* parameters);
   void executeConnect(char* parameters);
   void executePurge(char* parameters);
-  void executeShutdown(char* parameters);
+  int  executeShutdown(char* parameters);
   void executeRun(char* parameters);
   void executeInfo(char* parameters);
   void executeClusterLog(char* parameters);
@@ -523,7 +523,7 @@ CommandInterpreter::execute_impl(const char *_line)
     DBUG_RETURN(true);
   }
   else if (strcasecmp(firstToken, "SHUTDOWN") == 0) {
-    executeShutdown(allAfterFirstToken);
+    m_error= executeShutdown(allAfterFirstToken);
     DBUG_RETURN(true);
   }
   else if (strcasecmp(firstToken, "CLUSTERLOG") == 0){
@@ -854,23 +854,23 @@ CommandInterpreter::executeHelp(char* parameters)
  * SHUTDOWN
  *****************************************************************************/
 
-void
+int
 CommandInterpreter::executeShutdown(char* parameters) 
 { 
   ndb_mgm_cluster_state *state = ndb_mgm_get_status(m_mgmsrv);
   if(state == NULL) {
     ndbout_c("Could not get status");
     printError();
-    return;
+    return 1;
   }
   NdbAutoPtr<char> ap1((char*)state);
 
   int result = 0;
   result = ndb_mgm_stop(m_mgmsrv, 0, 0);
   if (result < 0) {
-    ndbout << "Shutdown failed." << endl;
+    ndbout << "Shutdown off NDB Cluster storage node(s) failed." << endl;
     printError();
-    return;
+    return result;
   }
 
   ndbout << result << " NDB Cluster storage node(s) have shutdown." << endl;
@@ -885,21 +885,23 @@ CommandInterpreter::executeShutdown(char* parameters)
 	ndbout << "Unable to locate management server, "
 	       << "shutdown manually with <id> STOP"
 	       << endl;
-	return;
+	return 1;
       }
     }
   }
 
-  result = 0;
   result = ndb_mgm_stop(m_mgmsrv, 1, &mgm_id);
   if (result <= 0) {
-    ndbout << "Shutdown failed." << endl;
+    ndbout << "Shutdown of NDB Cluster management server failed." << endl;
     printError();
-    return;
+    if (result == 0)
+      return 1;
+    return result;
   }
 
+  connected = false;
   ndbout << "NDB Cluster management server shutdown." << endl;
-  exit(0);
+  return 0;
 }
 
 /*****************************************************************************

@@ -128,7 +128,7 @@ int Ndb_cluster_connection::connect(int reconnect)
 	new ConfigRetriever(m_connect_string, NDB_VERSION, NODE_TYPE_API);
       if (m_config_retriever->hasError())
       {
-	printf("Could not connect initialize handle to management server",
+	printf("Could not connect initialize handle to management server: %s",
 	       m_config_retriever->getErrorString());
 	DBUG_RETURN(-1);
       }
