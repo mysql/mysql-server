@@ -995,6 +995,14 @@ NdbConnection::getNdbOperation(NdbTableImpl * tab, NdbOperation* aNextOp)
   return NULL;
 }//NdbConnection::getNdbOperation()
 
+NdbOperation* NdbConnection::getNdbOperation(NdbDictionary::Table * table)
+{
+  if (table)
+    return getNdbOperation(& NdbTableImpl::getImpl(*table));
+  else
+    return NULL;
+}//NdbConnection::getNdbOperation()
+
 // NdbScanOperation
 /*****************************************************************************
 NdbScanOperation* getNdbScanOperation(const char* aTableName);
@@ -1038,14 +1046,23 @@ NdbIndexScanOperation*
 NdbConnection::getNdbIndexScanOperation(const char* anIndexName, 
 					const char* aTableName)
 {
+  NdbIndexImpl* index = 
+    theNdb->theDictionary->getIndex(anIndexName, aTableName);
+  NdbTableImpl* table = theNdb->theDictionary->getTable(aTableName);
+
+  return getNdbIndexScanOperation(index, table);
+}
+
+NdbIndexScanOperation*
+NdbConnection::getNdbIndexScanOperation(NdbIndexImpl* index,
+					NdbTableImpl* table)
+{
   if (theCommitStatus == Started){
-    NdbIndexImpl* index = 
-      theNdb->theDictionary->getIndex(anIndexName, aTableName);
-    NdbTableImpl* table = theNdb->theDictionary->getTable(aTableName);
-    NdbTableImpl* indexTable = 
-      theNdb->theDictionary->getIndexTable(index, table);
+    const NdbTableImpl * indexTable = index->getIndexTable();
     if (indexTable != 0){
-      NdbIndexScanOperation* tOp = getNdbScanOperation(indexTable);
+      NdbIndexScanOperation* tOp = 
+	getNdbScanOperation((NdbTableImpl *) indexTable);
+      tOp->m_currentTable = table;
       if(tOp) tOp->m_cursor_type = NdbScanOperation::IndexCursor;
       return tOp;
     } else {
@@ -1056,7 +1073,18 @@ NdbConnection::getNdbIndexScanOperation(const char* anIndexName,
   
   setOperationErrorCodeAbort(4114);
   return NULL;
-}//NdbConnection::getNdbScanOperation()
+}//NdbConnection::getNdbIndexScanOperation()
+
+NdbIndexScanOperation* 
+NdbConnection::getNdbIndexScanOperation(NdbDictionary::Index * index,
+					NdbDictionary::Table * table)
+{
+  if (index && table)
+    return getNdbIndexScanOperation(& NdbIndexImpl::getImpl(*index),
+				    & NdbTableImpl::getImpl(*table));
+  else
+    return NULL;
+}//NdbConnection::getNdbIndexScanOperation()
 
 /*****************************************************************************
 NdbScanOperation* getNdbScanOperation(int aTableId);
@@ -1097,6 +1125,14 @@ getNdbOp_error1:
   return NULL;
 }//NdbConnection::getNdbScanOperation()
 
+NdbScanOperation* 
+NdbConnection::getNdbScanOperation(NdbDictionary::Table * table)
+{
+  if (table)
+    return getNdbScanOperation(& NdbTableImpl::getImpl(*table));
+  else
+    return NULL;
+}//NdbConnection::getNdbScanOperation()
 
 
 // IndexOperation
@@ -1190,6 +1226,18 @@ NdbConnection::getNdbIndexOperation(NdbIndexImpl * anIndex,
   setOperationErrorCodeAbort(4000);
   return NULL;
 }//NdbConnection::getNdbIndexOperation()
+
+NdbIndexOperation* 
+NdbConnection::getNdbIndexOperation(NdbDictionary::Index * index,
+				    NdbDictionary::Table * table)
+{
+  if (index && table)
+    return getNdbIndexOperation(& NdbIndexImpl::getImpl(*index),
+				& NdbTableImpl::getImpl(*table));
+  else
+    return NULL;
+}//NdbConnection::getNdbIndexOperation()
+
 
 /*******************************************************************************
 int  receiveDIHNDBTAMPER(NdbApiSignal* aSignal)
