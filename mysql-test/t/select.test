@@ -1527,10 +1527,24 @@ select t2.fld1,t22.fld1 from t2,t2 t22 where t2.fld1 >= 250501 and t2.fld1 <= 25
 #
 # Test of left join.
 #
+insert into t2 (fld1, companynr) values (999999,99);
 
 select t2.companynr,companyname from t2 left join t4 using (companynr) where t4.companynr is null;
+select count(*) from t2 left join t4 using (companynr) where t4.companynr is not null;
 explain select t2.companynr,companyname from t2 left join t4 using (companynr) where t4.companynr is null;
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr is null;
+delete from t2 where fld1=999999;
+
+#
+# Test left join optimization
+
+explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0;
+explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr < 0;
+explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 and t4.companynr > 0;
+# Following can't be optimized
+explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr is null;
+explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr < 0 or t4.companynr > 0;
+explain select t2.companynr,companyname from t4 left join t2 using (companynr) where ifnull(t2.companynr,1)>0;
 
 #
 # Joins with forms.

@@ -606,9 +606,10 @@ void Item_func_concat_ws::fix_length_and_dec()
     max_length=MAX_BLOB_WIDTH;
     maybe_null=1;
   }
-  used_tables_cache|=separator->used_tables();
-  const_item_cache&=separator->const_item();
-  with_sum_func= with_sum_func || separator->with_sum_func;
+  used_tables_cache|=     separator->used_tables();
+  not_null_tables_cache&= separator->not_null_tables();
+  const_item_cache&=	  separator->const_item();
+  with_sum_func=	  with_sum_func || separator->with_sum_func;
 }
 
 void Item_func_concat_ws::update_used_tables()
@@ -1509,8 +1510,9 @@ void Item_func_elt::fix_length_and_dec()
   }
   maybe_null=1;					// NULL if wrong first arg
   with_sum_func= with_sum_func || item->with_sum_func;
-  used_tables_cache|=item->used_tables();
-  const_item_cache&=item->const_item();
+  used_tables_cache|=	  item->used_tables();
+  not_null_tables_cache&= item->not_null_tables();
+  const_item_cache&=	  item->const_item();
 }
 
 
@@ -1544,12 +1546,10 @@ double Item_func_elt::val()
     return 0.0;
 
   double result= args[tmp-1]->val();
-  if (args[tmp-1]->is_null())
-    return 0.0;
-
-  null_value=0;
+  null_value= args[tmp-1]->null_value;
   return result;
 }
+
 
 longlong Item_func_elt::val_int()
 {
@@ -1559,12 +1559,10 @@ longlong Item_func_elt::val_int()
     return 0;
   
   int result= args[tmp-1]->val_int();
-  if (args[tmp-1]->is_null())
-    return 0;
-
-  null_value=0;
+  null_value= args[tmp-1]->null_value;
   return result;
 }
+
 
 String *Item_func_elt::val_str(String *str)
 {
@@ -1574,10 +1572,7 @@ String *Item_func_elt::val_str(String *str)
     return NULL;
 
   String *result= args[tmp-1]->val_str(str);
-  if (args[tmp-1]->is_null())
-    return NULL;
-
-  null_value=0;
+  null_value= args[tmp-1]->null_value;
   return result;
 }
 
@@ -1600,8 +1595,9 @@ void Item_func_make_set::fix_length_and_dec()
   max_length=arg_count-1;
   for (uint i=1 ; i < arg_count ; i++)
     max_length+=args[i]->max_length;
-  used_tables_cache|=item->used_tables();
-  const_item_cache&=item->const_item();
+  used_tables_cache|=	  item->used_tables();
+  not_null_tables_cache&= item->not_null_tables();
+  const_item_cache&=	  item->const_item();
   with_sum_func= with_sum_func || item->with_sum_func;
 }
 

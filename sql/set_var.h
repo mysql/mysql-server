@@ -412,6 +412,7 @@ public:
     return type != STRING_RESULT;		/* Only accept strings */
   }
   bool check_default(enum_var_type type) { return 0; }
+  void set_default(THD *thd, enum_var_type type);
 };
 
 

@@ -204,7 +204,7 @@ public:
   enum Item_result result_type () const { return cached_result_type; }
   void fix_length_and_dec();
   const char *func_name() const { return "ifnull"; }
-  unsigned int size_of() { return sizeof(*this);}  
+  table_map not_null_tables() const { return 0; }
 };
 
 
@@ -224,7 +224,7 @@ public:
   }
   void fix_length_and_dec();
   const char *func_name() const { return "if"; }
-  unsigned int size_of() { return sizeof(*this);}  
+  table_map not_null_tables() const { return 0; }
 };
 
 
@@ -239,7 +239,7 @@ public:
   enum Item_result result_type () const { return cached_result_type; }
   void fix_length_and_dec();
   const char *func_name() const { return "nullif"; }
-  unsigned int size_of() { return sizeof(*this);}  
+  table_map not_null_tables() const { return 0; }
 };
 
 
@@ -254,8 +254,9 @@ public:
   void fix_length_and_dec();
   enum Item_result result_type () const { return cached_result_type; }
   const char *func_name() const { return "coalesce"; }
-  unsigned int size_of() { return sizeof(*this);}  
+  table_map not_null_tables() const { return 0; }
 };
+
 
 class Item_func_case :public Item_func
 {
@@ -270,6 +271,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   void update_used_tables();
+  table_map not_null_tables() const { return 0; }
   enum Item_result result_type () const { return cached_result_type; }
   const char *func_name() const { return "case"; }
   void print(String *str);
@@ -479,9 +481,11 @@ public:
       }
     }
   }
+  table_map not_null_tables() const { return 0; }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
   unsigned int size_of() { return sizeof(*this);}  
 };
+
 
 class Item_func_isnotnull :public Item_bool_func
 {
@@ -495,8 +499,9 @@ public:
   }
   const char *func_name() const { return "isnotnull"; }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
-  unsigned int size_of() { return sizeof(*this);}  
+  table_map not_null_tables() const { return 0; }
 };
+
 
 class Item_func_like :public Item_bool_func2
 {
@@ -572,6 +577,8 @@ class Item_cond :public Item_bool_func
 protected:
   List<Item> list;
   bool abort_on_null;
+  table_map and_tables_cache;
+
 public:
   /* Item_cond() is only used to create top level items */
   Item_cond() : Item_bool_func(), abort_on_null(1) { const_item_cache=0; }
@@ -611,6 +618,7 @@ public:
   enum Functype functype() const { return COND_OR_FUNC; }
   longlong val_int();
   const char *func_name() const { return "or"; }
+  table_map not_null_tables() const { return and_tables_cache; }
 };
 
 

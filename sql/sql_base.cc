@@ -1903,11 +1903,11 @@ bool setup_tables(TABLE_LIST *tables)
 
     table->used_fields=0;
     table->const_table=0;
-    table->outer_join=table->null_row=0;
+    table->null_row=0;
     table->status=STATUS_NO_RECORD;
     table->keys_in_use_for_query= table->keys_in_use;
     table->used_keys= table->keys_for_keyread;
-    table->maybe_null=test(table->outer_join=table_list->outer_join);
+    table->maybe_null=test(table->outer_join= table_list->outer_join);
     table->tablenr=tablenr;
     table->map= (table_map) 1 << tablenr;
     table->force_index= table_list->force_index;
@@ -2027,6 +2027,7 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
 
 int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 {
+  table_map not_null_tables= 0;
   DBUG_ENTER("setup_conds");
   thd->set_query_id=1;
   thd->cond_count=0;
@@ -2036,6 +2037,7 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
     thd->where="where clause";
     if ((*conds)->fix_fields(thd,tables))
       DBUG_RETURN(1);
+    not_null_tables= (*conds)->not_null_tables();
   }
 
   /* Check if we are using outer joins */
@@ -2049,9 +2051,15 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	DBUG_RETURN(1);
       thd->cond_count++;
 
-      /* If it's a normal join, add the ON/USING expression to the WHERE */
-      if (!table->outer_join)
+      /*
+	If it's a normal join or a LEFT JOIN which can be optimized away
+	add the ON/USING expression to the WHERE
+      */
+      if (!table->outer_join ||
+	  ((table->table->map & not_null_tables) &&
+	   !(specialflag & SPECIAL_NO_NEW_FUNC)))
       {
+	table->outer_join= 0;
 	if (!(*conds=and_conds(*conds, table->on_expr)))
 	  DBUG_RETURN(1);
 	table->on_expr=0;
