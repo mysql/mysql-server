@@ -112,7 +112,8 @@ static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 * Base version coded by Steve Bernacki, Jr. <steve@navinet.net>
 *****************************************************************************/
 
-static int connect2(File s, const struct sockaddr *name, uint namelen, uint to)
+static int connect2(my_socket s, const struct sockaddr *name, uint namelen,
+		    uint to)
 {
 #if defined(__WIN__)
   return connect(s, (struct sockaddr*) name, namelen);
@@ -1138,7 +1139,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		   uint port, const char *unix_socket,uint client_flag)
 {
   char		buff[100],charset_name_buff[16],*end,*host_info, *charset_name;
-  int		sock;
+  my_socket	sock;
   uint32	ip_addr;
   struct	sockaddr_in sock_addr;
   uint		pkt_length;
@@ -1270,7 +1271,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     sprintf(host_info=buff,ER(CR_TCP_CONNECTION),host);
     DBUG_PRINT("info",("Server name: '%s'.  TCP sock: %d", host,port));
     /* _WIN64 ;  Assume that the (int) range is enough for socket() */
-    if ((sock = (int) socket(AF_INET,SOCK_STREAM,0)) == SOCKET_ERROR)
+    if ((sock = (my_socket) socket(AF_INET,SOCK_STREAM,0)) == SOCKET_ERROR)
     {
       net->last_errno=CR_IPSOCK_ERROR;
       sprintf(net->last_error,ER(net->last_errno),ERRNO);

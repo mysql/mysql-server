@@ -1,3 +1,7 @@
+2000-08-23  Michael Widenius  <monty@mysql.com>
+
+* Fixed bug when comparing DECIMAL/NUMERIC key parts.
+
 2000-08-17  Michael Widenius  <monty@mysql.com>
 
 * Add a new flag in share.staus so that we can quickly check if a table

@@ -30,6 +30,10 @@ int mi_delete_table(const char *name)
   uint raid_type=0,raid_chunks=0;
 #endif
   DBUG_ENTER("mi_delete_table");
+
+#ifdef EXTRA_DEBUG
+  check_table_is_closed(name,"delete");
+#endif
 #ifdef USE_RAID
   {
     MI_INFO *info;
@@ -39,7 +43,10 @@ int mi_delete_table(const char *name)
     raid_chunks =    info->s->base.raid_chunks;
     mi_close(info);
   }
+#ifdef EXTRA_DEBUG
+  check_table_is_closed(name,"delete");
 #endif
+#endif /* USE_RAID */
 
   fn_format(from,name,"",MI_NAME_IEXT,4);
   if (my_delete(from, MYF(MY_WME)))

@@ -317,8 +317,8 @@ int handler::ha_open(const char *name, int mode, int test_if_locked)
   }
   if (!error)
   {
-    
-    if (!(ref=(byte*) my_malloc(ALIGN_SIZE(ref_length)*2,MYF(0))))
+    if (!(ref=(byte*) alloc_root(&table->mem_root,
+				 ALIGN_SIZE(ref_length)*2)))
     {
       close();
       error=HA_ERR_OUT_OF_MEM;

@@ -622,6 +622,8 @@ void mi_dectivate_non_unique_index(MI_INFO *info, ha_rows rows);
 int _mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
 	     enum ha_rkey_function search_flag, bool raw_key);
 
+my_bool check_table_is_closed(const char *name, const char *where);
+
 /* Functions needed by mi_check */
 #ifdef	__cplusplus
 extern "C" {
