@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -54,7 +54,7 @@ class ha_berkeley: public handler
   ulong changed_rows;
   uint primary_key,last_dup_key, hidden_primary_key, version;
   bool fixed_length_row, fixed_length_primary_key, key_read;
-  bool  fix_rec_buff_for_blob(ulong length);
+  bool	fix_rec_buff_for_blob(ulong length);
   byte current_ident[BDB_HIDDEN_PRIMARY_KEY_LENGTH];
 
   ulong max_row_length(const byte *buf);
@@ -82,7 +82,7 @@ class ha_berkeley: public handler
 		    HA_REC_NOT_IN_SEQ |
 		    HA_KEYPOS_TO_RNDPOS | HA_READ_ORDER | HA_LASTKEY_ORDER |
 		    HA_LONGLONG_KEYS | HA_NULL_KEY | HA_HAVE_KEY_READ_ONLY |
-		    HA_BLOB_KEY | HA_NOT_EXACT_COUNT | 
+		    HA_BLOB_KEY | HA_NOT_EXACT_COUNT |
 		    HA_PRIMARY_KEY_IN_READ_INDEX | HA_DROP_BEFORE_CREATE |
 		    HA_AUTO_PART_KEY),
     last_dup_key((uint) -1),version(0)
@@ -93,8 +93,8 @@ class ha_berkeley: public handler
   const char **bas_ext() const;
   ulong option_flag() const { return int_option_flag; }
   uint max_record_length() const { return HA_MAX_REC_LENGTH; }
-  uint max_keys()          const { return MAX_KEY-1; }
-  uint max_key_parts()     const { return MAX_REF_PARTS; }
+  uint max_keys()	   const { return MAX_KEY-1; }
+  uint max_key_parts()	   const { return MAX_REF_PARTS; }
   uint max_key_length()    const { return MAX_KEY_LENGTH; }
   uint extra_rec_buf_length()	 { return BDB_HIDDEN_PRIMARY_KEY_LENGTH; }
   ha_rows estimate_number_of_rows();

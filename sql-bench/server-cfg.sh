@@ -581,7 +581,7 @@ sub new
   $limits{'table_wildcard'}	= 1;
   $limits{'max_column_name'} 	= 32;		# Is this true
   $limits{'max_columns'}	= 1000;		# 500 crashes pg 6.3
-  $limits{'max_tables'}		= 65000;	# Should be big enough
+  $limits{'max_tables'}		= 5000;		# 10000 crashes pg 7.0.2
   $limits{'max_conditions'}	= 30;		# This makes Pg real slow
   $limits{'max_index'}		= 64;		# Is this true ?
   $limits{'max_index_parts'}	= 16;		# Is this true ?

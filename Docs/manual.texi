@@ -31688,9 +31688,9 @@ for a similar query to get the correct row count.
 @cindex Borland Buidler 4 program
 @item Borland Builder 4
 When you start a query you can use the property @code{Active} or use the
-method @code{Open}.  Note that @code{Active} will start by automatically issuing
-a @code{SELECT * FROM ...} query that may not be a good thing if your tables
-are big!
+method @code{Open}.  Note that @code{Active} will start by automatically
+issuing a @code{SELECT * FROM ...} query that may not be a good thing if
+your tables are big!
 @item ColdFusion (On Unix)
 The following information is taken from the ColdFusion documentation:
 
@@ -31702,11 +31702,16 @@ newer version should also work.) You can download @strong{MyODBC} at
 @uref{http://www.mysql.com/downloads/api-myodbc.html}
 
 @cindex ColdFusion program
-ColdFusion Version 4.5.1 allows you to us the ColdFusion Administrator to add
-the @strong{MySQL} data source. However, the driver is not included with
-ColdFusion Version 4.5.1. Before the @strong{MySQL} driver will appear in the ODBC
-datasources drop-down list, you must build and copy the @strong{MyODBC} driver
-to @file{/opt/coldfusion/lib/libmyodbc.so}.
+ColdFusion Version 4.5.1 allows you to us the ColdFusion Administrator
+to add the @strong{MySQL} data source. However, the driver is not
+included with ColdFusion Version 4.5.1. Before the @strong{MySQL} driver
+will appear in the ODBC datasources drop-down list, you must build and
+copy the @strong{MyODBC} driver to
+@file{/opt/coldfusion/lib/libmyodbc.so}.
+
+The Contrib directory contains the program mydsn-xxx.zip which allows
+you to build and remove the DSN registry file for the MyODBC driver
+on Coldfusion applications.
 
 @cindex DataJunction
 @item DataJunction
@@ -38643,13 +38648,18 @@ databases. By Hal Roberts.
 Interface for Stk. Stk is the Tk widgets with Scheme underneath instead of Tcl.
 By Terry Jones.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/eiffel-wrapper-1.0.tar.gz,eiffel-wrapper-1.0.tar.gz}.
+@item @uref{http://www.mysql.com/Downloads/Contrib/eiffel-wrapper-1.0.tar.gz,eiffel-wrapper-1.0.tar.gz}
 Eiffel wrapper by Michael Ravits.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/SQLmy0.06.tgz,SQLmy0.06.tgz}.
+@item @uref{http://www.mysql.com/Downloads/Contrib/SQLmy0.06.tgz,SQLmy0.06.tgz}
 FlagShip Replaceable Database Driver (RDD) for MySQL. By Alejandro
 Fernandez Herrero.
 @uref{http://www.fship.com/rdds.html, Flagship RDD home page}
+
+@item @uref{http://www.mysql.com/Downloads/Contrib/mydsn-1.0.zip,mydsn-1.0.zip}
+Binary and source for @code{mydsn.dll}. mydsn should be used to build
+and remove the DSN registry file for the MyODBC driver in Coldfusion
+applications.  By Miguel Angel Solórzano.
 @end itemize
 
 @appendixsec  Clients
@@ -39603,35 +39613,48 @@ though, so Version 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.29
 @itemize @bullet
 @item
+Changed drop table to first drop the tables and then the @code{.frm} file.
+@item
+Fixed a bug in the hostname cache which caused @code{mysqld} to report the
+hostname as '' in some error messages.
+@item
 Fixed a bug with @code{HEAP} type tables; the variable
 @code{max_heap_table_size} wasn't used. Now either @code{MAX_ROWS} or
 @code{max_heap_table_size} can be used to limit the size of a @code{HEAP}
 type table.
 @item
-Renamed variable @code{bdb_lock_max} to @code{bdb_max_lock}.
-@item
 Changed the default server-id to 1 for masters and 2 for slaves
 to make it easier to use the binary log.
 @item
-Added @code{CHECK}, @code{ANALYZE} and @code{OPTIMIZE} of BDB tables.
+Renamed variable @code{bdb_lock_max} to @code{bdb_max_lock}.
+@item
+Added support for @code{auto_increment} on sub fields for BDB tables.
+@item
+Added @code{ANALYZE} of BDB tables.
 @item
 Store in BDB tables the number of rows; This helps to optimize queries
 when we need an approximation of the number of row.
 @item
-Made @code{DROP TABLE}, @code{RENAME TABLE}, @code{CREATE INDEX} and
-@code{DROP INDEX} are now transaction endpoints.
+If we get an error in a multi-row statement, we now only rollback the
+last statement, not the entire transaction.
+@item
+If you do a @code{ROLLBACK} when you have updated a non-transactional table
+you will get an error as a warning.
 @item
 Added option @code{--bdb-shared-data} to @code{mysqld}.
 @item
+Added status variable @code{Slave_open_temp_tables}.
+@item
 Added variables @code{binlog_cache_size} and @code{max_binlog_cache_size} to
 @code{mysqld}.
+@item
+Made @code{DROP TABLE}, @code{RENAME TABLE}, @code{CREATE INDEX} and
+@code{DROP INDEX} are now transaction endpoints.
 @item
 If you do a @code{DROP DATABASE} on a symbolic linked database, both
 the link and the original database is deleted.
 @item
 Fixed that @code{DROP DATABASE} works on OS/2.
-@item
-New client @code{mysqld_multi}. @xref{mysqld_multi}.
 @item
 Fixed bug when doing a @code{SELECT DISTINCT ... table1 LEFT JOIN
 table2..} when table2 was empty.
@@ -39640,12 +39663,12 @@ Added @code{--abort-slave-event-count} and
 @code{--disconnect-slave-event-count} options to @code{mysqld} for
 debugging and testing of replication.
 @item
-added @code{Slave_open_temp_tables} status variable.
-@item
 Fixed replication of temporary tables. Handles everything except
 slave server restart.
 @item
 @code{SHOW KEYS} now shows whether or not key is @code{FULLTEXT}.
+@item
+New script @code{mysqld_multi}. @xref{mysqld_multi}.
 @item
 Added new script, @file{mysql-multi.server.sh}.  Thanks to
 Tim Bunce @email{Tim.Bunce@@ig.co.uk} for modifying @file{mysql.server} to
@@ -39681,12 +39704,6 @@ with FrontBase.
 @item
 Allow @code{RESTRICT} and @code{CASCADE} after @code{DROP TABLE} to make
 porting easier.
-@item
-If we get an error we now only rollback the statement (for BDB tables),
-not the entire transaction.
-@item
-If you do a @code{ROLLBACK} when you have updated a non-transactional table
-you will get an error as a warning.
 @item
 Reset status variable which could cause problem if one used @code{--slow-log}.
 @item
@@ -44053,6 +44070,32 @@ Fixed @code{DISTINCT} with calculated columns.
 @node Bugs, TODO, News, Top
 @appendix Known errors and design deficiencies in MySQL
 
+The following problems are known and have a very high priority to get
+fixed:
+
+@itemize @bullet
+@item
+@code{ANALYZE TABLE} on a BDB table may in some case make the table
+unusable until one has restarted @code{mysqld}.  When this happens you will
+see errors like the following in the @strong{MySQL} error file:
+
+@example
+001207 22:07:56  bdb:  log_flush: LSN past current end-of-log
+@end example
+
+@item
+Don't execute @code{ALTER TABLE} on a @code{BDB} table on which you are
+running not completed multi-statement transactions. (The transaction
+will probably be ignored).
+
+@item
+Doing a @code{LOCK TABLE ..} and @code{FLUSH TABLES ..} doesn't
+guarantee that there isn't a half-finished transaction in progress on the
+table.
+@end itemize
+
+The following problems are known and will be fixed in due time:
+
 @itemize @bullet
 @item
 @code{mysqldump} on a @code{MERGE} table doesn't include the current
@@ -44120,7 +44163,7 @@ you a nice speed increase as it allows @strong{MySQL} to do some
 optimizations that otherwise would be very hard to do.
 
 If you set a column to a wrong value, @strong{MySQL} will, instead of doing
-a rollback, store the @code{best possible value} in the column.
+a rollback, store the @code{best possible value} in the column:
 
 @itemize @bullet
 @item
@@ -44144,6 +44187,7 @@ If the date is totally wrong, @strong{MySQL} will store the special
 If you set an @code{enum} to an unsupported value, it will be set to
 the error value 'empty string', with numeric value 0.
 @end itemize
+
 @item
 If you execute a @code{PROCEDURE} on a query that returns an empty set,
 in some cases the @code{PROCEDURE} will not transform the columns.

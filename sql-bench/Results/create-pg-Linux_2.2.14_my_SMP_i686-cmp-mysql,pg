@@ -1,18 +1,18 @@
-Testing server 'PostgreSQL version 7.0.2' at 2000-08-15 17:09:50
+Testing server 'PostgreSQL version ???' at 2000-12-05  5:49:26
 
 Testing the speed of creating and droping tables
 Testing with 10000 tables and 10000 loop count
 
 Testing create of tables
-Time for create_MANY_tables (10000): 455 wallclock secs ( 8.09 usr  1.12 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for create_MANY_tables (10000): 448 wallclock secs ( 7.42 usr  0.95 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Accessing tables
-Time to select_group_when_MANY_tables (10000): 188 wallclock secs ( 3.03 usr  0.46 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time to select_group_when_MANY_tables (10000): 187 wallclock secs ( 2.71 usr  0.68 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Testing drop
-Time for drop_table_when_MANY_tables (10000): 1328 wallclock secs ( 2.91 usr  0.56 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for drop_table_when_MANY_tables (10000): 1324 wallclock secs ( 3.41 usr  0.51 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
 
 Testing create+drop
-Time for create+drop (10000): 3022 wallclock secs (10.18 usr  1.71 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Time for create_key+drop (10000): 3752 wallclock secs ( 8.40 usr  1.09 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
-Total time: 8745 wallclock secs (32.62 usr  4.94 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for create+drop (10000): 2954 wallclock secs (11.24 usr  1.81 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Time for create_key+drop (10000): 4055 wallclock secs (10.98 usr  1.30 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+Total time: 8968 wallclock secs (35.76 usr  5.26 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
