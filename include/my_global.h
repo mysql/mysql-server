@@ -587,12 +587,6 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define USE_MY_STAT_STRUCT	/* For my_lib */
 #endif
 
-/* Some things that this system does have */
-
-#ifndef HAVE_ITOA
-#define USE_MY_ITOA		/* There is no itoa */
-#endif
-
 /* Some defines of functions for portability */
 
 #undef remove		/* Crashes MySQL on SCO 5.0.0 */

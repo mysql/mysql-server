@@ -1389,7 +1389,7 @@ static void descript(MI_CHECK *param, register MI_INFO *info, my_string name)
       }
       if (buff[0] == ',')
 	strmov(buff,buff+2);
-      int2str((long) share->rec[field].length,length,10);
+      int10_to_str((long) share->rec[field].length,length,10);
       null_bit[0]=null_pos[0]=0;
       if (share->rec[field].null_bit)
       {
