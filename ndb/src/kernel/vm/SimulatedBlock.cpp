@@ -636,7 +636,7 @@ SimulatedBlock::getBatSize(Uint16 blockNo){
 }
 
 void* 
-SimulatedBlock::allocRecord(const char * type, size_t s, size_t n) const 
+SimulatedBlock::allocRecord(const char * type, size_t s, size_t n) 
 {
 
   void* p = NULL;
