@@ -2616,14 +2616,17 @@ String *Field_timestamp::val_str(String *val_buffer,
 				 String *val_ptr __attribute__((unused)))
 {
   uint pos;
+  int extra;
   int part_time;
   uint32 temp;
   time_t time_arg;
   struct tm *l_time;
   struct tm tm_tmp;
+  my_bool new_format= (current_thd->variables.new_mode),
+          full_year=(field_length == 8 || field_length == 14);
+  static const uint extras[]={0,1,2,2,4,5,5};
 
-  val_buffer->alloc(field_length+1);
-  char *to=(char*) val_buffer->ptr(),*end=to+field_length;
+  extra= new_format ? extras[field_length/2-1] : 0;
 
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
@@ -2634,17 +2637,24 @@ String *Field_timestamp::val_str(String *val_buffer,
 
   if (temp == 0L)
   {				      /* Zero time is "000000" */
-    VOID(strfill(to,field_length,'0'));
-    val_buffer->length(field_length);
+    if (new_format)
+      val_buffer->copy("0000-00-00 00:00:00"+2*(1-full_year),
+                       field_length+extra);
+    else
+      val_buffer->copy("00000000000000", field_length);
     return val_buffer;
   }
   time_arg=(time_t) temp;
   localtime_r(&time_arg,&tm_tmp);
   l_time=&tm_tmp;
+
+  val_buffer->alloc(field_length+extra+1);
+  char *to=(char*) val_buffer->ptr(),*end=to+field_length+extra;
+
   for (pos=0; to < end ; pos++)
   {
     bool year_flag=0;
-    switch (dayord.pos[pos]) {
+    switch (pos) {
     case 0: part_time=l_time->tm_year % 100; year_flag=1; break;
     case 1: part_time=l_time->tm_mon+1; break;
     case 2: part_time=l_time->tm_mday; break;
@@ -2653,7 +2663,7 @@ String *Field_timestamp::val_str(String *val_buffer,
     case 5: part_time=l_time->tm_sec; break;
     default: part_time=0; break; /* purecov: deadcode */
     }
-    if (year_flag && (field_length == 8 || field_length == 14))
+    if (year_flag && full_year)
     {
       if (part_time < YY_PART_YEAR)
       {
@@ -2666,7 +2676,14 @@ String *Field_timestamp::val_str(String *val_buffer,
     }
     *to++=(char) ('0'+((uint) part_time/10));
     *to++=(char) ('0'+((uint) part_time % 10));
+    if (new_format)
+    {
+      static const char delim[6]="-- ::";
+      *to++=delim[pos];
+    }
   }
+  if (new_format)
+    to--;
   *to=0;					// Safeguard
   val_buffer->length((uint) (to-val_buffer->ptr()));
   return val_buffer;
