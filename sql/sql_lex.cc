@@ -1008,7 +1008,7 @@ void st_select_lex::init_query()
   ref_pointer_array= 0;
   select_n_having_items= 0;
   prep_where= 0;
-  explicit_limit= 0;
+  subquery_in_having= explicit_limit= 0;
 }
 
 void st_select_lex::init_select()
