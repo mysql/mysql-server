@@ -1,0 +1,82 @@
+				
+Master DIH			Starting DIH		  Starting DICT
+----------------------		----------------------	  ---------------------
+
+                                Check for sysfile
+				DIH_RESTARTCONF ->
+
+******************************************************************************
+* NDB_STTOR interal startphase = 1
+******************************************************************************
+
+							  Read schema file
+
+******************************************************************************
+* NDB_STTOR interal startphase = 2
+******************************************************************************
+
+				<- START_PERMREQ
+
+XXX
+
+START_PERMCONF ->
+
+******************************************************************************
+* NDB_STTOR interal startphase = 3
+******************************************************************************
+
+				<- START_MEREQ
+
+START_RECREQ -> starting LQH
+             <- START_RECCONF
+
+For each table
+  COPY_TABREQ -> starting DIH
+
+DICTSTARTREQ -> starting DICT
+			 				  GET_SCHEMA_INFOREQ
+							  (to master DICT)
+
+							  ->SCHEMA_INFO
+							    (schema file)
+
+							  1) For each table
+				                             If TableStatus OK
+				                                ReadTableFile
+							      else
+			                                        GET_TABINFOREQ
+                                                          2) DIADDTABREQ->DIH
+							
+				For each local frag
+				  ADD_FRAG_REQ -> local DICT
+				DI_ADD_TAB_CONF
+						          <- DICTSTARTCONF
+
+INCL_NODEREQ -> all DIH
+
+START_MECONF -> starting DIH
+ (including sysfile)
+
+******************************************************************************
+* NDB_STTOR interal startphase = 5
+******************************************************************************
+
+				<- START_COPYREQ
+
+START_TOREQ -> all DIH
+
+For each fragment
+  CREATE_FRAGREQ -> all DIH
+  
+  COPY-DATA (LQHKEYREQ++)
+
+  UPDATE_TOREQ -> all DIH
+  
+  COPY_ACTIVEREQ -> starting LQH
+
+  CREATE_FRAGREQ -> all DIH
+
+START_COPYCONF -> 
+
+LOCAL CHECKPOINT
+
