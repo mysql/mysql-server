@@ -397,7 +397,7 @@ useradd -M -r -d $mysql_datadir -s /bin/bash -c "MySQL server" mysql 2> /dev/nul
 chown -R mysql $mysql_datadir
 
 # Initiate databases
-mysql_install_db -IN-RPM --user=mysql
+mysql_install_db --rpm --user=mysql
 
 # Change permissions again to fix any new files.
 chown -R mysql $mysql_datadir
@@ -579,6 +579,11 @@ fi
 # The spec file changelog only includes changes made to the spec file
 # itself
 %changelog 
+* Wed Jun 30 2004 Lenz Grimmer <lenz@mysql.com>
+
+- fixed server postinstall (mysql_install_db was called with the wrong
+  parameter)
+
 * Thu Jun 24 2004 Lenz Grimmer <lenz@mysql.com>
 
 - added mysql_tzinfo_to_sql to the server subpackage
