@@ -11,3 +11,5 @@ libcommon_la_LIBADD = \
               portlib/libportlib.la      \
               logger/liblogger.la       \
               util/libgeneral.la 
+
+windoze-dsp:
