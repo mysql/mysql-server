@@ -148,7 +148,7 @@ decode(encode("abcdef","monty"),"monty")="abcdef"
 1
 select quote('\'\"\\test');
 quote('\'\"\\test')
-'\'\"\\test'
+'\'"\\test'
 select quote(concat('abc\'', '\\cba'));
 quote(concat('abc\'', '\\cba'))
 'abc\'\\cba'
