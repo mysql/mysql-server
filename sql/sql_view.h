@@ -29,7 +29,7 @@ void insert_view_fields(List<Item> *list, TABLE_LIST *view);
 
 frm_type_enum mysql_frm_type(char *path);
 
-extern TYPELIB sql_updatable_view_key_typelib;
+extern TYPELIB updatable_views_with_limit_typelib;
 
 #define VIEW_ANY_ACL (SELECT_ACL | UPDATE_ACL | INSERT_ACL | DELETE_ACL)
 
