@@ -64,16 +64,17 @@ case $system in
 esac
 
 
-mkdir $BASE $BASE/bin $BASE/data $BASE/data/mysql $BASE/data/test \
+mkdir $BASE $BASE/bin \
  $BASE/include $BASE/lib $BASE/support-files $BASE/share $BASE/scripts \
  $BASE/mysql-test $BASE/mysql-test/t  $BASE/mysql-test/r \
  $BASE/mysql-test/include $BASE/mysql-test/std_data
 
 if [ $BASE_SYSTEM != "netware" ] ; then
-  mkdir $BASE/share/mysql $BASE/tests $BASE/sql-bench $BASE/man $BASE/man/man1
-fi
+ mkdir $BASE/share/mysql $BASE/tests $BASE/sql-bench $BASE/man \
+  $BASE/man/man1 $BASE/data $BASE/data/mysql $BASE/data/test
 
-chmod o-rwx $BASE/data $BASE/data/*
+ chmod o-rwx $BASE/data $BASE/data/*
+fi
 
 for i in ChangeLog COPYING COPYING.LIB README Docs/INSTALL-BINARY \
          MySQLEULA.txt Docs/manual.html Docs/manual.txt Docs/manual_toc.html \
