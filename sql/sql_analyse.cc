@@ -359,7 +359,8 @@ void field_real::add()
   else
   {
 #ifdef HAVE_SNPRINTF
-    snprintf(buff, sizeof(buff), "%-.*f", (int) decs, num);
+    buff[sizeof(buff)-1]=0;			// Safety
+    snprintf(buff, sizeof(buff)-1, "%-.*f", (int) decs, num);
 #else
     sprintf(buff, "%-.*f", (int) decs, num);
 #endif

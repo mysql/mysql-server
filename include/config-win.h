@@ -222,8 +222,6 @@ inline double ulonglong2double(ulonglong value)
 
 #define HAVE_PERROR
 #define HAVE_VFPRINT
-#define HAVE_SNPRINTF
-#define _snprintf snprintf
 #define HAVE_CHSIZE		/* System has chsize() function */
 #define HAVE_RENAME		/* Have rename() as function */
 #define HAVE_BINARY_STREAMS	/* Have "b" flag in streams */
@@ -247,6 +245,11 @@ inline double ulonglong2double(ulonglong value)
 #define NO_FCNTL_NONBLOCK       /* No FCNTL */
 #define HAVE_ALLOCA
 #define HAVE_COMPRESS
+
+#ifdef NOT_USED
+#define HAVE_SNPRINTF		/* Gave link error */
+#define _snprintf snprintf
+#endif
 
 #ifdef _MSC_VER
 #define HAVE_LDIV		/* The optimizer breaks in zortech for ldiv */
