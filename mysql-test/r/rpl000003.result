@@ -6,6 +6,7 @@ slave start;
 drop table if exists t1;
 create table t1(n int primary key);
 insert into t1 values (1),(2),(2);
+Duplicate entry '2' for key 1
 insert into t1 values (3);
 select * from t1;
 n

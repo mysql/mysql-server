@@ -227,4 +227,3 @@
 "Can't execute the query because you have a conflicting read lock",
 "Mixing of transactional and non-transactional tables is disabled",
 "Option '%s' used twice in statement",
-"The used table type doesn't support FULLTEXT indexes",
