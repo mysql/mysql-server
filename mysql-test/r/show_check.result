@@ -26,6 +26,8 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
 t1	0	PRIMARY	1	a	A	5	NULL	NULL	
 t1	1	b	1	b	A	1	NULL	NULL	

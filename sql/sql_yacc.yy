@@ -205,6 +205,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  MASTER_CONNECT_RETRY_SYM
 %token	MATCH
 %token	MAX_ROWS
+%token	MEDIUM_SYM
 %token	MERGE_SYM
 %token	MIN_ROWS
 %token	MYISAM_SYM
@@ -1156,6 +1157,7 @@ mi_check_types:
 mi_check_type:
 	QUICK      { Lex->check_opt.quick = 1; }
 	| FAST_SYM { Lex->check_opt.flags|= T_FAST; }
+	| MEDIUM_SYM { Lex->check_opt.flags|= T_MEDIUM; }
 	| EXTENDED_SYM { Lex->check_opt.flags|= T_EXTEND; }
 	| CHANGED  { Lex->check_opt.flags|= T_CHECK_ONLY_CHANGED; }
 
@@ -2510,6 +2512,7 @@ keyword:
 	| MASTER_USER_SYM	{}
 	| MASTER_PASSWORD_SYM	{}
 	| MASTER_CONNECT_RETRY_SYM	{}
+	| MEDIUM_SYM		{}
 	| MERGE_SYM		{}
 	| MINUTE_SYM		{}
 	| MIN_ROWS		{}

@@ -246,7 +246,7 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
   param.thd = thd;
   param.op_name = (char*)"check";
   param.table_name = table->table_name;
-  param.testflag = check_opt->flags | T_CHECK | T_SILENT | T_MEDIUM;
+  param.testflag = check_opt->flags | T_CHECK | T_SILENT;
 
   if (!(table->db_stat & HA_READ_ONLY))
     param.testflag|= T_STATISTICS;
@@ -270,15 +270,19 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
   if (!error)
   {
     if ((!check_opt->quick &&
-	(share->options &
-	 (HA_OPTION_PACK_RECORD | HA_OPTION_COMPRESS_RECORD))) ||
+	 ((share->options &
+	   (HA_OPTION_PACK_RECORD | HA_OPTION_COMPRESS_RECORD)) ||
+	  (param.testflag & (T_EXTEND | T_MEDIUM)))) ||
 	mi_is_crashed(file))
     {
+      uint old_testflag=param.testflag;
+      param.testflag|=T_MEDIUM;
       init_io_cache(&param.read_cache, file->dfile,
 		    my_default_record_cache_size, READ_CACHE,
 		    share->pack.header_length, 1, MYF(MY_WME));
       error |= chk_data_link(&param, file, param.testflag & T_EXTEND);
       end_io_cache(&(param.read_cache));
+      param.testflag=old_testflag;
     }
   }
   if (!error)
@@ -548,7 +552,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
   thd->proc_info="saving state";
   if (!error)
   {
-    if (share->state.changed & STATE_CHANGED)
+    if ((share->state.changed & STATE_CHANGED) || mi_is_crashed(file))
     {
       share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
 			       STATE_CRASHED_ON_REPAIR);

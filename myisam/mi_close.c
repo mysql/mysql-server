@@ -65,8 +65,13 @@ int mi_close(register MI_INFO *info)
 			 share->temporary ? FLUSH_IGNORE_CHANGED :
 			 FLUSH_RELEASE))
       error=my_errno;
-    if (share->kfile >= 0 && my_close(share->kfile,MYF(0)))
-      error = my_errno;
+    if (share->kfile >= 0)
+    {
+      if (share->mode != O_RDONLY && mi_is_crashed(info))
+	mi_state_info_write(share->kfile, &share->state, 1);
+      if (my_close(share->kfile,MYF(0)))
+        error = my_errno;
+    }
 #ifdef HAVE_MMAP
     if (share->file_map)
       _mi_unmap_file(info);

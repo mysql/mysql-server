@@ -18419,12 +18419,14 @@ running!
 @example
 CHECK TABLE tbl_name[,tbl_name...] [option [option...]]
 
-option = QUICK | FAST | EXTEND | CHANGED
+option = QUICK | FAST | MEDIUM | EXTEND | CHANGED
 @end example
 
 @code{CHECK TABLE} only works on @code{MyISAM} and @code{BDB} tables. On
 @code{MyISAM} tables it's the same thing as running @code{myisamchk -m
 table_name} on the table.
+
+If you don't specify any option @code{MEDIUM} is used.
 
 Checks the table(s) for errors. For @code{MyISAM} tables the key statistics
 is updated. The command returns a table with the following columns:
@@ -18451,8 +18453,13 @@ The different check types stand for the following:
 @item @code{QUICK} @tab Don't scan the rows to check for wrong links.
 @item @code{FAST}  @tab Only check tables which haven't been closed properly.
 @item @code{CHANGED} @tab Only check tables which have been changed since last check or haven't been closed properly.
+@item @code{MEDIUM} @tab Scan rows to verify that deleted links are ok. This also calculates a key checksum for the rows and verifies this with a calcualted checksum for the keys.
 @item @code{EXTENDED} @tab Do a full key lookup for all keys for each row.  This ensures that the table is 100 % consistent, but will take a long time!
 @end multitable
+
+For dynamic sized @code{MyISAM} tables a started check will always
+do a @code{MEDIUM} check. For static size rows we skip the row scan 
+for @code{QUICK} and @code{FAST} as the rows are very seldom corrupted.
 
 Note that for BDB tables the different check options doesn't affect the
 check in any way!
@@ -40395,6 +40402,13 @@ though, so Version 3.23 is not released as a stable version yet.
 @node News-3.23.31, News-3.23.30, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.31
 @itemize @bullet
+@item
+@code{SHOW TABLE STATUS} didn't show correct average row length for tables
+bigger than 4G.
+@item
+@code{CHECK TABLE .. EXTENED} didn't check row links for fixed size tables.
+@item
+Added option @code{MEDIUM} to @code{CHECK TABLE}.
 @item
 Fixed problem when using @code{DECIMAL()} keys on negative numbers.
 @item
