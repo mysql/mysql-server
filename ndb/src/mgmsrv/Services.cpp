@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <string.h>
+#include <ndb_global.h>
 #include <ctype.h>
 
 #include <uucode.h>
@@ -30,6 +30,8 @@
 #include <mgmapi_configuration.hpp>
 
 #include "Services.hpp"
+
+extern bool g_StopServer;
 
 static const unsigned int MAX_READ_TIMEOUT = 1000 ;
 static const unsigned int MAX_WRITE_TIMEOUT = 100 ;
@@ -120,6 +122,15 @@ ParserRow<MgmApiSession> commands[] = {
   MGM_CMD("get config", &MgmApiSession::getConfig, ""),
     MGM_ARG("version", Int, Mandatory, "Configuration version number"),
     MGM_ARG("node", Int, Optional, "Node ID"),
+
+  MGM_CMD("get nodeid", &MgmApiSession::get_nodeid, ""),
+    MGM_ARG("version", Int, Mandatory, "Configuration version number"),
+    MGM_ARG("nodetype", Int, Mandatory, "Node type"),
+    MGM_ARG("transporter", String, Optional, "Transporter type"),
+    MGM_ARG("nodeid", Int, Optional, "Node ID"),
+    MGM_ARG("user", String, Mandatory, "Password"),
+    MGM_ARG("password", String, Mandatory, "Password"),
+    MGM_ARG("public key", String, Mandatory, "Public key"),
 
   MGM_CMD("get version", &MgmApiSession::getVersion, ""),
 
@@ -216,6 +227,16 @@ ParserRow<MgmApiSession> commands[] = {
     MGM_ARG("parameter", String, Mandatory, "Parameter"),
     MGM_ARG("value", String, Mandatory, "Value"),
 
+  MGM_CMD("config lock", &MgmApiSession::configLock, ""),
+
+  MGM_CMD("config unlock", &MgmApiSession::configUnlock, ""),
+    MGM_ARG("commit", Int, Mandatory, "Commit changes"),
+
+  MGM_CMD("set parameter", &MgmApiSession::setParameter, ""),
+    MGM_ARG("node", String, Mandatory, "Node"),
+    MGM_ARG("parameter", String, Mandatory, "Parameter"),
+    MGM_ARG("value", String, Mandatory, "Value"),
+  
   MGM_END()
 };
 
@@ -224,6 +245,19 @@ MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock)
   m_input = new SocketInputStream(sock);
   m_output = new SocketOutputStream(sock);
   m_parser = new Parser_t(commands, *m_input, true, true, true);
+  m_allocated_resources= new MgmtSrvr::Allocated_resources(m_mgmsrv);
+}
+
+MgmApiSession::~MgmApiSession()
+{
+  if (m_input)
+    delete m_input;
+  if (m_output)
+    delete m_output;
+  if (m_parser)
+    delete m_parser;
+  if (m_allocated_resources)
+    delete m_allocated_resources;
 }
 
 void
@@ -333,6 +367,82 @@ backward(const char * base, const Properties* reply){
 }
 
 void
+MgmApiSession::get_nodeid(Parser_t::Context &,
+			  const class Properties &args)
+{
+  const char *cmd= "get nodeid reply";
+  Uint32 version, nodeid= 0, nodetype= 0xff;
+  const char * transporter;
+  const char * user;
+  const char * password;
+  const char * public_key;
+
+  args.get("version", &version);
+  args.get("nodetype", &nodetype);
+  args.get("transporter", &transporter);
+  args.get("nodeid", &nodeid);
+  args.get("user", &user);
+  args.get("password", &password);
+  args.get("public key", &public_key);
+  
+  bool compatible;
+  switch (nodetype) {
+  case NODE_TYPE_MGM:
+  case NODE_TYPE_API:
+    compatible = ndbCompatible_mgmt_api(NDB_VERSION, version);
+    break;
+  case NODE_TYPE_DB:
+    compatible = ndbCompatible_mgmt_ndb(NDB_VERSION, version);
+    break;
+  default:
+    m_output->println(cmd);
+    m_output->println("result: unknown nodetype %d", nodetype);
+    m_output->println("");
+    return;
+  }
+
+  struct sockaddr addr;
+  SOCKET_SIZE_TYPE addrlen= sizeof(addr);
+  int r = getpeername(m_socket, &addr, &addrlen);
+  if (r != 0 ) {
+    m_output->println(cmd);
+    m_output->println("result: getpeername(%d) failed, err= %d", m_socket, r);
+    m_output->println("");
+    return;
+  }
+
+  NodeId tmp= nodeid;
+  if(tmp == 0 || !m_allocated_resources->is_reserved(tmp)){
+    if (!m_mgmsrv.alloc_node_id(&tmp, (enum ndb_mgm_node_type)nodetype, 
+				&addr, &addrlen)){
+      m_output->println(cmd);
+      m_output->println("result: no free nodeid %d for nodetype %d",
+			nodeid, nodetype);
+      m_output->println("");
+      return;
+    }
+  }    
+  
+#if 0
+  if (!compatible){
+    m_output->println(cmd);
+    m_output->println("result: incompatible version mgmt 0x%x and node 0x%x",
+		      NDB_VERSION, version);
+    m_output->println("");
+    return;
+  }
+#endif
+  
+  m_output->println(cmd);
+  m_output->println("nodeid: %u", tmp);
+  m_output->println("result: Ok");
+  m_output->println("");
+  m_allocated_resources->reserve_node(tmp);
+  
+  return;
+}
+
+void
 MgmApiSession::getConfig_common(Parser_t::Context &,
 				const class Properties &args,
 				bool compat) {
@@ -432,7 +542,6 @@ MgmApiSession::getConfig_common(Parser_t::Context &,
   m_output->println("Content-Transfer-Encoding: base64");
   m_output->println("");
   m_output->println(str.c_str());
-  m_output->println("");
 
   return;
 }
@@ -905,10 +1014,27 @@ MgmApiSession::stop(Parser<MgmApiSession>::Context &,
     nodes.push_back(atoi(p));
   }
 
+  int stop_self= 0;
+
+  for(size_t i=0; i < nodes.size(); i++) {
+    if (nodes[i] == m_mgmsrv.getOwnNodeId()) {
+      stop_self= 1;
+      if (i != nodes.size()-1) {
+	m_output->println("stop reply");
+	m_output->println("result: server must be stopped last");
+	m_output->println("");
+	return;
+      }
+    }
+  }
+
   int stopped = 0, result = 0;
   
   for(size_t i=0; i < nodes.size(); i++)
-    if((result = m_mgmsrv.stopNode(nodes[i], abort != 0)) == 0)
+    if (nodes[i] != m_mgmsrv.getOwnNodeId()) {
+      if((result = m_mgmsrv.stopNode(nodes[i], abort != 0)) == 0)
+	stopped++;
+    } else
       stopped++;
   
   m_output->println("stop reply");
@@ -918,6 +1044,9 @@ MgmApiSession::stop(Parser<MgmApiSession>::Context &,
     m_output->println("result: Ok");
   m_output->println("stopped: %d", stopped);
   m_output->println("");
+
+  if (stop_self)
+    g_StopServer= true;
 }
 
 
@@ -1119,7 +1248,8 @@ void
 MgmStatService::println_statistics(const BaseString &line){
   MutexVector<NDB_SOCKET_TYPE> copy(m_sockets.size()); 
   m_sockets.lock();
-  for(int i = m_sockets.size() - 1; i >= 0; i--){
+  int i;
+  for(i = m_sockets.size() - 1; i >= 0; i--){
     if(println_socket(m_sockets[i], MAX_WRITE_TIMEOUT, line.c_str()) == -1){
       copy.push_back(m_sockets[i]);
       m_sockets.erase(i, false);
@@ -1127,7 +1257,7 @@ MgmStatService::println_statistics(const BaseString &line){
   }
   m_sockets.unlock();
   
-  for(int i = copy.size() - 1; i >= 0; i--){
+  for(i = copy.size() - 1; i >= 0; i--){
     NDB_CLOSE_SOCKET(copy[i]);
     copy.erase(i);
   }
@@ -1142,5 +1272,28 @@ MgmStatService::stopSessions(){
     NDB_CLOSE_SOCKET(m_sockets[i]);
     m_sockets.erase(i);
   }
-  
 }
+
+void
+MgmApiSession::setParameter(Parser_t::Context &,
+			    Properties const &args) {
+  BaseString node, param, value;
+  args.get("node", node);
+  args.get("parameter", param);
+  args.get("value", value);
+  
+  BaseString result;
+  int ret = m_mgmsrv.setDbParameter(atoi(node.c_str()), 
+				    atoi(param.c_str()),
+				    value.c_str(),
+				    result);
+  
+  m_output->println("set parameter reply");
+  m_output->println("message: %s", result.c_str());
+  m_output->println("result: %d", ret);
+  m_output->println("");
+}
+
+template class MutexVector<int>;
+template class Vector<ParserRow<MgmApiSession> const*>;
+template class Vector<unsigned short>;

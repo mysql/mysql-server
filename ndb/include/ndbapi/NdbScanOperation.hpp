@@ -29,9 +29,7 @@
 #ifndef NdbScanOperation_H
 #define NdbScanOperation_H
 
-
 #include <NdbOperation.hpp>
-#include <NdbCursorOperation.hpp>
 
 class NdbBlob;
 
@@ -39,63 +37,71 @@ class NdbBlob;
  * @class NdbScanOperation
  * @brief Class of scan operations for use in transactions.  
  */
-class NdbScanOperation : public NdbCursorOperation
-{
+class NdbScanOperation : public NdbOperation {
   friend class Ndb;
   friend class NdbConnection;
   friend class NdbResultSet;
   friend class NdbOperation;
-
+  friend class NdbBlob;
 public:
+  /**
+   * Type of cursor
+   */
+  enum CursorType {
+    NoCursor = 0,
+    ScanCursor = 1,
+    IndexCursor = 2
+  };
+
+  /**
+   * Lock when performing scan
+   */
+  enum LockMode {
+    LM_Read = 0,
+    LM_Exclusive = 1,
+    LM_CommittedRead = 2,
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    LM_Dirty = 2
+#endif
+  };
+  
+  /**
+   * Type of cursor
+   */
+  CursorType get_cursor_type() const;
+
   /**
    * readTuples returns a NdbResultSet where tuples are stored.
    * Tuples are not stored in NdbResultSet until execute(NoCommit) 
    * has been executed and nextResult has been called.
    * 
    * @param parallel  Scan parallelism
+   * @param batch No of rows to fetch from each fragment at a time
    * @param LockMode  Scan lock handling   
    * @returns NdbResultSet.
+   * @note specifying 0 for batch and parallall means max performance
    */ 
-  virtual NdbResultSet* readTuples(unsigned parallel = 0, 
-				   LockMode = LM_Read );
+  NdbResultSet* readTuples(LockMode = LM_Read, 
+			   Uint32 batch = 0, Uint32 parallel = 0);
   
-#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-
-  int updateTuples();
-  int updateTuples(Uint32 parallelism);
-
-  int deleteTuples();
-  int deleteTuples(Uint32 parallelism);
-
-  // Overload setValue for updateTuples
-  int setValue(const char* anAttrName, const char* aValue, Uint32 len = 0);
-  int setValue(const char* anAttrName, Int32 aValue);
-  int setValue(const char* anAttrName, Uint32 aValue);
-  int setValue(const char* anAttrName, Int64 aValue);
-  int setValue(const char* anAttrName, Uint64 aValue);
-  int setValue(const char* anAttrName, float aValue);
-  int setValue(const char* anAttrName, double aValue);
-
-  int setValue(Uint32 anAttrId, const char* aValue, Uint32 len = 0);
-  int setValue(Uint32 anAttrId, Int32 aValue);
-  int setValue(Uint32 anAttrId, Uint32 aValue);
-  int setValue(Uint32 anAttrId, Int64 aValue);
-  int setValue(Uint32 anAttrId, Uint64 aValue);
-  int setValue(Uint32 anAttrId, float aValue);
-  int setValue(Uint32 anAttrId, double aValue);
-#endif
-
+  inline NdbResultSet* readTuples(int parallell){
+    return readTuples(LM_Read, 0, parallell);
+  }
+  
+  inline NdbResultSet* readTuplesExclusive(int parallell = 0){
+    return readTuples(LM_Exclusive, 0, parallell);
+  }
+  
   NdbBlob* getBlobHandle(const char* anAttrName);
   NdbBlob* getBlobHandle(Uint32 anAttrId);
 
-private:
-  NdbScanOperation(Ndb* aNdb);
+protected:
+  CursorType m_cursor_type;
 
+  NdbScanOperation(Ndb* aNdb);
   ~NdbScanOperation();
 
-  NdbCursorOperation::CursorType cursorType();
-
-  virtual int nextResult(bool fetchAllowed = true);
+  int nextResult(bool fetchAllowed = true);
   virtual void release();
   
   void closeScan();
@@ -111,125 +117,54 @@ private:
   virtual void setErrorCode(int aErrorCode);
   virtual void setErrorCodeAbort(int aErrorCode);
 
-  virtual int equal_impl(const NdbColumnImpl* anAttrObject, 
-                         const char* aValue, 
-                         Uint32 len);
-private:
+  NdbResultSet * m_resultSet;
+  NdbResultSet* getResultSet();
   NdbConnection *m_transConnection;
-  bool m_autoExecute;
-  bool m_updateOp;
-  bool m_writeOp;
-  bool m_deleteOp;
-  class SetValueRecList* m_setValueList;
-};
 
-#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-class AttrInfo;
-class SetValueRecList;
+  // Scan related variables
+  Uint32 theBatchSize;
+  Uint32 theParallelism;
+  Uint32 m_keyInfo;
+  NdbApiSignal* theSCAN_TABREQ;
 
-class SetValueRec {
-  friend class SetValueRecList;
-public:
-  SetValueRec();
-  ~SetValueRec();
-
-  enum SetValueType {
-    SET_STRING_ATTR1 = 0,
-    SET_INT32_ATTR1  = 1,
-    SET_UINT32_ATTR1 = 2,
-    SET_INT64_ATTR1  = 3,
-    SET_UINT64_ATTR1 = 4,
-    SET_FLOAT_ATTR1  = 5,
-    SET_DOUBLE_ATTR1 = 6,
-    SET_STRING_ATTR2 = 7,
-    SET_INT32_ATTR2  = 8,
-    SET_UINT32_ATTR2 = 9,
-    SET_INT64_ATTR2  = 10,
-    SET_UINT64_ATTR2 = 11,
-    SET_FLOAT_ATTR2  = 12,
-    SET_DOUBLE_ATTR2 = 13
-  };
-
-  SetValueType stype;
-  union {
-    char* anAttrName;
-    Uint32 anAttrId;
-  };
-  struct String {
-    char* aStringValue;
-    Uint32 len;
-  };
-  union {
-    String stringStruct;
-    Int32 anInt32Value;
-    Uint32 anUint32Value;
-    Int64 anInt64Value;
-    Uint64 anUint64Value;
-    float aFloatValue;
-    double aDoubleValue;
-  };
-private:
-  SetValueRec* next;
-};
-
-inline 
-SetValueRec::SetValueRec() :
-  next(0) 
-{
-}
-
-class SetValueRecList {
-public:
-  SetValueRecList();
-  ~SetValueRecList();
-
-  void add(const char* anAttrName, const char* aValue, Uint32 len = 0);
-  void add(const char* anAttrName, Int32 aValue);
-  void add(const char* anAttrName, Uint32 aValue);
-  void add(const char* anAttrName, Int64 aValue);
-  void add(const char* anAttrName, Uint64 aValue);
-  void add(const char* anAttrName, float aValue);
-  void add(const char* anAttrName, double aValue);
-  void add(Uint32 anAttrId, const char* aValue, Uint32 len = 0);
-  void add(Uint32 anAttrId, Int32 aValue);
-  void add(Uint32 anAttrId, Uint32 aValue);
-  void add(Uint32 anAttrId, Int64 aValue);
-  void add(Uint32 anAttrId, Uint64 aValue);
-  void add(Uint32 anAttrId, float aValue);
-  void add(Uint32 anAttrId, double aValue);
-
-  typedef void(* IterateFn)(SetValueRec&, NdbOperation&);
-  static void callSetValueFn(SetValueRec&, NdbOperation&);
-  void iterate(IterateFn nextfn, NdbOperation&);
-private:
-  SetValueRec* first;    
-  SetValueRec* last;    
-};
-
-inline
-SetValueRecList::SetValueRecList() : 
-  first(0),
-  last(0) 
-{
-}
+  int getFirstATTRINFOScan();
+  int doSendScan(int ProcessorId);
+  int prepareSendScan(Uint32 TC_ConnectPtr, Uint64 TransactionId);
   
+  int fix_receivers(Uint32 parallel);
+  Uint32* m_array; // containing all arrays below
+  Uint32 m_allocated_receivers;
+  NdbReceiver** m_receivers;      // All receivers
+
+  Uint32* m_prepared_receivers;   // These are to be sent
+  
+  Uint32 m_current_api_receiver;
+  Uint32 m_api_receivers_count;
+  NdbReceiver** m_api_receivers;  // These are currently used by api
+  
+  Uint32 m_conf_receivers_count;  // NOTE needs mutex to access
+  NdbReceiver** m_conf_receivers; // receive thread puts them here
+  
+  Uint32 m_sent_receivers_count;  // NOTE needs mutex to access
+  NdbReceiver** m_sent_receivers; // receive thread puts them here
+  
+  int send_next_scan(Uint32 cnt, bool close);
+  void receiver_delivered(NdbReceiver*);
+  void receiver_completed(NdbReceiver*);
+  void execCLOSE_SCAN_REP();
+
+  int getKeyFromKEYINFO20(Uint32* data, unsigned size);
+  NdbOperation*	takeOverScanOp(OperationType opType, NdbConnection*);
+  
+  Uint32 m_ordered;
+
+  int restart();
+};
+
 inline
-SetValueRecList::~SetValueRecList() {
-  if (first) delete first;
-  first = last = 0;
+NdbScanOperation::CursorType
+NdbScanOperation::get_cursor_type() const {
+  return m_cursor_type;
 }
-
-
-inline
-void SetValueRecList::iterate(SetValueRecList::IterateFn nextfn, NdbOperation& oper) 
-{
-  SetValueRec* recPtr = first;
-  while(recPtr) {
-    (*nextfn)(*recPtr, oper);
-    recPtr = recPtr->next; // Move to next in list - MASV
-  }
-}
-
-#endif
 
 #endif

@@ -67,7 +67,8 @@ show status like "Qcache_queries_in_cache";
 show status like "Qcache_hits";
 show status like "Qcache_not_cached";
 
-connect (unkuser,localhost,,,,$MASTER_MYPORT,$MASTER_MYSOCK);
+# Don't use '' as user because it will pick Unix login
+connect (unkuser,localhost,unkuser,,,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection unkuser;
 show grants for current_user();
 

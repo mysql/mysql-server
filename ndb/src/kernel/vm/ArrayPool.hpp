@@ -148,24 +148,6 @@ public:
   void releaseList(Uint32 n, Uint32 first, Uint32 last);
   //private:
 
-  /**
-   * Print
-   * (Run operator NdbOut<< on every element)
-   */
-  void print(NdbOut & out){
-    out << "FirstFree = " << firstFree << endl;
-    for(Uint32 i = 0; i<size; i++){
-#ifdef ARRAY_GUARD
-      if(BitmaskImpl::get(bitmaskSz, theAllocatedBitmask, i))
-	out << "A ";
-      else
-	out << "F ";
-#endif
-      out << i << ": " << theArray[i] << " ";
-    }
-    out << endl;
-  }
-
 #ifdef DEBUG
   Uint32 getNoOfFree2() const {
     Uint32 c2 = size;

@@ -347,3 +347,4 @@ ParserImpl::checkMandatory(Context* ctx, const Properties* props){
   return true;
 }
 
+template class Vector<const ParserRow<ParserImpl::Dummy>*>;

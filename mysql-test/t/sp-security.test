@@ -60,7 +60,7 @@ select * from db1_secret.t1;
 # ...and not this
 --error 1049
 create procedure db1_secret.dummy() begin end;
---error 1304
+--error 1305
 drop procedure db1_secret.dummy;
 
 
@@ -80,7 +80,7 @@ select * from db1_secret.t1;
 # ...and not this
 --error 1049
 create procedure db1_secret.dummy() begin end;
---error 1304
+--error 1305
 drop procedure db1_secret.dummy;
 
 

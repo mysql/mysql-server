@@ -330,7 +330,7 @@ int ha_isam::create(const char *name, register TABLE *form,
 	}
       }
     }
-    DBUG_PRINT("loop",("found: %lx  recpos: %d  minpos: %d  length: %d",
+    DBUG_PRINT("loop",("found: 0x%lx  recpos: %d  minpos: %d  length: %d",
 		       found,recpos,minpos,length));
     if (recpos != minpos)
     {						// Reserved space (Null bits?)

@@ -192,7 +192,7 @@ static int free_share(ARCHIVE_SHARE *share)
     thr_lock_delete(&share->lock);
     pthread_mutex_destroy(&share->mutex);
     if (gzclose(share->archive_write) == Z_ERRNO)
-      rc= -1;
+      rc= 1;
     my_free((gptr) share, MYF(0));
   }
   pthread_mutex_unlock(&archive_mutex);
@@ -226,7 +226,7 @@ int ha_archive::open(const char *name, int mode, uint test_if_locked)
   if ((archive= gzopen(share->data_file_name, "rb")) == NULL)
   {
     (void)free_share(share); //We void since we already have an error
-    DBUG_RETURN(-1);
+    DBUG_RETURN(errno ? errno : -1);
   }
 
   DBUG_RETURN(0);
@@ -234,55 +234,90 @@ int ha_archive::open(const char *name, int mode, uint test_if_locked)
 
 
 /*
-  Closes the file. We first close this storage engines file handle to the
-  archive and then remove our reference count to the table (and possibly
-  free it as well).
-  */
+  Closes the file.
+
+  SYNOPSIS
+    close();
+  
+  IMPLEMENTATION:
+
+  We first close this storage engines file handle to the archive and
+  then remove our reference count to the table (and possibly free it
+  as well).
+
+  RETURN
+    0  ok
+    1  Error
+*/
+
 int ha_archive::close(void)
 {
+  int rc= 0;
   DBUG_ENTER("ha_archive::close");
-  DBUG_RETURN(((gzclose(archive) == Z_ERRNO || free_share(share)) ? -1 : 0));
+
+  /* First close stream */
+  if (gzclose(archive) == Z_ERRNO)
+    rc= 1;
+  /* then also close share */
+  rc|= free_share(share);
+
+  DBUG_RETURN(rc);
 }
 
 
 /*
-  We create our data file here. The format is pretty simple. The first bytes in
-  any file are the version number. Currently we do nothing with this, but in
-  the future this gives us the ability to figure out version if we change the
-  format at all. After the version we starting writing our rows. Unlike other
-  storage engines we do not "pack" our data. Since we are about to do a general
-  compression, packing would just be a waste of CPU time. If the table has blobs
-  they are written after the row in the order of creation. 
+  We create our data file here. The format is pretty simple. The first
+  bytes in any file are the version number. Currently we do nothing
+  with this, but in the future this gives us the ability to figure out
+  version if we change the format at all. After the version we
+  starting writing our rows. Unlike other storage engines we do not
+  "pack" our data. Since we are about to do a general compression,
+  packing would just be a waste of CPU time. If the table has blobs
+  they are written after the row in the order of creation.
+
   So to read a row we:
     Read the version
     Read the record and copy it into buf
     Loop through any blobs and read them
-  */
-int ha_archive::create(const char *name, TABLE *table_arg, HA_CREATE_INFO *create_info)
+*/
+
+int ha_archive::create(const char *name, TABLE *table_arg,
+                       HA_CREATE_INFO *create_info)
 {
   File create_file;
   char name_buff[FN_REFLEN];
   size_t written;
+  int error;
   DBUG_ENTER("ha_archive::create");
 
-  if ((create_file= my_create(fn_format(name_buff,name,"",ARZ,MY_REPLACE_EXT|MY_UNPACK_FILENAME),0,
-                               O_RDWR | O_TRUNC,MYF(MY_WME))) < 0)
-    DBUG_RETURN(-1);
+  if ((create_file= my_create(fn_format(name_buff,name,"",ARZ,
+                                        MY_REPLACE_EXT|MY_UNPACK_FILENAME),0,
+                              O_RDWR | O_TRUNC,MYF(MY_WME))) < 0)
+  {
+    error= my_errno;
+    goto err;
+  }
   if ((archive= gzdopen(create_file, "ab")) == NULL)
   {
+    error= errno;
     delete_table(name);
-    DBUG_RETURN(-1);
+    goto err;
   }
   version= ARCHIVE_VERSION;
   written= gzwrite(archive, &version, sizeof(version));
-  if (written != sizeof(version) || gzclose(archive))
+  if (gzclose(archive) || written != sizeof(version))
   {
+    error= errno;
     delete_table(name);
-    DBUG_RETURN(-1);
+    goto err;
   }
-
   DBUG_RETURN(0);
+
+err:
+  /* Return error number, if we got one */
+  DBUG_RETURN(error ? error : -1);
 }
+
 
 /* 
   Look at ha_archive::open() for an explanation of the row format.
@@ -298,9 +333,9 @@ int ha_archive::write_row(byte * buf)
   if (table->timestamp_default_now)
     update_timestamp(buf+table->timestamp_default_now-1);
   written= gzwrite(share->archive_write, buf, table->reclength);
-  share->dirty= true;
+  share->dirty= TRUE;
   if (written != table->reclength)
-    DBUG_RETURN(-1);
+    DBUG_RETURN(errno ? errno : -1);
 
   for (Field_blob **field=table->blob_field ; *field ; field++)
   {
@@ -310,7 +345,7 @@ int ha_archive::write_row(byte * buf)
     (*field)->get_ptr(&ptr);
     written= gzwrite(share->archive_write, ptr, (unsigned)size);
     if (written != size)
-      DBUG_RETURN(-1);
+      DBUG_RETURN(errno ? errno : -1);
   }
 
   DBUG_RETURN(0);
@@ -322,6 +357,7 @@ int ha_archive::write_row(byte * buf)
   that it is a table scan we rewind the file to the beginning, otherwise
   we assume the position will be set.
 */
+
 int ha_archive::rnd_init(bool scan)
 {
   DBUG_ENTER("ha_archive::rnd_init");
@@ -339,10 +375,10 @@ int ha_archive::rnd_init(bool scan)
     If dirty, we lock, and then reset/flush the data.
     I found that just calling gzflush() doesn't always work.
   */
-  if (share->dirty == true)
+  if (share->dirty == TRUE)
   {
     pthread_mutex_lock(&share->mutex);
-    if (share->dirty == true)
+    if (share->dirty == TRUE)
     {
 /* I was having problems with OSX, but it worked for 10.3 so I am wrapping this with and ifdef */
 #ifdef BROKEN_GZFLUSH
@@ -350,12 +386,12 @@ int ha_archive::rnd_init(bool scan)
       if ((share->archive_write= gzopen(share->data_file_name, "ab")) == NULL)
       {
         pthread_mutex_unlock(&share->mutex);
-        DBUG_RETURN(-1);
+        DBUG_RETURN(errno ? errno : -1);
       }
 #else
       gzflush(share->archive_write, Z_SYNC_FLUSH);
 #endif
-      share->dirty= false;
+      share->dirty= FALSE;
     }
     pthread_mutex_unlock(&share->mutex);
   }
@@ -367,8 +403,8 @@ int ha_archive::rnd_init(bool scan)
   if (scan)
   {
     read= gzread(archive, &version, sizeof(version));
-    if (read == 0 || read != sizeof(version))
-      DBUG_RETURN(-1);
+    if (read != sizeof(version))
+      DBUG_RETURN(errno ? errno : -1);
   }
 
   DBUG_RETURN(0);
@@ -393,7 +429,7 @@ int ha_archive::get_row(byte *buf)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
 
   /* If the record is the wrong size, the file is probably damaged */
-  if (read != table->reclength)
+  if ((ulong) read != table->reclength)
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
   /* Calculate blob length, we use this for our buffer */
@@ -409,7 +445,7 @@ int ha_archive::get_row(byte *buf)
   {
     size_t size= (*field)->get_length();
     read= gzread(archive, last, size);
-    if (read == 0 || read != size)
+    if ((size_t) read != size)
       DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
     (*field)->set_ptr(size, last);
     last += size;
@@ -417,19 +453,21 @@ int ha_archive::get_row(byte *buf)
   DBUG_RETURN(0);
 }
 
+
 /* 
   Called during ORDER BY. Its position is either from being called sequentially
   or by having had ha_archive::rnd_pos() called before it is called.
 */
+
 int ha_archive::rnd_next(byte *buf)
 {
-  DBUG_ENTER("ha_archive::rnd_next");
   int rc;
+  DBUG_ENTER("ha_archive::rnd_next");
 
   statistic_increment(ha_read_rnd_next_count,&LOCK_status);
   current_position= gztell(archive);
   rc= get_row(buf);
-  if (!(HA_ERR_END_OF_FILE == rc))
+  if (rc != HA_ERR_END_OF_FILE)
     records++;
 
   DBUG_RETURN(rc);
@@ -450,10 +488,12 @@ void ha_archive::position(const byte *record)
 
 
 /*
-  This is called after a table scan for each row if the results of the scan need
-  to be ordered. It will take *pos and use it to move the cursor in the file so
-  that the next row that is called is the correctly ordered row.
+  This is called after a table scan for each row if the results of the
+  scan need to be ordered. It will take *pos and use it to move the
+  cursor in the file so that the next row that is called is the
+  correctly ordered row.
 */
+
 int ha_archive::rnd_pos(byte * buf, byte *pos)
 {
   DBUG_ENTER("ha_archive::rnd_pos");
@@ -568,11 +608,8 @@ THR_LOCK_DATA **ha_archive::store_lock(THD *thd,
   return to;
 }
 
-ha_rows ha_archive::records_in_range(int inx,
-                                     const byte *start_key,uint start_key_len,
-                                     enum ha_rkey_function start_search_flag,
-                                     const byte *end_key,uint end_key_len,
-                                     enum ha_rkey_function end_search_flag)
+ha_rows ha_archive::records_in_range(uint inx, key_range *min_key,
+                                     key_range *max_key)
 {
   DBUG_ENTER("ha_archive::records_in_range ");
   DBUG_RETURN(records); // HA_ERR_WRONG_COMMAND 

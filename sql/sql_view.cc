@@ -280,9 +280,9 @@ int mysql_create_view(THD *thd,
   }
 #endif
 
-  if (wait_if_global_read_lock(thd, 0))
+  if (wait_if_global_read_lock(thd, 0, 0))
   {
-    VOID(pthread_mutex_unlock(&LOCK_open));
+    res= -1;
     goto err;
   }
   VOID(pthread_mutex_lock(&LOCK_open));
@@ -523,7 +523,9 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     will be TRUE as far as we make new table cache).
   */
   Item_arena *arena= thd->current_arena, backup;
-  if (arena)
+  if (arena->is_conventional())
+    arena= 0;
+  else
     thd->set_n_backup_item_arena(arena, &backup);
 
   /* init timestamp */
@@ -618,7 +620,7 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     if (lex->spfuns.array.buffer)
       hash_free(&lex->spfuns);
 
-    old_next= table->next_global;
+    old_next= table->old_next= table->next_global;
     if ((table->next_global= lex->query_tables))
       table->next_global->prev_global= &table->next_global;
 

@@ -24,6 +24,8 @@
 #include "my_dir.h"
 #include "sp_rcontext.h"
 #include "sql_acl.h"
+#include "sp_head.h"
+#include "sql_trigger.h"
 
 static void mark_as_dependent(THD *thd,
 			      SELECT_LEX *last, SELECT_LEX *current,
@@ -62,10 +64,10 @@ Item::Item():
   */
   if (thd->lex->current_select)
   {
-    SELECT_LEX_NODE::enum_parsing_place place= 
+    enum_parsing_place place= 
       thd->lex->current_select->parsing_place;
-    if (place == SELECT_LEX_NODE::SELECT_LIST ||
-	place == SELECT_LEX_NODE::IN_HAVING)
+    if (place == SELECT_LIST ||
+	place == IN_HAVING)
       thd->lex->current_select->select_n_having_items++;
   }
 }
@@ -104,6 +106,15 @@ void Item::print_item_w_name(String *str)
   }
 }
 
+
+void Item::cleanup()
+{
+  DBUG_ENTER("Item::cleanup");
+  DBUG_PRINT("info", ("Item: 0x%lx", this));
+  DBUG_PRINT("info", ("Type: %d", (int)type()));
+  fixed=0;
+  DBUG_VOID_RETURN;
+}
 
 Item_ident::Item_ident(const char *db_name_par,const char *table_name_par,
 		       const char *field_name_par)
@@ -179,10 +190,17 @@ void Item::set_name(const char *str, uint length, CHARSET_INFO *cs)
     name_length= 0;
     return;
   }
-  while (length && !my_isgraph(cs,*str))
-  {						// Fix problem with yacc
-    length--;
-    str++;
+  if (cs->ctype)
+  {
+    /*
+      This will probably need a better implementation in the future:
+      a function in CHARSET_INFO structure.
+    */
+    while (length && !my_isgraph(cs,*str))
+    {						// Fix problem with yacc
+      length--;
+      str++;
+    }
   }
   if (!my_charset_same(cs, system_charset_info))
   {
@@ -291,8 +309,9 @@ Item_splocal::type() const
 }
 
 
-bool DTCollation::aggregate(DTCollation &dt)
+bool DTCollation::aggregate(DTCollation &dt, bool superset_conversion)
 {
+  nagg++;
   if (!my_charset_same(collation, dt.collation))
   {
     /* 
@@ -306,14 +325,38 @@ bool DTCollation::aggregate(DTCollation &dt)
       if (derivation <= dt.derivation)
 	; // Do nothing
       else
-	set(dt);
+      {
+	set(dt); 
+        strong= nagg;
+      }
     }
     else if (dt.collation == &my_charset_bin)
     {
       if (dt.derivation <= derivation)
+      {
         set(dt);
+        strong= nagg;
+      }
       else
        ; // Do nothing
+    }
+    else if (superset_conversion)
+    {
+      if (derivation < dt.derivation &&
+          collation->state & MY_CS_UNICODE)
+        ; // Do nothing
+      else if (dt.derivation < derivation &&
+               dt.collation->state & MY_CS_UNICODE)
+      {
+        set(dt);
+        strong= nagg;
+      }
+      else
+      {
+        // Cannot convert to superset
+        set(0, DERIVATION_NONE);
+        return 1;
+      }
     }
     else
     {
@@ -328,6 +371,7 @@ bool DTCollation::aggregate(DTCollation &dt)
   else if (dt.derivation < derivation)
   {
     set(dt);
+    strong= nagg;
   }
   else
   { 
@@ -421,6 +465,24 @@ const char *Item_ident::full_name() const
 void Item_ident::print(String *str)
 {
   THD *thd= current_thd;
+  char d_name_buff[MAX_ALIAS_NAME], t_name_buff[MAX_ALIAS_NAME];
+  const char *d_name= db_name, *t_name= table_name;
+  if (lower_case_table_names)
+  {
+    if (table_name && table_name[0])
+    {
+      strmov(t_name_buff, table_name);
+      my_casedn_str(files_charset_info, t_name_buff);
+      t_name= t_name_buff;
+    }
+    if (db_name && db_name[0])
+    {
+      strmov(d_name_buff, db_name);
+      my_casedn_str(files_charset_info, d_name_buff);
+      d_name= d_name_buff;
+    }
+  }
+
   if (!table_name || !field_name)
   {
     const char *nm= field_name ? field_name : name ? name : "tmp_field";
@@ -429,9 +491,9 @@ void Item_ident::print(String *str)
   }
   if (db_name && db_name[0])
   {
-    append_identifier(thd, str, db_name, strlen(db_name));
+    append_identifier(thd, str, d_name, strlen(d_name));
     str->append('.');
-    append_identifier(thd, str, table_name, strlen(table_name));
+    append_identifier(thd, str, t_name, strlen(t_name));
     str->append('.');
     append_identifier(thd, str, field_name, strlen(field_name));
   }
@@ -439,7 +501,7 @@ void Item_ident::print(String *str)
   {
     if (table_name[0])
     {
-      append_identifier(thd, str, table_name, strlen(table_name));
+      append_identifier(thd, str, t_name, strlen(t_name));
       str->append('.');
       append_identifier(thd, str, field_name, strlen(field_name));
     }
@@ -979,7 +1041,7 @@ double Item_param::val()
       This works for example when user says SELECT ?+0.0 and supplies
       time value for the placeholder.
     */
-    return (double) TIME_to_ulonglong(&value.time);
+    return ulonglong2double(TIME_to_ulonglong(&value.time));
   case NULL_VALUE:
     return 0.0;
   default:
@@ -1312,12 +1374,24 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	  table_list= (last= sl)->get_table_list();
 	  if (sl->resolve_mode == SELECT_LEX::INSERT_MODE && table_list)
 	  {
-	    // it is primary INSERT st_select_lex => skip first table resolving
+            /*
+              it is primary INSERT st_select_lex => skip first table
+              resolving
+            */
 	    table_list= table_list->next_local;
 	  }
 
 	  Item_subselect *prev_subselect_item= prev_unit->item;
-	  if ((tmp= find_field_in_tables(thd, this,
+          enum_parsing_place place= prev_subselect_item->parsing_place;
+          /*
+            check table fields only if subquery used somewhere out of HAVING
+            or SELECT list or outer SELECT do not use groupping (i.e. tables
+            are accessable)
+          */
+          if (((place != IN_HAVING &&
+                place != SELECT_LIST) ||
+               (sl->with_sum_func == 0 && sl->group_list.elements == 0)) &&
+              (tmp= find_field_in_tables(thd, this,
 					 table_list, ref,
 					 0, 1)) != not_found_field)
 	  {
@@ -1362,9 +1436,9 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       }
       if (!tmp)
 	return -1;
-      else if (!refer)
+      if (!refer)
 	return 1;
-      else if (tmp == not_found_field && refer == (Item **)not_found_item)
+      if (tmp == not_found_field && refer == (Item **)not_found_item)
       {
 	if (upward_lookup)
 	{
@@ -1883,7 +1957,7 @@ bool Item::send(Protocol *protocol, String *buffer)
 {
   bool result;
   enum_field_types type;
-  LINT_INIT(result);
+  LINT_INIT(result);                     // Will be set if null_value == 0
 
   switch ((type=field_type())) {
   default:
@@ -2054,7 +2128,16 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 	  // it is primary INSERT st_select_lex => skip first table resolving
 	  table_list= table_list->next_local;
 	}
-	if ((tmp= find_field_in_tables(thd, this,
+        enum_parsing_place place= prev_subselect_item->parsing_place;
+        /*
+          Check table fields only if subquery used somewhere out of HAVING
+          or SELECT list or outer SELECT do not use groupping (i.e. tables
+          are accessable)
+        */
+        if (((place != IN_HAVING &&
+              place != SELECT_LIST) ||
+             (sl->with_sum_func == 0 && sl->group_list.elements == 0)) &&
+            (tmp= find_field_in_tables(thd, this,
 				       table_list, reference,
 				       0, 1)) != not_found_field)
 	{
@@ -2380,6 +2463,97 @@ void Item_insert_value::print(String *str)
   arg->print(str);
   str->append(')');
 }
+
+
+/*
+  Bind item representing field of row being changed in trigger
+  to appropriate Field object.
+
+  SYNOPSIS
+    setup_field()
+      thd   - current thread context
+      table - table of trigger (and where we looking for fields)
+      event - type of trigger event
+
+  NOTE
+    This function does almost the same as fix_fields() for Item_field
+    but is invoked during trigger definition parsing and takes TABLE
+    object as its argument.
+
+  RETURN VALUES
+    0	 ok
+    1	 field was not found.
+*/
+bool Item_trigger_field::setup_field(THD *thd, TABLE *table,
+                                     enum trg_event_type event)
+{
+  bool result= 1;
+  uint field_idx= (uint)-1;
+  bool save_set_query_id= thd->set_query_id;
+
+  /* TODO: Think more about consequences of this step. */
+  thd->set_query_id= 0;
+
+  if (find_field_in_real_table(thd, table, field_name,
+                                     strlen(field_name), 0, 0,
+                                     &field_idx))
+  {
+    field= (row_version == OLD_ROW && event == TRG_EVENT_UPDATE) ?
+             table->triggers->old_field[field_idx] :
+             table->field[field_idx];
+    result= 0;
+  }
+
+  thd->set_query_id= save_set_query_id;
+
+  return result;
+}
+
+
+bool Item_trigger_field::eq(const Item *item, bool binary_cmp) const
+{
+  return item->type() == TRIGGER_FIELD_ITEM &&
+         row_version == ((Item_trigger_field *)item)->row_version &&
+         !my_strcasecmp(system_charset_info, field_name,
+                        ((Item_trigger_field *)item)->field_name);
+}
+
+
+bool Item_trigger_field::fix_fields(THD *thd,
+                                    TABLE_LIST *table_list,
+                                    Item **items)
+{
+  /*
+    Since trigger is object tightly associated with TABLE object most
+    of its set up can be performed during trigger loading i.e. trigger
+    parsing! So we have little to do in fix_fields. :)
+    FIXME may be we still should bother about permissions here.
+  */
+  DBUG_ASSERT(fixed == 0);
+  // QQ: May be this should be moved to setup_field?
+  set_field(field);
+  fixed= 1;
+  return 0;
+}
+
+
+void Item_trigger_field::print(String *str)
+{
+  str->append((row_version == NEW_ROW) ? "NEW" : "OLD", 3);
+  str->append('.');
+  str->append(field_name);
+}
+
+
+void Item_trigger_field::cleanup()
+{
+  /*
+    Since special nature of Item_trigger_field we should not do most of
+    things from Item_field::cleanup() or Item_ident::cleanup() here.
+  */
+  Item::cleanup();
+}
+
 
 /*
   If item is a const function, calculate it and return a const item

@@ -73,6 +73,7 @@ typedef struct st_filesort_info
 
 class Field_timestamp;
 class Field_blob;
+class Table_triggers_list;
 
 struct st_table {
   handler *file;
@@ -154,6 +155,8 @@ struct st_table {
   REGINFO reginfo;			/* field connections */
   MEM_ROOT mem_root;
   GRANT_INFO grant;
+  /* Table's triggers, 0 if there are no of them */
+  Table_triggers_list *triggers;
 
   char		*table_cache_key;
   char		*table_name,*real_name,*path;
@@ -217,6 +220,8 @@ typedef struct st_table_list
   st_table_list	*ancestor;
   /* most upper view this table belongs to */
   st_table_list	*belong_to_view;
+  /* next_global before adding VIEW tables */
+  st_table_list	*old_next;
   Item          *where;                 /* VIEW WHERE clause condition */
   LEX_STRING	query;			/* text of (CRETE/SELECT) statement */
   LEX_STRING	md5;			/* md5 of query tesxt */
@@ -260,6 +265,12 @@ typedef struct st_table_list
   bool setup_ancestor(THD *thd, Item **conds);
   bool placeholder() {return derived || view; }
   void print(THD *thd, String *str);
+  inline st_table_list *next_independent()
+  {
+    if (view)
+      return old_next;
+    return next_global;
+  }
 } TABLE_LIST;
 
 class Item;

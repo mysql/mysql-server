@@ -258,7 +258,6 @@ void Qmgr::execCONNECT_REP(Signal* signal)
 {
   const Uint32 nodeId = signal->theData[0];
   c_connectedNodes.set(nodeId);
-  
   NodeRecPtr nodePtr;
   nodePtr.i = getOwnNodeId();
   ptrCheckGuard(nodePtr, MAX_NODES, nodeRec);
@@ -679,7 +678,6 @@ void Qmgr::execCM_REGREF(Signal* signal)
   UintR TaddNodeno = signal->theData[1];
   UintR TrefuseReason = signal->theData[2];
   Uint32 candidate = signal->theData[3];
-
   DEBUG_START3(signal, TrefuseReason);
   
   if(candidate != cpresidentCandidate){
@@ -768,7 +766,6 @@ void Qmgr::execCM_REGREF(Signal* signal)
   Uint64 now = NdbTick_CurrentMillisecond();
   if((c_regReqReqRecv == cnoOfNodes) || now > c_stopElectionTime){
     jam();
-    
     electionWon();
     sendSttorryLab(signal);
     
@@ -1704,6 +1701,7 @@ void Qmgr::sendApiFailReq(Signal* signal, Uint16 failedNodeNo)
   sendSignal(DBTC_REF, GSN_API_FAILREQ, signal, 2, JBA);
   sendSignal(DBDICT_REF, GSN_API_FAILREQ, signal, 2, JBA);
   sendSignal(SUMA_REF, GSN_API_FAILREQ, signal, 2, JBA);
+
   /**
    * GREP also need the information that an API node 
    * (actually a REP node) has failed.
@@ -1978,8 +1976,10 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
       apiRegConf->nodeState.dynamicId = -dynamicId;
     }
   }
+  apiRegConf->nodeState.m_connected_nodes.assign(c_connectedNodes);
+
   sendSignal(ref, GSN_API_REGCONF, signal, ApiRegConf::SignalLength, JBB);
-  
+
   if ((getNodeState().startLevel == NodeState::SL_STARTED ||
        getNodeState().getSingleUserMode())
       && apiNodePtr.p->phase == ZAPI_INACTIVE) {
@@ -2138,7 +2138,8 @@ void Qmgr::execPREP_FAILREQ(Signal* signal)
   Uint16 TfailureNr = prepFail->failNo;
   cnoPrepFailedNodes = prepFail->noOfNodes;
   UintR arrayIndex = 0;
-  for (Uint32 Tindex = 0; Tindex < MAX_NDB_NODES; Tindex++) {
+  Uint32 Tindex;
+  for (Tindex = 0; Tindex < MAX_NDB_NODES; Tindex++) {
     if (NodeBitmask::get(prepFail->theNodes, Tindex)){
       cprepFailedNodes[arrayIndex] = Tindex;
       arrayIndex++;
@@ -2166,7 +2167,7 @@ void Qmgr::execPREP_FAILREQ(Signal* signal)
 
   guard0 = cnoPrepFailedNodes - 1;
   arrGuard(guard0, MAX_NDB_NODES);
-  for (Uint32 Tindex = 0; Tindex <= guard0; Tindex++) {
+  for (Tindex = 0; Tindex <= guard0; Tindex++) {
     jam();
     failReport(signal,
                cprepFailedNodes[Tindex],
@@ -2308,6 +2309,15 @@ void Qmgr::execPREP_FAILCONF(Signal* signal)
    * Continues via sendCommitFailReq() if successful.
    */
   arbitRec.failureNr = cfailureNr;
+  const NodeState & s = getNodeState();
+  if(s.startLevel == NodeState::SL_STOPPING_3 && s.stopping.systemShutdown){
+    jam();
+    /**
+     * We're performing a system shutdown, 
+     * don't let artibtrator shut us down
+     */
+    return;
+  }
   handleArbitCheck(signal);
   return;
 }//Qmgr::execPREP_FAILCONF()

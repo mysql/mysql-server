@@ -1,4 +1,4 @@
-/*	$NetBSD: sig.h,v 1.3 2000/09/04 22:06:32 lukem Exp $	*/
+/*	$NetBSD: sig.h,v 1.4 2003/03/10 00:58:05 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -62,9 +62,8 @@
 	_DO(SIGCONT)	\
 	_DO(SIGWINCH)
 
-typedef RETSIGTYPE (*libedit_sig_t)();
-typedef libedit_sig_t *el_signal_t;
-
+typedef void (*el_signalhandler_t)(int);
+typedef el_signalhandler_t *el_signal_t;
 
 protected void	sig_end(EditLine*);
 protected int	sig_init(EditLine*);

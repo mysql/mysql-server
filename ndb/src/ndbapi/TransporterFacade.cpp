@@ -34,11 +34,8 @@
 #include <ndb_version.h>
 #include <SignalLoggerManager.hpp>
 
-#if !defined NDB_OSE && !defined NDB_SOFTOSE
-#include <signal.h>
-#endif
-
 //#define REPORT_TRANSPORTER
+//#define API_TRACE;
 
 #if defined DEBUG_TRANSPORTER
 #define TRP_DEBUG(t) ndbout << __FILE__ << ":" << __LINE__ << ":" << t << endl;
@@ -47,7 +44,7 @@
 #endif
 
 TransporterFacade* TransporterFacade::theFacadeInstance = NULL;
-
+ConfigRetriever *TransporterFacade::s_config_retriever= 0;
 
 
 /*****************************************************************************
@@ -160,14 +157,12 @@ setSignalLog(){
   }
   return false;
 }
+#ifdef TRACE_APIREGREQ
+#define TRACE_GSN(gsn) true
+#else
+#define TRACE_GSN(gsn) (gsn != GSN_API_REGREQ && gsn != GSN_API_REGCONF)
 #endif
-
-// These symbols are needed, but not used in the API
-int g_sectionSegmentPool;
-struct ErrorReporter {
-  void handleAssert(const char*, const char*, int);
-};
-void ErrorReporter::handleAssert(const char* message, const char* file, int line) {}
+#endif
 
 /**
  * The execute function : Handle received signal
@@ -182,9 +177,7 @@ execute(void * callbackObj, SignalHeader * const header,
   Uint32 tRecBlockNo = header->theReceiversBlockNumber;
   
 #ifdef API_TRACE
-  if(setSignalLog()){
-    // header->theVerId_signalNumber != GSN_API_REGREQ &&
-    // header->theVerId_signalNumber != GSN_API_REGCONF){
+  if(setSignalLog() && TRACE_GSN(header->theVerId_signalNumber)){
     signalLogger.executeSignal(* header, 
 			       prio,
                                theData,
@@ -314,6 +307,14 @@ execute(void * callbackObj, SignalHeader * const header,
   }
 }
 
+// These symbols are needed, but not used in the API
+void 
+SignalLoggerManager::printSegmentedSection(FILE *, const SignalHeader &,
+					   const SegmentedSectionPtr ptr[3],
+					   unsigned i){
+  abort();
+}
+
 void 
 copy(Uint32 * & insertPtr, 
      class SectionSegmentPool & thePool, const SegmentedSectionPtr & _ptr){
@@ -332,29 +333,48 @@ atexit_stop_instance(){
  * 
  * Which is protected by a mutex
  */
+
+
 TransporterFacade* 
 TransporterFacade::start_instance(const char * connectString){
 
   // TransporterFacade used from API get config from mgmt srvr
-  ConfigRetriever configRetriever;
-  configRetriever.setConnectString(connectString);
-  ndb_mgm_configuration * props = configRetriever.getConfig(NDB_VERSION, 
-							    NODE_TYPE_API);
-  if (props == 0) {
-    ndbout << "Configuration error: ";
-    const char* erString = configRetriever.getErrorString();
-    if (erString == 0) {
-      erString = "No error specified!";
+  s_config_retriever= new ConfigRetriever(NDB_VERSION, NODE_TYPE_API);
+
+  s_config_retriever->setConnectString(connectString);
+  const char* error = 0;
+  do {
+    if(s_config_retriever->init() == -1)
+      break;
+    
+    if(s_config_retriever->do_connect() == -1)
+      break;
+
+    Uint32 nodeId = s_config_retriever->allocNodeId();
+    for(Uint32 i = 0; nodeId == 0 && i<5; i++){
+      NdbSleep_SecSleep(3);
+      nodeId = s_config_retriever->allocNodeId();
     }
-    ndbout << erString << endl;
-    return 0;
+    if(nodeId == 0)
+      break;
+
+    ndb_mgm_configuration * props = s_config_retriever->getConfig();
+    if(props == 0)
+      break;
+    
+    TransporterFacade * tf = start_instance(nodeId, props);
+    
+    free(props);
+    return tf;
+  } while(0);
+  
+  ndbout << "Configuration error: ";
+  const char* erString = s_config_retriever->getErrorString();
+  if (erString == 0) {
+    erString = "No error specified!";
   }
-  const int nodeId = configRetriever.getOwnNodeId();
-  
-  TransporterFacade * tf = start_instance(nodeId, props);
-  
-  free(props);
-  return tf;
+  ndbout << erString << endl;
+  return 0;
 }
 
 TransporterFacade* 
@@ -389,6 +409,14 @@ TransporterFacade::start_instance(int nodeId,
   return tf;
 }
 
+void
+TransporterFacade::close_configuration(){
+  if (s_config_retriever) {
+    delete s_config_retriever;
+    s_config_retriever= 0;
+  }
+}
+
 /**
  * Note that this function need no locking since its
  * only called from the destructor of Ndb (the NdbObject)
@@ -397,6 +425,9 @@ TransporterFacade::start_instance(int nodeId,
  */
 void
 TransporterFacade::stop_instance(){
+
+  close_configuration();
+
   if(theFacadeInstance == NULL){
     /**
      * We are called from atexit function
@@ -440,7 +471,21 @@ runSendRequest_C(void * me)
 
 void TransporterFacade::threadMainSend(void)
 {
+  SocketServer socket_server;
+
   theTransporterRegistry->startSending();
+  if (!theTransporterRegistry->start_service(socket_server)){
+    ndbout_c("Unable to start theTransporterRegistry->start_service");
+    exit(0);
+  }
+
+  if (!theTransporterRegistry->start_clients()){
+    ndbout_c("Unable to start theTransporterRegistry->start_clients");
+    exit(0);
+  }
+
+  socket_server.startServer();
+
   while(!theStopReceive) {
     NdbSleep_MilliSleep(10);
     NdbMutex_Lock(theMutexPtr);
@@ -451,6 +496,11 @@ void TransporterFacade::threadMainSend(void)
     NdbMutex_Unlock(theMutexPtr);
   }
   theTransporterRegistry->stopSending();
+
+  socket_server.stopServer();
+  socket_server.stopSessions();
+
+  theTransporterRegistry->stop_clients();
 }
 
 extern "C" 
@@ -466,7 +516,7 @@ void TransporterFacade::threadMainReceive(void)
 {
   theTransporterRegistry->startReceiving();
   NdbMutex_Lock(theMutexPtr);
-  theTransporterRegistry->checkConnections();
+  theTransporterRegistry->update_connections();
   NdbMutex_Unlock(theMutexPtr);
   while(!theStopReceive) {
     for(int i = 0; i<10; i++){
@@ -478,7 +528,7 @@ void TransporterFacade::threadMainReceive(void)
       }
     }
     NdbMutex_Lock(theMutexPtr);
-    theTransporterRegistry->checkConnections();
+    theTransporterRegistry->update_connections();
     NdbMutex_Unlock(theMutexPtr);
   }//while
   theTransporterRegistry->stopReceiving();
@@ -498,6 +548,7 @@ TransporterFacade::TransporterFacade() :
   theClusterMgr = NULL;
   theArbitMgr = NULL;
   theStartNodeId = 1;
+  m_open_count = 0;
 }
 
 bool
@@ -652,6 +703,7 @@ TransporterFacade::open(void* objRef,
                         ExecuteFunction fun, 
                         NodeStatusFunction statusFun)
 {
+  m_open_count++;
   return m_threads.open(objRef, fun, statusFun);
 }
 
@@ -732,8 +784,7 @@ TransporterFacade::checkForceSend(Uint32 block_number) {
 
 /******************************************************************************
  * SEND SIGNAL METHODS
- ******************************************************************************/
-
+ *****************************************************************************/
 int
 TransporterFacade::sendSignal(NdbApiSignal * aSignal, NodeId aNode){
   Uint32* tDataPtr = aSignal->getDataPtrSend();
@@ -741,9 +792,7 @@ TransporterFacade::sendSignal(NdbApiSignal * aSignal, NodeId aNode){
   Uint32 TBno = aSignal->theReceiversBlockNumber;
   if(getIsNodeSendable(aNode) == true){
 #ifdef API_TRACE
-    if(setSignalLog()){
-      //       aSignal->theVerId_signalNumber != GSN_API_REGREQ &&
-      // aSignal->theVerId_signalNumber != GSN_API_REGCONF){
+    if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
       Uint32 tmp = aSignal->theSendersBlockRef;
       aSignal->theSendersBlockRef = numberToRef(tmp, theOwnId);
       LinearSectionPtr ptr[3];
@@ -777,9 +826,7 @@ TransporterFacade::sendSignal(NdbApiSignal * aSignal, NodeId aNode){
 int
 TransporterFacade::sendSignalUnCond(NdbApiSignal * aSignal, NodeId aNode){
 #ifdef API_TRACE
-  if(setSignalLog()){
-    //aSignal->theVerId_signalNumber != GSN_API_REGREQ &&
-    //aSignal->theVerId_signalNumber != GSN_API_REGCONF
+  if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
     Uint32 tmp = aSignal->theSendersBlockRef;
     aSignal->theSendersBlockRef = numberToRef(tmp, theOwnId);
     LinearSectionPtr ptr[3];
@@ -809,7 +856,7 @@ TransporterFacade::sendFragmentedSignal(NdbApiSignal* aSignal, NodeId aNode,
   aSignal->m_noOfSections = secs;
   if(getIsNodeSendable(aNode) == true){
 #ifdef API_TRACE
-    if(setSignalLog()){
+    if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
       Uint32 tmp = aSignal->theSendersBlockRef;
       aSignal->theSendersBlockRef = numberToRef(tmp, theOwnId);
       signalLogger.sendSignal(* aSignal,
@@ -845,7 +892,7 @@ TransporterFacade::sendFragmentedSignalUnCond(NdbApiSignal* aSignal,
   aSignal->m_noOfSections = secs;
   
 #ifdef API_TRACE
-  if(setSignalLog()){
+  if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
     Uint32 tmp = aSignal->theSendersBlockRef;
     aSignal->theSendersBlockRef = numberToRef(tmp, theOwnId);
     signalLogger.sendSignal(* aSignal,
@@ -875,13 +922,13 @@ TransporterFacade::sendFragmentedSignalUnCond(NdbApiSignal* aSignal,
 void
 TransporterFacade::doConnect(int aNodeId){
   theTransporterRegistry->setIOState(aNodeId, NoHalt);
-  theTransporterRegistry->setPerformState(aNodeId, PerformConnect);
+  theTransporterRegistry->do_connect(aNodeId);
 }
 
 void
 TransporterFacade::doDisconnect(int aNodeId)
 {
-  theTransporterRegistry->setPerformState(aNodeId, PerformDisconnect);
+  theTransporterRegistry->do_disconnect(aNodeId);
 }
 
 void
@@ -906,7 +953,7 @@ TransporterFacade::ownId() const
 
 bool
 TransporterFacade::isConnected(NodeId aNodeId){
-  return theTransporterRegistry->performState(aNodeId) == PerformIO;
+  return theTransporterRegistry->is_connected(aNodeId);
 }
 
 NodeId
@@ -992,3 +1039,6 @@ TransporterFacade::ThreadData::close(int number){
   m_statusFunction[number] = 0;
   return 0;
 }
+
+template class Vector<NodeStatusFunction>;
+template class Vector<TransporterFacade::ThreadData::Object_Execute>;

@@ -761,7 +761,7 @@ set sql_updatable_view_key=LIMIT1;
 update v1 set x=x+1;
 update v2 set x=x+1;
 Warnings:
-Note	1354	View being updated does not have complete key of underlying table in it
+Note	1355	View being updated does not have complete key of underlying table in it
 update v1 set x=x+1 limit 1;
 update v2 set x=x+1 limit 1;
 ERROR HY000: The target table v2 of the UPDATE is not updatable
@@ -769,7 +769,7 @@ set sql_updatable_view_key=NO;
 update v1 set x=x+1 limit 1;
 update v2 set x=x+1 limit 1;
 Warnings:
-Note	1354	View being updated does not have complete key of underlying table in it
+Note	1355	View being updated does not have complete key of underlying table in it
 set sql_updatable_view_key=DEFAULT;
 select * from t1;
 a	b	c
@@ -979,7 +979,7 @@ create view v1 (a,a) as select 'a','a';
 ERROR 42S21: Duplicate column name 'a'
 create procedure p1 () begin declare v int; create view v1 as select v; end;//
 Warnings:
-Warning	1310	Referring to uninitialized variable v
+Warning	1311	Referring to uninitialized variable v
 call p1();
 ERROR HY000: View's SELECT contains a variable or parameter
 drop procedure p1;
@@ -1270,6 +1270,18 @@ s1
 7
 drop view v1;
 drop table t1;
+create table t1 (col1 int);
+create table t2 (col1 int);
+create view v1 as select * from t1;
+create view v2 as select * from v1;
+update v2 set col1 = (select max(col1) from v1);
+ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+delete from v2 where col1 = (select max(col1) from v1);
+ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+insert into v2 values ((select max(col1) from v1));
+ERROR HY000: You can't specify target table 'v2' for update in FROM clause
+drop view v2,v1;
+drop table t1,t2;
 create table t1 (s1 int);
 create view v1 as select * from t1;
 handler v1 open as xx;

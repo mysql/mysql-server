@@ -46,7 +46,7 @@ write_escaped_string(IO_CACHE *file, LEX_STRING *val_s)
   {
     /*
       Should be in sync with read_escaped_string() and
-      parse_quated_escaped_string()
+      parse_quoted_escaped_string()
     */
     switch(*ptr) {
     case '\\': // escape character
@@ -154,11 +154,10 @@ write_parameter(IO_CACHE *file, gptr base, File_option *parameter,
     LEX_STRING *str;
     while ((str= it++))
     {
-      num.set((ulonglong)str->length, &my_charset_bin);
-      // ',' after string to detect list continuation
+      // We need ' ' after string to detect list continuation
       if ((!first && my_b_append(file, (const byte *)" ", 1)) ||
 	  my_b_append(file, (const byte *)"\'", 1) ||
-	  my_b_append(file, (const byte *)str->str, str->length) ||
+          write_escaped_string(file, str) ||
 	  my_b_append(file, (const byte *)"\'", 1))
       {
 	DBUG_RETURN(TRUE);
@@ -486,7 +485,7 @@ read_escaped_string(char *ptr, char *eol, LEX_STRING *str)
 	return TRUE;
       /*
 	Should be in sync with write_escaped_string() and
-	parse_quated_escaped_string()
+	parse_quoted_escaped_string()
       */
       switch(*ptr) {
       case '\\':
@@ -562,7 +561,7 @@ parse_escaped_string(char *ptr, char *end, MEM_ROOT *mem_root, LEX_STRING *str)
 */
 
 static char *
-parse_quated_escaped_string(char *ptr, char *end,
+parse_quoted_escaped_string(char *ptr, char *end,
 			    MEM_ROOT *mem_root, LEX_STRING *str)
 {
   char *eol;
@@ -684,7 +683,6 @@ File_parser::parse(gptr base, MEM_ROOT *mem_root,
 	    my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0),
 		     parameter->name.str, line);
 	    DBUG_RETURN(TRUE);
-	    DBUG_RETURN(TRUE);
 	  }
 	  break;
 	}
@@ -724,6 +722,7 @@ File_parser::parse(gptr base, MEM_ROOT *mem_root,
 	  /*
 	    TODO: remove play with mem_root, when List will be able
 	    to store MEM_ROOT* pointer for list elements allocation
+            FIXME: we can't handle empty lists
 	  */
 	  sql_mem= my_pthread_getspecific_ptr(MEM_ROOT*, THR_MALLOC);
 	  list= (List<LEX_STRING>*)(base + parameter->offset);
@@ -741,7 +740,7 @@ File_parser::parse(gptr base, MEM_ROOT *mem_root,
 					       sizeof(LEX_STRING))) ||
 		list->push_back(str))
 	      goto list_err;
-	    if(!(ptr= parse_quated_escaped_string(ptr, end, mem_root, str)))
+	    if(!(ptr= parse_quoted_escaped_string(ptr, end, mem_root, str)))
 	      goto list_err_w_message;
 	    switch (*ptr) {
 	    case '\n':

@@ -50,24 +50,33 @@ class NdbColumnImpl;
  * - closed: after transaction commit
  * - invalid: after rollback or transaction close
  *
- * NdbBlob supports 2 styles of data access:
+ * NdbBlob supports 3 styles of data access:
  *
  * - in prepare phase, NdbBlob methods getValue and setValue are used to
- *   prepare a read or write of a single blob value of known size
+ *   prepare a read or write of a blob value of known size
  *
- * - in active phase, NdbBlob methods readData and writeData are used to
- *   read or write blob data of undetermined size
+ * - in prepare phase, setActiveHook is used to define a routine which
+ *   is invoked as soon as the handle becomes active
+ *
+ * - in active phase, readData and writeData are used to read or write
+ *   blob data of arbitrary size
+ *
+ * The styles can be applied in combination (in above order).
+ *
+ * Blob operations take effect at next transaction execute.  In some
+ * cases NdbBlob is forced to do implicit executes.  To avoid this,
+ * operate on complete blob parts.
+ *
+ * Use NdbConnection::executePendingBlobOps to flush your reads and
+ * writes.  It avoids execute penalty if nothing is pending.  It is not
+ * needed after execute (obviously) or after next scan result.
  *
  * NdbBlob methods return -1 on error and 0 on success, and use output
  * parameters when necessary.
  *
  * Notes:
  * - table and its blob part tables are not created atomically
- * - blob data operations take effect at next transaction execute
- * - NdbBlob may need to do implicit executes on the transaction
- * - read and write of complete parts is much more efficient
  * - scan must use the "new" interface NdbScanOperation
- * - scan with blobs applies hold-read-lock (at minimum)
  * - to update a blob in a read op requires exclusive tuple lock
  * - update op in scan must do its own getBlobHandle
  * - delete creates implicit, not-accessible blob handles
@@ -78,12 +87,16 @@ class NdbColumnImpl;
  * - scan must use exclusive locking for now
  *
  * Todo:
- * - add scan method hold-read-lock-until-next + return-keyinfo
- * - better check of keyinfo length when setting keys
- * - better check of allowed blob op vs locking mode
+ * - add scan method hold-read-lock + return-keyinfo
+ * - check keyinfo length when setting keys
+ * - check allowed blob ops vs locking mode
+ * - overload control (too many pending ops)
  */
 class NdbBlob {
 public:
+  /**
+   * State.
+   */
   enum State {
     Idle = 0,
     Prepared = 1,
@@ -93,8 +106,14 @@ public:
   };
   State getState();
   /**
+   * Inline blob header.
+   */
+  struct Head {
+    Uint64 length;
+  };
+  /**
    * Prepare to read blob value.  The value is available after execute.
-   * Use isNull to check for NULL and getLength to get the real length
+   * Use getNull to check for NULL and getLength to get the real length
    * and to check for truncation.  Sets current read/write position to
    * after the data read.
    */
@@ -107,6 +126,20 @@ public:
    */
   int setValue(const void* data, Uint32 bytes);
   /**
+   * Callback for setActiveHook.  Invoked immediately when the prepared
+   * operation has been executed (but not committed).  Any getValue or
+   * setValue is done first.  The blob handle is active so readData or
+   * writeData etc can be used to manipulate blob value.  A user-defined
+   * argument is passed along.  Returns non-zero on error.
+   */
+  typedef int ActiveHook(NdbBlob* me, void* arg);
+  /**
+   * Define callback for blob handle activation.  The queue of prepared
+   * operations will be executed in no commit mode up to this point and
+   * then the callback is invoked.
+   */
+  int setActiveHook(ActiveHook* activeHook, void* arg);
+  /**
    * Check if blob is null.
    */
   int getNull(bool& isNull);
@@ -115,7 +148,7 @@ public:
    */
   int setNull();
   /**
-   * Get current length in bytes.  Use isNull to distinguish between
+   * Get current length in bytes.  Use getNull to distinguish between
    * length 0 blob and NULL blob.
    */
   int getLength(Uint64& length);
@@ -180,6 +213,13 @@ public:
   static const int ErrAbort = 4268;
   // "Unknown blob error"
   static const int ErrUnknown = 4269;
+  /**
+   * Return info about all blobs in this operation.
+   */
+  // Get first blob in list
+  NdbBlob* blobsFirstBlob();
+  // Get next blob in list after this one
+  NdbBlob* blobsNextBlob();
 
 private:
   friend class Ndb;
@@ -187,20 +227,20 @@ private:
   friend class NdbOperation;
   friend class NdbScanOperation;
   friend class NdbDictionaryImpl;
+  friend class NdbResultSet; // atNextResult
   // state
   State theState;
   void setState(State newState);
   // define blob table
   static void getBlobTableName(char* btname, const NdbTableImpl* t, const NdbColumnImpl* c);
   static void getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnImpl* c);
-  // table name
-  char theBlobTableName[BlobTableNameSize];
   // ndb api stuff
   Ndb* theNdb;
   NdbConnection* theNdbCon;
   NdbOperation* theNdbOp;
   NdbTableImpl* theTable;
   NdbTableImpl* theAccessTable;
+  NdbTableImpl* theBlobTable;
   const NdbColumnImpl* theColumn;
   char theFillChar;
   // sizes
@@ -213,10 +253,11 @@ private:
   bool theSetFlag;
   const char* theSetBuf;
   Uint32 theGetSetBytes;
-  // head
-  struct Head {
-    Uint64 length;
-  };
+  // pending ops
+  Uint8 thePendingBlobOps;
+  // activation callback
+  ActiveHook* theActiveHook;
+  void* theActiveHookArg;
   // buffers
   struct Buf {
     char* data;
@@ -234,7 +275,6 @@ private:
   char* theInlineData;
   NdbRecAttr* theHeadInlineRecAttr;
   bool theHeadInlineUpdateFlag;
-  bool theNewPartFlag;
   // length and read/write position
   int theNullFlag;
   Uint64 theLength;
@@ -275,6 +315,11 @@ private:
   int insertParts(const char* buf, Uint32 part, Uint32 count);
   int updateParts(const char* buf, Uint32 part, Uint32 count);
   int deleteParts(Uint32 part, Uint32 count);
+  // pending ops
+  int executePendingBlobReads();
+  int executePendingBlobWrites();
+  // callbacks
+  int invokeActiveHook();
   // blob handle maintenance
   int atPrepare(NdbConnection* aCon, NdbOperation* anOp, const NdbColumnImpl* aColumn);
   int preExecute(ExecType anExecType, bool& batch);
@@ -286,6 +331,7 @@ private:
   void setErrorCode(NdbOperation* anOp, bool invalidFlag = true);
   void setErrorCode(NdbConnection* aCon, bool invalidFlag = true);
 #ifdef VM_TRACE
+  int getOperationType() const;
   friend class NdbOut& operator<<(NdbOut&, const NdbBlob&);
 #endif
 };
