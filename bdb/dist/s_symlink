@@ -28,46 +28,46 @@ build db_stat/tags ../dist/tags
 build db_upgrade/tags ../dist/tags
 build db_verify/tags ../dist/tags
 build dbm/tags ../dist/tags
-build docs_src/api_cxx/Makefile ../api_c/Makefile
-build docs_src/api_cxx/m4.seealso ../api_c/m4.seealso
-build docs_src/api_cxx/spell.ok ../api_c/spell.ok
-build docs_src/api_java/Makefile ../api_c/Makefile
-build docs_src/api_java/java_index.so ../api_cxx/cxx_index.so
-build docs_src/api_java/m4.seealso ../api_c/m4.seealso
-build docs_src/api_java/spell.ok ../api_c/spell.ok
-build docs_src/api_tcl/spell.ok ../api_c/spell.ok
-build docs_src/ref/am/spell.ok ../spell.ok
-build docs_src/ref/am_conf/spell.ok ../spell.ok
-build docs_src/ref/arch/spell.ok ../spell.ok
-build docs_src/ref/build_unix/spell.ok ../spell.ok
-build docs_src/ref/build_vxworks/spell.ok ../spell.ok
-build docs_src/ref/build_win/spell.ok ../spell.ok
-build docs_src/ref/cam/spell.ok ../spell.ok
-build docs_src/ref/debug/spell.ok ../spell.ok
-build docs_src/ref/distrib/spell.ok ../spell.ok
-build docs_src/ref/dumpload/spell.ok ../spell.ok
-build docs_src/ref/env/spell.ok ../spell.ok
-build docs_src/ref/install/spell.ok ../spell.ok
-build docs_src/ref/intro/spell.ok ../spell.ok
-build docs_src/ref/java/spell.ok ../spell.ok
-build docs_src/ref/lock/spell.ok ../spell.ok
-build docs_src/ref/log/spell.ok ../spell.ok
-build docs_src/ref/mp/spell.ok ../spell.ok
-build docs_src/ref/perl/spell.ok ../spell.ok
-build docs_src/ref/program/spell.ok ../spell.ok
-build docs_src/ref/refs/spell.ok ../spell.ok
-build docs_src/ref/rpc/spell.ok ../spell.ok
-build docs_src/ref/sendmail/spell.ok ../spell.ok
-build docs_src/ref/simple_tut/spell.ok ../spell.ok
-build docs_src/ref/tcl/spell.ok ../spell.ok
-build docs_src/ref/test/spell.ok ../spell.ok
-build docs_src/ref/transapp/spell.ok ../spell.ok
-build docs_src/ref/txn/spell.ok ../spell.ok
-build docs_src/ref/upgrade.2.0/spell.ok ../spell.ok
-build docs_src/ref/upgrade.3.0/spell.ok ../spell.ok
-build docs_src/ref/upgrade.3.1/spell.ok ../spell.ok
-build docs_src/ref/upgrade.3.2/spell.ok ../spell.ok
-build docs_src/ref/xa/spell.ok ../spell.ok
+# build docs_src/api_cxx/Makefile ../api_c/Makefile
+# build docs_src/api_cxx/m4.seealso ../api_c/m4.seealso
+# build docs_src/api_cxx/spell.ok ../api_c/spell.ok
+# build docs_src/api_java/Makefile ../api_c/Makefile
+# build docs_src/api_java/java_index.so ../api_cxx/cxx_index.so
+# build docs_src/api_java/m4.seealso ../api_c/m4.seealso
+# build docs_src/api_java/spell.ok ../api_c/spell.ok
+# build docs_src/api_tcl/spell.ok ../api_c/spell.ok
+# build docs_src/ref/am/spell.ok ../spell.ok
+# build docs_src/ref/am_conf/spell.ok ../spell.ok
+# build docs_src/ref/arch/spell.ok ../spell.ok
+# build docs_src/ref/build_unix/spell.ok ../spell.ok
+# build docs_src/ref/build_vxworks/spell.ok ../spell.ok
+# build docs_src/ref/build_win/spell.ok ../spell.ok
+# build docs_src/ref/cam/spell.ok ../spell.ok
+# build docs_src/ref/debug/spell.ok ../spell.ok
+# build docs_src/ref/distrib/spell.ok ../spell.ok
+# build docs_src/ref/dumpload/spell.ok ../spell.ok
+# build docs_src/ref/env/spell.ok ../spell.ok
+# build docs_src/ref/install/spell.ok ../spell.ok
+# build docs_src/ref/intro/spell.ok ../spell.ok
+# build docs_src/ref/java/spell.ok ../spell.ok
+# build docs_src/ref/lock/spell.ok ../spell.ok
+# build docs_src/ref/log/spell.ok ../spell.ok
+# build docs_src/ref/mp/spell.ok ../spell.ok
+# build docs_src/ref/perl/spell.ok ../spell.ok
+# build docs_src/ref/program/spell.ok ../spell.ok
+# build docs_src/ref/refs/spell.ok ../spell.ok
+# build docs_src/ref/rpc/spell.ok ../spell.ok
+# build docs_src/ref/sendmail/spell.ok ../spell.ok
+# build docs_src/ref/simple_tut/spell.ok ../spell.ok
+# build docs_src/ref/tcl/spell.ok ../spell.ok
+# build docs_src/ref/test/spell.ok ../spell.ok
+# build docs_src/ref/transapp/spell.ok ../spell.ok
+# build docs_src/ref/txn/spell.ok ../spell.ok
+# build docs_src/ref/upgrade.2.0/spell.ok ../spell.ok
+# build docs_src/ref/upgrade.3.0/spell.ok ../spell.ok
+# build docs_src/ref/upgrade.3.1/spell.ok ../spell.ok
+# build docs_src/ref/upgrade.3.2/spell.ok ../spell.ok
+# build docs_src/ref/xa/spell.ok ../spell.ok
 build env/tags ../dist/tags
 build examples_c/tags ../dist/tags
 build examples_cxx/tags ../dist/tags

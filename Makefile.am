@@ -79,6 +79,10 @@ init-db:		all
 bin-dist:		all
 	$(top_builddir)/scripts/make_binary_distribution @MAKE_BINARY_DISTRIBUTION_OPTIONS@
 
+# Remove BK's "SCCS" subdirectories from source distribution
+dist-hook:
+	rm -rf `find $(distdir) -type d -name SCCS`
+
 tags:
 	support-files/build-tags
 .PHONY:		init-db bin-dist
