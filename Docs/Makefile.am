@@ -48,24 +48,26 @@ include.texi:	../configure.in
 	grep "MYSQL_TCP_PORT_DEFAULT=" ../configure.in | \
 	 sed -e 's;MYSQL_TCP_PORT_DEFAULT=;;' >> $@
 
+
+#
+# English Manual
+#
+
+# GNU Info
 mysql.info:	manual.texi include.texi
 	cd $(srcdir) && $(MAKEINFO) --no-split -I $(srcdir) $<
 
+# Plain Text
 manual.txt:	manual.texi include.texi
 	cd $(srcdir) && \
 	$(MAKEINFO) -I $(srcdir) --no-headers --no-split --output $@ $<
 
+# HTML, all in one file
 manual.html:	manual.texi include.texi $(srcdir)/Support/texi2html
 	cd $(srcdir) && @PERL@ $(srcdir)/Support/texi2html $(TEXI2HTML_FLAGS) $<
-
 manual_toc.html: manual.html
 
-
-# Fix: add --output-comment with some interesting info?
-# Fix: @image worked with a older version of pdftex. 
-# Note: @image will work if we first convert all images to pdf ...
-#       is that worth it?
-# Comment: We need to run pdftex 2 times to get the cross references right.
+# PDF, Portable Document Format
 manual.pdf: manual.texi
 	cat manual.texi | sed -e 's|@image{[^}]*} *||g' > manual-tmp.texi
 	pdftex --interaction=nonstopmode manual-tmp.texi
@@ -76,6 +78,88 @@ manual.pdf: manual.texi
 	mv manual-tmp.pdf manual.pdf
 	rm -f manual-tmp.*
 	touch $@
+
+# XML, DocBook 4.0
+mysql.xml: manual.texi include.texi
+	$(MAKEINFO) --force --no-ifinfo --docbook manual.texi
+	mv mysql.xml mysql-tmp.xml
+	Support/docbook-fixup.pl <mysql-tmp.xml >mysql.xml
+	rm -f mysql-tmp.xml
+
+# Postscript, A4 Paper
+manual_a4.ps:	manual.texi include.texi
+	TEXINPUTS=$(srcdir):$$TEXINPUTS \
+	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' \
+	    $(TEXI2DVI) --batch --texinfo --quiet '@afourpaper' $<
+	$(DVIPS) -t a4 manual.dvi -o $@
+	touch $@
+
+# Postscript, US Letter Paper
+manual_letter.ps:	manual.texi include.texi
+	TEXINPUTS=$(srcdir):$$TEXINPUTS \
+	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' \
+	    $(TEXI2DVI) --batch $<
+	$(DVIPS) -t letter manual.dvi -o $@
+	touch $@
+
+
+#
+# German Manual
+#
+
+# GNU Info
+mysql.de.info:	manual.de.texi include.texi
+	cd $(srcdir) && $(MAKEINFO) --no-split -I $(srcdir) $<
+
+# Plain Text
+manual.de.txt:	manual.de.texi include.texi
+	cd $(srcdir) && \
+	$(MAKEINFO) -I $(srcdir) --no-headers --no-split --output $@ $<
+
+# HTML, all in one file
+manual.de.html:	manual.de.texi include.texi $(srcdir)/Support/texi2html
+	cd $(srcdir) && @PERL@ $(srcdir)/Support/texi2html $(TEXI2HTML_FLAGS) $<
+manual_toc.de.html: manual.html
+
+# PDF, Portable Document Format
+manual.de.pdf: manual.de.texi
+	cat manual.de.texi | sed -e 's|@image{[^}]*} *||g' > manual-tmp.texi
+	pdftex --interaction=nonstopmode manual-tmp.texi
+	texindex manual-tmp.??
+	pdftex --interaction=nonstopmode manual-tmp.texi
+	texindex manual-tmp.??
+	pdftex --interaction=nonstopmode manual-tmp.texi
+	mv manual-tmp.pdf manual.de.pdf
+	rm -f manual-tmp.*
+	touch $@
+
+# XML, DocBook 4.0
+mysql.de.xml: manual.de.texi include.texi
+	$(MAKEINFO) --force --no-ifinfo --docbook manual.de.texi
+	mv mysql.de.xml mysql-tmp.xml
+	Support/docbook-fixup.pl <mysql-tmp.xml >mysql.de.xml
+	rm -f mysql-tmp.xml
+
+# Postscript, A4 Paper
+manual_a4.de.ps:	manual.de.texi include.texi
+	TEXINPUTS=$(srcdir):$$TEXINPUTS \
+	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' \
+	    $(TEXI2DVI) --batch --texinfo --quiet '@afourpaper' $<
+	$(DVIPS) -t a4 manual.de.dvi -o $@
+	touch $@
+
+# Postscript, US Letter Paper
+manual_letter.de.ps:	manual.de.texi include.texi
+	TEXINPUTS=$(srcdir):$$TEXINPUTS \
+	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' \
+	    $(TEXI2DVI) --batch $<
+	$(DVIPS) -t letter manual.de.dvi -o $@
+	touch $@
+
+
+#
+# Miscellaneous
+#
 
 # Target to produce NuSphere Manual
 nusphere.pdf: manual.texi
@@ -92,31 +176,6 @@ nusphere.pdf: manual.texi
 	pdftex --interaction=nonstopmode manual-tmp.texi
 	mv manual-tmp.pdf nusphere.pdf
 	rm -f manual-tmp.*
-	touch $@
-
-# Target to produce DocBook XML
-mysql.xml: manual.texi include.texi
-	$(MAKEINFO) --force --no-ifinfo --docbook manual.texi
-	mv mysql.xml mysql-tmp.xml
-	Support/docbook-fixup.pl <mysql-tmp.xml >mysql.xml
-	rm -f mysql-tmp.xml
-
-# The texi2dvi gives a lot of harmless errors. Just ignore them unless
-# you want to help with the typesetting part.
-# This is the European papersize version
-manual_a4.ps:	manual.texi include.texi
-	TEXINPUTS=$(srcdir):$$TEXINPUTS \
-	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' \
-	    $(TEXI2DVI) --batch --texinfo --quiet '@afourpaper' $<
-	$(DVIPS) -t a4 manual.dvi -o $@
-	touch $@
-
-# This is the American papersize version
-manual_letter.ps:	manual.texi include.texi
-	TEXINPUTS=$(srcdir):$$TEXINPUTS \
-	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' \
-	    $(TEXI2DVI) --batch $<
-	$(DVIPS) -t letter manual.dvi -o $@
 	touch $@
 
 # Include images for the manual in the distribution
