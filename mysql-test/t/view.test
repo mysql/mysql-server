@@ -1460,3 +1460,14 @@ execute stmt1;
 deallocate prepare stmt1;
 drop view v2;
 drop table t1, t2;
+
+#
+# test of substring_index with view
+#
+create table t1 (t time);
+create view v1 as select substring_index(t,':',2) as t from t1;
+insert into t1 (t) values ('12:24:10');
+select substring_index(t,':',2) from t1;
+select substring_index(t,':',2) from v1;
+drop view v1;
+drop table t1;
