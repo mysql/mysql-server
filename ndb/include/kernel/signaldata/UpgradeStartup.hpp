@@ -1,6 +1,8 @@
 #ifndef NDB_UPGRADE_STARTUP
 #define NDB_UPGRADE_STARTUP
 
+class Ndbcntr;
+
 struct UpgradeStartup {
 
   static void installEXEC(SimulatedBlock*);

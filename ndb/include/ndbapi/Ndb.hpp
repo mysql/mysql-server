@@ -881,6 +881,7 @@ class Table;
 class BaseString;
 class NdbEventOperation;
 class NdbBlob;
+class NdbReceiver;
 
 typedef void (* NdbEventCallback)(NdbEventOperation*, Ndb*, void*);
 
