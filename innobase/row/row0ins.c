@@ -1173,7 +1173,7 @@ run_again:
 		check_index = foreign->foreign_index;
 	}
 
-	if (check_table == NULL) {
+	if (check_table == NULL || check_table->ibd_file_missing) {
 		if (check_ref) {
 			FILE*	ef = dict_foreign_err_file;
 			mutex_enter(&dict_foreign_err_mutex);
@@ -1192,7 +1192,7 @@ run_again:
 			dtuple_print(ef, entry);
 			fputs("\nBut the parent table ", ef);
 			ut_print_name(ef, trx, foreign->referenced_table_name);
-			fputs(" does not currently exist!\n", ef);
+		fputs("\nor its .ind file does not currently exist!\n", ef);
 			mutex_exit(&dict_foreign_err_mutex);
 
 			return(DB_NO_REFERENCED_ROW);

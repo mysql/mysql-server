@@ -869,7 +869,21 @@ row_insert_for_mysql(
 	
 	ut_ad(trx);
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
-	
+
+	if (prebuilt->table->ibd_file_missing) {
+	        ut_print_timestamp(stderr);
+	        fprintf(stderr, "  InnoDB: Error:\n"
+"InnoDB: MySQL is trying to use a table handle but the .ibd file for\n"
+"InnoDB: table %s does not exist.\n"
+"InnoDB: Have you deleted the .ibd file from the database directory under\n"
+"InnoDB: the MySQL datadir, or have you used DISCARD TABLESPACE?\n"
+"InnoDB: Look from\n"
+"http://dev.mysql.com/doc/mysql/en/InnoDB_troubleshooting_datadict.html\n"
+"InnoDB: how you can resolve the problem.\n",
+				prebuilt->table->name);
+		return(DB_ERROR);
+	}
+
 	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
 		fprintf(stderr,
 		"InnoDB: Error: trying to free a corrupt\n"
@@ -1087,6 +1101,20 @@ row_update_for_mysql(
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	UT_NOT_USED(mysql_rec);
 	
+	if (prebuilt->table->ibd_file_missing) {
+	        ut_print_timestamp(stderr);
+	        fprintf(stderr, "  InnoDB: Error:\n"
+"InnoDB: MySQL is trying to use a table handle but the .ibd file for\n"
+"InnoDB: table %s does not exist.\n"
+"InnoDB: Have you deleted the .ibd file from the database directory under\n"
+"InnoDB: the MySQL datadir, or have you used DISCARD TABLESPACE?\n"
+"InnoDB: Look from\n"
+"http://dev.mysql.com/doc/mysql/en/InnoDB_troubleshooting_datadict.html\n"
+"InnoDB: how you can resolve the problem.\n",
+				prebuilt->table->name);
+		return(DB_ERROR);
+	}
+
 	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
 		fprintf(stderr,
 		"InnoDB: Error: trying to free a corrupt\n"
@@ -1966,9 +1994,25 @@ row_add_table_to_background_drop_list(
 /*************************************************************************
 Discards the tablespace of a table which stored in an .ibd file. Discarding
 means that this function deletes the .ibd file and assigns a new table id for
-the table. Also the flag table->ibd_file_missing is set TRUE.
+the table. Also the flag table->ibd_file_missing is set TRUE. */
 
-How do we prevent crashes caused by ongoing operations on the table? Old
+int
+row_discard_tablespace_for_mysql(
+/*=============================*/
+				/* out: error code or DB_SUCCESS */
+	const char*	name,	/* in: table name */
+	trx_t*		trx)	/* in: transaction handle */
+{
+	dict_foreign_t*	foreign;
+	dulint		new_id;
+	dict_table_t*	table;
+	que_thr_t*	thr;
+	que_t*		graph			= NULL;
+	ibool		success;
+	ulint		err;
+	char*		buf;
+
+/* How do we prevent crashes caused by ongoing operations on the table? Old
 operations could try to access non-existent pages.
 
 1) SQL queries, INSERT, SELECT, ...: we must get an exclusive MySQL table lock
@@ -1984,22 +2028,9 @@ tablespace mem object with IMPORT TABLESPACE later, then the tablespace will
 have the same id, but the tablespace_version field in the mem object is
 different, and ongoing old insert buffer page merges get discarded.
 4) Linear readahead and random readahead: we use the same method as in 3) to
-discard ongoing operations. */
-
-int
-row_discard_tablespace_for_mysql(
-/*=============================*/
-				/* out: error code or DB_SUCCESS */
-	const char*	name,	/* in: table name */
-	trx_t*		trx)	/* in: transaction handle */
-{
-	dulint		new_id;
-	dict_table_t*	table;
-	que_thr_t*	thr;
-	que_t*		graph			= NULL;
-	ibool		success;
-	ulint		err;
-	char*		buf;
+discard ongoing operations.
+5) FOREIGN KEY operations: if table->n_foreign_key_checks_running > 0, we
+do not allow the discard. We also reserve the data dictionary latch. */
 
 	static const char discard_tablespace_proc1[] =
 	"PROCEDURE DISCARD_TABLESPACE_PROC () IS\n"
@@ -2060,6 +2091,54 @@ row_discard_tablespace_for_mysql(
 		goto funct_exit;
 	}
 
+	if (table->n_foreign_key_checks_running > 0) {
+
+	        ut_print_timestamp(stderr);
+		fputs("	 InnoDB: You are trying to DISCARD table ", stderr);
+		ut_print_name(stderr, trx, table->name);
+		fputs("\n"
+		 "InnoDB: though there is a foreign key check running on it.\n"
+		 "InnoDB: Cannot discard the table.\n",
+			stderr);
+
+		err = DB_ERROR;
+
+		goto funct_exit;
+	}
+
+	/* Check if the table is referenced by foreign key constraints from
+	some other table (not the table itself) */
+
+	foreign = UT_LIST_GET_FIRST(table->referenced_list);
+	
+	while (foreign && foreign->foreign_table == table) {
+		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
+	}
+
+	if (foreign && trx->check_foreigns) {
+
+		FILE*	ef	= dict_foreign_err_file;
+
+		/* We only allow discarding a referenced table if
+		FOREIGN_KEY_CHECKS is set to 0 */
+
+		err = DB_CANNOT_DROP_CONSTRAINT;
+
+		mutex_enter(&dict_foreign_err_mutex);
+		rewind(ef);
+		ut_print_timestamp(ef);
+
+		fputs("  Cannot drop table ", ef);
+		ut_print_name(ef, trx, name);
+		fputs("\n"
+			"because it is referenced by ", ef);
+		ut_print_name(ef, trx, foreign->foreign_table_name);
+		putc('\n', ef);
+		mutex_exit(&dict_foreign_err_mutex);
+
+		goto funct_exit;
+	}
+
 	new_id = dict_hdr_get_new_id(DICT_HDR_TABLE_ID);
 
 	buf = mem_alloc((sizeof discard_tablespace_proc1) +
@@ -2076,6 +2155,10 @@ row_discard_tablespace_for_mysql(
 	graph = pars_sql(buf);
 
 	ut_a(graph);
+
+	/* Remove any locks there are on the table or its records */
+	
+	lock_reset_all_on_table(table);
 
 	graph->trx = trx;
 	trx->graph = NULL;
@@ -2227,8 +2310,8 @@ row_import_tablespace_for_mysql(
 
 	ibuf_delete_for_discarded_space(table->space);
 
-	success = fil_open_single_table_tablespace(table->space, table->name);
-
+	success = fil_open_single_table_tablespace(TRUE, table->space,
+								table->name);
 	if (success) {
 		table->ibd_file_missing = FALSE;
 		table->tablespace_discarded = FALSE;
@@ -2236,7 +2319,7 @@ row_import_tablespace_for_mysql(
 		if (table->ibd_file_missing) {
 			ut_print_timestamp(stderr);
 			fputs(
-"  InnoDB: cannot find of open in the database directory the .ibd file of\n"
+"  InnoDB: cannot find or open in the database directory the .ibd file of\n"
 "InnoDB: table ", stderr);
 			ut_print_name(stderr, trx, name);
 			fputs("\n"
@@ -3283,6 +3366,20 @@ row_check_table_for_mysql(
 	ulint		n_rows_in_table	= ULINT_UNDEFINED;
 	ulint		ret 		= DB_SUCCESS;
 	ulint		old_isolation_level;
+
+	if (prebuilt->table->ibd_file_missing) {
+	        ut_print_timestamp(stderr);
+	        fprintf(stderr, "  InnoDB: Error:\n"
+"InnoDB: MySQL is trying to use a table handle but the .ibd file for\n"
+"InnoDB: table %s does not exist.\n"
+"InnoDB: Have you deleted the .ibd file from the database directory under\n"
+"InnoDB: the MySQL datadir, or have you used DISCARD TABLESPACE?\n"
+"InnoDB: Look from\n"
+"http://dev.mysql.com/doc/mysql/en/InnoDB_troubleshooting_datadict.html\n"
+"InnoDB: how you can resolve the problem.\n",
+				prebuilt->table->name);
+		return(DB_ERROR);
+	}
 
 	prebuilt->trx->op_info = "checking table";
 
