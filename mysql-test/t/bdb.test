@@ -693,7 +693,7 @@ drop table t1;
 create table t1 (id int NOT NULL,id2 int NOT NULL,id3 int NOT NULL,dummy1 char(30),primary key (id,id2),index index_id3 (id3)) type=bdb;
 insert into t1 values (0,0,0,'ABCDEFGHIJ'),(2,2,2,'BCDEFGHIJK'),(1,1,1,'CDEFGHIJKL');
 LOCK TABLES t1 WRITE;
---error 690
+--error 1062
 insert into t1 values (99,1,2,'D'),(1,1,2,'D');
 select id from t1;
 select id from t1;
@@ -704,7 +704,7 @@ create table t1 (id int NOT NULL,id2 int NOT NULL,id3 int NOT NULL,dummy1 char(3
 insert into t1 values (0,0,0,'ABCDEFGHIJ'),(2,2,2,'BCDEFGHIJK'),(1,1,1,'CDEFGHIJKL');
 LOCK TABLES t1 WRITE;
 begin;
---error 690
+--error 1062
 insert into t1 values (99,1,2,'D'),(1,1,2,'D');
 select id from t1;
 insert ignore into t1 values (100,1,2,'D'),(1,1,99,'D');

@@ -201,7 +201,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.49 for %s at %s\n",my_progname,SYSTEM_TYPE,
+  printf("%s  Ver 1.50 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -953,7 +953,7 @@ static void descript(MI_CHECK *param, register MI_INFO *info, my_string name)
 	     share->base.raid_chunks,
 	     share->base.raid_chunksize);
     }
-    if (share->options & HA_OPTION_CHECKSUM)
+    if (share->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
       printf("Checksum:  %23s\n",llstr(info->s->state.checksum,llbuff));
 ;
     if (share->options & HA_OPTION_DELAY_KEY_WRITE)

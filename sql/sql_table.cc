@@ -1125,7 +1125,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   {
     strmov(new_name_buff,new_name);
     fn_same(new_name_buff,table_name,3);
-#ifdef FN_LOWER_CASE
+#ifdef FN_NO_CASE_SENCE
     if (lower_case_table_names)
       casedn_str(new_name);
     if ((lower_case_table_names &&
@@ -1709,7 +1709,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   /* Turn off recovery logging since rollback of an
      alter table is to delete the new table so there
      is no need to log the changes to it.              */
-  error = ha_recovery_logging(thd,false);
+  error = ha_recovery_logging(thd,FALSE);
   if (error)
   {
     error = 1;
@@ -1761,7 +1761,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   if (to->file->activate_all_index(thd))
     error=1;
 
-  tmp_error = ha_recovery_logging(thd,true);
+  tmp_error = ha_recovery_logging(thd,TRUE);
   /*
     Ensure that the new table is saved properly to disk so that we
     can do a rename
@@ -1773,7 +1773,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   if (to->file->external_lock(thd,F_UNLCK))
     error=1;
  err:
-  tmp_error = ha_recovery_logging(thd,true);
+  tmp_error = ha_recovery_logging(thd,TRUE);
   free_io_cache(from);
   *copied= found_count;
   *deleted=delete_count;

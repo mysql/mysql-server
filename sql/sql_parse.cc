@@ -2667,7 +2667,7 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
     DBUG_RETURN(0);
   }
 
-#ifdef FN_LOWER_CASE
+#ifdef FN_NO_CASE_SENCE
   if (!alias)					/* Alias is case sensitive */
     if (!(alias_str=sql_strmake(alias_str,table->table.length)))
       DBUG_RETURN(0);

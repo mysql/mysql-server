@@ -42,13 +42,13 @@
 #include "my_sys.h"			/* defines errno */
 #include <errno.h>
 
-#ifdef LONGLONG
+#ifdef USE_LONGLONG
 #define UTYPE_MAX (~(ulonglong) 0)
 #define TYPE_MIN LONGLONG_MIN
 #define TYPE_MAX LONGLONG_MAX
 #define longtype longlong
 #define ulongtype ulonglong
-#ifdef UNSIGNED
+#ifdef USE_UNSIGNED
 #define function ulongtype strtoull
 #else
 #define function longtype strtoll
@@ -59,7 +59,7 @@
 #define TYPE_MAX LONG_MAX
 #define longtype long
 #define ulongtype unsigned long
-#ifdef UNSIGNED
+#ifdef USE_UNSIGNED
 #define function ulongtype strtoul
 #else
 #define function longtype strtol
@@ -170,7 +170,7 @@ function (const char *nptr,char **endptr,int base)
   if (endptr != NULL)
     *endptr = (char *) s;
 
-#ifndef UNSIGNED
+#ifndef USE_UNSIGNED
   /* Check for a value that is within the range of
      `unsigned long int', but outside the range of `long int'.	*/
   if (negative)
@@ -185,7 +185,7 @@ function (const char *nptr,char **endptr,int base)
   if (overflow)
   {
     my_errno=ERANGE;
-#ifdef UNSIGNED
+#ifdef USE_UNSIGNED
     return UTYPE_MAX;
 #else
     return negative ? TYPE_MIN : TYPE_MAX;
