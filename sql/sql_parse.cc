@@ -5850,6 +5850,7 @@ TABLE_LIST *st_select_lex::end_nested_join(THD *thd)
 {
   TABLE_LIST *ptr;
   DBUG_ENTER("end_nested_join");
+  DBUG_ASSERT(embedding);
   ptr= embedding;
   join_list= ptr->join_list;
   embedding= ptr->embedding;
@@ -5862,6 +5863,12 @@ TABLE_LIST *st_select_lex::end_nested_join(THD *thd)
     embedded->embedding= embedding;
     join_list->push_front(embedded);
     ptr= embedded;
+  }
+  else
+  if (nested_join->join_list.elements == 0)
+  {
+    join_list->pop();
+    DBUG_RETURN(0);
   }
   DBUG_RETURN(ptr);
 }
