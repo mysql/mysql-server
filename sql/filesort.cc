@@ -660,10 +660,7 @@ static void make_sortkey(register SORTPARAM *param,
 	    }
 	    uint tmp_length=my_strnxfrm(cs,to,sort_field->length,
 					(unsigned char *) from, length);
-	    if (tmp_length < sort_field->length)
-	      cs->cset->fill(cs, (char*) to+tmp_length,
-			     sort_field->length-tmp_length,
-			     fill_char);
+            DBUG_ASSERT(tmp_length == sort_field->length);
           }
           else
           {

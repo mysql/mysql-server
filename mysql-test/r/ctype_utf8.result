@@ -829,3 +829,23 @@ select * from t1 where soundex(a) = soundex('test');
 id	a
 1	Test
 drop table t1;
+SET collation_connection='utf8_general_ci';
+create table t1 select repeat('a',4000) a;
+delete from t1;
+insert into t1 values ('a'), ('a '), ('a\t');
+select collation(a),hex(a) from t1 order by a;
+collation(a)	hex(a)
+utf8_general_ci	6109
+utf8_general_ci	61
+utf8_general_ci	6120
+drop table t1;
+SET collation_connection='utf8_bin';
+create table t1 select repeat('a',4000) a;
+delete from t1;
+insert into t1 values ('a'), ('a '), ('a\t');
+select collation(a),hex(a) from t1 order by a;
+collation(a)	hex(a)
+utf8_bin	6109
+utf8_bin	61
+utf8_bin	6120
+drop table t1;

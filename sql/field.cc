@@ -4482,8 +4482,7 @@ void Field_string::sort_string(char *to,uint length)
   uint tmp=my_strnxfrm(field_charset,
 		       (unsigned char *) to, length,
 		       (unsigned char *) ptr, field_length);
-  if (tmp < length)
-    field_charset->cset->fill(field_charset, to + tmp, length - tmp, ' ');
+  DBUG_ASSERT(tmp == length);
 }
 
 
@@ -4834,9 +4833,7 @@ void Field_varstring::sort_string(char *to,uint length)
 			  (uchar*) to, length,
 			  (uchar*) ptr + length_bytes,
 			  tot_length);
-  if (tot_length < length)
-    field_charset->cset->fill(field_charset, to+tot_length,length-tot_length,
-			      binary() ? (char) 0 : ' ');
+  DBUG_ASSERT(tot_length == length);
 }
 
 
@@ -5511,10 +5508,7 @@ void Field_blob::sort_string(char *to,uint length)
     blob_length=my_strnxfrm(field_charset,
                             (uchar*) to, length, 
                             (uchar*) blob, blob_length);
-    if (blob_length < length)
-      field_charset->cset->fill(field_charset, to+blob_length,
-				length-blob_length,
-				binary() ? (char) 0 : ' ');
+    DBUG_ASSERT(blob_length == length);
   }
 }
 
