@@ -136,7 +136,7 @@ public:
   Query_log_event(THD* thd_arg, const char* query_arg, bool using_trans=0):
     Log_event(thd_arg->start_time,0,1,thd_arg->server_id), data_buf(0),
     query(query_arg),  db(thd_arg->db), q_len(thd_arg->query_length),
-    error_code(thd_arg->net.last_errno),
+    error_code(thd_arg->killed ? ER_SERVER_SHUTDOWN: thd_arg->net.last_errno),
     thread_id(thd_arg->thread_id), thd(thd_arg),
     cache_stmt(using_trans &&
 	       (thd_arg->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN)))

@@ -20,4 +20,46 @@ drop table t1;
 save_master_pos;
 connection slave;
 sync_with_master;
+#test handling of aborted connection in the middle of update
+connection master;
+drop table if exists t1,t2;
+create table t1(n int);
+let $1=30000;
+while ($1)
+{
+ eval insert into t1 values($1);
+ dec $1;
+}
+create table t2(id int);
+insert into t2 values(connection_id());
+save_master_pos;
+send update t1 set n = n + 1;
+connection master1;
+select (@id := id) - id from t2;
+sleep 0.1;
+kill @id;
+drop table t2;
+connection master;
+--error 1053;
+reap;
+connection slave;
+sync_with_master ;
+show slave status;
+set sql_slave_skip_counter=1;
+slave start;
+select count(*) from t1;
+connection master1;
+drop table t1;
+create table t1 (n int);
+insert into t1 values(3456);
+save_master_pos;
+connection slave;
+sync_with_master;
+select n from t1;
+connection master1;
+drop table t1;
+save_master_pos;
+connection slave;
+sync_with_master;
+
 
