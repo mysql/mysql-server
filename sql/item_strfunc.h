@@ -40,7 +40,8 @@ public:
     if (!t_arg) 
       return result_field;
     return (max_length > 255) ?
-      (Field *)new Field_blob(max_length,maybe_null, name,t_arg, binary) :
+      (Field *)new Field_blob(max_length,maybe_null, name,t_arg, binary,
+      			      default_charset_info) :
       (Field *) new Field_string(max_length,maybe_null, name,t_arg, binary, 
                                  default_charset_info);
   }  
@@ -488,6 +489,7 @@ public:
   {
     conv_charset=cs;
   }
+  bool fix_fields(THD *thd,struct st_table_list *tables);
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "conv_charset"; }
