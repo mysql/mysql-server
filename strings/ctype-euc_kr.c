@@ -8671,7 +8671,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
 };
 
 
-CHARSET_INFO my_charset_euckr_korean_ci =
+CHARSET_INFO my_charset_euckr_korean_ci=
 {
     19,0,0,		/* number */
     MY_CS_COMPILED|MY_CS_PRIMARY,	/* state      */
@@ -8684,12 +8684,36 @@ CHARSET_INFO my_charset_euckr_korean_ci =
     sort_order_euc_kr,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    "","",
+    "",
+    "",
     0,			/* strxfrm_multiply */
     2,			/* mbmaxlen   */
     0,
     &my_charset_handler,
     &my_collation_ci_handler
+};
+
+
+CHARSET_INFO my_charset_euckr_bin=
+{
+    85,0,0,		/* number */
+    MY_CS_COMPILED|MY_CS_BINSORT,	/* state      */
+    "euckr",		/* cs name    */
+    "euckr_bin",	/* name */
+    "",			/* comment    */
+    ctype_euc_kr,
+    to_lower_euc_kr,
+    to_upper_euc_kr,
+    sort_order_euc_kr,
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    "",
+    "",
+    0,			/* strxfrm_multiply */
+    2,			/* mbmaxlen   */
+    0,
+    &my_charset_handler,
+    &my_collation_bin_handler
 };
 
 #endif

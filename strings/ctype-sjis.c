@@ -4505,7 +4505,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
 };
 
 
-CHARSET_INFO my_charset_sjis_japanese_ci =
+CHARSET_INFO my_charset_sjis_japanese_ci=
 {
     13,0,0,		/* number */
     MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state      */
@@ -4518,13 +4518,35 @@ CHARSET_INFO my_charset_sjis_japanese_ci =
     sort_order_sjis,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    "","",
+    "",
+    "",
     1,			/* strxfrm_multiply */
     2,			/* mbmaxlen */
     0,
     &my_charset_handler,
     &my_collation_ci_handler
+};
 
+CHARSET_INFO my_charset_sjis_bin=
+{
+    88,0,0,		/* number */
+    MY_CS_COMPILED|MY_CS_BINSORT,	/* state      */
+    "sjis",		/* cs name    */
+    "sjis_bin",		/* name */
+    "",			/* comment    */
+    ctype_sjis,
+    to_lower_sjis,
+    to_upper_sjis,
+    sort_order_sjis,
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    "",
+    "",
+    0,			/* strxfrm_multiply */
+    2,			/* mbmaxlen */
+    0,
+    &my_charset_handler,
+    &my_collation_bin_handler
 };
 
 #endif

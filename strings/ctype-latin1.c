@@ -199,7 +199,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
 };
 
 
-CHARSET_INFO my_charset_latin1 =
+CHARSET_INFO my_charset_latin1=
 {
     8,0,0,				/* number    */
     MY_CS_COMPILED | MY_CS_PRIMARY,	/* state     */
@@ -428,7 +428,7 @@ static int my_strnxfrm_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-static MY_COLLATION_HANDLER my_collation_german2_ci_handler =
+static MY_COLLATION_HANDLER my_collation_german2_ci_handler=
 {
     my_strnncoll_latin1_de,
     my_strnncollsp_latin1_de,
@@ -440,7 +440,7 @@ static MY_COLLATION_HANDLER my_collation_german2_ci_handler =
 };
 
 
-CHARSET_INFO my_charset_latin1_german2_ci =
+CHARSET_INFO my_charset_latin1_german2_ci=
 {
     31,0,0,				/* number    */
     MY_CS_COMPILED|MY_CS_STRNXFRM,	/* state     */
@@ -459,5 +459,28 @@ CHARSET_INFO my_charset_latin1_german2_ci =
     0,
     &my_charset_handler,
     &my_collation_german2_ci_handler
+};
+
+
+CHARSET_INFO my_charset_latin1_bin=
+{
+    47,0,0,				/* number    */
+    MY_CS_COMPILED|MY_CS_BINSORT,	/* state     */
+    "latin1",				/* cs name    */
+    "latin1_bin",			/* name      */
+    "",					/* comment   */
+    ctype_latin1,
+    to_lower_latin1,
+    to_upper_latin1,
+    sort_order_latin1_de,
+    latin1_uni,				/* tab_to_uni   */
+    NULL,				/* tab_from_uni */
+    "",
+    "",
+    0,					/* strxfrm_multiply */
+    1,					/* mbmaxlen  */
+    0,
+    &my_charset_handler,
+    &my_collation_bin_handler
 };
 

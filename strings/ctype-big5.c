@@ -6262,7 +6262,7 @@ static MY_CHARSET_HANDLER my_charset_big5_handler=
   my_scan_8bit
 };
 
-CHARSET_INFO my_charset_big5_chinese_ci =
+CHARSET_INFO my_charset_big5_chinese_ci=
 {
     1,0,0, 		/* number     */
     MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state      */
@@ -6275,7 +6275,8 @@ CHARSET_INFO my_charset_big5_chinese_ci =
     sort_order_big5,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    "","",
+    "",
+    "",
     1,			/* strxfrm_multiply */
     2,			/* mbmaxlen   */
     0,
@@ -6283,6 +6284,28 @@ CHARSET_INFO my_charset_big5_chinese_ci =
     &my_collation_big5_chinese_ci_handler
 };
 
+
+CHARSET_INFO my_charset_big5_bin=
+{
+    84,0,0, 		/* number     */
+    MY_CS_COMPILED|MY_CS_BINSORT,	/* state      */
+    "big5",		/* cs name    */
+    "big5_bin",		/* name       */
+    "",			/* comment    */
+    ctype_big5,
+    to_lower_big5,
+    to_upper_big5,
+    sort_order_big5,
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    "",
+    "",
+    0,			/* strxfrm_multiply */
+    2,			/* mbmaxlen   */
+    0,
+    &my_charset_big5_handler,
+    &my_collation_bin_handler
+};
 
 
 #endif

@@ -5721,7 +5721,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
 };
 
 
-CHARSET_INFO my_charset_gb2312_chinese_ci =
+CHARSET_INFO my_charset_gb2312_chinese_ci=
 {
     24,0,0,		/* number */
     MY_CS_COMPILED|MY_CS_PRIMARY,	/* state      */
@@ -5734,12 +5734,35 @@ CHARSET_INFO my_charset_gb2312_chinese_ci =
     sort_order_gb2312,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    "","",
+    "",
+    "",
     0,			/* strxfrm_multiply */
     2,			/* mbmaxlen   */
     0,
     &my_charset_handler,
     &my_collation_ci_handler
+};
+
+CHARSET_INFO my_charset_gb2312_bin=
+{
+    86,0,0,		/* number */
+    MY_CS_COMPILED|MY_CS_BINSORT,	/* state      */
+    "gb2312",		/* cs name    */
+    "gb2312_bin",	/* name */
+    "",			/* comment    */
+    ctype_gb2312,
+    to_lower_gb2312,
+    to_upper_gb2312,
+    sort_order_gb2312,
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    "",
+    "",
+    0,			/* strxfrm_multiply */
+    2,			/* mbmaxlen   */
+    0,
+    &my_charset_handler,
+    &my_collation_bin_handler
 };
 
 #endif

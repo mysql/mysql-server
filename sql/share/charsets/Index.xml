@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding="utf-8"?>
 
-<charsets max-id="83">
+<charsets max-id="91">
 
 <description>
 This file lists all of the available character sets.
@@ -19,6 +19,10 @@ To make maintaining easier please:
   <alias>csbig5</alias>
   <collation name="big5_chinese_ci"	id="1"	order="Chinese">
     <flag>primary</flag>
+    <flag>compiled</flag>
+  </collation>
+  <collation name="big5_bin"	id="84"	order="Binary">
+    <flag>binary</flag>
     <flag>compiled</flag>
   </collation>
 </charset>
@@ -96,7 +100,10 @@ To make maintaining easier please:
   <collation name="latin1_swedish_ci"	id="8"	order="Finnish, Swedish"	flag="primary"/>
   <collation name="latin1_danish_ci"	id="15"	order="Danish"/>
   <collation name="latin1_german2_ci"	id="31"	order="German Phonebook"	flag="compiled"/>
-  <collation name="latin1_bin"		id="47"	order="Binary"			flag="binary"/>
+  <collation name="latin1_bin"		id="47"	order="Binary">
+    <flag>binary</flag>
+    <flag>compiled</flag>
+  </collation>
   <collation name="latin1_general_ci"	id="48">
     <order>Dutch</order>
     <order>English</order>
@@ -173,6 +180,10 @@ To make maintaining easier please:
     <flag>primary</flag>
     <flag>compiled</flag>
   </collation>
+  <collation name="ujis_bin"	id="91"	order="Japanese">
+    <flag>binary</flag>
+    <flag>compiled</flag>
+  </collation>
 </charset>
 
 <charset name="sjis">
@@ -183,6 +194,10 @@ To make maintaining easier please:
   <alias>x-sjis</alias>
   <collation name="sjis_japanese_ci" 	id="13"	order="Japanese">
     <flag>primary</flag>
+    <flag>compiled</flag>
+  </collation>
+  <collation name="sjis_bin" 	id="88"	order="Binary">
+    <flag>binary</flag>
     <flag>compiled</flag>
   </collation>
 </charset>
@@ -242,6 +257,10 @@ To make maintaining easier please:
     <flag>primary</flag>
     <flag>compiled</flag>
   </collation>
+  <collation name="tis620_bin"	id="89"	order="Binary">
+    <flag>binary</flag>
+    <flag>compiled</flag>
+  </collation>
 </charset>
 
 <charset name="euckr">
@@ -251,6 +270,10 @@ To make maintaining easier please:
   <alias>euc-kr</alias>
   <collation name="euckr_korean_ci"	id="19"	order="Korean">
     <flag>primary</flag>
+    <flag>compiled</flag>
+  </collation>
+  <collation name="euckr_bin"	id="85">
+    <flag>binary</flag>
     <flag>compiled</flag>
   </collation>
 </charset>
@@ -293,6 +316,10 @@ To make maintaining easier please:
     <flag>primary</flag>
     <flag>compiled</flag>
   </collation>
+  <collation name="gb2312_bin"	id="86">
+    <flag>binary</flag>
+    <flag>compiled</flag>
+  </collation>
 </charset>
 
 <charset name="greek">
@@ -331,6 +358,10 @@ To make maintaining easier please:
   <alias>cp936</alias>
   <collation name="gbk_chinese_ci"	id="28"	order="Chinese">
     <flag>primary</flag>	
+    <flag>compiled</flag>
+  </collation>
+  <collation name="gbk_bin"	id="87"	order="Binary">
+    <flag>binary</flag>	
     <flag>compiled</flag>
   </collation>
 </charset>
@@ -384,6 +415,10 @@ To make maintaining easier please:
   <description>UCS-2 Unicode</description>
   <collation name="ucs2_general_ci"	id="35">
     <flag>primary</flag>
+    <flag>compiled</flag>
+  </collation>
+  <collation name="ucs2_bin"	id="90">
+    <flag>binary</flag>
     <flag>compiled</flag>
   </collation>
 </charset>
