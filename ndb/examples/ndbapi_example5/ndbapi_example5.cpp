@@ -58,8 +58,8 @@
 int myCreateEvent(Ndb* myNdb,
 		  const char *eventName,
 		  const char *eventTableName,
-		  const char **eventComlumnName,
-		  const int noEventComlumnName);
+		  const char **eventColumnName,
+		  const int noEventColumnName);
 
 int main()
 {
@@ -93,39 +93,30 @@ int main()
   Ndb* myNdb= new Ndb(cluster_connection,
 		      "TEST_DB");  // Object representing the database
 
-  if (myNdb->init() == -1) { 
-    APIERROR(myNdb->getNdbError());
-    exit(-1);
-  }
-
-  NdbDictionary::Dictionary *myDict;
+  if (myNdb->init() == -1) APIERROR(myNdb->getNdbError());
 
   const char *eventName= "CHNG_IN_TAB0";
   const char *eventTableName= "TAB0";
   const int noEventColumnName= 3;
-  const char *eventColumnName[noEventColumnName] =
+  const char *eventColumnName[noEventColumnName]=
     {"COL0",
      "COL1",
      "COL11"};
   
-  myDict = myNdb->getDictionary();
-
   // Create events
   myCreateEvent(myNdb,
 		eventName,
 		eventTableName,
 		eventColumnName,
 		noEventColumnName);
-  int j = 0;
+  int j= 0;
   while (j < 5) {
 
     // Start "transaction" for handling events
     NdbEventOperation* op;
     printf("create EventOperation\n");
-    if ((op = myNdb->createEventOperation(eventName,100)) == NULL) {
-      printf("Event operation creation failed\n");
-      exit(-1);
-    }
+    if ((op = myNdb->createEventOperation(eventName,100)) == NULL)
+      APIERROR(myNdb->getNdbError());
 
     printf("get values\n");
     NdbRecAttr* recAttr[noEventColumnName];
@@ -139,22 +130,21 @@ int main()
     // set up the callbacks
     printf("execute\n");
     if (op->execute()) { // This starts changes to "start flowing"
-      printf("operationd execution failed\n");
+      printf("operation execution failed\n");
       exit(-1);
     }
 
-    int i = 0;
-
+    int i= 0;
     while(i < 40) {
-      //printf("now waiting for event...\n");
-      int r = myNdb->pollEvents(1000); // wait for event or 1000 ms
-      if (r>0) {
-	//printf("got data! %d\n", r);
+      // printf("now waiting for event...\n");
+      int r= myNdb->pollEvents(1000); // wait for event or 1000 ms
+      if (r > 0) {
+	// printf("got data! %d\n", r);
 	int overrun;
 	while (op->next(&overrun) > 0) {
 	  i++;
 	  if (!op->isConsistent())
-	    printf("A node failiure has occured and events might be missing\n");
+	    printf("A node failure has occured and events might be missing\n");
 	  switch (op->getEventType()) {
 	  case NdbDictionary::Event::TE_INSERT:
 	    printf("%u INSERT: ", i);
@@ -190,13 +180,17 @@ int main()
       } else
 	;//printf("timed out\n");
     }
-    // don't want to listen to eventsanymore
+    // don't want to listen to events anymore
     myNdb->dropEventOperation(op);
 
     j++;
   }
 
-  myDict->dropEvent(eventName); // remove event from database
+  {
+    NdbDictionary::Dictionary *myDict = myNdb->getDictionary();
+    if (!myDict) APIERROR(myNdb->getNdbError());
+    myDict->dropEvent(eventName); // remove event from database
+  }
 
   delete myNdb;
   delete cluster_connection;
@@ -210,12 +204,8 @@ int myCreateEvent(Ndb* myNdb,
 		  const char **eventColumnName,
 		  const int noEventColumnName)
 {
-  NdbDictionary::Dictionary *myDict = myNdb->getDictionary();
-
-  if (!myDict) {
-    printf("Event Creation failedDictionary not found");
-    exit(-1);
-  }
+  NdbDictionary::Dictionary *myDict= myNdb->getDictionary();
+  if (!myDict) APIERROR(myNdb->getNdbError());
 
   NdbDictionary::Event myEvent(eventName);
   myEvent.setTable(eventTableName);

@@ -22,7 +22,7 @@
 //
 //  There are many ways to program using the NDB API.  In this example
 //  we execute two inserts in the same transaction using 
-//  NdbConnection::Ndbexecute(NoCommit).
+//  NdbConnection::execute(NoCommit).
 // 
 //  Transaction failing is handled by re-executing the transaction
 //  in case of non-permanent transaction errors.
@@ -86,9 +86,9 @@ void printTransactionError(NdbTransaction *ndbTransaction) {
 
 //
 //  Example insert
-//  @param myNdb         Ndb object representing NDB Cluster
+//  @param myNdb          Ndb object representing NDB Cluster
 //  @param myTransaction  NdbTransaction used for transaction
-//  @param error         NdbError object returned in case of errors
+//  @param error          NdbError object returned in case of errors
 //  @return -1 in case of failures, 0 otherwise
 //
 int insert(int transactionId, NdbTransaction* myTransaction) {
@@ -203,10 +203,10 @@ int main()
     exit(-1);
   }
 
-  Ndb* myNdb = new Ndb( cluster_connection,
-			"TEST_DB_1" );  // Object representing the database
+  Ndb* myNdb= new Ndb( cluster_connection,
+		       "TEST_DB_1" );  // Object representing the database
   
-  if (myNdb->init() == -1) { 
+  if (myNdb->init() == -1) {
     APIERROR(myNdb->getNdbError());
     exit(-1);
   }
