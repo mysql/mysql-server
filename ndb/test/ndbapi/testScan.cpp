@@ -1065,6 +1065,44 @@ int runScanRestart(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 
+int 
+runScanParallelism(NDBT_Context* ctx, NDBT_Step* step){
+  int loops = ctx->getNumLoops() + 3;
+  int records = ctx->getNumRecords();
+  int abort = ctx->getProperty("AbortProb", 15);
+  
+  Uint32 fib[] = { 1, 2 };
+  Uint32 parallelism = 0; // start with 0
+  int i = 0;
+  HugoTransactions hugoTrans(*ctx->getTab());
+  while (i<loops && !ctx->isTestStopped()) {
+    g_info << i << ": ";
+
+    if (hugoTrans.scanReadRecords(GETNDB(step), records, abort, parallelism,
+				  NdbOperation::LM_Read) != 0){
+      return NDBT_FAILED;
+    }
+    if (hugoTrans.scanReadRecords(GETNDB(step), records, abort, parallelism,
+				  NdbOperation::LM_Exclusive) != 0){
+      return NDBT_FAILED;
+    }
+    if (hugoTrans.scanReadRecords(GETNDB(step), records, abort, parallelism,
+				  NdbOperation::LM_CommittedRead) != 0){
+      return NDBT_FAILED;
+    }
+    if (hugoTrans.scanUpdateRecords(GETNDB(step), records, abort, parallelism)
+	!= 0){
+      return NDBT_FAILED;
+    }
+    i++;
+    parallelism = fib[0];
+    Uint32 next = fib[0] + fib[1];
+    fib[0] = fib[1];
+    fib[1] = next;
+  }
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testScan);
 TESTCASE("ScanRead", 
 	 "Verify scan requirement: It should be possible "\
@@ -1513,6 +1551,12 @@ TESTCASE("ScanRestart",
 	 "Verify restart functionallity"){
   INITIALIZER(runLoadTable);
   STEP(runScanRestart);
+  FINALIZER(runClearTable);
+}
+TESTCASE("ScanParallelism", 
+	 "Test scan with different parallelism"){
+  INITIALIZER(runLoadTable);
+  STEP(runScanParallelism);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testScan);
