@@ -36,7 +36,10 @@ static Vector<class BackupConsumer *> g_consumers;
 
 static const char* ga_backupPath = "." DIR_SEPARATOR;
 
-static const char* opt_connect_str= NULL;
+enum ndb_restore_options {
+  NDB_STD_OPTS_OPTIONS
+};
+NDB_STD_OPTS_VARS;
 
 /**
  * print and restore flags
