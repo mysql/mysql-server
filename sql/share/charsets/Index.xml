@@ -327,6 +327,7 @@ To make maintaining easier please:
   <alias>866</alias>
   <alias>csibm866</alias>
   <alias>ibm866</alias>
+  <alias>DOSCyrillicRussian</alias>
   <collation name="cp866"	id="36"	order="Russian"	flag="primary"/>
 </charset>
 
@@ -445,7 +446,12 @@ To make maintaining easier please:
   <family>Arabic</family>
   <alias>ms-arab</alias>
   <alias>windows-1256</alias>
-  <collation name="cp1256"	id="57"	order="Arabic"	flag="primary"/>
+  <collation name="cp1256"	id="57"	order="Arabic"	flag="primary">
+    <order>Arabic</order>
+    <order>Persian</order>
+    <order>Pakistani</order>
+    <order>Urdu</order>
+  </collation>
 </charset>
 
 <charset name="binary">
