@@ -8571,7 +8571,7 @@ information.
 * Other Unix Notes::            Other Unix Notes
 * OS/2::                        OS/2 Notes
 * BeOS::                        BeOS Notes
-* Novell Netware::              Novell Netware Notes
+* Novell Netware::              Novell NetWare Notes
 @end menu
 
 
@@ -11164,10 +11164,10 @@ in a while.
 
 
 @node Novell Netware,  , BeOS, Operating System Specific Notes
-@subsection Novell Netware Notes
+@subsection Novell NetWare Notes
 
-We are really interested in getting MySQL to work on Netware, but
-unfortunately we don't have any person who knows Netware or has time to do
+We are really interested in getting MySQL to work on NetWare, but
+unfortunately we don't have any person who knows NetWare or has time to do
 a port.
 
 We are interested in finding someone to do a port, and we will help them

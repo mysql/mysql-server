@@ -11573,10 +11573,10 @@ Weile nichts von ihnen gehört.
 
 @node Novell Netware,  , BeOS, Operating System Specific Notes
 @c German node Novell Netware
-@subsection Anmerkungen zu Novell Netware
+@subsection Anmerkungen zu Novell NetWare
 
-Wir sind sehr daran interessiert, MySQL auf Netware ans Laufen zu bringen,
-aber leider kennen wir niemanden, der sich mit Netware auskennt oder Zeit hat,
+Wir sind sehr daran interessiert, MySQL auf NetWare ans Laufen zu bringen,
+aber leider kennen wir niemanden, der sich mit NetWare auskennt oder Zeit hat,
 eine Portierung durchzuführen.
 
 Wir sind daran interessiert, jemanden für eine Portierung zu finden, und
