@@ -427,6 +427,9 @@ while test $# -gt 0; do
     --fast)
       FAST_START=1
       ;;
+    --use-old-data)
+      USE_OLD_DATA=1;
+      ;;
     -- )  shift; break ;;
     --* ) $ECHO "Unrecognized option: $1"; exit 1 ;;
     * ) break ;;
@@ -768,12 +771,14 @@ report_stats () {
 
 mysql_install_db () {
     $ECHO "Removing Stale Files"
-    $RM -rf $MASTER_MYDDIR $MASTER_MYDDIR"1" $SLAVE_MYDDIR $MY_LOG_DIR/* 
-    $ECHO "Installing Master Databases"
-    $INSTALL_DB
-    if [ $? != 0 ]; then
+    if [ -z "$USE_OLD_DATA" ]; then
+      $RM -rf $MASTER_MYDDIR $MASTER_MYDDIR"1"
+      $ECHO "Installing Master Databases"
+      $INSTALL_DB
+      if [ $? != 0 ]; then
 	error "Could not install master test DBs"
-	exit 1
+        exit 1
+      fi
     fi
     if [ ! -z "$USE_NDBCLUSTER" ]
     then
@@ -785,6 +790,7 @@ mysql_install_db () {
       fi
     fi
     $ECHO "Installing Slave Databases"
+    $RM -rf $SLAVE_MYDDIR $MY_LOG_DIR/* 
     $INSTALL_DB -slave
     if [ $? != 0 ]; then
 	error "Could not install slave test DBs"
