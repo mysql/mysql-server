@@ -1143,8 +1143,27 @@ bool Item_param::convert_str_value(THD *thd)
   return rc;
 }
 
-/* End of Item_param related */
 
+void Item_param::print(String *str)
+{
+  if (state == NO_VALUE)
+  {
+    str->append('?');
+  }
+  else
+  {
+    char buffer[80];
+    String tmp(buffer, sizeof(buffer), &my_charset_bin);
+    const String *res;
+    res= query_val_str(&tmp);
+    str->append(*res);
+  }
+}
+
+
+/****************************************************************************
+  Item_copy_string
+****************************************************************************/
 
 void Item_copy_string::copy()
 {
@@ -1302,11 +1321,21 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 					 table_list, ref,
 					 0, 1)) != not_found_field)
 	  {
-	    if (tmp && tmp != view_ref_found)
-	    {
-	      prev_subselect_item->used_tables_cache|= tmp->table->map;
-	      prev_subselect_item->const_item_cache= 0;
-	    }
+	    if (tmp)
+            {
+              if (tmp != view_ref_found)
+              {
+                prev_subselect_item->used_tables_cache|= tmp->table->map;
+                prev_subselect_item->const_item_cache= 0;
+              }
+              else
+              {
+                prev_subselect_item->used_tables_cache|=
+                  (*ref)->used_tables();
+                prev_subselect_item->const_item_cache&=
+                  (*ref)->const_item();
+              }
+            }
 	    break;
 	  }
 	  if (sl->resolve_mode == SELECT_LEX::SELECT_MODE &&
@@ -1756,6 +1785,21 @@ int Item_real::save_in_field(Field *field, bool no_conversions)
   return field->store(nr);
 }
 
+
+void Item_real::print(String *str)
+{
+  if (presentation)
+  {
+    str->append(presentation);
+    return;
+  }
+  char buffer[20];
+  String num(buffer, sizeof(buffer), &my_charset_bin);
+  num.set(value, decimals, &my_charset_bin);
+  str->append(num);
+}
+
+
 /****************************************************************************
 ** varbinary item
 ** In string context this is a binary string
@@ -2014,11 +2058,21 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 				       table_list, reference,
 				       0, 1)) != not_found_field)
 	{
-	  if (tmp && tmp != view_ref_found)
-	  {
-	    prev_subselect_item->used_tables_cache|= tmp->table->map;
-	    prev_subselect_item->const_item_cache= 0;
-	  }
+          if (tmp)
+          {
+            if (tmp != view_ref_found)
+            {
+              prev_subselect_item->used_tables_cache|= tmp->table->map;
+              prev_subselect_item->const_item_cache= 0;
+            }
+            else
+            {
+              prev_subselect_item->used_tables_cache|=
+                (*reference)->used_tables();
+              prev_subselect_item->const_item_cache&=
+                (*reference)->const_item();
+            }
+          }
 	  break;
 	}
 
@@ -2063,8 +2117,8 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 	  if (!((*reference)= fld= new Item_field(tmp)))
 	    return 1;
 	  mark_as_dependent(thd, last, thd->lex->current_select, fld);
-	  return 0;
 	  register_item_tree_changing(reference);
+	  return 0;
 	}
         /*
 	  We can leave expression substituted from view for next PS/SP

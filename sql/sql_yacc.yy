@@ -7553,7 +7553,7 @@ algorithm:
 	| ALGORITHM_SYM EQ MERGE_SYM
 	  { Lex->create_view_algorithm= VIEW_ALGORITHM_MERGE; }
 	| ALGORITHM_SYM EQ TEMPTABLE_SYM
-	  { Lex->create_view_algorithm= VIEW_ALGORITHM_TMEPTABLE; }
+	  { Lex->create_view_algorithm= VIEW_ALGORITHM_TMPTABLE; }
 	;
 check_option:
         /* empty */ {}

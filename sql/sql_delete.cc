@@ -39,8 +39,8 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
   ha_rows	deleted;
   DBUG_ENTER("mysql_delete");
 
-  if ((open_and_lock_tables(thd, table_list)))
-    DBUG_RETURN(-1);
+  if ((error= open_and_lock_tables(thd, table_list)))
+    DBUG_RETURN(error);
   table= table_list->table;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   thd->proc_info="init";
@@ -282,7 +282,7 @@ int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "DELETE");
     DBUG_RETURN(-1);
   }
-  if (find_real_table_in_list(table_list->next_global,
+  if (find_table_in_global_list(table_list->next_global,
 			      table_list->db, table_list->real_name))
   {
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
