@@ -510,7 +510,7 @@ AsyncFile::extendfile(Request* request) {
   DEBUG(ndbout_c("extendfile: maxOffset=%d, size=%d", maxOffset, maxSize));
 
   // Allocate a buffer and fill it with zeros
-  void* pbuf = malloc(maxSize);
+  void* pbuf = NdbMem_Allocate(maxSize);
   memset(pbuf, 0, maxSize);
   for (int p = 0; p <= maxOffset; p = p + maxSize) {
     int return_value;

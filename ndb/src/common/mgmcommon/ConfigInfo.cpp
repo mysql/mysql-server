@@ -406,11 +406,35 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     MAX_INT_RNIL },
   
   {
+    CFG_DB_NO_ORDERED_INDEXES,
+    "MaxNoOfOrderedIndexes",
+    "DB",
+    "Total number of ordered indexes that can be defined in the system",
+    ConfigInfo::USED,
+    false,
+    ConfigInfo::INT,
+    128,
+    0,
+    MAX_INT_RNIL },
+
+  {
+    CFG_DB_NO_UNIQUE_HASH_INDEXES,
+    "MaxNoOfUniqueHashIndexes",
+    "DB",
+    "Total number of unique hash indexes that can be defined in the system",
+    ConfigInfo::USED,
+    false,
+    ConfigInfo::INT,
+    64,
+    0,
+    MAX_INT_RNIL },
+
+  {
     CFG_DB_NO_INDEXES,
     "MaxNoOfIndexes",
     "DB",
     "Total number of indexes that can be defined in the system",
-    ConfigInfo::USED,
+    ConfigInfo::DEPRICATED,
     false,
     ConfigInfo::INT,
     128,
@@ -530,13 +554,50 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_NO_OPS,
     "MaxNoOfConcurrentOperations",
     "DB",
-    "Max no of op:s on DB (op:s within a transaction are concurrently executed)",
+    "Max number of operation records in transaction coordinator",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
     32768,
     32,
     MAX_INT_RNIL },
+
+  {
+    CFG_DB_NO_LOCAL_OPS,
+    "MaxNoOfLocalOperations",
+    "DB",
+    "Max number of operation records defined in the local storage node",
+    ConfigInfo::USED,
+    false,
+    ConfigInfo::INT,
+    0, //0 means that it is calculated using MaxNoOfConcurrentOperations
+    32,
+    MAX_INT_RNIL },
+
+  {
+    CFG_DB_NO_LOCAL_SCANS,
+    "MaxNoOfLocalScans",
+    "DB",
+    "Max number of fragment scans in parallel in the local storage node",
+    ConfigInfo::USED,
+    false,
+    ConfigInfo::INT,
+    0, //0 means that it is calculated using MaxNoOfConcurrentScans
+    32,
+    MAX_INT_RNIL },
+
+  {
+    CFG_DB_BATCH_SIZE,
+    "BatchSizePerLocalScan",
+    "DB",
+    "Used to calculate the number of lock records for scan with hold lock",
+    ConfigInfo::USED,
+    false,
+    ConfigInfo::INT,
+    32,
+    1,
+    MAX_INT_RNIL },
+
 
   {
     CFG_DB_NO_TRANSACTIONS,
