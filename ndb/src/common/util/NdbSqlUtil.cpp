@@ -107,12 +107,12 @@ NdbSqlUtil::m_typeList[] = {
   { // 16
     Type::Binary,
     cmpBinary,
-    NULL
+    likeBinary
   },
   { // 17
     Type::Varbinary,
     cmpVarbinary,
-    NULL
+    likeVarbinary
   },
   { // 18
     Type::Datetime,
@@ -147,7 +147,7 @@ NdbSqlUtil::m_typeList[] = {
   { // 24
     Type::Longvarbinary,
     cmpLongvarbinary,
-    NULL
+    likeLongvarbinary
   },
   { // 25
     Type::Time,
@@ -806,6 +806,13 @@ NdbSqlUtil::likeChar(const void* info, const void* p1, unsigned n1, const void* 
 }
 
 int
+NdbSqlUtil::likeBinary(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
+{
+  assert(info == 0);
+  return likeChar(&my_charset_bin, p1, n1, p2, n2);
+}
+
+int
 NdbSqlUtil::likeVarchar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   const unsigned lb = 1;
@@ -826,6 +833,13 @@ NdbSqlUtil::likeVarchar(const void* info, const void* p1, unsigned n1, const voi
 }
 
 int
+NdbSqlUtil::likeVarbinary(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
+{
+  assert(info == 0);
+  return likeVarchar(&my_charset_bin, p1, n1, p2, n2);
+}
+
+int
 NdbSqlUtil::likeLongvarchar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
   const unsigned lb = 2;
@@ -843,6 +857,13 @@ NdbSqlUtil::likeLongvarchar(const void* info, const void* p1, unsigned n1, const
     }
   }
   return -1;
+}
+
+int
+NdbSqlUtil::likeLongvarbinary(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
+{
+  assert(info == 0);
+  return likeLongvarchar(&my_charset_bin, p1, n1, p2, n2);
 }
 
 // check charset
