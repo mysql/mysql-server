@@ -28,7 +28,7 @@
 class sys_var;
 class set_var;
 typedef struct system_variables SV;
-extern TYPELIB bool_typelib;
+extern TYPELIB bool_typelib, delay_key_write_typelib;
 
 enum enum_var_type
 {
@@ -137,6 +137,26 @@ public:
     return type != STRING_RESULT;		/* Only accept strings */
   }
   bool check_default(enum_var_type type) { return 0; }
+};
+
+
+class sys_var_enum :public sys_var
+{
+  uint	*value; 
+  TYPELIB *enum_names;
+public:
+  sys_var_enum(const char *name_arg, uint *value_arg,
+	       TYPELIB *typelib, sys_after_update_func func)
+    :sys_var(name_arg,func), value(value_arg), enum_names(typelib)
+  {}
+  bool check(THD *thd, set_var *var)
+  {
+    return check_enum(thd, var, enum_names);
+  }
+  bool update(THD *thd, set_var *var);
+  SHOW_TYPE type() { return SHOW_CHAR; }
+  byte *value_ptr(THD *thd, enum_var_type type);
+  bool check_update_type(Item_result type) { return 0; }
 };
 
 
@@ -415,5 +435,6 @@ void set_var_init();
 void set_var_free();
 sys_var *find_sys_var(const char *str, uint length=0);
 bool sql_set_variables(THD *thd, List<set_var_base> *var_list);
+void fix_delay_key_write(THD *thd, enum_var_type type);
 
 extern sys_var_str sys_charset;

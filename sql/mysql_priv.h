@@ -635,6 +635,7 @@ extern ulong specialflag, current_pid;
 
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version,dropping_tables;
+extern uint delay_key_write_options;
 extern bool opt_endinfo, using_udf_functions, locked_in_memory;
 extern bool opt_using_transactions, use_temp_pool, mysql_embedded;
 extern bool using_update_log, opt_large_files;
