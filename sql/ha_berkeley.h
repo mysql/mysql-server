@@ -152,6 +152,7 @@ class ha_berkeley: public handler
   int create(const char *name, register TABLE *form,
 	     HA_CREATE_INFO *create_info);
   int delete_table(const char *name);
+  int rename_table(const char* from, const char* to);
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     enum thr_lock_type lock_type);
 
