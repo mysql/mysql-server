@@ -252,7 +252,7 @@ character-set=latin1
 "Slave SQL thread ignored the query because of replicate-*-table rules",
 "Falsche Foreign-Key Definition für '%-64s': %s",
 "Schlüssel- und Tabellenreferenz passen nicht zueinander.",
-"Kardinalitäts-Fehler (mehr/oder weniger als %d Spalten).",
+"Operand should contain %d column(s)",
 "Unterabfrage lieferte mehr als einen Datensatz zurück.",
 "Unbekannter prepared statement handler (%ld) für %s angegeben.",
 "Die Hilfedatenbank ist beschädigt oder existiert nicht.",
