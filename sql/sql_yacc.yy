@@ -1318,6 +1318,20 @@ sp_decls:
 	  }
 	| sp_decls sp_decl ';'
 	  {
+	    /* We check for declarations out of (standard) order this way
+	       because letting the grammar rules reflect it caused tricky
+	       shift/reduce conflicts with the wrong result. (And we get
+	       better error handling this way.) */
+	    if (($2.vars || $2.conds) && ($1.curs || $1.hndlrs))
+	    { /* Variable or condition following cursor or handler */
+	      send_error(YYTHD, ER_SP_VARCOND_AFTER_CURSHNDLR);
+	      YYABORT;
+	    }
+	    if ($2.curs && $1.hndlrs)
+	    { /* Cursor following handler */
+	      send_error(YYTHD, ER_SP_CURSOR_AFTER_HANDLER);
+	      YYABORT;
+	    }
 	    $$.vars= $1.vars + $2.vars;
 	    $$.conds= $1.conds + $2.conds;
 	    $$.hndlrs= $1.hndlrs + $2.hndlrs;
@@ -1894,9 +1908,16 @@ sp_case:
 	;
 
 sp_whens:
-	  /* Empty */ {}
-	| WHEN_SYM sp_case {}
+	  /* Empty */
+	  {
+	    sp_head *sp= Lex->sphead;
+	    uint ip= sp->instructions();
+	    sp_instr_error *i= new sp_instr_error(ip, ER_SP_CASE_NOT_FOUND);
+
+	    sp->add_instr(i);
+	  }
 	| ELSE sp_proc_stmts {}
+	| WHEN_SYM sp_case {}
 	;
 
 sp_labeled_control:
