@@ -9130,16 +9130,16 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
   {
     res= mysql_explain_select(thd, sl,
 			      (((&thd->lex->select_lex)==sl)?
-			       ((thd->lex->all_selects_list != sl)?"PRIMARY":
-				"SIMPLE"):
+			       ((thd->lex->all_selects_list != sl) ? 
+				primary_key_name : "SIMPLE"):
 			       ((sl == first)?
 				((sl->linkage == DERIVED_TABLE_TYPE) ?
 				 "DERIVED":
-				((sl->uncacheable & UNCACHEABLE_DEPENDENT)?
+				((sl->uncacheable & UNCACHEABLE_DEPENDENT) ?
 				 "DEPENDENT SUBQUERY":
 				 (sl->uncacheable?"UNCACHEABLE SUBQUERY":
 				   "SUBQUERY"))):
-				((sl->uncacheable & UNCACHEABLE_DEPENDENT)?
+				((sl->uncacheable & UNCACHEABLE_DEPENDENT) ?
 				 "DEPENDENT UNION":
 				 sl->uncacheable?"UNCACHEABLE UNION":
 				  "UNION"))),
