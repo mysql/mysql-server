@@ -4677,8 +4677,8 @@ ha_innobase::start_stmt(
 			ut_error;
 		}
 
-		if (thd->lex.sql_command == SQLCOM_SELECT
-					&& thd->lex.lock_option == TL_READ) {
+		if (thd->lex->sql_command == SQLCOM_SELECT
+					&& thd->lex->lock_option == TL_READ) {
 	
 			/* For other than temporary tables, we obtain
 			no lock for consistent read (plain SELECT) */

@@ -539,7 +539,7 @@ os_file_opendir(
 	if (dir == INVALID_HANDLE_VALUE) {
 
 		if (error_is_fatal) {
-		        os_file_handle_error(NULL, dirname, "opendir");
+		        os_file_handle_error(dirname, "opendir");
 		}
 
 		return(NULL);
@@ -550,7 +550,7 @@ os_file_opendir(
 	dir = opendir(dirname);
 
 	if (dir == NULL && error_is_fatal) {
-	        os_file_handle_error(0, dirname, "opendir");
+	        os_file_handle_error(dirname, "opendir");
 	}
 
 	return(dir);
@@ -733,7 +733,7 @@ os_file_create_directory(
 	if (!(rcode != 0 ||
 		   (GetLastError() == ERROR_FILE_EXISTS && !fail_if_exists))) {
 		/* failure */
-		os_file_handle_error(NULL, pathname, "CreateDirectory");
+		os_file_handle_error(Npathname, "CreateDirectory");
 
 		return(FALSE);
 	}
@@ -746,7 +746,7 @@ os_file_create_directory(
 
 	if (!(rcode == 0 || (errno == EEXIST && !fail_if_exists))) {
 		/* failure */
-		os_file_handle_error(0, pathname, "mkdir");
+		os_file_handle_error(pathname, "mkdir");
 
 		return(FALSE);
 	}
@@ -1274,7 +1274,7 @@ loop:
 	ret = unlink((const char*)name);
 
 	if (ret != 0 && errno != ENOENT) {
-		os_file_handle_error(0, name, "delete");
+		os_file_handle_error(name, "delete");
 
 		return(FALSE);
 	}
@@ -1336,7 +1336,7 @@ loop:
 	ret = unlink((const char*)name);
 
 	if (ret != 0) {
-		os_file_handle_error(0, name, "delete");
+		os_file_handle_error(name, "delete");
 
 		return(FALSE);
 	}
@@ -1366,7 +1366,7 @@ os_file_rename(
 		return(TRUE);
 	}
 
-	os_file_handle_error(NULL, oldpath, "rename");
+	os_file_handle_error(oldpath, "rename");
 
 	return(FALSE);
 #else
@@ -1375,7 +1375,7 @@ os_file_rename(
 	ret = rename((const char*)oldpath, (const char*)newpath);
 
 	if (ret != 0) {
-		os_file_handle_error(0, oldpath, "rename");
+		os_file_handle_error(oldpath, "rename");
 
 		return(FALSE);
 	}
