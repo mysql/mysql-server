@@ -466,7 +466,7 @@ public:
    *   @param   errorCode: Error code to get a match error text for.
    *   @return  The error text.
    */
-  const char* getErrorText(int errorCode);
+  const char* getErrorText(int errorCode, char *buf, int buf_sz);
 
   /**
    *   Get configuration

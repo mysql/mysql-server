@@ -526,6 +526,7 @@ public:
   NdbNodeBitmask c_aliveNodes;
   DLList<BackupRecord> c_backups;
   Config c_defaults;
+  Uint32 m_diskless;
 
   STATIC_CONST(NO_OF_PAGES_META_FILE = 2);
 
