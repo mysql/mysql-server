@@ -60,7 +60,7 @@ noinst_PROGRAMS =	charset2html @THREAD_LPROGRAMS@
 # test_dir_DEPENDENCIES=	$(LIBRARIES)
 # testhash_DEPENDENCIES=	$(LIBRARIES)
 # test_charset_DEPENDENCIES=	$(LIBRARIES)
-charset2html_DEPENDENCIES=	$(LIBRARIES)
+# charset2html_DEPENDENCIES=	$(LIBRARIES)
 EXTRA_PROGRAMS =	
 DEFS =			-DDEFAULT_BASEDIR=\"$(prefix)\" \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \

@@ -379,6 +379,7 @@ struct system_variables
   ulong table_type;
   ulong tmp_table_size;
   ulong tx_isolation;
+  ulong sql_mode;
 
   /*
     In slave thread we need to know in behalf of which
@@ -441,9 +442,8 @@ public:
   /* points to host if host is available, otherwise points to ip */
   const char *host_or_ip;
  
-  uint client_capabilities;		/* What the client supports */
+  ulong client_capabilities;		/* What the client supports */
   /* Determines if which non-standard SQL behaviour should be enabled */
-  uint sql_mode;
   ulong max_client_packet_length;
   ulong master_access;			/* Global privileges from mysql.user */
   ulong db_access;			/* Privileges for current db */

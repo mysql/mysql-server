@@ -28,7 +28,7 @@
 class sys_var;
 class set_var;
 typedef struct system_variables SV;
-extern TYPELIB bool_typelib, delay_key_write_typelib;
+extern TYPELIB bool_typelib, delay_key_write_typelib, sql_mode_typelib;
 
 enum enum_var_type
 {
@@ -56,6 +56,7 @@ public:
   virtual ~sys_var() {}
   virtual bool check(THD *thd, set_var *var) { return 0; }
   bool check_enum(THD *thd, set_var *var, TYPELIB *enum_names);
+  bool check_set(THD *thd, set_var *var, TYPELIB *enum_names);
   virtual bool update(THD *thd, set_var *var)=0;
   virtual void set_default(THD *thd, enum_var_type type) {}
   virtual SHOW_TYPE type() { return SHOW_UNDEF; }
@@ -273,6 +274,7 @@ public:
 
 class sys_var_thd_enum :public sys_var_thd
 {
+protected:
   ulong SV::*offset;
   TYPELIB *enum_names;
 public:
@@ -294,6 +296,21 @@ public:
   SHOW_TYPE type() { return SHOW_CHAR; }
   byte *value_ptr(THD *thd, enum_var_type type);
   bool check_update_type(Item_result type) { return 0; }
+};
+
+
+class sys_var_thd_sql_mode :public sys_var_thd_enum
+{
+public:
+  sys_var_thd_sql_mode(const char *name_arg, ulong SV::*offset_arg)
+    :sys_var_thd_enum(name_arg, offset_arg, &sql_mode_typelib)
+  {}
+  bool check(THD *thd, set_var *var)
+  {
+    return check_set(thd, var, enum_names);
+  }
+  void set_default(THD *thd, enum_var_type type);
+  byte *value_ptr(THD *thd, enum_var_type type);
 };
 
 

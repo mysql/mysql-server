@@ -52,17 +52,19 @@ uint nr_of_decimals(const char *str)
 
 double Item_str_func::val()
 {
+  int err;
   String *res;
   res=val_str(&str_value);
   return res ? my_strntod(res->charset(), (char*) res->ptr(),res->length(),
-			  NULL) : 0.0;
+			  NULL, &err) : 0.0;
 }
 
 longlong Item_str_func::val_int()
 {
+  int err;
   String *res;
   res=val_str(&str_value);
-  return res ? my_strntoll(res->charset(),res->ptr(),res->length(),NULL,10) : (longlong) 0;
+  return res ? my_strntoll(res->charset(),res->ptr(),res->length(),10,NULL,&err) : (longlong) 0;
 }
 
 
@@ -1272,8 +1274,13 @@ String *Item_func_trim::val_str(String *str)
   return &tmp_value;
 }
 
+void Item_func_password::fix_length_and_dec()
+{
+  max_length= get_password_length(use_old_passwords);
+}
+
 /*
- Password() function can have 2 args now. Second argument can be used
+ Password() function has 2 arguments. Second argument can be used
  to make results repeatable
 */ 
 
@@ -1290,9 +1297,9 @@ String *Item_func_password::val_str(String *str)
   {    
     if (res->length() == 0)
       return &empty_string;
-    make_scrambled_password(tmp_value,res->c_ptr(),opt_old_passwords,
+    make_scrambled_password(tmp_value,res->c_ptr(),use_old_passwords,
                             &current_thd->rand);
-    str->set(tmp_value,get_password_length(opt_old_passwords),res->charset());
+    str->set(tmp_value,get_password_length(use_old_passwords),res->charset());
     return str;
   }
   else
@@ -1321,9 +1328,9 @@ String *Item_func_password::val_str(String *str)
     /* Use constants which allow nice random values even with small seed */
     randominit(&rand_st,seed*111111+33333333L,seed*1111+55555555L);
     
-    make_scrambled_password(tmp_value,res->c_ptr(),opt_old_passwords,
+    make_scrambled_password(tmp_value,res->c_ptr(),use_old_passwords,
                             &rand_st);
-    str->set(tmp_value,get_password_length(opt_old_passwords),res->charset());
+    str->set(tmp_value,get_password_length(use_old_passwords),res->charset());
     return str;
   }       
 }
@@ -1956,6 +1963,7 @@ String *Item_func_conv::val_str(String *str)
   longlong dec;
   int from_base= (int) args[1]->val_int();
   int to_base= (int) args[2]->val_int();
+  int err;
 
   if (args[0]->null_value || args[1]->null_value || args[2]->null_value ||
       abs(to_base) > 36 || abs(to_base) < 2 ||
@@ -1966,9 +1974,9 @@ String *Item_func_conv::val_str(String *str)
   }
   null_value=0;
   if (from_base < 0)
-    dec= my_strntoll(res->charset(),res->ptr(),res->length(),&endptr,-from_base);
+    dec= my_strntoll(res->charset(),res->ptr(),res->length(),-from_base,&endptr,&err);
   else
-    dec= (longlong) my_strntoull(res->charset(),res->ptr(),res->length(),&endptr,from_base);
+    dec= (longlong) my_strntoull(res->charset(),res->ptr(),res->length(),from_base,&endptr,&err);
   ptr= longlong2str(dec,ans,to_base);
   if (str->copy(ans,(uint32) (ptr-ans), thd_charset()))
     return &empty_string;

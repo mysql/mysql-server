@@ -8648,7 +8648,7 @@ CHARSET_INFO my_charset_euc_kr =
     NULL,		/* tab_from_uni */
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
-    NULL,		/* strnxfrm   */
+    my_strnxfrm_simple,	/* strnxfrm   */
     my_like_range_simple,/* like_range */
     my_wildcmp_mb,	/* wildcmp    */
     2,			/* mbmaxlen   */
@@ -8668,13 +8668,14 @@ CHARSET_INFO my_charset_euc_kr =
     my_hash_sort_simple,
     0,
     my_snprintf_8bit,
-    my_l10tostr_8bit,
-    my_ll10tostr_8bit,
+    my_long10_to_str_8bit,
+    my_longlong10_to_str_8bit,
     my_strntol_8bit,
     my_strntoul_8bit,
     my_strntoll_8bit,
     my_strntoull_8bit,
-    my_strntod_8bit
+    my_strntod_8bit,
+    my_scan_8bit
 };
 
 #endif

@@ -195,7 +195,6 @@ void THD::init(void)
   pthread_mutex_unlock(&LOCK_global_system_variables);
   server_status= SERVER_STATUS_AUTOCOMMIT;
   options= thd_startup_options;
-  sql_mode=(uint) opt_sql_mode;
   open_options=ha_open_options;
   update_lock_default= (variables.low_priority_updates ?
 			TL_WRITE_LOW_PRIORITY :

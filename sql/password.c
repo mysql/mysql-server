@@ -236,7 +236,7 @@ void password_hash_stage1(char *to, const char *password)
   {
     if (*password == ' ' || *password == '\t')
       continue;/* skip space in password */
-    sha1_input(&context,(int8*)&password[0],1);
+    sha1_input(&context,(uint8*) &password[0],1);
   }
   sha1_result(&context,(uint8*)to);
 }
@@ -259,9 +259,9 @@ void password_hash_stage2(char *to,const char *salt)
 {
   SHA1_CONTEXT context;
   sha1_reset(&context);
-  sha1_input(&context,(uint8*)salt,4);
-  sha1_input(&context,to,SHA1_HASH_SIZE);
-  sha1_result(&context,(uint8*)to);
+  sha1_input(&context,(uint8*) salt, 4);
+  sha1_input(&context,(uint8*) to, SHA1_HASH_SIZE);
+  sha1_result(&context,(uint8*) to);
 }
 
 
@@ -295,14 +295,14 @@ void make_scrambled_password(char *to,const char *password,
   else /* New password 4.1 password scrambling */
   {
     to[0]=PVERSION41_CHAR; /* New passwords have version prefix */
-   /* Random returns number from 0 to 1 so this would be good salt generation.*/
+   /* Rnd returns number from 0 to 1 so this would be good salt generation.*/
     salt=rnd(rand_st)*65535+1;
     /* Use only 2 first bytes from it */
     sprintf(to+1,"%04x",salt);
     /* First hasing is done without salt */
-    password_hash_stage1(digest,password);
+    password_hash_stage1((char*) digest, password);
     /* Second stage is done with salt */
-    password_hash_stage2(digest,(char*)to+1),
+    password_hash_stage2((char*) digest,(char*)to+1),
     /* Print resulting hash into the password*/
     sprintf(to+5,
       "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
@@ -376,7 +376,7 @@ my_bool validate_password(const char* password, const char* message,
 
   password_hash_stage2(buffer,tmpsalt);
   /* Convert password to salt to compare */
-  get_salt_from_bin_password(salt_candidate,buffer,salt[0]);
+  get_salt_from_bin_password(salt_candidate,(uchar*) buffer,salt[0]);
 
   /* Now we shall get exactly the same password as we have stored for user  */
   for (salt_end=salt+5 ; salt < salt_end; )

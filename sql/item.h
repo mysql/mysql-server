@@ -344,13 +344,15 @@ public:
   enum Type type() const { return STRING_ITEM; }
   double val()
   { 
+    int err;
     return my_strntod(str_value.charset(), (char*) str_value.ptr(),
-		      str_value.length(), (char**) 0);
+		      str_value.length(), (char**) 0, &err);
   }
   longlong val_int()
   {
+    int err;
     return my_strntoll(str_value.charset(), str_value.ptr(),
-		       str_value.length(), (char**) 0, 10);
+		       str_value.length(), 10, (char**) 0, &err);
   }
   String *val_str(String*) { return (String*) &str_value; }
   int save_in_field(Field *field, bool no_conversions);
@@ -599,12 +601,16 @@ public:
   enum_field_types field_type() const { return cached_field_type; }
   double val()
   {
+    int err;
     return (null_value ? 0.0 :
 	    my_strntod(str_value.charset(), (char*) str_value.ptr(),
-		       str_value.length(),NULL));
+		       str_value.length(),NULL,&err));
   }
   longlong val_int()
-  { return null_value ? LL(0) : my_strntoll(str_value.charset(),str_value.ptr(),str_value.length(),(char**) 0,10); }
+  { 
+    int err;
+    return null_value ? LL(0) : my_strntoll(str_value.charset(),str_value.ptr(),str_value.length(),10, (char**) 0,&err); 
+  }
   String *val_str(String*);
   void make_field(Send_field *field) { item->make_field(field); }
   void copy();

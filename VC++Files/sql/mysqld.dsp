@@ -488,6 +488,10 @@ SOURCE=.\item_func.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\item_row.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\item_strfunc.cpp
 
 !IF  "$(CFG)" == "mysqld - Win32 Release"
@@ -659,26 +663,6 @@ SOURCE=.\mini_client.cpp
 # Begin Source File
 
 SOURCE=.\mysqld.cpp
-
-!IF  "$(CFG)" == "mysqld - Win32 Release"
-
-!ELSEIF  "$(CFG)" == "mysqld - Win32 Debug"
-
-# ADD CPP /G5
-# SUBTRACT CPP /YX /Yc /Yu
-
-!ELSEIF  "$(CFG)" == "mysqld - Win32 nt"
-
-!ELSEIF  "$(CFG)" == "mysqld - Win32 Max nt"
-
-!ELSEIF  "$(CFG)" == "mysqld - Win32 Max"
-
-!ENDIF 
-
-# End Source File
-# Begin Source File
-
-SOURCE=.\net_pkg.cpp
 
 !IF  "$(CFG)" == "mysqld - Win32 Release"
 
@@ -960,6 +944,10 @@ SOURCE=.\sql_error.cpp
 # Begin Source File
 
 SOURCE=.\sql_handler.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\sql_help.cpp
 # End Source File
 # Begin Source File
 

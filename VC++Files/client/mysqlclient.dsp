@@ -116,6 +116,10 @@ SOURCE="..\strings\ctype-big5.c"
 # End Source File
 # Begin Source File
 
+SOURCE="..\strings\ctype-bin.c"
+# End Source File
+# Begin Source File
+
 SOURCE="..\strings\ctype-czech.c"
 # End Source File
 # Begin Source File
@@ -201,10 +205,6 @@ SOURCE=..\strings\longlong2str.c
 # Begin Source File
 
 SOURCE=..\mysys\mf_cache.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\mysys\mf_casecnv.c
 # End Source File
 # Begin Source File
 
@@ -419,6 +419,10 @@ SOURCE=..\mysys\safemalloc.c
 # Begin Source File
 
 SOURCE=.\select_test.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\mysys\sha1.c
 # End Source File
 # Begin Source File
 

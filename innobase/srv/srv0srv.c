@@ -1727,6 +1727,7 @@ srv_conc_enter_innodb(
 	ibool			has_slept	= FALSE;
 	srv_conc_slot_t*	slot;
 	ulint			i;
+	char                    err_buf[1000];
 
 	if (srv_thread_concurrency >= 500) {
 		/* Disable the concurrency check */
@@ -1744,6 +1745,16 @@ srv_conc_enter_innodb(
 	}
 retry:
 	os_fast_mutex_lock(&srv_conc_mutex);
+
+	if (trx->declared_to_be_inside_innodb) {
+	        ut_print_timestamp(stderr);
+
+	        trx_print(err_buf, trx);
+
+	        fprintf(stderr,
+"  InnoDB: Error: trying to declare trx to enter InnoDB, but\n"
+"InnoDB: it already is declared.\n%s\n", err_buf);
+	}
 
 	if (srv_conc_n_threads < (lint)srv_thread_concurrency) {
 
@@ -1815,7 +1826,11 @@ retry:
 	/* Go to wait for the event; when a thread leaves InnoDB it will
 	release this thread */
 
+	trx->op_info = "waiting in InnoDB queue";
+
 	os_event_wait(slot->event);
+
+	trx->op_info = "";
 
 	os_fast_mutex_lock(&srv_conc_mutex);
 

@@ -1,0 +1,30 @@
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+CREATE TABLE `t1` (
+  a int not null auto_increment,
+  `pseudo` varchar(35) character set latin2 NOT NULL default '',
+  `email` varchar(60) character set latin2 NOT NULL default '',
+  PRIMARY KEY  (a),
+  UNIQUE KEY `email` USING BTREE (`email`) 
+) TYPE=HEAP CHARSET=latin1 ROW_FORMAT DYNAMIC;
+set @@sql_mode="";
+show variables like 'sql_mode';
+show create table t1;
+set @@sql_mode="ansi_quotes";
+show variables like 'sql_mode';
+show create table t1;
+set @@sql_mode="no_table_options";
+show variables like 'sql_mode';
+show create table t1;
+set @@sql_mode="no_key_options";
+show variables like 'sql_mode';
+show create table t1;
+set @@sql_mode="no_field_options,mysql323,mysql40";
+show variables like 'sql_mode';
+show create table t1;
+set @@sql_mode="postgresql,oracle,mssql,db2,sapdb";
+show variables like 'sql_mode';
+show create table t1;
+drop table t1;

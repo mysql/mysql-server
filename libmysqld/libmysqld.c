@@ -475,7 +475,7 @@ static inline int mysql_init_charset(MYSQL *mysql)
 MYSQL * STDCALL
 mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		   const char *passwd __attribute__((unused)), const char *db,
-		   uint port, const char *unix_socket,uint client_flag)
+		   uint port, const char *unix_socket,ulong client_flag)
 {
   char          *db_name;
   DBUG_ENTER("mysql_real_connect");

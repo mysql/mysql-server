@@ -55,7 +55,7 @@ static DYNAMIC_ARRAY acl_hosts,acl_users,acl_dbs;
 static MEM_ROOT mem, memex;
 static bool initialized=0;
 static bool allow_all_hosts=1;
-static HASH acl_check_hosts, hash_tables;
+static HASH acl_check_hosts, column_priv_hash;
 static DYNAMIC_ARRAY acl_wild_hosts;
 static hash_filo *acl_cache;
 static uint grant_version=0;
@@ -104,7 +104,7 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     DBUG_RETURN(0); /* purecov: tested */
   }
 
-  priv_version++; /* Priveleges updated */
+  priv_version++; /* Privileges updated */
 
   /*
     To be able to run this from boot, we allocate a temporary THD
@@ -112,6 +112,8 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
   if (!(thd=new THD))
     DBUG_RETURN(1); /* purecov: inspected */
   thd->store_globals();
+  /* Use passwords according to command line option */
+  use_old_passwords= opt_old_passwords;
 
   acl_cache->clear(1);				// Clear locked hostname cache
   thd->db= my_strdup("mysql",MYF(0));
@@ -176,7 +178,14 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     protocol_version=9; /* purecov: tested */
   }
 
-  DBUG_PRINT("info",("user table fields: %d",table->fields));
+  DBUG_PRINT("info",("user table fields: %d, password length: %d",
+		     table->fields, table->field[2]->field_length));
+  if (table->field[2]->field_length < 45 && !use_old_passwords)
+  {
+    sql_print_error("mysql.user table is not updated to new password format;  Disabling new password usage until mysql_fix_privilege_tables is run");
+    use_old_passwords= 1;
+  }
+
   allow_all_hosts=0;
   while (!(read_record_info.read_record(&read_record_info)))
   {
@@ -192,7 +201,7 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
 		      "Found old style password for user '%s'. Ignoring user. (You may want to restart mysqld using --old-protocol)",
 		      user.user ? user.user : ""); /* purecov: tested */
     }
-    else  /* non emptpy and not short passwords */
+    else  /* non empty and not short passwords */
     {
       user.pversion=get_password_version(user.password);
       /* Only passwords of specific lengths depending on version are allowed */
@@ -358,6 +367,7 @@ void acl_reload(THD *thd)
 
   if (acl_init(thd, 0))
   {					// Error. Revert to old list
+    DBUG_PRINT("error",("Reverting to old privileges"));
     acl_free();				/* purecov: inspected */
     acl_hosts=old_acl_hosts;
     acl_users=old_acl_users;
@@ -1733,10 +1743,12 @@ static GRANT_TABLE *table_hash_search(const char *host,const char* ip,
   GRANT_TABLE *grant_table,*found=0;
 
   len  = (uint) (strmov(strmov(strmov(helping,user)+1,db)+1,tname)-helping)+ 1;
-  for (grant_table=(GRANT_TABLE*) hash_search(&hash_tables,(byte*) helping,
+  for (grant_table=(GRANT_TABLE*) hash_search(&column_priv_hash,
+					      (byte*) helping,
 					      len) ;
        grant_table ;
-       grant_table= (GRANT_TABLE*) hash_next(&hash_tables,(byte*) helping,len))
+       grant_table= (GRANT_TABLE*) hash_next(&column_priv_hash,(byte*) helping,
+					     len))
   {
     if (exact)
     {
@@ -2033,7 +2045,7 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   }
   else
   {
-    hash_delete(&hash_tables,(byte*) grant_table);
+    hash_delete(&column_priv_hash,(byte*) grant_table);
   }
   DBUG_RETURN(0);
 
@@ -2179,7 +2191,7 @@ int mysql_table_grant (THD *thd, TABLE_LIST *table_list,
 	result= -1;				/* purecov: deadcode */
 	continue;				/* purecov: deadcode */
       }
-      hash_insert(&hash_tables,(byte*) grant_table);
+      hash_insert(&column_priv_hash,(byte*) grant_table);
     }
 
     /* If revoke_grant, calculate the new column privilege for tables_priv */
@@ -2334,7 +2346,7 @@ void  grant_free(void)
 {
   DBUG_ENTER("grant_free");
   grant_option = FALSE;
-  hash_free(&hash_tables);
+  hash_free(&column_priv_hash);
   free_root(&memex,MYF(0));
   DBUG_VOID_RETURN;
 }
@@ -2352,7 +2364,7 @@ my_bool grant_init(THD *org_thd)
   DBUG_ENTER("grant_init");
 
   grant_option = FALSE;
-  (void) hash_init(&hash_tables,my_charset_latin1,
+  (void) hash_init(&column_priv_hash,my_charset_latin1,
 		   0,0,0, (hash_get_key) get_grant_table,
 		   (hash_free_key) free_grant_table,0);
   init_sql_alloc(&memex,1024,0);
@@ -2387,6 +2399,7 @@ my_bool grant_init(THD *org_thd)
   if (t_table->file->index_first(t_table->record[0]))
   {
     t_table->file->index_end();
+    return_val= 0;
     goto end_unlock;
   }
   grant_option= TRUE;
@@ -2398,7 +2411,7 @@ my_bool grant_init(THD *org_thd)
   {
     GRANT_TABLE *mem_check;
     if (!(mem_check=new GRANT_TABLE(t_table,c_table)) ||
-	mem_check->ok() && hash_insert(&hash_tables,(byte*) mem_check))
+	mem_check->ok() && hash_insert(&column_priv_hash,(byte*) mem_check))
     {
       /* This could only happen if we are out memory */
       grant_option = FALSE;			/* purecov: deadcode */
@@ -2427,11 +2440,12 @@ end:
 }
 
 
-/* Reload grant array if possible */
+/* Reload grant array (table and column privileges) if possible */
 
 void grant_reload(THD *thd)
 {
-  HASH old_hash_tables;bool old_grant_option;
+  HASH old_column_priv_hash;
+  bool old_grant_option;
   MEM_ROOT old_mem;
   DBUG_ENTER("grant_reload");
 
@@ -2439,20 +2453,21 @@ void grant_reload(THD *thd)
 
   rw_wrlock(&LOCK_grant);
   grant_version++;
-  old_hash_tables=hash_tables;
+  old_column_priv_hash= column_priv_hash;
   old_grant_option = grant_option;
   old_mem = memex;
 
   if (grant_init(thd))
   {						// Error. Revert to old hash
+    DBUG_PRINT("error",("Reverting to old privileges"));
     grant_free();				/* purecov: deadcode */
-    hash_tables=old_hash_tables;		/* purecov: deadcode */
+    column_priv_hash= old_column_priv_hash;	/* purecov: deadcode */
     grant_option = old_grant_option;		/* purecov: deadcode */
     memex = old_mem;				/* purecov: deadcode */
   }
   else
   {
-    hash_free(&old_hash_tables);
+    hash_free(&old_column_priv_hash);
     free_root(&old_mem,MYF(0));
   }
   rw_unlock(&LOCK_grant);
@@ -2676,9 +2691,10 @@ bool check_grant_db(THD *thd,const char *db)
   len  = (uint) (strmov(strmov(helping,thd->priv_user)+1,db)-helping)+ 1;
   rw_rdlock(&LOCK_grant);
 
-  for (uint idx=0 ; idx < hash_tables.records ; idx++)
+  for (uint idx=0 ; idx < column_priv_hash.records ; idx++)
   {
-    GRANT_TABLE *grant_table = (GRANT_TABLE*) hash_element(&hash_tables,idx);
+    GRANT_TABLE *grant_table= (GRANT_TABLE*) hash_element(&column_priv_hash,
+							  idx);
     if (len < grant_table->key_length &&
 	!memcmp(grant_table->hash_key,helping,len) &&
 	(thd->host && !wild_case_compare(my_charset_latin1,
@@ -3004,10 +3020,11 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
   }
 
   /* Add column access */
-  for (index=0 ; index < hash_tables.records ; index++)
+  for (index=0 ; index < column_priv_hash.records ; index++)
   {
     const char *user,*host;
-    GRANT_TABLE *grant_table= (GRANT_TABLE*) hash_element(&hash_tables,index);
+    GRANT_TABLE *grant_table= (GRANT_TABLE*) hash_element(&column_priv_hash,
+							  index);
 
     if (!(user=grant_table->user))
       user="";

@@ -248,7 +248,15 @@ void Field_str::add_binary_or_charset(String &res) const
 {
   if (binary())
     res.append(" binary");
-  else  if (field_charset != table->table_charset)
+  else  if (field_charset != table->table_charset &&
+	    !(current_thd->variables.sql_mode & MODE_NO_FIELD_OPTIONS) &&
+	    !(current_thd->variables.sql_mode & MODE_MYSQL323) &&
+	    !(current_thd->variables.sql_mode & MODE_MYSQL40) &&
+	    !(current_thd->variables.sql_mode & MODE_POSTGRESQL) &&
+	    !(current_thd->variables.sql_mode & MODE_ORACLE) &&
+	    !(current_thd->variables.sql_mode & MODE_MSSQL) &&
+	    !(current_thd->variables.sql_mode & MODE_DB2) &&
+	    !(current_thd->variables.sql_mode & MODE_SAPDB))
   {
     res.append(" character set ");
     res.append(field_charset->csname);
@@ -832,15 +840,19 @@ int Field_decimal::store(longlong nr)
 
 double Field_decimal::val_real(void)
 {
-  return my_strntod(my_charset_bin, ptr, field_length, NULL);
+  int not_used;
+  return my_strntod(my_charset_bin, ptr, field_length, NULL, &not_used);
 }
 
 longlong Field_decimal::val_int(void)
 {
+  int not_used;
   if (unsigned_flag)
-    return my_strntoull(my_charset_bin, ptr, field_length, NULL, 10);
+    return my_strntoull(my_charset_bin, ptr, field_length, 10, NULL,
+			&not_used);
   else
-    return my_strntoll( my_charset_bin, ptr, field_length, NULL, 10);
+    return my_strntoll( my_charset_bin, ptr, field_length, 10, NULL,
+			&not_used);
 }
 
 
@@ -942,8 +954,9 @@ void Field_decimal::sql_type(String &res) const
 
 int Field_tiny::store(const char *from,uint len,CHARSET_INFO *cs)
 {
+  int not_used;				// We can ignore result from str2int
   char *end;
-  long tmp= my_strntol(cs, from, len, &end,10);
+  long tmp= my_strntol(cs, from, len, 10, &end, &not_used);
   int error= 0;
 
   if (unsigned_flag)
@@ -1097,9 +1110,9 @@ String *Field_tiny::val_str(String *val_buffer,
   char *to=(char*) val_buffer->ptr();
 
   if (unsigned_flag)
-    length= (uint) cs->l10tostr(cs,to,mlength, 10,(long) *((uchar*) ptr));
+    length= (uint) cs->long10_to_str(cs,to,mlength, 10,(long) *((uchar*) ptr));
   else
-    length= (uint) cs->l10tostr(cs,to,mlength,-10,(long) *((signed char*) ptr));
+    length= (uint) cs->long10_to_str(cs,to,mlength,-10,(long) *((signed char*) ptr));
   
   val_buffer->length(length);
   if (zerofill)
@@ -1143,9 +1156,11 @@ void Field_tiny::sql_type(String &res) const
 
 int Field_short::store(const char *from,uint len,CHARSET_INFO *cs)
 {
+  int not_used;				// We can ignore result from str2int
   char *end;
-  long tmp= my_strntol(cs, from, len, &end, 10);
+  long tmp= my_strntol(cs, from, len, 10, &end, &not_used);
   int error= 0;
+
   if (unsigned_flag)
   {
     if (tmp < 0)
@@ -1340,9 +1355,9 @@ String *Field_short::val_str(String *val_buffer,
     shortget(j,ptr);
 
   if (unsigned_flag)
-    length=(uint) cs->l10tostr(cs, to, mlength, 10, (long) (uint16) j);
+    length=(uint) cs->long10_to_str(cs, to, mlength, 10, (long) (uint16) j);
   else
-    length=(uint) cs->l10tostr(cs, to, mlength,-10, (long) j);
+    length=(uint) cs->long10_to_str(cs, to, mlength,-10, (long) j);
   val_buffer->length(length);
   if (zerofill)
     prepend_zeros(val_buffer);
@@ -1415,8 +1430,9 @@ void Field_short::sql_type(String &res) const
 
 int Field_medium::store(const char *from,uint len,CHARSET_INFO *cs)
 {
+  int not_used;				// We can ignore result from str2int
   char *end;
-  long tmp= my_strntol(cs, from, len, &end, 10);
+  long tmp= my_strntol(cs, from, len, 10, &end, &not_used);
   int error= 0;
 
   if (unsigned_flag)
@@ -1577,7 +1593,7 @@ String *Field_medium::val_str(String *val_buffer,
   char *to=(char*) val_buffer->ptr();
   long j= unsigned_flag ? (long) uint3korr(ptr) : sint3korr(ptr);
 
-  length=(uint) cs->l10tostr(cs,to,mlength,-10,j);
+  length=(uint) cs->long10_to_str(cs,to,mlength,-10,j);
   val_buffer->length(length);
   if (zerofill)
     prepend_zeros(val_buffer); /* purecov: inspected */
@@ -1651,16 +1667,15 @@ int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
       error= 1;
     }
     else
-      tmp=(long) my_strntoul(cs,from,len,&end,10);
+      tmp=(long) my_strntoul(cs,from,len,10,&end,&error);
   }
   else
-    tmp=my_strntol(cs,from,len,&end,10);
-  if (my_errno ||
+    tmp=my_strntol(cs,from,len,10,&end,&error);
+  if (error ||
       (from+len != end && current_thd->count_cuted_fields &&
        !test_if_int(from,len,end,cs)))
   {
     current_thd->cuted_fields++;
-    error= 1;
   }
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
@@ -1816,9 +1831,9 @@ String *Field_long::val_str(String *val_buffer,
     longget(j,ptr);
 
   if (unsigned_flag)
-    length=cs->l10tostr(cs,to,mlength, 10,(long) (uint32)j);
+    length=cs->long10_to_str(cs,to,mlength, 10,(long) (uint32)j);
   else
-    length=cs->l10tostr(cs,to,mlength,-10,(long) j);
+    length=cs->long10_to_str(cs,to,mlength,-10,(long) j);
   val_buffer->length(length);
   if (zerofill)
     prepend_zeros(val_buffer);
@@ -1910,11 +1925,11 @@ int Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
       error= 1;
     }
     else
-      tmp=(longlong) my_strntoull(cs,from,len,&end,10);
+      tmp=(longlong) my_strntoull(cs,from,len,10,&end,&error);
   }
   else
-    tmp=my_strntoll(cs,from,len,&end,10);
-  if (my_errno ||
+    tmp=my_strntoll(cs,from,len,10,&end,&error);
+  if (error ||
       (from+len != end && current_thd->count_cuted_fields &&
        !test_if_int(from,len,end,cs)))
       current_thd->cuted_fields++;
@@ -2038,7 +2053,7 @@ String *Field_longlong::val_str(String *val_buffer,
 #endif
     longlongget(j,ptr);
 
-  length=(uint) cs->ll10tostr(cs,to,mlength,unsigned_flag ? 10 : -10, j);
+  length=(uint) cs->longlong10_to_str(cs,to,mlength,unsigned_flag ? 10 : -10, j);
   val_buffer->length(length);
   if (zerofill)
     prepend_zeros(val_buffer);
@@ -2122,14 +2137,14 @@ void Field_longlong::sql_type(String &res) const
 
 int Field_float::store(const char *from,uint len,CHARSET_INFO *cs)
 {
-  errno=0;					// my_strntod() changes errno
-  Field_float::store(my_strntod(cs,(char*) from,len,(char**)NULL));
-  if (errno || current_thd->count_cuted_fields && !test_if_real(from,len,cs))
+  int err;
+  Field_float::store(my_strntod(cs,(char*) from,len,(char**)NULL,&err));
+  if (err || current_thd->count_cuted_fields && !test_if_real(from,len,cs))
   {
     current_thd->cuted_fields++;
     return 1;
   }
-  return (errno) ? 1 : 0;
+  return (err) ? 1 : 0;
 }
 
 
@@ -2395,19 +2410,17 @@ void Field_float::sql_type(String &res) const
 
 int Field_double::store(const char *from,uint len,CHARSET_INFO *cs)
 {
-  errno=0;					// my_strntod() changes errno
-  int error= 0;
-  double j= my_strntod(cs,(char*) from,len,(char**)0);
-  if (errno || current_thd->count_cuted_fields && !test_if_real(from,len,cs))
+  int err;
+  double j= my_strntod(cs,(char*) from,len,(char**)0,&err);
+  if (err || current_thd->count_cuted_fields && !test_if_real(from,len,cs))
   {
     current_thd->cuted_fields++;
-    error= 1;
   }
   if (unsigned_flag && j < 0)
   {
     current_thd->cuted_fields++;
     j=0;
-    error= 1;
+    err= 1;
   }
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
@@ -2417,7 +2430,7 @@ int Field_double::store(const char *from,uint len,CHARSET_INFO *cs)
   else
 #endif
     doublestore(ptr,j);
-  return error;
+  return err;
 }
 
 
@@ -3183,8 +3196,9 @@ void Field_time::sql_type(String &res) const
 
 int Field_year::store(const char *from, uint len,CHARSET_INFO *cs)
 {
+  int not_used;				// We can ignore result from str2int
   char *end;
-  long nr= my_strntol(cs, from, len, &end, 10);
+  long nr= my_strntol(cs, from, len, 10, &end, &not_used);
 
   if (nr < 0 || nr >= 100 && nr <= 1900 || nr > 2155)
   {
@@ -3914,22 +3928,24 @@ int Field_string::store(longlong nr)
   char buff[64];
   int  l;
   CHARSET_INFO *cs=charset();
-  l=cs->ll10tostr(cs,buff,sizeof(buff),-10,nr);
+  l=cs->longlong10_to_str(cs,buff,sizeof(buff),-10,nr);
   return Field_string::store(buff,(uint)l,cs);
 }
 
 
 double Field_string::val_real(void)
 {
+  int not_used;
   CHARSET_INFO *cs=charset();
-  return my_strntod(cs,ptr,field_length,(char**)0);
+  return my_strntod(cs,ptr,field_length,(char**)0,&not_used);
 }
 
 
 longlong Field_string::val_int(void)
 {
+  int not_used;
   CHARSET_INFO *cs=charset();
-  return my_strntoll(cs,ptr,field_length,NULL,10);
+  return my_strntoll(cs,ptr,field_length,10,NULL,&not_used);
 }
 
 
@@ -3956,23 +3972,11 @@ int Field_string::cmp(const char *a_ptr, const char *b_ptr)
 
 void Field_string::sort_string(char *to,uint length)
 {
-  if (binary())
-    memcpy((byte*) to,(byte*) ptr,(size_t) length);
-  else
-  {
-#ifdef USE_STRCOLL
-    if (use_strnxfrm(field_charset)) {
-      uint tmp=my_strnxfrm(field_charset,
+  uint tmp=my_strnxfrm(field_charset,
                           (unsigned char *)to, length,
                           (unsigned char *) ptr, field_length);
-      if (tmp < length)
-        bzero(to + tmp, length - tmp);
-    }
-    else
-#endif
-      for (char *from=ptr,*end=ptr+length ; from != end ;)
-        *to++=(char) field_charset->sort_order[(uint) (uchar) *from++];
-  }
+  if (tmp < length)
+    bzero(to + tmp, length - tmp);
 }
 
 
@@ -4016,7 +4020,6 @@ int Field_string::pack_cmp(const char *a, const char *b, uint length)
 {
   uint a_length= (uint) (uchar) *a++;
   uint b_length= (uint) (uchar) *b++;
-
   return my_strnncoll(field_charset,
 		      (const uchar*)a,a_length,
 		      (const uchar*)b,b_length);
@@ -4030,7 +4033,6 @@ int Field_string::pack_cmp(const char *b, uint length)
   while (end > ptr && end[-1] == ' ')
     end--;
   uint a_length = (uint) (end - ptr);
-
   return my_strnncoll(field_charset,
 		     (const uchar*)ptr,a_length,
 		     (const uchar*)b, b_length);
@@ -4093,24 +4095,26 @@ int Field_varstring::store(longlong nr)
   char buff[64];
   int  l;
   CHARSET_INFO *cs=charset();
-  l=cs->ll10tostr(cs,buff,sizeof(buff),-10,nr);
+  l=cs->longlong10_to_str(cs,buff,sizeof(buff),-10,nr);
   return Field_varstring::store(buff,(uint)l,cs);
 }
 
 
 double Field_varstring::val_real(void)
 {
+  int not_used;
   uint length=uint2korr(ptr)+2;
   CHARSET_INFO *cs=charset();
-  return my_strntod(cs,ptr+2,length,(char**)0);
+  return my_strntod(cs,ptr+2,length,(char**)0, &not_used);
 }
 
 
 longlong Field_varstring::val_int(void)
 {
+  int not_used;
   uint length=uint2korr(ptr)+2;
   CHARSET_INFO *cs=charset();
-  return my_strntoll(cs,ptr+2,length,NULL,10);
+  return my_strntoll(cs,ptr+2,length,10,NULL, &not_used);
 }
 
 
@@ -4137,27 +4141,9 @@ int Field_varstring::cmp(const char *a_ptr, const char *b_ptr)
 void Field_varstring::sort_string(char *to,uint length)
 {
   uint tot_length=uint2korr(ptr);
-  if (binary())
-    memcpy((byte*) to,(byte*) ptr+2,(size_t) tot_length);
-  else
-  {
-#ifdef USE_STRCOLL
-    if (use_strnxfrm(field_charset))
-      tot_length=my_strnxfrm(field_charset,
+  tot_length=my_strnxfrm(field_charset,
                              (unsigned char *) to, length,
                              (unsigned char *)ptr+2, tot_length);
-    else
-    {
-#endif
-      char *tmp=to;
-      if (tot_length > length)
-        tot_length=length;
-      for (char *from=ptr+2,*end=from+tot_length ; from != end ;)
-        *tmp++=(char) field_charset->sort_order[(uint) (uchar) *from++];
-#ifdef USE_STRCOLL
-    }
-#endif
-  }
   if (tot_length < length)
     bzero(to+tot_length,length-tot_length);
 }
@@ -4436,24 +4422,26 @@ int Field_blob::store(longlong nr)
 
 double Field_blob::val_real(void)
 {
+  int not_used;
   char *blob;
   memcpy_fixed(&blob,ptr+packlength,sizeof(char*));
   if (!blob)
     return 0.0;
   uint32 length=get_length(ptr);
   CHARSET_INFO *cs=charset();
-  return my_strntod(cs,blob,length,(char**)0);
+  return my_strntod(cs,blob,length,(char**)0, &not_used);
 }
 
 
 longlong Field_blob::val_int(void)
 {
+  int not_used;
   char *blob;
   memcpy_fixed(&blob,ptr+packlength,sizeof(char*));
   if (!blob)
     return 0;
   uint32 length=get_length(ptr);
-  return my_strntoll(charset(),blob,length,NULL,10);
+  return my_strntoll(charset(),blob,length,10,NULL,&not_used);
 }
 
 
@@ -4618,39 +4606,18 @@ void Field_blob::sort_string(char *to,uint length)
 {
   char *blob;
   uint blob_length=get_length();
-#ifdef USE_STRCOLL
-  uint blob_org_length=blob_length;
-#endif
+
   if (!blob_length)
     bzero(to,length);
   else
   {
-    if (blob_length > length)
-      blob_length=length;
     memcpy_fixed(&blob,ptr+packlength,sizeof(char*));
-    if (binary())
-    {
-      memcpy(to,blob,blob_length);
-      to+=blob_length;
-    }
-    else
-    {
-#ifdef USE_STRCOLL
-      if (use_strnxfrm(field_charset))
-      {
-        blob_length=my_strnxfrm(field_charset,
-                                (unsigned char *)to, length, 
-                                (unsigned char *)blob, blob_org_length);
-        if (blob_length >= length)
-          return;
-        to+=blob_length;
-      }
-      else
-#endif
-        for (char *end=blob+blob_length ; blob != end ;)
-          *to++=(char) field_charset->sort_order[(uint) (uchar) *blob++];
-    }
-    bzero(to,length-blob_length);
+    
+    blob_length=my_strnxfrm(field_charset,
+                            (unsigned char *)to, length, 
+                            (unsigned char *)blob, blob_length);
+    if (blob_length < length)
+      bzero(to+blob_length, length-blob_length);
   }
 }
 
@@ -4892,7 +4859,7 @@ uint find_enum(TYPELIB *lib,const char *x, uint length)
 
 int Field_enum::store(const char *from,uint length,CHARSET_INFO *cs)
 {
-  int error= 0;
+  int err= 0;
   uint tmp=find_enum(typelib,from,length);
   if (!tmp)
   {
@@ -4900,20 +4867,18 @@ int Field_enum::store(const char *from,uint length,CHARSET_INFO *cs)
     {
       /* This is for reading numbers with LOAD DATA INFILE */
       char *end;
-      my_errno=0;
-      tmp=(uint) my_strntoul(cs,from,length,&end,10);
-      if (my_errno || end != from+length || tmp > typelib->count)
+      tmp=(uint) my_strntoul(cs,from,length,10,&end,&err);
+      if (err || end != from+length || tmp > typelib->count)
       {
 	tmp=0;
 	current_thd->cuted_fields++;
-	error=1;
       }
     }
     else
       current_thd->cuted_fields++;
   }
   store_type((ulonglong) tmp);
-  return error;
+  return err;
 }
 
 
@@ -5042,38 +5007,52 @@ void Field_enum::sql_type(String &res) const
 }
 
 
-/****************************************************************************
-** set type.
-** This is a string which can have a collection of different values.
-** Each string value is separated with a ','.
-** For example "One,two,five"
-** If one uses this string in a number context one gets the bits as a longlong
-** number.
-****************************************************************************/
+/*
+   set type.
+   This is a string which can have a collection of different values.
+   Each string value is separated with a ','.
+   For example "One,two,five"
+   If one uses this string in a number context one gets the bits as a longlong
+   number.
 
-ulonglong find_set(TYPELIB *lib,const char *x,uint length)
+   If there was a value in string that wasn't in set, the 'err_pos' points to
+   the last invalid value found. 'err_len' will be set to length of the
+   error string.
+*/
+
+ulonglong find_set(TYPELIB *lib, const char *x, uint length, char **err_pos,
+                   uint *err_len)
 {
-  const char *end=x+length;
+  const char *end= x + length;
+  *err_pos= 0;                  // No error yet
   while (end > x && my_isspace(system_charset_info, end[-1]))
     end--;
 
-  ulonglong found=0;
+  *err_len= 0;
+  ulonglong found= 0;
   if (x != end)
   {
-    const char *start=x;
+    const char *start= x;
     bool error= 0;
     for (;;)
     {
-      const char *pos=start;
-      for (; pos != end && *pos != field_separator ; pos++) ;
-      uint find=find_enum(lib,start,(uint) (pos-start));
+      const char *pos= start;
+      uint var_len;
+
+      for (; pos != end && *pos != field_separator; pos++) ;
+      var_len= (uint) (pos - start);
+      uint find= find_enum(lib, start, var_len);
       if (!find)
-	error=1;
+      {
+        *err_pos= (char*) start;
+        *err_len= var_len;
+        error= 1;
+      }
       else
-	found|= ((longlong) 1 << (find-1));
+        found|= ((longlong) 1 << (find - 1));
       if (pos == end)
-	break;
-      start=pos+1;
+        break;
+      start= pos + 1;
     }
     if (error)
       current_thd->cuted_fields++;
@@ -5084,25 +5063,26 @@ ulonglong find_set(TYPELIB *lib,const char *x,uint length)
 
 int Field_set::store(const char *from,uint length,CHARSET_INFO *cs)
 {
-  int error= 0;
-  ulonglong tmp=find_set(typelib,from,length);
+  int err= 0;
+  char *not_used;
+  uint not_used2;
+
+  ulonglong tmp= find_set(typelib, from, length, &not_used, &not_used2);
   if (!tmp && length && length < 22)
   {
     /* This is for reading numbers with LOAD DATA INFILE */
     char *end;
-    my_errno=0;
-    tmp=my_strntoull(cs,from,length,&end,10);
-    if (my_errno || end != from+length ||
+    tmp=my_strntoull(cs,from,length,10,&end,&err);
+    if (err || end != from+length ||
 	tmp > (ulonglong) (((longlong) 1 << typelib->count) - (longlong) 1))
     {
       tmp=0;
-      error=1;
     }
     else
       current_thd->cuted_fields--;		// Remove warning from find_set
   }
   store_type(tmp);
-  return error;
+  return err;
 }
 
 
