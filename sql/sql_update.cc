@@ -768,7 +768,7 @@ bool multi_update::send_eof()
   thd->proc_info="updating the  reference tables";
 
   /* Does updates for the last n - 1 tables, returns 0 if ok */
-  int error = do_updates(false);   /* do_updates returns 0 if success */
+  int error = (num_updated > 1) ? do_updates(false) : 0;   /* do_updates returns 0 if success */
 
   /* reset used flags */
 #ifndef NOT_USED
