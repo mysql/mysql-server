@@ -35,12 +35,13 @@ SUBSELECT TODO:
 #include "mysql_priv.h"
 #include "sql_select.h"
 
-Item_subselect::Item_subselect(THD *thd, st_select_lex *select_lex):
+Item_subselect::Item_subselect(THD *thd, st_select_lex *select_lex,
+			       select_subselect *result):
   assigned(0), executed(0), optimized(0), error(0)
 {
   DBUG_ENTER("Item_subselect::Item_subselect");
   DBUG_PRINT("subs", ("select_lex 0x%xl", (long) select_lex));
-  result= new select_subselect(this);
+  this->result= result;
   SELECT_LEX_UNIT *unit= select_lex->master_unit();
   unit->offset_limit_cnt= unit->global_parameters->offset_limit;
   unit->select_limit_cnt= unit->global_parameters->select_limit+
@@ -51,39 +52,13 @@ Item_subselect::Item_subselect(THD *thd, st_select_lex *select_lex):
     select_lex->options&= ~OPTION_FOUND_ROWS;
   join= new JOIN(thd, select_lex->item_list, select_lex->options, result);
   this->select_lex= select_lex;
-  maybe_null= 1;
+  assign_null();
   /*
     item value is NULL if select_subselect not changed this value 
     (i.e. some rows will be found returned)
   */
-  assign_null();
+  null_value= 1;
   DBUG_VOID_RETURN;
-}
-
-Item::Type Item_subselect::type() const 
-{
-  return SUBSELECT_ITEM;
-}
-
-double Item_subselect::val () 
-{
-  if (exec())
-    return 0;
-  return real_value;
-}
-
-longlong Item_subselect::val_int () 
-{
-  if (exec())
-    return 0;
-  return int_value;
-}
-
-String *Item_subselect::val_str (String *str) 
-{
-  if (exec() || null_value)
-    return 0;
-  return &str_value;
 }
 
 void Item_subselect::make_field (Send_field *tmp_field)
@@ -108,9 +83,9 @@ bool Item_subselect::fix_fields(THD *thd,TABLE_LIST *tables)
     //TODO: subselects in having do not suported now
     my_printf_error(ER_SYNTAX_ERROR, ER(ER_SYNTAX_ERROR), MYF(0));
     return 1;
-  } 
+  }
   // Is it one field subselect?
-  if (select_lex->item_list.elements != 1)
+  if (select_lex->item_list.elements > max_columns)
   {  
     my_printf_error(ER_SUBSELECT_NO_1_COL, ER(ER_SUBSELECT_NO_1_COL), MYF(0));
     return 1;
@@ -131,13 +106,14 @@ bool Item_subselect::fix_fields(THD *thd,TABLE_LIST *tables)
 
 int Item_subselect::exec()
 {
+  DBUG_ENTER("Item_subselect::exec");
   if (!optimized)
   {
     optimized=1;
     if (join->optimize())
     {
       executed= 1;
-      return (join->error?join->error:1);
+      DBUG_RETURN(join->error?join->error:1);
     }
   }
   if (join->select_lex->depended && executed)
@@ -145,7 +121,7 @@ int Item_subselect::exec()
     if (join->reinit())
     {
       error= 1;
-      return 1;
+      DBUG_RETURN(1);
     }
     assign_null();
     executed= assigned= 0;
@@ -157,7 +133,80 @@ int Item_subselect::exec()
     join->exec();
     join->thd->lex.select= save_select;
     executed= 1;
-    return join->error;
+    DBUG_RETURN(join->error);
   }
-  return 0;
+  DBUG_RETURN(0);
 }
+
+inline table_map Item_subselect::used_tables() const
+{
+  return (table_map) select_lex->depended ? 1L : 0L; 
+}
+
+Item_singleval_subselect::Item_singleval_subselect(THD *thd,
+						   st_select_lex *select_lex):
+  Item_subselect(thd, select_lex, new select_singleval_subselect(this))
+{
+  max_columns= 1;
+  maybe_null= 1;
+}
+
+Item::Type Item_subselect::type() const 
+{
+  return SUBSELECT_ITEM;
+}
+
+double Item_singleval_subselect::val () 
+{
+  if (exec())
+    return 0;
+  return real_value;
+}
+
+longlong Item_singleval_subselect::val_int () 
+{
+  if (exec())
+    return 0;
+  return int_value;
+}
+
+String *Item_singleval_subselect::val_str (String *str) 
+{
+  if (exec() || null_value)
+    return 0;
+  return &str_value;
+}
+
+Item_exists_subselect::Item_exists_subselect(THD *thd,
+					     st_select_lex *select_lex):
+  Item_subselect(thd, select_lex, new select_singleval_subselect(this))
+{
+  max_columns= UINT_MAX;
+  null_value= 0; //can't be NULL
+  maybe_null= 0; //can't be NULL
+  value= 0;
+  select_lex->select_limit= 1; // we need only 1 row to determinate existence
+}
+
+double Item_exists_subselect::val () 
+{
+  if (exec())
+    return 0;
+  return (double) value;
+}
+
+longlong Item_exists_subselect::val_int () 
+{
+  if (exec())
+    return 0;
+  return value;
+}
+
+String *Item_exists_subselect::val_str(String *str)
+{
+  if (exec())
+    return 0;
+  str->set(value);
+  return str;
+}
+

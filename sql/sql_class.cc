@@ -763,7 +763,6 @@ void select_dump::send_error(uint errcode,const char *err)
   file= -1;
 }
 
-
 bool select_dump::send_eof()
 {
   int error=test(end_io_cache(&cache));
@@ -782,10 +781,11 @@ select_subselect::select_subselect(Item_subselect *item)
   this->item=item;
 }
 
-bool select_subselect::send_data(List<Item> &items)
+bool select_singleval_subselect::send_data(List<Item> &items)
 {
-  DBUG_ENTER("select_subselect::send_data");
-  if (item->assigned){
+  DBUG_ENTER("select_singleval_subselect::send_data");
+  Item_singleval_subselect *it= (Item_singleval_subselect *)item;
+  if (it->assigned){
     my_printf_error(ER_SUBSELECT_NO_1_ROW, ER(ER_SUBSELECT_NO_1_ROW), MYF(0));
     DBUG_RETURN(1);
   }
@@ -800,18 +800,33 @@ bool select_subselect::send_data(List<Item> &items)
     Following val() call have to be first, because function AVG() & STD()
     calculate value on it & determinate "is it NULL?".
   */
-  item->real_value= val_item->val();
-  if ((item->null_value= val_item->is_null()))
+  it->real_value= val_item->val();
+  if ((it->null_value= val_item->is_null()))
   {
-    item->assign_null();
+    it->assign_null();
   } else {
-    item->max_length= val_item->max_length;
-    item->decimals= val_item->decimals;
-    item->binary= val_item->binary;
-    val_item->val_str(&item->str_value);
-    item->int_value= val_item->val_int();
-    item->res_type= val_item->result_type();
+    it->max_length= val_item->max_length;
+    it->decimals= val_item->decimals;
+    it->binary= val_item->binary;
+    val_item->val_str(&it->str_value);
+    it->int_value= val_item->val_int();
+    it->res_type= val_item->result_type();
   }
-  item->assigned= 1;
+  it->assigned= 1;
   DBUG_RETURN(0);
 }
+
+bool select_exists_subselect::send_data(List<Item> &items)
+{
+  DBUG_ENTER("select_exists_subselect::send_data");
+  Item_exists_subselect *it= (Item_exists_subselect *)item;
+  if (unit->offset_limit_cnt)
+  {				          // Using limit offset,count
+    unit->offset_limit_cnt--;
+    DBUG_RETURN(0);
+  }
+  it->value= 1;
+  it->assigned= 1;
+  DBUG_RETURN(0);
+}
+
