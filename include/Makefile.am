@@ -26,9 +26,9 @@ noinst_HEADERS =	config-win.h \
 			nisam.h heap.h merge.h my_bitmap.h\
 			myisam.h myisampack.h myisammrg.h ft_global.h\
 			my_dir.h mysys_err.h my_base.h \
-			my_nosys.h my_alarm.h queues.h \
-			my_tree.h hash.h thr_alarm.h thr_lock.h \
-			t_ctype.h violite.h md5.h mysql_version.h.in
+			my_nosys.h my_alarm.h queues.h rijndael.h sha1.h \
+			my_aes.h my_getopt.h my_tree.h hash.h thr_alarm.h \
+			thr_lock.h t_ctype.h violite.h md5.h mysql_version.h.in
 
 # mysql_version.h are generated
 SUPERCLEANFILES =	mysql_version.h my_config.h
