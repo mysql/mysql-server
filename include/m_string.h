@@ -215,7 +215,7 @@ extern char *strstr(const char *, const char *);
 extern int is_prefix(const char *, const char *);
 
 /* Conversion routines */
-double my_strtod(const char *str, char **end);
+double my_strtod(const char *str, char **end, int *error);
 double my_atof(const char *nptr);
 
 extern char *llstr(longlong value,char *buff);

@@ -464,3 +464,8 @@ group_concat(a)
 ABW
 ABW
 drop table t1;
+CREATE TABLE t1 (id int);
+SELECT GROUP_CONCAT(id) AS gc FROM t1 HAVING gc IS NULL;
+gc
+NULL
+DROP TABLE t1;
