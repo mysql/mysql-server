@@ -160,14 +160,14 @@ const int ConfigInfo::m_NoOfRules = sizeof(m_SectionRules)/sizeof(SectionRule);
  * Config Rules declarations
  ****************************************************************************/
 static bool add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections, 
-			  struct InitConfigFileParser::Context &ctx, 
-			  const char * rule_data);
+				 struct InitConfigFileParser::Context &ctx, 
+				 const char * rule_data);
 static bool add_server_ports(Vector<ConfigInfo::ConfigRuleSection>&sections, 
-		      struct InitConfigFileParser::Context &ctx, 
-		      const char * rule_data);
+			     struct InitConfigFileParser::Context &ctx, 
+			     const char * rule_data);
 static bool check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections, 
-			    struct InitConfigFileParser::Context &ctx, 
-			    const char * rule_data);
+				   struct InitConfigFileParser::Context &ctx, 
+				   const char * rule_data);
 
 const ConfigInfo::ConfigRule 
 ConfigInfo::m_ConfigRules[] = {
@@ -439,7 +439,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     8192,
     0,
     MAX_INT_RNIL 
-   },
+  },
 
   {
     CFG_DB_NO_TRIGGERS,
@@ -1892,21 +1892,19 @@ const int ConfigInfo::m_NoOfParams = sizeof(m_ParamInfo) / sizeof(ParamInfo);
  ****************************************************************************/
 static void require(bool v) { if(!v) abort();}
 
-ConfigInfo::ConfigInfo() {
+ConfigInfo::ConfigInfo()
+  : m_info(true), m_systemDefaults(true)
+{
   int i;
   Properties *section;
   const Properties *oldpinfo;
-
-  m_info.setCaseInsensitiveNames(true);
-  m_systemDefaults.setCaseInsensitiveNames(true);
 
   for (i=0; i<m_NoOfParams; i++) {
     const ParamInfo & param = m_ParamInfo[i];
     
     // Create new section if it did not exist
     if (!m_info.getCopy(param._section, &section)) {
-      Properties newsection;
-      newsection.setCaseInsensitiveNames(true);
+      Properties newsection(true);
       m_info.put(param._section, &newsection);
     }
     
@@ -1914,7 +1912,7 @@ ConfigInfo::ConfigInfo() {
     m_info.getCopy(param._section, &section);
     
     // Create pinfo (parameter info) entry 
-    Properties pinfo; 
+    Properties pinfo(true); 
     pinfo.put("Id",          param._paramId);
     pinfo.put("Fname",       param._fname);
     pinfo.put("Description", param._description);
@@ -1942,8 +1940,7 @@ ConfigInfo::ConfigInfo() {
     if(param._type != ConfigInfo::SECTION){
       Properties * p;
       if(!m_systemDefaults.getCopy(param._section, &p)){
-	p = new Properties();
-	p->setCaseInsensitiveNames(true);
+	p = new Properties(true);
       }
       if(param._type != STRING && 
 	 param._default != UNDEFINED &&
@@ -2834,7 +2831,7 @@ fixDepricated(InitConfigFileParser::Context & ctx, const char * data){
    * Transform old values to new values
    * Transform new values to old values (backward compatible)
    */
-  Properties tmp;
+  Properties tmp(true);
   Properties::Iterator it(ctx.m_currentSection);
   for (name = it.first(); name != NULL; name = it.next()) {
     const DepricationTransform * p = &f_deprication[0];
@@ -2966,8 +2963,8 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
 {
   Uint32 i;
   Properties * props= ctx.m_config;
-  Properties p_connections;
-  Properties p_connections2;
+  Properties p_connections(true);
+  Properties p_connections2(true);
 
   for (i = 0;; i++){
     const Properties * tmp;
@@ -2987,8 +2984,8 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
   Uint32 nNodes;
   ctx.m_userProperties.get("NoOfNodes", &nNodes);
 
-  Properties p_db_nodes;
-  Properties p_api_mgm_nodes;
+  Properties p_db_nodes(true);
+  Properties p_api_mgm_nodes(true);
 
   Uint32 i_db= 0, i_api_mgm= 0, n;
   for (i= 0, n= 0; n < nNodes; i++){
@@ -3014,7 +3011,7 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
       if(!p_connections2.get("", nodeId1+nodeId2<<16, &dummy)) {
 	ConfigInfo::ConfigRuleSection s;
 	s.m_sectionType= BaseString("TCP");
-	s.m_sectionData= new Properties;
+	s.m_sectionData= new Properties(true);
 	char buf[16];
 	snprintf(buf, sizeof(buf), "%u", nodeId1);
 	s.m_sectionData->put("NodeId1", buf);
@@ -3031,7 +3028,7 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
 	if(!p_db_nodes.get("", j, &nodeId2)) break;
 	ConfigInfo::ConfigRuleSection s;
 	s.m_sectionType= BaseString("TCP");
-	s.m_sectionData= new Properties;
+	s.m_sectionData= new Properties(true);
 	char buf[16];
 	snprintf(buf, sizeof(buf), "%u", nodeId1);
 	s.m_sectionData->put("NodeId1", buf);
@@ -3052,7 +3049,7 @@ static bool add_server_ports(Vector<ConfigInfo::ConfigRuleSection>&sections,
 {
 #if 0
   Properties * props= ctx.m_config;
-  Properties computers;
+  Properties computers(true);
   Uint32 port_base = NDB_BASE_PORT+2;
 
   Uint32 nNodes;
