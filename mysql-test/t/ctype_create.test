@@ -86,3 +86,15 @@ create database d1 default character set latin1 collate latin2_bin;
 #
 #
 DROP DATABASE mysqltest1;
+
+
+#
+# Synatx: 'ALTER DATABASE' without db_name
+#
+CREATE DATABASE mysqltest2 DEFAULT CHARACTER SET latin7;
+use mysqltest2;
+ALTER DATABASE DEFAULT CHARACTER SET latin2;
+show create database mysqltest2;
+drop database mysqltest2;
+--error 1046
+ALTER DATABASE DEFAULT CHARACTER SET latin2;
