@@ -50,6 +50,7 @@
  */
 
 #include <NdbApi.hpp>
+#include <ndberror.h>
 
 // Used for cout
 #include <stdio.h>
@@ -160,10 +161,9 @@ int main()
 
     // set up the callbacks
     printf("execute\n");
-    if (op->execute()) { // This starts changes to "start flowing"
-      printf("operation execution failed\n");
-      exit(-1);
-    }
+    // This starts changes to "start flowing"
+    if (op->execute())
+      APIERROR(op->getNdbError());
 
     int i= 0;
     while(i < 40) {
@@ -251,7 +251,7 @@ int myCreateEvent(Ndb* myNdb,
   // Add event to database
   if (myDict->createEvent(myEvent) == 0)
     myEvent.print();
-  else if (myDict->getNdbError().code == 4709) {
+  else if (myDict->getNdbError().code == NDBERR_EVENT_NAME_ALEADY_EXISTS) {
     printf("Event creation failed, event exists\n");
     printf("dropping Event...\n");
     if (myDict->dropEvent(eventName)) APIERROR(myDict->getNdbError());

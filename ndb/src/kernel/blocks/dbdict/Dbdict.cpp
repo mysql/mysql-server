@@ -7849,7 +7849,7 @@ void Dbdict::createEventUTIL_EXECUTE(Signal *signal,
 	break;
       case ZALREADYEXIST:
 	jam();
-	evntRecPtr.p->m_errorCode = CreateEvntRef::EventExists;
+	evntRecPtr.p->m_errorCode = CreateEvntRef::EventNameExists;
 	break;
       default:
 	jam();
