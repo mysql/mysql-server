@@ -1156,6 +1156,8 @@ type:
 					  $$=FIELD_TYPE_BLOB; }
 	| GEOMETRY_SYM			{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_GEOMETRY; }
+	| GEOMETRYCOLLECTION		{ Lex->charset=&my_charset_bin;
+					  $$=FIELD_TYPE_GEOMETRY; }
 	| POINT_SYM			{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_GEOMETRY; }
 	| MULTIPOINT			{ Lex->charset=&my_charset_bin;
@@ -4001,6 +4003,7 @@ keyword:
 	| FIXED_SYM		{}
 	| FLUSH_SYM		{}
 	| GEOMETRY_SYM		{}
+	| GEOMETRYCOLLECTION	{}
 	| GRANTS		{}
 	| GLOBAL_SYM		{}
 	| HANDLER_SYM		{}
