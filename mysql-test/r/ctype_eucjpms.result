@@ -9785,3 +9785,23 @@ DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
 DROP TABLE t4;
+SET collation_connection='eucjpms_japanese_ci';
+create table t1 select repeat('a',4000) a;
+delete from t1;
+insert into t1 values ('a'), ('a '), ('a\t');
+select collation(a),hex(a) from t1 order by a;
+collation(a)	hex(a)
+eucjpms_japanese_ci	6109
+eucjpms_japanese_ci	61
+eucjpms_japanese_ci	6120
+drop table t1;
+SET collation_connection='eucjpms_bin';
+create table t1 select repeat('a',4000) a;
+delete from t1;
+insert into t1 values ('a'), ('a '), ('a\t');
+select collation(a),hex(a) from t1 order by a;
+collation(a)	hex(a)
+eucjpms_bin	6109
+eucjpms_bin	61
+eucjpms_bin	6120
+drop table t1;

@@ -1112,6 +1112,47 @@ ha_ndbcluster::set_index_key(NdbOperation *op,
   DBUG_RETURN(0);
 }
 
+inline 
+int ha_ndbcluster::define_read_attrs(byte* buf, NdbOperation* op)
+{
+  uint i;
+  THD *thd= current_thd;
+
+  DBUG_ENTER("define_read_attrs");  
+
+  // Define attributes to read
+  for (i= 0; i < table->s->fields; i++) 
+  {
+    Field *field= table->field[i];
+    if ((thd->query_id == field->query_id) ||
+	((field->flags & PRI_KEY_FLAG)) || 
+	m_retrieve_all_fields)
+    {      
+      if (get_ndb_value(op, field, i, buf))
+	ERR_RETURN(op->getNdbError());
+    } 
+    else 
+    {
+      m_value[i].ptr= NULL;
+    }
+  }
+    
+  if (table->s->primary_key == MAX_KEY) 
+  {
+    DBUG_PRINT("info", ("Getting hidden key"));
+    // Scanning table with no primary key
+    int hidden_no= table->s->fields;      
+#ifndef DBUG_OFF
+    const NDBTAB *tab= (const NDBTAB *) m_table;    
+    if (!tab->getColumn(hidden_no))
+      DBUG_RETURN(1);
+#endif
+    if (get_ndb_value(op, NULL, hidden_no, NULL))
+      ERR_RETURN(op->getNdbError());
+  }
+  DBUG_RETURN(0);
+} 
+
 /*
   Read one record from NDB using primary key
 */
@@ -1584,47 +1625,6 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
   op->end_of_bound(range_no);
   DBUG_RETURN(0);
 }
-
-inline 
-int ha_ndbcluster::define_read_attrs(byte* buf, NdbOperation* op)
-{
-  uint i;
-  THD *thd= current_thd;
-
-  DBUG_ENTER("define_read_attrs");  
-
-  // Define attributes to read
-  for (i= 0; i < table->s->fields; i++) 
-  {
-    Field *field= table->field[i];
-    if ((thd->query_id == field->query_id) ||
-	((field->flags & PRI_KEY_FLAG)) || 
-	m_retrieve_all_fields)
-    {      
-      if (get_ndb_value(op, field, i, buf))
-	ERR_RETURN(op->getNdbError());
-    } 
-    else 
-    {
-      m_value[i].ptr= NULL;
-    }
-  }
-    
-  if (table->s->primary_key == MAX_KEY) 
-  {
-    DBUG_PRINT("info", ("Getting hidden key"));
-    // Scanning table with no primary key
-    int hidden_no= table->s->fields;      
-#ifndef DBUG_OFF
-    const NDBTAB *tab= (const NDBTAB *) m_table;    
-    if (!tab->getColumn(hidden_no))
-      DBUG_RETURN(1);
-#endif
-    if (get_ndb_value(op, NULL, hidden_no, NULL))
-      ERR_RETURN(op->getNdbError());
-  }
-  DBUG_RETURN(0);
-} 
 
 /*
   Start ordered index scan in NDB
@@ -2487,13 +2487,13 @@ int ha_ndbcluster::index_read_last(byte * buf, const byte * key, uint key_len)
 inline
 int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
 					   const key_range *end_key,
-					   bool eq_range, bool sorted,
+					   bool eq_r, bool sorted,
 					   byte* buf)
 {
   KEY* key_info;
   int error= 1; 
   DBUG_ENTER("ha_ndbcluster::read_range_first_to_buf");
-  DBUG_PRINT("info", ("eq_range: %d, sorted: %d", eq_range, sorted));
+  DBUG_PRINT("info", ("eq_r: %d, sorted: %d", eq_r, sorted));
 
   switch (get_index_type(active_index)){
   case PRIMARY_KEY_ORDERED_INDEX:
@@ -2534,14 +2534,14 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
 
 int ha_ndbcluster::read_range_first(const key_range *start_key,
 				    const key_range *end_key,
-				    bool eq_range, bool sorted)
+				    bool eq_r, bool sorted)
 {
   byte* buf= table->record[0];
   DBUG_ENTER("ha_ndbcluster::read_range_first");
   
   DBUG_RETURN(read_range_first_to_buf(start_key,
 				      end_key,
-				      eq_range, 
+				      eq_r, 
 				      sorted,
 				      buf));
 }

@@ -34,11 +34,11 @@ OPT_NDB_OPTIMIZED_NODE_SELECTION
 
 #define OPT_NDB_CONNECTSTRING 'c'
 
-#if defined(NDB_SHM_TRANSPORTER) && MYSQL_VERSION_ID >= 50000
-#define OPT_NDB_SHM_DEFAULT 1
-#else
+//#if defined(NDB_SHM_TRANSPORTER) && MYSQL_VERSION_ID >= 50000
+//#define OPT_NDB_SHM_DEFAULT 1
+//#else
 #define OPT_NDB_SHM_DEFAULT 0
-#endif
+//#endif
 
 #define NDB_STD_OPTS_COMMON \
   { "usage", '?', "Display this help and exit.", \

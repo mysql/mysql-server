@@ -508,8 +508,9 @@ dict_index_add_to_cache(
 /*====================*/
 				/* out: TRUE if success */
 	dict_table_t*	table,	/* in: table on which the index is */
-	dict_index_t*	index);	/* in, own: index; NOTE! The index memory
+	dict_index_t*	index,	/* in, own: index; NOTE! The index memory
 				object is freed in this function! */
+	ulint		page_no);/* in: root page number of the index */
 /************************************************************************
 Gets the number of fields in the internal representation of an index,
 including fields added by the dictionary system. */
@@ -686,9 +687,10 @@ dict_tree_t*
 dict_tree_create(
 /*=============*/
 				/* out, own: created tree */
-	dict_index_t*	index);	/* in: the index for which to create: in the
+	dict_index_t*	index,	/* in: the index for which to create: in the
 				case of a mixed tree, this should be the
 				index of the cluster object */
+	ulint		page_no);/* in: root page number of the index */
 /**************************************************************************
 Frees an index tree struct. */
 

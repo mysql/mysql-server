@@ -675,3 +675,21 @@ select * from t1 where soundex(a) = soundex('Test');
 select * from t1 where soundex(a) = soundex('TEST');
 select * from t1 where soundex(a) = soundex('test');
 drop table t1;
+
+
+SET collation_connection='utf8_general_ci';
+-- source include/ctype_filesort.inc
+SET collation_connection='utf8_bin';
+-- source include/ctype_filesort.inc
+
+#
+# Bug #7874 CONCAT() gives wrong results mixing
+# latin1 field and utf8 string literals
+#
+CREATE TABLE t1 (
+	user varchar(255) NOT NULL default ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES ('one'),('two');
+SELECT CHARSET('a');
+SELECT user, CONCAT('<', user, '>') AS c FROM t1;
+DROP TABLE t1;

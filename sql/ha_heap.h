@@ -32,7 +32,11 @@ class ha_heap: public handler
 public:
   ha_heap(TABLE *table): handler(table), file(0), records_changed(0) {}
   ~ha_heap() {}
-  const char *table_type() const { return "HEAP"; }
+  const char *table_type() const
+  {
+    return (table->in_use->variables.sql_mode & MODE_MYSQL323) ?
+           "HEAP" : "MEMORY";
+  }
   const char *index_type(uint inx)
   {
     return ((table->key_info[inx].algorithm == HA_KEY_ALG_BTREE) ? "BTREE" :

@@ -58,16 +58,18 @@ uint nr_of_decimals(const char *str)
   return 0;
 }
 
+
 double Item_str_func::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  int err;
-  char buff[64];
+  int err_not_used;
+  char *end_not_used, buff[64];
   String *res, tmp(buff,sizeof(buff), &my_charset_bin);
   res= val_str(&tmp);
-  return res ? my_strntod(res->charset(), (char*) res->ptr(),res->length(),
-			  NULL, &err) : 0.0;
+  return res ? my_strntod(res->charset(), (char*) res->ptr(), res->length(),
+			  &end_not_used, &err_not_used) : 0.0;
 }
+
 
 longlong Item_str_func::val_int()
 {
@@ -275,7 +277,8 @@ String *Item_func_concat::val_str(String *str)
 			    current_thd->variables.max_allowed_packet);
 	goto null;
       }
-      if (res->alloced_length() >= res->length()+res2->length())
+      if (!args[0]->const_item() && 
+          res->alloced_length() >= res->length()+res2->length())
       {						// Use old buffer
 	res->append(*res2);
       }
@@ -1904,6 +1907,7 @@ b1:        str->append((char)(num>>8));
 #endif
       str->append((char)num);
   }
+  str->set_charset(collation.collation);
   str->realloc(str->length());			// Add end 0 (for Purify)
   return str;
 }
