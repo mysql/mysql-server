@@ -2293,12 +2293,8 @@ organization.
 @item @uref{http://www.urbanresearch.com/software/utils/urbsql/index.html}@*
 @strong{MySQL} Editor/Utility for MS Windows Platforms.
 
-@item @uref{http://www.xnot.com/kmysql}@*
+@item @uref{http://ksql.sourceforge.net/}@*
 KDE @strong{MySQL} client.
-
-@c EMAIL: bilhaut_f@mail.cpod.fr (Frédérik Bilhaut)
-@item @uref{http://www.penguinpowered.com/~kmysql}@*
-KMySQL is a database client for KDE that primarily supports @strong{MySQL}.
 
 @item @uref{http://www.ecker-software.de}@*
 A Windows GUI client by David Ecker.
