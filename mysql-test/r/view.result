@@ -1036,3 +1036,9 @@ a
 4
 drop view v1;
 drop table t1;
+CREATE VIEW v02 AS SELECT * FROM DUAL;
+ERROR HY000: No tables used
+SHOW TABLES;
+Tables_in_test	table_type
+t2	BASE TABLE
+v4	VIEW
