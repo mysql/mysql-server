@@ -56,6 +56,13 @@ END_OF_DATA
   echo ""
 fi
 
+echo "Adding columns needed by GRANT .. REQUIRE (openssl)"
+echo "You can ignore any Duplicate column errors"
+@bindir@/mysql --user=root --password="$root_password" --host="$host" mysql <<END_OF_DATA
+ALTER TABLE user ADD ssl_type enum('NONE','ANY','X509', 'SPECIFIED') DEFAULT 'NONE' NOT NULL, ADD ssl_cipher BLOB NOT NULL, ADD x509_issuer BLOB NOT NULL, ADD x509_subject BLOB NOT NULL
+END_OF_DATA
+echo ""
+
 #
 # Create tables_priv and columns_priv if they don't exists
 #
@@ -96,6 +103,7 @@ echo "You can ignore any errors from this"
 @bindir@/mysql -f --user=root --password="$root_password"  --host="$host" mysql <<END_OF_DATA
 ALTER TABLE columns_priv change Type Column_priv set('Select','Insert','Update','References') DEFAULT '' NOT NULL;
 END_OF_DATA
+echo ""
 
 #
 # Add the new 'type' column to the func table.
@@ -107,3 +115,14 @@ echo "You can ignore any Duplicate column errors"
 @bindir@/mysql --user=root --password=$root_password mysql <<EOF
 alter table func add type enum ('function','aggregate') NOT NULL;
 EOF
+echo ""
+
+echo "Converting all privilege tables to MyISAM format"
+@bindir@/mysql -f --user=root --password="$root_password"  --host="$host" mysql <<END_OF_DATA
+ALTER TABLE user type=MyISAM;
+ALTER TABLE db type=MyISAM;
+ALTER TABLE host type=MyISAM;
+ALTER TABLE func type=MyISAM;
+ALTER TABLE columns_priv type=MyISAM;
+ALTER TABLE tables_priv type=MyISAM;
+END_OF_DATA

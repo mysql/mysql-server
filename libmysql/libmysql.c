@@ -91,10 +91,12 @@ static sig_handler pipe_sig_handler(int sig);
 static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 				     const char *from, ulong length);
 
-void mysql_server_init(int argc __attribute__((unused)),
+int mysql_server_init(int argc __attribute__((unused)),
 		       const char **argv __attribute__((unused)),
 		       const char **groups __attribute__((unused)))
-{}
+{
+  return 0;
+}
 
 void mysql_server_end()
 {}

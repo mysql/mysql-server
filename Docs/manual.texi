@@ -5346,8 +5346,6 @@ Character set casts and syntax for handling multiple character sets.
 @item
 Help for all commands from the client.
 @item
-Secure connections (with SSL).
-@item
 @code{SHOW COLUMNS FROM table_name} (used by @code{mysql} client to allow
 expansions of column names) should not open the table, but only the
 definition file. This will require less memory and be much faster.
@@ -9563,11 +9561,12 @@ that you also probably need to raise the @code{core file size} by adding
 @code{ulimit -c 1000000} to @code{safe_mysqld} or starting @code{safe_mysqld}
 with @code{--core-file-sizes=1000000}. @xref{safe_mysqld, , @code{safe_mysqld}}.
 
-To get a core dump on Linux if @code{mysqld} dies with a SIGSEGV signal, you can 
-start @code{mysqld} with the @code{--core-file} option.  Note that you also probably
-need to raise the @code{core file size} by adding @code{ulimit -c 1000000} to
-@code{safe_mysqld} or starting @code{safe_mysqld} with 
-@code{--core-file-sizes=1000000}.  @xref{safe_mysqld, , @code{safe_mysqld}}.
+To get a core dump on Linux if @code{mysqld} dies with a SIGSEGV signal,
+you can start @code{mysqld} with the @code{--core-file} option.  Note
+that you also probably need to raise the @code{core file size} by adding
+@code{ulimit -c 1000000} to @code{safe_mysqld} or starting
+@code{safe_mysqld} with @code{--core-file-sizes=1000000}.
+@xref{safe_mysqld, , @code{safe_mysqld}}.
 
 If you are linking your own MySQL client and get the error:
 
@@ -14376,6 +14375,17 @@ FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"' ESCAPED BY '\\'
 @cindex options, command-line
 @cindex mysqld options
 
+In most cases you should manage mysqld options through option files.
+@xref{Option files}.
+
+@code{mysqld} and @code{mysqld.server} reads options from the
+@code{mysqld} and @code{server} groups. @code{mysqld_safe} read options
+from the @code{mysqld}, @code{server}, @code{mysqld_safe} and
+@code{safe_mysqld} groups.  An embedded MySQL server usually reads
+options from the @code{server}, @code{embedded} and
+@code{xxxxx_SERVER}, where @code{xxxxx} is the name of the application.
+
+
 @code{mysqld} accepts the following command-line options:
 
 @table @code
@@ -14692,8 +14702,9 @@ Options specified on the command line or in option files take precedence over
 environment variable values. @xref{Environment variables}.
 
 The following programs support option files:  @code{mysql},
-@code{mysqladmin}, @code{mysqld}, @code{mysqldump}, @code{mysqlimport},
-@code{mysql.server}, @code{myisamchk}, and @code{myisampack}.
+@code{mysqladmin}, @code{mysqld}, @code{mysqld_safe}, @code{mysql.server},
+@code{mysqldump}, @code{mysqlimport}, @code{mysqlshow}, @code{mysqlcheck},
+@code{myisamchk}, and @code{myisampack}.
 
 You can use option files to specify any long option that a program supports!
 Run the program with @code{--help} to get a list of available options.
@@ -15254,6 +15265,10 @@ to make things much harder.  To make things even more secure you should use
 @uref{http://www.openssh.org}, and a commercial @code{ssh} client at 
 @uref{http://www.ssh.com}.  With this, you can get an encrypted TCP/IP 
 connection between a MySQL server and a MySQL client.
+
+If you are using MySQL 4.0, you can also use internal openssl support.
+@xref{Secure connections}.
+
 
 To make a MySQL system secure, you should strongly consider the
 following suggestions:
@@ -16594,6 +16609,7 @@ to restart @code{mysqld} with @code{--skip-grant-tables} to run
 * Adding users::                Adding New Users to MySQL
 * Passwords::                   Setting Up Passwords
 * Password security::           Keeping Your Password Secure
+* Secure connections::          Using Secure Connections
 @end menu
 
 
@@ -16841,120 +16857,8 @@ dropped only with explicit @code{REVOKE} commands or by manipulating the
 MySQL grant tables.
 @end itemize
 
------------
-@cindex SSL and X509 Basics
-MySQL has support for SSL encrypted connetions. To understand how MySQL uses 
-SSL we need to explain some basics about SSL and X509. People who are already 
-aware of it can skip this chapter.
+For a description of using @code{REQUIRE}, see @xref{Secure connections}.
 
-By default, MySQL uses unencrypted connections between client and server. This means
-that anyone on the way can listen and read all your data which moves there. Even
-more, some people can change content of data while it is moving between client and
-server. Sometime you may need to move really secret data over public networks and 
-such publicity is unacceptable. 
-
-SSL is a protocol which uses different encryption algorithms to ensure that data 
-which comes from public network can be trusted. It have mechanisms to detect any
-change, loss or replay of data. SSL also incorpores algorithms to recognize and 
-verification of identity using X509 standard.
-
-@cindex What is encryption
-Encryption is the way to make any kind of data unreadable. Even more, today's 
-practice require many additional security elements from encryption algorithms.
-They should resist many kind of known attacks like just messing with order 
-of encrypted messages or replaying data twice.
-
-@cindex What is X509/Certificate?
-X509 is standard which makes possible to identity someone in the Internet. Mostly
-it is used in e-commerce over the Internet. Shortly speaking there should be some
-company called "Certificate Authority" which assigns electronic certificates to
-everyone who needs. Certificates rely on asymmetric encryption algorithms which
-have two encryption keys - public and secret. Certificate owner can prove his
-identity showing certificate to other party. Certificate consists his owner public
-key. Any data encrypted with it can be decrypted only by secret key holder. 
-
-@cindex Possible questions:
-Q: Why MySQL not uses encrypted connections by default?
-A: Because it makes MySQL slower. Any kind of additional functionality requires 
-computer to do additional work and encrypting data is CPU-intensive operation which
-can overcome MySQL own work and consumed time. MySQL is tuned to be fast by default.
-
-Q: I need more information about SSL/X509/encrpytion/whatever
-A: Use your favourite internet search engine and search for keywords you are interested in.
-
-------------
-
-
-@cindex SSL related options
-
-MySQL can check x509 certificate attributes additionally to most used username/password 
-cheme. All usual options are still required (username, password, IP address mask, database/table name).
-
-There are different possibilities to limit connections:
-
-@itemize @bullet
-@item
-Without any SSL/X509 options all kind of encrypted/unencrypted connections are allowed if
-  username and password are valid.
-
-@item
-@code{REQUIRE SSL} option makes SSL encrypted connection must. Note that this requirement
-can be omitted of there are any other ACL record which allows non-SSL connection.
-
-Example:
-@example
-GRANT ALL PRIVILEGES ON test.* TO root@@localhost IDENTIFIED BY "goodsecret" REQUIRE SSL
-@end example
-
-
-@item
-* @code{REQUIRE X509} Requiring X509 certificate means that client should have valid certificate
-but we do not care about exact certificate, issuer or subject. Only restriction is it should
-be possible to verify its signature with some of our CA certificates.
-
-Example:
-@example
-GRANT ALL PRIVILEGES ON test.* TO root@@localhost IDENTIFIED BY "goodsecret" REQUIRE X509
-@end example
-
-@item
-@code{REQUIRE ISSUER issuer} makes connection more restrictive: now client must present
-  valid x509 certificate issued by CA "issuer". Using x509 certificates always implies encryption,
-  so option "SSL" is not neccessary anymore.
-
-Example:
-@example
-GRANT ALL PRIVILEGES ON test.* TO root@@localhost IDENTIFIED BY "goodsecret" REQUIRE ISSUER "C=FI, ST=Some-State, L=Helsinki, O=MySQL Finland AB, CN=Tonu Samuel/Email=tonu@@mysql.com"
-@end example
-
-@item
-@code{REQUIRE SUBJECT subject} requires client to have valid x509 certificate with subject "subject" on it. If client have valid certificate but having different "subject" then connection is still
-not allowed.
-
-Example:
-@example
-GRANT ALL PRIVILEGES ON test.* TO root@@localhost IDENTIFIED BY "goodsecret" REQUIRE SUBJECT "C=EE, ST=Some-State, L=Tallinn, O=MySQL demo client certificate, CN=Tonu Samuel/Email=tonu@@mysql.com"
-@end example
-
-@item
-@code{REQUIRE CIPHER cipher} is needed to assure enough strong ciphers and keylengths to be used. SSL himself can be weak if old algorithms with short encryption keys are used. Using this option we can ask for some exact cipher to allow connection.
-
-Example:
-@example
-GRANT ALL PRIVILEGES ON test.* TO root@@localhost IDENTIFIED BY "goodsecret" REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA"
-@end example
-
-Also it is allowed to combine those options with each other like this:
-@example
-GRANT ALL PRIVILEGES ON test.* TO root@@localhost IDENTIFIED BY "goodsecret" 
-	REQUIRE SUBJECT "C=EE, ST=Some-State, L=Tallinn, O=MySQL demo client certificate, CN=Tonu Samuel/Email=tonu@@mysql.com" 
-	AND ISSUER "C=FI, ST=Some-State, L=Helsinki, O=MySQL Finland AB, CN=Tonu Samuel/Email=tonu@@mysql.com" 
-	AND CIPHER "EDH-RSA-DES-CBC3-SHA"
-@end example
-
-But it is not allowed to use any of options twice. Only different options can be mixed.
-@end itemize
------------
 
 @node User names, Privilege changes, GRANT, User Account Management
 @subsection MySQL User Names and Passwords
@@ -17449,7 +17353,7 @@ your Unix password and your MySQL password are the same, that
 Unix password file. @xref{User names}.
 
 
-@node Password security,  , Passwords, User Account Management
+@node Password security, Secure connections, Passwords, User Account Management
 @subsection Keeping Your Password Secure
 
 It is inadvisable to specify your password in a way that exposes it to
@@ -17524,6 +17428,170 @@ environments. @xref{Environment variables}.
 All in all, the safest methods are to have the client program prompt for the
 password or to specify the password in a properly protected @file{.my.cnf}
 file.
+
+@node Secure connections,  , Password security, User Account Management
+@subsection Using Secure Connections
+
+@cindex openssl
+@cindex SSL and X509 Basics
+
+@menu
+* Secure basics::               Basics
+* Secure requirements::         Requirements
+* Secure GRANT::                GRANT OPTIONS
+@end menu
+
+@node Secure basics, Secure requirements, Secure connections, Secure connections
+@subsubsection Basics
+
+MySQL has support for SSL encrypted connetions. To understand how MySQL
+uses SSL we need to explain some basics about SSL and X509. People who
+are already aware of it can skip this chapter.
+
+By default, MySQL uses unencrypted connections between client and
+server. This means that anyone on the way can listen and read all your
+data which moves there. Even more, some people can change content of
+data while it is moving between client and server. Sometime you may need
+to move really secret data over public networks and such publicity is
+unacceptable.
+
+SSL is a protocol which uses different encryption algorithms to ensure
+that data which comes from public network can be trusted. It have
+mechanisms to detect any change, loss or replay of data. SSL also
+incorpores algorithms to recognize and verification of identity using
+X509 standard.
+
+@cindex What is encryption
+Encryption is the way to make any kind of data unreadable. Even more,
+today's practice require many additional security elements from
+encryption algorithms.  They should resist many kind of known attacks
+like just messing with order of encrypted messages or replaying data
+twice.
+
+@cindex What is X509/Certificate?
+X509 is standard which makes possible to identity someone in the
+Internet. Mostly it is used in e-commerce over the Internet. Shortly
+speaking there should be some company called "Certificate Authority"
+which assigns electronic certificates to everyone who
+needs. Certificates rely on asymmetric encryption algorithms which have
+two encryption keys - public and secret. Certificate owner can prove his
+identity showing certificate to other party. Certificate consists his
+owner public key. Any data encrypted with it can be decrypted only by
+secret key holder.
+
+@cindex Possible questions:
+
+MySQL doesn't use encrypted on connections by default because this would
+make the client/server protocol much slower. Any kind of additional
+functionality requires computer to do additional work and encrypting
+data is CPU-intensive operation which can overcome MySQL own work and
+consumed time. By default MySQL is tuned to be fast as possible.
+
+If you need more information about SSL/X509/encryption, you should use
+your favourite internet search engine and search for keywords you are
+interested in.
+
+@node Secure requirements, Secure GRANT, Secure basics, Secure connections
+@subsubsection Requirements
+
+To get secure connections to work with MySQL you must do the following:
+
+@enumerate
+@item
+Install the openssh library. We have tested MySQL with openssl 0.9.6.
+@uref{http://www.openssh.org}.
+@item
+Configure MySQL with @code{--with-vio --with-openssl}.
+@item
+If you are using an old MySQL installation, you have to update your
+@code{mysql.user} table with some new columns. You can do this by
+running the @code{mysql_fix_privilege_tables.sh} script.
+@item
+You can check if a running mysqld server supports @code{openssl} by
+examining if @code{show variables like 'have_openssl'} returns @code{YES}.
+@end enumerate
+
+
+@node Secure GRANT,  , Secure requirements, Secure connections
+@subsubsection GRANT options
+
+@cindex SSL related options
+@findex REQUIRE GRANT option
+@findex GRANT statemenet
+
+MySQL can check x509 certificate attributes additionally to most used
+username/password cheme. All usual options are still required (username,
+password, IP address mask, database/table name).
+
+There are different possibilities to limit connections:
+
+@itemize @bullet
+@item
+Without any SSL/X509 options all kind of encrypted/unencrypted
+connections are allowed if username and password are valid.
+
+@item
+@code{REQUIRE SSL} option makes SSL encrypted connection must. Note that
+this requirement can be omitted of there are any other ACL record which
+allows non-SSL connection.
+
+@example
+GRANT ALL PRIVILEGES ON test.* TO root@@localhost IDENTIFIED BY
+"goodsecret" REQUIRE SSL
+@end example
+
+@item
+@code{REQUIRE X509} Requiring X509 certificate means that client
+should have valid certificate but we do not care about exact
+certificate, issuer or subject. Only restriction is it should be
+possible to verify its signature with some of our CA certificates.
+
+@example
+GRANT ALL PRIVILEGES ON test.* TO root@@localhost IDENTIFIED BY "goodsecret" REQUIRE X509
+@end example
+
+@item
+@code{REQUIRE ISSUER issuer} makes connection more restrictive: now
+client must present valid x509 certificate issued by CA "issuer". Using
+x509 certificates always implies encryption, so option "SSL" is not
+neccessary anymore.
+
+@example
+GRANT ALL PRIVILEGES ON test.* TO root@@localhost IDENTIFIED BY "goodsecret" REQUIRE ISSUER "C=FI, ST=Some-State, L=Helsinki, O=MySQL Finland AB, CN=Tonu Samuel/Email=tonu@@mysql.com"
+@end example
+
+@item
+@code{REQUIRE SUBJECT subject} requires client to have valid x509
+certificate with subject "subject" on it. If client have valid
+certificate but having different "subject" then connection is still not
+allowed.
+
+@example
+GRANT ALL PRIVILEGES ON test.* TO root@@localhost IDENTIFIED BY "goodsecret" REQUIRE SUBJECT "C=EE, ST=Some-State, L=Tallinn, O=MySQL demo client certificate, CN=Tonu Samuel/Email=tonu@@mysql.com"
+@end example
+
+@item
+@code{REQUIRE CIPHER cipher} is needed to assure enough strong ciphers
+and keylengths to be used. SSL himself can be weak if old algorithms
+with short encryption keys are used. Using this option we can ask for
+some exact cipher to allow connection.
+
+@example
+GRANT ALL PRIVILEGES ON test.* TO root@@localhost IDENTIFIED BY "goodsecret" REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA"
+@end example
+
+Also it is allowed to combine those options with each other like this:
+
+@example
+GRANT ALL PRIVILEGES ON test.* TO root@@localhost IDENTIFIED BY "goodsecret" 
+REQUIRE SUBJECT "C=EE, ST=Some-State, L=Tallinn, O=MySQL demo client certificate, CN=Tonu Samuel/Email=tonu@@mysql.com" 
+AND ISSUER "C=FI, ST=Some-State, L=Helsinki, O=MySQL Finland AB, CN=Tonu Samuel/Email=tonu@@mysql.com" 
+AND CIPHER "EDH-RSA-DES-CBC3-SHA"
+@end example
+
+But it is not allowed to use any of options twice. Only different
+options can be mixed.
+@end itemize
 
 
 @node Disaster Prevention, Database Administration, User Account Management, MySQL Database Administration
@@ -19712,10 +19780,10 @@ The default character set.
 The supported character sets.
 
 @item @code{concurrent_inserts}
-If @code{ON} (the default), MySQL will allow you to use @code{INSERT}
-on @code{MyISAM} tables at the same time as you run @code{SELECT} queries
-on them.  You can turn this option off by starting @code{mysqld} with @code{--safe}
-or @code{--skip-new}.
+If @code{ON} (the default), MySQL will allow you to use @code{INSERT} on
+@code{MyISAM} tables at the same time as you run @code{SELECT} queries
+on them.  You can turn this option off by starting @code{mysqld} with
+@code{--safe} or @code{--skip-new}.
 
 @cindex timeout
 @item @code{connect_timeout}
@@ -39121,7 +39189,7 @@ likely it is that we can fix the problem!
 * C API function overview::     C API Function Overview
 * C API functions::             C API Function Descriptions
 * C Thread functions::          C Thread Functions
-* C Embedded Server functions:: C Embedded Server Functions
+* C Embedded Server func::      C Embedded Server Function Descriptions
 * C API problems::              Common questions and problems when using the C API
 * Building clients::            Building Client Programs
 * Threaded clients::            How to Make a Threaded Client
@@ -41815,7 +41883,7 @@ The connection to the server was lost during the query.
 An unknown error occurred.
 @end table
 
-@node C Thread functions, C Embedded Server functions, C API functions, C
+@node C Thread functions, C Embedded Server func, C API functions, C
 @subsection C Threaded Function Descriptions
 
 You need to use the following functions when you want to create a
@@ -41879,7 +41947,7 @@ library.  It must be called explicitly to avoid a memory leak.
 
 none.
 
-@node C Embedded Server functions, C API problems, C Thread functions, C
+@node C Embedded Server func, C API problems, C Thread functions, C
 @subsection C Embedded Server Function Descriptions
 
 You must use the following functions if you want to allow your
@@ -41896,12 +41964,12 @@ a stand-alone server without modifying any code.
 * mysql_server_end()::          
 @end menu
 
-@node mysql_server_init(), mysql_server_end(), C Embedded Server functions, C Embedded Server functions
+@node mysql_server_init(), mysql_server_end(), C Embedded Server func, C Embedded Server func
 @subsubsection @code{mysql_server_init()}
 
 @findex @code{mysql_server_init()}
 
-@code{void mysql_server_init(int argc, const char **argv, const char **groups)}
+@code{int mysql_server_init(int argc, const char **argv, const char **groups)}
 
 @subsubheading Description
 
@@ -41909,7 +41977,8 @@ This function @strong{must} be called once in the program before
 calling any other MySQL function.  It starts up the server and
 initializes any subsystems (@code{mysys}, InnoDB, etc.) that the
 server uses.  If this function is not called, the program will
-crash.
+crash.  If you are using the DBUG package that comes with MySQL,
+you should call this after you have called @code{MY_INIT()}.
 
 The @code{argc} and @code{argv} arguments are analogous to the
 arguments to @code{main()}.  The first element of @code{argv}
@@ -41954,9 +42023,9 @@ int main(void) @{
 
 @subsubheading Return Values
 
-none.
+0 if ok, 1 if an error occurred.
 
-@node mysql_server_end(),  , mysql_server_init(), C Embedded Server functions
+@node mysql_server_end(),  , mysql_server_init(), C Embedded Server func
 @subsubsection @code{mysql_server_end()}
 
 @findex @code{mysql_server_end()}
@@ -41970,7 +42039,7 @@ all other MySQL functions.  It shuts down the embedded server.
 
 none.
 
-@node C API problems, Building clients, C Embedded Server functions, C
+@node C API problems, Building clients, C Embedded Server func, C
 @subsection Common questions and problems when using the C API
 
 @tindex @code{mysql_query()}
@@ -47309,6 +47378,8 @@ library.  Also added example programs (a @code{mysql} client and
 Removed @code{my_thread_init()} and @code{my_thread_end()}
 from mysql_com.h, and added @code{mysql_thread_init()} and
 @code{mysql_thread_end()} to mysql.h.
+@item
+Secure connections (with SSL).
 @item
 Unsigned @code{BIGINT} constants now work. @code{MIN()} and @code{MAX()}
 now handles signed and unsigned @code{BIGINT} numbers correctly.
