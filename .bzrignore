@@ -250,6 +250,7 @@ client/thimble
 client/thread_test
 client_test
 cmd-line-utils/libedit/common.h
+cmd-line-utils/libedit/makelist
 comon.h
 config.cache
 config.h
@@ -361,6 +362,7 @@ libmysqld/item_func.cc
 libmysqld/item_geofunc.cc
 libmysqld/item_row.cc
 libmysqld/item_strfunc.cc
+libmysqld/item_subselect.cc
 libmysqld/item_sum.cc
 libmysqld/item_timefunc.cc
 libmysqld/item_uniq.cc
@@ -402,6 +404,7 @@ libmysqld/sql_command
 libmysqld/sql_crypt.cc
 libmysqld/sql_db.cc
 libmysqld/sql_delete.cc
+libmysqld/sql_derived.cc
 libmysqld/sql_do.cc
 libmysqld/sql_handler.cc
 libmysqld/sql_help.cc
@@ -443,6 +446,7 @@ linked_libmysqldex_sources
 linked_server_sources
 linked_tools_sources
 locked
+man/*.1
 mit-pthreads/config.flags
 mit-pthreads/include/bits
 mit-pthreads/include/pthread/machdep.h
@@ -465,6 +469,7 @@ myisam/mi_test2
 myisam/mi_test3
 myisam/mi_test_all
 myisam/myisam.log
+myisam/myisam_ftdump
 myisam/myisamchk
 myisam/myisamlog
 myisam/myisampack
@@ -496,6 +501,7 @@ mysql-test/std_data/*.pem
 mysql-test/var/*
 mysql.kdevprj
 mysql.proj
+mysql_priv.h
 mysqld.S
 mysqld.sym
 mysys/#mf_iocache.c#
@@ -506,6 +512,7 @@ mysys/main.cc
 mysys/ste5KbMa
 mysys/test_charset
 mysys/test_dir
+mysys/test_gethwaddr
 mysys/test_io_cache
 mysys/test_thr_alarm
 mysys/test_thr_lock
@@ -524,6 +531,7 @@ scripts/fill_help_tables
 scripts/fill_help_tables.sql
 scripts/make_binary_distribution
 scripts/make_sharedlib_distribution
+scripts/make_win_binary_distribution
 scripts/make_win_src_distribution
 scripts/msql2mysql
 scripts/mysql_config
@@ -647,4 +655,3 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
-mysql_priv.h

@@ -384,10 +384,11 @@ struct upd_node_struct{
 	sym_node_t*	table_sym;/* table node in symbol table */
 	que_node_t*	col_assign_list;
 				/* column assignment list */
+#ifdef UNIV_DEBUG
 	ulint		magic_n;
-};
-
 #define	UPD_NODE_MAGIC_N	1579975
+#endif /* UNIV_DEBUG */
+};
 
 /* Node execution states */
 #define UPD_NODE_SET_IX_LOCK	   1	/* execution came to the node from

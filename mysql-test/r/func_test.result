@@ -52,6 +52,9 @@ Note	1003	select high_priority (3 ^ 11) AS `3 ^ 11`,(1 ^ 1) AS `1 ^ 1`,(1 ^ 0) A
 select 1 XOR 1, 1 XOR 0, 0 XOR 1, 0 XOR 0, NULL XOR 1, 1 XOR NULL, 0 XOR NULL;
 1 XOR 1	1 XOR 0	0 XOR 1	0 XOR 0	NULL XOR 1	1 XOR NULL	0 XOR NULL
 0	1	1	0	NULL	NULL	NULL
+select 1 like 2 xor 2 like 1;
+1 like 2 xor 2 like 1
+0
 select 10 % 7, 10 mod 7, 10 div 3;
 10 % 7	10 mod 7	10 div 3
 3	3	3

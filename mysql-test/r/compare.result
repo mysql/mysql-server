@@ -12,3 +12,27 @@ select * from t1;
 id
 000000000001
 drop table t1;
+SELECT 'a' = 'a ';
+'a' = 'a '
+1
+SELECT 'a\0' < 'a';
+'a\0' < 'a'
+1
+SELECT 'a\0' < 'a ';
+'a\0' < 'a '
+1
+SELECT 'a\t' < 'a';
+'a\t' < 'a'
+1
+SELECT 'a\t' < 'a ';
+'a\t' < 'a '
+1
+CREATE TABLE t1 (a char(10) not null);
+INSERT INTO t1 VALUES ('a'),('a\0'),('a\t'),('a ');
+SELECT hex(a),STRCMP(a,'a'), STRCMP(a,'a ') FROM t1;
+hex(a)	STRCMP(a,'a')	STRCMP(a,'a ')
+61	0	0
+6100	-1	-1
+6109	-1	-1
+61	0	0
+DROP TABLE t1;

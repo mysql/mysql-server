@@ -287,7 +287,7 @@ handle_new_error:
 	} else {
 		fprintf(stderr, "InnoDB: unknown error code %lu\n",
 			(ulong) err);
-		ut_a(0);
+		ut_error;
 	}		
 
 	if (trx->error_state != DB_SUCCESS) {
@@ -402,7 +402,7 @@ row_prebuilt_free(
 
 		mem_analyze_corruption((byte*)prebuilt);
 
-		ut_a(0);
+		ut_error;
 	}
 
 	prebuilt->magic_n = ROW_PREBUILT_FREED;
@@ -450,7 +450,7 @@ row_prebuilt_free(
 				mem_analyze_corruption(
 						prebuilt->fetch_cache[i]);
 
-				ut_a(0);
+				ut_error;
 			}
 
 			mem_free((prebuilt->fetch_cache[i]) - 4);
@@ -482,7 +482,7 @@ row_update_prebuilt_trx(
 
 		mem_analyze_corruption((byte*)trx);
 
-		ut_a(0);
+		ut_error;
 	}
 
 	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
@@ -493,7 +493,7 @@ row_update_prebuilt_trx(
 
 		mem_analyze_corruption((byte*)prebuilt);
 
-		ut_a(0);
+		ut_error;
 	}
 
 	prebuilt->trx = trx;
@@ -720,7 +720,7 @@ row_insert_for_mysql(
 
 		mem_analyze_corruption((byte*)prebuilt);
 
-		ut_a(0);
+		ut_error;
 	}
 
 	if (srv_created_new_raw || srv_force_recovery) {
@@ -936,7 +936,7 @@ row_update_for_mysql(
 
 		mem_analyze_corruption((byte*)prebuilt);
 
-		ut_a(0);
+		ut_error;
 	}
 
 	if (srv_created_new_raw || srv_force_recovery) {
@@ -1289,9 +1289,11 @@ row_create_table_for_mysql(
 	ulint		err;
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
-	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	
 	if (srv_created_new_raw) {
 		fprintf(stderr,
@@ -1408,10 +1410,12 @@ row_create_table_for_mysql(
 		 "UNIV_MEM_DEBUG defined in univ.i and the server must be\n"
 		 "quiet because allocation from a mem heap is not protected\n"
 		 "by any semaphore.\n");
-
+#ifdef UNIV_MEM_DEBUG
 		ut_a(mem_validate());
-		      
 		printf("Memory validated\n");
+#else /* UNIV_MEM_DEBUG */
+		puts("Memory NOT validated (recompile with UNIV_MEM_DEBUG)");
+#endif /* UNIV_MEM_DEBUG */
 	}
 
 	heap = mem_heap_create(512);
@@ -1422,8 +1426,7 @@ row_create_table_for_mysql(
 
 	thr = pars_complete_graph_for_exec(node, trx, heap);
 
-	ut_a(thr == que_fork_start_command(que_node_get_parent(thr),
-						SESS_COMM_EXECUTE, 0));
+	ut_a(thr == que_fork_start_command(que_node_get_parent(thr)));
 	que_run_threads(thr);
 
 	err = trx->error_state;
@@ -1494,8 +1497,10 @@ row_create_index_for_mysql(
 	ulint		err;
 	ulint		i, j;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	
 	trx->op_info = (char *) "creating index";
@@ -1550,8 +1555,7 @@ row_create_index_for_mysql(
 
 	thr = pars_complete_graph_for_exec(node, trx, heap);
 
-	ut_a(thr == que_fork_start_command(que_node_get_parent(thr),
-						SESS_COMM_EXECUTE, 0));
+	ut_a(thr == que_fork_start_command(que_node_get_parent(thr)));
 	que_run_threads(thr);
 
  	err = trx->error_state;
@@ -1602,8 +1606,10 @@ row_table_add_foreign_constraints(
 	ulint	keywordlen;
 	ulint	err;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_a(sql_string);
 	
 	trx->op_info = (char *) "adding foreign keys";
@@ -1774,7 +1780,9 @@ row_get_background_drop_list_len_low(void)
 /*======================================*/
 					/* out: how many tables in list */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (!row_mysql_drop_list_inited) {
 
@@ -1926,7 +1934,7 @@ row_discard_tablespace_for_mysql(
 
 	graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
 
-	ut_a(thr = que_fork_start_command(graph, SESS_COMM_EXECUTE, 0));
+	ut_a(thr = que_fork_start_command(graph));
 
 	que_run_threads(thr);
 
@@ -2085,6 +2093,7 @@ row_drop_table_for_mysql(
 	char*	name,	/* in: table name */
 	trx_t*	trx)	/* in: transaction handle */
 {
+	dict_foreign_t*	foreign;
 	dict_table_t*	table;
 	ulint		space_id;
 	que_thr_t*	thr;
@@ -2252,8 +2261,10 @@ row_drop_table_for_mysql(
 		locked_dictionary = TRUE;
 	}
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 	
 	graph = pars_sql(buf);
 
@@ -2279,6 +2290,38 @@ row_drop_table_for_mysql(
 	"InnoDB: You can look for further help from section 15.1 of\n"
         "InnoDB: http://www.innodb.com/ibman.html\n",
 				 name);
+		goto funct_exit;
+	}
+
+	/* Check if the table is referenced by foreign key constraints from
+	some other table (not the table itself) */
+
+	foreign = UT_LIST_GET_FIRST(table->referenced_list);
+	
+	while (foreign && foreign->foreign_table == table) {
+		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
+	}
+
+	if (foreign && trx->check_foreigns) {
+		char*	buf	= dict_foreign_err_buf;
+
+		/* We only allow dropping a referenced table if
+		FOREIGN_KEY_CHECKS is set to 0 */
+
+		err = DB_CANNOT_DROP_CONSTRAINT;
+
+		mutex_enter(&dict_foreign_err_mutex);
+		ut_sprintf_timestamp(buf);
+	
+		sprintf(buf + strlen(buf),
+			"  Cannot drop table %.500s\n", name);
+		sprintf(buf + strlen(buf),
+"because it is referenced by %.500s\n", foreign->foreign_table_name);
+
+		ut_a(strlen(buf) < DICT_FOREIGN_ERR_BUF_LEN);
+
+		mutex_exit(&dict_foreign_err_mutex);
+
 		goto funct_exit;
 	}
 
@@ -2321,7 +2364,7 @@ row_drop_table_for_mysql(
 	trx->dict_operation = TRUE;
 	trx->table_id = table->id;
 
-	ut_a(thr = que_fork_start_command(graph, SESS_COMM_EXECUTE, 0));
+	ut_a(thr = que_fork_start_command(graph));
 
 	que_run_threads(thr);
 
@@ -2334,7 +2377,7 @@ row_drop_table_for_mysql(
 		
 		row_mysql_handle_errors(&err, trx, thr, NULL);
 
-		ut_a(0);
+		ut_error;
 	} else {
 		space_id = table->space;
 		dict_table_remove_from_cache(table);
@@ -2469,7 +2512,7 @@ row_is_mysql_tmp_table_name(
 {
 	ulint	i;
 
-	for (i = 0; i <= ut_strlen(name) - 5; i++) {
+	for (i = 0; i + 5 <= ut_strlen(name); i++) {
 		if (ut_memcmp(name + i, (char*)"/#sql", 5) == 0) {
 
 			return(TRUE);
@@ -2505,6 +2548,7 @@ row_rename_table_for_mysql(
 	ulint		keywordlen;
 	ulint		len;
 	ulint		i;
+	char*		db_name;
 	ibool		success;
 	char		buf[2 * OS_FILE_MAX_PATH];
 
@@ -2593,6 +2637,15 @@ row_rename_table_for_mysql(
 	"PROCEDURE RENAME_TABLE_PROC () IS\n"
 	"new_table_name CHAR;\n"
 	"old_table_name CHAR;\n"
+	"gen_constr_prefix CHAR;\n"
+	"new_db_name CHAR;\n"
+	"foreign_id CHAR;\n"
+	"new_foreign_id CHAR;\n"
+	"old_db_name_len INT;\n"
+	"old_t_name_len INT;\n"
+	"new_db_name_len INT;\n"
+	"id_len INT;\n"
+	"found INT;\n"
 	"BEGIN\n"
 	"new_table_name :='";
 
@@ -2619,32 +2672,94 @@ row_rename_table_for_mysql(
 		}
 		
 		str3 = mem_heap_alloc(heap,
-					1000 + 500 * n_constraints_to_drop);
+					1000 + 1000 * n_constraints_to_drop);
 		*str3 = '\0';
 		sprintf(str3,
 			"';\n"
 			"UPDATE SYS_TABLES SET NAME = new_table_name\n"
 			"WHERE NAME = old_table_name;\n");
 
+		db_name = mem_heap_alloc(heap, 1 + dict_get_db_name_len(
+								old_name));
+		ut_memcpy(db_name, old_name, dict_get_db_name_len(old_name));
+		db_name[dict_get_db_name_len(old_name)] = '\0';
+
+		/* Internally, old format < 4.0.18 constraints have as the
+		constraint id <number>_<number>, while new format constraints
+		have <databasename>/<constraintname>. */
+
 		for (i = 0; i < n_constraints_to_drop; i++) {
+
 			sprintf(str3 + strlen(str3),
-			"DELETE FROM SYS_FOREIGN_COLS WHERE ID = '%s';\n"
-			"DELETE FROM SYS_FOREIGN WHERE ID = '%s';\n",
+			"DELETE FROM SYS_FOREIGN_COLS WHERE ID = '%s/%s';\n"
+			"DELETE FROM SYS_FOREIGN WHERE ID = '%s/%s';\n",
+				db_name, constraints_to_drop[i],
+				db_name, constraints_to_drop[i]);
+
+			if (!ut_str_contains(constraints_to_drop[i], '/')) {
+				/* If this happens to be an old format
+				constraint, let us delete it. Since all new
+				format constraints contain '/', it does no
+				harm to run these DELETEs anyway. */
+
+				sprintf(str3 + strlen(str3),
+			     "DELETE FROM SYS_FOREIGN_COLS WHERE ID = '%s';\n"
+			     "DELETE FROM SYS_FOREIGN WHERE ID = '%s';\n",
 				constraints_to_drop[i],
 				constraints_to_drop[i]);
+			}
 		}
 
 		sprintf(str3 + strlen(str3),
 			"END;\n");
 
-		ut_a(strlen(str3) < 1000 + 500 * n_constraints_to_drop);
+		ut_a(strlen(str3) < 1000 + 1000 * n_constraints_to_drop);
 	} else {
 		str3 = (char*)
 		"';\n"
 		"UPDATE SYS_TABLES SET NAME = new_table_name\n"
 		"WHERE NAME = old_table_name;\n"
-		"UPDATE SYS_FOREIGN SET FOR_NAME = new_table_name\n"
-		"WHERE FOR_NAME = old_table_name;\n"
+		"found := 1;\n"
+		"old_db_name_len := INSTR(old_table_name, '/') - 1;\n"
+		"new_db_name_len := INSTR(new_table_name, '/') - 1;\n"
+		"new_db_name := SUBSTR(new_table_name, 0, new_db_name_len);\n"
+		"old_t_name_len := LENGTH(old_table_name);\n"
+		"gen_constr_prefix := CONCAT(old_table_name, '_ibfk_');\n"
+		"WHILE found = 1 LOOP\n"
+		"	SELECT ID INTO foreign_id\n"
+		"	FROM SYS_FOREIGN\n"
+		"	WHERE FOR_NAME = old_table_name;\n"	
+		"	IF (SQL % NOTFOUND) THEN\n"
+		"	 found := 0;\n"
+		"	ELSE\n"
+		"	 UPDATE SYS_FOREIGN\n"
+		"	 SET FOR_NAME = new_table_name\n"
+		"	 WHERE ID = foreign_id;\n"
+		"	 id_len := LENGTH(foreign_id);\n"
+		"	 IF (INSTR(foreign_id, '/') > 0) THEN\n"
+		"	 	IF (INSTR(foreign_id,\n"
+		"				gen_constr_prefix) > 0)\n"
+		"		THEN\n"
+		"		  new_foreign_id :=\n"
+		"		    CONCAT(new_table_name,\n"
+		"			SUBSTR(foreign_id, old_t_name_len,\n"
+		"			      	 id_len - old_t_name_len));\n"
+		"		ELSE\n"
+		"		  new_foreign_id :=\n"
+		"		    CONCAT(new_db_name,\n"
+		"			SUBSTR(foreign_id,\n"
+		"				old_db_name_len,\n"
+		"				 id_len - old_db_name_len));\n"
+		"		END IF;\n"
+		"		UPDATE SYS_FOREIGN\n"
+		"		SET ID = new_foreign_id\n"
+		"		WHERE ID = foreign_id;\n"
+		"		UPDATE SYS_FOREIGN_COLS\n"
+		"		SET ID = new_foreign_id\n"
+		"		WHERE ID = foreign_id;\n"
+		"	 END IF;\n"
+		"	END IF;\n"
+		"END LOOP;\n"
 		"UPDATE SYS_FOREIGN SET REF_NAME = new_table_name\n"
 		"WHERE REF_NAME = old_table_name;\n"
 		"END;\n";
@@ -2679,7 +2794,7 @@ row_rename_table_for_mysql(
 
 	graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
 
-	ut_a(thr = que_fork_start_command(graph, SESS_COMM_EXECUTE, 0));
+	ut_a(thr = que_fork_start_command(graph));
 
 	que_run_threads(thr);
 

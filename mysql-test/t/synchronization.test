@@ -1,0 +1,33 @@
+#
+# Test for Bug #2385 CREATE TABLE LIKE lacks locking on source and destination table
+#
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+
+# locking of source:
+
+CREATE TABLE t1 (x1 int);
+let $1= 10;
+while ($1)
+{
+  connection con1;
+    send ALTER TABLE t1 CHANGE x1 x2 int;
+  connection con2;
+    CREATE TABLE t2 LIKE t1;
+    replace_result x1 xx x2 xx;
+    SHOW CREATE TABLE t2;
+    DROP TABLE t2;
+  connection con1;
+    reap;
+    send ALTER TABLE t1 CHANGE x2 x1 int;
+  connection con2;
+    CREATE TABLE t2 LIKE t1;
+    replace_result x1 xx x2 xx;
+    SHOW CREATE TABLE t2;
+    DROP TABLE t2;
+  connection con1;
+    reap;
+  dec $1;
+}
+DROP TABLE t1;

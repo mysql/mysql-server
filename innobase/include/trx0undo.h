@@ -251,20 +251,6 @@ trx_undo_update_cleanup(
 	page_t*	undo_page,	/* in: update undo log header page,
 				x-latched */
 	mtr_t*	mtr);		/* in: mtr */
-/**************************************************************************
-Discards an undo log and puts the segment to the list of cached update undo
-log segments. This optimized function is called if there is no need to
-keep the update undo log because there exist no read views and the transaction
-made no delete markings, which would make purge necessary. We restrict this
-to undo logs of size 1 to make things simpler. */
-
-dulint
-trx_undo_update_cleanup_by_discard(
-/*===============================*/
-			/* out: log sequence number at which mtr is
-			committed */	
-	trx_t*	trx,	/* in: trx owning the update undo log */
-	mtr_t*	mtr);	/* in: mtr */
 /**********************************************************************
 Frees or caches an insert undo log after a transaction commit or rollback.
 Knowledge of inserts is not needed after a commit or rollback, therefore

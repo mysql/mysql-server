@@ -1,0 +1,43 @@
+# Test for BUG#1858 "OPTIMIZE TABLE done by a client
+# thread stops the slave SQL thread".
+# You can replace OPTIMIZE by REPAIR.
+
+source include/master-slave.inc;
+
+create table t1 (a int not null auto_increment primary key, b int, key(b));
+INSERT INTO t1 (a) VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+INSERT INTO t1 (a) SELECT null FROM t1;
+save_master_pos;
+# a few updates to force OPTIMIZE to do something
+update t1 set b=(a/2*rand());
+delete from t1 order by b limit 10000;
+
+connection slave;
+sync_with_master;
+optimize table t1;
+connection master;
+save_master_pos;
+connection slave;
+# Bug was that when the INSERT terminated on slave,
+# the slave SQL thread got killed by OPTIMIZE.
+sync_with_master; # won't work if slave SQL thread stopped
+
+connection master; # cleanup
+drop table t1;
+connection slave;
+sync_with_master;
+
+# If the machine is so fast that slave syncs before OPTIMIZE
+# starts, this test wil demonstrate nothing but will pass.

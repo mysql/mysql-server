@@ -34,7 +34,6 @@
 ** isam tables
 *****************************************************************************/
 
-bool isam_skip;
 
 const char **ha_isam::bas_ext() const
 { static const char *ext[]= { ".ISM",".ISD", NullS }; return ext; }
@@ -71,8 +70,8 @@ uint ha_isam::min_record_length(uint options) const
 int ha_isam::write_row(byte * buf)
 {
   statistic_increment(ha_write_count,&LOCK_status);
-  if (table->time_stamp)
-    update_timestamp(buf+table->time_stamp-1);
+  if (table->timestamp_default_now)
+    update_timestamp(buf+table->timestamp_default_now-1);
   if (table->next_number_field && buf == table->record[0])
     update_auto_increment();
   return !nisam_write(file,buf) ? 0 : my_errno ? my_errno : -1;
@@ -81,8 +80,8 @@ int ha_isam::write_row(byte * buf)
 int ha_isam::update_row(const byte * old_data, byte * new_data)
 {
   statistic_increment(ha_update_count,&LOCK_status);
-  if (table->time_stamp)
-    update_timestamp(new_data+table->time_stamp-1);
+  if (table->timestamp_on_update_now)
+    update_timestamp(new_data+table->timestamp_on_update_now-1);
   return !nisam_update(file,old_data,new_data) ? 0 : my_errno ? my_errno : -1;
 }
 
@@ -279,7 +278,7 @@ int ha_isam::create(const char *name, register TABLE *form,
   type=HA_KEYTYPE_BINARY;				// Keep compiler happy
   if (!(recinfo= (N_RECINFO*) my_malloc((form->fields*2+2)*sizeof(N_RECINFO),
 					MYF(MY_WME))))
-    DBUG_RETURN(1);
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 
   pos=form->key_info;
   for (i=0; i < form->keys ; i++, pos++)

@@ -2877,6 +2877,9 @@ DLLTOOL="$DLLTOOL"
 # Used on cygwin: object dumper.
 OBJDUMP="$OBJDUMP"
 
+# compatibility with ancient libtool :)
+SED=sed
+
 # Used on cygwin: assembler.
 AS="$AS"
 

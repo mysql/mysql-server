@@ -82,8 +82,8 @@ int ha_myisammrg::close(void)
 int ha_myisammrg::write_row(byte * buf)
 {
   statistic_increment(ha_write_count,&LOCK_status);
-  if (table->time_stamp)
-    update_timestamp(buf+table->time_stamp-1);
+  if (table->timestamp_default_now)
+    update_timestamp(buf+table->timestamp_default_now-1);
   if (table->next_number_field && buf == table->record[0])
       update_auto_increment();
   return myrg_write(file,buf);
@@ -92,8 +92,8 @@ int ha_myisammrg::write_row(byte * buf)
 int ha_myisammrg::update_row(const byte * old_data, byte * new_data)
 {
   statistic_increment(ha_update_count,&LOCK_status);
-  if (table->time_stamp)
-    update_timestamp(new_data+table->time_stamp-1);
+  if (table->timestamp_on_update_now)
+    update_timestamp(new_data+table->timestamp_on_update_now);
   return myrg_update(file,old_data,new_data);
 }
 
@@ -386,7 +386,7 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
 
   if (!(table_names= (char**) thd->alloc((create_info->merge_list.elements+1)*
 					 sizeof(char*))))
-    DBUG_RETURN(1);
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
   for (pos=table_names ; tables ; tables=tables->next)
   {
     char *table_name;
@@ -399,7 +399,7 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
 			       mysql_real_data_home,
 			       tables->db, tables->real_name);
       if (!(table_name= thd->strmake(buff, length)))
-	DBUG_RETURN(1);
+	DBUG_RETURN(HA_ERR_OUT_OF_MEM);
     }
     else
       table_name=(*tbl)->path;

@@ -1,0 +1,34 @@
+-- source include/have_sjis.inc
+
+#
+# Tests with the sjis character set
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+set names sjis;
+
+select 'a' like 'a';
+select 'A' like 'a';
+select 'A' like 'a' collate sjis_bin;
+
+set @sjis1= _sjis   0xa1a2a3a4a5a6a7a8a9aaabacadaeaf;
+set @sjis2= _sjis 0xb0b1b2b3b4b5b6b7b8b9babbbcbdbebf;
+set @sjis3= _sjis 0xc0c1c2c3c4c5c6c7c8c9cacbcccdcecf;
+set @sjis4= _sjis 0xd0d1d2d3d4d5d6d7d8d9dadbdcdddedf;
+
+set @utf81= CONVERT(@sjis1 USING utf8);
+set @utf82= CONVERT(@sjis2 USING utf8);
+set @utf83= CONVERT(@sjis3 USING utf8);
+set @utf84= CONVERT(@sjis4 USING utf8);
+
+select hex(@utf81);
+select hex(@utf82);
+select hex(@utf83);
+select hex(@utf84);
+
+select hex(CONVERT(@utf81 USING sjis));
+select hex(CONVERT(@utf82 USING sjis));
+select hex(CONVERT(@utf83 USING sjis));
+select hex(CONVERT(@utf84 USING sjis));

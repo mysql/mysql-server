@@ -134,7 +134,6 @@ select max(t2.a1) from t1 left outer join t2 on t1.a2=t2.a1 and 1=0 where t2.a1=
 select max(t1.a2),max(t2.a1) from t1 left outer join t2 on t1.a1=10;
 drop table t1,t2;
 
-
 #
 # Tests to check MIN/MAX query optimization
 #

@@ -26,6 +26,7 @@
 class ha_heap: public handler
 {
   HP_INFO *file;
+  key_map btree_keys;
 
  public:
   ha_heap(TABLE *table): handler(table), file(0) {}
@@ -49,6 +50,7 @@ class ha_heap: public handler
 	    (HA_ONLY_WHOLE_INDEX | HA_WRONG_ASCII_ORDER |
 	     HA_NOT_READ_PREFIX_LAST));
   }
+  const key_map *keys_to_use_for_scanning() { return &btree_keys; }
   uint max_record_length() const { return HA_MAX_REC_LENGTH; }
   uint max_keys()          const { return MAX_KEY; }
   uint max_key_parts()     const { return MAX_REF_PARTS; }

@@ -464,9 +464,6 @@ To make maintaining easier please:
     <order>Sorbian</order>
   </collation>
   <collation name="macce_bin"	id="43"	order="Binary"	flag="binary"/>
-  <!--collation name="macce_ci_ai"	id="44"/-->
-  <!--collation name="macce_ci"	id="45"/-->
-  <!--collation name="macce_cs"	id="46"/-->
 </charset>
 
 <charset name="macroman">

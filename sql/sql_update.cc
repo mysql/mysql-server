@@ -15,8 +15,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/* Update of records 
-   Multi-table updates were introduced by Monty and Sinisa <sinisa@mysql.com>
+/*
+  Single table and multi table updates of tables.
+  Multi-table updates were introduced by Sinisa & Monty
 */
 
 #include "mysql_priv.h"
@@ -94,7 +95,7 @@ int mysql_update(THD *thd,
   tables.table= table;
   tables.alias= table_list->alias;
 
-  if (setup_tables(update_table_list, 0) ||
+  if (setup_tables(update_table_list) ||
       setup_conds(thd,update_table_list,&conds) ||
       thd->lex->select_lex.setup_ref_array(thd, order_num) ||
       setup_order(thd, thd->lex->select_lex.ref_pointer_array,
@@ -119,7 +120,6 @@ int mysql_update(THD *thd,
   {
     timestamp_query_id=table->timestamp_field->query_id;
     table->timestamp_field->query_id=thd->query_id-1;
-    table->time_stamp= table->timestamp_field->offset() +1;
   }
 
   /* Check the fields we are going to modify */
@@ -132,7 +132,7 @@ int mysql_update(THD *thd,
   {
     // Don't set timestamp column if this is modified
     if (table->timestamp_field->query_id == thd->query_id)
-      table->time_stamp=0;
+      table->timestamp_on_update_now= 0;
     else
       table->timestamp_field->query_id=timestamp_query_id;
   }
@@ -272,6 +272,8 @@ int mysql_update(THD *thd,
 	  }
 	}
       }
+      if (thd->killed && !error)
+	error= 1;				// Aborted
       limit= tmp_limit;
       end_read_record(&info);
       /* Change select to use tempfile */
@@ -344,6 +346,8 @@ int mysql_update(THD *thd,
       table->file->unlock_row();
     thd->row_count++;
   }
+  if (thd->killed && !error)
+    error= 1;					// Aborted
   end_read_record(&info);
   free_io_cache(table);				// If ORDER BY
   thd->proc_info="end";
@@ -395,8 +399,9 @@ int mysql_update(THD *thd,
     char buff[80];
     sprintf(buff, ER(ER_UPDATE_INFO), (ulong) found, (ulong) updated,
 	    (ulong) thd->cuted_fields);
-    send_ok(thd,
-	    (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
+    thd->row_count_func=
+      (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
+    send_ok(thd, thd->row_count_func,
 	    thd->insert_id_used ? thd->insert_id() : 0L,buff);
     DBUG_PRINT("info",("%d records updated",updated));
   }
@@ -436,17 +441,31 @@ int mysql_multi_update(THD *thd,
   int res;
   multi_update *result;
   TABLE_LIST *tl;
+  table_map item_tables= 0, derived_tables= 0;
   DBUG_ENTER("mysql_multi_update");
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  table_list->grant.want_privilege=(SELECT_ACL & ~table_list->grant.privilege);
-#endif
-  if ((res=open_and_lock_tables(thd,table_list)))
+ if ((res=open_and_lock_tables(thd,table_list)))
     DBUG_RETURN(res);
 
   select_lex->select_limit= HA_POS_ERROR;
 
-  table_map item_tables= 0, derived_tables= 0;
+  /*
+    Ensure that we have update privilege for all tables and columns in the
+    SET part
+  */
+  for (tl= table_list ; tl ; tl=tl->next)
+  {
+    TABLE *table= tl->table;
+    /*
+      Update of derived tables is checked later
+      We don't check privileges here, becasue then we would get error
+      "UPDATE command denided .. for column N" instead of
+      "Target table ... is not updatable"
+    */
+    if (!tl->derived)
+      table->grant.want_privilege= (UPDATE_ACL & ~table->grant.privilege);
+  }
+
   if (thd->lex->derived_tables)
   {
     // Assign table map values to check updatability of derived tables
@@ -477,13 +496,14 @@ int mysql_multi_update(THD *thd,
   for (tl= select_lex->get_table_list() ; tl ; tl= tl->next)
   {
     TABLE *table= tl->table;
-    if (table->timestamp_field)
-    {
-      table->time_stamp=0;
-      // Only set timestamp column if this is not modified
-      if (table->timestamp_field->query_id != thd->query_id)
-	table->time_stamp= table->timestamp_field->offset() +1;
-    }
+
+    /* We only need SELECT privilege for columns in the values list */
+    table->grant.want_privilege= (SELECT_ACL & ~table->grant.privilege);
+    // Only set timestamp column if this is not modified
+    if (table->timestamp_field &&
+        table->timestamp_field->query_id == thd->query_id)
+      table->timestamp_on_update_now= 0;
+    
     if (tl->derived)
       derived_tables|= table->map;
   }
@@ -680,7 +700,7 @@ multi_update::initialize_tables(JOIN *join)
   {
     TABLE *table=table_ref->table;
     uint cnt= table_ref->shared;
-    Item_field *If;
+    Item_field *ifield;
     List<Item> temp_fields= *fields_for_table[cnt];
     ORDER     group;
 
@@ -704,10 +724,10 @@ multi_update::initialize_tables(JOIN *join)
     /* ok to be on stack as this is not referenced outside of this func */
     Field_string offset(table->file->ref_length, 0, "offset",
 			table, &my_charset_bin);
-    if (!(If=new Item_field(((Field *) &offset))))
+    if (!(ifield= new Item_field(((Field *) &offset))))
       DBUG_RETURN(1);
-    If->maybe_null=0;
-    if (temp_fields.push_front(If))
+    ifield->maybe_null= 0;
+    if (temp_fields.push_front(ifield))
       DBUG_RETURN(1);
 
     /* Make an unique key over the first field to avoid duplicated updates */
@@ -950,14 +970,16 @@ int multi_update::do_updates(bool from_send_error)
     DBUG_RETURN(0);
   for (cur_table= update_tables; cur_table ; cur_table= cur_table->next)
   {
+    byte *ref_pos;
+    TABLE *tmp_table;
+ 
     table = cur_table->table;
     if (table == table_to_update)
       continue;					// Already updated
-
     org_updated= updated;
-    byte *ref_pos;
-    TABLE *tmp_table= tmp_tables[cur_table->shared];
+    tmp_table= tmp_tables[cur_table->shared];
     tmp_table->file->extra(HA_EXTRA_CACHE);	// Change to read cache
+    (void) table->file->rnd_init(0);
     table->file->extra(HA_EXTRA_NO_CACHE);
 
     /*
@@ -1024,6 +1046,7 @@ int multi_update::do_updates(bool from_send_error)
       else
 	trans_safe= 0;				// Can't do safe rollback
     }
+    (void) table->file->rnd_end();
   }
   DBUG_RETURN(0);
 
@@ -1102,8 +1125,9 @@ bool multi_update::send_eof()
 
   sprintf(buff, ER(ER_UPDATE_INFO), (ulong) found, (ulong) updated,
 	  (ulong) thd->cuted_fields);
-  ::send_ok(thd,
-	    (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
+  thd->row_count_func=
+    (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
+  ::send_ok(thd, thd->row_count_func,
 	    thd->insert_id_used ? thd->insert_id() : 0L,buff);
   return 0;
 }

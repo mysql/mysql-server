@@ -135,6 +135,7 @@ file1=C:\mysql\my-large.cnf
 file2=C:\mysql\my-medium.cnf
 file3=C:\mysql\my-small.cnf
 file4=C:\mysql\MySQLEULA.txt
+file5=C:\mysql\README.txt
 SubDir0=bin
 SubDir1=share
 SubDir2=Embedded

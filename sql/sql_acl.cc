@@ -909,8 +909,8 @@ static void acl_update_user(const char *user, const char *host,
 	  acl_user->x509_subject= (x509_subject ?
 				   strdup_root(&mem,x509_subject) : 0);
 	}
-
-        set_user_salt(acl_user, password, password_len);
+	if (password)
+	  set_user_salt(acl_user, password, password_len);
         /* search complete: */
 	break;
       }
@@ -1195,7 +1195,8 @@ bool check_change_password(THD *thd, const char *host, const char *user)
 {
   if (!initialized)
   {
-    send_error(thd, ER_SKIP_GRANT_TABLES); /* purecov: inspected */
+    net_printf(thd,ER_OPTION_PREVENTS_STATEMENT,
+             "--skip-grant-tables"); /* purecov: inspected */
     return(1);                             /* purecov: inspected */
   }
   if (!thd->slave_thread &&
@@ -1371,20 +1372,20 @@ bool hostname_requires_resolving(const char *hostname)
 {
   char cur;
   if (!hostname)
-    return false;
+    return FALSE;
   int namelen= strlen(hostname);
   int lhlen= strlen(my_localhost);
   if ((namelen == lhlen) &&
       !my_strnncoll(&my_charset_latin1, (const uchar *)hostname,  namelen,
 		    (const uchar *)my_localhost, strlen(my_localhost)))
-    return false;
+    return FALSE;
   for (; (cur=*hostname); hostname++)
   {
     if ((cur != '%') && (cur != '_') && (cur != '.') &&
 	((cur < '0') || (cur > '9')))
-      return true;
+      return TRUE;
   }
-  return false;
+  return FALSE;
 }
 
 /*
@@ -1403,6 +1404,7 @@ static bool update_user_table(THD *thd, const char *host, const char *user,
   bzero((char*) &tables,sizeof(tables));
   tables.alias=tables.real_name=(char*) "user";
   tables.db=(char*) "mysql";
+
 #ifdef HAVE_REPLICATION
   /*
     GRANT and REVOKE are applied the slave in/exclusion rules as they are
@@ -1460,6 +1462,7 @@ static bool test_if_create_new_users(THD *thd)
     bzero((char*) &tl,sizeof(tl));
     tl.db=	   (char*) "mysql";
     tl.real_name=  (char*) "user";
+
     db_access=acl_get(thd->host, thd->ip,
 		      thd->priv_user, tl.db, 0);
     if (!(db_access & INSERT_ACL))
@@ -1512,13 +1515,10 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     if (!create_user)
     {
       if (what == 'N')
-	my_printf_error(ER_NONEXISTING_GRANT,ER(ER_NONEXISTING_GRANT),
-			MYF(0),combo.user.str,combo.host.str);
+	my_error(ER_NONEXISTING_GRANT, MYF(0), combo.user.str, combo.host.str);
       else
-	my_printf_error(ER_NO_PERMISSION_TO_CREATE_USER,
-			ER(ER_NO_PERMISSION_TO_CREATE_USER),
-			MYF(0),thd->user,
-			thd->host_or_ip);
+	my_error(ER_NO_PERMISSION_TO_CREATE_USER, MYF(0),
+                 thd->user, thd->host_or_ip);
       error= -1;
       goto end;
     }
@@ -1537,6 +1537,11 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     store_record(table,record[1]);			// Save copy for update
     if (combo.password.str)			// If password given
       table->field[2]->store(password, password_len, &my_charset_latin1);
+    else if (!rights && !revoke_grant && thd->lex->ssl_type == SSL_TYPE_NOT_SPECIFIED &&
+	     !thd->lex->mqh.bits)
+    {
+      DBUG_RETURN(0);
+    }
   }
 
   /* Update table columns with new privileges */
@@ -1672,7 +1677,7 @@ static int replace_db_table(TABLE *table, const char *db,
 
   if (!initialized)
   {
-    my_error(ER_SKIP_GRANT_TABLES, MYF(0));
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
     DBUG_RETURN(-1);
   }
 
@@ -1692,8 +1697,7 @@ static int replace_db_table(TABLE *table, const char *db,
   {
     if (what == 'N')
     { // no row, no revoke
-      my_printf_error(ER_NONEXISTING_GRANT,ER(ER_NONEXISTING_GRANT),MYF(0),
-		      combo.user.str,combo.host.str);
+      my_error(ER_NONEXISTING_GRANT, MYF(0), combo.user.str, combo.host.str);
       goto abort;
     }
     old_row_exists = 0;
@@ -1982,9 +1986,8 @@ static int replace_column_table(GRANT_TABLE *g_t,
     {
       if (revoke_grant)
       {
-	my_printf_error(ER_NONEXISTING_TABLE_GRANT,
-			ER(ER_NONEXISTING_TABLE_GRANT),MYF(0),
-			combo.user.str, combo.host.str,table_name); /* purecov: inspected */
+	my_error(ER_NONEXISTING_TABLE_GRANT, MYF(0),
+                 combo.user.str, combo.host.str, table_name); /* purecov: inspected */
 	result= -1; /* purecov: inspected */
 	continue; /* purecov: inspected */
       }
@@ -2150,10 +2153,9 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
     */
     if (revoke_grant)
     { // no row, no revoke
-      my_printf_error(ER_NONEXISTING_TABLE_GRANT,
-		      ER(ER_NONEXISTING_TABLE_GRANT),MYF(0),
-		      combo.user.str,combo.host.str,
-		      table_name);		/* purecov: deadcode */
+      my_error(ER_NONEXISTING_TABLE_GRANT, MYF(0),
+               combo.user.str, combo.host.str,
+               table_name);		/* purecov: deadcode */
       DBUG_RETURN(-1);				/* purecov: deadcode */
     }
     old_row_exists = 0;
@@ -2253,8 +2255,9 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
   if (!initialized)
   {
-    send_error(thd, ER_SKIP_GRANT_TABLES);	/* purecov: inspected */
-    DBUG_RETURN(1);				/* purecov: inspected */
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
+             "--skip-grant-tables");	/* purecov: inspected */
+    DBUG_RETURN(-1);				/* purecov: inspected */
   }
   if (rights & ~TABLE_ACLS)
   {
@@ -2272,11 +2275,13 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       DBUG_RETURN(-1);
     while ((column = column_iter++))
     {
+      uint unused_field_idx= NO_CACHED_FIELD_INDEX;
       if (!find_field_in_table(thd,table,column->column.ptr(),
-			       column->column.length(),0,0))
+                               column->column.length(),0,0,
+                               &unused_field_idx))
       {
-	my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),MYF(0),
-			column->column.c_ptr(), table_list->alias);
+	my_error(ER_BAD_FIELD_ERROR, MYF(0),
+                 column->column.c_ptr(), table_list->alias);
 	DBUG_RETURN(-1);
       }
       column_priv|= column->rights;
@@ -2291,7 +2296,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     fn_format(buf,buf,"","",4+16+32);
     if (access(buf,F_OK))
     {
-      my_error(ER_NO_SUCH_TABLE,MYF(0),table_list->db, table_list->alias);
+      my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db, table_list->alias);
       DBUG_RETURN(-1);
     }
   }
@@ -2370,9 +2375,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     {
       if (revoke_grant)
       {
-	my_printf_error(ER_NONEXISTING_TABLE_GRANT,
-			ER(ER_NONEXISTING_TABLE_GRANT),MYF(0),
-			Str->user.str, Str->host.str, table_list->real_name);
+	my_error(ER_NONEXISTING_TABLE_GRANT, MYF(0),
+                 Str->user.str, Str->host.str, table_list->real_name);
 	result= -1;
 	continue;
       }
@@ -2463,7 +2467,8 @@ int mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   DBUG_ENTER("mysql_grant");
   if (!initialized)
   {
-    my_error(ER_SKIP_GRANT_TABLES, MYF(0));	/* purecov: tested */
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
+             "--skip-grant-tables");	/* purecov: tested */
     DBUG_RETURN(-1);				/* purecov: tested */
   }
 
@@ -2542,8 +2547,7 @@ int mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       }
       else
       {
-	my_printf_error(ER_WRONG_USAGE, ER(ER_WRONG_USAGE), MYF(0),
-			"DB GRANT","GLOBAL PRIVILEGES");
+	my_error(ER_WRONG_USAGE, MYF(0), "DB GRANT", "GLOBAL PRIVILEGES");
 	result= -1;
       }
     }
@@ -2630,7 +2634,7 @@ my_bool grant_init(THD *org_thd)
   do
   {
     GRANT_TABLE *mem_check;
-    if (!(mem_check=new GRANT_TABLE(t_table,c_table)) || !mem_check->ok())
+    if (!(mem_check=new GRANT_TABLE(t_table,c_table)))
     {
       /* This could only happen if we are out memory */
       grant_option= FALSE;			/* purecov: deadcode */
@@ -2649,7 +2653,7 @@ my_bool grant_init(THD *org_thd)
       }
     }
 
-    if (my_hash_insert(&column_priv_hash,(byte*) mem_check))
+    if (mem_check->ok() && my_hash_insert(&column_priv_hash,(byte*) mem_check))
     {
       grant_option= FALSE;
       goto end_unlock;
@@ -2721,7 +2725,7 @@ void grant_reload(THD *thd)
 
 /****************************************************************************
   Check grants
-  All errors are written directly to the client if command name is given !
+  All errors are written directly to the client if no_errors is given !
 ****************************************************************************/
 
 bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
@@ -3069,8 +3073,8 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
   LINT_INIT(acl_user);
   if (!initialized)
   {
-    send_error(thd, ER_SKIP_GRANT_TABLES);
-    DBUG_RETURN(1);
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
+    DBUG_RETURN(-1);
   }
   if (lex_user->host.length > HOSTNAME_LENGTH ||
       lex_user->user.length > USERNAME_LENGTH)
@@ -3093,8 +3097,8 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
   }
   if (counter == acl_users.elements)
   {
-    my_printf_error(ER_NONEXISTING_GRANT,ER(ER_NONEXISTING_GRANT),
-		    MYF(0),lex_user->user.str,lex_user->host.str);
+    my_error(ER_NONEXISTING_GRANT, MYF(0),
+             lex_user->user.str, lex_user->host.str);
     DBUG_RETURN(-1);
   }
 
@@ -3249,9 +3253,9 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	    }
 	  }
 	}
-	db.append (" ON `",5);
-	db.append(acl_db->db);
-	db.append ("`.* TO '",8);
+	db.append (" ON ",4);
+	append_identifier(thd, &db, acl_db->db, strlen(acl_db->db));
+	db.append (".* TO '",7);
 	db.append(lex_user->user.str,lex_user->user.length);
 	db.append ("'@'",3);
 	db.append(lex_user->host.str, lex_user->host.length);
@@ -3349,11 +3353,13 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 	    }
 	  }
 	}
-	global.append(" ON `",5);
-	global.append(grant_table->db);
-	global.append("`.`",3);
-	global.append(grant_table->tname);
-	global.append("` TO '",6);
+	global.append(" ON ",4);
+	append_identifier(thd, &global, grant_table->db,
+			  strlen(grant_table->db));
+	global.append('.');
+	append_identifier(thd, &global, grant_table->tname,
+			  strlen(grant_table->tname));
+	global.append(" TO '",5);
 	global.append(lex_user->user.str,lex_user->user.length);
 	global.append("'@'",3);
 	global.append(lex_user->host.str,lex_user->host.length);
@@ -3422,7 +3428,7 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
 
   if (!initialized)
   {
-    send_error(thd, ER_SKIP_GRANT_TABLES);
+    net_printf(thd,ER_OPTION_PREVENTS_STATEMENT, "--skip-grant-tables");
     DBUG_RETURN(-1);
   }
 

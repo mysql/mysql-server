@@ -63,6 +63,30 @@ select 'A' like 'a' collate utf8_bin;
 select _utf8 0xD0B0D0B1D0B2 like concat(_utf8'%',_utf8 0xD0B1,_utf8 '%');
 _utf8 0xD0B0D0B1D0B2 like concat(_utf8'%',_utf8 0xD0B1,_utf8 '%')
 1
+SELECT 'a' = 'a ';
+'a' = 'a '
+1
+SELECT 'a\0' < 'a';
+'a\0' < 'a'
+1
+SELECT 'a\0' < 'a ';
+'a\0' < 'a '
+1
+SELECT 'a\t' < 'a';
+'a\t' < 'a'
+1
+SELECT 'a\t' < 'a ';
+'a\t' < 'a '
+1
+CREATE TABLE t1 (a char(10) character set utf8 not null);
+INSERT INTO t1 VALUES ('a'),('a\0'),('a\t'),('a ');
+SELECT hex(a),STRCMP(a,'a'), STRCMP(a,'a ') FROM t1;
+hex(a)	STRCMP(a,'a')	STRCMP(a,'a ')
+61	0	0
+6100	-1	-1
+6109	-1	-1
+61	0	0
+DROP TABLE t1;
 select insert('txs',2,1,'hi'),insert('is ',4,0,'a'),insert('txxxxt',2,4,'es');
 insert('txs',2,1,'hi')	insert('is ',4,0,'a')	insert('txxxxt',2,4,'es')
 this	is a	test
@@ -73,7 +97,7 @@ create table t1 select date_format("2004-01-19 10:10:10", "%Y-%m-%d");
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `date_format("2004-01-19 10:10:10", "%Y-%m-%d")` char(10) binary default NULL
+  `date_format("2004-01-19 10:10:10", "%Y-%m-%d")` binary(10) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t1;
 date_format("2004-01-19 10:10:10", "%Y-%m-%d")
@@ -83,7 +107,7 @@ set names koi8r;
 create table t1 (s1 char(1) character set utf8);
 insert into t1 values (_koi8r'ÁÂ');
 Warnings:
-Warning	1264	Data truncated for column 's1' at row 1
+Warning	1265	Data truncated for column 's1' at row 1
 select s1,hex(s1),char_length(s1),octet_length(s1) from t1;
 s1	hex(s1)	char_length(s1)	octet_length(s1)
 Á	D0B0	1	2
@@ -91,19 +115,19 @@ drop table t1;
 create table t1 (s1 tinytext character set utf8);
 insert into t1 select repeat('a',300);
 Warnings:
-Warning	1264	Data truncated for column 's1' at row 1
+Warning	1265	Data truncated for column 's1' at row 1
 insert into t1 select repeat('Ñ',300);
 Warnings:
-Warning	1264	Data truncated for column 's1' at row 1
+Warning	1265	Data truncated for column 's1' at row 1
 insert into t1 select repeat('aÑ',300);
 Warnings:
-Warning	1264	Data truncated for column 's1' at row 1
+Warning	1265	Data truncated for column 's1' at row 1
 insert into t1 select repeat('Ña',300);
 Warnings:
-Warning	1264	Data truncated for column 's1' at row 1
+Warning	1265	Data truncated for column 's1' at row 1
 insert into t1 select repeat('ÑÑ',300);
 Warnings:
-Warning	1264	Data truncated for column 's1' at row 1
+Warning	1265	Data truncated for column 's1' at row 1
 select hex(s1) from t1;
 hex(s1)
 616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161
@@ -122,19 +146,19 @@ drop table t1;
 create table t1 (s1 text character set utf8);
 insert into t1 select repeat('a',66000);
 Warnings:
-Warning	1264	Data truncated for column 's1' at row 1
+Warning	1265	Data truncated for column 's1' at row 1
 insert into t1 select repeat('Ñ',66000);
 Warnings:
-Warning	1264	Data truncated for column 's1' at row 1
+Warning	1265	Data truncated for column 's1' at row 1
 insert into t1 select repeat('aÑ',66000);
 Warnings:
-Warning	1264	Data truncated for column 's1' at row 1
+Warning	1265	Data truncated for column 's1' at row 1
 insert into t1 select repeat('Ña',66000);
 Warnings:
-Warning	1264	Data truncated for column 's1' at row 1
+Warning	1265	Data truncated for column 's1' at row 1
 insert into t1 select repeat('ÑÑ',66000);
 Warnings:
-Warning	1264	Data truncated for column 's1' at row 1
+Warning	1265	Data truncated for column 's1' at row 1
 select length(s1),char_length(s1) from t1;
 length(s1)	char_length(s1)
 65535	65535
@@ -146,7 +170,7 @@ drop table t1;
 create table t1 (s1 char(10) character set utf8);
 insert into t1 values (0x41FF);
 Warnings:
-Warning	1264	Data truncated for column 's1' at row 1
+Warning	1265	Data truncated for column 's1' at row 1
 select hex(s1) from t1;
 hex(s1)
 41
@@ -154,7 +178,7 @@ drop table t1;
 create table t1 (s1 varchar(10) character set utf8);
 insert into t1 values (0x41FF);
 Warnings:
-Warning	1264	Data truncated for column 's1' at row 1
+Warning	1265	Data truncated for column 's1' at row 1
 select hex(s1) from t1;
 hex(s1)
 41
@@ -162,10 +186,35 @@ drop table t1;
 create table t1 (s1 text character set utf8);
 insert into t1 values (0x41FF);
 Warnings:
-Warning	1264	Data truncated for column 's1' at row 1
+Warning	1265	Data truncated for column 's1' at row 1
 select hex(s1) from t1;
 hex(s1)
 41
 drop table t1;
-create table t1 (a char(160) character set utf8, primary key(a));
-ERROR HY000: Incorrect sub part key. The used key part isn't a string, the used length is longer than the key part or the storage engine doesn't support unique sub keys
+create table t1 (a text character set utf8, primary key(a(360)));
+ERROR 42000: Specified key was too long; max key length is 1000 bytes
+CREATE TABLE t1 ( a varchar(10) ) CHARACTER SET utf8;
+INSERT INTO t1 VALUES ( 'test' );
+SELECT a.a, b.a FROM t1 a, t1 b WHERE a.a = b.a;
+a	a
+test	test
+SELECT a.a, b.a FROM t1 a, t1 b WHERE a.a = 'test' and b.a = 'test';
+a	a
+test	test
+SELECT a.a, b.a FROM t1 a, t1 b WHERE a.a = b.a and a.a = 'test';
+a	a
+test	test
+DROP TABLE t1;
+create table t1 (a char(255) character set utf8);
+insert into t1 values('b'),('b');
+select * from t1 where a = 'b';
+a
+b
+b
+select * from t1 where a = 'b' and a = 'b';
+a
+b
+b
+select * from t1 where a = 'b' and a != 'b';
+a
+drop table t1;

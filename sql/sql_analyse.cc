@@ -225,7 +225,7 @@ bool test_if_number(NUM_INFO *info, const char *str, uint str_len)
       info->decimals++;
     if (str == end)
     {
-      info->dval = atod(begin);
+      info->dval = my_atof(begin);
       return 1;
     }
   }

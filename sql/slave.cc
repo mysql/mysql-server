@@ -35,7 +35,6 @@ typedef bool (*CHECK_KILLED_FUNC)(THD*,void*);
 volatile bool slave_sql_running = 0, slave_io_running = 0;
 char* slave_load_tmpdir = 0;
 MASTER_INFO *active_mi;
-volatile int active_mi_in_use = 0;
 HASH replicate_do_table, replicate_ignore_table;
 DYNAMIC_ARRAY replicate_wild_do_table, replicate_wild_ignore_table;
 bool do_table_inited = 0, ignore_table_inited = 0;
@@ -136,8 +135,12 @@ int init_slave()
 {
   DBUG_ENTER("init_slave");
 
-  /* This is called when mysqld starts */
-
+  /*
+    This is called when mysqld starts. Before client connections are
+    accepted. However bootstrap may conflict with us if it does START SLAVE.
+    So it's safer to take the lock.
+  */
+  pthread_mutex_lock(&LOCK_active_mi);
   /*
     TODO: re-write this to interate through the list of files
     for multi-master
@@ -182,9 +185,11 @@ int init_slave()
       goto err;
     }
   }
+  pthread_mutex_unlock(&LOCK_active_mi);
   DBUG_RETURN(0);
 
 err:
+  pthread_mutex_unlock(&LOCK_active_mi);
   DBUG_RETURN(1);
 }
 
@@ -972,7 +977,14 @@ static int end_slave_on_walk(MASTER_INFO* mi, gptr /*unused*/)
 
 void end_slave()
 {
-  /* This is called when the server terminates, in close_connections(). */
+  /*
+    This is called when the server terminates, in close_connections().
+    It terminates slave threads. However, some CHANGE MASTER etc may still be
+    running presently. If a START SLAVE was in progress, the mutex lock below
+    will make us wait until slave threads have started, and START SLAVE
+    returns, then we terminate them here.
+  */
+  pthread_mutex_lock(&LOCK_active_mi);
   if (active_mi)
   {
     /*
@@ -993,6 +1005,7 @@ void end_slave()
     delete active_mi;
     active_mi= 0;
   }
+  pthread_mutex_unlock(&LOCK_active_mi);
 }
 
 
@@ -1369,6 +1382,7 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   bzero((char*) &tables,sizeof(tables));
   tables.db = (char*)db;
   tables.alias= tables.real_name= (char*)table_name;
+
   /* Drop the table if 'overwrite' is true */
   if (overwrite && mysql_rm_table(thd,&tables,1,0)) /* drop if exists */
   {
@@ -1835,7 +1849,18 @@ int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
   DBUG_ENTER("init_master_info");
 
   if (mi->inited)
+  {
+    /*
+      We have to reset read position of relay-log-bin as we may have
+      already been reading from 'hotlog' when the slave was stopped
+      last time. If this case pos_in_file would be set and we would
+      get a crash when trying to read the signature for the binary
+      relay log.
+    */
+    my_b_seek(mi->rli.cur_log, (my_off_t) 0);
     DBUG_RETURN(0);
+  }
+
   mi->mysql=0;
   mi->file_id=1;
   fn_format(fname, master_info_fname, mysql_data_home, "", 4+32);
@@ -1997,9 +2022,9 @@ file '%s')", fname);
 			    mi->master_log_name,
 			    (ulong) mi->master_log_pos));
 
+  mi->rli.mi = mi;
   if (init_relay_log_info(&mi->rli, slave_info_fname))
     goto err;
-  mi->rli.mi = mi;
 
   mi->inited = 1;
   // now change cache READ -> WRITE - must do this before flush_master_info
@@ -2236,10 +2261,29 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
     protocol->store(mi->ssl_key, &my_charset_bin);
 
     if (mi->rli.last_master_timestamp)
-      protocol->store((ulonglong) 
-                      (long)((time_t)time((time_t*) 0)
-                             - mi->rli.last_master_timestamp)
-                      - mi->clock_diff_with_master);
+    {
+      long tmp= (long)((time_t)time((time_t*) 0)
+                               - mi->rli.last_master_timestamp)
+        - mi->clock_diff_with_master;
+      /*
+        Apparently on some systems tmp can be <0. Here are possible reasons
+        related to MySQL:
+        - the master is itself a slave of another master whose time is ahead.
+        - somebody used an explicit SET TIMESTAMP on the master.
+        Possible reason related to granularity-to-second of time functions
+        (nothing to do with MySQL), which can explain a value of -1:
+        assume the master's and slave's time are perfectly synchronized, and
+        that at slave's connection time, when the master's timestamp is read,
+        it is at the very end of second 1, and (a very short time later) when
+        the slave's timestamp is read it is at the very beginning of second
+        2. Then the recorded value for master is 1 and the recorded value for
+        slave is 2. At SHOW SLAVE STATUS time, assume that the difference
+        between timestamp of slave and rli->last_master_timestamp is 0
+        (i.e. they are in the same second), then we get 0-(2-1)=-1 as a result.
+        This confuses users, so we don't go below 0.
+      */
+      protocol->store((longlong)(max(0, tmp)));
+    }
     else
       protocol->store_null();
 
@@ -2749,13 +2793,6 @@ int check_expected_error(THD* thd, RELAY_LOG_INFO* rli, int expected_error)
   case ER_NET_ERROR_ON_WRITE:  
   case ER_SERVER_SHUTDOWN:  
   case ER_NEW_ABORTING_CONNECTION:
-    slave_print_error(rli,expected_error, 
-                      "query '%s' partially completed on the master \
-and was aborted. There is a chance that your master is inconsistent at this \
-point. If you are sure that your master is ok, run this query manually on the\
- slave and then restart the slave with SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;\
- SLAVE START; .", thd->query);
-    thd->query_error= 1;
     return 1;
   default:
     return 0;
@@ -2840,7 +2877,7 @@ bool st_relay_log_info::is_until_satisfied()
         /* Probably error so we aborting */
         sql_print_error("Slave SQL thread is stopped because UNTIL "
                         "condition is bad.");
-        return true;
+        return TRUE;
       }
     }
     else
@@ -3417,7 +3454,7 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
 		    llstr(rli->group_relay_log_pos,llbuff1));
 
   /* execute init_slave variable */
-  if (sys_init_slave.value)
+  if (sys_init_slave.value_length)
   {
     execute_init_command(thd, &sys_init_slave, &LOCK_sys_init_slave);
     if (thd->query_error)
@@ -3560,6 +3597,14 @@ static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev)
       if (unlikely(!num_bytes)) /* eof */
       {
 	net_write_command(net, 0, "", 0, "", 0);/* 3.23 master wants it */
+        /*
+          If we wrote Create_file_log_event, then we need to write
+          Execute_load_log_event. If we did not write Create_file_log_event,
+          then this is an empty file and we can just do as if the LOAD DATA
+          INFILE had not existed, i.e. write nothing.
+        */
+        if (unlikely(cev_not_written))
+	  break;
 	Execute_load_log_event xev(thd,0,0);
 	xev.log_pos = cev->log_pos;
 	if (unlikely(mi->rli.relay_log.append(&xev)))
@@ -3988,7 +4033,9 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
       mi->master_log_pos+= inc_pos;
     DBUG_PRINT("info", ("master_log_pos: %d, event originating from the same server, ignored", (ulong) mi->master_log_pos));
   }  
-  else /* write the event to the relay log */
+  else
+  {
+    /* write the event to the relay log */
     if (likely(!(rli->relay_log.appendv(buf,event_len,0))))
     {
       mi->master_log_pos+= inc_pos;
@@ -3997,6 +4044,7 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
     }
     else
       error=3;
+  }
 
 err:
   pthread_mutex_unlock(&mi->data_lock);
@@ -4223,6 +4271,7 @@ bool flush_relay_log_info(RELAY_LOG_INFO* rli)
     error=1;
   if (flush_io_cache(file))
     error=1;
+  /* Flushing the relay log is done by the slave I/O thread */
   return error;
 }
 
@@ -4478,8 +4527,9 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
       if (rli->relay_log.is_active(rli->linfo.log_file_name))
       {
 #ifdef EXTRA_DEBUG
-	sql_print_error("next log '%s' is currently active",
-			rli->linfo.log_file_name);
+	if (global_system_variables.log_warnings)
+	  sql_print_error("next log '%s' is currently active",
+			  rli->linfo.log_file_name);
 #endif	  
 	rli->cur_log= cur_log= rli->relay_log.get_log_file();
 	rli->cur_log_old_open_count= rli->relay_log.get_open_count();
@@ -4507,8 +4557,9 @@ Log_event* next_event(RELAY_LOG_INFO* rli)
 	from hot to cold, but not from cold to hot). No need for LOCK_log.
       */
 #ifdef EXTRA_DEBUG
-      sql_print_error("next log '%s' is not active",
-		      rli->linfo.log_file_name);
+      if (global_system_variables.log_warnings)
+	sql_print_error("next log '%s' is not active",
+			rli->linfo.log_file_name);
 #endif	  
       // open_binlog() will check the magic header
       if ((rli->cur_log_fd=open_binlog(cur_log,rli->linfo.log_file_name,

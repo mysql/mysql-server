@@ -776,12 +776,12 @@ drop procedure hndlr4|
 #
 create procedure cur1()
 begin
-  declare done int default 0;
-  declare continue handler for sqlstate '02000' set done = 1;
-  declare c cursor for select * from test.t2;
   declare a char(16);
   declare b int;
   declare c double;
+  declare done int default 0;
+  declare c cursor for select * from test.t2;
+  declare continue handler for sqlstate '02000' set done = 1;
 
   open c;
   repeat
@@ -806,9 +806,9 @@ create table t3 ( s char(16), i int )|
 create procedure cur2()
 begin
   declare done int default 0;
-  declare continue handler for sqlstate '02000' set done = 1;
   declare c1 cursor for select id,data from test.t1;
   declare c2 cursor for select i from test.t2;
+  declare continue handler for sqlstate '02000' set done = 1;
 
   open c1;
   open c2;
@@ -879,8 +879,8 @@ create procedure modes(out c1 int, out c2 int)
 begin
   declare done int default 0;
   declare x int;
-  declare continue handler for sqlstate '02000' set done = 1;
   declare c cursor for select data from t1;
+  declare continue handler for sqlstate '02000' set done = 1;
 
   select 1 || 2 into c1;
   set c2 = 0;
@@ -929,6 +929,27 @@ use test|
 drop database sp_db3|
 # Check that it's gone
 select type,db,name from mysql.proc where db = 'sp_db3'|
+
+
+# ROW_COUNT() function after a CALL
+# We test the other cases here too, although it's not strictly SP specific
+create procedure rc()
+begin
+  delete from t1;
+  insert into t1 values ("a", 1), ("b", 2), ("c", 3);
+end|
+
+call rc()|
+select row_count()|
+update t1 set data=42 where id = "b";
+select row_count()|
+delete from t1|
+select row_count()|
+delete from t1|
+select row_count()|
+select * from t1|
+select row_count()|
+drop procedure rc|
 
 
 #
@@ -1069,8 +1090,8 @@ drop procedure bug1874|
 create procedure bug2260()
 begin
   declare v1 int;
-  declare continue handler for not found set @x2 = 1;
   declare c1 cursor for select data from t1;
+  declare continue handler for not found set @x2 = 1;
 
   open c1;
   fetch c1 into v1;
@@ -1152,17 +1173,18 @@ drop procedure bug2614|
 #
 # BUG#2674
 #
-
 create function bug2674 () returns int
   return @@sort_buffer_size|
 
+set @osbs = @@sort_buffer_size|
+set @@sort_buffer_size = 262000|
 select bug2674()|
 drop function bug2674|
+set @@sort_buffer_size = @osbs|
 
 #
 # BUG#3259
 #
-
 create procedure bug3259_1 () begin end|
 create procedure BUG3259_2 () begin end|
 create procedure Bug3259_3 () begin end|
@@ -1177,6 +1199,68 @@ call bUG3259_3()|
 drop procedure bUg3259_1|
 drop procedure BuG3259_2|
 drop procedure BUG3259_3|
+
+#
+# BUG##2772
+#
+create function bug2772() returns char(10) character set latin2
+  return 'a'|
+
+select bug2772()|
+drop function bug2772|
+
+#
+# BUG#2776
+#
+create procedure bug2776_1(out x int)
+begin
+  declare v int;
+
+  set v = default;
+  set x = v;
+end|
+
+create procedure bug2776_2(out x int)
+begin
+  declare v int default 42;
+
+  set v = default;
+  set x = v;
+end|
+
+set @x = 1|
+call bug2776_1(@x)|
+select @x|
+call bug2776_2(@x)|
+select @x|
+drop procedure bug2776_1|
+drop procedure bug2776_2|
+
+#
+# BUG#2780
+#
+--disable_warnings
+drop table if exists t3|
+--enable_warnings
+create table t3 (s1 smallint)|
+
+insert into t3 values (123456789012)|
+
+create procedure bug2780()
+begin
+  declare exit handler for sqlwarning set @x = 1; 
+
+  set @x = 0;
+  insert into t3 values (123456789012);
+  insert into t3 values (0);
+end|
+
+call bug2780()|
+select @x|
+select * from t3|
+
+drop procedure bug2780|
+drop table t3|
 
 
 #

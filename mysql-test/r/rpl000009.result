@@ -112,6 +112,18 @@ n	s
 2	two test
 3	three test
 4	four test
+stop slave;
+reset slave;
+load data from master;
+start slave;
+insert into mysqltest.t1 values (5, 'five bar');
+select * from mysqltest.t1;
+n	s
+1	one test
+2	two test
+3	three test
+4	four test
+5	five bar
 load table mysqltest.t1 from master;
 ERROR 42S01: Table 't1' already exists
 drop table mysqltest.t1;

@@ -125,8 +125,8 @@ extern	void bmove_align(gptr dst,const gptr src,uint len);
 #ifdef HAVE_purify
 #include <assert.h>
 #define memcpy_overlap(A,B,C) \
-DBUG_ASSERT((A) == (B) || ((A)+(C)) <= (B) || ((B)+(C)) <= (A)); \
-bmove((byte*) key,(byte*) from,(size_t) length);
+DBUG_ASSERT((A) <= (B) || ((B)+(C)) <= (A)); \
+bmove((byte*) (A),(byte*) (B),(size_t) (C));
 #else
 #define memcpy_overlap(A,B,C) memcpy((A), (B), (C))
 #endif /* HAVE_purify */
@@ -201,7 +201,7 @@ extern int strcmp(const char *, const char *);
 extern size_t strlen(const char *);
 #endif
 #endif
-#ifndef HAVE_STRNLEN 
+#ifndef HAVE_STRNLEN
 extern uint strnlen(const char *s, uint n);
 #endif
 
@@ -215,7 +215,9 @@ extern char *strstr(const char *, const char *);
 #endif
 extern int is_prefix(const char *, const char *);
 
-/* Conversion rutins */
+/* Conversion routines */
+double my_strtod(const char *str, char **end);
+double my_atof(const char *nptr);
 
 #ifdef USE_MY_ITOA
 extern char *my_itoa(int val,char *dst,int radix);

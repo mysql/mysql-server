@@ -152,6 +152,7 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
   info->alloced_buffer = 0;
   info->buffer=0;
   info->seek_not_done= test(file >= 0);
+  info->disk_writes= 0;
 #ifdef THREAD
   info->share=0;
 #endif
@@ -506,7 +507,8 @@ static int lock_io_cache(IO_CACHE *info, my_off_t pos)
   while (!s->active || s->active->pos_in_file < pos)
     pthread_cond_wait(&s->cond, &s->mutex);
 
-  if (s->total < total)
+  if (s->total < total &&
+      (!s->active || s->active->pos_in_file < pos))
     return 1;
 
   pthread_mutex_unlock(&s->mutex);
@@ -987,7 +989,7 @@ int my_b_append(register IO_CACHE *info, const byte *Buffer, uint Count)
   Buffer+=rest_length;
   Count-=rest_length;
   info->write_pos+=rest_length;
-  if (_flush_io_cache(info,0))
+  if (my_b_flush_io_cache(info,0))
   {
     unlock_append_buffer(info);
     return 1;
@@ -1094,12 +1096,12 @@ int my_block_write(register IO_CACHE *info, const byte *Buffer, uint Count,
 #endif
 
 
-int _flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
+int my_b_flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
 {
   uint length;
   my_bool append_cache;
   my_off_t pos_in_file;
-  DBUG_ENTER("_flush_io_cache");
+  DBUG_ENTER("my_b_flush_io_cache");
 
   if (!(append_cache = (info->type == SEQ_READ_APPEND)))
     need_append_buffer_lock=0;
@@ -1152,6 +1154,7 @@ int _flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
       }
 
       info->append_read_pos=info->write_pos=info->write_buffer;
+      ++info->disk_writes;
       UNLOCK_APPEND_BUFFER;
       DBUG_RETURN(info->error);
     }

@@ -32,7 +32,7 @@ File my_dup(File file, myf MyFlags)
   DBUG_ENTER("my_dup");
   DBUG_PRINT("my",("file: %d  MyFlags: %d", MyFlags));
   fd = dup(file);
-  filename= (((int) file < MY_NFILE) ?
+  filename= (((uint) file < my_file_limit) ?
 	     my_file_info[(int) file].name : "Unknown");
   DBUG_RETURN(my_register_filename(fd, filename, FILE_BY_DUP,
 				   EE_FILENOTFOUND, MyFlags));

@@ -347,7 +347,7 @@ public:
   /* fake SELECT_LEX for union processing */
   st_select_lex *fake_select_lex;
 
-  uint union_option;
+  st_select_lex *union_distinct; /* pointer to the last UNION DISTINCT */
 
   void init_query();
   bool create_total_list(THD *thd, st_lex *lex, TABLE_LIST **result);
@@ -367,10 +367,13 @@ public:
   int prepare(THD *thd, select_result *result, ulong additional_options);
   int exec();
   int cleanup();
+  inline void unclean() { cleaned= 0; }
+  void reinit_exec_mechanism();
 
   bool check_updateable(char *db, char *table);
   void print(String *str);
   
+  void set_limit(st_select_lex *values, st_select_lex *sl);
 
   friend void mysql_init_query(THD *thd, bool lexonly);
   friend int subselect_union_engine::exec();
@@ -408,6 +411,7 @@ public:
   SQL_LIST order_list;                /* ORDER clause */
   List<List_item>     expr_list;
   List<List_item>     when_list;      /* WHEN clause (expression) */
+  SQL_LIST *gorder_list;
   ha_rows select_limit, offset_limit; /* LIMIT clause parameters */
   // Arrays of pointers to top elements of all_fields list
   Item **ref_pointer_array;
@@ -552,13 +556,12 @@ typedef struct st_lex
   String *wild;
   sql_exchange *exchange;
   select_result *result;
-  Item *default_value;
+  Item *default_value, *on_update_value;
   LEX_STRING *comment, name_and_length;
   LEX_USER *grant_user;
   gptr yacc_yyss,yacc_yyvs;
   THD *thd;
   CHARSET_INFO *charset;
-  SQL_LIST *gorder_list;
 
   List<key_part_spec> col_list;
   List<key_part_spec> ref_list;
@@ -572,7 +575,7 @@ typedef struct st_lex
   List<Item>	      *insert_list,field_list,value_list;
   List<List_item>     many_values;
   List<set_var_base>  var_list;
-  List<Item>          param_list;
+  List<Item_param>    param_list;
   SQL_LIST	      proc_list, auxilliary_table_list, save_list;
   TYPELIB	      *interval;
   create_field	      *last_field;
@@ -597,7 +600,6 @@ typedef struct st_lex
   uint uint_geom_type;
   uint grant, grant_tot_col, which_columns;
   uint fk_delete_opt, fk_update_opt, fk_match_option;
-  uint param_count;
   uint slave_thd_opt;
   uint8 describe;
   bool drop_if_exists, drop_temporary, local_file;

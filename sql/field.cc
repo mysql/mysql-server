@@ -107,7 +107,7 @@ bool test_if_int(const char *str, int length, const char *int_end,
   return 1;
 }
 
-
+#ifdef NOT_USED
 static bool test_if_real(const char *str,int length, CHARSET_INFO *cs)
 {
   cs= system_charset_info; // QQ move test_if_real into CHARSET_INFO struct
@@ -159,15 +159,8 @@ static bool test_if_real(const char *str,int length, CHARSET_INFO *cs)
   }
   return 1;
 }
+#endif
 
-
-static inline uint field_length_without_space(const char *ptr, uint length)
-{
-  const char *end= ptr+length;
-  while (end > ptr && end[-1] == ' ')
-    end--;
-  return (uint) (end-ptr);
-}
 
 /*
  Tables of filed type compatibility.
@@ -301,11 +294,12 @@ Field::Field(char *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
 	     utype unireg_check_arg, const char *field_name_arg,
 	     struct st_table *table_arg)
   :ptr(ptr_arg),null_ptr(null_ptr_arg),
-   table(table_arg),table_name(table_arg ? table_arg->table_name : 0),
+   table(table_arg),orig_table(table_arg),
+   table_name(table_arg ? table_arg->table_name : 0),
    field_name(field_name_arg),
    query_id(0), key_start(0), part_of_key(0), part_of_sortkey(0),
    unireg_check(unireg_check_arg),
-   field_length(length_arg),null_bit(null_bit_arg),abs_offset(0)
+   field_length(length_arg),null_bit(null_bit_arg)
 {
   flags=null_ptr ? 0: NOT_NULL_FLAG;
   comment.str= (char*) "";
@@ -349,9 +343,10 @@ void Field_num::add_zerofill_and_unsigned(String &res) const
 void Field_num::make_field(Send_field *field)
 {
   /* table_cache_key is not set for temp tables */
-  field->db_name=table->table_cache_key ? table->table_cache_key : ""; 
-  field->org_table_name=table->real_name;
-  field->table_name=table_name;
+  field->db_name= (orig_table->table_cache_key ? orig_table->table_cache_key :
+		   "");
+  field->org_table_name= orig_table->real_name;
+  field->table_name= orig_table->table_name;
   field->col_name=field->org_col_name=field_name;
   field->charsetnr= charset()->number;
   field->length=field_length;
@@ -364,9 +359,10 @@ void Field_num::make_field(Send_field *field)
 void Field_str::make_field(Send_field *field)
 {
   /* table_cache_key is not set for temp tables */
-  field->db_name=table->table_cache_key ? table->table_cache_key : ""; 
-  field->org_table_name=table->real_name;
-  field->table_name=table_name;
+  field->db_name= (orig_table->table_cache_key ? orig_table->table_cache_key :
+		   "");
+  field->org_table_name= orig_table->real_name;
+  field->table_name= orig_table->table_name;
   field->col_name=field->org_col_name=field_name;
   field->charsetnr= charset()->number;
   field->length=field_length;
@@ -2264,20 +2260,23 @@ void Field_longlong::sql_type(String &res) const
   add_zerofill_and_unsigned(res);
 }
 
+
 /****************************************************************************
-** single precision float
+  single precision float
 ****************************************************************************/
 
 int Field_float::store(const char *from,uint len,CHARSET_INFO *cs)
 {
-  int err;
-  Field_float::store(my_strntod(cs,(char*) from,len,(char**)NULL,&err));
-  if (err || current_thd->count_cuted_fields && !test_if_real(from,len,cs))
+  int error;
+  char *end;
+  double nr= my_strntod(cs,(char*) from,len,&end,&error);
+  if (error || ((uint) (end-from) != len && current_thd->count_cuted_fields))
   {
+    error= 1;
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
-    return 1;
   }
-  return (err) ? 1 : 0;
+  Field_float::store(nr);
+  return error;
 }
 
 
@@ -2285,28 +2284,48 @@ int Field_float::store(double nr)
 {
   float j;
   int error= 0;
-  if (dec < NOT_FIXED_DEC)
-    nr=floor(nr*log_10[dec]+0.5)/log_10[dec]; // To fixed point
-  if (unsigned_flag && nr < 0)
+
+  if (isnan(nr))
   {
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE);
-    nr=0;
-    error= 1;
-  }
-  if (nr < -FLT_MAX)
-  {
-    j= -FLT_MAX;
+    j= 0;
+    set_null();
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE);
     error= 1;
   }
-  else if (nr > FLT_MAX)
+  else if (unsigned_flag && nr < 0)
   {
-    j=FLT_MAX;
+    j= 0;
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE);
     error= 1;
   }
   else
-    j= (float) nr;
+  {
+    double max_value;
+    if (dec >= NOT_FIXED_DEC)
+    {
+      max_value= FLT_MAX;
+    }
+    else
+    {
+      max_value= (log_10[field_length]-1)/log_10[dec];
+      nr= floor(nr*log_10[dec]+0.5)/log_10[dec];
+    }
+    if (nr < -max_value)
+    {
+      j= (float)-max_value;
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE);
+      error= 1;
+    }
+    else if (nr > max_value)
+    {
+      j= (float)max_value;
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE);
+      error= 1;
+    }
+    else
+      j= (float) nr;
+  }
+  
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
   {
@@ -2537,48 +2556,69 @@ void Field_float::sql_type(String &res) const
   add_zerofill_and_unsigned(res);
 }
 
+
 /****************************************************************************
-** double precision floating point numbers
+  double precision floating point numbers
 ****************************************************************************/
 
 int Field_double::store(const char *from,uint len,CHARSET_INFO *cs)
 {
-  int err;
-  double j= my_strntod(cs,(char*) from,len,(char**)0,&err);
-  if (err || current_thd->count_cuted_fields && !test_if_real(from,len,cs))
+  int error;
+  char *end;
+  double nr= my_strntod(cs,(char*) from, len, &end, &error);
+  if (error || ((uint) (end-from) != len && current_thd->count_cuted_fields))
   {
+    error= 1;
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
-    err= 1;
   }
-  if (unsigned_flag && j < 0)
-  {
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE);
-    j=0;
-    err= 1;
-  }
-#ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
-  {
-    float8store(ptr,j);
-  }
-  else
-#endif
-    doublestore(ptr,j);
-  return err;
+  Field_double::store(nr);
+  return error;
 }
 
 
 int Field_double::store(double nr)
 {
   int error= 0;
-  if (dec < NOT_FIXED_DEC)
-    nr=floor(nr*log_10[dec]+0.5)/log_10[dec]; // To fixed point
-  if (unsigned_flag && nr < 0)
+
+  if (isnan(nr))
   {
+    nr= 0;
+    set_null();
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE);
-    nr=0;
     error= 1;
   }
+  else if (unsigned_flag && nr < 0)
+  {
+    nr= 0;
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE);
+    error= 1;
+  }
+  else 
+  {
+    double max_value;
+    if (dec >= NOT_FIXED_DEC)
+    {
+      max_value= DBL_MAX;
+    }
+    else
+    {
+      max_value= (log_10[field_length]-1)/log_10[dec];
+      nr= floor(nr*log_10[dec]+0.5)/log_10[dec];
+    }
+    if (nr < -max_value)
+    {
+      nr= -max_value;
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE);
+      error= 1;
+    }
+    else if (nr > max_value)
+    {
+      nr= max_value;
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE);
+      error= 1;
+    }
+  }
+
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
   {
@@ -2742,14 +2782,8 @@ int Field_double::cmp(const char *a_ptr, const char *b_ptr)
   else
 #endif
   {
-/* could this ALWAYS be 2 calls to doubleget() ?? */
-#if defined(__FLOAT_WORD_ORDER) && (__FLOAT_WORD_ORDER == __BIG_ENDIAN)
     doubleget(a, a_ptr);
     doubleget(b, b_ptr);
-#else
-    memcpy_fixed(&a,a_ptr,sizeof(double));
-    memcpy_fixed(&b,b_ptr,sizeof(double));
-#endif
   }
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
@@ -2769,12 +2803,7 @@ void Field_double::sort_string(char *to,uint length __attribute__((unused)))
   }
   else
 #endif
-/* could this ALWAYS be 2 calls to doubleget() ?? */
-#if defined(__FLOAT_WORD_ORDER) && (__FLOAT_WORD_ORDER == __BIG_ENDIAN)
     doubleget(nr,ptr);
-#else
-    memcpy_fixed(&nr,ptr,sizeof(nr));
-#endif
   change_double_for_sort(nr, (byte*) to);
 }
 
@@ -2795,11 +2824,50 @@ void Field_double::sql_type(String &res) const
 }
 
 
-/****************************************************************************
-** timestamp
-** The first timestamp in the table is automaticly updated
-** by handler.cc.  The form->timestamp points at the automatic timestamp.
-****************************************************************************/
+/*
+  TIMESTAMP type.
+  Holds datetime values in range from 1970-01-01 00:00:01 UTC to 
+  2038-01-01 00:00:00 UTC stored as number of seconds since Unix 
+  Epoch in UTC.
+  
+  Up to one of timestamps columns in the table can be automatically 
+  set on row update and/or have NOW() as default value.
+  TABLE::timestamp_field points to Field object for such timestamp with 
+  auto-set-on-update. TABLE::time_stamp holds offset in record + 1 for this
+  field, and is used by handler code which performs updates required.
+  
+  Actually SQL-99 says that we should allow niladic functions (like NOW())
+  as defaults for any field. Current limitations (only NOW() and only 
+  for one TIMESTAMP field) are because of restricted binary .frm format 
+  and should go away in the future.
+  
+  Also because of this limitation of binary .frm format we use 5 different
+  unireg_check values with TIMESTAMP field to distinguish various cases of
+  DEFAULT or ON UPDATE values. These values are:
+  
+  TIMESTAMP_OLD_FIELD - old timestamp, if there was not any fields with
+    auto-set-on-update (or now() as default) in this table before, then this 
+    field has NOW() as default and is updated when row changes, else it is 
+    field which has 0 as default value and is not automaitcally updated.
+  TIMESTAMP_DN_FIELD - field with NOW() as default but not set on update
+    automatically (TIMESTAMP DEFAULT NOW())
+  TIMESTAMP_UN_FIELD - field which is set on update automatically but has not 
+    NOW() as default (but it may has 0 or some other const timestamp as 
+    default) (TIMESTAMP ON UPDATE NOW()).
+  TIMESTAMP_DNUN_FIELD - field which has now() as default and is auto-set on 
+    update. (TIMESTAMP DEFAULT NOW() ON UPDATE NOW())
+  NONE - field which is not auto-set on update with some other than NOW() 
+    default value (TIMESTAMP DEFAULT 0).
+
+  Note that TIMESTAMP_OLD_FIELD's are never created explicitly now, they are 
+  left only for preserving ability to read old tables. Such fields replaced 
+  with their newer analogs in CREATE TABLE and in SHOW CREATE TABLE. This is 
+  because we want to prefer NONE unireg_check before TIMESTAMP_OLD_FIELD for 
+  "TIMESTAMP DEFAULT 'Const'" field. (Old timestamps allowed such 
+  specification too but ignored default value for first timestamp, which of 
+  course is non-standard.) In most cases user won't notice any change, only
+  exception is different behavior of old/new timestamps during ALTER TABLE.
+ */
 
 Field_timestamp::Field_timestamp(char *ptr_arg, uint32 len_arg,
 				 enum utype unireg_check_arg,
@@ -2810,12 +2878,34 @@ Field_timestamp::Field_timestamp(char *ptr_arg, uint32 len_arg,
 	     unireg_check_arg, field_name_arg, table_arg, cs)
 {
   flags|=ZEROFILL_FLAG; /* 4.0 MYD compatibility */
-  if (table && !table->timestamp_field)
+  if (table && !table->timestamp_field && 
+      unireg_check != NONE)
   {
-    table->timestamp_field= this;		// Automatic timestamp
-    table->time_stamp=(ulong) (ptr_arg - (char*) table->record[0])+1;
+    /* This timestamp has auto-update */
+    table->timestamp_field= this;
     flags|=TIMESTAMP_FLAG;
   }
+}
+
+
+/*
+    Sets TABLE::timestamp_default_now and TABLE::timestamp_on_update_now 
+    members according to unireg type of this TIMESTAMP field.
+  
+  SYNOPSIS
+    Field_timestamp::set_timestamp_offsets()
+  
+*/
+void Field_timestamp::set_timestamp_offsets()
+{
+  ulong timestamp= (ulong) (ptr - (char*) table->record[0]) + 1;
+  
+  DBUG_ASSERT(table->timestamp_field == this && unireg_check != NONE);
+
+  table->timestamp_default_now= 
+    (unireg_check == TIMESTAMP_UN_FIELD)? 0 : timestamp;
+  table->timestamp_on_update_now= 
+    (unireg_check == TIMESTAMP_DN_FIELD)? 0 : timestamp;
 }
 
 
@@ -2933,10 +3023,10 @@ int Field_timestamp::store(longlong nr)
   {
     long not_used;
     
-    if (l_time.year >= TIMESTAMP_MAX_YEAR || l_time.year < 1900+YY_PART_YEAR-1)
+    if (!(timestamp= my_gmt_sec(&l_time, &not_used)))
       goto err;
-    timestamp= my_gmt_sec(&l_time, &not_used);
   }
+  
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
   {
@@ -4075,10 +4165,10 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
     Make sure we don't break a multibyte sequence
     as well as don't copy a malformed data.
   */
-  copy_length= field_charset->cset->wellformedlen(field_charset,
-						  from,from+length,
-						  field_length/
-						  field_charset->mbmaxlen);
+  copy_length= field_charset->cset->well_formed_len(field_charset,
+						    from,from+length,
+						    field_length/
+						    field_charset->mbmaxlen);
   memcpy(ptr,from,copy_length);
   if (copy_length < field_length)	// Append spaces if shorter
     field_charset->cset->fill(field_charset,ptr+copy_length,
@@ -4165,10 +4255,10 @@ int Field_string::cmp(const char *a_ptr, const char *b_ptr)
 void Field_string::sort_string(char *to,uint length)
 {
   uint tmp=my_strnxfrm(field_charset,
-                          (unsigned char *)to, length,
-                          (unsigned char *) ptr, field_length);
+		       (unsigned char *) to, length,
+		       (unsigned char *) ptr, field_length);
   if (tmp < length)
-    bzero(to + tmp, length - tmp);
+    field_charset->cset->fill(field_charset, to + tmp, length - tmp, ' ');
 }
 
 
@@ -4180,7 +4270,8 @@ void Field_string::sql_type(String &res) const
 			    (field_length > 3 &&
 			     (table->db_options_in_use &
 			      HA_OPTION_PACK_RECORD) ?
-			     "varchar" : "char"),
+			      (has_charset() ? "varchar" : "varbinary") : 
+			      (has_charset() ? "char" : "binary")),
 			    (int) field_length / charset()->mbmaxlen);
   res.length(length);
 }
@@ -4340,7 +4431,8 @@ void Field_varstring::sort_string(char *to,uint length)
                              (unsigned char *) to, length,
                              (unsigned char *)ptr+2, tot_length);
   if (tot_length < length)
-    bzero(to+tot_length,length-tot_length);
+    field_charset->cset->fill(field_charset, to+tot_length,length-tot_length,
+			      binary() ? (char) 0 : ' ');
 }
 
 
@@ -4571,11 +4663,15 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
     }
     
     copy_length= max_data_length();
-    if (copy_length > length)
-      copy_length= length;
-    copy_length= field_charset->cset->wellformedlen(field_charset,
-                                                    from,from+copy_length,
-                                                    field_length);
+    /*
+      copy_length is ok as last argument to well_formed_len as this is never
+      used to limit the length of the data. The cut of long data is done with
+      the 'min()' call below.
+    */
+    copy_length= field_charset->cset->well_formed_len(field_charset,
+						      from,from +
+						      min(length, copy_length),
+						      copy_length);
     if (copy_length < length)
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_TRUNCATED);
     
@@ -4711,18 +4807,28 @@ void Field_blob::get_key_image(char *buff,uint length,
 #ifdef HAVE_SPATIAL
   if (type == itMBR)
   {
-    if (!blob_length)
-      return;
-    get_ptr(&blob);
-
+    const char *dummy;
     MBR mbr;
-    Geometry gobj;
-    gobj.create_from_wkb(blob + SRID_SIZE, blob_length - SRID_SIZE);
-    gobj.get_mbr(&mbr);
-    float8store(buff,    mbr.xmin);
-    float8store(buff+8,  mbr.xmax);
-    float8store(buff+16, mbr.ymin);
-    float8store(buff+24, mbr.ymax);
+    Geometry_buffer buffer;
+    Geometry *gobj;
+
+    if (blob_length < SRID_SIZE)
+    {
+      bzero(buff, SIZEOF_STORED_DOUBLE*4);
+      return;
+    }
+    get_ptr(&blob);
+    gobj= Geometry::create_from_wkb(&buffer,
+				    blob + SRID_SIZE, blob_length - SRID_SIZE);
+    if (gobj->get_mbr(&mbr, &dummy))
+      bzero(buff, SIZEOF_STORED_DOUBLE*4);
+    else
+    {
+      float8store(buff,    mbr.xmin);
+      float8store(buff+8,  mbr.xmax);
+      float8store(buff+16, mbr.ymin);
+      float8store(buff+24, mbr.ymax);
+    }
     return;
   }
 #endif /*HAVE_SPATIAL*/
@@ -4780,7 +4886,9 @@ void Field_blob::sort_string(char *to,uint length)
                             (unsigned char *)to, length, 
                             (unsigned char *)blob, blob_length);
     if (blob_length < length)
-      bzero(to+blob_length, length-blob_length);
+      field_charset->cset->fill(field_charset, to+blob_length,
+				length-blob_length,
+				binary() ? (char) 0 : ' ');
   }
 }
 
@@ -4935,6 +5043,7 @@ uint Field_blob::max_packed_col_length(uint max_length)
   return (max_length > 255 ? 2 : 1)+max_length;
 }
 
+
 #ifdef HAVE_SPATIAL
 
 void Field_geom::get_key_image(char *buff, uint length, CHARSET_INFO *cs,
@@ -4943,17 +5052,28 @@ void Field_geom::get_key_image(char *buff, uint length, CHARSET_INFO *cs,
   length-= HA_KEY_BLOB_LENGTH;
   ulong blob_length= get_length(ptr);
   char *blob;
-  get_ptr(&blob);
-
+  const char *dummy;
   MBR mbr;
-  Geometry gobj;
-  gobj.create_from_wkb(blob + SRID_SIZE, blob_length - SRID_SIZE);
-  gobj.get_mbr(&mbr);
-  float8store(buff, mbr.xmin);
-  float8store(buff + 8, mbr.xmax);
-  float8store(buff + 16, mbr.ymin);
-  float8store(buff + 24, mbr.ymax);
-  return;
+
+  if (blob_length < SRID_SIZE)
+  {
+    bzero(buff, SIZEOF_STORED_DOUBLE*4);
+    return;
+  }
+  get_ptr(&blob);
+  Geometry_buffer buffer;
+  Geometry *gobj;
+  gobj= Geometry::create_from_wkb(&buffer,
+				  blob + SRID_SIZE, blob_length - SRID_SIZE);
+  if (gobj->get_mbr(&mbr, &dummy))
+    bzero(buff, SIZEOF_STORED_DOUBLE*4);
+  else
+  {
+    float8store(buff, mbr.xmin);
+    float8store(buff + 8, mbr.xmax);
+    float8store(buff + 16, mbr.ymin);
+    float8store(buff + 24, mbr.ymax);
+  }
 }
 
 
@@ -4997,17 +5117,17 @@ void Field_geom::sql_type(String &res) const
 int Field_geom::store(const char *from, uint length, CHARSET_INFO *cs)
 {
   if (!length)
-  {
     bzero(ptr, Field_blob::pack_length());
-  }
   else
   {
-    // Should check given WKB
-    if (length < 4 + 1 + 4 + 8 + 8)		// SRID + WKB_HEADER + X + Y
-      return 1;
-    uint32 wkb_type= uint4korr(from + 5);
-    if (wkb_type < 1 || wkb_type > 7)
-      return 1;
+    // Check given WKB
+    uint32 wkb_type;
+    if (length < SRID_SIZE + WKB_HEADER_SIZE + SIZEOF_STORED_DOUBLE*2)
+      goto err;
+    wkb_type= uint4korr(from + WKB_HEADER_SIZE);
+    if (wkb_type < (uint32) Geometry::wkb_point ||
+	wkb_type > (uint32) Geometry::wkb_end)
+      return -1;
     Field_blob::store_length(length);
     if (table->copy_blobs || length <= MAX_FIELD_WIDTH)
     {						// Must make a copy
@@ -5017,6 +5137,10 @@ int Field_geom::store(const char *from, uint length, CHARSET_INFO *cs)
     bmove(ptr + packlength, (char*) &from, sizeof(char*));
   }
   return 0;
+
+err:
+  bzero(ptr, Field_blob::pack_length());  
+  return -1;
 }
 
 #endif /*HAVE_SPATIAL*/
@@ -5455,7 +5579,7 @@ uint32 calc_pack_length(enum_field_types type,uint32 length)
   case FIELD_TYPE_ENUM: abort(); return 0;	// This shouldn't happen
   default: return 0;
   }
-  return 0;					// This shouldn't happen
+  return 0;					// Keep compiler happy
 }
 
 
@@ -5488,6 +5612,18 @@ Field *make_field(char *ptr, uint32 field_length,
     null_pos=0;
     null_bit=0;
   }
+
+  switch (field_type)
+  {
+    case FIELD_TYPE_DATE:
+    case FIELD_TYPE_NEWDATE:
+    case FIELD_TYPE_TIME:
+    case FIELD_TYPE_DATETIME:
+    case FIELD_TYPE_TIMESTAMP:
+      field_charset= &my_charset_bin;
+    default: break;
+  }
+
   if (f_is_alpha(pack_flag))
   {
     if (!f_is_packed(pack_flag))
@@ -5644,8 +5780,7 @@ create_field::create_field(Field *old_field,Field *orig_field)
     interval=0;
   def=0;
   if (!old_field->is_real_null() && ! (flags & BLOB_FLAG) &&
-      old_field->type() != FIELD_TYPE_TIMESTAMP && old_field->ptr &&
-      orig_field)
+      old_field->ptr && orig_field)
   {
     char buff[MAX_FIELD_WIDTH],*pos;
     String tmp(buff,sizeof(buff), charset);
@@ -5660,7 +5795,7 @@ create_field::create_field(Field *old_field,Field *orig_field)
     {
       pos= (char*) sql_memdup(tmp.ptr(),tmp.length()+1);
       pos[tmp.length()]=0;
-      def=new Item_string(pos,tmp.length(), charset);
+      def= new Item_string(pos, tmp.length(), charset);
     }
   }
 #ifdef HAVE_SPATIAL

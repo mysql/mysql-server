@@ -20,6 +20,9 @@ extern ibool	os_do_not_call_flush_at_each_write;
 extern ibool	os_has_said_disk_full;
 extern ibool	os_aio_print_debug;
 
+extern ulint	os_file_n_pending_preads;
+extern ulint	os_file_n_pending_pwrites;
+
 #ifdef __WIN__
 
 /* We define always WIN_ASYNC_IO, and check at run-time whether
@@ -60,6 +63,7 @@ log. */
 #define	OS_FILE_CREATE			52
 #define OS_FILE_OVERWRITE		53
 #define OS_FILE_OPEN_RAW		54
+#define	OS_FILE_CREATE_PATH		55
 
 #define OS_FILE_READ_ONLY 		333
 #define	OS_FILE_READ_WRITE		444
@@ -228,7 +232,9 @@ os_file_create_simple(
 			string */
 	ulint	create_mode,/* in: OS_FILE_OPEN if an existing file is opened
 			(if does not exist, error), or OS_FILE_CREATE if a new
-			file is created (if exists, error) */
+			file is created (if exists, error), or
+                        OS_FILE_CREATE_PATH if new file (if exists, error) and
+                        subdirectories along its path are created (if needed)*/
 	ulint	access_type,/* in: OS_FILE_READ_ONLY or OS_FILE_READ_WRITE */
 	ibool*	success);/* out: TRUE if succeed, FALSE if error */
 /********************************************************************
@@ -421,6 +427,59 @@ os_file_write(
 	ulint		offset_high,/* in: most significant 32 bits of
 				offset */
 	ulint		n);	/* in: number of bytes to write */	
+/***********************************************************************
+Check the existence and type of the given file. */
+
+ibool
+os_file_status(
+/*===========*/
+				/* out: TRUE if call succeeded */
+	char *		path,	/* in:  pathname of the file */
+	ibool *		exists,	/* out: TRUE if file exists */
+	os_file_type_t* type);	/* out: type of the file (if it exists) */
+/********************************************************************
+The function os_file_dirname returns a directory component of a
+null-terminated pathname string.  In the usual case, dirname returns
+the string up to, but not including, the final '/', and basename
+is the component following the final '/'.  Trailing '/' charac­
+ters are not counted as part of the pathname.
+
+If path does not contain a slash, dirname returns the string ".".
+
+Concatenating the string returned by dirname, a "/", and the basename
+yields a complete pathname.
+
+The return value is  a copy of the directory component of the pathname.
+The copy is allocated from heap. It is the caller responsibility
+to free it after it is no longer needed.	
+
+The following list of examples (taken from SUSv2) shows the strings
+returned by dirname and basename for different paths:
+
+       path           dirname        basename
+       "/usr/lib"     "/usr"         "lib"
+       "/usr/"        "/"            "usr"
+       "usr"          "."            "usr"
+       "/"            "/"            "/"
+       "."            "."            "."
+       ".."           "."            ".."
+*/
+
+char*
+os_file_dirname(
+/*============*/
+				/* out, own: directory component of the
+				pathname */
+	char*		path);	/* in: pathname */
+/********************************************************************
+Creates all missing subdirectories along the given path. */
+	
+ibool
+os_file_create_subdirs_if_needed(
+/*=============================*/
+				/* out: TRUE if call succeeded
+				   FALSE otherwise */
+	char*		path);	/* in: path name */
 /****************************************************************************
 Initializes the asynchronous io system. Creates separate aio array for
 non-ibuf read and write, a third aio array for the ibuf i/o, with just one

@@ -678,16 +678,15 @@ int yylex(void *arg, void *yythd)
       yylval->lex_str= get_token(lex,yyLength());
       return(result_state);
 
-    case MY_LEX_USER_VARIABLE_DELIMITER:
+    case MY_LEX_USER_VARIABLE_DELIMITER:	// Found quote char
     {
       uint double_quotes= 0;
       char quote_char= c;                       // Used char
       lex->tok_start=lex->ptr;			// Skip first `
       while ((c=yyGet()))
-      {  
-#ifdef USE_MB
-	if (my_mbcharlen(cs, c) == 1)
-#endif
+      {
+	int length;
+	if ((length= my_mbcharlen(cs, c)) == 1)
 	{
 	  if (c == (uchar) NAMES_SEP_CHAR)
 	    break; /* Old .frm format can't handle this char */
@@ -701,15 +700,9 @@ int yylex(void *arg, void *yythd)
 	  }
 	}
 #ifdef USE_MB
-	else
-	{
-	  int l;
-	  if ((l = my_ismbchar(cs,
-			       (const char *)lex->ptr-1,
-			       (const char *)lex->end_of_query)) == 0)
-	    break;
-	  lex->ptr += l-1;
-	}
+	else if (length < 1)
+	  break;				// Error
+	lex->ptr+= length-1;
 #endif
       }
       if (double_quotes)
@@ -994,13 +987,15 @@ void st_select_lex_unit::init_query()
   global_parameters= first_select();
   select_limit_cnt= HA_POS_ERROR;
   offset_limit_cnt= 0;
-  union_option= 0;
+  union_distinct= 0;
   prepared= optimized= executed= 0;
   item= 0;
   union_result= 0;
   table= 0;
   fake_select_lex= 0;
   cleaned= 0;
+  item_list.empty();
+  found_rows_for_union= 0;
 }
 
 void st_select_lex::init_query()
@@ -1318,8 +1313,8 @@ bool st_select_lex_unit::create_total_list(THD *thd_arg, st_lex *lex,
   DESCRIPTION
     This is used for UNION & subselect to create a new table list of all used 
     tables.
-    The table_list->table entry in all used tables are set to point
-    to the entries in this list.
+    The table_list->table_list in all tables of global list are set to point
+    to the local SELECT_LEX entries.
 
   RETURN
     0 - OK
@@ -1370,33 +1365,22 @@ create_total_list_n_last_return(THD *thd_arg,
       {
 	TABLE_LIST *cursor;
 	next_table= aux->next;
-	for (cursor= **result_arg; cursor; cursor= cursor->next)
-	  if (!strcmp(cursor->db, aux->db) &&
-	      !strcmp(cursor->real_name, aux->real_name) &&
-	      !strcmp(cursor->alias, aux->alias))
-	    break;
-	if (!cursor)
+	/* Add to the total table list */
+	if (!(cursor= (TABLE_LIST *) thd->memdup((char*) aux,
+						 sizeof(*aux))))
 	{
-	  /* Add not used table to the total table list */
-	  if (!(cursor= (TABLE_LIST *) thd->memdup((char*) aux,
-						   sizeof(*aux))))
-	  {
-	    send_error(thd,0);
-	    return 1;
-	  }
-	  *new_table_list= cursor;
-	  cursor->table_list= aux; //to be able mark this table as shared
-	  new_table_list= &cursor->next;
-	  *new_table_list= 0;			// end result list
+	  send_error(thd,0);
+	  return 1;
 	}
-	else
-	  // Mark that it's used twice
-	  cursor->table_list->shared= aux->shared= 1;
+	*new_table_list= cursor;
+	cursor->table_list= aux;
+	new_table_list= &cursor->next;
+	*new_table_list= 0;			// end result list
 	aux->table_list= cursor;
       }
     }
   }
-end:
+
   if (slave_list_first)
   {
     *new_table_list= slave_list_first;
@@ -1508,11 +1492,17 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
 {
   if (ref_pointer_array)
     return 0;
+
+  /*
+    We have to create array in prepared statement memory if it is
+    prepared statement
+  */
+  Statement *stmt= thd->current_statement ? thd->current_statement : thd;
   return (ref_pointer_array= 
-	  (Item **)thd->alloc(sizeof(Item*) *
-			      (item_list.elements +
-			       select_n_having_items +
-			       order_group_num)* 5)) == 0;
+	  (Item **)stmt->alloc(sizeof(Item*) *
+			       (item_list.elements +
+				select_n_having_items +
+				order_group_num)* 5)) == 0;
 }
 
 
@@ -1574,7 +1564,7 @@ void st_select_lex_unit::print(String *str)
     if (sl != first_select())
     {
       str->append(" union ", 7);
-      if (union_option & UNION_ALL)
+      if (!union_distinct)
 	str->append("all ", 4);
     }
     if (sl->braces)
@@ -1615,8 +1605,9 @@ void st_select_lex::print_limit(THD *thd, String *str)
   if (!thd)
     thd= current_thd;
 
-  if (select_limit != thd->variables.select_limit ||
-      select_limit != HA_POS_ERROR ||
+  if ((select_limit != thd->variables.select_limit &&
+       this == &thd->lex->select_lex) ||
+      (select_limit != HA_POS_ERROR && this != &thd->lex->select_lex) ||
       offset_limit != 0L)
   {
     str->append(" limit ", 7);
@@ -1635,8 +1626,31 @@ void st_select_lex::print_limit(THD *thd, String *str)
 }
 
 /*
+  initialize limit counters
+
+  SYNOPSIS
+    st_select_lex_unit::set_limit()
+    values	- SELECT_LEX with initial values for counters
+    sl		- SELECT_LEX for options set
+*/
+void st_select_lex_unit::set_limit(SELECT_LEX *values,
+				   SELECT_LEX *sl)
+{
+  offset_limit_cnt= values->offset_limit;
+  select_limit_cnt= values->select_limit+values->offset_limit;
+  if (select_limit_cnt < values->select_limit)
+    select_limit_cnt= HA_POS_ERROR;		// no limit
+  if (select_limit_cnt == HA_POS_ERROR)
+    sl->options&= ~OPTION_FOUND_ROWS;
+}
+
+/*
   There are st_select_lex::add_table_to_list & 
-  st_select_lex::set_lock_for_tables in sql_parse.cc
+  st_select_lex::set_lock_for_tables are in sql_parse.cc
 
   st_select_lex::print is in sql_select.h
+
+  st_select_lex_unit::prepare, st_select_lex_unit::exec,
+  st_select_lex_unit::cleanup, st_select_lex_unit::reinit_exec_mechanism
+  are in sql_union.cc
 */

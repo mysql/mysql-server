@@ -32,38 +32,32 @@ public:
     SUM_BIT_FUNC, UDF_SUM_FUNC, GROUP_CONCAT_FUNC
   };
 
-  Item **args,*tmp_args[2];
+  Item **args, *tmp_args[2];
+  Item **args_copy;			/* copy of arguments for PS */
   uint arg_count;
   bool quick_group;			/* If incremental update of fields */
 
   void mark_as_sum_func();
-  Item_sum() : arg_count(0),quick_group(1) 
+  Item_sum() :args_copy(0), arg_count(0), quick_group(1) 
   {
     mark_as_sum_func();
   }
-  Item_sum(Item *a) :quick_group(1)
+  Item_sum(Item *a)
+    :args(tmp_args), args_copy(0), arg_count(1), quick_group(1)
   {
-    arg_count=1;
-    args=tmp_args;
     args[0]=a;
     mark_as_sum_func();
   }
-  Item_sum( Item *a, Item *b ) :quick_group(1)
+  Item_sum( Item *a, Item *b )
+    :args(tmp_args), args_copy(0),  arg_count(2), quick_group(1)
   {
-    arg_count=2;
-    args=tmp_args;
     args[0]=a; args[1]=b;
     mark_as_sum_func();
   }
   Item_sum(List<Item> &list);
   //Copy constructor, need to perform subselects with temporary tables
   Item_sum(THD *thd, Item_sum *item);
-  void cleanup()
-  {
-    Item_result_field::cleanup();
-    result_field=0;
-  }
-
+  void cleanup();
   enum Type type() const { return SUM_FUNC_ITEM; }
   virtual enum Sumfunctype sum_func () const=0;
   inline bool reset() { clear(); return add(); };
@@ -86,7 +80,7 @@ public:
   virtual void fix_length_and_dec() { maybe_null=1; null_value=1; }
   virtual const char *func_name() const { return "?"; }
   virtual Item *result_item(Field *field)
-  { return new Item_field(field);}
+    { return new Item_field(field);}
   table_map used_tables() const { return ~(table_map) 0; } /* Not used */
   bool const_item() const { return 0; }
   bool is_null() { return null_value; }
@@ -98,6 +92,8 @@ public:
   virtual bool setup(THD *thd) {return 0;}
   virtual void make_unique() {}
   Item *get_tmp_table_item(THD *thd);
+  bool save_args_for_prepared_statements(THD *);
+  bool save_args(Statement* stmt);
 
   bool walk (Item_processor processor, byte *argument);
 };
@@ -112,7 +108,8 @@ public:
   Item_sum_num(List<Item> &list) :Item_sum(list) {}
   Item_sum_num(THD *thd, Item_sum_num *item) :Item_sum(thd, item) {}
   bool fix_fields(THD *, TABLE_LIST *, Item **);
-  longlong val_int() { return (longlong) val(); } /* Real as default */
+  longlong val_int()
+    { DBUG_ASSERT(fixed == 1); return (longlong) val(); } /* Real as default */
   String *val_str(String*str);
   void reset_field();
 };
@@ -124,7 +121,7 @@ public:
   Item_sum_int(Item *item_par) :Item_sum_num(item_par) {}
   Item_sum_int(List<Item> &list) :Item_sum_num(list) {}
   Item_sum_int(THD *thd, Item_sum_int *item) :Item_sum_num(thd, item) {}
-  double val() { return (double) val_int(); }
+  double val() { DBUG_ASSERT(fixed == 1); return (double) val_int(); }
   String *val_str(String*str);
   enum Item_result result_type () const { return INT_RESULT; }
   void fix_length_and_dec()
@@ -220,7 +217,6 @@ class Item_sum_count_distinct :public Item_sum_int
 {
   TABLE *table;
   table_map used_table_cache;
-  bool fix_fields(THD *thd, TABLE_LIST *tables, Item **ref);
   uint32 *field_lengths;
   TMP_TABLE_PARAM *tmp_table_param;
   TREE tree_base;
@@ -234,18 +230,24 @@ class Item_sum_count_distinct :public Item_sum_int
   uint key_length;
   CHARSET_INFO *key_charset;
   
-  // calculated based on max_heap_table_size. If reached,
-  // walk the tree and dump it into MyISAM table
+  /*
+    Calculated based on max_heap_table_size. If reached,
+    walk the tree and dump it into MyISAM table
+  */
   uint max_elements_in_tree;
 
-  // the first few bytes of record ( at least one)
-  // are just markers for deleted and NULLs. We want to skip them since
-  // they will just bloat the tree without providing any valuable info
+  /*
+    The first few bytes of record ( at least one)
+    are just markers for deleted and NULLs. We want to skip them since
+    they will just bloat the tree without providing any valuable info
+  */
   int rec_offset;
 
-  // If there are no blobs, we can use a tree, which
-  // is faster than heap table. In that case, we still use the table
-  // to help get things set up, but we insert nothing in it
+  /*
+    If there are no blobs, we can use a tree, which
+    is faster than heap table. In that case, we still use the table
+    to help get things set up, but we insert nothing in it
+  */
   bool use_tree;
   bool always_null;		// Set to 1 if the result is always NULL
 
@@ -266,7 +268,8 @@ class Item_sum_count_distinct :public Item_sum_int
   Item_sum_count_distinct(THD *thd, Item_sum_count_distinct *item)
     :Item_sum_int(thd, item), table(item->table),
      used_table_cache(item->used_table_cache),
-     field_lengths(item->field_lengths), tmp_table_param(item->tmp_table_param),
+     field_lengths(item->field_lengths),
+     tmp_table_param(item->tmp_table_param),
      tree(item->tree), original(item), key_length(item->key_length),
      max_elements_in_tree(item->max_elements_in_tree),
      rec_offset(item->rec_offset), use_tree(item->use_tree),
@@ -301,7 +304,7 @@ public:
   Item_avg_field(Item_sum_avg *item);
   enum Type type() const { return FIELD_AVG_ITEM; }
   double val();
-  longlong val_int() { return (longlong) val(); }
+  longlong val_int() { /* can't be fix_fields()ed */ return (longlong) val(); }
   bool is_null() { (void) val_int(); return null_value; }
   String *val_str(String*);
   enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE; }
@@ -317,7 +320,7 @@ class Item_sum_avg :public Item_sum_num
   ulonglong count;
 
   public:
-  Item_sum_avg(Item *item_par) :Item_sum_num(item_par),count(0) {}
+  Item_sum_avg(Item *item_par) :Item_sum_num(item_par), sum(0.0), count(0) {}
   Item_sum_avg(THD *thd, Item_sum_avg *item)
     :Item_sum_num(thd, item), sum(item->sum), count(item->count) {}
   enum Sumfunctype sum_func () const {return AVG_FUNC;}
@@ -341,25 +344,24 @@ public:
   Item_variance_field(Item_sum_variance *item);
   enum Type type() const {return FIELD_VARIANCE_ITEM; }
   double val();
-  longlong val_int() { return (longlong) val(); }
+  longlong val_int() { /* can't be fix_fields()ed */ return (longlong) val(); }
   String *val_str(String*);
   bool is_null() { (void) val_int(); return null_value; }
   enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE; }
   void fix_length_and_dec() {}
 };
 
+
 /*
+  variance(a) =
 
-variance(a) =
-
-= sum (ai - avg(a))^2 / count(a) )
-=  sum (ai^2 - 2*ai*avg(a) + avg(a)^2) / count(a)
-=  (sum(ai^2) - sum(2*ai*avg(a)) + sum(avg(a)^2))/count(a) = 
-=  (sum(ai^2) - 2*avg(a)*sum(a) + count(a)*avg(a)^2)/count(a) = 
-=  (sum(ai^2) - 2*sum(a)*sum(a)/count(a) + count(a)*sum(a)^2/count(a)^2 )/count(a) = 
-=  (sum(ai^2) - 2*sum(a)^2/count(a) + sum(a)^2/count(a) )/count(a) = 
-=  (sum(ai^2) - sum(a)^2/count(a))/count(a)
-
+  =  sum (ai - avg(a))^2 / count(a) )
+  =  sum (ai^2 - 2*ai*avg(a) + avg(a)^2) / count(a)
+  =  (sum(ai^2) - sum(2*ai*avg(a)) + sum(avg(a)^2))/count(a) = 
+  =  (sum(ai^2) - 2*avg(a)*sum(a) + count(a)*avg(a)^2)/count(a) = 
+  =  (sum(ai^2) - 2*sum(a)*sum(a)/count(a) + count(a)*sum(a)^2/count(a)^2 )/count(a) = 
+  =  (sum(ai^2) - 2*sum(a)^2/count(a) + sum(a)^2/count(a) )/count(a) = 
+  =  (sum(ai^2) - sum(a)^2/count(a))/count(a)
 */
 
 class Item_sum_variance : public Item_sum_num
@@ -545,8 +547,9 @@ class Item_sum_xor :public Item_sum_bit
 
 
 /*
-**	user defined aggregates
+  User defined aggregates
 */
+
 #ifdef HAVE_DLOPEN
 
 class Item_udf_sum : public Item_sum
@@ -564,6 +567,7 @@ public:
   const char *func_name() const { return udf.name(); }
   bool fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   {
+    DBUG_ASSERT(fixed == 0);
     fixed= 1;
     return udf.fix_fields(thd,tables,this,this->arg_count,this->args);
   }
@@ -585,7 +589,8 @@ class Item_sum_udf_float :public Item_udf_sum
     :Item_udf_sum(udf_arg,list) {}
   Item_sum_udf_float(THD *thd, Item_sum_udf_float *item)
     :Item_udf_sum(thd, item) {}
-  longlong val_int() { return (longlong) Item_sum_udf_float::val(); }
+  longlong val_int()
+    { DBUG_ASSERT(fixed == 1); return (longlong) Item_sum_udf_float::val(); }
   double val();
   String *val_str(String*str);
   void fix_length_and_dec() { fix_num_length_and_dec(); }
@@ -602,7 +607,8 @@ public:
   Item_sum_udf_int(THD *thd, Item_sum_udf_int *item)
     :Item_udf_sum(thd, item) {}
   longlong val_int();
-  double val() { return (double) Item_sum_udf_int::val_int(); }
+  double val()
+    { DBUG_ASSERT(fixed == 1); return (double) Item_sum_udf_int::val_int(); }
   String *val_str(String*str);
   enum Item_result result_type () const { return INT_RESULT; }
   void fix_length_and_dec() { decimals=0; max_length=21; }
@@ -647,7 +653,7 @@ class Item_sum_udf_float :public Item_sum_num
   Item_sum_udf_float(THD *thd, Item_sum_udf_float *item)
     :Item_sum_num(thd, item) {}
   enum Sumfunctype sum_func () const { return UDF_SUM_FUNC; }
-  double val() { return 0.0; }
+  double val() { DBUG_ASSERT(fixed == 1); return 0.0; }
   void clear() {}
   bool add() { return 0; }  
   void update_field() {}
@@ -662,8 +668,8 @@ public:
   Item_sum_udf_int(THD *thd, Item_sum_udf_int *item)
     :Item_sum_num(thd, item) {}
   enum Sumfunctype sum_func () const { return UDF_SUM_FUNC; }
-  longlong val_int() { return 0; }
-  double val() { return 0; }
+  longlong val_int() { DBUG_ASSERT(fixed == 1); return 0; }
+  double val() { DBUG_ASSERT(fixed == 1); return 0; }
   void clear() {}
   bool add() { return 0; }  
   void update_field() {}
@@ -677,9 +683,10 @@ public:
   Item_sum_udf_str(udf_func *udf_arg, List<Item> &list)  :Item_sum_num() {}
   Item_sum_udf_str(THD *thd, Item_sum_udf_str *item)
     :Item_sum_num(thd, item) {}
-  String *val_str(String *) { null_value=1; return 0; }
-  double val() { null_value=1; return 0.0; }
-  longlong val_int() { null_value=1; return 0; }
+  String *val_str(String *)
+    { DBUG_ASSERT(fixed == 1); null_value=1; return 0; }
+  double val() { DBUG_ASSERT(fixed == 1); null_value=1; return 0.0; }
+  longlong val_int() { DBUG_ASSERT(fixed == 1); null_value=1; return 0; }
   enum Item_result result_type () const { return STRING_RESULT; }
   void fix_length_and_dec() { maybe_null=1; max_length=0; }
   enum Sumfunctype sum_func () const { return UDF_SUM_FUNC; }
@@ -700,7 +707,6 @@ class Item_func_group_concat : public Item_sum
   MYSQL_ERROR *warning;
   bool warning_available;
   uint key_length;
-  int rec_offset;
   bool tree_mode;
   bool distinct;
   bool warning_for_row;
@@ -708,12 +714,13 @@ class Item_func_group_concat : public Item_sum
 
   friend int group_concat_key_cmp_with_distinct(void* arg, byte* key1,
 					      byte* key2);
-  friend int group_concat_key_cmp_with_order(void* arg, byte* key1, byte* key2);
+  friend int group_concat_key_cmp_with_order(void* arg, byte* key1,
+					     byte* key2);
   friend int group_concat_key_cmp_with_distinct_and_order(void* arg,
 							byte* key1,
 							byte* key2);
   friend int dump_leaf_key(byte* key, uint32 count __attribute__((unused)),
-                  Item_func_group_concat *group_concat_item);
+			   Item_func_group_concat *group_concat_item);
 
  public:
   String result;
@@ -727,7 +734,7 @@ class Item_func_group_concat : public Item_sum
   uint show_elements;
   uint arg_count_order;
   uint arg_count_field;
-  uint arg_show_fields;
+  uint field_list_offset;
   uint count_cut_values;
   /*
     Following is 0 normal object and pointer to original one for copy 
@@ -738,38 +745,12 @@ class Item_func_group_concat : public Item_sum
   Item_func_group_concat(bool is_distinct,List<Item> *is_select,
                          SQL_LIST *is_order,String *is_separator);
 			 
-  Item_func_group_concat(THD *thd, Item_func_group_concat *item)
-    :Item_sum(thd, item),item_thd(thd),
-     tmp_table_param(item->tmp_table_param),
-     max_elements_in_tree(item->max_elements_in_tree),
-     warning(item->warning),
-     warning_available(item->warning_available),
-     key_length(item->key_length), 
-     rec_offset(item->rec_offset), 
-     tree_mode(item->tree_mode),
-     distinct(item->distinct),
-     warning_for_row(item->warning_for_row),
-     separator(item->separator),
-     tree(item->tree),
-     table(item->table),
-     order(item->order),
-     tables_list(item->tables_list),
-     group_concat_max_len(item->group_concat_max_len),
-     show_elements(item->show_elements),
-     arg_count_order(item->arg_count_order),
-     arg_count_field(item->arg_count_field),
-     arg_show_fields(item->arg_show_fields),
-     count_cut_values(item->count_cut_values),
-     original(item)
-    {
-     quick_group= item->quick_group;
-    };
+  Item_func_group_concat(THD *thd, Item_func_group_concat *item);
   ~Item_func_group_concat();
   void cleanup();
 
   enum Sumfunctype sum_func () const {return GROUP_CONCAT_FUNC;}
   const char *func_name() const { return "group_concat"; }
-  enum Type type() const { return SUM_FUNC_ITEM; }  
   virtual Item_result result_type () const { return STRING_RESULT; }
   void clear();
   bool add();
@@ -781,7 +762,7 @@ class Item_func_group_concat : public Item_sum
   double val()
   {
     String *res;  res=val_str(&str_value);
-    return res ? atof(res->c_ptr()) : 0.0;
+    return res ? my_atof(res->c_ptr()) : 0.0;
   }
   longlong val_int()
   {

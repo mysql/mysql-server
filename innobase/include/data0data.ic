@@ -406,3 +406,28 @@ data_write_sql_null(
 		data[j] = '\0';
 	}
 }
+
+/**************************************************************************
+Checks if a dtuple contains an SQL null value. */
+UNIV_INLINE
+ibool
+dtuple_contains_null(
+/*=================*/
+				/* out: TRUE if some field is SQL null */
+	dtuple_t*	tuple)	/* in: dtuple */
+{
+	ulint	n;
+	ulint	i;
+
+	n = dtuple_get_n_fields(tuple);
+
+	for (i = 0; i < n; i++) {
+		if (dfield_get_len(dtuple_get_nth_field(tuple, i))
+		    == UNIV_SQL_NULL) {
+
+			return(TRUE);
+		}
+	}
+
+	return(FALSE);
+}

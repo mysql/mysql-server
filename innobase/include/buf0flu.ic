@@ -40,8 +40,10 @@ buf_flush_note_modification(
 	ut_ad(block);
 	ut_ad(block->state == BUF_BLOCK_FILE_PAGE);
 	ut_ad(block->buf_fix_count > 0);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_EX));
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	ut_ad(ut_dulint_cmp(mtr->start_lsn, ut_dulint_zero) != 0);
 	ut_ad(mtr->modifications);
@@ -76,7 +78,9 @@ buf_flush_recv_note_modification(
 	ut_ad(block);
 	ut_ad(block->state == BUF_BLOCK_FILE_PAGE);
 	ut_ad(block->buf_fix_count > 0);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 
 	mutex_enter(&(buf_pool->mutex));
 	

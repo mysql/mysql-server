@@ -101,8 +101,12 @@ sub main
     unlink("$destdir/PUBLIC", "$destdir/README");
     copy("$WD/Docs/MySQLEULA.txt", "$destdir");
     
-    # remove readline subdir
-    `rm -rf $destdir/cmd-line-utils/readline`;
+    # remove readline subdir and update configure accordingly
+    system("rm -rf $destdir/cmd-line-utils/readline");
+		unlink ("$destdir/configure") or die "Can't delete $destdir/configure: $!\n";
+		`(cd $destdir ; sed -e 's!\ cmd-line-utils\/readline\/Makefile\ dnl!!g' < configure.in > configure.in.new)`;
+		rename ("$destdir/configure.in.new","$destdir/configure.in") or die "Can't rename $destdir/configure.in.new: $!\n";;
+		`(cd $destdir ; autoconf)`;
 
     # fix file copyrights
     &fix_usage_copyright();

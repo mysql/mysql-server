@@ -57,47 +57,45 @@ int mi_rnext(MI_INFO *info, byte *buf, int inx)
   }
   else
   {
-    switch(info->s->keyinfo[inx].key_alg)
-    {
-      case HA_KEY_ALG_RTREE:
+    switch (info->s->keyinfo[inx].key_alg) {
+    case HA_KEY_ALG_RTREE:
       /*
-         Note that rtree doesn't support that the table
-         may be changed since last call, so we do need
-         to skip rows inserted by other threads like in btree
+	Note that rtree doesn't support that the table
+	may be changed since last call, so we do need
+	to skip rows inserted by other threads like in btree
       */
-        error=rtree_get_next(info,inx,info->lastkey_length);
-        break;
+      error= rtree_get_next(info,inx,info->lastkey_length);
+      break;
 
-      case HA_KEY_ALG_BTREE:
-      default:
-        if (!changed)
-        {
-          error=_mi_search_next(info,info->s->keyinfo+inx,info->lastkey,
-			  info->lastkey_length,flag,
-			  info->s->state.key_root[inx]);
-        }
-        else
-        {
-          error=_mi_search(info,info->s->keyinfo+inx,info->lastkey,
-		     USE_WHOLE_KEY,flag, info->s->state.key_root[inx]);
-        }
-        if (!error && info->s->concurrent_insert)
-        {
-          while (info->lastpos >= info->state->data_file_length)
-          {
-          /* Skip rows that are inserted by other threads since we got a lock */
-            if  ((error=_mi_search_next(info,info->s->keyinfo+inx,info->lastkey,
-                                        info->lastkey_length,
-                                        SEARCH_BIGGER,
-                                        info->s->state.key_root[inx])))
-	    break;
-          }
-        }
+    case HA_KEY_ALG_BTREE:
+    default:
+      if (!changed)
+	error= _mi_search_next(info,info->s->keyinfo+inx,info->lastkey,
+			       info->lastkey_length,flag,
+			       info->s->state.key_root[inx]);
+      else
+	error= _mi_search(info,info->s->keyinfo+inx,info->lastkey,
+			  USE_WHOLE_KEY,flag, info->s->state.key_root[inx]);
     }
   }
 
   if (info->s->concurrent_insert)
+  {
+    if (!error)
+    {
+      while (info->lastpos >= info->state->data_file_length)
+      {
+	/* Skip rows inserted by other threads since we got a lock */
+	if  ((error=_mi_search_next(info,info->s->keyinfo+inx,
+				    info->lastkey,
+				    info->lastkey_length,
+				    SEARCH_BIGGER,
+				    info->s->state.key_root[inx])))
+	  break;
+      }
+    }
     rw_unlock(&info->s->key_root_lock[inx]);
+  }
 	/* Don't clear if database-changed */
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   info->update|= HA_STATE_NEXT_FOUND;

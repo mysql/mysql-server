@@ -20,10 +20,20 @@
 struct st_table;
 class Field;
 
-typedef struct lex_string {
+typedef struct st_lex_string
+{
   char *str;
   uint length;
 } LEX_STRING;
+
+typedef struct st_lex_string_with_init :public st_lex_string
+{
+  st_lex_string_with_init(const char *str_arg, uint length_arg)
+  {
+    str= (char*) str_arg;
+    length= length_arg;
+  }
+} LEX_STRING_WITH_INIT;
 
 
 typedef struct st_date_time_format {
@@ -210,7 +220,7 @@ typedef struct  user_conn {
 #define REG_NEW_RECORD		2	/* Write a new record if not found */
 #define REG_UPDATE		4	/* Uppdate record */
 #define REG_DELETE		8	/* Delete found record */
-#define REG_PROG		16	/* User is updateing database */
+#define REG_PROG		16	/* User is updating database */
 #define REG_CLEAR_AFTER_WRITE	32
 #define REG_MAY_BE_UPDATED	64
 #define REG_AUTO_UPDATE		64	/* Used in D-forms for scroll-tables */

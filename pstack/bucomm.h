@@ -50,6 +50,12 @@ void *alloca ();
 # endif /* HAVE_ALLOCA_H */
 #endif
 
+#ifndef BFD_TRUE_FALSE
+#define boolean bfd_boolean
+#define true TRUE
+#define false FALSE
+#endif
+
 /* bucomm.c */
 void bfd_nonfatal PARAMS ((CONST char *));
 

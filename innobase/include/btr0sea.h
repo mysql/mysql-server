@@ -49,21 +49,6 @@ btr_search_info_update(
 	dict_index_t*	index,	/* in: index of the cursor */
 	btr_cur_t*	cursor);/* in: cursor which was just positioned */
 /**********************************************************************
-Tries to guess the right search position based on the search pattern info
-of the index. */
-
-ibool
-btr_search_guess_on_pattern(
-/*========================*/
-					/* out: TRUE if succeeded */	
-	dict_index_t*	index,		/* in: index */
-	btr_search_t*	info,		/* in: index search info */
-	dtuple_t*	tuple,		/* in: logical record */
-	ulint		mode,		/* in: PAGE_CUR_L, ... */
-	ulint		latch_mode, 	/* in: BTR_SEARCH_LEAF, ... */
-	btr_cur_t*	cursor, 	/* out: tree cursor */
-	mtr_t*		mtr);		/* in: mtr */
-/**********************************************************************
 Tries to guess the right search position based on the hash search info
 of the index. Note that if mode is PAGE_CUR_LE, which is used in inserts,
 and the function returns TRUE, then cursor->up_match and cursor->low_match
@@ -139,26 +124,6 @@ btr_search_update_hash_on_delete(
 	btr_cur_t*	cursor);/* in: cursor which was positioned on the
 				record to delete using btr_cur_search_...,
 				the record is not yet deleted */
-/************************************************************************
-Prints info of the search system. */
-
-void
-btr_search_print_info(void);
-/*=======================*/
-/************************************************************************
-Prints info of searches on an index. */
-
-void
-btr_search_index_print_info(
-/*========================*/
-	dict_index_t*	index);	/* in: index */
-/************************************************************************
-Prints info of searches on a table. */
-
-void
-btr_search_table_print_info(
-/*========================*/
-	char*	name);	/* in: table name */
 /************************************************************************
 Validates the search system. */
 
@@ -249,7 +214,9 @@ extern rw_lock_t*	btr_search_latch_temp;
 
 #define btr_search_latch	(*btr_search_latch_temp)
 
+#ifdef UNIV_SEARCH_PERF_STAT
 extern ulint	btr_search_n_succ;
+#endif /* UNIV_SEARCH_PERF_STAT */
 extern ulint	btr_search_n_hash_fail;
 
 /* After change in n_fields or n_bytes in info, this many rounds are waited

@@ -442,14 +442,6 @@ lock_rec_hash(
 	ulint	space,	/* in: space */
 	ulint	page_no);/* in: page number */
 /*************************************************************************
-Gets the mutex protecting record locks on a given page address. */
-
-mutex_t*
-lock_rec_get_mutex_for_addr(
-/*========================*/
-	ulint	space,	/* in: space id */
-	ulint	page_no);/* in: page number */
-/*************************************************************************
 Checks that a transaction id is sensible, i.e., not in the future. */
 
 ibool

@@ -38,9 +38,22 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
     HA_CREATE_INFO create_info;
     bzero(&create_info, sizeof(create_info));
     if (!create(name, table, &create_info))
+    {
       file= heap_open(name, mode);
+      implicit_emptied= 1;
+    }
   }
   ref_length= sizeof(HEAP_PTR);
+  if (file)
+  {
+    /* Initialize variables for the opened table */
+    btree_keys.clear_all();
+    for (uint i= 0 ; i < table->keys ; i++)
+    {
+      if (table->key_info[i].algorithm == HA_KEY_ALG_BTREE)
+	btree_keys.set_bit(i);
+    }
+  }
   return (file ? 0 : 1);
 }
 
@@ -52,8 +65,8 @@ int ha_heap::close(void)
 int ha_heap::write_row(byte * buf)
 {
   statistic_increment(ha_write_count,&LOCK_status);
-  if (table->time_stamp)
-    update_timestamp(buf+table->time_stamp-1);
+  if (table->timestamp_default_now)
+    update_timestamp(buf+table->timestamp_default_now-1);
   if (table->next_number_field && buf == table->record[0])
     update_auto_increment();
   return heap_write(file,buf);
@@ -62,8 +75,8 @@ int ha_heap::write_row(byte * buf)
 int ha_heap::update_row(const byte * old_data, byte * new_data)
 {
   statistic_increment(ha_update_count,&LOCK_status);
-  if (table->time_stamp)
-    update_timestamp(new_data+table->time_stamp-1);
+  if (table->timestamp_on_update_now)
+    update_timestamp(new_data+table->timestamp_on_update_now-1);
   return heap_update(file,old_data,new_data);
 }
 

@@ -35,7 +35,7 @@
 
   But !!! do_command calls free_root at the end of every query and frees up
   all the sql_alloc'ed memory. It's harder to work around...
- */
+*/
 
 #define HANDLER_TABLES_HACK(thd) {      \
   TABLE *tmp=thd->open_tables;          \
@@ -207,11 +207,13 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
 			MYF(0),keyinfo->key_parts);
 	goto err;
       }
-      List_iterator_fast<Item> it_ke(*key_expr);
+      List_iterator<Item> it_ke(*key_expr);
       Item *item;
       for (key_len=0 ; (item=it_ke++) ; key_part++)
       {
-	if (item->fix_fields(thd, tables, &item))
+	// 'item' can be changed by fix_fields() call
+	if (item->fix_fields(thd, tables, it_ke.ref()) ||
+	    (item= *it_ke.ref())->check_cols(1))
 	  goto err;
 	if (item->used_tables() & ~RAND_TABLE_BIT)
         {
@@ -287,14 +289,13 @@ static TABLE **find_table_ptr_by_name(THD *thd, const char *db,
   int dblen;
   TABLE **ptr;
 
-  if (!db || ! *db)
-    db= thd->db ? thd->db : "";
-  dblen=strlen(db)+1;
+  DBUG_ASSERT(db);
+  dblen= strlen(db);
   ptr= &(thd->handler_tables);
 
   for (TABLE *table= *ptr; table ; table= *ptr)
   {
-    if (!memcmp(table->table_cache_key, db, dblen) &&
+    if ((db == any_db || !memcmp(table->table_cache_key, db, dblen)) &&
         !my_strcasecmp(system_charset_info,
 		       (is_alias ? table->table_name : table->real_name),
 		       table_name))

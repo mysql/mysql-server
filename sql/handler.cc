@@ -120,34 +120,21 @@ const char *ha_get_storage_engine(enum db_type db_type)
 
 enum db_type ha_checktype(enum db_type database_type)
 {
+  show_table_type_st *types;
+  for (types= sys_table_types; types->type; types++)
+  {
+    if ((database_type == types->db_type) && 
+	(*types->value == SHOW_OPTION_YES))
+      return database_type;
+  }
+
   switch (database_type) {
-#ifdef HAVE_BERKELEY_DB
-  case DB_TYPE_BERKELEY_DB:
-    if (berkeley_skip) break;
-    return (database_type);
-#endif
-#ifdef HAVE_INNOBASE_DB
-  case DB_TYPE_INNODB:
-    if (innodb_skip) break;
-    return (database_type);
-#endif
 #ifndef NO_HASH
   case DB_TYPE_HASH:
-#endif
-#ifdef HAVE_ISAM
-  case DB_TYPE_ISAM:
-    if (isam_skip) break;
     return (database_type);
-  case DB_TYPE_MRG_ISAM:
-    return (isam_skip ? DB_TYPE_MRG_MYISAM : database_type);
-#else
+#endif
   case DB_TYPE_MRG_ISAM:
     return (DB_TYPE_MRG_MYISAM);
-#endif
-  case DB_TYPE_HEAP:
-  case DB_TYPE_MYISAM:
-  case DB_TYPE_MRG_MYISAM:
-    return (database_type);			/* Database exists on system */
   default:
     break;
   }
@@ -165,7 +152,8 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
 {
   switch (db_type) {
 #ifndef NO_HASH
-  return new ha_hash(table);
+  case DB_TYPE_HASH:
+    return new ha_hash(table);
 #endif
 #ifdef HAVE_ISAM
   case DB_TYPE_MRG_ISAM:
@@ -203,30 +191,32 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
 
 int ha_init()
 {
+  int error= 0;
 #ifdef HAVE_BERKELEY_DB
-  if (!berkeley_skip)
+  if (have_berkeley_db == SHOW_OPTION_YES)
   {
-    int error;
-    if ((error=berkeley_init()))
-      return error;
-    if (!berkeley_skip)				// If we couldn't use handler
-      opt_using_transactions=1;
+    if (berkeley_init())
+    {
+      have_berkeley_db= SHOW_OPTION_DISABLED;	// If we couldn't use handler
+      error= 1;
+    }
     else
-      have_berkeley_db=SHOW_OPTION_DISABLED;
+      opt_using_transactions=1;
   }
 #endif
 #ifdef HAVE_INNOBASE_DB
-  if (!innodb_skip)
+  if (have_innodb == SHOW_OPTION_YES)
   {
     if (innobase_init())
-      return -1;
-    if (!innodb_skip)				// If we couldn't use handler
-      opt_using_transactions=1;
+    {
+      have_innodb= SHOW_OPTION_DISABLED;	// If we couldn't use handler
+      error= 1;
+    }
     else
-      have_innodb=SHOW_OPTION_DISABLED;
+      opt_using_transactions=1;
   }
 #endif
-  return 0;
+  return error;
 }
 
 	/* close, flush or restart databases */
@@ -246,11 +236,11 @@ int ha_panic(enum ha_panic_function flag)
   error|=mi_panic(flag);
   error|=myrg_panic(flag);
 #ifdef HAVE_BERKELEY_DB
-  if (!berkeley_skip)
+  if (have_berkeley_db == SHOW_OPTION_YES)
     error|=berkeley_end();
 #endif
 #ifdef HAVE_INNOBASE_DB
-  if (!innodb_skip)
+  if (have_innodb == SHOW_OPTION_YES)
     error|=innobase_end();
 #endif
   return error;
@@ -259,7 +249,7 @@ int ha_panic(enum ha_panic_function flag)
 void ha_drop_database(char* path)
 {
 #ifdef HAVE_INNOBASE_DB
-  if (!innodb_skip)
+  if (have_innodb == SHOW_OPTION_YES)
     innobase_drop_database(path);
 #endif
 }
@@ -267,7 +257,7 @@ void ha_drop_database(char* path)
 void ha_close_connection(THD* thd)
 {
 #ifdef HAVE_INNOBASE_DB
-  if (!innodb_skip)
+  if (have_innodb == SHOW_OPTION_YES)
     innobase_close_connection(thd);
 #endif
 }
@@ -415,6 +405,16 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
 	my_b_tell(&thd->transaction.trans_log))
     {
       mysql_bin_log.write(thd, &thd->transaction.trans_log, 1);
+      statistic_increment(binlog_cache_use, &LOCK_status);
+      if (thd->transaction.trans_log.disk_writes != 0)
+      {
+        /* 
+          We have to do this after addition of trans_log to main binlog since
+          this operation can cause flushing of end of trans_log to disk. 
+        */
+        statistic_increment(binlog_cache_disk_use, &LOCK_status);
+        thd->transaction.trans_log.disk_writes= 0;
+      }
       reinit_io_cache(&thd->transaction.trans_log,
 		      WRITE_CACHE, (my_off_t) 0, 0, 1);
       thd->transaction.trans_log.end_of_file= max_binlog_cache_size;
@@ -496,17 +496,29 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
       operation_done=1;
     }
 #endif
-    if (trans == &thd->transaction.all)
+    if ((trans == &thd->transaction.all) && mysql_bin_log.is_open())
     {
       /* 
          Update the binary log with a BEGIN/ROLLBACK block if we have cached some
          queries and we updated some non-transactional table. Such cases should
          be rare (updating a non-transactional table inside a transaction...).
+         Count disk writes to trans_log in any case.
       */
-      if (unlikely((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) &&
-                   mysql_bin_log.is_open() &&
-                   my_b_tell(&thd->transaction.trans_log)))
-        mysql_bin_log.write(thd, &thd->transaction.trans_log, 0);
+      if (my_b_tell(&thd->transaction.trans_log))
+      {
+        if (unlikely(thd->options & OPTION_STATUS_NO_TRANS_UPDATE))
+          mysql_bin_log.write(thd, &thd->transaction.trans_log, 0);
+        statistic_increment(binlog_cache_use, &LOCK_status);
+        if (thd->transaction.trans_log.disk_writes != 0)
+        {
+          /* 
+            We have to do this after addition of trans_log to main binlog since
+            this operation can cause flushing of end of trans_log to disk. 
+          */
+          statistic_increment(binlog_cache_disk_use, &LOCK_status);
+          thd->transaction.trans_log.disk_writes= 0;
+        }
+      }
       /* Flushed or not, empty the binlog cache */
       reinit_io_cache(&thd->transaction.trans_log,
                       WRITE_CACHE, (my_off_t) 0, 0, 1);
@@ -569,7 +581,7 @@ int ha_rollback_to_savepoint(THD *thd, char *savepoint_name)
       my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), error);
       error=1;
     }
-    else
+    else if (mysql_bin_log.is_open())
     {
       /* 
          Write ROLLBACK TO SAVEPOINT to the binlog cache if we have updated some
@@ -577,7 +589,6 @@ int ha_rollback_to_savepoint(THD *thd, char *savepoint_name)
          from the SAVEPOINT command.
       */
       if (unlikely((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) &&
-                   mysql_bin_log.is_open() &&
                    my_b_tell(&thd->transaction.trans_log)))
       {
         Query_log_event qinfo(thd, thd->query, thd->query_length, TRUE);
@@ -606,23 +617,26 @@ Return value: always 0, that is, succeeds always
 
 int ha_savepoint(THD *thd, char *savepoint_name)
 {
-  my_off_t binlog_cache_pos=0;
   int error=0;
   DBUG_ENTER("ha_savepoint");
 #ifdef USING_TRANSACTIONS
   if (opt_using_transactions)
   {
-    binlog_cache_pos=my_b_tell(&thd->transaction.trans_log);
-#ifdef HAVE_INNOBASE_DB
-    innobase_savepoint(thd,savepoint_name, binlog_cache_pos);
-#endif
-    /* Write it to the binary log (see comments of ha_rollback_to_savepoint). */
+    /* Write it to the binary log (see comments of ha_rollback_to_savepoint) */
     if (mysql_bin_log.is_open())
     {
+#ifdef HAVE_INNOBASE_DB
+      innobase_savepoint(thd,savepoint_name,
+                         my_b_tell(&thd->transaction.trans_log));
+#endif
       Query_log_event qinfo(thd, thd->query, thd->query_length, TRUE);
       if (mysql_bin_log.write(&qinfo))
 	error= 1;
     }
+#ifdef HAVE_INNOBASE_DB
+    else
+      innobase_savepoint(thd,savepoint_name,0);
+#endif
   }
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
@@ -632,11 +646,13 @@ bool ha_flush_logs()
 {
   bool result=0;
 #ifdef HAVE_BERKELEY_DB
-  if (!berkeley_skip && berkeley_flush_logs())
+  if ((have_berkeley_db == SHOW_OPTION_YES) && 
+      berkeley_flush_logs())
     result=1;
 #endif
 #ifdef HAVE_INNOBASE_DB
-  if (!innodb_skip && innobase_flush_logs())
+  if ((have_innodb == SHOW_OPTION_YES) && 
+      innobase_flush_logs())
     result=1;
 #endif
   return result;
@@ -649,13 +665,22 @@ bool ha_flush_logs()
 
 int ha_delete_table(enum db_type table_type, const char *path)
 {
+  char tmp_path[FN_REFLEN];
   handler *file=get_new_handler((TABLE*) 0, table_type);
   if (!file)
     return ENOENT;
+  if (lower_case_table_names == 2 && !(file->table_flags() & HA_FILE_BASED))
+  {
+    /* Ensure that table handler get path in lower case */
+    strmov(tmp_path, path);
+    my_casedn_str(system_charset_info, tmp_path);
+    path= tmp_path;
+  }
   int error=file->delete_table(path);
   delete file;
   return error;
 }
+
 
 void ha_store_ptr(byte *buff, uint pack_length, my_off_t pos)
 {
@@ -877,11 +902,11 @@ void handler::update_auto_increment()
       table->auto_increment_field_not_null &&
       current_thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO)
   {
-    table->auto_increment_field_not_null= false;
+    table->auto_increment_field_not_null= FALSE;
     auto_increment_column_changed=0;
     DBUG_VOID_RETURN;
   }
-  table->auto_increment_field_not_null= false;
+  table->auto_increment_field_not_null= FALSE;
   thd=current_thd;
   if ((nr=thd->next_insert_id))
     thd->next_insert_id=0;			// Clear after use
@@ -1136,6 +1161,7 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
 {
   int error;
   TABLE table;
+  char name_buff[FN_REFLEN];
   DBUG_ENTER("ha_create_table");
 
   if (openfrm(name,"",0,(uint) READ_ALL, 0, &table))
@@ -1146,19 +1172,19 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
     if (table.file->table_flags() & HA_DROP_BEFORE_CREATE)
       table.file->delete_table(name);		// Needed for BDB tables
   }
+  if (lower_case_table_names == 2 &&
+      !(table.file->table_flags() & HA_FILE_BASED))
+  {
+    /* Ensure that handler gets name in lower case */
+    strmov(name_buff, name);
+    my_casedn_str(system_charset_info, name_buff);
+    name= name_buff;
+  }
+
   error=table.file->create(name,&table,create_info);
   VOID(closefrm(&table));
   if (error)
-  {
-    if (table.db_type == DB_TYPE_INNODB)
-    {
-      /* Creation of InnoDB table cannot fail because of an OS error:
-	 put error as the number */
-      my_error(ER_CANT_CREATE_TABLE,MYF(ME_BELL+ME_WAITTANG),name,error);
-    }
-    else
-      my_error(ER_CANT_CREATE_TABLE,MYF(ME_BELL+ME_WAITTANG),name,my_errno);
-  }
+    my_error(ER_CANT_CREATE_TABLE,MYF(ME_BELL+ME_WAITTANG),name,error);
   DBUG_RETURN(error != 0);
 }
 

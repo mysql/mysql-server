@@ -98,7 +98,7 @@ drop database mysqltest;
 # Test changing data dir (Bug #1662)
 #
 
-create table t1 (a int not null) type=myisam;
+create table t1 (a int not null) engine=myisam;
 disable_query_log;
 eval alter table t1 data directory="$MYSQL_TEST_DIR/var/tmp";
 enable_query_log;

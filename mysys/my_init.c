@@ -19,10 +19,6 @@
 #include "mysys_err.h"
 #include <m_string.h>
 #include <m_ctype.h>
-#ifdef HAVE_GETRUSAGE
-#include <sys/resource.h>
-/* extern int     getrusage(int, struct rusage *); */
-#endif
 #include <signal.h>
 #ifdef VMS
 #include <my_static.c>
@@ -242,8 +238,13 @@ static void my_win_init(void)
 
   setlocale(LC_CTYPE, "");             /* To get right sortorder */
 
-  /* Clear the OS system variable TZ and avoid the 100% CPU usage */
+#if defined(_MSC_VER) && (_MSC_VER < 1300)
+  /* 
+    Clear the OS system variable TZ and avoid the 100% CPU usage
+    Only for old versions of Visual C++
+  */
   _putenv( "TZ=" ); 
+#endif  
   _tzset();
 
   /* apre la chiave HKEY_LOCAL_MACHINES\software\MySQL */

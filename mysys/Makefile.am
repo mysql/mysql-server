@@ -25,8 +25,8 @@ noinst_HEADERS =	mysys_priv.h my_static.h \
 			my_os2cond.c my_os2dirsrch.c my_os2dirsrch.h \
 			my_os2dlfcn.c my_os2file64.c my_os2mutex.c \
 			my_os2thread.c my_os2tls.c
-libmysys_a_SOURCES =	my_init.c my_getwd.c mf_getdate.c\
-			mf_path.c mf_loadpath.c\
+libmysys_a_SOURCES =	my_init.c my_getwd.c mf_getdate.c \
+			mf_path.c mf_loadpath.c my_file.c \
 			my_open.c my_create.c my_dup.c my_seek.c my_read.c \
 			my_pread.c my_write.c \
 			mf_keycache.c mf_keycaches.c my_crc32.c \
@@ -34,12 +34,12 @@ libmysys_a_SOURCES =	my_init.c my_getwd.c mf_getdate.c\
 			mf_tempdir.c my_lock.c mf_brkhant.c my_alarm.c \
 			my_malloc.c my_realloc.c my_once.c mulalloc.c \
 			my_alloc.c safemalloc.c my_new.cc \
-			my_fopen.c my_fstream.c \
+			my_fopen.c my_fstream.c my_getsystime.c \
 			my_error.c errors.c my_div.c my_messnc.c \
 			mf_format.c mf_same.c mf_dirname.c mf_fn_ext.c \
 			my_symlink.c my_symlink2.c \
 			mf_pack.c mf_unixpath.c mf_strip.c \
-			mf_wcomp.c mf_wfile.c \
+			mf_wcomp.c mf_wfile.c my_gethwaddr.c \
 			mf_qsort.c mf_qsort2.c mf_sort.c \
 			ptr_cmp.c mf_radix.c queues.c \
 			tree.c list.c hash.c array.c string.c typelib.c \
@@ -109,6 +109,11 @@ charset2html$(EXEEXT): charset2html.c $(LIBRARIES)
 
 testhash$(EXEEXT): testhash.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN $(srcdir)/testhash.c $(LDADD) $(LIBS)
+
+test_gethwaddr$(EXEEXT): my_gethwaddr.c $(LIBRARIES)
+	$(CP) $(srcdir)/my_gethwaddr.c ./test_gethwaddr.c
+	$(LINK) $(FLAGS) -DMAIN  ./test_gethwaddr.c $(LDADD) $(LIBS)
+	$(RM) -f ./test_gethwaddr.c
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

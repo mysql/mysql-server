@@ -407,7 +407,7 @@ if ($dbh->do("create table crash_q (a integer, b integer,c1 CHAR(10))") &&
 		 ["with constraint and restrict/cascade",
 		  "alter table crash_q drop constraint u1 restrict"],
 		 ["with drop key",
-		  "alter table crash_q drop key c1"]);
+		  "alter table crash_q drop key u1"]);
   try_and_report("Alter table add primary key",'alter_add_primary_key',
 		 ["with constraint",
 		  "alter table crash_q1 add constraint p1 primary key(c1)"],

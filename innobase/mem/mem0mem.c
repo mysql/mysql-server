@@ -294,13 +294,13 @@ mem_heap_block_free(
 	init_block = block->init_block;
 	block->magic_n = MEM_FREED_BLOCK_MAGIC_N;
 	
-	#ifdef UNIV_MEM_DEBUG
+#ifdef UNIV_MEM_DEBUG
 	/* In the debug version we set the memory to a random combination
 	of hex 0xDE and 0xAD. */
 
 	mem_erase_buf((byte*)block, len);
 
-	#endif
+#endif
 
 	if (init_block) {
 		/* Do not have to free: do nothing */

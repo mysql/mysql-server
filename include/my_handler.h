@@ -58,7 +58,7 @@ typedef struct st_HA_KEYSEG		/* Key-portion */
 }
 
 extern int mi_compare_text(CHARSET_INFO *, uchar *, uint, uchar *, uint ,
-			   my_bool);
+			   my_bool, my_bool);
 extern int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
 		      register uchar *b, uint key_length, uint nextflag,
 		      uint *diff_pos);

@@ -14,6 +14,7 @@ insert into t1 values ("Alas");
 flush logs;
 
 --- Local --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
 use test;
 SET TIMESTAMP=1000000000;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
@@ -26,13 +27,14 @@ insert into t1 values ("abirvalg");
 SET INSERT_ID=1;
 SET TIMESTAMP=1000000000;
 insert into t2 values ();
-LOAD DATA LOCAL INFILE 'MYSQL_TEST_DIR/var/tmp/words.dat-1-0' INTO TABLE t1  FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' STARTING BY '' (word);
-LOAD DATA LOCAL INFILE 'MYSQL_TEST_DIR/var/tmp/words.dat-2-0' INTO TABLE t1  FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' STARTING BY '' (word);
-LOAD DATA LOCAL INFILE 'MYSQL_TEST_DIR/var/tmp/words.dat-3-0' INTO TABLE t1  FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' STARTING BY '' (word);
-LOAD DATA LOCAL INFILE 'MYSQL_TEST_DIR/var/tmp/words.dat-4-0' INTO TABLE t1  FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' STARTING BY '' (word);
-LOAD DATA LOCAL INFILE 'MYSQL_TEST_DIR/var/tmp/words.dat-5-0' INTO TABLE t1  FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' STARTING BY '' (word);
+LOAD DATA LOCAL INFILE 'MYSQL_TEST_DIR/var/tmp/words.dat-1-0' INTO TABLE `t1` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' STARTING BY '' (word);
+LOAD DATA LOCAL INFILE 'MYSQL_TEST_DIR/var/tmp/words.dat-2-0' INTO TABLE `t1` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' STARTING BY '' (word);
+LOAD DATA LOCAL INFILE 'MYSQL_TEST_DIR/var/tmp/words.dat-3-0' INTO TABLE `t1` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' STARTING BY '' (word);
+LOAD DATA LOCAL INFILE 'MYSQL_TEST_DIR/var/tmp/words.dat-4-0' INTO TABLE `t1` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' STARTING BY '' (word);
+LOAD DATA LOCAL INFILE 'MYSQL_TEST_DIR/var/tmp/words.dat-5-0' INTO TABLE `t1` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' STARTING BY '' (word);
 
 --- Broken LOAD DATA --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
 use test;
 SET TIMESTAMP=1000000000;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
@@ -40,9 +42,11 @@ SET @@session.sql_mode=0;
 insert into t1 values ("Alas");
 
 --- --database --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
 SET INSERT_ID=1;
 
 --- --position --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
 use test;
 SET TIMESTAMP=1000000000;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
@@ -50,6 +54,7 @@ SET @@session.sql_mode=0;
 insert into t1 values ("Alas");
 
 --- Remote --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
 use test;
 SET TIMESTAMP=1000000000;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
@@ -62,10 +67,14 @@ insert into t1 values ("abirvalg");
 SET INSERT_ID=1;
 SET TIMESTAMP=1000000000;
 insert into t2 values ();
-SET TIMESTAMP=1000000000;
-insert into t1 values ("Alas");
+LOAD DATA LOCAL INFILE 'MYSQL_TEST_DIR/var/tmp/words.dat-1-1' INTO TABLE `t1` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' STARTING BY '' (word);
+LOAD DATA LOCAL INFILE 'MYSQL_TEST_DIR/var/tmp/words.dat-2-1' INTO TABLE `t1` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' STARTING BY '' (word);
+LOAD DATA LOCAL INFILE 'MYSQL_TEST_DIR/var/tmp/words.dat-3-1' INTO TABLE `t1` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' STARTING BY '' (word);
+LOAD DATA LOCAL INFILE 'MYSQL_TEST_DIR/var/tmp/words.dat-4-1' INTO TABLE `t1` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' STARTING BY '' (word);
+LOAD DATA LOCAL INFILE 'MYSQL_TEST_DIR/var/tmp/words.dat-5-1' INTO TABLE `t1` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' STARTING BY '' (word);
 
 --- Broken LOAD DATA --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
 use test;
 SET TIMESTAMP=1000000000;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
@@ -73,22 +82,11 @@ SET @@session.sql_mode=0;
 insert into t1 values ("Alas");
 
 --- --database --
-use test;
-SET TIMESTAMP=1000000000;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
-SET @@session.sql_mode=0;
-create table t1 (word varchar(20));
-SET TIMESTAMP=1000000000;
-create table t2 (id int auto_increment not null primary key);
-SET TIMESTAMP=1000000000;
-insert into t1 values ("abirvalg");
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
 SET INSERT_ID=1;
-SET TIMESTAMP=1000000000;
-insert into t2 values ();
-SET TIMESTAMP=1000000000;
-insert into t1 values ("Alas");
 
 --- --position --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
 use test;
 SET TIMESTAMP=1000000000;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
