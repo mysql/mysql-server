@@ -8134,8 +8134,8 @@ void Dblqh::scanTupkeyConfLab(Signal* signal)
   ndbrequire(scanptr.p->m_curr_batch_size_rows < MAX_PARALLEL_OP_PER_SCAN);
   scanptr.p->m_curr_batch_size_bytes+= tdata4;
   scanptr.p->m_curr_batch_size_rows++;
-  scanptr.p->m_last_row = conf->lastRow;
-  if (scanptr.p->check_scan_batch_completed() | conf->lastRow){
+  scanptr.p->m_last_row = tdata5;
+  if (scanptr.p->check_scan_batch_completed() | tdata5){
     if (scanptr.p->scanLockHold == ZTRUE) {
       jam();
       scanptr.p->scanState = ScanRecord::WAIT_SCAN_NEXTREQ;
