@@ -411,5 +411,5 @@ Remark:         Handles the reception of the TCKEYREF signal.
 int
 NdbIndexOperation::receiveTCINDXREF( NdbApiSignal* aSignal)
 {
-  return NdbOperation::receiveTCKEYREF(aSignal);
+  return receiveTCKEYREF(aSignal);
 }//NdbIndexOperation::receiveTCINDXREF()

@@ -1640,7 +1640,7 @@ NdbIndexScanOperation::reset_bounds(bool forceSend){
 }
 
 int
-NdbIndexScanOperation::set_new_bound()
+NdbIndexScanOperation::end_of_bound()
 {
   Uint32 bound_head = * m_first_bound_word;
   bound_head |= (theTupKeyLen - m_this_bound_start) << 16;
