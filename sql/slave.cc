@@ -126,7 +126,12 @@ static void init_strvar_from_file(char* var, int max_size, FILE* f,
 
   if(fgets(var, max_size, f)) 
     {
-       *(strend(var)-1) = 0;
+      char* last_p = strend(var) - 1;
+      if(*last_p == '\n') *last_p = 0; // if we stopped on newline, kill it
+      else
+	while( (fgetc(f) != '\n' && !feof(f)));
+      // if we truncated a line or stopped on last char, remove all chars
+      // up to and including newline
     }
   else if(default_val)
    strmake(var,  default_val, max_size);
@@ -302,11 +307,11 @@ int init_master_info(MASTER_INFO* mi)
       mi->file = file;
       
       if(master_host)
-        strmake(mi->host, master_host, sizeof(mi->host));
+        strmake(mi->host, master_host, sizeof(mi->host) - 1);
       if(master_user)
-        strmake(mi->user, master_user, sizeof(mi->user));
+        strmake(mi->user, master_user, sizeof(mi->user) - 1);
       if(master_password)
-        strmake(mi->password, master_password, sizeof(mi->password));
+        strmake(mi->password, master_password, sizeof(mi->password) - 1);
       mi->port = master_port;
       mi->connect_retry = master_connect_retry;
       
@@ -635,6 +640,8 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       }
       thd->db = 0;// prevent db from being freed
       thd->query = 0; // just to be sure
+      thd->convert_set = 0; // assume no convert for next query
+      // unless set explictly
       close_thread_tables(thd);
       free_root(&thd->mem_root,0);
       if (thd->query_error)
@@ -801,8 +808,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	break;
 		
       }
-      mi->inc_pos(event_len);
-      flush_master_info(mi);
+      mi->inc_pending(event_len);
       break;
     }
     }

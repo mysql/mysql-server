@@ -45,7 +45,7 @@ typedef struct st_log_info
 typedef struct st_master_info
 {
   char log_file_name[FN_REFLEN];
-  ulonglong pos;
+  ulonglong pos,pending;
   FILE* file; // we keep the file open, so we need to remember the file pointer
 
   // the variables below are needed because we can change masters on the fly
@@ -57,11 +57,18 @@ typedef struct st_master_info
   pthread_mutex_t lock;
   bool inited;
 
-  st_master_info():inited(0) { host[0] = 0; user[0] = 0; password[0] = 0;}
+  st_master_info():inited(0),pending(0)
+  { host[0] = 0; user[0] = 0; password[0] = 0;}
+  
+  inline void inc_pending(ulonglong val)
+  {
+    pending += val;
+  }
   inline void inc_pos(ulonglong val)
   {
     pthread_mutex_lock(&lock);
-    pos += val;
+    pos += val + pending;
+    pending = 0;
     pthread_mutex_unlock(&lock);
   }
   // thread safe read of position - not needed if we are in the slave thread,
