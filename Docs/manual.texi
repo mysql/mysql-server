@@ -5438,7 +5438,7 @@ Generally speaking, you should use the binary distribution.
 You will need the following:
 @itemize @bullet
 @item
-A 32 bits Windows Operational System such as 9x, Me, NT, 2000 or XP.
+A 32 bits Windows Operating System such as 9x, Me, NT, 2000 or XP.
 The NT family (NT, Windows 2000 and XP) permits running the MySQL server
 as a service. @xref{NT start}.
 
@@ -9131,7 +9131,7 @@ MySQL Windows distribution. @xref{Windows installation}.
 
 
 @node Win95 start, NT start, Windows, Windows
-@subsubsection Starting MySQL on Windows 95, Windows 98 or Windows Me
+@subsubsection Starting MySQL on Windows 95, 98 or Me
 
 MySQL uses TCP/IP to connect a client to a server. (This will
 allow any machine on your network to connect to your MySQL
@@ -23354,8 +23354,8 @@ directory location depends on your installation.
 tar -cvf /tmp/mysql-snapshot.tar /path/to/data-dir
 @end example
 
-Windows users can use WinZip or similar software to create an archive of
-the data directory.
+Windows users can use @code{WinZIP} or similar software to create an
+archive of the data directory.
 
 @item
 In @code{my.cnf} on the master add @code{log-bin} and
@@ -40182,9 +40182,9 @@ an @strong{ODBC} manager.  @strong{MyODBC} is known to work with
 most of the Unix ODBC managers.  @xref{Portals}.
 
 To install @strong{MyODBC} on Windows, you should download the
-appropriate @strong{MyODBC} .zip file,
-unpack it with @code{WINZIP} or some similar program,
-and execute the @code{SETUP.EXE} file.
+appropriate @strong{MyODBC} @file{.zip} file,
+unpack it with @code{WinZIP} or some similar program,
+and execute the @file{SETUP.EXE} file.
 
 On Windows/NT/XP you may get the following error when trying to install
 @strong{MyODBC}:
@@ -40542,7 +40542,7 @@ will appear in the ODBC datasources drop-down list, you must build and
 copy the @strong{MyODBC} driver to
 @file{/opt/coldfusion/lib/libmyodbc.so}.
 
-The Contrib directory contains the program mydsn-xxx.zip which allows
+The Contrib directory contains the program @file{mydsn-xxx.zip} which allows
 you to build and remove the DSN registry file for the MyODBC driver
 on Coldfusion applications.
 
