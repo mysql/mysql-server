@@ -1412,7 +1412,7 @@ contributing to the development of @strong{MySQL}.
 @end multitable
 Foreword by Michael ``Monty'' Widenius, @strong{MySQL} Moderator.@*
 
-@image{Books/dubois} In @emph{MySQL}, Paul DuBois provides you with a comprehensive guide to
+In @emph{MySQL}, Paul DuBois provides you with a comprehensive guide to
 one of the most popular relational database systems. Paul has
 contributed to the online documentation for @strong{MySQL} and is an
 active member of the @strong{MySQL} community. The principal @strong{MySQL}
@@ -1469,7 +1469,7 @@ and PHP's @strong{MySQL}-related functions
 @item Price	@tab		$34.95
 @end multitable
 
-@image{Books/msql} This book teaches you how to use @strong{MySQL} and @code{mSQL}, two popular
+This book teaches you how to use @strong{MySQL} and @code{mSQL}, two popular
 and robust database products that support key subsets of SQL on both Linux
 and Unix systems. Anyone who knows basic C, Java, Perl, or Python can
 write a program to interact with a database, either as a stand-alone
@@ -1490,7 +1490,7 @@ material.
 @item Price     @tab            $39.99
 @end multitable
 
-@image{Books/in_21} Sams Teach Yourself @strong{MySQL} in 21 Days is for
+Sams Teach Yourself @strong{MySQL} in 21 Days is for
 intermediate Linux users who want to move into databases.  A large share of
 the audience is Web developers who need a database to store large amounts of
 information that can be retrieved via the Web.
@@ -1559,7 +1559,7 @@ No description available.
 @item Price     @tab            $47.99
 @end multitable
 
-@image{Books/prof} In this follow-up to the best-selling Beginning Linux Programming, you
+In this follow-up to the best-selling Beginning Linux Programming, you
 will learn from the authors' real-world knowledge and experience of
 developing software for Linux; you'll be taken through the development
 of a sample 'DVD Store' application, with 'theme' chapters addressing
@@ -1607,7 +1607,7 @@ advanced topics regarding table manipulation.
 @item Price     @tab            $55.96
 @end multitable
 
-@image{Books/sql-99} This book contains complete descriptions of the new standards for
+This book contains complete descriptions of the new standards for
 syntax, data structures, and retrieval processes of SQL databases. As
 an example-based reference manual, it includes all of the CLI
 functions, information, schema tables, and status codes, as well as a
@@ -1625,7 +1625,7 @@ working SQL database provided on the companion disk.
 @item Price     @tab            $35.99
 @end multitable
 
-@image{Books/manual} A new and improved revision of the bestselling C language
+A new and improved revision of the bestselling C language
 reference. This manual introduces the notion of "Clean C, " writing C
 code that can be compiled as a C++ program, C programming style that
 emphasizes correctness, portability, and maintainability. and
@@ -1644,7 +1644,7 @@ facilities for writing portable, international programs in C.
 @item Price     @tab            $39.95
 @end multitable
 
-@image{Books/realmen} C++ For Real Programmers bridges the gap between C++ as described in
+C++ For Real Programmers bridges the gap between C++ as described in
 beginner and intermediate-level books and C++ as it is practiced by
 experts. Numerous valuable techniques are described, organized into
 three simple themes: indirection, class hierarchies, and memory
@@ -1667,7 +1667,7 @@ for Windows with source code.
 @item Price     @tab            $45.75
 @end multitable
 
-@image{Books/algor} Algorithms in C describes a variety of algorithms in a number of areas
+Algorithms in C describes a variety of algorithms in a number of areas
 of interest, including: sorting, searching, string-processing, and
 geometric, graph and mathematical algorithms. The book emphasizes
 fundamental techniques, providing readers with the tools to
@@ -1685,7 +1685,7 @@ confidently implement, run, and debug useful algorithms.
 @item Price     @tab            $34.95
 @end multitable
 
-@image{Books/pthreads} Based on the best-selling Threads Primer, Multithreaded Programming
+Based on the best-selling Threads Primer, Multithreaded Programming
 with Pthreads gives you a solid understanding of Posix threads: what
 they are, how they work, when to use them, and how to optimize
 them. It retains the clarity and humor of the Primer, but includes
@@ -1705,7 +1705,7 @@ detailed explanations of how and why they use threads.
 @item Price     @tab            $27.96
 @end multitable
 
-@image{Books/dbi} Programming the Perl DBI is coauthored by Alligator Descartes, one of
+Programming the Perl DBI is coauthored by Alligator Descartes, one of
 the most active members of the DBI community, and by Tim Bunce, the
 inventor of DBI. For the uninitiated, the book explains the
 architecture of DBI and shows you how to write DBI-based programs. For
