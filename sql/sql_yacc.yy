@@ -867,9 +867,14 @@ opt_create_table_options:
 	/* empty */
 	| create_table_options;
 
+create_table_options_space_separated:
+	create_table_option
+	| create_table_option create_table_options_space_separated;
+
 create_table_options:
 	create_table_option
-	| create_table_option create_table_options;
+	| create_table_option     create_table_options;
+	| create_table_option ',' create_table_options;
 
 o_eq:
 	/* empty */
@@ -1380,7 +1385,7 @@ alter_list_item:
 	    lex->select->db=$3->db.str;
 	    lex->name= $3->table.str;
 	  }
-        | create_table_options { Lex->simple_alter=0; }
+        | create_table_options_space_separated { Lex->simple_alter=0; }
 	| order_clause         { Lex->simple_alter=0; };
 
 opt_column:
