@@ -411,6 +411,9 @@ btr_search_update_hash_ref(
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_SHARED)
 				|| rw_lock_own(&(block->lock), RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
+	ut_ad(buf_block_align(btr_cur_get_rec(cursor)) == block);
+	ut_a(!block->is_hashed || block->index == cursor->index);
+
 	if (block->is_hashed
 	    && (info->n_hash_potential > 0)
 	    && (block->curr_n_fields == info->n_fields)
@@ -436,8 +439,8 @@ btr_search_update_hash_ref(
 
 		ha_insert_for_fold(btr_search_sys->hash_index, fold, rec);
 	}
-}
-
+}	
+	
 /*************************************************************************
 Updates the search info. */
 
@@ -923,6 +926,19 @@ btr_search_drop_page_hash_index(
 {
 	hash_table_t*	table;
 	buf_block_t*	block;
+	ulint		n_fields;
+	ulint		n_bytes;
+	rec_t*		rec;
+	rec_t*		sup;
+	ulint		fold;
+	ulint		prev_fold;
+	dulint		tree_id;
+	ulint		n_cached;
+	ulint		n_recs;
+	ulint*		folds;
+	ulint		i;
+	mem_heap_t*	heap;
+	ulint*		offsets;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
@@ -948,17 +964,79 @@ btr_search_drop_page_hash_index(
 	      			|| (block->buf_fix_count == 0));
 #endif /* UNIV_SYNC_DEBUG */
 
-	ut_a(block->curr_n_fields + block->curr_n_bytes > 0);
+	n_fields = block->curr_n_fields;
+	n_bytes = block->curr_n_bytes;
+
+	ut_a(n_fields + n_bytes > 0);
 
 	rw_lock_s_unlock(&btr_search_latch);
 	
+	n_recs = page_get_n_recs(page);
+
+	/* Calculate and cache fold values into an array for fast deletion
+	from the hash index */
+
+	folds = mem_alloc(n_recs * sizeof(ulint));
+
+	n_cached = 0;
+
+	sup = page_get_supremum_rec(page);
+
+	rec = page_get_infimum_rec(page);
+	rec = page_rec_get_next(rec);
+
+	if (rec != sup) {
+		ut_a(n_fields <= rec_get_n_fields(rec, block->index));
+
+		if (n_bytes > 0) {
+			ut_a(n_fields < rec_get_n_fields(rec, block->index));
+		}
+	}
+
+	tree_id = btr_page_get_index_id(page);
+	
+	prev_fold = 0;
+
+	heap = mem_heap_create(100);
+	offsets = NULL;
+
+	while (rec != sup) {
+		/* FIXME: in a mixed tree, not all records may have enough
+		ordering fields: */
+		offsets = rec_reget_offsets(rec, block->index,
+				offsets, n_fields + (n_bytes > 0), heap);
+		fold = rec_fold(rec, offsets, n_fields, n_bytes, tree_id);
+
+		if (fold == prev_fold && prev_fold != 0) {
+
+			goto next_rec;
+		}
+
+		/* Remove all hash nodes pointing to this page from the
+		hash chain */
+
+		folds[n_cached] = fold;
+		n_cached++;
+next_rec:
+		rec = page_rec_get_next(rec);
+		prev_fold = fold;
+	}
+
+	mem_heap_free(heap);
+
 	rw_lock_x_lock(&btr_search_latch);
 
-	ha_remove_all_nodes_to_page(table, page);
+	for (i = 0; i < n_cached; i++) {
+
+		ha_remove_all_nodes_to_page(table, folds[i], page);
+	}
 
 	block->is_hashed = FALSE;
+	block->index = NULL;
 
 	rw_lock_x_unlock(&btr_search_latch);
+
+	mem_free(folds);
 }
 
 /************************************************************************
@@ -1170,6 +1248,7 @@ btr_search_build_page_hash_index(
 	block->curr_n_fields = n_fields;
 	block->curr_n_bytes = n_bytes;
 	block->curr_side = side;
+	block->index = index;
 
 	for (i = 0; i < n_cached; i++) {
 	
@@ -1215,6 +1294,8 @@ btr_search_move_or_delete_hash_entries(
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_EX));
 	ut_ad(rw_lock_own(&(new_block->lock), RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
+	ut_a(!new_block->is_hashed || new_block->index == index);
+	ut_a(!block->is_hashed || block->index == index);
 
 	rw_lock_s_lock(&btr_search_latch);
 			
@@ -1284,6 +1365,7 @@ btr_search_update_hash_on_delete(
 		return;
 	}
 
+	ut_a(block->index == cursor->index);
 	ut_a(block->curr_n_fields + block->curr_n_bytes > 0);
 
 	table = btr_search_sys->hash_index;
@@ -1328,6 +1410,8 @@ btr_search_update_hash_node_on_insert(
 
 		return;
 	}
+
+	ut_a(block->index == cursor->index);
 
 	rw_lock_x_lock(&btr_search_latch);
 
@@ -1393,6 +1477,8 @@ btr_search_update_hash_on_insert(
 
 		return;
 	}
+
+	ut_a(block->index == cursor->index);
 
 	tree_id = ((cursor->index)->tree)->id;
 
@@ -1499,10 +1585,9 @@ function_exit:
 Validates the search system. */
 
 ibool
-btr_search_validate(
-/*================*/
+btr_search_validate(void)
+/*=====================*/
 				/* out: TRUE if ok */
-	dict_index_t*	index)	/* in: record descriptor */
 {
 	buf_block_t*	block;
 	page_t*		page;
@@ -1521,8 +1606,9 @@ btr_search_validate(
 		while (node != NULL) {
 			block = buf_block_align(node->data);
 			page = buf_frame_align(node->data);
-			offsets = rec_reget_offsets((rec_t*) node->data, index,
-					offsets, block->curr_n_fields
+			offsets = rec_reget_offsets((rec_t*) node->data,
+					block->index, offsets,
+					block->curr_n_fields
 					+ (block->curr_n_bytes > 0), heap);
 
 			if (!block->is_hashed
