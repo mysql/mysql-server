@@ -33,13 +33,13 @@
 static char from_buff[100],to_buff[100];
 static my_string from,to;
 static int errors,tests;
-static int test_strarg(char *name,...);
+static int test_strarg(const char *name,...);
 static void init_strings (void);	/* Init from and to */
-void test_arg (my_string message,long func_value,long value);
-int compare_buff (my_string message,my_string b1,my_string b2,int length,
+void test_arg (const char *message,long func_value,long value);
+int compare_buff(const char *message,my_string b1,my_string b2,int length,
 		  pchar fill, pchar prefill);
 
-int my_test(int a)
+static int my_test(int a)
 {
   return a ? 1 : 0;
 }
@@ -116,6 +116,14 @@ int main(void)
   test_strarg("strxmov(to,from,\"!!\",NullS)",strxmov(to,from,"!!",NullS),to+F_LEN+2,F_LEN,F_CHAR,2,'!',0,0,0);
   test_strarg("strxmov(to,NullS)",strxmov(to,NullS),to,1,0,0,0);
   test_strarg("strxmov(to,from,from,from,from,from,'!!',from,NullS)",strxmov(to,from,from,from,from,from,"!!",from,NullS),to+F_LEN*6+2,F_LEN,F_CHAR,F_LEN,F_CHAR,F_LEN,F_CHAR,F_LEN,F_CHAR,F_LEN,F_CHAR,2,'!',F_LEN,F_CHAR,1,0,0,0);
+
+  test_strarg("strxnmov(to,100,from,\"!!\",NullS)",strxnmov(to,100,from,"!!",NullS),to+F_LEN+2,F_LEN,F_CHAR,2,'!',0,0,0);
+  test_strarg("strxnmov(to,2,NullS)",strxnmov(to,2,NullS),to,1,0,0,0);
+  test_strarg("strxnmov(to,100,from,from,from,from,from,'!!',from,NullS)",strxnmov(to,100,from,from,from,from,from,"!!",from,NullS),to+F_LEN*6+2,F_LEN,F_CHAR,F_LEN,F_CHAR,F_LEN,F_CHAR,F_LEN,F_CHAR,F_LEN,F_CHAR,2,'!',F_LEN,F_CHAR,1,0,0,0);
+  test_strarg("strxnmov(to,2,\"!!!\",NullS)",strxnmov(to,2,"!!!",NullS),to+2,2,'!',0,0,0);
+  test_strarg("strxnmov(to,2,\"!!\",NullS)",strxnmov(to,2,"!!","xx",NullS),to+2,2,'!',0,0,0);
+  test_strarg("strxnmov(to,2,\"!\",\"x\",\"y\",NullS)",strxnmov(to,2,"!","x","y",NullS),to+2,1,'!',1,'x',0,0,0);
+
   test_strarg("bchange(to,2,from,4,6)",(bchange(to,2,from,4,6),0L),INT_MAX32,
 	      4,F_CHAR,2,T_CHAR,0,0);
 
@@ -156,7 +164,7 @@ void init_strings(void)
 
 	/* Test that function return rigth value */
 
-void test_arg(my_string message, long int func_value, long int value)
+void test_arg(const char *message, long int func_value, long int value)
 {
   tests++;
   printf("testing '%s'\n",message);
@@ -169,7 +177,7 @@ void test_arg(my_string message, long int func_value, long int value)
 
 	/* Test function return value and from and to arrays */
 
-static int test_strarg(char *message,...)
+static int test_strarg(const char *message,...)
 {
   long func_value,value;
   int error,length;
@@ -223,7 +231,7 @@ static int test_strarg(char *message,...)
 
 	/* test if function made right value */
 
-int compare_buff(my_string message, my_string b1, my_string b2, int length,
+int compare_buff(const char *message, my_string b1, my_string b2, int length,
 		 pchar fill, pchar prefill)
 {
   int i,error=0;
@@ -255,6 +263,8 @@ int compare_buff(my_string message, my_string b1, my_string b2, int length,
 } /* compare_buff */
 
 	/* These are here to be loaded and examined */
+
+extern void dummy_functions(void);
 
 void dummy_functions(void)
 {

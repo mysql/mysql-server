@@ -265,14 +265,14 @@ public:
   pthread_t  real_id;
   uint	current_tablenr,tmp_table,cond_count,col_access,query_length;
   uint  server_status,open_options;
-  bool       slave_thread;
   char	     scramble[9];
+  bool       slave_thread;
   bool	     set_query_id,locked,count_cuted_fields,some_tables_deleted;
   bool	     no_errors, allow_sum_func, password, fatal_error;
   bool	     query_start_used,last_insert_id_used,insert_id_used;
-  bool	     volatile killed,bootstrap;
   bool	     system_thread,in_lock_tables,global_read_lock;
-  bool       query_error;
+  bool       query_error, bootstrap;
+  bool	     volatile killed;
   LOG_INFO*  current_linfo;
   // if we do a purge of binary logs, log index info of the threads
   // that are currently reading it needs to be adjusted. To do that

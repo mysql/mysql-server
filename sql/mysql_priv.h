@@ -231,6 +231,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list);
 bool mysql_change_db(THD *thd,const char *name);
 void mysql_parse(THD *thd,char *inBuf,uint length);
 void mysql_init_select(LEX *lex);
+void init_max_user_conn(void);
+void free_max_user_conn(void);
 pthread_handler_decl(handle_one_connection,arg);
 pthread_handler_decl(handle_bootstrap,arg);
 sig_handler end_thread_signal(int sig);
@@ -519,7 +521,7 @@ extern uint protocol_version,dropping_tables;
 extern ulong keybuff_size,sortbuff_size,max_item_sort_length,table_cache_size,
 	     max_join_size,join_buff_size,tmp_table_size,
 	     max_connections,max_connect_errors,long_query_time,
-	     max_insert_delayed_threads,
+	     max_insert_delayed_threads, max_user_connections,
 	     long_query_count,net_wait_timeout,net_interactive_timeout,
 	     net_read_timeout,net_write_timeout,
 	     what_to_log,flush_time,
