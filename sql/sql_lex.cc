@@ -1019,6 +1019,7 @@ void st_select_lex::init_query()
   prep_where= 0;
   explicit_limit= 0;
   first_execution= 1;
+  first_cond_optimization= 1;
 }
 
 void st_select_lex::init_select()
