@@ -72,19 +72,25 @@ ut_print_timestamp(
 #else
 
   struct tm  cal_tm;
+  struct tm* cal_tm_ptr;
   time_t     tm;
 
   time(&tm);
 
+#ifdef HAVE_LOCALTIME_R
   localtime_r(&tm, &cal_tm);
+  cal_tm_ptr = &cal_tm;
+#else
+  cal_tm_ptr = localtime(&tm);
+#endif
 
   fprintf(file,"%02d%02d%02d %2d:%02d:%02d",
-	  cal_tm.tm_year % 100,
-	  cal_tm.tm_mon+1,
-	  cal_tm.tm_mday,
-	  cal_tm.tm_hour,
-	  cal_tm.tm_min,
-	  cal_tm.tm_sec);
+	  cal_tm_ptr->tm_year % 100,
+	  cal_tm_ptr->tm_mon+1,
+	  cal_tm_ptr->tm_mday,
+	  cal_tm_ptr->tm_hour,
+	  cal_tm_ptr->tm_min,
+	  cal_tm_ptr->tm_sec);
 #endif
 }
 
