@@ -602,7 +602,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT64,
     3000 * 8192,
     128 * 8192,
-    192000 * 8192 },
+    ((Uint64)192000) * ((Uint64)8192) },
 
   {
     KEY_INTERNAL,
@@ -638,7 +638,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT64,
     10000 * 8192,
     128 * 8192,
-    400000 * 8192 },
+    ((Uint64)400000) * ((Uint64)8192) },
 
   {
     KEY_INTERNAL,
@@ -2446,6 +2446,8 @@ void ConfigInfo::print(const Properties * section,
     }
     ndbout << endl;
     break;
+  case ConfigInfo::SECTION:
+    break;
   }
 }
 
@@ -2643,6 +2645,8 @@ applyDefaultValues(InitConfigFileParser::Context & ctx,
 	  ctx.m_currentSection->put(name, val);
 	  break;
 	}
+	case ConfigInfo::SECTION:
+	  break;
 	}
       }
     }
