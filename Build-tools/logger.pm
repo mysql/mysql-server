@@ -5,7 +5,10 @@
 #
 sub logger
 {
-	my $message=$_[0];
+	my $message= $_[0];
+	my $cmnd= $_[1];
+
+	print $message . "\n" if !$opt_quiet && !$opt_verbose && !$cmnd;
 	print timestamp() . " " . $message . "\n" if $opt_verbose;
 	if (defined $opt_log && !$opt_dry_run)
 	{
@@ -30,9 +33,12 @@ sub run_command
 	}
 	else
 	{
-		&logger($command);
-		$command.= " >> $LOGFILE 2>&1" if defined $opt_log;
-		$command.= " > /dev/null" if (!$opt_verbose && !$opt_log);
+	        &logger($command, 1);
+
+		$command.= ';' unless ($command =~ m/^.*;$/);
+
+		$command =~ s/;/ >> $LOGFILE 2>&1;/g if defined $opt_log;
+		$command =~ s/;/ > \/dev\/null;/g if (!$opt_verbose && !$opt_log);
 		system($command) == 0 or &abort("$errormsg\n");
 	}
 }
@@ -47,6 +53,7 @@ sub abort
 {
 	my $message= $_[0];
 	my $messagefile;
+	my $subject= "Bootstrap of $REPO failed" if $opt_mail;
 	$message= "ERROR: " . $message;
 	&logger($message);
 

@@ -94,7 +94,7 @@ class ha_innobase: public handler
 	const char *index_type(uint key_number) { return "BTREE"; }
   	const char** bas_ext() const;
  	ulong table_flags() const { return int_table_flags; }
-	ulong index_flags(uint idx, uint part) const
+	ulong index_flags(uint idx, uint part, bool all_parts) const
 	{
 	  return (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_READ_RANGE |
                   HA_KEYREAD_ONLY);

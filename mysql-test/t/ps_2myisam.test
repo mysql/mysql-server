@@ -4,6 +4,10 @@
 #                                             #
 ###############################################
 
+#    
+# NOTE: PLEASE SEE ps_1general.test (bottom) 
+#       BEFORE ADDING NEW TEST CASES HERE !!!
+
 use test;
 
 let $type= 'MYISAM' ;
