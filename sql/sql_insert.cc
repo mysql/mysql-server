@@ -219,7 +219,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
     if (fields.elements || !value_count)
     {
       restore_record(table,2);			// Get empty record
-      if (fill_record(fields,*values) || check_null_fields(thd,table))
+      if (fill_record(fields, *values, 0) || check_null_fields(thd,table))
       {
 	if (values_list.elements != 1)
 	{
@@ -236,7 +236,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
 	restore_record(table,2);		// Get empty record
       else
 	table->record[0][0]=table->record[2][0]; // Fix delete marker
-      if (fill_record(table->field,*values))
+      if (fill_record(table->field, *values, 0))
       {
 	if (values_list.elements != 1)
 	{
@@ -1330,9 +1330,9 @@ bool select_insert::send_data(List<Item> &values)
     return 0;
   }
   if (fields->elements)
-    fill_record(*fields,values);
+    fill_record(*fields, values, 1);
   else
-    fill_record(table->field,values);
+    fill_record(table->field, values, 1);
   if (write_record(table,&info))
     return 1;
   if (table->next_number_field)		// Clear for next record
@@ -1444,7 +1444,7 @@ bool select_create::send_data(List<Item> &values)
     thd->offset_limit--;
     return 0;
   }
-  fill_record(field,values);
+  fill_record(field, values, 1);
   if (write_record(table,&info))
     return 1;
   if (table->next_number_field)		// Clear for next record

@@ -185,10 +185,12 @@ dict_foreign_free(
 /*==============*/
 	dict_foreign_t*	foreign);	/* in, own: foreign key struct */
 
-/* Buffer for storing detailed information about the latest foreig  key
-error */
+/* Buffers for storing detailed information about the latest foreign key
+and unique key errors */
 char*	dict_foreign_err_buf		= NULL;
-mutex_t	dict_foreign_err_mutex; 	/* mutex protecting the buffer */
+char*	dict_unique_err_buf		= NULL;
+mutex_t	dict_foreign_err_mutex; 	/* mutex protecting the foreign
+					and unique error buffers */
 	
 	
 /************************************************************************
@@ -582,6 +584,8 @@ dict_init(void)
 
 	dict_foreign_err_buf = mem_alloc(DICT_FOREIGN_ERR_BUF_LEN);
 	dict_foreign_err_buf[0] = '\0';
+	dict_unique_err_buf = mem_alloc(DICT_FOREIGN_ERR_BUF_LEN);
+	dict_unique_err_buf[0] = '\0';
 	mutex_create(&dict_foreign_err_mutex);
 	mutex_set_level(&dict_foreign_err_mutex, SYNC_ANY_LATCH);
 }

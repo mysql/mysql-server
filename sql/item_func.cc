@@ -1110,47 +1110,6 @@ longlong Item_func_find_in_set::val_int()
   return 0;
 }
 
-static char nbits[256] = {
-  0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
-  1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
-  1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
-  2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-  1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
-  2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-  2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-  3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
-  1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
-  2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-  2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-  3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
-  2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-  3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
-  3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
-  4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8,
-};
-
-uint count_bits(ulonglong v)
-{
-#if SIZEOF_LONG_LONG > 4
-  /* The following code is a bit faster on 16 bit machines than if we would
-     only shift v */
-  ulong v2=(ulong) (v >> 32);
-  return (uint) (uchar) (nbits[(uchar)  v] +
-                         nbits[(uchar) (v >> 8)] +
-                         nbits[(uchar) (v >> 16)] +
-                         nbits[(uchar) (v >> 24)] +
-                         nbits[(uchar) (v2)] +
-                         nbits[(uchar) (v2 >> 8)] +
-                         nbits[(uchar) (v2 >> 16)] +
-                         nbits[(uchar) (v2 >> 24)]);
-#else
-  return (uint) (uchar) (nbits[(uchar)  v] +
-                         nbits[(uchar) (v >> 8)] +
-                         nbits[(uchar) (v >> 16)] +
-                         nbits[(uchar) (v >> 24)]);
-#endif
-}
-
 longlong Item_func_bit_count::val_int()
 {
   ulonglong value= (ulonglong) args[0]->val_int();
@@ -1159,7 +1118,7 @@ longlong Item_func_bit_count::val_int()
     null_value=1; /* purecov: inspected */
     return 0; /* purecov: inspected */
   }
-  return (longlong) count_bits(value);
+  return (longlong) my_count_bits(value);
 }
 
 
@@ -2221,7 +2180,7 @@ bool Item_func_match::fix_fields(THD *thd,struct st_table_list *tlist)
     used_tables_cache|=item->used_tables();
   }
   /* check that all columns come from the same table */
-  if (count_bits(used_tables_cache) != 1)
+  if (my_count_bits(used_tables_cache) != 1)
     key=NO_SUCH_KEY;
   const_item_cache=0;
   table=((Item_field *)fields.head())->field->table;

@@ -118,7 +118,8 @@ then
     resolved=`$bindir/resolveip localhost 2>&1`
     if [ $? -eq 0 ]
     then
-      echo "Sorry, the host '$hostname' could not be looked up."
+      echo "Neither host '$hostname' and 'localhost' could not be looked up with"
+      echo "$bindir/resolveip"
       echo "Please configure the 'hostname' command to return a correct hostname."
       echo "If you want to solve this at a later stage, restart this script with"
       echo "the --force option"
@@ -134,15 +135,12 @@ then
 fi
 
 # Create database directories mysql & test
-if test "$IN_RPM" -eq 0
-then
   if test ! -d $ldata; then mkdir $ldata; chmod 700 $ldata ; fi
   if test ! -d $ldata/mysql; then mkdir $ldata/mysql;  chmod 700 $ldata/mysql ; fi
   if test ! -d $ldata/test; then mkdir $ldata/test;  chmod 700 $ldata/test ; fi
   if test -w / -a ! -z "$user"; then
     chown $user $ldata $ldata/mysql $ldata/test;
   fi
-fi
 
 # Initialize variables
 c_d="" i_d=""

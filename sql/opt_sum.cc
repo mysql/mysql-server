@@ -37,8 +37,10 @@ static bool find_range_key(TABLE_REF *ref, Field* field,COND *cond);
 
  RETURN VALUES
     0 No errors
-    1 if all items was resolved
-   -1 on impossible  conditions
+    1 if all items were resolved
+   -1 on impossible conditions
+    OR an error number from my_base.h HA_ERR_... if a deadlock or a lock
+       wait timeout happens, for example
 */
 
 int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
@@ -50,6 +52,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
   table_map where_tables= 0;
   Item *item;
   COND *org_conds= conds;
+  int error;
 
   if (conds)
     where_tables= conds->used_tables();
@@ -136,7 +139,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
 	    const_result=0;
 	    break;
 	  }
-	  bool error= table->file->index_init((uint) ref.key);
+	  error= table->file->index_init((uint) ref.key);
 	  enum ha_rkey_function find_flag= HA_READ_KEY_OR_NEXT; 
 	  uint prefix_len= ref.key_length;
 	  /*
@@ -150,12 +153,17 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
 	  }
 
 	  if (!ref.key_length)
-	    error=table->file->index_first(table->record[0]) !=0;
+	  {
+	    error=table->file->index_first(table->record[0]);
+	  }
 	  else
+	  {
 	    error=table->file->index_read(table->record[0],key_buff,
 					  ref.key_length,
-					  find_flag) ||
-	      key_cmp(table, key_buff, ref.key, prefix_len);
+					  find_flag);
+	    if (!error && key_cmp(table, key_buff, ref.key, prefix_len))
+	      error = HA_ERR_KEY_NOT_FOUND;
+	  }
 	  if (table->key_read)
 	  {
 	    table->key_read=0;
@@ -163,7 +171,14 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
 	  }
 	  table->file->index_end();
 	  if (error)
-	    return -1;				// No rows matching where
+          {
+	    if (error == HA_ERR_KEY_NOT_FOUND || error == HA_ERR_END_OF_FILE)
+	      return -1;		       // No rows matching WHERE
+
+	    table->file->print_error(error, MYF(0));
+            return(error);                     // HA_ERR_LOCK_DEADLOCK or
+					       // some other error
+	  }
 	  removed_tables|= table->map;
 	}
 	else if (!expr->const_item())		// This is VERY seldom false
@@ -191,27 +206,30 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
 	  ref.key_buff=key_buff;
 	  TABLE *table=((Item_field*) expr)->field->table;
 
+	  if ((table->file->table_flags() & HA_NOT_READ_AFTER_KEY))
+	  {
+	    const_result=0;
+	    break;
+	  }
 	  if ((outer_tables & table->map) ||
 	      !find_range_key(&ref, ((Item_field*) expr)->field,conds))
 	  {
 	    const_result=0;
 	    break;
 	  }
-	  if ((table->file->table_flags() & HA_NOT_READ_AFTER_KEY))
-	  {
-	    const_result=0;
-	    break;
-	  }
-	  bool error=table->file->index_init((uint) ref.key);
+	  error=table->file->index_init((uint) ref.key);
 
 	  if (!ref.key_length)
-	    error=table->file->index_last(table->record[0]) !=0;
+	  {
+	    error=table->file->index_last(table->record[0]);
+	  }
 	  else
 	  {
-	    error = table->file->index_read(table->record[0], key_buff,
+	    error=table->file->index_read(table->record[0], key_buff,
 					  ref.key_length,
-					  HA_READ_PREFIX_LAST) ||
-	      key_cmp(table,key_buff,ref.key,ref.key_length);
+					  HA_READ_PREFIX_LAST);
+	    if (!error && key_cmp(table,key_buff,ref.key,ref.key_length))
+	      error = HA_ERR_KEY_NOT_FOUND;
 	  }
 	  if (table->key_read)
 	  {
@@ -220,7 +238,13 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
 	  }
 	  table->file->index_end();
 	  if (error)
-	    return -1;				// Impossible query
+	  {
+	    if (error == HA_ERR_KEY_NOT_FOUND || error == HA_ERR_END_OF_FILE)
+	      return -1;			// Impossible query
+
+	    table->file->print_error(error, MYF(0));
+	    return error;		        // Deadlock or some other error
+	  }
 	  removed_tables|= table->map;
 	}
 	else if (!expr->const_item())		// This is VERY seldom false
@@ -348,7 +372,13 @@ bool part_of_cond(COND *cond,Field *field)
 }
 
 
-/* Check if we can get value for field by using a key */
+/*
+  Check if we can get value for field by using a key
+
+  NOTES
+   This function may set table->key_read to 1, which must be reset after
+   index is used! (This can only happen when function returns 1)
+*/
 
 static bool find_range_key(TABLE_REF *ref, Field* field, COND *cond)
 {

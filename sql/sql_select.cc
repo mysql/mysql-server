@@ -391,8 +391,17 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   if (tables && join.tmp_table_param.sum_func_count && ! group)
   {
     int res;
+    /*
+    opt_sum_query returns -1 if no rows match to the WHERE conditions,
+    or 1 if all items were resolved, or 0, or an error number HA_ERR_...
+    */
     if ((res=opt_sum_query(tables, all_fields, conds)))
     {
+      if (res > 1)
+      {
+	delete procedure;
+	DBUG_RETURN(-1);
+      }
       if (res < 0)
       {
 	error=return_zero_rows(&join, result, tables, fields, !group,
@@ -6659,7 +6668,8 @@ setup_group(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 
     while ((item=li++))
     {
-      if (item->type() != Item::SUM_FUNC_ITEM && !item->marker)
+      if (item->type() != Item::SUM_FUNC_ITEM && !item->marker &&
+	  !item->const_item())
       {
 	my_printf_error(ER_WRONG_FIELD_WITH_GROUP,
 			ER(ER_WRONG_FIELD_WITH_GROUP),

@@ -1664,7 +1664,7 @@ row_drop_table_for_mysql_in_background(
 	the InnoDB data dictionary get out-of-sync if the user runs
 	with innodb_flush_log_at_trx_commit = 0 */
 	
-	log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
+	log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP, TRUE);
 
   	trx_commit_for_mysql(trx);
 
