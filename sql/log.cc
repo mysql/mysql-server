@@ -1583,7 +1583,7 @@ void sql_perror(const char *message)
 bool flush_error_log()
 {
   bool result=0;
-  if (log_error_file[0] != '\0') /* --log-error="" */
+  if (opt_error_log)
   {
     char err_renamed[FN_REFLEN], *end;
     end= strmake(err_renamed,log_error_file,FN_REFLEN-4);
