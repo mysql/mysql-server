@@ -23,10 +23,8 @@ while ($1)
 }
 
 SELECT count(*) FROM t1;
-EXPLAIN SELECT fid, AsText(g) FROM t1 WHERE Within(g, 
-  GeomFromText('Polygon((140 140,160 140,160 160,140 160,140 140))'));
-SELECT fid, AsText(g) FROM t1 WHERE Within(g, 
-  GeomFromText('Polygon((140 140,160 140,160 160,140 160,140 140))'));
+EXPLAIN SELECT fid, AsText(g) FROM t1 WHERE Within(g, GeomFromText('Polygon((140 140,160 140,160 160,140 160,140 140))'));
+SELECT fid, AsText(g) FROM t1 WHERE Within(g, GeomFromText('Polygon((140 140,160 140,160 160,140 160,140 140))'));
 
 DROP TABLE t1;
 
@@ -41,8 +39,7 @@ while ($1)
   let $2=10;
   while ($2)
   {
-    eval INSERT INTO t2 (g) VALUES (LineString(Point($1 * 10 - 9, $2 * 10 - 9), 
-					       Point($1 * 10, $2 * 10)));
+    eval INSERT INTO t2 (g) VALUES (GeometryFromWKB(LineString(Point($1 * 10 - 9, $2 * 10 - 9), Point($1 * 10, $2 * 10))));
     dec $2;
   }
   dec $1;
@@ -62,7 +59,7 @@ while ($1)
   let $2=10;
   while ($2)
   {
-    eval DELETE FROM t2 WHERE Within(g, Envelope(LineString(Point($1 * 10 - 9, $2 * 10 - 9), Point($1 * 10, $2 * 10))));
+    eval DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point($1 * 10 - 9, $2 * 10 - 9), Point($1 * 10, $2 * 10)))));
     SELECT count(*) FROM t2;
     dec $2;
   }
