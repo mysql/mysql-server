@@ -1541,12 +1541,14 @@ run_testcase ()
    disable_test $tname "$comment"
    return
  fi
- comment=`$GREP "^$tname *: *" $TESTDIR/disabled.def`;
- if [ -n "$comment" ]
- then
-   comment=`echo $comment | sed 's/^[^:]*: *//'`
-   disable_test $tname "$comment"
-   return
+ if [ -f "$TESTDIR/disabled.def" ] ; then
+   comment=`$GREP "^$tname *: *" $TESTDIR/disabled.def`;
+   if [ -n "$comment" ]
+   then
+     comment=`echo $comment | sed 's/^[^:]*: *//'`
+     disable_test $tname "$comment"
+     return
+   fi
  fi
 
  if [ "x$USE_EMBEDDED_SERVER" != "x1" ] ; then
