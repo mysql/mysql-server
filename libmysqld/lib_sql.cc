@@ -612,8 +612,8 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
       }
       else
       {
-	client_field->def= strdup_root(field_alloc, tmp.ptr());
-	client_field->def_length= tmp.length();
+	client_field->def= strdup_root(field_alloc, res->ptr());
+	client_field->def_length= res->length();
       }
     }
     else
