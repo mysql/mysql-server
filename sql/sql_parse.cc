@@ -59,7 +59,7 @@ static void refresh_status(void);
 static bool append_file_to_dir(THD *thd, char **filename_ptr,
 			       char *table_name);
 
-inline bool single_table_command_access(THD *thd, ulong privilege,
+static bool single_table_command_access(THD *thd, ulong privilege,
 					TABLE_LIST *tables, int *res);
 
 const char *any_db="*any*";	// Special symbol for check_access
@@ -669,9 +669,12 @@ check_connections(THD *thd)
 	global_system_variables.character_set_client;
       thd->variables.collation_connection=
 	global_system_variables.collation_connection;
+      thd->variables.character_set_results=
+	global_system_variables.character_set_results;
     }
     else
     {
+      thd->variables.character_set_results=
       thd->variables.collation_connection= 
 	thd->variables.character_set_client;
     }
@@ -1319,7 +1322,8 @@ restore_user:
     break;
 #else
   {
-    char *fields;
+    char *fields, *pend;
+    String convname;
     TABLE_LIST table_list;
     statistic_increment(com_stat[SQLCOM_SHOW_FIELDS],&LOCK_status);
     bzero((char*) &table_list,sizeof(table_list));
@@ -1329,8 +1333,11 @@ restore_user:
       break;
     }
     thd->free_list=0;
-    table_list.alias= table_list.real_name= thd->strdup(packet);
-    packet=strend(packet)+1;
+    pend= strend(packet);
+    convname.copy(packet, pend-packet, 
+		  thd->variables.character_set_client, system_charset_info);
+    table_list.alias= table_list.real_name= convname.c_ptr();
+    packet= pend+1;
     // command not cachable => no gap for data base name
     if (!(thd->query=fields=thd->memdup(packet,thd->query_length+1)))
       break;
@@ -3116,7 +3123,7 @@ error:
     1 - access denied
 */
 
-inline bool single_table_command_access(THD *thd, ulong privilege,
+static bool single_table_command_access(THD *thd, ulong privilege,
 					TABLE_LIST *tables, int *res)
 					 
 {
@@ -3128,12 +3135,14 @@ inline bool single_table_command_access(THD *thd, ulong privilege,
     tables->next= 0;
     if (grant_option && check_grant(thd,  privilege, tables))
       return 1;
-    tables->next= subselects_tables;
 
     // check rights on tables of subselect (if exists)
-    if (subselects_tables &&
-	(*res= check_table_access(thd, SELECT_ACL, subselects_tables)))
-      return 1;
+    if (subselects_tables)
+    {
+      tables->next= subselects_tables;
+      if ((*res= check_table_access(thd, SELECT_ACL, subselects_tables)))
+	return 1;
+    }
     return 0;
 }
 

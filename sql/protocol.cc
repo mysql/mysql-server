@@ -499,7 +499,7 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
   String tmp((char*) buff,sizeof(buff),&my_charset_bin);
   Protocol_simple prot(thd);
   String *packet= prot.storage_packet();
-  CHARSET_INFO *thd_charset= thd->charset();
+  CHARSET_INFO *thd_charset= thd->variables.character_set_results;
   DBUG_ENTER("send_fields");
 
   if (flag & 1)

@@ -28,6 +28,7 @@ cast("2001-1-1" as DATE)	cast("2001-1-1" as DATETIME)
 select cast("1:2:3" as TIME);
 cast("1:2:3" as TIME)
 01:02:03
+set names binary;
 select cast(_latin1'test' as char character set latin2);
 cast(_latin1'test' as char character set latin2)
 test
