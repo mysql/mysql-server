@@ -22,6 +22,98 @@
 #include "sp_cache.h"
 #include "sp_head.h"
 
+static pthread_mutex_t Cversion_lock;
+static ulong Cversion = 0;
+
+void
+sp_cache_init()
+{
+  pthread_mutex_init(&Cversion_lock, MY_MUTEX_INIT_FAST);
+}
+
+void
+sp_cache_clear(sp_cache **cp)
+{
+  sp_cache *c= *cp;
+
+  if (c)
+  {
+    delete c;
+    *cp= NULL;
+  }
+}
+
+void
+sp_cache_insert(sp_cache **cp, sp_head *sp)
+{
+  sp_cache *c= *cp;
+
+  if (! c)
+    c= new sp_cache();
+  if (c)
+  {
+    ulong v;
+
+    pthread_mutex_lock(&Cversion_lock); // LOCK
+    v= Cversion;
+    pthread_mutex_unlock(&Cversion_lock); // UNLOCK
+
+    if (c->version < v)
+    {
+      if (*cp)
+	c->remove_all();
+      c->version= v;
+    }
+    c->insert(sp);
+    if (*cp == NULL)
+      *cp= c;
+  }
+}
+
+sp_head *
+sp_cache_lookup(sp_cache **cp, char *name, uint namelen)
+{
+  ulong v;
+  sp_cache *c= *cp;
+
+  if (! c)
+    return NULL;
+
+  pthread_mutex_lock(&Cversion_lock); // LOCK
+  v= Cversion;
+  pthread_mutex_unlock(&Cversion_lock); // UNLOCK
+
+  if (c->version < v)
+  {
+    c->remove_all();
+    c->version= v;
+    return NULL;
+  }
+  return c->lookup(name, namelen);
+}
+
+void
+sp_cache_remove(sp_cache **cp, sp_head *sp)
+{
+  sp_cache *c= *cp;
+
+  if (c)
+  {
+    ulong v;
+
+    pthread_mutex_lock(&Cversion_lock); // LOCK
+    v= Cversion++;
+    pthread_mutex_unlock(&Cversion_lock); // UNLOCK
+
+    if (c->version < v)
+      c->remove_all();
+    else
+      c->remove(sp);
+    c->version= v+1;
+  }
+}
+
+
 static byte *
 hash_get_key_for_sp_head(const byte *ptr, uint *plen,
 			       my_bool first)
@@ -44,6 +136,7 @@ sp_cache::init()
 {
   hash_init(&m_hashtable, system_charset_info, 0, 0, 0,
 	    hash_get_key_for_sp_head, 0, 0);
+  version= 0;
 }
 
 void

@@ -156,8 +156,8 @@ THD::THD():user_time(0), is_fatal_error(0),
 	    (hash_get_key) get_var_key,
 	    (hash_free_key) free_user_var, 0);
 
-  sp_proc_cache= new sp_cache();
-  sp_func_cache= new sp_cache();
+  sp_proc_cache= NULL;
+  sp_func_cache= NULL;
 
   /* For user vars replication*/
   if (opt_bin_log)
@@ -260,8 +260,8 @@ void THD::change_user(void)
   hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
 	    (hash_get_key) get_var_key,
 	    (hash_free_key) free_user_var, 0);
-  sp_proc_cache->init();
-  sp_func_cache->init();
+  sp_cache_clear(&sp_proc_cache);
+  sp_cache_clear(&sp_func_cache);
 }
 
 
@@ -285,8 +285,8 @@ void THD::cleanup(void)
   close_temporary_tables(this);
   delete_dynamic(&user_var_events);
   hash_free(&user_vars);
-  sp_proc_cache->cleanup();
-  sp_func_cache->cleanup();
+  sp_cache_clear(&sp_proc_cache);
+  sp_cache_clear(&sp_func_cache);
   if (global_read_lock)
     unlock_global_read_lock(this);
   if (ull)
@@ -328,8 +328,8 @@ THD::~THD()
   }
 #endif
 
-  delete sp_proc_cache;
-  delete sp_func_cache;
+  sp_cache_clear(&sp_proc_cache);
+  sp_cache_clear(&sp_func_cache);
 
   DBUG_PRINT("info", ("freeing host"));
   if (host != localhost)			// If not pointer to constant

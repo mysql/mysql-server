@@ -79,8 +79,7 @@
 
     - Utility functions (sp.{cc,h})
       This contains functions for creating, dropping and finding a stored
-      procedure in the mysql.proc table (or internal cache, when it is
-      implemented).
+      procedure in the mysql.proc table (or the internal cache).
 
 
   - Parsing CREATE PROCEDURE ...
@@ -335,22 +334,11 @@
       Then, before doing anything else in mysql_execute_command(), read all
       functions from the database an keep them in the THD, where the function
       sp_find_function() can find them during the execution.
-      Note: Even when a global in-memory cache is implemented, we must still
-        make sure that the functions are indeed read and cached at this point.
+      Note: Even with an in-memory cache, we must still make sure that the
+            functions are indeed read and cached at this point.
       The code that read and cache functions from the database must also be
       invoked recursively for each read FUNCTION to make sure we have *all* the
       functions we need.
-
-      In the absence of the real in-memory cache for SPs, a temporary solution
-      has been implemented with a per-THD cache for just FUNCTIONs. This is
-      handled by the functions
-
-        void sp_add_fun_to_lex(LEX *lex, LEX_STRING fun);
-        void sp_merge_funs(LEX *dst, LEX *src);
-        int sp_cache_functions(THD *thd, LEX *lex);
-        void sp_clear_function_cache(THD *thd);
-
-      in sp.cc.
 
 
   - Parsing DROP PROCEDURE/FUNCTION
@@ -537,7 +525,64 @@
        2    sp_instr_cfetch(0)                  # Contains the variable list
        3    sp_instr_cclose(0)
        4    sp_instr_cpop(1)
-    
+
+
+
+  - The SP cache
+
+    There are two ways to cache SPs:
+
+    1) one global cache, share by all threads/connections,
+    2) one cache per thread.
+
+    There are pros and cons with both methods:
+
+    1) Pros: Save memory, each SP only read from table once,
+       Cons: Needs locking (= serialization at access), requires thread-safe
+             data structures,
+    2) Pros: Fast, no locking required (almost), limited thread-safe
+             requirement,
+       Cons: Uses more memory, each SP read from table once per thread.
+
+    Unfortunately, we cannot use alternative 1 for the time being, as most
+    of the datastructures to be cached (lex and items) are not reentrant
+    and thread-safe. (Things are modifed at execution, we have THD pointers
+    stored everywhere, etc.)
+    This leaves us with alternative 2, one cache per thread; or actually
+    two, since we keep FUNCTIONs and PROCEDUREs in separate caches.
+    This is not that terrible; the only case when it will perform
+    significantly worse than a global cache is when we have an application
+    where new threads are connecting, calling a procedure, and disconnecting,
+    over and over again.
+
+    The cache implementation itself is simple and straightforward, a hashtable
+    wrapped in a class and a C API (see APIs below).
+
+    There is however one issue with multiple caches: dropping and altering
+    procedures. Normally, this should be a very rare event in a running
+    system; it's typically something you do during development and testing,
+    so it's not unthinkable that we would simply ignore the issue and let
+    any threads running with a cached version of an SP keep doing so until
+    its disconnected.
+    But assuming we want to keep the caches consistent with respect to drop
+    and alter, it can be done:
+
+    1) A global counter is needed, initialized to 0 at start.
+    2) At each DROP or ALTER, increase the counter by one.
+    3) Each cache has its own copy of the counter, copied at the last read.
+    4) When looking up a name in the cache, first check if the global counter
+       is larger than the local copy.
+       If so, clear the cache and return "not found", and update the local
+       counter; otherwise, lookup as usual.
+
+    This minimizes the cost to a single brief lock for the access of an
+    integer when operating normally. Only in the event of an actual drop or
+    alter, is the cache cleared. This may seem to be drastic, but since we
+    assume that this is a rare event, it's not a problem.
+    It would of course be possible to have a much more fine-grained solution,
+    keeping track of each SP, but the overhead of doing so is not worth the
+    effort.
+
 
   - Class and function APIs
     This is an outline of the key types. Some types and other details
@@ -991,19 +1036,20 @@
 
     - The cache: sp_cache.h
 
-      class sp_cache
-      {
-        sp_cache();
+      /* Initialize the SP caching once at startup */
+      void sp_cache_init();
 
-        void init();
+      /* Clear the cache *cp and set *cp to NULL */
+      void sp_cache_clear(sp_cache **cp);
 
-        void cleanup();
+      /* Insert an SP to cache. If **cp points to NULL, it's set to a
+         new cache */
+      void sp_cache_insert(sp_cache **cp, sp_head *sp);
 
-        void insert(sp_head *sp);
+      /* Lookup an SP in cache */
+      sp_head *sp_cache_lookup(sp_cache **cp, char *name, uint namelen);
 
-        sp_head *lookup(char *name, uint namelen);
-
-        void remove(sp_head *sp);
-      }
+      /* Remove an SP from cache */
+      void sp_cache_remove(sp_cache **cp, sp_head *sp);
 
 --

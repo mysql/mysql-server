@@ -23,10 +23,35 @@
 #endif
 
 class sp_head;
+class sp_cache;
+
+/* Initialize the SP caching once at startup */
+void sp_cache_init();
+
+/* Clear the cache *cp and set *cp to NULL */
+void sp_cache_clear(sp_cache **cp);
+
+/* Insert an SP to cache. If 'cp' points to NULL, it's set to a new cache */
+void sp_cache_insert(sp_cache **cp, sp_head *sp);
+
+/* Lookup an SP in cache */
+sp_head *sp_cache_lookup(sp_cache **cp, char *name, uint namelen);
+
+/* Remove an SP from cache */
+void sp_cache_remove(sp_cache **cp, sp_head *sp);
+
+
+/*
+ *
+ * The cache class. Don't use this directly, use the C API above
+ *
+ */
 
 class sp_cache
 {
 public:
+
+  ulong version;
 
   sp_cache();
 
@@ -54,6 +79,13 @@ public:
   remove(sp_head *sp)
   {
     hash_delete(&m_hashtable, (byte *)sp);
+  }
+
+  inline void
+  remove_all()
+  {
+    cleanup();
+    init();
   }
 
 private:

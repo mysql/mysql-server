@@ -251,13 +251,13 @@ sp_find_procedure(THD *thd, LEX_STRING *name)
 
   DBUG_PRINT("enter", ("name: %*s", name->length, name->str));
 
-  sp= thd->sp_proc_cache->lookup(name->str, name->length);
+  sp= sp_cache_lookup(&thd->sp_proc_cache, name->str, name->length);
   if (! sp)
   {
     if (db_find_routine(thd, TYPE_ENUM_PROCEDURE,
 			name->str, name->length, &sp) == SP_OK)
     {
-      thd->sp_proc_cache->insert(sp);
+      sp_cache_insert(&thd->sp_proc_cache, sp);
     }
   }
 
@@ -286,10 +286,10 @@ sp_drop_procedure(THD *thd, char *name, uint namelen)
   sp_head *sp;
   int ret;
 
-  sp= thd->sp_proc_cache->lookup(name, namelen);
+  sp= sp_cache_lookup(&thd->sp_proc_cache, name, namelen);
   if (sp)
   {
-    thd->sp_proc_cache->remove(sp);
+    sp_cache_remove(&thd->sp_proc_cache, sp);
     delete sp;
   }
   ret= db_drop_routine(thd, TYPE_ENUM_PROCEDURE, name, namelen);
@@ -312,7 +312,7 @@ sp_find_function(THD *thd, LEX_STRING *name)
 
   DBUG_PRINT("enter", ("name: %*s", name->length, name->str));
 
-  sp= thd->sp_func_cache->lookup(name->str, name->length);
+  sp= sp_cache_lookup(&thd->sp_func_cache, name->str, name->length);
   if (! sp)
   {
     if (db_find_routine(thd, TYPE_ENUM_FUNCTION,
@@ -344,10 +344,10 @@ sp_drop_function(THD *thd, char *name, uint namelen)
   sp_head *sp;
   int ret;
 
-  sp= thd->sp_func_cache->lookup(name, namelen);
+  sp= sp_cache_lookup(&thd->sp_func_cache, name, namelen);
   if (sp)
   {
-    thd->sp_func_cache->remove(sp);
+    sp_cache_remove(&thd->sp_func_cache, sp);
     delete sp;
   }
   ret= db_drop_routine(thd, TYPE_ENUM_FUNCTION, name, namelen);
@@ -363,7 +363,7 @@ sp_function_exists(THD *thd, LEX_STRING *name)
   bool ret= FALSE;
   bool opened= FALSE;
 
-  if (thd->sp_func_cache->lookup(name->str, name->length) ||
+  if (sp_cache_lookup(&thd->sp_func_cache, name->str, name->length) ||
       db_find_routine_aux(thd, TYPE_ENUM_FUNCTION,
 			  name->str, name->length, TL_READ,
 			  &table, &opened) == SP_OK)
@@ -419,7 +419,7 @@ sp_cache_functions(THD *thd, LEX *lex)
   {
     LEX_STRING *ls= (LEX_STRING *)hash_element(h, i);
 
-    if (! thd->sp_func_cache->lookup(ls->str, ls->length))
+    if (! sp_cache_lookup(&thd->sp_func_cache, ls->str, ls->length))
     {
       sp_head *sp;
       LEX *oldlex= thd->lex;
@@ -434,7 +434,7 @@ sp_cache_functions(THD *thd, LEX *lex)
 	thd->lex= oldlex;
 	if (ret)
 	  break;
-	thd->sp_func_cache->insert(sp);
+	sp_cache_insert(&thd->sp_func_cache, sp);
       }
       else
       {
