@@ -308,7 +308,7 @@ ErrorBundle ErrorCodes[] = {
   { 709,  SE, "No such table existed" },
   { 721,  SE, "Table or index with given name already exists" },
   { 723,  SE, "No such table existed" },
-  { 736,  SE, "Wrong attribute size" },
+  { 736,  SE, "Unsupported array size" },
   { 737,  SE, "Attribute array size too big" },
   { 738,  SE, "Record too big" },
   { 739,  SE, "Unsupported primary key length" },
