@@ -1,25 +1,17 @@
---- mysql-3.23.23.orig/support-files/mysql.server.sh	Tue Sep  5 19:13:35 2000
-+++ mysql-3.23.23/support-files/mysql.server.sh	Tue Sep  5 19:19:40 2000
-@@ -16,6 +16,7 @@
- PATH=/sbin:/usr/sbin:/bin:/usr/bin
- basedir=@prefix@
- bindir=@bindir@
-+sbindir=@sbindir@
- datadir=@localstatedir@
- pid_file=@localstatedir@/mysqld.pid
- log_file=@localstatedir@/mysqld.log
-@@ -64,6 +65,10 @@
-   then
-     bindir=`grep "^bindir" $conf | cut -f 2 -d= | tr -d ' '`
-   fi
-+  if grep "^sbindir" $conf >/dev/null
-+  then
-+    sbindir=`grep "^sbindir" $conf | cut -f 2 -d= | tr -d ' '`
-+  fi
-   if grep "^log[ \t]*=" $conf >/dev/null
-   then
-     log_file=`grep "log[ \t]*=" $conf | cut -f 2 -d= | tr -d ' '`
-@@ -78,14 +83,15 @@
+--- mysql-3.23.30-gamma/support-files/mysql.server.sh.orig	Thu Jan  4 11:03:57 2001
++++ mysql-3.23.30-gamma/support-files/mysql.server.sh	Sat Jan  6 12:18:50 2001
+@@ -28,8 +28,10 @@
+ then
+   basedir=@prefix@
+   bindir=@bindir@
++  sbindir=@sbindir@
+ else
+   bindir="$basedir/bin"
++  sbindir="$basedir/sbin"
+ fi
+ if test -z "$pid_file"
+ then
+@@ -100,18 +102,18 @@
    'start')
      # Start daemon
  
@@ -28,11 +20,13 @@
      then
        # Give extra arguments to mysqld with the my.cnf file. This script may
        # be overwritten at next upgrade.
--      $bindir/safe_mysqld \
--	--user=$mysql_daemon_user --datadir=$datadir --pid-file=$pid_file --log=$log_file  &
-+      $sbindir/safe_mysqld \
-+	--user=$mysql_daemon_user --datadir=$datadir --pid-file=$pid_file &
-+# --log=$log_file  &
+-      $bindir/safe_mysqld --datadir=$datadir --pid-file=$pid_file &
++      $sbindir/safe_mysqld --datadir=$datadir --pid-file=$pid_file &
+       # Make lock for RedHat / SuSE
+       if test -w /var/lock/subsys
+       then
+         touch /var/lock/subsys/mysql
+       fi
      else
 -      echo "Can't execute $bindir/safe_mysqld"
 +      echo "Can't execute $sbindir/safe_mysqld"

@@ -1,0 +1,68 @@
+--- mysql-3.23.34a/mysql-test/install_test_db.sh.orig	Mon Mar 12 08:18:24 2001
++++ mysql-3.23.34a/mysql-test/install_test_db.sh	Thu Mar 15 04:11:14 2001
+@@ -5,6 +5,15 @@
+ # This scripts creates the privilege tables db, host, user, tables_priv,
+ # columns_priv in the mysql database, as well as the func table.
+ 
++if [ x$1 = x"-debian" ]; then
++ DEBIAN=1
++ shift 1
++ execdir=/usr/sbin
++ bindir=/usr/bin
++ BINARY_DIST=1
++ fix_bin=/var/mysql/mysql-test
++else
++
+ if [ x$1 = x"-bin" ]; then
+  shift 1
+  execdir=../bin
+@@ -17,6 +26,10 @@
+  fix_bin=.
+ fi
+ 
++fi
++
++
++
+ vardir=var
+ logdir=$vardir/log
+ if [ x$1 = x"-slave" ] 
+@@ -47,12 +60,17 @@
+ #create the directories
+ [ -d $vardir ] || mkdir $vardir
+ [ -d $logdir ] || mkdir $logdir
++[ "x$RUN_USER" != "x" ] && chown -R $RUN_USER $logdir
+ 
+ # Create database directories mysql & test
+ if [ -d $data ] ; then rm -rf $data ; fi
+ mkdir $data $data/mysql $data/test 
+ 
+ #for error messages
++if [ "x$DEBIAN" = "x1" ]; then
++ basedir=/usr
++else
++
+ if [ x$BINARY_DIST = x1 ] ; then
+ basedir=..
+ else
+@@ -62,6 +80,10 @@
+ ln -sf ../../sql/share share/mysql 
+ fi
+ 
++fi
++
++
++
+ # Initialize variables
+ c_d="" i_d=""
+ c_h="" i_h=""
+@@ -211,7 +233,9 @@
+ $c_c
+ END_OF_DATA
+ then
++    [ "x$RUN_USER" != "x" ] && chown -R $RUN_USER $ldata
+     exit 0
+ else
++    [ "x$RUN_USER" != "x" ] && chown -R $RUN_USER $ldata
+     exit 1
+ fi

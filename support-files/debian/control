@@ -11,38 +11,44 @@ Description: mysql
 
 Package: mysql-doc
 Architecture: all
+Section: doc
+Priority: extra
+Replaces: mysql-gpl-doc
 Description: mysql Documentation (html)
  MySQL Doc.
 
-Package: libmysqlclient9
+Package: libmysqlclient10
 Architecture: any
-Provides: libmysqlclient9
-Description: libmysqlclient.so.9
- libmysqlclient.so.9
+Section: libs
+Priority: extra
+Description: libmysqlclient.so.10
+ libmysqlclient.so.10
 
 Package: mysql-client
 Architecture: any
 Depends: ${shlibs:Depends}
-Section: devel
+Section: misc
 Priority: extra
 Conflicts: mysql-client-ujis, mysql-client-sjis
-Replaces: mysql-base (<< 3.22.11), mysql-base-ujis (<< 3.22.11), mysql-base-sjis (<< 3.22.11), mysql-client-ujis, mysql-client-sjis
-Provides: mysql-client
+Replaces: mysql-gpl-client, mysql-base (<< 3.22.11), mysql-base-ujis (<< 3.22.11), mysql-base-sjis (<< 3.22.11), mysql-client-ujis, mysql-client-sjis
 Description: mysql clients.
  MySQL clients programs.
 
 Package: mysql-server
 Architecture: any
+Section: misc
+Priority: extra
 Depends: ${shlibs:Depends}
 Conflicts: mysql-server-sjis, mysql-server-ujis, mysql-server (<< 3.23.0)
-Replaces: mysql-server-sjis, mysql-base (<< 3.22.11), mysql-base-ujis (<< 3.22.11), mysql-base-sjis (<< 3.22.11), mysql-server-sjis, mysql-server-ujis, mysql-server (<< 3.23.0)
-Provides: mysql-server
+Replaces: mysql-server-sjis, mysql-base (<< 3.22.11), mysql-base-ujis (<< 3.22.11), mysql-base-sjis (<< 3.22.11), mysql-server-sjis, mysql-server-ujis, mysql-server (<< 3.23.0), mysql-common
 Description: MySQL server (static linked)
  MySQL server. static linked.
 
 Package: mysql-server-shared
 Architecture: any
-Depends: ${shlibs:Depends}
+Section: misc
+Priority: extra
+Depends: mysql-server, ${shlibs:Depends}
 Conflicts: mysql-server-sjis, mysql-server-ujis, mysql-server (<< 3.23.0)
 Replaces: mysql-server-sjis, mysql-base (<< 3.22.11), mysql-base-ujis (<< 3.22.11), mysql-base-sjis (<< 3.22.11), mysql-server-sjis, mysql-server-ujis, mysql-server (<< 3.23.0)
 Description: MySQL server (dynamic linked)
@@ -50,22 +56,57 @@ Description: MySQL server (dynamic linked)
 
 Package: mysql-server-debug
 Architecture: any
-Depends: ${shlibs:Depends}
+Section: misc
+Priority: extra
+Depends: mysql-server, ${shlibs:Depends}
 Conflicts: mysql-server-sjis, mysql-server-ujis, mysql-server (<< 3.23.0)
 Replaces: mysql-server-sjis, mysql-base (<< 3.22.11), mysql-base-ujis (<< 3.22.11), mysql-base-sjis (<< 3.22.11), mysql-server-sjis, mysql-server-ujis, mysql-server (<< 3.23.0)
 Description: MySQL server debug
  MySQL server. debug
 
+Package: mysql-max
+Architecture: any
+Section: misc
+Priority: extra
+Depends: mysql-server
+Conflicts: mysql-server-sjis, mysql-server-ujis, mysql-server (<< 3.23.0)
+Replaces: mysql-server-sjis, mysql-base (<< 3.22.11), mysql-base-ujis (<< 3.22.11), mysql-base-sjis (<< 3.22.11), mysql-server-sjis, mysql-server-ujis, mysql-server (<< 3.23.0)
+Description: MySQL-MAX server (static linked)
+ MySQL-Max server. (static linked)
+
+Package: mysql-max-shared
+Architecture: any
+Section: misc
+Priority: extra
+Depends: mysql-server, ${shlibs:Depends}
+Conflicts: mysql-server-sjis, mysql-server-ujis, mysql-server (<< 3.23.0)
+Replaces: mysql-server-sjis, mysql-base (<< 3.22.11), mysql-base-ujis (<< 3.22.11), mysql-base-sjis (<< 3.22.11), mysql-server-sjis, mysql-server-ujis, mysql-server (<< 3.23.0)
+Description: MySQL-MAX server (shared linked)
+ MySQL-Max server. (shared linked)
+
+Package: mysql-max-debug
+Architecture: any
+Section: misc
+Priority: extra
+Depends: mysql-server, ${shlibs:Depends}
+Conflicts: mysql-server-sjis, mysql-server-ujis, mysql-server (<< 3.23.0)
+Replaces: mysql-server-sjis, mysql-base (<< 3.22.11), mysql-base-ujis (<< 3.22.11), mysql-base-sjis (<< 3.22.11), mysql-server-sjis, mysql-server-ujis, mysql-server (<< 3.23.0)
+Description: MySQL-MAX server (with debug shared linked)
+ MySQL-Max server. (with debug and shared linked)
+
 Package: mysql-dev
 Architecture: any
+Section: devel
+Priority: extra
 Depends: ${shlibs:Depends}
 Conflicts: mysql-dev-sjis, mysql-dev-ujis
-Replaces: mysql-dev-sjis, mysql-dev-ujis, libmysqlclient6-ujis, libmysqlclient6-sjis
-Provides: mysql-dev
+Replaces: mysql-devel, libmysqlclient10-dev, libmysqlclient9-dev, libmysqlclient6-dev, mysql-gpl-dev, mysql-dev-sjis, mysql-dev-ujis, libmysqlclient6-ujis, libmysqlclient6-sjis
 Description: MySQL develop suite
  MySQL develop.
 
 Package: mysql-bench
 Architecture: all
+Section: misc
+Priority: extra
 Description: mysql benchmark suite.
  MySQL sql-bench files.

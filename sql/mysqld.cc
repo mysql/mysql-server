@@ -272,6 +272,7 @@ ulong keybuff_size,sortbuff_size,max_item_sort_length,table_cache_size,
       net_interactive_timeout, slow_launch_time = 2L,
       net_read_timeout,net_write_timeout,slave_open_temp_tables=0,
       open_files_limit=0, max_binlog_size;
+ulong slave_net_timeout;
 ulong thread_cache_size=0, binlog_cache_size=0, max_binlog_cache_size=0;
 volatile ulong cached_thread_count=0;
 
@@ -2782,6 +2783,8 @@ CHANGEABLE_VAR changeable_vars[] = {
       0, MALLOC_OVERHEAD, (long) ~0, MALLOC_OVERHEAD, IO_SIZE },
   { "record_buffer",           (long*) &my_default_record_cache_size,
       128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD, IO_SIZE },
+  { "slave_net_timeout",        (long*) &slave_net_timeout, 
+      SLAVE_NET_TIMEOUT, 1, 65535, 0, 1 },
   { "slow_launch_time",        (long*) &slow_launch_time, 
       2L, 0L, ~0L, 0, 1 },
   { "sort_buffer",             (long*) &sortbuff_size,
@@ -2903,6 +2906,7 @@ struct show_var_st init_vars[]= {
   {"query_buffer_size",       (char*) &query_buff_size,		    SHOW_LONG},
   {"safe_show_database",      (char*) &opt_safe_show_db,            SHOW_BOOL},
   {"server_id",               (char*) &server_id,		    SHOW_LONG},
+  {"slave_net_timeout",       (char*) &slave_net_timeout,	    SHOW_LONG},
   {"skip_locking",            (char*) &my_disable_locking,          SHOW_MY_BOOL},
   {"skip_networking",         (char*) &opt_disable_networking,      SHOW_BOOL},
   {"skip_show_database",      (char*) &opt_skip_show_db,            SHOW_BOOL},
@@ -3601,6 +3605,7 @@ static void get_options(int argc,char **argv)
       break;
     case OPT_LOW_PRIORITY_UPDATES:
       thd_startup_options|=OPTION_LOW_PRIORITY_UPDATES;
+      thr_upgraded_concurrent_insert_lock= TL_WRITE_LOW_PRIORITY;
       low_priority_updates=1;
       break;
     case OPT_BOOTSTRAP:

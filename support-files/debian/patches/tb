@@ -1,0 +1,86 @@
+--- mysql-3.23.34a/mysql-test/mysql-test-run.sh.orig	Mon Mar 12 08:18:27 2001
++++ mysql-3.23.34a/mysql-test/mysql-test-run.sh	Thu Mar 15 04:11:14 2001
+@@ -37,9 +37,23 @@
+ XARGS=`which xargs | head -1`
+ SED=sed
+ 
++if [ $USER = root ]; then 
++  RUN_USER="mysql" 
++  RUN_USER_OPT="--user=$RUN_USER" 
++  export RUN_USER 
++fi 
++
++
+ # Are we using a source or a binary distribution?
+ 
+ testdir=@testdir@
++
++if [ -d /var/mysql/mysql-test ]; then
++ DEBIAN=1
++ cd /var/mysql/mysql-test
++ testdir=/var/mysql
++fi
++
+ if [ -d bin/mysqld ] && [ -d mysql-test ] ; then
+  cd mysql-test
+ else
+@@ -56,6 +70,10 @@
+   exit 1
+ fi
+ 
++if [ x$DEBIAN = x1 ]; then
++ MY_BASEDIR=/usr
++fi
++
+ #++
+ # Misc. Definitions
+ #--
+@@ -184,12 +202,21 @@
+ [ -d $MYSQL_TEST_DIR/var ] || mkdir $MYSQL_TEST_DIR/var
+ [ -d $MYSQL_TEST_DIR/var/tmp ] || mkdir $MYSQL_TEST_DIR/var/tmp
+ [ -d $MYSQL_TEST_DIR/var/run ] || mkdir $MYSQL_TEST_DIR/var/run
++[ -d $MYSQL_TEST_DIR -a "x$RUN_USER" != "x" ] && chown -R $RUN_USER $MYSQL_TEST_DIR
+ 
+ [ -z "$COLUMNS" ] && COLUMNS=80
+ E=`$EXPR $COLUMNS - 8`
+ #DASH72=`expr substr '------------------------------------------------------------------------' 1 $E`
+ DASH72=`$ECHO '------------------------------------------------------------------------'|$CUT -c 1-$E`
+ 
++if [ "x$DEBIAN" = "x1" ]; then
++ MYSQLD="/usr/sbin/mysqld"
++ MYSQL_TEST="/usr/sbin/mysqltest"
++ MYSQLADMIN="/usr/bin/mysqladmin"
++ INSTALL_DB="/var/mysql/mysql-test/install_test_db -debian"
++
++else
++
+ # on source dist, we pick up freshly build executables
+ # on binary, use what is installed
+ if [ x$SOURCE_DIST = x1 ] ; then
+@@ -250,6 +277,8 @@
+  read unused
+ }
+ 
++fi
++
+ 
+ error () {
+     $ECHO  "Error:  $1"
+@@ -365,7 +394,7 @@
+ 	    --language=english \
+             --innobase_data_file_path=ibdata1:50M \
+ 	     $SMALL_SERVER \
+-	     $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
++	     $RUN_USER_OPT $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
+     if [ x$DO_DDD = x1 ]
+     then
+       $ECHO "set args $master_args" > $GDB_MASTER_INIT
+@@ -420,7 +449,7 @@
+             --language=english \
+ 	    --skip-innobase \
+ 	     $SMALL_SERVER \
+-             $EXTRA_SLAVE_OPT $EXTRA_SLAVE_MYSQLD_OPT"
++             $RUN_USER_OPT $EXTRA_SLAVE_OPT $EXTRA_SLAVE_MYSQLD_OPT"
+     if [ x$DO_DDD = x1 ]
+     then
+       $ECHO "set args $master_args" > $GDB_SLAVE_INIT
