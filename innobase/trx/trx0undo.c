@@ -537,7 +537,7 @@ trx_undo_header_create(
 	/* If X/Open XID exits in the log header we store a
 	flag of it in upper byte of dict operation flag. */
 
-	if (xid != NULL ||  xid->formatID != -1) {
+	if (xid != NULL && xid->formatID != -1) {
 		mach_write_to_1(log_hdr + TRX_UNDO_XID_EXISTS, TRUE);
 	} else {
 		mach_write_to_1(log_hdr + TRX_UNDO_XID_EXISTS, FALSE);
