@@ -614,14 +614,14 @@ int ha_ndbcluster::get_ndb_lock_type(enum thr_lock_type type)
 {
   int lm;
   if (type == TL_WRITE_ALLOW_WRITE)
-    lm = NdbScanOperation::LM_Exclusive;
+    lm= NdbScanOperation::LM_Exclusive;
   else if (uses_blob_value(retrieve_all_fields))
     /*
       TODO use a new scan mode to read + lock + keyinfo
     */
-    lm = NdbScanOperation::LM_Exclusive;
+    lm= NdbScanOperation::LM_Exclusive;
   else
-    lm = NdbScanOperation::LM_CommittedRead;
+    lm= NdbScanOperation::LM_CommittedRead;
   return lm;
 }
 
@@ -842,7 +842,7 @@ int ha_ndbcluster::complemented_pk_read(const byte *old_data, byte *new_data)
     if (!(field->flags & PRI_KEY_FLAG) &&
 	(thd->query_id != field->query_id))
     {
-      if (get_ndb_value(op, i, field->ptr))
+      if (get_ndb_value(op, field, i))
 	ERR_RETURN(trans->getNdbError());
     }
   }
