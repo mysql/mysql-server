@@ -778,8 +778,6 @@ start_master()
   if [ x$MASTER_RUNNING = x1 ] || [ x$LOCAL_MASTER = x1 ] ; then
     return
   fi
-  # Remove old berkeley db log files that can confuse the server
-  $RM -f $MASTER_MYDDIR/log.*
   # Remove stale binary logs
   $RM -f $MYSQL_TEST_DIR/var/log/master-bin.*
   # Remove old master.info files
@@ -1285,6 +1283,9 @@ then
 
   # Remove files that can cause problems
   $RM -f $MYSQL_TEST_DIR/var/run/* $MYSQL_TEST_DIR/var/tmp/*
+
+  # Remove old berkeley db log files that can confuse the server
+  $RM -f $MASTER_MYDDIR/log.*
 
   wait_for_master=$SLEEP_TIME_FOR_FIRST_MASTER
   wait_for_slave=$SLEEP_TIME_FOR_FIRST_SLAVE
