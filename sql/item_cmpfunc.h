@@ -621,3 +621,6 @@ public:
   longlong val_int();
   const char *func_name() const { return "xor"; }
 };
+
+
+Item *and_expressions(Item *a, Item *b, Item **org_item);
