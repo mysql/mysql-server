@@ -847,7 +847,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::STRING,
-    UNDEFINED,
+    DATADIR,
     0, 0 },
 
   {
