@@ -684,3 +684,12 @@ max(a)
 2
 deallocate prepare stmt1;
 drop table t1;
+CREATE TABLE t1 (a int primary key);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+SELECT MAX(a) FROM t1 WHERE a > 5;
+MAX(a)
+NULL
+SELECT MIN(a) FROM t1 WHERE a < 0;
+MIN(a)
+NULL
+DROP TABLE t1;
