@@ -22,17 +22,6 @@
 
 #define GETNDB(ps) ((NDBT_NdbApiStep*)ps)->getNdb()
 
-static
-int runLoadTable(NDBT_Context* ctx, NDBT_Step* step)
-{
-  int records = ctx->getNumRecords();
-  HugoTransactions hugoTrans(*ctx->getTab());
-  if (hugoTrans.loadTable(GETNDB(step), records) != 0){
-    return NDBT_FAILED;
-  }
-  return NDBT_OK;
-}
-
 static Uint32 max_dks = 0;
 
 static
@@ -238,11 +227,27 @@ run_tests(Ndb* p_ndb, HugoTransactions& hugoTrans, int records)
     return NDBT_FAILED;
   }
 
-  if(hugoTrans.scanReadRecords(p_ndb, records) != 0)
-  {
-    return NDBT_FAILED;
+  Uint32 abort = 23;
+  for(Uint32 j = 0; j<5; j++){
+    Uint32 parallelism = (j == 1 ? 1 : j * 3);
+    ndbout_c("parallelism: %d", parallelism);
+    if (hugoTrans.scanReadRecords(p_ndb, records, abort, parallelism,
+				  NdbOperation::LM_Read) != 0)
+    {
+      return NDBT_FAILED;
+    }
+    if (hugoTrans.scanReadRecords(p_ndb, records, abort, parallelism,
+				  NdbOperation::LM_Exclusive) != 0)
+    {
+      return NDBT_FAILED;
+    }
+    if (hugoTrans.scanReadRecords(p_ndb, records, abort, parallelism,
+				  NdbOperation::LM_CommittedRead) != 0)
+    {
+      return NDBT_FAILED;
+    }
   }
-
+  
   if(hugoTrans.clearTable(p_ndb, records) != 0)
   {
     return NDBT_FAILED;
@@ -297,6 +302,69 @@ run_index_dk(NDBT_Context* ctx, NDBT_Step* step)
   return run_tests(p_ndb, hugoTrans, records);
 }
 
+static int
+run_startHint(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* p_ndb = GETNDB(step);
+  int records = ctx->getNumRecords();
+  const NdbDictionary::Table *tab = 
+    p_ndb->getDictionary()->getTable(ctx->getTab()->getName());
+  
+  if(!tab)
+    return NDBT_OK;
+
+  HugoTransactions hugoTrans(*tab);
+  if (hugoTrans.loadTable(p_ndb, records) != 0)
+  {
+    return NDBT_FAILED;
+  }
+
+  NdbRestarter restarter;
+  if(restarter.insertErrorInAllNodes(8050) != 0)
+    return NDBT_FAILED;
+  
+  HugoCalculator dummy(*tab);
+  int result = NDBT_OK;
+  for(int i = 0; i<records && result == NDBT_OK; i++)
+  {
+    char buffer[8000];
+    char* start= buffer + (rand() & 7);
+    char* pos= start;
+    
+    for(int j = 0; j<tab->getNoOfColumns(); j++)
+    {
+      if(tab->getColumn(j)->getPartitionKey())
+      {
+	ndbout_c(tab->getColumn(j)->getName());
+	int sz = tab->getColumn(j)->getSizeInBytes();
+	int aligned_size = 4 * ((sz + 3) >> 2);
+	memset(pos, 0, aligned_size);
+	dummy.calcValue(i, j, 0, pos, sz);
+	pos += aligned_size;
+      }
+    }
+    // Now we have the pk
+    NdbTransaction* pTrans= p_ndb->startTransaction(tab, start,(pos - start));
+    HugoOperations ops(*tab);
+    ops.setTransaction(pTrans);
+    if(ops.pkReadRecord(p_ndb, i, 1) != NDBT_OK)
+    {
+      result = NDBT_FAILED;
+      break;
+    }
+    
+    if(ops.execute_Commit(p_ndb) != 0)
+    {
+      result = NDBT_FAILED;
+      break;
+    }
+    
+    ops.closeTransaction(p_ndb);
+  }
+  restarter.insertErrorInAllNodes(0);
+  return result;
+}
+
 
 NDBT_TESTSUITE(testPartitioning);
 TESTCASE("pk_dk", 
@@ -330,6 +398,24 @@ TESTCASE("ordered_index_dk",
   INITIALIZER(run_create_pk_index);
   INITIALIZER(run_index_dk);
   INITIALIZER(run_create_pk_index_drop);
+  INITIALIZER(run_drop_table);
+}
+TESTCASE("startTransactionHint", 
+	 "Test startTransactionHint wo/ distribution key")
+{
+  TC_PROPERTY("distributionkey", (unsigned)0);
+  INITIALIZER(run_drop_table);
+  INITIALIZER(run_create_table);
+  INITIALIZER(run_startHint);
+  INITIALIZER(run_drop_table);
+}
+TESTCASE("startTransactionHint_dk", 
+	 "Test startTransactionHint with distribution key")
+{
+  TC_PROPERTY("distributionkey", (unsigned)~0);
+  INITIALIZER(run_drop_table);
+  INITIALIZER(run_create_table);
+  INITIALIZER(run_startHint);
   INITIALIZER(run_drop_table);
 }
 NDBT_TESTSUITE_END(testPartitioning);

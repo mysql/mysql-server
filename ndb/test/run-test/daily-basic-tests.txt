@@ -345,6 +345,10 @@ max-time: 500
 cmd: testScan
 args: -n ScanRestart T1
 
+max-time: 500
+cmd: testScan
+args: -n ScanParallelism
+
 #
 # DICT TESTS
 max-time: 1500

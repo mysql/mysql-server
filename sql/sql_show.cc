@@ -887,14 +887,18 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
     if (!(thd->variables.sql_mode & MODE_NO_KEY_OPTIONS) &&
 	!limited_mysql_mode && !foreign_db_mode)
     {
-      if (share->db_type == DB_TYPE_HEAP &&
-	  key_info->algorithm == HA_KEY_ALG_BTREE)
-	packet->append(" USING BTREE", 12);
-      
+      if (key_info->algorithm == HA_KEY_ALG_BTREE)
+        packet->append(" USING BTREE", 12);
+
+      if (key_info->algorithm == HA_KEY_ALG_HASH)
+        packet->append(" USING HASH", 11);
+
       // +BAR: send USING only in non-default case: non-spatial rtree
       if ((key_info->algorithm == HA_KEY_ALG_RTREE) &&
 	  !(key_info->flags & HA_SPATIAL))
-	packet->append(" USING RTREE", 12);
+        packet->append(" USING RTREE", 12);
+
+      // No need to send USING FULLTEXT, it is sent as FULLTEXT KEY
     }
     packet->append(" (", 2);
 
@@ -1793,14 +1797,28 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   SELECT_LEX *select_lex= &lex->select_lex;
   SELECT_LEX *lsel= tables->schema_select_lex;
   ST_SCHEMA_TABLE *schema_table= tables->schema_table;
-  DBUG_ENTER("fill_schema_tables");
+  SELECT_LEX sel;
+  INDEX_FIELD_VALUES idx_field_vals;
+  char path[FN_REFLEN], *end, *base_name, *file_name;
+  uint len;
+  bool with_i_schema;
+  enum enum_schema_tables schema_table_idx;
+  thr_lock_type lock_type;
+  List<char> bases;
+  COND *partial_cond; 
+  DBUG_ENTER("get_all_tables");
+
+  LINT_INIT(end);
+  LINT_INIT(len);
 
   if (lsel)
   {
     TABLE *old_open_tables= thd->open_tables;
     TABLE_LIST *show_table_list= (TABLE_LIST*) lsel->table_list.first;
+    bool res;
+
     lex->all_selects_list= lsel;
-    bool res= open_and_lock_tables(thd, show_table_list);
+    res= open_and_lock_tables(thd, show_table_list);
     if (schema_table->process_table(thd, show_table_list,
                                     table, res, show_table_list->db,
                                     show_table_list->table_name))
@@ -1813,15 +1831,10 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
     DBUG_RETURN(0);
   }
 
-  SELECT_LEX sel;
-  INDEX_FIELD_VALUES idx_field_vals;
-  char path[FN_REFLEN], *end= 0, *base_name, *file_name;
-  uint len= 0;
-  bool with_i_schema;
-  List<char> bases;
   lex->all_selects_list= &sel;
-  enum enum_schema_tables schema_table_idx= get_schema_table_idx(schema_table);
-  thr_lock_type lock_type= TL_UNLOCK;
+  schema_table_idx= get_schema_table_idx(schema_table);
+  lock_type= TL_UNLOCK;
+
   if (schema_table_idx == SCH_TABLES)
     lock_type= TL_READ;
   get_index_field_values(lex, &idx_field_vals);
@@ -1833,9 +1846,10 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   if (mysql_find_files(thd, &bases, NullS, mysql_data_home,
 		       idx_field_vals.db_value, 1))
     return 1;
+
   List_iterator_fast<char> it(bases);
-  COND *partial_cond= make_cond_for_info_schema(cond, tables);
-  while ((base_name=it++) ||
+  partial_cond= make_cond_for_info_schema(cond, tables);
+  while ((base_name= it++) ||
 	 /*
 	   generate error for non existing database.
 	   (to save old behaviour for SHOW TABLES FROM db)
@@ -1868,8 +1882,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
           DBUG_RETURN(1);
       }
 
-      List_iterator_fast<char> it(files);
-      while ((file_name=it++))
+      List_iterator_fast<char> it_files(files);
+      while ((file_name= it_files++))
       {
 	restore_record(table, s->default_values);
         table->field[schema_table->idx_field1]->
@@ -1889,8 +1903,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
               else
               {
                 my_snprintf(end, len, "/%s%s", file_name, reg_ext);
-                switch (mysql_frm_type(path))
-                {
+                switch (mysql_frm_type(path)) {
                 case FRMTYPE_ERROR:
                   table->field[3]->store("ERROR", 5, system_charset_info);
                   break;
@@ -3188,9 +3201,7 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
   }
   table->s->tmp_table= TMP_TABLE;
   table->grant.privilege= SELECT_ACL;
-  table->alias_name_used= my_strcasecmp(table_alias_charset,
-                                        table_list->table_name,
-                                        table_list->alias);
+  table->alias_name_used= 0;
   table_list->schema_table_name= table_list->table_name;
   table_list->table_name= (char*) table->s->table_name;
   table_list->table= table;

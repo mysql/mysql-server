@@ -3081,6 +3081,15 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
     execDIGETNODESREF(signal);
     return;
   }
+  
+  if(ERROR_INSERTED(8050) && signal->theData[3] != getOwnNodeId())
+  {
+    ndbassert(false);
+    signal->theData[1] = 626;
+    execDIGETNODESREF(signal);
+    return;
+  }
+  
   /****************>>*/
   /* DIGETNODESCONF >*/
   /* ***************>*/
@@ -3195,7 +3204,6 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal)
   CacheRecord * const regCachePtr = cachePtr.p;
   TcConnectRecord * const regTcPtr = tcConnectptr.p;
   Uint16 Tnode = regTcPtr->tcNodedata[0];
-  Uint16 TscanTakeOverInd = regCachePtr->scanTakeOverInd;
 
   TableRecordPtr localTabptr;
   localTabptr.i = regCachePtr->tableref;
@@ -8931,6 +8939,7 @@ void Dbtc::diFcountReqLab(Signal* signal, ScanRecordPtr scanptr)
   }
 
   scanptr.p->scanNextFragId = 0;
+  scanptr.p->m_booked_fragments_count= 0;
   scanptr.p->scanState = ScanRecord::WAIT_FRAGMENT_COUNT;
   
   if(!cachePtr.p->distributionKeyIndicator)
@@ -9403,7 +9412,7 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
   }
 
   if(noCompletedOps == 0 && status != 0 && 
-     scanptr.p->scanNextFragId < scanptr.p->scanNoFrag){
+     scanptr.p->scanNextFragId+scanptr.p->m_booked_fragments_count < scanptr.p->scanNoFrag){
     /**
      * Start on next fragment
      */
@@ -9573,6 +9582,9 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
        */
       jam();
       ndbrequire(scanptr.p->scanNextFragId < scanptr.p->scanNoFrag);
+      jam();
+      ndbassert(scanptr.p->m_booked_fragments_count);
+      scanptr.p->m_booked_fragments_count--;
       scanFragptr.p->scanFragState = ScanFragRec::WAIT_GET_PRIMCONF; 
       
       tcConnectptr.i = scanptr.p->scanTcrec;
@@ -9814,8 +9826,9 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
     jam();
     ops += 21;
   }
-
-  Uint32 left = scanPtr.p->scanNoFrag - scanPtr.p->scanNextFragId;
+  
+  int left = scanPtr.p->scanNoFrag - scanPtr.p->scanNextFragId;
+  Uint32 booked = scanPtr.p->m_booked_fragments_count;
   
   ScanTabConf * conf = (ScanTabConf*)&signal->theData[0];
   conf->apiConnectPtr = apiConnectptr.p->ndbapiConnect;
@@ -9831,8 +9844,10 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
       ScanFragRecPtr curr = ptr; // Remove while iterating...
       queued.next(ptr);
       
-      bool done = curr.p->m_scan_frag_conf_status && --left;
-
+      bool done = curr.p->m_scan_frag_conf_status && (left <= (int)booked);
+      if(curr.p->m_scan_frag_conf_status)
+	booked++;
+      
       * ops++ = curr.p->m_apiPtr;
       * ops++ = done ? RNIL : curr.i;
       * ops++ = (curr.p->m_totalLen << 10) + curr.p->m_ops;
@@ -9850,8 +9865,10 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
     }
   }
   
+  scanPtr.p->m_booked_fragments_count = booked;
   if(scanPtr.p->m_delivered_scan_frags.isEmpty() && 
-     scanPtr.p->m_running_scan_frags.isEmpty()){
+     scanPtr.p->m_running_scan_frags.isEmpty())
+  {
     conf->requestInfo = op_count | ScanTabConf::EndOfData;    
     releaseScanResources(scanPtr);
   }

@@ -250,7 +250,7 @@ struct show_var_st innodb_status_variables[]= {
   {"rows_updated",
   (char*) &export_vars.innodb_rows_updated,               SHOW_LONG},
   {NullS, NullS, SHOW_LONG}};
-
+      
 /* General functions */
 
 /**********************************************************************
@@ -765,7 +765,14 @@ returns TRUE for all tables in the query.
 
 If thd is not in the autocommit state, this function also starts a new
 transaction for thd if there is no active trx yet, and assigns a consistent
-read view to it if there is no read view yet. */
+read view to it if there is no read view yet.
+
+Why a deadlock of threads is not possible: the query cache calls this function
+at the start of a SELECT processing. Then the calling thread cannot be
+holding any InnoDB semaphores. The calling thread is holding the
+query cache mutex, and this function will reserver the InnoDB kernel mutex.
+Thus, the 'rank' in sync0sync.h of the MySQL query cache mutex is above
+the InnoDB kernel mutex. */
 
 my_bool
 innobase_query_caching_of_table_permitted(
@@ -800,6 +807,13 @@ innobase_query_caching_of_table_permitted(
 
 	if (trx == NULL) {
 		trx = check_trx_exists(thd);
+	}
+
+	if (trx->has_search_latch) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+"  InnoDB: Error: the calling thread is holding the adaptive search\n"
+"InnoDB: latch though calling innobase_query_caching_of_table_permitted\n");
 	}
 
 	innobase_release_stat_resources(trx);
@@ -877,6 +891,10 @@ innobase_invalidate_query_cache(
 	ulint	full_name_len)	/* in: full name length where also the null
 				chars count */
 {
+	/* Note that the sync0sync.h rank of the query cache mutex is just
+	above the InnoDB kernel mutex. The caller of this function must not
+	have latches of a lower rank. */
+
 	/* Argument TRUE below means we are using transactions */
 #ifdef HAVE_QUERY_CACHE
 	query_cache.invalidate((THD*)(trx->mysql_thd),
@@ -1132,7 +1150,6 @@ innobase_init(void)
 	srv_n_file_io_threads = (ulint) innobase_file_io_threads;
 
 	srv_lock_wait_timeout = (ulint) innobase_lock_wait_timeout;
-	srv_thread_concurrency = (ulint) innobase_thread_concurrency;
 	srv_force_recovery = (ulint) innobase_force_recovery;
 
 	srv_fast_shutdown = (ibool) innobase_fast_shutdown;
@@ -2285,13 +2302,7 @@ build_template(
 	ulint		n_fields;
 	ulint		n_requested_fields	= 0;
 	ibool		fetch_all_in_key	= FALSE;
-	ibool		fetch_primary_key_cols	= TRUE; /* The ROR code in
-						opt_range.cc assumes that the
-						primary key cols are always
-						retrieved. Starting from
-						MySQL-5.0.2, let us always
-						fetch them, even though it
-						wastes some CPU. */ 
+	ibool		fetch_primary_key_cols	= FALSE;
 	ulint		i;
 
 	if (prebuilt->select_lock_type == LOCK_X) {
@@ -4022,8 +4033,8 @@ ha_innobase::create(
 
 	DBUG_ASSERT(innobase_table != 0);
 
-	if ((thd->lex->create_info.used_fields & HA_CREATE_USED_AUTO) &&
-	   (thd->lex->create_info.auto_increment_value != 0)) {
+	if ((create_info->used_fields & HA_CREATE_USED_AUTO) &&
+	   (create_info->auto_increment_value != 0)) {
 
 		/* Query was ALTER TABLE...AUTO_INCREMENT = x; or 
 		CREATE TABLE ...AUTO_INCREMENT = x; Find out a table
@@ -4032,7 +4043,7 @@ ha_innobase::create(
 		auto increment field if the value is greater than the
 		maximum value in the column. */
 
-		auto_inc_value = thd->lex->create_info.auto_increment_value;
+		auto_inc_value = create_info->auto_increment_value;
 		dict_table_autoinc_initialize(innobase_table, auto_inc_value);
 	}
 
@@ -5693,7 +5704,9 @@ ha_innobase::store_lock(
 	if ((lock_type == TL_READ && thd->in_lock_tables) ||
 	    (lock_type == TL_READ_HIGH_PRIORITY && thd->in_lock_tables) ||
 	    lock_type == TL_READ_WITH_SHARED_LOCKS ||
-	    lock_type == TL_READ_NO_INSERT) {
+	    lock_type == TL_READ_NO_INSERT ||
+	    thd->lex->sql_command != SQLCOM_SELECT) {
+
 		/* The OR cases above are in this order:
 		1) MySQL is doing LOCK TABLES ... READ LOCAL, or
 		2) (we do not know when TL_READ_HIGH_PRIORITY is used), or
@@ -5701,7 +5714,15 @@ ha_innobase::store_lock(
 		4) we are doing a complex SQL statement like
 		INSERT INTO ... SELECT ... and the logical logging (MySQL
 		binlog) requires the use of a locking read, or
-		MySQL is doing LOCK TABLES ... READ. */
+		MySQL is doing LOCK TABLES ... READ.
+		5) we let InnoDB do locking reads for all SQL statements that
+		are not simple SELECTs; note that select_lock_type in this
+		case may get strengthened in ::external_lock() to LOCK_X.
+		Note that we MUST use a locking read in all data modifying
+		SQL statements, because otherwise the execution would not be
+		serializable, and also the results from the update could be
+		unexpected if an obsolete consistent read view would be
+		used. */
 
 		prebuilt->select_lock_type = LOCK_S;
 		prebuilt->stored_select_lock_type = LOCK_S;

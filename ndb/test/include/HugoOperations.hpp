@@ -29,8 +29,9 @@ public:
 
   ~HugoOperations();
   int startTransaction(Ndb*);
+  int setTransaction(NdbTransaction*);
   int closeTransaction(Ndb*);
-  NdbConnection* getTransaction();
+  NdbTransaction* getTransaction();
   void refresh();
   
   int pkInsertRecord(Ndb*,
@@ -68,10 +69,13 @@ public:
 		      int attrId, 
 		      int rowId,
 		      int updateId);
+  
   int equalForAttr(NdbOperation*,
 		   int attrId, 
 		   int rowId);
-
+  
+  int setValues(NdbOperation*, int rowId, int updateId);
+  
   int verifyUpdatesValue(int updatesValue, int _numRows = 0);
 
   int indexReadRecords(Ndb*, const char * idxName, int recordNo,
