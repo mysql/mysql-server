@@ -3972,6 +3972,12 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c @uref{http://archive.nat.bg/pub/mirror/mysql/, WWW}
 @c @uref{ftp://ftp.ntrl.net/pub/mirror/mysql/, FTP}
 
+@item
+@c EMAIL: salle@online.bg (Admin)
+@image{Flags/bulgaria} Bulgaria [online.bg/Sofia] @
+@uref{http://mysql.online.bg/, WWW}
+@uref{ftp://mysql.online.bg/, FTP}
+
 @c @item
 @c Added: 990614
 @c Not ok 20000919; Out of date (Matt)
