@@ -1864,8 +1864,7 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
 
 static void relink_tables_for_multidelete(THD *thd)
 {
-  if (thd->lex->all_selects_list->next_select_in_list() ||
-      thd->lex->time_zone_tables_used)
+  if (thd->lex->all_selects_list->next_select_in_list())
   {
     for (SELECT_LEX *sl= thd->lex->all_selects_list;
 	 sl;
