@@ -8,7 +8,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `fid` int(11) NOT NULL auto_increment,
-  `g` geometry NOT NULL default '',
+  `g` geometry NOT NULL,
   PRIMARY KEY  (`fid`),
   SPATIAL KEY `g` (`g`(32))
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
@@ -291,7 +291,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `fid` int(11) NOT NULL auto_increment,
-  `g` geometry NOT NULL default '',
+  `g` geometry NOT NULL,
   PRIMARY KEY  (`fid`),
   SPATIAL KEY `g` (`g`(32))
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1

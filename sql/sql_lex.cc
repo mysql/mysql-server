@@ -1537,10 +1537,17 @@ void st_select_lex::print_limit(THD *thd, String *str)
 
 
 /*
-  Check is merging algorithm can be used on this VIEW
+  Check whether the merging algorithm can be used on this VIEW
 
   SYNOPSIS
     st_lex::can_be_merged()
+
+  DESCRIPTION
+    We can apply merge algorithm if it is single SELECT view  with
+    subqueries only in WHERE clause (we do not count SELECTs of underlying
+    views, and second level subqueries) and we have not grpouping, ordering,
+    HAVING clause, aggregate functions, DISTINCT clause, LIMIT clause and
+    several underlying tables.
 
   RETURN
     FALSE - only temporary table algorithm can be used
@@ -1552,14 +1559,23 @@ bool st_lex::can_be_merged()
   // TODO: do not forget implement case when select_lex.table_list.elements==0
 
   /* find non VIEW subqueries/unions */
-  uint selects= 0;
-  for (SELECT_LEX *sl= all_selects_list;
-       sl && selects <= 1;
-       sl= sl->next_select_in_list())
-    if (sl->parent_lex == this)
-      selects++;
+  bool selects_allow_merge= select_lex.next_select() == 0;
+  if (selects_allow_merge)
+  {
+    for (SELECT_LEX_UNIT *unit= select_lex.first_inner_unit();
+         unit;
+         unit= unit->next_unit())
+    {
+      if (unit->first_select()->parent_lex == this &&
+          (unit->item == 0 || unit->item->place() != IN_WHERE))
+      {
+        selects_allow_merge= 0;
+        break;
+      }
+    }
+  }
 
-  return (selects <= 1 &&
+  return (selects_allow_merge &&
 	  select_lex.order_list.elements == 0 &&
 	  select_lex.group_list.elements == 0 &&
 	  select_lex.having == 0 &&
@@ -1569,11 +1585,17 @@ bool st_lex::can_be_merged()
           select_lex.select_limit == HA_POS_ERROR);
 }
 
+
 /*
   check if command can use VIEW with MERGE algorithm (for top VIEWs)
 
   SYNOPSIS
     st_lex::can_use_merged()
+
+  DESCRIPTION
+    Only listed here commands can use merge algorithm in top level
+    SELECT_LEX (for subqueries will be used merge algorithm if
+    st_lex::can_not_use_merged() is not TRUE).
 
   RETURN
     FALSE - command can't use merged VIEWs
@@ -1594,6 +1616,7 @@ bool st_lex::can_use_merged()
   case SQLCOM_INSERT_SELECT:
   case SQLCOM_REPLACE:
   case SQLCOM_REPLACE_SELECT:
+  case SQLCOM_LOAD:
     return TRUE;
   default:
     return FALSE;
@@ -1601,10 +1624,14 @@ bool st_lex::can_use_merged()
 }
 
 /*
-  check if command can't use merged views in any part of command
+  Check if command can't use merged views in any part of command
 
   SYNOPSIS
     st_lex::can_not_use_merged()
+
+  DESCRIPTION
+    Temporary table algorithm will be used on all SELECT levels for queries
+    listed here (see also st_lex::can_use_merged()).
 
   RETURN
     FALSE - command can't use merged VIEWs
@@ -1673,16 +1700,16 @@ void st_select_lex_unit::set_limit(SELECT_LEX *values,
 
 
 /*
-  Unlink first table from global table list and first table from outer select
-  list (lex->select_lex)
+  Unlink the first table from the global table list and the first table from
+  outer select (lex->select_lex) local list
 
   SYNOPSIS
     unlink_first_table()
-    link_to_local	Set to 1 if caller should link this table to local
+    link_to_local	Set to 1 if caller should link this table to local list
 
   NOTES
-    We rely on fact that first table in both list are same or local list
-    is empty
+    We assume that first tables in both lists is the same table or the local
+    list is empty.
 
   RETURN
     0	If 'query_tables' == 0
@@ -1711,8 +1738,8 @@ TABLE_LIST *st_lex::unlink_first_table(bool *link_to_local)
       select_lex.table_list.elements--;	//safety
       first->next_local= 0;
       /*
-	reorder global list to keep first tables the same in both lists
-	(if it is need)
+        Ensure that the global list has the same first table as the local
+        list.
       */
       first_lists_tables_same();
     }
@@ -1729,11 +1756,12 @@ TABLE_LIST *st_lex::unlink_first_table(bool *link_to_local)
      st_lex::first_lists_tables_same()
 
   NOTES
-    In many cases first table of main SELECT_LEX have special meaning =>
-    check that it is first table in global list and relink it first in
-    queries_tables list if it is necessary (we need such relinking only
-    for queries with subqueries in select list, in this case tables of
-    subqueries will go to global list first)
+    In many cases (for example, usual INSERT/DELETE/...) the first table of
+    main SELECT_LEX have special meaning => check that it is the first table
+    in global list and re-link to be first in the global list if it is
+    necessary.  We need such re-linking only for queries with sub-queries in
+    the select list, as only in this case tables of sub-queries will go to
+    the global list first.
 */
 
 void st_lex::first_lists_tables_same()
@@ -1744,14 +1772,15 @@ void st_lex::first_lists_tables_same()
     TABLE_LIST *next;
     if (query_tables_last == &first_table->next_global)
       query_tables_last= first_table->prev_global;
-    
+
     if ((next= *first_table->prev_global= first_table->next_global))
       next->prev_global= first_table->prev_global;
     /* include in new place */
     first_table->next_global= query_tables;
     /*
-       we are sure that above is not 0, because first_table was not
-       first table in global list => we can do following without check
+       We are sure that query_tables is not 0, because first_table was not
+       first table in the global list => we can use
+       query_tables->prev_global without check of query_tables
     */
     query_tables->prev_global= &first_table->next_global;
     first_table->prev_global= &query_tables;

@@ -182,6 +182,7 @@ bool Item_sum::walk (Item_processor processor, byte *argument)
   return (this->*processor)(argument);
 }
 
+
 String *
 Item_sum_num::val_str(String *str)
 {

@@ -66,94 +66,121 @@ int find_ref_key(TABLE *table,Field *field, uint *key_length)
 }
 
 
-	/* Copy a key from record to some buffer */
-	/* if length == 0 then copy whole key */
+/*
+  Copy part of a record that forms a key or key prefix to a buffer.
 
-void key_copy(byte *key,TABLE *table,uint idx,uint key_length)
+  SYNOPSIS
+    key_copy()
+    to_key      buffer that will be used as a key
+    from_record full record to be copied from
+    key_info    descriptor of the index
+    key_length  specifies length of all keyparts that will be copied
+
+  DESCRIPTION
+    The function takes a complete table record (as e.g. retrieved by
+    handler::index_read()), and a description of an index on the same table,
+    and extracts the first key_length bytes of the record which are part of a
+    key into to_key. If length == 0 then copy all bytes from the record that
+    form a key.
+
+  RETURN
+    None
+*/
+
+void key_copy(byte *to_key, byte *from_record, KEY *key_info, uint key_length)
 {
   uint length;
-  KEY *key_info=table->key_info+idx;
   KEY_PART_INFO *key_part;
 
   if (key_length == 0)
-    key_length=key_info->key_length;
-  for (key_part=key_info->key_part;
-       (int) key_length > 0 ;
-       key_part++)
+    key_length= key_info->key_length;
+  for (key_part= key_info->key_part; (int) key_length > 0; key_part++)
   {
     if (key_part->null_bit)
     {
-      *key++= test(table->record[0][key_part->null_offset] &
+      *to_key++= test(from_record[key_part->null_offset] &
 		   key_part->null_bit);
       key_length--;
     }
     if (key_part->key_part_flag & HA_BLOB_PART)
     {
       char *pos;
-      ulong blob_length=((Field_blob*) key_part->field)->get_length();
-      key_length-=2;
+      ulong blob_length= ((Field_blob*) key_part->field)->get_length();
+      key_length-= 2;
       ((Field_blob*) key_part->field)->get_ptr(&pos);
-      length=min(key_length,key_part->length);
-      set_if_smaller(blob_length,length);
-      int2store(key,(uint) blob_length);
-      key+=2;					// Skip length info
-      memcpy(key,pos,blob_length);
+      length=min(key_length, key_part->length);
+      set_if_smaller(blob_length, length);
+      int2store(to_key, (uint) blob_length);
+      to_key+= 2;					// Skip length info
+      memcpy(to_key, pos, blob_length);
     }
     else
     {
-      length=min(key_length,key_part->length);
-      memcpy(key,table->record[0]+key_part->offset,(size_t) length);
+      length= min(key_length, key_part->length);
+      memcpy(to_key, from_record + key_part->offset, (size_t) length);
     }
-    key+=length;
-    key_length-=length;
+    to_key+= length;
+    key_length-= length;
   }
-} /* key_copy */
+}
 
 
-	/* restore a key from some buffer to record */
+/*
+  Restore a key from some buffer to record.
 
-void key_restore(TABLE *table,byte *key,uint idx,uint key_length)
+  SYNOPSIS
+    key_restore()
+    to_record   record buffer where the key will be restored to
+    from_key    buffer that contains a key
+    key_info    descriptor of the index
+    key_length  specifies length of all keyparts that will be restored
+
+  DESCRIPTION
+    This function converts a key into record format. It can be used in cases
+    when we want to return a key as a result row.
+
+  RETURN
+    None
+*/
+
+void key_restore(byte *to_record, byte *from_key, KEY *key_info,
+                 uint key_length)
 {
   uint length;
-  KEY *key_info=table->key_info+idx;
   KEY_PART_INFO *key_part;
 
   if (key_length == 0)
   {
-    if (idx == (uint) -1)
-      return;
-    key_length=key_info->key_length;
+    key_length= key_info->key_length;
   }
-  for (key_part=key_info->key_part;
-       (int) key_length > 0 ;
-       key_part++)
+  for (key_part= key_info->key_part ; (int) key_length > 0 ; key_part++)
   {
     if (key_part->null_bit)
     {
-      if (*key++)
-	table->record[0][key_part->null_offset]|= key_part->null_bit;
+      if (*from_key++)
+	to_record[key_part->null_offset]|= key_part->null_bit;
       else
-	table->record[0][key_part->null_offset]&= ~key_part->null_bit;
+	to_record[key_part->null_offset]&= ~key_part->null_bit;
       key_length--;
     }
     if (key_part->key_part_flag & HA_BLOB_PART)
     {
-      uint blob_length=uint2korr(key);
-      key+=2;
-      key_length-=2;
+      uint blob_length= uint2korr(from_key);
+      from_key+= 2;
+      key_length-= 2;
       ((Field_blob*) key_part->field)->set_ptr((ulong) blob_length,
-					       (char*) key);
-      length=key_part->length;
+					       (char*) from_key);
+      length= key_part->length;
     }
     else
     {
-      length=min(key_length,key_part->length);
-      memcpy(table->record[0]+key_part->offset,key,(size_t) length);
+      length= min(key_length, key_part->length);
+      memcpy(to_record + key_part->offset, from_key, (size_t) length);
     }
-    key+=length;
-    key_length-=length;
+    from_key+= length;
+    key_length-= length;
   }
-} /* key_restore */
+}
 
 
 /*

@@ -1,21 +1,21 @@
 show tables;
-Tables_in_db	table_type
-columns_priv	BASE TABLE
-db	BASE TABLE
-func	BASE TABLE
-help_category	BASE TABLE
-help_keyword	BASE TABLE
-help_relation	BASE TABLE
-help_topic	BASE TABLE
-host	BASE TABLE
-proc	BASE TABLE
-tables_priv	BASE TABLE
-time_zone	BASE TABLE
-time_zone_leap_second	BASE TABLE
-time_zone_name	BASE TABLE
-time_zone_transition	BASE TABLE
-time_zone_transition_type	BASE TABLE
-user	BASE TABLE
+Tables_in_db
+columns_priv
+db
+func
+help_category
+help_keyword
+help_relation
+help_topic
+host
+proc
+tables_priv
+time_zone
+time_zone_leap_second
+time_zone_name
+time_zone_transition
+time_zone_transition_type
+user
 show create table db;
 Table	Create Table
 db	CREATE TABLE `db` (
@@ -134,4 +134,4 @@ columns_priv	CREATE TABLE `columns_priv` (
   PRIMARY KEY  (`Host`,`Db`,`User`,`Table_name`,`Column_name`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='Column privileges'
 show tables;
-Tables_in_test	table_type
+Tables_in_test

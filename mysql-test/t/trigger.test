@@ -193,3 +193,17 @@ create temporary table t1 (i int);
 --error 1361
 create trigger trg before insert on t1 for each row set @a:=1;
 drop table t1;
+
+
+
+#
+# Tests for various trigger-related bugs
+#
+
+# Test for bug #5887 "Triggers with string literals cause errors".
+# New .FRM parser was not handling escaped strings properly.
+create table t1 (x1col char);  
+create trigger tx1 before insert on t1 for each row set new.x1col = 'x';
+insert into t1 values ('y');
+drop trigger t1.tx1;
+drop table t1;

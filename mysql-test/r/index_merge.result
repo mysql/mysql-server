@@ -76,13 +76,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t0	ALL	i1,i2	NULL	NULL	NULL	1024	Using where
 explain select * from t0 where key2 = 45 or key1 is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	range	i1,i2	i2	4	NULL	1	Using where
+1	SIMPLE	t0	ref	i2	i2	4	const	1	
 explain select * from t0 where key2=10 or key3=3 or key4 <=> null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t0	index_merge	i2,i3,i4	i2,i3	4,4	NULL	2	Using union(i2,i3); Using where
 explain select * from t0 where key2=10 or key3=3 or key4 is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	index_merge	i2,i3,i4	i2,i3	4,4	NULL	2	Using union(i2,i3); Using where
+1	SIMPLE	t0	index_merge	i2,i3	i2,i3	4,4	NULL	2	Using union(i2,i3); Using where
 explain select key1 from t0 where (key1 <=> null) or (key2 < 5) or 
 (key3=10) or (key4 <=> null);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -257,8 +257,8 @@ explain
 select * from t0,t1 where (t0.key1=t1.key1) and 
 (t0.key1=3 or t0.key2=4) and t1.key1<200;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	index_merge	i1,i2	i1,i2	4,4	NULL	2	Using union(i1,i2); Using where
-1	SIMPLE	t1	ref	i1	i1	4	test.t0.key1	1	Using where
+1	SIMPLE	t0	range	i1,i2	i1	4	NULL	179	Using where
+1	SIMPLE	t1	ref	i1	i1	4	test.t0.key1	1	
 explain 
 select * from t0,t1 where (t0.key1=t1.key1) and 
 (t0.key1=3 or t0.key2<4) and t1.key1=2;

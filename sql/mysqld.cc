@@ -221,7 +221,7 @@ const char *sql_mode_names[] =
   "NO_TABLE_OPTIONS", "NO_FIELD_OPTIONS", "MYSQL323", "MYSQL40", "ANSI",
   "NO_AUTO_VALUE_ON_ZERO", "NO_BACKSLASH_ESCAPES", "STRICT_TRANS_TABLES", "STRICT_ALL_TABLES",
   "NO_ZERO_IN_DATE", "NO_ZERO_DATE", "ALLOW_INVALID_DATES", "ERROR_FOR_DIVISION_BY_ZERO",
-  "TRADITIONAL",
+  "TRADITIONAL", "NO_AUTO_CREATE_USER",
   NullS
 };
 TYPELIB sql_mode_typelib= { array_elements(sql_mode_names)-1,"",
@@ -2090,7 +2090,7 @@ extern "C" int my_message_sql(uint error, const char *str,
 {
   THD *thd;
   DBUG_ENTER("my_message_sql");
-  DBUG_PRINT("error", ("Message: '%s'", str));
+  DBUG_PRINT("error", ("error: %u  message: '%s'", error, str));
   if ((thd= current_thd))
   {
     if (thd->spcont &&
@@ -4068,7 +4068,7 @@ enum options_mysqld
   OPT_DEFAULT_TIME_ZONE,
   OPT_OPTIMIZER_SEARCH_DEPTH,
   OPT_OPTIMIZER_PRUNE_LEVEL,
-  OPT_SQL_UPDATABLE_VIEW_KEY,
+  OPT_UPDATABLE_VIEWS_WITH_LIMIT,
   OPT_AUTO_INCREMENT, OPT_AUTO_INCREMENT_OFFSET
 };
 
@@ -5122,11 +5122,6 @@ The minimum value for this variable is 4096.",
    (gptr*) &max_system_variables.sortbuff_size, 0, GET_ULONG, REQUIRED_ARG,
    MAX_SORT_MEMORY, MIN_SORT_MEMORY+MALLOC_OVERHEAD*2, ~0L, MALLOC_OVERHEAD,
    1, 0},
-  {"sql_updatable_view_key", OPT_SQL_UPDATABLE_VIEW_KEY,
-   "0 = NO = Don't check presence of key in updatable VIEW. 1 = YES = Prohibit update of VIEW which does not contain key of underlying table. 2 = LIMIT1 = Same as YES but prohibited only operation with LIMIT 1 (usually get from GUI tools).",
-   (gptr*) &global_system_variables.sql_updatable_view_key,
-   (gptr*) &max_system_variables.sql_updatable_view_key,
-   0, GET_ULONG, REQUIRED_ARG, 1, 0, 2, 0, 1, 0},
 #ifdef HAVE_BERKELEY_DB
   {"sync-bdb-logs", OPT_BDB_SYNC,
    "Synchronously flush logs. Enabled by default",
@@ -5178,6 +5173,11 @@ The minimum value for this variable is 4096.",
    (gptr*) &global_system_variables.trans_prealloc_size,
    (gptr*) &max_system_variables.trans_prealloc_size, 0, GET_ULONG,
    REQUIRED_ARG, TRANS_ALLOC_PREALLOC_SIZE, 1024, ~0L, 0, 1024, 0},
+  {"updatable_views_with_limit", OPT_UPDATABLE_VIEWS_WITH_LIMIT,
+   "1 = YES = Don't issue an error message (warning only) if a VIEW without presence of a key of the underlaying table is used in queries with a LIMIT clause for updating. 0 = NO = Prohibit update of a VIEW, which does not contain a key of the underlying table and the query uses a LIMIT clause (usually get from GUI tools).",
+   (gptr*) &global_system_variables.updatable_views_with_limit,
+   (gptr*) &max_system_variables.updatable_views_with_limit,
+   0, GET_ULONG, REQUIRED_ARG, 1, 0, 1, 0, 1, 0},
   {"wait_timeout", OPT_WAIT_TIMEOUT,
    "The number of seconds the server waits for activity on a connection before closing it.",
    (gptr*) &global_system_variables.net_wait_timeout,

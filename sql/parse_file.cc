@@ -57,11 +57,11 @@ write_escaped_string(IO_CACHE *file, LEX_STRING *val_s)
       if (my_b_append(file, (const byte *)"\\n", 2))
 	return TRUE;
       break;
-    case '\0': // problem for some string processing utilites
+    case '\0': // problem for some string processing utilities
       if (my_b_append(file, (const byte *)"\\0", 2))
 	return TRUE;
       break;
-    case 26: // problem for windows utilites (Ctrl-Z)
+    case 26: // problem for windows utilities (Ctrl-Z)
       if (my_b_append(file, (const byte *)"\\z", 2))
 	return TRUE;
       break;
@@ -253,7 +253,7 @@ sql_create_definition_file(const LEX_STRING *dir, const LEX_STRING *file_name,
   {
     if (old_version != ULONGLONG_MAX && max_versions != 0)
     {
-      // save buckup
+      // save backup
       char path_arc[FN_REFLEN];
       // backup old version
       char path_to[FN_REFLEN];
@@ -383,9 +383,9 @@ sql_parse_prepare(const LEX_STRING *file_name, MEM_ROOT *mem_root,
   }
 
   end= parser->end= parser->buff + len;
-  *end= '\0'; // barriaer for more simple parsing
+  *end= '\0'; // barrier for more simple parsing
 
-  // 7 = 5 (TYPE=) + 1 (leter at least of type name) + 1 ('\n')
+  // 7 = 5 (TYPE=) + 1 (letter at least of type name) + 1 ('\n')
   if (len < 7 ||
       parser->buff[0] != 'T' ||
       parser->buff[1] != 'Y' ||
@@ -502,6 +502,7 @@ read_escaped_string(char *ptr, char *eol, LEX_STRING *str)
 	break;
       case '\'':
 	*write_pos= '\'';
+        break;
       default:
 	return TRUE;
       }

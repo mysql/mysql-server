@@ -52,6 +52,6 @@ ERROR HY000: Can't execute the query because you have a conflicting read lock
 unlock tables;
 create table t1(n int);
 show tables;
-Tables_in_test	table_type
-t1	BASE TABLE
+Tables_in_test
+t1
 drop table t1;

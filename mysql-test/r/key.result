@@ -159,8 +159,8 @@ CREATE TABLE t1 (c CHAR(10) NOT NULL,i INT NOT NULL AUTO_INCREMENT,
 UNIQUE (c,i));
 INSERT INTO t1 (c) VALUES (NULL),(NULL);
 Warnings:
-Warning	1263	Data truncated; NULL supplied to NOT NULL column 'c' at row 1
-Warning	1263	Data truncated; NULL supplied to NOT NULL column 'c' at row 2
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'c' at row 1
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'c' at row 2
 SELECT * FROM t1;
 c	i
 	1

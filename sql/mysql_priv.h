@@ -280,6 +280,7 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define MODE_INVALID_DATES		(MODE_NO_ZERO_DATE*2)
 #define MODE_ERROR_FOR_DIVISION_BY_ZERO (MODE_INVALID_DATES*2)
 #define MODE_TRADITIONAL		(MODE_ERROR_FOR_DIVISION_BY_ZERO*2)
+#define MODE_NO_AUTO_CREATE_USER	(MODE_TRADITIONAL*2)
 
 #define RAID_BLOCK_SIZE 1024
 
@@ -688,7 +689,8 @@ int mysql_do(THD *thd, List<Item> &values);
 /* sql_show.cc */
 int mysqld_show_dbs(THD *thd,const char *wild);
 int mysqld_show_open_tables(THD *thd,const char *wild);
-int mysqld_show_tables(THD *thd,const char *db,const char *wild);
+int mysqld_show_tables(THD *thd, const char *db, const char *wild,
+		       bool verbose);
 int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild);
 int mysqld_show_fields(THD *thd,TABLE_LIST *table, const char *wild,
 		       bool verbose);
@@ -762,7 +764,8 @@ bool add_proc_to_list(THD *thd, Item *item);
 TABLE *unlink_open_table(THD *thd,TABLE *list,TABLE *find);
 
 SQL_SELECT *make_select(TABLE *head, table_map const_tables,
-			table_map read_tables, COND *conds, int *error);
+			table_map read_tables, COND *conds, int *error,
+                        bool allow_null_cond= false);
 enum find_item_error_report_type {REPORT_ALL_ERRORS, REPORT_EXCEPT_NOT_FOUND,
 				  IGNORE_ERRORS};
 extern const Item **not_found_item;
@@ -836,9 +839,10 @@ inline TABLE_LIST *find_table_in_local_list(TABLE_LIST *table,
 bool eval_const_cond(COND *cond);
 
 /* sql_load.cc */
-int mysql_load(THD *thd,sql_exchange *ex, TABLE_LIST *table_list,
+int mysql_load(THD *thd, sql_exchange *ex, TABLE_LIST *table_list,
 	       List<Item> &fields, enum enum_duplicates handle_duplicates,
-	       bool local_file,thr_lock_type lock_type);
+	       bool local_file, thr_lock_type lock_type,
+	       bool ignore_check_option_errors);
 int write_record(THD *thd, TABLE *table, COPY_INFO *info);
 
 /* sql_manager.cc */
@@ -860,8 +864,9 @@ void print_plan(JOIN* join, double read_time, double record_count,
 void mysql_print_status(THD *thd);
 /* key.cc */
 int find_ref_key(TABLE *form,Field *field, uint *offset);
-void key_copy(byte *key,TABLE *form,uint index,uint key_length);
-void key_restore(TABLE *form,byte *key,uint index,uint key_length);
+void key_copy(byte *to_key, byte *from_record, KEY *key_info, uint key_length);
+void key_restore(byte *to_record, byte *from_key, KEY *key_info,
+                 uint key_length);
 bool key_cmp_if_same(TABLE *form,const byte *key,uint index,uint key_length);
 void key_unpack(String *to,TABLE *form,uint index);
 bool check_if_key_used(TABLE *table, uint idx, List<Item> &fields);

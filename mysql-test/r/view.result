@@ -32,10 +32,10 @@ c
 11
 show create table v1;
 View	Create View
-v1	CREATE VIEW `test`.`v1` AS select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
+v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
 show create view v1;
 View	Create View
-v1	CREATE VIEW `test`.`v1` AS select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
+v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
 show create view t1;
 ERROR HY000: 'test.t1' is not VIEW
 drop table t1;
@@ -130,7 +130,16 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 Warnings:
 Note	1003	select `v6`.`c` AS `c` from `test`.`v6`
 show tables;
-Tables_in_test	table_type
+Tables_in_test
+t1
+v1
+v2
+v3
+v4
+v5
+v6
+show full tables;
+Tables_in_test	Table_type
 t1	BASE TABLE
 v1	VIEW
 v2	VIEW
@@ -226,7 +235,11 @@ create table mysqltest.t1 (a int, b int);
 create table mysqltest.t2 (a int, b int);
 grant select on mysqltest.t1 to mysqltest_1@localhost;
 grant create view,select on test.* to mysqltest_1@localhost;
-create view v1  as select * from mysqltest.t1;
+create view v1 as select * from mysqltest.t1;
+alter view v1 as select * from mysqltest.t1;
+ERROR 42000: delete command denied to user 'mysqltest_1'@'localhost' for table 'v1'
+create or replace view v1 as select * from mysqltest.t1;
+ERROR 42000: delete command denied to user 'mysqltest_1'@'localhost' for table 'v1'
 create view mysqltest.v2  as select * from mysqltest.t1;
 ERROR 42000: create view command denied to user 'mysqltest_1'@'localhost' for table 'v2'
 create view v2 as select * from mysqltest.t2;
@@ -326,7 +339,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
 show create view mysqltest.v1;
 View	Create View
-v1	CREATE VIEW `mysqltest`.`v1` AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`
+v1	CREATE ALGORITHM=UNDEFINED VIEW `mysqltest`.`v1` AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`
 explain select c from mysqltest.v2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
@@ -339,7 +352,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
 show create view mysqltest.v3;
 View	Create View
-v3	CREATE VIEW `mysqltest`.`v3` AS select (`mysqltest`.`t2`.`a` + 1) AS `c`,(`mysqltest`.`t2`.`b` + 1) AS `d` from `mysqltest`.`t2`
+v3	CREATE ALGORITHM=UNDEFINED VIEW `mysqltest`.`v3` AS select (`mysqltest`.`t2`.`a` + 1) AS `c`,(`mysqltest`.`t2`.`b` + 1) AS `d` from `mysqltest`.`t2`
 explain select c from mysqltest.v4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
@@ -475,8 +488,10 @@ drop view v1;
 drop table t1;
 create table t1 (a int);
 create view v1 as select distinct a from t1 WITH CHECK OPTION;
-create view v2 as select distinct a from t1 WITH CASCADED CHECK OPTION;
-create view v3 as select distinct a from t1 WITH LOCAL CHECK OPTION;
+ERROR HY000: CHECK OPTION on non-updatable view 'test.v1'
+create view v1 as select a from t1 WITH CHECK OPTION;
+create view v2 as select a from t1 WITH CASCADED CHECK OPTION;
+create view v3 as select a from t1 WITH LOCAL CHECK OPTION;
 drop view v3 RESTRICT;
 drop view v2 CASCADE;
 drop view v1;
@@ -751,31 +766,28 @@ create table t1 (a int, b int, c int, primary key(a,b));
 insert into t1 values (10,2,-1), (20,3,-2), (30,4,-3), (40,5,-4), (50,10,-5);
 create view v1 (x,y) as select a, b from t1;
 create view v2 (x,y) as select a, c from t1;
-set sql_updatable_view_key=YES;
+set updatable_views_with_limit=NO;
 update v1 set x=x+1;
 update v2 set x=x+1;
-ERROR HY000: The target table v2 of the UPDATE is not updatable
-set sql_updatable_view_key=LIMIT1;
-update v1 set x=x+1;
-update v2 set x=x+1;
-Warnings:
-Note	1355	View being updated does not have complete key of underlying table in it
 update v1 set x=x+1 limit 1;
 update v2 set x=x+1 limit 1;
 ERROR HY000: The target table v2 of the UPDATE is not updatable
-set sql_updatable_view_key=NO;
+set updatable_views_with_limit=YES;
 update v1 set x=x+1 limit 1;
 update v2 set x=x+1 limit 1;
 Warnings:
 Note	1355	View being updated does not have complete key of underlying table in it
-set sql_updatable_view_key=DEFAULT;
+set updatable_views_with_limit=DEFAULT;
+show variables like "updatable_views_with_limit";
+Variable_name	Value
+updatable_views_with_limit	YES
 select * from t1;
 a	b	c
-16	2	-1
-23	3	-2
-33	4	-3
-43	5	-4
-53	10	-5
+15	2	-1
+22	3	-2
+32	4	-3
+42	5	-4
+52	10	-5
 drop table t1;
 drop view v1,v2;
 create table t1 (a int, b int, c int, primary key(a,b));
@@ -979,8 +991,6 @@ drop view v1;
 create view v1 (a,a) as select 'a','a';
 ERROR 42S21: Duplicate column name 'a'
 create procedure p1 () begin declare v int; create view v1 as select v; end;//
-Warnings:
-Warning	1311	Referring to uninitialized variable v
 call p1();
 ERROR HY000: View's SELECT contains a variable or parameter
 drop procedure p1;
@@ -1040,7 +1050,7 @@ drop table t1;
 CREATE VIEW v02 AS SELECT * FROM DUAL;
 ERROR HY000: No tables used
 SHOW TABLES;
-Tables_in_test	table_type
+Tables_in_test
 CREATE VIEW v1 AS SELECT EXISTS (SELECT 1 UNION SELECT 2);
 select * from v1;
 EXISTS (SELECT 1 UNION SELECT 2)
@@ -1055,7 +1065,7 @@ drop table t1;
 CREATE VIEW v1 (f1,f2,f3,f4) AS SELECT connection_id(), pi(), current_user(), version();
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE VIEW `test`.`v1` AS select sql_no_cache connection_id() AS `f1`,pi() AS `f2`,current_user() AS `f3`,version() AS `f4`
+v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select sql_no_cache connection_id() AS `f1`,pi() AS `f2`,current_user() AS `f3`,version() AS `f4`
 drop view v1;
 create table t1 (s1 int);
 create table t2 (s2 int);
@@ -1089,13 +1099,13 @@ create view v1 as select a from t1;
 create view v2 as select a from t2 where a in (select a from v1);
 show create view v2;
 View	Create View
-v2	CREATE VIEW `test`.`v2` AS select `test`.`t2`.`a` AS `a` from `test`.`t2` where `a` in (select `v1`.`a` AS `a` from `test`.`v1`)
+v2	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v2` AS select `test`.`t2`.`a` AS `a` from `test`.`t2` where `a` in (select `v1`.`a` AS `a` from `test`.`v1`)
 drop view v2, v1;
 drop table t1, t2;
 CREATE VIEW `v 1` AS select 5 AS `5`;
 show create view `v 1`;
 View	Create View
-v 1	CREATE VIEW `test`.`v 1` AS select 5 AS `5`
+v 1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v 1` AS select 5 AS `5`
 drop view `v 1`;
 create database mysqltest;
 create table mysqltest.t1 (a int, b int);
@@ -1163,14 +1173,14 @@ a	b
 1	1
 show create view v3;
 View	Create View
-v3	CREATE VIEW `test`.`v3` AS select `v1`.`col1` AS `a`,`v2`.`col1` AS `b` from `test`.`v1` join `test`.`v2` where (`v1`.`col1` = `v2`.`col1`)
+v3	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v3` AS select `v1`.`col1` AS `a`,`v2`.`col1` AS `b` from `test`.`v1` join `test`.`v2` where (`v1`.`col1` = `v2`.`col1`)
 drop view v3, v2, v1;
 drop table t2, t1;
 create function `f``1` () returns int return 5;
 create view v1 as select test.`f``1` ();
 show create view v1;
 View	Create View
-v1	CREATE VIEW `test`.`v1` AS select `test`.`f``1`() AS `test.``f````1`` ()`
+v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select `test`.`f``1`() AS `test.``f````1`` ()`
 select * from v1;
 test.`f``1` ()
 5
@@ -1187,10 +1197,10 @@ create table t2 (col1 char collate latin1_german2_ci);
 create view v2 as select col1 collate latin1_german1_ci from t2;
 show create view v2;
 View	Create View
-v2	CREATE VIEW `test`.`v2` AS select (`test`.`t2`.`col1` collate latin1_german1_ci) AS `col1 collate latin1_german1_ci` from `test`.`t2`
+v2	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v2` AS select (`test`.`t2`.`col1` collate latin1_german1_ci) AS `col1 collate latin1_german1_ci` from `test`.`t2`
 show create view v2;
 View	Create View
-v2	CREATE VIEW `test`.`v2` AS select (`test`.`t2`.`col1` collate latin1_german1_ci) AS `col1 collate latin1_german1_ci` from `test`.`t2`
+v2	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v2` AS select (`test`.`t2`.`col1` collate latin1_german1_ci) AS `col1 collate latin1_german1_ci` from `test`.`t2`
 drop view v2;
 drop table t2;
 create table t1 (a int);
@@ -1221,7 +1231,7 @@ drop table t1;
 create view v1 as select 99999999999999999999999999999999999999999999999999999 as col1;
 show create view v1;
 View	Create View
-v1	CREATE VIEW `test`.`v1` AS select 99999999999999999999999999999999999999999999999999999 AS `col1`
+v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select 99999999999999999999999999999999999999999999999999999 AS `col1`
 drop view v1;
 create table tü (cü char);
 create view vü as select cü from tü;
@@ -1242,7 +1252,7 @@ drop table t1;
 create view v1 as select cast(1 as char(3));
 show create view v1;
 View	Create View
-v1	CREATE VIEW `test`.`v1` AS select cast(1 as char(3) charset latin1) AS `cast(1 as char(3))`
+v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select cast(1 as char(3) charset latin1) AS `cast(1 as char(3))`
 select * from v1;
 cast(1 as char(3))
 1
@@ -1326,6 +1336,18 @@ update v1,t1 set v1.s1='c' where t1.s1=v1.s1;
 select * from v1;
 s1
 c
+prepare stmt1 from "update v1,t1 set v1.s1=? where t1.s1=v1.s1";
+set @arg='d';
+execute stmt1 using @arg;
+select * from v1;
+s1
+d
+set @arg='e';
+execute stmt1 using @arg;
+select * from v1;
+s1
+e
+deallocate prepare stmt1;
 drop view v1;
 drop table t1;
 create table t1 (a int);
@@ -1338,3 +1360,269 @@ select * from t2;
 ERROR HY000: Table 't2' was not locked with LOCK TABLES
 drop view v1;
 drop table t1, t2;
+create table t1 (a int);
+create view v1 as select * from t1 where a < 2 with check option;
+insert into v1 values(1);
+insert into v1 values(3);
+ERROR HY000: CHECK OPTION failed 'test.v1'
+insert ignore into v1 values (2),(3),(0);
+Warnings:
+Error	1369	CHECK OPTION failed 'test.v1'
+Error	1369	CHECK OPTION failed 'test.v1'
+select * from t1;
+a
+1
+0
+delete from t1;
+insert into v1 SELECT 1;
+insert into v1 SELECT 3;
+ERROR HY000: CHECK OPTION failed 'test.v1'
+create table t2 (a int);
+insert into t2 values (2),(3),(0);
+insert ignore into v1 SELECT a from t2;
+Warnings:
+Error	1369	CHECK OPTION failed 'test.v1'
+Error	1369	CHECK OPTION failed 'test.v1'
+select * from t1;
+a
+1
+0
+update v1 set a=-1 where a=0;
+update v1 set a=2 where a=1;
+ERROR HY000: CHECK OPTION failed 'test.v1'
+select * from t1;
+a
+1
+-1
+update v1 set a=0 where a=0;
+insert into t2 values (1);
+update v1,t2 set v1.a=v1.a-1 where v1.a=t2.a;
+select * from t1;
+a
+0
+-1
+update v1 set a=a+1;
+update ignore v1,t2 set v1.a=v1.a+1 where v1.a=t2.a;
+Warnings:
+Error	1369	CHECK OPTION failed 'test.v1'
+select * from t1;
+a
+1
+1
+drop view v1;
+drop table t1, t2;
+create table t1 (a int);
+create view v1 as select * from t1 where a < 2 with check option;
+create view v2 as select * from v1 where a > 0 with local check option;
+create view v3 as select * from v1 where a > 0 with cascaded check option;
+insert into v2 values (1);
+insert into v3 values (1);
+insert into v2 values (0);
+ERROR HY000: CHECK OPTION failed 'test.v2'
+insert into v3 values (0);
+ERROR HY000: CHECK OPTION failed 'test.v3'
+insert into v2 values (2);
+insert into v3 values (2);
+ERROR HY000: CHECK OPTION failed 'test.v3'
+select * from t1;
+a
+1
+1
+2
+drop view v3,v2,v1;
+drop table t1;
+create table t1 (a int, primary key (a));
+create view v1 as select * from t1 where a < 2 with check option;
+insert into v1 values (1) on duplicate key update a=2;
+insert into v1 values (1) on duplicate key update a=2;
+ERROR HY000: CHECK OPTION failed 'test.v1'
+insert ignore into v1 values (1) on duplicate key update a=2;
+Warnings:
+Error	1369	CHECK OPTION failed 'test.v1'
+select * from t1;
+a
+1
+drop view v1;
+drop table t1;
+create table t1 (s1 int);
+create view v1 as select * from t1;
+create view v2 as select * from v1;
+alter view v1 as select * from v2;
+ERROR 42S02: Table 'test.v1' doesn't exist
+alter view v1 as select * from v1;
+ERROR 42000: Not unique table/alias: 'v1'
+create or replace view v1 as select * from v2;
+ERROR 42S02: Table 'test.v1' doesn't exist
+create or replace view v1 as select * from v1;
+ERROR 42000: Not unique table/alias: 'v1'
+drop view v2,v1;
+drop table t1;
+create table t1 (a int);
+create view v1 as select * from t1;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select `test`.`t1`.`a` AS `a` from `test`.`t1`
+alter algorithm=undefined view v1 as select * from t1 with check option;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1` AS select `test`.`t1`.`a` AS `a` from `test`.`t1` WITH CASCADED CHECK OPTION
+alter algorithm=merge view v1 as select * from t1 with cascaded check option;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=MERGE VIEW `test`.`v1` AS select `test`.`t1`.`a` AS `a` from `test`.`t1` WITH CASCADED CHECK OPTION
+alter algorithm=temptable view v1 as select * from t1;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=TEMPTABLE VIEW `test`.`v1` AS select `test`.`t1`.`a` AS `a` from `test`.`t1`
+drop view v1;
+drop table t1;
+create table t1 (s1 int);
+create table t2 (s1 int);
+create view v2 as select * from t2 where s1 in (select s1 from t1);
+insert into v2 values (5);
+insert into t1 values (5);
+select * from v2;
+s1
+5
+update v2 set s1 = 0;
+select * from v2;
+s1
+select * from t2;
+s1
+0
+alter view v2 as select * from t2 where s1 in (select s1 from t1) with check option;
+insert into v2 values (5);
+update v2 set s1 = 1;
+ERROR HY000: CHECK OPTION failed 'test.v2'
+insert into t1 values (1);
+update v2 set s1 = 1;
+select * from v2;
+s1
+1
+select * from t2;
+s1
+0
+1
+prepare stmt1 from "select * from v2;";
+execute stmt1;
+s1
+1
+insert into t1 values (0);
+execute stmt1;
+s1
+0
+1
+deallocate prepare stmt1;
+drop view v2;
+drop table t1, t2;
+create table t1 (t time);
+create view v1 as select substring_index(t,':',2) as t from t1;
+insert into t1 (t) values ('12:24:10');
+select substring_index(t,':',2) from t1;
+substring_index(t,':',2)
+12:24
+select substring_index(t,':',2) from v1;
+substring_index(t,':',2)
+12:24
+drop view v1;
+drop table t1;
+create table t1 (s1 tinyint);
+create view v1 as select * from t1 where s1 <> 0 with local check option;
+create view v2 as select * from v1 with cascaded check option;
+insert into v2 values (0);
+ERROR HY000: CHECK OPTION failed 'test.v2'
+drop view v2, v1;
+drop table t1;
+create table t1 (s1 int);
+create view v1 as select * from t1 where s1 < 5 with check option;
+insert ignore into v1 values (6);
+ERROR HY000: CHECK OPTION failed 'test.v1'
+insert ignore into v1 values (6),(3);
+Warnings:
+Error	1369	CHECK OPTION failed 'test.v1'
+select * from t1;
+s1
+3
+drop view v1;
+drop table t1;
+create table t1 (s1 tinyint);
+create trigger t1_bi before insert on t1 for each row set new.s1 = 500;
+create view v1 as select * from t1 where s1 <> 127 with check option;
+insert into v1 values (0);
+ERROR HY000: CHECK OPTION failed 'test.v1'
+select * from v1;
+s1
+select * from t1;
+s1
+drop trigger t1.t1_bi;
+drop view v1;
+drop table t1;
+create table t1 (s1 tinyint);
+create view v1 as select * from t1 where s1 <> 0;
+create view v2 as select * from v1 where s1 <> 1 with cascaded check option;
+insert into v2 values (0);
+ERROR HY000: CHECK OPTION failed 'test.v2'
+select * from v2;
+s1
+select * from t1;
+s1
+drop view v2, v1;
+drop table t1;
+create table t1 (a int, b char(10));
+create view v1 as select * from t1 where a != 0 with check option;
+load data infile '../../std_data/loaddata3.dat' into table v1 fields terminated by '' enclosed by '' ignore 1 lines;
+ERROR HY000: CHECK OPTION failed 'test.v1'
+select * from t1;
+a	b
+1	row 1
+2	row 2
+select * from v1;
+a	b
+1	row 1
+2	row 2
+delete from t1;
+load data infile '../../std_data/loaddata3.dat' ignore into table v1 fields terminated by '' enclosed by '' ignore 1 lines;
+Warnings:
+Warning	1264	Out of range value adjusted for column 'a' at row 3
+Error	1369	CHECK OPTION failed 'test.v1'
+Warning	1264	Out of range value adjusted for column 'a' at row 4
+Error	1369	CHECK OPTION failed 'test.v1'
+select * from t1;
+a	b
+1	row 1
+2	row 2
+3	row 3
+select * from v1;
+a	b
+1	row 1
+2	row 2
+3	row 3
+drop view v1;
+drop table t1;
+create table t1 (a text, b text);
+create view v1 as select * from t1 where a <> 'Field A' with check option;
+load data infile '../../std_data/loaddata2.dat' into table v1 fields terminated by ',' enclosed by '''';
+ERROR HY000: CHECK OPTION failed 'test.v1'
+select concat('|',a,'|'), concat('|',b,'|') from t1;
+concat('|',a,'|')	concat('|',b,'|')
+select concat('|',a,'|'), concat('|',b,'|') from v1;
+concat('|',a,'|')	concat('|',b,'|')
+delete from t1;
+load data infile '../../std_data/loaddata2.dat' ignore into table v1 fields terminated by ',' enclosed by '''';
+Warnings:
+Error	1369	CHECK OPTION failed 'test.v1'
+Warning	1261	Row 2 doesn't contain data for all columns
+select concat('|',a,'|'), concat('|',b,'|') from t1;
+concat('|',a,'|')	concat('|',b,'|')
+|Field 1|	|Field 2' 
+Field 3,'Field 4|
+|Field 5' ,'Field 6|	NULL
+|Field 6|	| 'Field 7'|
+select concat('|',a,'|'), concat('|',b,'|') from v1;
+concat('|',a,'|')	concat('|',b,'|')
+|Field 1|	|Field 2' 
+Field 3,'Field 4|
+|Field 5' ,'Field 6|	NULL
+|Field 6|	| 'Field 7'|
+drop view v1;
+drop table t1;

@@ -82,6 +82,7 @@ explain extended select c from v6;
 
 # show table/table status test
 show tables;
+show full tables;
 --replace_column 12 # 13 #
 show table status;
 
@@ -178,7 +179,12 @@ grant create view,select on test.* to mysqltest_1@localhost;
 connect (user1,localhost,mysqltest_1,,test);
 connection user1;
 
-create view v1  as select * from mysqltest.t1;
+create view v1 as select * from mysqltest.t1;
+# try to modify view without DELETE privilege on it
+-- error 1142
+alter view v1 as select * from mysqltest.t1;
+-- error 1142
+create or replace view v1 as select * from mysqltest.t1;
 # no CRETE VIEW privilege
 -- error 1142
 create view mysqltest.v2  as select * from mysqltest.t1;
@@ -394,9 +400,11 @@ drop table t1;
 # syntax compatibility
 #
 create table t1 (a int);
+-- error 1368
 create view v1 as select distinct a from t1 WITH CHECK OPTION;
-create view v2 as select distinct a from t1 WITH CASCADED CHECK OPTION;
-create view v3 as select distinct a from t1 WITH LOCAL CHECK OPTION;
+create view v1 as select a from t1 WITH CHECK OPTION;
+create view v2 as select a from t1 WITH CASCADED CHECK OPTION;
+create view v3 as select a from t1 WITH LOCAL CHECK OPTION;
 drop view v3 RESTRICT;
 drop view v2 CASCADE;
 drop view v1;
@@ -626,20 +634,17 @@ create table t1 (a int, b int, c int, primary key(a,b));
 insert into t1 values (10,2,-1), (20,3,-2), (30,4,-3), (40,5,-4), (50,10,-5);
 create view v1 (x,y) as select a, b from t1;
 create view v2 (x,y) as select a, c from t1;
-set sql_updatable_view_key=YES;
-update v1 set x=x+1;
--- error 1288
-update v2 set x=x+1;
-set sql_updatable_view_key=LIMIT1;
+set updatable_views_with_limit=NO;
 update v1 set x=x+1;
 update v2 set x=x+1;
 update v1 set x=x+1 limit 1;
 -- error 1288
 update v2 set x=x+1 limit 1;
-set sql_updatable_view_key=NO;
+set updatable_views_with_limit=YES;
 update v1 set x=x+1 limit 1;
 update v2 set x=x+1 limit 1;
-set sql_updatable_view_key=DEFAULT;
+set updatable_views_with_limit=DEFAULT;
+show variables like "updatable_views_with_limit";
 select * from t1;
 drop table t1;
 drop view v1,v2;
@@ -1293,6 +1298,14 @@ update v1 set s1='b';
 select * from v1;
 update v1,t1 set v1.s1='c' where t1.s1=v1.s1;
 select * from v1;
+prepare stmt1 from "update v1,t1 set v1.s1=? where t1.s1=v1.s1";
+set @arg='d';
+execute stmt1 using @arg;
+select * from v1;
+set @arg='e';
+execute stmt1 using @arg;
+select * from v1;
+deallocate prepare stmt1;
 drop view v1;
 drop table t1;
 
@@ -1308,3 +1321,236 @@ select * from v1;
 select * from t2;
 drop view v1;
 drop table t1, t2;
+
+#
+# WITH CHECK OPTION insert/update test
+#
+create table t1 (a int);
+create view v1 as select * from t1 where a < 2 with check option;
+# simple insert
+insert into v1 values(1);
+-- error 1369
+insert into v1 values(3);
+# simple insert with ignore
+insert ignore into v1 values (2),(3),(0);
+select * from t1;
+# prepare data for next check
+delete from t1;
+# INSERT SELECT test
+insert into v1 SELECT 1;
+-- error 1369
+insert into v1 SELECT 3;
+# prepare data for next check
+create table t2 (a int);
+insert into t2 values (2),(3),(0);
+# INSERT SELECT with ignore test
+insert ignore into v1 SELECT a from t2;
+select * from t1;
+#simple UPDATE test
+update v1 set a=-1 where a=0;
+-- error 1369
+update v1 set a=2 where a=1;
+select * from t1;
+# prepare data for next check
+update v1 set a=0 where a=0;
+insert into t2 values (1);
+# multiupdate test
+update v1,t2 set v1.a=v1.a-1 where v1.a=t2.a;
+select * from t1;
+# prepare data for next check
+update v1 set a=a+1;
+# multiupdate with ignore test
+update ignore v1,t2 set v1.a=v1.a+1 where v1.a=t2.a;
+select * from t1;
+
+drop view v1;
+drop table t1, t2;
+
+#
+# CASCADED/LOCAL CHECK OPTION test
+#
+create table t1 (a int);
+create view v1 as select * from t1 where a < 2 with check option;
+create view v2 as select * from v1 where a > 0 with local check option;
+create view v3 as select * from v1 where a > 0 with cascaded check option;
+insert into v2 values (1);
+insert into v3 values (1);
+-- error 1369
+insert into v2 values (0);
+-- error 1369
+insert into v3 values (0);
+insert into v2 values (2);
+-- error 1369
+insert into v3 values (2);
+select * from t1;
+drop view v3,v2,v1;
+drop table t1;
+
+#
+# CHECK OPTION with INSERT ... ON DUPLICATE KEY UPDATE
+#
+create table t1 (a int, primary key (a));
+create view v1 as select * from t1 where a < 2 with check option;
+insert into v1 values (1) on duplicate key update a=2;
+-- error 1369
+insert into v1 values (1) on duplicate key update a=2;
+insert ignore into v1 values (1) on duplicate key update a=2;
+select * from t1;
+drop view v1;
+drop table t1;
+
+#
+# check cyclic referencing protection on altering view
+#
+create table t1 (s1 int);
+create view v1 as select * from t1;
+create view v2 as select * from v1;
+-- error 1146
+alter view v1 as select * from v2;
+-- error 1066
+alter view v1 as select * from v1;
+-- error 1146
+create or replace view v1 as select * from v2;
+-- error 1066
+create or replace view v1 as select * from v1;
+drop view v2,v1;
+drop table t1;
+
+#
+# check altering differ options
+#
+create table t1 (a int);
+create view v1 as select * from t1;
+show create view v1;
+alter algorithm=undefined view v1 as select * from t1 with check option;
+show create view v1;
+alter algorithm=merge view v1 as select * from t1 with cascaded check option;
+show create view v1;
+alter algorithm=temptable view v1 as select * from t1;
+show create view v1;
+drop view v1;
+drop table t1;
+
+#
+# updating view with subquery in the WHERE clause
+#
+create table t1 (s1 int);
+create table t2 (s1 int);
+create view v2 as select * from t2 where s1 in (select s1 from t1);
+insert into v2 values (5);
+insert into t1 values (5);
+select * from v2;
+update v2 set s1 = 0;
+select * from v2;
+select * from t2;
+# check it with check option
+alter view v2 as select * from t2 where s1 in (select s1 from t1) with check option;
+insert into v2 values (5);
+-- error 1369
+update v2 set s1 = 1;
+insert into t1 values (1);
+update v2 set s1 = 1;
+select * from v2;
+select * from t2;
+# scheck how VIEWs with subqueries work with prepared statements
+prepare stmt1 from "select * from v2;";
+execute stmt1;
+insert into t1 values (0);
+execute stmt1;
+deallocate prepare stmt1;
+drop view v2;
+drop table t1, t2;
+
+#
+# test of substring_index with view
+#
+create table t1 (t time);
+create view v1 as select substring_index(t,':',2) as t from t1;
+insert into t1 (t) values ('12:24:10');
+select substring_index(t,':',2) from t1;
+select substring_index(t,':',2) from v1;
+drop view v1;
+drop table t1;
+
+#
+# test of cascaded check option for whiew without WHERE clause
+#
+create table t1 (s1 tinyint);
+create view v1 as select * from t1 where s1 <> 0 with local check option;
+create view v2 as select * from v1 with cascaded check option;
+-- error 1369
+insert into v2 values (0);
+drop view v2, v1;
+drop table t1;
+
+#
+# inserting single value with check option failed always get error
+#
+create table t1 (s1 int);
+create view v1 as select * from t1 where s1 < 5 with check option;
+#single value
+-- error 1369
+insert ignore into v1 values (6);
+#several values
+insert ignore into v1 values (6),(3);
+select * from t1;
+drop view v1;
+drop table t1;
+
+#
+# changing value by trigger and CHECK OPTION
+#
+create table t1 (s1 tinyint);
+create trigger t1_bi before insert on t1 for each row set new.s1 = 500;
+create view v1 as select * from t1 where s1 <> 127 with check option;
+-- error 1369
+insert into v1 values (0);
+select * from v1;
+select * from t1;
+drop trigger t1.t1_bi;
+drop view v1;
+drop table t1;
+
+#
+# CASCADED should be used for all underlaying VIEWs
+#
+create table t1 (s1 tinyint);
+create view v1 as select * from t1 where s1 <> 0;
+create view v2 as select * from v1 where s1 <> 1 with cascaded check option;
+-- error 1369
+insert into v2 values (0);
+select * from v2;
+select * from t1;
+drop view v2, v1;
+drop table t1;
+
+#
+# LOAD DATA with view and CHECK OPTION
+#
+# fixed length fields
+create table t1 (a int, b char(10));
+create view v1 as select * from t1 where a != 0 with check option;
+-- error 1369
+load data infile '../../std_data/loaddata3.dat' into table v1 fields terminated by '' enclosed by '' ignore 1 lines;
+select * from t1;
+select * from v1;
+delete from t1;
+load data infile '../../std_data/loaddata3.dat' ignore into table v1 fields terminated by '' enclosed by '' ignore 1 lines;
+select * from t1;
+select * from v1;
+drop view v1;
+drop table t1;
+# variable length fields
+create table t1 (a text, b text);
+create view v1 as select * from t1 where a <> 'Field A' with check option;
+-- error 1369
+load data infile '../../std_data/loaddata2.dat' into table v1 fields terminated by ',' enclosed by '''';
+select concat('|',a,'|'), concat('|',b,'|') from t1;
+select concat('|',a,'|'), concat('|',b,'|') from v1;
+delete from t1;
+load data infile '../../std_data/loaddata2.dat' ignore into table v1 fields terminated by ',' enclosed by '''';
+select concat('|',a,'|'), concat('|',b,'|') from t1;
+select concat('|',a,'|'), concat('|',b,'|') from v1;
+drop view v1;
+drop table t1;
+

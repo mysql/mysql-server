@@ -225,6 +225,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  CONDITION_SYM
 %token	CONNECTION_SYM
 %token	CONSTRAINT
+%token  CONTAINS_SYM
 %token  CONTINUE_SYM
 %token	CONVERT_SYM
 %token  CURRENT_USER
@@ -368,6 +369,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	RAID_CHUNKS
 %token	RAID_CHUNKSIZE
 %token	READ_SYM
+%token	READS_SYM
 %token	REAL_NUM
 %token	REFERENCES
 %token	REGEXP
@@ -425,6 +427,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	UDF_SONAME_SYM
 %token	FUNCTION_SYM
 %token	UNCOMMITTED_SYM
+%token	UNDEFINED_SYM
 %token	UNDERSCORE_CHARSET
 %token  UNDO_SYM
 %token	UNICODE_SYM
@@ -559,6 +562,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	MINUTE_SECOND_SYM
 %token	MINUTE_SYM
 %token	MODE_SYM
+%token	MODIFIES_SYM
 %token	MODIFY_SYM
 %token	MONTH_SYM
 %token	MLINEFROMTEXT
@@ -785,7 +789,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	opt_extended_describe
         prepare prepare_src execute deallocate 
 	statement sp_suid opt_view_list view_list or_replace algorithm
-	sp_c_chistics sp_a_chistics sp_chistic sp_c_chistic sp_a_chistic
+	sp_c_chistics sp_a_chistics sp_chistic sp_c_chistic
 END_OF_INPUT
 
 %type <NONE> call sp_proc_stmts sp_proc_stmt
@@ -1272,12 +1276,7 @@ create:
 	;
 
 sp_name:
-	  '.' IDENT_sys
-	  {
-	    $$= new sp_name($2);
-	    $$->init_qname(YYTHD);
-	  }
-	| IDENT_sys '.' IDENT_sys
+	  IDENT_sys '.' IDENT_sys
 	  {
 	    $$= new sp_name($1, $3);
 	    $$->init_qname(YYTHD);
@@ -1372,7 +1371,7 @@ create_function_tail:
 
 sp_a_chistics:
 	  /* Empty */ {}
-	| sp_a_chistics sp_a_chistic {}
+	| sp_a_chistics sp_chistic {}
 	;
 
 sp_c_chistics:
@@ -1382,20 +1381,25 @@ sp_c_chistics:
 
 /* Characteristics for both create and alter */
 sp_chistic:
-	  COMMENT_SYM TEXT_STRING_sys { Lex->sp_chistics.comment= $2; }
-	| sp_suid { }
-	;
-
-/* Alter characteristics */
-sp_a_chistic:
-	  sp_chistic     { }
-	| NAME_SYM ident { Lex->name= $2.str; }
+	  COMMENT_SYM TEXT_STRING_sys
+	  { Lex->sp_chistics.comment= $2; }
+	| LANGUAGE_SYM SQL_SYM
+	  { /* Just parse it, we only have one language for now. */ }
+	| NO_SYM SQL_SYM
+	  { Lex->sp_chistics.daccess= SP_NO_SQL; }
+	| CONTAINS_SYM SQL_SYM
+	  { Lex->sp_chistics.daccess= SP_CONTAINS_SQL; }
+	| READS_SYM SQL_SYM DATA_SYM
+	  { Lex->sp_chistics.daccess= SP_READS_SQL_DATA; }
+	| MODIFIES_SYM SQL_SYM DATA_SYM
+	  { Lex->sp_chistics.daccess= SP_MODIFIES_SQL_DATA; }
+	| sp_suid
+	  { }
 	;
 
 /* Create characteristics */
 sp_c_chistic:
 	  sp_chistic            { }
-	| LANGUAGE_SYM SQL_SYM  { }
 	| DETERMINISTIC_SYM     { Lex->sp_chistics.detistic= TRUE; }
 	| NOT DETERMINISTIC_SYM { Lex->sp_chistics.detistic= FALSE; }
 	;
@@ -1403,11 +1407,11 @@ sp_c_chistic:
 sp_suid:
 	  SQL_SYM SECURITY_SYM DEFINER_SYM
 	  {
-	    Lex->sp_chistics.suid= IS_SUID;
+	    Lex->sp_chistics.suid= SP_IS_SUID;
 	  }
 	| SQL_SYM SECURITY_SYM INVOKER_SYM
 	  {
-	    Lex->sp_chistics.suid= IS_NOT_SUID;
+	    Lex->sp_chistics.suid= SP_IS_NOT_SUID;
 	  }
 	;
 
@@ -2423,8 +2427,8 @@ create_select:
 	    else if (lex->sql_command == SQLCOM_REPLACE)
 	      lex->sql_command= SQLCOM_REPLACE_SELECT;
 	    /*
-	      following work only with local list, global list is
-	      created correctly in this case
+              The following work only with the local list, the global list
+              is created correctly in this case
 	    */
 	    lex->current_select->table_list.save_and_clear(&lex->save_list);
 	    mysql_init_select(lex);
@@ -2437,8 +2441,8 @@ create_select:
 	  opt_select_from
 	  {
 	    /*
-	      following work only with local list, global list is
-	      created correctly in this case
+              The following work only with the local list, the global list
+              is created correctly in this case
 	    */
 	    Lex->current_select->table_list.push_front(&Lex->save_list);
 	  }
@@ -2489,19 +2493,19 @@ create_table_options:
 	| create_table_option ',' create_table_options;
 
 create_table_option:
-	ENGINE_SYM opt_equal storage_engines    { Lex->create_info.db_type= $3; }
-	| TYPE_SYM opt_equal storage_engines    { Lex->create_info.db_type= $3; WARN_DEPRECATED("TYPE=storage_engine","ENGINE=storage_engine"); }
+	ENGINE_SYM opt_equal storage_engines    { Lex->create_info.db_type= $3; Lex->create_info.used_fields|= HA_CREATE_USED_ENGINE; }
+	| TYPE_SYM opt_equal storage_engines    { Lex->create_info.db_type= $3; WARN_DEPRECATED("TYPE=storage_engine","ENGINE=storage_engine");   Lex->create_info.used_fields|= HA_CREATE_USED_ENGINE; }
 	| MAX_ROWS opt_equal ulonglong_num	{ Lex->create_info.max_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MAX_ROWS;}
 	| MIN_ROWS opt_equal ulonglong_num	{ Lex->create_info.min_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MIN_ROWS;}
 	| AVG_ROW_LENGTH opt_equal ULONG_NUM	{ Lex->create_info.avg_row_length=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AVG_ROW_LENGTH;}
-	| PASSWORD opt_equal TEXT_STRING_sys	{ Lex->create_info.password=$3.str; }
-	| COMMENT_SYM opt_equal TEXT_STRING_sys	{ Lex->create_info.comment=$3.str; }
+	| PASSWORD opt_equal TEXT_STRING_sys	{ Lex->create_info.password=$3.str; Lex->create_info.used_fields|= HA_CREATE_USED_PASSWORD; }
+	| COMMENT_SYM opt_equal TEXT_STRING_sys	{ Lex->create_info.comment=$3.str; Lex->create_info.used_fields|= HA_CREATE_USED_COMMENT; }
 	| AUTO_INC opt_equal ulonglong_num	{ Lex->create_info.auto_increment_value=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AUTO;}
 	| PACK_KEYS_SYM opt_equal ULONG_NUM	{ Lex->create_info.table_options|= $3 ? HA_OPTION_PACK_KEYS : HA_OPTION_NO_PACK_KEYS; Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;}
 	| PACK_KEYS_SYM opt_equal DEFAULT	{ Lex->create_info.table_options&= ~(HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS); Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;}
-	| CHECKSUM_SYM opt_equal ULONG_NUM	{ Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM; }
-	| DELAY_KEY_WRITE_SYM opt_equal ULONG_NUM { Lex->create_info.table_options|= $3 ? HA_OPTION_DELAY_KEY_WRITE : HA_OPTION_NO_DELAY_KEY_WRITE; }
-	| ROW_FORMAT_SYM opt_equal row_types	{ Lex->create_info.row_type= $3; }
+	| CHECKSUM_SYM opt_equal ULONG_NUM	{ Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM; Lex->create_info.used_fields|= HA_CREATE_USED_CHECKSUM; }
+	| DELAY_KEY_WRITE_SYM opt_equal ULONG_NUM { Lex->create_info.table_options|= $3 ? HA_OPTION_DELAY_KEY_WRITE : HA_OPTION_NO_DELAY_KEY_WRITE;  Lex->create_info.used_fields|= HA_CREATE_USED_DELAY_KEY_WRITE; }
+	| ROW_FORMAT_SYM opt_equal row_types	{ Lex->create_info.row_type= $3;  Lex->create_info.used_fields|= HA_CREATE_USED_ROW_FORMAT; }
 	| RAID_TYPE opt_equal raid_types	{ Lex->create_info.raid_type= $3; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
 	| RAID_CHUNKS opt_equal ULONG_NUM	{ Lex->create_info.raid_chunks= $3; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
 	| RAID_CHUNKSIZE opt_equal ULONG_NUM	{ Lex->create_info.raid_chunksize= $3*RAID_BLOCK_SIZE; Lex->create_info.used_fields|= HA_CREATE_USED_RAID;}
@@ -2523,9 +2527,9 @@ create_table_option:
 	| default_charset
 	| default_collation
 	| INSERT_METHOD opt_equal merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
-	| DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys
-	  { Lex->create_info.data_file_name= $4.str; }
-	| INDEX_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.index_file_name= $4.str; };
+	| DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.data_file_name= $4.str; Lex->create_info.used_fields|= HA_CREATE_USED_DATADIR; }
+	| INDEX_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys { Lex->create_info.index_file_name= $4.str;  Lex->create_info.used_fields|= HA_CREATE_USED_INDEXDIR; }
+        ;
 
 default_charset:
         opt_default charset opt_equal charset_name_or_default
@@ -3163,8 +3167,7 @@ alter:
 	  lex->create_info.db_type= DB_TYPE_DEFAULT;
 	  lex->create_info.default_table_charset= NULL;
 	  lex->create_info.row_type= ROW_TYPE_NOT_USED;
-	  lex->alter_info.reset();          
-	  lex->alter_info.is_simple= 1;
+	  lex->alter_info.reset();
 	  lex->alter_info.flags= 0;
 	}
 	alter_list
@@ -3185,7 +3188,6 @@ alter:
 	    LEX *lex= Lex;
 
 	    bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
-	    lex->name= 0;
           }
 	  sp_a_chistics
 	  {
@@ -3200,7 +3202,6 @@ alter:
 	    LEX *lex= Lex;
 
 	    bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
-	    lex->name= 0;
           }
 	  sp_a_chistics
 	  {
@@ -3210,7 +3211,7 @@ alter:
 	    lex->sql_command= SQLCOM_ALTER_FUNCTION;
 	    lex->spname= $3;
 	  }
-	| ALTER VIEW_SYM table_ident
+	| ALTER algorithm VIEW_SYM table_ident
 	  {
 	    THD *thd= YYTHD;
 	    LEX *lex= thd->lex;
@@ -3218,9 +3219,9 @@ alter:
 	    lex->create_view_mode= VIEW_ALTER;
 	    lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
 	    /* first table in list is target VIEW name */
-	    lex->select_lex.add_table_to_list(thd, $3, NULL, 0);
+	    lex->select_lex.add_table_to_list(thd, $4, NULL, 0);
 	  }
-	  opt_view_list AS select_init
+	  opt_view_list AS select_init check_option
 	  {}
 	;
 
@@ -3231,27 +3232,27 @@ alter_list:
 	| alter_list ',' alter_list_item;
 
 add_column:
-	ADD opt_column 
+	ADD opt_column
 	{
 	  LEX *lex=Lex;
-	  lex->change=0; 
-	  lex->alter_info.flags|= ALTER_ADD_COLUMN; 
+	  lex->change=0;
+	  lex->alter_info.flags|= ALTER_ADD_COLUMN;
 	};
 
 alter_list_item:
-	add_column column_def opt_place { Lex->alter_info.is_simple= 0; }
-	| ADD key_def 
-	  { 
-	    LEX *lex=Lex;
-	    lex->alter_info.is_simple= 0; 
-	    lex->alter_info.flags|= ALTER_ADD_INDEX; 
+	add_column column_def opt_place { }
+	| ADD key_def
+	  {
+	    Lex->alter_info.flags|= ALTER_ADD_INDEX;
 	  }
-	| add_column '(' field_list ')'      { Lex->alter_info.is_simple= 0; }
+	| add_column '(' field_list ')'
+          {
+	    Lex->alter_info.flags|= ALTER_ADD_COLUMN | ALTER_ADD_INDEX;
+          }
 	| CHANGE opt_column field_ident
 	  {
 	     LEX *lex=Lex;
-	     lex->change= $3.str; 
-	     lex->alter_info.is_simple= 0;
+	     lex->change= $3.str;
 	     lex->alter_info.flags|= ALTER_CHANGE_COLUMN;
 	  }
           field_spec opt_place
@@ -3262,7 +3263,6 @@ alter_list_item:
             lex->default_value= lex->on_update_value= 0;
 	    lex->comment=0;
 	    lex->charset= NULL;
-            lex->alter_info.is_simple= 0;
 	    lex->alter_info.flags|= ALTER_CHANGE_COLUMN;
           }
           type opt_attribute
@@ -3282,17 +3282,18 @@ alter_list_item:
 	  {
 	    LEX *lex=Lex;
 	    lex->alter_info.drop_list.push_back(new Alter_drop(Alter_drop::COLUMN,
-	    			                               $3.str)); 
-	    lex->alter_info.is_simple= 0;
+                                                               $3.str));
 	    lex->alter_info.flags|= ALTER_DROP_COLUMN;
 	  }
-	| DROP FOREIGN KEY_SYM opt_ident { Lex->alter_info.is_simple= 0; }
+	| DROP FOREIGN KEY_SYM opt_ident
+          {
+	    Lex->alter_info.flags|= ALTER_DROP_INDEX;
+          }
 	| DROP PRIMARY_SYM KEY_SYM
 	  {
 	    LEX *lex=Lex;
 	    lex->alter_info.drop_list.push_back(new Alter_drop(Alter_drop::KEY,
 				               primary_key_name));
-	    lex->alter_info.is_simple= 0;
 	    lex->alter_info.flags|= ALTER_DROP_INDEX;
 	  }
 	| DROP key_or_index field_ident
@@ -3300,25 +3301,32 @@ alter_list_item:
 	    LEX *lex=Lex;
 	    lex->alter_info.drop_list.push_back(new Alter_drop(Alter_drop::KEY,
 					                       $3.str));
-	    lex->alter_info.is_simple= 0;
 	    lex->alter_info.flags|= ALTER_DROP_INDEX;
 	  }
-	| DISABLE_SYM KEYS { Lex->alter_info.keys_onoff= DISABLE; }
-	| ENABLE_SYM KEYS  { Lex->alter_info.keys_onoff= ENABLE; }
+	| DISABLE_SYM KEYS
+          {
+	    LEX *lex=Lex;
+            lex->alter_info.keys_onoff= DISABLE;
+	    lex->alter_info.flags|= ALTER_KEYS_ONOFF;
+          }
+	| ENABLE_SYM KEYS
+          {
+	    LEX *lex=Lex;
+            lex->alter_info.keys_onoff= ENABLE;
+	    lex->alter_info.flags|= ALTER_KEYS_ONOFF;
+          }
 	| ALTER opt_column field_ident SET DEFAULT signed_literal
 	  {
 	    LEX *lex=Lex;
 	    lex->alter_info.alter_list.push_back(new Alter_column($3.str,$6));
-	    lex->alter_info.is_simple= 0;
-	    lex->alter_info.flags|= ALTER_CHANGE_COLUMN;
+	    lex->alter_info.flags|= ALTER_CHANGE_COLUMN_DEFAULT;
 	  }
 	| ALTER opt_column field_ident DROP DEFAULT
 	  {
 	    LEX *lex=Lex;
 	    lex->alter_info.alter_list.push_back(new Alter_column($3.str,
                                                                   (Item*) 0));
-	    lex->alter_info.is_simple= 0;
-	    lex->alter_info.flags|= ALTER_CHANGE_COLUMN;
+	    lex->alter_info.flags|= ALTER_CHANGE_COLUMN_DEFAULT;
 	  }
 	| RENAME opt_to table_ident
 	  {
@@ -3348,22 +3356,20 @@ alter_list_item:
 	      YYABORT;
 	    }
 	    LEX *lex= Lex;
-	    lex->create_info.table_charset= 
+	    lex->create_info.table_charset=
 	      lex->create_info.default_table_charset= $5;
 	    lex->create_info.used_fields|= (HA_CREATE_USED_CHARSET |
 					    HA_CREATE_USED_DEFAULT_CHARSET);
-	    lex->alter_info.is_simple= 0;
+	    lex->alter_info.flags|= ALTER_CONVERT;
 	  }
-        | create_table_options_space_separated 
+        | create_table_options_space_separated
 	  {
 	    LEX *lex=Lex;
-	    lex->alter_info.is_simple= 0; 
 	    lex->alter_info.flags|= ALTER_OPTIONS;
 	  }
-	| order_clause         
+	| order_clause
 	  {
 	    LEX *lex=Lex;
-	    lex->alter_info.is_simple= 0; 
 	    lex->alter_info.flags|= ALTER_ORDER;
 	  };
 
@@ -3397,7 +3403,7 @@ opt_to:
 */
 
 slave:
-	  START_SYM SLAVE slave_thread_opts 
+	  START_SYM SLAVE slave_thread_opts
           {
 	    LEX *lex=Lex;
             lex->sql_command = SQLCOM_SLAVE_START;
@@ -4241,6 +4247,8 @@ simple_expr:
 	  { $$= new Item_func_concat(* $3); }
 	| CONCAT_WS '(' expr ',' expr_list ')'
 	  { $$= new Item_func_concat_ws($3, *$5); }
+	| CONTAINS_SYM '(' expr ',' expr ')'
+	  { $$= create_func_contains($3, $5); }
 	| CONVERT_TZ_SYM '(' expr ',' expr ',' expr ')'
 	  {
 	    Lex->time_zone_tables_used= &fake_time_zone_tables_list;
@@ -4460,18 +4468,6 @@ simple_expr:
 	  { $$= new Item_func_round($3,$5,1); }
 	| TRUE_SYM
 	  { $$= new Item_int((char*) "TRUE",1,1); }
-	| '.' ident '(' udf_expr_list ')'
-	  {
-	    LEX *lex= Lex;
-	    sp_name *name= new sp_name($2);
-
-	    name->init_qname(YYTHD);
-	    sp_add_fun_to_lex(Lex, name);
-	    if ($4)
-	      $$= new Item_func_sp(name, *$4);
-	    else
-	      $$= new Item_func_sp(name);
-	  }
 	| ident '.' ident '(' udf_expr_list ')'
 	  {
 	    LEX *lex= Lex;
@@ -5860,11 +5856,11 @@ show:	SHOW
 show_param:
 	DATABASES wild
 	  { Lex->sql_command= SQLCOM_SHOW_DATABASES; }
-	| TABLES opt_db wild
+	| opt_full TABLES opt_db wild
 	  {
 	    LEX *lex= Lex;
 	    lex->sql_command= SQLCOM_SHOW_TABLES;
-	    lex->select_lex.db= $2;
+	    lex->select_lex.db= $3;
 	   }
 	| TABLE_SYM STATUS_SYM opt_db wild
 	  {
@@ -6448,8 +6444,24 @@ NUM_literal:
 	NUM		{ int error; $$ = new Item_int($1.str, (longlong) my_strtoll10($1.str, NULL, &error), $1.length); }
 	| LONG_NUM	{ int error; $$ = new Item_int($1.str, (longlong) my_strtoll10($1.str, NULL, &error), $1.length); }
 	| ULONGLONG_NUM	{ $$ =	new Item_uint($1.str, $1.length); }
-	| REAL_NUM	{ $$ =	new Item_real($1.str, $1.length); }
-	| FLOAT_NUM	{ $$ =	new Item_float($1.str, $1.length); }
+	| REAL_NUM
+	{
+	   $$= new Item_real($1.str, $1.length);
+	   if (YYTHD->net.report_error)
+	   {
+	     send_error(YYTHD, 0, NullS);
+	     YYABORT;
+	   }
+	}
+	| FLOAT_NUM
+	{
+	   $$ =	new Item_float($1.str, $1.length);
+	   if (YYTHD->net.report_error)
+	   {
+	     send_error(YYTHD, 0, NullS);
+	     YYABORT;
+	   }
+	}
 	;
 	
 /**********************************************************************
@@ -6487,12 +6499,6 @@ simple_ident:
 
 	  if (spc && (spv = spc->find_pvar(&$1)))
 	  { /* We're compiling a stored procedure and found a variable */
-	    if (lex->sql_command != SQLCOM_CALL && ! spv->isset)
-	    {
-	      push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
-	                          ER_SP_UNINIT_VAR, ER(ER_SP_UNINIT_VAR),
-				  $1.str);
-	    }
 	    $$ = (Item*) new Item_splocal($1, spv->offset);
             lex->variables_used= 1;
 	    lex->safe_to_cache_query=0;
@@ -6780,6 +6786,7 @@ keyword:
 	| COMMIT_SYM		{}
 	| COMPRESSED_SYM	{}
 	| CONCURRENT		{}
+	| CONTAINS_SYM          {}
 	| CUBE_SYM		{}
 	| DATA_SYM		{}
 	| DATETIME		{}
@@ -6957,6 +6964,7 @@ keyword:
 	| TYPES_SYM		{}
 	| FUNCTION_SYM		{}
 	| UNCOMMITTED_SYM	{}
+	| UNDEFINED_SYM		{}
 	| UNICODE_SYM		{}
 	| UNTIL_SYM		{}
 	| USER			{}
@@ -7892,15 +7900,21 @@ or_replace:
 algorithm:
 	/* empty */
 	  { Lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED; }
+	| ALGORITHM_SYM EQ UNDEFINED_SYM
+	  { Lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED; }
 	| ALGORITHM_SYM EQ MERGE_SYM
 	  { Lex->create_view_algorithm= VIEW_ALGORITHM_MERGE; }
 	| ALGORITHM_SYM EQ TEMPTABLE_SYM
 	  { Lex->create_view_algorithm= VIEW_ALGORITHM_TMPTABLE; }
 	;
 check_option:
-        /* empty */ {}
-        | WITH CHECK_SYM OPTION {}
-        | WITH CASCADED CHECK_SYM OPTION {}
-        | WITH LOCAL_SYM CHECK_SYM OPTION {}
+        /* empty */
+          { Lex->create_view_check= VIEW_CHECK_NONE; }
+        | WITH CHECK_SYM OPTION
+          { Lex->create_view_check= VIEW_CHECK_CASCADED; }
+        | WITH CASCADED CHECK_SYM OPTION
+          { Lex->create_view_check= VIEW_CHECK_CASCADED; }
+        | WITH LOCAL_SYM CHECK_SYM OPTION
+          { Lex->create_view_check= VIEW_CHECK_LOCAL; }
         ;
 

@@ -24,7 +24,7 @@ DROP TABLE t1;
 #
 
 CREATE TABLE t1 (a double);
-INSERT INTO t1 VALUES (-9e999999);
+INSERT INTO t1 VALUES ('-9e999999');
 # The following replaces is here because some systems replaces the above
 # double with '-inf' and others with MAX_DOUBLE
 --replace_result (-1.79769313486232e+308) (RES) (NULL) (RES)

@@ -69,6 +69,7 @@ static void remove_escape(char *name);
 static void refresh_status(void);
 static bool append_file_to_dir(THD *thd, const char **filename_ptr,
 			       const char *table_name);
+static bool check_sp_definer_access(THD *thd, sp_head *sp);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -108,7 +109,7 @@ static void unlock_locked_tables(THD *thd)
   if (thd->locked_tables)
   {
     thd->lock=thd->locked_tables;
-    thd->locked_tables=0;			// Will be automaticly closed
+    thd->locked_tables=0;			// Will be automatically closed
     close_thread_tables(thd);			// Free tables
   }
 }
@@ -205,13 +206,13 @@ end:
     command      originator of the check: now check_user is called
                  during connect and change user procedures; used for 
                  logging.
-    passwd       scrambled password recieved from client
+    passwd       scrambled password received from client
     passwd_len   length of scrambled password
     db           database name to connect to, may be NULL
     check_count  dont know exactly
 
     Note, that host, user and passwd may point to communication buffer.
-    Current implementation does not depened on that, but future changes
+    Current implementation does not depend on that, but future changes
     should be done with this in mind; 'thd' is INOUT, all other params
     are 'IN'.
 
@@ -269,7 +270,7 @@ int check_user(THD *thd, enum enum_server_command command,
 
   /*
     Clear thd->db as it points to something, that will be freed when 
-    connection is closed. We don't want to accidently free a wrong pointer
+    connection is closed. We don't want to accidentally free a wrong pointer
     if connect failed. Also in case of 'CHANGE USER' failure, current
     database will be switched to 'no database selected'.
   */
@@ -311,7 +312,7 @@ int check_user(THD *thd, enum enum_server_command command,
   /* here res is always >= 0 */
   if (res == 0)
   {
-    if (!(thd->master_access & NO_ACCESS)) // authentification is OK 
+    if (!(thd->master_access & NO_ACCESS)) // authentication is OK 
     {
       DBUG_PRINT("info",
                  ("Capabilities: %d  packet_length: %ld  Host: '%s'  "
@@ -731,7 +732,7 @@ static int check_connection(THD *thd)
 #endif /* HAVE_COMPRESS */
 #ifdef HAVE_OPENSSL
     if (ssl_acceptor_fd)
-      client_flags |= CLIENT_SSL;       /* Wow, SSL is avalaible! */
+      client_flags |= CLIENT_SSL;       /* Wow, SSL is available! */
 #endif /* HAVE_OPENSSL */
 
     end= strnmov(buff, server_version, SERVER_VERSION_LENGTH) + 1;
@@ -1393,7 +1394,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       *passwd++ : strlen(passwd);
     db+= passwd_len + 1;
 #ifndef EMBEDDED_LIBRARY
-    /* Small check for incomming packet */
+    /* Small check for incoming packet */
     if ((uint) ((uchar*) db - net->read_pos) > packet_length)
     {
       send_error(thd, ER_UNKNOWN_COM_ERROR);
@@ -1428,7 +1429,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     if (res)
     {
-      /* authentification failure, we shall restore old user */
+      /* authentication failure, we shall restore old user */
       if (res > 0)
         send_error(thd, ER_UNKNOWN_COM_ERROR);
       x_free(thd->user);
@@ -1573,8 +1574,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (grant_option &&
 	check_grant(thd, SELECT_ACL, &table_list, 2, UINT_MAX, 0))
       break;
-    /* switch on VIEW optimisation: do not fill temporary tables */
-    thd->lex->sql_command= SQLCOM_SHOW_FIELDS;
     /* init structures for VIEW processing */
     table_list.select_lex= &(thd->lex->select_lex);
     mysql_init_query(thd, (uchar*)"", 0);
@@ -1582,6 +1581,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       select_lex.table_list.link_in_list((byte*) &table_list,
                                          (byte**) &table_list.next_local);
 
+    /* switch on VIEW optimisation: do not fill temporary tables */
+    thd->lex->sql_command= SQLCOM_SHOW_FIELDS;
     mysqld_list_fields(thd,&table_list,fields);
     thd->lex->unit.cleanup();
     thd->cleanup_after_query();
@@ -2397,7 +2398,7 @@ mysql_execute_command(THD *thd)
     }
 #endif
     /*
-      If we are using SET CHARSET without DEFAULT, add an implicite
+      If we are using SET CHARSET without DEFAULT, add an implicit
       DEFAULT to not confuse old users. (This may change).
     */
     if ((lex->create_info.used_fields & 
@@ -2818,7 +2819,8 @@ unsent_create_error:
       if ((res= mysql_insert_select_prepare(thd)))
         break;
       if ((result= new select_insert(first_table, first_table->table,
-                                     &lex->field_list, lex->duplicates)))
+                                     &lex->field_list, lex->duplicates,
+                                     lex->duplicates == DUP_IGNORE)))
       {
 	/* Skip first table, which is the table we are inserting in */
 	lex->select_lex.table_list.first= (byte*) first_table->next_local;
@@ -3052,8 +3054,9 @@ unsent_create_error:
         res= mysqld_extend_show_tables(thd,db,
 				       (lex->wild ? lex->wild->ptr() : NullS));
       else
-	res= mysqld_show_tables(thd,db,
-				(lex->wild ? lex->wild->ptr() : NullS));
+	res= mysqld_show_tables(thd, db,
+				(lex->wild ? lex->wild->ptr() : NullS),
+				lex->verbose);
       break;
     }
 #endif
@@ -3133,7 +3136,8 @@ unsent_create_error:
 	goto error;
     }
     res= mysql_load(thd, lex->exchange, first_table, lex->field_list,
-                    lex->duplicates, (bool) lex->local_file, lex->lock_option);
+                    lex->duplicates, (bool) lex->local_file,
+		    lex->lock_option, lex->duplicates == DUP_IGNORE);
     break;
   }
 
@@ -3373,29 +3377,6 @@ purposes internal to the MySQL server", MYF(0));
 		     first_table ? 0 : 1, 0))
       goto error;
 
-    /*
-      Check that the user isn't trying to change a password for another
-      user if he doesn't have UPDATE privilege to the MySQL database
-    */
-
-    if (thd->user)				// If not replication
-    {
-      LEX_USER *user;
-      List_iterator <LEX_USER> user_list(lex->users_list);
-      while ((user=user_list++))
-      {
-	if (user->password.str &&
-	    (strcmp(thd->user,user->user.str) ||
-	     user->host.str &&
-	     my_strcasecmp(&my_charset_latin1,
-                           user->host.str, thd->host_or_ip)))
-	{
-	  if (check_access(thd, UPDATE_ACL, "mysql",0,1,0))
-	    goto error;
-	  break;                                // We are allowed to do changes
-	}
-      }
-    }
     if (specialflag & SPECIAL_NO_RESOLVE)
     {
       LEX_USER *user;
@@ -3536,7 +3517,7 @@ purposes internal to the MySQL server", MYF(0));
     if (thd->locked_tables)
     {
       thd->lock=thd->locked_tables;
-      thd->locked_tables=0;			// Will be automaticly closed
+      thd->locked_tables=0;			// Will be automatically closed
       close_thread_tables(thd);			// Free tables
     }
     if (end_active_trans(thd))
@@ -3610,13 +3591,24 @@ purposes internal to the MySQL server", MYF(0));
   case SQLCOM_CREATE_PROCEDURE:
   case SQLCOM_CREATE_SPFUNCTION:
   {
+    uint namelen;
+    char *name;
+
     if (!lex->sphead)
     {
       res= -1;                                  // Shouldn't happen
       break;
     }
-    uint namelen;
-    char *name= lex->sphead->name(&namelen);
+
+    if (! lex->sphead->m_db.str)
+    {
+      send_error(thd,ER_NO_DB_ERROR);
+      delete lex->sphead;
+      lex->sphead= 0;
+      goto error;
+    }
+
+    name= lex->sphead->name(&namelen);
 #ifdef HAVE_DLOPEN
     if (lex->sphead->m_type == TYPE_ENUM_FUNCTION)
     {
@@ -3626,7 +3618,7 @@ purposes internal to the MySQL server", MYF(0));
       {
 	net_printf(thd, ER_UDF_EXISTS, name);
 	delete lex->sphead;
-	lex->sphead=0;
+	lex->sphead= 0;
 	goto error;
       }
     }
@@ -3636,7 +3628,7 @@ purposes internal to the MySQL server", MYF(0));
     {
       net_printf(thd, ER_SP_NORETURN, name);
       delete lex->sphead;
-      lex->sphead=0;
+      lex->sphead= 0;
       goto error;
     }
 
@@ -3751,21 +3743,30 @@ purposes internal to the MySQL server", MYF(0));
   case SQLCOM_ALTER_PROCEDURE:
   case SQLCOM_ALTER_FUNCTION:
     {
-      res= -1;
-      uint newname_len= 0;
-      if (lex->name)
-	newname_len= strlen(lex->name);
-      if (newname_len > NAME_LEN)
-      {
-	net_printf(thd, ER_TOO_LONG_IDENT, lex->name);
-	goto error;
-      }
+      sp_head *sp;
+      st_sp_chistics chistics;
+
+      memcpy(&chistics, &lex->sp_chistics, sizeof(chistics));
       if (lex->sql_command == SQLCOM_ALTER_PROCEDURE)
-	res= sp_update_procedure(thd, lex->spname,
-				 lex->name, newname_len, &lex->sp_chistics);
+	sp= sp_find_procedure(thd, lex->spname);
       else
-	res= sp_update_function(thd, lex->spname,
-				lex->name, newname_len,	&lex->sp_chistics);
+	sp= sp_find_function(thd, lex->spname);
+      mysql_reset_errors(thd);
+      if (! sp)
+	res= SP_KEY_NOT_FOUND;
+      else
+      {
+	if (check_sp_definer_access(thd, sp))
+	{
+	  res= -1;
+	  break;
+	}
+	memcpy(&lex->sp_chistics, &chistics, sizeof(lex->sp_chistics));
+	if (lex->sql_command == SQLCOM_ALTER_PROCEDURE)
+	  res= sp_update_procedure(thd, lex->spname, &lex->sp_chistics);
+	else
+	  res= sp_update_function(thd, lex->spname, &lex->sp_chistics);
+      }
       switch (res)
       {
       case SP_OK:
@@ -3785,28 +3786,45 @@ purposes internal to the MySQL server", MYF(0));
   case SQLCOM_DROP_PROCEDURE:
   case SQLCOM_DROP_FUNCTION:
     {
+      sp_head *sp;
+
       if (lex->sql_command == SQLCOM_DROP_PROCEDURE)
-	res= sp_drop_procedure(thd, lex->spname);
+	sp= sp_find_procedure(thd, lex->spname);
+      else
+	sp= sp_find_function(thd, lex->spname);
+      mysql_reset_errors(thd);
+      if (! sp)
+	res= SP_KEY_NOT_FOUND;
       else
       {
-	res= sp_drop_function(thd, lex->spname);
-#ifdef HAVE_DLOPEN
-	if (res == SP_KEY_NOT_FOUND)
+	if (check_sp_definer_access(thd, sp))
 	{
-	  udf_func *udf = find_udf(lex->spname->m_name.str,
-				   lex->spname->m_name.length);
-	  if (udf)
+	  res= -1;
+	  break;
+	}
+	if (lex->sql_command == SQLCOM_DROP_PROCEDURE)
+	  res= sp_drop_procedure(thd, lex->spname);
+	else
+	{
+	  res= sp_drop_function(thd, lex->spname);
+#ifdef HAVE_DLOPEN
+	  if (res == SP_KEY_NOT_FOUND)
 	  {
-	    if (check_access(thd, DELETE_ACL, "mysql", 0, 1, 0))
-	      goto error;
-	    if (!(res = mysql_drop_function(thd,&lex->spname->m_name)))
+	    udf_func *udf = find_udf(lex->spname->m_name.str,
+				     lex->spname->m_name.length);
+	    if (udf)
 	    {
-	      send_ok(thd);
-	      break;
+	      if (check_access(thd, DELETE_ACL, "mysql", 0, 1, 0))
+		goto error;
+	      if (!(res = mysql_drop_function(thd,&lex->spname->m_name)))
+	      {
+		send_ok(thd);
+		break;
+	      }
 	    }
 	  }
-	}
 #endif
+	}
       }
       switch (res)
       {
@@ -3983,7 +4001,7 @@ error:
   SYNOPSIS
     check_one_table_access()
     thd			Thread handler
-    privilege		requested privelage
+    privilege		requested privilege
     all_tables		global table list of query
 
   RETURN
@@ -4125,7 +4143,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     want_access		Use should have any of these global rights
 
   WARNING
-    One gets access rigth if one has ANY of the rights in want_access
+    One gets access right if one has ANY of the rights in want_access
     This is useful as one in most cases only need one global right,
     but in some case we want to check if the user has SUPER or
     REPL_CLIENT_ACL rights.
@@ -4264,6 +4282,41 @@ static bool check_db_used(THD *thd,TABLE_LIST *tables)
   }
   return FALSE;
 }
+
+
+/*
+  Check if the given SP is owned by thd->priv_user/host, or priv_user is root.
+  QQ This is not quite complete, but it will do as a basic security check
+     for now. The question is exactly which rights should 'root' have?
+     Should root have access regardless of host for instance?
+
+  SYNOPSIS
+    check_sp_definer_access()
+    thd		 Thread handler
+    sp           The SP pointer
+
+  RETURN
+    0  ok
+    1  error     Error message has been sent
+*/
+
+static bool
+check_sp_definer_access(THD *thd, sp_head *sp)
+{
+  LEX_STRING *usr, *hst;
+
+  if (strcmp("root", thd->priv_user) == 0)
+    return FALSE;		/* QQ Any root is ok now */
+  usr= &sp->m_definer_user;
+  hst= &sp->m_definer_host;
+  if (strncmp(thd->priv_user, usr->str, usr->length) == 0 &&
+      strncmp(thd->priv_host, hst->str, hst->length) == 0)
+    return FALSE;		/* Both user and host must match */
+
+  my_error(ER_SP_ACCESS_DENIED_ERROR, MYF(0), sp->m_qname.str);
+  return TRUE;			/* Not definer or root */
+}
+
 
 /****************************************************************************
 	Check stack size; Send error if there isn't enough stack to continue
@@ -4711,9 +4764,14 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     new_field->comment.str=   (char*) comment->str;
     new_field->comment.length=comment->length;
   }
-  /* Set flag if this field doesn't have a default value */
+  /*
+    Set flag if this field doesn't have a default value
+    Enum values has always the first value as a default (set in
+    make_empty_rec().
+  */
   if (!default_value && !(type_modifier & AUTO_INCREMENT_FLAG) &&
-      (type_modifier & NOT_NULL_FLAG) && type != FIELD_TYPE_TIMESTAMP)
+      (type_modifier & NOT_NULL_FLAG) && type != FIELD_TYPE_TIMESTAMP &&
+      type != FIELD_TYPE_ENUM)
     new_field->flags|= NO_DEFAULT_VALUE_FLAG;
 
   if (length && !(new_field->length= (uint) atoi(length)))
@@ -4882,7 +4940,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       /* 
         We are setting TIMESTAMP_OLD_FIELD here only temporary, we will 
         replace this value by TIMESTAMP_DNUN_FIELD or NONE later when 
-        information about all TIMESTAMP fields in table will be availiable.
+        information about all TIMESTAMP fields in table will be available.
       */
       new_field->unireg_check= on_update_value?Field::TIMESTAMP_UN_FIELD:
                                                Field::TIMESTAMP_OLD_FIELD;
@@ -5309,7 +5367,7 @@ TABLE_LIST *st_select_lex::nest_last_join(THD *thd)
 
 
 /*
-  Save names for a join with using clase
+  Save names for a join with using clause
 
   SYNOPSIS
     save_names_for_using_list
@@ -5844,7 +5902,6 @@ int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
   List<create_field> fields;
   ALTER_INFO alter_info;
   alter_info.flags= ALTER_ADD_INDEX;
-  alter_info.is_simple= 0;
   HA_CREATE_INFO create_info;
   DBUG_ENTER("mysql_create_index");
   bzero((char*) &create_info,sizeof(create_info));
@@ -5868,7 +5925,6 @@ int mysql_drop_index(THD *thd, TABLE_LIST *table_list, ALTER_INFO *alter_info)
   create_info.default_table_charset= thd->variables.collation_database;
   alter_info->clear();
   alter_info->flags= ALTER_DROP_INDEX;
-  alter_info->is_simple= 0;
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->real_name,
 				&create_info, table_list,
 				fields, keys, 0, (ORDER*)0,
@@ -6162,7 +6218,7 @@ int create_table_precheck(THD *thd, TABLE_LIST *tables,
 
   SYNOPSIS
     negate_expression()
-    thd  therad handler
+    thd  thread handler
     expr expression for negation
 
   RETURN

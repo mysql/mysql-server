@@ -7,40 +7,40 @@ koi8_ru_f CHAR(32) CHARACTER SET koi8r NOT NULL
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `comment` char(32) character set latin1 NOT NULL default '',
-  `koi8_ru_f` char(32) character set koi8r NOT NULL default ''
+  `comment` char(32) character set latin1 NOT NULL,
+  `koi8_ru_f` char(32) character set koi8r NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin5
 ALTER TABLE t1 CHANGE comment comment CHAR(32) CHARACTER SET latin2 NOT NULL;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `comment` char(32) character set latin2 NOT NULL default '',
-  `koi8_ru_f` char(32) character set koi8r NOT NULL default ''
+  `comment` char(32) character set latin2 NOT NULL,
+  `koi8_ru_f` char(32) character set koi8r NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin5
 ALTER TABLE t1 ADD latin5_f CHAR(32) NOT NULL;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `comment` char(32) character set latin2 NOT NULL default '',
-  `koi8_ru_f` char(32) character set koi8r NOT NULL default '',
-  `latin5_f` char(32) NOT NULL default ''
+  `comment` char(32) character set latin2 NOT NULL,
+  `koi8_ru_f` char(32) character set koi8r NOT NULL,
+  `latin5_f` char(32) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin5
 ALTER TABLE t1 DEFAULT CHARSET=latin2;
 ALTER TABLE t1 ADD latin2_f CHAR(32) NOT NULL;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `comment` char(32) NOT NULL default '',
-  `koi8_ru_f` char(32) character set koi8r NOT NULL default '',
-  `latin5_f` char(32) character set latin5 NOT NULL default '',
-  `latin2_f` char(32) NOT NULL default ''
+  `comment` char(32) NOT NULL,
+  `koi8_ru_f` char(32) character set koi8r NOT NULL,
+  `latin5_f` char(32) character set latin5 NOT NULL,
+  `latin2_f` char(32) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin2
 ALTER TABLE t1 DROP latin2_f, DROP latin5_f;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `comment` char(32) NOT NULL default '',
-  `koi8_ru_f` char(32) character set koi8r NOT NULL default ''
+  `comment` char(32) NOT NULL,
+  `koi8_ru_f` char(32) character set koi8r NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin2
 INSERT INTO t1 (koi8_ru_f,comment) VALUES ('a','LAT SMALL A');
 INSERT INTO t1 (koi8_ru_f,comment) VALUES ('b','LAT SMALL B');

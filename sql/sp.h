@@ -44,9 +44,7 @@ sp_drop_procedure(THD *thd, sp_name *name);
 
 
 int
-sp_update_procedure(THD *thd, sp_name *name,
-		    char *newname, uint newnamelen,
-		    st_sp_chistics *chistics);
+sp_update_procedure(THD *thd, sp_name *name, st_sp_chistics *chistics);
 
 int
 sp_show_create_procedure(THD *thd, sp_name *name);
@@ -64,9 +62,7 @@ int
 sp_drop_function(THD *thd, sp_name *name);
 
 int
-sp_update_function(THD *thd, sp_name *name,
-		   char *newname, uint newnamelen,
-		   st_sp_chistics *chistics);
+sp_update_function(THD *thd, sp_name *name, st_sp_chistics *chistics);
 
 int
 sp_show_create_function(THD *thd, sp_name *name);
