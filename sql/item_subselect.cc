@@ -63,12 +63,14 @@ void Item_subselect::init(st_select_lex *select_lex,
       => we do not copy old_engine here
     */
     engine= unit->item->engine;
+    parsing_place= unit->item->parsing_place;
     unit->item->engine= 0;
     unit->item= this;
     engine->change_item(this, result);
   }
   else
   {
+    parsing_place= unit->outer_select()->parsing_place;
     if (select_lex->next_select())
       engine= new subselect_union_engine(unit, result, this);
     else
@@ -76,7 +78,7 @@ void Item_subselect::init(st_select_lex *select_lex,
   }
   {
     SELECT_LEX *upper= unit->outer_select();
-    if (upper->parsing_place == SELECT_LEX_NODE::IN_HAVING)
+    if (upper->parsing_place == IN_HAVING)
       upper->subquery_in_having= 1;
   }
   DBUG_VOID_RETURN;
@@ -1243,29 +1245,31 @@ int subselect_uniquesubquery_engine::exec()
   DBUG_ENTER("subselect_uniquesubquery_engine::exec");
   int error;
   TABLE *table= tab->table;
-  if ((tab->ref.key_err= (*tab->ref.key_copy)->copy()))
+  for (store_key **copy=tab->ref.key_copy ; *copy ; copy++)
   {
-    table->status= STATUS_NOT_FOUND;
-    error= -1;
-  }
-  else
-  {
-    if (!table->file->inited)
-      table->file->ha_index_init(tab->ref.key);
-    error= table->file->index_read(table->record[0],
-				   tab->ref.key_buff,
-				   tab->ref.key_length,HA_READ_KEY_EXACT);
-    if (error && error != HA_ERR_KEY_NOT_FOUND)
-      error= report_error(table, error);
-    else
+    if (tab->ref.key_err= (*copy)->copy())
     {
-      error= 0;
-      table->null_row= 0;
-      ((Item_in_subselect *) item)->value= (!table->status &&
-					    (!cond || cond->val_int()) ? 1 :
-					    0);
+      table->status= STATUS_NOT_FOUND;
+      DBUG_RETURN(1);
     }
   }
+
+  if (!table->file->inited)
+    table->file->ha_index_init(tab->ref.key);
+  error= table->file->index_read(table->record[0],
+                                 tab->ref.key_buff,
+                                 tab->ref.key_length,HA_READ_KEY_EXACT);
+  if (error && error != HA_ERR_KEY_NOT_FOUND)
+    error= report_error(table, error);
+  else
+  {
+    error= 0;
+    table->null_row= 0;
+    ((Item_in_subselect *) item)->value= (!table->status &&
+                                          (!cond || cond->val_int()) ? 1 :
+                                          0);
+  }
+
   DBUG_RETURN(error != 0);
 }
 
@@ -1293,55 +1297,56 @@ int subselect_indexsubquery_engine::exec()
     ((Item_in_subselect *) item)->was_null= 0;
   }
 
-  if ((*tab->ref.key_copy) && (tab->ref.key_err= (*tab->ref.key_copy)->copy()))
+  for (store_key **copy=tab->ref.key_copy ; *copy ; copy++)
   {
-    table->status= STATUS_NOT_FOUND;
-    error= -1;
+    if (tab->ref.key_err= (*copy)->copy())
+    {
+      table->status= STATUS_NOT_FOUND;
+      DBUG_RETURN(1);
+    }
   }
+
+  if (!table->file->inited)
+    table->file->ha_index_init(tab->ref.key);
+  error= table->file->index_read(table->record[0],
+                                 tab->ref.key_buff,
+                                 tab->ref.key_length,HA_READ_KEY_EXACT);
+  if (error && error != HA_ERR_KEY_NOT_FOUND)
+    error= report_error(table, error);
   else
   {
-    if (!table->file->inited)
-      table->file->ha_index_init(tab->ref.key);
-    error= table->file->index_read(table->record[0],
-				   tab->ref.key_buff,
-				   tab->ref.key_length,HA_READ_KEY_EXACT);
-    if (error && error != HA_ERR_KEY_NOT_FOUND)
-      error= report_error(table, error);
-    else
+    for (;;)
     {
-      for (;;)
+      error= 0;
+      table->null_row= 0;
+      if (!table->status)
       {
-	error= 0;
-	table->null_row= 0;
-	if (!table->status)
-	{
-	  if (!cond || cond->val_int())
-	  {
-	    if (null_finding)
-	      ((Item_in_subselect *) item)->was_null= 1;
-	    else
-	      ((Item_in_subselect *) item)->value= 1;
-	    break;
-	  }
-	  error= table->file->index_next_same(table->record[0],
-					      tab->ref.key_buff,
-					      tab->ref.key_length);
-	  if (error && error != HA_ERR_END_OF_FILE)
-	  {
-	    error= report_error(table, error);
-	    break;
-	  }
-	}
-	else
-	{
-	  if (!check_null || null_finding)
-	    break;			/* We don't need to check nulls */
-	  *tab->ref.null_ref_key= 1;
-	  null_finding= 1;
-	  /* Check if there exists a row with a null value in the index */
-	  if ((error= (safe_index_read(tab) == 1)))
-	    break;
-	}
+        if (!cond || cond->val_int())
+        {
+          if (null_finding)
+            ((Item_in_subselect *) item)->was_null= 1;
+          else
+            ((Item_in_subselect *) item)->value= 1;
+          break;
+        }
+        error= table->file->index_next_same(table->record[0],
+                                            tab->ref.key_buff,
+                                            tab->ref.key_length);
+        if (error && error != HA_ERR_END_OF_FILE)
+        {
+          error= report_error(table, error);
+          break;
+        }
+      }
+      else
+      {
+        if (!check_null || null_finding)
+          break;			/* We don't need to check nulls */
+        *tab->ref.null_ref_key= 1;
+        null_finding= 1;
+        /* Check if there exists a row with a null value in the index */
+        if ((error= (safe_index_read(tab) == 1)))
+          break;
       }
     }
   }
