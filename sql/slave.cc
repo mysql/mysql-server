@@ -1999,7 +1999,7 @@ static int queue_old_event(MASTER_INFO* mi, const char* buf,
     mi->master_log_pos += event_len;
   if (unlikely(processed_stop_event))
     mi->ignore_stop_event=1;
-  pthread_mutex_lock(&mi->data_lock);
+  pthread_mutex_unlock(&mi->data_lock);
   return 0;
 }
 
