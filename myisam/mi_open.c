@@ -335,7 +335,6 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
           { /* 4.0 compatibility code, to be removed in 5.0 */
             share->keyinfo[i].seg=pos-FT_SEGS;
             share->keyinfo[i].keysegs-=FT_SEGS;
-            share->state.header.fulltext_keys++;
           }
           else
           {
