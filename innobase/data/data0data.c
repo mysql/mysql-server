@@ -12,7 +12,6 @@ Created 5/30/1994 Heikki Tuuri
 #include "data0data.ic"
 #endif
 
-#include "ut0rnd.h"
 #include "rem0rec.h"
 #include "rem0cmp.h"
 #include "page0page.h"
@@ -22,12 +21,10 @@ Created 5/30/1994 Heikki Tuuri
 byte	data_error;	/* data pointers of tuple fields are initialized
 			to point here for error checking */
 
+#ifdef UNIV_DEBUG
 ulint	data_dummy;	/* this is used to fool the compiler in
 			dtuple_validate */
-
-byte	data_buf[8192];	/* used in generating test tuples */
-ulint	data_rnd = 756511;
-
+#endif /* UNIV_DEBUG */
 
 /* Some non-inlined functions used in the MySQL interface: */
 void 
@@ -215,16 +212,15 @@ dtuple_check_typed_no_assert(
 {
 	dfield_t*	field;
 	ulint	 	i;
-	char		err_buf[1000];
 	
 	if (dtuple_get_n_fields(tuple) > REC_MAX_N_FIELDS) {
 		fprintf(stderr,
 "InnoDB: Error: index entry has %lu fields\n",
 			(ulong) dtuple_get_n_fields(tuple));
-
-		dtuple_sprintf(err_buf, 900, tuple);
-		fprintf(stderr,
-"InnoDB: Tuple contents: %s\n", err_buf);	
+	dump:
+		fputs("InnoDB: Tuple contents: ", stderr);
+		dtuple_print(stderr, tuple);
+		putc('\n', stderr);
 
 		return(FALSE);
 	}
@@ -234,12 +230,7 @@ dtuple_check_typed_no_assert(
 		field = dtuple_get_nth_field(tuple, i);
 
 		if (!dfield_check_typed_no_assert(field)) {
-
-			dtuple_sprintf(err_buf, 900, tuple);
-			fprintf(stderr,
-"InnoDB: Tuple contents: %s\n", err_buf);	
-
-			return(FALSE);
+			goto dump;
 		}
 	}
 
@@ -291,6 +282,7 @@ dtuple_check_typed(
 	return(TRUE);
 }
 
+#ifdef UNIV_DEBUG
 /**************************************************************
 Validates the consistency of a tuple which must be complete, i.e,
 all fields must have been set. */
@@ -338,6 +330,7 @@ dtuple_validate(
 
 	return(TRUE);
 }
+#endif /* UNIV_DEBUG */
 
 /*****************************************************************
 Pretty prints a dfield value according to its data type. */
@@ -356,7 +349,7 @@ dfield_print(
 	data = dfield_get_data(dfield);
 
 	if (len == UNIV_SQL_NULL) {
-		printf("NULL");
+		fputs("NULL", stderr);
 
 		return;
 	}
@@ -366,18 +359,12 @@ dfield_print(
 	if ((mtype == DATA_CHAR) || (mtype == DATA_VARCHAR)) {
 	
 		for (i = 0; i < len; i++) {
-
-			if (isprint((char)(*data))) {
-				printf("%c", (char)*data);
-			} else {
-				printf(" ");
-			}
-
-			data++;
+			int	c = *data++;
+			putc(isprint(c) ? c : ' ', stderr);
 		}
 	} else if (mtype == DATA_INT) {
 		ut_a(len == 4); /* only works for 32-bit integers */
-		printf("%i", (int)mach_read_from_4(data));
+		fprintf(stderr, "%d", (int)mach_read_from_4(data));
 	} else {
 		ut_error;
 	}
@@ -402,7 +389,7 @@ dfield_print_also_hex(
 	data = dfield_get_data(dfield);
 
 	if (len == UNIV_SQL_NULL) {
-		printf("NULL");
+		fputs("NULL", stderr);
 
 		return;
 	}
@@ -414,15 +401,12 @@ dfield_print_also_hex(
 		print_also_hex = FALSE;
 	
 		for (i = 0; i < len; i++) {
-
-			if (isprint((char)(*data))) {
-				printf("%c", (char)*data);
-			} else {
+			int c = *data++;
+			if (!isprint(c)) {
 				print_also_hex = TRUE;
-				printf(" ");
+				c = ' ';
 			}
-
-			data++;
+			putc(c, stderr);
 		}
 
 		if (!print_also_hex) {
@@ -430,18 +414,18 @@ dfield_print_also_hex(
 			return;
 		}
 
-		printf(" Hex: ");
+		fputs(" Hex: ", stderr);
 		
 		data = dfield_get_data(dfield);
 		
 		for (i = 0; i < len; i++) {
-			printf("%02lx", (ulong)*data);
+			fprintf(stderr, "%02lx", (ulint)*data);
 
 			data++;
 		}
 	} else if (mtype == DATA_INT) {
-		ut_a(len == 4); /* inly works for 32-bit integers */
-		printf("%i", (int)mach_read_from_4(data));
+		ut_a(len == 4); /* only works for 32-bit integers */
+		fprintf(stderr, "%d", (int)mach_read_from_4(data));
 	} else {
 		ut_error;
 	}
@@ -453,6 +437,7 @@ The following function prints the contents of a tuple. */
 void
 dtuple_print(
 /*=========*/
+	FILE*		f,	/* in: output stream */
 	dtuple_t*	tuple)	/* in: tuple */
 {
 	dfield_t*	field;
@@ -461,73 +446,24 @@ dtuple_print(
 
 	n_fields = dtuple_get_n_fields(tuple);
 
-	printf("DATA TUPLE: %lu fields;\n", (ulong) n_fields);
+	fprintf(f, "DATA TUPLE: %lu fields;\n", (ulong) n_fields);
 
 	for (i = 0; i < n_fields; i++) {
-		printf(" %lu:", (ulong) i);
+		fprintf(f, " %lu:", (ulong) i);
 
 		field = dtuple_get_nth_field(tuple, i);
 		
 		if (field->len != UNIV_SQL_NULL) {
-			ut_print_buf(field->data, field->len);
+			ut_print_buf(f, field->data, field->len);
 		} else {
-			printf(" SQL NULL");
+			fputs(" SQL NULL", f);
 		}
 
-		printf(";");
+		putc(';', f);
 	}
 
-	printf("\n");
-
-	dtuple_validate(tuple);
-}
-
-/**************************************************************
-The following function prints the contents of a tuple to a buffer. */
-
-ulint
-dtuple_sprintf(
-/*===========*/
-				/* out: printed length in bytes */
-	char*		buf,	/* in: print buffer */
-	ulint		buf_len,/* in: buf length in bytes */
-	dtuple_t*	tuple)	/* in: tuple */
-{
-	dfield_t*	field;
-	ulint		n_fields;
-	ulint		len;
-	ulint		i;
-
-	len = 0;
-
-	n_fields = dtuple_get_n_fields(tuple);
-
-	for (i = 0; i < n_fields; i++) {
-		if (len + 30 > buf_len) {
-
-			return(len);
-		}
-
-		len += sprintf(buf + len, " %lu:", (ulong) i);
-
-		field = dtuple_get_nth_field(tuple, i);
-		
-		if (field->len != UNIV_SQL_NULL) {
-			if (5 * field->len + len + 30 > buf_len) {
-
-				return(len);
-			}
-		
-			len += ut_sprintf_buf(buf + len, field->data,
-								field->len);
-		} else {
-			len += sprintf(buf + len, " SQL NULL");
-		}
-
-		len += sprintf(buf + len, ";");
-	}
-
-	return(len);
+	putc('\n', f);
+	ut_ad(dtuple_validate(tuple));
 }
 
 /******************************************************************
@@ -561,7 +497,6 @@ dtuple_convert_big_rec(
 	ibool		is_externally_stored;
 	ulint		i;
 	ulint		j;
-	char		err_buf[1000];
 	
 	ut_a(dtuple_check_typed_no_assert(entry));
 
@@ -570,10 +505,9 @@ dtuple_convert_big_rec(
 	if (size > 1000000000) {
 		fprintf(stderr,
 "InnoDB: Warning: tuple size very big: %lu\n", (ulong) size);
-		
-		dtuple_sprintf(err_buf, 900, entry);
-		fprintf(stderr,
-"InnoDB: Tuple contents: %s\n", err_buf);
+		fputs("InnoDB: Tuple contents: ", stderr);
+		dtuple_print(stderr, entry);
+		putc('\n', stderr);
 	}
 
 	heap = mem_heap_create(size + dtuple_get_n_fields(entry)

@@ -127,9 +127,6 @@ struct sym_node_struct{
 	dict_table_t*			table;		/* table definition
 							if a table id or a
 							column id */
-	dict_proc_t*			procedure_def;	/* stored procedure
-							definition, if a
-							stored procedure name */
 	ulint				col_no;		/* column number if a
 							column */
 	sel_buf_t*			prefetch_buf;	/* NULL, or a buffer
