@@ -193,6 +193,10 @@ char **argv;
   int error;
   MY_INIT(argv[0]);
 
+#ifdef __EMX__
+  _wildcard (&argc, &argv);
+#endif
+
   get_options(&argc,(char***) &argv);
   nisam_quick_table_bits=(uint) decode_bits;
   error=0;

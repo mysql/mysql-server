@@ -54,7 +54,7 @@ int my_lock(File fd,int locktype,my_off_t start,my_off_t length,myf MyFlags)
   if (!thr_alarm(&alarmed,wait_for_alarm,&alarm_buff))
   {
     int value;
-    while ((value=fcntl(fd,F_SETLKW,&lock)) && !thr_got_alarm(alarmed) &&
+    while ((value=fcntl(fd,F_SETLKW,&lock)) && !thr_got_alarm(&alarmed) &&
 	   errno == EINTR) ;
     thr_end_alarm(&alarmed);
     if (value != -1)
