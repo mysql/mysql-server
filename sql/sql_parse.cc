@@ -65,7 +65,7 @@ static void decrease_user_connections(UC *uc);
 static bool check_db_used(THD *thd,TABLE_LIST *tables);
 static bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *tables);
 static bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
-static void mysql_init_query(THD *thd);
+void mysql_init_query(THD *thd);
 static void remove_escape(char *name);
 static void refresh_status(void);
 static bool append_file_to_dir(THD *thd, char **filename_ptr,
@@ -1246,7 +1246,7 @@ mysql_execute_command(void)
 					   cursor))
 	DBUG_VOID_RETURN;
   }
-  if ((lex->select_lex.link_next && 
+  if ((lex->select_lex.next_select_in_list() && 
        lex->unit.create_total_list(thd, lex, &tables)) ||
       (table_rules_on && tables && thd->slave_thread &&
        !tables_ok(thd,tables)))
@@ -2664,7 +2664,7 @@ bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, int *yystacksize)
 	Initialize global thd variables needed for query
 ****************************************************************************/
 
-static void
+void
 mysql_init_query(THD *thd)
 {
   DBUG_ENTER("mysql_init_query");
@@ -2720,8 +2720,8 @@ mysql_new_select(LEX *lex, bool move_down)
   else
     select_lex->include_neighbour(lex->select);
     
-  ((SELECT_LEX_UNIT*)select_lex->master)->global_parameters= select_lex;
-  select_lex->include_global(&lex->select->link_next);
+  select_lex->master_unit()->global_parameters= select_lex;
+  select_lex->include_global(lex->select->next_select_in_list_addr());
   lex->select= select_lex;
   return 0;
 }

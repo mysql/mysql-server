@@ -108,7 +108,7 @@ bool Item_subselect::fix_fields(THD *thd,TABLE_LIST *tables)
 		   (ORDER*) select_lex->group_list.first,
 		   select_lex->having,
 		   (ORDER*) 0, select_lex, 
-		   (SELECT_LEX_UNIT*) select_lex->master))
+		   select_lex->master_unit()))
     return 1;
   thd->lex.select= save_select;
   return 0;

@@ -34,7 +34,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
     TODO: make derived tables with union inside (now only 1 SELECT may be
     procesed)
   */
-  SELECT_LEX *sl= (SELECT_LEX*)unit->slave;
+  SELECT_LEX *sl= unit->first_select();
   List<Item> item_list;
   TABLE *table;
   int res;

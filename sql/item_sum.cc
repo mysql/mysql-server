@@ -965,7 +965,7 @@ bool Item_sum_count_distinct::setup(THD *thd)
   if (!(table= create_tmp_table(thd, tmp_table_param, list, (ORDER*) 0, 1,
 				0, 0,
 				select_lex->options | thd->options,
-				(SELECT_LEX_UNIT*) select_lex->master)))
+				select_lex->master_unit())))
     return 1;
   table->file->extra(HA_EXTRA_NO_ROWS);		// Don't update rows
   table->no_rows=1;

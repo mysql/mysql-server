@@ -1021,18 +1021,19 @@ bool st_select_lex_unit::create_total_list_n_last_return(THD *thd, st_lex *lex,
   TABLE_LIST *slave_list_first=0, **slave_list_last= &slave_list_first;
   TABLE_LIST **new_table_list= *result, *aux;
   SELECT_LEX *sl= (SELECT_LEX*)slave;
-  for (; sl; sl= (SELECT_LEX*)sl->next)
+  for (; sl; sl= sl->next_select())
   {
     // check usage of ORDER BY in union
-    if (sl->order_list.first && sl->next && !sl->braces)
+    if (sl->order_list.first && sl->next_select() && !sl->braces)
     {
       net_printf(&thd->net,ER_WRONG_USAGE,"UNION","ORDER BY");
       return 1;
     }
-    if (sl->slave)
-      if (((SELECT_LEX_UNIT *)
-	   sl->slave)->create_total_list_n_last_return(thd, lex,
-						       &slave_list_last))
+    for (SELECT_LEX_UNIT *inner=  sl->first_inner_unit();
+	 inner;
+	 inner= inner->next_unit())
+      if (inner->create_total_list_n_last_return(thd, lex,
+						 &slave_list_last))
 	return 1;
     if ((aux= (TABLE_LIST*) sl->table_list.first))
     {

@@ -156,12 +156,12 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 {
   int res;
   register SELECT_LEX *select_lex = &lex->select_lex;
-  if (select_lex->link_next)
+  if (select_lex->next_select_in_list())
   {
     /* Fix tables 'to-be-unioned-from' list to point at opened tables */
     for (SELECT_LEX *sl= select_lex;
 	 sl;
-	 sl= (SELECT_LEX*)sl->link_next)
+	 sl= sl->next_select_in_list())
     {
       for (TABLE_LIST *cursor= (TABLE_LIST *)sl->table_list.first;
 	   cursor;
@@ -169,7 +169,7 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 	cursor->table= cursor->table_list->table;
     }
   }
-  if (select_lex->next)
+  if (select_lex->next_select())
     res=mysql_union(thd,lex,result);
   else
     res=mysql_select(thd,(TABLE_LIST*) select_lex->table_list.first,
@@ -7275,7 +7275,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	result->send_error(0,NullS);
     }
   }
-  if (!join->thd->lex.select->next)
+  if (!join->thd->lex.select->next_select())
   {
     save_lock=thd->lock;
     thd->lock=(MYSQL_LOCK *)0;
