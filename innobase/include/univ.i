@@ -44,7 +44,7 @@ subdirectory of 'mysql'. */
 /*			DEBUG VERSION CONTROL
 			===================== */
 /* Make a non-inline debug version */
-
+/*
 #define UNIV_DEBUG
 #define UNIV_MEM_DEBUG
 #define UNIV_SYNC_DEBUG
@@ -54,7 +54,7 @@ subdirectory of 'mysql'. */
 
 #define UNIV_SYNC_PERF_STAT
 #define UNIV_SEARCH_PERF_STAT
-
+*/
 #define UNIV_LIGHT_MEM_DEBUG
 
 #define YYDEBUG			1
