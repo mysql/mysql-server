@@ -1,104 +1,106 @@
 
 /*  A Bison parser, made from pars0grm.y
- by  GNU Bison version 1.25
-  */
+    by GNU Bison version 1.28  */
 
 #define YYBISON 1  /* Identify Bison output.  */
 
-#define	PARS_INT_LIT	258
-#define	PARS_FLOAT_LIT	259
-#define	PARS_STR_LIT	260
-#define	PARS_NULL_LIT	261
-#define	PARS_ID_TOKEN	262
-#define	PARS_AND_TOKEN	263
-#define	PARS_OR_TOKEN	264
-#define	PARS_NOT_TOKEN	265
-#define	PARS_GE_TOKEN	266
-#define	PARS_LE_TOKEN	267
-#define	PARS_NE_TOKEN	268
-#define	PARS_PROCEDURE_TOKEN	269
-#define	PARS_IN_TOKEN	270
-#define	PARS_OUT_TOKEN	271
-#define	PARS_INT_TOKEN	272
-#define	PARS_INTEGER_TOKEN	273
-#define	PARS_FLOAT_TOKEN	274
-#define	PARS_CHAR_TOKEN	275
-#define	PARS_IS_TOKEN	276
-#define	PARS_BEGIN_TOKEN	277
-#define	PARS_END_TOKEN	278
-#define	PARS_IF_TOKEN	279
-#define	PARS_THEN_TOKEN	280
-#define	PARS_ELSE_TOKEN	281
-#define	PARS_ELSIF_TOKEN	282
-#define	PARS_LOOP_TOKEN	283
-#define	PARS_WHILE_TOKEN	284
-#define	PARS_RETURN_TOKEN	285
-#define	PARS_SELECT_TOKEN	286
-#define	PARS_SUM_TOKEN	287
-#define	PARS_COUNT_TOKEN	288
-#define	PARS_DISTINCT_TOKEN	289
-#define	PARS_FROM_TOKEN	290
-#define	PARS_WHERE_TOKEN	291
-#define	PARS_FOR_TOKEN	292
-#define	PARS_DDOT_TOKEN	293
-#define	PARS_CONSISTENT_TOKEN	294
-#define	PARS_READ_TOKEN	295
-#define	PARS_ORDER_TOKEN	296
-#define	PARS_BY_TOKEN	297
-#define	PARS_ASC_TOKEN	298
-#define	PARS_DESC_TOKEN	299
-#define	PARS_INSERT_TOKEN	300
-#define	PARS_INTO_TOKEN	301
-#define	PARS_VALUES_TOKEN	302
-#define	PARS_UPDATE_TOKEN	303
-#define	PARS_SET_TOKEN	304
-#define	PARS_DELETE_TOKEN	305
-#define	PARS_CURRENT_TOKEN	306
-#define	PARS_OF_TOKEN	307
-#define	PARS_CREATE_TOKEN	308
-#define	PARS_TABLE_TOKEN	309
-#define	PARS_INDEX_TOKEN	310
-#define	PARS_UNIQUE_TOKEN	311
-#define	PARS_CLUSTERED_TOKEN	312
-#define	PARS_DOES_NOT_FIT_IN_MEM_TOKEN	313
-#define	PARS_ON_TOKEN	314
-#define	PARS_ASSIGN_TOKEN	315
-#define	PARS_DECLARE_TOKEN	316
-#define	PARS_CURSOR_TOKEN	317
-#define	PARS_SQL_TOKEN	318
-#define	PARS_OPEN_TOKEN	319
-#define	PARS_FETCH_TOKEN	320
-#define	PARS_CLOSE_TOKEN	321
-#define	PARS_NOTFOUND_TOKEN	322
-#define	PARS_TO_CHAR_TOKEN	323
-#define	PARS_TO_NUMBER_TOKEN	324
-#define	PARS_TO_BINARY_TOKEN	325
-#define	PARS_BINARY_TO_NUMBER_TOKEN	326
-#define	PARS_SUBSTR_TOKEN	327
-#define	PARS_REPLSTR_TOKEN	328
-#define	PARS_CONCAT_TOKEN	329
-#define	PARS_INSTR_TOKEN	330
-#define	PARS_LENGTH_TOKEN	331
-#define	PARS_SYSDATE_TOKEN	332
-#define	PARS_PRINTF_TOKEN	333
-#define	PARS_ASSERT_TOKEN	334
-#define	PARS_RND_TOKEN	335
-#define	PARS_RND_STR_TOKEN	336
-#define	PARS_ROW_PRINTF_TOKEN	337
-#define	PARS_COMMIT_TOKEN	338
-#define	PARS_ROLLBACK_TOKEN	339
-#define	PARS_WORK_TOKEN	340
-#define	NEG	341
+#define	PARS_INT_LIT	257
+#define	PARS_FLOAT_LIT	258
+#define	PARS_STR_LIT	259
+#define	PARS_NULL_LIT	260
+#define	PARS_ID_TOKEN	261
+#define	PARS_AND_TOKEN	262
+#define	PARS_OR_TOKEN	263
+#define	PARS_NOT_TOKEN	264
+#define	PARS_GE_TOKEN	265
+#define	PARS_LE_TOKEN	266
+#define	PARS_NE_TOKEN	267
+#define	PARS_PROCEDURE_TOKEN	268
+#define	PARS_IN_TOKEN	269
+#define	PARS_OUT_TOKEN	270
+#define	PARS_INT_TOKEN	271
+#define	PARS_INTEGER_TOKEN	272
+#define	PARS_FLOAT_TOKEN	273
+#define	PARS_CHAR_TOKEN	274
+#define	PARS_IS_TOKEN	275
+#define	PARS_BEGIN_TOKEN	276
+#define	PARS_END_TOKEN	277
+#define	PARS_IF_TOKEN	278
+#define	PARS_THEN_TOKEN	279
+#define	PARS_ELSE_TOKEN	280
+#define	PARS_ELSIF_TOKEN	281
+#define	PARS_LOOP_TOKEN	282
+#define	PARS_WHILE_TOKEN	283
+#define	PARS_RETURN_TOKEN	284
+#define	PARS_SELECT_TOKEN	285
+#define	PARS_SUM_TOKEN	286
+#define	PARS_COUNT_TOKEN	287
+#define	PARS_DISTINCT_TOKEN	288
+#define	PARS_FROM_TOKEN	289
+#define	PARS_WHERE_TOKEN	290
+#define	PARS_FOR_TOKEN	291
+#define	PARS_DDOT_TOKEN	292
+#define	PARS_CONSISTENT_TOKEN	293
+#define	PARS_READ_TOKEN	294
+#define	PARS_ORDER_TOKEN	295
+#define	PARS_BY_TOKEN	296
+#define	PARS_ASC_TOKEN	297
+#define	PARS_DESC_TOKEN	298
+#define	PARS_INSERT_TOKEN	299
+#define	PARS_INTO_TOKEN	300
+#define	PARS_VALUES_TOKEN	301
+#define	PARS_UPDATE_TOKEN	302
+#define	PARS_SET_TOKEN	303
+#define	PARS_DELETE_TOKEN	304
+#define	PARS_CURRENT_TOKEN	305
+#define	PARS_OF_TOKEN	306
+#define	PARS_CREATE_TOKEN	307
+#define	PARS_TABLE_TOKEN	308
+#define	PARS_INDEX_TOKEN	309
+#define	PARS_UNIQUE_TOKEN	310
+#define	PARS_CLUSTERED_TOKEN	311
+#define	PARS_DOES_NOT_FIT_IN_MEM_TOKEN	312
+#define	PARS_ON_TOKEN	313
+#define	PARS_ASSIGN_TOKEN	314
+#define	PARS_DECLARE_TOKEN	315
+#define	PARS_CURSOR_TOKEN	316
+#define	PARS_SQL_TOKEN	317
+#define	PARS_OPEN_TOKEN	318
+#define	PARS_FETCH_TOKEN	319
+#define	PARS_CLOSE_TOKEN	320
+#define	PARS_NOTFOUND_TOKEN	321
+#define	PARS_TO_CHAR_TOKEN	322
+#define	PARS_TO_NUMBER_TOKEN	323
+#define	PARS_TO_BINARY_TOKEN	324
+#define	PARS_BINARY_TO_NUMBER_TOKEN	325
+#define	PARS_SUBSTR_TOKEN	326
+#define	PARS_REPLSTR_TOKEN	327
+#define	PARS_CONCAT_TOKEN	328
+#define	PARS_INSTR_TOKEN	329
+#define	PARS_LENGTH_TOKEN	330
+#define	PARS_SYSDATE_TOKEN	331
+#define	PARS_PRINTF_TOKEN	332
+#define	PARS_ASSERT_TOKEN	333
+#define	PARS_RND_TOKEN	334
+#define	PARS_RND_STR_TOKEN	335
+#define	PARS_ROW_PRINTF_TOKEN	336
+#define	PARS_COMMIT_TOKEN	337
+#define	PARS_ROLLBACK_TOKEN	338
+#define	PARS_WORK_TOKEN	339
+#define	NEG	340
 
-#line 9 "pars0grm.y"
+#line 10 "pars0grm.y"
 
 /* The value of the semantic attribute is a pointer to a query tree node
 que_node_t */
 #define YYSTYPE que_node_t*
+#define alloca	mem_alloc
+
+#include <math.h>
 
 #include "univ.i"
-#include <math.h>
 #include "pars0pars.h"
+#include "mem0mem.h"
 #include "que0types.h"
 #include "que0que.h"
 #include "row0sel.h"
@@ -124,7 +126,7 @@ yylex(void);
 #define	YYFLAG		-32768
 #define	YYNTBASE	102
 
-#define YYTRANSLATE(x) ((unsigned)(x) <= 341 ? yytranslate[x] : 163)
+#define YYTRANSLATE(x) ((unsigned)(x) <= 340 ? yytranslate[x] : 163)
 
 static const char yytranslate[] = {     0,
      2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
@@ -152,16 +154,15 @@ static const char yytranslate[] = {     0,
      2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
      2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
      2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-     2,     2,     2,     2,     2,     1,     2,     3,     4,     5,
-     6,     7,     8,     9,    10,    11,    12,    13,    14,    15,
-    16,    17,    18,    19,    20,    21,    22,    23,    24,    25,
-    26,    27,    28,    29,    30,    31,    32,    33,    34,    35,
-    36,    37,    38,    39,    40,    41,    42,    43,    44,    45,
-    46,    47,    48,    49,    50,    51,    52,    53,    54,    55,
-    56,    57,    58,    59,    60,    61,    62,    63,    64,    65,
-    66,    67,    68,    69,    70,    71,    72,    73,    74,    75,
-    76,    77,    78,    79,    80,    81,    82,    83,    84,    85,
-    93
+     2,     2,     2,     2,     2,     1,     3,     4,     5,     6,
+     7,     8,     9,    10,    11,    12,    13,    14,    15,    16,
+    17,    18,    19,    20,    21,    22,    23,    24,    25,    26,
+    27,    28,    29,    30,    31,    32,    33,    34,    35,    36,
+    37,    38,    39,    40,    41,    42,    43,    44,    45,    46,
+    47,    48,    49,    50,    51,    52,    53,    54,    55,    56,
+    57,    58,    59,    60,    61,    62,    63,    64,    65,    66,
+    67,    68,    69,    70,    71,    72,    73,    74,    75,    76,
+    77,    78,    79,    80,    81,    82,    83,    84,    85,    93
 };
 
 #if YYDEBUG != 0
@@ -241,22 +242,22 @@ static const short yyrhs[] = {   162,
 
 #if YYDEBUG != 0
 static const short yyrline[] = { 0,
-   125,   127,   128,   129,   130,   131,   132,   133,   134,   135,
-   136,   137,   138,   139,   140,   141,   142,   143,   144,   145,
-   146,   147,   150,   152,   156,   158,   160,   161,   162,   163,
-   164,   165,   166,   167,   168,   169,   170,   171,   172,   173,
-   174,   175,   176,   177,   178,   179,   180,   182,   186,   188,
-   189,   190,   192,   193,   194,   195,   196,   197,   198,   201,
-   203,   204,   207,   212,   217,   219,   220,   223,   225,   229,
-   231,   232,   236,   238,   239,   242,   244,   249,   255,   261,
-   263,   264,   268,   271,   273,   276,   278,   281,   283,   287,
-   289,   293,   295,   296,   299,   301,   305,   315,   320,   323,
-   327,   331,   333,   337,   343,   350,   355,   360,   366,   371,
-   376,   381,   386,   392,   394,   398,   400,   402,   405,   412,
-   418,   426,   430,   436,   442,   447,   451,   453,   457,   459,
-   464,   470,   472,   476,   478,   481,   483,   486,   494,   499,
-   504,   506,   509,   513,   518,   520,   521,   525,   530,   532,
-   533,   536,   542,   544,   545,   548
+   126,   128,   129,   130,   131,   132,   133,   134,   135,   136,
+   137,   138,   139,   140,   141,   142,   143,   144,   145,   146,
+   147,   148,   151,   153,   157,   159,   161,   162,   163,   164,
+   165,   166,   167,   168,   169,   170,   171,   172,   173,   174,
+   175,   176,   177,   178,   179,   180,   181,   183,   187,   189,
+   190,   191,   193,   194,   195,   196,   197,   198,   199,   202,
+   204,   205,   208,   213,   218,   220,   221,   224,   226,   230,
+   232,   233,   237,   239,   240,   243,   245,   250,   256,   262,
+   264,   265,   269,   272,   274,   277,   279,   282,   284,   288,
+   290,   294,   296,   297,   300,   302,   306,   316,   321,   324,
+   328,   332,   334,   338,   344,   351,   356,   361,   367,   372,
+   377,   382,   387,   393,   395,   399,   401,   403,   406,   413,
+   419,   427,   431,   437,   443,   448,   452,   454,   458,   460,
+   465,   471,   473,   477,   479,   482,   484,   487,   495,   500,
+   505,   507,   510,   514,   519,   521,   522,   526,   531,   533,
+   534,   537,   543,   545,   546,   549
 };
 #endif
 
@@ -567,7 +568,8 @@ static const short yycheck[] = {     0,
     91,    92,    -1,    86,    87,    88,    89,    90,    91,    92
 };
 /* -*-C-*-  Note some compilers choke on comments on `#line' lines.  */
-#line 3 "bison.simple"
+#line 3 "/usr/share/bison.simple"
+/* This file comes from bison-1.28.  */
 
 /* Skeleton output parser for bison,
    Copyright (C) 1984, 1989, 1990 Free Software Foundation, Inc.
@@ -584,46 +586,71 @@ static const short yycheck[] = {     0,
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 /* As a special exception, when this file is copied by Bison into a
    Bison output file, you may use that output file without restriction.
    This special exception was added by the Free Software Foundation
    in version 1.24 of Bison.  */
 
-#ifndef alloca
-#ifdef __GNUC__
-#define alloca __builtin_alloca
-#else /* not GNU C.  */
-#if (!defined (__STDC__) && defined (sparc)) || defined (__sparc__) || defined (__sparc) || defined (__sgi)
-#include <alloca.h>
-#else /* not sparc */
-#if defined (MSDOS) && !defined (__TURBOC__)
-#include <malloc.h>
-#else /* not MSDOS, or __TURBOC__ */
-#if defined(_AIX)
-#include <malloc.h>
- #pragma alloca
-#else /* not MSDOS, __TURBOC__, or _AIX */
-#ifdef __hpux
-#ifdef __cplusplus
-extern "C" {
-void *alloca (unsigned int);
-};
-#else /* not __cplusplus */
-void *alloca ();
-#endif /* not __cplusplus */
-#endif /* __hpux */
-#endif /* not _AIX */
-#endif /* not MSDOS, or __TURBOC__ */
-#endif /* not sparc.  */
-#endif /* not GNU C.  */
-#endif /* alloca not defined.  */
-
 /* This is the parser code that is written into each bison parser
   when the %semantic_parser declaration is not specified in the grammar.
   It was written by Richard Stallman by simplifying the hairy parser
   used when %semantic_parser is specified.  */
+
+#ifndef YYPARSE_RETURN_TYPE
+#define YYPARSE_RETURN_TYPE int
+#endif
+
+
+#ifndef YYSTACK_USE_ALLOCA
+#ifdef alloca
+#define YYSTACK_USE_ALLOCA
+#else /* alloca not defined */
+#ifdef __GNUC__
+#define YYSTACK_USE_ALLOCA
+#define alloca __builtin_alloca
+#else /* not GNU C.  */
+#if (!defined (__STDC__) && defined (sparc)) || defined (__sparc__) || defined (__sparc) || defined (__sgi) || (defined (__sun) && defined (__i386))
+#define YYSTACK_USE_ALLOCA
+#include <alloca.h>
+#else /* not sparc */
+/* We think this test detects Watcom and Microsoft C.  */
+/* This used to test MSDOS, but that is a bad idea
+   since that symbol is in the user namespace.  */
+#if (defined (_MSDOS) || defined (_MSDOS_)) && !defined (__TURBOC__)
+#if 0 /* No need for malloc.h, which pollutes the namespace;
+	 instead, just don't use alloca.  */
+#include <malloc.h>
+#endif
+#else /* not MSDOS, or __TURBOC__ */
+#if defined(_AIX)
+/* I don't know what this was needed for, but it pollutes the namespace.
+   So I turned it off.   rms, 2 May 1997.  */
+/* #include <malloc.h>  */
+ #pragma alloca
+#define YYSTACK_USE_ALLOCA
+#else /* not MSDOS, or __TURBOC__, or _AIX */
+#if 0
+#ifdef __hpux /* haible@ilog.fr says this works for HPUX 9.05 and up,
+		 and on HPUX 10.  Eventually we can turn this on.  */
+#define YYSTACK_USE_ALLOCA
+#define alloca __builtin_alloca
+#endif /* __hpux */
+#endif
+#endif /* not _AIX */
+#endif /* not MSDOS, or __TURBOC__ */
+#endif /* not sparc */
+#endif /* not GNU C */
+#endif /* alloca not defined */
+#endif /* YYSTACK_USE_ALLOCA not defined */
+
+#ifdef YYSTACK_USE_ALLOCA
+#define YYSTACK_ALLOC alloca
+#else
+#define YYSTACK_ALLOC malloc
+#endif
 
 /* Note: there must be only one dollar sign in this file.
    It is replaced by the list of actions, each action
@@ -633,8 +660,8 @@ void *alloca ();
 #define yyclearin	(yychar = YYEMPTY)
 #define YYEMPTY		-2
 #define YYEOF		0
-#define YYACCEPT	return(0)
-#define YYABORT 	return(1)
+#define YYACCEPT	goto yyacceptlab
+#define YYABORT 	goto yyabortlab
 #define YYERROR		goto yyerrlab1
 /* Like YYERROR except do call yyerror.
    This remains here temporarily to ease the
@@ -702,7 +729,7 @@ int yydebug;			/*  nonzero means print parse trace	*/
 /*  YYINITDEPTH indicates the initial size of the parser's stacks	*/
 
 #ifndef	YYINITDEPTH
-#define YYINITDEPTH 1000
+#define YYINITDEPTH 200
 #endif
 
 /*  YYMAXDEPTH is the maximum size the stacks can grow to
@@ -715,12 +742,12 @@ int yydebug;			/*  nonzero means print parse trace	*/
 #ifndef YYMAXDEPTH
 #define YYMAXDEPTH 10000
 #endif
-
-/* Prevent warning if -Wstrict-prototypes.  */
-#ifdef __GNUC__
-int yyparse (void);
-#endif
 
+/* Define __yy_memcpy.  Note that the size argument
+   should be passed with type unsigned int, because that is what the non-GCC
+   definitions require.  With GCC, __builtin_memcpy takes an arg
+   of type size_t, but it can handle unsigned int.  */
+
 #if __GNUC__ > 1		/* GNU C and GNU C++ define this.  */
 #define __yy_memcpy(TO,FROM,COUNT)	__builtin_memcpy(TO,FROM,COUNT)
 #else				/* not GNU C or C++ */
@@ -732,7 +759,7 @@ static void
 __yy_memcpy (to, from, count)
      char *to;
      char *from;
-     int count;
+     unsigned int count;
 {
   register char *f = from;
   register char *t = to;
@@ -747,10 +774,10 @@ __yy_memcpy (to, from, count)
 /* This is the most reliable way to avoid incompatibilities
    in available built-in functions on various systems.  */
 static void
-__yy_memcpy (char *to, char *from, int count)
+__yy_memcpy (char *to, char *from, unsigned int count)
 {
-  register char *f = from;
   register char *t = to;
+  register char *f = from;
   register int i = count;
 
   while (i-- > 0)
@@ -760,7 +787,7 @@ __yy_memcpy (char *to, char *from, int count)
 #endif
 #endif
 
-#line 196 "bison.simple"
+#line 222 "/usr/share/bison.simple"
 
 /* The user can define YYPARSE_PARAM as the name of an argument to be passed
    into yyparse.  The argument should have type void *.
@@ -781,7 +808,18 @@ __yy_memcpy (char *to, char *from, int count)
 #define YYPARSE_PARAM_DECL
 #endif /* not YYPARSE_PARAM */
 
-int
+/* Prevent warning if -Wstrict-prototypes.  */
+#ifdef __GNUC__
+#ifdef YYPARSE_PARAM
+YYPARSE_RETURN_TYPE
+yyparse (void *);
+#else
+YYPARSE_RETURN_TYPE
+yyparse (void);
+#endif
+#endif
+
+YYPARSE_RETURN_TYPE
 yyparse(YYPARSE_PARAM_ARG)
      YYPARSE_PARAM_DECL
 {
@@ -809,6 +847,9 @@ yyparse(YYPARSE_PARAM_ARG)
 #endif
 
   int yystacksize = YYINITDEPTH;
+#ifndef YYSTACK_USE_ALLOCA
+  int yyfree_stacks = 0;
+#endif
 
 #ifdef YYPURE
   int yychar;
@@ -893,23 +934,34 @@ yynewstate:
       if (yystacksize >= YYMAXDEPTH)
 	{
 	  yyerror("parser stack overflow");
-	  ut_a(0);
+#ifndef YYSTACK_USE_ALLOCA
+	  if (yyfree_stacks)
+	    {
+	      free (yyss);
+	      free (yyvs);
+#ifdef YYLSP_NEEDED
+	      free (yyls);
+#endif
+	    }
+#endif	    
 	  return 2;
 	}
       yystacksize *= 2;
       if (yystacksize > YYMAXDEPTH)
 	yystacksize = YYMAXDEPTH;
-
-      ut_a(0); 	/* Prevent possible memory leaks through the following
-      		mem_alloc's */
-	
-      yyss = (short *) mem_alloc (yystacksize * sizeof (*yyssp));
-      __yy_memcpy ((char *)yyss, (char *)yyss1, size * sizeof (*yyssp));
-      yyvs = (YYSTYPE *) mem_alloc (yystacksize * sizeof (*yyvsp));
-      __yy_memcpy ((char *)yyvs, (char *)yyvs1, size * sizeof (*yyvsp));
+#ifndef YYSTACK_USE_ALLOCA
+      yyfree_stacks = 1;
+#endif
+      yyss = (short *) YYSTACK_ALLOC (yystacksize * sizeof (*yyssp));
+      __yy_memcpy ((char *)yyss, (char *)yyss1,
+		   size * (unsigned int) sizeof (*yyssp));
+      yyvs = (YYSTYPE *) YYSTACK_ALLOC (yystacksize * sizeof (*yyvsp));
+      __yy_memcpy ((char *)yyvs, (char *)yyvs1,
+		   size * (unsigned int) sizeof (*yyvsp));
 #ifdef YYLSP_NEEDED
-      yyls = (YYLTYPE *) mem_alloc (yystacksize * sizeof (*yylsp));
-      __yy_memcpy ((char *)yyls, (char *)yyls1, size * sizeof (*yylsp));
+      yyls = (YYLTYPE *) YYSTACK_ALLOC (yystacksize * sizeof (*yylsp));
+      __yy_memcpy ((char *)yyls, (char *)yyls1,
+		   size * (unsigned int) sizeof (*yylsp));
 #endif
 #endif /* no yyoverflow */
 
@@ -1070,218 +1122,218 @@ yyreduce:
   switch (yyn) {
 
 case 23:
-#line 151 "pars0grm.y"
+#line 152 "pars0grm.y"
 { yyval = que_node_list_add_last(NULL, yyvsp[0]); ;
     break;}
 case 24:
-#line 153 "pars0grm.y"
+#line 154 "pars0grm.y"
 { yyval = que_node_list_add_last(yyvsp[-1], yyvsp[0]); ;
     break;}
 case 25:
-#line 157 "pars0grm.y"
+#line 158 "pars0grm.y"
 { yyval = yyvsp[0];;
     break;}
 case 26:
-#line 159 "pars0grm.y"
+#line 160 "pars0grm.y"
 { yyval = pars_func(yyvsp[-3], yyvsp[-1]); ;
     break;}
 case 27:
-#line 160 "pars0grm.y"
-{ yyval = yyvsp[0];;
-    break;}
-case 28:
 #line 161 "pars0grm.y"
 { yyval = yyvsp[0];;
     break;}
-case 29:
+case 28:
 #line 162 "pars0grm.y"
 { yyval = yyvsp[0];;
     break;}
-case 30:
+case 29:
 #line 163 "pars0grm.y"
 { yyval = yyvsp[0];;
     break;}
-case 31:
+case 30:
 #line 164 "pars0grm.y"
 { yyval = yyvsp[0];;
     break;}
-case 32:
+case 31:
 #line 165 "pars0grm.y"
+{ yyval = yyvsp[0];;
+    break;}
+case 32:
+#line 166 "pars0grm.y"
 { yyval = pars_op('+', yyvsp[-2], yyvsp[0]); ;
     break;}
 case 33:
-#line 166 "pars0grm.y"
+#line 167 "pars0grm.y"
 { yyval = pars_op('-', yyvsp[-2], yyvsp[0]); ;
     break;}
 case 34:
-#line 167 "pars0grm.y"
+#line 168 "pars0grm.y"
 { yyval = pars_op('*', yyvsp[-2], yyvsp[0]); ;
     break;}
 case 35:
-#line 168 "pars0grm.y"
+#line 169 "pars0grm.y"
 { yyval = pars_op('/', yyvsp[-2], yyvsp[0]); ;
     break;}
 case 36:
-#line 169 "pars0grm.y"
+#line 170 "pars0grm.y"
 { yyval = pars_op('-', yyvsp[0], NULL); ;
     break;}
 case 37:
-#line 170 "pars0grm.y"
+#line 171 "pars0grm.y"
 { yyval = yyvsp[-1]; ;
     break;}
 case 38:
-#line 171 "pars0grm.y"
+#line 172 "pars0grm.y"
 { yyval = pars_op('=', yyvsp[-2], yyvsp[0]); ;
     break;}
 case 39:
-#line 172 "pars0grm.y"
+#line 173 "pars0grm.y"
 { yyval = pars_op('<', yyvsp[-2], yyvsp[0]); ;
     break;}
 case 40:
-#line 173 "pars0grm.y"
+#line 174 "pars0grm.y"
 { yyval = pars_op('>', yyvsp[-2], yyvsp[0]); ;
     break;}
 case 41:
-#line 174 "pars0grm.y"
+#line 175 "pars0grm.y"
 { yyval = pars_op(PARS_GE_TOKEN, yyvsp[-2], yyvsp[0]); ;
     break;}
 case 42:
-#line 175 "pars0grm.y"
+#line 176 "pars0grm.y"
 { yyval = pars_op(PARS_LE_TOKEN, yyvsp[-2], yyvsp[0]); ;
     break;}
 case 43:
-#line 176 "pars0grm.y"
+#line 177 "pars0grm.y"
 { yyval = pars_op(PARS_NE_TOKEN, yyvsp[-2], yyvsp[0]); ;
     break;}
 case 44:
-#line 177 "pars0grm.y"
+#line 178 "pars0grm.y"
 { yyval = pars_op(PARS_AND_TOKEN, yyvsp[-2], yyvsp[0]); ;
     break;}
 case 45:
-#line 178 "pars0grm.y"
+#line 179 "pars0grm.y"
 { yyval = pars_op(PARS_OR_TOKEN, yyvsp[-2], yyvsp[0]); ;
     break;}
 case 46:
-#line 179 "pars0grm.y"
+#line 180 "pars0grm.y"
 { yyval = pars_op(PARS_NOT_TOKEN, yyvsp[0], NULL); ;
     break;}
 case 47:
-#line 181 "pars0grm.y"
+#line 182 "pars0grm.y"
 { yyval = pars_op(PARS_NOTFOUND_TOKEN, yyvsp[-2], NULL); ;
     break;}
 case 48:
-#line 183 "pars0grm.y"
+#line 184 "pars0grm.y"
 { yyval = pars_op(PARS_NOTFOUND_TOKEN, yyvsp[-2], NULL); ;
     break;}
 case 49:
-#line 187 "pars0grm.y"
+#line 188 "pars0grm.y"
 { yyval = &pars_to_char_token; ;
     break;}
 case 50:
-#line 188 "pars0grm.y"
+#line 189 "pars0grm.y"
 { yyval = &pars_to_number_token; ;
     break;}
 case 51:
-#line 189 "pars0grm.y"
+#line 190 "pars0grm.y"
 { yyval = &pars_to_binary_token; ;
     break;}
 case 52:
-#line 191 "pars0grm.y"
+#line 192 "pars0grm.y"
 { yyval = &pars_binary_to_number_token; ;
     break;}
 case 53:
-#line 192 "pars0grm.y"
+#line 193 "pars0grm.y"
 { yyval = &pars_substr_token; ;
     break;}
 case 54:
-#line 193 "pars0grm.y"
+#line 194 "pars0grm.y"
 { yyval = &pars_concat_token; ;
     break;}
 case 55:
-#line 194 "pars0grm.y"
+#line 195 "pars0grm.y"
 { yyval = &pars_instr_token; ;
     break;}
 case 56:
-#line 195 "pars0grm.y"
+#line 196 "pars0grm.y"
 { yyval = &pars_length_token; ;
     break;}
 case 57:
-#line 196 "pars0grm.y"
+#line 197 "pars0grm.y"
 { yyval = &pars_sysdate_token; ;
     break;}
 case 58:
-#line 197 "pars0grm.y"
+#line 198 "pars0grm.y"
 { yyval = &pars_rnd_token; ;
     break;}
 case 59:
-#line 198 "pars0grm.y"
+#line 199 "pars0grm.y"
 { yyval = &pars_rnd_str_token; ;
     break;}
 case 63:
-#line 209 "pars0grm.y"
+#line 210 "pars0grm.y"
 { yyval = pars_stored_procedure_call(yyvsp[-4]); ;
     break;}
 case 64:
-#line 214 "pars0grm.y"
+#line 215 "pars0grm.y"
 { yyval = pars_procedure_call(yyvsp[-3], yyvsp[-1]); ;
     break;}
 case 65:
-#line 218 "pars0grm.y"
+#line 219 "pars0grm.y"
 { yyval = &pars_replstr_token; ;
     break;}
 case 66:
-#line 219 "pars0grm.y"
+#line 220 "pars0grm.y"
 { yyval = &pars_printf_token; ;
     break;}
 case 67:
-#line 220 "pars0grm.y"
+#line 221 "pars0grm.y"
 { yyval = &pars_assert_token; ;
     break;}
 case 68:
-#line 224 "pars0grm.y"
+#line 225 "pars0grm.y"
 { yyval = que_node_list_add_last(NULL, yyvsp[0]); ;
     break;}
 case 69:
-#line 226 "pars0grm.y"
+#line 227 "pars0grm.y"
 { yyval = que_node_list_add_last(yyvsp[-2], yyvsp[0]); ;
     break;}
 case 70:
-#line 230 "pars0grm.y"
+#line 231 "pars0grm.y"
 { yyval = NULL; ;
     break;}
 case 71:
-#line 231 "pars0grm.y"
+#line 232 "pars0grm.y"
 { yyval = que_node_list_add_last(NULL, yyvsp[0]); ;
     break;}
 case 72:
-#line 233 "pars0grm.y"
+#line 234 "pars0grm.y"
 { yyval = que_node_list_add_last(yyvsp[-2], yyvsp[0]); ;
     break;}
 case 73:
-#line 237 "pars0grm.y"
+#line 238 "pars0grm.y"
 { yyval = NULL; ;
     break;}
 case 74:
-#line 238 "pars0grm.y"
+#line 239 "pars0grm.y"
 { yyval = que_node_list_add_last(NULL, yyvsp[0]);;
     break;}
 case 75:
-#line 239 "pars0grm.y"
+#line 240 "pars0grm.y"
 { yyval = que_node_list_add_last(yyvsp[-2], yyvsp[0]); ;
     break;}
 case 76:
-#line 243 "pars0grm.y"
+#line 244 "pars0grm.y"
 { yyval = yyvsp[0]; ;
     break;}
 case 77:
-#line 245 "pars0grm.y"
+#line 246 "pars0grm.y"
 { yyval = pars_func(&pars_count_token,
 				          que_node_list_add_last(NULL,
 					    sym_tab_add_int_lit(
 						pars_sym_tab_global, 1))); ;
     break;}
 case 78:
-#line 250 "pars0grm.y"
+#line 251 "pars0grm.y"
 { yyval = pars_func(&pars_count_token,
 					    que_node_list_add_last(NULL,
 						pars_func(&pars_distinct_token,
@@ -1289,308 +1341,308 @@ case 78:
 								NULL, yyvsp[-1])))); ;
     break;}
 case 79:
-#line 256 "pars0grm.y"
+#line 257 "pars0grm.y"
 { yyval = pars_func(&pars_sum_token,
 						que_node_list_add_last(NULL,
 									yyvsp[-1])); ;
     break;}
 case 80:
-#line 262 "pars0grm.y"
+#line 263 "pars0grm.y"
 { yyval = NULL; ;
     break;}
 case 81:
-#line 263 "pars0grm.y"
+#line 264 "pars0grm.y"
 { yyval = que_node_list_add_last(NULL, yyvsp[0]); ;
     break;}
 case 82:
-#line 265 "pars0grm.y"
+#line 266 "pars0grm.y"
 { yyval = que_node_list_add_last(yyvsp[-2], yyvsp[0]); ;
     break;}
 case 83:
-#line 269 "pars0grm.y"
+#line 270 "pars0grm.y"
 { yyval = pars_select_list(&pars_star_denoter,
 								NULL); ;
     break;}
 case 84:
-#line 272 "pars0grm.y"
+#line 273 "pars0grm.y"
 { yyval = pars_select_list(yyvsp[-2], yyvsp[0]); ;
     break;}
 case 85:
-#line 273 "pars0grm.y"
+#line 274 "pars0grm.y"
 { yyval = pars_select_list(yyvsp[0], NULL); ;
     break;}
 case 86:
-#line 277 "pars0grm.y"
+#line 278 "pars0grm.y"
 { yyval = NULL; ;
     break;}
 case 87:
-#line 278 "pars0grm.y"
+#line 279 "pars0grm.y"
 { yyval = yyvsp[0]; ;
     break;}
 case 88:
-#line 282 "pars0grm.y"
+#line 283 "pars0grm.y"
 { yyval = NULL; ;
     break;}
 case 89:
-#line 284 "pars0grm.y"
+#line 285 "pars0grm.y"
 { yyval = &pars_update_token; ;
     break;}
 case 90:
-#line 288 "pars0grm.y"
+#line 289 "pars0grm.y"
 { yyval = NULL; ;
     break;}
 case 91:
-#line 290 "pars0grm.y"
+#line 291 "pars0grm.y"
 { yyval = &pars_consistent_token; ;
     break;}
 case 92:
-#line 294 "pars0grm.y"
-{ yyval = &pars_asc_token; ;
-    break;}
-case 93:
 #line 295 "pars0grm.y"
 { yyval = &pars_asc_token; ;
     break;}
-case 94:
+case 93:
 #line 296 "pars0grm.y"
+{ yyval = &pars_asc_token; ;
+    break;}
+case 94:
+#line 297 "pars0grm.y"
 { yyval = &pars_desc_token; ;
     break;}
 case 95:
-#line 300 "pars0grm.y"
+#line 301 "pars0grm.y"
 { yyval = NULL; ;
     break;}
 case 96:
-#line 302 "pars0grm.y"
+#line 303 "pars0grm.y"
 { yyval = pars_order_by(yyvsp[-1], yyvsp[0]); ;
     break;}
 case 97:
-#line 311 "pars0grm.y"
+#line 312 "pars0grm.y"
 { yyval = pars_select_statement(yyvsp[-6], yyvsp[-4], yyvsp[-3],
 								yyvsp[-2], yyvsp[-1], yyvsp[0]); ;
     break;}
 case 98:
-#line 317 "pars0grm.y"
+#line 318 "pars0grm.y"
 { yyval = yyvsp[0]; ;
     break;}
 case 99:
-#line 322 "pars0grm.y"
+#line 323 "pars0grm.y"
 { yyval = pars_insert_statement(yyvsp[-4], yyvsp[-1], NULL); ;
     break;}
 case 100:
-#line 324 "pars0grm.y"
+#line 325 "pars0grm.y"
 { yyval = pars_insert_statement(yyvsp[-1], NULL, yyvsp[0]); ;
     break;}
 case 101:
-#line 328 "pars0grm.y"
+#line 329 "pars0grm.y"
 { yyval = pars_column_assignment(yyvsp[-2], yyvsp[0]); ;
     break;}
 case 102:
-#line 332 "pars0grm.y"
+#line 333 "pars0grm.y"
 { yyval = que_node_list_add_last(NULL, yyvsp[0]); ;
     break;}
 case 103:
-#line 334 "pars0grm.y"
+#line 335 "pars0grm.y"
 { yyval = que_node_list_add_last(yyvsp[-2], yyvsp[0]); ;
     break;}
 case 104:
-#line 340 "pars0grm.y"
+#line 341 "pars0grm.y"
 { yyval = yyvsp[0]; ;
     break;}
 case 105:
-#line 346 "pars0grm.y"
+#line 347 "pars0grm.y"
 { yyval = pars_update_statement_start(FALSE,
 								yyvsp[-2], yyvsp[0]); ;
     break;}
 case 106:
-#line 352 "pars0grm.y"
+#line 353 "pars0grm.y"
 { yyval = pars_update_statement(yyvsp[-1], NULL, yyvsp[0]); ;
     break;}
 case 107:
-#line 357 "pars0grm.y"
+#line 358 "pars0grm.y"
 { yyval = pars_update_statement(yyvsp[-1], yyvsp[0], NULL); ;
     break;}
 case 108:
-#line 362 "pars0grm.y"
+#line 363 "pars0grm.y"
 { yyval = pars_update_statement_start(TRUE,
 								yyvsp[0], NULL); ;
     break;}
 case 109:
-#line 368 "pars0grm.y"
+#line 369 "pars0grm.y"
 { yyval = pars_update_statement(yyvsp[-1], NULL, yyvsp[0]); ;
     break;}
 case 110:
-#line 373 "pars0grm.y"
+#line 374 "pars0grm.y"
 { yyval = pars_update_statement(yyvsp[-1], yyvsp[0], NULL); ;
     break;}
 case 111:
-#line 378 "pars0grm.y"
+#line 379 "pars0grm.y"
 { yyval = pars_row_printf_statement(yyvsp[0]); ;
     break;}
 case 112:
-#line 383 "pars0grm.y"
+#line 384 "pars0grm.y"
 { yyval = pars_assignment_statement(yyvsp[-2], yyvsp[0]); ;
     break;}
 case 113:
-#line 389 "pars0grm.y"
+#line 390 "pars0grm.y"
 { yyval = pars_elsif_element(yyvsp[-2], yyvsp[0]); ;
     break;}
 case 114:
-#line 393 "pars0grm.y"
+#line 394 "pars0grm.y"
 { yyval = que_node_list_add_last(NULL, yyvsp[0]); ;
     break;}
 case 115:
-#line 395 "pars0grm.y"
+#line 396 "pars0grm.y"
 { yyval = que_node_list_add_last(yyvsp[-1], yyvsp[0]); ;
     break;}
 case 116:
-#line 399 "pars0grm.y"
+#line 400 "pars0grm.y"
 { yyval = NULL; ;
     break;}
 case 117:
-#line 401 "pars0grm.y"
-{ yyval = yyvsp[0]; ;
-    break;}
-case 118:
 #line 402 "pars0grm.y"
 { yyval = yyvsp[0]; ;
     break;}
+case 118:
+#line 403 "pars0grm.y"
+{ yyval = yyvsp[0]; ;
+    break;}
 case 119:
-#line 409 "pars0grm.y"
+#line 410 "pars0grm.y"
 { yyval = pars_if_statement(yyvsp[-5], yyvsp[-3], yyvsp[-2]); ;
     break;}
 case 120:
-#line 415 "pars0grm.y"
+#line 416 "pars0grm.y"
 { yyval = pars_while_statement(yyvsp[-4], yyvsp[-2]); ;
     break;}
 case 121:
-#line 423 "pars0grm.y"
+#line 424 "pars0grm.y"
 { yyval = pars_for_statement(yyvsp[-8], yyvsp[-6], yyvsp[-4], yyvsp[-2]); ;
     break;}
 case 122:
-#line 427 "pars0grm.y"
+#line 428 "pars0grm.y"
 { yyval = pars_return_statement(); ;
     break;}
 case 123:
-#line 432 "pars0grm.y"
+#line 433 "pars0grm.y"
 { yyval = pars_open_statement(
 						ROW_SEL_OPEN_CURSOR, yyvsp[0]); ;
     break;}
 case 124:
-#line 438 "pars0grm.y"
+#line 439 "pars0grm.y"
 { yyval = pars_open_statement(
 						ROW_SEL_CLOSE_CURSOR, yyvsp[0]); ;
     break;}
 case 125:
-#line 444 "pars0grm.y"
+#line 445 "pars0grm.y"
 { yyval = pars_fetch_statement(yyvsp[-2], yyvsp[0]); ;
     break;}
 case 126:
-#line 448 "pars0grm.y"
+#line 449 "pars0grm.y"
 { yyval = pars_column_def(yyvsp[-1], yyvsp[0]); ;
     break;}
 case 127:
-#line 452 "pars0grm.y"
+#line 453 "pars0grm.y"
 { yyval = que_node_list_add_last(NULL, yyvsp[0]); ;
     break;}
 case 128:
-#line 454 "pars0grm.y"
+#line 455 "pars0grm.y"
 { yyval = que_node_list_add_last(yyvsp[-2], yyvsp[0]); ;
     break;}
 case 129:
-#line 458 "pars0grm.y"
+#line 459 "pars0grm.y"
 { yyval = NULL; ;
     break;}
 case 130:
-#line 460 "pars0grm.y"
+#line 461 "pars0grm.y"
 { yyval = &pars_int_token;
 					/* pass any non-NULL pointer */ ;
     break;}
 case 131:
-#line 467 "pars0grm.y"
+#line 468 "pars0grm.y"
 { yyval = pars_create_table(yyvsp[-4], yyvsp[-2], yyvsp[0]); ;
     break;}
 case 132:
-#line 471 "pars0grm.y"
+#line 472 "pars0grm.y"
 { yyval = que_node_list_add_last(NULL, yyvsp[0]); ;
     break;}
 case 133:
-#line 473 "pars0grm.y"
+#line 474 "pars0grm.y"
 { yyval = que_node_list_add_last(yyvsp[-2], yyvsp[0]); ;
     break;}
 case 134:
-#line 477 "pars0grm.y"
+#line 478 "pars0grm.y"
 { yyval = NULL; ;
     break;}
 case 135:
-#line 478 "pars0grm.y"
+#line 479 "pars0grm.y"
 { yyval = &pars_unique_token; ;
     break;}
 case 136:
-#line 482 "pars0grm.y"
+#line 483 "pars0grm.y"
 { yyval = NULL; ;
     break;}
 case 137:
-#line 483 "pars0grm.y"
+#line 484 "pars0grm.y"
 { yyval = &pars_clustered_token; ;
     break;}
 case 138:
-#line 491 "pars0grm.y"
+#line 492 "pars0grm.y"
 { yyval = pars_create_index(yyvsp[-8], yyvsp[-7], yyvsp[-5], yyvsp[-3], yyvsp[-1]); ;
     break;}
 case 139:
-#line 496 "pars0grm.y"
+#line 497 "pars0grm.y"
 { yyval = pars_commit_statement(); ;
     break;}
 case 140:
-#line 501 "pars0grm.y"
+#line 502 "pars0grm.y"
 { yyval = pars_rollback_statement(); ;
     break;}
 case 141:
-#line 505 "pars0grm.y"
+#line 506 "pars0grm.y"
 { yyval = &pars_int_token; ;
     break;}
 case 142:
-#line 506 "pars0grm.y"
+#line 507 "pars0grm.y"
 { yyval = &pars_char_token; ;
     break;}
 case 143:
-#line 511 "pars0grm.y"
+#line 512 "pars0grm.y"
 { yyval = pars_parameter_declaration(yyvsp[-2],
 							PARS_INPUT, yyvsp[0]); ;
     break;}
 case 144:
-#line 514 "pars0grm.y"
+#line 515 "pars0grm.y"
 { yyval = pars_parameter_declaration(yyvsp[-2],
 							PARS_OUTPUT, yyvsp[0]); ;
     break;}
 case 145:
-#line 519 "pars0grm.y"
+#line 520 "pars0grm.y"
 { yyval = NULL; ;
     break;}
 case 146:
-#line 520 "pars0grm.y"
+#line 521 "pars0grm.y"
 { yyval = que_node_list_add_last(NULL, yyvsp[0]); ;
     break;}
 case 147:
-#line 522 "pars0grm.y"
+#line 523 "pars0grm.y"
 { yyval = que_node_list_add_last(yyvsp[-2], yyvsp[0]); ;
     break;}
 case 148:
-#line 527 "pars0grm.y"
+#line 528 "pars0grm.y"
 { yyval = pars_variable_declaration(yyvsp[-2], yyvsp[-1]); ;
     break;}
 case 152:
-#line 539 "pars0grm.y"
+#line 540 "pars0grm.y"
 { yyval = pars_cursor_declaration(yyvsp[-3], yyvsp[-1]); ;
     break;}
 case 156:
-#line 555 "pars0grm.y"
+#line 556 "pars0grm.y"
 { yyval = pars_procedure_definition(yyvsp[-9], yyvsp[-7],
 								yyvsp[-1]); ;
     break;}
 }
    /* the action file gets copied in in place of this dollarsign */
-#line 498 "bison.simple"
+#line 554 "/usr/share/bison.simple"
 
   yyvsp -= yylen;
   yyssp -= yylen;
@@ -1665,7 +1717,7 @@ yyerrlab:   /* here on detecting error */
 	       x < (sizeof(yytname) / sizeof(char *)); x++)
 	    if (yycheck[x + yyn] == x)
 	      size += strlen(yytname[x]) + 15, count++;
-	  msg = (char *) mem_alloc(size + 15);
+	  msg = (char *) malloc(size + 15);
 	  if (msg != 0)
 	    {
 	      strcpy(msg, "parse error");
@@ -1684,7 +1736,7 @@ yyerrlab:   /* here on detecting error */
 		      }
 		}
 	      yyerror(msg);
-	      mem_free(msg);
+	      free(msg);
 	    }
 	  else
 	    yyerror ("parse error; also virtual memory exceeded");
@@ -1785,6 +1837,34 @@ yyerrhandle:
 
   yystate = yyn;
   goto yynewstate;
+
+ yyacceptlab:
+  /* YYACCEPT comes here.  */
+#ifndef YYSTACK_USE_ALLOCA
+  if (yyfree_stacks)
+    {
+      free (yyss);
+      free (yyvs);
+#ifdef YYLSP_NEEDED
+      free (yyls);
+#endif
+    }
+#endif
+  return 0;
+
+ yyabortlab:
+  /* YYABORT comes here.  */
+#ifndef YYSTACK_USE_ALLOCA
+  if (yyfree_stacks)
+    {
+      free (yyss);
+      free (yyvs);
+#ifdef YYLSP_NEEDED
+      free (yyls);
+#endif
+    }
+#endif    
+  return 1;
 }
-#line 559 "pars0grm.y"
+#line 560 "pars0grm.y"
 
