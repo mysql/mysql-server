@@ -405,3 +405,20 @@ AC_DEFINE_UNQUOTED([MYSQL_DEFAULT_CHARSET_NAME], ["$default_charset"],
                    [Define the default charset name])
 AC_DEFINE_UNQUOTED([MYSQL_DEFAULT_COLLATION_NAME], ["$default_collation"],
                    [Define the default charset name])
+
+# Shall we build the UCA-based Unicode collations
+AC_ARG_WITH(uca,
+    [  --without-uca           Skip building of the national Unicode collations.],
+    [with_uca=$withval],
+    [with_uca=yes]
+)
+
+AC_MSG_CHECKING([whether to compile national Unicode collations])
+
+if test "$with_uca" = "yes"
+then
+  AC_MSG_RESULT(yes)
+  AC_DEFINE([HAVE_UCA_COLLATIONS], [1], [national Unicode collations])
+else
+  AC_MSG_RESULT(no)
+fi
