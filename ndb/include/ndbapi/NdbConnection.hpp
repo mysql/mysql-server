@@ -673,6 +673,8 @@ private:
   void printState();
 #endif
   bool checkState_TransId(const Uint32 * transId) const;
+
+  void remove_list(NdbOperation*& head, NdbOperation*);
   void define_scan_op(NdbIndexScanOperation*);
 };
 
