@@ -257,15 +257,37 @@ public:
   virtual Item_num *neg()= 0;
 };
 
+#define NO_CACHED_FIELD_INDEX ((uint)(-1))
 
 class st_select_lex;
 class Item_ident :public Item
 {
+  /* 
+    We have to store initial values of db_name, table_name and field_name
+    to be able to restore them during cleanup() because they can be 
+    updated during fix_fields() to values from Field object and life-time 
+    of those is shorter than life-time of Item_field.
+  */
+  const char *orig_db_name;
+  const char *orig_table_name;
+  const char *orig_field_name;
   Item **changed_during_fix_field;
 public:
   const char *db_name;
   const char *table_name;
   const char *field_name;
+  /* 
+    Cached value of index for this field in table->field array, used by prep. 
+    stmts for speeding up their re-execution. Holds NO_CACHED_FIELD_INDEX 
+    if index value is not known.
+  */
+  uint cached_field_index;
+  /*
+    Cached pointer to table which contains this field, used for the same reason
+    by prep. stmt. too in case then we have not-fully qualified field.
+    0 - means no cached value.
+  */
+  TABLE_LIST *cached_table;
   st_select_lex *depended_from;
   Item_ident(const char *db_name_par,const char *table_name_par,
 	     const char *field_name_par);
@@ -297,6 +319,11 @@ public:
   { collation.set(DERIVATION_IMPLICIT); }
   // Constructor need to process subselect with temporary tables (see Item)
   Item_field(THD *thd, Item_field *item);
+  /*
+    Constructor used inside setup_wild(), ensures that field and table
+    names will live as long as Item_field (important in prep. stmt.)
+  */
+  Item_field(THD *thd, Field *field);
   Item_field(Field *field);
   enum Type type() const { return FIELD_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;

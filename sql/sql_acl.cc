@@ -2194,8 +2194,10 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       DBUG_RETURN(-1);
     while ((column = column_iter++))
     {
+      uint unused_field_idx= NO_CACHED_FIELD_INDEX;
       if (!find_field_in_table(thd,table,column->column.ptr(),
-			       column->column.length(),0,0))
+                               column->column.length(),0,0,
+                               &unused_field_idx))
       {
 	my_error(ER_BAD_FIELD_ERROR, MYF(0),
                  column->column.c_ptr(), table_list->alias);
