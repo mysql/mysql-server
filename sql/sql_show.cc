@@ -686,7 +686,8 @@ mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
 
   String *packet= &thd->packet;
   KEY *key_info=table->key_info;
-  table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK | HA_STATUS_TIME);
+  table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK | HA_STATUS_TIME | 
+                    HA_STATUS_CONST);
   for (uint i=0 ; i < table->keys ; i++,key_info++)
   {
     KEY_PART_INFO *key_part= key_info->key_part;
