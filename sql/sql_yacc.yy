@@ -3533,12 +3533,15 @@ interval:
 	| SECOND_MICROSECOND_SYM	{ $$=INTERVAL_SECOND_MICROSECOND; }
 	| SECOND_SYM		{ $$=INTERVAL_SECOND; }
 	| YEAR_MONTH_SYM	{ $$=INTERVAL_YEAR_MONTH; }
-	| YEAR_SYM		{ $$=INTERVAL_YEAR; };
+	| YEAR_SYM		{ $$=INTERVAL_YEAR; }
+        ;
 
 date_time_type:
-	DATE_SYM		{$$=MYSQL_TIMESTAMP_DATE;}
-	| TIME_SYM		{$$=MYSQL_TIMESTAMP_TIME;}
-	| DATETIME		{$$=MYSQL_TIMESTAMP_DATETIME;};
+          DATE_SYM              {$$=MYSQL_TIMESTAMP_DATE;}
+        | TIME_SYM              {$$=MYSQL_TIMESTAMP_TIME;}
+        | DATETIME              {$$=MYSQL_TIMESTAMP_DATETIME;}
+        | TIMESTAMP             {$$=MYSQL_TIMESTAMP_DATETIME;}
+        ;
 
 table_alias:
 	/* empty */
