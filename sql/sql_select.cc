@@ -6911,10 +6911,23 @@ part_of_refkey(TABLE *table,Field *field)
 
 /*****************************************************************************
   Test if one can use the key to resolve ORDER BY
-  Returns: 1 if key is ok.
-	   0 if key can't be used
-	  -1 if reverse key can be used
-          used_key_parts is set to key parts used if length != 0
+
+  SYNOPSIS
+    test_if_order_by_key()
+    order		Sort order
+    table		Table to sort
+    idx			Index to check
+    used_key_parts	Return value for used key parts.
+
+
+  NOTES
+    used_key_parts is set to correct key parts used if return value != 0
+    (On other cases, used_key_part may be changed)
+
+  RETURN
+    1   key is ok.
+    0   Key can't be used
+    -1  Reverse key can be used
 *****************************************************************************/
 
 static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
@@ -6943,16 +6956,17 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
       DBUG_RETURN(0);
 
     /* set flag to 1 if we can use read-next on key, else to -1 */
-    flag= ((order->asc == !(key_part->key_part_flag & HA_REVERSE_SORT)) ? 1 : -1);
+    flag= ((order->asc == !(key_part->key_part_flag & HA_REVERSE_SORT)) ?
+           1 : -1);
     if (reverse && flag != reverse)
       DBUG_RETURN(0);
     reverse=flag;				// Remember if reverse
     key_part++;
   }
-  uint tmp= (uint) (key_part - table->key_info[idx].key_part);
-  if (reverse == -1 && !(table->file->index_flags(idx,tmp-1, 1) & HA_READ_PREV))
-    DBUG_RETURN(0);
-  *used_key_parts= tmp;
+  *used_key_parts= (uint) (key_part - table->key_info[idx].key_part);
+  if (reverse == -1 && !(table->file->index_flags(idx, *used_key_parts-1, 1) &
+                         HA_READ_PREV))
+    reverse= 0;                                 // Index can't be used
   DBUG_RETURN(reverse);
 }
 
