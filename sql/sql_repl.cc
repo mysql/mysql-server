@@ -958,7 +958,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
              sizeof(mi->master_log_name)-1);
   }
 
-  flush_master_info(mi);
+  flush_master_info(mi, 0);
   if (need_relay_log_purge)
   {
     mi->rli.skip_log_purge= 0;
