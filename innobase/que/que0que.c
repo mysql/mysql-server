@@ -214,6 +214,7 @@ que_thr_end_wait(
 	if (next_thr && *next_thr == NULL) {
 		*next_thr = thr;
 	} else {
+		ut_a(0);
 		srv_que_task_enqueue_low(thr);
 	}
 }	
@@ -394,6 +395,7 @@ que_fork_error_handle(
 	
 	que_thr_move_to_run_state(thr);
 
+	ut_a(0);
 	srv_que_task_enqueue_low(thr);
 }
 
@@ -804,6 +806,7 @@ que_thr_dec_refer_count(
 			if (next_thr && *next_thr == NULL) {
 				*next_thr = thr;
 			} else {
+				ut_a(0);
 				srv_que_task_enqueue_low(thr);
 			}
 
@@ -1257,6 +1260,7 @@ loop:
 	loop_count++;
 
 	if (next_thr != thr) {
+		ut_a(next_thr == NULL);
 		que_thr_dec_refer_count(thr, &next_thr);
 
 		if (next_thr == NULL) {
