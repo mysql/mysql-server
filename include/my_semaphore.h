@@ -32,11 +32,11 @@
 #define _my_semaphore_h_
 
 C_MODE_START
-
 #ifdef HAVE_SEMAPHORE_H
 #include <semaphore.h>
+#elif defined(__bsdi__)
+#include <sys/errno.h>
 #else
-
 #ifdef __WIN__
 typedef HANDLE sem_t;
 #else
