@@ -27,6 +27,8 @@
 #include <my_base.h>			/* Needed by field.h */
 #include <violite.h>
 
+#undef write  // remove pthread.h macro definition for EMX
+
 typedef ulong table_map;		/* Used for table bits in join */
 typedef ulong key_map;			/* Used for finding keys */
 typedef ulong key_part_map;		/* Used for finding key parts */
@@ -223,7 +225,7 @@ bool mysql_change_db(THD *thd,const char *name);
 void mysql_parse(THD *thd,char *inBuf,uint length);
 void mysql_init_select(LEX *lex);
 pthread_handler_decl(handle_one_connection,arg);
-int handle_bootstrap(THD *thd,FILE *file);
+pthread_handler_decl(handle_bootstrap,arg);
 sig_handler end_thread_signal(int sig);
 void end_thread(THD *thd,bool put_in_cache);
 void flush_thread_cache();
@@ -405,7 +407,8 @@ bool rename_temporary_table(TABLE *table, const char *new_db,
 			    const char *table_name);
 void remove_db_from_cache(const my_string db);
 void flush_tables();
-bool remove_table_from_cache(THD *thd, const char *db, const char *table);
+bool remove_table_from_cache(THD *thd, const char *db, const char *table,
+			     bool return_if_owned_by_thd=0);
 bool close_cached_tables(THD *thd, bool wait_for_refresh, TABLE_LIST *tables);
 void copy_field_from_tmp_record(Field *field,int offset);
 int fill_record(List<Item> &fields,List<Item> &values);
@@ -473,6 +476,7 @@ extern time_t start_time;
 extern const char *command_name[];
 extern I_List<THD> threads;
 extern MYSQL_LOG mysql_log,mysql_update_log,mysql_slow_log,mysql_bin_log;
+extern FILE *bootstrap_file;
 extern pthread_key(MEM_ROOT*,THR_MALLOC);
 extern pthread_key(NET*, THR_NET);
 extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,

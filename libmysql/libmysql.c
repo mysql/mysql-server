@@ -1465,8 +1465,8 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   if (db)
     client_flag|=CLIENT_CONNECT_WITH_DB;
 #ifdef HAVE_COMPRESS
-  if (mysql->server_capabilities & CLIENT_COMPRESS &&
-      (mysql->options.compress || client_flag & CLIENT_COMPRESS))
+  if ((mysql->server_capabilities & CLIENT_COMPRESS) &&
+      (mysql->options.compress || (client_flag & CLIENT_COMPRESS)))
     client_flag|=CLIENT_COMPRESS;		/* We will use compression */
   else
 #endif

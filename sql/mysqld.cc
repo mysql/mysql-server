@@ -158,6 +158,7 @@ static bool opt_log,opt_update_log,opt_bin_log,opt_slow_log,opt_noacl,
             opt_disable_networking=0, opt_bootstrap=0,opt_skip_show_db=0,
 	    opt_ansi_mode=0,opt_myisam_log=0, opt_large_files=sizeof(my_off_t) > 4;
 bool opt_sql_bin_update = 0, opt_log_slave_updates = 0;
+FILE *bootstrap_file=0;
 extern MASTER_INFO glob_mi;
 extern int init_master_info(MASTER_INFO* mi);
 
@@ -999,7 +1000,8 @@ static void init_signals(void)
 #elif defined(__EMX__)
 static void sig_reload(int signo)
 {
-  reload_acl_and_cache(~0);		// Flush everything
+  //reload_acl_and_cache(~0);		// Flush everything
+  reload_acl_and_cache((THD*) 0,~0, (TABLE_LIST*) 0); // Flush everything
   signal(signo, SIG_ACK);
 }
 
@@ -1325,7 +1327,7 @@ int main(int argc, char **argv)
   {
     struct tm *start_tm;
     start_tm=localtime(&start_time);
-    strmov(time_zone=tzname[start_tm->tm_isdst == 1 ? 1 : 0]);
+    strmov(time_zone,tzname[start_tm->tm_isdst == 1 ? 1 : 0]);
   }
 #endif
 #endif
@@ -1782,9 +1784,25 @@ static int bootstrap(FILE *file)
   my_net_init(&thd->net,(Vio*) 0);
   thd->max_packet_length=thd->net.max_packet;
   thd->master_access= ~0;
+  thd->thread_id=thread_id++;
   thread_count++;
-  thd->real_id=pthread_self();
-  error=handle_bootstrap(thd,file);
+
+  bootstrap_file=file;
+  if (pthread_create(&thd->real_id,&connection_attrib,handle_bootstrap,
+		     (void*) thd))
+  {
+    sql_print_error("Warning: Can't create thread to handle bootstrap");    
+    return -1;
+  }
+  /* Wait for thread to die */
+  (void) pthread_mutex_lock(&LOCK_thread_count);
+  while (thread_count)
+  {
+    (void) pthread_cond_wait(&COND_thread_count,&LOCK_thread_count);
+    DBUG_PRINT("quit",("One thread died (count=%u)",thread_count));
+  }
+  (void) pthread_mutex_unlock(&LOCK_thread_count);
+  error= thd->fatal_error;
   net_end(&thd->net);
   delete thd;
   return error;

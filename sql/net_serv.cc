@@ -71,7 +71,7 @@ extern ulong mysqld_net_retry_count;
 typedef my_bool thr_alarm_t;
 typedef my_bool ALARM;
 #define thr_alarm_init(A) (*A)=0
-#define thr_alarm_in_use(A) (A)
+#define thr_alarm_in_use(A) (*(A))
 #define thr_end_alarm(A)
 #define thr_alarm(A,B,C) local_thr_alarm((A),(B),(C))
 static inline int local_thr_alarm(my_bool *A,int B __attribute__((unused)),ALARM *C __attribute__((unused)))
@@ -271,7 +271,7 @@ net_real_write(NET *net,const char *packet,ulong len)
   int length;
   char *pos,*end;
   thr_alarm_t alarmed;
-#if (!defined(__WIN__) && !defined(__EMX__))
+#if !defined(__WIN__) 
   ALARM alarm_buff;
 #endif
   uint retry_count=0;
@@ -330,7 +330,7 @@ net_real_write(NET *net,const char *packet,ulong len)
     {
       my_bool interrupted = vio_should_retry(net->vio);
 #if (!defined(__WIN__) && !defined(__EMX__))
-      if ((interrupted || length==0) && !thr_alarm_in_use(alarmed))
+      if ((interrupted || length==0) && !thr_alarm_in_use(&alarmed))
       {
         if (!thr_alarm(&alarmed,(uint) net_write_timeout,&alarm_buff))
         {                                       /* Always true for client */
@@ -355,7 +355,7 @@ net_real_write(NET *net,const char *packet,ulong len)
       }
       else
 #endif /* (!defined(__WIN__) && !defined(__EMX__)) */
-	if (thr_alarm_in_use(alarmed) && !thr_got_alarm(alarmed) &&
+	if (thr_alarm_in_use(&alarmed) && !thr_got_alarm(&alarmed) &&
 	    interrupted)
       {
 	if (retry_count++ < RETRY_COUNT)
@@ -389,7 +389,7 @@ net_real_write(NET *net,const char *packet,ulong len)
   if (net->compress)
     my_free((char*) packet,MYF(0));
 #endif
-  if (thr_alarm_in_use(alarmed))
+  if (thr_alarm_in_use(&alarmed))
   {
     thr_end_alarm(&alarmed);
     vio_blocking(net->vio, net_blocking);
@@ -414,7 +414,7 @@ static void my_net_skip_rest(NET *net, ulong remain, thr_alarm_t *alarmed)
 {
   ALARM alarm_buff;
   uint retry_count=0;
-  if (!thr_alarm_in_use(alarmed))
+  if (!thr_alarm_in_use(&alarmed))
   {
     if (!thr_alarm(alarmed,net->timeout,&alarm_buff) ||
 	(!vio_is_blocking(net->vio) && vio_blocking(net->vio,TRUE) < 0))
@@ -426,7 +426,7 @@ static void my_net_skip_rest(NET *net, ulong remain, thr_alarm_t *alarmed)
     if ((int) (length=vio_read(net->vio,(char*) net->buff,remain)) <= 0L)
     {
       my_bool interrupted = vio_should_retry(net->vio);
-      if (!thr_got_alarm(alarmed) && interrupted)
+      if (!thr_got_alarm(&alarmed) && interrupted)
       {					/* Probably in MIT threads */
 	if (retry_count++ < RETRY_COUNT)
 	  continue;
@@ -481,7 +481,7 @@ my_real_read(NET *net, ulong *complen)
 	    an alarm to not 'read forever', change the socket to non blocking
 	    mode and try again
 	  */
-	  if ((interrupted || length == 0) && !thr_alarm_in_use(alarmed))
+	  if ((interrupted || length == 0) && !thr_alarm_in_use(&alarmed))
 	  {
 	    if (!thr_alarm(&alarmed,net->timeout,&alarm_buff)) /* Don't wait too long */
 	    {
@@ -513,7 +513,7 @@ my_real_read(NET *net, ulong *complen)
 	    }
 	  }
 #endif /* (!defined(__WIN__) && !defined(__EMX__)) || defined(MYSQL_SERVER) */
-	  if (thr_alarm_in_use(alarmed) && !thr_got_alarm(alarmed) &&
+	  if (thr_alarm_in_use(&alarmed) && !thr_got_alarm(&alarmed) &&
 	      interrupted)
 	  {					/* Probably in MIT threads */
 	    if (retry_count++ < RETRY_COUNT)
@@ -597,7 +597,7 @@ my_real_read(NET *net, ulong *complen)
     }
 
 end:
-  if (thr_alarm_in_use(alarmed))
+  if (thr_alarm_in_use(&alarmed))
   {
     thr_end_alarm(&alarmed);
     vio_blocking(net->vio, net_blocking);

@@ -17603,7 +17603,7 @@ The options work for all table types, if not otherwise indicated:
 
 @multitable @columnfractions .20 .80
 @item @code{AUTO_INCREMENT} @tab The next auto_increment value you want to set for your table (MyISAM).
-@item @code{AVG_ROW_LENGTH} @tab An approximation of the average row length for your table. You only need to set this for tables with variable size records.
+@item @code{AVG_ROW_LENGTH} @tab An approximation of the average row length for your table. You only need to set this for large tables with variable size records.
 @item @code{CHECKSUM} @tab Set this to 1 if you want @strong{MySQL} to maintain a checksum for all rows (makes the table a little slower to update but makes it easier to find corrupted tables) (MyISAM).
 @item @code{COMMENT} @tab A 60-character comment for your table.
 @item @code{MAX_ROWS} @tab Max number of rows you plan to store in the table.
@@ -17618,7 +17618,8 @@ When you use a @code{MyISAM} table, @strong{MySQL} uses the product of
 @code{max_rows * avg_row_length} to decide how big the resulting table
 will be.  If you don't specify any of the above options, the maximum size
 for a table will be 4G (or 2G if your operating systems only supports 2G
-tables).
+tables). The reason for this is just to keep down the pointer sizes
+to make the index smaller and faster if you don't really need big files.
 
 If you don't use @code{PACK_KEYS}, the default is to only pack strings,
 not numbers.  If you use @code{PACK_KEYS=1}, numbers will be packed as well.
@@ -28516,7 +28517,7 @@ variable in the @strong{MySQL} server is bigger than the
 @end table
 
 The most normal use of @code{mysqldump} is probably for making a backup of
-whole databases. @xref{Backup}:
+whole databases. @xref{Backup}.
 
 @example
 mysqldump --opt database > backup-file.sql
@@ -38930,6 +38931,16 @@ though, so Version 3.23 is not released as a stable version yet.
 @item
 Automatically remove Berkeley DB transaction logs that are no longer in
 use.
+@item
+Applied patches for OS2 by @code{Yuri Dario}.
+@item
+@code{FLUSH TABLES table_name} didn't always flush table properly to
+disk; One some cases the index tree wasn't completely written to disk.
+@item
+@code{--bootstrap} is now run in a separate thread. This fixes the problem
+that @code{mysql_install_db} core dumped on some Linux machines.
+@item
+Changed @code{mi_create()} to use less stack.
 @item
 Changed crash-me and the MySQL benchmarks to also work with FrontBase.
 @item
