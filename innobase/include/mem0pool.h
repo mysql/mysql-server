@@ -19,8 +19,6 @@ typedef struct mem_pool_struct	mem_pool_t;
 /* The common memory pool */
 extern mem_pool_t*	mem_comm_pool;
 
-extern ulint		mem_out_of_mem_err_msg_count;
-
 /* Memory area header */
 
 struct mem_area_struct{
