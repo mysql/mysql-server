@@ -202,8 +202,8 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     host.sort=	 get_sort(2,host.host.hostname,host.db);
     if (check_no_resolve && hostname_requires_resolving(host.host.hostname))
     {
-      sql_print_error("Error in table 'host' entry '%s|%s'. "
-		      "Can't resolve '%s' if --skip-name-resolve active. Skipped",
+      sql_print_error("Warning: 'host' entry '%s|%s' "
+		      "ignored in --skip-name-resolve mode.",
 		      host.host.hostname, host.db, host.host.hostname);
       continue;
     }
@@ -270,8 +270,8 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     user.user= get_field(&mem, table->field[1]);
     if (check_no_resolve && hostname_requires_resolving(user.host.hostname))
     {
-      sql_print_error("Error in table 'user' entry '%s@%s'. "
-		      "Can't resolve '%s' if --skip-name-resolve active. Skipped",
+      sql_print_error("Warning: 'user' entry '%s@%s' "
+		      "ignored in --skip-name-resolve mode.",
 		      user.user, user.host.hostname, user.host.hostname);
       continue;
     }
@@ -372,8 +372,8 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     db.user=get_field(&mem, table->field[2]);
     if (check_no_resolve && hostname_requires_resolving(db.host.hostname))
     {
-      sql_print_error("Error in table 'db' entry '%s %s@%s'. "
-		      "Can't resolve '%s' if --skip-name-resolve active. Skipped",
+      sql_print_error("Warning: 'db' entry '%s %s@%s' "
+		      "ignored in --skip-name-resolve mode.",
 		      db.db, db.user, db.host.hostname, db.host.hostname);
       continue;
     }
@@ -2549,8 +2549,8 @@ my_bool grant_init(THD *org_thd)
       if (hostname_requires_resolving(mem_check->host))
       {
 	char buff[MAX_FIELD_WIDTH];
-	sql_print_error("Error in table 'tables_priv' entry '%s %s@%s'. "
-			"Can't resolve '%s' if --skip-name-resolve active. Skipped",
+	sql_print_error("Warning: 'tables_priv' entry '%s %s@%s' "
+			"ignored in --skip-name-resolve mode.",
 			mem_check->tname, mem_check->user, 
 			mem_check->host, mem_check->host);
 	continue;

@@ -289,4 +289,4 @@ character-set=koi8r
 "Кеш запросов не может установить размер %lu, новый размер кеша зпросов - %lu",
 "Column '%-.64s' cannot be part of FULLTEXT index",
 "Unknown key cache '%-.100s'",
-"Can't resolve '%s' if --skip-name-resolve active",
+"MySQL is started in --skip-name-resolve mode. You need to restart it without this switch for this grant to work",
