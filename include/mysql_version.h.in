@@ -13,6 +13,7 @@
 #define MYSQL_VERSION_ID		@MYSQL_VERSION_ID@
 #define MYSQL_PORT			@MYSQL_TCP_PORT@
 #define MYSQL_UNIX_ADDR			"@MYSQL_UNIX_ADDR@"
+#define MYSQL_CONFIG_NAME		"my"
 
 /* mysqld compile time options */
 #ifndef MYSQL_CHARSET
