@@ -5,6 +5,7 @@
 # The previous step has simply removed the frm file
 # from disk, but left the table in NDB
 #
+--sleep 3;
 select * from t9 order by a;
 
 # handler_discover should be zero

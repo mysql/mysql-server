@@ -54,14 +54,15 @@ void Ndb_cluster_connection::connect_thread()
 {
   DBUG_ENTER("Ndb_cluster_connection::connect_thread");
   int r;
-  while (g_run_connect_thread) {
+  do {
     if ((r = connect(1)) == 0)
       break;
     if (r == -1) {
       printf("Ndb_cluster_connection::connect_thread error\n");
-      abort();
+      DBUG_ASSERT(false);
+      g_run_connect_thread= 0;
     }
-  }
+  } while (g_run_connect_thread);
   if (m_connect_callback)
     (*m_connect_callback)();
   DBUG_VOID_RETURN;
@@ -69,13 +70,19 @@ void Ndb_cluster_connection::connect_thread()
 
 int Ndb_cluster_connection::start_connect_thread(int (*connect_callback)(void))
 {
+  int r;
   DBUG_ENTER("Ndb_cluster_connection::start_connect_thread");
   m_connect_callback= connect_callback;
-  m_connect_thread= NdbThread_Create(run_ndb_cluster_connection_connect_thread,
-				     (void**)this,
-				     32768,
-				     "ndb_cluster_connection",
-				     NDB_THREAD_PRIO_LOW);
+  if ((r = connect(1)) == 1)
+    m_connect_thread= NdbThread_Create(run_ndb_cluster_connection_connect_thread,
+				       (void**)this,
+				       32768,
+				       "ndb_cluster_connection",
+				       NDB_THREAD_PRIO_LOW);
+  else if (r < 0)
+    DBUG_RETURN(-1)
+  else if (m_connect_callback)
+    (*m_connect_callback)();
   DBUG_RETURN(0);
 }
 

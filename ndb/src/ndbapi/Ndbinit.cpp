@@ -125,7 +125,6 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
   theNode= 0;
   theFirstTransId= 0;
   theMyRef= 0;
-  theNoOfDBnodes= 0;
 
   fullyQualifiedNames = true;
 
