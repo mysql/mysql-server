@@ -1067,6 +1067,7 @@ Dbtup::initTab(Tablerec* const regTabPtr)
   }//for
   regTabPtr->readFunctionArray = NULL;
   regTabPtr->updateFunctionArray = NULL;
+  regTabPtr->charsetArray = NULL;
 
   regTabPtr->tabDescriptor = RNIL;
   regTabPtr->attributeGroupDescriptor = RNIL;
