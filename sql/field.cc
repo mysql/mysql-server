@@ -4307,7 +4307,7 @@ int Field_str::store(double nr)
   */
   double anr= fabs(nr);
   int neg= (nr < 0.0) ? 1 : 0;
-  if (field_length < 32 &&
+  if (field_length > 4 && field_length < 32 &&
       (anr < 1.0 ? anr > 1/(log_10[max(0,field_length-neg-2)]) /* -2 for "0." */
                  : anr < log_10[field_length-neg]-1))
     use_scientific_notation= FALSE;
