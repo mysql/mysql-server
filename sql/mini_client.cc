@@ -386,7 +386,10 @@ my_bool STDCALL mc_mysql_reconnect(MYSQL *mysql)
   if (!mc_mysql_connect(&tmp_mysql,mysql->host,mysql->user,mysql->passwd,
 			  mysql->db, mysql->port, mysql->unix_socket,
 			  mysql->client_flag))
-    DBUG_RETURN(1);
+    {
+      mc_mysql_close(&tmp_mysql); 
+      DBUG_RETURN(1);
+    }
   tmp_mysql.free_me=mysql->free_me;
   mysql->free_me=0;
   bzero((char*) &mysql->options,sizeof(&mysql->options));

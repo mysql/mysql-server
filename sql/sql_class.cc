@@ -139,7 +139,7 @@ THD::~THD()
   if (net.vio)
   {
     vio_delete(net.vio);
-    net_end(&net);
+    net_end(&net); 
   }
   ha_rollback(this);
   if (locked_tables)

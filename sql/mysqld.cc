@@ -614,6 +614,7 @@ void clean_up(void)
 #ifndef __WIN__
   (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
 #endif
+  end_slave();
   my_thread_end();
 
   /* Tell main we are ready */

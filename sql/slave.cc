@@ -167,6 +167,30 @@ int add_wild_table_rule(DYNAMIC_ARRAY* a, const char* table_spec)
   return 0;
 }
 
+static void free_string_array(DYNAMIC_ARRAY *a)
+{
+  uint i;
+  for(i = 0; i < a->elements; i++)
+    {
+      char* p;
+      get_dynamic(a, (gptr)&p, i);
+      my_free(p, MYF(MY_WME));
+    }
+  delete_dynamic(a);
+}
+
+void end_slave()
+{
+  end_master_info(&glob_mi);
+  if(do_table_inited)
+    hash_free(&replicate_do_table);
+  if(ignore_table_inited)
+    hash_free(&replicate_ignore_table);
+  if(wild_do_table_inited)
+    free_string_array(&replicate_wild_do_table);
+  if(wild_ignore_table_inited)
+    free_string_array(&replicate_wild_ignore_table);
+}
 
 static inline bool slave_killed(THD* thd)
 {
@@ -398,8 +422,21 @@ int fetch_nx_table(THD* thd, MASTER_INFO* mi)
   return error;
 }
 
+void end_master_info(MASTER_INFO* mi)
+{
+  if(mi->fd >= 0)
+    {
+      end_io_cache(&mi->file);
+      (void)my_close(mi->fd, MYF(MY_WME));
+      mi->fd = -1;
+    }
+  mi->inited = 0;
+}
+
 int init_master_info(MASTER_INFO* mi)
 {
+  if(mi->inited)
+    return 0;
   int fd;
   MY_STAT stat_area;
   char fname[FN_REFLEN+128];
@@ -440,7 +477,7 @@ int init_master_info(MASTER_INFO* mi)
       mi->connect_retry = master_connect_retry;
       
     }
-  else
+  else // file exists
     {
       if(fd >= 0)
 	reinit_io_cache(&mi->file, READ_CACHE, 0L,0,0);
@@ -897,8 +934,11 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	sql_print_error("Slave:  error '%s' running load data infile ",
 			ER(sql_error));
 	delete ev;
+        free_root(&thd->mem_root,0);
 	return 1;
       }
+      
+      free_root(&thd->mem_root,0);
       delete ev;
 	    
       if(thd->fatal_error)
@@ -932,6 +972,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       mi->log_file_name[ident_len] = 0;
       mi->pos = 4; // skip magic number
       flush_master_info(mi);
+      delete ev;
       break;
     }
 
@@ -950,6 +991,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 		
       }
       mi->inc_pending(event_len);
+      delete ev;
       break;
     }
     }
@@ -1157,6 +1199,7 @@ position %ld",
   thd->temporary_tables = 0; // remove tempation from destructor to close them
   pthread_cond_broadcast(&COND_slave_stopped); // tell the world we are done
   pthread_mutex_unlock(&LOCK_slave);
+  net_end(&thd->net); // destructor will not free it, because we are weird
   delete thd;
   my_thread_end();
   pthread_exit(0);
