@@ -924,7 +924,7 @@ Dbtux::TreeHead::getSize(AccSize acc) const
   case AccFull:
     return m_nodeSize;
   }
-  REQUIRE(false, "invalid Dbtux::AccSize");
+  abort();
   return 0;
 }
 
