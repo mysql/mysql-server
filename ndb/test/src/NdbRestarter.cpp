@@ -18,7 +18,6 @@
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
 #include <NdbTick.h>
-#include <LocalConfig.hpp>
 #include <mgmapi_debug.h>
 #include <NDBT_Output.hpp>
 #include <random.h>
@@ -38,37 +37,7 @@ NdbRestarter::NdbRestarter(const char* _addr):
   m_config(0)
 {
   if (_addr == NULL){
-    LocalConfig lcfg;
-    if(!lcfg.init()){
-      lcfg.printError();
-      lcfg.printUsage();
-      g_err  << "NdbRestarter - Error parsing local config file" << endl;
-      return;
-    }
-
-    if (lcfg.ids.size() == 0){
-      g_err << "NdbRestarter - No management servers configured in local config file" << endl;
-      return;
-    }
-  
-    for (int i = 0; i<lcfg.ids.size(); i++){
-      MgmtSrvrId * m = &lcfg.ids[i];
-      
-      switch(m->type){
-      case MgmId_TCP:
-	char buf[255];
-	snprintf(buf, 255, "%s:%d", m->name.c_str(), m->port);
-	addr.assign(buf);
-	host.assign(m->name.c_str());
-	port = m->port;
-	return;
-	break;
-      case MgmId_File:
-	break;
-      default:
-	break;
-      }
-    }
+    addr.assign("");
   } else {
     addr.assign(_addr);
   }
@@ -397,7 +366,15 @@ NdbRestarter::connect(){
     return -1;
   }
   g_info << "Connecting to mgmsrv at " << addr.c_str() << endl;
-  if (ndb_mgm_connect(handle, addr.c_str()) == -1) {
+  if (ndb_mgm_set_connectstring(handle,addr.c_str()))
+  {
+    MGMERR(handle);
+    g_err  << "Connection to " << addr.c_str() << " failed" << endl;
+    return -1;
+  }
+
+  if (ndb_mgm_connect(handle, 0, 0, 0) == -1)
+  {
     MGMERR(handle);
     g_err  << "Connection to " << addr.c_str() << " failed" << endl;
     return -1;
