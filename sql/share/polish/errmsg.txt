@@ -295,6 +295,6 @@ character-set=latin2
 "MySQL is started in --skip-name-resolve mode. You need to restart it without this switch for this grant to work",
 "Unknown table engine '%s'",
 "'%s' is deprecated, use '%s' instead",
-"The target table %-.100s of the %s is not updateble",
+"The target table %-.100s of the %s is not updateable",
 "The '%s' feature was disabled; you need MySQL built with '%s' define to have it working",
-"The MySQL server is running with the %s option so cannot execute this statement",
+"The MySQL server is running with the %s option so it cannot execute this statement",
