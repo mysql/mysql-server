@@ -62,7 +62,7 @@ public:
   char *user,*password;
   ulong salt[2];
 #ifdef HAVE_OPENSSL  
-  char *ssl_type, *ssl_cipher, *ssl_issuer, *ssl_subject;
+  char *ssl_type, *ssl_cipher, *x509_issuer, *x509_subject;
 #endif  
 };
 
@@ -202,11 +202,14 @@ int  acl_init(bool dont_read_acl_tables)
     update_hostname(&user.host,get_field(&mem, table,0));
     user.user=get_field(&mem, table,1);
     user.password=get_field(&mem, table,2);
-#ifdef HAVE_OPENSSL    
-    user.ssl_type=get_field(&mem, table,17);
-    user.ssl_cipher=get_field(&mem, table,18);
-    user.ssl_issuer=get_field(&mem, table,19);
-    user.ssl_subject=get_field(&mem, table,20);
+#ifdef HAVE_OPENSSL
+    DBUG_PRINT("info",("table->fields=%d",table->fields));
+    if (table->fields >= 21) {
+      user.ssl_type=get_field(&mem, table,17);
+      user.ssl_cipher=get_field(&mem, table,18);
+      user.x509_issuer=get_field(&mem, table,19);
+      user.x509_subject=get_field(&mem, table,20);
+    }
 #endif    
     if (user.password && (length=(uint) strlen(user.password)) == 8 &&
 	protocol_version == PROTOCOL_VERSION)
@@ -2422,28 +2425,28 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
     }
 #ifdef HAVE_OPENSSL    
 /* SSL grant stuff */
-    DBUG_PRINT("info",("acl_user->ssl_type=%s",acl_user->ssl_type));
-    DBUG_PRINT("info",("acl_user->ssl_cipher=%s",acl_user->ssl_cipher));
-    DBUG_PRINT("info",("acl_user->ssl_subject=%s",acl_user->ssl_subject));
-    DBUG_PRINT("info",("acl_user->ssl_issuer=%s",acl_user->ssl_issuer));
-    if(acl_user->ssl_type) {
-      if(!strcmp(acl_user->ssl_type,"ssl"))
-        global.append(" REQUIRE SSL",12);
-      else if(!strcmp(acl_user->ssl_type,"x509"))       
-      {
-        global.append(" REQUIRE X509 ",14);
-	if(acl_user->ssl_issuer) {
-          global.append("SUBJECT \"",9);
-          global.append(acl_user->ssl_issuer,strlen(acl_user->ssl_issuer));
-          global.append("\"",1);
-	}
-	if(acl_user->ssl_subject) {
-          global.append("ISSUER \"",8);
-          global.append(acl_user->ssl_subject,strlen(acl_user->ssl_subject));
-          global.append("\"",1);
-	}
+      DBUG_PRINT("info",("acl_user->ssl_type=%s",acl_user->ssl_type));
+      DBUG_PRINT("info",("acl_user->ssl_cipher=%s",acl_user->ssl_cipher));
+      DBUG_PRINT("info",("acl_user->x509_subject=%s",acl_user->x509_subject));
+      DBUG_PRINT("info",("acl_user->x509_issuer=%s",acl_user->x509_issuer));
+      if(acl_user->ssl_type) {
+        if(!strcmp(acl_user->ssl_type,"ssl"))
+          global.append(" REQUIRE SSL",12);
+        else if(!strcmp(acl_user->ssl_type,"x509"))       
+        {
+          global.append(" REQUIRE X509 ",14);
+    	  if(acl_user->x509_issuer) {
+            global.append("SUBJECT \"",9);
+            global.append(acl_user->x509_issuer,strlen(acl_user->x509_issuer));
+            global.append("\"",1);
+  	  }
+  	  if(acl_user->x509_subject) {
+            global.append("ISSUER \"",8);
+            global.append(acl_user->x509_subject,strlen(acl_user->x509_subject));
+            global.append("\"",1);
+  	  }
+        }
       }
-    }
 #endif    
     if (want_access & GRANT_ACL)
       global.append(" WITH GRANT OPTION",18); 
