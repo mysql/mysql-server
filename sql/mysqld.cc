@@ -1840,7 +1840,7 @@ int main(int argc, char **argv)
 
   if (set_default_charset_by_name(default_charset, MYF(MY_WME)))
     exit( 1 );
-  charsets_list = list_charsets(MYF(MY_COMPILED_SETS|MY_CONFIG_SETS));
+  charsets_list = list_charsets(MYF(MY_CS_COMPILED|MY_CS_CONFIG));
 
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)

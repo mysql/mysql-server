@@ -42,6 +42,14 @@ typedef struct unicase_info_st {
 #define MY_CS_TOOSMALL	-1
 #define MY_CS_TOOFEW(n)	(-1-(n))
 
+        /* My charsets_list flags */
+#define MY_NO_SETS       0
+#define MY_CS_COMPILED  1      /* compiled-in sets               */
+#define MY_CS_CONFIG    2      /* sets that have a *.conf file   */
+#define MY_CS_INDEX     4      /* sets listed in the Index file  */
+#define MY_CS_LOADED    8      /* sets that are currently loaded */
+
+
 typedef struct my_uni_idx_st {
   uint16 from;
   uint16 to;
@@ -52,14 +60,16 @@ typedef struct my_uni_idx_st {
 typedef struct charset_info_st
 {
   uint      number;
+  uint      state;
   const char *name;
+  const char *comment;
   uchar    *ctype;
   uchar    *to_lower;
   uchar    *to_upper;
   uchar    *sort_order;
   uint16      *tab_to_uni;
   MY_UNI_IDX  *tab_from_uni;
-    
+  
   /* Collation routines */
   uint      strxfrm_multiply;
   int     (*strnncoll)(struct charset_info_st *,
@@ -107,6 +117,7 @@ extern CHARSET_INFO *system_charset_info;
 extern CHARSET_INFO *find_compiled_charset(uint cs_number);
 extern CHARSET_INFO *find_compiled_charset_by_name(const char *name);
 extern CHARSET_INFO  compiled_charsets[];
+extern CHARSET_INFO  all_charsets[256];
 extern uint compiled_charset_number(const char *name);
 extern const char *compiled_charset_name(uint charset_number);
 
