@@ -73,13 +73,14 @@ static HASH system_variable_hash;
 const char *bool_type_names[]= { "OFF", "ON", NullS };
 TYPELIB bool_typelib=
 {
-  array_elements(bool_type_names)-1, "", bool_type_names
+  array_elements(bool_type_names)-1, "", bool_type_names, NULL
 };
 
 const char *delay_key_write_type_names[]= { "OFF", "ON", "ALL", NullS };
 TYPELIB delay_key_write_typelib=
 {
-  array_elements(delay_key_write_type_names)-1, "", delay_key_write_type_names
+  array_elements(delay_key_write_type_names)-1, "",
+  delay_key_write_type_names, NULL
 };
 
 static int  sys_check_charset(THD *thd, set_var *var);

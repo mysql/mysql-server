@@ -36,7 +36,7 @@ static const char *month_names[]=
 };
 
 TYPELIB month_names_typelib=
-{ array_elements(month_names)-1,"", month_names };
+{ array_elements(month_names)-1,"", month_names, NULL };
 
 static const char *day_names[]=
 {
@@ -45,7 +45,7 @@ static const char *day_names[]=
 };
 
 TYPELIB day_names_typelib=
-{ array_elements(day_names)-1,"", day_names};
+{ array_elements(day_names)-1,"", day_names, NULL};
 
 
 /*

@@ -363,7 +363,7 @@ TODO list:
 const char *query_cache_type_names[]= { "OFF", "ON", "DEMAND",NullS };
 TYPELIB query_cache_type_typelib=
 {
-  array_elements(query_cache_type_names)-1,"", query_cache_type_names
+  array_elements(query_cache_type_names)-1,"", query_cache_type_names, NULL
 };
 
 /*****************************************************************************

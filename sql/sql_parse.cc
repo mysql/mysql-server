@@ -4090,6 +4090,7 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
 }
 #endif
 
+
 /*****************************************************************************
 ** Store field definition for create
 ** Return 0 if ok
@@ -4405,10 +4406,14 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
 	new_field->pack_length=8;
       new_field->interval=interval;
       new_field->length=0;
-      for (const char **pos=interval->type_names; *pos ; pos++)
+      uint *lengths;
+      const char **pos;
+      for (pos=interval->type_names,
+           lengths= interval->type_lengths; *pos ; pos++, lengths++)
       {
-        uint length= (uint) strip_sp((char*) *pos)+1;
         CHARSET_INFO *cs= thd->variables.character_set_client;
+        uint length= (uint) strip_sp((char*) *pos)+1;
+        set_if_smaller(*lengths, length);
         length= cs->cset->numchars(cs, *pos, *pos+length);
         new_field->length+= length;
       }
@@ -4438,10 +4443,15 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       new_field->interval=interval;
       new_field->pack_length=interval->count < 256 ? 1 : 2; // Should be safe
       new_field->length=(uint) strip_sp((char*) interval->type_names[0]);
-      for (const char **pos=interval->type_names+1; *pos ; pos++)
+      set_if_smaller(interval->type_lengths[0], new_field->length);
+      uint *lengths;
+      const char **pos;
+      for (pos= interval->type_names+1,
+           lengths= interval->type_lengths+1; *pos ; pos++, lengths++)
       {
-        uint length=(uint) strip_sp((char*) *pos);
         CHARSET_INFO *cs= thd->variables.character_set_client;
+        uint length=(uint) strip_sp((char*) *pos);
+        set_if_smaller(*lengths, length);
         length= cs->cset->numchars(cs, *pos, *pos+length);
         set_if_bigger(new_field->length,length);
       }

@@ -35,7 +35,7 @@ HASH slave_list;
 
 const char *rpl_role_type[] = {"MASTER","SLAVE",NullS};
 TYPELIB rpl_role_typelib = {array_elements(rpl_role_type)-1,"",
-			    rpl_role_type};
+			    rpl_role_type, NULL};
 
 const char* rpl_status_type[]=
 {
@@ -43,7 +43,7 @@ const char* rpl_status_type[]=
   "RECOVERY_CAPTAIN","NULL",NullS
 };
 TYPELIB rpl_status_typelib= {array_elements(rpl_status_type)-1,"",
-			     rpl_status_type};
+			     rpl_status_type, NULL};
 
 
 static Slave_log_event* find_slave_event(IO_CACHE* log,
