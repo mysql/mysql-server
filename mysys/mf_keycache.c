@@ -352,6 +352,7 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
                                                            MYF(0))))
           break;
         my_large_free(keycache->block_mem, MYF(0));
+        keycache->block_mem= 0;
       }
       if (blocks < 8)
       {

@@ -897,14 +897,16 @@ static int check_connection(THD *thd)
   char *user= end;
   char *passwd= strend(user)+1;
   char *db= passwd;
-  char db_buff[NAME_LEN+1];                     // buffer to store db in utf8 
+  char db_buff[NAME_LEN+1];                     // buffer to store db in utf8
   char user_buff[USERNAME_LENGTH+1];		// buffer to store user in utf8
-  /* 
+  uint dummy_errors;
+
+  /*
     Old clients send null-terminated string as password; new clients send
     the size (1 byte) + string (not null-terminated). Hence in case of empty
     password both send '\0'.
   */
-  uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ? 
+  uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
     *passwd++ : strlen(passwd);
   db= thd->client_capabilities & CLIENT_CONNECT_WITH_DB ?
     db + passwd_len + 1 : 0;
@@ -912,7 +914,6 @@ static int check_connection(THD *thd)
   /* Since 4.1 all database names are stored in utf8 */
   if (db)
   {
-    uint dummy_errors;
     db_buff[copy_and_convert(db_buff, sizeof(db_buff)-1,
                              system_charset_info,
                              db, strlen(db),
@@ -920,14 +921,10 @@ static int check_connection(THD *thd)
     db= db_buff;
   }
 
-  if (user)
-  {
-    uint dummy_errors;
-    user_buff[copy_and_convert(user_buff, sizeof(user_buff)-1,
-			       system_charset_info, user, strlen(user),
-			       thd->charset(), &dummy_errors)]= '\0';
-    user= user_buff;
-  }
+  user_buff[copy_and_convert(user_buff, sizeof(user_buff)-1,
+                             system_charset_info, user, strlen(user),
+                             thd->charset(), &dummy_errors)]= '\0';
+  user= user_buff;
 
   if (thd->user)
     x_free(thd->user);
@@ -3349,12 +3346,12 @@ unsent_create_error:
     /*
       If in a slave thread :
       ALTER DATABASE DB may not be preceded by USE DB.
-      For that reason, maybe db_ok() in sql/slave.cc did not check the 
+      For that reason, maybe db_ok() in sql/slave.cc did not check the
       do_db/ignore_db. And as this query involves no tables, tables_ok()
       above was not called. So we have to check rules again here.
     */
 #ifdef HAVE_REPLICATION
-    if (thd->slave_thread && 
+    if (thd->slave_thread &&
 	(!db_ok(db, replicate_do_db, replicate_ignore_db) ||
 	 !db_ok_with_wild_table(db)))
     {
@@ -3467,8 +3464,7 @@ unsent_create_error:
   case SQLCOM_GRANT:
   {
     if (check_access(thd, lex->grant | lex->grant_tot_col | GRANT_ACL,
-		     ((first_table && first_table->db) ?
-		      first_table->db : select_lex->db),
+		     first_table ?  first_table->db : select_lex->db,
 		     first_table ? &first_table->grant.privilege : 0,
 		     first_table ? 0 : 1, 0))
       goto error;
