@@ -83,7 +83,7 @@ NdbBlob::getBlobTableName(char* btname, const NdbTableImpl* t, const NdbColumnIm
 {
   assert(t != 0 && c != 0 && c->getBlobType());
   memset(btname, 0, BlobTableNameSize);
-  sprintf(btname, "NDB$BLOB_%d_%d_%d", (int)t->m_tableId, (int)t->m_version, (int)c->m_attrId);
+  sprintf(btname, "NDB$BLOB_%d_%d", (int)t->m_tableId, (int)c->m_attrId);
 }
 
 void
