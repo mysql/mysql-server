@@ -1967,7 +1967,7 @@ CHARSET_INFO my_charset_utf8 =
     1,			/* strxfrm_multiply */
     my_strnncoll_utf8,	/* strnncoll    */
     my_strnxfrm_utf8,	/* strnxfrm     */
-    NULL,		/* like_range   */
+    my_like_range_simple,/* like_range   */
     my_wildcmp_mb,	/* wildcmp      */
     3,			/* mbmaxlen     */
     my_ismbchar_utf8,	/* ismbchar     */
@@ -2485,7 +2485,7 @@ CHARSET_INFO my_charset_ucs2 =
     1,			/* strxfrm_multiply */
     my_strnncoll_ucs2,	/* strnncoll    */
     my_strnxfrm_ucs2,	/* strnxfrm     */
-    NULL,		/* like_range   */
+    my_like_range_simple,/* like_range   */
     my_wildcmp_mb,	/* wildcmp      */
     2,			/* mbmaxlen     */
     my_ismbchar_ucs2,	/* ismbchar     */

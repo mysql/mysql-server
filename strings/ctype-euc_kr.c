@@ -8648,7 +8648,7 @@ CHARSET_INFO my_charset_euc_kr =
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
-    NULL,		/* like_range */
+    my_like_range_simple,/* like_range */
     my_wildcmp_mb,	/* wildcmp    */
     2,			/* mbmaxlen   */
     ismbchar_euc_kr,

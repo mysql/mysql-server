@@ -367,3 +367,72 @@ int my_wildcmp_8bit(CHARSET_INFO *cs,
   }
   return (str != str_end ? 1 : 0);
 }
+
+
+/*
+** Calculate min_str and max_str that ranges a LIKE string.
+** Arguments:
+** ptr		Pointer to LIKE string.
+** ptr_length	Length of LIKE string.
+** escape	Escape character in LIKE.  (Normally '\').
+**		All escape characters should be removed from min_str and max_str
+** res_length	Length of min_str and max_str.
+** min_str	Smallest case sensitive string that ranges LIKE.
+**		Should be space padded to res_length.
+** max_str	Largest case sensitive string that ranges LIKE.
+**		Normally padded with the biggest character sort value.
+**
+** The function should return 0 if ok and 1 if the LIKE string can't be
+** optimized !
+*/
+
+my_bool my_like_range_simple(CHARSET_INFO *cs,
+				const char *ptr,uint ptr_length,
+				int escape, int w_one, int w_many,
+				uint res_length,
+				char *min_str,char *max_str,
+				uint *min_length,uint *max_length)
+{
+  const char *end=ptr+ptr_length;
+  char *min_org=min_str;
+  char *min_end=min_str+res_length;
+
+  for (; ptr != end && min_str != min_end ; ptr++)
+  {
+    if (*ptr == escape && ptr+1 != end)
+    {
+      ptr++;					// Skip escape
+      *min_str++= *max_str++ = *ptr;
+      continue;
+    }
+    if (*ptr == w_one)				// '_' in SQL
+    {
+      *min_str++='\0';				// This should be min char
+      *max_str++=cs->max_sort_char;
+      continue;
+    }
+    if (*ptr == w_many)				// '%' in SQL
+    {
+      *min_length= (uint) (min_str - min_org);
+      *max_length=res_length;
+      do {
+	*min_str++ = ' ';			// Because if key compression
+	*max_str++ = cs->max_sort_char;
+      } while (min_str != min_end);
+      return 0;
+    }
+    *min_str++= *max_str++ = *ptr;
+  }
+  *min_length= *max_length = (uint) (min_str - min_org);
+
+  /* Temporary fix for handling w_one at end of string (key compression) */
+  {
+    char *tmp;
+    for (tmp= min_str ; tmp > min_org && tmp[-1] == '\0';)
+      *--tmp=' ';
+  }
+
+  while (min_str != min_end)
+    *min_str++ = *max_str++ = ' ';		// Because if key compression
+  return 0;
+}

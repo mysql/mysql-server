@@ -2822,7 +2822,7 @@ static CHARSET_INFO compiled_charsets[] = {
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
-    NULL,		/* like_range */
+    my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
     1,			/* mbmaxlen   */
     NULL,		/* ismbchar   */
@@ -2865,7 +2865,7 @@ static CHARSET_INFO compiled_charsets[] = {
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
-    NULL,		/* like_range */
+    my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
     1,			/* mbmaxlen   */
     NULL,		/* ismbchar   */
@@ -2907,7 +2907,7 @@ static CHARSET_INFO compiled_charsets[] = {
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
-    NULL,		/* like_range */
+    my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
     1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
@@ -2949,7 +2949,7 @@ static CHARSET_INFO compiled_charsets[] = {
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
-    NULL,		/* like_range */
+    my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
     1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
@@ -2992,7 +2992,7 @@ static CHARSET_INFO compiled_charsets[] = {
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
-    NULL,		/* like_range */
+    my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
     1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
@@ -3034,7 +3034,7 @@ static CHARSET_INFO compiled_charsets[] = {
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
-    NULL,		/* like_range */
+    my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
     1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
@@ -3076,7 +3076,7 @@ static CHARSET_INFO compiled_charsets[] = {
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
-    NULL,		/* like_range */
+    my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
     1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
@@ -3118,7 +3118,7 @@ static CHARSET_INFO compiled_charsets[] = {
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
-    NULL,		/* like_range */
+    my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
     1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
@@ -3161,7 +3161,7 @@ static CHARSET_INFO compiled_charsets[] = {
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
-    NULL,		/* like_range */
+    my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
     1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
@@ -3203,7 +3203,7 @@ static CHARSET_INFO compiled_charsets[] = {
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
-    NULL,		/* like_range */
+    my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
     1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
@@ -3245,7 +3245,7 @@ static CHARSET_INFO compiled_charsets[] = {
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
-    NULL,		/* like_range */
+    my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
     1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
@@ -3287,7 +3287,7 @@ static CHARSET_INFO compiled_charsets[] = {
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
-    NULL,		/* like_range */
+    my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
     1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
@@ -3329,7 +3329,7 @@ static CHARSET_INFO compiled_charsets[] = {
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
-    NULL,		/* like_range */
+    my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
     1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
@@ -3371,7 +3371,7 @@ static CHARSET_INFO compiled_charsets[] = {
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
-    NULL,		/* like_range */
+    my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
     1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
@@ -3413,7 +3413,7 @@ static CHARSET_INFO compiled_charsets[] = {
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
-    NULL,		/* like_range */
+    my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
     1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
@@ -3456,7 +3456,7 @@ static CHARSET_INFO compiled_charsets[] = {
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
-    NULL,		/* like_range */
+    my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
     1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
@@ -3498,7 +3498,7 @@ static CHARSET_INFO compiled_charsets[] = {
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
-    NULL,		/* like_range */
+    my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
     1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
@@ -3541,7 +3541,7 @@ static CHARSET_INFO compiled_charsets[] = {
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
-    NULL,		/* like_range */
+    my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
     1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
@@ -3584,7 +3584,7 @@ static CHARSET_INFO compiled_charsets[] = {
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
-    NULL,		/* like_range */
+    my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
     1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
@@ -3626,7 +3626,7 @@ static CHARSET_INFO compiled_charsets[] = {
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
-    NULL,		/* like_range */
+    my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
     1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
@@ -3668,7 +3668,7 @@ static CHARSET_INFO compiled_charsets[] = {
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
-    NULL,		/* like_range */
+    my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
     1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
@@ -3710,7 +3710,7 @@ static CHARSET_INFO compiled_charsets[] = {
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
-    NULL,		/* like_range */
+    my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
     1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
@@ -3752,7 +3752,7 @@ static CHARSET_INFO compiled_charsets[] = {
     0,			/* strxfrm_multiply */
     my_strnncoll_simple,/* strnncoll  */
     NULL,		/* strnxfrm   */
-    NULL,		/* like_range */
+    my_like_range_simple,/* like_range */
     my_wildcmp_8bit,	/* wildcmp    */
     1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */

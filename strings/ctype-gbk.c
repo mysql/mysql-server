@@ -2650,11 +2650,10 @@ int my_strnxfrm_gbk(CHARSET_INFO *cs __attribute__((unused)),
 */
 
 #define max_sort_char ((uchar) 255)
-#define wild_one '_'
-#define wild_many '%'
 
 extern my_bool my_like_range_gbk(CHARSET_INFO *cs __attribute__((unused)),
-                                 const char *ptr,uint ptr_length,pchar escape,
+                                 const char *ptr,uint ptr_length,
+                                 int escape, int w_one, int w_many,
                                  uint res_length, char *min_str,char *max_str,
                                  uint *min_length,uint *max_length)
 {
@@ -2676,13 +2675,13 @@ extern my_bool my_like_range_gbk(CHARSET_INFO *cs __attribute__((unused)),
       *min_str++= *max_str++ = *ptr;
       continue;
     }
-    if (*ptr == wild_one)		/* '_' in SQL */
+    if (*ptr == w_one)		/* '_' in SQL */
     {
       *min_str++='\0';			/* This should be min char */
       *max_str++=max_sort_char;
       continue;
     }
-    if (*ptr == wild_many)		/* '%' in SQL */
+    if (*ptr == w_many)		/* '%' in SQL */
     {
       *min_length= (uint) (min_str - min_org);
       *max_length= res_length;

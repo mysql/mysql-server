@@ -81,8 +81,11 @@ typedef struct charset_info_st
   int     (*strnxfrm)(struct charset_info_st *,
 		      uchar *, uint, const uchar *, uint);
   my_bool (*like_range)(struct charset_info_st *,
-			const char *, uint, pchar, uint,
-			char *, char *, uint *, uint *);
+			const char *s, uint s_length,
+			int w_prefix, int w_one, int w_many, 
+			uint res_length,
+			char *min_str, char *max_str,
+			uint *min_len, uint *max_len);
   int     (*wildcmp)(struct charset_info_st *,
   		     const char *str,const char *str_end,
                      const char *wildstr,const char *wildend,
@@ -171,7 +174,14 @@ ulong      my_strtoul_8bit(CHARSET_INFO *, const char *s, char **e, int base);
 longlong   my_strtoll_8bit(CHARSET_INFO *, const char *s, char **e, int base);
 ulonglong my_strtoull_8bit(CHARSET_INFO *, const char *s, char **e, int base);
 double      my_strtod_8bit(CHARSET_INFO *, const char *s, char **e);
-  
+
+my_bool  my_like_range_simple(CHARSET_INFO *cs,
+			const char *ptr, uint ptr_length,
+			int escape, int w_one, int w_many,
+			uint res_length,
+			char *min_str, char *max_str,
+			uint *min_length, uint *max_length);
+
 
 int my_wildcmp_8bit(CHARSET_INFO *,
   		     const char *str,const char *str_end,
@@ -230,8 +240,8 @@ int my_wildcmp_mb(CHARSET_INFO *,
 #define use_strnxfrm(s)               ((s)->strnxfrm  != NULL)
 #define my_strnxfrm(s, a, b, c, d)    ((s)->strnxfrm((s), (a), (b), (c), (d)))
 #define my_strnncoll(s, a, b, c, d)   ((s)->strnncoll((s), (a), (b), (c), (d)))
-#define my_like_range(s, a, b, c, d, e, f, g, h) \
-                ((s)->like_range((s), (a), (b), (c), (d), (e), (f), (g), (h)))
+#define my_like_range(s, a, b, c, d, e, f, g, h, i, j) \
+                ((s)->like_range((s), (a), (b), (c), (d), (e), (f), (g), (h), (i), (j)))
 #define my_wildcmp(cs,s,se,w,we,e,o,m)	((cs)->wildcmp((cs),(s),(se),(w),(we),(e),(o),(m)))
 
 #define use_mb(s)                     ((s)->ismbchar != NULL)

@@ -8442,7 +8442,7 @@ CHARSET_INFO my_charset_ujis =
     0,			/* strxfrm_multiply */
     NULL,		/* strnncoll    */
     NULL,		/* strnxfrm     */
-    NULL,		/* like_range   */
+    my_like_range_simple,/* like_range   */
     my_wildcmp_mb,	/* wildcmp      */
     3,			/* mbmaxlen     */
     ismbchar_ujis,
