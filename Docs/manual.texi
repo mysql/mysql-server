@@ -33003,11 +33003,10 @@ As AES is a block level algorithm, padding is used to encode uneven length
 strings and so the result string length may be calculated as
 16*(trunc(string_length/16)+1).
 
-@c FIX arjen 2002-06-21  Peter: this sentence makes no sense at all!
-If the string has an incorrect length or contains invalid data for this
-key, @code{AES_DECRYPT()} will return @code{NULL}, therefore you can't
-rely on this to much, @code{AES_DECRYPT()} has some change to return
-a non-@code{NULL} value even for an invalid key.
+If @code{AES_DECRYPT()} detects invalid data or incorrect padding, it will
+will return @code{NULL}. However, it is possible for @code{AES_DECRYPT()}
+to return a non-@code{NULL} value (possibly garbage) if the input data or
+the key was invalid.
 
 You can use the AES functions to store data in an encrypted form by
 modifying your queries:
