@@ -232,6 +232,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   DBUG_RETURN(mysql);
 
 error:
+  embedded_get_error(mysql);
   DBUG_PRINT("error",("message: %u (%s)", mysql->net.last_errno,
 		      mysql->net.last_error));
   {

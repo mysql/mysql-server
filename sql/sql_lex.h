@@ -339,6 +339,7 @@ public:
   st_select_lex *fake_select_lex;
 
   st_select_lex *union_distinct; /* pointer to the last UNION DISTINCT */
+  bool describe; /* union exec() called for EXPLAIN */
 
   void init_query();
   bool create_total_list(THD *thd, st_lex *lex, TABLE_LIST **result);
@@ -531,6 +532,20 @@ typedef class st_select_lex SELECT_LEX;
 #define ALTER_ORDER		64
 #define ALTER_OPTIONS		128
 
+typedef struct st_alter_info
+{
+  List<Alter_drop>            drop_list;
+  List<Alter_column>          alter_list;
+  uint                        flags;
+  enum enum_enable_or_disable keys_onoff;
+  enum tablespace_op_type     tablespace_op;
+  bool                        is_simple;
+
+  st_alter_info(){clear();}
+  void clear(){keys_onoff= LEAVE_AS_IS;tablespace_op= NO_TABLESPACE_OP;}
+  void reset(){drop_list.empty();alter_list.empty();clear();}
+} ALTER_INFO;
+
 /* The state of the lex parsing. This is saved in the THD struct */
 
 typedef struct st_lex
@@ -563,8 +578,6 @@ typedef struct st_lex
 
   List<key_part_spec> col_list;
   List<key_part_spec> ref_list;
-  List<Alter_drop>    drop_list;
-  List<Alter_column>  alter_list;
   List<String>	      interval_list;
   List<LEX_USER>      users_list;
   List<LEX_COLUMN>    columns;
@@ -592,19 +605,17 @@ typedef struct st_lex
   enum enum_tx_isolation tx_isolation;
   enum enum_ha_read_modes ha_read_mode;
   enum ha_rkey_function ha_rkey_mode;
-  enum enum_enable_or_disable alter_keys_onoff;
   enum enum_var_type option_type;
-  enum tablespace_op_type tablespace_op;
   uint uint_geom_type;
   uint grant, grant_tot_col, which_columns;
   uint fk_delete_opt, fk_update_opt, fk_match_option;
   uint slave_thd_opt;
-  uint alter_flags;
   uint8 describe;
   bool drop_if_exists, drop_temporary, local_file;
-  bool in_comment, ignore_space, verbose, simple_alter, no_write_to_binlog;
+  bool in_comment, ignore_space, verbose, no_write_to_binlog;
   bool derived_tables;
   bool safe_to_cache_query;
+  ALTER_INFO alter_info;
   st_lex() {}
   inline void uncacheable(uint8 cause)
   {
@@ -640,7 +651,5 @@ LEX *lex_start(THD *thd, uchar *buf,uint length);
 void lex_end(LEX *lex);
 
 extern pthread_key(LEX*,THR_LEX);
-
-extern LEX_STRING tmp_table_alias;
 
 #define current_lex (current_thd->lex)

@@ -643,7 +643,7 @@ int main(int argc, char *argv[])
     {
       key_range min_key, max_key;
       if (j > k)
-	swap(int,j,k);
+	swap_variables(int, j, k);
       sprintf(key,"%6d",j);
       sprintf(key2,"%6d",k);
 

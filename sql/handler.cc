@@ -103,15 +103,16 @@ TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 
 enum db_type ha_resolve_by_name(const char *name, uint namelen)
 {
-  if (!my_strcasecmp(&my_charset_latin1, name, "DEFAULT")) {
-    return(enum db_type) current_thd->variables.table_type;
+  THD *thd=current_thd;
+  if (thd && !my_strcasecmp(&my_charset_latin1, name, "DEFAULT")) {
+    return (enum db_type) thd->variables.table_type;
   }
   
   show_table_type_st *types;
   for (types= sys_table_types; types->type; types++)
   {
     if (!my_strcasecmp(&my_charset_latin1, name, types->type))
-      return(enum db_type)types->db_type;
+      return (enum db_type) types->db_type;
   }
   return DB_TYPE_UNKNOWN;
 }
@@ -742,7 +743,7 @@ int ha_delete_table(enum db_type table_type, const char *path)
   {
     /* Ensure that table handler get path in lower case */
     strmov(tmp_path, path);
-    my_casedn_str(system_charset_info, tmp_path);
+    my_casedn_str(files_charset_info, tmp_path);
     path= tmp_path;
   }
   int error=file->delete_table(path);
@@ -1276,7 +1277,7 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
   {
     /* Ensure that handler gets name in lower case */
     strmov(name_buff, name);
-    my_casedn_str(system_charset_info, name_buff);
+    my_casedn_str(files_charset_info, name_buff);
     name= name_buff;
   }
 

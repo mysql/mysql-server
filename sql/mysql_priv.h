@@ -284,6 +284,14 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 #define WEEK_MONDAY_FIRST    1
 #define WEEK_YEAR            2
 #define WEEK_FIRST_WEEKDAY   4
+/*
+  Required buffer length for make_date, make_time, make_datetime
+  and TIME_to_string functions. Note, that the caller is still
+  responsible to check that given TIME structure has values
+  in valid ranges, otherwise size of the buffer could be not 
+  enough.
+*/
+#define MAX_DATE_REP_LENGTH 30
 
 struct st_table;
 class THD;
@@ -519,13 +527,10 @@ int mysql_alter_table(THD *thd, char *new_db, char *new_name,
 		      HA_CREATE_INFO *create_info,
 		      TABLE_LIST *table_list,
 		      List<create_field> &fields,
-		      List<Key> &keys,List<Alter_drop> &drop_list,
-		      List<Alter_column> &alter_list,
-                      uint order_num, ORDER *order, uint alter_flags,
+		      List<Key> &keys,
+		      uint order_num, ORDER *order,
 		      enum enum_duplicates handle_duplicates,
-		      enum enum_enable_or_disable keys_onoff=LEAVE_AS_IS,
-		      enum tablespace_op_type tablespace_op=NO_TABLESPACE_OP,
-		      bool simple_alter=0);
+		      ALTER_INFO *alter_info);
 int mysql_create_like_table(THD *thd, TABLE_LIST *table,
                             HA_CREATE_INFO *create_info,
                             Table_ident *src_table);
@@ -536,7 +541,7 @@ bool mysql_rename_table(enum db_type base,
 			const char * new_name);
 int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys);
 int mysql_drop_index(THD *thd, TABLE_LIST *table_list,
-		     List<Alter_drop> &drop_list);
+		     ALTER_INFO *alter_info);
 int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
 			 TABLE_LIST *update_table_list,
 			 Item **conds, uint order_num, ORDER *order);
@@ -857,7 +862,7 @@ extern uint protocol_version, mysqld_port, dropping_tables;
 extern uint delay_key_write_options, lower_case_table_names;
 extern bool opt_endinfo, using_udf_functions, locked_in_memory;
 extern bool opt_using_transactions, mysql_embedded;
-extern bool using_update_log, opt_large_files;
+extern bool using_update_log, opt_large_files, server_id_supplied;
 extern bool opt_log, opt_update_log, opt_bin_log, opt_slow_log, opt_error_log;
 extern bool opt_disable_networking, opt_skip_show_db;
 extern bool volatile abort_loop, shutdown_in_progress, grant_option;
@@ -998,9 +1003,17 @@ const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
 				     timestamp_type type);
 extern bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
 			   timestamp_type type, String *str);
-extern void make_time(DATE_TIME_FORMAT *format, TIME *l_time, String *str);
-void make_date(DATE_TIME_FORMAT *format, TIME *l_time, String *str);
-void make_datetime(DATE_TIME_FORMAT *format, TIME *l_time, String *str);
+void make_datetime(const DATE_TIME_FORMAT *format, const TIME *l_time,
+                   String *str);
+void make_date(const DATE_TIME_FORMAT *format, const TIME *l_time,
+               String *str);
+void make_time(const DATE_TIME_FORMAT *format, const TIME *l_time,
+               String *str);
+void TIME_to_string(const TIME *time, String *str);
+ulonglong TIME_to_ulonglong_datetime(const TIME *time);
+ulonglong TIME_to_ulonglong_date(const TIME *time);
+ulonglong TIME_to_ulonglong_time(const TIME *time);
+ulonglong TIME_to_ulonglong(const TIME *time);
 
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(byte *,uint,char,char);

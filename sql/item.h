@@ -393,33 +393,63 @@ public:
 class Item_param :public Item
 {
 public:    
-  bool value_is_set;
-  longlong int_value;
-  double   real_value;
-  TIME     ltime;
+  enum enum_item_param_state
+  {
+    NO_VALUE, NULL_VALUE, INT_VALUE, REAL_VALUE,
+    STRING_VALUE, TIME_VALUE, LONG_DATA_VALUE
+  } state;
+
+  union
+  {
+    longlong integer;                           
+    double   real;                              
+    /*
+      Character sets conversion info for string values.
+      Character sets of client and connection defined at bind time are used
+      for all conversions, even if one of them is later changed (i.e.
+      between subsequent calls to mysql_stmt_execute).
+    */
+    struct CONVERSION_INFO
+    {
+      CHARSET_INFO *character_set_client;
+      /*
+        This points at character set of connection if conversion
+        to it is required (i. e. if placeholder typecode is not BLOB).
+        Otherwise it's equal to character_set_client (to simplify 
+        check in convert_str_value()).
+      */
+      CHARSET_INFO *final_character_set_of_str_value;
+    } cs_info;
+    TIME     time;
+  } value;
+
+  /* Cached values for virtual methods to save us one switch.  */
   enum Item_result item_result_type;
   enum Type item_type;
-  enum enum_field_types buffer_type;
-  bool item_is_time;
-  bool long_data_supplied;
+  /*         
+    Offset of placeholder inside statement text. Used to create
+    no-placeholders version of this statement for the binary log.
+  */         
   uint pos_in_query;
 
-  Item_param(uint position);
+  Item_param(uint pos_in_query_arg);
+
+  enum Item_result result_type () const { return item_result_type; }
   enum Type type() const { return item_type; }
+  enum_field_types field_type() const { return MYSQL_TYPE_STRING; }
+
   double val();
   longlong val_int();
   String *val_str(String*);
-  int  save_in_field(Field *field, bool no_conversions);
-  void set_null();
-  void set_int(longlong i);
-  void set_double(double i);
-  void set_value(const char *str, uint length);
-  void set_long_str(const char *str, ulong length);
-  void set_long_binary(const char *str, ulong length);
-  void set_longdata(const char *str, ulong length);
-  void set_long_end();
-  void set_time(TIME *tm, timestamp_type type);
   bool get_time(TIME *tm);
+  int  save_in_field(Field *field, bool no_conversions);
+
+  void set_null();
+  void set_int(longlong i, uint32 max_length_arg);
+  void set_double(double i);
+  bool set_str(const char *str, ulong length);
+  bool set_longdata(const char *str, ulong length);
+  void set_time(TIME *tm, timestamp_type type, uint32 max_length_arg);
   void reset();
   /*
     Assign placeholder value from bind data.
@@ -429,10 +459,10 @@ public:
   */
   void (*set_param_func)(Item_param *param, uchar **pos, ulong len);
 
-  enum Item_result result_type () const
-  { return item_result_type; }
-  String *query_val_str(String *str);
-  enum_field_types field_type() const { return MYSQL_TYPE_STRING; }
+  const String *query_val_str(String *str) const;
+
+  bool convert_str_value(THD *thd);
+  
   Item *new_item() { return new Item_param(pos_in_query); }
   /* 
     If value for parameter was not set we treat it as non-const 
@@ -440,7 +470,7 @@ public:
     parameter is constant during execution.
   */
   virtual table_map used_tables() const
-  { return value_is_set ? (table_map)0 : PARAM_TABLE_BIT; }
+  { return state != NO_VALUE ? (table_map)0 : PARAM_TABLE_BIT; }
   void print(String *str) { str->append('?'); }
 };
 

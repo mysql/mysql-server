@@ -1401,7 +1401,7 @@ key_and(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
   {
     if (key1->part > key2->part)
     {
-      swap(SEL_ARG *,key1,key2);
+      swap_variables(SEL_ARG *, key1, key2);
       clone_flag=swap_clone_flag(clone_flag);
     }
     // key1->part < key2->part
@@ -1417,7 +1417,7 @@ key_and(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
        key2->type != SEL_ARG::MAYBE_KEY) ||
       key1->type == SEL_ARG::MAYBE_KEY)
   {						// Put simple key in key2
-    swap(SEL_ARG *,key1,key2);
+    swap_variables(SEL_ARG *, key1, key2);
     clone_flag=swap_clone_flag(clone_flag);
   }
 
@@ -1559,7 +1559,7 @@ key_or(SEL_ARG *key1,SEL_ARG *key2)
   {
     if (key2->use_count == 0 || key1->elements > key2->elements)
     {
-      swap(SEL_ARG *,key1,key2);
+      swap_variables(SEL_ARG *,key1,key2);
     }
     else if (!(key1=key1->clone_tree()))
       return 0;					// OOM
@@ -2313,7 +2313,7 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
       min_range.length= min_key_length;
       min_range.flag=   (tmp_min_flag & NEAR_MIN ? HA_READ_AFTER_KEY :
                          HA_READ_KEY_EXACT);
-      max_range.key=    param->max_key;
+      max_range.key=    (byte*) param->max_key;
       max_range.length= max_key_length;
       max_range.flag=   (tmp_max_flag & NEAR_MAX ?
                          HA_READ_BEFORE_KEY : HA_READ_AFTER_KEY);
@@ -2826,7 +2826,8 @@ int QUICK_SELECT_DESC::cmp_prev(QUICK_RANGE *range_arg)
   if (range_arg->flag & NO_MIN_RANGE)
     return 0;					/* key can't be to small */
 
-  cmp= key_cmp(key_part_info, range_arg->min_key, range_arg->min_length);
+  cmp= key_cmp(key_part_info, (byte*) range_arg->min_key,
+               range_arg->min_length);
   if (cmp > 0 || cmp == 0 && !(range_arg->flag & NEAR_MIN))
     return 0;
   return 1;                                     // outside of range
