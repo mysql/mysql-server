@@ -149,7 +149,7 @@ languages and applications need to dynamically load and use MySQL.
 
 %package Max
 Release: %{release}
-Summary: MySQL - server with Berkeley DB, OpenSSL, RAID and UDF support
+Summary: MySQL - server with Berkeley DB, RAID and UDF support
 Group: Applications/Databases
 Provides: mysql-Max
 Obsoletes: mysql-Max
@@ -157,7 +157,7 @@ Requires: MySQL >= 4.0
 
 %description Max 
 Optional MySQL server binary that supports additional features like
-Berkeley DB, OpenSSL, RAID and User Defined Functions (UDFs).
+Berkeley DB, RAID and User Defined Functions (UDFs).
 To activate this binary, just install this package in addition to
 the standard MySQL package.
 
@@ -269,7 +269,7 @@ then
 fi
 
 BuildMySQL "--enable-shared \
-		--with-openssl \
+		--without-openssl \
 		--with-berkeley-db \
 		--with-innodb \
 		--with-raid \
@@ -579,6 +579,11 @@ fi
 # The spec file changelog only includes changes made to the spec file
 # itself
 %changelog 
+* Thu Jul 29 2004 Lenz Grimmer <lenz@mysql.com>
+
+- disabled OpenSSL in the Max binaries again (the RPM packages were the
+  only exception to this anyway) (BUG 1043)
+
 * Wed Jun 30 2004 Lenz Grimmer <lenz@mysql.com>
 
 - fixed server postinstall (mysql_install_db was called with the wrong
