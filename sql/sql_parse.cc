@@ -48,7 +48,6 @@ static void remove_escape(char *name);
 static void refresh_status(void);
 static bool append_file_to_dir(char **filename_ptr, char *table_name);
 static int create_total_list(THD *thd, LEX *lex, TABLE_LIST **result);
-static int handle_create_select(THD *thd, LEX *lex, select_result *c_i);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -1076,11 +1075,13 @@ mysql_execute_command(void)
   /*
     Skip if we are in the slave thread, some table rules have been given
     and the table list says the query should not be replicated
-    TODO: UPDATE this for UNION
+    TODO: UPDATE this for UNION. Updated by Sinisa !!!!!!!!!!!!!!!!!!!!!!
   */
+  if (lex->select_lex.next && tables && (res = create_total_list(thd,lex,&tables)))
+    DBUG_VOID_RETURN;
   if (table_rules_on && thd->slave_thread && tables && !tables_ok(thd,tables))
     DBUG_VOID_RETURN;
-  
+
   switch (lex->sql_command) {
   case SQLCOM_SELECT:
   {
@@ -1088,8 +1089,6 @@ mysql_execute_command(void)
     if (select_lex->options & SELECT_DESCRIBE)
       lex->exchange=0;
     /* Save a call, as it's very uncomon that we use unions */
-    if (lex->select_lex.next && (res = create_total_list(thd,lex,&tables)))
-      break;
     if (tables)
     {
       res=check_table_access(thd,
@@ -1295,8 +1294,6 @@ mysql_execute_command(void)
     if (select_lex->item_list.elements)		// With select
     {
       select_result *result;
-      if ((res = create_total_list(thd,lex,&tables)))
-	break;
 
       if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
 	  check_dup(thd,tables->db,tables->real_name,tables->next))
@@ -1574,8 +1571,6 @@ mysql_execute_command(void)
   case SQLCOM_REPLACE_SELECT:
   case SQLCOM_INSERT_SELECT:
   {
-    if ((res = create_total_list(thd,lex,&tables)))
-      break;
 
     // Check that we have modify privileges for the first table and
     // select privileges for the rest

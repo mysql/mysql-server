@@ -224,7 +224,7 @@ static bool opt_log,opt_update_log,opt_bin_log,opt_slow_log,opt_noacl,
             opt_large_files=sizeof(my_off_t) > 4;
 bool opt_sql_bin_update = 0, opt_log_slave_updates = 0, opt_safe_show_db=0,
   opt_show_slave_auth_info = 0, opt_old_rpl_compat = 0,
-  opt_safe_user_create = 0;
+  opt_safe_user_create = 0, opt_no_mix_types = 0;
 FILE *bootstrap_file=0;
 int segfaulted = 0; // ensure we do not enter SIGSEGV handler twice
 extern MASTER_INFO glob_mi;
@@ -2521,7 +2521,7 @@ enum options {
                OPT_MAX_BINLOG_DUMP_EVENTS, OPT_SPORADIC_BINLOG_DUMP_FAIL,
                OPT_SHOW_SLAVE_AUTH_INFO, OPT_OLD_RPL_COMPAT,
                OPT_SQL_MODE,OPT_SAFE_USER_CREATE,
-               OPT_SLAVE_LOAD_TMPDIR};
+               OPT_SLAVE_LOAD_TMPDIR, OPT_NO_MIX_TYPE};
 
 static struct option long_options[] = {
   {"ansi",                  no_argument,       0, 'a'},
@@ -2613,6 +2613,7 @@ static struct option long_options[] = {
   {"safemalloc-mem-limit",  required_argument, 0, (int)
      OPT_SAFEMALLOC_MEM_LIMIT},
   {"new",                   no_argument,       0, 'n'},
+  {"no-mix-table-types",       no_argument,       0, (int)OPT_NO_MIX_TYPE},
   {"old-protocol",          no_argument,       0, 'o'},
   {"old-rpl-compat",          no_argument,       0, (int)OPT_OLD_RPL_COMPAT},
 #ifdef ONE_THREAD
@@ -3094,6 +3095,7 @@ static void usage(void)
 			BACKUP or FORCE.\n\
   --memlock		Lock mysqld in memory\n\
   -n, --new		Use very new possible 'unsafe' functions\n\
+  --no-mix-table-types  Do not use transactional and non-transactional tables in a single query\n
   -o, --old-protocol	Use the old (3.20) protocol\n\
   -P, --port=...	Port number to use for connection\n");
 #ifdef ONE_THREAD
@@ -3576,6 +3578,9 @@ static void get_options(int argc,char **argv)
       break;
     case (int) OPT_LONG_FORMAT:
       opt_specialflag|=SPECIAL_LONG_LOG_FORMAT;
+      break;
+    case (int) OPT_NO_MIX_TYPE:
+      opt_no_mix_types = 1;
       break;
     case (int) OPT_SKIP_NETWORKING:
       opt_disable_networking=1;
