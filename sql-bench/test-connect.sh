@@ -311,7 +311,7 @@ $sth = $dbh->do("drop table bench1" . $server->{'drop_attr'})
   or do
 {
     # Fix for Access 2000
-    die $dbh->errstr if (!$dbh->abort_if_fatal_error());
+    die $dbh->errstr if (!$server->abort_if_fatal_error());
 };
 
 if ($opt_fast && defined($server->{vacuum}))
