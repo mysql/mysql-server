@@ -245,32 +245,15 @@ int mysql_create_view(THD *thd,
       if ((fld= item->filed_for_view_update()))
       {
         /*
-          There are no any privileges on VIEW column or there are
-          some other privileges then we have for underlaying table
+          Do we have more privilegeson view field then underlying table field
         */
-        if (priv == 0 || (~fld->have_privileges & priv))
+        if ((~fld->have_privileges & priv))
         {
           /* VIEW column has more privileges */
           my_printf_error(ER_COLUMNACCESS_DENIED_ERROR,
                           ER(ER_COLUMNACCESS_DENIED_ERROR),
                           MYF(0),
                           "create view",
-                          thd->priv_user,
-                          thd->host_or_ip,
-                          item->name,
-                          view->real_name);
-          DBUG_RETURN(-1);
-        }
-      }
-      else
-      {
-        if (!(priv & SELECT_ACL))
-        {
-          /* user have not privilege to SELECT expression */
-          my_printf_error(ER_COLUMNACCESS_DENIED_ERROR,
-                          ER(ER_COLUMNACCESS_DENIED_ERROR),
-                          MYF(0),
-                          "select",
                           thd->priv_user,
                           thd->host_or_ip,
                           item->name,
