@@ -315,6 +315,8 @@ while test $# -gt 0; do
 	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with --gdb option"
       fi
       DO_GDB=1
+      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --gdb"
+      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --gdb"
       # This needs to be checked properly
       # USE_MANAGER=1
       USE_RUNNING_SERVER=""
@@ -1025,7 +1027,7 @@ start_slave()
 
   if [ x$DO_DDD = x1 ]
   then
-    $ECHO "set args $master_args" > $GDB_SLAVE_INIT
+    $ECHO "set args $slave_args" > $GDB_SLAVE_INIT
     manager_launch $slave_ident ddd -display $DISPLAY --debugger \
      "gdb -x $GDB_SLAVE_INIT" $SLAVE_MYSQLD
   elif [ x$DO_GDB = x1 ]
