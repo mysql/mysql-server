@@ -21,6 +21,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
+
+#include <my_global.h>
+#include <m_ctype.h>
+#include <my_xml.h>
 
 #define CHARSETS_SUBDIR "sql/share/charsets"
 #define CTYPE_TABLE_SIZE      257
@@ -29,39 +34,9 @@
 #define SORT_ORDER_TABLE_SIZE 256
 #define ROW_LEN 16
 
-void print_arrays_for(char *set);
-
 char *prog;
 char buf[1024], *p, *endptr;
 
-int
-main(int argc, char **argv)
-{
-  prog = *argv;
-
-  if (argc < 2) {
-    fprintf(stderr, "usage: %s source-dir [charset [, charset]]\n", prog);
-    exit(EXIT_FAILURE);
-  }
-
-  --argc; ++argv;       /* skip program name */
-
-  if (chdir(*argv) != 0) {
-    fprintf(stderr, "%s: can't cd to %s\n", prog, *argv);
-    exit(EXIT_FAILURE);
-  }
-  --argc; ++argv;
-
-  if (chdir(CHARSETS_SUBDIR) != 0) {
-    fprintf(stderr, "%s: can't cd to %s\n", prog, CHARSETS_SUBDIR);
-    exit(EXIT_FAILURE);
-  }
-
-  while (argc--)
-    print_arrays_for(*argv++);
-
-  exit(EXIT_SUCCESS);
-}
 
 void
 print_array(FILE *f, const char *set, const char *name, int n)
@@ -139,4 +114,81 @@ print_arrays_for(char *set)
   fclose(f);
 
   return;
+}
+
+#define MAX_BUF	16*1024
+
+static CHARSET_INFO all_charsets[256];
+
+static int get_charset_number(const char *charset_name)
+{
+  CHARSET_INFO *cs;
+  for (cs= all_charsets; cs < all_charsets+255; ++cs)
+  {
+    if ( cs->name && !strcmp(cs->name, charset_name))
+      return cs->number;
+  }  
+  return 0;
+}
+
+static void simple_cs_copy_data()
+{
+}
+
+static int add_collation(CHARSET_INFO *cs)
+{
+  if (cs->name && (cs->number || (cs->number=get_charset_number(cs->name))))
+  {
+#if 0
+    if (!(all_charsets[cs->number].state & MY_CS_COMPILED))
+    {
+      simple_cs_copy_data(all_charsets[cs->number],cs);
+      if (simple_cs_is_full(all_charsets[cs->number]))
+      {
+        simple_cs_init_functions(all_charsets[cs->number]);
+        all_charsets[cs->number]->state |= MY_CS_LOADED;
+      }
+    }
+    
+    cs->number= 0;
+    cs->name= NULL;
+    cs->state= 0;
+    cs->sort_order= NULL;
+    cs->state= 0;
+#endif
+  }
+  return MY_XML_OK;
+}
+
+
+static int my_read_charset_file(const char *filename)
+{
+  char buf[MAX_BUF];
+  int  fd;
+  uint len;
+  
+  if ((fd=open(filename,O_RDONLY)) < 0)
+    return 1;
+  
+  len=read(fd,buf,MAX_BUF);
+  close(fd);
+  
+  if (my_parse_charset_xml(buf,len,add_collation))
+  {
+#if 0
+    printf("ERROR at line %d pos %d '%s'\n",
+	   my_xml_error_lineno(&p)+1,
+	   my_xml_error_pos(&p),
+	   my_xml_error_string(&p));
+#endif
+  }
+  
+  return FALSE;
+}
+
+
+int main()
+{
+  bzero(&all_charsets,sizeof(all_charsets));
+  return 0;
 }

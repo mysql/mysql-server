@@ -1937,7 +1937,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
   set_var_init();
   mysys_uses_curses=0;
 #ifdef USE_REGEX
-  regex_init();
+  regex_init(my_charset_latin1);
 #endif
   if (set_default_charset_by_name(sys_charset.value, MYF(MY_WME)))
     return 1;

@@ -117,7 +117,7 @@ CHARSET_INFO *charset;
 #	define	GOODFLAGS(f)	((f)&~REG_DUMP)
 #endif
 
-	regex_init();				/* Init cclass if neaded */
+	regex_init(charset);	/* Init cclass if neaded */
 	preg->charset=charset;
 	cflags = GOODFLAGS(cflags);
 	if ((cflags&REG_EXTENDED) && (cflags&REG_NOSPEC))
