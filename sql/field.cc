@@ -2076,7 +2076,7 @@ String *Field_double::val_str(String *val_buffer,
       *to++= *pos++;
 #else
 #ifdef HAVE_SNPRINTF
-    buff[to_length-1]=0;			// Safety
+    to[to_length-1]=0;			// Safety
     snprintf(to,to_length-1,"%.*f",dec,nr);
 #else
     sprintf(to,"%.*f",dec,nr);
