@@ -387,6 +387,8 @@ bool select_send::send_fields(List<Item> &list,uint flag)
 }
 
 
+#ifndef EMBEDDED_LIBRARY
+
 /* Send data to client. Returns 0 if ok */
 
 bool select_send::send_data(List<Item> &items)
@@ -415,6 +417,7 @@ bool select_send::send_data(List<Item> &items)
   bool error=my_net_write(&thd->net,(char*) packet->ptr(),packet->length());
   DBUG_RETURN(error);
 }
+#endif /* EMBEDDED_LIBRARY */
 
 bool select_send::send_eof()
 {
