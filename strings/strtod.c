@@ -36,6 +36,11 @@ static double scaler1[] = {
   1.0, 10.0, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9
 };
 
+
+#ifndef HUGE_VAL				/* Should be +Infinitive */
+#define HUGE_VAL DBL_MAX
+#endif
+
 double my_strtod(const char *str, char **end)
 {
   double result= 0.0;
@@ -90,10 +95,7 @@ double my_strtod(const char *str, char **end)
       }
       if (exp >= 1000)
       {
-        if (neg)
-          result= 0.0;
-        else
-          result= DBL_MAX*10;
+	result= neg ? 0.0 : HUGE_VAL;
         goto done;
       }
       while (exp >= 100)

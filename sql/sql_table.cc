@@ -365,9 +365,6 @@ void check_duplicates_in_interval(const char *set_or_name,
   unsigned int old_count= typelib->count;
   const char **old_type_names= typelib->type_names;
 
-  if (typelib->count <= 1)
-    return;
-
   old_count= typelib->count;
   old_type_names= typelib->type_names;
   const char **cur_value= typelib->type_names;
@@ -377,7 +374,7 @@ void check_duplicates_in_interval(const char *set_or_name,
     typelib->count--;
     if (find_type((char*)*cur_value,typelib,1))
     {
-      push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,
+      push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_NOTE,
 			  ER_DUPLICATED_VALUE_IN_TYPE,
 			  ER(ER_DUPLICATED_VALUE_IN_TYPE),
 			  name,*cur_value,set_or_name);

@@ -495,7 +495,7 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
 {
   TABLE *table;
   char  key[MAX_DBKEY_LENGTH];
-  char *db= table_list->db ? table_list->db : (thd->db ? thd->db : (char*) "");
+  char *db= table_list->db;
   uint  key_length;
   DBUG_ENTER("lock_table_name");
   safe_mutex_assert_owner(&LOCK_open);
