@@ -1719,7 +1719,8 @@ find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables)
 	found_table=1;
 	Field *find=find_field_in_table(thd,tables->table,name,length,
 					grant_option && 
-					tables->grant.want_privilege ,1);
+					tables->table->grant.want_privilege,
+					1);
 	if (find)
 	{
 	  if (find == WRONG_GRANT)
@@ -1758,7 +1759,9 @@ find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables)
   for (; tables ; tables=tables->next)
   {
     Field *field=find_field_in_table(thd,tables->table,name,length,
-				     grant_option && tables->grant.want_privilege ,allow_rowid);
+				     grant_option &&
+				     tables->table->grant.want_privilege,
+				     allow_rowid);
     if (field)
     {
       if (field == WRONG_GRANT)
