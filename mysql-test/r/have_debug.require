@@ -1,2 +1,0 @@
-instr(version(),convert('debug' using utf8))!=0
-1
