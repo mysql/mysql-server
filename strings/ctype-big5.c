@@ -6278,10 +6278,13 @@ my_mb_wc_big5(CHARSET_INFO *cs __attribute__((unused)),
 */
 static
 uint my_well_formed_len_big5(CHARSET_INFO *cs __attribute__((unused)),
-                             const char *b, const char *e, uint pos)
+                             const char *b, const char *e,
+                             uint pos, int *error)
 {
   const char *b0= b;
   const char *emb= e - 1; /* Last possible end of an MB character */
+
+  *error= 0;
   while (pos && b < e)
   {
     if ((uchar) b[0] < 128)
@@ -6297,6 +6300,7 @@ uint my_well_formed_len_big5(CHARSET_INFO *cs __attribute__((unused)),
     else
     {
       /* Wrong byte sequence */
+      *error= 1;
       break;
     }
   }

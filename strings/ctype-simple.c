@@ -1093,11 +1093,11 @@ uint my_charpos_8bit(CHARSET_INFO *cs __attribute__((unused)),
 
 
 uint my_well_formed_len_8bit(CHARSET_INFO *cs __attribute__((unused)),
-			     const char *start,
-			     const char *end,
-			     uint nchars)
+                             const char *start, const char *end,
+                             uint nchars, int *error)
 {
   uint nbytes= (uint) (end-start);
+  *error= 0;
   return min(nbytes, nchars);
 }
 
