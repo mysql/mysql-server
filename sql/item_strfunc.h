@@ -489,6 +489,16 @@ public:
   const char *func_name() const { return "conv_charset"; }
 };
 
+class Item_func_conv_charset3 :public Item_str_func
+{
+public:
+  Item_func_conv_charset3(Item *arg1,Item *arg2,Item *arg3)
+    :Item_str_func(arg1,arg2,arg3) {}
+  String *val_str(String *);
+  void fix_length_and_dec();
+  const char *func_name() const { return "conv_charset3"; }
+};
+
 
 /*******************************************************
 Spatial functions
