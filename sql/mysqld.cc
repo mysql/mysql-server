@@ -2837,7 +2837,8 @@ default_service_handling(char **argv,
 			 const char *servicename,
 			 const char *displayname,
 			 const char *file_path,
-			 const char *extra_opt)
+			 const char *extra_opt,
+			 const char *account_name)
 {
   char path_and_service[FN_REFLEN+FN_REFLEN+32], *pos, *end;
   end= path_and_service + sizeof(path_and_service)-3;
@@ -2856,12 +2857,12 @@ default_service_handling(char **argv,
 
   if (Service.got_service_option(argv, "install"))
   {
-    Service.Install(1, servicename, displayname, path_and_service);
+    Service.Install(1, servicename, displayname, path_and_service, account_name);
     return 0;
   }
   if (Service.got_service_option(argv, "install-manual"))
   {
-    Service.Install(0, servicename, displayname, path_and_service);
+    Service.Install(0, servicename, displayname, path_and_service, account_name);
     return 0;
   }
   if (Service.got_service_option(argv, "remove"))
@@ -2896,7 +2897,7 @@ int main(int argc, char **argv)
     if (argc == 2)
     {
       if (!default_service_handling(argv, MYSQL_SERVICENAME, MYSQL_SERVICENAME,
-				   file_path, ""))
+				   file_path, "", NULL))
 	return 0;
       if (Service.IsService(argv[1]))        /* Start an optional service */
       {
@@ -2915,7 +2916,7 @@ int main(int argc, char **argv)
     }
     else if (argc == 3) /* install or remove any optional service */
     {
-      if (!default_service_handling(argv, argv[2], argv[2], file_path, ""))
+      if (!default_service_handling(argv, argv[2], argv[2], file_path, "", NULL))
 	return 0;
       if (Service.IsService(argv[2]))
       {
@@ -2933,15 +2934,39 @@ int main(int argc, char **argv)
 	return 0;
       }
     }
-    else if (argc == 4)
+    else if (argc >= 4)
     {
-      /*
-	Install an optional service with optional config file
-	mysqld --install-manual mysqldopt --defaults-file=c:\miguel\my.ini
-      */
-      if (!default_service_handling(argv, argv[2], argv[2], file_path,
-				    argv[3]))
-	return 0;
+      const char *defaults_file = "--defaults-file";
+      const char *service = "--local-service";
+      char extra_opt[FN_REFLEN] = "";  
+      char *account_name = NULL;
+      char *option;
+      int index;
+      for (index = 3; index < argc; index++)
+      {
+        option= argv[index];
+        /* 
+          Install an optional service with optional config file
+          mysqld --install-manual mysqldopt --defaults-file=c:\miguel\my.ini
+        */
+        if (strncmp(option, defaults_file, strlen(defaults_file)) == 0)
+        {
+          strmov(extra_opt, option);	  
+        }
+        else
+        /* 
+          Install an optional service as local service
+          mysqld --install-manual mysqldopt --local-service
+        */
+        if (strncmp(option, service, strlen(service)) == 0)
+        {
+          account_name=(char*)malloc(27);
+          strmov(account_name, "NT AUTHORITY\\LocalService\0");
+        }
+      }
+
+      if (!default_service_handling(argv, argv[2], argv[2], file_path, extra_opt, account_name))
+        return 0;
     }
     else if (argc == 1 && Service.IsService(MYSQL_SERVICENAME))
     {
