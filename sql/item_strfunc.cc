@@ -1776,9 +1776,12 @@ String *Item_func_elt::val_str(String *str)
 void Item_func_make_set::split_sum_func(THD *thd, Item **ref_pointer_array,
 					List<Item> &fields)
 {
-  if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
+  if (item->type() != SUM_FUNC_ITEM &&
+      (item->with_sum_func ||
+       (item->used_tables() & PSEUDO_TABLE_BITS)))
     item->split_sum_func(thd, ref_pointer_array, fields);
-  else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
+  else if (item->type() == SUM_FUNC_ITEM ||
+           (item->used_tables() && item->type() != REF_ITEM))
   {
     uint el= fields.elements;
     ref_pointer_array[el]=item;
