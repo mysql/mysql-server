@@ -153,7 +153,7 @@ class Item_str_conv :public Item_str_func
 public:
   Item_str_conv(Item *item) :Item_str_func(item) {}
   void fix_length_and_dec()
-  { 
+  {
     collation.set(args[0]->collation);
     max_length = args[0]->max_length;
   }
@@ -589,10 +589,10 @@ public:
   Item_func_quote(Item *a) :Item_str_func(a) {}
   const char *func_name() const { return "quote"; }
   String *val_str(String *);
-  void fix_length_and_dec() 
-  { 
+  void fix_length_and_dec()
+  {
     collation.set(args[0]->collation);
-    max_length= args[0]->max_length * 2 + 2; 
+    max_length= args[0]->max_length * 2 + 2;
   }
 };
 
@@ -600,7 +600,7 @@ class Item_func_conv_charset :public Item_str_func
 {
   CHARSET_INFO *conv_charset;
 public:
-  Item_func_conv_charset(Item *a, CHARSET_INFO *cs) :Item_str_func(a) 
+  Item_func_conv_charset(Item *a, CHARSET_INFO *cs) :Item_str_func(a)
   { conv_charset=cs; }
   String *val_str(String *);
   void fix_length_and_dec();
@@ -625,7 +625,7 @@ public:
   Item_func_charset(Item *a) :Item_str_func(a) {}
   String *val_str(String *);
   const char *func_name() const { return "charset"; }
-  void fix_length_and_dec() 
+  void fix_length_and_dec()
   {
      collation.set(system_charset_info);
      max_length= 64 * collation.collation->mbmaxlen; // should be enough
@@ -689,5 +689,15 @@ public:
   void fix_length_and_dec(){max_length= MAX_BLOB_WIDTH;}
   const char *func_name() const{return "uncompress";}
   String *val_str(String *) ZLIB_DEPENDED_FUNCTION
+};
+
+#define UUID_LENGTH (8+1+4+1+4+1+4+1+12)
+class Item_func_uuid: public Item_str_func
+{
+public:
+  Item_func_uuid(): Item_str_func() {}
+  void fix_length_and_dec() {max_length= UUID_LENGTH; }
+  const char *func_name() const{ return "uuid"; }
+  String *val_str(String *);
 };
 
