@@ -53,6 +53,7 @@
 #include <m_ctype.h>
 #include <my_config.h>
 #include <my_dir.h>
+#include <hash.h>
 #include <mysqld_error.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -128,6 +129,7 @@ const char* result_file = 0; /* if set, all results are concated and
 typedef struct
 {
   char* name;
+  int name_len;
   char* str_val;
   int str_val_len;
   int int_val;
@@ -137,9 +139,30 @@ typedef struct
 
 VAR var_reg[10];
 /*Perl/shell-like variable registers */
+HASH var_hash;
 
 struct connection cons[MAX_CONS];
 struct connection* cur_con, *next_con, *cons_end;
+
+  /* Add new commands before Q_UNKNOWN !*/
+
+enum enum_commands {
+Q_CONNECTION=1,     Q_QUERY, 
+Q_CONNECT,          Q_SLEEP, 
+Q_INC,              Q_DEC,
+Q_SOURCE,           Q_DISCONNECT,
+Q_LET,              Q_ECHO, 
+Q_WHILE,            Q_END_BLOCK,
+Q_SYSTEM,           Q_RESULT, 
+Q_REQUIRE,          Q_SAVE_MASTER_POS,
+Q_SYNC_WITH_MASTER, Q_ERROR, 
+Q_SEND,             Q_REAP, 
+Q_DIRTY_CLOSE,      Q_REPLACE,
+Q_PING,             Q_EVAL,
+Q_UNKNOWN,                             /* Unknown command.   */
+Q_COMMENT,                             /* Comments, ignored. */
+Q_COMMENT_WITH_COMMAND
+};
 
 /* this should really be called command */
 struct st_query
@@ -149,23 +172,7 @@ struct st_query
   my_bool abort_on_error, require_file;
   uint expected_errno[MAX_EXPECTED_ERRORS];
   char record_file[FN_REFLEN];
-  /* Add new commands before Q_UNKNOWN */
-  enum { Q_CONNECTION=1,     Q_QUERY, 
-         Q_CONNECT,          Q_SLEEP, 
-         Q_INC,              Q_DEC,
-         Q_SOURCE,           Q_DISCONNECT,
-         Q_LET,              Q_ECHO, 
-         Q_WHILE,            Q_END_BLOCK,
-         Q_SYSTEM,           Q_RESULT, 
-         Q_REQUIRE,          Q_SAVE_MASTER_POS,
-         Q_SYNC_WITH_MASTER, Q_ERROR, 
-         Q_SEND,             Q_REAP, 
-         Q_DIRTY_CLOSE,      Q_REPLACE,
-	 Q_PING,             Q_EVAL,
-         Q_UNKNOWN,                             /* Unknown command.   */
-         Q_COMMENT,                             /* Comments, ignored. */
-         Q_COMMENT_WITH_COMMAND
-  } type;
+  enum enum_commands type;
 };
 
 const char *command_names[] = {
@@ -189,6 +196,13 @@ TYPELIB command_typelib= {array_elements(command_names),"",
 
 DYNAMIC_STRING ds_res;
 static void die(const char* fmt, ...);
+static void init_var_hash();
+static byte* get_var_key(const byte* rec, uint* len,
+			 my_bool __attribute__((unused)) t);
+static VAR* var_init(const char* name, int name_len, const char* val,
+		     int val_len);
+
+static void var_free(void* v);
 
 int dyn_string_cmp(DYNAMIC_STRING* ds, const char* fname);
 void reject_dump(const char* record_file, char* buf, int size);
@@ -287,6 +301,8 @@ static void free_used_memory()
   DBUG_ENTER("free_used_memory");
   close_cons();
   close_files();
+  hash_free(&var_hash);
+  
   for (i=0 ; i < q_lines.elements ; i++)
   {
     struct st_query **q= dynamic_element(&q_lines, i, struct st_query**);
@@ -428,10 +444,29 @@ VAR* var_get(const char* var_name, const char** var_name_end, int raw)
   digit = *var_name - '0';
   if (!(digit < 10 && digit >= 0))
   {
+    const char* save_var_name = var_name, *end;
+    end = (var_name_end) ? *var_name_end : 0;
+    while(isalnum(*var_name) || *var_name == '_')
+      {
+	if(end && var_name == end)
+	  break;
+        ++var_name;
+      }
+    if(var_name == save_var_name)
+      die("Empty variable");
+    
+    if(!(v = (VAR*)hash_search(&var_hash, save_var_name,
+			       var_name - save_var_name)))
+      {
+	if (end)
+	  *(char*)end = 0;
+        die("Variable '%s' used uninitialized", save_var_name);
+      }
     --var_name;
-    goto err;
   }
-  v = var_reg + digit;
+  else 
+   v = var_reg + digit;
+  
   if (!raw && v->int_dirty)
   {
     sprintf(v->str_val, "%d", v->int_val);
@@ -446,6 +481,16 @@ err:
     *var_name_end = 0;
   die("Unsupported variable name: %s", var_name);
   return 0;
+}
+
+static VAR* var_obtain(char* name, int len)
+{
+  VAR* v;
+  if((v = (VAR*)hash_search(&var_hash, name, len)))
+    return v;
+  v = var_init(name, len, "", 0);
+  hash_insert(&var_hash, (byte*)v);
+  return v;
 }
 
 int var_set(char* var_name, char* var_name_end, char* var_val,
@@ -463,10 +508,10 @@ int var_set(char* var_name, char* var_name_end, char* var_val,
   digit = *var_name - '0';
   if (!(digit < 10 && digit >= 0))
     {
-      *var_name_end = 0;
-      die("Unsupported variable name: %s", var_name);
+      v = var_obtain(var_name, var_name_end - var_name);
     }
-  v = var_reg + digit;
+  else 
+   v = var_reg + digit;
   if (v->alloced_len < (val_len = (int)(var_val_end - var_val)+1))
     {
       v->alloced_len = (val_len < MIN_VAR_ALLOC) ? MIN_VAR_ALLOC : val_len;
@@ -475,10 +520,12 @@ int var_set(char* var_name, char* var_name_end, char* var_val,
 	   my_malloc(v->alloced_len, MYF(MY_WME))))
 	 die("Out of memory");
     }
-  memcpy(v->str_val, var_val, val_len-1);
-  v->str_val_len = val_len - 1;
+  val_len--;
+  memcpy(v->str_val, var_val, val_len);
+  v->str_val_len = val_len;
   v->str_val[val_len] = 0;
   v->int_val = atoi(v->str_val);
+  v->int_dirty=0;
   return 0;
 }
 
@@ -515,7 +562,7 @@ int eval_expr(VAR* v, const char* p, const char** p_end)
     {
       if ((vp = var_get(p,p_end,0)))
 	{
-	  memcpy(v, vp, sizeof(VAR));
+	  memcpy(v, vp, sizeof(*v));
 	  return 0;
 	}
     }
@@ -523,6 +570,8 @@ int eval_expr(VAR* v, const char* p, const char** p_end)
     {
       v->str_val = (char*)p;
       v->str_val_len = (p_end && *p_end) ? *p_end - p : strlen(p);
+      v->int_val=atoi(p);
+      v->int_dirty=0;
       return 0;
     }
 
@@ -557,7 +606,7 @@ int do_system(struct st_query* q)
   char* p=q->first_argument;
   VAR v;
   eval_expr(&v, p, 0); /* NULL terminated */
-  if (v.str_val_len > 1)
+  if (v.str_val_len)
     {
       char expr_buf[512];
       if ((uint)v.str_val_len > sizeof(expr_buf) - 1)
@@ -576,11 +625,11 @@ int do_echo(struct st_query* q)
   char* p=q->first_argument;
   VAR v;
   eval_expr(&v, p, 0); /* NULL terminated */
-  if (v.str_val_len > 1)
-    {
-      fflush(stdout);
-      write(1, v.str_val, v.str_val_len - 1);
-    }
+  if (v.str_val_len)
+  {
+    fflush(stdout);
+    write(1, v.str_val, v.str_val_len);
+  }
   write(1, "\n", 1);
   return 0;
 }
@@ -671,15 +720,15 @@ int do_sleep(struct st_query* q)
       p++;
     if (*p == '.')
     {
-      char c;
+      int c;
       char *p_end;
       p++;
       p_end = p + 6;
 
       for(;p <= p_end; ++p)
       {
-	c = *p - '0';
-	if (c < 10 && c >= 0)
+	c = (int) (*p - '0');
+	if (c < 10 && (int) c >= 0)
 	{
 	  t.tv_usec = t.tv_usec * 10 + c;
 	  dec_mul /= 10;
@@ -1027,7 +1076,6 @@ int do_while(struct st_query* q)
   expr_end = strrchr(expr_start, ')');
   if (!expr_end)
     die("missing ')' in while");
-  --expr_end;
   eval_expr(&v, ++expr_start, &expr_end);
   *cur_block++ = parser.current_line++;
   if (!v.int_val)
@@ -1228,7 +1276,7 @@ static char read_query_buf[MAX_QUERY];
 int read_query(struct st_query** q_ptr)
 {
   char *p = read_query_buf, * p1 ;
-  int c, expected_errno;
+  int expected_errno;
   struct st_query* q;
 
   if (parser.current_line < parser.read_lines)
@@ -1283,8 +1331,8 @@ int read_query(struct st_query** q_ptr)
     {
       p++;
       p1 = q->record_file;
-      while(!isspace(c = *p) &&
-	    p1 < q->record_file + sizeof(q->record_file) - 1)
+      while (!isspace(*p) &&
+	     p1 < q->record_file + sizeof(q->record_file) - 1)
 	*p1++ = *p++;
       *p1 = 0;
     }
@@ -1487,7 +1535,6 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
   unsigned long* lengths;
   char* val;
   int len;
-  int q_error = 0 ;
   DYNAMIC_STRING *ds;
   DYNAMIC_STRING ds_tmp;
   DYNAMIC_STRING eval_query;
@@ -1516,8 +1563,7 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
   else
     ds= &ds_res;
   
-  if ((flags & QUERY_SEND) &&
-      (q_error = mysql_send_query(mysql, query, query_len)))
+  if ((flags & QUERY_SEND) && mysql_send_query(mysql, query, query_len))
     die("At line %u: unable to send query '%s'", start_lineno, query);
   if(!(flags & QUERY_REAP))
     return 0;
@@ -1652,9 +1698,67 @@ void get_query_type(struct st_query* q)
   type=find_type(q->query, &command_typelib, 1+2);
   q->query[q->first_word_len]=save;
   if (type > 0)
-    q->type=type;				/* Found command */
+    q->type=(enum enum_commands) type;		/* Found command */
 }
 
+static byte* get_var_key(const byte* var, uint* len,
+			 my_bool __attribute__((unused)) t)
+{
+  register char* key;
+  key = ((VAR*)var)->name;
+  *len = ((VAR*)var)->name_len;
+  return (byte*)key;
+}
+
+static VAR* var_init(const char* name, int name_len, const char* val,
+		     int val_len)
+{
+  int val_alloc_len;
+  VAR* tmp_var;
+  if(!name_len)
+    name_len = strlen(name);
+  if(!val_len)
+    val_len = strlen(val) ;
+  val_alloc_len = val_len + 16; /* room to grow */
+  if(!(tmp_var = (VAR*)my_malloc(sizeof(*tmp_var) + val_alloc_len
+				 + name_len, MYF(MY_WME))))
+    die("Out of memory");
+  tmp_var->name = (char*)tmp_var + sizeof(*tmp_var);
+  tmp_var->str_val = tmp_var->name + name_len;
+  memcpy(tmp_var->name, name, name_len);
+  memcpy(tmp_var->str_val, val, val_len + 1);
+  tmp_var->name_len = name_len;
+  tmp_var->str_val_len = val_len;
+  tmp_var->alloced_len = val_alloc_len;
+  tmp_var->int_val = atoi(val);
+  tmp_var->int_dirty = 0;
+  return tmp_var;
+}
+
+static void var_free(void* v)
+{
+  my_free(v, MYF(MY_WME));
+}
+
+
+static void var_from_env(const char* name, const char* def_val)
+{
+  const char* tmp;
+  VAR* v;
+  if(!(tmp = getenv(name)))
+    tmp = def_val;
+    
+  v = var_init(name, 0, tmp, 0); 
+  hash_insert(&var_hash, (byte*)v);
+}
+
+static void init_var_hash()
+{
+  if(hash_init(&var_hash, 1024, 0, 0, get_var_key, var_free, MYF(0)))
+    die("Variable hash initialization failed");
+  var_from_env("MASTER_MYPORT", "9306");
+  var_from_env("SLAVE_MYPORT", "9307");
+}
 
 int main(int argc, char** argv)
 {
@@ -1670,7 +1774,7 @@ int main(int argc, char** argv)
   cons_end = cons + MAX_CONS;
   next_con = cons + 1;
   cur_con = cons;
-
+  
   memset(file_stack, 0, sizeof(file_stack));
   memset(&master_pos, 0, sizeof(master_pos));
   file_stack_end = file_stack + MAX_INCLUDE_DEPTH;
@@ -1683,6 +1787,7 @@ int main(int argc, char** argv)
   cur_block = block_stack;
   init_dynamic_string(&ds_res, "", 0, 65536);
   parse_args(argc, argv);
+  init_var_hash();
   if (!*cur_file)
     *cur_file = stdin;
   *lineno=1;
@@ -1776,7 +1881,7 @@ int main(int argc, char** argv)
       case Q_REPLACE:
 	get_replace(q);
 	break;
-      case Q_SAVE_MASTER_POS: do_save_master_pos(q); break;	
+      case Q_SAVE_MASTER_POS: do_save_master_pos(); break;	
       case Q_SYNC_WITH_MASTER: do_sync_with_master(q); break;	
       case Q_COMMENT:				/* Ignore row */
       case Q_COMMENT_WITH_COMMAND:

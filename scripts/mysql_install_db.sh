@@ -79,13 +79,17 @@ then
   basedir=@prefix@
   bindir=@bindir@
   execdir=@libexecdir@ 
-elif test -d "$basedir/libexec"
-then
-  bindir="$basedir/bin"
-  execdir="$basedir/libexec"
 else
   bindir="$basedir/bin"
+if test -x "$basedir/libexec/mysqld"
+then
+  execdir="$basedir/libexec"
+elif test -x "@libexecdir@/mysqld"
+then
+  execdir="@libexecdir@"
+else
   execdir="$basedir/bin"
+fi
 fi
 
 mdata=$ldata/mysql

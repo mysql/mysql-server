@@ -36,7 +36,7 @@ while ($#ARGV >= $[ && $ARGV[0] =~ /^-/) {
     {
 	$opt_a = 1;
     }
-    elsif ($ARGV[0] eq "-?" || $ARGV[0] eq "-I")
+    elsif ($ARGV[0] eq "-?" || $ARGV[0] eq "-I" || $ARGV[0] eq "--help")
     {
 	&usage;
     }
@@ -107,7 +107,7 @@ EOF
 
 sub usage {
     print <<EOF;
-Usage:   $0 [-signal] [-?Ift] pattern
+Usage:   $0 [-signal] [-?Ift] [--help] pattern
 Options: -I or -? "info"  -f "force" -t "test".
 
 Version 1.0
