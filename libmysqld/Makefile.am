@@ -54,7 +54,7 @@ sqlsources = convert.cc derror.cc field.cc field_conv.cc filesort.cc \
 	sql_rename.cc sql_repl.cc sql_select.cc sql_show.cc \
 	sql_string.cc sql_table.cc sql_test.cc sql_udf.cc \
 	sql_update.cc sql_yacc.cc table.cc thr_malloc.cc time.cc \
-	unireg.cc uniques.cc stacktrace.c sql_unions.cc hash_filo.cc
+	unireg.cc uniques.cc stacktrace.c sql_union.cc hash_filo.cc
 
 ## XXX: we should not have to duplicate info from the sources list
 sqlobjects = convert.lo derror.lo field.lo field_conv.lo filesort.lo \
@@ -72,7 +72,7 @@ sqlobjects = convert.lo derror.lo field.lo field_conv.lo filesort.lo \
 	sql_rename.lo sql_repl.lo sql_select.lo sql_show.lo \
 	sql_string.lo sql_table.lo sql_test.lo sql_udf.lo \
 	sql_update.lo sql_yacc.lo table.lo thr_malloc.lo time.lo \
-	unireg.lo uniques.lo stacktrace.lo sql_unions.lo hash_filo.lo
+	unireg.lo uniques.lo stacktrace.lo sql_union.lo hash_filo.lo
 
 EXTRA_DIST = lib_vio.c
 

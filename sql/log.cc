@@ -653,7 +653,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
     THD *thd=event_info->thd;
     const char* db = event_info->get_db();
 #ifdef USING_TRANSACTIONS    
-    IO_CACHE *file = ((event_info->cache_stmt && thd) ?
+    IO_CACHE *file = ((event_info->get_cache_stmt() && thd) ?
 		      &thd->transaction.trans_log :
 		      &log_file);
 #else

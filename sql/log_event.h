@@ -210,6 +210,7 @@ public:
     { return 0; }
   virtual Log_event_type get_type_code() = 0;
   virtual bool is_valid() = 0;
+  virtual bool get_cache_stmt() { return 0; }
   Log_event(const char* buf);
 #ifndef MYSQL_CLIENT  
   Log_event(THD* thd_arg, uint16 flags_arg = 0);
@@ -277,6 +278,7 @@ public:
   const char* get_db() { return db; }
   void pack_info(String* packet);
   int exec_event(struct st_master_info* mi);
+  bool get_cache_stmt() { return cache_stmt; }
 #endif
 
   Query_log_event(const char* buf, int event_len);
