@@ -151,7 +151,7 @@ ndb_mgm_create_handle()
   h->socket          = NDB_INVALID_SOCKET;
   h->read_timeout    = 50000;
   h->write_timeout   = 100;
-  h->cfg_i           = 0;
+  h->cfg_i           = -1;
 
   strncpy(h->last_error_desc, "No error", NDB_MGM_MAX_ERR_DESC_SIZE);
 
@@ -178,7 +178,7 @@ ndb_mgm_set_connectstring(NdbMgmHandle handle, const char * mgmsrv)
     SET_ERROR(handle, NDB_MGM_ILLEGAL_CONNECT_STRING, "");
     return -1;
   }
-  handle->cfg_i= 0;
+  handle->cfg_i= -1;
   return 0;
 }
 
@@ -191,6 +191,10 @@ ndb_mgm_destroy_handle(NdbMgmHandle * handle)
 {
   if(!handle)
     return;
+  /**
+   * important! only disconnect if connected
+   * other code relies on this
+   */
   if((* handle)->connected){
     ndb_mgm_disconnect(* handle);
   }
@@ -1748,13 +1752,19 @@ ndb_mgm_get_configuration_nodeid(NdbMgmHandle handle)
 extern "C"
 int ndb_mgm_get_connected_port(NdbMgmHandle handle)
 {
-  return handle->cfg.ids[handle->cfg_i].port;
+  if (handle->cfg_i >= 0)
+    return handle->cfg.ids[handle->cfg_i].port;
+  else
+    return 0;
 }
 
 extern "C"
 const char *ndb_mgm_get_connected_host(NdbMgmHandle handle)
 {
-  return handle->cfg.ids[handle->cfg_i].name.c_str();
+  if (handle->cfg_i >= 0)
+    return handle->cfg.ids[handle->cfg_i].name.c_str();
+  else
+    return 0;
 }
 
 extern "C"
