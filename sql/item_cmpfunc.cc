@@ -1956,7 +1956,7 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   char buff[sizeof(char*)];			// Max local vars in function
 #endif
   not_null_tables_cache= used_tables_cache= 0;
-  const_item_cache= 0;
+  const_item_cache= 1;
   /*
     and_table_cache is the value that Item_cond_or() returns for
     not_null_tables()
@@ -2013,7 +2013,7 @@ void Item_cond::split_sum_func(Item **ref_pointer_array, List<Item> &fields)
   List_iterator<Item> li(list);
   Item *item;
   used_tables_cache=0;
-  const_item_cache=0;
+  const_item_cache=1;
   while ((item=li++))
   {
     if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
