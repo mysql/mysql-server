@@ -80,6 +80,11 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token NEXT_SYM
 %token PREV_SYM
 %token SQL_CALC_FOUND_ROWS
+%token QUERIES
+%token MQH_SYM
+%token PER_SYM
+%token MAXIMUM
+
 
 %token	EQ
 %token	EQUAL_SYM
@@ -556,7 +561,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	opt_outer table_list table_name opt_option opt_place opt_low_priority
 	opt_attribute opt_attribute_list attribute column_list column_list_id
 	opt_column_list grant_privileges opt_table user_list grant_option
-	grant_privilege grant_privilege_list
+	grant_privilege grant_privilege_list mqh_option
 	flush_options flush_option insert_lock_option replace_lock_option
 	equal optional_braces opt_key_definition key_usage_list2
 	opt_mi_check_type opt_to mi_check_types normal_join
@@ -2025,7 +2030,12 @@ opt_order_clause:
 	| order_clause
 
 order_clause:
-	ORDER_SYM BY { Select->sort_default=1; } order_list
+	ORDER_SYM BY 
+        { 
+	  if (Lex->sql_command==SQLCOM_MULTI_UPDATE)
+	    YYABORT;
+	  Select->sort_default=1; 
+	} order_list
 
 order_list:
 	order_list ',' order_ident order_dir
@@ -2061,6 +2071,8 @@ limit_clause:
 delete_limit_clause:
 	/* empty */
 	{
+	  if (Lex->sql_command==SQLCOM_MULTI_UPDATE)
+	    YYABORT;
 	  Select->select_limit= HA_POS_ERROR;
 	}
 	| LIMIT ulonglong_num
@@ -2290,11 +2302,7 @@ values:
 /* Update rows in a table */
 
 update:
-	UPDATE_SYM opt_low_priority opt_ignore table_name
-        SET update_list 
-        where_clause 
-        opt_order_clause
-        delete_limit_clause
+        UPDATE_SYM 
 	{ 
 	  LEX *lex=Lex;
           lex->sql_command = SQLCOM_UPDATE;
@@ -2302,6 +2310,7 @@ update:
           lex->select->order_list.first=0;
           lex->select->order_list.next= (byte**) &lex->select->order_list.first;
         }
+        opt_low_priority opt_ignore join_table_list SET update_list where_clause opt_order_clause delete_limit_clause
 
 update_list:
 	update_list ',' simple_ident equal expr
@@ -2346,6 +2355,24 @@ single_multi:
             lex->auxilliary_table_list.next= (byte**) &(lex->auxilliary_table_list.first);
           }
           FROM 
+          {
+	    LEX *lex=Lex;
+	    lex->auxilliary_table_list=lex->select_lex.table_list;
+	    lex->select->table_list.elements=0; 
+            lex->select->table_list.first=0;
+            lex->select->table_list.next= (byte**) &(lex->select->table_list.first);
+	  } join_table_list where_clause
+        | FROM  table_wild_list
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command =  SQLCOM_MULTI_DELETE;
+            mysql_init_select(lex);
+            lex->select->select_limit=HA_POS_ERROR;
+            lex->auxilliary_table_list.elements=0; 
+            lex->auxilliary_table_list.first=0;
+            lex->auxilliary_table_list.next= (byte**) &(lex->auxilliary_table_list.first);
+          }
+          USING 
           {
 	    LEX *lex=Lex;
 	    lex->auxilliary_table_list=lex->select_lex.table_list;
@@ -3267,9 +3294,10 @@ grant:
 	  lex->select->db=0;
 	  lex->ssl_type=SSL_TYPE_NONE;
 	  lex->ssl_cipher=lex->x509_subject=lex->x509_issuer=0;
+	  lex->mqh=0;	
 	}
 	grant_privileges ON opt_table TO_SYM user_list
-	require_clause grant_option 
+	require_clause grant_option mqh_option 
 
 grant_privileges:
 	grant_privilege_list {}
@@ -3459,6 +3487,19 @@ require_clause: /* empty */
 grant_option:
 	/* empty */ {}
 	| WITH GRANT OPTION { Lex->grant |= GRANT_ACL;}
+
+mqh_option:
+	/* empty */ {}
+        | AND WITH short_or_long_one EQ NUM
+        { 
+	  Lex->mqh=atoi($5.str);
+	  if (Lex->mqh > 65535)
+	    YYABORT;
+	}
+
+short_or_long_one:
+	MQH_SYM
+        | MAXIMUM QUERIES PER_SYM HOUR_SYM
 
 begin:
 	BEGIN_SYM   { Lex->sql_command = SQLCOM_BEGIN;} opt_work

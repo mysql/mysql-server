@@ -425,3 +425,5 @@ vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
 libmysqld/mf_iocache.cc
+50
+sql/new.cc

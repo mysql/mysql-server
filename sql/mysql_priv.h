@@ -492,7 +492,7 @@ int write_record(TABLE *table,COPY_INFO *info);
 /* bits set in manager_status */
 #define MANAGER_BERKELEY_LOG_CLEANUP    (1L << 0)
 extern ulong volatile manager_status;
-extern bool volatile manager_thread_in_use;
+extern bool volatile manager_thread_in_use, mqh_used;
 extern pthread_t manager_thread;
 extern pthread_mutex_t LOCK_manager;
 extern pthread_cond_t COND_manager;
