@@ -210,20 +210,10 @@ public:
 
 class Item_bool_rowready_func2 :public Item_bool_func2
 {
-  Item *orig_a, *orig_b; /* propagate_const can change parameters */
 public:
-  Item_bool_rowready_func2(Item *a,Item *b) :Item_bool_func2(a,b),
-    orig_a(a), orig_b(b)
+  Item_bool_rowready_func2(Item *a, Item *b) :Item_bool_func2(a, b)
   {
     allowed_arg_cols= a->cols();
-  }
-  void cleanup()
-  {
-    DBUG_ENTER("Item_bool_rowready_func2::cleanup");
-    Item_bool_func2::cleanup();
-    tmp_arg[0]= orig_a;
-    tmp_arg[1]= orig_b;
-    DBUG_VOID_RETURN;
   }
   Item *neg_transformer(THD *thd);
   virtual Item *negated_item();
