@@ -2522,7 +2522,7 @@ static int stmt_read_row_unbuffered(MYSQL_STMT *stmt, unsigned char **row)
   if (mysql->status != MYSQL_STATUS_GET_RESULT)
   {
     set_stmt_error(stmt, stmt->unbuffered_fetch_cancelled ?
-                   CR_FETCH_CANCELLED : CR_COMMANDS_OUT_OF_SYNC,
+                   CR_FETCH_CANCELED : CR_COMMANDS_OUT_OF_SYNC,
                    unknown_sqlstate);
     goto error;
   }
