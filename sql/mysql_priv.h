@@ -555,13 +555,14 @@ extern ulong keybuff_size,sortbuff_size,max_item_sort_length,table_cache_size,
 	     max_insert_delayed_threads, max_user_connections,
 	     long_query_count,net_wait_timeout,net_interactive_timeout,
 	     net_read_timeout,net_write_timeout,
-	     what_to_log,flush_time,
+	     what_to_log,flush_time,opt_sql_mode,
 	     max_tmp_tables,max_heap_table_size,query_buff_size,
 	     lower_case_table_names,thread_stack,thread_stack_min,
-	     binlog_cache_size, max_binlog_cache_size;
+	     binlog_cache_size, max_binlog_cache_size,record_rnd_cache_size;
 extern ulong specialflag, current_pid;
 extern bool low_priority_updates, using_update_log;
-extern bool opt_sql_bin_update, opt_safe_show_db, opt_warnings;
+extern bool opt_sql_bin_update, opt_safe_show_db, opt_warnings,
+					     opt_safe_user_create;
 extern char language[LIBLEN],reg_ext[FN_EXTLEN],blob_newline;
 extern const char **errmesg;			/* Error messages */
 extern const char *default_tx_isolation_name;

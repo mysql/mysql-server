@@ -218,3 +218,4 @@
 "Error de %s: %-128%",
 "Wrong usage of %s and %s",
 "The used SELECT statements have a different number of columns",
+"%-.32s@%-.64s is not allowed to create new users",
