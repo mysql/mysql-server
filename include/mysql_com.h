@@ -129,7 +129,7 @@ typedef struct st_vio Vio;
 #define MAX_BLOB_WIDTH		8192	/* Default width for blob */
 
 typedef struct st_net {
-#ifndef EMBEDDED_LIBRARY
+#if !defined(CHECK_EMBEDDED_DIFFERENCES) || !defined(EMBEDDED_LIBRARY)
   Vio* vio;
   unsigned char *buff,*buff_end,*write_pos,*read_pos;
   my_socket fd;					/* For Perl DBI/dbd */
@@ -233,7 +233,8 @@ void	my_net_local_init(NET *net);
 void	net_end(NET *net);
 void	net_clear(NET *net);
 my_bool net_realloc(NET *net, unsigned long length);
-#ifndef EMBEDDED_LIBRARY
+
+#ifndef EMBEDDED_LIBRARY /* To be removed by HF */
 my_bool	net_flush(NET *net);
 #else
 #define net_flush(A)
@@ -338,6 +339,7 @@ void my_thread_end(void);
 #ifdef _global_h
 ulong STDCALL net_field_length(uchar **packet);
 my_ulonglong net_field_length_ll(uchar **packet);
+char *net_store_length(char *pkg, ulonglong length);
 #endif
 
 #ifdef __cplusplus
