@@ -2162,8 +2162,8 @@ static void check_data_home(const char *path)
 
 
 /*
-  All global error messages are sent here where the first one is stored for
-  the client
+  All global error messages are sent here where the first one is stored
+  for the client
 */
 
 
@@ -2199,7 +2199,7 @@ extern "C" int my_message_sql(uint error, const char *str, myf MyFlags)
                            (thd->lex->current_select ?
                             thd->lex->current_select->no_error : 0),
                            (int) thd->is_fatal_error));
-                           
+
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, error, str);
     }
     else
@@ -5601,7 +5601,7 @@ static void mysql_init_variables(void)
   opt_log= opt_update_log= opt_bin_log= opt_slow_log= 0;
   opt_disable_networking= opt_skip_show_db=0;
   opt_logname= opt_update_logname= opt_binlog_index_name= opt_slow_logname= 0;
-  opt_tc_log_file= "mysqld-tc.log"; // no hostname in tc_log file name !
+  opt_tc_log_file= "tc.log";      // no hostname in tc_log file name !
   opt_secure_auth= 0;
   opt_bootstrap= opt_myisam_log= 0;
   mqh_used= 0;
