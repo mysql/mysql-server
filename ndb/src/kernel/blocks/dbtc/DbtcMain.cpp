@@ -5991,7 +5991,7 @@ void Dbtc::timeOutLoopStartLab(Signal* signal, Uint32 api_con_ptr)
     Uint32 api_timer= getApiConTimer(api_con_ptr);
     jam();
     if (api_timer != 0) {
-      time_out_value= time_out_param + (api_con_ptr & 31);
+      time_out_value= time_out_param + (api_con_ptr & mask_value);
       time_passed= tc_timer - api_timer;
       if (time_passed > time_out_value) {
         jam();
