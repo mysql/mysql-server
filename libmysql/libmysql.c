@@ -536,7 +536,8 @@ char* getlogin(void);
 /* default to "root" on NetWare */
 static void read_user_name(char *name)
 {
-  (void)strmake(name,"root", USERNAME_LENGTH);
+  char *str=getenv("USER");
+  strmake(name, str ? str : "UNKNOWN_USER", USERNAME_LENGTH);
 }
 
 #elif !defined(MSDOS) && ! defined(VMS) && !defined(__WIN__) && !defined(OS2)
@@ -1427,7 +1428,7 @@ mysql_init(MYSQL *mysql)
     outside program.
 */
 
-void STDCALL mysql_once_init(void)
+void mysql_once_init(void)
 {
   if (!mysql_client_init)
   {

@@ -475,8 +475,7 @@ public:
       if (!(used_tables_cache=args[0]->used_tables()))
       {
 	/* Remember if the value is always NULL or never NULL */
-	args[0]->val();
-	cached_value= args[0]->null_value ? (longlong) 1 : (longlong) 0;
+	cached_value= (longlong) args[0]->is_null();
       }
     }
   }

@@ -1702,6 +1702,9 @@ print_table_data_xml(MYSQL_RES *result)
 {
   MYSQL_ROW   cur;
   MYSQL_FIELD *fields;
+#ifdef __NETWARE__
+  uint		lines= 0;
+#endif
 
   mysql_field_seek(result,0);
 
