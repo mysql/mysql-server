@@ -12240,7 +12240,7 @@ static void test_truncation()
 
   /* int -> float: truncation, not enough bits in float */
   DIE_UNLESS(++bind < bind_array + bind_count);
-  /* do nothing: due to a gcc bug result here is not predictable */
+  DIE_UNLESS(*bind->error);
 
   /* int -> double: no truncation */
   DIE_UNLESS(++bind < bind_array + bind_count);
