@@ -675,9 +675,9 @@ manager_launch()
   ident=$1
   shift
   if [ $USE_MANAGER = 0 ] ; then
-   $@  >$CUR_MYERR 2>&1  &
-   sleep 2 #hack
-   return
+    $@  >$CUR_MYERR 2>&1  &
+    sleep 2 #hack
+    return
   fi
   $MYSQL_MANAGER_CLIENT $MANAGER_QUIET_OPT --user=$MYSQL_MANAGER_USER \
    --password=$MYSQL_MANAGER_PW  --port=$MYSQL_MANAGER_PORT <<EOF
@@ -687,7 +687,7 @@ set_exec_stderr $ident $CUR_MYERR
 set_exec_con $ident root localhost $CUR_MYSOCK
 start_exec $ident $START_WAIT_TIMEOUT
 EOF
- abort_if_failed "Could not execute manager command"
+  abort_if_failed "Could not execute manager command"
 }
 
 manager_term()
@@ -887,13 +887,23 @@ start_slave()
      "gdb -x $GDB_SLAVE_INIT" $SLAVE_MYSQLD
   elif [ x$DO_GDB = x1 ]
   then
-    $ECHO "set args $slave_args" > $GDB_SLAVE_INIT
     if [ x$MANUAL_GDB = x1 ]
     then
+      $ECHO "set args $slave_args" > $GDB_SLAVE_INIT
       echo "To start gdb for the slave, type in another window:"
       echo "cd $CWD ; gdb -x $GDB_SLAVE_INIT $SLAVE_MYSQLD"
       wait_for_slave=1500
     else
+      ( $ECHO set args $slave_args;
+      if [ $USE_MANAGER = 0 ] ; then
+    cat <<EOF
+b mysql_parse
+commands 1
+disa 1
+end
+r
+EOF
+      fi )  > $GDB_SLAVE_INIT
       manager_launch $slave_ident $XTERM -display $DISPLAY -title "Slave" -e \
       gdb -x $GDB_SLAVE_INIT $SLAVE_MYSQLD
     fi

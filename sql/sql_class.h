@@ -60,48 +60,49 @@ class Log_event;
 class MYSQL_LOG {
  private:
   pthread_mutex_t LOCK_log, LOCK_index;
+  pthread_cond_t update_cond;
+  ulonglong bytes_written;
   time_t last_time,query_start;
   IO_CACHE log_file;
   File index_file;
   char *name;
-  volatile enum_log_type log_type;
   char time_buff[20],db[NAME_LEN+1];
   char log_file_name[FN_REFLEN],index_file_name[FN_REFLEN];
-  bool write_error,inited;
-  uint file_id; // current file sequence number for load data infile
-  // binary logging
-  bool no_rotate; // for binlog - if log name can never change
-  // we should not try to rotate it or write any rotation events
-  // the user should use FLUSH MASTER instead of FLUSH LOGS for
-  // purging
+  // current file sequence number for load data infile binary logging
+  uint file_id;
+  uint open_count;				// For replication
+  /*
+    For binlog - if log name can never change we should not try to rotate it
+    or write any rotation events. The user should use FLUSH MASTER instead
+    of FLUSH LOGS for purging.
+  */
+  volatile enum_log_type log_type;
   enum cache_type io_cache_type;
+  bool write_error,inited;
+  bool no_rotate;
   bool need_start_event;
-  pthread_cond_t update_cond;
   bool no_auto_events; // for relay binlog
-  ulonglong bytes_written;
   friend class Log_event;
 
 public:
   MYSQL_LOG();
   ~MYSQL_LOG();
-  pthread_mutex_t* get_log_lock() { return &LOCK_log; }
   void reset_bytes_written()
-    {
-      bytes_written = 0;
-    }
+  {
+    bytes_written = 0;
+  }
   void harvest_bytes_written(ulonglong* counter)
-    {
+  {
 #ifndef DBUG_OFF
-      char buf1[22],buf2[22];
+    char buf1[22],buf2[22];
 #endif	
-      DBUG_ENTER("harvest_bytes_written");
-      (*counter)+=bytes_written;
-      DBUG_PRINT("info",("counter=%s,bytes_written=%s", llstr(*counter,buf1),
-		  llstr(bytes_written,buf2)));
-      bytes_written=0;
-      DBUG_VOID_RETURN;
-    }
-  IO_CACHE* get_log_file() { return &log_file; }
+    DBUG_ENTER("harvest_bytes_written");
+    (*counter)+=bytes_written;
+    DBUG_PRINT("info",("counter: %s  bytes_written: %s", llstr(*counter,buf1),
+		       llstr(bytes_written,buf2)));
+    bytes_written=0;
+    DBUG_VOID_RETURN;
+  }
   void signal_update() { pthread_cond_broadcast(&update_cond);}
   void wait_for_update(THD* thd);
   void set_need_start_event() { need_start_event = 1; }
@@ -135,8 +136,8 @@ public:
   int purge_logs(THD* thd, const char* to_log);
   int purge_first_log(struct st_relay_log_info* rli); 
   int reset_logs(THD* thd);
-  void close(bool exiting = 0); // if we are exiting, we also want to close the
-  // index file
+  // if we are exiting, we also want to close the index file
+  void close(bool exiting = 0);
 
   // iterating through the log index file
   int find_first_log(LOG_INFO* linfo, const char* log_name,
@@ -146,11 +147,15 @@ public:
   uint next_file_id();
 
   inline bool is_open() { return log_type != LOG_CLOSED; }
-  char* get_index_fname() { return index_file_name;}
-  char* get_log_fname() { return log_file_name; }
-  void lock_index() { pthread_mutex_lock(&LOCK_index);}
-  void unlock_index() { pthread_mutex_unlock(&LOCK_index);}
-  File get_index_file() { return index_file;}
+  inline char* get_index_fname() { return index_file_name;}
+  inline char* get_log_fname() { return log_file_name; }
+  inline pthread_mutex_t* get_log_lock() { return &LOCK_log; }
+  inline IO_CACHE* get_log_file() { return &log_file; }
+
+  inline void lock_index() { pthread_mutex_lock(&LOCK_index);}
+  inline void unlock_index() { pthread_mutex_unlock(&LOCK_index);}
+  inline File get_index_file() { return index_file;}
+  inline uint32 get_open_count() { return open_count; }
 };
 
 /* character conversion tables */

@@ -3472,12 +3472,12 @@ static struct my_option my_long_options[] =
   {"query_cache_limit", OPT_QUERY_CACHE_LIMIT,
    "Don't cache results that are bigger than this.",
    (gptr*) &query_cache_limit, (gptr*) &query_cache_limit, 0, GET_ULONG,
-   REQUIRED_ARG, 1024*1024L, 0, ULONG_MAX, 0, 1, 0},
+   REQUIRED_ARG, 1024*1024L, 0, (longlong) ULONG_MAX, 0, 1, 0},
 #endif /*HAVE_QUERY_CACHE*/
   {"query_cache_size", OPT_QUERY_CACHE_SIZE,
    "The memory allocated to store results from old queries.",
    (gptr*) &query_cache_size, (gptr*) &query_cache_size, 0, GET_ULONG,
-   REQUIRED_ARG, 0, 0, ULONG_MAX, 0, 1, 0},
+   REQUIRED_ARG, 0, 0, (longlong) ULONG_MAX, 0, 1, 0},
 #ifdef HAVE_QUERY_CACHE
   {"query_cache_startup_type", OPT_QUERY_CACHE_STARTUP_TYPE,
    "0 = OFF = Don't cache or retrieve results. 1 = ON = Cache all results except SELECT SQL_NO_CACHE ... queries. 2 = DEMAND = Cache only SELECT SQL_CACHE ... queries.",
@@ -3497,7 +3497,7 @@ static struct my_option my_long_options[] =
   {"relay_log_space_limit", OPT_RELAY_LOG_SPACE_LIMIT,
    "Undocumented", (gptr*) &relay_log_space_limit,
    (gptr*) &relay_log_space_limit, 0, GET_ULONG, REQUIRED_ARG, 0L, 0L,
-   ULONG_MAX, 0, 1, 0},
+   (longlong) ULONG_MAX, 0, 1, 0},
   {"slave_net_timeout", OPT_SLAVE_NET_TIMEOUT,
    "Number of seconds to wait for more data from a master/slave connection before aborting the read.",
    (gptr*) &slave_net_timeout, (gptr*) &slave_net_timeout, 0,

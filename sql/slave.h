@@ -84,18 +84,9 @@ typedef struct st_relay_log_info
   volatile my_off_t master_log_pos;
 
   /*
-    current offset in the relay log.
-    pending - in some cases we do not increment offset immediately after
-    processing an event, because the following event needs to be processed
-    atomically together with this one ( so far, there is only one type of
-    such event - Intvar_event that sets auto_increment value). However, once
-    both events have been processed, we need to increment by the cumulative
-    offset. pending stored the extra offset to be added to the position.
+    Protected with internal locks.
+    Must get data_lock when resetting the logs.
   */
-  ulonglong relay_log_pos, pending;
-
-  // protected with internal locks
-  // must get data_lock when resetting the logs
   MYSQL_LOG relay_log;
   LOG_INFO linfo;
   IO_CACHE cache_buf,*cur_log;
@@ -125,9 +116,6 @@ typedef struct st_relay_log_info
   */
   pthread_cond_t start_cond, stop_cond, data_cond;
 
-  // if not set, the value of other members of the structure are undefined
-  bool inited;
-
   // parent master info structure
   struct st_master_info *mi;
 
@@ -135,9 +123,19 @@ typedef struct st_relay_log_info
     Needed to deal properly with cur_log getting closed and re-opened with
     a different log under our feet
   */
-  int cur_log_init_count;
+  uint32 cur_log_old_open_count;
   
-  volatile bool abort_slave, slave_running;
+  /*
+    current offset in the relay log.
+    pending - in some cases we do not increment offset immediately after
+    processing an event, because the following event needs to be processed
+    atomically together with this one ( so far, there is only one type of
+    such event - Intvar_event that sets auto_increment value). However, once
+    both events have been processed, we need to increment by the cumulative
+    offset. pending stored the extra offset to be added to the position.
+  */
+  ulonglong relay_log_pos, pending;
+  ulonglong log_space_limit,log_space_total;
 
   /*
     Needed for problems when slave stops and we want to restart it
@@ -145,45 +143,47 @@ typedef struct st_relay_log_info
     errors, and have been manually applied by DBA already.
   */
   volatile uint32 slave_skip_counter;
+  pthread_mutex_t log_space_lock;
+  pthread_cond_t log_space_cond;
+  THD * sql_thd;
+  int last_slave_errno;
 #ifndef DBUG_OFF
   int events_till_abort;
 #endif  
-  int last_slave_errno;
   char last_slave_error[MAX_SLAVE_ERRMSG];
-  THD* sql_thd;
+
+  // if not set, the value of other members of the structure are undefined
+  bool inited;
+  volatile bool abort_slave, slave_running;
   bool log_pos_current;
   bool abort_pos_wait;
   bool skip_log_purge;
-  ulonglong log_space_limit,log_space_total;
-  pthread_mutex_t log_space_lock;
-  pthread_cond_t log_space_cond;
   
-  st_relay_log_info():info_fd(-1),cur_log_fd(-1),inited(0),
-		      cur_log_init_count(0),
-		      abort_slave(0),slave_running(0),
-		      log_pos_current(0),abort_pos_wait(0),
-		      skip_log_purge(0)
-    {
-      relay_log_name[0] = master_log_name[0] = 0;
-      bzero(&info_file,sizeof(info_file));
-      pthread_mutex_init(&run_lock, MY_MUTEX_INIT_FAST);
-      pthread_mutex_init(&data_lock, MY_MUTEX_INIT_FAST);
-      pthread_mutex_init(&log_space_lock, MY_MUTEX_INIT_FAST);
-      pthread_cond_init(&data_cond, NULL);
-      pthread_cond_init(&start_cond, NULL);
-      pthread_cond_init(&stop_cond, NULL);
-      pthread_cond_init(&log_space_cond, NULL);
-    }
+  st_relay_log_info()
+  :info_fd(-1),cur_log_fd(-1), cur_log_old_open_count(0),
+   inited(0), abort_slave(0), slave_running(0), log_pos_current(0),
+   abort_pos_wait(0), skip_log_purge(0)
+  {
+    relay_log_name[0] = master_log_name[0] = 0;
+    bzero(&info_file,sizeof(info_file));
+    pthread_mutex_init(&run_lock, MY_MUTEX_INIT_FAST);
+    pthread_mutex_init(&data_lock, MY_MUTEX_INIT_FAST);
+    pthread_mutex_init(&log_space_lock, MY_MUTEX_INIT_FAST);
+    pthread_cond_init(&data_cond, NULL);
+    pthread_cond_init(&start_cond, NULL);
+    pthread_cond_init(&stop_cond, NULL);
+    pthread_cond_init(&log_space_cond, NULL);
+  }
   ~st_relay_log_info()
-    {
-      pthread_mutex_destroy(&run_lock);
-      pthread_mutex_destroy(&data_lock);
-      pthread_mutex_destroy(&log_space_lock);
-      pthread_cond_destroy(&data_cond);
-      pthread_cond_destroy(&start_cond);
-      pthread_cond_destroy(&stop_cond);
-      pthread_cond_destroy(&log_space_cond);
-    }
+  {
+     pthread_mutex_destroy(&run_lock);
+     pthread_mutex_destroy(&data_lock);
+     pthread_mutex_destroy(&log_space_lock);
+     pthread_cond_destroy(&data_cond);
+     pthread_cond_destroy(&start_cond);
+     pthread_cond_destroy(&stop_cond);
+     pthread_cond_destroy(&log_space_cond);
+   }
   inline void inc_pending(ulonglong val)
   {
     pending += val;
@@ -215,40 +215,33 @@ typedef struct st_relay_log_info
   int wait_for_pos(THD* thd, String* log_name, ulonglong log_pos);
 } RELAY_LOG_INFO;
 
-/*
-  repopen_relay_log() is called when we notice that the current "hot" log
-  got rotated under our feet
-*/
-
-IO_CACHE* reopen_relay_log(RELAY_LOG_INFO* rli, const char** errmsg);
 Log_event* next_event(RELAY_LOG_INFO* rli);
-
 
 /*
   st_master_info contains information about how to connect to a master,
-   current master log name, and current log offset, as well as misc
-   control variables
+  current master log name, and current log offset, as well as misc
+  control variables
 
-   st_master_info is initialized once from the master.info file if such
-   exists. Otherwise, data members corresponding to master.info fields are
-   initialized with defaults specified by master-* options. The initialization
-   is done through init_master_info() call.
+  st_master_info is initialized once from the master.info file if such
+  exists. Otherwise, data members corresponding to master.info fields
+  are initialized with defaults specified by master-* options. The
+  initialization is done through init_master_info() call.
 
-   The format of master.info file:
+  The format of master.info file:
 
-   log_name
-   log_pos
-   master_host
-   master_user
-   master_pass
-   master_port
-   master_connect_retry
+  log_name
+  log_pos
+  master_host
+  master_user
+  master_pass
+  master_port
+  master_connect_retry
 
-   To write out the contents of master.info file to disk ( needed every
-   time we read and queue data from the master ), a call to
-   flush_master_info() is required.
+  To write out the contents of master.info file to disk ( needed every
+  time we read and queue data from the master ), a call to
+  flush_master_info() is required.
 
-   To clean up, call end_master_info()
+  To clean up, call end_master_info()
 */
 
    
