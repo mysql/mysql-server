@@ -2925,4 +2925,23 @@ Dblqh::ScanRecord::check_scan_batch_completed() const
     (max_bytes > 0 && (m_curr_batch_size_bytes >= max_bytes));
 }
 
+inline
+void
+Dblqh::i_get_acc_ptr(ScanRecord* scanP, Uint32* &acc_ptr, Uint32 index)
+{
+  if (index == 0) {
+    acc_ptr= (Uint32*)&scanP->scan_acc_op_ptr[0];
+  } else {
+    Uint32 attr_buf_index, attr_buf_rec;
+    
+    AttrbufPtr regAttrPtr;
+    jam();
+    attr_buf_rec= (index + 31) / 32;
+    attr_buf_index= (index - 1) & 31;
+    regAttrPtr.i= scanP->scan_acc_op_ptr[attr_buf_rec];
+    ptrCheckGuard(regAttrPtr, cattrinbufFileSize, attrbuf);
+    acc_ptr= (Uint32*)&regAttrPtr.p->attrbuf[attr_buf_index];
+  }
+}
+
 #endif
