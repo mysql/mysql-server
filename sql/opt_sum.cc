@@ -38,7 +38,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
   table_map removed_tables=0;
   Item *item;
   COND *org_conds= conds;
-  
+
   /* Add all ON conditions to WHERE condition */
   for (TABLE_LIST *tl=tables; tl ; tl= tl->next)
   {
@@ -165,10 +165,9 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
 	    error=table->file->index_last(table->record[0]) !=0;
 	  else
 	  {
-	    (void)table->file->index_read(table->record[0], key_buff,
+	    error = table->file->index_read(table->record[0], key_buff,
 					  ref.key_length,
-					  HA_READ_AFTER_KEY);
-	    error=table->file->index_prev(table->record[0]) ||
+					  HA_READ_PREFIX_LAST) ||
 	      key_cmp(table,key_buff,ref.key,ref.key_length);
 	  }
 	  if (table->key_read)
