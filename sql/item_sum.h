@@ -255,15 +255,15 @@ public:
 
 variance(a) =
 
-= sqrt ( sum (ai - avg(a))^2 / count(a) )
-= sqrt ( sum (ai^2 - 2*ai*avg(a) + avg(a)^2) / count(a) )
-= sqrt ( (sum(ai^2) - sum(2*ai*avg(a)) + sum(avg(a)^2))/count(a) ) = 
-= sqrt ( (sum(ai^2) - 2*avg(a)*sum(a) + count(a)*avg(a)^2)/count(a) ) = 
-= sqrt ( (sum(ai^2) - 2*sum(a)*sum(a)/count(a) + count(a)*sum(a)^2/count(a)^2 )/count(a) ) = 
-= sqrt ( (sum(ai^2) - 2*sum(a)^2/count(a) + sum(a)^2/count(a) )/count(a) ) = 
-= sqrt ( (sum(ai^2) - sum(a)^2/count(a))/count(a) )
+= sum (ai - avg(a))^2 / count(a) )
+=  sum (ai^2 - 2*ai*avg(a) + avg(a)^2) / count(a)
+=  (sum(ai^2) - sum(2*ai*avg(a)) + sum(avg(a)^2))/count(a) = 
+=  (sum(ai^2) - 2*avg(a)*sum(a) + count(a)*avg(a)^2)/count(a) = 
+=  (sum(ai^2) - 2*sum(a)*sum(a)/count(a) + count(a)*sum(a)^2/count(a)^2 )/count(a) = 
+=  (sum(ai^2) - 2*sum(a)^2/count(a) + sum(a)^2/count(a) )/count(a) = 
+=  (sum(ai^2) - sum(a)^2/count(a))/count(a)
 
- */
+*/
 
 class Item_sum_variance : public Item_sum_num
 {
@@ -293,6 +293,10 @@ public:
   enum Type type() const { return FIELD_STD_ITEM; }
   double val();
 };
+
+/*
+   standard_deviation(a) = sqrt(variance(a))
+*/
 
 class Item_sum_std :public Item_sum_variance
 {
