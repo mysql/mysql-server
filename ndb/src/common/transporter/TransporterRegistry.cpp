@@ -1497,7 +1497,7 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(SocketClient *sc)
   {
     char c[100];
     char *cs= &c[0];
-    int len= strlen(sc->get_server_name())+20;
+    unsigned len= strlen(sc->get_server_name())+20;
     if( len > sizeof(c) )
     {
       /*
