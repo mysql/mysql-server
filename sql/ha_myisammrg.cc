@@ -49,10 +49,10 @@ int ha_myisammrg::open(const char *name, int mode, uint test_if_locked)
   myrg_extrafunc(file, query_cache_invalidate_by_MyISAM_filename_ref);
   if (!(test_if_locked == HA_OPEN_WAIT_IF_LOCKED ||
 	test_if_locked == HA_OPEN_ABORT_IF_LOCKED))
-    myrg_extra(file,HA_EXTRA_NO_WAIT_LOCK);
+    myrg_extra(file,HA_EXTRA_NO_WAIT_LOCK,0);
   info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
   if (!(test_if_locked & HA_OPEN_WAIT_IF_LOCKED))
-    myrg_extra(file,HA_EXTRA_WAIT_LOCK);
+    myrg_extra(file,HA_EXTRA_WAIT_LOCK,0);
   if (table->reclength != mean_rec_length && mean_rec_length)
   {
     DBUG_PRINT("error",("reclength: %d  mean_rec_length: %d",
@@ -155,7 +155,7 @@ int ha_myisammrg::index_last(byte * buf)
 
 int ha_myisammrg::rnd_init(bool scan)
 {
-  return myrg_extra(file,HA_EXTRA_RESET);
+  return myrg_extra(file,HA_EXTRA_RESET,0);
 }
 
 int ha_myisammrg::rnd_next(byte *buf)
@@ -210,12 +210,25 @@ int ha_myisammrg::extra(enum ha_extra_function operation)
   if (operation == HA_EXTRA_FORCE_REOPEN ||
       operation == HA_EXTRA_PREPARE_FOR_DELETE)
     return 0;
-  return myrg_extra(file,operation);
+  return myrg_extra(file,operation,0);
 }
+
+
+/* To be used with WRITE_CACHE, EXTRA_CACHE and BULK_INSERT_BEGIN */
+
+int ha_myisammrg::extra_opt(enum ha_extra_function operation, ulong cache_size)
+{
+  if ((specialflag & SPECIAL_SAFE_MODE) &
+      (operation == HA_EXTRA_WRITE_CACHE ||
+       operation == HA_EXTRA_BULK_INSERT_BEGIN))
+    return 0;
+  return myrg_extra(file, operation, (void*) &cache_size);
+}
+
 
 int ha_myisammrg::reset(void)
 {
-  return myrg_extra(file,HA_EXTRA_RESET);
+  return myrg_extra(file,HA_EXTRA_RESET,0);
 }
 
 int ha_myisammrg::external_lock(THD *thd, int lock_type)

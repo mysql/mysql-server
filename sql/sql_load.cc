@@ -52,17 +52,21 @@ public:
   char unescape(char chr);
   int terminator(char *ptr,uint length);
   bool find_start_of_fields();
-  // we need to force cache close before destructor is invoked to log
-  // the last read block
+  /*
+    We need to force cache close before destructor is invoked to log
+    the last read block
+  */
   void end_io_cache()
   {
     ::end_io_cache(&cache);
     need_end_io_cache = 0;
   }
 
-  // either this method, or we need to make cache public
-  // arg must be set from mysql_load() since constructor does not see
-  // either the table or THD value
+  /*
+    Either this method, or we need to make cache public
+    Arg must be set from mysql_load() since constructor does not see
+    either the table or THD value
+  */
   void set_io_cache_arg(void* arg) { cache.arg = arg; }
 };
 
@@ -88,6 +92,10 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   char * db = table_list->db ? table_list->db : thd->db;
   bool using_transactions;
   DBUG_ENTER("mysql_load");
+
+#ifdef EMBEDDED_LIBRARY
+  read_file_from_client  = 0; //server is always in the same process 
+#endif
 
   if (escaped->length() > 1 || enclosed->length() > 1)
   {
@@ -216,7 +224,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     lf_info.handle_dup = handle_duplicates;
     lf_info.wrote_create_file = 0;
     lf_info.last_pos_in_file = HA_POS_ERROR;
-    read_info.set_io_cache_arg((void*)&lf_info);
+    read_info.set_io_cache_arg((void*) &lf_info);
   }
   restore_record(table,2);
 
@@ -238,8 +246,10 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     if (use_timestamp)
       table->time_stamp=0;
     table->next_number_field=table->found_next_number_field;
-    VOID(table->file->extra(HA_EXTRA_WRITE_CACHE));
-    VOID(table->file->extra(HA_EXTRA_BULK_INSERT_BEGIN));
+    VOID(table->file->extra_opt(HA_EXTRA_WRITE_CACHE,
+			    thd->variables.read_buff_size));
+    VOID(table->file->extra_opt(HA_EXTRA_BULK_INSERT_BEGIN,
+				thd->variables.bulk_insert_buff_size));
     if (handle_duplicates == DUP_IGNORE ||
 	handle_duplicates == DUP_REPLACE)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);

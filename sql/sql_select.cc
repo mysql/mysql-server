@@ -426,7 +426,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     goto err;
   }
   if (!(thd->options & OPTION_BIG_SELECTS) &&
-      join.best_read > (double) thd->max_join_size &&
+      join.best_read > (double) thd->variables.max_join_size &&
       !(select_options & SELECT_DESCRIBE))
   {						/* purecov: inspected */
     result->send_error(ER_TOO_BIG_SELECT,ER(ER_TOO_BIG_SELECT)); /* purecov: inspected */
@@ -4894,7 +4894,8 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       error=join->result->send_data(*join->fields);
     if (error)
       DBUG_RETURN(-1); /* purecov: inspected */
-    if (++join->send_records >= join->thd->select_limit && join->do_send_rows)
+    if (++join->send_records >= join->thd->select_limit &&
+	join->do_send_rows)
     {
       if (join->select_options & OPTION_FOUND_ROWS)
       {
@@ -4986,7 +4987,8 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	  join->send_records++;
 	  DBUG_RETURN(0);
 	}
-	if (!error && ++join->send_records >= join->thd->select_limit &&
+	if (!error &&
+	    ++join->send_records >= join->thd->select_limit &&
 	    join->do_send_rows)
 	{
 	  if (!(join->select_options & OPTION_FOUND_ROWS))
@@ -5776,7 +5778,7 @@ remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields, Item *having)
 
   if (!field_count)
   {						// only const items
-    join->thd->select_limit=1;			// Only send first row
+    join->thd->select_limit=1;	// Only send first row
     DBUG_RETURN(0);
   }
   Field **first_field=entry->field+entry->fields - field_count;

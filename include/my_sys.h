@@ -494,18 +494,6 @@ my_off_t my_b_append_tell(IO_CACHE* info);
 #define my_b_bytes_in_cache(info) (uint) (*(info)->current_end - \
 					  *(info)->current_pos)
 
-typedef struct st_changeable_var
-{
-  const char *name;			/* Name of variable */
-  long *varptr;				/* Pointer to variable */
-  long def_value,			/* Default value */
-       min_value,			/* Min allowed value */
-       max_value,			/* Max allowed value */
-       sub_size,			/* Subtract this from given value */
-       block_size;			/* Value should be a mult. of this */
-} CHANGEABLE_VAR;
-
-
 #include <my_alloc.h>
 
 	/* Prototypes for mysys and my_func functions */
@@ -647,7 +635,8 @@ extern int flush_write_cache(RECORD_CACHE *info);
 extern long my_clock(void);
 extern sig_handler sigtstp_handler(int signal_number);
 extern void handle_recived_signals(void);
-extern int init_key_cache(ulong use_mem,ulong leave_this_much_mem);
+extern int init_key_cache(ulong use_mem);
+extern int resize_key_cache(ulong use_mem);
 extern byte *key_cache_read(File file,my_off_t filepos,byte* buff,uint length,
 			    uint block_length,int return_buffer);
 extern int key_cache_write(File file,my_off_t filepos,byte* buff,uint length,
@@ -726,10 +715,6 @@ my_bool dynstr_append_mem(DYNAMIC_STRING *str, const char *append,
 extern my_bool dynstr_set(DYNAMIC_STRING *str, const char *init_str);
 extern my_bool dynstr_realloc(DYNAMIC_STRING *str, ulong additional_size);
 extern void dynstr_free(DYNAMIC_STRING *str);
-void set_all_changeable_vars(CHANGEABLE_VAR *vars);
-my_bool set_changeable_var(my_string str,CHANGEABLE_VAR *vars);
-my_bool set_changeable_varval(const char *var, ulong val,
-			      CHANGEABLE_VAR *vars);
 #ifdef HAVE_MLOCK
 extern byte *my_malloc_lock(uint length,myf flags);
 extern void my_free_lock(byte *ptr,myf flags);

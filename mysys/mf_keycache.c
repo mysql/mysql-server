@@ -53,6 +53,7 @@ typedef struct sec_link {
 
 
 static SEC_LINK *find_key_block(int file,my_off_t filepos,int *error);
+static int flush_all_key_blocks();
 
 	/* static variables in this file */
 static SEC_LINK *_my_block_root,**_my_hash_root,
@@ -76,11 +77,9 @@ static my_bool	_my_printed;
 	/* Returns blocks in use */
 	/* ARGSUSED */
 
-int init_key_cache(ulong use_mem,
-		   ulong leave_this_much_mem __attribute__((unused)))
+int init_key_cache(ulong use_mem)
 {
   uint blocks,length;
-  byte *extra_mem=0;
   DBUG_ENTER("init_key_cache");
 
   if (key_cache_inited && _my_disk_blocks > 0)
@@ -105,10 +104,6 @@ int init_key_cache(ulong use_mem,
   /* No use to have very few blocks */
   if (blocks >= 8 && _my_disk_blocks < 0)
   {
-#if !defined(HAVE_ALLOCA) && !defined(THREAD)
-    if ((extra_mem=my_malloc((uint) leave_this_much_mem,MYF(0))) == 0)
-      goto err;
-#endif
     for (;;)
     {
       /* Set my_hash_blocks to the next bigger 2 power */
@@ -138,19 +133,46 @@ int init_key_cache(ulong use_mem,
     DBUG_PRINT("exit",("disk_blocks: %d  block_root: %lx  _my_hash_blocks: %d  hash_root: %lx",
 		       _my_disk_blocks,_my_block_root,_my_hash_blocks,
 		       _my_hash_root));
-#if !defined(HAVE_ALLOCA) && !defined(THREAD)
-    my_free(extra_mem,MYF(0));
-#endif
   }
   bzero((gptr) changed_blocks,sizeof(changed_blocks[0])*CHANGED_BLOCKS_HASH);
   bzero((gptr) file_blocks,sizeof(file_blocks[0])*CHANGED_BLOCKS_HASH);
   DBUG_RETURN((int) blocks);
+
 err:
-  if (extra_mem) /* purecov: inspected */
-    my_free(extra_mem,MYF(0));
   my_errno=ENOMEM;
   DBUG_RETURN(0);
 } /* init_key_cache */
+
+
+/*
+  Resize the key cache
+
+  SYNOPSIS
+    resize_key_cache()
+    use_mem		Bytes to use for new key cache
+
+  RETURN VALUES
+    0	Error
+    #	number of blocks in key cache
+*/
+
+
+int resize_key_cache(ulong use_mem)
+{
+  int block;
+  pthread_mutex_lock(&THR_LOCK_keycache);
+  if (flush_all_key_blocks())
+  {
+    /* TODO: If this happens, we should write a warning in the log file ! */
+    pthread_mutex_unlock(&THR_LOCK_keycache);
+    return 0;
+  }
+  end_key_cache();
+  /* The following will work even if memory is 0 */
+  block=init_key_cache(use_mem);
+  pthread_mutex_unlock(&THR_LOCK_keycache);  
+  return block;
+}
 
 
 	/* Remove key_cache from memory */
@@ -264,6 +286,11 @@ byte *key_cache_read(File file, my_off_t filepos, byte *buff, uint length,
     byte *start=buff;
     uint read_length;
     pthread_mutex_lock(&THR_LOCK_keycache);
+    if (_my_disk_blocks <= 0)			/* Resize failed */
+    {
+      pthread_mutex_unlock(&THR_LOCK_keycache);
+      goto no_key_cache;
+    }
     do
     {
       _my_cache_r_requests++;
@@ -300,6 +327,8 @@ byte *key_cache_read(File file, my_off_t filepos, byte *buff, uint length,
     pthread_mutex_unlock(&THR_LOCK_keycache);
     DBUG_RETURN(start);
   }
+
+no_key_cache:
   _my_cache_r_requests++;
   _my_cache_read++;
   if (my_pread(file,(byte*) buff,length,filepos,MYF(MY_NABP)))
@@ -336,6 +365,12 @@ int key_cache_write(File file, my_off_t filepos, byte *buff, uint length,
   {						/* We have key_cacheing */
     uint read_length;
     pthread_mutex_lock(&THR_LOCK_keycache);
+    if (_my_disk_blocks <= 0)			/* If resize failed */
+    {
+      pthread_mutex_unlock(&THR_LOCK_keycache);
+      goto no_key_cache;
+    }
+
     _my_cache_w_requests++;
     do
     {
@@ -359,8 +394,11 @@ int key_cache_write(File file, my_off_t filepos, byte *buff, uint length,
     } while ((length-= read_length));
     error=0;
     pthread_mutex_unlock(&THR_LOCK_keycache);
+    goto end;
   }
-  else if (dont_write)
+
+no_key_cache:
+  if (dont_write)
   {						/* We must write, no cache */
     _my_cache_w_requests++;
     _my_cache_write++;
@@ -368,6 +406,7 @@ int key_cache_write(File file, my_off_t filepos, byte *buff, uint length,
 		  MYF(MY_NABP | MY_WAIT_IF_FULL)))
       error=1;
   }
+
 end:
 #if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
   DBUG_EXECUTE("check_keycache",test_key_cache("end of key_cache_write",1););
@@ -507,6 +546,7 @@ static int cmp_sec_link(SEC_LINK **a, SEC_LINK **b)
 	  ((*a)->diskpos > (*b)->diskpos) ? 1 : 0);
 }
 
+
 static int flush_cached_blocks(File file, SEC_LINK **cache, uint count)
 {
   uint last_errno=0;
@@ -525,25 +565,23 @@ static int flush_cached_blocks(File file, SEC_LINK **cache, uint count)
 }
 
 
-int flush_key_blocks(File file, enum flush_type type)
+static int flush_key_blocks_int(File file, enum flush_type type)
 {
   int error=0,last_errno=0;
   uint count=0;
   SEC_LINK *cache_buff[FLUSH_CACHE],**cache,**pos,**end;
   SEC_LINK *used,*next;
-  DBUG_ENTER("flush_key_blocks");
+  DBUG_ENTER("flush_key_blocks_int");
   DBUG_PRINT("enter",("file: %d  blocks_used: %d  blocks_changed: %d",
 		      file,_my_blocks_used,_my_blocks_changed));
 
-  pthread_mutex_lock(&THR_LOCK_keycache);
-
-#if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
-  DBUG_EXECUTE("check_keycache",test_key_cache("start of flush_key_blocks",0););
-#endif
   cache=cache_buff;				/* If no key cache */
   if (_my_disk_blocks > 0 &&
       (!my_disable_flush_key_blocks || type != FLUSH_KEEP))
   {
+#if !defined(DBUG_OFF) && defined(EXTRA_DEBUG)
+    DBUG_EXECUTE("check_keycache",test_key_cache("start of flush_key_blocks",0););
+#endif
     if (type != FLUSH_IGNORE_CHANGED)
     {
       /* Count how many key blocks we have to cache to be able to
@@ -614,22 +652,69 @@ int flush_key_blocks(File file, enum flush_type type)
 	  free_block(used);
       }
     }
-  }
 #ifndef DBUG_OFF
-  DBUG_EXECUTE("check_keycache",test_key_cache("end of flush_key_blocks",0););
+    DBUG_EXECUTE("check_keycache",test_key_cache("end of flush_key_blocks",0););
 #endif
-  pthread_mutex_unlock(&THR_LOCK_keycache);
+  }
   if (cache != cache_buff)
     my_free((gptr) cache,MYF(0));
   if (last_errno)
     errno=last_errno;				/* Return first error */
   DBUG_RETURN(last_errno != 0);
-} /* flush_key_blocks */
+}
+
+
+/*
+  Flush all blocks for a specific file to disk
+
+  SYNOPSIS
+    flush_all_key_blocks()
+    file	File descriptor
+    type	Type of flush operation
+
+  RETURN VALUES
+    0		Ok
+    1		Error
+*/
+
+int flush_key_blocks(File file, enum flush_type type)
+{
+  int res;
+  pthread_mutex_lock(&THR_LOCK_keycache);
+  res=flush_key_blocks_int(file, type);
+  pthread_mutex_unlock(&THR_LOCK_keycache);
+  return res;
+}
+
+
+/*
+  Flush all blocks in the key cache to disk
+
+  SYNOPSIS
+    flush_all_key_blocks()
+
+  NOTE
+    We must have a lock on THR_LOCK_keycache before calling this function
+
+  RETURN VALUES
+    0		Ok
+    1		Error
+*/
+
+
+static int flush_all_key_blocks()
+{
+  int error=0;
+  while (_my_blocks_changed > 0)
+    if (flush_key_blocks_int(_my_used_first->file, FLUSH_RELEASE))
+      error=1;
+  return error;
+}
 
 
 #ifndef DBUG_OFF
 
-	/* Test if disk-cachee is ok */
+	/* Test if disk-cache is ok */
 
 static void test_key_cache(const char *where, my_bool lock)
 {
@@ -638,7 +723,14 @@ static void test_key_cache(const char *where, my_bool lock)
   SEC_LINK *pos,**prev;
 
   if (lock)
+  {
     pthread_mutex_lock(&THR_LOCK_keycache);
+    if (_my_disk_blocks <= 0)			/* No active key cache */
+    {
+      pthread_mutex_unlock(&THR_LOCK_keycache);
+      return;
+    }
+  }
   found=error=0;
   for (i= 0 ; i < _my_hash_blocks ; i++)
   {

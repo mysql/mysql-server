@@ -27,7 +27,7 @@
 #include "mysql_priv.h"
 
 /****************************************************************************
-** Convert tables
+  Convert tables
 ****************************************************************************/
 
 /* Windows cp1251->koi8 and reverse conversion by Timur I. Bakeyev <translate@bat.ru> */

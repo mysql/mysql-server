@@ -65,7 +65,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			net_serv.cc net_pkg.cc lock.cc my_lock.c \
 			sql_string.cc sql_manager.cc sql_map.cc \
 			mysqld.cc password.c hash_filo.cc hostname.cc \
-			convert.cc sql_parse.cc sql_yacc.yy \
+			convert.cc set_var.cc sql_parse.cc sql_yacc.yy \
 			sql_base.cc table.cc sql_select.cc sql_insert.cc \
 			sql_update.cc sql_delete.cc uniques.cc sql_do.cc \
 			procedure.cc item_uniq.cc sql_test.cc \

@@ -98,6 +98,7 @@ public:
   const char *full_name() const;
 };
 
+
 class Item_field :public Item_ident
 {
   void set_field(Field *field);
@@ -193,6 +194,7 @@ class Item_uint :public Item_int
 public:
   Item_uint(const char *str_arg, uint length) :
     Item_int(str_arg, (longlong) strtoull(str_arg,(char**) 0,10), length) {}
+  Item_uint(uint32 i) :Item_int((longlong) i, 10) {}
   double val() { return ulonglong2double(value); }
   String *val_str(String*);
   void make_field(Send_field *field);
@@ -478,4 +480,3 @@ extern Item_buff *new_Item_buff(Item *item);
 extern Item_result item_cmp_type(Item_result a,Item_result b);
 extern Item *resolve_const_item(Item *item,Item *cmp_item);
 extern bool field_is_equal_to_item(Field *field,Item *item);
-Item *get_system_var(LEX_STRING name);

@@ -1487,7 +1487,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
 
 static void init_pager()
 {
-#if !defined( __WIN__) && !defined( OS2) && (!defined(HAVE_mit_thread) && defined(THREAD))
+#if !defined( __WIN__) && !defined( OS2) && (!defined(HAVE_mit_thread) || !defined(THREAD))
   if (!opt_nopager)
   {
     if (!(PAGER= popen(pager, "w")))
@@ -2336,11 +2336,11 @@ com_status(String *buffer __attribute__((unused)),
 
   if ((status=mysql_stat(&mysql)) && !mysql_error(&mysql)[0])
   {
-    char *pos,buff[40];
     ulong sec;
-    pos=strchr(status,' ');
-    *pos++=0;
-    tee_fprintf(stdout, "%s\t\t\t", status);	/* print label */
+    char buff[40];
+    const char *pos= strchr(status,' ');
+    /* print label */
+    tee_fprintf(stdout, "%.*s\t\t\t", (int) (pos-status), status);
     if ((status=str2int(pos,10,0,LONG_MAX,(long*) &sec)))
     {
       nice_time((double) sec,buff,0);

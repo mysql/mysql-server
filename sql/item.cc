@@ -593,7 +593,7 @@ bool Item::send(THD *thd, String *packet)
   String s(buff,sizeof(buff)),*res;
   if (!(res=val_str(&s)))
     return net_store_null(packet);
-  if ((convert=thd->convert_set))
+  if ((convert=thd->variables.convert_set))
     return convert->store(packet,res->ptr(),res->length());
   return net_store_data(packet,res->ptr(),res->length());
 }

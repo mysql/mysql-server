@@ -69,7 +69,7 @@ ut_strcpy(char* dest, char* sour);
 
 UNIV_INLINE
 ulint
-ut_strlen(char* str);
+ut_strlen(const char* str);
 
 UNIV_INLINE
 int

@@ -342,6 +342,12 @@ TODO list:
 #define DUMP(C)
 #endif
 
+const char *query_cache_type_names[]= { "OFF", "ON", "DEMAND",NullS };
+TYPELIB query_cache_type_typelib=
+{
+  array_elements(query_cache_type_names)-1,"", query_cache_type_names
+};
+
 /*****************************************************************************
  Query_cache_block_table method(s)
 *****************************************************************************/
@@ -711,13 +717,13 @@ Query_cache::Query_cache(ulong query_cache_limit,
 }
 
 
-ulong Query_cache::resize(ulong query_cache_size)
+ulong Query_cache::resize(ulong query_cache_size_arg)
 {
   DBUG_ENTER("Query_cache::resize");
-  DBUG_PRINT("qcache", ("from %lu to %lu",this->query_cache_size,
-		      query_cache_size));
+  DBUG_PRINT("qcache", ("from %lu to %lu",query_cache_size,
+			query_cache_size_arg));
   free_cache(0);
-  this->query_cache_size=query_cache_size;
+  query_cache_size=query_cache_size_arg;
   DBUG_RETURN(init_cache());
 }
 
@@ -757,10 +763,10 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
        most significant bit - CLIENT_LONG_FLAG,
        other - charset number (0 no charset convertion)
     */
-    if (thd->convert_set != 0)
+    if (thd->variables.convert_set != 0)
     {
-      flags|= (byte) thd->convert_set->number();
-      DBUG_ASSERT(thd->convert_set->number() < 128);
+      flags|= (byte) thd->variables.convert_set->number();
+      DBUG_ASSERT(thd->variables.convert_set->number() < 128);
     }
     tot_length=thd->query_length+thd->db_length+2;
     thd->query[tot_length-1] = (char) flags;
@@ -864,8 +870,8 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
 	it is not possible to check has_transactions() function of handler
 	because tables not opened yet
       */
-      (thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN)) ||
-      thd->query_cache_type == 0)
+      (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) ||
+      thd->variables.query_cache_type == 0)
 
   {
     DBUG_PRINT("qcache", ("query cache disabled or not in autocommit mode"));
@@ -917,10 +923,10 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
      Other - charset number (0 no charset convertion)
   */
   flags = (thd->client_capabilities & CLIENT_LONG_FLAG ? 0x80 : 0);
-  if (thd->convert_set != 0)
+  if (thd->variables.convert_set != 0)
   {
-    flags |= (byte) thd->convert_set->number();
-    DBUG_ASSERT(thd->convert_set->number() < 128);
+    flags |= (byte) thd->variables.convert_set->number();
+    DBUG_ASSERT(thd->variables.convert_set->number() < 128);
   }
   sql[tot_length-1] = (char) flags;
   query_block = (Query_cache_block *)  hash_search(&queries, (byte*) sql,
@@ -1031,7 +1037,7 @@ void Query_cache::invalidate(THD *thd, TABLE_LIST *tables_used,
       DUMP(this);
 
       using_transactions = using_transactions &&
-	(thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN));
+	(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
       for (; tables_used; tables_used=tables_used->next)
       {
 	DBUG_ASSERT(!using_transactions || tables_used->table!=0);
@@ -1089,7 +1095,7 @@ void Query_cache::invalidate(THD *thd, TABLE *table,
     if (query_cache_size > 0)
     {
       using_transactions = using_transactions &&
-	(thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN));
+	(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
       if (using_transactions && table->file->has_transactions())
 	thd->add_changed_table(table);
       else
@@ -2389,16 +2395,16 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
 
   if (lex->sql_command == SQLCOM_SELECT &&
       thd->temporary_tables == 0 &&
-      (thd->query_cache_type == 1 ||
-       (thd->query_cache_type == 2 && (lex->select->options &
-				       OPTION_TO_QUERY_CACHE))) &&
+      (thd->variables.query_cache_type == 1 ||
+       (thd->variables.query_cache_type == 2 && (lex->select->options &
+						 OPTION_TO_QUERY_CACHE))) &&
       thd->safe_to_cache_query)
   {
     my_bool has_transactions = 0;
     DBUG_PRINT("qcache", ("options %lx %lx, type %u",
 			OPTION_TO_QUERY_CACHE,
 			lex->select->options,
-			(int) thd->query_cache_type));
+			(int) thd->variables.query_cache_type));
 
     for (; tables_used; tables_used=tables_used->next)
     {
@@ -2422,7 +2428,7 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
       }
     }
 
-    if ((thd->options & (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN)) &&
+    if ((thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) &&
 	has_transactions)
     {
       DBUG_PRINT("qcache", ("not in autocommin mode"));
@@ -2437,7 +2443,7 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
 	      (int) lex->sql_command,
 	      OPTION_TO_QUERY_CACHE,
 	      lex->select->options,
-	      (int) thd->query_cache_type));
+	      (int) thd->variables.query_cache_type));
   DBUG_RETURN(0);
 }
 

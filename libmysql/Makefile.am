@@ -17,9 +17,9 @@
 
 # This file is public domain and comes with NO WARRANTY of any kind
 
-target = libmysqlclient.la
-target_defs = -DUNDEF_THREADS_HACK -DDONT_USE_RAID @LIB_EXTRA_CCFLAGS@ -DMYSQL_CLIENT
-LIBS   = @CLIENT_LIBS@
+target =	libmysqlclient.la
+target_defs =	-DUNDEF_THREADS_HACK -DDONT_USE_RAID @LIB_EXTRA_CCFLAGS@ -DMYSQL_CLIENT
+LIBS =		@CLIENT_LIBS@
 INCLUDES =	-I$(srcdir)/../include -I../include \
 		-I$(srcdir)/.. -I$(top_srcdir) -I.. $(openssl_includes)
 
@@ -60,7 +60,9 @@ link_sources:
 	  for f in $$ms $(mysysheaders); do \
 	    rm -f $(srcdir)/$$f; \
 	    @LN_CP_F@ $(srcdir)/../mysys/$$f $(srcdir)/$$f; \
-	  done;
+	  done; \
+	  rm -f $(srcdir)/net.c; \
+	  @LN_CP_F@ $(srcdir)/../sql/net_serv.cc $(srcdir)/net.c
 
 # This part requires GNUmake
 #
@@ -77,7 +79,7 @@ nh =		my_global.h config-win32.h dbug.h errmsg.h \
 		mysql.h mysql_com.h mysql_version.h mysqld_error.h \
 		mysys_err.h my_pthread.h thr_alarm.h violite.h hash.h
 # Get a list of the needed objects  
-lobjs = $(mysysobjects1) $(dbugobjects) $(mystringsobjects)
+lobjs = $(mysysobjects1) $(dbugobjects) $(mystringsobjects) $(sqlobjects)
 
 do-lib-dist:
 	dir=libmysql-$(MYSQL_NO_DASH_VERSION); \

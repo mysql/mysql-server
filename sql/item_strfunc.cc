@@ -236,7 +236,8 @@ String *Item_func_concat::val_str(String *str)
 	goto null;
       if (res2->length() == 0)
 	continue;
-      if (res->length()+res2->length() > max_allowed_packet)
+      if (res->length()+res2->length() >
+	  current_thd->variables.max_allowed_packet)
 	goto null;				// Error check
       if (res->alloced_length() >= res->length()+res2->length())
       {						// Use old buffer
@@ -505,7 +506,7 @@ String *Item_func_concat_ws::val_str(String *str)
       continue;					// Skip NULL and empty string
 
     if (res->length() + sep_str->length() + res2->length() >
-	max_allowed_packet)
+	current_thd->variables.max_allowed_packet)
       goto null;				// Error check
     if (res->alloced_length() >=
 	res->length() + sep_str->length() + res2->length())
@@ -714,7 +715,8 @@ redo:
           while (j != search_end)
             if (*i++ != *j++) goto skipp;
           offset= (int) (ptr-res->ptr());
-          if (res->length()-from_length + to_length > max_allowed_packet)
+          if (res->length()-from_length + to_length >
+	      current_thd->variables.max_allowed_packet)
             goto null;
           if (!alloced)
           {
@@ -734,7 +736,8 @@ skipp:
 #endif /* USE_MB */
     do
     {
-      if (res->length()-from_length + to_length > max_allowed_packet)
+      if (res->length()-from_length + to_length >
+	  current_thd->variables.max_allowed_packet)
         goto null;
       if (!alloced)
       {
@@ -794,7 +797,8 @@ String *Item_func_insert::val_str(String *str)
     return res;					// Wrong param; skip insert
   if (length > res->length()-start)
     length=res->length()-start;
-  if (res->length() - length + res2->length() > max_allowed_packet)
+  if (res->length() - length + res2->length() >
+      current_thd->variables.max_allowed_packet)
     goto null;					// OOM check
   res=copy_if_not_alloced(str,res,res->length());
   res->replace(start,length,*res2);
@@ -1699,7 +1703,8 @@ String *Item_func_repeat::val_str(String *str)
   if (count == 1)			// To avoid reallocs
     return res;
   length=res->length();
-  if (length > max_allowed_packet/count)// Safe length check
+  // Safe length check
+  if (length > current_thd->variables.max_allowed_packet/count)
     goto err;				// Probably an error
   tot_length= length*(uint) count;
   if (!(res= alloc_buffer(res,str,&tmp_value,tot_length)))
@@ -1757,7 +1762,8 @@ String *Item_func_rpad::val_str(String *str)
     return (res);
   }
   length_pad= rpad->length();
-  if ((ulong) count > max_allowed_packet || args[2]->null_value || !length_pad)
+  if ((ulong) count > current_thd->variables.max_allowed_packet ||
+      args[2]->null_value || !length_pad)
     goto err;
   if (!(res= alloc_buffer(res,str,&tmp_value,count)))
     goto err;
@@ -1816,7 +1822,8 @@ String *Item_func_lpad::val_str(String *str)
     return (res);
   }
   length_pad= lpad->length();
-  if (count > max_allowed_packet || args[2]->null_value || !length_pad)
+  if (count > current_thd->variables.max_allowed_packet ||
+      args[2]->null_value || !length_pad)
     goto err;
 
   if (res->alloced_length() < count)
@@ -1937,7 +1944,7 @@ String *Item_load_file::val_str(String *str)
     /* my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), file_name->c_ptr()); */
     goto err;
   }
-  if (stat_info.st_size > (long) max_allowed_packet)
+  if (stat_info.st_size > (long) current_thd->variables.max_allowed_packet)
   {
     /* my_error(ER_TOO_LONG_STRING, MYF(0), file_name->c_ptr()); */
     goto err;
