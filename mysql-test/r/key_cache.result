@@ -40,8 +40,8 @@ SELECT @@medium.key_buffer_size;
 SET @@global.key_buffer_size=@save_key_buffer;
 SELECT @@default.key_buffer_size;
 ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'default.key_buffer_size' at line 1
-SELECT @@skr.table_type="test";
-ERROR HY000: Variable 'table_type' is not a variable component (Can't be used as XXXX.variable_name)
+SELECT @@skr.storage_engine="test";
+ERROR HY000: Variable 'storage_engine' is not a variable component (Can't be used as XXXX.variable_name)
 select @@keycache1.key_cache_block_size;
 @@keycache1.key_cache_block_size
 0

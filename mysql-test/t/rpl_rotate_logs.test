@@ -130,6 +130,7 @@ while ($1)
  dec $1;
 }
 enable_query_log;
+select count(*) from t3 where n >= 4;
 create table t4 select * from temp_table;
 show binary logs;
 show master status;

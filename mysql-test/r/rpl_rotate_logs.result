@@ -1,11 +1,11 @@
 drop table if exists t1, t2, t3, t4;
 drop table if exists t1, t2, t3, t4;
 start slave;
-ERROR HY000: Could not initialize master info structure, check permisions on master.info
+ERROR HY000: Could not initialize master info structure, more error messages can be found in the MySQL error log
 start slave;
-ERROR HY000: Could not initialize master info structure, check permisions on master.info
+ERROR HY000: Could not initialize master info structure, more error messages can be found in the MySQL error log
 change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root';
-ERROR HY000: Could not initialize master info structure, check permisions on master.info
+ERROR HY000: Could not initialize master info structure, more error messages can be found in the MySQL error log
 reset slave;
 change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root';
 reset master;
@@ -68,6 +68,9 @@ m
 create temporary table temp_table (a char(80) not null);
 insert into temp_table values ("testing temporary tables part 2");
 create table t3 (n int);
+select count(*) from t3 where n >= 4;
+count(*)
+100
 create table t4 select * from temp_table;
 show binary logs;
 Log_name

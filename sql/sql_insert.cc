@@ -366,6 +366,8 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     {
       if (mysql_bin_log.is_open())
       {
+        if (error <= 0)
+          thd->clear_error();
 	Query_log_event qinfo(thd, thd->query, thd->query_length,
 			      log_delayed);
 	if (mysql_bin_log.write(&qinfo) && transactional_table)
@@ -630,7 +632,7 @@ public:
     thd.lex->current_select= 0; /* for my_message_sql */
 
     bzero((char*) &thd.net,sizeof(thd.net));	// Safety
-    thd.system_thread=1;
+    thd.system_thread= SYSTEM_THREAD_DELAYED_INSERT;
     thd.host_or_ip= "";
     bzero((char*) &info,sizeof(info));
     pthread_mutex_init(&mutex,MY_MUTEX_INIT_FAST);
@@ -1495,6 +1497,8 @@ bool select_insert::send_eof()
   /* Write to binlog before commiting transaction */
   if (mysql_bin_log.is_open())
   {
+    if (!error)
+      thd->clear_error();
     Query_log_event qinfo(thd, thd->query, thd->query_length,
 			  table->file->has_transactions());
     mysql_bin_log.write(&qinfo);
@@ -1508,7 +1512,6 @@ bool select_insert::send_eof()
     ::send_error(thd);
     DBUG_RETURN(1);
   }
-
   char buff[160];
   if (info.handle_duplicates == DUP_IGNORE)
     sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,

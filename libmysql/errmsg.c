@@ -72,7 +72,6 @@ const char *client_errors[]=
   "Can't open shared memory. Can't send the request event to server (%lu)",
   "Wrong or unknown protocol",
   "Invalid connection handle",
-  "mysql_server_init wasn't called",
   "Connection using old (pre 4.1.1) authentication protocol refused (client option 'secure_auth' enabled)"
 };
 
@@ -129,7 +128,6 @@ const char *client_errors[]=
   "Can't open shared memory. Can't send the request event to server (%lu)",
   "Wrong or unknown protocol",
   "Invalid connection handle",
-  "mysql_server_init wasn't called",
   "Connection using old (pre 4.1.1) authentication protocol refused (client option 'secure_auth' enabled)"
 };
 
@@ -184,7 +182,6 @@ const char *client_errors[]=
   "Can't open shared memory. Can't send the request event to server (%lu)",
   "Wrong or unknown protocol",
   "Invalid connection handle",
-  "mysql_server_init wasn't called",
   "Connection using old (pre 4.1.1) authentication protocol refused (client option 'secure_auth' enabled)"
 };
 #endif

@@ -500,6 +500,8 @@ static uint set_maximum_open_files(uint max_file_limit);
 static ulong find_bit_type(const char *x, TYPELIB *bit_lib);
 static void clean_up(bool print_message);
 static void clean_up_mutexes(void);
+static int test_if_case_insensitive(const char *dir_name);
+static void create_pid_file();
 
 #ifndef EMBEDDED_LIBRARY
 /****************************************************************************
@@ -1061,7 +1063,7 @@ static void set_user(const char *user)
     }
     return;
   }
-  else if (!user)
+  if (!user)
   {
     if (!opt_bootstrap)
     {
@@ -1276,7 +1278,7 @@ static void server_init(void)
 void yyerror(const char *s)
 {
   THD *thd=current_thd;
-  char *yytext=(char*) thd->lex->tok_start;
+  char *yytext= (char*) thd->lex->tok_start;
   /* "parse error" changed into "syntax error" between bison 1.75 and 1.875 */
   if (strcmp(s,"parse error") == 0 || strcmp(s,"syntax error") == 0)
     s=ER(ER_SYNTAX_ERROR);
@@ -1483,16 +1485,7 @@ static void start_signal_handler(void)
 {
   // Save vm id of this process
   if (!opt_bootstrap)
-  {
-    File pidFile;
-    if ((pidFile = my_create(pidfile_name,0664, O_WRONLY, MYF(MY_WME))) >= 0)
-    {
-      char buff[21];
-      sprintf(buff,"%lu",(ulong) getpid());
-      (void) my_write(pidFile, buff,strlen(buff),MYF(MY_WME));
-      (void) my_close(pidFile,MYF(0));
-    }
-  }
+    create_pid_file();
   // no signal handler
 }
 
@@ -1778,16 +1771,8 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
 
   /* Save pid to this process (or thread on Linux) */
   if (!opt_bootstrap)
-  {
-    File pidFile;
-    if ((pidFile = my_create(pidfile_name,0664, O_WRONLY, MYF(MY_WME))) >= 0)
-    {
-      char buff[21];
-      ulong length= my_sprintf(buff, (buff,"%lu",(ulong) getpid()));
-      (void) my_write(pidFile, buff, length, MYF(MY_WME));
-      (void) my_close(pidFile,MYF(0));
-    }
-  }
+    create_pid_file();
+
 #ifdef HAVE_STACK_TRACE_ON_SEGV
   if (opt_do_pstack)
   {
@@ -1900,7 +1885,7 @@ extern "C" int my_message_sql(uint error, const char *str,
       DBUG_RETURN(0);
     }
     /*
-      thd->lex.current_select == 0 if lex structure is not inited
+      thd->lex->current_select == 0 if lex structure is not inited
       (not query command (COM_QUERY))
     */
     if (thd->lex->current_select &&
@@ -2809,7 +2794,7 @@ default_service_handling(char **argv,
   }
   /* We must have servicename last */
   *pos++= ' ';
-  strmake(pos, servicename, (uint) (end+2 - pos));
+  (void) add_quoted_string(pos, servicename, end);
 
   if (Service.got_service_option(argv, "install"))
   {
@@ -3600,7 +3585,7 @@ enum options_mysqld
   OPT_SKIP_HOST_CACHE,         OPT_SHORT_LOG_FORMAT,
   OPT_FLUSH,                   OPT_SAFE,
   OPT_BOOTSTRAP,               OPT_SKIP_SHOW_DB,
-  OPT_TABLE_TYPE,              OPT_INIT_FILE,
+  OPT_STORAGE_ENGINE,          OPT_INIT_FILE,
   OPT_DELAY_KEY_WRITE_ALL,     OPT_SLOW_QUERY_LOG,
   OPT_DELAY_KEY_WRITE,	       OPT_CHARSETS_DIR,
   OPT_BDB_HOME,                OPT_BDB_LOG,
@@ -3809,8 +3794,11 @@ Disable with --skip-bdb (will save memory).",
   {"default-collation", OPT_DEFAULT_COLLATION, "Set the default collation.",
    (gptr*) &default_collation_name, (gptr*) &default_collation_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  {"default-table-type", OPT_TABLE_TYPE,
-   "Set the default table type for tables.", 0, 0,
+  {"default-storage-engine", OPT_STORAGE_ENGINE,
+   "Set the default storage engine (table tyoe) for tables.", 0, 0,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"default-table-type", OPT_STORAGE_ENGINE,
+   "(deprecated) Use default-storage-engine.", 0, 0,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"delay-key-write", OPT_DELAY_KEY_WRITE, "Type of DELAY_KEY_WRITE.",
    0,0,0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -4646,7 +4634,7 @@ The minimum value for this variable is 4096.",
    1, 0},
   {"table_cache", OPT_TABLE_CACHE,
    "The number of open tables for all threads.", (gptr*) &table_cache_size,
-   (gptr*) &table_cache_size, 0, GET_ULONG, REQUIRED_ARG, 64, 1, 16384, 0, 1,
+   (gptr*) &table_cache_size, 0, GET_ULONG, REQUIRED_ARG, 64, 1, ~0L, 0, 1,
    0},
   {"thread_concurrency", OPT_THREAD_CONCURRENCY,
    "Permits the application to give the threads system a hint for the desired number of threads that should be run at the same time.",
@@ -4664,7 +4652,7 @@ The minimum value for this variable is 4096.",
   {"thread_stack", OPT_THREAD_STACK,
    "The stack size for each thread.", (gptr*) &thread_stack,
    (gptr*) &thread_stack, 0, GET_ULONG, REQUIRED_ARG,DEFAULT_THREAD_STACK,
-   1024*32, ~0L, 0, 1024, 0},
+   1024L*128L, ~0L, 0, 1024, 0},
   {"transaction_alloc_block_size", OPT_TRANS_ALLOC_BLOCK_SIZE,
    "Allocation block size for transactions to be stored in binary log",
    (gptr*) &global_system_variables.trans_alloc_block_size,
@@ -4689,7 +4677,7 @@ The minimum value for this variable is 4096.",
     "The default week format used by WEEK() functions.",
     (gptr*) &global_system_variables.default_week_format,
     (gptr*) &max_system_variables.default_week_format,
-    0, GET_ULONG, REQUIRED_ARG, 0, 0, 3L, 0, 1, 0},
+    0, GET_ULONG, REQUIRED_ARG, 0, 0, 7L, 0, 1, 0},
   { "date-format", OPT_DATE_FORMAT,
     "The DATE format (For future).",
     (gptr*) &opt_date_time_formats[TIMESTAMP_DATE],
@@ -4788,8 +4776,8 @@ struct show_var_st status_vars[]= {
   {"Com_show_slave_hosts",     (char*) (com_stat+(uint) SQLCOM_SHOW_SLAVE_HOSTS),SHOW_LONG},
   {"Com_show_slave_status",    (char*) (com_stat+(uint) SQLCOM_SHOW_SLAVE_STAT),SHOW_LONG},
   {"Com_show_status",	       (char*) (com_stat+(uint) SQLCOM_SHOW_STATUS),SHOW_LONG},
+  {"Com_show_storage_engines", (char*) (com_stat+(uint) SQLCOM_SHOW_STORAGE_ENGINES),SHOW_LONG},
   {"Com_show_tables",	       (char*) (com_stat+(uint) SQLCOM_SHOW_TABLES),SHOW_LONG},
-  {"Com_show_table_types",     (char*) (com_stat+(uint) SQLCOM_SHOW_TABLE_TYPES),SHOW_LONG},
   {"Com_show_variables",       (char*) (com_stat+(uint) SQLCOM_SHOW_VARIABLES),SHOW_LONG},
   {"Com_show_warnings",        (char*) (com_stat+(uint) SQLCOM_SHOW_WARNS),SHOW_LONG},
   {"Com_slave_start",	       (char*) (com_stat+(uint) SQLCOM_SLAVE_START),SHOW_LONG},
@@ -5427,11 +5415,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     my_use_symdir=0;
     break;
   case (int) OPT_BIND_ADDRESS:
-    if (!argument ||
-	(my_bind_addr= (ulong) inet_addr(argument)) == INADDR_NONE)
+    if ((my_bind_addr= (ulong) inet_addr(argument)) == INADDR_NONE)
     {
       struct hostent *ent;
-      if (argument || argument[0])
+      if (argument[0])
 	ent=gethostbyname(argument);
       else
       {
@@ -5476,7 +5463,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_BOOTSTRAP:
     opt_noacl=opt_bootstrap=1;
     break;
-  case OPT_TABLE_TYPE:
+  case OPT_STORAGE_ENGINE:
   {
     if ((enum db_type)((global_system_variables.table_type= 
     	  ha_resolve_by_name(argument, strlen(argument)))) == DB_TYPE_UNKNOWN)
@@ -5841,6 +5828,18 @@ static void fix_paths(void)
       exit(1);
   }
 #endif /* HAVE_REPLICATION */
+
+  /*
+    Ensure that lower_case_table_names is set on system where we have case
+    insensitive names.  If this is not done the users MyISAM tables will
+    get corrupted if accesses with names of different case.
+  */
+  if (!lower_case_table_names &&
+      test_if_case_insensitive(mysql_real_data_home) == 1)
+  {
+    sql_print_error("Warning: Setting lower_case_table_names=1 becasue file system %s is case insensitive", mysql_real_data_home);
+    lower_case_table_names= 1;
+  }
 }
 
 
@@ -5992,6 +5991,61 @@ skipp: ;
   DBUG_PRINT("exit",("bit-field: %ld",(ulong) found));
   DBUG_RETURN(found);
 } /* find_bit_type */
+
+
+/*
+  Check if file system used for databases is case insensitive
+
+  SYNOPSIS
+    test_if_case_sensitive()
+    dir_name			Directory to test
+
+  RETURN
+    -1  Don't know (Test failed)
+    0   File system is case sensitive
+    1   File system is case insensitive
+*/
+
+static int test_if_case_insensitive(const char *dir_name)
+{
+  int result= 0;
+  File file;
+  char buff[FN_REFLEN], buff2[FN_REFLEN];
+  MY_STAT stat_info;
+
+  fn_format(buff, glob_hostname, dir_name, ".lower-test",
+	    MY_UNPACK_FILENAME | MY_REPLACE_EXT | MY_REPLACE_DIR);
+  fn_format(buff2, glob_hostname, dir_name, ".LOWER-TEST",
+	    MY_UNPACK_FILENAME | MY_REPLACE_EXT | MY_REPLACE_DIR);
+  (void) my_delete(buff2, MYF(0));
+  if ((file= my_create(buff, 0666, O_RDWR, MYF(0))) < 0)
+  {
+    sql_print_error("Warning: Can't create test file %s", buff);
+    return -1;
+  }
+  my_close(file, MYF(0));
+  if (my_stat(buff2, &stat_info, MYF(0)))
+    result= 1;					// Can access file
+  (void) my_delete(buff, MYF(MY_WME));
+  return result;
+}
+
+
+/* Create file to store pid number */
+
+static void create_pid_file()
+{
+  File file;
+  if ((file = my_create(pidfile_name,0664,
+			O_WRONLY | O_TRUNC, MYF(MY_WME))) >= 0)
+  {
+    char buff[21], *end;
+    end= int2str((long) getpid(), buff, 10);
+    *end++= '\n';
+    (void) my_write(file, (byte*) buff, (uint) (end-buff),MYF(MY_WME));
+    (void) my_close(file, MYF(0));
+  }
+}
 
 
 /*****************************************************************************

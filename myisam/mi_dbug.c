@@ -137,6 +137,10 @@ void _mi_print_key(FILE *stream, register HA_KEYSEG *keyseg,
     {
       uint tmp_length;
       get_key_length(tmp_length,key);
+      /*
+	The following command sometimes gives a warning from valgrind.
+	Not yet sure if the bug is in valgrind, glibc or mysqld
+      */
       VOID(fprintf(stream,"%.*s",(int) tmp_length,key));
       key+=tmp_length;
       break;

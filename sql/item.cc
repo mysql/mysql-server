@@ -54,7 +54,7 @@ Item::Item():
   thd->free_list= this;
   /*
     Item constructor can be called during execution other then SQL_COM
-    command => we should check thd->lex.current_select on zero (thd->lex
+    command => we should check thd->lex->current_select on zero (thd->lex
     can be uninitialised)
   */
   if (thd->lex->current_select)
@@ -101,6 +101,14 @@ void Item::print_item_w_name(String *str)
   }
 }
 
+
+Item_ident::Item_ident(const char *db_name_par,const char *table_name_par,
+		       const char *field_name_par)
+  :db_name(db_name_par),table_name(table_name_par),field_name(field_name_par),
+   depended_from(0)
+{
+  name = (char*) field_name_par;
+}
 
 // Constructor used by Item_field & Item_ref (see Item comment)
 Item_ident::Item_ident(THD *thd, Item_ident &item):
@@ -676,10 +684,10 @@ String *Item_param::val_str(String* str)
 { 
   switch (item_result_type) {
   case INT_RESULT:
-    str->set(int_value, default_charset());
+    str->set(int_value, &my_charset_bin);
     return str;
   case REAL_RESULT:
-    str->set(real_value, 2, default_charset());
+    str->set(real_value, 2, &my_charset_bin);
     return str;
   default:
     return (String*) &str_value;
@@ -865,7 +873,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       Item **refer= (Item **)not_found_item;
       uint counter;
       // Prevent using outer fields in subselects, that is not supported now
-      SELECT_LEX *cursel=(SELECT_LEX *) thd->lex->current_select;
+      SELECT_LEX *cursel= (SELECT_LEX *) thd->lex->current_select;
       if (cursel->master_unit()->first_select()->linkage != DERIVED_TABLE_TYPE)
       {
 	SELECT_LEX_UNIT *prev_unit= cursel->master_unit();
@@ -1764,12 +1772,11 @@ Item_result item_cmp_type(Item_result a,Item_result b)
 {
   if (a == STRING_RESULT && b == STRING_RESULT)
     return STRING_RESULT;
-  else if (a == INT_RESULT && b == INT_RESULT)
+  if (a == INT_RESULT && b == INT_RESULT)
     return INT_RESULT;
   else if (a == ROW_RESULT || b == ROW_RESULT)
     return ROW_RESULT;
-  else
-    return REAL_RESULT;
+  return REAL_RESULT;
 }
 
 

@@ -32,4 +32,6 @@
 #undef  MYSQL_SERVER_SUFFIX
 #define MYSQL_SERVER_SUFFIX "-embedded"
 
+#undef HAVE_QUERY_CACHE				/* Cache dosn't work yet */
+
 #endif /* EMBEDDED_LIBRARY */

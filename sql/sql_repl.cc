@@ -777,7 +777,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
     bit to 0 for the other thread
   */
   if (thd->lex->slave_thd_opt)
-    thread_mask &= thd->lex->slave_thd_opt;
+    thread_mask&= thd->lex->slave_thd_opt;
   if (thread_mask) //some threads are stopped, start them
   {
     if (init_master_info(mi,master_info_file,relay_log_info_file, 0))
@@ -798,7 +798,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
           mi->rli.until_condition= RELAY_LOG_INFO::UNTIL_MASTER_POS;
           mi->rli.until_log_pos= thd->lex->mi.pos;
           /* 
-             We don't check thd->lex.mi.log_file_name for NULL here 
+             We don't check thd->lex->mi.log_file_name for NULL here 
              since it is checked in sql_yacc.yy
           */
           strmake(mi->rli.until_log_name, thd->lex->mi.log_file_name,
@@ -1073,7 +1073,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
   }
 
   thd->proc_info = "Changing master";
-  LEX_MASTER_INFO* lex_mi = &thd->lex->mi;
+  LEX_MASTER_INFO* lex_mi= &thd->lex->mi;
   // TODO: see if needs re-write
   if (init_master_info(mi, master_info_file, relay_log_info_file, 0))
   {
@@ -1304,7 +1304,7 @@ int show_binlog_events(THD* thd)
 
   if (mysql_bin_log.is_open())
   {
-    LEX_MASTER_INFO *lex_mi = &thd->lex->mi;
+    LEX_MASTER_INFO *lex_mi= &thd->lex->mi;
     ha_rows event_count, limit_start, limit_end;
     my_off_t pos = max(BIN_LOG_HEADER_SIZE, lex_mi->pos); // user-friendly
     char search_file_name[FN_REFLEN], *name;
@@ -1313,8 +1313,8 @@ int show_binlog_events(THD* thd)
     LOG_INFO linfo;
     Log_event* ev;
   
-    limit_start = thd->lex->current_select->offset_limit;
-    limit_end = thd->lex->current_select->select_limit + limit_start;
+    limit_start= thd->lex->current_select->offset_limit;
+    limit_end= thd->lex->current_select->select_limit + limit_start;
 
     name= search_file_name;
     if (log_file_name)

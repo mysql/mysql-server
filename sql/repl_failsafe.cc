@@ -52,6 +52,13 @@ static Slave_log_event* find_slave_event(IO_CACHE* log,
 					 const char* log_file_name,
 					 char* errmsg);
 
+/*
+  All of the functions defined in this file which are not used (the ones to
+  handle failsafe) are not used; their code has not been updated for more than
+  one year now so should be considered as BADLY BROKEN. Do not enable it.
+  The used functions (to handle LOAD DATA FROM MASTER, plus some small
+  functions like register_slave()) are working.
+*/
 
 static int init_failsafe_rpl_thread(THD* thd)
 {
@@ -418,7 +425,6 @@ static Slave_log_event* find_slave_event(IO_CACHE* log,
     my_snprintf(errmsg, SLAVE_ERRMSG_SIZE,
 		"Could not find slave event in log '%s'",
 		(char*)log_file_name);
-    delete ev;
     return 0;
   }
 
@@ -435,7 +441,7 @@ int show_new_master(THD* thd)
   DBUG_ENTER("show_new_master");
   List<Item> field_list;
   char errmsg[SLAVE_ERRMSG_SIZE];
-  LEX_MASTER_INFO* lex_mi = &thd->lex->mi;
+  LEX_MASTER_INFO* lex_mi= &thd->lex->mi;
 
   errmsg[0]=0;					// Safety
   if (translate_master(thd, lex_mi, errmsg))

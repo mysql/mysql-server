@@ -188,9 +188,11 @@ static my_bool create_fromuni(CHARSET_INFO *cs)
       break;
     
     numchars=idx[i].uidx.to-idx[i].uidx.from+1;
-    idx[i].uidx.tab=(unsigned char*)my_once_alloc(numchars *
-						  sizeof(*idx[i].uidx.tab),
-						  MYF(MY_WME));
+    if (!(idx[i].uidx.tab=(uchar*) my_once_alloc(numchars *
+						 sizeof(*idx[i].uidx.tab),
+						 MYF(MY_WME))))
+      return TRUE;
+
     bzero(idx[i].uidx.tab,numchars*sizeof(*idx[i].uidx.tab));
     
     for (ch=1; ch < PLANE_SIZE; ch++)
@@ -206,8 +208,10 @@ static my_bool create_fromuni(CHARSET_INFO *cs)
   
   /* Allocate and fill reverse table for each plane */
   n=i;
-  cs->tab_from_uni= (MY_UNI_IDX*) my_once_alloc(sizeof(MY_UNI_IDX)*(n+1),
-					       MYF(MY_WME));
+  if (!(cs->tab_from_uni= (MY_UNI_IDX*) my_once_alloc(sizeof(MY_UNI_IDX)*(n+1),
+						      MYF(MY_WME))))
+    return TRUE;
+
   for (i=0; i< n; i++)
     cs->tab_from_uni[i]= idx[i].uidx;
   
@@ -217,46 +221,64 @@ static my_bool create_fromuni(CHARSET_INFO *cs)
 }
 
 
-static void simple_cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
+static int simple_cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
 {
   to->number= from->number ? from->number : to->number;
 
   if (from->csname)
-    to->csname= my_once_strdup(from->csname,MYF(MY_WME));
+    if (!(to->csname= my_once_strdup(from->csname,MYF(MY_WME))))
+      goto err;
   
   if (from->name)
-    to->name= my_once_strdup(from->name,MYF(MY_WME));
+    if (!(to->name= my_once_strdup(from->name,MYF(MY_WME))))
+      goto err;
   
   if (from->comment)
-    to->comment= my_once_strdup(from->comment,MYF(MY_WME));
+    if (!(to->comment= my_once_strdup(from->comment,MYF(MY_WME))))
+      goto err;
   
   if (from->ctype)
   {
-    to->ctype= (uchar*) my_once_memdup((char*) from->ctype,
-				       MY_CS_CTYPE_TABLE_SIZE, MYF(MY_WME));
+    if (!(to->ctype= (uchar*) my_once_memdup((char*) from->ctype,
+					     MY_CS_CTYPE_TABLE_SIZE,
+					     MYF(MY_WME))))
+      goto err;
     init_state_maps(to);
   }
   if (from->to_lower)
-    to->to_lower= (uchar*) my_once_memdup((char*) from->to_lower,
-					  MY_CS_TO_LOWER_TABLE_SIZE, MYF(MY_WME));
+    if (!(to->to_lower= (uchar*) my_once_memdup((char*) from->to_lower,
+						MY_CS_TO_LOWER_TABLE_SIZE,
+						MYF(MY_WME))))
+      goto err;
+
   if (from->to_upper)
-    to->to_upper= (uchar*) my_once_memdup((char*) from->to_upper,
-					  MY_CS_TO_UPPER_TABLE_SIZE, MYF(MY_WME));
+    if (!(to->to_upper= (uchar*) my_once_memdup((char*) from->to_upper,
+						MY_CS_TO_UPPER_TABLE_SIZE,
+						MYF(MY_WME))))
+      goto err;
   if (from->sort_order)
   {
-    to->sort_order= (uchar*) my_once_memdup((char*) from->sort_order,
-					    MY_CS_SORT_ORDER_TABLE_SIZE,
-					    MYF(MY_WME));
+    if (!(to->sort_order= (uchar*) my_once_memdup((char*) from->sort_order,
+						  MY_CS_SORT_ORDER_TABLE_SIZE,
+						  MYF(MY_WME))))
+      goto err;
     set_max_sort_char(to);
   }
   if (from->tab_to_uni)
   {
     uint sz= MY_CS_TO_UNI_TABLE_SIZE*sizeof(uint16);
-    to->tab_to_uni= (uint16*)  my_once_memdup((char*)from->tab_to_uni, sz,
-					     MYF(MY_WME));
-    create_fromuni(to);
+    if (!(to->tab_to_uni= (uint16*)  my_once_memdup((char*)from->tab_to_uni,
+						    sz, MYF(MY_WME))))
+      goto err;
+    if (create_fromuni(to))
+      goto err;
   }
   to->mbmaxlen= 1;
+
+  return 0;
+
+err:
+  return 1;
 }
 
 
@@ -292,7 +314,8 @@ static int add_collation(CHARSET_INFO *cs)
     if (!(all_charsets[cs->number]->state & MY_CS_COMPILED))
     {
       simple_cs_init_functions(all_charsets[cs->number]);
-      simple_cs_copy_data(all_charsets[cs->number],cs);
+      if (simple_cs_copy_data(all_charsets[cs->number],cs))
+	return MY_XML_ERROR;
       if (simple_cs_is_full(all_charsets[cs->number]))
       {
         all_charsets[cs->number]->state |= MY_CS_LOADED;
@@ -313,11 +336,14 @@ static int add_collation(CHARSET_INFO *cs)
       CHARSET_INFO *dst= all_charsets[cs->number];
       dst->number= cs->number;
       if (cs->comment)
-	dst->comment= my_once_strdup(cs->comment,MYF(MY_WME));
+	if (!(dst->comment= my_once_strdup(cs->comment,MYF(MY_WME))))
+	  return MY_XML_ERROR;
       if (cs->csname)
-        dst->csname= my_once_strdup(cs->csname,MYF(MY_WME));
+        if (!(dst->csname= my_once_strdup(cs->csname,MYF(MY_WME))))
+	  return MY_XML_ERROR;
       if (cs->name)
-        dst->name= my_once_strdup(cs->name,MYF(MY_WME));
+	if (!(dst->name= my_once_strdup(cs->name,MYF(MY_WME))))
+	  return MY_XML_ERROR;
     }
     cs->number= 0;
     cs->primary_number= 0;
