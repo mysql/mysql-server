@@ -22,3 +22,19 @@ insert into v2aA values ((select max(col1) from v1aA));
 ERROR HY000: You can't specify target table 'v2aa' for update in FROM clause
 drop view v2Aa,v1Aa;
 drop table t1Aa,t2Aa;
+create table t1Aa (col1 int);
+create view v1Aa as select col1 from t1Aa as AaA;
+show create view v1AA;
+View	Create View
+v1aa	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1aa` AS select `aaa`.`col1` AS `col1` from `test`.`t1aa` `AaA`
+drop view v1AA;
+select Aaa.col1 from t1Aa as AaA;
+col1
+create view v1Aa as select Aaa.col1 from t1Aa as AaA;
+drop view v1AA;
+create view v1Aa as select AaA.col1 from t1Aa as AaA;
+show create view v1AA;
+View	Create View
+v1aa	CREATE ALGORITHM=UNDEFINED VIEW `test`.`v1aa` AS select `aaa`.`col1` AS `col1` from `test`.`t1aa` `AaA`
+drop view v1AA;
+drop table t1Aa;

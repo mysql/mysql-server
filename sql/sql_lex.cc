@@ -1723,6 +1723,7 @@ bool st_lex::can_not_use_merged()
     TRUE yes, we need only structure
     FALSE no, we need data
 */
+
 bool st_lex::only_view_structure()
 {
   switch(sql_command)
@@ -1733,6 +1734,32 @@ bool st_lex::only_view_structure()
   case SQLCOM_REVOKE_ALL:
   case SQLCOM_REVOKE:
   case SQLCOM_GRANT:
+  case SQLCOM_CREATE_VIEW:
+    return TRUE;
+  default:
+    return FALSE;
+  }
+}
+
+
+/*
+  Should Items_ident be printed correctly
+
+  SYNOPSIS
+    need_correct_ident()
+
+  RETURN
+    TRUE yes, we need only structure
+    FALSE no, we need data
+*/
+
+
+bool st_lex::need_correct_ident()
+{
+  switch(sql_command)
+  {
+  case SQLCOM_SHOW_CREATE:
+  case SQLCOM_SHOW_TABLES:
   case SQLCOM_CREATE_VIEW:
     return TRUE;
   default:

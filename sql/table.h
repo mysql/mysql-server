@@ -160,6 +160,7 @@ struct st_table {
   my_bool no_keyread, no_cache;
   my_bool clear_query_id;               /* To reset query_id for tables and cols */
   my_bool auto_increment_field_not_null;
+  my_bool alias_name_used; /* true if table_name is alias */
   Field *next_number_field,		/* Set if next_number is activated */
 	*found_next_number_field,	/* Set on open */
         *rowid_field;
