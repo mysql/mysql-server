@@ -617,7 +617,7 @@ int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *str_end,
 {
   int result= -1;				// Not found, using wildcards
 #ifdef USE_MB
-  bool use_mb_flag=use_mb(default_charset_info);
+  bool use_mb_flag=use_mb(cs);
 #endif
   while (wildstr != wildend)
   {
