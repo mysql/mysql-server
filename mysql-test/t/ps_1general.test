@@ -290,6 +290,14 @@ prepare stmt4 from ' show databases ';
 execute stmt4;
 prepare stmt4 from ' show tables from test like ''t2%'' ';
 execute stmt4;
+prepare stmt4 from ' show columns from t2 where field in (select ?) ';
+SET @arg00="a";
+execute stmt4 using @arg00;
+SET @arg00="b";
+execute stmt4 using @arg00;
+SET @arg00=1;
+execute stmt4 using @arg00;
+
 prepare stmt4 from ' show columns from t2 from test like ''a%'' ';
 execute stmt4;
 create index t2_idx on t2(b);
@@ -321,7 +329,7 @@ prepare stmt4 from ' show engine bdb logs ';
 execute stmt4;
 --enable_result_log
 prepare stmt4 from ' show full processlist ';
---replace_column 1 number 6 time
+--replace_column 1 number 6 time 3 localhost
 execute stmt4;
 prepare stmt4 from ' show grants for user ';
 --error 1295

@@ -49,6 +49,8 @@ static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
 
 uint nr_of_decimals(const char *str)
 {
+  if (strchr(str,'e') || strchr(str,'E'))
+    return NOT_FIXED_DEC;
   if ((str=strchr(str,'.')))
   {
     const char *start= ++str;
@@ -1776,17 +1778,7 @@ String *Item_func_elt::val_str(String *str)
 void Item_func_make_set::split_sum_func(THD *thd, Item **ref_pointer_array,
 					List<Item> &fields)
 {
-  if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
-    item->split_sum_func(thd, ref_pointer_array, fields);
-  else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
-  {
-    uint el= fields.elements;
-    ref_pointer_array[el]=item;
-    Item *new_item= new Item_ref(ref_pointer_array + el, 0, item->name);
-    fields.push_front(item);
-    ref_pointer_array[el]= item;
-    thd->change_item_tree(&item, new_item);
-  }
+  item->split_sum_func2(thd, ref_pointer_array, fields, &item);
   Item_str_func::split_sum_func(thd, ref_pointer_array, fields);
 }
 
@@ -1800,7 +1792,7 @@ void Item_func_make_set::fix_length_and_dec()
   
   for (uint i=0 ; i < arg_count ; i++)
     max_length+=args[i]->max_length;
-  
+
   used_tables_cache|=	  item->used_tables();
   not_null_tables_cache&= item->not_null_tables();
   const_item_cache&=	  item->const_item();
@@ -2189,6 +2181,7 @@ String *Item_func_conv::val_str(String *str)
     return 0;
   }
   null_value=0;
+  unsigned_flag= !(from_base < 0);
   if (from_base < 0)
     dec= my_strntoll(res->charset(),res->ptr(),res->length(),-from_base,&endptr,&err);
   else
@@ -2643,18 +2636,13 @@ String *Item_func_quote::val_str(String *str)
   for (from= (char*) arg->ptr(), end= from + arg_length; from < end; from++)
     new_length+= get_esc_bit(escmask, (uchar) *from);
 
-  /*
-    We have to use realloc() instead of alloc() as we want to keep the
-    old result in arg
-  */
-  if (arg->realloc(new_length))
+  if (tmp_value.alloc(new_length))
     goto null;
 
   /*
-    As 'arg' and 'str' may be the same string, we must replace characters
-    from the end to the beginning
+    We replace characters from the end to the beginning
   */
-  to= (char*) arg->ptr() + new_length - 1;
+  to= (char*) tmp_value.ptr() + new_length - 1;
   *to--= '\'';
   for (start= (char*) arg->ptr(),end= start + arg_length; end-- != start; to--)
   {
@@ -2682,10 +2670,10 @@ String *Item_func_quote::val_str(String *str)
     }
   }
   *to= '\'';
-  arg->length(new_length);
-  str->set_charset(collation.collation);
+  tmp_value.length(new_length);
+  tmp_value.set_charset(collation.collation);
   null_value= 0;
-  return arg;
+  return &tmp_value;
 
 null:
   null_value= 1;

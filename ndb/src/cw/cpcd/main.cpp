@@ -32,7 +32,7 @@
 #include "common.hpp"
 
 static const char *work_dir = CPCD_DEFAULT_WORK_DIR;
-static int port;
+static short unsigned int port;
 static int use_syslog;
 static const char *logfile = NULL;
 static const char *config_file = CPCD_DEFAULT_CONFIG_FILE;
@@ -142,7 +142,7 @@ int main(int argc, char** argv){
   
   SocketServer * ss = new SocketServer();
   CPCDAPIService * serv = new CPCDAPIService(cpcd);
-  if(!ss->setup(serv, port)){
+  if(!ss->setup(serv, &port)){
     logger.critical("Cannot setup server: %s", strerror(errno));
     sleep(1);
     delete ss;

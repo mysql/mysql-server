@@ -504,8 +504,7 @@ threadLoop(void* ThreadData)
   delete localNdb;
   ThreadReady[threadNo] = 1;
 
-  NdbThread_Exit(0);
-  return NULL; // Just to keep compiler happy
+  return NULL;
 }//threadLoop()
 
 static 

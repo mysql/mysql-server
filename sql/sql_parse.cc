@@ -65,6 +65,7 @@ static int check_for_max_user_connections(THD *thd, USER_CONN *uc);
 #endif
 static void decrease_user_connections(USER_CONN *uc);
 static bool check_db_used(THD *thd,TABLE_LIST *tables);
+static bool check_multi_update_lock(THD *thd);
 static void remove_escape(char *name);
 static void refresh_status(void);
 static bool append_file_to_dir(THD *thd, const char **filename_ptr,
@@ -133,6 +134,28 @@ static bool end_active_trans(THD *thd)
   DBUG_RETURN(error);
 }
 
+static bool begin_trans(THD *thd)
+{
+  int error=0;
+  if (thd->locked_tables)
+  {
+    thd->lock=thd->locked_tables;
+    thd->locked_tables=0;			// Will be automatically closed
+    close_thread_tables(thd);			// Free tables
+  }
+  if (end_active_trans(thd))
+    error= -1;
+  else
+  {
+    LEX *lex= thd->lex;
+    thd->options= ((thd->options & (ulong) ~(OPTION_STATUS_NO_TRANS_UPDATE)) |
+		   OPTION_BEGIN);
+    thd->server_status|= SERVER_STATUS_IN_TRANS;
+    if (lex->start_transaction_opt & MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT)
+      error= ha_start_consistent_snapshot(thd);    
+  }
+  return error;
+}
 
 #ifdef HAVE_REPLICATION
 inline bool all_tables_not_ok(THD *thd, TABLE_LIST *tables)
@@ -689,6 +712,8 @@ static int check_connection(THD *thd)
   DBUG_PRINT("info",
              ("New connection received on %s", vio_description(net->vio)));
 
+  vio_in_addr(net->vio,&thd->remote.sin_addr);
+
   if (!thd->host)                           // If TCP/IP connection
   {
     char ip[30];
@@ -733,7 +758,6 @@ static int check_connection(THD *thd)
     DBUG_PRINT("info",("Host: %s",thd->host));
     thd->host_or_ip= thd->host;
     thd->ip= 0;
-    bzero((char*) &thd->remote, sizeof(struct sockaddr));
   }
   vio_keepalive(net->vio, TRUE);
   ulong pkt_len= 0;
@@ -1261,6 +1285,127 @@ err:
   DBUG_RETURN(error);
 }
 
+/*
+  Ends the current transaction and (maybe) begin the next
+  First uint4 in packet is completion type
+  Remainder is savepoint name (if required)
+
+  SYNOPSIS
+    mysql_endtrans()
+      thd            Current thread
+      completion     Completion type
+      savepoint_name Savepoint when doing ROLLBACK_SAVEPOINT_NAME 
+                     or RELEASE_SAVEPOINT_NAME
+      release        (OUT) indicator for release operation
+
+  RETURN
+    0 - OK
+*/
+
+enum enum_mysql_completiontype {
+  ROLLBACK_RELEASE=-2,
+  COMMIT_RELEASE=-1,
+  COMMIT=0,
+  ROLLBACK=1,
+  SAVEPOINT_NAME_ROLLBACK=2,
+  SAVEPOINT_NAME_RELEASE=4,
+  COMMIT_AND_CHAIN=6,
+  ROLLBACK_AND_CHAIN=7
+};
+
+int mysql_endtrans(THD *thd, enum enum_mysql_completiontype completion, 
+		    char *savepoint_name)
+{
+  bool do_release= 0;
+  int res= 0;
+  LEX *lex= thd->lex;
+  DBUG_ENTER("mysql_endtrans");
+
+  switch (completion) {
+  case COMMIT:
+    /*
+     We don't use end_active_trans() here to ensure that this works
+     even if there is a problem with the OPTION_AUTO_COMMIT flag
+     (Which of course should never happen...)
+    */
+    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
+    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+    if (!(res= ha_commit(thd)))
+      send_ok(thd);
+    break;
+  case COMMIT_RELEASE:
+    do_release= 1;
+  case COMMIT_AND_CHAIN:
+    res= end_active_trans(thd);
+    if (!res && completion == COMMIT_AND_CHAIN)
+      res= begin_trans(thd);
+    if (!res)
+      send_ok(thd);
+    break;
+  case ROLLBACK_RELEASE:
+    do_release= 1;
+  case ROLLBACK:
+  case ROLLBACK_AND_CHAIN:
+  {
+    bool warn= 0;
+    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+    if (!ha_rollback(thd))
+    {
+      /*
+        If a non-transactional table was updated, warn; don't warn if this is a
+        slave thread (because when a slave thread executes a ROLLBACK, it has
+        been read from the binary log, so it's 100% sure and normal to produce
+        error ER_WARNING_NOT_COMPLETE_ROLLBACK. If we sent the warning to the
+        slave SQL thread, it would not stop the thread but just be printed in
+        the error log; but we don't want users to wonder why they have this
+        message in the error log, so we don't send it.
+      */
+      warn= (thd->options & OPTION_STATUS_NO_TRANS_UPDATE) && 
+      	    !thd->slave_thread;
+    }
+    else
+      res= -1;
+    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
+    if (!res && (completion == ROLLBACK_AND_CHAIN))
+      res= begin_trans(thd);
+
+    if (!res) 
+    {
+      if (warn)
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                     ER_WARNING_NOT_COMPLETE_ROLLBACK,
+                     ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
+      send_ok(thd);
+    }
+    break;
+  }
+  case SAVEPOINT_NAME_ROLLBACK:
+    if (!(res=ha_rollback_to_savepoint(thd, savepoint_name)))
+    {
+      if ((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) && !thd->slave_thread)
+	push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+		     ER_WARNING_NOT_COMPLETE_ROLLBACK,
+		     ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
+      send_ok(thd);
+    }
+    break;
+  case SAVEPOINT_NAME_RELEASE:
+    if (!(res=ha_release_savepoint_name(thd, savepoint_name)))
+      send_ok(thd);
+    break;
+  default:
+    res= -1;
+    my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
+    DBUG_RETURN(-1);
+  }
+  
+  if (res < 0)
+    my_error(thd->killed_errno(), MYF(0));
+  else if ((res == 0) && do_release)
+    thd->killed= THD::KILL_CONNECTION; 
+  
+  DBUG_RETURN(res);
+}
 
 #ifndef EMBEDDED_LIBRARY
 
@@ -2011,6 +2156,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
   }
   TABLE_LIST *table_list= (TABLE_LIST*) select_lex->table_list.first;
   table_list->schema_select_lex= sel;
+  table_list->schema_table_reformed= 1;
   DBUG_RETURN(0);
 }
 
@@ -2077,12 +2223,20 @@ mysql_execute_command(THD *thd)
   LEX	*lex= thd->lex;
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
   SELECT_LEX *select_lex= &lex->select_lex;
+  bool slave_fake_lock= 0;
+  MYSQL_LOCK *fake_prev_lock= 0;
   /* first table of first SELECT_LEX */
   TABLE_LIST *first_table= (TABLE_LIST*) select_lex->table_list.first;
   /* list of all tables in query */
   TABLE_LIST *all_tables;
   /* most outer SELECT_LEX_UNIT of query */
   SELECT_LEX_UNIT *unit= &lex->unit;
+  /* Locked closure of all tables */
+  TABLE_LIST *locked_tables= NULL;
+  /* Saved variable value */
+#ifdef HAVE_INNOBASE_DB
+  my_bool old_innodb_table_locks= thd->variables.innodb_table_locks;
+#endif
   DBUG_ENTER("mysql_execute_command");
 
   /*
@@ -2104,11 +2258,91 @@ mysql_execute_command(THD *thd)
   /* should be assigned after making first tables same */
   all_tables= lex->query_tables;
 
+  thd->shortcut_make_view= 0;
   if (lex->sql_command != SQLCOM_CREATE_PROCEDURE &&
-      lex->sql_command != SQLCOM_CREATE_SPFUNCTION)
+      lex->sql_command != SQLCOM_CREATE_SPFUNCTION &&
+      lex->sql_command != SQLCOM_LOCK_TABLES &&
+      lex->sql_command != SQLCOM_UNLOCK_TABLES)
   {
-    if (sp_cache_functions(thd, lex))
-      DBUG_RETURN(-1);
+    while (1)
+    {
+      if (sp_cache_routines(thd, lex, TYPE_ENUM_FUNCTION))
+	DBUG_RETURN(-1);
+      if (sp_cache_routines(thd, lex, TYPE_ENUM_PROCEDURE))
+	DBUG_RETURN(-1);
+      if (!thd->locked_tables &&
+	  lex->sql_command != SQLCOM_CREATE_TABLE &&
+	  lex->sql_command != SQLCOM_CREATE_VIEW)
+      {
+	MEM_ROOT *thdmemroot= NULL;
+
+	sp_merge_routine_tables(thd, lex);
+	// QQ Preopen tables to find views and triggers.
+	// This means we open, close and open again, which sucks, but
+	// right now it's the easiest way to get it to work. A better
+	// solution will hopefully be found soon...
+	if (lex->sptabs.records || lex->query_tables)
+	{
+	  uint procs, funs, tabs;
+
+	  if (thd->mem_root != thd->current_arena->mem_root)
+	  {
+	    thdmemroot= thd->mem_root;
+	    thd->mem_root= thd->current_arena->mem_root;
+	  }
+	  if (!sp_merge_table_list(thd, &lex->sptabs, lex->query_tables))
+	    DBUG_RETURN(-1);
+	  procs= lex->spprocs.records;
+	  funs= lex->spfuns.records;
+	  tabs= lex->sptabs.records;
+
+	  if ((locked_tables= sp_hash_to_table_list(thd, &lex->sptabs)))
+	  {
+	    // We don't want these updated now
+	    uint ctmpdtabs= thd->status_var.created_tmp_disk_tables;
+	    uint ctmptabs= thd->status_var.created_tmp_tables;
+	    uint count;
+
+	    thd->shortcut_make_view= TRUE;
+	    open_tables(thd, locked_tables, &count);
+	    thd->shortcut_make_view= FALSE;
+	    close_thread_tables(thd);
+	    thd->status_var.created_tmp_disk_tables= ctmpdtabs;
+	    thd->status_var.created_tmp_tables= ctmptabs;
+	    thd->clear_error();
+	    mysql_reset_errors(thd);
+	    locked_tables= NULL;
+	  }
+	  // A kludge: Decrease all temp. table's query ids to allow a
+	  // second opening.
+	  for (TABLE *table= thd->temporary_tables; table ; table=table->next)
+	    table->query_id-= 1;
+	  if (procs < lex->spprocs.records ||
+	      funs < lex->spfuns.records ||
+	      tabs < lex->sptabs.records)
+	  {
+	    if (thdmemroot)
+	      thd->mem_root= thdmemroot;
+	    continue;		// Found more SPs or tabs, try again
+	  }
+	}
+	if (lex->sptabs.records &&
+	    (lex->spfuns.records || lex->spprocs.records) &&
+	    sp_merge_table_list(thd, &lex->sptabs, lex->query_tables))
+	{
+	  if ((locked_tables= sp_hash_to_table_list(thd, &lex->sptabs)))
+	  {
+#ifdef HAVE_INNOBASE_DB
+	    thd->variables.innodb_table_locks= FALSE;
+#endif
+	    sp_open_and_lock_tables(thd, locked_tables);
+	  }
+	}
+	if (thdmemroot)
+	  thd->mem_root= thdmemroot;
+      }
+      break;
+    } // while (1)
   }
 
   /*
@@ -2123,6 +2357,22 @@ mysql_execute_command(THD *thd)
 #ifdef HAVE_REPLICATION
   if (thd->slave_thread)
   {
+    if (lex->sql_command == SQLCOM_UPDATE_MULTI)
+    {
+      DBUG_PRINT("info",("need faked locked tables"));
+      
+      if (check_multi_update_lock(thd))
+        goto error;
+
+      /* Fix for replication, the tables are opened and locked,
+         now we pretend that we have performed a LOCK TABLES action */
+	 
+      fake_prev_lock= thd->locked_tables;
+      if (thd->lock)
+        thd->locked_tables= thd->lock;
+      thd->lock= 0;
+      slave_fake_lock= 1;
+    }
     /*
       Skip if we are in the slave thread, some table rules have been
       given and the table list says the query should not be replicated
@@ -2363,7 +2613,8 @@ mysql_execute_command(THD *thd)
       goto error;
     /* PURGE MASTER LOGS BEFORE 'data' */
     it= (Item *)lex->value_list.head();
-    if (it->check_cols(1) || it->fix_fields(lex->thd, 0, &it))
+    if ((!it->fixed &&it->fix_fields(lex->thd, 0, &it)) ||
+        it->check_cols(1))
     {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), "PURGE LOGS BEFORE");
       goto error;
@@ -3582,7 +3833,7 @@ unsent_create_error:
   {
     Item *it= (Item *)lex->value_list.head();
 
-    if (it->fix_fields(lex->thd, 0, &it) || it->check_cols(1))
+    if ((!it->fixed && it->fix_fields(lex->thd, 0, &it)) || it->check_cols(1))
     {
       my_message(ER_SET_CONSTANTS_ONLY, ER(ER_SET_CONSTANTS_ONLY),
 		 MYF(0));
@@ -3629,80 +3880,33 @@ unsent_create_error:
     break;
 
   case SQLCOM_BEGIN:
-    if (thd->locked_tables)
-    {
-      thd->lock=thd->locked_tables;
-      thd->locked_tables=0;			// Will be automatically closed
-      close_thread_tables(thd);			// Free tables
-    }
-    if (end_active_trans(thd))
+    if (begin_trans(thd))
       goto error;
     else
-    {
-      thd->options= ((thd->options & (ulong) ~(OPTION_STATUS_NO_TRANS_UPDATE)) |
-		     OPTION_BEGIN);
-      thd->server_status|= SERVER_STATUS_IN_TRANS;
-      if (!(lex->start_transaction_opt & MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT) ||
-          !(res= ha_start_consistent_snapshot(thd)))
-        send_ok(thd);
-    }
+      send_ok(thd);
     break;
   case SQLCOM_COMMIT:
-    /*
-      We don't use end_active_trans() here to ensure that this works
-      even if there is a problem with the OPTION_AUTO_COMMIT flag
-      (Which of course should never happen...)
-    */
-  {
-    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
-    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
-    if (!ha_commit(thd))
-    {
-      send_ok(thd);
-    }
-    else
+    if (mysql_endtrans(thd, lex->tx_release ? COMMIT_RELEASE :
+    		       lex->tx_chain ? COMMIT_AND_CHAIN : COMMIT, 0))
       goto error;
     break;
-  }
   case SQLCOM_ROLLBACK:
-    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
-    if (!ha_rollback(thd))
-    {
-      /*
-        If a non-transactional table was updated, warn; don't warn if this is a
-        slave thread (because when a slave thread executes a ROLLBACK, it has
-        been read from the binary log, so it's 100% sure and normal to produce
-        error ER_WARNING_NOT_COMPLETE_ROLLBACK. If we sent the warning to the
-        slave SQL thread, it would not stop the thread but just be printed in
-        the error log; but we don't want users to wonder why they have this
-        message in the error log, so we don't send it.
-      */
-      if ((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) && !thd->slave_thread)
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                     ER_WARNING_NOT_COMPLETE_ROLLBACK,
-                     ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
-      send_ok(thd);
-    }
-    else
-      res= TRUE;
-    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
+    if (mysql_endtrans(thd, lex->tx_release ? ROLLBACK_RELEASE :
+    		       lex->tx_chain ? ROLLBACK_AND_CHAIN : ROLLBACK, 0))
+      goto error;
     break;
   case SQLCOM_ROLLBACK_TO_SAVEPOINT:
-    if (!ha_rollback_to_savepoint(thd, lex->savepoint_name))
-    {
-      if ((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) && !thd->slave_thread)
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                     ER_WARNING_NOT_COMPLETE_ROLLBACK,
-                     ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
-      send_ok(thd);
-    }
-    else
+    if (mysql_endtrans(thd, SAVEPOINT_NAME_ROLLBACK, lex->savepoint_name))
       goto error;
     break;
   case SQLCOM_SAVEPOINT:
     if (!ha_savepoint(thd, lex->savepoint_name))
       send_ok(thd);
     else
+      goto error;
+    break;
+  case SQLCOM_RELEASE_SAVEPOINT:
+    if (mysql_endtrans(thd, SAVEPOINT_NAME_RELEASE, lex->savepoint_name))
       goto error;
     break;
   case SQLCOM_CREATE_PROCEDURE:
@@ -4129,11 +4333,30 @@ unsent_create_error:
   default:
     thd->row_count_func= -1;
   }
-
-  DBUG_RETURN(res || thd->net.report_error);
-
+  goto cleanup;
+  
 error:
-  DBUG_RETURN(TRUE);
+  res= 1;
+
+cleanup:
+  if (unlikely(slave_fake_lock))
+  {
+    DBUG_PRINT("info",("undoing faked lock"));
+    thd->lock= thd->locked_tables;
+    thd->locked_tables= fake_prev_lock;
+    if (thd->lock == thd->locked_tables)
+      thd->lock= 0;
+  }
+
+  if (locked_tables)
+  {
+#ifdef HAVE_INNOBASE_DB
+    thd->variables.innodb_table_locks= old_innodb_table_locks;
+#endif
+    if (thd->locked_tables)
+      sp_unlock_tables(thd);
+  }
+  DBUG_RETURN(res || thd->net.report_error);
 }
 
 
@@ -4592,19 +4815,21 @@ bool
 mysql_new_select(LEX *lex, bool move_down)
 {
   SELECT_LEX *select_lex;
+  DBUG_ENTER("mysql_new_select");
+
   if (!(select_lex= new(lex->thd->mem_root) SELECT_LEX()))
-    return 1;
+    DBUG_RETURN(1);
   select_lex->select_number= ++lex->thd->select_number;
   select_lex->init_query();
   select_lex->init_select();
   select_lex->parent_lex= lex;
   if (move_down)
   {
+    SELECT_LEX_UNIT *unit;
     lex->subqueries= TRUE;
     /* first select_lex of subselect or derived table */
-    SELECT_LEX_UNIT *unit;
     if (!(unit= new(lex->thd->mem_root) SELECT_LEX_UNIT()))
-      return 1;
+      DBUG_RETURN(1);
 
     unit->init_query();
     unit->init_select();
@@ -4621,7 +4846,7 @@ mysql_new_select(LEX *lex, bool move_down)
     if (lex->current_select->order_list.first && !lex->current_select->braces)
     {
       my_error(ER_WRONG_USAGE, MYF(0), "UNION", "ORDER BY");
-      return 1;
+      DBUG_RETURN(1);
     }
     select_lex->include_neighbour(lex->current_select);
     SELECT_LEX_UNIT *unit= select_lex->master_unit();
@@ -4633,7 +4858,7 @@ mysql_new_select(LEX *lex, bool move_down)
 	fake SELECT_LEX for UNION processing
       */
       if (!(fake= unit->fake_select_lex= new(lex->thd->mem_root) SELECT_LEX()))
-        return 1;
+        DBUG_RETURN(1);
       fake->include_standalone(unit,
 			       (SELECT_LEX_NODE**)&unit->fake_select_lex);
       fake->select_number= INT_MAX;
@@ -4647,7 +4872,7 @@ mysql_new_select(LEX *lex, bool move_down)
   select_lex->include_global((st_select_lex_node**)&lex->all_selects_list);
   lex->current_select= select_lex;
   select_lex->resolve_mode= SELECT_LEX::SELECT_MODE;
-  return 0;
+  DBUG_RETURN(0);
 }
 
 /*
@@ -4940,21 +5165,19 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     break;
   case FIELD_TYPE_NULL:
     break;
-  case FIELD_TYPE_DECIMAL:
+  case FIELD_TYPE_NEWDECIMAL:
     if (!length)
     {
-      if ((new_field->length= new_field->decimals))
-        new_field->length++;
-      else
+      if (!(new_field->length= new_field->decimals))
         new_field->length= 10;                  // Default length for DECIMAL
     }
-    if (new_field->length < MAX_FIELD_WIDTH)	// Skip wrong argument
-    {
-      new_field->length+=sign_len;
-      if (new_field->decimals)
-	new_field->length++;
-    }
-    break;
+    new_field->pack_length=
+      my_decimal_get_binary_size(new_field->length, new_field->decimals);
+    if (new_field->length <= DECIMAL_MAX_LENGTH &&
+        new_field->length >= new_field->decimals)
+      break;
+    my_error(ER_WRONG_FIELD_SPEC, MYF(0), field_name);
+    DBUG_RETURN(1);
   case MYSQL_TYPE_VARCHAR:
     /*
       Long VARCHAR's are automaticly converted to blobs in mysql_prepare_table
@@ -5140,6 +5363,8 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       new_field->pack_length= (new_field->length + 7) / 8;
       break;
     }
+  case FIELD_TYPE_DECIMAL:
+    DBUG_ASSERT(0); /* Was obsolete */
   }
 
   if (!(new_field->flags & BLOB_FLAG) &&
@@ -5939,6 +6164,56 @@ bool check_simple_select()
     return 1;
   }
   return 0;
+}
+
+/*
+  Setup locking for multi-table updates. Used by the replication slave.
+  Replication slave SQL thread examines (all_tables_not_ok()) the
+  locking state of referenced tables to determine if the query has to
+  be executed or ignored. Since in multi-table update, the 
+  'default' lock is read-only, this lock is corrected early enough by
+  calling this function, before the slave decides to execute/ignore.
+
+  SYNOPSIS
+    check_multi_update_lock()
+    thd		Current thread
+
+  RETURN VALUES
+    0	ok
+    1	error
+*/
+static bool check_multi_update_lock(THD *thd)
+{
+  bool res= 1;
+  LEX *lex= thd->lex;
+  TABLE_LIST *table, *tables= lex->query_tables;
+  DBUG_ENTER("check_multi_update_lock");
+  
+  if (check_db_used(thd, tables))
+    goto error;
+
+  /*
+    Ensure that we have UPDATE or SELECT privilege for each table
+    The exact privilege is checked in mysql_multi_update()
+  */
+  for (table= tables ; table ; table= table->next_local)
+  {
+    TABLE_LIST *save= table->next_local;
+    table->next_local= 0;
+    if ((check_access(thd, UPDATE_ACL, table->db, &table->grant.privilege,0,1) ||
+        (grant_option && check_grant(thd, UPDATE_ACL, table,0,1,1))) &&
+	check_one_table_access(thd, SELECT_ACL, table))
+	goto error;
+    table->next_local= save;
+  }
+    
+  if (mysql_multi_update_prepare(thd))
+    goto error;
+  
+  res= 0;
+  
+error:
+  DBUG_RETURN(res);
 }
 
 

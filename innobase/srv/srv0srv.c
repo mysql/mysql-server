@@ -848,7 +848,7 @@ srv_get_thread_type(void)
 
 /*************************************************************************
 Initializes the server. */
-static
+
 void
 srv_init(void)
 /*==========*/
@@ -1310,6 +1310,7 @@ srv_boot(void)
 	return(DB_SUCCESS);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*************************************************************************
 Reserves a slot in the thread table for the current MySQL OS thread.
 NOTE! The kernel mutex has to be reserved by the caller! */
@@ -1368,6 +1369,7 @@ srv_table_reserve_slot_for_mysql(void)
 
 	return(slot);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*******************************************************************
 Puts a MySQL OS thread to wait for a lock to be released. If an error
@@ -1382,6 +1384,7 @@ srv_suspend_mysql_thread(
 	que_thr_t*	thr)	/* in: query thread associated with the MySQL
 				OS thread */
 {
+#ifndef UNIV_HOTBACKUP
 	srv_slot_t*	slot;
 	os_event_t	event;
 	double		wait_time;
@@ -1520,6 +1523,12 @@ srv_suspend_mysql_thread(
 
 	    	trx->error_state = DB_LOCK_WAIT_TIMEOUT;
 	}
+#else /* UNIV_HOTBACKUP */
+	/* This function depends on MySQL code that is not included in
+	InnoDB Hot Backup builds.  Besides, this function should never
+	be called in InnoDB Hot Backup. */
+	ut_error;
+#endif /* UNIV_HOTBACKUP */
 }
 
 /************************************************************************
@@ -1532,6 +1541,7 @@ srv_release_mysql_thread_if_suspended(
 	que_thr_t*	thr)	/* in: query thread associated with the
 				MySQL OS thread  */
 {
+#ifndef UNIV_HOTBACKUP
 	srv_slot_t*	slot;
 	ulint		i;
 	
@@ -1553,8 +1563,15 @@ srv_release_mysql_thread_if_suspended(
 	}
 
 	/* not found */
+#else /* UNIV_HOTBACKUP */
+	/* This function depends on MySQL code that is not included in
+	InnoDB Hot Backup builds.  Besides, this function should never
+	be called in InnoDB Hot Backup. */
+	ut_error;
+#endif /* UNIV_HOTBACKUP */
 }
 
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************
 Refreshes the values used to calculate per-second averages. */
 static
@@ -2576,3 +2593,4 @@ suspend_thread:
 	return(0);
 #endif
 }
+#endif /* !UNIV_HOTBACKUP */

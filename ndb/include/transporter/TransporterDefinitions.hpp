@@ -49,74 +49,50 @@ enum SendStatus {
 const Uint32 MAX_MESSAGE_SIZE = (12+4+4+(4*25)+(3*4)+4*4096);
 
 /**
- * TCP Transporter Configuration
+ * TransporterConfiguration
+ *
+ * used for setting up a transporter. the union member specific is for
+ * information specific to a transporter type.
  */
-struct TCP_TransporterConfiguration {
-  Uint32 port; 
+struct TransporterConfiguration {
+  Uint32 port;
   const char *remoteHostName;
   const char *localHostName;
   NodeId remoteNodeId;
   NodeId localNodeId;
-  Uint32 sendBufferSize;     // Size of SendBuffer of priority B 
-  Uint32 maxReceiveSize;     // Maximum no of bytes to receive
+  NodeId serverNodeId;
   bool checksum;
   bool signalId;
-};
+  bool isMgmConnection; // is a mgm connection, requires transforming
 
-/**
- * SHM Transporter Configuration
- */
-struct SHM_TransporterConfiguration {
-  Uint32 port; 
-  const char *remoteHostName;
-  const char *localHostName;
-  NodeId remoteNodeId;
-  NodeId localNodeId;
-  bool checksum;
-  bool signalId;
-  
-  Uint32 shmKey;
-  Uint32 shmSize;
-  int    signum;
-};
+  union { // Transporter specific configuration information
 
-/**
- * OSE Transporter Configuration
- */
-struct OSE_TransporterConfiguration {
-  const char *remoteHostName;
-  const char *localHostName;
-  NodeId remoteNodeId;
-  NodeId localNodeId;
-  bool checksum;
-  bool signalId;
-  
-  Uint32 prioASignalSize;
-  Uint32 prioBSignalSize;
-  Uint32 receiveBufferSize; // In number of signals
-};
+    struct {
+      Uint32 sendBufferSize;     // Size of SendBuffer of priority B 
+      Uint32 maxReceiveSize;     // Maximum no of bytes to receive
+    } tcp;
+    
+    struct {
+      Uint32 shmKey;
+      Uint32 shmSize;
+      int    signum;
+    } shm;
+    
+    struct {
+      Uint32 prioASignalSize;
+      Uint32 prioBSignalSize;
+    } ose;
 
-/**
- * SCI Transporter Configuration
- */
-struct SCI_TransporterConfiguration {
-  const char *remoteHostName;
-  const char *localHostName;
-  Uint32 port; 
-  Uint32 sendLimit;        // Packet size
-  Uint32 bufferSize;       // Buffer size
-
-  Uint32 nLocalAdapters;   // 1 or 2, the number of adapters on local host
-  
-  Uint32 remoteSciNodeId0; // SCInodeId for adapter 1
-  Uint32 remoteSciNodeId1; // SCInodeId for adapter 2
-  
-  NodeId localNodeId;      // Local node Id
-  NodeId remoteNodeId;     // Remote node Id
-
-  bool checksum;
-  bool signalId;
-
+    struct {
+      Uint32 sendLimit;        // Packet size
+      Uint32 bufferSize;       // Buffer size
+      
+      Uint32 nLocalAdapters;   // 1 or 2, the number of adapters on local host
+      
+      Uint32 remoteSciNodeId0; // SCInodeId for adapter 1
+      Uint32 remoteSciNodeId1; // SCInodeId for adapter 2
+    } sci;
+  };
 };
 
 struct SignalHeader {	

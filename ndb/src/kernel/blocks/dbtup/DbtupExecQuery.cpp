@@ -1865,6 +1865,11 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	}
 	else
 	{
+	  /* --------------------------------------------------------- */
+	  // If length of argument rounded to nearest word is
+	  // the same as attribute size, use that as argument size
+	  /* --------------------------------------------------------- */
+	  if ((((argLen + 3) >> 2) << 2) == attrLen) argLen= attrLen;
 	  res = (*sqlType.m_cmp)(cs, s1, attrLen, s2, argLen, true);
 	}
 	

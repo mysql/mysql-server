@@ -457,10 +457,6 @@ event_thread_run(void* m)
 {
   NdbMgmHandle handle= *(NdbMgmHandle*)m;
 
-  my_thread_init();
-
-  DBUG_ENTER("event_thread_run");
-
   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP, 0 };
   int fd = ndb_mgm_listen_event(handle, filter);
   if (fd > 0)
@@ -480,9 +476,7 @@ event_thread_run(void* m)
     do_event_thread= -1;
   }
 
-  my_thread_end();
-  NdbThread_Exit(0);
-  return 0;
+  return NULL;
 }
 
 bool

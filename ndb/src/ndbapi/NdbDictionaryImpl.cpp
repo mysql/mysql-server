@@ -192,37 +192,38 @@ NdbColumnImpl::~NdbColumnImpl()
 bool
 NdbColumnImpl::equal(const NdbColumnImpl& col) const 
 {
+  DBUG_ENTER("NdbColumnImpl::equal");
   if(strcmp(m_name.c_str(), col.m_name.c_str()) != 0){
-    return false;
+    DBUG_RETURN(false);
   }
   if(m_type != col.m_type){
-    return false;
+    DBUG_RETURN(false);
   }
   if(m_pk != col.m_pk){
-    return false;
+    DBUG_RETURN(false);
   }
   if(m_nullable != col.m_nullable){
-    return false;
+    DBUG_RETURN(false);
   }
   if(m_pk){
     if(m_distributionKey != col.m_distributionKey){
-      return false;
+      DBUG_RETURN(false);
     }
   }
   if (m_precision != col.m_precision ||
       m_scale != col.m_scale ||
       m_length != col.m_length ||
       m_cs != col.m_cs) {
-    return false;
+    DBUG_RETURN(false);
   }
   if (m_autoIncrement != col.m_autoIncrement){
-    return false;
+    DBUG_RETURN(false);
   }
   if(strcmp(m_defaultValue.c_str(), col.m_defaultValue.c_str()) != 0){
-    return false;
+    DBUG_RETURN(false);
   }
 
-  return true;
+  DBUG_RETURN(true);
 }
 
 NdbDictionary::Column *
@@ -295,7 +296,7 @@ void
 NdbTableImpl::init(){
   clearNewProperties();
   m_frm.clear();
-  m_fragmentType = NdbDictionary::Object::FragAllMedium;
+  m_fragmentType = NdbDictionary::Object::FragAllSmall;
   m_logging = true;
   m_kvalue = 6;
   m_minLoadFactor = 78;
@@ -314,49 +315,62 @@ NdbTableImpl::init(){
 bool
 NdbTableImpl::equal(const NdbTableImpl& obj) const 
 {
+  DBUG_ENTER("NdbTableImpl::equal");
   if ((m_internalName.c_str() == NULL) || 
       (strcmp(m_internalName.c_str(), "") == 0) ||
       (obj.m_internalName.c_str() == NULL) || 
       (strcmp(obj.m_internalName.c_str(), "") == 0)) {
     // Shallow equal
     if(strcmp(getName(), obj.getName()) != 0){
-      return false;    
+      DBUG_PRINT("info",("name %s != %s",getName(),obj.getName()));
+      DBUG_RETURN(false);    
     }
   } else 
     // Deep equal
     if(strcmp(m_internalName.c_str(), obj.m_internalName.c_str()) != 0){
-      return false;
+    {
+      DBUG_PRINT("info",("m_internalName %s != %s",
+			 m_internalName.c_str(),obj.m_internalName.c_str()));
+      DBUG_RETURN(false);
+    }
   }
   if(m_fragmentType != obj.m_fragmentType){
-    return false;
+    DBUG_PRINT("info",("m_fragmentType %d != %d",m_fragmentType,obj.m_fragmentType));
+    DBUG_RETURN(false);
   }
   if(m_columns.size() != obj.m_columns.size()){
-    return false;
+    DBUG_PRINT("info",("m_columns.size %d != %d",m_columns.size(),obj.m_columns.size()));
+    DBUG_RETURN(false);
   }
 
   for(unsigned i = 0; i<obj.m_columns.size(); i++){
     if(!m_columns[i]->equal(* obj.m_columns[i])){
-      return false;
+      DBUG_PRINT("info",("m_columns [%d] != [%d]",i,i));
+      DBUG_RETURN(false);
     }
   }
   
   if(m_logging != obj.m_logging){
-    return false;
+    DBUG_PRINT("info",("m_logging %d != %d",m_logging,obj.m_logging));
+    DBUG_RETURN(false);
   }
 
   if(m_kvalue != obj.m_kvalue){
-    return false;
+    DBUG_PRINT("info",("m_kvalue %d != %d",m_kvalue,obj.m_kvalue));
+    DBUG_RETURN(false);
   }
 
   if(m_minLoadFactor != obj.m_minLoadFactor){
-    return false;
+    DBUG_PRINT("info",("m_minLoadFactor %d != %d",m_minLoadFactor,obj.m_minLoadFactor));
+    DBUG_RETURN(false);
   }
 
   if(m_maxLoadFactor != obj.m_maxLoadFactor){
-    return false;
+    DBUG_PRINT("info",("m_maxLoadFactor %d != %d",m_maxLoadFactor,obj.m_maxLoadFactor));
+    DBUG_RETURN(false);
   }
   
-  return true;
+   DBUG_RETURN(true);
 }
 
 void

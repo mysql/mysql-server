@@ -67,6 +67,7 @@ public:
   int compare_string();		 // compare args[0] & args[1]
   int compare_binary_string();	 // compare args[0] & args[1]
   int compare_real();            // compare args[0] & args[1]
+  int compare_decimal();         // compare args[0] & args[1]
   int compare_int_signed();      // compare args[0] & args[1]
   int compare_int_signed_unsigned();
   int compare_int_unsigned_signed();
@@ -75,11 +76,12 @@ public:
   int compare_e_string();	 // compare args[0] & args[1]
   int compare_e_binary_string(); // compare args[0] & args[1]
   int compare_e_real();          // compare args[0] & args[1]
+  int compare_e_decimal();       // compare args[0] & args[1]
   int compare_e_int();           // compare args[0] & args[1]
   int compare_e_int_diff_signedness();
   int compare_e_row();           // compare args[0] & args[1]
 
-  static arg_cmp_func comparator_matrix [4][2];
+  static arg_cmp_func comparator_matrix [5][2];
 
   friend class Item_func;
 };
@@ -215,7 +217,7 @@ class Item_bool_rowready_func2 :public Item_bool_func2
 public:
   Item_bool_rowready_func2(Item *a, Item *b) :Item_bool_func2(a, b)
   {
-    allowed_arg_cols= a->cols();
+    allowed_arg_cols= 0;  // Fetch this value from first argument
   }
   Item *neg_transformer(THD *thd);
   virtual Item *negated_item();
@@ -269,7 +271,7 @@ public:
 
 class Item_func_not_all :public Item_func_not
 {
-  /* allow to check presence od values in max/min optimisation */
+  /* allow to check presence of values in max/min optimization */
   Item_sum_hybrid *test_sum_item;
   Item_maxmin_subselect *test_sub_item;
 
@@ -421,37 +423,67 @@ public:
 };
 
 
+struct interval_range
+{
+  Item_result type;
+  double dbl;
+  my_decimal dec;
+};
+
 class Item_func_interval :public Item_int_func
 {
   Item_row *row;
-  double *intervals;
+  my_bool use_decimal_comparison;
+  interval_range *intervals;
 public:
   Item_func_interval(Item_row *a)
-    :Item_int_func(a),row(a),intervals(0) { allowed_arg_cols= a->cols(); }
+    :Item_int_func(a),row(a),intervals(0)
+  {
+    allowed_arg_cols= 0;    // Fetch this value from first argument
+  }
   longlong val_int();
   void fix_length_and_dec();
   const char *func_name() const { return "interval"; }
 };
 
 
-class Item_func_ifnull :public Item_func
+class Item_func_coalesce :public Item_func
 {
+protected:
   enum Item_result cached_result_type;
-  enum_field_types cached_field_type;
-  bool field_type_defined;
+  Item_func_coalesce(Item *a, Item *b)
+    :Item_func(a, b), cached_result_type(INT_RESULT)
+  {}
 public:
-  Item_func_ifnull(Item *a,Item *b)
-    :Item_func(a,b), cached_result_type(INT_RESULT)
+  Item_func_coalesce(List<Item> &list)
+    :Item_func(list),cached_result_type(INT_RESULT)
   {}
   double val_real();
   longlong val_int();
-  String *val_str(String *str);
+  String *val_str(String *);
+  my_decimal *val_decimal(my_decimal *);
+  void fix_length_and_dec();
   enum Item_result result_type () const { return cached_result_type; }
+  const char *func_name() const { return "coalesce"; }
+  table_map not_null_tables() const { return 0; }
+};
+
+
+class Item_func_ifnull :public Item_func_coalesce
+{
+protected:
+  enum_field_types cached_field_type;
+  bool field_type_defined;
+public:
+  Item_func_ifnull(Item *a, Item *b) :Item_func_coalesce(a,b) {}
+  double val_real();
+  longlong val_int();
+  String *val_str(String *str);
+  my_decimal *val_decimal(my_decimal *);
   enum_field_types field_type() const;
   void fix_length_and_dec();
   const char *func_name() const { return "ifnull"; }
   Field *tmp_table_field(TABLE *table);
-  table_map not_null_tables() const { return 0; }
 };
 
 
@@ -465,6 +497,7 @@ public:
   double val_real();
   longlong val_int();
   String *val_str(String *str);
+  my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type () const { return cached_result_type; }
   bool fix_fields(THD *thd,struct st_table_list *tlist, Item **ref)
   {
@@ -488,29 +521,13 @@ public:
   double val_real();
   longlong val_int();
   String *val_str(String *str);
+  my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type () const { return cached_result_type; }
   void fix_length_and_dec();
   const char *func_name() const { return "nullif"; }
   void print(String *str) { Item_func::print(str); }
   table_map not_null_tables() const { return 0; }
   bool is_null();
-};
-
-
-class Item_func_coalesce :public Item_func
-{
-  enum Item_result cached_result_type;
-public:
-  Item_func_coalesce(List<Item> &list)
-    :Item_func(list),cached_result_type(INT_RESULT)
-  {}
-  double val_real();
-  longlong val_int();
-  String *val_str(String *);
-  void fix_length_and_dec();
-  enum Item_result result_type () const { return cached_result_type; }
-  const char *func_name() const { return "coalesce"; }
-  table_map not_null_tables() const { return 0; }
 };
 
 
@@ -526,7 +543,7 @@ public:
   Item_func_case(List<Item> &list, Item *first_expr_arg, Item *else_expr_arg)
     :Item_func(), first_expr_num(-1), else_expr_num(-1),
     cached_result_type(INT_RESULT)
-  { 
+  {
     ncases= list.elements;
     if (first_expr_arg)
     {
@@ -543,6 +560,7 @@ public:
   double val_real();
   longlong val_int();
   String *val_str(String *);
+  my_decimal *val_decimal(my_decimal *);
   void fix_length_and_dec();
   table_map not_null_tables() const { return 0; }
   enum Item_result result_type () const { return cached_result_type; }
@@ -583,7 +601,7 @@ public:
 
 class in_string :public in_vector
 {
-  char buff[80];
+  char buff[STRING_BUFFER_USUAL_SIZE];
   String tmp;
 public:
   in_string(uint elements,qsort2_cmp cmp_func, CHARSET_INFO *cs);
@@ -610,6 +628,16 @@ public:
   byte *get_value(Item *item);
 };
 
+class in_decimal :public in_vector
+{
+  my_decimal val;
+public:
+  in_decimal(uint elements);
+  void set(uint pos, Item *item);
+  byte *get_value(Item *item);
+};
+
+
 /*
 ** Classes for easy comparing of non const items
 */
@@ -624,7 +652,7 @@ public:
   virtual int cmp(Item *item)= 0;
   // for optimized IN with row
   virtual int compare(cmp_item *item)= 0;
-  static cmp_item* get_comparator(Item *);
+  static cmp_item* get_comparator(Item_result type, CHARSET_INFO *cs);
   virtual cmp_item *make_same()= 0;
   virtual void store_value_by_template(cmp_item *tmpl, Item *item)
   {
@@ -645,7 +673,7 @@ public:
 class cmp_item_sort_string :public cmp_item_string
 {
 protected:
-  char value_buff[80];
+  char value_buff[STRING_BUFFER_USUAL_SIZE];
   String value;
 public:
   cmp_item_sort_string(CHARSET_INFO *cs):
@@ -657,7 +685,7 @@ public:
   }
   int cmp(Item *arg)
   {
-    char buff[80];
+    char buff[STRING_BUFFER_USUAL_SIZE];
     String tmp(buff, sizeof(buff), cmp_charset), *res;
     if (!(res= arg->val_str(&tmp)))
       return 1;				/* Can't be right */
@@ -710,6 +738,18 @@ public:
   }
   cmp_item *make_same();
 };
+
+
+class cmp_item_decimal :public cmp_item
+{
+  my_decimal value;
+public:
+  void store_value(Item *item);
+  int cmp(Item *arg);
+  int compare(cmp_item *c);
+  cmp_item *make_same();
+};
+
 
 class cmp_item_row :public cmp_item
 {
@@ -780,7 +820,7 @@ class Item_func_in :public Item_int_func
   Item_func_in(List<Item> &list)
     :Item_int_func(list), array(0), in_item(0), have_null(0)
   {
-    allowed_arg_cols= args[0]->cols();
+    allowed_arg_cols= 0;  // Fetch this value from first argument
   }
   longlong val_int();
   void fix_length_and_dec();
@@ -996,26 +1036,26 @@ public:
 
 
 /*
-  The class Item_equal is used to represent conjuctions of equality
+  The class Item_equal is used to represent conjunctions of equality
   predicates of the form field1 = field2, and field=const in where
   conditions and on expressions.
  
   All equality predicates of the form field1=field2 contained in a 
-  conjuction are substituted for a sequence of items of this class.
-  An item of this class Item_equal(f1,f2,...fk) respresents a
+  conjunction are substituted for a sequence of items of this class.
+  An item of this class Item_equal(f1,f2,...fk) represents a
   multiple equality f1=f2=...=fk.
 
-  If a conjuction contains predicates f1=f2 and f2=f3, a new item of
+  If a conjunction contains predicates f1=f2 and f2=f3, a new item of
   this class is created Item_equal(f1,f2,f3) representing the multiple
   equality f1=f2=f3 that substitutes the above equality predicates in
-  the conjuction.
-  A conjuction of the predicates f2=f1 and f3=f1 and f3=f2 will be
+  the conjunction.
+  A conjunction of the predicates f2=f1 and f3=f1 and f3=f2 will be
   substituted for the item representing the same multiple equality
   f1=f2=f3.
-  An item Item_equal(f1,f2) can appear instead of a conjuction of 
+  An item Item_equal(f1,f2) can appear instead of a conjunction of 
   f2=f1 and f1=f2, or instead of just the predicate f1=f2.
 
-  An item of the class Item_equal inherites equalities from outer 
+  An item of the class Item_equal inherits equalities from outer 
   conjunctive levels.
 
   Suppose we have a where condition of the following form:
@@ -1026,7 +1066,7 @@ public:
     f1=f3 will be substituted for Item_equal(f1,f2,f3,f4,f5);
 
   An object of the class Item_equal can contain an optional constant
-  item c. Thenit represents a multiple equality of the form 
+  item c. Then it represents a multiple equality of the form 
   c=f1=...=fk.
 
   Objects of the class Item_equal are used for the following:
@@ -1044,7 +1084,7 @@ public:
   3. An object Item_equal(t1.f1,...,tk.fk) is used to optimize the 
   selected execution plan for the query: if table ti is accessed 
   before the table tj then in any predicate P in the where condition
-  the occurence of tj.fj is substituted for ti.fi. This can allow
+  the occurrence of tj.fj is substituted for ti.fi. This can allow
   an evaluation of the predicate at an earlier step.
 
   When feature 1 is supported they say that join transitive closure 
@@ -1175,7 +1215,7 @@ public:
 
 
 /*
-  XOR is Item_cond, not an Item_int_func bevause we could like to
+  XOR is Item_cond, not an Item_int_func because we could like to
   optimize (a XOR b) later on. It's low prio, though
 */
 
@@ -1192,7 +1232,7 @@ public:
 };
 
 
-/* Some usefull inline functions */
+/* Some useful inline functions */
 
 inline Item *and_conds(Item *a, Item *b)
 {

@@ -84,25 +84,15 @@ bool Item_row::fix_fields(THD *thd, TABLE_LIST *tabl, Item **ref)
   return FALSE;
 }
 
+
 void Item_row::split_sum_func(THD *thd, Item **ref_pointer_array,
                               List<Item> &fields)
 {
   Item **arg, **arg_end;
   for (arg= items, arg_end= items+arg_count; arg != arg_end ; arg++)
-  {
-    if ((*arg)->with_sum_func && (*arg)->type() != SUM_FUNC_ITEM)
-      (*arg)->split_sum_func(thd, ref_pointer_array, fields);
-    else if ((*arg)->used_tables() || (*arg)->type() == SUM_FUNC_ITEM)
-    {
-      uint el= fields.elements;
-      ref_pointer_array[el]=*arg;
-      Item *new_item= new Item_ref(ref_pointer_array + el, 0, (*arg)->name);
-      fields.push_front(*arg);
-      ref_pointer_array[el]= *arg;
-      thd->change_item_tree(arg, new_item);
-    }
-  }
+    (*arg)->split_sum_func2(thd, ref_pointer_array, fields, arg);
 }
+
 
 void Item_row::update_used_tables()
 {

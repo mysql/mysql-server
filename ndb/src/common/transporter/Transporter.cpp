@@ -32,12 +32,14 @@ Transporter::Transporter(TransporterRegistry &t_reg,
 			 const char *lHostName,
 			 const char *rHostName, 
 			 int r_port,
+			 bool _isMgmConnection,
 			 NodeId lNodeId,
-			 NodeId rNodeId, 
+			 NodeId rNodeId,
+			 NodeId serverNodeId,
 			 int _byteorder, 
 			 bool _compression, bool _checksum, bool _signalId)
   : m_r_port(r_port), remoteNodeId(rNodeId), localNodeId(lNodeId),
-    isServer(lNodeId < rNodeId),
+    isServer(lNodeId==serverNodeId), isMgmConnection(_isMgmConnection),
     m_packer(_signalId, _checksum),
     m_type(_type),
     m_transporter_registry(t_reg)
@@ -109,22 +111,33 @@ Transporter::connect_server(NDB_SOCKET_TYPE sockfd) {
 
 bool
 Transporter::connect_client() {
+  NDB_SOCKET_TYPE sockfd;
+
   if(m_connected)
     return true;
-  NDB_SOCKET_TYPE sockfd = m_socket_client->connect();
-  
+
+  if(isMgmConnection)
+    sockfd= m_transporter_registry.connect_ndb_mgmd(m_socket_client);
+  else
+    sockfd= m_socket_client->connect();
+
   if (sockfd == NDB_INVALID_SOCKET)
     return false;
 
   DBUG_ENTER("Transporter::connect_client");
 
+  DBUG_PRINT("info",("port %d isMgmConnection=%d",m_r_port,isMgmConnection));
+
+  SocketOutputStream s_output(sockfd);
+  SocketInputStream s_input(sockfd);
+
   // send info about own id
   // send info about own transporter type
-  SocketOutputStream s_output(sockfd);
+
   s_output.println("%d %d", localNodeId, m_type);
   // get remote id
   int nodeId, remote_transporter_type= -1;
-  SocketInputStream s_input(sockfd);
+
   char buf[256];
   if (s_input.gets(buf, 256) == 0) {
     NDB_CLOSE_SOCKET(sockfd);

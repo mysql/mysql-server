@@ -77,7 +77,11 @@ public:
   /**
    * Set r_port to connect to
    */
-  void set_r_port(unsigned int port) { m_r_port = port; };
+  void set_r_port(unsigned int port) {
+    m_r_port = port;
+    if(m_socket_client)
+      m_socket_client->set_port(port);
+  };
 
 protected:
   Transporter(TransporterRegistry &,
@@ -85,8 +89,10 @@ protected:
 	      const char *lHostName,
 	      const char *rHostName, 
 	      int r_port,
+	      bool isMgmConnection,
 	      NodeId lNodeId,
-	      NodeId rNodeId, 
+	      NodeId rNodeId,
+	      NodeId serverNodeId,
 	      int byteorder, 
 	      bool compression, 
 	      bool checksum, 
@@ -128,6 +134,12 @@ protected:
   Packer m_packer;  
 
 private:
+
+  /**
+   * means that we transform an MGM connection into
+   * a transporter connection
+   */
+  bool isMgmConnection;
 
   SocketClient *m_socket_client;
 

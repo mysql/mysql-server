@@ -264,6 +264,8 @@ ParserRow<MgmApiSession> commands[] = {
 
   MGM_CMD("check connection", &MgmApiSession::check_connection, ""),
 
+  MGM_CMD("transporter connect", &MgmApiSession::transporter_connect, ""),
+
   MGM_END()
 };
 
@@ -1399,7 +1401,7 @@ void
 MgmApiSession::getConnectionParameter(Parser_t::Context &ctx,
 				      Properties const &args) {
   BaseString node1, node2, param;
-  unsigned value = 0;
+  int value = 0;
 
   args.get("node1", node1);
   args.get("node2", node2);
@@ -1413,7 +1415,7 @@ MgmApiSession::getConnectionParameter(Parser_t::Context &ctx,
 					      result);
   
   m_output->println("get connection parameter reply");
-  m_output->println("value: %u", value);
+  m_output->println("value: %d", value);
   m_output->println("result: %s", (ret>0)?"Ok":result.c_str());
   m_output->println("");
 }
@@ -1536,6 +1538,18 @@ MgmApiSession::check_connection(Parser_t::Context &ctx,
   m_output->println("check connection reply");
   m_output->println("result: Ok");
   m_output->println("");
+}
+
+void
+MgmApiSession::transporter_connect(Parser_t::Context &ctx,
+				   Properties const &args) {
+  NDB_SOCKET_TYPE s= m_socket;
+
+  m_stop= true;
+  m_stopped= true; // force a stop (no closing socket)
+  m_socket= -1;   // so nobody closes it
+
+  m_mgmsrv.transporter_connect(s);
 }
 
 template class MutexVector<int>;

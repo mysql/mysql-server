@@ -918,9 +918,11 @@ if test "$ac_cv_header_termio_h" = "no" -a "$ac_cv_header_termios_h" = "no"
 then
   AC_CHECK_FUNC(gtty, , AC_CHECK_LIB(compat, gtty))
 fi
-# We make a special variable for client library's to avoid including
-# thread libs in the client.
-NON_THREADED_CLIENT_LIBS="$LIBS $ZLIB_LIBS"
+
+# We make a special variable for non-threaded version of LIBS to avoid
+# including thread libs into non-threaded version of MySQL client library.
+# Later in this script LIBS will be augmented with a threads library.
+NON_THREADED_LIBS="$LIBS"
 
 AC_MSG_CHECKING([for int8])
 case $SYSTEM_TYPE in
@@ -1497,7 +1499,7 @@ then
   if test -f /usr/lib/libxnet.so -a "$SYSTEM_TYPE" = "sni-sysv4"
   then
     LIBS="-lxnet $LIBS"
-    NON_THREADED_CLIENT_LIBS="$NON_THREADED_CLIENT_LIBS -lxnet"
+    NON_THREADED_LIBS="-lxnet $NON_THREADED_LIBS"
     with_named_thread="-Kthread $LDFLAGS -lxnet"
     LD_FLAGS=""
     CFLAGS="-Kthread $CFLAGS"
@@ -2444,7 +2446,7 @@ dnl This probably should be cleaned up more - for now the threaded
 dnl client is just using plain-old libs.
 sql_client_dirs="libmysql strings regex client"
 linked_client_targets="linked_libmysql_sources"
-CLIENT_LIBS=$NON_THREADED_CLIENT_LIBS
+
 if test "$THREAD_SAFE_CLIENT" != "no"
 then
   sql_client_dirs="libmysql_r $sql_client_dirs"
@@ -2452,9 +2454,11 @@ then
   AC_DEFINE([THREAD_SAFE_CLIENT], [1], [Should be client be thread safe])
 fi
 
-CLIENT_LIBS="$CLIENT_LIBS $STATIC_NSS_FLAGS"
+CLIENT_LIBS="$NON_THREADED_LIBS $openssl_libs $ZLIB_LIBS $STATIC_NSS_FLAGS"
 
 AC_SUBST(CLIENT_LIBS)
+AC_SUBST(NON_THREADED_LIBS)
+AC_SUBST(STATIC_NSS_FLAGS)
 AC_SUBST(sql_client_dirs)
 AC_SUBST(linked_client_targets)
 
@@ -2696,12 +2700,6 @@ then
   ndb_port="1186"
 fi
 AC_SUBST([ndb_port])
-
-if test X"$ndb_port_base" = Xdefault
-then
-  ndb_port_base="2202"
-fi
-AC_SUBST([ndb_port_base])
 
 ndb_transporter_opt_objs=""
 if test "$ac_cv_func_shmget" = "yes" &&
