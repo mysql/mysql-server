@@ -355,6 +355,11 @@ void Item_string::make_field(Send_field *tmp_field)
   init_make_field(tmp_field,FIELD_TYPE_STRING);
 }
 
+void Item_empty_string::make_field(Send_field *tmp_field)
+{
+  init_make_field(tmp_field,FIELD_TYPE_VAR_STRING);
+}
+
 void Item_datetime::make_field(Send_field *tmp_field)
 {
   init_make_field(tmp_field,FIELD_TYPE_DATETIME);
