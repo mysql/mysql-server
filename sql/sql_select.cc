@@ -4539,6 +4539,12 @@ static bool check_equality(Item *item, COND_EQUAL *cond_equal)
           field_item->result_type() == const_item->result_type())
       {
         bool copyfl;
+
+        if (field_item->result_type() == STRING_RESULT &&
+              ((Field_str *) field_item)->charset() !=
+               ((Item_cond *) item)->compare_collation())
+          return FALSE;
+
         Item_equal *item_equal = find_item_equal(cond_equal,
                                                  field_item->field, &copyfl);
         if (copyfl)
