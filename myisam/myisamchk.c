@@ -110,7 +110,8 @@ int main(int argc, char **argv)
     VOID(fflush(stderr));
     if ((check_param.error_printed | check_param.warning_printed) &&
 	(check_param.testflag & T_FORCE_CREATE) &&
-	(!(check_param.testflag & (T_REP | T_SORT_RECORDS | T_SORT_INDEX))))
+	(!(check_param.testflag & (T_REP | T_REP_BY_SORT | T_SORT_RECORDS |
+				   T_SORT_INDEX))))
     {
       uint old_testflag=check_param.testflag;
       if (!(check_param.testflag & T_REP))
@@ -153,7 +154,7 @@ enum options_mc {
   OPT_KEY_CACHE_BLOCK_SIZE, OPT_MYISAM_BLOCK_SIZE,
   OPT_READ_BUFFER_SIZE, OPT_WRITE_BUFFER_SIZE, OPT_SORT_BUFFER_SIZE,
   OPT_SORT_KEY_BLOCKS, OPT_DECODE_BITS, OPT_FT_MIN_WORD_LEN,
-  OPT_FT_MAX_WORD_LEN, OPT_FT_MAX_WORD_LEN_FOR_SORT
+  OPT_FT_MAX_WORD_LEN, OPT_FT_MAX_WORD_LEN_FOR_SORT, OPT_MAX_RECORD_LENGTH
 };
 
 static struct my_option my_long_options[] =
@@ -215,6 +216,11 @@ static struct my_option my_long_options[] =
    (gptr*) &check_param.keys_in_use,
    (gptr*) &check_param.keys_in_use,
    0, GET_ULL, REQUIRED_ARG, -1, 0, 0, 0, 0, 0},
+  {"max-record-length", OPT_MAX_RECORD_LENGTH,
+   "Skip rows bigger than this if myisamchk can't allocate memory to hold it",
+   (gptr*) &check_param.max_record_length,
+   (gptr*) &check_param.max_record_length,
+   0, GET_ULL, REQUIRED_ARG, LONGLONG_MAX, 0, LONGLONG_MAX, 0, 0, 0},
   {"medium-check", 'm',
    "Faster than extend-check, but only finds 99.99% of all errors. Should be good enough for most cases.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -327,7 +333,7 @@ static struct my_option my_long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 2.6 for %s at %s\n", my_progname, SYSTEM_TYPE,
+  printf("%s  Ver 2.7 for %s at %s\n", my_progname, SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -394,6 +400,9 @@ static void usage(void)
   -k, --keys-used=#   Tell MyISAM to update only some specific keys. # is a\n\
 	              bit mask of which keys to use. This can be used to\n\
 		      get faster inserts.\n\
+  --max-record-length=#\n\
+                      Skip rows bigger than this if myisamchk can't allocate\n\
+		      memory to hold it.\n\
   -r, --recover       Can fix almost anything except unique keys that aren't\n\
                       unique.\n\
   -n, --sort-recover  Forces recovering with sorting even if the temporary\n\

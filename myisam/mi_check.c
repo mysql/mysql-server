@@ -77,6 +77,7 @@ void myisamchk_init(MI_CHECK *param)
   param->tmpfile_createflag=O_RDWR | O_TRUNC | O_EXCL;
   param->myf_rw=MYF(MY_NABP | MY_WME | MY_WAIT_IF_FULL);
   param->start_check_pos=0;
+  param->max_record_length= LONGLONG_MAX;
   param->key_cache_block_size= KEY_CACHE_BLOCK_SIZE;
 }
 
@@ -523,7 +524,7 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
 
   if (!(temp_buff=(uchar*) my_alloca((uint) keyinfo->block_length)))
   {
-    mi_check_print_error(param,"Not Enough memory");
+    mi_check_print_error(param,"Not enough memory for keyblock");
     DBUG_RETURN(-1);
   }
 
@@ -712,7 +713,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 
   if (!(record= (byte*) my_malloc(info->s->base.pack_reclength,MYF(0))))
   {
-    mi_check_print_error(param,"Not Enough memory");
+    mi_check_print_error(param,"Not enough memory for record");
     DBUG_RETURN(-1);
   }
   records=del_blocks=0;
@@ -815,16 +816,17 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	    goto next;
 	  }
 	  mi_check_print_error(param,"Wrong bytesec: %d-%d-%d at linkstart: %s",
-		      block_info.header[0],block_info.header[1],
-		      block_info.header[2],
-		      llstr(start_block,llbuff));
+			       block_info.header[0],block_info.header[1],
+			       block_info.header[2],
+			       llstr(start_block,llbuff));
 	  goto err2;
 	}
 	if (info->state->data_file_length < block_info.filepos+
 	    block_info.block_len)
 	{
-	  mi_check_print_error(param,"Recordlink that points outside datafile at %s",
-		      llstr(pos,llbuff));
+	  mi_check_print_error(param,
+			       "Recordlink that points outside datafile at %s",
+			       llstr(pos,llbuff));
 	  got_error=1;
 	  break;
 	}
@@ -835,9 +837,9 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	  pos=block_info.filepos+block_info.block_len;
 	  if (block_info.rec_len > (uint) info->s->base.max_pack_length)
 	  {
-	    mi_check_print_error(param,"Found too long record (%d) at %s",
-			block_info.rec_len,
-			llstr(start_recpos,llbuff));
+	    mi_check_print_error(param,"Found too long record (%lu) at %s",
+				 (ulong) block_info.rec_len,
+				 llstr(start_recpos,llbuff));
 	    got_error=1;
 	    break;
 	  }
@@ -846,8 +848,10 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	    if (!(to= mi_alloc_rec_buff(info, block_info.rec_len,
 					&info->rec_buff)))
 	    {
-	      mi_check_print_error(param,"Not enough memory for blob at %s",
-			  llstr(start_recpos,llbuff));
+	      mi_check_print_error(param,
+				   "Not enough memory (%lu) for blob at %s",
+				   (ulong) block_info.rec_len,
+				   llstr(start_recpos,llbuff));
 	      got_error=1;
 	      break;
 	    }
@@ -858,9 +862,11 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	}
 	if (left_length < block_info.data_len)
 	{
-	  mi_check_print_error(param,"Found too long record at %s",
-		      llstr(start_recpos,llbuff));
-	  got_error=1; break;
+	  mi_check_print_error(param,"Found too long record (%lu) at %s",
+			       (ulong) block_info.data_len,
+			       llstr(start_recpos,llbuff));
+	  got_error=1;
+	  break;
 	}
 	if (_mi_read_cache(&param->read_cache,(byte*) to,block_info.filepos,
 			   (uint) block_info.data_len,
@@ -1167,7 +1173,7 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
 					   MYF(0))) ||
       !mi_alloc_rec_buff(info, -1, &sort_param.rec_buff))
   {
-    mi_check_print_error(param,"Not enough memory for extra record");
+    mi_check_print_error(param, "Not enough memory for extra record");
     goto err;
   }
 
@@ -1630,7 +1636,7 @@ static int sort_one_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
 
   if (!(buff=(uchar*) my_alloca((uint) keyinfo->block_length)))
   {
-    mi_check_print_error(param,"Not Enough memory");
+    mi_check_print_error(param,"Not enough memory for key block");
     DBUG_RETURN(-1);
   }
   if (!_mi_fetch_keypage(info,keyinfo,pagepos,DFLT_INIT_HITS,buff,0))
@@ -1842,7 +1848,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
 					   MYF(0))) ||
       !mi_alloc_rec_buff(info, -1, &sort_param.rec_buff))
   {
-    mi_check_print_error(param,"Not enough memory for extra record");
+    mi_check_print_error(param, "Not enough memory for extra record");
     goto err;
   }
   if (!rep_quick)
@@ -2278,17 +2284,19 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
     rec_length=share->base.min_block_length;
   else
     rec_length=share->base.pack_reclength;
+  /*
+    +1 below is required hack for parallel repair mode.
+    The info->state->records value, that is compared later
+    to sort_info.max_records and cannot exceed it, is
+    increased in sort_key_write. In mi_repair_by_sort, sort_key_write
+    is called after sort_key_read, where the comparison is performed,
+    but in parallel mode master thread can call sort_key_write
+    before some other repair thread calls sort_key_read.
+    Furthermore I'm not even sure +1 would be enough.
+    May be sort_info.max_records shold be always set to max value in
+    parallel mode.
+  */
   sort_info.max_records=
-  /* +1 below is required hack for parallel repair mode.
-     The info->state->records value, that is compared later
-     to sort_info.max_records and cannot exceed it, is
-     increased in sort_key_write. In mi_repair_by_sort, sort_key_write
-     is called after sort_key_read, where the comparison is performed,
-     but in parallel mode master thread can call sort_key_write
-     before some other repair thread calls sort_key_read.
-     Furthermore I'm not even sure +1 would be enough.
-     May be sort_info.max_records shold be always set to max value in
-     parallel mode. */
     ((param->testflag & T_CREATE_MISSING_KEYS) ? info->state->records + 1:
      (ha_rows) (sort_info.filelength/rec_length+1));
 
@@ -2302,7 +2310,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
 		  (sizeof(MI_SORT_PARAM) + share->base.pack_reclength),
 		  MYF(MY_ZEROFILL))))
   {
-    mi_check_print_error(param,"Not enough memory!");
+    mi_check_print_error(param,"Not enough memory for key!");
     goto err;
   }
   total_key_length=0;
@@ -2858,9 +2866,20 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 	    if (!(to=mi_alloc_rec_buff(info,block_info.rec_len,
 				       &(sort_param->rec_buff))))
 	    {
-	      mi_check_print_error(param,"Not enough memory for blob at %s (need %lu)",
-			  llstr(sort_param->start_recpos,llbuff), block_info.rec_len);
-	      DBUG_RETURN(1);
+	      if (param->max_record_length >= block_info.rec_len)
+	      {
+		mi_check_print_error(param,"Not enough memory for blob at %s (need %lu)",
+				     llstr(sort_param->start_recpos,llbuff),
+				     (ulong) block_info.rec_len);
+		DBUG_RETURN(1);
+	      }
+	      else
+	      {
+		mi_check_print_info(param,"Not enough memory for blob at %s (need %lu); Row skipped",
+				    llstr(sort_param->start_recpos,llbuff),
+				    (ulong) block_info.rec_len);
+		goto try_next;
+	      }
 	    }
 	  }
 	  else
@@ -2868,14 +2887,16 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 	}
 	if (left_length < block_info.data_len || ! block_info.data_len)
 	{
-	  mi_check_print_info(param,"Found block with too small length at %s; Skipped",
+	  mi_check_print_info(param,
+			      "Found block with too small length at %s; Skipped",
 			      llstr(sort_param->start_recpos,llbuff));
 	  goto try_next;
 	}
 	if (block_info.filepos + block_info.data_len >
 	    sort_param->read_cache.end_of_file)
 	{
-	  mi_check_print_info(param,"Found block that points outside data file at %s",
+	  mi_check_print_info(param,
+			      "Found block that points outside data file at %s",
 			      llstr(sort_param->start_recpos,llbuff));
 	  goto try_next;
 	}
@@ -3510,7 +3531,7 @@ static SORT_KEY_BLOCKS *alloc_key_blocks(MI_CHECK *param, uint blocks,
 					    buffer_length+IO_SIZE)*blocks,
 					   MYF(0))))
   {
-    mi_check_print_error(param,"Not Enough memory for sort-key-blocks");
+    mi_check_print_error(param,"Not enough memory for sort-key-blocks");
     return(0);
   }
   for (i=0 ; i < blocks ; i++)

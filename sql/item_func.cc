@@ -2701,6 +2701,7 @@ void Item_func_match::init_search(bool no_order)
 bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
 {
   Item *item;
+  LINT_INIT(item);				// Safe as arg_count is > 1
 
   maybe_null=1;
   join_key=0;
