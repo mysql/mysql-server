@@ -2636,7 +2636,7 @@ err:
 /*
   UUID, as in
     DCE 1.1: Remote Procedure Call,
-    Open Group Technical Standard Document Number C706, August 1997,
+    Open Group Technical Standard Document Number C706, October 1997,
     (supersedes C309 DCE: Remote Procedure Call 8/1994,
     which was basis for ISO/IEC 11578:1996 specification)
 */
