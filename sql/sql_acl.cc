@@ -877,7 +877,6 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
  */
 int acl_getroot_no_password(THD *thd)
 {
-  ulong user_access= NO_ACCESS;
   int res= 1;
   uint i;
   ACL_USER *acl_user= 0;
@@ -1660,7 +1659,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       Check that the user isn't trying to change a password for another
       user if he doesn't have UPDATE privilege to the MySQL database
     */
-    DBUG_ASSERT(combo.host.str);
+    DBUG_ASSERT(combo.host.str != 0);
     if (thd->user && combo.password.str &&
         (strcmp(thd->user,combo.user.str) ||
          my_strcasecmp(system_charset_info,
@@ -2634,7 +2633,6 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     {
       class LEX_COLUMN *column;
       List_iterator <LEX_COLUMN> column_iter(columns);
-      int res;
 
       if (open_and_lock_tables(thd, table_list))
         DBUG_RETURN(TRUE);
@@ -3473,7 +3471,6 @@ bool check_grant_all_columns(THD *thd, ulong want_access, GRANT_INFO *grant,
 {
   GRANT_TABLE *grant_table;
   GRANT_COLUMN *grant_column;
-  Field *field=0;
 
   want_access &= ~grant->privilege;
   if (!want_access)
@@ -4796,7 +4793,6 @@ static void append_user(String *str, LEX_USER *user)
 bool mysql_create_user(THD *thd, List <LEX_USER> &list)
 {
   int result;
-  int found;
   String wrong_users;
   ulong sql_mode;
   LEX_USER *user_name;
@@ -4817,7 +4813,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
       Search all in-memory structures and grant tables
       for a mention of the new user name.
     */
-    if ((found= handle_grant_data(tables, 0, user_name, NULL)))
+    if (handle_grant_data(tables, 0, user_name, NULL))
     {
       append_user(&wrong_users, user_name);
       result= TRUE;
@@ -4859,7 +4855,6 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
 bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
 {
   int result;
-  int found;
   String wrong_users;
   LEX_USER *user_name;
   List_iterator <LEX_USER> user_list(list);
@@ -4875,7 +4870,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
 
   while ((user_name= user_list++))
   {
-    if ((found= handle_grant_data(tables, 1, user_name, NULL)) <= 0)
+    if (handle_grant_data(tables, 1, user_name, NULL) <= 0)
     {
       append_user(&wrong_users, user_name);
       result= TRUE;
@@ -4907,7 +4902,6 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
 bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
 {
   int result= 0;
-  int found;
   String wrong_users;
   LEX_USER *user_from;
   LEX_USER *user_to;
@@ -4925,7 +4919,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
   while ((user_from= user_list++))
   {
     user_to= user_list++;
-    DBUG_ASSERT(user_to); /* Syntax enforces pairs of users. */
+    DBUG_ASSERT(user_to != 0); /* Syntax enforces pairs of users. */
 
     /*
       Search all in-memory structures and grant tables
@@ -5137,7 +5131,6 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name)
 {
   uint counter, revoked;
   int result;
-  ACL_DB *acl_db;
   TABLE_LIST tables[GRANT_TABLES];
   DBUG_ENTER("sp_revoke_privileges");
 
@@ -5148,10 +5141,10 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name)
   VOID(pthread_mutex_lock(&acl_cache->lock));
 
   /* Remove procedure access */
-  do {
+  do
+  {
     for (counter= 0, revoked= 0 ; counter < proc_priv_hash.records ; )
     {
-      const char *db,*name;
       GRANT_NAME *grant_proc= (GRANT_NAME*) hash_element(&proc_priv_hash,
 							 counter);
       if (!my_strcasecmp(system_charset_info, grant_proc->db, sp_db) &&

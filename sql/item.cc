@@ -131,7 +131,6 @@ my_decimal *Item::val_decimal_from_string(my_decimal *decimal_value)
 {
   String *res;
   char *end_ptr;
-  int error;
   if (!(res= val_str(&str_value)))
     return 0;                                   // NULL or EOM
 
@@ -1102,6 +1101,7 @@ bool Item_field::val_bool_result()
   case ROW_RESULT:
   default:
     DBUG_ASSERT(0);
+    return 0;                                   // Shut up compiler
   }
 }
 
@@ -2173,7 +2173,7 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
   else
     return NULL;
 
-  DBUG_ASSERT(field_name);
+  DBUG_ASSERT(field_name != 0);
 
   for (ORDER *cur_group= group_list ; cur_group ; cur_group= cur_group->next)
   {
@@ -2182,7 +2182,7 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
       cur_field= (Item_field*) *cur_group->item;
       cur_match_degree= 0;
       
-      DBUG_ASSERT(cur_field->field_name);
+      DBUG_ASSERT(cur_field->field_name != 0);
 
       if (!my_strcasecmp(system_charset_info,
                          cur_field->field_name, field_name))
@@ -2311,7 +2311,7 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
   {
     if (select_ref != not_found_item && !ambiguous_fields)
     {
-      DBUG_ASSERT(*select_ref);
+      DBUG_ASSERT(*select_ref != 0);
       if (!select->ref_pointer_array[counter])
       {
         my_error(ER_ILLEGAL_REFERENCE, MYF(0),
@@ -2488,7 +2488,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 	}
       }
 
-      DBUG_ASSERT(ref);
+      DBUG_ASSERT(ref != 0);
       if (!from_field)
 	return TRUE;
       if (ref == not_found_item && from_field == not_found_field)
@@ -2932,7 +2932,7 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table)
 void Item_field::make_field(Send_field *tmp_field)
 {
   field->make_field(tmp_field);
-  DBUG_ASSERT(tmp_field->table_name);
+  DBUG_ASSERT(tmp_field->table_name != 0);
   if (name)
     tmp_field->col_name=name;			// Use user supplied name
 }
@@ -3429,7 +3429,7 @@ Item_ref::Item_ref(Item **item, const char *table_name_par,
   /*
     This constructor used to create some internals references over fixed items
   */
-  DBUG_ASSERT(ref);
+  DBUG_ASSERT(ref != 0);
   if (*ref)
     set_properties();
 }
@@ -3500,9 +3500,6 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
   {
     SELECT_LEX_UNIT *prev_unit= current_sel->master_unit();
     SELECT_LEX *outer_sel= prev_unit->outer_select();
-    ORDER *group_list= (ORDER*) current_sel->group_list.first;
-    bool ambiguous_fields= FALSE;
-    Item **group_by_ref= NULL;
 
     if (!(ref= resolve_ref_in_select_and_group(thd, this, current_sel)))
       return TRUE;             /* Some error occurred (e.g. ambiguous names). */
@@ -3600,7 +3597,7 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
             break; /* Do not consider derived tables. */
         }
 
-        DBUG_ASSERT(ref);
+        DBUG_ASSERT(ref != 0);
         if (!from_field)
           return TRUE;
         if (ref == not_found_item && from_field == not_found_field)
@@ -4551,7 +4548,7 @@ void Item_cache_row::bring_value()
 
 Field *get_holder_example_field(THD *thd, Item *item, TABLE *table)
 {
-  DBUG_ASSERT(table);
+  DBUG_ASSERT(table != 0);
 
   Item_func *tmp_item= 0;
   if (item->type() == Item::FIELD_ITEM)

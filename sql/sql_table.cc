@@ -688,7 +688,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
   it.rewind();
   while ((sql_field=it++))
   {
-    DBUG_ASSERT(sql_field->charset);
+    DBUG_ASSERT(sql_field->charset != 0);
 
     switch (sql_field->sql_type) {
     case FIELD_TYPE_BLOB:

@@ -600,13 +600,13 @@ int ha_archive::write_row(byte * buf)
        ptr != end ;
        ptr++)
   {
-    char *ptr;
+    char *data_ptr;
     uint32 size= ((Field_blob*) table->field[*ptr])->get_length();
 
     if (size)
     {
-      ((Field_blob*) table->field[*ptr])->get_ptr(&ptr);
-      written= gzwrite(share->archive_write, ptr, (unsigned)size);
+      ((Field_blob*) table->field[*ptr])->get_ptr(&data_ptr);
+      written= gzwrite(share->archive_write, data_ptr, (unsigned)size);
       if (written != size)
         goto error;
     }
@@ -630,7 +630,6 @@ error:
 int ha_archive::rnd_init(bool scan)
 {
   DBUG_ENTER("ha_archive::rnd_init");
-  int read; // gzread() returns int, and we use this to check the header
   
   if (share->crashed)
       DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
