@@ -53,7 +53,8 @@ my_string fn_format(my_string to, const char *name, const char *dsk,
   name+=(length=dirname_part(dev,(startpos=(my_string) name)));
   if (length == 0 || flag & 1)
   {
-    (void) strmov(dev,dsk);			/* Use given directory */
+    (void) strnmov(dev,dsk, sizeof(dev) - 2);
+      /* Use given directory */
     convert_dirname(dev);			/* Fix to this OS */
   }
   if (flag & 8)
