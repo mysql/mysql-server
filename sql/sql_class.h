@@ -592,7 +592,7 @@ public:
   virtual int prepare(List<Item> &list) { return 0; }
   virtual bool send_fields(List<Item> &list,uint flag)=0;
   virtual bool send_data(List<Item> &items)=0;
-  virtual void initialize_tables (JOIN *join=0) {}
+  virtual bool initialize_tables (JOIN *join=0) { return 0; }
   virtual void send_error(uint errcode,const char *err)
   {
     ::send_error(&thd->net,errcode,err);
@@ -656,10 +656,10 @@ class select_insert :public select_result {
   List<Item> *fields;
   ulonglong last_insert_id;
   COPY_INFO info;
-  uint save_time_stamp;
 
   select_insert(TABLE *table_par,List<Item> *fields_par,enum_duplicates duplic)
-    :table(table_par),fields(fields_par), last_insert_id(0), save_time_stamp(0)  {
+    :table(table_par),fields(fields_par), last_insert_id(0)
+  {
     bzero((char*) &info,sizeof(info));
     info.handle_duplicates=duplic;
   }
@@ -703,8 +703,8 @@ class select_union :public select_result {
  public:
   TABLE *table;
   COPY_INFO info;
-  uint save_time_stamp;
   TMP_TABLE_PARAM *tmp_table_param;
+  bool not_describe;
 
   select_union(TABLE *table_par);
   ~select_union();
@@ -814,37 +814,36 @@ public:
    bool send_fields(List<Item> &list,
  		   uint flag) { return 0; }
    bool send_data(List<Item> &items);
-   void initialize_tables (JOIN *join);
+   bool initialize_tables (JOIN *join);
    void send_error(uint errcode,const char *err);
    int  do_deletes (bool from_send_error);
    bool send_eof();
  };
 
- class multi_update : public select_result {
-   TABLE_LIST *update_tables, *table_being_updated;
-//   Unique  **tempfiles;
-   COPY_INFO *infos;
-   TABLE **tmp_tables;
-   THD *thd;
-   ha_rows updated, found;
-   List<Item> fields;
-   List <Item> **fields_by_tables;
-   enum enum_duplicates dupl;
-   uint num_of_tables, num_fields, num_updated, *save_time_stamps, *field_sequence;
-   int error;
-   bool do_update, not_trans_safe;
- public:
-   multi_update(THD *thd_arg, TABLE_LIST *ut, List<Item> &fs, 		 
-		enum enum_duplicates handle_duplicates,  
-		uint num);
-   ~multi_update();
-   int prepare(List<Item> &list);
-   bool send_fields(List<Item> &list,
- 		   uint flag) { return 0; }
-   bool send_data(List<Item> &items);
-   void initialize_tables (JOIN *join);
-   void send_error(uint errcode,const char *err);
-   int  do_updates (bool from_send_error);
-   bool send_eof();
- };
+class multi_update : public select_result
+{
+  TABLE_LIST *all_tables, *update_tables, *table_being_updated;
+  THD *thd;
+  TABLE **tmp_tables, *main_table;
+  TMP_TABLE_PARAM *tmp_table_param;
+  ha_rows updated, found;
+  List <Item> *fields, *values;
+  List <Item> **fields_for_table, **values_for_table;
+  uint table_count;
+  Copy_field *copy_field;
+  enum enum_duplicates handle_duplicates;
+  bool do_update, trans_safe, transactional_tables, log_delayed;
+
+public:
+  multi_update(THD *thd_arg, TABLE_LIST *ut, List<Item> *fields,
+	       List<Item> *values, enum_duplicates handle_duplicates);
+  ~multi_update();
+  int prepare(List<Item> &list);
+  bool send_fields(List<Item> &list, uint flag) { return 0; }
+  bool send_data(List<Item> &items);
+  bool initialize_tables (JOIN *join);
+  void send_error(uint errcode,const char *err);
+  int  do_updates (bool from_send_error);
+  bool send_eof();
+};
 

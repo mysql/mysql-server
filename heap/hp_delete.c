@@ -48,6 +48,10 @@ int heap_delete(HP_INFO *info, const byte *record)
   pos[share->reclength]=0;		/* Record deleted */
   share->deleted++;
   info->current_hash_ptr=0;
+#if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
+  DBUG_EXECUTE("check_heap",heap_check_heap(info, 0););
+#endif
+
   DBUG_RETURN(0);
  err:
   if (++(share->records) == share->blength)
