@@ -313,6 +313,7 @@ ibool	srv_very_fast_shutdown	= FALSE; /* if this TRUE, do not flush the
 ibool	srv_innodb_status	= FALSE;
 
 ibool	srv_use_doublewrite_buf	= TRUE;
+ibool	srv_use_checksums = TRUE;
 
 ibool   srv_set_thread_priorities = TRUE;
 int     srv_query_thread_priority = 0;

@@ -40,8 +40,12 @@ ha_checksum mi_checksum(MI_INFO *info, const byte *buf)
     }
     case FIELD_VARCHAR:
     {
-      length=uint2korr(buf);
-      pos=buf+2;
+      uint pack_length= HA_VARCHAR_PACKLENGTH(rec->length-1);
+      if (pack_length == 1)
+        length= (ulong) *(uchar*) buf;
+      else
+        length= uint2korr(buf);
+      pos= buf+pack_length;
       break;
     }
     default:

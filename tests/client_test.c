@@ -11936,7 +11936,7 @@ static void test_bug4172()
   MYSQL_ROW row;
   int rc;
   char f[100], d[100], e[100];
-  long f_len, d_len, e_len;
+  ulong f_len, d_len, e_len;
 
   myheader("test_bug4172");
 
@@ -12027,8 +12027,8 @@ static void test_conversion()
 
   mysql_stmt_bind_param(stmt, bind);
 
-  buff[0]= 0xC3;
-  buff[1]= 0xA0;
+  buff[0]= (uchar) 0xC3;
+  buff[1]= (uchar) 0xA0;
   length= 2;
 
   rc= mysql_stmt_execute(stmt);
@@ -12240,7 +12240,7 @@ static void test_truncation()
 
   /* int -> float: truncation, not enough bits in float */
   DIE_UNLESS(++bind < bind_array + bind_count);
-  /* do nothing: due to a gcc bug result here is not predictable */
+  DIE_UNLESS(*bind->error);
 
   /* int -> double: no truncation */
   DIE_UNLESS(++bind < bind_array + bind_count);
@@ -12302,6 +12302,56 @@ static void test_truncation()
   myquery(rc);
 }
 
+static void test_truncation_option()
+{
+  MYSQL_STMT *stmt;
+  const char *stmt_text;
+  int rc;
+  uint8 buf;
+  my_bool option= 0;
+  my_bool error;
+  MYSQL_BIND bind;
+
+  myheader("test_truncation_option");
+
+  /* Prepare the test table */
+  stmt_text= "select -1";
+
+  stmt= mysql_stmt_init(mysql);
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  bzero(&bind, sizeof(MYSQL_BIND));
+
+  bind.buffer= (void*) &buf;
+  bind.buffer_type= MYSQL_TYPE_TINY;
+  bind.is_unsigned= TRUE;
+  bind.error= &error;
+
+  rc= mysql_stmt_bind_result(stmt, &bind);
+  check_execute(stmt, rc);
+  rc= mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == MYSQL_DATA_TRUNCATED);
+  DIE_UNLESS(error);
+  rc= mysql_options(mysql, MYSQL_REPORT_DATA_TRUNCATION, (char*) &option);
+  myquery(rc);
+  /* need to rebind for the new setting to take effect */
+  rc= mysql_stmt_bind_result(stmt, &bind);
+  check_execute(stmt, rc);
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+  rc= mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+  /* The only change is rc - error pointers are still filled in */
+  DIE_UNLESS(error == 1);
+  /* restore back the defaults */
+  option= 1;
+  mysql_options(mysql, MYSQL_REPORT_DATA_TRUNCATION, (char*) &option);
+
+  mysql_stmt_close(stmt);
+}
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -12517,6 +12567,7 @@ static struct my_tests_st my_tests[]= {
   { "test_basic_cursors", test_basic_cursors },
   { "test_cursors_with_union", test_cursors_with_union },
   { "test_truncation", test_truncation },
+  { "test_truncation_option", test_truncation_option },
   { 0, 0 }
 };
 

@@ -652,7 +652,7 @@ static bool make_empty_rec(File file,enum db_type table_type,
     Field *regfield=make_field((char*) buff+field->offset,field->length,
 			       field->flags & NOT_NULL_FLAG ? 0:
 			       null_pos+null_count/8,
-			       1 << (null_count & 7),
+			       null_count & 7,
 			       field->pack_flag,
 			       field->sql_type,
 			       field->charset,

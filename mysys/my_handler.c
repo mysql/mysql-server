@@ -178,6 +178,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
       }
       break;
     case HA_KEYTYPE_BINARY:
+    case HA_KEYTYPE_BIT:
       if (keyseg->flag & HA_SPACE_PACK)
       {
         int a_length,b_length,pack_length;
@@ -206,7 +207,8 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
         b+=length;
       }
       break;
-    case HA_KEYTYPE_VARTEXT:
+    case HA_KEYTYPE_VARTEXT1:
+    case HA_KEYTYPE_VARTEXT2:
       {
         int a_length,b_length,pack_length;
         get_key_length(a_length,a);
@@ -228,7 +230,8 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
         break;
       }
       break;
-    case HA_KEYTYPE_VARBINARY:
+    case HA_KEYTYPE_VARBINARY1:
+    case HA_KEYTYPE_VARBINARY2:
       {
         int a_length,b_length,pack_length;
         get_key_length(a_length,a);

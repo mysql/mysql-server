@@ -4871,6 +4871,15 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
       nullBits += attrDesc.AttributeArraySize;      
     }
     
+    if(attrDesc.AttributeArraySize == 0)
+    {
+      parseP->errorCode = CreateTableRef::InvalidArraySize;
+      parseP->status    = status;
+      parseP->errorKey  = it.getKey();
+      parseP->errorLine = __LINE__;
+      return;
+    }
+    
     recordLength += sz;
     if(attrDesc.AttributeKeyFlag){
       keyLength += sz;
