@@ -729,7 +729,6 @@ dict_load_table(
 	ulint		space;
 	ulint		n_cols;
 	ulint		err;
-	ulint		mix_len;
 	mtr_t		mtr;
 	
 #ifdef UNIV_SYNC_DEBUG
@@ -774,22 +773,6 @@ dict_load_table(
 		mem_heap_free(heap);
 		
 		return(NULL);
-	}
-
-	/* Track a corruption bug reported on the MySQL mailing list Jan 14,
-	2005: mix_len had a value different from 0 */
-
-	field = rec_get_nth_field(rec, 7, &len);
-	ut_a(len == 4);
-
-	mix_len = mach_read_from_4(field);
-
-	if (mix_len != 0) {
-		ut_print_timestamp(stderr);
-		
-		fprintf(stderr,
-			"  InnoDB: table %s has a nonsensical mix len %lu\n",
-			name, (ulong)mix_len);
 	}
 
 	ut_a(0 == ut_strcmp("SPACE",
