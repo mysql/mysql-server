@@ -46924,6 +46924,14 @@ not yet 100% confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
+@node News-3.23.53, News-3.23.52, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.53
+@itemize @bullet
+@item
+Changed behaviour that  IF(condition,column,NULL) returns column type
+@end itemize
+
+
 @node News-3.23.52, News-3.23.51, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.52
 @itemize @bullet
