@@ -2410,9 +2410,11 @@ int main(int argc, char** argv)
       case Q_QUERY:
       case Q_REAP:	
       {
-	int flags = QUERY_REAP; /* we read the result always regardless
-				* of the mode for both full query and
-				* read-result only ( reap) */
+	/*
+	  We read the result always regardless of the mode for both full
+	  query and read-result only (reap)
+	*/
+	int flags = QUERY_REAP;
 	if (q->type != Q_REAP) /* for a full query, enable the send stage */
 	  flags |= QUERY_SEND;
 	if (q_send_flag)
@@ -2439,12 +2441,13 @@ int main(int argc, char** argv)
 	/* fix up query pointer if this is * first iteration for this line */
 	if (q->query == q->query_buf)
 	  q->query += q->first_word_len;
-	error |= run_query(&cur_con->mysql, q, QUERY_SEND);
-	/* run query can execute a query partially, depending on the flags
-	 * QUERY_SEND flag without QUERY_REAP tells it to just send the
-	 * query and read the result some time later when reap instruction
-	 * is given on this connection
+	/*
+	  run_query() can execute a query partially, depending on the flags
+	  QUERY_SEND flag without QUERY_REAP tells it to just send the
+	  query and read the result some time later when reap instruction
+	  is given on this connection.
 	 */
+	error |= run_query(&cur_con->mysql, q, QUERY_SEND);
 	break;
       case Q_RESULT:
 	get_file_name(save_file,q);
