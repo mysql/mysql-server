@@ -588,7 +588,7 @@ check_connections(THD *thd)
 
   thd->client_capabilities=uint2korr(net->read_pos);
   if (thd->client_capabilities & CLIENT_IGNORE_SPACE)
-    thd->sql_mode|= MODE_IGNORE_SPACE;
+    thd->variables.sql_mode|= MODE_IGNORE_SPACE;
 #ifdef HAVE_OPENSSL
   DBUG_PRINT("info", ("client capabilities: %d", thd->client_capabilities));
   if (thd->client_capabilities & CLIENT_SSL)
@@ -3458,10 +3458,14 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       set_if_smaller(new_field->length,MAX_FIELD_WIDTH-1);
       if (default_value)
       {
+	char *not_used;
+	uint not_used2;
+
 	thd->cuted_fields=0;
 	String str,*res;
 	res=default_value->val_str(&str);
-	(void) find_set(interval,res->ptr(),res->length());
+	(void) find_set(interval, res->ptr(), res->length(), &not_used,
+			&not_used2);
 	if (thd->cuted_fields)
 	{
 	  net_printf(thd,ER_INVALID_DEFAULT,field_name);

@@ -215,8 +215,10 @@ sys_var_long_ptr	sys_slow_launch_time("slow_launch_time",
 					     &slow_launch_time);
 sys_var_thd_ulong	sys_sort_buffer("sort_buffer_size",
 					&SV::sortbuff_size);
-sys_var_thd_enum	sys_table_type("table_type", &SV::table_type,
-				       &ha_table_typelib);
+sys_var_thd_sql_mode    sys_sql_mode("sql_mode",
+                                     &SV::sql_mode);
+sys_var_thd_enum        sys_table_type("table_type", &SV::table_type,
+                                       &ha_table_typelib);
 sys_var_long_ptr	sys_table_cache_size("table_cache",
 					     &table_cache_size);
 sys_var_long_ptr	sys_thread_cache_size("thread_cache_size",
@@ -391,6 +393,7 @@ sys_var *sys_variables[]=
   &sys_sql_big_tables,
   &sys_sql_low_priority_updates,
   &sys_sql_max_join_size,
+  &sys_sql_mode,
   &sys_sql_warnings,
   &sys_table_cache_size,
   &sys_table_type,
@@ -541,7 +544,7 @@ struct show_var_st init_vars[]= {
   {"socket",                  (char*) &mysql_unix_port,             SHOW_CHAR_PTR},
 #endif
   {sys_sort_buffer.name,      (char*) &sys_sort_buffer, 	    SHOW_SYS},
-  {"sql_mode",                (char*) &opt_sql_mode,                SHOW_LONG},
+  {sys_sql_mode.name,         (char*) &sys_sql_mode,                SHOW_SYS},
   {"table_cache",             (char*) &table_cache_size,            SHOW_LONG},
   {sys_table_type.name,	      (char*) &sys_table_type,	            SHOW_SYS},
   {sys_thread_cache_size.name,(char*) &sys_thread_cache_size,       SHOW_SYS},
@@ -923,6 +926,44 @@ err:
   return 1;
 }
 
+
+
+bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
+{
+  char buff[80], *value, *error= 0;
+  uint error_len= 0;
+  String str(buff, sizeof(buff), system_charset_info), *res;
+
+  if (var->value->result_type() == STRING_RESULT)
+  {
+    if (!(res= var->value->val_str(&str)))
+      goto err;
+    (long) var->save_result.ulong_value= (ulong)
+      find_set(enum_names, res->c_ptr(), res->length(), &error, &error_len);
+    if (error_len)
+    {
+      strmake(buff, error, min(sizeof(buff), error_len));
+      goto err;
+    }
+  }
+  else
+  {
+    ulonglong tmp= var->value->val_int();
+    if (tmp >= enum_names->count)
+    {
+      llstr(tmp, buff);
+      goto err;
+    }
+    var->save_result.ulong_value= (ulong) tmp;  // Save for update
+  }
+  return 0;
+
+err:
+  my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, buff);
+  return 1;
+}
+
+
 /*
   Return an Item for a variable.  Used with @@[global.]variable_name
 
@@ -997,6 +1038,40 @@ byte *sys_var_thd_enum::value_ptr(THD *thd, enum_var_type type)
 	      thd->variables.*offset);
   return (byte*) enum_names->type_names[tmp];
 }
+
+
+byte *sys_var_thd_sql_mode::value_ptr(THD *thd, enum_var_type type)
+{
+  ulong val;
+  char buff[256];
+  String tmp(buff, sizeof(buff), default_charset_info);
+  my_bool found= 0;
+
+  tmp.length(0);
+  val= ((type == OPT_GLOBAL) ? global_system_variables.*offset :
+        thd->variables.*offset);
+  for (uint i= 0; val; val>>= 1, i++)
+  {
+    if (val & 1)
+    {
+      tmp.append(enum_names->type_names[i]);
+      tmp.append(',');
+    }
+  }
+  if (tmp.length())
+    tmp.length(tmp.length() - 1);
+  return (byte*) thd->strdup(tmp.c_ptr());
+}
+
+
+void sys_var_thd_sql_mode::set_default(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    global_system_variables.*offset= 0;
+  else
+    thd->variables.*offset= global_system_variables.*offset;
+}
+
 
 
 bool sys_var_thd_bit::update(THD *thd, set_var *var)
