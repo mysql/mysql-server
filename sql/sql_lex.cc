@@ -1171,13 +1171,14 @@ List<String>* st_select_lex_node::get_use_index()    { return 0; }
 List<String>* st_select_lex_node::get_ignore_index() { return 0; }
 TABLE_LIST *st_select_lex_node::add_table_to_list(THD *thd, Table_ident *table,
 						  LEX_STRING *alias,
-						  bool updating,
+						  ulong table_join_options,
 						  thr_lock_type flags,
 						  List<String> *use_index,
 						  List<String> *ignore_index)
 {
   return 0;
 }
+ulong st_select_lex_node::get_table_join_options() { return 0; }
 
 /*
   This is used for UNION & subselect to create a new table list of all used 
@@ -1332,6 +1333,11 @@ List<String>* st_select_lex::get_use_index()
 List<String>* st_select_lex::get_ignore_index()
 {
   return ignore_index_ptr;
+}
+
+ulong st_select_lex::get_table_join_options()
+{
+  return table_join_options;
 }
 
 /*

@@ -1359,7 +1359,7 @@ opt_unique_or_fulltext:
 key_alg:
 	/* empty */		   { $$= HA_KEY_ALG_UNDEF; }
 	| USING opt_btree_or_rtree { $$= $2; };
-	| TYPE opt_btree_or_rtree  { $$= $2; };
+	| TYPE_SYM opt_btree_or_rtree  { $$= $2; };
 
 opt_btree_or_rtree:
 	BTREE_SYM	{ $$= HA_KEY_ALG_BTREE; }
@@ -2516,14 +2516,14 @@ join_table:
 	{
 	  SELECT_LEX *sel= Select->select_lex();
 	  sel->use_index_ptr=sel->ignore_index_ptr=0;
-	  sel->table_join_ptions= 0;
+	  sel->table_join_options= 0;
 	}
         table_ident opt_table_alias opt_key_definition
 	{
 	  LEX *lex= Lex;
 	  SELECT_LEX_NODE *sel= lex->current_select;
 	  if (!($$= sel->add_table_to_list(lex->thd, $2, $3,
-					   lex->table_join_options(),
+					   sel->get_table_join_options(),
 					   lex->lock_option,
 					   sel->get_use_index(),
 					   sel->get_ignore_index())))
@@ -2569,6 +2569,13 @@ opt_key_definition:
 	    sel->use_index= *$2;
 	    sel->use_index_ptr= &sel->use_index;
 	  }
+	| FORCE_SYM key_usage_list
+          {
+	    SELECT_LEX *sel= Select->select_lex();
+	    sel->use_index= *$2;
+	    sel->use_index_ptr= &sel->use_index;
+	    sel->table_join_options|= TL_OPTION_FORCE_INDEX;
+	  }
 	| IGNORE_SYM key_usage_list
 	  {
 	    SELECT_LEX *sel= Select->select_lex();
@@ -2578,8 +2585,14 @@ opt_key_definition:
 
 key_usage_list:
 	key_or_index { Select->select_lex()->interval_list.empty(); }
-        '(' key_usage_list2 ')'
-        { $$= &Select->select_lex()->interval_list; };
+        '(' key_list_or_empty ')'
+        { $$= &Select->select_lex()->interval_list; }
+	;
+
+key_list_or_empty:
+	/* empty */ 		{}
+	| key_usage_list2	{}
+	;
 
 key_usage_list2:
 	key_usage_list2 ',' ident
