@@ -412,7 +412,7 @@ select * from t1 where b=2 or b is null order by a;
 drop table t1;
 
 #
-# Bug #3155
+# Bug #3155 - Strange results with index (x, y) ... WHERE ... ORDER BY pk
 #
 
 create table t1 (a int not null auto_increment, b int not null, c int not null, d int not null,

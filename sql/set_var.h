@@ -505,7 +505,7 @@ public:
   sys_var_character_set(const char *name_arg) :sys_var_thd(name_arg) 
   { nullable= 0; }
   bool check(THD *thd, set_var *var);
-SHOW_TYPE type() { return SHOW_CHAR; }
+  SHOW_TYPE type() { return SHOW_CHAR; }
   bool check_update_type(Item_result type)
   {
     return type != STRING_RESULT;		/* Only accept strings */

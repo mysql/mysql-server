@@ -46,6 +46,7 @@ public:
   char		*ptr;			// Position to field in record
   uchar		*null_ptr;		// Byte where null_bit is
   struct st_table *table;		// Pointer for table
+  struct st_table *orig_table;		// Pointer to original table
   const char	*table_name,*field_name;
   LEX_STRING	comment;
   ulong		query_id;		// For quick test of used fields

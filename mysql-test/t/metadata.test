@@ -1,0 +1,35 @@
+#
+# Test metadata
+#
+
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+--enable_metadata
+
+#
+# First some simple tests
+#
+
+select 1, 1.0, -1, "hello", NULL;
+
+create table t1 (a tinyint, b smallint, c mediumint, d int, e bigint, f float(3,2), g double(4,3), h decimal(5,4), i year, j date, k timestamp, l datetime, m enum('a','b'), n set('a','b'), o char(10));
+select * from t1;
+select a b, b c from t1 as t2;
+drop table t1;
+
+#
+# Test metadata from ORDER BY (Bug #2654)
+#
+
+CREATE TABLE t1 (id tinyint(3) default NULL, data varchar(255) default NULL);
+INSERT INTO t1 VALUES (1,'male'),(2,'female');
+CREATE TABLE t2 (id tinyint(3) unsigned default NULL, data char(3) default '0');
+INSERT INTO t2 VALUES (1,'yes'),(2,'no');
+
+select t1.id, t1.data, t2.data from t1, t2 where t1.id = t2.id;
+select t1.id, t1.data, t2.data from t1, t2 where t1.id = t2.id order by t1.id;
+select t1.id from t1 union select t2.id from t2;
+drop table t1,t2;
+
+--disable_metadata

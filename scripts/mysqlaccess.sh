@@ -414,7 +414,6 @@ _HOWTO
 use Getopt::Long;
 use Sys::Hostname;
 use IPC::Open3;
-#use CGI;			#moved to use of CGI by monty
 
 
 # ****************************
@@ -527,7 +526,7 @@ if ($MySQLaccess::CMD) { #command-line version
 	}
 }
 if ($MySQLaccess::CGI) { #CGI-version
-	use CGI;
+	require CGI;
  	$Q = new CGI;
 	$Param{'help'} = $Q->param('help') ;
 	$Param{'host'} = $Q->param('host') || $Q->param('h') || $Param{'host'};
