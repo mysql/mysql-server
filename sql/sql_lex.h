@@ -332,7 +332,10 @@ public:
   Item_subselect *item;
   /* thread handler */
   THD *thd;
-  /* fake SELECT_LEX for union processing */
+  /*
+    SELECT_LEX for hidden SELECT in onion which process global
+    ORDER BY and LIMIT
+  */
   st_select_lex *fake_select_lex;
 
   st_select_lex *union_distinct; /* pointer to the last UNION DISTINCT */
@@ -341,12 +344,18 @@ public:
   bool create_total_list(THD *thd, st_lex *lex, TABLE_LIST **result);
   st_select_lex_unit* master_unit();
   st_select_lex* outer_select();
-  st_select_lex* first_select() { return (st_select_lex*) slave; }
+  st_select_lex* first_select()
+  {
+    return my_reinterpret_cast(st_select_lex*)(slave);
+  }
   st_select_lex* first_select_in_union() 
   { 
-    return (st_select_lex*) slave;
+    return my_reinterpret_cast(st_select_lex*)(slave);
   }
-  st_select_lex_unit* next_unit() { return (st_select_lex_unit*) next; }
+  st_select_lex_unit* next_unit()
+  {
+    return my_reinterpret_cast(st_select_lex_unit*)(next);
+  }
   st_select_lex* return_after_parsing() { return return_to; }
   void exclude_level();
   void exclude_tree();
@@ -360,7 +369,8 @@ public:
 
   bool check_updateable(char *db, char *table);
   void print(String *str);
-  
+
+  ulong init_prepare_fake_select_lex(THD *thd);
 
   friend void mysql_init_query(THD *thd);
   friend int subselect_union_engine::exec();

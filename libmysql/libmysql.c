@@ -113,7 +113,9 @@ static my_bool org_my_init_done= 0;
     1  could not initialize environment (out of memory or thread keys)
 */
 
-int STDCALL mysql_server_init(int argc, char **argv, char **groups)
+int STDCALL mysql_server_init(int argc __attribute__((unused)),
+			      char **argv __attribute__((unused)),
+			      char **groups __attribute__((unused)))
 {
   int result= 0;
   if (!mysql_client_init)
@@ -152,7 +154,9 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
 #if defined(SIGPIPE) && !defined(__WIN__)
     (void) signal(SIGPIPE, SIG_IGN);
 #endif
+#ifdef EMBEDDED_LIBRARY
     result= init_embedded_server(argc, argv, groups);
+#endif
   }
 #ifdef THREAD
   else
@@ -164,7 +168,9 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
 
 void STDCALL mysql_server_end()
 {
+#ifdef EMBEDDED_LIBRARY
   end_embedded_server();
+#endif
   /* If library called my_init(), free memory allocated by it */
   if (!org_my_init_done)
   {
@@ -3992,7 +3998,8 @@ my_bool STDCALL mysql_stmt_reset(MYSQL_STMT *stmt)
   
   mysql= stmt->mysql->last_used_con;
   int4store(buff, stmt->stmt_id);		/* Send stmt id to server */
-  if ((*mysql->methods->advanced_command)(mysql, COM_RESET_STMT,buff,MYSQL_STMT_HEADER,0,0,1))
+  if ((*mysql->methods->advanced_command)(mysql, COM_RESET_STMT, buff,
+                                          MYSQL_STMT_HEADER,0,0,0))
   {
     set_stmt_errmsg(stmt, mysql->net.last_error, mysql->net.last_errno, 
                     mysql->net.sqlstate);
@@ -4054,7 +4061,9 @@ static void stmt_update_metadata(MYSQL_STMT *stmt, MYSQL_ROWS *data)
   MYSQL_FIELD *field;
   uchar *null_ptr, bit;
   uchar *row= (uchar*) data->data;
+#ifndef DBUG_OFF
   uchar *row_end= row + data->length;
+#endif
 
   null_ptr= row; 
   row+= (stmt->field_count+9)/8;		/* skip null bits */
