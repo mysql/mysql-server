@@ -123,12 +123,29 @@ show slave status;
 connection master;
 reset master;
 create table t2 (day date,id int(9),category enum('a','b','c'),name varchar(60),
-unique(day));
+unique(day)) engine=MyISAM; # no transactions
 --error 1062;
 load data infile '../../std_data/rpl_loaddata2.dat' into table t2 fields
 terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
 '\n##\n' starting by '>' ignore 1 lines;
-# To test that there is Create_file & Delete_file, we test if the binlog is as
-# long as expected (can't do SHOW BINLOG EVENTS because of varying file_id).
-show master status;
+select * from t2;
+save_master_pos;
+connection slave;
+start slave;
+sync_with_master;
+select * from t2;
+
+# verify that if no error on slave, this is an error
+
+alter table t2 drop key day;
+connection master;
+delete from t2;
+--error 1062;
+load data infile '../../std_data/rpl_loaddata2.dat' into table t2 fields
+terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
+'\n##\n' starting by '>' ignore 1 lines;
+connection slave;
+wait_for_slave_to_stop;
+drop table t2;
+connection master;
 drop table t2;

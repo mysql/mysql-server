@@ -3,7 +3,7 @@
 # Testing string functions
 
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1,t2;
 --enable_warnings
 
 set names latin1;
@@ -244,7 +244,7 @@ select FIELD('b','A' COLLATE latin1_bin,'B');
 select FIELD(_latin2'b','A','B');
 --error 1270
 select FIELD('b',_latin2'A','B');
-select FIELD('b',_latin2'A','B',1);
+select FIELD('1',_latin2'3','2',1);
 
 select POSITION(_latin1'B' IN _latin1'abcd');
 select POSITION(_latin1'B' IN _latin1'abcd' COLLATE latin1_bin);
@@ -377,6 +377,20 @@ insert into t1 values (null);
 select charset(a), collation(a), coercibility(a) from t1;
 drop table t1;
 select charset(null), collation(null), coercibility(null);
+#
+# Make sure OUTER JOIN is not replaced with a regular joun
+#
+CREATE TABLE t1 (a int, b int);
+CREATE TABLE t2 (a int, b int);
+INSERT INTO t1 VALUES (1,1),(2,2);
+INSERT INTO t2 VALUES (2,2),(3,3);
+select t1.*,t2.* from t1 left join t2 on (t1.b=t2.b)
+where collation(t2.a) = _utf8'binary' order by t1.a,t2.a;
+select t1.*,t2.* from t1 left join t2 on (t1.b=t2.b)
+where charset(t2.a) = _utf8'binary' order by t1.a,t2.a;
+select t1.*,t2.* from t1 left join t2 on (t1.b=t2.b)
+where coercibility(t2.a) = 2 order by t1.a,t2.a;
+DROP TABLE t1, t2;
 
 #
 # test for SUBSTR
@@ -509,4 +523,3 @@ SELECT t1.id, aes_decrypt(str, 'bar') FROM t1, t2 WHERE t1.id = t2.id
  ORDER BY t1.id;
 
 DROP TABLE t1, t2;
-

@@ -865,7 +865,7 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
     *ptr++= '\'';
     ptr+=
       escape_string_for_mysql(&my_charset_utf8_general_ci,
-                              ptr, entry->name.str, entry->name.length);
+                              ptr, 0, entry->name.str, entry->name.length);
     *ptr++= '\'';
     str.length(ptr - buf);
 
@@ -1166,7 +1166,7 @@ static int mysql_test_select(Prepared_statement *stmt,
     It is not SELECT COMMAND for sure, so setup_tables will be called as
     usual, and we pass 0 as setup_tables_done_option
   */
-  if (unit->prepare(thd, 0, 0))
+  if (unit->prepare(thd, 0, 0, ""))
   {
     goto err_prep;
   }
@@ -1318,7 +1318,7 @@ static bool select_like_stmt_test(Prepared_statement *stmt,
   thd->used_tables= 0;                        // Updated by setup_fields
 
   // JOIN::prepare calls
-  if (lex->unit.prepare(thd, 0, setup_tables_done_option))
+  if (lex->unit.prepare(thd, 0, setup_tables_done_option, ""))
   {
     res= TRUE;
   }
@@ -1871,6 +1871,9 @@ void reset_stmt_for_execute(THD *thd, LEX *lex)
       /* remove option which was put by mysql_explain_union() */
       sl->options&= ~SELECT_DESCRIBE;
 
+      /* see unique_table() */
+      sl->exclude_from_table_unique_test= FALSE;
+
       /*
         Copy WHERE clause pointers to avoid damaging they by optimisation
       */
@@ -1970,6 +1973,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
 {
   ulong stmt_id= uint4korr(packet);
   ulong flags= (ulong) ((uchar) packet[4]);
+  Cursor *cursor= 0;
   /*
     Query text for binary log, or empty string if the query is not put into
     binary log.
@@ -2007,15 +2011,17 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
         statement: we can't open a cursor for it.
       */
       flags= 0;
+      my_error(ER_SP_BAD_CURSOR_QUERY, MYF(0));
+      goto err;
     }
     else
     {
       DBUG_PRINT("info",("Using READ_ONLY cursor"));
       if (!stmt->cursor &&
-          !(stmt->cursor= new (&stmt->main_mem_root) Cursor()))
+          !(cursor= stmt->cursor= new (&stmt->main_mem_root) Cursor()))
         DBUG_VOID_RETURN;
       /* If lex->result is set, mysql_execute_command will use it */
-      stmt->lex->result= &stmt->cursor->result;
+      stmt->lex->result= &cursor->result;
     }
   }
 #ifndef EMBEDDED_LIBRARY
@@ -2061,11 +2067,10 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
   thd->protocol= &thd->protocol_simple;         // Use normal protocol
 
-  if (flags & (ulong) CURSOR_TYPE_READ_ONLY)
+  if (cursor && cursor->is_open())
   {
-    if (stmt->cursor->is_open())
-      stmt->cursor->init_from_thd(thd);
-    stmt->cursor->state= stmt->state;
+    cursor->init_from_thd(thd);
+    cursor->state= stmt->state;
   }
   else
   {

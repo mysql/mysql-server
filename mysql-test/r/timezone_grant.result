@@ -1,0 +1,54 @@
+delete from mysql.user where user like 'mysqltest\_%';
+delete from mysql.db where user like 'mysqltest\_%';
+delete from mysql.tables_priv where user like 'mysqltest\_%';
+delete from mysql.columns_priv where user like 'mysqltest\_%';
+flush privileges;
+create table t1 (a int, b datetime);
+create table t2 (c int, d datetime);
+grant all privileges on test.* to mysqltest_1@localhost;
+show grants for current_user();
+Grants for mysqltest_1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
+GRANT ALL PRIVILEGES ON `test`.* TO 'mysqltest_1'@'localhost'
+set time_zone= '+00:00';
+set time_zone= 'Europe/Moscow';
+select convert_tz('2004-10-21 19:00:00', 'Europe/Moscow', 'UTC');
+convert_tz('2004-10-21 19:00:00', 'Europe/Moscow', 'UTC')
+2004-10-21 15:00:00
+select convert_tz(b, 'Europe/Moscow', 'UTC') from t1;
+convert_tz(b, 'Europe/Moscow', 'UTC')
+update t1, t2 set t1.b = convert_tz('2004-10-21 19:00:00', 'Europe/Moscow', 'UTC')
+where t1.a = t2.c and t2.d = (select max(d) from t2);
+select * from mysql.time_zone_name;
+ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table 'time_zone_name'
+select Name, convert_tz('2004-10-21 19:00:00', Name, 'UTC') from mysql.time_zone_name;
+ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table 'time_zone_name'
+delete from mysql.db where user like 'mysqltest\_%';
+flush privileges;
+grant all privileges on test.t1 to mysqltest_1@localhost;
+grant all privileges on test.t2 to mysqltest_1@localhost;
+show grants for current_user();
+Grants for mysqltest_1@localhost
+GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
+GRANT ALL PRIVILEGES ON `test`.`t2` TO 'mysqltest_1'@'localhost'
+GRANT ALL PRIVILEGES ON `test`.`t1` TO 'mysqltest_1'@'localhost'
+set time_zone= '+00:00';
+set time_zone= 'Europe/Moscow';
+select convert_tz('2004-11-31 12:00:00', 'Europe/Moscow', 'UTC');
+convert_tz('2004-11-31 12:00:00', 'Europe/Moscow', 'UTC')
+NULL
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '2004-11-31 12:00:00'
+select convert_tz(b, 'Europe/Moscow', 'UTC') from t1;
+convert_tz(b, 'Europe/Moscow', 'UTC')
+update t1, t2 set t1.b = convert_tz('2004-11-30 12:00:00', 'Europe/Moscow', 'UTC')
+where t1.a = t2.c and t2.d = (select max(d) from t2);
+select * from mysql.time_zone_name;
+ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table 'time_zone_name'
+select Name, convert_tz('2004-11-30 12:00:00', Name, 'UTC') from mysql.time_zone_name;
+ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table 'time_zone_name'
+delete from mysql.user where user like 'mysqltest\_%';
+delete from mysql.db where user like 'mysqltest\_%';
+delete from mysql.tables_priv where user like 'mysqltest\_%';
+flush privileges;
+drop table t1, t2;

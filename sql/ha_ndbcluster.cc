@@ -2053,7 +2053,11 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   
   statistic_increment(thd->status_var.ha_update_count, &LOCK_status);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
+  {
     table->timestamp_field->set_time();
+    // Set query_id so that field is really updated
+    table->timestamp_field->query_id= thd->query_id;
+  }
 
   /* Check for update of primary key for special handling */  
   if ((table->s->primary_key != MAX_KEY) &&
@@ -2171,6 +2175,7 @@ int ha_ndbcluster::delete_row(const byte *record)
   DBUG_ENTER("delete_row");
 
   statistic_increment(thd->status_var.ha_delete_count,&LOCK_status);
+  m_rows_changed++;
 
   if (cursor)
   {
@@ -2220,8 +2225,6 @@ int ha_ndbcluster::delete_row(const byte *record)
           return res;  
     }
   }
-
-  m_rows_changed++;
 
   // Execute delete operation
   if (execute_no_commit(this,trans) != 0) {
@@ -3023,12 +3026,8 @@ int ha_ndbcluster::extra_opt(enum ha_extra_function operation, ulong cache_size)
 }
 
 
-static const char *ha_ndb_bas_ext[]= { ha_ndb_ext, NullS };
-const char**
-ha_ndbcluster::bas_ext() const
-{   
-  return ha_ndb_bas_ext; 
-}
+const char** ha_ndbcluster::bas_ext() const
+{ static const char *ext[]= { ha_ndb_ext, NullS }; return ext; }
 
 
 /*

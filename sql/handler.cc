@@ -32,6 +32,9 @@
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"
 #endif
+#ifdef HAVE_BLACKHOLE_DB
+#include "ha_blackhole.h"
+#endif
 #ifdef HAVE_EXAMPLE_DB
 #include "examples/ha_example.h"
 #endif
@@ -103,6 +106,9 @@ struct show_table_type_st sys_table_types[]=
    "CSV storage engine", DB_TYPE_CSV_DB},
   {"FEDERATED",&have_federated_db,
    "Federated MySQL storage engine", DB_TYPE_FEDERATED_DB},
+  {"BLACKHOLE",&have_blackhole_db,
+   "/dev/null storage engine (anything you write to it disappears)",
+   DB_TYPE_BLACKHOLE_DB},
   {NullS, NULL, NullS, DB_TYPE_UNKNOWN}
 };
 
@@ -210,6 +216,10 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
 #ifdef HAVE_ARCHIVE_DB
   case DB_TYPE_ARCHIVE_DB:
     return new ha_archive(table);
+#endif
+#ifdef HAVE_BLACKHOLE_DB
+  case DB_TYPE_BLACKHOLE_DB:
+    return new ha_blackhole(table);
 #endif
 #ifdef HAVE_FEDERATED_DB
   case DB_TYPE_FEDERATED_DB:
@@ -531,7 +541,6 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg)
 
 /*
   RETURN
-     -1  - cannot prepare
       0  - ok
       1  - error, transaction was rolled back
 */
@@ -544,8 +553,6 @@ int ha_prepare(THD *thd)
 #ifdef USING_TRANSACTIONS
   if (trans->nht)
   {
-    if (trans->no_2pc)
-      DBUG_RETURN(-1);
     for (; *ht; ht++)
     {
       int err;
@@ -840,9 +847,9 @@ int ha_recover(HASH *commit_list)
   /* commit_list and tc_heuristic_recover cannot be set both */
   DBUG_ASSERT(commit_list==0 || tc_heuristic_recover==0);
   /* if either is set, total_ha_2pc must be set too */
-  DBUG_ASSERT(dry_run || total_ha_2pc>opt_bin_log);
+  DBUG_ASSERT(dry_run || total_ha_2pc>(ulong)opt_bin_log);
 
-  if (total_ha_2pc <= opt_bin_log)
+  if (total_ha_2pc <= (ulong)opt_bin_log)
     DBUG_RETURN(0);
 
   if (commit_list)
@@ -2360,6 +2367,7 @@ TYPELIB *ha_known_exts(void)
 
     known_extensions_id= mysys_usage_id;
     found_exts.push_back((char*) ".db");
+    found_exts.push_back((char*) triggers_file_ext);
     for (types= sys_table_types; types->type; types++)
     {      
       if (*types->value == SHOW_OPTION_YES)

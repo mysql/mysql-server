@@ -38,4 +38,6 @@ create table t1 (a char(10)) character set latin1;
 select * from t1 where a=version();
 select * from t1 where a=database();
 select * from t1 where a=user();
+insert into t1 values ('a');
+select left(concat(a,version()),1) from t1;
 drop table t1;

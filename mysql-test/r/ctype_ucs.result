@@ -518,28 +518,6 @@ prepare stmt1 from @str2;
 execute stmt1 using @ivar;
 ?
 1234
-SET TIMESTAMP=10000;
-create table t2 (c char(30)) charset=ucs2;
-set @v=convert('abc' using ucs2);
-reset master;
-insert into t2 values (@v);
-show binlog events from 98;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	User var	1	#	@`v`=_ucs2 0x006100620063 COLLATE ucs2_general_ci
-master-bin.000001	#	Query	1	#	use `test`; insert into t2 values (@v)
-/*!40019 SET @@session.max_insert_delayed_threads=0*/;
-/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
-ROLLBACK;
-SET @`v`:=_ucs2 0x006100620063 COLLATE `ucs2_general_ci`;
-use test;
-SET TIMESTAMP=10000;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1;
-SET @@session.sql_mode=0;
-SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8;
-insert into t2 values (@v);
-ROLLBACK;
-/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
-drop table t2;
 set names latin1;
 create table t1 (a enum('x','y','z') character set ucs2);
 show create table t1;
@@ -642,3 +620,11 @@ Warnings:
 Warning	1264	Out of range value adjusted for column 'Field1' at row 1
 DROP TABLE t1;
 SET NAMES latin1;
+CREATE TABLE t1 (a varchar(64) character set ucs2, b decimal(10,3));
+INSERT INTO t1 VALUES ("1.1", 0), ("2.1", 0);
+update t1 set b=a;
+SELECT * FROM t1;
+a	b
+1.1	1.100
+2.1	2.100
+DROP TABLE t1;

@@ -331,24 +331,6 @@ prepare stmt1 from @str2;
 execute stmt1 using @ivar;
 
 #
-# Check correct binlogging of UCS2 user variables (BUG#3875)
-#
-SET TIMESTAMP=10000;
-create table t2 (c char(30)) charset=ucs2;
-set @v=convert('abc' using ucs2);
-reset master;
-insert into t2 values (@v);
---replace_column 2 # 5 #
-show binlog events from 98;
-# more important than SHOW BINLOG EVENTS, mysqlbinlog (where we
-# absolutely need variables names to be quoted and strings to be
-# escaped).
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec $MYSQL_BINLOG --short-form $MYSQL_TEST_DIR/var/log/master-bin.000001 
-drop table t2;
-
-
-#
 # Check that ucs2 works with ENUM and SET type
 #
 set names latin1;
@@ -414,3 +396,12 @@ CREATE TABLE t1 (Field1 int(10) unsigned default '0');
 INSERT INTO t1 VALUES ('-1');
 DROP TABLE t1;
 SET NAMES latin1;
+
+#
+# Conversion from an UCS2 string to a decimal column
+#
+CREATE TABLE t1 (a varchar(64) character set ucs2, b decimal(10,3));
+INSERT INTO t1 VALUES ("1.1", 0), ("2.1", 0);
+update t1 set b=a;
+SELECT * FROM t1;
+DROP TABLE t1;

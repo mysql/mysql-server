@@ -33,11 +33,11 @@ t4	CREATE TABLE `t4` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1,t2,t3,t4;
 CREATE TABLE t1 (a char(257) default "hello");
-ERROR 42000: Column length too big for column 'a' (max = 255); use BLOB instead
+ERROR 42000: Column length too big for column 'a' (max = 255); use BLOB or TEXT instead
 CREATE TABLE t2 (a char(256));
-ERROR 42000: Column length too big for column 'a' (max = 255); use BLOB instead
+ERROR 42000: Column length too big for column 'a' (max = 255); use BLOB or TEXT instead
 CREATE TABLE t1 (a varchar(70000) default "hello");
-ERROR 42000: Column length too big for column 'a' (max = 65535); use BLOB instead
+ERROR 42000: Column length too big for column 'a' (max = 65535); use BLOB or TEXT instead
 CREATE TABLE t2 (a blob default "hello");
 ERROR 42000: BLOB/TEXT column 'a' can't have a default value
 drop table if exists t1,t2;
@@ -80,17 +80,17 @@ update t1 set c="",b=null where c="1";
 lock tables t1 READ;
 show full fields from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-t	text	latin1_swedish_ci	YES		NULL		select,insert,update,references	
-c	char(10)	latin1_swedish_ci	YES		NULL		select,insert,update,references	
-b	blob	NULL	YES		NULL		select,insert,update,references	
-d	binary(10)	NULL	YES		NULL		select,insert,update,references	
+t	text	latin1_swedish_ci	YES		NULL		#	
+c	char(10)	latin1_swedish_ci	YES		NULL		#	
+b	blob	NULL	YES		NULL		#	
+d	binary(10)	NULL	YES		NULL		#	
 lock tables t1 WRITE;
 show full fields from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-t	text	latin1_swedish_ci	YES		NULL		select,insert,update,references	
-c	char(10)	latin1_swedish_ci	YES		NULL		select,insert,update,references	
-b	blob	NULL	YES		NULL		select,insert,update,references	
-d	binary(10)	NULL	YES		NULL		select,insert,update,references	
+t	text	latin1_swedish_ci	YES		NULL		#	
+c	char(10)	latin1_swedish_ci	YES		NULL		#	
+b	blob	NULL	YES		NULL		#	
+d	binary(10)	NULL	YES		NULL		#	
 unlock tables;
 select t from t1 where t like "hello";
 t
@@ -523,10 +523,10 @@ select if(imagem is null, "ERROR", "OK"),length(imagem) from t1 where id = 1;
 if(imagem is null, "ERROR", "OK")	length(imagem)
 OK	581
 drop table t1;
-create table t1 select load_file('../../std_data/words.dat');
+create table t1 select load_file('../../std_data/words.dat') l;
 show full fields from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-load_file('../../std_data/words.dat')	longblob	NULL	YES		NULL		select,insert,update,references	
+l	longblob	NULL	YES		NULL		#	
 drop table t1;
 create table t1 (id integer primary key auto_increment, txt text not null, unique index txt_index (txt (20)));
 insert into t1 (txt) values ('Chevy'), ('Chevy ');

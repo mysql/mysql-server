@@ -180,14 +180,6 @@ t1	CREATE TABLE `t1` (
   `-(-1.1)` decimal(7,1) NOT NULL default '0.0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
-CREATE TABLE t1 (a varchar(64) character set ucs2, b decimal(10,3));
-INSERT INTO t1 VALUES ("1.1", 0), ("2.1", 0);
-update t1 set b=a;
-SELECT * FROM t1;
-a	b
-1.1	1.100
-2.1	2.100
-DROP TABLE t1;
 set session sql_mode='traditional';
 select 1e10/0e0;
 1e10/0e0
@@ -847,3 +839,6 @@ Error	1365	Division by 0
 INSERT INTO Sow6_2f VALUES ('a59b');
 ERROR HY000: Incorrect decimal value: 'a59b' for column 'col1' at row 1
 drop table Sow6_2f;
+select 10.3330000000000/12.34500000;
+10.3330000000000/12.34500000
+0.8370190360469825840421223160000

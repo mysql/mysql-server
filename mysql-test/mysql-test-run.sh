@@ -247,7 +247,6 @@ STOP_WAIT_TIMEOUT=10
 MYSQL_TEST_SSL_OPTS=""
 USE_TIMER=""
 USE_EMBEDDED_SERVER=""
-RESULT_EXT=""
 TEST_MODE=""
 
 NDB_MGM_EXTRA_OPTS=
@@ -260,7 +259,6 @@ while test $# -gt 0; do
       USE_EMBEDDED_SERVER=1
       USE_MANAGER=0 NO_SLAVE=1
       USE_RUNNING_SERVER=0
-      RESULT_EXT=".es"
       TEST_MODE="$TEST_MODE embedded" ;;
     --purify)
       USE_PURIFY=1
@@ -576,9 +574,9 @@ if [ x$SOURCE_DIST = x1 ] ; then
  CLIENT_BINDIR="$BASEDIR/client"
  MYSQLADMIN="$CLIENT_BINDIR/mysqladmin"
  WAIT_PID="$BASEDIR/extra/mysql_waitpid"
- MYSQL_MANAGER_CLIENT="$CLIENT_BINDIR/mysqlmanagerc"
- MYSQL_MANAGER="$BASEDIR/tools/mysqlmanager"
- MYSQL_MANAGER_PWGEN="$CLIENT_BINDIR/mysqlmanager-pwgen"
+ MYSQL_MANAGER_CLIENT="$CLIENT_BINDIR/mysqltestmanagerc"
+ MYSQL_MANAGER="$BASEDIR/tools/mysqltestmanager"
+ MYSQL_MANAGER_PWGEN="$CLIENT_BINDIR/mysqltestmanager-pwgen"
  MYSQL="$CLIENT_BINDIR/mysql"
  LANGUAGE="$BASEDIR/sql/share/english/"
  CHARSETSDIR="$BASEDIR/sql/share/charsets"
@@ -639,9 +637,9 @@ else
  MYSQL_BINLOG="$CLIENT_BINDIR/mysqlbinlog"
  MYSQLADMIN="$CLIENT_BINDIR/mysqladmin"
  WAIT_PID="$CLIENT_BINDIR/mysql_waitpid"
- MYSQL_MANAGER="$CLIENT_BINDIR/mysqlmanager"
- MYSQL_MANAGER_CLIENT="$CLIENT_BINDIR/mysqlmanagerc"
- MYSQL_MANAGER_PWGEN="$CLIENT_BINDIR/mysqlmanager-pwgen"
+ MYSQL_MANAGER="$CLIENT_BINDIR/mysqltestmanager"
+ MYSQL_MANAGER_CLIENT="$CLIENT_BINDIR/mysqltestmanagerc"
+ MYSQL_MANAGER_PWGEN="$CLIENT_BINDIR/mysqltestmanager-pwgen"
  MYSQL="$CLIENT_BINDIR/mysql"
  INSTALL_DB="./install_test_db --bin"
  MYSQL_FIX_SYSTEM_TABLES="$CLIENT_BINDIR/mysql_fix_privilege_tables"
@@ -760,13 +758,6 @@ show_failed_diff ()
   reject_file=r/$1.reject
   result_file=r/$1.result
   eval_file=r/$1.eval
-
-  # If we have an special externsion for result files we use it if we are recording
-  # or a result file with that extension exists.
-  if [ -n "$RESULT_EXT" -a \( x$RECORD = x1 -o -f "$result_file$RESULT_EXT" \) ]
-  then
-    result_file="$result_file$RESULT_EXT"
-  fi
 
   if [ -f $eval_file ]
   then
@@ -1513,9 +1504,6 @@ run_testcase ()
  result_file="r/$tname.result"
  echo $tname > $CURRENT_TEST
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0 \& \( $tname : federated \) = 0`
- if [ -n "$RESULT_EXT" -a \( x$RECORD = x1 -o -f "$result_file$RESULT_EXT" \) ] ; then
-   result_file="$result_file$RESULT_EXT"
- fi
  if [ "$USE_MANAGER" = 1 ] ; then
   many_slaves=`$EXPR \( \( $tname : rpl_failsafe \) != 0 \) \| \( \( $tname : rpl_chain_temp_table \) != 0 \)`
  fi
@@ -1573,33 +1561,8 @@ run_testcase ()
  # script soon anyway so it is not worth it spending the time
  if [ "x$USE_EMBEDDED_SERVER" = "x1" -a -z "$DO_TEST" ] ; then
    for t in \
-        "alter_table" \
-	"bdb-deadlock" \
-	"connect" \
-        "ctype_latin1_de" \
-        "ctype_ucs" \
-	"flush_block_commit" \
-	"grant2" \
-	"grant_cache" \
-	"grant" \
-	"init_connect" \
-	"init_file" \
-        "innodb" \
-	"innodb-deadlock" \
-	"innodb-lock" \
-	"mix_innodb_myisam_binlog" \
-	"mysqlbinlog2" \
-	"mysqlbinlog" \
-	"mysqldump" \
-	"mysql_protocols" \
-        "packet" \
-	"ps_1general" \
-	"rename" \
-	"show_check" \
-        "system_mysql_db_fix" \
-        "timezone2" \
-	"user_var" \
-	"variables"
+       "init_connect" \
+       "init_file"
    do
      if [ "$tname" = "$t" ] ; then
        skip_test $tname
@@ -1623,10 +1586,8 @@ run_testcase ()
        --result-file=*)
          result_file=`$ECHO "$EXTRA_MASTER_OPT" | $SED -e "s;--result-file=;;"`
          result_file="r/$result_file.result"
-         if [ -n "$RESULT_EXT" -a \( x$RECORD = x1 -o -f "$result_file$RESULT_EXT" \) ] ; then
-	   result_file="$result_file$RESULT_EXT"
-	 fi
-	 # Note that this must be set to space, not "" for test-reset to work
+         # Note that this must be set to space, not "" for test-reset to
+# work
 	 EXTRA_MASTER_OPT=" "
          ;;
      esac

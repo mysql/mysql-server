@@ -234,10 +234,24 @@ struct sql_ex_info
 /* these are codes, not offsets; not more than 256 values (1 byte). */
 #define Q_FLAGS2_CODE           0
 #define Q_SQL_MODE_CODE         1
+#ifndef TO_BE_DELETED
+/*
+  Q_CATALOG_CODE is catalog with end zero stored; it is used only by MySQL
+  5.0.x where 0<=x<=3.
+*/
 #define Q_CATALOG_CODE          2
+#endif
 #define Q_AUTO_INCREMENT	3
 #define Q_CHARSET_CODE          4
 #define Q_TIME_ZONE_CODE        5
+/*
+  Q_CATALOG_NZ_CODE is catalog withOUT end zero stored; it is used by MySQL
+  5.0.x where x>=4. Saves one byte in every Query_log_event in binlog,
+  compared to Q_CATALOG_CODE. The reason we didn't simply re-use
+  Q_CATALOG_CODE is that then a 5.0.3 slave of this 5.0.x (x>=4) master would
+  crash (segfault etc) because it would expect a 0 when there is none.
+*/
+#define Q_CATALOG_NZ_CODE       6
 
 /* Intvar event post-header */
 
@@ -1367,7 +1381,7 @@ public:
 #ifdef HAVE_REPLICATION
   int exec_event(struct st_relay_log_info* rli);
   void pack_info(Protocol* protocol);
-  virtual int get_open_mode() const;
+  virtual int get_create_or_append() const;
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, bool short_form = 0, LAST_EVENT_INFO* last_event_info= 0);
@@ -1475,7 +1489,7 @@ public:
                              bool using_trans);
 #ifdef HAVE_REPLICATION
   Begin_load_query_log_event(THD* thd);
-  int get_open_mode() const;
+  int get_create_or_append() const;
 #endif /* HAVE_REPLICATION */
 #endif
   Begin_load_query_log_event(const char* buf, uint event_len,

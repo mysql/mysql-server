@@ -161,7 +161,8 @@ THD::THD()
   :user_time(0), global_read_lock(0), is_fatal_error(0),
    rand_used(0), time_zone_used(0),
    last_insert_id_used(0), insert_id_used(0), clear_next_insert_id(0),
-   in_lock_tables(0), bootstrap(0), spcont(NULL)
+   in_lock_tables(0), bootstrap(0), derived_tables_processing(FALSE),
+   spcont(NULL)
 {
   current_arena= this;
 #ifndef DBUG_OFF
@@ -193,6 +194,7 @@ THD::THD()
   variables.pseudo_thread_id= 0;
   one_shot_set= 0;
   file_id = 0;
+  query_id= 0;
   warn_id= 0;
   db_charset= global_system_variables.collation_database;
   bzero(ha_data, sizeof(ha_data));
