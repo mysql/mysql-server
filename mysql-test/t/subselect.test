@@ -934,3 +934,16 @@ select * from t1 where ('a','b')=(select 'a','b' from t1 union select 'a','b' fr
 explain (select * from t1);
 (select * from t1);
 drop table t1;
+
+#
+# IN optimisation test results
+#
+create table t1 (s1 char(5), index s1(s1));
+create table t2 (s1 char(5), index s1(s1));
+insert into t1 values ('a1'),('a2'),('a3');
+insert into t2 values ('a1'),('a2');
+select s1, s1 NOT IN (SELECT s1 FROM t2) from t1;
+select s1, s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2') from t1;
+explain select s1, s1 NOT IN (SELECT s1 FROM t2) from t1;
+explain select s1, s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2') from t1;
+drop table t1,t2;
