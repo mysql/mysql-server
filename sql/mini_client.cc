@@ -843,7 +843,7 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
     }
     /* Do the SSL layering. */
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    DBUG_PRINT("info", ("IO context %p",((struct st_VioSSLConnectorFd*)mysql->connector_fd)->ssl_context_));
+    DBUG_PRINT("info", ("IO context %p",((struct st_VioSSLConnectorFd*)mysql->connector_fd)->ssl_context));
     sslconnect((struct st_VioSSLConnectorFd*)(mysql->connector_fd),mysql->net.vio, (long)(mysql->options.connect_timeout));
     DBUG_PRINT("info", ("IO layer change done!"));
   }

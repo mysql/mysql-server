@@ -531,6 +531,9 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 			     (my_bool) old_ver)))
 	{
 	  Vio *vio=thd->net.vio;
+#ifdef HAVE_OPENSSL
+	  SSL *ssl= (SSL*) vio->ssl_arg;
+#endif
 	  /*
 	    In this point we know that user is allowed to connect
 	    from given host by given username/password pair. Now
@@ -553,8 +556,8 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 	      we should reject connection.
 	    */
 	    if (vio_type(vio) == VIO_TYPE_SSL && 
-	        SSL_get_verify_result(vio->ssl_) == X509_V_OK &&
-	        SSL_get_peer_certificate(vio->ssl_))
+	        SSL_get_verify_result(ssl) == X509_V_OK &&
+	        SSL_get_peer_certificate(ssl))
 	      user_access=acl_user->access;
 	    break;
 	  case SSL_TYPE_SPECIFIED: /* Client should have specified attrib */
@@ -563,28 +566,28 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 	      we should reject connection.
 	    */
 	    if (vio_type(vio) == VIO_TYPE_SSL && 
-	        SSL_get_verify_result(vio->ssl_) == X509_V_OK)
+	        SSL_get_verify_result(ssl) == X509_V_OK)
 	    {
 	      if (acl_user->ssl_cipher)
 	      {
 		DBUG_PRINT("info",("comparing ciphers: '%s' and '%s'",
 				   acl_user->ssl_cipher,
-				   SSL_get_cipher(vio->ssl_)));
-		if (!strcmp(acl_user->ssl_cipher,SSL_get_cipher(vio->ssl_)))
+				   SSL_get_cipher(ssl)));
+		if (!strcmp(acl_user->ssl_cipher,SSL_get_cipher(ssl)))
 		  user_access=acl_user->access;
 		else
 		{
 		  if (global_system_variables.log_warnings)
 		    sql_print_error("X509 ciphers mismatch: should be '%s' but is '%s'",
 				    acl_user->ssl_cipher,
-				    SSL_get_cipher(vio->ssl_));
+				    SSL_get_cipher(ssl));
 		  user_access=NO_ACCESS;
 		  break;
 		}
 	      }
 	      /* Prepare certificate (if exists) */
 	      DBUG_PRINT("info",("checkpoint 1"));
-	      X509* cert=SSL_get_peer_certificate(vio->ssl_);
+	      X509* cert=SSL_get_peer_certificate(ssl);
 	      DBUG_PRINT("info",("checkpoint 2"));
 	      /* If X509 issuer is speified, we check it... */
 	      if (acl_user->x509_issuer)

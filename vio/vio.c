@@ -21,13 +21,7 @@
   the file descriptior.
 */
 
-#define DONT_MAP_VIO
-#include <my_global.h>
-#include <mysql_com.h>
-#include <my_sys.h>
-#include <m_string.h>
-#include <violite.h>
-#include <errno.h>
+#include "vio_priv.h"
 
 /*
  * Helper to fill most of the Vio* with defaults.
@@ -61,6 +55,7 @@ void vio_reset(Vio* vio, enum enum_vio_type type,
     vio->in_addr	=vio_ssl_in_addr;
     vio->vioblocking	=vio_ssl_blocking;
     vio->is_blocking	=vio_is_blocking;
+    vio->timeout	=vio_ssl_timeout;
   }
   else					/* default is VIO_TYPE_TCPIP */
 #endif /* HAVE_OPENSSL */
@@ -77,6 +72,7 @@ void vio_reset(Vio* vio, enum enum_vio_type type,
     vio->in_addr	=vio_in_addr;
     vio->vioblocking	=vio_blocking;
     vio->is_blocking	=vio_is_blocking;
+    vio->timeout	=vio_timeout;
   }
 #endif /* HAVE_VIO */
   DBUG_VOID_RETURN;

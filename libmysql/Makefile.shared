@@ -46,6 +46,7 @@ mystringsextra= 	strto.c
 mystringsgen=	 	ctype_autoconf.c
 dbugobjects =		dbug.lo # IT IS IN SAFEMALLOC.C sanity.lo
 mysysheaders =		mysys_priv.h my_static.h
+vioheaders =		vio_priv.h
 mysysobjects1 =		my_init.lo my_static.lo my_malloc.lo my_realloc.lo \
 			my_create.lo my_delete.lo mf_tempfile.lo my_open.lo \
 			mf_casecnv.lo my_read.lo my_write.lo errors.lo \
@@ -86,7 +87,7 @@ clean-local:
 	      `echo $(mysysobjects) | sed "s;\.lo;.c;g"` \
 	      `echo $(vio_objects) | sed "s;\.lo;.c;g"` \
 	       $(CHARSET_SRCS) $(CHARSET_OBJS) \
-	       $(mystringsextra) $(mystringsgen) $(mysysheaders) \
+	       $(mystringsextra) $(mystringsgen) $(mysysheaders) $(vioheaders)\
 	       ctype_extra_sources.c net.c ../linked_client_sources
 
 ctype_extra_sources.c: conf_to_src
