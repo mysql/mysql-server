@@ -382,6 +382,7 @@ public:
   bool is_null() { return field->is_null(); }
   Item *get_tmp_table_item(THD *thd);
   void cleanup();
+  inline uint32 max_disp_length() { return field->max_length(); }
   friend class Item_default_value;
   friend class Item_insert_value;
   friend class st_select_lex_unit;
@@ -1199,6 +1200,7 @@ public:
   String *val_str(String*);
   bool join_types(THD *thd, Item *);
   Field *example() { return field_example; }
+  static uint32 real_length(Item *item);
   void cleanup()
   {
     DBUG_ENTER("Item_type_holder::cleanup");
