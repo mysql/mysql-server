@@ -8944,6 +8944,20 @@ void Dbtc::execDIGETPRIMCONF(Signal* signal)
   scanptr.i = scanFragptr.p->scanRec;
   ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
 
+  if(ScanFragReq::getReadCommittedFlag(scanptr.p->scanRequestInfo))
+  {
+    jam();
+    Uint32 max = 3+signal->theData[6];
+    Uint32 nodeid = getOwnNodeId();
+    for(Uint32 i = 3; i<max; i++)
+      if(signal->theData[i] ==  nodeid)
+      {
+	jam();
+	tnodeid = nodeid;
+	break;
+      }
+  }
+  
   {
     /**
      * Check table
