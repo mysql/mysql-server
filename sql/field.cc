@@ -3930,6 +3930,11 @@ void Field_newdate::sql_type(String &res) const
 int Field_datetime::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   longlong tmp=str_to_datetime(from,len,1);
+  if (tmp < 0)
+  {
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE);
+    tmp= 0;
+  }
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
   {
