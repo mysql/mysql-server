@@ -165,16 +165,21 @@ exit:
     else
     {
       if (!thd->fill_derived_tables())
+      {
 	delete derived_result;
+	derived_result= NULL;
+      }
       orig_table_list->derived_result= derived_result;
       orig_table_list->table= table;
       orig_table_list->table_name= (char*) table->s->table_name;
+      orig_table_list->table_name_length= strlen((char*)table->s->table_name);
       table->derived_select_number= first_select->select_number;
       table->s->tmp_table= TMP_TABLE;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       table->grant.privilege= SELECT_ACL;
 #endif
       orig_table_list->db= (char *)"";
+      orig_table_list->db_length= 0;
       // Force read of table stats in the optimizer
       table->file->info(HA_STATUS_VARIABLE);
       /* Add new temporary table to list of open derived tables */

@@ -164,48 +164,48 @@ product	country_id	year	sum(profit)
 NULL	NULL	NULL	7785
 select concat(product,':',country_id) as 'prod', concat(":",year,":") as 'year',1+1, sum(profit)/count(*) from t1 group by 1,2 with rollup;
 prod	year	1+1	sum(profit)/count(*)
-Calculator:1	:1999:	2	50.00
-Calculator:1	:2000:	2	75.00
-Calculator:1	NULL	2	62.50
-Calculator:2	:2000:	2	75.00
-Calculator:2	NULL	2	75.00
-Computer:1	:1999:	2	1350.00
-Computer:1	:2000:	2	1500.00
-Computer:1	NULL	2	1400.00
-Computer:2	:2000:	2	1350.00
-Computer:2	NULL	2	1350.00
-Phone:3	:2003:	2	10.00
-Phone:3	NULL	2	10.00
-TV:1	:1999:	2	125.00
-TV:1	:2000:	2	150.00
-TV:1	NULL	2	133.33
-TV:2	:2000:	2	100.00
-TV:2	NULL	2	100.00
-NULL	NULL	2	519.00
+Calculator:1	:1999:	2	50.00000
+Calculator:1	:2000:	2	75.00000
+Calculator:1	NULL	2	62.50000
+Calculator:2	:2000:	2	75.00000
+Calculator:2	NULL	2	75.00000
+Computer:1	:1999:	2	1350.00000
+Computer:1	:2000:	2	1500.00000
+Computer:1	NULL	2	1400.00000
+Computer:2	:2000:	2	1350.00000
+Computer:2	NULL	2	1350.00000
+Phone:3	:2003:	2	10.00000
+Phone:3	NULL	2	10.00000
+TV:1	:1999:	2	125.00000
+TV:1	:2000:	2	150.00000
+TV:1	NULL	2	133.33333
+TV:2	:2000:	2	100.00000
+TV:2	NULL	2	100.00000
+NULL	NULL	2	519.00000
 select product, sum(profit)/count(*) from t1 group by product with rollup;
 product	sum(profit)/count(*)
-Calculator	68.75
-Computer	1380.00
-Phone	10.00
-TV	120.00
-NULL	519.00
+Calculator	68.75000
+Computer	1380.00000
+Phone	10.00000
+TV	120.00000
+NULL	519.00000
 select left(product,4) as prod, sum(profit)/count(*) from t1 group by prod with rollup;
 prod	sum(profit)/count(*)
-Calc	68.75
-Comp	1380.00
-Phon	10.00
-TV	120.00
-NULL	519.00
+Calc	68.75000
+Comp	1380.00000
+Phon	10.00000
+TV	120.00000
+NULL	519.00000
 select concat(product,':',country_id), 1+1, sum(profit)/count(*) from t1 group by concat(product,':',country_id) with rollup;
 concat(product,':',country_id)	1+1	sum(profit)/count(*)
-Calculator:1	2	62.50
-Calculator:2	2	75.00
-Computer:1	2	1400.00
-Computer:2	2	1350.00
-Phone:3	2	10.00
-TV:1	2	133.33
-TV:2	2	100.00
-NULL	2	519.00
+Calculator:1	2	62.50000
+Calculator:2	2	75.00000
+Computer:1	2	1400.00000
+Computer:2	2	1350.00000
+Phone:3	2	10.00000
+TV:1	2	133.33333
+TV:2	2	100.00000
+NULL	2	519.00000
 select product, country , year, sum(profit) from t1,t2 where t1.country_id=t2.country_id group by product, country, year with rollup;
 product	country	year	sum(profit)
 Calculator	India	2000	150

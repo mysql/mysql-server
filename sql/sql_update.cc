@@ -501,7 +501,7 @@ int mysql_update(THD *thd,
   free_underlaid_joins(thd, select_lex);
   if (error < 0)
   {
-    char buff[80];
+    char buff[STRING_BUFFER_USUAL_SIZE];
     sprintf(buff, ER(ER_UPDATE_INFO), (ulong) found, (ulong) updated,
 	    (ulong) thd->cuted_fields);
     thd->row_count_func=
@@ -1383,7 +1383,7 @@ err:
 
 bool multi_update::send_eof()
 {
-  char buff[80];
+  char buff[STRING_BUFFER_USUAL_SIZE];
   thd->proc_info="updating reference tables";
 
   /* Does updates for the last n - 1 tables, returns 0 if ok */
