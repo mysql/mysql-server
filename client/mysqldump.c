@@ -68,13 +68,6 @@
 /* Size of buffer for dump's select query */
 #define QUERY_LENGTH 1536
 
-#define print_xml_tag(out_file, sbeg, sval, send) \
-{ \
-    fputs(sbeg, out_file); \
-    print_quoted_xml(out_file, sval, 0); \
-    fputs(send, out_file); \
-}
-
 static char *add_load_option(char *ptr, const char *object,
 			     const char *statement);
 static ulong find_set(TYPELIB *lib, const char *x, uint length,
@@ -305,7 +298,6 @@ static int init_dumping(char *);
 static int dump_databases(char **);
 static int dump_all_databases();
 static char *quote_name(const char *name, char *buff, my_bool force);
-static void print_quoted_xml(FILE *output, char *str, ulong len);
 
 static void print_version(void)
 {
@@ -658,8 +650,98 @@ static char *quote_name(const char *name, char *buff, my_bool force)
 } /* quote_name */
 
 
-void print_xml_row(FILE *xml_file, const char *row_name, MYSQL_RES *tableRes,
-		   MYSQL_ROW *row)
+/*
+  Quote and print a string.
+  
+  SYNOPSIS
+    print_quoted_xml()
+    output	- output file
+    str		- string to print
+    len		- its length
+    
+  DESCRIPTION
+    Quote '<' '>' '&' '\"' singns and print a string to the xml_file.
+*/
+
+static void print_quoted_xml(FILE *xml_file, const char *str, ulong len)
+{
+  const char *end;
+  
+  for (end= str + len; str != end; str++)
+  {
+    switch (*str) {
+    case '<':
+      fputs("&lt;", xml_file);
+      break;
+    case '>':
+      fputs("&gt;", xml_file);
+      break;
+    case '&':
+      fputs("&amp;", xml_file);
+      break;
+    case '\"':
+      fputs("&quot;", xml_file);
+      break;
+    default:
+      fputc(*str, xml_file);
+      break;
+    }
+  }
+}
+
+
+/*
+  Print xml tag with one attribute.
+  
+  SYNOPSIS
+    print_xml_tag1()
+    xml_file	- output file
+    sbeg	- line beginning
+    stag_atr	- tag and attribute
+    sval	- value of attribute
+    send	- line ending
+    
+  DESCRIPTION
+    Print tag with one attribute to the xml_file. Format is:
+      sbeg<stag_atr="sval">send
+  NOTE
+    sval MUST be a NULL terminated string.
+    sval string will be qouted before output.
+*/
+
+static void print_xml_tag1(FILE * xml_file, const char* sbeg,
+			   const char* stag_atr, const char* sval,
+			   const char* send)
+{
+  fputs(sbeg, xml_file);
+  fputs("<", xml_file);
+  fputs(stag_atr, xml_file);
+  fputs("\"", xml_file);
+  print_quoted_xml(xml_file, sval, strlen(sval));
+  fputs("\">", xml_file);
+  fputs(send, xml_file);
+}
+
+
+/*
+  Print xml tag with many attributes.
+
+  SYNOPSIS
+    print_xml_row()
+    xml_file	- output file
+    row_name	- xml tag name
+    tableRes	- query result
+    row		- result row
+    
+  DESCRIPTION
+    Print tag with many attribute to the xml_file. Format is:
+      \t\t<row_name Atr1="Val1" Atr2="Val2"... />
+  NOTE
+    All atributes and values will be quoted before output.
+*/
+
+static void print_xml_row(FILE *xml_file, const char *row_name,
+			  MYSQL_RES *tableRes, MYSQL_ROW *row)
 {
   uint i;
   MYSQL_FIELD *field;
@@ -669,10 +751,10 @@ void print_xml_row(FILE *xml_file, const char *row_name, MYSQL_RES *tableRes,
   mysql_field_seek(tableRes, 0);
   for (i= 0; (field= mysql_fetch_field(tableRes)); i++)
   {
-    if ((*row)[i] && (*row)[i][0])
+    if ((*row)[i])
     {
       fputs(" ", xml_file);
-      print_quoted_xml(xml_file, field->name, 0);
+      print_quoted_xml(xml_file, field->name, field->name_length);
       fputs("=\"", xml_file);
       print_quoted_xml(xml_file, (*row)[i], lengths[i]);
       fputs("\"", xml_file);
@@ -849,7 +931,7 @@ static uint getTableStructure(char *table, char* db)
       if (!opt_xml)
 	fprintf(sql_file, "CREATE TABLE %s (\n", result_table);
       else
-        print_xml_tag(sql_file, "\t<table_structure name=\"", table, "\">\n");
+        print_xml_tag1(sql_file, "\t", "table_structure name=", table, "\n");
     }
     if (cFlag)
       sprintf(insert_pat, "INSERT %sINTO %s (", delayed, result_table);
@@ -1192,9 +1274,7 @@ static void dumpTable(uint numFields, char *table)
     rownr=0;
     init_length=(uint) strlen(insert_pat)+4;
     if (opt_xml)
-    {
-      print_xml_tag(md_result_file, "\t<table_data name=\"", table, "\">\n");
-    }
+      print_xml_tag1(md_result_file, "\t", "table_data name=", table, "\n");
 
     if (opt_autocommit)
       fprintf(md_result_file, "set autocommit=0;\n");
@@ -1275,8 +1355,8 @@ static void dumpTable(uint numFields, char *table)
 	    {
 	      if (opt_xml)
 	      {
-	        print_xml_tag(md_result_file, "\t\t<field name=\"", field->name,
-			      "\">");
+	        print_xml_tag1(md_result_file, "\t\t", "field name=",
+			      field->name, "");
 		print_quoted_xml(md_result_file, row[i], lengths[i]);
 		fputs("</field>\n", md_result_file);
 	      }
@@ -1289,8 +1369,8 @@ static void dumpTable(uint numFields, char *table)
 	      char *ptr = row[i];
 	      if (opt_xml)
 	      {
-	        print_xml_tag(md_result_file, "\t\t<field name=\"", field->name,
-			      "\">");
+	        print_xml_tag1(md_result_file, "\t\t", "field name=",
+			       field->name, "");
 		fputs(!my_isalpha(charset_info, *ptr) ? ptr: "NULL",
 		      md_result_file);
 		fputs("</field>\n", md_result_file);
@@ -1303,10 +1383,8 @@ static void dumpTable(uint numFields, char *table)
 	  else
 	  {
 	    if (opt_xml)
-	    {
-	      print_xml_tag(md_result_file, "\t\t<field name=\"", field->name,
-			    "\">NULL</field>\n");
-	    }
+	      print_xml_tag1(md_result_file, "\t\t", "field name=",
+			     field->name, "NULL</field>\n");
 	    else
 	      fputs("NULL", md_result_file);
 	  }
@@ -1371,32 +1449,6 @@ static void dumpTable(uint numFields, char *table)
   }
 } /* dumpTable */
 
-
-static void print_quoted_xml(FILE *output, char *str, ulong len)
-{
-  const char *end= str + (len ? len : strlen(str));
-  
-  for (; str != end; str++)
-  {
-    switch (*str) {
-    case '<':
-      fputs("&lt;", output);
-      break;
-    case '>':
-      fputs("&gt;", output);
-      break;
-    case '&':
-      fputs("&amp;", output);
-      break;
-    case '\"':
-      fputs("&quot;", output);
-      break;
-    default:
-      fputc(*str, output);
-      break;
-    }
-  }
-}
 
 static char *getTableName(int reset)
 {
@@ -1516,9 +1568,7 @@ static int dump_all_tables_in_db(char *database)
   if (init_dumping(database))
     return 1;
   if (opt_xml)
-  {
-    print_xml_tag(md_result_file, "<database name=\"", database, "\">\n");
-  }
+    print_xml_tag1(md_result_file, "", "database name=", database, "\n");
   if (lock_tables)
   {
     DYNAMIC_STRING query;
@@ -1584,9 +1634,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
      /* We shall countinue here, if --force was given */
   }
   if (opt_xml)
-  {
-    print_xml_tag(md_result_file, "<database name=\"", db, "\">\n");
-  }
+    print_xml_tag1(md_result_file, "", "database name=", db, "\n");
   for (; tables > 0 ; tables-- , table_names++)
   {
     numrows = getTableStructure(*table_names, db);
