@@ -419,14 +419,19 @@ multi_update::prepare(List<Item> &values)
     for (table_ref=update_tables;  table_ref;
 	 table_ref=table_ref->next, counter++)
     {
-      if (table_ref->table == item->field->table && !table_ref->shared)
+      if (table_ref->table == item->field->table)
       {
-	num_updated++;
-	table_ref->shared=1;
-	if (!not_trans_safe && !table_ref->table->file->has_transactions())
-	  not_trans_safe=true;
-	// to be moved if initialize_tables has to be used
-	table_ref->table->no_keyread=1;
+	if (!table_ref->shared)
+	{
+	  TABLE *tbl=table_ref->table;
+	  num_updated++;
+	  table_ref->shared=1;
+	  if (!not_trans_safe && !table_ref->table->file->has_transactions())
+	    not_trans_safe=true;
+	  // to be moved if initialize_tables has to be used
+	  tbl->no_keyread=1;
+	  tbl->used_keys=0;
+	}
 	break;
       }
     }
@@ -440,7 +445,7 @@ multi_update::prepare(List<Item> &values)
   }
   if (!num_updated)
   {
-    error = 1; // A proper error message is due here 
+    net_printf(&thd->net, ER_NOT_SUPPORTED_YET, "SET CLAUSE MUST CONTAIN TABLE.FIELD REFERENCE");
     DBUG_RETURN(1);
   }
 
@@ -498,6 +503,7 @@ multi_update::prepare(List<Item> &values)
       counter++;
     }
   }
+  init_ftfuncs(thd,1);
   error = 0; // Timestamps do not need to be restored, so far ...
   DBUG_RETURN(0);
 }
@@ -520,7 +526,7 @@ multi_update::initialize_tables(JOIN *join)
   {
     if (tab->table->map & tables_to_update_from)
     {
-       We are going to update from this table 
+//       We are going to update from this table 
        TABLE *tbl=walk->table=tab->table;
        /* Don't use KEYREAD optimization on this table */
        tbl->no_keyread=1;
@@ -578,6 +584,7 @@ bool multi_update::send_data(List<Item> &values)
       if (/* compare_record(table, query_id)  && */
 	  !(error=table->file->update_row(table->record[1], table->record[0])))
 	updated++;
+      table->file->extra(HA_EXTRA_NO_CACHE);
       return error;
     }
   }
@@ -615,7 +622,10 @@ bool multi_update::send_data(List<Item> &values)
 	found++;
 	if (/*compare_record(table, query_id)  && */
 	    !(error=table->file->update_row(table->record[1], table->record[0])))
+	{
 	  updated++;
+	  table->file->extra(HA_EXTRA_NO_CACHE);
+	}
 	else
 	{
 	  table->file->print_error(error,MYF(0));
@@ -670,7 +680,7 @@ void multi_update::send_error(uint errcode,const char *err)
   if ((table_being_updated->table->file->has_transactions() &&
        table_being_updated == update_tables) || !not_trans_safe)
     ha_rollback_stmt(thd);
-  else if (do_update)
+  else if (do_update && num_updated > 1)
     VOID(do_updates(true));
 }
 
@@ -679,8 +689,6 @@ int multi_update::do_updates (bool from_send_error)
 {
   int error = 0, counter = 0;
 
-  if (num_updated == 1)
-    return 0;
   if (from_send_error)
   {
     /* Found out table number for 'table_being_updated' */
