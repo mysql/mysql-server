@@ -27,7 +27,7 @@
 #include <my_getopt.h>
 #include <m_string.h>
 
-#define VER "2.0"
+#define VER "2.1"
 #define MAX_TEST_QUERY_LENGTH 300 /* MAX QUERY BUFFER LENGTH */
 
 /* set default options */
@@ -51,6 +51,12 @@ static time_t start_time, end_time;
 static double total_time;
 
 const char *default_dbug_option= "d:t:o,/tmp/client_test.trace";
+
+struct my_tests_st
+{
+  const char *name;
+  void       (*function)();
+};
 
 #define myheader(str) \
 if (opt_silent < 2) \
@@ -215,6 +221,7 @@ static void client_connect()
 
   if (!(mysql= mysql_init(NULL)))
   {
+    opt_silent= 0;
     myerror("mysql_init() failed");
     exit(1);
   }
@@ -223,6 +230,7 @@ static void client_connect()
                            opt_password, opt_db ? opt_db:"test", opt_port,
                            opt_unix_socket, 0)))
   {
+    opt_silent= 0;
     myerror("connection failed");
     mysql_close(mysql);
     fprintf(stdout, "\n Check the connection options using --help or -?\n");
@@ -11239,31 +11247,35 @@ static char **defaults_argv;
 
 static struct my_option client_test_long_options[] =
 {
-  {"help", '?', "Display this help and exit", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
-   0, 0, 0, 0, 0},
+  {"count", 't', "Number of times test to be executed", (char **) &opt_count,
+   (char **) &opt_count, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
   {"database", 'D', "Database to use", (char **) &opt_db, (char **) &opt_db,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"debug", '#', "Output debug log", (gptr*) &default_dbug_option,
    (gptr*) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"host", 'h', "Connect to host", (char **) &opt_host, (char **) &opt_host, 0, GET_STR_ALLOC,
-   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"help", '?', "Display this help and exit", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
+   0, 0, 0, 0, 0},
+  {"host", 'h', "Connect to host", (char **) &opt_host, (char **) &opt_host,
+   0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's asked from the tty.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"port", 'P', "Port number to use for connection", (char **) &opt_port,
+   (char **) &opt_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"show-tests", 'T', "Show all tests' names", 0, 0, 0, GET_NO_ARG, NO_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"silent", 's', "Be more silent", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0,
+   0},
+  {"socket", 'S', "Socket file to use for connection",
+   (char **) &opt_unix_socket, (char **) &opt_unix_socket, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"testcase", 'c',
+   "May disable some code when runs as mysql-test-run testcase.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user", (char **) &opt_user,
    (char **) &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"port", 'P', "Port number to use for connection", (char **) &opt_port,
-   (char **) &opt_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"silent", 's', "Be more silent", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0,
-   0},
-  {"socket", 'S', "Socket file to use for connection", (char **) &opt_unix_socket,
-   (char **) &opt_unix_socket, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"testcase", 'c', "May disable some code when runs as mysql-test-run testcase.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"count", 't', "Number of times test to be executed", (char **) &opt_count,
-   (char **) &opt_count, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -11279,11 +11291,158 @@ static void usage(void)
 Copyright (C) 2002-2004 MySQL AB\n\
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
 and you are welcome to modify and redistribute it under the GPL license\n");
-  printf("Usage: %s [OPTIONS]\n", my_progname);
+  printf("Usage: %s [OPTIONS] [TESTNAME1 TESTNAME2...]\n", my_progname);
   my_print_help(client_test_long_options);
   print_defaults("my", client_test_load_default_groups);
   my_print_variables(client_test_long_options);
 }
+
+
+static struct my_tests_st my_tests[]= {
+  { "client_query", client_query },
+#if NOT_YET_WORKING
+  { "test_drop_temp", test_drop_temp },
+#endif
+  { "test_fetch_seek", test_fetch_seek },
+  { "test_fetch_nobuffs", test_fetch_nobuffs },
+  { "test_open_direct", test_open_direct },
+  { "test_fetch_null", test_fetch_null },
+  { "test_ps_null_param", test_ps_null_param },
+  { "test_fetch_date", test_fetch_date },
+  { "test_fetch_str", test_fetch_str },
+  { "test_fetch_long", test_fetch_long },
+  { "test_fetch_short", test_fetch_short },
+  { "test_fetch_tiny", test_fetch_tiny },
+  { "test_fetch_bigint", test_fetch_bigint },
+  { "test_fetch_float", test_fetch_float },
+  { "test_fetch_double", test_fetch_double },
+  { "test_bind_result_ext", test_bind_result_ext },
+  { "test_bind_result_ext1", test_bind_result_ext1 },
+  { "test_select_direct", test_select_direct },
+  { "test_select_prepare", test_select_prepare },
+  { "test_select", test_select },
+  { "test_select_version", test_select_version },
+  { "test_ps_conj_select", test_ps_conj_select },
+  { "test_select_show_table", test_select_show_table },
+  { "test_func_fields", test_func_fields },
+  { "test_long_data", test_long_data },
+  { "test_insert", test_insert },
+  { "test_set_variable", test_set_variable },
+  { "test_select_show", test_select_show },
+  { "test_prepare_noparam", test_prepare_noparam },
+  { "test_bind_result", test_bind_result },
+  { "test_prepare_simple", test_prepare_simple },
+  { "test_prepare", test_prepare },
+  { "test_null", test_null },
+  { "test_debug_example", test_debug_example },
+  { "test_update", test_update },
+  { "test_simple_update", test_simple_update },
+  { "test_simple_delete", test_simple_delete },
+  { "test_double_compare", test_double_compare },
+  { "client_store_result", client_store_result },
+  { "client_use_result", client_use_result },
+  { "test_tran_bdb", test_tran_bdb },
+  { "test_tran_innodb", test_tran_innodb },
+  { "test_prepare_ext", test_prepare_ext },
+  { "test_prepare_syntax", test_prepare_syntax },
+  { "test_field_names", test_field_names },
+  { "test_field_flags", test_field_flags },
+  { "test_long_data_str", test_long_data_str },
+  { "test_long_data_str1", test_long_data_str1 },
+  { "test_long_data_bin", test_long_data_bin },
+  { "test_warnings", test_warnings },
+  { "test_errors", test_errors },
+  { "test_prepare_resultset", test_prepare_resultset },
+  { "test_stmt_close", test_stmt_close },
+  { "test_prepare_field_result", test_prepare_field_result },
+  { "test_multi_stmt", test_multi_stmt },
+  { "test_multi_statements", test_multi_statements },
+  { "test_prepare_multi_statements", test_prepare_multi_statements },
+  { "test_store_result", test_store_result },
+  { "test_store_result1", test_store_result1 },
+  { "test_store_result2", test_store_result2 },
+  { "test_subselect", test_subselect },
+  { "test_date", test_date },
+  { "test_date_date", test_date_date },
+  { "test_date_time", test_date_time },
+  { "test_date_ts", test_date_ts },
+  { "test_date_dt", test_date_dt },
+  { "test_prepare_alter", test_prepare_alter },
+  { "test_manual_sample", test_manual_sample },
+  { "test_pure_coverage", test_pure_coverage },
+  { "test_buffers", test_buffers },
+  { "test_ushort_bug", test_ushort_bug },
+  { "test_sshort_bug", test_sshort_bug },
+  { "test_stiny_bug", test_stiny_bug },
+  { "test_field_misc", test_field_misc },
+  { "test_set_option", test_set_option },
+#ifndef EMBEDDED_LIBRARY
+  { "test_prepare_grant", test_prepare_grant },
+#endif
+  { "test_frm_bug", test_frm_bug },
+  { "test_explain_bug", test_explain_bug },
+  { "test_decimal_bug", test_decimal_bug },
+  { "test_nstmts", test_nstmts },
+  { "test_logs;", test_logs },
+  { "test_cuted_rows", test_cuted_rows },
+  { "test_fetch_offset", test_fetch_offset },
+  { "test_fetch_column", test_fetch_column },
+  { "test_mem_overun", test_mem_overun },
+  { "test_list_fields", test_list_fields },
+  { "test_free_result", test_free_result },
+  { "test_free_store_result", test_free_store_result },
+  { "test_sqlmode", test_sqlmode },
+  { "test_ts", test_ts },
+  { "test_bug1115", test_bug1115 },
+  { "test_bug1180", test_bug1180 },
+  { "test_bug1500", test_bug1500 },
+  { "test_bug1644", test_bug1644 },
+  { "test_bug1946", test_bug1946 },
+  { "test_bug2248", test_bug2248 },
+  { "test_parse_error_and_bad_length", test_parse_error_and_bad_length },
+  { "test_bug2247", test_bug2247 },
+  { "test_subqueries", test_subqueries },
+  { "test_bad_union", test_bad_union },
+  { "test_distinct", test_distinct },
+  { "test_subqueries_ref", test_subqueries_ref },
+  { "test_union", test_union },
+  { "test_bug3117", test_bug3117 },
+  { "test_join", test_join },
+  { "test_selecttmp", test_selecttmp },
+  { "test_create_drop", test_create_drop },
+  { "test_rename", test_rename },
+  { "test_do_set", test_do_set },
+  { "test_multi", test_multi },
+  { "test_insert_select", test_insert_select },
+  { "test_bind_nagative", test_bind_nagative },
+  { "test_derived", test_derived },
+  { "test_xjoin", test_xjoin },
+  { "test_bug3035", test_bug3035 },
+  { "test_union2", test_union2 },
+  { "test_bug1664", test_bug1664 },
+  { "test_union_param", test_union_param },
+  { "test_order_param", test_order_param },
+  { "test_ps_i18n", test_ps_i18n },
+  { "test_bug3796", test_bug3796 },
+  { "test_bug4026", test_bug4026 },
+  { "test_bug4079", test_bug4079 },
+  { "test_bug4236", test_bug4236 },
+  { "test_bug4030", test_bug4030 },
+  { "test_bug5126", test_bug5126 },
+  { "test_bug4231", test_bug4231 },
+  { "test_bug5399", test_bug5399 },
+  { "test_bug5194", test_bug5194 },
+  { "test_bug5315", test_bug5315 },
+  { "test_bug6049", test_bug6049 },
+  { "test_bug6058", test_bug6058 },
+  { "test_bug6059", test_bug6059 },
+  { "test_bug6046", test_bug6046 },
+  { "test_bug6081", test_bug6081 },
+  { "test_bug6096", test_bug6096 },
+  { "test_bug4172", test_bug4172 },
+  { "test_conversion", test_conversion },
+  { 0, 0 }
+};
 
 
 static my_bool
@@ -11316,6 +11475,16 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
       opt_silent++;
     break;
+  case 'T':
+    {
+      struct my_tests_st *fptr;
+      
+      printf("All possible test names:\n\n");
+      for (fptr= my_tests; fptr->name; fptr++)
+	printf("%s\n", fptr->name);
+      exit(0);
+      break;
+    }
   case '?':
   case 'I':                                     /* Info */
     usage();
@@ -11325,11 +11494,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   return 0;
 }
 
-static void get_options(int argc, char **argv)
+static void get_options(int *argc, char ***argv)
 {
   int ho_error;
 
-  if ((ho_error= handle_options(&argc, &argv, client_test_long_options,
+  if ((ho_error= handle_options(argc, argv, client_test_long_options,
                                 get_one_option)))
     exit(ho_error);
 
@@ -11362,14 +11531,17 @@ static void print_test_output()
   main routine
 ***************************************************************************/
 
+
 int main(int argc, char **argv)
 {
+  struct my_tests_st *fptr;
+
   DEBUGGER_OFF;
   MY_INIT(argv[0]);
-
+  
   load_defaults("my", client_test_load_default_groups, &argc, &argv);
   defaults_argv= argv;
-  get_options(argc, argv);
+  get_options(&argc, &argv);
 
   client_connect();       /* connect to server */
 
@@ -11378,180 +11550,37 @@ int main(int argc, char **argv)
   {
     /* Start of tests */
     test_count= 1;
-
     start_time= time((time_t *)0);
 
-    client_query();         /* simple client query test */
-#if NOT_YET_WORKING
-    /* Used for internal new development debugging */
-    test_drop_temp();       /* Test DROP TEMPORARY TABLE Access checks */
-#endif
-    test_fetch_seek();      /* Test stmt seek() functions */
-    test_fetch_nobuffs();   /* to fecth without prior bound buffers */
-    test_open_direct();     /* direct execution in the middle of open stmts */
-    test_fetch_null();      /* to fetch null data */
-    test_ps_null_param();   /* Fetch value of null parameter */
-    test_fetch_date();      /* to fetch date, time and timestamp */
-    test_fetch_str();       /* to fetch string to all types */
-    test_fetch_long();      /* to fetch long to all types */
-    test_fetch_short();     /* to fetch short to all types */
-    test_fetch_tiny();      /* to fetch tiny to all types */
-    test_fetch_bigint();    /* to fetch bigint to all types */
-    test_fetch_float();     /* to fetch float to all types */
-    test_fetch_double();    /* to fetch double to all types */
-    test_bind_result_ext(); /* result bind test - extension */
-    test_bind_result_ext1(); /* result bind test - extension */
-    test_select_direct();   /* direct select - protocol_simple debug */
-    test_select_prepare();  /* prepare select - protocol_prep debug */
-    test_select();          /* simple select test */
-    test_select_version();  /* select with variables */
-    test_ps_conj_select();  /* prepare select with "where a=? or b=?" */
-    test_select_show_table();/* simple show prepare */
-#if NOT_USED
-  /*
-     Enable this tests from 4.1.1 when mysql_param_result() is
-     supported
-  */
-    test_select_meta();     /* select param meta information */
-    test_update_meta();     /* update param meta information */
-    test_insert_meta();     /* insert param meta information */
-#endif
-    test_func_fields();     /* test for new 4.1 MYSQL_FIELD members */
-    test_long_data();       /* test for sending text data in chunks */
-    test_insert();          /* simple insert test - prepare */
-    test_set_variable();    /* prepare with set variables */
-    test_select_show();     /* prepare - show test */
-    test_prepare_noparam(); /* prepare without parameters */
-    test_bind_result();     /* result bind test */
-    test_prepare_simple();  /* simple prepare */
-    test_prepare();         /* prepare test */
-    test_null();            /* test null data handling */
-    test_debug_example();   /* some debugging case */
-    test_update();          /* prepare-update test */
-    test_simple_update();   /* simple prepare with update */
-    test_simple_delete();   /* prepare with delete */
-    test_double_compare();  /* float comparision */
-    client_store_result();  /* usage of mysql_store_result() */
-    client_use_result();    /* usage of mysql_use_result() */
-    test_tran_bdb();        /* transaction test on BDB table type */
-    test_tran_innodb();     /* transaction test on InnoDB table type */
-    test_prepare_ext();     /* test prepare with all types
-                               conversion -- TODO */
-    test_prepare_syntax();  /* syntax check for prepares */
-    test_field_names();     /* test for field names */
-    test_field_flags();     /* test to help .NET provider team */
-    test_long_data_str();   /* long data handling */
-    test_long_data_str1();  /* yet another long data handling */
-    test_long_data_bin();   /* long binary insertion */
-    test_warnings();        /* show warnings test */
-    test_errors();          /* show errors test */
-    test_prepare_resultset();/* prepare meta info test */
-    test_stmt_close();      /* mysql_stmt_close() test -- hangs */
-    test_prepare_field_result(); /* prepare meta info */
-    test_multi_stmt();      /* multi stmt test */
-    test_multi_statements();/* test multi statement execution */
-    test_prepare_multi_statements(); /* check that multi statements are
-                                       disabled in PS */
-    test_store_result();    /* test the store_result */
-    test_store_result1();   /* test store result without buffers */
-    test_store_result2();   /* test store result for misc case */
-    test_subselect();       /* test subselect prepare -TODO*/
-    test_date();            /* test the MYSQL_TIME conversion */
-    test_date_date();       /* test conversion from DATE to all */
-    test_date_time();       /* test conversion from TIME to all */
-    test_date_ts()  ;       /* test conversion from TIMESTAMP to all */
-    test_date_dt()  ;       /* test conversion from DATETIME to all */
-    test_prepare_alter();   /* change table schema in middle of prepare */
-    test_manual_sample();   /* sample in the manual */
-    test_pure_coverage();   /* keep pure coverage happy */
-    test_buffers();         /* misc buffer handling */
-    test_ushort_bug();      /* test a simple conv bug from php */
-    test_sshort_bug();      /* test a simple conv bug from php */
-    test_stiny_bug();       /* test a simple conv bug from php */
-    test_field_misc();      /* check the field info for misc case, bug: #74 */
-    test_set_option();      /* test the SET OPTION feature, bug #85 */
-    /*TODO HF: here should be NO_EMBEDDED_ACCESS_CHECKS*/
-#ifndef EMBEDDED_LIBRARY
-    test_prepare_grant();   /* Test the GRANT command, bug #89 */
-#endif
-    test_frm_bug();         /* test the crash when .frm is invalid, bug #93 */
-    test_explain_bug();     /* test for the EXPLAIN, bug #115 */
-    test_decimal_bug();     /* test for the decimal bug */
-    test_nstmts();          /* test n statements */
-    test_logs(); ;          /* Test logs */
-    test_cuted_rows();      /* Test for WARNINGS from cuted rows */
-    test_fetch_offset();    /* Test mysql_stmt_fetch_column with offset */
-    test_fetch_column();    /* Test mysql_stmt_fetch_column */
-    test_mem_overun();      /* test DBD ovverun bug */
-    test_list_fields();     /* test COM_LIST_FIELDS for DEFAULT */
-    test_free_result();     /* test mysql_stmt_free_result() */
-    test_free_store_result(); /* test to make sure stmt results are cleared
-                                 during stmt_free_result() */
-    test_sqlmode();         /* test for SQL_MODE */
-    test_ts();              /* test for timestamp BR#819 */
-    test_bug1115();         /* BUG#1115 */
-    test_bug1180();         /* BUG#1180 */
-    test_bug1500();         /* BUG#1500 */
-    test_bug1644();         /* BUG#1644 */
-    test_bug1946();         /* test that placeholders are allowed only in
-                               prepared queries */
-    test_bug2248();         /* BUG#2248 */
-    test_parse_error_and_bad_length(); /* test if bad length param in
-                                         mysql_stmt_prepare() triggers error */
-    test_bug2247();         /* test that mysql_stmt_affected_rows() returns
-                               number of rows affected by last prepared
-                               statement execution */
-    test_subqueries();      /* repeatable subqueries */
-    test_bad_union();       /* correct setup of UNION */
-    test_distinct();        /* distinct aggregate functions */
-    test_subqueries_ref();  /* outer reference in subqueries converted
-                               Item_field -> Item_ref */
-    test_union();           /* test union with prepared statements */
-    test_bug3117();         /* BUG#3117: LAST_INSERT_ID() */
-    test_join();            /* different kinds of join, BUG#2794 */
-    test_selecttmp();       /* temporary table used in select execution */
-    test_create_drop();     /* some table manipulation BUG#2811 */
-    test_rename();          /* rename test */
-    test_do_set();          /* DO & SET commands test BUG#3393 */
-    test_multi();           /* test of multi delete & update */
-    test_insert_select();   /* test INSERT ... SELECT */
-    test_bind_nagative();   /* bind negative to unsigned BUG#3223 */
-    test_derived();         /* derived table with parameter BUG#3020 */
-    test_xjoin();           /* complex join test */
-    test_bug3035();         /* inserts of INT32_MAX/UINT32_MAX */
-    test_union2();          /* repeatable execution of union (Bug #3577) */
-    test_bug1664();         /* test for bugs in mysql_stmt_send_long_data()
-                               call (Bug #1664) */
-    test_union_param();
-    test_order_param();     /* ORDER BY with parameters in select list
-                               (Bug #3686 */
-    test_ps_i18n();         /* test for i18n support in binary protocol */
-    test_bug3796();         /* test for select concat(?, <string>) */
-    test_bug4026();         /* test microseconds precision of time types */
-    test_bug4079();         /* erroneous subquery in prepared statement */
-    test_bug4236();         /* init -> execute */
-    test_bug4030();         /* test conversion string -> time types in
-                               libmysql */
-    test_bug5126();         /* support for mediumint type in libmysql */
-    test_bug4231();         /* proper handling of all-zero times and
-                               dates in the server */
-    test_bug5399();         /* check that statement id uniquely identifies
-                               statement */
-    test_bug5194();         /* bulk inserts in prepared mode */
-    test_bug5315();         /* check that mysql_change_user closes all
-                               prepared statements */
-    test_bug6049();         /* check support for negative TIME values */
-    test_bug6058();         /* check support for 0000-00-00 dates */
-    test_bug6059();         /* correct metadata for SELECT ... INTO OUTFILE */
-    test_bug6046();         /* NATURAL JOIN transformation works in PS */
-    test_bug6081();         /* test of mysql_create_db()/mysql_rm_db() */
-    test_bug6096();         /* max_length for numeric columns */
-    test_bug4172();         /* floating point conversions in libmysql */
+    if (!argc)
+    {
+      for (fptr= my_tests; fptr->name; fptr++)
+	(*fptr->function)();	
+    }
+    else
+    {
+      for ( ; *argv ; argv++)
+      {
+	for (fptr= my_tests; fptr->name; fptr++)
+	{
+	  if (!strcmp(fptr->name, *argv))
+	  {
+	    (*fptr->function)();
+	    break;
+	  }
+	}
+	if (!fptr->name)
+	{
+	  fprintf(stderr, "\n\nGiven test not found: '%s'\n", *argv);
+	  fprintf(stderr, "See legal test names with %s -T\n\nAborting!\n",
+		  my_progname);
+	  client_disconnect();
+	  free_defaults(defaults_argv);
+	  exit(1);
+	}
+      }
+    }
 
-    test_conversion();      /* placeholder value is not converted to
-                               character set of column if character set
-                               of connection equals to character set of
-                               client */
     /*
       XXX: PLEASE RUN THIS PROGRAM UNDER VALGRIND AND VERIFY THAT YOUR TEST
       DOESN'T CONTAIN WARNINGS/ERRORS BEFORE YOU PUSH.

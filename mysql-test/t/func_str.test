@@ -83,6 +83,12 @@ select hex(unhex("1")), hex(unhex("12")), hex(unhex("123")), hex(unhex("1234")),
 select length(unhex(md5("abrakadabra")));
 
 #
+# Bug #6564: QUOTE(NULL
+#
+
+select concat('a', quote(NULL));
+
+#
 # Wrong usage of functions
 #
 
