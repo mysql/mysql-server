@@ -292,3 +292,4 @@ character-set=latin7
 "Query cache failed to set size %lu, new query cache size is %lu",
 "Column '%-.64s' cannot be part of FULLTEXT index",
 "Unknown key cache '%-.100s'",
+"Can't resolve '%s' if --skip-name-resolve active",
