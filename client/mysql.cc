@@ -2626,7 +2626,7 @@ com_use(String *buffer __attribute__((unused)), char *line)
     mysql_free_result(res);
   }
 
-  if (!current_db || cmp_database(current_db,tmp))
+  if (!current_db || cmp_database(charset_info, current_db,tmp))
   {
     if (one_database)
       skip_updates= 1;

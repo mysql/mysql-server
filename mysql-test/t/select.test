@@ -1890,7 +1890,7 @@ CREATE TABLE t1 (
   c char(10) NOT NULL default '',
   PRIMARY KEY  (i),
   UNIQUE KEY c (c)
-) TYPE=MyISAM;
+) ENGINE=MyISAM;
 
 INSERT INTO t1 VALUES (1,'a');
 INSERT INTO t1 VALUES (2,'b');
