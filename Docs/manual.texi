@@ -50386,6 +50386,10 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+Fixed a bug in my_getopt; --set-variable syntax didn't work for
+those options that didn't have a valid variable in my_option struct.
+This affected at least @code{default-table-type} option.
+@item
 Fixed a bug that caused @code{REPAIR TABLE} to fail on tables
 with duplicates in a unique key.
 @item
