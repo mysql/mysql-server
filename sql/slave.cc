@@ -767,7 +767,7 @@ static int init_slave_thread(THD* thd)
 
   thd->mysys_var=my_thread_var;
   thd->dbug_thread_id=my_thread_id();
-#ifndef __WIN__
+#if !defined(__WIN__) && !defined(OS2)
   sigset_t set;
   VOID(sigemptyset(&set));			// Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));

@@ -562,7 +562,7 @@ if ($limits->{'group_functions'})
     fetch_all_rows($dbh,"select min(id) from bench1");
     fetch_all_rows($dbh,"select max(id) from bench1");
     fetch_all_rows($dbh,"select sum(id+0.0) from bench1");
-    fetch_all_rows($dbh,"select min(id3),max(id3),sum(id3 +0.0) from bench1");
+    fetch_all_rows($dbh,"select min(id3),max(id3),sum(id3-0.0) from bench1");
     if ($limits->{'group_func_sql_min_str'})
     {
       fetch_all_rows($dbh,"select min(dummy1),max(dummy1) from bench1");
@@ -579,7 +579,7 @@ if ($limits->{'group_functions'})
 
 
     $count++;
-    $sth=$dbh->prepare($query="select count(*),sum(id+0.0),min(id),max(id),avg(id+0.0) from bench1") or die $DBI::errstr;
+    $sth=$dbh->prepare($query="select count(*),sum(id+0.0),min(id),max(id),avg(id-0.0) from bench1") or die $DBI::errstr;
     $sth->execute or die $DBI::errstr;
     @row=$sth->fetchrow_array;
     if ($row[0] != $total_rows ||
@@ -1007,6 +1007,43 @@ if ($server->small_rollback_segment())
   $dbh = $server->connect();
 }
 
+###
+### Test speed of IN( value list)
+###
+
+if ($limits->{'left_outer_join'})
+{
+  if ($opt_lock_tables)
+  {
+    $sth = $dbh->do("UNLOCK TABLES") || die $DBI::errstr;
+  }
+  print "\n";
+  do_many($dbh,$server->create("bench2",
+			       ["id int NOT NULL"],
+			       ["primary key (id)"]));
+
+  $max_tests=min(($limits->{'query_size'}-50)/6, $opt_loop_count);
+
+  if ($opt_lock_tables)
+  {
+    $sth = $dbh->do("LOCK TABLES bench1 READ, bench2 WRITE") ||
+      die $DBI::errstr;
+  }
+  test_where_in("bench1","bench2","id",1,10);
+  test_where_in("bench1","bench2","id",11,min(100,$max_tests));
+  test_where_in("bench1","bench2","id",101,min(1000,$max_tests));
+  if ($opt_lock_tables)
+  {
+    $sth = $dbh->do("UNLOCK TABLES") || die $DBI::errstr;
+  }
+  $sth = $dbh->do("DROP TABLE bench2" . $server->{'drop_attr'}) ||
+    die $DBI::errstr;
+  if ($opt_lock_tables)
+  {
+    $sth = $dbh->do("LOCK TABLES bench1 WRITE") || die $DBI::errstr;
+  }
+}
+
 ####
 #### Test INSERT INTO ... SELECT
 ####
@@ -1066,7 +1103,6 @@ if ($limits->{'insert_select'})
     $sth = $dbh->do("LOCK TABLES bench1 WRITE") || die $DBI::errstr;
   }
 }
-
 
 ####
 #### Do some deletes on the table
@@ -1604,4 +1640,39 @@ sub check_or_range
   { print "Time"; }
   print " for $check ($count:$found): " .
     timestr(timediff($end_time, $loop_time),"all") . "\n";
+}
+
+#
+# General test of SELECT ... WHERE id in(value-list)
+#
+
+sub test_where_in
+{
+  my ($t1,$t2,$id,$from,$to)= @_;
+
+  return if ($from >= $to);
+
+  $query="SELECT $t1.* FROM $t1 WHERE $id IN (";
+  for ($i=1 ; $i <= $to ; $i++)
+  {
+    $query.="$i,";
+  }
+  $query=substr($query,0,length($query)-1) . ")";
+
+  # Fill join table to have the same id's as 'query'
+  for ($i= $from ; $i <= $to ; $i++)
+  {
+    $dbh->do("insert into $t2 values($i)") or die $DBI::errstr;
+  }
+  if ($opt_fast && defined($server->{vacuum}))
+  {
+    $server->vacuum(1,\$dbh,"bench1");
+  }
+
+  time_fetch_all_rows("Testing SELECT ... WHERE id in ($to values)",
+		      "select_in", $query, $dbh,
+		      $range_loop_count);
+  time_fetch_all_rows(undef, "select_join_in",
+		      "SELECT $t1.* FROM $t2 left outer join $t1 on ($t1.$id=$t2.$id)",
+		       $dbh, $range_loop_count);
 }

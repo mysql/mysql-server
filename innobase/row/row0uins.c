@@ -89,7 +89,7 @@ retry:
 							&(node->pcur), &mtr);
 	ut_a(success);
 
-	btr_cur_pessimistic_delete(&err, FALSE, btr_cur, &mtr);
+	btr_cur_pessimistic_delete(&err, FALSE, btr_cur, TRUE, &mtr);
 
 	/* The delete operation may fail if we have little
 	file space left: TODO: easiest to crash the database
@@ -174,7 +174,7 @@ row_undo_ins_remove_sec_low(
 	} else {
 		ut_ad(mode == BTR_MODIFY_TREE);
 
-		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, &mtr);
+		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, TRUE, &mtr);
 	}
 
 	btr_pcur_close(&pcur);

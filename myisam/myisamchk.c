@@ -39,7 +39,6 @@ static uint decode_bits;
 static char **default_argv;
 static const char *load_default_groups[]= { "myisamchk", 0 };
 static const char *set_charset_name;
-static uint8 set_charset_number;
 static CHARSET_INFO *set_charset;
 
 static const char *type_names[]=
@@ -206,7 +205,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.49 for %s at %s\n",my_progname,SYSTEM_TYPE,
+  printf("%s  Ver 1.51 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -606,9 +605,10 @@ static int myisamchk(MI_CHECK *param, my_string filename)
 	(((ulonglong) 1L << share->base.keys)-1)) ||
        test_if_almost_full(info) ||
        info->s->state.header.file_version[3] != myisam_file_magic[3] ||
-       (set_charset && set_charset_number != share->state.header.language)))
+       (set_charset && set_charset->number != share->state.header.language)))
   {
-    check_param.language=set_charset_number;
+    if (set_charset)
+      check_param.language=set_charset->number;
     if (recreate_table(&check_param, &info,filename))
     {
       VOID(fprintf(stderr,
@@ -949,7 +949,7 @@ static void descript(MI_CHECK *param, register MI_INFO *info, my_string name)
 	     share->base.raid_chunks,
 	     share->base.raid_chunksize);
     }
-    if (share->options & HA_OPTION_CHECKSUM)
+    if (share->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
       printf("Checksum:  %23s\n",llstr(info->s->state.checksum,llbuff));
 ;
     if (share->options & HA_OPTION_DELAY_KEY_WRITE)

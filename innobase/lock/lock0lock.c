@@ -13,6 +13,7 @@ Created 5/7/1996 Heikki Tuuri
 #endif
 
 #include "usr0sess.h"
+#include "trx0purge.h"
 
 /* When releasing transaction locks, this specifies how often we release
 the kernel mutex for a moment to give also others access to it */
@@ -3184,7 +3185,7 @@ lock_table_print(
 	ut_ad(mutex_own(&kernel_mutex));
 	ut_a(lock_get_type(lock) == LOCK_TABLE);
 
-	printf("\nTABLE LOCK table %s trx id %lu %lu",
+	printf("TABLE LOCK table %s trx id %lu %lu",
 		lock->un_member.tab_lock.table->name,
 		(lock->trx)->id.high, (lock->trx)->id.low);
 
@@ -3220,6 +3221,8 @@ lock_rec_print(
 	ulint	page_no;
 	ulint	i;
 	ulint	count	= 0;
+	ulint   len;
+	char    buf[200];
 	mtr_t	mtr;
 
 	ut_ad(mutex_own(&kernel_mutex));
@@ -3228,7 +3231,7 @@ lock_rec_print(
 	space = lock->un_member.rec_lock.space;
  	page_no = lock->un_member.rec_lock.page_no;
 
-	printf("\nRECORD LOCKS space id %lu page no %lu n bits %lu",
+	printf("RECORD LOCKS space id %lu page no %lu n bits %lu",
 		    space, page_no, lock_rec_get_n_bits(lock));
 
 	printf(" table %s index %s trx id %lu %lu",
@@ -3251,9 +3254,9 @@ lock_rec_print(
 		printf(" waiting");
 	}
 
-	printf("\n");
-
 	mtr_start(&mtr);
+
+	printf("\n");
 
 	/* If the page is not in the buffer pool, we cannot load it
 	because we have the kernel mutex and ibuf operations would
@@ -3280,12 +3283,14 @@ lock_rec_print(
 			printf("Record lock, heap no %lu ", i);
 
 			if (page) {
-				rec_print(page_find_rec_with_heap_no(page, i));
+			  len = rec_sprintf(buf, 190,
+				      page_find_rec_with_heap_no(page, i));
+			  buf[len] = '\0';
+			  printf("%s", buf);
 			}
 
-			count++;
-
 			printf("\n");
+			count++;
 		}
 
 		if (count >= 3) {
@@ -3342,12 +3347,32 @@ lock_print_info(void)
 	ulint	nth_lock	= 0;
 	ulint	i;
 	mtr_t	mtr;
-	
-	lock_mutex_enter_kernel();
 
-	printf("LOCK INFO:\n");
-	printf("Number of locks in the record hash table %lu\n",
+	printf(
+	"Purge done for all trx's with n:o < %lu %lu, undo n:o < %lu %lu\n",
+		ut_dulint_get_high(purge_sys->purge_trx_no),
+		ut_dulint_get_low(purge_sys->purge_trx_no),
+		ut_dulint_get_high(purge_sys->purge_undo_no),
+		ut_dulint_get_low(purge_sys->purge_undo_no));
+	
+	lock_mutex_enter_kernel();		
+
+	printf("Total number of lock structs in row lock hash table %lu\n",
 						lock_get_n_rec_locks());
+
+	/* First print info on non-active transactions */
+
+	trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list);
+
+	while (trx) {
+		if (trx->conc_state == TRX_NOT_STARTED) {
+		        printf("---");
+			trx_print(trx);
+		}
+			
+		trx = UT_LIST_GET_NEXT(mysql_trx_list, trx);
+	}
+
 loop:
 	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 
@@ -3367,11 +3392,21 @@ loop:
 	}
 
 	if (nth_lock == 0) {
-		printf("\nLOCKS FOR TRANSACTION ID %lu %lu\n", trx->id.high,
-								trx->id.low);
+	        printf("---");
+		trx_print(trx);
+
+	        if (trx->read_view) {
+	  	        printf(
+       "Trx read view will not see trx with id >= %lu %lu, sees < %lu %lu\n",
+		       	ut_dulint_get_high(trx->read_view->low_limit_id),
+       			ut_dulint_get_low(trx->read_view->low_limit_id),
+       			ut_dulint_get_high(trx->read_view->up_limit_id),
+       			ut_dulint_get_low(trx->read_view->up_limit_id));
+	        }
+
 		if (trx->que_state == TRX_QUE_LOCK_WAIT) {
 			printf(
-			"################# TRX IS WAITING FOR THE LOCK: ###\n");
+			"------------------TRX IS WAITING FOR THE LOCK:\n");
 
 			if (lock_get_type(trx->wait_lock) == LOCK_REC) {
 				lock_rec_print(trx->wait_lock);
@@ -3380,8 +3415,13 @@ loop:
 			}
 
 			printf(
-			"##################################################\n");
+			"------------------\n");
 		}
+	}
+
+	if (!srv_print_innodb_lock_monitor) {
+	  	nth_trx++;
+	  	goto loop;
 	}
 
 	i = 0;
@@ -3431,9 +3471,9 @@ loop:
 
 	nth_lock++;
 
-	if (nth_lock >= 25) {
+	if (nth_lock >= 10) {
 		printf(
-		"25 LOCKS PRINTED FOR THIS TRX: SUPPRESSING FURTHER PRINTS\n");
+		"10 LOCKS PRINTED FOR THIS TRX: SUPPRESSING FURTHER PRINTS\n");
 	
 		nth_trx++;
 		nth_lock = 0;

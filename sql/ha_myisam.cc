@@ -231,8 +231,16 @@ int ha_myisam::close(void)
 int ha_myisam::write_row(byte * buf)
 {
   statistic_increment(ha_write_count,&LOCK_status);
+
+  /* If we have a timestamp column, update it to the current time */
+
   if (table->time_stamp)
     update_timestamp(buf+table->time_stamp-1);
+
+  /*
+    If we have an auto_increment column and we are writing a changed row
+    or a new row, then update the auto_increment value in the record.
+  */
   if (table->next_number_field && buf == table->record[0])
     update_auto_increment();
   return mi_write(file,buf);

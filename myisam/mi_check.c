@@ -460,7 +460,7 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
       /* Check that there isn't a row with auto_increment = 0 in the table */
       mi_extra(info,HA_EXTRA_KEYREAD);
       bzero(info->lastkey,keyinfo->seg->length);
-      if (!mi_rkey(info, info->rec_buff, key, info->lastkey,
+      if (!mi_rkey(info, info->rec_buff, key, (const byte*) info->lastkey,
 		   keyinfo->seg->length, HA_READ_KEY_EXACT))
       {
 	/* Don't count this as a real warning, as myisamchk can't correct it */
@@ -710,7 +710,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
       puts("- check record links");
   }
 
-  if (!(record= (byte*) my_alloca(info->s->base.pack_reclength)))
+  if (!(record= (byte*) my_malloc(info->s->base.pack_reclength,MYF(0))))
   {
     mi_check_print_error(param,"Not Enough memory");
     DBUG_RETURN(-1);
@@ -926,8 +926,9 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
       if (block_info.rec_len < (uint) info->s->min_pack_length ||
 	  block_info.rec_len > (uint) info->s->max_pack_length)
       {
-	mi_check_print_error(param,"Found block with wrong recordlength: %d at %s",
-		    block_info.rec_len, llstr(start_recpos,llbuff));
+	mi_check_print_error(param,
+			     "Found block with wrong recordlength: %d at %s",
+			     block_info.rec_len, llstr(start_recpos,llbuff));
 	got_error=1;
 	break;
       }
@@ -936,7 +937,8 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	goto err;
       if (_mi_pack_rec_unpack(info,record,info->rec_buff,block_info.rec_len))
       {
-	mi_check_print_error(param,"Found wrong record at %s", llstr(start_recpos,llbuff));
+	mi_check_print_error(param,"Found wrong record at %s",
+			     llstr(start_recpos,llbuff));
 	got_error=1;
       }
       if (static_row_size)
@@ -1084,12 +1086,12 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
     printf("Lost space:   %12s    Linkdata:     %10s\n",
 	   llstr(empty,llbuff),llstr(link_used,llbuff2));
   }
-  my_afree((gptr) record);
+  my_free((gptr) record,MYF(0));
   DBUG_RETURN (error);
  err:
-  mi_check_print_error(param,"got error: %d when reading datafile",my_errno);
+  mi_check_print_error(param,"got error: %d when reading datafile at record: %s",my_errno, llstr(records,llbuff));
  err2:
-  my_afree((gptr) record);
+  my_free((gptr) record,MYF(0));
   param->retry_without_quick=1;
   DBUG_RETURN(1);
 } /* chk_data_link */
@@ -1111,6 +1113,7 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
   SORT_INFO *sort_info= &param->sort_info;
   DBUG_ENTER("mi_repair");
 
+  sort_info->buff=sort_info->record=0;
   start_records=info->state->records;
   new_header_length=(param->testflag & T_UNPACK) ? 0L :
     share->pack.header_length;
@@ -1199,7 +1202,7 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
   del=info->state->del;
   info->state->records=info->state->del=share->state.split=0;
   info->state->empty=0;
-  if (sort_info->new_data_file_type != COMPRESSED_RECORD && !rep_quick)
+  if (!rep_quick)
     share->state.checksum=0;
   info->update= (short) (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   for (i=0 ; i < info->s->base.keys ; i++)
@@ -1338,9 +1341,7 @@ err:
     }
     mi_mark_crashed_on_repair(info);
   }
-  if (sort_info->record)
-    my_free(sort_info->record,MYF(0));
-
+  my_free(sort_info->record,MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_info->buff,MYF(MY_ALLOW_ZERO_PTR));
   VOID(end_io_cache(&param->read_cache));
   info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
@@ -1874,8 +1875,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   sort_param.sort_info=sort_info;
 
   del=info->state->del;
-  if (sort_info->new_data_file_type != COMPRESSED_RECORD &&
-      ! rep_quick)
+  if (! rep_quick)
     share->state.checksum=0;
 
   rec_per_key_part= param->rec_per_key_part;
@@ -2093,8 +2093,10 @@ static int sort_key_read(SORT_INFO *sort_info, void *key)
 			 "Found too many records; Can`t continue");
     DBUG_RETURN(1);
   }
-  sort_info->real_key_length=info->s->rec_reflength+_mi_make_key(info,
-                      sort_info->key,key,sort_info->record,sort_info->filepos);
+  sort_info->real_key_length=(info->s->rec_reflength+
+			      _mi_make_key(info, sort_info->key,
+					   (uchar*) key, sort_info->record,
+					   sort_info->filepos));
   DBUG_RETURN(sort_write_record(sort_info));
 } /* sort_key_read */
 
@@ -2474,6 +2476,7 @@ static int sort_get_next_record(SORT_INFO *sort_info)
 			      llstr(sort_info->pos,llbuff));
 	continue;
       }
+      info->checksum=mi_checksum(info,sort_info->record);
       if (!sort_info->fix_datafile)
 	sort_info->filepos=sort_info->pos;
       sort_info->max_pos=(sort_info->pos=block_info.filepos+
@@ -2552,6 +2555,7 @@ int sort_write_record(SORT_INFO *sort_info)
 	DBUG_RETURN(1);
       }
       sort_info->filepos+=block_length;
+      info->s->state.checksum+=info->checksum;
       break;
     case COMPRESSED_RECORD:
       reclength=info->packed_length;
@@ -2564,6 +2568,7 @@ int sort_write_record(SORT_INFO *sort_info)
 	mi_check_print_error(param,"%d when writing to datafile",my_errno);
 	DBUG_RETURN(1);
       }
+      info->s->state.checksum+=info->checksum;
       sort_info->filepos+=reclength+length;
       break;
     }

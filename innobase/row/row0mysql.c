@@ -462,6 +462,8 @@ row_insert_for_mysql(
 	ut_ad(trx);
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	
+	trx->op_info = "inserting";
+
 	if (node == NULL) {
 		row_get_prebuilt_insert_row(prebuilt);
 		node = prebuilt->ins_node;
@@ -499,6 +501,8 @@ run_again:
 			goto run_again;
 		}
 
+		trx->op_info = "";
+
 		return(err);
 	}
 
@@ -506,12 +510,15 @@ run_again:
 	
 	prebuilt->table->stat_n_rows++;
 
+	srv_n_rows_inserted++;
+	
 	if (prebuilt->table->stat_n_rows == 0) {
 		/* Avoid wrap-over */
 		prebuilt->table->stat_n_rows--;
 	}	
 
 	row_update_statistics_if_needed(prebuilt);
+	trx->op_info = "";
 
 	return((int) err);
 }
@@ -627,6 +634,8 @@ row_update_for_mysql(
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	UT_NOT_USED(mysql_rec);
 	
+	trx->op_info = "updating or deleting";
+
 	node = prebuilt->upd_node;
 
 	clust_index = dict_table_get_first_index(table);
@@ -700,6 +709,7 @@ run_again:
 		
 		if (err == DB_RECORD_NOT_FOUND) {
 			trx->error_state = DB_SUCCESS;
+			trx->op_info = "";
 
 			return((int) err);
 		}
@@ -710,6 +720,8 @@ run_again:
 			goto run_again;
 		}
 
+		trx->op_info = "";
+
 		return(err);
 	}
 
@@ -719,9 +731,15 @@ run_again:
 		if (prebuilt->table->stat_n_rows > 0) {
 			prebuilt->table->stat_n_rows--;
 		}
-	}	
+
+		srv_n_rows_deleted++;
+	} else {
+		srv_n_rows_updated++;
+	}
 
 	row_update_statistics_if_needed(prebuilt);
+
+	trx->op_info = "";
 
 	return((int) err);
 }
@@ -798,6 +816,8 @@ row_create_table_for_mysql(
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	
+	trx->op_info = "creating table";
+
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
 
@@ -825,16 +845,22 @@ row_create_table_for_mysql(
 		trx_general_rollback_for_mysql(trx, FALSE, NULL);
 
 		if (err == DB_OUT_OF_FILE_SPACE) {
-		         row_drop_table_for_mysql(table->name, trx, TRUE);
+		     	row_drop_table_for_mysql(table->name, trx, TRUE);
 		} else {
-		         assert(err == DB_DUPLICATE_KEY);
-			 fprintf(stderr, 
+		       	assert(err == DB_DUPLICATE_KEY);
+			fprintf(stderr, 
      "InnoDB: Error: table %s already exists in InnoDB internal\n"
      "InnoDB: data dictionary. Have you deleted the .frm file\n"
      "InnoDB: and not used DROP TABLE? Have you used DROP DATABASE\n"
-     "InnoDB: for InnoDB tables in MySQL version <= 3.23.39?\n"
+     "InnoDB: for InnoDB tables in MySQL version <= 3.23.42?\n"
      "InnoDB: See the Restrictions section of the InnoDB manual.\n",
 				 table->name);
+			fprintf(stderr,
+     "InnoDB: You can drop the orphaned table inside InnoDB by\n"
+     "InnoDB: creating an InnoDB table with the same name in another\n"
+     "InnoDB: database and moving the .frm file to the current database.\n"
+     "InnoDB: Then MySQL thinks the table exists, and DROP TABLE will\n"
+     "InnoDB: succeed.\n");
 		}
 
 		trx->error_state = DB_SUCCESS;
@@ -852,11 +878,32 @@ row_create_table_for_mysql(
  				
 			srv_print_innodb_monitor = TRUE;
 		}
+
+		keywordlen = ut_strlen("innodb_lock_monitor");
+
+		if (namelen >= keywordlen
+		    && 0 == ut_memcmp(table->name + namelen - keywordlen,
+ 				"innodb_lock_monitor", keywordlen)) {
+
+			srv_print_innodb_monitor = TRUE;
+			srv_print_innodb_lock_monitor = TRUE;
+		}
+
+		keywordlen = ut_strlen("innodb_tablespace_monitor");
+
+		if (namelen >= keywordlen
+		    && 0 == ut_memcmp(table->name + namelen - keywordlen,
+ 				"innodb_tablespace_monitor", keywordlen)) {
+
+			srv_print_innodb_tablespace_monitor = TRUE;
+		}
 	}
 
 	mutex_exit(&(dict_sys->mutex));
 	que_graph_free((que_t*) que_node_get_parent(thr));
-	
+
+	trx->op_info = "";
+
 	return((int) err);
 }
 
@@ -879,6 +926,8 @@ row_create_index_for_mysql(
 	
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	
+	trx->op_info = "creating index";
+
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
 
@@ -915,6 +964,8 @@ row_create_index_for_mysql(
 
 	que_graph_free((que_t*) que_node_get_parent(thr));
 	
+	trx->op_info = "";
+
 	return((int) err);
 }
 
@@ -945,7 +996,9 @@ row_drop_table_for_mysql(
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_a(name != NULL);
-	
+
+	trx->op_info = "dropping table";
+
 	namelen = ut_strlen(name);
 	keywordlen = ut_strlen("innodb_monitor");
 
@@ -957,6 +1010,26 @@ row_drop_table_for_mysql(
 		stop monitor prints */
  				
 		srv_print_innodb_monitor = FALSE;
+		srv_print_innodb_lock_monitor = FALSE;
+	}
+
+	keywordlen = ut_strlen("innodb_lock_monitor");
+
+	if (namelen >= keywordlen
+		    && 0 == ut_memcmp(name + namelen - keywordlen,
+ 				"innodb_lock_monitor", keywordlen)) {
+
+		srv_print_innodb_monitor = FALSE;
+		srv_print_innodb_lock_monitor = FALSE;
+	}
+
+	keywordlen = ut_strlen("innodb_tablespace_monitor");
+
+	if (namelen >= keywordlen
+		    && 0 == ut_memcmp(name + namelen - keywordlen,
+ 				"innodb_tablespace_monitor", keywordlen)) {
+
+		srv_print_innodb_tablespace_monitor = FALSE;
 	}
 
 	/* We use the private SQL parser of Innobase to generate the
@@ -1071,6 +1144,8 @@ funct_exit:
 
 	que_graph_free(graph);
 	
+	trx->op_info = "";
+
 	return((int) err);
 }
 
@@ -1098,6 +1173,8 @@ row_rename_table_for_mysql(
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_a(old_name != NULL);
 	ut_a(new_name != NULL);
+
+	trx->op_info = "renaming table";
 
 	str1 =
 	"PROCEDURE RENAME_TABLE_PROC () IS\n"
@@ -1168,6 +1245,8 @@ funct_exit:
 
 	que_graph_free(graph);
 	
+	trx->op_info = "";
+
 	return((int) err);
 }
 
@@ -1279,6 +1358,8 @@ row_check_table_for_mysql(
 	ulint		n_rows;
 	ulint		n_rows_in_table;
 	ulint		ret 	= DB_SUCCESS;
+
+	prebuilt->trx->op_info = "checking table";
 	
 	index = dict_table_get_first_index(table);
 
@@ -1310,6 +1391,8 @@ row_check_table_for_mysql(
 
 		index = dict_table_get_next_index(index);
 	}
+
+	prebuilt->trx->op_info = "";
 
 	return(ret);
 }

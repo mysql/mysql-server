@@ -542,8 +542,8 @@ String *copy_if_not_alloced(String *to,String *from,uint32 from_length)
 #endif
 
 int wild_case_compare(const char *str,const char *str_end,
-			     const char *wildstr,const char *wildend,
-			     char escape)
+		      const char *wildstr,const char *wildend,
+		      char escape)
 {
   int result= -1;				// Not found, using wildcards
 #ifdef USE_MB
@@ -677,7 +677,7 @@ int wild_case_compare(String &match,String &wild, char escape)
 */
 
 int wild_compare(const char *str,const char *str_end,
-			const char *wildstr,const char *wildend,char escape)
+		 const char *wildstr,const char *wildend,char escape)
 {
   int result= -1;				// Not found, using wildcards
   while (wildstr != wildend)

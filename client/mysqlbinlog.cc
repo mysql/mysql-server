@@ -21,9 +21,8 @@
 #include <m_string.h>
 #include <my_sys.h>
 #include <getopt.h>
-#include <my_pthread.h>
-#include <thr_alarm.h>
 #include <mysql.h>
+#include <time.h>
 #include "log_event.h"
 
 #define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_LOCAL_FILES)
@@ -113,7 +112,7 @@ static void die(const char* fmt, ...)
 
 static void print_version()
 {
-  printf("%s  Ver 1.5 for %s at %s\n",my_progname,SYSTEM_TYPE, MACHINE_TYPE);
+  printf("%s  Ver 1.6 for %s at %s\n",my_progname,SYSTEM_TYPE, MACHINE_TYPE);
 }
 
 

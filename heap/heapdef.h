@@ -34,9 +34,9 @@ if (!(info->update & HA_STATE_AKTIV))\
 	/* Find pos for record and update it in info->current_ptr */
 #define _hp_find_record(info,pos) (info)->current_ptr= _hp_find_block(&(info)->s->block,pos)
 
-typedef struct st_hash_info
+typedef struct st_hp_hash_info
 {
-  struct st_hash_info *next_key;
+  struct st_hp_hash_info *next_key;
   byte *ptr_to_rec;
 } HASH_INFO;
 

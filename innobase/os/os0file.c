@@ -1577,6 +1577,7 @@ os_aio_windows_handle(
 	void**	message2,
 	ulint*	type)		/* out: OS_FILE_WRITE or ..._READ */
 {
+	ulint		orig_seg	= segment;
 	os_aio_array_t*	array;
 	os_aio_slot_t*	slot;
 	ulint		n;
@@ -1602,10 +1603,14 @@ os_aio_windows_handle(
 	n = array->n_slots / array->n_segments;
 
 	if (array == os_aio_sync_array) {
+		srv_io_thread_op_info[orig_seg] = "wait windows aio for 1 page";
+
 		ut_ad(pos < array->n_slots); 
 		os_event_wait(array->events[pos]);
 		i = pos;
 	} else {
+		srv_io_thread_op_info[orig_seg] =
+						"wait windows aio for n pages";
 		i = os_event_wait_multiple(n, (array->events) + segment * n);
 	}
 
@@ -1615,6 +1620,7 @@ os_aio_windows_handle(
 
 	ut_a(slot->reserved);
 
+	srv_io_thread_op_info[orig_seg] = "get windows aio return value";
 	ret = GetOverlappedResult(slot->file, &(slot->control), &len, TRUE);
 
 	*message1 = slot->message1;
@@ -1887,6 +1893,8 @@ consecutive_loop:
 		}
 	}
 
+	srv_io_thread_op_info[global_segment] = "doing file i/o";
+
 	/* Do the i/o with ordinary, synchronous i/o functions: */
 	if (slot->type == OS_FILE_WRITE) {
 		ret = os_file_write(slot->name, slot->file, combined_buf,
@@ -1897,7 +1905,8 @@ consecutive_loop:
 	}
 
 	ut_a(ret);
-	
+	srv_io_thread_op_info[global_segment] = "file i/o done";	
+
 /* printf("aio: %lu consecutive %lu:th segment, first offs %lu blocks\n",
 			n_consecutive, global_segment, slot->offset
 					/ UNIV_PAGE_SIZE); */
@@ -1952,6 +1961,8 @@ wait_for_io:
 	os_event_reset(os_aio_segment_wait_events[global_segment]);
 
 	os_mutex_exit(array->mutex);
+
+	srv_io_thread_op_info[global_segment] = "waiting for i/o request";
 
 	os_event_wait(os_aio_segment_wait_events[global_segment]);
 
@@ -2023,7 +2034,12 @@ os_aio_print(void)
 	ulint		n_reserved;
 	ulint		i;
 
-	printf("Pending normal aio reads:\n");
+	for (i = 0; i < srv_n_file_io_threads; i++) {
+		printf("I/O thread %lu state: %s\n", i,
+					srv_io_thread_op_info[i]);
+	}
+
+	printf("Pending normal aio reads: ");
 
 	array = os_aio_read_array;
 loop:
@@ -2041,21 +2057,21 @@ loop:
 	
 		if (slot->reserved) {
 			n_reserved++;
-			printf("Reserved slot, messages %lx %lx\n",
+			/* printf("Reserved slot, messages %lx %lx\n",
 					(ulint)slot->message1,
 					(ulint)slot->message2);
-			ut_a(slot->len > 0);
+			*/			ut_a(slot->len > 0);
 		}
 	}
 
 	ut_a(array->n_reserved == n_reserved);
 
-	printf("Total of %lu reserved aio slots\n", n_reserved);
+	printf("%lu\n", n_reserved);
 	
 	os_mutex_exit(array->mutex);
 
 	if (array == os_aio_read_array) {
-		printf("Pending aio writes:\n");
+		printf("Pending aio writes: ");
 	
 		array = os_aio_write_array;
 
@@ -2063,21 +2079,21 @@ loop:
 	}
 
 	if (array == os_aio_write_array) {
-		printf("Pending insert buffer aio reads:\n");
+		printf("Pending insert buffer aio reads: ");
 		array = os_aio_ibuf_array;
 
 		goto loop;
 	}
 
 	if (array == os_aio_ibuf_array) {
-		printf("Pending log writes or reads:\n");
+		printf("Pending log writes or reads: ");
 		array = os_aio_log_array;
 
 		goto loop;
 	}
 
 	if (array == os_aio_log_array) {
-		printf("Pending synchronous reads or writes:\n");		
+		printf("Pending synchronous reads or writes: ");		
 		array = os_aio_sync_array;
 
 		goto loop;

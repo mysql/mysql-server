@@ -535,7 +535,7 @@ int my_strnncoll_tis620(const uchar * s1, int len1, const uchar * s2, int len2)
    Arg: Destination buffer, source string, dest length and source length
    Ret: Conveted string size
 */
-int my_strnxfrm_tis620(uchar * dest, uchar * src, int len, int srclen)
+int my_strnxfrm_tis620(uchar * dest, const uchar * src, int len, int srclen)
 {
   uint bufSize;
   uchar *tmp;
@@ -567,7 +567,7 @@ int my_strcoll_tis620(const uchar * s1, const uchar * s2)
    Arg: Destination buffer, String and	dest buffer size
    Ret: Converting string size
 */
-int my_strxfrm_tis620(uchar * dest, uchar * src, int len)
+int my_strxfrm_tis620(uchar * dest, const uchar * src, int len)
 {
   uint bufSize;
   uchar *tmp;

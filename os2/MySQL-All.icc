@@ -1,0 +1,13 @@
+
+// create directories
+for dir in "..\\bin", "..\\lib", "..\\obj", "..\\obj\\zlib", "..\\obj\\readline" {
+   run "if not exist "dir" mkdir "dir
+}
+
+// build sequence
+run "vacbld MySQL-Lib.icc -showprogress=10 -showwarning"
+run "vacbld MySQL-Client.icc -showprogress=10 -showwarning"
+run "vacbld MySQL-Sql.icc -showprogress=10 -showwarning"
+
+// need only for utilities and test applications
+run "vacbld MySQL-Util.icc -showprogress=10 -showwarning"

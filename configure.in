@@ -4,7 +4,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-AM_INIT_AUTOMAKE(mysql, 4.0.0)
+AM_INIT_AUTOMAKE(mysql, 4.0.0-alpha)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -264,7 +264,16 @@ case "$target_os" in
        ;;
      esac
   ;;
-  sysv5uw7*) 
+  sysv5UnixWare*) 
+    if test "$GCC" != "yes"; then
+      # We are using built-in inline function
+      CFLAGS="$CFLAGS -Kalloca"
+      CXX="$CXX -DNO_CPLUSPLUS_ALLOCA"
+    else
+      CXX="$CXX -DNO_CPLUSPLUS_ALLOCA"
+    fi
+  ;;
+  sysv5OpenUNIX8*) 
     if test "$GCC" != "yes"; then
       # We are using built-in inline function
       CFLAGS="$CFLAGS -Kalloca"
@@ -274,7 +283,6 @@ case "$target_os" in
     fi
   ;;
 esac
-
 AC_SUBST(CC)
 AC_SUBST(CFLAGS)
 AC_SUBST(CXX)
@@ -1023,7 +1031,7 @@ fi
 if test "$with_named_thread" = "no"
 then
   AC_MSG_CHECKING("SCO UnixWare7 native threads")
-  if expr "$SYSTEM_TYPE" : ".*unixware7*" > /dev/null
+  if expr "$SYSTEM_TYPE" : ".*UnixWare*" > /dev/null
   then
     if test -f /usr/lib/libthread.so -o -f /usr/lib/libthreadT.so
     then
@@ -1047,6 +1055,45 @@ then
       AC_MSG_RESULT("yes")
     else
       { echo "configure: error: Can't find thread libs on SCO UnixWare7. See the Installation chapter in the Reference Manual." 1>&2; exit 1; };
+    fi
+  else
+    AC_MSG_RESULT("no")
+  fi
+fi
+
+# Hack for Caldera OpenUNIX8
+#
+if test "$with_named_thread" = "no"
+then
+  AC_MSG_CHECKING("OpenUNIX8 native threads")
+  if expr "$SYSTEM_TYPE" : ".*OpenUNIX*" > /dev/null
+  then
+    if test -f /usr/lib/libthread.so -o -f /usr/lib/libthreadT.so
+    then
+      MYSQL_REMOVE_SOCKET_FROM_LIBS_HACK
+      with_named_thread="-Kthread -lsocket -lnsl"
+      if expr "$SYSTEM_TYPE" : ".*unixware7.0.0" > /dev/null
+      then
+#        AC_DEFINE(HAVE_OpenUNIX8_THREADS)
+        AC_DEFINE(HAVE_UNIXWARE7_THREADS)
+      else
+#        AC_DEFINE(HAVE_OpenUNIX8_POSIX)
+        AC_DEFINE(HAVE_UNIXWARE7_POSIX)
+      fi
+      # We must have cc
+      AC_MSG_CHECKING("for gcc")
+      if expr "$CC" : ".*gcc.*"
+      then
+	{ echo "configure: error: On OpenUNIX8 and UnixWare7 MySQL must be compiled with cc. See the Installation chapter in the Reference Manual." 1>&2; exit 1; };
+      else
+#	CC="$CC -Kthread -DOpenUNIX8";
+#	CXX="$CXX -Kthread -DOpenUNIX8";
+	CC="$CC -Kthread -DUNIXWARE_7";
+	CXX="$CXX -Kthread -DUNIXWARE_7";
+      fi
+      AC_MSG_RESULT("yes")
+    else
+      { echo "configure: error: Can't find thread libs on Caldera OpenUNIX 8. See the Installation chapter in the Reference Manual." 1>&2; exit 1; };
     fi
   else
     AC_MSG_RESULT("no")
@@ -1414,7 +1461,7 @@ AC_CHECK_FUNCS(alarm bmove \
  getrusage getpwuid getcwd getrlimit getwd index stpcpy locking longjmp \
  perror pread realpath readlink rename \
  socket strnlen madvise mkstemp \
- strtol strtoul strtoull snprintf tempnam thr_setconcurrency \
+ strtol strtoul strtoll strtoull snprintf tempnam thr_setconcurrency \
  gethostbyaddr_r gethostbyname_r getpwnam \
  bfill bzero bcmp strstr strpbrk strerror \
  tell atod memcpy memmove \
@@ -1452,7 +1499,8 @@ then
   CXXFLAGS="$CXXFLAGS -Werror"
 fi
 AC_TRY_COMPILE(
-[#if !defined(SCO) && !defined(__osf__)
+[#undef inline
+#if !defined(SCO) && !defined(__osf__)
 #define _REENTRANT
 #endif
 #include <pthread.h>
@@ -1484,7 +1532,8 @@ then
   CXXFLAGS="$CXXFLAGS -Werror"
 fi
 AC_TRY_COMPILE(
-[#if !defined(SCO) && !defined(__osf__)
+[#undef inline
+#if !defined(SCO) && !defined(__osf__)
 #define _REENTRANT
 #endif
 #include <pthread.h>
@@ -1515,7 +1564,8 @@ then
   CXXFLAGS="$CXXFLAGS -Werror"
 fi
 AC_TRY_COMPILE(
-[#if !defined(SCO) && !defined(__osf__)
+[#undef inline
+#if !defined(SCO) && !defined(__osf__)
 #define _REENTRANT
 #endif
 #include <pthread.h>
@@ -1526,7 +1576,7 @@ AC_TRY_COMPILE(
 #include <netdb.h>],
 [int skr;
 
- skr = gethostbyname_r((const char *) 0, (struct hostent*) 0, (hostent_data*) 0);],
+ skr = gethostbyname_r((const char *) 0, (struct hostent*) 0, (struct hostent_data*) 0);],
 mysql_cv_gethostname_arg=hostent_data, mysql_cv_gethostname_arg=char))
 AC_LANG_RESTORE
 CXXFLAGS="$ac_save_CXXFLAGS"

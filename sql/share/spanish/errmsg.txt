@@ -214,6 +214,7 @@
 "CREATE DATABASE no permitido mientras un thread está ejerciendo un bloqueo de lectura global",
 "Wrong arguments to %s",
 "%-.32s@%-.64s is not allowed to create new users",
+"Incorrect table definition; All MERGE tables must be in the same database",
 "Error de coneccion a master: %-128s",
 "Error executando el query en master: %-128%",
 "Error de %s: %-128%",

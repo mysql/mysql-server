@@ -1,0 +1,16 @@
+source include/master-slave.inc;
+connection master;
+create table t1(n int);
+insert into t1 values(get_lock("lock",2));
+dirty_close master;
+connection master1;
+save_master_pos;
+connection slave;
+sync_with_master;
+select get_lock("lock",3);
+select * from t1;
+connection master1;
+drop table t1;
+save_master_pos;
+connection slave;
+sync_with_master;

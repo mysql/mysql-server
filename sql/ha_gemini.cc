@@ -93,6 +93,7 @@ bool gemini_init(void)
 
     DBUG_ENTER("gemini_init");
 
+    gemini_basedir=mysql_home;
     /* If datadir isn't set, bail out */
     if (*mysql_real_data_home == '\0')
     {
@@ -955,7 +956,7 @@ int ha_gemini::handleIndexEntry(const byte * record, dsmRecid_t recid,
 
   thd = current_thd;
   key_info=table->key_info+keynr;
-  thereIsAnull = false;
+  thereIsAnull = FALSE;
   rc = createKeyString(record, key_info, theKey.akey.keystr,
                           sizeof(theKey.apad),&keyStringLen,
                           (short)pindexNumbers[keynr],
@@ -1067,7 +1068,7 @@ int ha_gemini::createKeyString(const byte * record, KEY *pkeyinfo,
 
     isNull = record[key_part->null_offset] & key_part->null_bit;
     if(isNull)
-      *thereIsAnull = true;
+      *thereIsAnull = TRUE;
 
     rc = gemFieldToIdxComponent(pos,
                                 (unsigned long) key_part_length,
@@ -1107,7 +1108,7 @@ int ha_gemini::update_row(const byte * old_record, byte * new_record)
   }
   for (uint keynr=0 ; keynr < table->keys ; keynr++)
   {
-    if(key_cmp(keynr,old_record, new_record,false))
+    if(key_cmp(keynr,old_record, new_record,FALSE))
     {
       error = handleIndexEntry(old_record,lastRowid,KEY_DELETE,keynr);
       if(error)
@@ -2430,8 +2431,8 @@ int ha_gemini::analyze(THD* thd, HA_CHECK_OPT* check_opt)
   uint 	 saveIsolation;
   dsmMask_t saveLockMode;
 
-  check_opt->quick = true;
-  check_opt->optimize = true; // Tells check not to get table lock
+  check_opt->quick = TRUE;
+  check_opt->optimize = TRUE; // Tells check not to get table lock
   saveLockMode = lockMode;
   saveIsolation = thd->gemini.tx_isolation;
   thd->gemini.tx_isolation = ISO_READ_UNCOMMITTED;
@@ -2503,7 +2504,7 @@ int ha_gemini::check(THD* thd, HA_CHECK_OPT* check_opt)
 	error = fetch_row(thd->gemini.context,buf);
         if(!error)
 	{
-	  if(key_cmp(i,buf,indexBuf,false))
+	  if(key_cmp(i,buf,indexBuf,FALSE))
 	  {
 
             gemini_msg((dsmContext_t *)thd->gemini.context, 
@@ -2534,7 +2535,7 @@ int ha_gemini::check(THD* thd, HA_CHECK_OPT* check_opt)
 	}
       }
 
-      key_cmp(i,indexBuf,prevBuf,true);
+      key_cmp(i,indexBuf,prevBuf,TRUE);
       bcopy((void *)indexBuf,(void *)prevBuf,table->rec_buff_length);
 
       if(!error)

@@ -106,7 +106,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   mysys_var=0;
   net.vio=0;
   ull=0;
-  system_thread=0;
+  system_thread=cleanup_done=0;
 #ifdef	__WIN__
   real_id = 0;
 #endif
@@ -155,15 +155,11 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
 #endif
 }
 
-THD::~THD()
+/* Do operations that may take a long time */
+
+void THD::cleanup(void)
 {
-  DBUG_ENTER("~THD()");
-  /* Close connection */
-  if (net.vio)
-  {
-    vio_delete(net.vio);
-    net_end(&net); 
-  }
+  DBUG_ENTER("THD::cleanup");
   ha_rollback(this);
   if (locked_tables)
   {
@@ -183,6 +179,21 @@ THD::~THD()
     ha_close_connection(this);
   }
 #endif
+  cleanup_done=1;
+  DBUG_VOID_RETURN;
+}
+
+THD::~THD()
+{
+  DBUG_ENTER("~THD()");
+  /* Close connection */
+  if (net.vio)
+  {
+    vio_delete(net.vio);
+    net_end(&net); 
+  }
+  if (!cleanup_done)
+    cleanup();
   if (global_read_lock)
     unlock_global_read_lock(this);
   if (ull)
@@ -221,12 +232,12 @@ void THD::prepare_to_die()
       pthread_mutex_lock(&mysys_var->mutex);
       if (!system_thread)		// Don't abort locks
 	mysys_var->abort=1;
-      if (mysys_var->current_mutex)
-	{
-	  pthread_mutex_lock(mysys_var->current_mutex);
-	  pthread_cond_broadcast(mysys_var->current_cond);
-	  pthread_mutex_unlock(mysys_var->current_mutex);
-	}
+      if (mysys_var->current_cond)
+      {
+	pthread_mutex_lock(mysys_var->current_mutex);
+	pthread_cond_broadcast(mysys_var->current_cond);
+	pthread_mutex_unlock(mysys_var->current_mutex);
+      }
       pthread_mutex_unlock(&mysys_var->mutex);
     }
 }

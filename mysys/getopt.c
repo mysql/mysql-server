@@ -38,7 +38,7 @@ Cambridge, MA 02139, USA.  */
 #include <config.h>
 #endif
 
-#if (!defined (__STDC__) || !__STDC__) && !defined(MSDOS)
+#if (!defined (__STDC__) || !__STDC__) && !defined(MSDOS) && !defined(OS2)
 /* This is a separate conditional since some stdc systems
    reject `defined (const)'.  */
 #ifndef const
@@ -176,7 +176,9 @@ static char *posixly_correct;
 /* Avoid depending on library functions or files
    whose names are inconsistent.  */
 
+#ifndef OS2
 char *getenv (const char *);
+#endif
 
 static char *
 my_index (const char *str, int chr)
