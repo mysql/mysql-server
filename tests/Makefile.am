@@ -26,7 +26,7 @@ EXTRA_DIST =		auto_increment.res auto_increment.tst \
 			pmail.pl mail_to_db.pl table_types.pl \
 			udf_test udf_test.res myisam-big-rows.tst
 
-noinst_PROGRAMS =	insert_test select_test thread_test
+noinst_PROGRAMS =	insert_test select_test thread_test client_test
 
 #
 # C Test for 4.1 protocol
@@ -34,7 +34,6 @@ noinst_PROGRAMS =	insert_test select_test thread_test
 INCLUDES =		-I$(top_srcdir)/include $(openssl_includes)
 LIBS =			@CLIENT_LIBS@
 LDADD =			@CLIENT_EXTRA_LDFLAGS@ ../libmysql/libmysqlclient.la
-noinst_PROGRAMS =	client_test
 client_test_LDADD=      $(LDADD) $(CXXLDFLAGS)
 client_test_SOURCES=    client_test.c
 client_test_DEPENDENCIES= $(LIBRARIES) $(pkglib_LTLIBRARIES)
