@@ -17,6 +17,6 @@ CREATE TABLE t1 (
   c INT NOT NULL
 ) ENGINE=ndbcluster;
 
-INSERT INTO t1 VALUES (0, 0, 0),(1,1,1);
+INSERT INTO t1 VALUES (0, 0, 1),(1,1,2),(2,2,3);
 UPDATE t1 set b = c;
 select * from t1 order by pk1;
