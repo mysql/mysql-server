@@ -1690,6 +1690,9 @@ ndb_mgm_alloc_nodeid(NdbMgmHandle handle, unsigned int version, int nodetype)
 {
   CHECK_HANDLE(handle, 0);
   CHECK_CONNECTED(handle, 0);
+  union { long l; char c[sizeof(long)]; } endian_check;
+
+  endian_check.l = 1;
 
   int nodeid= handle->cfg._ownNodeId;
 
@@ -1700,6 +1703,7 @@ ndb_mgm_alloc_nodeid(NdbMgmHandle handle, unsigned int version, int nodetype)
   args.put("user", "mysqld");
   args.put("password", "mysqld");
   args.put("public key", "a public key");
+  args.put("endian", (endian_check.c[sizeof(long)-1])?"big":"little");
 
   const ParserRow<ParserDummy> reply[]= {
     MGM_CMD("get nodeid reply", NULL, ""),

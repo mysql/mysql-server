@@ -132,6 +132,7 @@ ParserRow<MgmApiSession> commands[] = {
     MGM_ARG("user", String, Mandatory, "Password"),
     MGM_ARG("password", String, Mandatory, "Password"),
     MGM_ARG("public key", String, Mandatory, "Public key"),
+    MGM_ARG("endian", String, Optional, "Endianness"),
 
   MGM_CMD("get version", &MgmApiSession::getVersion, ""),
   
@@ -386,6 +387,8 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   const char * user;
   const char * password;
   const char * public_key;
+  const char * endian;
+  union { long l; char c[sizeof(long)]; } endian_check;
 
   args.get("version", &version);
   args.get("nodetype", &nodetype);
@@ -394,7 +397,17 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   args.get("user", &user);
   args.get("password", &password);
   args.get("public key", &public_key);
-  
+  args.get("endian", &endian);
+
+  endian_check.l = 1;
+  if(endian 
+     && strcmp(endian,(endian_check.c[sizeof(long)-1])?"big":"little")!=0) {
+    m_output->println(cmd);
+    m_output->println("result: Endianness of nodes does not match.");
+    m_output->println("");
+    return;
+  }
+
   bool compatible;
   switch (nodetype) {
   case NODE_TYPE_MGM:
