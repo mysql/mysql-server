@@ -225,7 +225,7 @@ void del_dbopt(const char *path)
 }
 
 
-/* 
+/*
   Create database options file:
 
   DESCRIPTION
@@ -244,10 +244,10 @@ static bool write_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 
   if (!create->default_table_charset)
     create->default_table_charset= thd->variables.collation_server;
-  
+
   if (put_dbopt(path, create))
     return 1;
-  
+
   if ((file=my_create(path, CREATE_MODE,O_RDWR | O_TRUNC,MYF(MY_WME))) >= 0)
   {
     ulong length;
@@ -523,14 +523,14 @@ int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   if ((error=write_db_opt(thd, path, create_info)))
     goto exit;
 
-  /* 
+  /*
      Change options if current database is being altered
      TODO: Delete this code
   */
   if (thd->db && !strcmp(thd->db,db))
   {
-    thd->db_charset= (create_info && create_info->default_table_charset) ?
-		     create_info->default_table_charset : 
+    thd->db_charset= create_info->default_table_charset ?
+		     create_info->default_table_charset :
 		     thd->variables.collation_server;
     thd->variables.collation_database= thd->db_charset;
   }
@@ -538,7 +538,7 @@ int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   mysql_update_log.write(thd,thd->query, thd->query_length);
   if (mysql_bin_log.is_open())
   {
-    Query_log_event qinfo(thd, thd->query, thd->query_length, 0, 
+    Query_log_event qinfo(thd, thd->query, thd->query_length, 0,
 			  /* suppress_use */ TRUE);
 
     /*
@@ -620,12 +620,12 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     pthread_mutex_lock(&LOCK_open);
     remove_db_from_cache(db);
     pthread_mutex_unlock(&LOCK_open);
-    
+
     error= -1;
     if ((deleted= mysql_rm_known_files(thd, dirp, db, path, 0)) >= 0)
     {
       ha_drop_database(path);
-      query_cache_invalidate1(db);  
+      query_cache_invalidate1(db);
       error = 0;
     }
   }
@@ -636,7 +636,7 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     my_casedn_str(files_charset_info, tmp_db);
     db= tmp_db;
   }
-  if (!silent && deleted>=0 && thd)
+  if (!silent && deleted>=0)
   {
     const char *query;
     ulong query_length;
@@ -686,7 +686,7 @@ exit:
     have 'if (data_buf) free(data_buf)' data_buf is !=0 so this makes a
     DOUBLE free().
     Side effects of this double free() are, randomly (depends on the machine),
-    when the slave is replicating a DROP DATABASE: 
+    when the slave is replicating a DROP DATABASE:
     - garbage characters in the error message:
     "Error 'Can't drop database 'test2'; database doesn't exist' on query
     'h4zIÅ©'"

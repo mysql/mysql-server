@@ -2247,9 +2247,9 @@ void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
   DBUG_ENTER("print_buffer_to_nt_eventlog");
 
   buffptr= buff;
-  if (length > (uint)(buffLen-4))
+  if (length > (uint)(buffLen-5))
   {
-    char *newBuff= new char[length + 4];
+    char *newBuff= new char[length + 5];
     strcpy(newBuff, buff);
     buffptr= newBuff;
   }

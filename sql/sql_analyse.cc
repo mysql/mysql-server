@@ -70,6 +70,9 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
   field_info **f_info;
   DBUG_ENTER("proc_analyse_init");
 
+  if (!pc)
+    DBUG_RETURN(0);
+
   if (!(param = param->next))
   {
     pc->max_tree_elements = MAX_TREE_ELEMENTS;
@@ -81,33 +84,30 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
     if ((*param->item)->type() != Item::INT_ITEM ||
 	(*param->item)->val() < 0)
     {
-      delete pc;
       my_error(ER_WRONG_PARAMETERS_TO_PROCEDURE, MYF(0), proc_name);
-      DBUG_RETURN(0);
+      goto err;
     }
     pc->max_tree_elements = (uint) (*param->item)->val_int();
     param = param->next;
     if (param->next)  // no third parameter possible
     {
       my_error(ER_WRONG_PARAMCOUNT_TO_PROCEDURE, MYF(0), proc_name);
-      DBUG_RETURN(0);
+      goto err;
     }
     // second parameter
     if ((*param->item)->type() != Item::INT_ITEM ||
 	(*param->item)->val() < 0)
     {
-      delete pc;
       my_error(ER_WRONG_PARAMETERS_TO_PROCEDURE, MYF(0), proc_name);
-      DBUG_RETURN(0);
+      goto err;
     }
     pc->max_treemem = (uint) (*param->item)->val_int();
   }
   else if ((*param->item)->type() != Item::INT_ITEM ||
 	   (*param->item)->val() < 0)
   {
-    delete pc;
     my_error(ER_WRONG_PARAMETERS_TO_PROCEDURE, MYF(0), proc_name);
-    DBUG_RETURN(0);
+    goto err;
   }
   // if only one parameter was given, it will be the value of max_tree_elements
   else
@@ -116,34 +116,39 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
     pc->max_treemem = MAX_TREEMEM;
   }
 
-  if (!pc || !(pc->f_info = (field_info**)
-	       sql_alloc(sizeof(field_info*)*field_list.elements)))
-    DBUG_RETURN(0);
+  if (!(pc->f_info=
+        (field_info**)sql_alloc(sizeof(field_info*)*field_list.elements)))
+    goto err;
   pc->f_end = pc->f_info + field_list.elements;
   pc->fields = field_list;
 
-  List_iterator_fast<Item> it(pc->fields);
-  f_info = pc->f_info;
-
-  Item *item;
-  while ((item = it++))
   {
-    if (item->result_type() == INT_RESULT)
+    List_iterator_fast<Item> it(pc->fields);
+    f_info = pc->f_info;
+
+    Item *item;
+    while ((item = it++))
     {
-      // Check if fieldtype is ulonglong
-      if (item->type() == Item::FIELD_ITEM &&
-	  ((Item_field*) item)->field->type() == FIELD_TYPE_LONGLONG &&
-	  ((Field_longlong*) ((Item_field*) item)->field)->unsigned_flag)
-	*f_info++ = new field_ulonglong(item, pc);
-      else
-	*f_info++ = new field_longlong(item, pc);
+      if (item->result_type() == INT_RESULT)
+      {
+        // Check if fieldtype is ulonglong
+        if (item->type() == Item::FIELD_ITEM &&
+            ((Item_field*) item)->field->type() == FIELD_TYPE_LONGLONG &&
+            ((Field_longlong*) ((Item_field*) item)->field)->unsigned_flag)
+          *f_info++ = new field_ulonglong(item, pc);
+        else
+          *f_info++ = new field_longlong(item, pc);
+      }
+      if (item->result_type() == REAL_RESULT)
+        *f_info++ = new field_real(item, pc);
+      if (item->result_type() == STRING_RESULT)
+        *f_info++ = new field_str(item, pc);
     }
-    if (item->result_type() == REAL_RESULT)
-      *f_info++ = new field_real(item, pc);
-    if (item->result_type() == STRING_RESULT)
-      *f_info++ = new field_str(item, pc);
   }
   DBUG_RETURN(pc);
+err:
+  delete pc;
+  DBUG_RETURN(0);
 }
 
 
