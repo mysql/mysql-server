@@ -1221,7 +1221,6 @@ show status like "Innodb_buffer_pool_pages_total";
 show status like "Innodb_page_size";
 show status like "Innodb_rows_deleted";
 show status like "Innodb_rows_inserted";
-show status like "Innodb_rows_read";
 show status like "Innodb_rows_updated";
 
 # Test for row locks InnoDB status variables.
