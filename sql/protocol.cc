@@ -107,7 +107,7 @@ void send_error(THD *thd, uint sql_errno, const char *err)
   }
   VOID(net_write_command(net,(uchar) 255, "", 0, (char*) err,length));
 #endif  /* EMBEDDED_LIBRARY*/
-  thd->fatal_error=0;			// Error message is given
+  thd->is_fatal_error=0;			// Error message is given
   thd->net.report_error= 0;
   DBUG_VOID_RETURN;
 }
@@ -217,7 +217,7 @@ net_printf(THD *thd, uint errcode, ...)
 	This may also happen when we get an error from a slave thread
       */
       fprintf(stderr,"ERROR: %d  %s\n",errcode,text_pos);
-      thd->fatal_error=1;
+      thd->fatal_error();
     }
     DBUG_VOID_RETURN;
   }
@@ -232,7 +232,7 @@ net_printf(THD *thd, uint errcode, ...)
   net->last_errno= errcode;
   strmake(net->last_error, text_pos, length);
 #endif
-  thd->fatal_error=0;			// Error message is given
+  thd->is_fatal_error=0;			// Error message is given
   DBUG_VOID_RETURN;
 }
 

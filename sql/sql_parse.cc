@@ -839,7 +839,7 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
   if (my_thread_init() || thd->store_globals())
   {
     close_connection(&thd->net,ER_OUT_OF_RESOURCES);
-    thd->fatal_error=1;
+    thd->fatal_error();
     goto end;
   }
   DBUG_ENTER("handle_bootstrap");
@@ -886,7 +886,7 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
     }
     mysql_parse(thd,thd->query,length);
     close_thread_tables(thd);			// Free tables
-    if (thd->fatal_error)
+    if (thd->is_fatal_error)
       break;
     free_root(&thd->mem_root,MYF(MY_KEEP_PREALLOC));
     free_root(&thd->transaction.mem_root,MYF(MY_KEEP_PREALLOC));
@@ -1206,7 +1206,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     DBUG_PRINT("query",("%-.4096s",thd->query));
     mysql_parse(thd,thd->query, thd->query_length);
 
-    while (!thd->fatal_error && thd->lex.found_colon)
+    while (!thd->is_fatal_error && thd->lex.found_colon)
     {
       char *packet= thd->lex.found_colon;
       /* 
@@ -1442,7 +1442,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     close_thread_tables(thd);			/* Free tables */
   }
 
-  if (thd->fatal_error)
+  if (thd->is_fatal_error)
     send_error(thd,0);				// End of memory ?
 
   time_t start_of_query=thd->start_time;
@@ -2375,8 +2375,8 @@ mysql_execute_command(THD *thd)
       }
     }
     fix_tables_pointers(lex->all_selects_list);
-    if (!thd->fatal_error && (result= new multi_delete(thd,aux_tables,
-						       table_count)))
+    if (!thd->is_fatal_error && (result= new multi_delete(thd,aux_tables,
+							  table_count)))
     {
       res= mysql_select(thd, &select_lex->ref_pointer_array,
 			select_lex->get_table_list(),
@@ -3085,7 +3085,7 @@ bool check_stack_overrun(THD *thd,char *buf __attribute__((unused)))
   {
     sprintf(errbuff[0],ER(ER_STACK_OVERRUN),stack_used,thread_stack);
     my_message(ER_STACK_OVERRUN,errbuff[0],MYF(0));
-    thd->fatal_error=1;
+    thd->fatal_error();
     return 1;
   }
   return 0;
@@ -3155,7 +3155,7 @@ mysql_init_query(THD *thd)
   thd->total_warn_count=0;			// Warnings for this query
   thd->last_insert_id_used= thd->query_start_used= thd->insert_id_used=0;
   thd->sent_row_count= thd->examined_row_count= 0;
-  thd->fatal_error= thd->rand_used= 0;
+  thd->is_fatal_error= thd->rand_used= 0;
   thd->server_status &= ~SERVER_MORE_RESULTS_EXISTS;
   DBUG_VOID_RETURN;
 }
@@ -3261,7 +3261,7 @@ mysql_parse(THD *thd, char *inBuf, uint length)
   if (query_cache_send_result_to_client(thd, inBuf, length) <= 0)
   {
     LEX *lex=lex_start(thd, (uchar*) inBuf, length);
-    if (!yyparse((void *)thd) && ! thd->fatal_error)
+    if (!yyparse((void *)thd) && ! thd->is_fatal_error)
     {
       if (mqh_used && thd->user_connect &&
 	  check_mqh(thd, lex->sql_command))
@@ -3284,7 +3284,7 @@ mysql_parse(THD *thd, char *inBuf, uint length)
     else
     {
       DBUG_PRINT("info",("Command aborted. Fatal_error: %d",
-			 thd->fatal_error));
+			 thd->is_fatal_error));
 #ifndef EMBEDDED_LIBRARY   /* TODO query cache in embedded library*/
       query_cache_abort(&thd->net);
 #endif

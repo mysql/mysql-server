@@ -24,7 +24,7 @@ extern "C" {
   {
     THD *thd=current_thd;
     if (thd)					// QQ;  To be removed
-      thd->fatal_error=1;			/* purecov: inspected */
+      thd->fatal_error();			/* purecov: inspected */
     sql_print_error(ER(ER_OUT_OF_RESOURCES));
   }
 }

@@ -443,11 +443,11 @@ JOIN::optimize()
 #endif
 
   conds= optimize_cond(conds,&cond_value);
-  if (thd->fatal_error || thd->net.report_error)
+  if (thd->net.report_error)
   {
     // quick abort
     delete procedure;
-    error= thd->fatal_error ? -1 : 1; 
+    error= thd->is_fatal_error ? -1 : 1; 
     DBUG_RETURN(error);
   }
 
@@ -483,7 +483,7 @@ JOIN::optimize()
   /* Calculate how to do the join */
   thd->proc_info= "statistics";
   if (make_join_statistics(this, tables_list, conds, &keyuse) ||
-      thd->fatal_error)
+      thd->is_fatal_error)
     DBUG_RETURN(1);
 
   thd->proc_info= "preparing";
@@ -593,7 +593,7 @@ JOIN::optimize()
       else
 	group_list= 0;
     }
-    else if (thd->fatal_error)			// End of memory
+    else if (thd->is_fatal_error)			// End of memory
       DBUG_RETURN(1);
   }
   group_list= remove_const(this, group_list, conds, &simple_group);
@@ -1160,7 +1160,7 @@ JOIN::exec()
     memcpy(ref_pointer_array, items3, ref_pointer_array_size);
 
     if (make_sum_func_list(curr_join, *curr_all_fields) ||
-	thd->fatal_error)
+	thd->is_fatal_error)
       DBUG_VOID_RETURN;
   }
   if (curr_join->group_list || curr_join->order)
@@ -2745,7 +2745,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 					       (char*) key_buff : 0,
 					       keyinfo->key_part[i].length,
 					       keyuse->val);
-	if (thd->fatal_error)
+	if (thd->is_fatal_error)
 	{
 	  return TRUE;
 	}
@@ -3989,7 +3989,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 	return 0;
       }
     }
-    thd->fatal_error=1;
+    thd->fatal_error();
     return 0;					// Error
   }
   case Item::FIELD_ITEM:
@@ -4243,7 +4243,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 					not_all_columns || group !=0);
       if (!new_field)
       {
-	if (thd->fatal_error)
+	if (thd->is_fatal_error)
 	  goto err;				// Got OOM
 	continue;				// Some kindf of const item
       }
@@ -4519,7 +4519,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	0 : FIELDFLAG_BINARY;
     }
   }
-  if (thd->fatal_error)				// If end of memory
+  if (thd->is_fatal_error)				// If end of memory
     goto err;					 /* purecov: inspected */
   table->db_record_offset=1;
   if (table->db_type == DB_TYPE_MYISAM)
@@ -7081,7 +7081,7 @@ find_order_in_list(THD *thd, Item **ref_pointer_array,
   order->in_field_list=0;
   Item *it= *order->item;
   if (it->fix_fields(thd, tables, order->item) || it->check_cols(1) ||
-      thd->fatal_error)
+      thd->is_fatal_error)
     return 1;					// Wrong field
   uint el= all_fields.elements;
   all_fields.push_front(it);		        // Add new field to field list
@@ -7675,7 +7675,7 @@ change_refs_to_tmp_fields(THD *thd, Item **ref_pointer_array,
     itr++;
   itr.sublist(new_list1, elements);
 
-  return thd->fatal_error;
+  return thd->is_fatal_error;
 }
 
 
@@ -7771,7 +7771,7 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
     Item *value=join_tab->ref.items[i];
     cond->add(new Item_func_equal(new Item_field(field),value));
   }
-  if (thd->fatal_error)
+  if (thd->is_fatal_error)
     DBUG_RETURN(TRUE);
 
   /*

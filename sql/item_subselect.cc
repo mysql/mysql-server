@@ -642,11 +642,8 @@ subselect_single_select_engine::subselect_single_select_engine(THD *thd,
     select_lex->options&= ~OPTION_FOUND_ROWS;
   join= new JOIN(thd, select_lex->item_list, select_lex->options, result);
   if (!join || !result)
-  {
     //out of memory
-    thd->fatal_error= 1;
-    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-  } 
+    thd->fatal_error();
   unit->item= item;
   this->select_lex= select_lex;
 }
@@ -659,11 +656,8 @@ subselect_union_engine::subselect_union_engine(THD *thd,
 {
   unit= u;
   if (!result)
-  {
     //out of memory
-    thd->fatal_error= 1;
-    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-  }
+    thd->fatal_error();
   unit->item= item;
 }
 
@@ -805,7 +799,7 @@ int subselect_single_select_engine::exec()
     join->thd->lex.current_select= save_select;
     executed= 1;
     join->thd->where= save_where;
-    DBUG_RETURN(join->error||thd->fatal_error);
+    DBUG_RETURN(join->error||thd->is_fatal_error);
   }
   join->thd->where= save_where;
   DBUG_RETURN(0);

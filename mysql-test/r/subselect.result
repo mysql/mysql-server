@@ -988,3 +988,12 @@ t1	CREATE TABLE `t1` (
   `a` bigint(17) NOT NULL default '0'
 ) TYPE=MyISAM CHARSET=latin1
 drop table t1;
+create table t1 (a int);
+insert into t1 values (1), (2), (3);
+explain select a,(select (select rand() from t1 limit 1)  from t1 limit 1)
+from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
+2	UNCACHEABLE SUBSELECT	t1	ALL	NULL	NULL	NULL	NULL	3	
+3	UNCACHEABLE SUBSELECT	t1	ALL	NULL	NULL	NULL	NULL	3	
+drop table t1;

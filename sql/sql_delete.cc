@@ -301,7 +301,7 @@ multi_delete::initialize_tables(JOIN *join)
 				  MEM_STRIP_BUF_SIZE);
   }
   init_ftfuncs(thd, thd->lex.current_select->select_lex(), 1);
-  DBUG_RETURN(thd->fatal_error != 0);
+  DBUG_RETURN(thd->is_fatal_error != 0);
 }
 
 

@@ -575,3 +575,9 @@ drop table t1;
 CREATE TABLE t1 SELECT (SELECT 1 as a UNION SELECT 1+1 limit 1,1) as a;
 SHOW CREATE TABLE t1;
 drop table t1;
+
+create table t1 (a int);
+insert into t1 values (1), (2), (3);
+explain select a,(select (select rand() from t1 limit 1)  from t1 limit 1)
+from t1;
+drop table t1;

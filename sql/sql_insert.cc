@@ -151,7 +151,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
 	DBUG_RETURN(-1);
       }
     }
-    if ((table= delayed_get_table(thd,table_list)) && !thd->fatal_error)
+    if ((table= delayed_get_table(thd,table_list)) && !thd->is_fatal_error)
       if (table_list->next && table)
 	res= open_and_lock_tables(thd, table_list->next);
       else
@@ -685,7 +685,7 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
     {
       if (!(tmp=new delayed_insert()))
       {
-	thd->fatal_error=1;
+	thd->fatal_error();
 	my_error(ER_OUTOFMEMORY,MYF(0),sizeof(delayed_insert));
 	pthread_mutex_unlock(&LOCK_delayed_create);
 	DBUG_RETURN(0);
@@ -697,7 +697,7 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 	  !(tmp->thd.query=my_strdup(table_list->real_name,MYF(MY_WME))))
       {
 	delete tmp;
-	thd->fatal_error=1;
+	thd->fatal_error();
 	my_error(ER_OUT_OF_RESOURCES,MYF(0));
 	pthread_mutex_unlock(&LOCK_delayed_create);
 	DBUG_RETURN(0);
@@ -716,7 +716,7 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 	pthread_mutex_unlock(&tmp->mutex);
 	tmp->unlock();
 	delete tmp;
-	thd->fatal_error=1;
+	thd->fatal_error();
 	pthread_mutex_unlock(&LOCK_delayed_create);
 	net_printf(thd,ER_CANT_CREATE_THREAD,error);
 	DBUG_RETURN(0);
@@ -732,10 +732,10 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
       thd->proc_info="got old table";
       if (tmp->thd.killed)
       {
-	if (tmp->thd.fatal_error)
+	if (tmp->thd.is_fatal_error)
 	{
 	  /* Copy error message and abort */
-	  thd->fatal_error=1;
+	  thd->fatal_error();
 	  strmov(thd->net.last_error,tmp->thd.net.last_error);
 	  thd->net.last_errno=tmp->thd.net.last_errno;
 	}
@@ -759,8 +759,8 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
   tmp->unlock();
   if (table)
     thd->di=tmp;
-  else if (tmp->thd.fatal_error)
-    thd->fatal_error=1;
+  else if (tmp->thd.is_fatal_error)
+    thd->fatal_error();
   DBUG_RETURN((table_list->table=table));
 }
 
@@ -988,7 +988,7 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
   DBUG_ENTER("handle_delayed_insert");
   if (init_thr_lock() || thd->store_globals())
   {
-    thd->fatal_error=1;
+    thd->fatal_error();
     strmov(thd->net.last_error,ER(thd->net.last_errno=ER_OUT_OF_RESOURCES));
     goto end;
   }
@@ -1002,12 +1002,12 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
 
   if (!(di->table=open_ltable(thd,&di->table_list,TL_WRITE_DELAYED)))
   {
-    thd->fatal_error=1;				// Abort waiting inserts
+    thd->fatal_error();				// Abort waiting inserts
     goto end;
   }
   if (di->table->file->has_transactions())
   {
-    thd->fatal_error=1;
+    thd->fatal_error();
     my_error(ER_ILLEGAL_HA, MYF(0), di->table_list.real_name);
     goto end;
   }

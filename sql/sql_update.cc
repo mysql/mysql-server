@@ -514,14 +514,14 @@ int multi_update::prepare(List<Item> &not_used_values, SELECT_LEX_UNIT *unit)
 					      table_count);
   values_for_table= (List_item **) thd->alloc(sizeof(List_item *) *
 					      table_count);
-  if (thd->fatal_error)
+  if (thd->is_fatal_error)
     DBUG_RETURN(1);
   for (i=0 ; i < table_count ; i++)
   {
     fields_for_table[i]= new List_item;
     values_for_table[i]= new List_item;
   }
-  if (thd->fatal_error)
+  if (thd->is_fatal_error)
     DBUG_RETURN(1);
 
   /* Split fields into fields_for_table[] and values_by_table[] */
@@ -534,7 +534,7 @@ int multi_update::prepare(List<Item> &not_used_values, SELECT_LEX_UNIT *unit)
     fields_for_table[offset]->push_back(item);
     values_for_table[offset]->push_back(value);
   }
-  if (thd->fatal_error)
+  if (thd->is_fatal_error)
     DBUG_RETURN(1);
 
   /* Allocate copy fields */
@@ -542,7 +542,7 @@ int multi_update::prepare(List<Item> &not_used_values, SELECT_LEX_UNIT *unit)
   for (i=0 ; i < table_count ; i++)
     set_if_bigger(max_fields, fields_for_table[i]->elements);
   copy_field= new Copy_field[max_fields];
-  DBUG_RETURN(thd->fatal_error != 0);
+  DBUG_RETURN(thd->is_fatal_error != 0);
 }
 
 

@@ -953,7 +953,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
   thd->variables.convert_set = 0;
   close_thread_tables(thd);
       
-  if (thd->query_error || thd->fatal_error)
+  if (thd->query_error || thd->is_fatal_error)
   {
     slave_print_error(rli,actual_error, "error '%s' on query '%s'",
 		      actual_error ? thd->net.last_error :
@@ -1624,7 +1624,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
   }
   free_root(&thd->mem_root,0);
 	    
-  if (thd->fatal_error)
+  if (thd->is_fatal_error)
   {
     sql_print_error("Slave: Fatal error running LOAD DATA INFILE ");
     return 1;
