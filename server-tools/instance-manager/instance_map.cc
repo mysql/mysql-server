@@ -82,7 +82,8 @@ static int process_option(void * ctx, const char *group, const char *option)
 
   map = (Instance_map*) ctx;
   if (strncmp(group, prefix, sizeof prefix) == 0 &&
-      (my_isdigit(default_charset_info, group[sizeof prefix])))
+      ((my_isdigit(default_charset_info, group[sizeof prefix]))
+       || group[sizeof(prefix)] == '\0'))
     {
       if ((instance= map->find(group, strlen(group))) == NULL)
       {
@@ -109,13 +110,9 @@ err_new_instance:
 C_MODE_END
 
 
-Instance_map::Instance_map(const char *default_mysqld_path_arg,
-                           const char *default_admin_user_arg,
-                           const char *default_admin_password_arg)
+Instance_map::Instance_map(const char *default_mysqld_path_arg)
 {
   mysqld_path= default_mysqld_path_arg;
-  user= default_admin_user_arg;
-  password= default_admin_password_arg;
 
   pthread_mutex_init(&LOCK_instance_map, 0);
 }
@@ -195,7 +192,7 @@ void Instance_map::complete_initialization()
   {
     instance= (Instance *) hash_element(&hash, i);
     instance->complete_initialization(this);
-    instance->options.complete_initialization(mysqld_path, user, password);
+    instance->options.complete_initialization(mysqld_path);
     i++;
   }
 }
