@@ -37,7 +37,18 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <m_string.h>
+/* To be replaced by SHA1 as Monty will do the Merge */
+#include <md5.h>
 #include "mysql.h"
+
+
+
+/* Character to use as version identifier for version 4.1 */
+#define PVERSION41_CHAR '*'
+
+
+extern uint old_passwords; /* If prior 4.1 functions to be used */
+
 
 
 void randominit(struct rand_struct *rand_st,ulong seed1, ulong seed2)
@@ -84,12 +95,56 @@ void hash_password(ulong *result, const char *password)
   return;
 }
 
+
 void make_scrambled_password(char *to,const char *password)
-{
-  ulong hash_res[2];
-  hash_password(hash_res,password);
-  sprintf(to,"%08lx%08lx",hash_res[0],hash_res[1]);
+{ 
+  ulong hash_res[2];  /* Used for pre 4.1 password hashing */
+  static uint salt=0; /* Salt for 4.1 version password */
+  unsigned char* slt=(unsigned char*)&salt;
+  my_MD5_CTX context; 
+  unsigned char digest[16];
+  if (old_passwords) /* Pre 4.1 password encryption */
+  {
+    hash_password(hash_res,password);
+    sprintf(to,"%08lx%08lx",hash_res[0],hash_res[1]);
+  }
+  else /* New password 4.1 password scrambling */ 
+  {
+    to[0]=PVERSION41_CHAR; /* New passwords have version prefix */
+    /* We do not need too strong salt generation so this should be enough */
+    salt+=getpid()+time(NULL)+0x01010101;
+    /* Use only 2 first bytes from it */ 
+    sprintf(&(to[1]),"%02x%02x",slt[0],slt[1]);
+    /* Waiting for Monty to do the merge */
+    my_MD5Init(&context);
+    /* Use Salt for Hash */
+    my_MD5Update(&context,(unsigned char*)&salt,2);
+    
+    for (; *password ; password++)
+    {
+      if (*password == ' ' || *password == '\t')
+        continue;/* skip space in password */
+      my_MD5Update(&context,(unsigned char*)&password[0],1);	
+    }
+    my_MD5Final(digest,&context);
+    /* Print resulting hash into the password*/
+/*    sprintf(&(to[5]),
+      "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+      digest[0],digest[1],digest[2],digest[3],digest[4],digest[5],digest[6],
+      digest[7],digest[8],digest[9],digest[10],digest[11],digest[12],digest[13],
+      digest[14],digest[15]);  */
+      sprintf(&to[5],"1234567890123456789012345");
+      
+  }
 }
+
+uint get_password_length()
+{
+  if (old_passwords)
+    return 16;
+  else return 37;
+}
+
 
 inline uint char_val(char X)
 {
