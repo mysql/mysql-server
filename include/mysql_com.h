@@ -136,6 +136,11 @@ enum enum_server_command
 struct st_vio;					/* Only C */
 typedef struct st_vio Vio;
 
+#define MAX_TINYINT_WIDTH       3       /* Max width for a TINY w.o. sign */
+#define MAX_SMALLINT_WIDTH      5       /* Max width for a SHORT w.o. sign */
+#define MAX_MEDIUMINT_WIDTH     8       /* Max width for a INT24 w.o. sign */
+#define MAX_INT_WIDTH           10      /* Max width for a LONG w.o. sign */
+#define MAX_BIGINT_WIDTH        20      /* Max width for a LONGLONG */
 #define MAX_CHAR_WIDTH		255	/* Max length for a CHAR colum */
 #define MAX_BLOB_WIDTH		8192	/* Default width for blob */
 
