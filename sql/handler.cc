@@ -72,14 +72,16 @@ TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 
 enum db_type ha_checktype(enum db_type database_type)
 {
+  DBUG_ENTER("ha_checktype");
+
   switch (database_type) {
 #ifdef HAVE_BERKELEY_DB
   case DB_TYPE_BERKELEY_DB:
-    return(berkeley_skip ? DB_TYPE_MYISAM : database_type);
+    DBUG_RETURN((berkeley_skip ? DB_TYPE_MYISAM : database_type));
 #endif
 #ifdef HAVE_INNOBASE_DB
   case DB_TYPE_INNODB:
-    return(innodb_skip ? DB_TYPE_MYISAM : database_type);
+    DBUG_RETURN((innodb_skip ? DB_TYPE_MYISAM : database_type));
 #endif
 #ifndef NO_HASH
   case DB_TYPE_HASH:
@@ -91,52 +93,57 @@ enum db_type ha_checktype(enum db_type database_type)
   case DB_TYPE_HEAP:
   case DB_TYPE_MYISAM:
   case DB_TYPE_MRG_MYISAM:
-    return (database_type);			/* Database exists on system */
+    DBUG_RETURN((database_type));			/* Database exists on system */
   default:
     break;
   }
-  return(DB_TYPE_MYISAM);			/* Use this as default */
+  DBUG_RETURN((DB_TYPE_MYISAM));			/* Use this as default */
 } /* ha_checktype */
 
 
 handler *get_new_handler(TABLE *table, enum db_type db_type)
 {
+  DBUG_ENTER("*get_new_handler");
+
   switch (db_type) {
 #ifndef NO_HASH
-  return new ha_hash(table);
+  DBUG_RETURN(new ha_hash(table));
 #endif
 #ifdef HAVE_ISAM
   case DB_TYPE_MRG_ISAM:
-    return new ha_isammrg(table);
+    DBUG_RETURN(new ha_isammrg(table));
   case DB_TYPE_ISAM:
-    return new ha_isam(table);
+    DBUG_RETURN(new ha_isam(table));
 #endif
 #ifdef HAVE_BERKELEY_DB
   case DB_TYPE_BERKELEY_DB:
-    return new ha_berkeley(table);
+    DBUG_RETURN(new ha_berkeley(table));
 #endif
 #ifdef HAVE_INNOBASE_DB
   case DB_TYPE_INNODB:
-    return new ha_innobase(table);
+    DBUG_RETURN(new ha_innobase(table));
 #endif
   case DB_TYPE_HEAP:
-    return new ha_heap(table);
+    DBUG_RETURN(new ha_heap(table));
   case DB_TYPE_MYISAM:
   default:					// should never happen
-    return new ha_myisam(table);
+    DBUG_RETURN(new ha_myisam(table));
   case DB_TYPE_MRG_MYISAM:
-    return new ha_myisammrg(table);
+    DBUG_RETURN(new ha_myisammrg(table));
   }
+  DBUG_RETURN(NULL); // impossible
 }
 
 int ha_init()
 {
+  DBUG_ENTER("ha_init");
+
 #ifdef HAVE_BERKELEY_DB
   if (!berkeley_skip)
   {
     int error;
     if ((error=berkeley_init()))
-      return error;
+      DBUG_RETURN(error);
     if (!berkeley_skip)				// If we couldn't use handler
       opt_using_transactions=1;
     else
@@ -147,14 +154,14 @@ int ha_init()
   if (!innodb_skip)
   {
     if (innobase_init())
-      return -1;
+      DBUG_RETURN(-1);
     if (!innodb_skip)				// If we couldn't use handler
       opt_using_transactions=1;
     else
       have_innodb=SHOW_OPTION_DISABLED;
   }
 #endif
-  return 0;
+  DBUG_RETURN(0);
 }
 
 	/* close, flush or restart databases */
@@ -163,6 +170,8 @@ int ha_init()
 int ha_panic(enum ha_panic_function flag)
 {
   int error=0;
+  DBUG_ENTER("ha_panic");
+
 #ifndef NO_HASH
   error|=h_panic(flag);			/* fix hash */
 #endif
@@ -181,23 +190,29 @@ int ha_panic(enum ha_panic_function flag)
   if (!innodb_skip)
     error|=innobase_end();
 #endif
-  return error;
+  DBUG_RETURN(error);
 } /* ha_panic */
 
 void ha_drop_database(char* path)
 {
+  DBUG_ENTER("ha_drop_database");
+
 #ifdef HAVE_INNOBASE_DB
   if (!innodb_skip)
     innobase_drop_database(path);
 #endif
+  DBUG_VOID_RETURN;
 }
 
 void ha_close_connection(THD* thd)
 {
+  DBUG_ENTER("ha_close_connection");
+
 #ifdef HAVE_INNOBASE_DB
   if (!innodb_skip)
     innobase_close_connection(thd);
 #endif
+  DBUG_VOID_RETURN;
 }
 
 /*
@@ -247,6 +262,8 @@ int ha_report_binlog_offset_and_commit(THD *thd,
 				       my_off_t end_offset)
 {
   int  error= 0;
+  DBUG_ENTER("ha_report_binlog_offset_and_commit");
+
 #ifdef HAVE_INNOBASE_DB
   THD_TRANS *trans;
   trans = &thd->transaction.all;
@@ -263,7 +280,7 @@ int ha_report_binlog_offset_and_commit(THD *thd,
     trans->innodb_active_trans=0;
   }
 #endif
-  return error;
+  DBUG_RETURN(error);
 }
 
 int ha_commit_trans(THD *thd, THD_TRANS* trans)
@@ -381,6 +398,8 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
 bool ha_flush_logs()
 {
   bool result=0;
+  DBUG_ENTER("ha_flush_logs");
+
 #ifdef HAVE_BERKELEY_DB
   if (!berkeley_skip && berkeley_flush_logs())
     result=1;
@@ -389,7 +408,7 @@ bool ha_flush_logs()
   if (!innodb_skip && innobase_flush_logs())
     result=1;
 #endif
-  return result;
+  DBUG_RETURN(result);
 }
 
 /*
@@ -400,15 +419,19 @@ bool ha_flush_logs()
 int ha_delete_table(enum db_type table_type, const char *path)
 {
   handler *file=get_new_handler((TABLE*) 0, table_type);
+  DBUG_ENTER("ha_delete_table");
+
   if (!file)
-    return ENOENT;
+    DBUG_RETURN(ENOENT);
   int error=file->delete_table(path);
   delete file;
-  return error;
+  DBUG_RETURN(error);
 }
 
 void ha_store_ptr(byte *buff, uint pack_length, my_off_t pos)
 {
+  DBUG_ENTER("ha_store_ptr");
+
   switch (pack_length) {
 #if SIZEOF_OFF_T > 4
   case 8: mi_int8store(buff,pos); break;
@@ -421,12 +444,14 @@ void ha_store_ptr(byte *buff, uint pack_length, my_off_t pos)
   case 2: mi_int2store(buff,(uint) pos); break;
   case 1: buff[0]= (uchar) pos; break;
   }
-  return;
+  DBUG_VOID_RETURN;
 }
 
 my_off_t ha_get_ptr(byte *ptr, uint pack_length)
 {
   my_off_t pos;
+  DBUG_ENTER("ha_get_ptr");
+
   switch (pack_length) {
 #if SIZEOF_OFF_T > 4
   case 8:
@@ -458,7 +483,7 @@ my_off_t ha_get_ptr(byte *ptr, uint pack_length)
     pos=0;					// Impossible
     break;
   }
- return pos;
+ DBUG_RETURN(pos);
 }
 
 /****************************************************************************
@@ -512,32 +537,44 @@ int handler::ha_open(const char *name, int mode, int test_if_locked)
 
 int handler::check(THD* thd, HA_CHECK_OPT* check_opt)
 {
-  return HA_ADMIN_NOT_IMPLEMENTED;
+  DBUG_ENTER("handler::check");
+
+  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
 }
 
 int handler::backup(THD* thd, HA_CHECK_OPT* check_opt)
 {
-  return HA_ADMIN_NOT_IMPLEMENTED;
+  DBUG_ENTER("handler::backup");
+
+  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
 }
 
 int handler::restore(THD* thd, HA_CHECK_OPT* check_opt)
 {
-  return HA_ADMIN_NOT_IMPLEMENTED;
+  DBUG_ENTER("handler::restore");
+
+  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
 }
 
 int handler::repair(THD* thd, HA_CHECK_OPT* check_opt)
 {
-  return HA_ADMIN_NOT_IMPLEMENTED;
+  DBUG_ENTER("handler::repair");
+
+  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
 }
 
 int handler::optimize(THD* thd, HA_CHECK_OPT* check_opt)
 {
-  return HA_ADMIN_NOT_IMPLEMENTED;
+  DBUG_ENTER("handler::optimize");
+
+  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
 }
 
 int handler::analyze(THD* thd, HA_CHECK_OPT* check_opt)
 {
-  return HA_ADMIN_NOT_IMPLEMENTED;
+  DBUG_ENTER("handler::analyze");
+
+  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
 }
 
 /*
@@ -582,7 +619,9 @@ int handler::read_first_row(byte * buf, uint primary_key)
 
 int handler::restart_rnd_next(byte *buf, byte *pos)
 {
-  return HA_ERR_WRONG_COMMAND;
+  DBUG_ENTER("handler::restart_rnd_next");
+
+  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
 
 
@@ -591,6 +630,8 @@ int handler::restart_rnd_next(byte *buf, byte *pos)
 void handler::update_timestamp(byte *record)
 {
   long skr= (long) current_thd->query_start();
+  DBUG_ENTER("handler::update_timestamp");
+
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
   {
@@ -599,7 +640,7 @@ void handler::update_timestamp(byte *record)
   else
 #endif
   longstore(record,skr);
-  return;
+  DBUG_VOID_RETURN;
 }
 
 /*
@@ -633,6 +674,7 @@ longlong handler::get_auto_increment()
 {
   longlong nr;
   int error;
+  DBUG_ENTER("handler::get_auto_increment");
 
   (void) extra(HA_EXTRA_KEYREAD);
   index_init(table->next_number_index);
@@ -656,7 +698,7 @@ longlong handler::get_auto_increment()
       val_int_offset(table->rec_buff_length)+1;
   index_end();
   (void) extra(HA_EXTRA_NO_KEYREAD);
-  return nr;
+  DBUG_RETURN(nr);
 }
 
 	/* Print error that we got from handler function */
@@ -778,6 +820,8 @@ uint handler::get_dup_key(int error)
 int handler::delete_table(const char *name)
 {
   int error=0;
+  DBUG_ENTER("handler::delete_table");
+
   for (const char **ext=bas_ext(); *ext ; ext++)
   {
     if (delete_file(name,*ext,2))
@@ -786,7 +830,7 @@ int handler::delete_table(const char *name)
 	break;
     }
   }
-  return error;
+  DBUG_RETURN(error);
 }
 
 
@@ -807,14 +851,16 @@ int handler::rename_table(const char * from, const char * to)
 int ha_recovery_logging(THD *thd, bool on)
 {
   int error=0;
-
   DBUG_ENTER("ha_recovery_logging");
+
   DBUG_RETURN(error);
 }
 
 int handler::index_next_same(byte *buf, const byte *key, uint keylen)
 {
   int error;
+  DBUG_ENTER("handler::index_next_same");
+
   if (!(error=index_next(buf)))
   {
     if (key_cmp(table, key, active_index, keylen))
@@ -823,7 +869,7 @@ int handler::index_next_same(byte *buf, const byte *key, uint keylen)
       error=HA_ERR_END_OF_FILE;
     }
   }
-  return error;
+  DBUG_RETURN(error);
 }
 
 
@@ -836,7 +882,9 @@ int handler::index_next_same(byte *buf, const byte *key, uint keylen)
 
 int handler::delete_all_rows()
 {
-  return (my_errno=HA_ERR_WRONG_COMMAND);
+  DBUG_ENTER("handler::delete_all_rows");
+
+  DBUG_RETURN((my_errno=HA_ERR_WRONG_COMMAND));
 }
 
 /****************************************************************************
@@ -882,26 +930,37 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
 
 void ha_key_cache(void)
 {
+  DBUG_ENTER("ha_key_cache");
+
   if (keybuff_size)
     (void) init_key_cache(keybuff_size);
+  DBUG_VOID_RETURN;
 }
 
 
 void ha_resize_key_cache(void)
 {
+  DBUG_ENTER("ha_resize_key_cache");
+
   (void) resize_key_cache(keybuff_size);
+  DBUG_VOID_RETURN;
 }
 
 
 static int NEAR_F delete_file(const char *name,const char *ext,int extflag)
 {
   char buff[FN_REFLEN];
+  DBUG_ENTER("delete_file");
+
   VOID(fn_format(buff,name,"",ext,extflag | 4));
-  return(my_delete_with_symlink(buff,MYF(MY_WME)));
+  DBUG_RETURN((my_delete_with_symlink(buff,MYF(MY_WME))));
 }
 
 void st_ha_check_opt::init()
 {
+  DBUG_ENTER("st_ha_check_opt::init");
+
   flags= sql_flags= 0;
   sort_buffer_size = current_thd->variables.myisam_sort_buff_size;
+  DBUG_VOID_RETURN;
 }
