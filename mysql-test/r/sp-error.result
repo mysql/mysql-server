@@ -341,4 +341,25 @@ call bug2329_2()|
 ERROR 42S22: Unknown column 'v' in 'field list'
 drop procedure bug2329_1|
 drop procedure bug2329_2|
+create function bug3287() returns int
+begin
+declare v int default null;
+case
+when v is not null then return 1;
+end case;
+return 2;
+end|
+select bug3287()|
+ERROR 20000: Case not found for CASE statement
+drop function bug3287|
+create procedure bug3287(x int)
+case x
+when 0 then
+insert into test.t1 values (x, 0.1);
+when 1 then
+insert into test.t1 values (x, 1.1);
+end case|
+call bug3287(2)|
+ERROR 20000: Case not found for CASE statement
+drop procedure bug3287|
 drop table t1|

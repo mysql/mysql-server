@@ -473,6 +473,33 @@ call bug2329_2()|
 drop procedure bug2329_1|
 drop procedure bug2329_2|
 
+#
+# BUG#3287
+#
+create function bug3287() returns int
+begin
+  declare v int default null;
+
+  case
+    when v is not null then return 1;
+  end case;
+  return 2;
+end|
+--error 1326
+select bug3287()|
+drop function bug3287|
+
+create procedure bug3287(x int)
+case x
+when 0 then
+  insert into test.t1 values (x, 0.1);
+when 1 then
+  insert into test.t1 values (x, 1.1);
+end case|
+--error 1326
+call bug3287(2)|
+drop procedure bug3287|
+
 drop table t1|
 
 delimiter ;|

@@ -1908,9 +1908,16 @@ sp_case:
 	;
 
 sp_whens:
-	  /* Empty */ {}
-	| WHEN_SYM sp_case {}
+	  /* Empty */
+	  {
+	    sp_head *sp= Lex->sphead;
+	    uint ip= sp->instructions();
+	    sp_instr_error *i= new sp_instr_error(ip, ER_SP_CASE_NOT_FOUND);
+
+	    sp->add_instr(i);
+	  }
 	| ELSE sp_proc_stmts {}
+	| WHEN_SYM sp_case {}
 	;
 
 sp_labeled_control:

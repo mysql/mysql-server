@@ -329,3 +329,4 @@ character-set=greek
 "USE is not allowed in a stored procedure"
 "Variable or condition declaration after cursor or handler declaration"
 "Cursor declaration after handler declaration"
+"Case not found for CASE statement"
