@@ -84,6 +84,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   thd->clear_error();
   mysql->affected_rows= ~(my_ulonglong) 0;
   mysql->field_count= 0;
+  net->last_errno= 0;
 
   thd->store_globals();				// Fix if more than one connect
   /* 
@@ -107,10 +108,22 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   if (!skip_check)
     result= thd->net.last_errno ? -1 : 0;
 
-  embedded_get_error(mysql);
+  if (!mysql->field_count)
+    embedded_get_error(mysql);
   mysql->server_status= thd->server_status;
   mysql->warning_count= ((THD*)mysql->thd)->total_warn_count;
   return result;
+}
+
+static void emb_flush_use_result(MYSQL *mysql)
+{
+  MYSQL_DATA *data= ((THD*)(mysql->thd))->data;
+
+  if (data)
+  {
+    free_rows(data);
+    ((THD*)(mysql->thd))->data= NULL;
+  }
 }
 
 static MYSQL_DATA *
@@ -118,6 +131,9 @@ emb_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields __attribute__((unused)),
 	      unsigned int fields __attribute__((unused)))
 {
   MYSQL_DATA *result= ((THD*)mysql->thd)->data;
+  embedded_get_error(mysql);
+  if (mysql->net.last_errno)
+    return NULL;
   if (!result)
   {
     if (!(result=(MYSQL_DATA*) my_malloc(sizeof(MYSQL_DATA),
@@ -227,6 +243,9 @@ int emb_read_binary_rows(MYSQL_STMT *stmt)
 int emb_unbuffered_fetch(MYSQL *mysql, char **row)
 {
   MYSQL_DATA *data= ((THD*)mysql->thd)->data;
+  embedded_get_error(mysql);
+  if (mysql->net.last_errno)
+    return mysql->net.last_errno;
   if (!data || !data->data)
   {
     *row= NULL;
@@ -293,6 +312,7 @@ MYSQL_METHODS embedded_methods=
   emb_read_rows,
   emb_mysql_store_result,
   emb_fetch_lengths, 
+  emb_flush_use_result,
   emb_list_fields,
   emb_read_prepare_result,
   emb_stmt_execute,
