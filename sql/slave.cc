@@ -102,35 +102,37 @@ static TABLE_RULE_ENT* find_wild(DYNAMIC_ARRAY *a, const char* key, int len)
 
 int tables_ok(THD* thd, TABLE_LIST* tables)
 {
-  for(; tables; tables = tables->next)
+  for (; tables; tables = tables->next)
+  {
+    if (!tables->updating) 
+      continue;
+    char hash_key[2*NAME_LEN+2];
+    char* p;
+    p = strmov(hash_key, tables->db ? tables->db : thd->db);
+    *p++ = '.';
+    uint len = strmov(p, tables->real_name) - hash_key ;
+    if (do_table_inited) // if there are any do's
     {
-      if(!tables->updating) 
-	continue;
-      char hash_key[2*NAME_LEN+2];
-      char* p;
-      p = strmov(hash_key, tables->db ? tables->db : thd->db);
-      *p++ = '.';
-      uint len = strmov(p, tables->real_name) - hash_key ;
-      if(do_table_inited) // if there are any do's
-	{
-	  if(hash_search(&replicate_do_table, (byte*) hash_key, len))
-	    return 1;
-	}
-      if(ignore_table_inited) // if there are any do's
-	{
-	  if(hash_search(&replicate_ignore_table, (byte*) hash_key, len))
-	    return 0; 
-	}
-      if(wild_do_table_inited && find_wild(&replicate_wild_do_table,
-					   hash_key, len)) return 1;
-      if(wild_ignore_table_inited && find_wild(&replicate_wild_ignore_table,
-					   hash_key, len)) return 0;
+      if (hash_search(&replicate_do_table, (byte*) hash_key, len))
+	return 1;
     }
+    if (ignore_table_inited) // if there are any do's
+    {
+      if (hash_search(&replicate_ignore_table, (byte*) hash_key, len))
+	return 0; 
+    }
+    if (wild_do_table_inited && find_wild(&replicate_wild_do_table,
+					  hash_key, len))
+      return 1;
+    if (wild_ignore_table_inited && find_wild(&replicate_wild_ignore_table,
+					      hash_key, len))
+      return 0;
+  }
 
-  return !do_table_inited && !wild_do_table_inited;
   // if no explicit rule found
   // and there was a do list, do not replicate. If there was
   // no do list, go ahead
+  return !do_table_inited && !wild_do_table_inited;
 }
 
 
@@ -138,8 +140,8 @@ int add_table_rule(HASH* h, const char* table_spec)
 {
   const char* dot = strchr(table_spec, '.');
   if(!dot) return 1;
+  // len is always > 0 because we know the there exists a '.'
   uint len = (uint)strlen(table_spec);
-  if(!len) return 1;
   TABLE_RULE_ENT* e = (TABLE_RULE_ENT*)my_malloc(sizeof(TABLE_RULE_ENT)
 						 + len, MYF(MY_WME));
   if(!e) return 1;
@@ -156,7 +158,6 @@ int add_wild_table_rule(DYNAMIC_ARRAY* a, const char* table_spec)
   const char* dot = strchr(table_spec, '.');
   if(!dot) return 1;
   uint len = (uint)strlen(table_spec);
-  if(!len) return 1;
   TABLE_RULE_ENT* e = (TABLE_RULE_ENT*)my_malloc(sizeof(TABLE_RULE_ENT)
 						 + len, MYF(MY_WME));
   if(!e) return 1;
@@ -174,7 +175,7 @@ static void free_string_array(DYNAMIC_ARRAY *a)
   for(i = 0; i < a->elements; i++)
     {
       char* p;
-      get_dynamic(a, (gptr)&p, i);
+      get_dynamic(a, (gptr) &p, i);
       my_free(p, MYF(MY_WME));
     }
   delete_dynamic(a);
@@ -227,9 +228,10 @@ int db_ok(const char* db, I_List<i_string> &do_list,
   if(do_list.is_empty() && ignore_list.is_empty())
     return 1; // ok to replicate if the user puts no constraints
 
-  if(!db)
-    return 0; // if the user has specified restrictions on which databases to replicate
+  // if the user has specified restrictions on which databases to replicate
   // and db was not selected, do not replicate
+  if(!db)
+    return 0;
 
   if(!do_list.is_empty()) // if the do's are not empty
     {
@@ -255,49 +257,49 @@ int db_ok(const char* db, I_List<i_string> &do_list,
 	}
       
       return 1;
-      
     }
 }
 
 static int init_strvar_from_file(char* var, int max_size, IO_CACHE* f,
 			       char* default_val)
 {
-
-  if(my_b_gets(f,var, max_size)) 
+  uint length;
+  if ((length=my_b_gets(f,var, max_size)))
+  {
+    char* last_p = var + length -1;
+    if (*last_p == '\n')
+      *last_p = 0; // if we stopped on newline, kill it
+    else
     {
-      char* last_p = strend(var) - 1;
-      int c;
-      if(*last_p == '\n') *last_p = 0; // if we stopped on newline, kill it
-      else
-	while( ((c=my_b_get(f)) != '\n' && c != my_b_EOF));
       // if we truncated a line or stopped on last char, remove all chars
       // up to and including newline
-      return 0;
+      int c;
+      while( ((c=my_b_get(f)) != '\n' && c != my_b_EOF));
     }
-  else if(default_val)
-    {
-      strmake(var,  default_val, max_size);
-      return 0;
-    }
-  
+    return 0;
+  }
+  else if (default_val)
+  {
+    strmake(var,  default_val, max_size);
+    return 0;
+  }
   return 1;
 }
 
-static int init_intvar_from_file(int* var, IO_CACHE* f,
-			       int default_val)
+static int init_intvar_from_file(int* var, IO_CACHE* f, int default_val)
 {
   char buf[32];
   
-  if(my_b_gets(f, buf, sizeof(buf))) 
-    {
-      *var = atoi(buf);
-      return 0;
-    }
+  if (my_b_gets(f, buf, sizeof(buf))) 
+  {
+    *var = atoi(buf);
+    return 0;
+  }
   else if(default_val)
-    {
-     *var = default_val;
-     return 0;
-    }
+  {
+    *var = default_val;
+    return 0;
+  }
   return 1;
 }
 
@@ -334,41 +336,41 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   thd->query_error = 0;
   thd->net.no_send_ok = 1;
   thd->proc_info = "Creating table from master dump";
+  // save old db in case we are creating in a different database
   char* save_db = thd->db;
-  thd->db = thd->last_nx_db; // in case we are creating in a different
-  // database
+  thd->db = thd->last_nx_db;
   mysql_parse(thd, thd->query, packet_len); // run create table
   thd->db = save_db; // leave things the way the were before
   
   if(thd->query_error)
-    {
-      close_thread_tables(thd); // mysql_parse takes care of the error send
-      return 1;
-    }
+  {
+    close_thread_tables(thd); // mysql_parse takes care of the error send
+    return 1;
+  }
 
   bzero((char*) &tables,sizeof(tables));
   tables.db = (char*)db;
   tables.name = tables.real_name = (char*)table_name;
   tables.lock_type = TL_WRITE;
   thd->proc_info = "Opening master dump table";
-  if(!open_ltable(thd, &tables, TL_WRITE))
-    {
-      // open tables will send the error
-      sql_print_error("create_table_from_dump: could not open created table");
-      close_thread_tables(thd);
-      return 1;
-    }
+  if (!open_ltable(thd, &tables, TL_WRITE))
+  {
+    // open tables will send the error
+    sql_print_error("create_table_from_dump: could not open created table");
+    close_thread_tables(thd);
+    return 1;
+  }
   
   handler *file = tables.table->file;
   thd->proc_info = "Reading master dump table data";
-  if(file->net_read_dump(net))
-    {
-      net_printf(&thd->net, ER_MASTER_NET_READ);
-      sql_print_error("create_table_from_dump::failed in\
+  if (file->net_read_dump(net))
+  {
+    net_printf(&thd->net, ER_MASTER_NET_READ);
+    sql_print_error("create_table_from_dump::failed in\
  handler::net_read_dump()");
-      close_thread_tables(thd);
-      return 1;
-    }
+    close_thread_tables(thd);
+    return 1;
+  }
 
   HA_CHECK_OPT check_opt;
   check_opt.init();
@@ -376,14 +378,15 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   check_opt.quick = 1;
   thd->proc_info = "rebuilding the index on master dump table";
   Vio* save_vio = thd->net.vio;
-  thd->net.vio = 0; // we do not want repair() to spam us with messages
+  // we do not want repair() to spam us with messages
   // just send them to the error log, and report the failure in case of
   // problems
-  if(file->repair(thd,&check_opt ))
-    {
+  thd->net.vio = 0;
+  if (file->repair(thd,&check_opt ))
+  {
       net_printf(&thd->net, ER_INDEX_REBUILD,tables.table->real_name );
       error = 1;
-    }
+  }
   thd->net.vio = save_vio;
   close_thread_tables(thd);
   
@@ -423,15 +426,12 @@ int fetch_nx_table(THD* thd, MASTER_INFO* mi)
     }
   
   error = 0;
+
  err:
-  if(mysql)
-    {
-     mc_mysql_close(mysql);
-     mysql = 0;
-    }
-  if(nx_errno && thd->net.vio)
+  if (mysql)
+    mc_mysql_close(mysql);
+  if (nx_errno && thd->net.vio)
     send_error(&thd->net, nx_errno, "Error in fetch_nx_table");
-  
   return error;
 }
 
@@ -448,13 +448,13 @@ void end_master_info(MASTER_INFO* mi)
 
 int init_master_info(MASTER_INFO* mi)
 {
-  if(mi->inited)
+  if (mi->inited)
     return 0;
-  int fd;
+  int fd,length,error;
   MY_STAT stat_area;
   char fname[FN_REFLEN+128];
+  const char *msg;
   fn_format(fname, master_info_file, mysql_data_home, "", 4+16+32);
-  
 
   // we need a mutex while we are changing master info parameters to
   // keep other threads from reading bogus info
@@ -463,101 +463,95 @@ int init_master_info(MASTER_INFO* mi)
   mi->pending = 0;
   fd = mi->fd;
   
-  if(!my_stat(fname, &stat_area, MYF(0))) // we do not want any messages
-    // if the file does not exist
-    {
-      // if someone removed the file from underneath our feet, just close
-      // the old descriptor and re-create the old file
-      if(fd >= 0) my_close(fd, MYF(MY_WME));
-      if((fd = my_open(fname, O_CREAT|O_RDWR|O_BINARY, MYF(MY_WME))) < 0
-	  || init_io_cache(&mi->file, fd, IO_SIZE*2, READ_CACHE, 0L,0,
-			   MYF(MY_WME)))
-	{
-	  if(fd >= 0)
-	    my_close(fd, MYF(0));
-	  pthread_mutex_unlock(&mi->lock);
-	  return 1;
-	}
-      mi->log_file_name[0] = 0;
-      mi->pos = 4; // skip magic number
-      mi->fd = fd;
-      
-      if(master_host)
-        strmake(mi->host, master_host, sizeof(mi->host) - 1);
-      if(master_user)
-        strmake(mi->user, master_user, sizeof(mi->user) - 1);
-      if(master_password)
-        strmake(mi->password, master_password, sizeof(mi->password) - 1);
-      mi->port = master_port;
-      mi->connect_retry = master_connect_retry;
-      
-    }
-  else // file exists
+  // we do not want any messages if the file does not exist
+  if (!my_stat(fname, &stat_area, MYF(0)))
+  {
+    // if someone removed the file from underneath our feet, just close
+    // the old descriptor and re-create the old file
+    if (fd >= 0)
+      my_close(fd, MYF(MY_WME));
+    if ((fd = my_open(fname, O_CREAT|O_RDWR|O_BINARY, MYF(MY_WME))) < 0
+	|| init_io_cache(&mi->file, fd, IO_SIZE*2, READ_CACHE, 0L,0,
+			 MYF(MY_WME)))
     {
       if(fd >= 0)
-	reinit_io_cache(&mi->file, READ_CACHE, 0L,0,0);
-      else if((fd = my_open(fname, O_RDWR|O_BINARY, MYF(MY_WME))) < 0
-	  || init_io_cache(&mi->file, fd, IO_SIZE*2, READ_CACHE, 0L,
-			   0, MYF(MY_WME)))
-	{
-	  if(fd >= 0)
-	    my_close(fd, MYF(0));
-	  pthread_mutex_unlock(&mi->lock);
-	  return 1;
-	}
-      
-      if(!my_b_gets(&mi->file, mi->log_file_name, sizeof(mi->log_file_name)))
-	{
-	  sql_print_error("Error reading log file name from master info file ");
-	  end_io_cache(&mi->file);
-	  my_close(fd, MYF(0));
-	  pthread_mutex_unlock(&mi->lock);
-          return 1;
-	}
-
-      *(strend(mi->log_file_name) - 1) = 0; // kill \n
-      char buf[FN_REFLEN];
-      if(!my_b_gets(&mi->file, buf, sizeof(buf)))
-	{
-	  sql_print_error("Error reading log file position from master info file");
-	  end_io_cache(&mi->file);
-	  my_close(fd, MYF(0));
-	  pthread_mutex_unlock(&mi->lock);
-	  return 1;
-	}
-
-      mi->pos = strtoull(buf,(char**) 0, 10);
-      mi->fd = fd;
-      if(init_strvar_from_file(mi->host, sizeof(mi->host), &mi->file,
-			    master_host) ||
-         init_strvar_from_file(mi->user, sizeof(mi->user), &mi->file,
-			    master_user) || 
-         init_strvar_from_file(mi->password, sizeof(mi->password), &mi->file,
-			 master_password) ||
-         init_intvar_from_file((int*)&mi->port, &mi->file, master_port) ||
-         init_intvar_from_file((int*)&mi->connect_retry, &mi->file,
-			       master_connect_retry))
-	{
-	  sql_print_error("Error reading master configuration");
-	  end_io_cache(&mi->file);
-	  my_close(fd, MYF(0));
-	  pthread_mutex_unlock(&mi->lock);
-	  return 1;
-	}
+	my_close(fd, MYF(0));
+      pthread_mutex_unlock(&mi->lock);
+      return 1;
     }
+    mi->log_file_name[0] = 0;
+    mi->pos = 4; // skip magic number
+    mi->fd = fd;
+      
+    if (master_host)
+      strmake(mi->host, master_host, sizeof(mi->host) - 1);
+    if (master_user)
+      strmake(mi->user, master_user, sizeof(mi->user) - 1);
+    if (master_password)
+      strmake(mi->password, master_password, sizeof(mi->password) - 1);
+    mi->port = master_port;
+    mi->connect_retry = master_connect_retry;
+  }
+  else // file exists
+  {
+    if(fd >= 0)
+      reinit_io_cache(&mi->file, READ_CACHE, 0L,0,0);
+    else if((fd = my_open(fname, O_RDWR|O_BINARY, MYF(MY_WME))) < 0
+	    || init_io_cache(&mi->file, fd, IO_SIZE*2, READ_CACHE, 0L,
+			     0, MYF(MY_WME)))
+    {
+      if(fd >= 0)
+	my_close(fd, MYF(0));
+      pthread_mutex_unlock(&mi->lock);
+      return 1;
+    }
+      
+    if (!(length=my_b_gets(&mi->file, mi->log_file_name,
+			   sizeof(mi->log_file_name))))
+    {
+      msg="Error reading log file name from master info file ";
+      goto error;
+    }
+
+    mi->log_file_name[length]= 0; // kill \n
+    char buf[FN_REFLEN];
+    if(!my_b_gets(&mi->file, buf, sizeof(buf)))
+    {
+      msg="Error reading log file position from master info file";
+      goto error;
+    }
+
+    mi->pos = strtoull(buf,(char**) 0, 10);
+    mi->fd = fd;
+    if(init_strvar_from_file(mi->host, sizeof(mi->host), &mi->file,
+			     master_host) ||
+       init_strvar_from_file(mi->user, sizeof(mi->user), &mi->file,
+			     master_user) || 
+       init_strvar_from_file(mi->password, sizeof(mi->password), &mi->file,
+			     master_password) ||
+       init_intvar_from_file((int*)&mi->port, &mi->file, master_port) ||
+       init_intvar_from_file((int*)&mi->connect_retry, &mi->file,
+			     master_connect_retry))
+    {
+      msg="Error reading master configuration";
+      goto error;
+    }
+  }
   
   mi->inited = 1;
   // now change the cache from READ to WRITE - must do this
   // before flush_master_info
   reinit_io_cache(&mi->file, WRITE_CACHE, 0L,0,1);
-  if(flush_master_info(mi))
-    {
-      pthread_mutex_unlock(&mi->lock);
-      return 1;
-    }
+  error=test(flush_master_info(mi));
   pthread_mutex_unlock(&mi->lock);
-  
-  return 0;
+  return error;
+
+error:
+  sql_print_error(msg);
+  end_io_cache(&mi->file);
+  my_close(fd, MYF(0));
+  pthread_mutex_unlock(&mi->lock);
+  return 1;
 }
 
 int show_master_info(THD* thd)
@@ -588,7 +582,7 @@ int show_master_info(THD* thd)
   net_store_data(packet, (uint32) glob_mi.port);
   net_store_data(packet, (uint32) glob_mi.connect_retry);
   net_store_data(packet, glob_mi.log_file_name);
-  net_store_data(packet, (longlong)glob_mi.pos);
+  net_store_data(packet, (longlong) glob_mi.pos);
   pthread_mutex_unlock(&glob_mi.lock);
   pthread_mutex_lock(&LOCK_slave);
   net_store_data(packet, slave_running ? "Yes":"No");
@@ -596,7 +590,7 @@ int show_master_info(THD* thd)
   net_store_data(packet, &replicate_do_db);
   net_store_data(packet, &replicate_ignore_db);
   
-  if(my_net_write(&thd->net, (char*)thd->packet.ptr(), packet->length()))
+  if (my_net_write(&thd->net, (char*)thd->packet.ptr(), packet->length()))
     DBUG_RETURN(-1);
 
   send_eof(&thd->net);
@@ -610,50 +604,51 @@ int flush_master_info(MASTER_INFO* mi)
   
   my_b_seek(file, 0L);
   my_b_printf(file, "%s\n%s\n%s\n%s\n%s\n%d\n%d\n",
-        mi->log_file_name, llstr(mi->pos, lbuf), mi->host, mi->user, mi->password,
-	     mi->port, mi->connect_retry);
+	      mi->log_file_name, llstr(mi->pos, lbuf), mi->host, mi->user,
+	      mi->password, mi->port, mi->connect_retry);
   flush_io_cache(file);
   return 0;
 }
 
 int st_master_info::wait_for_pos(THD* thd, String* log_name, ulong log_pos)
 {
-  if(!inited) return -1;
-  bool pos_reached = 0;
+  if (!inited) return -1;
+  bool pos_reached;
   int event_count = 0;
-  for(;!pos_reached && !thd->killed;)
+  pthread_mutex_lock(&lock);
+  do
+  {
+    int cmp_result;
+    if (*log_file_name)
     {
-      int cmp_result;
-      char* basename;
-      pthread_mutex_lock(&lock);
-      if(*log_file_name)
-	{
-	  basename = strrchr(log_file_name, FN_LIBCHAR);
-	  if(basename)
-	    ++basename;
-	  else
-	    basename = log_file_name;
-          cmp_result =  strncmp(basename, log_name->ptr(),
-			       log_name->length());
-	}
+      /*
+	We should use dirname_length() here when we have a version of
+	this that doesn't modify the argument */
+      char *basename = strrchr(log_file_name, FN_LIBCHAR);
+      if (basename)
+	++basename;
       else
-	cmp_result = 0;
-      
-      pos_reached = ((!cmp_result && pos >= log_pos) || cmp_result > 0);
-      if(!pos_reached && !thd->killed)
-	{
-	  const char* msg = thd->enter_cond(&cond, &lock,
-				       "Waiting for master update");
-          pthread_cond_wait(&cond, &lock);
-	  thd->exit_cond(msg);
-	  event_count++;
-	}
-      pthread_mutex_unlock(&lock);
-      if(thd->killed)
-	return -1;
+	basename = log_file_name;
+      cmp_result =  strncmp(basename, log_name->ptr(),
+			    log_name->length());
     }
-
-  return event_count;
+    else
+      cmp_result = 0;
+      
+    pos_reached = ((!cmp_result && pos >= log_pos) || cmp_result > 0);
+    if (pos_reached || thd->killed)
+      break;
+    {
+      const char* msg = thd->enter_cond(&cond, &lock,
+					"Waiting for master update");
+      pthread_cond_wait(&cond, &lock);
+      thd->exit_cond(msg);
+      event_count++;
+      pos_reached = (pos >= log_pos);
+    }
+  } while (!pos_reached && !thd->killed);
+  pthread_mutex_unlock(&lock);
+  return thd->killed ? -1 : event_count;
 }
 
 
@@ -715,12 +710,17 @@ static int safe_sleep(THD* thd, int sec)
   while (start_time < end_time)
   {
     int nap_time = (int) (end_time - start_time);
-    thr_alarm(&alarmed, 2 * nap_time,&alarm_buff); // the only reason we are asking for alarm is so that
-    // we will be woken up in case of murder, so if we do not get killed, set the alarm
-    // so it goes off after we wake up naturally
+    /*
+      the only reason we are asking for alarm is so that
+      we will be woken up in case of murder, so if we do not get killed,
+      set the alarm so it goes off after we wake up naturally
+    */
+    thr_alarm(&alarmed, 2 * nap_time,&alarm_buff);
     sleep(nap_time);
-    if (thr_alarm_in_use(&alarmed)) // if we wake up before the alarm goes off, hit the button
-      thr_end_alarm(&alarmed);     // so it will not wake up the wife and kids :-)
+    // if we wake up before the alarm goes off, hit the button
+    // so it will not wake up the wife and kids :-)
+    if (thr_alarm_in_use(&alarmed))
+      thr_end_alarm(&alarmed);
     
     if (slave_killed(thd))
       return 1;
@@ -741,15 +741,15 @@ static int request_dump(MYSQL* mysql, MASTER_INFO* mi)
   int4store(buf + 6, server_id);
   len = (uint) strlen(logname);
   memcpy(buf + 10, logname,len);
-  if(mc_simple_command(mysql, COM_BINLOG_DUMP, buf, len + 10, 1))
-	// something went wrong, so we will just reconnect and retry later
-	// in the future, we should do a better error analysis, but for
-	// now we just fill up the error log :-)
-    {
-      sql_print_error("Error on COM_BINLOG_DUMP: %s, will retry in %d secs",
-			  mc_mysql_error(mysql), master_connect_retry);
-      return 1;
-    }
+  if (mc_simple_command(mysql, COM_BINLOG_DUMP, buf, len + 10, 1))
+  {
+    // something went wrong, so we will just reconnect and retry later
+    // in the future, we should do a better error analysis, but for
+    // now we just fill up the error log :-)
+    sql_print_error("Error on COM_BINLOG_DUMP: %s, will retry in %d secs",
+		    mc_mysql_error(mysql), master_connect_retry);
+    return 1;
+  }
 
   return 0;
 }
@@ -772,12 +772,12 @@ static int request_table_dump(MYSQL* mysql, char* db, char* table)
   *p++ = table_len;
   memcpy(p, table, table_len);
   
-  if(mc_simple_command(mysql, COM_TABLE_DUMP, buf, p - buf + table_len, 1))
-    {
-      sql_print_error("request_table_dump: Error sending the table dump \
+  if (mc_simple_command(mysql, COM_TABLE_DUMP, buf, p - buf + table_len, 1))
+  {
+    sql_print_error("request_table_dump: Error sending the table dump \
 command");
-      return 1;
-    }
+    return 1;
+  }
 
   return 0;
 }
@@ -786,21 +786,24 @@ command");
 static uint read_event(MYSQL* mysql, MASTER_INFO *mi)
 {
   uint len = packet_error;
-  int read_errno = EINTR; // for convinience lets think we start by
+  // for convinience lets think we start by
   // being in the interrupted state :-)
+  int read_errno = EINTR;
+
   // my_real_read() will time us out
   // we check if we were told to die, and if not, try reading again
 #ifndef DBUG_OFF
-  if(disconnect_slave_event_count && !(events_till_disconnect--))
+  if (disconnect_slave_event_count && !(events_till_disconnect--))
     return packet_error;      
 #endif
   
-  while (!abort_loop && !abort_slave && len == packet_error && read_errno == EINTR )
+  while (!abort_loop && !abort_slave && len == packet_error &&
+	 read_errno == EINTR )
   {
     len = mc_net_safe_read(mysql);
     read_errno = errno;
   }
-  if(abort_loop || abort_slave)
+  if (abort_loop || abort_slave)
     return packet_error;
   if (len == packet_error || (int) len < 1)
   {
@@ -810,17 +813,16 @@ server_errno=%d)",
     return packet_error;
   }
 
-  if(len == 1)
-    {
+  if (len == 1)
+  {
      sql_print_error("Slave: received 0 length packet from server, apparent\
  master shutdown: %s (%d)",
-		    mc_mysql_error(mysql), read_errno);
+		     mc_mysql_error(mysql), read_errno);
      return packet_error;
-    }
+  }
   
   DBUG_PRINT("info",( "len=%u, net->read_pos[4] = %d\n",
 		      len, mysql->net.read_pos[4]));
-
   return len - 1;   
 }
 
@@ -833,30 +835,29 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
   if (ev)
   {
     int type_code = ev->get_type_code();
-    if(ev->server_id == ::server_id)
-      {
-	if(type_code == LOAD_EVENT)
-	  skip_load_data_infile(net);
+    if (ev->server_id == ::server_id)
+    {
+      if(type_code == LOAD_EVENT)
+	skip_load_data_infile(net);
 	
-	mi->inc_pos(event_len);
-	flush_master_info(mi);
-	delete ev;     
-	return 0; // avoid infinite update loops
-      }
+      mi->inc_pos(event_len);
+      flush_master_info(mi);
+      delete ev;     
+      return 0;					// avoid infinite update loops
+    }
   
     thd->server_id = ev->server_id; // use the original server id for logging
-    thd->set_time(); // time the query
+    thd->set_time();				// time the query
     ev->when = time(NULL);
     
-    switch(type_code)
-    {
+    switch(type_code) {
     case QUERY_EVENT:
     {
       Query_log_event* qev = (Query_log_event*)ev;
       int q_len = qev->q_len;
       init_sql_alloc(&thd->mem_root, 8192,0);
       thd->db = rewrite_db((char*)qev->db);
-      if(db_ok(thd->db, replicate_do_db, replicate_ignore_db))
+      if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
       {
 	thd->query = (char*)qev->query;
 	thd->set_time((time_t)qev->when);
@@ -865,29 +866,29 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	thd->query_id = query_id++;
 	VOID(pthread_mutex_unlock(&LOCK_thread_count));
 	thd->last_nx_table = thd->last_nx_db = 0;
-	thd->query_error = 0; // clear error
+	thd->query_error = 0;			// clear error
 	thd->net.last_errno = 0;
 	thd->net.last_error[0] = 0;
-	thd->slave_proxy_id = qev->thread_id; // for temp tables
+	thd->slave_proxy_id = qev->thread_id;	// for temp tables
 	mysql_parse(thd, thd->query, q_len);
 	int expected_error,actual_error;
-	if((expected_error = qev->error_code) !=
-	   (actual_error = thd->net.last_errno) && expected_error)
-	  {
-	    sql_print_error("Slave: did not get the expected error\
+	if ((expected_error = qev->error_code) !=
+	    (actual_error = thd->net.last_errno) && expected_error)
+	{
+	  sql_print_error("Slave: did not get the expected error\
  running query from master - expected: '%s', got '%s'",
-			    ER(expected_error),
-			    actual_error ? ER(actual_error):"no error"
-			    );
-	    thd->query_error = 1;
-	  }
-	else if(expected_error == actual_error)
+			  ER(expected_error),
+			  actual_error ? ER(actual_error):"no error"
+			  );
+	  thd->query_error = 1;
+	}
+	else if (expected_error == actual_error)
 	  thd->query_error = 0;
       }
-      thd->db = 0;// prevent db from being freed
-      thd->query = 0; // just to be sure
-      thd->convert_set = 0; // assume no convert for next query
-      // unless set explictly
+      thd->db = 0;				// prevent db from being freed
+      thd->query = 0;				// just to be sure
+      // assume no convert for next query unless set explictly
+      thd->convert_set = 0;
       close_thread_tables(thd);
       
       if (thd->query_error || thd->fatal_error)
@@ -929,69 +930,70 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	tables.lock_type = TL_WRITE;
 	// the table will be opened in mysql_load    
         if(table_rules_on && !tables_ok(thd, &tables))
-	  {
-	    skip_load_data_infile(net);
-	  }
+	{
+	  skip_load_data_infile(net);
+	}
 	else
-	  {
-	    enum enum_duplicates handle_dup = DUP_IGNORE;
-	    if(lev->sql_ex.opt_flags && REPLACE_FLAG)
-	      handle_dup = DUP_REPLACE;
-	    sql_exchange ex((char*)lev->fname, lev->sql_ex.opt_flags &&
-			    DUMPFILE_FLAG );
-	    String field_term(&lev->sql_ex.field_term, 1),
-	      enclosed(&lev->sql_ex.enclosed, 1),
-	      line_term(&lev->sql_ex.line_term,1),
-	      escaped(&lev->sql_ex.escaped, 1),
-	      line_start(&lev->sql_ex.line_start, 1);
+	{
+	  enum enum_duplicates handle_dup = DUP_IGNORE;
+	  if(lev->sql_ex.opt_flags && REPLACE_FLAG)
+	    handle_dup = DUP_REPLACE;
+	  sql_exchange ex((char*)lev->fname, lev->sql_ex.opt_flags &&
+			  DUMPFILE_FLAG );
+	  String field_term(&lev->sql_ex.field_term, 1),
+	    enclosed(&lev->sql_ex.enclosed, 1),
+	    line_term(&lev->sql_ex.line_term,1),
+	    escaped(&lev->sql_ex.escaped, 1),
+	    line_start(&lev->sql_ex.line_start, 1);
 	    
-	    ex.field_term = &field_term;
-	    if(lev->sql_ex.empty_flags & FIELD_TERM_EMPTY)
-	      ex.field_term->length(0);
+	  ex.field_term = &field_term;
+	  if(lev->sql_ex.empty_flags & FIELD_TERM_EMPTY)
+	    ex.field_term->length(0);
 	    
-	    ex.enclosed = &enclosed;
-	    if(lev->sql_ex.empty_flags & ENCLOSED_EMPTY)
-	      ex.enclosed->length(0);
+	  ex.enclosed = &enclosed;
+	  if(lev->sql_ex.empty_flags & ENCLOSED_EMPTY)
+	    ex.enclosed->length(0);
 
-	    ex.line_term = &line_term;
-	    if(lev->sql_ex.empty_flags & LINE_TERM_EMPTY)
-	      ex.line_term->length(0);
+	  ex.line_term = &line_term;
+	  if(lev->sql_ex.empty_flags & LINE_TERM_EMPTY)
+	    ex.line_term->length(0);
 
-	    ex.line_start = &line_start;
-	    if(lev->sql_ex.empty_flags & LINE_START_EMPTY)
-	      ex.line_start->length(0);
+	  ex.line_start = &line_start;
+	  if(lev->sql_ex.empty_flags & LINE_START_EMPTY)
+	    ex.line_start->length(0);
 
-	    ex.escaped = &escaped;
-	    if(lev->sql_ex.empty_flags & ESCAPED_EMPTY)
-	      ex.escaped->length(0);
+	  ex.escaped = &escaped;
+	  if(lev->sql_ex.empty_flags & ESCAPED_EMPTY)
+	    ex.escaped->length(0);
 
-	    ex.opt_enclosed = (lev->sql_ex.opt_flags & OPT_ENCLOSED_FLAG);
-	    if(lev->sql_ex.empty_flags & FIELD_TERM_EMPTY)
-	      ex.field_term->length(0);
+	  ex.opt_enclosed = (lev->sql_ex.opt_flags & OPT_ENCLOSED_FLAG);
+	  if(lev->sql_ex.empty_flags & FIELD_TERM_EMPTY)
+	    ex.field_term->length(0);
 	    
-	    ex.skip_lines = lev->skip_lines;
+	  ex.skip_lines = lev->skip_lines;
 	    
 
-	    List<Item> fields;
-	    lev->set_fields(fields);
-	    thd->slave_proxy_id = thd->thread_id;
-	    thd->net.vio = net->vio;
-	    // mysql_load will use thd->net to read the file
-	    thd->net.pkt_nr = net->pkt_nr;
-	    // make sure the client does get confused
-	    // about the packet sequence
-	    if(mysql_load(thd, &ex, &tables, fields, handle_dup, 1,
-			  TL_WRITE))
-	      thd->query_error = 1;
-	    if(thd->cuted_fields)
-	      sql_print_error("Slave: load data infile at position %d in log \
+	  List<Item> fields;
+	  lev->set_fields(fields);
+	  thd->slave_proxy_id = thd->thread_id;
+	  thd->net.vio = net->vio;
+	  // mysql_load will use thd->net to read the file
+	  thd->net.pkt_nr = net->pkt_nr;
+	  // make sure the client does get confused
+	  // about the packet sequence
+	  if(mysql_load(thd, &ex, &tables, fields, handle_dup, 1,
+			TL_WRITE))
+	    thd->query_error = 1;
+	  if(thd->cuted_fields)
+	    sql_print_error("Slave: load data infile at position %d in log \
 '%s' produced %d warning(s)", glob_mi.pos, RPL_LOG_NAME, thd->cuted_fields );
-	    net->pkt_nr = thd->net.pkt_nr;
-	  }
+	  net->pkt_nr = thd->net.pkt_nr;
+	}
       }
-      else // we will just ask the master to send us /dev/null if we do not want to
-	// load the data :-)
+      else
       {
+	// we will just ask the master to send us /dev/null if we do not
+	// want to load the data :-)
 	skip_load_data_infile(net);
       }
 	    
@@ -1077,7 +1079,6 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       break;
     }
     }
-                  
   }
   else
   {
@@ -1099,13 +1100,13 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
   MYSQL *mysql = NULL ;
 
   pthread_mutex_lock(&LOCK_slave);
-  if(!server_id)
-    {
-     pthread_cond_broadcast(&COND_slave_start);
-     pthread_mutex_unlock(&LOCK_slave);
-     sql_print_error("Server id not set, will not start slave");
-     pthread_exit((void*)1);
-    }
+  if (!server_id)
+  {
+    pthread_cond_broadcast(&COND_slave_start);
+    pthread_mutex_unlock(&LOCK_slave);
+    sql_print_error("Server id not set, will not start slave");
+    pthread_exit((void*)1);
+  }
   
   if(slave_running)
     {
@@ -1125,14 +1126,14 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
   bool retried_once = 0;
   ulonglong last_failed_pos = 0;
   
-  my_thread_init(); // needs to be up here, otherwise we get a coredump
-  // trying to use DBUG_ stuff
+  // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
+  my_thread_init();
   thd = new THD; // note that contructor of THD uses DBUG_ !
   thd->set_time();
   DBUG_ENTER("handle_slave");
 
   pthread_detach_this_thread();
-  if(init_slave_thread(thd) || init_master_info(&glob_mi))
+  if (init_slave_thread(thd) || init_master_info(&glob_mi))
     goto err;
   thd->thread_stack = (char*)&thd; // remember where our stack is
   thd->temporary_tables = save_temporary_tables; // restore temp tables
@@ -1141,12 +1142,12 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
   DBUG_PRINT("info",("master info: log_file_name=%s, position=%d",
 		     glob_mi.log_file_name, glob_mi.pos));
 
-  mysql = mc_mysql_init(NULL);
-  if(!mysql)
-    {
-      sql_print_error("Slave thread: error in mc_mysql_init()");
-      goto err;
-    }
+  
+  if (!(mysql = mc_mysql_init(NULL)))
+  {
+    sql_print_error("Slave thread: error in mc_mysql_init()");
+    goto err;
+  }
   
   thd->proc_info = "connecting to master";
 #ifndef DBUG_OFF  
@@ -1162,8 +1163,8 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
   else
     goto err;
   
-  while(!slave_killed(thd))
-    {
+  while (!slave_killed(thd))
+  {
       thd->proc_info = "requesting binlog dump";
       if(request_dump(mysql, &glob_mi))
 	{
@@ -1255,12 +1256,11 @@ reconnecting to retry, log '%s' position %ld", RPL_LOG_NAME,
 #ifndef DBUG_OFF
 	  else
 	    {
-	      stuck_count++;
-	    // show a little mercy, allow slave to read one more event
-	       // before cutting him off - otherwise he gets stuck
-	       // on Invar events, since they do not advance the offset
-	       // immediately
-	      if(stuck_count > 2)
+	      // show a little mercy, allow slave to read one more event
+	      // before cutting him off - otherwise he gets stuck
+	      // on Invar events, since they do not advance the offset
+	      // immediately
+	      if (++stuck_count > 2)
 	        events_till_disconnect++;
 	    }
 #endif	  
@@ -1276,10 +1276,7 @@ position %ld",
 		  RPL_LOG_NAME, glob_mi.pos);
   thd->query = thd->db = 0; // extra safety
   if(mysql)
-    {
       mc_mysql_close(mysql);
-      mysql = 0;
-    }
   thd->proc_info = "waiting for slave mutex on exit";
   pthread_mutex_lock(&LOCK_slave);
   slave_running = 0;
@@ -1299,8 +1296,10 @@ position %ld",
   DBUG_RETURN(0);				// Can't return anything here
 }
 
+
+/* try to connect until successful or slave killed */
+
 static int safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
-  // will try to connect until successful or slave killed
 {
   int slave_was_killed;
 #ifndef DBUG_OFF
@@ -1322,13 +1321,14 @@ static int safe_connect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
   return slave_was_killed;
 }
 
-// will try to connect until successful or slave killed
+/* try to connect until successful or slave killed */
 
 static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
 {
   int slave_was_killed;
-  mi->pending = 0; // if we lost connection after reading a state set event
+ // if we lost connection after reading a state set event
   // we will be re-reading it, so pending needs to be cleared
+  mi->pending = 0;
 #ifndef DBUG_OFF
   events_till_disconnect = disconnect_slave_event_count;
 #endif
@@ -1346,7 +1346,7 @@ replication resumed in log '%s' at position %ld", glob_mi.user,
 		  glob_mi.host, glob_mi.port,
 		  RPL_LOG_NAME,
 		  glob_mi.pos);
-  
+
   return slave_was_killed;
 }
 
@@ -1354,4 +1354,3 @@ replication resumed in log '%s' at position %ld", glob_mi.user,
 template class I_List_iterator<i_string>;
 template class I_List_iterator<i_string_pair>;
 #endif
-

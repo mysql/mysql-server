@@ -239,7 +239,7 @@ SLAVE_MYSQLD=$MYSQLD #this can be changed later if we are doing gcov
 #--
 wait_for_server_start ()
  {
-   $MYSQL -e "select 1" --silent -w1 --host=127.0.0.1 --port=$1 \
+   $MYSQL --no-defaults -u $DBUSER -e "select 1" --silent -w1 --host=127.0.0.1 --port=$1 \
     >/dev/null
  }
 
@@ -492,7 +492,7 @@ mysql_restart () {
 
 mysql_loadstd () {
     
-    cp $STD_DATA/*.frm $STD_DATA/*.MRG $MASTER_MYDDIR/test  
+    # cp $STD_DATA/*.frm $STD_DATA/*.MRG $MASTER_MYDDIR/test  
     return 1
 }
 

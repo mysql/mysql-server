@@ -311,29 +311,30 @@ sweepstakes if you report the bug";
   // we need to start a packet with something other than 255
   // to distiquish it from error
 
-  if(pos == 4) // tell the client log name with a fake rotate_event
-    // if we are at the start of the log
-    {
-      if(fake_rotate_event(net, packet, log_file_name, &errmsg))
-	goto err;
-      packet->length(0);
-      packet->append("\0", 1);
-    }
+  // tell the client log name with a fake rotate_event
+  // if we are at the start of the log
+  if(pos == 4) 
+  {
+    if (fake_rotate_event(net, packet, log_file_name, &errmsg))
+      goto err;
+    packet->length(0);
+    packet->append("\0", 1);
+  }
 
-  while(!net->error && net->vio != 0 && !thd->killed)
+  while (!net->error && net->vio != 0 && !thd->killed)
   {
     pthread_mutex_t *log_lock = mysql_bin_log.get_log_lock();
       
     while (!(error = Log_event::read_log_event(&log, packet, log_lock)))
     {
-      if(my_net_write(net, (char*)packet->ptr(), packet->length()) )
+      if (my_net_write(net, (char*)packet->ptr(), packet->length()) )
       {
 	errmsg = "Failed on my_net_write()";
 	goto err;
       }
       DBUG_PRINT("info", ("log event code %d",
 			  (*packet)[LOG_EVENT_OFFSET+1] ));
-      if((*packet)[LOG_EVENT_OFFSET+1] == LOAD_EVENT)
+      if ((*packet)[LOG_EVENT_OFFSET+1] == LOAD_EVENT)
       {
 	if(send_file(thd))
 	{
@@ -345,8 +346,7 @@ sweepstakes if you report the bug";
       packet->append("\0",1);
     }
     
-    
-    if(error != LOG_READ_EOF)
+    if (error != LOG_READ_EOF)
     {
       switch(error)
       {
@@ -399,7 +399,8 @@ sweepstakes if you report the bug";
 
 	// no one will update the log while we are reading
 	// now, but we'll be quick and just read one record
-	switch(Log_event::read_log_event(&log, packet, log_lock))
+	pthread_mutex_lock(log_lock);
+	switch (Log_event::read_log_event(&log, packet, (pthread_mutex_t*) 0))
 	{
 	case 0:
 	  read_packet = 1;
@@ -407,15 +408,14 @@ sweepstakes if you report the bug";
 	  // slave
 	  break;
 	case LOG_READ_EOF:
-	  pthread_mutex_lock(log_lock);
 	  pthread_cond_wait(&COND_binlog_update, log_lock);
-	  pthread_mutex_unlock(log_lock);
 	  break;
 
 	default:
 	  fatal_error = 1;
 	  break;
 	}
+	pthread_mutex_unlock(log_lock);
 
 	pthread_mutex_lock(&thd->mysys_var->mutex);
 	thd->mysys_var->current_mutex= 0;

@@ -40712,6 +40712,11 @@ not yet 100 % confident in this code.
 @appendixsubsec Changes in release 3.23.32
 @itemize @bullet
 @item
+Fixed bug in @code{SHOW LOGS} when there wheren't any BDB logs.
+@item
+Fixed a timing problem in replication that could delay sending an update
+to the client until a new update was done.
+@item
 Don't convert field names when using @code{mysql_list_fields()}.  This is
 to keep this code compatible with @code{SHOW FIELDS}.
 @item
