@@ -1777,6 +1777,16 @@ mysql_execute_command(THD *thd)
 	res= mysql_explain_union(thd, &thd->lex.unit, result);
 	MYSQL_LOCK *save_lock= thd->lock;
 	thd->lock= (MYSQL_LOCK *)0;
+	if (lex->describe & DESCRIBE_EXTENDED)
+	{
+	  char buff[1024];
+	  String str(buff,(uint32) sizeof(buff), system_charset_info);
+	  str.length(0);
+	  thd->lex.unit.print(&str);
+	  str.append('\0');
+	  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+		       ER_YES, str.ptr());
+	}
 	result->send_eof();
 	thd->lock= save_lock;
       }
@@ -4687,7 +4697,7 @@ Item * all_any_subquery_creator(Item *left_expr,
     return new Item_func_not(new Item_in_subselect(left_expr, select_lex));
 
   Item_allany_subselect *it=
-    new Item_allany_subselect(left_expr, (*cmp)(all), select_lex);
+    new Item_allany_subselect(left_expr, (*cmp)(all), select_lex, all);
   if (all)
     return it->upper_not= new Item_func_not_all(it);	/* ALL */
 

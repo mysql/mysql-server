@@ -654,6 +654,17 @@ void Item_func_concat_ws::update_used_tables()
   const_item_cache&=separator->const_item();
 }
 
+void Item_func_concat_ws::print(String *str)
+{
+  str->append("concat_ws(", 10);
+  separator->print(str);
+  if (arg_count)
+  {
+    str->append(',');
+    print_args(str);
+  }
+  str->append(')');
+}
 
 String *Item_func_reverse::val_str(String *str)
 {
@@ -1613,6 +1624,19 @@ String *Item_func_format::val_str(String *str)
 }
 
 
+void Item_func_format::print(String *str)
+{
+  str->append("format(", 7);
+  args[0]->print(str);
+  str->append(',');  
+  // latin1 is good enough for numbers
+  char buffer[20];
+  String st(buffer, sizeof(buffer), &my_charset_latin1);
+  st.set((ulonglong)decimals, &my_charset_latin1);
+  str->append(st);
+  str->append(')');
+}
+
 void Item_func_elt::fix_length_and_dec()
 {
   max_length=0;
@@ -1761,6 +1785,19 @@ String *Item_func_make_set::val_str(String *str)
     }
   }
   return result;
+}
+
+
+void Item_func_make_set::print(String *str)
+{
+  str->append("make_set(", 9);
+  item->print(str);
+  if (arg_count)
+  {
+    str->append(',');
+    print_args(str);
+  }
+  str->append(')');
 }
 
 
@@ -2077,7 +2114,14 @@ void Item_func_conv_charset::fix_length_and_dec()
   max_length = args[0]->max_length*conv_charset->mbmaxlen;
 }
 
-
+void Item_func_conv_charset::print(String *str)
+{
+  str->append("convert(", 8);
+  args[0]->print(str);
+  str->append(" using ", 7);
+  str->append(conv_charset->csname);
+  str->append(')');
+}
 
 String *Item_func_conv_charset3::val_str(String *str)
 {
@@ -2268,6 +2312,14 @@ String *Item_func_hex::val_str(String *str)
     to[1]=_dig_vec[tmp & 15];
   }
   return &tmp_value;
+}
+
+
+void Item_func_binary::print(String *str)
+{
+  str->append("cast(", 5);
+  args[0]->print(str);
+  str->append(" as binary)", 11);
 }
 
 

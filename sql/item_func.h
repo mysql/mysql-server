@@ -125,6 +125,7 @@ public:
   virtual void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
   void print(String *str);
   void print_op(String *str);
+  void print_args(String *str);
   void fix_num_length_and_dec();
   inline bool get_arg0_date(TIME *ltime,bool fuzzy_date)
   {
@@ -215,6 +216,7 @@ public:
   longlong val_int() { return args[0]->val_int(); }
   void fix_length_and_dec()
   { max_length=args[0]->max_length; unsigned_flag=0; }
+  void print(String *str);
 };
 
 
@@ -226,6 +228,7 @@ public:
   longlong val_int() { return args[0]->val_int(); }
   void fix_length_and_dec()
   { max_length=args[0]->max_length; unsigned_flag=1; }
+  void print(String *str);
 };
 
 
@@ -607,6 +610,7 @@ public:
   const char *func_name() const { return "locate"; }
   longlong val_int();
   void fix_length_and_dec();
+  void print(String *str);
 };
 
 
@@ -663,6 +667,7 @@ public:
   longlong val_int();
   const char *func_name() const { return "|"; }
   void fix_length_and_dec() { unsigned_flag=1; }
+  void print(String *str) { print_op(str); }
 };
 
 class Item_func_bit_and :public Item_int_func
@@ -672,6 +677,7 @@ public:
   longlong val_int();
   const char *func_name() const { return "&"; }
   void fix_length_and_dec() { unsigned_flag=1; }
+  void print(String *str) { print_op(str); }
 };
 
 class Item_func_bit_count :public Item_int_func
@@ -690,6 +696,7 @@ public:
   longlong val_int();
   const char *func_name() const { return "<<"; }
   void fix_length_and_dec() { unsigned_flag=1; }
+  void print(String *str) { print_op(str); }
 };
 
 class Item_func_shift_right :public Item_int_func
@@ -698,6 +705,7 @@ public:
   Item_func_shift_right(Item *a,Item *b) :Item_int_func(a,b) {}
   longlong val_int();
   const char *func_name() const { return ">>"; }
+  void print(String *str) { print_op(str); }
 };
 
 class Item_func_bit_neg :public Item_int_func
@@ -728,6 +736,7 @@ class Item_func_benchmark :public Item_int_func
   longlong val_int();
   const char *func_name() const { return "benchmark"; }
   void fix_length_and_dec() { max_length=1; maybe_null=0; }
+  void print(String *str);
 };
 
 
@@ -1005,6 +1014,7 @@ public:
   bool eq(const Item *, bool binary_cmp) const;
   longlong val_int() { return val()!=0.0; }
   double val();
+  void print(String *str);
 
   bool fix_index();
   void init_search(bool no_order);
@@ -1018,6 +1028,7 @@ public:
   longlong val_int();
   const char *func_name() const { return "^"; }
   void fix_length_xor_dec() { unsigned_flag=1; }
+  void print(String *str) { print_op(str); }
 };
 
 class Item_func_is_free_lock :public Item_int_func
@@ -1026,7 +1037,7 @@ class Item_func_is_free_lock :public Item_int_func
 public:
   Item_func_is_free_lock(Item *a) :Item_int_func(a) {}
   longlong val_int();
-  const char *func_name() const { return "check_lock"; }
+  const char *func_name() const { return "is_free_lock"; }
   void fix_length_and_dec() { decimals=0; max_length=1; maybe_null=1;}
 };
 

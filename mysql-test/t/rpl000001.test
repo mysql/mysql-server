@@ -62,10 +62,12 @@ enable_query_log;
 # Try to cause a large relay log lag on the slave 
 connection slave;
 select get_lock("hold_slave",10);
+explain extended select get_lock("hold_slave",10);
 start slave;
 #hope this is long enough for I/O thread to fetch over 16K relay log data
 sleep 3;
 select release_lock("hold_slave");
+explain extended select release_lock("hold_slave");
 unlock tables;
 
 connection master;

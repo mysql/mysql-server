@@ -105,7 +105,7 @@ public:
     Item_in_optimizer return NULL, else it evaluate Item_in_subselect.
   */
   longlong val_int();
-  const char *func_name() const { return "IN_OPTIMIZER"; }
+  const char *func_name() const { return "<in_optimizer>"; }
   Item_cache **get_cache() { return &cache; }
 };
 
@@ -162,12 +162,15 @@ class Item_func_not_all :public Item_func_not
 {
   bool abort_on_null;
 public:
-  Item_func_not_all(Item *a) :Item_func_not(a), abort_on_null(0) {}
+  bool show;
+
+  Item_func_not_all(Item *a) :Item_func_not(a), abort_on_null(0), show(0) {}
   virtual void top_level_item() { abort_on_null= 1; }
   bool top_level() { return abort_on_null; }
   longlong val_int();
   enum Functype functype() const { return NOT_ALL_FUNC; }
-  const char *func_name() const { return "not_all"; }
+  const char *func_name() const { return "<not>"; }
+  void print(String *str);
 };
 
 class Item_func_eq :public Item_bool_rowready_func2
@@ -272,6 +275,7 @@ public:
   enum Functype functype() const   { return BETWEEN; }
   const char *func_name() const { return "between"; }
   void fix_length_and_dec();
+  void print(String *str);
 };
 
 
@@ -354,6 +358,7 @@ public:
   enum Item_result result_type () const { return cached_result_type; }
   void fix_length_and_dec();
   const char *func_name() const { return "nullif"; }
+  void print(String *str) { Item_func::print(str); }
   table_map not_null_tables() const { return 0; }
 };
 
@@ -714,7 +719,7 @@ public:
   {}
   enum Functype functype() const { return ISNOTNULLTEST_FUNC; }
   longlong val_int();
-  const char *func_name() const { return "is_not_null_test"; }
+  const char *func_name() const { return "<is_not_null_test>"; }
   void update_used_tables();
 };
 
@@ -733,6 +738,7 @@ public:
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
   table_map not_null_tables() const { return 0; }
   Item *neg_transformer();
+  void print(String *str);
 };
 
 
@@ -785,7 +791,8 @@ public:
   ~Item_func_regex();
   longlong val_int();
   bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
-  const char *func_name() const { return "regex"; }
+  const char *func_name() const { return "regexp"; }
+  void print(String *str) { print_op(str); }
 };
 
 #else
@@ -796,6 +803,7 @@ public:
   Item_func_regex(Item *a,Item *b) :Item_bool_func(a,b) {}
   longlong val_int() { return 0;}
   const char *func_name() const { return "regex"; }
+  void print(String *str) { print_op(str); }
 };
 
 #endif /* USE_REGEX */

@@ -118,6 +118,18 @@ bool Item_row::check_cols(uint c)
   return 0;
 }
 
+void Item_row::print(String *str)
+{
+  str->append('(');
+  for (uint i= 0; i < arg_count; i++)
+  {
+    if (i)
+      str->append(',');
+    items[i]->print(str);
+  }
+  str->append(')');
+}
+
 bool Item_row::walk(Item_processor processor, byte *arg)
 {
   for (uint i= 0; i < arg_count; i++)

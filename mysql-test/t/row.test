@@ -18,6 +18,7 @@ select (1,2,(3,4)) IN ((3,2,(3,4)), (1,2,(3,4)));
 -- error 1240
 select row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,4));
 select row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,row(3,NULL)));
+explain extended select row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,row(3,NULL)));
 
 SELECT (1,2,3)=(0,NULL,3);
 SELECT (1,2,3)=(1,NULL,3);

@@ -285,7 +285,7 @@ public:
   Item_func_unix_timestamp() :Item_int_func() {}
   Item_func_unix_timestamp(Item *a) :Item_int_func(a) {}
   longlong val_int();
-  const char *func_name() const { return "timestamp"; }
+  const char *func_name() const { return "unix_timestamp"; }
   void fix_length_and_dec()
   {
     decimals=0;
@@ -544,12 +544,12 @@ public:
 enum interval_type
 {
   INTERVAL_YEAR, INTERVAL_MONTH, INTERVAL_DAY, INTERVAL_HOUR, INTERVAL_MINUTE,
-  INTERVAL_SECOND, INTERVAL_MICROSECOND ,INTERVAL_YEAR_MONTH, INTERVAL_DAY_HOUR,
-  INTERVAL_DAY_MINUTE, INTERVAL_DAY_SECOND, INTERVAL_HOUR_MINUTE,
-  INTERVAL_HOUR_SECOND, INTERVAL_MINUTE_SECOND, INTERVAL_DAY_MICROSECOND,
-  INTERVAL_HOUR_MICROSECOND, INTERVAL_MINUTE_MICROSECOND, INTERVAL_SECOND_MICROSECOND
+  INTERVAL_SECOND, INTERVAL_MICROSECOND ,INTERVAL_YEAR_MONTH,
+  INTERVAL_DAY_HOUR, INTERVAL_DAY_MINUTE, INTERVAL_DAY_SECOND,
+  INTERVAL_HOUR_MINUTE, INTERVAL_HOUR_SECOND, INTERVAL_MINUTE_SECOND,
+  INTERVAL_DAY_MICROSECOND, INTERVAL_HOUR_MICROSECOND,
+  INTERVAL_MINUTE_MICROSECOND, INTERVAL_SECOND_MICROSECOND
 };
-
 
 class Item_date_add_interval :public Item_date_func
 {
@@ -568,6 +568,7 @@ public:
   double val() { return (double) val_int(); }
   longlong val_int();
   bool get_date(TIME *res,bool fuzzy_date);
+  void print(String *str);
 };
 
 
@@ -583,6 +584,7 @@ class Item_extract :public Item_int_func
   const char *func_name() const { return "extract"; }
   void fix_length_and_dec();
   bool eq(const Item *item, bool binary_cmp) const;
+  void print(String *str);
 };
 
 
@@ -590,7 +592,6 @@ class Item_typecast :public Item_str_func
 {
 public:
   Item_typecast(Item *a) :Item_str_func(a) {}
-  const char *func_name() const { return "char"; }
   String *val_str(String *a)
   {
     String *tmp=args[0]->val_str(a);
@@ -604,6 +605,7 @@ public:
     collation.set(default_charset());
     max_length=args[0]->max_length;
   }
+  virtual const char* cast_type() const= 0;
   void print(String *str);
 };
 
@@ -617,8 +619,10 @@ class Item_char_typecast :public Item_typecast
 public:
   Item_char_typecast(Item *a, int length_arg, CHARSET_INFO *cs_arg)
     :Item_typecast(a), cast_length(length_arg), cast_cs(cs_arg) {}
+  const char* cast_type() const { return "char"; };
   String *val_str(String *a);
   void fix_length_and_dec();
+  void print(String *str);
 };
 
 
@@ -628,7 +632,7 @@ public:
   Item_date_typecast(Item *a) :Item_typecast(a) {}
   String *val_str(String *str);
   bool get_date(TIME *ltime, bool fuzzy_date);
-  const char *func_name() const { return "date"; }
+  const char *cast_type() const { return "date"; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
   Field *tmp_table_field(TABLE *t_arg)
   {
@@ -643,7 +647,7 @@ public:
   Item_time_typecast(Item *a) :Item_typecast(a) {}
   String *val_str(String *str);
   bool get_time(TIME *ltime);
-  const char *func_name() const { return "time"; }
+  const char *cast_type() const { return "time"; }
   enum_field_types field_type() const { return MYSQL_TYPE_TIME; }
   Field *tmp_table_field(TABLE *t_arg)
   {
@@ -657,7 +661,7 @@ class Item_datetime_typecast :public Item_typecast
 public:
   Item_datetime_typecast(Item *a) :Item_typecast(a) {}
   String *val_str(String *str);
-  const char *func_name() const { return "datetime"; }
+  const char *cast_type() const { return "datetime"; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
   Field *tmp_table_field(TABLE *t_arg)
   {
@@ -694,7 +698,6 @@ public:
   Item_func_add_time(Item *a, Item *b, bool type_arg, bool neg_arg)
     :Item_str_func(a, b), is_date(type_arg) { sign= neg_arg ? -1 : 1; }
   String *val_str(String *str);
-  const char *func_name() const { return "addtime"; }
   enum_field_types field_type() const { return cached_field_type; }
   void fix_length_and_dec();
 
@@ -711,6 +714,7 @@ public:
       return (new Field_datetime(maybe_null, name, t_arg, &my_charset_bin));
     return (new Field_string(max_length, maybe_null, name, t_arg, &my_charset_bin));
   }
+  void print(String *str);
 };
 
 class Item_func_timediff :public Item_str_func

@@ -16,6 +16,7 @@ select @test_int,@test_double,@test_string,@test_string2;
 set @test_int=null,@test_double=null,@test_string=null,@test_string2=null;
 select @test_int,@test_double,@test_string,@test_string2;
 select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
+explain extended select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
 select @t5;
 
 #
@@ -52,7 +53,9 @@ select @@local.max_join_size, @@global.max_join_size;
 select @@identity,  length(@@version)>0;
 select @@VERSION=version();
 select last_insert_id(345);
+explain extended select last_insert_id(345);
 select @@IDENTITY,last_insert_id(), @@identity;
+explain extended select @@IDENTITY,last_insert_id(), @@identity;
 
 set big_tables=OFF, big_tables=ON, big_tables=0, big_tables=1, big_tables="OFF", big_tables="ON";
 

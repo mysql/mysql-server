@@ -113,6 +113,14 @@ longlong Item_func_not_all::val_int()
   return (!null_value && value == 0) ? 1 : 0;
 }
 
+void Item_func_not_all::print(String *str)
+{
+  if (show)
+    Item_func::print(str);
+  else
+    args[0]->print(str);
+}
+
 /*
   Convert a constant expression or string to an integer.
   This is done when comparing DATE's of different formats and
@@ -707,6 +715,18 @@ longlong Item_func_between::val_int()
   return 0;
 }
 
+
+void Item_func_between::print(String *str)
+{
+  str->append('(');
+  args[0]->print(str);
+  str->append(" between ", 9);
+  args[1]->print(str);
+  str->append(" and ", 5);
+  args[2]->print(str);
+  str->append(')');
+}
+
 void
 Item_func_ifnull::fix_length_and_dec()
 {
@@ -863,7 +883,7 @@ Item_func_nullif::fix_length_and_dec()
 }
 
 /*
-  nullif () returns NULL if arguments are different, else it returns the
+  nullif () returns NULL if arguments are equal, else it returns the
   first argument.
   Note that we have to evaluate the first argument twice as the compare
   may have been done with a different type than return value
@@ -1100,7 +1120,27 @@ void Item_func_case::fix_length_and_dec()
 
 void Item_func_case::print(String *str)
 {
-  str->append("case ");				// Not yet complete
+  str->append("(case ", 6);
+  if (first_expr_num != -1)
+  {
+    args[first_expr_num]->print(str);
+    str->append(' ');
+  }
+  for (uint i=0 ; i < ncases ; i+=2)
+  {
+    str->append("when ", 5);
+    args[i]->print(str);
+    str->append(" then ", 6);
+    args[i+1]->print(str);
+    str->append(' ');
+  }
+  if (else_expr_num != -1)
+  {
+    str->append("else ", 5);
+    args[else_expr_num]->print(str);
+    str->append(' ');
+  }
+  str->append("end)", 4);
 }
 
 /*
@@ -1507,8 +1547,15 @@ void Item_func_in::fix_length_and_dec()
 void Item_func_in::print(String *str)
 {
   str->append('(');
-  Item_func::print(str);
-  str->append(')');
+  args[0]->print(str);
+  str->append(" in (", 5);
+  for (uint i=1 ; i < arg_count ; i++)
+  {
+    if (i > 1)
+      str->append(',');
+    args[i]->print(str);
+  }
+  str->append("))", 2);
 }
 
 
@@ -1882,9 +1929,18 @@ void Item_is_not_null_test::update_used_tables()
   }
 }
 
+
 longlong Item_func_isnotnull::val_int()
 {
   return args[0]->is_null() ? 0 : 1;
+}
+
+
+void Item_func_isnotnull::print(String *str)
+{
+  str->append('(');
+  args[0]->print(str);
+  str->append(" is not null)", 13);
 }
 
 
