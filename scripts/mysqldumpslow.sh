@@ -1,4 +1,4 @@
-#@perl@
+#!@PERL@
 # mysqldumpslow - parse and summarize the MySQL slow query log
 
 use strict;
