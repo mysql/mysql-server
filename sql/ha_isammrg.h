@@ -32,14 +32,11 @@ class ha_isammrg: public handler
   ~ha_isammrg() {}
   const char *table_type() const { return "MRG_ISAM"; }
   const char **bas_ext() const;
-  ulong table_flags() const { return (HA_READ_RND_SAME | HA_KEYPOS_TO_RNDPOS |
+  ulong table_flags() const { return (HA_READ_RND_SAME |
 				      HA_REC_NOT_IN_SEQ | HA_FILE_BASED); }
-  ulong index_flags(uint idx) const { return HA_NOT_READ_PREFIX_LAST; }
+  ulong index_flags(uint idx, uint part) const { DBUG_ASSERT(0); return 0; }
 
-  uint max_record_length() const { return HA_MAX_REC_LENGTH; }
-  uint max_keys()          const { return 0; }
-  uint max_key_parts()     const { return 0; }
-  uint max_key_length()    const { return 0; }
+  uint max_supported_keys()          const { return 0; }
   bool low_byte_first()	   const { return 0; }
   uint min_record_length(uint options) const;
 
@@ -60,7 +57,6 @@ class ha_isammrg: public handler
   int rnd_next(byte *buf);
   int rnd_pos(byte * buf, byte *pos);
   void position(const byte *record);
-  my_off_t row_position() { return mrg_position(file); }
   void info(uint);
   int extra(enum ha_extra_function operation);
   int external_lock(THD *thd, int lock_type);

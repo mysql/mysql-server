@@ -1544,6 +1544,8 @@ static void dumpTable(uint numFields, char *table)
 		fputs(ptr, md_result_file);
 	    }
 	  }
+	  else
+            fputs("NULL", md_result_file);
 	}
       }
 

@@ -90,7 +90,7 @@ public:
   int init()
   {
     key_part_info= head->key_info[index].key_part;
-    return error=file->index_init(index);
+    return error=file->ha_index_init(index);
   }
   virtual int get_next();
   virtual bool reverse_sorted() { return 0; }
