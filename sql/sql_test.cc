@@ -164,10 +164,11 @@ TEST_join(JOIN *join)
   {
     JOIN_TAB *tab=join->join_tab+i;
     TABLE *form=tab->table;
-    fprintf(DBUG_FILE,"%-16.16s  type: %-7s  q_keys: %4d  refs: %d  key: %d  len: %d\n",
+    fprintf(DBUG_FILE,
+	    "%-16.16s  type: %-7s  q_keys: %4lld  refs: %d  key: %d  len: %d\n",
 	    form->table_name,
 	    join_type_str[tab->type],
-	    tab->keys,
+	    tab->keys.to_ulonglong(),
 	    tab->ref.key_parts,
 	    tab->ref.key,
 	    tab->ref.key_length);
