@@ -44,6 +44,7 @@
 #define HA_ADMIN_INVALID         -5
 #define HA_ADMIN_REJECT          -6
 #define HA_ADMIN_TRY_ALTER       -7
+#define HA_ADMIN_WRONG_CHECKSUM  -8
 
 /* Bits in table_flags() to show what database can do */
 #define HA_READ_RND_SAME       (1 << 0) /* can switch index during the scan

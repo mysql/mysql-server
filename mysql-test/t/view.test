@@ -1554,3 +1554,13 @@ select concat('|',a,'|'), concat('|',b,'|') from v1;
 drop view v1;
 drop table t1;
 
+#
+# CHECK TABLE with VIEW
+#
+create table t1 (a int);
+create view v1 as select * from t1;
+check table t1,v1;
+check table v1,t1;
+drop table t1;
+check table v1;
+drop view v1;

@@ -21,6 +21,8 @@
 #include "parse_file.h"
 #include "sp.h"
 
+#define MD5_BUFF_LENGTH 33
+
 static int mysql_register_view(THD *thd, TABLE_LIST *view,
 			       enum_view_create_mode mode);
 
@@ -381,7 +383,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
 {
   char buff[4096];
   String str(buff,(uint32) sizeof(buff), system_charset_info);
-  char md5[33];
+  char md5[MD5_BUFF_LENGTH];
   bool can_be_merged;
   char dir_buff[FN_REFLEN], file_buff[FN_REFLEN];
   LEX_STRING dir, file;
@@ -1035,4 +1037,29 @@ void insert_view_fields(List<Item> *list, TABLE_LIST *view)
       list->push_back(fld);
   }
   DBUG_VOID_RETURN;
+}
+
+/*
+  checking view md5 check suum
+
+  SINOPSYS
+    view_checksum()
+    thd     threar handler
+    view    view for check
+
+  RETUIRN
+    HA_ADMIN_OK               OK
+    HA_ADMIN_NOT_IMPLEMENTED  it is not VIEW
+    HA_ADMIN_WRONG_CHECKSUM   check sum is wrong
+*/
+
+int view_checksum(THD *thd, TABLE_LIST *view)
+{
+  char md5[MD5_BUFF_LENGTH];
+  if (!view->view || view->md5.length != 32)
+    return HA_ADMIN_NOT_IMPLEMENTED;
+  view->calc_md5(md5);
+  return (strncmp(md5, view->md5.str, 32) ?
+          HA_ADMIN_WRONG_CHECKSUM :
+          HA_ADMIN_OK);
 }
