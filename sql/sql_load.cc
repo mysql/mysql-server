@@ -92,7 +92,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   LOAD_FILE_INFO lf_info;
   char *db = table_list->db;			// This is never null
   /* If no current database, use database where table is located */
-  char *tdb= thd->db ? thd->db : db;
+  char *tdb= thd->db ? thd->db : db;		// Result is never null
   bool transactional_table, log_delayed;
   ulong skip_lines= ex->skip_lines;
   DBUG_ENTER("mysql_load");
