@@ -44,7 +44,8 @@ initial_ndb=
 status_ndb=
 ndb_diskless=0
 
-ndb_con_op=100000
+ndb_no_ord=512
+ndb_con_op=10000
 ndb_dmem=80M
 ndb_imem=24M
 
@@ -65,6 +66,7 @@ while test $# -gt 0; do
      status_ndb=1
      ;;
     --small)
+     ndb_no_ord=128
      ndb_con_op=10000
      ndb_dmem=40M
      ndb_imem=12M
@@ -128,6 +130,7 @@ port_transporter=`expr $ndb_mgmd_port + 2`
 
 if [ $initial_ndb ] ; then
 sed \
+    -e s,"CHOOSE_MaxNoOfOrderedIndexes","$ndb_no_ord",g \
     -e s,"CHOOSE_MaxNoOfConcurrentOperations","$ndb_con_op",g \
     -e s,"CHOOSE_DataMemory","$ndb_dmem",g \
     -e s,"CHOOSE_IndexMemory","$ndb_imem",g \
