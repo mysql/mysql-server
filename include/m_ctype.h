@@ -340,23 +340,14 @@ uint my_instr_mb(struct charset_info_st *,
 extern my_bool my_parse_charset_xml(const char *bug, uint len,
 				    int (*add)(CHARSET_INFO *cs));
 
-#undef _U
-#undef	_L
-#undef	_NMR
-#undef	_SPC
-#undef	_PNT
-#undef	_CTR
-#undef	_B
-#undef	_X
-
-#define	_U	01	/* Upper case */
-#define	_L	02	/* Lower case */
-#define	_NMR	04	/* Numeral (digit) */
-#define	_SPC	010	/* Spacing character */
-#define	_PNT	020	/* Punctuation */
-#define	_CTR	040	/* Control character */
-#define	_B	0100	/* Blank */
-#define	_X	0200	/* heXadecimal digit */
+#define	_MY_U	01	/* Upper case */
+#define	_MY_L	02	/* Lower case */
+#define	_MY_NMR	04	/* Numeral (digit) */
+#define	_MY_SPC	010	/* Spacing character */
+#define	_MY_PNT	020	/* Punctuation */
+#define	_MY_CTR	040	/* Control character */
+#define	_MY_B	0100	/* Blank */
+#define	_MY_X	0200	/* heXadecimal digit */
 
 
 #define	my_isascii(c)	(!((c) & ~0177))
@@ -365,17 +356,17 @@ extern my_bool my_parse_charset_xml(const char *bug, uint len,
 #define my_toprint(c)	((c) | 64)
 #define my_toupper(s,c)	(char) ((s)->to_upper[(uchar) (c)])
 #define my_tolower(s,c)	(char) ((s)->to_lower[(uchar) (c)])
-#define	my_isalpha(s, c)  (((s)->ctype+1)[(uchar) (c)] & (_U | _L))
-#define	my_isupper(s, c)  (((s)->ctype+1)[(uchar) (c)] & _U)
-#define	my_islower(s, c)  (((s)->ctype+1)[(uchar) (c)] & _L)
-#define	my_isdigit(s, c)  (((s)->ctype+1)[(uchar) (c)] & _NMR)
-#define	my_isxdigit(s, c) (((s)->ctype+1)[(uchar) (c)] & _X)
-#define	my_isalnum(s, c)  (((s)->ctype+1)[(uchar) (c)] & (_U | _L | _NMR))
-#define	my_isspace(s, c)  (((s)->ctype+1)[(uchar) (c)] & _SPC)
-#define	my_ispunct(s, c)  (((s)->ctype+1)[(uchar) (c)] & _PNT)
-#define	my_isprint(s, c)  (((s)->ctype+1)[(uchar) (c)] & (_PNT | _U | _L | _NMR | _B))
-#define	my_isgraph(s, c)  (((s)->ctype+1)[(uchar) (c)] & (_PNT | _U | _L | _NMR))
-#define	my_iscntrl(s, c)  (((s)->ctype+1)[(uchar) (c)] & _CTR)
+#define	my_isalpha(s, c)  (((s)->ctype+1)[(uchar) (c)] & (_MY_U | _MY_L))
+#define	my_isupper(s, c)  (((s)->ctype+1)[(uchar) (c)] & _MY_U)
+#define	my_islower(s, c)  (((s)->ctype+1)[(uchar) (c)] & _MY_L)
+#define	my_isdigit(s, c)  (((s)->ctype+1)[(uchar) (c)] & _MY_NMR)
+#define	my_isxdigit(s, c) (((s)->ctype+1)[(uchar) (c)] & _MY_X)
+#define	my_isalnum(s, c)  (((s)->ctype+1)[(uchar) (c)] & (_MY_U | _MY_L | _MY_NMR))
+#define	my_isspace(s, c)  (((s)->ctype+1)[(uchar) (c)] & _MY_SPC)
+#define	my_ispunct(s, c)  (((s)->ctype+1)[(uchar) (c)] & _MY_PNT)
+#define	my_isprint(s, c)  (((s)->ctype+1)[(uchar) (c)] & (_MY_PNT | _MY_U | _MY_L | _MY_NMR | _MY_B))
+#define	my_isgraph(s, c)  (((s)->ctype+1)[(uchar) (c)] & (_MY_PNT | _MY_U | _MY_L | _MY_NMR))
+#define	my_iscntrl(s, c)  (((s)->ctype+1)[(uchar) (c)] & _MY_CTR)
 
 /* Some macros that should be cleaned up a little */
 #define my_isvar(s,c)                 (my_isalnum(s,c) || (c) == '_')
