@@ -20763,6 +20763,9 @@ only partly indexed. @code{NULL} if the entire key is indexed.
 For now, it tells whether index is FULLTEXT or not.
 @end multitable
 
+Note that as the @code{Cardinality} is counted based on statistics
+stored as integers, it's not necessarily accurate for small tables.
+
 @cindex displaying, table status
 @cindex tables, displaying status
 @cindex status, tables
@@ -23622,7 +23625,7 @@ If you get the following error in the @code{hostname.err log} when
 starting @code{mysqld}:
 
 @example
-bdb:  Ignoring log file: .../log.XXXXXXXXXX: unsupported log version #}
+bdb:  Ignoring log file: .../log.XXXXXXXXXX: unsupported log version #
 @end example
 it means that the new @code{BDB} version doesn't support the old log
 file format.  In this case you have to delete all @code{BDB} log BDB
@@ -42181,6 +42184,10 @@ Fixed wrong define @code{CLIENT_TRANSACTIONS}.
 Fixed bug in @code{SHOW VARIABLES} when using INNOBASE tables.
 @item
 Setting and using user variables in @code{SELECT DISTINCT} didn't work.
+@item
+Tuned @code{SHOW ANALYZE} for small tables.
+@item
+Fixed handling of arguments in the benchmark script @code{run-all-tests}.
 @end itemize
 
 @node News-3.23.34a, News-3.23.34, News-3.23.35, News-3.23.x
