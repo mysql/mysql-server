@@ -250,14 +250,13 @@ systemInfo(const Configuration & config, const LogLevel & logLevel){
 
 }
 
-static void
-handler_register(int signum, sighandler_t handler, bool ignore)
-{
-  if (ignore) {
-    if(signum != SIGCHLD)
-      signal(signum, SIG_IGN);
-  } else
-    signal(signum, handler);
+#define handler_register(signum, handler, ignore)\
+{\
+  if (ignore) {\
+    if(signum != SIGCHLD)\
+      signal(signum, SIG_IGN);\
+  } else\
+    signal(signum, handler);\
 }
 
 void 
