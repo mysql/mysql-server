@@ -390,6 +390,10 @@ void init_update_queries(void)
   uc_update_queries[SQLCOM_UPDATE_MULTI]=1;
 }
 
+bool is_update_query(enum enum_sql_command command)
+{
+  return uc_update_queries[command];
+}
 
 /*
   Check if maximum queries per hour limit has been reached
@@ -3077,6 +3081,8 @@ mysql_init_query(THD *thd)
   thd->sent_row_count= thd->examined_row_count= 0;
   thd->fatal_error= thd->rand_used= 0;
   thd->possible_loops= 0;
+  if (opt_bin_log)
+    reset_dynamic(&thd->user_var_events);
   DBUG_VOID_RETURN;
 }
 
