@@ -1149,6 +1149,10 @@ int parse_args(int argc, char **argv)
 	  tty_password=1;
 	break;
       case 'P':
+        if(!host) {
+          my_free(host, MYF(MY_ALLOW_ZERO_PTR));
+          host=my_strdup("127.0.0.1", MYF(MY_WME));
+        };
 	port = atoi(optarg);
 	break;
       case 'S':
