@@ -1,7 +1,7 @@
 use test;
 drop table if exists t1;
 create table t1 (
-id   char(16) not null,
+id   char(16) not null default '',
 data int not null
 );
 drop table if exists t2;
@@ -2164,7 +2164,7 @@ tinyint	1	-128	127	0	0	YES	YES	NO	YES	YES	NO	NULL,0	A very small integer
 tinyint unsigned	1	0	255	0	0	YES	YES	YES	YES	YES	NO	NULL,0	A very small integer
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` char(16) NOT NULL,
+  `id` char(16) NOT NULL default '',
   `data` int(11) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 Database	Create Database
@@ -2218,7 +2218,7 @@ tinyint	1	-128	127	0	0	YES	YES	NO	YES	YES	NO	NULL,0	A very small integer
 tinyint unsigned	1	0	255	0	0	YES	YES	YES	YES	YES	NO	NULL,0	A very small integer
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` char(16) NOT NULL,
+  `id` char(16) NOT NULL default '',
   `data` int(11) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 Database	Create Database
