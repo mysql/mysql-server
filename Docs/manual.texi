@@ -9046,8 +9046,8 @@ libs that you compiled previously.
 Do a clean using Visual Studio.
 @end enumerate
 
-Set up and start the server in the same as for the binary Windows
-distribution. @xref{Windows prepare environment}.
+Set up and start the server in the same way as for the binary
+Windows distribution. @xref{Windows prepare environment}.
 
 
 @node Post-installation, Upgrade, Installing source, Installing
