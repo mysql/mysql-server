@@ -1,6 +1,6 @@
 
 select (select 2);
-drop table if exists t1,t2,t3,t4,t5,attend,clinic;
+drop table if exists t1,t2,t3,t4,t5,attend,clinic,inscrit;
 create table t1 (a int);
 create table t2 (a int, b int);
 create table t3 (a int);
@@ -53,6 +53,10 @@ insert into clinic values(1,"Oblastnaia bolnitsa"),(2,"Bolnitsa Krasnogo Kresta"
 insert into attend values (1,1),(1,2),(2,2),(1,3);
 select * from attend where exists (select * from clinic where uq = clinic_uq);
 
+# not unique fields
+-- error 1052
+select * from t1 where a= (select a from t2,t4 where t2.b=t4.b);
+
 # different tipes & group functions
 drop table if exists t1,t2,t3;
 
@@ -66,4 +70,19 @@ SELECT * FROM t1 WHERE b = (SELECT MIN(b) FROM t1);
 SELECT * FROM t2 WHERE b = (SELECT MIN(b) FROM t2);
 SELECT * FROM t3 WHERE b = (SELECT MIN(b) FROM t3);
 
-drop table t1,t2,t3,t4,t5,attend,clinic;
+drop table if exists inscrit;
+
+CREATE TABLE `inscrit` (
+  `pseudo` varchar(35) character set latin1 NOT NULL default '',
+  `email` varchar(60) character set latin1 NOT NULL default '',
+  PRIMARY KEY  (`pseudo`),
+  UNIQUE KEY `email` (`email`)
+) TYPE=MyISAM CHARSET=latin1 ROW_FORMAT=DYNAMIC;
+
+INSERT INTO inscrit (pseudo,email) VALUES ('joce','test');
+INSERT INTO inscrit (pseudo,email) VALUES ('joce1','test1');
+INSERT INTO inscrit (pseudo,email) VALUES ('2joce1','2test1');
+-- error 1240
+SELECT pseudo FROM inscrit WHERE pseudo=(SELECT pseudo FROM inscrit WHERE pseudo LIKE '%joce%');
+
+drop table if exists t1,t2,t3,t4,t5,attend,clinic,inscrit;

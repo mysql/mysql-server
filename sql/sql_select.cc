@@ -6487,7 +6487,7 @@ find_order_in_list(THD *thd,TABLE_LIST *tables,ORDER *order,List<Item> &fields,
     order->in_field_list=1;
     return 0;
   }
-  Item **item=find_item_in_list(*order->item, fields, 0);
+  Item **item= find_item_in_list(*order->item, fields, IGNORE_ERRORS);
   if (item)
   {
     order->item=item;				// use it
@@ -6587,7 +6587,7 @@ setup_new_fields(THD *thd,TABLE_LIST *tables,List<Item> &fields,
   thd->set_query_id=1;				// Not really needed, but...
   for (; new_field ; new_field= new_field->next)
   {
-    if ((item= find_item_in_list(*new_field->item, fields, 0)))
+    if ((item= find_item_in_list(*new_field->item, fields, IGNORE_ERRORS)))
       new_field->item=item;			/* Change to shared Item */
     else
     {

@@ -1,7 +1,7 @@
 select (select 2);
 (select 2)
 2
-drop table if exists t1,t2,t3,t4,t5,attend,clinic;
+drop table if exists t1,t2,t3,t4,t5,attend,clinic,inscrit;
 create table t1 (a int);
 create table t2 (a int, b int);
 create table t3 (a int);
@@ -131,6 +131,8 @@ patient_uq	clinic_uq
 1	1
 1	2
 2	2
+select * from t1 where a= (select a from t2,t4 where t2.b=t4.b);
+Column: 'a' in field list is ambiguous
 drop table if exists t1,t2,t3;
 CREATE TABLE t3 (a varchar(20),b char(1) NOT NULL default '0');
 INSERT INTO t3 VALUES ('W','a'),('A','c'),('J','b');
@@ -147,4 +149,16 @@ W	1
 SELECT * FROM t3 WHERE b = (SELECT MIN(b) FROM t3);
 a	b
 W	a
-drop table t1,t2,t3,t4,t5,attend,clinic;
+drop table if exists inscrit;
+CREATE TABLE `inscrit` (
+`pseudo` varchar(35) character set latin1 NOT NULL default '',
+`email` varchar(60) character set latin1 NOT NULL default '',
+PRIMARY KEY  (`pseudo`),
+UNIQUE KEY `email` (`email`)
+) TYPE=MyISAM CHARSET=latin1 ROW_FORMAT=DYNAMIC;
+INSERT INTO inscrit (pseudo,email) VALUES ('joce','test');
+INSERT INTO inscrit (pseudo,email) VALUES ('joce1','test1');
+INSERT INTO inscrit (pseudo,email) VALUES ('2joce1','2test1');
+SELECT pseudo FROM inscrit WHERE pseudo=(SELECT pseudo FROM inscrit WHERE pseudo LIKE '%joce%');
+Subselect returns more than 1 record
+drop table if exists t1,t2,t3,t4,t5,attend,clinic,inscrit;
