@@ -576,6 +576,15 @@ call bug2653_2(2, @b)|
 drop procedure bug2653_1|
 drop procedure bug2653_2|
 
+#
+# BUG#4344
+#
+--error 1356
+create procedure bug4344() drop procedure bug4344|
+--error 1356
+create procedure bug4344() drop function bug4344|
+
+
 drop table t1|
 
 delimiter ;|
