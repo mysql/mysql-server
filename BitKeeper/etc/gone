@@ -5,3 +5,4 @@ mwagner@evoq.home.mwagner.org|mysql-test/var/log/README|20001009213643|16203|df5
 mwagner@evoq.home.mwagner.org|mysql-test/var/run/README|20001009213643|17062|acb305e4c2ed5990
 mwagner@evoq.home.mwagner.org|mysql-test/var/tmp/README|20001009213643|17904|b32d866bfd50e72e
 sasha@mysql.sashanet.com|mysql-test/t/include/master-slave.inc|20001118030458|01636|556fd038c3a3d54
+sasha@mysql.sashanet.com|mysql-test/README.gcov|20001012045950|28177|5a6da067a30780ce
