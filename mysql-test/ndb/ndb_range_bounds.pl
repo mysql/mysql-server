@@ -7,10 +7,12 @@
 
 use strict;
 use integer;
+use Getopt::Long;
 
-my $all = shift;
-!defined($all) || ($all eq '--all' && !defined(shift))
-  or die "only available option is --all";
+my $opt_all = 0;
+my $opt_cnt = 5;
+GetOptions("all" => \$opt_all, "cnt=i" => \$opt_cnt)
+  or die "options are:  --all --cnt=N";
 
 my $table = 't';
 
@@ -67,15 +69,18 @@ sub mkall ($$$\@) {
   my($col, $key1, $key2, $val) = @_;
   my @a = ();
   my $p = mkdummy(@$val);
-  push(@a, $p) if $all;
-  my @ops1 = $all ? qw(< <= = >= >) : qw(= >= >);
-  my @ops2 = $all ? qw(< <= = >= >) : qw(< <=);
+  push(@a, $p) if $opt_all;
+  my @ops = qw(< <= = >= >);
+  for my $op (@ops) {
+    my $p = mkone($col, $op, $key1, @$val);
+    push(@a, $p) if $opt_all || $p->{cnt} != 0;
+  }
+  my @ops1 = $opt_all ? @ops : qw(= >= >);
+  my @ops2 = $opt_all ? @ops : qw(<= <);
   for my $op1 (@ops1) {
-    my $p = mkone($col, $op1, $key1, @$val);
-    push(@a, $p) if $all || $p->{cnt} != 0;
     for my $op2 (@ops2) {
       my $p = mktwo($col, $op1, $key1, $op2, $key2, @$val);
-      push(@a, $p) if $all || $p->{cnt} != 0;
+      push(@a, $p) if $opt_all || $p->{cnt} != 0;
     }
   }
   return \@a;
@@ -95,7 +100,7 @@ create table $table (
   index (b, c, d)
 ) engine=ndb;
 EOF
-  my @val = (0..4);
+  my @val = (0..($opt_cnt-1));
   my $v0 = 0;
   for my $v1 (@val) {
     for my $v2 (@val) {

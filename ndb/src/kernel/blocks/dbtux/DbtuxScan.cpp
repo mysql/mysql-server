@@ -350,7 +350,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
   if (scan.m_lockwait) {
     jam();
     // LQH asks if we are waiting for lock and we tell it to ask again
-    const TreeEnt ent = scan.m_scanPos.m_ent;
+    const TreeEnt ent = scan.m_scanEnt;
     NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
     conf->scanPtr = scan.m_userPtr;
     conf->accOperationPtr = RNIL;       // no tuple returned
@@ -385,7 +385,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     ndbrequire(scan.m_accLockOp == RNIL);
     if (! scan.m_readCommitted) {
       jam();
-      const TreeEnt ent = scan.m_scanPos.m_ent;
+      const TreeEnt ent = scan.m_scanEnt;
       // read tuple key
       readTablePk(frag, ent, pkData, pkSize);
       // get read lock or exclusive lock
@@ -473,7 +473,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     // we have lock or do not need one
     jam();
     // read keys if not already done (uses signal)
-    const TreeEnt ent = scan.m_scanPos.m_ent;
+    const TreeEnt ent = scan.m_scanEnt;
     if (scan.m_keyInfo) {
       jam();
       if (pkSize == 0) {
@@ -536,8 +536,6 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
         total += length;
       }
     }
-    // remember last entry returned
-    scan.m_lastEnt = ent;
     // next time look for next entry
     scan.m_state = ScanOp::Next;
     return;
@@ -719,13 +717,14 @@ Dbtux::scanFirst(Signal* signal, ScanOpPtr scanPtr)
 /*
  * Move to next entry.  The scan is already linked to some node.  When
  * we leave, if any entry was found, it will be linked to a possibly
- * different node.  The scan has a direction, one of:
+ * different node.  The scan has a position, and a direction which tells
+ * from where we came to this position.  This is one of:
  *
- * 0 - coming up from left child
- * 1 - coming up from right child (proceed to parent immediately)
- * 2 - coming up from root (the scan ends)
- * 3 - left to right within node
- * 4 - coming down from parent to left or right child
+ * 0 - up from left child (scan this node next)
+ * 1 - up from right child (proceed to parent)
+ * 2 - up from root (the scan ends)
+ * 3 - left to right within node (at end proceed to right child)
+ * 4 - down from parent (proceed to left child)
  */
 void
 Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
@@ -772,6 +771,8 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
   ndbrequire(islinkScan(origNode, scanPtr));
   // current node in loop
   NodeHandle node = origNode;
+  // copy of entry found
+  TreeEnt ent;
   while (true) {
     jam();
     if (pos.m_dir == 2) {
@@ -799,7 +800,7 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
       pos.m_dir = 0;
     }
     if (pos.m_dir == 0) {
-      // coming from left child scan current node
+      // coming up from left child scan current node
       jam();
       pos.m_pos = 0;
       pos.m_match = false;
@@ -819,10 +820,10 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
         pos.m_pos++;
       if (pos.m_pos < occup) {
         jam();
-        pos.m_ent = node.getEnt(pos.m_pos);
+        ent = node.getEnt(pos.m_pos);
         pos.m_dir = 3;  // unchanged
         // read and compare all attributes
-        readKeyAttrs(frag, pos.m_ent, 0, c_entryKey);
+        readKeyAttrs(frag, ent, 0, c_entryKey);
         int ret = cmpScanBound(frag, 1, c_dataBuffer, scan.m_boundCnt[1], c_entryKey);
         ndbrequire(ret != NdbSqlUtil::CmpUnknown);
         if (ret < 0) {
@@ -833,7 +834,7 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
           break;
         }
         // can we see it
-        if (! scanVisible(signal, scanPtr, pos.m_ent)) {
+        if (! scanVisible(signal, scanPtr, ent)) {
           jam();
           continue;
         }
@@ -853,7 +854,7 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
       pos.m_dir = 1;
     }
     if (pos.m_dir == 1) {
-      // coming from right child proceed to parent
+      // coming up from right child proceed to parent
       jam();
       pos.m_loc = node.getLink(2);
       pos.m_dir = node.getSide();
@@ -871,6 +872,8 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
       unlinkScan(origNode, scanPtr);
       linkScan(node, scanPtr);
     }
+    // copy found entry
+    scan.m_scanEnt = ent;
   } else if (scan.m_state == ScanOp::Last) {
     jam();
     ndbrequire(pos.m_loc == NullTupLoc);
@@ -888,7 +891,7 @@ Dbtux::scanNext(Signal* signal, ScanOpPtr scanPtr)
 /*
  * Check if an entry is visible to the scan.
  *
- * There is a special check to never return same tuple twice in a row.
+ * There is a special check to never accept same tuple twice in a row.
  * This is faster than asking TUP.  It also fixes some special cases
  * which are not analyzed or handled yet.
  */
@@ -903,8 +906,8 @@ Dbtux::scanVisible(Signal* signal, ScanOpPtr scanPtr, TreeEnt ent)
   Uint32 tupAddr = getTupAddr(frag, ent);
   Uint32 tupVersion = ent.m_tupVersion;
   // check for same tuple twice in row
-  if (scan.m_lastEnt.m_tupLoc == ent.m_tupLoc &&
-      scan.m_lastEnt.m_fragBit == fragBit) {
+  if (scan.m_scanEnt.m_tupLoc == ent.m_tupLoc &&
+      scan.m_scanEnt.m_fragBit == fragBit) {
     jam();
     return false;
   }
