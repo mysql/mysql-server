@@ -146,15 +146,17 @@ row_build_index_entry(
 
 /***********************************************************************
 An inverse function to dict_row_build_index_entry. Builds a row from a
-record in a clustered index. */
+record in a clustered index. NOTE that externally stored (often big)
+fields are always copied to heap. */
 
 dtuple_t*
 row_build(
 /*======*/
 				/* out, own: row built; see the NOTE below! */
-	ulint		type,	/* in: ROW_COPY_DATA, or ROW_COPY_POINTERS:
-				the former copies also the data fields to
-				heap as the latter only places pointers to
+	ulint		type,	/* in: ROW_COPY_POINTERS, ROW_COPY_DATA, or
+				ROW_COPY_ALSO_EXTERNALS, 
+				the two last copy also the data fields to
+				heap as the first only places pointers to
 				data fields on the index page, and thus is
 				more efficient */
 	dict_index_t*	index,	/* in: clustered index */
@@ -170,19 +172,19 @@ row_build(
 {
 	dtuple_t*	row;
 	dict_table_t*	table;
-	ulint		n_fields;
-	ulint		i;
+	dict_col_t*	col;
 	dfield_t*	dfield;
+	ulint		n_fields;
 	byte*		field;
 	ulint		len;
 	ulint		row_len;
-	dict_col_t*	col;
 	byte*		buf; 
+	ulint		i;
 	
 	ut_ad(index && rec && heap);
 	ut_ad(index->type & DICT_CLUSTERED);
 
-	if (type == ROW_COPY_DATA) {
+	if (type != ROW_COPY_POINTERS) {
 		/* Take a copy of rec to heap */
 		buf = mem_heap_alloc(heap, rec_get_size(rec));
 		rec = rec_copy(buf, rec);
@@ -207,6 +209,13 @@ row_build(
 		dfield = dtuple_get_nth_field(row, dict_col_get_no(col));
 		field = rec_get_nth_field(rec, i, &len);
 
+		if (type == ROW_COPY_ALSO_EXTERNALS
+	            && rec_get_nth_field_extern_bit(rec, i)) {
+
+			field = btr_rec_copy_externally_stored_field(rec,
+							i, &len, heap);
+		}
+
 		dfield_set_data(dfield, field, len);
 	}
 
@@ -215,6 +224,7 @@ row_build(
 	return(row);
 }
 
+#ifdef notdefined
 /***********************************************************************
 An inverse function to dict_row_build_index_entry. Builds a row from a
 record in a clustered index. */
@@ -229,7 +239,9 @@ row_build_to_tuple(
 				directly into this record, therefore,
 				the buffer page of this record must be
 				at least s-latched and the latch held
-				as long as the row dtuple is used! */
+				as long as the row dtuple is used!
+				NOTE 2: does not work with externally
+				stored fields! */
 {
 	dict_table_t*	table;
 	ulint		n_fields;
@@ -265,9 +277,11 @@ row_build_to_tuple(
 
 	ut_ad(dtuple_check_typed(row));
 }
+#endif
 
 /***********************************************************************
-Converts an index record to a typed data tuple. */
+Converts an index record to a typed data tuple. NOTE that externally
+stored (often big) fields are NOT copied to heap. */
 
 dtuple_t*
 row_rec_to_index_entry(

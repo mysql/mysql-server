@@ -14,6 +14,9 @@ Created 5/30/1994 Heikki Tuuri
 #include "data0types.h"
 #include "data0type.h"
 #include "mem0mem.h"
+#include "dict0types.h"
+
+typedef struct big_rec_struct		big_rec_t;
 
 /* Some non-inlined functions used in the MySQL interface: */
 void 
@@ -312,6 +315,41 @@ dtuple_sprintf(
 	char*		buf,	/* in: print buffer */
 	ulint		buf_len,/* in: buf length in bytes */
 	dtuple_t*	tuple);	/* in: tuple */
+/******************************************************************
+Moves parts of long fields in entry to the big record vector so that
+the size of tuple drops below the maximum record size allowed in the
+database. Moves data only from those fields which are not necessary
+to determine uniquely the insertion place of the tuple in the index. */
+
+big_rec_t*
+dtuple_convert_big_rec(
+/*===================*/
+				/* out, own: created big record vector,
+				NULL if we are not able to shorten
+				the entry enough, i.e., if there are
+				too many short fields in entry */
+	dict_index_t*	index,	/* in: index */
+	dtuple_t*	entry);	/* in: index entry */
+/******************************************************************
+Puts back to entry the data stored in vector. Note that to ensure the
+fields in entry can accommodate the data, vector must have been created
+from entry with dtuple_convert_big_rec. */
+
+void
+dtuple_convert_back_big_rec(
+/*========================*/
+	dict_index_t*	index,	/* in: index */
+	dtuple_t*	entry,	/* in: entry whose data was put to vector */
+	big_rec_t*	vector);/* in, own: big rec vector; it is
+				freed in this function */
+/******************************************************************
+Frees the memory in a big rec vector. */
+
+void
+dtuple_big_rec_free(
+/*================*/
+	big_rec_t*	vector);	/* in, own: big rec vector; it is
+				freed in this function */
 /***************************************************************
 Generates a random tuple. */
 
@@ -396,7 +434,7 @@ dtuple_gen_search_tuple_TPC_C(
 /* Structure for an SQL data field */
 struct dfield_struct{
 	void*		data;	/* pointer to data */
-	ulint		len;	/* data length; UNIV_SQL_NULL if SQL null */
+	ulint		len;	/* data length; UNIV_SQL_NULL if SQL null; */
 	dtype_t		type;	/* type of data */
 	ulint		col_no;	/* when building index entries, the column
 				number can be stored here */
@@ -423,6 +461,24 @@ struct dtuple_struct {
 };
 #define	DATA_TUPLE_MAGIC_N	65478679
 
+/* A slot for a field in a big rec vector */
+
+typedef struct big_rec_field_struct 	big_rec_field_t;
+struct big_rec_field_struct {
+	ulint		field_no;	/* field number in record */
+	ulint		len;		/* stored data len */
+	byte*		data;		/* stored data */
+};
+
+/* Storage format for overflow data in a big record, that is, a record
+which needs external storage of data fields */
+
+struct big_rec_struct {
+	mem_heap_t*	heap;		/* memory heap from which allocated */
+	ulint		n_fields;	/* number of stored fields */
+	big_rec_field_t* fields;	/* stored fields */
+};
+	
 #ifndef UNIV_NONINL
 #include "data0data.ic"
 #endif

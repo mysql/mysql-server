@@ -838,7 +838,9 @@ log_io_complete(
 		/* It was a checkpoint write */
 		group = (log_group_t*)((ulint)group - 1);
 
-		if (srv_unix_file_flush_method == SRV_UNIX_LITTLESYNC) {
+		if (srv_unix_file_flush_method != SRV_UNIX_O_DSYNC
+		   && srv_unix_file_flush_method != SRV_UNIX_NOSYNC) {
+		
 		        fil_flush(group->space_id);
 		}
 
@@ -847,7 +849,9 @@ log_io_complete(
 		return;
 	}
 
-	if (srv_unix_file_flush_method == SRV_UNIX_LITTLESYNC) {
+	if (srv_unix_file_flush_method != SRV_UNIX_O_DSYNC
+	    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC) {
+
 	        fil_flush(group->space_id);
 	}
 
@@ -1478,7 +1482,7 @@ log_checkpoint(
 		recv_apply_hashed_log_recs(TRUE);
 	}
 
-	if (srv_unix_file_flush_method == SRV_UNIX_LITTLESYNC) {
+	if (srv_unix_file_flush_method != SRV_UNIX_NOSYNC) {
 	        fil_flush_file_spaces(FIL_TABLESPACE);
 	}
 
@@ -1885,10 +1889,11 @@ loop:
 		fil_reserve_right_to_open();
 
 		file_handle = os_file_create(name, open_mode, OS_FILE_AIO,
-									&ret);
+						OS_DATA_FILE, &ret);
+
 		if (!ret && (open_mode == OS_FILE_CREATE)) {
 			file_handle = os_file_create(name, OS_FILE_OPEN,
-							OS_FILE_AIO, &ret);
+					OS_FILE_AIO, OS_DATA_FILE, &ret);
 		}
 
 		if (!ret) {

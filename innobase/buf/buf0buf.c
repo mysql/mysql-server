@@ -216,14 +216,44 @@ buf_calc_page_checksum(
 		       /* out: checksum */
 	byte*    page) /* in: buffer page */
 {
-  ulint checksum;
+  	ulint checksum;
 
-  checksum = ut_fold_binary(page, FIL_PAGE_FILE_FLUSH_LSN);
-  + ut_fold_binary(page + FIL_PAGE_DATA, UNIV_PAGE_SIZE - FIL_PAGE_DATA
-		   - FIL_PAGE_END_LSN);
-  checksum = checksum & 0xFFFFFFFF;
+  	checksum = ut_fold_binary(page, FIL_PAGE_FILE_FLUSH_LSN);
+  		+ ut_fold_binary(page + FIL_PAGE_DATA,
+				UNIV_PAGE_SIZE - FIL_PAGE_DATA
+				- FIL_PAGE_END_LSN);
+  	checksum = checksum & 0xFFFFFFFF;
 
-  return(checksum);
+  	return(checksum);
+}
+
+/************************************************************************
+Checks if a page is corrupt. */
+
+ibool
+buf_page_is_corrupted(
+/*==================*/
+				/* out: TRUE if corrupted */
+	byte*	read_buf)	/* in: a database page */
+{
+	ulint	checksum;
+
+	checksum = buf_calc_page_checksum(read_buf);
+
+	if ((mach_read_from_4(read_buf + FIL_PAGE_LSN + 4)
+		    		!= mach_read_from_4(read_buf + UNIV_PAGE_SIZE
+					- FIL_PAGE_END_LSN + 4))
+		|| (checksum != mach_read_from_4(read_buf
+                                        + UNIV_PAGE_SIZE
+					- FIL_PAGE_END_LSN)
+		    && mach_read_from_4(read_buf + FIL_PAGE_LSN)
+			    	!= mach_read_from_4(read_buf
+                                        + UNIV_PAGE_SIZE
+						- FIL_PAGE_END_LSN))) {
+		return(TRUE);
+	}
+
+	return(FALSE);
 }
 
 /************************************************************************
@@ -1265,34 +1295,22 @@ buf_page_io_complete(
 	dulint		id;
 	dict_index_t*	index;
 	ulint		io_type;
-	ulint           checksum;
 
 	ut_ad(block);
 
 	io_type = block->io_fix;
 
 	if (io_type == BUF_IO_READ) {
-		checksum = buf_calc_page_checksum(block->frame);
-
 		/* From version 3.23.38 up we store the page checksum
 		   to the 4 upper bytes of the page end lsn field */
 
-		if ((mach_read_from_4(block->frame + FIL_PAGE_LSN + 4)
-		    != mach_read_from_4(block->frame + UNIV_PAGE_SIZE
-					- FIL_PAGE_END_LSN + 4))
-		    || (checksum != mach_read_from_4(block->frame
-                                        + UNIV_PAGE_SIZE
-					- FIL_PAGE_END_LSN)
-			&& mach_read_from_4(block->frame + FIL_PAGE_LSN)
-			    != mach_read_from_4(block->frame
-                                        + UNIV_PAGE_SIZE
-						- FIL_PAGE_END_LSN))) {
-		  fprintf(stderr,
+		if (buf_page_is_corrupted(block->frame)) {
+		  	fprintf(stderr,
 			  "InnoDB: Database page corruption or a failed\n"
 			  "InnoDB: file read of page %lu.\n", block->offset);
-		  fprintf(stderr,
+		  	fprintf(stderr,
 			  "InnoDB: You may have to recover from a backup.\n");
-		  exit(1);
+		  	exit(1);
 		}
 
 		if (recv_recovery_is_on()) {
@@ -1601,11 +1619,28 @@ void
 buf_print_io(void)
 /*==============*/
 {
+	ulint	size;
+	
 	ut_ad(buf_pool);
 
-	mutex_enter(&(buf_pool->mutex));
+	size = buf_pool_get_curr_size() / UNIV_PAGE_SIZE;
 
-	printf("pages read %lu, created %lu, written %lu\n",
+	mutex_enter(&(buf_pool->mutex));
+	
+	printf("LRU list length %lu \n", UT_LIST_GET_LEN(buf_pool->LRU));
+	printf("Free list length %lu \n", UT_LIST_GET_LEN(buf_pool->free));
+	printf("Flush list length %lu \n",
+				UT_LIST_GET_LEN(buf_pool->flush_list));
+	printf("Buffer pool size in pages %lu\n", size);
+
+	printf("Pending reads %lu \n", buf_pool->n_pend_reads);
+
+	printf("Pending writes: LRU %lu, flush list %lu, single page %lu\n",
+		buf_pool->n_flush[BUF_FLUSH_LRU],
+		buf_pool->n_flush[BUF_FLUSH_LIST],
+		buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE]);
+
+	printf("Pages read %lu, created %lu, written %lu\n",
 			buf_pool->n_pages_read, buf_pool->n_pages_created,
 						buf_pool->n_pages_written);
 	mutex_exit(&(buf_pool->mutex));

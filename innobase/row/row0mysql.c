@@ -625,7 +625,8 @@ row_update_for_mysql(
 	
 	ut_ad(prebuilt && trx);
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
-
+	UT_NOT_USED(mysql_rec);
+	
 	node = prebuilt->upd_node;
 
 	clust_index = dict_table_get_first_index(table);
@@ -777,7 +778,9 @@ row_get_mysql_key_number_for_index(
 }
 
 /*************************************************************************
-Does a table creation operation for MySQL. */
+Does a table creation operation for MySQL. If the name of the created
+table ends to characters INNODB_MONITOR, then this also starts
+printing of monitor output by the master thread. */
 
 int
 row_create_table_for_mysql(
@@ -789,6 +792,8 @@ row_create_table_for_mysql(
 	tab_node_t*	node;
 	mem_heap_t*	heap;
 	que_thr_t*	thr;
+	ulint		namelen;
+	ulint		keywordlen;
 	ulint		err;
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
@@ -833,6 +838,20 @@ row_create_table_for_mysql(
 		}
 
 		trx->error_state = DB_SUCCESS;
+	} else {
+		namelen = ut_strlen(table->name);
+
+		keywordlen = ut_strlen("innodb_monitor");
+
+		if (namelen >= keywordlen
+		    && 0 == ut_memcmp(table->name + namelen - keywordlen,
+ 				"innodb_monitor", keywordlen)) {
+
+			/* Table name ends to characters innodb_monitor:
+			start monitor prints */
+ 				
+			srv_print_innodb_monitor = TRUE;
+		}
 	}
 
 	mutex_exit(&(dict_sys->mutex));
@@ -900,7 +919,9 @@ row_create_index_for_mysql(
 }
 
 /*************************************************************************
-Drops a table for MySQL. */
+Drops a table for MySQL. If the name of the dropped table ends to
+characters INNODB_MONITOR, then this also stops printing of monitor
+output by the master thread. */
 
 int
 row_drop_table_for_mysql(
@@ -918,11 +939,26 @@ row_drop_table_for_mysql(
 	char*		str1;
 	char*		str2;
 	ulint		len;
+	ulint		namelen;
+	ulint		keywordlen;
 	char		buf[10000];
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_a(name != NULL);
 	
+	namelen = ut_strlen(name);
+	keywordlen = ut_strlen("innodb_monitor");
+
+	if (namelen >= keywordlen
+	    && 0 == ut_memcmp(name + namelen - keywordlen,
+ 					"innodb_monitor", keywordlen)) {
+
+		/* Table name ends to characters innodb_monitor:
+		stop monitor prints */
+ 				
+		srv_print_innodb_monitor = FALSE;
+	}
+
 	/* We use the private SQL parser of Innobase to generate the
 	query graphs needed in deleting the dictionary data from system
 	tables in Innobase. Deleting a row from SYS_INDEXES table also

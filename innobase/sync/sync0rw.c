@@ -810,11 +810,10 @@ rw_lock_print(
 	ulint		count		= 0;
 	rw_lock_debug_t* info;
 	
-	printf("----------------------------------------------\n");
+	printf("-------------------------------------------------\n");
 	printf("RW-LOCK INFO\n");
 	printf("RW-LOCK: %lx ", (ulint)lock);
 
-	mutex_enter(&(lock->mutex));
 	if ((rw_lock_get_writer(lock) != RW_LOCK_NOT_LOCKED)
 	    || (rw_lock_get_reader_count(lock) != 0)
 	    || (rw_lock_get_waiters(lock) != 0)) {
@@ -831,8 +830,6 @@ rw_lock_print(
 			info = UT_LIST_GET_NEXT(list, info);
 		}
 	}
-
-	mutex_exit(&(lock->mutex));
 #endif
 }
 

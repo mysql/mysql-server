@@ -90,6 +90,9 @@ struct fil_node_struct {
 				is ignored) */
 	ulint		n_pending;
 				/* count of pending i/o-ops on this file */
+	ibool		is_modified; /* this is set to TRUE when we write
+				to the file and FALSE when we call fil_flush
+				for this file space */
 	UT_LIST_NODE_T(fil_node_t) chain;
 				/* link field for the file chain */
 	UT_LIST_NODE_T(fil_node_t) LRU;
@@ -301,6 +304,8 @@ fil_node_create(
 	node->size = size;
 	node->magic_n = FIL_NODE_MAGIC_N;
 	node->n_pending = 0;
+
+	node->is_modified = FALSE;
 	
 	HASH_SEARCH(hash, system->spaces, id, space, space->id == id);
 
@@ -721,6 +726,47 @@ fil_space_get_size(
 }
 
 /***********************************************************************
+Checks if the pair space, page_no refers to an existing page in a
+tablespace file space. */
+
+ibool
+fil_check_adress_in_tablespace(
+/*===========================*/
+			/* out: TRUE if the address is meaningful */
+	ulint	id,	/* in: space id */
+	ulint	page_no)/* in: page number */
+{
+	fil_space_t*	space;
+	fil_system_t*	system		= fil_system;
+	ulint		size;
+	ibool		ret;
+	
+	ut_ad(system);
+
+	mutex_enter(&(system->mutex));
+
+	HASH_SEARCH(hash, system->spaces, id, space, space->id == id);
+
+	if (space == NULL) {
+		ret = FALSE;
+	} else {
+		size = space->size;
+
+		if (page_no > size) {
+			ret = FALSE;
+		} else if (space->purpose != FIL_TABLESPACE) {
+			ret = FALSE;
+		} else {
+			ret = TRUE;
+		}
+	}
+	
+	mutex_exit(&(system->mutex));
+
+	return(ret);
+}
+
+/***********************************************************************
 Tries to reserve free extents in a file space. */
 
 ibool
@@ -812,8 +858,14 @@ fil_node_prepare_for_io(
 			fil_node_close(last_node, system);
 		}
 
-		node->handle = os_file_create(node->name, OS_FILE_OPEN,
-							OS_FILE_AIO, &ret);
+		if (space->purpose == FIL_LOG) {	
+			node->handle = os_file_create(node->name, OS_FILE_OPEN,
+					OS_FILE_AIO, OS_LOG_FILE, &ret);
+		} else {
+			node->handle = os_file_create(node->name, OS_FILE_OPEN,
+					OS_FILE_AIO, OS_DATA_FILE, &ret);
+		}
+		
 		ut_a(ret);
 		
 		node->open = TRUE;
@@ -851,7 +903,8 @@ void
 fil_node_complete_io(
 /*=================*/
 	fil_node_t*	node,	/* in: file node */
-	fil_system_t*	system)	/* in: file system */
+	fil_system_t*	system,	/* in: file system */
+	ulint		type)	/* in: OS_FILE_WRITE or ..._READ */
 {
 	ut_ad(node);
 	ut_ad(system);
@@ -860,6 +913,10 @@ fil_node_complete_io(
 	
 	node->n_pending--;
 
+	if (type != OS_FILE_READ) {
+		node->is_modified = TRUE;
+	}
+	
 	if (node->n_pending == 0) {
 		/* The node must be put back to the LRU list */
 		UT_LIST_ADD_FIRST(LRU, system->LRU, node);
@@ -1016,7 +1073,7 @@ loop:
 		
 		mutex_enter(&(system->mutex));
 
-		fil_node_complete_io(node, system);
+		fil_node_complete_io(node, system, type);
 
 		mutex_exit(&(system->mutex));
 
@@ -1090,12 +1147,14 @@ fil_aio_wait(
 	fil_node_t*	fil_node;
 	fil_system_t*	system		= fil_system;
 	void*		message;
+	ulint		type;
 	
 	ut_ad(fil_validate());
 
 	if (os_aio_use_native_aio) {
 #ifdef WIN_ASYNC_IO
-		ret = os_aio_windows_handle(segment, 0, &fil_node, &message);
+		ret = os_aio_windows_handle(segment, 0, &fil_node, &message,
+								&type);
 #elif defined(POSIX_ASYNC_IO)
 		ret = os_aio_posix_handle(segment, &fil_node, &message);
 #else
@@ -1103,14 +1162,14 @@ fil_aio_wait(
 #endif
 	} else {
 		ret = os_aio_simulated_handle(segment, (void**) &fil_node,
-	                                                    &message);
+	                                               &message, &type);
 	}
 	
 	ut_a(ret);
 	
 	mutex_enter(&(system->mutex));
 
-	fil_node_complete_io(fil_node, fil_system);
+	fil_node_complete_io(fil_node, fil_system, type);
 
 	mutex_exit(&(system->mutex));
 
@@ -1149,8 +1208,10 @@ fil_flush(
 	node = UT_LIST_GET_FIRST(space->chain);
 
 	while (node) {
-		if (node->open) {
+		if (node->open && node->is_modified) {
 			file = node->handle;
+
+			node->is_modified = FALSE;
 			
 			mutex_exit(&(system->mutex));
 
@@ -1159,9 +1220,11 @@ fil_flush(
 			handle is still open: we assume that the OS
 			will not crash or trap even if we pass a handle
 			to a closed file below in os_file_flush! */
+
+			/* printf("Flushing to file %s\n", node->name); */
 			
 			os_file_flush(file);
-
+			
 			mutex_enter(&(system->mutex));
 		}
 
