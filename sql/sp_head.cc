@@ -852,17 +852,17 @@ sp_instr_stmt::exec_stmt(THD *thd, LEX *lex)
   {
     TABLE_LIST *tabs;
 
+    if (lex->sql_command == SQLCOM_CREATE_TABLE ||
+	lex->sql_command == SQLCOM_INSERT_SELECT)
+    {				// Restore sl->table_list.first
+      sl->table_list.first= sl->table_list_first_copy;
+    }
     // We have closed all tables, get rid of pointers to them
     for (tabs=(TABLE_LIST *)sl->table_list.first ;
 	 tabs ;
 	 tabs= tabs->next)
     {
       tabs->table= NULL;
-    }
-    if (lex->sql_command == SQLCOM_CREATE_TABLE ||
-	lex->sql_command == SQLCOM_INSERT_SELECT)
-    {				// Restore sl->table_list.first
-      sl->table_list.first= sl->table_list_first_copy;
     }
     for (ORDER *order= (ORDER *)sl->order_list.first ;
 	 order ;

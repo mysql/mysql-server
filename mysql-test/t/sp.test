@@ -1299,7 +1299,20 @@ show create procedure bar|
 --replace_column 4 '0000-00-00 00:00:00' 5 '0000-00-00 00:00:00'
 show procedure status like 'bar'|
 drop procedure bar|
-
 delimiter ;|
 drop table t1;
 drop table t2;
+delimiter |
+drop procedure if exists  crash|
+create procedure crash()
+ begin
+    drop table if exists t1;
+    create table t1 (id int default '0' not null);
+    insert into t1 select 12;
+    insert into t1 select * from t1;
+ end|
+delimiter ;
+call crash();
+call crash();
+drop table t1;
+drop procedure if exists  crash;
