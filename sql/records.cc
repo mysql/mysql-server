@@ -131,17 +131,26 @@ void end_read_record(READ_RECORD *info)
 
 static int rr_quick(READ_RECORD *info)
 {
-  int tmp=info->select->quick->get_next();
-  if (tmp)
+  int tmp;
+  while ((tmp= info->select->quick->get_next()))
   {
-    if (tmp == HA_ERR_END_OF_FILE)
-      tmp= -1;
-    else
+    if (info->thd->killed)
     {
-      if (info->print_error)
-	info->file->print_error(tmp,MYF(0));
-      if (tmp < 0)				// Fix negative BDB errno
-	tmp=1;
+      my_error(ER_SERVER_SHUTDOWN, MYF(0));
+      return 1;
+    }
+    if (tmp != HA_ERR_RECORD_DELETED)
+    {
+      if (tmp == HA_ERR_END_OF_FILE)
+        tmp= -1;
+      else
+      {
+        if (info->print_error)
+          info->file->print_error(tmp,MYF(0));
+        if (tmp < 0)				// Fix negative BDB errno
+          tmp=1;
+      }
+      break;
     }
   }
   return tmp;
