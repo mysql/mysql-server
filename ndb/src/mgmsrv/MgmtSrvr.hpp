@@ -521,6 +521,7 @@ public:
 
   int setDbParameter(int node, int parameter, const char * value, BaseString&);
   
+  const char *get_connect_address(Uint32 node_id) { return inet_ntoa(m_connect_address[node_id]); }
   //**************************************************************************
 private:
   //**************************************************************************
@@ -560,6 +561,7 @@ private:
   
   NodeBitmask m_reserved_nodes;
   Allocated_resources m_allocated_resources;
+  struct in_addr m_connect_address[MAX_NODES];
 
   int _setVarReqResult; // The result of the SET_VAR_REQ response
   Statistics _statistics; // handleSTATISTICS_CONF store the result here, 

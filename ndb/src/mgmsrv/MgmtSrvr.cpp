@@ -543,9 +543,10 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
   /**
    * Fill the nodeTypes array
    */
-  for(Uint32 i = 0; i<MAX_NODES; i++)
+  for(Uint32 i = 0; i<MAX_NODES; i++) {
     nodeTypes[i] = (enum ndb_mgm_node_type)-1;
-
+    m_connect_address[i].s_addr= 0;
+  }
   {
     ndb_mgm_configuration_iterator * iter = ndb_mgm_create_configuration_iterator
       (config->m_configValues, CFG_SECTION_NODE);
@@ -2403,6 +2404,10 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
       }
     }
     *nodeId= tmp;
+    if (client_addr)
+      m_connect_address[tmp]= ((struct sockaddr_in *)client_addr)->sin_addr;
+    else
+      Ndb_getInAddr(&(m_connect_address[tmp]), "localhost");
     m_reserved_nodes.set(tmp);
 #if 0
     ndbout << "MgmtSrvr::getFreeNodeId found type=" << type
