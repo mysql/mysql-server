@@ -69,11 +69,11 @@ cp -r -p sql/share/* $BASE/share/mysql
 rm -f $BASE/share/mysql/Makefile* $BASE/share/mysql/*/*.OLD
 rm -rf $BASE/share/SCCS  $BASE/share/*/SCCS 
 
-cp  -p mysql-test/mysql-test-run mysql-test/install_test_db $BASE/scripts
-cp -p mysql-test/README $BASE/README
+cp -p mysql-test/mysql-test-run mysql-test/install_test_db $BASE/mysql-test/
+cp -p mysql-test/README $BASE/mysql-test/README
 cp -p mysql-test/include/*.inc $BASE/mysql-test/include
 cp -p mysql-test/std_data/*.dat  mysql-test/std_data/*.frm \
- mysql-test/std_data/*.MRG  $BASE/mysql-test/std_data
+      mysql-test/std_data/*.MRG  $BASE/mysql-test/std_data
 cp -p mysql-test/t/*.test mysql-test/t/*.opt $BASE/mysql-test/t
 cp -p mysql-test/r/*.result  $BASE/mysql-test/r
 

@@ -635,7 +635,7 @@ void clean_up(void)
 static void set_ports()
 {
   char	*env;
-  if (!mysql_port)
+  if (!mysql_port && !opt_disable_networking)
   {					// Get port if not from commandline
     struct  servent *serv_ptr;
     mysql_port = MYSQL_PORT;
