@@ -778,7 +778,8 @@ main(void){
 #endif
 
 template class Vector<NdbScanFilterImpl::State>;
+#if __SUNPRO_CC != 0x560
 template int NdbScanFilterImpl::cond_col_const(Interpreter::BinaryCondition, Uint32 attrId, Uint32);
 template int NdbScanFilterImpl::cond_col_const(Interpreter::BinaryCondition, Uint32 attrId, Uint64);
-
+#endif
 
