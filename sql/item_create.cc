@@ -426,6 +426,11 @@ Item *create_func_ucase(Item* a)
   return new Item_func_ucase(a);
 }
 
+Item *create_func_unhex(Item* a)
+{
+  return new Item_func_unhex(a);
+}
+
 Item *create_func_uuid(void)
 {
   return new Item_func_uuid();
