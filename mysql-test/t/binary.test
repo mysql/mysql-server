@@ -30,16 +30,16 @@ drop table t1,t2;
 
 create table t1 (a char(10) not null, b char(10) binary not null,key (a), key(b));
 insert into t1 values ("hello ","hello "),("hello2 ","hello2 ");
-select * from t1 where a="hello";
-select * from t1 where a="hello ";
-select * from t1 ignore index (a) where a="hello ";
-select * from t1 where b="hello";
-select * from t1 where b="hello ";
-select * from t1 ignore index (b) where b="hello ";
+select concat("-",a,"-",b,"-") from t1 where a="hello";
+select concat("-",a,"-",b,"-") from t1 where a="hello ";
+select concat("-",a,"-",b,"-") from t1 ignore index (a) where a="hello ";
+select concat("-",a,"-",b,"-") from t1 where b="hello";
+select concat("-",a,"-",b,"-") from t1 where b="hello ";
+select concat("-",a,"-",b,"-") from t1 ignore index (b) where b="hello ";
 # blob test
 alter table t1 modify b tinytext not null, drop key b, add key (b(100));
-select * from t1 where b="hello ";
-select * from t1 ignore index (b) where b="hello ";
+select concat("-",a,"-",b,"-") from t1 where b="hello ";
+select concat("-",a,"-",b,"-") from t1 ignore index (b) where b="hello ";
 drop table t1;
 
 #
