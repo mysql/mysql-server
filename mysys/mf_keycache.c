@@ -2444,6 +2444,41 @@ static int flush_all_key_blocks(KEY_CACHE *keycache)
 }
 
 
+/*
+  Reset the counters of a key cache.
+
+  SYNOPSIS
+    reset_key_cache_counters()
+    name       the name of a key cache
+    key_cache  pointer to the key kache to be reset
+
+  DESCRIPTION
+   This procedure is used by process_key_caches() to reset the counters of all
+   currently used key caches, both the default one and the named ones.
+
+  RETURN
+    0 on success (always because it can't fail)
+*/
+
+int reset_key_cache_counters(const char *name, KEY_CACHE *key_cache)
+{
+  DBUG_ENTER("reset_key_cache_counters");
+  if (!key_cache->key_cache_inited)
+  {
+    DBUG_PRINT("info", ("Key cache %s not initialized.", name));
+    DBUG_RETURN(0);
+  }
+  DBUG_PRINT("info", ("Resetting counters for key cache %s.", name));
+
+  key_cache->global_blocks_changed= 0;   /* Key_blocks_not_flushed */
+  key_cache->global_cache_r_requests= 0; /* Key_read_requests */
+  key_cache->global_cache_read= 0;       /* Key_reads */
+  key_cache->global_cache_w_requests= 0; /* Key_write_requests */
+  key_cache->global_cache_write= 0;      /* Key_writes */
+  DBUG_RETURN(0);
+}
+
+
 #ifndef DBUG_OFF
 /*
   Test if disk-cache is ok
