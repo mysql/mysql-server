@@ -1035,6 +1035,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	net_printf(&thd->net,ER_WRONG_DB_NAME, db ? db : "NULL");
 	break;
       }
+      if (lower_case_table_names)
+	casedn_str(db);
       if (check_access(thd,CREATE_ACL,db,0,1))
 	break;
       mysql_log.write(thd,command,packet);
@@ -1051,6 +1053,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	net_printf(&thd->net,ER_WRONG_DB_NAME, db ? db : "NULL");
 	break;
       }
+      if (lower_case_table_names)
+	casedn_str(db);
       if (thd->locked_tables || thd->active_transaction())
       {
 	send_error(&thd->net,ER_LOCK_OR_ACTIVE_TRANSACTION);
@@ -2239,6 +2243,8 @@ mysql_execute_command(void)
       net_printf(&thd->net,ER_WRONG_DB_NAME, lex->name);
       break;
     }
+    if (lower_case_table_names)
+      casedn_str(lex->name);
     if (check_access(thd,CREATE_ACL,lex->name,0,1))
       break;
     res=mysql_create_db(thd,lex->name,lex->create_info.options,0);
@@ -2251,6 +2257,8 @@ mysql_execute_command(void)
       net_printf(&thd->net,ER_WRONG_DB_NAME, lex->name);
       break;
     }
+    if (lower_case_table_names)
+      casedn_str(lex->name);
     if (check_access(thd,DROP_ACL,lex->name,0,1))
       break;
     if (thd->locked_tables || thd->active_transaction())

@@ -1000,11 +1000,11 @@ public:
   void fix_length_xor_dec() { unsigned_flag=1; }
 };
 
-class Item_func_check_lock :public Item_int_func
+class Item_func_is_free_lock :public Item_int_func
 {
   String value;
 public:
-  Item_func_check_lock(Item *a) :Item_int_func(a) {}
+  Item_func_is_free_lock(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "check_lock"; }
   void fix_length_and_dec() { decimals=0; max_length=1; maybe_null=1;}

@@ -318,7 +318,7 @@ then
   # mysqld doesn't use run-time-type-checking, so we disable it.
   CXXFLAGS="$CXXFLAGS -fno-implicit-templates -fno-exceptions -fno-rtti"
 
-  # If you are using 'gcc' 3.0 (not g++) to compile C++ programs,
+  # If you are using 'gcc' 3.0 (not g++) to compile C++ programs on Linux,
   # we will gets some problems when linking static programs.
   # The following code is used to fix this problem.
 
@@ -326,8 +326,7 @@ then
   then
     if $CXX -v 2>&1 | grep 'version 3' > /dev/null 2>&1
     then
-      CXXFLAGS="$CXXFLAGS -DUSE_MYSYS_NEW"
-      CXXLDFLAGS="$CXXLDFLAGS -Wl,--defsym -Wl,__cxa_pure_virtual=0"
+      CXXFLAGS="$CXXFLAGS -DUSE_MYSYS_NEW -DDEFINE_CXA_PURE_VIRTUAL"
     fi
   fi
 fi

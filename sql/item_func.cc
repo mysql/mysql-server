@@ -2260,18 +2260,9 @@ double Item_func_match::val()
 longlong Item_func_bit_xor::val_int()
 {
   ulonglong arg1= (ulonglong) args[0]->val_int();
-  if (args[0]->null_value)
-  {
-    null_value=1;
-    return 0;
-  }
   ulonglong arg2= (ulonglong) args[1]->val_int();
-  if (args[1]->null_value)
-  {
-    null_value=1;
+  if ((null_value= (args[0]->null_value || args[1]->null_value)))
     return 0;
-  }
-  null_value=0;
   return (longlong) (arg1 ^ arg2);
 }
 
@@ -2295,12 +2286,17 @@ Item *get_system_var(LEX_STRING name)
 
 /*
   Check a user level lock.
-  Returns 1: available
-  Returns 0: already taken
-  Returns NULL: Error
+
+  SYNOPSIS:
+    val_int()
+
+  RETURN VALUES
+    1		Available
+    0		Already taken
+    NULL	Error
 */
 
-longlong Item_func_check_lock::val_int()
+longlong Item_func_is_free_lock::val_int()
 {
   String *res=args[0]->val_str(&value);
   struct timespec abstime;
@@ -2309,23 +2305,17 @@ longlong Item_func_check_lock::val_int()
   int error=0;
 
   null_value=0;
-
-  if (/* check_global_access(thd,SUPER_ACL) ||*/ !res || !res->length())
+  if (!res || !res->length())
   {
     null_value=1;
     return 0;
   }
   
   pthread_mutex_lock(&LOCK_user_locks);
-
-  
   ull= (ULL*) hash_search(&hash_user_locks,(byte*) res->ptr(),
 			  res->length());
-
   pthread_mutex_unlock(&LOCK_user_locks);
-  
   if (!ull || !ull->locked)
     return 1;
-  
   return 0;
 }
