@@ -49,6 +49,7 @@ extern const char *ft_precompiled_stopwords[];
 extern ulong ft_min_word_len;
 extern ulong ft_max_word_len;
 extern ulong ft_max_word_len_for_sort;
+extern char *ft_boolean_syntax;
 
 int ft_init_stopwords(const char **);
 void ft_free_stopwords(void);

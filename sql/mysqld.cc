@@ -1892,7 +1892,7 @@ The server will not act as a slave.");
 
   if (opt_myisam_log)
     (void) mi_log( 1 );
-  ft_init_stopwords(ft_precompiled_stopwords);       /* SerG */
+  ft_init_stopwords(ft_precompiled_stopwords);
 
 #ifdef __WIN__
 #define MYSQL_ERR_FILE "mysql.err"
@@ -2998,6 +2998,7 @@ struct show_var_st init_vars[]= {
   {"ft_min_word_len",         (char*) &ft_min_word_len,             SHOW_LONG},
   {"ft_max_word_len",         (char*) &ft_max_word_len,             SHOW_LONG},
   {"ft_max_word_len_for_sort",(char*) &ft_max_word_len_for_sort,    SHOW_LONG},
+  {"ft_boolean_syntax",       ft_boolean_syntax,           SHOW_CHAR},
   {"have_bdb",		      (char*) &have_berkeley_db,	    SHOW_HAVE},
   {"have_innodb",	      (char*) &have_innodb,		    SHOW_HAVE},
   {"have_isam",	      	      (char*) &have_isam,		    SHOW_HAVE},
