@@ -626,6 +626,7 @@ static MY_COLLATION_HANDLER my_collation_czech_ci_handler =
   my_strnncoll_win1250ch,
   my_strnncollsp_win1250ch,
   my_strnxfrm_win1250ch,
+  my_strnxfrmlen_simple,
   my_like_range_win1250ch,
   my_wildcmp_8bit,
   my_strcasecmp_8bit,

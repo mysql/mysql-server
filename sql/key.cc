@@ -135,7 +135,7 @@ void key_copy(byte *to_key, byte *from_record, KEY *key_info, uint key_length)
     {
       key_length-= HA_KEY_BLOB_LENGTH;
       length= min(key_length, key_part->length);
-      key_part->field->get_key_image(to_key, length, Field::itRAW);
+      key_part->field->get_key_image((char *) to_key, length, Field::itRAW);
       to_key+= HA_KEY_BLOB_LENGTH;
     }
     else
@@ -217,7 +217,7 @@ void key_restore(byte *to_record, byte *from_key, KEY *key_info,
     {
       key_length-= HA_KEY_BLOB_LENGTH;
       length= min(key_length, key_part->length);
-      key_part->field->set_key_image(from_key, length);
+      key_part->field->set_key_image((char *) from_key, length);
       from_key+= HA_KEY_BLOB_LENGTH;
     }
     else

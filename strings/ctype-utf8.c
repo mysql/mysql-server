@@ -2238,6 +2238,12 @@ int my_wildcmp_utf8(CHARSET_INFO *cs,
 }
 
 
+static
+uint my_strnxfrmlen_utf8(CHARSET_INFO *cs __attribute__((unused)), uint len)
+{
+  return (len * 2 + 2) / 3;
+}
+
 static int my_strnxfrm_utf8(CHARSET_INFO *cs,
                             uchar *dst, uint dstlen,
                             const uchar *src, uint srclen)
@@ -2245,29 +2251,33 @@ static int my_strnxfrm_utf8(CHARSET_INFO *cs,
   my_wc_t wc;
   int res;
   int plane;
-  uchar *de = dst + dstlen;
+  uchar *de= dst + dstlen;
+  uchar *de_beg= de - 1;
   const uchar *se = src + srclen;
 
-  while( src < se && dst < de )
+  while (dst < de_beg)
   {
-    if ((res=my_utf8_uni(cs,&wc, src, se))<0)
-    {
+    if ((res=my_utf8_uni(cs,&wc, src, se)) <= 0)
       break;
-    }
     src+=res;
-    srclen-=res;
 
     plane=(wc>>8) & 0xFF;
     wc = uni_plane[plane] ? uni_plane[plane][wc & 0xFF].sort : wc;
 
-    if ((res=my_uni_utf8(cs,wc,dst,de)) <0)
-    {
-      break;
-    }
-    dst+=res;
+    *dst++= wc >> 8;
+    *dst++= wc & 0xFF;
+    
   }
-  if (dst < de)
-    bfill(dst, de - dst, ' ');
+  
+  while (dst < de_beg) /* Fill the tail with keys for space character */
+  {
+    *dst++= 0x00;
+    *dst++= 0x20;
+  }
+  
+  if (dst < de)  /* Clear the last byte, if "dstlen" was an odd number */
+    *de= 0x00;
+  
   return dstlen;
 }
 
@@ -2306,6 +2316,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
     my_strnncoll_utf8,
     my_strnncollsp_utf8,
     my_strnxfrm_utf8,
+    my_strnxfrmlen_utf8,
     my_like_range_mb,
     my_wildcmp_utf8,
     my_strcasecmp_utf8,

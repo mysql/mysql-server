@@ -740,7 +740,7 @@ public:
     return type != OPT_GLOBAL || !option_limits;
   }
   void set_default(THD *thd, enum_var_type type);
-  SHOW_TYPE type() { return SHOW_LONG; }
+  SHOW_TYPE type() { return SHOW_INT; }
   byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
 };
 

@@ -14,10 +14,11 @@ dist-hook:
 all:	english/errmsg.sys
 
 # Use the english errmsg.sys as a flag that all errmsg.sys needs to be
-# created. Normally these are created by extra/Makefile.am
+# created. Normally these are created by extra/Makefile
 
 english/errmsg.sys: errmsg.txt
-	$(top_builddir)/extra/comp_err --charset=$(srcdir)/charsets --out-dir=$(top_builddir)/sql/share/ --header_file=$(top_builddir)/extra/mysqld_error.h --state_file=$(top_builddir)/extra/sql_state.h --in_file=errmsg.txt
+	rm $(top_builddir)/include/mysqld_error.h
+	(cd $(top_builddir)/extra && $(MAKE))
 
 install-data-local:
 	for lang in @AVAILABLE_LANGUAGES@; \

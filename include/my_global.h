@@ -530,7 +530,11 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define FN_LEN		256	/* Max file name len */
 #define FN_HEADLEN	253	/* Max length of filepart of file name */
 #define FN_EXTLEN	20	/* Max length of extension (part of FN_LEN) */
+#ifdef PATH_MAX
+#define FN_REFLEN       PATH_MAX/* Max length of full path-name */
+#else
 #define FN_REFLEN	512	/* Max length of full path-name */
+#endif
 #define FN_EXTCHAR	'.'
 #define FN_HOMELIB	'~'	/* ~/ is used as abbrev for home dir */
 #define FN_CURLIB	'.'	/* ./ is used as abbrev for current dir */
@@ -1084,7 +1088,7 @@ do { doubleget_union _tmp; \
 #define float4store(V,M) memcpy_fixed((byte*) V,(byte*) (&M),sizeof(float))
 
 #if defined(__FLOAT_WORD_ORDER) && (__FLOAT_WORD_ORDER == __BIG_ENDIAN)
-#define doublestore(T,V) do { *(T)= ((byte *) &V)[4];\
+#define doublestore(T,V) do { *(((char*)T)+0)=(char) ((byte *) &V)[4];\
                               *(((char*)T)+1)=(char) ((byte *) &V)[5];\
                               *(((char*)T)+2)=(char) ((byte *) &V)[6];\
                               *(((char*)T)+3)=(char) ((byte *) &V)[7];\

@@ -1802,7 +1802,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
     res= open_and_lock_tables(thd, show_table_list);
     if (schema_table->process_table(thd, show_table_list,
                                     table, res, show_table_list->db,
-                                    show_table_list->table_name))
+                                    show_table_list->alias))
     {
       DBUG_RETURN(1);
     }
@@ -1911,7 +1911,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
             show_table_list->lock_type= lock_type;
             res= open_and_lock_tables(thd, show_table_list);
             if (schema_table->process_table(thd, show_table_list, table,
-                                            res, base_name, file_name))
+                                            res, base_name,
+                                            show_table_list->alias))
             {
               DBUG_RETURN(1);
             }
@@ -3183,8 +3184,17 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
   }
   table->s->tmp_table= TMP_TABLE;
   table->grant.privilege= SELECT_ACL;
-  table->alias_name_used= 0;
-  table_list->schema_table_name= table_list->table_name;
+  /*
+    This test is necessary to make
+    case insensitive file systems +
+    upper case table names(information schema tables) +
+    views
+    working correctly
+  */
+  if (table_list->schema_table_name)
+    table->alias_name_used= my_strcasecmp(table_alias_charset,
+                                          table_list->schema_table_name,
+                                          table_list->alias);
   table_list->table_name= (char*) table->s->table_name;
   table_list->table= table;
   table->next= thd->derived_tables;
