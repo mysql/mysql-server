@@ -311,8 +311,10 @@ private:
   //Uint32 m_triggerInfo;
   Uint32 m_errorCode;
   Uint32 m_errorLine;
-  Uint32 m_errorNode;
-
+  union {
+    Uint32 m_errorNode;
+    Uint32 masterNodeId; // When NotMaster
+  };
 public:
   CreateTrigConf* getConf() {
     return &m_conf;
