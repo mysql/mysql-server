@@ -77,7 +77,7 @@ select @@session.max_user_connections, @@global.max_user_connections;
 select * from t1;
 i
 connect(localhost,mysqltest_1,,test,MYSQL_PORT,MYSQL_SOCK);
-ERROR 42000: User mysqltest_1 has already more than 'max_user_connections' active connections
+ERROR 42000: User mysqltest_1 already has more than 'max_user_connections' active connections
 grant usage on *.* to mysqltest_1@localhost with max_user_connections 3;
 select @@session.max_user_connections, @@global.max_user_connections;
 @@session.max_user_connections	@@global.max_user_connections
