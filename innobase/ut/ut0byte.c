@@ -18,7 +18,7 @@ Created 5/11/1994 Heikki Tuuri
 dulint	ut_dulint_zero 		= {0, 0};
 
 /* Maximum value for a dulint */
-dulint	ut_dulint_max 		= {0xFFFFFFFF, 0xFFFFFFFF};
+dulint	ut_dulint_max 		= {0xFFFFFFFFUL, 0xFFFFFFFFUL};
 
 /****************************************************************
 Sort function for dulint arrays. */

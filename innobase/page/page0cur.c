@@ -629,7 +629,7 @@ page_cur_parse_insert_rec(
 		return(NULL);
 	}
 
-	extra_info_yes = end_seg_len & 0x1;
+	extra_info_yes = end_seg_len & 0x1UL;
 	end_seg_len = end_seg_len / 2;
 
 	if (end_seg_len >= UNIV_PAGE_SIZE) {
@@ -702,7 +702,8 @@ page_cur_parse_insert_rec(
 	/* Build the inserted record to buf */
 	
         if (mismatch_index >= UNIV_PAGE_SIZE) {
-               printf("Is short %lu, info_bits %lu, offset %lu, o_offset %lu\n"
+               printf(
+		"Is short %lu, info_bits %lu, offset %lu, o_offset %lu\n"
                     "mismatch index %lu, end_seg_len %lu\n"
                     "parsed len %lu\n",
                     is_short, info_bits, offset, origin_offset,

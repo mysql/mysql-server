@@ -24,7 +24,8 @@ Created 12/9/1995 Heikki Tuuri
 #include "trx0sys.h"
 #include "trx0trx.h"
 
-/* Current free limit; protected by the log sys mutex; 0 means uninitialized */
+/* Current free limit of space 0; protected by the log sys mutex; 0 means
+uninitialized */
 ulint	log_fsp_current_free_limit		= 0;
 
 /* Global log system variable */
@@ -195,11 +196,10 @@ loop:
 
 	if (log->archiving_state != LOG_ARCH_OFF) {
 	
-		archived_lsn_age = ut_dulint_minus(log->lsn, log->archived_lsn);
-	
+		archived_lsn_age = ut_dulint_minus(log->lsn,
+							log->archived_lsn);
 		if (archived_lsn_age + len_upper_limit
 						> log->max_archived_lsn_age) {
-	
 			/* Not enough free archived space in log groups: do a
 			synchronous archive write batch: */
 	
@@ -466,7 +466,8 @@ ulint
 log_group_calc_lsn_offset(
 /*======================*/
 				/* out: offset within the log group */
-	dulint		lsn,	/* in: lsn, must be within 4 GB of group->lsn */
+	dulint		lsn,	/* in: lsn, must be within 4 GB of
+				group->lsn */
 	log_group_t*	group)	/* in: log group */
 {
         dulint	        gr_lsn;
@@ -978,7 +979,7 @@ log_io_complete(
 		return;
 	}
 
-	if ((ulint)group & 0x1) {
+	if ((ulint)group & 0x1UL) {
 		/* It was a checkpoint write */
 		group = (log_group_t*)((ulint)group - 1);
 
@@ -1132,7 +1133,8 @@ loop:
 
 	if ((next_offset % group->file_size) + len > group->file_size) {
 
-		write_len = group->file_size - (next_offset % group->file_size);
+		write_len = group->file_size
+					- (next_offset % group->file_size);
 	} else {
 		write_len = len;
 	}
@@ -1681,7 +1683,7 @@ log_group_checkpoint(
 				OS_FILE_LOG_BLOCK_SIZE,
 				buf, ((byte*)group + 1));
 
-		ut_ad(((ulint)group & 0x1) == 0);
+		ut_ad(((ulint)group & 0x1UL) == 0);
 	}
 }
 
@@ -2205,7 +2207,6 @@ loop:
 	
 		log_archived_file_name_gen(name, group->id,
 					group->archived_file_no + n_files);
-		fil_reserve_right_to_open();
 
 		file_handle = os_file_create(name, open_mode, OS_FILE_AIO,
 						OS_DATA_FILE, &ret);
@@ -2216,10 +2217,10 @@ loop:
 		}
 
 		if (!ret) {
-		  fprintf(stderr,
+			fprintf(stderr,
 		   "InnoDB: Cannot create or open archive log file %s.\n",
 			  name);
-		  fprintf(stderr, "InnoDB: Cannot continue operation.\n"
+			fprintf(stderr, "InnoDB: Cannot continue operation.\n"
        		  "InnoDB: Check that the log archive directory exists,\n"
 			  "InnoDB: you have access rights to it, and\n"
 			  "InnoDB: there is space available.\n");
@@ -2234,12 +2235,10 @@ loop:
 	
 		ut_a(ret);
 	
-		fil_release_right_to_open();
-	
 		/* Add the archive file as a node to the space */
 		
 		fil_node_create(name, group->file_size / UNIV_PAGE_SIZE,
-						group->archive_space_id);
+					group->archive_space_id, FALSE);
 
 		if (next_offset % group->file_size == 0) {
 			log_group_archive_file_header_write(group, n_files,
@@ -3085,9 +3084,23 @@ loop:
 	ut_a(buf_all_freed());
 	ut_a(0 == ut_dulint_cmp(lsn, log_sys->lsn));
 
+	if (ut_dulint_cmp(lsn, srv_start_lsn) < 0) {
+		fprintf(stderr,
+"InnoDB: Error: log sequence number at shutdown %lu %lu\n"
+"InnoDB: is lower than at startup %lu %lu!\n",
+			  ut_dulint_get_high(lsn),
+			  ut_dulint_get_low(lsn),
+			  ut_dulint_get_high(srv_start_lsn),
+			  ut_dulint_get_low(srv_start_lsn));
+	}
+
+	srv_shutdown_lsn = lsn;
+
 	fil_write_flushed_lsn_to_data_files(lsn, arch_log_no);	
 
 	fil_flush_file_spaces(FIL_TABLESPACE);
+
+	fil_close_all_files();
 
 	/* Make some checks that the server really is quiet */
 	ut_a(srv_n_threads_active[SRV_MASTER] == 0);

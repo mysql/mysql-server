@@ -21,7 +21,7 @@ Created 5/30/1994 Heikki Tuuri
 
 /* Flag denoting the predefined minimum record: this bit is ORed in the 4
 info bits of a record */
-#define REC_INFO_MIN_REC_FLAG	0x10
+#define REC_INFO_MIN_REC_FLAG	0x10UL
 
 /* Number of extra bytes in a record, in addition to the data and the
 offsets */
@@ -406,8 +406,8 @@ rec_sprintf(
 
 /* Maximum lengths for the data in a physical record if the offsets
 are given in one byte (resp. two byte) format. */
-#define REC_1BYTE_OFFS_LIMIT	0x7F
-#define REC_2BYTE_OFFS_LIMIT	0x7FFF
+#define REC_1BYTE_OFFS_LIMIT	0x7FUL
+#define REC_2BYTE_OFFS_LIMIT	0x7FFFUL
 
 /* The data size of record must be smaller than this because we reserve
 two upmost bits in a two byte offset for special purposes */

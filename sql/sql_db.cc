@@ -32,7 +32,7 @@ static TYPELIB deletable_extentions=
 {array_elements(del_exts)-1,"del_exts", del_exts};
 
 const char *known_exts[]=
-{".ISM",".ISD",".ISM",".MRG",".MYI",".MYD",".db",NullS};
+{".ISM",".ISD",".ISM",".MRG",".MYI",".MYD",".db", ".ibd", NullS};
 static TYPELIB known_extentions=
 {array_elements(known_exts)-1,"known_exts", known_exts};
 

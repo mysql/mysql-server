@@ -36,7 +36,8 @@ struct que_common_struct{
 				if the buffer has been allocated dynamically:
 				if this field is != 0, and the node is a
 				symbol node or a function node, then we
-				have to free the data field in val explicitly */
+				have to free the data field in val
+				explicitly */
 };
 
 #endif

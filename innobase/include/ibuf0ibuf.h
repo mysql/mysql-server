@@ -40,6 +40,13 @@ void
 ibuf_init_at_db_start(void);
 /*=======================*/
 /*************************************************************************
+Reads the biggest tablespace id from the high end of the insert buffer
+tree and updates the counter in fil_system. */
+
+void
+ibuf_update_max_tablespace_id(void);
+/*===============================*/
+/*************************************************************************
 Initializes an ibuf bitmap page. */
 
 void
@@ -207,8 +214,8 @@ When an index page is read from a disk to the buffer pool, this function
 inserts to the page the possible index entries buffered in the insert buffer.
 The entries are deleted from the insert buffer. If the page is not read, but
 created in the buffer pool, this function deletes its buffered entries from
-the insert buffer; note that there can exist entries if the page belonged to
-an index which was dropped. */
+the insert buffer; there can exist entries for such a page if the page
+belonged to an index which subsequently was dropped. */
 
 void
 ibuf_merge_or_delete_for_page(
@@ -216,7 +223,21 @@ ibuf_merge_or_delete_for_page(
 	page_t*	page,	/* in: if page has been read from disk, pointer to
 			the page x-latched, else NULL */
 	ulint	space,	/* in: space id of the index page */
-	ulint	page_no);/* in: page number of the index page */
+	ulint	page_no,/* in: page number of the index page */
+	ibool	update_ibuf_bitmap);/* in: normally this is set to TRUE, but if
+			we have deleted or are deleting the tablespace, then we
+			naturally do not want to update a non-existent bitmap
+			page */
+/*************************************************************************
+Deletes all entries in the insert buffer for a given space id. This is used
+in DISCARD TABLESPACE and IMPORT TABLESPACE.
+NOTE: this does not update the page free bitmaps in the space. The space will
+become CORRUPT when you call this function! */
+
+void
+ibuf_delete_for_discarded_space(
+/*============================*/
+	ulint	space);	/* in: space id */
 /*************************************************************************
 Contracts insert buffer trees by reading pages to the buffer pool. */
 
@@ -265,6 +286,13 @@ ibuf_count_get(
 			currently buffered for this page */
 	ulint	space,	/* in: space id */
 	ulint	page_no);/* in: page number */
+/**********************************************************************
+Looks if the insert buffer is empty. */
+
+ibool
+ibuf_is_empty(void);
+/*===============*/
+			/* out: TRUE if empty */
 /**********************************************************************
 Prints info of ibuf. */
 

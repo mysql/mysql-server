@@ -182,9 +182,9 @@ log_block_convert_lsn_to_no(
 
 	no = ut_dulint_get_low(lsn) / OS_FILE_LOG_BLOCK_SIZE;
 	no += (ut_dulint_get_high(lsn) % OS_FILE_LOG_BLOCK_SIZE)
-		* 2 * (0x80000000 / OS_FILE_LOG_BLOCK_SIZE);
+		* 2 * (0x80000000UL / OS_FILE_LOG_BLOCK_SIZE);
 	
-	no = no & 0x3FFFFFFF;
+	no = no & 0x3FFFFFFFUL;
 
 	return(no + 1);
 }
@@ -206,7 +206,7 @@ log_block_calc_checksum(
 	sh = 0;
 	
 	for (i = 0; i < OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE; i++) {
-		sum = sum & 0x7FFFFFFF;
+		sum = sum & 0x7FFFFFFFUL;
 		sum += (((ulint)(*(block + i))) << sh) + (ulint)(*(block + i));
 		sh++;
 		if (sh > 24) {
@@ -346,7 +346,7 @@ log_reserve_and_write_fast(
 
 #ifdef UNIV_LOG_DEBUG
 	log_check_log_recs(log->buf + log->old_buf_free,
-			log->buf_free - log->old_buf_free, log->old_lsn);	
+			log->buf_free - log->old_buf_free, log->old_lsn);
 #endif
 	return(lsn);
 }

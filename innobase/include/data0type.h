@@ -89,6 +89,8 @@ be less than 256 */
 alphabetical order for a single field and decide the storage size of an
 SQL null*/
 #define DATA_ORDER_NULL_TYPE_BUF_SIZE	4
+/* In the >= 4.1.x storage format we need 2 bytes more for the charset */
+#define DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE	6
 
 /*************************************************************************
 Sets a data type structure. */
@@ -172,16 +174,6 @@ dtype_is_fixed_size(
 				/* out: TRUE if fixed size */
 	dtype_t*	type);	/* in: type */
 /**************************************************************************
-Stores for a type the information which determines its alphabetical ordering
-and the storage size of an SQL NULL value. */
-UNIV_INLINE
-void
-dtype_store_for_order_and_null_size(
-/*================================*/
-	byte*		buf,	/* in: buffer for DATA_ORDER_NULL_TYPE_BUF_SIZE
-				bytes where we store the info */
-	dtype_t*	type);	/* in: type struct */
-/**************************************************************************
 Reads to a type the stored information which determines its alphabetical
 ordering and the storage size of an SQL NULL value. */
 UNIV_INLINE
@@ -190,6 +182,28 @@ dtype_read_for_order_and_null_size(
 /*===============================*/
 	dtype_t*	type,	/* in: type struct */
 	byte*		buf);	/* in: buffer for the stored order info */
+/**************************************************************************
+Stores for a type the information which determines its alphabetical ordering
+and the storage size of an SQL NULL value. This is the >= 4.1.x storage
+format. */
+UNIV_INLINE
+void
+dtype_new_store_for_order_and_null_size(
+/*====================================*/
+	byte*		buf,	/* in: buffer for
+				DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE
+				bytes where we store the info */
+	dtype_t*	type);	/* in: type struct */
+/**************************************************************************
+Reads to a type the stored information which determines its alphabetical
+ordering and the storage size of an SQL NULL value. This is the 4.1.x storage
+format. */
+UNIV_INLINE
+void
+dtype_new_read_for_order_and_null_size(
+/*===================================*/
+	dtype_t*	type,	/* in: type struct */
+	byte*		buf);	/* in: buffer for stored type order info */
 /*************************************************************************
 Validates a data type structure. */
 
@@ -211,6 +225,7 @@ dtype_print(
 struct dtype_struct{
 	ulint	mtype;		/* main data type */
 	ulint	prtype;		/* precise type; MySQL data type */
+	ulint	chrset;		/* MySQL character set code */
 
 	/* remaining two fields do not affect alphabetical ordering: */
 

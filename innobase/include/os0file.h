@@ -11,9 +11,11 @@ Created 10/21/1995 Heikki Tuuri
 
 #include "univ.i"
 
+#ifndef __WIN__
+#include <dirent.h>
+#include <sys/stat.h>
+#endif
 
-/* If the following is set to TRUE, we do not call os_file_flush in every
-os_file_write */
 extern ibool	os_do_not_call_flush_at_each_write;
 extern ibool	os_has_said_disk_full;
 extern ibool	os_aio_print_debug;
@@ -57,6 +59,7 @@ log. */
 #define	OS_FILE_OPEN			51
 #define	OS_FILE_CREATE			52
 #define OS_FILE_OVERWRITE		53
+#define OS_FILE_OPEN_RAW		54
 
 #define OS_FILE_READ_ONLY 		333
 #define	OS_FILE_READ_WRITE		444
@@ -117,6 +120,36 @@ extern ulint	os_n_file_reads;
 extern ulint	os_n_file_writes;
 extern ulint	os_n_fsyncs;
 
+/* File types for directory entry data type */
+
+enum os_file_type_enum{
+    OS_FILE_TYPE_UNKNOWN = 0,
+    OS_FILE_TYPE_FILE,	 		/* regular file */
+    OS_FILE_TYPE_DIR,			/* directory */
+    OS_FILE_TYPE_LINK 			/* symbolic link */
+};
+typedef enum os_file_type_enum	  os_file_type_t;
+
+/* Maximum path string length in bytes when referring to tables with in the
+'./databasename/tablename.ibd' path format; we can allocate at least 2 buffers
+of this size from the thread stack; that is why this should not be made much
+bigger than 4000 bytes */
+#define OS_FILE_MAX_PATH	4000
+
+/* Struct used in fetching information of a file in a directory */
+typedef struct os_file_stat_struct	os_file_stat_t;
+struct os_file_stat_struct{
+       char		name[OS_FILE_MAX_PATH];	/* path to a file */
+       os_file_type_t	type;			/* file type */       
+       ib_longlong	size;			/* file size */
+};
+
+#ifdef __WIN___
+typedef HANDLE  os_file_dir_t;	/* directory stream */
+#else
+typedef DIR*	os_file_dir_t;	/* directory stream */
+#endif
+
 /***************************************************************************
 Gets the operating system version. Currently works only on Windows. */
 
@@ -130,6 +163,42 @@ Creates the seek mutexes used in positioned reads and writes. */
 void
 os_io_init_simple(void);
 /*===================*/
+/***************************************************************************
+The os_file_opendir() function opens a directory stream corresponding to the
+directory named by the dirname argument. The directory stream is positioned
+at the first entry. In both Unix and Windows we automatically skip the '.'
+and '..' items at the start of the directory listing. */
+
+os_file_dir_t
+os_file_opendir(
+/*============*/
+				/* out: directory stream, NULL if error */
+	char*	dirname,	/* in: directory name; it must not contain
+				a trailing '\' or '/' */
+	ibool	error_is_fatal);/* in: TRUE if we should treat an error as a
+				fatal error; if we try to open symlinks then
+				we do not wish a fatal error if it happens
+				not to be a directory */
+/***************************************************************************
+Closes a directory stream. */
+
+int
+os_file_closedir(
+/*=============*/
+				/* out: 0 if success, -1 if failure */
+	os_file_dir_t	dir);	/* in: directory stream */
+/***************************************************************************
+This function returns information of the next file in the directory. We jump
+over the '.' and '..' entries in the directory. */
+
+int
+os_file_readdir_next_file(
+/*======================*/
+				/* out: 0 if ok, -1 if error, 1 if at the end
+				of the directory */
+	char*		dirname,/* in: directory name or path */
+	os_file_dir_t	dir,	/* in: directory stream */
+	os_file_stat_t*	info);	/* in/out: buffer where the info is returned */
 /********************************************************************
 A simple function to open or create a file. */
 
@@ -173,7 +242,9 @@ os_file_create(
 	ulint	create_mode,/* in: OS_FILE_OPEN if an existing file is opened
 			(if does not exist, error), or OS_FILE_CREATE if a new
 			file is created (if exists, error), OS_FILE_OVERWRITE
-			if a new file is created or an old overwritten */
+			if a new file is created or an old overwritten;
+			OS_FILE_OPEN_RAW, if a raw device or disk partition
+			should be opened */
 	ulint	purpose,/* in: OS_FILE_AIO, if asynchronous, non-buffered i/o
 			is desired, OS_FILE_NORMAL, if any normal file;
 			NOTE that it also depends on type, os_aio_.. and srv_..
@@ -182,6 +253,25 @@ os_file_create(
 			the exact rules */
 	ulint	type,	/* in: OS_DATA_FILE or OS_LOG_FILE */
 	ibool*	success);/* out: TRUE if succeed, FALSE if error */
+/***************************************************************************
+Deletes a file. The file has to be closed before calling this. */
+
+ibool
+os_file_delete(
+/*===========*/
+			/* out: TRUE if success */
+	char*	name);	/* in: file path as a null-terminated string */
+/***************************************************************************
+Renames a file (can also move it to another directory). It is safest that the
+file is closed before calling this function. */
+
+ibool
+os_file_rename(
+/*===========*/
+				/* out: TRUE if success */
+	char*	oldpath,	/* in: old file path as a null-terminated
+				string */
+	char*	newpath);	/* in: new file path */
 /***************************************************************************
 Closes a file handle. In case of error, error number can be retrieved with
 os_file_get_last_error. */
@@ -238,9 +328,12 @@ overwrite the error number). If the number is not known to this program,
 the OS error number + 100 is returned. */
 
 ulint
-os_file_get_last_error(void);
-/*========================*/
-		/* out: error number, or OS error number + 100 */
+os_file_get_last_error(
+/*===================*/
+					/* out: error number, or OS error
+					number + 100 */
+	ibool	report_all_errors);	/* in: TRUE if we want an error message
+					printed of all errors */
 /***********************************************************************
 Requests a synchronous read operation. */
 

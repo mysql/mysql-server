@@ -15,6 +15,17 @@ Created 4/24/1996 Heikki Tuuri
 #include "ut0byte.h"
 
 /************************************************************************
+In a crash recovery we already have all the tablespace objects created.
+This function compares the space id information in the InnoDB data dictionary
+to what we already read with fil_load_single_table_tablespaces().
+In a normal startup we just scan the biggest space id, and store it to
+fil_system. */
+
+void
+dict_check_tablespaces_or_store_max_id(
+/*===================================*/
+	ibool	in_crash_recovery);	/* in: are we doing a crash recovery */
+/************************************************************************
 Finds the first table name in the given database. */
 
 char*
@@ -32,7 +43,10 @@ a foreign key references columns in this table. */
 dict_table_t*
 dict_load_table(
 /*============*/
-			/* out: table, NULL if does not exist */
+			/* out: table, NULL if does not exist; if the table is
+			stored in an .ibd file, but the file does not exist,
+			then we set the ibd_file_missing flag TRUE in the table
+			object we return */
 	char*	name);	/* in: table name */
 /***************************************************************************
 Loads a table object based on the table id. */

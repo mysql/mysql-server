@@ -1739,6 +1739,7 @@ row_ins_index_entry_low(
 	ulint		modify = 0; /* remove warning */
 	rec_t*		insert_rec;
 	rec_t*		rec;
+	rec_t*		first_rec;
 	ulint		err;
 	ulint		n_unique;
 	big_rec_t*	big_rec			= NULL;
@@ -1771,6 +1772,14 @@ row_ins_index_entry_low(
 		goto function_exit;
 	}	
 					
+	first_rec = page_rec_get_next(page_get_infimum_rec(
+			buf_frame_align(btr_cur_get_rec(&cursor))));
+
+	if (!page_rec_is_supremum(first_rec)) {
+		ut_a((rec_get_n_fields(first_rec))
+					== dtuple_get_n_fields(entry));
+	}
+
 	n_unique = dict_index_get_n_unique(index);
 
 	if (index->type & DICT_UNIQUE && (cursor.up_match >= n_unique

@@ -346,21 +346,22 @@ mem_hash_remove(
 	mem_heap_validate_or_print(node->heap, NULL, FALSE, &error, &size,
 								NULL, NULL);
 	if (error) {
-	   printf("Inconsistency in memory heap or buffer n:o %lu created\n",
+	        printf(
+"Inconsistency in memory heap or buffer n:o %lu created\n",
 							node->nth_heap);
-	   printf("in %s line %lu and tried to free in %s line %lu.\n",
+		printf("in %s line %lu and tried to free in %s line %lu.\n",
 	  			node->file_name, node->line, file_name, line);
 
-	   printf(
-	   "Hex dump of 400 bytes around memory heap first block start:\n");
+		printf(
+"Hex dump of 400 bytes around memory heap first block start:\n");
 
-	   ut_print_buf((byte*)(node->heap) - 200, 400);
+		ut_print_buf((byte*)(node->heap) - 200, 400);
 
-	   printf("\nDump of the mem heap:\n");
+		printf("\nDump of the mem heap:\n");
 
-	   mem_heap_validate_or_print(node->heap, NULL, TRUE, &error, &size,
-								NULL, NULL);
-	   ut_error;
+		mem_heap_validate_or_print(node->heap, NULL, TRUE, &error,
+							 &size, NULL, NULL);
+		ut_error;
 	}
 
 	/* Free the memory occupied by the node struct */
@@ -441,6 +442,9 @@ mem_heap_validate_or_print(
 		if ((block->type == MEM_HEAP_BUFFER)
 		    && (mem_block_get_len(block) > UNIV_PAGE_SIZE)) {
 
+			fprintf(stderr,
+"InnoDB: Error: mem block %lx length %lu > UNIV_PAGE_SIZE\n", (ulint)block,
+				     mem_block_get_len(block));
 		    	/* error */
 
 		    	return;
@@ -480,6 +484,12 @@ mem_heap_validate_or_print(
 			    mem_field_trailer_get_check(user_field)) {
 				/* error */
 
+				fprintf(stderr,
+"InnoDB: Error: block %lx mem field %lx len %lu\n"
+"InnoDB: header check field is %lx but trailer %lx\n", (ulint)block,
+				   (ulint)field, len, check_field,
+				   mem_field_trailer_get_check(user_field));
+
 			     	return;
 			}
 
@@ -498,6 +508,11 @@ mem_heap_validate_or_print(
 
 		if (field != (byte*)block + mem_block_get_free(block)) {
 			/* error */
+
+			fprintf(stderr,
+"InnoDB: Error: block %lx end of mem fields %lx\n"
+"InnoDB: but block free at %lx\n", (ulint)block, (ulint)field,
+			(ulint)((byte*)block + mem_block_get_free(block)));
 
 			return;
 		}
@@ -577,6 +592,10 @@ mem_heap_validate(
 
 	mem_heap_validate_or_print(heap, NULL, FALSE, &error, &us_size,
 						&phys_size, &n_blocks);
+	if (error) {
+		mem_heap_print(heap);
+	}
+
 	ut_a(!error);
 
 	return(TRUE);

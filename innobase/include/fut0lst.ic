@@ -23,7 +23,7 @@ Created 11/28/1995 Heikki Tuuri
 #define	FLST_FIRST	4	/* 6-byte address of the first element
 				of the list; undefined if empty list */
 #define	FLST_LAST	(4 + FIL_ADDR_SIZE) /* 6-byte address of the
-				first element of the list; undefined
+				last element of the list; undefined
 				if empty list */
 
 /************************************************************************

@@ -159,7 +159,7 @@ struct sync_thread_struct{
 };
 
 /* Number of slots reserved for each OS thread in the sync level array */
-#define SYNC_THREAD_N_LEVELS	250
+#define SYNC_THREAD_N_LEVELS	7000
 
 struct sync_level_struct{
 	void*	latch;	/* pointer to a mutex or an rw-lock; NULL means that
@@ -246,6 +246,10 @@ mutex_create_func(
 	
 	mutex_enter(&mutex_list_mutex);
 
+        if (UT_LIST_GET_LEN(mutex_list) > 0) {
+                ut_a(UT_LIST_GET_FIRST(mutex_list)->magic_n == MUTEX_MAGIC_N);
+        }
+
 	UT_LIST_ADD_FIRST(list, mutex_list, mutex);
 
 	mutex_exit(&mutex_list_mutex);
@@ -261,7 +265,7 @@ mutex_free(
 /*=======*/
 	mutex_t*	mutex)	/* in: mutex */
 {
-	ut_ad(mutex_validate(mutex));
+	ut_a(mutex_validate(mutex));
 	ut_a(mutex_get_lock_word(mutex) == 0);
 	ut_a(mutex_get_waiters(mutex) == 0);
 	
@@ -269,6 +273,15 @@ mutex_free(
 
 	        mutex_enter(&mutex_list_mutex);
 
+		if (UT_LIST_GET_PREV(list, mutex)) {
+			ut_a(UT_LIST_GET_PREV(list, mutex)->magic_n
+							== MUTEX_MAGIC_N);
+		}
+		if (UT_LIST_GET_NEXT(list, mutex)) {
+			ut_a(UT_LIST_GET_NEXT(list, mutex)->magic_n
+							== MUTEX_MAGIC_N);
+		}
+        
 	        UT_LIST_REMOVE(list, mutex_list, mutex);
 
 		mutex_exit(&mutex_list_mutex);
@@ -991,7 +1004,7 @@ sync_thread_add_level(
 	}
 
 	array = thread_slot->levels;
-			 
+	
 	/* NOTE that there is a problem with _NODE and _LEAF levels: if the
 	B-tree height changes, then a leaf can change to an internal node
 	or the other way around. We do not know at present if this can cause

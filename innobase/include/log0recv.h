@@ -25,8 +25,8 @@ recv_read_cp_info_for_backup(
 	byte*	hdr,	/* in: buffer containing the log group header */
 	dulint*	lsn,	/* out: checkpoint lsn */
 	ulint*	offset,	/* out: checkpoint offset in the log group */
-	ulint*	fsp_limit,/* out: fsp limit, 1000000000 if the database
-			is running with < version 3.23.50 of InnoDB */
+	ulint*	fsp_limit,/* out: fsp limit of space 0, 1000000000 if the
+			database is running with < version 3.23.50 of InnoDB */
 	dulint*	cp_no,	/* out: checkpoint number */
 	dulint*	first_header_lsn);
 			/* out: lsn of of the start of the first log file */
@@ -334,7 +334,6 @@ extern ibool		recv_no_ibuf_operations;
 extern ibool		recv_needed_recovery;
 
 extern ibool            recv_lsn_checks_on;
-
 extern ibool		recv_is_making_a_backup;
 extern ulint		recv_max_parsed_page_no;
 

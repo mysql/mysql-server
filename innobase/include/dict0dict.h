@@ -51,6 +51,16 @@ Inits the data dictionary module. */
 void
 dict_init(void);
 /*===========*/
+/************************************************************************
+Gets the space id of every table of the data dictionary and makes a linear
+list and a hash table of them to the data dictionary cache. This function
+can be called at database startup if we did not need to do a crash recovery.
+In crash recovery we must scan the space id's from the .ibd files in MySQL
+database directories. */
+
+void
+dict_load_space_id_list(void);
+/*=========================*/
 /**************************************************************************
 Returns a stored procedure object and memoryfixes it. */
 UNIV_INLINE
@@ -186,6 +196,15 @@ dict_table_rename_in_cache(
 	ibool		rename_also_foreigns);/* in: in ALTER TABLE we want
 					to preserve the original table name
 					in constraints which reference it */
+/**************************************************************************
+Change the id of a table object in the dictionary cache. This is used in
+DISCARD TABLESPACE. */
+
+void
+dict_table_change_id_in_cache(
+/*==========================*/
+	dict_table_t*	table,	/* in: table object already in cache */
+	dulint		new_id);/* in: new id to set */
 /**************************************************************************
 Adds a foreign key constraint object to the dictionary cache. May free
 the object if there already is an object with the same identifier in.
@@ -734,7 +753,8 @@ dict_tree_build_node_ptr(
 /*=====================*/
 				/* out, own: node pointer */
 	dict_tree_t*	tree,	/* in: index tree */
-	rec_t*		rec,	/* in: record for which to build node pointer */
+	rec_t*		rec,	/* in: record for which to build node
+				pointer */
 	ulint		page_no,/* in: page number to put in node pointer */
 	mem_heap_t*	heap,	/* in: memory heap where pointer created */
 	ulint           level);  /* in: level of rec in tree: 0 means leaf
@@ -902,7 +922,7 @@ struct dict_sys_struct{
 	dict_table_t*	sys_columns;	/* SYS_COLUMNS table */
 	dict_table_t*	sys_indexes;	/* SYS_INDEXES table */
 	dict_table_t*	sys_fields;	/* SYS_FIELDS table */
-};					
+};
 
 #ifndef UNIV_NONINL
 #include "dict0dict.ic"

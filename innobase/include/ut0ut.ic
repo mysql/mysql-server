@@ -110,7 +110,7 @@ ut_2pow_remainder(
 	ulint	n,	/* in: number to be divided */
 	ulint	m)	/* in: divisor; power of 2 */
 {
-	ut_ad(0x80000000 % m == 0);
+	ut_ad(0x80000000UL % m == 0);
 
 	return(n & (m - 1));
 }
@@ -125,7 +125,7 @@ ut_2pow_round(
 	ulint	n,	/* in: number to be rounded */
 	ulint	m)	/* in: divisor; power of 2 */
 {
-	ut_ad(0x80000000 % m == 0);
+	ut_ad(0x80000000UL % m == 0);
 
 	return(n & ~(m - 1));
 }

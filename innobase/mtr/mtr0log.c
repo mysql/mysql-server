@@ -171,13 +171,13 @@ mlog_parse_nbytes(
 	}
 
 	if (type == MLOG_1BYTE) {
-		if (val > 0xFF) {
+		if (val > 0xFFUL) {
 			recv_sys->found_corrupt_log = TRUE;
 
 			return(NULL);
 		}
 	} else if (type == MLOG_2BYTES) {
-		if (val > 0xFFFF) {
+		if (val > 0xFFFFUL) {
 			recv_sys->found_corrupt_log = TRUE;
 
 			return(NULL);

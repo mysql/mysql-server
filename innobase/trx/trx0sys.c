@@ -26,6 +26,17 @@ Created 3/26/1996 Heikki Tuuri
 trx_sys_t*		trx_sys 	= NULL;
 trx_doublewrite_t*	trx_doublewrite = NULL;
 
+/* The following is set to TRUE when we are upgrading from the old format data
+files to the new >= 4.1.x format multiple tablespaces format data files */
+
+ibool			trx_doublewrite_must_reset_space_ids	= FALSE;
+
+/* The following is TRUE when we are using the database in the new format,
+i.e., we have successfully upgraded, or have created a new database
+installation */
+
+ibool			trx_sys_multiple_tablespace_format	= FALSE;
+
 /* In a MySQL replication slave, in crash recovery we store the master log
 file name and position here. We have successfully got the updates to InnoDB
 up to this position. If .._pos is -1, it means no crash recovery was needed,
@@ -75,11 +86,11 @@ trx_doublewrite_init(
 {
 	trx_doublewrite = mem_alloc(sizeof(trx_doublewrite_t));
 
-	/* When we have the doublewrite buffer in use, we do not need to
-	call os_file_flush (Unix fsync) after every write. */
-	
+	/* Since we now start to use the doublewrite buffer, no need to call
+	fsync() after every write to a data file */
+
 	os_do_not_call_flush_at_each_write = TRUE;
-	
+
 	mutex_create(&(trx_doublewrite->mutex));
 	mutex_set_level(&(trx_doublewrite->mutex), SYNC_DOUBLEWRITE);
 
@@ -105,7 +116,41 @@ trx_doublewrite_init(
 }
 
 /********************************************************************
-Creates the doublewrite buffer at a database start. The header of the
+Marks the trx sys header when we have successfully upgraded to the >= 4.1.x
+multiple tablespace format. */
+
+void
+trx_sys_mark_upgraded_to_multiple_tablespaces(void)
+/*===============================================*/
+{
+	page_t*	page;
+	byte*	doublewrite;
+	mtr_t	mtr;
+
+	/* We upgraded to 4.1.x and reset the space id fields in the
+	doublewrite buffer. Let us mark to the trx_sys header that the upgrade
+	has been done. */
+
+	mtr_start(&mtr);
+
+	page = buf_page_get(TRX_SYS_SPACE, TRX_SYS_PAGE_NO, RW_X_LATCH, &mtr);
+	buf_page_dbg_add_level(page, SYNC_NO_ORDER_CHECK);
+
+	doublewrite = page + TRX_SYS_DOUBLEWRITE;
+
+	mlog_write_ulint(doublewrite + TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED,
+				TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N,
+				MLOG_4BYTES, &mtr);
+	mtr_commit(&mtr);
+		
+	/* Flush the modified pages to disk and make a checkpoint */
+	log_make_checkpoint_at(ut_dulint_max, TRUE);
+
+	trx_sys_multiple_tablespace_format = TRUE;
+}
+
+/********************************************************************
+Creates the doublewrite buffer to a new InnoDB installation. The header of the
 doublewrite buffer is placed on the trx system header page. */
 
 void
@@ -138,7 +183,6 @@ start_again:
 	
 	if (mach_read_from_4(doublewrite + TRX_SYS_DOUBLEWRITE_MAGIC)
 					== TRX_SYS_DOUBLEWRITE_MAGIC_N) {
-
 		/* The doublewrite buffer has already been created:
 		just read in some numbers */
 
@@ -244,10 +288,15 @@ start_again:
 		}
 
 		mlog_write_ulint(doublewrite + TRX_SYS_DOUBLEWRITE_MAGIC,
-				TRX_SYS_DOUBLEWRITE_MAGIC_N, MLOG_4BYTES, &mtr);
+			TRX_SYS_DOUBLEWRITE_MAGIC_N, MLOG_4BYTES, &mtr);
 		mlog_write_ulint(doublewrite + TRX_SYS_DOUBLEWRITE_MAGIC
 						+ TRX_SYS_DOUBLEWRITE_REPEAT,
-				TRX_SYS_DOUBLEWRITE_MAGIC_N, MLOG_4BYTES, &mtr);
+			TRX_SYS_DOUBLEWRITE_MAGIC_N, MLOG_4BYTES, &mtr);
+
+		mlog_write_ulint(doublewrite
+				+ TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED,
+				TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N,
+				MLOG_4BYTES, &mtr);
 		mtr_commit(&mtr);
 		
 		/* Flush the modified pages to disk and make a checkpoint */
@@ -255,23 +304,31 @@ start_again:
 
 		fprintf(stderr, "InnoDB: Doublewrite buffer created\n");
 
+		trx_sys_multiple_tablespace_format = TRUE;
+
 		goto start_again;
 	}
 }
 
 /********************************************************************
-At a database startup uses a possible doublewrite buffer to restore
+At a database startup initializes the doublewrite buffer memory structure if
+we already have a doublewrite buffer created in the data files. If we are
+upgrading to an InnoDB version which supports multiple tablespaces, then this
+function performs the necessary update operations. If we are in a crash
+recovery, this function uses a possible doublewrite buffer to restore
 half-written pages in the data files. */
 
 void
-trx_sys_doublewrite_restore_corrupt_pages(void)
-/*===========================================*/
+trx_sys_doublewrite_init_or_restore_pages(
+/*======================================*/
+	ibool	restore_corrupt_pages)
 {
 	byte*	buf;
 	byte*	read_buf;
 	byte*	unaligned_read_buf;
 	ulint	block1;
 	ulint	block2;
+	ulint	source_page_no;
 	byte*	page;
 	byte*	doublewrite;
 	ulint	space_id;
@@ -283,12 +340,11 @@ trx_sys_doublewrite_restore_corrupt_pages(void)
 	unaligned_read_buf = ut_malloc(2 * UNIV_PAGE_SIZE);
 	read_buf = ut_align(unaligned_read_buf, UNIV_PAGE_SIZE);	
 
-	/* Read the trx sys header to check if we are using the
-	doublewrite buffer */
+	/* Read the trx sys header to check if we are using the doublewrite
+	buffer */
 
 	fil_io(OS_FILE_READ, TRUE, TRX_SYS_SPACE, TRX_SYS_PAGE_NO, 0,
 					UNIV_PAGE_SIZE, read_buf, NULL);
-
 	doublewrite = read_buf + TRX_SYS_DOUBLEWRITE;
 
 	if (mach_read_from_4(doublewrite + TRX_SYS_DOUBLEWRITE_MAGIC)
@@ -303,6 +359,23 @@ trx_sys_doublewrite_restore_corrupt_pages(void)
 		buf = trx_doublewrite->write_buf;
 	} else {
 		goto leave_func;
+	}
+
+	if (mach_read_from_4(doublewrite + TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED)
+	    != TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N) {
+		        
+	        /* We are upgrading from a version < 4.1.x to a version where
+		multiple tablespaces are supported. We must reset the space id
+		field in the pages in the doublewrite buffer because starting
+		from this version the space id is stored to
+		FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID. */
+
+		trx_doublewrite_must_reset_space_ids = TRUE;
+
+		fprintf(stderr,
+"InnoDB: Resetting space id's in the doublewrite buffer\n");
+	} else {
+		trx_sys_multiple_tablespace_format = TRUE;
 	}
 
 	/* Read the pages from the doublewrite buffer to memory */
@@ -322,12 +395,45 @@ trx_sys_doublewrite_restore_corrupt_pages(void)
 	for (i = 0; i < TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 2; i++) {
 		
 		page_no = mach_read_from_4(page + FIL_PAGE_OFFSET);
-		space_id = 0;
 
-		if (!fil_check_adress_in_tablespace(space_id, page_no)) {
+		if (trx_doublewrite_must_reset_space_ids) {
+
+		        space_id = 0;
+			mach_write_to_4(page
+					+ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, 0);
+			/* We do not need to calculate new checksums for the
+			pages because the field .._SPACE_ID does not affect
+			them. Write the page back to where we read it from. */
+
+			if (i < TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
+			        source_page_no = block1 + i;
+			} else {
+				source_page_no = block2
+					+ i - TRX_SYS_DOUBLEWRITE_BLOCK_SIZE;
+			}
+
+			fil_io(OS_FILE_WRITE, TRUE, 0, source_page_no, 0,
+					      UNIV_PAGE_SIZE, page, NULL);
+			/* printf("Resetting space id in page %lu\n",
+						   source_page_no); */
+		} else {
+		        space_id = mach_read_from_4(
+				page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+		}
+
+		if (!restore_corrupt_pages) {
+			/* The database was shut down gracefully: no need to
+			restore pages */
+
+		} else if (!fil_tablespace_exists_in_mem(space_id)) {
+			/* Maybe we have dropped the single-table tablespace
+			and this page once belonged to it: do nothing */
+
+		} else if (!fil_check_adress_in_tablespace(space_id,
+								page_no)) {
 		  	fprintf(stderr,
-	"InnoDB: Warning: an inconsistent page in the doublewrite buffer\n"
-	"InnoDB: space id %lu page number %lu, %lu'th page in dblwr buf.\n",
+"InnoDB: Warning: a page in the doublewrite buffer is not within space\n"
+"InnoDB: bounds; space id %lu page number %lu, page %lu in doublewrite buf.\n",
 				space_id, page_no, i);
 		
 		} else if (space_id == TRX_SYS_SPACE
@@ -498,8 +604,8 @@ trx_sys_update_mysql_binlog_offset(
 
 	mlog_write_ulint(sys_header + field
 					+ TRX_SYS_MYSQL_LOG_OFFSET_LOW,
-				(ulint)(offset & 0xFFFFFFFF),
-				MLOG_4BYTES, mtr);				
+				(ulint)(offset & 0xFFFFFFFFUL),
+				MLOG_4BYTES, mtr);
 }
 
 /*********************************************************************
