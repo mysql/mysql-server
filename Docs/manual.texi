@@ -30526,13 +30526,16 @@ mysql> SELECT 1 || NULL;
 @findex && (logical AND)
 @item AND
 @itemx &&
-Logical AND. Returns @code{0} if either argument is @code{0} or @code{NULL},
-otherwise returns @code{1}:
+Logical AND. For non-@{NULL} operands, returns @code{1} if both operands are
+non-zero and @code{0} otherwise.
+Returns @code{NULL} if either argument is @code{NULL}:
 @example
-mysql> SELECT 1 && NULL;
-        -> 0
+mysql> SELECT 1 && 1;
+        -> 1
 mysql> SELECT 1 && 0;
         -> 0
+mysql> SELECT 1 && NULL;
+        -> NULL
 @end example
 @end table
 
