@@ -1306,7 +1306,7 @@ EventLogger::getText(char * m_text, size_t m_text_len,
 EventLogger::EventLogger() : m_filterLevel(15)
 {
   setCategory("EventLogger");
-  enable(Logger::Logger::LL_INFO, Logger::Logger::LL_ALERT); 
+  enable(Logger::LL_INFO, Logger::LL_ALERT); 
 }
 
 EventLogger::~EventLogger()
