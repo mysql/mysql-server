@@ -15,9 +15,9 @@
     and NOT to use 0, as on some machines 0 is not the same size as a
     character pointer, or not the same bit pattern as NullS.
 
-    Note: strxnmov is like strnmov in that it always moves EXACTLY len
-    characters; dst will be padded on the right with NUL characters as
-    needed.  strxncpy does the same.  strxncat, like strncat, does NOT.
+    Note: strxnmov is like strnmov in that it moves up to len
+    characters; dst will be padded on the right with one NUL characters if
+    needed.
 */
 
 #include <global.h>
@@ -27,20 +27,22 @@
 char *strxnmov(char *dst,uint len, const char *src, ...)
 {
   va_list pvar;
-  char *result;
+  char *end_of_dst=dst+len;
 
   va_start(pvar,src);
-  while (src != NullS) {
-    do if (len-- == 0)
+  while (src != NullS)
+  {
+    do
     {
-      va_end(pvar);
-      return dst;
+      if (dst == end_of_dst)
+	goto end;
     }
-    while ((*dst++ = *src++) != 0);
+    while ((*dst++ = *src++));
     dst--;
     src = va_arg(pvar, char *);
   }
-  for (result= dst; len-- != 0; *dst++ = 0) ;
+  *dst=0;
+end:
   va_end(pvar);
-  return result;
+  return dst;
 }

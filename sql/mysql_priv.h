@@ -231,6 +231,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list);
 bool mysql_change_db(THD *thd,const char *name);
 void mysql_parse(THD *thd,char *inBuf,uint length);
 void mysql_init_select(LEX *lex);
+void init_max_user_conn(void);
+void free_max_user_conn(void);
 pthread_handler_decl(handle_one_connection,arg);
 pthread_handler_decl(handle_bootstrap,arg);
 sig_handler end_thread_signal(int sig);

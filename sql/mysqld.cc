@@ -263,7 +263,7 @@ ulong select_full_range_join_count,select_full_join_count;
 ulong specialflag=0,opened_tables=0,created_tmp_tables=0,
       created_tmp_disk_tables=0;
 ulong max_connections,max_insert_delayed_threads,max_used_connections,
-      max_connect_errors;
+      max_connect_errors, max_user_connections = 0;
 ulong thread_id=1L,current_pid;
 ulong slow_launch_threads = 0;
 char mysql_real_data_home[FN_REFLEN],
@@ -295,7 +295,8 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_error_log,
 		LOCK_delayed_insert, LOCK_delayed_status, LOCK_delayed_create,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
-                LOCK_binlog_update, LOCK_slave, LOCK_server_id;
+                LOCK_binlog_update, LOCK_slave, LOCK_server_id,
+		LOCK_user_conn;
 
 pthread_cond_t COND_refresh,COND_thread_count,COND_binlog_update,
   COND_slave_stopped, COND_slave_start;
@@ -647,6 +648,7 @@ void clean_up(void)
   my_free(mysql_tmpdir,MYF(0));
   x_free(opt_bin_logname);
   bitmap_free(&temp_pool);
+  free_max_user_conn();
 #ifndef __WIN__
   if (!opt_bootstrap)
     (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
@@ -1576,6 +1578,7 @@ int main(int argc, char **argv)
   (void) pthread_mutex_init(&LOCK_binlog_update, NULL);
   (void) pthread_mutex_init(&LOCK_slave, NULL);
   (void) pthread_mutex_init(&LOCK_server_id, NULL);
+  (void) pthread_mutex_init(&LOCK_user_conn, NULL);
   (void) pthread_cond_init(&COND_binlog_update, NULL);
   (void) pthread_cond_init(&COND_slave_stopped, NULL);
   (void) pthread_cond_init(&COND_slave_start, NULL);
@@ -1765,6 +1768,8 @@ The server will not act as a slave.");
   }
   if (!opt_noacl)
     (void) grant_init();
+  if (max_user_connections)
+    init_max_user_conn();
 
 #ifdef HAVE_DLOPEN
   if (!opt_noacl)
@@ -2625,6 +2630,8 @@ CHANGEABLE_VAR changeable_vars[] = {
       1024, 4, 8192*1024L, 0, 1 },
   { "max_tmp_tables",          (long*) &max_tmp_tables,
       32, 1, ~0L, 0, 1 },
+  { "max_user_connections",       (long*) &max_user_connections,
+      0, 1, ~0L, 0, 1 },
   { "max_write_lock_count",    (long*) &max_write_lock_count,
       ~0L, 1, ~0L, 0, 1 },
   { "myisam_sort_buffer_size", (long*) &myisam_sort_buffer_size,
@@ -2720,6 +2727,7 @@ struct show_var_st init_vars[]= {
   {"max_heap_table_size",     (char*) &max_heap_table_size,         SHOW_LONG},
   {"max_join_size",           (char*) &max_join_size,               SHOW_LONG},
   {"max_sort_length",         (char*) &max_item_sort_length,        SHOW_LONG},
+  {"max_user_connections",    (char*) &max_user_connections,        SHOW_LONG},
   {"max_tmp_tables",          (char*) &max_tmp_tables,              SHOW_LONG},
   {"max_write_lock_count",    (char*) &max_write_lock_count,        SHOW_LONG},
   {"myisam_recover_options",  (char*) &myisam_recover_options_str,  SHOW_CHAR_PTR},
@@ -3842,6 +3850,10 @@ static int get_service_parameters()
     else if ( lstrcmp(szKeyValueName, TEXT("MaxConnections")) == 0 )
     {
       SET_CHANGEABLE_VARVAL( "max_connections" );
+    }
+    else if ( lstrcmp(szKeyValueName, TEXT("MaxUserConnections")) == 0 )
+    {
+      SET_CHANGEABLE_VARVAL( "max_user_connections" );
     }
     else if ( lstrcmp(szKeyValueName, TEXT("MaxConnectErrors")) == 0 )
     {

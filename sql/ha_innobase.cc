@@ -172,9 +172,9 @@ convert_error_code_to_mysql(
     		return(HA_ERR_TO_BIG_ROW);
 
     	} else {
-    		assert(0);
+    		dbug_assert(0);
 
-    		return(0);
+    		return(-1);			// Unknown error
     	}
 }
 
@@ -194,7 +194,7 @@ check_trx_exists(
 	trx = (trx_t*) thd->transaction.all.innobase_tid;
 
 	if (trx == NULL) {
-		assert(thd != NULL);
+	        dbug_assert(thd != NULL);
 		trx = trx_allocate_for_mysql();
 
 		thd->transaction.all.innobase_tid = trx;
@@ -418,31 +418,41 @@ innobase_init(void)
 	int	err;
 	bool	ret;
 	ibool	test_bool;
-
+	static  char *current_dir[3];
   	DBUG_ENTER("innobase_init");
 
-	test_bool = TRUE;
-	assert(test_bool == 1);
-	test_bool = FALSE;
-	assert(test_bool == 0);
+	/* Use current_dir if no paths are set */
+	current_dir[0]=FN_CURLIB;
+	current_dir[1]=FN_LIBCHAR;
+	current_dir[2]=0;
 
 	/* Set Innobase initialization parameters according to the values
 	read from MySQL .cnf file */
 
-	srv_data_home = innobase_data_home_dir;
+	if (!innobase_data_file_path)
+	{
+	  fprintf(stderr,"Can't initialize innobase as 'innobase_data_file_path' is not set\n");
+	  DBUG_RETURN(TRUE);
+	}
+
+	srv_data_home = (innobase_data_home_dir ? innobase_data_home_dir :
+			 current_dir);
 	srv_logs_home = "";
-	srv_arch_dir = innobase_log_arch_dir;
+	srv_arch_dir =  (innobase_log_arch_dir ? innobase_log_arch_dir :
+			 current_dir);
 
 	ret = innobase_parse_data_file_paths_and_sizes();
 
 	if (ret == FALSE) {
-		return(TRUE);
+	  DBUG_RETURN(TRUE);
 	}
 
+	if (!innobase_log_group_home_dir)
+	  innobase_log_group_home_dir= current_dir;
 	ret = innobase_parse_log_group_home_dirs();
 
 	if (ret == FALSE) {
-		return(TRUE);
+	  DBUG_RETURN(TRUE);
 	}
 
 	srv_n_log_groups = (ulint) innobase_mirrored_log_groups;
@@ -466,12 +476,12 @@ innobase_init(void)
 
 	if (err != DB_SUCCESS) {
 
-		return(1);
+	  DBUG_RETURN(1);
 	}
 	(void) hash_init(&innobase_open_tables,32,0,0,
 			 (hash_get_key) innobase_get_key,0,0);
 	pthread_mutex_init(&innobase_mutex,NULL);
-  	return(0);
+  	DBUG_RETURN(0);
 }
 
 /***********************************************************************
@@ -490,10 +500,10 @@ innobase_end(void)
 
 	if (err != DB_SUCCESS) {
 
-		return(1);
+	  DBUG_RETURN(1);
 	}
 
-  	return(0);
+  	DBUG_RETURN(0);
 }
 
 /********************************************************************
@@ -666,7 +676,7 @@ normalize_table_name(
 
 	/* Scan name from the end */
 
-	ptr = (char*) name + strlen(name) - 1;
+	ptr = strend(name)-1;
 
 	while (ptr >= name && *ptr != '\\' && *ptr != '/') {
 		ptr--;
@@ -674,7 +684,7 @@ normalize_table_name(
 
 	name_ptr = ptr + 1;
 
-	assert(ptr > name);
+	dbug_assert(ptr > name);
 
 	ptr--;
 
@@ -770,7 +780,7 @@ ha_innobase::open(
 		((row_prebuilt_t*)innobase_prebuilt)
 				->clust_index_was_generated = TRUE;
 
-		assert(key_used_on_scan == MAX_KEY);
+		dbug_assert(key_used_on_scan == MAX_KEY);
 	}
 
  	/* Init table lock structure */
@@ -911,8 +921,8 @@ innobase_mysql_cmp(
 {
 	enum_field_types	mysql_tp;
 
-	assert(a_length != UNIV_SQL_NULL);
-	assert(b_length != UNIV_SQL_NULL);
+	dbug_assert(a_length != UNIV_SQL_NULL);
+	dbug_assert(b_length != UNIV_SQL_NULL);
 
 	mysql_tp = (enum_field_types) mysql_type;
 
@@ -943,11 +953,11 @@ get_innobase_type_from_mysql_type(
 	8 bits: this is used in ibuf and also when DATA_NOT_NULL is
 	ORed to the type */
 
-	assert((ulint)FIELD_TYPE_STRING < 256);
-	assert((ulint)FIELD_TYPE_VAR_STRING < 256);
-	assert((ulint)FIELD_TYPE_DOUBLE < 256);
-	assert((ulint)FIELD_TYPE_FLOAT < 256);
-	assert((ulint)FIELD_TYPE_DECIMAL < 256);
+	dbug_assert((ulint)FIELD_TYPE_STRING < 256);
+	dbug_assert((ulint)FIELD_TYPE_VAR_STRING < 256);
+	dbug_assert((ulint)FIELD_TYPE_DOUBLE < 256);
+	dbug_assert((ulint)FIELD_TYPE_FLOAT < 256);
+	dbug_assert((ulint)FIELD_TYPE_DECIMAL < 256);
 
 	switch (field->type()) {
 		case FIELD_TYPE_VAR_STRING: if (field->flags & BINARY_FLAG) {
@@ -1071,6 +1081,14 @@ build_template(
 
 		templ_type = ROW_MYSQL_WHOLE_ROW;
 	}
+
+	if (prebuilt->select_lock_type == LOCK_X) {
+	  /* TODO: should fix the code in sql_update so that we could do
+	     with fetching only the needed columns */
+
+	        templ_type = ROW_MYSQL_WHOLE_ROW;
+	}
+
 
 	if (templ_type == ROW_MYSQL_REC_FIELDS) {
 
@@ -1288,9 +1306,9 @@ calc_row_difference(
 	uint		n_fields;
 	ulint		o_len;
 	ulint		n_len;
-	mysql_byte*	o_ptr;
-	mysql_byte*	n_ptr;
-	mysql_byte*	buf;
+	byte*	        o_ptr;
+        byte*	        n_ptr;
+        byte*	        buf;
 	upd_field_t*	ufield;
 	ulint		col_type;
 	ulint		is_unsigned;
@@ -1300,7 +1318,7 @@ calc_row_difference(
 	n_fields = table->fields;
 
 	/* We use upd_buff to convert changed fields */
-	buf = upd_buff;
+	buf = (byte*) upd_buff;
 
 	for (i = 0; i < n_fields; i++) {
 		field = table->field[i];
@@ -1312,8 +1330,8 @@ calc_row_difference(
 			goto skip_field;
 		}
 
-		o_ptr = old_row + get_field_offset(table, field);
-		n_ptr = new_row + get_field_offset(table, field);
+		o_ptr = (byte*) old_row + get_field_offset(table, field);
+		n_ptr = (byte*) new_row + get_field_offset(table, field);
 		o_len = field->pack_length();
 		n_len = field->pack_length();
 
@@ -1353,8 +1371,10 @@ calc_row_difference(
 
 			ufield = uvect->fields + n_changed;
 
-			buf = innobase_convert_and_store_changed_col(ufield,
-						buf, n_ptr, n_len, col_type,
+			buf = (byte*)
+                          innobase_convert_and_store_changed_col(ufield,
+					  (mysql_byte*)buf,
+					  (mysql_byte*)n_ptr, n_len, col_type,
 						is_unsigned);
 			ufield->exp = NULL;
 			ufield->field_no =
@@ -1580,7 +1600,7 @@ ha_innobase::index_read(
 
 	last_match_mode = match_mode;
 
-	ret = row_search_for_mysql(buf, mode, prebuilt, match_mode, 0);
+	ret = row_search_for_mysql((byte*) buf, mode, prebuilt, match_mode, 0);
 
 	if (ret == DB_SUCCESS) {
 		error = 0;
@@ -1690,7 +1710,8 @@ ha_innobase::general_fetch(
 
 	DBUG_ENTER("general_fetch");
 
-	ret = row_search_for_mysql(buf, 0, prebuilt, match_mode, direction);
+	ret = row_search_for_mysql((byte*)buf, 0, prebuilt,
+                       match_mode, direction);
 
 	if (ret == DB_SUCCESS) {
 		error = 0;
@@ -1935,7 +1956,7 @@ ha_innobase::position(
 		len = store_key_val_for_row(primary_key, (char*) ref, record);
 	}
 
-	assert(len <= ref_length);
+	dbug_assert(len <= ref_length);
 
 	ref_stored_len = len;
 }
@@ -2174,23 +2195,14 @@ ha_innobase::create(
 	int		primary_key_no	= -1;
 	KEY*		key;
 	uint		i;
-	char		name2[1000];
-	char		norm_name[1000];
+	char		name2[FN_REFLEN];
+	char		norm_name[FN_REFLEN];
 
   	DBUG_ENTER("ha_innobase::create");
 
 	trx = trx_allocate_for_mysql();
 
-	name_len = strlen(name);
-
-	assert(name_len < 1000);
-	assert(name_len > 4);
-
-	memcpy(name2, name, name_len);
-
-	/* Erase the .frm end from table name: */
-
-	name2[name_len - 4] = '\0';
+	fn_format(name2, name, "", "",2);	// Remove the .frm extension
 
 	normalize_table_name(norm_name, name2);
 
@@ -2550,11 +2562,11 @@ ha_innobase::update_table_comment(
   char *str=my_malloc(length + 50,MYF(0));
 
   if (!str)
-    return comment;
+    return (char*)comment;
 
   sprintf(str,"%s Innobase free: %lu kB", comment,innobase_get_free_space());
 
-  return str;
+  return((char*) str);
 }
 
 
