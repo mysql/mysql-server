@@ -1793,7 +1793,7 @@ and @code{row-level locking}.
 
 @item
 Our German, Austrian, and Swiss users will note that we have a new character
-set, @code{latin_de}, which corrects the @emph{German sorting order},
+set, @code{latin1_de}, which corrects the @emph{German sorting order},
 placing German umlauts in the same order as German telephone books.
 
 @item
@@ -3409,9 +3409,6 @@ database if you are not using the @code{-A} option or if you are using
 @code{rehash}. This is especially notable when you have a big table
 cache.
 
-@item
-The current replication protocol cannot deal with @code{LOAD DATA INFILE}
-and line terminator characters of more than 1 character.
 @end itemize
 
 The following problems are known and will be fixed in due time:
@@ -3421,6 +3418,10 @@ The following problems are known and will be fixed in due time:
 @item
 When using @code{SET CHARACTER SET}, one can't use translated
 characters in database, table, and column names.
+
+@item
+One can't use @code{_} or @code{%} with @code{ESCAPE} in @code{LIKE
+... ESCAPE}.
 
 @item
 If you have a @code{DECIMAL} column with a  number stored in different
@@ -14933,7 +14934,7 @@ system.  This section describes how it works.
 Anyone using MySQL on a computer connected to the Internet
 should read this section to avoid the most common security mistakes.
 
-In discussing security, we emphasize the necessity of fully protecting the
+In discussing security, we emphasise the necessity of fully protecting the
 entire server host (not simply the MySQL server) against all types
 of applicable attacks: eavesdropping, altering, playback, and denial of
 service. We do not cover all aspects of availability and fault tolerance
@@ -19647,7 +19648,7 @@ is high, it is a good indication that your queries and tables are properly index
 @item @code{Handler_read_next} @tab Number of requests to read next row in key order. This
 will be incremented if you are querying an index column with a range constraint. This also
 will be incremented if you are doing an index scan.
-@item @code{Handler_read_prev} @tab Number of requests to read previous row in key order.  This is mainly used to optimize @code{ORDER BY ... DESC}.
+@item @code{Handler_read_prev} @tab Number of requests to read previous row in key order.  This is mainly used to optimise @code{ORDER BY ... DESC}.
 @item @code{Handler_read_rnd} @tab Number of requests to read a row based on a fixed position.
 This will be high if you are doing a lot of queries that require sorting of the result.
 @item @code{Handler_read_rnd_next} @tab Number of requests to read the next row in the datafile.
@@ -20614,7 +20615,7 @@ but normally this is never needed.
 @subsubsection German character set
 
 To get German sorting order, you should start @code{mysqld} with
-@code{--default-character-set=latin_de}.  This will give you the following
+@code{--default-character-set=latin1_de}.  This will give you the following
 characteristics.
 
 When sorting and comparing string's the following mapping is done on the
@@ -20720,7 +20721,7 @@ When defining the character set, every word must be a number in hexadecimal
 format
 @item
 The @code{ctype} array takes up the first 257 words. The
-@code{to_lower}, @code{to_upper} and @code{sort_order} arrays take up
+@code{to_lower[]}, @code{to_upper[]} and @code{sort_order[]} arrays take up
 256 words each after that.
 @end itemize
 
@@ -20881,9 +20882,10 @@ multi-byte characters, you need to use the multi-byte character
 functions.
 
 Right now the best documentation on this is the character sets that are
-already implemented.  Look at the euc_kr, gb2312, gbk, sjis and ujis
-character sets for examples. These are implemented in the
-@code{ctype-'charset'.c} files in the @file{strings} directory.
+already implemented.  Look at the @code{euc_kr}, @code{gb2312},
+@code{gbk}, @code{sjis}, and @code{ujis} character sets for
+examples. These are implemented in the @file{ctype-'charset'.c} files
+in the @file{strings} directory.
 
 You must specify the @code{mbmaxlen_MYSET=N} value in the special
 comment at the top of the source file.  @code{N} should be set to the
@@ -20921,7 +20923,7 @@ In this case you should either get a new @code{Index} file or add
 by hand the name of any missing character sets.
 @end itemize
 
-For MyISAM tables, you can check the character set name and number for a
+For @code{MyISAM} tables, you can check the character set name and number for a
 table with @code{myisamchk -dvv table_name}.
 
 
@@ -23672,7 +23674,7 @@ For more details, please see @ref{Replication FAQ}.
 
 If you want to become a real MySQL replication guru, we suggest that you
 begin by studying, pondering, and trying all commands
-mentioned in @ref{Replication SQL}. You should also familiarize yourself
+mentioned in @ref{Replication SQL}. You should also familiarise yourself
 with replication startup options in @file{my.cnf} in
 @ref{Replication Options}.
 
@@ -23960,7 +23962,7 @@ the slave. The other bug is that if the ignored table gets partially
 updated, the slave thread will not notice that the table actually should
 have been ignored and will suspend the replication process. While the
 above bugs are conceptually very simple to fix, we have not yet found a way
-to do this without a sigficant code change that would compromize the stability
+to do this without a significant code change that would compromise the stability
 status of 3.23 branch. There exists a workaround for both if in the rare case
 it happens to affect your application -- use @code{slave-skip-errors}.
 @end itemize
@@ -25473,7 +25475,7 @@ this join type is good.
 Only rows that are in a given range will be retrieved, using an index to
 select the rows.  The @code{key} column indicates which index is used.
 The @code{key_len} contains the longest key part that was used.
-The @code{ref} column will be NULL for this type.
+The @code{ref} column will be @code{NULL} for this type.
 
 @item index
 This is the same as @code{ALL}, except that only the index tree is
@@ -25764,8 +25766,9 @@ Constant condition removal (needed because of constant folding):
 Constant expressions used by indexes are evaluated only once.
 @item
 @code{COUNT(*)} on a single table without a @code{WHERE} is retrieved
-directly from the table information for MyISAM and HEAP tables.  This is
-also done for any @code{NOT NULL} expression when used with only one table.
+directly from the table information for @code{MyISAM} and @code{HEAP} tables.
+This is also done for any @code{NOT NULL} expression when used with only one
+table.
 @item
 Early detection of invalid constant expressions. MySQL quickly
 detects that some @code{SELECT} statements are impossible and returns no rows.
@@ -25876,9 +25879,9 @@ the scanning of the not used tables as soon as it has found the first match.
 SELECT DISTINCT t1.a FROM t1,t2 where t1.a=t2.a;
 @end example
 
-In the case, assuming t1 is used before t2 (check with @code{EXPLAIN}), then
-MySQL will stop reading from t2 (for that particular row in t1)
-when the first row in t2 is found.
+In the case, assuming @code{t1} is used before @code{t2} (check with
+@code{EXPLAIN}), then MySQL will stop reading from @code{t2} (for that
+particular row in @code{t1}) when the first row in @code{t2} is found.
 
 
 @node LEFT JOIN optimisation, ORDER BY optimisation, DISTINCT optimisation, Query Speed
@@ -25996,7 +25999,7 @@ do the @code{ORDER BY}:
 
 @item
 You are joining many tables and the columns you are doing an @code{ORDER
-BY} on are not all from the first not-const table that is used to
+BY} on are not all from the first not-@code{const} table that is used to
 retrieve rows (This is the first table in the @code{EXPLAIN} output which
 doesn't use a @code{const} row fetch method).
 
@@ -26021,7 +26024,7 @@ algorithm:
 @itemize @bullet
 @item
 Read all rows according to key or by table scanning.
-Rows that doesn't match the WHERE clause are skipped.
+Rows that don't match the @code{WHERE} clause are skipped.
 @item
 Store the sort-key in a buffer (of size @code{sort_buffer}).
 @item
@@ -26196,11 +26199,11 @@ flush-tables}.
 
 Note that @code{LOAD DATA INFILE} also does the above optimisation if
 you insert into an empty table; the main difference with the above
-procedure is that you can let myisamchk allocate much more temporary
+procedure is that you can let @code{myisamchk} allocate much more temporary
 memory for the index creation that you may want MySQL to allocate for
 every index recreation.
 
-Since @strong{MySQL 4.0} you can also use
+Since MySQL 4.0 you can also use
 @code{ALTER TABLE tbl_name DISABLE KEYS} instead of
 @code{myisamchk --keys-used=0 -rq /path/to/db/tbl_name} and
 @code{ALTER TABLE tbl_name ENABLE KEYS} instead of
@@ -26303,8 +26306,8 @@ Always check that all your queries really use the indexes you have created
 in the tables. In MySQL you can do this with the @code{EXPLAIN}
 command. @xref{EXPLAIN, Explain, Explain, manual}.
 @item
-Try to avoid complex @code{SELECT} queries on MyISAM tables that are updated a
-lot. This is to avoid problems with table locking.
+Try to avoid complex @code{SELECT} queries on @code{MyISAM} tables that are
+updated a lot. This is to avoid problems with table locking.
 @item
 The new @code{MyISAM} tables can insert rows in a table without deleted
 rows at the same time another table is reading from it.  If this is important
@@ -26312,7 +26315,7 @@ for you, you should consider methods where you don't have to delete rows
 or run @code{OPTIMIZE TABLE} after you have deleted a lot of rows.
 @item
 Use @code{ALTER TABLE ... ORDER BY expr1,expr2...} if you mostly
-retrieve rows in expr1,expr2... order.  By using this option after big
+retrieve rows in @code{expr1,expr2...} order.  By using this option after big
 changes to the table, you may be able to get higher performance.
 @item
 In some cases it may make sense to introduce a column that is 'hashed'
@@ -26342,7 +26345,8 @@ introduce a new table and update the counter in real time. An update of
 type @code{UPDATE table set count=count+1 where index_column=constant}
 is very fast!
 
-This is really important when you use databases like MySQL that
+This is really important when you use MySQL table types like MyISAM and
+ISAM that
 only have table locking (multiple readers / single writers). This will
 also give better performance with most databases, as the row locking
 manager in this case will have less to do.
@@ -26580,7 +26584,7 @@ As updates on tables normally are considered to be more important than
 than statements that retrieve information from a table. This should
 ensure that updates are not 'starved' because one issues a lot of heavy
 queries against a specific table. (You can change this by using
-LOW_PRIORITY with the statement that does the update or
+@code{LOW_PRIORITY} with the statement that does the update or
 @code{HIGH_PRIORITY} with the @code{SELECT} statement.)
 
 Starting from MySQL Version 3.23.7 one can use the
@@ -26625,7 +26629,7 @@ You can give a specific @code{INSERT}, @code{UPDATE}, or @code{DELETE}
 statement lower priority with the @code{LOW_PRIORITY} attribute.
 
 @item
-Start @code{mysqld} with a low value for @strong{max_write_lock_count} to give
+Start @code{mysqld} with a low value for @code{max_write_lock_count} to give
 @code{READ} locks after a certain number of @code{WRITE} locks.
 
 @item
@@ -26750,7 +26754,7 @@ having it on all columns by default.
 If you don't have any variable-length columns (@code{VARCHAR},
 @code{TEXT}, or @code{BLOB} columns), a fixed-size record format is
 used. This is faster but unfortunately may waste some space.
-@xref{MyISAM table formats}.
+@xref{MyISAM table formats, , @code{MyISAM} table formats}.
 
 @item
 The primary index of a table should be as short as possible. This makes
@@ -27079,9 +27083,9 @@ MySQL is multi-threaded, so it may have many queries on the same table
 simultaneously. To minimise the problem with two threads having
 different states on the same file, the table is opened independently by
 each concurrent thread. This takes some memory but will normaly increase
-performance.  Wth ISAM and MyISAM tables this also requires one extra file
-descriptor for the datafile. With these table types the index file
-descriptor is shared between all threads.
+performance.  Wth @code{ISAM} and @code{MyISAM} tables this also requires
+one extra file descriptor for the datafile. With these table types the index
+file descriptor is shared between all threads.
 
 You can read more about this topic in the next section. @xref{Table cache}.
 
@@ -27114,7 +27118,7 @@ Make sure that your operating system can handle the number of open file
 descriptors implied by the @code{table_cache} setting.  If
 @code{table_cache} is set too high, MySQL may run out of file
 descriptors and refuse connections, fail to perform queries, and be very
-unreliable.  You also have to take into account that the MyISAM table
+unreliable.  You also have to take into account that the @code{MyISAM} table
 handler needs two file descriptors for each unique open table. You can
 in increase the number of file descriptors available for MySQL with
 the @code{--open-files-limit=#} startup option. @xref{Not enough file
@@ -27139,7 +27143,7 @@ a thread is no longer using a table.
 When someone executes @code{mysqladmin refresh} or
 @code{mysqladmin flush-tables}.
 @item
-When someone executes 'FLUSH TABLES'
+When someone executes a @code{FLUSH TABLES} statement.
 @end itemize
 
 When the table cache fills up, the server uses the following procedure
@@ -27172,9 +27176,9 @@ statement, a dedicated table object is allocated for the thread.
 This table object is not shared by other threads an will not be closed
 until the thread calls @code{HANDLER table_name CLOSE} or the thread dies.
 @xref{HANDLER, , @code{HANDLER}}.  When this happens, the table is put
-back in the table_cache (if it isn't full).
+back in the table cache (if it isn't full).
 
-You can check if your table cache is too small by checking the mysqld
+You can check if your table cache is too small by checking the @code{mysqld}
 variable @code{Opened_tables}.  If this is quite big, even if you
 haven't done a lot of @code{FLUSH TABLES}, you should increase your table
 cache. @xref{SHOW STATUS, , @code{SHOW STATUS}}.
@@ -27491,7 +27495,7 @@ threads on a single processor. With more load/CPUs the difference should
 get bigger.
 
 @item
-Running with @code{--log-bin} makes @strong{[MySQL} 1% slower.
+Running with @code{--log-bin} makes MySQL 1% slower.
 
 @item
 Compiling on Linux-x86 using gcc without frame pointers
@@ -27535,8 +27539,8 @@ a query is running, a copy of the current query string is also allocated.
 All threads share the same base memory.
 
 @item
-Only the compressed ISAM / MyISAM tables are memory mapped.  This is
-because the 32-bit memory space of 4GB is not large enough for most
+Only the compressed @code{ISAM} / @code{MyISAM} tables are memory mapped.  This
+is because the 32-bit memory space of 4GB is not large enough for most
 big tables. When systems with a 64-bit address space become more
 common we may add general support for memory mapping.
 
@@ -27551,20 +27555,20 @@ random-read buffer is allocated to avoid disk seeks.
 
 @item
 All joins are done in one pass, and most joins can be done without even
-using a temporary table. Most temporary tables are memory-based (HEAP)
+using a temporary table. Most temporary tables are memory-based (@code{HEAP})
 tables.  Temporary tables with a big record length (calculated as the
 sum of all column lengths) or that contain @code{BLOB} columns are
 stored on disk.
 
-One problem in MySQL versions before Version 3.23.2 is that if a HEAP table
-exceeds the size of @code{tmp_table_size}, you get the error @code{The
+One problem in MySQL versions before Version 3.23.2 is that if a @code{HEAP}
+table exceeds the size of @code{tmp_table_size}, you get the error @code{The
 table tbl_name is full}. In newer versions this is handled by
-automatically changing the in-memory (HEAP) table to a disk-based
-(MyISAM) table as necessary. To work around this problem, you can
+automatically changing the in-memory (@code{HEAP}) table to a disk-based
+(@code{MyISAM}) table as necessary. To work around this problem, you can
 increase the temporary table size by setting the @code{tmp_table_size}
 option to @code{mysqld}, or by setting the SQL option
 @code{BIG_TABLES} in the client program.  @xref{SET OPTION, ,
-@code{SET}}. In MySQL Version 3.20, the maximum size of the
+@code{SET} Syntax}. In MySQL Version 3.20, the maximum size of the
 temporary table was @code{record_buffer*16}, so if you are using this
 version, you have to increase the value of @code{record_buffer}. You can
 also start @code{mysqld} with the @code{--big-tables} option to always
@@ -27767,9 +27771,11 @@ you would write:
 
 @example
 mysql> SET PASSWORD FOR bob@@"%.loc.gov" = PASSWORD("newpass");
+@end example
 
-or
+Which is equivalent to:
 
+@example
 mysql> UPDATE mysql.user SET password=PASSWORD("newpass")
     ->                   WHERE user="bob' AND host="%.loc.gov";
 @end example
@@ -27953,8 +27959,8 @@ inode and by this will avoid some disk seeks.
 
 @item
 On Linux, you can get much more performance (up to 100% under load is
-not uncommon) by using hdparm to configure your disk's interface!  The
-following should be quite good hdparm options for MySQL (and
+not uncommon) by using @code{hdparm} to configure your disk's interface!  The
+following should be quite good @code{hdparm} options for MySQL (and
 probably many other applications):
 
 @example
@@ -27968,15 +27974,15 @@ man page for more information!  If @code{hdparm} is not used wisely,
 filesystem corruption may result.  Backup everything before experimenting!
 
 @item
-On many operating systems you can mount the disks with the 'async' flag to
-set the filesystem to be updated asynchronously.  If your computer is
-reasonable stable, this should give you more performance without sacrificing
+On many operating systems you can mount the disks with the @code{-o async}
+option to set the filesystem to be updated asynchronously.  If your computer is
+reasonably stable, this should give you more performance without sacrificing
 too much reliability.  (This flag is on by default on Linux.)
 
 @item
 If you don't need to know when a file was last accessed (which is not
 really useful on a database server), you can mount your filesystems
-with the @code{noatime} flag.
+with the @code{-o noatime} option.
 @end itemize
 
 @menu
@@ -33529,7 +33535,7 @@ The given @code{key_string} will be used to crypt @code{string_to_encrypt}.
 The return string will be a binary string where the first character
 will be @code{CHAR(128 | key_number)}.
 
-The 128 is added to make it easier to recognize an encrypted key.
+The 128 is added to make it easier to recognise an encrypted key.
 If you use a string key, @code{key_number} will be 127.
 
 On error, this function returns @code{NULL}.
@@ -33603,7 +33609,7 @@ non-magic value (that is, a value that is not @code{NULL} and not @code{0}).
 
 If you insert many rows at the same time with an insert statement,
 @code{LAST_INSERT_ID()} returns the value for the first inserted row.
-The reason for this is so that you it makes it possible to easily reproduce
+The reason for this is to make it possible to easily reproduce
 the same @code{INSERT} statement against some other server.
 
 @cindex sequence emulation
@@ -37679,7 +37685,7 @@ You can combine many statements and accept these all in one go with
 the @code{COMMIT} command.
 @item
 You can execute @code{ROLLBACK} to ignore your changes (if you are not
-running in auto commit mode).
+running in auto-commit mode).
 @item
 If an update fails, all your changes will be restored. (With NTST tables all
 changes that have taken place are permanent)
@@ -38258,7 +38264,7 @@ kind of benefits.)
 @item
 Do more efficient searches. If you know exactly what you are looking
 after, you can search in just one of the split tables for some queries
-and use @code{MERGE} table for others.  You can even have many
+and use a @code{MERGE} table for others.  You can even have many
 different @code{MERGE} tables active, with possible overlapping files.
 @item
 More efficient repairs. It's easier to repair the individual files that
@@ -38293,7 +38299,7 @@ You can only use identical @code{MyISAM} tables for a @code{MERGE} table.
 @code{REPLACE} doesn't work.
 @item
 @code{MERGE} tables uses more file descriptors. If you are using a
-@code{MERGE} that maps over 10 tables and 10 users are using this, you
+@code{MERGE} table that maps over 10 tables and 10 users are using this, you
 are using 10*10 + 10 file descriptors.  (10 datafiles for 10 users
 and 10 shared index files.)
 @item
@@ -38449,8 +38455,8 @@ recovery}.
 @end itemize
 
 Most of the things true for @code{MyISAM} tables are also true for @code{ISAM}
-tables. @xref{MyISAM}. The major differences compared to @code{MyISAM}
-tables are:
+tables. @xref{MyISAM, , @code{MyISAM} tables}. The major differences compared
+to @code{MyISAM} tables are:
 
 @itemize @bullet
 @item @code{ISAM} tables are not binary portable across OS/Platforms.
@@ -38526,7 +38532,7 @@ are 100% dynamic (on inserting). No overflow areas and no extra key
 space are needed.  Deleted rows are put in a linked list and are
 reused when you insert new data into the table.
 @item
-You need enough extra memory for all HEAP tables that you want to use at
+You need enough extra memory for all @code{HEAP} tables that you want to use at
 the same time.
 @item
 To free memory, you should execute @code{DELETE FROM heap_table},
@@ -39455,7 +39461,7 @@ the relevant files. If the formats are different and your tables
 contain floating-point data, you have to use @file{mysqldump}
 and @file{mysqlimport} to move those tables.
 
-A performance tip is to switch off the auto commit when you import
+A performance tip is to switch off auto-commit mode when you import
 data into your database, assuming your tablespace has enough space for
 the big rollback segment the big import transaction will generate.
 Do the commit only after importing a whole table or a segment of
@@ -39476,7 +39482,7 @@ without InnoDB running out of memory.
 
 In InnoDB all user activity happens inside transactions. If the
 auto-commit mode is used in MySQL, then each SQL statement
-will form a single transaction. If the auto commit mode is
+will form a single transaction. If the auto-commit mode is
 switched off, then we can think that a user always has a transaction
 open. If he issues
 the SQL @code{COMMIT} or @code{ROLLBACK} statement, that
@@ -39798,7 +39804,7 @@ Use less locking: if you can afford a @code{SELECT} to return
 data from an old snapshot, do not add the clause
 @code{FOR UPDATE} or @code{LOCK IN SHARE MODE} to it. 
 @item
-If nothing helps, serialize your transactions with table level
+If nothing helps, serialise your transactions with table level
 locks: @code{LOCK TABLES t1 WRITE, t2 READ, ... ;
 [do something with tables t1 and t2 here]; UNLOCK TABLES.}
 Table level locks make you transactions to queue nicely,
@@ -40783,8 +40789,8 @@ In this case you have to rebuild MySQL without @code{BDB} table support.
 Note: The following list is not complete; we will update it as we
 receive more information about this.
 
-Currently we know that @code{BDB} tables work with the following operating
-system.
+Currently we know that the @code{BDB} handler works with the following
+operating systems:
 
 @itemize @bullet
 @item
@@ -40815,7 +40821,7 @@ Here follows the restrictions you have when using @code{BDB} tables:
 @item
 @code{BDB} tables store in the @file{.db} file the path to the file as it was
 created.
-This was done to be able to detect locks in a multi-user
+(This was done to be able to detect locks in a multi-user
 environment that supports symlinks).
 
 The effect of this is that @code{BDB} tables are not movable between directories!
@@ -40844,9 +40850,9 @@ file format.  In this case you have to delete all @code{BDB} logs
 from your database directory (the files with names that have the format
 @code{log.XXXXXXXXXX}) and restart @code{mysqld}.  We would also
 recommend you to do a @code{mysqldump --opt} of your old @code{BDB}
-tables, delete the old table and restore the dump.
+tables, delete the old tables, and restore the dump.
 @item
-If you are running in not @code{auto_commit} mode and delete a table you
+If you are not running in auto-commit mode and delete a table you
 are using by another thread you may get the following error messages in
 the MySQL error file:
 
@@ -40857,7 +40863,7 @@ the MySQL error file:
 @end example
 
 This is not fatal but we don't recommend that you delete tables if you are
-not in @code{auto_commit} mode, until this problem is fixed (the fix is
+not in auto-commit mode, until this problem is fixed (the fix is
 not trivial).
 @end itemize
 
@@ -41657,10 +41663,10 @@ through  the @code{InConnectionString} argument in the
 @item @strong{Parameter} @tab @strong{Default value} @tab @strong{Comment}
 @item user @tab ODBC (on Windows) @tab The username used to connect to MySQL.
 @item server @tab localhost @tab The hostname of the MySQL server.
-@item database @tab @tab The default database
+@item database @tab @tab The default database.
 @item option @tab 0 @tab A integer by which you can specify how @code{MyODBC} should work. See below.
 @item port @tab 3306 @tab The TCP/IP port to use if @code{server} is not @code{localhost}.
-@item stmt @tab @tab A statement that will be executed when connection to @code{MySQL}.
+@item stmt @tab @tab A statement that will be executed when connecting to @code{MySQL}.
 @item password @tab @tab The password for the @code{server} @code{user} combination.
 @item socket @tab @tab The socket or Windows pipe to connect to.
 @end multitable
@@ -44388,14 +44394,14 @@ if (!mysql_real_connect(&mysql,"host","user","passwd","database",0,NULL,0))
 @end example
 
 By using @code{mysql_options()} the MySQL library will read the
-@code{[client]} and @code{your_prog_name} sections in the @file{my.cnf}
+@code{[client]} and @code{[your_prog_name]} sections in the @file{my.cnf}
 file which will ensure that your program will work, even if someone has
 set up MySQL in some non-standard way.
 
 Note that upon connection, @code{mysql_real_connect()} sets the @code{reconnect}
-flag (part of the MYSQL structure) to a value of @code{1}. This flag indicates,
-in the event that a query cannot be performed because of a lost connection, to
-try reconnecting to the server before giving up.
+flag (part of the @code{MYSQL} structure) to a value of @code{1}. This
+flag indicates, in the event that a query cannot be performed because
+of a lost connection, to try reconnecting to the server before giving up.
 
 
 @node mysql_real_escape_string, mysql_real_query, mysql_real_connect, C API functions
@@ -50391,6 +50397,23 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+@code{SELECT @@@@[global|session].var_name} didn't report
+@code{global | session} in the result column name.
+@item
+Fixed problem in replication that @code{FLUSH LOGS} in a circular
+replication setup created an infinite number of binary log files.
+Now a @code{rotate-binary-log} command in the binary log will not cause slaves
+to rotate logs.
+@item
+Removed @code{STOP EVENT} from binary log when doing @code{FLUSH LOGS}.
+@item
+Disable the use of @code{SHOW NEW MASTER FOR SLAVE} as this needs to be
+completely changed in 4.1.
+@item
+Fixed a bug with constant expression (e.g. field of a one-row table, or field
+from a table, referenced by a @code{UNIQUE} key) appeared in @code{ORDER BY}
+part of @code{SELECT DISTINCT}.
+@item
 @code{--log-binary=a.b.c} now properly strips of @code{.b.c}.
 @item
 @code{FLUSH LOGS} removed numerical extension for all future update logs.
@@ -50954,7 +50977,7 @@ Secure connections (with SSL).
 Unsigned @code{BIGINT} constants now work. @code{MIN()} and @code{MAX()}
 now handle signed and unsigned @code{BIGINT} numbers correctly.
 @item
-New character set @code{latin_de} which provides correct German sorting.
+New character set @code{latin1_de} which provides correct German sorting.
 @item
 @code{STRCMP()} now uses the current character set when doing comparisons,
 which means that the default comparison behaviour now is case-insensitive.

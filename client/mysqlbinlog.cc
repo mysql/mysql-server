@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2001 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 #include "log_event.h"
 
 #define BIN_LOG_HEADER_SIZE	4
-#define PROBE_HEADER_LEN	(BIN_LOG_HEADER_SIZE+EVENT_LEN_OFFSET+4)
+#define PROBE_HEADER_LEN	(EVENT_LEN_OFFSET+4)
 
 
 #define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_LOCAL_FILES)
@@ -40,7 +40,7 @@ static FILE *result_file;
 static const char* default_dbug_option = "d:t:o,/tmp/mysqlbinlog.trace";
 #endif
 
-void sql_print_error(const char *format,...);
+void sql_print_error(const char *format, ...);
 
 static bool one_database = 0;
 static const char* database;
@@ -138,7 +138,7 @@ This software comes with NO WARRANTY:  This is free software,\n\
 and you are welcome to modify and redistribute it under the GPL license\n");
 
   printf("\
-Dumps a MySQL binary log in a format usable for viewing or for pipeing to\n\
+Dumps a MySQL binary log in a format usable for viewing or for piping to\n\
 the mysql command line client\n\n");
   printf("Usage: %s [options] log-files\n", my_progname);
   my_print_help(my_long_options);
@@ -378,30 +378,39 @@ static void dump_remote_log_entries(const char* logname)
 
 static int check_header(IO_CACHE* file)
 {
+  byte header[BIN_LOG_HEADER_SIZE];
   byte buf[PROBE_HEADER_LEN];
   int old_format=0;
 
   my_off_t pos = my_b_tell(file);
   my_b_seek(file, (my_off_t)0);
-  if (my_b_read(file, buf, sizeof(buf)))
-    die("Failed reading header");
-  if (buf[EVENT_TYPE_OFFSET+4] == START_EVENT)
+  if (my_b_read(file, header, sizeof(header)))
+    die("Failed reading header;  Probably an empty file");
+  if (memcmp(header, BINLOG_MAGIC, sizeof(header)))
+    die("File is not a binary log file");
+  if (!my_b_read(file, buf, sizeof(buf)))
   {
-    uint event_len;
-    event_len = uint4korr(buf + EVENT_LEN_OFFSET + 4);
-    old_format = (event_len < LOG_EVENT_HEADER_LEN + START_HEADER_LEN);
+    if (buf[4] == START_EVENT)
+    {
+      uint event_len;
+      event_len = uint4korr(buf + 4);
+      old_format = (event_len < LOG_EVENT_HEADER_LEN + START_HEADER_LEN);
+    }
   }
   my_b_seek(file, pos);
   return old_format;
 }
+
 
 static void dump_local_log_entries(const char* logname)
 {
   File fd = -1;
   IO_CACHE cache,*file= &cache;
   ulonglong rec_count = 0;
-  char last_db[FN_REFLEN+1] = "";
+  char last_db[FN_REFLEN+1], tmp_buff[BIN_LOG_HEADER_SIZE];
   bool old_format = 0;
+
+  last_db[0]=0;
 
   if (logname && logname[0] != '-')
   {
@@ -435,14 +444,7 @@ static void dump_local_log_entries(const char* logname)
   }
 
   if (!position)
-  {
-    char magic[BIN_LOG_HEADER_SIZE];
-    if (my_b_read(file, (byte*) magic, sizeof(magic)))
-      die("I/O error reading binlog magic number");
-    if (memcmp(magic, BINLOG_MAGIC, 4))
-      die("Bad magic number;  The file is probably not a MySQL binary log");
-  }
-
+    my_b_read(file, tmp_buff, BIN_LOG_HEADER_SIZE); // Skip header
   for (;;)
   {
     char llbuff[21];

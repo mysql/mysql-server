@@ -1,3 +1,7 @@
+#
+# Test of automatic redirection of queries to master/slave.
+# 
+
 source include/master-slave.inc;
 
 #first, make sure the slave has had enough time to register
@@ -7,6 +11,10 @@ sync_with_master;
 
 #discover slaves
 connection master;
+--replace_result $MASTER_MYPORT MASTER_PORT
+SHOW SLAVE STATUS;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+SHOW SLAVE HOSTS;
 rpl_probe;
 
 #turn on master/slave query direction auto-magic
@@ -16,15 +24,18 @@ create table t1 ( n int);
 insert into t1 values (1),(2),(3),(4);
 disable_rpl_parse;
 save_master_pos;
-enable_rpl_parse;
 connection slave;
 sync_with_master;
 insert into t1 values(5);
 connection master;
+enable_rpl_parse;
+# The first of the queries will be sent to the slave, the second to the master.
 select * from t1;
 select * from t1;
 disable_rpl_parse;
 select * from t1;
 connection slave;
 select * from t1;
+drop table t1;
+connection master;
 drop table t1;

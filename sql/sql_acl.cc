@@ -1310,18 +1310,24 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   if (table->fields >= 31)		/* From 4.0.0 we have more fields */
   {
     /* We write down SSL related ACL stuff */
-    table->field[25]->store("",0);
-    table->field[26]->store("",0);
-    table->field[27]->store("",0);
     switch (thd->lex.ssl_type) {
     case SSL_TYPE_ANY:
       table->field[24]->store("ANY",3);
+      table->field[25]->store("",0);
+      table->field[26]->store("",0);
+      table->field[27]->store("",0);
       break;
     case SSL_TYPE_X509:
       table->field[24]->store("X509",4);
+      table->field[25]->store("",0);
+      table->field[26]->store("",0);
+      table->field[27]->store("",0);
       break;
     case SSL_TYPE_SPECIFIED:
       table->field[24]->store("SPECIFIED",9);
+      table->field[25]->store("",0);
+      table->field[26]->store("",0);
+      table->field[27]->store("",0);
       if (thd->lex.ssl_cipher)
 	table->field[25]->store(thd->lex.ssl_cipher,
 				strlen(thd->lex.ssl_cipher));
@@ -1332,8 +1338,8 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
 	table->field[27]->store(thd->lex.x509_subject,
 				strlen(thd->lex.x509_subject));
       break;
-    default:
-      table->field[24]->store("",0);
+    case SSL_TYPE_NOT_SPECIFIED:
+      break;					// Nothing to do
     }
 
     USER_RESOURCES mqh = thd->lex.mqh;

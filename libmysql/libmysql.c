@@ -1049,21 +1049,21 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
 int STDCALL mysql_master_query(MYSQL *mysql, const char *q,
 			       unsigned long length)
 {
+  DBUG_ENTER("mysql_master_query");
   if (mysql_master_send_query(mysql, q, length))
-    return 1;
-  return mysql_read_query_result(mysql);
+    DBUG_RETURN(1);
+  DBUG_RETURN(mysql_read_query_result(mysql));
 }
 
 int STDCALL mysql_master_send_query(MYSQL *mysql, const char *q,
 				    unsigned long length)
 {
-  MYSQL*master = mysql->master;
-  if (!length)
-    length = strlen(q);
+  MYSQL *master = mysql->master;
+  DBUG_ENTER("mysql_master_send_query");
   if (!master->net.vio && !mysql_real_connect(master,0,0,0,0,0,0,0))
-    return 1;
+    DBUG_RETURN(1);
   mysql->last_used_con = master;
-  return simple_command(master, COM_QUERY, q, length, 1);
+  DBUG_RETURN(simple_command(master, COM_QUERY, q, length, 1));
 }
 
 
@@ -1071,30 +1071,31 @@ int STDCALL mysql_master_send_query(MYSQL *mysql, const char *q,
 int STDCALL mysql_slave_query(MYSQL *mysql, const char *q,
 			      unsigned long length)
 {
+  DBUG_ENTER("mysql_slave_query");
   if (mysql_slave_send_query(mysql, q, length))
-    return 1;
-  return mysql_read_query_result(mysql);
+    DBUG_RETURN(1);
+  DBUG_RETURN(mysql_read_query_result(mysql));
 }
 
 int STDCALL mysql_slave_send_query(MYSQL *mysql, const char *q,
 				   unsigned long length)
 {
   MYSQL* last_used_slave, *slave_to_use = 0;
+  DBUG_ENTER("mysql_slave_send_query");
 
   if ((last_used_slave = mysql->last_used_slave))
     slave_to_use = last_used_slave->next_slave;
   else
     slave_to_use = mysql->next_slave;
-  /* next_slave is always safe to use - we have a circular list of slaves
-     if there are no slaves, mysql->next_slave == mysql
+  /*
+    Next_slave is always safe to use - we have a circular list of slaves
+    if there are no slaves, mysql->next_slave == mysql
   */
   mysql->last_used_con = mysql->last_used_slave = slave_to_use;
-  if (!length)
-    length = strlen(q);
   if (!slave_to_use->net.vio && !mysql_real_connect(slave_to_use, 0,0,0,
 						   0,0,0,0))
-    return 1;
-  return simple_command(slave_to_use, COM_QUERY, q, length, 1);
+    DBUG_RETURN(1);
+  DBUG_RETURN(simple_command(slave_to_use, COM_QUERY, q, length, 1));
 }
 
 
@@ -1307,8 +1308,7 @@ err:
 enum mysql_rpl_type
 STDCALL mysql_rpl_query_type(const char* q, int len)
 {
-  const char* q_end;
-  q_end = (len) ? q + len : strend(q);
+  const char *q_end= q + len;
   for (; q < q_end; ++q)
   {
     char c;
@@ -2203,20 +2203,24 @@ STDCALL mysql_add_slave(MYSQL* mysql, const char* host,
 int STDCALL
 mysql_send_query(MYSQL* mysql, const char* query, ulong length)
 {
+  DBUG_ENTER("mysql_send_query");
+  DBUG_PRINT("enter",("rpl_parse: %d  rpl_pivot: %d",
+		      mysql->options.rpl_parse, mysql->rpl_pivot));
+
   if (mysql->options.rpl_parse && mysql->rpl_pivot)
   {
     switch (mysql_rpl_query_type(query, length)) {
     case MYSQL_RPL_MASTER:
-      return mysql_master_send_query(mysql, query, length);
+      DBUG_RETURN(mysql_master_send_query(mysql, query, length));
     case MYSQL_RPL_SLAVE:
-      return mysql_slave_send_query(mysql, query, length);
+      DBUG_RETURN(mysql_slave_send_query(mysql, query, length));
     case MYSQL_RPL_ADMIN:
       break;					/* fall through */
     }
   }
 
   mysql->last_used_con = mysql;
-  return simple_command(mysql, COM_QUERY, query, length, 1);
+  DBUG_RETURN(simple_command(mysql, COM_QUERY, query, length, 1));
 }
 
 

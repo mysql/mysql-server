@@ -285,12 +285,14 @@ udf_func *find_udf(const char *name,uint length,bool mark_used)
 
   /* TODO: This should be changed to reader locks someday! */
   pthread_mutex_lock(&THR_LOCK_udf);
-  udf=(udf_func*) hash_search(&udf_hash,(byte*) name,
-			      length ? length : (uint) strlen(name));
-  if (!udf->dlhandle)
-    udf=0;					// Could not be opened
-  else if (mark_used)
-    udf->usage_count++;
+  if ((udf=(udf_func*) hash_search(&udf_hash,(byte*) name,
+				   length ? length : (uint) strlen(name))))
+  {
+    if (!udf->dlhandle)
+      udf=0;					// Could not be opened
+    else if (mark_used)
+      udf->usage_count++;
+  }
   pthread_mutex_unlock(&THR_LOCK_udf);
   DBUG_RETURN(udf);
 }

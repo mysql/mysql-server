@@ -370,7 +370,8 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       share.state.rec_per_key_part[key_segs-1]=1L;
     length+=key_length;
     keydef->block_length= MI_BLOCK_SIZE(length,pointer,MI_MAX_KEYPTR_SIZE);
-    if (keydef->block_length > MI_MAX_KEY_BLOCK_LENGTH)
+    if (keydef->block_length > MI_MAX_KEY_BLOCK_LENGTH ||
+        length > MI_MAX_KEY_LENGTH)
     {
       my_errno=HA_WRONG_CREATE_OPTION;
       goto err;

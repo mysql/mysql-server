@@ -3598,7 +3598,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   List_iterator_fast<Item> li(fields);
   Item *item;
   Field **tmp_from_field=from_field;
-  while ((item=li++))
+  for(uint field_no=0; ((item=li++)); field_no++)
   {
     Item::Type type=item->type();
     if (not_all_columns)
@@ -3613,8 +3613,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	param->using_indirect_summary_function=1;
 	continue;
       }
-      if (item->const_item())			// We don't have to store this
-	continue;
+      if (item->const_item() && field_no >= hidden_field_count)
+        continue; // We don't have to store this
     }
     if (type == Item::SUM_FUNC_ITEM && !group && !save_sum_fields)
     {						/* Can't calc group yet */

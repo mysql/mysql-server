@@ -8,7 +8,6 @@ slave stop;
 reset master;
 reset slave;
 reset master;
-drop table if exists t1;
 create table t1(n int not null auto_increment primary key);
 insert into t1 values (NULL);
 drop table t1;
@@ -37,6 +36,9 @@ show binlog events from 79 limit 2,1;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
 master-bin.001	200	Query	1	200	use test; insert into t1 values (NULL)
 flush logs;
+slave start;
+flush logs;
+slave stop;
 create table t1 (n int);
 insert into t1 values (1);
 drop table t1;
@@ -52,7 +54,6 @@ master-bin.001	386	Create_file	1	386	db=test;table=t1;file_id=1;block_len=81
 master-bin.001	556	Exec_load	1	556	;file_id=1
 master-bin.001	579	Query	1	579	use test; drop table t1
 master-bin.001	627	Rotate	1	627	master-bin.002;pos=4
-master-bin.001	668	Stop	1	668	
 show binlog events in 'master-bin.002';
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
 master-bin.002	4	Query	1	4	use test; create table t1 (n int)
@@ -68,32 +69,24 @@ Log_name
 slave-bin.001
 slave-bin.002
 show binlog events in 'slave-bin.001' from 4;
+Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+slave-bin.001	4	Start	2	4	Server ver: VERSION, Binlog ver: 3
+slave-bin.001	79	Query	1	79	use test; create table t1(n int not null auto_increment primary key)
+slave-bin.001	172	Intvar	1	200	INSERT_ID=1
+slave-bin.001	200	Query	1	200	use test; insert into t1 values (NULL)
+slave-bin.001	263	Query	1	263	use test; drop table t1
+slave-bin.001	311	Query	1	311	use test; create table t1 (word char(20) not null)
+slave-bin.001	386	Create_file	1	386	db=test;table=t1;file_id=1;block_len=81
+slave-bin.001	565	Exec_load	1	556	;file_id=1
+slave-bin.001	588	Query	1	579	use test; drop table t1
+slave-bin.001	636	Rotate	2	636	slave-bin.002;pos=4
 show binlog events in 'slave-bin.002' from 4;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
-slave-bin.002	4	Slave	2	627	host=127.0.0.1,port=MASTER_PORT,log=master-bin.002,pos=4
-slave-bin.002	57	Query	1	4	use test; create table t1 (n int)
-slave-bin.002	115	Query	1	62	use test; insert into t1 values (1)
-slave-bin.002	175	Query	1	122	use test; drop table t1
+slave-bin.002	4	Query	1	4	use test; create table t1 (n int)
+slave-bin.002	62	Query	1	62	use test; insert into t1 values (1)
+slave-bin.002	122	Query	1	122	use test; drop table t1
 show slave status;
 Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space
-127.0.0.1	root	MASTER_PORT	1	master-bin.002	170	slave-relay-bin.002	916	master-bin.002	Yes	Yes			0		0	170	920
-show new master for slave with master_log_file='master-bin.001' and
-master_log_pos=4 and  master_server_id=1;
-Log_name	Log_pos
-slave-bin.001	132
-show new master for slave with master_log_file='master-bin.001' and
-master_log_pos=79 and master_server_id=1;
-Log_name	Log_pos
-slave-bin.001	225
-show new master for slave with master_log_file='master-bin.001' and
-master_log_pos=311 and master_server_id=1;
-Log_name	Log_pos
-slave-bin.001	439
-show new master for slave with master_log_file='master-bin.002' and
-master_log_pos=4 and master_server_id=1;
-Log_name	Log_pos
-slave-bin.002	57
-show new master for slave with master_log_file='master-bin.002' and
-master_log_pos=122 and master_server_id=1;
-Log_name	Log_pos
-slave-bin.002	223
+127.0.0.1	root	MASTER_PORT	1	master-bin.002	170	slave-relay-bin.002	957	master-bin.002	Yes	Yes			0		0	170	961
+show binlog events in 'slave-bin.005' from 4;
+Error when executing command SHOW BINLOG EVENTS: Could not find target log

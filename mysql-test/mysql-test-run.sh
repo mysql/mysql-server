@@ -742,6 +742,8 @@ start_master()
   $RM -f $MASTER_MYDDIR/log.*
   # Remove stale binary logs
   $RM -f $MYSQL_TEST_DIR/var/log/master-bin.*
+  # Remove old master.info files
+  $RM -f $MYSQL_TEST_DIR/var/master-data/master.info
 
   #run master initialization shell script if one exists
 
@@ -858,8 +860,9 @@ start_slave()
    slave_pid=$SLAVE_MYPID
    slave_sock="$SLAVE_MYSOCK"
  fi
-  # Remove stale binary logs
-  $RM -f $MYSQL_TEST_DIR/var/log/$slave_ident-bin.*
+  # Remove stale binary logs and old master.info files
+  $RM -f $MYSQL_TEST_DIR/var/log/$slave_ident-*bin.*
+  $RM -f $MYSQL_TEST_DIR/$slave_datadir/master.info
 
   #run slave initialization shell script if one exists
   if [ -f "$slave_init_script" ] ;
@@ -1089,8 +1092,8 @@ run_testcase ()
        start_master
      fi
    fi
-   do_slave_restart=0
 
+   do_slave_restart=0
    if [ -f $slave_opt_file ] ;
    then
      EXTRA_SLAVE_OPT=`$CAT $slave_opt_file | $SED -e "s;\\$MYSQL_TEST_DIR;$MYSQL_TEST_DIR;"`

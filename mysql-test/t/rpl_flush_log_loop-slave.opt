@@ -1,1 +1,1 @@
---server_id=2 --log-bin
+-O max_binlog_size=1M

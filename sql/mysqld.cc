@@ -3039,7 +3039,7 @@ struct my_option my_long_options[] =
    "Set to 0 if you don't want to flush logs",
    (gptr*) &innobase_flush_log_at_trx_commit,
    (gptr*) &innobase_flush_log_at_trx_commit,
-   0, GET_BOOL, OPT_ARG,  0, 0, 0, 0, 0, 0},
+   0, GET_INT, OPT_ARG,  0, 0, 2, 0, 0, 0},
   {"innodb_flush_method", OPT_INNODB_FLUSH_METHOD,
    "With which method to flush data", (gptr*) &innobase_unix_file_flush_method,
    (gptr*) &innobase_unix_file_flush_method, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
