@@ -1319,13 +1319,15 @@ public:
   /* Is this item represents row from NEW or OLD row ? */
   enum row_version_type {OLD_ROW, NEW_ROW};
   row_version_type row_version;
+  /* Next in list of all Item_trigger_field's in trigger */
+  Item_trigger_field *next_trg_field;
 
   Item_trigger_field(row_version_type row_ver_par,
                      const char *field_name_par):
     Item_field((const char *)NULL, (const char *)NULL, field_name_par),
     row_version(row_ver_par)
   {}
-  bool setup_field(THD *thd, TABLE *table, enum trg_event_type event);
+  void setup_field(THD *thd, TABLE *table, enum trg_event_type event);
   enum Type type() const { return TRIGGER_FIELD_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
   bool fix_fields(THD *, struct st_table_list *, Item **);
