@@ -73,7 +73,7 @@ public:
   void set_index_file_name(const char* index_file_name = 0);
   void init(enum_log_type log_type_arg);
   void open(const char *log_name,enum_log_type log_type,
-	    const char *new_name=0);
+	    const char *new_name=0, bool null_created= 0);
   void new_file(bool inside_mutex = 0);
   bool open_index(int options);
   void close_index();
