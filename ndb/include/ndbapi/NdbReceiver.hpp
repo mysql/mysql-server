@@ -19,6 +19,7 @@
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL  // Not part of public interface
 
 #include <ndb_types.h>
+#include <ndb_global.h>
 
 class Ndb;
 class NdbReceiver
@@ -127,7 +128,8 @@ int
 NdbReceiver::execTCOPCONF(Uint32 len){
   Uint32 tmp = m_received_result_length;
   m_expected_result_length = len;
-  return (tmp == len ? 1 : 0);
+  assert(!(tmp && !len));
+  return ((bool)len ^ (bool)tmp ? 0 : 1);
 }
 
 inline

@@ -161,28 +161,17 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64 aTransId)
   tTransId1 = (Uint32) aTransId;
   tTransId2 = (Uint32) (aTransId >> 32);
   
-//-------------------------------------------------------------
-// Simple is simple if simple or both start and commit is set.
-//-------------------------------------------------------------
-// Temporarily disable simple stuff
-  Uint8 tSimpleIndicator = 0;
-//  Uint8 tSimpleIndicator = theSimpleIndicator;
+  Uint8 tSimpleIndicator = theSimpleIndicator;
   Uint8 tCommitIndicator = theCommitIndicator;
   Uint8 tStartIndicator = theStartIndicator;
-//  if ((theNdbCon->theLastOpInList == this) && (theCommitIndicator == 0))
-//    abort();
-// Temporarily disable simple stuff
-  Uint8 tSimpleAlt = 0;
-//  Uint8 tSimpleAlt = tStartIndicator & tCommitIndicator;
-  tSimpleIndicator = tSimpleIndicator | tSimpleAlt;
+  Uint8 tInterpretIndicator = theInterpretIndicator;
 
 //-------------------------------------------------------------
 // Simple state is set if start and commit is set and it is
 // a read request. Otherwise it is set to zero.
 //-------------------------------------------------------------
   Uint8 tReadInd = (theOperationType == ReadRequest);
-  Uint8 tSimpleState = tReadInd & tSimpleAlt;
-  theNdbCon->theSimpleState = tSimpleState;
+  Uint8 tSimpleState = tReadInd & tSimpleIndicator;
 
   tcKeyReq->transId1           = tTransId1;
   tcKeyReq->transId2           = tTransId2;
@@ -197,7 +186,6 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64 aTransId)
   tcKeyReq->setSimpleFlag(tReqInfo, tSimpleIndicator);
   tcKeyReq->setCommitFlag(tReqInfo, tCommitIndicator);
   tcKeyReq->setStartFlag(tReqInfo, tStartIndicator);
-  const Uint8 tInterpretIndicator = theInterpretIndicator;
   tcKeyReq->setInterpretedFlag(tReqInfo, tInterpretIndicator);
 
   Uint8 tDirtyIndicator = theDirtyIndicator;
@@ -208,6 +196,9 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr, Uint64 aTransId)
   tcKeyReq->setDirtyFlag(tReqInfo, tDirtyIndicator);
   tcKeyReq->setOperationType(tReqInfo, tOperationType);
   tcKeyReq->setKeyLength(tReqInfo, tTupKeyLen);
+  
+  // A simple read is always ignore error
+  abortOption = tSimpleIndicator ? IgnoreError : abortOption;
   tcKeyReq->setAbortOption(tReqInfo, abortOption);
   
   Uint8 tDistrKeyIndicator = theDistrKeyIndicator;
@@ -551,25 +542,16 @@ NdbOperation::receiveTCKEYREF( NdbApiSignal* aSignal)
   }//if
 
   theStatus = Finished;
-  
   theNdbCon->theReturnStatus = NdbConnection::ReturnFailure;
-  //-------------------------------------------------------------------------//
-  // If the transaction this operation belongs to consists only of simple reads
-  // we set the error code on the transaction object. 
-  // If the transaction consists of other types of operations we set 
-  // the error code only on the operation since the simple read is not really 
-  // part of this transaction and we can not decide the status of the whole 
-  // transaction based on this operation.
-  //-------------------------------------------------------------------------//
-  if (theNdbCon->theSimpleState == 0) {
-    theError.code = aSignal->readData(4);
-    theNdbCon->setOperationErrorCodeAbort(aSignal->readData(4));
-    return theNdbCon->OpCompleteFailure();
-  } else {
-    theError.code = aSignal->readData(4);
-    return theNdbCon->OpCompleteSuccess();
-  }
-  
+
+  theError.code = aSignal->readData(4);
+  theNdbCon->setOperationErrorCodeAbort(aSignal->readData(4));
+
+  if(theOperationType != ReadRequest || !theSimpleIndicator) // not simple read
+    return theNdbCon->OpCompleteFailure(theNdbCon->m_abortOption);
+
+  // Simple read is always ignore error
+  return theNdbCon->OpCompleteFailure(IgnoreError);
 }//NdbOperation::receiveTCKEYREF()
 
 
