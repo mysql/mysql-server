@@ -1362,7 +1362,7 @@ int open_tables(THD *thd,TABLE_LIST *start)
       result= -1;				// Fatal error
       break;
     }
-    if (tables->lock_type != TL_UNLOCK)
+    if (tables->lock_type != TL_UNLOCK && ! thd->locked_tables)
       tables->table->reginfo.lock_type=tables->lock_type;
     tables->table->grant= tables->grant;
   }
