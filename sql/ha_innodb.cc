@@ -4037,7 +4037,11 @@ create_index(
 		col_type = get_innobase_type_from_mysql_type(key_part->field);
 
 		if (DATA_BLOB == col_type
-		    || key_part->length < field->pack_length()) {
+		    || (key_part->length < field->pack_length()
+			&& field->type() != MYSQL_TYPE_VARCHAR)
+		    || (field->type() == MYSQL_TYPE_VARCHAR
+			&& key_part->length < field->pack_length()
+			          - ((Field_varstring*)field)->length_bytes)) {
 
 		        prefix_len = key_part->length;
 
