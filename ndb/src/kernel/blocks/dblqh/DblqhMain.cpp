@@ -15931,6 +15931,7 @@ void Dblqh::initialiseAttrbuf(Signal* signal)
     for (attrinbufptr.i = 0; 
 	 attrinbufptr.i < cattrinbufFileSize; 
 	 attrinbufptr.i++) {
+      refresh_watch_dog();
       ptrAss(attrinbufptr, attrbuf);
       attrinbufptr.p->attrbuf[ZINBUF_NEXT] = attrinbufptr.i + 1;
     }//for
@@ -15953,6 +15954,7 @@ void Dblqh::initialiseDatabuf(Signal* signal)
 {
   if (cdatabufFileSize != 0) {
     for (databufptr.i = 0; databufptr.i < cdatabufFileSize; databufptr.i++) {
+      refresh_watch_dog();
       ptrAss(databufptr, databuf);
       databufptr.p->nextDatabuf = databufptr.i + 1;
     }//for
@@ -15974,6 +15976,7 @@ void Dblqh::initialiseFragrec(Signal* signal)
 {
   if (cfragrecFileSize != 0) {
     for (fragptr.i = 0; fragptr.i < cfragrecFileSize; fragptr.i++) {
+      refresh_watch_dog();
       ptrAss(fragptr, fragrecord);
       fragptr.p->fragStatus = Fragrecord::FREE;
       fragptr.p->fragActiveStatus = ZFALSE;
@@ -16106,6 +16109,7 @@ void Dblqh::initialiseLogPage(Signal* signal)
 {
   if (clogPageFileSize != 0) {
     for (logPagePtr.i = 0; logPagePtr.i < clogPageFileSize; logPagePtr.i++) {
+      refresh_watch_dog();
       ptrAss(logPagePtr, logPageRecord);
       logPagePtr.p->logPageWord[ZNEXT_PAGE] = logPagePtr.i + 1;
     }//for
@@ -16283,6 +16287,7 @@ void Dblqh::initialiseScanrec(Signal* signal)
   DLList<ScanRecord> tmp(c_scanRecordPool);
   while (tmp.seize(scanptr)){
     //new (scanptr.p) ScanRecord();
+    refresh_watch_dog();
     scanptr.p->scanType = ScanRecord::ST_IDLE;
     scanptr.p->scanState = ScanRecord::SCAN_FREE;
     scanptr.p->scanTcWaiting = ZFALSE;
@@ -16300,6 +16305,7 @@ void Dblqh::initialiseTabrec(Signal* signal)
 {
   if (ctabrecFileSize != 0) {
     for (tabptr.i = 0; tabptr.i < ctabrecFileSize; tabptr.i++) {
+      refresh_watch_dog();
       ptrAss(tabptr, tablerec);
       tabptr.p->tableStatus = Tablerec::NOT_DEFINED;
       tabptr.p->usageCount = 0;
@@ -16321,6 +16327,7 @@ void Dblqh::initialiseTcrec(Signal* signal)
     for (tcConnectptr.i = 0; 
 	 tcConnectptr.i < ctcConnectrecFileSize; 
 	 tcConnectptr.i++) {
+      refresh_watch_dog();
       ptrAss(tcConnectptr, tcConnectionrec);
       tcConnectptr.p->transactionState = TcConnectionrec::TC_NOT_CONNECTED;
       tcConnectptr.p->tcScanRec = RNIL;

@@ -641,7 +641,7 @@ SimulatedBlock::allocRecord(const char * type, size_t s, size_t n) const
 
   void* p = NULL;
   size_t size = n*s;
-  
+  refresh_watch_dog(); 
   if (size > 0){
 #ifdef VM_TRACE_MEM
     ndbout_c("%s::allocRecord(%s, %u, %u) = %u bytes", 
@@ -660,8 +660,7 @@ SimulatedBlock::allocRecord(const char * type, size_t s, size_t n) const
       snprintf(buf2, sizeof(buf2), "Requested: %ux%u = %u bytes", (Uint32)s, (Uint32)n, (Uint32)size);
       ERROR_SET(fatal, ERR_MEMALLOC, buf1, buf2);
     }
-    
-    
+#ifdef NDB_DEBUG_FULL
     // Set the allocated memory to zero 
 #ifndef NDB_PURIFY
 #if defined NDB_OSE
@@ -686,6 +685,7 @@ SimulatedBlock::allocRecord(const char * type, size_t s, size_t n) const
     memset(p, 0xF1, size);
 #endif
 #endif
+#endif
   }
   return p;
 }
@@ -701,6 +701,12 @@ SimulatedBlock::deallocRecord(void ** ptr,
     NdbMem_Free(* ptr);
     * ptr = 0;
   }
+}
+
+void
+SimulatedBlock::refresh_watch_dog()
+{
+  globalData.incrementWatchDogCounter(1);
 }
 
 void

@@ -494,7 +494,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     true,
     ConfigInfo::INT,
-    4000,
+    6000,
     70,
     MAX_INT_RNIL },
 

@@ -123,6 +123,7 @@ void Dbtup::initializePage()
   PagePtr pagePtr;
   for (pagePtr.i = 0; pagePtr.i < cnoOfPage; pagePtr.i++) {
     ljam();
+    refresh_watch_dog();
     ptrAss(pagePtr, page);
     pagePtr.p->pageWord[ZPAGE_PHYSICAL_INDEX] = pagePtr.i;
     pagePtr.p->pageWord[ZPAGE_NEXT_POS] = pagePtr.i + 1;
