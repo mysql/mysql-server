@@ -762,7 +762,7 @@ create:
 	  lex->create_info.db_type= (enum db_type) lex->thd->variables.table_type;
 	}
 	create2
-	  {}
+	  {Lex->select= &Lex->select_lex;}
 	| CREATE opt_unique_or_fulltext INDEX ident ON table_ident
 	  {
 	    LEX *lex=Lex;
@@ -2585,6 +2585,7 @@ insert:
 	opt_ignore insert2
 	{
 	  set_lock_for_tables($3);
+	  Lex->select= &Lex->select_lex;
 	}
 	insert_field_spec
 	{}
@@ -2600,6 +2601,7 @@ replace:
 	replace_lock_option insert2
 	{
 	  set_lock_for_tables($3);
+          Lex->select= &Lex->select_lex;
 	}
 	insert_field_spec
 	{}
