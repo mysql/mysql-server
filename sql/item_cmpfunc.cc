@@ -188,25 +188,17 @@ void Item_bool_func2::fix_length_and_dec()
   {
     uint strong= 0;
     uint weak= 0;
+    DTCollation coll;
 
-    if ((args[0]->collation.derivation < args[1]->collation.derivation) && 
-	!my_charset_same(args[0]->collation.collation, 
-			 args[1]->collation.collation) &&
-        (args[0]->collation.collation->state & MY_CS_UNICODE))
-    {
-      weak= 1;
-    }
-    else if ((args[1]->collation.derivation < args[0]->collation.derivation) && 
-	     !my_charset_same(args[0]->collation.collation,
-			      args[1]->collation.collation) &&
-             (args[1]->collation.collation->state & MY_CS_UNICODE))
-    {
-      strong= 1;
-    }
-    
-    if (strong || weak)
+    if (args[0]->result_type() == STRING_RESULT &&
+        args[1]->result_type() == STRING_RESULT &&
+        !my_charset_same(args[0]->collation.collation,
+                         args[1]->collation.collation) &&
+        !coll.set(args[0]->collation, args[1]->collation, TRUE))
     {
       Item* conv= 0;
+      strong= coll.strong;
+      weak= strong ? 0 : 1;
       if (args[weak]->type() == STRING_ITEM)
       {
         String tmp, cstr;
