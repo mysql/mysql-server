@@ -2256,29 +2256,33 @@ static MYSQL* spawn_init(MYSQL* parent, const char* host,
 			 const char* passwd)
 {
   MYSQL* child;
-  if (!(child = mysql_init(0)))
-    return 0;
+  DBUG_ENTER("spawn_init");
+  if (!(child= mysql_init(0)))
+    DBUG_RETURN(0);
 
-  child->options.user = my_strdup((user) ? user :
-				  (parent->user ? parent->user :
-				   parent->options.user), MYF(0));
-  child->options.password = my_strdup((passwd) ? passwd :
-				      (parent->passwd ?
-				       parent->passwd :
-				       parent->options.password), MYF(0));
-  child->options.port = port;
-  child->options.host = my_strdup((host) ? host :
-				  (parent->host ?
-				   parent->host :
-				   parent->options.host), MYF(0));
+  child->options.user= my_strdup((user) ? user :
+				 (parent->user ? parent->user :
+				  parent->options.user), MYF(0));
+  child->options.password= my_strdup((passwd) ? passwd :
+				     (parent->passwd ?
+				      parent->passwd :
+				      parent->options.password), MYF(0));
+  child->options.port= port;
+  child->options.host= my_strdup((host) ? host :
+				 (parent->host ?
+				  parent->host :
+				  parent->options.host), MYF(0));
   if (parent->db)
-    child->options.db = my_strdup(parent->db, MYF(0));
+    child->options.db= my_strdup(parent->db, MYF(0));
   else if (parent->options.db)
-    child->options.db = my_strdup(parent->options.db, MYF(0));
+    child->options.db= my_strdup(parent->options.db, MYF(0));
 
-  child->options.rpl_parse = child->options.rpl_probe = child->rpl_pivot = 0;
-
-  return child;
+  /*
+    rpl_pivot is set to 1 in mysql_init();  Reset it as we are not doing
+    replication here
+  */
+  child->rpl_pivot= 0;
+  DBUG_RETURN(child);
 }
 
 
@@ -2291,9 +2295,6 @@ STDCALL mysql_set_master(MYSQL* mysql, const char* host,
     mysql_close(mysql->master);
   if (!(mysql->master = spawn_init(mysql, host, port, user, passwd)))
     return 1;
-  mysql->master->rpl_pivot = 0;
-  mysql->master->options.rpl_parse = 0;
-  mysql->master->options.rpl_probe = 0;
   return 0;
 }
 

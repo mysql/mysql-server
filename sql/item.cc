@@ -548,6 +548,7 @@ bool Item_string::save_in_field(Field *field, bool no_conversions)
   return 0;
 }
 
+
 bool Item_int::save_in_field(Field *field, bool no_conversions)
 {
   longlong nr=val_int();

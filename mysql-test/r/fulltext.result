@@ -134,6 +134,23 @@ Only MyISAM tables	support collections
 Function MATCH ... AGAINST()	is used to do a search
 some test foobar	implements vector space model
 drop table t1;
+create table t1 (a varchar(200) not null, fulltext (a));
+insert t1 values ("aaa10 bbb20"), ("aaa20 bbb15"), ("aaa30 bbb10");
+select * from t1 where match a against ("+aaa* +bbb*" in boolean mode);
+a
+aaa10 bbb20
+aaa20 bbb15
+aaa30 bbb10
+select * from t1 where match a against ("+aaa* +bbb1*" in boolean mode);
+a
+aaa20 bbb15
+aaa30 bbb10
+select * from t1 where match a against ("+aaa* +ccc*" in boolean mode);
+a
+select * from t1 where match a against ("+aaa10 +(bbb*)" in boolean mode);
+a
+aaa10 bbb20
+drop table t1;
 CREATE TABLE t1 (
 id int(11),
 ticket int(11),
