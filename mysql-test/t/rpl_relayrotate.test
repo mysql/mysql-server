@@ -40,6 +40,8 @@ start slave;
 # Usually it stops when the SQL thread is around the 15th relay log.
 # We cannot use MASTER_POS_WAIT() as master's position
 # increases only when the slave executes the COMMIT.
+# Note that except when using Valgrind, 1 second is enough for the I/O slave
+# thread to fetch the whole master's binlog.
 sleep 1;
 stop slave;
 # We suppose the SQL thread stopped before COMMIT.
