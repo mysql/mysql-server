@@ -244,3 +244,6 @@ bdb/build_win32/libdb.rc
 bdb/db/crdel_auto.c
 bdb/db/db_auto.c
 bdb/dist/config.hin
+innobase/ib_config.h
+innobase/ib_config.h.in
+mysql.proj
