@@ -206,9 +206,9 @@ int vio_blocking(Vio * vio, my_bool set_blocking_mode)
       old_fcntl=vio->fcntl_mode = fcntl(vio->sd, F_GETFL);
     }
     if (set_blocking_mode)
-      vio->fcntl_mode &= ~O_NONBLOCK; //clear bit
+      vio->fcntl_mode &= ~O_NONBLOCK; /*clear bit */
     else
-      vio->fcntl_mode |= O_NONBLOCK; //set bit
+      vio->fcntl_mode |= O_NONBLOCK; /*set bit */
     if (old_fcntl != vio->fcntl_mode)
       r = fcntl(vio->sd, F_SETFL, vio->fcntl_mode);
   }
@@ -228,12 +228,12 @@ int vio_blocking(Vio * vio, my_bool set_blocking_mode)
     if (set_blocking_mode)
     {
       arg = 0;
-      vio->fcntl_mode &= ~O_NONBLOCK; //clear bit
+      vio->fcntl_mode &= ~O_NONBLOCK; /*clear bit */
     }
     else
     {
       arg = 1;
-      vio->fcntl_mode |= O_NONBLOCK; //set bit
+      vio->fcntl_mode |= O_NONBLOCK; /*set bit */
     }
     if (old_fcntl != vio->fcntl_mode)
       r = ioctlsocket(vio->sd,FIONBIO,(void*) &arg, sizeof(arg));
