@@ -59,8 +59,15 @@ static int NEAR_F delete_file(const char *name,const char *ext,int extflag);
 
 static SHOW_COMP_OPTION have_yes= SHOW_OPTION_YES;
 
+/* list of all available storage engines (of their handlertons) */
 handlerton *handlertons[MAX_HA]={0};
-ulong total_ha, total_ha_2pc, savepoint_alloc_size;
+
+/* number of entries in handlertons[] */
+ulong total_ha;
+/* number of storage engines (from handlertons[]) that support 2pc */
+ulong total_ha_2pc;
+/* size of savepoint storage area (see ha_init) */
+ulong savepoint_alloc_size;
 
 struct show_table_type_st sys_table_types[]=
 {
@@ -120,7 +127,7 @@ enum db_type ha_resolve_by_name(const char *name, uint namelen)
   if (thd && !my_strcasecmp(&my_charset_latin1, name, "DEFAULT")) {
     return (enum db_type) thd->variables.table_type;
   }
-  
+
   show_table_type_st *types;
   for (types= sys_table_types; types->type; types++)
   {
@@ -138,7 +145,7 @@ const char *ha_get_storage_engine(enum db_type db_type)
     if (db_type == types->db_type)
       return types->type;
   }
-  
+
   return "none";
 }
 
@@ -439,6 +446,7 @@ int ha_commit_trans(THD *thd, bool all)
   THD_TRANS *trans= all ? &thd->transaction.all : &thd->transaction.stmt;
   bool is_real_trans= all || thd->transaction.all.nht == 0;
   handlerton **ht= trans->ht;
+  my_xid xid= thd->transaction.xid.get_my_xid();
   DBUG_ENTER("ha_commit_trans");
 #ifdef USING_TRANSACTIONS
   if (trans->nht)
@@ -455,9 +463,8 @@ int ha_commit_trans(THD *thd, bool all)
         }
         statistic_increment(thd->status_var.ha_prepare_count,&LOCK_status);
       }
-      if (error || (is_real_trans &&
-                    (error= !(cookie= tc_log->log(thd,
-                                thd->transaction.xid.quick_get_my_xid())))))
+      if (error || (is_real_trans && xid &&
+                    (error= !(cookie= tc_log->log(thd, xid)))))
       {
         ha_rollback_trans(thd, all);
         return 1;
@@ -465,7 +472,7 @@ int ha_commit_trans(THD *thd, bool all)
     }
     error=ha_commit_one_phase(thd, all) ? cookie ? 2 : 1 : 0;
     if (cookie)
-      tc_log->unlog(cookie, thd->transaction.xid.quick_get_my_xid());
+      tc_log->unlog(cookie, xid);
   }
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
@@ -486,7 +493,7 @@ int ha_commit_one_phase(THD *thd, bool all)
     {
       if ((error= wait_if_global_read_lock(thd, 0, 0)))
       {
-        my_error(ER_SERVER_SHUTDOWN, MYF(0)); // we're killed
+        my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
         error= 1;
       }
       else
