@@ -146,3 +146,10 @@ Item *create_func_compress(Item *a);
 Item *create_func_uncompress(Item *a);
 Item *create_func_uncompressed_length(Item *a);
 
+Item *create_func_datediff(Item *a, Item *b);
+Item *create_func_weekofyear(Item *a);
+Item *create_func_makedate(Item* a,Item* b);
+Item *create_func_addtime(Item* a,Item* b);
+Item *create_func_subtime(Item* a,Item* b);
+Item *create_func_timediff(Item* a,Item* b);
+Item *create_func_maketime(Item* a,Item* b,Item* c);
