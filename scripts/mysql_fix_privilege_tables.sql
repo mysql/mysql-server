@@ -1,5 +1,5 @@
 -- This script converts any old privilege tables to privilege tables suitable
--- for MySQL 4.0.
+-- for this version of MySQL
 
 -- You can safely ignore all 'Duplicate column' and 'Unknown column' errors"
 -- because these just mean that your tables are already up to date.
@@ -131,26 +131,8 @@ ALTER TABLE db
 ADD Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
 ADD Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
 ALTER TABLE host
-<<<<<<< gca scripts/mysql_fix_privilege_tables.sql 1.9.1.14
 ADD Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL,
 ADD Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL;
-<<<<<<< local scripts/mysql_fix_privilege_tables.sql 1.12
-ADD Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL,
-ADD Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL;
-
-#
-# Create VIEWs privrlages (v5.1)
-#
-ALTER TABLE db ADD Create_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Lock_tables_priv;
-ALTER TABLE host ADD Create_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Lock_tables_priv;
-ALTER TABLE user ADD Create_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Repl_client_priv;
-
-#
-# Show VIEWs privrlages (v5.1)
-#
-ALTER TABLE db ADD Show_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Create_view_priv;
-ALTER TABLE host ADD Show_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Create_view_priv;
-ALTER TABLE user ADD Show_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Create_view_priv;
 
 alter table user change max_questions max_questions int(11) unsigned DEFAULT 0  NOT NULL;
 alter table tables_priv add KEY Grantor (Grantor);
