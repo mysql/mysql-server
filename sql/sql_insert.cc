@@ -1575,7 +1575,7 @@ int mysql_insert_select_prepare(THD *thd)
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "INSERT");
     DBUG_RETURN(-1);
   }
-  DBUG_RETURN(0)
+  DBUG_RETURN(0);
 }
 
 
