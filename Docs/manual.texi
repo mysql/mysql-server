@@ -14692,13 +14692,16 @@ seconds values that are less than @code{10}.  @code{'8:3:2'} is the same as
 @code{'08:03:02'}.
 
 Be careful about assigning ``short'' @code{TIME} values to a @code{TIME}
-column.  @strong{MySQL} interprets values using the assumption that the
-rightmost digits represent seconds.  (@strong{MySQL} interprets @code{TIME}
-values as elapsed time rather than as time of day.)  For example, you might
-think of @code{'11:12'}, @code{'1112'}, and @code{1112} as meaning
-@code{'11:12:00'} (12 minutes after 11 o'clock), but @strong{MySQL}
-interprets them as @code{'00:11:12'} (11 minutes, 12 seconds).  Similarly,
-@code{'12'} and @code{12} are interpreted as @code{'00:00:12'}.
+column. Without semicolon, @strong{MySQL} interprets values using the 
+assumption that the rightmost digits represent seconds. (@strong{MySQL} 
+interprets @code{TIME} values as elapsed time rather than as time of 
+day.) For example, you might think of @code{'1112'} and @code{1112} as 
+meaning @code{'11:12:00'} (12 minutes after 11 o'clock), but
+@strong{MySQL} interprets them as @code{'00:11:12'} (11 minutes, 12 seconds).
+Similarly, @code{'12'} and @code{12} are interpreted as @code{'00:00:12'}.
+@code{TIME} values with semicolon, instead, are always treated as
+time of the day. That is @code{'11:12'} will mean @code{'11:12:00'},
+not @code{'00:11:12'}.
 
 Values that lie outside the @code{TIME} range
 but are otherwise legal are clipped to the appropriate
