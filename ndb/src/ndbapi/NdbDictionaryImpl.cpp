@@ -55,8 +55,8 @@ NdbColumnImpl::NdbColumnImpl(NdbDictionary::Column & f)
   init();
 }
 
-NdbColumnImpl::NdbColumnImpl& 
-NdbColumnImpl::operator=(const NdbColumnImpl::NdbColumnImpl& col)
+NdbColumnImpl&
+NdbColumnImpl::operator=(const NdbColumnImpl& col)
 {
   m_attrId = col.m_attrId;
   m_name = col.m_name;

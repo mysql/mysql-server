@@ -165,8 +165,9 @@ public:
   };
 };
 
+extern "C"
 void *
-TransSS::signalExecThread_C(void *r) 
+signalExecThread_C(void *r) 
 {
   TransSS *transss = (TransSS*)r;
 
@@ -243,7 +244,7 @@ TransSS::signalExecThreadRun()
   while(1) {
     SigMatch *handler = NULL;
     NdbApiSignal *signal = NULL;
-    if(m_signalRecvQueue.waitFor(sl, handler, signal)) 
+    if(m_signalRecvQueue.waitFor(sl, handler, signal, DEFAULT_TIMEOUT)) 
     {
 #if 0
       ndbout_c("TransSS: Removed signal from queue (GSN: %d, QSize: %d)",

@@ -33,7 +33,7 @@
 #include <EventLogger.hpp>
 #include <NodeState.hpp>
 
-#if defined NDB_SOLARIS
+#if defined NDB_SOLARIS // ok
 #include <sys/processor.h> // For system informatio
 #endif
 
@@ -199,7 +199,7 @@ systemInfo(const Configuration & config, const LogLevel & logLevel){
     }
     RegCloseKey(hKey);
   }
-#elif defined NDB_SOLARIS
+#elif defined NDB_SOLARIS // ok
   // Search for at max 16 processors among the first 256 processor ids
   processor_info_t pinfo; memset(&pinfo, 0, sizeof(pinfo));
   int pid = 0;
@@ -213,7 +213,7 @@ systemInfo(const Configuration & config, const LogLevel & logLevel){
   if(logLevel.getLogLevel(LogLevel::llStartUp) > 0){
     g_eventLogger.info("NDB Cluster -- DB node %d", globalData.ownId);
     g_eventLogger.info("%s --", NDB_VERSION_STRING);
-#ifdef NDB_SOLARIS
+#ifdef NDB_SOLARIS // ok
     g_eventLogger.info("NDB is running on a machine with %d processor(s) at %d MHz",
 		       processor, speed);
 #endif
