@@ -2023,9 +2023,8 @@ lock_grant(
 
                 lock->trx->auto_inc_lock = lock;
         } else if (lock_get_type(lock) == LOCK_TABLE_EXP) {
-		ut_ad(lock_get_mode(lock) == LOCK_S
+		ut_a(lock_get_mode(lock) == LOCK_S
 			|| lock_get_mode(lock) == LOCK_X);
-		lock->trx->n_tables_locked++;
 	}
 
 	if (lock_print_waits) {
@@ -3203,6 +3202,10 @@ lock_table_create(
 	lock->type_mode = type_mode | LOCK_TABLE;
 	lock->trx = trx;
 
+	if ((lock->type_mode & LOCK_TABLE_EXP) == LOCK_TABLE_EXP) {
+		lock->trx->n_lock_table_exp++;
+	}
+
 	lock->un_member.tab_lock.table = table;
 
 	UT_LIST_ADD_LAST(un_member.tab_lock.locks, table->locks, lock);
@@ -3386,7 +3389,7 @@ lock_table(
 		return(DB_SUCCESS);
 	}
 
-	ut_ad(flags == 0 || flags == LOCK_TABLE_EXP);
+	ut_a(flags == 0 || flags == LOCK_TABLE_EXP);
 
 	trx = thr_get_trx(thr);
 
@@ -3418,10 +3421,7 @@ lock_table(
 
 	lock_table_create(table, mode | flags, trx);
 
-	if (flags) {
-		ut_ad(mode == LOCK_S || mode == LOCK_X);
-		trx->n_tables_locked++;
-	}
+	ut_a(!flags || mode == LOCK_S || mode == LOCK_X);
 
 	lock_mutex_exit_kernel();
 
@@ -3502,7 +3502,7 @@ lock_table_dequeue(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_ad(lock_get_type(in_lock) == LOCK_TABLE ||
+	ut_a(lock_get_type(in_lock) == LOCK_TABLE ||
 		lock_get_type(in_lock) == LOCK_TABLE_EXP);
 
 	lock = UT_LIST_GET_NEXT(un_member.tab_lock.locks, in_lock);
@@ -3607,9 +3607,9 @@ lock_release_off_kernel(
 
 			lock_table_dequeue(lock);
 			if (lock_get_type(lock) == LOCK_TABLE_EXP) {
-				ut_ad(lock_get_mode(lock) == LOCK_S
+				ut_a(lock_get_mode(lock) == LOCK_S
 					|| lock_get_mode(lock) == LOCK_X);
-				trx->n_tables_locked--;
+				trx->n_lock_table_exp--;
 			}
 		}
 
@@ -3630,11 +3630,12 @@ lock_release_off_kernel(
 	mem_heap_empty(trx->lock_heap);
 
 	ut_a(trx->auto_inc_lock == NULL);
-	ut_a(trx->n_tables_locked == 0);
+	ut_a(trx->n_lock_table_exp == 0);
 }
 
 /*************************************************************************
-Releases table locks, and releases possible other transactions waiting
+Releases table locks explicitly requested with LOCK TABLES (indicated by
+lock type LOCK_TABLE_EXP), and releases possible other transactions waiting
 because of these locks. */
 
 void
@@ -3659,7 +3660,7 @@ lock_release_tables_off_kernel(
 		count++;
 
 		if (lock_get_type(lock) == LOCK_TABLE_EXP) {
-			ut_ad(lock_get_mode(lock) == LOCK_S
+			ut_a(lock_get_mode(lock) == LOCK_S
 				|| lock_get_mode(lock) == LOCK_X);
 			if (trx->insert_undo || trx->update_undo) {
 
@@ -3675,7 +3676,8 @@ lock_release_tables_off_kernel(
 			}
 
 			lock_table_dequeue(lock);
-			trx->n_tables_locked--;
+			trx->n_lock_table_exp--;
+
 			lock = UT_LIST_GET_LAST(trx->trx_locks);
 			continue;
 		}
@@ -3696,7 +3698,7 @@ lock_release_tables_off_kernel(
 
 	mem_heap_empty(trx->lock_heap);
 
-	ut_a(trx->n_tables_locked == 0);
+	ut_a(trx->n_lock_table_exp == 0);
 }
 
 /*************************************************************************

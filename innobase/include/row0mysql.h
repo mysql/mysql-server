@@ -153,11 +153,12 @@ row_lock_table_autoinc_for_mysql(
 	row_prebuilt_t*	prebuilt);	/* in: prebuilt struct in the MySQL
 					table handle */
 /*************************************************************************
-Unlocks a table lock possibly reserved by trx. */
+Unlocks all table locks explicitly requested by trx (with LOCK TABLES,
+lock type LOCK_TABLE_EXP). */
 
 void		  	
-row_unlock_table_for_mysql(
-/*=======================*/
+row_unlock_tables_for_mysql(
+/*========================*/
 	trx_t*	trx);	/* in: transaction */
 /*************************************************************************
 Sets a table lock on the table mentioned in prebuilt. */

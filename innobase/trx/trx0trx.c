@@ -151,7 +151,7 @@ trx_create(
 	trx->n_tickets_to_enter_innodb = 0;
 
 	trx->auto_inc_lock = NULL;
-	trx->n_tables_locked = 0;
+	trx->n_lock_table_exp = 0;
 	
 	trx->read_view_heap = mem_heap_create(256);
 	trx->read_view = NULL;
@@ -279,7 +279,7 @@ trx_free(
 
 	ut_a(!trx->has_search_latch);
 	ut_a(!trx->auto_inc_lock);
-	ut_a(!trx->n_tables_locked);
+	ut_a(!trx->n_lock_table_exp);
 
 	ut_a(trx->dict_operation_lock_mode == 0);
 
