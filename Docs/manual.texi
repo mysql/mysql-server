@@ -6590,13 +6590,12 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c @image{Flags/spain} Spain [MasterD]
 @c @uref{http://mysql.masterd.es, WWW}
 
-@c @item
-@c Not ok 20000919; Old site (Matt)
+@item
 @c EMAIL: Patrik.Karen@sdi.slu.se (Patrik Karen)
 @c ftp -> remove old files
-@c @image{Flags/sweden} Sweden [Sunet] @
-@c @uref{http://ftp.sunet.se/pub/unix/databases/relational/mysql/, WWW}
-@c @uref{ftp://ftp.sunet.se/pub/unix/databases/relational/mysql/, FTP}
+@image{Flags/sweden} Sweden [Sunet] @
+@uref{http://ftp.sunet.se/pub/unix/databases/relational/mysql/, WWW}
+@uref{ftp://ftp.sunet.se/pub/unix/databases/relational/mysql/, FTP}
 
 @item
 @c EMAIL: archive@sunsite.cnlab-switch.ch (Thomas Lenggenhager)
