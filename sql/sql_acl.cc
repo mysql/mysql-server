@@ -2907,7 +2907,7 @@ bool check_grant_all_columns(THD *thd, ulong want_access, GRANT_INFO *grant,
 {
   GRANT_TABLE *grant_table;
   GRANT_COLUMN *grant_column;
-  Field *field=0,**ptr;
+  Field *field=0;
 
   want_access &= ~grant->privilege;
   if (!want_access)
