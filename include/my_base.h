@@ -207,6 +207,7 @@ enum ha_base_keytype {
 #define HA_ERR_UNKNOWN_CHARSET	 142	/* Can't open charset */
 #define HA_ERR_WRONG_TABLE_DEF	 143
 #define HA_ERR_CRASHED_ON_REPAIR 144	/* Last (automatic?) repair failed */
+#define HA_ERR_CRASHED_ON_USAGE  145	/* Table must be repaired */
 
 	/* Other constants */
 

@@ -28015,10 +28015,10 @@ Give a variable a value. @code{--help} lists variables.
 Only update the default database. This is useful for skipping updates to
 other database in the update log.
 @cindex pager option
-@item --pager[=...]
-Output type. Default is your ENV variable PAGER. Valid pagers are less,
-more, cat [> filename], etc.  See interactive help (\h) also. This
-option does not work in batch mode. Pager works only in UNIX.
+@item @code{--pager[=...]}
+Output type. Default is your @code{ENV} variable @code{PAGER}. Valid
+pagers are less, more, cat [> filename], etc.  See interactive help (\h)
+also. This option does not work in batch mode. Pager works only in UNIX.
 @cindex password option
 @item -p[password], --password[=...]
 Password to use when connecting to server. If password is not given on
@@ -28148,12 +28148,11 @@ mysql> select * from mails where length(txt) < 300 limit 300,1\G
   msg_nro: 3068
      date: 2000-03-01 23:29:50
 time_zone: +0200
-mail_from: Michael Widenius <monty@monty.pp.sci.fi>
-    reply: monty@mysql.com
-  mail_to: "Thimble Smith" <tim@mysql.com>
-       cc: mysql_all@mysql.com
+mail_from: Monty
+    reply: monty@@no.spam.com
+  mail_to: "Thimble Smith" <tim@@no.spam.com>
       sbj: UTF-8
-      txt: >>>>> "Thimble" == Thimble Smith <tim@mysql.com> writes:
+      txt: >>>>> "Thimble" == Thimble Smith writes:
 
 Thimble> Hi.  I think this is a good idea.  Is anyone familiar with UTF-8
 Thimble> or Unicode?  Otherwise I'll put this on my TODO list and see what
@@ -28166,8 +28165,6 @@ Monty
      file: inbox-jani-1
      hash: 190402944
 1 row in set (0.09 sec)
-
-mysql>
 @end example
 
 For logging, one can use the @code{tee} option. The @code{tee} can be
@@ -38808,11 +38805,16 @@ though, so Version 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.28
 @itemize @bullet
 @item
-Fixed a major performance bug in the table locking code when you
-constantly had a LOT of @code{SELECT} running on a table on which you
-also did a lot of @code{UPDATE} and @code{INSERT}.  The symptom was that
-the @code{UPDATE} and @code{INSERT} queries was locked a long time
-while @code{SELECT} statements where executed without locks.
+Fixed crash when automatic repair of @code{MyISAM} table failed.
+@item
+Fixed a major performance bug in the table locking code when one
+constantly had a LOT of @code{SELECT}, @code{UPDATE} and @code{INSERT}
+statements running. The symptom was that the @code{UPDATE} and
+@code{INSERT} queries was locked a long time while new @code{SELECT}
+statements where executed without locks.
+@item
+When reading options_files with @code{mysql_options()} the
+@code{return-found-rows} option was ignored.
 @item
 One can now specify @code{interactive-timeout} in the option file that
 is read by @code{mysql_options()}. This makes it possible to force
