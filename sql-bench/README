@@ -1,27 +1,29 @@
 The MySQL Benchmarks
 
-These tests needs a MySQL version of at least 3.20.28 or 3.21.10.
-NOTE: With MySQL 3.20.# you have to use '--skip-in',  because MySQL 3.20
-doesn't support the IN operator.
+These tests require a MySQL version of at least 3.20.28 or 3.21.10.  NOTE:
+With MySQL 3.20.x, you must use the --skip-in option, because MySQL 3.20
+does not support the IN() operator.
 
 Currently the following servers are supported:
 MySQL 3.20 and 3.21, PostgreSQL 6.#, mSQL 2.# and Solid Server 2.2
 
-In this directory are the queries and raw data files used to populate
-the MySQL benchmarks. In order to run the benchmarks you should normally
-execute a command like the following:
+The benchmark directory contains the query files and raw data files used to
+populate the MySQL benchmark tables. In order to run the benchmarks, you
+should normally execute a command such as the following:
 
 run-all-tests --server=mysql --cmp=mysql,pg,solid --user=test --password=test --log
 
-The above means that one wants to run the benchmark with MySQL. The limits
-should be taken from all of mysql,PostgreSQL and Solid.  Login name and
-password is 'test'.  The result should be saved as a RUN file in the output
+This means that you want to run the benchmarks with MySQL. The
+limits should be taken from all of MySQL, PostgreSQL, and Solid.
+The login name and password for connecting to the server both are
+``test''.  The result should be saved as a RUN file in the output
 directory.
 
-When the above script has run you will have the individual results and the
+When run-all-tests has finished, will have the individual results and the
 the total RUN- file in the output directory.
 
-If you want to look at some old results, try:
+If you want to look at some old results, use the compare-results script.
+For example:
 
 compare-results --dir=Results --cmp=mysql,pg,solid
 compare-results --dir=Results --cmp=mysql,pg,solid --relative
@@ -29,8 +31,9 @@ compare-results --dir=Results --cmp=mysql,pg,solid --relative
 compare-results --dir=Results --cmp=msql,mysql,pg,solid
 compare-results --dir=Results --cmp=msql,mysql,pg,solid --relative
 
-compare-results --dir=results --server=mysql --same-server --cmp=mysql,pg,solid
+compare-results --dir=Results --server=mysql --same-server --cmp=mysql,pg,solid
 
+Some of the files in the benchmark directory are:
 
 File			Description
 
@@ -41,15 +44,15 @@ Makefile.am		Automake Makefile
 Overview-paper		A paper nicked from the net about database bench-
 			marking.
 README			This file.
-test-ATIS.sh		Cretation of 29 tables and a lot of selects on them.
+test-ATIS.sh		Creation of 29 tables and a lot of selects on them.
 test-connect.sh		Test how fast a connection to the server is.
 test-create.sh		Test how fast a table is created.
 test-insert.sh		Test create and fill of a table.
 test-wisconsin.sh	This is a port of the PostgreSQL version of this
 			benchmark.
-run-all-test		Use this to run all tests. When all test are run,
+run-all-tests		Use this to run all tests. When all tests are run,
 			use the --log --use-old option to get a RUN-file.
-compare-results		Makes a compare table from different RUN files.
+compare-results		Generates a comparison table from different RUN files.
 server-cfg		Contains the limit and functions for all supported
 			SQL servers.  If you want to add a new server, this
 			should be the only file that neads to be changed.
@@ -65,8 +68,8 @@ Useful options to all test-scripts (and run-all-tests):
 --host=#	Hostname for MySQL server (default: localhost)
 --db=#		Database to use (default: test)
 --fast		Allow use of any non-standard SQL extension to
-		do the get things done faster.
---skip-in	Don't do test with the IN operation (if the SQL server
+		get things done faster.
+--skip-in	Don't do test with the IN() operator (if the SQL server
 		hasn't implemented this, for example mSQL and MySQL 3.20).
 --lock-tables	Use table locking to get more speed.
 
@@ -81,13 +84,13 @@ systematically measure and compare the performance of relational
 database systems with database machines.  The benchmark is a
 single-user and single-factor experiment using a synthetic database
 and a controlled workload.  It measures the query optimization
-performance of database systems with 32 query types to exe cise the
+performance of database systems with 32 query types to exercise the
 components of the proposed systems.  The query suites include
 selection, join, projection, aggregate, and simple update queries.
 
 The test database consists of four generic relations.  The tenk
 relation is the key table and most used. Two data types of small
-integer number and character string are utilized.  Data values are
+integer numbers and character strings are utilized.  Data values are
 uniformly distributed. The primary metric is the query elapsed
 time. The main criticisms of the benchmark include the nature of
 single-user workload, the simplistic database structure, and the
