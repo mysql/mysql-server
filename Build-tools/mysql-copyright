@@ -3,7 +3,7 @@
 # Untar a MySQL distribution, change the copyright texts,
 # pack it up again to a given directory
 
-$VER="1.4";
+$VER="1.5";
 
 use Cwd;
 use File::Basename;
@@ -103,9 +103,8 @@ sub main
     unlink("$destdir/PUBLIC", "$destdir/README");
     unlink("$destdir/COPYING", "$destdir/EXCEPTIONS-CLIENT");
     copy("$WD/Docs/MySQLEULA.txt", "$destdir");
-    
+
     # remove subdirectories 'bdb', 'cmd-line-utils/readline'
-    #   (latter does not apply to 4.0, but is in different place there!)
     my @extra_fat= ('bdb', 'cmd-line-utils/readline');
 
     foreach my $fat (@extra_fat)
@@ -116,7 +115,7 @@ sub main
     # fix file copyrights
     &fix_usage_copyright();
     &add_copyright();
-    
+   
     # fix LICENSE tag in include/mysql_version.h
     &fix_mysql_version();
 
@@ -135,7 +134,6 @@ sub main
   
     # remove temporary directory
     chdir($WD) or print "$! Unable to move up one dir\n";
-    `cd $WD`;
     my $cwd = getcwd();
     print "current dir is $cwd\n" if $opt_verbose ;
     if (-e $dir) {
@@ -146,7 +144,7 @@ sub main
     }
   }
   exit(0);
-}  
+}
 
 ####
 #### This function will s/GPL/Commercial/ in include/mysql_version.h for the
@@ -175,6 +173,7 @@ sub fix_mysql_version
 #### This function will remove unwanted parts of a src tree for the mysqlcom
 #### distributions.
 ####
+
 sub trim_the_fat
 {
   my $the_fat= shift;
@@ -219,6 +218,7 @@ sub trim_the_fat
 ####
 #### This function will run the autotools on the reduced source tree.
 ####
+
 sub run_autotools
 {
   my $cwd= getcwd();
@@ -230,7 +230,14 @@ sub run_autotools
 
     # File "configure.in" has already been modified by "trim_the_fat()"
 
-    `aclocal && autoheader && aclocal && automake && autoconf`;
+    # It must be ensured that the timestamps of the relevant files are really 
+    # ascending, for otherwise the Makefile may cause a re-run of these
+    # autotools. Experience shows that deletion is the only safe way.
+    unlink ("config.h.in") or die "Can't delete $destdir/config.h.in: $!\n";
+    unlink ("aclocal.m4") or die "Can't delete $destdir/aclocal.m4: $!\n";
+
+    # These sleep commands also ensure the ascending order.
+    `aclocal && sleep 2 && autoheader && sleep 2 && automake && sleep 2 && autoconf`;
     die "'./configure' was not produced!" unless (-f "configure");
 
     if (-d "autom4te.cache") {
