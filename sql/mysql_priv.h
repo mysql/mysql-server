@@ -45,6 +45,7 @@ char *sql_strmake(const char *str,uint len);
 gptr sql_memdup(const void * ptr,unsigned size);
 void sql_element_free(void *ptr);
 void kill_one_thread(THD *thd, ulong id);
+char* query_table_status(THD *thd,const char *db,const char *table_name);
 
 #define x_free(A)	{ my_free((gptr) (A),MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR)); }
 #define safeFree(x)	{ if(x) { my_free((gptr) x,MYF(0)); x = NULL; } }
@@ -373,7 +374,7 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
 
 /* sql_list.c */
 int mysqld_show_dbs(THD *thd,const char *wild);
-int mysqld_show_open_tables(THD *thd,const char *wild);
+int mysqld_show_open_tables(THD *thd,const char *db,const char *wild);
 int mysqld_show_tables(THD *thd,const char *db,const char *wild);
 int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild);
 int mysqld_show_fields(THD *thd,TABLE_LIST *table, const char *wild,
@@ -450,7 +451,8 @@ bool close_cached_tables(THD *thd, bool wait_for_refresh, TABLE_LIST *tables);
 void copy_field_from_tmp_record(Field *field,int offset);
 int fill_record(List<Item> &fields,List<Item> &values);
 int fill_record(Field **field,List<Item> &values);
-OPEN_TABLE_LIST *list_open_tables(THD *thd,const char *wild);
+int list_open_tables(THD *thd,List<char> *tables, const char *db,
+		     const char *wild);
 
 /* sql_calc.cc */
 bool eval_const_cond(COND *cond);

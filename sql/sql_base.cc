@@ -34,8 +34,6 @@ HASH open_cache;				/* Used by mysql_test */
 
 static int open_unireg_entry(THD *thd,TABLE *entry,const char *db,
 			     const char *name, const char *alias, bool locked);
-static bool insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
-			  const char *table_name, List_iterator<Item> *it);
 static void free_cache_entry(TABLE *entry);
 static void mysql_rm_tmp_tables(void);
 static key_map get_key_map_from_key_list(TABLE *table,
@@ -407,6 +405,47 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
   DBUG_RETURN(result);
 }
 
+/* move one table to free list */
+ 
+bool close_thread_table(THD *thd, TABLE **table_ptr)
+{
+  DBUG_ENTER("close_thread_table");
+ 
+  bool found_old_table=0;
+  TABLE *table=*table_ptr;
+ 
+  *table_ptr=table->next;
+  if (table->version != refresh_version ||
+      thd->version != refresh_version || !table->db_stat)
+  {
+    VOID(hash_delete(&open_cache,(byte*) table));
+    found_old_table=1;
+  }
+  else
+  {
+    if (table->flush_version != flush_version)
+    {
+      table->flush_version=flush_version;
+      table->file->extra(HA_EXTRA_FLUSH);
+    }
+    else
+    {
+      // Free memory and reset for next loop
+      table->file->extra(HA_EXTRA_RESET);
+    }
+    table->in_use=0;
+    if (unused_tables)
+    {
+      table->next=unused_tables;                /* Link in last */
+      table->prev=unused_tables->prev;
+      unused_tables->prev=table;
+      table->prev->next=table;
+    }
+    else
+      unused_tables=table->next=table->prev=table;
+  }
+  DBUG_RETURN(found_old_table);
+}
 
 /* Put all tables used by thread in free list */
 
@@ -1832,7 +1871,7 @@ static key_map get_key_map_from_key_list(TABLE *table,
 **	Returns pointer to last inserted field if ok
 ****************************************************************************/
 
-static bool
+bool
 insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
 	      const char *table_name, List_iterator<Item> *it)
 {

@@ -1819,6 +1819,7 @@ mysql_execute_command(void)
     }
 #endif
   case SQLCOM_SHOW_TABLES:
+  case SQLCOM_SHOW_OPEN_TABLES:
     /* FALL THROUGH */
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     send_error(&thd->net,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */
@@ -1840,7 +1841,10 @@ mysql_execute_command(void)
       if (check_access(thd,SELECT_ACL,db,&thd->col_access))
 	goto error;				/* purecov: inspected */
       /* grant is checked in mysqld_show_tables */
-      if (select_lex->options & SELECT_DESCRIBE)
+       if (lex->sql_command == SQLCOM_SHOW_OPEN_TABLES) 
+         res= mysqld_show_open_tables(thd, db,
+				 (lex->wild ? lex->wild->ptr() : NullS));
+      else if (select_lex->options & SELECT_DESCRIBE)
         res= mysqld_extend_show_tables(thd,db,
 				       (lex->wild ? lex->wild->ptr() : NullS));
       else
@@ -1849,9 +1853,6 @@ mysql_execute_command(void)
       break;
     }
 #endif
-  case SQLCOM_SHOW_OPEN_TABLES:
-    res= mysqld_show_open_tables(thd,(lex->wild ? lex->wild->ptr() : NullS));
-    break;
   case SQLCOM_SHOW_FIELDS:
 #ifdef DONT_ALLOW_SHOW_COMMANDS
     send_error(&thd->net,ER_NOT_ALLOWED_COMMAND);	/* purecov: inspected */

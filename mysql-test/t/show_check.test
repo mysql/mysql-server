@@ -72,3 +72,10 @@ drop table t1;
 create table t1 (a int not null, primary key (a));
 show create table t1;
 drop table t1;
+
+flush tables;
+show open tables;
+create table t1(n int);
+insert into t1 values (1);
+show open tables;
+drop table t1;
