@@ -1840,9 +1840,6 @@ err:
 
 double Item_func_match::val()
 {
-  if (first_call)
-    init_search();
-
   // Don't know how to return an error from val(), so NULL will be returned
   if ((null_value=(ft_handler==NULL)))
     return 0.0;
@@ -1853,8 +1850,7 @@ double Item_func_match::val()
   }
   else
   {
-    /* implicit initialization was done, so we'll have to find
-       ft_relevance manually in ft_handler array */
+    /* we'll have to find ft_relevance manually in ft_handler array */
 
     int a,b,c;
     FT_DOC  *docs=ft_handler->doc;
@@ -1881,9 +1877,8 @@ double Item_func_match::val()
 
 void Item_func_match::init_search()
 {
-  if (!first_call)
+  if (ft_handler)
     return;
-  first_call=false;
 
   if (master)
   {
@@ -1893,20 +1888,19 @@ void Item_func_match::init_search()
     return;
   }
 
-  if (join_key)
-  {
-    ft_handler=((FT_DOCLIST *)table->file->ft_handler);
-    return;
-  }
-
-  /* join won't use this ft-key, but we must to init it anyway */
   String *ft_tmp=0;
   char tmp1[FT_QUERY_MAXLEN];
   String tmp2(tmp1,sizeof(tmp1));
 
   ft_tmp=key_item()->val_str(&tmp2);
   ft_handler=(FT_DOCLIST *)
-     table->file->ft_init_ext(key, (byte*) ft_tmp->ptr(), ft_tmp->length());
+     table->file->ft_init_ext(key, (byte*) ft_tmp->ptr(), ft_tmp->length(), join_key);
+
+  if (join_key)
+  {
+    table->file->ft_handler=ft_handler;
+    return;
+  }
 }
 
 bool Item_func_match::fix_fields(THD *thd,struct st_table_list *tlist)
@@ -1917,6 +1911,8 @@ bool Item_func_match::fix_fields(THD *thd,struct st_table_list *tlist)
   /* Why testing for const_item ? Monty */
   /* I'll remove it later, but this should include modifications to
      find_best and auto_close as complement to auto_init code above. SerG */
+  /* I'd rather say now that const_item is assumed in quite a bit of
+     places, so it would be difficult to remove. SerG */
   if (Item_func::fix_fields(thd,tlist) || !const_item())
     return 1;
 
@@ -1996,7 +1992,6 @@ bool Item_func_match::fix_index()
   }
 
   this->key=max_key;
-  first_call=1;
   maybe_null=1;
   join_key=0;
 

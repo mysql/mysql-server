@@ -838,7 +838,7 @@ public:
   List<Item> fields;
   TABLE *table;
   uint key;
-  bool first_call, join_key;
+  bool join_key;
   Item_func_match *master;
   FT_DOCLIST *ft_handler;
 
