@@ -627,7 +627,9 @@ void kill_mysql(void)
 #endif
     DBUG_PRINT("quit",("After pthread_kill"));
     shutdown_in_progress=1;			// Safety if kill didn't work
+#ifdef SIGNALS_DONT_BREAK_READ    
     abort_loop=1;
+#endif    
     DBUG_VOID_RETURN;
 }
 

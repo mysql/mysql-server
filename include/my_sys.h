@@ -359,7 +359,6 @@ typedef int (*qsort2_cmp)(const void *, const void *, const void *);
   (memcpy((info)->write_pos, (Buffer), (size_t)(Count)),\
    ((info)->write_pos+=(Count)),0) : \
    (*(info)->write_function)((info),(Buffer),(Count)))
-  
  
 
 #define my_b_get(info) \
@@ -370,17 +369,23 @@ typedef int (*qsort2_cmp)(const void *, const void *, const void *);
 
 	/* my_b_write_byte dosn't have any err-check */
 #define my_b_write_byte(info,chr) \
-  (((info)->rc_pos < (info)->rc_end) ?\
-   ((*(info)->rc_pos++)=(chr)) :\
-   (_my_b_write(info,0,0) , ((*(info)->rc_pos++)=(chr))))
+  (((info)->write_pos < (info)->write_end) ?\
+   ((*(info)->write_pos++)=(chr)) :\
+   (_my_b_write(info,0,0) , ((*(info)->write_pos++)=(chr))))
 
 #define my_b_fill_cache(info) \
   (((info)->rc_end=(info)->rc_pos),(*(info)->read_function)(info,0,0))
 
-#define my_b_tell(info) ((info)->pos_in_file + \
-			 ((info)->rc_pos - (info)->rc_request_pos))
+#define my_write_cache(info) (((info)->type == WRITE_CACHE))
+#define my_cache_pointer(info)  (my_write_cache(info) ? \
+               ((info)->write_pos) : ((info)->rc_pos))
 
-#define my_b_bytes_in_cache(info) ((uint) ((info)->rc_end - (info)->rc_pos))
+#define my_b_tell(info) ((info)->pos_in_file + \
+			 my_cache_pointer(info) - (info)->rc_request_pos)
+
+#define my_b_bytes_in_cache(info) (my_write_cache(info) ? \
+ ((uint) ((info)->write_end - (info)->write_pos)): \
+ ((uint) ((info)->rc_end - (info)->rc_pos)))
 
 typedef struct st_changeable_var {
   const char *name;			/* Name of variable */
