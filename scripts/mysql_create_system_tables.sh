@@ -307,7 +307,8 @@ then
   then
     i_tzn="$i_tzn INSERT INTO time_zone_name (Name, Time_Zone_id) VALUES"
     i_tzn="$i_tzn   ('MET', 1), ('UTC', 2), ('Universal', 2), "
-    i_tzn="$i_tzn   ('Europe/Moscow',3), ('leap/Europe/Moscow',4);"
+    i_tzn="$i_tzn   ('Europe/Moscow',3), ('leap/Europe/Moscow',4), "
+    i_tzn="$i_tzn   ('Japan', 5);"
   fi
 fi
 
@@ -327,7 +328,7 @@ then
   if test "$1" = "test" 
   then
     i_tz="$i_tz INSERT INTO time_zone (Time_zone_id, Use_leap_seconds)" 
-    i_tz="$i_tz   VALUES (1,'N'), (2,'N'), (3,'N'), (4,'Y');"
+    i_tz="$i_tz   VALUES (1,'N'), (2,'N'), (3,'N'), (4,'Y'), (5,'N');"
   fi
 fi
 
@@ -546,7 +547,8 @@ then
     i_tzt="$i_tzt  ,(4, 2045689222, 8) ,(4, 2058390022, 9)"
     i_tzt="$i_tzt  ,(4, 2077138822, 8) ,(4, 2090444422, 9)"
     i_tzt="$i_tzt  ,(4, 2108588422, 8) ,(4, 2121894022, 9)"
-    i_tzt="$i_tzt  ,(4, 2140038022, 8);"
+    i_tzt="$i_tzt  ,(4, 2140038022, 8)"
+    i_tzt="$i_tzt  ,(5, -1009875600, 1);"
   fi
 fi
 
@@ -584,7 +586,8 @@ then
     i_tztt="$i_tztt  ,(4, 4, 10800, 0, 'MSK') ,(4, 5, 14400, 1, 'MSD')"
     i_tztt="$i_tztt  ,(4, 6, 18000, 1, 'MSD') ,(4, 7, 7200, 0, 'EET')"
     i_tztt="$i_tztt  ,(4, 8, 10800, 0, 'MSK') ,(4, 9, 14400, 1, 'MSD')"
-    i_tztt="$i_tztt  ,(4, 10, 10800, 1, 'EEST') ,(4, 11, 7200, 0, 'EET');"
+    i_tztt="$i_tztt  ,(4, 10, 10800, 1, 'EEST') ,(4, 11, 7200, 0, 'EET')"
+    i_tztt="$i_tztt  ,(5, 0, 32400, 0, 'CJT') ,(5, 1, 32400, 0, 'JST');"
   fi
 fi
 

@@ -22,6 +22,16 @@
 #include <m_ctype.h>
 #include <hash.h>
 
+
+/*
+  Fake table list object, pointer to which is used as special value for
+  st_lex::time_zone_tables_used indicating that we implicitly use time
+  zone tables in this statement but real table list was not yet created.
+  Pointer to it is also returned by my_tz_get_tables_list() as indication
+  of transient error;
+*/
+TABLE_LIST fake_time_zone_tables_list;
+
 /* Macros to look like lex */
 
 #define yyGet()		*(lex->ptr++)
@@ -1292,7 +1302,32 @@ bool st_select_lex_unit::create_total_list(THD *thd_arg, st_lex *lex,
 					   TABLE_LIST **result_arg)
 {
   *result_arg= 0;
-  res= create_total_list_n_last_return(thd_arg, lex, &result_arg);
+  if (!(res= create_total_list_n_last_return(thd_arg, lex, &result_arg)))
+  {
+    /*
+      If time zone tables were used implicitly in statement we should add
+      them to global table list.
+    */
+    if (lex->time_zone_tables_used)
+    {
+      /*
+        Altough we are modifying lex data, it won't raise any problem in
+        case when this lex belongs to some prepared statement or stored
+        procedure: such modification does not change any invariants imposed
+        by requirement to reuse the same lex for multiple executions.
+      */
+      if ((lex->time_zone_tables_used= my_tz_get_table_list(thd)) !=
+          &fake_time_zone_tables_list)
+      {
+        *result_arg= lex->time_zone_tables_used;
+      }
+      else
+      {
+        send_error(thd, 0);
+        res= 1;
+      }
+    }
+  }
   return res;
 }
 

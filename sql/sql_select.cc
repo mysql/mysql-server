@@ -213,39 +213,6 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 }
 
 
-void relink_tables(SELECT_LEX *select_lex)
-{
-  for (TABLE_LIST *cursor= (TABLE_LIST *) select_lex->table_list.first;
-       cursor;
-       cursor=cursor->next)
-    if (cursor->table_list)
-      cursor->table= cursor->table_list->table;
-}
-
-
-void fix_tables_pointers(SELECT_LEX *select_lex)
-{
-  if (select_lex->next_select_in_list())
-  {
-    /* Fix tables 'to-be-unioned-from' list to point at opened tables */
-    for (SELECT_LEX *sl= select_lex;
-	 sl;
-	 sl= sl->next_select_in_list())
-      relink_tables(sl);
-  }
-}
-
-void fix_tables_pointers(SELECT_LEX_UNIT *unit)
-{
-  for (SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
-  {
-    relink_tables(sl);
-    for (SELECT_LEX_UNIT *un= sl->first_inner_unit(); un; un= un->next_unit())
-      fix_tables_pointers(un);
-  }
-}
-
-
 /*
   Function to setup clauses without sum functions
 */

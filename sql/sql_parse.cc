@@ -1897,7 +1897,8 @@ mysql_execute_command(THD *thd)
 #endif
   }
 #endif /* !HAVE_REPLICATION */
-  if (&lex->select_lex != lex->all_selects_list &&
+  if ((&lex->select_lex != lex->all_selects_list ||
+       lex->time_zone_tables_used) &&
       lex->unit.create_total_list(thd, lex, &tables))
     DBUG_VOID_RETURN;
 
@@ -3875,6 +3876,7 @@ mysql_init_query(THD *thd, uchar *buf, uint length)
   lex->lock_option= TL_READ;
   lex->found_colon= 0;
   lex->safe_to_cache_query= 1;
+  lex->time_zone_tables_used= 0;
   lex_start(thd, buf, length);
   thd->select_number= lex->select_lex.select_number= 1;
   thd->free_list= 0;

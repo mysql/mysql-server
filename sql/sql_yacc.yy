@@ -463,6 +463,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	CASE_SYM
 %token	CONCAT
 %token	CONCAT_WS
+%token  CONVERT_TZ_SYM
 %token	CURDATE
 %token	CURTIME
 %token	DATABASE
@@ -2825,6 +2826,11 @@ simple_expr:
 	  { $$= new Item_func_concat(* $3); }
 	| CONCAT_WS '(' expr ',' expr_list ')'
 	  { $$= new Item_func_concat_ws($3, *$5); }
+	| CONVERT_TZ_SYM '(' expr ',' expr ',' expr ')'
+	  {
+	    Lex->time_zone_tables_used= &fake_time_zone_tables_list;
+	    $$= new Item_func_convert_tz($3, $5, $7);
+	  }
 	| CURDATE optional_braces
 	  { $$= new Item_func_curdate_local(); Lex->safe_to_cache_query=0; }
 	| CURTIME optional_braces
@@ -5308,6 +5314,12 @@ internal_variable_name:
 	  $$.var= tmp;
 	  $$.base_name.str=0;
 	  $$.base_name.length=0;
+          /*
+            If this is time_zone variable we should open time zone
+            describing tables 
+          */
+          if (tmp == &sys_time_zone)
+	    Lex->time_zone_tables_used= &fake_time_zone_tables_list;
 	}
 	| ident '.' ident
 	  {
