@@ -8400,7 +8400,7 @@ or @code{myisamchk} for @code{MyISAM} tables (@file{.MYI}) and
 @item
 If you want your @code{mysqldump} files to be compatible between
 MySQL Version 3.22 and Version 3.23, you should not use the
-@code{--opt} or @code{--full} option to @code{mysqldump}.
+@code{--opt} or @code{--all} option to @code{mysqldump}.
 
 @item
 Check all your calls to @code{DATE_FORMAT()} to make sure there is a
@@ -17712,7 +17712,7 @@ the @code{mysqlhotcopy script}. @xref{mysqldump, , @code{mysqldump}}.
 Do a full backup of your databases:
 
 @example
-shell> mysqldump --tab=/path/to/some/dir --opt --full
+shell> mysqldump --tab=/path/to/some/dir --opt --all
 
 or
 
