@@ -88,8 +88,8 @@ int main(int argc, const char** argv){
   }
   _tabname = argv[optind];
 
-#ifndef DBUG_OFF
   my_init();
+#ifndef DBUG_OFF
   if (debug_option)
     DBUG_PUSH(debug_option);
 #endif
