@@ -33,8 +33,12 @@ parse_arguments() {
       --basedir=*) MY_BASEDIR_VERSION=`echo "$arg" | sed -e "s;--[^=]*=;;"` ;;
       --datadir=*) DATADIR=`echo "$arg" | sed -e "s;--[^=]*=;;"` ;;
       --pid-file=*) pid_file=`echo "$arg" | sed -e "s;--[^=]*=;;"` ;;
-      --user=*)    user=`echo "$arg" | sed -e "s;--[^=]*=;;"` ; SET_USER=1 ;;
-
+      --user=*)
+        if [ $SET_USER == 0 ]
+	then
+          user=`echo "$arg" | sed -e "s;--[^=]*=;;"` ; SET_USER=1
+        fi
+        ;;
       # these two might have been set in a [safe_mysqld] section of my.cnf
       # they get passed via environment variables to safe_mysqld
       --socket=*)  MYSQL_UNIX_PORT=`echo "$arg" | sed -e "s;--[^=]*=;;"` ;;
