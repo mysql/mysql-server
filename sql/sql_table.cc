@@ -3085,7 +3085,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
 
   /* We don't want update TIMESTAMP fields during ALTER TABLE. */
-  new_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
   thd->count_cuted_fields= CHECK_FIELD_WARN;	// calc cuted fields
   thd->cuted_fields=0L;
   thd->proc_info="copy to tmp table";
@@ -3093,7 +3092,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   copied=deleted=0;
   if (new_table && !new_table->is_view)
   {
-    new_table->timestamp_default_now= 0;
+    new_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     new_table->next_number_field=new_table->found_next_number_field;
     error=copy_data_between_tables(table,new_table,create_list,
 				   handle_duplicates,
