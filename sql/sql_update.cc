@@ -73,7 +73,8 @@ static bool check_fields(THD *thd, List<Item> &items)
     if (!(field= item->filed_for_view_update()))
     {
       /* item has name, because it comes from VIEW SELECT list */
-      my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->name);
+      my_printf_error(ER_NONUPDATEABLE_COLUMN, ER(ER_NONUPDATEABLE_COLUMN),
+                      MYF(0), item->name);
       return TRUE;
     }
     /*
@@ -164,7 +165,8 @@ bool mysql_update(THD *thd,
   }
   if (!table_list->updatable || check_key_in_view(thd, table_list))
   {
-    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "UPDATE");
+    my_printf_error(ER_NON_UPDATABLE_TABLE, ER(ER_NON_UPDATABLE_TABLE),
+                    MYF(0), table_list->alias, "UPDATE");
     DBUG_RETURN(TRUE);
   }
   if (table->timestamp_field)
@@ -362,16 +364,9 @@ bool mysql_update(THD *thd,
     if (!(select && select->skip_record()))
     {
       store_record(table,record[1]);
-      if (fill_record(fields,values, 0) || thd->net.report_error)
-      {
-	/* Field::store methods can't send errors */
-	if (!thd->net.report_error)
-	{
-	  /* TODO: convert last warning to error */
-	  my_error(ER_UNKNOWN_ERROR, MYF(0));
-	}
+      if (fill_record(thd, fields, values, 0))
 	break; /* purecov: inspected */
-      }
+
       found++;
 
       if (table->triggers)
@@ -478,7 +473,7 @@ bool mysql_update(THD *thd,
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		/* calc cuted fields */
   thd->abort_on_warning= 0;
   free_io_cache(table);
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(error >= 0 || thd->net.report_error);
 
 err:
   delete select;
@@ -504,11 +499,10 @@ err:
     order		- ORDER BY clause list
 
   RETURN VALUE
-    0  - OK
-    1  - error (message is sent to user)
-    -1 - error (message is not sent to user)
+    FALSE OK
+    TRUE  error
 */
-int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
+bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
 			 Item **conds, uint order_num, ORDER *order)
 {
   TABLE *table= table_list->table;
@@ -532,16 +526,17 @@ int mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
       setup_order(thd, select_lex->ref_pointer_array,
 		  table_list, all_fields, all_fields, order) ||
       setup_ftfuncs(select_lex))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(TRUE);
 
   /* Check that we are not using table that we are updating in a sub select */
   if (unique_table(table_list, table_list->next_independent()))
   {
-    my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
-    DBUG_RETURN(-1);
+    my_printf_error(ER_UPDATE_TABLE_USED, ER(ER_UPDATE_TABLE_USED), MYF(0),
+                    table_list->real_name);
+    DBUG_RETURN(TRUE);
   }
   select_lex->fix_prepare_information(thd, conds);
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -655,7 +650,8 @@ bool mysql_multi_update_prepare(THD *thd)
       if ((readonly_tables & tl->table->map) &&
           (tables_for_update & tl->table->map))
       {
-	my_error(ER_NON_UPDATABLE_TABLE, MYF(0), tl->alias, "UPDATE");
+	my_printf_error(ER_NON_UPDATABLE_TABLE, ER(ER_NON_UPDATABLE_TABLE),
+                        MYF(0), tl->alias, "UPDATE");
 	DBUG_RETURN(TRUE);
       }
     }
@@ -741,7 +737,7 @@ int multi_update::prepare(List<Item> &not_used_values,
 
   if (!tables_to_update)
   {
-    my_error(ER_NO_TABLES_USED, MYF(0));
+    my_message(ER_NO_TABLES_USED, ER(ER_NO_TABLES_USED), MYF(0));
     DBUG_RETURN(1);
   }
 
@@ -1028,16 +1024,10 @@ bool multi_update::send_data(List<Item> &not_used_values)
     {
       table->status|= STATUS_UPDATED;
       store_record(table,record[1]);
-      if (fill_record(*fields_for_table[offset], *values_for_table[offset], 0))
-      {
-	/* Field::store methods can't send errors */
-	if (!thd->net.report_error)
-	{
-	  /* TODO: convert last warning to error */
-	  my_error(ER_UNKNOWN_ERROR, MYF(0));
-	}
+      if (fill_record(thd, *fields_for_table[offset],
+                      *values_for_table[offset], 0))
 	DBUG_RETURN(1);
-      }
+
       found++;
       if (compare_record(table, thd->query_id))
       {
@@ -1075,7 +1065,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
     {
       int error;
       TABLE *tmp_table= tmp_tables[offset];
-      fill_record(tmp_table->field+1, *values_for_table[offset], 1);
+      fill_record(thd, tmp_table->field+1, *values_for_table[offset], 1);
       found++;
       /* Store pointer to row */
       memcpy((char*) tmp_table->field[0]->ptr,

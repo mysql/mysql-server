@@ -462,8 +462,10 @@ innobase_mysql_tmpfile(void)
 		if (fd2 < 0) {
 			DBUG_PRINT("error",("Got error %d on dup",fd2));
 			my_errno=errno;
-			my_error(EE_OUT_OF_FILERESOURCES,
-				MYF(ME_BELL+ME_WAITTANG), filename, my_errno);
+			my_printf_error(EE_OUT_OF_FILERESOURCES,
+                                        ER(EE_OUT_OF_FILERESOURCES),
+                                        MYF(ME_BELL+ME_WAITTANG),
+                                        filename, my_errno);
 		}
 		my_close(fd, MYF(MY_WME));
 	}

@@ -611,7 +611,8 @@ bool Protocol::send_fields(List<Item> *list, int flags)
   DBUG_RETURN(prepare_for_send(list));
 
 err:
-  my_error(ER_OUT_OF_RESOURCES, MYF(0));	/* purecov: inspected */
+  my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES),
+             MYF(0));	/* purecov: inspected */
   DBUG_RETURN(1);				/* purecov: inspected */
 }
 

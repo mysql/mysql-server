@@ -1145,7 +1145,8 @@ static void server_init(void)
     WSADATA WsaData;
     if (SOCKET_ERROR == WSAStartup (0x0101, &WsaData))
     {
-      my_error(ER_WSAS_FAILED, MYF(0));
+      /* errors are not read yet, so we use test here */
+      my_message(ER_WSAS_FAILED, "WSAStartup Failed", MYF(0));
       unireg_abort(1);
     }
   }

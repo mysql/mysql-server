@@ -125,7 +125,8 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
      DBUG_RETURN(-1);
   if (!table_list->updatable || check_key_in_view(thd, table_list))
   {
-    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "LOAD");
+    my_printf_error(ER_NON_UPDATABLE_TABLE, ER(ER_NON_UPDATABLE_TABLE),
+                    MYF(0), table_list->alias, "LOAD");
     DBUG_RETURN(TRUE);
   }
   table= table_list->table;
@@ -148,7 +149,8 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       DBUG_RETURN(TRUE);
     if (thd->dupp_field)
     {
-      my_error(ER_FIELD_SPECIFIED_TWICE, MYF(0), thd->dupp_field->field_name);
+      my_printf_error(ER_FIELD_SPECIFIED_TWICE, ER(ER_FIELD_SPECIFIED_TWICE),
+                      MYF(0), thd->dupp_field->field_name);
       DBUG_RETURN(TRUE);
     }
     if (check_that_all_fields_are_given_values(thd, table))
@@ -222,7 +224,8 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	    ((stat_info.st_mode & S_IFREG) == S_IFREG ||
 	     (stat_info.st_mode & S_IFIFO) == S_IFIFO)))
       {
-	my_error(ER_TEXTFILE_NOT_READABLE,MYF(0),name);
+	my_printf_error(ER_TEXTFILE_NOT_READABLE,
+                        ER(ER_TEXTFILE_NOT_READABLE), MYF(0), name);
 	DBUG_RETURN(TRUE);
       }
       if ((stat_info.st_mode & S_IFIFO) == S_IFIFO)

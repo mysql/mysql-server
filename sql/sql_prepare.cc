@@ -1451,7 +1451,7 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
       All other is not supported yet
     */
     res= -1;
-    my_error(ER_UNSUPPORTED_PS, MYF(0));
+    my_message(ER_UNSUPPORTED_PS, ER(ER_UNSUPPORTED_PS), MYF(0));
     goto error;
   }
   if (res == 0)

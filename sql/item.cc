@@ -1512,8 +1512,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       {
 	if (!(*refer)->fixed)
 	{
-	  my_error(ER_ILLEGAL_REFERENCE, MYF(0), name,
-		   "forward reference in item list");
+	  my_printf_error(ER_ILLEGAL_REFERENCE, ER(ER_ILLEGAL_REFERENCE),
+                          MYF(0), name, "forward reference in item list");
 	  return TRUE;
 	}
 
@@ -2418,8 +2418,9 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
       {
 	if (!(*ref)->fixed)
 	{
-	  my_error(ER_ILLEGAL_REFERENCE, MYF(0), name,
-		   "forward reference in item list");
+	  my_printf_error(ER_ILLEGAL_REFERENCE,
+                          ER(ER_ILLEGAL_REFERENCE), MYF(0),
+                          name, "forward reference in item list");
 	  return TRUE;
 	}
 	mark_as_dependent(thd, last, thd->lex->current_select,
@@ -2433,8 +2434,9 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
     {
       if (!(*ref)->fixed)
       {
-	my_error(ER_ILLEGAL_REFERENCE, MYF(0), name,
-		 "forward reference in item list");
+	my_printf_error(ER_ILLEGAL_REFERENCE,
+                        ER(ER_ILLEGAL_REFERENCE), MYF(0),
+                        name, "forward reference in item list");
 	return TRUE;
       }
       ref= thd->lex->current_select->ref_pointer_array + counter;
@@ -2454,10 +2456,11 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 	  thd->lex->current_select->having_fix_field))) ||
       !(*ref)->fixed)
   {
-    my_error(ER_ILLEGAL_REFERENCE, MYF(0), name, 
-	     ((*ref)->with_sum_func?
-	      "reference on group function":
-	      "forward reference in item list"));
+    my_printf_error(ER_ILLEGAL_REFERENCE, ER(ER_ILLEGAL_REFERENCE), MYF(0),
+                    name,
+                    ((*ref)->with_sum_func?
+                     "reference on group function":
+                     "forward reference in item list"));
     return TRUE;
   }
   max_length= (*ref)->max_length;
@@ -3115,11 +3118,12 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
       *old_derivation= collation.derivation_name();
     if (item_type == STRING_RESULT && collation.aggregate(item->collation))
     {
-      my_error(ER_CANT_AGGREGATE_2COLLATIONS, MYF(0),
-	       old_cs, old_derivation,
-	       item->collation.collation->name,
-	       item->collation.derivation_name(),
-	       "UNION");
+      my_printf_error(ER_CANT_AGGREGATE_2COLLATIONS,
+                      ER(ER_CANT_AGGREGATE_2COLLATIONS), MYF(0),
+                      old_cs, old_derivation,
+                      item->collation.collation->name,
+                      item->collation.derivation_name(),
+                      "UNION");
       return 1;
     }
 

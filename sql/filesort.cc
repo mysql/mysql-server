@@ -278,7 +278,8 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
     }
   }
   if (error)
-    my_error(ER_FILSORT_ABORT,MYF(ME_ERROR+ME_WAITTANG));
+    my_message(ER_FILSORT_ABORT, ER(ER_FILSORT_ABORT),
+               MYF(ME_ERROR+ME_WAITTANG));
   else
     statistic_add(thd->status_var.filesort_rows,
 		  (ulong) records, &LOCK_status);

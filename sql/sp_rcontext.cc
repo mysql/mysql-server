@@ -153,7 +153,8 @@ sp_cursor::pre_open(THD *thd)
 {
   if (m_isopen)
   {
-    my_error(ER_SP_CURSOR_ALREADY_OPEN, MYF(0));
+    my_message(ER_SP_CURSOR_ALREADY_OPEN, ER(ER_SP_CURSOR_ALREADY_OPEN),
+               MYF(0));
     return NULL;
   }
 
@@ -187,7 +188,7 @@ sp_cursor::close(THD *thd)
 {
   if (! m_isopen)
   {
-    my_error(ER_SP_CURSOR_NOT_OPEN, MYF(0));
+    my_message(ER_SP_CURSOR_NOT_OPEN, ER(ER_SP_CURSOR_NOT_OPEN), MYF(0));
     return -1;
   }
   destroy();
@@ -217,12 +218,12 @@ sp_cursor::fetch(THD *thd, List<struct sp_pvar> *vars)
 
   if (! m_isopen)
   {
-    my_error(ER_SP_CURSOR_NOT_OPEN, MYF(0));
+    my_message(ER_SP_CURSOR_NOT_OPEN, ER(ER_SP_CURSOR_NOT_OPEN), MYF(0));
     return -1;
   }
   if (m_current_row == NULL)
   {
-    my_error(ER_SP_FETCH_NO_DATA, MYF(0));
+    my_message(ER_SP_FETCH_NO_DATA, ER(ER_SP_FETCH_NO_DATA), MYF(0));
     return -1;
   }
 
@@ -234,7 +235,8 @@ sp_cursor::fetch(THD *thd, List<struct sp_pvar> *vars)
 
     if (fldcount >= m_prot->get_field_count())
     {
-      my_error(ER_SP_WRONG_NO_OF_FETCH_ARGS, MYF(0));
+      my_message(ER_SP_WRONG_NO_OF_FETCH_ARGS,
+                 ER(ER_SP_WRONG_NO_OF_FETCH_ARGS), MYF(0));
       return -1;
     }
     s= row[fldcount];
@@ -260,7 +262,8 @@ sp_cursor::fetch(THD *thd, List<struct sp_pvar> *vars)
   }
   if (fldcount < m_prot->get_field_count())
   {
-    my_error(ER_SP_WRONG_NO_OF_FETCH_ARGS, MYF(0));
+    my_message(ER_SP_WRONG_NO_OF_FETCH_ARGS,
+               ER(ER_SP_WRONG_NO_OF_FETCH_ARGS), MYF(0));
     return -1;
   }
   m_current_row= m_current_row->next;

@@ -377,7 +377,8 @@ JOIN::prepare(Item ***rref_pointer_array,
       }
       if (flag == 3)
       {
-	my_error(ER_MIX_OF_GROUP_FUNC_AND_FIELDS,MYF(0));
+	my_message(ER_MIX_OF_GROUP_FUNC_AND_FIELDS,
+                   ER(ER_MIX_OF_GROUP_FUNC_AND_FIELDS), MYF(0));
 	DBUG_RETURN(-1);
       }
     }
@@ -404,7 +405,8 @@ JOIN::prepare(Item ***rref_pointer_array,
     {
       if (!test_if_subpart(procedure->group,group_list))
       {						/* purecov: inspected */
-	my_error(ER_DIFF_GROUPS_PROC, MYF(0));	/* purecov: inspected */
+	my_message(ER_DIFF_GROUPS_PROC, ER(ER_DIFF_GROUPS_PROC),
+                   MYF(0));                     /* purecov: inspected */
 	goto err;				/* purecov: inspected */
       }
     }
@@ -417,7 +419,8 @@ JOIN::prepare(Item ***rref_pointer_array,
 #endif
     if (order && (procedure->flags & PROC_NO_SORT))
     {						/* purecov: inspected */
-      my_error(ER_ORDER_WITH_PROC, MYF(0));     /* purecov: inspected */
+      my_message(ER_ORDER_WITH_PROC, ER(ER_ORDER_WITH_PROC),
+                 MYF(0));                       /* purecov: inspected */
       goto err;					/* purecov: inspected */
     }
   }
@@ -1805,7 +1808,7 @@ Cursor::fetch(ulong num_rows)
 
     if (thd->killed)                            /* Aborted by user */
     {
-      my_error(ER_SERVER_SHUTDOWN,MYF(0));
+      my_message(ER_SERVER_SHUTDOWN, ER(ER_SERVER_SHUTDOWN), MYF(0));
       return -1;
     }
 
@@ -2209,7 +2212,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
       if (s->dependent & s->table->map)
       {
         join->tables=0;			// Don't use join->table
-        my_error(ER_WRONG_OUTER_JOIN,MYF(0));
+        my_message(ER_WRONG_OUTER_JOIN, ER(ER_WRONG_OUTER_JOIN), MYF(0));
         DBUG_RETURN(1);
       }
       s->key_dependent= s->dependent;
@@ -5622,7 +5625,8 @@ bool error_if_full_join(JOIN *join)
   {
     if (tab->type == JT_ALL && (!tab->select || !tab->select->quick))
     {
-      my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,MYF(0));
+      my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
+                 ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
       return(1);
     }
   }
@@ -10664,7 +10668,7 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
     }
     if (copy_blobs(first_field))
     {
-      my_error(ER_OUTOFMEMORY,MYF(0));
+      my_message(ER_OUTOFMEMORY, ER(ER_OUTOFMEMORY), MYF(0));
       error=0;
       goto err;
     }

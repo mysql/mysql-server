@@ -623,7 +623,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
   if (args->elements != params)
   {
-    my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0),
+    my_printf_error(ER_SP_WRONG_NO_OF_ARGS, ER(ER_SP_WRONG_NO_OF_ARGS), MYF(0),
              "PROCEDURE", m_name.str, params, args->elements);
     DBUG_RETURN(-1);
   }
@@ -893,7 +893,8 @@ sp_head::check_backpatch(THD *thd)
   {
     if (bp->lab->type == SP_LAB_REF)
     {
-      my_error(ER_SP_LILABEL_MISMATCH, MYF(0), "GOTO", bp->lab->name);
+      my_printf_error(ER_SP_LILABEL_MISMATCH, ER(ER_SP_LILABEL_MISMATCH),
+                      MYF(0), "GOTO", bp->lab->name);
       return -1;
     }
   }
@@ -1786,7 +1787,7 @@ sp_instr_error::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_error::execute");
 
-  my_error(m_errcode, MYF(0));
+  my_message(m_errcode, ER(m_errcode), MYF(0));
   *nextp= m_ip+1;
   DBUG_RETURN(-1);
 }

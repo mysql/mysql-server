@@ -100,7 +100,8 @@ check_insert_fields(THD *thd, TABLE_LIST *table_list, List<Item> &fields,
 
     if (check_unique && thd->dupp_field)
     {
-      my_error(ER_FIELD_SPECIFIED_TWICE,MYF(0), thd->dupp_field->field_name);
+      my_printf_error(ER_FIELD_SPECIFIED_TWICE, ER(ER_FIELD_SPECIFIED_TWICE),
+                      MYF(0), thd->dupp_field->field_name);
       return -1;
     }
     if (table->timestamp_field &&	// Don't set timestamp if used
@@ -291,7 +292,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     if (fields.elements || !value_count)
     {
       restore_record(table,default_values);	// Get empty record
-      if (fill_record(fields, *values, 0)|| thd->net.report_error)
+      if (fill_record(thd, fields, *values, 0))
       {
 	if (values_list.elements != 1 && !thd->net.report_error)
 	{
@@ -299,14 +300,10 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 	  continue;
 	}
 	/*
-	  Field::store methods can't send errors
-
 	  TODO: set thd->abort_on_warning if values_list.elements == 1
 	  and check that all items return warning in case of problem with
 	  storing field.
         */
-	if (!thd->net.report_error)
-	  my_error(ER_UNKNOWN_ERROR, MYF(0));
 	error=1;
 	break;
       }
@@ -317,16 +314,13 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 	restore_record(table,default_values);	// Get empty record
       else
 	table->record[0][0]=table->default_values[0]; // Fix delete marker
-      if (fill_record(table->field,*values, 0) || thd->net.report_error)
+      if (fill_record(thd, table->field, *values, 0))
       {
 	if (values_list.elements != 1 && ! thd->net.report_error)
 	{
 	  info.records++;
 	  continue;
 	}
-	/* Field::store methods can't send errors */
-	if (!thd->net.report_error)
-	  my_error(ER_UNKNOWN_ERROR, MYF(0));
 	error=1;
 	break;
       }
@@ -608,7 +602,8 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
       (insert_into_view &&
        check_view_insertability(table_list, thd->query_id)))
   {
-    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "INSERT");
+    my_printf_error(ER_NON_UPDATABLE_TABLE, ER(ER_NON_UPDATABLE_TABLE),
+                    MYF(0), table_list->alias, "INSERT");
     DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -655,7 +650,8 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
 
   if (unique_table(table_list, table_list->next_independent()))
   {
-    my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
+    my_printf_error(ER_UPDATE_TABLE_USED, ER(ER_UPDATE_TABLE_USED),
+                    MYF(0), table_list->real_name);
     DBUG_RETURN(TRUE);
   }
   thd->lex->select_lex.first_execution= 0;
@@ -751,13 +747,8 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
         */
         store_record(table,insert_values);
         restore_record(table,record[1]);
-        if (fill_record(*info->update_fields, *info->update_values, 0))
-	{
-	  /* Field::store methods can't send errors */
-	  if (!thd->net.report_error)
-	    my_error(ER_UNKNOWN_ERROR, MYF(0));
+        if (fill_record(thd, *info->update_fields, *info->update_values, 0))
           goto err;
-	}
 
         /* CHECK OPTION for VIEW ... ON DUPLICATE KEY UPDATE ... */
         if (info->view &&
@@ -1018,7 +1009,7 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
       {
 	delete tmp;
 	thd->fatal_error();
-	my_error(ER_OUT_OF_RESOURCES,MYF(0));
+	my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
 	pthread_mutex_unlock(&LOCK_delayed_create);
 	DBUG_RETURN(0);
       }
@@ -1335,7 +1326,8 @@ extern "C" pthread_handler_decl(handle_delayed_insert,arg)
   if (!(di->table->file->table_flags() & HA_CAN_INSERT_DELAYED))
   {
     thd->fatal_error();
-    my_error(ER_ILLEGAL_HA, MYF(0), di->table_list.real_name);
+    my_printf_error(ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA), MYF(0),
+                    di->table_list.real_name);
     goto end;
   }
   di->table->copy_blobs=1;
@@ -1761,9 +1753,9 @@ bool select_insert::send_data(List<Item> &values)
     DBUG_RETURN(0);
   }
   if (fields->elements)
-    fill_record(*fields, values, 1);
+    fill_record(thd, *fields, values, 1);
   else
-    fill_record(table->field, values, 1);
+    fill_record(thd, table->field, values, 1);
   switch (table_list->view_check_option(thd,
                                         thd->lex->duplicates == DUP_IGNORE))
   {
@@ -1934,7 +1926,7 @@ bool select_create::send_data(List<Item> &values)
     unit->offset_limit_cnt--;
     return 0;
   }
-  fill_record(field, values, 1);
+  fill_record(thd, field, values, 1);
   if (thd->net.report_error || write_record(thd, table, &info))
     return 1;
   if (table->next_number_field)		// Clear for next record
