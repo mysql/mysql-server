@@ -73,7 +73,7 @@ static int safe_sleep(THD* thd, int sec, CHECK_KILLED_FUNC thread_killed,
 static int request_table_dump(MYSQL* mysql, const char* db, const char* table);
 static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
 				  const char* table_name, bool overwrite);
-static int check_master_version(MYSQL* mysql, MASTER_INFO* mi);
+static int check_master_version_and_clock(MYSQL* mysql, MASTER_INFO* mi);
 
 
 /*
@@ -1071,7 +1071,7 @@ static int init_intvar_from_file(int* var, IO_CACHE* f, int default_val)
 }
 
 
-static int check_master_version(MYSQL* mysql, MASTER_INFO* mi)
+static int get_master_version_and_clock(MYSQL* mysql, MASTER_INFO* mi)
 {
   const char* errmsg= 0;
   
@@ -1092,6 +1092,33 @@ static int check_master_version(MYSQL* mysql, MASTER_INFO* mi)
   default:
     errmsg = "Master reported unrecognized MySQL version";
     break;
+  }
+
+  MYSQL_RES *master_clock_res;
+  MYSQL_ROW master_clock_row;
+  time_t slave_clock;
+
+  if (mysql_real_query(mysql, "SELECT UNIX_TIMESTAMP()", 23))
+    errmsg= "\"SELECT UNIX_TIMESTAMP()\" failed on master"; 
+  else if (!(master_clock_res= mysql_store_result(mysql)))
+  {
+    errmsg= "Could not read the result of \"SELECT UNIX_TIMESTAMP()\" on \
+master"; 
+  }
+  else 
+  {
+    if (!(master_clock_row= mysql_fetch_row(master_clock_res)))
+      errmsg= "Could not read a row from the result of \"SELECT \
+UNIX_TIMESTAMP()\" on master"; 
+    else
+    {
+      slave_clock= time((time_t*) 0);
+      mi->clock_diff_with_master= (long) (slave_clock -
+                                          strtoul(master_clock_row[0], 0, 10));
+      DBUG_PRINT("info",("slave_clock=%lu, master_clock=%s",
+                         slave_clock, master_clock_row[0]));
+    }
+  mysql_free_result(master_clock_res);
   }
 
   if (errmsg)
@@ -1597,14 +1624,18 @@ void init_master_info_with_options(MASTER_INFO* mi)
     strmake(mi->ssl_key, master_ssl_key, sizeof(mi->ssl_key)-1);
 }
 
-
-void clear_last_slave_error(RELAY_LOG_INFO* rli)
+static void clear_slave_error(RELAY_LOG_INFO* rli)
 {
-  //Clear the errors displayed by SHOW SLAVE STATUS
-  rli->last_slave_error[0]=0;
-  rli->last_slave_errno=0;
+  /* Clear the errors displayed by SHOW SLAVE STATUS */
+  rli->last_slave_error[0]= 0;
+  rli->last_slave_errno= 0;
 }
 
+void clear_slave_error_timestamp(RELAY_LOG_INFO* rli)
+{
+  rli->last_master_timestamp= 0;
+  clear_slave_error(rli);
+}
 
 /*
     Reset UNTIL condition for RELAY_LOG_INFO
@@ -1908,6 +1939,8 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("show_master_info");
 
+  field_list.push_back(new Item_empty_string("Slave_IO_State",
+						     14));
   field_list.push_back(new Item_empty_string("Master_Host",
 						     sizeof(mi->host)));
   field_list.push_back(new Item_empty_string("Master_User",
@@ -1958,6 +1991,8 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
                                              sizeof(mi->ssl_cipher)));
   field_list.push_back(new Item_empty_string("Master_SSL_Key", 
                                              sizeof(mi->ssl_key)));
+  field_list.push_back(new Item_return_int("Seconds_behind_master", 10,
+                                           MYSQL_TYPE_LONGLONG));
   
   if (protocol->send_fields(&field_list, 1))
     DBUG_RETURN(-1);
@@ -1970,6 +2005,8 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
   
     pthread_mutex_lock(&mi->data_lock);
     pthread_mutex_lock(&mi->rli.data_lock);
+
+    protocol->store(mi->io_thd ? mi->io_thd->proc_info : "", &my_charset_bin);
     protocol->store(mi->host, &my_charset_bin);
     protocol->store(mi->user, &my_charset_bin);
     protocol->store((uint32) mi->port);
@@ -2025,7 +2062,15 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
     protocol->store(mi->ssl_cert, &my_charset_bin);
     protocol->store(mi->ssl_cipher, &my_charset_bin);
     protocol->store(mi->ssl_key, &my_charset_bin);
-    
+
+    if (mi->rli.last_master_timestamp)
+      protocol->store((ulonglong) 
+                      (long)((time_t)time((time_t*) 0)
+                             - mi->rli.last_master_timestamp)
+                      - mi->clock_diff_with_master);
+    else
+      protocol->store_null();
+
     pthread_mutex_unlock(&mi->rli.data_lock);
     pthread_mutex_unlock(&mi->data_lock);
   
@@ -2068,9 +2113,10 @@ bool flush_master_info(MASTER_INFO* mi)
 st_relay_log_info::st_relay_log_info()
   :info_fd(-1), cur_log_fd(-1), save_temporary_tables(0),
    cur_log_old_open_count(0), group_master_log_pos(0), log_space_total(0),
-   ignore_log_space_limit(0), slave_skip_counter(0), abort_pos_wait(0),
-   slave_run_id(0), sql_thd(0), last_slave_errno(0), inited(0), abort_slave(0),
-   slave_running(0), until_condition(UNTIL_NONE), until_log_pos(0)
+   ignore_log_space_limit(0), last_master_timestamp(0), slave_skip_counter(0),
+   abort_pos_wait(0), slave_run_id(0), sql_thd(0), last_slave_errno(0),
+   inited(0), abort_slave(0), slave_running(0), until_condition(UNTIL_NONE),
+   until_log_pos(0)
 {
   group_relay_log_name[0]= event_relay_log_name[0]= group_master_log_name[0]= 0;
   last_slave_error[0]=0; until_log_name[0]= 0;
@@ -2776,7 +2822,7 @@ connected:
 
   thd->slave_net = &mysql->net;
   thd->proc_info = "Checking master version";
-  if (check_master_version(mysql, mi))
+  if (get_master_version_and_clock(mysql, mi))
     goto err;
   if (!mi->old_format)
   {
@@ -3057,9 +3103,13 @@ slave_begin:
   /*
     Reset errors for a clean start (otherwise, if the master is idle, the SQL
     thread may execute no Query_log_event, so the error will remain even
-    though there's no problem anymore).
+    though there's no problem anymore). Do not reset the master timestamp
+    (imagine the slave has caught everything, the STOP SLAVE and START SLAVE: as
+    we are not sure that we are going to receive a query, we want to remember
+    the last master timestamp (to say how many seconds behind we are now.
+    But the master timestamp is reset by RESET SLAVE & CHANGE MASTER.
   */
-  clear_last_slave_error(rli);
+  clear_slave_error(rli);
 
   //tell the I/O thread to take relay_log_space_limit into account from now on
   pthread_mutex_lock(&rli->log_space_lock);
