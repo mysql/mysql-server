@@ -160,7 +160,6 @@ public:
     Uint32 attributeDescriptor;
 
     /* Extended attributes */
-    Uint32 extType;
     Uint32 extPrecision;
     Uint32 extScale;
     Uint32 extLength;

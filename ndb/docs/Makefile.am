@@ -22,7 +22,7 @@ do-check-html:
 	if test @DOXYGEN@ = no ; then \
 	  echo "Doxygen needed to make docs"; \
 	  exit 1; \
-	fi; \
+	fi;
 
 do-check-pdf: do-check-html
 	if test @PDFLATEX@ = no ; then \
@@ -54,7 +54,7 @@ ndbapi.html: $(noinst_HEADERS)
 	(cd $(DOXYTMP) ; @DOXYGEN@ ../$(DOXYDIR)/Doxyfile.ndbapi); \
 	@PERL@ $(DOXYDIR)/postdoxy.pl $(DOXYOUT)/ndbapi.latex "MySQL Cluster NDB API Programmer Guide"; \
 	(cd $(DOXYOUT) && \
-		find ndbapi.html -print | cpio -pdm ..); \
+		find ndbapi.html -print | cpio -pdm ..);
 
 ndbapi.pdf: ndbapi.html
 	(cd $(DOXYOUT)/ndbapi.latex && \
@@ -80,7 +80,7 @@ mgmapi.html: $(noinst_HEADERS)
 	(cd $(DOXYTMP) ; @DOXYGEN@ ../$(DOXYDIR)/Doxyfile.mgmapi); \
 	@PERL@ $(DOXYDIR)/postdoxy.pl $(DOXYOUT)/mgmapi.latex "MySQL Cluster MGM API Guide"; \
 	(cd $(DOXYOUT) && \
-		find mgmapi.html -print | cpio -pdm ..); \
+		find mgmapi.html -print | cpio -pdm ..);
 
 mgmapi.pdf: mgmapi.html
 	(cd $(DOXYOUT)/mgmapi.latex && \

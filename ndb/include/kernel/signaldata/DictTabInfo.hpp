@@ -100,14 +100,14 @@ public:
     
     AttributeName          = 1000, // String, Mandatory
     AttributeId        = 1001, //Mandatory between DICT's otherwise not allowed
-    AttributeType          = 1002, //Default UnSignedType
+    AttributeType          = 1002, //for osu 4.1->5.0.x
     AttributeSize          = 1003, //Default DictTabInfo::a32Bit
     AttributeArraySize     = 1005, //Default 1
     AttributeKeyFlag       = 1006, //Default noKey
     AttributeStorage       = 1007, //Default MainMemory
     AttributeNullableFlag  = 1008, //Default NotNullable
     AttributeDKey          = 1010, //Default NotDKey
-    AttributeExtType       = 1013, //Default 0 (undefined)
+    AttributeExtType       = 1013, //Default ExtUnsigned
     AttributeExtPrecision  = 1014, //Default 0
     AttributeExtScale      = 1015, //Default 0
     AttributeExtLength     = 1016, //Default 0
@@ -201,12 +201,6 @@ public:
     StorePermanent = 2
   };
   
-  // AttributeType constants
-  STATIC_CONST( SignedType = 0 );
-  STATIC_CONST( UnSignedType = 1 );
-  STATIC_CONST( FloatingPointType = 2 );
-  STATIC_CONST( StringType = 3 );
-  
   // AttributeSize constants
   STATIC_CONST( aBit = 0 );
   STATIC_CONST( an8Bit = 3 );
@@ -282,7 +276,7 @@ public:
   struct Attribute {
     char   AttributeName[MAX_TAB_NAME_SIZE];
     Uint32 AttributeId;
-    Uint32 AttributeType;
+    Uint32 AttributeType; // for osu 4.1->5.0.x
     Uint32 AttributeSize;
     Uint32 AttributeArraySize;
     Uint32 AttributeKeyFlag;
@@ -306,66 +300,55 @@ public:
     // translate to old kernel types and sizes
     inline bool
     translateExtType() {
+      AttributeType = ~0; // deprecated
       switch (AttributeExtType) {
       case DictTabInfo::ExtUndefined:
         break;
       case DictTabInfo::ExtTinyint:
-        AttributeType = DictTabInfo::SignedType;
         AttributeSize = DictTabInfo::an8Bit;
         AttributeArraySize = AttributeExtLength;
 	return true;
       case DictTabInfo::ExtTinyunsigned:
-        AttributeType = DictTabInfo::UnSignedType;
         AttributeSize = DictTabInfo::an8Bit;
         AttributeArraySize = AttributeExtLength;
 	return true;
       case DictTabInfo::ExtSmallint:
-        AttributeType = DictTabInfo::SignedType;
         AttributeSize = DictTabInfo::a16Bit;
         AttributeArraySize = AttributeExtLength;
 	return true;
       case DictTabInfo::ExtSmallunsigned:
-        AttributeType = DictTabInfo::UnSignedType;
         AttributeSize = DictTabInfo::a16Bit;
         AttributeArraySize = AttributeExtLength;
 	return true;
       case DictTabInfo::ExtMediumint:
-        AttributeType = DictTabInfo::SignedType;
         AttributeSize = DictTabInfo::an8Bit;
         AttributeArraySize = 3 * AttributeExtLength;
 	return true;
       case DictTabInfo::ExtMediumunsigned:
-        AttributeType = DictTabInfo::UnSignedType;
         AttributeSize = DictTabInfo::an8Bit;
         AttributeArraySize = 3 * AttributeExtLength;
 	return true;
       case DictTabInfo::ExtInt:	
-        AttributeType = DictTabInfo::SignedType;
         AttributeSize = DictTabInfo::a32Bit;
         AttributeArraySize = AttributeExtLength;
         return true;
       case DictTabInfo::ExtUnsigned:
-        AttributeType = DictTabInfo::UnSignedType;
         AttributeSize = DictTabInfo::a32Bit;
         AttributeArraySize = AttributeExtLength;
         return true;
       case DictTabInfo::ExtBigint:
-        AttributeType = DictTabInfo::SignedType;
         AttributeSize = DictTabInfo::a64Bit;
         AttributeArraySize = AttributeExtLength;
         return true;
       case DictTabInfo::ExtBigunsigned:
-        AttributeType = DictTabInfo::UnSignedType;
         AttributeSize = DictTabInfo::a64Bit;
         AttributeArraySize = AttributeExtLength;
         return true;
       case DictTabInfo::ExtFloat:
-        AttributeType = DictTabInfo::FloatingPointType;
         AttributeSize = DictTabInfo::a32Bit;
         AttributeArraySize = AttributeExtLength;
         return true;
       case DictTabInfo::ExtDouble:
-        AttributeType = DictTabInfo::FloatingPointType;
         AttributeSize = DictTabInfo::a64Bit;
         AttributeArraySize = AttributeExtLength;
         return true;
@@ -374,35 +357,32 @@ public:
         break;
       case DictTabInfo::ExtChar:
       case DictTabInfo::ExtBinary:
-        AttributeType = DictTabInfo::StringType;
         AttributeSize = DictTabInfo::an8Bit;
         AttributeArraySize = AttributeExtLength;
         return true;
       case DictTabInfo::ExtVarchar:
       case DictTabInfo::ExtVarbinary:
-        AttributeType = DictTabInfo::StringType;
+        // to fix
         AttributeSize = DictTabInfo::an8Bit;
         AttributeArraySize = AttributeExtLength + 2;
         return true;
       case DictTabInfo::ExtDatetime:
-        AttributeType = DictTabInfo::StringType;
+        // to fix
         AttributeSize = DictTabInfo::an8Bit;
         AttributeArraySize = 8 * AttributeExtLength;
         return true;
       case DictTabInfo::ExtTimespec:
-        AttributeType = DictTabInfo::StringType;
+        // to fix
         AttributeSize = DictTabInfo::an8Bit;
         AttributeArraySize = 12 * AttributeExtLength;
         return true;
       case DictTabInfo::ExtBlob:
       case DictTabInfo::ExtText:
-        AttributeType = DictTabInfo::StringType;
         AttributeSize = DictTabInfo::an8Bit;
         // head + inline part [ attr precision lower half ]
         AttributeArraySize = (NDB_BLOB_HEAD_SIZE << 2) + (AttributeExtPrecision & 0xFFFF);
         return true;
       case DictTabInfo::ExtBit:
-	AttributeType = DictTabInfo::UnSignedType;
 	AttributeSize = DictTabInfo::aBit;
 	AttributeArraySize = AttributeExtLength;
 	return true;

@@ -23,12 +23,16 @@ root@localhost	1
 select db();
 db()
 db1_secret
+grant execute on db1_secret.stamp to user1@'%';
+grant execute on db1_secret.db to user1@'%';
+grant execute on db1_secret.stamp to ''@'%';
+grant execute on db1_secret.db to ''@'%';
 call db1_secret.stamp(2);
 select db1_secret.db();
 db1_secret.db()
 db1_secret
 select * from db1_secret.t1;
-ERROR 42000: Access denied for user 'user1'@'localhost' to database 'db1_secret'
+ERROR 42000: select command denied to user 'user1'@'localhost' for table 't1'
 create procedure db1_secret.dummy() begin end;
 ERROR 42000: Access denied for user 'user1'@'localhost' to database 'db1_secret'
 drop procedure db1_secret.dummy;
@@ -38,7 +42,7 @@ select db1_secret.db();
 db1_secret.db()
 db1_secret
 select * from db1_secret.t1;
-ERROR 42000: Access denied for user ''@'localhost' to database 'db1_secret'
+ERROR 42000: select command denied to user ''@'localhost' for table 't1'
 create procedure db1_secret.dummy() begin end;
 ERROR 42000: Access denied for user ''@'localhost' to database 'db1_secret'
 drop procedure db1_secret.dummy;
@@ -82,15 +86,16 @@ insert into t2 values (0);
 grant usage on db2.* to user1@localhost;
 grant select on db2.* to user1@localhost;
 grant usage on db2.* to user2@localhost;
-grant select,insert,update,delete on db2.* to user2@localhost;
+grant select,insert,update,delete,create routine on db2.* to user2@localhost;
+grant create routine on db2.* to user1@localhost;
 flush privileges;
 use db2;
 create procedure p () insert into t2 values (1);
 call p();
-ERROR 42000: Access denied for user 'user1'@'localhost' to database 'db2'
+ERROR 42000: insert command denied to user 'user1'@'localhost' for table 't2'
 use db2;
 call p();
-ERROR 42000: Access denied for user 'user1'@'localhost' to database 'db2'
+ERROR 42000: execute command denied to user 'user2'@'localhost' for routine 'db2.p'
 select * from t2;
 s1
 0
@@ -100,6 +105,8 @@ select * from t2;
 s1
 0
 2
+grant usage on db2.q to user2@localhost with grant option;
+grant execute on db2.q to user1@localhost;
 use db2;
 call q();
 select * from t2;
@@ -110,9 +117,9 @@ s1
 alter procedure p modifies sql data;
 drop procedure p;
 alter procedure q modifies sql data;
-ERROR 42000: Access denied; you are not the procedure/function definer of 'db2.q'
+ERROR 42000: alter procedure command denied to user 'user1'@'localhost' for routine 'db2.q'
 drop procedure q;
-ERROR 42000: Access denied; you are not the procedure/function definer of 'db2.q'
+ERROR 42000: alter procedure command denied to user 'user1'@'localhost' for routine 'db2.q'
 use db2;
 alter procedure q modifies sql data;
 drop procedure q;
@@ -126,3 +133,64 @@ drop database db2;
 select type,db,name from mysql.proc;
 type	db	name
 delete from mysql.user where user='user1' or user='user2';
+delete from mysql.procs_priv where user='user1' or user='user2';
+grant usage on *.* to usera@localhost;
+grant usage on *.* to userb@localhost;
+grant usage on *.* to userc@localhost;
+create database sptest;
+create table t1 ( u varchar(64), i int );
+create procedure sptest.p1(i int) insert into test.t1 values (user(), i);
+grant insert on t1 to usera@localhost;
+grant execute on sptest.p1 to usera@localhost;
+show grants for usera@localhost;
+Grants for usera@localhost
+GRANT USAGE ON *.* TO 'usera'@'localhost'
+GRANT INSERT ON `test`.`t1` TO 'usera'@'localhost'
+GRANT EXECUTE ON `sptest`.`p1` TO 'usera'@'localhost'
+grant execute on sptest.p1 to userc@localhost with grant option;
+show grants for userc@localhost;
+Grants for userc@localhost
+GRANT USAGE ON *.* TO 'userc'@'localhost'
+GRANT EXECUTE ON `sptest`.`p1` TO 'userc'@'localhost' WITH GRANT OPTION
+call sptest.p1(1);
+grant execute on sptest.p1 to userb@localhost;
+ERROR 42000: grant command denied to user 'usera'@'localhost' for routine 'sptest.p1'
+drop procedure sptest.p1;
+ERROR 42000: alter procedure command denied to user 'usera'@'localhost' for routine 'sptest.p1'
+call sptest.p1(2);
+ERROR 42000: execute command denied to user 'userb'@'localhost' for routine 'sptest.p1'
+grant execute on sptest.p1 to userb@localhost;
+ERROR 42000: execute command denied to user 'userb'@'localhost' for routine 'sptest.p1'
+drop procedure sptest.p1;
+ERROR 42000: alter procedure command denied to user 'userb'@'localhost' for routine 'sptest.p1'
+call sptest.p1(3);
+grant execute on sptest.p1 to userb@localhost;
+drop procedure sptest.p1;
+ERROR 42000: alter procedure command denied to user 'userc'@'localhost' for routine 'sptest.p1'
+call sptest.p1(4);
+grant execute on sptest.p1 to userb@localhost;
+ERROR 42000: grant command denied to user 'userb'@'localhost' for routine 'sptest.p1'
+drop procedure sptest.p1;
+ERROR 42000: alter procedure command denied to user 'userb'@'localhost' for routine 'sptest.p1'
+select * from t1;
+u	i
+usera@localhost	1
+userc@localhost	3
+userb@localhost	4
+grant all privileges on sptest.p1 to userc@localhost;
+show grants for userc@localhost;
+Grants for userc@localhost
+GRANT USAGE ON *.* TO 'userc'@'localhost'
+GRANT EXECUTE, ALTER ROUTINE ON `sptest`.`p1` TO 'userc'@'localhost' WITH GRANT OPTION
+show grants for userb@localhost;
+Grants for userb@localhost
+GRANT USAGE ON *.* TO 'userb'@'localhost'
+GRANT EXECUTE ON `sptest`.`p1` TO 'userb'@'localhost'
+revoke all privileges on sptest.p1 from userb@localhost;
+show grants for userb@localhost;
+Grants for userb@localhost
+GRANT USAGE ON *.* TO 'userb'@'localhost'
+use test;
+drop database sptest;
+delete from mysql.user where user='usera' or user='userb' or user='userc';
+delete from mysql.procs_priv where user='usera' or user='userb' or user='userc';

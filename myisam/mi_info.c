@@ -105,3 +105,36 @@ int mi_status(MI_INFO *info, register MI_ISAMINFO *x, uint flag)
   }
   DBUG_RETURN(0);
 }
+
+
+/*
+  Write a message to the error log.
+
+  SYNOPSIS
+    mi_report_error()
+    file_name                   Name of table file (e.g. index_file_name).
+    errcode                     Error number.
+
+  DESCRIPTION
+    This function supplies my_error() with a table name. Most error
+    messages need one. Since string arguments in error messages are limited
+    to 64 characters by convention, we ensure that in case of truncation,
+    that the end of the index file path is in the message. This contains
+    the most valuable information (the table name and the database name).
+
+  RETURN
+    void
+*/
+
+void mi_report_error(int errcode, const char *file_name)
+{
+  size_t        lgt;
+  DBUG_ENTER("mi_report_error");
+  DBUG_PRINT("enter",("errcode %d, table '%s'", errcode, file_name));
+
+  if ((lgt= strlen(file_name)) > 64)
+    file_name+= lgt - 64;
+  my_error(errcode, MYF(ME_NOREFRESH), file_name);
+  DBUG_VOID_RETURN;
+}
+

@@ -186,7 +186,10 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     if (info->opt_flag & WRITE_CACHE_USED)
     {
       if ((error=flush_io_cache(&info->rec_cache)))
+      {
+        mi_print_error(info, HA_ERR_CRASHED);
 	mi_mark_crashed(info);			/* Fatal error found */
+      }
     }
     break;
   case HA_EXTRA_NO_READCHECK:
@@ -285,6 +288,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     {
       error=my_errno;
       share->changed=1;
+      mi_print_error(info, HA_ERR_CRASHED);
       mi_mark_crashed(info);			/* Fatal error found */
     }
     if (info->opt_flag & (READ_CACHE_USED | WRITE_CACHE_USED))
@@ -339,6 +343,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
       if (error)
       {
 	share->changed=1;
+        mi_print_error(info, HA_ERR_CRASHED);
 	mi_mark_crashed(info);			/* Fatal error found */
       }
     }
