@@ -177,13 +177,15 @@ and '..' items at the start of the directory listing. */
 os_file_dir_t
 os_file_opendir(
 /*============*/
-				/* out: directory stream, NULL if error */
-	char*	dirname,	/* in: directory name; it must not contain
-				a trailing '\' or '/' */
-	ibool	error_is_fatal);/* in: TRUE if we should treat an error as a
-				fatal error; if we try to open symlinks then
-				we do not wish a fatal error if it happens
-				not to be a directory */
+					/* out: directory stream, NULL if
+					error */
+	const char*	dirname,	/* in: directory name; it must not
+					contain a trailing '\' or '/' */
+	ibool		error_is_fatal);/* in: TRUE if we should treat an
+					error as a fatal error; if we try to
+					open symlinks then we do not wish a
+					fatal error if it happens not to be
+					a directory */
 /***************************************************************************
 Closes a directory stream. */
 
@@ -201,7 +203,7 @@ os_file_readdir_next_file(
 /*======================*/
 				/* out: 0 if ok, -1 if error, 1 if at the end
 				of the directory */
-	char*		dirname,/* in: directory name or path */
+	const char*	dirname,/* in: directory name or path */
 	os_file_dir_t	dir,	/* in: directory stream */
 	os_file_stat_t*	info);	/* in/out: buffer where the info is returned */
 /*********************************************************************
@@ -213,81 +215,89 @@ fail_if_exists arguments is true. */
 ibool
 os_file_create_directory(
 /*=====================*/
-				/* out: TRUE if call succeeds, FALSE on
-				error */
-	char*	pathname,	/* in: directory name as null-terminated
-				string */
-	ibool	fail_if_exists);/* in: if TRUE, pre-existing directory is
-				treated as an error. */
+					/* out: TRUE if call succeeds,
+					FALSE on error */
+	const char*	pathname,	/* in: directory name as
+					null-terminated string */
+	ibool		fail_if_exists);/* in: if TRUE, pre-existing directory
+					is treated as an error. */
 /********************************************************************
 A simple function to open or create a file. */
 
 os_file_t
 os_file_create_simple(
 /*==================*/
-			/* out, own: handle to the file, not defined if error,
-			error number can be retrieved with
-			os_file_get_last_error */
-	char*	name,	/* in: name of the file or path as a null-terminated
-			string */
-	ulint	create_mode,/* in: OS_FILE_OPEN if an existing file is opened
-			(if does not exist, error), or OS_FILE_CREATE if a new
-			file is created (if exists, error), or
-                        OS_FILE_CREATE_PATH if new file (if exists, error) and
-                        subdirectories along its path are created (if needed)*/
-	ulint	access_type,/* in: OS_FILE_READ_ONLY or OS_FILE_READ_WRITE */
-	ibool*	success);/* out: TRUE if succeed, FALSE if error */
+				/* out, own: handle to the file, not defined
+				if error, error number can be retrieved with
+				os_file_get_last_error */
+	const char*	name,	/* in: name of the file or path as a
+				null-terminated string */
+	ulint		create_mode,/* in: OS_FILE_OPEN if an existing file is
+				opened (if does not exist, error), or
+				OS_FILE_CREATE if a new file is created
+				(if exists, error), or
+	                        OS_FILE_CREATE_PATH if new file
+				(if exists, error) and subdirectories along
+				its path are created (if needed)*/
+	ulint		access_type,/* in: OS_FILE_READ_ONLY or
+				OS_FILE_READ_WRITE */
+	ibool*		success);/* out: TRUE if succeed, FALSE if error */
 /********************************************************************
 A simple function to open or create a file. */
 
 os_file_t
 os_file_create_simple_no_error_handling(
 /*====================================*/
-			/* out, own: handle to the file, not defined if error,
-			error number can be retrieved with
-			os_file_get_last_error */
-	char*	name,	/* in: name of the file or path as a null-terminated
-			string */
-	ulint	create_mode,/* in: OS_FILE_OPEN if an existing file is opened
-			(if does not exist, error), or OS_FILE_CREATE if a new
-			file is created (if exists, error) */
-	ulint	access_type,/* in: OS_FILE_READ_ONLY, OS_FILE_READ_WRITE, or
-			OS_FILE_READ_ALLOW_DELETE; the last option is used by
-			a backup program reading the file */
-	ibool*	success);/* out: TRUE if succeed, FALSE if error */
+				/* out, own: handle to the file, not defined
+				if error, error number can be retrieved with
+				os_file_get_last_error */
+	const char*	name,	/* in: name of the file or path as a
+				null-terminated string */
+	ulint		create_mode,/* in: OS_FILE_OPEN if an existing file
+				is opened (if does not exist, error), or
+				OS_FILE_CREATE if a new file is created
+				(if exists, error) */
+	ulint		access_type,/* in: OS_FILE_READ_ONLY,
+				OS_FILE_READ_WRITE, or
+				OS_FILE_READ_ALLOW_DELETE; the last option is
+				used by a backup program reading the file */
+	ibool*		success);/* out: TRUE if succeed, FALSE if error */
 /********************************************************************
 Opens an existing file or creates a new. */
 
 os_file_t
 os_file_create(
 /*===========*/
-			/* out, own: handle to the file, not defined if error,
-			error number can be retrieved with
-			os_file_get_last_error */
-	char*	name,	/* in: name of the file or path as a null-terminated
-			string */
-	ulint	create_mode,/* in: OS_FILE_OPEN if an existing file is opened
-			(if does not exist, error), or OS_FILE_CREATE if a new
-			file is created (if exists, error), OS_FILE_OVERWRITE
-			if a new file is created or an old overwritten;
-			OS_FILE_OPEN_RAW, if a raw device or disk partition
-			should be opened */
-	ulint	purpose,/* in: OS_FILE_AIO, if asynchronous, non-buffered i/o
-			is desired, OS_FILE_NORMAL, if any normal file;
-			NOTE that it also depends on type, os_aio_.. and srv_..
-			variables whether we really use async i/o or
-			unbuffered i/o: look in the function source code for
-			the exact rules */
-	ulint	type,	/* in: OS_DATA_FILE or OS_LOG_FILE */
-	ibool*	success);/* out: TRUE if succeed, FALSE if error */
+				/* out, own: handle to the file, not defined
+				if error, error number can be retrieved with
+				os_file_get_last_error */
+	const char*	name,	/* in: name of the file or path as a
+				null-terminated string */
+	ulint		create_mode,/* in: OS_FILE_OPEN if an existing file
+				is opened (if does not exist, error), or
+				OS_FILE_CREATE if a new file is created
+				(if exists, error),
+				OS_FILE_OVERWRITE if a new file is created
+				or an old overwritten;
+				OS_FILE_OPEN_RAW, if a raw device or disk
+				partition should be opened */
+	ulint		purpose,/* in: OS_FILE_AIO, if asynchronous,
+				non-buffered i/o is desired,
+				OS_FILE_NORMAL, if any normal file;
+				NOTE that it also depends on type, os_aio_..
+				and srv_.. variables whether we really use
+				async i/o or unbuffered i/o: look in the
+				function source code for the exact rules */
+	ulint		type,	/* in: OS_DATA_FILE or OS_LOG_FILE */
+	ibool*		success);/* out: TRUE if succeed, FALSE if error */
 /***************************************************************************
 Deletes a file. The file has to be closed before calling this. */
 
 ibool
 os_file_delete(
 /*===========*/
-			/* out: TRUE if success */
-	char*	name);	/* in: file path as a null-terminated string */
+				/* out: TRUE if success */
+	const char*	name);	/* in: file path as a null-terminated string */
 
 /***************************************************************************
 Deletes a file if it exists. The file has to be closed before calling this. */
@@ -295,8 +305,8 @@ Deletes a file if it exists. The file has to be closed before calling this. */
 ibool
 os_file_delete_if_exists(
 /*=====================*/
-			/* out: TRUE if success */
-	char*	name);	/* in: file path as a null-terminated string */
+				/* out: TRUE if success */
+	const char*	name);	/* in: file path as a null-terminated string */
 /***************************************************************************
 Renames a file (can also move it to another directory). It is safest that the
 file is closed before calling this function. */
@@ -304,10 +314,10 @@ file is closed before calling this function. */
 ibool
 os_file_rename(
 /*===========*/
-				/* out: TRUE if success */
-	char*	oldpath,	/* in: old file path as a null-terminated
-				string */
-	char*	newpath);	/* in: new file path */
+					/* out: TRUE if success */
+	const char*	oldpath,	/* in: old file path as a
+					null-terminated string */
+	const char*	newpath);	/* in: new file path */
 /***************************************************************************
 Closes a file handle. In case of error, error number can be retrieved with
 os_file_get_last_error. */
@@ -351,7 +361,7 @@ ibool
 os_file_set_size(
 /*=============*/
 				/* out: TRUE if success */
-	char*		name,	/* in: name of the file or path as a
+	const char*	name,	/* in: name of the file or path as a
 				null-terminated string */
 	os_file_t	file,	/* in: handle to a file */
 	ulint		size,	/* in: least significant 32 bits of file
@@ -426,10 +436,10 @@ os_file_write(
 /*==========*/
 				/* out: TRUE if request was
 				successful, FALSE if fail */
-	char*		name,	/* in: name of the file or path as a
+	const char*	name,	/* in: name of the file or path as a
 				null-terminated string */
 	os_file_t	file,	/* in: handle to a file */
-	void*		buf,	/* in: buffer from which to write */
+	const void*	buf,	/* in: buffer from which to write */
 	ulint		offset,	/* in: least significant 32 bits of file
 				offset where to write */
 	ulint		offset_high,/* in: most significant 32 bits of
@@ -442,8 +452,8 @@ ibool
 os_file_status(
 /*===========*/
 				/* out: TRUE if call succeeded */
-	char *		path,	/* in:  pathname of the file */
-	ibool *		exists,	/* out: TRUE if file exists */
+	const char*	path,	/* in:  pathname of the file */
+	ibool*		exists,	/* out: TRUE if file exists */
 	os_file_type_t* type);	/* out: type of the file (if it exists) */
 /********************************************************************
 The function os_file_dirname returns a directory component of a
@@ -478,7 +488,7 @@ os_file_dirname(
 /*============*/
 				/* out, own: directory component of the
 				pathname */
-	char*		path);	/* in: pathname */
+	const char*	path);	/* in: pathname */
 /********************************************************************
 Creates all missing subdirectories along the given path. */
 	
@@ -487,7 +497,7 @@ os_file_create_subdirs_if_needed(
 /*=============================*/
 				/* out: TRUE if call succeeded
 				   FALSE otherwise */
-	char*		path);	/* in: path name */
+	const char*	path);	/* in: path name */
 /****************************************************************************
 Initializes the asynchronous io system. Creates separate aio array for
 non-ibuf read and write, a third aio array for the ibuf i/o, with just one
@@ -527,7 +537,7 @@ os_aio(
 				because i/os are not actually handled until
 				all have been posted: use with great
 				caution! */
-	char*		name,	/* in: name of the file or path as a
+	const char*	name,	/* in: name of the file or path as a
 				null-terminated string */
 	os_file_t	file,	/* in: handle to a file */
 	void*		buf,	/* in: buffer where to read or from which
