@@ -880,7 +880,7 @@ Ndb::opTupleIdOnNdb(Uint32 aTableId, Uint64 opValue, Uint32 op)
       tOperation->def_label(0);
       tOperation->interpret_exit_nok(9999);
       
-      if (tConnection->execute( Commit ) == -1 )
+      if ( (result = tConnection->execute( Commit )) == -1 )
         goto error_handler;
       
       if (result == 9999)
