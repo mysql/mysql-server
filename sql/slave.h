@@ -66,6 +66,7 @@ typedef struct st_table_rule_ent
 #define TABLE_RULE_ARR_SIZE   16
 
 int flush_master_info(MASTER_INFO* mi);
+int register_slave_on_master(MYSQL* mysql);
 
 int mysql_table_dump(THD* thd, const char* db,
 		     const char* tbl_name, int fd = -1);
@@ -117,9 +118,9 @@ extern int disconnect_slave_event_count, abort_slave_event_count ;
 #endif
 
 // the master variables are defaults read from my.cnf or command line
-extern uint master_port, master_connect_retry;
+extern uint master_port, master_connect_retry, report_port;
 extern my_string master_user, master_password, master_host,
-  master_info_file;
+  master_info_file, report_user, report_host, report_password;
 
 extern I_List<i_string> replicate_do_db, replicate_ignore_db;
 extern I_List<i_string_pair> replicate_rewrite_db;

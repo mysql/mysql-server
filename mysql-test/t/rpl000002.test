@@ -11,6 +11,7 @@ use test;
 sync_with_master;
 select * from t1;
 connection master;
+show slave hosts;
 drop table t1;
 save_master_pos;
 connection slave;

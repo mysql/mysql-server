@@ -520,6 +520,8 @@ start_slave()
 	    --tmpdir=$MYSQL_TMP_DIR \
             --language=english \
 	    --skip-innodb --skip-slave-start \
+	    --report-host=127.0.0.1 --report-user=root \
+	    --report-port=$SLAVE_MYPORT \
 	     $SMALL_SERVER \
              $EXTRA_SLAVE_OPT $EXTRA_SLAVE_MYSQLD_OPT"
     if [ x$DO_DDD = x1 ]
