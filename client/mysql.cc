@@ -38,7 +38,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER="11.18";
+const char *VER="11.19";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -172,8 +172,7 @@ static int sql_connect(char *host,char *database,char *user,char *password,
 static int put_info(const char *str,INFO_TYPE info,uint error=0);
 static void safe_put_field(const char *pos,ulong length);
 static const char *array_value(const char **array, char *key);
-static void xmlencode(char *dest, char *src);
-static void my_chomp(char *end);
+static void xmlencode_print(const char *src, uint length);
 static void init_pager();
 static void end_pager();
 static void init_tee();
@@ -1708,18 +1707,11 @@ print_table_data_xml(MYSQL_RES *result)
 
   mysql_field_seek(result,0);
 
-  char *statement;
-  statement=(char*) my_malloc(strlen(glob_buffer.ptr())*5+1, MYF(MY_WME));
-  xmlencode(statement, (char*) glob_buffer.ptr());
-
-  (void) my_chomp(strend(statement));
-
-  tee_fprintf(PAGER,"<?xml version=\"1.0\"?>\n\n<resultset statement=\"%s\">", statement);
-
-  my_free(statement,MYF(MY_ALLOW_ZERO_PTR));
+  tee_fputs("<?xml version=\"1.0\"?>\n\n<resultset statement=\"", PAGER);
+  xmlencode_print(glob_buffer.ptr(), strlen(glob_buffer.ptr()) - 1);
+  tee_fputs("\">", PAGER);
 
   fields = mysql_fetch_fields(result);
-
   while ((cur = mysql_fetch_row(result)))
   {
     (void) tee_fputs("\n  <row>\n", PAGER);
@@ -1727,16 +1719,13 @@ print_table_data_xml(MYSQL_RES *result)
     {
       char *data;
       ulong *lengths=mysql_fetch_lengths(result);
-      data=(char*) my_malloc(lengths[i]*5+1, MYF(MY_WME));
       tee_fprintf(PAGER, "\t<%s>", (fields[i].name ?
 				  (fields[i].name[0] ? fields[i].name :
 				   " &nbsp; ") : "NULL"));
-      xmlencode(data, cur[i]);
-      safe_put_field(data, strlen(data));
+      xmlencode_print(cur[i], lengths[i]);
       tee_fprintf(PAGER, "</%s>\n", (fields[i].name ?
 				     (fields[i].name[0] ? fields[i].name :
 				      " &nbsp; ") : "NULL"));
-      my_free(data,MYF(MY_ALLOW_ZERO_PTR));
     }
     (void) tee_fputs("  </row>\n", PAGER);
   }
@@ -1774,43 +1763,34 @@ print_table_data_vertically(MYSQL_RES *result)
   }
 }
 
+
 static const char
-*array_value(const char **array, char *key) {
+*array_value(const char **array, char key)
+{
   int x;
-  for(x=0; array[x]; x+=2)
-    if(!strcmp(array[x], key))
-      return array[x+1];
+  for (x= 0; array[x]; x+= 2)
+    if (*array[x] == key)
+      return array[x + 1];
   return 0;
 }
 
+
 static void
-xmlencode(char *dest, char *src)
+xmlencode_print(const char *src, uint length)
 {
-  char *p = src;
-  const char *t;
-  char s[2] = { 0, 0 };
-  *dest = 0;
-
-  do
+  if (!src)
+    tee_fputs("NULL", PAGER);
+  else
   {
-    s[0] = *p;
-    if (!(t=array_value(xmlmeta, s)))
-      t = s;
-    dest=strmov(dest, t);
-  } while(*p++);
-}
-
-static void
-my_chomp(char *end) {
-  char *mend;
-  mend = end;
-
-  do {
-    if (isspace(*mend)) {
-      *mend = '\0';
-    } else
-      mend--;
-  } while (mend && *mend);
+    for (const char *p = src; *p && length; *p++, length--)
+    {
+      const char *t;
+      if ((t = array_value(xmlmeta, *p)))
+	tee_fputs(t, PAGER);
+      else
+	tee_putc(*p, PAGER);
+    }
+  }
 }
 
 
