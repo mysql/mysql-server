@@ -1100,9 +1100,29 @@ char *get_field(MEM_ROOT *mem, TABLE *table, uint fieldnr)
   return to;
 }
 
-bool check_db_name(const char *name)
+
+/*
+  Check if database name is valid
+
+  SYNPOSIS
+    check_db_name()
+    name		Name of database
+
+  NOTES
+    If lower_case_table_names is set then database is converted to lower case
+
+  RETURN
+    0	ok
+    1   error
+*/
+
+bool check_db_name(char *name)
 {
-  const char *start=name;
+   char *start=name;
+
+  if (lower_case_table_names)
+    casedn_str(name);
+
   while (*name)
   {
 #if defined(USE_MB) && defined(USE_MB_IDENT)

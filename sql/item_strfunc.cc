@@ -587,6 +587,17 @@ null:
   return 0;
 }
 
+void Item_func_concat_ws::split_sum_func(List<Item> &fields)
+{
+  if (separator->with_sum_func && separator->type() != SUM_FUNC_ITEM)
+    separator->split_sum_func(fields);
+  else if (separator->used_tables() || separator->type() == SUM_FUNC_ITEM)
+  {
+    fields.push_front(separator);
+    separator= new Item_ref((Item**) fields.head_ref(), 0, separator->name);
+  }  
+  Item_str_func::split_sum_func(fields);
+}
 
 void Item_func_concat_ws::fix_length_and_dec()
 {
@@ -600,6 +611,7 @@ void Item_func_concat_ws::fix_length_and_dec()
   }
   used_tables_cache|=separator->used_tables();
   const_item_cache&=separator->const_item();
+  with_sum_func= with_sum_func || separator->with_sum_func;
 }
 
 void Item_func_concat_ws::update_used_tables()
@@ -1501,6 +1513,19 @@ void Item_func_elt::fix_length_and_dec()
 }
 
 
+void Item_func_elt::split_sum_func(List<Item> &fields)
+{
+  if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
+    item->split_sum_func(fields);
+  else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
+  {
+    fields.push_front(item);
+    item= new Item_ref((Item**) fields.head_ref(), 0, item->name);
+  }  
+  Item_str_func::split_sum_func(fields);
+}
+
+
 void Item_func_elt::update_used_tables()
 {
   Item_func::update_used_tables();
@@ -1547,6 +1572,19 @@ String *Item_func_elt::val_str(String *str)
 }
 
 
+void Item_func_make_set::split_sum_func(List<Item> &fields)
+{
+  if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
+    item->split_sum_func(fields);
+  else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
+  {
+    fields.push_front(item);
+    item= new Item_ref((Item**) fields.head_ref(), 0, item->name);
+  }  
+  Item_str_func::split_sum_func(fields);
+}
+
+
 void Item_func_make_set::fix_length_and_dec()
 {
   max_length=arg_count-1;
@@ -1554,6 +1592,7 @@ void Item_func_make_set::fix_length_and_dec()
     max_length+=args[i]->max_length;
   used_tables_cache|=item->used_tables();
   const_item_cache&=item->const_item();
+  with_sum_func= with_sum_func || item->with_sum_func;
 }
 
 
