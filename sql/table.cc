@@ -138,7 +138,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     outparam->raid_chunks= head[42];
     outparam->raid_chunksize= uint4korr(head+43);
     if (!(outparam->table_charset=get_charset((uint) head[38],MYF(0))))
-      outparam->table_charset=NULL; // QQ display error message?
+      outparam->table_charset=default_charset_info; // QQ display error message?
     null_field_first=1;
   }
   outparam->db_record_offset=1;
@@ -398,8 +398,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	if (!strpos[14])
 	  charset= &my_charset_bin;
 	else if (!(charset=get_charset((uint) strpos[14], MYF(0))))
-	  charset= (outparam->table_charset ? outparam->table_charset: 
-		  default_charset_info);
+	  charset= outparam->table_charset;
       }
       if (!comment_length)
       {
@@ -423,8 +422,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 
       /* old frm file */
       field_type= (enum_field_types) f_packtype(pack_flag);
-      charset=(outparam->table_charset ? outparam->table_charset :
-	       default_charset_info);
+      charset=f_is_binary(pack_flag) ? &my_charset_bin : outparam->table_charset;
       bzero((char*) &comment, sizeof(comment));
     }
     *field_ptr=reg_field=
@@ -486,7 +484,10 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
       /* This has to be done after the above fulltext correction */
       index_flags=outparam->file->index_flags(key);
       if (!(index_flags & HA_KEY_READ_ONLY))
+      {
+	outparam->read_only_keys|=    ((key_map) 1 << key);
 	outparam->keys_for_keyread&= ~((key_map) 1 << key);
+      }
 
       if (primary_key >= MAX_KEY && (keyinfo->flags & HA_NOSAME))
       {
@@ -599,7 +600,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
       }
       keyinfo->usable_key_parts=usable_parts; // Filesort
     }
-    if (primary_key < MAX_KEY && 
+    if (primary_key < MAX_KEY &&
 	(outparam->keys_in_use & ((key_map) 1 << primary_key)))
     {
       outparam->primary_key=primary_key;
@@ -1172,22 +1173,24 @@ rename_file_ext(const char * from,const char * to,const char * ext)
     res         result String
 
   RETURN VALUES
-    true   string is empty
-    false  all ok
+    1   string is empty
+    0	all ok
 */
 
 bool get_field(MEM_ROOT *mem, Field *field, String *res)
 {
-  char buff[MAX_FIELD_WIDTH];
+  char buff[MAX_FIELD_WIDTH], *to;
   String str(buff,sizeof(buff),&my_charset_bin);
+  uint length;
+
   field->val_str(&str,&str);
-  uint length=str.length();
-  if (!length)
-    return true;
-  char *to= strmake_root(mem, str.ptr(), length);
-  res->set(to,length,((Field_str*)field)->charset());
-  return false;
+  if (!(length= str.length()))
+    return 1;
+  to= strmake_root(mem, str.ptr(), length);
+  res->set(to, length, ((Field_str*)field)->charset());
+  return 0;
 }
+
 
 /*
   Allocate string field in MEM_ROOT and return it as NULL-terminated string
@@ -1204,14 +1207,15 @@ bool get_field(MEM_ROOT *mem, Field *field, String *res)
 
 char *get_field(MEM_ROOT *mem, Field *field)
 {
-  char buff[MAX_FIELD_WIDTH];
+  char buff[MAX_FIELD_WIDTH], *to;
   String str(buff,sizeof(buff),&my_charset_bin);
+  uint length;
+
   field->val_str(&str,&str);
-  uint length=str.length();
-  if (!length)
+  if (!(length= str.length()))
     return NullS;
-  char *to= (char*) alloc_root(mem,length+1);
-  memcpy(to,str.ptr(),(uint) length);
+  to= (char*) alloc_root(mem,length+1);
+  memcpy(to, str.ptr(), (uint) length);
   to[length]=0;
   return to;
 }

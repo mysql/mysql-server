@@ -90,6 +90,20 @@ explain (select a,b from t1 limit 2)  union all (select a,b from t2 order by a l
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	
 2	UNION	t2	ALL	NULL	NULL	NULL	NULL	4	Using filesort
+(select sql_calc_found_rows  a,b from t1 limit 2)  union all (select a,b from t2 order by a) limit 2;
+a	b
+1	a
+2	b
+select found_rows();
+found_rows()
+6
+select sql_calc_found_rows  a,b from t1  union all select a,b from t2 limit 2;
+a	b
+1	a
+2	b
+select found_rows();
+found_rows()
+6
 explain select a,b from t1 union all select a,b from t2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	
@@ -269,6 +283,35 @@ uid	rl	g1	cid	gg
 uid	rl	g1	cid	gg
 1	NULL	V1	NULL	1
 drop table t1,t2,t3,t4,t5,t6;
+CREATE TABLE t1 (a int not null, b char (10) not null);
+insert into t1 values(1,'a'),(2,'b'),(3,'c'),(3,'c');
+CREATE TABLE t2 (a int not null, b char (10) not null);
+insert into t2 values (3,'c'),(4,'d'),(5,'f'),(6,'e');
+create table t3 select a,b from t1 union select a,b from t2;
+create table t4 (select a,b from t1) union (select a,b from t2) limit 2;
+insert into  t4 select a,b from t1 union select a,b from t2;
+insert into  t3 (select a,b from t1) union (select a,b from t2) limit 2;
+select * from t3;
+a	b
+1	a
+2	b
+3	c
+4	d
+5	f
+6	e
+1	a
+2	b
+select * from t4;
+a	b
+1	a
+2	b
+1	a
+2	b
+3	c
+4	d
+5	f
+6	e
+drop table t1,t2,t3,t4;
 CREATE TABLE t1 (  id int(3) unsigned default '0') TYPE=MyISAM;
 INSERT INTO t1 (id) VALUES("1");
 CREATE TABLE t2 ( id int(3) unsigned default '0',  id_master int(5) default '0',  text1 varchar(5) default NULL,  text2 varchar(5) default NULL) TYPE=MyISAM;
@@ -322,9 +365,22 @@ explain (select * from t1 where a=1 and b=10) union (select t1.a,t2.a from t1,t2
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	UNION	t1	index	PRIMARY	PRIMARY	4	NULL	4	Using index
-2	UNION	t2	index	PRIMARY	PRIMARY	4	NULL	4	Using where; Using index
+2	UNION	t2	index	PRIMARY	PRIMARY	4	NULL	3	Using where; Using index
 explain (select * from t1 where a=1) union (select * from t1 where b=1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	const	PRIMARY	PRIMARY	4	const	1	
 2	UNION	t1	ref	b	b	5	const	1	Using where
 drop table t1,t2;
+create table t1 (   id int not null auto_increment, primary key (id)   ,user_name text );
+create table t2 (    id int not null auto_increment, primary key (id)   ,group_name text );
+create table t3 (    id int not null auto_increment, primary key (id)   ,user_id int   ,index user_idx (user_id)   ,foreign key (user_id) references users(id)   ,group_id int   ,index group_idx (group_id)   ,foreign key (group_id) references groups(id) );
+insert into t1 (user_name) values ('Tester');
+insert into t2 (group_name) values ('Group A');
+insert into t2 (group_name) values ('Group B');
+insert into t3 (user_id, group_id) values (1,1);
+select 1 'is_in_group', a.user_name, c.group_name, b.id from t1 a, t3 b, t2 c where a.id = b.user_id and b.group_id = c.id UNION  select 0 'is_in_group', a.user_name, c.group_name, null from t1 a, t2 c;
+is_in_group	user_name	group_name	id
+1	Tester	Group A	1
+0	Tester	Group A	NULL
+0	Tester	Group B	NULL
+drop table t1, t2, t3;

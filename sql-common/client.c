@@ -38,7 +38,28 @@
 #include <my_global.h>
 
 #include "mysql.h"
+
+#ifdef EMBEDDED_LIBRARY
+
+#undef MYSQL_SERVER
+
+#ifndef MYSQL_CLIENT
+#define MYSQL_CLIENT
+#endif
+
+#define CLI_MYSQL_REAL_CONNECT cli_mysql_real_connect
+#define CLI_MYSQL_CLOSE cli_mysql_close
+
+#undef net_flush
+my_bool	net_flush(NET *net);
+
+#else  /*EMBEDDED_LIBRARY*/
+#define CLI_MYSQL_REAL_CONNECT mysql_real_connect
+#define CLI_MYSQL_CLOSE mysql_close
+#endif /*EMBEDDED_LIBRARY*/
+
 #if !defined(MYSQL_SERVER) && (defined(__WIN__) || defined(_WIN32) || defined(_WIN64))
+
 #include <winsock.h>
 #include <odbcinst.h>
 #endif /* !defined(MYSQL_SERVER) && (defined(__WIN__) ... */
@@ -113,6 +134,10 @@ const char 	*def_shared_memory_base_name= default_shared_memory_base_name;
 static void mysql_close_free_options(MYSQL *mysql);
 static void mysql_close_free(MYSQL *mysql);
 
+#if !(defined(__WIN__) || defined(OS2) || defined(__NETWARE__))
+static int wait_for_data(my_socket fd, uint timeout);
+#endif
+
 /****************************************************************************
   A modified version of connect().  my_connect() allows you to specify
   a timeout value, in seconds, that we should wait until we
@@ -122,17 +147,13 @@ static void mysql_close_free(MYSQL *mysql);
   Base version coded by Steve Bernacki, Jr. <steve@navinet.net>
 *****************************************************************************/
 
-my_bool my_connect(my_socket s, const struct sockaddr *name,
-		   uint namelen, uint timeout)
+int my_connect(my_socket fd, const struct sockaddr *name, uint namelen,
+	       uint timeout)
 {
 #if defined(__WIN__) || defined(OS2) || defined(__NETWARE__)
-  return connect(s, (struct sockaddr*) name, namelen) != 0;
+  return connect(fd, (struct sockaddr*) name, namelen);
 #else
   int flags, res, s_err;
-  SOCKOPT_OPTLEN_TYPE s_err_size = sizeof(uint);
-  fd_set sfds;
-  struct timeval tv;
-  time_t start_time, now_time;
 
   /*
     If they passed us a timeout of zero, we should behave
@@ -140,60 +161,98 @@ my_bool my_connect(my_socket s, const struct sockaddr *name,
   */
 
   if (timeout == 0)
-    return connect(s, (struct sockaddr*) name, namelen) != 0;
+    return connect(fd, (struct sockaddr*) name, namelen);
 
-  flags = fcntl(s, F_GETFL, 0);		  /* Set socket to not block */
+  flags = fcntl(fd, F_GETFL, 0);	  /* Set socket to not block */
 #ifdef O_NONBLOCK
-  fcntl(s, F_SETFL, flags | O_NONBLOCK);  /* and save the flags..  */
+  fcntl(fd, F_SETFL, flags | O_NONBLOCK);  /* and save the flags..  */
 #endif
 
-  res = connect(s, (struct sockaddr*) name, namelen);
-  s_err = errno;			/* Save the error... */
-  fcntl(s, F_SETFL, flags);
+  res= connect(fd, (struct sockaddr*) name, namelen);
+  s_err= errno;			/* Save the error... */
+  fcntl(fd, F_SETFL, flags);
   if ((res != 0) && (s_err != EINPROGRESS))
   {
-    errno = s_err;			/* Restore it */
-    return(1);
+    errno= s_err;			/* Restore it */
+    return(-1);
   }
   if (res == 0)				/* Connected quickly! */
     return(0);
+  return wait_for_data(fd, timeout);
+#endif
+}
+
+
+/*
+  Wait up to timeout seconds for a connection to be established.
+
+  We prefer to do this with poll() as there is no limitations with this.
+  If not, we will use select()
+*/
+
+#if !(defined(__WIN__) || defined(OS2) || defined(__NETWARE__))
+
+static int wait_for_data(my_socket fd, uint timeout)
+{
+#ifdef HAVE_POLL
+  struct pollfd ufds;
+  int res;
+
+  ufds.fd= fd;
+  ufds.events= POLLIN | POLLPRI;
+  if (!(res= poll(&ufds, 1, (int) timeout*1000)))
+  {
+    errno= EINTR;
+    return -1;
+  }
+  if (res < 0 || !(ufds.revents & (POLLIN | POLLPRI)))
+    return -1;
+  return 0;
+#else
+  SOCKOPT_OPTLEN_TYPE s_err_size = sizeof(uint);
+  fd_set sfds;
+  struct timeval tv;
+  time_t start_time, now_time;
+  int res, s_err;
+
+  if (fd >= FD_SETSIZE)				/* Check if wrong error */
+    return 0;					/* Can't use timeout */
 
   /*
-    Otherwise, our connection is "in progress."  We can use
-    the select() call to wait up to a specified period of time
-    for the connection to succeed.  If select() returns 0
-    (after waiting howevermany seconds), our socket never became
-    writable (host is probably unreachable.)  Otherwise, if
+    Our connection is "in progress."  We can use the select() call to wait
+    up to a specified period of time for the connection to suceed.
+    If select() returns 0 (after waiting howevermany seconds), our socket
+    never became writable (host is probably unreachable.)  Otherwise, if
     select() returns 1, then one of two conditions exist:
-
+   
     1. An error occured.  We use getsockopt() to check for this.
     2. The connection was set up sucessfully: getsockopt() will
     return 0 as an error.
-
+   
     Thanks goes to Andrew Gierth <andrew@erlenstar.demon.co.uk>
     who posted this method of timing out a connect() in
     comp.unix.programmer on August 15th, 1997.
   */
 
   FD_ZERO(&sfds);
-  FD_SET(s, &sfds);
+  FD_SET(fd, &sfds);
   /*
-    select could be interrupted by a signal, and if it is,
+    select could be interrupted by a signal, and if it is, 
     the timeout should be adjusted and the select restarted
-    to work around OSes that don't restart select and
+    to work around OSes that don't restart select and 
     implementations of select that don't adjust tv upon
     failure to reflect the time remaining
-  */
+   */
   start_time = time(NULL);
   for (;;)
   {
     tv.tv_sec = (long) timeout;
     tv.tv_usec = 0;
 #if defined(HPUX10) && defined(THREAD)
-    if ((res = select(s+1, NULL, (int*) &sfds, NULL, &tv)) > 0)
+    if ((res = select(fd+1, NULL, (int*) &sfds, NULL, &tv)) > 0)
       break;
 #else
-    if ((res = select(s+1, NULL, &sfds, NULL, &tv)) > 0)
+    if ((res = select(fd+1, NULL, &sfds, NULL, &tv)) > 0)
       break;
 #endif
     if (res == 0)					/* timeout */
@@ -201,7 +260,7 @@ my_bool my_connect(my_socket s, const struct sockaddr *name,
     now_time=time(NULL);
     timeout-= (uint) (now_time - start_time);
     if (errno != EINTR || (int) timeout <= 0)
-      return 1;
+      return -1;
   }
 
   /*
@@ -211,18 +270,19 @@ my_bool my_connect(my_socket s, const struct sockaddr *name,
   */
 
   s_err=0;
-  if (getsockopt(s, SOL_SOCKET, SO_ERROR, (char*) &s_err, &s_err_size) != 0)
-    return(1);
+  if (getsockopt(fd, SOL_SOCKET, SO_ERROR, (char*) &s_err, &s_err_size) != 0)
+    return(-1);
 
   if (s_err)
   {						/* getsockopt could succeed */
     errno = s_err;
-    return(1);					/* but return an error... */
+    return(-1);					/* but return an error... */
   }
   return (0);					/* ok */
-
-#endif
+#endif /* HAVE_POLL */
 }
+#endif /* defined(__WIN__) || defined(OS2) || defined(__NETWARE__) */
+
 
 /*
   Create a named pipe connection
@@ -526,6 +586,10 @@ net_safe_read(MYSQL *mysql)
   {
     DBUG_PRINT("error",("Wrong connection or packet. fd: %s  len: %d",
 			vio_description(net->vio),len));
+#ifdef MYSQL_SERVER
+    if (socket_errno == SOCKET_EINTR)
+      return (packet_error);
+#endif /*MYSQL_SERVER*/
     end_server(mysql);
     net->last_errno=(net->last_errno == ER_NET_PACKET_TOO_LARGE ?
 		     CR_NET_PACKET_TOO_LARGE:
@@ -572,8 +636,8 @@ void free_rows(MYSQL_DATA *cur)
   }
 }
 
-my_bool
-advanced_command(MYSQL *mysql, enum enum_server_command command,
+static my_bool
+cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
 		 const char *header, ulong header_length,
 		 const char *arg, ulong arg_length, my_bool skip_check)
 {
@@ -633,13 +697,6 @@ advanced_command(MYSQL *mysql, enum enum_server_command command,
 end:
   reset_sigpipe(mysql);
   return result;
-}
-
-my_bool
-simple_command(MYSQL *mysql,enum enum_server_command command, const char *arg,
-	       ulong length, my_bool skip_check)
-{
-  return advanced_command(mysql, command, NullS, 0, arg, length, skip_check);
 }
 
 void free_old_query(MYSQL *mysql)
@@ -759,8 +816,8 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
   return 0;
 }
 
-static void mysql_read_default_options(struct st_mysql_options *options,
-				       const char *filename,const char *group)
+void mysql_read_default_options(struct st_mysql_options *options,
+				const char *filename,const char *group)
 {
   int argc;
   char *argv_buff[1],**argv;
@@ -951,7 +1008,7 @@ static void mysql_read_default_options(struct st_mysql_options *options,
   else the lengths are calculated from the offset between pointers.
 **************************************************************************/
 
-void fetch_lengths(ulong *to, MYSQL_ROW column, uint field_count)
+static void cli_fetch_lengths(ulong *to, MYSQL_ROW column, uint field_count)
 { 
   ulong *prev_length;
   byte *start=0;
@@ -971,7 +1028,6 @@ void fetch_lengths(ulong *to, MYSQL_ROW column, uint field_count)
     prev_length= to;
   }
 }
-
 
 /***************************************************************************
   Change field rows to field structs
@@ -1000,7 +1056,7 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
     for (row=data->data; row ; row = row->next,field++)
     {
       uchar *pos;
-      fetch_lengths(&lengths[0], row->data, default_value ? 8 : 7);
+      cli_fetch_lengths(&lengths[0], row->data, default_value ? 8 : 7);
       field->catalog  = strdup_root(alloc,(char*) row->data[0]);
       field->db       = strdup_root(alloc,(char*) row->data[1]);
       field->table    = strdup_root(alloc,(char*) row->data[2]);
@@ -1041,7 +1097,7 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
     /* old protocol, for backward compatibility */
     for (row=data->data; row ; row = row->next,field++)
     {
-      fetch_lengths(&lengths[0], row->data, default_value ? 6 : 5);
+      cli_fetch_lengths(&lengths[0], row->data, default_value ? 6 : 5);
       field->org_table= field->table=  strdup_root(alloc,(char*) row->data[0]);
       field->name=   strdup_root(alloc,(char*) row->data[1]);
       field->length= (uint) uint3korr(row->data[2]);
@@ -1278,6 +1334,7 @@ mysql_init(MYSQL *mysql)
 #ifdef HAVE_SMEM
   mysql->options.shared_memory_base_name= (char*) def_shared_memory_base_name;
 #endif
+  mysql->options.methods_to_use= MYSQL_OPT_GUESS_CONNECTION;
   return mysql;
 }
 
@@ -1409,10 +1466,23 @@ error:
   before calling mysql_real_connect !
 */
 
-MYSQL * STDCALL
-mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
-		   const char *passwd, const char *db,
-		   uint port, const char *unix_socket,ulong client_flag)
+static my_bool STDCALL cli_mysql_read_query_result(MYSQL *mysql);
+static MYSQL_RES * STDCALL cli_mysql_store_result(MYSQL *mysql);
+static MYSQL_RES * STDCALL cli_mysql_use_result(MYSQL *mysql);
+
+static MYSQL_METHODS client_methods=
+{
+  cli_mysql_read_query_result,
+  cli_advanced_command,
+  cli_mysql_store_result,
+  cli_mysql_use_result,
+  cli_fetch_lengths
+};
+
+MYSQL * STDCALL 
+CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
+		       const char *passwd, const char *db,
+		       uint port, const char *unix_socket,ulong client_flag)
 {
   char		buff[NAME_LEN+USERNAME_LENGTH+100],charset_name_buff[16];
   char		*end,*host_info,*charset_name;
@@ -1421,6 +1491,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   struct	sockaddr_in sock_addr;
   ulong		pkt_length;
   NET		*net= &mysql->net;
+  uint		charset_number;
 #ifdef MYSQL_SERVER
   thr_alarm_t   alarmed;
   ALARM		alarm_buff;
@@ -1441,6 +1512,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		      user ? user : "(Null)"));
 
   /* Don't give sigpipe errors if the client doesn't want them */
+  mysql->methods= &client_methods;
   set_sigpipe(mysql);
   net->vio = 0;				/* If something goes wrong */
   mysql->client_flag=0;			/* For handshake */
@@ -1712,17 +1784,19 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     mysql->server_language=end[2];
     mysql->server_status=uint2korr(end+3);
   }
+  charset_number= mysql->server_language;
 
   /* Set character set */
   if ((charset_name=mysql->options.charset_name))
   {
-    const char *save=charsets_dir;
+    const char *save= charsets_dir;
     if (mysql->options.charset_dir)
       charsets_dir=mysql->options.charset_dir;
     mysql->charset=get_charset_by_csname(mysql->options.charset_name,
 					 MY_CS_PRIMARY,
 					 MYF(MY_WME));
-    charsets_dir=save;
+    charset_number= mysql->charset ? mysql->charset->number : 0;
+    charsets_dir= save;
   }
   else if (mysql->server_language)
   {
@@ -1734,7 +1808,10 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
       mysql->charset = default_charset_info; /* shouldn't be fatal */
   }
   else
-    mysql->charset=default_charset_info;
+  {
+    mysql->charset= default_charset_info;
+    charset_number= mysql->charset->number;
+  }
 
   if (!mysql->charset)
   {
@@ -1814,7 +1891,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     /* 4.1 server and 4.1 client has a 32 byte option flag */
     int4store(buff,client_flag);
     int4store(buff+4, net->max_packet_size);
-    buff[8]= mysql->charset->number;
+    buff[8]= (char) charset_number;
     bzero(buff+9, 32-9);
     end= buff+32;
   }
@@ -2112,8 +2189,7 @@ static void mysql_close_free(MYSQL *mysql)
 }
 
 
-void STDCALL
-mysql_close(MYSQL *mysql)
+void STDCALL CLI_MYSQL_CLOSE(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_close");
   if (mysql)					/* Some simple safety */
@@ -2165,8 +2241,7 @@ mysql_close(MYSQL *mysql)
   DBUG_VOID_RETURN;
 }
 
-
-my_bool STDCALL mysql_read_query_result(MYSQL *mysql)
+static my_bool STDCALL cli_mysql_read_query_result(MYSQL *mysql)
 {
   uchar *pos;
   ulong field_count;
@@ -2283,8 +2358,7 @@ mysql_real_query(MYSQL *mysql, const char *query, ulong length)
   mysql_data_seek may be used.
 **************************************************************************/
 
-MYSQL_RES * STDCALL
-mysql_store_result(MYSQL *mysql)
+static MYSQL_RES * STDCALL cli_mysql_store_result(MYSQL *mysql)
 {
   MYSQL_RES *result;
   DBUG_ENTER("mysql_store_result");
@@ -2310,6 +2384,7 @@ mysql_store_result(MYSQL *mysql)
     strmov(mysql->net.last_error, ER(mysql->net.last_errno));
     DBUG_RETURN(0);
   }
+  result->methods= mysql->methods;
   result->eof=1;				/* Marker for buffered */
   result->lengths=(ulong*) (result+1);
   if (!(result->data=read_rows(mysql,mysql->fields,mysql->field_count)))
@@ -2339,8 +2414,7 @@ mysql_store_result(MYSQL *mysql)
   have to wait for the client (and will not wait more than 30 sec/packet).
 **************************************************************************/
 
-MYSQL_RES * STDCALL
-mysql_use_result(MYSQL *mysql)
+static MYSQL_RES * STDCALL cli_mysql_use_result(MYSQL *mysql)
 {
   MYSQL_RES *result;
   DBUG_ENTER("mysql_use_result");
@@ -2361,6 +2435,7 @@ mysql_use_result(MYSQL *mysql)
 				      MYF(MY_WME | MY_ZEROFILL))))
     DBUG_RETURN(0);
   result->lengths=(ulong*) (result+1);
+  result->methods= mysql->methods;
   if (!(result->row=(MYSQL_ROW)
 	my_malloc(sizeof(result->row[0])*(mysql->field_count+1), MYF(MY_WME))))
   {					/* Ptrs: to one row */
@@ -2477,6 +2552,10 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
       my_free(mysql->options.shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
     mysql->options.shared_memory_base_name=my_strdup(arg,MYF(MY_WME));
 #endif
+  case MYSQL_OPT_USE_REMOTE_CONNECTION:
+  case MYSQL_OPT_USE_EMBEDDED_CONNECTION:
+  case MYSQL_OPT_GUESS_CONNECTION:
+    mysql->options.methods_to_use= option;
     break;
   default:
     DBUG_RETURN(1);

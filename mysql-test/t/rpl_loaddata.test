@@ -2,10 +2,14 @@
 # Honours autoincrement values
 # i.e. if the master and slave have the same sequence
 #
-# check replication of load data for temporary tables with additional parameters
+# check replication of load data for temporary tables with additional
+# parameters
 #
 # check if duplicate entries trigger an error (they should unless IGNORE or
 # REPLACE was used on the master) (bug 571).
+#
+# check if START SLAVE, RESET SLAVE, CHANGE MASTER reset Last_slave_error and
+# Last_slave_errno in SHOW SLAVE STATUS (1st and 3rd commands did not: bug 986)
 
 source include/master-slave.inc;
 
@@ -42,9 +46,55 @@ load data infile '../../std_data/rpl_loaddata.dat' into table t1;
 
 save_master_pos;
 connection slave;
-# don't sync_with_master because the slave SQL thread should be stopped because
-# of the error so MASTER_POS_WAIT() will not return; just sleep and hope the
-# slave SQL thread will have had time to stop.
+# The SQL slave thread should be stopped now.
+wait_for_slave_to_stop;
 
-sleep 1;
-show status like 'slave_running';
+# Skip the bad event and see if error is cleared in SHOW SLAVE STATUS by START
+# SLAVE, even though we are not executing any event (as sql_slave_skip_counter
+# takes us directly to the end of the relay log).
+
+set global sql_slave_skip_counter=1;
+start slave;
+sync_with_master;
+--replace_result $MASTER_MYPORT MASTER_PORT
+show slave status;
+
+# Trigger error again to test CHANGE MASTER
+
+connection master;
+set sql_log_bin=0;
+delete from t1;
+set sql_log_bin=1;
+load data infile '../../std_data/rpl_loaddata.dat' into table t1;
+save_master_pos;
+connection slave;
+# The SQL slave thread should be stopped now.
+wait_for_slave_to_stop;
+
+# CHANGE MASTER and see if error is cleared in SHOW SLAVE STATUS.
+stop slave;
+change master to master_user='test';
+change master to master_user='root';
+--replace_result $MASTER_MYPORT MASTER_PORT
+show slave status;
+
+# Trigger error again to test RESET SLAVE
+
+set global sql_slave_skip_counter=1;
+start slave;
+sync_with_master;
+connection master;
+set sql_log_bin=0;
+delete from t1;
+set sql_log_bin=1;
+load data infile '../../std_data/rpl_loaddata.dat' into table t1;
+save_master_pos;
+connection slave;
+# The SQL slave thread should be stopped now.
+wait_for_slave_to_stop;
+
+# RESET SLAVE and see if error is cleared in SHOW SLAVE STATUS.
+stop slave;
+reset slave;
+--replace_result $MASTER_MYPORT MASTER_PORT
+show slave status;

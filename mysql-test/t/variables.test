@@ -120,6 +120,8 @@ set SESSION query_cache_size=10000;
 set GLOBAL table_type=DEFAULT;
 --error 1115
 set character_set_client=UNKNOWN_CHARACTER_SET;
+--error 1272
+set collation_connection=UNKNOWN_COLLATION;
 --error 1228
 set global autocommit=1;
 --error 1228

@@ -389,7 +389,6 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
       trans->innodb_active_trans=0;
       if (trans == &thd->transaction.all)
 	operation_done= transaction_commited= 1;
-	
     }
 #endif
 #ifdef HAVE_QUERY_CACHE
@@ -452,6 +451,70 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
       statistic_increment(ha_rollback_count,&LOCK_status);
       thd->transaction.cleanup();
     }
+  }
+#endif /* USING_TRANSACTIONS */
+  DBUG_RETURN(error);
+}
+
+
+/*
+Rolls the current transaction back to a savepoint.
+Return value: 0 if success, 1 if there was not a savepoint of the given
+name.
+*/
+
+int ha_rollback_to_savepoint(THD *thd, char *savepoint_name)
+{
+  my_off_t binlog_cache_pos=0;
+  bool operation_done=0;
+  int error=0;
+  DBUG_ENTER("ha_rollback_to_savepoint");
+#ifdef USING_TRANSACTIONS
+  if (opt_using_transactions)
+  {
+#ifdef HAVE_INNOBASE_DB
+    /*
+    Retrieve the trans_log binlog cache position corresponding to the
+    savepoint, and if the rollback is successful inside InnoDB reset the write
+    position in the binlog cache to what it was at the savepoint.
+    */
+    if ((error=innobase_rollback_to_savepoint(thd, savepoint_name,
+						  &binlog_cache_pos)))
+    {
+      my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), error);
+      error=1;
+    }
+    else
+      reinit_io_cache(&thd->transaction.trans_log, WRITE_CACHE,
+						 binlog_cache_pos, 0, 0);
+    operation_done=1;
+#endif
+    if (operation_done)
+      statistic_increment(ha_rollback_count,&LOCK_status);
+  }
+#endif /* USING_TRANSACTIONS */
+
+  DBUG_RETURN(error);
+}
+
+
+/*
+Sets a transaction savepoint.
+Return value: always 0, that is, succeeds always
+*/
+
+int ha_savepoint(THD *thd, char *savepoint_name)
+{
+  my_off_t binlog_cache_pos=0;
+  int error=0;
+  DBUG_ENTER("ha_savepoint");
+#ifdef USING_TRANSACTIONS
+  if (opt_using_transactions)
+  {
+    binlog_cache_pos=my_b_tell(&thd->transaction.trans_log);
+#ifdef HAVE_INNOBASE_DB
+    innobase_savepoint(thd,savepoint_name, binlog_cache_pos);
+#endif
   }
 #endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
@@ -697,11 +760,15 @@ void handler::update_auto_increment()
   longlong nr;
   THD *thd;
   DBUG_ENTER("update_auto_increment");
-  if (table->next_number_field->val_int() != 0)
+  if (table->next_number_field->val_int() != 0 ||
+      table->auto_increment_field_not_null &&
+      current_thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO)
   {
+    table->auto_increment_field_not_null= false;
     auto_increment_column_changed=0;
     DBUG_VOID_RETURN;
   }
+  table->auto_increment_field_not_null= false;
   thd=current_thd;
   if ((nr=thd->next_insert_id))
     thd->next_insert_id=0;			// Clear after use
@@ -755,6 +822,9 @@ void handler::print_error(int error, myf errflag)
 
   int textno=ER_GET_ERRNO;
   switch (error) {
+  case EACCES:
+    textno=ER_OPEN_AS_READONLY;
+    break;
   case EAGAIN:
     textno=ER_FILE_USED;
     break;

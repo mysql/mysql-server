@@ -85,7 +85,6 @@ public:
 typedef bool (Item::*Item_processor)(byte *arg);
 
 class Item {
-  uint loop_id;                         /* Used to find selfrefering loops */
   Item(const Item &);			/* Prevent use of these */
   void operator=(Item &);
 public:
@@ -147,7 +146,24 @@ public:
   virtual double  val_result() { return val(); }
   virtual longlong val_int_result() { return val_int(); }
   virtual String *str_result(String* tmp) { return val_str(tmp); }
+  /* bit map of tables used by item */
   virtual table_map used_tables() const { return (table_map) 0L; }
+  /*
+    Return table map of tables that can't be NULL tables (tables that are
+    used in a context where if they would contain a NULL row generated
+    by a LEFT or RIGHT join, the item would not be true).
+    This expression is used on WHERE item to determinate if a LEFT JOIN can be
+    converted to a normal join.
+    Generally this function should return used_tables() if the function
+    would return null if any of the arguments are null
+    As this is only used in the beginning of optimization, the value don't
+    have to be updated in update_used_tables()
+  */
+  virtual table_map not_null_tables() const { return used_tables(); }
+  /*
+    Returns true if this is a simple constant item like an integer, not
+    a constant expression
+  */
   virtual bool basic_const_item() const { return 0; }
   virtual Item *new_item() { return 0; }	/* Only for const items */
   virtual cond_result eq_cmp_result() const { return COND_OK; }
@@ -172,21 +188,6 @@ public:
   virtual Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
 
   CHARSET_INFO *default_charset() const;
-  Derivation derivation() const { return collation.derivation; }
-  CHARSET_INFO *charset() const { return collation.collation; }
-  void set_charset(CHARSET_INFO *cs) 
-  { collation.collation= cs; }
-  void set_charset(Derivation dv) 
-  { collation.derivation= dv; }
-  void set_charset(CHARSET_INFO *cs, Derivation dv)
-  { collation.collation= cs; collation.derivation= dv; }
-  void set_charset(Item &item)
-  { collation= item.collation; }
-  void set_charset(DTCollation *collation_arg)
-  { 
-    collation.collation= collation_arg->collation; 
-    collation.derivation= collation_arg->derivation;
-  }
 
   virtual bool walk(Item_processor processor, byte *arg)
   {
@@ -238,7 +239,7 @@ public:
   Item_field(const char *db_par,const char *table_name_par,
 	     const char *field_name_par)
     :Item_ident(db_par,table_name_par,field_name_par),field(0),result_field(0)
-  { set_charset(DERIVATION_IMPLICIT); }
+  { collation.set(DERIVATION_IMPLICIT); }
   // Constructor need to process subselect with temporary tables (see Item)
   Item_field(THD *thd, Item_field &item);
   Item_field(Field *field);
@@ -441,18 +442,18 @@ public:
   Item_string(const char *str,uint length,
   	      CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)
   {
-    set_charset(cs, dv);
+    collation.set(cs, dv);
     str_value.set(str,length,cs);
-    max_length=length;
+    max_length= str_value.numchars()*cs->mbmaxlen;
     set_name(str, length, cs);
     decimals=NOT_FIXED_DEC;
   }
   Item_string(const char *name_par, const char *str, uint length,
 	      CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)
   {
-    set_charset(cs, dv);
+    collation.set(cs, dv);
     str_value.set(str,length,cs);
-    max_length=length;
+    max_length= str_value.numchars()*cs->mbmaxlen;
     set_name(name_par,0,cs);
     decimals=NOT_FIXED_DEC;
   }
@@ -642,58 +643,15 @@ public:
   }
 };
 
-
-/*
-  Used to find item in list of select items after '*' items processing.
-
-  Because item '*' can be used in item list. when we create
-  Item_ref_on_list_position we do not know how item list will be changed, but
-  we know number of item position (I mean queries like "select * from t").
-*/
-class Item_ref_on_list_position: public Item_ref_null_helper
+class Item_null_helper :public Item_ref_null_helper
 {
-protected:
-  /* 
-     select_lex used for:
-     1) receiving expanded variant of item list (to check max possible 
-        number of elements);
-     2) to have access to  ref_pointer_array, via wich item will refered.
-  */
-  st_select_lex *select_lex;
-  uint pos;
+  Item *store;
 public:
-  Item_ref_on_list_position(Item_in_subselect* master,
-			    st_select_lex *sl, uint num,
-			    char *table_name, char *field_name):
-    Item_ref_null_helper(master, 0, table_name, field_name),
-    select_lex(sl), pos(num) {}
-  bool fix_fields(THD *, struct st_table_list *, Item ** ref);
-};
-
-/*
-  To resolve '*' field moved to condition
-  and register NULL values
-*/
-class Item_asterisk_remover :public Item_ref_null_helper
-{
-  Item *item;
-public:
-  Item_asterisk_remover(Item_in_subselect *master, Item *it,
-			char *table, char *field):
-    Item_ref_null_helper(master, &item, table, field),
-    item(it) 
-  {}
-  bool fix_fields(THD *, struct st_table_list *, Item ** ref);
-  Item **storage() {return &item;}
-  void print(String *str)
-  {
-    str->append("ref_null_helper('");
-    if (item)
-      item->print(str);
-    else
-      str->append('?');
-    str->append(')');
-  }
+  Item_null_helper(Item_in_subselect* master, Item *item,
+		   const char *table_name_par, const char *field_name_par)
+    :Item_ref_null_helper(master, &store, table_name_par, field_name_par),
+     store(item)
+    {}
 };
 
 /*

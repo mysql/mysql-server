@@ -25,6 +25,9 @@ find_in_set("","a,b,c")	find_in_set("","a,b,c,")	find_in_set("",",a,b,c")
 select find_in_set("abc","abc"),find_in_set("ab","abc"),find_in_set("abcd","abc");
 find_in_set("abc","abc")	find_in_set("ab","abc")	find_in_set("abcd","abc")
 1	0	0
+select interval(null, 1, 10, 100);
+interval(null, 1, 10, 100)
+-1
 drop table if exists t1,t2;
 create  table t1 (id int(10) not null unique);
 create  table t2 (id int(10) not null primary key,

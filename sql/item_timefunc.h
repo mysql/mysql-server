@@ -93,7 +93,7 @@ public:
   enum Item_result result_type () const { return INT_RESULT; }
   void fix_length_and_dec() 
   { 
-    set_charset(default_charset());
+    collation.set(default_charset());
     decimals=0;
     max_length=2*default_charset()->mbmaxlen;
     maybe_null=1; 
@@ -110,7 +110,7 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   void fix_length_and_dec() 
   {
-    set_charset(default_charset());
+    collation.set(default_charset());
     decimals=0;
     max_length=10*default_charset()->mbmaxlen;
     maybe_null=1; 
@@ -254,7 +254,7 @@ public:
   enum Item_result result_type () const { return INT_RESULT; }
   void fix_length_and_dec()
   {
-    set_charset(default_charset());
+    collation.set(default_charset());
     decimals=0;
     max_length=1*default_charset()->mbmaxlen;
     maybe_null=1;
@@ -270,7 +270,7 @@ class Item_func_dayname :public Item_func_weekday
   enum Item_result result_type () const { return STRING_RESULT; }
   void fix_length_and_dec() 
   { 
-    set_charset(default_charset());
+    collation.set(default_charset());
     decimals=0; 
     max_length=9*default_charset()->mbmaxlen;
     maybe_null=1; 
@@ -322,7 +322,7 @@ public:
   const char *func_name() const { return "date"; }
   void fix_length_and_dec()
   { 
-    set_charset(default_charset());
+    collation.set(default_charset());
     decimals=0;
     max_length=10*default_charset()->mbmaxlen;
   }
@@ -350,6 +350,8 @@ public:
 };
 
 
+/* Abstract CURTIME function. Children should define what timezone is used */
+
 class Item_func_curtime :public Item_func
 {
   longlong value;
@@ -363,15 +365,42 @@ public:
   double val() { return (double) value; }
   longlong val_int() { return value; }
   String *val_str(String *str);
-  const char *func_name() const { return "curtime"; }
   void fix_length_and_dec();
   Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)
   {
     return (new Field_time(maybe_null, name, t_arg, default_charset()));
-  }  
+  }
+  /* 
+    Abstract method that defines which time zone is used for conversion.
+    Converts time from time_t representation to broken down representation
+    in struct tm using gmtime_r or localtime_r functions.
+  */
+  virtual void store_now_in_tm(time_t now, struct tm *now_tm)=0;
 };
 
+
+class Item_func_curtime_local :public Item_func_curtime
+{
+public:
+  Item_func_curtime_local() :Item_func_curtime() {}
+  Item_func_curtime_local(Item *a) :Item_func_curtime(a) {}
+  const char *func_name() const { return "curtime"; }
+  void store_now_in_tm(time_t now, struct tm *now_tm);
+};
+
+
+class Item_func_curtime_utc :public Item_func_curtime
+{
+public:
+  Item_func_curtime_utc() :Item_func_curtime() {}
+  Item_func_curtime_utc(Item *a) :Item_func_curtime(a) {}
+  const char *func_name() const { return "utc_time"; }
+  void store_now_in_tm(time_t now, struct tm *now_tm);
+};
+
+
+/* Abstract CURDATE function. See also Item_func_curtime. */
 
 class Item_func_curdate :public Item_date
 {
@@ -379,12 +408,33 @@ class Item_func_curdate :public Item_date
   TIME ltime;
 public:
   Item_func_curdate() :Item_date() {}
+  void set_result_from_tm(struct tm *now);
   longlong val_int() { return (value) ; }
-  const char *func_name() const { return "curdate"; }
-  void fix_length_and_dec();			/* Retrieves curtime */
+  void fix_length_and_dec();
   bool get_date(TIME *res,bool fuzzy_date);
+  virtual void store_now_in_tm(time_t now, struct tm *now_tm)=0;
 };
 
+
+class Item_func_curdate_local :public Item_func_curdate
+{
+public:
+  Item_func_curdate_local() :Item_func_curdate() {}
+  const char *func_name() const { return "curdate"; }
+  void store_now_in_tm(time_t now, struct tm *now_tm);
+};
+
+
+class Item_func_curdate_utc :public Item_func_curdate
+{
+public:
+  Item_func_curdate_utc() :Item_func_curdate() {}
+  const char *func_name() const { return "utc_date"; }
+  void store_now_in_tm(time_t now, struct tm *now_tm);
+};
+
+
+/* Abstract CURRENT_TIMESTAMP function. See also Item_func_curtime */
 
 class Item_func_now :public Item_date_func
 {
@@ -400,9 +450,29 @@ public:
   longlong val_int() { return value; }
   int save_in_field(Field *to, bool no_conversions);
   String *val_str(String *str);
-  const char *func_name() const { return "now"; }
   void fix_length_and_dec();
   bool get_date(TIME *res,bool fuzzy_date);
+  virtual void store_now_in_tm(time_t now, struct tm *now_tm)=0;
+};
+
+
+class Item_func_now_local :public Item_func_now
+{
+public:
+  Item_func_now_local() :Item_func_now() {}
+  Item_func_now_local(Item *a) :Item_func_now(a) {}
+  const char *func_name() const { return "now"; }
+  void store_now_in_tm(time_t now, struct tm *now_tm);
+};
+
+
+class Item_func_now_utc :public Item_func_now
+{
+public:
+  Item_func_now_utc() :Item_func_now() {}
+  Item_func_now_utc(Item *a) :Item_func_now(a) {}
+  const char *func_name() const { return "utc_timestamp"; }
+  void store_now_in_tm(time_t now, struct tm *now_tm);
 };
 
 
@@ -440,7 +510,7 @@ class Item_func_from_unixtime :public Item_date_func
   const char *func_name() const { return "from_unixtime"; }
   void fix_length_and_dec()
   { 
-    set_charset(default_charset());
+    collation.set(default_charset());
     decimals=0;
     max_length=19*default_charset()->mbmaxlen;
   }
@@ -457,7 +527,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec()
   { 
-    set_charset(default_charset());
+    collation.set(default_charset());
     maybe_null=1;
     max_length=13*default_charset()->mbmaxlen;
   }
@@ -516,6 +586,7 @@ class Item_extract :public Item_int_func
   longlong val_int();
   const char *func_name() const { return "extract"; }
   void fix_length_and_dec();
+  bool eq(const Item *item, bool binary_cmp) const;
 };
 
 
@@ -529,12 +600,12 @@ public:
     String *tmp=args[0]->val_str(a);
     null_value=args[0]->null_value;
     if (tmp)
-      tmp->set_charset(charset());
+      tmp->set_charset(collation.collation);
     return tmp;
   }
   void fix_length_and_dec()
   {
-    set_charset(default_charset());
+    collation.set(default_charset());
     max_length=args[0]->max_length;
   }
   void print(String *str);
@@ -543,13 +614,15 @@ public:
 
 class Item_char_typecast :public Item_typecast
 {
+  int cast_length;
+  CHARSET_INFO *cast_cs;
+  bool charset_conversion;
+  String tmp_value;
 public:
-  Item_char_typecast(Item *a) :Item_typecast(a) {}
-  void fix_length_and_dec()
-  {
-    set_charset(default_charset());
-    max_length=args[0]->max_length;
-  }
+  Item_char_typecast(Item *a, int length_arg, CHARSET_INFO *cs_arg)
+    :Item_typecast(a), cast_length(length_arg), cast_cs(cs_arg) {}
+  String *val_str(String *a);
+  void fix_length_and_dec();
 };
 
 

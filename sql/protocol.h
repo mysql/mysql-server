@@ -61,7 +61,7 @@ public:
   inline  bool store(ulonglong from)
   { return store_longlong((longlong) from, 1); }
   inline bool store(String *str)
-  { return store(str->c_ptr(),str->length(),str->charset()); }
+  { return store((char*) str->ptr(), str->length(), str->charset()); }
 
   virtual bool prepare_for_send(List<Item> *item_list) 
   {

@@ -109,7 +109,7 @@ longlong Item_func_not::val_int()
 
 static bool convert_constant_item(Field *field, Item **item)
 {
-  if ((*item)->const_item() && (*item)->type() != Item::INT_ITEM)
+  if ((*item)->const_item())
   {
     if (!(*item)->save_in_field(field, 1) && !((*item)->null_value))
     {
@@ -151,15 +151,17 @@ void Item_bool_func2::fix_length_and_dec()
     uint strong= 0;
     uint weak= 0;
 
-    if ((args[0]->derivation() < args[1]->derivation()) && 
-	!my_charset_same(args[0]->charset(), args[1]->charset()) &&
-        (args[0]->charset()->state & MY_CS_UNICODE))
+    if ((args[0]->collation.derivation < args[1]->collation.derivation) && 
+	!my_charset_same(args[0]->collation.collation, 
+			 args[1]->collation.collation) &&
+        (args[0]->collation.collation->state & MY_CS_UNICODE))
     {
       weak= 1;
     }
-    else if ((args[1]->derivation() < args[0]->derivation()) && 
-	     !my_charset_same(args[0]->charset(), args[1]->charset()) &&
-             (args[1]->charset()->state & MY_CS_UNICODE))
+    else if ((args[1]->collation.derivation < args[0]->collation.derivation) && 
+	     !my_charset_same(args[0]->collation.collation,
+			      args[1]->collation.collation) &&
+             (args[1]->collation.collation->state & MY_CS_UNICODE))
     {
       strong= 1;
     }
@@ -172,15 +174,15 @@ void Item_bool_func2::fix_length_and_dec()
         String tmp, cstr;
         String *ostr= args[weak]->val_str(&tmp);
         cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), 
-		  args[strong]->charset());
+		  args[strong]->collation.collation);
         conv= new Item_string(cstr.ptr(),cstr.length(),cstr.charset(),
-			      args[weak]->derivation());
+			      args[weak]->collation.derivation);
 	((Item_string*)conv)->str_value.copy();
       }
       else
       {
-	conv= new Item_func_conv_charset(args[weak],args[strong]->charset());
-        conv->collation.set(args[weak]->derivation());
+	conv= new Item_func_conv_charset(args[weak],args[strong]->collation.collation);
+        conv->collation.set(args[weak]->collation.derivation);
       }
       args[weak]= conv ? conv : args[weak];
     }
@@ -249,7 +251,8 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
       We must set cmp_charset here as we may be called from for an automatic
       generated item, like in natural join
     */
-    if (cmp_collation.set((*a)->collation, (*b)->collation))
+    if (cmp_collation.set((*a)->collation, (*b)->collation) || 
+	cmp_collation.derivation == DERIVATION_NONE)
     {
       my_coll_agg_error((*a)->collation, (*b)->collation, owner->func_name());
       return 1;
@@ -379,25 +382,10 @@ bool Item_in_optimizer::fix_left(THD *thd,
       (!cache && !(cache= Item_cache::get_cache(args[0]->result_type()))))
     return 1;
   cache->setup(args[0]);
-  return 0;
-}
-
-
-
-bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
-				   Item ** ref)
-{
-  if (fix_left(thd, tables, ref))
-    return 1;
-  if (args[0]->maybe_null)
-    maybe_null=1;
-
-  with_sum_func= args[0]->with_sum_func;
-  used_tables_cache= args[0]->used_tables();
-  const_item_cache= args[0]->const_item();
+  cache->store(args[0]);
   if (cache->cols() == 1)
   {
-    if (args[0]->used_tables())
+    if ((used_tables_cache= args[0]->used_tables()))
       cache->set_used_tables(OUTER_REF_TABLE_BIT);
     else
       cache->set_used_tables(0);
@@ -412,7 +400,24 @@ bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
       else
 	((Item_cache *)cache->el(i))->set_used_tables(0);
     }
+    used_tables_cache= args[0]->used_tables();
   }
+  not_null_tables_cache= args[0]->not_null_tables();
+  with_sum_func= args[0]->with_sum_func;
+  const_item_cache= args[0]->const_item();
+  return 0;
+}
+
+
+
+bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
+				   Item ** ref)
+{
+  if (fix_left(thd, tables, ref))
+    return 1;
+  if (args[0]->maybe_null)
+    maybe_null=1;
+
   if (!args[1]->fixed && args[1]->fix_fields(thd, tables, args))
     return 1;
   Item_in_subselect * sub= (Item_in_subselect *)args[1];
@@ -425,6 +430,7 @@ bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
     maybe_null=1;
   with_sum_func= with_sum_func || args[1]->with_sum_func;
   used_tables_cache|= args[1]->used_tables();
+  not_null_tables_cache|= args[1]->not_null_tables();
   const_item_cache&= args[1]->const_item();
   return 0;
 }
@@ -537,6 +543,7 @@ void Item_func_interval::fix_length_and_dec()
   maybe_null= 0;
   max_length= 2;
   used_tables_cache|= row->used_tables();
+  not_null_tables_cache&= row->not_null_tables();
   with_sum_func= with_sum_func || row->with_sum_func;
 }
 
@@ -550,25 +557,27 @@ void Item_func_interval::fix_length_and_dec()
 
 longlong Item_func_interval::val_int()
 {
-  double value=row->el(0)->val();
+  double value= row->el(0)->val();
+  uint i;
+
   if (row->el(0)->null_value)
     return -1;				// -1 if null
   if (intervals)
   {					// Use binary search to find interval
     uint start,end;
-    start=1; end=row->cols()-2;
+    start= 1;
+    end=   row->cols()-2;
     while (start != end)
     {
-      uint mid=(start+end+1)/2;
+      uint mid= (start + end + 1) / 2;
       if (intervals[mid] <= value)
-	start=mid;
+	start= mid;
       else
-	end=mid-1;
+	end= mid - 1;
     }
-    return (value < intervals[start]) ? 0 : start+1;
+    return (value < intervals[start]) ? 0 : start + 1;
   }
 
-  uint i;
   for (i=1 ; i < row->cols() ; i++)
   {
     if (row->el(i)->val() > value)
@@ -729,13 +738,13 @@ Item_func_ifnull::val_str(String *str)
   if (!args[0]->null_value)
   {
     null_value=0;
-    res->set_charset(charset());
+    res->set_charset(collation.collation);
     return res;
   }
   res=args[1]->val_str(str);
   if ((null_value=args[1]->null_value))
     return 0;
-  res->set_charset(charset());
+  res->set_charset(collation.collation);
   return res;
 }
 
@@ -754,12 +763,12 @@ Item_func_if::fix_length_and_dec()
   if (null1)
   {
     cached_result_type= arg2_type;
-    set_charset(args[2]->charset());
+    collation.set(args[2]->collation.collation);
   }
   else if (null2)
   {
     cached_result_type= arg1_type;
-    set_charset(args[1]->charset());
+    collation.set(args[1]->collation.collation);
   }
   else
   {
@@ -771,7 +780,7 @@ Item_func_if::fix_length_and_dec()
     }
     else
     {
-      set_charset(&my_charset_bin);	// Number
+      collation.set(&my_charset_bin);	// Number
     }
   }
 }
@@ -801,7 +810,7 @@ Item_func_if::val_str(String *str)
   Item *arg= args[0]->val_int() ? args[1] : args[2];
   String *res=arg->val_str(str);
   if (res)
-    res->set_charset(charset());
+    res->set_charset(collation.collation);
   null_value=arg->null_value;
   return res;
 }
@@ -1186,7 +1195,7 @@ void in_string::set(uint pos,Item *item)
   if (!str->charset())
   {
     CHARSET_INFO *cs;
-    if (!(cs= item->charset()))
+    if (!(cs= item->collation.collation))
       cs= &my_charset_bin;		// Should never happen for STR items
     str->set_charset(cs);
   }
@@ -1264,7 +1273,7 @@ cmp_item* cmp_item::get_comparator(Item *item)
 {
   switch (item->result_type()) {
   case STRING_RESULT:
-    return new cmp_item_sort_string(item->charset());
+    return new cmp_item_sort_string(item->collation.collation);
     break;
   case INT_RESULT:
     return new cmp_item_int;
@@ -1456,7 +1465,6 @@ void Item_func_in::fix_length_and_dec()
   }
   maybe_null= args[0]->maybe_null;
   max_length= 1;
-  const_item_cache&=args[0]->const_item();
 }
 
 
@@ -1537,13 +1545,19 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 #ifndef EMBEDDED_LIBRARY
   char buff[sizeof(char*)];			// Max local vars in function
 #endif
-  used_tables_cache=0;
-  const_item_cache=0;
+  not_null_tables_cache= used_tables_cache= 0;
+  const_item_cache= 0;
+  /*
+    and_table_cache is the value that Item_cond_or() returns for
+    not_null_tables()
+  */
+  and_tables_cache= ~(table_map) 0;
 
   if (thd && check_stack_overrun(thd,buff))
     return 0;					// Fatal error flag is set!
   while ((item=li++))
   {
+    table_map tmp_table_map;
     while (item->type() == Item::COND_ITEM &&
 	   ((Item_cond*) item)->functype() == functype())
     {						// Identical function
@@ -1559,9 +1573,12 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     if ((!item->fixed &&
 	 item->fix_fields(thd, tables, li.ref())) || item->check_cols(1))
       return 1; /* purecov: inspected */
-    used_tables_cache|=item->used_tables();
-    with_sum_func= with_sum_func || item->with_sum_func;
-    const_item_cache&=item->const_item();
+    used_tables_cache|=     item->used_tables();
+    tmp_table_map=	    item->not_null_tables();
+    not_null_tables_cache|= tmp_table_map;
+    and_tables_cache&=      tmp_table_map;
+    const_item_cache&=	    item->const_item();
+    with_sum_func=	    with_sum_func || item->with_sum_func;
     if (item->maybe_null)
       maybe_null=1;
   }
@@ -1612,17 +1629,19 @@ Item_cond::used_tables() const
   return used_tables_cache;
 }
 
+
 void Item_cond::update_used_tables()
 {
-  used_tables_cache=0;
-  const_item_cache=1;
   List_iterator_fast<Item> li(list);
   Item *item;
+
+  used_tables_cache=0;
+  const_item_cache=1;
   while ((item=li++))
   {
     item->update_used_tables();
-    used_tables_cache|=item->used_tables();
-    const_item_cache&= item->const_item();
+    used_tables_cache|= item->used_tables();
+    const_item_cache&=  item->const_item();
   }
 }
 
@@ -1726,12 +1745,16 @@ Item *and_expressions(Item *a, Item *b, Item **org_item)
   {
     Item_cond *res;
     if ((res= new Item_cond_and(a, (Item*) b)))
+    {
       res->used_tables_cache= a->used_tables() | b->used_tables();
+      res->not_null_tables_cache= a->not_null_tables() | b->not_null_tables();
+    }
     return res;
   }
   if (((Item_cond_and*) a)->add((Item*) b))
     return 0;
   ((Item_cond_and*) a)->used_tables_cache|= b->used_tables();
+  ((Item_cond_and*) a)->not_null_tables_cache|= b->not_null_tables();
   return a;
 }
 
@@ -1845,7 +1868,7 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
     We could also do boyer-more for non-const items, but as we would have to
     recompute the tables for each row it's not worth it.
   */
-  if (args[1]->const_item() && !use_strnxfrm(charset()) &&
+  if (args[1]->const_item() && !use_strnxfrm(collation.collation) &&
       !(specialflag & SPECIAL_NO_NEW_FUNC))
   {
     String* res2 = args[1]->val_str(&tmp_value2);
@@ -1866,7 +1889,7 @@ bool Item_func_like::fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref)
     {
       const char* tmp = first + 1;
       for (; *tmp != wild_many && *tmp != wild_one && *tmp != escape; tmp++) ;
-      canDoTurboBM = (tmp == last) && !use_mb(args[0]->charset());
+      canDoTurboBM = (tmp == last) && !use_mb(args[0]->collation.collation);
     }
 
     if (canDoTurboBM)
@@ -1902,6 +1925,8 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     return 1;
 
   used_tables_cache=args[0]->used_tables() | args[1]->used_tables();
+  not_null_tables_cache= (args[0]->not_null_tables() |
+			  args[1]->not_null_tables());
   const_item_cache=args[0]->const_item() && args[1]->const_item();
   if (!regex_compiled && args[1]->const_item())
   {
@@ -2143,7 +2168,7 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
   int shift = pattern_len;
   int j     = 0;
   int u     = 0;
-  CHARSET_INFO	*cs=system_charset_info;	// QQ Needs to be fixed
+  CHARSET_INFO	*cs= cmp.cmp_collation.collation;	// QQ Needs to be fixed
 
   const int plm1=  pattern_len - 1;
   const int tlmpl= text_len - pattern_len;

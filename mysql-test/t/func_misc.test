@@ -12,3 +12,8 @@ select inet_ntoa(1099511627775),inet_ntoa(4294902271),inet_ntoa(511);
 # Test for core dump with nan
 #
 select length(format('nan', 2)) > 0;
+
+#
+# Test for bug #628
+#
+select concat("$",format(2500,2));

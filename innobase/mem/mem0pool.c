@@ -99,6 +99,12 @@ mem_pool_t*	mem_comm_pool	= NULL;
 
 ulint		mem_out_of_mem_err_msg_count	= 0;
 
+/* We use this counter to check that the mem pool mutex does not leak;
+this is to track a strange assertion failure reported at
+mysql@lists.mysql.com */
+
+ulint		mem_n_threads_inside		= 0;
+
 /************************************************************************
 Reserves the mem pool mutex. */
 
@@ -328,6 +334,9 @@ mem_area_alloc(
 	n = ut_2_log(ut_max(size + MEM_AREA_EXTRA_SIZE, MEM_AREA_MIN_SIZE));
 
 	mutex_enter(&(pool->mutex));
+	mem_n_threads_inside++;
+
+	ut_a(mem_n_threads_inside == 1);
 
 	area = UT_LIST_GET_FIRST(pool->free_list[n]);
 
@@ -338,6 +347,7 @@ mem_area_alloc(
 			/* Out of memory in memory pool: we try to allocate
 			from the operating system with the regular malloc: */
 
+			mem_n_threads_inside--;
 			mutex_exit(&(pool->mutex));
 
 			return(ut_malloc(size));
@@ -353,6 +363,16 @@ mem_area_alloc(
 			n);
 
 		mem_analyze_corruption((byte*)area);
+
+		/* Try to analyze a strange assertion failure reported at
+		mysql@lists.mysql.com where the free bit IS 1 in the
+		hex dump above */
+
+		if (mem_area_get_free(area)) {
+		        fprintf(stderr,
+"InnoDB: Probably a race condition because now the area is marked free!\n");
+		}
+
 		ut_a(0);
 	}
 
@@ -374,6 +394,7 @@ mem_area_alloc(
 
 	pool->reserved += mem_area_get_size(area);
 	
+	mem_n_threads_inside--;
 	mutex_exit(&(pool->mutex));
 
 	ut_ad(mem_pool_validate(pool));
@@ -495,6 +516,9 @@ mem_area_free(
 	n = ut_2_log(size);
 	
 	mutex_enter(&(pool->mutex));
+	mem_n_threads_inside++;
+
+	ut_a(mem_n_threads_inside == 1);
 
 	if (buddy && mem_area_get_free(buddy)
 				&& (size == mem_area_get_size(buddy))) {
@@ -518,6 +542,7 @@ mem_area_free(
 
 		pool->reserved += ut_2_exp(n);
 
+		mem_n_threads_inside--;
 		mutex_exit(&(pool->mutex));
 
 		mem_area_free(new_ptr, pool);
@@ -533,6 +558,7 @@ mem_area_free(
 		pool->reserved -= size;
 	}
 	
+	mem_n_threads_inside--;
 	mutex_exit(&(pool->mutex));
 
 	ut_ad(mem_pool_validate(pool));
@@ -577,7 +603,7 @@ mem_pool_validate(
 		}
 	}
 
-	ut_a(free + pool->reserved == pool->size
+	ut_anp(free + pool->reserved == pool->size
 					- (pool->size % MEM_AREA_MIN_SIZE));
 	mutex_exit(&(pool->mutex));
 

@@ -1,4 +1,5 @@
 drop table if exists t1;
+SET SQL_WARNINGS=1;
 create table t1 (a int not null auto_increment,b int, primary key (a)) type=myisam auto_increment=3;
 insert into t1 values (1,1),(NULL,3),(NULL,4);
 delete from t1 where a=4;
@@ -130,7 +131,7 @@ last_insert_id()
 255
 insert into t1 set i = null;
 Warnings:
-Warning	1262	Data truncated, out of range for column 'i' at row 1
+Warning	1263	Data truncated, out of range for column 'i' at row 1
 select last_insert_id();
 last_insert_id()
 255
@@ -149,4 +150,92 @@ ERROR 23000: Duplicate entry '10' for key 2
 select last_insert_id();
 last_insert_id()
 0
+drop table t1;
+create table t1(a int auto_increment,b int null,primary key(a));
+SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+insert into t1(a,b)values(NULL,1);
+insert into t1(a,b)values(200,2);
+insert into t1(a,b)values(0,3);
+insert into t1(b)values(4);
+insert into t1(b)values(5);
+insert into t1(b)values(6);
+insert into t1(b)values(7);
+select * from t1 order by b;
+a	b
+1	1
+200	2
+0	3
+201	4
+202	5
+203	6
+204	7
+delete from t1 where a=0;
+update t1 set a=0 where b=5;
+select * from t1 order by b;
+a	b
+1	1
+200	2
+201	4
+0	5
+203	6
+204	7
+delete from t1 where a=0;
+update t1 set a=NULL where b=6;
+Warnings:
+Warning	1262	Data truncated, NULL supplied to NOT NULL column 'a' at row 4
+update t1 set a=300 where b=7;
+SET SQL_MODE='';
+insert into t1(a,b)values(NULL,8);
+insert into t1(a,b)values(400,9);
+insert into t1(a,b)values(0,10);
+insert into t1(b)values(11);
+insert into t1(b)values(12);
+insert into t1(b)values(13);
+insert into t1(b)values(14);
+select * from t1 order by b;
+a	b
+1	1
+200	2
+201	4
+0	6
+300	7
+301	8
+400	9
+401	10
+402	11
+403	12
+404	13
+405	14
+delete from t1 where a=0;
+update t1 set a=0 where b=12;
+select * from t1 order by b;
+a	b
+1	1
+200	2
+201	4
+300	7
+301	8
+400	9
+401	10
+402	11
+0	12
+404	13
+405	14
+delete from t1 where a=0;
+update t1 set a=NULL where b=13;
+Warnings:
+Warning	1262	Data truncated, NULL supplied to NOT NULL column 'a' at row 9
+update t1 set a=500 where b=14;
+select * from t1 order by b;
+a	b
+1	1
+200	2
+201	4
+300	7
+301	8
+400	9
+401	10
+402	11
+0	13
+500	14
 drop table t1;

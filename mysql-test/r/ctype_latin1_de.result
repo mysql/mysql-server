@@ -1,3 +1,6 @@
+select @@collation_connection;
+@@collation_connection
+latin1_german2_ci
 drop table if exists t1;
 create table t1 (a char (20) not null, b int not null auto_increment, index (a,b));
 insert into t1 (a) values ('ä'),('ac'),('ae'),('ad'),('Äc'),('aeb');
@@ -196,6 +199,9 @@ strcmp('ßa','ss')	strcmp('ssa','ß')	strcmp('sssb','sßa')	strcmp('ß','s')
 select strcmp('u','öa'),strcmp('u','ö');
 strcmp('u','öa')	strcmp('u','ö')
 1	1
+select strcmp('sä', 'ßa'), strcmp('aä', 'äx');
+strcmp('sä', 'ßa')	strcmp('aä', 'äx')
+-1	-1
 create table t1 (a varchar(10), key(a), fulltext (a));
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
 select * from t1 where a like "abc%";
@@ -264,3 +270,22 @@ select * from t1 where word like CAST(0xDF as CHAR);
 word	word2
 ß	ß
 drop table t1;
+CREATE TABLE t1 (
+s1 CHAR(5) CHARACTER SET latin1 COLLATE latin1_german2_ci
+);
+INSERT INTO t1 VALUES ('Ü');
+INSERT INTO t1 VALUES ('ue');
+SELECT DISTINCT s1 FROM t1;
+s1
+Ü
+SELECT s1,COUNT(*) FROM t1 GROUP BY s1;
+s1	COUNT(*)
+Ü	2
+SELECT COUNT(DISTINCT s1) FROM t1;
+COUNT(DISTINCT s1)
+1
+SELECT FIELD('ue',s1), FIELD('Ü',s1), s1='ue', s1='Ü' FROM t1;
+FIELD('ue',s1)	FIELD('Ü',s1)	s1='ue'	s1='Ü'
+1	1	1	1
+1	1	1	1
+DROP TABLE t1;

@@ -83,7 +83,7 @@ bool select_union::send_data(List<Item> &values)
     {
       thd->clear_error(); // do not report user about table overflow
       if (create_myisam_from_heap(thd, table, &tmp_table_param,
-				  info.last_errno, 0))
+				  info.last_errno, 1))
 	return 1;
     }
     else
@@ -123,7 +123,8 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
     DBUG_RETURN(0);
   prepared= 1;
   res= 0;
-  found_rows_for_union= 0;
+  found_rows_for_union= test(first_select_in_union()->options
+			     & OPTION_FOUND_ROWS);
   TMP_TABLE_PARAM tmp_table_param;
   result= sel_result;
   t_and_f= tables_and_fields_initied;
@@ -131,13 +132,6 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
   bzero((char *)&tmp_table_param,sizeof(TMP_TABLE_PARAM));
   thd->lex.current_select= select_cursor= first_select_in_union();
   /* Global option */
-  if (((void*)(global_parameters)) == ((void*)this))
-  {
-    found_rows_for_union= first_select()->options & OPTION_FOUND_ROWS && 
-      global_parameters->select_limit;
-    if (found_rows_for_union)
-      first_select()->options ^=  OPTION_FOUND_ROWS;
-  }
   if (t_and_f)
   {
     // Item list and tables will be initialized by mysql_derived
@@ -154,18 +148,21 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
       goto err;
     List_iterator<Item> it(select_cursor->item_list);	
     Item *item;
-    while((item=it++))
-      item->maybe_null=1;
     item_list= select_cursor->item_list;
     select_cursor->with_wild= 0;
-    if (setup_ref_array(thd, &select_cursor->ref_pointer_array, 
-			(item_list.elements + select_cursor->select_items +
-			 select_cursor->order_list.elements + 
-			 select_cursor->group_list.elements)) ||
+    if (select_cursor->setup_ref_array(thd,
+				       select_cursor->order_list.elements +
+				       select_cursor->group_list.elements) ||
 	setup_fields(thd, select_cursor->ref_pointer_array, first_table,
 		     item_list, 0, 0, 1))
       goto err;
     t_and_f= 1;
+    while((item=it++))
+    {
+      item->maybe_null=1;
+      if (item->type() == Item::FIELD_ITEM)
+	((class Item_field *)item)->field->table->maybe_null=1;
+    }
   }
 
   tmp_table_param.field_count=item_list.elements;
@@ -173,7 +170,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
 				(ORDER*) 0, !union_option,
 				1, (select_cursor->options | thd->options |
 				    TMP_TABLE_ALL_COLUMNS),
-				HA_POS_ERROR)))
+				HA_POS_ERROR, (char*) "")))
     goto err;
   table->file->extra(HA_EXTRA_WRITE_CACHE);
   table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
@@ -198,7 +195,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
     select_limit_cnt= sl->select_limit+sl->offset_limit;
     if (select_limit_cnt < sl->select_limit)
       select_limit_cnt= HA_POS_ERROR;		// no limit
-    if (select_limit_cnt == HA_POS_ERROR)
+    if (select_limit_cnt == HA_POS_ERROR && !sl->braces)
       sl->options&= ~OPTION_FOUND_ROWS;
     
     res= join->prepare(&sl->ref_pointer_array,
@@ -240,9 +237,9 @@ err:
 
 int st_select_lex_unit::exec()
 {
-  int do_print_slow= 0;
   SELECT_LEX *lex_select_save= thd->lex.current_select;
   SELECT_LEX *select_cursor=first_select_in_union();
+  ha_rows add_rows=0;
   DBUG_ENTER("st_select_lex_unit::exec");
 
   if (executed && !(dependent || uncacheable))
@@ -259,6 +256,7 @@ int st_select_lex_unit::exec()
     }
     for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
     {
+      ha_rows rows= 0;
       thd->lex.current_select= sl;
 
       if (optimized)
@@ -271,6 +269,11 @@ int st_select_lex_unit::exec()
 	  select_limit_cnt= HA_POS_ERROR;		// no limit
 	if (select_limit_cnt == HA_POS_ERROR)
 	  sl->options&= ~OPTION_FOUND_ROWS;
+	else if (found_rows_for_union)
+	{
+	  rows= sl->select_limit;
+	  sl->options|= OPTION_FOUND_ROWS;
+	}
 	
 	/* 
 	   As far as union share table space we should reassign table map,
@@ -311,7 +314,10 @@ int st_select_lex_unit::exec()
 	thd->lex.current_select= lex_select_save;
 	DBUG_RETURN(res);
       }
-      do_print_slow|= select_cursor->options;
+      if (found_rows_for_union  && !sl->braces &&
+	  (sl->options & OPTION_FOUND_ROWS))
+	add_rows+= (sl->join->send_records > rows) ?
+	  sl->join->send_records - rows : 0;
     }
   }
   optimized= 1;
@@ -326,16 +332,20 @@ int st_select_lex_unit::exec()
 
     if (!thd->is_fatal_error)			// Check if EOM
     {
+      ulong options= thd->options;
       thd->lex.current_select= fake_select_lex;
-      offset_limit_cnt= (select_cursor->braces ?
-			 global_parameters->offset_limit : 0);
-      select_limit_cnt= (select_cursor->braces ?
-			 global_parameters->select_limit+
-			 global_parameters->offset_limit : HA_POS_ERROR);
-      if (select_limit_cnt < global_parameters->select_limit)
-	select_limit_cnt= HA_POS_ERROR;		// no limit
+      if (select_cursor->braces)
+      {
+	offset_limit_cnt= global_parameters->offset_limit;
+	select_limit_cnt= global_parameters->select_limit +
+	  global_parameters->offset_limit;
+	if (select_limit_cnt < global_parameters->select_limit)
+	  select_limit_cnt= HA_POS_ERROR;		// no limit
+      }
       if (select_limit_cnt == HA_POS_ERROR)
-	thd->options&= ~OPTION_FOUND_ROWS;
+	options&= ~OPTION_FOUND_ROWS;
+      else if (found_rows_for_union && !describe)
+	options|= OPTION_FOUND_ROWS;
       fake_select_lex->ftfunc_list= &empty_list;
       fake_select_lex->table_list.link_in_list((byte *)&result_table_list,
 					       (byte **)
@@ -348,6 +358,11 @@ int st_select_lex_unit::exec()
 	  mysql_select automatic allocation)
 	*/
 	fake_select_lex->join= new JOIN(thd, item_list, thd->options, result);
+	/*
+	  Fake st_select_lex should have item list for correctref_array
+	  allocation.
+	*/
+	fake_select_lex->item_list= item_list;
       }
       else
       {
@@ -365,19 +380,18 @@ int st_select_lex_unit::exec()
 			global_parameters->order_list.elements,
 			(ORDER*)global_parameters->order_list.first,
 			(ORDER*) NULL, NULL, (ORDER*) NULL,
-			thd->options, result, this, fake_select_lex, 0);
+			options | SELECT_NO_UNLOCK,
+			result, this, fake_select_lex, 0);
       if (found_rows_for_union && !res)
-	thd->limit_found_rows = (ulonglong)table->file->records;
+      {
+	thd->limit_found_rows= table->file->records;
+	if (!select_cursor->braces)
+	  thd->limit_found_rows+= add_rows;
+      }
       /*
 	Mark for slow query log if any of the union parts didn't use
 	indexes efficiently
       */
-      select_cursor->options= ((select_cursor->options &
-				~(QUERY_NO_INDEX_USED |
-				  QUERY_NO_GOOD_INDEX_USED)) |
-			       do_print_slow &
-			       (QUERY_NO_INDEX_USED |
-				QUERY_NO_GOOD_INDEX_USED));
     }
   }
   thd->lex.current_select= lex_select_save;

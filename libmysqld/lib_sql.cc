@@ -38,6 +38,7 @@ static char inited, org_my_init_done;
 C_MODE_START
 #include <mysql.h>
 #include "errmsg.h"
+#include <sql_common.h>
 
 static int check_connections1(THD * thd);
 static int check_connections2(THD * thd);
@@ -47,9 +48,10 @@ static bool check_user(THD *thd, enum_server_command command,
 char * get_mysql_home(){ return mysql_home;};
 char * get_mysql_real_data_home(){ return mysql_real_data_home;};
 
-my_bool simple_command(MYSQL *mysql,enum enum_server_command command,
-		       const char *arg,
-		       ulong length, my_bool skipp_check)
+my_bool
+emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
+		     const char *header, ulong header_length,
+		     const char *arg, ulong arg_length, my_bool skip_check)
 {
   my_bool result= 1;
   THD *thd=(THD *) mysql->thd;
@@ -65,15 +67,23 @@ my_bool simple_command(MYSQL *mysql,enum enum_server_command command,
   /* Clear result variables */
   thd->clear_error();
   mysql->affected_rows= ~(my_ulonglong) 0;
+  mysql->field_count= 0;
 
   thd->store_globals();				// Fix if more than one connect
-  result= dispatch_command(command, thd, (char *) arg, length + 1);
+  free_old_query(mysql);
+  result= dispatch_command(command, thd, (char *) arg, arg_length + 1);
 
-  if (!skipp_check)
+  if (!skip_check)
     result= thd->net.last_errno ? -1 : 0;
 
-  mysql->last_error= thd->net.last_error;
-  mysql->last_errno= thd->net.last_errno;
+  if ((mysql->net.last_errno= thd->net.last_errno))
+  {
+    memcpy(mysql->net.last_error, thd->net.last_error, 
+	   sizeof(mysql->net.last_error));
+    memcpy(mysql->net.sqlstate, thd->net.sqlstate, 
+	   sizeof(mysql->net.sqlstate));
+  }
+  mysql->warning_count= ((THD*)mysql->thd)->total_warn_count;
   return result;
 }
 
@@ -144,7 +154,6 @@ char **copy_arguments(int argc, char **argv)
 extern "C"
 {
 
-ulong		max_allowed_packet, net_buffer_length;
 char **		copy_arguments_ptr= 0; 
 
 int STDCALL mysql_server_init(int argc, char **argv, char **groups)
@@ -238,7 +247,7 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
       opt_bin_logname=my_strdup(tmp,MYF(MY_WME));
     }
     open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
-	     opt_binlog_index_name, LOG_BIN);
+	     opt_binlog_index_name, LOG_BIN, 0, 0, max_binlog_size);
     using_update_log=1;
   }
 
@@ -281,21 +290,6 @@ void STDCALL mysql_server_end()
     my_end(0);
 }
 
-my_bool STDCALL mysql_thread_init()
-{
-#ifdef THREAD
-  return my_thread_init();
-#else
-  return 0;
-#endif
-}
-
-void STDCALL mysql_thread_end()
-{
-#ifdef THREAD
-  my_thread_end();
-#endif
-}
 } /* extern "C" */
 
 C_MODE_START
@@ -303,7 +297,6 @@ void init_embedded_mysql(MYSQL *mysql, int client_flag, char *db)
 {
   THD *thd = (THD *)mysql->thd;
   thd->mysql= mysql;
-  mysql->last_error= thd->net.last_error;
 }
 
 void *create_embedded_thd(int client_flag, char *db)
@@ -452,11 +445,6 @@ send_ok(THD *thd,ha_rows affected_rows,ulonglong id,const char *message)
 void
 send_eof(THD *thd, bool no_flush)
 {
-}
-
-uint STDCALL mysql_warning_count(MYSQL *mysql)
-{
-  return ((THD *)mysql->thd)->total_warn_count;
 }
 
 void Protocol_simple::prepare_for_resend()

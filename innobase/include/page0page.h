@@ -666,6 +666,15 @@ page_rec_validate(
 			/* out: TRUE if ok */
 	rec_t* 	rec);	/* in: record on the page */
 /*******************************************************************
+Checks that the first directory slot points to the infimum record and
+the last to the supremum. This function is intended to track if the
+bug fixed in 4.0.14 has caused corruption to users' databases. */
+
+void
+page_check_dir(
+/*===========*/
+	page_t*	page);	/* in: index page */
+/*******************************************************************
 This function checks the consistency of an index page when we do not
 know the index. This is also resilient so that this should never crash
 even if the page is total garbage. */

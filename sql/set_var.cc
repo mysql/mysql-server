@@ -88,6 +88,8 @@ static void fix_query_cache_size(THD *thd, enum_var_type type);
 static void fix_query_cache_min_res_unit(THD *thd, enum_var_type type);
 static void fix_myisam_max_extra_sort_file_size(THD *thd, enum_var_type type);
 static void fix_myisam_max_sort_file_size(THD *thd, enum_var_type type);
+static void fix_max_binlog_size(THD *thd, enum_var_type type);
+static void fix_max_relay_log_size(THD *thd, enum_var_type type);
 static KEY_CACHE *create_key_cache(const char *name, uint length);
 void fix_sql_mode_var(THD *thd, enum_var_type type);
 static byte *get_error_count(THD *thd);
@@ -155,7 +157,8 @@ sys_var_thd_ulong	sys_max_allowed_packet("max_allowed_packet",
 sys_var_long_ptr	sys_max_binlog_cache_size("max_binlog_cache_size",
 						  &max_binlog_cache_size);
 sys_var_long_ptr	sys_max_binlog_size("max_binlog_size",
-					    &max_binlog_size);
+					    &max_binlog_size,
+                                            fix_max_binlog_size);
 sys_var_long_ptr	sys_max_connections("max_connections",
 					    &max_connections);
 sys_var_long_ptr	sys_max_connect_errors("max_connect_errors",
@@ -175,6 +178,8 @@ sys_var_pseudo_thread_id sys_pseudo_thread_id("pseudo_thread_id",
 sys_var_thd_ha_rows	sys_max_join_size("max_join_size",
 					  &SV::max_join_size,
 					  fix_max_join_size);
+sys_var_thd_ulong	sys_max_seeks_for_key("max_seeks_for_key",
+					      &SV::max_seeks_for_key);
 sys_var_thd_ulong   sys_max_length_for_sort_data("max_length_for_sort_data",
                         &SV::max_length_for_sort_data);
 #ifndef TO_BE_DELETED	/* Alias for max_join_size */
@@ -184,6 +189,9 @@ sys_var_thd_ha_rows	sys_sql_max_join_size("sql_max_join_size",
 #endif
 sys_var_thd_ulong	sys_max_prep_stmt_count("max_prepared_statements",
 						&SV::max_prep_stmt_count);
+sys_var_long_ptr	sys_max_relay_log_size("max_relay_log_size",
+                                               &max_relay_log_size,
+                                               fix_max_relay_log_size);
 sys_var_thd_ulong	sys_max_sort_length("max_sort_length",
 					    &SV::max_sort_length);
 sys_var_long_ptr	sys_max_user_connections("max_user_connections",
@@ -318,7 +326,6 @@ static sys_var_thd_bit	sys_unique_checks("unique_checks",
 					  OPTION_RELAXED_UNIQUE_CHECKS,
 					  1);
 
-
 /* Local state variables */
 
 static sys_var_thd_ha_rows	sys_select_limit("sql_select_limit",
@@ -409,6 +416,8 @@ sys_var *sys_variables[]=
   &sys_max_join_size,
   &sys_max_length_for_sort_data,
   &sys_max_prep_stmt_count,
+  &sys_max_relay_log_size,
+  &sys_max_seeks_for_key,
   &sys_max_sort_length,
   &sys_max_tmp_tables,
   &sys_max_user_connections,
@@ -573,8 +582,9 @@ struct show_var_st init_vars[]= {
   {sys_max_delayed_threads.name,(char*) &sys_max_delayed_threads,   SHOW_SYS},
   {sys_max_heap_table_size.name,(char*) &sys_max_heap_table_size,   SHOW_SYS},
   {sys_max_join_size.name,	(char*) &sys_max_join_size,	    SHOW_SYS},
-  {sys_max_length_for_sort_data.name,
-   (char*) &sys_max_length_for_sort_data,
+  {sys_max_relay_log_size.name, (char*) &sys_max_relay_log_size,    SHOW_SYS},
+  {sys_max_seeks_for_key.name,  (char*) &sys_max_seeks_for_key,	    SHOW_SYS},
+  {sys_max_length_for_sort_data.name, (char*) &sys_max_length_for_sort_data,
    SHOW_SYS},
   {sys_max_prep_stmt_count.name,(char*) &sys_max_prep_stmt_count,   SHOW_SYS},
   {sys_max_sort_length.name,	(char*) &sys_max_sort_length,	    SHOW_SYS},
@@ -807,6 +817,30 @@ void fix_delay_key_write(THD *thd, enum_var_type type)
   }
 }
 
+void fix_max_binlog_size(THD *thd, enum_var_type type)
+{
+  DBUG_ENTER("fix_max_binlog_size");
+  DBUG_PRINT("info",("max_binlog_size=%lu max_relay_log_size=%lu",
+                     max_binlog_size, max_relay_log_size));
+  mysql_bin_log.set_max_size(max_binlog_size);
+#ifdef HAVE_REPLICATION
+  if (!max_relay_log_size)
+    active_mi->rli.relay_log.set_max_size(max_binlog_size);
+#endif
+  DBUG_VOID_RETURN;
+}
+
+void fix_max_relay_log_size(THD *thd, enum_var_type type)
+{
+  DBUG_ENTER("fix_max_relay_log_size");
+  DBUG_PRINT("info",("max_binlog_size=%lu max_relay_log_size=%lu",
+                     max_binlog_size, max_relay_log_size));
+#ifdef HAVE_REPLICATION
+  active_mi->rli.relay_log.set_max_size(max_relay_log_size ?
+                                        max_relay_log_size: max_binlog_size);
+#endif
+  DBUG_VOID_RETURN;
+}
 
 bool sys_var_long_ptr::update(THD *thd, set_var *var)
 {
@@ -1060,7 +1094,6 @@ err:
 }
 
 
-
 bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
 {
   bool not_used;
@@ -1072,8 +1105,10 @@ bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
   {
     if (!(res= var->value->val_str(&str)))
       goto err;
-    var->save_result.ulong_value= (ulong)
-      find_set(enum_names, res->c_ptr(), res->length(), &error, &error_len, &not_used);
+    var->save_result.ulong_value= ((ulong)
+				   find_set(enum_names, res->c_ptr(),
+					    res->length(), &error, &error_len,
+					    &not_used));
     if (error_len)
     {
       strmake(buff, error, min(sizeof(buff), error_len));
@@ -1219,15 +1254,16 @@ static my_old_conv old_conv[]=
 
 CHARSET_INFO *get_old_charset_by_name(const char *name)
 {
-  my_old_conv *c;
+  my_old_conv *conv;
  
-  for (c= old_conv; c->old_name; c++)
+  for (conv= old_conv; conv->old_name; conv++)
   {
-    if (!my_strcasecmp(&my_charset_latin1,name,c->old_name))
-      return get_charset_by_csname(c->new_name,MY_CS_PRIMARY,MYF(0));
+    if (!my_strcasecmp(&my_charset_latin1, name, conv->old_name))
+      return get_charset_by_csname(conv->new_name, MY_CS_PRIMARY, MYF(0));
   }
   return NULL;
 }
+
 
 bool sys_var_collation::check(THD *thd, set_var *var)
 {
@@ -1240,7 +1276,7 @@ bool sys_var_collation::check(THD *thd, set_var *var)
 
   if (!(tmp=get_charset_by_name(res->c_ptr(),MYF(0))))
   {
-    my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), res->c_ptr());
+    my_error(ER_UNKNOWN_COLLATION, MYF(0), res->c_ptr());
     return 1;
   }
   var->save_result.charset= tmp;	// Save for update
@@ -1264,7 +1300,7 @@ bool sys_var_character_set::check(THD *thd, set_var *var)
     tmp= NULL;
   }
   else if (!(tmp=get_charset_by_csname(res->c_ptr(),MY_CS_PRIMARY,MYF(0))) &&
-      !(tmp=get_old_charset_by_name(res->c_ptr())))
+	   !(tmp=get_old_charset_by_name(res->c_ptr())))
   {
     my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), res->c_ptr());
     return 1;
@@ -1305,7 +1341,10 @@ void sys_var_character_set_connection::set_default(THD *thd,
  if (type == OPT_GLOBAL)
    global_system_variables.collation_connection= default_charset_info;
  else
+ {
    thd->variables.collation_connection= global_system_variables.collation_connection;
+   thd->update_charset();
+ }
 }
 
 
@@ -1324,11 +1363,16 @@ void sys_var_character_set_client::set_default(THD *thd, enum_var_type type)
  if (type == OPT_GLOBAL)
    global_system_variables.character_set_client= default_charset_info;
  else
-   thd->variables.character_set_client= global_system_variables.character_set_client;
+ {
+   thd->variables.character_set_client= (global_system_variables.
+					 character_set_client);
+   thd->update_charset();
+ }
 }
 
 
-CHARSET_INFO ** sys_var_character_set_results::ci_ptr(THD *thd, enum_var_type type)
+CHARSET_INFO **
+sys_var_character_set_results::ci_ptr(THD *thd, enum_var_type type)
 {
   if (type == OPT_GLOBAL)
     return &global_system_variables.character_set_results;
@@ -1342,11 +1386,16 @@ void sys_var_character_set_results::set_default(THD *thd, enum_var_type type)
  if (type == OPT_GLOBAL)
    global_system_variables.character_set_results= default_charset_info;
  else
-   thd->variables.character_set_results= global_system_variables.character_set_results;
+ {
+   thd->variables.character_set_results= (global_system_variables.
+					  character_set_results);
+   thd->update_charset();
+ }
 }
 
 
-CHARSET_INFO ** sys_var_character_set_server::ci_ptr(THD *thd, enum_var_type type)
+CHARSET_INFO **
+sys_var_character_set_server::ci_ptr(THD *thd, enum_var_type type)
 {
   if (type == OPT_GLOBAL)
     return &global_system_variables.character_set_server;
@@ -1360,7 +1409,11 @@ void sys_var_character_set_server::set_default(THD *thd, enum_var_type type)
  if (type == OPT_GLOBAL)
    global_system_variables.character_set_server= default_charset_info;
  else
-   thd->variables.character_set_server= global_system_variables.character_set_server;
+ {
+   thd->variables.character_set_server= (global_system_variables.
+					 character_set_server);
+   thd->update_charset();
+ }
 }
 
 
@@ -1379,7 +1432,10 @@ void sys_var_character_set_database::set_default(THD *thd, enum_var_type type)
  if (type == OPT_GLOBAL)
     global_system_variables.character_set_database= default_charset_info;
   else
+  {
     thd->variables.character_set_database= thd->db_charset;
+    thd->update_charset();
+  }
 }
 
 
@@ -1388,7 +1444,10 @@ bool sys_var_collation_connection::update(THD *thd, set_var *var)
   if (var->type == OPT_GLOBAL)
     global_system_variables.collation_connection= var->save_result.charset;
   else
+  {
     thd->variables.collation_connection= var->save_result.charset;
+    thd->update_charset();
+  }
   return 0;
 }
 
@@ -1408,38 +1467,47 @@ void sys_var_collation_connection::set_default(THD *thd, enum_var_type type)
  if (type == OPT_GLOBAL)
    global_system_variables.collation_connection= default_charset_info;
  else
-   thd->variables.collation_connection= global_system_variables.collation_connection;
+ {
+   thd->variables.collation_connection= (global_system_variables.
+					 collation_connection);
+   thd->update_charset();
+ }
 }
 
 
 bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->value->val_int();
-  if (!base_name.length)
+  NAMED_LIST *list;
+  LEX_STRING *base_name= &var->base;
+
+  if (!base_name->length)
   {
-    base_name.str= (char*) "default";
-    base_name.length= 7;
+    /* We are using SET KEY_BUFFER_SIZE=# */
+    base_name->str= (char*) "default";
+    base_name->length= 7;
   }
-  KEY_CACHE *key_cache= (KEY_CACHE*) find_named(&key_caches, base_name.str,
-						base_name.length);
+  KEY_CACHE *key_cache= (KEY_CACHE*) find_named(&key_caches, base_name->str,
+						base_name->length, &list);
   if (!key_cache)
   {
     if (!tmp)					// Tried to delete cache
       return 0;					// Ok, nothing to do
-    if (!(key_cache= create_key_cache(base_name.str,
-				      base_name.length)))
+    if (!(key_cache= create_key_cache(base_name->str,
+				      base_name->length)))
       return 1;
   }
-  if (!tmp)
+  if (!tmp)					// Zero size means delete
   {
-    /* Delete not default key caches */
-    if (base_name.length != 7 || memcpy(base_name.str, "default", 7))
+    /* Don't delete the default key cache */
+    if (base_name->length != 7 || memcmp(base_name->str, "default", 7))
     {
       /*
-	QQ: Here we should move tables using this key cache to default
-	key cache
+	QQ: Here we should move tables that is using the found key cache
+	to the default key cache
       */
-      delete key_cache;
+      delete list;
+      my_free((char*) key_cache, MYF(0));
       return 0;
     }
   }
@@ -1452,6 +1520,7 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
   return 0;
 }
 
+
 static ulonglong zero=0;
 
 byte *sys_var_key_buffer_size::value_ptr(THD *thd, enum_var_type type,
@@ -1459,6 +1528,8 @@ byte *sys_var_key_buffer_size::value_ptr(THD *thd, enum_var_type type,
 {
   const char *name;
   uint length;
+  KEY_CACHE *key_cache;
+  NAMED_LIST *not_used;
 
   if (!base->str)
   {
@@ -1470,7 +1541,7 @@ byte *sys_var_key_buffer_size::value_ptr(THD *thd, enum_var_type type,
     name=   base->str;
     length= base->length;
   }
-  KEY_CACHE *key_cache= (KEY_CACHE*) find_named(&key_caches, name, length);
+  key_cache= (KEY_CACHE*) find_named(&key_caches, name, length, &not_used);
   if (!key_cache)
     return (byte*) &zero;
   return (byte*) &key_cache->size;
@@ -1492,6 +1563,7 @@ int set_var_collation_client::update(THD *thd)
   thd->variables.character_set_client= character_set_client;
   thd->variables.character_set_results= character_set_results;
   thd->variables.collation_connection= collation_connection;
+  thd->update_charset();
   thd->protocol_simple.init(thd);
   thd->protocol_prep.init(thd);
   return 0;
@@ -1825,17 +1897,18 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list)
 {
   int error= 0;
   List_iterator_fast<set_var_base> it(*var_list);
+  DBUG_ENTER("sql_set_variables");
 
   set_var_base *var;
   while ((var=it++))
   {
     if ((error=var->check(thd)))
-      return error;
+      DBUG_RETURN(error);
   }
   it.rewind();
   while ((var=it++))
     error|= var->update(thd);			// Returns 0, -1 or 1
-  return error;
+  DBUG_RETURN(error);
 }
 
 
@@ -2036,14 +2109,18 @@ ulong fix_sql_mode(ulong sql_mode)
   Named list handling
 ****************************************************************************/
 
-gptr find_named(I_List<NAMED_LIST> *list, const char *name, uint length)
+gptr find_named(I_List<NAMED_LIST> *list, const char *name, uint length,
+		NAMED_LIST **found)
 {
   I_List_iterator<NAMED_LIST> it(*list);
   NAMED_LIST *element;
   while ((element= it++))
   {
     if (element->cmp(name, length))
+    {
+      *found= element;
       return element->data;
+    }
   }
   return 0;
 }
@@ -2052,11 +2129,13 @@ gptr find_named(I_List<NAMED_LIST> *list, const char *name, uint length)
 void delete_elements(I_List<NAMED_LIST> *list, void (*free_element)(gptr))
 {
   NAMED_LIST *element;
+  DBUG_ENTER("delete_elements");
   while ((element= list->get()))
   {
     (*free_element)(element->data);
     delete element;
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2065,7 +2144,8 @@ void delete_elements(I_List<NAMED_LIST> *list, void (*free_element)(gptr))
 static KEY_CACHE *create_key_cache(const char *name, uint length)
 {
   KEY_CACHE *key_cache;
-  DBUG_PRINT("info",("Creating key cache: %s", name));
+  DBUG_PRINT("info",("Creating key cache: %.*s  length: %d", length, name,
+		     length));
   if ((key_cache= (KEY_CACHE*) my_malloc(sizeof(KEY_CACHE),
 					 MYF(MY_ZEROFILL | MY_WME))))
   {
@@ -2081,8 +2161,9 @@ static KEY_CACHE *create_key_cache(const char *name, uint length)
 
 KEY_CACHE *get_or_create_key_cache(const char *name, uint length)
 {
+  NAMED_LIST *not_used;
   KEY_CACHE *key_cache= (KEY_CACHE*) find_named(&key_caches, name,
-						length);
+						length, &not_used);
   if (!key_cache)
     key_cache= create_key_cache(name, length);
   return key_cache;

@@ -930,7 +930,7 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
   {
     bool like_error;
     char buff1[MAX_FIELD_WIDTH],*min_str,*max_str;
-    String tmp(buff1,sizeof(buff1),value->charset()),*res;
+    String tmp(buff1,sizeof(buff1),value->collation.collation),*res;
     uint length,offset,min_length,max_length;
 
     if (!field->optimize_range(param->real_keynr[key_part->key]))
@@ -2390,9 +2390,17 @@ QUICK_SELECT *get_quick_select_for_ref(TABLE *table, TABLE_REF *ref)
 
   if (!quick)
     return 0;
+  if (cp_buffer_from_ref(ref))
+  {
+    if (current_thd->is_fatal_error)
+      return 0;					// End of memory
+    return quick;				// empty range
+  }
+
   QUICK_RANGE *range= new QUICK_RANGE();
-  if (!range || cp_buffer_from_ref(ref))
+  if (!range)
     goto err;
+
   range->min_key=range->max_key=(char*) ref->key_buff;
   range->min_length=range->max_length=ref->key_length;
   range->flag= ((ref->key_length == key_info->key_length &&

@@ -127,7 +127,7 @@ static bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 	{
 	  if (!(create->table_charset=get_charset_by_name(pos+1, MYF(0))))
 	  {
-	    sql_print_error(ER(ER_UNKNOWN_CHARACTER_SET),pos+1);
+	    sql_print_error(ER(ER_UNKNOWN_COLLATION),pos+1);
 	  }
 	}
       }
@@ -591,7 +591,7 @@ bool mysql_change_db(THD *thd, const char *name)
     db_access=DB_ACLS;
   else
     db_access= (acl_get(thd->host,thd->ip,(char*) &thd->remote.sin_addr,
-			thd->priv_user,dbname) |
+			thd->priv_user,dbname,0) |
 		thd->master_access);
   if (!(db_access & DB_ACLS) && (!grant_option || check_grant_db(thd,dbname)))
   {
@@ -625,8 +625,8 @@ bool mysql_change_db(THD *thd, const char *name)
 
   strmov(path+unpack_dirname(path,path), MY_DB_OPT_FILE);
   load_db_opt(thd, path, &create);
-  thd->db_charset= create.table_charset ? 
-		   create.table_charset : 
+  thd->db_charset= create.table_charset ?
+		   create.table_charset :
 		   global_system_variables.character_set_database;
   thd->variables.character_set_database= thd->db_charset;
   DBUG_RETURN(0);
@@ -644,18 +644,18 @@ int mysqld_show_create_db(THD *thd, char *dbname,
   uint create_options = create_info ? create_info->options : 0;
   Protocol *protocol=thd->protocol;
   DBUG_ENTER("mysql_show_create_db");
-  
+
   if (check_db_name(dbname))
   {
     net_printf(thd,ER_WRONG_DB_NAME, dbname);
     DBUG_RETURN(1);
   }
-  
+
   if (test_all_bits(thd->master_access,DB_ACLS))
     db_access=DB_ACLS;
   else
     db_access= (acl_get(thd->host,thd->ip,(char*) &thd->remote.sin_addr,
-			thd->priv_user,dbname) |
+			thd->priv_user,dbname,0) |
 		thd->master_access);
   if (!(db_access & DB_ACLS) && (!grant_option || check_grant_db(thd,dbname)))
   {
@@ -669,7 +669,7 @@ int mysqld_show_create_db(THD *thd, char *dbname,
 		    dbname);
     DBUG_RETURN(1);
   }
-  
+
   (void) sprintf(path,"%s/%s",mysql_data_home, dbname);
   length=unpack_dirname(path,path);		// Convert if not unix
   found_libchar= 0;

@@ -123,8 +123,8 @@ sql_yacc.o:	sql_yacc.cc sql_yacc.h $(HEADERS)
 		$(CXXCOMPILE) $(LM_CFLAGS) -c $<
 
 lex_hash.h:	lex.h gen_lex_hash.cc sql_yacc.h
-		$(MAKE) gen_lex_hash
-		./gen_lex_hash > $@
+		$(MAKE) gen_lex_hash$(EXEEXT)
+		./gen_lex_hash$(EXEEXT) > $@
 
 # Hack to ensure that lex_hash.h is built early
 sql_lex.o:	lex_hash.h
