@@ -862,10 +862,6 @@ public:
      */
     Uint8 fragDistributionKey;
     /**
-     *       Used to calculate which local fragment to use.                  
-     */
-    Uint8 hashCheckBit;
-    /**
      *       The identity of the next local checkpoint this fragment
      *       should perform.
      */

@@ -4096,8 +4096,8 @@ Dbdict::execADD_FRAGREQ(Signal* signal) {
     req->maxLoadFactor = tabPtr.p->maxLoadFactor;
     req->minLoadFactor = tabPtr.p->minLoadFactor;
     req->kValue = tabPtr.p->kValue;
-    req->lh3DistrBits = lhDistrBits;
-    req->lh3PageBits = lhPageBits;
+    req->lh3DistrBits = 0; //lhDistrBits;
+    req->lh3PageBits = 0; //lhPageBits;
     req->noOfAttributes = tabPtr.p->noOfAttributes;
     req->noOfNullAttributes = tabPtr.p->noOfNullAttr;
     req->noOfPagesToPreAllocate = 0;

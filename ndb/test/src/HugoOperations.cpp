@@ -456,11 +456,6 @@ int HugoOperations::setValueForAttr(NdbOperation* pOp,
   int check = 0;
   const NdbDictionary::Column* attr = tab.getColumn(attrId);     
 
-  if (attr->getTupleKey()){
-    // Don't set values for TupleId PKs
-    return check;
-  }
-  
   switch (attr->getType()){
   case NdbDictionary::Column::Char:
   case NdbDictionary::Column::Varchar:
