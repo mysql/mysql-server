@@ -1204,6 +1204,7 @@ class GRANT_TABLE :public Sql_alloc
 public:
   char *host,*db,*user,*tname, *hash_key;
   uint privs, cols, key_length;
+  ulong sort;
   HASH hash_columns;
   GRANT_TABLE (const char *h, const char *d,const char *u, const char *t,
 	       uint p,uint c)
@@ -1212,6 +1213,7 @@ public:
     host = strdup_root(&memex,h);
     db =   strdup_root(&memex,d);
     user = strdup_root(&memex,u);
+    sort=  get_sort(3,host,db,user);
     tname= strdup_root(&memex,t);
     key_length =(uint) strlen(d)+(uint) strlen(u)+(uint) strlen(t)+3;
     hash_key = (char*) alloc_root(&memex,key_length);
@@ -1227,6 +1229,7 @@ public:
     host =  get_field(&memex,form,0);
     db =    get_field(&memex,form,1);
     user =  get_field(&memex,form,2);  if (!user) user=(char*) "";
+    sort=   get_sort(3,host,db,user);
     tname = get_field(&memex,form,3);
     if (!host || !db || !tname)
     {
@@ -1324,9 +1327,10 @@ static GRANT_TABLE *table_hash_search(const char *host,const char* ip,
     }
     else
     {
-      if ((host && !wild_case_compare(host,grant_table->host)) ||
-	  (ip && !wild_case_compare(ip,grant_table->host)))
-	found=grant_table;					// Host ok
+      if (((host && !wild_case_compare(host,grant_table->host)) ||
+	  (ip && !wild_case_compare(ip,grant_table->host))) &&
+          (!found || found->sort < grant_table->sort))
+	found=grant_table;
     }
   }
   return found;
