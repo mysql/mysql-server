@@ -1,6 +1,5 @@
 
-LDADD += $(top_srcdir)/ndb/test/src/libNDBT.a \
-         $(top_srcdir)/ndb/src/libndbclient.la
+LDADD += $(top_srcdir)/ndb/src/libndbclient.la
 
 INCLUDES += -I$(srcdir) -I$(top_srcdir)/include \
 	-I$(top_srcdir)/ndb/include \
