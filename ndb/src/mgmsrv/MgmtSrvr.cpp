@@ -2304,7 +2304,7 @@ bool
 MgmtSrvr::alloc_node_id(NodeId * nodeId, 
 			enum ndb_mgm_node_type type,
 			struct sockaddr *client_addr, 
-			socklen_t *client_addr_len)
+			SOCKET_SIZE_TYPE *client_addr_len)
 {
   Guard g(&f_node_id_mutex);
 #if 0
