@@ -2857,18 +2857,6 @@ void item_user_lock_free(void)
 void item_user_lock_release(User_level_lock *ull)
 {
   ull->locked=0;
-  if (mysql_bin_log.is_open())
-  {
-    char buf[256];
-    const char *command="DO RELEASE_LOCK(\"";
-    String tmp(buf,sizeof(buf), system_charset_info);
-    tmp.copy(command, strlen(command), tmp.charset());
-    tmp.append(ull->key,ull->key_length);
-    tmp.append("\")", 2);
-    Query_log_event qev(current_thd, tmp.ptr(), tmp.length(), 0, FALSE);
-    qev.error_code=0; // this query is always safe to run on slave
-    mysql_bin_log.write(&qev);
-  }
   if (--ull->count)
     pthread_cond_signal(&ull->cond);
   else
@@ -2991,6 +2979,16 @@ longlong Item_func_get_lock::val_int()
   THD *thd=current_thd;
   User_level_lock *ull;
   int error=0;
+
+  /*
+    In slave thread no need to get locks, everything is serialized. Anyway
+    there is no way to make GET_LOCK() work on slave like it did on master
+    (i.e. make it return exactly the same value) because we don't have the
+    same other concurrent threads environment. No matter what we return here,
+    it's not guaranteed to be same as on master.
+  */
+  if (thd->slave_thread)
+    return 1;
 
   pthread_mutex_lock(&LOCK_user_locks);
 
