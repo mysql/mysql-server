@@ -197,10 +197,18 @@ public:
 
 class Item_bool_rowready_func2 :public Item_bool_func2
 {
+  Item *orig_a, *orig_b; /* propagate_const can change parameters */
 public:
-  Item_bool_rowready_func2(Item *a,Item *b) :Item_bool_func2(a,b)
+  Item_bool_rowready_func2(Item *a,Item *b) :Item_bool_func2(a,b),
+    orig_a(a), orig_b(b)
   {
     allowed_arg_cols= a->cols();
+  }
+  void cleanup()
+  {
+    Item_bool_func2::cleanup();
+    tmp_arg[0]= orig_a;
+    tmp_arg[1]= orig_b;
   }
 };
 
@@ -705,10 +713,6 @@ class Item_func_in :public Item_int_func
   }
   longlong val_int();
   void fix_length_and_dec();
-  ~Item_func_in()
-  {
-    cleanup(); /* This is not called by Item::~Item() */
-  }
   void cleanup()
   {
     delete array;
@@ -888,7 +892,6 @@ public:
   Item_cond(THD *thd, Item_cond &item);
   Item_cond(List<Item> &nlist)
     :Item_bool_func(), list(nlist), abort_on_null(0) {}
-  ~Item_cond() { list.delete_elements(); }
   bool add(Item *item) { return list.push_back(item); }
   bool fix_fields(THD *, struct st_table_list *, Item **ref);
 
