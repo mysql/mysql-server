@@ -70,11 +70,10 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
                                  int r_port,
 				 NodeId lNodeId,
                                  NodeId rNodeId,
-                                 int byte_order,
-                                 bool compr, bool chksm, bool signalId,
+                                 bool chksm, bool signalId,
                                  Uint32 _reportFreq) :
   Transporter(t_reg, lHostName, rHostName, r_port, lNodeId, rNodeId,
-	      byte_order, compr, chksm, signalId),
+	      0, false, chksm, signalId),
   m_sendBuffer(sendBufSize)
 {
   maxReceiveSize = maxRecvSize;
@@ -106,12 +105,14 @@ TCP_Transporter::~TCP_Transporter() {
 
 bool TCP_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
 {
-  return connect_common(sockfd);
+  DBUG_ENTER("TCP_Transpporter::connect_server_impl");
+  DBUG_RETURN(connect_common(sockfd));
 }
 
 bool TCP_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
 {
-  return connect_common(sockfd);
+  DBUG_ENTER("TCP_Transpporter::connect_client_impl");
+  DBUG_RETURN(connect_common(sockfd));
 }
 
 bool TCP_Transporter::connect_common(NDB_SOCKET_TYPE sockfd)
@@ -119,6 +120,8 @@ bool TCP_Transporter::connect_common(NDB_SOCKET_TYPE sockfd)
   theSocket = sockfd;
   setSocketOptions();
   setSocketNonBlocking(theSocket);
+  DBUG_PRINT("info", ("Successfully set-up TCP transporter to node %d",
+              remoteNodeId));
   return true;
 }
 
