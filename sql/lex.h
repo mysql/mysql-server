@@ -64,6 +64,7 @@ static SYMBOL symbols[] = {
   { "AVG_ROW_LENGTH",	SYM(AVG_ROW_LENGTH),0,0},
   { "AUTO_INCREMENT",	SYM(AUTO_INC),0,0},
   { "BACKUP",	        SYM(BACKUP_SYM),0,0},
+  { "BEFORE",	        SYM(BEFORE_SYM),0,0},
   { "BEGIN",	        SYM(BEGIN_SYM),0,0},
   { "BERKELEYDB",       SYM(BERKELEY_DB_SYM),0,0},
   { "BDB",              SYM(BERKELEY_DB_SYM),0,0},

@@ -257,14 +257,9 @@ bool log_in_use(const char* log_name)
   return result;
 }
 
-
-int purge_master_logs(THD* thd, const char* to_log)
+int purge_error_message(THD* thd, int res)
 {
-  char search_file_name[FN_REFLEN];
   const char* errmsg = 0;
-
-  mysql_bin_log.make_log_name(search_file_name, to_log);
-  int res = mysql_bin_log.purge_logs(thd, search_file_name);
 
   switch(res)  {
   case 0: break;
@@ -289,8 +284,24 @@ binlog purge"; break;
   }
   else
     send_ok(thd);
-
   return 0;
+}
+
+int purge_master_logs(THD* thd, const char* to_log)
+{
+  char search_file_name[FN_REFLEN];
+
+  mysql_bin_log.make_log_name(search_file_name, to_log);
+  int res = mysql_bin_log.purge_logs(thd, search_file_name);
+
+  return purge_error_message(thd, res);
+}
+
+
+int purge_master_logs_before_date(THD* thd, time_t purge_time)
+{
+  int res = mysql_bin_log.purge_logs_before_date(thd, purge_time);
+  return purge_error_message(thd ,res);
 }
 
 /*

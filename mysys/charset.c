@@ -29,7 +29,7 @@
     - Initializing charset related structures
     - Loading dynamic charsets
     - Searching for a proper CHARSET_INFO 
-      using charset name, collation name or collatio ID
+      using charset name, collation name or collation ID
     - Setting server default character set
 */
 
@@ -53,6 +53,62 @@ static void set_max_sort_char(CHARSET_INFO *cs)
   }
 }
 
+
+static void init_state_maps(CHARSET_INFO *cs)
+{
+  uint i;
+  uchar *state_map= cs->state_map;
+  uchar *ident_map= cs->ident_map;
+  
+  /* Fill state_map with states to get a faster parser */
+  for (i=0; i < 256 ; i++)
+  {
+    if (my_isalpha(cs,i))
+      state_map[i]=(uchar) MY_LEX_IDENT;
+    else if (my_isdigit(cs,i))
+      state_map[i]=(uchar) MY_LEX_NUMBER_IDENT;
+#if defined(USE_MB) && defined(USE_MB_IDENT)
+    else if (use_mb(cs) && my_ismbhead(cs, i))
+      state_map[i]=(uchar) MY_LEX_IDENT;
+#endif
+    else if (!my_isgraph(cs,i))
+      state_map[i]=(uchar) MY_LEX_SKIP;      
+    else
+      state_map[i]=(uchar) MY_LEX_CHAR;
+  }
+  state_map[(uchar)'_']=state_map[(uchar)'$']=(uchar) MY_LEX_IDENT;
+  state_map[(uchar)'\'']=(uchar) MY_LEX_STRING;
+  state_map[(uchar)'-']=state_map[(uchar)'+']=(uchar) MY_LEX_SIGNED_NUMBER;
+  state_map[(uchar)'.']=(uchar) MY_LEX_REAL_OR_POINT;
+  state_map[(uchar)'>']=state_map[(uchar)'=']=state_map[(uchar)'!']= (uchar) MY_LEX_CMP_OP;
+  state_map[(uchar)'<']= (uchar) MY_LEX_LONG_CMP_OP;
+  state_map[(uchar)'&']=state_map[(uchar)'|']=(uchar) MY_LEX_BOOL;
+  state_map[(uchar)'#']=(uchar) MY_LEX_COMMENT;
+  state_map[(uchar)';']=(uchar) MY_LEX_COLON;
+  state_map[(uchar)':']=(uchar) MY_LEX_SET_VAR;
+  state_map[0]=(uchar) MY_LEX_EOL;
+  state_map[(uchar)'\\']= (uchar) MY_LEX_ESCAPE;
+  state_map[(uchar)'/']= (uchar) MY_LEX_LONG_COMMENT;
+  state_map[(uchar)'*']= (uchar) MY_LEX_END_LONG_COMMENT;
+  state_map[(uchar)'@']= (uchar) MY_LEX_USER_END;
+  state_map[(uchar) '`']= (uchar) MY_LEX_USER_VARIABLE_DELIMITER;
+  state_map[(uchar)'"']= (uchar) MY_LEX_STRING_OR_DELIMITER;
+
+  /*
+    Create a second map to make it faster to find identifiers
+  */
+  for (i=0; i < 256 ; i++)
+  {
+    ident_map[i]= (uchar) (state_map[i] == MY_LEX_IDENT ||
+			   state_map[i] == MY_LEX_NUMBER_IDENT);
+  }
+
+  /* Special handling of hex and binary strings */
+  state_map[(uchar)'x']= state_map[(uchar)'X']= (uchar) MY_LEX_IDENT_OR_HEX;
+  state_map[(uchar)'b']= state_map[(uchar)'b']= (uchar) MY_LEX_IDENT_OR_BIN;
+
+
+}
 
 static void simple_cs_init_functions(CHARSET_INFO *cs)
 {
@@ -211,8 +267,11 @@ static void simple_cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
     to->name= my_once_strdup(from->name,MYF(MY_WME));
   
   if (from->ctype)
+  {
     to->ctype= (uchar*) my_once_memdup((char*) from->ctype,
 				       MY_CS_CTYPE_TABLE_SIZE, MYF(MY_WME));
+    init_state_maps(to);
+  }
   if (from->to_lower)
     to->to_lower= (uchar*) my_once_memdup((char*) from->to_lower,
 					  MY_CS_TO_LOWER_TABLE_SIZE, MYF(MY_WME));
@@ -447,7 +506,10 @@ static my_bool init_available_charsets(myf myflags)
     for (cs=all_charsets; cs < all_charsets+255 ; cs++)
     {
       if (*cs)
+      {
         set_max_sort_char(*cs);
+        init_state_maps(*cs);
+      }
     }
     
     strmov(get_charsets_dir(fname), MY_CHARSET_INDEX);
@@ -479,7 +541,7 @@ uint get_charset_number(const char *charset_name)
   
   for (cs= all_charsets; cs < all_charsets+255; ++cs)
   {
-    if ( cs[0] && cs[0]->name && !strcmp(cs[0]->name, charset_name))
+    if ( cs[0] && cs[0]->name && !strcasecmp(cs[0]->name, charset_name))
       return cs[0]->number;
   }  
   return 0;   /* this mimics find_type() */
@@ -593,7 +655,7 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name,
   for (css= all_charsets; css < all_charsets+255; ++css)
   {
     if ( css[0] && (css[0]->state & cs_flags) && 
-         css[0]->csname && !strcmp(css[0]->csname, cs_name))
+         css[0]->csname && !strcasecmp(css[0]->csname, cs_name))
     {
       cs= css[0]->number ? get_internal_charset(css[0]->number,flags) : NULL;
       break;
