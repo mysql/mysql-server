@@ -4316,17 +4316,15 @@ int Field_blob::store(const char *from,uint len,CHARSET_INFO *cs)
 
 int Field_blob::store(double nr)
 {
-  value.set(nr);
-  return Field_blob::store(value.ptr(),(uint) value.length(),
-			   default_charset_info);
+  value.set(nr,2,my_thd_charset);
+  return Field_blob::store(value.ptr(),(uint) value.length(), value.charset());
 }
 
 
 int Field_blob::store(longlong nr)
 {
-  value.set(nr);
-  return Field_blob::store(value.ptr(), (uint) value.length(),
-			   default_charset_info);
+  value.set(nr,my_thd_charset);
+  return Field_blob::store(value.ptr(), (uint) value.length(), value.charset());
 }
 
 
