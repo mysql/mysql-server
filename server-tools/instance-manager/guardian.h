@@ -70,6 +70,9 @@ public:
   int guard(Instance *instance);
   int stop_guard(Instance *instance);
 
+public:
+  pthread_cond_t COND_guardian;
+
 private:
   int add_instance_to_list(Instance *instance, LIST **list);
   void move_to_list(LIST **from, LIST **to);

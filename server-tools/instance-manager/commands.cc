@@ -175,7 +175,7 @@ int Show_instance_status::do_command(struct st_net *net,
     if (instance->is_running())
     {
       store_to_string(&send_buff, (char *) "online", &position);
-      store_to_string(&send_buff, mysql_get_server_info(&(instance->mysql)), &position);
+      store_to_string(&send_buff, "unknown", &position);
     }
     else
     {
@@ -279,28 +279,6 @@ int Show_instance_options::do_command(struct st_net *net,
       position= 0;
       store_to_string(&send_buff, (char *) "guarded", &position);
       store_to_string(&send_buff, "", &position);
-      if (my_net_write(net, send_buff.buffer, (uint) position))
-        goto err;
-    }
-
-    if (instance->options.mysqld_user != NULL)
-    {
-      position= 0;
-      store_to_string(&send_buff, (char *) "admin-user", &position);
-      store_to_string(&send_buff,
-                      (char *) instance->options.mysqld_user,
-                      &position);
-      if (my_net_write(net, send_buff.buffer, (uint) position))
-        goto err;
-    }
-
-    if (instance->options.mysqld_password != NULL)
-    {
-      position= 0;
-      store_to_string(&send_buff, (char *) "admin-password", &position);
-      store_to_string(&send_buff,
-                      (char *) instance->options.mysqld_password,
-                      &position);
       if (my_net_write(net, send_buff.buffer, (uint) position))
         goto err;
     }
