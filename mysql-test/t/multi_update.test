@@ -330,11 +330,11 @@ DROP TABLE t1,t2;
 # Test update with const tables
 #
 
-create table `t1` (`p_id` int(10) unsigned NOT NULL auto_increment, `p_code` varchar(20) NOT NULL default '', `p_active` tinyint(1) unsigned NOT NULL default '1', PRIMARY KEY (`p_id`) );
-create table `t2` (`c2_id` int(10) unsigned NULL auto_increment, `c2_p_id` int(10) unsigned NOT NULL default '0', `c2_note` text NOT NULL, `c2_active` tinyint(1) unsigned NOT NULL default '1', PRIMARY KEY (`c2_id`), KEY `c2_p_id` (`c2_p_id`) );
-insert into t1 values (0,'A01-Comp',1);
-insert into t1 values (0,'B01-Comp',1);
-insert into t2 values (0,1,'A Note',1);
+create table `t1` (   `p_id` int(10) unsigned NOT NULL auto_increment,   `p_code` varchar(20) NOT NULL default '',   `p_created` datetime NOT NULL default '0000-00-00 00:00:00',   `p_active` tinyint(1) unsigned NOT NULL default '1',   PRIMARY KEY  (`p_id`) );
+create table  `t2` (   `c2_id` int(10) unsigned  NULL auto_increment,   `c2_p_id` int(10) unsigned NOT NULL default '0',   `c2_note` text NOT NULL,   `c2_created` datetime NOT NULL default '0000-00-00 00:00:00',   `c2_active` tinyint(1) unsigned NOT NULL default '1',   PRIMARY KEY  (`c2_id`),   KEY `c2_p_id` (`c2_p_id`) );
+insert into t1 values (0,'A01-Comp',"2004-01-05 12:12:12",1);
+insert into t1 values (0,'B01-Comp',"2004-01-05 12:12:13",1);
+insert into t2 values (0,1,'A Note',"2004-01-05 12:12:14",1);
 update t1 left join t2 on p_id = c2_p_id set c2_note = 'asdf-1' where p_id = 2; 
 select * from t1;
 select * from t2;
