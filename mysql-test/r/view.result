@@ -761,7 +761,7 @@ set sql_updatable_view_key=LIMIT1;
 update v1 set x=x+1;
 update v2 set x=x+1;
 Warnings:
-Note	1354	View being update does not have complete key of underlying table in it
+Note	1354	View being updated does not have complete key of underlying table in it
 update v1 set x=x+1 limit 1;
 update v2 set x=x+1 limit 1;
 ERROR HY000: The target table v2 of the UPDATE is not updatable
@@ -769,7 +769,7 @@ set sql_updatable_view_key=NO;
 update v1 set x=x+1 limit 1;
 update v2 set x=x+1 limit 1;
 Warnings:
-Note	1354	View being update does not have complete key of underlying table in it
+Note	1354	View being updated does not have complete key of underlying table in it
 set sql_updatable_view_key=DEFAULT;
 select * from t1;
 a	b	c
