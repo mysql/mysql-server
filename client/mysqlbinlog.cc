@@ -438,9 +438,9 @@ static struct my_option my_long_options[] =
   {"user", 'u', "Connect to the remote server as username.",
    (gptr*) &user, (gptr*) &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
-  {"local-load", 'l', "Prepare files for local load in directory.",
+  {"local-load", 'l', "Prepare local temporary files for LOAD DATA INFILE in the specified directory.",
    (gptr*) &dirname_for_local_load, (gptr*) &dirname_for_local_load, 0,
-   GET_STR_ALLOC, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Print version and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -947,7 +947,7 @@ int main(int argc, char** argv)
     exit(1);
   if (dirname_for_local_load)
     load_processor.init_by_dir_name(dirname_for_local_load);
-  else
+  else /* my_malloc() failed in my_strdup() */
     load_processor.init_by_cur_dir();
 
   exit_value= 0;
