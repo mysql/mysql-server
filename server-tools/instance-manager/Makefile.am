@@ -30,10 +30,8 @@ liboptions_a_CPPFLAGS= $(CPPFLAGS) \
 	-DDEFAULT_LOG_FILE_NAME="$(localstatedir)/mysqlmanager.log" \
 	-DDEFAULT_SOCKET_FILE_NAME="$(localstatedir)/mysqlmanager.sock" \
 	-DDEFAULT_PASSWORD_FILE_NAME="$(sysconfdir)/mysqlmanager.passwd" \
-	-DDEFAULT_MYSQLD_PATH="$(bindir)/mysqld$(EXEEXT)" \
-	-DDEFAULT_USER="root" \
-	-DDEFAULT_PASSWORD="" \
-	-DDEFAULT_MONITORING_INTERVAL="5" \
+	-DDEFAULT_MYSQLD_PATH="$(libexecdir)/mysqld$(EXEEXT)" \
+	-DDEFAULT_MONITORING_INTERVAL="20" \
 	-DDEFAULT_PORT="2273" \
 	-DPROTOCOL_VERSION=@PROTOCOL_VERSION@
 
@@ -59,7 +57,7 @@ client_settings.h: Makefile
 	rm -f $(srcdir)/client_settings.h
 	@LN_CP_F@ $(top_srcdir)/sql/client_settings.h $(srcdir)/client_settings.h
 
-bin_PROGRAMS= mysqlmanager
+libexec_PROGRAMS= mysqlmanager
 
 mysqlmanager_SOURCES=	command.cc command.h mysqlmanager.cc \
 			manager.h manager.cc log.h log.cc \
@@ -75,7 +73,8 @@ mysqlmanager_SOURCES=	command.cc command.h mysqlmanager.cc \
 			instance_options.h instance_options.cc \
 			buffer.h buffer.cc parse.cc parse.h \
 			guardian.cc guardian.h \
-                        mysql_manager_error.h client_func.c
+			parse_output.cc parse_output.h \
+                        mysql_manager_error.h
 
 mysqlmanager_LDADD=	liboptions.a \
 			libnet.a \

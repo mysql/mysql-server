@@ -34,13 +34,15 @@ struct Options
   static const char *socket_file_name;
   static const char *password_file_name;
   static const char *default_mysqld_path;
-  static const char *default_admin_user;
-  static const char *default_admin_password;
+  static const char *user;
   static uint monitoring_interval;
   static uint port_number;
   static const char *bind_address;
 
-  static void load(int argc, char **argv);
+  static char **saved_argv;
+
+  static int load(int argc, char **argv);
+  void cleanup();
 };
 
 #endif // INCLUDES_MYSQL_INSTANCE_MANAGER_OPTIONS_H

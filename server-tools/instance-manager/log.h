@@ -17,14 +17,14 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /*
-  Logging facilities. 
+  Logging facilities.
 
   Two logging streams are supported: error log and info log. Additionally
   libdbug may be used for debug information output.
   ANSI C buffered I/O is used to perform logging.
   Logging is performed via stdout/stder, so one can reopen them to point to
   ordinary files. To initialize loggin environment log_init() must be called.
-  
+
   Rationale:
   - no MYSQL_LOG as it has BIN mode, and not easy to fetch from sql_class.h
   - no constructors/desctructors to make logging available all the time
