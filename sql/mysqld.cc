@@ -3465,7 +3465,8 @@ enum options
   OPT_ERROR_LOG_FILE,
   OPT_ENABLE_SHARED_MEMORY,
   OPT_SHARED_MEMORY_BASE_NAME,
-  OPT_OLD_PASSWORDS
+  OPT_OLD_PASSWORDS,
+  OPT_GROUP_CONCAT_MAX_LEN
 };
 
 
@@ -3581,6 +3582,11 @@ struct my_option my_long_options[] =
    GET_LONG, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"flush", OPT_FLUSH, "Flush tables to disk between SQL commands", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  { "group_concat_max_len", OPT_GROUP_CONCAT_MAX_LEN,
+    "The maximum length of the result of function  group_concat.",
+    (gptr*) &global_system_variables.group_concat_max_len, 
+    (gptr*) &max_system_variables.group_concat_max_len, 0, GET_ULONG,
+    REQUIRED_ARG, 1024, 4, (long) ~0, 0, 1, 0},
   /* We must always support the next option to make scripts like mysqltest
      easier to do */
   {"init-rpl-role", OPT_INIT_RPL_ROLE, "Set the replication role", 0, 0, 0,

@@ -327,7 +327,12 @@ public:
 	      const char *msg_arg)
     :code(code_arg), level(level_arg)
   {
-    msg=sql_strdup(msg_arg);
+    set_msg(msg_arg);
+  }
+  inline void set_msg(const char *msg_arg)
+  {
+    if (msg_arg)
+      msg=sql_strdup(msg_arg);  
   }
 };
 
@@ -391,7 +396,7 @@ struct system_variables
   ulong tmp_table_size;
   ulong tx_isolation;
   ulong sql_mode;
-
+  ulong group_concat_max_len;
   /*
     In slave thread we need to know in behalf of which
     thread the query is being run to replicate temp tables properly

@@ -332,6 +332,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	ROW_SYM
 %token	RTREE_SYM
 %token	SET
+%token  SEPARATOR_SYM
 %token	SERIAL_SYM
 %token	SERIALIZABLE_SYM
 %token	SESSION_SYM
@@ -457,6 +458,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	GEOMCOLLFROMTEXT
 %token	GEOMFROMTEXT
 %token  GEOMETRYCOLLECTION
+%token  GROUP_CONCAT_SYM
 %token	GROUP_UNIQUE_USERS
 %token	HOUR_MINUTE_SYM
 %token	HOUR_SECOND_SYM
@@ -567,13 +569,13 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	opt_escape
 
 %type <string>
-	text_string
+	text_string opt_gconcat_separator
 
 %type <num>
 	type int_type real_type order_dir opt_field_spec lock_option
 	udf_type if_exists opt_local opt_table_options table_options
 	table_option opt_if_not_exists opt_var_type opt_var_ident_type
-	delete_option opt_temporary all_or_any
+	delete_option opt_temporary all_or_any opt_distinct
 
 %type <ulong_num>
 	ULONG_NUM raid_types merge_insert_types
@@ -2466,7 +2468,35 @@ sum_expr:
 	| VARIANCE_SYM '(' in_sum_expr ')'
 	  { $$=new Item_sum_variance($3); }
 	| SUM_SYM '(' in_sum_expr ')'
-	  { $$=new Item_sum_sum($3); };
+	  { $$=new Item_sum_sum($3); }
+	| GROUP_CONCAT_SYM '(' opt_distinct expr_list opt_gorder_clause opt_gconcat_separator ')'
+	  { 
+	    $$=new Item_func_group_concat($3,$4,Lex->gorder_list,$6); 
+	    $4->empty();
+	  };
+
+opt_distinct:
+    /* empty */ { $$ = 0; }
+    |DISTINCT   { $$ = 1; };
+
+opt_gconcat_separator:
+    /* empty */        { $$ = new String(" ",1,default_charset_info); }
+    |SEPARATOR_SYM text_string  { $$ = $2; };
+   
+
+opt_gorder_clause:
+    /* empty */ 
+      {
+        LEX *lex=Lex;
+        lex->gorder_list = NULL;
+      }
+    | order_clause
+      {
+        LEX *lex=Lex;
+        lex->gorder_list= (SQL_LIST*) sql_memdup((char*) &lex->current_select->order_list,sizeof(st_sql_list));
+        lex->current_select->order_list.empty();
+      };
+	  
 
 in_sum_expr:
 	opt_all

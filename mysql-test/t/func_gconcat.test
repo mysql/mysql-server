@@ -1,0 +1,77 @@
+#
+# simple test of group_concat function
+#
+
+drop table if exists t1;
+create table t1 (grp int, a bigint unsigned, c char(10) not null, d char(10) not null);
+insert into t1 values (1,1,"a","a");
+insert into t1 values (2,2,"b","a");
+insert into t1 values (2,3,"c","b");
+insert into t1 values (3,4,"E","a");
+insert into t1 values (3,5,"C","b");
+insert into t1 values (3,6,"D","b");
+insert into t1 values (3,7,"d","d");
+insert into t1 values (3,8,"d","d");
+insert into t1 values (3,9,"D","c");
+
+# Test of MySQL simple request
+select grp,group_concat(c) from t1 group by grp;
+select grp,group_concat(a,c) from t1 group by grp;
+select grp,group_concat("(",a,":",c,")") from t1 group by grp;
+
+# Test of MySQL with options
+select grp,group_concat(c separator ",") from t1 group by grp;
+select grp,group_concat(c separator "---->") from t1 group by grp;
+select grp,group_concat(c order by c) from t1 group by grp;
+select grp,group_concat(c order by c desc) from t1 group by grp;
+select grp,group_concat(d order by a) from t1 group by grp;
+select grp,group_concat(d order by a desc) from t1 group by grp;
+select grp,group_concat(a order by a,d+c) from t1 group by grp;
+select grp,group_concat(c order by 1) from t1 group by grp;
+select grp,group_concat(c order by "c") from t1 group by grp;
+select grp,group_concat(distinct c order by c) from t1 group by grp;
+select grp,group_concat(distinct c order by c desc) from t1 group by grp;
+select grp,group_concat(c order by c separator ",") from t1 group by grp;
+select grp,group_concat(c order by c desc separator ",") from t1 group by grp;
+select grp,group_concat(distinct c order by c separator ",") from t1 group by grp;
+select grp,group_concat(distinct c order by c desc separator ",") from t1 group by grp;
+
+# Test of SQL_LIST objects
+select grp,group_concat(c order by grp desc) from t1 group by grp order by grp;
+
+
+# Test transfer to real values
+
+select grp, group_concat(a separator "")+0 from t1 group by grp;
+select grp, group_concat(a separator "")+0.0 from t1 group by grp;
+select grp, ROUND(group_concat(a separator "")) from t1 group by grp;
+
+# Test NULL values
+
+drop table if exists t1;
+create table t1 (grp int, c char(10));
+insert into t1 values (1,NULL);
+insert into t1 values (2,"b");
+insert into t1 values (2,NULL);
+insert into t1 values (3,"E");
+insert into t1 values (3,NULL);
+insert into t1 values (3,"D");
+insert into t1 values (3,NULL);
+insert into t1 values (3,NULL);
+insert into t1 values (3,"D");
+select grp,group_concat(c order by c) from t1 group by grp;
+
+# Test warnings
+
+set group_concat_max_len = 5;
+select grp,group_concat(c) from t1 group by grp;
+show warnings;
+
+# Test errors
+
+--error 1111
+select group_concat(sum(a)) from t1 group by grp;
+--error 1054
+select grp,group_concat(c order by 2) from t1 group by grp;
+
+drop table if exists t1;

@@ -311,6 +311,8 @@ static sys_var_slave_skip_counter sys_slave_skip_counter("sql_slave_skip_counter
 static sys_var_rand_seed1	sys_rand_seed1("rand_seed1");
 static sys_var_rand_seed2	sys_rand_seed2("rand_seed2");
 
+sys_var_thd_ulong       sys_group_concat_max_len("group_concat_max_len",
+                                                  &SV::group_concat_max_len);
 
 /*
   List of all variables for initialisation and storage in hash
@@ -340,6 +342,7 @@ sys_var *sys_variables[]=
   &sys_flush,
   &sys_flush_time,
   &sys_foreign_key_checks,
+  &sys_group_concat_max_len,
   &sys_identity,
   &sys_insert_id,
   &sys_interactive_timeout,
