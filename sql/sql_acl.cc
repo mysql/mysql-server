@@ -138,7 +138,6 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
   TABLE_LIST tables[3];
   TABLE *table;
   READ_RECORD read_record_info;
-  MYSQL_LOCK *lock;
   my_bool return_val=1;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
   DBUG_ENTER("acl_init");
@@ -174,20 +173,9 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
   tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_READ;
   tables[0].db=tables[1].db=tables[2].db=thd->db;
 
-  uint counter;
-  if (open_tables(thd, tables, &counter))
+  if (simple_open_n_lock_tables(thd, tables))
   {
-    sql_print_error("Fatal error: Can't open privilege tables: %s",
-		    thd->net.last_error);
-    goto end;
-  }
-  TABLE *ptr[3];				// Lock tables for quick update
-  ptr[0]= tables[0].table;
-  ptr[1]= tables[1].table;
-  ptr[2]= tables[2].table;
-  if (!(lock=mysql_lock_tables(thd,ptr,3)))
-  {
-    sql_print_error("Fatal error: Can't lock privilege tables: %s",
+    sql_print_error("Fatal error: Can't open and lock privilege tables: %s",
 		    thd->net.last_error);
     goto end;
   }
@@ -425,7 +413,6 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
   freeze_size(&acl_dbs);
   init_check_host();
 
-  mysql_unlock_tables(thd, lock);
   initialized=1;
   thd->version--;				// Force close to free memory
   return_val=0;
@@ -3091,7 +3078,6 @@ my_bool grant_init(THD *org_thd)
 {
   THD  *thd;
   TABLE_LIST tables[3];
-  MYSQL_LOCK *lock;
   MEM_ROOT *memex_ptr;
   my_bool return_val= 1;
   TABLE *t_table, *c_table, *p_table;
@@ -3125,15 +3111,7 @@ my_bool grant_init(THD *org_thd)
   tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_READ;
   tables[0].db=tables[1].db=tables[2].db=thd->db;
 
-  uint counter;
-  if (open_tables(thd, tables, &counter))
-    goto end;
-
-  TABLE *ptr[3];				// Lock tables for quick update
-  ptr[0]= tables[0].table;
-  ptr[1]= tables[1].table;
-  ptr[2]= tables[2].table;
-  if (!(lock=mysql_lock_tables(thd,ptr,3)))
+  if (simple_open_n_lock_tables(thd, tables))
     goto end;
 
   t_table = tables[0].table; c_table = tables[1].table;
@@ -3223,7 +3201,6 @@ my_bool grant_init(THD *org_thd)
 end_unlock:
   t_table->file->ha_index_end();
   p_table->file->ha_index_end();
-  mysql_unlock_tables(thd, lock);
   thd->version--;				// Force close to free memory
 
 end:

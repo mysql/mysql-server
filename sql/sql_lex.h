@@ -749,7 +749,6 @@ typedef struct st_lex
   sp_pcontext *spcont;
   HASH spfuns;		/* Called functions */
   HASH spprocs;		/* Called procedures */
-  HASH sptabs;		/* Merged table lists */
   st_sp_chistics sp_chistics;
   bool only_view;       /* used for SHOW CREATE TABLE/VIEW */
   /*
@@ -768,23 +767,25 @@ typedef struct st_lex
   */
   SQL_LIST trg_table_fields;
 
-  st_lex() :result(0), sql_command(SQLCOM_END)
+  /*
+    If non-0 then indicates that query requires prelocking and points to
+    next_global member of last own element in query table list (i.e. last
+    table which was not added to it as part of preparation to prelocking).
+    0 - indicates that this query does not need prelocking.
+  */
+  TABLE_LIST **query_tables_own_last;
+
+  st_lex() :result(0), sql_command(SQLCOM_END), query_tables_own_last(0)
   {
     extern byte *sp_lex_sp_key(const byte *ptr, uint *plen, my_bool first);
-    extern byte *sp_table_key(const byte *ptr, uint *plen, my_bool first);
     hash_init(&spfuns, system_charset_info, 0, 0, 0, sp_lex_sp_key, 0, 0);
     hash_init(&spprocs, system_charset_info, 0, 0, 0, sp_lex_sp_key, 0, 0);
-    hash_init(&sptabs, system_charset_info, 0, 0, 0, sp_table_key, 0, 0);
   }
   
   ~st_lex()
   {
-    if (spfuns.array.buffer)
-      hash_free(&spfuns);
-    if (spprocs.array.buffer)
-      hash_free(&spprocs);
-    if (sptabs.array.buffer)
-      hash_free(&sptabs);
+    hash_free(&spfuns);
+    hash_free(&spprocs);
   }
 
   inline void uncacheable(uint8 cause)
@@ -821,6 +822,21 @@ typedef struct st_lex
   bool can_not_use_merged();
   bool only_view_structure();
   bool need_correct_ident();
+
+  inline bool requires_prelocking()
+  {
+    return query_tables_own_last;
+  }
+  inline void mark_as_requiring_prelocking(TABLE_LIST **tables_own_last)
+  {
+    query_tables_own_last= tables_own_last;
+  }
+  /* Return pointer to first not-own table in query-tables or 0 */
+  TABLE_LIST* first_not_own_table()
+  {
+    return ( query_tables_own_last ? *query_tables_own_last : 0);
+  }
+
 } LEX;
 
 struct st_lex_local: public st_lex

@@ -420,6 +420,11 @@ typedef struct st_table_list
   /* FRMTYPE_ERROR if any type is acceptable */
   enum frm_type_enum required_type;
   char		timestamp_buffer[20];	/* buffer for timestamp (19+1) */
+  /*
+    This TABLE_LIST object is just placeholder for prelocking, it will be
+    used for implicit LOCK TABLES only and won't be used in real statement.
+  */
+  bool          prelocking_placeholder;
 
   void calc_md5(char *buffer);
   void set_ancestor();
