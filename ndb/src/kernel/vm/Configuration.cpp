@@ -548,7 +548,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 	    2 * noOfTransactions);
     
     cfg.put(CFG_DIH_CONNECT, 
-	    noOfOperations + 46);
+	    noOfOperations + noOfTransactions + 46);
     
     cfg.put(CFG_DIH_FRAG_CONNECT, 
 	    NO_OF_FRAG_PER_NODE *  noOfTables *  noOfDBNodes);
