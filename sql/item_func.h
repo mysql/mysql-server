@@ -148,8 +148,7 @@ public:
   bool agg_arg_collations_for_comparison(DTCollation &c, Item **items, uint nitems);
 
   bool walk(Item_processor processor, byte *arg);
-  Item *traverse(Item_calculator calculator, byte *arg);
-  Item *equal_fields_propagator(byte *arg);
+  Item *transform(Item_transformer transformer, byte *arg);
 };
 
 
