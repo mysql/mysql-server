@@ -23,6 +23,8 @@
 #include "InitConfigFileParser.hpp"
 #include <m_string.h>
 
+extern my_bool opt_ndb_shm;
+
 #define MAX_LINE_LENGTH 255
 #define KEY_INTERNAL 0
 #define MAX_INT_RNIL 0xfffffeff
@@ -79,6 +81,7 @@ static bool transformSystem(InitConfigFileParser::Context & ctx, const char *);
 static bool transformExternalSystem(InitConfigFileParser::Context & ctx, const char *);
 static bool transformNode(InitConfigFileParser::Context & ctx, const char *);
 static bool transformExtNode(InitConfigFileParser::Context & ctx, const char *);
+static bool checkConnectionSupport(InitConfigFileParser::Context & ctx, const char *);
 static bool transformConnection(InitConfigFileParser::Context & ctx, const char *);
 static bool applyDefaultValues(InitConfigFileParser::Context & ctx, const char *);
 static bool checkMandatory(InitConfigFileParser::Context & ctx, const char *);
@@ -108,6 +111,11 @@ ConfigInfo::m_SectionRules[] = {
   { "REP",  transformNode, 0 },
   { "EXTERNAL REP",  transformExtNode, 0 },
 
+  { "TCP",  checkConnectionSupport, 0 },
+  { "SHM",  checkConnectionSupport, 0 },
+  { "SCI",  checkConnectionSupport, 0 },
+  { "OSE",  checkConnectionSupport, 0 },
+
   { "TCP",  transformConnection, 0 },
   { "SHM",  transformConnection, 0 },
   { "SCI",  transformConnection, 0 },
@@ -130,6 +138,8 @@ ConfigInfo::m_SectionRules[] = {
   
   { "TCP",  fixHostname, "HostName1" },
   { "TCP",  fixHostname, "HostName2" },
+  { "SHM",  fixHostname, "HostName1" },
+  { "SHM",  fixHostname, "HostName2" },
   { "SCI",  fixHostname, "HostName1" },
   { "SCI",  fixHostname, "HostName2" },
   { "SHM",  fixHostname, "HostName1" },
@@ -197,6 +207,9 @@ static bool sanity_checks(Vector<ConfigInfo::ConfigRuleSection>&sections,
 static bool add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections, 
 				 struct InitConfigFileParser::Context &ctx, 
 				 const char * rule_data);
+static bool set_connection_priorities(Vector<ConfigInfo::ConfigRuleSection>&sections, 
+				 struct InitConfigFileParser::Context &ctx, 
+				 const char * rule_data);
 static bool add_server_ports(Vector<ConfigInfo::ConfigRuleSection>&sections, 
 		      struct InitConfigFileParser::Context &ctx, 
 		      const char * rule_data);
@@ -208,6 +221,7 @@ const ConfigInfo::ConfigRule
 ConfigInfo::m_ConfigRules[] = {
   { sanity_checks, 0 },
   { add_node_connections, 0 },
+  { set_connection_priorities, 0 },
   { add_server_ports, 0 },
   { check_node_vs_replicas, 0 },
   { 0, 0 }
@@ -1583,6 +1597,17 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0, 0 },
 
   {
+    CFG_CONNECTION_GROUP,
+    "Group",
+    "TCP",
+    "",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "55",
+    "0", "200" },
+
+  {
     CFG_CONNECTION_SEND_SIGNAL_ID,
     "SendSignalId",
     "TCP",
@@ -1748,6 +1773,17 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0, 0 },
   
   {
+    CFG_CONNECTION_GROUP,
+    "Group",
+    "SHM",
+    "",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "35",
+    "0", "200" },
+
+  {
     CFG_CONNECTION_SEND_SIGNAL_ID,
     "SendSignalId",
     "SHM",
@@ -1780,7 +1816,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    MANDATORY,
+    "0",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
   
@@ -1856,6 +1892,17 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     MANDATORY,
     "0",
     STR_VALUE(MAX_INT_RNIL) },
+
+  {
+    CFG_CONNECTION_GROUP,
+    "Group",
+    "SCI",
+    "",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "15",
+    "0", "200" },
 
   {
     CFG_CONNECTION_HOSTNAME_1,
@@ -2681,11 +2728,50 @@ transformExtNode(InitConfigFileParser::Context & ctx, const char * data){
 }
 
 /**
+ * Connection rule: Check support of connection
+ */
+bool
+checkConnectionSupport(InitConfigFileParser::Context & ctx, const char * data)
+{
+  int error= 0;
+  if (strcasecmp("TCP",ctx.fname) == 0)
+  {
+    // always enabled
+  }
+  else if (strcasecmp("SHM",ctx.fname) == 0)
+  {
+#ifndef NDB_SHM_TRANSPORTER
+    error= 1;
+#endif
+  }
+  else if (strcasecmp("SCI",ctx.fname) == 0)
+  {
+#ifndef NDB_SCI_TRANSPORTER
+    error= 1;
+#endif
+  }
+  else if (strcasecmp("OSE",ctx.fname) == 0)
+  {
+#ifndef NDB_OSE_TRANSPORTER
+    error= 1;
+#endif
+  }
+  if (error)
+  {
+    ctx.reportError("Binary not compiled with this connection support, "
+		    "[%s] starting at line: %d",
+		    ctx.fname, ctx.m_sectionLineno);
+    return false;
+  }
+  return true;
+}
+
+/**
  * Connection rule: Update "NoOfConnections"
  */
 bool
-transformConnection(InitConfigFileParser::Context & ctx, const char * data){
-
+transformConnection(InitConfigFileParser::Context & ctx, const char * data)
+{
   Uint32 connections = 0;
   ctx.m_userProperties.get("NoOfConnections", &connections);
   BaseString::snprintf(ctx.pname, sizeof(ctx.pname), "Connection_%d", connections);
@@ -3398,11 +3484,51 @@ sanity_checks(Vector<ConfigInfo::ConfigRuleSection>&sections,
   return true;
 }
 
+static void
+add_a_connection(Vector<ConfigInfo::ConfigRuleSection>&sections,
+		 struct InitConfigFileParser::Context &ctx,
+		 Uint32 nodeId1, Uint32 nodeId2, bool use_shm)
+{
+  ConfigInfo::ConfigRuleSection s;
+  const char *hostname1= 0, *hostname2= 0;
+  const Properties *tmp;
+  
+  require(ctx.m_config->get("Node", nodeId1, &tmp));
+  tmp->get("HostName", &hostname1);
+  
+  require(ctx.m_config->get("Node", nodeId2, &tmp));
+  tmp->get("HostName", &hostname2);
+  
+  char buf[16];
+  s.m_sectionData= new Properties(true);
+  BaseString::snprintf(buf, sizeof(buf), "%u", nodeId1);
+  s.m_sectionData->put("NodeId1", buf);
+  BaseString::snprintf(buf, sizeof(buf), "%u", nodeId2);
+  s.m_sectionData->put("NodeId2", buf);
+
+  if (use_shm &&
+      hostname1 && hostname1[0] &&
+      hostname2 && hostname2[0] &&
+      strcmp(hostname1,hostname2) == 0)
+  {
+    s.m_sectionType= BaseString("SHM");
+    DBUG_PRINT("info",("adding SHM connection %d %d",nodeId1,nodeId2));
+  }
+  else
+  {
+    s.m_sectionType= BaseString("TCP");
+    DBUG_PRINT("info",("adding TCP connection %d %d",nodeId1,nodeId2));
+  }
+
+  sections.push_back(s);
+}
+
 static bool
 add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections, 
 		   struct InitConfigFileParser::Context &ctx, 
 		   const char * rule_data)
 {
+  DBUG_ENTER("add_node_connections");
   Uint32 i;
   Properties * props= ctx.m_config;
   Properties p_connections(true);
@@ -3427,9 +3553,10 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
   ctx.m_userProperties.get("NoOfNodes", &nNodes);
 
   Properties p_db_nodes(true);
-  Properties p_api_mgm_nodes(true);
+  Properties p_api_nodes(true);
+  Properties p_mgm_nodes(true);
 
-  Uint32 i_db= 0, i_api_mgm= 0, n;
+  Uint32 i_db= 0, i_api= 0, i_mgm= 0, n;
   for (i= 0, n= 0; n < nNodes; i++){
     const Properties * tmp;
     if(!props->get("Node", i, &tmp)) continue;
@@ -3440,9 +3567,10 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
 
     if (strcmp(type,DB_TOKEN) == 0)
       p_db_nodes.put("", i_db++, i);
-    else if (strcmp(type,API_TOKEN) == 0 ||
-	     strcmp(type,MGM_TOKEN) == 0)
-      p_api_mgm_nodes.put("", i_api_mgm++, i);
+    else if (strcmp(type,API_TOKEN) == 0)
+      p_api_nodes.put("", i_api++, i);
+    else if (strcmp(type,MGM_TOKEN) == 0)
+      p_mgm_nodes.put("", i_mgm++, i);
   }
 
   Uint32 nodeId1, nodeId2, dummy;
@@ -3451,39 +3579,39 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
     for (Uint32 j= i+1;; j++){
       if(!p_db_nodes.get("", j, &nodeId2)) break;
       if(!p_connections2.get("", nodeId1+nodeId2<<16, &dummy)) {
-	ConfigInfo::ConfigRuleSection s;
-	s.m_sectionType= BaseString("TCP");
-	s.m_sectionData= new Properties(true);
-	char buf[16];
-	BaseString::snprintf(buf, sizeof(buf), "%u", nodeId1);
-	s.m_sectionData->put("NodeId1", buf);
-	BaseString::snprintf(buf, sizeof(buf), "%u", nodeId2);
-	s.m_sectionData->put("NodeId2", buf);
-	sections.push_back(s);
+	add_a_connection(sections,ctx,nodeId1,nodeId2,opt_ndb_shm);
       }
     }
   }
 
-  for (i= 0; p_api_mgm_nodes.get("", i, &nodeId1); i++){
+  for (i= 0; p_api_nodes.get("", i, &nodeId1); i++){
     if(!p_connections.get("", nodeId1, &dummy)) {
       for (Uint32 j= 0;; j++){
 	if(!p_db_nodes.get("", j, &nodeId2)) break;
-	ConfigInfo::ConfigRuleSection s;
-	s.m_sectionType= BaseString("TCP");
-	s.m_sectionData= new Properties(true);
-	char buf[16];
-	BaseString::snprintf(buf, sizeof(buf), "%u", nodeId1);
-	s.m_sectionData->put("NodeId1", buf);
-	BaseString::snprintf(buf, sizeof(buf), "%u", nodeId2);
-	s.m_sectionData->put("NodeId2", buf);
-	sections.push_back(s);
+	add_a_connection(sections,ctx,nodeId1,nodeId2,opt_ndb_shm);
       }
     }
   }
 
-  return true;
+  for (i= 0; p_mgm_nodes.get("", i, &nodeId1); i++){
+    if(!p_connections.get("", nodeId1, &dummy)) {
+      for (Uint32 j= 0;; j++){
+	if(!p_db_nodes.get("", j, &nodeId2)) break;
+	add_a_connection(sections,ctx,nodeId1,nodeId2,0);
+      }
+    }
+  }
+
+  DBUG_RETURN(true);
 }
 
+static bool set_connection_priorities(Vector<ConfigInfo::ConfigRuleSection>&sections, 
+				 struct InitConfigFileParser::Context &ctx, 
+				 const char * rule_data)
+{
+  DBUG_ENTER("set_connection_priorities");
+  DBUG_RETURN(true);
+}
 
 static bool add_server_ports(Vector<ConfigInfo::ConfigRuleSection>&sections, 
 		      struct InitConfigFileParser::Context &ctx, 

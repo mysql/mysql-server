@@ -89,50 +89,50 @@ bool g_StopServer;
 extern EventLogger g_EventLogger;
 
 extern int global_mgmt_server_check;
-static char *opt_connect_str= 0;
+
+enum ndb_mgmd_options {
+  NDB_STD_OPTS_OPTIONS,
+  OPT_INTERACTIVE,
+  OPT_NO_NODEID_CHECKS,
+  OPT_NO_DAEMON
+};
+NDB_STD_OPTS_VARS;
+
+#if NDB_VERSION_MAJOR <= 4
+#undef OPT_NDB_CONNECTSTRING
+#define OPT_NDB_CONNECTSTRING 1023
+#else
+
+#endif
 
 static struct my_option my_long_options[] =
 {
-#ifndef DBUG_OFF
-  { "debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
-    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0 },
-#endif
-  { "usage", '?', "Display this help and exit.",
-    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "help", '?', "Display this help and exit.",
-    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "version", 'V', "Output version information and exit.", 0, 0, 0,
-    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "ndb-connectstring", 1023,
-    "Set connect string for connecting to ndb_mgmd. "
-    "Syntax: \"[nodeid=<id>;][host=]<hostname>[:<port>]\". " 
-    "Overides specifying entries in NDB_CONNECTSTRING and Ndb.cfg",
-    (gptr*) &opt_connect_str, (gptr*) &opt_connect_str, 0,
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "connect-string", 1023,
-    "same as --ndb-connectstring.",
-    (gptr*) &opt_connect_str, (gptr*) &opt_connect_str, 0,
-    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  NDB_STD_OPTS("ndb_mgmd"),
   { "config-file", 'f', "Specify cluster configuration file",
     (gptr*) &glob.config_filename, (gptr*) &glob.config_filename, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "daemon", 'd', "Run ndb_mgmd in daemon mode (default)",
     (gptr*) &glob.daemon, (gptr*) &glob.daemon, 0,
     GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0 },
-  { "interactive", 256, "Run interactive. Not supported but provided for testing purposes",
+  { "interactive", OPT_INTERACTIVE,
+    "Run interactive. Not supported but provided for testing purposes",
     (gptr*) &glob.interactive, (gptr*) &glob.interactive, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "no-nodeid-checks", 257, "Do not provide any node id checks", 
+  { "no-nodeid-checks", OPT_NO_NODEID_CHECKS,
+    "Do not provide any node id checks", 
     (gptr*) &g_no_nodeid_checks, (gptr*) &g_no_nodeid_checks, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "nodaemon", 258, "Don't run as daemon, but don't read from stdin",
+  { "nodaemon", OPT_NO_DAEMON,
+    "Don't run as daemon, but don't read from stdin",
     (gptr*) &glob.non_interactive, (gptr*) &glob.non_interactive, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+#if NDB_VERSION_MAJOR <= 4
   { "config-file", 'c',
     "-c provided for backwards compatability, will be removed in 5.0."
     " Use -f instead",
     (gptr*) &glob.config_filename, (gptr*) &glob.config_filename, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+#endif
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 static void short_usage_sub(void)
@@ -163,6 +163,14 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     exit(0);
   case 'c':
     printf("Warning: -c will be removed in 5.0, use -f instead\n");
+    break;
+  case OPT_NDB_SHM:
+#ifndef NDB_SHM_TRANSPORTER
+    printf("Warning: binary not compiled with shared memory support,\n"
+	   "use configure option --with-ndb-shm to enable support.\n"
+	   "Tcp connections will now be used instead\n");
+    opt_ndb_shm= 0;
+#endif
     break;
   case '?':
     usage();
