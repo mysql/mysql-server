@@ -49,6 +49,7 @@ static	int verbose=0,testflag=0,
 static int pack_seg=HA_SPACE_PACK,pack_type=HA_PACK_KEY,remove_count=-1,
 	   create_flag=0;
 static ulong key_cache_size=IO_SIZE*16;
+static uint key_cache_block_size=IO_SIZE;
 
 static uint keys=MYISAM_KEYS,recant=1000;
 static uint use_blob=0;
@@ -214,7 +215,7 @@ int main(int argc, char *argv[])
   if (!silent)
     printf("- Writing key:s\n");
   if (key_cacheing)
-    init_key_cache(key_cache_size);		/* Use a small cache */
+    init_key_cache(dflt_keycache,key_cache_block_size,key_cache_size,0);		/* Use a small cache */
   if (locking)
     mi_lock_database(file,F_WRLCK);
   if (write_cacheing)
@@ -274,7 +275,7 @@ int main(int argc, char *argv[])
       goto end;
     }
     if (key_cacheing)
-      resize_key_cache(key_cache_size*2);
+      resize_key_cache(dflt_keycache,key_cache_block_size,key_cache_size*2);
   }
 
   if (!silent)
@@ -816,16 +817,19 @@ end:
       puts("Locking used");
     if (use_blob)
       puts("blobs used");
+#if 0
     printf("key cache status: \n\
 blocks used:%10lu\n\
 w_requests: %10lu\n\
 writes:     %10lu\n\
 r_requests: %10lu\n\
 reads:      %10lu\n",
-	   my_blocks_used, my_cache_w_requests, my_cache_write,
+	   my_blocks_used,
+           my_cache_w_requests, my_cache_write,
 	   my_cache_r_requests, my_cache_read);
+#endif
   }
-  end_key_cache();
+  end_key_cache(dflt_keycache,1);
   if (blob_buffer)
     my_free(blob_buffer,MYF(0));
   my_end(silent ? MY_CHECK_ERROR : MY_CHECK_ERROR | MY_GIVE_INFO);

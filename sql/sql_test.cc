@@ -164,10 +164,11 @@ TEST_join(JOIN *join)
   {
     JOIN_TAB *tab=join->join_tab+i;
     TABLE *form=tab->table;
-    fprintf(DBUG_FILE,"%-16.16s  type: %-7s  q_keys: %4d  refs: %d  key: %d  len: %d\n",
+    char key_map_buff[128];
+    fprintf(DBUG_FILE,"%-16.16s  type: %-7s  q_keys: %s  refs: %d  key: %d  len: %d\n",
 	    form->table_name,
 	    join_type_str[tab->type],
-	    tab->keys,
+	    tab->keys.print(key_map_buff),
 	    tab->ref.key_parts,
 	    tab->ref.key,
 	    tab->ref.key_length);
@@ -323,8 +324,9 @@ w_requests: %10lu\n\
 writes:     %10lu\n\
 r_requests: %10lu\n\
 reads:      %10lu\n",
-	 my_blocks_used,my_blocks_changed,my_cache_w_requests,
-	 my_cache_write,my_cache_r_requests,my_cache_read);
+	 dflt_key_cache_var.blocks_used,dflt_key_cache_var.blocks_changed,
+         dflt_key_cache_var.cache_w_requests,dflt_key_cache_var.cache_write,
+         dflt_key_cache_var.cache_r_requests,dflt_key_cache_var.cache_read);
   pthread_mutex_unlock(&THR_LOCK_keycache);
 
   if (thd)

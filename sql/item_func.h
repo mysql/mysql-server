@@ -46,7 +46,8 @@ public:
 		  SP_TOUCHES_FUNC,SP_CROSSES_FUNC,SP_WITHIN_FUNC,
 		  SP_CONTAINS_FUNC,SP_OVERLAPS_FUNC,
 		  SP_STARTPOINT,SP_ENDPOINT,SP_EXTERIORRING,
-		  SP_POINTN,SP_GEOMETRYN,SP_INTERIORRINGN};
+		  SP_POINTN,SP_GEOMETRYN,SP_INTERIORRINGN,
+		  NOT_FUNC, NOT_ALL_FUNC};
   enum optimize_type { OPTIMIZE_NONE,OPTIMIZE_KEY,OPTIMIZE_OP, OPTIMIZE_NULL };
   enum Type type() const { return FUNC_ITEM; }
   virtual enum Functype functype() const   { return UNKNOWN_FUNC; }
@@ -981,8 +982,8 @@ public:
   String value;              // value of concat
   String search_value;       // key_item()'s value converted to cmp_collation
 
-  Item_func_match(List<Item> &a, uint b): Item_real_func(a), flags(b),
-       table(0), master(0), ft_handler(0), concat(0), key(0), join_key(0) { }
+  Item_func_match(List<Item> &a, uint b): Item_real_func(a), key(0), flags(b),
+       join_key(0), ft_handler(0), table(0), master(0), concat(0) { }
   ~Item_func_match()
   {
     if (!master && ft_handler)

@@ -33,7 +33,6 @@ typedef Item_bool_func2* (*compare_func_creator)(Item*, Item*);
 
 class Item_subselect :public Item_result_field
 {
-  my_bool engine_owner; /* Is this item owner of engine */
   my_bool value_assigned; /* value already assigned to subselect */
 protected:
   /* thread handler, will be assigned in fix_fields only */
@@ -90,6 +89,8 @@ public:
   virtual void fix_length_and_dec();
   table_map used_tables() const;
   bool const_item() const;
+  inline table_map get_used_tables_cache() { return used_tables_cache; }
+  inline bool get_const_item_cache() { return const_item_cache; }
   void update_used_tables();
   void print(String *str)
   {
@@ -144,10 +145,11 @@ public:
 };
 
 /* used in static ALL/ANY optimisation */
-class Item_maxmin_subselect: public Item_singlerow_subselect
+class Item_maxmin_subselect :public Item_singlerow_subselect
 {
 public:
-  Item_maxmin_subselect(st_select_lex *select_lex, bool max);
+  Item_maxmin_subselect(Item_subselect *parent,
+			st_select_lex *select_lex, bool max);
 };
 
 /* exists subselect */
@@ -208,10 +210,8 @@ public:
   }
   trans_res select_transformer(JOIN *join);
   trans_res single_value_transformer(JOIN *join,
-				     Item *left_expr,
 				     compare_func_creator func);
-  trans_res row_value_transformer(JOIN * join,
-				  Item *left_expr);
+  trans_res row_value_transformer(JOIN * join);
   longlong val_int();
   double val();
   String *val_str(String*);

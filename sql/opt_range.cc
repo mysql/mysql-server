@@ -567,19 +567,29 @@ SEL_ARG *SEL_ARG::clone_tree()
   return root;
 }
 
-/*****************************************************************************
-**	Test if a key can be used in different ranges
-**	Returns:
-**	-1 if impossible select
-**	0 if can't use quick_select
-**	1 if found usable range
-**	Updates the following in the select parameter:
-**	needed_reg ; Bits for keys with may be used if all prev regs are read
-**	quick	   ; Parameter to use when reading records.
-**	In the table struct the following information is updated:
-**	quick_keys ; Which keys can be used
-**	quick_rows ; How many rows the key matches
-*****************************************************************************/
+/*
+  Test if a key can be used in different ranges
+
+  SYNOPSIS
+   SQL_SELECT::test_quick_select(thd,keys_to_use, prev_tables,
+                                 limit, force_quick_range)
+
+   Updates the following in the select parameter:
+    needed_reg - Bits for keys with may be used if all prev regs are read
+    quick      - Parameter to use when reading records.
+   In the table struct the following information is updated:
+    quick_keys - Which keys can be used
+    quick_rows - How many rows the key matches
+
+ RETURN VALUES
+  -1 if impossible select
+   0 if can't use quick_select
+   1 if found usable range
+
+ TODO
+   check if the function really needs to modify keys_to_use, and change the
+   code to pass it by reference if not
+*/
 
 int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 				  table_map prev_tables,
@@ -895,9 +905,16 @@ static SEL_TREE *
 get_mm_parts(PARAM *param, Field *field, Item_func::Functype type, 
 	     Item *value, Item_result cmp_type)
 {
+  bool ne_func= FALSE;
   DBUG_ENTER("get_mm_parts");
   if (field->table != param->table)
     DBUG_RETURN(0);
+
+  if (type == Item_func::NE_FUNC)
+  {
+    ne_func= TRUE;
+    type= Item_func::LT_FUNC;
+  }
 
   KEY_PART *key_part = param->key_parts;
   KEY_PART *end = param->key_parts_end;
@@ -932,6 +949,14 @@ get_mm_parts(PARAM *param, Field *field, Item_func::Functype type,
       sel_arg->part=(uchar) key_part->part;
       tree->keys[key_part->key]=sel_add(tree->keys[key_part->key],sel_arg);
     }
+  }
+
+  if (ne_func)
+  {
+    SEL_TREE *tree2= get_mm_parts(param, field, Item_func::GT_FUNC,
+                                  value, cmp_type);
+    if (tree2)
+      tree= tree_or(param,tree,tree2);
   }
   DBUG_RETURN(tree);
 }

@@ -42,9 +42,6 @@ SELECT * FROM t1 WHERE a=2 OR (NULL AND (@a:=@a+1));
 a
 SELECT * FROM t1 WHERE NOT(a=2 OR (NULL AND (@b:=@b+1)));
 a
-SELECT @a, @b;
-@a	@b
-0	6
 DROP TABLE t1;
 create table t1 (a int, b int);
 insert into t1 values(null, null), (0, null), (1, null), (null, 0), (null, 1), (0, 0), (0, 1), (1, 0), (1, 1);

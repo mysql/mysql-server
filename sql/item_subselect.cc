@@ -35,7 +35,7 @@ inline Item * and_items(Item* cond, Item *item)
 }
 
 Item_subselect::Item_subselect():
-  Item_result_field(), engine_owner(1), value_assigned(0), substitution(0),
+  Item_result_field(), value_assigned(0), substitution(0),
   engine(0), used_tables_cache(0), have_to_be_excluded(0),
   const_item_cache(1), engine_changed(0)
 {
@@ -66,8 +66,7 @@ void Item_subselect::init(st_select_lex *select_lex,
 
 Item_subselect::~Item_subselect()
 {
-  if (engine_owner)
-    delete engine;
+  delete engine;
 }
 
 Item_subselect::trans_res
@@ -167,7 +166,7 @@ void Item_subselect::update_used_tables()
   if (!engine->uncacheable())
   {
     // did all used tables become ststic?
-    if ((used_tables_cache & ~engine->upper_select_const_tables()))
+    if (!(used_tables_cache & ~engine->upper_select_const_tables()))
       const_item_cache= 1;
   }
 }
@@ -183,7 +182,8 @@ Item_singlerow_subselect::Item_singlerow_subselect(st_select_lex *select_lex)
   DBUG_VOID_RETURN;
 }
 
-Item_maxmin_subselect::Item_maxmin_subselect(st_select_lex *select_lex,
+Item_maxmin_subselect::Item_maxmin_subselect(Item_subselect *parent,
+					     st_select_lex *select_lex,
 					     bool max)
   :Item_singlerow_subselect()
 {
@@ -192,6 +192,14 @@ Item_maxmin_subselect::Item_maxmin_subselect(st_select_lex *select_lex,
   max_columns= 1;
   maybe_null= 1;
   max_columns= 1;
+
+  /*
+    Following information was collected during performing fix_fields()
+    of Items belonged to subquery, which will be not repeated
+  */
+  used_tables_cache= parent->get_used_tables_cache();
+  const_item_cache= parent->get_const_item_cache();
+  
   DBUG_VOID_RETURN;
 }
 
@@ -504,7 +512,6 @@ String *Item_in_subselect::val_str(String *str)
 
 Item_subselect::trans_res
 Item_in_subselect::single_value_transformer(JOIN *join,
-					    Item *left_expr,
 					    compare_func_creator func)
 {
   DBUG_ENTER("Item_in_subselect::single_value_transformer");
@@ -527,9 +534,16 @@ Item_in_subselect::single_value_transformer(JOIN *join,
        func == &Item_bool_func2::ge_creator ||
        func == &Item_bool_func2::le_creator))
   {
+    if (substitution)
+    {
+      // It is second (third, ...) SELECT of UNION => All is done
+      DBUG_RETURN(RES_OK);
+    }
+
     Item *subs;
     if (!select_lex->group_list.elements &&
-	!select_lex->with_sum_func)
+	!select_lex->with_sum_func &&
+	!(select_lex->next_select()))
     {
       Item *item;
       subs_type type= substype();
@@ -565,14 +579,14 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       // remove LIMIT placed  by ALL/ANY subquery
       select_lex->master_unit()->global_parameters->select_limit=
 	HA_POS_ERROR;
-      subs= new Item_maxmin_subselect(select_lex,
+      subs= new Item_maxmin_subselect(this, select_lex,
 				      (func == &Item_bool_func2::le_creator ||
 				       func == &Item_bool_func2::lt_creator));
     }
     // left expression belong to outer select
     SELECT_LEX *current= thd->lex.current_select, *up;
     thd->lex.current_select= up= current->return_after_parsing();
-    if (left_expr->fix_fields(thd, up->get_table_list(), 0))
+    if (left_expr->fix_fields(thd, up->get_table_list(), &left_expr))
     {
       thd->lex.current_select= current;
       DBUG_RETURN(RES_ERROR);
@@ -607,10 +621,10 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 		       (char *)"<no matter>",
 		       (char *)in_left_expr_name);
 
-    unit->dependent= 1;
+    unit->dependent= unit->uncacheable= 1;
   }
 
-  select_lex->dependent= 1;
+  select_lex->dependent= select_lex->uncacheable= 1;
   Item *item;
 
   item= (Item*) select_lex->item_list.head();
@@ -701,8 +715,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 }
 
 Item_subselect::trans_res
-Item_in_subselect::row_value_transformer(JOIN *join,
-					 Item *left_expr)
+Item_in_subselect::row_value_transformer(JOIN *join)
 {
   DBUG_ENTER("Item_in_subselect::row_value_transformer");
 
@@ -732,13 +745,12 @@ Item_in_subselect::row_value_transformer(JOIN *join,
       DBUG_RETURN(RES_ERROR);
     }
     thd->lex.current_select= current;
-
-    unit->dependent= 1;
+    unit->dependent= unit->uncacheable= 1;
   }
 
   uint n= left_expr->cols();
 
-  select_lex->dependent= 1;
+  select_lex->dependent= select_lex->uncacheable= 1;
   select_lex->setup_ref_array(thd,
 			      select_lex->order_list.elements +
 			      select_lex->group_list.elements);
@@ -786,16 +798,16 @@ Item_subselect::trans_res
 Item_in_subselect::select_transformer(JOIN *join)
 {
   if (left_expr->cols() == 1)
-    return single_value_transformer(join, left_expr,
+    return single_value_transformer(join,
 				    &Item_bool_func2::eq_creator);
-  return row_value_transformer(join, left_expr);
+  return row_value_transformer(join);
 }
 
 
 Item_subselect::trans_res
 Item_allany_subselect::select_transformer(JOIN *join)
 {
-  return single_value_transformer(join, left_expr, func);
+  return single_value_transformer(join, func);
 }
 
 subselect_single_select_engine::
