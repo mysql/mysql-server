@@ -54,3 +54,13 @@ select * from t1 where b="hello";
 a	b
 hello	hello
 drop table t1;
+create table t1 (b char(8));
+insert into t1 values(NULL);
+select b from t1 where binary b like '';
+b
+select b from t1 group by binary b like '';
+b
+NULL
+select b from t1 having binary b like '';
+b
+drop table t1;

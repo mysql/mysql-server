@@ -153,9 +153,9 @@ extern gptr my_malloc(uint Size,myf MyFlags);
 extern gptr my_realloc(gptr oldpoint,uint Size,myf MyFlags);
 extern void my_no_flags_free(gptr ptr);
 extern gptr my_memdup(const byte *from,uint length,myf MyFlags);
-extern my_string my_strdup(const char *from,myf MyFlags);
-extern my_string my_strdup_with_length(const char *from,uint length,
-				       myf MyFlags);
+extern char *my_strdup(const char *from,myf MyFlags);
+extern char *my_strdup_with_length(const byte *from, uint length,
+				   myf MyFlags);
 #define my_free(PTR,FG) my_no_flags_free(PTR)
 #define CALLER_INFO_PROTO   /* nothing */
 #define CALLER_INFO         /* nothing */

@@ -73,7 +73,7 @@ gptr my_memdup(const byte *from, uint length, myf MyFlags)
 }
 
 
-my_string my_strdup(const char *from, myf MyFlags)
+char *my_strdup(const char *from, myf MyFlags)
 {
   gptr ptr;
   uint length=(uint) strlen(from)+1;
@@ -83,13 +83,13 @@ my_string my_strdup(const char *from, myf MyFlags)
 }
 
 
-gptr my_strdup_with_length(const byte *from, uint length, myf MyFlags)
+char *my_strdup_with_length(const byte *from, uint length, myf MyFlags)
 {
   gptr ptr;
   if ((ptr=my_malloc(length+1,MyFlags)) != 0)
   {
     memcpy((byte*) ptr, (byte*) from,(size_t) length);
-    ptr[length]=0;
+    ((char*) ptr)[length]=0;
   }
-  return(ptr);
+  return((char*) ptr);
 }

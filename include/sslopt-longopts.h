@@ -17,8 +17,8 @@
 #ifdef HAVE_OPENSSL
 
   {"ssl", OPT_SSL_SSL,
-   "Use SSL for connection (automatically set with other flags)",
-   (gptr*) &opt_use_ssl, (gptr*) &opt_use_ssl, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   "Enable SSL for connection (automatically enabled with other flags). Disable with --skip-ssl",
+ (gptr*) &opt_use_ssl, (gptr*) &opt_use_ssl, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
   {"ssl-key", OPT_SSL_KEY, "X509 key in PEM format (implies --ssl)",
    (gptr*) &opt_ssl_key, (gptr*) &opt_ssl_key, 0, GET_STR, REQUIRED_ARG,
