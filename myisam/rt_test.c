@@ -19,6 +19,9 @@
 
 
 #include "myisam.h"
+
+#ifdef HAVE_RTREE_KEYS
+
 #include "rt_index.h"
 
 #define MAX_REC_LENGTH 1024
@@ -398,3 +401,10 @@ static void create_record(char *record,uint rownr)
       pos+=sizeof(c);
    }
 }
+
+#else
+int main(int argc __attribute__((unused)),char *argv[] __attribute__((unused)))
+{
+  exit(0);
+}
+#endif /*HAVE_RTREE_KEYS*/

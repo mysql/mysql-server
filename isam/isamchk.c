@@ -1800,12 +1800,12 @@ my_string name;
       if (buff[0] == ',')
 	strmov(buff,buff+2);
 #endif
-      len=(uint) (int2str((long) share->rec[field].base.length,length,10) -
+      len=(uint) (int10_to_str((long) share->rec[field].base.length,length,10) -
 		  length);
       if (type == FIELD_BLOB)
       {
 	length[len]='+';
-	VOID(int2str((long) sizeof(char*),length+len+1,10));
+	VOID(int10_to_str((long) sizeof(char*),length+len+1,10));
       }
       printf("%-6d%-6d%-7s%-35s",field+1,start,length,buff);
 #ifndef NOT_PACKED_DATABASES
