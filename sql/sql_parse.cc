@@ -1573,8 +1573,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (grant_option &&
 	check_grant(thd, SELECT_ACL, &table_list, 2, UINT_MAX, 0))
       break;
-    /* switch on VIEW optimisation: do not fill temporary tables */
-    thd->lex->sql_command= SQLCOM_SHOW_FIELDS;
     /* init structures for VIEW processing */
     table_list.select_lex= &(thd->lex->select_lex);
     mysql_init_query(thd, (uchar*)"", 0);
@@ -1582,6 +1580,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       select_lex.table_list.link_in_list((byte*) &table_list,
                                          (byte**) &table_list.next_local);
 
+    /* switch on VIEW optimisation: do not fill temporary tables */
+    thd->lex->sql_command= SQLCOM_SHOW_FIELDS;
     mysqld_list_fields(thd,&table_list,fields);
     thd->lex->unit.cleanup();
     thd->cleanup_after_query();
