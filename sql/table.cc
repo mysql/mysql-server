@@ -81,7 +81,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   KEY	 *keyinfo;
   KEY_PART_INFO *key_part;
   uchar *null_pos;
-  uint null_bit, new_frm_ver, field_pack_length;
+  uint null_bit_pos, new_frm_ver, field_pack_length;
   SQL_CRYPT *crypted=0;
   MEM_ROOT **root_ptr, *old_root;
   DBUG_ENTER("openfrm");
@@ -409,15 +409,15 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   if (null_field_first)
   {
     outparam->null_flags=null_pos=(uchar*) record+1;
-    null_bit= (db_create_options & HA_OPTION_PACK_RECORD) ? 1 : 2;
-    outparam->null_bytes=(outparam->null_fields+null_bit+6)/8;
+    null_bit_pos= (db_create_options & HA_OPTION_PACK_RECORD) ? 0 : 1;
+    outparam->null_bytes= (outparam->null_fields + null_bit_pos + 7) / 8;
   }
   else
   {
     outparam->null_bytes=(outparam->null_fields+7)/8;
     outparam->null_flags=null_pos=
       (uchar*) (record+1+outparam->reclength-outparam->null_bytes);
-    null_bit=1;
+    null_bit_pos= 0;
   }
 
   use_hash= outparam->fields >= MAX_FIELDS_BEFORE_HASH;
@@ -512,7 +512,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
     *field_ptr=reg_field=
       make_field(record+recpos,
 		 (uint32) field_length,
-		 null_pos,null_bit,
+		 null_pos, null_bit_pos,
 		 pack_flag,
 		 field_type,
 		 charset,
@@ -529,13 +529,18 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
       goto err_not_open;			/* purecov: inspected */
     }
     reg_field->comment=comment;
+    if (field_type == FIELD_TYPE_BIT)
+    {
+      if ((null_bit_pos+= field_length & 7) > 7)
+      {
+        null_pos++;
+        null_bit_pos-= 8;
+      }
+    }
     if (!(reg_field->flags & NOT_NULL_FLAG))
     {
-      if ((null_bit<<=1) == 256)
-      {
-	null_pos++;
-	null_bit=1;
-      }
+      if (!(null_bit_pos= (null_bit_pos + 1) & 7))
+        null_pos++;
     }
     if (f_no_default(pack_flag))
       reg_field->flags|= NO_DEFAULT_VALUE_FLAG;

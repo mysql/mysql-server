@@ -107,6 +107,7 @@ extern ibool	srv_very_fast_shutdown;  /* if this TRUE, do not flush the
 extern ibool	srv_innodb_status;
 
 extern ibool	srv_use_doublewrite_buf;
+extern ibool	srv_use_checksums;
 
 extern ibool    srv_set_thread_priorities;
 extern int      srv_query_thread_priority;
