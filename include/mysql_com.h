@@ -233,10 +233,4 @@ void my_thread_end(void);
 
 #define NULL_LENGTH ((unsigned long) ~0) /* For net_store_length */
 
-#ifdef __WIN__
-#define socket_errno WSAGetLastError()
-#else
-#define socket_errno errno
-#endif
-
 #endif

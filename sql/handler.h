@@ -128,6 +128,7 @@ typedef struct st_thd_trans {
   void *bdb_tid;
   void *innobase_tid;
   void *gemini_tid;
+  bool innodb_active_trans;
 } THD_TRANS;
 
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
@@ -267,6 +268,7 @@ public:
   virtual int extra(enum ha_extra_function operation)=0;
   virtual int reset()=0;
   virtual int external_lock(THD *thd, int lock_type)=0;
+  virtual void unlock_row() {}
   virtual int start_stmt(THD *thd) {return 0;}
   virtual int delete_all_rows();
   virtual longlong get_auto_increment();

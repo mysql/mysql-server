@@ -19,6 +19,8 @@
 #include <getopt.h>
 
 static void print_error(int exit_code, const char *fmt,...);
+static void get_options(int argc, char *argv[]);
+static int create_record(char *pos, FILE *file);
 
 int main(int argc,char *argv[])
 {
@@ -123,7 +125,7 @@ void get_options(int argc,char *argv[])
       {
 	FILE *f; char s[HA_FT_MAXLEN]; int i=0,n=SWL_INIT;
 
-	if(!(stopwordlist=malloc(n*sizeof(char *))))
+	if(!(stopwordlist=(const char**) malloc(n*sizeof(char *))))
 	  print_error(1,"malloc(%d)",n*sizeof(char *));
 	if(!(f=fopen(optarg,"r")))
 	  print_error(1,"fopen(%s)",optarg);

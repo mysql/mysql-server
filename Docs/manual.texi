@@ -10714,6 +10714,10 @@ ld: fatal: library -ldl: not found
 or
 
 undefined reference to `dlopen'
+
+or
+
+cannot find -lrt
 @end example
 
 If too many processes try to connect very rapidly to @code{mysqld}, you will
@@ -19875,8 +19879,8 @@ will be incremented. If you are using @code{--log-slow-queries}, the query
 will be logged to the slow query logfile. @xref{Slow query log}.
 
 @item @code{lower_case_table_names}
-If set to 1 table names are stored in lowercase on disk. This will enable
-you to access the table names case-insensitive also on Unix.
+If set to 1 table names are stored in lowercase on disk and table
+names will be case-insensitive.
 @xref{Name case sensitivity}.
 
 @item @code{max_allowed_packet}
@@ -38431,6 +38435,8 @@ is to upgrade to MyODBC Version 2.50.33 and MySQL Version
 You should also get and apply the Microsoft Jet 4.0 Service Pack 5 (SP5)
 which can be found here
 @uref{http://support.microsoft.com/support/kb/articles/Q 239/1/14.ASP}.
+This will fix some cases where columns are marked as @code{#deleted#}
+in Access.
 
 Note that if you are using MySQL Version 3.22, you must to apply the
 MDAC patch and use MyODBC 2.50.32 or 2.50.34 and above to go around
@@ -43273,6 +43279,11 @@ expecting to store the full length of a @code{BLOB} into a table, you'll need
 to start the server with the @code{--set-variable=max_allowed_packet=16M}
 option.
 
+You can also get strange problems with large packets if you are using
+big blobs, but you haven't given @code{mysqld} access to enough memory
+to handle the query.  If you suspect this is the case, try adding
+@code{ulimit -d 256000} to the beginning of the @code{safe_mysqld} script
+and restart @code{mysqld}.
 
 @node Communication errors, Full table, Packet too large, Common errors
 @appendixsubsec Communication Errors / Aborted Connection
@@ -43344,6 +43355,9 @@ Badly configured TCP/IP.
 @item
 Faulty Ethernets or hubs or switches, cables ... This can be diagnosed
 properly only by replacing hardware.
+@item
+@code{max_allowed_packet} is too small or queries require more memory
+than you have alloacated for @code{mysqld}. @xref{Packet too large}.
 @end itemize
 
 
@@ -45719,7 +45733,7 @@ By Steve Shreeve.
 Perl program to convert Oracle databases to MySQL. Has same
 output format as mysqldump. By Johan Andersson.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/excel2mysql, excel2mysql}
+@item @uref{http://www.mysql.com/Downloads/Contrib/excel2mysql.pl, excel2mysql.pl}
 Perl program to import Excel spreadsheets into a MySQL database. By Stephen Hurd @email{shurd@@sk.sympatico.ca}
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/T2S_100.ZIP, T2S_100.ZIP}.
@@ -46141,6 +46155,8 @@ incredible help we got in managing the MySQL mailing lists.
 @item Igor Romanenko @email{igor@@frog.kiev.ua}
 @code{mysqldump} (previously @code{msqldump}, but ported and enhanced by
 Monty).
+@item Yuri Dario
+For keeping up and extending the MySQL OS/2 port.
 @item Tim Bunce, Alligator Descartes
 For the @code{DBD} (Perl) interface.
 @item Tim Bunce
@@ -46268,6 +46284,8 @@ MySQL server.
 @item Albert Chin-A-Young.
 Configure updates for Tru64, large file support and better TCP wrappers
 support.
+@item John Birrell
+Emulation of pthread_mutex() for OS/2.
 @end table
 
 Other contributors, bugfinders, and testers: James H. Thompson, Maurizio
@@ -46529,12 +46547,24 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.42
 @itemize @bullet
 @item
+Applied large patch for OS/2 from Yuri Dario.
+@item
+Fixed problem with InnoDB when one could get the error @code{Can't
+execute the given command...} even when one didn't have an active
+transaction.
+@item
+Applied some fixes for Gemini.
+@item
 Use real arithmetic operations even in integer context if not
 all arguments are integers. (Fixes uncommon bug in some integer
 context).
 @item
 Don't force everything to lower cases on windows. (To fix problem
-with windows and @code{ALTER TABLE}).
+with windows and @code{ALTER TABLE}).  Now @code{--lower_case_names}
+also works on Unix.
+@item
+Fixed that automatic rollback that is done when thread end doesn't lock
+other threads.
 @end itemize
 
 @node News-3.23.41, News-3.23.40, News-3.23.42, News-3.23.x
@@ -52045,9 +52075,19 @@ Start the @code{mysqld} server with a trace log in @file{/tmp/mysqld.trace}
 @code{mysqld --debug}
 
 On Windows you should also use the @code{--standalone} flag to not start
-@code{mysqld} as a service.
-Note that the trace file will get very @emph{BIG}!
+@code{mysqld} as a service:
 
+In a DOS window do:
+
+@example
+mysqld --debug --standalone
+@end example
+
+After this you can use the @code{mysql.exe} command line tool in a
+second DOS window to reproduce the problem. You can take down the above
+@code{mysqld} server with @code{mysqladmin shutdown}.
+
+Note that the trace file will get very @emph{BIG}!
 If you want to have a smaller trace file, you can use something like:
 
 @code{mysqld --debug=d,info,error,query,general,where:O,/tmp/mysqld.trace}

@@ -44,7 +44,7 @@ SET_STACK_SIZE(9000)			/* Minimum stack size for program */
 #define T_SORT_RECORDS	4096
 #define T_SORT_INDEX	8192
 #define T_WAIT_FOREVER	16384
-#define T_REP_BY_SORT	32768
+#define T_REP_BY_SORT	32768L
 
 
 #define O_NEW_INDEX	1		/* Bits set in out_flag */
@@ -74,17 +74,17 @@ SET_STACK_SIZE(9000)			/* Minimum stack size for program */
 #define UPDATE_STAT		2
 #define UPDATE_SORT		4
 
-typedef struct st_sort_key_blocks {		/* Used when sorting */
+typedef struct st_isam_sort_key_blocks {	/* Used when sorting */
   uchar *buff,*end_pos;
   uchar lastkey[N_MAX_POSSIBLE_KEY_BUFF];
   uint last_length;
   int inited;
-} SORT_KEY_BLOCKS;
+} ISAM_SORT_KEY_BLOCKS;
 
-typedef struct st_sort_info {
+typedef struct st_isam_sort_info {
   N_INFO *info;
   enum data_file_type new_data_file_type;
-  SORT_KEY_BLOCKS *key_block,*key_block_end;
+  ISAM_SORT_KEY_BLOCKS *key_block,*key_block_end;
   uint key,find_length;
   ulong pos,max_pos,filepos,start_recpos,filelength,dupp,max_records,unique,
     buff_length;
@@ -92,9 +92,9 @@ typedef struct st_sort_info {
   char *record,*buff;
   N_KEYDEF *keyinfo;
   N_KEYSEG *keyseg;
-} SORT_INFO;
+} ISAM_SORT_INFO;
 
-enum options {OPT_CHARSETS_DIR=256};
+enum ic_options {OPT_CHARSETS_DIR_IC=256};
 
 static ulong	use_buffers=0,read_buffer_length=0,write_buffer_length=0,
 		sort_buffer_length=0,sort_key_blocks=0,crc=0,unique_count=0;
@@ -120,7 +120,7 @@ static const char *type_names[]=
 
 static char temp_filename[FN_REFLEN], *isam_file_name, *default_charset; 
 static IO_CACHE read_cache;
-static SORT_INFO sort_info;
+static ISAM_SORT_INFO sort_info;
 static int tmpfile_createflag=O_RDWR | O_TRUNC | O_EXCL;
 
 static const char *load_default_groups[]= { "isamchk",0 };
@@ -137,8 +137,8 @@ static int chk_del(N_INFO *info,uint testflag);
 static int check_k_link(N_INFO *info,uint nr);
 static int chk_size(N_INFO *info);
 static int chk_key(N_INFO *info);
-static int chk_index(N_INFO *info,N_KEYDEF *keyinfo,ulong page,uchar *buff,
-		     ulong *keys,uint level);
+static int chk_index(N_INFO *info, N_KEYDEF *keyinfo, ulong page, uchar *buff,
+		     ulong *keys, uint level);
 static uint isam_key_length(N_INFO *info,N_KEYDEF *keyinfo);
 static unsigned long calc_checksum(ulong count);
 static int chk_data_link(N_INFO *info,int extend);
@@ -171,12 +171,12 @@ static int sort_key_cmp(const void *not_used, const void *a,const void *b);
 static int sort_key_write(const void *a);
 static ulong get_record_for_key(N_INFO *info,N_KEYDEF *keyinfo,
 				uchar *key);
-static int sort_insert_key(reg1 SORT_KEY_BLOCKS *key_block,uchar *key,
+static int sort_insert_key(reg1 ISAM_SORT_KEY_BLOCKS *key_block,uchar *key,
 			   ulong prev_block);
 static int sort_delete_record(void);
 static void usage(void);
 static int flush_pending_blocks(void);
-static SORT_KEY_BLOCKS	*alloc_key_blocks(uint blocks,uint buffer_length);
+static ISAM_SORT_KEY_BLOCKS	*alloc_key_blocks(uint blocks,uint buffer_length);
 static int test_if_almost_full(N_INFO *info);
 static int recreate_database(N_INFO **info,char *filename);
 static void save_integer(byte *pos,uint pack_length,ulong value);
@@ -186,9 +186,7 @@ static int update_state_info(N_INFO *info,uint update);
 
 	/* Main program */
 
-int main(argc,argv)
-int argc;
-char **argv;
+int main( int argc, char **argv)
 {
   int error;
   MY_INIT(argv[0]);
@@ -255,7 +253,7 @@ static CHANGEABLE_VAR changeable_vars[] = {
 static struct option long_options[] =
 {
   {"analyze",          no_argument,       0, 'a'},
-  {"character-sets-dir", required_argument, 0, OPT_CHARSETS_DIR},
+  {"character-sets-dir", required_argument, 0, OPT_CHARSETS_DIR_IC},
 #ifndef DBUG_OFF
   {"debug",            required_argument, 0, '#'},
 #endif
@@ -284,7 +282,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 5.16 for %s at %s\n",my_progname,SYSTEM_TYPE,
+  printf("%s  Ver 5.17 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -598,7 +596,7 @@ static void get_options(register int *argc,register char ***argv)
     case 'C':
       default_charset=optarg;
       break;
-    case OPT_CHARSETS_DIR:
+    case OPT_CHARSETS_DIR_IC:
       charsets_dir = optarg;
       break;
     case 'b':
@@ -706,9 +704,7 @@ static void get_options(register int *argc,register char ***argv)
 
 	/* Check delete links */
 
-static int chk_del(info,test_flag)
-reg1 N_INFO *info;
-uint test_flag;
+static int chk_del( reg1 N_INFO *info, uint test_flag)
 {
   reg2 ulong i;
   uint j,delete_link_length;
@@ -793,9 +789,7 @@ wrong:
 
 	/* Kontrollerar l{nkarna i nyckelfilen */
 
-static int check_k_link(info,nr)
-register N_INFO *info;
-uint nr;
+static int check_k_link( register N_INFO *info, uint nr)
 {
   ulong next_link,records;
   DBUG_ENTER("check_k_link");
@@ -898,8 +892,7 @@ static int chk_size(register N_INFO *info)
 
 	/* Kontrollerar nycklarna */
 
-static int chk_key(info)
-register N_INFO *info;
+static int chk_key( register N_INFO *info)
 {
   uint key;
   ulong keys,all_keydata,all_totaldata,key_totlength,length,
@@ -988,12 +981,8 @@ register N_INFO *info;
 
 	/* Check if index is ok */
 
-static int chk_index(info,keyinfo,page,buff,keys,level)
-N_INFO *info;
-N_KEYDEF *keyinfo;
-ulong page,*keys;
-uchar *buff;
-uint level;
+static int chk_index(N_INFO *info, N_KEYDEF *keyinfo, ulong page, uchar *buff,
+		     ulong *keys,uint level)
 {
   int flag;
   uint used_length,comp_flag,nod_flag;
@@ -1129,9 +1118,7 @@ ulong count;
 
 	/* Calc length of key in normal isam */
 
-static uint isam_key_length(info,keyinfo)
-N_INFO *info;
-reg1 N_KEYDEF *keyinfo;
+static uint isam_key_length( N_INFO *info, reg1 N_KEYDEF *keyinfo)
 {
   uint length;
   N_KEYSEG *keyseg;
@@ -2962,8 +2949,7 @@ static int sort_key_cmp(const void *not_used __attribute__((unused)),
 } /* sort_key_cmp */
 
 
-static int sort_key_write(a)
-const void *a;
+static int sort_key_write( const void *a)
 {
   int cmp=sort_info.key_block->inited ?
     _nisam_key_cmp(sort_info.keyseg,sort_info.key_block->lastkey,(uchar*) a,
@@ -2997,10 +2983,7 @@ const void *a;
 
 	/* get pointer to record from a key */
 
-static ulong get_record_for_key(info,keyinfo,key)
-N_INFO *info;
-N_KEYDEF *keyinfo;
-uchar *key;
+static ulong get_record_for_key( N_INFO *info, N_KEYDEF *keyinfo, uchar *key)
 {
   return _nisam_dpos(info,0,key+_nisam_keylength(keyinfo,key));
 } /* get_record_for_key */
@@ -3008,10 +2991,8 @@ uchar *key;
 
 	/* Insert a key in sort-key-blocks */
 
-static int sort_insert_key(key_block,key,prev_block)
-reg1 SORT_KEY_BLOCKS *key_block;
-uchar *key;
-ulong prev_block;
+static int sort_insert_key(reg1 ISAM_SORT_KEY_BLOCKS *key_block,
+			   uchar *key, ulong prev_block)
 {
   uint a_length,t_length,nod_flag;
   ulong filepos;
@@ -3140,7 +3121,7 @@ static int flush_pending_blocks()
   uint nod_flag,length;
   ulong filepos;
   N_INFO *info;
-  SORT_KEY_BLOCKS *key_block;
+  ISAM_SORT_KEY_BLOCKS *key_block;
   DBUG_ENTER("flush_pending_blocks");
 
   filepos= NI_POS_ERROR;			/* if empty file */
@@ -3169,16 +3150,15 @@ static int flush_pending_blocks()
 
 	/* alloc space and pointers for key_blocks */
 
-static SORT_KEY_BLOCKS *alloc_key_blocks(blocks,buffer_length)
-uint blocks,buffer_length;
+static ISAM_SORT_KEY_BLOCKS *alloc_key_blocks(uint blocks, uint buffer_length)
 {
   reg1 uint i;
-  SORT_KEY_BLOCKS *block;
+  ISAM_SORT_KEY_BLOCKS *block;
   DBUG_ENTER("alloc_key_blocks");
 
-  if (!(block=(SORT_KEY_BLOCKS*) my_malloc((sizeof(SORT_KEY_BLOCKS)+
-					    buffer_length+IO_SIZE)*blocks,
-					   MYF(0))))
+  if (!(block=(ISAM_SORT_KEY_BLOCKS*) my_malloc((sizeof(ISAM_SORT_KEY_BLOCKS)+
+						 buffer_length+IO_SIZE)*blocks,
+						MYF(0))))
   {
     print_error("Not Enough memory for sort-key-blocks");
     return(0);
@@ -3253,8 +3233,7 @@ void print_error(const char *fmt,...)
 
 	/* Check if file is almost full */
 
-static int test_if_almost_full(info)
-N_INFO *info;
+static int test_if_almost_full(N_INFO *info)
 {
   double diff= 0.9;
   if (info->s->base.options & HA_OPTION_COMPRESS_RECORD)
@@ -3274,9 +3253,7 @@ N_INFO *info;
 
 	/* Recreate table with bigger more alloced record-data */
 
-static int recreate_database(org_info,filename)
-N_INFO **org_info;
-char *filename;
+static int recreate_database(N_INFO **org_info, char *filename)
 {
   int error;
   N_INFO info;
@@ -3369,10 +3346,7 @@ end:
 
 	/* Store long in 1,2,3 or 4 bytes */
 
-static void save_integer(pos,pack_length,value)
-byte *pos;
-uint pack_length;
-ulong value;
+static void save_integer( byte *pos, uint pack_length, ulong value)
 {
   switch (pack_length) {
   case 4: int4store(pos,value); break;
@@ -3386,8 +3360,7 @@ ulong value;
 
 	/* write suffix to data file if neaded */
 
-static int write_data_suffix(info)
-N_INFO *info;
+static int write_data_suffix( N_INFO *info)
 {
   if (info->s->base.options & HA_OPTION_COMPRESS_RECORD &&
       sort_info.fix_datafile)
@@ -3407,9 +3380,7 @@ N_INFO *info;
 
 	/* Update state and isamchk_time of indexfile */
 
-static int update_state_info(info,update)
-N_INFO *info;
-uint update;
+static int update_state_info( N_INFO *info, uint update)
 {
   ISAM_SHARE *share=info->s;
   uint base_pos=uint2korr(info->s->state.header.base_pos);

@@ -38,8 +38,8 @@ public:
   static void operator delete(void *ptr_arg, size_t size) {} /*lint -e715 */
 
   enum utype { NONE,DATE,SHIELD,NOEMPTY,CASEUP,PNR,BGNR,PGNR,YES,NO,REL,
-	       CHECK,EMPTY,UNKNOWN,CASEDN,NEXT_NUMBER,INTERVAL_FIELD,BIT_FIELD,
-	       TIMESTAMP_FIELD,CAPITALIZE,BLOB_FIELD};
+	       CHECK,EMPTY,UNKNOWN_FIELD,CASEDN,NEXT_NUMBER,INTERVAL_FIELD,
+	       BIT_FIELD, TIMESTAMP_FIELD,CAPITALIZE,BLOB_FIELD};
   char	*ptr;				// Position to field in record
   uchar		*null_ptr;		// Byte where null_bit is
   uint8		null_bit;		// And position to it
@@ -874,6 +874,14 @@ public:
                 uint max_length= ~(uint) 0);
   ulonglong get_id(const char *from);
   const char *unpack_id(char *to, const char *from, const char *bdata);
+  inline void get_ptr_from_key_image(char **str,char *key_str)
+  {
+     *str = key_str + sizeof(uint16);
+  }
+  inline uint get_length_from_key_image(char *key_str)
+  {
+    return uint2korr(key_str);
+  }
   enum_field_types blobtype() { return (packlength == 1 ? FIELD_TYPE_TINY_BLOB : FIELD_TYPE_BLOB);}
 #endif
   char *pack_key(char *to, const char *from, uint max_length);

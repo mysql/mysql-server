@@ -4130,6 +4130,8 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 	  if (not_used_in_distinct && found_records != join->found_records)
 	    return 0;
 	}
+	else
+	  info->file->unlock_row();
       }
     } while (!(error=info->read_record(info)));
     if (error > 0)				// Fatal error

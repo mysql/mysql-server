@@ -876,7 +876,7 @@ static pthread_handler_decl(handle_delayed_insert,arg)
   pthread_mutex_unlock(&LOCK_thread_count);
 
   pthread_mutex_lock(&di->mutex);
-#ifndef __WIN__	/* Win32 calls this in pthread_create */
+#if !defined( __WIN__) && !defined(OS2)	/* Win32 calls this in pthread_create */
   if (my_thread_init())
   {
     strmov(thd->net.last_error,ER(thd->net.last_errno=ER_OUT_OF_RESOURCES));
@@ -895,7 +895,7 @@ static pthread_handler_decl(handle_delayed_insert,arg)
   }
   thd->mysys_var=my_thread_var;
   thd->dbug_thread_id=my_thread_id();
-#ifndef __WIN__
+#if !defined(__WIN__) && !defined(OS2)
   sigset_t set;
   VOID(sigemptyset(&set));			// Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));

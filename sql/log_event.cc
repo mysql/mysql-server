@@ -55,7 +55,7 @@ int Log_event::write_header(IO_CACHE* file)
   // make sure to change this when the header gets bigger
   char buf[LOG_EVENT_HEADER_LEN];
   char* pos = buf;
-  int4store(pos, when); // timestamp
+  int4store(pos, (ulong) when); // timestamp
   pos += 4;
   *pos++ = get_type_code(); // event type code
   int4store(pos, server_id);

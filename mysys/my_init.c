@@ -74,7 +74,7 @@ void my_init(void)
   pthread_init();			/* Must be called before DBUG_ENTER */
 #endif
   my_thread_global_init();
-#ifndef __WIN__
+#if !defined( __WIN__) && !defined(OS2)
   sigfillset(&my_signals);		/* signals blocked by mf_brkhant */
 #endif
 #endif /* THREAD */

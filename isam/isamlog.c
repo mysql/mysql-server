@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -29,7 +29,7 @@
 
 #define FILENAME(A) (A ? A->show_name : "Unknown")
 
-struct file_info {
+struct isamlog_file_info {
   long process;
   int  filenr,id;
   my_string name,show_name,record;
@@ -46,7 +46,7 @@ struct test_if_open_param {
 struct st_access_param
 {
   ulong min_accessed;
-  struct file_info *found;
+  struct isamlog_file_info *found;
 };
 
 #define NO_FILEPOS (ulong) ~0L
@@ -56,21 +56,22 @@ static void get_options(int *argc,char ***argv);
 static int examine_log(my_string file_name,char **table_names);
 static int read_string(IO_CACHE *file,gptr *to,uint length);
 static int file_info_compare(void *a,void *b);
-static int test_if_open(struct file_info *key,element_count count,
+static int test_if_open(struct isamlog_file_info *key,element_count count,
 			struct test_if_open_param *param);
 static void fix_blob_pointers(N_INFO *isam,byte *record);
 static uint set_maximum_open_files(uint);
-static int test_when_accessed(struct file_info *key,element_count count,
+static int test_when_accessed(struct isamlog_file_info *key,element_count count,
 			      struct st_access_param *access_param);
-static void file_info_free(struct file_info *info);
+static void file_info_free(struct isamlog_file_info *info);
 static int close_some_file(TREE *tree);
-static int reopen_closed_file(TREE *tree,struct file_info *file_info);
-static int find_record_with_key(struct file_info *file_info,byte *record);
+static int reopen_closed_file(TREE *tree,struct isamlog_file_info *file_info);
+static int find_record_with_key(struct isamlog_file_info *file_info,
+				byte *record);
 static void printf_log(const char *str,...);
-static bool cmp_filename(struct file_info *file_info,my_string name);
+static bool cmp_filename(struct isamlog_file_info *file_info,my_string name);
 
 static uint verbose=0,update=0,test_info=0,max_files=0,re_open_count=0,
-  recover=0,prefix_remove=0;
+  recover=0,prefix_remove=0,opt_processes=0;
 static my_string log_filename=0,filepath=0,write_filename=0,record_pos_file=0;
 static ulong com_count[10][3],number_of_commands=(ulong) ~0L,start_offset=0,
 	     record_pos= NO_FILEPOS,isamlog_filepos,isamlog_process;
@@ -78,9 +79,7 @@ static const char *command_name[]=
 {"open","write","update","delete","close","extra","lock","re-open",NullS};
 
 
-int main(argc,argv)
-int argc;
-char **argv;
+int main(int argc, char **argv)
 {
   int error,i,first;
   ulong total_count,total_error,total_recover;
@@ -92,11 +91,11 @@ char **argv;
   max_files=(set_maximum_open_files(min(max_files,8))-6)/2;
 
   if (update)
-    printf("Trying to %s isamfiles according to log '%s'\n",
+    printf("Trying to %s ISAM files according to log '%s'\n",
 	   (recover ? "recover" : "update"),log_filename);
   error= examine_log(log_filename,argv);
   if (update && ! error)
-    puts("isamfile:s updated successfully");
+    puts("Tables updated successfully");
   total_count=total_error=total_recover=0;
   for (i=first=0 ; command_name[i] ; i++)
   {
@@ -128,17 +127,15 @@ char **argv;
 } /* main */
 
 
-static void get_options(argc,argv)
-register int *argc;
-register char ***argv;
+static void get_options(register int *argc, register char ***argv)
 {
   int help,version;
-  const char *usage;
-  char *pos, option;
+  const char *pos,*usage;
+  char option;
 
   help=0;
-  usage="Usage: %s [-?iruvIV] [-c #] [-f #] [-F filepath/] [-o #] [-R file recordpos] [-w write_file] [log-filename [table ...]] \n";
-  pos= (char*) "";
+  usage="Usage: %s [-?iruvIPV] [-c #] [-f #] [-F filepath/] [-o #] [-R file recordpos] [-w write_file] [log-filename [table ...]] \n";
+  pos= "";
 
   while (--*argc > 0 && *(pos = *(++*argv)) == '-' ) {
     while (*++pos)
@@ -147,7 +144,7 @@ register char ***argv;
       switch((option=*pos)) {
       case '#':
 	DBUG_PUSH (++pos);
-	pos= (char*) " ";			/* Skipp rest of arg */
+	pos=" ";				/* Skipp rest of arg */
 	break;
       case 'c':
 	if (! *++pos)
@@ -158,7 +155,7 @@ register char ***argv;
 	    pos= *(++*argv);
 	}
 	number_of_commands=(ulong) atol(pos);
-	pos= (char*) " ";
+	pos=" ";
 	break;
       case 'u':
 	update=1;
@@ -172,7 +169,7 @@ register char ***argv;
 	    pos= *(++*argv);
 	}
 	max_files=(uint) atoi(pos);
-	pos= (char*) " ";
+	pos=" ";
 	break;
       case 'i':
 	test_info=1;
@@ -186,7 +183,7 @@ register char ***argv;
 	    pos= *(++*argv);
 	}
 	start_offset=(ulong) atol(pos);
-	pos= (char*) " ";
+	pos=" ";
 	break;
       case 'p':
 	if (! *++pos)
@@ -202,6 +199,9 @@ register char ***argv;
 	update=1;
 	recover++;
 	break;
+      case 'P':
+	opt_processes=1;
+	break;
       case 'R':
 	if (! *++pos)
 	{
@@ -210,11 +210,11 @@ register char ***argv;
 	  else
 	    pos= *(++*argv);
 	}
-	record_pos_file=pos;
+	record_pos_file=(char*) pos;
 	if (!--*argc)
 	  goto err;
 	record_pos=(ulong) atol(*(++*argv));
-	pos= (char*) " ";
+	pos= " ";
 	break;
       case 'v':
 	verbose++;
@@ -227,8 +227,8 @@ register char ***argv;
 	  else
 	    pos= *(++*argv);
 	}
-	write_filename=pos;
-	pos= (char*) " ";
+	write_filename=(char*) pos;
+	pos=" ";
 	break;
       case 'F':
 	if (! *++pos)
@@ -238,20 +238,20 @@ register char ***argv;
 	  else
 	    pos= *(++*argv);
 	}
-	filepath=pos;
-	pos= (char*) " ";
+	filepath= (char*) pos;
+	pos=" ";
 	break;
       case 'V':
 	version=1;
 	/* Fall through */
       case 'I':
       case '?':
-	printf("%s  Ver 3.2 for %s at %s\n",my_progname,SYSTEM_TYPE,
+	printf("%s  Ver 3.3 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	       MACHINE_TYPE);
-	puts("TCX Datakonsult AB, by Monty, for your professional use\n");
+	puts("By Monty, for your professional use\n");
 	if (version)
 	  break;
-	puts("Write info about whats in a nisam log file.");
+	puts("Write info about whats in a ISAM log file.");
 	printf("If no file name is given %s is used\n",log_filename);
 	puts("");
 	printf(usage,my_progname);
@@ -261,6 +261,7 @@ register char ***argv;
 	puts("         -o \"offset\"         -p # \"remove # components from path\"");
 	puts("         -r \"recover\"        -R \"file recordposition\"");
 	puts("         -u \"update\"         -v \"verbose\"   -w \"write file\"");
+	puts("         -P \"processes\"");
 	puts("\nOne can give a second and a third '-v' for more verbose.");
 	puts("Normaly one does a update (-u).");
 	puts("If a recover is done all writes and all possibly updates and deletes is done\nand errors are only counted.");
@@ -281,7 +282,7 @@ register char ***argv;
   }
   if (*argc >= 1)
   {
-    log_filename=pos;
+    log_filename=(char*) pos;
     (*argc)--;
     (*argv)++;
   }
@@ -308,7 +309,8 @@ static int examine_log(my_string file_name, char **table_names)
   FILE *write_file;
   enum ha_extra_function extra_command;
   TREE tree;
-  struct file_info file_info,*curr_file_info;
+  struct isamlog_file_info file_info,*curr_file_info;
+  char llbuff[22],llbuff2[22];
   DBUG_ENTER("examine_log");
 
   if ((file=my_open(file_name,O_RDONLY,MYF(MY_WME))) < 0)
@@ -336,8 +338,11 @@ static int examine_log(my_string file_name, char **table_names)
     isamlog_filepos=my_b_tell(&cache)-9L;
     file_info.filenr=uint2korr(head+1);
     isamlog_process=file_info.process=(long) uint4korr(head+3);
+    if (!opt_processes)
+      file_info.process=0;
     result=uint2korr(head+7);
-    if ((curr_file_info=(struct file_info*) tree_search(&tree,&file_info)))
+    if ((curr_file_info=(struct isamlog_file_info*)
+	 tree_search(&tree,&file_info)))
     {
       curr_file_info->accessed=access_time;
       if (update && curr_file_info->used && curr_file_info->closed)
@@ -352,7 +357,7 @@ static int examine_log(my_string file_name, char **table_names)
     }
     command=(uint) head[0];
     if (command < sizeof(com_count)/sizeof(com_count[0][0])/3 &&
-	(!curr_file_info || curr_file_info->used))
+	(!table_names[0] || (curr_file_info && curr_file_info->used)))
     {
       com_count[command][0]++;
       if (result)
@@ -360,12 +365,15 @@ static int examine_log(my_string file_name, char **table_names)
     }
     switch ((enum nisam_log_commands) command) {
     case LOG_OPEN:
-      com_count[command][0]--;			/* Must be counted explicite */
-      if (result)
-	com_count[command][1]--;
+      if (!table_names[0])
+      {
+	com_count[command][0]--;		/* Must be counted explicite */
+	if (result)
+	  com_count[command][1]--;
+      }
 
       if (curr_file_info)
-	printf("\nWarning: %s is opened twice with same process and filenumber\n",
+	printf("\nWarning: %s is opened with same process and filenumber\nMaybe you should use the -P option ?\n",
 	       curr_file_info->show_name);
       if (my_b_read(&cache,(byte*) head,2))
 	goto err;
@@ -376,11 +384,17 @@ static int examine_log(my_string file_name, char **table_names)
 	goto err;
       {
 	uint i;
-	char *pos=file_info.name,*to;
+	char *pos,*to;
+
+	/* Fix if old DOS files to new format */
+	for (pos=file_info.name; (pos=strchr(pos,'\\')) ; pos++)
+	  *pos= '/';
+
+	pos=file_info.name;
 	for (i=0 ; i < prefix_remove ; i++)
 	{
 	  char *next;
-	  if (!(next=strchr(pos,FN_LIBCHAR)))
+	  if (!(next=strchr(pos,'/')))
 	    break;
 	  pos=next+1;
 	}
@@ -426,7 +440,7 @@ static int examine_log(my_string file_name, char **table_names)
 	  files_open--;
 	}
 	if (!(file_info.isam= nisam_open(isam_file_name,O_RDWR,
-				      HA_OPEN_WAIT_IF_LOCKED)))
+					 HA_OPEN_WAIT_IF_LOCKED)))
 	  goto com_err;
 	if (!(file_info.record=my_malloc(file_info.isam->s->base.reclength,
 					 MYF(MY_WME))))
@@ -438,7 +452,7 @@ static int examine_log(my_string file_name, char **table_names)
       if (file_info.used)
       {
 	if (verbose && !record_pos_file)
-	  printf_log("%s: open",file_info.show_name);
+	  printf_log("%s: open -> %d",file_info.show_name, file_info.filenr);
 	com_count[command][0]++;
 	if (result)
 	  com_count[command][1]++;
@@ -453,7 +467,6 @@ static int examine_log(my_string file_name, char **table_names)
       {
 	if (!curr_file_info->closed)
 	  files_open--;
-	file_info_free(curr_file_info);
 	VOID(tree_delete(&tree,(gptr) curr_file_info));
       }
       break;
@@ -464,14 +477,17 @@ static int examine_log(my_string file_name, char **table_names)
       if (verbose && !record_pos_file &&
 	  (!table_names[0] || (curr_file_info && curr_file_info->used)))
 	printf_log("%s: %s(%d) -> %d",FILENAME(curr_file_info),
-		   command_name[command], extra_command,result);
+		   command_name[command], (int) extra_command,result);
       if (update && curr_file_info && !curr_file_info->closed)
       {
 	if (nisam_extra(curr_file_info->isam,extra_command) != (int) result)
 	{
+	  fflush(stdout);
 	  VOID(fprintf(stderr,
-		       "Warning: error %d, expected %d on command %s at %lx\n",
-		       my_errno,result,command_name[command],isamlog_filepos));
+		       "Warning: error %d, expected %d on command %s at %s\n",
+		       my_errno,result,command_name[command],
+		       llstr(isamlog_filepos,llbuff)));
+	  fflush(stderr);
 	}
       }
       break;
@@ -501,6 +517,9 @@ static int examine_log(my_string file_name, char **table_names)
 	    goto com_err;
 	  if (ni_result)
 	    com_count[command][2]++;		/* Mark error */
+	  if (verbose)
+	    printf_log("error: Got result %d from mi_delete instead of %d",
+		       ni_result, result);
 	}
       }
       break;
@@ -539,6 +558,8 @@ static int examine_log(my_string file_name, char **table_names)
 	      result=0;
 	      goto com_err;
 	    }
+	    if (verbose)
+	      printf_log("error: Didn't find row to update with mi_rrnd");
 	    if (recover == 1 || result ||
 		find_record_with_key(curr_file_info,buff))
 	    {
@@ -553,6 +574,9 @@ static int examine_log(my_string file_name, char **table_names)
 	  {
 	    if (!recover)
 	      goto com_err;
+	    if (verbose)
+	      printf_log("error: Got result %d from mi_update instead of %d",
+			 ni_result, result);
 	    if (ni_result)
 	      com_count[command][2]++;		/* Mark error */
 	  }
@@ -570,9 +594,10 @@ static int examine_log(my_string file_name, char **table_names)
 	  }
 	  if (! recover && filepos != curr_file_info->isam->lastpos)
 	  {
-	    printf("Warning: Wrote at position: %ld, should have been %ld",
-		   curr_file_info->isam->lastpos,(long) filepos);
-	    goto com_err;
+	    printf("error: Wrote at position: %s, should have been %s",
+		   llstr(curr_file_info->isam->lastpos,llbuff),
+		   llstr(filepos,llbuff2));
+	    goto end;
 	  }
 	}
       }
@@ -597,6 +622,7 @@ static int examine_log(my_string file_name, char **table_names)
       VOID(fprintf(stderr,
 		   "Error: found unknown command %d in logfile, aborted\n",
 		   command));
+      fflush(stderr);
       goto end;
     }
   }
@@ -609,11 +635,16 @@ static int examine_log(my_string file_name, char **table_names)
   DBUG_RETURN(0);
 
  err:
+  fflush(stdout);
   VOID(fprintf(stderr,"Got error %d when reading from logfile\n",my_errno));
+  fflush(stderr);
   goto end;
  com_err:
-  VOID(fprintf(stderr,"Got error %d, expected %d on command %s at %lx\n",
-	       my_errno,result,command_name[command],isamlog_filepos));
+  fflush(stdout);
+  VOID(fprintf(stderr,"Got error %d, expected %d on command %s at %s\n",
+	       my_errno,result,command_name[command],
+	       llstr(isamlog_filepos,llbuff)));
+  fflush(stderr);
  end:
   end_key_cache();
   delete_tree(&tree);
@@ -625,10 +656,7 @@ static int examine_log(my_string file_name, char **table_names)
 }
 
 
-static int read_string(file,to,length)
-IO_CACHE *file;
-reg1 gptr *to;
-reg2 uint length;
+static int read_string(IO_CACHE *file, reg1 gptr *to, reg2 uint length)
 {
   DBUG_ENTER("read_string");
 
@@ -647,24 +675,22 @@ reg2 uint length;
 }				/* read_string */
 
 
-static int file_info_compare(a,b)
-void *a;
-void *b;
+static int file_info_compare(void *a, void *b)
 {
   long lint;
 
-  if ((lint=((struct file_info*) a)->process -
-       ((struct file_info*) b)->process))
+  if ((lint=((struct isamlog_file_info*) a)->process -
+       ((struct isamlog_file_info*) b)->process))
     return lint < 0L ? -1 : 1;
-  return ((struct file_info*) a)->filenr - ((struct file_info*) b)->filenr;
+  return (((struct isamlog_file_info*) a)->filenr -
+	  ((struct isamlog_file_info*) b)->filenr);
 }
 
 	/* ARGSUSED */
 
-static int test_if_open (key,count,param)
-struct file_info *key;
-element_count count __attribute__((unused));
-struct test_if_open_param *param;
+static int test_if_open (struct isamlog_file_info *key,
+			 element_count count __attribute__((unused)),
+			 struct test_if_open_param *param)
 {
   if (!strcmp(key->name,param->name) && key->id > param->max_id)
     param->max_id=key->id;
@@ -672,9 +698,7 @@ struct test_if_open_param *param;
 }
 
 
-static void fix_blob_pointers(info,record)
-N_INFO *info;
-byte *record;
+static void fix_blob_pointers( N_INFO *info, byte *record)
 {
   byte *pos;
   N_BLOB *blob,*end;
@@ -689,8 +713,7 @@ byte *record;
   }
 }
 
-static uint set_maximum_open_files(maximum_files)
-uint maximum_files;
+static uint set_maximum_open_files(uint maximum_files)
 {
 #if defined(HAVE_GETRUSAGE) && defined(RLIMIT_NOFILE)
   struct rlimit rlimit;
@@ -725,10 +748,9 @@ uint maximum_files;
 	/* close the file with hasn't been accessed for the longest time */
 	/* ARGSUSED */
 
-static int test_when_accessed (key,count,access_param)
-struct file_info *key;
-element_count count __attribute__((unused));
-struct st_access_param *access_param;
+static int test_when_accessed (struct isamlog_file_info *key,
+			       element_count count __attribute__((unused)),
+			       struct st_access_param *access_param)
 {
   if (key->accessed < access_param->min_accessed && ! key->closed)
   {
@@ -739,9 +761,9 @@ struct st_access_param *access_param;
 }
 
 
-static void file_info_free(fileinfo)
-struct file_info *fileinfo;
+static void file_info_free(struct isamlog_file_info *fileinfo)
 {
+  DBUG_ENTER("file_info_free");
   if (update)
   {
     if (!fileinfo->closed)
@@ -751,12 +773,12 @@ struct file_info *fileinfo;
   }
   my_free(fileinfo->name,MYF(0));
   my_free(fileinfo->show_name,MYF(0));
+  DBUG_VOID_RETURN;
 }
 
 
 
-static int close_some_file(tree)
-TREE *tree;
+static int close_some_file(TREE *tree)
 {
   struct st_access_param access_param;
 
@@ -774,9 +796,7 @@ TREE *tree;
 }
 
 
-static int reopen_closed_file(tree,fileinfo)
-TREE *tree;
-struct file_info *fileinfo;
+static int reopen_closed_file(TREE *tree, struct isamlog_file_info *fileinfo)
 {
   char name[FN_REFLEN];
   if (close_some_file(tree))
@@ -794,9 +814,8 @@ struct file_info *fileinfo;
 
 	/* Try to find record with uniq key */
 
-static int find_record_with_key(file_info,record)
-struct file_info *file_info;
-byte *record;
+static int find_record_with_key(struct isamlog_file_info *file_info,
+				byte *record)
 {
   uint key;
   N_INFO *info=file_info->isam;
@@ -817,10 +836,11 @@ byte *record;
 
 static void printf_log(const char *format,...)
 {
+  char llbuff[21];
   va_list args;
   va_start(args,format);
   if (verbose > 2)
-    printf("%9ld:",isamlog_filepos);
+    printf("%9s:",llstr(isamlog_filepos,llbuff));
   if (verbose > 1)
     printf("%5ld ",isamlog_process);	/* Write process number */
   (void) vprintf((char*) format,args);
@@ -829,9 +849,7 @@ static void printf_log(const char *format,...)
 }
 
 
-static bool cmp_filename(file_info,name)
-struct file_info *file_info;
-my_string name;
+static bool cmp_filename(struct isamlog_file_info *file_info,my_string name)
 {
   if (!file_info)
     return 1;

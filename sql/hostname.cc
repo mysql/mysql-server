@@ -26,7 +26,7 @@
 #ifdef	__cplusplus
 extern "C" {					// Because of SCO 3.2V4.2
 #endif
-#ifndef __WIN__
+#if !defined( __WIN__) && !defined(OS2)
 #include <sys/resource.h>
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>

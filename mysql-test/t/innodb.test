@@ -161,6 +161,20 @@ delete from t1;
 commit;
 select * from t1;
 drop table t1;
+
+#
+# Test of active transactions
+#
+
+create table t1 (a integer) type=innodb;
+begin;
+rename table t1 to t2;
+create table t1 (b integer) type=innodb;
+insert into t1 values (1);
+rollback;
+drop table t1;
+rename table t2 to t1;
+drop table t1;
 set autocommit=1;
 
 #

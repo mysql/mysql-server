@@ -1,5 +1,10 @@
+#!/bin/sh
+#
+# Execute some simple basic test on MyISAM libary to check if things
+# works at all.
+
 silent="-s"
-suffix=$MACH
+if test -f mi_test1$MACH ; then suffix=$MACH else suffix=""; fi
 mi_test1$suffix $silent
 myisamchk$suffix -se test1
 mi_test1$suffix $silent -N -S

@@ -42,6 +42,10 @@
 #include "my_sys.h"			/* defines errno */
 #include <errno.h>
 
+#undef strtoull
+#undef strtoll
+#undef strtoul
+#undef strtol
 #ifdef USE_LONGLONG
 #define UTYPE_MAX (~(ulonglong) 0)
 #define TYPE_MIN LONGLONG_MIN

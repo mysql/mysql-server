@@ -93,6 +93,7 @@ bool gemini_init(void)
 
     DBUG_ENTER("gemini_init");
 
+    gemini_basedir=mysql_home;
     /* If datadir isn't set, bail out */
     if (*mysql_real_data_home == '\0')
     {
