@@ -1672,19 +1672,19 @@ static int stmt_read_row_no_data(MYSQL_STMT *stmt, unsigned char **row);
 */
 
 /* 1 (length) + 2 (year) + 1 (month) + 1 (day) */
-static const unsigned MAX_DATE_REP_LENGTH= 5;
+#define MAX_DATE_REP_LENGTH 5
 
 /*
   1 (length) + 1 (is negative) + 4 (day count) + 1 (hour)
   + 1 (minute) + 1 (seconds) + 4 (microseconds)
 */
-static const unsigned MAX_TIME_REP_LENGTH= 13;
+#define MAX_TIME_REP_LENGTH 13
 
 /*
   1 (length) + 2 (year) + 1 (month) + 1 (day) +
   1 (hour) + 1 (minute) + 1 (second) + 4 (microseconds)
 */
-static const unsigned MAX_DATETIME_REP_LENGTH= 12;
+#define MAX_DATETIME_REP_LENGTH 12
 
 
 /**************** Misc utility functions ****************************/
