@@ -124,7 +124,9 @@ net_printf(NET *net, uint errcode, ...)
   }
   offset= net->return_errno ? 2 : 0;
   text_pos=(char*) net->buff+head_length+offset+1;
-  (void) vsprintf(my_const_cast(char*) (text_pos),format,args);
+  (void) my_vsnprintf(my_const_cast(char*) (text_pos),
+                      (char*)net->buff_end-text_pos,
+                      format,args);
   length=(uint) strlen((char*) text_pos);
   if (length >= sizeof(net->last_error))
     length=sizeof(net->last_error)-1;		/* purecov: inspected */
