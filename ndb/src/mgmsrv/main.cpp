@@ -265,9 +265,10 @@ NDB_MAIN(mgmsrv){
 	NdbSleep_MilliSleep(500);
     }
   
+  g_EventLogger.info("Shutting down server...");
   glob.socketServer->stopServer();
   glob.socketServer->stopSessions();
-  
+  g_EventLogger.info("Shutdown complete");
   return 0;
  error_end:
   return 1;
