@@ -17995,6 +17995,10 @@ Addresses may be 4 or 8 byte addresses:
 mysql> select INET_ATON("209.207.224.40");
        ->  3520061480
 @end example
+
+The generated number is always in network byte order; For example the
+above number is calculated as @code{209*255^3 + 207*255^2 + 224*255 +40}.
+
 @findex MASTER_POS_WAIT()
 @item MASTER_POS_WAIT(log_name, log_pos)
 Blocks until the slave reaches the specified position in the master log during
