@@ -711,7 +711,7 @@ String *Item_field::val_str(String *str)
   return field->val_str(str,&str_value);
 }
 
-double Item_field::val()
+double Item_field::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   if ((null_value=field->is_null()))
@@ -904,7 +904,7 @@ void Item_string::print(String *str)
 
 bool Item_null::eq(const Item *item, bool binary_cmp) const
 { return item->type() == type(); }
-double Item_null::val()
+double Item_null::val_real()
 {
   // following assert is redundant, because fixed=1 assigned in constructor
   DBUG_ASSERT(fixed == 1);
@@ -1221,7 +1221,7 @@ bool Item_param::get_date(TIME *res, uint fuzzydate)
 }
 
 
-double Item_param::val() 
+double Item_param::val_real()
 {
   switch (state) {
   case REAL_VALUE:
@@ -1469,7 +1469,7 @@ bool Item::fix_fields(THD *thd,
   return 0;
 }
 
-double Item_ref_null_helper::val()
+double Item_ref_null_helper::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   double tmp= (*ref)->val_result();
@@ -2385,7 +2385,7 @@ int Item::save_in_field(Field *field, bool no_conversions)
   }
   else if (result_type() == REAL_RESULT)
   {
-    double nr=val();
+    double nr= val_real();
     if (null_value)
       return set_field_to_null(field);
     field->set_notnull();
@@ -2467,7 +2467,7 @@ Item_real::Item_real(const char *str_arg, uint length)
 
 int Item_real::save_in_field(Field *field, bool no_conversions)
 {
-  double nr=val();
+  double nr= val_real();
   if (null_value)
     return set_field_to_null(field);
   field->set_notnull();
@@ -2629,15 +2629,14 @@ bool Item::send(Protocol *protocol, String *buffer)
   case MYSQL_TYPE_FLOAT:
   {
     float nr;
-    nr= (float) val();
+    nr= (float) val_real();
     if (!null_value)
       result= protocol->store(nr, decimals, buffer);
     break;
   }
   case MYSQL_TYPE_DOUBLE:
   {
-    double nr;
-    nr= val();
+    double nr= val_real();
     if (!null_value)
       result= protocol->store(nr, decimals, buffer);
     break;
@@ -2961,7 +2960,7 @@ double Item_ref::val_result()
       return 0.0;
     return result_field->val_real();
   }
-  return val();
+  return val_real();
 }
 
 
@@ -3263,7 +3262,7 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
   }
   else
   {						// It must REAL_RESULT
-    double result=item->val();
+    double result= item->val_real();
     uint length=item->max_length,decimals=item->decimals;
     bool null_value=item->null_value;
     new_item= (null_value ? (Item*) new Item_null(name) : (Item*)
@@ -3298,7 +3297,7 @@ bool field_is_equal_to_item(Field *field,Item *item)
   }
   if (res_type == INT_RESULT)
     return 1;					// Both where of type int
-  double result=item->val();
+  double result= item->val_real();
   if (item->null_value)
     return 1;
   return result == field->val_real();
@@ -3371,7 +3370,7 @@ void Item_cache_str::store(Item *item)
 }
 
 
-double Item_cache_str::val()
+double Item_cache_str::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   int err;
@@ -3639,7 +3638,7 @@ uint32 Item_type_holder::real_length(Item *item)
   }
 }
 
-double Item_type_holder::val()
+double Item_type_holder::val_real()
 {
   DBUG_ASSERT(0); // should never be called
   return 0.0;

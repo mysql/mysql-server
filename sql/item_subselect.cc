@@ -441,13 +441,13 @@ void Item_singlerow_subselect::bring_value()
   exec();
 }
 
-double Item_singlerow_subselect::val()
+double Item_singlerow_subselect::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   if (!exec() && !value->null_value)
   {
     null_value= 0;
-    return value->val();
+    return value->val_real();
   }
   else
   {
@@ -565,7 +565,7 @@ void Item_exists_subselect::fix_length_and_dec()
    max_columns= engine->cols();
 }
 
-double Item_exists_subselect::val()
+double Item_exists_subselect::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   if (exec())
@@ -599,7 +599,7 @@ String *Item_exists_subselect::val_str(String *str)
   return str;
 }
 
-double Item_in_subselect::val()
+double Item_in_subselect::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   if (exec())

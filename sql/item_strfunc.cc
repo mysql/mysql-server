@@ -59,7 +59,7 @@ uint nr_of_decimals(const char *str)
   return 0;
 }
 
-double Item_str_func::val()
+double Item_str_func::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   int err;
@@ -1629,7 +1629,7 @@ Item_func_format::Item_func_format(Item *org,int dec) :Item_str_func(org)
 String *Item_func_format::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  double nr	=args[0]->val();
+  double nr= args[0]->val_real();
   uint32 diff,length,str_length;
   uint dec;
   if ((null_value=args[0]->null_value))
@@ -1697,14 +1697,14 @@ void Item_func_elt::fix_length_and_dec()
 }
 
 
-double Item_func_elt::val()
+double Item_func_elt::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   uint tmp;
   null_value=1;
   if ((tmp=(uint) args[0]->val_int()) == 0 || tmp >= arg_count)
     return 0.0;
-  double result= args[tmp]->val();
+  double result= args[tmp]->val_real();
   null_value= args[tmp]->null_value;
   return result;
 }

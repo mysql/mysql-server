@@ -41,7 +41,7 @@ public:
   {
     illegal_method_call((const char*)"make_field");
   };
-  double val()
+  double val_real()
   {
     illegal_method_call((const char*)"val");
     return 0;
