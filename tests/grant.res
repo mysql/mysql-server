@@ -9,13 +9,13 @@ drop database grant_test
 Error in execute: Can't drop database 'grant_test'. Database doesn't exist
 create database grant_test
 Connecting grant_user
-Access denied for user: '@localhost' to database 'grant_test'
+Error on connect: Access denied for user: '@localhost' to database 'grant_test'
 grant select on *.* to grant_user@localhost
 set password FOR grant_user2@localhost = password('test')
 Error in execute: Can't find any matching row in the user table
 set password FOR grant_user=password('test')
 Connecting grant_user
-Access denied for user: 'grant_user@localhost' (Using password: NO)
+Error on connect: Access denied for user: 'grant_user@localhost' (Using password: NO)
 set password FOR grant_user=''
 Connecting grant_user
 select * from mysql.user where user = 'grant_user'
@@ -48,7 +48,7 @@ Error in execute: The host or user argument to GRANT is too long
 grant select on grant_test.test to grant_user with grant option
 Error in execute: grant command denied to user: 'grant_user@localhost' for table 'test'
 set password FOR ''@''=''
-Error in execute: You are using MySQL as an anonymous users and anonymous users are not allowed to change passwords
+Error in execute: Can't find any matching row in the user table
 set password FOR root@localhost = password('test')
 Error in execute: Access denied for user: 'grant_user@localhost' to database 'mysql'
 revoke select on *.* from grant_user@localhost
@@ -86,7 +86,7 @@ select count(*) from grant_test.test
 
 revoke ALL PRIVILEGES on *.* from grant_user@localhost
 Connecting grant_user
-Access denied for user: 'grant_user@localhost' to database 'grant_test'
+Error on connect: Access denied for user: 'grant_user@localhost' to database 'grant_test'
 delete from user where user='grant_user'
 flush privileges
 delete from user where user='grant_user'
@@ -133,7 +133,7 @@ insert into grant_test.test values (6,0)
 Error in execute: Access denied for user: 'grant_user@localhost' to database 'grant_test'
 REVOKE GRANT OPTION on grant_test.* from grant_user@localhost
 Connecting grant_user
-Access denied for user: 'grant_user@localhost' to database 'grant_test'
+Error on connect: Access denied for user: 'grant_user@localhost' to database 'grant_test'
 grant ALL PRIVILEGES on grant_test.* to grant_user@localhost
 Connecting grant_user
 select * from mysql.user where user = 'grant_user'
@@ -156,7 +156,7 @@ localhost	grant_user		N	N	N	N	N	N	N	N	N	N	N	N	N	N
 
 select * from mysql.db where user = 'grant_user'
 Connecting grant_user
-Access denied for user: 'grant_user@localhost' to database 'grant_test'
+Error on connect: Access denied for user: 'grant_user@localhost' to database 'grant_test'
 grant create on grant_test.test2 to grant_user@localhost
 Connecting grant_user
 create table grant_test.test2 (a int not null)
@@ -168,7 +168,7 @@ Error in execute: select command denied to user: 'grant_user@localhost' for tabl
 show keys from test
 Error in execute: select command denied to user: 'grant_user@localhost' for table 'test'
 show columns from test2
-a	int(11)			0		
+a	int(11)			0	
 
 show keys from test2
 select * from test
