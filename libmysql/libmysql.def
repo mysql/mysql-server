@@ -1,14 +1,11 @@
 LIBRARY		LIBMYSQL
 DESCRIPTION	'MySQL 4.0 Client Library'
-VERSION		4.0
+VERSION		5.0
 EXPORTS
 	mysql_affected_rows
 	mysql_close
-	mysql_connect
-	mysql_create_db
 	mysql_data_seek
 	mysql_debug
-	mysql_drop_db
 	mysql_dump_debug_info
 	mysql_eof
 	mysql_errno

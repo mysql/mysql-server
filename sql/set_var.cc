@@ -1298,7 +1298,6 @@ int set_var::check(THD *thd)
 
 int set_var::update(THD *thd)
 {
-  int error;
   if (!value)
     var->set_default(thd, type);
   else if (var->update(thd, this))
