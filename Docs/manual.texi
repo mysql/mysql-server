@@ -37497,6 +37497,7 @@ DELAYED} threads.
 
 @cindex searching, full-text
 @cindex full-text search
+@cindex FULLTEXT
 @node MySQL full-text search,  , MySQL threads, MySQL internals
 @section MySQL Full-text Search
 
@@ -37585,6 +37586,52 @@ documents (and will find plenty of unrelevant documents also - we all
 know this happen too often when we are trying to find something in Internet
 with search engine), and, as such, has low semantical value in @strong{this
 particular dataset}.
+
+@menu
+* Fine-tuning::
+@end menu
+
+@node Fine-tuning, , , MySQL full-text search
+
+Unfortunately, full-text search has no user-tunable parameters yet
+(but adding some is very high in our TODO). But if one has @strong{MySQL}
+source distribution (@xref{Installing source}.) he can somewhat alter
+full-text search default behaviour.
+
+But note, that full-text search was carefully tuned up for the best
+search effectivity. Modifying default behaviour will, most probably,
+make search results only worse. Do not play with @strong{MySQL} sources,
+unless you know what you are doing!
+
+@itemize
+
+@item
+Minimal length of word to be indexed is defined in
+@code{myisam/ftdefs.h} file by the line
+@example
+#define MIN_WORD_LEN 4
+@end example
+Change it to the value, you prefer, recompile @strong{MySQL} and rebuild
+your @code{FULLTEXT} indexes.
+
+@item
+Stopword list is defined in @code{myisam/ft_static.c}
+Modify it to your taste, recompile @strong{MySQL} and rebuild
+your @code{FULLTEXT} indexes.
+
+@item
+50% treshold is caused by weighting scheme chosen. To disable it, change
+@example
+#define GWS_IN_USE GWS_PROB
+@end example
+line in @code{myisam/ftdefs.h} to
+@example
+#define GWS_IN_USE GWS_IDF
+@end example
+and recompile @strong{MySQL}.
+There is no need to rebuild the indexes though.
+
+@end itemize
 
 @page
 @cindex environment variables, list of
@@ -38874,10 +38921,10 @@ Dynamic character support.
 Responsible for @strong{MySQL} configure.
 @end itemize
 
-@item Sergei A. Golubchik
+@item Sergei Golubchik
 @itemize @bullet
 @item
-Text search
+Full-text search
 @item
 Added keys to the @code{MERGE} library.
 @end itemize
