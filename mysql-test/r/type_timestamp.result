@@ -409,15 +409,12 @@ a	b
 NULL	NULL
 NULL	2003-01-01 00:00:00
 drop table t1;
-create table t1 (ts timestamp(19));
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `ts` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-set TIMESTAMP=1000000000;
-insert into t1 values ();
+create table t1 (a bigint, b bigint);
+insert into t1 values (NULL, NULL), (20030101000000, 20030102000000);
+set timestamp=1000000019;
+alter table t1 modify a timestamp, modify b timestamp;
 select * from t1;
-ts
-2001-09-09 04:46:40
+a	b
+2001-09-09 04:46:59	2001-09-09 04:46:59
+2003-01-01 00:00:00	2003-01-02 00:00:00
 drop table t1;
