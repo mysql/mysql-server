@@ -67,9 +67,10 @@ static bool check_fields(THD *thd, List<Item> &items)
 {
   List_iterator<Item> it(items);
   Item *item;
+  Item_field *field;
   while ((item= it++))
   {
-    if (item->type() != Item::FIELD_ITEM)
+    if (!(field= item->filed_for_view_update()))
     {
       /* as far as item comes from VIEW select list it has name */
       my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->name);
@@ -79,7 +80,7 @@ static bool check_fields(THD *thd, List<Item> &items)
       we make temporary copy of Item_field, to avoid influence of changing
       result_field on Item_ref which refer on this field
     */
-    Item_field *field= new Item_field(thd, (Item_field *)item);
+    field= new Item_field(thd, field);
     it.replace(field);
     ((Item_field *)item)->register_item_tree_changing(it.ref());
   }
