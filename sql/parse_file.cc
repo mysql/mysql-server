@@ -692,9 +692,11 @@ File_parser::parse(gptr base, MEM_ROOT *mem_root,
 		     parameter->name.str, line);
 	    DBUG_RETURN(TRUE);
 	  }
-	  *eol= '\0';
-	  *((ulonglong*)(base + parameter->offset))= atoll(ptr);
-	  *eol= '\n';
+          {
+            int not_used;
+	    *((ulonglong*)(base + parameter->offset))=
+              my_strtoll10(ptr, 0, &not_used);
+          }
 	  ptr= eol+1;
 	  break;
 	case FILE_OPTIONS_TIMESTAMP:
