@@ -38,7 +38,7 @@
  *  -# An integer value.
  *     A value of <b>-1</b> indicates an error.
  *  -# A pointer value.  A <var>NULL</var> value indicates an error;
- *     Otherwise, the return value must be <code>free()</code>ed by the user of the MGM API.
+ *     otherwise, the return value must be freed by the user of the MGM API.
  *
  * Error conditions can be identified by using the appropriate
  * error-reporting functions.
