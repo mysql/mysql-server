@@ -1126,14 +1126,14 @@ static void set_effective_user(struct passwd *user_info)
 {
 #if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
   DBUG_ASSERT(user_info);
-  if (setegid(user_info->pw_gid) == -1)
+  if (setregid((gid_t)-1, user_info->pw_gid) == -1)
   {
-    sql_perror("setegid");
+    sql_perror("setregid");
     unireg_abort(1);
   }
-  if (seteuid(user_info->pw_uid) == -1)
+  if (setreuid((uid_t)-1, user_info->pw_uid) == -1)
   {
-    sql_perror("seteuid");
+    sql_perror("setreuid");
     unireg_abort(1);
   }
 #endif
@@ -2657,9 +2657,9 @@ server.");
 #if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT) && !defined(EMBEDDED_LIBRARY)
   if (locked_in_memory && !getuid())
   {
-    if (seteuid(0) == -1)
+    if (setreuid((uid_t)-1, 0) == -1)
     {                        // this should never happen
-      sql_perror("seteuid");
+      sql_perror("setreuid");
       unireg_abort(1);
     }
     if (mlockall(MCL_CURRENT))
