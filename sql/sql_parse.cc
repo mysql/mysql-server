@@ -1155,7 +1155,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       mysql_log.write(thd,command,"%s",thd->db);
     break;
   }
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
   case COM_REGISTER_SLAVE:
   {
     if (!register_slave(thd, (uchar*)packet, packet_length))
@@ -1661,7 +1661,7 @@ mysql_execute_command(THD *thd)
     }
 #endif
   }
-#endif /* EMBEDDED_LIBRARY */
+#endif /* !EMBEDDED_LIBRARY */
   /*
     TODO: make derived tables processing 'inside' SELECT processing.
     TODO: solve problem with depended derived tables in subselects
@@ -1837,7 +1837,7 @@ mysql_execute_command(THD *thd)
     break;
   }
 
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
   case SQLCOM_SHOW_SLAVE_HOSTS:
   {
     if (check_global_access(thd, REPL_SLAVE_ACL))
@@ -1883,7 +1883,7 @@ mysql_execute_command(THD *thd)
   }
       
 
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
   case SQLCOM_CHANGE_MASTER:
   {
     if (check_global_access(thd, SUPER_ACL))
@@ -1920,7 +1920,7 @@ mysql_execute_command(THD *thd)
     else
       res = load_master_data(thd);
     break;
-#endif /* EMBEDDED_LIBRARY */
+#endif /* HAVE_REPLICATION */
 
 #ifdef HAVE_INNOBASE_DB
   case SQLCOM_SHOW_INNODB_STATUS:
@@ -1932,7 +1932,7 @@ mysql_execute_command(THD *thd)
     }
 #endif
 
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
   case SQLCOM_LOAD_MASTER_TABLE:
   {
     if (!tables->db)
@@ -1964,7 +1964,7 @@ mysql_execute_command(THD *thd)
     UNLOCK_ACTIVE_MI;
     break;
   }
-#endif /* EMBEDDED_LIBRARY */
+#endif /* HAVE_REPLICATION */
 
   case SQLCOM_CREATE_TABLE:
   {
@@ -2081,7 +2081,7 @@ mysql_execute_command(THD *thd)
       res = mysql_create_index(thd, tables, lex->key_list);
     break;
 
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
   case SQLCOM_SLAVE_START:
   {
     LOCK_ACTIVE_MI;
@@ -2114,7 +2114,7 @@ mysql_execute_command(THD *thd)
     UNLOCK_ACTIVE_MI;
     break;
   }
-#endif
+#endif /* HAVE_REPLICATION */
 
   case SQLCOM_ALTER_TABLE:
 #if defined(DONT_ALLOW_SHOW_COMMANDS)
@@ -4376,7 +4376,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     refresh_status();
   if (options & REFRESH_THREADS)
     flush_thread_cache();
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
   if (options & REFRESH_MASTER)
   {
     tmp_write_to_binlog= 0;
@@ -4391,7 +4391,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
        result=load_des_key_file(des_key_file);
    }
 #endif
-#ifndef EMBEDDED_LIBRARY
+#ifdef HAVE_REPLICATION
  if (options & REFRESH_SLAVE)
  {
    tmp_write_to_binlog= 0;
