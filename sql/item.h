@@ -536,9 +536,9 @@ public:
   enum Type type() const { return COPY_STR_ITEM; }
   enum Item_result result_type () const { return STRING_RESULT; }
   double val()
-  { return null_value ? 0.0 : atof(str_value.c_ptr()); }
+  { return null_value ? 0.0 : my_strntod(str_value.charset(),str_value.ptr(),str_value.length(),NULL); }
   longlong val_int()
-  { return null_value ? LL(0) : strtoll(str_value.c_ptr(),(char**) 0,10); }
+  { return null_value ? LL(0) : my_strntoll(str_value.charset(),str_value.ptr(),str_value.length(),(char**) 0,10); }
   String *val_str(String*);
   void make_field(Send_field *field) { item->make_field(field); }
   void copy();
