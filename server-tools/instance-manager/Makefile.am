@@ -36,6 +36,7 @@ liboptions_a_CPPFLAGS= $(CPPFLAGS) \
 	-DPROTOCOL_VERSION=@PROTOCOL_VERSION@
 
 liboptions_a_SOURCES= options.h options.cc priv.h priv.cc
+liboptions_a_LIBADD= $(top_builddir)/libmysql/get_password.$(OBJEXT)
 
 # MySQL sometimes uses symlinks to reuse code 
 # All symlinked files are grouped in libnet.a

@@ -151,27 +151,31 @@ static void usage()
 
 static void passwd()
 {
-  char user[1024], pw[1024], *p;
+  char user[1024], *p;
+  const char *pw1, *pw2;
+  char pw1msg[]= "Enter password: ";
+  char pw2msg[]= "Re-type password: ";
   char crypted_pw[SCRAMBLED_PASSWORD_CHAR_LENGTH + 1];
 
   fprintf(stderr, "Creating record for new user.\n");
   fprintf(stderr, "Enter user name: ");
-  if (!fgets(user, sizeof(user), stdin))
+  if (! fgets(user, sizeof(user), stdin))
   {
     fprintf(stderr, "Unable to read user.\n");
     return;
   }
   if ((p= strchr(user, '\n'))) *p= 0;
 
-  fprintf(stderr, "Enter password: ");
-  if (! fgets(pw, sizeof(pw), stdin))
+  pw1= get_tty_password(pw1msg);
+  pw2= get_tty_password(pw2msg);
+
+  if (strcmp(pw1, pw2))
   {
-    fprintf(stderr, "Unable to read password.\n");
+    fprintf(stderr, "Sorry, passwords do not match.\n");
     return;
   }
-  if ((p= strchr(pw, '\n'))) *p= 0;
 
-  make_scrambled_password(crypted_pw, pw);
+  make_scrambled_password(crypted_pw, pw1);
   printf("%s:%s\n", user, crypted_pw);
 }
 
