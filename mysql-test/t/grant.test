@@ -309,8 +309,10 @@ show grants for mysqltest_3@localhost;
 --error 1143
 update mysqltest_1.t1, mysqltest_1.t2 set q=10 where b=1;
 --error 1143
+update mysqltest_1.t2, mysqltest_2.t2 set d=20 where d=1;
+--error 1142
 update mysqltest_1.t1, mysqltest_2.t2 set d=20 where d=1;
---error 1143
+--error 1142
 update mysqltest_2.t1, mysqltest_1.t2 set c=20 where b=1;
 --error 1143
 update mysqltest_2.t1, mysqltest_2.t2 set d=10 where s=2;
@@ -335,7 +337,7 @@ connection conn2;
 use mysqltest_1;
 update mysqltest_2.t1, mysqltest_2.t2 set c=500,d=600;
 # the following failed before, should fail now.
---error 1143
+--error 1044
 update mysqltest_1.t1, mysqltest_1.t2 set a=100,b=200;
 use mysqltest_2;
 #the following used to succeed, it must fail now.

@@ -289,7 +289,9 @@ set time_zone= '+00:00';
 set time_zone= 'Europe/Moscow';
 select convert_tz('2004-11-31 12:00:00', 'Europe/Moscow', 'UTC');
 convert_tz('2004-11-31 12:00:00', 'Europe/Moscow', 'UTC')
-2004-12-01 09:00:00
+NULL
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '2004-11-31 12:00:00'
 select convert_tz(b, 'Europe/Moscow', 'UTC') from t1;
 convert_tz(b, 'Europe/Moscow', 'UTC')
 update t1, t2 set t1.b = convert_tz('2004-11-30 12:00:00', 'Europe/Moscow', 'UTC')

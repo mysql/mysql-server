@@ -154,7 +154,7 @@ void Item_func_not_all::print(String *str)
 longlong Item_func_nop_all::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  double value= args[0]->val();
+  longlong value= args[0]->val_int();
 
   /*
     return FALSE if there was records in underlaying select in max/min

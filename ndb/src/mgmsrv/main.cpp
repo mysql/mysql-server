@@ -89,7 +89,6 @@ bool g_StopServer;
 extern EventLogger g_EventLogger;
 
 extern int global_mgmt_server_check;
-static char *opt_connect_str= 0;
 
 enum ndb_mgmd_options {
   NDB_STD_OPTS_OPTIONS,

@@ -705,8 +705,12 @@ static void verify_prepare_field(MYSQL_RES *result,
     as utf8. Field length is calculated as number of characters * maximum
     number of bytes a character can occupy.
   */
-  if (length)
+  if (length && field->length != length * cs->mbmaxlen)
+  {
+    fprintf(stderr, "Expected field length: %d,  got length: %d\n",
+            (int) (length * cs->mbmaxlen), (int) field->length);
     DIE_UNLESS(field->length == length * cs->mbmaxlen);
+  }
   if (def)
     DIE_UNLESS(strcmp(field->def, def) == 0);
 }
@@ -1419,7 +1423,9 @@ static void test_prepare_field_result()
                        "t1", "test_prepare_field_result", current_db, 10, 0);
   verify_prepare_field(result, 3, "ts_c", "ts_c", MYSQL_TYPE_TIMESTAMP,
                        "t1", "test_prepare_field_result", current_db, 19, 0);
-  verify_prepare_field(result, 4, "char_c", "char_c", MYSQL_TYPE_VAR_STRING,
+  verify_prepare_field(result, 4, "char_c", "char_c",
+                       (mysql_get_server_version(mysql) <= 50000 ?
+                        MYSQL_TYPE_VAR_STRING : MYSQL_TYPE_STRING),
                        "t1", "test_prepare_field_result", current_db, 4, 0);
 
   verify_field_count(result, 5);
@@ -7356,7 +7362,7 @@ static void test_explain_bug()
   verify_prepare_field(result, 0, "Field", "COLUMN_NAME",
                        mysql_get_server_version(mysql) <= 50000 ?
                        MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
-                       0, 0, "", 192, 0);
+                       0, 0, "", 64, 0);
 
   verify_prepare_field(result, 1, "Type", "COLUMN_TYPE",
                        MYSQL_TYPE_BLOB, 0, 0, "", 0, 0);
@@ -7364,22 +7370,22 @@ static void test_explain_bug()
   verify_prepare_field(result, 2, "Null", "IS_NULLABLE",
                        mysql_get_server_version(mysql) <= 50000 ?
                        MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
-                       0, 0, "", 9, 0);
+                       0, 0, "", 3, 0);
 
   verify_prepare_field(result, 3, "Key", "COLUMN_KEY",
                        mysql_get_server_version(mysql) <= 50000 ?
                        MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
-                       0, 0, "", 9, 0);
+                       0, 0, "", 3, 0);
 
   verify_prepare_field(result, 4, "Default", "COLUMN_DEFAULT",
                        mysql_get_server_version(mysql) <= 50000 ?
                        MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
-                       0, 0, "", 192, 0);
+                       0, 0, "", 64, 0);
 
   verify_prepare_field(result, 5, "Extra", "EXTRA",
                        mysql_get_server_version(mysql) <= 50000 ?
                        MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
-                       0, 0, "", 60, 0);
+                       0, 0, "", 20, 0);
 
   mysql_free_result(result);
   mysql_stmt_close(stmt);
@@ -12171,6 +12177,8 @@ static void test_rewind(void)
   myquery(rc);
   rc= mysql_stmt_free_result(stmt);
   rc= mysql_stmt_close(stmt);
+}
+
 
 static void test_truncation()
 {
