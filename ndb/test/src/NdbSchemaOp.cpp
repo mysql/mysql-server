@@ -34,11 +34,11 @@ Adjust:  980125  UABMNST   First version.
   NOTE: This file is only used as a compatibility layer for old test programs,
         New programs should use NdbDictionary.hpp
 *****************************************************************************/
-#include <assert.h>
-#include "NdbSchemaOp.hpp"
-#include "NdbSchemaCon.hpp"
-#include "API.hpp"
 
+#include <ndb_global.h>
+#include <NdbApi.hpp>
+#include <NdbSchemaOp.hpp>
+#include <NdbSchemaCon.hpp>
 
 
 /*****************************************************************************

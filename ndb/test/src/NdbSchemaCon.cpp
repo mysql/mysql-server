@@ -35,9 +35,10 @@ Adjust:  980126  UABMNST   First version.
         New programs should use NdbDictionary.hpp
 *********************************************************************/
 
-#include "NdbSchemaCon.hpp"
-#include "NdbSchemaOp.hpp"
-#include "NdbApiSignal.hpp"
+#include <ndb_global.h>
+#include <NdbApi.hpp>
+#include <NdbSchemaCon.hpp>
+#include <NdbSchemaOp.hpp>
 
 
 /*********************************************************************
@@ -142,20 +143,22 @@ NdbSchemaCon::release()
   return;
 }//NdbSchemaCon::release()
 
+#include <NdbError.hpp>
 
+static void
+update(const NdbError & _err){
+  NdbError & error = (NdbError &) _err;
+  ndberror_struct ndberror = (ndberror_struct)error;
+  ndberror_update(&ndberror);
+  error = NdbError(ndberror);
+}
 
-
-
-
-	
-
-
-
-
-
-
-
-
+const 
+NdbError & 
+NdbSchemaCon::getNdbError() const {
+  update(theError);
+  return theError;
+}
 
 
 

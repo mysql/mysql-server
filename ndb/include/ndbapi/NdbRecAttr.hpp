@@ -20,7 +20,6 @@
 #include <NdbDictionary.hpp>
 
 class NdbOperation;
-class AttrInfo;
 
 /**
  * @class NdbRecAttr
@@ -77,7 +76,8 @@ class NdbRecAttr
   friend class NdbEventOperationImpl;
   friend class NdbScanReceiver;
   friend class Ndb;
-  
+  friend class NdbOut& operator<<(class NdbOut&, const class AttributeS&);
+
 public:
   /** 
    * @name Getting meta information
@@ -254,6 +254,7 @@ private:
   void next(NdbRecAttr* aRecAttr);
   NdbRecAttr* next() const;
 
+  int setup(const class NdbDictionary::Column* col, char* aValue);
   int setup(const class NdbColumnImpl* anAttrInfo, char* aValue);
                                 /* Set up attributes and buffers        */
   bool copyoutRequired() const; /* Need to copy data to application     */
