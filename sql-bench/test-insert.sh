@@ -206,9 +206,17 @@ $end_time=new Benchmark;
 print "Time for insert (" . ($total_rows) . "): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n\n";
 
+if ($opt_lock_tables)
+{
+  $sth = $dbh->do("UNLOCK TABLES") || die $DBI::errstr;
+}
 if ($opt_fast && defined($server->{vacuum}))
 {
-  $server->vacuum(1,\$dbh);
+  $server->vacuum(1,\$dbh,"bench1");
+}
+if ($opt_lock_tables)
+{
+  $sth = $dbh->do("LOCK TABLES bench1 WRITE") || die $DBI::errstr;
 }
 
 ####
@@ -235,10 +243,10 @@ $end_time=new Benchmark;
 print "Time for insert_duplicates (" . ($total_rows) . "): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n\n";
 
-if ($opt_fast && defined($server->{vacuum}))
-{
-  $server->vacuum(1,\$dbh);
-}
+#if ($opt_fast && defined($server->{vacuum}))
+#{
+#  $server->vacuum(1,\$dbh);
+#}
 
 ####
 #### Do some selects on the table
@@ -605,9 +613,17 @@ if ($limits->{'functions'})
   print "Time for update_of_key ($range_loop_count):  " .
     timestr(timediff($end_time, $loop_time),"all") . "\n";
 
+  if ($opt_lock_tables)
+  {
+    do_query($dbh,"UNLOCK TABLES");
+  }
   if ($opt_fast && defined($server->{vacuum}))
   {
-    $server->vacuum(1,\$dbh);
+    $server->vacuum(1,\$dbh,"bench1");
+  }
+  if ($opt_lock_tables)
+  {
+    $sth = $dbh->do("LOCK TABLES bench1 WRITE") || die $DBI::errstr;
   }
 
   if ($server->small_rollback_segment())
@@ -735,7 +751,15 @@ else
 
 if ($opt_fast && defined($server->{vacuum}))
 {
-  $server->vacuum(1,\$dbh);
+  if ($opt_lock_tables)
+  {
+    do_query($dbh,"UNLOCK TABLES");
+  }
+  $server->vacuum(1,\$dbh,"bench1");
+  if ($opt_lock_tables)
+  {
+    $sth = $dbh->do("LOCK TABLES bench1 WRITE") || die $DBI::errstr;
+  }
 }
 
 #
@@ -902,7 +926,7 @@ if (!$opt_skip_delete)
 
   if ($opt_lock_tables)
   {
-    $sth = $dbh->do("UNLOCK TABLES ") || die $DBI::errstr;
+    $sth = $dbh->do("UNLOCK TABLES") || die $DBI::errstr;
   }
   $sth = $dbh->do("drop table bench1") or die $DBI::errstr;
 }
@@ -1029,7 +1053,15 @@ if ($server->small_rollback_segment())
 }
 if ($opt_fast && defined($server->{vacuum}))
 {
-  $server->vacuum(1,\$dbh);
+  if ($opt_lock_tables)
+  {
+    do_query($dbh,"UNLOCK TABLES");
+  }
+  $server->vacuum(1,\$dbh,"bench1");
+  if ($opt_lock_tables)
+  {
+    $sth = $dbh->do("LOCK TABLES bench1 WRITE") || die $DBI::errstr;
+  }
 }
 
 #
@@ -1054,7 +1086,15 @@ if ($server->small_rollback_segment())
 }
 if ($opt_fast && defined($server->{vacuum}))
 {
-  $server->vacuum(1,\$dbh);
+  if ($opt_lock_tables)
+  {
+    do_query($dbh,"UNLOCK TABLES");
+  }
+  $server->vacuum(1,\$dbh,"bench1");
+  if ($opt_lock_tables)
+  {
+    $sth = $dbh->do("LOCK TABLES bench1 WRITE") || die $DBI::errstr;
+  }
 }
 
 if ($server->small_rollback_segment())

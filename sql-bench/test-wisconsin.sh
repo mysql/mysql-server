@@ -65,10 +65,10 @@ if (!$opt_skip_create)
   print "Time for create_table ($#tables): " .
     timestr(timediff($end_time, $loop_time),"all") . "\n\n";
 
-if ($opt_fast && defined($server->{vacuum}))
-{
-  $server->vacuum(1,\$dbh);
-}
+  if ($opt_fast && defined($server->{vacuum}))
+  {
+    $server->vacuum(1,\$dbh);
+  }
 
 
 ####
@@ -124,6 +124,10 @@ else
   }
   close(DATA);
 }
+if ($opt_lock_tables)
+{
+  do_query($dbh,"UNLOCK TABLES");
+}
 $end_time=new Benchmark;
 print "Time to insert ($row_count): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n";
@@ -138,7 +142,14 @@ if ($server->small_rollback_segment())
 
 if ($opt_fast && defined($server->{vacuum}))
 {
-  $server->vacuum(0,\$dbh);
+  $server->vacuum(0,\$dbh,@table_names);
+}
+
+if ($opt_lock_tables)
+{
+  @tmp=@table_names; push(@tmp,@extra_names);
+  $sth = $dbh->do("LOCK TABLES " . join(" WRITE,", @tmp) . " WRITE") ||
+  die $DBI::errstr;
 }
 
 $loop_time= $end_time;

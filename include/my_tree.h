@@ -61,6 +61,7 @@ void init_tree(TREE *tree,uint default_alloc_size, int element_size,
 	       qsort_cmp compare, my_bool with_delete,
 	       void (*free_element)(void*));
 void delete_tree(TREE*);
+#define is_tree_inited(tree) ((tree)->root != 0)
 
 	/* Functions on leafs */
 TREE_ELEMENT *tree_insert(TREE *tree,void *key,uint key_size);

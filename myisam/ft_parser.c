@@ -86,8 +86,8 @@ FT_WORD * ft_linearize(MI_INFO *info, uint keynr, byte *keybuf, TREE *wtree)
     tree_walk(wtree,(tree_walk_action)&walk_and_copy,&docstat,left_root_right);
   }
   delete_tree(wtree);
-  free(wtree);
-  if(wlist==NULL)
+  my_free((char*) wtree,MYF(0));
+  if (wlist==NULL)
     return NULL;
 
   docstat.list->pos=NULL;
@@ -127,24 +127,24 @@ TREE * ft_parse(TREE *wtree, byte *doc, int doclen)
   byte *end=doc+doclen;
   FT_WORD w;
 
-  if(!wtree)
+  if (!wtree)
   {
-    if(!(wtree=(TREE *)my_malloc(sizeof(TREE),MYF(0)))) return NULL;
+    if (!(wtree=(TREE *)my_malloc(sizeof(TREE),MYF(0)))) return NULL;
     init_tree(wtree,0,sizeof(FT_WORD),(qsort_cmp)&FT_WORD_cmp,0,NULL);
   }
 
   w.weight=0;
-  while(doc<end)
+  while (doc<end)
   {
-    for(;doc<end;doc++)
-      if(word_char(*doc)) break;
-    for(w.pos=doc; doc<end; doc++)
-      if(!word_char(*doc)) break;
-    if((w.len= (uint) (doc-w.pos)) < MIN_WORD_LEN) continue;
-    if(!tree_insert(wtree, &w, 0))
+    for (;doc<end;doc++)
+      if (word_char(*doc)) break;
+    for (w.pos=doc; doc<end; doc++)
+      if (!word_char(*doc)) break;
+    if ((w.len= (uint) (doc-w.pos)) < MIN_WORD_LEN) continue;
+    if (!tree_insert(wtree, &w, 0))
     {
       delete_tree(wtree);
-      free(wtree);
+      my_free((char*) wtree,MYF(0));
       return NULL;
     }
   }

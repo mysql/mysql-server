@@ -176,17 +176,18 @@ FT_DOCLIST * ft_init_search(void *info, uint keynr, byte *key,
 
   saved_lastpos=aio.info->lastpos;
 
-  if(!(wtree=ft_parse(NULL,key,key_len))) return NULL;
+  if (!(wtree=ft_parse(NULL,key,key_len))) return NULL;
 
   init_tree(&aio.dtree,0,sizeof(FT_SUPERDOC),(qsort_cmp)&FT_SUPERDOC_cmp,0,
-	  NULL);
+	    NULL);
 
-  if(tree_walk(wtree, (tree_walk_action)&walk_and_match, &aio,
-	     left_root_right))
+  if (tree_walk(wtree, (tree_walk_action)&walk_and_match, &aio,
+		left_root_right))
     goto err;
 
-  dlist=(FT_DOCLIST *)my_malloc(sizeof(FT_DOCLIST)+sizeof(FT_DOC)*(aio.dtree.elements_in_tree-1),MYF(0));
-  if(!dlist)
+  dlist=(FT_DOCLIST *) my_malloc(sizeof(FT_DOCLIST)+sizeof(FT_DOC)*
+				 (aio.dtree.elements_in_tree-1),MYF(0));
+  if (!dlist)
     goto err;
 
   dlist->ndocs=aio.dtree.elements_in_tree;
@@ -194,9 +195,10 @@ FT_DOCLIST * ft_init_search(void *info, uint keynr, byte *key,
   dlist->info=aio.info;
   dptr=dlist->doc;
 
-  tree_walk(&aio.dtree, (tree_walk_action)&walk_and_copy, &dptr, left_root_right);
+  tree_walk(&aio.dtree, (tree_walk_action)&walk_and_copy, &dptr,
+	    left_root_right);
 
-  if(presort)
+  if (presort)
   {
     qsort(dlist->doc, dlist->ndocs, sizeof(FT_DOC), (qsort_cmp)&FT_DOC_cmp);
   }
@@ -205,7 +207,7 @@ err:
   aio.info->lastpos=saved_lastpos;
   delete_tree(&aio.dtree);
   delete_tree(wtree);
-  free(wtree);
+  my_free((char*) wtree,MYF(0));
   return dlist;
 }
 

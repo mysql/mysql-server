@@ -1,0 +1,39 @@
+# This file describes how to run MySQL benchmarks with MySQL
+# 
+
+# The test was run on a Intel Xeon 2x 550 Mzh machine with 1G memory,
+# 9G hard disk.  The OS is Suse 6.4, with Linux 2.2.14 compiled with SMP
+# support
+# Both the perl client and the database server is run
+# on the same machine. No other cpu intensive process was used during
+# the benchmark.
+
+#
+#
+# First, install MySQL from RPM or compile it according to the
+# recommendations in the MySQL manual
+#
+
+# Start MySQL
+
+bin/safe_mysqld -O key_buffer=16M &
+
+#
+# Now we run the test that can be found in the sql-bench directory in the
+# MySQL 3.23 source distribution with and without --fast
+#
+# Note that if you want to make a results that is comparead to some database,
+# You should add "--cmp=databasename" as an extra option to the test
+#
+$CMP=--cmp=pg
+
+run-all-tests --comment="Intel Xeon, 2x550 Mhz, 1G, key_buffer=16M" $CMP
+run-all-tests --comment="Intel Xeon, 2x550 Mhz, 1G, key_buffer=16M" --fast $CMP
+
+# If you want to store the results in a output/RUN-xxx file, you should
+# repeate the benchmark with the extra option --log --use-old-result
+# This will create a the RUN file based of the previous results
+#
+
+run-all-tests --comment="Intel Xeon, 2x550 Mhz, 1G, key_buffer=16M" --log --use-old-result $CMP
+run-all-tests --comment="Intel Xeon, 2x550 Mhz, 1G, key_buffer=16M" --fast --log --use-old-result $CMP
