@@ -226,7 +226,7 @@ static int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
   else
   {
     free_tmp_table(thd, table);
-    thd->lex->unit.cleanup();
+    unit->cleanup();
   }
 
 exit:

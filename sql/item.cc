@@ -2517,38 +2517,29 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   if (field_example && item->type() == Item::FIELD_ITEM)
   {
     Field *field= ((Item_field *)item)->field;
-    Field::field_cast_enum field_type= field->field_cast_type();
-
-    if (field_type != Field::FIELD_CAST_ENUM &&
-        field_type != Field::FIELD_CAST_SET)
+    /* Can old example field store new data? */
+    if ((change_field=
+          !field->field_cast_compatible(field_example->field_cast_type())))
     {
-      if (field_example->field_cast_type() != field_type)
-      {
-        if (!(change_field=
-              field_example->field_cast_compatible(field->field_cast_type())))
-        {
-          /*
-            if old field can't store value of 'worse' new field we will make
-            decision about result field type based only on Item result type
-          */
-          if (!field->field_cast_compatible(field_example->field_cast_type()))
-            skip_store_field= 1;
-        }
-      }
+      /*
+        if old field can't store value of 'worse' new field we will make
+        decision about result field type based only on Item result type
+      */
+      if (!field_example->field_cast_compatible(field->field_cast_type()))
+        skip_store_field= 1;
     }
-    else
-      skip_store_field= 1;
   }
   else if (field_example || item->type() == Item::FIELD_ITEM)
+  {
+    /* expression can't be mixed with field */
     skip_store_field= 1;
+  }
 
   // size/type should be changed
   if (change_field ||
       skip_store_field ||
       (new_type != item_type) ||
       (max_length < new_length) ||
-      ((new_type == INT_RESULT) &&
-       (decimals < item->decimals)) ||
       (!maybe_null && item->maybe_null) ||
       (item_type == STRING_RESULT && new_type == STRING_RESULT &&
        !my_charset_same(collation.collation, item->collation.collation)))
@@ -2556,8 +2547,6 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
     // new field has some parameters worse then current
     skip_store_field|= (change_field &&
 			(max_length > new_length) ||
-			((new_type == INT_RESULT) &&
-			 (decimals > item->decimals)) ||
 			(maybe_null && !item->maybe_null) ||
 			(item_type == STRING_RESULT &&
 			 new_type == STRING_RESULT &&

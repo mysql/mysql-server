@@ -172,42 +172,51 @@ static bool test_if_real(const char *str,int length, CHARSET_INFO *cs)
  FIELD_CAST_STOP
 */
 static Field::field_cast_enum field_cast_decimal[]=
-{Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+{Field::FIELD_CAST_DECIMAL,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_tiny[]=
-{Field::FIELD_CAST_SHORT, Field::FIELD_CAST_MEDIUM, Field::FIELD_CAST_LONG,
+{Field::FIELD_CAST_TINY,
+ Field::FIELD_CAST_SHORT, Field::FIELD_CAST_MEDIUM, Field::FIELD_CAST_LONG,
  Field::FIELD_CAST_LONGLONG,
  Field::FIELD_CAST_FLOAT, Field::FIELD_CAST_DOUBLE,
  Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_short[]=
-{Field::FIELD_CAST_MEDIUM, Field::FIELD_CAST_LONG, Field::FIELD_CAST_LONGLONG,
+{Field::FIELD_CAST_SHORT,
+ Field::FIELD_CAST_MEDIUM, Field::FIELD_CAST_LONG, Field::FIELD_CAST_LONGLONG,
  Field::FIELD_CAST_FLOAT, Field::FIELD_CAST_DOUBLE,
  Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_medium[]=
-{Field::FIELD_CAST_LONG, Field::FIELD_CAST_LONGLONG,
+{Field::FIELD_CAST_MEDIUM,
+ Field::FIELD_CAST_LONG, Field::FIELD_CAST_LONGLONG,
  Field::FIELD_CAST_DOUBLE,
  Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_long[]=
-{Field::FIELD_CAST_LONGLONG,
+{Field::FIELD_CAST_LONG,
+ Field::FIELD_CAST_LONGLONG,
  Field::FIELD_CAST_DOUBLE,
  Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_longlong[]=
-{Field::FIELD_CAST_DOUBLE,
+{Field::FIELD_CAST_LONGLONG,
+ Field::FIELD_CAST_DOUBLE,
  Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_float[]=
-{Field::FIELD_CAST_DOUBLE,
+{Field::FIELD_CAST_FLOAT,
+ Field::FIELD_CAST_DOUBLE,
  Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_double[]=
-{Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+{Field::FIELD_CAST_DOUBLE,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_null[]=
-{Field::FIELD_CAST_DECIMAL, Field::FIELD_CAST_TINY, Field::FIELD_CAST_SHORT,
+{Field::FIELD_CAST_NULL,
+ Field::FIELD_CAST_DECIMAL, Field::FIELD_CAST_TINY, Field::FIELD_CAST_SHORT,
  Field::FIELD_CAST_MEDIUM, Field::FIELD_CAST_LONG, Field::FIELD_CAST_LONGLONG,
  Field::FIELD_CAST_FLOAT, Field::FIELD_CAST_DOUBLE,
  Field::FIELD_CAST_TIMESTAMP, Field::FIELD_CAST_YEAR,
@@ -218,44 +227,54 @@ static Field::field_cast_enum field_cast_null[]=
  Field::FIELD_CAST_GEOM, Field::FIELD_CAST_ENUM, Field::FIELD_CAST_SET,
  Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_timestamp[]=
-{Field::FIELD_CAST_DATETIME,
+{Field::FIELD_CAST_TIMESTAMP,
+ Field::FIELD_CAST_DATETIME,
  Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_year[]=
-{Field::FIELD_CAST_SHORT, Field::FIELD_CAST_MEDIUM, Field::FIELD_CAST_LONG,
+{Field::FIELD_CAST_YEAR,
+ Field::FIELD_CAST_SHORT, Field::FIELD_CAST_MEDIUM, Field::FIELD_CAST_LONG,
  Field::FIELD_CAST_LONGLONG,
  Field::FIELD_CAST_FLOAT, Field::FIELD_CAST_DOUBLE,
  Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_date[]=
-{Field::FIELD_CAST_DATETIME,
+{Field::FIELD_CAST_DATE,
+ Field::FIELD_CAST_DATETIME,
  Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_newdate[]=
-{Field::FIELD_CAST_DATETIME,
+{Field::FIELD_CAST_NEWDATE,
+ Field::FIELD_CAST_DATETIME,
  Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_time[]=
-{Field::FIELD_CAST_DATETIME,
+{Field::FIELD_CAST_TIME,
+ Field::FIELD_CAST_DATETIME,
  Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_datetime[]=
-{Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
+{Field::FIELD_CAST_DATETIME,
+ Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
  Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_string[]=
-{Field::FIELD_CAST_VARSTRING, Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+{Field::FIELD_CAST_STRING,
+ Field::FIELD_CAST_VARSTRING, Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_varstring[]=
-{Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+{Field::FIELD_CAST_VARSTRING,
+ Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_blob[]=
-{Field::FIELD_CAST_STOP};
+{Field::FIELD_CAST_BLOB,
+ Field::FIELD_CAST_STOP};
+/*
+  Geometrical, enum and set fields can be casted only to expressions
+*/
 static Field::field_cast_enum field_cast_geom[]=
 {Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_enum[]=
-{Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
- Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+{Field::FIELD_CAST_STOP};
 static Field::field_cast_enum field_cast_set[]=
-{Field::FIELD_CAST_STRING, Field::FIELD_CAST_VARSTRING,
- Field::FIELD_CAST_BLOB, Field::FIELD_CAST_STOP};
+{Field::FIELD_CAST_STOP};
 // Array of pointers on conversion table for all fields types casting
 static Field::field_cast_enum *field_cast_array[]=
 {0, //FIELD_CAST_STOP
