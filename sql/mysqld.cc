@@ -183,9 +183,6 @@ inline void reset_floating_point_exceptions()
 #else
 #include <my_pthread.h>			// For thr_setconcurency()
 #endif
-#if defined(HAVE_GETRLIMIT) && defined(RLIMIT_NOFILE) && !defined(HAVE_mit_thread)
-#define SET_RLIMIT_NOFILE
-#endif
 
 #ifdef SOLARIS
 extern "C" int gethostname(char *name, int namelen);
@@ -493,9 +490,6 @@ extern "C" pthread_handler_decl(handle_connections_namedpipes,arg);
 static pthread_handler_decl(handle_connections_shared_memory,arg);
 #endif
 extern "C" pthread_handler_decl(handle_slave,arg);
-#ifdef SET_RLIMIT_NOFILE
-static uint set_maximum_open_files(uint max_file_limit);
-#endif
 static ulong find_bit_type(const char *x, TYPELIB *bit_lib);
 static void clean_up(bool print_message);
 static void clean_up_mutexes(void);
@@ -920,6 +914,7 @@ void clean_up(bool print_message)
 #ifdef USE_RAID
   end_raid();
 #endif
+  my_free_open_file_info();
   my_free((char*) global_system_variables.date_format,
 	  MYF(MY_ALLOW_ZERO_PTR));
   my_free((char*) global_system_variables.time_format,
@@ -2109,28 +2104,32 @@ static int init_common_variables(const char *conf_file_name, int argc,
   DBUG_PRINT("info",("%s  Ver %s for %s on %s\n",my_progname,
 		     server_version, SYSTEM_TYPE,MACHINE_TYPE));
 
-#if defined( SET_RLIMIT_NOFILE) || defined( OS2)
   /* connections and databases needs lots of files */
   {
-    uint wanted_files=10+(uint) max(max_connections*5,
-				    max_connections+table_cache_size*2);
+    uint files, wanted_files;
+
+    wanted_files= 10+(uint) max(max_connections*5,
+				 max_connections+table_cache_size*2);
     set_if_bigger(wanted_files, open_files_limit);
-    // Note that some system returns 0 if we succeed here:
-    uint files=set_maximum_open_files(wanted_files);
-    if (files && files < wanted_files && ! open_files_limit)
+    files= my_set_max_open_files(wanted_files);
+
+    if (files < wanted_files)
     {
-      max_connections=	(ulong) min((files-10),max_connections);
-      table_cache_size= (ulong) max((files-10-max_connections)/2,64);
-      DBUG_PRINT("warning",
-		 ("Changed limits: max_connections: %ld  table_cache: %ld",
-		  max_connections,table_cache_size));
-      sql_print_error("Warning: Changed limits: max_connections: %ld  table_cache: %ld",max_connections,table_cache_size);
+      if (!open_files_limit)
+      {
+	max_connections=	(ulong) min((files-10),max_connections);
+	table_cache_size= (ulong) max((files-10-max_connections)/2,64);
+	DBUG_PRINT("warning",
+		   ("Changed limits: max_open_files: %u  max_connections: %ld  table_cache: %ld",
+		    files, max_connections, table_cache_size));
+	sql_print_error("Warning: Changed limits: max_open_files: %u  max_connections: %ld  table_cache: %ld",
+			files, max_connections, table_cache_size);
+      }
+      else
+	sql_print_error("Warning: Could not increase number of max_open_files to more than %u (request: %u)", files, wanted_files);
     }
     open_files_limit= files;
   }
-#else
-  open_files_limit= 0;		/* Can't set or detect limit */
-#endif
   unireg_init(opt_specialflag); /* Set up extern variabels */
   if (init_errmessage())	/* Read error messages from file */
     return 1;
@@ -4512,7 +4511,7 @@ The minimum value for this variable is 4096.",
   {"open_files_limit", OPT_OPEN_FILES_LIMIT,
    "If this is not 0, then mysqld will use this value to reserve file descriptors to use with setrlimit(). If this value is 0 then mysqld will reserve max_connections*5 or max_connections + table_cache*2 (whichever is larger) number of files.",
    (gptr*) &open_files_limit, (gptr*) &open_files_limit, 0, GET_ULONG,
-   REQUIRED_ARG, 0, 0, 65535, 0, 1, 0},
+   REQUIRED_ARG, 0, 0, OS_FILE_LIMIT, 0, 1, 0},
    {"preload_buffer_size", OPT_PRELOAD_BUFFER_SIZE,
     "The size of the buffer that is allocated when preloading indexes",
     (gptr*) &global_system_variables.preload_buff_size,
@@ -5620,7 +5619,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       fprintf(stderr, "Invalid ft-boolean-syntax string: %s\n", argument);
       exit(1);
     }
-    strnmov(opt_ft_boolean_syntax, argument, sizeof(ft_boolean_syntax));
+    strmake(opt_ft_boolean_syntax, argument, sizeof(ft_boolean_syntax)-1);
     break;
   case OPT_SKIP_SAFEMALLOC:
 #ifdef SAFEMALLOC
@@ -5669,7 +5668,8 @@ static void get_options(int argc,char **argv)
   int ho_error;
 
   my_getopt_register_get_addr(mysql_getopt_value);
-  strnmov(opt_ft_boolean_syntax, ft_boolean_syntax, sizeof(ft_boolean_syntax));
+  strmake(opt_ft_boolean_syntax, ft_boolean_syntax, 
+	  sizeof(ft_boolean_syntax)-1);
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(ho_error);
   if (argc > 0)
@@ -5725,7 +5725,8 @@ static void get_options(int argc,char **argv)
   table_alias_charset= (lower_case_table_names ?
 			files_charset_info :
 			&my_charset_bin);
-  strnmov(ft_boolean_syntax, opt_ft_boolean_syntax, sizeof(ft_boolean_syntax));
+  strmake(ft_boolean_syntax, opt_ft_boolean_syntax,
+	  sizeof(ft_boolean_syntax)-1);
 
   if (opt_short_log_format)
     opt_specialflag|= SPECIAL_SHORT_LOG_FORMAT;
@@ -5824,95 +5825,6 @@ static void fix_paths(void)
   }
 #endif /* HAVE_REPLICATION */
 }
-
-
-/*
-  set how many open files we want to be able to handle
-
-  SYNOPSIS
-    set_maximum_open_files()
-    max_file_limit		Files to open
-
-  NOTES
-    The request may not fulfilled becasue of system limitations
-
-  RETURN
-    Files available to open
-*/
-
-#ifdef SET_RLIMIT_NOFILE
-
-#ifndef RLIM_INFINITY
-#define RLIM_INFINITY ((uint) 0xffffffff)
-#endif
-
-static uint set_maximum_open_files(uint max_file_limit)
-{
-  struct rlimit rlimit;
-  uint old_cur;
-  DBUG_ENTER("set_maximum_open_files");
-  DBUG_PRINT("enter",("files: %u", max_file_limit));
-
-  if (!getrlimit(RLIMIT_NOFILE,&rlimit))
-  {
-    old_cur= (uint) rlimit.rlim_cur;
-    DBUG_PRINT("info", ("rlim_cur: %u  rlim_max: %u",
-			(uint) rlimit.rlim_cur,
-			(uint) rlimit.rlim_max));
-    if (rlimit.rlim_cur >= max_file_limit ||
-	rlimit.rlim_cur == RLIM_INFINITY)
-      DBUG_RETURN(rlimit.rlim_cur);		/* purecov: inspected */
-    rlimit.rlim_cur= rlimit.rlim_max= max_file_limit;
-    if (setrlimit(RLIMIT_NOFILE,&rlimit))
-    {
-      if (global_system_variables.log_warnings)
-	sql_print_error("Warning: setrlimit couldn't increase number of open files to more than %u (request: %u)",
-			old_cur, max_file_limit); /* purecov: inspected */
-      max_file_limit= old_cur;
-    }
-    else
-    {
-      rlimit.rlim_cur= 0;			// Safety if next call fails
-      (void) getrlimit(RLIMIT_NOFILE,&rlimit);
-      DBUG_PRINT("info", ("rlim_cur: %u", (uint) rlimit.rlim_cur));
-      if ((uint) rlimit.rlim_cur < max_file_limit &&
-	  global_system_variables.log_warnings)
-	sql_print_error("Warning: setrlimit returned ok, but didn't change limits. Max open files is %u (request: %u)",
-			(uint) rlimit.rlim_cur,
-			max_file_limit); /* purecov: inspected */
-      max_file_limit= (uint) rlimit.rlim_cur;
-    }
-  }
-  DBUG_PRINT("exit",("max_file_limit: %u", max_file_limit));
-  DBUG_RETURN(max_file_limit);
-}
-#endif
-
-
-#ifdef OS2
-static uint set_maximum_open_files(uint max_file_limit)
-{
-  LONG     cbReqCount;
-  ULONG    cbCurMaxFH, cbCurMaxFH0;
-  APIRET   ulrc;
-  DBUG_ENTER("set_maximum_open_files");
-
-  // get current limit
-  cbReqCount = 0;
-  DosSetRelMaxFH( &cbReqCount, &cbCurMaxFH0);
-
-  // set new limit
-  cbReqCount = max_file_limit - cbCurMaxFH0;
-  ulrc = DosSetRelMaxFH( &cbReqCount, &cbCurMaxFH);
-  if (ulrc) {
-    sql_print_error("Warning: DosSetRelMaxFH couldn't increase number of open files to more than %d",
-		    cbCurMaxFH0);
-    cbCurMaxFH = cbCurMaxFH0;
-  }
-
-  DBUG_RETURN(cbCurMaxFH);
-}
-#endif
 
 
 /*

@@ -202,25 +202,12 @@ extern char NEAR curr_dir[];		/* Current directory for user */
 extern int (*error_handler_hook)(uint my_err, const char *str,myf MyFlags);
 extern int (*fatal_error_handler_hook)(uint my_err, const char *str,
 				       myf MyFlags);
+extern uint my_file_limit;
 
 /* charsets */
 extern CHARSET_INFO *default_charset_info;
 extern CHARSET_INFO *all_charsets[256];
 extern CHARSET_INFO compiled_charsets[];
-
-extern uint get_charset_number(const char *cs_name, uint cs_flags);
-extern uint get_collation_number(const char *name);
-extern const char *get_charset_name(uint cs_number);
-
-extern CHARSET_INFO *get_charset(uint cs_number, myf flags);
-extern CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags);
-extern CHARSET_INFO *get_charset_by_csname(const char *cs_name,
-					   uint cs_flags, myf my_flags);
-extern void free_charsets(void);
-extern char *get_charsets_dir(char *buf);
-extern my_bool my_charset_same(CHARSET_INFO *cs1, CHARSET_INFO *cs2);
-extern my_bool init_compiled_charsets(myf flags);
-extern void add_compiled_collation(CHARSET_INFO *cs);
 
 /* statistics */
 extern ulong	my_cache_w_requests, my_cache_write, my_cache_r_requests,
@@ -288,14 +275,16 @@ enum file_type
   FILE_BY_MKSTEMP, FILE_BY_DUP
 };
 
-extern struct my_file_info
+struct st_my_file_info
 {
   my_string		name;
   enum file_type	type;
 #if defined(THREAD) && !defined(HAVE_PREAD)
   pthread_mutex_t	mutex;
 #endif
-} my_file_info[MY_NFILE];
+};
+
+extern struct st_my_file_info *my_file_info;
 
 typedef struct st_my_tmpdir
 {
@@ -747,6 +736,23 @@ extern uint my_bit_log2(ulong value);
 extern uint my_count_bits(ulonglong v);
 extern void my_sleep(ulong m_seconds);
 extern ulong crc32(ulong crc, const uchar *buf, uint len);
+extern uint my_set_max_open_files(uint files);
+void my_free_open_file_info(void);
+
+/* character sets */
+extern uint get_charset_number(const char *cs_name, uint cs_flags);
+extern uint get_collation_number(const char *name);
+extern const char *get_charset_name(uint cs_number);
+
+extern CHARSET_INFO *get_charset(uint cs_number, myf flags);
+extern CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags);
+extern CHARSET_INFO *get_charset_by_csname(const char *cs_name,
+					   uint cs_flags, myf my_flags);
+extern void free_charsets(void);
+extern char *get_charsets_dir(char *buf);
+extern my_bool my_charset_same(CHARSET_INFO *cs1, CHARSET_INFO *cs2);
+extern my_bool init_compiled_charsets(myf flags);
+extern void add_compiled_collation(CHARSET_INFO *cs);
 
 #ifdef __WIN__
 extern my_bool have_tcpip;		/* Is set if tcpip is used */

@@ -34,7 +34,9 @@ int		NEAR my_umask=0664, NEAR my_umask_dir=0777;
 #ifndef THREAD
 int		NEAR my_errno=0;
 #endif
-struct my_file_info my_file_info[MY_NFILE]= {{0,UNOPEN}};
+struct st_my_file_info my_file_info_default[MY_NFILE]= {{0,UNOPEN}};
+uint   my_file_limit= MY_NFILE;
+struct st_my_file_info *my_file_info= my_file_info_default;
 
 	/* From mf_brkhant */
 int			NEAR my_dont_interrupt=0;
