@@ -52,7 +52,7 @@ dist-hook:
 	$(INSTALL_DATA) $(srcdir)/std_data/*.dat $(srcdir)/std_data/*.000001 $(distdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/des_key_file $(distdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.pem $(distdir)/std_data
-
+	$(INSTALL_DATA) $(srcdir)/std_data/*.frm $(distdir)/std_data
 
 install-data-local:
 	$(mkinstalldirs) \
@@ -73,6 +73,7 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/std_data/des_key_file $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/Moscow_leap $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.pem $(DESTDIR)$(testdir)/std_data
+	$(INSTALL_DATA) $(srcdir)/std_data/*.frm $(DESTDIR)$(testdir)/std_data
 
 std_data/%.pem:
 	@CP@ $(top_srcdir)/SSL/$(@F) $(srcdir)/std_data
