@@ -83,10 +83,10 @@ static char *init_syms(udf_func *tmp, char *nm)
 {
   char *end;
 
-  if (!((tmp->func= dlsym(tmp->dlhandle, tmp->name))))
-    return tmp->name;
+  if (!((tmp->func= dlsym(tmp->dlhandle, tmp->name.str))))
+    return tmp->name.str;
 
-  end=strmov(nm,tmp->name);
+  end=strmov(nm,tmp->name.str);
 
   if (tmp->type == UDFTYPE_AGGREGATE)
   {
@@ -193,10 +193,10 @@ void udf_init()
       This is done to ensure that only approved dll from the system
       directories are used (to make this even remotely secure).
     */
-    if (strchr(dl_name, '/') || strlen(name) > NAME_LEN)
+    if (strchr(dl_name, '/') || name.length > NAME_LEN)
     {
       sql_print_error("Invalid row in mysql.func table for function '%.64s'",
-                      name);
+                      name.str);
       continue;
     }
 
@@ -204,7 +204,7 @@ void udf_init()
     if (!(tmp= add_udf(&name,(Item_result) table->field[1]->val_int(),
                        dl_name, udftype)))
     {
-      sql_print_error("Can't alloc memory for udf function: '%.64s'", name);
+      sql_print_error("Can't alloc memory for udf function: '%.64s'", name.str);
       continue;
     }
 
@@ -271,7 +271,7 @@ void udf_free()
   {
     initialized= 0;
     rwlock_destroy(&THR_LOCK_udf);
-  }    
+  }
   DBUG_VOID_RETURN;
 }
 
