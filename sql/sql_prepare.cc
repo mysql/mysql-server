@@ -1357,7 +1357,7 @@ void mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
 
   mysql_log.write(thd, COM_PREPARE, "%s", packet);
 
-  thd->current_statement= stmt;
+  thd->current_arena= stmt;
   lex= lex_start(thd, (uchar *) thd->query, thd->query_length);
   mysql_init_query(thd);
   lex->safe_to_cache_query= 0;
@@ -1381,7 +1381,7 @@ void mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
   stmt->set_item_arena(thd);
   thd->set_statement(&thd->stmt_backup);
   thd->set_item_arena(&thd->stmt_backup);
-  thd->current_statement= 0;
+  thd->current_arena= 0;
 
   if (error)
   {
@@ -1389,43 +1389,33 @@ void mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
     thd->stmt_map.erase(stmt);
     /* error is sent inside yyparse/send_prepare_results */
   }
-  else
-  {
-    SELECT_LEX *sl= stmt->lex->all_selects_list;
-    /*
-      Save WHERE clause pointers, because they may be changed during query
-      optimisation.
-    */
-    for (; sl; sl= sl->next_select_in_list())
-    {
-      sl->prep_where= sl->where;
-    }
-  }
   DBUG_VOID_RETURN;
 }
 
 /* Reinit statement before execution */
 
-static void reset_stmt_for_execute(Prepared_statement *stmt)
+void reset_stmt_for_execute(THD *thd, LEX *lex)
 {
-  THD *thd= stmt->thd;
-  SELECT_LEX *sl= stmt->lex->all_selects_list;
+  SELECT_LEX *sl= lex->all_selects_list;
 
   for (; sl; sl= sl->next_select_in_list())
   {
-    /*
-      Copy WHERE clause pointers to avoid damaging they by optimisation
-    */
-    if (sl->prep_where)
-      sl->where= sl->prep_where->copy_andor_structure(thd);
-    DBUG_ASSERT(sl->join == 0);
-    ORDER *order;
-    /* Fix GROUP list */
-    for (order= (ORDER *)sl->group_list.first; order; order= order->next)
-      order->item= &order->item_ptr;
-    /* Fix ORDER list */
-    for (order= (ORDER *)sl->order_list.first; order; order= order->next)
-      order->item= &order->item_ptr;
+    if (!sl->first_execution)
+    {
+      /*
+        Copy WHERE clause pointers to avoid damaging they by optimisation
+      */
+      if (sl->prep_where)
+        sl->where= sl->prep_where->copy_andor_structure(thd);
+      DBUG_ASSERT(sl->join == 0);
+      ORDER *order;
+      /* Fix GROUP list */
+      for (order= (ORDER *)sl->group_list.first; order; order= order->next)
+        order->item= &order->item_ptr;
+      /* Fix ORDER list */
+      for (order= (ORDER *)sl->order_list.first; order; order= order->next)
+        order->item= &order->item_ptr;
+    }
 
     /*
       TODO: When the new table structure is ready, then have a status bit 
@@ -1443,7 +1433,6 @@ static void reset_stmt_for_execute(Prepared_statement *stmt)
       tables->table= 0;
       tables->table_list= 0;
     }
-    
     {
       SELECT_LEX_UNIT *unit= sl->master_unit();
       unit->unclean();
@@ -1506,7 +1495,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
 
   thd->stmt_backup.set_statement(thd);
   thd->set_statement(stmt);
-  reset_stmt_for_execute(stmt);
+  reset_stmt_for_execute(thd, stmt->lex);
 #ifndef EMBEDDED_LIBRARY
   if (stmt->param_count)
   {

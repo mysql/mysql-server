@@ -104,7 +104,7 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
   engine->set_thd((thd= thd_param));
-  stmt= thd->current_statement;
+  arena= thd->current_arena;
 
   char const *save_where= thd->where;
   int res= engine->prepare();
@@ -316,8 +316,8 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
     if (join->conds || join->having)
     {
       Item *cond;
-      if (stmt)
-	thd->set_n_backup_item_arena(stmt, &backup);
+      if (arena)
+	thd->set_n_backup_item_arena(arena, &backup);
 
       if (!join->having)
 	cond= join->conds;
@@ -330,15 +330,15 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
 					   new Item_null())))
 	goto err;
     }
-    if (stmt)
-      thd->restore_backup_item_arena(stmt, &backup);
+    if (arena)
+      thd->restore_backup_item_arena(arena, &backup);
     return RES_REDUCE;
   }
   return RES_OK;
   
 err:
-  if (stmt)
-    thd->restore_backup_item_arena(stmt, &backup);
+  if (arena)
+    thd->restore_backup_item_arena(arena, &backup);
   return RES_ERROR;
 }
 
@@ -618,8 +618,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   Statement backup;
 
   thd->where= "scalar IN/ALL/ANY subquery";
-  if (stmt)
-    thd->set_n_backup_item_arena(stmt, &backup);
+  if (arena)
+    thd->set_n_backup_item_arena(arena, &backup);
 
   if (select_lex->item_list.elements > 1)
   {
@@ -823,21 +823,21 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 		       ER_SELECT_REDUCED, warn_buff);
 	}
-	if (stmt)
-	  thd->restore_backup_item_arena(stmt, &backup);
+	if (arena)
+	  thd->restore_backup_item_arena(arena, &backup);
 	DBUG_RETURN(RES_REDUCE);
       }
     }
   }
 
 ok:
-  if (stmt)
-    thd->restore_backup_item_arena(stmt, &backup);
+  if (arena)
+    thd->restore_backup_item_arena(arena, &backup);
   DBUG_RETURN(RES_OK);
 
 err:
-  if (stmt)
-    thd->restore_backup_item_arena(stmt, &backup);
+  if (arena)
+    thd->restore_backup_item_arena(arena, &backup);
   DBUG_RETURN(RES_ERROR);
 }
 
@@ -855,8 +855,8 @@ Item_in_subselect::row_value_transformer(JOIN *join)
   Item *item= 0;
 
   thd->where= "row IN/ALL/ANY subquery";
-  if (stmt)
-    thd->set_n_backup_item_arena(stmt, &backup);  
+  if (arena)
+    thd->set_n_backup_item_arena(arena, &backup);  
 
   SELECT_LEX *select_lex= join->select_lex;
 
@@ -940,13 +940,13 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     if (join->conds->fix_fields(thd, join->tables_list, 0))
       goto err;
   }
-  if (stmt)
-    thd->restore_backup_item_arena(stmt, &backup);
+  if (arena)
+    thd->restore_backup_item_arena(arena, &backup);
   DBUG_RETURN(RES_OK);
 
 err:
-  if (stmt)
-    thd->restore_backup_item_arena(stmt, &backup);
+  if (arena)
+    thd->restore_backup_item_arena(arena, &backup);
   DBUG_RETURN(RES_ERROR);
 }
 

@@ -367,7 +367,14 @@ JOIN::prepare(Item ***rref_pointer_array,
       Item_subselect::trans_res res;
       if ((res= subselect->select_transformer(this)) !=
 	  Item_subselect::RES_OK)
+      {
+        if (thd->current_arena && select_lex->first_execution)
+        {
+          select_lex->prep_where= select_lex->where;
+          select_lex->first_execution= 0;
+        }
 	DBUG_RETURN((res == Item_subselect::RES_ERROR));
+      }
     }
   }
 
@@ -470,6 +477,11 @@ JOIN::prepare(Item ***rref_pointer_array,
   if (alloc_func_list())
     goto err;
 
+  if (thd->current_arena && select_lex->first_execution)
+  {
+    select_lex->prep_where= select_lex->where;
+    select_lex->first_execution= 0;
+  }
   DBUG_RETURN(0); // All OK
 
 err:
