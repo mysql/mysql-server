@@ -2546,6 +2546,35 @@ drop procedure bug4579_1|
 drop procedure bug4579_2|
 drop table t3|
 
+#
+# BUG#2773: Function's data type ignored in stored procedures
+#
+--disable_warnings
+drop table if exists t3|
+drop procedure if exists bug2773|
+--enable_warnings
+
+create function bug2773() returns int return null|
+create table t3 as select bug2773()|
+show create table t3|
+drop table t3|
+drop function bug2773|
+
+#
+# BUG#3788: Stored procedure packet error
+#
+--disable_warnings
+drop procedure if exists bug3788|
+--enable_warnings
+
+create function bug3788() returns date return cast("2005-03-04" as date)|
+select bug3788()|
+drop function bug3788|
+
+create function bug3788() returns binary(5) return 5|
+select bug3788()|
+drop function bug3788|
+ 
 
 #
 # BUG#4726
@@ -3276,7 +3305,7 @@ call bug7992()|
 call bug7992()|
 drop procedure bug7992|
 drop table t3|
-
+delimiter ;|
 
 #
 # BUG#8849: problem with insert statement with table alias's
@@ -3284,6 +3313,7 @@ drop table t3|
 # Rolling back changes to AND/OR structure of ON and WHERE clauses  in SP
 # 
 
+delimiter |;
 create table t3 (
   lpitnumber int(11) default null,
   lrecordtype int(11) default null
@@ -3359,3 +3389,29 @@ delete from t1|
 # practical, or create table t3, t3 etc temporarily (and drop them).
 delimiter ;|
 drop table t1,t2;
+
+#
+# BUG#8850
+#
+--disable_warnings
+drop procedure if exists sp1;
+--enable_warnings
+delimiter |;
+create table t1 (a int) engine=innodb|
+create procedure sp1 ()
+begin
+  truncate table t1; insert t1 values (1); rollback;
+end
+|
+delimiter ;|
+set autocommit=0;
+insert t1 values (2);
+--error 1192
+call sp1();
+commit;
+set autocommit=1;
+select * from t1;
+call sp1();
+select * from t1;
+drop table t1;
+drop procedure sp1;

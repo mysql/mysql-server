@@ -95,6 +95,8 @@ public:
 		      int numRecords = 1);
 
   NdbIndexScanOperation* pIndexScanOp;
+
+  NDBT_ResultRow& get_row(Uint32 idx) { return *rows[idx];}
 protected:
   void allocRows(int rows);
   void deallocRows();

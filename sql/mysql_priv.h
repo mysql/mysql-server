@@ -629,6 +629,10 @@ int mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *t);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item ***copy_func, Field **from_field,
 			bool group, bool modify_item, uint convert_blob_length);
+int prepare_create_field(create_field *sql_field, 
+			 uint &blob_columns, 
+			 int &timestamps, int &timestamps_with_niladic,
+			 uint table_flags);
 int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 		       List<create_field> &fields,
 		       List<Key> &keys, uint &db_options, 
@@ -838,6 +842,13 @@ bool add_field_to_list(THD *thd, char *field_name, enum enum_field_types type,
 		       char *change, List<String> *interval_list,
 		       CHARSET_INFO *cs,
 		       uint uint_geom_type);
+create_field * new_create_field(THD *thd, char *field_name, enum_field_types type,
+				char *length, char *decimals,
+				uint type_modifier, 
+				Item *default_value, Item *on_update_value,
+				LEX_STRING *comment, char *change, 
+				List<String> *interval_list, CHARSET_INFO *cs,
+				uint uint_geom_type);
 void store_position_for_column(const char *name);
 bool add_to_list(THD *thd, SQL_LIST &list,Item *group,bool asc=0);
 void add_join_on(TABLE_LIST *b,Item *expr);

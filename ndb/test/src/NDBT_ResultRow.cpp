@@ -84,7 +84,7 @@ NDBT_ResultRow::header (NdbOut & out) const {
   return out;
 }
 
-BaseString NDBT_ResultRow::c_str() {
+BaseString NDBT_ResultRow::c_str() const {
   
   BaseString str;
   
@@ -132,4 +132,11 @@ NDBT_ResultRow::clone () const {
   }
   
   return row;
+}
+
+bool
+NDBT_ResultRow::operator==(const NDBT_ResultRow& other) const 
+{
+  // quick and dirty
+  return c_str() == other.c_str();
 }

@@ -60,8 +60,10 @@ public:
   NdbEventImpl *m_eventImpl;
   NdbGlobalEventBufferHandle *m_bufferHandle;
 
-  NdbRecAttr *theFirstRecAttrs[2];
-  NdbRecAttr *theCurrentRecAttrs[2];
+  NdbRecAttr *theFirstPkAttrs[2];
+  NdbRecAttr *theCurrentPkAttrs[2];
+  NdbRecAttr *theFirstDataAttrs[2];
+  NdbRecAttr *theCurrentDataAttrs[2];
 
   NdbEventOperation::State m_state;
   Uint32 m_eventId;
