@@ -664,9 +664,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	when_list2 expr_list2  handler
 	opt_precision opt_ignore opt_column opt_restrict
 	grant revoke set lock unlock string_list field_options field_option
-	field_opt_list opt_binary table_lock_list table_lock varchar nchar
+	field_opt_list opt_binary table_lock_list table_lock
 	ref_list opt_on_delete opt_on_delete_list opt_on_delete_item use
-	opt_delete_options opt_delete_option
+	opt_delete_options opt_delete_option varchar nchar nvarchar
 	opt_outer table_list table_name opt_option opt_place
 	opt_attribute opt_attribute_list attribute column_list column_list_id
 	opt_column_list grant_privileges opt_table user_list grant_option
@@ -1141,6 +1141,9 @@ type:
 					  $$=FIELD_TYPE_STRING; }
 	| varchar '(' NUM ')' opt_binary { Lex->length=$3.str;
 					  $$=FIELD_TYPE_VAR_STRING; }
+	| nvarchar '(' NUM ')'		{ Lex->length=$3.str;
+					  $$=FIELD_TYPE_VAR_STRING;
+					  Lex->charset= &my_charset_utf8; }
 	| VARBINARY '(' NUM ')' 	{ Lex->length=$3.str;
 					  Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_VAR_STRING; }
@@ -1227,8 +1230,14 @@ nchar:
 varchar:
 	char VARYING {}
 	| VARCHAR {}
-	| NATIONAL_SYM VARCHAR {}
-	| NCHAR_SYM VARCHAR {};
+	;
+
+nvarchar:
+	NATIONAL_SYM VARCHAR {}
+	| NCHAR_SYM VARCHAR {}
+	| NATIONAL_SYM CHAR_SYM VARYING {}
+	| NCHAR_SYM VARYING {}
+	;
 
 int_type:
 	INT_SYM		{ $$=FIELD_TYPE_LONG; }
