@@ -28,9 +28,12 @@
 ** if nothing else.
 */
 static Item *
-eval_func_item(Item *it, enum enum_field_types type)
+eval_func_item(THD *thd, Item *it, enum enum_field_types type)
 {
   it= it->this_item();
+
+  if (it->fix_fields(thd, 0, NULL))
+    return it;			// Shouldn't happen?
 
   /* QQ How do we do this? Is there some better way? */
   switch (type)
@@ -133,7 +136,7 @@ sp_head::execute(THD *thd)
 	if (pvar->mode == sp_param_out)
 	  nctx->push_item(it->this_item()); // OUT
 	else
-	  nctx->push_item(eval_func_item(it, pvar->type)); // IN or INOUT
+	  nctx->push_item(eval_func_item(thd, it, pvar->type)); // IN or INOUT
 	// Note: If it's OUT or INOUT, it must be a variable.
 	// QQ: Need to handle "global" user/host variables too!!!
 	if (pvar->mode == sp_param_in)
@@ -202,7 +205,9 @@ sp_head::reset_lex(THD *thd)
   /* And keep the SP stuff too */
   thd->lex.sphead = m_lex.sphead;
   thd->lex.spcont = m_lex.spcont;
-  /* QQ Why isn't this reset by lex_start() ??? */
+  /* Clear all lists. (QQ Why isn't this reset by lex_start()?).
+     We may be overdoing this, but we know for sure that value_list must
+     be cleared at least. */
   thd->lex.col_list.empty();
   thd->lex.ref_list.empty();
   thd->lex.drop_list.empty();
@@ -229,7 +234,28 @@ sp_head::restore_lex(THD *thd)
   // Update some state in the old one first
   m_lex.ptr= thd->lex.ptr;
   m_lex.next_state= thd->lex.next_state;
-  // QQ Append tables, fields, etc. from the current lex to mine
+  // Collect some data from the sub statement lex.
+  // We reuse some lists in lex instead of adding new ones to this already
+  // quite large structure.
+
+  // CALL puts the proc. name and parameters in value_list, so we might as
+  // collect called procedures there.
+  if (thd->lex.sql_command == SQLCOM_CALL)
+  {
+    // Assuming we will rarely have more than, say, 10 calls to other
+    // procedures, this is probably fastest.
+    Item *proc= thd->lex.value_list.head();
+    List_iterator_fast<Item> li(m_lex.value_list);
+    Item *it;
+
+    while ((it= li++))
+      if (proc->eq(it, FALSE))
+	break;
+    if (! it)
+      m_lex.value_list.push_back(proc); // Got a new one.
+  }
+  // QQ Copy select_lex.table_list.
+
   memcpy(&thd->lex, &m_lex, sizeof(LEX)); // Restore lex
 }
 
@@ -285,7 +311,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
 int
 sp_instr_set::execute(THD *thd, uint *nextp)
 {
-  thd->spcont->set_item(m_offset, eval_func_item(m_value, m_type));
+  thd->spcont->set_item(m_offset, eval_func_item(thd, m_value, m_type));
   *nextp = m_ip+1;
   return 0;
 }
@@ -296,7 +322,7 @@ sp_instr_set::execute(THD *thd, uint *nextp)
 int
 sp_instr_jump_if::execute(THD *thd, uint *nextp)
 {
-  Item *it= eval_func_item(m_expr, MYSQL_TYPE_TINY);
+  Item *it= eval_func_item(thd, m_expr, MYSQL_TYPE_TINY);
 
   if (it->val_int())
     *nextp = m_dest;
@@ -311,7 +337,7 @@ sp_instr_jump_if::execute(THD *thd, uint *nextp)
 int
 sp_instr_jump_if_not::execute(THD *thd, uint *nextp)
 {
-  Item *it= eval_func_item(m_expr, MYSQL_TYPE_TINY);
+  Item *it= eval_func_item(thd, m_expr, MYSQL_TYPE_TINY);
 
   if (! it->val_int())
     *nextp = m_dest;
