@@ -75,17 +75,21 @@
 #define MAX_EXPECTED_ERRORS 10
 #define QUERY_SEND  1
 #define QUERY_REAP  2
-#define CON_RETRY_SLEEP 1 /* how long to sleep before trying to connect again*/
-#define MAX_CON_TRIES   2 /* sometimes in a test the client starts before
-			   * the server - to solve the problem, we try again
-			   * after some sleep if connection fails the first
-			   * time */
 #ifndef MYSQL_MANAGER_PORT
 #define MYSQL_MANAGER_PORT 23546
 #endif
 
+/*
+  Sometimes in a test the client starts before
+  the server - to solve the problem, we try again
+  after some sleep if connection fails the first
+  time
+*/
+#define CON_RETRY_SLEEP 2
+#define MAX_CON_TRIES   5
+
 enum {OPT_MANAGER_USER=256,OPT_MANAGER_HOST,OPT_MANAGER_PASSWD,
- OPT_MANAGER_PORT,OPT_MANAGER_WAIT_TIMEOUT};
+      OPT_MANAGER_PORT,OPT_MANAGER_WAIT_TIMEOUT};
 
 static int record = 0, verbose = 0, silent = 0, opt_sleep=0;
 static char *db = 0, *pass=0;

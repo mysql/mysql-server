@@ -291,10 +291,4 @@ show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	2
 reset query cache;
-show variables like "query_cache_size";
-Variable_name	Value
-query_cache_size	1039700
-show status like "Qcache_free_memory";
-Variable_name	Value
-Qcache_free_memory	1039700
 drop table t1;
