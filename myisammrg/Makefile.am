@@ -22,14 +22,6 @@ libmyisammrg_a_SOURCES = myrg_open.c myrg_extra.c myrg_info.c myrg_locking.c \
 			myrg_panic.c myrg_close.c myrg_create.c myrg_static.c \
 			myrg_rkey.c myrg_rfirst.c myrg_rlast.c myrg_rnext.c \
 			myrg_rprev.c myrg_queue.c myrg_write.c
-OMIT_DEPENDENCIES =	pthread.h stdio.h __stdio.h stdlib.h __stdlib.h math.h\
-			__math.h time.h __time.h unistd.h __unistd.h types.h \
-			xtypes.h ac-types.h posix.h string.h __string.h \
-			errno.h socket.h inet.h dirent.h netdb.h \
-			cleanup.h cond.h debug_out.h fd.h kernel.h mutex.h \
-			prio_queue.h pthread_attr.h pthread_once.h queue.h\
-			sleep.h specific.h version.h pwd.h timers.h uio.h \
-			cdefs.h machdep.h signal.h __signal.h util.h
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

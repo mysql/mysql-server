@@ -446,6 +446,9 @@ AC_MSG_RESULT("$CHECK_PID")
 # We need a ANSI C compiler
 AM_PROG_CC_STDC
 
+# We need an assembler, too
+AM_PROG_AS
+
 if test "$am_cv_prog_cc_stdc" = "no"
 then
   AC_MSG_ERROR([MySQL requires a ANSI C compiler (and a C++ compiler). Try gcc. See the Installation chapter in the Reference Manual.])
@@ -668,8 +671,7 @@ else
   AC_MSG_RESULT([no])
 fi
 
-# Use Paul Eggerts macros from GNU tar to check for large file support.
-MYSQL_SYS_LARGEFILE
+AC_SYS_LARGEFILE
 
 # Types that must be checked AFTER large file support is checked
 AC_TYPE_SIZE_T
