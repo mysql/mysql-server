@@ -213,7 +213,7 @@ ERROR 42000: You have an error in your SQL syntax.  Check the manual that corres
 create table t1 (a int);
 insert into t1 values (1),(2),(3);
 update (select * from t1) as t1 set a = 5;
-ERROR HY000: The target table t1 of the UPDATE is not updatable.
+ERROR HY000: The target table t1 of the UPDATE is not updatable
 delete from (select * from t1);
 ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '(select * from t1)' at line 1
 insert into  (select * from t1) values (5);
@@ -264,7 +264,7 @@ N	M
 2	2
 3	0
 UPDATE `t1` AS P1 INNER JOIN (SELECT N FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N SET P1.M = 2, P2.N = 2;
-ERROR HY000: The target table P2 of the UPDATE is not updatable.
+ERROR HY000: The target table P2 of the UPDATE is not updatable
 UPDATE `t1` AS P1 INNER JOIN (SELECT aaaa FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N SET P1.M = 2;
 ERROR 42S22: Unknown column 'aaaa' in 'field list'
 delete P1.* from `t1` AS P1 INNER JOIN (SELECT N FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N;
@@ -272,7 +272,7 @@ select * from t1;
 N	M
 3	0
 delete P1.*,P2.* from `t1` AS P1 INNER JOIN (SELECT N FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N;
-ERROR HY000: The target table P2 of the DELETE is not updatable.
+ERROR HY000: The target table P2 of the DELETE is not updatable
 delete P1.* from `t1` AS P1 INNER JOIN (SELECT aaa FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N;
 ERROR 42S22: Unknown column 'aaa' in 'field list'
 drop table t1;
