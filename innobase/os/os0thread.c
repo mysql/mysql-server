@@ -26,7 +26,16 @@ os_thread_get_curr_id(void)
 #ifdef __WIN__
 	return(GetCurrentThreadId());
 #else
-	return((os_thread_id_t) pthread_self());
+	pthread_t    pthr;
+
+	pthr = pthread_self();
+
+	/* TODO: in the future we have to change os_thread_id
+	   to pthread_t; the following cast may work in a wrong way on some
+	   systems if pthread_t is a struct; this is just a quick fix
+	   for HP-UX to eliminate a compiler warning */
+
+	return(*(os_thread_id_t*)((void*) (&pthr)));
 #endif
 }
 
@@ -65,8 +74,13 @@ os_thread_create(
 #else
 	int		ret;
 	os_thread_t	pthread;
+	pthread_attr_t  attr;
+
+        pthread_attr_init(&attr);
 
 	ret = pthread_create(&pthread, NULL, start_f, arg);
+
+	pthread_attr_destroy(&attr);
 
 	return(pthread);
 #endif
