@@ -552,11 +552,13 @@ public:
   ~cmp_item_row()
   {
     if (comparators)
+    {
       for (uint i= 0; i < n; i++)
       {
 	if (comparators[i])
 	  delete comparators[i];
       }
+    }
   }
   void store_value(Item *item);
   int cmp(Item *arg);

@@ -604,7 +604,7 @@ void Item_in_subselect::row_value_transformer(THD *thd,
     }
 
     if (sl->having || sl->with_sum_func || sl->group_list.first ||
-	!sl->table_list.elements || !sl->table_list.elements)
+	!sl->table_list.elements)
       sl->having= and_items(sl->having, item);
     else
       sl->where= and_items(sl->where, item);

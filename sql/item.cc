@@ -1290,9 +1290,10 @@ bool Item_cache_row::setup(Item * item)
   for (uint i= 0; i < item_count; i++)
   {
     Item *el= item->el(i);
-    if (!(values[i]= Item_cache::get_cache(el->result_type())))
+    Item_cache *tmp;
+    if (!(tmp= values[i]= Item_cache::get_cache(el->result_type())))
       return 1;
-    values[i]->setup(el);
+    tmp->setup(el);
   }
   return 0;
 }

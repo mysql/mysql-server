@@ -55,6 +55,7 @@ bool Item_row::fix_fields(THD *thd, TABLE_LIST *tabl, Item **ref)
       return 1;
     used_tables_cache |= items[i]->used_tables();
     if (const_item_cache&= items[i]->const_item() && !with_null)
+    {
       if (items[i]->cols() > 1)
 	with_null|= items[i]->null_inside();
       else
@@ -62,6 +63,7 @@ bool Item_row::fix_fields(THD *thd, TABLE_LIST *tabl, Item **ref)
 	items[i]->val_int();
 	with_null|= items[i]->null_value;
       }
+    }
     maybe_null|= items[i]->maybe_null;
   }
   return 0;
