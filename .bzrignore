@@ -463,3 +463,5 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
+libmysqld/gstream.cc
+libmysqld/spatial.cc
