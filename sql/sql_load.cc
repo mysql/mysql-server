@@ -269,11 +269,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     table->time_stamp=save_time_stamp;
     table->next_number_field=0;
-    if (thd->lock)
-    {
-      mysql_unlock_tables(thd, thd->lock);
-      thd->lock=0;
-    }
   }
   if  (file >= 0) my_close(file,MYF(0));
   free_blobs(table);				/* if pack_blob was used */
@@ -292,7 +287,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
         mysql_bin_log.write(&d);
       }
     }
-    DBUG_RETURN(-1);				// Error on read
+    error= -1;				// Error on read
+    goto err;
   }
   sprintf(name,ER(ER_LOAD_INFO),info.records,info.deleted,
 	  info.records-info.copied,thd->cuted_fields);
@@ -326,6 +322,13 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   }
   if (transactional_table)
     error=ha_autocommit_or_rollback(thd,error); 
+
+err:
+  if (thd->lock)
+  {
+    mysql_unlock_tables(thd, thd->lock);
+    thd->lock=0;
+  }
   DBUG_RETURN(error);
 }
 
