@@ -122,7 +122,7 @@ public:
    * @param serverity the log level/serverity.
    * @return true if the severity was enabled.
    */
-  bool setEventLogFilter(int severity);
+  bool setEventLogFilter(int severity, int enable);
 
   /**
    * Returns true if the log level/severity is enabled.
