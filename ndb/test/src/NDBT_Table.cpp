@@ -94,7 +94,14 @@ operator <<(class NdbOut& ndbout, const NDBT_Attribute & attr){
     ndbout << "Timespec"  << tmp;
     break;
   case NdbDictionary::Column::Blob:
-    ndbout << "Blob"  << tmp;
+    ndbout << "Blob(" << attr.getInlineSize()
+               << "," << attr.getPartSize()
+               << "," << attr.getStripeSize() << ")";
+    break;
+  case NdbDictionary::Column::Clob:
+    ndbout << "Clob(" << attr.getInlineSize()
+               << "," << attr.getPartSize()
+               << "," << attr.getStripeSize() << ")";
     break;
   case NdbDictionary::Column::Undefined:
     ndbout << "Undefined"  << tmp;

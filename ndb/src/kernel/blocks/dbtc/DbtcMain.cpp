@@ -2722,8 +2722,8 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     case ZUPDATE:
       jam();
       if (Tattrlength == 0) {
-        TCKEY_abort(signal, 5);
-        return;
+        //TCKEY_abort(signal, 5);
+        //return;
       }//if
       /*---------------------------------------------------------------------*/
       // The missing break is intentional since we also want to set the opLock 

@@ -35,6 +35,7 @@
 #include "NdbUtil.hpp"
 #include "NdbOut.hpp"
 #include "NdbImpl.hpp"
+#include "NdbBlob.hpp"
 
 #include <Interpreter.hpp>
 
@@ -603,6 +604,33 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
   theErrorLine++;  
   return 0;
 }//NdbOperation::setValue()
+
+NdbBlob*
+NdbOperation::getBlobHandle(NdbConnection* aCon, const NdbColumnImpl* tAttrInfo)
+{
+  NdbBlob* tBlob = theBlobList;
+  NdbBlob* tLastBlob = NULL;
+  while (tBlob != NULL) {
+    if (tBlob->theColumn == tAttrInfo)
+      return tBlob;
+    tLastBlob = tBlob;
+    tBlob = tBlob->theNext;
+  }
+  tBlob = theNdb->getNdbBlob();
+  if (tBlob == NULL)
+    return NULL;
+  if (tBlob->atPrepare(aCon, this, tAttrInfo) == -1) {
+    theNdb->releaseNdbBlob(tBlob);
+    return NULL;
+  }
+  if (tLastBlob == NULL)
+    theBlobList = tBlob;
+  else
+    tLastBlob->theNext = tBlob;
+  tBlob->theNext = NULL;
+  theNdbCon->theBlobFlag = true;
+  return tBlob;
+}
 
 /*
  * Define bound on index column in range scan.
