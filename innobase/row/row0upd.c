@@ -750,7 +750,7 @@ row_upd_sec_index_entry(
 	btr_cur_t*	btr_cur;
 	mem_heap_t*	heap;
 	rec_t*		rec;
-	ulint		err;
+	ulint		err	= DB_SUCCESS;
 	
 	index = node->index;
 	
@@ -781,7 +781,7 @@ row_upd_sec_index_entry(
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
-	if (node->is_delete || (err != DB_SUCCESS)) {
+	if (node->is_delete || err != DB_SUCCESS) {
 
 		mem_heap_free(heap);	
 
@@ -1169,7 +1169,7 @@ row_upd(
 	upd_node_t*	node,	/* in: row update node */
 	que_thr_t*	thr)	/* in: query thread */
 {
-	ulint	err;
+	ulint	err	= DB_SUCCESS;
 	
 	ut_ad(node && thr);
 

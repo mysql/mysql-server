@@ -72,22 +72,11 @@ and for the adaptive index. Thus, for each individual transaction, its locks
 can occupy at most about the size of the buffer frame of memory in the common
 pool, and after that its locks will grow into the buffer pool. */
 
-/* Memory area header */
-
-struct mem_area_struct{
-	ulint		size_and_free;	/* memory area size is obtained by
-					anding with ~MEM_AREA_FREE; area in
-					a free list if ANDing with
-					MEM_AREA_FREE results in nonzero */ 
-	UT_LIST_NODE_T(mem_area_t)
-			free_list;	/* free list node */
-};
-
 /* Mask used to extract the free bit from area->size */
 #define MEM_AREA_FREE	1
 
 /* The smallest memory area total size */
-#define MEM_AREA_MIN_SIZE	(2 * UNIV_MEM_ALIGNMENT)
+#define MEM_AREA_MIN_SIZE	(2 * sizeof(struct mem_area_struct))
 
 /* Data structure for a memory pool. The space is allocated using the buddy
 algorithm, where free list i contains areas of size 2 to power i. */

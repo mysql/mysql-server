@@ -18,7 +18,6 @@ hash_get_nth_cell(
 	hash_table_t* 	table,	/* in: hash table */
 	ulint 		n)	/* in: cell index */
 {
-	ut_ad(n >= 0);
 	ut_ad(n < table->n_cells);
 
 	return(table->array + n);

@@ -81,7 +81,12 @@ os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 5];
 /************************************************************************
 I/o-handler thread function. */
 static
+
+#ifndef __WIN__
+void*
+#else
 ulint
+#endif
 io_handler_thread(
 /*==============*/
 	void*	arg)
@@ -101,7 +106,11 @@ io_handler_thread(
 		mutex_exit(&ios_mutex);
 	}
 
+#ifndef __WIN__
+	return(NULL);
+#else
 	return(0);
+#endif
 }
 
 /*************************************************************************
@@ -123,6 +132,8 @@ open_or_create_log_file(
 	ulint	size;
 	ulint	size_high;
 	char	name[10000];
+
+	UT_NOT_USED(create_new_db);
 
 	*log_file_created = FALSE;
 	
@@ -506,13 +517,15 @@ innobase_start_or_create_for_mysql(void)
 		n[i] = i;
 
 		os_thread_create(io_handler_thread, n + i, thread_ids + i);
-	}
+    	}
 
 	err = open_or_create_data_files(&create_new_db,
 					&min_flushed_lsn, &min_arch_log_no,
 					&max_flushed_lsn, &max_arch_log_no,
 					&sum_of_new_sizes);
 	if (err != DB_SUCCESS) {
+
+	        fprintf(stderr, "Innobase: Could not open data files\n");
 
 		return((int) err);
 	}

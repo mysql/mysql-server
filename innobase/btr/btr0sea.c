@@ -187,12 +187,12 @@ btr_search_info_update_hash(
 		return;
 	}
 
+	n_unique = dict_index_get_n_unique_in_tree(index);
+
 	if (info->n_hash_potential == 0) {
 
 		goto set_new_recomm;
 	}
-
-	n_unique = dict_index_get_n_unique_in_tree(index);
 
 	/* Test if the search would have succeeded using the recommended
 	hash prefix */
@@ -676,7 +676,7 @@ btr_search_guess_on_hash(
 		success = buf_page_get_known_nowait(latch_mode, page,
 						BUF_MAKE_YOUNG,
 #ifdef UNIV_SYNC_DEBUG
-						__FILE__, __LINE__,
+						IB__FILE__, __LINE__,
 #endif
 						mtr);
 

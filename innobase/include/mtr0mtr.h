@@ -204,7 +204,7 @@ mtr_read_dulint(
 /*************************************************************************
 This macro locks an rw-lock in s-mode. */
 #ifdef UNIV_SYNC_DEBUG
-#define mtr_s_lock(B, MTR)	mtr_s_lock_func((B), __FILE__, __LINE__,\
+#define mtr_s_lock(B, MTR)	mtr_s_lock_func((B), IB__FILE__, __LINE__,\
 						(MTR))
 #else
 #define mtr_s_lock(B, MTR)	mtr_s_lock_func((B), (MTR))
@@ -212,7 +212,7 @@ This macro locks an rw-lock in s-mode. */
 /*************************************************************************
 This macro locks an rw-lock in x-mode. */
 #ifdef UNIV_SYNC_DEBUG
-#define mtr_x_lock(B, MTR)	mtr_x_lock_func((B), __FILE__, __LINE__,\
+#define mtr_x_lock(B, MTR)	mtr_x_lock_func((B), IB__FILE__, __LINE__,\
 						(MTR))
 #else
 #define mtr_x_lock(B, MTR)	mtr_x_lock_func((B), (MTR))

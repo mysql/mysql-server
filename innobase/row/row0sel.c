@@ -1791,6 +1791,8 @@ row_sel_convert_mysql_key_to_innobase(
 	byte*		key_end;
 	ulint		n_fields = 0;
 	
+	UT_NOT_USED(index);
+
 	key_end = key_ptr + key_len;
 
 	/* Permit us to access any field in the tuple (ULINT_MAX): */
@@ -1919,7 +1921,7 @@ row_sel_field_store_in_mysql_format(
 		}
 
 		if (!is_unsigned) {
-			dest[len - 1] = dest[len - 1] ^ 128;
+			dest[len - 1] = (byte) (dest[len - 1] ^ 128);
 		}
 
 		ut_ad(col_len == len);

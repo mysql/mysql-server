@@ -91,7 +91,7 @@ ut_print_buf(
 	data = buf;
 
 	for (i = 0; i < len; i++) {
-		printf("%02x", (ulint)*data);
+		printf("%02lx", (ulint)*data);
 		data++;
 	}
 
@@ -131,7 +131,7 @@ ut_sprintf_buf(
 	data = buf;
 
 	for (i = 0; i < len; i++) {
-		n += sprintf(str + n, "%02x", (ulint)*data);
+		n += sprintf(str + n, "%02lx", (ulint)*data);
 		data++;
 	}
 

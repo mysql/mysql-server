@@ -512,5 +512,5 @@ flst_print(
 	printf("FILE-BASED LIST:\n");
 	printf("Base node in space %lu page %lu byte offset %lu; len %lu\n",
 		buf_frame_get_space_id(frame), buf_frame_get_page_no(frame),
-		base - frame, len);
+		(ulint) (base - frame), len);
 }

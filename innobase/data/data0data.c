@@ -155,9 +155,7 @@ dtuple_validate(
 	ulint	 	len;
 	ulint	 	i;
 	ulint	 	j;
-	ulint	 	sum	= 0; /* A dummy variable used
-					to prevent the compiler
-					from erasing the loop below */
+
 	ut_a(tuple->magic_n = DATA_TUPLE_MAGIC_N);
 
 	n_fields = dtuple_get_n_fields(tuple);
@@ -227,7 +225,7 @@ dfield_print(
 		}
 	} else if (mtype == DATA_INT) {
 		ut_a(len == 4); /* only works for 32-bit integers */
-		printf("%li", (int)mach_read_from_4(data));
+		printf("%i", (int)mach_read_from_4(data));
 	} else {
 		ut_error;
 	}
@@ -285,13 +283,13 @@ dfield_print_also_hex(
 		data = dfield_get_data(dfield);
 		
 		for (i = 0; i < len; i++) {
-			printf("%02x", (ulint)*data);
+			printf("%02lx", (ulint)*data);
 
 			data++;
 		}
 	} else if (mtype == DATA_INT) {
 		ut_a(len == 4); /* inly works for 32-bit integers */
-		printf("%li", (int)mach_read_from_4(data));
+		printf("%i", (int)mach_read_from_4(data));
 	} else {
 		ut_error;
 	}
@@ -379,6 +377,8 @@ dtuple_sprintf(
 
 	return(len);
 }
+
+#ifdef notdefined
 
 /******************************************************************
 Generates random numbers, where 10/16 is uniformly
@@ -788,3 +788,5 @@ dtuple_gen_search_tuple_TPC_C(
 
 	ut_ad(dtuple_validate(tuple));
 }
+
+#endif /* notdefined */

@@ -1292,6 +1292,8 @@ ibuf_add_free_page(
 	mutex_exit(&ibuf_mutex);
 
 	ibuf_exit();
+
+	return(DB_SUCCESS);
 }
 
 /*************************************************************************
@@ -2424,7 +2426,7 @@ loop:
 		success = buf_page_get_known_nowait(RW_X_LATCH, page,
 					BUF_KEEP_OLD,
 #ifdef UNIV_SYNC_DEBUG
-					__FILE__, __LINE__,
+					IB__FILE__, __LINE__,
 #endif
 					&mtr);
 

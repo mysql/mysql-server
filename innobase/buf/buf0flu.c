@@ -560,7 +560,7 @@ buf_flush_batch(
 	if (buf_debug_prints && (page_count > 0)) {
 		if (flush_type == BUF_FLUSH_LRU) {
 			printf("To flush %lu pages in LRU flush\n",
-						page_count, flush_type);
+						page_count);
 		} else if (flush_type == BUF_FLUSH_LIST) {
 			printf("To flush %lu pages in flush list flush\n",
 						page_count, flush_type);

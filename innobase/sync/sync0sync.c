@@ -259,7 +259,7 @@ mutex_enter_nowait(
 	if (!mutex_test_and_set(mutex)) {
 
 		#ifdef UNIV_SYNC_DEBUG
-		mutex_set_debug_info(mutex, __FILE__, __LINE__);
+		mutex_set_debug_info(mutex, IB__FILE__, __LINE__);
 		#endif
 		
 		return(0);	/* Succeeded! */

@@ -19,6 +19,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "dict0mem.h"
 #include "trx0undo.h"
 #include "btr0btr.h"
+#include "btr0cur.h"
 #include "btr0sea.h"
 #include "pars0pars.h"
 #include "pars0sym.h"
@@ -39,13 +40,6 @@ dict_sys_t*	dict_sys	= NULL;	/* the dictionary system */
 #define DICT_POOL_PER_VARYING	4	/* buffer pool max size per data
 					dictionary varying size in bytes */
 
-/**************************************************************************
-Frees tables from the end of table_LRU if the dictionary cache occupies
-too much space. */
-static
-void
-dict_table_LRU_trim(void);
-/*=====================*/
 /**************************************************************************
 Adds a column to the data dictionary hash table. */
 static
@@ -586,7 +580,7 @@ dict_table_remove_from_cache(
 /**************************************************************************
 Frees tables from the end of table_LRU if the dictionary cache occupies
 too much space. Currently not used! */
-static
+
 void
 dict_table_LRU_trim(void)
 /*=====================*/

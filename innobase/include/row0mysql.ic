@@ -43,6 +43,8 @@ row_mysql_read_var_ref(
 
 	return(field + 2);
 */
+	UT_NOT_USED(len);
+
 	return(field);	/* No real var implemented in MySQL yet! */
 }
 
@@ -83,7 +85,7 @@ row_mysql_store_col_in_innobase_format(
 		}
 
 		if (!is_unsigned) {
-			*ptr = *ptr ^ 128;
+			*ptr = (byte) (*ptr ^ 128);
 		}
 	} else if (type == DATA_VARCHAR || type == DATA_VARMYSQL
 						|| type == DATA_BINARY) {
