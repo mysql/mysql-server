@@ -476,7 +476,7 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
 #ifdef USING_TRANSACTIONS
   if (opt_using_transactions)
   {
-    bool operation_done= 0;
+    bool transaction_commited= 0;
     bool operation_done= 0, need_start_waiters= 0;
 
     /* If transaction has done some updates to tables */
