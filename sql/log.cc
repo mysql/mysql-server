@@ -33,7 +33,6 @@
 
 MYSQL_LOG mysql_log,mysql_update_log,mysql_slow_log,mysql_bin_log;
 extern I_List<i_string> binlog_do_db, binlog_ignore_db;
-extern ulong max_binlog_size;
 
 static bool test_if_number(const char *str,
 			   long *res, bool allow_wildcards);

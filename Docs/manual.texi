@@ -14373,6 +14373,10 @@ If this is enabled, a user can't create new users with the GRANT
 command, if the user doesn't have @code{INSERT} privilege to the
 @code{mysql.user} table or any column in this table.
 
+@item --skip-bdb
+Disable usage of BDB tables. This will save memory and may speed up some
+things.
+
 @item --skip-concurrent-insert
 Turn off the ability to select and insert at the same time on @code{MyISAM}
 tables. (This is only to be used if you think you have found a bug in this
@@ -14391,6 +14395,10 @@ flush-privileges} or @code{mysqladmin reload}.)
 @item --skip-host-cache
 Never use host name cache for faster name-ip resolution, but query DNS server
 on every connect instead.  @xref{DNS}.
+
+@item --skip-innodb
+Disable usage of Innodb tables.  This will save memory and disk space and
+speed up some things.
 
 @item --skip-external-locking (was --skip-locking)
 Don't use system locking.  To use @code{isamchk} or @code{myisamchk} you must
@@ -38620,6 +38628,9 @@ an auto-extending 10 MB file @file{ibdata1} to the @code{datadir}
 of MySQL. (In MySQL-4.0.0 and 4.0.1 the datafile is 64 MB and not
 auto-extending.)
 
+If you don't want to use @code{InnoDB} tables, you can add the
+@code{skip-innodb} option to your MySQL option file.
+
 But to get good performance you MUST explicitly set the InnoDB parameters
 listed in the following examples.
 
@@ -40571,13 +40582,14 @@ BDB tables:
 @item @code{--bdb-no-recover} @tab Don't start Berkeley DB in recover mode.
 @item @code{--bdb-shared-data} @tab Start Berkeley DB in multi-process mode (Don't use @code{DB_PRIVATE} when initialising Berkeley DB)
 @item @code{--bdb-tmpdir=directory} @tab Berkeley DB tempfile name.
-@item @code{--skip-bdb} @tab Don't use berkeley db.
+@item @code{--skip-bdb} @tab Disable usage of BDB tables.
 @item @code{-O bdb_max_lock=1000} @tab Set the maximum number of locks possible. @xref{SHOW VARIABLES}.
 @end multitable
 
 If you use @code{--skip-bdb}, MySQL will not initialise the
 Berkeley DB library and this will save a lot of memory. Of course,
-you cannot use @code{BDB} tables if you are using this option.
+you cannot use @code{BDB} tables if you are using this option.  If you try
+to create an BDB table, MySQL will instead create a MyISAM table.
 
 Normally you should start @code{mysqld} without @code{--bdb-no-recover} if you
 intend to use BDB tables.  This may, however, give you problems when you
@@ -50367,6 +50379,8 @@ Fixed some problems with @code{CREATE TABLE ... SELECT function()}.
 @item
 @code{mysqld} now has the option @code{--temp-pool} enabled by default as this
 gives better performance with some operating systems.
+@item
+Fixed hang in @code{CHANGE MASTER TO} if the slave thread died very quickly.
 @item
 Big cleanup in replication code (less logging, better error messages, etc..)
 @item

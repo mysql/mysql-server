@@ -1160,14 +1160,15 @@ static void expand_error(MYSQL* mysql, int error)
 static int get_master(MYSQL* mysql, MYSQL_RES* res, MYSQL_ROW row)
 {
   MYSQL* master;
+  DBUG_ENTER("get_master");
   if (mysql_num_fields(res) < 3)
-    return 1; /* safety */
+    DBUG_RETURN(1); /* safety */
 
   /* use the same username and password as the original connection */
   if (!(master = spawn_init(mysql, row[0], atoi(row[2]), 0, 0)))
-    return 1;
+    DBUG_RETURN(1);
   mysql->master = master;
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -1183,18 +1184,19 @@ static int get_slaves_from_master(MYSQL* mysql)
   int error = 1;
   int has_auth_info;
   int port_ind;
+  DBUG_ENTER("get_slaves_from_master");
 
   if (!mysql->net.vio && !mysql_real_connect(mysql,0,0,0,0,0,0,0))
   {
     expand_error(mysql, CR_PROBE_MASTER_CONNECT);
-    return 1;
+    DBUG_RETURN(1);
   }
 
   if (mysql_query(mysql, "SHOW SLAVE HOSTS") ||
       !(res = mysql_store_result(mysql)))
   {
     expand_error(mysql, CR_PROBE_SLAVE_HOSTS);
-    return 1;
+    DBUG_RETURN(1);
   }
 
   switch (mysql_num_fields(res)) {
@@ -1238,15 +1240,17 @@ static int get_slaves_from_master(MYSQL* mysql)
 err:
   if (res)
    mysql_free_result(res);
-  return error;
+  DBUG_RETURN(error);
 }
 
 
 int STDCALL mysql_rpl_probe(MYSQL* mysql)
 {
-  MYSQL_RES* res = 0;
+  MYSQL_RES *res= 0;
   MYSQL_ROW row;
   int error = 1;
+  DBUG_ENTER("mysql_rpl_probe");
+
   /*
     First determine the replication role of the server we connected to
     the most reliable way to do this is to run SHOW SLAVE STATUS and see
@@ -1259,7 +1263,7 @@ int STDCALL mysql_rpl_probe(MYSQL* mysql)
       !(res = mysql_store_result(mysql)))
   {
     expand_error(mysql, CR_PROBE_SLAVE_STATUS);
-    return 1;
+    DBUG_RETURN(1);
   }
 
   row= mysql_fetch_row(res);
@@ -1284,7 +1288,7 @@ int STDCALL mysql_rpl_probe(MYSQL* mysql)
 err:
   if (res)
     mysql_free_result(res);
-  return error;
+  DBUG_RETURN(error);
 }
 
 
@@ -1979,7 +1983,11 @@ static my_bool mysql_reconnect(MYSQL *mysql)
   if (!mysql_real_connect(&tmp_mysql,mysql->host,mysql->user,mysql->passwd,
 			  mysql->db, mysql->port, mysql->unix_socket,
 			  mysql->client_flag))
+  {
+    mysql->net.last_errno= tmp_mysql.net.last_errno;
+    strmov(mysql->net.last_error, tmp_mysql.net.last_error);
     DBUG_RETURN(1);
+  }
   tmp_mysql.free_me=mysql->free_me;
   mysql->free_me=0;
   mysql_close(mysql);
@@ -2060,7 +2068,7 @@ mysql_close(MYSQL *mysql)
       mysql->status=MYSQL_STATUS_READY; /* Force command */
       mysql->reconnect=0;
       simple_command(mysql,COM_QUIT,NullS,0,1);
-      end_server(mysql);
+      end_server(mysql);			/* Sets mysql->net.vio= 0 */
     }
     my_free((gptr) mysql->host_info,MYF(MY_ALLOW_ZERO_PTR));
     my_free(mysql->user,MYF(MY_ALLOW_ZERO_PTR));
@@ -2082,7 +2090,6 @@ mysql_close(MYSQL *mysql)
     /* Clear pointers for better safety */
     mysql->host_info=mysql->user=mysql->passwd=mysql->db=0;
     bzero((char*) &mysql->options,sizeof(mysql->options));
-    mysql->net.vio = 0;
 
     /* free/close slave list */
     if (mysql->rpl_pivot)
