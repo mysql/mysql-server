@@ -4,7 +4,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
-AM_INIT_AUTOMAKE(mysql, 3.23.29-gamma)
+AM_INIT_AUTOMAKE(mysql, 3.23.29a-gamma)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -634,6 +634,20 @@ case $SYSTEM_TYPE in
     fi
     builddir=`pwd`
     sed -e "s|^#if[ 	]*!defined(lint) && !defined(__lint)|#if !defined\(lint\) \&\& !defined\(__lint\) \&\& !defined\(getwc\)|" < /usr/include/widec.h > include/widec.h
+    CFLAGS="$CFLAGS -DHAVE_CURSES_H -I$builddir/include -DHAVE_RWLOCK_T"
+    CXXFLAGS="$CXXFLAGS -DHAVE_CURSES_H -I$builddir/include -DHAVE_RWLOCK_T"
+    ;;
+  *solaris2.8*)
+    # Solaris 2.8 has a broken /usr/include/widec.h
+    # Make a fixed copy in ./include
+    echo "Fixing broken include files for $SYSTEM_TYPE"
+    echo "  - Creating local copy of widec.h"
+    if test ! -d include
+    then
+      mkdir ./include
+    fi
+    builddir=`pwd`
+    sed -e "s|^#if[ 	]*!defined(__lint)|#if !defined\(__lint\) \&\& !defined\(getwc\)|" < /usr/include/widec.h > include/widec.h
     CFLAGS="$CFLAGS -DHAVE_CURSES_H -I$builddir/include -DHAVE_RWLOCK_T"
     CXXFLAGS="$CXXFLAGS -DHAVE_CURSES_H -I$builddir/include -DHAVE_RWLOCK_T"
     ;;
@@ -1514,7 +1528,7 @@ AC_ARG_WITH(bench,
 
 if test "$with_bench" = "yes"
 then
-  bench_dirs="sql-bench"
+  bench_dirs="sql-bench mysql-test"
 else
   bench_dirs=""
 fi

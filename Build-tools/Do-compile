@@ -61,7 +61,7 @@ if ($opt_stage == 0)
     log_system("$host/bin/mysqladmin --no-defaults -u root -S $mysql_unix_port -s shutdown");
   }
   system("touch $host/mysql-fix-for-glob");
-  rm_all(<$host/mysql-*>);
+  rm_all(<$host/mysql-3*>);
   rm_all("$host/test");
   system("mkdir $host") if (! -d $host);
   system("mkdir $host/test") if (! -d "$host/test");
