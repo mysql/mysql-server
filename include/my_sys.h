@@ -663,6 +663,8 @@ extern void radixsort_for_str_ptr(uchar* base[], uint number_of_elements,
 extern qsort_t qsort2(void *base_ptr, size_t total_elems, size_t size,
 		      qsort2_cmp cmp, void *cmp_argument);
 extern qsort2_cmp get_ptr_compare(uint);
+void my_store_ptr(byte *buff, uint pack_length, my_off_t pos);
+my_off_t my_get_ptr(byte *ptr, uint pack_length);
 extern int init_io_cache(IO_CACHE *info,File file,uint cachesize,
 			 enum cache_type type,my_off_t seek_offset,
 			 pbool use_async_io, myf cache_myflags);
