@@ -2171,7 +2171,7 @@ The Widgetchuck; Web Site Tools and Gadgets
 AdCycle - advertising management software.
 
 @cindex pwPage
-@item @uref{http://www.bidsystems.com/pwPage}@*
+@item @uref{http://sourceforge.net/projects/pwpage/}@*
 pwPage - provides an extremely
 fast and simple approach to the creation of database forms.  That is,
 if a database table exists and an HTML page has been constructed using
@@ -4106,11 +4106,11 @@ USA [LinuxWired/Scottsdale, AZ] @
 @c @image{Flags/brazil} Brazil [Matrix] @
 @c @uref{http://mysql.matrix.com.br, WWW}
 
-@c @item
-@c Not ok 20000919; Old site (Matt)
+@item
 @c jpabuyer@vision.cl
-@c @image{Flags/chile} Chile [Vision] @
-@c @uref{http://mysql.vision.cl/, WWW}
+@c @image{Flags/chile}
+Chile [Vision] @
+@uref{http://mysql.vision.cl/, WWW}
 
 @item
 @c EMAIL: bartschm@psi.com (Marcelo Bartsch)
