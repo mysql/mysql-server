@@ -28,3 +28,98 @@ set sql_mode="postgresql,oracle,mssql,db2,maxdb";
 select @@sql_mode;
 show create table t1;
 drop table t1;
+
+#
+# test for 
+#  WL 1941 "NO_C_ESCAPES sql_mode"
+#
+# an sql_mode to disable \n, \r, \b, etc escapes in string literals. actually, to
+# disable special meaning of backslash completely. It's not in the SQL standard
+# and it causes some R/3 tests to fail.
+#
+
+SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE='';
+show local variables like 'SQL_MODE';
+
+CREATE TABLE t1 (p int not null auto_increment, a varchar(20), primary key(p));
+INSERT t1 (a) VALUES 
+('\\'),
+('\n'),
+('\b'),
+('\r'),
+('\t'),
+('\x'),
+('\a'),
+('\aa'),
+('\\a'),
+('\\aa'),
+('_'),
+('\_'),
+('\\_'),
+('\\\_'),
+('\\\\_'),
+('%'),
+('\%'),
+('\\%'),
+('\\\%'),
+('\\\\%')
+;
+
+SELECT p, hex(a) FROM t1;
+
+delete from t1 where a in ('\n','\r','\t', '\b');
+
+select
+  masks.p,
+  masks.a as mask,
+  examples.a as example
+from
+            t1 as masks
+  left join t1 as examples on examples.a LIKE masks.a
+order by masks.p, example;
+
+DROP TABLE t1;
+
+SET @@SQL_MODE='NO_BACKSLASH_ESCAPES';
+show local variables like 'SQL_MODE';
+
+CREATE TABLE t1 (p int not null auto_increment, a varchar(20), primary key(p));
+INSERT t1 (a) VALUES 
+('\\'),
+('\n'),
+('\b'),
+('\r'),
+('\t'),
+('\x'),
+('\a'),
+('\aa'),
+('\\a'),
+('\\aa'),
+('_'),
+('\_'),
+('\\_'),
+('\\\_'),
+('\\\\_'),
+('%'),
+('\%'),
+('\\%'),
+('\\\%'),
+('\\\\%')
+;
+
+SELECT p, hex(a) FROM t1;
+
+delete from t1 where a in ('\n','\r','\t', '\b');
+
+select 
+  masks.p,
+  masks.a as mask,
+  examples.a as example
+from
+            t1 as masks
+  left join t1 as examples on examples.a LIKE masks.a
+order by masks.p, example;
+
+DROP TABLE t1;
+
+SET @@SQL_MODE=@OLD_SQL_MODE;
