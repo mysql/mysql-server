@@ -37,6 +37,7 @@
 #include <thr_alarm.h>
 #include <ft_global.h>
 #include <errmsg.h>
+#include "sp_rcontext.h"
 
 #define mysqld_charset &my_charset_latin1
 
@@ -1846,6 +1847,10 @@ extern "C" int my_message_sql(uint error, const char *str,
   DBUG_PRINT("error", ("Message: '%s'", str));
   if ((thd= current_thd))
   {
+    if (thd->spcont && thd->spcont->find_handler(error))
+    {
+      DBUG_RETURN(0);
+    }
     /*
       thd->lex.current_select equel to zero if lex structure is not inited
       (not query command (COM_QUERY))

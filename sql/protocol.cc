@@ -24,6 +24,7 @@
 #endif
 
 #include "mysql_priv.h"
+#include "sp_rcontext.h"
 #include <stdarg.h>
 
 #ifndef EMBEDDED_LIBRARY
@@ -60,6 +61,10 @@ void send_error(THD *thd, uint sql_errno, const char *err)
 		      err ? err : net->last_error[0] ?
 		      net->last_error : "NULL"));
 
+  if (thd->spcont && thd->spcont->find_handler(sql_errno))
+  {
+    DBUG_VOID_RETURN;
+  }
 #ifndef EMBEDDED_LIBRARY  /* TODO query cache in embedded library*/
   query_cache_abort(net);
 #endif
@@ -139,6 +144,10 @@ void send_error(THD *thd, uint sql_errno, const char *err)
 void send_warning(THD *thd, uint sql_errno, const char *err)
 {
   DBUG_ENTER("send_warning");  
+  if (thd->spcont && thd->spcont->find_handler(sql_errno))
+  {
+    DBUG_VOID_RETURN;
+  }
   push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, sql_errno,
 	       err ? err : ER(sql_errno));
   send_ok(thd);
@@ -169,6 +178,10 @@ net_printf(THD *thd, uint errcode, ...)
   DBUG_ENTER("net_printf");
   DBUG_PRINT("enter",("message: %u",errcode));
 
+  if (thd->spcont && thd->spcont->find_handler(errcode))
+  {
+    DBUG_VOID_RETURN;
+  }
   thd->query_error=  1; // needed to catch query errors during replication
 #ifndef EMBEDDED_LIBRARY
   query_cache_abort(net);	// Safety

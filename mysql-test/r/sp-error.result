@@ -96,3 +96,28 @@ select f(1, 2);
 ERROR HY000: Wrong number of arguments for FUNCTION f, expected 1, got 2
 drop procedure p;
 drop function f;
+create procedure p(val int, out res int)
+begin
+declare x int default 0;
+declare continue handler for foo set x = 1;
+insert into test.t1 values (val);
+if (x) then
+set res = 0;
+else
+set res = 1;
+end if;
+end;
+ERROR HY000: Undefined CONDITION: foo
+create procedure p(val int, out res int)
+begin
+declare x int default 0;
+declare foo condition for 1146;
+declare continue handler for bar set x = 1;
+insert into test.t1 values (val);
+if (x) then
+set res = 0;
+else
+set res = 1;
+end if;
+end;
+ERROR HY000: Undefined CONDITION: bar

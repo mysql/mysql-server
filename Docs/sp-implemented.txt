@@ -1,4 +1,4 @@
-Stored Procedures implemented 2003-03-07:
+Stored Procedures implemented 2003-09-16:
 
 
 Summary of Not Yet Implemented:
@@ -7,13 +7,12 @@ Summary of Not Yet Implemented:
   - External languages
   - Access control
   - Routine characteristics (mostly used for external languages)
-  - Prepared SP caching; SPs are fetched and reparsed at each call
   - SQL-99 COMMIT (related to BEGIN/END)
   - DECLARE CURSOR ...
   - FOR-loops (as it requires cursors)
   - CASCADE/RESTRICT for ALTER and DROP
   - ALTER/DROP METHOD (as it implies User Defined Types)
-  - CONDITIONs, HANDLERs, SIGNAL and RESIGNAL (will probably not be implemented)
+  - SIGNAL and RESIGNAL, and UNDO handlers
 
 
 Summary of what's implemented:
@@ -24,7 +23,8 @@ Summary of what's implemented:
   - BEGIN/END, SET, CASE, IF, LOOP, WHILE, REPEAT, ITERATE, LEAVE
   - SELECT INTO local variables
   - "Non-query" FUNCTIONs only
-
+  - Prepared SP caching
+  - CONDITIONs and HANDLERs
 
 List of what's implemented:
 
@@ -75,7 +75,17 @@ List of what's implemented:
       query (unlike a PROCEDURE, which is called as a statement). The table
       locking scheme used makes it difficult to allow "subqueries" during
       FUNCTION invokation.
-
+    - SPs are cached, but with a separate cache for each thread (THD).
+      There are still quite a few non-reentrant constructs in the lexical
+      context which makes sharing prepared SPs impossible. And, even when
+      this is resolved, it's not necessarily the case that it will be faster
+      than a cache per thread. A global cache requires locks, which might
+      become a buttleneck. (It would save memory though.)
+    - CONDITIONs and HANDLERs are implemented, but not the SIGNAL and
+      RESIGNAL statements. (It's unclear if these can be implemented.)
+      The semantics of CONDITIONs is expanded to allow catching MySQL error
+      codes as well. UNDO handlers are not implemented (since we don't have
+      SQL-99 style transaction control yet).
 
 Closed questions:
 

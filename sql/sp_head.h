@@ -36,6 +36,8 @@ struct sp_label;
 
 class sp_instr;
 
+struct sp_cond_type;
+
 class sp_head : public Sql_alloc
 {
   sp_head(const sp_head &);	/* Prevent use of these */
@@ -91,6 +93,15 @@ public:
   instructions()
   {
     return m_instr.elements;
+  }
+
+  inline sp_instr *
+  last_instruction()
+  {
+    sp_instr *i;
+
+    get_dynamic(&m_instr, (gptr)&i, m_instr.elements-1);
+    return i;
   }
 
   // Resets lex in 'thd' and keeps a copy of the old one.
@@ -385,18 +396,18 @@ private:
 }; // class sp_instr_jump_if_not : public sp_instr_jump
 
 
-class sp_instr_return : public sp_instr
+class sp_instr_freturn : public sp_instr
 {
-  sp_instr_return(const sp_instr_return &);	/* Prevent use of these */
-  void operator=(sp_instr_return &);
+  sp_instr_freturn(const sp_instr_freturn &);	/* Prevent use of these */
+  void operator=(sp_instr_freturn &);
 
 public:
 
-  sp_instr_return(uint ip, Item *val, enum enum_field_types type)
+  sp_instr_freturn(uint ip, Item *val, enum enum_field_types type)
     : sp_instr(ip), m_value(val), m_type(type)
   {}
 
-  virtual ~sp_instr_return()
+  virtual ~sp_instr_freturn()
   {}
 
   virtual int execute(THD *thd, uint *nextp);
@@ -406,6 +417,89 @@ protected:
   Item *m_value;
   enum enum_field_types m_type;
 
-}; // class sp_instr_return : public sp_instr
+}; // class sp_instr_freturn : public sp_instr
+
+
+class sp_instr_hpush_jump : public sp_instr_jump
+{
+  sp_instr_hpush_jump(const sp_instr_hpush_jump &); /* Prevent use of these */
+  void operator=(sp_instr_hpush_jump &);
+
+public:
+
+  sp_instr_hpush_jump(uint ip, int htype, uint fp)
+    : sp_instr_jump(ip), m_type(htype), m_frame(fp)
+  {
+    m_handler= ip+1;
+    m_cond.empty();
+  }
+
+  virtual ~sp_instr_hpush_jump()
+  {
+    m_cond.empty();
+  }
+
+  virtual int execute(THD *thd, uint *nextp);
+
+  inline void add_condition(struct sp_cond_type *cond)
+  {
+    m_cond.push_front(cond);
+  }
+
+private:
+
+  int m_type;			// Handler type
+  uint m_frame;
+  uint m_handler;		// Location of handler
+  List<struct sp_cond_type> m_cond;
+
+}; // class sp_instr_hpush_jump : public sp_instr_jump
+
+
+class sp_instr_hpop : public sp_instr
+{
+  sp_instr_hpop(const sp_instr_hpop &);	/* Prevent use of these */
+  void operator=(sp_instr_hpop &);
+
+public:
+
+  sp_instr_hpop(uint ip, uint count)
+    : sp_instr(ip), m_count(count)
+  {}
+
+  virtual ~sp_instr_hpop()
+  {}
+
+  virtual int execute(THD *thd, uint *nextp);
+
+private:
+
+  uint m_count;
+
+}; // class sp_instr_hpop : public sp_instr
+
+
+class sp_instr_hreturn : public sp_instr
+{
+  sp_instr_hreturn(const sp_instr_hreturn &);	/* Prevent use of these */
+  void operator=(sp_instr_hreturn &);
+
+public:
+
+  sp_instr_hreturn(uint ip, uint fp)
+    : sp_instr(ip), m_frame(fp)
+  {}
+
+  virtual ~sp_instr_hreturn()
+  {}
+
+  virtual int execute(THD *thd, uint *nextp);
+
+private:
+
+  uint m_frame;
+
+}; // class sp_instr_hreturn : public sp_instr
+
 
 #endif /* _SP_HEAD_H_ */

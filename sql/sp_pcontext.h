@@ -44,6 +44,19 @@ typedef struct sp_label
   uint ip;			// Instruction index
 } sp_label_t;
 
+typedef struct sp_cond_type
+{
+  enum { number, state, warning, notfound, exception } type;
+  char sqlstate[6];
+  uint mysqlerr;
+} sp_cond_type_t;
+
+typedef struct sp_cond
+{
+  LEX_STRING name;
+  sp_cond_type_t *val;
+} sp_cond_t;
+
 class sp_pcontext : public Sql_alloc
 {
   sp_pcontext(const sp_pcontext &); /* Prevent use of these */
@@ -56,6 +69,10 @@ class sp_pcontext : public Sql_alloc
   // Free memory
   void
   destroy();
+
+  //
+  // Parameters and variables
+  //
 
   inline uint
   max_framesize()
@@ -101,11 +118,11 @@ class sp_pcontext : public Sql_alloc
   }
 
   void
-  push(LEX_STRING *name, enum enum_field_types type, sp_param_mode_t mode);
+  push_pvar(LEX_STRING *name, enum enum_field_types type, sp_param_mode_t mode);
 
   // Pop the last 'num' slots of the frame
   inline void
-  pop(uint num = 1)
+  pop_pvar(uint num = 1)
   {
     while (num--)
       pop_dynamic(&m_pvar);
@@ -128,6 +145,10 @@ class sp_pcontext : public Sql_alloc
     return p;
   }
 
+  //
+  // Labels
+  //
+
   sp_label_t *
   push_label(char *name, uint ip);
 
@@ -146,12 +167,47 @@ class sp_pcontext : public Sql_alloc
     return m_label.pop();
   }
 
+  //
+  // Conditions
+  //
+
+  void
+  push_cond(LEX_STRING *name, sp_cond_type_t *val);
+
+  inline void
+  pop_cond(uint num)
+  {
+    while (num--)
+      pop_dynamic(&m_cond);
+  }
+
+  sp_cond_type_t *
+  find_cond(LEX_STRING *name);
+
+  //
+  // Handlers
+  //
+
+  inline void
+  add_handler()
+  {
+    m_handlers+= 1;
+  }
+
+  inline uint
+  handlers()
+  {
+    return m_handlers;
+  }
+
 private:
 
   uint m_params;		// The number of parameters
   uint m_framesize;		// The maximum framesize
+  uint m_handlers;		// The total number of handlers
 
-  DYNAMIC_ARRAY m_pvar;
+  DYNAMIC_ARRAY m_pvar;		// Parameters/variables
+  DYNAMIC_ARRAY m_cond;		// Conditions
 
   List<sp_label_t> m_label;	// The label list
   uint m_genlab;		// Gen. label counter
