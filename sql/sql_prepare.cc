@@ -1307,6 +1307,7 @@ static int mysql_test_create_table(Prepared_statement *stmt,
   DBUG_ENTER("mysql_test_create_table");
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
+  SELECT_LEX *select_lex= &lex->select_lex;
   int res= 0;
 
   /* Skip first table, which is the table we are creating */
@@ -1315,8 +1316,12 @@ static int mysql_test_create_table(Prepared_statement *stmt,
 				  &create_table_local);
 
   if (!(res= create_table_precheck(thd, tables, create_table)) &&
-      lex->select_lex.item_list.elements)
+      select_lex->item_list.elements)
+  {
+    select_lex->resolve_mode= SELECT_LEX::SELECT_MODE;
     res= select_like_statement_test(stmt, tables);
+    select_lex->resolve_mode= SELECT_LEX::NOMATTER_MODE;
+  }
 
   /* put tables back for PS rexecuting */
   tables= lex->link_first_table_back(tables, create_table,
@@ -1400,7 +1405,11 @@ static int mysql_test_insert_select(Prepared_statement *stmt,
     (TABLE_LIST *)lex->select_lex.table_list.first;
   /* Skip first table, which is the table we are inserting in */
   lex->select_lex.table_list.first= (byte*) first_local_table->next;
-  lex->select_lex.resolve_mode= SELECT_LEX::NOMATTER_MODE;
+  /*
+    insert/replace from SELECT give its SELECT_LEX for SELECT,
+    and item_list belong to SELECT
+  */
+  lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
   res= select_like_statement_test(stmt, tables);
   /* revert changes*/
   lex->select_lex.table_list.first= (byte*) first_local_table;

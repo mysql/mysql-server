@@ -2354,7 +2354,15 @@ mysql_execute_command(THD *thd)
                                       lex->create_list,
                                       lex->key_list,
                                       select_lex->item_list,lex->duplicates)))
+        {
+          /*
+            CREATE from SELECT give its SELECT_LEX for SELECT,
+            and item_list belong to SELECT
+          */
+          select_lex->resolve_mode= SELECT_LEX::SELECT_MODE;
           res=handle_select(thd, lex, result);
+          select_lex->resolve_mode= SELECT_LEX::NOMATTER_MODE;
+        }
 	//reset for PS
 	lex->create_list.empty();
 	lex->key_list.empty();
@@ -2704,7 +2712,11 @@ unsent_create_error:
 				    lex->duplicates)))
 	/* Skip first table, which is the table we are inserting in */
 	lex->select_lex.table_list.first= (byte*) first_local_table->next;
-	lex->select_lex.resolve_mode= SELECT_LEX::NOMATTER_MODE;
+        /*
+          insert/replace from SELECT give its SELECT_LEX for SELECT,
+          and item_list belong to SELECT
+        */
+	lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
 	res=handle_select(thd,lex,result);
 	/* revert changes for SP */
 	lex->select_lex.table_list.first= (byte*) first_local_table;
