@@ -33901,7 +33901,7 @@ DELAYED} when you are really sure you need it!
 
 @example
 UPDATE [LOW_PRIORITY] [IGNORE] tbl_name
-    SET col_name1=expr1, [col_name2=expr2, ...]
+    SET col_name1=expr1 [, col_name2=expr2, ...]
     [WHERE where_definition]
     [LIMIT #]
 @end example
