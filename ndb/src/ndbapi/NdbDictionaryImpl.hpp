@@ -183,7 +183,6 @@ public:
   void setTable(const char * table);
   const char * getTable() const;
   const NdbTableImpl * getIndexTable() const;
-  const NdbTableImpl * getBaseTable() const;
 
   Uint32 m_indexId;
   BaseString m_internalName;

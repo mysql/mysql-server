@@ -954,7 +954,7 @@ Backup::sendBackupRef(BlockReference senderRef, Signal *signal,
   sendSignal(senderRef, GSN_BACKUP_REF, signal, BackupRef::SignalLength, JBB);
 
   if(errorCode != BackupRef::IAmNotMaster){
-    signal->theData[0] = EventReport::BackupFailedToStart;
+    signal->theData[0] = NDB_LE_BackupFailedToStart;
     signal->theData[1] = senderRef;
     signal->theData[2] = errorCode;
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
@@ -992,7 +992,11 @@ Backup::execUTIL_SEQUENCE_CONF(Signal* signal)
   }//if
   ndbrequire(ptr.p->masterData.state.getState() == DEFINING);
 
-  ptr.p->backupId = conf->sequenceValue[0];
+  {
+    Uint64 backupId;
+    memcpy(&backupId,conf->sequenceValue,8);
+    ptr.p->backupId= (Uint32)backupId;
+  }
   ptr.p->backupKey[0] = (getOwnNodeId() << 16) | (ptr.p->backupId & 0xFFFF);
   ptr.p->backupKey[1] = NdbTick_CurrentMillisecond();
 
@@ -1242,7 +1246,7 @@ Backup::defineBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
   sendSignal(ptr.p->clientRef, GSN_BACKUP_CONF, signal, 
 	     BackupConf::SignalLength, JBB);
   
-  signal->theData[0] = EventReport::BackupStarted;
+  signal->theData[0] = NDB_LE_BackupStarted;
   signal->theData[1] = ptr.p->clientRef;
   signal->theData[2] = ptr.p->backupId;
   ptr.p->nodes.copyto(NdbNodeBitmask::Size, signal->theData+3);
@@ -2087,7 +2091,7 @@ Backup::stopBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
   sendSignal(ptr.p->clientRef, GSN_BACKUP_COMPLETE_REP, signal,
 	     BackupCompleteRep::SignalLength, JBB);
 
-  signal->theData[0] = EventReport::BackupCompleted;
+  signal->theData[0] = NDB_LE_BackupCompleted;
   signal->theData[1] = ptr.p->clientRef;
   signal->theData[2] = ptr.p->backupId;
   signal->theData[3] = ptr.p->startGCP;
@@ -2289,7 +2293,7 @@ Backup::masterSendAbortBackup(Signal* signal, BackupRecordPtr ptr)
     sendSignal(ptr.p->clientRef, GSN_BACKUP_ABORT_REP, signal, 
 	       BackupAbortRep::SignalLength, JBB);
 
-    signal->theData[0] = EventReport::BackupAborted;
+    signal->theData[0] = NDB_LE_BackupAborted;
     signal->theData[1] = ptr.p->clientRef;
     signal->theData[2] = ptr.p->backupId;
     signal->theData[3] = ptr.p->errorCode;

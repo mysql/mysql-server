@@ -1177,7 +1177,7 @@ public:
     Uint32 nextScan;
 
     // Length of expected attribute information
-    Uint32 scanAiLength;
+    union { Uint32 scanAiLength; Uint32 m_booked_fragments_count; };
 
     Uint32 scanKeyLen;
 
@@ -1702,7 +1702,7 @@ private:
 	c_scan_count = c_range_scan_count = 0; 
     }
     Uint32 report(Signal* signal){
-      signal->theData[0] = EventReport::TransReportCounters;
+      signal->theData[0] = NDB_LE_TransReportCounters;
       signal->theData[1] = ctransCount;
       signal->theData[2] = ccommitCount;
       signal->theData[3] = creadCount;

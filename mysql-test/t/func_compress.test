@@ -2,6 +2,8 @@
 #
 # Test for compress and uncompress functions:
 #
+# Note that this test gives error in the gzip library when running under
+# valgrind, but these warnings can be ignored
 
 select @test_compress_string:='string for test compress function aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ';
 select length(@test_compress_string);

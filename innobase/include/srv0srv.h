@@ -134,6 +134,8 @@ extern ibool	srv_lock_timeout_and_monitor_active;
 extern ibool	srv_error_monitor_active; 
 
 extern ulint	srv_n_spin_wait_rounds;
+extern ulint	srv_n_free_tickets_to_enter;
+extern ulint	srv_thread_sleep_delay;
 extern ulint	srv_spin_wait_delay;
 extern ibool	srv_priority_boost;
 		
