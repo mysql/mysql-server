@@ -48440,7 +48440,7 @@ for more information.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysqltcl-1.53.tar.gz}
 Tcl interface for MySQL. Based on @file{msqltcl-1.50.tar.gz}.
-Updated by Tobias Ritzau, @email{tobri@@ida.liu.se}.
+For version 2.0 and more info, see @uref{http://www.xdobry.de/mysqltcl/}.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/MyC-0.1.tar.gz}
 A Visual Basic-like API, by Ed Carp.
