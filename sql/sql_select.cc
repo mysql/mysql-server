@@ -3708,7 +3708,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   *blob_field= 0;				// End marker
 
   /* If result table is small; use a heap */
-  if (blob_count || using_unique_constraint || group_null_items ||
+  if (blob_count || using_unique_constraint ||
       (select_options & (OPTION_BIG_TABLES | SELECT_SMALL_RESULT)) ==
       OPTION_BIG_TABLES)
   {
