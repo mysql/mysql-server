@@ -105,6 +105,10 @@ sys_var_str		sys_charset("character_set",
 				    sys_check_charset,
 				    sys_update_charset,
 				    sys_set_default_charset);
+sys_var_str		sys_charset_system("character_set_system",
+				    sys_check_charset,
+				    sys_update_charset,
+				    sys_set_default_charset);
 sys_var_collation_client sys_collation_client("collation_client");
 sys_var_collation_connection sys_collation_connection("collation_connection");
 sys_var_collation_results sys_collation_results("collation_results");
@@ -463,8 +467,8 @@ struct show_var_st init_vars[]= {
 #endif
   {sys_binlog_cache_size.name,(char*) &sys_binlog_cache_size,	    SHOW_SYS},
   {sys_bulk_insert_buff_size.name,(char*) &sys_bulk_insert_buff_size,SHOW_SYS},
-  {sys_charset.name, 	      (char*) &sys_charset,		     SHOW_SYS},
-  {"character_sets",          (char*) &charsets_list,               SHOW_CHAR_PTR},
+  {sys_charset.name, 	      (char*) &sys_charset,		    SHOW_SYS},
+  {sys_charset_system.name,   (char*) &sys_charset_system,          SHOW_SYS},
   {sys_collation_client.name, (char*) &sys_collation_client,	    SHOW_SYS},
   {sys_collation_connection.name,(char*) &sys_collation_connection, SHOW_SYS},
   {sys_collation_results.name, (char*) &sys_collation_results,	    SHOW_SYS},
