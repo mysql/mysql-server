@@ -47,6 +47,7 @@ fi
 
 pidfile=ndbcluster.pid
 cfgfile=Ndb.cfg
+test_ndb=
 stop_ndb=
 initial_ndb=
 status_ndb=
@@ -59,6 +60,9 @@ ndb_imem=24M
 
 while test $# -gt 0; do
   case "$1" in
+    --test)
+     test_ndb=1
+     ;;
     --stop)
      stop_ndb=1
      ;;
@@ -67,8 +71,7 @@ while test $# -gt 0; do
      initial_ndb=1
      ;;
     --debug*)
-     f=`echo "$1" | sed -e "s;--debug=;;"`
-     flags_ndb="$flags_ndb $f"
+     flags_ndb="$flags_ndb $1"
      ;;
     --status)
      status_ndb=1
@@ -232,7 +235,7 @@ status_ndbcluster
 
 status_ndbcluster() {
   # Start management client
-  echo "show" | $exec_mgmtclient
+  $exec_mgmtclient -e show
 }
 
 stop_default_ndbcluster() {
@@ -241,7 +244,7 @@ stop_default_ndbcluster() {
 
 exec_mgmtclient="$exec_mgmtclient --try-reconnect=1"
 
-echo "shutdown" | $exec_mgmtclient 2>&1 | cat > /dev/null
+$exec_mgmtclient -e shutdown 2>&1 | cat > /dev/null
 
 if [ -f "$fs_ndb/$pidfile" ] ; then
   kill_pids=`cat "$fs_ndb/$pidfile"`
@@ -276,6 +279,44 @@ if [ -f "$fs_ndb/$pidfile" ] ; then
 fi
 }
 
+initialize_ndb_test ()
+{
+  fs_result=$fs_ndb/r
+  rm -rf $fs_result
+  mkdir $fs_result
+  echo ------------------
+  echo starting ndb tests
+  echo ------------------
+}
+
+do_ndb_test ()
+{
+  test_name=$1
+
+  clusterlog=$fs_ndb/ndb_3_cluster.log
+
+  test_log_result=$fs_result/${test_name}_log.result
+  test_log_reject=$fs_result/${test_name}_log.reject
+  test_result=$fs_result/${test_name}.result
+  test_reject=$fs_result/${test_name}.reject
+
+  clean_log='s/.*\[MgmSrvr\]//'
+
+  cat $clusterlog ndb/${test_name}_log.result | sed -e $clean_log > $test_log_result
+
+  cp ndb/${test_name}.result $test_result
+
+  cat ndb/${test_name}.test | $exec_mgmtclient > $test_reject
+  cat $clusterlog | sed -e $clean_log > $test_log_reject
+
+  t="pass"
+  diff -C 5 $test_result $test_reject || t="fail"
+  printf "ndb_mgm output    %20s [%s]\n" $test_name $t
+  t="pass"
+  diff -C 5 $test_log_result $test_log_reject || t="fail"
+  printf "clusterlog output %20s [%s]\n" $test_name $t
+}
+
 if [ $status_ndb ] ; then
   status_ndbcluster
   exit 0
@@ -285,6 +326,17 @@ if [ $stop_ndb ] ; then
   stop_default_ndbcluster
 else
   start_default_ndbcluster
+fi
+
+if [ $test_ndb ] ; then
+  initialize_ndb_test
+  all_tests=`ls ndb/*.test | sed "s#ndb/##" | sed "s#.test##"`  
+  for a in $all_tests ; do
+    do_ndb_test $a
+  done
+  echo ------------------
+  echo shutting down cluster
+  stop_default_ndbcluster
 fi
 
 exit 0

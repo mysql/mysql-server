@@ -36,7 +36,11 @@ int scanReadRecords(Ndb*,
 		    char delim,
 		    bool orderby);
 
-static const char* opt_connect_str= 0;
+enum ndb_select_all_options {
+  NDB_STD_OPTS_OPTIONS
+};
+NDB_STD_OPTS_VARS;
+
 static const char* _dbname = "TEST_DB";
 static const char* _delimiter = "\t";
 static int _unqualified, _header, _parallelism, _useHexFormat, _lock,

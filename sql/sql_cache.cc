@@ -300,7 +300,6 @@ TODO list:
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>
-#include "sql_acl.h"
 #include "ha_myisammrg.h"
 #ifndef MASTER
 #include "../srclib/myisammrg/myrg_def.h"
@@ -375,7 +374,7 @@ inline Query_cache_block * Query_cache_block_table::block()
   return (Query_cache_block *)(((byte*)this) -
 			       ALIGN_SIZE(sizeof(Query_cache_block_table)*n) -
 			       ALIGN_SIZE(sizeof(Query_cache_block)));
-};
+}
 
 /*****************************************************************************
    Query_cache_block method(s)

@@ -30,7 +30,11 @@ int
 waitClusterStatus(const char* _addr, ndb_mgm_node_status _status,
 		  unsigned int _timeout);
 
-static const char* opt_connect_str= 0;
+enum ndb_waiter_options {
+  NDB_STD_OPTS_OPTIONS
+};
+NDB_STD_OPTS_VARS;
+
 static int _no_contact = 0;
 static int _timeout = 120;
 static struct my_option my_long_options[] =

@@ -120,6 +120,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->thd= lex->unit.thd= thd;
   lex->select_lex.init_query();
   lex->value_list.empty();
+  lex->update_list.empty();
   lex->param_list.empty();
   lex->view_list.empty();
   lex->unit.next= lex->unit.master=
@@ -942,13 +943,12 @@ int yylex(void *arg, void *yythd)
         if ((thd->client_capabilities & CLIENT_MULTI_STATEMENTS) && 
             (thd->command != COM_PREPARE))
         {
-          lex->found_colon=(char*)lex->ptr;
-          thd->server_status |= SERVER_MORE_RESULTS_EXISTS;
-          lex->next_state=MY_LEX_END;
-          return(END_OF_INPUT);
+          lex->found_colon=    (char*) lex->ptr;
+          thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
+          lex->next_state=     MY_LEX_END;
+          return (END_OF_INPUT);
         }
-        else
- 	  state=MY_LEX_CHAR;		// Return ';'
+        state= MY_LEX_CHAR;		// Return ';'
 	break;
       }
       /* fall true */

@@ -1057,17 +1057,19 @@ int mi_keyseg_write(File file, const HA_KEYSEG *keyseg)
 {
   uchar buff[HA_KEYSEG_SIZE];
   uchar *ptr=buff;
+  ulong pos;
 
-  *ptr++ =keyseg->type;
-  *ptr++ =keyseg->language;
-  *ptr++ =keyseg->null_bit;
-  *ptr++ =keyseg->bit_start;
-  *ptr++ =keyseg->bit_end;
+  *ptr++= keyseg->type;
+  *ptr++= keyseg->language;
+  *ptr++= keyseg->null_bit;
+  *ptr++= keyseg->bit_start;
+  *ptr++= keyseg->bit_end;
   *ptr++= keyseg->bit_length;
   mi_int2store(ptr,keyseg->flag);	ptr+=2;
   mi_int2store(ptr,keyseg->length);	ptr+=2;
   mi_int4store(ptr,keyseg->start);	ptr+=4;
-  mi_int4store(ptr, keyseg->null_bit ? keyseg->null_pos : keyseg->bit_pos);
+  pos= keyseg->null_bit ? keyseg->null_pos : keyseg->bit_pos;
+  mi_int4store(ptr, pos);
   ptr+=4;
   
   return my_write(file,(char*) buff, (uint) (ptr-buff), MYF(MY_NABP));

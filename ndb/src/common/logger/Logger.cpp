@@ -30,7 +30,7 @@
 //
 // PUBLIC
 //
-const char* Logger::LoggerLevelNames[] = { "OFF     ", 
+const char* Logger::LoggerLevelNames[] = { "ON      ", 
 					   "DEBUG   ",
 					   "INFO    ",
 					   "WARNING ",
@@ -46,7 +46,9 @@ Logger::Logger() :
   m_pSyslogHandler(NULL)
 {
   m_pHandlerList = new LogHandlerList();
-  m_logLevels[LL_INFO] = true;
+  disable(LL_ALL);
+  enable(LL_ON);
+  enable(LL_INFO);
 }
 
 Logger::~Logger()
@@ -186,13 +188,17 @@ Logger::addHandler(const BaseString &logstring) {
 
     LogHandler *handler = NULL;
 
-    if(type == "SYSLOG") {
+#ifndef NDB_WIN32
+    if(type == "SYSLOG")
+    {
       handler = new SysLogHandler();
-    } else if(type == "FILE")
+    } else 
+#endif
+    if(type == "FILE")
       handler = new FileLogHandler();
     else if(type == "CONSOLE")
       handler = new ConsoleLogHandler();
-
+    
     if(handler == NULL)
       DBUG_RETURN(false);
     if(!handler->parseParams(params))
@@ -227,6 +233,13 @@ Logger::removeAllHandlers()
 bool
 Logger::isEnable(LoggerLevel logLevel) const
 {
+  if (logLevel == LL_ALL)
+  {
+    for (unsigned i = 1; i < MAX_LOG_LEVELS; i++)
+      if (!m_logLevels[i])
+	return false;
+    return true;
+  }
   return m_logLevels[logLevel];
 }
 
@@ -235,7 +248,7 @@ Logger::enable(LoggerLevel logLevel)
 {
   if (logLevel == LL_ALL)
   {
-    for (unsigned i = 1; i < MAX_LOG_LEVELS; i++)
+    for (unsigned i = 0; i < MAX_LOG_LEVELS; i++)
     {
       m_logLevels[i] = true;
     }
@@ -337,7 +350,7 @@ Logger::debug(const char* pMsg, ...) const
 void 
 Logger::log(LoggerLevel logLevel, const char* pMsg, va_list ap) const
 {
-  if (m_logLevels[LL_OFF] == false && m_logLevels[logLevel])
+  if (m_logLevels[LL_ON] && m_logLevels[logLevel])
   {
     LogHandler* pHandler = NULL;
     while ( (pHandler = m_pHandlerList->next()) != NULL)

@@ -21,7 +21,7 @@
 
 class SectionReader {
 public:
-  SectionReader(class SegmentedSectionPtr &,
+  SectionReader(struct SegmentedSectionPtr &,
 		class SectionSegmentPool &);
 
   void reset();

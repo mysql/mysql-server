@@ -21,7 +21,11 @@
 #include <NdbApi.hpp>
 #include <NDBT.hpp>
 
-static const char* opt_connect_str= 0;
+enum ndb_drop_index_options {
+  NDB_STD_OPTS_OPTIONS
+};
+NDB_STD_OPTS_VARS;
+
 static const char* _dbname = "TEST_DB";
 static struct my_option my_long_options[] =
 {
