@@ -72,7 +72,7 @@ static int safe_sleep(THD* thd, int sec, CHECK_KILLED_FUNC thread_killed,
 		      void* thread_killed_arg);
 static int request_table_dump(MYSQL* mysql, const char* db, const char* table);
 static int create_table_from_dump(THD* thd, NET* net, const char* db,
-				  const char* table_name);
+				  const char* table_name, bool overwrite);
 static int check_master_version(MYSQL* mysql, MASTER_INFO* mi);
 
 
@@ -1033,12 +1033,22 @@ static int check_master_version(MYSQL* mysql, MASTER_INFO* mi)
   return 0;
 }
 
+/*
+  Used by fetch_master_table (used by LOAD TABLE tblname FROM MASTER and LOAD
+  DATA FROM MASTER). Drops the table (if 'overwrite' is true) and recreates it
+  from the dump. Honours replication inclusion/exclusion rules.
+
+  RETURN VALUES
+    0           success
+    1           error
+*/
 
 static int create_table_from_dump(THD* thd, NET* net, const char* db,
-				  const char* table_name)
+				  const char* table_name, bool overwrite)
 {
   ulong packet_len = my_net_read(net); // read create table statement
   char *query;
+  char* save_db;
   Vio* save_vio;
   HA_CHECK_OPT check_opt;
   TABLE_LIST tables;
@@ -1078,13 +1088,24 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   thd->current_tablenr = 0;
   thd->query_error = 0;
   thd->net.no_send_ok = 1;
+
+  bzero((char*) &tables,sizeof(tables));
+  tables.db = (char*)db;
+  tables.alias= tables.real_name= (char*)table_name;
+  /* Drop the table if 'overwrite' is true */
+  if (overwrite && mysql_rm_table(thd,&tables,1)) /* drop if exists */
+  {
+    send_error(&thd->net);
+    sql_print_error("create_table_from_dump: failed to drop the table");
+    goto err;
+  }
   
-  /* we do not want to log create table statement */
+  /* Create the table. We do not want to log the "create table" statement */
   save_options = thd->options;
   thd->options &= ~(ulong) (OPTION_BIN_LOG);
   thd->proc_info = "Creating table from master dump";
   // save old db in case we are creating in a different database
-  char* save_db = thd->db;
+  save_db = thd->db;
   thd->db = (char*)db;
   mysql_parse(thd, thd->query, packet_len); // run create table
   thd->db = save_db;		// leave things the way the were before
@@ -1093,11 +1114,8 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   if (thd->query_error)
     goto err;			// mysql_parse took care of the error send
 
-  bzero((char*) &tables,sizeof(tables));
-  tables.db = (char*)db;
-  tables.alias= tables.real_name= (char*)table_name;
-  tables.lock_type = TL_WRITE;
   thd->proc_info = "Opening master dump table";
+  tables.lock_type = TL_WRITE;
   if (!open_ltable(thd, &tables, TL_WRITE))
   {
     send_error(&thd->net,0,0);			// Send error from open_ltable
@@ -1107,10 +1125,11 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   
   file = tables.table->file;
   thd->proc_info = "Reading master dump table data";
+  /* Copy the data file */
   if (file->net_read_dump(net))
   {
     net_printf(&thd->net, ER_MASTER_NET_READ);
-    sql_print_error("create_table_from_dump::failed in\
+    sql_print_error("create_table_from_dump: failed in\
  handler::net_read_dump()");
     goto err;
   }
@@ -1125,6 +1144,7 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   */
   save_vio = thd->net.vio;
   thd->net.vio = 0;
+  /* Rebuild the index file from the copied data file (with REPAIR) */
   error=file->repair(thd,&check_opt) != 0;
   thd->net.vio = save_vio;
   if (error)
@@ -1137,7 +1157,7 @@ err:
 }
 
 int fetch_master_table(THD *thd, const char *db_name, const char *table_name,
-		       MASTER_INFO *mi, MYSQL *mysql)
+		       MASTER_INFO *mi, MYSQL *mysql, bool overwrite)
 {
   int error= 1;
   const char *errmsg=0;
@@ -1169,9 +1189,10 @@ int fetch_master_table(THD *thd, const char *db_name, const char *table_name,
     errmsg= "Failed on table dump request";
     goto err;
   }
+
   if (create_table_from_dump(thd, &mysql->net, db_name,
-			    table_name))
-    goto err;    // create_table_from_dump will have sent the error already
+			    table_name, overwrite))
+    goto err; // create_table_from_dump will have send_error already
   error = 0;
 
  err:

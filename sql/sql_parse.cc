@@ -1568,9 +1568,12 @@ mysql_execute_command(void)
 	goto error;
     }
     LOCK_ACTIVE_MI;
-    // fetch_master_table will send the error to the client on failure
+    /*
+      fetch_master_table will send the error to the client on failure.
+      Give error if the table already exists.
+    */
     if (!fetch_master_table(thd, tables->db, tables->real_name,
-			    active_mi, 0))
+			    active_mi, 0, 0))
     {
       send_ok(&thd->net);
     }
