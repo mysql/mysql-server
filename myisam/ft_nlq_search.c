@@ -247,7 +247,8 @@ int ft_nlq_read_next(FT_INFO *handler, char *record)
   return my_errno;
 }
 
-float ft_nlq_find_relevance(FT_INFO *handler, my_off_t docid)
+float ft_nlq_find_relevance(FT_INFO *handler, my_off_t docid,
+    byte *record __attribute__((unused)))
 {
   int a,b,c;
   FT_DOC  *docs=handler->doc;
