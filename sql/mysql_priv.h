@@ -612,8 +612,6 @@ int mysqld_show_column_types(THD *thd);
 int mysqld_help (THD *thd, const char *text);
 
 /* sql_prepare.cc */
-int compare_prep_stmt(void *not_used, PREP_STMT *stmt, ulong *key);
-void free_prep_stmt(PREP_STMT *stmt, TREE_FREE mode, void *not_used);
 bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length);
 void mysql_stmt_execute(THD *thd, char *packet);
 void mysql_stmt_free(THD *thd, char *packet);
@@ -855,7 +853,7 @@ extern I_List<THD> threads;
 extern I_List<NAMED_LIST> key_caches;
 extern MY_BITMAP temp_pool;
 extern String my_empty_string;
-extern String my_null_string;
+extern const String my_null_string;
 extern SHOW_VAR init_vars[],status_vars[], internal_vars[];
 extern SHOW_COMP_OPTION have_isam;
 extern SHOW_COMP_OPTION have_innodb;
