@@ -3084,6 +3084,11 @@ If so, it may have a local mailing list, so that messages sent from
 cases, please contact your system administrator to be added to or dropped
 from the local @strong{MySQL} list.
 
+If you wish to have traffic for a mailing list go to a separate mailbox in
+your mail program, set up a filter based on the message headers.  You can
+use either the @code{List-ID:} or @code{Delivered-To:} headers to identify
+list messages.
+
 The following @strong{MySQL} mailing lists exist:
 
 @table @code
