@@ -5282,10 +5282,10 @@ uint32 calc_pack_length(enum_field_types type,uint32 length)
   case FIELD_TYPE_LONGLONG: return 8;	/* Don't crash if no longlong */
   case FIELD_TYPE_NULL	: return 0;
   case FIELD_TYPE_TINY_BLOB:	return 1+portable_sizeof_char_ptr;
-  case FIELD_TYPE_BLOB:
-  case FIELD_TYPE_GEOMETRY:	return 2+portable_sizeof_char_ptr;
+  case FIELD_TYPE_BLOB:		return 2+portable_sizeof_char_ptr;
   case FIELD_TYPE_MEDIUM_BLOB:	return 3+portable_sizeof_char_ptr;
   case FIELD_TYPE_LONG_BLOB:	return 4+portable_sizeof_char_ptr;
+  case FIELD_TYPE_GEOMETRY:	return 4+portable_sizeof_char_ptr;
   case FIELD_TYPE_SET:
   case FIELD_TYPE_ENUM: abort(); return 0;	// This shouldn't happen
   default: return 0;
