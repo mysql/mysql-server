@@ -169,6 +169,7 @@ static bool send_prep_stmt(PREP_STMT *stmt, uint columns __attribute__((unused))
 
   thd->client_stmt_id= stmt->stmt_id;
   thd->client_param_count= stmt->param_count;
+  thd->net.last_errno= 0;
 
   return 0;
 }
@@ -1087,16 +1088,17 @@ void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length)
   PREP_STMT *stmt;
   DBUG_ENTER("mysql_stmt_get_longdata");
 
+#ifndef EMBEDDED_LIBRARY
   /* The following should never happen */
   if (packet_length < MYSQL_LONG_DATA_HEADER+1)
   {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "get_longdata");
     DBUG_VOID_RETURN;
   }
+#endif
 
   ulong stmt_id=     uint4korr(pos);
   uint param_number= uint2korr(pos+4);
-  pos+= MYSQL_LONG_DATA_HEADER;	// Point to data
 
   if (!(stmt=find_prepared_statement(thd, stmt_id, "get_longdata")))
   {
@@ -1108,6 +1110,7 @@ void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length)
     DBUG_VOID_RETURN;
   }
 
+#ifndef EMBEDDED_LIBRARY
   if (param_number >= stmt->param_count)
   {
     /* Error will be sent in execute call */
@@ -1116,8 +1119,15 @@ void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length)
     sprintf(stmt->last_error, ER(ER_WRONG_ARGUMENTS), "get_longdata");
     DBUG_VOID_RETURN;
   }
+  pos+= MYSQL_LONG_DATA_HEADER;	// Point to data
+#endif
+
   Item_param *param= *(stmt->param+param_number);
+#ifndef EMBEDDED_LIBRARY
   param->set_longdata(pos, packet_length-MYSQL_LONG_DATA_HEADER-1);
+#else
+  param->set_longdata(thd->extra_data, thd->extra_length);
+#endif
   stmt->long_data_used= 1;
   DBUG_VOID_RETURN;
 }

@@ -40,6 +40,8 @@ start slave;
 # Usually it stops when the SQL thread is around the 15th relay log.
 # We cannot use MASTER_POS_WAIT() as master's position
 # increases only when the slave executes the COMMIT.
+# Note that except when using Valgrind, 1 second is enough for the I/O slave
+# thread to fetch the whole master's binlog.
 sleep 1;
 stop slave;
 # We suppose the SQL thread stopped before COMMIT.
@@ -53,10 +55,7 @@ start slave;
 # We must wait for the transaction to commit before
 # reading, MASTER_POS_WAIT() will do it for sure
 # (the only statement with position>=3000 is COMMIT).
-# Older versions of MySQL would hang forever in MASTER_POS_WAIT
-# because COMMIT was said to be position 0 in the master's log (bug).
-# Detect this with timeout.
-select master_pos_wait('master-bin.001',3000,120)=-1;
+select master_pos_wait('master-bin.001',3000)>=0;
 select * from t1 where a=8000;
 
 # The following DROP is a very important cleaning task:
