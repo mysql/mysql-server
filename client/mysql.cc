@@ -40,7 +40,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER= "12.17";
+const char *VER= "12.18";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -2647,7 +2647,10 @@ static const char* construct_prompt()
 	    ! mysql.unix_socket)
 	  add_int_to_prompt(mysql.port);
 	else
-	  processed_prompt.append(strrchr(mysql.unix_socket,'/')+1);
+	{
+	  char *pos=strrchr(mysql.unix_socket,'/');
+	  processed_prompt.append(pos ? pos+1 : mysql.unix_socket);
+	}
 	break;
       case 'U':
 	if (!full_username)

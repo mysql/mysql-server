@@ -2371,9 +2371,9 @@ The server will not act as a slave.");
       sql_print_error("Warning: Can't create thread to manage maintenance");
   }
 
-  if (unix_sock == INVALID_SOCKET)
-    mysql_unix_port[0]= 0;
-  printf(ER(ER_READY),my_progname,server_version, mysql_unix_port, mysql_port);
+  printf(ER(ER_READY),my_progname,server_version,
+	 ((unix_sock == INVALID_SOCKET) ? (char*) "" : mysql_unix_port),
+	 mysql_port);
   fflush(stdout);
 
 #ifdef __NT__
