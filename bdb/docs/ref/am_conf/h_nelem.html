@@ -1,0 +1,32 @@
+<!--$Id: h_nelem.so,v 10.12 2000/03/18 21:43:08 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Hash table size</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Access Methods</dl></h3></td>
+<td width="1%"><a href="../../ref/am_conf/h_hash.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am_conf/recno.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Hash table size</h1>
+<p>When setting up the hash database, knowing the expected number of elements
+that will be stored in the hash table is useful.  This value can be used
+by the Hash access method implementation to more accurately construct the
+necessary number of buckets that the database will eventually require.
+<p>The anticipated number of elements in the hash table can be specified by
+calling the <a href="../../api_c/db_set_h_nelem.html">DB-&gt;set_h_nelem</a> function.  If not specified, or set too low,
+hash tables will expand gracefully as keys are entered, although a slight
+performance degradation may be noticed.  In order for the estimated number
+of elements to be a useful value to Berkeley DB, the <a href="../../api_c/db_set_h_ffactor.html">DB-&gt;set_h_ffactor</a> function
+must also be called to set the page fill factor.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/am_conf/h_hash.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am_conf/recno.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

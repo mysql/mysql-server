@@ -1,0 +1,149 @@
+<!--$Id: archival.so,v 10.41 2000/12/05 20:36:25 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Database and log file archival</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Transaction Protected Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/transapp/checkpoint.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/logfile.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Database and log file archival</h1>
+        <a name="3"><!--meow--></a>    
+<p>The third component of the administrative infrastructure, archival for
+catastrophic recovery, concerns the recoverability of the database in
+the face of catastrophic failure.  Recovery after catastrophic failure
+is intended to minimize data loss when physical hardware has been
+destroyed, for example, loss of a disk that contains databases or log
+files.  While the application may still experience data loss in this
+case, it is possible to minimize it.
+<p>First, you may want to periodically create snapshots (i.e., backups) of
+your databases to make it possible to recover from catastrophic failure.
+These snapshots are either a standard backup which creates a consistent
+picture of the databases as of a single instant in time, or an on-line
+backup (also known as a <i>hot</i> backup), which creates a
+consistent picture of the databases as of an unspecified instant during
+the period of time when the snapshot was made.  The advantage of a hot
+backup is that applications may continue to read and write the databases
+while the snapshot is being taken.  The disadvantage of a hot backup is
+that more information must be archived, and recovery based on a hot
+backup is to an unspecified time between the start of the backup and
+when the backup is completed.
+<p>Second, after taking a snapshot, you should periodically archive the
+log files being created in the environment.  It is often helpful to
+think of database archival in terms of full and incremental filesystem
+backups.  A snapshot is a full backup, while the periodic archival of
+the current log files is an incremental.  For example, it might be
+reasonable to take a full snapshot of a database environment weekly or
+monthly, and then archive additional log files daily.  Using both the
+snapshot and the log files, a catastrophic crash at any time can be
+recovered to the time of the most recent log archival, a time long after
+the original snapshot.
+<p>To create a standard backup of your database that can be used to recover
+from catastrophic failure, take the following steps:
+<p><ol>
+<p><li>Commit or abort all on-going transactions.
+<p><li>Force an environment checkpoint (see <a href="../../utility/db_checkpoint.html">db_checkpoint</a> for more
+information).
+<p><li>Stop writing your databases until the backup has completed.  Read-only
+operations are permitted, but no write operations and no filesystem
+operations may be performed, e.g., the <a href="../../api_c/env_remove.html">DBENV-&gt;remove</a> and
+<a href="../../api_c/db_open.html">DB-&gt;open</a> functions may not be called).
+<p><li>Run <a href="../../utility/db_archive.html">db_archive</a> <b>-s</b> to identify all of the database data
+files, and copy them to a backup device, such as CDROM, alternate disk,
+or tape.  Obviously, the reliability of your archive media will affect
+the safety of your data.
+<p>If the database files are stored in a separate directory from the other
+Berkeley DB files, it may be simpler to archive the directory itself instead
+of the individual files (see <a href="../../api_c/env_set_data_dir.html">DBENV-&gt;set_data_dir</a> for additional
+information).  If you are performing a hot backup, the utility you use
+to copy the files must read database pages atomically (as described by
+<a href="../../ref/transapp/reclimit.html">Berkeley DB recoverability</a>).
+<p><b>Note: if any of the database files did not have an open DB
+handle during the lifetime of the current log files, <a href="../../utility/db_archive.html">db_archive</a>
+will not list them in its output!</b> For this reason, it may be simpler
+to use a separate database file directory, and archive the entire
+directory instead of only the files listed by <a href="../../utility/db_archive.html">db_archive</a>.
+</ol>
+<p>To create a <i>hot</i> backup of your database that can be used to
+recover from catastrophic failure, take the following steps:
+<p><ol>
+<p><li>Archive your databases as described in Step #4 above.  You
+do not have to halt on-going transactions or force a checkpoint.
+<p><li>When performing a hot backup, you must additionally archive the active
+log files.  Note that the order of these two operations is required,
+and the database files must be archived before the log files.  This
+means that if the database files and log files are in the same
+directory, you cannot simply archive the directory, you must make sure
+that the correct order of archival is maintained.
+<p>To archive your log files, run the <a href="../../utility/db_archive.html">db_archive</a> utility, using
+the <b>-l</b> option, to identify all of the database log files, and
+copy them to your backup media.  If the database log files are stored
+in a separate directory from the other database files, it may be simpler
+to archive the directory itself instead of the individual files (see
+the <a href="../../api_c/env_set_lg_dir.html">DBENV-&gt;set_lg_dir</a> function for more information).
+</ol>
+<p>Once these steps are completed, your database can be recovered from
+catastrophic failure (see <a href="recovery.html">Recovery procedures</a> for
+more information).
+<p>To update your snapshot so that recovery from catastrophic failure is
+possible up to a new point in time, repeat step #2 under the hot backup
+instructions, copying all existing log files to a backup device.  This
+is applicable to both standard and hot backups, that is, you can update
+snapshots made in either way.  Each time both the database and log files
+are copied to backup media, you may discard all previous database
+snapshots and saved log files.  Archiving additional log files does not
+allow you to discard either previous database snapshots or log files.
+<p>The time to restore from catastrophic failure is a function of the
+number of log records that have been written since the snapshot was
+originally created.  Perhaps more importantly, the more separate pieces
+of backup media you use, the more likely that you will have a problem
+reading from one of them.  For these reasons, it is often best to make
+snapshots on a regular basis.
+<p><b>For archival safety, ensure that you have multiple copies of your
+database backups, verify that your archival media is error-free and
+readable, and that copies of your backups are stored off-site!</b>
+<p>The functionality provided by the <a href="../../utility/db_archive.html">db_archive</a> utility is also
+available directly from the Berkeley DB library.  The following code fragment
+prints out a list of log and database files that need to be archived.
+<p><blockquote><pre>void
+log_archlist(DB_ENV *dbenv)
+{
+	int ret;
+	char **begin, **list;
+<p>
+	/* Get the list of database files. */
+	if ((ret = log_archive(dbenv,
+	    &list, DB_ARCH_ABS | DB_ARCH_DATA, NULL)) != 0) {
+		dbenv-&gt;err(dbenv, ret, "log_archive: DB_ARCH_DATA");
+		exit (1);
+	}
+	if (list != NULL) {
+		for (begin = list; *list != NULL; ++list)
+			printf("database file: %s\n", *list);
+		free (begin);
+	}
+<p>
+	/* Get the list of log files. */
+	if ((ret = log_archive(dbenv,
+	    &list, DB_ARCH_ABS | DB_ARCH_LOG, NULL)) != 0) {
+		dbenv-&gt;err(dbenv, ret, "log_archive: DB_ARCH_LOG");
+		exit (1);
+	}
+	if (list != NULL) {
+		for (begin = list; *list != NULL; ++list)
+			printf("log file: %s\n", *list);
+		free (begin);
+	}
+}</pre></blockquote>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/transapp/checkpoint.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/logfile.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

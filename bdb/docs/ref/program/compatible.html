@@ -1,0 +1,32 @@
+<!--$Id: compatible.so,v 10.29 2000/07/25 16:31:19 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Compatibility with historic interfaces</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Programmer Notes</dl></h3></td>
+<td width="1%"><a href="../../ref/program/diskspace.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/program/recimp.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Compatibility with historic interfaces</h1>
+<p>The Berkeley DB version 2 library provides backward compatible interfaces for
+the historic UNIX <a href="../../api_c/dbm.html">dbm</a>, <a href="../../api_c/dbm.html">ndbm</a> and <a href="../../api_c/hsearch.html">hsearch</a>
+interfaces.  It also provides a backward compatible interface for the
+historic Berkeley DB 1.85 release.
+<p>Berkeley DB version 2 does not provide database compatibility for any of the
+above interfaces, and existing databases must be converted manually.  To
+convert existing databases from the Berkeley DB 1.85 format to the Berkeley DB version
+2 format, review the <a href="../../utility/db_dump.html">db_dump185</a> and <a href="../../utility/db_load.html">db_load</a> information.
+No utilities are provided to convert UNIX <a href="../../api_c/dbm.html">dbm</a>, <a href="../../api_c/dbm.html">ndbm</a> or
+<a href="../../api_c/hsearch.html">hsearch</a> databases.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/program/diskspace.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/program/recimp.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

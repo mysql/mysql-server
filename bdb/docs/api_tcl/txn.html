@@ -1,0 +1,62 @@
+<!--$Id: txn.so,v 11.12 2000/02/19 20:57:57 bostic Exp $-->
+<!--$Id: m4.tcl,v 11.17 2000/04/24 17:31:11 sue Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: env txn</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1><i>env</i> <b>txn</b></h1>
+</td>
+<td width="1%">
+<a href="../api_tcl/tcl_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>env txn
+	[-nosync]
+	[-nowait]
+	[-parent txnid]
+	[-sync]
+</pre></h3>
+<h1>Description</h1>
+<p>The <i>env</i> <b>txn</b> command begins a transaction.  The returned transaction
+handle is bound to a Tcl command of the form <b>env.txnX</b>, where X
+is an integer starting at 0 (e.g., env0.txn0 and env0.txn1).  It is
+through this Tcl command that the script accesses the transaction methods.
+<p>The options are as follows:
+<p><dl compact>
+<p><dt>-nosync<dd>Do not synchronously flush the log when this transaction commits or
+prepares. This means the transaction will exhibit the ACI (atomicity,
+consistency and isolation) properties, but not D (durability), i.e.,
+database integrity will be maintained but it is possible that this
+transaction may be undone during recovery instead of being redone.
+<p>This behavior may be set for an entire Berkeley DB environment as part of
+the <b>berkdb env</b> interface.
+<p><dt>-nowait<dd>If a lock is unavailable for any Berkeley DB operation performed in the context
+of this transaction, throw a Tcl error immediately instead of blocking on
+the lock.
+<p><dt>-parent txnid<dd>Create the new transaction as a nested transaction, with the specified
+transaction indicated as its parent.  Transactions may be nested to any
+level.
+<p><dt>-sync<dd>Synchronously flush the log when this transaction commits or prepares. This
+means the transaction will exhibit all of the ACID (atomicity, consistency
+and isolation and durability) properties.
+<p>This behavior is the default for Berkeley DB environments unless the
+<b>-nosync</b> option was specified to the <b>berkdb env</b> interface.
+</dl>
+<p>The <i>env</i> <b>txn</b> command returns a transaction handle on success.
+<p>In the case of error, a Tcl error is thrown.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_tcl/tcl_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

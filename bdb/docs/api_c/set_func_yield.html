@@ -1,0 +1,84 @@
+<!--$Id: set_func_yield.so,v 10.8 2000/05/31 15:10:01 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: db_env_set_func_yield</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>db_env_set_func_yield</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db.h&gt;
+<p>
+int
+db_env_set_func_yield(int (*func_yield)(void));
+</pre></h3>
+<h1>Description</h1>
+<p>The Berkeley DB library requires the ability to yield the processor from the current
+thread of control to any other waiting threads of control.
+The <b>func_yield</b> argument must conform to the following interface:
+<p><blockquote><pre>int yield(void);</pre></blockquote>
+<p>The <b>func_yield</b> function must be able to cause the rescheduling
+all participants in the current Berkeley DB environment, whether threaded or
+not.  It may be incorrect to supply a thread <b>yield</b> function if
+more than a single process is operating in the Berkeley DB environment.  This
+is because many thread-yield functions will not allow other processes to
+run, and the contested lock may be held by another process, not by another
+thread.
+<p>If no <b>func_yield</b> function is specified, or if the <b>yield</b>
+function returns an error, the function specified by the
+<a href="../api_c/set_func_sleep.html">db_env_set_func_sleep</a> entry will be used instead or subsequently,
+i.e., if no <b>yield</b> function is specified, or it is possible for
+the <b>yield</b> function to fail, the <b>sleep</b> function
+<b>must</b> cause the processor to reschedule any waiting threads of
+control for execution.
+<p>The <b>func_yield</b> function must return the value of <b>errno</b> on
+failure and 0 on success.
+<p>The db_env_set_func_yield interface affects the entire application, not a single
+database or database environment.
+<p>While the db_env_set_func_yield interface may be used to configure Berkeley DB at any time
+during the life of the application, it should normally be called before
+making any calls to the <a href="../api_c/env_create.html">db_env_create</a> or <a href="../api_c/db_create.html">db_create</a> functions.
+<p>The db_env_set_func_yield function returns a non-zero error value on failure and 0 on success.
+<h1>Errors</h1>
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+</dl>
+<h1>See Also</h1>
+<a href="../api_c/set_func_close.html">db_env_set_func_close</a>,
+<a href="../api_c/set_func_dirfree.html">db_env_set_func_dirfree</a>,
+<a href="../api_c/set_func_dirlist.html">db_env_set_func_dirlist</a>,
+<a href="../api_c/set_func_exists.html">db_env_set_func_exists</a>,
+<a href="../api_c/set_func_free.html">db_env_set_func_free</a>,
+<a href="../api_c/set_func_fsync.html">db_env_set_func_fsync</a>,
+<a href="../api_c/set_func_ioinfo.html">db_env_set_func_ioinfo</a>,
+<a href="../api_c/set_func_malloc.html">db_env_set_func_malloc</a>,
+<a href="../api_c/set_func_map.html">db_env_set_func_map</a>,
+<a href="../api_c/set_func_open.html">db_env_set_func_open</a>,
+<a href="../api_c/set_func_read.html">db_env_set_func_read</a>,
+<a href="../api_c/set_func_realloc.html">db_env_set_func_realloc</a>,
+<a href="../api_c/set_func_seek.html">db_env_set_func_seek</a>,
+<a href="../api_c/set_func_sleep.html">db_env_set_func_sleep</a>,
+<a href="../api_c/set_func_unlink.html">db_env_set_func_unlink</a>,
+<a href="../api_c/set_func_unmap.html">db_env_set_func_unmap</a>,
+<a href="../api_c/set_func_write.html">db_env_set_func_write</a>
+and
+<a href="../api_c/set_func_yield.html">db_env_set_func_yield</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

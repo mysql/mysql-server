@@ -1,0 +1,62 @@
+<!--$Id: db_set_errpfx.so,v 10.6 1999/12/20 08:52:28 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DB-&gt;set_errpfx</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DB-&gt;set_errpfx</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db.h&gt;
+<p>
+void
+DB-&gt;set_errpfx(DB *db, const char *errpfx);
+</pre></h3>
+<h1>Description</h1>
+<p>Set the prefix string that appears before error messages issued by Berkeley DB.
+<p>The DB-&gt;set_errpfx function does not copy the memory referenced by the
+<b>errpfx</b> argument, rather, it maintains a reference to it.  This
+allows applications to modify the error message prefix at any time,
+without repeatedly calling DB-&gt;set_errpfx, but means that the
+memory must be maintained until the handle is closed.
+<p>For DB handles opened inside of Berkeley DB environments, calling the
+DB-&gt;set_errpfx function affects the entire environment and is equivalent to calling
+the <a href="../api_c/env_set_errpfx.html">DBENV-&gt;set_errpfx</a> function.
+<p>The DB-&gt;set_errpfx interface may be used to configure Berkeley DB at any time
+during the life of the application.
+<h1>See Also</h1>
+<a href="../api_c/env_close.html">DBENV-&gt;close</a>,
+<a href="../api_c/env_create.html">db_env_create</a>,
+<a href="../api_c/env_open.html">DBENV-&gt;open</a>,
+<a href="../api_c/env_remove.html">DBENV-&gt;remove</a>,
+<a href="../api_c/db_err.html">DBENV-&gt;err</a>,
+<a href="../api_c/env_strerror.html">db_strerror</a>,
+<a href="../api_c/env_version.html">db_version</a>,
+<a href="../api_c/env_set_cachesize.html">DBENV-&gt;set_cachesize</a>,
+<a href="../api_c/env_set_errcall.html">DBENV-&gt;set_errcall</a>,
+<a href="../api_c/env_set_errfile.html">DBENV-&gt;set_errfile</a>,
+<a href="../api_c/env_set_errpfx.html">DBENV-&gt;set_errpfx</a>,
+<a href="../api_c/env_set_flags.html">DBENV-&gt;set_flags</a>,
+<a href="../api_c/env_set_mutexlocks.html">DBENV-&gt;set_mutexlocks</a>,
+<a href="../api_c/env_set_paniccall.html">DBENV-&gt;set_paniccall</a>,
+and
+<a href="../api_c/env_set_verbose.html">DBENV-&gt;set_verbose</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

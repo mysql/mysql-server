@@ -1,0 +1,48 @@
+#!/bin/sh -
+#	$Id: s_vxworks,v 1.3 2000/07/13 18:38:46 bostic Exp $
+#
+# Build the VxWorks files.
+
+msgc="/* DO NOT EDIT: automatically built by dist/s_vxworks. */"
+
+. RELEASE
+
+t=/tmp/__db_$$
+rm -f $t
+
+trap 'rm -f $t ; exit 1' 1 2 3 13 15
+
+f=../build_vxworks/db.h
+echo "Building $f"
+rm -f $f
+cat <<ENDOFSEDTEXT > $t
+s/@u_int8_decl@/typedef unsigned char u_int8_t;/
+s/@u_int16_decl@/typedef unsigned short u_int16_t;/
+s/@u_int32_decl@/typedef unsigned int u_int32_t;/
+/@int16_decl@/d
+/@int32_decl@/d
+/@u_char_decl@/d
+/@u_short_decl@/d
+/@u_int_decl@/d
+/@u_long_decl@/d
+/@ssize_t_decl@/d
+s/@DB_VERSION_MAJOR@/$DB_VERSION_MAJOR/
+s/@DB_VERSION_MINOR@/$DB_VERSION_MINOR/
+s/@DB_VERSION_PATCH@/$DB_VERSION_PATCH/
+s/@DB_VERSION_STRING@/"$DB_VERSION_STRING"/
+ENDOFSEDTEXT
+(echo "$msgc" && sed -f $t ../include/db.src) > $f
+chmod 444 $f
+
+f=../build_vxworks/db_int.h
+echo "Building $f"
+rm -f $f
+cat <<ENDOFSEDTEXT > $t
+s/\(PATH_SEPARATOR[^"]*"\)\/"/\1\/\\\\\\\\\\"/
+s/@db_align_t_decl@/typedef unsigned long db_align_t;/
+s/@db_alignp_t_decl@/typedef unsigned long db_alignp_t;/
+ENDOFSEDTEXT
+(echo "$msgc" && sed -f $t ../include/db_int.src) > $f
+chmod 444 $f
+
+rm -f $t

@@ -1,0 +1,57 @@
+<!--$Id: runtime.so,v 10.23 2000/12/04 18:05:42 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Run-time configuration</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Programmer Notes</dl></h3></td>
+<td width="1%"><a href="../../ref/program/extending.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/lock/intro.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Run-time configuration</h1>
+<p>There are a few interfaces that support run-time configuration of Berkeley DB.
+First is a group of interfaces that allow applications to intercept
+Berkeley DB requests for underlying library or system call functionality:
+<p><blockquote><pre><a href="../../api_c/set_func_close.html">db_env_set_func_close</a>
+<a href="../../api_c/set_func_dirfree.html">db_env_set_func_dirfree</a>
+<a href="../../api_c/set_func_dirlist.html">db_env_set_func_dirlist</a>
+<a href="../../api_c/set_func_exists.html">db_env_set_func_exists</a>
+<a href="../../api_c/set_func_free.html">db_env_set_func_free</a>
+<a href="../../api_c/set_func_fsync.html">db_env_set_func_fsync</a>
+<a href="../../api_c/set_func_ioinfo.html">db_env_set_func_ioinfo</a>
+<a href="../../api_c/set_func_malloc.html">db_env_set_func_malloc</a>
+<a href="../../api_c/set_func_map.html">db_env_set_func_map</a>
+<a href="../../api_c/set_func_open.html">db_env_set_func_open</a>
+<a href="../../api_c/set_func_read.html">db_env_set_func_read</a>
+<a href="../../api_c/set_func_realloc.html">db_env_set_func_realloc</a>
+<a href="../../api_c/set_func_seek.html">db_env_set_func_seek</a>
+<a href="../../api_c/set_func_sleep.html">db_env_set_func_sleep</a>
+<a href="../../api_c/set_func_unlink.html">db_env_set_func_unlink</a>
+<a href="../../api_c/set_func_unmap.html">db_env_set_func_unmap</a>
+<a href="../../api_c/set_func_write.html">db_env_set_func_write</a>
+<a href="../../api_c/set_func_yield.html">db_env_set_func_yield</a></pre></blockquote>
+<p>These interfaces are only available from the Berkeley DB C language API.
+<p>In addition, there are a few interfaces that allow applications to
+re-configure, on an application-wide basis, Berkeley DB behaviors.
+<p><blockquote><pre><a href="../../api_c/env_set_mutexlocks.html">DBENV-&gt;set_mutexlocks</a>
+<a href="../../api_c/env_set_pageyield.html">db_env_set_pageyield</a>
+<a href="../../api_c/env_set_panicstate.html">db_env_set_panicstate</a>
+<a href="../../api_c/env_set_region_init.html">db_env_set_region_init</a>
+<a href="../../api_c/env_set_tas_spins.html">db_env_set_tas_spins</a></pre></blockquote>
+<p>These interfaces are available from all of the Berkeley DB programmatic APIs.
+<p>A not-uncommon problem for applications is the new API in Solaris 2.6
+for manipulating large files.  As this API was not part of Solaris 2.5,
+it is difficult to create a single binary that takes advantage of the
+large file functionality in Solaris 2.6 but which still runs on Solaris
+2.5.  <a href="solaris.txt">Example code</a> that supports this is
+included in the Berkeley DB distribution.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/program/extending.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/lock/intro.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,127 @@
+<!--$Id: checkpoint.so,v 10.13 2000/08/16 17:50:40 margo Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Checkpoints</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Transaction Protected Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/transapp/deadlock.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/archival.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Checkpoints</h1>
+<p>The second component of the infrastructure is performing checkpoints of
+the log files.  As transactions commit, change records are written into
+the log files, but the actual changes to the database are not
+necessarily written to disk.  When a checkpoint is performed, the
+changes to the database that are part of committed transactions are
+written into the backing database file.
+<p>Performing checkpoints is necessary for two reasons.  First, you can
+only remove the Berkeley DB log files from your system after a checkpoint.
+Second, the frequency of your checkpoints is inversely proportional to
+the amount of time it takes to run database recovery after a system or
+application failure.
+<p>Once the database pages are written, log files can be archived and removed
+from the system because they will never be needed for anything other than
+catastrophic failure.  In addition, recovery after system or application
+failure only has to redo or undo changes since the last checkpoint, since
+changes before the checkpoint have all been flushed to the filesystem.
+<p>Berkeley DB provides a separate utility, <a href="../../utility/db_checkpoint.html">db_checkpoint</a>, which can be
+used to perform checkpoints.  Alternatively, applications can write
+their own checkpoint utility using the underlying <a href="../../api_c/txn_checkpoint.html">txn_checkpoint</a>
+function.  The following code fragment checkpoints the database
+environment every 60 seconds:
+<p><blockquote><pre>int
+main(int argc, char *argv)
+{
+	extern char *optarg;
+	extern int optind;
+	DB *db_cats, *db_color, *db_fruit;
+	DB_ENV *dbenv;
+	pthread_t ptid;
+	int ch;
+<p>
+	while ((ch = getopt(argc, argv, "")) != EOF)
+		switch (ch) {
+		case '?':
+		default:
+			usage();
+		}
+	argc -= optind;
+	argv += optind;
+<p>
+	env_dir_create();
+	env_open(&dbenv);
+<p>
+<b>	/* Start a checkpoint thread. */
+	if ((errno = pthread_create(
+	    &ptid, NULL, checkpoint_thread, (void *)dbenv)) != 0) {
+		fprintf(stderr,
+		    "txnapp: failed spawning checkpoint thread: %s\n",
+		    strerror(errno));
+		exit (1);
+	}</b>
+<p>
+	/* Open database: Key is fruit class; Data is specific type. */
+	db_open(dbenv, &db_fruit, "fruit", 0);
+<p>
+	/* Open database: Key is a color; Data is an integer. */
+	db_open(dbenv, &db_color, "color", 0);
+<p>
+	/*
+	 * Open database:
+	 *	Key is a name; Data is: company name, address, cat breeds.
+	 */
+	db_open(dbenv, &db_cats, "cats", 1);
+<p>
+	add_fruit(dbenv, db_fruit, "apple", "yellow delicious");
+<p>
+	add_color(dbenv, db_color, "blue", 0);
+	add_color(dbenv, db_color, "blue", 3);
+<p>
+	add_cat(dbenv, db_cats,
+		"Amy Adams",
+		"Sleepycat Software",
+		"394 E. Riding Dr., Carlisle, MA 01741, USA",
+		"abyssinian",
+		"bengal",
+		"chartreaux",
+		NULL);
+<p>
+	return (0);
+}
+<p>
+<b>void *
+checkpoint_thread(void *arg)
+{
+	DB_ENV *dbenv;
+	int ret;
+<p>
+	dbenv = arg;
+	dbenv-&gt;errx(dbenv, "Checkpoint thread: %lu", (u_long)pthread_self());
+<p>
+	/* Checkpoint once a minute. */
+	for (;; sleep(60))
+		switch (ret = txn_checkpoint(dbenv, 0, 0, 0)) {
+		case 0:
+		case DB_INCOMPLETE:
+			break;
+		default:
+			dbenv-&gt;err(dbenv, ret, "checkpoint thread");
+			exit (1);
+		}
+<p>
+	/* NOTREACHED */
+}</b></pre></blockquote>
+<p>As checkpoints can be quite expensive, choosing how often to perform a
+checkpoint is a common tuning parameter for Berkeley DB applications.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/transapp/deadlock.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/archival.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

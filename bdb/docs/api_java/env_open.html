@@ -1,0 +1,212 @@
+<!--$Id: env_open.so,v 10.61 2000/12/01 15:50:31 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbEnv.open</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbEnv.open</h1>
+</td>
+<td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+import com.sleepycat.db.*;
+import java.io.FileNotFoundException;
+<p>
+public void open(String db_home, int flags, int mode)
+	throws DbException, FileNotFoundException;
+</pre></h3>
+<h1>Description</h1>
+<p>The DbEnv.open method is the interface for opening the Berkeley DB
+environment.  It provides a structure for creating a consistent
+environment for processes using one or more of the features of Berkeley DB.
+<p>The <b>db_home</b> argument to DbEnv.open (and file name
+resolution in general) is described in
+<a href="../ref/env/naming.html">Berkeley DB File Naming</a>.
+<p>The <b>flags</b> argument specifies the subsystems that are initialized
+and how the application's environment affects Berkeley DB file naming, among
+other things.
+<p>The <b>flags</b> value must be set to 0 or by bitwise inclusively <b>OR</b>'ing together one or more
+of the following values.
+<p>As there are a large number of flags that can be specified, they have been
+grouped together by functionality.  The first group of flags indicate
+which of the Berkeley DB subsystems should be initialized:
+<p><dl compact>
+<p><dt><a name="Db.DB_JOINENV">Db.DB_JOINENV</a><dd>Join an existing environment.  This option allows applications to
+join an existing environment without knowing which Berkeley DB subsystems
+the environment supports.
+<p><dt><a name="Db.DB_INIT_CDB">Db.DB_INIT_CDB</a><dd>Initialize locking for the <a href="../ref/cam/intro.html">Berkeley DB Concurrent Data Store</a>
+product.  In this mode, Berkeley DB provides multiple reader/single writer
+access.  The only other subsystem that should be specified with the
+Db.DB_INIT_CDB flag is Db.DB_INIT_MPOOL.
+<p>Access method calls are largely unchanged when using this flag, although
+any cursors through which update operations (e.g., <a href="../api_java/dbc_put.html">Dbc.put</a>,
+<a href="../api_java/dbc_del.html">Dbc.del</a>) will be made must have the <a href="../api_java/db_cursor.html#DB_WRITECURSOR">Db.DB_WRITECURSOR</a> value
+set in the flags parameter to the cursor call that creates the cursor.
+See <a href="../api_java/db_cursor.html">Db.cursor</a> for more information.
+<p><dt><a name="Db.DB_INIT_LOCK">Db.DB_INIT_LOCK</a><dd>Initialize the locking subsystem.  This subsystem should be used when
+multiple processes or threads are going to be reading and writing a Berkeley DB
+database, so that they do not interfere with each other.  If all threads
+are accessing the database(s) read-only, then locking is unnecessary.
+When the DB_INIT_LOCK flag is specified, it is usually necessary to run
+the deadlock detector, as well.  See <a href="../utility/db_deadlock.html">db_deadlock</a> and
+<a href="../api_java/lock_detect.html">DbEnv.lock_detect</a> for more information.
+<p><dt><a name="Db.DB_INIT_LOG">Db.DB_INIT_LOG</a><dd>Initialize the logging subsystem.  This subsystem is used when recovery
+from application or system failure is necessary.
+<p>The log is stored in one or more files in the environment directory.
+Each file is named using the format <i>log.NNNNNNNNNN</i>, where
+<i>NNNNNNNNNN</i> is the sequence number of the file within the log.
+For further information, see
+<a href="../ref/log/limits.html">Log File Limits</a>.
+<p>If the log region is being created and log files are already present, the
+log files are reviewed and subsequent log writes are appended
+to the end of the log, rather than overwriting current log entries.
+<p><dt><a name="Db.DB_INIT_MPOOL">Db.DB_INIT_MPOOL</a><dd>Initialize the shared memory buffer pool subsystem.  This subsystem is
+used whenever the application is using any Berkeley DB access method.
+<p><dt><a name="Db.DB_INIT_TXN">Db.DB_INIT_TXN</a><dd>Initialize the transaction subsystem.  This subsystem is used when
+recovery and atomicity of multiple operations and recovery are important.
+The DB_INIT_TXN flag implies the DB_INIT_LOG flag.
+</dl>
+<p>The second group of flags govern what recovery, if any, is performed when
+the environment is initialized:
+<p><dl compact>
+<p><dt><a name="Db.DB_RECOVER">Db.DB_RECOVER</a><dd>Run normal recovery on this environment before opening it for normal use.
+If this flag is set, the DB_CREATE flag must also be set since the regions
+will be removed and recreated.
+<p><dt><a name="Db.DB_RECOVER_FATAL">Db.DB_RECOVER_FATAL</a><dd>Run catastrophic recovery on this environment before opening it for normal
+use.  If this flag is set, the DB_CREATE flag must also be set since the
+regions will be removed and recreated.
+</dl>
+<p>A standard part of the recovery process is to remove the existing Berkeley DB
+environment and create a new one in which to perform recovery.  If the
+thread of control performing recovery does not specify the correct region
+initialization information (e.g., the correct memory pool cache size),
+the result can be an application running in an environment with incorrect
+cache and other subsystem sizes.  For this reason, the thread of control
+performing recovery should either specify correct configuration
+information before calling the DbEnv.open method, or it should remove
+the environment after recovery is completed, leaving creation of the
+correctly sized environment to a subsequent call to DbEnv.open.
+<p>All Berkeley DB recovery processing must be single-threaded, that is, only a
+single thread of control may perform recovery or access a Berkeley DB
+environment while recovery is being performed.  As it is not an error to
+specify Db.DB_RECOVER for an environment for which no recovery is
+required, it is reasonable programming practice for the thread of control
+responsible for performing recovery and creating the environment to always
+specify the Db.DB_RECOVER flag during startup.
+<p>The DbEnv.open function returns successfully if Db.DB_RECOVER
+or Db.DB_RECOVER_FATAL is specified and no log files exist, so it is
+necessary to ensure all necessary log files are present before running
+recovery.  For further information, consult <a href="../utility/db_archive.html">db_archive</a> and
+<a href="../utility/db_recover.html">db_recover</a>.
+<p>The third group of flags govern file naming extensions in the environment:
+<p><dl compact>
+<!--$Id: m4.env_flags,v 10.9 2000/06/29 22:54:10 bostic Exp $-->
+<p><dt><a name="Db.DB_USE_ENVIRON">Db.DB_USE_ENVIRON</a><dd>The Berkeley DB process' environment may be permitted to specify information to
+be used when naming files; see <a href="../ref/env/naming.html">Berkeley DB
+File Naming</a>.  As permitting users to specify which files are used can
+create security problems, environment information will be used in file
+naming for all users only if the DB_USE_ENVIRON flag is set.
+<p><dt><a name="Db.DB_USE_ENVIRON_ROOT">Db.DB_USE_ENVIRON_ROOT</a><dd>The Berkeley DB process' environment may be permitted to specify information to
+be used when naming files; see <a href="../ref/env/naming.html">Berkeley DB
+File Naming</a>.  As permitting users to specify which files are used can
+create security problems, if the DB_USE_ENVIRON_ROOT flag is set,
+environment information will be used for file naming only for users with
+appropriate permissions (e.g., on UNIX systems, users with a user-ID of 0).
+</dl>
+<p>Finally, there are a few additional, unrelated flags:
+<p><dl compact>
+<p><dt><a name="Db.DB_CREATE">Db.DB_CREATE</a><dd>Cause Berkeley DB subsystems to create any underlying files, as necessary.
+<p><dt><a name="Db.DB_LOCKDOWN">Db.DB_LOCKDOWN</a><dd>Lock shared Berkeley DB environment files and memory mapped databases into memory.
+<p><dt><a name="Db.DB_PRIVATE">Db.DB_PRIVATE</a><dd>Specify that the environment will only be accessed by a single process
+(although that process may be multi-threaded).  This flag has two effects
+on the Berkeley DB environment.  First, all underlying data structures are
+allocated from per-process memory instead of from shared memory that is
+potentially accessible to more than a single process.  Second, mutexes
+are only configured to work between threads.
+<p>This flag should not be specified if more than a single process is
+accessing the environment, as it is likely to cause database corruption
+and unpredictable behavior, e.g., if both a server application and the
+Berkeley DB utility <a href="../utility/db_stat.html">db_stat</a> will access the environment, the
+Db.DB_PRIVATE flag should not be specified.
+<p><dt><a name="Db.DB_SYSTEM_MEM">Db.DB_SYSTEM_MEM</a><dd>Allocate memory from system shared memory instead of from memory backed
+by the filesystem.  See <a href="../ref/env/region.html">Shared Memory
+Regions</a> for more information.
+<p><dt><a name="Db.DB_THREAD">Db.DB_THREAD</a><dd>Cause the <a href="../api_java/dbenv_class.html">DbEnv</a> handle returned by DbEnv.open to be
+<i>free-threaded</i>, that is, useable by multiple threads within a
+single address space.
+<p>Threading is always assumed in the Java API, so no special flags are
+required and Berkeley DB functions will always behave as if the Db.DB_THREAD
+flag was specified.
+</dl>
+<p>On UNIX systems, or in IEEE/ANSI Std 1003.1 (POSIX) environments, all files created by Berkeley DB
+are created with mode <b>mode</b> (as described in <b>chmod</b>(2)) and
+modified by the process' umask value at the time of creation (see
+<b>umask</b>(2)).  The group ownership of created files is based on
+the system and directory defaults, and is not further specified by Berkeley DB.
+If <b>mode</b> is 0, files are created readable and writeable by both
+owner and group.  On Windows systems, the mode argument is ignored.
+<p>The DbEnv.open method throws an exception that encapsulates a non-zero error value on
+failure.
+<h1>Environment Variables</h1>
+<p><dl compact>
+<p><dt>DB_HOME<dd>The environment variable <b>DB_HOME</b> may be used as the path of
+the database home as described in
+<a href="../ref/env/naming.html">Berkeley DB File Naming</a>.
+</dl>
+<h1>Errors</h1>
+<p>The DbEnv.open method may fail and throw an exception encapsulating a non-zero error for the following conditions:
+<p><dl compact>
+<p><dt>EAGAIN<dd>The shared memory region was locked and (repeatedly) unavailable.
+</dl>
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+<p>
+The Db.DB_THREAD flag was specified and spinlocks are not
+implemented for this architecture.
+<p>The DB_HOME or TMPDIR environment variables were set but empty.
+<p>An incorrectly formatted <b>NAME VALUE</b> entry or line was found.
+</dl>
+<p><dl compact>
+<p><dt>ENOSPC<dd>HP-UX only: a previously created Berkeley DB environment for this process still
+exists.
+</dl>
+<p>If the file or directory does not exist, the DbEnv.open method will
+fail and
+throw a FileNotFoundException exception.
+<p>The DbEnv.open method may fail and throw an exception for errors specified for other Berkeley DB and C library or system methods.
+If a catastrophic error has occurred, the DbEnv.open method may fail and throw
+a <a href="../api_java/runrec_class.html">DbRunRecoveryException</a>, in which case all subsequent Berkeley DB calls
+will fail in the same way.
+<h3>Class</h3>
+<a href="../api_java/dbenv_class.html">DbEnv</a>
+<h1>See Also</h1>
+<a href="../api_java/env_close.html">DbEnv.close</a>,
+<a href="../api_java/env_open.html">DbEnv.open</a>,
+<a href="../api_java/env_remove.html">DbEnv.remove</a>,
+<a href="../api_java/env_strerror.html">DbEnv.strerror</a>,
+<a href="../api_java/env_version.html">DbEnv.get_version_string</a>
+<a href="../api_java/env_set_cachesize.html">DbEnv.set_cachesize</a>,
+<a href="../api_java/env_set_errcall.html">DbEnv.set_errcall</a>,
+<a href="../api_java/env_set_error_stream.html">DbEnv.set_error_stream</a>,
+<a href="../api_java/env_set_errpfx.html">DbEnv.set_errpfx</a>,
+<a href="../api_java/env_set_flags.html">DbEnv.set_flags</a>,
+<a href="../api_java/env_set_mutexlocks.html">DbEnv.set_mutexlocks</a>,
+and
+<a href="../api_java/env_set_verbose.html">DbEnv.set_verbose</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

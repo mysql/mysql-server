@@ -1,0 +1,501 @@
+dnl $Id: configure.in,v 11.77 2001/01/18 19:05:25 bostic Exp $
+dnl Process this file with autoconf to produce a configure script.
+
+AC_INIT(../db/db.c)
+AC_CONFIG_HEADER(db_config.h:config.hin)
+
+dnl Configure setup.
+AC_PROG_INSTALL()
+AC_CANONICAL_HOST
+AC_ARG_PROGRAM()
+
+dnl We cannot build in the top-level directory.
+AC_MSG_CHECKING(if building in the top-level directory)
+[ test -d db_archive ] && AC_MSG_ERROR([
+Berkeley DB cannot be built in the top-level distribution directory.])
+AC_MSG_RESULT(no)
+
+dnl Substitution variables.
+AC_SUBST(ADDITIONAL_INCS)
+AC_SUBST(ADDITIONAL_LANG)
+AC_SUBST(ADDITIONAL_LIBS)
+AC_SUBST(ADDITIONAL_OBJS)
+AC_SUBST(ADDITIONAL_PROGS)
+AC_SUBST(CFLAGS)
+AC_SUBST(CPPFLAGS)
+AC_SUBST(CXX)
+AC_SUBST(CXXFLAGS)
+AC_SUBST(DBS_LIBS)
+AC_SUBST(DEFAULT_INSTALL)
+AC_SUBST(DEFAULT_LIB)
+AC_SUBST(INSTALLER)
+AC_SUBST(INSTALL_LIBS)
+AC_SUBST(JAR)
+AC_SUBST(JAVAC)
+AC_SUBST(JAVACFLAGS)
+AC_SUBST(LDFLAGS)
+AC_SUBST(LIBDB_ARGS)
+AC_SUBST(LIBJSO_LIBS)
+AC_SUBST(LIBS)
+AC_SUBST(LIBSO_LIBS)
+AC_SUBST(LIBTOOL)
+AC_SUBST(LIBTSO_LIBS)
+AC_SUBST(LIBXSO_LIBS)
+AC_SUBST(MAKEFILE_CC)
+AC_SUBST(MAKEFILE_CCLINK)
+AC_SUBST(MAKEFILE_CXX)
+AC_SUBST(POSTLINK)
+AC_SUBST(RPC_OBJS)
+AC_SUBST(SOFLAGS)
+AC_SUBST(SOLINK)
+AC_SUBST(SOSUFFIX)
+
+dnl $o is set to ".o" or ".lo", and is the file suffix used in the
+dnl Makefile instead of .o
+AC_SUBST(o)
+o=.o
+INSTALLER="\$(cp)"
+DEFAULT_LIB="\$(libdb)"
+DEFAULT_INSTALL="install_static"
+
+dnl Set the version.
+AM_VERSION_SET
+
+dnl Set the default installation location.
+AC_PREFIX_DEFAULT(/usr/local/BerkeleyDB.@DB_VERSION_MAJOR@.@DB_VERSION_MINOR@)
+
+dnl Process all options before using them.  This is necessary because there
+dnl are dependencies among them.
+AM_OPTIONS_SET
+
+dnl This is where we handle stuff that autoconf can't handle: compiler,
+dnl preprocessor and load flags, libraries that the standard tests don't
+dnl look for.  The default optimization is -O.  We would like to set the
+dnl default optimization for systems using gcc to -O2, but we can't.  By
+dnl the time we know we're using gcc, it's too late to set optimization
+dnl flags.
+dnl
+dnl There are additional libraries we need for some compiler/architecture
+dnl combinations.
+dnl
+dnl Some architectures require DB to be compiled with special flags and/or
+dnl libraries for threaded applications
+dnl
+dnl The makefile CC may be different than the CC used in config testing,
+dnl because the makefile CC may be set to use $(LIBTOOL).
+dnl
+dnl XXX
+dnl Don't override anything if it's already set from the environment.
+optimize_def="-O"
+case "$host_os" in
+aix4.*)	   optimize_def="-O2"
+	   CC=${CC-"xlc_r"}
+	   CPPFLAGS="-D_THREAD_SAFE $CPPFLAGS"
+	   LIBTSO_LIBS="\$(LIBS)";;
+bsdi3*)	   CC=${CC-"shlicc2"}
+	   optimize_def="-O2"
+	   LIBS="-lipc $LIBS";;
+bsdi*)	   optimize_def="-O2";;
+freebsd*)  optimize_def="-O2"
+	   CPPFLAGS="-D_THREAD_SAFE $CPPFLAGS"
+           LIBS="-pthread";;
+hpux*)	   CPPFLAGS="-D_REENTRANT $CPPFLAGS";;
+irix*)	   optimize_def="-O2"
+	   CPPFLAGS="-D_SGI_MP_SOURCE $CPPFLAGS";;
+linux*)	   optimize_def="-O2"
+	   CFLAGS="-D_GNU_SOURCE"
+	   CPPFLAGS="-D_REENTRANT $CPPFLAGS";;
+mpeix*)	   CPPFLAGS="-D_POSIX_SOURCE -D_SOCKET_SOURCE $CPPFLAGS"
+	   LIBS="-lsocket -lsvipc $LIBS";;
+osf*)	   CPPFLAGS="-D_REENTRANT $CPPFLAGS";;
+*qnx)	   AC_DEFINE(HAVE_QNX);;
+sco3.2v4*) CC=${CC-"cc -belf"}
+	   LIBS="-lsocket -lnsl_s $LIBS";;
+sco*)	   CC=${CC-"cc -belf"}
+	   LIBS="-lsocket -lnsl $LIBS";;
+solaris*)  CPPFLAGS="-D_REENTRANT $CPPFLAGS";;
+esac
+
+dnl Set CFLAGS/CXXFLAGS.  We MUST set the flags before we call autoconf
+dnl compiler configuration macros, because if we don't, they set CFLAGS
+dnl to no optimization and -g, which isn't what we want.
+CFLAGS=${CFLAGS-$optimize_def}
+CXXFLAGS=${CXXFLAGS-"$CFLAGS"}
+
+dnl If the user wants a debugging environment, add -g to the CFLAGS value.
+dnl
+dnl XXX
+dnl Some compilers can't mix optimizing and debug flags.  The only way to
+dnl handle this is to specify CFLAGS in the environment before configuring.
+if test "$db_cv_debug" = yes; then
+	AC_DEFINE(DEBUG)
+	CFLAGS="$CFLAGS -g"
+	CXXFLAGS="$CXXFLAGS -g"
+fi
+
+dnl The default compiler is cc (NOT gcc), the default CFLAGS is as specified
+dnl above, NOT what is set by AC_PROG_CC, as it won't set optimization flags.
+dnl We still call AC_PROG_CC so that we get the other side-effects.
+AC_CHECK_PROG(CC, cc, cc)
+AC_CHECK_PROG(CC, gcc, gcc)
+AC_PROG_CC
+
+dnl Because of dynamic library building, the ${CC} used for config tests
+dnl may be different than the ${CC} we want to put in the Makefile.
+dnl The latter is known as ${MAKEFILE_CC} in this script.
+MAKEFILE_CC=${CC}
+MAKEFILE_CCLINK="\$(CC)"
+MAKEFILE_CXX="nocxx"
+
+dnl Set some #defines based on configuration options.
+if test "$db_cv_diagnostic" = yes; then
+	AC_DEFINE(DIAGNOSTIC)
+fi
+if test "$db_cv_debug_rop" = yes; then
+	AC_DEFINE(DEBUG_ROP)
+fi
+if test "$db_cv_debug_wop" = yes; then
+	AC_DEFINE(DEBUG_WOP)
+fi
+if test "$db_cv_umrw" = yes; then
+	AC_DEFINE(UMRW)
+fi
+if test "$db_cv_test" = yes; then
+	AC_DEFINE(CONFIG_TEST)
+fi
+
+dnl See if we need the C++ compiler at all.  If so, we'd like to find one that
+dnl interoperates with the C compiler we chose.  Since we prefered cc over gcc,
+dnl we'll also prefer the vendor's compiler over g++/gcc.  If we're wrong, the
+dnl user can set CC and CXX in their environment before running configure.
+dnl
+dnl AC_PROG_CXX sets CXX, but it uses $CXX and $CCC (in that order) as its
+dnl first choices.
+if test "$db_cv_cxx" = "yes"; then
+	if test "$GCC" != "yes"; then
+		case "$host_os" in
+		aix*)		AC_CHECK_PROG(CCC, xlC_r, xlC_r);;
+		hpux*)		AC_CHECK_PROG(CCC, aCC, aCC);;
+		osf*)		AC_CHECK_PROG(CCC, cxx, cxx);;
+		solaris*)	AC_CHECK_PROG(CCC, CC, CC);;
+		esac
+	fi
+	AC_PROG_CXX
+	MAKEFILE_CXX=${CXX}
+fi
+
+dnl XXX
+dnl Versions of GCC up to 2.8.0 required -fhandle-exceptions, but it is
+dnl renamed as -fexceptions and is the default in versions 2.8.0 and after.
+dnl
+dnl $GXX may be set as a result of enabling C++ or Java.
+if test "$GXX" = "yes"; then
+	CXXVERSION=`${MAKEFILE_CXX} --version`
+	case ${CXXVERSION} in
+	1.*|2.[[01234567]].*|*-1.*|*-2.[[01234567]].* )
+		CXXFLAGS="-fhandle-exceptions $CXXFLAGS";;
+	* )	CXXFLAGS="-fexceptions $CXXFLAGS";;
+	esac
+fi
+
+dnl Export our compiler preferences for the libtool configuration.
+export CC CCC
+CCC=CXX
+
+dnl Dynamic library and libtool configuration; optional, but required for
+dnl Tcl or Java support.
+LIBDB_ARGS="libdb.a"
+LIBTOOL="nolibtool"
+POSTLINK="@true"
+SOSUFFIX="so"
+if test "$db_cv_dynamic" = "yes"; then
+	SAVE_CC="${MAKEFILE_CC}"
+	SAVE_CXX="${MAKEFILE_CXX}"
+
+	# Configure libtool.
+	AC_MSG_CHECKING(libtool configuration)
+	AC_MSG_RESULT([])
+	${CONFIG_SHELL-/bin/sh} $srcdir/ltconfig \
+		--no-verify $srcdir/ltmain.sh \
+		--output=./libtool $host_os \
+		--disable-static \
+	|| AC_MSG_ERROR([libtool configure failed])
+
+	SOSUFFIX=`sed -e '/^library_names_spec=/!d' -e 's/.*\.\([[a-zA-Z0-9_]]*\).*/\1/' ./libtool`
+	DEFAULT_LIB="\$(libso_target)"
+	DEFAULT_INSTALL="install_dynamic"
+	LIBDB_ARGS="\$(libso_linkname)"
+	LIBTOOL="\$(SHELL) ./libtool"
+
+	MAKEFILE_CC="\$(LIBTOOL) --mode=compile ${SAVE_CC}"
+	MAKEFILE_CXX="\$(LIBTOOL) --mode=compile ${SAVE_CXX}"
+	MAKEFILE_CCLINK="\$(LIBTOOL) --mode=link ${SAVE_CC}"
+
+	INSTALLER="\$(LIBTOOL) --mode=install cp"
+	POSTLINK="\$(LIBTOOL) --mode=execute true"
+	SOLINK="\$(LIBTOOL) --mode=link ${SAVE_CC} -avoid-version"
+	SOFLAGS="-rpath \$(libdir)"
+	o=".lo"
+fi
+
+dnl Optional C++ API.
+if test "$db_cv_cxx" = "yes"; then
+	if test "$db_cv_dynamic" = "yes"; then
+		ADDITIONAL_LIBS="$ADDITIONAL_LIBS \$(libxso_target)"
+		DEFAULT_INSTALL="${DEFAULT_INSTALL} install_dynamic_cxx"
+	else
+		ADDITIONAL_LIBS="$ADDITIONAL_LIBS \$(libcxx)"
+		DEFAULT_INSTALL="${DEFAULT_INSTALL} install_static_cxx"
+	fi
+fi
+
+dnl Optional Java API.
+if test "$db_cv_java" = "yes"; then
+	if test "$db_cv_dynamic" != "yes"; then
+		AC_MSG_ERROR([--enable-java requires --enable-dynamic])
+	fi
+
+	AC_CHECK_PROG(JAVAC, javac, javac, nojavac)
+	if test "$JAVAC" = "nojavac"; then
+		AC_MSG_ERROR([no javac compiler in PATH])
+	fi
+	AC_CHECK_PROG(JAR, jar, jar, nojar)
+	if test "$JAR" = "nojar"; then
+		AC_MSG_ERROR([no jar utility in PATH])
+	fi
+	AC_PATH_PROG(JAVACABS, javac, nojavac)
+	ADDITIONAL_LIBS="$ADDITIONAL_LIBS \$(libjso_target)"
+	ADDITIONAL_LANG="$ADDITIONAL_LANG java"
+	DEFAULT_INSTALL="${DEFAULT_INSTALL} install_java"
+
+dnl find the include directory relative to the javac executable
+	while ls -ld "$JAVACABS" 2>/dev/null | grep " -> " >/dev/null; do
+		AC_MSG_CHECKING(symlink for $JAVACABS)
+		JAVACLINK=`ls -ld $JAVACABS | sed 's/.* -> //'`
+		case "$JAVACLINK" in
+		/*) JAVACABS="$JAVACLINK";;
+dnl 'X' avoids triggering unwanted echo options.
+		*) JAVACABS=`echo "X$JAVACABS" | sed -e 's/^X//' -e 's:[[^/]]*$::'`"$JAVACLINK";;
+		esac
+		AC_MSG_RESULT($JAVACABS)
+	done
+	JTOPDIR=`echo "$JAVACABS" | sed -e 's://*:/:g' -e 's:/[[^/]]*$::'`
+	if test -f "$JTOPDIR/include/jni.h"; then
+		CPPFLAGS="$CPPFLAGSS -I$JTOPDIR/include"
+	else
+		JTOPDIR=`echo "$JTOPDIR" | sed -e 's:/[[^/]]*$::'`
+		if test -f "$JTOPDIR/include/jni.h"; then
+			CPPFLAGS="$CPPFLAGS -I$JTOPDIR/include"
+		else
+			AC_MSG_ERROR([cannot find java include files])
+		fi
+	fi
+
+dnl get the likely subdirectories for system specific java includes
+	case "$host_os" in
+	solaris*)	JINCSUBDIRS="solaris";;
+	linux*)		JINCSUBDIRS="linux genunix";;
+	*)		JINCSUBDIRS="genunix";;
+	esac
+
+	for JINCSUBDIR in $JINCSUBDIRS
+	do
+		if test -d "$JTOPDIR/include/$JINCSUBDIR"; then
+			CPPFLAGS="$CPPFLAGS -I$JTOPDIR/include/$JINCSUBDIR"
+		fi
+	done
+else
+	JAVAC=nojavac
+fi
+
+dnl Optional RPC client/server.
+if test "$db_cv_rpc" = "yes"; then
+	AC_DEFINE(HAVE_RPC)
+
+	RPC_OBJS="\$(RPC_OBJS)"
+	ADDITIONAL_PROGS="berkeley_db_svc $ADDITIONAL_PROGS"
+
+	case "$host_os" in
+	hpux*)	
+		AC_CHECK_FUNC(svc_run,,
+		    AC_CHECK_LIB(nsl, svc_run,
+		    LIBS="-lnsl $LIBS"; LIBTSO_LIBS="-lnsl $LIBTSO_LIBS"));;
+	solaris*)
+		AC_CHECK_FUNC(svc_run,, AC_CHECK_LIB(nsl, svc_run));;
+	esac
+fi
+
+AM_TCL_LOAD
+
+dnl Optional DB 1.85 compatibility API.
+if test "$db_cv_compat185" = "yes"; then
+	ADDITIONAL_INCS="db_185.h $ADDITIONAL_INCS"
+	ADDITIONAL_OBJS="db185${o} $ADDITIONAL_OBJS"
+fi
+
+dnl Optional utilities.
+if test "$db_cv_dump185" = "yes"; then
+	ADDITIONAL_PROGS="db_dump185 $ADDITIONAL_PROGS"
+fi
+
+dnl Test Server.
+dnl Include -lpthread if the library exists.
+AC_CHECK_LIB(pthread, pthread_create, DBS_LIBS=-lpthread)
+
+dnl Checks for typedefs, structures, and system/compiler characteristics.
+AC_C_BIGENDIAN
+AC_C_CONST
+AC_HEADER_STAT
+AC_HEADER_TIME
+AC_STRUCT_ST_BLKSIZE
+AC_TYPE_MODE_T
+AC_TYPE_OFF_T
+AC_TYPE_PID_T
+AC_TYPE_SIZE_T
+
+dnl Define any short-hand types we're missing.
+AM_SHORTHAND_TYPES
+
+dnl Checks for header files.
+AC_HEADER_DIRENT
+AC_CHECK_HEADERS(sys/select.h)
+AC_CHECK_HEADERS(sys/time.h)
+
+dnl Check for mutexes.  We do this here because it changes $LIBS.
+AM_DEFINE_MUTEXES
+
+dnl Checks for system functions for which we have replacements.
+dnl
+dnl XXX
+dnl The only portable getcwd call is getcwd(char *, size_t), where the
+dnl buffer is non-NULL -- Solaris can't handle a NULL buffer, and they
+dnl deleted getwd().
+AC_REPLACE_FUNCS(getcwd getopt memcmp memcpy memmove)
+AC_REPLACE_FUNCS(raise snprintf strcasecmp strerror vsnprintf)
+
+dnl XXX
+dnl Nasty hack.  AC_REPLACE_FUNCS added entries of the form xxx.o to the
+dnl LIBOBJS variable.  They have to be xxx.lo if we are building shared
+dnl libraries.  Use sed, configure already requires it.
+tmp="`echo \"$LIBOBJS\" | sed \"s/\.o/${o}/g\"`"
+LIBOBJS="$tmp"
+
+dnl Check for system functions we optionally use.
+AC_CHECK_FUNCS(getuid pstat_getdynamic sysconf sched_yield strtoul yield)
+
+dnl Pread/pwrite.
+dnl
+dnl HP-UX has pread/pwrite, but it doesn't work with bigfile support.
+case "$host_os" in
+hpux*)
+	AC_MSG_WARN([pread/pwrite interfaces ignored on $host_os.]);;
+*)	AC_CHECK_FUNCS(pread pwrite)
+esac
+
+dnl Check for fcntl(2) to deny child process access to file descriptors.
+AC_CACHE_CHECK([for fcntl/F_SETFD], db_cv_fcntl_f_setfd, [dnl
+AC_TRY_RUN([
+#include <sys/types.h>
+#include <fcntl.h>
+main(){exit(fcntl(1, F_SETFD, 1) == -1);}],
+	[db_cv_fcntl_f_setfd=yes], [db_cv_fcntl_f_setfd=no])])
+if test "$db_cv_fcntl_f_setfd" = yes; then
+	AC_DEFINE(HAVE_FCNTL_F_SETFD)
+fi
+
+dnl A/UX has a broken getopt(3).
+case "$host_os" in
+aux*)	ADDITIONAL_OBJS="getopt${o} $ADDITIONAL_OBJS";;
+esac
+
+dnl Checks for system functions for which we don't have replacements.
+
+dnl We require qsort(3) and select(2).
+AC_CHECK_FUNCS(qsort, , AC_MSG_ERROR([No qsort library function.]))
+AC_CHECK_FUNCS(select, , AC_MSG_ERROR([No select library function.]))
+
+dnl Some versions of sprintf return a pointer to the first argument instead
+dnl of a character count.  We assume that the return value of snprintf and
+dnl vsprintf etc. will be the same as sprintf, and check the easy one.
+AC_CACHE_CHECK([for int type sprintf return value], db_cv_sprintf_count, [dnl
+AC_TRY_RUN([main(){char buf[20]; exit(sprintf(buf, "XXX") != 3);}],
+	[db_cv_sprintf_count=yes], [db_cv_sprintf_count=no])])
+if test "$db_cv_sprintf_count" = no; then
+	AC_DEFINE(SPRINTF_RET_CHARPNT)
+fi
+
+dnl Vendors are doing 64-bit lseek in different ways.
+dnl AIX, HP/UX, Solaris and Linux all use _FILE_OFFSET_BITS
+dnl to specify a "big-file" environment.
+dnl
+dnl You can't build C++ with big-file support on HP-UX, the include files
+dnl are wrong.  On Solaris 8, <fcntl.h> included with big-file support
+dnl is not compatible with C++.
+if test "$db_cv_bigfile" = no; then
+	case "$host_os" in
+        solaris2.8|hpux*)
+		if test "$db_cv_cxx" = "yes"; then
+	AC_MSG_WARN([Large file and C++ API support are incompatible on HP-UX])
+	AC_MSG_WARN([and Solaris 8; large file support has been turned off.])
+		else
+			AC_DEFINE(HAVE_FILE_OFFSET_BITS)
+		fi;;
+	aix*|solaris*|linux*)
+		AC_DEFINE(HAVE_FILE_OFFSET_BITS);;
+	esac
+fi
+
+dnl Figure out how to create shared regions.
+dnl
+dnl First, we look for mmap.
+dnl
+dnl	BSD/OS has mlock(2), but it doesn't work until the 4.1 release.
+dnl
+dnl	Nextstep (version 3.3) apparently supports mmap(2) (the mmap symbol
+dnl	is defined in the C library) but does not support munmap(2).  Don't
+dnl	try to use mmap if we can't find munmap.
+dnl
+dnl	Ultrix has mmap(2), but it doesn't work.
+mmap_ok=no
+case "$host_os" in
+bsdi3*|bsdi4.0)
+	AC_MSG_WARN([mlock(2) interface ignored on BSD/OS 3.X and 4.0.])
+	mmap_ok=yes
+	AC_CHECK_FUNCS(mmap munmap, , mmap_ok=no);;
+ultrix*)
+	AC_MSG_WARN([mmap(2) interface ignored on Ultrix.]);;
+*)
+	mmap_ok=yes
+	AC_CHECK_FUNCS(mlock munlock)
+	AC_CHECK_FUNCS(mmap munmap, , mmap_ok=no);;
+esac
+
+dnl Second, we look for shmget.
+dnl
+dnl	SunOS has the shmget(2) interfaces, but there appears to be a missing
+dnl	#include <debug/debug.h> file, so we ignore them.
+shmget_ok=no
+case "$host_os" in
+sunos*)
+	AC_MSG_WARN([shmget(2) interface ignored on SunOS.]);;
+*)
+	shmget_ok=yes
+	AC_CHECK_FUNCS(shmget, , shmget_ok=no);;
+esac
+
+dnl We require either mmap/munmap(2) or shmget(2).
+if test "$mmap_ok" = no -a "$shmget_ok" = no; then
+	AC_MSG_WARN([Neither mmap/munmap(2) or shmget(2) library functions.])
+fi
+
+dnl Check for programs used in building and installation.
+AM_PROGRAMS_SET
+
+CREATE_LIST="Makefile
+    include.tcl:../test/include.tcl
+    db.h:../include/db.src
+    db_int.h:../include/db_int.src"
+if test "$db_cv_compat185" = "yes"; then
+	CREATE_LIST="${CREATE_LIST} db_185.h:../include/db_185.h"
+fi
+AC_OUTPUT(${CREATE_LIST})

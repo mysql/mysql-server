@@ -1,0 +1,92 @@
+<!--$Id: deadlock.so,v 10.15 2000/08/10 17:54:49 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Deadlock detection</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Transaction Protected Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/transapp/admin.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/checkpoint.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Deadlock detection</h1>
+<p>The first component of the infrastructure, deadlock detection, is not
+so much a requirement specific to transaction protected applications,
+but rather is necessary for almost all applications where more than a
+single thread of control will be accessing the database at one time.
+While Berkeley DB automatically handles database locking, it is normally
+possible for deadlock to occur.  It is not required by all transactional
+applications, but exceptions are rare.
+<p>When the deadlock occurs, two (or more) threads of control each request
+additional locks which can never be granted because one of the threads
+of control waiting holds the requested resource.
+<p>For example, consider two processes A and B.  Let's say that A obtains
+an exclusive lock on item X, and B obtains an exclusive lock on item Y.
+Then, A requests a lock on Y and B requests a lock on X.  A will wait
+until resource Y becomes available and B will wait until resource X
+becomes available.  Unfortunately, since both A and B are waiting,
+neither will release the locks they hold and neither will ever obtain
+the resource on which it is waiting.  In order to detect that deadlock
+has happened, a separate process or thread must review the locks
+currently held in the database.  If deadlock has occurred, a victim must
+be selected, and that victim will then return the error
+<a href="../../ref/program/errorret.html#DB_LOCK_DEADLOCK">DB_LOCK_DEADLOCK</a> from whatever Berkeley DB call it was making.
+<p>Berkeley DB provides a separate UNIX-style utility which can be used to
+perform this deadlock detection, named <a href="../../utility/db_deadlock.html">db_deadlock</a>.
+Alternatively, applications can create their own deadlock utility or
+thread using the underlying <a href="../../api_c/lock_detect.html">lock_detect</a> function, or specify
+that Berkeley DB run the deadlock detector internally whenever there is a
+conflict over a lock (see <a href="../../api_c/env_set_lk_detect.html">DBENV-&gt;set_lk_detect</a> for more
+information).  The following code fragment does the latter:
+<p><blockquote><pre>void
+env_open(DB_ENV **dbenvp)
+{
+	DB_ENV *dbenv;
+	int ret;
+<p>
+	/* Create the environment handle. */
+	if ((ret = db_env_create(&dbenv, 0)) != 0) {
+		fprintf(stderr,
+		    "txnapp: db_env_create: %s\n", db_strerror(ret));
+		exit (1);
+	}
+<p>
+	/* Set up error handling. */
+	dbenv-&gt;set_errpfx(dbenv, "txnapp");
+<p>
+<b>	/* Do deadlock detection internally. */
+	if ((ret = dbenv-&gt;set_lk_detect(dbenv, DB_LOCK_DEFAULT)) != 0) {
+		dbenv-&gt;err(dbenv, ret, "set_lk_detect: DB_LOCK_DEFAULT");
+		exit (1);
+	}</b>
+<p>
+	/*
+	 * Open a transactional environment:
+	 *	create if it doesn't exist
+	 *	free-threaded handle
+	 *	run recovery
+	 *	read/write owner only
+	 */
+	if ((ret = dbenv-&gt;open(dbenv, ENV_DIRECTORY,
+	    DB_CREATE | DB_INIT_LOCK | DB_INIT_LOG |
+	    DB_INIT_MPOOL | DB_INIT_TXN | DB_RECOVER | DB_THREAD,
+	    S_IRUSR | S_IWUSR)) != 0) {
+		dbenv-&gt;err(dbenv, ret, "dbenv-&gt;open: %s", ENV_DIRECTORY);
+		exit (1);
+	}
+<p>
+	*dbenvp = dbenv;
+}</pre></blockquote>
+<p>Deciding how often to run the deadlock detector and which of the
+deadlocked transactions will be forced to abort when the deadlock is
+detected is a common tuning parameter for Berkeley DB applications.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/transapp/admin.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/checkpoint.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

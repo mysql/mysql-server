@@ -1,0 +1,72 @@
+<!--$Id: program.so,v 10.21 2001/01/09 18:57:28 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Java Programming Notes</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Programmer Notes</dl></h3></td>
+<td width="1%"><a href="../../ref/java/compat.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/java/faq.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Java Programming Notes</h1>
+<p>The Java API closely parallels the Berkeley DB C++ and C interfaces.  If you
+are currently using either of those APIs, there will be very little to
+surprise you in the Java API.  We have even taken care to make the names
+of classes, constants, methods and arguments identical, where possible,
+across all three APIs.
+<p><ol>
+<p><li>The Java runtime does not automatically close Berkeley DB objects on
+finalization.  There are a couple reasons for this.  One is that
+finalization is generally run only when garbage collection occurs and
+there is no guarantee that this occurs at all, even on exit.  Allowing
+specific Berkeley DB actions to occur in ways that cannot be replicated seems
+wrong.  Secondly, finalization of objects may happen in an arbitrary
+order, so we would have to do extra bookkeeping to make sure everything
+was closed in the proper order.  The best word of advice is to always
+do a close() for any matching open() call.  Specifically, the Berkeley DB
+package requires that you explicitly call close on each individual
+<a href="../../api_java/db_class.html">Db</a> and <a href="../../api_java/dbc_class.html">Dbc</a> object that you opened.  Your database
+activity may not be synchronized to disk unless you do so.
+<p><li>Some methods in the Java API have no return type, and throw a
+<a href="../../api_java/except_class.html">DbException</a> when an severe error arises.  There are some notable
+methods that do have a return value, and can also throw an exception.
+<a href="../../api_java/db_get.html">Db.get</a> and <a href="../../api_java/dbc_get.html">Dbc.get</a> both return 0 when a get succeeds,
+<a href="../../ref/program/errorret.html#DB_NOTFOUND">Db.DB_NOTFOUND</a> when the key is not found, and throw an error when
+there is a severe error.  This approach allows the programmer to check
+for typical data driven errors by watching return values without special
+casing exceptions.
+<p>An object of type <a href="../../api_java/deadlock_class.html">DbDeadlockException</a> is thrown when a deadlock
+would occur.
+<p>An object of type <a href="../../api_java/mem_class.html">DbMemoryException</a> is thrown when the system
+cannot provide enough memory to complete the operation (the ENOMEM
+system error on UNIX).
+<p>An object of type <a href="../../api_java/runrec_class.html">DbRunRecoveryException</a>, a subclass of
+<a href="../../api_java/except_class.html">DbException</a>, is thrown when there is an error that requires a
+recovery of the database, using <a href="../../utility/db_recover.html">db_recover</a>.
+<p><li>There is no class corresponding to the C++ DbMpoolFile class in the Berkeley DB
+Java API.  There is a subset of the memp_XXX methods in the <a href="../../api_java/dbenv_class.html">DbEnv</a>
+class.  This has been provided to allow you to perform certain
+administrative actions on underlying memory pools opened as a consequence
+of <a href="../../api_java/env_open.html">DbEnv.open</a>.  Direct access to other memory pool functionality
+is not appropriate for the Java environment.
+<p><li>Berkeley DB always turns on the <a href="../../api_java/env_open.html#DB_THREAD">Db.DB_THREAD</a> flag since threads
+are expected in Java.
+<p><li>If there are embedded null strings in the <b>curslist</b> argument for
+<a href="../../api_java/db_join.html">Db.join</a>, they will be treated as the end of the list of
+cursors, even though you may have allocated a longer array.  Fill in
+all the strings in your array unless you intend to cut it short.
+<p><li>The callback installed for <a href="../../api_java/env_set_errcall.html">DbEnv.set_errcall</a> will run in the same
+thread as the caller to <a href="../../api_java/env_set_errcall.html">DbEnv.set_errcall</a>.  Make sure that thread
+remains running until your application exits or <a href="../../api_java/env_close.html">DbEnv.close</a> is
+called.
+</ol>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/java/compat.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/java/faq.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

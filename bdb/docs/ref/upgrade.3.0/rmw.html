@@ -1,0 +1,31 @@
+<!--$Id: rmw.so,v 11.9 2000/03/18 21:43:21 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Release 3.0: DB_RMW</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Upgrading Berkeley DB Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/upgrade.3.0/txn_stat.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.0/lock_notheld.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Release 3.0: DB_RMW</h1>
+<p>The following change applies only to applications using the
+Berkeley DB Concurrent Data Store product.  If your application is not using that product,
+you can ignore this change.
+<p>Historically, the Berkeley DB <a href="../../api_c/db_cursor.html">DB-&gt;cursor</a> interface took the DB_RMW flag
+to indicate that the created cursor would be used for write operations on
+the database.  This flag has been renamed to the <a href="../../api_c/db_cursor.html#DB_WRITECURSOR">DB_WRITECURSOR</a>
+flag.
+<p>The application should be searched for any occurrences of DB_RMW. For
+each of these, any that are arguments to the <a href="../../api_c/db_cursor.html">DB-&gt;cursor</a> function
+should be changed to pass in the <a href="../../api_c/db_cursor.html#DB_WRITECURSOR">DB_WRITECURSOR</a> flag instead.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/upgrade.3.0/txn_stat.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.0/lock_notheld.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

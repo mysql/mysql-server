@@ -1,0 +1,100 @@
+<!--$Id: txn_stat.so,v 10.27 2000/05/25 13:47:08 dda Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbEnv::txn_stat</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbEnv::txn_stat</h1>
+</td>
+<td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db_cxx.h&gt;
+<p>
+extern "C" {
+	typedef void *(*db_malloc_fcn_type)(size_t);
+};
+int
+DbEnv::txn_stat(DB_TXN_STAT **statp, db_malloc_fcn_type db_malloc);
+</pre></h3>
+<h1>Description</h1>
+<p>The DbEnv::txn_stat method
+creates a statistical structure and copies a pointer to it into a
+user-specified memory location.
+<p>Statistical structures are created in allocated memory.  If <b>db_malloc</b> is non-NULL, it
+is called to allocate the memory, otherwise, the library function
+<b>malloc</b>(3) is used.  The function <b>db_malloc</b> must match
+the calling conventions of the <b>malloc</b>(3) library routine.
+Regardless, the caller is responsible for deallocating the returned
+memory.  To deallocate returned memory, free the returned memory
+reference, references inside the returned memory do not need to be
+individually freed.
+<p>The transaction region statistics are stored in a structure of type
+DB_TXN_STAT.  The following DB_TXN_STAT fields will be filled in:
+<p><dl compact>
+<dt><a href="../api_cxx/lsn_class.html">DbLsn</a> st_last_ckp;<dd>The LSN of the last checkpoint.
+<dt><a href="../api_cxx/lsn_class.html">DbLsn</a> st_pending_ckp;<dd>The LSN of any checkpoint that is currently in progress.  If
+<b>st_pending_ckp</b> is the same as <b>st_last_ckp</b> there
+is no checkpoint in progress.
+<dt>time_t st_time_ckp;<dd>The time the last completed checkpoint finished (as the number of seconds
+since the Epoch, returned by the IEEE/ANSI Std 1003.1 (POSIX) <b>time</b> interface).
+<dt>u_int32_t st_last_txnid;<dd>The last transaction ID allocated.
+<dt>u_int32_t st_maxtxns;<dd>The maximum number of active transactions possible.
+<dt>u_int32_t st_nactive;<dd>The number of transactions that are currently active.
+<dt>u_int32_t st_maxnactive;<dd>The maximum number of active transactions at any one time.
+<dt>u_int32_t st_nbegins;<dd>The number of transactions that have begun.
+<dt>u_int32_t st_naborts;<dd>The number of transactions that have aborted.
+<dt>u_int32_t st_ncommits;<dd>The number of transactions that have committed.
+<dt>u_int32_t st_regsize;<dd>The size of the region.
+<dt>u_int32_t st_region_wait;<dd>The number of times that a thread of control was forced to wait before
+obtaining the region lock.
+<dt>u_int32_t st_region_nowait;<dd>The number of times that a thread of control was able to obtain
+the region lock without waiting.
+<dt>DB_TXN_ACTIVE * st_txnarray;<dd>A pointer to an array of <b>st_nactive</b> DB_TXN_ACTIVE structures,
+describing the currently active transactions.  The following fields of
+the DB_TXN_ACTIVE structure will be filled in:
+<p><dl compact>
+<p><dt>u_int32_t txnid;<dd>The transaction ID as returned by <a href="../api_cxx/txn_begin.html">DbEnv::txn_begin</a>.
+<dt>u_int32_t parentid;<dd>The transaction ID of the parent transaction (or 0, if no parent).
+<dt><a href="../api_cxx/lsn_class.html">DbLsn</a> lsn;<dd>The log sequence number of the transaction-begin record.
+</dl>
+</dl>
+<p>The DbEnv::txn_stat method either returns a non-zero error value or throws an exception that
+encapsulates a non-zero error value on failure, and returns 0 on success.
+<h1>Errors</h1>
+<p>The DbEnv::txn_stat method may fail and throw an exception or return a non-zero error for errors specified for other Berkeley DB and C library or system methods.
+If a catastrophic error has occurred, the DbEnv::txn_stat method may fail and either
+return <a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a> or throw an exception encapsulating
+<a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a>, in which case all subsequent Berkeley DB calls will fail
+in the same way.
+<h3>Classes</h3>
+<a href="../api_cxx/dbenv_class.html">DbEnv</a>, <a href="../api_cxx/txn_class.html">DbTxn</a>
+<h1>See Also</h1>
+<a href="../api_cxx/env_set_tx_max.html">DbEnv::set_tx_max</a>,
+<a href="../api_cxx/env_set_tx_recover.html">DbEnv::set_tx_recover</a>,
+<a href="../api_cxx/env_set_tx_timestamp.html">DbEnv::set_tx_timestamp</a>,
+<a href="../api_cxx/txn_abort.html">DbTxn::abort</a>,
+<a href="../api_cxx/txn_begin.html">DbEnv::txn_begin</a>,
+<a href="../api_cxx/txn_checkpoint.html">DbEnv::txn_checkpoint</a>,
+<a href="../api_cxx/txn_commit.html">DbTxn::commit</a>,
+<a href="../api_cxx/txn_id.html">DbTxn::id</a>,
+<a href="../api_cxx/txn_prepare.html">DbTxn::prepare</a>
+and
+<a href="../api_cxx/txn_stat.html">DbEnv::txn_stat</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

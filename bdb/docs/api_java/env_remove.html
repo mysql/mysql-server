@@ -1,0 +1,129 @@
+<!--$Id: env_remove.so,v 10.24 2000/12/06 14:40:11 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbEnv.remove</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbEnv.remove</h1>
+</td>
+<td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+import com.sleepycat.db.*;
+import java.io.FileNotFoundException;
+<p>
+public void remove(String db_home, int flags)
+	throws DbException, FileNotFoundException;
+</pre></h3>
+<h1>Description</h1>
+<p>The DbEnv.remove method destroys a Berkeley DB environment, if it is not
+currently in use.  The environment regions, including any backing files,
+are removed.  Any log or database files and the environment directory are
+not removed.
+<p>The <b>db_home</b> argument to DbEnv.remove is described in
+<a href="../ref/env/naming.html">Berkeley DB File Naming</a>.
+<p>If there are processes that have called <a href="../api_java/env_open.html">DbEnv.open</a> without
+calling <a href="../api_java/env_close.html">DbEnv.close</a> (i.e., there are processes currently using
+the environment), DbEnv.remove will fail without further action,
+unless the <a href="../api_java/env_remove.html#DB_FORCE">Db.DB_FORCE</a> flag is set, in which case
+DbEnv.remove will attempt to remove the environment regardless
+of any processes still using it.
+<p>The result of attempting to forcibly destroy the environment when it is
+in use is unspecified.  Processes using an environment often maintain open
+file descriptors for shared regions within it.  On UNIX systems, the
+environment removal will usually succeed and processes that have already
+joined the region will continue to run in that region without change,
+however processes attempting to join the environment will either fail or
+create new regions.  On other systems (e.g., Windows/NT), where the
+<b>unlink</b>(2) system call will fail if any process has an open
+file descriptor for the file, the region removal will fail.
+<p>Calling DbEnv.remove should not be necessary for most applications,
+as the Berkeley DB environment is cleaned up as part of normal database recovery
+procedures, however, applications may wish to call DbEnv.remove
+as part of application shutdown to free up system resources.
+Specifically, when the <a href="../api_java/env_open.html#DB_SYSTEM_MEM">Db.DB_SYSTEM_MEM</a> flag was specified to
+<a href="../api_java/env_open.html">DbEnv.open</a>, it may be useful to call DbEnv.remove in order
+to release system shared memory segments that have been allocated.
+<p>In the case of catastrophic or system failure, database recovery must be
+performed (see <a href="../utility/db_recover.html">db_recover</a>), or the <a href="../api_java/env_open.html#DB_RECOVER">Db.DB_RECOVER</a> and
+<a href="../api_java/env_open.html#DB_RECOVER_FATAL">Db.DB_RECOVER_FATAL</a> flags to <a href="../api_java/env_open.html">DbEnv.open</a> must be specified
+when the environment is re-opened.  Alternatively, if recovery is not
+required because no database state is maintained across failures, and
+the <a href="../api_java/env_open.html#DB_SYSTEM_MEM">Db.DB_SYSTEM_MEM</a> flag was not specified when the environment
+was created, it is possible to clean up an environment by removing all
+of the files in the environment directory that begin with the string
+prefix "__db", as no backing files are created in any other directory.
+<p>The <b>flags</b> value must be set to 0 or by bitwise inclusively <b>OR</b>'ing together one or more
+of the following values.
+<p><dl compact>
+<p><dt><a name="Db.DB_FORCE">Db.DB_FORCE</a><dd>If the <a href="../api_java/env_remove.html#DB_FORCE">Db.DB_FORCE</a> flag is set, the environment is removed regardless
+of any processes that may still using it, and, no locks are acquired
+during this process.  (Generally, the <a href="../api_java/env_remove.html#DB_FORCE">Db.DB_FORCE</a> flag is only
+specified when applications were unable to shut down cleanly, and there
+is a risk that an application may have died holding a Berkeley DB lock.)
+<!--$Id: m4.env_flags,v 10.9 2000/06/29 22:54:10 bostic Exp $-->
+<p><dt><a name="Db.DB_USE_ENVIRON">Db.DB_USE_ENVIRON</a><dd>The Berkeley DB process' environment may be permitted to specify information to
+be used when naming files; see <a href="../ref/env/naming.html">Berkeley DB
+File Naming</a>.  As permitting users to specify which files are used can
+create security problems, environment information will be used in file
+naming for all users only if the DB_USE_ENVIRON flag is set.
+<p><dt><a name="Db.DB_USE_ENVIRON_ROOT">Db.DB_USE_ENVIRON_ROOT</a><dd>The Berkeley DB process' environment may be permitted to specify information to
+be used when naming files; see <a href="../ref/env/naming.html">Berkeley DB
+File Naming</a>.  As permitting users to specify which files are used can
+create security problems, if the DB_USE_ENVIRON_ROOT flag is set,
+environment information will be used for file naming only for users with
+appropriate permissions (e.g., on UNIX systems, users with a user-ID of 0).
+</dl>
+<p>In multi-threaded applications, only a single thread may call
+DbEnv.remove.
+<p>A <a href="../api_java/dbenv_class.html">DbEnv</a> handle which has already been used to open an
+environment should not be used to call the DbEnv.remove method, a new
+<a href="../api_java/dbenv_class.html">DbEnv</a> handle should be created for that purpose.
+<p>Once DbEnv.remove has been called, regardless of its return,
+the Berkeley DB environment handle may not be accessed again.
+<p>The DbEnv.remove method throws an exception that encapsulates a non-zero error value on
+failure.
+<h1>Errors</h1>
+<p><dl compact>
+<p><dt>EBUSY<dd>The shared memory region was in use and the force flag was not set.
+</dl>
+<p>If the file or directory does not exist, the DbEnv.remove method will
+fail and
+throw a FileNotFoundException exception.
+<p>The DbEnv.remove method may fail and throw an exception for errors specified for other Berkeley DB and C library or system methods.
+If a catastrophic error has occurred, the DbEnv.remove method may fail and throw
+a <a href="../api_java/runrec_class.html">DbRunRecoveryException</a>, in which case all subsequent Berkeley DB calls
+will fail in the same way.
+<h3>Class</h3>
+<a href="../api_java/dbenv_class.html">DbEnv</a>
+<h1>See Also</h1>
+<a href="../api_java/env_close.html">DbEnv.close</a>,
+<a href="../api_java/env_open.html">DbEnv.open</a>,
+<a href="../api_java/env_remove.html">DbEnv.remove</a>,
+<a href="../api_java/env_strerror.html">DbEnv.strerror</a>,
+<a href="../api_java/env_version.html">DbEnv.get_version_string</a>
+<a href="../api_java/env_set_cachesize.html">DbEnv.set_cachesize</a>,
+<a href="../api_java/env_set_errcall.html">DbEnv.set_errcall</a>,
+<a href="../api_java/env_set_error_stream.html">DbEnv.set_error_stream</a>,
+<a href="../api_java/env_set_errpfx.html">DbEnv.set_errpfx</a>,
+<a href="../api_java/env_set_flags.html">DbEnv.set_flags</a>,
+<a href="../api_java/env_set_mutexlocks.html">DbEnv.set_mutexlocks</a>,
+and
+<a href="../api_java/env_set_verbose.html">DbEnv.set_verbose</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

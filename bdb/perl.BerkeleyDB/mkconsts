@@ -1,0 +1,211 @@
+#!/usr/bin/perl
+
+%constants = (
+	# Symbol		   0 = define, 1 = enum
+	DB_AFTER		=> 0,
+	DB_APPEND		=> 0,
+	DB_ARCH_ABS		=> 0,
+	DB_ARCH_DATA		=> 0,
+	DB_ARCH_LOG		=> 0,
+	DB_BEFORE		=> 0,
+	DB_BTREE		=> 1,
+	DB_BTREEMAGIC		=> 0,
+	DB_BTREEOLDVER		=> 0,
+	DB_BTREEVERSION  	=> 0,
+	DB_CHECKPOINT		=> 0,
+	DB_CONSUME		=> 0,
+	DB_CREATE		=> 0,
+	DB_CURLSN		=> 0,
+	DB_CURRENT		=> 0,
+	DB_DBT_MALLOC		=> 0,
+	DB_DBT_PARTIAL		=> 0,
+	DB_DBT_USERMEM		=> 0,
+	DB_DELETED		=> 0,
+	DB_DELIMITER		=> 0,
+	DB_DUP			=> 0,
+	DB_DUPSORT		=> 0,
+	DB_ENV_APPINIT		=> 0,
+	DB_ENV_STANDALONE	=> 0,
+	DB_ENV_THREAD		=> 0,
+	DB_EXCL			=> 0,
+	DB_FILE_ID_LEN		=> 0,
+	DB_FIRST		=> 0,
+	DB_FIXEDLEN		=> 0,
+	DB_FLUSH		=> 0,
+	DB_FORCE		=> 0,
+	DB_GET_BOTH		=> 0,
+	DB_GET_RECNO		=> 0,
+	DB_HASH			=> 1,
+	DB_HASHMAGIC		=> 0,
+	DB_HASHOLDVER		=> 0,
+	DB_HASHVERSION 		=> 0,
+	DB_INCOMPLETE		=> 0,
+	DB_INIT_CDB		=> 0,
+	DB_INIT_LOCK		=> 0,
+	DB_INIT_LOG		=> 0,
+	DB_INIT_MPOOL		=> 0,
+	DB_INIT_TXN		=> 0,
+	DB_JOIN_ITEM		=> 0,
+	DB_KEYEMPTY		=> 0,
+	DB_KEYEXIST		=> 0,
+	DB_KEYFIRST		=> 0,
+	DB_KEYLAST		=> 0,
+	DB_LAST			=> 0,
+	DB_LOCK_CONFLICT	=> 0,
+	DB_LOCK_DEADLOCK	=> 0,
+	DB_LOCK_DEFAULT		=> 0,
+	DB_LOCK_GET		=> 1,
+	DB_LOCK_NORUN		=> 0,
+	DB_LOCK_NOTGRANTED	=> 0,
+	DB_LOCK_NOTHELD		=> 0,
+	DB_LOCK_NOWAIT		=> 0,
+	DB_LOCK_OLDEST		=> 0,
+	DB_LOCK_RANDOM		=> 0,
+	DB_LOCK_RIW_N		=> 0,
+	DB_LOCK_RW_N		=> 0,
+	DB_LOCK_YOUNGEST	=> 0,
+	DB_LOCKMAGIC		=> 0,
+	DB_LOCKVERSION 		=> 0,
+	DB_LOGMAGIC		=> 0,
+	DB_LOGOLDVER  		=> 0,
+	DB_MAX_PAGES		=> 0,
+	DB_MAX_RECORDS		=> 0,
+	DB_MPOOL_CLEAN		=> 0,
+	DB_MPOOL_CREATE		=> 0,
+	DB_MPOOL_DIRTY		=> 0,
+	DB_MPOOL_DISCARD	=> 0,
+	DB_MPOOL_LAST		=> 0,
+	DB_MPOOL_NEW		=> 0,
+	DB_MPOOL_PRIVATE	=> 0,
+	DB_MUTEXDEBUG		=> 0,
+	DB_MUTEXLOCKS		=> 0,
+	DB_NEEDSPLIT		=> 0,
+	DB_NEXT			=> 0,
+	DB_NEXT_DUP		=> 0,
+	DB_NOMMAP		=> 0,
+	DB_NOOVERWRITE		=> 0,
+	DB_NOSYNC		=> 0,
+	DB_NOTFOUND		=> 0,
+	DB_PAD			=> 0,
+	DB_PAGEYIELD		=> 0,
+	DB_POSITION		=> 0,
+	DB_PREV			=> 0,
+	DB_PRIVATE		=> 0,
+	DB_QUEUE		=> 1,
+	DB_RDONLY		=> 0,
+	DB_RECNO		=> 1,
+	DB_RECNUM		=> 0,
+	DB_RECORDCOUNT		=> 0,
+	DB_RECOVER		=> 0,
+	DB_RECOVER_FATAL	=> 0,
+	DB_REGISTERED		=> 0,
+	DB_RENUMBER		=> 0,
+	DB_RMW			=> 0,
+	DB_RUNRECOVERY		=> 0,
+	DB_SEQUENTIAL		=> 0,
+	DB_SET			=> 0,
+	DB_SET_RANGE		=> 0,
+	DB_SET_RECNO		=> 0,
+	DB_SNAPSHOT		=> 0,
+	DB_SWAPBYTES		=> 0,
+	DB_TEMPORARY		=> 0,
+	DB_THREAD		=> 0,
+	DB_TRUNCATE		=> 0,
+	DB_TXN_ABORT		=> 1,
+	DB_TXN_BACKWARD_ROLL	=> 1,
+	DB_TXN_CKP		=> 0,
+	DB_TXN_FORWARD_ROLL	=> 1,
+	DB_TXN_LOCK_2PL		=> 0,
+	DB_TXN_LOCK_MASK	=> 0,
+	DB_TXN_LOCK_OPTIMISTIC	=> 0,
+	DB_TXN_LOG_MASK		=> 0,
+	DB_TXN_LOG_REDO		=> 0,
+	DB_TXN_LOG_UNDO		=> 0,
+	DB_TXN_LOG_UNDOREDO	=> 0,
+	DB_TXN_NOSYNC		=> 0,
+	DB_TXN_NOWAIT		=> 0,
+	DB_TXN_SYNC		=> 0,
+	DB_TXN_OPENFILES	=> 1,
+	DB_TXN_REDO		=> 0,
+	DB_TXN_UNDO		=> 0,
+	DB_TXNMAGIC		=> 0,
+	DB_TXNVERSION		=> 0,
+	DB_TXN_LOCK_OPTIMIST	=> 0,
+	DB_UNKNOWN		=> 1,
+	DB_USE_ENVIRON		=> 0,
+	DB_USE_ENVIRON_ROOT	=> 0,
+	DB_VERSION_MAJOR	=> 0,
+	DB_VERSION_MINOR	=> 0,
+	DB_VERSION_PATCH	=> 0,
+	DB_WRITECURSOR		=> 0,
+	) ;
+
+sub OutputXS
+{
+    # skip to the marker
+    if (0) {
+        while (<>)
+        {
+            last if /^MARKER/ ;
+            print ;
+        }
+    }
+    
+    foreach my $key (sort keys %constants)
+    {
+        my $isEnum = $constants{$key} ;
+
+	if ($isEnum) {
+            print <<EOM
+        if (strEQ(name, "$key"))
+            return $key;
+EOM
+	}
+	else
+	{
+            print <<EOM
+        if (strEQ(name, "$key"))
+#ifdef $key
+            return $key;
+#else
+            goto not_there;
+#endif
+EOM
+	}
+    
+    }
+    
+    if (0) {
+        while (<>)
+        {
+	    print ;
+        }
+    }
+}
+
+sub OutputPM
+{
+    # skip to the marker
+    if (0) {
+        while (<>)
+        {
+            last if /^MARKER/ ;
+            print ;
+        }
+    }
+    
+    foreach my $key (sort keys %constants)
+    {
+	print "\t$key\n";
+    }
+    
+    if (0) {
+        while (<>)
+        {
+	    print ;
+        }
+    }
+}
+
+OutputXS() if $ARGV[0] =~ /xs/i ;
+OutputPM() if $ARGV[0] =~ /pm/i ;

@@ -1,0 +1,90 @@
+<!--$Id: solaris.so,v 11.14 2000/09/13 17:22:20 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Solaris</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Building Berkeley DB for UNIX systems</dl></h3></td>
+<td width="1%"><a href="../../ref/build_unix/sco.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_unix/sunos.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Solaris</h1>
+<p><ol>
+<p><li><b>I can't compile and run multi-threaded applications.</b>
+<p>Special compile-time flags and additional libraries are required when
+compiling threaded applications on Solaris.  If you are compiling a
+threaded application, you must compile with the D_REENTRANT flag and link
+with the libpthread.a or libthread.a libraries:
+<p><blockquote><pre>cc -mt ...
+cc -D_REENTRANT ... -lthread
+cc -D_REENTRANT ... -lpthread</pre></blockquote>
+<p>The Berkeley DB library will automatically build with the correct options.
+<hr size=1 noshade>
+<p><li><b>I've installed gcc on my Solaris system, but configuration
+fails because the compiler doesn't work.</b>
+<p>On some versions of Solaris, there is a cc executable in the user's path,
+but all it does is display an error message and fail:
+<p><blockquote><pre>% which cc
+/usr/ucb/cc
+% cc
+/usr/ucb/cc: language optional software package not installed</pre></blockquote>
+<p>As Berkeley DB always uses the native compiler in preference to gcc, this is a
+fatal error.  If the error message you're seeing is:
+<p><blockquote><pre>checking whether the C compiler (cc -O ) works... no
+configure: error: installation or configuration problem: C compiler cannot create executables.</pre></blockquote>
+<p>then this may be the problem you're seeing.  The simplest workaround is
+to set your CC environment variable to the system compiler, e.g.:
+<p><blockquote><pre>env CC=gcc ../dist/configure</pre></blockquote>
+<p>and reconfigure.
+<p>If you are using the --configure-cxx option, you may also want to specify
+a C++ compiler, e.g.:
+<p><blockquote><pre>env CC=gcc CCC=g++ ../dist/configure</pre></blockquote>
+<hr size=1 noshade>
+<p><li><b>I get the error
+"libc internal error: _rmutex_unlock: rmutex not held", followed by a core
+dump, when running threaded or JAVA programs.</b>
+<p>This is a known bug in Solaris 2.5 and it is fixed by Sun patch 103187-25.
+<hr size=1 noshade>
+<p><li><b>I get error reports of non-existent files, corrupted metadata
+pages and core dumps.</b>
+<p>Solaris 7 contains a bug in the threading libraries (-lpthread, -lthread)
+which causes the wrong version of the pwrite routine to be linked into
+the application if the thread library is linked in after the the C
+library.  The result will be that the pwrite function is called rather
+than the pwrite64.  To work around the problem, use an explicit link order
+when creating your application.
+<p>Sun Microsystems is tracking this problem with Bug Id's 4291109 and 4267207,
+and patch 106980-09 to Solaris 7 fixes the problem.
+<p><blockquote><pre>Bug Id: 4291109
+Duplicate of: 4267207
+Category: library
+Subcategory: libthread
+State: closed
+Synopsis: pwrite64 mapped to pwrite
+Description:
+When libthread is linked after libc, there is a table of functions in
+libthread that gets "wired into" libc via _libc_threads_interface().
+The table in libthread is wrong in both Solaris 7 and on28_35 for the
+TI_PWRITE64 row (see near the end).</pre></blockquote>
+<hr size=1 noshade>
+<p><li><b>During configuration I see a message that large file support has
+been turned off.</b>
+<p>The Solaris 8 system include files redefine "open" when big-file support (the
+HAVE_FILE_OFFSET_BITS and _FILE_OFFSET_BITS #defines) is enabled.  This
+causes problems when compiling for C++, where "open" is a legal
+identifier, used in the Berkeley DB C++ API.  For this reason, we automatically
+turn off big-file support when Berkeley DB is configured with a C++ API.  This
+should not be a problem for applications unless there is a need to create
+databases larger than 2GB.
+</ol>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/build_unix/sco.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_unix/sunos.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,70 @@
+#!/bin/sh -
+#	$Id: s_rpc,v 11.6 2000/04/26 19:15:51 sue Exp $
+#
+# Build the automatically generated RPC files
+
+echo "Building RPC client/server files"
+
+client_file=../rpc_client/gen_client.c
+cproto_file=../include/gen_client_ext.h
+ctmpl_file=./template/gen_client_ret
+header_file=../include/db_server.h
+rpcclnt_file=../rpc_client/db_server_clnt.c
+rpcsvc_file=../rpc_server/db_server_svc.c
+rpcxdr_file=../rpc_server/db_server_xdr.c
+sed_file=../rpc_server/db_server_proc.sed
+server_file=../rpc_server/gen_db_server.c
+sproto_file=../include/gen_server_ext.h
+stmpl_file=./template/db_server_proc
+xdr_file=../rpc_server/db_server.x
+
+#
+# NOTE: We do NOT want to remove proc_file.  It is what we apply
+# sed_file to, but we do not want to remove it.
+#
+proc_file=../rpc_server/db_server_proc.c
+svrsed_file=../rpc_server/db_server_svc.sed
+rpcsed_file=../rpc_server/db_server.sed
+
+rm -f $client_file $cproto_file $ctmpl_file $header_file $rpcsvc_file \
+    $rpcclnt_file $rpcxdr_file $sed_file $server_file $sproto_file \
+    $stmpl_file $xdr_file
+
+#
+# Generate client/server/XDR code
+#
+awk -f gen_rpc.awk \
+    -v client_file=$client_file \
+    -v cproto_file=$cproto_file \
+    -v ctmpl_file=$ctmpl_file \
+    -v sed_file=$sed_file \
+    -v server_file=$server_file \
+    -v sproto_file=$sproto_file \
+    -v stmpl_file=$stmpl_file \
+    -v xdr_file=$xdr_file < ../rpc_server/rpc.src
+chmod 444 $client_file $server_file
+
+#
+# Now run rpcgen to generate all our sources from the XDR file
+#
+rpcgen -h $xdr_file > $header_file
+rpcgen -l $xdr_file > $rpcclnt_file
+rpcgen -s tcp $xdr_file > $rpcsvc_file
+rpcgen -c $xdr_file > $rpcxdr_file
+
+# Run server files through sed
+sed -f $svrsed_file $rpcsvc_file > ${rpcsvc_file}.new
+mv ${rpcsvc_file}.new $rpcsvc_file
+sed -f $sed_file $proc_file > ${proc_file}.new
+mv ${proc_file}.new $proc_file
+
+# Run rpcgen files through sed to add HAVE_RPC ifdef
+sed -f $rpcsed_file $rpcsvc_file > ${rpcsvc_file}.new
+mv ${rpcsvc_file}.new $rpcsvc_file
+sed -f $rpcsed_file $rpcxdr_file > ${rpcxdr_file}.new
+mv ${rpcxdr_file}.new $rpcxdr_file
+sed -f $rpcsed_file $rpcclnt_file > ${rpcclnt_file}.new
+mv ${rpcclnt_file}.new $rpcclnt_file
+
+chmod 444 $header_file $rpcclnt_file $rpcsvc_file $rpcxdr_file
+

@@ -1,0 +1,36 @@
+<!--$Id: set_tx_recover.so,v 1.9 2000/07/25 16:59:37 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Release 3.1: DBENV-&gt;set_tx_recover</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Upgrading Berkeley DB Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/upgrade.3.1/config.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.1/set_feedback.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Release 3.1: DBENV-&gt;set_tx_recover</h1>
+<p>The redo parameter of the function passed to <a href="../../api_c/env_set_tx_recover.html">DBENV-&gt;set_tx_recover</a>
+used to be an integer set to any one of a number of #defined values.  In
+the 3.1 release of Berkeley DB, the redo parameter has been replaced by the op
+parameter which is an enumerated type of type db_recops.
+<p>If your application calls <a href="../../api_c/env_set_tx_recover.html">DBENV-&gt;set_tx_recover</a>, then find the
+function referenced in the call.  Replace the flag values in that function
+as follows:
+<p><table border=1 align=center>
+<tr><th>Previous flag</th><th>Berkeley DB 3.1 version flag</th></tr>
+<tr><td>TXN_BACKWARD_ROLL</td><td>DB_TXN_BACKWARD_ROLL</td></tr>
+<tr><td>TXN_FORWARD_ROLL</td><td>DB_TXN_FORWARD_ROLL</td></tr>
+<tr><td>TXN_OPENFILES</td><td>DB_TXN_OPENFILES</td></tr>
+<tr><td>TXN_REDO</td><td>DB_TXN_FORWARD_ROLL</td></tr>
+<tr><td>TXN_UNDO</td><td>DB_TXN_ABORT</td></tr>
+</table>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/upgrade.3.1/config.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.1/set_feedback.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

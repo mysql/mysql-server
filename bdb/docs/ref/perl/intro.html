@@ -1,0 +1,42 @@
+<!--$Id: intro.so,v 10.24 2001/01/09 18:57:28 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Using Berkeley DB with Perl</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Perl</dl></h3></td>
+<td width="1%"><a href="../../ref/java/faq.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/tcl/intro.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Using Berkeley DB with Perl</h1>
+<p>The original Perl module for Berkeley DB was DB_File, which was written to
+interface to Berkeley DB version 1.85.  The newer Perl module for Berkeley DB is
+BerkeleyDB, which was written to interface to version 2.0 and subsequent
+releases.  Because Berkeley DB version 2.X has a compatibility API for version
+1.85, you can (and should!) build DB_File using version 2.X of Berkeley DB,
+although DB_File will still only support the 1.85 functionality.
+<p>DB_File is distributed with the standard Perl source distribution (look
+in the directory "ext/DB_File").  You can find both DB_File and BerkeleyDB
+on CPAN, the Comprehensive Perl Archive Network of mirrored FTP sites.
+The master CPAN site is
+<a href="ftp://ftp.funet.fi/">ftp://ftp.funet.fi/</a>.
+<p>Versions of both BerkeleyDB and DB_File that are known to work correctly
+with each release of Berkeley DB are included in the distributed Berkeley DB source
+tree, in the subdirectories <b>perl.BerkeleyDB</b> and
+<b>perl.DB_File</b>.  Each of those directories contains a
+<b>README</b> file with instructions on installing and using those
+modules.
+<p>The Perl interface is not maintained by Sleepycat Software.  Questions
+about the DB_File and BerkeleyDB modules are best asked on the Usenet
+newsgroup comp.lang.perl.modules.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/java/faq.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/tcl/intro.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

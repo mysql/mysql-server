@@ -1,0 +1,46 @@
+<!--$Id: errors.so,v 10.19 2000/12/14 21:42:18 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Error returns</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Simple Tutorial</dl></h3></td>
+<td width="1%"><a href="../../ref/simple_tut/handles.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/simple_tut/open.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Error returns</h1>
+<p>The Berkeley DB interfaces always return a value of 0 on success.  If the
+operation does not succeed for any reason, the return value will be
+non-zero.
+<p>If a system error occurred (e.g., Berkeley DB ran out of disk space, or
+permission to access a file was denied, or an illegal argument was
+specified to one of the interfaces), Berkeley DB returns an <b>errno</b>
+value.  All of the possible values of <b>errno</b> are greater than
+0.
+<p>If the operation didn't fail due to a system error, but wasn't
+successful either, Berkeley DB returns a special error value.  For example,
+if you tried to retrieve the data item associated with the key
+<b>fruit</b>, and there was no such key/data pair in the database,
+Berkeley DB would return <a href="../../ref/program/errorret.html#DB_NOTFOUND">DB_NOTFOUND</a>, a special error value that means
+the requested key does not appear in the database.  All of the possible
+special error values are less than 0.
+<p>Berkeley DB also offers programmatic support for displaying error return values.
+First, the <a href="../../api_c/env_strerror.html">db_strerror</a> interface returns a pointer to the error
+message corresponding to any Berkeley DB error return, similar to the ANSI C
+strerror interface, but is able to handle both system error returns and
+Berkeley DB-specific return values.
+<p>Second, there are two error functions, <a href="../../api_c/db_err.html">DB-&gt;err</a> and <a href="../../api_c/db_err.html">DB-&gt;errx</a>.
+These functions work like the ANSI C printf interface, taking a
+printf-style format string and argument list, and optionally appending
+the standard error string to a message constructed from the format string
+and other arguments.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/simple_tut/handles.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/simple_tut/open.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

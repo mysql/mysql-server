@@ -1,0 +1,33 @@
+<!--$Id: environ.so,v 10.17 2000/03/18 21:43:16 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Environment variables</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Programmer Notes</dl></h3></td>
+<td width="1%"><a href="../../ref/program/errorret.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/program/mt.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Environment variables</h1>
+<p>The Berkeley DB library uses the following environment variables:
+<p><dl compact>
+<p><dt>DB_HOME<dd>If the environment variable DB_HOME is set, it is used as part of
+<a href="../../ref/env/naming.html">File Naming</a>.
+Note, for the DB_HOME variable to take effect, either the
+<a href="../../api_c/env_open.html#DB_USE_ENVIRON">DB_USE_ENVIRON</a> or <a href="../../api_c/env_open.html#DB_USE_ENVIRON_ROOT">DB_USE_ENVIRON_ROOT</a> flags must be
+specified to <a href="../../api_c/env_open.html">DBENV-&gt;open</a>.
+<p><dt>TMPDIR, TEMP, TMP, TempFolder<dd>The TMPDIR, TEMP, TMP and TempFolder environment variables are all
+checked as locations in which to create temporary files.  See
+<a href="../../api_c/env_set_tmp_dir.html">DBENV-&gt;set_tmp_dir</a> for more information.
+</dl>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/program/errorret.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/program/mt.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

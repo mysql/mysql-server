@@ -1,0 +1,91 @@
+<!--$Id: recovery.so,v 10.26 2000/08/16 17:50:40 margo Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Recovery procedures</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Transaction Protected Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/transapp/logfile.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/filesys.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Recovery procedures</h1>
+<p>The fifth component of the infrastructure, recovery procedures, concerns
+the recoverability of the database.  After any application or system
+failure, there are two possible approaches to database recovery:
+<p><ol>
+<p><li>There is no need for recoverability and all databases can be recreated
+from scratch.  While these applications may still need transaction
+protection for other reasons, recovery usually consists of removing the
+Berkeley DB environment home directory and all files it contains, and then
+restarting the application.
+<p><li>It is necessary to recover information after system or application
+failure.  In this case, recovery processing must be performed on any
+database environments that were active at the time of the failure.
+Recovery processing involves running the <a href="../../utility/db_recover.html">db_recover</a> utility or
+calling the <a href="../../api_c/env_open.html">DBENV-&gt;open</a> function with the <a href="../../api_c/env_open.html#DB_RECOVER">DB_RECOVER</a> or
+<a href="../../api_c/env_open.html#DB_RECOVER_FATAL">DB_RECOVER_FATAL</a> flags.
+<p>During recovery processing, all database changes made by aborted or
+unfinished transactions are undone and all database changes made by
+committed transactions are redone, as necessary.  Database applications
+must not be restarted until recovery completes.  After recovery
+finishes, the environment is properly initialized so that applications
+may be restarted.
+</ol>
+<p>If you intend to do recovery, there are two possible types of recovery
+processing:
+<p><ol>
+<p><li><i>catastrophic</i> recovery.  A failure that requires catastrophic
+recovery is a failure where either the database or log files have been
+destroyed or corrupted.  For example, catastrophic failure includes the
+case where the disk drive on which either the database or logs are
+stored has been physically destroyed, or when the system's normal
+filesystem recovery on startup is unable to bring the database and log
+files to a consistent state.  This is often difficult to detect, and
+perhaps the most common sign of the need for catastrophic recovery is
+when the normal recovery procedures fail.
+<p>To restore your database environment after catastrophic failure, take
+the following steps:
+<p><ol>
+<p><li>Restore the most recent snapshots of the database and log files from
+the backup media into the system directory where recovery will be
+performed.
+<p><li>If any log files were archived since the last snapshot was made, they
+should be restored into the Berkeley DB environment directory where recovery
+will be performed.  Make sure you restore them in the order in which
+they were written.  The order is important because it's possible that
+the same log file appears on multiple backups and you want to run
+recovery using the most recent version of each log file.
+<p><li>Run the <a href="../../utility/db_recover.html">db_recover</a> utility, specifying its <b>-c</b> option,
+or call the <a href="../../api_c/env_open.html">DBENV-&gt;open</a> function specifying the <a href="../../api_c/env_open.html#DB_RECOVER_FATAL">DB_RECOVER_FATAL</a>
+flag.  The catastrophic recovery process will review the logs and
+database files to bring the environment databases to a consistent state
+as of the time of the last uncorrupted log file that is found.  It is
+important to realize that only transactions committed before that date
+will appear in the databases.
+<p>It is possible to recreate the database in a location different than
+the original, by specifying appropriate pathnames to the <b>-h</b>
+option of the <a href="../../utility/db_recover.html">db_recover</a> utility. In order for this to work
+properly, it is important that your application reference files by
+names relative to the database home directory or the pathname(s) specified
+in calls to <a href="../../api_c/env_set_data_dir.html">DBENV-&gt;set_data_dir</a>, instead of using full path names.
+</ol>
+<p><li><i>non-catastrophic</i> or <i>normal</i> recovery.  If the
+failure is non-catastrophic and the database files and log are both
+accessible on a stable filesystem, run the <a href="../../utility/db_recover.html">db_recover</a> utility
+without the <b>-c</b> option or call the <a href="../../api_c/env_open.html">DBENV-&gt;open</a> function
+specifying the <a href="../../api_c/env_open.html#DB_RECOVER">DB_RECOVER</a> flag.  The normal recovery process
+will review the logs and database files to ensure that all changes
+associated with committed transactions appear in the databases and that
+all uncommitted transactions do not.
+</ol>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/transapp/logfile.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/filesys.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

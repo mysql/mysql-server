@@ -1,0 +1,66 @@
+<!--$Id: region.so,v 10.23 2000/08/09 15:45:52 sue Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Shared Memory Regions</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Environment</dl></h3></td>
+<td width="1%"><a href="../../ref/env/security.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/env/remote.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Shared Memory Regions</h1>
+<p>Each of the Berkeley DB subsystems within an environment is described by one or
+more regions.  The regions contain all of the per-process and per-thread
+shared information, including mutexes, that comprise a Berkeley DB environment.
+These regions are created in one of three areas, depending on the flags
+specified to the <a href="../../api_c/env_open.html">DBENV-&gt;open</a> function:
+<p><ol>
+<p><li>If the <a href="../../api_c/env_open.html#DB_PRIVATE">DB_PRIVATE</a> flag is specified to <a href="../../api_c/env_open.html">DBENV-&gt;open</a>, regions
+are created in per-process heap memory, i.e., memory returned by
+<b>malloc</b>(3).  In this case, the Berkeley DB environment may only be
+accessed by a single process, although that process may be
+multi-threaded.
+<p><li>If the <a href="../../api_c/env_open.html#DB_SYSTEM_MEM">DB_SYSTEM_MEM</a> flag is specified to <a href="../../api_c/env_open.html">DBENV-&gt;open</a>,
+regions are created in system memory.  When regions are created in system
+memory, the Berkeley DB environment may be accessed by both multiple processes
+and multiple threads within processes.
+<p>The system memory used by Berkeley DB is potentially useful past the lifetime
+of any particular process.  Therefore, additional cleanup may be necessary
+after an application fails, as there may be no way for Berkeley DB to ensure
+that system resources backing the shared memory regions are returned to
+the system.
+<p>The system memory that is used is architecture-dependent.  For example,
+on systems supporting X/Open-style shared memory interfaces, e.g., UNIX
+systems, the <b>shmget</b>(2) and related System V IPC interfaces are
+used. Additionally, VxWorks systems use system memory.
+In these cases, an initial segment ID must be specified by the
+application to ensure that applications do not overwrite each other's
+database environments, and so that the number of segments created does
+not grow without bound.  See the <a href="../../api_c/env_set_shm_key.html">DBENV-&gt;set_shm_key</a> function for more
+information.
+<p><li>If no memory-related flags are specified to <a href="../../api_c/env_open.html">DBENV-&gt;open</a>, then
+memory backed by the filesystem is used to store the regions.  On UNIX
+systems, the Berkeley DB library will use the POSIX mmap interface.  If mmap is
+not available, the UNIX shmget interfaces will be used, assuming they are
+available.
+</ol>
+<p>Any files created in the filesystem to back the regions are created in
+the environment home directory specified to the <a href="../../api_c/env_open.html">DBENV-&gt;open</a> call.
+These files are named __db.###, e.g., __db.001, __db.002 and so on.
+When region files are backed by the filesystem, one file per region is
+created.  When region files are backed by system memory, a single file
+will still be created, as there must be a well-known name in the
+filesystem so that multiple processes can locate the system shared memory
+that is being used by the environment.
+<p>Statistics about the shared memory regions in the environment can be
+displayed using the <b>-e</b> option to the <a href="../../utility/db_stat.html">db_stat</a> utility.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/env/security.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/env/remote.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

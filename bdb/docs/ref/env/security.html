@@ -1,0 +1,54 @@
+<!--$Id: security.so,v 10.15 2000/05/23 21:12:06 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Security</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Environment</dl></h3></td>
+<td width="1%"><a href="../../ref/env/naming.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/env/region.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Security</h1>
+<p>The following are security issues that should be considered when writing
+Berkeley DB applications:
+<p><dl compact>
+<p><dt>Database environment permissions<dd>The directory used as the Berkeley DB database environment should have its
+permissions set to ensure that files in the environment are not accessible
+to users without appropriate permissions.  Applications which add to the
+user's permissions (e.g., UNIX setuid or setgid applications), must be
+carefully checked to not permit illegal use of those permissions such
+as general file access in the environment directory.
+<p><dt>Environment variables<dd>Setting the <a href="../../api_c/env_open.html#DB_USE_ENVIRON">DB_USE_ENVIRON</a> and <a href="../../api_c/env_open.html#DB_USE_ENVIRON_ROOT">DB_USE_ENVIRON_ROOT</a> flags
+and allowing the use of environment variables during file naming can be
+dangerous.  Setting those flags in Berkeley DB applications with additional
+permissions (e.g., UNIX setuid or setgid applications) could potentially
+allow users to read and write databases to which they would not normally
+have access.
+<p><dt>File permissions<dd>By default, Berkeley DB always creates files readable and writeable by the owner
+and the group (i.e., S_IRUSR, S_IWUSR, S_IRGRP and S_IWGRP, or octal mode
+0660 on historic UNIX systems).  The group ownership of created files is
+based on the system and directory defaults, and is not further specified
+by Berkeley DB.
+<p><dt>Temporary backing files<dd>If an unnamed database is created and the cache is too small to hold the
+database in memory, Berkeley DB will create a temporary physical file to enable
+it to page the database to disk as needed.  In this case, environment
+variables such as <b>TMPDIR</b> may be used to specify the location of
+that temporary file.  While temporary backing files are created readable
+and writeable by the owner only (i.e., S_IRUSR and S_IWUSR, or octal mode
+0600 on historic UNIX systems), some filesystems may not sufficiently
+protect temporary files created in random directories from improper
+access.  Applications storing sensitive data in unnamed databases should
+use the <a href="../../api_c/env_set_tmp_dir.html">DBENV-&gt;set_tmp_dir</a> method to specify a temporary directory
+with known permissions, to be absolutely safe.
+</dl>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/env/naming.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/env/region.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

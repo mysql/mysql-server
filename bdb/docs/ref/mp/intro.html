@@ -1,0 +1,59 @@
+<!--$Id: intro.so,v 10.15 2001/01/18 20:31:37 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Berkeley DB and the memory pool</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Memory Pool Subsystem</dl></h3></td>
+<td width="1%"><a href="../../ref/log/limits.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/mp/config.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Berkeley DB and the memory pool</h1>
+<p>The memory pool subsystem is the general-purpose shared memory buffer pool
+used by Berkeley DB.  This module is useful outside of the Berkeley DB package for
+processes that require page-oriented, cached, shared file access.
+<p>A memory pool is a shared memory cache shared by any number of processes
+and threads within processes.  The <a href="../../api_c/env_open.html">DBENV-&gt;open</a> interface opens, and
+optionally creates, a memory pool.  When that pool is no longer in use,
+it should be closed, using the <a href="../../api_c/env_close.html">DBENV-&gt;close</a> interface.
+<p>The <a href="../../api_c/memp_fopen.html">memp_fopen</a> interface opens an underlying file within the
+memory pool.  When that file is no longer in use, it should be closed,
+using the <a href="../../api_c/memp_fclose.html">memp_fclose</a> interface.  The <a href="../../api_c/memp_fget.html">memp_fget</a> interface
+is used to retrieve pages from files in the pool.  All retrieved pages
+must be subsequently returned using the <a href="../../api_c/memp_fput.html">memp_fput</a> interface.  At
+the time that pages are returned, they may be marked <b>dirty</b>, which
+causes them to be written to the backing disk file before being discarded
+from the pool.  If there is insufficient room to bring a new page in the
+pool, a page is selected to be discarded from the pool.  If that page is
+dirty, it is first written to the backing file.  The page is selected
+using a somewhat modified least-recently-used algorithm.  Pages in files
+may also be explicitly marked clean or dirty using the <a href="../../api_c/memp_fset.html">memp_fset</a>
+interface.  All dirty pages in the pool from any underlying file may also
+be flushed as a group using the <a href="../../api_c/memp_fsync.html">memp_fsync</a> interface.
+<p>There are additional interfaces for manipulating the entire memory pool:
+<ul type=disc>
+<li>It is possible to gradually flush buffers from the pool in order to
+maintain a consistent percentage of clean buffers in the pool using the
+<a href="../../api_c/memp_trickle.html">memp_trickle</a> interface.
+<li>The <a href="../../utility/db_stat.html">db_stat</a> utility uses the <a href="../../api_c/memp_stat.html">memp_stat</a> interface to
+display statistics about the efficiency of the pool.
+<li>As some conversion may be necessary when pages are read or written the
+<a href="../../api_c/memp_register.html">memp_register</a> function allows applications to specify automatic
+input and output processing in these cases.
+<li>There is one additional interface that is intended for manipulating the
+memory pool, but which is specific to database systems.  The
+<a href="../../api_c/memp_sync.html">memp_sync</a> interface flushes dirty pages from all files held in
+the pool up to a specified database log sequence number.
+<li>Finally, the entire pool may be discarded using the <a href="../../api_c/env_remove.html">DBENV-&gt;remove</a>
+interface.
+</ul>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/log/limits.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/mp/config.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,46 @@
+<!--$Id: config.so,v 10.15 2000/12/08 20:43:16 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Configuring locking</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Locking Subsystem</dl></h3></td>
+<td width="1%"><a href="../../ref/lock/dead.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/lock/max.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Configuring locking</h1>
+<p>The <a href="../../api_c/env_set_lk_detect.html">DBENV-&gt;set_lk_detect</a> function specifies that the deadlock detector
+should be run whenever a lock blocks.  This option provides for rapid
+detection of deadlocks at the expense of potentially frequent
+invocations of the deadlock detector.  On a fast processor with a highly
+contentious application, where response time is critical, this is a good
+choice.  An argument to the <a href="../../api_c/env_set_lk_detect.html">DBENV-&gt;set_lk_detect</a> function indicates which
+transaction to abort when a deadlock is detected.  It can take on any
+one of the following values:
+<p><dl compact>
+<p><dt><a href="../../api_c/env_set_lk_detect.html#DB_LOCK_YOUNGEST">DB_LOCK_YOUNGEST</a><dd>Abort the most recently started transaction.
+<dt><a href="../../api_c/env_set_lk_detect.html#DB_LOCK_OLDEST">DB_LOCK_OLDEST</a><dd>Abort the longest lived transaction.
+<dt><a href="../../api_c/env_set_lk_detect.html#DB_LOCK_RANDOM">DB_LOCK_RANDOM</a><dd>Abort whatever transaction the deadlock detector happens to find first.
+<dt><a href="../../api_c/env_set_lk_detect.html#DB_LOCK_DEFAULT">DB_LOCK_DEFAULT</a><dd>Use the default policy (currently DB_RANDOM).
+</dl>
+<p>In general, <a href="../../api_c/env_set_lk_detect.html#DB_LOCK_DEFAULT">DB_LOCK_DEFAULT</a> is probably the correct choice.  If
+an application has long-running transactions, then
+<a href="../../api_c/env_set_lk_detect.html#DB_LOCK_YOUNGEST">DB_LOCK_YOUNGEST</a> will guarantee that transactions eventually
+complete, but it may do so at the expense of a large number of aborts.
+<p>The alternative to using the <a href="../../api_c/env_set_lk_detect.html">DBENV-&gt;set_lk_detect</a> interface is
+to run the deadlock detector manually, using the Berkeley DB
+<a href="../../api_c/lock_detect.html">lock_detect</a> interface.
+<p>The <a href="../../api_c/env_set_lk_conflicts.html">DBENV-&gt;set_lk_conflicts</a> function allows you to specify your own locking
+conflicts matrix.  This is an advanced configuration option, and rarely
+necessary.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/lock/dead.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/lock/max.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,24 @@
+Document file - DO NOT EDIT
+
+<BEGIN> CORE_INFO_TYPE
+Workspace
+<END>
+
+<BEGIN> CORE_INFO_VERSION
+2.0
+<END>
+
+<BEGIN> projectList
+$(PRJ_DIR)/BerkeleyDB.wpj \
+	$(PRJ_DIR)/ex_access/ex_access.wpj \
+	$(PRJ_DIR)/ex_btrec/ex_btrec.wpj \
+	$(PRJ_DIR)/ex_env/ex_env.wpj \
+	$(PRJ_DIR)/ex_mpool/ex_mpool.wpj \
+	$(PRJ_DIR)/ex_tpcb/ex_tpcb.wpj \
+	$(PRJ_DIR)/ex_dbclient/ex_dbclient.wpj
+<END>
+
+<BEGIN> userComments
+
+<END>
+

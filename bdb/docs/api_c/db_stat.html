@@ -1,0 +1,195 @@
+<!--$Id: db_stat.so,v 10.37 2000/10/03 21:55:45 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DB-&gt;stat</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DB-&gt;stat</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db.h&gt;
+<p>
+int
+DB-&gt;stat(DB *db,
+	void *sp, void *(*db_malloc)(size_t), u_int32_t flags);
+</pre></h3>
+<h1>Description</h1>
+<p>The DB-&gt;stat function creates a statistical structure and
+copies a pointer to it into user-specified memory locations.
+Specifically, if <b>sp</b> is non-NULL, a pointer to the statistics
+for the database are copied into the memory location it references.
+<p>Statistical structures are created in allocated memory.  If <b>db_malloc</b> is non-NULL, it
+is called to allocate the memory, otherwise, the library function
+<b>malloc</b>(3) is used.  The function <b>db_malloc</b> must match
+the calling conventions of the <b>malloc</b>(3) library routine.
+Regardless, the caller is responsible for deallocating the returned
+memory.  To deallocate returned memory, free the returned memory
+reference, references inside the returned memory do not need to be
+individually freed.
+<p>The <b>flags</b> parameter must be set to 0 or the following value:
+<p><dl compact>
+<p><dt><a name="DB_CACHED_COUNTS">DB_CACHED_COUNTS</a><dd>Return a cached count of the keys and records in a database.  This flag
+makes it possible for applications to request an possibly approximate key
+and record count without incurring the performance penalty of traversing
+the entire database.  The statistics information described for the access
+method <b>XX_nkeys</b> and <b>XX_ndata</b> fields below is filled in,
+but no other information is collected.  If the cached information has
+never been set, the fields will be returned set to 0.
+<p><dt><a name="DB_RECORDCOUNT">DB_RECORDCOUNT</a><dd>Return a count of the records in a Btree or Recno Access Method database.
+This flag makes it possible for applications to request a record count
+without incurring the performance penalty of traversing the entire
+database.  The statistics information described for the <b>bt_nkeys</b>
+field below is filled in, but no other information is collected.
+<p>This option is only available for Recno databases, or Btree databases
+where the underlying database was created with the <a href="../api_c/db_set_flags.html#DB_RECNUM">DB_RECNUM</a>
+flag.
+</dl>
+<p>The DB-&gt;stat function may access all of the pages in the database,
+incurring a severe performance penalty as well as possibly flushing the
+underlying buffer pool.
+<p>In the presence of multiple threads or processes accessing an active
+database, the information returned by DB-&gt;stat may be out-of-date.
+<p>If the database was not opened readonly and the DB_CACHED_COUNTS
+flag was not specified, the cached key and record numbers will be updated
+after the statistical information has been gathered.
+<p>The DB-&gt;stat function cannot be transaction protected.  For this reason,
+it should be called in a thread of control that has no open cursors or
+active transactions.
+<p>The DB-&gt;stat function returns a non-zero error value on failure and 0 on success.
+<h3>Hash Statistics</h3>
+<p>In the case of a Hash database,
+the statistics are stored in a structure of type DB_HASH_STAT.  The
+following fields will be filled in:
+<p><dl compact>
+<p><dt>u_int32_t hash_magic;<dd>Magic number that identifies the file as a Hash file.
+<dt>u_int32_t hash_version;<dd>The version of the Hash database.
+<dt>u_int32_t hash_nkeys;<dd>The number of unique keys in the database.
+<dt>u_int32_t hash_ndata;<dd>The number of key/data pairs in the database.]
+<dt>u_int32_t hash_pagesize;<dd>The underlying Hash database page (and bucket) size.
+<dt>u_int32_t hash_nelem;<dd>The estimated size of the hash table specified at database creation time.
+<dt>u_int32_t hash_ffactor;<dd>The desired fill factor (number of items per bucket) specified at database
+creation time.
+<dt>u_int32_t hash_buckets;<dd>The number of hash buckets.
+<dt>u_int32_t hash_free;<dd>The number of pages on the free list.
+<dt>u_int32_t hash_bfree;<dd>The number of bytes free on bucket pages.
+<dt>u_int32_t hash_bigpages;<dd>The number of big key/data pages.
+<dt>u_int32_t hash_big_bfree;<dd>The number of bytes free on big item pages.
+<dt>u_int32_t hash_overflows;<dd>The number of overflow pages (overflow pages are pages that contain items
+that did not fit in the main bucket page).
+<dt>u_int32_t hash_ovfl_free;<dd>The number of bytes free on overflow pages.
+<dt>u_int32_t hash_dup;<dd>The number of duplicate pages.
+<dt>u_int32_t hash_dup_free;<dd>The number of bytes free on duplicate pages.
+</dl>
+<h3>Btree and Recno Statistics</h3>
+<p>In the case of a Btree or Recno database,
+the statistics are stored in a structure of type DB_BTREE_STAT.  The
+following fields will be filled in:
+<p><dl compact>
+<p><dt>u_int32_t bt_magic;<dd>Magic number that identifies the file as a Btree database.
+<dt>u_int32_t bt_version;<dd>The version of the Btree database.
+<dt>u_int32_t bt_nkeys;<dd>For the Btree Access Method, the number of unique keys in the database.
+<p>For the Recno Access Method, the number of records in the database.
+<dt>u_int32_t bt_ndata;<dd>For the Btree Access Method, the number of key/data pairs in the database.
+<p>For the Recno Access Method, the number of records in the database.  If
+the database has been configured to not re-number records during
+deletion, the number of records will only reflect undeleted records.
+<dt>u_int32_t bt_pagesize;<dd>Underlying database page size.
+<dt>u_int32_t bt_minkey;<dd>The minimum keys per page.
+<dt>u_int32_t bt_re_len;<dd>The length of fixed-length records.
+<dt>u_int32_t bt_re_pad;<dd>The padding byte value for fixed-length records.
+<dt>u_int32_t bt_levels;<dd>Number of levels in the database.
+<dt>u_int32_t bt_int_pg;<dd>Number of database internal pages.
+<dt>u_int32_t bt_leaf_pg;<dd>Number of database leaf pages.
+<dt>u_int32_t bt_dup_pg;<dd>Number of database duplicate pages.
+<dt>u_int32_t bt_over_pg;<dd>Number of database overflow pages.
+<dt>u_int32_t bt_free;<dd>Number of pages on the free list.
+<dt>u_int32_t bt_int_pgfree;<dd>Number of bytes free in database internal pages.
+<dt>u_int32_t bt_leaf_pgfree;<dd>Number of bytes free in database leaf pages.
+<dt>u_int32_t bt_dup_pgfree;<dd>Number of bytes free in database duplicate pages.
+<dt>u_int32_t bt_over_pgfree;<dd>Number of bytes free in database overflow pages.
+</dl>
+<h3>Queue Statistics</h3>
+<p>In the case of a Queue database,
+the statistics are stored in a structure of type DB_QUEUE_STAT.  The
+following fields will be filled in:
+<p><dl compact>
+<p><dt>u_int32_t qs_magic;<dd>Magic number that identifies the file as a Queue file.
+<dt>u_int32_t qs_version;<dd>The version of the Queue file type.
+<dt>u_int32_t qs_nkeys;<dd>The number of records in the database.
+<dt>u_int32_t qs_ndata;<dd>The number of records in the database.
+<dt>u_int32_t qs_pagesize;<dd>Underlying database page size.
+<dt>u_int32_t qs_pages;<dd>Number of pages in the database.
+<dt>u_int32_t qs_re_len;<dd>The length of the records.
+<dt>u_int32_t qs_re_pad;<dd>The padding byte value for the records.
+<dt>u_int32_t qs_pgfree;<dd>Number of bytes free in database pages.
+<dt>u_int32_t qs_start;<dd>Start offset.
+<dt>u_int32_t qs_first_recno;<dd>First undeleted record in the database.
+<dt>u_int32_t qs_cur_recno;<dd>Last allocated record number in the database.
+</dl>
+<p>The DB-&gt;stat function returns a non-zero error value on failure and 0 on success.
+<h1>Errors</h1>
+<p>The DB-&gt;stat function may fail and return a non-zero error for errors specified for other Berkeley DB and C library or system functions.
+If a catastrophic error has occurred, the DB-&gt;stat function may fail and return
+<a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a>, in which case all subsequent Berkeley DB calls will fail
+in the same way.
+<h1>See Also</h1>
+<a href="../api_c/db_create.html">db_create</a>,
+<a href="../api_c/db_close.html">DB-&gt;close</a>,
+<a href="../api_c/db_cursor.html">DB-&gt;cursor</a>,
+<a href="../api_c/db_del.html">DB-&gt;del</a>,
+<a href="../api_c/db_err.html">DB-&gt;err</a>,
+<a href="../api_c/db_fd.html">DB-&gt;fd</a>,
+<a href="../api_c/db_get.html">DB-&gt;get</a>,
+<a href="../api_c/db_get_byteswapped.html">DB-&gt;get_byteswapped</a>,
+<a href="../api_c/db_get_type.html">DB-&gt;get_type</a>,
+<a href="../api_c/db_join.html">DB-&gt;join</a>,
+<a href="../api_c/db_key_range.html">DB-&gt;key_range</a>,
+<a href="../api_c/db_open.html">DB-&gt;open</a>,
+<a href="../api_c/db_put.html">DB-&gt;put</a>,
+<a href="../api_c/db_remove.html">DB-&gt;remove</a>,
+<a href="../api_c/db_set_bt_compare.html">DB-&gt;set_bt_compare</a>,
+<a href="../api_c/db_set_bt_minkey.html">DB-&gt;set_bt_minkey</a>,
+<a href="../api_c/db_set_bt_prefix.html">DB-&gt;set_bt_prefix</a>,
+<a href="../api_c/db_set_cachesize.html">DB-&gt;set_cachesize</a>,
+<a href="../api_c/db_set_dup_compare.html">DB-&gt;set_dup_compare</a>,
+<a href="../api_c/db_set_errcall.html">DB-&gt;set_errcall</a>,
+<a href="../api_c/db_set_errfile.html">DB-&gt;set_errfile</a>,
+<a href="../api_c/db_set_errpfx.html">DB-&gt;set_errpfx</a>,
+<a href="../api_c/db_set_flags.html">DB-&gt;set_flags</a>,
+<a href="../api_c/db_set_h_ffactor.html">DB-&gt;set_h_ffactor</a>,
+<a href="../api_c/db_set_h_hash.html">DB-&gt;set_h_hash</a>,
+<a href="../api_c/db_set_h_nelem.html">DB-&gt;set_h_nelem</a>,
+<a href="../api_c/db_set_lorder.html">DB-&gt;set_lorder</a>,
+<a href="../api_c/db_set_malloc.html">DB-&gt;set_malloc</a>,
+<a href="../api_c/db_set_pagesize.html">DB-&gt;set_pagesize</a>,
+<a href="../api_c/db_set_paniccall.html">DB-&gt;set_paniccall</a>,
+<a href="../api_c/db_set_q_extentsize.html">DB-&gt;set_q_extentsize</a>,
+<a href="../api_c/db_set_realloc.html">DB-&gt;set_realloc</a>,
+<a href="../api_c/db_set_re_delim.html">DB-&gt;set_re_delim</a>,
+<a href="../api_c/db_set_re_len.html">DB-&gt;set_re_len</a>,
+<a href="../api_c/db_set_re_pad.html">DB-&gt;set_re_pad</a>,
+<a href="../api_c/db_set_re_source.html">DB-&gt;set_re_source</a>,
+<a href="../api_c/db_stat.html">DB-&gt;stat</a>,
+<a href="../api_c/db_sync.html">DB-&gt;sync</a>,
+<a href="../api_c/db_upgrade.html">DB-&gt;upgrade</a>
+and
+<a href="../api_c/db_verify.html">DB-&gt;verify</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

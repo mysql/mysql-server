@@ -1,0 +1,95 @@
+<!--$Id: db_fd.so,v 10.21 2000/03/01 21:41:28 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: Db::fd</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>Db::fd</h1>
+</td>
+<td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db_cxx.h&gt;
+<p>
+int
+Db::fd(int *fdp);
+</pre></h3>
+<h1>Description</h1>
+<p>The Db::fd method
+copies a file descriptor representative of the underlying database into
+the memory referenced by <b>fdp</b>.  A file descriptor referencing the
+same file will be returned to all processes that call <a href="../api_cxx/db_open.html">Db::open</a> with
+the same <b>file</b> argument.  This file descriptor may be safely used
+as an argument to the <b>fcntl</b>(2) and <b>flock</b>(2) locking
+functions.  The file descriptor is not necessarily associated with any of
+the underlying files actually used by the access method.
+<p>The Db::fd method only supports a coarse-grained form of locking.
+Applications should use the lock manager where possible.
+<p>The Db::fd method either returns a non-zero error value or throws an exception that
+encapsulates a non-zero error value on failure, and returns 0 on success.
+<h1>Errors</h1>
+<p>The Db::fd method may fail and throw an exception or return a non-zero error for errors specified for other Berkeley DB and C library or system methods.
+If a catastrophic error has occurred, the Db::fd method may fail and either
+return <a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a> or throw an exception encapsulating
+<a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a>, in which case all subsequent Berkeley DB calls will fail
+in the same way.
+<h3>Class</h3>
+<a href="../api_cxx/db_class.html">Db</a>
+<h1>See Also</h1>
+<a href="../api_cxx/db_close.html">Db::close</a>,
+<a href="../api_cxx/db_cursor.html">Db::cursor</a>,
+<a href="../api_cxx/db_del.html">Db::del</a>,
+<a href="../api_cxx/db_err.html">Db::err</a>,
+<a href="../api_cxx/db_fd.html">Db::fd</a>,
+<a href="../api_cxx/db_get.html">Db::get</a>,
+<a href="../api_cxx/db_get_byteswapped.html">Db::get_byteswapped</a>,
+<a href="../api_cxx/db_get_type.html">Db::get_type</a>,
+<a href="../api_cxx/db_join.html">Db::join</a>,
+<a href="../api_cxx/db_key_range.html">Db::key_range</a>,
+<a href="../api_cxx/db_open.html">Db::open</a>,
+<a href="../api_cxx/db_put.html">Db::put</a>,
+<a href="../api_cxx/db_remove.html">Db::remove</a>,
+<a href="../api_cxx/db_set_bt_compare.html">Db::set_bt_compare</a>,
+<a href="../api_cxx/db_set_bt_minkey.html">Db::set_bt_minkey</a>,
+<a href="../api_cxx/db_set_bt_prefix.html">Db::set_bt_prefix</a>,
+<a href="../api_cxx/db_set_cachesize.html">Db::set_cachesize</a>,
+<a href="../api_cxx/db_set_dup_compare.html">Db::set_dup_compare</a>,
+<a href="../api_cxx/db_set_errcall.html">Db::set_errcall</a>,
+<a href="../api_cxx/db_set_errfile.html">Db::set_errfile</a>,
+<a href="../api_cxx/db_set_errpfx.html">Db::set_errpfx</a>,
+<a href="../api_cxx/db_set_flags.html">Db::set_flags</a>,
+<a href="../api_cxx/db_set_h_ffactor.html">Db::set_h_ffactor</a>,
+<a href="../api_cxx/db_set_h_hash.html">Db::set_h_hash</a>,
+<a href="../api_cxx/db_set_h_nelem.html">Db::set_h_nelem</a>,
+<a href="../api_cxx/db_set_lorder.html">Db::set_lorder</a>,
+<a href="../api_cxx/db_set_malloc.html">Db::set_malloc</a>,
+<a href="../api_cxx/db_set_pagesize.html">Db::set_pagesize</a>,
+<a href="../api_cxx/db_set_paniccall.html">Db::set_paniccall</a>,
+<a href="../api_cxx/db_set_q_extentsize.html">Db::set_q_extentsize</a>,
+<a href="../api_cxx/db_set_realloc.html">Db::set_realloc</a>,
+<a href="../api_cxx/db_set_re_delim.html">Db::set_re_delim</a>,
+<a href="../api_cxx/db_set_re_len.html">Db::set_re_len</a>,
+<a href="../api_cxx/db_set_re_pad.html">Db::set_re_pad</a>,
+<a href="../api_cxx/db_set_re_source.html">Db::set_re_source</a>,
+<a href="../api_cxx/db_stat.html">Db::stat</a>,
+<a href="../api_cxx/db_sync.html">Db::sync</a>,
+<a href="../api_cxx/db_upgrade.html">Db::upgrade</a>
+and
+<a href="../api_cxx/db_verify.html">Db::verify</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

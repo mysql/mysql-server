@@ -1,0 +1,56 @@
+<!--$Id: intro.so,v 10.25 2000/03/18 21:43:12 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Introduction</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Environment</dl></h3></td>
+<td width="1%"><a href="../../ref/arch/utilities.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/env/create.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Introduction</h1>
+<p>A Berkeley DB environment is an encapsulation of one or more databases, log
+files and shared information about the database environment such as shared
+memory buffer cache pages.
+<p>The simplest way to administer a Berkeley DB application environment is to
+create a single <b>home</b> directory that stores the files for the
+applications that will share the environment.  The environment home
+directory must be created before any Berkeley DB applications are run.  Berkeley DB
+itself never creates the environment home directory.  The environment can
+then be identified by the name of that directory.
+<p>An environment may be shared by any number of applications as well as by
+any number of threads within the applications.  It is possible for an
+environment to include resources from other directories on the system,
+and applications often choose to distribute resources to other directories
+or disks for performance or other reasons.  However, by default, the
+databases, shared regions (the locking, logging, memory pool, and
+transaction shared memory areas) and log files will be stored in a single
+directory hierarchy.
+<p>It is important to realize that all applications sharing a database
+environment implicitly trust each other.  They have access to each other's
+data as it resides in the shared regions and they will share resources
+such as buffer space and locks.  At the same time, any applications using
+the same databases <b>must</b> share an environment if consistency is
+to be maintained between them.
+<p>The Berkeley DB environment is created and described by the <a href="../../api_c/env_create.html">db_env_create</a>
+and <a href="../../api_c/env_open.html">DBENV-&gt;open</a> interfaces.  In situations where customization is
+desired, such as storing log files on a separate disk drive, applications
+must describe the customization by either creating an environment
+configuration file in the environment home directory or by arguments
+passed to the <a href="../../api_c/env_open.html">DBENV-&gt;open</a> interface.  See the documentation on that
+function for details on this procedure.
+<p>Once an environment has been created, database files specified using
+relative pathnames will be named relative to the home directory.  Using
+pathnames relative to the home directory allows the entire environment
+to be easily moved to facilitate restoring and recovering a database in
+a different directory or on a different system.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/arch/utilities.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/env/create.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!--$Id: admin.so,v 10.14 2000/08/16 17:50:39 margo Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Environment infrastructure</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Transaction Protected Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/transapp/cursor.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/deadlock.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Environment infrastructure</h1>
+<p>When building transactional applications, it is usually necessary to
+build an administrative infrastructure around the database environment.
+There are five components to this infrastructure, and each is
+supported by the Berkeley DB package in two different ways: a standalone
+utility and one or more library interfaces.
+<ul type=disc>
+<li>Deadlock detection: <a href="../../utility/db_deadlock.html">db_deadlock</a>,
+<a href="../../api_c/lock_detect.html">lock_detect</a>, <a href="../../api_c/env_set_lk_detect.html">DBENV-&gt;set_lk_detect</a>
+<li>Checkpoints: <a href="../../utility/db_checkpoint.html">db_checkpoint</a>, <a href="../../api_c/txn_checkpoint.html">txn_checkpoint</a>
+<li>Database and log file archival:
+<a href="../../utility/db_archive.html">db_archive</a>, <a href="../../api_c/log_archive.html">log_archive</a>
+<li>Log file removal: <a href="../../utility/db_archive.html">db_archive</a>, <a href="../../api_c/log_archive.html">log_archive</a>
+<li>Recovery procedures: <a href="../../utility/db_recover.html">db_recover</a>, <a href="../../api_c/env_open.html">DBENV-&gt;open</a>
+</ul>
+<p>When writing multi-threaded server applications and/or applications
+intended for download from the web, it is usually simpler to create
+local threads that are responsible for administration of the database
+environment as scheduling is often simpler in a single-process model,
+and only a single binary need be installed and run.  However, the
+supplied utilities can be generally useful tools even when the
+application is responsible for doing its own administration, as
+applications rarely offer external interfaces to database
+administration.  The utilities are required when programming to a Berkeley DB
+scripting interface, as the scripting APIs do not always offer
+interfaces to the administrative functionality.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/transapp/cursor.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/deadlock.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

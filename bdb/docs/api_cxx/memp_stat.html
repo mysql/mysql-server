@@ -1,0 +1,125 @@
+<!--$Id: memp_stat.so,v 10.28 2000/05/25 13:47:08 dda Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbEnv::memp_stat</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbEnv::memp_stat</h1>
+</td>
+<td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db_cxx.h&gt;
+<p>
+extern "C" {
+	typedef void *(*db_malloc_fcn_type)(size_t);
+};
+int
+DbEnv::memp_stat(DB_MPOOL_STAT **gsp,
+    DB_MPOOL_FSTAT *(*fsp)[], db_malloc_fcn_type db_malloc);
+</pre></h3>
+<h1>Description</h1>
+<p>The DbEnv::memp_stat method method creates statistical structures and copies
+pointers to them into user-specified memory locations.  The statistics
+include the number of files participating in the pool, the active pages
+in the pool, and information as to how effective the cache has been.
+<p>Statistical structures are created in allocated memory.  If <b>db_malloc</b> is non-NULL, it
+is called to allocate the memory, otherwise, the library function
+<b>malloc</b>(3) is used.  The function <b>db_malloc</b> must match
+the calling conventions of the <b>malloc</b>(3) library routine.
+Regardless, the caller is responsible for deallocating the returned
+memory.  To deallocate returned memory, free the returned memory
+reference, references inside the returned memory do not need to be
+individually freed.
+<p>If <b>gsp</b> is non-NULL, the global statistics for the memory pool
+<b>mp</b> are copied into the memory location it references.  The
+global statistics are stored in a structure of type DB_MPOOL_STAT.
+<p>The following DB_MPOOL_STAT fields will be filled in:
+<p><dl compact>
+<dt>size_t st_gbytes;<dd>Gigabytes of cache (total cache size is st_gbytes + st_bytes)
+<dt>size_t st_bytes;<dd>Bytes of cache (total cache size is st_gbytes + st_bytes)
+<dt>u_int32_t st_ncache;<dd>Number of caches.
+<dt>u_int32_t st_regsize;<dd>Individual cache size.
+<dt>u_int32_t st_cache_hit;<dd>Requested pages found in the cache.
+<dt>u_int32_t st_cache_miss;<dd>Requested pages not found in the cache.
+<dt>u_int32_t st_map;<dd>Requested pages mapped into the process' address space (there is no
+available information as to whether or not this request caused disk I/O,
+although examining the application page fault rate may be helpful).
+<dt>u_int32_t st_page_create;<dd>Pages created in the cache.
+<dt>u_int32_t st_page_in;<dd>Pages read into the cache.
+<dt>u_int32_t st_page_out;<dd>Pages written from the cache to the backing file.
+<dt>u_int32_t st_ro_evict;<dd>Clean pages forced from the cache.
+<dt>u_int32_t st_rw_evict;<dd>Dirty pages forced from the cache.
+<dt>u_int32_t st_hash_buckets;<dd>Number of hash buckets in buffer hash table.
+<dt>u_int32_t st_hash_searches;<dd>Total number of buffer hash table lookups.
+<dt>u_int32_t st_hash_longest;<dd>The longest chain ever encountered in buffer hash table lookups.
+<dt>u_int32_t st_hash_examined;<dd>Total number of hash elements traversed during hash table lookups.
+<dt>u_int32_t st_page_clean;<dd>Clean pages currently in the cache.
+<dt>u_int32_t st_page_dirty;<dd>Dirty pages currently in the cache.
+<dt>u_int32_t st_page_trickle;<dd>Dirty pages written using the <a href="../api_cxx/memp_trickle.html">DbEnv::memp_trickle</a> interface.
+<dt>u_int32_t st_region_wait;<dd>The number of times that a thread of control was forced to wait before
+obtaining the region lock.
+<dt>u_int32_t st_region_nowait;<dd>The number of times that a thread of control was able to obtain
+the region lock without waiting.
+</dl>
+<p>If <b>fsp</b> is non-NULL, a pointer to a NULL-terminated variable
+length array of statistics for individual files, in the memory pool <b>mp</b>,
+is copied into the memory location it references.  If no individual files
+currently exist in the memory pool, <b>fsp</b> will be set to NULL.
+<p>The per-file statistics are stored in structures of type DB_MPOOL_FSTAT.
+The following DB_MPOOL_FSTAT fields will be filled in for each file in
+the pool, i.e., each element of the array:
+<p><dl compact>
+<dt>char *file_name;<dd>The name of the file.
+<dt>size_t st_pagesize;<dd>Page size in bytes.
+<dt>u_int32_t st_cache_hit;<dd>Requested pages found in the cache.
+<dt>u_int32_t st_cache_miss;<dd>Requested pages not found in the cache.
+<dt>u_int32_t st_map;<dd>Requested pages mapped into the process' address space.
+<dt>u_int32_t st_page_create;<dd>Pages created in the cache.
+<dt>u_int32_t st_page_in;<dd>Pages read into the cache.
+<dt>u_int32_t st_page_out;<dd>Pages written from the cache to the backing file.
+</dl>
+<p>The DbEnv::memp_stat method either returns a non-zero error value or throws an exception that
+encapsulates a non-zero error value on failure, and returns 0 on success.
+<h1>Errors</h1>
+<p>The DbEnv::memp_stat method may fail and throw an exception or return a non-zero error for the following conditions:
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+</dl>
+<p>The DbEnv::memp_stat method may fail and throw an exception or return a non-zero error for errors specified for other Berkeley DB and C library or system methods.
+If a catastrophic error has occurred, the DbEnv::memp_stat method may fail and either
+return <a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a> or throw an exception encapsulating
+<a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a>, in which case all subsequent Berkeley DB calls will fail
+in the same way.
+<h3>Classes</h3>
+<a href="../api_cxx/dbenv_class.html">DbEnv</a>, <a href="../api_cxx/mempfile_class.html">DbMpoolFile</a>
+<h1>See Also</h1>
+<a href="../api_cxx/env_set_mp_mmapsize.html">DbEnv::set_mp_mmapsize</a>,
+<a href="../api_cxx/memp_fclose.html">DbMpoolFile::close</a>,
+<a href="../api_cxx/memp_fget.html">DbMpoolFile::get</a>,
+<a href="../api_cxx/memp_fopen.html">DbMpoolFile::open</a>,
+<a href="../api_cxx/memp_fput.html">DbMpoolFile::put</a>,
+<a href="../api_cxx/memp_fset.html">DbMpoolFile::set</a>,
+<a href="../api_cxx/memp_fsync.html">DbMpoolFile::sync</a>,
+<a href="../api_cxx/memp_register.html">DbEnv::memp_register</a>,
+<a href="../api_cxx/memp_stat.html">DbEnv::memp_stat</a>,
+<a href="../api_cxx/memp_sync.html">DbEnv::memp_sync</a>
+and
+<a href="../api_cxx/memp_trickle.html">DbEnv::memp_trickle</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

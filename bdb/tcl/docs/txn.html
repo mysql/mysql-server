@@ -1,0 +1,56 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML>
+<HEAD>
+   <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+   <META NAME="GENERATOR" CONTENT="Mozilla/4.08 [en] (X11; I; FreeBSD 2.2.8-19990120-SNAP i386) [Netscape]">
+</HEAD>
+<BODY>
+
+<H2>
+<A NAME="Transaction Commands"></A>Transaction Commands</H2>
+Transactions are used in a manner similar to the other subsystems.&nbsp;
+We create a handle to the transaction and&nbsp; then use it for a variety
+of operations.&nbsp; Some of the transaction commands use the environment
+instead.&nbsp; Those are presented first.&nbsp; The transaction command
+handle returned is the handle used by the various commands that can be
+transaction protected, such as <A HREF="../../docs/api_tcl/db_cursor.html">cursors</A>.<BR>
+
+<HR WIDTH="100%">
+<P><B>> &lt;env> txn_checkpoint [-kbyte <I>kb</I>] [-min <I>min</I>]</B>
+<P>This command causes a checkpoint of the transaction region.&nbsp; It
+is a direct translation of the <A HREF="../../docs/api_c/txn_checkpoint.html">txn_checkpoint
+</A>function.&nbsp;
+It returns either a 0 (for success), a DB error message or it throws a
+Tcl error with a system message.&nbsp; The arguments are:
+<UL>
+<LI>
+<B>-kbyte </B>causes the checkpoint to occur only if <B><I>kb</I></B> kilobytes
+of log data has been written since the last checkpoint</LI>
+
+<LI>
+<B>-min</B> causes the checkpoint to occur only if <B><I>min</I></B> minutes
+have passed since the last checkpoint</LI>
+</UL>
+
+<HR WIDTH="100%">
+<BR><B>> &lt;env> txn_stat</B>
+<P>This command returns transaction statistics.&nbsp; It is a direct translation
+of the <A HREF="../../docs/api_c/txn_stat.html">txn_stat</A> function.&nbsp;
+It will return a list of name/value pairs that correspond to the DB_TXN_STAT
+structure.
+<HR WIDTH="100%">
+<BR><B>>&nbsp; &lt;txn> id</B>
+<P>This command returns the transaction id.&nbsp; It is a direct call to
+the <A HREF="../../docs/api_c/txn_id.html">txn_id</A> function.&nbsp; The
+typical use of this identifier is as the <B><I>locker</I></B> value for
+the <A HREF="lock.html">lock_get</A> and <A HREF="lock.html">lock_vec</A>
+calls.
+<HR WIDTH="100%">
+<BR><B>> &lt;txn> prepare</B>
+<P>This command initiates a two-phase commit.&nbsp; It is a direct call
+to the <A HREF="../../docs/api_c/txn_prepare.html">txn_prepare</A> function.&nbsp;
+It returns either a 0 (for success), a DB error message or it throws a
+Tcl error with a system message.
+<HR WIDTH="100%">
+</BODY>
+</HTML>

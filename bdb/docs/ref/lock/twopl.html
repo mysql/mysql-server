@@ -1,0 +1,50 @@
+<!--$Id: twopl.so,v 10.7 2000/03/18 21:43:14 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Locking with transactions: two-phase locking</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Locking Subsystem</dl></h3></td>
+<td width="1%"><a href="../../ref/lock/notxn.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/lock/am_conv.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Locking with transactions: two-phase locking</h1>
+<p>Berkeley DB uses a locking protocol called two-phase locking.  This is the
+traditional protocol used in conjunction with lock-based transaction
+systems.
+<p>In a two-phase locking (2PL) system, transactions are broken up into two
+distinct phases.  During the first phase, the transaction only acquires
+locks.  During the second phase, the transaction only releases locks.
+More formally, once a transaction releases a lock, it may not acquire any
+additional locks.  Practically, this translates into a system where locks
+are acquired as they are needed throughout a transaction and retained
+until the transaction ends, either by committing or aborting.  In Berkeley DB,
+locks are released during <a href="../../api_c/txn_abort.html">txn_abort</a> or <a href="../../api_c/txn_commit.html">txn_commit</a>.  The
+only exception to this protocol occurs when we use lock-coupling to
+traverse a data structure.  If the locks are held only for traversal
+purposes, then the locks may be released before transaction commit or
+abort.
+<p>For applications, the implications of 2PL are that long-running
+transactions will hold locks for a long time.  When designing
+applications, lock contention should be considered.  In order to reduce
+the probability of deadlock and achieve the best level of concurrency
+possible, the following guidelines are helpful.
+<p><ol>
+<p><li>When accessing multiple databases, design all transactions so
+that they access the files in the same order.
+<p><li>If possible, access your most hotly contested resources last
+(so that their locks are held for the shortest time possible).
+<p><li>If possible, use nested transactions to protect the parts of
+your transaction most likely to deadlock.
+</ol>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/lock/notxn.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/lock/am_conv.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

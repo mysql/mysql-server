@@ -1,0 +1,63 @@
+<!--$Id: put.so,v 1.8 2000/07/25 16:59:37 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Release 3.1: DB-&gt;put</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Upgrading Berkeley DB Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/upgrade.3.1/set_paniccall.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.1/dup.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Release 3.1: DB-&gt;put</h1>
+<p>For the Queue and Recno access methods, when the <a href="../../api_c/db_put.html#DB_APPEND">DB_APPEND</a> flag
+is specified to the <a href="../../api_c/db_put.html">DB-&gt;put</a> interface, the allocated record number
+is returned to the application in the <b>key</b> <a href="../../api_c/dbt.html">DBT</a> argument.
+In previous releases of Berkeley DB, this <a href="../../api_c/dbt.html">DBT</a> structure did not follow
+the usual <a href="../../api_c/dbt.html">DBT</a> conventions, e.g., it was not possible to cause
+Berkeley DB to allocate space for the returned record number.  Rather, it was
+always assumed that the <b>data</b> field of the <b>key</b> structure
+referenced memory that could be used as storage for a db_recno_t type.
+<p>As of the Berkeley DB 3.1.0 release, the <b>key</b> structure behaves as
+described in the <a href="../../api_c/dbt.html">DBT</a> C++/Java class or C structure documentation.
+<p>Applications which are using the <a href="../../api_c/db_put.html#DB_APPEND">DB_APPEND</a> flag for Queue and
+Recno access method databases will require a change to upgrade to the
+Berkeley DB 3.1 releases.  The simplest change is likely to be to add the
+<a href="../../api_c/dbt.html#DB_DBT_USERMEM">DB_DBT_USERMEM</a> flag to the <b>key</b> structure.  For example,
+code that appears as follows:
+<p><blockquote><pre>DBT key;
+db_recno_t recno;
+<p>
+memset(&key, 0, sizeof(DBT));
+key.data = &recno;
+key.size = sizeof(recno);
+DB-&gt;put(DB, NULL, &key, &data, DB_APPEND);
+printf("new record number is %lu\n", (u_long)recno);</pre></blockquote>
+<p>would be changed to:
+<p><blockquote><pre>DBT key;
+db_recno_t recno;
+<p>
+memset(&key, 0, sizeof(DBT));
+key.data = &recno;
+key.ulen = sizeof(recno);
+key.flags = DB_DBT_USERMEM;
+DB-&gt;put(DB, NULL, &key, &data, DB_APPEND);
+printf("new record number is %lu\n", (u_long)recno);</pre></blockquote>
+<p>Note that the <b>ulen</b> field is now set as well as the flag value.
+An alternative change would be:
+<p><blockquote><pre>DBT key;
+db_recno_t recno;
+<p>
+memset(&key, 0, sizeof(DBT));
+DB-&gt;put(DB, NULL, &key, &data, DB_APPEND);
+recno = *(db_recno_t *)key-&gt;data;
+printf("new record number is %lu\n", (u_long)recno);</pre></blockquote>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/upgrade.3.1/set_paniccall.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.1/dup.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

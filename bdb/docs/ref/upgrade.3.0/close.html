@@ -1,0 +1,34 @@
+<!--$Id: close.so,v 11.9 2000/07/25 16:59:36 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Release 3.0: DB-&gt;sync and DB-&gt;close</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Upgrading Berkeley DB Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/upgrade.3.0/stat.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.0/lock_put.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Release 3.0: DB-&gt;sync and DB-&gt;close</h1>
+<p>In previous Berkeley DB releases, the <a href="../../api_c/db_close.html">DB-&gt;close</a> and <a href="../../api_c/db_sync.html">DB-&gt;sync</a> functions
+discarded any return of <a href="../../api_c/memp_fsync.html#DB_INCOMPLETE">DB_INCOMPLETE</a> from the underlying buffer
+pool interfaces, and returned success to its caller.  (The
+<a href="../../api_c/memp_fsync.html#DB_INCOMPLETE">DB_INCOMPLETE</a> error will be returned if the buffer pool functions
+are unable to flush all of the database's dirty blocks from the pool.
+This often happens if another thread is reading or writing the database's
+pages in the pool.)
+<p>In the 3.X release, <a href="../../api_c/db_sync.html">DB-&gt;sync</a> and <a href="../../api_c/db_close.html">DB-&gt;close</a> will return
+<a href="../../api_c/memp_fsync.html#DB_INCOMPLETE">DB_INCOMPLETE</a> to the application.  The best solution is to not
+call <a href="../../api_c/db_sync.html">DB-&gt;sync</a> and specify the <a href="../../api_c/db_close.html#DB_NOSYNC">DB_NOSYNC</a> flag to the
+<a href="../../api_c/db_close.html">DB-&gt;close</a> function when multiple threads are expected to be accessing the
+database.  Alternatively, the caller can ignore any error return of
+<a href="../../api_c/memp_fsync.html#DB_INCOMPLETE">DB_INCOMPLETE</a>.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/upgrade.3.0/stat.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.0/lock_put.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,134 @@
+<!--$Id: partial.so,v 10.18 2000/12/18 21:05:14 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Partial record storage and retrieval</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Access Methods</dl></h3></td>
+<td width="1%"><a href="../../ref/am/stability.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am/verify.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Partial record storage and retrieval</h1>
+<p>It is possible to both store and retrieve parts of data items in all
+Berkeley DB access methods.  This is done by setting the
+<a href="../../api_c/dbt.html#DB_DBT_PARTIAL">DB_DBT_PARTIAL</a> flag in the <a href="../../api_c/dbt.html">DBT</a> structure passed to the
+Berkeley DB interface.
+<p>The <a href="../../api_c/dbt.html#DB_DBT_PARTIAL">DB_DBT_PARTIAL</a> flag is based on the values of two fields
+of the <a href="../../api_c/dbt.html">DBT</a> structure, <b>dlen</b> and <b>doff</b>.  The value
+of <b>dlen</b> is the number of bytes of the record in which the
+application is interested.  The value of <b>doff</b> is the offset from
+the beginning of the data item where those bytes start.
+<p>For example, if the data item were <b>ABCDEFGHIJKL</b>, a <b>doff</b>
+value of 3 would indicate that the bytes of interest started at
+<b>D</b>, and a <b>dlen</b> value of 4 would indicate that the bytes
+of interest were <b>DEFG</b>.
+<p>When retrieving a data item from a database, the <b>dlen</b> bytes
+starting <b>doff</b> bytes from the beginning of the record are
+returned, as if they comprised the entire record.  If any or all of the
+specified bytes do not exist in the record, the retrieval is still
+successful and any existing bytes (and nul bytes for any non-existent
+bytes) are returned.
+<p>When storing a data item into the database, the <b>dlen</b> bytes
+starting <b>doff</b> bytes from the beginning of the specified key's
+data record are replaced by the data specified by the <b>data</b> and
+<b>size</b> fields.  If <b>dlen</b> is smaller than <b>size</b>, the
+record will grow, and if <b>dlen</b> is larger than <b>size</b>, the
+record will shrink. If the specified bytes do not exist, the record will
+be extended using nul bytes as necessary, and the store call will still
+succeed.
+<p>The following are various examples of the put case for the
+<a href="../../api_c/dbt.html#DB_DBT_PARTIAL">DB_DBT_PARTIAL</a> flag. In all examples, the initial data item is 20
+bytes in length:
+<p><b>ABCDEFGHIJ0123456789</b>
+<p><ol>
+<p><li><p><blockquote><pre>size = 20
+doff = 0
+dlen = 20
+data = abcdefghijabcdefghij
+<p>
+Result: The 20 bytes at offset 0 are replaced by the 20 bytes of data,
+i.e., the entire record is replaced.
+<p>
+ABCDEFGHIJ0123456789 -&gt; abcdefghijabcdefghij
+</pre></blockquote>
+<p><li><p><blockquote><pre>size = 10
+doff = 20
+dlen = 0
+data = abcdefghij
+<p>
+Result: The 0 bytes at offset 20 are replaced by the 10 bytes of data,
+i.e., the record is extended by 10 bytes.
+<p>
+ABCDEFGHIJ0123456789 -&gt; ABCDEFGHIJ0123456789abcdefghij
+</pre></blockquote>
+<p><li><p><blockquote><pre>size = 10
+doff = 10
+dlen = 5
+data = abcdefghij
+<p>
+Result: The 5 bytes at offset 10 are replaced by the 10 bytes of data.
+<p>
+ABCDEFGHIJ0123456789 -&gt; ABCDEFGHIJabcdefghij56789
+</pre></blockquote>
+<p><li><p><blockquote><pre>size = 10
+doff = 10
+dlen = 0
+data = abcdefghij
+<p>
+Result: The 0 bytes at offset 10 are replaced by the 10 bytes of data,
+i.e., 10 bytes are inserted into the record.
+<p>
+ABCDEFGHIJ0123456789 -&gt; ABCDEFGHIJabcdefghij0123456789
+</pre></blockquote>
+<p><li><p><blockquote><pre>size = 10
+doff = 2
+dlen = 15
+data = abcdefghij
+<p>
+Result: The 15 bytes at offset 2 are replaced by the 10 bytes of data.
+<p>
+ABCDEFGHIJ0123456789 -&gt; ABabcdefghij789
+</pre></blockquote>
+<p><li><p><blockquote><pre>size = 10
+doff = 0
+dlen = 0
+data = abcdefghij
+<p>
+Result: The 0 bytes at offset 0 are replaced by the 10 bytes of data,
+i.e., the 10 bytes are inserted at the beginning of the record.
+<p>
+ABCDEFGHIJ0123456789 -&gt; abcdefghijABCDEFGHIJ0123456789
+</pre></blockquote>
+<p><li><p><blockquote><pre>size = 0
+doff = 0
+dlen = 10
+data = ""
+<p>
+Result: The 10 bytes at offset 0 are replaced by the 0 bytes of data,
+i.e., the first 10 bytes of the record are discarded.
+<p>
+ABCDEFGHIJ0123456789 -&gt; 0123456789
+</pre></blockquote>
+<p><li><p><blockquote><pre>size = 10
+doff = 25
+dlen = 0
+data = abcdefghij
+<p>
+Result: The 0 bytes at offset 25 are replaced by the 10 bytes of data,
+i.e., 10 bytes are inserted into the record past the end of the current
+data (\0 represents a nul byte).
+<p>
+ABCDEFGHIJ0123456789 -&gt; ABCDEFGHIJ0123456789\0\0\0\0\0abcdefghij
+</pre></blockquote>
+</ol>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/am/stability.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am/verify.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

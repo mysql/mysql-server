@@ -1,0 +1,55 @@
+<!--$Id: config.so,v 10.17 2000/10/03 17:17:35 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Configuring the memory pool</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Memory Pool Subsystem</dl></h3></td>
+<td width="1%"><a href="../../ref/mp/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/txn/intro.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Configuring the memory pool</h1>
+<p>There are two interfaces used for configuring the memory pool.
+<p>The most important tuning parameter for almost all applications, including
+Berkeley DB applications, is the size of the pool.  There are two ways to
+specify the pool size.  First, calling the <a href="../../api_c/env_set_cachesize.html">DBENV-&gt;set_cachesize</a> function
+specifies the pool size for all of the applications sharing the Berkeley DB
+environment.  Second, by calling the <a href="../../api_c/db_set_cachesize.html">DB-&gt;set_cachesize</a> function.  The
+latter only specifies a pool size for the specific database.  Note, it is
+meaningless to call <a href="../../api_c/db_set_cachesize.html">DB-&gt;set_cachesize</a> for a database opened inside
+of a Berkeley DB environment, since the environment pool size will override any
+pool size specified for a single database.  For information on tuning the
+Berkeley DB cache size, see <a href="../../ref/am_conf/cachesize.html">Selecting
+a cache size</a>.
+<p>The second memory pool configuration interface specifies the maximum size
+of backing files to map into the process address space instead of copying
+pages through the local cache.  Only read-only database files can be
+mapped into process memory.  Because of the requirements of the Berkeley DB
+transactional implementation, log records describing database changes must
+be written to disk before the actual database changes.  As mapping
+read-write database files into process memory would permit the underlying
+operating system to write modified database changes at will, it is not
+supported.
+<p>Mapping files into the process address space can result in
+better-than-usual performance, as available virtual memory is normally
+much larger than the local cache, and page faults are faster than page
+copying on many systems.  However, in the presence of limited virtual
+memory it can cause resource starvation, and in the presence of large
+databases, it can result in immense process sizes.
+<p>To specify that no files are to be mapped into the process address space,
+specify the <a href="../../api_c/env_open.html#DB_NOMMAP">DB_NOMMAP</a> flag to the <a href="../../api_c/env_set_flags.html">DBENV-&gt;set_flags</a> interface.
+To specify that any individual file should not be mapped into the process
+address space, specify the <a href="../../api_c/env_open.html#DB_NOMMAP">DB_NOMMAP</a> flag to the
+<a href="../../api_c/memp_fopen.html">memp_fopen</a> interface.  To limit the size of files mapped into the
+process address space, use the <a href="../../api_c/env_set_mp_mmapsize.html">DBENV-&gt;set_mp_mmapsize</a> function.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/mp/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/txn/intro.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

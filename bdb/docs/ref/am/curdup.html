@@ -1,0 +1,34 @@
+<!--$Id: curdup.so,v 11.5 2000/12/19 14:45:39 sue Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Duplicating a cursor</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>        <a name="3"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Access Methods</dl></h3></td>
+<td width="1%"><a href="../../ref/am/curdel.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am/join.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Duplicating a cursor</h1>
+<p>Once a cursor has been initialized (e.g., by a call to <a href="../../api_c/dbc_get.html">DBcursor-&gt;c_get</a>),
+it can be thought of as identifying a particular location in a database.
+The <a href="../../api_c/dbc_dup.html">DBcursor-&gt;c_dup</a> function permits an application to create a new cursor that
+has the same locking and transactional information as the cursor from
+which it is copied, and which optionally refers to the same position in
+the database.
+<p>In order to maintain a cursor position when an application is using
+locking, locks are maintained on behalf of the cursor until the cursor is
+closed.  In cases when an application is using locking without
+transactions, cursor duplication is often required to avoid
+self-deadlocks.  For further details, refer to
+<a href="../../ref/lock/am_conv.html">Access method locking conventions</a>.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/am/curdel.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am/join.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

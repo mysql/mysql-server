@@ -1,0 +1,56 @@
+<!--$Id: notes.so,v 10.17 2000/11/02 16:46:11 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Windows notes</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Building Berkeley DB for Windows systems</dl></h3></td>
+<td width="1%"><a href="../../ref/build_win/test.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_win/faq.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Windows notes</h1>
+<ul type=disc>
+<li>Various Berkeley DB interfaces take a <b>mode</b> argument, intended to specify
+the underlying file permissions for created files.  Berkeley DB currently ignores
+this argument on Windows systems.
+<p>It would be possible to construct a set of security attributes to pass to
+<b>CreateFile</b> that accurately represents the mode.  In the worst
+case, this would involve looking up user and all group names and creating
+an entry for each.  Alternatively, we could call the <b>_chmod</b>
+(partial emulation) function after file creation, although this leaves us
+with an obvious race.
+<p>Practically speaking, however, these efforts would be largely meaningless
+on FAT, the most common file system, which only has a "readable" and
+"writeable" flag, applying to all users.
+<li>When using the <a href="../../api_c/env_open.html#DB_SYSTEM_MEM">DB_SYSTEM_MEM</a> flag, Berkeley DB shared regions are
+created without ACLs, which means that the regions are only accessible
+to a single user.  If wider sharing is appropriate (e.g., both user
+applications and Windows/NT service applications need to access the
+Berkeley DB regions), the Berkeley DB code will need to be modified to create the
+shared regions with the correct ACLs.  Alternatively, by not specifying
+the <a href="../../api_c/env_open.html#DB_SYSTEM_MEM">DB_SYSTEM_MEM</a> flag, file-system backed regions will be
+created instead, and the permissions on those files may be directly
+specified through the <a href="../../api_c/env_open.html">DBENV-&gt;open</a> interface.
+<li>On Windows/9X, files opened by multiple processes do not share data
+correctly.  For this reason, the <a href="../../api_c/env_open.html#DB_SYSTEM_MEM">DB_SYSTEM_MEM</a> flag is implied
+for any application that does not specify the <a href="../../api_c/env_open.html#DB_PRIVATE">DB_PRIVATE</a> flag,
+causing the system paging file to be used for sharing data.  However,
+paging file memory is freed on last close, implying that multiple
+processes sharing an environment must arrange for at least one process
+to always have the environment open, or, alternatively, that any process
+joining the environment be prepared to re-create it.  If a shared
+environment is closed by all processes, a subsequent open without
+specifying the <a href="../../api_c/env_open.html#DB_CREATE">DB_CREATE</a> flag will result in the return of a
+system EAGAIN error code.
+</ul>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/build_win/test.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_win/faq.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,45 @@
+<!--$Id: version.so,v 10.14 2000/03/18 21:43:16 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Library version information</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Programmer Notes</dl></h3></td>
+<td width="1%"><a href="../../ref/program/copy.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/program/dbsizes.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Library version information</h1>
+<p>Each release of the Berkeley DB library has a major version number, a minor
+version number, and a patch number.
+<p>The major version number changes only when major portions of the Berkeley DB
+functionality have been changed.  In this case, it may be necessary to
+significantly modify applications in order to upgrade them to use the new
+version of the library.
+<p>The minor version number changes when Berkeley DB interfaces have changed, and
+the new release is not entirely backward compatible with previous releases.
+To upgrade applications to the new version, they must be recompiled, and
+potentially, minor modifications made, (e.g., the order of arguments to a
+function might have changed).
+<p>The patch number changes on each release.  If only the patch number
+has changed in a release, applications do not need to be recompiled,
+and they can be upgraded to the new version by simply installing a
+new version of the shared library.
+<p>Internal Berkeley DB interfaces may change at any time and during any release,
+without warning. This means that the library must be entirely recompiled
+and reinstalled when upgrading to new releases of the library, as there
+is no guarantee that modules from the current version of the library will
+interact correctly with modules from a previous release.
+<p>To retrieve the Berkeley DB version information, applications should use the
+<a href="../../api_c/env_version.html">db_version</a> interface.  In addition to the above information, the
+<a href="../../api_c/env_version.html">db_version</a> interface returns a string encapsulating the version
+information, suitable for display to a user.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/program/copy.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/program/dbsizes.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

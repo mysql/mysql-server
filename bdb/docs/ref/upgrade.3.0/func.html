@@ -1,0 +1,69 @@
+<!--$Id: func.so,v 11.8 2000/03/18 21:43:20 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Release 3.0: function arguments</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Upgrading Berkeley DB Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/upgrade.3.0/envopen.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.0/dbenv.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Release 3.0: function arguments</h1>
+<p>In Berkeley DB 3.0, there are no longer separate structures that
+represent each subsystem (e.g., DB_LOCKTAB or DB_TXNMGR), and an overall
+DB_ENV environment structure.  Instead there is only the
+DB_ENV structure.  This means that DB_ENV references should
+be passed around by your application instead of passing around DB_LOCKTAB
+or DB_TXNMGR references.
+<p>Each of the following functions:
+<p><blockquote><pre>lock_detect
+lock_get
+lock_id
+lock_put
+lock_stat
+lock_vec</pre></blockquote>
+<p>should have its first argument, a reference to the DB_LOCKTAB structure,
+replaced with a reference to the enclosing DB_ENV structure.  For
+example, the following line of code from a Berkeley DB 2.X application:
+<p><blockquote><pre>DB_LOCKTAB *lt;
+DB_LOCK lock;
+	ret = lock_put(lt, lock);</pre></blockquote>
+<p>should now be written as follows:
+<p><blockquote><pre>DB_ENV *dbenv;
+DB_LOCK *lock;
+	ret = lock_put(dbenv, lock);</pre></blockquote>
+<p>Similarly, all of the functions:
+<p><blockquote><pre>log_archive
+log_compare
+log_file
+log_flush
+log_get
+log_put
+log_register
+log_stat
+log_unregister</pre></blockquote>
+<p>should have their DB_LOG argument replaced with a reference to a
+DB_ENV structure, and the functions:
+<p><blockquote><pre>memp_fopen
+memp_register
+memp_stat
+memp_sync
+memp_trickle</pre></blockquote>
+<p>should have their DB_MPOOL argument replaced with a reference to a
+DB_ENV structure.
+<p>You should remove all references to DB_LOCKTAB, DB_LOG, DB_MPOOL, and
+DB_TXNMGR structures from your application, they are no longer useful
+in any way.  In fact, a simple way to identify all of the places that
+need to be upgraded is to remove all such structures and variables
+they declare, and then compile.  You will see a warning message from
+your compiler in each case that needs to be upgraded.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/upgrade.3.0/envopen.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.0/dbenv.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

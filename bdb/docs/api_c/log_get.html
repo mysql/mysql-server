@@ -1,0 +1,114 @@
+<!--$Id: log_get.so,v 10.22 2000/03/17 01:53:59 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: log_get</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>log_get</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db.h&gt;
+<p>
+int
+log_get(DB_ENV *env, DB_LSN *lsn, DBT *data, u_int32_t flags);
+</pre></h3>
+<h1>Description</h1>
+<p>The log_get function implements a cursor inside of the log,
+retrieving records from the log according to the <b>lsn</b> and
+<b>flags</b> arguments.
+<p>The data field of the <b>data</b> structure is set to the record
+retrieved and the size field indicates the number of bytes in the record.
+See <a href="../api_c/dbt.html">DBT</a> for a description of other fields in the <b>data</b>
+structure.  When multiple threads are using the returned log handle
+concurrently, one of the <a href="../api_c/dbt.html#DB_DBT_MALLOC">DB_DBT_MALLOC</a>, <a href="../api_c/dbt.html#DB_DBT_REALLOC">DB_DBT_REALLOC</a> or
+<a href="../api_c/dbt.html#DB_DBT_USERMEM">DB_DBT_USERMEM</a> flags must be specified for any <a href="../api_c/dbt.html">DBT</a> used
+for data retrieval.
+<p>The <b>flags</b> argument must be set to exactly one of the following values:
+<p><dl compact>
+<p><dt><a name="DB_CHECKPOINT">DB_CHECKPOINT</a><dd>The last record written with the DB_CHECKPOINT flag specified to the
+<a href="../api_c/log_put.html">log_put</a> function is returned in the <b>data</b> argument.  The
+<b>lsn</b> argument is overwritten with the <a href="../api_c/db_lsn.html">DB_LSN</a> of the record
+returned.  If no record has been previously written with the DB_CHECKPOINT
+flag specified, the first record in the log is returned.
+<p>If the log is empty, the log_get function will return <a href="../ref/program/errorret.html#DB_NOTFOUND">DB_NOTFOUND</a>.
+<p><dt><a name="DB_FIRST">DB_FIRST</a><dd>The first record from any of the log files found in the log directory
+is returned in the <b>data</b> argument.
+The <b>lsn</b> argument is overwritten with the <a href="../api_c/db_lsn.html">DB_LSN</a> of the
+record returned.
+<p>If the log is empty, the log_get function will return <a href="../ref/program/errorret.html#DB_NOTFOUND">DB_NOTFOUND</a>.
+<p><dt><a name="DB_LAST">DB_LAST</a><dd>The last record in the log is returned in the <b>data</b> argument.
+The <b>lsn</b> argument is overwritten with the <a href="../api_c/db_lsn.html">DB_LSN</a> of the
+record returned.
+<p>If the log is empty, the log_get function will return <a href="../ref/program/errorret.html#DB_NOTFOUND">DB_NOTFOUND</a>.
+<p><dt><a name="DB_NEXT">DB_NEXT</a><dd>The current log position is advanced to the next record in the log and that
+record is returned in the <b>data</b> argument.
+The <b>lsn</b> argument is overwritten with the <a href="../api_c/db_lsn.html">DB_LSN</a> of the
+record returned.
+<p>If the pointer has not been initialized via DB_FIRST, DB_LAST, DB_SET,
+DB_NEXT, or DB_PREV, log_get will return the first record in the log.
+If the last log record has already been returned or the log is empty, the
+log_get function will return <a href="../ref/program/errorret.html#DB_NOTFOUND">DB_NOTFOUND</a>.
+<p>If the log was opened with the DB_THREAD flag set, calls to
+log_get with the DB_NEXT flag set will return EINVAL.
+<p><dt><a name="DB_PREV">DB_PREV</a><dd>The current log position is moved to the previous record in the log and that
+record is returned in the <b>data</b> argument.
+The <b>lsn</b> argument is overwritten with the <a href="../api_c/db_lsn.html">DB_LSN</a> of the
+record returned.
+<p>If the pointer has not been initialized via DB_FIRST, DB_LAST, DB_SET,
+DB_NEXT, or DB_PREV,
+log_get will return the last record in the log.
+If the first log record has already been returned or the log is empty, the
+log_get function will return <a href="../ref/program/errorret.html#DB_NOTFOUND">DB_NOTFOUND</a>.
+<p>If the log was opened with the DB_THREAD flag set, calls to
+log_get with the DB_PREV flag set will return EINVAL.
+<p><dt><a name="DB_CURRENT">DB_CURRENT</a><dd>Return the log record currently referenced by the log.
+<p>If the log pointer has not been initialized via DB_FIRST, DB_LAST, DB_SET,
+DB_NEXT, or DB_PREV, or if the log was opened with the DB_THREAD flag set,
+log_get will return EINVAL.
+<p><dt><a name="DB_SET">DB_SET</a><dd>Retrieve the record specified by the <b>lsn</b> argument.  If the
+specified <a href="../api_c/db_lsn.html">DB_LSN</a> is invalid (e.g., does not appear in the log)
+log_get will return EINVAL.
+</dl>
+<p>Otherwise, the log_get function returns a non-zero error value on failure and 0 on success.
+<h1>Errors</h1>
+<p>The log_get function may fail and return a non-zero error for the following conditions:
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+<p>The DB_FIRST flag was specified and no log files were found.
+</dl>
+<p>The log_get function may fail and return a non-zero error for errors specified for other Berkeley DB and C library or system functions.
+If a catastrophic error has occurred, the log_get function may fail and return
+<a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a>, in which case all subsequent Berkeley DB calls will fail
+in the same way.
+<h1>See Also</h1>
+<a href="../api_c/env_set_lg_bsize.html">DBENV-&gt;set_lg_bsize</a>,
+<a href="../api_c/env_set_lg_max.html">DBENV-&gt;set_lg_max</a>,
+<a href="../api_c/log_archive.html">log_archive</a>,
+<a href="../api_c/log_compare.html">log_compare</a>,
+<a href="../api_c/log_file.html">log_file</a>,
+<a href="../api_c/log_flush.html">log_flush</a>,
+<a href="../api_c/log_get.html">log_get</a>,
+<a href="../api_c/log_put.html">log_put</a>,
+<a href="../api_c/log_register.html">log_register</a>,
+<a href="../api_c/log_stat.html">log_stat</a>
+and
+<a href="../api_c/log_unregister.html">log_unregister</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

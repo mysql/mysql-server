@@ -1,0 +1,82 @@
+<!--$Id: env_close.so,v 10.21 2000/03/01 21:41:29 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbEnv.close</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbEnv.close</h1>
+</td>
+<td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+import com.sleepycat.db.*;
+<p>
+public void close(int flags)
+	throws DbException;
+</pre></h3>
+<h1>Description</h1>
+<p>The DbEnv.close method closes the Berkeley DB environment, freeing any
+allocated resources and closing any underlying subsystems.
+<p>Calling DbEnv.close does not imply closing any databases that were
+opened in the environment.
+<p>The <b>flags</b> parameter is currently unused, and must be set to 0.
+<p>Where the environment was initialized with the <a href="../api_java/env_open.html#DB_INIT_LOCK">Db.DB_INIT_LOCK</a> flag,
+calling DbEnv.close does not release any locks still held by the
+closing process, providing functionality for long-lived locks.
+<p>Where the environment was initialized with the <a href="../api_java/env_open.html#DB_INIT_MPOOL">Db.DB_INIT_MPOOL</a>
+flag, calling DbEnv.close implies calls to <a href="../api_java/memp_fclose.html">DbMpoolFile.close</a> for
+any remaining open files in the memory pool that were returned to this
+process by calls to <a href="../api_java/memp_fopen.html">DbMpoolFile.open</a>.  It does not imply a call to
+<a href="../api_java/memp_fsync.html">DbMpoolFile.sync</a> for those files.
+<p>Where the environment was initialized with the <a href="../api_java/env_open.html#DB_INIT_TXN">Db.DB_INIT_TXN</a> flag,
+calling DbEnv.close aborts any uncommitted transactions.
+(Applications are should not depend on this behavior. If the process' has
+already closed a database handle which is necessary to abort an
+uncommitted transaction, the Berkeley DB environment must then require that
+recovery be run before further operations are done, since once a
+transaction exists that cannot be committed or aborted, no future
+checkpoint can ever succeed.)
+<p>In multi-threaded applications, only a single thread may call
+DbEnv.close.
+<p>Once DbEnv.close has been called, regardless of its return,
+the Berkeley DB environment handle may not be accessed again.
+<p>The DbEnv.close method throws an exception that encapsulates a non-zero error value on
+failure.
+<h1>Errors</h1>
+<p>The DbEnv.close method may fail and throw an exception for errors specified for other Berkeley DB and C library or system methods.
+If a catastrophic error has occurred, the DbEnv.close method may fail and throw
+a <a href="../api_java/runrec_class.html">DbRunRecoveryException</a>, in which case all subsequent Berkeley DB calls
+will fail in the same way.
+<h3>Class</h3>
+<a href="../api_java/dbenv_class.html">DbEnv</a>
+<h1>See Also</h1>
+<a href="../api_java/env_close.html">DbEnv.close</a>,
+<a href="../api_java/env_open.html">DbEnv.open</a>,
+<a href="../api_java/env_remove.html">DbEnv.remove</a>,
+<a href="../api_java/env_strerror.html">DbEnv.strerror</a>,
+<a href="../api_java/env_version.html">DbEnv.get_version_string</a>
+<a href="../api_java/env_set_cachesize.html">DbEnv.set_cachesize</a>,
+<a href="../api_java/env_set_errcall.html">DbEnv.set_errcall</a>,
+<a href="../api_java/env_set_error_stream.html">DbEnv.set_error_stream</a>,
+<a href="../api_java/env_set_errpfx.html">DbEnv.set_errpfx</a>,
+<a href="../api_java/env_set_flags.html">DbEnv.set_flags</a>,
+<a href="../api_java/env_set_mutexlocks.html">DbEnv.set_mutexlocks</a>,
+and
+<a href="../api_java/env_set_verbose.html">DbEnv.set_verbose</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

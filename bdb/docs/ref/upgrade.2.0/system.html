@@ -1,0 +1,84 @@
+<!--$Id: system.so,v 11.5 2000/03/18 21:43:20 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Release 2.0: system integration</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Upgrading Berkeley DB Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/upgrade.2.0/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.2.0/convert.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Release 2.0: system integration</h1>
+<p><ol>
+<p><li>It is possible to maintain both the Berkeley DB 1.85 and Berkeley DB version 2
+libraries on your system.  However, the <b>db.h</b> include file that
+was distributed with Berkeley DB 1.85 is not compatible with the <b>db.h</b>
+file distributed with Berkeley DB version 2, so you will have to install them
+in different locations.  In addition, both the Berkeley DB 1.85 and Berkeley DB
+version 2 libraries are named <b>libdb.a</b>.
+<p>As the Berkeley DB 1.85 library did not have an installation target in the
+Makefile, there's no way to know exactly where it was installed on the
+system.  In addition, many vendors included it in the C library instead
+of as a separate library, and so it may actually be part of libc and the
+<b>db.h</b> include file may be installed in <b>/usr/include</b>.
+<p>For these reasons, the simplest way to maintain both libraries is to
+install Berkeley DB version 2 in a completely separate area of your system.
+The Berkeley DB version 2 installation process allows you to install into a
+standalone directory hierarchy on your system.  See the
+<a href="../../ref/build_unix/intro.html">Building for UNIX systems</a>
+documentation for more information and instructions on how to install the
+Berkeley DB version 2 library, include files and documentation into specific
+locations.
+<p><li>Alternatively, you can replace Berkeley DB 1.85 on your system with Berkeley DB
+version 2.  In this case, you'll probably want to install Berkeley DB version
+2 in the normal place on your system, wherever that may be, and delete
+the Berkeley DB 1.85 include files, manual pages and libraries.
+<p>To replace 1.85 with version 2, you must either convert your 1.85
+applications to use the version 2 API or build the Berkeley DB version 2 library
+to include Berkeley DB 1.85 interface compatibility code.  Whether converting
+your applications to use the version 2 interface or using the version 1.85
+compatibility API, you will need to recompile or relink your 1.85
+applications, and you must convert any persistent application databases
+to the Berkeley DB version 2 database formats.
+<p>If you want to recompile your Berkeley DB 1.85 applications, you will have to
+change them to include the file <b>db_185.h</b> instead of
+<b>db.h</b>.  (The <b>db_185.h</b> file is automatically installed
+during the Berkeley DB version 2 installation process.)  You can then recompile
+the applications, linking them against the Berkeley DB version 2 library.
+<p>For more information on compiling the Berkeley DB 1.85 compatibility code into
+the Berkeley DB version 2 library, see <a href="../../ref/build_unix/intro.html">Building for UNIX platforms</a>.
+<p>For more information on converting databases from the Berkeley DB 1.85 formats
+to the Berkeley DB version 2 formats, see the <a href="../../utility/db_dump.html">db_dump185</a> and
+<a href="../../utility/db_load.html">db_load</a> documentation.
+<p><li>Finally, although we certainly do not recommend it, it is possible to
+load both Berkeley DB 1.85 and Berkeley DB version 2 into the same library.
+Similarly, it is possible to use both Berkeley DB 1.85 and Berkeley DB version 2
+within a single application, although it is not possible to use them from
+within the same file.
+<p>The name space in Berkeley DB version 2 has been changed from that of previous
+Berkeley DB versions, notably version 1.85, for portability and consistency
+reasons.  The only name collisions in the two libraries are the names used
+by the historic <a href="../../api_c/dbm.html">dbm</a>, <a href="../../api_c/dbm.html">ndbm</a> and <a href="../../api_c/hsearch.html">hsearch</a> interfaces,
+and the Berkeley DB 1.85 compatibility interfaces in the Berkeley DB version 2
+library.
+<p>If you are loading both Berkeley DB 1.85 and Berkeley DB version 2 into a single
+library, remove the historic interfaces from one of the two library
+builds, and configure the Berkeley DB version 2 build to not include the Berkeley DB
+1.85 compatibility API, otherwise you could have collisions and undefined
+behavior.  This can be done by editing the library Makefiles and
+reconfiguring and rebuilding the Berkeley DB version 2 library.  Obviously, if
+you use the historic interfaces, you will get the version in the library
+from which you did not remove them.  Similarly, you will not be able to
+access Berkeley DB version 2 files using the Berkeley DB 1.85 compatibility interface,
+since you have removed that from the library as well.
+</ol>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/upgrade.2.0/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.2.0/convert.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

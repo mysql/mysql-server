@@ -1,0 +1,85 @@
+<!--$Id: txn_commit.so,v 10.27 2000/12/31 19:26:21 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbTxn.commit</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbTxn.commit</h1>
+</td>
+<td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+import com.sleepycat.db.*;
+<p>
+public void commit(u_int32_t flags)
+	throws DbException;
+</pre></h3>
+<h1>Description</h1>
+<p>The DbTxn.commit method ends the transaction.  In the case of nested
+transactions, if the transaction is a parent transaction, committing
+the parent transaction causes all unresolved children of the parent to
+be committed.
+<p>In the case of nested transactions, if the transaction is a child
+transaction, its locks are not released, but are acquired by its parent.
+While the commit of the child transaction will succeed, the actual
+resolution of the child transaction is postponed until the parent
+transaction is committed or aborted, i.e., if its parent transaction
+commits, it will be committed, and if its parent transaction aborts, it
+will be aborted.
+<p>The <b>flags</b> parameter must be set to 0 or one of the following
+values:
+<p><dl compact>
+<p><dt><a name="Db.DB_TXN_NOSYNC">Db.DB_TXN_NOSYNC</a><dd>Do not synchronously flush the log.  This means the transaction will
+exhibit the ACI (atomicity, consistency and isolation) properties, but
+not D (durability), i.e., database integrity will be maintained but it is
+possible that this transaction may be undone during recovery instead of
+being redone.
+<p>This behavior may be set for an entire Berkeley DB environment as part of the
+<a href="../api_java/env_set_flags.html">DbEnv.set_flags</a> interface.
+<p><dt><a name="Db.DB_TXN_SYNC">Db.DB_TXN_SYNC</a><dd>Synchronously flush the log.  This means the transaction will exhibit
+all of the ACID (atomicity, consistency and isolation and durability)
+properties.
+<p>This behavior is the default for Berkeley DB environments unless the
+<a href="../api_java/env_open.html#DB_TXN_NOSYNC">Db.DB_TXN_NOSYNC</a> flag was specified to the <a href="../api_java/env_set_flags.html">DbEnv.set_flags</a>
+or <a href="../api_java/txn_begin.html">DbEnv.txn_begin</a> interfaces.
+</dl>
+<p>Once the DbTxn.commit method returns, the <a href="../api_java/txn_class.html">DbTxn</a> handle may not
+be accessed again.  If DbTxn.commit encounters an error, the
+transaction and all child transactions of the transaction are aborted.
+<p>The DbTxn.commit method throws an exception that encapsulates a non-zero error value on
+failure.
+<h1>Errors</h1>
+<p>The DbTxn.commit method may fail and throw an exception for errors specified for other Berkeley DB and C library or system methods.
+If a catastrophic error has occurred, the DbTxn.commit method may fail and throw
+a <a href="../api_java/runrec_class.html">DbRunRecoveryException</a>, in which case all subsequent Berkeley DB calls
+will fail in the same way.
+<h3>Classes</h3>
+<a href="../api_java/dbenv_class.html">DbEnv</a>, <a href="../api_java/txn_class.html">DbTxn</a>
+<h1>See Also</h1>
+<a href="../api_java/env_set_tx_max.html">DbEnv.set_tx_max</a>,
+<a href="../api_java/env_set_tx_timestamp.html">DbEnv.set_tx_timestamp</a>,
+<a href="../api_java/txn_abort.html">DbTxn.abort</a>,
+<a href="../api_java/txn_begin.html">DbEnv.txn_begin</a>,
+<a href="../api_java/txn_checkpoint.html">DbEnv.txn_checkpoint</a>,
+<a href="../api_java/txn_commit.html">DbTxn.commit</a>,
+<a href="../api_java/txn_id.html">DbTxn.id</a>,
+<a href="../api_java/txn_prepare.html">DbTxn.prepare</a>
+and
+<a href="../api_java/txn_stat.html">DbEnv.txn_stat</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

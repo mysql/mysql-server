@@ -1,0 +1,45 @@
+<!--$Id: db_get_join.so,v 11.15 2000/12/04 18:05:39 bostic Exp $-->
+<!--$Id: m4.tcl,v 11.17 2000/04/24 17:31:11 sue Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: db get_join</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1><i>db</i> <b>get_join</b></h1>
+</td>
+<td width="1%">
+<a href="../api_tcl/tcl_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>db get_join
+	[-txn txnid]
+	{<i>db</i> key}
+	{<i>db</i> key}
+	...
+</pre></h3>
+<h1>Description</h1>
+<p>The <i>db</i> <b>get_join</b> command performs the cursor operations required to
+join the specified keys and returns a list of joined {key data} pairs.
+See <a href="../ref/am/join.html">Logical join</a> for more information on
+the underlying requirements for joining.
+<p>The options are as follows:
+<p><dl compact>
+<p><dt>-txn txnid<dd>If the file is being accessed under transaction protection, the
+<b>txnid</b> parameter is a transaction handle returned from <i>env</i> <b>txn</b>.
+</dl>
+<p>In the case of error, a Tcl error is thrown.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_tcl/tcl_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

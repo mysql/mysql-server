@@ -1,0 +1,25 @@
+# $Id: README,v 10.5 1999/11/21 23:08:01 bostic Exp $
+
+Berkeley DB log dump utility.  This utility dumps out a DB log in human
+readable form, a record at a time, to assist in recovery and transaction
+abort debugging.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+commit.awk	Output transaction ID of committed transactions.
+
+count.awk	Print out the number of log records for transactions
+		that we encountered.
+
+fileid.awk      Take a comma-separated list of file numbers and spit out
+		all the log records that affect those file numbers.
+
+pgno.awk	Take a comma-separated list of page numbers and spit
+		out all the log records that affect those page numbers.
+
+range.awk	Print out a range of the log.
+
+status.awk	Read through db_printlog output and list the transactions
+		encountered, and whether they commited or aborted.
+
+txn.awk		Print out all the records for a comma-separated list of
+		transaction IDs.

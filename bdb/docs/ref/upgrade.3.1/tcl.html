@@ -1,0 +1,30 @@
+<!--$Id: tcl.so,v 1.5 2000/06/02 14:50:20 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Release 3.1: Tcl API</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Upgrading Berkeley DB Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/upgrade.3.1/env.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.1/tmp.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Release 3.1: Tcl API</h1>
+<p>The Berkeley DB Tcl API has been modified so that the <b>-mpool</b> option to
+the <b>berkdb env</b> command is now the default behavior.  The Tcl API
+has also been modified so that the <b>-txn</b> option to the
+<b>berkdb env</b> command implies the <b>-lock</b> and <b>-log</b>
+options.  Tcl scripts should be updated to remove the <b>-mpool</b>,
+<b>-lock</b> and <b>-log</b> options.
+<p>The Berkeley DB Tcl API has been modified to follow the Tcl standard rules for
+integer conversion, e.g., if the first two characters of a record number
+are "0x", the record number is expected to be in hexadecimal form.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/upgrade.3.1/env.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.1/tmp.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

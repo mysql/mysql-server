@@ -1,0 +1,132 @@
+#
+# Released to public domain by Donald Anderson  dda@world.std.com
+# No warranties.
+#
+# Perl script to check for matching of JNI interfaces to implementation.
+# We check all .cpp arguments and .h arguments and make sure that for
+# each .h declaration (marked by JNIEXPORT keyword), there is a .cpp
+# definition for the same function (also marked by JNIEXPORT keyword),
+# and vice versa.  Definitions and declarations are determined solely
+# by whether they are in a .h or .cpp file - we don't do any further
+# analysis.
+#
+# Some additions made to help with Berkeley DB sources:
+#
+#   Berkeley DB Java sources use JAVADB_*_ACCESS #defines
+#   to quickly define routine access functions.
+
+foreach $file (<@ARGV>) {      # glob allows direct use from Win* makefiles
+    open (FILE, $file) || die "$file: cannot open\n";
+    $dot_h = 0;
+    if ($file =~ /.*[hH]$/) {
+        $dot_h = 1;
+    }
+    $in_def = 0;
+nextline:
+    while (<FILE>) {
+        chop;
+        if (/JNIEXPORT/ || /^JAVADB_.*_ACCESS/) {
+            $in_def = 1;
+            $def = "";
+        }
+        if ($in_def == 1) {
+            $def .= $_;
+        }
+        if (/\)/) {
+            $line = "";
+            $in_def = 0;
+            if ($def eq "") {
+                next nextline;
+            }
+            $_ = $def;
+            # remove comments
+            s@/\*[^*]*\*/@@g;
+            s@[ 	][ 	]*@ @g;
+            s@JNIEnv *\* *@JNIEnv @g;
+            s@([,*()]) @\1@g;
+            s@ ([,*()])@\1@g;
+
+            s/JAVADB_WO_ACCESS_METHOD/JAVADB_WO_ACCESS/;
+
+            if (/^JAVADB_.*_ACCESS/) {
+                s@  *@ @g;
+                s@_ACCESS_STRING\(([^,]*),@_ACCESS(\1,jstring,@;
+                s@_ACCESS_BEFORE_APPINIT@_ACCESS@;
+                s@_ACCESS\(@,normal,@;
+                s@JAVADB_@@;
+                s@\)@,@;
+                @vars = split(/,/);
+                $get = 0;
+                $set = 0;
+                if (@vars[0] eq "RW") {
+                    $get = 1;
+                    $set = 1;
+                }
+                if (@vars[0] eq "RO") {
+                    $get = 1;
+                }
+                if (@vars[0] eq "WO") {
+                    $set = 1;
+                }
+                if ($get == 0 && $set == 0) {
+                    print "Invalid use of JAVADB_ macro\n";
+                }
+                if ($set == 1) {
+                    $line = "JNIEXPORT void JNICALL Java_com_sleepycat_db_@vars[2]_set_1@vars[4](JNIEnv,jobject,@vars[3])";
+                }
+                if ($get == 1) {
+                    $line2 = "JNIEXPORT @vars[3] JNICALL Java_com_sleepycat_db_@vars[2]_get_1@vars[4](JNIEnv,jobject)";
+                }
+            }
+            else {
+                s@([,(][a-zA-Z0-9_]*) [a-zA-Z0-9_]*@\1@g;
+                s@;$@@g;
+                $line = $_;
+            }
+
+            $def = "";
+
+            if ($line ne "") {
+                if ($lines{$line} eq "") {
+                    $lines{$line} = 0;
+                }
+                if ($dot_h == 1) {
+                    $lines{$line} += 1;
+                }
+                else {
+                    $lines{$line} -= 1;
+                }
+                $line = "";
+            }
+            if ($line2 ne "") {
+                if ($lines{$line2} eq "") {
+                    $lines{$line2} = 0;
+                }
+                if ($dot_h == 1) {
+                    $lines{$line2} += 1;
+                }
+                else {
+                    $lines{$line2} -= 1;
+                }
+                $line2 = "";
+            }
+        }
+    }
+    close (FILE);
+}
+
+$status = 0;
+foreach $key (sort keys %lines) {
+    if ($lines{$key} != 0) {
+        if ($lines{$key} > 0) {
+            print "Missing .cpp implementation: $lines${key}\n";
+            $status = 1;
+        }
+        else {
+            print "Missing .h declaration: $lines${key}\n";
+            $status = 1;
+        }
+    }
+}
+
+exit ($status);

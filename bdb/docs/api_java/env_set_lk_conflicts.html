@@ -1,0 +1,68 @@
+<!--$Id: env_set_lk_conflicts.so,v 10.22 2000/12/08 20:43:15 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbEnv.set_lk_conflicts</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbEnv.set_lk_conflicts</h1>
+</td>
+<td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+import com.sleepycat.db.*;
+<p>
+public void set_lk_conflicts(byte[][] conflicts)
+	throws DbException;
+</pre></h3>
+<h1>Description</h1>
+<p>Set the locking conflicts matrix.
+A non-0 value for the array element:
+<p><blockquote><pre>conflicts[requested_mode][held_mode]</pre></blockquote>
+<p>indicates that requested_mode and held_mode conflict.  The
+<i>not-granted</i> mode must be represented by 0.
+<p>If no <b>conflicts</b> value is specified, the conflicts array
+<b>db_rw_conflicts</b> is used; see <a href="../ref/lock/stdmode.html">Standard Lock Modes</a> for a description of that array.
+<p>The DbEnv.set_lk_conflicts interface may only be used to configure Berkeley DB before
+the <a href="../api_java/env_open.html">DbEnv.open</a> interface is called.
+<p>The DbEnv.set_lk_conflicts method throws an exception that encapsulates a non-zero error value on
+failure.
+<h1>Errors</h1>
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+<p>Called after <a href="../api_java/env_open.html">DbEnv.open</a> was called.
+</dl>
+<p><dl compact>
+<p><dt>ENOMEM<dd>No memory was available to copy the conflicts array.
+</dl>
+<h3>Classes</h3>
+<a href="../api_java/dbenv_class.html">DbEnv</a>, <a href="../api_java/lock_class.html">DbLock</a>
+<h1>See Also</h1>
+<a href="../api_java/env_set_lk_conflicts.html">DbEnv.set_lk_conflicts</a>,
+<a href="../api_java/env_set_lk_detect.html">DbEnv.set_lk_detect</a>,
+<a href="../api_java/env_set_lk_max_locks.html">DbEnv.set_lk_max_locks</a>,
+<a href="../api_java/env_set_lk_max_lockers.html">DbEnv.set_lk_max_lockers</a>,
+<a href="../api_java/env_set_lk_max_objects.html">DbEnv.set_lk_max_objects</a>,
+<a href="../api_java/env_set_lk_max.html">DbEnv.set_lk_max</a>,
+<a href="../api_java/lock_detect.html">DbEnv.lock_detect</a>,
+<a href="../api_java/lock_get.html">DbEnv.lock_get</a>,
+<a href="../api_java/lock_id.html">DbEnv.lock_id</a>,
+<a href="../api_java/lock_put.html">DbLock.put</a>
+and
+<a href="../api_java/lock_stat.html">DbEnv.lock_stat</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,72 @@
+<!--$Id: env_set_lk_max.so,v 10.21 2000/12/21 19:11:27 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DBENV-&gt;set_lk_max</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DBENV-&gt;set_lk_max</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db.h&gt;
+<p>
+int
+DBENV-&gt;set_lk_max(DB_ENV *dbenv, u_int32_t max);
+</pre></h3>
+<h1>Description</h1>
+<p><b>The DBENV-&gt;set_lk_max function interface has been deprecated in favor of
+the <a href="../api_c/env_set_lk_max_locks.html">DBENV-&gt;set_lk_max_locks</a>, <a href="../api_c/env_set_lk_max_lockers.html">DBENV-&gt;set_lk_max_lockers</a>,
+and <a href="../api_c/env_set_lk_max_objects.html">DBENV-&gt;set_lk_max_objects</a> functions.  Please update your applications.</b>
+<p>Set each of the maximum number of locks, lockers and lock objects
+supported by the Berkeley DB lock subsystem to <b>max</b>.  This value is
+used by <a href="../api_c/env_open.html">DBENV-&gt;open</a> to estimate how much space to allocate for
+various lock-table data structures.  For specific information on
+configuring the size of the lock subsystem, see
+<a href="../ref/lock/max.html">Configuring locking:  sizing the
+system</a>.
+<p>The DBENV-&gt;set_lk_max interface may only be used to configure Berkeley DB before
+the <a href="../api_c/env_open.html">DBENV-&gt;open</a> interface is called.
+<p>The DBENV-&gt;set_lk_max function returns a non-zero error value on failure and 0 on success.
+<p>The database environment's maximum number of locks may also be set using the environment's
+<b>DB_CONFIG</b> file.  The syntax of the entry in that file is a
+single line with the string "set_lk_max", one or more whitespace characters,
+and the number of locks.  Because the <b>DB_CONFIG</b> file is read when the database
+environment is opened, it will silently overrule configuration done
+before that time.
+<h1>Errors</h1>
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+<p>Called after <a href="../api_c/env_open.html">DBENV-&gt;open</a> was called.
+</dl>
+<h1>See Also</h1>
+<a href="../api_c/env_set_lk_conflicts.html">DBENV-&gt;set_lk_conflicts</a>,
+<a href="../api_c/env_set_lk_detect.html">DBENV-&gt;set_lk_detect</a>,
+<a href="../api_c/env_set_lk_max_locks.html">DBENV-&gt;set_lk_max_locks</a>,
+<a href="../api_c/env_set_lk_max_lockers.html">DBENV-&gt;set_lk_max_lockers</a>,
+<a href="../api_c/env_set_lk_max_objects.html">DBENV-&gt;set_lk_max_objects</a>,
+<a href="../api_c/env_set_lk_max.html">DBENV-&gt;set_lk_max</a>,
+<a href="../api_c/lock_detect.html">lock_detect</a>,
+<a href="../api_c/lock_get.html">lock_get</a>,
+<a href="../api_c/lock_id.html">lock_id</a>,
+<a href="../api_c/lock_put.html">lock_put</a>,
+<a href="../api_c/lock_stat.html">lock_stat</a>
+and
+<a href="../api_c/lock_vec.html">lock_vec</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

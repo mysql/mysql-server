@@ -1,0 +1,48 @@
+<!--$Id: remote.so,v 11.5 2000/03/18 21:43:12 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Remote filesystems</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Environment</dl></h3></td>
+<td width="1%"><a href="../../ref/env/region.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/env/open.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Remote filesystems</h1>
+<p>When regions are backed by the filesystem, it is a common error to attempt
+to create Berkeley DB environments backed by remote file systems such as the
+Network File System (NFS) or the Andrew File System (AFS).  Remote
+filesystems rarely support mapping files into process memory, and even
+more rarely support correct semantics for mutexes after the attempt
+succeeds.  For this reason, we strongly recommend that the database
+environment directory reside in a local filesystem.
+<p>For remote file systems that do allow system files to be mapped into
+process memory, home directories accessed via remote file systems cannot
+be used simultaneously from multiple clients.  None of the commercial
+remote file systems available today implement coherent, distributed shared
+memory for remote-mounted files.  As a result, different machines will
+see different versions of these shared regions and the system behavior is
+undefined.
+<p>Databases, log files and temporary files may be placed on remote
+filesystems, <b>as long as the remote filesystem fully supports
+standard POSIX filesystem semantics</b>, although the application may incur
+a performance penalty for doing so.  Obviously, NFS-mounted databases
+cannot be accessed from more than one Berkeley DB environment (and therefore
+from more than one system), at a time since no Berkeley DB database may be
+accessed from more than one Berkeley DB environment at a time.
+<p><dl compact>
+<p><dt>Linux note:<dd>Some Linux releases are known to not support complete semantics for the
+POSIX fsync call on NFS-mounted filesystems.  No Berkeley DB files should be
+placed on NFS-mounted filesystems on these systems.
+</dl>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/env/region.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/env/open.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

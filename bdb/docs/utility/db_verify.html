@@ -1,0 +1,73 @@
+<!--$Id: db_verify.so,v 10.3 2000/07/13 16:41:50 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: db_verify</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>db_verify</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>db_verify [<b>-NqV</b>] [<b>-h home</b>] file ...</pre></h3>
+<h1>Description</h1>
+        <a name="3"><!--meow--></a>        <a name="4"><!--meow--></a>    
+<p>The db_verify utility verifies the structure of one or more
+files and the databases they contain.
+<p>The options are as follows:
+<p><dl compact>
+<p><dt><b>-h</b><dd>Specify a home directory for the database environment; by
+default, the current working directory is used.
+<p><dt><b>-N</b><dd>Do not acquire shared region locks while running.  Other problems such as
+potentially fatal errors in Berkeley DB will be ignored as well.  This option
+is intended only for debugging errors and should not be used under any
+other circumstances.
+<p><dt><b>-q</b><dd>Suppress the printing of any error descriptions, simply exit success or
+failure.
+<p><dt><b>-V</b><dd>Write the version number to the standard output and exit.
+</dl>
+<p>If the file being verified contains databases using non-default
+comparison or hashing functions, the db_verify utility may
+not be used for verification, as it will likely always return failure.
+Such files must be verified explicitly, using the <a href="../api_c/db_verify.html">DB-&gt;verify</a> function,
+after setting the correct comparison or hashing functions.
+<p>The db_verify utility may be used with a Berkeley DB environment (as described for the
+<b>-h</b> option, the environment variable <b>DB_HOME</b>, or,
+because the utility was run in a directory containing a Berkeley DB
+environment).  In order to avoid environment corruption when using a Berkeley DB
+environment, db_verify should always be given the chance to detach from
+the environment and exit gracefully.  To cause db_verify to release all
+environment resources and exit cleanly, send it an interrupt signal
+(SIGINT).
+<p>The db_verify utility exits 0 on success, and &gt;0 if an error occurs.
+<h1>Environment Variables</h1>
+<p><dl compact>
+<p><dt>DB_HOME<dd>If the <b>-h</b> option is not specified and the environment variable
+DB_HOME is set, it is used as the path of the database home, as described
+in <a href="../api_c/env_open.html">DBENV-&gt;open</a>.
+</dl>
+<h1>See Also</h1>
+<a href="../utility/berkeley_db_svc.html">berkeley_db_svc</a>,
+<a href="../utility/db_archive.html">db_archive</a>,
+<a href="../utility/db_checkpoint.html">db_checkpoint</a>,
+<a href="../utility/db_deadlock.html">db_deadlock</a>,
+<a href="../utility/db_dump.html">db_dump</a>,
+<a href="../utility/db_load.html">db_load</a>,
+<a href="../utility/db_recover.html">db_recover</a>,
+<a href="../utility/db_stat.html">db_stat</a>,
+<a href="../utility/db_upgrade.html">db_upgrade</a>,
+and
+db_verify.
+</tt>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<!--$Id: txn_commit.so,v 11.14 2000/06/28 14:30:15 bostic Exp $-->
+<!--$Id: m4.tcl,v 11.17 2000/04/24 17:31:11 sue Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: txn commit</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1><i>txn</i> <b>commit</b></h1>
+</td>
+<td width="1%">
+<a href="../api_tcl/tcl_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>txn commit
+	[-nosync]
+	[-sync]
+</pre></h3>
+<h1>Description</h1>
+<p>The <i>txn</i> <b>commit</b> command ends the transaction. 
+<p>In the case of nested transactions, if the transaction is a parent
+transaction with unresolved (neither committed or aborted) child
+transactions, the child transactions are aborted and the commit of the
+parent will succeed.
+<p>In the case of nested transactions, if the transaction is a child
+transaction, its locks are not released, but are acquired by its parent.
+While the commit of the child transaction will succeed, the actual
+resolution of the child transaction is postponed until the parent
+transaction is committed or aborted, i.e., if its parent transaction
+commits, it will be committed, and if its parent transaction aborts, it
+will be aborted.
+<p>If the <b>-nosync</b> option is not specified, a commit log record is
+written and flushed to disk, as are all previously written log records.
+<p>The options are as follows:
+<p><dl compact>
+<p><dt>-nosync<dd>Do not synchronously flush the log. This means the transaction will
+exhibit the ACI (atomicity, consistency and isolation) properties, but
+not D (durability), i.e., database integrity will be maintained but it is
+possible that this transaction may be undone during recovery instead of
+being redone.
+<p>This behavior may be set for an entire Berkeley DB environment as part of
+the <b>berkdb env</b> interface.
+<p><dt>-sync<dd>Synchronously flush the log. This means the transaction will exhibit all of
+the ACID (atomicity, consistency and isolation and durability) properties.
+<p>This behavior is the default for Berkeley DB environments unless the
+<b>-nosync</b> option was specified to the <b>berkdb env</b> or
+<i>env</i> <b>txn</b> interfaces.
+</dl>
+<p>Once <i>txn</i> <b>commit</b> has been called, regardless of its return, the
+<b>txn</b> handle may not be accessed again.  If <i>txn</i> <b>commit</b>
+encounters an error, then this transaction and all child transactions
+of this transaction are aborted.
+<p>The <i>txn</i> <b>commit</b> command returns 0 on success, and in the case of error, a Tcl error
+is thrown.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_tcl/tcl_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

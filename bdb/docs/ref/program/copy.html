@@ -1,0 +1,63 @@
+<!--$Id: copy.so,v 10.4 2000/03/18 21:43:15 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Copying databases</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Programmer Notes</dl></h3></td>
+<td width="1%"><a href="../../ref/program/namespace.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/program/version.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Copying databases</h1>
+<p>Because file identification cookies (e.g., file names, device and inode
+numbers, volume and file IDs, etc.) are not necessarily unique or
+maintained across system reboots, each Berkeley DB database file contains a
+20-byte file identification bytestring that is stored in the first page
+of the database at a page byte offset of 36 bytes.  When multiple
+processes or threads open the same database file in Berkeley DB, it is this
+bytestring that is used to ensure that the same underlying pages are
+updated in the shared memory buffer pool no matter which Berkeley DB handle is
+used for the operation.
+<p>It is usually a bad idea to physically copy a database to a new name.  In
+the few cases where copying is the best solution for your application,
+you must guarantee there are never two different databases with the same
+file identification bytestring in the memory pool at the same time.
+Copying databases is further complicated by the fact that the shared
+memory buffer pool does not discard all cached copies of pages for a
+database when the database is logically closed, that is, when
+<a href="../../api_c/db_close.html">DB-&gt;close</a> is called.  Nor is there a Berkeley DB interface to explicitly
+discard pages from the shared memory buffer pool for any particular
+database.
+<p>Before copying a database, you must ensure that all modified pages have
+been written from the memory pool cache to the backing database file.
+This is done using the <a href="../../api_c/db_sync.html">DB-&gt;sync</a> or <a href="../../api_c/db_close.html">DB-&gt;close</a> interfaces.
+<p>Before using a copy of a database from Berkeley DB, you must ensure that all
+pages from any database with the same bytestring have been removed from
+the memory pool cache.  If the environment in which you intend to open
+the copy of the database potentially has pages from files with identical
+bytestrings to the copied database (which is likely to be the case), there
+are a few possible solutions:
+<p><ol>
+<p><li>Remove the environment, either explicitly or by calling <a href="../../api_c/env_remove.html">DBENV-&gt;remove</a>.
+Note, this will not allow you to access both the original and copy of the
+database at the same time.
+<p><li>Overwrite the bytestring in the copied database with a new bytestring.
+This allows you to access both the original and copy of the database at
+the same time.
+<p><li>Create a new file that will have a new bytestring.  The simplest
+way to create a new file that will have a new bytestring is to call the
+<a href="../../utility/db_dump.html">db_dump</a> utility to dump out the contents of the database, and then
+use the <a href="../../utility/db_load.html">db_load</a> utility to load the dumped output into a new file
+name.  This allows you to access both the original and copy of the
+database at the same time.
+</ol>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/program/namespace.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/program/version.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,62 @@
+<!--$Id: page.so,v 10.12 2000/03/18 21:43:14 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Page locks</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Locking Subsystem</dl></h3></td>
+<td width="1%"><a href="../../ref/lock/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/lock/stdmode.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Page locks</h1>
+<p>Under normal operation, the access methods use page locking.  The pagesize
+of a database is set when the database is created and may be specified by
+calling the <a href="../../api_c/db_set_pagesize.html">DB-&gt;set_pagesize</a> function.  If not specified, the Berkeley DB
+package tries to select a pagesize that will provide the best I/O
+performance by setting the page size equal to the block size of the
+underlying file system.
+<p>In the Btree access method, Berkeley DB uses a technique called lock coupling
+to improve concurrency.  The traversal of a Btree requires reading a page,
+searching that page to determine which page to search next and then
+repeating this process on the next page.  Once a page has been searched,
+it will never be accessed again for this operation, unless a page split
+is required.  To improve concurrency in the tree, once the next page to
+read/search has been determined, that page is locked, and then atomically
+(i.e., without relinquishing control of the lock manager) the original
+page lock is released.
+<p>As the Recno access method is built upon Btree, it too uses lock coupling
+for read operations.  However, as the Recno access method must maintain
+a count of records on its internal pages, it cannot lock couple during
+write operations.  Instead, it retains write locks on all internal pages
+during every update operation.  For this reason, it is not possible to
+have high concurrency in the Recno access method in the presence of write
+operations.
+<p>The Queue access method only uses short term page locks.  That is, a page
+lock is released prior to requesting another page lock.  Record locks are
+used for transaction isolation.  The provides a high degree of concurrency
+for write operations.  A metadata page is used to keep track of the head
+and tail of the queue.  This page is never locked during other locking or
+I/O operations.
+<p>The Hash access method does not have such traversal issues, but because
+it implements dynamic hashing, it must always refer to its metadata while
+computing a hash function.  This metadata is stored on a special page in
+the hash database.  This page must therefore be read locked on every
+operation.  Fortunately, it need only be write locked when new pages are
+allocated to the file, which happens in three cases: 1) a hash bucket
+becomes full and needs to split, 2) a key or data item is too large to
+fit on a normal page, and 3) the number of duplicate items for a fixed
+key becomes sufficiently large that they are moved to an auxiliary page.
+In this case, the access method must obtain a write lock on the metadata
+page, thus requiring that all readers be blocked from entering the tree
+until the update completes.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/lock/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/lock/stdmode.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

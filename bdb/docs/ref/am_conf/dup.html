@@ -1,0 +1,71 @@
+<!--$Id: dup.so,v 10.21 2000/12/18 21:05:14 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Duplicate data items</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Access Methods</dl></h3></td>
+<td width="1%"><a href="../../ref/am_conf/byteorder.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am_conf/malloc.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Duplicate data items</h1>
+<p>The Btree and Hash access methods support the creation of multiple data
+items for a single key item.  By default, multiple data items are not
+permitted, and each database store operation will overwrite any previous
+data item for that key.  To configure Berkeley DB for duplicate data items, call
+the <a href="../../api_c/db_set_flags.html">DB-&gt;set_flags</a> function with the <a href="../../api_c/db_set_flags.html#DB_DUP">DB_DUP</a> flag.
+<p>By default, Berkeley DB stores duplicates in the order in which they were added,
+that is, each new duplicate data item will be stored after any already
+existing data items.  This default behavior can be overridden by using
+the <a href="../../api_c/dbc_put.html">DBcursor-&gt;c_put</a> function and one of the <a href="../../api_c/dbc_put.html#DB_AFTER">DB_AFTER</a>, <a href="../../api_c/dbc_put.html#DB_BEFORE">DB_BEFORE</a>
+<a href="../../api_c/dbc_put.html#DB_KEYFIRST">DB_KEYFIRST</a> or <a href="../../api_c/dbc_put.html#DB_KEYLAST">DB_KEYLAST</a> flags.  Alternatively, Berkeley DB
+may be configured to sort duplicate data items as described below.
+<p>When stepping through the database sequentially, duplicate data items will
+be returned individually, as a key/data pair, where the key item only
+changes after the last duplicate data item has been returned.  For this
+reason, duplicate data items cannot be accessed using the
+<a href="../../api_c/db_get.html">DB-&gt;get</a> function, as it always returns the first of the duplicate data
+items.  Duplicate data items should be retrieved using the Berkeley DB cursor
+interface, <a href="../../api_c/dbc_get.html">DBcursor-&gt;c_get</a>.
+<p>There is an interface flag that permits applications to request the
+following data item only if it <b>is</b> a duplicate data item of the
+current entry, see <a href="../../api_c/dbc_get.html#DB_NEXT_DUP">DB_NEXT_DUP</a> for more information.  There is an
+interface flag that permits applications to request the following data
+item only if it <b>is not</b> a duplicate data item of the current
+entry, see <a href="../../api_c/dbc_get.html#DB_NEXT_NODUP">DB_NEXT_NODUP</a> and <a href="../../api_c/dbc_get.html#DB_PREV_NODUP">DB_PREV_NODUP</a> for more
+information.
+<p>It is also possible to maintain duplicate records in sorted order.  Sorting
+duplicates will significantly increase performance when searching them
+and performing logical joins, common operations when creating secondary
+indexes.  To configure Berkeley DB to sort duplicate data items, the application
+must call the <a href="../../api_c/db_set_flags.html">DB-&gt;set_flags</a> function with the <a href="../../api_c/db_set_flags.html#DB_DUPSORT">DB_DUPSORT</a> flag (in
+addition to the <a href="../../api_c/db_set_flags.html#DB_DUP">DB_DUP</a> flag).  In addition, a custom sorting
+function may be specified using the <a href="../../api_c/db_set_dup_compare.html">DB-&gt;set_dup_compare</a> function.  If the
+<a href="../../api_c/db_set_flags.html#DB_DUPSORT">DB_DUPSORT</a> flag is given, but no comparison routine is specified,
+then Berkeley DB defaults to the same lexicographical sorting used for Btree
+keys, with shorter items collating before longer items.
+<p>If the duplicate data items are unsorted, applications may store identical
+duplicate data items, or, for those that just like the way it sounds,
+<i>duplicate duplicates</i>.
+<p><b>In this release it is an error to attempt to store identical
+duplicate data items when duplicates are being stored in a sorted order.</b>
+This restriction is expected to be lifted in a future release.  There is
+an interface flag that permits applications to disallow storing duplicate
+data items when the database has been configured for sorted duplicates,
+see <a href="../../api_c/db_put.html#DB_NODUPDATA">DB_NODUPDATA</a> for more information.  Applications not wanting
+to permit duplicate duplicates in databases configured for sorted
+duplicates should begin using the <a href="../../api_c/db_put.html#DB_NODUPDATA">DB_NODUPDATA</a> flag immediately.
+<p>For further information on how searching and insertion behaves in the
+presence of duplicates (sorted or not), see the <a href="../../api_c/db_get.html">DB-&gt;get</a>,
+<a href="../../api_c/db_put.html">DB-&gt;put</a>, <a href="../../api_c/dbc_get.html">DBcursor-&gt;c_get</a> and <a href="../../api_c/dbc_put.html">DBcursor-&gt;c_put</a> documentation.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/am_conf/byteorder.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am_conf/malloc.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

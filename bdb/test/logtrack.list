@@ -1,0 +1,68 @@
+PREFIX	crdel
+BEGIN	fileopen	141
+BEGIN	metasub	142
+BEGIN	metapage	143
+DEPRECATED	old_delete	144
+BEGIN	rename	145
+BEGIN	delete	146
+PREFIX	db
+BEGIN	addrem	41
+DEPRECATED	split	42
+BEGIN	big	43
+BEGIN	ovref	44
+BEGIN	relink	45
+DEPRECATED	addpage	46
+BEGIN	debug	47
+BEGIN	noop	48
+PREFIX	bam
+BEGIN	pg_alloc	51
+DEPRECATED	pg_alloc1	60
+BEGIN	pg_free	52
+DEPRECATED	pg_free1	61
+DEPRECATED	split1	53
+BEGIN	split	62
+DEPRECATED	rsplit1	54
+BEGIN	rsplit	63
+BEGIN	adj	55
+BEGIN	cadjust	56
+BEGIN	cdel	57
+BEGIN	repl	58
+BEGIN	root	59
+BEGIN	curadj	64
+BEGIN	rcuradj	65
+PREFIX	ham
+BEGIN	insdel	21
+BEGIN	newpage	22
+DEPRECATED	splitmeta	23
+BEGIN	splitdata	24
+BEGIN	replace	25
+DEPRECATED	newpgno	26
+DEPRECATED	ovfl	27
+BEGIN	copypage	28
+BEGIN	metagroup	29
+DEPRECATED	groupalloc1	30
+DEPRECATED	groupalloc2	31
+BEGIN	groupalloc	32
+BEGIN	curadj	33
+BEGIN	chgpg	34
+PREFIX	log
+DEPRECATED	register1	1
+BEGIN	register	2
+PREFIX	qam
+BEGIN	inc	76
+BEGIN	incfirst	77
+BEGIN	mvptr	78
+BEGIN	del	79
+BEGIN	add	80
+BEGIN	delete	81
+BEGIN	rename	82
+BEGIN	delext	83
+PREFIX	txn
+DEPRECATED	old_regop	6
+BEGIN	regop	10
+DEPRECATED	old_ckp	7
+BEGIN	ckp	11
+DEPRECATED	xa_regop_old	8
+BEGIN	xa_regop	13
+DEPRECATED	child_old	9
+BEGIN	child	12

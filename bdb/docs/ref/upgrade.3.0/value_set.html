@@ -1,0 +1,41 @@
+<!--$Id: value_set.so,v 11.6 2000/03/18 21:43:21 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Release 3.0: db_value_set</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Upgrading Berkeley DB Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/upgrade.3.0/jump_set.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.0/dbenv_cxx.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Release 3.0: db_value_set</h1>
+<p>The db_value_set interface has been removed from the Berkeley DB 3.0 release,
+replaced by method calls on the DB_ENV handle.
+<p>The following table lists the db_value_set arguments previously used by
+applications and the methods that should now be used instead.
+<p><table border=1 align=center>
+<tr><th>db_value_set argument</th><th>Berkeley DB 3.X method</th></tr>
+<tr><td>DB_MUTEX_LOCKS</td><td><a href="../../api_c/env_set_mutexlocks.html">DBENV-&gt;set_mutexlocks</a></td></tr>
+<tr><td>DB_REGION_ANON</td><td>The DB_REGION_ANON functionality has
+been replaced by the <a href="../../api_c/env_open.html#DB_SYSTEM_MEM">DB_SYSTEM_MEM</a> and <a href="../../api_c/env_open.html#DB_PRIVATE">DB_PRIVATE</a> flags
+to the <a href="../../api_c/env_open.html">DBENV-&gt;open</a> function.  A direct translation is not
+available, please review the <a href="../../api_c/env_open.html">DBENV-&gt;open</a> manual page for more
+information.</td></tr>
+<tr><td>DB_REGION_INIT</td><td><a href="../../api_c/env_set_region_init.html">db_env_set_region_init</a></td></tr>
+<tr><td>DB_REGION_NAME</td><td>The DB_REGION_NAME functionality has
+been replaced by the <a href="../../api_c/env_open.html#DB_SYSTEM_MEM">DB_SYSTEM_MEM</a> and <a href="../../api_c/env_open.html#DB_PRIVATE">DB_PRIVATE</a> flags
+to the <a href="../../api_c/env_open.html">DBENV-&gt;open</a> function.  A direct translation is not
+available, please review the <a href="../../api_c/env_open.html">DBENV-&gt;open</a> manual page for more
+information.</td></tr>
+<tr><td>DB_TSL_SPINS</td><td><a href="../../api_c/env_set_tas_spins.html">db_env_set_tas_spins</a></td></tr>
+</table>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/upgrade.3.0/jump_set.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.0/dbenv_cxx.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

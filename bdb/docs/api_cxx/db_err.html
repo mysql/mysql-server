@@ -1,0 +1,94 @@
+<!--$Id: db_err.so,v 10.11 1999/12/20 08:52:27 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbEnv::err</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbEnv::err</h1>
+</td>
+<td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db_cxx.h&gt;
+<p>
+DbEnv::err(int error, const char *fmt, ...);
+<p>
+DbEnv::errx(const char *fmt, ...);
+<p>
+Db::err(int error, const char *fmt, ...);
+<p>
+Db::errx(const char *fmt, ...);
+</pre></h3>
+<h1>Description</h1>
+<p>The DbEnv::err, DbEnv::errx,  Db::err and
+Db::errx methods provide error messaging functionality for
+applications written using the Berkeley DB library.
+<p>The DbEnv::err method constructs an error message consisting of the
+following elements:
+<p><blockquote><p><dl compact>
+<p><dt>An optional prefix string<dd>If no error callback method has been set using the
+<a href="../api_cxx/env_set_errcall.html">DbEnv::set_errcall</a> method, any prefix string specified using the
+<a href="../api_cxx/env_set_errpfx.html">DbEnv::set_errpfx</a> method, followed by two separating characters: a colon
+and a &lt;space&gt; character.
+<p><dt>An optional printf-style message<dd>The supplied message <b>fmt</b>, if non-NULL, where the ANSI C X3.159-1989 (ANSI C)
+printf function specifies how subsequent arguments are converted for
+output.
+<p><dt>A separator<dd>Two separating characters: a colon and a &lt;space&gt; character.
+<p><dt>A standard error string<dd>The standard system or Berkeley DB library error string associated with the
+<b>error</b> value, as returned by the <a href="../api_cxx/env_strerror.html">DbEnv::strerror</a> method.
+</dl>
+</blockquote>
+<p>This constructed error message is then handled as follows:
+<p><blockquote>
+<p>If an error callback method has been set (see <a href="../api_cxx/db_set_errcall.html">Db::set_errcall</a>
+and <a href="../api_cxx/env_set_errcall.html">DbEnv::set_errcall</a>), that method is called with two
+arguments: any prefix string specified (see <a href="../api_cxx/db_set_errpfx.html">Db::set_errpfx</a> and
+<a href="../api_cxx/env_set_errpfx.html">DbEnv::set_errpfx</a>), and the error message.
+<p>If a C library FILE * has been set (see <a href="../api_cxx/db_set_errfile.html">Db::set_errfile</a> and
+<a href="../api_cxx/env_set_errfile.html">DbEnv::set_errfile</a>), the error message is written to that output
+stream.
+<p>If a C++ ostream has been set
+(see <a href="../api_cxx/env_set_error_stream.html">DbEnv::set_error_stream</a>), the error message is written to that
+stream.
+<p>If none of these output options has been configured, the error message
+is written to stderr, the standard error output stream.</blockquote>
+<p>The DbEnv::errx and Db::errx methods perform identically to the
+DbEnv::err and Db::err methods except that they do not append
+the final separator characters and standard error string to the error
+message.
+<h3>Class</h3>
+<a href="../api_cxx/dbenv_class.html">DbEnv</a>
+<h1>See Also</h1>
+<a href="../api_cxx/env_close.html">DbEnv::close</a>,
+<a href="../api_cxx/env_open.html">DbEnv::open</a>,
+<a href="../api_cxx/env_remove.html">DbEnv::remove</a>,
+<a href="../api_cxx/db_err.html">DbEnv::err</a>,
+<a href="../api_cxx/env_strerror.html">DbEnv::strerror</a>,
+<a href="../api_cxx/env_version.html">DbEnv::version</a>,
+<a href="../api_cxx/env_set_cachesize.html">DbEnv::set_cachesize</a>,
+<a href="../api_cxx/env_set_errcall.html">DbEnv::set_errcall</a>,
+<a href="../api_cxx/env_set_errfile.html">DbEnv::set_errfile</a>,
+<a href="../api_cxx/env_set_error_stream.html">DbEnv::set_error_stream</a>,
+<a href="../api_cxx/env_set_errpfx.html">DbEnv::set_errpfx</a>,
+<a href="../api_cxx/env_set_flags.html">DbEnv::set_flags</a>,
+<a href="../api_cxx/env_set_mutexlocks.html">DbEnv::set_mutexlocks</a>,
+<a href="../api_cxx/env_set_paniccall.html">DbEnv::set_paniccall</a>,
+and
+<a href="../api_cxx/env_set_verbose.html">DbEnv::set_verbose</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

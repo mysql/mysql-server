@@ -1,0 +1,106 @@
+<!--$Id: log_archive.so,v 10.26 2000/05/25 13:47:07 dda Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbEnv::log_archive</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbEnv::log_archive</h1>
+</td>
+<td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db_cxx.h&gt;
+<p>
+extern "C" {
+	typedef void *(*db_malloc_fcn_type)(size_t);
+};
+int
+DbEnv::log_archive(char *(*listp)[],
+    u_int32_t flags, db_malloc_fcn_type db_malloc);
+</pre></h3>
+<h1>Description</h1>
+<p>The DbEnv::log_archive method
+creates a NULL-terminated array of log or database file names and copies
+a pointer to them into the user-specified memory location <b>listp</b>.
+<p>By default, DbEnv::log_archive returns the names of all of the log files
+that are no longer in use (e.g., no longer involved in active transactions),
+and that may safely be archived for catastrophic recovery and then removed
+from the system.  If there were no file names to return, the memory location
+referenced by <b>listp</b> will be set to NULL.
+<p>Arrays of log file names are created in allocated memory.  If <b>db_malloc</b> is non-NULL, it
+is called to allocate the memory, otherwise, the library function
+<b>malloc</b>(3) is used.  The function <b>db_malloc</b> must match
+the calling conventions of the <b>malloc</b>(3) library routine.
+Regardless, the caller is responsible for deallocating the returned
+memory.  To deallocate returned memory, free the returned memory
+reference, references inside the returned memory do not need to be
+individually freed.
+<p>The <b>flags</b> value must be set to 0 or by bitwise inclusively <b>OR</b>'ing together one or more
+of the following values.
+<p><dl compact>
+<p><dt><a name="DB_ARCH_ABS">DB_ARCH_ABS</a><dd>All pathnames are returned as absolute pathnames,
+instead of relative to the database home directory.
+<p><dt><a name="DB_ARCH_DATA">DB_ARCH_DATA</a><dd>Return the database files that need to be archived in order to recover
+the database from catastrophic failure.  If any of the database files
+have not been accessed during the lifetime of the current log files,
+DbEnv::log_archive will not include them in this list.  It is also
+possible that some of the files referenced in the log have since been
+deleted from the system.
+<p><dt><a name="DB_ARCH_LOG">DB_ARCH_LOG</a><dd>Return all the log file names regardless of whether or not they are in
+use.
+</dl>
+<p>The DB_ARCH_DATA and DB_ARCH_LOG flags are mutually
+exclusive.
+<p>See the <a href="../utility/db_archive.html">db_archive</a> manual page for more information on database
+archival procedures.
+<p>The DbEnv::log_archive method either returns a non-zero error value or throws an exception that
+encapsulates a non-zero error value on failure, and returns 0 on success.
+<h1>Bugs</h1>
+<p>In a threaded application (i.e., one where the environment was created
+with the DB_THREAD flag specified), calling DbEnv::log_archive with the
+DB_ARCH_DATA flag will fail, returning EINVAL.  To work around this
+problem, re-open the log explicitly without specifying DB_THREAD.  This
+restriction is expected to be removed in a future version of Berkeley DB.
+<h1>Errors</h1>
+<p>The DbEnv::log_archive method may fail and throw an exception or return a non-zero error for the following conditions:
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+<p>The log was corrupted.
+</dl>
+<p>The DbEnv::log_archive method may fail and throw an exception or return a non-zero error for errors specified for other Berkeley DB and C library or system methods.
+If a catastrophic error has occurred, the DbEnv::log_archive method may fail and either
+return <a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a> or throw an exception encapsulating
+<a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a>, in which case all subsequent Berkeley DB calls will fail
+in the same way.
+<h3>Class</h3>
+<a href="../api_cxx/dbenv_class.html">DbEnv</a>
+<h1>See Also</h1>
+<a href="../api_cxx/env_set_lg_bsize.html">DbEnv::set_lg_bsize</a>,
+<a href="../api_cxx/env_set_lg_max.html">DbEnv::set_lg_max</a>,
+<a href="../api_cxx/log_archive.html">DbEnv::log_archive</a>,
+<a href="../api_cxx/log_compare.html">DbEnv::log_compare</a>,
+<a href="../api_cxx/log_file.html">DbEnv::log_file</a>,
+<a href="../api_cxx/log_flush.html">DbEnv::log_flush</a>,
+<a href="../api_cxx/log_get.html">DbEnv::log_get</a>,
+<a href="../api_cxx/log_put.html">DbEnv::log_put</a>,
+<a href="../api_cxx/log_register.html">DbEnv::log_register</a>,
+<a href="../api_cxx/log_stat.html">DbEnv::log_stat</a>
+and
+<a href="../api_cxx/log_unregister.html">DbEnv::log_unregister</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

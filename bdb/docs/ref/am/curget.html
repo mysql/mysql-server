@@ -1,0 +1,74 @@
+<!--$Id: curget.so,v 10.14 2000/12/18 21:05:13 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Retrieving records with a cursor</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>        <a name="3"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Access Methods</dl></h3></td>
+<td width="1%"><a href="../../ref/am/cursor.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am/curput.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Retrieving records with a cursor</h1>
+<p>The <a href="../../api_c/dbc_get.html">DBcursor-&gt;c_get</a> function is the standard interface for retrieving records from
+the database with a cursor.  The <a href="../../api_c/dbc_get.html">DBcursor-&gt;c_get</a> function takes a flag which
+controls how the cursor is positioned within the database and returns the
+key/data item associated with that positioning.  Similar to
+<a href="../../api_c/db_get.html">DB-&gt;get</a>, <a href="../../api_c/dbc_get.html">DBcursor-&gt;c_get</a> may also take a supplied key and retrieve
+the data associated with that key from the database.  There are several
+flags that you can set to customize retrieval.
+<h3>Cursor position flags</h3>
+<p><dl compact>
+<p><dt><a href="../../api_c/dbc_get.html#DB_FIRST">DB_FIRST</a>, <a href="../../api_c/dbc_get.html#DB_LAST">DB_LAST</a><dd>Return the first (last) record in the database.
+<p><dt><a href="../../api_c/dbc_get.html#DB_NEXT">DB_NEXT</a>, <a href="../../api_c/dbc_get.html#DB_PREV">DB_PREV</a><dd>Return the next (previous) record in the database.
+<p><dt><a href="../../api_c/dbc_get.html#DB_NEXT_DUP">DB_NEXT_DUP</a><dd>Return the next record in the database, if it is a duplicate data item
+for the current key.
+<p><dt><a href="../../api_c/dbc_get.html#DB_NEXT_NODUP">DB_NEXT_NODUP</a>, <a href="../../api_c/dbc_get.html#DB_PREV_NODUP">DB_PREV_NODUP</a><dd>Return the next (previous) record in the database that is not a
+duplicate data item for the current key.
+<p><dt><a href="../../api_c/dbc_get.html#DB_CURRENT">DB_CURRENT</a><dd>Return the record from the database currently referenced by the
+cursor.
+</dl>
+<h3>Retrieving specific key/data pairs</h3>
+<p><dl compact>
+<p><dt><a href="../../api_c/dbc_get.html#DB_SET">DB_SET</a><dd>Return the record from the database that matches the supplied key.  In
+the case of duplicates the first duplicate is returned and the cursor
+is positioned at the beginning of the duplicate list.  The user can then
+traverse the duplicate entries for the key.
+<p><dt><a href="../../api_c/dbc_get.html#DB_SET_RANGE">DB_SET_RANGE</a><dd>Return the smallest record in the database greater than or equal to the
+supplied key.  This functionality permits partial key matches and range
+searches in the Btree access method.
+<p><dt><a href="../../api_c/db_get.html#DB_GET_BOTH">DB_GET_BOTH</a><dd>Return the record from the database that matches both the supplied key
+and data items.  This is particularly useful when there are large
+numbers of duplicate records for a key, as it allows the cursor to
+easily be positioned at the correct place for traversal of some part of
+a large set of duplicate records.
+</dl>
+<h3>Retrieving based on record numbers</h3>
+<p><dl compact>
+<p><dt><a href="../../api_c/db_get.html#DB_SET_RECNO">DB_SET_RECNO</a><dd>If the underlying database is a Btree, and was configured so that it is
+possible to search it by logical record number, retrieve a specific
+record based on a record number argument.
+<p><dt><a href="../../api_c/dbc_get.html#DB_GET_RECNO">DB_GET_RECNO</a><dd>If the underlying database is a Btree, and was configured so that it is
+possible to search it by logical record number, return the record number
+for the record referenced by the cursor.
+</dl>
+<h3>Special-purpose flags</h3>
+<p><dl compact>
+<p><dt><a href="../../api_c/db_get.html#DB_CONSUME">DB_CONSUME</a><dd>Read-and-delete: the first record (the head) of the queue is returned and
+deleted.  The underlying database must be a Queue.
+<p><dt><a href="../../api_c/dbc_get.html#DB_RMW">DB_RMW</a><dd>Read-modify-write: acquire write locks instead of read locks during
+retrieval. This can enhance performance in threaded applications by
+reducing the chance of deadlock.
+</dl>
+<p>In all cases, the cursor is repositioned by a <a href="../../api_c/dbc_get.html">DBcursor-&gt;c_get</a> operation
+to point to the newly-returned key/data pair in the database.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/am/cursor.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am/curput.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,71 @@
+<!--$Id: scope.so,v 10.3 2000/08/10 17:54:49 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Berkeley DB handles</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Programmer Notes</dl></h3></td>
+<td width="1%"><a href="../../ref/program/mt.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/program/namespace.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Berkeley DB handles</h1>
+        <a name="3"><!--meow--></a>    
+<p>The Berkeley DB library has a number of object handles.  The following table
+lists those handles, their scope, and if they are free-threaded, that
+is, if multiple threads within a process can share them.
+<p><dl compact>
+<p><dt>DB_ENV<dd>The DB_ENV handle is created by the <a href="../../api_c/env_create.html">db_env_create</a> function and
+references a Berkeley DB database environment, a collection of
+databases and Berkeley DB subsystems.  DB_ENV handles are free-threaded
+if the <a href="../../api_c/env_open.html#DB_THREAD">DB_THREAD</a> flag is specified to the <a href="../../api_c/env_open.html">DBENV-&gt;open</a> function
+when the environment is opened.  The handle should not be closed while
+any other handle remains open that is using it as a reference
+(e.g., DB or DB_TXN).  Once either the <a href="../../api_c/env_close.html">DBENV-&gt;close</a> or
+<a href="../../api_c/env_remove.html">DBENV-&gt;remove</a> functions are called, the handle may not be accessed again,
+regardless of the function's return.
+<p><dt>DB_TXN<dd>The DB_TXN handle is created by the <a href="../../api_c/txn_begin.html">txn_begin</a> function and
+references a single transaction.  The handle is not free-threaded, and
+transactions may not span threads nor may transactions be used by more
+than a single thread.
+Once the
+<a href="../../api_c/txn_abort.html">txn_abort</a> or <a href="../../api_c/txn_commit.html">txn_commit</a> functions are called, the handle may
+not be accessed again, regardless of the function's return.
+In addition, parent transactions may not issue
+any Berkeley DB operations, except for <a href="../../api_c/txn_begin.html">txn_begin</a>, <a href="../../api_c/txn_abort.html">txn_abort</a>
+and <a href="../../api_c/txn_commit.html">txn_commit</a>, while it has active child transactions (child
+transactions that have not yet been committed or aborted).
+<p><dt>DB_MPOOLFILE<dd>The DB_MPOOLFILE handle references an open file in the shared
+memory buffer pool of the database environment.  The handle is not
+free-threaded.  Once the <a href="../../api_c/memp_fclose.html">memp_fclose</a> function is called, the handle may
+not be accessed again, regardless of the function's return.
+<p><dt>DB<dd>The DB handle is created by the <a href="../../api_c/db_create.html">db_create</a> function and
+references a single Berkeley DB database, which may or may not be part of a
+database environment.  DB handles are free-threaded if the
+<a href="../../api_c/env_open.html#DB_THREAD">DB_THREAD</a> flag is specified to the <a href="../../api_c/db_open.html">DB-&gt;open</a> function when the
+database is opened, or if the database environment in which the database
+is opened is free-threaded.  The handle should not be closed while any
+other handle that references the database is in use, e.g., database
+handles must not be closed while cursor handles into the database remain
+open, or transactions which include operations on the database have not
+yet been committed or aborted.  Once the <a href="../../api_c/db_close.html">DB-&gt;close</a>,
+<a href="../../api_c/db_remove.html">DB-&gt;remove</a> or <a href="../../api_c/db_rename.html">DB-&gt;rename</a> functions are called, the handle may
+not be accessed again, regardless of the function's return.
+<p><dt>DBC<dd>The DBC handle references a cursor into a Berkeley DB database.  The
+handle is not free-threaded and cursors may not span threads nor may
+cursors be used by more than a single thread.  If the cursor is to be
+used to perform operations on behalf of a transaction, the cursor must
+be opened and closed within the context of that single transaction.
+Once <a href="../../api_c/dbc_close.html">DBcursor-&gt;c_close</a> has been called, the handle may not be accessed
+again, regardless of the function's return.
+</dl>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/program/mt.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/program/namespace.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

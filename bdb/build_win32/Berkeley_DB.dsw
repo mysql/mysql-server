@@ -1,0 +1,569 @@
+Microsoft Developer Studio Workspace File, Format Version 5.00
+# WARNING: DO NOT EDIT OR DELETE THIS WORKSPACE FILE!
+
+###############################################################################
+
+Project: "DB_DLL"=.\db_dll.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "DB_Static"=.\db_static.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "db_archive"=.\db_archive.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "db_buildall"=.\db_buildall.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name db_archive
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name db_checkpoint
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name db_deadlock
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name db_dump
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name db_load
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name db_printlog
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name db_recover
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name db_stat
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name db_upgrade
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name db_verify
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name ex_access
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name ex_btrec
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name ex_env
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name ex_lock
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name ex_mpool
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name ex_tpcb
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name excxx_access
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name excxx_btrec
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name excxx_env
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name excxx_lock
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name excxx_mpool
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name excxx_tpcb
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "db_checkpoint"=.\db_checkpoint.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "db_deadlock"=.\db_deadlock.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "db_dump"=.\db_dump.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "db_java"=.\db_java.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "db_load"=.\db_load.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "db_printlog"=.\db_printlog.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "db_recover"=.\db_recover.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "db_stat"=.\db_stat.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "db_tcl"=.\db_tcl.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "db_test"=.\db_test.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name db_buildall
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name db_tcl
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "db_upgrade"=.\db_upgrade.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "db_verify"=.\db_verify.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "ex_access"=.\ex_access.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "ex_btrec"=.\ex_btrec.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "ex_env"=.\ex_env.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "ex_lock"=.\ex_lock.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "ex_mpool"=.\ex_mpool.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "ex_tpcb"=.\ex_tpcb.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "excxx_access"=.\excxx_access.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "excxx_btrec"=.\excxx_btrec.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "excxx_env"=.\excxx_env.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "excxx_lock"=.\excxx_lock.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "excxx_mpool"=.\excxx_mpool.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "excxx_tpcb"=.\excxx_tpcb.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name DB_DLL
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name DB_Static
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Global:
+
+Package=<5>
+{{{
+}}}
+
+Package=<3>
+{{{
+}}}
+
+###############################################################################
+

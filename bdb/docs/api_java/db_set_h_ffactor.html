@@ -1,0 +1,86 @@
+<!--$Id: db_set_h_ffactor.so,v 10.15 2000/05/01 21:57:43 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: Db.set_h_ffactor</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>Db.set_h_ffactor</h1>
+</td>
+<td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+import com.sleepycat.db.*;
+<p>
+public void set_h_ffactor(int h_ffactor)
+	throws DbException;
+</pre></h3>
+<h1>Description</h1>
+<p>Set the desired density within the hash table.
+<p>The density is an approximation of the number of keys allowed to
+accumulate in any one bucket, determining when the hash table grows or
+shrinks.  If you know the average sizes of the keys and data in your
+dataset, setting the fill factor can enhance performance.  A reasonable
+rule computing fill factor is to set it to:
+<p><blockquote><pre>(pagesize - 32) / (average_key_size + average_data_size + 8)</pre></blockquote>
+<p>If no value is specified, the fill factor will be selected dynamically as
+pages are filled.
+<p>The Db.set_h_ffactor interface may only be used to configure Berkeley DB before
+the <a href="../api_java/db_open.html">Db.open</a> interface is called.
+<p>The Db.set_h_ffactor method throws an exception that encapsulates a non-zero error value on
+failure.
+<h1>Errors</h1>
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+<p>Called after <a href="../api_java/db_open.html">Db.open</a> was called.
+</dl>
+<h3>Class</h3>
+<a href="../api_java/db_class.html">Db</a>
+<h1>See Also</h1>
+<a href="../api_java/db_close.html">Db.close</a>,
+<a href="../api_java/db_cursor.html">Db.cursor</a>,
+<a href="../api_java/db_del.html">Db.del</a>,
+<a href="../api_java/db_fd.html">Db.fd</a>,
+<a href="../api_java/db_get.html">Db.get</a>,
+<a href="../api_java/db_get_byteswapped.html">Db.get_byteswapped</a>,
+<a href="../api_java/db_get_type.html">Db.get_type</a>,
+<a href="../api_java/db_join.html">Db.join</a>,
+<a href="../api_java/db_key_range.html">Db.key_range</a>,
+<a href="../api_java/db_open.html">Db.open</a>,
+<a href="../api_java/db_put.html">Db.put</a>,
+<a href="../api_java/db_remove.html">Db.remove</a>,
+<a href="../api_java/db_set_bt_minkey.html">Db.set_bt_minkey</a>,
+<a href="../api_java/db_set_cachesize.html">Db.set_cachesize</a>,
+<a href="../api_java/db_set_errcall.html">Db.set_errcall</a>,
+<a href="../api_java/db_set_errpfx.html">Db.set_errpfx</a>,
+<a href="../api_java/db_set_flags.html">Db.set_flags</a>,
+<a href="../api_java/db_set_h_ffactor.html">Db.set_h_ffactor</a>,
+<a href="../api_java/db_set_h_nelem.html">Db.set_h_nelem</a>,
+<a href="../api_java/db_set_lorder.html">Db.set_lorder</a>,
+<a href="../api_java/db_set_pagesize.html">Db.set_pagesize</a>,
+<a href="../api_java/db_set_q_extentsize.html">Db.set_q_extentsize</a>,
+<a href="../api_java/db_set_re_delim.html">Db.set_re_delim</a>,
+<a href="../api_java/db_set_re_len.html">Db.set_re_len</a>,
+<a href="../api_java/db_set_re_pad.html">Db.set_re_pad</a>,
+<a href="../api_java/db_set_re_source.html">Db.set_re_source</a>,
+<a href="../api_java/db_stat.html">Db.stat</a>,
+<a href="../api_java/db_sync.html">Db.sync</a>,
+<a href="../api_java/db_upgrade.html">Db.upgrade</a>
+and
+<a href="../api_java/db_verify.html">Db.verify</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

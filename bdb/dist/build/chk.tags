@@ -1,0 +1,39 @@
+#!/bin/sh -
+#
+# $Id: chk.tags,v 1.5 2000/12/22 15:35:32 bostic Exp $
+#
+# Check to make sure we don't need any more symbolic links to tags files.
+
+# Run from the top-level directory.
+[ -f db_config.h ] && cd ..
+
+t1=/tmp/__1
+t2=/tmp/__2
+
+(ls -F | egrep / | sort |
+    sed -e 's/\///' \
+	-e '/^CVS$/d' \
+	-e '/^build_vxworks$/d' \
+	-e '/^build_win32$/d' \
+	-e '/^docs$/d' \
+	-e '/^docs.text$/d' \
+	-e '/^docs_src$/d' \
+	-e '/^docs_text$/d' \
+	-e '/^java$/d' \
+	-e '/^perl.BerkeleyDB$/d' \
+	-e '/^perl.DB_File$/d' \
+	-e '/^test$/d' \
+	-e '/^test_purify$/d' \
+	-e '/^test_thread$/d' \
+	-e '/^test_vxworks$/d') > ${t1}
+
+(ls */tags | sed 's/\/tags$//' | sort) > ${t2}
+if diff ${t1} ${t2} > /dev/null; then
+	:
+else
+	echo "<<< source tree"
+	echo ">>> tags files"
+	diff ${t1} ${t2}
+fi
+
+rm -f ${t1} ${t2}

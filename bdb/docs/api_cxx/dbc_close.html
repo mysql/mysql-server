@@ -1,0 +1,68 @@
+<!--$Id: dbc_close.so,v 10.20 2000/03/01 21:41:29 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: Dbc::close</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>Dbc::close</h1>
+</td>
+<td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db_cxx.h&gt;
+<p>
+int
+Dbc::close(void);
+</pre></h3>
+<h1>Description</h1>
+<p>The Dbc::close method discards the cursor.
+<p>It is possible for the Dbc::close method to return
+<a href="../ref/program/errorret.html#DB_LOCK_DEADLOCK">DB_LOCK_DEADLOCK</a>, signaling that any enclosing transaction should
+be aborted.  If the application is already intending to abort the
+transaction, this error should be ignored, and the application should
+proceed.
+<p>Once Dbc::close has been called, regardless of its return, the
+cursor handle may not be used again.
+<p>The Dbc::close method either returns a non-zero error value or throws an exception that
+encapsulates a non-zero error value on failure, and returns 0 on success.
+<h1>Errors</h1>
+<p>The Dbc::close method may fail and throw an exception or return a non-zero error for the following conditions:
+<p><dl compact>
+<p><dt>DB_LOCK_DEADLOCK<dd>The operation was selected to resolve a deadlock.
+</dl>
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+<p>The cursor was previously closed.
+</dl>
+<p>The Dbc::close method may fail and throw an exception or return a non-zero error for errors specified for other Berkeley DB and C library or system methods.
+If a catastrophic error has occurred, the Dbc::close method may fail and either
+return <a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a> or throw an exception encapsulating
+<a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a>, in which case all subsequent Berkeley DB calls will fail
+in the same way.
+<h3>Class</h3>
+<a href="../api_cxx/dbc_class.html">Dbc</a>
+<h1>See Also</h1>
+<a href="../api_cxx/dbc_close.html">Dbc::close</a>,
+<a href="../api_cxx/dbc_count.html">Dbc::count</a>,
+<a href="../api_cxx/dbc_del.html">Dbc::del</a>,
+<a href="../api_cxx/dbc_dup.html">Dbc::dup</a>,
+<a href="../api_cxx/dbc_get.html">Dbc::get</a>
+and
+<a href="../api_cxx/dbc_put.html">Dbc::put</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

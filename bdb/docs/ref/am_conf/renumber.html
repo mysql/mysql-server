@@ -1,0 +1,80 @@
+<!--$Id: renumber.so,v 10.23 2000/12/18 21:05:14 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Logically renumbering records</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Access Methods</dl></h3></td>
+<td width="1%"><a href="../../ref/am_conf/re_source.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am/ops.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Logically renumbering records</h1>
+<p>Records stored in the Queue and Recno access methods are accessed by
+logical record number.  In all cases in Btree databases, and optionally
+in Recno databases (see the <a href="../../api_c/db_set_flags.html">DB-&gt;set_flags</a> function and the
+<a href="../../api_c/db_set_flags.html#DB_RENUMBER">DB_RENUMBER</a> flag for more information), record numbers are
+mutable.  This means that the record numbers may change as records are
+added to and deleted from the database.  The deletion of record number
+4 causes any records numbered 5 and higher to be renumbered downward by
+1;  the addition of a new record after record number 4 causes any
+records numbered 5 and higher to be renumbered upward by 1.  In all
+cases in Queue databases, and by default in Recno databases, record
+numbers are not mutable, and the addition or deletion of records to the
+database will not cause already-existing record numbers to change.  For
+this reason, new records cannot be inserted between already-existing
+records in databases with immutable record numbers.
+<p>Cursors pointing into a Btree database or a Recno database with mutable
+record numbers maintain a reference to a specific record, rather than
+a record number, that is, the record they reference does not change as
+other records are added or deleted.  For example, if a database contains
+three records with the record numbers 1, 2, and 3, and the data items
+"A", "B", and "C", respectively, the deletion of record number 2 ("B")
+will cause the record "C" to be renumbered downward to record number 2.
+A cursor positioned at record number 3 ("C") will be adjusted and
+continue to point to "C" after the deletion.  Similarly, a cursor
+previously referencing the now deleted record number 2 will be
+positioned between the new record numbers 1 and 2, and an insertion
+using that cursor will appear between those records.   In this manner
+records can be added and deleted to a database without disrupting the
+sequential traversal of the database by a cursor.
+<p>Only cursors created using a single DB handle can adjust each
+other's position in this way, however.  If multiple DB handles
+have a renumbering Recno database open simultaneously (as when multiple
+processes share a single database environment), a record referred to by
+one cursor could change underfoot if a cursor created using another
+DB handle inserts or deletes records into the database.  For
+this reason, applications using Recno databases with mutable record
+numbers will usually make all accesses to the database using a single
+DB handle and cursors created from that handle, or will
+otherwise single-thread access to the database, e.g., by using the
+Berkeley DB Concurrent Data Store product.
+<p>In any Queue or Recno databases, creating new records will cause the
+creation of multiple records if the record number being created is more
+than one greater than the largest record currently in the database. For
+example, creating record number 28, when record 25 was previously the
+last record in the database, will implicitly create records 26 and 27
+as well as 28.  All first, last, next and previous cursor operations
+will automatically skip over these implicitly created records.  So, if
+record number 5 is the only record the application has created,
+implicitly creating records 1 through 4, the <a href="../../api_c/dbc_get.html">DBcursor-&gt;c_get</a> interface
+with the <a href="../../api_c/dbc_get.html#DB_FIRST">DB_FIRST</a> flag will return record number 5, not record
+number 1.  Attempts to explicitly retrieve implicitly created records
+by their record number will result in a special error return,
+<a href="../../ref/program/errorret.html#DB_KEYEMPTY">DB_KEYEMPTY</a>.
+<p>In any Berkeley DB database, attempting to retrieve a deleted record, using
+a cursor positioned on the record, results in a special error return,
+<a href="../../ref/program/errorret.html#DB_KEYEMPTY">DB_KEYEMPTY</a>.  In addition, when using Queue databases or Recno
+databases with immutable record numbers, attempting to retrieve a deleted
+record by its record number will also result in the <a href="../../ref/program/errorret.html#DB_KEYEMPTY">DB_KEYEMPTY</a>
+return.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/am_conf/re_source.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am/ops.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

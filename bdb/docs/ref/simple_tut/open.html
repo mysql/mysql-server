@@ -1,0 +1,90 @@
+<!--$Id: open.so,v 10.27 2000/12/14 21:42:18 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Opening a database</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Simple Tutorial</dl></h3></td>
+<td width="1%"><a href="../../ref/simple_tut/errors.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/simple_tut/put.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Opening a database</h1>
+<p>Opening a database is done in two steps: first, a DB handle is
+created using the Berkeley DB <a href="../../api_c/db_create.html">db_create</a> interface, and then the
+actual database is opened using the <a href="../../api_c/db_open.html">DB-&gt;open</a> function.
+<p>The <a href="../../api_c/db_create.html">db_create</a> interface takes three arguments:
+<p><dl compact>
+<p><dt>dbp<dd>A location to store a reference to the created structure.
+<p><dt>environment<dd>A location to specify an enclosing Berkeley DB environment, not used in our
+example.
+<p><dt>flags<dd>A placeholder for flags, not used in our example.
+</dl>
+<p>The <a href="../../api_c/db_open.html">DB-&gt;open</a> interface takes five arguments:
+<p><dl compact>
+<p><dt>file<dd>The name of the database file to be opened.
+<p><dt>database<dd>The optional database name, not used in this example.
+<p><dt>type<dd>The type of database to open.  This value will be one of the four access
+methods Berkeley DB supports:  DB_BTREE, DB_HASH, DB_QUEUE or DB_RECNO, or the
+special value DB_UNKNOWN, which allows you to open an existing file
+without knowing its type.
+<p><dt>flags<dd>Various flags that modify the behavior of <a href="../../api_c/db_open.html">DB-&gt;open</a>.  In our
+simple case, the only interesting flag is <a href="../../api_c/env_open.html#DB_CREATE">DB_CREATE</a>.  This flag
+behaves similarly to the IEEE/ANSI Std 1003.1 (POSIX) O_CREATE flag to the open system
+call, causing Berkeley DB to create the underlying database if it does not
+yet exist.
+<p><dt>mode<dd>The file mode of any underlying files that <a href="../../api_c/db_open.html">DB-&gt;open</a> will create.
+The mode behaves as does the IEEE/ANSI Std 1003.1 (POSIX) mode argument to the open
+system call, and specifies file read, write and execute permissions.
+Of course, only the read and write permissions are relevant to Berkeley DB.
+</dl>
+<p>Here's what the code to create the handle and then call <a href="../../api_c/db_open.html">DB-&gt;open</a>
+looks like:
+<p><blockquote><pre><b>#include &lt;sys/types.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;db.h&gt;
+<p>
+#define	DATABASE "access.db"
+<p>
+int
+main()
+{
+	DB *dbp;
+	int ret;
+<p>
+	if ((ret = db_create(&dbp, NULL, 0)) != 0) {
+		fprintf(stderr, "db_create: %s\n", db_strerror(ret));
+		exit (1);
+	}
+	if ((ret = dbp-&gt;open(
+	    dbp, DATABASE, NULL, DB_BTREE, DB_CREATE, 0664)) != 0) {
+		dbp-&gt;err(dbp, ret, "%s", DATABASE);
+		goto err;
+	}</b>
+</pre></blockquote>
+<p>If the call to <a href="../../api_c/db_create.html">db_create</a> is successful, the variable <b>dbp</b>
+will contain a database handle that will be used to configure and access
+an underlying database.
+<p>As you see, the program opens a database named <b>access.db</b>.  The
+underlying database is a Btree.  Because the <a href="../../api_c/env_open.html#DB_CREATE">DB_CREATE</a> flag was
+specified, the file will be created if it does not already exist.  The
+mode of any created files will be 0664 (i.e., readable and writeable by
+the owner and the group, and readable by everyone else).
+<p>One additional function call is used in this code sample, <a href="../../api_c/db_err.html">DB-&gt;err</a>.
+This method works like the ANSI C printf interface.  The second argument
+is the error return from a Berkeley DB function, and the rest of the arguments
+are a printf-style format string and argument list.  The error message
+associated with the error return will be appended to a message constructed
+from the format string and other arguments.  In the above code, if the
+<a href="../../api_c/db_open.html">DB-&gt;open</a> call were to fail, the message it would display would be
+something like
+<p><blockquote><pre>access.db: Operation not permitted</pre></blockquote>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/simple_tut/errors.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/simple_tut/put.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

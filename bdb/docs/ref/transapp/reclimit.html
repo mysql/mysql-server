@@ -1,0 +1,106 @@
+<!--$Id: reclimit.so,v 11.19 2000/08/16 17:50:40 margo Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Berkeley DB recoverability</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Transaction Protected Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/transapp/filesys.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/throughput.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Berkeley DB recoverability</h1>
+<p>Berkeley DB recovery is based on write-ahead logging.  What this means is that,
+when a change is made to a database page, a description of the change is
+written into a log file.  This description in the log file is guaranteed
+to be written to stable storage before the database pages that were
+changed are written to stable storage.  This is the fundamental feature
+of the logging system that makes durability and rollback work.
+<p>If the application or system crashes, the log is reviewed during recovery.
+Any database changes described in the log that were part of committed
+transactions, and that were never written to the actual database itself,
+are written to the database as part of recovery.  Any database changes
+described in the log that were never committed, and that were written to
+the actual database itself, are backed-out of the the database as part of
+recovery.  This design allows the database to be written lazily, and only
+blocks from the log file have to be forced to disk as part of transaction
+commit.
+<p>There are two interfaces that are a concern when considering Berkeley DB
+recoverability:
+<p><ol>
+<p><li>The interface between Berkeley DB and the operating system/filesystem.
+<li>The interface between the operating system/filesystem and the
+underlying stable storage hardware.
+</ol>
+<p>Berkeley DB uses the operating system interfaces and its underlying filesystem
+when writing its files.  This means that Berkeley DB can fail if the underlying
+filesystem fails in some unrecoverable way.  Otherwise, the interface
+requirements here are simple: the system call that Berkeley DB uses to flush
+data to disk (normally <b>fsync</b>(2)), must guarantee that all the
+information necessary for a file's recoverability has been written to
+stable storage before it returns to Berkeley DB, and that no possible
+application or system crash can cause that file to be unrecoverable.
+<p>In addition, Berkeley DB implicitly uses the interface between the operating
+system and the underlying hardware.  The interface requirements here are
+not as simple.
+<p>First, it is necessary to consider the underlying page size of the Berkeley DB
+databases.  The Berkeley DB library performs all database writes using the page
+size specified by the application.  These pages are not checksummed and
+Berkeley DB assumes that they are written atomically.  This means that if the
+operating system performs filesystem I/O in different sized blocks than
+the database page size, it may increase the possibility for database
+corruption.  For example, assume that Berkeley DB is writing 32KB pages for a
+database and the operating system does filesystem I/O in 16KB blocks.  If
+the operating system writes the first 16KB of the database page
+successfully, but crashes before being able to write the second 16KB of
+the database, the database has been corrupted and this corruption will
+not be detected during recovery.  For this reason, it may be important
+to select database page sizes that will be written as single block
+transfers by the underlying operating system.
+<p>Second, it is necessary to consider the behavior of the system's underlying
+stable storage hardware.  For example, consider a SCSI controller that
+has been configured to cache data and return to the operating system that
+the data has been written to stable storage, when, in fact, it has only
+been written into the controller RAM cache.  If power is lost before the
+controller is able to flush its cache to disk, and the controller cache
+is not stable (i.e., the writes will not be flushed to disk when power
+returns), the writes will be lost.  If the writes include database blocks,
+there is no loss as recovery will correctly update the database.  If the
+writes include log file blocks, it is possible that transactions that were
+already committed may not appear in the recovered database, although the
+recovered database will be coherent after a crash.
+<p>If the underlying hardware can fail in any way such that only part of the
+block was written, the failure conditions are the same as those described
+above for an operating system failure that only writes part of a logical
+database block.
+<p>For these reasons, it is important to select hardware that does not do
+partial writes and does not cache data writes (or does not return that
+the data has been written to stable storage until it either has been
+written to stable storage or the actual writing of all of the data is
+guaranteed barring catastrophic hardware failure, e.g., your disk drive
+exploding).  You should also be aware that Berkeley DB does not protect against
+all cases of stable storage hardware failure, nor does it protect against
+hardware misbehavior.
+<p>If the disk drive on which you are storing your databases explodes, you
+can perform normal Berkeley DB catastrophic recovery, as that requires only a
+snapshot of your databases plus all of the log files you have archived
+since those snapshots were taken.  In this case, you will lose no database
+changes at all.  If the disk drive on which you are storing your log files
+explodes, you can still perform catastrophic recovery, but you will lose
+any database changes that were part of transactions committed since your
+last archival of the log files.  For this reason, storing your databases
+and log files on different disks should be considered a safety measure as
+well as a performance enhancement.
+<p>Finally, if your hardware misbehaves, for example, a SCSI controller
+writes incorrect data to the disk, Berkeley DB will not detect this and your
+data may be corrupted.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/transapp/filesys.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/throughput.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

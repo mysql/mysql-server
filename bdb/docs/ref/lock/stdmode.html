@@ -1,0 +1,61 @@
+<!--$Id: stdmode.so,v 10.20 2000/03/18 21:43:14 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Standard lock modes</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Locking Subsystem</dl></h3></td>
+<td width="1%"><a href="../../ref/lock/page.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/lock/notxn.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Standard lock modes</h1>
+<p>The Berkeley DB locking protocol is described by a conflict matrix.  A conflict
+matrix is an n x n array where n is the number of different lock modes
+supported, and the (i, j)th entry of the array indicates whether a lock of
+mode i conflicts with a lock of mode j.
+<p>The Berkeley DB include files declare two commonly used conflict arrays:
+<p><dl compact>
+<p><dt>const u_int8_t db_rw_conflicts[ ];<dd>This is a conflict matrix for a simple scheme using shared and exclusive
+lock modes.
+<p><dt>const u_int8_t db_riw_conflicts[ ];<dd>This is a conflict matrix that involves various intent lock modes (e.g.,
+intent shared) that are used for multigranularity locking.
+</dl>
+<p>The number of modes associated with each matrix are DB_LOCK_RW_N and
+DB_LOCK_RIW_N, respectively.
+<p>In addition, the Berkeley DB include file defines the type <b>db_lockmode_t</b>,
+which is the type of the lock modes used with the standard tables above:
+<p><dl compact>
+<p><dt>DB_LOCK_NG<dd>not granted (always 0)
+<p><dt>DB_LOCK_READ<dd>read (shared)
+<p><dt>DB_LOCK_WRITE<dd>write (exclusive)
+</dl>
+<p>As an example, consider the basic multiple-reader/single writer conflict
+matrix described by <b>db_rw_conflicts</b>.  In the following
+example (and in the appropriate file), a 1 represents a conflict (i.e.,
+do not grant the lock if the indicated lock is held) and a 0 indicates
+that it is OK to grant the lock.
+<p>The rows indicate the lock that is held and the columns indicate the lock
+that is requested.
+<p><blockquote><pre>		Notheld	Read    Write
+Notheld		0	0	0
+Read*		0	0	1
+Write**		0	1	1
+</pre></blockquote>
+<p><dl compact>
+<p><dt>*<dd>In this case, suppose that there is a read lock held on an object.  A new
+request for a read lock would be granted, but a request for a write lock
+would not.
+<p><dt>**<dd>In this case, suppose that there is a write lock held on an object.  A
+new request for either a read or write lock would be denied.
+</dl>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/lock/page.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/lock/notxn.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,31 @@
+#!/bin/sh -
+#	$Id: s_java,v 1.3 2000/07/13 18:38:46 bostic Exp $
+#
+# Build the Java files.
+
+msgcxx="// DO NOT EDIT: automatically built by dist/s_java."
+
+. RELEASE
+
+f=../java/src/com/sleepycat/db/DbConstants.java
+echo "Building $f"
+rm -f $f
+(echo "$msgcxx" && \
+ echo &&
+ echo 'package com.sleepycat.db;' &&
+ echo &&
+ echo 'public class DbConstants' &&
+ echo '{' &&
+ egrep '^#define.DB_' ../include/db.src | \
+ sed -e '/"/d' \
+     -e '/@DB_VERSION_/d' \
+     -e '/DB_REDO/d' \
+     -e '/DB_UNDO/d' \
+     -e 's/[()]/ /g' \
+     -e 's/\/\*/ /' | \
+ awk '{ print "\tpublic static final int " $2 " = " $3 ";" }' &&
+ echo "	public static final int DB_VERSION_MAJOR = $DB_VERSION_MAJOR;" &&
+ echo "	public static final int DB_VERSION_MINOR = $DB_VERSION_MINOR;" &&
+ echo "	public static final int DB_VERSION_PATCH = $DB_VERSION_PATCH;" &&
+ echo '}') > $f
+chmod 444 $f

@@ -1,0 +1,47 @@
+<!--$Id: limits.so,v 10.23 2001/01/18 20:31:37 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Log file limits</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Logging Subsystem</dl></h3></td>
+<td width="1%"><a href="../../ref/log/config.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/mp/intro.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Log file limits</h1>
+<p>Log file names and sizes impose a limit on how long databases may be
+used in a Berkeley DB database environment.  It is quite unlikely that an
+application will reach this limit, however, if the limit is reached,
+the Berkeley DB environment's databases must be dumped and reloaded.
+<p>The log file name consists of <b>log.</b> followed by 10 digits, with
+a maximum of 2,000,000,000 log files.  Consider an application performing
+6000 transactions per second, for 24 hours a day, logged into 10MB log
+files, where each transaction is logging approximately 500 bytes of data.
+The calculation:
+<p><blockquote><pre>(10 * 2^20 * 2000000000) / (6000 * 500 * 365 * 60 * 60 * 24) = ~221</pre></blockquote>
+<p>indicates that the system will run out of log file names in roughly 221
+years.
+<p>There is no way to reset the log file name space in Berkeley DB.  If your
+application is reaching the end of its log file name space, you must:
+<p><ol>
+<p><li>Archive your databases as if to prepare for catastrophic failure (see
+<a href="../../utility/db_archive.html">db_archive</a> for more information).
+<p><li>Dump and re-load all your databases (see <a href="../../utility/db_dump.html">db_dump</a> and
+<a href="../../utility/db_load.html">db_load</a> for more information).
+<p><li>Remove all of the log files from the database environment.  Note, this
+is the only situation where all of the log files are removed from an
+environment, in all other cases at least a single log file is
+retained.
+<p><li>Restart your application.
+</ol>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/log/config.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/mp/intro.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

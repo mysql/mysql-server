@@ -1,0 +1,69 @@
+<!--$Id: env_set_feedback.so,v 10.19 2000/07/09 19:12:39 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DBENV-&gt;set_feedback</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DBENV-&gt;set_feedback</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db.h&gt;
+<p>
+int
+DBENV-&gt;set_feedback(DB_ENV *,
+    void (*db_feedback_fcn)(DB_ENV *, int opcode, int pct));
+</pre></h3>
+<h1>Description</h1>
+<p>Some operations performed by the Berkeley DB library can take non-trivial
+amounts of time.  The DBENV-&gt;set_feedback function can be used by
+applications to monitor progress within these operations.
+<p>When an operation is likely to take a long time, Berkeley DB will call the
+specified callback function.  This function must be declared with
+three arguments: the first will be a reference to the enclosing
+environment, the second a flag value, and the third the percent of the
+operation that has been completed, specified as an integer value between
+0 and 100.  It is up to the callback function to display this
+information in an appropriate manner.
+<p>The <b>opcode</b> argument may take on any of the following values:
+<p><dl compact>
+<p><dt><a name="DB_RECOVER">DB_RECOVER</a><dd>The environment is being recovered.
+</dl>
+<p>The DBENV-&gt;set_feedback interface may be used to configure Berkeley DB at any time
+during the life of the application.
+<p>The DBENV-&gt;set_feedback function returns a non-zero error value on failure and 0 on success.
+<h1>See Also</h1>
+<a href="../api_c/env_close.html">DBENV-&gt;close</a>,
+<a href="../api_c/env_create.html">db_env_create</a>,
+<a href="../api_c/env_open.html">DBENV-&gt;open</a>,
+<a href="../api_c/env_remove.html">DBENV-&gt;remove</a>,
+<a href="../api_c/db_err.html">DBENV-&gt;err</a>,
+<a href="../api_c/env_strerror.html">db_strerror</a>,
+<a href="../api_c/env_version.html">db_version</a>,
+<a href="../api_c/env_set_cachesize.html">DBENV-&gt;set_cachesize</a>,
+<a href="../api_c/env_set_errcall.html">DBENV-&gt;set_errcall</a>,
+<a href="../api_c/env_set_errfile.html">DBENV-&gt;set_errfile</a>,
+<a href="../api_c/env_set_errpfx.html">DBENV-&gt;set_errpfx</a>,
+<a href="../api_c/env_set_flags.html">DBENV-&gt;set_flags</a>,
+<a href="../api_c/env_set_mutexlocks.html">DBENV-&gt;set_mutexlocks</a>,
+<a href="../api_c/env_set_paniccall.html">DBENV-&gt;set_paniccall</a>,
+and
+<a href="../api_c/env_set_verbose.html">DBENV-&gt;set_verbose</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

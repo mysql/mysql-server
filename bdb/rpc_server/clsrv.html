@@ -1,0 +1,453 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML>
+<HEAD>
+   <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+   <META NAME="GENERATOR" CONTENT="Mozilla/4.08 [en] (X11; I; FreeBSD 3.3-RELEASE i386) [Netscape]">
+</HEAD>
+<BODY>
+
+<CENTER>
+<H1>
+Client/Server Interface for Berkeley DB</H1></CENTER>
+
+<CENTER><I>Susan LoVerso</I>
+<BR><I>sue@sleepycat.com</I>
+<BR><I>Rev 1.3</I>
+<BR><I>1999 Nov 29</I></CENTER>
+
+<P>We provide an interface allowing client/server access to Berkeley DB.&nbsp;&nbsp;
+Our goal is to provide a client and server library to allow users to separate
+the functionality of their applications yet still have access to the full
+benefits of Berkeley DB.&nbsp; The goal is to provide a totally seamless
+interface with minimal modification to existing applications as well.
+<P>The client/server interface for Berkeley DB can be broken up into several
+layers.&nbsp; At the lowest level there is the transport mechanism to send
+out the messages over the network.&nbsp; Above that layer is the messaging
+layer to interpret what comes over the wire, and bundle/unbundle message
+contents.&nbsp; The next layer is Berkeley DB itself.
+<P>The transport layer uses ONC RPC (RFC 1831) and XDR (RFC 1832).&nbsp;
+We declare our message types and operations supported by our program and
+the RPC library and utilities pretty much take care of the rest.&nbsp;
+The
+<I>rpcgen</I> program generates all of the low level code needed.&nbsp;
+We need to define both sides of the RPC.
+<BR>&nbsp;
+<H2>
+<A NAME="DB Modifications"></A>DB Modifications</H2>
+To achieve the goal of a seamless interface, it is necessary to impose
+a constraint on the application. That constraint is simply that all database
+access must be done through an open environment.&nbsp; I.e. this model
+does not support standalone databases.&nbsp; The reason for this constraint
+is so that we have an environment structure internally to store our connection
+to the server.&nbsp; Imposing this constraint means that we can provide
+the seamless interface just by adding a single environment method: <A HREF="../docs/api_c/env_set_server.html">DBENV->set_server()</A>.
+<P>The planned interface for this method is:
+<PRE>DBENV->set_server(dbenv,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* DB_ENV structure */
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; hostname&nbsp;&nbsp;&nbsp; /* Host of server */
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; cl_timeout, /* Client timeout (sec) */
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; srv_timeout,/* Server timeout (sec) */
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; flags);&nbsp;&nbsp;&nbsp;&nbsp; /* Flags: unused */</PRE>
+This new method takes the hostname of the server, establishes our connection
+and an environment on the server.&nbsp; If a server timeout is specified,
+then we send that to the server as well (and the server may or may not
+choose to use that value).&nbsp; This timeout is how long the server will
+allow the environment to remain idle before declaring it dead and releasing
+resources on the server.&nbsp; The pointer to the connection is stored
+on the client in the DBENV structure and is used by all other methods to
+figure out with whom to communicate.&nbsp; If a client timeout is specified,
+it indicates how long the client is willing to wait for a reply from the
+server.&nbsp; If the values are 0, then defaults are used.&nbsp; Flags
+is currently unused, but exists because we always need to have a placeholder
+for flags and it would be used for specifying authentication desired (were
+we to provide an authentication scheme at some point) or other uses not
+thought of yet!
+<P>This client code is part of the monolithic DB library.&nbsp; The user
+accesses the client functions via a new flag to <A HREF="../docs/api_c/db_env_create.html">db_env_create()</A>.&nbsp;
+That flag is DB_CLIENT.&nbsp; By using this flag the user indicates they
+want to have the client methods rather than the standard methods for the
+environment.&nbsp; Also by issuing this flag, the user needs to connect
+to the server via the <A HREF="../docs/api_c/env_set_server.html">DBENV->set_server()</A>
+method.
+<P>We need two new fields in the <I>DB_ENV </I>structure.&nbsp; One is
+the socket descriptor to communicate to the server, the other field is
+the client identifier the server gives to us.&nbsp; The <I>DB, </I>and<I>
+DBC </I>only need one additional field, the client identifier.&nbsp; The
+<I>DB_TXN</I>
+structure does not need modification, we are overloading the <I>txn_id
+</I>field.
+<H2>
+Issues</H2>
+We need to figure out what to do in case of client and server crashes.&nbsp;
+Both the client library and the server program are stateful.&nbsp; They
+both consume local resources during the lifetime of the connection.&nbsp;
+Should one end drop that connection, the other side needs to release those
+resources.
+<P>If the server crashes, then the client will get an error back.&nbsp;
+I have chosen to implement time-outs on the client side, using a default
+or allowing the application to specify one through the <A HREF="../docs/api_c/env_set_server.html">DBENV->set_server()</A>
+method.&nbsp; Either the current operation will time-out waiting for the
+reply or the next operation called will time out (or get back some other
+kind of error regarding the server's non-existence).&nbsp; In any case,
+if the client application gets back such an error, it should abort any
+open transactions locally, close any databases, and close its environment.&nbsp;
+It may then decide to retry to connect to the server periodically or whenever
+it comes back.&nbsp; If the last operation a client did was a transaction
+commit that did not return or timed out from the server, the client cannot
+determine if the transaction was committed or not but must release the
+local transaction resources. Once the server is back up, recovery must
+be run on the server.&nbsp;&nbsp; If the transaction commit completed on
+the server before the crash, then the operation is redone, if the transaction
+commit did not get to the server, the pieces of the transaction are undone
+on recover.&nbsp; The client can then re-establish its connection and begin
+again.&nbsp; This is effectively like beginning over.&nbsp; The client
+cannot use ID's from its previous connection to the server.&nbsp; However,
+if recovery is run, then consistency is assured.
+<P>If the client crashes, the server needs to somehow figure this out.&nbsp;
+The server is just sitting there waiting for a request to come in.&nbsp;
+A server must be able to time-out a client.&nbsp; Similar to ftpd, if a
+connection is idle for N seconds, then the server decides the client is
+dead and releases that client's resources, aborting any open transactions,
+closing any open databases and environments.&nbsp;&nbsp; The server timing
+out a client is not a trivial issue however.&nbsp; The generated function
+for the server just calls <I>svc_run()</I>.&nbsp; The server code I write
+contains procedures to do specific things.&nbsp; We do not have access
+to the code calling <I>select()</I>.&nbsp; Timing out the select is not
+good enough even if we could do so.&nbsp; We want to time-out idle environments,
+not simply cause a time-out if the server is idle a while.&nbsp; See the
+discussion of the <A HREF="#The Server Program">server program</A> for
+a description of how we accomplish this.
+<P>Since rpcgen generates the main() function of the server, I do not yet
+know how we are going to have the server multi-threaded or multi-process
+without changing the generated code.&nbsp; The RPC book indicates that
+the only way to accomplish this is through modifying the generated code
+in the server.&nbsp; <B>For the moment we will ignore this issue while
+we get the core server working, as it is only a performance issue.</B>
+<P>We do not do any security or authentication.&nbsp; Someone could get
+the code and modify it to spoof messages, trick the server, etc.&nbsp;
+RPC has some amount of authentication built into it.&nbsp; I haven't yet
+looked into it much to know if we want to use it or just point a user at
+it.&nbsp; The changes to the client code are fairly minor, the changes
+to our server procs are fairly minor.&nbsp; We would have to add code to
+a <I>sed</I> script or <I>awk</I> script to change the generated server
+code (yet again) in the dispatch routine to perform authentication.
+<P>We will need to get an official program number from Sun.&nbsp; We can
+get this by sending mail to <I>rpc@sun.com</I> and presumably at some point
+they will send us back a program number that we will encode into our XDR
+description file.&nbsp; Until we release this we can use a program number
+in the "user defined" number space.
+<BR>&nbsp;
+<H2>
+<A NAME="The Server Program"></A>The Server Program</H2>
+The server is a standalone program that the user builds and runs, probably
+as a daemon like process.&nbsp; This program is linked against the Berkeley
+DB library and the RPC library (which is part of the C library on my FreeBSD
+machine, others may have/need <I>-lrpclib</I>).&nbsp; The server basically
+is a slave to the client process.&nbsp; All messages from the client are
+synchronous and two-way.&nbsp; The server handles messages one at a time,
+and sends a reply back before getting another message.&nbsp; There are
+no asynchronous messages generated by the server to the client.
+<P>We have made a choice to modify the generated code for the server.&nbsp;
+The changes will be minimal, generally calling functions we write, that
+are in other source files.&nbsp; The first change is adding a call to our
+time-out function as described below.&nbsp; The second change is changing
+the name of the generated <I>main()</I> function to <I>__dbsrv_main()</I>,
+and adding our own <I>main()</I> function so that we can parse options,
+and set up other initialization we require.&nbsp; I have a <I>sed</I> script
+that is run from the distribution scripts that massages the generated code
+to make these minor changes.
+<P>Primarily the code needed for the server is the collection of the specified
+RPC functions.&nbsp; Each function receives the structure indicated, and
+our code takes out what it needs and passes the information into DB itself.&nbsp;
+The server needs to maintain a translation table for identifiers that we
+pass back to the client for the environment, transaction and database handles.
+<P>The table that the server maintains, assuming one client per server
+process/thread, should contain the handle to the environment, database
+or transaction, a link to maintain parent/child relationships between transactions,
+or databases and cursors, this handle's identifier, a type so that we can
+error if the client passes us a bad id for this call, and a link to this
+handle's environment entry (for time out/activity purposes).&nbsp; The
+table contains, in entries used by environments, a time-out value and an
+activity time stamp.&nbsp; Its use is described below for timing out idle
+clients.
+<P>Here is how we time out clients in the server.&nbsp; We have to modify
+the generated server code, but only to add one line during the dispatch
+function to run the time-out function.&nbsp; The call is made right before
+the return of the dispatch function, after the reply is sent to the client,
+so that client's aren't kept waiting for server bookkeeping activities.&nbsp;
+This time-out function then runs every time the server processes a request.&nbsp;
+In the time-out function we maintain a time-out hint that is the youngest
+environment to time-out.&nbsp; If the current time is less than the hint
+we know we do not need to run through the list of open handles.&nbsp; If
+the hint is expired, then we go through the list of open environment handles,
+and if they are past their expiration, then we close them and clean up.&nbsp;
+If they are not, we set up the hint for the next time.
+<P>Each entry in the open handle table has a pointer back to its environment's
+entry.&nbsp; Every operation within this environment can then update the
+single environment activity record.&nbsp; Every environment can have a
+different time-out.&nbsp; The <A HREF="../docs/api_c/env_set_server.html">DBENV->set_server
+</A>call
+takes a server time-out value.&nbsp; If this value is 0 then a default
+(currently 5 minutes) is used.&nbsp; This time-out value is only a hint
+to the server.&nbsp; It may choose to disregard this value or set the time-out
+based on its own implementation.
+<P>For completeness, the flaws of this time-out implementation should be
+pointed out.&nbsp; First, it is possible that a client could crash with
+open handles, and no other requests come in to the server.&nbsp; Therefore
+the time-out function never gets run and those resources are not released
+(until a request does come in).&nbsp; Similarly, this time-out is not exact.&nbsp;
+The time-out function uses its hint and if it computes a hint on one run,
+an earlier time-out might be created before that time-out expires.&nbsp;
+This issue simply yields a handle that doesn't get released until that
+original hint expires.&nbsp; To illustrate, consider that at the time that
+the time-out function is run, the youngest time-out is 5 minutes in the
+future.&nbsp; Soon after, a new environment is opened that has a time-out
+of 1 minute.&nbsp; If this environment becomes idle (and other operations
+are going on), the time-out function will not release that environment
+until the original 5 minute hint expires.&nbsp; This is not a problem since
+the resources will eventually be released.
+<P>On a similar note, if a client crashes during an RPC, our reply generates
+a SIGPIPE, and our server crashes unless we catch it.&nbsp; Using <I>signal(SIGPIPE,
+SIG_IGN) </I>we can ignore it, and the server will go on.&nbsp; This is
+a call&nbsp; in our <I>main()</I> function that we write.&nbsp; Eventually
+this client's handles would be timed out as described above.&nbsp; We need
+this only for the unfortunate window of a client crashing during the RPC.
+<P>The options below are primarily for control of the program itself,.&nbsp;
+Details relating to databases and environments should be passed from the
+client to the server, since the server can serve many clients, many environments
+and many databases.&nbsp; Therefore it makes more sense for the client
+to set the cache size of its own environment, rather than setting a default
+cachesize on the server that applies as a blanket to any environment it
+may be called upon to open.&nbsp; Options are:
+<UL>
+<LI>
+<B>-t&nbsp;</B> to set the default time-out given to an environment.</LI>
+
+<LI>
+<B>-T</B> to set the maximum time-out allowed for the server.</LI>
+
+<LI>
+<B>-L</B> to log the execution of the server process to a specified file.</LI>
+
+<LI>
+<B>-v</B> to run in verbose mode.</LI>
+
+<LI>
+<B>-M</B>&nbsp; to specify the maximum number of outstanding child server
+processes/threads we can have at any given time.&nbsp; The default is 10.
+<B>[We
+are not yet doing multiple threads/processes.]</B></LI>
+</UL>
+
+<H2>
+The Client Code</H2>
+The client code contains all of the supported functions and methods used
+in this model.&nbsp; There are several methods in the <I>__db_env
+</I>and
+<I>__db</I>
+structures that currently do not apply, such as the callbacks.&nbsp; Those
+fields that are not applicable to the client model point to NULL to notify
+the user of their error.&nbsp; Some method functions remain unchanged,
+as well such as the error calls.
+<P>The client code contains each method function that goes along with the
+<A HREF="#Remote Procedure Calls">RPC
+calls</A> described elsewhere.&nbsp; The client library also contains its
+own version of <A HREF="../docs/api_c/env_create.html">db_env_create()</A>,
+which does not result in any messages going over to the server (since we
+do not yet know what server we are talking to).&nbsp; This function sets
+up the pointers to the correct client functions.
+<P>All of the method functions that handle the messaging have a basic flow
+similar to this:
+<UL>
+<LI>
+Local arg parsing that may be needed</LI>
+
+<LI>
+Marshalling the message header and the arguments we need to send to the
+server</LI>
+
+<LI>
+Sending the message</LI>
+
+<LI>
+Receiving a reply</LI>
+
+<LI>
+Unmarshalling the reply</LI>
+
+<LI>
+Local results processing that may be needed</LI>
+</UL>
+
+<H2>
+Generated Code</H2>
+Almost all of the code is generated from a source file describing the interface
+and an <I>awk</I> script.&nbsp;&nbsp; This awk script generates six (6)
+files for us.&nbsp; It also modifies one.&nbsp; The files are:
+<OL>
+<LI>
+Client file - The C source file created containing the client code.</LI>
+
+<LI>
+Client template file - The C template source file created containing interfaces
+for handling client-local issues such as resource allocation, but with
+a consistent interface with the client code generated.</LI>
+
+<LI>
+Server file - The C source file created containing the server code.</LI>
+
+<LI>
+Server template file - The C template source file created containing interfaces
+for handling server-local issues such as resource allocation, calling into
+the DB library but with a consistent interface with the server code generated.</LI>
+
+<LI>
+XDR file - The XDR message description file created.</LI>
+
+<LI>
+Server sed file - A sed script that contains commands to apply to the server
+procedure file (i.e. the real source file that the server template file
+becomes) so that minor interface changes can be consistently and easily
+applied to the real code.</LI>
+
+<LI>
+Server procedure file - This is the file that is modified by the sed script
+generated.&nbsp; It originated from the server template file.</LI>
+</OL>
+The awk script reads a source file, <I>db_server/rpc.src </I>that describes
+each operation and what sorts of arguments it takes and what it returns
+from the server.&nbsp; The syntax of the source file describes the interface
+to that operation.&nbsp; There are four (4) parts to the syntax:
+<OL>
+<LI>
+<B>BEGIN</B> <B><I>function version# codetype</I></B> - begins a new functional
+interface for the given <B><I>function</I></B>.&nbsp; Each function has
+a <B><I>version number</I></B>, currently all of them are at version number
+one (1).&nbsp; The <B><I>code type</I></B> indicates to the awk script
+what kind of code to generate.&nbsp; The choices are:</LI>
+
+<UL>
+<LI>
+<B>CODE </B>- Generate all code, and return a status value.&nbsp; If specified,
+the client code will simply return the status to the user upon completion
+of the RPC call.</LI>
+
+<LI>
+<B>RETCODE </B>- Generate all code and call a return function in the client
+template file to deal with client issues or with other returned items.&nbsp;
+If specified, the client code generated will call a function of the form
+<I>__dbcl_&lt;name>_ret()
+</I>where
+&lt;name> is replaced with the function name given here.&nbsp; This function
+is placed in the template file because this indicates that something special
+must occur on return.&nbsp; The arguments to this function are the same
+as those for the client function, with the addition of the reply message
+structure.</LI>
+
+<LI>
+<B>NOCLNTCODE - </B>Generate XDR and server code, but no corresponding
+client code. (This is used for functions that are not named the same thing
+on both sides.&nbsp; The only use of this at the moment is db_env_create
+and db_create.&nbsp; The environment create call to the server is actually
+called from the <A HREF="../docs/api_c/env_set_server.html">DBENV->set_server()</A>
+method.&nbsp; The db_create code exists elsewhere in the library and we
+modify that code for the client call.)</LI>
+</UL>
+
+<LI>
+<B>ARG <I>RPC-type C-type varname [list-type]</I></B>- each line of this
+describes an argument to the function.&nbsp; The argument is called <B><I>varname</I></B>.&nbsp;
+The <B><I>C-type</I></B> given is what it should look like in the C code
+generated, such as <B>DB *, u_int32_t, const char *</B>.&nbsp; The
+<B><I>RPC-type</I></B>
+is an indication about how the RPC request message should be constructed.&nbsp;
+The RPC-types allowed are described below.</LI>
+
+<LI>
+<B>RET <I>RPC-type C-type varname [list-type]</I></B>- each line of this
+describes what the server should return from this procedure call (in addition
+to a status, which is always returned and should not be specified).&nbsp;
+The argument is called <B><I>varname</I></B>.&nbsp; The <B><I>C-type</I></B>
+given is what it should look like in the C code generated, such as <B>DB
+*, u_int32_t, const char *</B>.&nbsp; The <B><I>RPC-type</I></B> is an
+indication about how the RPC reply message should be constructed.&nbsp;
+The RPC-types are described below.</LI>
+
+<LI>
+<B>END </B>- End the description of this function.&nbsp; The result is
+that when the awk script encounters the <B>END</B> tag, it now has all
+the information it needs to construct the generated code for this function.</LI>
+</OL>
+The <B><I>RPC-type</I></B> must be one of the following:
+<UL>
+<LI>
+<B>IGNORE </B>- This argument is not passed to the server and should be
+ignored when constructing the XDR code.&nbsp; <B>Only allowed for an ARG
+specfication.</B></LI>
+
+<LI>
+<B>STRING</B> - This argument is a string.</LI>
+
+<LI>
+<B>INT </B>- This argument is an integer of some sort.</LI>
+
+<LI>
+<B>DBT </B>- This argument is a DBT, resulting in its decomposition into
+the request message.</LI>
+
+<LI>
+<B>LIST</B> - This argument is an opaque list passed to the server (NULL-terminated).&nbsp;
+If an argument of this type is given, it must have a <B><I>list-type</I></B>
+specified that is one of:</LI>
+
+<UL>
+<LI>
+<B>STRING</B></LI>
+
+<LI>
+<B>INT</B></LI>
+
+<LI>
+<B>ID</B>.</LI>
+</UL>
+
+<LI>
+<B>ID</B> - This argument is an identifier.</LI>
+</UL>
+So, for example, the source for the DB->join RPC call looks like:
+<PRE>BEGIN&nbsp;&nbsp; dbjoin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; RETCODE
+ARG&nbsp;&nbsp;&nbsp;&nbsp; ID&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DB *&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; dbp&nbsp;
+ARG&nbsp;&nbsp;&nbsp;&nbsp; LIST&nbsp;&nbsp;&nbsp; DBC **&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; curs&nbsp;&nbsp;&nbsp; ID
+ARG&nbsp;&nbsp;&nbsp;&nbsp; IGNORE&nbsp; DBC **&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; dbcpp&nbsp;
+ARG&nbsp;&nbsp;&nbsp;&nbsp; INT&nbsp;&nbsp;&nbsp;&nbsp; u_int32_t&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; flags
+RET&nbsp;&nbsp;&nbsp;&nbsp; ID&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; long&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; dbcid
+END</PRE>
+Our first line tells us we are writing the dbjoin function.&nbsp; It requires
+special code on the client so we indicate that with the RETCODE.&nbsp;
+This method takes four arguments.&nbsp; For the RPC request we need the
+database ID from the dbp, we construct a NULL-terminated list of IDs for
+the cursor list, we ignore the argument to return the cursor handle to
+the user, and we pass along the flags.&nbsp; On the return, the reply contains
+a status, by default, and additionally, it contains the ID of the newly
+created cursor.
+<H2>
+Building and Installing</H2>
+I need to verify with Don Anderson, but I believe we should just build
+the server program, just like we do for db_stat, db_checkpoint, etc.&nbsp;
+Basically it can be treated as a utility program from the building and
+installation perspective.
+<P>As mentioned early on, in the section on <A HREF="#DB Modifications">DB
+Modifications</A>, we have a single library, but allowing the user to access
+the client portion by sending a flag to <A HREF="../docs/api_c/env_create.html">db_env_create()</A>.&nbsp;
+The Makefile is modified to include the new files.
+<P>Testing is performed in two ways.&nbsp; First I have a new example program,
+that should become part of the example directory.&nbsp; It is basically
+a merging of ex_access.c and ex_env.c.&nbsp; This example is adequate to
+test basic functionality, as it does just does database put/get calls and
+appropriate open and close calls.&nbsp; However, in order to test the full
+set of functions a more generalized scheme is required.&nbsp; For the moment,
+I am going to modify the Tcl interface to accept the server information.&nbsp;
+Nothing else should need to change in Tcl.&nbsp; Then we can either write
+our own test modules or use a subset of the existing ones to test functionality
+on a regular basis.
+</BODY>
+</HTML>

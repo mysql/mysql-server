@@ -1,0 +1,40 @@
+<!--$Id: read.so,v 1.1 2000/07/25 17:56:36 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Repeatable reads</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Transaction Protected Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/transapp/inc.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/cursor.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Repeatable reads</h1>
+<p>The fourth reason listed for using transactions was repeatable reads.
+Generally, most applications do not need to place reads inside a
+transaction for performance reasons.  The problem is that a
+transactionally protected cursor, reading each key/data pair in a
+database, will acquire a read lock on most of the pages in the database
+and so will gradually block all write operations on the databases until
+the transaction commits or aborts.  Note, however, if there are update
+transactions present in the application, the reading transactions must
+still use locking, and should be prepared to repeat any operation
+(possibly closing and reopening a cursor) which fails with a return
+value of <a href="../../ref/program/errorret.html#DB_LOCK_DEADLOCK">DB_LOCK_DEADLOCK</a>.
+<p>The exceptions to this rule are when the application is doing a
+read-modify-write operation and so requires atomicity, and when an
+application requires the ability to repeatedly access a data item
+knowing that it will not have changed.  A repeatable read simply means
+that, for the life of the transaction, every time a request is made by
+any thread of control to read a data item, it will be unchanged from
+its previous value, that is, that the value will not change until the
+transaction commits or aborts.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/transapp/inc.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/cursor.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

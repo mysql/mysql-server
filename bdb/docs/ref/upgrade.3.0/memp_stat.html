@@ -1,0 +1,26 @@
+<!--$Id: memp_stat.so,v 11.3 2000/07/25 16:59:36 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Release 3.0: memp_stat</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Upgrading Berkeley DB Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/upgrade.3.0/log_stat.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.0/txn_begin.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Release 3.0: memp_stat</h1>
+<p>The <b>st_refcnt</b> field returned from the <a href="../../api_c/memp_stat.html">memp_stat</a> interface
+has been removed, and this information is no longer available.
+<p>The <b>st_cachesize</b> field returned from the <a href="../../api_c/memp_stat.html">memp_stat</a>
+interface has been replaced with two new fields, <b>st_gbytes</b> and
+<b>st_bytes</b>.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/upgrade.3.0/log_stat.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.0/txn_begin.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

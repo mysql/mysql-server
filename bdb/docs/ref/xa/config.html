@@ -1,0 +1,79 @@
+<!--$Id: config.so,v 10.18 2000/03/22 22:02:15 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Configuring Berkeley DB with the Tuxedo System</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>XA Resource Manager</dl></h3></td>
+<td width="1%"><a href="../../ref/xa/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/xa/faq.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Configuring Berkeley DB with the Tuxedo System</h1>
+<p>This information assumes that you have already installed the Berkeley DB
+library.
+<p>First, you must update the resource manager file in Tuxedo.  For the
+purposes of this discussion, assume the Tuxedo home directory is in:
+<p><blockquote><pre>/home/tuxedo</pre></blockquote>
+In that case, the resource manager file will be located in:
+<p><blockquote><pre>/home/tuxedo/udataobj/RM</pre></blockquote>
+Edit the resource manager file, adding the following line:
+<p><blockquote><pre>BERKELEY-DB:db_xa_switch:-L${DB_INSTALL}/lib -ldb \
+	-lsocket -ldl -lm</pre></blockquote>
+<p>where ${DB_INSTALLHOME} is the directory into which you installed the Berkeley DB
+library.
+<p><b>Note, the above load options are for a Sun Microsystems Solaris
+5.6 Sparc installation of Tuxedo, and may not be correct for your system.</b>
+<p>Next, you must build the transaction manager server.  To do this, use the
+Tuxedo <b>buildtms</b>(1) utility.  The buildtms utility will create
+the Berkeley-DB resource manager in the directory from which it was run.
+The parameters to buildtms should be:
+<p><blockquote><pre>buildtms -v -o DBRM -r BERKELEY-DB</pre></blockquote>
+<p>This will create an executable transaction manager server, DBRM, that is
+called by Tuxedo to process begins, commits, and aborts.
+<p>Finally, you must make sure that your TUXCONFIG environment variable
+identifies a ubbconfig file that properly identifies your resource
+managers.  In the GROUPS section of the ubb file, you should identify the
+group's LMID and GRPNO as well as the transaction manager server name
+"TMSNAME=DBRM."  You must also specify the OPENINFO parameter, setting it
+equal to the string:
+<p><blockquote><pre>rm_name:dir</pre></blockquote>
+<p>where rm_name is the resource name specified in the RM file (i.e.,
+BERKELEY-DB) and dir is the directory for the Berkeley DB home environment
+(see <a href="../../api_c/env_open.html">DBENV-&gt;open</a> for a discussion of Berkeley DB environments).
+<p>As Tuxedo resource manager startup accepts only a single string for
+configuration, any environment customization that might have been done
+via the config parameter to <a href="../../api_c/env_open.html">DBENV-&gt;open</a> must instead be done by
+placing a <a href="../../ref/env/naming.html#DB_CONFIG">DB_CONFIG</a> file in the Berkeley DB environment directory.  See
+<a href="../../ref/env/naming.html">Berkeley DB File Naming</a> for further
+information.
+<p>Consider the following configuration.  We have built a transaction
+manager server as described above.  We want the Berkeley DB environment
+to be <b>/home/dbhome</b>, our database files to be maintained
+in <b>/home/datafiles</b>, our log files to be maintained in
+<b>/home/log</b>, and we want a duplexed server.
+<p>The GROUPS section of the ubb file might look like:
+<p><blockquote><pre>group_tm LMID=myname GRPNO=1 TMSNAME=DBRM TMSCOUNT=2 \
+	OPENINFO="BERKELEY-DB:/home/dbhome"</pre></blockquote>
+<p>There would be a <a href="../../ref/env/naming.html#DB_CONFIG">DB_CONFIG</a> configuration file in the directory
+<b>/home/dbhome</b> that contained the following two lines:
+<p><blockquote><pre>DB_DATA_DIR	/home/datafiles
+DB_LOG_DIR	/home/log
+</pre></blockquote>
+<p>Finally, the ubb file must be translated into a binary version, using
+Tuxedo's <b>tmloadcf</b>(1) utility, and then the pathname of that
+binary file must be specified as your TUXCONFIG environment variable.
+<p>At this point, your system is properly initialized to use the Berkeley DB
+resource manager.
+<p>See <a href="../../api_c/db_create.html">db_create</a> for further information on accessing data files
+using XA.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/xa/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/xa/faq.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!--$Id: recno.so,v 11.10 2000/12/04 18:05:41 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Managing record-based databases</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Access Methods</dl></h3></td>
+<td width="1%"><a href="../../ref/am_conf/h_nelem.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am_conf/extentsize.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Managing record-based databases</h1>
+<p>When using fixed- or variable-length record-based databases, particularly
+with flat-text backing files, there are several items that the user can
+control.  The Recno access method can be used to store either variable-
+or fixed-length data items.  By default, the Recno access method stores
+variable-length data items.  The Queue access method can only store
+fixed-length data items.
+<h3>Record Delimiters</h3>
+<p>When using the Recno access method to store variable-length records,
+records read from any backing source file are separated by a specific
+byte value which marks the end of one record and the beginning of the
+next.  This delimiting value is ignored except when reading records from
+a backing source file, that is, records may be stored into the database
+that include the delimiter byte.  However, if such records are written
+out to the backing source file and the backing source file is
+subsequently read into a database, the records will be split where
+delimiting bytes were found.
+<p>For example, UNIX text files can usually be interpreted as a sequence of
+variable-length records separated by ASCII newline characters.  This byte
+value (ASCII 0x0a) is the default delimiter.  Applications may specify a
+different delimiting byte using the <a href="../../api_c/db_set_re_delim.html">DB-&gt;set_re_delim</a> interface.
+If no backing source file is being used, there is no reason to set the
+delimiting byte value.
+<h3>Record Length</h3>
+<p>When using the Recno or Queue access methods to store fixed-length
+records, the record length must be specified.  Since the Queue access
+method always uses fixed-length records, the user must always set the
+record length prior to creating the database.  Setting the record length
+is what causes the Recno access method to store fixed-length, not
+variable-length, records.
+<p>The length of the records is specified by calling the
+<a href="../../api_c/db_set_re_len.html">DB-&gt;set_re_len</a> function.  The default length of the records is 0 bytes.
+Any record read from a backing source file or otherwise stored in the
+database that is shorter than the declared length will automatically be
+padded as described for the <a href="../../api_c/db_set_re_pad.html">DB-&gt;set_re_pad</a> function.  Any record stored
+that is longer than the declared length results in an error.  For
+further information on backing source files, see
+<a href="../../ref/am_conf/re_source.html">Flat-text backing files</a>.
+<h3>Record Padding Byte Value</h3>
+<p>When storing fixed-length records in a Queue or Recno database, a pad
+character may be specified by calling the <a href="../../api_c/db_set_re_pad.html">DB-&gt;set_re_pad</a> function.  Any
+record read from the backing source file or otherwise stored in the
+database that is shorter than the expected length will automatically be
+padded with this byte value.  If fixed-length records are specified but
+no pad value is specified, a space character (0x20 in the ASCII
+character set) will be used.  For further information on backing source
+files, see <a href="../../ref/am_conf/re_source.html">Flat-text backing
+files</a>.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/am_conf/h_nelem.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am_conf/extentsize.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

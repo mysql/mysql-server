@@ -1,0 +1,82 @@
+<!--$Id: conf.so,v 10.16 2000/12/04 21:21:51 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Configuration</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Java API</dl></h3></td>
+<td width="1%"><a href="../../ref/rpc/server.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/java/compat.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Configuration</h1>
+<p>Building the Berkeley DB java classes, the examples and the native support
+library is integrated into the normal build process.  See
+<a href="../../ref/build_unix/conf.html#--enable-java">Configuring
+Berkeley DB</a> and <a href="../../ref/build_win/intro.html">Building for Windows</a>
+for more information.
+<p>We expect that you've already installed the Java JDK or equivalent on
+your system.  For the sake of discussion, we'll assume it is in a
+directory called db-VERSION, e.g., you extracted Berkeley DB version 2.3.12
+and you did not change the top-level directory name.  The files related
+to Java are in two subdirectories of db-VERSION: java, the java source
+files, and libdb_java, the C++ files that provide the "glue" between
+java and Berkeley DB.  The directory tree looks like this:
+<p><blockquote><pre>		db-VERSION
+	       /          \
+	    java        libdb_java
+	     |              |
+	    src            ...
+	     |
+	    com
+	     |
+	 sleepycat
+	/         \
+       db       examples
+       |           |
+      ...         ...
+</pre></blockquote>
+<p>This naming conforms to the emerging standard for naming java packages.
+When the java code is built, it is placed into a <b>classes</b>
+subdirectory that is parallel to the <b>src</b> subdirectory.
+<p>For your application to use Berkeley DB successfully, you must set your
+CLASSPATH environment variable to include db-VERSION/java/classes as
+well as the classes in your java distribution.  On UNIX, CLASSPATH is
+a colon separated list of directories; on Windows it is separated by
+semicolons.  Alternatively, you can set your CLASSPATH to include
+db-VERSION/java/classes/db.jar which is created as a result of the
+build.  The db.jar file contains the classes in com.sleepycat.db, it
+does not contain any classes in com.sleepycat.examples.
+<p>On Windows, you will want to set your PATH variable to include:
+<p><blockquote><pre>db-VERSION\build_win32\Release</pre></blockquote>
+<p>On UNIX, you will want to set the LD_LIBRARY_PATH environment variable
+to include the Berkeley DB library installation directory. Of course, the
+standard install directory may have been changed for your site, see your
+system administrator for details.  Regardless, if you get a:
+<p><blockquote><pre>java.lang.UnsatisfiedLinkError</pre></blockquote>
+<p>exception when you run, chances are you do not have the library search
+path configured correctly.  Different Java interpreters provide
+different error messages if the CLASSPATH value is incorrect, a typical
+error is:
+<p><blockquote><pre>java.lang.NoClassDefFoundError</pre></blockquote>
+<p>To ensure that everything is running correctly, you may want to try a
+simple test from the example programs in:
+<p><blockquote><pre>db-VERSION/java/src/com/sleepycat/examples</pre></blockquote>
+<p>For example, the sample program:
+<p><blockquote><pre>% java com.sleepycat.examples.AccessExample</pre></blockquote>
+<p>will prompt for text input lines which are then stored in a Btree
+database named "access.db" in your current directory.  Try giving it a
+few lines of input text and then end-of-file.  Before it exits, you
+should see a list of the lines you entered display with data items.
+This is a simple check to make sure the fundamental configuration is
+working correctly.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/rpc/server.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/java/compat.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

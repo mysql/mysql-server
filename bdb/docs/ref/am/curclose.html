@@ -1,0 +1,28 @@
+<!--$Id: curclose.so,v 10.12 2000/12/13 16:48:13 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Closing a cursor</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>        <a name="3"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Access Methods</dl></h3></td>
+<td width="1%"><a href="../../ref/am/count.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am/stability.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Closing a cursor</h1>
+<p>The <a href="../../api_c/dbc_close.html">DBcursor-&gt;c_close</a> function is the standard interface for closing a cursor,
+after which the cursor may no longer be used.  Although cursors are
+implicitly closed when the database they point to are closed, it is good
+programming practice to explicitly close cursors.  In addition, in
+transactional systems, cursors may not exist outside of a transaction and
+so must be explicitly closed.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/am/count.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am/stability.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

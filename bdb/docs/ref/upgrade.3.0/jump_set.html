@@ -1,0 +1,48 @@
+<!--$Id: jump_set.so,v 11.6 2000/03/18 21:43:20 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Release 3.0: db_jump_set</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Upgrading Berkeley DB Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/upgrade.3.0/eacces.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.0/value_set.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Release 3.0: db_jump_set</h1>
+<p>The db_jump_set interface has been removed from the Berkeley DB 3.0 release,
+replaced by method calls on the DB_ENV handle.
+<p>The following table lists the db_jump_set arguments previously used by
+applications and the methods that should now be used instead.
+<p><table border=1 align=center>
+<tr><th>db_jump_set argument</th><th>Berkeley DB 3.X method</th></tr>
+<tr><td>DB_FUNC_CLOSE</td><td><a href="../../api_c/set_func_close.html">db_env_set_func_close</a></td></tr>
+<tr><td>DB_FUNC_DIRFREE</td><td><a href="../../api_c/set_func_dirfree.html">db_env_set_func_dirfree</a></td></tr>
+<tr><td>DB_FUNC_DIRLIST</td><td><a href="../../api_c/set_func_dirlist.html">db_env_set_func_dirlist</a></td></tr>
+<tr><td>DB_FUNC_EXISTS</td><td><a href="../../api_c/set_func_exists.html">db_env_set_func_exists</a></td></tr>
+<tr><td>DB_FUNC_FREE</td><td><a href="../../api_c/set_func_free.html">db_env_set_func_free</a></td></tr>
+<tr><td>DB_FUNC_FSYNC</td><td><a href="../../api_c/set_func_fsync.html">db_env_set_func_fsync</a></td></tr>
+<tr><td>DB_FUNC_IOINFO</td><td><a href="../../api_c/set_func_ioinfo.html">db_env_set_func_ioinfo</a></td></tr>
+<tr><td>DB_FUNC_MALLOC</td><td><a href="../../api_c/set_func_malloc.html">db_env_set_func_malloc</a></td></tr>
+<tr><td>DB_FUNC_MAP</td><td><a href="../../api_c/set_func_map.html">db_env_set_func_map</a></td></tr>
+<tr><td>DB_FUNC_OPEN</td><td><a href="../../api_c/set_func_open.html">db_env_set_func_open</a></td></tr>
+<tr><td>DB_FUNC_READ</td><td><a href="../../api_c/set_func_read.html">db_env_set_func_read</a></td></tr>
+<tr><td>DB_FUNC_REALLOC</td><td><a href="../../api_c/set_func_realloc.html">db_env_set_func_realloc</a></td></tr>
+<tr><td>DB_FUNC_RUNLINK</td><td>The DB_FUNC_RUNLINK functionality has been removed from the Berkeley DB
+3.0 release, and should be removed from the application.</td></tr>
+<tr><td>DB_FUNC_SEEK</td><td><a href="../../api_c/set_func_seek.html">db_env_set_func_seek</a></td></tr>
+<tr><td>DB_FUNC_SLEEP</td><td><a href="../../api_c/set_func_sleep.html">db_env_set_func_sleep</a></td></tr>
+<tr><td>DB_FUNC_UNLINK</td><td><a href="../../api_c/set_func_unlink.html">db_env_set_func_unlink</a></td></tr>
+<tr><td>DB_FUNC_UNMAP</td><td><a href="../../api_c/set_func_unmap.html">db_env_set_func_unmap</a></td></tr>
+<tr><td>DB_FUNC_WRITE</td><td><a href="../../api_c/set_func_write.html">db_env_set_func_write</a></td></tr>
+<tr><td>DB_FUNC_YIELD</td><td><a href="../../api_c/set_func_yield.html">db_env_set_func_yield</a></td></tr>
+</table>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/upgrade.3.0/eacces.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.0/value_set.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

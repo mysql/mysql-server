@@ -1,0 +1,68 @@
+<!--$Id: dbc_del.so,v 10.23 2000/05/22 20:51:46 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DBcursor-&gt;c_del</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DBcursor-&gt;c_del</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db.h&gt;
+<p>
+int
+DBcursor-&gt;c_del(DBC *cursor, u_int32_t flags);
+</pre></h3>
+<h1>Description</h1>
+<p>The DBcursor-&gt;c_del function deletes the key/data pair currently referenced by
+the cursor.
+<p>The <b>flags</b> parameter is currently unused, and must be set to 0.
+<p>The cursor position is unchanged after a delete, and subsequent calls to
+cursor functions expecting the cursor to reference an existing key will
+fail.
+<p>If the element has already been deleted, DBcursor-&gt;c_del will return
+<a href="../ref/program/errorret.html#DB_KEYEMPTY">DB_KEYEMPTY</a>.
+<p>If the cursor is not yet initialized, the DBcursor-&gt;c_del function will return EINVAL.
+<p>Otherwise, the DBcursor-&gt;c_del function returns a non-zero error value on failure and 0 on success.
+<h1>Errors</h1>
+<p>The DBcursor-&gt;c_del function may fail and return a non-zero error for the following conditions:
+<p><dl compact>
+<p><dt>DB_LOCK_DEADLOCK<dd>The operation was selected to resolve a deadlock.
+</dl>
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+</dl>
+<p><dl compact>
+<p><dt>EPERM  <dd>Write attempted on read-only cursor when the <a href="../api_c/env_open.html#DB_INIT_CDB">DB_INIT_CDB</a> flag was
+specified to <a href="../api_c/env_open.html">DBENV-&gt;open</a>.
+</dl>
+<p>The DBcursor-&gt;c_del function may fail and return a non-zero error for errors specified for other Berkeley DB and C library or system functions.
+If a catastrophic error has occurred, the DBcursor-&gt;c_del function may fail and return
+<a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a>, in which case all subsequent Berkeley DB calls will fail
+in the same way.
+<h1>See Also</h1>
+<a href="../api_c/dbc_close.html">DBcursor-&gt;c_close</a>,
+<a href="../api_c/dbc_count.html">DBcursor-&gt;c_count</a>,
+<a href="../api_c/dbc_del.html">DBcursor-&gt;c_del</a>,
+<a href="../api_c/dbc_dup.html">DBcursor-&gt;c_dup</a>,
+<a href="../api_c/dbc_get.html">DBcursor-&gt;c_get</a>
+and
+<a href="../api_c/dbc_put.html">DBcursor-&gt;c_put</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

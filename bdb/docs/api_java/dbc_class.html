@@ -1,0 +1,49 @@
+<!--$Id: dbc_class.so,v 10.12 1999/12/20 08:52:33 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: Dbc</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>Dbc</h1>
+</td>
+<td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+import com.sleepycat.db.*;
+<p>
+public class Dbc extends Object { ... }
+</pre></h3>
+<h1>Description</h1>
+<p>This manual page describes the specific details of the Dbc class,
+which provides cursor support for the access methods in Db.
+<p>The Dbc functions are the library interface supporting sequential
+access to the records stored by the access methods of the Berkeley DB library.
+Cursors are created by calling the <a href="../api_java/db_cursor.html">Db.cursor</a> method which returns a
+ Dbc object.
+<h3>Class</h3>
+<a href="../api_java/dbc_class.html">Dbc</a>
+<h1>See Also</h1>
+<a href="../api_java/dbc_close.html">Dbc.close</a>,
+<a href="../api_java/dbc_count.html">Dbc.count</a>,
+<a href="../api_java/dbc_del.html">Dbc.del</a>,
+<a href="../api_java/dbc_dup.html">Dbc.dup</a>,
+<a href="../api_java/dbc_get.html">Dbc.get</a>
+and
+<a href="../api_java/dbc_put.html">Dbc.put</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

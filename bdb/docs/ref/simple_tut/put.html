@@ -1,0 +1,127 @@
+<!--$Id: put.so,v 10.31 2000/12/18 21:05:15 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Adding elements to a database</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Simple Tutorial</dl></h3></td>
+<td width="1%"><a href="../../ref/simple_tut/open.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/simple_tut/get.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Adding elements to a database</h1>
+<p>The simplest way to add elements to a database is the <a href="../../api_c/db_put.html">DB-&gt;put</a>
+interface.
+<p>The <a href="../../api_c/db_put.html">DB-&gt;put</a> interface takes five arguments:
+<p><dl compact>
+<p><dt>db<dd>The database handle returned by <a href="../../api_c/db_create.html">db_create</a>.
+<p><dt>txnid<dd>A transaction handle.  In our simple case, we aren't expecting to
+recover the database after application or system crash, so we aren't
+using transactions, and will leave this argument NULL.
+<p><dt>key<dd>The key item for the key/data pair that we want to add to the database.
+<p><dt>data<dd>The data item for the key/data pair that we want to add to the database.
+<p><dt>flags<dd>Optional flags modifying the underlying behavior of the <a href="../../api_c/db_put.html">DB-&gt;put</a>
+interface.
+</dl>
+<p>Here's what the code to call <a href="../../api_c/db_put.html">DB-&gt;put</a> looks like:
+<p><blockquote><pre>#include &lt;sys/types.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;db.h&gt;
+<p>
+#define	DATABASE "access.db"
+<p>
+int
+main()
+{
+	DB *dbp;
+	<b>DBT key, data;</b>
+	int ret;
+<p>
+	if ((ret = db_create(&dbp, NULL, 0)) != 0) {
+		fprintf(stderr, "db_create: %s\n", db_strerror(ret));
+		exit (1);
+	}
+	if ((ret = dbp-&gt;open(
+	    dbp, DATABASE, NULL, DB_BTREE, DB_CREATE, 0664)) != 0) {
+		dbp-&gt;err(dbp, ret, "%s", DATABASE);
+		goto err;
+	}
+<p><b>	memset(&key, 0, sizeof(key));
+	memset(&data, 0, sizeof(data));
+	key.data = "fruit";
+	key.size = sizeof("fruit");
+	data.data = "apple";
+	data.size = sizeof("apple");
+<p>
+	if ((ret = dbp-&gt;put(dbp, NULL, &key, &data, 0)) == 0)
+		printf("db: %s: key stored.\n", (char *)key.data);
+	else {
+		dbp-&gt;err(dbp, ret, "DB-&gt;put");
+		goto err;
+	}
+</b></pre></blockquote>
+<p>The first thing to notice about this new code is that we clear the
+<a href="../../api_c/dbt.html">DBT</a> structures that we're about to pass as arguments to Berkeley DB
+functions.  This is very important, and being careful to do so will
+result in fewer errors in your programs.  All Berkeley DB structures
+instantiated in the application and handed to Berkeley DB should be cleared
+before use, without exception.  This is necessary so that future
+versions of Berkeley DB may add additional fields to the structures.  If
+applications clear the structures before use, it will be possible for
+Berkeley DB to change those structures without requiring that the applications
+be rewritten to be aware of the changes.
+<p>Notice also that we're storing the trailing nul byte found in the C
+strings <b>"fruit"</b> and <b>"apple"</b> in both the key and data
+items, that is, the trailing nul byte is part of the stored key, and
+therefore has to be specified in order to access the data item.  There is
+no requirement to store the trailing nul byte, it simply makes it easier
+for us to display strings that we've stored in programming languages that
+use nul bytes to terminate strings.
+<p>In many applications, it is important not to overwrite existing
+data.  For example, we might not want to store the key/data pair
+<b>fruit/apple</b> if it already existed, e.g., if someone had
+previously stored the key/data pair <b>fruit/cherry</b> into the
+database.
+<p>This is easily accomplished by adding the <a href="../../api_c/db_put.html#DB_NOOVERWRITE">DB_NOOVERWRITE</a> flag to
+the <a href="../../api_c/db_put.html">DB-&gt;put</a> call:
+<p><blockquote><pre><b>if ((ret =
+	dbp-&gt;put(dbp, NULL, &key, &data, DB_NOOVERWRITE)) == 0)
+		printf("db: %s: key stored.\n", (char *)key.data);
+else {
+	dbp-&gt;err(dbp, ret, "DB-&gt;put");
+	goto err;
+}</b></pre></blockquote>
+<p>This flag causes the underlying database functions to not overwrite any
+previously existing key/data pair.  (Note that the value of the previously
+existing data doesn't matter in this case.  The only question is if a
+key/data pair already exists where the key matches the key that we are
+trying to store.)
+<p>Specifying <a href="../../api_c/db_put.html#DB_NOOVERWRITE">DB_NOOVERWRITE</a> opens up the possibility of a new
+Berkeley DB return value from the <a href="../../api_c/db_put.html">DB-&gt;put</a> function, <a href="../../api_c/dbc_put.html#DB_KEYEXIST">DB_KEYEXIST</a>,
+which means we were unable to add the key/data pair to the database
+because the key already existed in the database.  While the above sample
+code simply displays a message in this case:
+<p><blockquote><pre>DB-&gt;put: DB_KEYEXIST: Key/data pair already exists</pre></blockquote>
+<p>The following code shows an explicit check for this possibility:
+<p><blockquote><pre><b>switch (ret =
+	dbp-&gt;put(dbp, NULL, &key, &data, DB_NOOVERWRITE)) {
+case 0:
+	printf("db: %s: key stored.\n", (char *)key.data);
+	break;
+case DB_KEYEXIST:
+	printf("db: %s: key previously stored.\n",
+	(char *)key.data);
+	break;
+default:
+	dbp-&gt;err(dbp, ret, "DB-&gt;put");
+	goto err;
+}</b></pre></blockquote>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/simple_tut/open.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/simple_tut/get.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

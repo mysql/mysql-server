@@ -1,0 +1,52 @@
+$Id: Design,v 11.2 1999/11/21 23:08:27 bostic Exp $
+
+There are three ways we do locking in the mpool code:
+
+Locking a handle mutex to provide concurrency for DB_THREAD operations.
+Locking the region mutex to provide mutual exclusion while reading and
+    writing structures in the shared region.
+Locking buffer header mutexes during I/O.
+
+The first will not be further described here.  We use the shared mpool
+region lock to provide mutual exclusion while reading/modifying all of
+the data structures, including the buffer headers.  We use a per-buffer
+header lock to wait on buffer I/O.  The order of locking is as follows:
+
+Searching for a buffer:
+    Acquire the region lock.
+    Find the buffer header.
+    Increment the reference count (guarantee the buffer stays).
+    While the BH_LOCKED flag is set (I/O is going on) {
+	Release the region lock.
+	    Explicitly yield the processor if it's not the first pass
+	    through this loop, otherwise, we can simply spin because
+	    we'll be simply switching between the two locks.
+	Request the buffer lock.
+	The I/O will complete...
+	Acquire the buffer lock.
+	Release the buffer lock.
+	Acquire the region lock.
+    }
+    Return the buffer.
+
+Reading/writing a buffer:
+    Acquire the region lock.
+    Find/create the buffer header.
+    If reading, increment the reference count (guarantee the buffer stays).
+    Set the BH_LOCKED flag.
+    Acquire the buffer lock (guaranteed not to block).
+    Release the region lock.
+    Do the I/O and/or initialize the buffer contents.
+    Release the buffer lock.
+	At this point, the buffer lock is available, but the logical
+	operation (flagged by BH_LOCKED) is not yet completed.  For
+	this reason, among others, threads checking the BH_LOCKED flag
+	must loop around their test.
+    Acquire the region lock.
+    Clear the BH_LOCKED flag.
+    Release the region lock.
+    Return/discard the buffer.
+
+Pointers to DB_MPOOL, MPOOL, DB_MPOOLFILE and MPOOLFILE structures are
+not reacquired when a region lock is reacquired because they couldn't
+have been closed/discarded and because they never move in memory.

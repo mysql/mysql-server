@@ -1,0 +1,38 @@
+<!--$Id: sync.so,v 10.15 2000/12/18 21:05:14 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Flushing the database cache</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Access Methods</dl></h3></td>
+<td width="1%"><a href="../../ref/am/delete.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am/stat.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Flushing the database cache</h1>
+<p>The <a href="../../api_c/db_sync.html">DB-&gt;sync</a> function is the standard interface for flushing all modified
+records from the database cache to disk.
+<p><b>It is important to understand that flushing cached information
+to disk only minimizes the window of opportunity for corrupted data, it
+does not eliminate the possibility.</b>
+<p>While unlikely, it is possible for database corruption to happen if a
+system or application crash occurs while writing data to the database. To
+ensure that database corruption never occurs, applications must either:
+<ul type=disc>
+<li>Use transactions and logging with automatic recovery.
+<li>Use logging and application-specific recovery.
+<li>Edit a copy of the database, and, once all applications
+using the database have successfully called <a href="../../api_c/db_close.html">DB-&gt;close</a>, use
+system operations (e.g., the POSIX rename system call) to atomically
+replace the original database with the updated copy.
+</ul>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/am/delete.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am/stat.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

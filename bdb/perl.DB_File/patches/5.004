@@ -1,0 +1,44 @@
+diff perl5.004.orig/Configure perl5.004/Configure
+190a191
+> perllibs=''
+9904a9906,9913
+> : Remove libraries needed only for extensions
+> : The appropriate ext/Foo/Makefile.PL will add them back in, if
+> : necessary.
+> set X `echo " $libs " | 
+>   sed -e 's@ -lndbm @ @' -e 's@ -lgdbm @ @' -e 's@ -ldbm @ @' -e 's@ -ldb @ @'` 
+> shift
+> perllibs="$*"
+> 
+10372a10382
+> perllibs='$perllibs'
+diff perl5.004.orig/Makefile.SH perl5.004/Makefile.SH
+122c122
+< libs = $libs $cryptlib
+---
+> libs = $perllibs $cryptlib
+Common subdirectories: perl5.004.orig/Porting and perl5.004/Porting
+Common subdirectories: perl5.004.orig/cygwin32 and perl5.004/cygwin32
+Common subdirectories: perl5.004.orig/eg and perl5.004/eg
+Common subdirectories: perl5.004.orig/emacs and perl5.004/emacs
+Common subdirectories: perl5.004.orig/ext and perl5.004/ext
+Common subdirectories: perl5.004.orig/h2pl and perl5.004/h2pl
+Common subdirectories: perl5.004.orig/hints and perl5.004/hints
+Common subdirectories: perl5.004.orig/lib and perl5.004/lib
+diff perl5.004.orig/myconfig perl5.004/myconfig
+38c38
+<     libs=$libs
+---
+>     libs=$perllibs
+Common subdirectories: perl5.004.orig/os2 and perl5.004/os2
+diff perl5.004.orig/patchlevel.h perl5.004/patchlevel.h
+40a41
+> 	,"NODB-1.0 - remove -ldb from core perl binary."
+Common subdirectories: perl5.004.orig/plan9 and perl5.004/plan9
+Common subdirectories: perl5.004.orig/pod and perl5.004/pod
+Common subdirectories: perl5.004.orig/qnx and perl5.004/qnx
+Common subdirectories: perl5.004.orig/t and perl5.004/t
+Common subdirectories: perl5.004.orig/utils and perl5.004/utils
+Common subdirectories: perl5.004.orig/vms and perl5.004/vms
+Common subdirectories: perl5.004.orig/win32 and perl5.004/win32
+Common subdirectories: perl5.004.orig/x2p and perl5.004/x2p

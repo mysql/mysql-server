@@ -1,0 +1,50 @@
+<!--$Id: btstat.so,v 1.11 2000/07/25 16:59:36 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Release 3.1: DB-&gt;stat</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Upgrading Berkeley DB Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/upgrade.3.1/dup.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.1/sysmem.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Release 3.1: DB-&gt;stat</h1>
+<p>For Btree database statistics, the <a href="../../api_c/db_stat.html">DB-&gt;stat</a> interface field
+<b>bt_nrecs</b> has been removed, replaced by two fields:
+<b>bt_nkeys</b> and <b>bt_ndata</b>.  The <b>bt_nkeys</b> field returns
+a count of the unique keys in the database.  The <b>bt_ndata</b> field
+returns a count of the key/data pairs in the database.  Neither exactly
+matches the previous value of the <b>bt_nrecs</b> field, which returned
+a count of keys in the database, but, in the case of Btree databases,
+could overcount as it sometimes counted duplicate data items as unique
+keys.  The application should be searched for any uses of the
+<b>bt_nrecs</b> field and the field should be changed to be either
+<b>bt_nkeys</b> or <b>bt_ndata</b>, whichever is more appropriate.
+<p>For Hash database statistics, the <a href="../../api_c/db_stat.html">DB-&gt;stat</a> interface field
+<b>hash_nrecs</b> has been removed, replaced by two fields:
+<b>hash_nkeys</b> and <b>hash_ndata</b>.  The <b>hash_nkeys</b> field
+returns a count of the unique keys in the database.  The
+<b>hash_ndata</b> field returns a count of the key/data pairs in the
+database.  The new <b>hash_nkeys</b> field exactly matches the previous
+value of the <b>hash_nrecs</b> field.  The application should be searched
+for any uses of the <b>hash_nrecs</b> field, and the field should be
+changed to be <b>hash_nkeys</b>.
+<p>For Queue database statistics, the <a href="../../api_c/db_stat.html">DB-&gt;stat</a> interface field
+<b>qs_nrecs</b> has been removed, replaced by two fields:
+<b>qs_nkeys</b> and <b>qs_ndata</b>.  The <b>qs_nkeys</b> field returns
+a count of the unique keys in the database.  The <b>qs_ndata</b> field
+returns a count of the key/data pairs in the database.  The new
+<b>qs_nkeys</b> field exactly matches the previous value of the
+<b>qs_nrecs</b> field.  The application should be searched for any uses
+of the <b>qs_nrecs</b> field, and the field should be changed to be
+<b>qs_nkeys</b>.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/upgrade.3.1/dup.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.1/sysmem.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

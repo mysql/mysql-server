@@ -1,0 +1,38 @@
+<!--$Id: extentsize.so,v 1.2 2000/11/20 21:45:19 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Selecting a Queue extent size</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Access Methods</dl></h3></td>
+<td width="1%"><a href="../../ref/am_conf/recno.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am_conf/re_source.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Selecting a Queue extent size</h1>
+<p>In Queue databases, records are allocated sequentially and directly
+mapped to an offset within the file storage for the database.  As
+records are deleted from the Queue, pages will become empty and will
+not be reused in normal queue operations.  To facilitate the reclamation
+of disk space a Queue may be partitioned into extents.  Each extent is
+kept in a separate physical file.  Extent files are automatically
+created as needed and destroyed when they are emptied of records.
+<p>The extent size specifies the number of pages that make up each extent.
+By default, if no extent size is specified, the Queue resides in a
+single file and disk space is not reclaimed.  In choosing an extent size
+there is a tradeoff between the amount of disk space used and the
+overhead of creating and deleting files.  If the extent size is too
+small, the system will pay a performance penalty, creating and deleting
+files frequently.  In addition, if the active part of the queue spans
+many files, all those files will need to be open at the same time,
+consuming system and process file resources.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/am_conf/recno.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am_conf/re_source.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

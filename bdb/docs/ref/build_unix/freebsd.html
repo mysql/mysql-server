@@ -1,0 +1,57 @@
+<!--$Id: freebsd.so,v 11.12 2000/03/18 21:43:10 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: FreeBSD</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Building Berkeley DB for UNIX systems</dl></h3></td>
+<td width="1%"><a href="../../ref/build_unix/aix.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_unix/hpux.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>FreeBSD</h1>
+<p><ol>
+<p><li><b>I can't compile and run multi-threaded applications.</b>
+<p>Special compile-time flags are required when compiling threaded
+applications on FreeBSD.  If you are compiling a threaded application,
+you must compile with the _THREAD_SAFE and -pthread flags:
+<p><blockquote><pre>cc -D_THREAD_SAFE -pthread ...</pre></blockquote>
+<p>The Berkeley DB library will automatically build with the correct options.
+<hr size=1 noshade>
+<p><li><b>I get occasional failures when running RPC-based programs under FreeBSD clients.</b>
+<p>There is a known bug in the XDR implementation in the FreeBSD C library,
+from Version 2.2 up to version 4.0-RELEASE, that causes certain sized
+messages to fail and return a zero-filled reply to the client.  A bug
+report (#16028) has been filed with FreeBSD.  The following patch is the
+FreeBSD fix:
+<p><blockquote><pre>*** /usr/src/lib/libc/xdr/xdr_rec.c.orig	Mon Jan 10 10:20:42 2000
+--- /usr/src/lib/libc/xdr/xdr_rec.c	Wed Jan 19 10:53:45 2000
+***************
+*** 558,564 ****
+  	 * but we don't have any way to be certain that they aren't
+  	 * what the client actually intended to send us.
+  	 */
+! 	if ((header & (~LAST_FRAG)) == 0)
+  		return(FALSE);
+  	rstrm-&gt;fbtbc = header & (~LAST_FRAG);
+  	return (TRUE);
+--- 558,564 ----
+  	 * but we don't have any way to be certain that they aren't
+  	 * what the client actually intended to send us.
+  	 */
+! 	if (header == 0)
+  		return(FALSE);
+  	rstrm-&gt;fbtbc = header & (~LAST_FRAG);
+  	return (TRUE);
+</pre></blockquote>
+</ol>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/build_unix/aix.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_unix/hpux.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

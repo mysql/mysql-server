@@ -1,0 +1,68 @@
+<!--$Id: env_set_lg_bsize.so,v 10.10 2000/05/20 16:29:11 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DBENV-&gt;set_lg_bsize</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DBENV-&gt;set_lg_bsize</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db.h&gt;
+<p>
+int
+DBENV-&gt;set_lg_bsize(DB_ENV *dbenv, u_int32_t lg_bsize);
+</pre></h3>
+<h1>Description</h1>
+<p>Set the size of the in-memory log buffer, in bytes.  By default, or if
+the value is set to 0, a size of 32K is used.
+<p>Log information is stored in-memory until the storage space fills up
+or transaction commit forces the information to be flushed to stable
+storage.  In the presence of long-running transactions or transactions
+producing large amounts of data, larger buffer sizes can increase
+throughput.
+<p>The DBENV-&gt;set_lg_bsize interface may only be used to configure Berkeley DB before
+the <a href="../api_c/env_open.html">DBENV-&gt;open</a> interface is called.
+<p>The DBENV-&gt;set_lg_bsize function returns a non-zero error value on failure and 0 on success.
+<p>The database environment's log buffer size may also be set using the environment's
+<b>DB_CONFIG</b> file.  The syntax of the entry in that file is a
+single line with the string "set_lg_bsize", one or more whitespace characters,
+and the size in bytes.  Because the <b>DB_CONFIG</b> file is read when the database
+environment is opened, it will silently overrule configuration done
+before that time.
+<h1>Errors</h1>
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+<p>Called after <a href="../api_c/env_open.html">DBENV-&gt;open</a> was called.
+</dl>
+<h1>See Also</h1>
+<a href="../api_c/env_set_lg_bsize.html">DBENV-&gt;set_lg_bsize</a>,
+<a href="../api_c/env_set_lg_max.html">DBENV-&gt;set_lg_max</a>,
+<a href="../api_c/log_archive.html">log_archive</a>,
+<a href="../api_c/log_compare.html">log_compare</a>,
+<a href="../api_c/log_file.html">log_file</a>,
+<a href="../api_c/log_flush.html">log_flush</a>,
+<a href="../api_c/log_get.html">log_get</a>,
+<a href="../api_c/log_put.html">log_put</a>,
+<a href="../api_c/log_register.html">log_register</a>,
+<a href="../api_c/log_stat.html">log_stat</a>
+and
+<a href="../api_c/log_unregister.html">log_unregister</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

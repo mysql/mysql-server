@@ -1,0 +1,169 @@
+<!--$Id: cursor.so,v 1.2 2000/08/16 17:50:40 margo Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Transactional cursors</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Transaction Protected Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/transapp/read.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/admin.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Transactional cursors</h1>
+<p>Berkeley DB cursors may be used inside a transaction, exactly like any other
+DB method.  The enclosing transaction ID must be specified when
+the cursor is created, but it does not then need to be further specified
+on operations performed using the cursor.  One important point to
+remember is that a cursor <b>must be closed</b> before the enclosing
+transaction is committed or aborted.
+<p>The following code fragment uses a cursor to store a new key in the cats
+database with four associated data items.  The key is a name.  The data
+items are a company name, an address, and a list of the breeds of cat
+owned.  Each of the data entries is stored as a duplicate data item.
+In this example, transactions are necessary to ensure that either all or none
+of the data items appear in case of system or application failure.
+<p><blockquote><pre>int
+main(int argc, char *argv)
+{
+	extern char *optarg;
+	extern int optind;
+	DB *db_cats, *db_color, *db_fruit;
+	DB_ENV *dbenv;
+	pthread_t ptid;
+	int ch;
+<p>
+	while ((ch = getopt(argc, argv, "")) != EOF)
+		switch (ch) {
+		case '?':
+		default:
+			usage();
+		}
+	argc -= optind;
+	argv += optind;
+<p>
+	env_dir_create();
+	env_open(&dbenv);
+<p>
+	/* Open database: Key is fruit class; Data is specific type. */
+	db_open(dbenv, &db_fruit, "fruit", 0);
+<p>
+	/* Open database: Key is a color; Data is an integer. */
+	db_open(dbenv, &db_color, "color", 0);
+<p>
+	/*
+	 * Open database:
+	 *	Key is a name; Data is: company name, address, cat breeds.
+	 */
+	db_open(dbenv, &db_cats, "cats", 1);
+<p>
+	add_fruit(dbenv, db_fruit, "apple", "yellow delicious");
+<p>
+	add_color(dbenv, db_color, "blue", 0);
+	add_color(dbenv, db_color, "blue", 3);
+<p>
+<b>	add_cat(dbenv, db_cats,
+		"Amy Adams",
+		"Sleepycat Software",
+		"394 E. Riding Dr., Carlisle, MA 01741, USA",
+		"abyssinian",
+		"bengal",
+		"chartreaux",
+		NULL);</b>
+<p>
+	return (0);
+}
+<p>
+<b>void
+add_cat(DB_ENV *dbenv, DB *db, char *name, ...)
+{
+	va_list ap;
+	DBC *dbc;
+	DBT key, data;
+	DB_TXN *tid;
+	int ret;
+	char *s;
+<p>
+	/* Initialization. */
+	memset(&key, 0, sizeof(key));
+	memset(&data, 0, sizeof(data));
+	key.data = name;
+	key.size = strlen(name);
+<p>
+retry:	/* Begin the transaction. */
+	if ((ret = txn_begin(dbenv, NULL, &tid, 0)) != 0) {
+		dbenv-&gt;err(dbenv, ret, "txn_begin");
+		exit (1);
+	}
+<p>
+	/* Delete any previously existing item. */
+	switch (ret = db-&gt;del(db, tid, &key, 0)) {
+	case 0:
+	case DB_NOTFOUND:
+		break;
+	case DB_LOCK_DEADLOCK:
+		/* Deadlock: retry the operation. */
+		if ((ret = txn_abort(tid)) != 0) {
+			dbenv-&gt;err(dbenv, ret, "txn_abort");
+			exit (1);
+		}
+		goto retry;
+	default:
+		dbenv-&gt;err(dbenv, ret, "db-&gt;del: %s", name);
+		exit (1);
+	}
+<p>
+	/* Create a cursor. */
+	if ((ret = db-&gt;cursor(db, tid, &dbc, 0)) != 0) {
+		dbenv-&gt;err(dbenv, ret, "db-&gt;cursor");
+		exit (1);
+	}
+<p>
+	/* Append the items, in order. */
+	va_start(ap, name);
+	while ((s = va_arg(ap, char *)) != NULL) {
+		data.data = s;
+		data.size = strlen(s);
+		switch (ret = dbc-&gt;c_put(dbc, &key, &data, DB_KEYLAST)) {
+		case 0:
+			break;
+		case DB_LOCK_DEADLOCK:
+			va_end(ap);
+<p>
+			/* Deadlock: retry the operation. */
+			if ((ret = dbc-&gt;c_close(dbc)) != 0) {
+				dbenv-&gt;err(
+				    dbenv, ret, "dbc-&gt;c_close");
+				exit (1);
+			}
+			if ((ret = txn_abort(tid)) != 0) {
+				dbenv-&gt;err(dbenv, ret, "txn_abort");
+				exit (1);
+			}
+			goto retry;
+		default:
+			/* Error: run recovery. */
+			dbenv-&gt;err(dbenv, ret, "dbc-&gt;put: %s/%s", name, s);
+			exit (1);
+		}
+	}
+	va_end(ap);
+<p>
+	/* Success: commit the change. */
+	if ((ret = dbc-&gt;c_close(dbc)) != 0) {
+		dbenv-&gt;err(dbenv, ret, "dbc-&gt;c_close");
+		exit (1);
+	}
+	if ((ret = txn_commit(tid, 0)) != 0) {
+		dbenv-&gt;err(dbenv, ret, "txn_commit");
+		exit (1);
+	}
+}</b></pre></blockquote>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/transapp/read.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/admin.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

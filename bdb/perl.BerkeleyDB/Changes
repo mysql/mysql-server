@@ -1,0 +1,112 @@
+Revision history for Perl extension BerkeleyDB.
+
+0.01  23 October 1997
+	* first alpha release as BerkDB.
+
+0.02  30 October 1997
+	* renamed module to BerkeleyDB	
+	* fixed a few bugs & added more tests
+
+0.03  5 May 1998
+	* fixed db_get with DB_SET_RECNO
+	* fixed c_get with DB_SET_RECNO and DB_GET_RECNO
+	* implemented BerkeleyDB::Unknown
+	* implemented BerkeleyDB::Recno, including push, pop etc
+	  modified the txn support. 
+
+0.04  19 May 1998
+	* Define DEFSV & SAVE_DEFSV if not already defined. This allows
+	  the module to be built with Perl 5.004_04.
+
+0.05  9 November 1998
+	* Added a note to README about how to build Berkeley DB 2.x
+	  when using HP-UX.
+	* Minor modifications to get the module to build with DB 2.5.x
+
+0.06  19 December 1998
+	* Minor modifications to get the module to build with DB 2.6.x
+	* Added support for DB 2.6.x's  Concurrent Access Method, DB_INIT_CDB.
+
+0.07  21st September 1999
+	* Numerous small bug fixes.
+	* Added support for sorting duplicate values DB_DUPSORT.
+	* Added support for DB_GET_BOTH & DB_NEXT_DUP.
+	* Added get_dup (from DB_File).
+	* beefed up the documentation.
+	* Forgot to add the DB_INIT_CDB in BerkeleyDB.pm in previous release.
+	* Merged the DBM Filter code from DB_File into BerkeleyDB.
+	* Fixed a nasty bug where a closed transaction was still used with
+	  with dp_put, db_get etc.
+	* Added logic to gracefully close everything whenever a fatal error
+	  happens. Previously the plug was just pulled.
+	* It is now a fatal error to explicitly close an environment if there
+	  is still an open database; a database when there are open cursors or
+	  an open transaction; and a cursor if there is an open transaction.
+	  Using object destruction doesn't have this issue, as object
+	  references will ensure everything gets closed in the correct order.
+	* The BOOT code now checks that the version of db.h & libdb are the
+	  same - this seems to be a common problem on Linux.
+	* MLDBM support added.  
+	* Support for the new join cursor added.
+	* Builds with Berkeley DB 3.x
+   	* Updated dbinfo for Berkeley DB 3.x file formats.
+	* Deprecated the TxnMgr class. As with Berkeley DB version 3,
+	  txn_begin etc are now accessed via the environment object.
+	
+0.08  28nd November 1999
+	* More documentation updates
+	* Changed reference to files in /tmp in examples.t
+	* Fixed a typo in softCrash that caused problems when building
+	  with a thread-enabled Perl.
+	* BerkeleyDB::Error wasn't initialised properly.
+	* ANSI-ified all the static C functions in BerkeleyDB.xs
+	* Added support for the following DB 3.x features:
+	    + The Queue database type
+	    + db_remove
+	    + subdatabases 
+	    + db_stat for Hash & Queue
+
+0.09  29th November 1999
+        * the queue.t & subdb.t test harnesses were outputting a few
+          spurious warnings. This has been fixed.
+
+0.10  8th December 1999
+	* The DESTROY method was missing for BerkeleyDB::Env. This resulted in
+	  a memory leak. Fixed.
+	* If opening an environment or database failed, there was a small 
+	  memory leak. This has been fixed. 
+	* A thread-enabled Perl it could core when a database was closed. 
+	  Problem traced to the strdup function.
+
+0.11  4th June 2000
+	* When built with Berkeley Db 3.x there can be a clash with the close
+	  macro.
+	* Typo in the definition of DB_WRITECURSOR
+	* The flags parameter wasn't getting sent to db_cursor
+	* Plugged small memory leak in db_cursor (DESTROY wasn't freeing
+	  memory)
+	* Can be built with Berkeley DB 3.1
+   
+
+0.12  2nd August 2000
+	* Serious bug with get fixed. Spotted by Sleepycat.
+	* Added hints file for Solaris & Irix (courtesy of Albert Chin-A-Young)
+
+0.13 15th January 2001
+        * Added support to allow this module to build with Berkeley DB 3.2  
+        * Updated dbinfo to support Berkeley DB 3.1 & 3.2 file format
+          changes.  
+        * Documented the Solaris 2.7 core dump problem in README.
+        * Tidied up the test harness to fix a problem on Solaris where the
+          "fred" directory wasn't being deleted when it should have been.
+        * two calls to "open" clashed with a win32 macro.
+        * size argument for hash_cb is different for Berkeley DB 3.x 
+        * Documented the issue of building on Linux.
+        * Added -Server, -CacheSize & -LockDetect options 
+          [original patch supplied by Graham Barr]
+        * Added support for set_mutexlocks, c_count, set_q_extentsize,
+          key_range, c_dup
+	* Dropped the "attempted to close a Cursor with an open transaction"
+	  error in c_close. The correct behaviour is that the cursor
+	  should be closed before committing/aborting the transaction.
+

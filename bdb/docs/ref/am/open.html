@@ -1,0 +1,47 @@
+<!--$Id: open.so,v 10.15 2000/12/18 21:05:14 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Opening a database</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Access Methods</dl></h3></td>
+<td width="1%"><a href="../../ref/am/ops.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am/opensub.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Opening a database</h1>
+<p>The <a href="../../api_c/db_open.html">DB-&gt;open</a> function is the standard interface for opening a database,
+and takes five arguments:
+<p><dl compact>
+<p><dt>file<dd>The name of the file to be opened.
+<p><dt>database<dd>An optional database name.
+<p><dt>type<dd>The type of database to open.  This value will be one of the four access
+methods Berkeley DB supports: DB_BTREE, DB_HASH, DB_QUEUE or DB_RECNO, or the
+special value DB_UNKNOWN, which allows you to open an existing file
+without knowing its type.
+<p><dt>mode<dd>The permissions to give to any created file.
+</dl>
+<p>There are a few flags that you can set to customize open:
+<p><dl compact>
+<p><dt><a href="../../api_c/env_open.html#DB_CREATE">DB_CREATE</a><dd>Create the underlying database and any necessary physical files.
+<p><dt><a href="../../api_c/env_open.html#DB_NOMMAP">DB_NOMMAP</a><dd>Do not map this database into process memory.
+<p><dt><a href="../../api_c/db_open.html#DB_RDONLY">DB_RDONLY</a><dd>Treat the data base as readonly.
+<p><dt><a href="../../api_c/env_open.html#DB_THREAD">DB_THREAD</a><dd>The returned handle is free-threaded, that is, it can be used
+simultaneously by multiple threads within the process.
+<p><dt><a href="../../api_c/db_open.html#DB_TRUNCATE">DB_TRUNCATE</a><dd>Physically truncate the underlying database file, discarding all
+databases it contained. Underlying filesystem primitives are used to
+implement this flag. For this reason it is only applicable to the
+physical file and cannot be used to discard individual databases from
+within physical files.
+<p><dt><a href="../../api_c/db_set_feedback.html#DB_UPGRADE">DB_UPGRADE</a><dd>Upgrade the database format as necessary.
+</dl>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/am/ops.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am/opensub.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,93 @@
+<!--$Id: dead.so,v 10.13 2000/03/18 21:43:14 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Deadlocks and deadlock avoidance</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Locking Subsystem</dl></h3></td>
+<td width="1%"><a href="../../ref/lock/cam_conv.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/lock/config.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Deadlocks and deadlock avoidance</h1>
+<p>Practically any application that uses locking may deadlock.
+In nearly all cases, in order to recover from a deadlock, transactions
+must be used, so that an operation that deadlocks mid-way through can
+be undone, leaving the database in a consistent state.
+As the access methods may perform updates on multiple pages during a
+single API call, transactions are necessary even when the application
+makes only single update calls into the database.
+The only exception to this rule is when all the threads accessing
+the database are doing so read-only or when the Concurrent Data Store
+product is used; this product guarantees deadlock-free operation at the
+expense of reduced concurrency.
+Since deadlocks cannot  be prevented, Berkeley DB provides the ability to detect
+deadlocks and recover from them gracefully.
+<p>Deadlocks occur when two or more threads of control are blocked waiting
+on each other's forward progress.  Consider two transactions, each of
+which wants to modify items A and B.  Assume that transaction 1 modifies
+first A and then B, but transaction 2 modifies B then A.  Now, assume
+that transaction 1 obtains its writelock on A, but before it obtains its
+writelock on B, it is descheduled and transaction 2 runs.  Transaction 2
+successfully acquires its writelock on B, but then blocks when it tries
+to obtain its writelock on A, because transaction 1 already holds a
+writelock on it.  This is a deadlock. Transaction 1 cannot make forward
+progress until Transaction 2 releases its lock on B, but Transaction 2
+cannot make forward progress until Transaction 1 releases its lock on A.
+<p>The <a href="../../api_c/lock_detect.html">lock_detect</a> function runs an instance of the Berkeley DB deadlock
+detector.  The <a href="../../utility/db_deadlock.html">db_deadlock</a> utility performs deadlock detection by
+calling <a href="../../api_c/lock_detect.html">lock_detect</a> at regular intervals.  When a deadlock exists
+in the system, all of the threads of control involved in the deadlock are,
+by definition, waiting on a lock.  The deadlock detector examines the
+state of the lock manager and identifies a deadlock, and selects one of
+the participants to abort.  (See <a href="../../ref/lock/config.html">Configuring locking</a> for a discussion of how a participant is selected).
+The lock on which the selected participant is waiting is identified such
+that the <a href="../../api_c/lock_get.html">lock_get</a> (or <a href="../../api_c/lock_vec.html">lock_vec</a>) call in which that lock
+was requested will receive an error return of <a href="../../ref/program/errorret.html#DB_LOCK_DEADLOCK">DB_LOCK_DEADLOCK</a>.
+In the access methods, this error return is propagated back through the
+Berkeley DB interface as DB_LOCK_DEADLOCK.
+<p>When an application receives an DB_LOCK_DEADLOCK, the correct action is
+to abort the current transaction, and optionally retry it.  Transaction
+support is necessary for recovery from deadlocks.  When a deadlock occurs,
+the database may be left in an inconsistent or corrupted state, and any
+database changes already accomplished must be undone before the
+application can proceed further.
+<p>The deadlock detector identifies deadlocks by looking for a cycle in what
+is commonly referred to as its "waits-for" graph.  More precisely, the
+deadlock detector reads through the lock table, and finds each object
+currently locked.  Each object has a list of transactions or operations
+(hereafter called lockers) that currently hold locks on the object and
+possibly a list of waiting lockers, waiting on the lockers holding it.
+Each object creates one or more partial orderings of lockers.  That is,
+for a particular object, every waiting locker comes after every holding
+locker, because that holding locker must release its lock before the
+waiting locker can make forward progress.  Conceptually, after each object
+has been examined, the partial orderings are topologically sorted (see
+tsort).  If this topological sort reveals any cycles, then the lockers
+forming the cycle are involved in a deadlock.  One of the lockers is
+selected for abortion.
+<p>It is possible that aborting a single transaction involved in a deadlock
+is not enough to allow other transactions to make forward progress.
+In this case, the deadlock detector will be called repeatedly.
+Unfortunately, at the time a transaction is selected for abortion,
+there is not enough information available to determine if aborting
+that single transaction will allow forward progress or not.  Since
+most applications have few deadlocks, Berkeley DB takes the conservative
+approach, aborting as few transactions as may be necessary to resolve
+the existing deadlocks.  In particular, for each unique cycle found
+in the waits-for graph described in the previous paragraph, only one
+transaction is selected for abortion.  However, if there are multiple
+cycles, then one transaction from each cycle is selected for abortion.
+Only after the aborting transactions have received the deadlock return
+and aborted their transactions, can it be determined if it is necessary
+to abort other transactions in order to allow forward progress.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/lock/cam_conv.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/lock/config.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

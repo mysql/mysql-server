@@ -1,0 +1,156 @@
+<!--$Id: envopen.so,v 11.12 2000/03/18 21:43:20 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Release 3.0: environment open/close/unlink</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Upgrading Berkeley DB Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/upgrade.3.0/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.0/func.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Release 3.0: environment open/close/unlink</h1>
+<p>The hardest part of upgrading your application from a 2.X code base to
+the 3.0 release is translating the Berkeley DB environment open, close and
+remove calls.
+<p>There were two logical changes in this part of the Berkeley DB interface.
+First, in Berkeley DB 3.0, there are no longer separate structures that
+represent each subsystem (e.g., DB_LOCKTAB or DB_TXNMGR) and an overall
+DB_ENV environment structure.  Instead there is only the
+DB_ENV structure.  This means that DB_ENV references should
+be passed around by your application instead of passing around DB_LOCKTAB
+or DB_TXNMGR references.  This is likely to be a simple change for most
+applications as few applications use the lock_XXX, log_XXX,
+memp_XXX or txn_XXX interfaces to create Berkeley DB environments.
+<p>The second change is that there are no longer separate open, close, and
+unlink interfaces to the
+Berkeley DB subsystems, e.g., in previous releases, it was possible to open a
+lock subsystem either using db_appinit or using the lock_open call.  In
+the 3.0 release the XXX_open interfaces to the subsystems have been
+removed, and subsystems must now be opened using the 3.0 replacement for the
+db_appinit call.
+<p>To upgrade your application, first find each place your application opens,
+closes and/or removes a Berkeley DB environment.  This will be code of the form:
+<p><blockquote><pre>db_appinit, db_appexit
+lock_open, lock_close, lock_unlink
+log_open, log_close, log_unlink
+memp_open, memp_close, memp_unlink
+txn_open, txn_close, txn_unlink</pre></blockquote>
+<p>Each of these groups of calls should be replaced with calls to:
+<p><blockquote><pre><a href="../../api_c/env_create.html">db_env_create</a>, <a href="../../api_c/env_open.html">DBENV-&gt;open</a>, <a href="../../api_c/env_close.html">DBENV-&gt;close</a>,
+<a href="../../api_c/env_remove.html">DBENV-&gt;remove</a></pre></blockquote>
+<p>The <a href="../../api_c/env_create.html">db_env_create</a> call and the call to the <a href="../../api_c/env_open.html">DBENV-&gt;open</a>
+method replace the db_appinit, lock_open, log_open, memp_open and txn_open
+calls.  The <a href="../../api_c/env_close.html">DBENV-&gt;close</a> method replaces the db_appexit,
+lock_close, log_close, memp_close and txn_close calls.  The
+<a href="../../api_c/env_remove.html">DBENV-&gt;remove</a> call replaces the lock_unlink, log_unlink,
+memp_unlink and txn_unlink calls.
+<p>Here's an example creating a Berkeley DB environment using the 2.X interface:
+<p><blockquote><pre>/*
+ * db_init --
+ *	Initialize the environment.
+ */
+DB_ENV *
+db_init(home)
+	char *home;
+{
+	DB_ENV *dbenv;
+<p>
+	if ((dbenv = (DB_ENV *)calloc(sizeof(DB_ENV), 1)) == NULL)
+		return (errno);
+<p>
+	if ((errno = db_appinit(home, NULL, dbenv,
+	    DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN |
+	    DB_USE_ENVIRON)) == 0)
+		return (dbenv);
+<p>
+	free(dbenv);
+	return (NULL);
+}</pre></blockquote>
+<p>In the Berkeley DB 3.0 release, this code would be written as:
+<p><blockquote><pre>/*
+ * db_init --
+ *	Initialize the environment.
+ */
+int
+db_init(home, dbenvp)
+	char *home;
+	DB_ENV **dbenvp;
+{
+	int ret;
+	DB_ENV *dbenv;
+<p>
+	if ((ret = db_env_create(&dbenv, 0)) != 0)
+		return (ret);
+<p>
+	if ((ret = dbenv-&gt;open(dbenv, home, NULL,
+	    DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN |
+	    DB_USE_ENVIRON, 0)) == 0) {
+		*dbenvp = dbenv;
+		return (0);
+	}
+<p>
+	(void)dbenv-&gt;close(dbenv, 0);
+	return (ret);
+}</pre></blockquote>
+<p>As you can see, the arguments to db_appinit and to <a href="../../api_c/env_open.html">DBENV-&gt;open</a> are
+largely the same.  There is some minor re-organization: the mapping is
+that arguments #1, 2, 3, and 4 to db_appinit become arguments #2, 3, 1
+and 4 to <a href="../../api_c/env_open.html">DBENV-&gt;open</a>.  There is one additional argument to
+<a href="../../api_c/env_open.html">DBENV-&gt;open</a>, argument #5.  For backward compatibility with the 2.X
+Berkeley DB releases, simply set that argument to 0.
+<p>It is only slightly more complex to translate calls to XXX_open to the
+<a href="../../api_c/env_open.html">DBENV-&gt;open</a> method.  Here's an example of creating a lock region
+using the 2.X interface:
+<p><blockquote><pre>lock_open(dir, DB_CREATE, 0664, dbenv, &regionp);</pre></blockquote>
+<p>In the Berkeley DB 3.0 release, this code would be written as:
+<p><blockquote><pre>if ((ret = db_env_create(&dbenv, 0)) != 0)
+	return (ret);
+<p>
+if ((ret = dbenv-&gt;open(dbenv,
+    dir, NULL, DB_CREATE | DB_INIT_LOCK, 0664)) == 0) {
+	*dbenvp = dbenv;
+	return (0);
+}</pre></blockquote>
+<p>Note that in this example, you no longer need the DB_LOCKTAB structure
+reference that was required in Berkeley DB 2.X releases.
+<p>The final issue with upgrading the db_appinit call is the DB_MPOOL_PRIVATE
+option previously provided for the db_appinit interface.  If your
+application is using this flag, it should almost certainly use the new
+<a href="../../api_c/env_open.html#DB_PRIVATE">DB_PRIVATE</a> flag to the <a href="../../api_c/env_open.html">DBENV-&gt;open</a> interface. Regardless,
+you should carefully consider this change before converting to use the
+<a href="../../api_c/env_open.html#DB_PRIVATE">DB_PRIVATE</a> flag.
+<p>Translating db_appexit or XXX_close calls to <a href="../../api_c/env_close.html">DBENV-&gt;close</a> is equally
+simple.  Instead of taking a reference to a per-subsystem structure such
+as DB_LOCKTAB or DB_TXNMGR, all calls take a reference to a DB_ENV
+structure.  The calling sequence is otherwise unchanged.  Note that as
+the application no longer allocates the memory for the DB_ENV structure,
+application code to discard it after the call to db_appexit() is no longer
+needed.
+<p>Translating XXX_unlink calls to <a href="../../api_c/env_remove.html">DBENV-&gt;remove</a> is slightly more complex.
+As with <a href="../../api_c/env_close.html">DBENV-&gt;close</a>, the call takes a reference to a DB_ENV
+structure instead of a per-subsystem structure.  The calling sequence is
+slightly different, however.  Here is an example of removing a lock region
+using the 2.X interface:
+<p><blockquote><pre>DB_ENV *dbenv;
+<p>
+ret = lock_unlink(dir, 1, dbenv);</pre></blockquote>
+<p>In the Berkeley DB 3.0 release, this code fragment would be written as:
+<p><blockquote><pre>DB_ENV *dbenv;
+<p>
+ret = dbenv-&gt;remove(dbenv, dir, NULL, DB_FORCE);</pre></blockquote>
+<p>The additional argument to the <a href="../../api_c/env_remove.html">DBENV-&gt;remove</a> function is a
+configuration argument similar to that previously taken by db_appinit and
+now taken by the <a href="../../api_c/env_open.html">DBENV-&gt;open</a> method.  For backward compatibility
+this new argument should simply be set to NULL.  The force argument to
+XXX_unlink is now a flag value that is set by bitwise inclusively <b>OR</b>'ing it the
+<a href="../../api_c/env_remove.html">DBENV-&gt;remove</a> flag argument.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/upgrade.3.0/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.0/func.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

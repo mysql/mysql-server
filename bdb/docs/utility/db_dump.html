@@ -1,0 +1,128 @@
+<!--$Id: db_dump.so,v 10.26 2000/09/04 16:00:50 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: db_dump</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>db_dump</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>db_dump [<b>-klNpRrV</b>] [<b>-d ahr</b>]
+	[<b>-f output</b>] [<b>-h home</b>] [<b>-s database</b>] file
+db_dump185 [<b>-p</b>] [<b>-f output</b>] file</pre></h3>
+<h1>Description</h1>
+        <a name="3"><!--meow--></a>    
+<p>The db_dump utility reads the database file <b>file</b> and
+writes it to the standard output using a portable flat-text format
+understood by the <a href="../utility/db_load.html">db_load</a> utility.  The argument <b>file</b>
+must be a file produced using the Berkeley DB library functions.
+<p>The <a href="../utility/db_dump.html">db_dump185</a> utility is similar to the db_dump utility
+except that it reads databases in the format used by Berkeley DB versions 1.85
+and 1.86.
+<p>The options are as follows:
+<p><dl compact>
+<p><dt><b>-d</b><dd>Dump the specified database in a format helpful for debugging the Berkeley DB
+library routines.
+<p><dl compact>
+<p><dt>a<dd>Display all information.
+<dt>h<dd>Display only page headers.
+<dt>r<dd>Do not display the free-list or pages on the free list.  This
+mode is used by the recovery tests.
+</dl>
+<p><b>The output format of the <b>-d</b> option is not standard and may change,
+without notice, between releases of the Berkeley DB library.</b>
+<p><dt><b>-f</b><dd>Write to the specified <b>file</b> instead of to the standard output.
+<p><dt><b>-h</b><dd>Specify a home directory for the database environment; by
+default, the current working directory is used.
+<p><dt><b>-k</b><dd>Dump record numbers from Queue and Recno databases as keys.
+<p><dt><b>-l</b><dd>List the databases stored in the file.
+<p><dt><b>-N</b><dd>Do not acquire shared region locks while running.  Other problems such as
+potentially fatal errors in Berkeley DB will be ignored as well.  This option
+is intended only for debugging errors and should not be used under any
+other circumstances.
+<p><dt><b>-p</b><dd>If characters in either the key or data items are printing characters (as
+defined by <b>isprint</b>(3)), use printing characters in <b>file</b>
+to represent them.  This option permits users to use standard text editors
+and tools to modify the contents of databases.
+<p>Note, different systems may have different notions as to what characters
+are considered <i>printing characters</i>, and databases dumped in
+this manner may be less portable to external systems.
+<p><dt><b>-R</b><dd>Aggressively salvage data from a possibly corrupt file.  The <b>-R</b>
+flag differs from the <b>-r</b> option in that it will return all
+possible data from the file at the risk of also returning already deleted
+or otherwise nonsensical items.  Data dumped in this fashion will almost
+certainly have to be edited by hand or other means before the data is
+ready for re-load into another database
+<p><dt><b>-r</b><dd>Salvage data from a possibly corrupt file.  When used on a uncorrupted
+database, this option should return equivalent data to a normal dump, but
+most likely in a different order.
+<p><dt><b>-s</b><dd>Specify a single database to dump.  If no database is specified, all
+databases in the database file are dumped.
+<p><dt><b>-V</b><dd>Write the version number to the standard output and exit.
+</dl>
+<p>Dumping and reloading Hash databases that use user-defined hash functions
+will result in new databases that use the default hash function.
+While using the default hash function may not be optimal for the new database,
+it will continue to work correctly.
+<p>Dumping and reloading Btree databases that use user-defined prefix or
+comparison functions will result in new databases that use the default
+prefix and comparison functions.
+<b>In this case, it is quite likely that the database will be damaged
+beyond repair permitting neither record storage or retrieval.</b>
+<p>The only available workaround for either case is to modify the sources
+for the <a href="../utility/db_load.html">db_load</a> utility to load the database using the correct
+hash, prefix and comparison functions.
+<p>The <a href="../utility/db_dump.html">db_dump185</a> utility may not be available on your system as it
+is not always built when the Berkeley DB libraries and utilities are installed.
+If you are unable to find it, see your system administrator for further
+information.
+<p>The db_dump and <a href="../utility/db_dump.html">db_dump185</a> utility output formats are
+documented in the <a href="../ref/dumpload/format.html">Dump Output
+Formats</a> section of the Reference Guide.
+<p>The db_dump utility may be used with a Berkeley DB environment (as described for the
+<b>-h</b> option, the environment variable <b>DB_HOME</b>, or,
+because the utility was run in a directory containing a Berkeley DB
+environment).  In order to avoid environment corruption when using a Berkeley DB
+environment, db_dump should always be given the chance to detach from
+the environment and exit gracefully.  To cause db_dump to release all
+environment resources and exit cleanly, send it an interrupt signal
+(SIGINT).
+<p>When using an Berkeley DB database environment, the db_dump utility
+does not configure for any kind of database locking and so should not
+be used with active Berkeley DB environments.  If db_dump is used in
+an active database environment, corruption may result.
+<p>The db_dump utility exits 0 on success, and &gt;0 if an error occurs.
+<p>The <a href="../utility/db_dump.html">db_dump185</a> utility exits 0 on success, and &gt;0 if an error occurs.
+<h1>Environment Variables</h1>
+<p><dl compact>
+<p><dt>DB_HOME<dd>If the <b>-h</b> option is not specified and the environment variable
+DB_HOME is set, it is used as the path of the database home, as described
+in <a href="../api_c/env_open.html">DBENV-&gt;open</a>.
+</dl>
+<h1>See Also</h1>
+<a href="../utility/berkeley_db_svc.html">berkeley_db_svc</a>,
+<a href="../utility/db_archive.html">db_archive</a>,
+<a href="../utility/db_checkpoint.html">db_checkpoint</a>,
+<a href="../utility/db_deadlock.html">db_deadlock</a>,
+db_dump,
+<a href="../utility/db_load.html">db_load</a>,
+<a href="../utility/db_recover.html">db_recover</a>,
+<a href="../utility/db_stat.html">db_stat</a>,
+<a href="../utility/db_upgrade.html">db_upgrade</a>,
+and
+<a href="../utility/db_verify.html">db_verify</a>.
+</tt>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

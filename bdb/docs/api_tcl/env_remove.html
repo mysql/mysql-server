@@ -1,0 +1,70 @@
+<!--$Id: env_remove.so,v 11.13 2000/02/19 20:57:57 bostic Exp $-->
+<!--$Id: m4.tcl,v 11.17 2000/04/24 17:31:11 sue Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: berkdb envremove</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1><b>berkdb envremove</b></h1>
+</td>
+<td width="1%">
+<a href="../api_tcl/tcl_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>berkdb envremove
+	[-data_dir directory]
+	[-force]
+	[-home directory]
+	[-log_dir directory]
+	[-tmp_dir directory]
+	[-use_environ]
+	[-use_environ_root]
+</pre></h3>
+<h1>Description</h1>
+<p>Remove a Berkeley DB environment.
+<p>The options are as follows:
+<p><dl compact>
+<p><dt>-data_dir dirname<dd>Specify the environment's data directory as described in
+<a href="../ref/env/naming.html">Berkeley DB File Naming</a>.
+<p><dt>-force<dd>If there are processes that have called <b>berkdb env</b> without calling
+<i>env</i> <b>close</b> (i.e., there are processes currently using the
+environment), <b>berkdb envremove</b> will fail without further action, unless
+the <b>-force</b> flag is set, in which case <b>berkdb envremove</b> will
+attempt to remove the environment regardless of any processes still using
+it.
+<p><dt>-home directory<dd>The <b>-home</b> argument is described in
+<a href="../ref/env/naming.html">Berkeley DB File Naming</a>.
+<p><dt>-log_dir dirname<dd>Specify the environment's log directory as described in
+<a href="../ref/env/naming.html">Berkeley DB File Naming</a>.
+<p><dt>-tmp_dir dirname<dd>Specify the environment's tmp directory as described in
+<a href="../ref/env/naming.html">Berkeley DB File Naming</a>.
+<p><dt>-use_environ<dd>The Berkeley DB process' environment may be permitted to specify information to
+be used when naming files; see <a href="../ref/env/naming.html">Berkeley DB
+File Naming</a>.  As permitting users to specify which files are used can
+create security problems, environment information will be used in file
+naming for all users only if the <b>-use_environ</b> flag is set.
+<p><dt>-use_environ_root<dd>The Berkeley DB process' environment may be permitted to specify information
+to be used when naming files; see <a href="../ref/env/naming.html">Berkeley DB
+File Naming</a>.  As permitting users to specify which files are used can
+create security problems, if the <b>-use_environ_root</b> flag is set,
+environment information will be used for file naming only for users with
+appropriate permissions (e.g., on IEEE/ANSI Std 1003.1 (POSIX) systems, users with a
+user-ID of 0).
+</dl>
+<p>The <b>berkdb envremove</b> command returns 0 on success, and in the case of error, a Tcl error
+is thrown.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_tcl/tcl_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

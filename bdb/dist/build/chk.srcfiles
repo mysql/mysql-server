@@ -1,0 +1,29 @@
+#!/bin/sh -
+#
+# $Id: chk.srcfiles,v 1.3 2000/12/12 18:20:59 bostic Exp $
+#
+# Check to make sure we haven't forgotten to add any files to the list
+# of source files Win32 uses to build its dsp files.
+
+# Run from the top-level directory.
+[ -f db_config.h ] && cd ..
+
+f=dist/srcfiles.in
+t1=/tmp/__1
+t2=/tmp/__2
+
+sed -e '/^[ 	#]/d' \
+    -e '/^$/d' < $f |
+    awk '{print $1}' > ${t1}
+find . -type f |
+    sed -e 's/^\.\///' |
+    egrep '\.c$|\.cpp$|\.def$|\.rc$' |
+    sed -e '/dist\/build\/chk.def/d' \
+        -e '/perl.DB_File\/version.c/d' |
+    sort > ${t2}
+
+cmp ${t1} ${t2} > /dev/null ||
+(echo "<<< srcfiles.in >>> existing files" && \
+    diff ${t1} ${t2} | tee /tmp/_f)
+
+rm -f ${t1} ${t2}

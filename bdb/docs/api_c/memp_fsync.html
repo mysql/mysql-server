@@ -1,0 +1,59 @@
+<!--$Id: memp_fsync.so,v 10.22 2000/09/08 15:20:28 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: memp_fsync</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>memp_fsync</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db.h&gt;
+<p>
+int
+memp_fsync(DB_MPOOLFILE *mpf);
+</pre></h3>
+<h1>Description</h1>
+<p>The memp_fsync function writes all pages associated with the
+DB_MPOOLFILE, that were marked as modified using <a href="../api_c/memp_fput.html">memp_fput</a>
+or <a href="../api_c/memp_fset.html">memp_fset</a>, back to the source file.  If any of the modified
+pages are also <i>pinned</i> (i.e., currently referenced by this or
+another process) memp_fsync will ignore them.
+<p>The memp_fsync function returns a non-zero error value on failure, 0 on success, and returns <a href="../api_c/memp_fsync.html#DB_INCOMPLETE">DB_INCOMPLETE</a> if there were pages which were
+modified but which memp_fsync was unable to write immediately.
+<h1>Errors</h1>
+<p>The memp_fsync function may fail and return a non-zero error for errors specified for other Berkeley DB and C library or system functions.
+If a catastrophic error has occurred, the memp_fsync function may fail and return
+<a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a>, in which case all subsequent Berkeley DB calls will fail
+in the same way.
+<h1>See Also</h1>
+<a href="../api_c/env_set_mp_mmapsize.html">DBENV-&gt;set_mp_mmapsize</a>,
+<a href="../api_c/memp_fclose.html">memp_fclose</a>,
+<a href="../api_c/memp_fget.html">memp_fget</a>,
+<a href="../api_c/memp_fopen.html">memp_fopen</a>,
+<a href="../api_c/memp_fput.html">memp_fput</a>,
+<a href="../api_c/memp_fset.html">memp_fset</a>,
+<a href="../api_c/memp_fsync.html">memp_fsync</a>,
+<a href="../api_c/memp_register.html">memp_register</a>,
+<a href="../api_c/memp_stat.html">memp_stat</a>,
+<a href="../api_c/memp_sync.html">memp_sync</a>
+and
+<a href="../api_c/memp_trickle.html">memp_trickle</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

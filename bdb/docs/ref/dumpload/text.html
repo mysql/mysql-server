@@ -1,0 +1,32 @@
+<!--$Id: text.so,v 10.14 2000/12/04 20:49:18 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Loading text into databases</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Dumping and Reloading</dl></h3></td>
+<td width="1%"><a href="../../ref/dumpload/format.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/install/file.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Loading text into databases</h1>
+<p>The <a href="../../utility/db_load.html">db_load</a> utility can be used to load text into databases.
+The <b>-T</b> option permits non-database applications to create
+flat-text files that are then loaded into databases for fast,
+highly-concurrent access.  For example, the following command loads the
+standard UNIX <b>/etc/passwd</b> file into a database, with the login
+name as the key item and the entire password entry as the data item:
+<p><blockquote><pre>awk -F: '{print $1; print $0}' &lt; /etc/passwd |\
+	sed 's/\\/\\\\/g' | db_load -T -t hash passwd.db</pre></blockquote>
+<p>Note that backslash characters naturally occurring in the text are escaped
+to avoid interpretation as escape characters by <a href="../../utility/db_load.html">db_load</a>.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/dumpload/format.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/install/file.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

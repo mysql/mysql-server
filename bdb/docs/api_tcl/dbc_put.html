@@ -1,0 +1,133 @@
+<!--$Id: dbc_put.so,v 11.12 2000/06/12 17:50:01 sue Exp $-->
+<!--$Id: m4.tcl,v 11.17 2000/04/24 17:31:11 sue Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: dbc put</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1><i>dbc</i> <b>put</b></h1>
+</td>
+<td width="1%">
+<a href="../api_tcl/tcl_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>dbc put
+	[-after]
+	[-before]
+	[-current]
+	[-partial {doff dlen}]
+	data
+dbc put
+	[-keyfirst]
+	[-keylast]
+	[-partial {doff dlen}]
+	key data
+</pre></h3>
+<h1>Description</h1>
+<p>The <i>dbc</i> <b>put</b> command stores the specified key/data pair into the
+database.
+<p>The options are as follows:
+<p><dl compact>
+<p><dt>-after<dd>In the case of the Btree and Hash access methods, insert the data element
+as a duplicate element of the key referenced by the cursor. The new
+element appears immediately after the current cursor position. It is an
+error to specify <b>-after</b> if the underlying Btree or Hash database
+was not created with the <b>-dup</b> option. No key argument should be
+specified.
+<p>In the case of the Recno access method, it is an error to specify
+<b>-after</b> option if the underlying Recno database was not created
+with the <b>-renumber</b> option.  If the <b>-renumber</b> option was
+specified, a new key is created, all records after the inserted item are
+automatically renumbered, and the key of the new record is returned in
+the structure referenced by the parameter key. The initial value of the
+key parameter is ignored. See <b>berkdb open</b> for more information.
+<p>In the case of the Queue access method, it is always an error to specify
+<b>-after</b>.
+<p>If the current cursor record has already been deleted and the underlying
+access method is Hash, <i>dbc</i> <b>put</b> will throw a Tcl error. If the
+underlying access method is Btree or Recno, the operation will succeed.
+<p><dt>-before<dd>In the case of the Btree and Hash access methods, insert the data element
+as a duplicate element of the key referenced by the cursor. The new
+element appears immediately before the current cursor position. It is an
+error to specify <b>-before</b> if the underlying Btree or Hash database
+was not created with the <b>-dup</b> option. No key argument should be
+specified.
+<p>In the case of the Recno access method, it is an error to specify
+<b>-before</b> if the underlying Recno database was not created with the
+<b>-before</b> option.  If the <b>-before</b> option was specified, a
+new key is created, the current record and all records after it are
+automatically renumbered, and the key of the new record is returned in
+the structure referenced by the parameter key.  The initial value of the
+key parameter is ignored. See <b>berkdb open</b> for more information.
+<p>In the case of the Queue access method, it is always an error to specify
+<b>-before</b>. 
+<p>If the current cursor record has already been deleted and the underlying
+access method is Hash, <i>dbc</i> <b>put</b> will throw a Tcl error. If the
+underlying access method is Btree or Recno, the operation will succeed.
+<p><dt>-current<dd>Overwrite the data of the key/data pair referenced by the cursor with the
+specified data item.  No key argument should be specified.
+<p>If the <b>-dupsort</b> option was specified to <b>berkdb open</b> and the
+data item of the current referenced key/data pair does not compare
+equally to the data parameter, <i>dbc</i> <b>put</b> will throw a Tcl error.
+<p>If the current cursor record has already been deleted and the underlying
+access method is Hash, <i>dbc</i> <b>put</b> will throw a Tcl error. If the
+underlying access method is Btree, Queue or Recno, the operation will
+succeed.
+<p><dt>-keyfirst<dd>In the case of the Btree and Hash access methods, insert the specified
+key/data pair into the database.
+<p>If the key already exists in the database, and the <b>-dupsort</b> option
+was specified to <b>berkdb open</b>, the inserted data item is added in its
+sorted location.  If the key already exists in the database, and the
+<b>-dupsort</b> option was not specified, the inserted data item is added
+as the first of the data items for that key.
+<p>The <b>-keyfirst</b> option may not be specified to the Queue or Recno
+access methods.
+<p><dt>-keylast<dd>In the case of the Btree and Hash access methods, insert the specified
+key/data pair into the database.
+<p>If the key already exists in the database, and the <b>-dupsort</b> option
+was specified to <b>berkdb open</b>, the inserted data item is added in its
+sorted location.  If the key already exists in the database, and the
+<b>-dupsort</b> option was not specified, the inserted data item is added
+as the last of the data items for that key.
+<p>The <b>-keylast</b> option may not be specified to the Queue or Recno
+access methods.
+<p><dt>-partial {doff dlen}<dd>
+<p>The <b>dlen</b> bytes starting <b>doff</b> bytes from the beginning of
+the specified key's data record are replaced by the data specified by the
+data and size structure elements.  If <b>dlen</b> is smaller than the
+length of the supplied data, the record will grow, and if <b>dlen</b> is
+larger than the length of the supplied data, the record will shrink.  If
+the specified bytes do not exist, the record will be extended using nul
+bytes as necessary, and the <i>dbc</i> <b>put</b> call will succeed.
+<p>It is an error to attempt a partial put using the <i>dbc</i> <b>put</b> command in a database
+that supports duplicate records. Partial puts in databases supporting
+duplicate records must be done using a <i>dbc</i> <b>put</b> command.
+<p>It is an error to attempt a partial put with differing <b>dlen</b> and
+supplied data length values in Queue or Recno databases with fixed-length
+records.
+</dl>
+<p>If a key is specified, and
+if the underlying database is a Queue or Recno database, then the given
+key will be interpreted by Tcl as an integer.  For all other database
+types, the key is interpreted by Tcl as a byte array.
+<p>If <i>dbc</i> <b>put</b> fails for any reason, the state of the cursor will be
+unchanged. If <i>dbc</i> <b>put</b> succeeds and an item is inserted into the
+database, the cursor is always positioned to reference the newly inserted
+item.
+<p>The <i>dbc</i> <b>put</b> command returns 0 on success, and in the case of error, a Tcl error
+is thrown.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_tcl/tcl_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,107 @@
+<!--$Id: hsearch.so,v 10.18 2000/09/21 20:40:54 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: hsearch</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>hsearch</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#define DB_DBM_HSEARCH    1
+#include &lt;db.h&gt;
+<p>
+typedef enum {
+        FIND, ENTER
+} ACTION;
+<p>
+typedef struct entry {
+        char *key;
+        void *data;
+} ENTRY;
+<p>
+ENTRY *
+hsearch(ENTRY item, ACTION action);
+<p>
+int
+hcreate(size_t nelem);
+<p>
+void
+hdestroy(void);
+</pre></h3>
+<h1>Description</h1>
+<p>The hsearch interface to the Berkeley DB library is intended to
+provide a high-performance implementation and source code compatibility
+for applications written to the historic hsearch interface.
+It is not recommended for any other purpose.
+<p>To compile hsearch applications, replace the application's
+<b>#include</b> of the hsearch include
+file (e.g., <b>#include &lt;search.h&gt;</b>)
+with the following two lines:
+<p><blockquote><pre>
+#define DB_DBM_HSEARCH    1
+#include &lt;db.h&gt;</pre></blockquote>
+<p>and recompile.
+<p>The hcreate function creates an in-memory database.  The
+<b>nelem</b> argument is an estimation of the maximum number of key/data
+pairs that will be stored in the database.
+<p>The <b>hdestroy</b> function discards the database.
+<p>Database elements are structures of type <b>ENTRY</b>, which contain at
+least two fields: <b>key</b> and <b>data</b>.  The field <b>key</b> is
+declared to be of type <b>char *</b> and is the key used for storage
+and retrieval.  The field <b>data</b> is declared to be of type
+<b>void *</b> and is its associated data.
+<p>The hsearch function retrieves key/data pairs from, and stores
+key/data pairs into the database.
+<p>The <b>action</b> argument must be set to one of two values:
+<p><dl compact>
+<p><dt>ENTER<dd>If the key does not already appear in the database,
+insert the key/data pair into the database.
+If the key already appears in the database,
+return a reference to an <b>ENTRY</b>
+structure referencing the existing key and its associated data element.
+<p><dt>FIND<dd>Retrieve the specified key/data pair from the database.
+</dl>
+<h3>Compatibility Notes</h3>
+<p>Historically, hsearch required applications to maintain the keys
+and data in the application's memory for as long as the <b>hsearch</b>
+database existed.  As Berkeley DB handles key and data management internally,
+there is no requirement that applications maintain local copies of key
+and data items, although the only effect of doing so should be the
+allocation of additional memory.
+<h3>Hsearch Diagnostics</h3>
+<p>The <b>hcreate</b> function returns 0 on failure, setting <b>errno</b>
+and non-zero on success.
+<p>The <b>hsearch</b> function returns a pointer to an ENTRY structure on
+success, and NULL, setting <b>errno</b>, if the <b>action</b>
+specified was FIND and the item did not appear in the database.
+<h1>Errors</h1>
+<p>The hcreate function may fail and return a non-zero error for errors specified for other Berkeley DB and C library or system functions.
+If a catastrophic error has occurred, the hcreate function may fail and return
+<a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a>, in which case all subsequent Berkeley DB calls will fail
+in the same way.
+<p>The hsearch function may fail and return a non-zero error for errors specified for other Berkeley DB and C library or system functions.
+If a catastrophic error has occurred, the hsearch function may fail and return
+<a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a>, in which case all subsequent Berkeley DB calls will fail
+in the same way.
+<p>In addition, the <b>hsearch</b> function will fail, setting <b>errno</b>
+to 0, if the <b>action</b> specified was FIND and the item did not appear in
+the database.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

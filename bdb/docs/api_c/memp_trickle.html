@@ -1,0 +1,66 @@
+<!--$Id: memp_trickle.so,v 10.21 2000/03/01 21:41:30 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: memp_trickle</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>memp_trickle</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db.h&gt;
+<p>
+int
+memp_trickle(DB_ENV *env, int pct, int *nwrotep);
+</pre></h3>
+<h1>Description</h1>
+<p>The memp_trickle function ensures that at least <b>pct</b> percent of
+the pages in the shared memory pool are clean by writing dirty pages to
+their backing files.
+If the <b>nwrotep</b> argument is non-NULL, the number of pages that
+were written to reach the correct percentage is returned in the memory
+location it references.
+<p>The purpose of the memp_trickle function is to enable a memory
+pool manager to ensure that a page is always available for reading in new
+information without having to wait for a write.
+<p>The memp_trickle function returns a non-zero error value on failure and 0 on success.
+<h1>Errors</h1>
+<p>The memp_trickle function may fail and return a non-zero error for the following conditions:
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+</dl>
+<p>The memp_trickle function may fail and return a non-zero error for errors specified for other Berkeley DB and C library or system functions.
+If a catastrophic error has occurred, the memp_trickle function may fail and return
+<a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a>, in which case all subsequent Berkeley DB calls will fail
+in the same way.
+<h1>See Also</h1>
+<a href="../api_c/env_set_mp_mmapsize.html">DBENV-&gt;set_mp_mmapsize</a>,
+<a href="../api_c/memp_fclose.html">memp_fclose</a>,
+<a href="../api_c/memp_fget.html">memp_fget</a>,
+<a href="../api_c/memp_fopen.html">memp_fopen</a>,
+<a href="../api_c/memp_fput.html">memp_fput</a>,
+<a href="../api_c/memp_fset.html">memp_fset</a>,
+<a href="../api_c/memp_fsync.html">memp_fsync</a>,
+<a href="../api_c/memp_register.html">memp_register</a>,
+<a href="../api_c/memp_stat.html">memp_stat</a>,
+<a href="../api_c/memp_sync.html">memp_sync</a>
+and
+<a href="../api_c/memp_trickle.html">memp_trickle</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

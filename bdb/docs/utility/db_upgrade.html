@@ -1,0 +1,93 @@
+<!--$Id: db_upgrade.so,v 1.4 2000/08/10 17:54:50 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: db_upgrade</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>db_upgrade</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>db_upgrade [<b>-NsV</b>] [<b>-h home</b>] file ...</pre></h3>
+<h1>Description</h1>
+        <a name="3"><!--meow--></a>        <a name="4"><!--meow--></a>    
+<p>The db_upgrade utility upgrades the Berkeley DB version of one or more
+files and the databases they contain to the current release version.
+<p>The options are as follows:
+<p><dl compact>
+<p><dt><b>-h</b><dd>Specify a home directory for the database environment; by
+default, the current working directory is used.
+<p><dt><b>-N</b><dd>Do not acquire shared region locks while running.  Other problems such as
+potentially fatal errors in Berkeley DB will be ignored as well.  This option
+is intended only for debugging errors and should not be used under any
+other circumstances.
+<p><dt><b>-s</b><dd>This flag is only meaningful when upgrading databases from releases before the
+Berkeley DB 3.1 release.
+<p>As part of the upgrade from the Berkeley DB 3.0 release to the 3.1 release, the
+on-disk format of duplicate data items changed. To correctly upgrade the
+format requires applications specify if duplicate data items in the
+database are sorted or not. Specifying the <b>-s</b> flag means that
+the duplicates are sorted, otherwise they are assumed to be unsorted.
+Incorrectly specifying the value of this flag may lead to database
+corruption.
+<p>Because the db_upgrade utility upgrades a physical file (including
+all of the databases it contains), it is not possible to use
+db_upgrade to upgrade files where some of the databases it
+includes have sorted duplicate data items and some of the databases it
+includes have unsorted duplicate data items. If the file does not have
+more than a single database, or the databases do not support duplicate
+data items, or all of the databases that support duplicate data items
+support the same style of duplicates (either sorted or unsorted),
+db_upgrade will work correctly as long as the <b>-s</b> flag is
+correctly specified. Otherwise, the file cannot be upgraded using
+db_upgrade, and must be upgraded manually using the <a href="../utility/db_dump.html">db_dump</a>
+and <a href="../utility/db_load.html">db_load</a> utilities.
+<p><dt><b>-V</b><dd>Write the version number to the standard output and exit.
+</dl>
+<p><b>It is important to realize that Berkeley DB database upgrades are done
+in place, and so are potentially destructive.</b> This means that if the
+system crashes during the upgrade procedure, or if the upgrade procedure
+runs out of disk space, the databases may be left in an inconsistent and
+unrecoverable state.  See <a href="../ref/am/upgrade.html">Upgrading
+databases</a> for more information.
+<p>The db_upgrade utility may be used with a Berkeley DB environment (as described for the
+<b>-h</b> option, the environment variable <b>DB_HOME</b>, or,
+because the utility was run in a directory containing a Berkeley DB
+environment).  In order to avoid environment corruption when using a Berkeley DB
+environment, db_upgrade should always be given the chance to detach from
+the environment and exit gracefully.  To cause db_upgrade to release all
+environment resources and exit cleanly, send it an interrupt signal
+(SIGINT).
+<p>The db_upgrade utility exits 0 on success, and &gt;0 if an error occurs.
+<h1>Environment Variables</h1>
+<p><dl compact>
+<p><dt>DB_HOME<dd>If the <b>-h</b> option is not specified and the environment variable
+DB_HOME is set, it is used as the path of the database home, as described
+in <a href="../api_c/env_open.html">DBENV-&gt;open</a>.
+</dl>
+<h1>See Also</h1>
+<a href="../utility/berkeley_db_svc.html">berkeley_db_svc</a>,
+<a href="../utility/db_archive.html">db_archive</a>,
+<a href="../utility/db_checkpoint.html">db_checkpoint</a>,
+<a href="../utility/db_deadlock.html">db_deadlock</a>,
+<a href="../utility/db_dump.html">db_dump</a>,
+<a href="../utility/db_load.html">db_load</a>,
+<a href="../utility/db_recover.html">db_recover</a>,
+<a href="../utility/db_stat.html">db_stat</a>,
+db_upgrade,
+and
+<a href="../utility/db_verify.html">db_verify</a>.
+</tt>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

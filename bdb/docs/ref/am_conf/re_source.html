@@ -1,0 +1,62 @@
+<!--$Id: re_source.so,v 10.14 2000/11/20 21:45:19 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Flat-text backing files</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Access Methods</dl></h3></td>
+<td width="1%"><a href="../../ref/am_conf/extentsize.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am_conf/renumber.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Flat-text backing files</h1>
+<p>It is possible to back any Recno database (either fixed or variable
+length) with a flat-text source file.  This provides fast read (and
+potentially write) access to databases that are normally created and
+stored as flat-text files.  The backing source file may be specified by
+calling the <a href="../../api_c/db_set_re_source.html">DB-&gt;set_re_source</a> function.
+<p>The backing source file will be read to initialize the database.  In the
+case of variable length records, the records are assumed to be separated
+as described for the <a href="../../api_c/db_set_re_delim.html">DB-&gt;set_re_delim</a> function interface.  For example,
+standard UNIX byte stream files can be interpreted as a sequence of
+variable length records separated by ASCII newline characters.  This is
+the default.
+<p>When cached data would normally be written back to the underlying database
+file (e.g., <a href="../../api_c/db_close.html">DB-&gt;close</a> or <a href="../../api_c/db_sync.html">DB-&gt;sync</a> functions are called), the
+in-memory copy of the database will be written back to the backing source
+file.
+<p>The backing source file must already exist (but may be zero-length) when
+<a href="../../api_c/db_open.html">DB-&gt;open</a> is called.  By default, the backing source file is read
+lazily, i.e., records are not read from the backing source file until they
+are requested by the application. If multiple processes (not threads) are
+accessing a Recno database concurrently and either inserting or deleting
+records, the backing source file must be read in its entirety before more
+than a single process accesses the database, and only that process should
+specify the backing source file as part of the <a href="../../api_c/db_open.html">DB-&gt;open</a> call.
+This can be accomplished by calling the <a href="../../api_c/db_set_flags.html">DB-&gt;set_flags</a> function with the
+<a href="../../api_c/db_set_flags.html#DB_SNAPSHOT">DB_SNAPSHOT</a> flag.
+<p>Reading and writing the backing source file cannot be transactionally
+protected because it involves filesystem operations that are not part of
+the Berkeley DB transaction methodology. For this reason, if a temporary
+database is used to hold the records (a NULL was specified as the file
+argument to <a href="../../api_c/db_open.html">DB-&gt;open</a>), <b>it is possible to lose the
+contents of the backing source file if the system crashes at the right
+instant</b>. If a permanent file is used to hold the database (a file name
+was specified as the file argument to <a href="../../api_c/db_open.html">DB-&gt;open</a>), normal database
+recovery on that file can be used to prevent information loss.  It is
+still possible that the contents of the backing source file itself will
+be corrupted or lost if the system crashes.
+<p>For all of the above reasons, the backing source file is generally used
+to specify databases that are read-only for Berkeley DB applications, and that
+are either generated on the fly by software tools, or modified using a
+different mechanism such as a text editor.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/am_conf/extentsize.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am_conf/renumber.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,31 @@
+<!--$Id: h_ffactor.so,v 10.11 2000/03/18 21:43:08 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Page fill factor</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Access Methods</dl></h3></td>
+<td width="1%"><a href="../../ref/am_conf/bt_recnum.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am_conf/h_hash.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Page fill factor</h1>
+<p>The density, or page fill factor, is an approximation of the number of
+keys allowed to accumulate in any one bucket, determining when the hash
+table grows or shrinks.  If you know the average sizes of the keys and
+data in your dataset, setting the fill factor can enhance performance.
+A reasonable rule to use to compute fill factor is:
+<p><blockquote><pre>(pagesize - 32) / (average_key_size + average_data_size + 8)</pre></blockquote>
+<p>The desired density within the hash table can be specified by calling
+the <a href="../../api_c/db_set_h_ffactor.html">DB-&gt;set_h_ffactor</a> function.  If no density is specified, one will
+be selected dynamically as pages are filled.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/am_conf/bt_recnum.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am_conf/h_hash.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

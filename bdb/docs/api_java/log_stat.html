@@ -1,0 +1,93 @@
+<!--$Id: log_stat.so,v 10.23 2000/05/25 13:47:08 dda Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbEnv.log_stat</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbEnv.log_stat</h1>
+</td>
+<td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+import com.sleepycat.db.*;
+<p>
+public DbLogStat log_stat()
+	throws DbException;
+</pre></h3>
+<h1>Description</h1>
+<p>The DbEnv.log_stat method
+creates a DbLogStat object encapsulating a statistical structure.
+The log region statistics are stored in a DbLogStat object.
+The following data fields are available from the DbLogStat object:
+<p>Statistical structures are created in allocated memory.  If <b>db_malloc</b> is non-NULL, it
+is called to allocate the memory, otherwise, the library function
+<b>malloc</b>(3) is used.  The function <b>db_malloc</b> must match
+the calling conventions of the <b>malloc</b>(3) library routine.
+Regardless, the caller is responsible for deallocating the returned
+memory.  To deallocate returned memory, free the returned memory
+reference, references inside the returned memory do not need to be
+individually freed.
+<p>The log region statistics are stored in a structure of type DB_LOG_STAT.
+The following DB_LOG_STAT fields will be filled in:
+<p><dl compact>
+<dt>public int st_magic;<dd>The magic number that identifies a file as a log file.
+<dt>public int st_version;<dd>The version of the log file type.
+<dt>public int st_regsize;<dd>The size of the region.
+<dt>public int st_mode;<dd>The mode of any created log files.
+<dt>public int st_lg_bsize;<dd>The in-memory log record cache size.
+<dt>public int st_lg_max;<dd>The maximum size of any individual file comprising the log.
+<dt>public int st_w_mbytes;<dd>The number of megabytes written to this log.
+<dt>public int st_w_bytes;<dd>The number of bytes over and above <b>st_w_mbytes</b> written to this log.
+<dt>public int st_wc_mbytes;<dd>The number of megabytes written to this log since the last checkpoint.
+<dt>public int st_wc_bytes;<dd>The number of bytes over and above <b>st_wc_mbytes</b> written to this log
+since the last checkpoint.
+<dt>public int st_wcount;<dd>The number of times the log has been written to disk.
+<dt>public int st_wcount_fill;<dd>The number of times the log has been written to disk because the
+in-memory log record cache filled up.
+<dt>public int st_scount;<dd>The number of times the log has been flushed to disk.
+<dt>public int st_cur_file;<dd>The current log file number.
+<dt>public int st_cur_offset;<dd>The byte offset in the current log file.
+<dt>public int st_region_wait;<dd>The number of times that a thread of control was forced to wait before
+obtaining the region lock.
+<dt>public int st_region_nowait;<dd>The number of times that a thread of control was able to obtain
+the region lock without waiting.
+</dl>
+<p>The DbEnv.log_stat method throws an exception that encapsulates a non-zero error value on
+failure.
+<h1>Errors</h1>
+<p>The DbEnv.log_stat method may fail and throw an exception for errors specified for other Berkeley DB and C library or system methods.
+If a catastrophic error has occurred, the DbEnv.log_stat method may fail and throw
+a <a href="../api_java/runrec_class.html">DbRunRecoveryException</a>, in which case all subsequent Berkeley DB calls
+will fail in the same way.
+<h3>Class</h3>
+<a href="../api_java/dbenv_class.html">DbEnv</a>
+<h1>See Also</h1>
+<a href="../api_java/env_set_lg_bsize.html">DbEnv.set_lg_bsize</a>,
+<a href="../api_java/env_set_lg_max.html">DbEnv.set_lg_max</a>,
+<a href="../api_java/log_archive.html">DbEnv.log_archive</a>,
+<a href="../api_java/log_compare.html">DbEnv.log_compare</a>,
+<a href="../api_java/log_file.html">DbEnv.log_file</a>,
+<a href="../api_java/log_flush.html">DbEnv.log_flush</a>,
+<a href="../api_java/log_get.html">DbEnv.log_get</a>,
+<a href="../api_java/log_put.html">DbEnv.log_put</a>,
+<a href="../api_java/log_register.html">DbEnv.log_register</a>,
+<a href="../api_java/log_stat.html">DbEnv.log_stat</a>
+and
+<a href="../api_java/log_unregister.html">DbEnv.log_unregister</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

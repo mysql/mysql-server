@@ -1,0 +1,97 @@
+<!--$Id: db_recover.so,v 10.22 2000/05/10 17:56:02 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: db_recover</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>db_recover</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>db_recover [<b>-cVv</b>] [<b>-h home</b>] [<b>-t [[CC]YY]MMDDhhmm[.SS]]</b>]</pre></h3>
+<h1>Description</h1>
+        <a name="3"><!--meow--></a>    
+<p>The db_recover utility must be run after an unexpected application,
+Berkeley DB, or system failure to restore the database to a consistent state.
+All committed transactions are guaranteed to appear after db_recover
+has run, and all uncommitted transactions will be completely undone.
+<p>The options are as follows:
+<p><dl compact>
+<p><dt><b>-c</b><dd>Perform catastrophic recovery instead of normal recovery.
+<p><dt><b>-h</b><dd>Specify a home directory for the database environment; by
+default, the current working directory is used.
+<p><dt><b>-t</b><dd>Recover to the time specified rather than to the most current possible
+date.  The timestamp argument should be in the form
+[[CC]YY]MMDDhhmm[.SS] where each pair of
+letters represents the following:
+<p><dl compact>
+<p><dt>CC<dd>The first two digits of the year (the century).
+<dt>YY<dd>The second two digits of the year.  If "YY" is specified, but "CC" is not,
+a value for "YY" between 69 and 99 results in a "YY" value of 19.  Otherwise,
+a "YY" value of 20 is used.
+<dt>MM<dd>The month of the year, from 1 to 12.
+<dt>DD<dd>The day of the month, from 1 to 31.
+<dt>hh<dd>The hour of the day, from 0 to 23.
+<dt>mm<dd>The minute of the hour, from 0 to 59.
+<dt>SS<dd>The second of the minute, from 0 to 61.
+</dl>
+<p>If the "CC" and "YY" letter pairs are not specified, the values default
+to the current year.  If the "SS" letter pair is not specified, the value
+defaults to 0.
+<p><dt><b>-V</b><dd>Write the version number to the standard output and exit.
+<p><dt><b>-v</b><dd>Run in verbose mode.
+</dl>
+<p>In the case of catastrophic recovery, an archival copy, or
+<i>snapshot</i> of all database files must be restored along with all
+of the log files written since the database file snapshot was made.  (If
+disk space is a problem, log files may be referenced by symbolic links).
+For further information on creating a database snapshot, see
+<a href="../ref/transapp/archival.html">Archival Procedures</a>.
+For further information on performing recovery, see
+<a href="../ref/transapp/recovery.html">Recovery Procedures</a>.
+<p>If the failure was not catastrophic, the files present on the system at the
+time of failure are sufficient to perform recovery.
+<p>If log files are missing, db_recover will identify the missing
+log file(s) and fail, in which case the missing log files need to be
+restored and recovery performed again.
+<p>The db_recover utility uses a Berkeley DB environment (as described for the
+<b>-h</b> option, the environment variable <b>DB_HOME</b>, or,
+because the utility was run in a directory containing a Berkeley DB
+environment).  In order to avoid environment corruption when using a Berkeley DB
+environment, db_recover should always be given the chance to detach from
+the environment and exit gracefully.  To cause db_recover to release all
+environment resources and exit cleanly, send it an interrupt signal
+(SIGINT).
+<p>The db_recover utility exits 0 on success, and &gt;0 if an error occurs.
+<h1>Environment Variables</h1>
+<p><dl compact>
+<p><dt>DB_HOME<dd>If the <b>-h</b> option is not specified and the environment variable
+DB_HOME is set, it is used as the path of the database home, as described
+in <a href="../api_c/env_open.html">DBENV-&gt;open</a>.
+</dl>
+<h1>See Also</h1>
+<a href="../utility/berkeley_db_svc.html">berkeley_db_svc</a>,
+<a href="../utility/db_archive.html">db_archive</a>,
+<a href="../utility/db_checkpoint.html">db_checkpoint</a>,
+<a href="../utility/db_deadlock.html">db_deadlock</a>,
+<a href="../utility/db_dump.html">db_dump</a>,
+<a href="../utility/db_load.html">db_load</a>,
+db_recover,
+<a href="../utility/db_stat.html">db_stat</a>,
+<a href="../utility/db_upgrade.html">db_upgrade</a>,
+and
+<a href="../utility/db_verify.html">db_verify</a>.
+</tt>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

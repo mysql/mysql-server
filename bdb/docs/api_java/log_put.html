@@ -1,0 +1,83 @@
+<!--$Id: log_put.so,v 10.21 2000/03/17 01:53:59 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbEnv.log_put</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbEnv.log_put</h1>
+</td>
+<td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+import com.sleepycat.db.*;
+<p>
+public void log_put(DbLsn lsn, Dbt data, int flags)
+	throws DbException;
+</pre></h3>
+<h1>Description</h1>
+<p>The DbEnv.log_put method appends records to the log.  The <a href="../api_java/lsn_class.html">DbLsn</a> of
+the put record is returned in the <b>lsn</b> argument.  The <b>flags</b>
+argument may be set to one of the following values:
+<p><dl compact>
+<p><dt><a name="Db.DB_CHECKPOINT">Db.DB_CHECKPOINT</a><dd>The log should write a checkpoint record, recording any information
+necessary to make the log structures recoverable after a crash.
+<p><dt><a name="Db.DB_CURLSN">Db.DB_CURLSN</a><dd>The <a href="../api_java/lsn_class.html">DbLsn</a> of the next record to be put is returned in the
+<b>lsn</b> argument.
+<p><dt><a name="Db.DB_FLUSH">Db.DB_FLUSH</a><dd>The log is forced to disk after this record is written, guaranteeing
+that all records with <a href="../api_java/lsn_class.html">DbLsn</a> values less than or equal to the
+one being put are on disk before this function returns (this function
+is most often used for a transaction commit, see <a href="../api_java/txn_commit.html">DbTxn.commit</a> for
+more information).
+<p>The caller is responsible for providing any necessary structure to
+<b>data</b>.  (For example, in a write-ahead logging protocol, the
+application must understand what part of <b>data</b> is an operation
+code, what part is redo information, and what part is undo information.
+In addition, most transaction managers will store in <b>data</b> the
+<a href="../api_java/lsn_class.html">DbLsn</a> of the previous log record for the same transaction, to
+support chaining back through the transaction's log records during
+undo.)
+</dl>
+<p>The DbEnv.log_put method throws an exception that encapsulates a non-zero error value on
+failure.
+<h1>Errors</h1>
+<p>The <a href="../api_java/log_flush.html">DbEnv.log_flush</a> method may fail and throw an exception encapsulating a non-zero error for the following conditions:
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+<p>The record to be logged is larger than the maximum log record.
+</dl>
+<p>The DbEnv.log_put method may fail and throw an exception for errors specified for other Berkeley DB and C library or system methods.
+If a catastrophic error has occurred, the DbEnv.log_put method may fail and throw
+a <a href="../api_java/runrec_class.html">DbRunRecoveryException</a>, in which case all subsequent Berkeley DB calls
+will fail in the same way.
+<h3>Class</h3>
+<a href="../api_java/dbenv_class.html">DbEnv</a>
+<h1>See Also</h1>
+<a href="../api_java/env_set_lg_bsize.html">DbEnv.set_lg_bsize</a>,
+<a href="../api_java/env_set_lg_max.html">DbEnv.set_lg_max</a>,
+<a href="../api_java/log_archive.html">DbEnv.log_archive</a>,
+<a href="../api_java/log_compare.html">DbEnv.log_compare</a>,
+<a href="../api_java/log_file.html">DbEnv.log_file</a>,
+<a href="../api_java/log_flush.html">DbEnv.log_flush</a>,
+<a href="../api_java/log_get.html">DbEnv.log_get</a>,
+<a href="../api_java/log_put.html">DbEnv.log_put</a>,
+<a href="../api_java/log_register.html">DbEnv.log_register</a>,
+<a href="../api_java/log_stat.html">DbEnv.log_stat</a>
+and
+<a href="../api_java/log_unregister.html">DbEnv.log_unregister</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

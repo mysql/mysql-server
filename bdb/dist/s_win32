@@ -1,0 +1,67 @@
+#!/bin/sh -
+#	$Id: s_win32,v 1.9 2000/09/20 15:29:54 bostic Exp $
+#
+# Build Windows/32 include files.
+
+msgc="/* DO NOT EDIT: automatically built by dist/s_win32. */"
+
+. RELEASE
+
+t=/tmp/__db_$$
+rm -f $t
+
+trap 'rm -f $t ; exit 1' 1 2 3 13 15
+
+f=../build_win32/db.h
+echo "Building $f"
+rm -f $f
+cat <<ENDOFSEDTEXT > $t
+s/@u_int8_decl@/typedef unsigned char u_int8_t;/
+s/@int16_decl@/typedef short int16_t;/
+s/@u_int16_decl@/typedef unsigned short u_int16_t;/
+s/@int32_decl@/typedef int int32_t;/
+s/@u_int32_decl@/typedef unsigned int u_int32_t;/
+/@u_char_decl@/{
+	i\\
+	#if !defined(_WINSOCKAPI_)
+	s/@u_char_decl@/typedef unsigned char u_char;/
+}
+s/@u_short_decl@/typedef unsigned short u_short;/
+s/@u_int_decl@/typedef unsigned int u_int;/
+/@u_long_decl@/{
+	s/@u_long_decl@/typedef unsigned long u_long;/
+	a\\
+	#endif
+}
+s/@ssize_t_decl@/typedef int ssize_t;/
+s/@DB_VERSION_MAJOR@/$DB_VERSION_MAJOR/
+s/@DB_VERSION_MINOR@/$DB_VERSION_MINOR/
+s/@DB_VERSION_PATCH@/$DB_VERSION_PATCH/
+s/@DB_VERSION_STRING@/"$DB_VERSION_STRING"/
+ENDOFSEDTEXT
+(echo "$msgc" && sed -f $t ../include/db.src) > $f
+chmod 444 $f
+
+f=../build_win32/db_int.h
+echo "Building $f"
+rm -f $f
+cat <<ENDOFSEDTEXT > $t
+s/\(PATH_SEPARATOR[^"]*"\)\/"/\1\\\\\\\\\\/:\"/
+s/@db_align_t_decl@/typedef unsigned long db_align_t;/
+s/@db_alignp_t_decl@/typedef unsigned long db_alignp_t;/
+ENDOFSEDTEXT
+(echo "$msgc" && sed -f $t ../include/db_int.src) > $f
+chmod 444 $f
+
+f=../build_win32/libdb.rc
+echo "Building $f"
+rm -f $f
+cat <<ENDOFSEDTEXT > $t
+s/%MAJOR%/$DB_VERSION_MAJOR/
+s/%MINOR%/$DB_VERSION_MINOR/
+s/%PATCH%/$DB_VERSION_PATCH/
+ENDOFSEDTEXT
+sed -f $t ../build_win32/libdbrc.src > $f
+chmod 444 $f
+
+rm -f $t

@@ -1,0 +1,74 @@
+<!--$Id: env_set_error_stream.so,v 10.13 1999/12/20 08:52:33 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbEnv::set_error_stream</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbEnv::set_error_stream</h1>
+</td>
+<td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db_cxx.h&gt;
+<p>
+void DbEnv::set_error_stream(class ostream*);
+</pre></h3>
+<h1>Description</h1>
+<p>When an error occurs in the Berkeley DB library, an exception is thrown or an
+<b>errno</b> value is returned by the method.  In some cases,
+however, the <b>errno</b> value may be insufficient to completely
+describe the cause of the error, especially during initial application
+debugging.
+<p>The DbEnv::set_error_stream method is used to enhance the mechanism for
+reporting error messages to the application by setting the C++ ostream
+used for displaying additional Berkeley DB error messages.  In some cases,
+when an error occurs, Berkeley DB will output an additional error message to
+the specified stream.
+<p>The error message will consist of the prefix string and a colon
+("<b>:</b>") (if a prefix string was previously specified using
+<a href="../api_cxx/env_set_errpfx.html">DbEnv::set_errpfx</a>), an error string, and a trailing
+&lt;newline&gt; character.
+<p>Alternatively, you can use the <a href="../api_cxx/env_set_errfile.html">DbEnv::set_errfile</a> method to display
+the additional information via a C library FILE *, or the
+<a href="../api_cxx/env_set_errcall.html">DbEnv::set_errcall</a> method to capture the additional error information in
+a way that does not use either output streams or C library FILE *'s.  You
+should not mix these approaches.
+<p>This error logging enhancement does not slow performance or significantly
+increase application size, and may be run during normal operation as well
+as during application debugging.
+<h3>Class</h3>
+<a href="../api_cxx/dbenv_class.html">DbEnv</a>
+<h1>See Also</h1>
+<a href="../api_cxx/env_close.html">DbEnv::close</a>,
+<a href="../api_cxx/env_open.html">DbEnv::open</a>,
+<a href="../api_cxx/env_remove.html">DbEnv::remove</a>,
+<a href="../api_cxx/db_err.html">DbEnv::err</a>,
+<a href="../api_cxx/env_strerror.html">DbEnv::strerror</a>,
+<a href="../api_cxx/env_version.html">DbEnv::version</a>,
+<a href="../api_cxx/env_set_cachesize.html">DbEnv::set_cachesize</a>,
+<a href="../api_cxx/env_set_errcall.html">DbEnv::set_errcall</a>,
+<a href="../api_cxx/env_set_errfile.html">DbEnv::set_errfile</a>,
+<a href="../api_cxx/env_set_error_stream.html">DbEnv::set_error_stream</a>,
+<a href="../api_cxx/env_set_errpfx.html">DbEnv::set_errpfx</a>,
+<a href="../api_cxx/env_set_flags.html">DbEnv::set_flags</a>,
+<a href="../api_cxx/env_set_mutexlocks.html">DbEnv::set_mutexlocks</a>,
+<a href="../api_cxx/env_set_paniccall.html">DbEnv::set_paniccall</a>,
+and
+<a href="../api_cxx/env_set_verbose.html">DbEnv::set_verbose</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

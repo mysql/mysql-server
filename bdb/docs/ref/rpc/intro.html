@@ -1,0 +1,62 @@
+<!--$Id: intro.so,v 1.6 2000/12/04 21:51:04 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Introduction</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>RPC Client/Server</dl></h3></td>
+<td width="1%"><a href="../../ref/txn/other.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/rpc/client.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Introduction</h1>
+<p>Berkeley DB includes a basic implementation of a client-server protocol, using
+Sun Microsystem's Remote Procedure Call Protocol.  RPC support is only
+available for UNIX systems, and is not included in the Berkeley DB library by
+default, but must be enabled during configuration.  See
+<a href="../../ref/build_unix/conf.html">Configuring Berkeley DB</a> for more
+information.  For more information on RPC itself, see your UNIX system
+documentation or <i>RPC: Remote Procedure Call Protocol
+Specification, RFC1832, Sun Microsystems, Inc., USC-ISI</i>.
+<p>Only some of the complete Berkeley DB functionality is available when using RPC.
+The following functionality is available:
+<p><ol>
+<li>The <a href="../../api_c/env_create.html">db_env_create</a> interface and the DB_ENV
+handle methods.
+<li>The <a href="../../api_c/db_create.html">db_create</a> interface and the DB handle
+methods.
+<li>The <a href="../../api_c/txn_begin.html">txn_begin</a>, <a href="../../api_c/txn_commit.html">txn_commit</a> and
+<a href="../../api_c/txn_abort.html">txn_abort</a> interfaces.
+</ol>
+<p>The RPC client/server code does not support any of the user-defined
+comparison or allocation functions, e.g., an application using the RPC
+support may not specify its own Btree comparison function.  If your
+application only requires those portions of Berkeley DB, then using RPC is
+fairly simple.  If your application requires other Berkeley DB functionality,
+such as direct access to locking, logging or shared memory buffer memory
+pools, then your application cannot use the RPC support.
+<p><b>The Berkeley DB RPC support does not provide any security or authentication of
+any kind.</b>  Sites needing any kind of data security measures must modify
+the client and server code to provide whatever level of security they
+require.
+<p>One particularly interesting use of the RPC support is for debugging Berkeley DB
+applications.  The seamless nature of the interface means that with very
+minor application code changes, an application can run outside of the
+Berkeley DB address space, making it far easier to track down many types of
+errors such as memory misuse.
+<p>Using the RPC mechanisms in Berkeley DB involves two basic steps:
+<p><ol>
+<p><li>Modify your Berkeley DB application to act as a client and call the
+RPC server.
+<li>Run the <a href="../../utility/berkeley_db_svc.html">berkeley_db_svc</a> server program on the system
+where the database resides.
+</ol>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/txn/other.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/rpc/client.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,75 @@
+<!--$Id: client.so,v 1.6 2000/03/18 21:43:16 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Client program</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>RPC Client/Server</dl></h3></td>
+<td width="1%"><a href="../../ref/rpc/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/rpc/server.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Client program</h1>
+<p>Changing a Berkeley DB application to remotely call a server program requires
+only a few changes on the client side:
+<p><ol>
+<p><li>The client application must create and use a Berkeley DB environment,
+that is, it cannot simply call the <a href="../../api_c/db_create.html">db_create</a> interface, but must
+first call the <a href="../../api_c/env_create.html">db_env_create</a> interface to create an environment in
+which the database will live.
+<p><li>The client application must call <a href="../../api_c/env_create.html">db_env_create</a> using the
+<a href="../../api_c/env_create.html#DB_CLIENT">DB_CLIENT</a> flag.
+<p><li>The client application must call the additional DB_ENV
+method <a href="../../api_c/env_set_server.html">DBENV-&gt;set_server</a> to specify the database server.  This call
+must be made before opening the environment with the <a href="../../api_c/env_open.html">DBENV-&gt;open</a>
+call.
+</ol>
+<p>The client application provides three pieces of information to Berkeley DB as
+part of the <a href="../../api_c/env_set_server.html">DBENV-&gt;set_server</a> call:
+<p><ol>
+<p><li>The hostname of the server.  The hostname format is not
+specified by Berkeley DB, but must be in a format acceptable to the local
+network support, specifically, the RPC clnt_create interface.
+<p><li>The client timeout.  This is the number of seconds the client
+will wait for the server to respond to its requests.  A default is used
+if this value is zero.
+<p><li>The server timeout.  This is the number of seconds the server
+will allow client resources to remain idle before releasing those
+resources.  The resources this applies to are transactions and cursors,
+as those objects hold locks and if a client dies, the server needs to
+release those resources in a timely manner.  This value
+is really a hint to the server, as the server may choose to override this
+value with its own.
+</ol>
+<p>The only other item of interest to the client is the home directory
+that is given to the <a href="../../api_c/env_open.html">DBENV-&gt;open</a> call.
+The server is started with a list of allowed home directories.
+The client must use one of those names (where a name is the last
+component of the home directory).  This allows the pathname structure
+on the server to change without client applications needing to be
+aware of it.
+<p>Once the <a href="../../api_c/env_set_server.html">DBENV-&gt;set_server</a> call has been made, the client is
+connected to the server and all subsequent Berkeley DB
+operations will be forwarded to the server.  The client does not need to
+be otherwise aware that it is using a database server rather than
+accessing the database locally.
+<p>It is important to realize that the client portion of the Berkeley DB library
+acts as a simple conduit, forwarding Berkeley DB interface arguments to the
+server without interpretation.  This has two important implications.
+First, all pathnames must be specified relative to the server.  For
+example, the home directory and other configuration information passed by
+the application when creating its environment or databases must be
+pathnames for the server, not the client system.  In addition, as there
+is no logical bundling of operations at the server, performance is usually
+significantly less than when Berkeley DB is embedded within the client's address
+space, even if the RPC is to a local address.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/rpc/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/rpc/server.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

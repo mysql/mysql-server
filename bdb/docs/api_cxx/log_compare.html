@@ -1,0 +1,53 @@
+<!--$Id: log_compare.so,v 10.12 1999/12/20 08:52:30 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbEnv::log_compare</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbEnv::log_compare</h1>
+</td>
+<td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db_cxx.h&gt;
+<p>
+static int
+DbEnv::log_compare(const DbLsn *lsn0, const DbLsn *lsn1);
+</pre></h3>
+<h1>Description</h1>
+<p>The DbEnv::log_compare method allows the caller to compare two
+<a href="../api_cxx/lsn_class.html">DbLsn</a> objects,
+returning 0 if they are equal, 1 if <b>lsn0</b> is greater than
+<b>lsn1</b>, and -1 if <b>lsn0</b> is less than <b>lsn1</b>.
+<h3>Class</h3>
+<a href="../api_cxx/dbenv_class.html">DbEnv</a>
+<h1>See Also</h1>
+<a href="../api_cxx/env_set_lg_bsize.html">DbEnv::set_lg_bsize</a>,
+<a href="../api_cxx/env_set_lg_max.html">DbEnv::set_lg_max</a>,
+<a href="../api_cxx/log_archive.html">DbEnv::log_archive</a>,
+<a href="../api_cxx/log_compare.html">DbEnv::log_compare</a>,
+<a href="../api_cxx/log_file.html">DbEnv::log_file</a>,
+<a href="../api_cxx/log_flush.html">DbEnv::log_flush</a>,
+<a href="../api_cxx/log_get.html">DbEnv::log_get</a>,
+<a href="../api_cxx/log_put.html">DbEnv::log_put</a>,
+<a href="../api_cxx/log_register.html">DbEnv::log_register</a>,
+<a href="../api_cxx/log_stat.html">DbEnv::log_stat</a>
+and
+<a href="../api_cxx/log_unregister.html">DbEnv::log_unregister</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,70 @@
+<!--$Id: env_set_lk_max_lockers.so,v 1.2 2000/12/08 22:03:00 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbEnv.set_lk_max_lockers</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbEnv.set_lk_max_lockers</h1>
+</td>
+<td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+import com.sleepycat.db.*;
+<p>
+public void set_lk_max_lockers(int max)
+	throws DbException;
+</pre></h3>
+<h1>Description</h1>
+<p>Set the maximum number of simultaneous locking entities supported by
+the Berkeley DB lock subsystem.  This value is used by <a href="../api_java/env_open.html">DbEnv.open</a> to
+estimate how much space to allocate for various lock-table data
+structures.  For specific information on configuring the size of the
+lock subsystem, see
+<a href="../ref/lock/max.html">Configuring locking: sizing the system</a>.
+<p>The DbEnv.set_lk_max_lockers interface may only be used to configure Berkeley DB before
+the <a href="../api_java/env_open.html">DbEnv.open</a> interface is called.
+<p>The DbEnv.set_lk_max_lockers method throws an exception that encapsulates a non-zero error value on
+failure.
+<p>The database environment's maximum number of lockers may also be set using the environment's
+<b>DB_CONFIG</b> file.  The syntax of the entry in that file is a
+single line with the string "set_lk_max_lockers", one or more whitespace characters,
+and the number of lockers.  Because the <b>DB_CONFIG</b> file is read when the database
+environment is opened, it will silently overrule configuration done
+before that time.
+<h1>Errors</h1>
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+<p>Called after <a href="../api_java/env_open.html">DbEnv.open</a> was called.
+</dl>
+<h3>Classes</h3>
+<a href="../api_java/dbenv_class.html">DbEnv</a>, <a href="../api_java/lock_class.html">DbLock</a>
+<h1>See Also</h1>
+<a href="../api_java/env_set_lk_conflicts.html">DbEnv.set_lk_conflicts</a>,
+<a href="../api_java/env_set_lk_detect.html">DbEnv.set_lk_detect</a>,
+<a href="../api_java/env_set_lk_max_locks.html">DbEnv.set_lk_max_locks</a>,
+<a href="../api_java/env_set_lk_max_lockers.html">DbEnv.set_lk_max_lockers</a>,
+<a href="../api_java/env_set_lk_max_objects.html">DbEnv.set_lk_max_objects</a>,
+<a href="../api_java/env_set_lk_max.html">DbEnv.set_lk_max</a>,
+<a href="../api_java/lock_detect.html">DbEnv.lock_detect</a>,
+<a href="../api_java/lock_get.html">DbEnv.lock_get</a>,
+<a href="../api_java/lock_id.html">DbEnv.lock_id</a>,
+<a href="../api_java/lock_put.html">DbLock.put</a>
+and
+<a href="../api_java/lock_stat.html">DbEnv.lock_stat</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_java/java_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

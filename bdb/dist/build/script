@@ -1,0 +1,94 @@
+#!/bin/sh -
+#	$Id: script,v 1.21 2001/01/19 18:13:16 bostic Exp $
+#
+# Build the distribution archives.
+#
+# A set of commands intended to be cut and pasted into a csh window.
+
+# Development tree, release home.
+setenv D /a/db
+
+# Update the release number.
+cd $D/dist
+vi RELEASE
+setenv VERSION \
+`sh -c '. RELEASE; echo $DB_VERSION_MAJOR.$DB_VERSION_MINOR.$DB_VERSION_PATCH'`
+echo "Version: $VERSION"
+
+# Make sure the source tree is up-to-date, generate new support files, and
+# commit anything that's changed.
+cd $D && cvs -q update
+cd $D/dist && sh s_all
+cd $D && cvs -q commit
+
+# Build the documentation.
+cd $D/docs_src && make clean
+cd $D/docs_src && make
+cd $D/docs_src && make && make check
+
+# Copy a development tree into a release tree.
+setenv R /a/db-$VERSION
+rm -rf $R && mkdir -p $R
+cd $D && tar cf - \
+`cvs -q status | sed -n -e "/Repository/s;.*/CVSROOT/db/;;" -e "s/,v//p"` | \
+(cd $R && tar xpf -)
+
+# Fix symbolic links and permissions.
+cd $R/dist && sh s_perm
+cd $R/dist && sh s_symlink
+
+# Build the documents.
+cd $R/docs_src && make
+
+# Build a version.
+cd $R && rm -rf build_run && mkdir build_run
+cd $R/build_run && ~bostic/bin/dbconf && make >& mklog
+
+# Smoke test.
+./ex_access
+
+# Check the install
+make prefix=`pwd`/BDB install
+
+# Run distribution check scripts
+$R/dist/build/chk.def
+$R/dist/build/chk.define
+$R/dist/build/chk.offt
+$R/dist/build/chk.srcfiles
+$R/dist/build/chk.tags
+
+# Clean up the tree.
+cd $R && rm -rf build_run docs_src
+cd $R && rm -rf test_thread test_purify test_server test_vxworks test/TODO
+cd $R && rm -rf test/upgrade/databases && mkdir test/upgrade/databases
+
+# ACQUIRE ROOT PRIVILEGES
+cd $R && find . -type d | xargs chmod 775
+cd $R && find . -type f | xargs chmod 444
+cd $R/dist && sh s_perm
+chown -R 100.100 $R
+# DISCARD ROOT PRIVILEGES
+
+# Compare this release with the last one.
+set LR=3.1.X
+cd $R/.. && gzcat /a/releases/db-${LR}.tar.gz | tar xf -
+cd $R/../db-${LR} && find . | sort > /tmp/__OLD
+cd $R && find . | sort > /tmp/__NEW
+diff -c /tmp/__OLD /tmp/__NEW
+
+# Create the tar archive release.
+setenv T "$R/../db-$VERSION.tar.gz"
+cd $R/.. && tar cf - db-$VERSION | gzip --best > $T
+chmod 444 $T
+
+# Create the zip archive release.
+#
+# Remove symbolic links to tags files.  They're large and we don't want to
+# store real symbolic links in the archive for portability reasons.
+# ACQUIRE ROOT PRIVILEGES
+cd $R && rm -f `find . -type l -name 'tags'`
+# DISCARD ROOT PRIVILEGES
+
+setenv T "$R/../db-$VERSION.zip"
+cd $R/.. && zip -r - db-$VERSION > $T
+chmod 444 $T

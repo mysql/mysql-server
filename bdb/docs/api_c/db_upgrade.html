@@ -1,0 +1,135 @@
+<!--$Id: db_upgrade.so,v 10.18 2000/05/01 15:58:04 krinsky Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DB-&gt;upgrade</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DB-&gt;upgrade</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db.h&gt;
+<p>
+int
+DB-&gt;upgrade(DB *db, const char *file, u_int32_t flags);
+</pre></h3>
+<h1>Description</h1>
+<p>The DB-&gt;upgrade function upgrades all of the databases included in the
+file <b>file</b>, if necessary.  If no upgrade is necessary,
+DB-&gt;upgrade always returns success.
+<p><b>Database upgrades are done in place and are destructive, e.g., if pages
+need to be allocated and no disk space is available, the database may be
+left corrupted.  Backups should be made before databases are upgraded.
+See <a href="../ref/am/upgrade.html">Upgrading databases</a> for more
+information.</b>
+<p>Unlike all other database operations, DB-&gt;upgrade may only be done
+on a system with the same byte-order as the database.
+<p>The <b>flags</b> parameter must be set to 0 or one of the following
+values:
+<p><dl compact>
+<p><dt><a name="DB_DUPSORT">DB_DUPSORT</a><dd><b>This flag is only meaningful when upgrading databases from
+releases before the Berkeley DB 3.1 release.</b>
+<p>As part of the upgrade from the Berkeley DB 3.0 release to the 3.1 release, the
+on-disk format of duplicate data items changed.  To correctly upgrade the
+format requires applications specify if duplicate data items in the
+database are sorted or not.  Specifying the DB_DUPSORT flag
+informs DB-&gt;upgrade that the duplicates are sorted, otherwise they
+are assumed to be unsorted.  Incorrectly specifying the value of this flag
+may lead to database corruption.
+<p>Further, because the DB-&gt;upgrade function upgrades a physical file
+(including all of the databases it contains), it is not possible to use
+DB-&gt;upgrade to upgrade files where some of the databases it
+includes have sorted duplicate data items and some of the databases it
+includes have unsorted duplicate data items.  If the file does not have
+more than a single database, or the databases do not support duplicate
+data items, or all of the databases that support duplicate data items
+support the same style of duplicates (either sorted or unsorted),
+DB-&gt;upgrade will work correctly as long as the DB_DUPSORT
+flag is correctly specified.  Otherwise, the file cannot be upgraded using
+DB-&gt;upgrade, and must be upgraded manually by dumping and
+re-loading the databases.
+</dl>
+<p>The DB-&gt;upgrade function returns a non-zero error value on failure and 0 on success.
+<p>The DB-&gt;upgrade function is the underlying function used by the <a href="../utility/db_upgrade.html">db_upgrade</a> utility.
+See the <a href="../utility/db_upgrade.html">db_upgrade</a> utility source code for an example of using DB-&gt;upgrade
+in a IEEE/ANSI Std 1003.1 (POSIX) environment.
+<h1>Environment Variables</h1>
+<p><dl compact>
+<p><dt>DB_HOME<dd>If the <b>dbenv</b> argument to <a href="../api_c/db_create.html">db_create</a> was initialized using
+<a href="../api_c/env_open.html">DBENV-&gt;open</a> the environment variable <b>DB_HOME</b> may be used
+as the path of the database environment home.  Specifically, DB-&gt;upgrade
+is affected by the configuration value DB_DATA_DIR.
+</dl>
+<h1>Errors</h1>
+<p>The DB-&gt;upgrade function may fail and return a non-zero error for the following conditions:
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+<p>The database is not in the same byte-order as the system.
+</dl>
+<p><dl compact>
+<p><dt><a name="DB_OLD_VERSION">DB_OLD_VERSION</a><dd>The database cannot be upgraded by this version of the Berkeley DB software.
+</dl>
+<p>The DB-&gt;upgrade function may fail and return a non-zero error for errors specified for other Berkeley DB and C library or system functions.
+If a catastrophic error has occurred, the DB-&gt;upgrade function may fail and return
+<a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a>, in which case all subsequent Berkeley DB calls will fail
+in the same way.
+<h1>See Also</h1>
+<a href="../api_c/db_create.html">db_create</a>,
+<a href="../api_c/db_close.html">DB-&gt;close</a>,
+<a href="../api_c/db_cursor.html">DB-&gt;cursor</a>,
+<a href="../api_c/db_del.html">DB-&gt;del</a>,
+<a href="../api_c/db_err.html">DB-&gt;err</a>,
+<a href="../api_c/db_fd.html">DB-&gt;fd</a>,
+<a href="../api_c/db_get.html">DB-&gt;get</a>,
+<a href="../api_c/db_get_byteswapped.html">DB-&gt;get_byteswapped</a>,
+<a href="../api_c/db_get_type.html">DB-&gt;get_type</a>,
+<a href="../api_c/db_join.html">DB-&gt;join</a>,
+<a href="../api_c/db_key_range.html">DB-&gt;key_range</a>,
+<a href="../api_c/db_open.html">DB-&gt;open</a>,
+<a href="../api_c/db_put.html">DB-&gt;put</a>,
+<a href="../api_c/db_remove.html">DB-&gt;remove</a>,
+<a href="../api_c/db_set_bt_compare.html">DB-&gt;set_bt_compare</a>,
+<a href="../api_c/db_set_bt_minkey.html">DB-&gt;set_bt_minkey</a>,
+<a href="../api_c/db_set_bt_prefix.html">DB-&gt;set_bt_prefix</a>,
+<a href="../api_c/db_set_cachesize.html">DB-&gt;set_cachesize</a>,
+<a href="../api_c/db_set_dup_compare.html">DB-&gt;set_dup_compare</a>,
+<a href="../api_c/db_set_errcall.html">DB-&gt;set_errcall</a>,
+<a href="../api_c/db_set_errfile.html">DB-&gt;set_errfile</a>,
+<a href="../api_c/db_set_errpfx.html">DB-&gt;set_errpfx</a>,
+<a href="../api_c/db_set_flags.html">DB-&gt;set_flags</a>,
+<a href="../api_c/db_set_h_ffactor.html">DB-&gt;set_h_ffactor</a>,
+<a href="../api_c/db_set_h_hash.html">DB-&gt;set_h_hash</a>,
+<a href="../api_c/db_set_h_nelem.html">DB-&gt;set_h_nelem</a>,
+<a href="../api_c/db_set_lorder.html">DB-&gt;set_lorder</a>,
+<a href="../api_c/db_set_malloc.html">DB-&gt;set_malloc</a>,
+<a href="../api_c/db_set_pagesize.html">DB-&gt;set_pagesize</a>,
+<a href="../api_c/db_set_paniccall.html">DB-&gt;set_paniccall</a>,
+<a href="../api_c/db_set_q_extentsize.html">DB-&gt;set_q_extentsize</a>,
+<a href="../api_c/db_set_realloc.html">DB-&gt;set_realloc</a>,
+<a href="../api_c/db_set_re_delim.html">DB-&gt;set_re_delim</a>,
+<a href="../api_c/db_set_re_len.html">DB-&gt;set_re_len</a>,
+<a href="../api_c/db_set_re_pad.html">DB-&gt;set_re_pad</a>,
+<a href="../api_c/db_set_re_source.html">DB-&gt;set_re_source</a>,
+<a href="../api_c/db_stat.html">DB-&gt;stat</a>,
+<a href="../api_c/db_sync.html">DB-&gt;sync</a>,
+<a href="../api_c/db_upgrade.html">DB-&gt;upgrade</a>
+and
+<a href="../api_c/db_verify.html">DB-&gt;verify</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

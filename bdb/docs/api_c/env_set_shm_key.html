@@ -1,0 +1,87 @@
+<!--$Id: env_set_shm_key.so,v 10.5 2000/08/09 15:45:52 sue Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DBENV-&gt;set_shm_key</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DBENV-&gt;set_shm_key</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db.h&gt;
+<p>
+int
+DBENV-&gt;set_shm_key(DB_ENV *dbenv, long shm_key);
+</pre></h3>
+<h1>Description</h1>
+<p>Specify a base segment ID for Berkeley DB environment shared memory regions
+created in system memory on VxWorks or systems supporting X/Open-style
+shared memory interfaces, e.g., UNIX systems supporting
+<b>shmget</b>(2) and related System V IPC interfaces.
+<p>This base segment ID will be used when Berkeley DB shared memory regions are
+first created.  It will be incremented a small integer value each time
+a new shared memory region is created, that is, if the base ID is 35,
+the first shared memory region created will have a segment ID of 35 and
+the next one a segment ID between 36 and 40 or so.  A Berkeley DB environment
+always creates a master shared memory region, plus an additional shared
+memory region for each of the subsystems supported by the environment
+(locking, logging, memory pool and transaction), plus an additional
+shared memory region for each additional memory pool cache that is
+supported.  Already existing regions with the same segment IDs will be
+removed.  See <a href="../ref/env/region.html">Shared Memory Regions</a>
+for more information.
+<p>The intent behind this interface is two-fold: without it, applications
+have no way to ensure that two Berkeley DB applications don't attempt to use
+the same segment IDs when creating different Berkeley DB environments.  In
+addition, by using the same segment IDs each time the environment is
+created, previously created segments will be removed, and the set of
+segments on the system will not grow without bound.
+<p>The DBENV-&gt;set_shm_key interface may only be used to configure Berkeley DB before
+the <a href="../api_c/env_open.html">DBENV-&gt;open</a> interface is called.
+<p>The DBENV-&gt;set_shm_key function returns a non-zero error value on failure and 0 on success.
+<p>The database environment's base segment ID may also be set using the environment's
+<b>DB_CONFIG</b> file.  The syntax of the entry in that file is a
+single line with the string "set_shm_key", one or more whitespace characters,
+and the ID.  Because the <b>DB_CONFIG</b> file is read when the database
+environment is opened, it will silently overrule configuration done
+before that time.
+<h1>Errors</h1>
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+<p>Called after <a href="../api_c/env_open.html">DBENV-&gt;open</a> was called.
+</dl>
+<h1>See Also</h1>
+<a href="../api_c/env_close.html">DBENV-&gt;close</a>,
+<a href="../api_c/env_create.html">db_env_create</a>,
+<a href="../api_c/env_open.html">DBENV-&gt;open</a>,
+<a href="../api_c/env_remove.html">DBENV-&gt;remove</a>,
+<a href="../api_c/db_err.html">DBENV-&gt;err</a>,
+<a href="../api_c/env_strerror.html">db_strerror</a>,
+<a href="../api_c/env_version.html">db_version</a>,
+<a href="../api_c/env_set_cachesize.html">DBENV-&gt;set_cachesize</a>,
+<a href="../api_c/env_set_errcall.html">DBENV-&gt;set_errcall</a>,
+<a href="../api_c/env_set_errfile.html">DBENV-&gt;set_errfile</a>,
+<a href="../api_c/env_set_errpfx.html">DBENV-&gt;set_errpfx</a>,
+<a href="../api_c/env_set_flags.html">DBENV-&gt;set_flags</a>,
+<a href="../api_c/env_set_mutexlocks.html">DBENV-&gt;set_mutexlocks</a>,
+<a href="../api_c/env_set_paniccall.html">DBENV-&gt;set_paniccall</a>,
+and
+<a href="../api_c/env_set_verbose.html">DBENV-&gt;set_verbose</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,86 @@
+<!--$Id: cachesize.so,v 10.18 2000/03/18 21:43:08 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Selecting a cache size</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Access Methods</dl></h3></td>
+<td width="1%"><a href="../../ref/am_conf/pagesize.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am_conf/byteorder.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Selecting a cache size</h1>
+<p>The size of the cache used for the underlying database can be specified
+by calling the <a href="../../api_c/db_set_cachesize.html">DB-&gt;set_cachesize</a> function.
+Choosing a cache size is, unfortunately, an art.  Your cache must be at
+least large enough for your working set plus some overlap for unexpected
+situations.
+<p>When using the Btree access method, you must have a cache big enough for
+the minimum working set for a single access.  This will include a root
+page, one or more internal pages (depending on the depth of your tree),
+and a leaf page.  If your cache is any smaller than that, each new page
+will force out the least-recently-used page, and Berkeley DB will re-read the
+root page of the tree anew on each database request.
+<p>If your keys are of moderate size (a few tens of bytes) and your pages
+are on the order of 4K to 8K, most Btree applications
+will be only three levels.  For
+example, using 20 byte keys with 20 bytes of data associated with each
+key, a 8KB page can hold roughly 400 keys and 200 key/data pairs, so a
+fully populated three-level Btree will hold 32 million key/data pairs,
+and a tree with only a 50% page-fill factor will still hold 16 million
+key/data pairs.  We rarely expect trees to exceed five levels, although
+Berkeley DB will support trees up to 255 levels.
+<p>The rule-of-thumb is that cache is good, and more cache is better.
+Generally, applications benefit from increasing the cache size up to a
+point, at which the performance will stop improving as the cache size
+increases.  When this point is reached, one of two things have happened:
+either the cache is large enough that the application is almost never
+having to retrieve information from disk, or, your application is doing
+truly random accesses, and therefore increasing size of the cache doesn't
+significantly increase the odds of finding the next requested information
+in the cache.  The latter is fairly rare -- almost all applications show
+some form of locality of reference.
+<p>That said, it is important not to increase your cache size beyond the
+capabilities of your system, as that will result in reduced performance.
+Under many operating systems, tying down enough virtual memory will cause
+your memory and potentially your program to be swapped.  This is
+especially likely on systems without unified OS buffer caches and virtual
+memory spaces, as the buffer cache was allocated at boot time and so
+cannot be adjusted based on application requests for large amounts of
+virtual memory.
+<p>For example, even if accesses are truly random within a Btree, your
+access pattern will favor internal pages to leaf pages, so your cache
+should be large enough to hold all internal pages.  In the steady state,
+this requires at most one I/O per operation to retrieve the appropriate
+leaf page.
+<p>You can use the <a href="../../utility/db_stat.html">db_stat</a> utility to monitor the effectiveness of
+your cache.  The following output is excerpted from the output of that
+utility's <b>-m</b> option:
+<p><blockquote><pre>prompt: db_stat -m
+131072  Cache size (128K).
+4273    Requested pages found in the cache (97%).
+134     Requested pages not found in the cache.
+18      Pages created in the cache.
+116     Pages read into the cache.
+93      Pages written from the cache to the backing file.
+5       Clean pages forced from the cache.
+13      Dirty pages forced from the cache.
+0       Dirty buffers written by trickle-sync thread.
+130     Current clean buffer count.
+4       Current dirty buffer count.
+</pre></blockquote>
+<p>The statistics for this cache say that there have been 4,273 requests of
+the cache, and only 116 of those requests required an I/O from disk.  This
+means that the cache is working well, yielding a 97% cache hit rate.  The
+<a href="../../utility/db_stat.html">db_stat</a> utility will present these statistics both for the cache
+as a whole and for each file within the cache separately.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/am_conf/pagesize.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/am_conf/byteorder.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

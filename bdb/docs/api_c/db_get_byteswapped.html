@@ -1,0 +1,84 @@
+<!--$Id: db_get_byteswapped.so,v 10.7 1999/12/20 08:52:27 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DB-&gt;get_byteswapped</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DB-&gt;get_byteswapped</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db.h&gt;
+<p>
+int
+DB-&gt;get_byteswapped(DB *db);
+</pre></h3>
+<h1>Description</h1>
+<p>The DB-&gt;get_byteswapped function returns
+0
+if the underlying database files were created on an architecture
+of the same byte order as the current one, and
+1
+if they were not (i.e., big-endian on a little-endian machine or
+vice-versa). This field may be used to determine if application
+data needs to be adjusted for this architecture or not.
+<h1>See Also</h1>
+<a href="../api_c/db_create.html">db_create</a>,
+<a href="../api_c/db_close.html">DB-&gt;close</a>,
+<a href="../api_c/db_cursor.html">DB-&gt;cursor</a>,
+<a href="../api_c/db_del.html">DB-&gt;del</a>,
+<a href="../api_c/db_err.html">DB-&gt;err</a>,
+<a href="../api_c/db_fd.html">DB-&gt;fd</a>,
+<a href="../api_c/db_get.html">DB-&gt;get</a>,
+<a href="../api_c/db_get_byteswapped.html">DB-&gt;get_byteswapped</a>,
+<a href="../api_c/db_get_type.html">DB-&gt;get_type</a>,
+<a href="../api_c/db_join.html">DB-&gt;join</a>,
+<a href="../api_c/db_key_range.html">DB-&gt;key_range</a>,
+<a href="../api_c/db_open.html">DB-&gt;open</a>,
+<a href="../api_c/db_put.html">DB-&gt;put</a>,
+<a href="../api_c/db_remove.html">DB-&gt;remove</a>,
+<a href="../api_c/db_set_bt_compare.html">DB-&gt;set_bt_compare</a>,
+<a href="../api_c/db_set_bt_minkey.html">DB-&gt;set_bt_minkey</a>,
+<a href="../api_c/db_set_bt_prefix.html">DB-&gt;set_bt_prefix</a>,
+<a href="../api_c/db_set_cachesize.html">DB-&gt;set_cachesize</a>,
+<a href="../api_c/db_set_dup_compare.html">DB-&gt;set_dup_compare</a>,
+<a href="../api_c/db_set_errcall.html">DB-&gt;set_errcall</a>,
+<a href="../api_c/db_set_errfile.html">DB-&gt;set_errfile</a>,
+<a href="../api_c/db_set_errpfx.html">DB-&gt;set_errpfx</a>,
+<a href="../api_c/db_set_flags.html">DB-&gt;set_flags</a>,
+<a href="../api_c/db_set_h_ffactor.html">DB-&gt;set_h_ffactor</a>,
+<a href="../api_c/db_set_h_hash.html">DB-&gt;set_h_hash</a>,
+<a href="../api_c/db_set_h_nelem.html">DB-&gt;set_h_nelem</a>,
+<a href="../api_c/db_set_lorder.html">DB-&gt;set_lorder</a>,
+<a href="../api_c/db_set_malloc.html">DB-&gt;set_malloc</a>,
+<a href="../api_c/db_set_pagesize.html">DB-&gt;set_pagesize</a>,
+<a href="../api_c/db_set_paniccall.html">DB-&gt;set_paniccall</a>,
+<a href="../api_c/db_set_q_extentsize.html">DB-&gt;set_q_extentsize</a>,
+<a href="../api_c/db_set_realloc.html">DB-&gt;set_realloc</a>,
+<a href="../api_c/db_set_re_delim.html">DB-&gt;set_re_delim</a>,
+<a href="../api_c/db_set_re_len.html">DB-&gt;set_re_len</a>,
+<a href="../api_c/db_set_re_pad.html">DB-&gt;set_re_pad</a>,
+<a href="../api_c/db_set_re_source.html">DB-&gt;set_re_source</a>,
+<a href="../api_c/db_stat.html">DB-&gt;stat</a>,
+<a href="../api_c/db_sync.html">DB-&gt;sync</a>,
+<a href="../api_c/db_upgrade.html">DB-&gt;upgrade</a>
+and
+<a href="../api_c/db_verify.html">DB-&gt;verify</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

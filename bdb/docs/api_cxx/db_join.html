@@ -1,0 +1,153 @@
+<!--$Id: db_join.so,v 10.30 2000/12/20 15:34:50 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: Db::join</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>Db::join</h1>
+</td>
+<td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db_cxx.h&gt;
+<p>
+int
+Db::join(Dbc **curslist, Dbc **dbcp, u_int32_t flags);
+</pre></h3>
+<h1>Description</h1>
+<p>The Db::join method creates a specialized cursor for use in performing
+joins on secondary indexes.  For information on how to organize your data
+to use this functionality, see <a href="../ref/am/join.html">Logical
+join</a>.
+<p>The <b>primary</b> argument contains the <a href="../api_cxx/db_class.html">Db</a> handle of the primary
+database, which is keyed by the data values found in entries in the
+<b>curslist</b>.
+<p>The <b>curslist</b> argument contains a NULL terminated array of cursors.
+Each cursor must have been initialized to reference the key on which the
+underlying database should be joined.  Typically, this initialization is done
+by a <a href="../api_cxx/dbc_get.html">Dbc::get</a> call with the <a href="../api_cxx/dbc_get.html#DB_SET">DB_SET</a> flag specified.  Once the
+cursors have been passed as part of a <b>curslist</b>, they should not
+be accessed or modified until the newly created join cursor has been closed,
+or else inconsistent results may be returned.
+<p>Joined values are retrieved by doing a sequential iteration over the first
+cursor in the <b>curslist</b> argument, and a nested iteration over each
+secondary cursor in the order they are specified in the <b>curslist</b>
+argument.  This requires database traversals to search for the current
+datum in all the cursors after the first.  For this reason, the best join
+performance normally results from sorting the cursors from the one that
+references the least number of data items to the one that references the
+most.  By default, Db::join does this sort on behalf of its caller.
+<p>The <b>flags</b> parameter must be set to 0 or the following value:
+<p><dl compact>
+<p><dt><a name="DB_JOIN_NOSORT">DB_JOIN_NOSORT</a><dd>Do not sort the cursors based on the number of data items they reference.
+If the data are structured such that cursors with many data items also
+share many common elements, higher performance will result from listing
+those cursors before cursors with fewer data items, that is, a sort order
+other than the default.  The DB_JOIN_NOSORT flag permits
+applications to perform join optimization prior to calling Db::join.
+</dl>
+<p>A newly created cursor is returned in the memory location referenced by
+<b>dbcp</b> and has the standard cursor functions:
+<p><dl compact>
+<p><dt><a href="../api_cxx/dbc_get.html">Dbc::get</a><dd>Iterates over the values associated with the keys to which each item in
+<b>curslist</b> has been initialized.  Any data value which appears in
+all items specified by the <b>curslist</b> argument is then used as a
+key into the <b>primary</b>, and the key/data pair found in the
+<b>primary</b> is returned.
+<p>The <b>flags</b> parameter must be set to 0 or the following value:
+<p><dl compact>
+<p><dt><a name="DB_JOIN_ITEM">DB_JOIN_ITEM</a><dd>Do not use the data value found in all of the cursors as a lookup
+key for the <b>primary</b>, but simply return it in the key parameter
+instead.  The data parameter is left unchanged.
+</dl>
+<p>In addition, the following flag may be set by bitwise inclusively <b>OR</b>'ing it into the
+<b>flags</b> parameter:
+<p><dl compact>
+<p><dt><a name="DB_RMW">DB_RMW</a><dd>Acquire write locks instead of read locks when doing the retrieval.
+Setting this flag may decrease the likelihood of deadlock during a
+read-modify-write cycle by immediately acquiring the write lock during
+the read part of the cycle so that another thread of control acquiring
+a read lock for the same item, in its own read-modify-write cycle, will
+not result in deadlock.
+</dl>
+<p><dt><a href="../api_cxx/dbc_put.html">Dbc::put</a><dd>Returns EINVAL.
+<p><dt><a href="../api_cxx/dbc_del.html">Dbc::del</a><dd>Returns EINVAL.
+<p><dt><a href="../api_cxx/dbc_close.html">Dbc::close</a><dd>Close the returned cursor and release all resources.  (Closing the cursors
+in <b>curslist</b> is the responsibility of the caller.)
+</dl>
+<p>For the returned join cursor to be used in a transaction protected manner,
+the cursors listed in <b>curslist</b> must have been created within the
+context of the same transaction.
+<p>The Db::join method either returns a non-zero error value or throws an exception that
+encapsulates a non-zero error value on failure, and returns 0 on success.
+<h1>Errors</h1>
+<p>The Db::join method may fail and throw an exception or return a non-zero error for the following conditions:
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+<p>The <a href="../api_cxx/dbc_put.html">Dbc::put</a> or <a href="../api_cxx/dbc_del.html">Dbc::del</a> functions were called.
+</dl>
+<p>The Db::join method may fail and throw an exception or return a non-zero error for errors specified for other Berkeley DB and C library or system methods.
+If a catastrophic error has occurred, the Db::join method may fail and either
+return <a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a> or throw an exception encapsulating
+<a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a>, in which case all subsequent Berkeley DB calls will fail
+in the same way.
+<h3>Class</h3>
+<a href="../api_cxx/db_class.html">Db</a>
+<h1>See Also</h1>
+<a href="../api_cxx/db_close.html">Db::close</a>,
+<a href="../api_cxx/db_cursor.html">Db::cursor</a>,
+<a href="../api_cxx/db_del.html">Db::del</a>,
+<a href="../api_cxx/db_err.html">Db::err</a>,
+<a href="../api_cxx/db_fd.html">Db::fd</a>,
+<a href="../api_cxx/db_get.html">Db::get</a>,
+<a href="../api_cxx/db_get_byteswapped.html">Db::get_byteswapped</a>,
+<a href="../api_cxx/db_get_type.html">Db::get_type</a>,
+<a href="../api_cxx/db_join.html">Db::join</a>,
+<a href="../api_cxx/db_key_range.html">Db::key_range</a>,
+<a href="../api_cxx/db_open.html">Db::open</a>,
+<a href="../api_cxx/db_put.html">Db::put</a>,
+<a href="../api_cxx/db_remove.html">Db::remove</a>,
+<a href="../api_cxx/db_set_bt_compare.html">Db::set_bt_compare</a>,
+<a href="../api_cxx/db_set_bt_minkey.html">Db::set_bt_minkey</a>,
+<a href="../api_cxx/db_set_bt_prefix.html">Db::set_bt_prefix</a>,
+<a href="../api_cxx/db_set_cachesize.html">Db::set_cachesize</a>,
+<a href="../api_cxx/db_set_dup_compare.html">Db::set_dup_compare</a>,
+<a href="../api_cxx/db_set_errcall.html">Db::set_errcall</a>,
+<a href="../api_cxx/db_set_errfile.html">Db::set_errfile</a>,
+<a href="../api_cxx/db_set_errpfx.html">Db::set_errpfx</a>,
+<a href="../api_cxx/db_set_flags.html">Db::set_flags</a>,
+<a href="../api_cxx/db_set_h_ffactor.html">Db::set_h_ffactor</a>,
+<a href="../api_cxx/db_set_h_hash.html">Db::set_h_hash</a>,
+<a href="../api_cxx/db_set_h_nelem.html">Db::set_h_nelem</a>,
+<a href="../api_cxx/db_set_lorder.html">Db::set_lorder</a>,
+<a href="../api_cxx/db_set_malloc.html">Db::set_malloc</a>,
+<a href="../api_cxx/db_set_pagesize.html">Db::set_pagesize</a>,
+<a href="../api_cxx/db_set_paniccall.html">Db::set_paniccall</a>,
+<a href="../api_cxx/db_set_q_extentsize.html">Db::set_q_extentsize</a>,
+<a href="../api_cxx/db_set_realloc.html">Db::set_realloc</a>,
+<a href="../api_cxx/db_set_re_delim.html">Db::set_re_delim</a>,
+<a href="../api_cxx/db_set_re_len.html">Db::set_re_len</a>,
+<a href="../api_cxx/db_set_re_pad.html">Db::set_re_pad</a>,
+<a href="../api_cxx/db_set_re_source.html">Db::set_re_source</a>,
+<a href="../api_cxx/db_stat.html">Db::stat</a>,
+<a href="../api_cxx/db_sync.html">Db::sync</a>,
+<a href="../api_cxx/db_upgrade.html">Db::upgrade</a>
+and
+<a href="../api_cxx/db_verify.html">Db::verify</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,53 @@
+#!/bin/sh -
+#	$Id: s_tcl,v 1.14 2000/11/09 19:24:07 sue Exp $
+#
+# Build the Tcl test files.
+
+msgshb="# DO NOT EDIT BELOW THIS LINE: automatically built by dist/s_tcl."
+
+. RELEASE
+
+f=../test/include.tcl
+echo "Building $f"
+rm -f $f
+(echo "set tclsh_path @TCL_TCLSH@"		&& \
+ echo "set tcllib .libs/libdb_tcl-@DB_VERSION_MAJOR@.@DB_VERSION_MINOR@.@SOSUFFIX@" && \
+ echo "set rpc_server localhost"	 	&& \
+ echo "set rpc_path ."			 	&& \
+ echo "set test_path @srcdir@/../test"		&& \
+ echo ""					&& \
+ echo "set KILL \"@db_cv_path_kill@\""		&& \
+ echo ""					&& \
+ echo "$msgshb"					&& \
+ echo ""					&& \
+ echo "global dict"				&& \
+ echo "global testdir"				&& \
+ echo "global util_path"			&& \
+ echo "set testdir ./TESTDIR"			&& \
+ echo "set rpc_testdir \$rpc_path/TESTDIR"	&& \
+ echo ""					&& \
+ echo "global is_hp_test"			&& \
+ echo "global is_qnx_test"			&& \
+ echo "global is_windows_test") > $f
+chmod 444 $f
+
+f=../build_win32/include.tcl
+echo "Building $f"
+rm -f $f
+(echo "set tclsh_path SET_YOUR_TCLSH_PATH"	&& \
+ echo "set test_path ../test"			&& \
+ echo "set tcllib ./Debug/libdb_tcl${DB_VERSION_MAJOR}${DB_VERSION_MINOR}d.dll" && \
+ echo ""					&& \
+ echo "set KILL ./dbkill.exe"			&& \
+ echo ""					&& \
+ echo "$msgshb"					&& \
+ echo ""					&& \
+ echo "global dict"				&& \
+ echo "global testdir"				&& \
+ echo "global util_path"			&& \
+ echo "set testdir ./TESTDIR"			&& \
+ echo ""					&& \
+ echo "global is_hp_test"			&& \
+ echo "global is_qnx_test"			&& \
+ echo "global is_windows_test") > $f
+chmod 444 $f

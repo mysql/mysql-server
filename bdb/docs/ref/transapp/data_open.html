@@ -1,0 +1,119 @@
+<!--$Id: data_open.so,v 1.3 2000/08/16 17:50:40 margo Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Opening the databases</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Transaction Protected Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/transapp/env_open.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/put.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Opening the databases</h1>
+<p>Next, we open three databases ("color" and "fruit" and "cats"), in the
+database environment.  Again, our DB database handles are
+declared to be free-threaded using the <a href="../../api_c/env_open.html#DB_THREAD">DB_THREAD</a> flag, and so
+may be used by any number of threads we subsequently create.
+<p><blockquote><pre>int
+main(int argc, char *argv)
+{
+	extern char *optarg;
+	extern int optind;
+	DB *db_cats, *db_color, *db_fruit;
+	DB_ENV *dbenv;
+	pthread_t ptid;
+	int ch;
+<p>
+	while ((ch = getopt(argc, argv, "")) != EOF)
+		switch (ch) {
+		case '?':
+		default:
+			usage();
+		}
+	argc -= optind;
+	argv += optind;
+<p>
+	env_dir_create();
+	env_open(&dbenv);
+<p>
+<b>	/* Open database: Key is fruit class; Data is specific type. */
+	db_open(dbenv, &db_fruit, "fruit", 0);
+<p>
+	/* Open database: Key is a color; Data is an integer. */
+	db_open(dbenv, &db_color, "color", 0);
+<p>
+	/*
+	 * Open database:
+	 *	Key is a name; Data is: company name, address, cat breeds.
+	 */
+	db_open(dbenv, &db_cats, "cats", 1);</b>
+<p>
+	return (0);
+}
+<p>
+<b>void
+db_open(DB_ENV *dbenv, DB **dbp, char *name, int dups)
+{
+	DB *db;
+	int ret;
+<p>
+	/* Create the database handle. */
+	if ((ret = db_create(&db, dbenv, 0)) != 0) {
+		dbenv-&gt;err(dbenv, ret, "db_create");
+		exit (1);
+	}
+<p>
+	/* Optionally, turn on duplicate data items. */
+	if (dups && (ret = db-&gt;set_flags(db, DB_DUP)) != 0) {
+		dbenv-&gt;err(dbenv, ret, "db-&gt;set_flags: DB_DUP");
+		exit (1);
+	}
+<p>
+	/*
+	 * Open a database in the environment:
+	 *	create if it doesn't exist
+	 *	free-threaded handle
+	 *	read/write owner only
+	 */
+	if ((ret = db-&gt;open(db, name, NULL,
+	    DB_BTREE, DB_CREATE | DB_THREAD, S_IRUSR | S_IWUSR)) != 0) {
+		dbenv-&gt;err(dbenv, ret, "db-&gt;open: %s", name);
+		exit (1);
+	}
+<p>
+	*dbp = db;
+}</b></pre></blockquote>
+<p>There is no reason to wrap database opens inside of transactions.  All
+database opens are transaction protected internally to Berkeley DB, and
+applications using transaction-protected environments can simply rely on
+files either being successfully re-created in a recovered environment,
+or not appearing at all.
+<p>After running this initial code, we can use the <a href="../../utility/db_stat.html">db_stat</a> utility
+to display information about a database we have created:
+<p><blockquote><pre>prompt&gt; db_stat -h TXNAPP -d color
+53162   Btree magic number.
+8       Btree version number.
+Flags:
+2       Minimum keys per-page.
+8192    Underlying database page size.
+1       Number of levels in the tree.
+0       Number of unique keys in the tree.
+0       Number of data items in the tree.
+0       Number of tree internal pages.
+0       Number of bytes free in tree internal pages (0% ff).
+1       Number of tree leaf pages.
+8166    Number of bytes free in tree leaf pages (0.% ff).
+0       Number of tree duplicate pages.
+0       Number of bytes free in tree duplicate pages (0% ff).
+0       Number of tree overflow pages.
+0       Number of bytes free in tree overflow pages (0% ff).
+0       Number of pages on the free list.</pre></blockquote>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/transapp/env_open.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/transapp/put.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

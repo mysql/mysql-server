@@ -1,0 +1,65 @@
+<!--$Id: open.so,v 11.10 2000/03/18 21:43:21 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Release 3.0: database open/close</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Upgrading Berkeley DB Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/upgrade.3.0/dbenv.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.0/xa.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Release 3.0: database open/close</h1>
+<p>Database opens were changed in the Berkeley DB 3.0 release in a similar way to
+environment opens.
+<p>To upgrade your application, first find each place your application opens
+a database, that is, calls the db_open function.  Each of these calls
+should be replaced with calls to <a href="../../api_c/db_create.html">db_create</a> and <a href="../../api_c/db_open.html">DB-&gt;open</a>.
+<p>Here's an example creating a Berkeley DB database using the 2.X interface:
+<p><blockquote><pre>DB *dbp;
+DB_ENV *dbenv;
+int ret;
+<p>
+if ((ret = db_open(DATABASE,
+    DB_BTREE, DB_CREATE, 0664, dbenv, NULL, &dbp)) != 0)
+	return (ret);</pre></blockquote>
+<p>In the Berkeley DB 3.0 release, this code would be written as:
+<p><blockquote><pre>DB *dbp;
+DB_ENV *dbenv;
+int ret;
+<p>
+if ((ret = db_create(&dbp, dbenv, 0)) != 0)
+	return (ret);
+<p>
+if ((ret = dbp-&gt;open(dbp,
+    DATABASE, NULL, DB_BTREE, DB_CREATE, 0664)) != 0) {
+	(void)dbp-&gt;close(dbp, 0);
+	return (ret);
+}</pre></blockquote>
+<p>As you can see, the arguments to db_open and to <a href="../../api_c/db_open.html">DB-&gt;open</a> are
+largely the same.  There is some re-organization, and note that the
+enclosing DB_ENV structure is specified when the DB object
+is created using the <a href="../../api_c/db_create.html">db_create</a> interface.  There is one
+additional argument to <a href="../../api_c/db_open.html">DB-&gt;open</a>, argument #3.  For backward
+compatibility with the 2.X Berkeley DB releases, simply set that argument to
+NULL.
+<p>There are two additional issues with the db_open call.
+<p>First, it was possible in the 2.X releases for an application to provide
+an environment that did not contain a shared memory buffer pool as the
+database environment, and Berkeley DB would create a private one automatically.
+This functionality is no longer available, applications must specify the
+<a href="../../api_c/env_open.html#DB_INIT_MPOOL">DB_INIT_MPOOL</a> flag if databases are going to be opened in the
+environment.
+<p>The final issue with upgrading the db_open call is that the DB_INFO
+structure is no longer used, having been replaced by individual methods
+on the DB handle.  That change is discussed in detail later in
+this chapter.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/upgrade.3.0/dbenv.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.0/xa.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

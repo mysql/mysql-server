@@ -1,0 +1,31 @@
+<!--$Id: cxx.so,v 11.5 2000/03/18 21:43:20 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Release 3.0: additional C++ changes</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Upgrading Berkeley DB Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/upgrade.3.0/db_cxx.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.0/java.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Release 3.0: additional C++ changes</h1>
+<p>The Db::set_error_model method is gone.  The way to change the C++ API to
+return errors rather than throw exceptions is via a flag on the DbEnv or
+Db constructor.  For example:
+<p><blockquote><pre>int dberr;
+DbEnv *dbenv = new DbEnv(DB_CXX_NO_EXCEPTIONS);</pre></blockquote>
+<p>creates an environment that will never throw exceptions, and method
+returns should be checked instead.
+<p>There are a number of smaller changes to the API that bring the C, C++
+and Java APIs much closer in terms of functionality and usage.  Please
+refer to the pages for upgrading C applications for further details.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/upgrade.3.0/db_cxx.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.0/java.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

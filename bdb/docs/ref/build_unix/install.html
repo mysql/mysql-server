@@ -1,0 +1,60 @@
+<!--$Id: install.so,v 10.12 2000/12/01 00:19:10 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Installing Berkeley DB</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Building Berkeley DB for UNIX systems</dl></h3></td>
+<td width="1%"><a href="../../ref/build_unix/flags.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_unix/shlib.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Installing Berkeley DB</h1>
+<p>Berkeley DB installs the following files into the following locations, with the
+following default values:
+<p><table border=1 align=center>
+<tr><th>Configuration Variables</th><th>Default value</th></tr>
+<tr><td>--prefix</td><td>/usr/local/BerkeleyDB.<b>Major</b>.<b>Minor</b></td></tr>
+<tr><td>--exec_prefix</td><td>$(prefix)</td></tr>
+<tr><td>--bindir</td><td>$(exec_prefix)/bin</td></tr>
+<tr><td>--includedir</td><td>$(prefix)/include</td></tr>
+<tr><td>--libdir</td><td>$(exec_prefix)/lib</td></tr>
+<tr><td>docdir</td><td>$(prefix)/docs</td></tr>
+<tr><th>Files</th><th>Default location</th></tr>
+<tr><td>include files</td><td>$(includedir)</td></tr>
+<tr><td>libraries</td><td>$(libdir)</td></tr>
+<tr><td>utilities</td><td>$(bindir)</td></tr>
+<tr><td>documentation</td><td>$(docdir)</td></tr>
+</table>
+<p>With one exception, this follows the GNU Autoconf and GNU Coding
+Standards installation guidelines, please see that documentation for
+more information and rationale.
+<p>The single exception is the Berkeley DB documentation.  The Berkeley DB
+documentation is provided in HTML format, not in UNIX-style man or GNU
+info format.  For this reason, Berkeley DB configuration does not support
+<b>--infodir</b> or <b>--mandir</b>.  To change the default
+installation location for the Berkeley DB documentation, modify the Makefile
+variable, <b>docdir</b>.
+<p>To move the entire installation tree to somewhere besides
+<b>/usr/local</b>, change the value of <b>prefix</b>.
+<p>To move the binaries and libraries to a different location, change the
+value of <b>exec_prefix</b>.  The values of <b>includedir</b> and
+<b>libdir</b> may be similarly changed.
+<p>Any of these values except for <b>docdir</b> may be set as part
+of configuration:
+<p><blockquote><pre>prompt: ../dist/configure --bindir=/usr/local/bin</pre></blockquote>
+<p>Any of these values, including <b>docdir</b>, may be changed when doing
+the install itself:
+<p><blockquote><pre>prompt: make prefix=/usr/contrib/bdb install</pre></blockquote>
+<p>The Berkeley DB installation process will attempt to create any directories that
+do not already exist on the system.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/build_unix/flags.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_unix/shlib.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

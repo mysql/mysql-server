@@ -1,0 +1,96 @@
+<!--$Id: txn_begin.so,v 10.37 2001/01/11 17:47:12 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DbEnv::txn_begin</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DbEnv::txn_begin</h1>
+</td>
+<td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db_cxx.h&gt;
+<p>
+int
+DbEnv::txn_begin(DbTxn *parent, DbTxn **tid, u_int32_t flags);
+</pre></h3>
+<h1>Description</h1>
+<p>The DbEnv::txn_begin method creates a new transaction in the environment
+and copies a pointer to a <a href="../api_cxx/txn_class.html">DbTxn</a> that uniquely identifies it into
+the memory referenced by <b>tid</b>.
+<p>If the <b>parent</b> argument is non-NULL, the new transaction will
+be a nested transaction, with the transaction indicated by
+<b>parent</b> as its parent.  Transactions may be 
+nested to any level.
+<p>The <b>flags</b> parameter must be set to 0 or one of the following
+values:
+<p><dl compact>
+<p><dt><a name="DB_TXN_NOSYNC">DB_TXN_NOSYNC</a><dd>Do not synchronously flush the log when this transaction commits or
+prepares. This means the transaction will exhibit the ACI (atomicity,
+consistency and isolation) properties, but not D (durability), i.e.,
+database integrity will be maintained but it is possible that this
+transaction may be undone during recovery instead of being redone.
+<p>This behavior may be set for an entire Berkeley DB environment as part of the
+<a href="../api_cxx/env_set_flags.html">DbEnv::set_flags</a> interface.
+<p><dt><a name="DB_TXN_NOWAIT">DB_TXN_NOWAIT</a><dd>If a lock is unavailable for any Berkeley DB operation performed in the context
+of this transaction, return immediately instead of blocking on the lock.
+The error return in the case will be <a href="../ref/program/errorret.html#DB_LOCK_NOTGRANTED">DB_LOCK_NOTGRANTED</a>.
+<p><dt><a name="DB_TXN_SYNC">DB_TXN_SYNC</a><dd>Synchronously flush the log when this transaction commits or prepares.
+This means the transaction will exhibit all of the ACID (atomicity,
+consistency and isolation and durability) properties.
+<p>This behavior is the default for Berkeley DB environments unless the
+<a href="../api_cxx/env_open.html#DB_TXN_NOSYNC">DB_TXN_NOSYNC</a> flag was specified to the <a href="../api_cxx/env_set_flags.html">DbEnv::set_flags</a>
+interface.
+</dl>
+<p><b>Note: An transaction may not span threads,
+i.e., each transaction must begin and end in the same thread, and each
+transaction may only be used by a single thread.</b>
+<p><b>Note: cursors may not span transactions, i.e., each cursor must be opened
+and closed within a single transaction.</b>
+<p><b>Note: a parent transaction may not issue any Berkeley DB operations, except for
+DbEnv::txn_begin, <a href="../api_cxx/txn_abort.html">DbTxn::abort</a> and <a href="../api_cxx/txn_commit.html">DbTxn::commit</a>, while it has
+active child transactions (child transactions that have not yet been
+committed or aborted).</b>
+<p>The DbEnv::txn_begin method either returns a non-zero error value or throws an exception that
+encapsulates a non-zero error value on failure, and returns 0 on success.
+<h1>Errors</h1>
+<p>The DbEnv::txn_begin method may fail and throw an exception or return a non-zero error for the following conditions:
+<p><dl compact>
+<p><dt>ENOMEM<dd>The maximum number of concurrent transactions has been reached.
+</dl>
+<p>The DbEnv::txn_begin method may fail and throw an exception or return a non-zero error for errors specified for other Berkeley DB and C library or system methods.
+If a catastrophic error has occurred, the DbEnv::txn_begin method may fail and either
+return <a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a> or throw an exception encapsulating
+<a href="../ref/program/errorret.html#DB_RUNRECOVERY">DB_RUNRECOVERY</a>, in which case all subsequent Berkeley DB calls will fail
+in the same way.
+<h3>Classes</h3>
+<a href="../api_cxx/dbenv_class.html">DbEnv</a>, <a href="../api_cxx/txn_class.html">DbTxn</a>
+<h1>See Also</h1>
+<a href="../api_cxx/env_set_tx_max.html">DbEnv::set_tx_max</a>,
+<a href="../api_cxx/env_set_tx_recover.html">DbEnv::set_tx_recover</a>,
+<a href="../api_cxx/env_set_tx_timestamp.html">DbEnv::set_tx_timestamp</a>,
+<a href="../api_cxx/txn_abort.html">DbTxn::abort</a>,
+<a href="../api_cxx/txn_begin.html">DbEnv::txn_begin</a>,
+<a href="../api_cxx/txn_checkpoint.html">DbEnv::txn_checkpoint</a>,
+<a href="../api_cxx/txn_commit.html">DbTxn::commit</a>,
+<a href="../api_cxx/txn_id.html">DbTxn::id</a>,
+<a href="../api_cxx/txn_prepare.html">DbTxn::prepare</a>
+and
+<a href="../api_cxx/txn_stat.html">DbEnv::txn_stat</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_cxx/cxx_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

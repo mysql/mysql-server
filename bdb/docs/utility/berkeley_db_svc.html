@@ -1,0 +1,88 @@
+<!--$Id: berkeley_db_svc.so,v 10.11 2000/04/15 16:57:38 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: berkeley_db_svc</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>berkeley_db_svc</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>berkeley_db_svc [<b>-Vv</b>] [<b>-h home</b>]
+    [<b>-I seconds</b>] [<b>-L file</b>] [<b>-t seconds</b>] [<b>-T seconds</b>]</pre></h3>
+<h1>Description</h1>
+        <a name="3"><!--meow--></a>    
+<p>The berkeley_db_svc utility is the Berkeley DB RPC server.
+<p>The options are as follows:
+<p><dl compact>
+<p><dt><b>-h</b><dd>Add the specified home directory to the list of allowed home directories
+that can be specified by the client.  The home directory should be an
+absolute pathname.  The last component of each home directory specified
+must be unique, as that is how clients specify which database environment
+they wish to join.
+<p>Recovery will be run on each specified environment before the server
+begins accepting requests from clients.  For this reason, only one copy
+of the server program should ever be run at any time, as recovery must
+always be single-threaded.
+<p><dt><b>-I</b><dd>Set the default idle timeout for client environments to the specified
+number of seconds.  The default timeout is 24 hours.
+<p><dt><b>-L</b><dd>Log the execution of the berkeley_db_svc utility to the specified file in the
+following format, where <i>###</i> is the process ID, and the date
+is the time the utility was started.
+<p><blockquote><pre>berkeley_db_svc: ### Wed Jun 15 01:23:45 EDT 1995</pre></blockquote>
+This file will be removed if the berkeley_db_svc utility exits gracefully.
+<p><dt><b>-t</b><dd>Set the default timeout for client resources (idle transactions and
+cursors) to the
+specified number of seconds.  When the timeout expires, if the
+resource is a transaction, it is aborted, if the resource is
+a cursor, it is closed.
+The default timeout is 5 minutes.
+<p><dt><b>-T</b><dd>Set the maximum timeout allowed for client resources.
+The default timeout is 20 minutes.
+If a client application requests a server timeout
+greater than the maximum timeout set for this server, then the client's
+timeout will be capped at the maximum timeout value.
+<p><dt><b>-V</b><dd>Write the version number to the standard output and exit.
+<p><dt><b>-v</b><dd>Run in verbose mode.
+</dl>
+<p>The berkeley_db_svc utility uses a Berkeley DB environment (as described for the
+<b>-h</b> option, the environment variable <b>DB_HOME</b>, or,
+because the utility was run in a directory containing a Berkeley DB
+environment).  In order to avoid environment corruption when using a Berkeley DB
+environment, berkeley_db_svc should always be given the chance to detach from
+the environment and exit gracefully.  To cause berkeley_db_svc to release all
+environment resources and exit cleanly, send it an interrupt signal
+(SIGINT).
+<p>The berkeley_db_svc utility exits 0 on success, and &gt;0 if an error occurs.
+<h1>Environment Variables</h1>
+<p><dl compact>
+<p><dt>DB_HOME<dd>If the <b>-h</b> option is not specified and the environment variable
+DB_HOME is set, it is used as the path of the database home, as described
+in <a href="../api_c/env_open.html">DBENV-&gt;open</a>.
+</dl>
+<h1>See Also</h1>
+berkeley_db_svc,
+<a href="../utility/db_archive.html">db_archive</a>,
+<a href="../utility/db_checkpoint.html">db_checkpoint</a>,
+<a href="../utility/db_deadlock.html">db_deadlock</a>,
+<a href="../utility/db_dump.html">db_dump</a>,
+<a href="../utility/db_load.html">db_load</a>,
+<a href="../utility/db_recover.html">db_recover</a>,
+<a href="../utility/db_stat.html">db_stat</a>,
+<a href="../utility/db_upgrade.html">db_upgrade</a>,
+and
+<a href="../utility/db_verify.html">db_verify</a>.
+</tt>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

@@ -1,0 +1,72 @@
+<!--$Id: dbinfo.so,v 11.8 2000/03/18 21:43:20 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Release 3.0: the DBINFO structure</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Upgrading Berkeley DB Applications</dl></h3></td>
+<td width="1%"><a href="../../ref/upgrade.3.0/db.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.0/join.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Release 3.0: the DBINFO structure</h1>
+<p>The DB_INFO structure has been removed from the Berkeley DB 3.0 release.
+Accesses to any fields within that structure by the application should be
+replaced with method calls on the DB handle.  The following
+example illustrates this using the historic db_cachesize structure field.
+In the Berkeley DB 2.X releases, applications could set the size of an
+underlying database cache using code similar to the following:
+<p><blockquote><pre>DB_INFO dbinfo;
+<p>
+	memset(dbinfo, 0, sizeof(dbinfo));
+	dbinfo.db_cachesize = 1024 * 1024;</pre></blockquote>
+<p>in the Berkeley DB 3.X releases, this should be done using the
+<a href="../../api_c/db_set_cachesize.html">DB-&gt;set_cachesize</a> method, as follows:
+<p><blockquote><pre>DB *db;
+int ret;
+<p>
+	ret = db-&gt;set_cachesize(db, 0, 1024 * 1024, 0);</pre></blockquote>
+<p>The DB_INFO structure is no longer used in any way by the Berkeley DB 3.0
+release, and should be removed from the application.
+<p>The following table lists the DB_INFO fields previously used by
+applications and the methods that should now be used to set
+them.  Because these calls provide configuration for the
+database open, they must precede the call to <a href="../../api_c/db_open.html">DB-&gt;open</a>.
+Calling them after the call to <a href="../../api_c/db_open.html">DB-&gt;open</a> will return an
+error.
+<p><table border=1 align=center>
+<tr><th>DB_INFO field</th><th>Berkeley DB 3.X method</th></tr>
+<tr><td>bt_compare</td><td><a href="../../api_c/db_set_bt_compare.html">DB-&gt;set_bt_compare</a></td></tr>
+<tr><td>bt_minkey</td><td><a href="../../api_c/db_set_bt_minkey.html">DB-&gt;set_bt_minkey</a></td></tr>
+<tr><td>bt_prefix</td><td><a href="../../api_c/db_set_bt_prefix.html">DB-&gt;set_bt_prefix</a></td></tr>
+<tr><td>db_cachesize</td><td><a href="../../api_c/db_set_cachesize.html">DB-&gt;set_cachesize</a>
+<p>Note: the <a href="../../api_c/db_set_cachesize.html">DB-&gt;set_cachesize</a> function takes additional arguments.
+Setting both the second argument (the number of GB in the pool) and the
+last argument (the number of memory pools to create) to 0 will result in
+behavior that is backward compatible with previous Berkeley DB releases.</td></tr>
+<tr><td>db_lorder</td><td><a href="../../api_c/db_set_lorder.html">DB-&gt;set_lorder</a></td></tr>
+<tr><td>db_malloc</td><td><a href="../../api_c/db_set_malloc.html">DB-&gt;set_malloc</a></td></tr>
+<tr><td>db_pagesize</td><td><a href="../../api_c/db_set_pagesize.html">DB-&gt;set_pagesize</a></td></tr>
+<tr><td>dup_compare</td><td><a href="../../api_c/db_set_dup_compare.html">DB-&gt;set_dup_compare</a></td></tr>
+<tr><td>flags</td><td><a href="../../api_c/db_set_flags.html">DB-&gt;set_flags</a>
+<p>Note: the DB_DELIMITER, DB_FIXEDLEN and DB_PAD flags no longer need to be
+set as there are specific methods off the DB handle that set the
+file delimiter, the length of fixed-length records and the fixed-length
+record pad character.  They should simply be discarded from the application.</td></tr>
+<tr><td>h_ffactor</td><td><a href="../../api_c/db_set_h_ffactor.html">DB-&gt;set_h_ffactor</a></td></tr>
+<tr><td>h_hash</td><td><a href="../../api_c/db_set_h_hash.html">DB-&gt;set_h_hash</a></td></tr>
+<tr><td>h_nelem</td><td><a href="../../api_c/db_set_h_nelem.html">DB-&gt;set_h_nelem</a></td></tr>
+<tr><td>re_delim</td><td><a href="../../api_c/db_set_re_delim.html">DB-&gt;set_re_delim</a></td></tr>
+<tr><td>re_len</td><td><a href="../../api_c/db_set_re_len.html">DB-&gt;set_re_len</a></td></tr>
+<tr><td>re_pad</td><td><a href="../../api_c/db_set_re_pad.html">DB-&gt;set_re_pad</a></td></tr>
+<tr><td>re_source</td><td><a href="../../api_c/db_set_re_source.html">DB-&gt;set_re_source</a></td></tr>
+</table>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/upgrade.3.0/db.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/upgrade.3.0/join.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

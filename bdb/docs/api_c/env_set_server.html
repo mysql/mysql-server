@@ -1,0 +1,77 @@
+<!--"@(#)env_set_server.so	10.13 (Sleepycat) 8/25/99"-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB: DBENV-&gt;set_server</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td>
+<h1>DBENV-&gt;set_server</h1>
+</td>
+<td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<hr size=1 noshade>
+<tt>
+<h3><pre>
+#include &lt;db.h&gt;
+<p>
+int
+DBENV-&gt;set_server(DB_ENV *dbenv, char *host,
+    long cl_timeout, long sv_timeout, u_int32_t flags);
+</pre></h3>
+<h1>Description</h1>
+<p>Connects to the DB server on the indicated hostname and sets up a channel
+for communication.
+<p>The <b>cl_timeout</b> argument specifies the number of seconds the client
+should wait for results to come back from the server.  Once the timeout
+has expired on any communication with the server, DB_NOSERVER will
+be returned.  If this value is zero, a default timeout is used.
+<p>The <b>sv_timeout</b> argument specifies the number of seconds the server
+should allow a client connection to remain idle before assuming that
+client is gone.  Once that timeout has been reached, the server releases
+all resources associated with that client connection.  Subsequent attempts
+by that client to communicate with the server result in
+DB_NOSERVER_ID indicating that an invalid identifier has been
+given to the server.  This value can be considered a hint to the server.
+The server may alter this value based on its own policies or allowed
+values.  If this value is zero, a default timeout is used.
+<p>The <b>flags</b> parameter is currently unused, and must be set to 0.
+<p>When the DBENV-&gt;set_server function has been called, any subsequent calls
+to Berkeley DB library interfaces may return either <a name="DB_NOSERVER">DB_NOSERVER</a> or
+<a name="DB_NOSERVER_ID">DB_NOSERVER_ID</a>.
+<p>The DBENV-&gt;set_server function returns a non-zero error value on failure and 0 on success.
+<h3>Errors</h3>
+<p><dl compact>
+<p><dt>EINVAL<dd>An invalid flag value or parameter was specified.
+<p>dbenv_set_server
+</dl>
+<h1>See Also</h1>
+<a href="../api_c/env_close.html">DBENV-&gt;close</a>,
+<a href="../api_c/env_create.html">db_env_create</a>,
+<a href="../api_c/env_open.html">DBENV-&gt;open</a>,
+<a href="../api_c/env_remove.html">DBENV-&gt;remove</a>,
+<a href="../api_c/db_err.html">DBENV-&gt;err</a>,
+<a href="../api_c/env_strerror.html">db_strerror</a>,
+<a href="../api_c/env_version.html">db_version</a>,
+<a href="../api_c/env_set_cachesize.html">DBENV-&gt;set_cachesize</a>,
+<a href="../api_c/env_set_errcall.html">DBENV-&gt;set_errcall</a>,
+<a href="../api_c/env_set_errfile.html">DBENV-&gt;set_errfile</a>,
+<a href="../api_c/env_set_errpfx.html">DBENV-&gt;set_errpfx</a>,
+<a href="../api_c/env_set_flags.html">DBENV-&gt;set_flags</a>,
+<a href="../api_c/env_set_mutexlocks.html">DBENV-&gt;set_mutexlocks</a>,
+<a href="../api_c/env_set_paniccall.html">DBENV-&gt;set_paniccall</a>,
+and
+<a href="../api_c/env_set_verbose.html">DBENV-&gt;set_verbose</a>.
+</tt>
+<table><tr><td><br></td><td width="1%">
+<a href="../api_c/c_index.html"><img src="../images/api.gif" alt="API"></a><a href="../ref/toc.html"><img src="../images/ref.gif" alt="Ref"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

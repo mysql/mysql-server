@@ -1,0 +1,73 @@
+<!--$Id: create.so,v 10.23 2000/12/04 18:05:41 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Creating an Environment</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Environment</dl></h3></td>
+<td width="1%"><a href="../../ref/env/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/env/naming.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Creating an Environment</h1>
+<p>The <a href="../../api_c/env_open.html">DBENV-&gt;open</a> function is the standard function for creating or
+joining a database environment.  Transaction-protected or multi-process
+applications should call <a href="../../api_c/env_open.html">DBENV-&gt;open</a> before making any other calls
+to the Berkeley DB library.  Applications must obtain an environment handle from
+the <a href="../../api_c/env_create.html">db_env_create</a> function before calling <a href="../../api_c/env_open.html">DBENV-&gt;open</a>.
+There are a large number of options that you can set to customize
+<a href="../../api_c/env_open.html">DBENV-&gt;open</a> for your environment.  These options fall into four
+broad categories:
+<p><dl compact>
+<p><dt>Subsystem Initialization:<dd>These flags indicate which Berkeley DB subsystems will be initialized for the
+environment, and, what operations will happen automatically when
+databases are accessed within the environment.  The flags include
+<a href="../../api_c/env_open.html#DB_JOINENV">DB_JOINENV</a>, <a href="../../api_c/env_open.html#DB_INIT_CDB">DB_INIT_CDB</a>, <a href="../../api_c/env_open.html#DB_INIT_LOCK">DB_INIT_LOCK</a>,
+<a href="../../api_c/env_open.html#DB_INIT_LOG">DB_INIT_LOG</a>, <a href="../../api_c/env_open.html#DB_INIT_MPOOL">DB_INIT_MPOOL</a> and <a href="../../api_c/env_open.html#DB_INIT_TXN">DB_INIT_TXN</a>.
+The <a href="../../api_c/env_open.html#DB_INIT_CDB">DB_INIT_CDB</a> flag does initialization for Berkeley DB Concurrent Data Store
+applications, see <a href="../../ref/cam/intro.html">Building Berkeley DB Concurrent Data Store
+applications</a> for more information.  The rest of the flags initialize
+a single subsystem, e.g., when <a href="../../api_c/env_open.html#DB_INIT_LOCK">DB_INIT_LOCK</a> is specified,
+applications reading and writing databases opened in this environment
+will be using locking to ensure that they do not overwrite each other's
+changes.
+<p><dt>Recovery options:<dd>These flags indicate what recovery is to be performed on the environment
+before it is opened for normal use, and include <a href="../../api_c/env_open.html#DB_RECOVER">DB_RECOVER</a> and
+<a href="../../api_c/env_open.html#DB_RECOVER_FATAL">DB_RECOVER_FATAL</a>.
+<p><dt>Naming options:<dd>These flags modify how file naming happens in the environment, and include
+<a href="../../api_c/env_open.html#DB_USE_ENVIRON">DB_USE_ENVIRON</a> and <a href="../../api_c/env_open.html#DB_USE_ENVIRON_ROOT">DB_USE_ENVIRON_ROOT</a>.
+<p><dt>Miscellaneous:<dd>Finally, there are a number of miscellaneous flags such as <a href="../../api_c/env_open.html#DB_CREATE">DB_CREATE</a>
+which causes underlying files to be created as necessary.  See the
+<a href="../../api_c/env_open.html">DBENV-&gt;open</a> manual pages for further information.
+</dl>
+<p>Most applications either specify only the <a href="../../api_c/env_open.html#DB_INIT_MPOOL">DB_INIT_MPOOL</a> flag or
+they specify all four subsystem initialization flags
+(<a href="../../api_c/env_open.html#DB_INIT_MPOOL">DB_INIT_MPOOL</a>, <a href="../../api_c/env_open.html#DB_INIT_LOCK">DB_INIT_LOCK</a>, <a href="../../api_c/env_open.html#DB_INIT_LOG">DB_INIT_LOG</a> and
+<a href="../../api_c/env_open.html#DB_INIT_TXN">DB_INIT_TXN</a>).  The former configuration is for applications that
+simply want to use the basic Access Method interfaces with a shared
+underlying buffer pool, but don't care about recoverability after
+application or system failure.  The latter is for applications that need
+recoverability.  There are situations where other combinations of the
+initialization flags make sense, but they are rare.
+<p>The <a href="../../api_c/env_open.html#DB_RECOVER">DB_RECOVER</a> flag is specified by applications that want to
+perform any necessary database recovery when they start running, i.e., if
+there was a system or application failure the last time they ran, they
+want the databases to be made consistent before they start running again.
+It is not an error to specify this flag when no recovery needs to be
+done.
+<p>The <a href="../../api_c/env_open.html#DB_RECOVER_FATAL">DB_RECOVER_FATAL</a> flag is more special-purpose.  It performs
+catastrophic database recovery, and normally requires that some initial
+arrangements be made, i.e., archived log files be brought back into the
+filesystem.  Applications should not normally specify this flag.  Instead,
+under these rare conditions, the <a href="../../utility/db_recover.html">db_recover</a> utility should be
+used.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/env/intro.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/env/naming.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

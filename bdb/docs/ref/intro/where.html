@@ -1,0 +1,39 @@
+<!--$Id: where.so,v 10.27 2000/12/04 18:05:42 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Where does Berkeley DB run?</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Introduction</dl></h3></td>
+<td width="1%"><a href="../../ref/intro/distrib.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/intro/products.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Where does Berkeley DB run?</h1>
+<p>Berkeley DB requires only underlying IEEE/ANSI Std 1003.1 (POSIX) system calls and can be
+ported easily to new architectures by adding stub routines to connect
+the native system interfaces to the Berkeley DB POSIX-style system calls.
+<p>Berkeley DB will autoconfigure and run on almost any modern UNIX system, and
+even on most historical UNIX platforms.  See
+<a href="../../ref/build_unix/intro.html">Building for UNIX systems</a> for
+more information.
+<p>The Berkeley DB distribution includes support for QNX Neutrino.  See
+<a href="../../ref/build_unix/intro.html">Building for UNIX systems</a> for
+more information.
+<p>The Berkeley DB distribution includes support for VxWorks, via a workspace
+and project files for Tornado 2.0.  See
+<a href="../../ref/build_vxworks/intro.html">Building for VxWorks</a> for more
+information.
+<p>The Berkeley DB distribution includes support for Windows/95, Windows/98,
+Windows/NT and Windows/2000, via the MSVC 5 and 6 development
+environments.  See <a href="../../ref/build_win/intro.html">Building for
+Windows systems</a> for more information.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/intro/distrib.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/intro/products.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

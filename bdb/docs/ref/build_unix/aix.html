@@ -1,0 +1,60 @@
+<!--$Id: aix.so,v 11.11 2000/05/04 17:11:19 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: AIX</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Building Berkeley DB for UNIX systems</dl></h3></td>
+<td width="1%"><a href="../../ref/build_unix/notes.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_unix/freebsd.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>AIX</h1>
+<p><ol>
+<p><li><b>I can't compile and run multi-threaded applications.</b>
+<p>Special compile-time flags are required when compiling threaded
+applications on AIX.  If you are compiling a threaded application,
+you must compile with the _THREAD_SAFE flag and load with specific
+libraries, e.g., "-lc_r".  Specifying the compiler name with a
+trailing "_r" usually performs the right actions for the system.
+<p><blockquote><pre>xlc_r ...
+cc -D_THREAD_SAFE -lc_r ...</pre></blockquote>
+<p>The Berkeley DB library will automatically build with the correct options.
+<hr size=1 noshade>
+<p><li><b>I can't run using the <a href="../../api_c/env_open.html#DB_SYSTEM_MEM">DB_SYSTEM_MEM</a> option to
+<a href="../../api_c/env_open.html">DBENV-&gt;open</a>.</b>
+<p>AIX 4.1 only allows applications to map 10 system shared memory segments.
+In AIX 4.3 this has been raised to 256K segments, but only if you set the
+environment variable "export EXTSHM=ON".
+<hr size=1 noshade>
+<p><li><b>I can't create database files larger than 1GB on AIX.</b>
+<p>Berkeley DB does not include large-file support for AIX systems by default.
+Sleepycat Software has been told that the following changes will add
+large-file support on the AIX 4.2 and later releases, but we have not
+tested them ourselves.
+<p>Add the following lines to the <b>db_config.h</b> file in your build
+directory:
+<p><blockquote><pre>#ifdef	HAVE_FILE_OFFSET_BITS
+#define	_LARGE_FILES		/* AIX specific. */
+#endif</pre></blockquote>
+<p>Change the source code for <b>os/os_open.c</b> to always specify the
+<b>O_LARGEFILE</b> flag to the <b>open</b>(2) system call.
+<p>Recompile Berkeley DB from scratch.
+<p>Note that the documentation for the IBM Visual Age compiler states that
+it does not not support the 64-bit filesystem APIs necessary for creating
+large files, and that the ibmcxx product must be used instead.  We have
+not heard if the GNU gcc compiler supports the 64-bit APIs or not.
+<p>Finally, to create large files under AIX, the filesystem has to be
+configured to support large files and the system wide user hard-limit for
+file sizes has to be greater than 1GB.
+</ol>
+<table><tr><td><br></td><td width="1%"><a href="../../ref/build_unix/notes.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/build_unix/freebsd.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>

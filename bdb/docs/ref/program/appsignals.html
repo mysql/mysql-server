@@ -1,0 +1,35 @@
+<!--$Id: appsignals.so,v 10.25 2000/07/15 15:49:07 bostic Exp $-->
+<!--Copyright 1997, 1998, 1999, 2000 by Sleepycat Software, Inc.-->
+<!--All rights reserved.-->
+<html>
+<head>
+<title>Berkeley DB Reference Guide: Application signal handling</title>
+<meta name="description" content="Berkeley DB: An embedded database programmatic toolkit.">
+<meta name="keywords" content="embedded,database,programmatic,toolkit,b+tree,btree,hash,hashing,transaction,transactions,locking,logging,access method,access methods,java,C,C++">
+</head>
+<body bgcolor=white>
+        <a name="2"><!--meow--></a>    
+<table><tr valign=top>
+<td><h3><dl><dt>Berkeley DB Reference Guide:<dd>Programmer Notes</dl></h3></td>
+<td width="1%"><a href="../../ref/xa/faq.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/program/errorret.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p>
+<h1 align=center>Application signal handling</h1>
+<p>When applications using Berkeley DB receive signals, it is important that they
+exit gracefully, discarding any Berkeley DB locks that they may hold.  This is
+normally done by setting a flag when a signal arrives, and then checking
+for that flag periodically within the application.  As Berkeley DB is not
+reentrant, the signal handler should not attempt to release locks and/or
+close the database handles itself.  Reentering Berkeley DB is not guaranteed to
+work correctly and the results are undefined.
+<p>If an application exits holding a lock, the situation is no different
+than if the application crashed, and all applications participating in
+the database environment must be shutdown, and then recovery must be
+performed.  If this is not done,  databases may be left in an
+inconsistent state or locks the application held may cause unresolvable
+deadlocks inside the environment, causing applications to hang.
+<table><tr><td><br></td><td width="1%"><a href="../../ref/xa/faq.html"><img src="../../images/prev.gif" alt="Prev"></a><a href="../../ref/toc.html"><img src="../../images/ref.gif" alt="Ref"></a><a href="../../ref/program/errorret.html"><img src="../../images/next.gif" alt="Next"></a>
+</td></tr></table>
+<p><font size=1><a href="http://www.sleepycat.com">Copyright Sleepycat Software</a></font>
+</body>
+</html>
