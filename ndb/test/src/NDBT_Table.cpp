@@ -24,7 +24,7 @@ operator <<(class NdbOut& ndbout, const NDBT_Table & tab)
   ndbout << "-- " << tab.getName() << " --" << endl;
   
   ndbout << "Version: " <<  tab.getObjectVersion() << endl; 
-  ndbout << "Fragment type: " <<  tab.getFragmentType() << endl; 
+  ndbout << "Fragment type: " <<  (unsigned) tab.getFragmentType() << endl; 
   ndbout << "K Value: " <<  tab.getKValue()<< endl; 
   ndbout << "Min load factor: " <<  tab.getMinLoadFactor()<< endl;
   ndbout << "Max load factor: " <<  tab.getMaxLoadFactor()<< endl; 
@@ -47,7 +47,7 @@ operator <<(class NdbOut& ndbout, const NDBT_Table & tab)
     ndbout << "Retrieved" << endl;
     break;
   default:
-    ndbout << "Unknown(" << tab.getObjectStatus() << ")" << endl;
+    ndbout << "Unknown(" << (unsigned) tab.getObjectStatus() << ")" << endl;
   }
   
   ndbout << "-- Attributes -- " << endl;
@@ -81,7 +81,7 @@ class NdbOut& operator <<(class NdbOut&, const NdbDictionary::Index & idx)
     ndbout << "OrderedIndex";
     break;
   default:
-    ndbout << "Type " << idx.getType();
+    ndbout << "Type " << (unsigned) idx.getType();
     break;
   }
   return ndbout;
