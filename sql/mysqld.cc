@@ -2687,20 +2687,6 @@ with --log-bin instead.");
 
   if (opt_bin_log)
   {
-    if (!opt_bin_logname && !opt_binlog_index_name)
-    {
-      /*
-        User didn't give us info to name the binlog index file.
-        Picking `hostname`-bin.index like did in 4.x, causes replication to
-        fail if the hostname is changed later. So, we would like to instead
-        require a name. But as we don't want to break many existing setups, we
-        only give warning, not error.
-      */
-      sql_print_warning("\
-No argument was provided to --log-bin, and --log-bin-index was not used. "
-"Replication may break when this MySQL server acts as a master and has his "
-"hostname changed.");
-    }
     /* If we fail to open binlog, it's going to hinder our recovery, so die */
     if (open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
 		 opt_binlog_index_name, LOG_BIN, 0, 0, max_binlog_size))
@@ -2714,6 +2700,22 @@ No argument was provided to --log-bin, and --log-bin-index was not used. "
 	mysql_bin_log.purge_logs_before_date(purge_time);
     }
 #endif
+    if (!opt_bin_logname && !opt_binlog_index_name)
+    {
+      /*
+        User didn't give us info to name the binlog index file.
+        Picking `hostname`-bin.index like did in 4.x, causes replication to
+        fail if the hostname is changed later. So, we would like to instead
+        require a name. But as we don't want to break many existing setups, we
+        only give warning, not error.
+      */
+      sql_print_warning("\
+No argument was provided to --log-bin, and --log-bin-index was not used; \
+so replication may break when this MySQL server acts as a master and \
+has his hostname changed!! Please use '--log-bin=%s' to avoid \
+this problem.",
+                        mysql_bin_log.get_name());
+    }
   }
   else
   {
