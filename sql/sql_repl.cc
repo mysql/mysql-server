@@ -37,6 +37,10 @@ int max_binlog_dump_events = 0; // unlimited
 bool opt_sporadic_binlog_dump_fail = 0;
 static int binlog_dump_count = 0;
 #endif
+
+static uint32* slave_list_key(SLAVE_INFO* si, uint* len,
+			     my_bool not_used __attribute__((unused)))
+{
   *len = 4;
   return &si->server_id;
 }
@@ -1143,6 +1147,7 @@ static inline int fetch_db_tables(THD* thd, MYSQL* mysql, const char* db,
       table.next = 0;
       table.db = (char*)db;
       table.real_name = (char*)table_name;
+      table.updating = 1;
       if(!tables_ok(thd, &table))
 	continue;
     }
