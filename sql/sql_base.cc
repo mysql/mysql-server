@@ -2697,7 +2697,9 @@ bool setup_tables(THD *thd, TABLE_LIST *tables, Item **conds)
       table->keys_in_use_for_query.subtract(map);
     }
     table->used_keys.intersect(table->keys_in_use_for_query);
-    if (table_list->ancestor && table_list->setup_ancestor(thd, conds))
+    if (table_list->ancestor &&
+	table_list->setup_ancestor(thd, conds,
+				   table_list->effective_with_check))
       DBUG_RETURN(1);
   }
   if (tablenr > MAX_TABLES)
