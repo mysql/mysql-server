@@ -29,7 +29,7 @@ noinst_HEADERS =	config-win.h \
 			my_nosys.h my_alarm.h queues.h \
 			my_tree.h hash.h thr_alarm.h thr_lock.h \
 			t_ctype.h violite.h md5.h mysql_version.h.in \
-			my_handler.h
+			my_handler.h my_getopt.h
 
 # mysql_version.h are generated
 SUPERCLEANFILES =	mysql_version.h my_config.h
