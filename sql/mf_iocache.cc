@@ -81,7 +81,6 @@ int _my_b_net_read(register IO_CACHE *info, byte *Buffer,
 
   info->read_pos++;
 
-info->request_pos=info->read_pos;
   DBUG_RETURN(0);
 }
 
