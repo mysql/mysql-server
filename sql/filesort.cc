@@ -674,7 +674,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   int error;
   uint sort_length,offset;
   ulong maxcount;
-  ha_rows count,max_rows;
+  ha_rows max_rows,org_max_rows;
   my_off_t to_start_filepos;
   uchar *strpos;
   BUFFPEK *buffpek,**refpek;
@@ -685,12 +685,12 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
 
   statistic_increment(filesort_merge_passes, &LOCK_status);
 
-  count=error=0;
+  error=0;
   offset=(sort_length=param->sort_length)-param->ref_length;
   maxcount=(ulong) (param->keys/((uint) (Tb-Fb) +1));
   to_start_filepos=my_b_tell(to_file);
   strpos=(uchar*) sort_buffer;
-  max_rows=param->max_rows;
+  org_max_rows=max_rows=param->max_rows;
 
   if (init_queue(&queue,(uint) (Tb-Fb)+1,offsetof(BUFFPEK,key),0,
 		 (int (*) (void *, byte *,byte*))
@@ -698,7 +698,6 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
     DBUG_RETURN(1);				/* purecov: inspected */
   for (buffpek= Fb ; buffpek <= Tb ; buffpek++)
   {
-    count+= buffpek->count;
     buffpek->base= strpos;
     buffpek->max_keys=maxcount;
     strpos+= (uint) (error=(int) read_to_buffer(from_file,buffpek,
@@ -725,6 +724,8 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
       error=1; goto err;			/* purecov: inspected */
     }
     buffpek->key+=sort_length;
+    buffpek->mem_count--;
+    max_rows--;
     queue_replaced(&queue);			// Top element has been used
   }
   else
@@ -741,7 +742,8 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
       buffpek=(BUFFPEK*) queue_top(&queue);
       if (cmp)					// Remove duplicates
       {
-	if (!cmp(&sort_length, &(param->unique_buff), (uchar**) &buffpek->key))
+	if (!(*cmp)(&sort_length, &(param->unique_buff),
+		    (uchar**) &buffpek->key))
 	  goto skip_duplicate;
 	memcpy(param->unique_buff, (uchar*) buffpek->key,sort_length);
       }
@@ -795,7 +797,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
 	  break;			/* One buffer have been removed */
 	}
 	else if (error == -1)
-	  goto err;				/* purecov: inspected */
+	  goto err;			/* purecov: inspected */
       }
       queue_replaced(&queue);		/* Top element has been replaced */
     }
@@ -803,6 +805,20 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   buffpek=(BUFFPEK*) queue_top(&queue);
   buffpek->base= sort_buffer;
   buffpek->max_keys=param->keys;
+
+  /*
+    As we know all entries in the buffer are unique, we only have to
+    check if the first one is the same as the last one we wrote
+  */
+  if (cmp)
+  {
+    if (!(*cmp)(&sort_length, &(param->unique_buff), (uchar**) &buffpek->key))
+    {
+      buffpek->key+=sort_length;	// Remove duplicate
+      --buffpek->mem_count;
+    }
+  }
+
   do
   {
     if ((ha_rows) buffpek->mem_count > max_rows)
@@ -810,6 +826,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
       buffpek->mem_count=(uint) max_rows;
       buffpek->count=0;			/* Don't read more */
     }
+    max_rows-=buffpek->mem_count;
     if (flag == 0)
     {
       if (my_b_write(to_file,(byte*) buffpek->key,
@@ -834,7 +851,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
 	 != -1 && error != 0);
 
 end:
-  lastbuff->count=min(count,param->max_rows);
+  lastbuff->count=min(org_max_rows-max_rows,param->max_rows);
   lastbuff->file_pos=to_start_filepos;
 err:
   delete_queue(&queue);
