@@ -7,7 +7,7 @@ use strict;
 
 my $app_letter      = "a";                                  # Start appendix letters at "a"
 my $chap_num        = 1;                                    # Start chapter numbers at one (there is no preface)
-my $directory       = "chaps_apps_index";
+my $directory       = "mysql_refman_" . time;
 my $ext             = ".xml";
 my $line            = "";
 my $output_name     = "";
