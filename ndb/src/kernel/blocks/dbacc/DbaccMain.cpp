@@ -599,6 +599,7 @@ void Dbacc::ndbrestart1Lab(Signal* signal)
   for (Uint32 tmp = 0; tmp < ZMAX_UNDO_VERSION; tmp++) {
     csrVersList[tmp] = RNIL;
   }//for
+  c_no_fragment_allocated = 0;
   return;
 }//Dbacc::ndbrestart1Lab()
 
@@ -1360,6 +1361,8 @@ void Dbacc::releaseDirIndexResources(Signal* signal, FragmentrecPtr regFragPtr)
 
 void Dbacc::releaseFragRecord(Signal* signal, FragmentrecPtr regFragPtr) 
 {
+  ndbrequire(c_no_fragment_allocated > 0);
+  c_no_fragment_allocated--;
   regFragPtr.p->nextfreefrag = cfirstfreefrag;
   cfirstfreefrag = regFragPtr.i;
   initFragGeneral(regFragPtr);
@@ -6349,6 +6352,18 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
     /*--------------------------------------------------------------*/
     return;
   }//if
+  if (cfirstfreepage == RNIL) {
+    if ((cfreepage + c_no_fragment_allocated) >= cpagesize) {
+      jam();
+      /*--------------------------------------------------------------*/
+      /* WE HAVE TO STOP THE EXPAND PROCESS SINCE THERE ARE NO FREE   */
+      /* PAGES. THIS MEANS THAT WE COULD BE FORCED TO CRASH SINCE WE  */
+      /* CANNOT COMPLETE THE EXPAND. TO AVOID THE CRASH WE EXIT HERE. */
+      /*--------------------------------------------------------------*/
+      return;
+    }//if
+  }//if
+
   if (fragrecptr.p->firstOverflowRec == RNIL) {
     jam();
     allocOverflowPage(signal);
@@ -6357,17 +6372,6 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
       /*--------------------------------------------------------------*/
       /* WE COULD NOT ALLOCATE ANY OVERFLOW PAGE. THUS WE HAVE TO STOP*/
       /* THE EXPAND SINCE WE CANNOT GUARANTEE ITS COMPLETION.         */
-      /*--------------------------------------------------------------*/
-      return;
-    }//if
-  }//if
-  if (cfirstfreepage == RNIL) {
-    if (cfreepage >= cpagesize) {
-      jam();
-      /*--------------------------------------------------------------*/
-      /* WE HAVE TO STOP THE EXPAND PROCESS SINCE THERE ARE NO FREE   */
-      /* PAGES. THIS MEANS THAT WE COULD BE FORCED TO CRASH SINCE WE  */
-      /* CANNOT COMPLETE THE EXPAND. TO AVOID THE CRASH WE EXIT HERE. */
       /*--------------------------------------------------------------*/
       return;
     }//if
@@ -6933,22 +6937,22 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
       }//if
     }//if
   }//if
-  if (fragrecptr.p->firstOverflowRec == RNIL) {
-    jam();
-    allocOverflowPage(signal);
-    if (tresult > ZLIMIT_OF_ERROR) {
-      jam();
-      return;
-    }//if
-  }//if
   if (cfirstfreepage == RNIL) {
-    if (cfreepage >= cpagesize) {
+    if (cfreepage + c_no_fragment_allocated >= cpagesize) {
       jam();
       /*--------------------------------------------------------------*/
       /* WE HAVE TO STOP THE SHRINK PROCESS SINCE THERE ARE NO FREE   */
       /* PAGES. THIS MEANS THAT WE COULD BE FORCED TO CRASH SINCE WE  */
       /* CANNOT COMPLETE THE SHRINK. TO AVOID THE CRASH WE EXIT HERE. */
       /*--------------------------------------------------------------*/
+      return;
+    }//if
+  }//if
+  if (fragrecptr.p->firstOverflowRec == RNIL) {
+    jam();
+    allocOverflowPage(signal);
+    if (tresult > ZLIMIT_OF_ERROR) {
+      jam();
       return;
     }//if
   }//if
@@ -12771,6 +12775,7 @@ void Dbacc::seizeDirrange(Signal* signal)
 /* --------------------------------------------------------------------------------- */
 void Dbacc::seizeFragrec(Signal* signal) 
 {
+  c_no_fragment_allocated++;
   fragrecptr.i = cfirstfreefrag;
   ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
   cfirstfreefrag = fragrecptr.p->nextfreefrag;
