@@ -2967,12 +2967,6 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
 			   (uint) strlen(server_version),
 			   system_charset_info);
 
-  if (name.str && component.str && check_reserved_words(&name))
-  {
-    net_printf(thd, ER_SYNTAX_ERROR);
-    return 0;
-  }
-
   Item *item;
   sys_var *var;
   char buff[MAX_SYS_VAR_LENGTH*2+4+8], *pos;
