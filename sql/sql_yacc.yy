@@ -2033,6 +2033,7 @@ assign_to_keycache:
 key_cache_name:
 	ident	   { $$= $1; }
 	| DEFAULT  { $$ = default_key_cache_base; }
+	;
 
 preload:
 	LOAD INDEX INTO CACHE_SYM
