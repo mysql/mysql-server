@@ -294,7 +294,8 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
 	error=1;
       }
       else
-	transaction_commited= 1;
+	if (!(thd->options & OPTION_BEGIN))
+	  transaction_commited= 1;
       trans->bdb_tid=0;
     }
 #endif
@@ -836,6 +837,16 @@ int handler::index_next_same(byte *buf, const byte *key, uint keylen)
 int handler::delete_all_rows()
 {
   return (my_errno=HA_ERR_WRONG_COMMAND);
+}
+
+bool handler::caching_allowed(THD* thd, char* table_key, 
+			      uint key_length, uint8 cache_type)
+{
+  if (cache_type == HA_CACHE_TBL_ASKTRANSACT)
+    return innobase_query_caching_of_table_permitted(thd, table_key,
+						     key_length);
+  else
+    return 1;
 }
 
 /****************************************************************************
