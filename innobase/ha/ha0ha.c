@@ -205,7 +205,7 @@ ha_remove_all_nodes_to_page(
 
 			node = ha_chain_get_first(table, fold);
 		} else {
-			node = ha_chain_get_next(table, node);
+			node = ha_chain_get_next(node);
 		}
 	}
 
@@ -216,7 +216,7 @@ ha_remove_all_nodes_to_page(
 	while (node) {
 		ut_a(buf_frame_align(ha_node_get_data(node)) != page);
 
-		node = ha_chain_get_next(table, node);
+		node = ha_chain_get_next(node);
 	}
 }
 
@@ -269,12 +269,6 @@ ha_print_info(
 	hash_table_t*	table)	/* in: hash table */
 {
 	hash_cell_t*	cell;
-/*
-	ha_node_t*	node;
-	ulint		len	= 0;
-	ulint		max_len	= 0;
-	ulint		nodes	= 0;
-*/
 	ulint		cells	= 0;
 	ulint		n_bufs;
 	ulint		i;
@@ -290,27 +284,6 @@ ha_print_info(
 		if (cell->node) {
 
 			cells++;
-/*
-			len = 0;
-
-			node = cell->node;
-
-			for (;;) {
-				len++;
-				nodes++;
-
-				if (ha_chain_get_next(table, node) == NULL) {
-
-					break;
-				}
-
-				node = node->next;
-			}
-
-			if (len > max_len) {
-				max_len = len;
-			}
-*/
 		}
 	}
 
