@@ -970,7 +970,7 @@ ERROR 42S02: Table 'test.t1' doesn't exist
 CREATE TABLE t1 (a int, KEY(a));
 HANDLER t1 OPEN;
 HANDLER t1 READ a=((SELECT 1));
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use
+ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1))' at line 1
 HANDLER t1 CLOSE;
 drop table t1;
 create table t1 (a int);
