@@ -370,8 +370,6 @@ int insert_precheck(THD *thd, TABLE_LIST *tables);
 int create_table_precheck(THD *thd, TABLE_LIST *tables,
 			  TABLE_LIST *create_table);
 Item *negate_expression(THD *thd, Item *expr);
-void calculate_interval_lengths(THD *thd, TYPELIB *interval,
-                                uint *max_length, uint *tot_length);
 #include "sql_class.h"
 #include "opt_range.h"
 

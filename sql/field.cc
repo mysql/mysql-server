@@ -5853,33 +5853,10 @@ void create_field::create_length_to_internal_length(void)
     pack_length= calc_pack_length(sql_type == FIELD_TYPE_VAR_STRING ?
                                   FIELD_TYPE_STRING : sql_type, length);
     break;
-#ifdef CORRECT_CODE_BUT_CANT_YET_BE_USED
   case MYSQL_TYPE_ENUM:
   case MYSQL_TYPE_SET:
     length*= charset->mbmaxlen;
     break;
-#else
-    /*
-      Because of a bug in MySQL 4.1 where length was extended for ENUM and SET
-      fields for every ALTER TABLE, we have to recalculate lengths here
-    */
-  case MYSQL_TYPE_ENUM:
-  {
-    uint32 tot_length, max_length;
-    calculate_interval_lengths(current_thd, interval,
-                               &max_length, &tot_length);
-    length= max_length * charset->mbmaxlen;
-    break;
-  }
-  case MYSQL_TYPE_SET:
-  {
-    uint32 tot_length, max_length;
-    calculate_interval_lengths(current_thd, interval,
-                               &max_length, &tot_length);
-    length= (tot_length + (interval->count - 1)) * charset->mbmaxlen;
-    break;
-  }
-#endif
   default:
     /* do nothing */
     break;
