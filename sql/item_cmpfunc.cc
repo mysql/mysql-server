@@ -282,7 +282,7 @@ bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
   if (args[0]->maybe_null)
     maybe_null=1;
   if (args[0]->binary())
-	set_charset(my_charset_bin);
+	set_charset(&my_charset_bin);
   with_sum_func= args[0]->with_sum_func;
   used_tables_cache= args[0]->used_tables();
   const_item_cache= args[0]->const_item();
@@ -656,11 +656,11 @@ Item_func_if::fix_length_and_dec()
   {
     cached_result_type = STRING_RESULT;
     set_charset( (args[1]->binary() || args[2]->binary()) ? 
-		my_charset_bin : args[1]->charset());
+		&my_charset_bin : args[1]->charset());
   }
   else
   {
-    set_charset(my_charset_bin);	// Number
+    set_charset(&my_charset_bin);	// Number
     if (arg1_type == REAL_RESULT || arg2_type == REAL_RESULT)
       cached_result_type = REAL_RESULT;
     else
@@ -1703,7 +1703,7 @@ longlong Item_func_like::val_int()
   null_value=0;
   if ((res->charset()->state & MY_CS_BINSORT) ||
       (res2->charset()->state & MY_CS_BINSORT))
-    set_charset(my_charset_bin);
+    set_charset(&my_charset_bin);
   if (canDoTurboBM)
     return turboBM_matches(res->ptr(), res->length()) ? 1 : 0;
   return my_wildcmp(charset(),
@@ -1790,7 +1790,7 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   max_length= 1;
   decimals= 0;
   if (args[0]->binary() || args[1]->binary())
-    set_charset(my_charset_bin);
+    set_charset(&my_charset_bin);
 
   used_tables_cache=args[0]->used_tables() | args[1]->used_tables();
   const_item_cache=args[0]->const_item() && args[1]->const_item();

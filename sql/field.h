@@ -205,7 +205,7 @@ public:
   uint fill_cache_field(struct st_cache_field *copy);
   virtual bool get_date(TIME *ltime,bool fuzzydate);
   virtual bool get_time(TIME *ltime);
-  virtual CHARSET_INFO *charset(void) const { return my_charset_bin; }
+  virtual CHARSET_INFO *charset(void) const { return &my_charset_bin; }
   virtual void set_charset(CHARSET_INFO *charset) { }
   friend bool reopen_table(THD *,struct st_table *,bool);
   friend int cre_myisam(my_string name, register TABLE *form, uint options,
@@ -943,11 +943,11 @@ public:
 	     enum utype unireg_check_arg, const char *field_name_arg,
 	     struct st_table *table_arg,uint blob_pack_length)
      :Field_blob(ptr_arg, null_ptr_arg, null_bit_arg, unireg_check_arg, 
-                 field_name_arg, table_arg, blob_pack_length,my_charset_bin) {}
+                 field_name_arg, table_arg, blob_pack_length,&my_charset_bin) {}
   Field_geom(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
 	     struct st_table *table_arg)
      :Field_blob(len_arg, maybe_null_arg, field_name_arg,
-                 table_arg, my_charset_bin) {}
+                 table_arg, &my_charset_bin) {}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_VARBINARY; }
   enum_field_types type() const { return FIELD_TYPE_GEOMETRY;}
   void sql_type(String &str) const;

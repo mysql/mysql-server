@@ -526,12 +526,12 @@ public:
   {
     String *tmp=args[0]->val_str(a);
     null_value=args[0]->null_value;
-    tmp->set_charset(my_charset_bin);
+    tmp->set_charset(&my_charset_bin);
     return tmp;
   }
   void fix_length_and_dec() 
   { 
-    set_charset(my_charset_bin); 
+    set_charset(&my_charset_bin); 
     max_length=args[0]->max_length; 
   }
   void print(String *str) { print_op(str); }
@@ -547,7 +547,7 @@ public:
   const char *func_name() const { return "load_file"; }
   void fix_length_and_dec()
   { 
-    set_charset(my_charset_bin);
+    set_charset(&my_charset_bin);
     maybe_null=1; 
     max_length=MAX_BLOB_WIDTH;
   }

@@ -1119,12 +1119,12 @@ type:
 	| char opt_binary		{ Lex->length=(char*) "1";
 					  $$=FIELD_TYPE_STRING; }
 	| BINARY '(' NUM ')'		{ Lex->length=$3.str;
-					  Lex->charset=my_charset_bin;
+					  Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_STRING; }
 	| varchar '(' NUM ')' opt_binary { Lex->length=$3.str;
 					  $$=FIELD_TYPE_VAR_STRING; }
 	| VARBINARY '(' NUM ')' 	{ Lex->length=$3.str;
-					  Lex->charset=my_charset_bin;
+					  Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_VAR_STRING; }
 	| YEAR_SYM opt_len field_options { $$=FIELD_TYPE_YEAR; }
 	| DATE_SYM			{ $$=FIELD_TYPE_DATE; }
@@ -1139,17 +1139,17 @@ type:
 	| TIMESTAMP '(' NUM ')'		{ Lex->length=$3.str;
 					  $$=FIELD_TYPE_TIMESTAMP; }
 	| DATETIME			{ $$=FIELD_TYPE_DATETIME; }
-	| TINYBLOB			{ Lex->charset=my_charset_bin;
+	| TINYBLOB			{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_TINY_BLOB; }
-	| BLOB_SYM opt_len		{ Lex->charset=my_charset_bin;
+	| BLOB_SYM opt_len		{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_BLOB; }
-	| GEOMETRY_SYM			{ Lex->charset=my_charset_bin;
+	| GEOMETRY_SYM			{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_GEOMETRY; }
-	| MEDIUMBLOB			{ Lex->charset=my_charset_bin;
+	| MEDIUMBLOB			{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_MEDIUM_BLOB; }
-	| LONGBLOB			{ Lex->charset=my_charset_bin;
+	| LONGBLOB			{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_LONG_BLOB; }
-	| LONG_SYM VARBINARY		{ Lex->charset=my_charset_bin;
+	| LONG_SYM VARBINARY		{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_MEDIUM_BLOB; }
 	| LONG_SYM varchar opt_binary	{ $$=FIELD_TYPE_MEDIUM_BLOB; }
 	| TINYTEXT opt_binary		{ $$=FIELD_TYPE_TINY_BLOB; }
@@ -1297,9 +1297,9 @@ opt_default:
 
 opt_binary:
 	/* empty */			{ Lex->charset=NULL; }
-	| ASCII_SYM			{ Lex->charset=my_charset_latin1; }
-	| BYTE_SYM			{ Lex->charset=my_charset_bin; }
-	| BINARY			{ Lex->charset=my_charset_bin; }
+	| ASCII_SYM			{ Lex->charset=&my_charset_latin1; }
+	| BYTE_SYM			{ Lex->charset=&my_charset_bin; }
+	| BINARY			{ Lex->charset=&my_charset_bin; }
 	| UNICODE_SYM
 	{
 	  if (!(Lex->charset=get_charset_by_name("ucs2",MYF(0))))
@@ -2089,7 +2089,7 @@ simple_expr:
           { Select->add_ftfunc_to_list((Item_func_match *)
                    ($$=new Item_func_match_bool(*$2,$5))); }
 	| ASCII_SYM '(' expr ')' { $$= new Item_func_ascii($3); }
-	| BINARY expr %prec NEG { $$= new Item_func_set_collation($2,my_charset_bin); }
+	| BINARY expr %prec NEG { $$= new Item_func_set_collation($2,&my_charset_bin); }
 	| CAST_SYM '(' expr AS cast_type ')'  { $$= create_func_cast($3, $5); }
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
 	  { $$= new Item_func_case(* $4, $2, $5 ); }

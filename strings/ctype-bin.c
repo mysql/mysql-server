@@ -269,7 +269,7 @@ static int my_strnxfrm_bin(CHARSET_INFO *cs __attribute__((unused)),
   return len;
 }
 
-static CHARSET_INFO my_charset_bin_st =
+CHARSET_INFO my_charset_bin =
 {
     63,				/* number        */
     MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_PRIMARY,/* state        */
@@ -314,6 +314,3 @@ static CHARSET_INFO my_charset_bin_st =
     my_strntod_8bit,
     my_scan_8bit
 };
-
-
-CHARSET_INFO *my_charset_bin = &my_charset_bin_st;

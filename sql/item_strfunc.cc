@@ -236,7 +236,7 @@ String *Item_func_concat::val_str(String *str)
   for (i=1 ; i < arg_count ; i++)
   {
     if (args[i]->binary())
-      set_charset(my_charset_bin);
+      set_charset(&my_charset_bin);
     if (res->length() == 0)
     {
       if (!(res=args[i]->val_str(str)))
@@ -1490,7 +1490,7 @@ String *Item_func_soundex::val_str(String *str)
 {
   String *res  =args[0]->val_str(str);
   char last_ch,ch;
-  CHARSET_INFO *cs=my_charset_latin1;
+  CHARSET_INFO *cs= &my_charset_latin1;
 
   if ((null_value=args[0]->null_value))
     return 0; /* purecov: inspected */
@@ -2204,7 +2204,7 @@ String *Item_func_charset::val_str(String *str)
   if ((null_value=(args[0]->null_value || !res->charset())))
     return 0;
   str->copy(res->charset()->name,strlen(res->charset()->name),
-	    my_charset_latin1, thd_charset());
+	    &my_charset_latin1, thd_charset());
   return str;
 }
 

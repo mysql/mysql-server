@@ -65,7 +65,7 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
     length= num_state= pre_zero= 0;
     for (;; fmt++)
     {
-      if (my_isdigit(system_charset_info,*fmt))
+      if (my_isdigit(&my_charset_latin1,*fmt))
       {
 	if (!num_state)
 	{

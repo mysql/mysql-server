@@ -2794,7 +2794,7 @@ static void
 print_key(KEY_PART *key_part,const char *key,uint used_length)
 {
   char buff[1024];
-  String tmp(buff,sizeof(buff),my_charset_bin);
+  String tmp(buff,sizeof(buff),&my_charset_bin);
 
   for (uint length=0;
        length < used_length ;

@@ -3990,7 +3990,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     case Item_sum::AVG_FUNC:			/* Place for sum & count */
       if (group)
 	return new Field_string(sizeof(double)+sizeof(longlong),
-				maybe_null, item->name,table,my_charset_bin);
+				maybe_null, item->name,table,&my_charset_bin);
       else
 	return new Field_double(item_sum->max_length,maybe_null,
 				item->name, table, item_sum->decimals);
@@ -3998,7 +3998,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     case Item_sum::STD_FUNC:	
       if (group)
 	return	new Field_string(sizeof(double)*2+sizeof(longlong),
-				 maybe_null, item->name,table,my_charset_bin);
+				 maybe_null, item->name,table,&my_charset_bin);
       else
 	return new Field_double(item_sum->max_length, maybe_null,
 				item->name,table,item_sum->decimals);				
@@ -4533,7 +4533,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 					    (uchar*) 0,
 					    (uint) 0,
 					    Field::NONE,
-					    NullS, table, my_charset_bin);
+					    NullS, table, &my_charset_bin);
       key_part_info->key_type=FIELDFLAG_BINARY;
       key_part_info->type=    HA_KEYTYPE_BINARY;
       key_part_info++;
