@@ -3590,7 +3590,7 @@ void mysql_init_multi_delete(LEX *lex)
   lex->select_lex.select_limit= lex->unit.select_limit_cnt=
     HA_POS_ERROR;
   lex->auxilliary_table_list= lex->select_lex.table_list;
-  lex->select_lex.init_query();
+  lex->select_lex.table_list.empty();
 }
 
 
