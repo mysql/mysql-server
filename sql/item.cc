@@ -1650,10 +1650,10 @@ void Item_default_value::print(String *str)
 {
   if (!arg)
   {
-    str->append("default", 6);
+    str->append("default", 7);
     return;
   }
-  str->append("default", 7);
+  str->append("default(", 8);
   arg->print(str);
   str->append(')');
 }
