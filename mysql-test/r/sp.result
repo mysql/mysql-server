@@ -2096,8 +2096,7 @@ s1	count(s1)
 1	1
 NULL	2
 drop procedure bug7013|
-drop table if exists t4;
---enable_warnings|
+drop table if exists t4|
 create table t4 (
 a mediumint(8) unsigned not null auto_increment,
 b smallint(5) unsigned not null,
