@@ -114,6 +114,7 @@ if test $? != 0; then exit 1; fi
 TR=tr
 XARGS=`which xargs`
 if test $? != 0; then exit 1; fi
+SORT=sort
 
 # Are we using a source or a binary distribution?
 
@@ -1363,7 +1364,7 @@ then
  if [ x$RECORD = x1 ]; then
   $ECHO "Will not run in record mode without a specific test case."
  else
-  for tf in $TESTDIR/*.$TESTSUFFIX
+  for tf in `ls -1 $TESTDIR/*.$TESTSUFFIX | $SORT`
   do
     run_testcase $tf
   done

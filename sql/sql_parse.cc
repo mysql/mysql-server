@@ -2977,9 +2977,8 @@ bool add_field_to_list(char *field_name, enum_field_types type,
   new_field->change=change;
   new_field->interval=0;
   new_field->pack_length=0;
-  if (length)
-    if (!(new_field->length= (uint) atoi(length)))
-      length=0; /* purecov: inspected */
+  if (length && !(new_field->length= (uint) atoi(length)))
+    length=0; /* purecov: inspected */
   uint sign_len=type_modifier & UNSIGNED_FLAG ? 0 : 1;
 
   if (new_field->length && new_field->decimals &&
@@ -3015,10 +3014,13 @@ bool add_field_to_list(char *field_name, enum_field_types type,
     break;
   case FIELD_TYPE_DECIMAL:
     if (!length)
-      new_field->length = 10;			// Default length for DECIMAL
-    new_field->length+=sign_len;
-    if (new_field->decimals)
-      new_field->length++;
+      new_field->length= 10;			// Default length for DECIMAL
+    if (new_field->length < MAX_FIELD_WIDTH)	// Skip wrong argument
+    {
+      new_field->length+=sign_len;
+      if (new_field->decimals)
+	new_field->length++;
+    }
     break;
   case FIELD_TYPE_BLOB:
   case FIELD_TYPE_TINY_BLOB:
