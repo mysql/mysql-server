@@ -20067,6 +20067,11 @@ variable. @xref{SHOW}.  If this variable is big and you don't do
 @code{FLUSH TABLES} a lot (which just forces all tables to be closed and
 reopenend), then you should increase the value of this variable.
 
+Make sure that your operating system can handle the number of open file
+descriptors implied by the @code{table_cache} setting.  If @code{table_cache}
+is set too high, @strong{MySQL} may run out of file descriptors and refuse
+connections, fail to perform queries, and be very unreliable.
+
 For information about how the table cache works, see @ref{Table cache}.
 
 @item @code{thread_cache_size}
