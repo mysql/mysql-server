@@ -78,7 +78,7 @@ os_thread_create(
 
         pthread_attr_init(&attr);
 
-	ret = pthread_create(&pthread, NULL, start_f, arg);
+	ret = pthread_create(&pthread, &attr, start_f, arg);
 
 	pthread_attr_destroy(&attr);
 
