@@ -44,7 +44,7 @@
 #include <locale.h>
 #endif
 
-const char *VER= "14.3";
+const char *VER= "14.4";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -134,7 +134,8 @@ static my_bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
 	       vertical=0, line_numbers=1, column_names=1,opt_html=0,
                opt_xml=0,opt_nopager=1, opt_outfile=0, named_cmds= 0,
 	       tty_password= 0, opt_nobeep=0, opt_reconnect=1,
-	       default_charset_used= 0, opt_secure_auth= 0;
+	       default_charset_used= 0, opt_secure_auth= 0,
+               default_pager_set= 0;
 static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
 static my_string opt_mysql_unix_port=0;
 static int connect_flag=CLIENT_INTERACTIVE;
@@ -331,8 +332,11 @@ int main(int argc,char *argv[])
   strmov(pager, "stdout");	// the default, if --pager wasn't given
   {
     char *tmp=getenv("PAGER");
-    if (tmp)
-      strmov(default_pager,tmp);
+    if (tmp && strlen(tmp))
+    {
+      default_pager_set= 1;
+      strmov(default_pager, tmp);
+    }
   }
   if (!isatty(0) || !isatty(1))
   {
@@ -467,6 +471,8 @@ static struct my_option my_long_options[] =
 {
   {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
+  {"help", 'I', "Synonym for -?", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
+   0, 0, 0, 0, 0},
   {"auto-rehash", OPT_AUTO_REHASH,
    "Enable automatic rehashing. One doesn't need to use 'rehash' to get table and field completion, but startup and reconnecting may take a longer time. Disable with --disable-auto-rehash.",
    (gptr*) &rehash, (gptr*) &rehash, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
@@ -484,8 +490,12 @@ static struct my_option my_long_options[] =
   {"compress", 'C', "Use compression in server/client protocol.",
    (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
-#ifndef DBUG_OFF
-  {"debug", '#', "Output debug log.", (gptr*) &default_dbug_option,
+#ifdef DBUG_OFF
+  {"debug", '#', "This is a non-debug version. Catch this and exit",
+   (gptr*) &default_dbug_option,
+   (gptr*) &default_dbug_option, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#else
+  {"debug", '#', "Output debug log", (gptr*) &default_dbug_option,
    (gptr*) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"database", 'D', "Database to use.", (gptr*) &current_db,
@@ -608,19 +618,27 @@ static struct my_option my_long_options[] =
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"wait", 'w', "Wait and retry if connection is down.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"connect_timeout", OPT_CONNECT_TIMEOUT, "", (gptr*) &opt_connect_timeout,
+  {"connect_timeout", OPT_CONNECT_TIMEOUT,
+   "Number of seconds before connection timeout.",
+   (gptr*) &opt_connect_timeout,
    (gptr*) &opt_connect_timeout, 0, GET_ULONG, REQUIRED_ARG, 0, 0, 3600*12, 0,
    0, 1},
-  {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET, "",
+  {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET,
+   "Max packet length to send to, or receive from server",
    (gptr*) &max_allowed_packet, (gptr*) &max_allowed_packet, 0, GET_ULONG,
    REQUIRED_ARG, 16 *1024L*1024L, 4096, (longlong) 2*1024L*1024L*1024L,
    MALLOC_OVERHEAD, 1024, 0},
-  {"net_buffer_length", OPT_NET_BUFFER_LENGTH, "",
+  {"net_buffer_length", OPT_NET_BUFFER_LENGTH,
+   "Buffer for TCP/IP and socket communication",
    (gptr*) &net_buffer_length, (gptr*) &net_buffer_length, 0, GET_ULONG,
    REQUIRED_ARG, 16384, 1024, 512*1024*1024L, MALLOC_OVERHEAD, 1024, 0},
-  {"select_limit", OPT_SELECT_LIMIT, "", (gptr*) &select_limit,
+  {"select_limit", OPT_SELECT_LIMIT,
+   "Automatic limit for SELECT when using --safe-updates",
+   (gptr*) &select_limit,
    (gptr*) &select_limit, 0, GET_ULONG, REQUIRED_ARG, 1000L, 1, ~0L, 0, 1, 0},
-  {"max_join_size", OPT_MAX_JOIN_SIZE, "", (gptr*) &max_join_size,
+  {"max_join_size", OPT_MAX_JOIN_SIZE,
+   "Automatic limit for rows in a join when using --safe-updates",
+   (gptr*) &max_join_size,
    (gptr*) &max_join_size, 0, GET_ULONG, REQUIRED_ARG, 1000000L, 1, ~0L, 0, 1,
    0},
   {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
@@ -689,11 +707,16 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
     {
       opt_nopager= 0;
-      if (argument)
+      if (argument && strlen(argument))
+      {
+	default_pager_set= 1;
 	strmov(pager, argument);
-      else
+	strmov(default_pager, pager);
+      }
+      else if (default_pager_set)
 	strmov(pager, default_pager);
-      strmov(default_pager, pager);
+      else
+	opt_nopager= 1;
     }
     break;
   case OPT_NOPAGER:
@@ -814,6 +837,7 @@ static int get_options(int argc, char **argv)
     strmov(default_pager, "stdout");
     strmov(pager, "stdout");
     opt_nopager= 1;
+    default_pager_set= 0;
     opt_outfile= 0;
     opt_reconnect= 0;
     connect_flag= 0; /* Not in interactive mode */
@@ -2163,12 +2187,17 @@ com_pager(String *buffer, char *line __attribute__((unused)))
 
   if (status.batch)
     return 0;
-  /* Skip space from file name */
-  while (my_isspace(charset_info,*line))
+  /* Skip spaces in front of the pager command */
+  while (my_isspace(charset_info, *line))
     line++;
-  if (!(param= strchr(line, ' '))) // if pager was not given, use the default
+  /* Skip the pager command */
+  param= strchr(line, ' ');
+  /* Skip the spaces between the command and the argument */
+  while (param && my_isspace(charset_info, *param))
+    param++;
+  if (!param || !strlen(param)) // if pager was not given, use the default
   {
-    if (!default_pager[0])
+    if (!default_pager_set)
     {
       tee_fprintf(stdout, "Default pager wasn't set, using stdout.\n");
       opt_nopager=1;
@@ -2180,9 +2209,7 @@ com_pager(String *buffer, char *line __attribute__((unused)))
   }
   else
   {
-    while (my_isspace(charset_info,*param))
-      param++;
-    end=strmake(pager_name, param, sizeof(pager_name)-1);
+    end= strmake(pager_name, param, sizeof(pager_name)-1);
     while (end > pager_name && (my_isspace(charset_info,end[-1]) || 
                                 my_iscntrl(charset_info,end[-1])))
       end--;
@@ -2191,7 +2218,7 @@ com_pager(String *buffer, char *line __attribute__((unused)))
     strmov(default_pager, pager_name);
   }
   opt_nopager=0;
-  tee_fprintf(stdout, "PAGER set to %s\n", pager);
+  tee_fprintf(stdout, "PAGER set to '%s'\n", pager);
   return 0;
 }
 
@@ -2202,6 +2229,7 @@ com_nopager(String *buffer __attribute__((unused)),
 {
   strmov(pager, "stdout");
   opt_nopager=1;
+  PAGER= stdout;
   tee_fprintf(stdout, "PAGER set to stdout\n");
   return 0;
 }
