@@ -312,7 +312,6 @@ static int my_mbcharlen_ucs2(CHARSET_INFO *cs  __attribute__((unused)) ,
 
 #include <m_string.h>
 #include <stdarg.h>
-#include <assert.h>
 
 static int my_vsnprintf_ucs2(char *dst, uint n, const char* fmt, va_list ap)
 {
@@ -1439,8 +1438,8 @@ CHARSET_INFO my_charset_ucs2_general_ci=
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
     NULL,		/* sort_order_big*/
-    "",
-    "",
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */
@@ -1465,8 +1464,8 @@ CHARSET_INFO my_charset_ucs2_bin=
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    "",
-    "",
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */

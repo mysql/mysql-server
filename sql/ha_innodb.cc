@@ -1748,14 +1748,9 @@ innobase_mysql_cmp(
 			}
 		}
 
-		/* Starting from 4.1.3 we use strnncollsp() in comparisons of
-		non-latin1_swedish_ci strings. NOTE that the collation order
-		changes then: 'b\0\0...' is ordered BEFORE 'b  ...'. Users
-		having indexes on such data need to rebuild their tables! */
-
-                ret = charset->coll->strnncollsp(charset,
-                                  		a, a_length,
-                                  		b, b_length);
+                ret = my_strnncoll(charset,
+                                  a, a_length,
+                                  b, b_length);
 		if (ret < 0) {
 		        return(-1);
 		} else if (ret > 0) {
@@ -4336,9 +4331,8 @@ ha_innobase::analyze(
 }
 
 /**************************************************************************
-This is currently mapped to ::analyze. A better option would be to map this
-to "ALTER TABLE tablename TYPE=InnoDB", which seems to rebuild the table in
-MySQL. */
+This is mapped to "ALTER TABLE tablename TYPE=InnoDB", which rebuilds
+the table in MySQL. */
 
 int
 ha_innobase::optimize(
@@ -4346,7 +4340,7 @@ ha_innobase::optimize(
 	THD*		thd,		/* in: connection thread handle */
 	HA_CHECK_OPT*	check_opt)	/* in: currently ignored */
 {
-	return(ha_innobase::analyze(thd, check_opt));
+        return(HA_ADMIN_TRY_ALTER);
 }
 
 /***********************************************************************
@@ -4663,21 +4657,6 @@ ha_innobase::start_stmt(
 	        prepared for an update of a row */
 	  
 	        prebuilt->select_lock_type = LOCK_X;
-	} else {
-		if (thd->lex->sql_command == SQLCOM_SELECT
-					&& thd->lex->lock_option == TL_READ) {
-	
-			/* For other than temporary tables, we obtain
-			no lock for consistent read (plain SELECT) */
-
-			prebuilt->select_lock_type = LOCK_NONE;
-		} else {
-			/* Not a consistent read: use LOCK_X as the
-			select_lock_type value (TODO: how could we know
-			whether it should be LOCK_S, LOCK_X, or LOCK_NONE?) */
-
-			prebuilt->select_lock_type = LOCK_X;
-		}
 	}
 	
 	/* Set the MySQL flag to mark that there is an active transaction */
@@ -5057,7 +5036,7 @@ ha_innobase::store_lock(
 /***********************************************************************
 This function initializes the auto-inc counter if it has not been
 initialized yet. This function does not change the value of the auto-inc
-counter if it already has been initialized. In parameter ret returns
+counter if it already has been initialized. In paramete ret returns
 the value of the auto-inc counter. */
 
 int
@@ -5189,7 +5168,7 @@ This function stores binlog offset and flushes logs */
 void 
 innobase_store_binlog_offset_and_flush_log(
 /*=============================*/
-    char *binlog_name,          /* in: binlog name   */
+    char *binlog_name,          /* in: binlog name */
     longlong offset             /* in: binlog offset */
 )
 {
@@ -5214,5 +5193,4 @@ innobase_store_binlog_offset_and_flush_log(
 	/* Syncronous flush of the log buffer to disk */
 	log_buffer_flush_to_disk();
 }
-
 #endif /* HAVE_INNOBASE_DB */

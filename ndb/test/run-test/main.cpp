@@ -158,10 +158,17 @@ main(int argc, const char ** argv){
       
       if(!start_processes(g_config, atrt_process::NDB_DB))
 	goto end;
-      
-      if(!wait_ndb(g_config, NDB_MGM_NODE_STATUS_STARTED))
-	goto end;
-      
+
+      if(!wait_ndb(g_config, NDB_MGM_NODE_STATUS_NOT_STARTED))
+        goto end;
+
+      for(Uint32 i = 0; i<3; i++)      
+        if(wait_ndb(g_config, NDB_MGM_NODE_STATUS_STARTED))
+	  goto started;
+
+      goto end;
+
+started:
       g_logger.info("Ndb start completed");
     }
     
@@ -347,7 +354,7 @@ parse_args(int argc, const char** argv){
     return false;
   }
   
-  g_default_user = strdup(getenv("USER"));
+  g_default_user = strdup(getenv("LOGNAME"));
 
   return true;
 }

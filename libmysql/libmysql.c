@@ -27,7 +27,6 @@
 #include <sys/stat.h>
 #include <signal.h>
 #include <time.h>
-#include <assert.h> /* for DBUG_ASSERT() */
 #ifdef	 HAVE_PWD_H
 #include <pwd.h>
 #endif

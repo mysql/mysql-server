@@ -7063,8 +7063,8 @@ CHARSET_INFO my_charset_ucs2_general_uca=
     uca_weight,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    "",
-    "",
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
     8,			/* strxfrm_multiply */
     2,			/* mbminlen     */
     2,			/* mbmaxlen     */

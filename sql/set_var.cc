@@ -325,6 +325,10 @@ sys_var_thd_table_type  sys_table_type("table_type",
 				       &SV::table_type);
 sys_var_thd_storage_engine sys_storage_engine("storage_engine",
 				       &SV::table_type);
+#ifdef HAVE_REPLICATION
+sys_var_sync_binlog_period sys_sync_binlog_period("sync_binlog", &sync_binlog_period);
+#endif
+sys_var_bool_ptr	sys_sync_frm("sync_frm", &opt_sync_frm);
 sys_var_long_ptr	sys_table_cache_size("table_cache",
 					     &table_cache_size);
 sys_var_long_ptr	sys_thread_cache_size("thread_cache_size",
@@ -573,6 +577,10 @@ sys_var *sys_variables[]=
   &sys_sql_mode,
   &sys_sql_warnings,
   &sys_storage_engine,
+#ifdef HAVE_REPLICATION
+  &sys_sync_binlog_period,
+#endif
+  &sys_sync_frm,
   &sys_table_cache_size,
   &sys_table_type,
   &sys_thread_cache_size,
@@ -788,6 +796,10 @@ struct show_var_st init_vars[]= {
   {sys_sort_buffer.name,      (char*) &sys_sort_buffer, 	    SHOW_SYS},
   {sys_sql_mode.name,         (char*) &sys_sql_mode,                SHOW_SYS},
   {sys_storage_engine.name,   (char*) &sys_storage_engine,          SHOW_SYS},
+#ifdef HAVE_REPLICATION
+  {sys_sync_binlog_period.name,(char*) &sys_sync_binlog_period,     SHOW_SYS},
+#endif
+  {sys_sync_frm.name,         (char*) &sys_sync_frm,               SHOW_SYS},
   {"table_cache",             (char*) &table_cache_size,            SHOW_LONG},
   {sys_table_type.name,	      (char*) &sys_table_type,	            SHOW_SYS},
   {sys_thread_cache_size.name,(char*) &sys_thread_cache_size,       SHOW_SYS},
@@ -2307,6 +2319,22 @@ bool sys_var_slave_skip_counter::update(THD *thd, set_var *var)
   }
   pthread_mutex_unlock(&active_mi->rli.run_lock);
   pthread_mutex_unlock(&LOCK_active_mi);
+  return 0;
+}
+
+
+bool sys_var_sync_binlog_period::update(THD *thd, set_var *var)
+{
+  pthread_mutex_t *lock_log= mysql_bin_log.get_log_lock();
+  sync_binlog_period= var->save_result.ulong_value;
+  /*
+    Must reset the counter otherwise it may already be beyond the new period
+    and so the new period will not be taken into account. Need mutex otherwise
+    might be cancelled by a simultanate ++ in MYSQL_LOG::write().
+  */
+  pthread_mutex_lock(lock_log);
+  sync_binlog_counter= 0;
+  pthread_mutex_unlock(lock_log);
   return 0;
 }
 #endif /* HAVE_REPLICATION */

@@ -2098,8 +2098,8 @@ CHARSET_INFO my_charset_utf8_general_ci=
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
     NULL,		/* sort_order_big*/
-    "",
-    "",
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
@@ -2125,8 +2125,8 @@ CHARSET_INFO my_charset_utf8_bin=
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
     NULL,		/* sort_order_big*/
-    "",
-    "",
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */

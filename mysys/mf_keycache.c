@@ -44,7 +44,6 @@
 #include "my_static.h"
 #include <m_string.h>
 #include <errno.h>
-#include <assert.h>
 #include <stdarg.h>
 
 /*

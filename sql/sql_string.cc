@@ -24,7 +24,6 @@
 #include <my_sys.h>
 #include <m_string.h>
 #include <m_ctype.h>
-#include <assert.h>
 #ifdef HAVE_FCONVERT
 #include <floatingpoint.h>
 #endif

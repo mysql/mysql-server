@@ -2598,24 +2598,9 @@ unsent_create_error:
 	check_table_access(thd,SELECT_ACL | INSERT_ACL, tables,0))
       goto error; /* purecov: inspected */
     thd->slow_command=TRUE;
-    if (specialflag & (SPECIAL_SAFE_MODE | SPECIAL_NO_NEW_FUNC))
-    {
-      /* Use ALTER TABLE */
-      lex->create_list.empty();
-      lex->key_list.empty();
-      lex->col_list.empty();
-      lex->alter_info.reset();
-      bzero((char*) &create_info,sizeof(create_info));
-      create_info.db_type=DB_TYPE_DEFAULT;
-      create_info.row_type=ROW_TYPE_DEFAULT;
-      create_info.default_table_charset=default_charset_info;
-      res= mysql_alter_table(thd, NullS, NullS, &create_info,
-			     tables, lex->create_list,
-			     lex->key_list, 0, (ORDER *) 0,
-			     DUP_ERROR, &lex->alter_info);
-    }
-    else
-      res = mysql_optimize_table(thd, tables, &lex->check_opt);
+    res= (specialflag & (SPECIAL_SAFE_MODE | SPECIAL_NO_NEW_FUNC)) ?
+      mysql_recreate_table(thd, tables, 1) :
+      mysql_optimize_table(thd, tables, &lex->check_opt);
     /* ! we write after unlocking the table */
     if (!res && !lex->no_write_to_binlog)
     {

@@ -2184,8 +2184,19 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	!((Item_field*) item)->field)
     {
       uint elem= fields.elements;
-      if (insert_fields(thd,tables,((Item_field*) item)->db_name,
-			((Item_field*) item)->table_name, &it))
+      Item_subselect *subsel= thd->lex->current_select->master_unit()->item;
+      if (subsel &&
+          subsel->substype() == Item_subselect::EXISTS_SUBS)
+      {
+        /*
+          It is EXISTS(SELECT * ...) and we can replace * by any constant.
+
+          Item_int do not need fix_fields() because it is basic constant.
+        */
+        it.replace(new Item_int("Not_used", (longlong) 1, 21));
+      }
+      else if (insert_fields(thd,tables,((Item_field*) item)->db_name,
+                             ((Item_field*) item)->table_name, &it))
       {
 	if (stmt)
 	  thd->restore_backup_item_arena(stmt, &backup);
