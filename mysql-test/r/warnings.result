@@ -91,8 +91,11 @@ Warning	1263	Data truncated for column 'b' at row 3
 Warning	1261	Data truncated, NULL supplied to NOT NULL column 'a' at row 4
 Warning	1263	Data truncated for column 'b' at row 4
 insert into t2(b) values('mysqlab');
+set sql_warnings=1;
+insert into t2(b) values('mysqlab');
 Warnings:
 Warning	1263	Data truncated for column 'b' at row 1
+set sql_warnings=0;
 drop table t1, t2;
 create table t1(a char(10));
 alter table t1 add b char;

@@ -89,6 +89,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
 struct hash_lex_struct
@@ -101,8 +102,8 @@ struct hash_lex_struct
   };
   int ithis;
 };
-				
-hash_lex_struct *get_hash_struct_by_len(hash_lex_struct **root_by_len, 
+
+hash_lex_struct *get_hash_struct_by_len(hash_lex_struct **root_by_len,
 					    int len, int *max_len)
 {
   if (*max_len<len){
