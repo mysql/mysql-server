@@ -73,6 +73,10 @@ Makefile.in'
 PENDING/*
 TAGS
 aclocal.m4
+autom4te.cache/*
+autom4te.cache/output.0
+autom4te.cache/requests
+autom4te.cache/traces.0
 bdb/README
 bdb/btree/btree_auto.c
 bdb/build_unix/*
@@ -110,6 +114,10 @@ bdb/build_win32/include.tcl
 bdb/build_win32/libdb.rc
 bdb/db/crdel_auto.c
 bdb/db/db_auto.c
+bdb/dist/autom4te.cache/*
+bdb/dist/autom4te.cache/output.0
+bdb/dist/autom4te.cache/requests
+bdb/dist/autom4te.cache/traces.0
 bdb/dist/config.hin
 bdb/dist/configure
 bdb/dist/tags
@@ -208,6 +216,10 @@ include/my_config.h
 include/my_global.h
 include/mysql_version.h
 include/widec.h
+innobase/autom4te.cache/*
+innobase/autom4te.cache/output.0
+innobase/autom4te.cache/requests
+innobase/autom4te.cache/traces.0
 innobase/conftest.s1
 innobase/conftest.subs
 innobase/ib_config.h
@@ -497,6 +509,3 @@ vio/test-ssl
 vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
-autom4te.cache/*
-bdb/dist/autom4te.cache/*
-innobase/autom4te.cache/*
