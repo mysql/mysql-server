@@ -1779,17 +1779,9 @@ Item *resolve_const_item(Item *item,Item *comp_item)
     String tmp(buff,sizeof(buff),&my_charset_bin),*result;
     result=item->val_str(&tmp);
     if (item->null_value)
-    {
-#ifdef DELETE_ITEMS
-      delete item;
-#endif
       return new Item_null(name);
-    }
     uint length=result->length();
     char *tmp_str=sql_strmake(result->ptr(),length);
-#ifdef DELETE_ITEMS
-    delete item;
-#endif
     return new Item_string(name,tmp_str,length,result->charset());
   }
   if (res_type == INT_RESULT)
@@ -1797,9 +1789,6 @@ Item *resolve_const_item(Item *item,Item *comp_item)
     longlong result=item->val_int();
     uint length=item->max_length;
     bool null_value=item->null_value;
-#ifdef DELETE_ITEMS
-    delete item;
-#endif
     return (null_value ? (Item*) new Item_null(name) :
 	    (Item*) new Item_int(name,result,length));
   }
@@ -1808,9 +1797,6 @@ Item *resolve_const_item(Item *item,Item *comp_item)
     double result=item->val();
     uint length=item->max_length,decimals=item->decimals;
     bool null_value=item->null_value;
-#ifdef DELETE_ITEMS
-    delete item;
-#endif
     return (null_value ? (Item*) new Item_null(name) :
 	    (Item*) new Item_real(name,result,decimals,length));
   }
