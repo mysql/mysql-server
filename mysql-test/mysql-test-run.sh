@@ -4,6 +4,7 @@
 # Slightly updated by Monty
 # Cleaned up again by Matt
 # Fixed by Sergei
+# List of failed cases (--force) backported from 4.1 by Joerg
 # :-)
 
 #++
@@ -1348,7 +1349,7 @@ run_testcase ()
    result_file="$result_file$RESULT_EXT"
  fi
  if [ "$USE_MANAGER" = 1 ] ; then
-   many_slaves=`$EXPR \( \( $tname : rpl_failsafe \) != 0 \) \| \( \( $tname : rpl_chain_temp_table \) != 0 \)`
+  many_slaves=`$EXPR \( \( $tname : rpl_failsafe \) != 0 \) \| \( \( $tname : rpl_chain_temp_table \) != 0 \)`
  fi
  if $EXPR "$tname" '<' "$START_FROM" > /dev/null ; then
    #skip_test $tname
