@@ -849,9 +849,11 @@ public:
     if (!master)
     {
       if (ft_handler)
+      {
 	ft_close_search(ft_handler);
-      if(join_key)
-        table->file->ft_handler=0;
+        if(join_key)
+          table->file->ft_handler=0;
+      }
     }
   }
   const char *func_name() const { return "match"; }
