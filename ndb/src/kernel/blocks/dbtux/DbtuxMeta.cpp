@@ -29,6 +29,11 @@ void
 Dbtux::execTUXFRAGREQ(Signal* signal)
 {
   jamEntry();
+  if (signal->theData[0] == (Uint32)-1) {
+    jam();
+    abortAddFragOp(signal);
+    return;
+  }
   const TuxFragReq reqCopy = *(const TuxFragReq*)signal->getDataPtr();
   const TuxFragReq* const req = &reqCopy;
   IndexPtr indexPtr;
@@ -61,6 +66,11 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
     fragOpPtr.p->m_fragId = req->fragId;
     fragOpPtr.p->m_fragNo = indexPtr.p->m_numFrags;
     fragOpPtr.p->m_numAttrsRecvd = 0;
+#ifdef VM_TRACE
+    if (debugFlags & DebugMeta) {
+      debugOut << "Seize frag op " << fragOpPtr.i << " " << *fragOpPtr.p << endl;
+    }
+#endif
     // check if index has place for more fragments
     ndbrequire(indexPtr.p->m_numFrags < MaxIndexFragments);
     // seize new fragment record
@@ -126,6 +136,14 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
       debugOut << "Add frag " << fragPtr.i << " " << *fragPtr.p << endl;
     }
 #endif
+    // error inserts
+    if (ERROR_INSERTED(12001) && fragOpPtr.p->m_fragNo == 0 ||
+        ERROR_INSERTED(12002) && fragOpPtr.p->m_fragNo == 1) {
+      jam();
+      errorCode = (TuxFragRef::ErrorCode)1;
+      CLEAR_ERROR_INSERT_VALUE;
+      break;
+    }
     // success
     TuxFragConf* const conf = (TuxFragConf*)signal->getDataPtrSend();
     conf->userPtr = req->userPtr;
@@ -142,10 +160,18 @@ Dbtux::execTUXFRAGREQ(Signal* signal)
   ref->errorCode = errorCode;
   sendSignal(req->userRef, GSN_TUXFRAGREF,
       signal, TuxFragRef::SignalLength, JBB);
-  if (fragOpPtr.i != RNIL)
+  if (fragOpPtr.i != RNIL) {
+#ifdef VM_TRACE
+    if (debugFlags & DebugMeta) {
+      debugOut << "Release on frag error frag op " << fragOpPtr.i << " " << *fragOpPtr.p << endl;
+    }
+#endif
     c_fragOpPool.release(fragOpPtr);
-  if (indexPtr.i != RNIL)
-    dropIndex(signal, indexPtr, 0, 0);
+  }
+  if (indexPtr.i != RNIL) {
+    jam();
+    // let DICT drop the unfinished index
+  }
 }
 
 void
@@ -200,7 +226,16 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
       }
     }
 #endif
-    if (indexPtr.p->m_numAttrs == fragOpPtr.p->m_numAttrsRecvd) {
+    const bool lastAttr = (indexPtr.p->m_numAttrs == fragOpPtr.p->m_numAttrsRecvd);
+    if (ERROR_INSERTED(12003) && fragOpPtr.p->m_fragNo == 0 && attrId == 0 ||
+        ERROR_INSERTED(12004) && fragOpPtr.p->m_fragNo == 0 && lastAttr ||
+        ERROR_INSERTED(12005) && fragOpPtr.p->m_fragNo == 1 && attrId == 0 ||
+        ERROR_INSERTED(12006) && fragOpPtr.p->m_fragNo == 1 && lastAttr) {
+      errorCode = (TuxAddAttrRef::ErrorCode)1;
+      CLEAR_ERROR_INSERT_VALUE;
+      break;
+    }
+    if (lastAttr) {
       jam();
       // initialize tree header
       TreeHead& tree = fragPtr.p->m_tree;
@@ -243,11 +278,17 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
       }
 #endif
       // fragment is defined
+#ifdef VM_TRACE
+      if (debugFlags & DebugMeta) {
+        debugOut << "Release frag op " << fragOpPtr.i << " " << *fragOpPtr.p << endl;
+      }
+#endif
       c_fragOpPool.release(fragOpPtr);
     }
     // success
     TuxAddAttrConf* conf = (TuxAddAttrConf*)signal->getDataPtrSend();
     conf->userPtr = fragOpPtr.p->m_userPtr;
+    conf->lastAttr = lastAttr;
     sendSignal(fragOpPtr.p->m_userRef, GSN_TUX_ADD_ATTRCONF,
         signal, TuxAddAttrConf::SignalLength, JBB);
     return;
@@ -258,8 +299,32 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
   ref->errorCode = errorCode;
   sendSignal(fragOpPtr.p->m_userRef, GSN_TUX_ADD_ATTRREF,
       signal, TuxAddAttrRef::SignalLength, JBB);
+#ifdef VM_TRACE
+    if (debugFlags & DebugMeta) {
+      debugOut << "Release on attr error frag op " << fragOpPtr.i << " " << *fragOpPtr.p << endl;
+    }
+#endif
   c_fragOpPool.release(fragOpPtr);
-  dropIndex(signal, indexPtr, 0, 0);
+  // let DICT drop the unfinished index
+}
+
+/*
+ * LQH aborts on-going create index operation.
+ */
+void
+Dbtux::abortAddFragOp(Signal* signal)
+{
+  FragOpPtr fragOpPtr;
+  IndexPtr indexPtr;
+  c_fragOpPool.getPtr(fragOpPtr, signal->theData[1]);
+  c_indexPool.getPtr(indexPtr, fragOpPtr.p->m_indexId);
+#ifdef VM_TRACE
+  if (debugFlags & DebugMeta) {
+    debugOut << "Release on abort frag op " << fragOpPtr.i << " " << *fragOpPtr.p << endl;
+  }
+#endif
+  c_fragOpPool.release(fragOpPtr);
+  // let DICT drop the unfinished index
 }
 
 /*
@@ -338,20 +403,13 @@ Dbtux::dropIndex(Signal* signal, IndexPtr indexPtr, Uint32 senderRef, Uint32 sen
 {
   jam();
   indexPtr.p->m_state = Index::Dropping;
-  // drop one fragment at a time
-  if (indexPtr.p->m_numFrags > 0) {
+  // drop fragments
+  while (indexPtr.p->m_numFrags > 0) {
     jam();
-    unsigned i = --indexPtr.p->m_numFrags;
+    Uint32 i = --indexPtr.p->m_numFrags;
     FragPtr fragPtr;
     c_fragPool.getPtr(fragPtr, indexPtr.p->m_fragPtrI[i]);
     c_fragPool.release(fragPtr);
-    // the real time break is not used for anything currently
-    signal->theData[0] = TuxContinueB::DropIndex;
-    signal->theData[1] = indexPtr.i;
-    signal->theData[2] = senderRef;
-    signal->theData[3] = senderData;
-    sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
-    return;
   }
   // drop attributes
   if (indexPtr.p->m_descPage != RNIL) {

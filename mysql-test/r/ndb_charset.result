@@ -78,9 +78,9 @@ unique key(a)
 ) engine=ndb;
 insert into t1 values(1, 'aAa');
 insert into t1 values(2, 'aaa');
-ERROR 23000: Can't write, because of unique constraint, to table 't1'
+ERROR 23000: Duplicate entry '2' for key 1
 insert into t1 values(3, 'AAA');
-ERROR 23000: Can't write, because of unique constraint, to table 't1'
+ERROR 23000: Duplicate entry '3' for key 1
 select * from t1 order by p;
 p	a
 1	aAa
