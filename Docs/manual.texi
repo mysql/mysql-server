@@ -17654,13 +17654,14 @@ This will create a @code{HEAP} table with 3 columns.  Note that the table will
 automatically be deleted if any errors occur while copying data
 into the table.
 @item
-The @code{RAID_TYPE} option will help you to break the 2G/4G limit on
-Operating Systems that don't support big files. You can get also more speed
-from the I/O bottleneck by putting @code{RAID} directories on different
-physical disks. @code{RAID_TYPE} will work on any OS, as long as you have
-configured @strong{MySQL} with @code{--with-raid}.  For now the only allowed
-@code{RAID_TYPE} is @code{STRIPED} (@code{1} and @code{RAID0} are aliases
-for this).
+The @code{RAID_TYPE} option will help you to break the 2G/4G limit for
+the MyISAM data file (not the index file) onOperating Systems that don't
+support big files. You can get also more speed from the I/O bottleneck
+by putting @code{RAID} directories on different physical
+disks. @code{RAID_TYPE} will work on any OS, as long as you have
+configured @strong{MySQL} with @code{--with-raid}.  For now the only
+allowed @code{RAID_TYPE} is @code{STRIPED} (@code{1} and @code{RAID0}
+are aliases for this).
 
 If you specify @code{RAID_TYPE=STRIPED} for a @code{MyISAM} table,
 @code{MyISAM} will create @code{RAID_CHUNKS} subdirectories named 00,
@@ -17669,7 +17670,7 @@ If you specify @code{RAID_TYPE=STRIPED} for a @code{MyISAM} table,
 to the data file, the @code{RAID} handler will map the first
 @code{RAID_CHUNKSIZE} *1024 bytes to the first file, the next
 @code{RAID_CHUNKSIZE} *1024 bytes to the next file and so on.
-
+@item
 @code{UNION} is used when you want to use a collection of identical
 tables as one. This only works with MERGE tables. @xref{MERGE}.
 
@@ -20817,10 +20818,11 @@ LOCK TABLES tbl_name [AS alias] @{READ | [READ LOCAL] | [LOW_PRIORITY] WRITE@}
 UNLOCK TABLES
 @end example
 
-@code{LOCK TABLES} locks tables for the current thread.  @code{UNLOCK TABLES}
-releases any locks held by the current thread.  All tables that are locked by
-the current thread are automatically unlocked when the thread issues another
-@code{LOCK TABLES}, or when the connection to the server is closed.
+@code{LOCK TABLES} locks tables for the current thread.  @code{UNLOCK
+TABLES} releases any locks held by the current thread.  All tables that
+are locked by the current thread are automatically unlocked when the
+thread issues another @code{LOCK TABLES}, or when the connection to the
+server is closed.
 
 If a thread obtains a @code{READ} lock on a table, that thread (and all other
 threads) can only read from the table. If a thread obtains a @code{WRITE}
@@ -20847,10 +20849,11 @@ use @code{LOW_PRIORITY WRITE} locks if you are sure that there will
 eventually be a time when no threads will have a @code{READ} lock.
 
 When you use @code{LOCK TABLES}, you must lock all tables that you are
-going to use and you must use the same alias that you are going to use in
-your queries!  If you are using a table multiple times in a query (with
-aliases), you must get a lock for each alias! This policy ensures that
-table locking is deadlock free.
+going to use and you must use the same alias that you are going to use
+in your queries!  If you are using a table multiple times in a query
+(with aliases), you must get a lock for each alias! This policy ensures
+that table locking is deadlock free andh makes the locking code smaller,
+simpler and much faster.
 
 Note that you should @strong{NOT} lock any tables that you are using with
 @code{INSERT DELAYED}.  This is because that in this case the @code{INSERT}
