@@ -954,6 +954,65 @@ bin not like concat(0xBB, '%') and
 vbin not like concat(0xBB, '%')
 order by auto;
 
+# Update test
+update t1
+set medium = 17
+where 
+string = "aaaa" and 
+vstring = "aaaa" and 
+bin = 0xAAAA and 
+vbin = 0xAAAA and
+tiny = -1 and 
+short = -1 and 
+medium = -1 and 
+long_int = -1 and 
+longlong = -1 and 
+real_float > 1.0 and real_float < 2.0 and 
+real_double > 1.0 and real_double < 2.0 and
+real_decimal > 1.0 and real_decimal < 2.0 and
+utiny = 1 and 
+ushort = 1 and 
+umedium = 1 and 
+ulong = 1 and 
+ulonglong = 1 and 
+/* bits = b'001' and */
+options = 'one' and 
+flags = 'one' and 
+date_field = '1901-01-01' and
+year_field = '1901' and
+time_field = '01:01:01' and 
+date_time = '1901-01-01 01:01:01';
+
+# Delete test
+delete from t1 
+where
+string = "aaaa" and 
+vstring = "aaaa" and 
+bin = 0xAAAA and 
+vbin = 0xAAAA and
+tiny = -1 and 
+short = -1 and 
+medium = 17 and 
+long_int = -1 and 
+longlong = -1 and 
+real_float > 1.0 and real_float < 2.0 and 
+real_double > 1.0 and real_double < 2.0 and
+real_decimal > 1.0 and real_decimal < 2.0 and
+utiny = 1 and 
+ushort = 1 and 
+umedium = 1 and 
+ulong = 1 and 
+ulonglong = 1 and 
+/* bits = b'001' and */
+options = 'one' and 
+flags = 'one' and 
+date_field = '1901-01-01' and
+year_field = '1901' and
+time_field = '01:01:01' and 
+date_time = '1901-01-01 01:01:01';
+
+select count(*) from t1;
+
 # Various tests 
 explain 
 select * from t2 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
