@@ -39,10 +39,13 @@ private:
   OutputStream *m_output;
   Parser_t *m_parser;
   MgmtSrvr::Allocated_resources *m_allocated_resources;
+  char m_err_str[1024];
 
   void getConfig_common(Parser_t::Context &ctx,
 			const class Properties &args,
 			bool compat = false);
+  const char *get_error_text(int err_no)
+  { return m_mgmsrv.getErrorText(err_no, m_err_str, sizeof(m_err_str)); }
 
 public:
   MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock);  
