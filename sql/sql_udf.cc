@@ -17,15 +17,15 @@
 /* This implements 'user defined functions' */
 
 /*
-** Known bugs:
-**
-** Memory for functions are never freed!
-** Shared libraries are not closed before mysqld exists;
-**   - This is because we can't be sure if some threads is using
-**     a functions.
-**
-** The buggs only affects applications that creates and frees a lot of
-** dynamic functions, so this shouldn't be a real problem.
+   Known bugs:
+  
+   Memory for functions is never freed!
+   Shared libraries are not closed before mysqld exits;
+     - This is because we can't be sure if some threads are using
+       a function.
+  
+   The bugs only affect applications that create and free a lot of
+   dynamic functions, so this shouldn't be a real problem.
 */
 
 #ifdef __GNUC__
