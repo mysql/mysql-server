@@ -649,8 +649,8 @@ Remark:         Always release the first item in the free list
 void
 Ndb::freeScanOperation()
 {
-  NdbScanOperation* tOp = theScanOpIdleList;
-  theScanOpIdleList = (NdbIndexScanOperation *) theScanOpIdleList->next();
+  NdbIndexScanOperation* tOp = theScanOpIdleList;
+  theScanOpIdleList = (NdbIndexScanOperation *)tOp->next();
   delete tOp;
 }
 
