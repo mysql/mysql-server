@@ -776,7 +776,7 @@ opt_table_options:
 
 table_options:
 	table_option	{ $$=$1; }
-	| table_option table_options { $$= $1 | $2 }
+	| table_option table_options { $$= $1 | $2; }
 
 table_option:
 	TEMPORARY	{ $$=HA_LEX_CREATE_TMP_TABLE; }
