@@ -649,27 +649,32 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
 }
 
 
-QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT(THD *thd, TABLE *table)
-  :cur_quick_it(quick_selects), index_merge(thd)
+QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT(THD *thd_param, TABLE *table)
+  :cur_quick_it(quick_selects), thd(thd_param), unique(NULL)
 {
   index= MAX_KEY;
   head= table;
+  reset_called= false;
   init_sql_alloc(&alloc,1024,0);
 }
 
 int QUICK_INDEX_MERGE_SELECT::init()
 {
-  int error;
   cur_quick_it.rewind();
   cur_quick_select= cur_quick_it++;
-  if ((error= index_merge.init(head)))
-    return error;
   return cur_quick_select->init();
 }
 
-void QUICK_INDEX_MERGE_SELECT::reset()
+int QUICK_INDEX_MERGE_SELECT::reset()
 {
-  cur_quick_select->reset();
+  int result;
+  DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::reset");
+  if (reset_called)
+    DBUG_RETURN(0);
+
+  reset_called= true;
+  result = cur_quick_select->reset() && prepare_unique();  
+  DBUG_RETURN(result);
 }
 
 bool 
@@ -1150,12 +1155,6 @@ imerge_fail:;
                        ("Failed to allocate index merge structures,"
                        "falling back to full scan."));
           }
-          else
-          {
-            /* with 'using filesort' quick->reset() is not called */
-            quick->reset();
-          }
-
           goto end;
         }
       }
@@ -1170,9 +1169,9 @@ end:
   DBUG_EXECUTE("info",
     {
       if (quick_imerge)
-        print_quick_sel_imerge(quick_imerge, &needed_reg);
+        print_quick_sel_imerge(quick_imerge, needed_reg);
       else
-        print_quick_sel_range((QUICK_RANGE_SELECT*)quick, &needed_reg);
+        print_quick_sel_range((QUICK_RANGE_SELECT*)quick, needed_reg);
     }
   );
 
@@ -1721,6 +1720,7 @@ tree_and(PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
     uint flag=0;
     if (*key1 || *key2)
     {
+      trees_have_key = true;
       if (*key1 && !(*key1)->simple_key())
 	flag|=CLONE_KEY1_MAYBE;
       if (*key2 && !(*key2)->simple_key())
@@ -3079,165 +3079,24 @@ err:
   return 0;
 }
 
-INDEX_MERGE::INDEX_MERGE(THD *thd_arg) :
-  dont_save(false), thd(thd_arg)  
-{}
 
-String *INDEX_MERGE::Item_rowid::val_str(String *str)
-{
-  str->set_quick((char*)head->file->ref, head->file->ref_length, collation.collation);
-  return str;
-}
-
-
-/* 
-  Initialize index_merge operation.
-  RETURN 
-    0     - OK 
-    other - error.
-*/
-
-int INDEX_MERGE::init(TABLE *table)
-{
-  DBUG_ENTER("INDEX_MERGE::init");
-  
-  head= table;
-  if (!(rowid_item= new Item_rowid(table)))
-    DBUG_RETURN(1);  
-
-  tmp_table_param.copy_field= 0;
-  tmp_table_param.end_write_records= HA_POS_ERROR;
-  tmp_table_param.group_length= table->file->ref_length;
-  tmp_table_param.group_parts= 1;
-  tmp_table_param.group_null_parts= 0;
-  tmp_table_param.hidden_field_count= 0;
-  tmp_table_param.field_count= 0;
-  tmp_table_param.func_count= 1;
-  tmp_table_param.sum_func_count= 0;
-  tmp_table_param.quick_group= 1;
-
-  bzero(&order, sizeof(ORDER));
-  order.item= (Item**)&rowid_item;
-  order.asc= 1;
-
-  fields.push_back(rowid_item);
-
-  temp_table= create_tmp_table(thd,
-                               &tmp_table_param,
-                               fields,
-                               &order,
-                               false,
-                               0,
-                               SELECT_DISTINCT,
-                               HA_POS_ERROR,
-                               (char *)"");
-  DBUG_RETURN(!temp_table);
-}
-
+#define MEM_STRIP_BUF_SIZE current_thd->variables.sortbuff_size
 /*
-  Check if record with ROWID record_pos has already been processed and 
-  if not - store the ROWID value.
-
-  RETURN
-    0 - record has not been processed yet
-    1 - record has already been processed.
-   -1 - an error occurred and query processing should be terminated.
-        Error code is stored in INDEX_MERGE::error
+  Fetch all row ids into unique.
 */
-
-int INDEX_MERGE::check_record_in()
-{ 
-  return (dont_save)? 
-           check_record() : 
-           put_record();
-}
-
-
-/*
-  Stop remembering records in check(). 
-  (this should be called just before the last key scan)
-
-  RETURN 
-    0 - OK
-    1 - error occurred initializing table index. 
-*/
-
-int INDEX_MERGE::start_last_quick_select()
+int QUICK_INDEX_MERGE_SELECT::prepare_unique()
 {
-  int result= 0;
-  if (!temp_table->uniques)
-  {
-    dont_save= true;
-    result= temp_table->file->index_init(0);
-  }
-  return result;
-}
-
-
-inline int INDEX_MERGE::put_record()
-{
-  DBUG_ENTER("INDEX_MERGE::put_record");
+  int result;
+  DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::prepare_unique");
   
-  copy_funcs(tmp_table_param.items_to_copy);
-  
-  if ((error= temp_table->file->write_row(temp_table->record[0])))
-  {
-    if (error == HA_ERR_FOUND_DUPP_KEY ||
-	error == HA_ERR_FOUND_DUPP_UNIQUE)
-      DBUG_RETURN(1);
+  /* we're going to just read rowids */
+  head->file->extra(HA_EXTRA_KEYREAD);
 
-    DBUG_PRINT("info", 
-               ("Error writing row to temp. table: %d, converting to myisam", 
-               error));
-    if (create_myisam_from_heap(current_thd, temp_table, &tmp_table_param,
-				error,1))
-    {
-      DBUG_PRINT("info", ("Table conversion failed, bailing out"));
-      DBUG_RETURN(-1);
-    }
-  }
-
-  DBUG_RETURN(0);
-}
-
-inline int INDEX_MERGE::check_record()
-{
-  int result= 1;
-  DBUG_ENTER("INDEX_MERGE::check_record");  
-
-  if ((error= temp_table->file->index_read(temp_table->record[0],
-                                           head->file->ref,
-                                           head->file->ref_length,
-                                           HA_READ_KEY_EXACT)))
-  {
-    if (error != HA_ERR_KEY_NOT_FOUND)
-      result= -1;
-    else
-      result= 0;
-  }
-
-  DBUG_RETURN(result);
-}
-
-INDEX_MERGE::~INDEX_MERGE()
-{
-  if (temp_table)
-  {
-    DBUG_PRINT("info", ("Freeing temp. table"));
-    free_tmp_table(current_thd, temp_table);
-  }
-  /* rowid_item is freed automatically */
-  list_node* node;
-  node= fields.first_node();
-  fields.remove(&node);
-}
-
-int QUICK_INDEX_MERGE_SELECT::get_next()
-{
-  int       result;
-  int       put_result;
-  DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::get_next");
-
+  unique= new Unique(refposcmp2, (void *) &head->file->ref_length,
+                     head->file->ref_length,
+                     MEM_STRIP_BUF_SIZE);  
+  if (!unique)
+    DBUG_RETURN(1);
   do
   { 
     while ((result= cur_quick_select->get_next()) == HA_ERR_END_OF_FILE)
@@ -3245,31 +3104,50 @@ int QUICK_INDEX_MERGE_SELECT::get_next()
       cur_quick_select= cur_quick_it++;
       if (!cur_quick_select)
         break;
-
       cur_quick_select->init();
-      cur_quick_select->reset();
-      
-      if (last_quick_select == cur_quick_select)
-      {
-        if ((result= index_merge.start_last_quick_select()))
-          DBUG_RETURN(result);
-      }
+      if (cur_quick_select->reset())
+        DBUG_RETURN(1);
     }
 
     if (result)
-    {
+    {      
       /* 
         table read error (including HA_ERR_END_OF_FILE on last quick select
         in index_merge)
       */
-      DBUG_RETURN(result);
+      if (result != HA_ERR_END_OF_FILE)
+      {
+        DBUG_RETURN(result);
+      }
+      else
+        break;
     }
     
-    cur_quick_select->file->position(cur_quick_select->record);
-    put_result= index_merge.check_record_in();
-  }while(put_result == 1); /* While record is processed */
+    if (thd->killed)
+      DBUG_RETURN(1);
 
-  DBUG_RETURN((put_result != -1) ? result : index_merge.error);
+    cur_quick_select->file->position(cur_quick_select->record);
+    if (unique->unique_add((char*)cur_quick_select->file->ref))
+      DBUG_RETURN(1);
+
+  }while(true);  
+
+  /* ok, all row ids are in Unique */
+  result= unique->get(head);
+
+  /* index_merge currently doesn't support "using index" at all */
+  head->file->extra(HA_EXTRA_NO_KEYREAD);
+  DBUG_RETURN(result);
+}
+
+int QUICK_INDEX_MERGE_SELECT::get_next()
+{
+  DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::get_next");
+  
+  DBUG_PRINT("QUICK_INDEX_MERGE_SELECT", 
+             ("ERROR: index merge error: get_next should not be called "));
+  DBUG_ASSERT(0);
+  DBUG_RETURN(HA_ERR_END_OF_FILE);
 }
 
 	/* get next possible record using quick-struct */
