@@ -369,6 +369,14 @@ el_line(EditLine *el)
 
 static const char elpath[] = "/.editrc";
 
+#if defined(MAXPATHLEN)
+#define LIBEDIT_MAXPATHLEN MAXPATHLEN
+#elif defined(PATH_MAX)
+#define LIBEDIT_MAXPATHLEN PATH_MAX
+#else
+#define LIBEDIT_MAXPATHLEN 1024
+#endif
+
 /* el_source():
  *	Source a file
  */
@@ -377,7 +385,7 @@ el_source(EditLine *el, const char *fname)
 {
 	FILE *fp;
 	size_t len;
-	char *ptr, path[MAXPATHLEN];
+	char *ptr, path[LIBEDIT_MAXPATHLEN];
 
 	fp = NULL;
 	if (fname == NULL) {
