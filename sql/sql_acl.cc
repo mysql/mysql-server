@@ -1029,7 +1029,7 @@ bool check_change_password(THD *thd, const char *host, const char *user)
   }
   if (!thd->slave_thread &&
       (strcmp(thd->user,user) ||
-       my_strcasecmp(host,thd->host ? thd->host : thd->ip)))
+       my_strcasecmp(host,thd->host_or_ip)))
   {
     if (check_access(thd, UPDATE_ACL, "mysql",0,1))
       return(1);
@@ -1067,10 +1067,6 @@ bool change_password(THD *thd, const char *host, const char *user,
 		      host,user,new_password));
   DBUG_ASSERT(host != 0);			// Ensured by parent
 
-  if (check_change_password(thd, host, user))
-    DBUG_RETURN(1);
-
-  /* password should always be 0 or 16 chars; simple hack to avoid cracking */
   length=(uint) strlen(new_password);
   new_password[length & 16]=0;
 
