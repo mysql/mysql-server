@@ -519,6 +519,7 @@ void NDBT_TestCaseImpl1::waitSteps(){
     NdbThread_WaitFor(threads[i], &status);
     NdbThread_Destroy(&threads[i]);   
   }
+  threads.clear();
 }
 
 
