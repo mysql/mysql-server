@@ -530,7 +530,6 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 	     !check_scramble(password,message,acl_user->salt,
 			     (my_bool) old_ver)))
 	{
-#ifdef HAVE_OPENSSL
 	  Vio *vio=thd->net.vio;
 	  /*
 	    In this point we know that user is allowed to connect
@@ -543,6 +542,7 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 	  case SSL_TYPE_NONE: /* SSL is not required to connect */
 	    user_access=acl_user->access;
 	    break;
+#ifdef HAVE_OPENSSL
 	  case SSL_TYPE_ANY: /* Any kind of SSL is good enough */
 	    if (vio_type(vio) == VIO_TYPE_SSL)
 	      user_access=acl_user->access;
@@ -625,10 +625,16 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 	      }
 	      break;
 	    }
-	  }
 #else  /* HAVE_OPENSSL */
-	  user_access=acl_user->access;
+          default:
+            /*
+                If we don't have SSL but SSL is required for this user the 
+                authentication should fail.
+            */
+            break;
 #endif /* HAVE_OPENSSL */
+	  }
+          
 	  *mqh=acl_user->user_resource;
 	  if (!acl_user->user)
 	    *priv_user=(char*) "";	// Change to anonymous user /* purecov: inspected */
