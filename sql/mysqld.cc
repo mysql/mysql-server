@@ -2455,7 +2455,7 @@ enum options {
                OPT_INNODB_LOG_ARCH_DIR, 
                OPT_INNODB_LOG_ARCHIVE, 
                OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT, 
-               OPT_innodb_flush_method, 
+               OPT_INNODB_UNIX_FILE_FLUSH_METHOD,
                OPT_SAFE_SHOW_DB,
 	       OPT_GEMINI_SKIP, OPT_INNODB_SKIP,
                OPT_TEMP_POOL, OPT_TX_ISOLATION,
