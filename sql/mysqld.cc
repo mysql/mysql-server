@@ -4336,7 +4336,7 @@ replicating a LOAD DATA INFILE command.",
    (gptr*) 0,
    0, (enum get_opt_var_type) (GET_ULONG | GET_ASK_ADDR) , REQUIRED_ARG, 100,
    1, 100, 0, 1, 0},
-  {"key_cache_division_age_threshold", OPT_KEY_CACHE_AGE_THRESHOLD,
+  {"key_cache_age_threshold", OPT_KEY_CACHE_AGE_THRESHOLD,
    "This characterizes the number of hits a hot block has to be untouched until it is considered aged enough to be downgraded to a warm block. This specifies the percentage ratio of that number of hits to the total number of blocks in key cache",
    (gptr*) &dflt_key_cache_var.param_age_threshold,
    (gptr*) 0,
@@ -4556,7 +4556,7 @@ The minimum value for this variable is 4096.",
    "Use compression on master/slave protocol.",
    (gptr*) &opt_slave_compressed_protocol,
    (gptr*) &opt_slave_compressed_protocol,
-   0, GET_BOOL, REQUIRED_ARG, 0, 0, 1, 0, 1, 0},
+   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
   {"slave_net_timeout", OPT_SLAVE_NET_TIMEOUT,
    "Number of seconds to wait for more data from a master/slave connection before aborting the read.",
    (gptr*) &slave_net_timeout, (gptr*) &slave_net_timeout, 0,
@@ -5766,8 +5766,9 @@ static void fix_paths(void)
   {
     strxnmov(mysql_charsets_dir, sizeof(mysql_charsets_dir)-1, buff,
 	     CHARSET_DIR, NullS);
-    charsets_dir=mysql_charsets_dir;
   }
+  (void) my_load_path(mysql_charsets_dir, mysql_charsets_dir, buff);
+  charsets_dir=mysql_charsets_dir;
 
   if (init_tmpdir(&mysql_tmpdir_list, opt_mysql_tmpdir))
     exit(1);

@@ -510,6 +510,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       blob_columns++;
       break;
     case FIELD_TYPE_GEOMETRY:
+#ifdef HAVE_SPATIAL
       if (!(file->table_flags() & HA_HAS_GEOMETRY))
       {
 	my_printf_error(ER_CHECK_NOT_IMPLEMENTED, ER(ER_CHECK_NOT_IMPLEMENTED),
@@ -525,6 +526,11 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       sql_field->unireg_check=Field::BLOB_FIELD;
       blob_columns++;
       break;
+#else
+      my_printf_error(ER_FEATURE_DISABLED,ER(ER_FEATURE_DISABLED), MYF(0),
+		      sym_group_geom.name, sym_group_geom.needed_define);
+      DBUG_RETURN(-1);
+#endif /*HAVE_SPATIAL*/
     case FIELD_TYPE_VAR_STRING:
     case FIELD_TYPE_STRING:
       sql_field->pack_flag=0;
@@ -658,8 +664,14 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
         key_info->flags = HA_FULLTEXT;
         break;
     case Key::SPATIAL:
+#ifdef HAVE_SPATIAL
         key_info->flags = HA_SPATIAL;
         break;
+#else
+	my_printf_error(ER_FEATURE_DISABLED,ER(ER_FEATURE_DISABLED),MYF(0),
+			sym_group_geom.name, sym_group_geom.needed_define);
+	DBUG_RETURN(-1);
+#endif
     case Key::FOREIGN_KEY:
       key_number--;				// Skip this key
       continue;
@@ -698,8 +710,10 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
         DBUG_RETURN(-1);
       }
     }
-    else if (key_info->algorithm == HA_KEY_ALG_RTREE)
+    else
+    if (key_info->algorithm == HA_KEY_ALG_RTREE)
     {
+#ifdef HAVE_RTREE_KEYS
       if ((key_info->key_parts & 1) == 1)
       {
 	my_printf_error(ER_WRONG_ARGUMENTS,
@@ -710,6 +724,11 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       my_printf_error(ER_NOT_SUPPORTED_YET, ER(ER_NOT_SUPPORTED_YET),
 		      MYF(0), "RTREE INDEX");
       DBUG_RETURN(-1);
+#else
+      my_printf_error(ER_FEATURE_DISABLED,ER(ER_FEATURE_DISABLED),MYF(0),
+		      sym_group_rtree.name, sym_group_rtree.needed_define);
+      DBUG_RETURN(-1);
+#endif
     }
 
     List_iterator<key_part_spec> cols(key->columns);
@@ -779,6 +798,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
             DBUG_RETURN(-1);
           }
         }
+#ifdef HAVE_SPATIAL
         if (key->type  == Key::SPATIAL)
         {
           if (!column->length )
@@ -790,6 +810,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
             column->length=4*sizeof(double);
           }
         }
+#endif
         if (!(sql_field->flags & NOT_NULL_FLAG))
         {
           if (key->type == Key::PRIMARY)
@@ -834,6 +855,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 	    DBUG_RETURN(-1);
 	  }
 	}
+        /* TODO HF What's this for??? */
 	else if (f_is_geom(sql_field->pack_flag))
 	{
 	}
