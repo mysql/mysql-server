@@ -277,6 +277,12 @@ sp_head::execute(THD *thd)
   int ret= 0;
   uint ip= 0;
 
+#ifndef EMBEDDED_LIBRARY
+  if (check_stack_overrun(thd, olddbptr))
+  {
+    DBUG_RETURN(-1);
+  }
+#endif
   if (olddbptr)
   {
     uint i= 0;
