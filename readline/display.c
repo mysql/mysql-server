@@ -121,7 +121,7 @@ int _rl_suppress_redisplay = 0;
 
 /* The stuff that gets printed out before the actual text of the line.
    This is usually pointing to rl_prompt. */
-char *rl_display_prompt = (char *)NULL;
+const char *rl_display_prompt = (char *)NULL;
 
 /* Pseudo-global variables declared here. */
 /* The visible cursor position.  If you print some text, adjust this. */
@@ -382,7 +382,7 @@ rl_redisplay ()
   register char *line;
   int c_pos, inv_botlin, lb_botlin, lb_linenum;
   int newlines, lpos, temp;
-  char *prompt_this_line;
+  const char *prompt_this_line;
 #if defined (HANDLE_MULTIBYTE)
   wchar_t wc;
   size_t wc_bytes;
@@ -395,7 +395,7 @@ rl_redisplay ()
     return;
 
   if (!rl_display_prompt)
-    rl_display_prompt = (char*)"";
+    rl_display_prompt = "";
 
   if (invisible_line == 0)
     {
@@ -1760,7 +1760,7 @@ rl_reset_line_state ()
 {
   rl_on_new_line ();
 
-  rl_display_prompt = (char*)(rl_prompt ? rl_prompt : "");
+  rl_display_prompt = rl_prompt ? rl_prompt : "";
   forced_display = 1;
   return 0;
 }
@@ -1999,7 +1999,8 @@ static void
 redraw_prompt (t)
      char *t;
 {
-  char *oldp, *oldl, *oldlprefix;
+  const char *oldp;
+  char *oldl, *oldlprefix;
   int oldlen, oldlast, oldplen, oldninvis;
 
   /* Geez, I should make this a struct. */

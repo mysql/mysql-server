@@ -1132,11 +1132,11 @@ int
 rl_insert_comment (count, key)
      int count __attribute__((unused)), key;
 {
-  char *rl_comment_text;
+  const char *rl_comment_text;
   int rl_comment_len;
 
   rl_beg_of_line (1, key);
-  rl_comment_text = (char*)(_rl_comment_begin ? _rl_comment_begin : RL_COMMENT_BEGIN_DEFAULT);
+  rl_comment_text = _rl_comment_begin ? _rl_comment_begin : RL_COMMENT_BEGIN_DEFAULT;
 
   if (rl_explicit_arg == 0)
     rl_insert_text (rl_comment_text);

@@ -230,7 +230,7 @@ extern int _rl_page_completions;
 extern int _rl_vis_botlin;
 extern int _rl_last_c_pos;
 extern int _rl_suppress_redisplay;
-extern char *rl_display_prompt;
+extern const char *rl_display_prompt;
 
 /* isearch.c */
 extern char *_rl_isearch_terminators;
@@ -261,16 +261,16 @@ extern procenv_t readline_top_level;
 /* terminal.c */
 extern int _rl_enable_keypad;
 extern int _rl_enable_meta;
-extern char *_rl_term_clreol;
-extern char *_rl_term_clrpag;
-extern char *_rl_term_im;
-extern char *_rl_term_ic;
-extern char *_rl_term_ei;
-extern char *_rl_term_DC;
-extern char *_rl_term_up;
-extern char *_rl_term_dc;
-extern char *_rl_term_cr;
-extern char *_rl_term_IC;
+extern const char *_rl_term_clreol;
+extern const char *_rl_term_clrpag;
+extern const char *_rl_term_im;
+extern const char *_rl_term_ic;
+extern const char *_rl_term_ei;
+extern const char *_rl_term_DC;
+extern const char *_rl_term_up;
+extern const char *_rl_term_dc;
+extern const char *_rl_term_cr;
+extern const char *_rl_term_IC;
 extern int _rl_screenheight;
 extern int _rl_screenwidth;
 extern int _rl_screenchars;
