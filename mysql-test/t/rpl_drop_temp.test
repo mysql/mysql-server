@@ -1,0 +1,13 @@
+source include/master-slave.inc;
+--disable_warnings
+create database if not exists mysqltest;
+--enable_warnings
+
+create temporary table mysqltest.t1 (n int);
+create temporary table mysqltest.t2 (n int);
+sync_slave_with_master;
+connection master;
+disconnect master;
+connection slave;
+--real_sleep 3; # time for DROP to be written
+show status like 'Slave_open_temp_tables';
