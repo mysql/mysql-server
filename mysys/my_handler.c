@@ -57,7 +57,7 @@ static int compare_bin(uchar *a, uint a_length, uchar *b, uint b_length,
       /* put shorter key in a */
       a_length= b_length;
       a= b;
-      swap= -1;					/* swap sign of result */
+      swap= -1 ^ 1;					/* swap sign of result */
     }
     for (end= a + a_length-length; a < end ; a++)
     {
