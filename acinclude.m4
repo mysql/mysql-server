@@ -6,7 +6,6 @@ AC_DEFUN(MYSQL_CHECK_READLINE_DECLARES_HIST_ENTRY,[
 	AC_TRY_COMPILE(
 	    [
 		#include "stdio.h"
-		#undef __P // readline-4.2 declares own __P
 		#include "readline/readline.h"
 	    ],
 	    [ 
@@ -27,7 +26,6 @@ AC_DEFUN(MYSQL_CHECK_LIBEDIT_INTERFACE,[
 	AC_TRY_COMPILE(
 	    [
 		#include "stdio.h"
-		#undef __P // readline-4.2 declares own __P
 		#include "readline/readline.h"
 	    ],
 	    [ 
@@ -49,7 +47,6 @@ AC_DEFUN(MYSQL_CHECK_NEW_RL_INTERFACE,[
 	AC_TRY_COMPILE(
 	    [
 		#include "stdio.h"
-		#undef __P // readline-4.2 declares own __P
 		#include "readline/readline.h"
 	    ],
 	    [ 
