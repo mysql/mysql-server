@@ -22,7 +22,7 @@ AUTOMAKE_OPTIONS =	foreign
 EXTRA_DIST =		INSTALL-SOURCE README \
 			COPYING COPYING.LIB
 SUBDIRS =		. include @docs_dirs@ \
-			@readline_topdir@ @readline_dir@ \
+			@readline_topdir@ \
 			@thread_dirs@ pstack @sql_client_dirs@ \
 			@sql_server_dirs@ scripts man tests \
 			BUILD @netware_dir@ os2 @libmysqld_dirs@ \
