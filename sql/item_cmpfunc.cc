@@ -315,6 +315,17 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
 	func= &Arg_comparator::compare_e_binary_string;
     }
   }
+  else if (type == INT_RESULT)
+  {
+    if (func == &Arg_comparator::compare_int)
+    {
+      if ((*a)->unsigned_flag)
+        func= ((*b)->unsigned_flag)? &Arg_comparator::compare_int_unsigned : 
+                                     &Arg_comparator::compare_int_unsigned_signed;
+      else if ((*b)->unsigned_flag)
+        func= &Arg_comparator::compare_int_signed_unsigned;
+    }
+  }
   return 0;
 }
 
@@ -433,6 +444,82 @@ int Arg_comparator::compare_int()
   owner->null_value= 1;
   return -1;
 }
+
+
+/*
+  Compare values as BIGINT UNSIGNED.
+*/
+
+int Arg_comparator::compare_int_unsigned()
+{
+  ulonglong val1= (*a)->val_int();
+  if (!(*a)->null_value)
+  {
+    ulonglong val2= (*b)->val_int();
+    if (!(*b)->null_value)
+    {
+      owner->null_value= 0;
+      if (val1 < val2)	return -1;
+      if (val1 == val2)   return 0;
+      return 1;
+    }
+  }
+  owner->null_value= 1;
+  return -1;
+}
+
+
+/*
+  Compare signed (*a) with unsigned (*B)
+*/
+
+int Arg_comparator::compare_int_signed_unsigned()
+{
+  longlong sval1= (*a)->val_int();
+  if (!(*a)->null_value)
+  {
+    ulonglong uval2= (ulonglong)(*b)->val_int();
+    if (!(*b)->null_value)
+    {
+      owner->null_value= 0;
+      if (sval1 < 0 || (ulonglong)sval1 < uval2)
+        return -1;
+      if ((ulonglong)sval1 == uval2)
+        return 0;
+      return 1;
+    }
+  }
+  owner->null_value= 1;
+  return -1;
+}
+
+
+/*
+  Compare unsigned (*a) with signed (*B)
+*/
+
+int Arg_comparator::compare_int_unsigned_signed()
+{
+  ulonglong uval1= (ulonglong)(*a)->val_int();
+  if (!(*a)->null_value)
+  {
+    longlong sval2= (*b)->val_int();
+    if (!(*b)->null_value)
+    {
+      owner->null_value= 0;
+      if (sval2 < 0)
+        return 1;
+      if (uval1 < (ulonglong)sval2)
+        return -1;
+      if (uval1 == (ulonglong)sval2)
+        return 0;
+      return 1;
+    }
+  }
+  owner->null_value= 1;
+  return -1;
+}
+
 
 int Arg_comparator::compare_e_int()
 {
