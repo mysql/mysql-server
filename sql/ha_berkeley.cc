@@ -2102,6 +2102,15 @@ int ha_berkeley::analyze(THD* thd, HA_CHECK_OPT* check_opt)
   DB_TXN_STAT *txn_stat_ptr= 0;
 
   /*
+   Original bdb documentation says:
+   "The DB->stat method cannot be transaction-protected.
+   For this reason, it should be called in a thread of
+   control that has no open cursors or active transactions."
+   So, let's check if there are any changes have been done since
+   the beginning of the transaction..
+  */
+
+  /*
     If it's a merge conflict here (4.0->4.1), please ignore it!
 
     The reason of the conflict is the difference between versions of bdb:
