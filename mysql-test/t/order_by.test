@@ -486,3 +486,16 @@ select t2.col2 as col, t2.col from t2 order by t2.col;
 select t2.col2, t2.col, t2.col from t2 order by t2.col;
 
 drop table t1, t2;
+
+#
+# Bug #5428: a problem with small max_sort_length value
+#
+
+create table t1 (a char(25));
+insert into t1 set a = repeat('x', 20);
+insert into t1 set a = concat(repeat('x', 19), 'z');
+insert into t1 set a = concat(repeat('x', 19), 'ab');
+insert into t1 set a = concat(repeat('x', 19), 'aa');
+set max_sort_length=20;
+select a from t1 order by a;
+drop table t1;
