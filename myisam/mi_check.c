@@ -1141,7 +1141,13 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
   for (i=0 ; i < share->state.header.max_block_size ; i++)
     share->state.key_del[i]=  HA_OFFSET_ERROR;
 
-  share->state.key_map= ((ulonglong)1L << share->base.keys)-1; /* Should I ? */
+  /* I think mi_repair and mi_repair_by_sort should do the same
+     (according, e.g. to ha_myisam::repair), but as mi_repair doesn't
+     touch key_map it cannot be used to T_CREATE_MISSING_KEYS.
+     That is the next line for... (serg)
+  */
+
+  share->state.key_map= ((ulonglong)1L << share->base.keys)-1;
 
   info->state->key_file_length=share->base.keystart;
 
@@ -1935,6 +1941,11 @@ static int sort_key_read(SORT_INFO *sort_info, void *key)
 			 "Found too many records; Can`t continue");
     DBUG_RETURN(1);
   }
+  /* Hmm, repair_by_sort uses find_all_keys, and find_all_keys strictly
+     implies "one row - one key per keynr", while for ft_key one row/keynr
+     can produce as many keys as the number of unique words in the text
+     that's why I disabled repair_by_sort for ft-keys. (serg)
+   */
   if (sort_info->keyinfo->flag & HA_FULLTEXT )
   {
     mi_check_print_error(sort_info->param,
@@ -3009,6 +3020,13 @@ my_bool mi_test_if_sort_rep(MI_INFO *info, ha_rows rows)
     return FALSE;				/* Can't use sort */
   for (i=0 ; i < share->base.keys ; i++,key++)
   {
+/* It's to disable repair_by_sort for ft-keys.
+   Another solution would be to make ft-keys just too_big_key_for_sort,
+   but then they won't be disabled by dectivate_non_unique_index
+   and so they will be created at the first stage. As ft-key creation
+   is very time-consuming process, it's better to leave it to repair stage
+   but this repair shouldn't be repair_by_sort (serg)
+ */
     if (mi_too_big_key_for_sort(key,rows) || (key->flag & HA_FULLTEXT))
       return FALSE;
   }
