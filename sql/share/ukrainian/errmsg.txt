@@ -248,4 +248,4 @@
 "Пiдзапит поверта╓ бiльш нiж 1 стовбець",
 "Пiдзапит поверта╓ бiльш нiж 1 запис",
 "Unknown prepared statement handler (%ld) given to %s",
-"Corrupt or doesn\'t exist help database",
+"Help database is corrupt or does not exists",
