@@ -370,19 +370,19 @@ static int sort_keys(KEY *a, KEY *b)
 */
 
 void check_duplicates_in_interval(const char *set_or_name,
-				  const char *name, TYPELIB *typelib)
+                                  const char *name, TYPELIB *typelib,
+                                  CHARSET_INFO *cs)
 {
-  unsigned int old_count= typelib->count;
-  const char **old_type_names= typelib->type_names;
-
-  old_count= typelib->count;
-  old_type_names= typelib->type_names;
+  TYPELIB tmp= *typelib;
   const char **cur_value= typelib->type_names;
-  for ( ; typelib->count > 1; cur_value++)
+  unsigned int *cur_length= typelib->type_lengths;
+  
+  for ( ; tmp.count > 1; cur_value++, cur_length++)
   {
-    typelib->type_names++;
-    typelib->count--;
-    if (find_type((char*)*cur_value,typelib,1))
+    tmp.type_names++;
+    tmp.type_lengths++;
+    tmp.count--;
+    if (find_type2(&tmp, (const char*)*cur_value, *cur_length, cs))
     {
       push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_NOTE,
 			  ER_DUPLICATED_VALUE_IN_TYPE,
@@ -390,8 +390,6 @@ void check_duplicates_in_interval(const char *set_or_name,
 			  name,*cur_value,set_or_name);
     }
   }
-  typelib->count= old_count;
-  typelib->type_names= old_type_names;
 }
 
 /*
@@ -571,7 +569,8 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	sql_field->pack_flag|=FIELDFLAG_BINARY;
       sql_field->unireg_check=Field::INTERVAL_FIELD;
       check_duplicates_in_interval("ENUM",sql_field->field_name,
-				   sql_field->interval);
+                                   sql_field->interval,
+                                   sql_field->charset);
       break;
     case FIELD_TYPE_SET:
       sql_field->pack_flag=pack_length_to_packflag(sql_field->pack_length) |
@@ -580,7 +579,8 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	sql_field->pack_flag|=FIELDFLAG_BINARY;
       sql_field->unireg_check=Field::BIT_FIELD;
       check_duplicates_in_interval("SET",sql_field->field_name,
-				   sql_field->interval);
+                                   sql_field->interval,
+                                   sql_field->charset);
       break;
     case FIELD_TYPE_DATE:			// Rest of string types
     case FIELD_TYPE_NEWDATE:

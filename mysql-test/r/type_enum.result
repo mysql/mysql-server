@@ -1678,8 +1678,6 @@ a	int(11)	YES		1
 b	enum('value','๖ไü_value','สรี')			value	
 drop table t1;
 CREATE TABLE t1 (c enum('a', 'A') BINARY);
-Warnings:
-Note	1291	Column 'c' has duplicated value 'a' in ENUM
 INSERT INTO t1 VALUES ('a'),('A');
 SELECT * FROM t1;
 c
