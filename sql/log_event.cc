@@ -207,14 +207,17 @@ Log_event* Log_event::read_log_event(FILE* file, pthread_mutex_t* log_lock)
   return NULL;
 }
 
-Log_event* Log_event::read_log_event(const char* buf, int max_buf)
+Log_event* Log_event::read_log_event(const char* buf, int event_len)
 {
-
+  if(event_len < EVENT_LEN_OFFSET ||
+     (uint)event_len != uint4korr(buf+EVENT_LEN_OFFSET))
+    return NULL; // general sanity check - will fail on a partial read
+  
   switch(buf[EVENT_TYPE_OFFSET])
   {
   case QUERY_EVENT:
   {
-    Query_log_event* q = new Query_log_event(buf, max_buf);
+    Query_log_event* q = new Query_log_event(buf, event_len);
     if (!q->query)
     {
       delete q;
@@ -226,7 +229,7 @@ Log_event* Log_event::read_log_event(const char* buf, int max_buf)
 
   case LOAD_EVENT:
   {
-    Load_log_event* l = new Load_log_event(buf, max_buf);
+    Load_log_event* l = new Load_log_event(buf, event_len);
     if (!l->table_name)
     {
       delete l;
@@ -238,7 +241,7 @@ Log_event* Log_event::read_log_event(const char* buf, int max_buf)
 
   case ROTATE_EVENT:
   {
-    Rotate_log_event* r = new Rotate_log_event(buf, max_buf);
+    Rotate_log_event* r = new Rotate_log_event(buf, event_len);
     if (!r->new_log_ident)
     {
       delete r;
@@ -247,9 +250,9 @@ Log_event* Log_event::read_log_event(const char* buf, int max_buf)
 
     return r;
   }
-  case START_EVENT: return new Start_log_event(buf);
-  case STOP_EVENT: return new Stop_log_event(buf);
-  case INTVAR_EVENT: return new Intvar_log_event(buf);
+  case START_EVENT:  return  new Start_log_event(buf);
+  case STOP_EVENT:  return  new Stop_log_event(buf);
+  case INTVAR_EVENT:  return  new Intvar_log_event(buf);
   default: return NULL;
   }
 
@@ -357,12 +360,12 @@ Start_log_event::Start_log_event(const char* buf) :Log_event(buf)
   created = uint4korr(buf + 2 + sizeof(server_version));
 }
 
-Rotate_log_event::Rotate_log_event(const char* buf, int max_buf):
+Rotate_log_event::Rotate_log_event(const char* buf, int event_len):
   Log_event(buf),new_log_ident(NULL),alloced(0)
 {
-  ulong event_len;
-  event_len = uint4korr(buf + EVENT_LEN_OFFSET);
-  if(event_len < ROTATE_EVENT_OVERHEAD || event_len > (ulong) max_buf)
+  // the caller will ensure that event_len is what we have at
+  // EVENT_LEN_OFFSET
+  if(event_len < ROTATE_EVENT_OVERHEAD)
     return;
 
   ident_len = (uchar)(event_len - ROTATE_EVENT_OVERHEAD);
@@ -415,16 +418,15 @@ Query_log_event::Query_log_event(FILE* file, time_t when_arg,
   *((char*)query + q_len) = 0;
 }
 
-Query_log_event::Query_log_event(const char* buf, int max_buf):
+Query_log_event::Query_log_event(const char* buf, int event_len):
   Log_event(buf),data_buf(0), query(NULL), db(NULL)
 {
+  if (event_len < QUERY_EVENT_OVERHEAD)
+    return;				
   ulong data_len;
   buf += EVENT_LEN_OFFSET;
-  data_len = uint4korr(buf);
-  if (data_len < QUERY_EVENT_OVERHEAD || data_len > (ulong) max_buf)
-    return;				// tear-drop attack protection :)
+  data_len = event_len - QUERY_EVENT_OVERHEAD;
 
-  data_len -= QUERY_EVENT_OVERHEAD;
   exec_time = uint4korr(buf + 8);
   error_code = uint2korr(buf + 13);
 
@@ -603,7 +605,7 @@ Load_log_event::Load_log_event(FILE* file, time_t when, uint32 server_id):
   fname_len = data_len - 2 - db_len - table_name_len - num_fields - field_block_len;
 }
 
-Load_log_event::Load_log_event(const char* buf, int max_buf):
+Load_log_event::Load_log_event(const char* buf, int event_len):
   Log_event(when,0,0,server_id),data_buf(0),num_fields(0),fields(0),
   field_lens(0),field_block_len(0),
   table_name(0),db(0),fname(0)
@@ -611,14 +613,12 @@ Load_log_event::Load_log_event(const char* buf, int max_buf):
 {
   ulong data_len;
 
-  if((uint)max_buf < (LOAD_EVENT_OVERHEAD + LOG_EVENT_HEADER_LEN))
+  if(event_len < (LOAD_EVENT_OVERHEAD + LOG_EVENT_HEADER_LEN))
     return;
 
   buf += EVENT_LEN_OFFSET;
   
-  data_len = uint4korr(buf);
-  if((uint)data_len > (uint)max_buf)
-    return;
+  data_len = event_len;
   
   thread_id = uint4korr(buf+4);
   exec_time = uint4korr(buf+8);
