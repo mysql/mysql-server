@@ -74,13 +74,17 @@ err:
 }
 
 
-void Instance_options::get_pid_filename(char *result)
+int Instance_options::get_pid_filename(char *result)
 {
   const char *pid_file= mysqld_pid_file;
   char datadir[MAX_PATH_LEN];
 
   if (mysqld_datadir == NULL)
-    get_default_option(datadir, sizeof(datadir), "--datadir");
+  {
+    /* we might get an error here if we have wrong path to the mysqld binary */
+    if (get_default_option(datadir, sizeof(datadir), "--datadir"))
+      return 1;
+  }
   else
     strxnmov(datadir, MAX_PATH_LEN - 1, strchr(mysqld_datadir, '=') + 1,
              "/", NullS);
@@ -90,6 +94,7 @@ void Instance_options::get_pid_filename(char *result)
 
   /* get the full path to the pidfile */
   my_load_path(result, pid_file, datadir);
+  return 0;
 }
 
 
@@ -145,7 +150,8 @@ int Instance_options::complete_initialization(const char *default_path)
     add_option(pidfilename);
   }
 
-  get_pid_filename(pid_file_with_path);
+  if (get_pid_filename(pid_file_with_path))
+    goto err;
 
   /* we need to reserve space for the final zero + possible default options */
   if (!(argv= (char**) alloc_root(&alloc, (options_array.elements + 1

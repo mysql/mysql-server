@@ -41,7 +41,7 @@ struct Options
 
   static char **saved_argv;
 
-  static void load(int argc, char **argv);
+  static int load(int argc, char **argv);
   void cleanup();
 };
 

@@ -207,14 +207,16 @@ C_MODE_END
   May not return.
 */
 
-void Options::load(int argc, char **argv)
+int Options::load(int argc, char **argv)
 {
+  int rc;
   /* config-file options are prepended to command-line ones */
   load_defaults("my", default_groups, &argc, &argv);
 
-  if (int rc= handle_options(&argc, &argv, my_long_options, get_one_option))
-    exit(rc);
+  if (rc= handle_options(&argc, &argv, my_long_options, get_one_option))
+    return rc;
   Options::saved_argv= argv;
+  return 0;
 }
 
 void Options::cleanup()

@@ -34,7 +34,8 @@ public:
 
   ~Instance();
   int init(const char *name);
-  int complete_initialization(Instance_map *instance_map_arg);
+  int complete_initialization(Instance_map *instance_map_arg,
+                              const char *mysqld_path);
 
   bool is_running();
   int start();

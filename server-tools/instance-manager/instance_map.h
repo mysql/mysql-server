@@ -72,7 +72,7 @@ public:
   /* adds instance to internal hash */
   int add_instance(Instance *instance);
   /* inits instances argv's after all options have been loaded */
-  void complete_initialization();
+  int complete_initialization();
 
 public:
   const char *mysqld_path;
