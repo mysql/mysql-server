@@ -274,7 +274,7 @@ static char* pidfile_name_ptr= pidfile_name;
 static pthread_t select_thread;
 static my_bool opt_noacl=0, opt_bootstrap=0, opt_myisam_log=0;
 my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
-my_bool opt_safe_show_db=0, lower_case_table_names, opt_old_rpl_compat;
+my_bool lower_case_table_names, opt_old_rpl_compat;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0;
 
@@ -3226,8 +3226,7 @@ struct my_option my_long_options[] =
 #ifndef TO_BE_DELETED
   {"safe-show-database", OPT_SAFE_SHOW_DB,
    "Deprecated option; One should use GRANT SHOW DATABASES instead...",
-   (gptr*) &opt_safe_show_db, (gptr*) &opt_safe_show_db, 0, GET_BOOL, NO_ARG,
-   0, 0, 0, 0, 0, 0},
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"safe-user-create", OPT_SAFE_USER_CREATE,
    "Don't allow new user creation by the user who has no write privileges to the mysql.user table",
