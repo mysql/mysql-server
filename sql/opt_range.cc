@@ -2220,7 +2220,7 @@ key_and(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
   {
     if (key1->part > key2->part)
     {
-      swap(SEL_ARG *,key1,key2);
+      swap_variables(SEL_ARG *, key1, key2);
       clone_flag=swap_clone_flag(clone_flag);
     }
     // key1->part < key2->part
@@ -2236,7 +2236,7 @@ key_and(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
        key2->type != SEL_ARG::MAYBE_KEY) ||
       key1->type == SEL_ARG::MAYBE_KEY)
   {						// Put simple key in key2
-    swap(SEL_ARG *,key1,key2);
+    swap_variables(SEL_ARG *, key1, key2);
     clone_flag=swap_clone_flag(clone_flag);
   }
 
@@ -2378,7 +2378,7 @@ key_or(SEL_ARG *key1,SEL_ARG *key2)
   {
     if (key2->use_count == 0 || key1->elements > key2->elements)
     {
-      swap(SEL_ARG *,key1,key2);
+      swap_variables(SEL_ARG *,key1,key2);
     }
     else if (!(key1=key1->clone_tree()))
       return 0;					// OOM
@@ -2619,8 +2619,8 @@ SEL_ARG *
 SEL_ARG::insert(SEL_ARG *key)
 {
   SEL_ARG *element,**par,*last_element;
-
   LINT_INIT(par); LINT_INIT(last_element);
+
   for (element= this; element != &null_element ; )
   {
     last_element=element;
@@ -3115,26 +3115,32 @@ check_quick_keys(PARAM *param,uint idx,SEL_ARG *key_tree,
   {
     if (tmp_min_flag & GEOM_FLAG)
     {
-      tmp= param->table->file->
-	records_in_range((int) keynr, (byte*)(param->min_key),
-			 min_key_length,
-			 (ha_rkey_function)(tmp_min_flag ^ GEOM_FLAG),
-			 (byte *)NullS, 0, HA_READ_KEY_EXACT);
+      key_range min_range;
+      min_range.key=    (byte*) param->min_key;
+      min_range.length= min_key_length;
+      /* In this case tmp_min_flag contains the handler-read-function */
+      min_range.flag=   (ha_rkey_function) (tmp_min_flag ^ GEOM_FLAG);
+
+      tmp= param->table->file->records_in_range(keynr, &min_range,
+                                                (key_range*) 0);
     }
     else
     {
-      tmp=param->table->file->
-	records_in_range((int) keynr,
-			 (byte*) (!min_key_length ? NullS :
-				  param->min_key),
-			 min_key_length,
-                         tmp_min_flag & NEAR_MIN ?
-			  HA_READ_AFTER_KEY : HA_READ_KEY_EXACT,
-			 (byte*) (!max_key_length ? NullS :
-				  param->max_key),
-			 max_key_length,
-			 (tmp_max_flag & NEAR_MAX ?
-			  HA_READ_BEFORE_KEY : HA_READ_AFTER_KEY));
+      key_range min_range, max_range;
+
+      min_range.key=    (byte*) param->min_key;
+      min_range.length= min_key_length;
+      min_range.flag=   (tmp_min_flag & NEAR_MIN ? HA_READ_AFTER_KEY :
+                         HA_READ_KEY_EXACT);
+      max_range.key=    (byte*) param->max_key;
+      max_range.length= max_key_length;
+      max_range.flag=   (tmp_max_flag & NEAR_MAX ?
+                         HA_READ_BEFORE_KEY : HA_READ_AFTER_KEY);
+      tmp=param->table->file->records_in_range(keynr,
+                                               (min_key_length ? &min_range :
+                                                (key_range*) 0),
+                                               (max_key_length ? &max_range :
+                                                (key_range*) 0));
     }
   }
  end:
@@ -3563,7 +3569,7 @@ int QUICK_RANGE_SELECT::get_next()
     if (range)
     {
       // Already read through key
-      result= file->read_range_next(test(range->flag & EQ_RANGE));
+      result= file->read_range_next();
       if (result != HA_ERR_END_OF_FILE)
 	DBUG_RETURN(result);
     }
@@ -3594,6 +3600,7 @@ int QUICK_RANGE_SELECT::get_next()
 
     result= file->read_range_first(range->min_length ? &start_key : 0,
 				   range->max_length ? &end_key : 0,
+                                   test(range->flag & EQ_RANGE),
 				   sorted);
     if (range->flag == (UNIQUE_RANGE | EQ_RANGE))
       range=0;				// Stop searching
@@ -3871,40 +3878,15 @@ int QUICK_RANGE_SELECT::cmp_next(QUICK_RANGE *range_arg)
 
 int QUICK_RANGE_SELECT::cmp_prev(QUICK_RANGE *range_arg)
 {
+  int cmp;
   if (range_arg->flag & NO_MIN_RANGE)
     return 0;					/* key can't be to small */
 
-  KEY_PART *key_part = key_parts;
-  uint store_length;
-
-  for (char *key = range_arg->min_key, *end = key + range_arg->min_length;
-       key < end;
-       key += store_length, key_part++)
-  {
-    int cmp;
-    store_length= key_part->store_length;
-    if (key_part->null_bit)
-    {
-      // this key part allows null values; NULL is lower than everything else
-      if (*key)
-      {
-	// the range is expecting a null value
-	if (!key_part->field->is_null())
-	  return 0;	// not null -- still inside the range
-	continue;	// null -- exact match, go to next key part
-      }
-      else if (key_part->field->is_null())
-	return 1;	// null -- outside the range
-      key++;
-      store_length--;
-    }
-    if ((cmp = key_part->field->key_cmp((byte*) key,
-					key_part->length)) > 0)
-      return 0;
-    if (cmp < 0)
-      return 1;
-  }
-  return (range_arg->flag & NEAR_MIN) ? 1 : 0;		// Exact match
+  cmp= key_cmp(key_part_info, (byte*) range_arg->min_key,
+               range_arg->min_length);
+  if (cmp > 0 || cmp == 0 && !(range_arg->flag & NEAR_MIN))
+    return 0;
+  return 1;                                     // outside of range
 }
 
 

@@ -681,7 +681,7 @@ Properties * RepState::query(QueryCounter counter, Uint32 replicationId)
   if(prop == NULL)
     return NULL;
   NdbMutex_Lock(m_mutex);
-  if(counter != (Uint32)-1)
+  if(counter != ~(Uint32)0)
     getEpochState((Channel::Position)counter, prop );
   prop->put("no_of_nodegroups", m_channel.getNoOfNodeGroups());
   prop->put("subid", m_channel.getNoOfNodeGroups());
@@ -714,9 +714,13 @@ RepState::getEpochState(Channel::Position pos, Properties * p)
  */
   pos_first--;
   pos_last--;
+  first_buf[pos_first]= '\0';
+  last_buf[pos_last]= '\0';
+#if 0
   sprintf(first_buf+pos_first,"","");
   sprintf(last_buf + pos_last,"","");    
-  
+#endif
+
   p->put("first", first_buf);
   p->put("last", last_buf);
   

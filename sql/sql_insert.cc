@@ -408,7 +408,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
 	      (ulong) (info.records - info.copied), (ulong) thd->cuted_fields);
     else
       sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
-	      (ulong) info.deleted+info.updated, (ulong) thd->cuted_fields);
+	      (ulong) (info.deleted+info.updated), (ulong) thd->cuted_fields);
     thd->row_count_func= info.copied+info.deleted+info.updated;
     ::send_ok(thd, thd->row_count_func, (ulonglong)id,buff);
   }
@@ -431,7 +431,7 @@ abort:
   Prepare items in INSERT statement
 
   SYNOPSIS
-    mysql_prepare_update()
+    mysql_prepare_insert()
     thd			- thread handler
     table_list		- global table list
     insert_table_list	- local table list of INSERT SELECT_LEX
@@ -1580,7 +1580,7 @@ bool select_insert::send_eof()
 	    (ulong) (info.records - info.copied), (ulong) thd->cuted_fields);
   else
     sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
-	    (ulong) info.deleted+info.updated, (ulong) thd->cuted_fields);
+	    (ulong) (info.deleted+info.updated), (ulong) thd->cuted_fields);
   thd->row_count_func= info.copied+info.deleted+info.updated;
   ::send_ok(thd, thd->row_count_func, last_insert_id, buff);
   DBUG_RETURN(0);

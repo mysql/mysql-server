@@ -1,6 +1,5 @@
 
-#include <malloc.h>
-#include <stdlib.h>
+#include <ndb_global.h>
 
 extern "C" {
   void (* ndb_new_handler)() = 0;

@@ -95,6 +95,7 @@ $SI_DESC= <$SUPFILEDIR/StartupItem.Description.plist>;
 $SI_PARAMS= <$SUPFILEDIR/StartupParameters.plist>;
 $SI_POST= <$SUPFILEDIR/StartupItem.postinstall>;
 $SI_NAME= "MySQLStartupItem";
+$SI_DIR_NAME= "MySQLCOM";
 $SI_SCRIPT= <$SUPFILEDIR/MySQL>;
 @RESOURCES= qw/ ReadMe.txt postinstall preinstall /;
 @LICENSES= ("$SRCBASEDIR/COPYING","$SRCBASEDIR/MySQLEULA.txt");
@@ -195,16 +196,18 @@ unless ($opt_skip_si)
 	&logger("Cleaning up $RESOURCE_DIR");
 	&run_command("rm -rf $RESOURCE_DIR/*", "Unable to clean up $RESOURCE_DIR!");
 
-	&logger("Installing MySQL StartupItem files into $PKGROOT/MySQL");
+	my $SI_DIR= $PKGROOT . "/" . $SI_DIR_NAME;
+	&logger("Installing MySQL StartupItem files into $SI_DIR");
 	unless($opt_dry_run)
 	{
-		mkdir("$PKGROOT/MySQL") or &abort("Error creating $PKGROOT/MySQL");
-		copy("$SI_SCRIPT", "$PKGROOT/MySQL/")
+		mkdir("$SI_DIR")
+			or &abort("Error creating $SI_DIR");
+		copy("$SI_SCRIPT", "$SI_DIR/")
 			or &abort("Error copying $SI_SCRIPT!");
-		chmod(0755, "$PKGROOT/MySQL/" . basename("$SI_SCRIPT"));
-		copy("$SI_PARAMS", "$PKGROOT/MySQL/")
+		chmod(0755, "$SI_DIR/" . basename("$SI_SCRIPT"));
+		copy("$SI_PARAMS", "$SI_DIR/")
 			or &abort("Error copying $SI_PARAMS!");
-		chmod(0644, "$PKGROOT/MySQL/" . basename("$SI_PARAMS"));
+		chmod(0644, "$SI_DIR/" . basename("$SI_PARAMS"));
 		&run_command("chown -R root:wheel $PKGROOT/*", "Cannot chown $PKGROOT!");
 		copy("$SI_POST", "$RESOURCE_DIR/postinstall")
 			or &abort("Error copying $SI_POST!");

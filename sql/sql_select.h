@@ -306,6 +306,7 @@ class JOIN :public Sql_alloc
     return (do_send_rows && tmp_table_param.sum_func_count != 0 &&
 	    !group_list);
   }
+  int change_result(select_result *result);
 };
 
 

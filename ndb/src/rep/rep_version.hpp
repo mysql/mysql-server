@@ -29,7 +29,7 @@
 
 extern "C"
 void 
-DBUG_PRINT(const char * fmt, ...);
+DBUG_PRINT__(const char * fmt, ...);
 
 extern "C"
 void 

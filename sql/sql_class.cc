@@ -82,6 +82,79 @@ extern "C" void free_user_var(user_var_entry *entry)
 }
 
 
+bool key_part_spec::operator==(const key_part_spec& other) const
+{
+  return length == other.length && !strcmp(field_name, other.field_name);
+}
+
+
+/*
+  Test if a foreign key (= generated key) is a prefix of the given key
+  (ignoring key name, key type and order of columns)
+
+  NOTES:
+    This is only used to test if an index for a FOREIGN KEY exists
+
+  IMPLEMENTATION
+    We only compare field names
+
+  RETURN
+    0	Generated key is a prefix of other key
+    1	Not equal
+*/
+
+bool foreign_key_prefix(Key *a, Key *b)
+{
+  /* Ensure that 'a' is the generated key */
+  if (a->generated)
+  {
+    if (b->generated && a->columns.elements > b->columns.elements)
+      swap_variables(Key*, a, b);               // Put shorter key in 'a'
+  }
+  else
+  {
+    if (!b->generated)
+      return TRUE;                              // No foreign key
+    swap_variables(Key*, a, b);                 // Put generated key in 'a'
+  }
+
+  /* Test if 'a' is a prefix of 'b' */
+  if (a->columns.elements > b->columns.elements)
+    return TRUE;                                // Can't be prefix
+
+  List_iterator<key_part_spec> col_it1(a->columns);
+  List_iterator<key_part_spec> col_it2(b->columns);
+  const key_part_spec *col1, *col2;
+
+#ifdef ENABLE_WHEN_INNODB_CAN_HANDLE_SWAPED_FOREIGN_KEY_COLUMNS
+  while ((col1= col_it1++))
+  {
+    bool found= 0;
+    col_it2.rewind();
+    while ((col2= col_it2++))
+    {
+      if (*col1 == *col2)
+      {
+        found= TRUE;
+	break;
+      }
+    }
+    if (!found)
+      return TRUE;                              // Error
+  }
+  return FALSE;                                 // Is prefix
+#else
+  while ((col1= col_it1++))
+  {
+    col2= col_it2++;
+    if (!(*col1 == *col2))
+      return TRUE;
+  }
+  return FALSE;                                 // Is prefix
+#endif
+}
+
+
 /****************************************************************************
 ** Thread specific functions
 ****************************************************************************/
@@ -445,6 +518,35 @@ bool THD::convert_string(LEX_STRING *to, CHARSET_INFO *to_cs,
   DBUG_RETURN(0);
 }
 
+
+/*
+  Convert string from source character set to target character set inplace.
+
+  SYNOPSIS
+    THD::convert_string
+
+  DESCRIPTION
+    Convert string using convert_buffer - buffer for character set 
+    conversion shared between all protocols.
+
+  RETURN
+    0   ok
+   !0   out of memory
+*/
+
+bool THD::convert_string(String *s, CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
+{
+  if (convert_buffer.copy(s->ptr(), s->length(), from_cs, to_cs))
+    return TRUE;
+  /* If convert_buffer >> s copying is more efficient long term */
+  if (convert_buffer.alloced_length() >= convert_buffer.length() * 2 ||
+      !s->is_alloced())
+  {
+    return s->copy(convert_buffer);
+  }
+  s->swap(convert_buffer);
+  return FALSE;
+}
 
 /*
   Update some cache variables when character set changes

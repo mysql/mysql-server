@@ -18,12 +18,10 @@
 #define NODE_GROUPINFO_HPP
 
 #include <Vector.hpp>
-#include <NdbStdio.h>
 #include <NdbTick.h>
 #include <NdbMain.h>
 #include <NdbOut.hpp>
 //#include <NdbSleep.h>
-#include <NdbString.h>
 
 #include "NodeGroup.hpp"
 #include <rep/rep_version.hpp>

@@ -241,10 +241,10 @@ static struct my_option my_long_options[] =
   {"no-data", 'd', "No row information.", (gptr*) &dFlag, (gptr*) &dFlag, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"no-set-names", 'N',
-   "'SET NAMES charset_name' will not be put in the output. Deprecated, use --set-charset or --skip-set-charset to enable/disable charset settings instead",
+   "Deprecated, use --set-charset or --skip-set-charset to enable/disable charset settings instead",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"set-charset", OPT_SET_CHARSET,
-   "'SET NAMES charset_name' will be put in the output",
+   "'SET CHARACTER_SET_CLIENT=default_character_set' will be put in the output",
    (gptr*) &opt_set_charset, (gptr*) &opt_set_charset, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
   {"set-variable", 'O',
@@ -332,11 +332,13 @@ static int dump_all_databases();
 static char *quote_name(const char *name, char *buff, my_bool force);
 static const char *check_if_ignore_table(const char *table_name);
 
+#include <help_start.h>
 
 static void print_version(void)
 {
   printf("%s  Ver %s Distrib %s, for %s (%s)\n",my_progname,DUMP_VERSION,
-   MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
+         MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
+  NETWARE_SET_SCREEN_MODE(1);
 } /* print_version */
 
 
@@ -346,7 +348,9 @@ static void short_usage_sub(void)
   printf("OR     %s [OPTIONS] --databases [OPTIONS] DB1 [DB2 DB3...]\n",
 	 my_progname);
   printf("OR     %s [OPTIONS] --all-databases [OPTIONS]\n", my_progname);
+  NETWARE_SET_SCREEN_MODE(1);
 }
+
 
 static void usage(void)
 {
@@ -366,6 +370,8 @@ static void short_usage(void)
   short_usage_sub();
   printf("For more options, use %s --help\n", my_progname);
 }
+
+#include <help_end.h>
 
 
 static void write_header(FILE *sql_file, char *db_name)
@@ -1264,18 +1270,32 @@ static char *field_escape(char *to,const char *from,uint length)
 } /* field_escape */
 
 
+static char *alloc_query_str(ulong size)
+{
+  char *query;
+
+  if (!(query= (char*) my_malloc(size, MYF(MY_WME))))
+  {
+    ignore_errors= 0;   			/* Fatal error */
+    safe_exit(EX_MYSQLERR);			/* Force exit */
+  }
+  return query;
+}
+
 /*
 ** dumpTable saves database contents as a series of INSERT statements.
 */
 static void dumpTable(uint numFields, char *table)
 {
-  char query[QUERY_LENGTH], *end, buff[256],table_buff[NAME_LEN+3];
+  char query_buf[QUERY_LENGTH], *end, buff[256],table_buff[NAME_LEN+3];
   char *result_table, table_buff2[NAME_LEN*2+3], *opt_quoted_table;
+  char *query= query_buf;
   MYSQL_RES	*res;
   MYSQL_FIELD	*field;
   MYSQL_ROW	row;
   ulong		rownr, row_break, total_length, init_length;
   const char    *table_type;
+  int error= 0;
 
   result_table= quote_name(table,table_buff, 1);
   opt_quoted_table= quote_name(table, table_buff2, 0);
@@ -1321,8 +1341,11 @@ static void dumpTable(uint numFields, char *table)
     sprintf(buff," FROM %s", result_table);
     end= strmov(end,buff);
     if (where)
-      end= strxmov(end, " WHERE ",where,NullS);
-    if (mysql_query(sock, query))
+    {
+      query= alloc_query_str((ulong) (strlen(where) + (end - query) + 10));
+      end= strxmov(query, query_buf, " WHERE ", where, NullS);
+    }
+    if (mysql_real_query(sock, query, (uint) (end - query)))
     {
       DBerror(sock, "when executing 'SELECT INTO OUTFILE'");
       return;
@@ -1339,14 +1362,16 @@ static void dumpTable(uint numFields, char *table)
     {
       if (!opt_xml && opt_comments)
 	fprintf(md_result_file,"-- WHERE:  %s\n",where);
-      strxmov(strend(query), " WHERE ",where,NullS);
+      query= alloc_query_str((ulong) (strlen(where) + strlen(query) + 10));
+      strxmov(query, query_buf, " WHERE ", where, NullS);
     }
     if (!opt_xml && !opt_compact)
       fputs("\n", md_result_file);
     if (mysql_query(sock, query))
     {
       DBerror(sock, "when retrieving data from server");
-      return;
+      error= EX_CONSCHECK;
+      goto err;
     }
     if (quick)
       res=mysql_use_result(sock);
@@ -1355,7 +1380,8 @@ static void dumpTable(uint numFields, char *table)
     if (!res)
     {
       DBerror(sock, "when retrieving data from server");
-      return;
+      error= EX_CONSCHECK;
+      goto err;
     }
     if (verbose)
       fprintf(stderr, "-- Retrieving rows...\n");
@@ -1363,8 +1389,8 @@ static void dumpTable(uint numFields, char *table)
     {
       fprintf(stderr,"%s: Error in field count for table: %s !  Aborting.\n",
 	      my_progname, result_table);
-      safe_exit(EX_CONSCHECK);
-      return;
+      error= EX_CONSCHECK;
+      goto err;
     }
 
     if (opt_disable_keys)
@@ -1402,8 +1428,8 @@ static void dumpTable(uint numFields, char *table)
 	  sprintf(query,"%s: Not enough fields from table %s! Aborting.\n",
 		  my_progname, result_table);
 	  fputs(query,stderr);
-	  safe_exit(EX_CONSCHECK);
-	  return;
+	  error= EX_CONSCHECK;
+	  goto err;
 	}
 	if (extended_insert)
 	{
@@ -1422,7 +1448,8 @@ static void dumpTable(uint numFields, char *table)
 		if (dynstr_realloc(&extended_row,length * 2+2))
 		{
 		  fputs("Aborting dump (out of memory)",stderr);
-		  safe_exit(EX_EOM);
+		  error= EX_EOM;
+		  goto err;
 		}
 		dynstr_append(&extended_row,"'");
 		extended_row.length +=
@@ -1458,7 +1485,8 @@ static void dumpTable(uint numFields, char *table)
 	  else if (dynstr_append(&extended_row,"NULL"))
 	  {
 	    fputs("Aborting dump (out of memory)",stderr);
-	    safe_exit(EX_EOM);
+	    error= EX_EOM;
+	    goto err;
 	  }
 	}
 	else
@@ -1552,8 +1580,8 @@ static void dumpTable(uint numFields, char *table)
 	      result_table,
 	      rownr);
       fputs(query,stderr);
-      safe_exit(EX_CONSCHECK);
-      return;
+      error= EX_CONSCHECK;
+      goto err;
     }
     if (opt_lock)
       fputs("UNLOCK TABLES;\n", md_result_file);
@@ -1563,7 +1591,16 @@ static void dumpTable(uint numFields, char *table)
     if (opt_autocommit)
       fprintf(md_result_file, "commit;\n");
     mysql_free_result(res);
-  }
+    if (query != query_buf)
+      my_free(query, MYF(MY_ALLOW_ZERO_PTR));
+  } 
+  return;
+
+err:
+  if (query != query_buf)
+    my_free(query, MYF(MY_ALLOW_ZERO_PTR));
+  safe_exit(error);
+  return;
 } /* dumpTable */
 
 

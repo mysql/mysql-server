@@ -295,7 +295,7 @@ uint emb_count_querycache_size(THD *thd)
     cur_row= thd->data->data;
     n_rows= thd->data->rows;
   }
-  result= 4+8 + (42 + 4*n_rows)*mysql->field_count;
+  result= (uint) (4+8 + (42 + 4*n_rows)*mysql->field_count);
 
   for(; field < field_end; field++)
   {
@@ -414,8 +414,8 @@ int emb_load_querycache_result(THD *thd, Querycache_stream *src)
     goto err;
   thd->data= data;
   init_alloc_root(&data->alloc, 8192,0);
-  row= (MYSQL_ROWS *)alloc_root(&data->alloc, rows * sizeof(MYSQL_ROWS) +
-				rows * (mysql->field_count+1)*sizeof(char*));
+  row= (MYSQL_ROWS *)alloc_root(&data->alloc, (uint) (rows * sizeof(MYSQL_ROWS) +
+				rows * (mysql->field_count+1)*sizeof(char*)));
   end_row= row + rows;
   columns= (MYSQL_ROW)end_row;
   

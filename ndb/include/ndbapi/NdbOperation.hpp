@@ -17,14 +17,11 @@
 #ifndef NdbOperation_H
 #define NdbOperation_H
 
-#include <stdlib.h>
-#include <assert.h>
-
 #include <ndb_types.h>
-#include "AttrType.hpp"
-#include "NdbError.hpp"
-#include "NdbReceiver.hpp"
-#include <stdlib.h>
+
+#include <AttrType.hpp>
+#include <NdbError.hpp>
+#include <NdbReceiver.hpp>
 
 class Ndb;
 class NdbApiSignal;
@@ -480,8 +477,8 @@ public:
    *                    the attribute, or a NULL pointer 
    *                    (indicating error).
    */
-  NdbRecAttr* 		getValue(const char* anAttrName, char* aValue = NULL);
-  NdbRecAttr* 		getValue(Uint32 anAttrId, char* aValue = NULL);
+  NdbRecAttr* 		getValue(const char* anAttrName, char* aValue = 0);
+  NdbRecAttr* 		getValue(Uint32 anAttrId, char* aValue = 0);
   
   /**
    * Define an attribute to set or update in query.
@@ -925,7 +922,7 @@ protected:
   virtual int equal_impl(const NdbColumnImpl* anAttrObject, 
                          const char* aValue, 
                          Uint32 len);
-  NdbRecAttr* getValue(const NdbColumnImpl* anAttrObject, char* aValue = NULL);
+  NdbRecAttr* getValue(const NdbColumnImpl* anAttrObject, char* aValue = 0);
   int setValue(const NdbColumnImpl* anAttrObject, const char* aValue, Uint32 len);
   int incValue(const NdbColumnImpl* anAttrObject, Uint32 aValue);
   int incValue(const NdbColumnImpl* anAttrObject, Uint64 aValue);

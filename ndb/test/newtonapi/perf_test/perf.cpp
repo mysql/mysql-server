@@ -15,13 +15,11 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include <ndb_global.h>
+
 extern "C" {
 #include <dba.h>
 }
-
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
 
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
@@ -30,6 +28,9 @@ extern "C" {
 #include <NDBT_ReturnCodes.h>
 #include <NdbMain.h>
 #include <time.h>
+
+#undef min
+#undef max
 
 static const int NP_Insert      = 0;
 static const int NP_Update      = 1;

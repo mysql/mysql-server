@@ -126,8 +126,10 @@ fi
 
 # The following hack should ensure that configure doesn't add optimizing
 # or debugging flags to CFLAGS or CXXFLAGS
-CFLAGS="$CFLAGS "
-CXXFLAGS="$CXXFLAGS "
+# C_EXTRA_FLAGS are flags that are automaticly added to both
+# CFLAGS and CXXFLAGS
+CFLAGS="$CFLAGS $C_EXTRA_FLAGS "
+CXXFLAGS="$CXXFLAGS $C_EXTRA_FLAGS "
 
 dnl Checks for programs.
 AC_PROG_AWK
@@ -1120,8 +1122,8 @@ dnl Is this the right match for DEC OSF on alpha?
           # Add library dependencies to mysqld_DEPENDENCIES
           lib_DEPENDENCIES="\$(bdb_libs_with_path) \$(innodb_libs) \$(pstack_libs) \$(innodb_system_libs) \$(openssl_libs)"
           cat > $filesed << EOF
-s,\(^.*\$(MAKE) gen_lex_hash\),#\1,
-s,\(\./gen_lex_hash\),\1.linux,
+s,\(^.*\$(MAKE) gen_lex_hash\)\$(EXEEXT),#\1,
+s,\(\./gen_lex_hash\)\$(EXEEXT),\1.linux,
 s%\(mysqld_DEPENDENCIES = \) %\1$lib_DEPENDENCIES %
 EOF
           ;;
@@ -2847,6 +2849,7 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile dnl
  include/Makefile sql-bench/Makefile tools/Makefile dnl
  tests/Makefile Docs/Makefile support-files/Makefile dnl
  support-files/MacOSX/Makefile mysql-test/Makefile dnl
+ netware/Makefile dnl
  include/mysql_version.h dnl
  cmd-line-utils/Makefile dnl
  cmd-line-utils/libedit/Makefile dnl

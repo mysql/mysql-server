@@ -188,7 +188,7 @@ typedef struct my_charset_handler_st
 } MY_CHARSET_HANDLER;
 
 extern MY_CHARSET_HANDLER my_charset_8bit_handler;
-
+extern MY_CHARSET_HANDLER my_charset_ucs2_handler;
 
 
 typedef struct charset_info_st
@@ -204,6 +204,7 @@ typedef struct charset_info_st
   uchar    *to_lower;
   uchar    *to_upper;
   uchar    *sort_order;
+  uint16   **sort_order_big;
   uint16      *tab_to_uni;
   MY_UNI_IDX  *tab_from_uni;
   uchar state_map[256];

@@ -27,9 +27,10 @@ Finds the first table name in the given database. */
 char*
 dict_get_first_table_name_in_db(
 /*============================*/
-			/* out, own: table name, NULL if does not exist;
-			the caller must free the memory in the string! */
-	char*	name)	/* in: database name which ends to '/' */
+				/* out, own: table name, NULL if
+				does not exist; the caller must
+				free the memory in the string! */
+	const char*	name)	/* in: database name which ends to '/' */
 {
 	dict_table_t*	sys_tables;
 	btr_pcur_t	pcur;
@@ -389,8 +390,8 @@ Report that an index field or index for a table has been delete marked. */
 static
 void
 dict_load_report_deleted_index(
-	char*	name,	/* in: table name */
-	ulint	field)	/* in: index field, or ULINT_UNDEFINED */
+	const char*	name,	/* in: table name */
+	ulint		field)	/* in: index field, or ULINT_UNDEFINED */
 {
 	fputs("InnoDB: Error: data dictionary entry"
 		" for table ", stderr);
@@ -688,12 +689,13 @@ dictionary cache. */
 dict_table_t*
 dict_load_table(
 /*============*/
-			/* out: table, NULL if does not exist; if the table is
-			stored in an .ibd file, but the file does not exist,
-			then we set the ibd_file_missing flag TRUE in the table
-			object we return */
-	char*	name)	/* in: table name in the databasename/tablename
-			format */
+				/* out: table, NULL if does not exist;
+				if the table is stored in an .ibd file,
+				but the file does not exist,
+				then we set the ibd_file_missing flag TRUE
+				in the table object we return */
+	const char*	name)	/* in: table name in the
+				databasename/tablename format */
 {
 	ibool		ibd_file_missing	= FALSE;
 	dict_table_t*	table;
@@ -849,7 +851,7 @@ dict_load_table(
 "InnoDB: the foreign key table or the referenced table!\n"
 "InnoDB: The data dictionary of InnoDB is corrupt. You may need to drop\n"
 "InnoDB: and recreate the foreign key table or the referenced table.\n"
-"InnoDB: Send a detailed bug report to mysql@lists.mysql.com\n"
+"InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n"
 "InnoDB: Latest foreign key error printout:\n%s\n", dict_foreign_err_buf);
 				
 		mutex_exit(&dict_foreign_err_mutex);
@@ -1185,8 +1187,8 @@ already in the dictionary cache. */
 ulint
 dict_load_foreigns(
 /*===============*/
-				/* out: DB_SUCCESS or error code */
-	char*	table_name)	/* in: table name */
+					/* out: DB_SUCCESS or error code */
+	const char*	table_name)	/* in: table name */
 {
 	btr_pcur_t	pcur;
 	mem_heap_t* 	heap;

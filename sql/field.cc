@@ -423,30 +423,11 @@ bool Field::get_time(TIME *ltime)
 
 void Field::store_time(TIME *ltime,timestamp_type type)
 {
-  char buff[25];
-  switch (type)  {
-  case TIMESTAMP_NONE:
-  case TIMESTAMP_DATETIME_ERROR:
-    store("",0,&my_charset_bin);	// Probably an error
-    break;
-  case TIMESTAMP_DATE:
-    sprintf(buff,"%04d-%02d-%02d", ltime->year,ltime->month,ltime->day);
-    store(buff,10,&my_charset_bin);
-    break;
-  case TIMESTAMP_DATETIME:
-    sprintf(buff,"%04d-%02d-%02d %02d:%02d:%02d",
-	    ltime->year,ltime->month,ltime->day,
-	    ltime->hour,ltime->minute,ltime->second);
-    store(buff,19,&my_charset_bin);
-    break;
-  case TIMESTAMP_TIME:
-  {
-    ulong length= my_sprintf(buff, (buff, "%02d:%02d:%02d",
-				    ltime->hour,ltime->minute,ltime->second));
-    store(buff,(uint) length, &my_charset_bin);
-    break;
-  }
-  }
+  char buff[MAX_DATE_REP_LENGTH];
+  String tmp;
+  tmp.set(buff, sizeof(buff), &my_charset_bin);
+  TIME_to_string(ltime, &tmp);
+  store(buff, tmp.length(), &my_charset_bin);
 }
 
 
@@ -2307,7 +2288,8 @@ int Field_float::store(double nr)
     }
     else
     {
-      max_value= (log_10[field_length]-1)/log_10[dec];
+      uint tmp=min(field_length,array_elements(log_10)-1);
+      max_value= (log_10[tmp]-1)/log_10[dec];
       /*
 	The following comparison is needed to not get an overflow if nr
 	is close to FLT_MAX
@@ -2607,7 +2589,8 @@ int Field_double::store(double nr)
     }
     else
     {
-      max_value= (log_10[field_length]-1)/log_10[dec];
+      uint tmp=min(field_length,array_elements(log_10)-1);
+      max_value= (log_10[tmp]-1)/log_10[dec];
       if (fabs(nr) < DBL_MAX/10.0e+32)
 	nr= floor(nr*log_10[dec]+0.5)/log_10[dec];
     }
@@ -3928,6 +3911,11 @@ void Field_newdate::sql_type(String &res) const
 int Field_datetime::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   longlong tmp=str_to_datetime(from,len,1);
+  if (tmp < 0)
+  {
+    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE);
+    tmp= 0;
+  }
 #ifdef WORDS_BIGENDIAN
   if (table->db_low_byte_first)
   {
@@ -4250,12 +4238,13 @@ int Field_string::cmp(const char *a_ptr, const char *b_ptr)
       like in latin_de 'ae' and 0xe4
     */
     return field_charset->coll->strnncollsp(field_charset,
-				      (const uchar*) a_ptr, field_length,
-				      (const uchar*) b_ptr, field_length);
+                                            (const uchar*) a_ptr, field_length,
+                                            (const uchar*) b_ptr,
+                                            field_length);
   }
   return field_charset->coll->strnncoll(field_charset,
-				  (const uchar*) a_ptr, field_length,
-				  (const uchar*) b_ptr, field_length);
+                                        (const uchar*) a_ptr, field_length,
+                                        (const uchar*) b_ptr, field_length);
 }
 
 void Field_string::sort_string(char *to,uint length)

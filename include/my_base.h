@@ -191,7 +191,7 @@ enum ha_base_keytype {
 #define HA_UNIQUE_CHECK		256	/* Check the key for uniqueness */
 #define HA_SPATIAL		1024    /* For spatial search */
 #define HA_NULL_ARE_EQUAL	2048	/* NULL in key are cmp as equal */
-
+#define HA_GENERATED_KEY	8192	/* Automaticly generated key */
 
 	/* Automatic bits in key-flag */
 
@@ -348,6 +348,16 @@ enum en_fieldtype {
 enum data_file_type {
   STATIC_RECORD,DYNAMIC_RECORD,COMPRESSED_RECORD
 };
+
+/* For key ranges */
+
+typedef struct st_key_range
+{
+  const byte *key;
+  uint length;
+  enum ha_rkey_function flag;
+} key_range;
+
 
 /* For number of records */
 #ifdef BIG_TABLES

@@ -367,6 +367,12 @@ matchSize(NdbDictionary::Column::Type t, unsigned b, Size_t s) {
   case NdbDictionary::Column::Datetime:
   case NdbDictionary::Column::Timespec:
   case NdbDictionary::Column::Blob:
+  case NdbDictionary::Column::Tinyint:
+  case NdbDictionary::Column::Tinyunsigned:
+  case NdbDictionary::Column::Smallint:
+  case NdbDictionary::Column::Smallunsigned:
+  case NdbDictionary::Column::Mediumint:
+  case NdbDictionary::Column::Mediumunsigned:
   case NdbDictionary::Column::Undefined:
     return false;
   }

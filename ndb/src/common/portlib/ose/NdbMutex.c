@@ -19,7 +19,6 @@
 
 #include <pthread.h>
 #include <stdlib.h>
-#include <assert.h>
 
 
 NdbMutex* NdbMutex_Create(void)

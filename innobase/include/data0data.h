@@ -86,7 +86,7 @@ void
 dfield_set_data(
 /*============*/
 	dfield_t* 	field,	/* in: field */
-	void*		data,	/* in: data */
+	const void*	data,	/* in: data */
 	ulint		len);	/* in: length or UNIV_SQL_NULL */
 /**************************************************************************
 Writes an SQL null field full of zeros. */

@@ -14,17 +14,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <ndb_global.h>
 #include <NdbTCP.h>
 #include "repapi.h"
 //#include "mgmapi_debug.h"
 #include <socket_io.h>
 
-#include <stdlib.h>
-
-#include <string.h>
-#include <NdbStdio.h>
-#include <NdbString.h>
-#include <errno.h>
 #include <NdbOut.hpp>
 #include <SocketServer.hpp>
 #include <Parser.hpp>

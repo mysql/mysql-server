@@ -17,16 +17,9 @@
 #ifndef PCN_TYPES_H
 #define PCN_TYPES_H
 
-#include <stddef.h>
-#include <NdbUnistd.h>
+#include <ndb_global.h>
 
-#ifdef NDB_MACOSX
-typedef unsigned int Size_t;
-#elif defined(NDB_SPARC_64)
-typedef unsigned int Size_t;
-#else
 typedef size_t Size_t;
-#endif
 
 typedef int Boolean_t;
 
