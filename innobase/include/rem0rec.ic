@@ -40,8 +40,18 @@ most significant bytes and bits are written below less significant.
 
 	(1) byte offset		(2) bit usage within byte
 	downward from
-	origin ->	1	8 bits pointer to next record (relative)
-			2	8 bits pointer to next record (relative)
+	origin ->	1	8 bits relative offset of next record
+			2	8 bits relative offset of next record
+				  the relative offset is an unsigned 16-bit
+				  integer:
+				  (offset_of_next_record
+				   - offset_of_this_record) mod 64Ki,
+				  where mod is the modulo as a non-negative
+				  number;
+				  we can calculate the the offset of the next
+				  record with the formula:
+				  relative_offset + offset_of_this_record
+				  mod UNIV_PAGE_SIZE
 			3	3 bits status:
 					000=conventional record
 					001=node pointer record (inside B-tree)
@@ -252,26 +262,37 @@ UNIV_INLINE
 ulint 
 rec_get_next_offs(
 /*==============*/
-			/* out: the page offset of the next chained record */
+			/* out: the page offset of the next chained record, or
+			0 if none */
 	rec_t*	rec,	/* in: physical record */
 	ibool	comp)	/* in: TRUE=compact page format */
 {	
+	ulint	field_value;
+		
+	ut_ad(REC_NEXT_MASK == 0xFFFFUL);
+	ut_ad(REC_NEXT_SHIFT == 0);
+
+	field_value = mach_read_from_2(rec - REC_NEXT);
+
 	if (comp) {
-		lint ret = (signed short) rec_get_bit_field_2(rec, REC_NEXT,
-						REC_NEXT_MASK, REC_NEXT_SHIFT);
 #if UNIV_PAGE_SIZE <= 32768
-		/* with 64 KiB page size, the pointer will "wrap around",
-		and the following assertions are invalid */
-		ut_ad(ret + ut_align_offset(rec, UNIV_PAGE_SIZE) <
-							UNIV_PAGE_SIZE);
+		/* Note that for 64 KiB pages, field_value can 'wrap around'
+		and the debug assertion is not valid */
+
+		ut_ad((int16_t)field_value
+		       + ut_align_offset(rec, UNIV_PAGE_SIZE)
+		      < UNIV_PAGE_SIZE);
 #endif
-		return(ret ? ut_align_offset(rec + ret, UNIV_PAGE_SIZE) : 0);
-	}
-	else {
-		ulint ret = rec_get_bit_field_2(rec, REC_NEXT,
-						REC_NEXT_MASK, REC_NEXT_SHIFT);
-		ut_ad(ret < UNIV_PAGE_SIZE);
-		return(ret);
+		if (field_value == 0) {
+
+			return(0);
+		}
+		
+		return(ut_align_offset(rec + field_value, UNIV_PAGE_SIZE));
+	} else {
+		ut_ad(field_value < UNIV_PAGE_SIZE);
+
+		return(field_value);
 	}
 }
 
@@ -284,21 +305,31 @@ rec_set_next_offs(
 /*==============*/
 	rec_t*	rec,	/* in: physical record */
 	ibool	comp,	/* in: TRUE=compact page format */
-	ulint	next)	/* in: offset of the next record */
+	ulint	next)	/* in: offset of the next record, or 0 if none */
 {
 	ut_ad(rec);
 	ut_ad(UNIV_PAGE_SIZE > next);
+	ut_ad(REC_NEXT_MASK == 0xFFFFUL);
+	ut_ad(REC_NEXT_SHIFT == 0);
 
 	if (comp) {
-		rec_set_bit_field_2(rec, next
-				? (next - ut_align_offset(rec, UNIV_PAGE_SIZE))
-#ifdef UNIV_DEBUG /* avoid an assertion failure */
-				& (REC_NEXT_MASK >> REC_NEXT_SHIFT)
-#endif
-				: 0, REC_NEXT, REC_NEXT_MASK, REC_NEXT_SHIFT);
+		ulint field_value;
+
+		if (next) {
+			/* The following two statements calculate
+			next - offset_of_rec mod 64Ki, where mod is the modulo
+			as a non-negative number */
+		
+			field_value = (ulint)((lint)next 
+				- (lint)ut_align_offset(rec, UNIV_PAGE_SIZE));
+			field_value &= REC_NEXT_MASK;
+		} else {
+			field_value = 0;
+		}
+
+		mach_write_to_2(rec - REC_NEXT, field_value);
 	} else {
-		rec_set_bit_field_2(rec, next,
-				REC_NEXT, REC_NEXT_MASK, REC_NEXT_SHIFT);
+		mach_write_to_2(rec - REC_NEXT, next);
 	}
 }
 
