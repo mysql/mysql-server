@@ -91,7 +91,8 @@ typedef struct st_join_table {
   SQL_SELECT	*select;
   COND		*select_cond;
   QUICK_SELECT_I *quick;
-  Item		*on_expr;       /* associated on expression                  */
+  Item	       **on_expr_ref;   /* pointer to the associated on expression   */
+  COND_EQUAL    *cond_equal;    /* multiple equalities for the on expression */
   st_join_table *first_inner;   /* first inner table for including outerjoin */
   bool           found;         /* true after all matches or null complement */
   bool           not_null_compl;/* true before null complement is added      */
@@ -222,6 +223,7 @@ class JOIN :public Sql_alloc
   Item *conds_history;                    // store WHERE for explain
   TABLE_LIST *tables_list;           //hold 'tables' parameter of mysql_select
   List<TABLE_LIST> *join_list;       // list of joined tables in reverse order
+  COND_EQUAL *cond_equal;
   SQL_SELECT *select;                //created in optimisation phase
   JOIN_TAB *return_tab;              //used only for outer joins
   Item **ref_pointer_array; //used pointer reference for this select
@@ -284,6 +286,7 @@ class JOIN :public Sql_alloc
     ref_pointer_array_size= 0;
     zero_result_cause= 0;
     optimized= 0;
+    cond_equal= 0;
 
     fields_list= fields_arg;
     bzero((char*) &keyuse,sizeof(keyuse));
