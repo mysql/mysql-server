@@ -47,6 +47,7 @@
 #include "slave.h"
 #include "sql_acl.h"
 #include <my_getopt.h>
+#include <thr_alarm.h>
 #include <myisam.h>
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"
@@ -153,7 +154,8 @@ sys_var_long_ptr	sys_max_connections("max_connections",
 sys_var_long_ptr	sys_max_connect_errors("max_connect_errors",
 					       &max_connect_errors);
 sys_var_long_ptr	sys_max_delayed_threads("max_delayed_threads",
-						&max_insert_delayed_threads);
+						&max_insert_delayed_threads,
+						fix_max_connections);
 sys_var_thd_ulong	sys_max_heap_table_size("max_heap_table_size",
 						&SV::max_heap_table_size);
 sys_var_thd_ha_rows	sys_max_join_size("max_join_size",
@@ -753,12 +755,12 @@ static void fix_max_relay_log_size(THD *thd, enum_var_type type)
   DBUG_VOID_RETURN;
 }
 
-#include <thr_alarm.h>
-static void
-fix_max_connections(THD *thd, enum_var_type type)
+
+static void fix_max_connections(THD *thd, enum_var_type type)
 {
-  resize_thr_alarm(max_connections);
+  resize_thr_alarm(max_connections + max_insert_delayed_threads + 10);
 }
+
 
 bool sys_var_long_ptr::update(THD *thd, set_var *var)
 {
