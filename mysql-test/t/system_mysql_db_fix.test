@@ -9,6 +9,7 @@ use test;
 
 # create system tables as in mysql-3.20
 
+--disable_warnings
 CREATE TABLE db (
   Host char(60) binary DEFAULT '' NOT NULL,
   Db char(32) binary DEFAULT '' NOT NULL,
@@ -23,10 +24,12 @@ CREATE TABLE db (
   KEY User (User)
 )
 type=ISAM;
+--enable-warnings
 
 INSERT INTO db VALUES ('%','test',   '','Y','Y','Y','Y','Y','Y');
 INSERT INTO db VALUES ('%','test\_%','','Y','Y','Y','Y','Y','Y');
 
+--disable_warnings
 CREATE TABLE host (
   Host char(60) binary DEFAULT '' NOT NULL,
   Db char(32) binary DEFAULT '' NOT NULL,
@@ -39,7 +42,9 @@ CREATE TABLE host (
   PRIMARY KEY Host (Host,Db)
 )
 type=ISAM;
+--enable-warnings
 
+--disable_warnings
 CREATE TABLE user (
   Host char(60) binary DEFAULT '' NOT NULL,
   User char(16) binary DEFAULT '' NOT NULL,
@@ -56,6 +61,7 @@ CREATE TABLE user (
   PRIMARY KEY Host (Host,User)
 )
 type=ISAM;
+--enable-warnings
 
 INSERT INTO user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y');
 INSERT INTO user VALUES ('localhost','',    '','N','N','N','N','N','N','N','N','N');
