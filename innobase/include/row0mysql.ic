@@ -89,7 +89,12 @@ row_mysql_store_col_in_innobase_format(
 		}
 	} else if (type == DATA_VARCHAR || type == DATA_VARMYSQL
 						|| type == DATA_BINARY) {
-		ptr = row_mysql_read_var_ref(&col_len, mysql_data); 
+		ptr = row_mysql_read_var_ref(&col_len, mysql_data);
+		
+		/* Remove trailing spaces */
+		while (col_len > 0 && ptr[col_len - 1] == ' ') {
+			col_len--;
+		} 
 
 	} else if (type == DATA_BLOB) {
 		ptr = row_mysql_read_blob_ref(&col_len, mysql_data, col_len);
