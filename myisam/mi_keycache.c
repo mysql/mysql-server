@@ -79,6 +79,7 @@ int mi_assign_to_key_cache(MI_INFO *info,
   if (flush_key_blocks(share->key_cache, share->kfile, FLUSH_RELEASE))
   {
     error= my_errno;
+    mi_print_error(info, HA_ERR_CRASHED);
     mi_mark_crashed(info);		/* Mark that table must be checked */
   }
 

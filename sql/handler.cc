@@ -244,9 +244,99 @@ bool ha_caching_allowed(THD* thd, char* table_key,
   return 1;
 }
 
+
+/*
+  Register handler error messages for use with my_error().
+
+  SYNOPSIS
+    ha_init_errors()
+
+  RETURN
+    0           OK
+    != 0        Error
+*/
+
+static int ha_init_errors(void)
+{
+#define SETMSG(nr, msg) errmsgs[(nr) - HA_ERR_FIRST]= (msg)
+  const char    **errmsgs;
+
+  /* Allocate a pointer array for the error message strings. */
+  /* Zerofill it to avoid uninitialized gaps. */
+  if (! (errmsgs= (const char**) my_malloc(HA_ERR_ERRORS * sizeof(char*),
+                                           MYF(MY_WME | MY_ZEROFILL))))
+    return 1;
+
+  /* Set the dedicated error messages. */
+  SETMSG(HA_ERR_KEY_NOT_FOUND,          ER(ER_KEY_NOT_FOUND));
+  SETMSG(HA_ERR_FOUND_DUPP_KEY,         ER(ER_DUP_KEY));
+  SETMSG(HA_ERR_RECORD_CHANGED,         "Update wich is recoverable");
+  SETMSG(HA_ERR_WRONG_INDEX,            "Wrong index given to function");
+  SETMSG(HA_ERR_CRASHED,                ER(ER_NOT_KEYFILE));
+  SETMSG(HA_ERR_WRONG_IN_RECORD,        ER(ER_CRASHED_ON_USAGE));
+  SETMSG(HA_ERR_OUT_OF_MEM,             "Table handler out of memory");
+  SETMSG(HA_ERR_NOT_A_TABLE,            "Incorrect file format '%.64s'");
+  SETMSG(HA_ERR_WRONG_COMMAND,          "Command not supported");
+  SETMSG(HA_ERR_OLD_FILE,               ER(ER_OLD_KEYFILE));
+  SETMSG(HA_ERR_NO_ACTIVE_RECORD,       "No record read in update");
+  SETMSG(HA_ERR_RECORD_DELETED,         "Intern record deleted");
+  SETMSG(HA_ERR_RECORD_FILE_FULL,       ER(ER_RECORD_FILE_FULL));
+  SETMSG(HA_ERR_INDEX_FILE_FULL,        "No more room in index file '%.64s'");
+  SETMSG(HA_ERR_END_OF_FILE,            "End in next/prev/first/last");
+  SETMSG(HA_ERR_UNSUPPORTED,            ER(ER_ILLEGAL_HA));
+  SETMSG(HA_ERR_TO_BIG_ROW,             "Too big row");
+  SETMSG(HA_WRONG_CREATE_OPTION,        "Wrong create option");
+  SETMSG(HA_ERR_FOUND_DUPP_UNIQUE,      ER(ER_DUP_UNIQUE));
+  SETMSG(HA_ERR_UNKNOWN_CHARSET,        "Can't open charset");
+  SETMSG(HA_ERR_WRONG_MRG_TABLE_DEF,    ER(ER_WRONG_MRG_TABLE));
+  SETMSG(HA_ERR_CRASHED_ON_REPAIR,      ER(ER_CRASHED_ON_REPAIR));
+  SETMSG(HA_ERR_CRASHED_ON_USAGE,       ER(ER_CRASHED_ON_USAGE));
+  SETMSG(HA_ERR_LOCK_WAIT_TIMEOUT,      ER(ER_LOCK_WAIT_TIMEOUT));
+  SETMSG(HA_ERR_LOCK_TABLE_FULL,        ER(ER_LOCK_TABLE_FULL));
+  SETMSG(HA_ERR_READ_ONLY_TRANSACTION,  ER(ER_READ_ONLY_TRANSACTION));
+  SETMSG(HA_ERR_LOCK_DEADLOCK,          ER(ER_LOCK_DEADLOCK));
+  SETMSG(HA_ERR_CANNOT_ADD_FOREIGN,     ER(ER_CANNOT_ADD_FOREIGN));
+  SETMSG(HA_ERR_NO_REFERENCED_ROW,      ER(ER_NO_REFERENCED_ROW));
+  SETMSG(HA_ERR_ROW_IS_REFERENCED,      ER(ER_ROW_IS_REFERENCED));
+  SETMSG(HA_ERR_NO_SAVEPOINT,           "No savepoint with that name");
+  SETMSG(HA_ERR_NON_UNIQUE_BLOCK_SIZE,  "Non unique key block size");
+  SETMSG(HA_ERR_NO_SUCH_TABLE,          "No such table: '%.64s'");
+  SETMSG(HA_ERR_TABLE_EXIST,            ER(ER_TABLE_EXISTS_ERROR));
+  SETMSG(HA_ERR_NO_CONNECTION,          "Could not connect to storage engine");
+
+  /* Register the error messages for use with my_error(). */
+  return my_error_register(errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
+}
+
+
+/*
+  Unregister handler error messages.
+
+  SYNOPSIS
+    ha_finish_errors()
+
+  RETURN
+    0           OK
+    != 0        Error
+*/
+
+static int ha_finish_errors(void)
+{
+  const char    **errmsgs;
+
+  /* Allocate a pointer array for the error message strings. */
+  if (! (errmsgs= my_error_unregister(HA_ERR_FIRST, HA_ERR_LAST)))
+    return 1;
+  my_free((gptr) errmsgs, MYF(0));
+  return 0;
+}
+
+
 int ha_init()
 {
   int error= 0;
+  if (ha_init_errors())
+    return 1;
 #ifdef HAVE_BERKELEY_DB
   if (have_berkeley_db == SHOW_OPTION_YES)
   {
@@ -314,6 +404,8 @@ int ha_panic(enum ha_panic_function flag)
   if (have_ndbcluster == SHOW_OPTION_YES)
     error|=ndbcluster_end();
 #endif
+  if (ha_finish_errors())
+    error= 1;
   return error;
 } /* ha_panic */
 
@@ -1241,8 +1333,14 @@ void handler::print_error(int error, myf errflag)
   case HA_ERR_CRASHED:
     textno=ER_NOT_KEYFILE;
     break;
+  case HA_ERR_WRONG_IN_RECORD:
+    textno= ER_CRASHED_ON_USAGE;
+    break;
   case HA_ERR_CRASHED_ON_USAGE:
     textno=ER_CRASHED_ON_USAGE;
+    break;
+  case HA_ERR_NOT_A_TABLE:
+    textno= error;
     break;
   case HA_ERR_CRASHED_ON_REPAIR:
     textno=ER_CRASHED_ON_REPAIR;
@@ -1261,6 +1359,9 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_RECORD_FILE_FULL:
     textno=ER_RECORD_FILE_FULL;
+    break;
+  case HA_ERR_INDEX_FILE_FULL:
+    textno= errno;
     break;
   case HA_ERR_LOCK_WAIT_TIMEOUT:
     textno=ER_LOCK_WAIT_TIMEOUT;
