@@ -371,6 +371,7 @@ public:
 
   ulong init_prepare_fake_select_lex(THD *thd);
   int change_result(select_subselect *result, select_subselect *old_result);
+  inline bool is_prepared() { return prepared; }
 
   friend void lex_start(THD *thd, uchar *buf, uint length);
   friend int subselect_union_engine::exec();
