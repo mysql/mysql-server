@@ -562,8 +562,9 @@ static uint read_event(MYSQL* mysql, MASTER_INFO *mi)
     return packet_error;
   if (len == packet_error || (int) len < 1)
   {
-    sql_print_error("Error reading packet from server: %s (%d)",
-		    mc_mysql_error(mysql), read_errno);
+    sql_print_error("Error reading packet from server: %s (read_errno %d,\
+server_errno=%d)",
+		    mc_mysql_error(mysql), read_errno, mc_mysql_errno(mysql));
     return packet_error;
   }
 

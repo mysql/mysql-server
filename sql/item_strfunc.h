@@ -69,7 +69,13 @@ public:
   ~Item_func_concat_ws() { delete separator; }
   String *val_str(String *);
   void fix_length_and_dec();
-  const char *func_name() const { return "concat_ws"; }
+  void update_used_tables();
+  bool fix_fields(THD *thd,struct st_table_list *tlist)
+  {
+    return (separator->fix_fields(thd,tlist)
+	    || Item_func::fix_fields(thd,tlist));
+  }
+ const char *func_name() const { return "concat_ws"; }
 };
 
 class Item_func_reverse :public Item_str_func

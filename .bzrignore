@@ -173,3 +173,4 @@ mysql-test/var/lib/test/elt_ck2.frm
 mysql-test/var/lib/test/elt_ck2.MYD
 mysql-test/var/lib/test/elt_ck2.MYI
 repl-tests/test-repl-ts/repl-timestamp.master.reject
+client/.mysqladmin.c.swp
