@@ -447,3 +447,12 @@ INSERT INTO t1 VALUES (1,2),(2,3),(4,5),(3,5),(1,5),(23,5);
 SELECT i, COUNT(DISTINCT(i)) FROM t1 GROUP BY j ORDER BY NULL;
 explain SELECT i, COUNT(DISTINCT(i)) FROM t1 GROUP BY j ORDER BY NULL;
 DROP TABLE t1;
+
+#Test for BUG#6976: Aggregate functions have incorrect NULL-ness
+create table t1 (a int);
+insert into t1 values(null);
+select min(a) is null from t1;
+select min(a) is null or null from t1;
+select 1 and min(a) is null from t1;
+drop table t1;
+
