@@ -886,8 +886,13 @@ int yylex(void *arg, void *yythd)
       }
       /* fall true */
     case MY_LEX_EOL:
-      lex->next_state=MY_LEX_END;	// Mark for next loop
-      return(END_OF_INPUT);
+      if (lex->ptr >= lex->end_of_query)
+      {
+	lex->next_state=MY_LEX_END;	// Mark for next loop
+	return(END_OF_INPUT);
+      }
+      state=MY_LEX_CHAR;
+      break;
     case MY_LEX_END:
       lex->next_state=MY_LEX_END;
       return(0);			// We found end of input last time
