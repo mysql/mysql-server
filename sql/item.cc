@@ -23,6 +23,7 @@
 #include <m_ctype.h>
 #include "my_dir.h"
 #include "sp_rcontext.h"
+#include "sql_acl.h"
 
 static void mark_as_dependent(THD *thd,
 			      SELECT_LEX *last, SELECT_LEX *current,
@@ -97,9 +98,9 @@ void Item::print_item_w_name(String *str)
   print(str);
   if (name)
   {
-    str->append(" AS `", 5);
-    str->append(name);
-    str->append('`');
+    THD *thd= current_thd;
+    str->append(" AS ", 4);
+    append_identifier(thd, str, name, strlen(name));
   }
 }
 
@@ -350,7 +351,8 @@ bool DTCollation::aggregate(DTCollation &dt)
 }
 
 Item_field::Item_field(Field *f)
-  :Item_ident(NullS, f->table_name, f->field_name)
+  :Item_ident(NullS, f->table_name, f->field_name),
+   have_privileges(0), any_privileges(0)
 {
   set_field(f);
   collation.set(DERIVATION_IMPLICIT);
@@ -359,7 +361,8 @@ Item_field::Item_field(Field *f)
 
 Item_field::Item_field(THD *thd, Field *f)
   :Item_ident(NullS, thd->strdup(f->table_name), 
-              thd->strdup(f->field_name))
+              thd->strdup(f->field_name)),
+   have_privileges(0), any_privileges(0)
 {
   set_field(f);
   collation.set(DERIVATION_IMPLICIT);
@@ -370,7 +373,9 @@ Item_field::Item_field(THD *thd, Field *f)
 Item_field::Item_field(THD *thd, Item_field *item)
   :Item_ident(thd, item),
    field(item->field),
-   result_field(item->result_field)
+   result_field(item->result_field),
+   have_privileges(item->have_privileges),
+   any_privileges(item->any_privileges)
 {
   collation.set(DERIVATION_IMPLICIT);
 }
@@ -411,6 +416,36 @@ const char *Item_ident::full_name() const
       tmp= (char*) field_name;
   }
   return tmp;
+}
+
+void Item_ident::print(String *str)
+{
+  THD *thd= current_thd;
+  if (!table_name || !field_name)
+  {
+    const char *nm= field_name ? field_name : name ? name : "tmp_field";
+    append_identifier(thd, str, nm, strlen(nm));
+    return;
+  }
+  if (db_name && db_name[0])
+  {
+    append_identifier(thd, str, db_name, strlen(db_name));
+    str->append('.');
+    append_identifier(thd, str, table_name, strlen(table_name));
+    str->append('.');
+    append_identifier(thd, str, field_name, strlen(field_name));
+  }
+  else
+  {
+    if (table_name[0])
+    {
+      append_identifier(thd, str, table_name, strlen(table_name));
+      str->append('.');
+      append_identifier(thd, str, field_name, strlen(field_name));
+    }
+    else
+      append_identifier(thd, str, field_name, strlen(field_name));
+  }
 }
 
 /* ARGSUSED */
@@ -1223,10 +1258,10 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   DBUG_ASSERT(fixed == 0);
   if (!field)					// If field is not checked
   {
-    TABLE_LIST *where= 0;
     bool upward_lookup= 0;
     Field *tmp= (Field *)not_found_field;
-    if ((tmp= find_field_in_tables(thd, this, tables, &where, 0)) ==
+    if ((tmp= find_field_in_tables(thd, this, tables, ref, 0,
+                                   !any_privileges)) ==
 	not_found_field)
     {
       /*
@@ -1259,18 +1294,19 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	  if (sl->resolve_mode == SELECT_LEX::INSERT_MODE && table_list)
 	  {
 	    // it is primary INSERT st_select_lex => skip first table resolving
-	    table_list= table_list->next;
+	    table_list= table_list->next_local;
 	  }
 
 	  Item_subselect *prev_subselect_item= prev_unit->item;
 	  if ((tmp= find_field_in_tables(thd, this,
-					 table_list, &where,
-					 0)) != not_found_field)
+					 table_list, ref,
+					 0, 1)) != not_found_field)
 	  {
-	    if (!tmp)
-	      return -1;
-	    prev_subselect_item->used_tables_cache|= tmp->table->map;
-	    prev_subselect_item->const_item_cache= 0;
+	    if (tmp && tmp != view_ref_found)
+	    {
+	      prev_subselect_item->used_tables_cache|= tmp->table->map;
+	      prev_subselect_item->const_item_cache= 0;
+	    }
 	    break;
 	  }
 	  if (sl->resolve_mode == SELECT_LEX::SELECT_MODE &&
@@ -1310,7 +1346,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	else
 	{
 	  // Call to report error
-	  find_field_in_tables(thd, this, tables, &where, 1);
+	  find_field_in_tables(thd, this, tables, ref, 1, 1);
 	}
 	return -1;
       }
@@ -1348,8 +1384,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	{
 	  Item_ref *rf;
 	  *ref= rf= new Item_ref(ref, *ref,
-				 (where->db[0]?where->db:0), 
-				 (char *)where->alias,
+				 (cached_table->db[0]?cached_table->db:0),
+				 (char *)cached_table->alias,
 				 (char *)field_name);
 	  if (!rf)
 	    return 1;
@@ -1364,7 +1400,20 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     else if (!tmp)
       return -1;
 
-    set_field(tmp);
+    /*
+      if it is not expression from merged VIEW we will set this field.
+
+      We can leave expression substituted from view for next PS/SP rexecution
+      (i.e. do not register this substitution for reverting on cleupup()
+      (register_item_tree_changing())), because this subtree will be
+      fix_field'ed during setup_tables()->setup_ancestor() (i.e. before
+      all other expressions of query, and references on tables which do
+      not present in query will not make problems.
+
+      Also we suppose that view can't be changed during PS/SP life.
+    */
+    if (tmp != view_ref_found)
+      set_field(tmp);
   }
   else if (thd->set_query_id && field->query_id != thd->query_id)
   {
@@ -1374,6 +1423,36 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     table->used_fields++;
     table->used_keys.intersect(field->part_of_key);
   }
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  if (any_privileges)
+  {
+    char *db, *tab;
+    if (cached_table->view)
+    {
+      db= cached_table->view_db.str;
+      tab= cached_table->view_name.str;
+    }
+    else
+    {
+      db= cached_table->db;
+      tab= cached_table->real_name;
+    }
+    if (!(have_privileges= (get_column_grant(thd, &field->table->grant,
+                                             db, tab, field_name) &
+                            VIEW_ANY_ACL)))
+    {
+      my_printf_error(ER_COLUMNACCESS_DENIED_ERROR,
+                      ER(ER_COLUMNACCESS_DENIED_ERROR),
+                      MYF(0),
+                      "ANY",
+                      thd->priv_user,
+                      thd->host_or_ip,
+                      field_name,
+                      tab);
+      return 1;
+    }
+  }
+#endif
   fixed= 1;
   return 0;
 }
@@ -1870,13 +1949,13 @@ bool Item_field::send(Protocol *protocol, String *buffer)
   Find field in select list having the same name
  */
 
-bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
+bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 {
   DBUG_ASSERT(fixed == 0);
   uint counter;
   if (!ref)
   {
-    TABLE_LIST *where= 0, *table_list;
+    TABLE_LIST *table_list;
     bool upward_lookup= 0;
     SELECT_LEX_UNIT *prev_unit= thd->lex->current_select->master_unit();
     SELECT_LEX *sl= prev_unit->outer_select();
@@ -1929,14 +2008,17 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	if (sl->resolve_mode == SELECT_LEX::INSERT_MODE && table_list)
 	{
 	  // it is primary INSERT st_select_lex => skip first table resolving
-	  table_list= table_list->next;
+	  table_list= table_list->next_local;
 	}
 	if ((tmp= find_field_in_tables(thd, this,
-				       table_list, &where,
-				       0)) != not_found_field)
+				       table_list, reference,
+				       0, 1)) != not_found_field)
 	{
-	  prev_subselect_item->used_tables_cache|= tmp->table->map;
-	  prev_subselect_item->const_item_cache= 0;
+	  if (tmp && tmp != view_ref_found)
+	  {
+	    prev_subselect_item->used_tables_cache|= tmp->table->map;
+	    prev_subselect_item->const_item_cache= 0;
+	  }
 	  break;
 	}
 
@@ -1975,12 +2057,26 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
       else if (tmp != not_found_field)
       {
 	ref= 0; // To prevent "delete *ref;" on ~Item_erf() of this item
-	Item_field* fld;
-	if (!((*reference)= fld= new Item_field(tmp)))
-	  return 1;
-	register_item_tree_changing(reference);
-	mark_as_dependent(thd, last, thd->lex->current_select, fld);
-	return 0;
+	if (tmp != view_ref_found)
+	{
+	  Item_field* fld;
+	  if (!((*reference)= fld= new Item_field(tmp)))
+	    return 1;
+	  mark_as_dependent(thd, last, thd->lex->current_select, fld);
+	  return 0;
+	  register_item_tree_changing(reference);
+	}
+        /*
+	  We can leave expression substituted from view for next PS/SP
+	  rexecution (i.e. do not register this substitution for reverting
+	  on cleupup() (register_item_tree_changing())), because this
+	  subtree will be fix_field'ed during
+	  setup_tables()->setup_ancestor() (i.e. before all other
+	  expressions of query, and references on tables which do not
+	  present in query will not make problems.
+
+	  Also we suppose that view can't be changed during PS/SP life.
+	*/
       }
       else
       {

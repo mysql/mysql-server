@@ -1727,7 +1727,7 @@ com_help(String *buffer __attribute__((unused)),
 		  commands[i].cmd_char, commands[i].doc);
   }
   if (connected && mysql_get_server_version(&mysql) >= 40100)
-    put_info("\nFor server side help, type 'help all'\n", INFO_INFO);
+    put_info("\nFor server side help, type 'help contents'\n", INFO_INFO);
   return 0;
 }
 

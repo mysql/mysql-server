@@ -89,7 +89,7 @@ int mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
     }
 
   }
-  error=mysql_rm_table_part2(thd,tables, if_exists, drop_temporary, 0);
+  error= mysql_rm_table_part2(thd, tables, if_exists, drop_temporary, 0, 0);
 
  err:
   pthread_mutex_unlock(&LOCK_open);
@@ -134,8 +134,8 @@ int mysql_rm_table_part2_with_lock(THD *thd,
   thd->mysys_var->current_cond= &COND_refresh;
   VOID(pthread_mutex_lock(&LOCK_open));
 
-  error=mysql_rm_table_part2(thd,tables, if_exists, drop_temporary,
-			     dont_log_query);
+  error= mysql_rm_table_part2(thd, tables, if_exists, drop_temporary, 1,
+			      dont_log_query);
 
   pthread_mutex_unlock(&LOCK_open);
 
@@ -157,6 +157,7 @@ int mysql_rm_table_part2_with_lock(THD *thd,
     if_exists		If set, don't give an error if table doesn't exists.
 			In this case we give an warning of level 'NOTE'
     drop_temporary	Only drop temporary tables
+    drop_view		Allow to delete VIEW .frm
     dont_log_query	Don't log the query
 
   TODO:
@@ -176,7 +177,8 @@ int mysql_rm_table_part2_with_lock(THD *thd,
 */
 
 int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
-			 bool drop_temporary, bool dont_log_query)
+			 bool drop_temporary, bool drop_view,
+			 bool dont_log_query)
 {
   TABLE_LIST *table;
   char	path[FN_REFLEN], *alias;
@@ -188,7 +190,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   if (lock_table_names(thd, tables))
     DBUG_RETURN(1);
 
-  for (table=tables ; table ; table=table->next)
+  for (table= tables; table; table= table->next_local)
   {
     char *db=table->db;
     mysql_ha_close(thd, table, /*dont_send_ok*/ 1, /*dont_lock*/ 1);
@@ -216,7 +218,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       strxmov(path, mysql_data_home, "/", db, "/", alias, reg_ext, NullS);
       (void) unpack_filename(path,path);
     }
-    if (drop_temporary || access(path,F_OK))
+    if (drop_temporary || access(path,F_OK) ||
+	(!drop_view && mysql_frm_type(path) != FRMTYPE_TABLE))
     {
       if (if_exists)
 	push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
@@ -1333,7 +1336,7 @@ make_unique_key_name(const char *field_name,KEY *start,KEY *end)
 ****************************************************************************/
 
 TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
-			       const char *db, const char *name,
+			       TABLE_LIST *create_table,
 			       List<create_field> *extra_fields,
 			       List<Key> *keys,
 			       List<Item> *items,
@@ -1373,21 +1376,24 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   }
   /* create and lock table */
   /* QQ: This should be done atomic ! */
-  if (mysql_create_table(thd,db,name,create_info,*extra_fields,
-			 *keys,0,1,select_field_count)) // no logging
+  if (mysql_create_table(thd, create_table->db, create_table->real_name,
+			 create_info, *extra_fields, *keys, 0, 1,
+			 select_field_count)) // no logging
     DBUG_RETURN(0);
-  if (!(table=open_table(thd,db,name,name,(bool*) 0)))
+  if (!(table= open_table(thd, create_table, 0, (bool*) 0)))
   {
-    quick_rm_table(create_info->db_type,db,table_case_name(create_info,name));
+    quick_rm_table(create_info->db_type, create_table->db,
+		   table_case_name(create_info, create_table->real_name));
     DBUG_RETURN(0);
   }
   table->reginfo.lock_type=TL_WRITE;
-  if (!((*lock)=mysql_lock_tables(thd,&table,1)))
+  if (!((*lock)= mysql_lock_tables(thd, &table,1)))
   {
     VOID(pthread_mutex_lock(&LOCK_open));
     hash_delete(&open_cache,(byte*) table);
     VOID(pthread_mutex_unlock(&LOCK_open));
-    quick_rm_table(create_info->db_type,db,table_case_name(create_info, name));
+    quick_rm_table(create_info->db_type, create_table->db,
+		   table_case_name(create_info, create_table->real_name));
     DBUG_RETURN(0);
   }
   table->file->extra(HA_EXTRA_WRITE_CACHE);
@@ -1732,11 +1738,12 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
   item->maybe_null = 1;
   field_list.push_back(item = new Item_empty_string("Msg_text", 255));
   item->maybe_null = 1;
-  if (protocol->send_fields(&field_list, 1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(-1);
 
   mysql_ha_close(thd, tables, /*dont_send_ok*/ 1, /*dont_lock*/ 1);
-  for (table = tables; table; table = table->next)
+  for (table= tables; table; table= table->next_local)
   {
     char table_name[NAME_LEN*2+2];
     char* db = (table->db) ? table->db : thd->db;
@@ -1875,8 +1882,9 @@ send_result_message:
         reopen the table and do ha_innobase::analyze() on it.
       */
       close_thread_tables(thd);
-      TABLE_LIST *save_next= table->next;
-      table->next= 0;
+      TABLE_LIST *save_next_local= table->next_local,
+                 *save_next_global= table->next_global;
+      table->next_local= table->next_global= 0;
       result_code= mysql_recreate_table(thd, table, 0);
       close_thread_tables(thd);
       if (!result_code) // recreation went ok
@@ -1886,7 +1894,8 @@ send_result_message:
           result_code= 0; // analyze went ok
       }
       result_code= result_code ? HA_ADMIN_FAILED : HA_ADMIN_OK;
-      table->next= save_next;
+      table->next_local= save_next_local;
+      table->next_global= save_next_global;
       goto send_result_message;
     }
 
@@ -2100,9 +2109,9 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
     DBUG_RETURN(-1);
   }
 
+  bzero((gptr)&src_tables_list, sizeof(src_tables_list));
   src_tables_list.db= table_ident->db.str ? table_ident->db.str : thd->db;
   src_tables_list.real_name= table_ident->table.str;
-  src_tables_list.next= 0;
 
   if (lock_and_wait_for_table_name(thd, &src_tables_list))
     goto err;
@@ -3004,7 +3013,13 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     DBUG_RETURN(error);
 
   if (table->tmp_table)
-    new_table=open_table(thd,new_db,tmp_name,tmp_name,0);
+  {
+    TABLE_LIST tbl;
+    bzero((void*) &tbl, sizeof(tbl));
+    tbl.db= new_db;
+    tbl.real_name= tbl.alias= tmp_name;
+    new_table= open_table(thd, &tbl, 0, 0);
+  }
   else
   {
     char path[FN_REFLEN];
@@ -3435,10 +3450,11 @@ int mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
   item->maybe_null= 1;
   field_list.push_back(item=new Item_int("Checksum",(longlong) 1,21));
   item->maybe_null= 1;
-  if (protocol->send_fields(&field_list, 1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(-1);
 
-  for (table= tables; table; table= table->next)
+  for (table= tables; table; table= table->next_local)
   {
     char table_name[NAME_LEN*2+2];
     TABLE *t;

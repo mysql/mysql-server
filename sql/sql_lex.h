@@ -83,8 +83,8 @@ enum enum_sql_command {
   SQLCOM_DROP_PROCEDURE, SQLCOM_ALTER_PROCEDURE,SQLCOM_ALTER_FUNCTION,
   SQLCOM_SHOW_CREATE_PROC, SQLCOM_SHOW_CREATE_FUNC,
   SQLCOM_SHOW_STATUS_PROC, SQLCOM_SHOW_STATUS_FUNC,
-
   SQLCOM_PREPARE, SQLCOM_EXECUTE, SQLCOM_DEALLOCATE_PREPARE,
+  SQLCOM_CREATE_VIEW, SQLCOM_DROP_VIEW,
   /* This should be the last !!! */
   SQLCOM_END
 };
@@ -96,6 +96,23 @@ enum enum_sql_command {
 enum suid_behaviour
 {
   IS_DEFAULT_SUID= 0, IS_NOT_SUID, IS_SUID
+};
+
+#define DERIVED_SUBQUERY	1
+#define DERIVED_VIEW		2
+
+enum enum_view_create_mode
+{
+  VIEW_CREATE_NEW,		// check that there are not such VIEW/table
+  VIEW_ALTER,			// check that VIEW .frm with such name exists
+  VIEW_CREATE_OR_REPLACE	// check only that there are not such table
+};
+
+enum enum_drop_mode
+{
+  DROP_DEFAULT, // mode is not specified
+  DROP_CASCADE, // CASCADE option
+  DROP_RESTRICT // RESTRICT option
 };
 
 typedef List<Item> List_item;
@@ -293,6 +310,8 @@ public:
 
   friend class st_select_lex_unit;
   friend bool mysql_new_select(struct st_lex *lex, bool move_down);
+  friend my_bool mysql_make_view (File_parser *parser,
+				  TABLE_LIST *table);
 private:
   void fast_exclude();
 };
@@ -355,7 +374,6 @@ public:
   bool describe; /* union exec() called for EXPLAIN */
 
   void init_query();
-  bool create_total_list(THD *thd, st_lex *lex, TABLE_LIST **result);
   st_select_lex_unit* master_unit();
   st_select_lex* outer_select();
   st_select_lex* first_select()
@@ -388,11 +406,8 @@ public:
   int change_result(select_subselect *result, select_subselect *old_result);
   void set_limit(st_select_lex *values, st_select_lex *sl);
 
-  friend void mysql_init_query(THD *thd, bool lexonly);
+  friend void mysql_init_query(THD *thd, uchar *buf, uint length, bool lexonly);
   friend int subselect_union_engine::exec();
-private:
-  bool create_total_list_n_last_return(THD *thd, st_lex *lex,
-				       TABLE_LIST ***result);
 };
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
 
@@ -405,6 +420,8 @@ public:
   char *db, *db1, *table1, *db2, *table2;      	/* For outer join using .. */
   Item *where, *having;                         /* WHERE & HAVING clauses */
   Item *prep_where; /* saved WHERE clause for prepared statement processing */
+  /* point on lex in which it was created, used in view subquery detection */
+  st_lex *parent_lex;
   enum olap_type olap;
   SQL_LIST	      table_list, group_list;   /* FROM & GROUP BY clauses */
   List<Item>          item_list; /* list of fields & expressions */
@@ -461,6 +478,8 @@ public:
   bool subquery_in_having;
   bool first_execution; /* first execution in SP or PS */
   bool first_cond_optimization;
+  /* do not wrap view fields with Item_ref */
+  bool no_wrap_view_item;
 
   /* 
      SELECT for SELECT command st_select_lex. Used to privent scaning
@@ -543,7 +562,7 @@ public:
   
   bool test_limit();
 
-  friend void mysql_init_query(THD *thd, bool lexonly);
+  friend void mysql_init_query(THD *thd, uchar *buf, uint length, bool lexonly);
   st_select_lex() {}
   void make_empty_select()
   {
@@ -555,6 +574,7 @@ public:
   void print(THD *thd, String *str);
   static void print_order(String *str, ORDER *order);
   void print_limit(THD *thd, String *str);
+  void fix_prepare_information(THD *thd, Item **conds);
 };
 typedef class st_select_lex SELECT_LEX;
 
@@ -618,6 +638,9 @@ typedef struct st_lex
   gptr yacc_yyss,yacc_yyvs;
   THD *thd;
   CHARSET_INFO *charset;
+  TABLE_LIST *query_tables;	/* global list of all tables in this query */
+  /* last element next_global of previous list */
+  TABLE_LIST **query_tables_last;
 
   List<key_part_spec> col_list;
   List<key_part_spec> ref_list;
@@ -630,6 +653,7 @@ typedef struct st_lex
   List<List_item>     many_values;
   List<set_var_base>  var_list;
   List<Item_param>    param_list;
+  List<LEX_STRING>    view_list; // view list (list of field names in view)
   SQL_LIST	      proc_list, auxilliary_table_list, save_list;
   TYPELIB	      *interval;
   create_field	      *last_field;
@@ -649,15 +673,21 @@ typedef struct st_lex
   enum enum_ha_read_modes ha_read_mode;
   enum ha_rkey_function ha_rkey_mode;
   enum enum_var_type option_type;
+  enum enum_view_create_mode create_view_mode;
+  enum enum_drop_mode drop_mode;
   uint uint_geom_type;
   uint grant, grant_tot_col, which_columns;
   uint fk_delete_opt, fk_update_opt, fk_match_option;
   uint slave_thd_opt;
   uint8 describe;
+  uint8 derived_tables;
+  uint8 create_view_algorithm;
   bool drop_if_exists, drop_temporary, local_file, one_shot_set;
   bool in_comment, ignore_space, verbose, no_write_to_binlog;
-  bool derived_tables;
+  /* special JOIN::prepare mode: changing of query is prohibited */
+  bool view_prepare_mode;
   bool safe_to_cache_query;
+  bool variables_used;
   ALTER_INFO alter_info;
   /* Prepared statements SQL syntax:*/
   LEX_STRING prepared_stmt_name; /* Statement name (in all queries) */
@@ -676,6 +706,12 @@ typedef struct st_lex
   sp_pcontext *spcont;
   HASH spfuns;		/* Called functions */
   st_sp_chistics sp_chistics;
+  bool only_view;       /* used for SHOW CREATE TABLE/VIEW */
+  /*
+    field_list was created for view and should be removed before PS/SP
+    rexecuton
+  */
+  bool empty_field_list_on_rset;
 
   st_lex()
   {
@@ -707,18 +743,31 @@ typedef struct st_lex
       un->uncacheable|= cause;
     }
   }
-  TABLE_LIST *unlink_first_table(TABLE_LIST *tables,
-				 TABLE_LIST **global_first,
-				 TABLE_LIST **local_first);
-  TABLE_LIST *link_first_table_back(TABLE_LIST *tables,
-				    TABLE_LIST *global_first,
-				    TABLE_LIST *local_first);
+  TABLE_LIST *unlink_first_table(bool *link_to_local);
+  void link_first_table_back(TABLE_LIST *first, bool link_to_local);
+  void first_lists_tables_same();
+
+  bool can_be_merged();
+  bool can_use_merged();
+  bool only_view_structure();
 } LEX;
 
+struct st_lex_local: public st_lex
+{
+  static void *operator new(size_t size)
+  {
+    return (void*) sql_alloc((uint) size);
+  }
+  static void *operator new(size_t size, MEM_ROOT *mem_root)
+  {
+    return (void*) alloc_root(mem_root, (uint) size);
+  }
+  static void operator delete(void *ptr,size_t size) {}
+};
 
 void lex_init(void);
 void lex_free(void);
-LEX *lex_start(THD *thd, uchar *buf,uint length);
+void lex_start(THD *thd, uchar *buf,uint length);
 void lex_end(LEX *lex);
 
 extern pthread_key(LEX*,THR_LEX);

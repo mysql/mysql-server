@@ -225,7 +225,8 @@ void del_dbopt(const char *path)
 {
   my_dbopt_t *opt;
   rw_wrlock(&LOCK_dboptions);
-  if ((opt= (my_dbopt_t *)hash_search(&dboptions, path, strlen(path))))
+  if ((opt= (my_dbopt_t *)hash_search(&dboptions, (const byte*) path,
+                                      strlen(path))))
     hash_delete(&dboptions, (byte*) opt);
   rw_unlock(&LOCK_dboptions);
 }
@@ -327,6 +328,7 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 	  {
 	    sql_print_error("Error while loading database options: '%s':",path);
 	    sql_print_error(ER(ER_UNKNOWN_CHARACTER_SET),pos+1);
+            create->default_table_charset= default_charset_info;
 	  }
 	}
 	else if (!strncmp(buf,"default-collation", (pos-buf)))
@@ -336,6 +338,7 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 	  {
 	    sql_print_error("Error while loading database options: '%s':",path);
 	    sql_print_error(ER(ER_UNKNOWN_COLLATION),pos+1);
+            create->default_table_charset= default_charset_info;
 	  }
 	}
       }
@@ -549,7 +552,6 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   char	path[FN_REFLEN+16], tmp_db[NAME_LEN+1];
   MY_DIR *dirp;
   uint length;
-  my_dbopt_t *dbopt;
   DBUG_ENTER("mysql_rm_db");
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
@@ -746,7 +748,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       table_list->alias= table_list->real_name;	// If lower_case_table_names=2
       /* Link into list */
       (*tot_list_next)= table_list;
-      tot_list_next= &table_list->next;
+      tot_list_next= &table_list->next_local;
       deleted++;
     }
     else

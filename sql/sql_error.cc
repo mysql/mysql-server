@@ -185,7 +185,8 @@ my_bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
   field_list.push_back(new Item_return_int("Code",4, MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Message",MYSQL_ERRMSG_SIZE));
 
-  if (thd->protocol->send_fields(&field_list,1))
+  if (thd->protocol->send_fields(&field_list,
+                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
   MYSQL_ERROR *err;

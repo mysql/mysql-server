@@ -84,12 +84,11 @@ static bool init_fields(THD *thd, TABLE_LIST *tables,
   DBUG_ENTER("init_fields");
   for (; count-- ; find_fields++)
   {
-    TABLE_LIST *not_used;
     /* We have to use 'new' here as field will be re_linked on free */
     Item_field *field= new Item_field("mysql", find_fields->table_name,
                                       find_fields->field_name);
     if (!(find_fields->field= find_field_in_tables(thd, field, tables,
-						   &not_used, TRUE)))
+						   0, TRUE, 1)))
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -427,7 +426,8 @@ int send_answer_1(Protocol *protocol, String *s1, String *s2, String *s3)
   field_list.push_back(new Item_empty_string("description",1000));
   field_list.push_back(new Item_empty_string("example",1000));
 
-  if (protocol->send_fields(&field_list,1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
   protocol->prepare_for_resend();
@@ -469,7 +469,8 @@ int send_header_2(Protocol *protocol, bool for_category)
     field_list.push_back(new Item_empty_string("source_category_name",64));
   field_list.push_back(new Item_empty_string("name",64));
   field_list.push_back(new Item_empty_string("is_it_category",1));
-  DBUG_RETURN(protocol->send_fields(&field_list,1));
+  DBUG_RETURN(protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS |
+                                                 Protocol::SEND_EOF));
 }
 
 /*
@@ -622,16 +623,15 @@ int mysqld_help(THD *thd, const char *mask)
   bzero((gptr)tables,sizeof(tables));
   tables[0].alias= tables[0].real_name= (char*) "help_topic";
   tables[0].lock_type= TL_READ;
-  tables[0].next= &tables[1];
+  tables[0].next_global= tables[0].next_local= &tables[1];
   tables[1].alias= tables[1].real_name= (char*) "help_category";
   tables[1].lock_type= TL_READ;
-  tables[1].next= &tables[2];
+  tables[1].next_global= tables[1].next_local= &tables[2];
   tables[2].alias= tables[2].real_name= (char*) "help_relation";
   tables[2].lock_type= TL_READ;
-  tables[2].next=  &tables[3];
+  tables[2].next_global= tables[2].next_local= &tables[3];
   tables[3].alias= tables[3].real_name= (char*) "help_keyword";
   tables[3].lock_type= TL_READ;
-  tables[3].next= 0;
   tables[0].db= tables[1].db= tables[2].db= tables[3].db= (char*) "mysql";
 
   List<String> topics_list, categories_list, subcategories_list;
@@ -645,8 +645,12 @@ int mysqld_help(THD *thd, const char *mask)
     res= -1;
     goto end;
   }
-  /* Init tables and fields to be usable from items */
-  setup_tables(tables);
+  /*
+    Init tables and fields to be usable from items
+
+    tables do not contain VIEWs => we can pass 0 as conds
+  */
+  setup_tables(thd, tables, 0);
   memcpy((char*) used_fields, (char*) init_used_fields, sizeof(used_fields));
   if (init_fields(thd, tables, used_fields, array_elements(used_fields)))
   {

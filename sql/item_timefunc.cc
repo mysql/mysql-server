@@ -987,13 +987,13 @@ static bool get_interval_value(Item *args,interval_type int_type,
     interval->year= (ulong) value;
     break;
   case INTERVAL_QUARTER:
-    interval->month=value*3;
+    interval->month= (ulong)(value*3);
     break;
   case INTERVAL_MONTH:
     interval->month= (ulong) value;
     break;
   case INTERVAL_WEEK:
-    interval->day=value*7;
+    interval->day= (ulong)(value*7);
     break;
   case INTERVAL_DAY:
     interval->day= (ulong) value;
@@ -2519,7 +2519,6 @@ longlong Item_func_timestamp_diff::val_int()
     uint year;
     uint year_beg, year_end, month_beg, month_end;
     uint diff_days= (uint) (seconds/86400L);
-    uint diff_months= 0;
     uint diff_years= 0;
     if (neg == -1)
     {

@@ -1,21 +1,21 @@
 show tables;
-Tables_in_db
-columns_priv
-db
-func
-help_category
-help_keyword
-help_relation
-help_topic
-host
-proc
-tables_priv
-time_zone
-time_zone_leap_second
-time_zone_name
-time_zone_transition
-time_zone_transition_type
-user
+Tables_in_db	table_type
+columns_priv	BASE TABLE
+db	BASE TABLE
+func	BASE TABLE
+help_category	BASE TABLE
+help_keyword	BASE TABLE
+help_relation	BASE TABLE
+help_topic	BASE TABLE
+host	BASE TABLE
+proc	BASE TABLE
+tables_priv	BASE TABLE
+time_zone	BASE TABLE
+time_zone_leap_second	BASE TABLE
+time_zone_name	BASE TABLE
+time_zone_transition	BASE TABLE
+time_zone_transition_type	BASE TABLE
+user	BASE TABLE
 show create table db;
 Table	Create Table
 db	CREATE TABLE `db` (
@@ -34,6 +34,8 @@ db	CREATE TABLE `db` (
   `Alter_priv` enum('N','Y') NOT NULL default 'N',
   `Create_tmp_table_priv` enum('N','Y') NOT NULL default 'N',
   `Lock_tables_priv` enum('N','Y') NOT NULL default 'N',
+  `Create_view_priv` enum('N','Y') NOT NULL default 'N',
+  `Show_view_priv` enum('N','Y') NOT NULL default 'N',
   PRIMARY KEY  (`Host`,`Db`,`User`),
   KEY `User` (`User`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Database privileges'
@@ -54,6 +56,8 @@ host	CREATE TABLE `host` (
   `Alter_priv` enum('N','Y') NOT NULL default 'N',
   `Create_tmp_table_priv` enum('N','Y') NOT NULL default 'N',
   `Lock_tables_priv` enum('N','Y') NOT NULL default 'N',
+  `Create_view_priv` enum('N','Y') NOT NULL default 'N',
+  `Show_view_priv` enum('N','Y') NOT NULL default 'N',
   PRIMARY KEY  (`Host`,`Db`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Host privileges;  Merged with database privileges'
 show create table user;
@@ -83,6 +87,8 @@ user	CREATE TABLE `user` (
   `Execute_priv` enum('N','Y') NOT NULL default 'N',
   `Repl_slave_priv` enum('N','Y') NOT NULL default 'N',
   `Repl_client_priv` enum('N','Y') NOT NULL default 'N',
+  `Create_view_priv` enum('N','Y') NOT NULL default 'N',
+  `Show_view_priv` enum('N','Y') NOT NULL default 'N',
   `ssl_type` enum('','ANY','X509','SPECIFIED') NOT NULL default '',
   `ssl_cipher` blob NOT NULL,
   `x509_issuer` blob NOT NULL,
@@ -127,3 +133,5 @@ columns_priv	CREATE TABLE `columns_priv` (
   `Column_priv` set('Select','Insert','Update','References') NOT NULL default '',
   PRIMARY KEY  (`Host`,`Db`,`User`,`Table_name`,`Column_name`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Column privileges'
+show tables;
+Tables_in_test	table_type

@@ -369,7 +369,7 @@ public:
     return this_item()->save_in_field(field, no_conversions);
   }
 
-  inline void print(String *str)
+  void print(String *str)
   {
     str->reserve(m_name.length+8);
     str->append(m_name.str, m_name.length);
@@ -430,6 +430,11 @@ public:
   void register_item_tree_changing(Item **ref)
     { changed_during_fix_field= ref; }
   bool remove_dependence_processor(byte * arg);
+  void print(String *str);
+
+  friend bool insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
+                            const char *table_name, List_iterator<Item> *it,
+                            bool any_privileges);
 };
 
 
@@ -438,11 +443,18 @@ class Item_field :public Item_ident
   void set_field(Field *field);
 public:
   Field *field,*result_field;
+  /*
+    if any_privileges set to TRUE then here real effective privileges will
+    be stored
+  */
+  uint have_privileges;
+  /* field need any privileges (for VIEW creation) */
+  bool any_privileges;
 
   Item_field(const char *db_par,const char *table_name_par,
 	     const char *field_name_par)
     :Item_ident(db_par,table_name_par,field_name_par),
-     field(0), result_field(0)
+     field(0), result_field(0), have_privileges(0), any_privileges(0)
   { collation.set(DERIVATION_IMPLICIT); }
   // Constructor need to process subselect with temporary tables (see Item)
   Item_field(THD *thd, Item_field *item);
@@ -875,15 +887,15 @@ public:
   Item *orig_item;                       /* things in 'cleanup()' */
   Item_ref(Item **hook, Item *original,const char *db_par,
 	   const char *table_name_par, const char *field_name_par)
-    :Item_ident(db_par,table_name_par,field_name_par),ref(0), hook_ptr(hook),
-    orig_item(original) {}
-  Item_ref(Item **item, Item **hook, 
+    :Item_ident(db_par, table_name_par, field_name_par), result_field(0),
+     ref(0), hook_ptr(hook), orig_item(original) {}
+  Item_ref(Item **item, Item **hook,
 	   const char *table_name_par, const char *field_name_par)
-    :Item_ident(NullS,table_name_par,field_name_par),
+    :Item_ident(NullS, table_name_par, field_name_par), result_field(0),
     ref(item), hook_ptr(hook), orig_item(hook ? *hook:0) {}
   // Constructor need to process subselect with temporary tables (see Item)
   Item_ref(THD *thd, Item_ref *item, Item **hook)
-    :Item_ident(thd, item), ref(item->ref), 
+    :Item_ident(thd, item), result_field(item->result_field), ref(item->ref),
     hook_ptr(hook), orig_item(hook ? *hook : 0) {}
   enum Type type() const		{ return REF_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const
@@ -928,6 +940,7 @@ public:
     return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->used_tables(); 
   }
   void set_result_field(Field *field)	{ result_field= field; }
+  Field *get_tmp_table_field() { return result_field; }
   bool is_result_field() { return 1; }
   void save_in_result_field(bool no_conversions)
   {

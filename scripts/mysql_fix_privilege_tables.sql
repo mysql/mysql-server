@@ -144,6 +144,19 @@ alter table user comment='Users and global privileges';
 alter table func comment='User defined functions';
 alter table tables_priv comment='Table privileges';
 alter table columns_priv comment='Column privileges';
+#
+# Create VIEWs privileges (v5.0)
+#
+ALTER TABLE db ADD Create_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Lock_tables_priv;
+ALTER TABLE host ADD Create_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Lock_tables_priv;
+ALTER TABLE user ADD Create_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Repl_client_priv;
+
+#
+# Show VIEWs privileges (v5.0)
+#
+ALTER TABLE db ADD Show_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Create_view_priv;
+ALTER TABLE host ADD Show_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Create_view_priv;
+ALTER TABLE user ADD Show_view_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Create_view_priv;
 
 #
 # Create some possible missing tables

@@ -700,3 +700,30 @@ SELECT t2.a,t2.b,t3.a1,t3.b
     WHERE t2.a = 4 OR (t2.a > 4 AND t3.a1 IS NULL);
 
 DROP TABLE t0,t1,t2,t3,t4,t5,t6,t7,t8,t9;
+
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int);
+CREATE TABLE t3 (a int);
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t3 VALUES (2);
+INSERT INTO t1 VALUES (2);
+
+#check proper syntax for nested outer joins
+
+SELECT * FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t2.a=t3.a) ON t1.a=t3.a;
+
+#must be equivalent to:
+
+SELECT * FROM t1 LEFT JOIN t2 LEFT JOIN t3 ON t2.a=t3.a ON t1.a=t3.a;
+
+#check that everything is al right when all tables contain not more than 1 row
+#(bug #4922)
+
+DELETE FROM t1 WHERE a=2;
+SELECT * FROM t1 LEFT JOIN t2 LEFT JOIN t3 ON t2.a=t3.a ON t1.a=t3.a;
+DELETE FROM t2;
+SELECT * FROM t1 LEFT JOIN t2 LEFT JOIN t3 ON t2.a=t3.a ON t1.a=t3.a;
+
+DROP TABLE t1,t2,t3;

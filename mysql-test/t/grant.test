@@ -173,3 +173,8 @@ REVOKE SELECT (кол) ON бд.таб FROM юзер@localhost;
 
 DROP DATABASE бд;
 SET NAMES latin1;
+
+#
+# just SHOW PRIVILEGES test
+#
+SHOW PRIVILEGES;

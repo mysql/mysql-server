@@ -942,8 +942,12 @@ SOURCE=.\mf_iocache.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 pro nt"
 
-!ENDIF
+!ENDIF 
 
+# End Source File
+# Begin Source File
+
+SOURCE=.\my_time.c
 # End Source File
 # Begin Source File
 
@@ -1053,7 +1057,7 @@ SOURCE=.\pack.c
 # End Source File
 # Begin Source File
 
-SOURCE=.\my_time.c
+SOURCE=.\parse_file.cpp
 # End Source File
 # Begin Source File
 
@@ -1723,8 +1727,12 @@ SOURCE=.\sql_update.cpp
 
 !ELSEIF  "$(CFG)" == "mysqld - Win32 pro nt"
 
-!ENDIF
+!ENDIF 
 
+# End Source File
+# Begin Source File
+
+SOURCE=.\sql_view.cpp
 # End Source File
 # Begin Source File
 

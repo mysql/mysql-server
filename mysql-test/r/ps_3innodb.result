@@ -334,6 +334,16 @@ a	b
 1	one
 3	three
 2	two
+set @arg00=1 ;
+execute stmt1 using @arg00;
+a	b
+1	one
+2	two
+3	three
+4	four
+set @arg00=0 ;
+execute stmt1 using @arg00;
+ERROR 42S22: Unknown column '?' in 'order clause'
 set @arg00=1;
 prepare stmt1 from ' select a,b from t1
 limit 1 ';
@@ -548,14 +558,14 @@ def					in_s	8	21	1	Y	32768	0	8
 def					in_row_s	8	21	1	Y	32768	0	8
 scalar_s	exists_s	in_s	in_row_s
 2.0000	0	1	0
-2.0000	0	1	0
 18.0000	1	0	1
+2.0000	0	1	0
 18.0000	1	0	1
 execute stmt1 ;
 scalar_s	exists_s	in_s	in_row_s
 2.0000	0	1	0
-2.0000	0	1	0
 18.0000	1	0	1
+2.0000	0	1	0
 18.0000	1	0	1
 set @stmt= concat('explain ',@stmt);
 prepare stmt1 from @stmt ;
@@ -572,8 +582,8 @@ def					ref	253	1024	0	Y	0	31	63
 def					rows	8	10	1	N	32801	0	8
 def					Extra	253	255	44	N	1	31	63
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived6>	ALL	NULL	NULL	NULL	NULL	2	
-1	PRIMARY	t_many_col_types	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	PRIMARY	t_many_col_types	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	<derived6>	ALL	NULL	NULL	NULL	NULL	2	Using where
 6	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	
 5	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 4	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
@@ -581,8 +591,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using temporary; Using filesort
 execute stmt1 ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived6>	ALL	NULL	NULL	NULL	NULL	2	
-1	PRIMARY	t_many_col_types	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	PRIMARY	t_many_col_types	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	<derived6>	ALL	NULL	NULL	NULL	NULL	2	Using where
 6	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	
 5	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 4	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
@@ -617,15 +627,15 @@ def					in_s	8	21	1	Y	32768	0	8
 def					in_row_s	8	21	1	Y	32768	0	8
 scalar_s	exists_s	in_s	in_row_s
 2	0	1	0
-2	0	1	0
 18	1	0	1
+2	0	1	0
 18	1	0	1
 execute stmt1 using @arg00, @arg01, @arg02, @arg03, @arg04, @arg05, @arg06,
 @arg07, @arg08, @arg09 ;
 scalar_s	exists_s	in_s	in_row_s
 2	0	1	0
-2	0	1	0
 18	1	0	1
+2	0	1	0
 18	1	0	1
 set @stmt= concat('explain ',@stmt);
 prepare stmt1 from @stmt ;
@@ -643,8 +653,8 @@ def					ref	253	1024	0	Y	0	31	63
 def					rows	8	10	1	N	32801	0	8
 def					Extra	253	255	44	N	1	31	63
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived6>	ALL	NULL	NULL	NULL	NULL	2	
-1	PRIMARY	t_many_col_types	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	PRIMARY	t_many_col_types	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	<derived6>	ALL	NULL	NULL	NULL	NULL	2	Using where
 6	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	
 5	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 4	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
@@ -653,8 +663,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 execute stmt1 using @arg00, @arg01, @arg02, @arg03, @arg04, @arg05, @arg06,
 @arg07, @arg08, @arg09 ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived6>	ALL	NULL	NULL	NULL	NULL	2	
-1	PRIMARY	t_many_col_types	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	PRIMARY	t_many_col_types	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	<derived6>	ALL	NULL	NULL	NULL	NULL	2	Using where
 6	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	
 5	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 4	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
@@ -925,7 +935,6 @@ execute stmt1 using @arg00;
 select a,b from t1 where b=@arg00;
 a	b
 prepare stmt1 from 'truncate table t1' ;
-ERROR HY000: This command is not supported in the prepared statement protocol yet
 test_sequence
 ------ update tests ------
 delete from t1 ;

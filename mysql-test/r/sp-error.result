@@ -44,7 +44,7 @@ call foo()|
 ERROR 42000: PROCEDURE test.foo does not exist
 drop procedure if exists foo|
 Warnings:
-Warning	1303	PROCEDURE foo does not exist
+Warning	1304	PROCEDURE foo does not exist
 show create procedure foo|
 ERROR 42000: PROCEDURE foo does not exist
 create procedure foo()
@@ -80,7 +80,7 @@ declare y int;
 set x = y;
 end|
 Warnings:
-Warning	1309	Referring to uninitialized variable y
+Warning	1310	Referring to uninitialized variable y
 drop procedure foo|
 create procedure foo()
 return 42|
@@ -397,4 +397,24 @@ drop procedure bug3279|
 drop table t3|
 create procedure nodb.bug3339() begin end|
 ERROR 42000: Unknown database 'nodb'
+create procedure bug2653_1(a int, out b int)
+set b = aa|
+create procedure bug2653_2(a int, out b int)
+begin
+if aa < 0 then
+set b = - a;
+else
+set b = a;
+end if;
+end|
+call bug2653_1(1, @b)|
+ERROR 42S22: Unknown column 'aa' in 'order clause'
+call bug2653_2(2, @b)|
+ERROR 42S22: Unknown column 'aa' in 'order clause'
+drop procedure bug2653_1|
+drop procedure bug2653_2|
+create procedure bug4344() drop procedure bug4344|
+ERROR HY000: Can't drop a PROCEDURE from within another stored routine
+create procedure bug4344() drop function bug4344|
+ERROR HY000: Can't drop a FUNCTION from within another stored routine
 drop table t1|

@@ -1217,3 +1217,13 @@ execute stmt1;
 select * from t3;
 deallocate prepare stmt1;
 DROP TABLE t1, t2, t3;
+
+#
+# Aggregate function comparation with ALL/ANY/SOME subselect
+#
+CREATE TABLE `t1` ( `a` int(11) default NULL) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+insert into t1 values (1);
+CREATE TABLE `t2` ( `b` int(11) default NULL, `a` int(11) default NULL) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+insert into t2 values (1,2);
+select t000.a, count(*) `C` FROM t1 t000 GROUP BY t000.a HAVING count(*) > ALL (SELECT count(*) FROM t2 t001 WHERE t001.a=1);
+drop table t1,t2;

@@ -1701,9 +1701,9 @@ tz_load_from_db(THD *thd, const String *tz_name)
   tables[1].alias= tables[1].real_name= (char*)"time_zone";
   tables[2].alias= tables[2].real_name= (char*)"time_zone_transition";
   tables[3].alias= tables[3].real_name= (char*)"time_zone_transition_type";
-  tables[0].next= tables+1;
-  tables[1].next= tables+2;
-  tables[2].next= tables+3;
+  tables[0].next_local= tables[0].next_global= tables+1;
+  tables[1].next_local= tables[1].next_global= tables+2;
+  tables[2].next_local= tables[2].next_global= tables+3;
   tables[0].lock_type= tables[1].lock_type= tables[2].lock_type=
                        tables[3].lock_type= TL_READ;
   tables[0].db= tables[1].db= tables[2].db= tables[3].db= thd->db;

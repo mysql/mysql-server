@@ -2088,7 +2088,7 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   result_field= 0;
   null_value= 1;
   max_length= group_concat_max_len;
-  thd->allow_sum_func= 1;			
+  thd->allow_sum_func= 1;
   if (!(tmp_table_param= new TMP_TABLE_PARAM))
     return 1;
   tables_list= tables;
@@ -2102,7 +2102,6 @@ bool Item_func_group_concat::setup(THD *thd)
   List<Item> list;
   SELECT_LEX *select_lex= thd->lex->current_select;
   uint const_fields;
-  byte *record;
   qsort_cmp2 compare_key;
   DBUG_ENTER("Item_func_group_concat::setup");
 
@@ -2111,7 +2110,7 @@ bool Item_func_group_concat::setup(THD *thd)
 
   /*
     push all not constant fields to list and create temp table
-  */ 
+  */
   const_fields= 0;
   always_null= 0;
   for (uint i= 0; i < arg_count_field; i++)
@@ -2129,15 +2128,15 @@ bool Item_func_group_concat::setup(THD *thd)
   }
   if (always_null)
     DBUG_RETURN(0);
-        
+
   List<Item> all_fields(list);
-  if (arg_count_order) 
+  if (arg_count_order)
   {
     bool hidden_group_fields;
     setup_group(thd, args, tables_list, list, all_fields, *order,
                 &hidden_group_fields);
   }
-  
+
   count_field_types(tmp_table_param,all_fields,0);
   if (table)
   {
@@ -2163,7 +2162,6 @@ bool Item_func_group_concat::setup(THD *thd)
   table->no_rows= 1;
 
   key_length= table->reclength;
-  record= table->record[0];
 
   /* Offset to first result field in table */
   field_list_offset= table->fields - (list.elements - const_fields);
