@@ -1526,6 +1526,9 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
   SYNOPSIS
     wait_for_update()
     thd			Thread variable
+    master_or_slave     If 0, the caller is the Binlog_dump thread from master;
+                        if 1, the caller is the SQL thread from the slave. This
+                        influences only thd->proc_info.
 
   NOTES
     One must have a lock on LOCK_log before calling this function.
@@ -1538,11 +1541,15 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
 */
 
 
-void MYSQL_LOG:: wait_for_update(THD* thd)
+void MYSQL_LOG:: wait_for_update(THD* thd, bool master_or_slave)
 {
   safe_mutex_assert_owner(&LOCK_log);
   const char* old_msg = thd->enter_cond(&update_cond, &LOCK_log,
-					"Slave: waiting for binlog update");
+                                        master_or_slave ?
+                                        "Has read all relay log; waiting for \
+the I/O slave thread to update it" : 
+                                        "Has sent all binlog to slave; \
+waiting for binlog to be updated"); 
   pthread_cond_wait(&update_cond, &LOCK_log);
   pthread_mutex_unlock(&LOCK_log);		// See NOTES
   thd->exit_cond(old_msg);
