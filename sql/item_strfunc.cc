@@ -861,6 +861,14 @@ null:
 
 void Item_func_insert::fix_length_and_dec()
 {
+  if (set_charset(args[0]->charset(), args[0]->coercibility,
+      		  args[3]->charset(), args[3]->coercibility))
+  {
+      my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
+	     args[0]->charset()->name,coercion_name(args[0]->coercibility),
+	     args[3]->charset()->name,coercion_name(args[3]->coercibility),
+	     func_name());
+  }
   max_length=args[0]->max_length+args[3]->max_length;
   if (max_length > MAX_BLOB_WIDTH)
   {
