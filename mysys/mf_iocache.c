@@ -87,7 +87,7 @@ static void my_aiowait(my_aio_result *result);
 void setup_io_cache(IO_CACHE* info)
 {
   /* Ensure that my_b_tell() and my_b_bytes_in_cache works */
-  if (info->type == WRITE_CACHE)
+  if (info->type == WRITE_CACHE || info->type == APPEND_CACHE)
   {
     info->current_pos= &info->write_pos;
     info->current_end= &info->write_end;
@@ -247,7 +247,7 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
   }
 #endif
 
-  if (type == WRITE_CACHE)
+  if (type == WRITE_CACHE || type == APPEND_CACHE)
     info->write_end=
       info->buffer+info->buffer_length- (seek_offset & (IO_SIZE-1));
   else
@@ -318,6 +318,7 @@ my_bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
   /* One can't do reinit with the following types */
   DBUG_ASSERT(type != READ_NET && info->type != READ_NET &&
 	      type != WRITE_NET && info->type != WRITE_NET &&
+	      type != APPEND_CACHE && info->type != APPEND_CACHE &&
 	      type != SEQ_READ_APPEND && info->type != SEQ_READ_APPEND);
 
   /* If the whole file is in memory, avoid flushing to disk */
@@ -1123,7 +1124,8 @@ int my_b_flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
   my_off_t pos_in_file;
   DBUG_ENTER("my_b_flush_io_cache");
 
-  if (!(append_cache = (info->type == SEQ_READ_APPEND)))
+  if (!(append_cache = (info->type == SEQ_READ_APPEND ||
+                        info->type == APPEND_CACHE)))
     need_append_buffer_lock=0;
 
   if (info->type == WRITE_CACHE || append_cache)
@@ -1170,7 +1172,13 @@ int my_b_flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
       else
       {
 	info->end_of_file+=(info->write_pos-info->append_read_pos);
-	DBUG_ASSERT(info->end_of_file == my_tell(info->file,MYF(0)));
+        /*
+          We only need to worry that info->end_of_file is really accurate
+          for SEQ_READ_APPEND. For APPEND_CACHE, it is possible that the
+          file is non-seekable, like a FIFO.
+         */
+	DBUG_ASSERT(info->type != SEQ_READ_APPEND ||
+                    info->end_of_file == my_tell(info->file,MYF(0)));
       }
 
       info->append_read_pos=info->write_pos=info->write_buffer;
