@@ -145,7 +145,7 @@ byte ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
 byte ft_simple_get_word(CHARSET_INFO *cs, byte **start, byte *end,
                         FT_WORD *word)
 {
-  byte *doc=*start;
+  byte *doc= *start;
   uint mwc, length;
   DBUG_ENTER("ft_simple_get_word");
 
@@ -156,10 +156,10 @@ byte ft_simple_get_word(CHARSET_INFO *cs, byte **start, byte *end,
       if (true_word_char(cs,*doc)) break;
     }
 
-    mwc=length=0;
-    for(word->pos=doc; doc<end; length++, doc+=my_mbcharlen(cs, *(uchar *)doc))
+    mwc= length= 0;
+    for (word->pos=doc; doc<end; length++, doc+=my_mbcharlen(cs, *(uchar *)doc))
       if (true_word_char(cs,*doc))
-        mwc=0;
+        mwc= 0;
       else if (!misc_word_char(*doc) || mwc++)
         break;
 
@@ -168,7 +168,7 @@ byte ft_simple_get_word(CHARSET_INFO *cs, byte **start, byte *end,
     if (length >= ft_min_word_len && length < ft_max_word_len &&
         !is_stopword(word->pos, word->len))
     {
-      *start=doc;
+      *start= doc;
       DBUG_RETURN(1);
     }
   }
