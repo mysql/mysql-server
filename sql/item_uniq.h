@@ -29,6 +29,7 @@ public:
     :Item_real_func(list) {}
   double val() { return 0.0; }
   void fix_length_and_dec() { decimals=0; max_length=6; }
+  void print(String *str) { str->append("0.0"); }
 };
 
 
@@ -54,4 +55,5 @@ public:
   {
     return new Item_sum_unique_users(thd, *this);
   }
+  void print(String *str) { str->append("0.0"); }
 };

@@ -238,6 +238,7 @@ class Item_sum_count_distinct :public Item_sum_int
   void make_unique();
   Item *copy_or_same(THD* thd);
   void no_rows_in_result() {}
+  void print(String *str);
 };
 
 
@@ -748,4 +749,5 @@ class Item_func_group_concat : public Item_sum
   String* val_str(String* str);
   Item *copy_or_same(THD* thd);
   void no_rows_in_result() {}
+  void print(String *str);
 };

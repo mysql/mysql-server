@@ -711,6 +711,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	union_clause union_list union_option
 	precision subselect_start opt_and charset
 	subselect_end select_var_list select_var_list_init help opt_len
+	opt_extended_describe
 END_OF_INPUT
 
 %type <NONE>
@@ -2273,7 +2274,7 @@ expr_expr:
 	| expr comp_op all_or_any in_subselect %prec EQ
 	{
 	  Item_allany_subselect *it=
-	    new Item_allany_subselect($1, (*$2)($3), $4);
+	    new Item_allany_subselect($1, (*$2)($3), $4, $3);
 	  if ($3)
 	    $$ = it->upper_not= new Item_func_not_all(it);	/* ALL */
 	  else
@@ -2319,7 +2320,7 @@ no_in_expr:
 	| no_in_expr comp_op all_or_any in_subselect %prec EQ
 	{
 	  Item_allany_subselect *it=
-	    new Item_allany_subselect($1, (*$2)($3), $4);
+	    new Item_allany_subselect($1, (*$2)($3), $4, $3);
 	  if ($3)
 	    $$ = it->upper_not= new Item_func_not_all(it);	/* ALL */
 	  else
@@ -2374,7 +2375,7 @@ no_and_expr:
 	| no_and_expr comp_op all_or_any in_subselect %prec EQ
 	{
 	  Item_allany_subselect *it=
-	    new Item_allany_subselect($1, (*$2)($3), $4);
+	    new Item_allany_subselect($1, (*$2)($3), $4, $3);
 	  if ($3)
 	    $$ = it->upper_not= new Item_func_not_all(it);	/* ALL */
 	  else
@@ -2893,17 +2894,19 @@ opt_gconcat_separator:
 
 
 opt_gorder_clause:
-    /* empty */
-      {
-        LEX *lex=Lex;
-        lex->gorder_list = NULL;
-      }
-    | order_clause
-      {
-        LEX *lex=Lex;
-        lex->gorder_list= (SQL_LIST*) sql_memdup((char*) &lex->current_select->order_list,sizeof(st_sql_list));
-        lex->current_select->order_list.empty();
-      };
+	  /* empty */
+	  {
+            LEX *lex=Lex;
+            lex->gorder_list = NULL;
+	  }
+	| order_clause
+          {
+            LEX *lex=Lex;
+            lex->gorder_list= 
+	      (SQL_LIST*) sql_memdup((char*) &lex->current_select->order_list,
+				     sizeof(st_sql_list));
+	    lex->current_select->order_list.empty();
+	  };
 
 
 in_sum_expr:
@@ -4042,7 +4045,9 @@ describe:
 	    YYABORT;
 	}
 	opt_describe_column {}
-	| describe_command { Lex->describe=1; } select
+	| describe_command opt_extended_describe
+	  { Lex->describe|= DESCRIBE_NORMAL; }
+	  select
           {
 	    LEX *lex=Lex;
 	    lex->select_lex.options|= SELECT_DESCRIBE;
@@ -4052,6 +4057,11 @@ describe:
 describe_command:
 	DESC
 	| DESCRIBE;
+
+opt_extended_describe:
+	/* empty */ {}
+	| EXTENDED_SYM { Lex->describe|= DESCRIBE_EXTENDED; }
+	;
 
 opt_describe_column:
 	/* empty */	{}
@@ -4308,8 +4318,9 @@ literal:
 	  {
 	    Item *tmp= new Item_varbinary($2.str,$2.length);
 	    String *str= tmp ? tmp->val_str((String*) 0) : (String*) 0;
-	    $$ = new Item_string(str ? str->ptr() : "", str ? str->length() :
-				 0, Lex->charset);
+	    $$= new Item_string(str ? str->ptr() : "",
+				str ? str->length() : 0,
+				Lex->charset);
 	  }
 	| DATE_SYM text_literal { $$ = $2; }
 	| TIME_SYM text_literal { $$ = $2; }
@@ -5367,7 +5378,7 @@ order_or_limit:
 
 union_option:
 	/* empty */ {}
-	| ALL {Select->master_unit()->union_option= 1;};
+	| ALL {Select->master_unit()->union_option|= UNION_ALL;};
 
 singlerow_subselect:
 	subselect_start singlerow_subselect_init
