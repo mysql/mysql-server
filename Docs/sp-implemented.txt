@@ -12,7 +12,7 @@ Summary of what's implemented:
   - Prepared SP caching
   - CONDITIONs and HANDLERs
   - Simple read-only CURSORs.
-  - SHOW DECLARE PROCEDURE/FUNCTION and SHOW PROCEDURE/FUNCTION STATUS
+  - SHOW CREATE PROCEDURE/FUNCTION and SHOW PROCEDURE/FUNCTION STATUS
 
 
 Summary of Not Yet Implemented:
@@ -48,13 +48,12 @@ List of what's implemented:
     CASCADE/RESTRICT is not implemented.
 
   - CALL name (args)
-    OUT and INOUT parameters are only supported for local variables, and
-    therefore only useful when calling such procedures from within another
-    procedure.
-    Note: For the time being, when a procedure with OUT/INOUT parameter is
-          called, the out values are silently discarded. In the future, this
-	  will either generate an error message, or it might even work to
-	  call all procedures from the top-level.
+    OUT and INOUT parameters are also works for user variables ("global"
+    variables) - i.e., if a procedure is defined as:
+      CREATE PROCEDURE foo(OUT p INT) ...;
+    a call like:
+      CALL foo(@x);
+    will set @x to the output value.
 
   - Function/Procedure body:
     - BEGIN/END
@@ -79,11 +78,11 @@ List of what's implemented:
       is implemented. (Note: This is not SQL-99 feature, but common in other
       databases.)
     - A FUNCTION can have flow control contructs, but must not contain
-      an SQL query, like SELECT, INSERT, UPDATE, etc. The reason is that it's
-      hard to allow this is that a FUNCTION is executed as part of another
-      query (unlike a PROCEDURE, which is called as a statement). The table
-      locking scheme used makes it difficult to allow "subqueries" during
-      FUNCTION invokation.
+      an SQL query/statement, like SELECT, INSERT, UPDATE, etc. The reason
+      is that it's hard to allow this is that a FUNCTION is executed as part
+      of another query (unlike a PROCEDURE, which is called as a statement).
+      The table locking scheme used makes it difficult to allow "subqueries"
+      during FUNCTION invokation.
     - SPs are cached, but with a separate cache for each thread (THD).
       There are still quite a few non-reentrant constructs in the lexical
       context which makes sharing prepared SPs impossible. And, even when
@@ -106,7 +105,7 @@ List of what's implemented:
         the current one when it's finished.
 
   - SHOW procedures and functions
-    SHOW DECLARE PROCEDURE|FUNCTION <name>
+    SHOW CREATE PROCEDURE|FUNCTION <name>
       returns the definition of a routine.
     SHOW PROCEDURE|FUNCTION STATUS [LIKE <pattern>]
       returns characteristics of routines, like the name, type, creator,
