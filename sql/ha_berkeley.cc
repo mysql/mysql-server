@@ -213,7 +213,7 @@ berkeley_cmp_hidden_key(DB* file, const DBT *new_key, const DBT *saved_key)
 static int
 berkeley_cmp_packed_key(DB *file, const DBT *new_key, const DBT *saved_key)
 {
-  KEY *key=	      (KEY*) BT_APP_PRIVATE(file);
+  KEY *key=	      (KEY*) (file->app_private);
   char *new_key_ptr=  (char*) new_key->data;
   char *saved_key_ptr=(char*) saved_key->data;
   KEY_PART_INFO *key_part= key->key_part, *end=key_part+key->key_parts;
@@ -244,7 +244,7 @@ berkeley_cmp_packed_key(DB *file, const DBT *new_key, const DBT *saved_key)
 static int
 berkeley_cmp_fix_length_key(DB *file, const DBT *new_key, const DBT *saved_key)
 {
-  KEY *key=(KEY*) BT_APP_PRIVATE(file);
+  KEY *key=(KEY*) (file->app_private);
   char *new_key_ptr=  (char*) new_key->data;
   char *saved_key_ptr=(char*) saved_key->data;
   KEY_PART_INFO *key_part= key->key_part, *end=key_part+key->key_parts;
@@ -322,7 +322,7 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
 		       (hidden_primary_key ? berkeley_cmp_hidden_key :
 			berkeley_cmp_packed_key));
   if (!hidden_primary_key)
-    file->set_bt_app_private(file,table->key_info+table->primary_key);
+    file->app_private= (void*) (table->key_info+table->primary_key);
   if ((error=(file->open(file, fn_format(name_buff,name,"", ha_berkeley_ext,
 					 2 | 4),
 			 "main", DB_BTREE, open_mode,0))))
@@ -361,7 +361,7 @@ int ha_berkeley::open(const char *name, int mode, uint test_if_locked)
       sprintf(part,"key%02d",++used_keys);
       key_type[i]=table->key_info[i].flags & HA_NOSAME ? DB_NOOVERWRITE : 0;
       (*ptr)->set_bt_compare(*ptr, berkeley_cmp_packed_key);
-      (*ptr)->set_bt_app_private(*ptr,table->key_info+i);
+      (*ptr)->app_private= (void*) (table->key_info+i);
       if (!(table->key_info[i].flags & HA_NOSAME))
 	(*ptr)->set_flags(*ptr, DB_DUP);
       if ((error=((*ptr)->open(*ptr, name_buff, part, DB_BTREE,
