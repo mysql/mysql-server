@@ -124,3 +124,19 @@ PREPARE stmt1 FROM "select _utf8 'A' collate utf8_bin = ?";
 set @var='A';
 EXECUTE stmt1 USING @var;
 DEALLOCATE PREPARE stmt1;
+
+#
+# BUG#3486:  FOUND_ROWS() fails inside stored procedure [and prepared statement]
+#
+create table t1 (id int);
+prepare stmt1 from "select FOUND_ROWS()";
+select SQL_CALC_FOUND_ROWS * from t1;
+# Expect 0
+execute stmt1;
+insert into t1 values (1);
+select SQL_CALC_FOUND_ROWS * from t1;
+# Expect 1
+execute stmt1;
+# Expect 0
+execute stmt1;
+deallocate prepare stmt1;
