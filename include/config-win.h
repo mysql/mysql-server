@@ -151,9 +151,7 @@ typedef uint rf_SetTimer;
 #endif
 
 /* ERROR is defined in wingdi.h */
-#ifdef ERROR
 #undef ERROR
-#endif 
 
 /* We need to close files to break connections on shutdown */
 #ifndef SIGNAL_WITH_VIO_CLOSE
