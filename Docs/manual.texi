@@ -48037,6 +48037,11 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed bug with empty expression for boolean fulltext search.
+@item
+Fixed bug in updating fulltext key from/to @code{NULL}.
+No coredump anymore.
+@item
 ODBC compatibility: added @code{BIT_LENGTH()} function.
 @item
 Fixed bug in @code{FLUSH QUERY CACHE}.
