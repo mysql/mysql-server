@@ -922,8 +922,8 @@ Item_func_if::fix_length_and_dec()
   decimals=max(args[1]->decimals,args[2]->decimals);
   enum Item_result arg1_type=args[1]->result_type();
   enum Item_result arg2_type=args[2]->result_type();
-  bool null1=args[1]->null_value;
-  bool null2=args[2]->null_value;
+  bool null1=args[1]->const_item() && args[1]->null_value;
+  bool null2=args[2]->const_item() && args[2]->null_value;
 
   if (null1)
   {
