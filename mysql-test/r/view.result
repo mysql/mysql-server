@@ -1246,3 +1246,10 @@ select * from v1;
 cast(1 as char(3))
 1
 drop view v1;
+create view v1 as select 'a',1;
+create view v2 as select * from v1 union all select * from v1;
+create view v3 as select * from v2 where 1 = (select `1` from v2);
+create view v4 as select * from v3;
+select * from v4;
+ERROR 21000: Subquery returns more than 1 row
+drop view v4, v3, v2, v1;
