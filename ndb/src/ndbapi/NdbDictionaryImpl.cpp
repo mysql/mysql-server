@@ -47,15 +47,13 @@
  * Column
  */
 NdbColumnImpl::NdbColumnImpl()
-  : NdbDictionary::Column(* this), m_facade(this),
-    m_attrId(-1)
+  : NdbDictionary::Column(* this), m_attrId(-1), m_facade(this)
 {
   init();
 }
 
 NdbColumnImpl::NdbColumnImpl(NdbDictionary::Column & f)
-  : NdbDictionary::Column(* this), m_facade(&f),
-    m_attrId(-1)
+  : NdbDictionary::Column(* this), m_attrId(-1), m_facade(&f)
 {
   init();
 }
