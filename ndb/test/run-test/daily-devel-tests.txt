@@ -27,7 +27,7 @@ cmd: atrt-testBackup
 args: -n BackupOne T1 T6 T3 I3
 
 max-time: 1000
-cmd: testBackup
+cmd: atrt-testBackup
 args: -n BackupBank T6 
 
 #
