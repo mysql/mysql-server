@@ -45,11 +45,8 @@ void manager(const char *socket_file_name)
     pthread_t listener_thd_id;
     pthread_attr_t listener_thd_attr;
 
-    if (pthread_attr_init(&listener_thd_attr))
-      die("manager(): pthread_attr_init(listener) failed");
-    if (pthread_attr_setdetachstate(&listener_thd_attr,
-                                    PTHREAD_CREATE_DETACHED))
-      die("manager(): pthread_attr_setdetachstate(listener) failed");
+    pthread_attr_init(&listener_thd_attr);
+    pthread_attr_setdetachstate(&listener_thd_attr, PTHREAD_CREATE_DETACHED);
     if (pthread_create(&listener_thd_id, &listener_thd_attr, listener,
                        &listener_args))
       die("manager(): pthread_create(listener) failed");
