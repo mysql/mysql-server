@@ -30,9 +30,10 @@ extern "C" int add_history(const char *command); /* From readline directory */
 
 #include <NdbMain.h>
 #include <NdbHost.h>
+#include <BaseString.hpp>
+#include <NdbOut.hpp>
 #include <mgmapi.h>
 #include <ndb_version.h>
-#include <LocalConfig.hpp>
 
 #include "ndb_mgmclient.hpp"
 
@@ -55,17 +56,18 @@ handler(int sig){
   }
 }
 
-
+static const char default_prompt[]= "ndb_mgm> ";
 static unsigned _try_reconnect;
 static char *opt_connect_str= 0;
+static const char *prompt= default_prompt;
 
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_mgm"),
   { "try-reconnect", 't',
-    "Specify number of retries for connecting to ndb_mgmd, default infinite", 
+    "Specify number of tries for connecting to ndb_mgmd (0 = infinite)", 
     (gptr*) &_try_reconnect, (gptr*) &_try_reconnect, 0,
-    GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+    GET_UINT, REQUIRED_ARG, 3, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 static void short_usage_sub(void)
@@ -115,13 +117,13 @@ read_and_execute(int _try_reconnect)
   }
 #ifdef HAVE_READLINE
   /* Get a line from the user. */
-  line_read = readline ("ndb_mgm> ");    
+  line_read = readline (prompt);    
   /* If the line has any text in it, save it on the history. */
   if (line_read && *line_read)
     add_history (line_read);
 #else
   static char linebuffer[254];
-  fputs("ndb_mgm> ", stdout);
+  fputs(prompt, stdout);
   linebuffer[sizeof(linebuffer)-1]=0;
   line_read = fgets(linebuffer, sizeof(linebuffer)-1, stdin);
   if (line_read == linebuffer) {
@@ -138,7 +140,7 @@ int main(int argc, char** argv){
   NDB_INIT(argv[0]);
   const char *_host = 0;
   int _port = 0;
-  const char *load_default_groups[]= { "ndb_mgm",0 };
+  const char *load_default_groups[]= { "mysql_cluster","ndb_mgm",0 };
 
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
@@ -154,12 +156,16 @@ int main(int argc, char** argv){
     opt_connect_str= buf;
   }
 
+  if (!isatty(0))
+  {
+    prompt= 0;
+  }
+
   ndbout << "-- NDB Cluster -- Management Client --" << endl;
-  printf("Connecting to Management Server: %s\n", opt_connect_str ? opt_connect_str : "default");
 
   signal(SIGPIPE, handler);
 
-  com = new Ndb_mgmclient(opt_connect_str);
+  com = new Ndb_mgmclient(opt_connect_str,1);
   while(read_and_execute(_try_reconnect));
   delete com;
   

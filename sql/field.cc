@@ -4086,6 +4086,10 @@ int Field_datetime::store(longlong nr)
 void Field_datetime::store_time(TIME *ltime,timestamp_type type)
 {
   longlong tmp;
+  /*
+    We don't perform range checking here since values stored in TIME
+    structure always fit into DATETIME range.
+  */
   if (type == MYSQL_TIMESTAMP_DATE || type == MYSQL_TIMESTAMP_DATETIME)
     tmp=((ltime->year*10000L+ltime->month*100+ltime->day)*LL(1000000)+
 	 (ltime->hour*10000L+ltime->minute*100+ltime->second));

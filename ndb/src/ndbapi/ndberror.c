@@ -53,6 +53,9 @@ typedef struct ErrorBundle {
 #define NI ndberror_cl_function_not_implemented
 #define UE ndberror_cl_unknown_error_code
 
+static const char REDO_BUFFER_MSG[]=
+"REDO log buffers overloaded, consult online manual (increase RedoBuffer, and|or decrease TimeBetweenLocalCheckpoints, and|or increase NoOfFragmentLogFiles)";
+
 static const char* empty_string = "";
 
 static
@@ -137,9 +140,8 @@ ErrorBundle ErrorCodes[] = {
   { 805,  TR, "Out of attrinfo records in tuple manager" },
   { 830,  TR, "Out of add fragment operation records" },
   { 873,  TR, "Out of attrinfo records for scan in tuple manager" },
-  { 1217, TR, "1217" },
-  { 1219, TR, "Out of operation records in local data manager (increase MaxNoOfLocalOperations)" },
-  { 1220, TR, "1220" },
+  { 1217, TR, "Out of operation records in local data manager (increase MaxNoOfLocalOperations)" },
+  { 1220, TR, REDO_BUFFER_MSG },
   { 1222, TR, "Out of transaction markers in LQH" },
   { 4021, TR, "Out of Send Buffer space in NDB API" },
   { 4022, TR, "Out of Send Buffer space in NDB API" },
@@ -165,14 +167,13 @@ ErrorBundle ErrorCodes[] = {
   { 297,  TO, "Time-out in NDB, probably caused by deadlock" }, /* Scan trans timeout, temporary!! */
   { 237,  TO, "Transaction had timed out when trying to commit it" },
   
-
   /**
    * OverloadError
    */
-  { 410,  OL, "Out of log file space temporarily" },
+  { 410,  OL, REDO_BUFFER_MSG },
   { 677,  OL, "Index UNDO buffers overloaded (increase UndoIndexBuffer)" },
   { 891,  OL, "Data UNDO buffers overloaded (increase UndoDataBuffer)" },
-  { 1221, OL, "REDO log buffers overloaded (increase RedoBuffer)" },
+  { 1221, OL, REDO_BUFFER_MSG },
   { 4006, OL, "Connect failure - out of connection objects (increase MaxNoOfConcurrentTransactions)" }, 
 
 
@@ -425,7 +426,8 @@ ErrorBundle ErrorCodes[] = {
   { 4267, IE, "Corrupted blob value" },
   { 4268, IE, "Error in blob head update forced rollback of transaction" },
   { 4268, IE, "Unknown blob error" },
-  { 4269, IE, "No connection to ndb management server" }
+  { 4269, IE, "No connection to ndb management server" },
+  { 4335, AE, "Only one autoincrement column allowed per table. Having a table without primary key uses an autoincremented hidden key, i.e. a table without a primary key can not have an autoincremented column" }
 };
 
 static

@@ -242,8 +242,9 @@ int runScanReadCommitted(NDBT_Context* ctx, NDBT_Step* step){
   HugoTransactions hugoTrans(*ctx->getTab());
   while (i<loops && !ctx->isTestStopped()) {
     g_info << i << ": ";
-    if (hugoTrans.scanReadCommittedRecords(GETNDB(step), records, 
-					   abort, parallelism) != 0){
+    if (hugoTrans.scanReadRecords(GETNDB(step), records, 
+				  abort, parallelism, 
+				  NdbOperation::LM_CommittedRead) != 0){
       return NDBT_FAILED;
     }
     i++;
@@ -639,7 +640,7 @@ int runCheckGetValue(NDBT_Context* ctx, NDBT_Step* step){
     g_info << (unsigned)i << endl;
     if(utilTrans.scanReadRecords(GETNDB(step), 
 				 parallelism,
-				 false,
+				 NdbOperation::LM_Read,
 				 records,
 				 alist.attriblist[i]->numAttribs,
 				 alist.attriblist[i]->attribs) != 0){
@@ -647,7 +648,7 @@ int runCheckGetValue(NDBT_Context* ctx, NDBT_Step* step){
     }
     if(utilTrans.scanReadRecords(GETNDB(step), 
 				 parallelism,
-				 true,
+				 NdbOperation::LM_Read,
 				 records,
 				 alist.attriblist[i]->numAttribs,
 				 alist.attriblist[i]->attribs) != 0){

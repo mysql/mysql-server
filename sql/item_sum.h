@@ -402,20 +402,19 @@ class Item_sum_hybrid :public Item_sum
   enum_field_types hybrid_field_type;
   int cmp_sign;
   table_map used_table_cache;
-  CHARSET_INFO *cmp_charset;
 
   public:
   Item_sum_hybrid(Item *item_par,int sign)
     :Item_sum(item_par), sum(0.0), sum_int(0),
     hybrid_type(INT_RESULT), hybrid_field_type(FIELD_TYPE_LONGLONG),
-    cmp_sign(sign), used_table_cache(~(table_map) 0),
-    cmp_charset(&my_charset_bin)
-  {}
+    cmp_sign(sign), used_table_cache(~(table_map) 0)
+  { collation.set(&my_charset_bin); }
   Item_sum_hybrid(THD *thd, Item_sum_hybrid *item):
     Item_sum(thd, item), value(item->value),
     sum(item->sum), sum_int(item->sum_int), hybrid_type(item->hybrid_type),
     hybrid_field_type(item->hybrid_field_type),cmp_sign(item->cmp_sign), 
-    used_table_cache(item->used_table_cache), cmp_charset(item->cmp_charset) {}
+    used_table_cache(item->used_table_cache)
+    { collation.set(item->collation); }
   bool fix_fields(THD *, TABLE_LIST *, Item **);
   table_map used_tables() const { return used_table_cache; }
   bool const_item() const { return !used_table_cache; }
@@ -532,7 +531,7 @@ public:
     :Item_sum( list ), udf(udf_arg)
   { quick_group=0;}
   Item_udf_sum(THD *thd, Item_udf_sum *item)
-    :Item_sum(thd, item), udf(item->udf) {}
+    :Item_sum(thd, item), udf(item->udf) { udf.not_original= TRUE; }
   const char *func_name() const { return udf.name(); }
   bool fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   {
