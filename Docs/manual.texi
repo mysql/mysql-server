@@ -1096,7 +1096,9 @@ The @code{mysqlbug} script should be used to generate bug reports.
 @c FIX! RPMs are also binary
 For source distributions, the @code{mysqlbug} script can be found in the
 @file{scripts} directory.  For binary distributions, @code{mysqlbug} can
-be found in the @file{bin} directory.
+be found in the @file{bin} directory. If you have found a sensitive
+security bug in @strong{MySQL}, you should send an email to
+@email{security@@mysql.com}.
 
 @cindex errors, reporting
 @cindex reporting, errors
@@ -20731,6 +20733,11 @@ requires more than this amount of memory, one will get the error
 "Multi-statement transaction required more than 'max_binlog_cache_size'
 bytes of storage".
 
+@item @code{max_binlog_size}. Available after 3.23.33. If a write to the
+binary ( replication) log exceeds the given value, rotate the logs. You
+cannot set it to less than 1024 bytes, or more than 1 GB. Default is
+1 GB.
+
 @item @code{max_connections}
 The number of simultaneous clients allowed. Increasing this value increases
 the number of file descriptors that @code{mysqld} requires.  See below for
@@ -25779,7 +25786,7 @@ below.
 
 @enumerate
 @item
-Make you have a recent version of @strong{MySQL} installed on the master
+Make sure you have a recent version of @strong{MySQL} installed on the master
 and slave(s).
 
 Use Version 3.23.29 or higher. Previous releases used a different binary
@@ -26183,6 +26190,11 @@ summary of commands:
  @tab Re-enables update logging if the user has process privilege.
  Ignored otherwise. (Master)
 
+@item @code{SET SQL_SLAVE_SKIP_COUNTER=n}
+ @tab Skip the next @code{n} events from the master. Only valid when
+the slave thread is not running, otherwise, gives an error. Useful for
+recovering from replication glitches.
+
 @item @code{RESET MASTER}
  @tab Deletes all binary logs listed in the index file, resetting the binlog
 index file to be empty. In pre-3.23.26 versions, @code{FLUSH MASTER} (Master)
@@ -26209,7 +26221,9 @@ CHANGE MASTER TO
   MASTER_HOST='master2.mycompany.com',
   MASTER_USER='replication',
   MASTER_PASSWORD='bigs3cret',
-  MASTER_PORT=3306;
+  MASTER_PORT=3306,
+  MASTER_LOG_FILE='master2-bin.001',
+  MASTER_LOG_POS=4;
 
 @end example
 
@@ -26538,11 +26552,35 @@ privileges for the replication user on the master, master host name, your
 DNS setup, whether the master is actually running, whether it is reachable
 from the slave, and if all that seems ok, read the error logs.
 @item
-If the slave was running, but then stopped, check the error logs. It usually
+If the slave was running, but then stopped, look at SHOW SLAVE STATUS
+output andcheck the error logs. It usually
 happens when some query that succeeded on the master fails on the slave. This
 should never happen if you have taken a proper snapshot of the master, and
 never modify the data on the slave outside of the slave thread. If it does,
 it is a bug, read below on how to report it.
+@item
+If a query on that succeeded on the master refuses to run on the slave, and
+a full database resync ( the proper thing to do ) does not seem feasible,
+try the following:
+@itemize bullet
+@item
+First see if there is some stray record in the way. Understand how it got
+there, then delete it and run @code{SLAVE START}
+@item
+If the above does not work or does not apply, try to understand if it would
+be safe to make the update manually ( if needed) and then ignore the next
+query from the master.
+@item
+If you have decided you can skip the next query, do
+@code{SET SQL_SLAVE_SKIP_COUNTER=1; SLAVE START;} to skip a query that
+does not use auto_increment, last_insert_id or timestamp, or
+@code{SET SQL_SLAVE_SKIP_COUNTER=2; SLAVE START;} otherwise
+@item
+If you are sure the slave started out perfectly in sync with the master,
+and no one has updated  the tables involved outside of slave thread,
+report the bug, so
+you will not have to do the above tricks again.
+@end itemize
 @item
 Make sure you are not running into an old bug by upgrading to the most recent
 version.
@@ -40674,6 +40712,7 @@ users uses this code as the rest of the code and because of this we are
 not yet 100 % confident in this code.
 
 @menu
+* News-3.23.33::                Changes in release 3.23.33
 * News-3.23.32::                Changes in release 3.23.32
 * News-3.23.31::                Changes in release 3.23.31
 * News-3.23.30::                Changes in release 3.23.30
@@ -40709,7 +40748,38 @@ not yet 100 % confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.32, News-3.23.31, News-3.23.x, News-3.23.x
+@node News-3.23.33, News-3.23.32, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.33
+@itemize bullet
+@item
+Fixed bug in replication that broke slave server start with existing
+@code{master.info} - bug introduced in 3.23.32
+@item
+Added @code{SET SQL_SLAVE_SKIP_COUNTER=n} command to recover from
+replication glitches without a full database copy
+@item
+Added @code{max_binlog_size} variable - binary log will be rotated
+automatically once the size crosses the limit.
+@item
+Added @code{Last_error}, @code{Last_errno}, and @code{Slave_skip_counter} to
+@code{SHOW SLAVE STATUS}.
+@item
+Fixed bug in @code{MASTER_POS_WAIT()} function.
+@item
+Execute coredump handler on @code{SIGILL}, and @code{SIGBUS} in addition to
+@code{SIGSEGV}.
+@item
+On x86 Linux, print the current query and thread (connection) id, if
+available, in the coredump handler.
+@item
+Fixed several timing bugs in the test suite
+@item
+Extended @code{mysqltest} to take care of the timing issues in the test
+suite.
+@end itemize
+
+
+@node News-3.23.32, News-3.23.31, News-3.23.33, News-3.23.x
 @appendixsubsec Changes in release 3.23.32
 @itemize @bullet
 @item
