@@ -35297,6 +35297,9 @@ Note that if you use any other option to @code{ALTER TABLE} than
 if the data wouldn't strictly need to be copied (like when you change the
 name of a column). We plan to fix this in the future, but as one doesn't
 normally do @code{ALTER TABLE} that often this isn't that high on our TODO.
+For MyISAM tables, you can speed up the index recreation part (which is the
+slowest part of the recreation process) by setting the
+@code{myisam_sort_buffer_size} variable to a high value.
 
 @itemize @bullet
 @item

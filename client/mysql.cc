@@ -354,18 +354,6 @@ int main(int argc,char *argv[])
 	  mysql_thread_id(&mysql),mysql_get_server_info(&mysql));
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
 
-#ifdef HAVE_OPENSSL
-  if (mysql.net.vio->ssl_ && SSL_get_cipher(mysql.net.vio->ssl_))
-  {
-    sprintf((char*) glob_buffer.ptr(),
-	    "SSL cipher in use is %s\n", SSL_get_cipher(mysql.net.vio->ssl_));
-    put_info((char*) glob_buffer.ptr(),INFO_INFO);
-  }
-  else
-    put_info("SSL is not in use\n",INFO_INFO);
-#endif /* HAVE_OPENSSL */
-
-
 #ifdef HAVE_READLINE
   initialize_readline(my_progname);
   if (!status.batch && !quick && !opt_html && !opt_xml)
@@ -2329,6 +2317,13 @@ com_status(String *buffer __attribute__((unused)),
       tee_fprintf(stdout, "Current user:\t\t%s\n",cur[1]);
       (void) mysql_fetch_row(result);		// Read eof
     }
+#ifdef HAVE_OPENSSL
+    if (mysql.net.vio->ssl_ && SSL_get_cipher(mysql.net.vio->ssl_))
+      tee_fprintf("SSL cipher in use is %s\n",
+		  SSL_get_cipher(mysql.net.vio->ssl_));
+    else
+#endif /* HAVE_OPENSSL */
+      tee_puts("SSL is not in use\n", stdout);
   }
   else
   {
