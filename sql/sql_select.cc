@@ -7458,8 +7458,10 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
 			       ((sl->next_select_in_list())?"PRIMARY":
 				"SIMPLE"):
 			       ((sl == first)?
+				((sl->linkage == DERIVED_TABLE_TYPE) ?
+				 "DERIVED":
 				((sl->dependent)?"DEPENDENT SUBSELECT":
-				 "SUBSELECT"):
+				 "SUBSELECT")):
 				((sl->dependent)?"DEPENDENT UNION":
 				 "UNION"))),
 			      result);

@@ -959,6 +959,7 @@ void st_select_lex::init_query()
   table_list.next= (byte**) &table_list.first;
   item_list.empty();
   join= 0;
+  olap= UNSPECIFIED_OLAP_TYPE;
 }
 
 void st_select_lex::init_select()
