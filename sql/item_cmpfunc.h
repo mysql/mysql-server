@@ -469,6 +469,7 @@ public:
     if (!args[0]->maybe_null)
     {
       used_tables_cache= 0;			/* is always false */
+      const_item_cache= 1;
       cached_value= (longlong) 0;
     }
     else

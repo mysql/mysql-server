@@ -109,3 +109,22 @@ a	b	c	d
 	0	0000-00-00 00:00:00	0
 	0	0000-00-00 00:00:00	0
 drop table t1;
+CREATE TABLE t1(i int, KEY(i));
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 SELECT i*2 FROM t1;
+INSERT INTO t1 SELECT i*2 FROM t1;
+INSERT INTO t1 SELECT i*2 FROM t1;
+INSERT INTO t1 SELECT i*2 FROM t1;
+INSERT INTO t1 SELECT i*2 FROM t1;
+INSERT INTO t1 SELECT i*2 FROM t1;
+INSERT INTO t1 SELECT i*2 FROM t1;
+INSERT INTO t1 SELECT i*2 FROM t1;
+INSERT INTO t1 SELECT i*2 FROM t1;
+EXPLAIN SELECT * FROM t1 WHERE i=2 OR i IS NULL;
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	range	i	i	5	NULL	10	Using where; Using index
+ALTER TABLE t1 CHANGE i i int NOT NULL;
+EXPLAIN SELECT * FROM t1 WHERE i=2 OR i IS NULL;
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t1	range	i	i	4	NULL	7	Using where; Using index
+DROP TABLE t1;
