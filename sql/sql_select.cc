@@ -32,7 +32,7 @@
 
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "MAYBE_REF","ALL","range","index","fulltext",
-			      "ref_or_null","simple_in"
+			      "ref_or_null","simple_in","index_in"
 };
 
 static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array);
@@ -441,6 +441,42 @@ err:
 }
 
 /*
+  test if it is known for optimisation IN subquery
+
+  SYNOPSYS
+    JOIN::test_in_subselect
+    where - pointer for variable in which conditions should be
+            stored if subquery is known
+
+  RETURN
+    1 - known
+    0 - unknown
+*/
+
+bool JOIN::test_in_subselect(Item **where)
+{
+  if (conds->type() == Item::FUNC_ITEM &&
+      ((class Item_func *)this->conds)->functype() == Item_func::EQ_FUNC &&
+      ((Item_func *)conds)->arguments()[0]->type() == Item::REF_ITEM &&
+      ((Item_func *)conds)->arguments()[1]->type() == Item::FIELD_ITEM)
+  {
+    join_tab->info= "Using index";
+    *where= 0;
+    return 1;
+  }
+  if (conds->type() == Item::COND_ITEM &&
+      ((class Item_func *)this->conds)->functype() ==
+      Item_func::COND_AND_FUNC)
+  {
+    *where= conds;
+    join_tab->info= "Using index; Using where";
+    return 1;
+  }
+  return 0;
+}
+
+
+/*
   global select optimisation.
   return 0 - success
          1 - go out
@@ -729,37 +765,33 @@ JOIN::optimize()
   */
   if (!group_list && !order && !having &&
       unit->item && unit->item->substype() == Item_subselect::IN_SUBS &&
-      tables == 1 && join_tab[0].type == JT_EQ_REF &&
-      conds &&
+      tables == 1 && conds &&
       !unit->first_select()->next_select())
   {
     Item *where= 0;
-    bool ok= 0;
-    if (conds->type() == Item::FUNC_ITEM &&
-	((class Item_func *)this->conds)->functype() == Item_func::EQ_FUNC &&
-	((Item_func *)conds)->arguments()[0]->type() == Item::REF_ITEM &&
-	((Item_func *)conds)->arguments()[1]->type() == Item::FIELD_ITEM)
+    if (join_tab[0].type == JT_EQ_REF)
     {
-      ok= 1;
-      join_tab->info= "Using index";
+      if (test_in_subselect(&where))
+      {
+	join_tab[0].type= JT_SIMPLE_IN;
+	error= 0;
+	DBUG_RETURN(unit->item->
+		    change_engine(new subselect_simplein_engine(thd, join_tab,
+								unit->item,
+								where)));
+      }
     }
-    else if (conds->type() == Item::COND_ITEM &&
-	     ((class Item_func *)this->conds)->functype() ==
-	     Item_func::COND_AND_FUNC)
+    else if (join_tab[0].type == JT_REF)
     {
-      ok= 1;
-      where= conds;
-      join_tab->info= "Using index; Using where";
-    }
-
-    if (ok)
-    {
-      join_tab[0].type= JT_SIMPLE_IN;
-      error= 0;
-      DBUG_RETURN(unit->item->
-		  change_engine(new subselect_simplein_engine(thd, join_tab,
-							      unit->item,
-							      where)));
+      if (test_in_subselect(&where))
+      {
+	join_tab[0].type= JT_INDEX_IN;
+	error= 0;
+	DBUG_RETURN(unit->item->
+		    change_engine(new subselect_indexin_engine(thd, join_tab,
+							       unit->item,
+							       where)));
+      }
     }
   }
 

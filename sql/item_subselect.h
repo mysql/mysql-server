@@ -184,6 +184,7 @@ public:
 
   friend class select_exists_subselect;
   friend class subselect_simplein_engine;
+  friend class subselect_indexin_engine;
 };
 
 /* IN subselect */
@@ -314,6 +315,7 @@ public:
 struct st_join_table;
 class subselect_simplein_engine: public subselect_engine
 {
+protected:
   st_join_table *tab;
   Item *cond;
 public:
@@ -330,4 +332,15 @@ public:
   bool dependent() { return 1; }
   bool uncacheable() { return 1; }
   void  exclude();
+  static int end_exec(TABLE *table);
+};
+
+class subselect_indexin_engine: public subselect_simplein_engine
+{
+public:
+  subselect_indexin_engine(THD *thd, st_join_table *tab_arg,
+			    Item_subselect *subs, Item *where)
+    :subselect_simplein_engine(thd, tab_arg, subs, where)
+  {}
+  int exec();
 };
