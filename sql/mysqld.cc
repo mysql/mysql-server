@@ -5102,11 +5102,19 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 }
 	/* Initiates DEBUG - but no debugging here ! */
 
+void option_error_reporter( enum loglevel level, const char *format, ... )
+{
+  va_list args;
+  va_start( args, format );
+  vprint_msg_to_log( level, format, args );
+  va_end( args );
+}
+
 static void get_options(int argc,char **argv)
 {
   int ho_error;
 
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option, option_error_reporter )))
     exit(ho_error);
 
 #if defined(HAVE_BROKEN_REALPATH)

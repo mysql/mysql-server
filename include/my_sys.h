@@ -261,6 +261,12 @@ typedef struct st_typelib {	/* Different types saved here */
   const char **type_names;
 } TYPELIB;
 
+enum loglevel {
+   ERROR_LEVEL,
+   WARNING_LEVEL,
+   INFORMATION_LEVEL
+};
+
 enum cache_type
 {
   READ_CACHE,WRITE_CACHE,
