@@ -690,6 +690,7 @@ os_file_set_size(
 	ulint   	n_bytes;
 	ibool		ret;
 	byte*   	buf;
+	byte*   	buf2;
 	ulint   	i;
 
 	ut_a(size == (size & 0xFFFFFFFF));
@@ -697,7 +698,10 @@ os_file_set_size(
 	/* We use a very big 8 MB buffer in writing because Linux may be
 	extremely slow in fsync on 1 MB writes */
 
-	buf = ut_malloc(UNIV_PAGE_SIZE * 512);
+	buf2 = ut_malloc(UNIV_PAGE_SIZE * 513);
+
+	/* Align the buffer for possible raw i/o */
+	buf = ut_align(buf2, UNIV_PAGE_SIZE);
 
 	/* Write buffer full of zeros */
 	for (i = 0; i < UNIV_PAGE_SIZE * 512; i++) {
@@ -725,7 +729,7 @@ os_file_set_size(
 	        offset += n_bytes;
 	}
 
-	ut_free(buf);
+	ut_free(buf2);
 
 	ret = os_file_flush(file);
 
