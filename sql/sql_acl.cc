@@ -2894,6 +2894,8 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 
 	if (test_all_bits(want_access,(DB_ACLS & ~GRANT_ACL)))
 	  db.append("ALL PRIVILEGES",14);
+	else if (!(want_access & ~GRANT_ACL))
+	  db.append("USAGE",5);	
 	else
 	{
 	  int found=0, cnt;

@@ -64,3 +64,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, CREATE TE
 revoke all privileges on mysqltest.* from mysqltest_1@localhost;
 delete from mysql.user where user='mysqltest_1';
 flush privileges;
+grant usage on test.* to user@localhost with grant option;
+show grants for user@localhost;
+Grants for user@localhost
+GRANT USAGE ON *.* TO 'user'@'localhost'
+GRANT USAGE ON `test`.* TO 'user'@'localhost' WITH GRANT OPTION

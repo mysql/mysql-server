@@ -505,7 +505,7 @@ bool Item::save_in_field(Field *field, bool no_conversions)
   {
     double nr=val();
     if (null_value)
-      return set_field_to_null(field);
+      return set_field_to_null_with_conversions(field, no_conversions);
     field->set_notnull();
     field->store(nr);
   }
