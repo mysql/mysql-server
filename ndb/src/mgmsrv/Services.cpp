@@ -1356,7 +1356,7 @@ MgmApiSession::setParameter(Parser_t::Context &,
 
 void
 MgmApiSession::setConnectionParameter(Parser_t::Context &ctx,
-			    Properties const &args) {
+				      Properties const &args) {
   BaseString node1, node2, param, value;
   args.get("node1", node1);
   args.get("node2", node2);
