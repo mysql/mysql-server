@@ -2292,8 +2292,9 @@ dict_scan_to(
 			/* Outside quotes: look for the keyword. */
 			ulint	i;
 			for (i = 0; string[i]; i++) {
-				if (toupper((ulint)(ptr[i]))
-					!= toupper((ulint)(string[i]))) {
+				if (toupper((int)(unsigned char)(ptr[i]))
+						!= toupper((int)(unsigned char)
+						(string[i]))) {
 					goto nomatch;
 				}
 			}
