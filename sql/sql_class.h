@@ -408,6 +408,7 @@ struct system_variables
   ulong table_type;
   ulong tmp_table_size;
   ulong tx_isolation;
+  ulong completion_type;
   /* Determines which non-standard SQL behaviour should be enabled */
   ulong sql_mode;
   /* check of key presence in updatable view */
@@ -431,6 +432,11 @@ struct system_variables
   my_bool new_mode;
   my_bool query_cache_wlock_invalidate;
   my_bool engine_condition_pushdown;
+#ifdef HAVE_REPLICATION
+  ulong sync_replication;
+  ulong sync_replication_slave_id;
+  ulong sync_replication_timeout;
+#endif /* HAVE_REPLICATION */
 #ifdef HAVE_INNOBASE_DB
   my_bool innodb_table_locks;
 #endif /* HAVE_INNOBASE_DB */
@@ -1022,10 +1028,13 @@ public:
   bool	     charset_is_system_charset, charset_is_collation_connection;
   bool       slow_command;
   bool	     no_trans_update, abort_on_warning;
+  bool 	     got_warning;       /* Set on call to push_warning() */
   longlong   row_count_func;	/* For the ROW_COUNT() function */
   sp_rcontext *spcont;		// SP runtime context
   sp_cache   *sp_proc_cache;
   sp_cache   *sp_func_cache;
+  bool       shortcut_make_view; /* Don't do full mysql_make_view()
+				    during pre-opening of tables. */
 
   /*
     If we do a purge of binary logs, log index info of the threads
@@ -1510,9 +1519,11 @@ public:
   select_max_min_finder_subselect(Item_subselect *item, bool mx)
     :select_subselect(item), cache(0), fmax(mx)
   {}
+  void cleanup();
   bool send_data(List<Item> &items);
   bool cmp_real();
   bool cmp_int();
+  bool cmp_decimal();
   bool cmp_str();
 };
 
@@ -1586,9 +1597,10 @@ class user_var_entry
   ulong length, update_query_id, used_query_id;
   Item_result type;
 
-  double val(my_bool *null_value);
+  double val_real(my_bool *null_value);
   longlong val_int(my_bool *null_value);
   String *val_str(my_bool *null_value, String *str, uint decimals);
+  my_decimal *val_decimal(my_bool *null_value, my_decimal *result);
   DTCollation collation;
 };
 
@@ -1617,9 +1629,11 @@ public:
   ~Unique();
   inline bool unique_add(void *ptr)
   {
+    DBUG_ENTER("unique_add");
+    DBUG_PRINT("info", ("tree %u - %u", tree.elements_in_tree, max_elements));
     if (tree.elements_in_tree > max_elements && flush())
-      return 1;
-    return !tree_insert(&tree, ptr, 0, tree.custom_arg);
+      DBUG_RETURN(1);
+    DBUG_RETURN(!tree_insert(&tree, ptr, 0, tree.custom_arg));
   }
 
   bool get(TABLE *table);
