@@ -3691,7 +3691,7 @@ Allow users to change startup options without taking down the server.
 Fail safe replication.
 @item
 More functions for full-text search.
-@xref{Fulltext Features in MySQL 4.0}.
+@xref{Fulltext TODO}.
 @item
 New key cache
 @item
@@ -18044,6 +18044,7 @@ differ somewhat:
 | ft_min_word_len              | 4                         |
 | ft_max_word_len              | 254                       |
 | ft_max_word_len_for_sort     | 20                        |
+| ft_boolean_syntax            | + -><()~*                 |
 | have_bdb                     | YES                       |
 | have_innodb                  | YES                       |
 | have_raid                    | YES                       |
@@ -18250,6 +18251,9 @@ lot of words into index the slow way - but short words will be inserted very
 fast. It applies only to index recreation during @code{REPAIR},
 @code{CREATE INDEX}, or @code{ALTER TABLE}.
 
+@item @code{ft_boolean_syntax}
+List of operators supported by @code{MATCH ... AGAINST(... IN BOOLEAN MODE)}.
+@xref{Fulltext Search}.
 
 @item @code{have_innodb}
 @code{YES} if @code{mysqld} supports InnoDB tables. @code{DISABLED}
@@ -29156,17 +29160,17 @@ mysql> select STRCMP('text', 'text');
 
 @findex MATCH ... AGAINST()
 @item MATCH (col1,col2,...) AGAINST (expr)
+@itemx MATCH (col1,col2,...) AGAINST (expr IN BOOLEAN MODE)
 @code{MATCH ... AGAINST()} is used for full-text search and returns
 relevance - similarity measure between the text in columns
 @code{(col1,col2,...)} and the query @code{expr}. Relevance is a
 positive floating-point number. Zero relevance means no similarity.
 For @code{MATCH ... AGAINST()} to work, a @strong{FULLTEXT} index
 must be created first. @xref{CREATE TABLE, , @code{CREATE TABLE}}.
-@code{MATCH ... AGAINST()} is available in MySQL Version
-3.23.23 or later. For details and usage examples
-@pxref{Fulltext Search}.
+@code{MATCH ... AGAINST()} is available in MySQL version
+3.23.23 or later. @code{IN BOOLEAN MODE} extension was added in version
+4.0.1. For details and usage examples @pxref{Fulltext Search}.
 @end table
-
 
 @node Case Sensitivity Operators,  , String comparison functions, String functions
 @subsubsection Case Sensitivity
@@ -33679,9 +33683,9 @@ and searching.  Full-text indexes in MySQL are an index of type
 @code{FULLTEXT}.  @code{FULLTEXT} indexes can be created from @code{VARCHAR} 
 and @code{TEXT} columns at @code{CREATE TABLE} time or added later with 
 @code{ALTER TABLE} or @code{CREATE INDEX}.  For large datasets, adding 
-@code{FULLTEXT} index with @code{ALTER TABLE} (or @code{CREATE INDEX}) would 
-be much faster than inserting rows into the empty table with a @code{FULLTEXT} 
-index.
+@code{FULLTEXT} index with @code{ALTER TABLE} (or @code{CREATE INDEX})
+would be much faster than inserting rows into the empty table that has
+a @code{FULLTEXT}  index.
 
 Full-text search is performed with the @code{MATCH} function.
 
@@ -33714,7 +33718,8 @@ mysql> SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('database');
 2 rows in set (0.00 sec)
 @end example
 
-The function @code{MATCH} matches a natural language query @code{AGAINST} 
+The function @code{MATCH} matches a natural language (or boolean,
+see below) query in case-insensitive fashion @code{AGAINST} 
 a text collection (which is simply the set of columns covered by a 
 @code{FULLTEXT} index).  For every row in a table it returns relevance - 
 a similarity measure between the text in that row (in the columns that are 
@@ -33730,7 +33735,7 @@ The above is a basic example of using @code{MATCH} function. Rows are
 returned with relevance decreasing.
 
 @example
-mysql> SELECT id,MATCH (title,body) AGAINST ('Tutorial') FROM articles;
+mysql> SELECT id,MATCH title,body AGAINST ('Tutorial') FROM articles;
 +----+-----------------------------------------+
 | id | MATCH (title,body) AGAINST ('Tutorial') |
 +----+-----------------------------------------+
@@ -33748,7 +33753,7 @@ This example shows how to retrieve the relevances. As neither @code{WHERE}
 nor @code{ORDER BY} clauses are present, returned rows are not ordered.
 
 @example
-mysql> SELECT id, body, MATCH (title,body) AGAINST (
+mysql> SELECT id, body, MATCH title,body AGAINST (
     -> 'Security implications of running MySQL as root') AS score
     -> FROM articles WHERE MATCH (title,body) AGAINST
     -> ('Security implications of running MySQL as root');
@@ -33802,27 +33807,98 @@ We all know this happens far too often when we are trying to find something on
 the Internet with a search engine.  It is with this reasoning that such rows 
 have been assigned a low semantical value in @strong{this particular dataset}.
 
+Since version 4.0.1 MySQL can also perform boolean fulltext searches using
+@code{IN BOOLEAN MODE} modifier.
+
+@example
+mysql> SELECT * FROM articles WHERE MATCH (title,body) AGAINST (
+    ->    '+MySQL -YourSQL' IN BOOLEAN MODE);
++----+------------------------------+-----------------------------------------------+
+| id | title                        | body                                          |
++----+------------------------------+-----------------------------------------------+
+|  1 | MySQL Tutorial               | DBMS stands for DataBase Management ...       |
+|  2 | How To Use MySQL Efficiently | After you went through a ...                  |
+|  3 | Optimising MySQL             | In this tutorial we will show how to ...      |
+|  4 | 1001 MySQL Trick             | 1. Never run mysqld as root. 2. Normalise ... |
+|  6 | MySQL Security               | When configured properly, MySQL could be ...  |
++----+------------------------------+-----------------------------------------------+
+@end example
+
+This query retrieved all the rows that contain the word @code{MySQL}
+(note: 50% threshold is gone), but does @strong{not} contain the word
+@code{YourSQL}.  Note that it does not auto-magically sort rows in
+derceasing relevance order (the last row has the highest relevance,
+as it contains @code{MySQL} twice).
+
+Boolean fulltext search supports the following operators:
+
+@table @code
+@item +
+A plus sign prepended to a word indicates that this word @strong{must be}
+present in every row returned.
+@item -
+A minus sign prepended to a word indicates that this word @strong{must not}
+be present in the rows returned.
+@item
+By default - without plus or minus - the word is optional, but the rows that
+contain it will be rated higher. This mimicks the behaviour of
+@code{MATCH ... AGAINST()} without @code{IN BOOLEAN MODE} modifier.
+@item < >
+These two operators are used to increase and decrease word's contribution
+to the relevance value, assigned to a row. See an example below.
+@item ( )
+Parentheses are used - as usual - to group words into subexpressions.
+@item ~
+This is negation operator. It makes word's contribution to the row
+relevance negative. It's useful for marking noise words. A row that has
+such a word will be rated lower than others, but will not be excluded
+altogether, as with @code{-} operator.
+@item *
+This is truncation operator. Unlike others it should be @strong{appended}
+to the word, not prepended.
+@end table
+
+And here are some examples:
+
+@table @code
+@item ``apple banana''
+find rows that contain at least one of these words.
+@item ``+apple +juice''
+... both words
+@item ``+apple macintosh''
+... word ``apple'', but rank it higher if it also contain ``macintosh''
+@item ``+apple -macintosh''
+... word ``apple'' but not ``macintosh''
+@item ``+gates +(>hell <bill)''
+... ``hell'' and ``gates'', or ``bill'' and ``gates'' (in any
+order), but rank ``gates to hell'' higher than ``bill gates''.
+@item ``apple*''
+... ``apple'', ``apples'', ``applesause'', and ``applet''
+@end table
+
 @menu
-* Fulltext restrictions::       Fulltext restrictions
+* Fulltext Restrictions::       Fulltext Restrictions
 * Fulltext Fine-tuning::        Fine-tuning MySQL Full-text Search
-* Fulltext Features in MySQL 4.0::  New Features of Full-text Search in MySQL 4.0
 * Fulltext TODO::               Full-text Search TODO
 @end menu
 
 
-@node Fulltext restrictions, Fulltext Fine-tuning, Fulltext Search, Fulltext Search
-@subsection Fulltext restrictions
+@node Fulltext Restrictions, Fulltext Fine-tuning, Fulltext Search, Fulltext Search
+@subsection Fulltext Restrictions
 
 @itemize @bullet
 @item
 All parameters to the @code{MATCH} function must be columns from the
 same table that is part of the same fulltext index.
 @item
+Column list between @code{MATCH} and @code{AGAINST} must match exactly
+a column list in the @code{FULLTEXT} index definition.
+@item
 The argument to @code{AGAINST} must be a constant string.
 @end itemize
 
 
-@node Fulltext Fine-tuning, Fulltext Features in MySQL 4.0, Fulltext restrictions, Fulltext Search
+@node Fulltext Fine-tuning, Fulltext TODO, Fulltext Restrictions, Fulltext Search
 @subsection Fine-tuning MySQL Full-text Search
 
 Unfortunately, full-text search has few user-tunable parameters yet,
@@ -33844,13 +33920,13 @@ Change it to the value you prefer, and rebuild
 your @code{FULLTEXT} indexes.
 
 @item
-The stopword list is defined in @code{myisam/ft_static.c}
+The stopword list is defined in @file{myisam/ft_static.c}
 Modify it to your taste, recompile MySQL and rebuild
 your @code{FULLTEXT} indexes.
 
 @item
 The 50% threshold is caused by the particular weighting scheme chosen. To 
-disable it, change the following line in @code{myisam/ftdefs.h}:
+disable it, change the following line in @file{myisam/ftdefs.h}:
 @example
 #define GWS_IN_USE GWS_PROB
 @end example
@@ -33860,49 +33936,22 @@ to
 @end example
 and recompile MySQL.
 There is no need to rebuild the indexes in this case.
+@strong{Note:} by doing this you @strong{severely} decrease MySQL ability
+to provide adequate relevance values by @code{MATCH} function.
+It means, that if you really need to search for such a common words,
+then you should rather search @code{IN BOOLEAN MODE}, which does not
+has 50% threshold.
+
+@item
+Sometimes search engine maintaner would like to change operators used
+for boolean fulltext search. They are defined by a
+@code{ft_boolean_syntax} variable. @xref{SHOW VARIABLES}.
+Still, this variable is read-only, its value is set in
+@file{myisam/ft_static.c}.
 
 @end itemize
 
-
-@node Fulltext Features in MySQL 4.0, Fulltext TODO, Fulltext Fine-tuning, Fulltext Search
-@subsection New Features of Full-text Search in MySQL 4.0
-
-This section includes a list of the fulltext features that are already
-implemented in the 4.0 tree. It explains the
-@strong{More functions for full-text search} entry of @ref{TODO MySQL 4.0}.
-
-@itemize @bullet
-@item @code{REPAIR TABLE} with @code{FULLTEXT} indexes,
-@code{ALTER TABLE} with @code{FULLTEXT} indexes, and
-@code{OPTIMIZE TABLE} with @code{FULLTEXT} indexes are now
-up to 100 times faster.
-
-@item @code{MATCH ... AGAINST} is going to supports the following 
-@strong{boolean operators}:
-
-@itemize @bullet
-@item @code{+}word means the that word @strong{must} be present in every
-row returned.
-@item @code{-}word means the that word @strong{must not} be present in every
-row returned.
-@item @code{<} and @code{>} can be used to decrease and increase word 
-weight in the query.
-@item @code{~} can be used to assign a @strong{negative} weight to a noise 
-word.
-@item @code{*} is a truncation operator.
-@end itemize
-
-Boolean search utilises a more simplistic way of calculating the relevance,
-that does not have a 50% threshold.
-
-@item Searches are now up to 2 times faster due to optimised search algorithm.
-
-@c @item Utility program @code{ft_dump} added for low-level @code{FULLTEXT}
-@c  index operations (querying/dumping/statistics).
-
-@end itemize
-
-@node Fulltext TODO,  , Fulltext Features in MySQL 4.0, Fulltext Search
+@node Fulltext TODO,  , Fulltext Fine-tuning, Fulltext Search
 @subsection Full-text Search TODO
 
 @itemize @bullet
@@ -45795,6 +45844,10 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed bug in @code{DELETE ... WHERE ... MATCH ...}
+@item
+Added support for @code{MATCH ... AGAINST(... IN BOOLEAN MODE)}.
+@item
 @code{LOCATE()} and @code{INSTR()} are case sensitive if neither
 argument is a binary string.  binary strings.
 @item
@@ -45903,6 +45956,10 @@ Added @code{ALTER TABLE table_name DISABLE KEYS} and
 @code{ALTER TABLE table_name ENABLE KEYS} commands.
 @item
 Allow one to use @code{IN} instead of @code{FROM} in @code{SHOW} commands.
+@item
+Implemented ``repair by sort'' for @code{FULLTEXT} indexes.
+@code{REPAIR TABLE}, @code{ALTER TABLE}, and @code{OPTIMIZE TABLE}
+for tables with @code{FULLTEXT} indexes are now up to 100 times faster.
 @item
 Allow ANSI SQL syntax @code{X'hexadecimal-number'}
 @item
