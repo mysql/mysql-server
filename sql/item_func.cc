@@ -1140,7 +1140,9 @@ udf_handler::fix_fields(THD *thd,TABLE_LIST *tables,Item_result_field *func,
 	break;
       }
     }
-    thd->net.last_error[0]=0;
+    
+    if(thd)
+     thd->net.last_error[0]=0;
     my_bool (*init)(UDF_INIT *, UDF_ARGS *, char *)=
       (my_bool (*)(UDF_INIT *, UDF_ARGS *,  char *))
       u_d->func_init;
