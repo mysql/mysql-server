@@ -223,41 +223,8 @@ static bool check_user(THD *thd,enum_server_command command, const char *user,
     send_error(thd,ER_OUT_OF_RESOURCES);
     return 1;
   }
-  thd->master_access=acl_getroot(thd, thd->host, thd->ip, thd->user,
-				 passwd, thd->scramble, &thd->priv_user,
-				 protocol_version == 9 ||
-				 !(thd->client_capabilities &
-				   CLIENT_LONG_PASSWORD),&ur);
-  DBUG_PRINT("info",
-	     ("Capabilities: %d  packet_length: %d  Host: '%s'  User: '%s'  Using password: %s  Access: %u  db: '%s'",
-	      thd->client_capabilities, thd->max_client_packet_length,
-	      thd->host_or_ip, thd->priv_user,
-	      passwd[0] ? "yes": "no",
-	      thd->master_access, thd->db ? thd->db : "*none*"));
-  if (thd->master_access & NO_ACCESS)
-  {
-    net_printf(thd, ER_ACCESS_DENIED_ERROR,
-	       thd->user,
-	       thd->host_or_ip,
-	       passwd[0] ? ER(ER_YES) : ER(ER_NO));
-    mysql_log.write(thd,COM_CONNECT,ER(ER_ACCESS_DENIED_ERROR),
-		    thd->user,
-		    thd->host_or_ip,
-		    passwd[0] ? ER(ER_YES) : ER(ER_NO));
-    return(1);					// Error already given
-  }
-  if (check_count)
-  {
-    VOID(pthread_mutex_lock(&LOCK_thread_count));
-    bool tmp=(thread_count - delayed_insert_threads >= max_connections &&
-	      !(thd->master_access & PROCESS_ACL));
-    VOID(pthread_mutex_unlock(&LOCK_thread_count));
-    if (tmp)
-    {						// Too many connections
-      send_error(thd, ER_CON_COUNT_ERROR);
-      return(1);
-    }
-  }
+  thd->master_access= ~0L;			// No user checking
+  thd->priv_user= thd->user;
   mysql_log.write(thd,command,
 		  (thd->priv_user == thd->user ?
 		   (char*) "%s@%s on %s" :
