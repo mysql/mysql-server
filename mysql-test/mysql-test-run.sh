@@ -20,9 +20,31 @@ TZ=GMT-3; export TZ # for UNIX_TIMESTAMP tests to work
 
 PATH=/bin:/usr/bin:/usr/local/bin:/usr/bsd:/usr/X11R6/bin
 
+# Standard functions
+
+which ()
+{
+  DIRS=`echo $PATH | tr ":" " "`
+  for file
+  do
+    for dir in $DIRS
+    do
+      if test -f $dir/$file
+      then
+        echo "$dir/$file"
+        continue 2
+      fi
+    done
+    echo "which: no $file in ($PATH)"
+    exit 1
+  done
+}
+
+
 # No paths below as we can't be sure where the program is!
 
 BASENAME=`which basename | head -1`
+DIFF=`which diff | head -1`
 CAT=cat
 CUT=cut
 TAIL=tail
@@ -268,6 +290,20 @@ prompt_user ()
  read unused
 }
 
+show_failed_diff ()
+{
+  reject_file=r/$1.reject
+  result_file=r/$1.result
+  if [ -x "$DIFF" ] && [ -f $reject_file ]
+  then
+    echo "Below are the diffs between actual and expected results:"
+    echo "-------------------------------------------------------"
+    $DIFF -u $result_file $reject_file
+    echo "-------------------------------------------------------"
+    echo "Please e-mail the above, along with the output of mysqlbug"
+    echo "and any other relevant info to bugs@lists.mysql.com"
+  fi  
+}
 
 error () {
     $ECHO  "Error:  $1"
@@ -660,6 +696,7 @@ run_testcase ()
 	$ECHO "$RES$RES_SPACE [ fail ]"
         $ECHO
 	error_is
+	show_failed_diff $tname
 	$ECHO
 	if [ x$FORCE != x1 ] ; then
 	 $ECHO "Aborting. To continue, re-run with '--force'."
