@@ -100,7 +100,7 @@ static void pretty_print_str(String* packet, char* str, int len)
 static inline char* slave_load_file_stem(char*buf, uint file_id,
 					 int event_server_id)
 {
-  fn_format(buf,"SQL_LOAD-",slave_load_tmpdir,"",0); /* 4+32); */
+  fn_format(buf,"SQL_LOAD-",slave_load_tmpdir, "", MY_UNPACK_FILENAME);
   buf = strend(buf);
   buf = int10_to_str(::server_id, buf, 10);
   *buf++ = '-';
@@ -174,15 +174,15 @@ static void cleanup_load_tmpdir()
     file=dirp->dir_entry+i;
     if (is_prefix(file->name,"SQL_LOAD-"))
     {
-      fn_format(fname,file->name,slave_load_tmpdir,"",0);
+      fn_format(fname,file->name,slave_load_tmpdir,"",MY_UNPACK_FILENAME);
       my_delete(fname, MYF(0));
     }
   }
 
   my_dirend(dirp);
 }
-
 #endif
+
 
 Log_event::Log_event(const char* buf, bool old_format)
   :temp_buf(0), cached_event_len(0), cache_stmt(0)
