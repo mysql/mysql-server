@@ -23,3 +23,11 @@ c_id	c_name	c_country
 c_id	c_name	c_country
 1	Bozo	USA
 4	Mr. Floppy	GB
+@@VERSION=version()
+1
+last_insert_id(345)
+345
+@@IDENTITY	last_insert_id()
+345	345
+@@IDENTITY
+345

@@ -203,7 +203,7 @@
 "S-Bí»ová chyba pøi zápisu na master",-A
 "-B®ádný sloupec nemá vytvoøen fulltextový index",-A
 "Nemohu prov-Bést zadaný pøíkaz, proto¾e existují aktivní zamèené tabulky nebo aktivní transakce",-A
-"Nezn-Bámá systémová promìnná '%-.64'",-A
+"Nezn-Bámá systémová promìnná '%-.64s'",-A
 "Tabulka '%-.64s' je ozna-Bèena jako poru¹ená a mìla by být opravena",-A
 "Tabulka '%-.64s' je ozna-Bèena jako poru¹ená a poslední (automatická?) oprava se nezdaøila",-A
 "Warning:  Some non-transactional changed tables couldn't be rolled back",

@@ -200,7 +200,7 @@
 "Net fout tijdens schrijven naar master",
 "Kan geen FULLTEXT index vinden passend bij de kolom lijst",
 "Kan het gegeven commando niet uitvoeren, want u heeft actieve gelockte tabellen of een actieve transactie",
-"Onbekende systeem variabele '%-.64'",
+"Onbekende systeem variabele '%-.64s'",
 "Tabel '%-.64s' staat als gecrashed gemarkeerd en dient te worden gerepareerd",
 "Tabel '%-.64s' staat als gecrashed gemarkeerd en de laatste (automatische?) reparatie poging mislukte",
 "Waarschuwing: Roll back mislukt voor sommige buiten transacties gewijzigde tabellen",
