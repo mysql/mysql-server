@@ -1088,7 +1088,7 @@ void Dbacc::execACCFRAGREQ(Signal* signal)
   // config mismatch - do not crash if release compiled
   if (tabptr.i >= ctablesize) {
     jam();
-    addFragRefuse(signal, 800);
+    addFragRefuse(signal, 640);
     return;
   }
 #endif
@@ -1837,7 +1837,7 @@ Dbacc::xfrmKeyData(Signal* signal)
   tabptr.i = fragrecptr.p->myTableId;
   ptrCheckGuard(tabptr, ctablesize, tabrec);
 
-  Uint32 dst[1024];
+  Uint32 dst[1024 * MAX_XFRM_MULTIPLY];
   Uint32 dstSize = (sizeof(dst) >> 2);
   Uint32* src = &signal->theData[7];
   const Uint32 noOfKeyAttr = tabptr.p->noOfKeyAttr;
