@@ -239,6 +239,7 @@ private:
 public:
   Item_sum_avg_distinct(Item *item_arg) : Item_sum_distinct(item_arg) {}
 
+  void fix_length_and_dec();
   virtual void calculate_val_and_count();
   enum Sumfunctype sum_func () const { return AVG_DISTINCT_FUNC; }
   const char *func_name() const { return "avg_distinct"; }
@@ -280,68 +281,44 @@ class TMP_TABLE_PARAM;
 class Item_sum_count_distinct :public Item_sum_int
 {
   TABLE *table;
-  table_map used_table_cache;
   uint32 *field_lengths;
   TMP_TABLE_PARAM *tmp_table_param;
-  TREE tree_base;
-  TREE *tree;
-  /*
-    Following is 0 normal object and pointer to original one for copy 
-    (to correctly free resources)
-  */
-  Item_sum_count_distinct *original;
-
-  uint key_length;
-  CHARSET_INFO *key_charset;
-  
-  /*
-    Calculated based on max_heap_table_size. If reached,
-    walk the tree and dump it into MyISAM table
-  */
-  uint max_elements_in_tree;
-
-  /*
-    The first few bytes of record ( at least one)
-    are just markers for deleted and NULLs. We want to skip them since
-    they will just bloat the tree without providing any valuable info
-  */
-  int rec_offset;
-
   /*
     If there are no blobs, we can use a tree, which
     is faster than heap table. In that case, we still use the table
     to help get things set up, but we insert nothing in it
   */
-  bool use_tree;
+  Unique *tree;
+  /*
+    Following is 0 normal object and pointer to original one for copy 
+    (to correctly free resources)
+  */
+  Item_sum_count_distinct *original;
+  uint tree_key_length;
+
+
   bool always_null;		// Set to 1 if the result is always NULL
 
-  int tree_to_myisam();
 
   friend int composite_key_cmp(void* arg, byte* key1, byte* key2);
   friend int simple_str_key_cmp(void* arg, byte* key1, byte* key2);
-  friend int simple_raw_key_cmp(void* arg, byte* key1, byte* key2);
-  friend int dump_leaf(byte* key, uint32 count __attribute__((unused)),
-		       Item_sum_count_distinct* item);
 
-  public:
+public:
   Item_sum_count_distinct(List<Item> &list)
-    :Item_sum_int(list), table(0), used_table_cache(~(table_map) 0),
-     tmp_table_param(0), tree(&tree_base), original(0), use_tree(0),
-     always_null(0)
+    :Item_sum_int(list), table(0), field_lengths(0), tmp_table_param(0),
+     tree(0), original(0), always_null(FALSE)
   { quick_group= 0; }
   Item_sum_count_distinct(THD *thd, Item_sum_count_distinct *item)
     :Item_sum_int(thd, item), table(item->table),
-     used_table_cache(item->used_table_cache),
      field_lengths(item->field_lengths),
      tmp_table_param(item->tmp_table_param),
-     tree(item->tree), original(item), key_length(item->key_length),
-     max_elements_in_tree(item->max_elements_in_tree),
-     rec_offset(item->rec_offset), use_tree(item->use_tree),
+     tree(item->tree), original(item), tree_key_length(item->tree_key_length),
      always_null(item->always_null)
   {}
+  ~Item_sum_count_distinct();
+
   void cleanup();
 
-  table_map used_tables() const { return used_table_cache; }
   enum Sumfunctype sum_func () const { return COUNT_DISTINCT_FUNC; }
   void clear();
   bool add();
