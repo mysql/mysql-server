@@ -86,7 +86,6 @@ fs_name_1=$fs_ndb/node-1-fs
 fs_name_2=$fs_ndb/node-2-fs
 
 NDB_HOME=
-export NDB_CONNECTSTRING
 if [ ! -x $fsdir ]; then
   echo "$fsdir missing"
   exit 1
@@ -102,7 +101,8 @@ fi
 
 ndb_host="localhost"
 ndb_mgmd_port=$port_base
-export NDB_CONNECTSTRING="host=$ndb_host:$ndb_mgmd_port"
+NDB_CONNECTSTRING="host=$ndb_host:$ndb_mgmd_port"
+export NDB_CONNECTSTRING
 
 start_default_ndbcluster() {
 
