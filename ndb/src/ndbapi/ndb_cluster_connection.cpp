@@ -106,7 +106,7 @@ int Ndb_cluster_connection::connect(int reconnect)
     {
       if (m_local_config == 0) {
 	m_local_config= new LocalConfig();
-	if (m_local_config->init(m_connect_string,0)) {
+	if (!m_local_config->init(m_connect_string,0)) {
 	  ndbout << "Configuration error: Unable to retrieve local config" << endl;
 	  m_local_config->printError();
 	  m_local_config->printUsage();
@@ -179,7 +179,7 @@ Ndb_cluster_connection::~Ndb_cluster_connection()
   my_free(m_connect_string,MYF(MY_ALLOW_ZERO_PTR));
   if (m_config_retriever)
     delete m_config_retriever;
-  if (m_local_config == 0)
+  if (m_local_config)
     delete m_local_config;
   DBUG_VOID_RETURN;
 }
