@@ -30,7 +30,7 @@
 extern void yyerror(const char*);
 int yylex(void *yylval);
 
-#define yyoverflow(A,B,C,D,E,F) if (my_yyoverflow((B),(D),(F))) { yyerror((char*) (A)); return 2; }
+#define yyoverflow(A,B,C,D,E,F) if (my_yyoverflow((B),(D),(int*) (F))) { yyerror((char*) (A)); return 2; }
 
 inline Item *or_or_concat(Item* A, Item* B)
 {
