@@ -185,7 +185,6 @@ static struct my_option my_long_options[] =
 static void print_version()
 {
   printf("MySQL distrib %s, for %s (%s)\n",MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
-  ndbPrintVersion();
 }
 static void usage()
 {
@@ -226,10 +225,7 @@ int main(int argc, char** argv){
   int ho_error;
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
     return NDBT_ProgramExit(NDBT_WRONGARGS);
-  if ((_tabname = argv[0]) == 0) {
-    usage();
-    return NDBT_ProgramExit(NDBT_WRONGARGS);
-  }
+  _tabname = argv[0];
 
   ndb_cluster_connection = new Ndb_cluster_connection(opt_connect_str);
   ndb = new Ndb(ndb_cluster_connection, _dbname);
