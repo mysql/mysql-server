@@ -1291,9 +1291,7 @@ int show_binlogs(THD* thd)
 {
   IO_CACHE *index_file;
   char fname[FN_REFLEN];
-  NET* net = &thd->net;
   List<Item> field_list;
-  String *packet = &thd->packet;
   uint length;
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("show_binlogs");

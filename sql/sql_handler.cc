@@ -253,7 +253,6 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
       continue;
     if (num_rows >= offset_limit)
     {
-      String *packet = &thd->packet;
       Item *item;
       protocol->prepare_for_resend();
       it.rewind();

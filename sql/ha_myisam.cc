@@ -226,7 +226,6 @@ err:
 
 int ha_myisam::open(const char *name, int mode, uint test_if_locked)
 {
-  KEY_CACHE_VAR *key_cache;
   if (!(file=mi_open(name, mode, test_if_locked)))
     return (my_errno ? my_errno : -1);
   
@@ -698,7 +697,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
 
 int ha_myisam::assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt)
 {
-  KEY_CACHE_VAR *new_key_cache= check_opt->key_cache;
+  KEY_CACHE *new_key_cache= check_opt->key_cache;
   const char *errmsg= 0;
   int error= HA_ADMIN_OK;
   ulonglong map= ~(ulonglong) 0;

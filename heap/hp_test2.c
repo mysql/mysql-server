@@ -179,7 +179,7 @@ int main(int argc, char *argv[])
     if (j != 0)
     {
       sprintf(key,"%6d",j);
-      if (heap_rkey(file,record,0,key,6,0))
+      if (heap_rkey(file,record,0,key,6, HA_READ_KEY_EXACT))
       {
 	printf("can't find key1: \"%s\"\n",key);
 	goto err;
@@ -239,7 +239,7 @@ int main(int argc, char *argv[])
       if (!key1[j])
 	continue;
       sprintf(key,"%6d",j);
-      if (heap_rkey(file,record,0,key,6,0))
+      if (heap_rkey(file,record,0,key,6, HA_READ_KEY_EXACT))
       {
 	printf("can't find key1: \"%s\"\n",key);
 	goto err;
@@ -289,7 +289,7 @@ int main(int argc, char *argv[])
       printf("- Read first key - next - delete - next -> last\n");
     DBUG_PRINT("progpos",("first - next - delete - next -> last"));
 
-    if (heap_rkey(file,record,0,key,6,0))
+    if (heap_rkey(file,record,0,key,6, HA_READ_KEY_EXACT))
       goto err;
     if (heap_rnext(file,record3)) goto err;
     if (heap_delete(file,record3)) goto err;
@@ -513,7 +513,7 @@ int main(int argc, char *argv[])
   }
   printf("- Read through all keys with first-next-last-prev\n");
   ant=0;
-  for (error=heap_rkey(file,record,0,key,6,0);
+  for (error=heap_rkey(file,record,0,key,6, HA_READ_KEY_EXACT);
       ! error ;
        error=heap_rnext(file,record))
     ant++;
@@ -550,7 +550,8 @@ int main(int argc, char *argv[])
   {
     if (error == 0)
     {
-      if (heap_rkey(file2,record2,2,record+keyinfo[2].seg[0].start,8,0))
+      if (heap_rkey(file2,record2,2,record+keyinfo[2].seg[0].start,8,
+		    HA_READ_KEY_EXACT))
       {
 	printf("can't find key3: \"%.8s\"\n",
 	       record+keyinfo[2].seg[0].start);

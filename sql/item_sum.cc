@@ -1642,10 +1642,8 @@ Item_func_group_concat::Item_func_group_concat(bool is_distinct,
   original= 0;
   quick_group= 0;
   mark_as_sum_func();
-  item_thd= current_thd;
-  SELECT_LEX *select_lex= item_thd->lex.current_select;
   order= 0;
-  group_concat_max_len= item_thd->variables.group_concat_max_len;
+  group_concat_max_len= current_thd->variables.group_concat_max_len;
 
     
   arg_show_fields= arg_count_field= is_select->elements;
@@ -1791,6 +1789,7 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   
   thd->allow_sum_func= 0;
   maybe_null= 0;
+  item_thd= thd;
   for (i= 0 ; i < arg_count ; i++)
   {
     if (args[i]->fix_fields(thd, tables, args + i) || args[i]->check_cols(1))
@@ -1968,6 +1967,7 @@ String* Item_func_group_concat::val_str(String* str)
   }
   return &result;
 }
+
 
 void Item_func_group_concat::print(String *str)
 {

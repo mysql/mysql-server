@@ -355,7 +355,7 @@ struct system_variables max_system_variables;
 
 MY_TMPDIR mysql_tmpdir_list;
 MY_BITMAP temp_pool;
-KEY_CACHE_VAR *sql_key_cache;
+KEY_CACHE *sql_key_cache;
 
 CHARSET_INFO *system_charset_info, *files_charset_info ;
 CHARSET_INFO *national_charset_info, *table_alias_charset;
@@ -1565,14 +1565,14 @@ We will try our best to scrape up some info that will hopefully help diagnose\n\
 the problem, but since we have already crashed, something is definitely wrong\n\
 and this may fail.\n\n");
   fprintf(stderr, "key_buffer_size=%lu\n", 
-          (ulong) sql_key_cache->buff_size);
+          (ulong) sql_key_cache->key_cache_mem_size);
   fprintf(stderr, "read_buffer_size=%ld\n", global_system_variables.read_buff_size);
   fprintf(stderr, "max_used_connections=%ld\n", max_used_connections);
   fprintf(stderr, "max_connections=%ld\n", max_connections);
   fprintf(stderr, "threads_connected=%d\n", thread_count);
   fprintf(stderr, "It is possible that mysqld could use up to \n\
 key_buffer_size + (read_buffer_size + sort_buffer_size)*max_connections = %ld K\n\
-bytes of memory\n", ((ulong) sql_key_cache->buff_size +
+bytes of memory\n", ((ulong) sql_key_cache->key_cache_mem_size +
 		     (global_system_variables.read_buff_size +
 		      global_system_variables.sortbuff_size) *
 		     max_connections)/ 1024);
@@ -2037,7 +2037,6 @@ bool init_global_datetime_format(timestamp_type format_type,
 {
   /* Get command line option */
   const char *str= opt_date_time_formats[format_type];
-  DATE_TIME_FORMAT *format;
 
   if (!str)					// No specified format
   {
@@ -2068,6 +2067,8 @@ static int init_common_variables(const char *conf_file_name, int argc,
 
   max_system_variables.pseudo_thread_id= (ulong)~0;
   start_time=time((time_t*) 0);
+  if (init_thread_environment())
+    return 1;
   mysql_init_variables();
 
 #ifdef OS2
@@ -2111,8 +2112,6 @@ static int init_common_variables(const char *conf_file_name, int argc,
   load_defaults(conf_file_name, groups, &argc, &argv);
   defaults_argv=argv;
   get_options(argc,argv);
-  if (init_thread_environment())
-    return 1;
   if (opt_log || opt_update_log || opt_slow_log || opt_bin_log)
     strcat(server_version,"-log");
   DBUG_PRINT("info",("%s  Ver %s for %s on %s\n",my_progname,
@@ -2326,7 +2325,7 @@ Now disabling --log-slave-updates.");
   /* call ha_init_key_cache() on all key caches to init them */
   process_key_caches(&ha_init_key_cache);
   /* We must set dflt_key_cache in case we are using ISAM tables */
-  dflt_keycache= &sql_key_cache->cache;
+  dflt_key_cache= sql_key_cache;
 
 #if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT)
   if (locked_in_memory && !geteuid())
@@ -4316,26 +4315,26 @@ replicating a LOAD DATA INFILE command.",
    IO_SIZE, 0},
   {"key_buffer_size", OPT_KEY_BUFFER_SIZE,
    "The size of the buffer used for index blocks for MyISAM tables. Increase this to get better index handling (for all reads and multiple writes) to as much as you can afford; 64M on a 256M machine that mainly runs MySQL is quite common.",
-   (gptr*) &dflt_key_cache_var.buff_size,
+   (gptr*) &dflt_key_cache_var.param_buff_size,
    (gptr*) 0,
    0, (enum get_opt_var_type) (GET_ULL | GET_ASK_ADDR),
    REQUIRED_ARG, KEY_CACHE_SIZE, MALLOC_OVERHEAD, (long) ~0, MALLOC_OVERHEAD,
    IO_SIZE, 0},
   {"key_cache_block_size", OPT_KEY_CACHE_BLOCK_SIZE,
    "The default size of key cache blocks",
-   (gptr*) &dflt_key_cache_var.block_size,
+   (gptr*) &dflt_key_cache_var.param_block_size,
    (gptr*) 0,
    0, (enum get_opt_var_type) (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG,
    KEY_CACHE_BLOCK_SIZE , 512, 1024*16, MALLOC_OVERHEAD, 512, 0},
   {"key_cache_division_limit", OPT_KEY_CACHE_DIVISION_LIMIT,
    "The minimum percentage of warm blocks in key cache",
-   (gptr*) &dflt_key_cache_var.division_limit,
+   (gptr*) &dflt_key_cache_var.param_division_limit,
    (gptr*) 0,
    0, (enum get_opt_var_type) (GET_ULONG | GET_ASK_ADDR) , REQUIRED_ARG, 100,
    1, 100, 0, 1, 0},
   {"key_cache_division_age_threshold", OPT_KEY_CACHE_AGE_THRESHOLD,
    "This characterizes the number of hits a hot block has to be untouched until it is considered aged enough to be downgraded to a warm block. This specifies the percentage ratio of that number of hits to the total number of blocks in key cache",
-   (gptr*) &dflt_key_cache_var.age_threshold,
+   (gptr*) &dflt_key_cache_var.param_age_threshold,
    (gptr*) 0,
    0, (enum get_opt_var_type) (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG, 
    300, 100, ~0L, 0, 100, 0},
@@ -4757,17 +4756,17 @@ struct show_var_st status_vars[]= {
   {"Handler_rollback",         (char*) &ha_rollback_count,      SHOW_LONG},
   {"Handler_update",           (char*) &ha_update_count,        SHOW_LONG},
   {"Handler_write",            (char*) &ha_write_count,         SHOW_LONG},
-  {"Key_blocks_not_flushed",   (char*) &dflt_key_cache_var.blocks_changed,
+  {"Key_blocks_not_flushed",   (char*) &dflt_key_cache_var.global_blocks_changed,
    SHOW_KEY_CACHE_LONG},
-  {"Key_blocks_used",          (char*) &dflt_key_cache_var.blocks_used,
+  {"Key_blocks_used",          (char*) &dflt_key_cache_var.global_blocks_used,
    SHOW_KEY_CACHE_LONG},
-  {"Key_read_requests",        (char*) &dflt_key_cache_var.cache_r_requests,
+  {"Key_read_requests",        (char*) &dflt_key_cache_var.global_cache_r_requests,
    SHOW_KEY_CACHE_LONG},
-  {"Key_reads",                (char*) &dflt_key_cache_var.cache_read,
+  {"Key_reads",                (char*) &dflt_key_cache_var.global_cache_read,
    SHOW_KEY_CACHE_LONG},
-  {"Key_write_requests",       (char*) &dflt_key_cache_var.cache_w_requests,
+  {"Key_write_requests",       (char*) &dflt_key_cache_var.global_cache_w_requests,
    SHOW_KEY_CACHE_LONG},
-  {"Key_writes",               (char*) &dflt_key_cache_var.cache_write,
+  {"Key_writes",               (char*) &dflt_key_cache_var.global_cache_write,
    SHOW_KEY_CACHE_LONG},
   {"Max_used_connections",     (char*) &max_used_connections,  SHOW_LONG},
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,    SHOW_LONG_CONST},
@@ -5608,18 +5607,18 @@ mysql_getopt_value(const char *keyname, uint key_length,
   case OPT_KEY_CACHE_DIVISION_LIMIT:
   case OPT_KEY_CACHE_AGE_THRESHOLD:
   {
-    KEY_CACHE_VAR *key_cache;
+    KEY_CACHE *key_cache;
     if (!(key_cache= get_or_create_key_cache(keyname, key_length)))
       exit(1);
     switch (option->id) {
     case OPT_KEY_BUFFER_SIZE:
-      return (gptr*) &key_cache->buff_size;
+      return (gptr*) &key_cache->param_buff_size;
     case OPT_KEY_CACHE_BLOCK_SIZE:
-      return (gptr*) &key_cache->block_size;
+      return (gptr*) &key_cache->param_block_size;
     case OPT_KEY_CACHE_DIVISION_LIMIT:
-      return (gptr*) &key_cache->division_limit;
+      return (gptr*) &key_cache->param_division_limit;
     case OPT_KEY_CACHE_AGE_THRESHOLD:
-      return (gptr*) &key_cache->age_threshold;
+      return (gptr*) &key_cache->param_age_threshold;
     }
   }
   }

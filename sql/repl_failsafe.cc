@@ -623,7 +623,6 @@ err:
 int show_slave_hosts(THD* thd)
 {
   List<Item> field_list;
-  NET* net = &thd->net;
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("show_slave_hosts");
 

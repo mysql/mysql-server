@@ -91,7 +91,7 @@ int main(int argc, char **argv)
   {
     if (i == remove_ant) { VOID(heap_close(file)) ; return (0) ; }
     sprintf(key,"%6d",(j=(int) ((rand() & 32767)/32767.*25)));
-    if ((error = heap_rkey(file,record,0,key,0,6)))
+    if ((error = heap_rkey(file,record,0,key,6,HA_READ_KEY_EXACT)))
     {
       if (verbose || (flags[j] == 1 ||
 		      (error && my_errno != HA_ERR_KEY_NOT_FOUND)))
@@ -119,7 +119,7 @@ int main(int argc, char **argv)
     sprintf(key,"%6d",i);
     bmove(record+1,key,6);
     my_errno=0;
-    error=heap_rkey(file,record,0,key,0,6);
+    error=heap_rkey(file,record,0,key,6,HA_READ_KEY_EXACT);
     if (verbose ||
 	(error == 0 && flags[i] != 1) ||
 	(error && (flags[i] != 0 || my_errno != HA_ERR_KEY_NOT_FOUND)))
