@@ -137,7 +137,7 @@ ErrorReporter::formatMessage(ErrorCategory type,
 	   faultID, 
 	   (problemData == NULL) ? "" : problemData, 
 	   objRef, 
-	   programName, 
+	   my_progname, 
 	   processId, 
 	   theNameOfTheTraceFile ? theNameOfTheTraceFile : "<no tracefile>");
 
