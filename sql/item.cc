@@ -432,7 +432,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   if (!field)					// If field is not checked
   {
     Field *tmp;
-    if (!(tmp=find_field_in_tables(thd, this, tables, 0)))
+    if ((tmp= find_field_in_tables(thd, this, tables, 0)) == not_found_field)
     {
       /*
 	We can't find table field in table list of current select, 
@@ -445,14 +445,18 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       */
       SELECT_LEX *last= 0;
       for (SELECT_LEX *sl= thd->lex.select->outer_select();
-	   sl && !tmp;
+	   sl;
 	   sl= sl->outer_select())
-	tmp=find_field_in_tables(thd, this,
-				 (TABLE_LIST*)(last= sl)->table_list.first,
-				 0);
+	if ((tmp= find_field_in_tables(thd, this,
+				       (TABLE_LIST*)
+				       (last= sl)->table_list.first,
+				       0)) != not_found_field)
+	  break;
       if (!tmp)
+	return -1;
+      else if (tmp == not_found_field)
       {
-	// Call to produce appropriate error message
+	// call to return error code
 	find_field_in_tables(thd, this, tables, 1);
 	return -1;
       }
@@ -478,7 +482,10 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	      tbl->shared= 1;
 	  }
       }
-    }
+    } 
+    else if (!tmp)
+      return -1;
+
     set_field(tmp);
   }
   else if (thd && thd->set_query_id && field->query_id != thd->query_id)
@@ -786,7 +793,9 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 {
   if (!ref)
   {
-        if (!(ref= find_item_in_list(this, thd->lex.select->item_list, 0)))
+    if ((ref= find_item_in_list(this, thd->lex.select->item_list,
+				REPORT_EXCEPT_NOT_FOUND)) ==
+	(Item **)not_found_item)
     {
       /*
 	We can't find table field in table list of current select, 
@@ -795,17 +804,25 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	of view rules. For example if both tables (outer & current) have 
 	field 'field' it is not mistake to refer to this field without 
 	mention of table name, but if we join tables in one list it will
-	cause error ER_NON_UNIQ_ERROR in find_field_in_tables.
+	cause error ER_NON_UNIQ_ERROR in find_item_in_list.
       */
       SELECT_LEX *last=0;
       for (SELECT_LEX *sl= thd->lex.select->outer_select();
-	   sl && !ref;
+	   sl;
 	   sl= sl->outer_select())
-	ref= find_item_in_list(this, (last= sl)->item_list, 0);
+	if((ref= find_item_in_list(this, (last= sl)->item_list,
+				   REPORT_EXCEPT_NOT_FOUND)) !=
+	   (Item **)not_found_item)
+	  break;
+
       if (!ref)
       {
+	return 1;
+      }
+      else if (ref == (Item **)not_found_item)
+      {
 	// Call to report error
-	find_item_in_list(this, thd->lex.select->item_list, 1);
+	find_item_in_list(this, thd->lex.select->item_list, REPORT_ALL_ERRORS);
 	return 1;
       }
       else
@@ -831,6 +848,8 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	  }
       }
     }
+    else if (!ref)
+      return 1;
     max_length= (*ref)->max_length;
     maybe_null= (*ref)->maybe_null;
     decimals=	(*ref)->decimals;

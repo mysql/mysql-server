@@ -6957,21 +6957,30 @@ Follow the instructions to install it.
 
 @item
 After @code{BitKeeper} is installed, first go to the directory you
-want to work from, and then use this command if you want to clone
-the MySQL 3.23 branch:
+want to work from, and then use one of the following commands to clone
+the MySQL version branch of your choice:
+
+To clone the 3.23 branch, use this command:
 
 @example
-shell> bk clone bk://work.mysql.com:7000 mysql
+shell> bk clone bk://work.mysql.com:7000 mysql-3.23
 @end example
 
-To clone the 4.0 branch, use this command instead:
+To clone the 4.0 branch, use this command:
 
 @example
 shell> bk clone bk://work.mysql.com:7001 mysql-4.0
 @end example
 
-In the preceding examples the source tree will be set up in the @file{mysql/}
-or @file{mysql-4.0/} subdirectory of your current directory.
+To clone the 4.1 branch, use this command:
+
+@example
+shell> bk clone bk://work.mysql.com:7004 mysql-4.1
+@end example
+
+In the preceding examples the source tree will be set up in the
+@file{mysql-3.23/}, @file{mysql-4.0/}, or @file{mysql-4.1/}
+subdirectory of your current directory.
 
 The initial download of the source tree may take a while, depending on the
 speed of your connection; be patient.
@@ -8400,7 +8409,7 @@ or @code{myisamchk} for @code{MyISAM} tables (@file{.MYI}) and
 @item
 If you want your @code{mysqldump} files to be compatible between
 MySQL Version 3.22 and Version 3.23, you should not use the
-@code{--opt} or @code{--full} option to @code{mysqldump}.
+@code{--opt} or @code{--all} option to @code{mysqldump}.
 
 @item
 Check all your calls to @code{DATE_FORMAT()} to make sure there is a
@@ -16051,7 +16060,9 @@ Values in the scope fields may be specified as follows:
 @itemize @bullet
 @item
 The wildcard characters @samp{%} and @samp{_} can be used in the @code{Host}
-and @code{Db} fields of either table.
+and @code{Db} fields of either table. If you wish to use for instance a
+@samp{_} character as part of a database name, specify it as @samp{\_} in
+the @code{GRANT} command.
 
 @item
 A @code{'%'} @code{Host} value in the @code{db} table means ``any host.'' A
@@ -16676,6 +16687,13 @@ database privileges by using @code{ON db_name.*} syntax. If you specify
 that database.  (@strong{Warning}: if you specify @code{ON *} and you
 @strong{don't} have a current database, you will affect the global privileges!)
 
+@strong{Please note}: the @samp{_} and @samp{%} wildcards are allowed when
+specifying database names in @code{GRANT} commands. This means that if you
+wish to use for instance a @samp{_} character as part of a database name,
+you should specify it as @samp{\_} in the @code{GRANT} command, to prevent
+the user from being able to access additional databases matching the
+wildcard pattern, e.g., @code{GRANT ... ON `foo\_bar`.* TO ...}.
+
 In order to accommodate granting rights to users from arbitrary hosts,
 MySQL supports specifying the @code{user_name} value in the form
 @code{user@@host}.  If you want to specify a @code{user} string
@@ -16684,8 +16702,8 @@ containing special characters or wildcard characters (such as @samp{%}), you
 can quote the user or host name (for example, @code{'test-user'@@'test-hostname'}).
 
 You can specify wildcards in the hostname.  For example,
-@code{user@@"%.loc.gov"} applies to @code{user} for any host in the
-@code{loc.gov} domain, and @code{user@@"144.155.166.%"} applies to @code{user}
+@code{user@@'%.loc.gov'} applies to @code{user} for any host in the
+@code{loc.gov} domain, and @code{user@@'144.155.166.%'} applies to @code{user}
 for any host in the @code{144.155.166} class C subnet.
 
 The simple form @code{user} is a synonym for @code{user@@"%"}.
@@ -17703,7 +17721,7 @@ the @code{mysqlhotcopy script}. @xref{mysqldump, , @code{mysqldump}}.
 Do a full backup of your databases:
 
 @example
-shell> mysqldump --tab=/path/to/some/dir --opt --full
+shell> mysqldump --tab=/path/to/some/dir --opt --all
 
 or
 
@@ -19931,7 +19949,7 @@ cache.
 The value of the @code{--bdb-home} option.
 
 @item @code{bdb_max_lock}
-The maximum number of locks (1000 by default) you can have active on a
+The maximum number of locks (10,000 by default) you can have active on a
 BDB table. You should increase this if you get errors of type @code{bdb:
 Lock table is out of available locks} or @code{Got error 12 from ...}
 when you have do long transactions or when @code{mysqld} has to examine
@@ -20030,15 +20048,15 @@ The maximum length of the word to be included in a @code{FULLTEXT} index.
 @strong{Note: @code{FULLTEXT} indexes must be rebuilt after changing
 this variable.} (This option is new for MySQL 4.0.)
 
-@item @code{ft_max_word_len_sort}
+@item @code{ft_max_word_len_for_sort}
 The maximum length of the word in a @code{FULLTEXT} index
 to be used in fast index recreation method in @code{REPAIR},
 @code{CREATE INDEX},  or @code{ALTER TABLE}.  Longer words are inserted the
 slow way.  The rule of the thumb is as follows: with
-@code{ft_max_word_len_sort} increasing, @strong{MySQL} will create bigger
+@code{ft_max_word_len_for_sort} increasing, @strong{MySQL} will create bigger
 temporary files (thus slowing the process down, due to disk I/O), and will put
 fewer keys in one sort block (again, decreasing the efficiency).  When
-@code{ft_max_word_len_sort} is too small, instead, @strong{MySQL} will insert a
+@code{ft_max_word_len_for_sort} is too small, instead, @strong{MySQL} will insert a
 lot of words into index the slow way, but short words will be inserted very
 quickly.
 
@@ -23324,7 +23342,7 @@ If you need better performance when you start using MySQL in a production
 environment, you can remove the @code{--log} option from @code{mysql.server}
 or change it to @code{--log-bin}. @xref{Binary log}.
 
-The entries in this log are written as @code{mysqld} receives the queries.
+The entries in this log are written as @code{mysqld} receives the questions.
 This may be different from the order in which the statements are executed.
 This is in contrast to the update log and the binary log which are written
 after the query is executed, but before any locks are released.
@@ -23337,7 +23355,7 @@ after the query is executed, but before any locks are released.
 @cindex files, update log
 
 @strong{Note}: the update log is replaced by the binary
-log. @xref{Binary log}.  You can do anything with the binary log that you can do
+log. @xref{Binary log}.  With this you can do anything that you can do
 with the update log.
 
 When started with the @code{--log-update[=file_name]} option,
@@ -23352,7 +23370,7 @@ flush-logs}, execute the @code{FLUSH LOGS} statement, or restart the server.
 
 @strong{Note}: for the above scheme to work, you must not create
 your own files with the same filename as the update log + some extensions
-that may be regarded as a number in the directory used by the update log!
+that may be regarded as a number, in the directory used by the update log!
 
 If you use the @code{--log} or @code{-l} options, @code{mysqld} writes a
 general log with a filename of @file{hostname.log}, and restarts and
@@ -23396,8 +23414,8 @@ and the crash.
 @cindex binary log
 @cindex files, binary log
 
-The binary log will replace the now deprecated update log, so
-we recommend you to switch to this log format as soon as possible.
+The intention is that the binary log should replace the update log, so
+we recommend you to switch to this log format as soon as possible!
 
 The binary log contains all information that is available in the update
 log in a more efficient format. It also contains information about how long
@@ -23408,10 +23426,10 @@ find a problem query) you should use the general query log. @xref{Query log}.
 The binary log is also used when you are replicating a slave from a master.
 @xref{Replication}.
 
-When started with the @code{--log-bin[=file_name]} option @code{mysqld}
+When started with the @code{--log-bin[=file_name]} option, @code{mysqld}
 writes a log file containing all SQL commands that update data. If no
-file name is given it defaults to the name of the host machine followed
-by @code{-bin}. If a file name is given, but doesn't contain a path, the
+file name is given, it defaults to the name of the host machine followed
+by @code{-bin}. If file name is given, but it doesn't contain a path, the
 file is written in the data directory.
 
 If you supply an extension to @code{--log-bin=filename.extension}, the
@@ -23431,9 +23449,14 @@ to the binary log:
 @multitable @columnfractions .38 .62
 @item @strong{Option} @tab @strong{Description}
 
-@item @code{binlog-do-db=database_name} @tab Tells the master it should log updates for the specified database, and exclude all others not explicitly mentioned. (Example: @code{binlog-do-db=some_database})
+@item @code{binlog-do-db=database_name} @tab
+Tells the master it should log updates for the specified database, and
+exclude all others not explicitly mentioned.
+(Example: @code{binlog-do-db=some_database})
 
-@item @code{binlog-ignore-db=database_name} @tab Tells the master that updates to the given database should not be logged to the binary log (Example: @code{binlog-ignore-db=some_database})
+@item @code{binlog-ignore-db=database_name} @tab
+Tells the master that updates to the given database should not be logged
+to the binary log (Example: @code{binlog-ignore-db=some_database})
 @end multitable
 
 To be able to know which different binary log files have been used,
@@ -23458,10 +23481,10 @@ shell> mysqlbinlog log-file | mysql -h server_name
 @end example
 
 You can also use the @code{mysqlbinlog} program to read the binary log
-directly from a remote MySQL server.
+directly from a remote MySQL server!
 
 @code{mysqlbinlog --help} will give you more information of how to use
-this program.
+this program!
 
 If you are using @code{BEGIN [WORK]} or @code{SET AUTOCOMMIT=0}, you must
 use the MySQL binary log for backups instead of the old update log.
@@ -23470,13 +23493,14 @@ The binary logging is done immediately after a query completes but before
 any locks are released or any commit is done. This ensures that the log
 will be logged in the execution order.
 
-Updates to a non-transactional table are stored in the binary log at
-once.  For transactional tables such as @code{BDB} ! or @code{InnoDB}
-tables, all updates are cached until a @code{COMMIT}.  Every thread
-will, on start, allocate a buffer of @code{binlog_cache_size} to buffer
-queries.  If a query is bigger than this, the thread will open a
-temporary file to handle the bigger cache.  The temporary file will be
-deleted when the thread ends.
+Updates to non-transactional tables are stored in the binary log
+immediately after execution.  For transactional tables such as @code{BDB}
+or @code{InnoDB} tables, all updates (@code{UPDATE}, @code{DELETE}
+or @code{INSERT}) that change tables are cached until a @code{COMMIT}.
+Every thread will, on start, allocate a buffer of @code{binlog_cache_size}
+to buffer queries.  If a query is bigger than this, the thread will open
+a temporary file to handle the bigger cache.  The temporary file will
+be deleted when the thread ends.
 
 The @code{max_binlog_cache_size} can be used to restrict the total size used
 to cache a multi-query transaction.
@@ -23499,10 +23523,10 @@ more than @code{long_query_time} to execute. The time to get the initial
 table locks are not counted as execution time.
 
 The slow query log is logged after the query is executed and after all
-locks have been released. This may be different from the order in which
+locks has been released. This may be different from the order in which
 the statements are executed.
 
-If no filename is given, it defaults to the name of the host machine
+If no file name is given, it defaults to the name of the host machine
 suffixed with @code{-slow.log}. If a filename is given, but doesn't
 contain a path, the file is written in the data directory.
 
@@ -23512,8 +23536,8 @@ can become a difficult task. You can pipe the slow query log through the
 @code{mysqldumpslow} command to get a summary of the queries which
 appear in the log.
 
-If you use @code{--log-long-format} also, then queries that do not
-use indexes are logged as well. @xref{Command-line options}.
+You are using @code{--log-long-format} then also queries that are not
+using indexes are printed. @xref{Command-line options}.
 
 
 @node Log file maintenance,  , Slow query log, Log Files
@@ -23523,19 +23547,22 @@ use indexes are logged as well. @xref{Command-line options}.
 @cindex maintaining, log files
 @cindex log files, maintaining
 
-MySQL has many log files which makes it easy to see what is going on.
-@xref{Log Files}. One must, however, occasionally clean up
-after @code{MySQL} to ensure that the logs don't take up too much disk
-space by either removing or backing up old log files and then telling MySQL
-to start logging to new files. @xref{Backup}.
+The MySQL Server can create a number of different log files, which make
+it easy to see what is going on. @xref{Log Files}. One must however
+regularly clean up these files, to ensure that the logs don't take up
+too much disk space.
 
-On a Linux (@code{Redhat}) installation you can use the
+When using MySQL with log files, you will, from time to time,
+want to remove/backup old log files and tell MySQL to start
+logging on new files.  @xref{Backup}.
+
+On a Linux (@code{Redhat}) installation, you can use the
 @code{mysql-log-rotate} script for this. If you installed MySQL
-from an RPM distribution the script should have been installed
-automatically.  @strong{Note}: you should be careful with this if you are 
-using the logs for replication.
+from an RPM distribution, the script should have been installed
+automatically.  Note that you should be careful with this if you are using
+the log for replication!
 
-On other systems you must install a short script yourself that you can
+On other systems you must install a short script yourself that you
 start from @code{cron} to handle log files.
 
 You can force MySQL to start using new log files by using
@@ -24203,7 +24230,7 @@ ignore, use the directive multiple times, once for each database.
 You should not use this directive if you are using cross table updates
 and you don't want these update to be replicated.
 
-The main reason for this behavior is that it's hard from the command
+The main reason for this behaviour is that it's hard from the command
 alone know if a query should be replicated or not; For example if you
 are using multi-table-delete or multi-table-update commands in MySQL 4.x
 that goes across multiple databases.  It's also very fast to just check
@@ -24294,10 +24321,16 @@ summary of commands:
 @item @strong{Command} @tab @strong{Description}
 
 @item @code{SLAVE START}
- @tab Starts the slave thread. (Slave)
+ @tab Starts the slave thread.
+As of MySQL 4.0.2, you can add @code{IO_THREAD} or @code{SQL_THREAD}
+options to the statement to start the I/O thread or the SQL thread.
+The I/O thread reads queries from the master server and stores them in the
+relay log.  The SQL thread reads the relay log and executes the queries.
+(Slave)
 
 @item @code{SLAVE STOP}
- @tab Stops the slave thread. (Slave)
+ @tab Stops the slave thread. Like @code{SLAVE START}, this statement
+may be used with @code{IO_THREAD} and @code{SQL_THREAD} options. (Slave)
 
 @item @code{SET SQL_LOG_BIN=0}
 @tab Disables update logging if the user has the @code{SUPER} privilege.
@@ -28951,7 +28984,7 @@ A few are reserved because MySQL needs them and is
 
 @c START_OF_RESERVED_WORDS
 
-@c Reserved word list updated Tue Jul 23 20:41:20 2002 by monty.
+@c Reserved word list updated Tue Oct  8 13:03:34 2002 by arjen.
 @c To regenerate, use Support/update-reserved-words.pl.
 
 @multitable @columnfractions .33 .33 .34
@@ -28973,38 +29006,41 @@ A few are reserved because MySQL needs them and is
 @item @code{BINARY}
  @tab @code{BLOB}
  @tab @code{BOTH}
-@item @code{BY}
+@item @code{BTREE}
+ @tab @code{BY}
  @tab @code{CASCADE}
- @tab @code{CASE}
-@item @code{CHANGE}
+@item @code{CASE}
+ @tab @code{CHANGE}
  @tab @code{CHAR}
- @tab @code{CHARACTER}
-@item @code{COLUMN}
- @tab @code{COLUMNS}
+@item @code{CHARACTER}
+ @tab @code{COLLATE}
+ @tab @code{COLUMN}
+@item @code{COLUMNS}
  @tab @code{CONSTRAINT}
-@item @code{CREATE}
- @tab @code{CROSS}
+ @tab @code{CREATE}
+@item @code{CROSS}
  @tab @code{CURRENT_DATE}
-@item @code{CURRENT_TIME}
- @tab @code{CURRENT_TIMESTAMP}
+ @tab @code{CURRENT_TIME}
+@item @code{CURRENT_TIMESTAMP}
  @tab @code{DATABASE}
-@item @code{DATABASES}
- @tab @code{DAY_HOUR}
+ @tab @code{DATABASES}
+@item @code{DAY_HOUR}
  @tab @code{DAY_MINUTE}
-@item @code{DAY_SECOND}
- @tab @code{DEC}
+ @tab @code{DAY_SECOND}
+@item @code{DEC}
  @tab @code{DECIMAL}
-@item @code{DEFAULT}
- @tab @code{DELAYED}
+ @tab @code{DEFAULT}
+@item @code{DELAYED}
  @tab @code{DELETE}
-@item @code{DESC}
- @tab @code{DESCRIBE}
+ @tab @code{DESC}
+@item @code{DESCRIBE}
  @tab @code{DISTINCT}
-@item @code{DISTINCTROW}
- @tab @code{DOUBLE}
+ @tab @code{DISTINCTROW}
+@item @code{DOUBLE}
  @tab @code{DROP}
-@item @code{ELSE}
- @tab @code{ENCLOSED}
+ @tab @code{ELSE}
+@item @code{ENCLOSED}
+ @tab @code{ERRORS}
  @tab @code{ESCAPED}
 @item @code{EXISTS}
  @tab @code{EXPLAIN}
@@ -29015,83 +29051,86 @@ A few are reserved because MySQL needs them and is
 @item @code{FROM}
  @tab @code{FULLTEXT}
  @tab @code{FUNCTION}
-@item @code{GRANT}
+@item @code{GEOMETRY}
+ @tab @code{GRANT}
  @tab @code{GROUP}
+@item @code{HASH}
  @tab @code{HAVING}
-@item @code{HIGH_PRIORITY}
- @tab @code{HOUR_MINUTE}
+ @tab @code{HIGH_PRIORITY}
+@item @code{HOUR_MINUTE}
  @tab @code{HOUR_SECOND}
-@item @code{IF}
- @tab @code{IGNORE}
+ @tab @code{IF}
+@item @code{IGNORE}
  @tab @code{IN}
-@item @code{INDEX}
- @tab @code{INFILE}
+ @tab @code{INDEX}
+@item @code{INFILE}
  @tab @code{INNER}
-@item @code{INNODB}
- @tab @code{INSERT}
+ @tab @code{INNODB}
+@item @code{INSERT}
  @tab @code{INT}
-@item @code{INTEGER}
- @tab @code{INTERVAL}
+ @tab @code{INTEGER}
+@item @code{INTERVAL}
  @tab @code{INTO}
-@item @code{IS}
- @tab @code{JOIN}
+ @tab @code{IS}
+@item @code{JOIN}
  @tab @code{KEY}
-@item @code{KEYS}
- @tab @code{KILL}
+ @tab @code{KEYS}
+@item @code{KILL}
  @tab @code{LEADING}
-@item @code{LEFT}
- @tab @code{LIKE}
+ @tab @code{LEFT}
+@item @code{LIKE}
  @tab @code{LIMIT}
-@item @code{LINES}
- @tab @code{LOAD}
+ @tab @code{LINES}
+@item @code{LOAD}
  @tab @code{LOCK}
-@item @code{LONG}
- @tab @code{LONGBLOB}
+ @tab @code{LONG}
+@item @code{LONGBLOB}
  @tab @code{LONGTEXT}
-@item @code{LOW_PRIORITY}
- @tab @code{MASTER_SERVER_ID}
+ @tab @code{LOW_PRIORITY}
+@item @code{MASTER_SERVER_ID}
  @tab @code{MATCH}
-@item @code{MEDIUMBLOB}
- @tab @code{MEDIUMINT}
+ @tab @code{MEDIUMBLOB}
+@item @code{MEDIUMINT}
  @tab @code{MEDIUMTEXT}
-@item @code{MIDDLEINT}
- @tab @code{MINUTE_SECOND}
+ @tab @code{MIDDLEINT}
+@item @code{MINUTE_SECOND}
  @tab @code{MRG_MYISAM}
-@item @code{NATURAL}
- @tab @code{NOT}
+ @tab @code{NATURAL}
+@item @code{NOT}
  @tab @code{NULL}
-@item @code{NUMERIC}
- @tab @code{ON}
+ @tab @code{NUMERIC}
+@item @code{ON}
  @tab @code{OPTIMIZE}
-@item @code{OPTION}
- @tab @code{OPTIONALLY}
+ @tab @code{OPTION}
+@item @code{OPTIONALLY}
  @tab @code{OR}
-@item @code{ORDER}
- @tab @code{OUTER}
+ @tab @code{ORDER}
+@item @code{OUTER}
  @tab @code{OUTFILE}
-@item @code{PARTIAL}
  @tab @code{PRECISION}
- @tab @code{PRIMARY}
-@item @code{PRIVILEGES}
+@item @code{PRIMARY}
+ @tab @code{PRIVILEGES}
  @tab @code{PROCEDURE}
- @tab @code{PURGE}
-@item @code{READ}
+@item @code{PURGE}
+ @tab @code{READ}
  @tab @code{REAL}
- @tab @code{REFERENCES}
-@item @code{REGEXP}
+@item @code{REFERENCES}
+ @tab @code{REGEXP}
  @tab @code{RENAME}
- @tab @code{REPLACE}
-@item @code{REQUIRE}
+@item @code{REPLACE}
+ @tab @code{REQUIRE}
  @tab @code{RESTRICT}
- @tab @code{RETURNS}
-@item @code{REVOKE}
+@item @code{RETURNS}
+ @tab @code{REVOKE}
  @tab @code{RIGHT}
- @tab @code{RLIKE}
-@item @code{SELECT}
- @tab @code{SET}
+@item @code{RLIKE}
+ @tab @code{RTREE}
+ @tab @code{SELECT}
+@item @code{SET}
  @tab @code{SHOW}
-@item @code{SMALLINT}
- @tab @code{SONAME}
+ @tab @code{SMALLINT}
+@item @code{SONAME}
+ @tab @code{SPATIAL}
  @tab @code{SQL_BIG_RESULT}
 @item @code{SQL_CALC_FOUND_ROWS}
  @tab @code{SQL_SMALL_RESULT}
@@ -29108,26 +29147,29 @@ A few are reserved because MySQL needs them and is
 @item @code{TINYTEXT}
  @tab @code{TO}
  @tab @code{TRAILING}
-@item @code{UNION}
+@item @code{TYPES}
+ @tab @code{UNION}
  @tab @code{UNIQUE}
- @tab @code{UNLOCK}
-@item @code{UNSIGNED}
+@item @code{UNLOCK}
+ @tab @code{UNSIGNED}
  @tab @code{UPDATE}
- @tab @code{USAGE}
-@item @code{USE}
+@item @code{USAGE}
+ @tab @code{USE}
  @tab @code{USER_RESOURCES}
- @tab @code{USING}
-@item @code{VALUES}
+@item @code{USING}
+ @tab @code{VALUES}
  @tab @code{VARBINARY}
- @tab @code{VARCHAR}
-@item @code{VARYING}
- @tab @code{WHEN}
+@item @code{VARCHAR}
+ @tab @code{VARYING}
+ @tab @code{WARNINGS}
+@item @code{WHEN}
  @tab @code{WHERE}
-@item @code{WITH}
- @tab @code{WRITE}
+ @tab @code{WITH}
+@item @code{WRITE}
  @tab @code{XOR}
-@item @code{YEAR_MONTH}
- @tab @code{ZEROFILL}
+ @tab @code{YEAR_MONTH}
+@item @code{ZEROFILL}
+ @tab
  @tab
 @end multitable
 
@@ -31225,7 +31267,7 @@ mysql> SELECT IF(STRCMP('test','test1'),'no','yes');
 
 If @code{expr2} or @code{expr3} is explicitely @code{NULL} then the
 result type of the @code{IF()} function is the type of the not
-@code{NULL} column. (This behavior is new in MySQL 4.0.3).
+@code{NULL} column. (This behaviour is new in MySQL 4.0.3).
 
 @code{expr1} is evaluated as an integer value, which means that if you are
 testing floating-point or string values, you should do so using a comparison
@@ -35001,6 +35043,7 @@ DELAYED} when you are really sure you need it!
 UPDATE [LOW_PRIORITY] [IGNORE] tbl_name
     SET col_name1=expr1 [, col_name2=expr2, ...]
     [WHERE where_definition]
+    [ORDER BY ...]
     [LIMIT #]
 @end example
 
@@ -36226,10 +36269,8 @@ mysql> CREATE TABLE test (a INT NOT NULL AUTO_INCREMENT,
 
 This will create a @code{MyISAM} table with three columns, a, b, and c.
 Notice that the columns from the @code{SELECT} statement are appended to
-the right side of the table, not overlapped onto it.
-Still, the column from the @code{SELECT} will overlap the column from
-the @code{CREATE} clause if they both have the same name.  Take the following
-examples:
+the right side of the table, not overlapped onto it.  Take the following
+example:
 
 @example
 mysql> SELECT * FROM foo;
@@ -36249,18 +36290,6 @@ mysql> SELECT * FROM bar;
 +------+---+
 | NULL | 1 |
 +------+---+
-1 row in set (0.00 sec)
-
-mysql> CREATE TABLE foobar (n FLOAT(3,2), m INT) SELECT n FROM foo;
-Query OK, 1 row affected (0.02 sec)
-Records: 1  Duplicates: 0  Warnings: 0
-
-mysql> SELECT * FROM foobar;
-+------+------+
-| n    | m    |
-+------+------+
-| 1.00 | NULL |
-+------+------+
 1 row in set (0.00 sec)
 @end example
 
@@ -36615,7 +36644,7 @@ deleted due to duplication of unique key values.
 The @code{FOREIGN KEY}, @code{CHECK}, and @code{REFERENCES} clauses don't
 actually do anything, except for InnoDB type tables which support
 @code{ADD CONSTRAINT FOREIGN KEY (...) REFERENCES ... (...)}.
-Note that InnoDB does not allow a constraint @code{symbol} or @code{index_name}
+Note that InnoDB does not allow an @code{index_name}
 to be specified. @xref{InnoDB}.
 The syntax for other table types is provided only for compatibility,
 to make it easier to port code from other SQL servers and to run applications
@@ -39268,7 +39297,7 @@ constraints to guard the integrity of your data.
 
 The syntax of a foreign key constraint definition in InnoDB:
 @example
-FOREIGN KEY (index_col_name, ...)
+[CONSTRAINT symbol] FOREIGN KEY (index_col_name, ...)
                   REFERENCES table_name (index_col_name, ...)
                   [ON DELETE CASCADE | ON DELETE SET NULL]
 @end example
@@ -39327,7 +39356,7 @@ Starting from version 3.23.50 InnoDB allows you to add a new
 foreign key constraint to a table through
 @example
 ALTER TABLE yourtablename
-  ADD CONSTRAINT FOREIGN KEY (...) REFERENCES anothertablename(...)
+ADD [CONSTRAINT symbol] FOREIGN KEY (...) REFERENCES anothertablename(...)
 @end example
 Remember to create the required indexes first, though.
                            
@@ -50833,8 +50862,10 @@ each individual 4.0.x release.
 @appendixsubsec Changes in release 4.0.5
 @itemize
 @item
-Give error if one has more than 2 ^ 32 rows in a MyISAM MERGE file and one
-has not compiled MySQL with @code{-DBIG_TABLES}.
+Small fix in @code{mysqld_safe} for some shells.
+@item
+Give error if a @code{MyISAM} @code{MERGE} table has more than 2 ^ 32 rows and
+MySQL was not compiled with with @code{-DBIG_TABLES}.
 @item
 Fixed some @code{ORDER BY ... DESC} problems with InnoDB.
 @item
@@ -50854,7 +50885,7 @@ Fixed bug where @code{GRANT}/@code{REVOKE} failed if hostname was given in
 not matching case.
 @item
 Don't give warning in @code{LOAD DATA INFILE} when setting a
-@code{timestamp} to a string of '0'.
+@code{timestamp} to a string value of @code{'0'}.
 @item
 Fixed bug in @code{myisamchk -R} mode.
 @item
@@ -50927,7 +50958,7 @@ output in @code{SHOW GRANTS}.
 Fixed that @code{mysqld --help} reports correct values for @code{--datadir}
 and @code{--bind-address}.
 @item
-Fixed that one can drop UDFs that didn't exist when mysqld was started.
+Fixed that one can drop UDFs that didn't exist when @code{mysqld} was started.
 @item
 Fixed core dump problem with @code{SHOW VARIABLES} on some 64 bit systems
 (like Solaris sparc).
@@ -51009,7 +51040,7 @@ that can be used as data values in queries.
 Changed variable @code{DELAY_KEY_WRITE} to an enum to allow one set
 @code{DELAY_KEY_WRITE} for all tables without taking down the server.
 @item
-Changed behavior of @code{IF(condition,column,NULL)} so that it returns
+Changed behaviour of @code{IF(condition,column,NULL)} so that it returns
 the value of the column type.
 @item
 Made @code{safe_mysqld} a symlink to @code{mysqld_safe} in binary distribution.
@@ -51280,6 +51311,9 @@ Fixed bug in truncation operator for boolean full-text search.
 @item
 Allow value of @code{--user=#} option for @code{mysqld} to be specified
 as a numeric user ID.
+@item
+Fixed a bug where @code{SQL_CALC_ROWS} returned an incorrect value when used
+with one table and @code{ORDER BY} and with @code{InnoDB} tables.
 @item
 Fixed that @code{SELECT 0 LIMIT 0} doesn't hang thread.
 @item
@@ -51666,6 +51700,8 @@ not yet 100% confident in this code.
 @node News-3.23.53, News-3.23.52, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.53
 @itemize @bullet
+@item
+Small fix in @code{safe_mysqld} for some shells.
 @item
 Fixed that @code{SHOW STATUS} doesn't reset @code{Delayed_insert_threads}.
 @item

@@ -50,6 +50,7 @@ typedef struct st_heapinfo		/* Struct from heap_info */
   ulong index_length;
   uint reclength;			/* Length of one record */
   int errkey;
+  ulonglong auto_increment;
 } HEAPINFO;
 
 
@@ -115,6 +116,9 @@ typedef struct st_heap_share
 #endif
   my_bool delete_on_close;
   LIST open_list;
+  uint auto_key;
+  uint auto_key_type;			/* real type of the auto key segment */
+  ulonglong auto_increment;
 } HP_SHARE;
 
 struct st_hp_hash_info;
@@ -140,6 +144,13 @@ typedef struct st_heap_info
   LIST open_list;
 } HP_INFO;
 
+typedef struct st_heap_create_info
+{
+  uint auto_key;
+  uint auto_key_type;
+  ulonglong auto_increment;
+} HP_CREATE_INFO;
+
 	/* Prototypes for heap-functions */
 
 extern HP_INFO *heap_open(const char *name, int mode);
@@ -152,7 +163,8 @@ extern int heap_scan(register HP_INFO *info, byte *record);
 extern int heap_delete(HP_INFO *info,const byte *buff);
 extern int heap_info(HP_INFO *info,HEAPINFO *x,int flag);
 extern int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
-		       uint reclength, ulong max_records, ulong min_records);
+		       uint reclength, ulong max_records, ulong min_records,
+		       HP_CREATE_INFO *create_info);
 extern int heap_delete_table(const char *name);
 extern int heap_extra(HP_INFO *info,enum ha_extra_function function);
 extern int heap_rename(const char *old_name,const char *new_name);
@@ -163,7 +175,7 @@ extern int heap_rprev(HP_INFO *info,byte *record);
 extern int heap_rfirst(HP_INFO *info,byte *record,int inx);
 extern int heap_rlast(HP_INFO *info,byte *record,int inx);
 extern void heap_clear(HP_INFO *info);
-
+extern void heap_update_auto_increment(HP_INFO *info, const byte *record);
 ha_rows hp_rb_records_in_range(HP_INFO *info, int inx, const byte *start_key,
 			       uint start_key_len,
 			       enum ha_rkey_function start_search_flag,

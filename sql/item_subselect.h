@@ -39,8 +39,7 @@ protected:
   uint max_columns;
 
 public:
-  Item_subselect(THD *thd, st_select_lex *select_lex,
-		 select_subselect* result);
+  Item_subselect();
   Item_subselect(Item_subselect *item)
   {
     null_value= item->null_value;
@@ -50,6 +49,14 @@ public:
     engine_owner= 0;
     name= item->name;
   }
+
+  /* 
+     We need this method, because some compilers do not allow 'this'
+     pointer in constructor initialization list, but we need pass pointer
+     to subselect Item class to select_subselect classes constructor.
+  */
+  void init (THD *thd, st_select_lex *select_lex, select_subselect *result);
+
   ~Item_subselect();
   virtual void assign_null() 
   {

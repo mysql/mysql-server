@@ -22,14 +22,13 @@ drop table if exists t1,t2;
 create table t1 (b char(0) not null, index(b));
 The used table handler can't index column 'b'
 create table t1 (a int not null auto_increment,primary key (a)) type=heap;
-The used table type doesn't support AUTO_INCREMENT columns
 create table t1 (a int not null,b text) type=heap;
 The used table type doesn't support BLOB/TEXT columns
 create table t1 (a int ,primary key(a)) type=heap;
 All parts of a PRIMARY KEY must be NOT NULL;  If you need NULL in a key, use UNIQUE instead
 drop table if exists t1;
 create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) type=heap;
-The used table type doesn't support AUTO_INCREMENT columns
+Incorrect table definition; There can only be one auto column and it must be defined as a key
 create table t1 (ordid int(8), primary key (ordid));
 All parts of a PRIMARY KEY must be NOT NULL;  If you need NULL in a key, use UNIQUE instead
 create table not_existing_database.test (a int);

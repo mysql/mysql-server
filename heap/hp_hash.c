@@ -537,3 +537,51 @@ my_bool hp_if_null_in_key(HP_KEYDEF *keydef, const byte *record)
   }
   return 0;
 }
+
+void heap_update_auto_increment(HP_INFO *info, const byte *record)
+{
+  ulonglong value;
+  HA_KEYSEG *keyseg= info->s->keydef[info->s->auto_key - 1].seg;
+  const uchar *key=  (uchar*) record + keyseg->start;
+
+  switch (info->s->auto_key_type) {
+  case HA_KEYTYPE_INT8:
+  case HA_KEYTYPE_BINARY:
+    value= (ulonglong) *(uchar*) key;
+    break;
+  case HA_KEYTYPE_SHORT_INT:
+  case HA_KEYTYPE_USHORT_INT:
+    value= (ulonglong) uint2korr(key);
+    break;
+  case HA_KEYTYPE_LONG_INT:
+  case HA_KEYTYPE_ULONG_INT:
+    value= (ulonglong) uint4korr(key);
+    break;
+  case HA_KEYTYPE_INT24:
+  case HA_KEYTYPE_UINT24:
+    value= (ulonglong) uint3korr(key);
+    break;
+  case HA_KEYTYPE_FLOAT:			/* This shouldn't be used */
+  {
+    float f_1;
+    float4get(f_1, key);
+    value= (ulonglong) f_1;
+    break;
+  }
+  case HA_KEYTYPE_DOUBLE:			/* This shouldn't be used */
+  {
+    double f_1;
+    float8get(f_1, key);
+    value= (ulonglong) f_1;
+    break;
+  }
+  case HA_KEYTYPE_LONGLONG:
+  case HA_KEYTYPE_ULONGLONG:
+    value= uint8korr(key);
+    break;
+  default:
+    value= 0;					/* Error */
+    break;
+  }
+  set_if_bigger(info->s->auto_increment, value);
+}

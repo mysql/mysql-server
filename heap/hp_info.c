@@ -55,5 +55,7 @@ int heap_info(reg1 HP_INFO *info,reg2 HEAPINFO *x,
   x->index_length= info->s->index_length;
   x->max_records = info->s->max_records;
   x->errkey	 = info->errkey;
+  if (flag & HA_STATUS_AUTO)
+    x->auto_increment= info->s->auto_increment + 1;
   DBUG_RETURN(0);
 } /* heap_info */
