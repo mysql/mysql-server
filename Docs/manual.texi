@@ -50453,6 +50453,12 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+Fixed bug where @code{GRANT}/@code{REVOKE} failed if hostname was given in
+not matching case.
+@item
+Don't give warning in @code{LOAD DATA INFILE} when setting a
+@code{timestamp} to a string of '0'.
+@item
 Fixed bug in @code{myisamchk -R} mode.
 @item
 Fixed bug that caused @code{mysqld} to crash on @code{REVOKE}.
