@@ -385,6 +385,12 @@ int mysqld_show_status(THD *thd);
 int mysqld_show_variables(THD *thd,const char *wild);
 int mysqld_show(THD *thd, const char *wild, show_var_st *variables);
 
+/* sql_handler.cc */
+int mysql_ha_open(THD *thd, TABLE_LIST *tables);
+int mysql_ha_close(THD *thd, TABLE_LIST *tables);
+int mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,char *,
+               List<Item> *,enum ha_rkey_function,Item *,ha_rows,ha_rows);
+
 /* sql_base.cc */
 void set_item_name(Item *item,char *pos,uint length);
 bool add_field_to_list(char *field_name, enum enum_field_types type,
@@ -406,6 +412,8 @@ TABLE *unlink_open_table(THD *thd,TABLE *list,TABLE *find);
 SQL_SELECT *make_select(TABLE *head, table_map const_tables,
 			table_map read_tables, COND *conds, int *error);
 Item ** find_item_in_list(Item *item,List<Item> &items);
+bool insert_fields(THD *thd,TABLE_LIST *tables, const char *table_name,
+	      List_iterator<Item> *it);
 bool setup_tables(TABLE_LIST *tables);
 int setup_fields(THD *thd,TABLE_LIST *tables,List<Item> &item,
 		 bool set_query_id,List<Item> *sum_func_list);
