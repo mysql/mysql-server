@@ -20,7 +20,6 @@
 #include <ndb_limits.h>
 #include <Properties.hpp>
 #include <Configuration.hpp>
-#include <new>
 
 #define DEBUG(x) { ndbout << "TC::" << x << endl; }
 

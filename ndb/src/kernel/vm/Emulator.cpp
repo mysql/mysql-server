@@ -33,7 +33,6 @@
 #include <NdbOut.hpp>
 #include <NdbMutex.h>
 #include <NdbSleep.h>
-#include <new>
 
 extern "C" {
   extern void (* ndb_new_handler)();
