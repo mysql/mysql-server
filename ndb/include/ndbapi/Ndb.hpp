@@ -431,6 +431,10 @@
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
 /**
+ * @page ndbapi_async.cpp ndbapi_async.cpp
+ * @include ndbapi_async.cpp 
+ */
+/**
  * @page ndbapi_async1.cpp ndbapi_async1.cpp
  * @include ndbapi_async1.cpp 
  */
@@ -449,6 +453,11 @@
 /**
  * @page ndbapi_scan.cpp ndbapi_scan.cpp
  * @include ndbapi_scan.cpp
+ */
+
+/**
+ * @page ndbapi_event.cpp ndbapi_event.cpp
+ * @include ndbapi_event.cpp
  */
 
 

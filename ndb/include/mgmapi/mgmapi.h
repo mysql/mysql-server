@@ -22,7 +22,7 @@
  *
  * The NDB Cluster Management API (MGM API) is a C API
  * that is used to:
- * - Start and stop database nodes (DB nodes)
+ * - Start and stop database nodes (ndbd processes)
  * - Start and stop NDB Cluster backups
  * - Control the NDB Cluster log
  * - Perform other administrative tasks
@@ -30,18 +30,23 @@
  * @section  General Concepts
  *
  * Each MGM API function needs a management server handle
- * of type Mgm_C_Api::NdbMgmHandle.
+ * of type @ref NdbMgmHandle.
  * This handle is initally created by calling the
- * function ndb_mgm_create_handle().
+ * function ndb_mgm_create_handle() and freed by calling 
+ * ndb_mgm_destroy_handle().
  *
  * A function can return:
  *  -# An integer value.
  *     A value of <b>-1</b> indicates an error.
- *  -# A pointer value.  A <var>NULL</var> value indicates an error;
- *     otherwise, the return value must be freed by the user of the MGM API.
+ *  -# A non-const pointer value.  A <var>NULL</var> value indicates an error;
+ *     otherwise, the return value must be freed
+ *     by the user of the MGM API
+ *  -# A const pointer value.  A <var>NULL</var> value indicates an error.
+ *     Returned value should not be freed.
  *
  * Error conditions can be identified by using the appropriate
- * error-reporting functions.
+ * error-reporting functions ndb_mgm_get_latest_error() and 
+ * @ref ndb_mgm_error.
  */
 
 /** @addtogroup MGM_C_API
@@ -64,32 +69,54 @@ extern "C" {
    *   NDB Cluster node types
    */
   enum ndb_mgm_node_type {
-    NDB_MGM_NODE_TYPE_UNKNOWN = -1,           /*< Node type not known*/
-    NDB_MGM_NODE_TYPE_API     = NODE_TYPE_API,/*< An application node (API)*/
-    NDB_MGM_NODE_TYPE_NDB     = NODE_TYPE_DB, /*< A database node (DB)*/
-    NDB_MGM_NODE_TYPE_MGM     = NODE_TYPE_MGM,/*< A mgmt server node (MGM)*/
-    NDB_MGM_NODE_TYPE_REP     = NODE_TYPE_REP,/*< A replication node */
-
-    NDB_MGM_NODE_TYPE_MIN     = 0,            /*< Min valid value*/
-    NDB_MGM_NODE_TYPE_MAX     = 3             /*< Max valid value*/
+    NDB_MGM_NODE_TYPE_UNKNOWN = -1  /** Node type not known*/
+    ,NDB_MGM_NODE_TYPE_API    /** An application node (API) */
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    = NODE_TYPE_API
+#endif
+    ,NDB_MGM_NODE_TYPE_NDB    /** A database node (DB) */
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    = NODE_TYPE_DB
+#endif
+    ,NDB_MGM_NODE_TYPE_MGM    /** A mgmt server node (MGM)*/
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    = NODE_TYPE_MGM
+#endif
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    ,NDB_MGM_NODE_TYPE_REP = NODE_TYPE_REP  /** A replication node */
+    ,NDB_MGM_NODE_TYPE_MIN     = 0          /** Min valid value*/
+    ,NDB_MGM_NODE_TYPE_MAX     = 3          /** Max valid value*/
+#endif
   };
 
   /**
    *   Database node status
    */
   enum ndb_mgm_node_status {
-    NDB_MGM_NODE_STATUS_UNKNOWN       = 0,  /*< Node status not known*/
-    NDB_MGM_NODE_STATUS_NO_CONTACT    = 1,  /*< No contact with node*/
-    NDB_MGM_NODE_STATUS_NOT_STARTED   = 2,  /*< Has not run starting protocol*/
-    NDB_MGM_NODE_STATUS_STARTING      = 3,  /*< Is running starting protocol*/
-    NDB_MGM_NODE_STATUS_STARTED       = 4,  /*< Running*/
-    NDB_MGM_NODE_STATUS_SHUTTING_DOWN = 5,  /*< Is shutting down*/
-    NDB_MGM_NODE_STATUS_RESTARTING    = 6,  /*< Is restarting*/
-    NDB_MGM_NODE_STATUS_SINGLEUSER    = 7,  /*< Maintenance mode*/
-    NDB_MGM_NODE_STATUS_RESUME        = 8,  /*< Resume mode*/
-
-    NDB_MGM_NODE_STATUS_MIN           = 0,  /*< Min valid value*/
-    NDB_MGM_NODE_STATUS_MAX           = 6   /*< Max valid value*/
+    /** Node status not known*/
+    NDB_MGM_NODE_STATUS_UNKNOWN       = 0,
+    /** No contact with node*/
+    NDB_MGM_NODE_STATUS_NO_CONTACT    = 1,
+    /** Has not run starting protocol*/
+    NDB_MGM_NODE_STATUS_NOT_STARTED   = 2,
+    /** Is running starting protocol*/
+    NDB_MGM_NODE_STATUS_STARTING      = 3,
+    /** Running*/
+    NDB_MGM_NODE_STATUS_STARTED       = 4,
+    /** Is shutting down*/
+    NDB_MGM_NODE_STATUS_SHUTTING_DOWN = 5,
+    /** Is restarting*/
+    NDB_MGM_NODE_STATUS_RESTARTING    = 6,
+    /** Maintenance mode*/
+    NDB_MGM_NODE_STATUS_SINGLEUSER    = 7,
+    /** Resume mode*/
+    NDB_MGM_NODE_STATUS_RESUME        = 8,
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    /** Min valid value*/
+    NDB_MGM_NODE_STATUS_MIN           = 0,
+    /** Max valid value*/
+    NDB_MGM_NODE_STATUS_MAX           = 8
+#endif
   };
 
   /**
@@ -128,14 +155,15 @@ extern "C" {
     NDB_MGM_USAGE_ERROR = 5001
   };
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   struct Ndb_Mgm_Error_Msg {
     enum ndb_mgm_error  code;
     const char *        msg;
   };
-
   const struct Ndb_Mgm_Error_Msg ndb_mgm_error_msgs[] = {
     { NDB_MGM_NO_ERROR, "No error" },
 
+    /* Request for service errors */
     { NDB_MGM_ILLEGAL_CONNECT_STRING, "Illegal connect string" },
     { NDB_MGM_ILLEGAL_PORT_NUMBER, "Illegal port number" },
     { NDB_MGM_ILLEGAL_SOCKET, "Illegal socket" },
@@ -167,66 +195,86 @@ extern "C" {
     { NDB_MGM_USAGE_ERROR,
       "Usage error" }
   };
-
   const int ndb_mgm_noOfErrorMsgs =
   sizeof(ndb_mgm_error_msgs)/sizeof(struct Ndb_Mgm_Error_Msg);
+#endif
 
   /**
-   *   Structure returned by ndb_mgm_get_status
+   *   Status of a node in the cluster
+   *
+   *   Sub-structure in enum ndb_mgm_cluster_state
+   *   returned by ndb_mgm_get_status()
    */
   struct ndb_mgm_node_state {
-    int node_id;                            /*< NDB Cluster node id*/
-    enum ndb_mgm_node_type   node_type;     /*< Type of NDB Cluster node*/
-    enum ndb_mgm_node_status node_status;   /*< State of node*/
-    int start_phase;                        /*< Start phase.
-					     *< @note Start phase is only
-					     *< valid if
-					     *< node_type is
-					     *< NDB_MGM_NODE_TYPE_NDB and
-					     *< node_status is
-					     *< NDB_MGM_NODE_STATUS_STARTING
-					     */
-    int dynamic_id;                         /*< Id for heartbeats and
-					     *< master take-over
-					     *< (only valid for DB nodes)
-					     */
-    int node_group;                         /*< Node group of node
-					     *< (only valid for DB nodes)*/
-    int version;                            /*< Internal version number*/
-    int connect_count;                      /*< Number of times node has connected
-					     *< or disconnected to the mgm srv
-					     */
-    char connect_address[sizeof("000.000.000.000")+1];
+    /** NDB Cluster node id*/
+    int node_id;
+    /** Type of NDB Cluster node*/
+    enum ndb_mgm_node_type   node_type;
+   /** State of node*/
+    enum ndb_mgm_node_status node_status;
+    /** Start phase.
+     *
+     *  @note Start phase is only valid if node_type is
+     *        NDB_MGM_NODE_TYPE_NDB and node_status is 
+     *        NDB_MGM_NODE_STATUS_STARTING
+     */
+    int start_phase;
+    /** Id for heartbeats and master take-over (only valid for DB nodes)
+     */
+    int dynamic_id;
+    /** Node group of node (only valid for DB nodes)*/
+    int node_group;
+    /** Internal version number*/
+    int version;
+    /** Number of times node has connected or disconnected to the 
+     *  management server
+     */
+    int connect_count;
+    /** Ip adress of node when it connected to the management server.
+     *  @note it will be empty if the management server has restarted
+     *        after the node connected.
+     */
+    char connect_address[
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+			 sizeof("000.000.000.000")+1
+#endif
+    ];
   };
 
   /**
-   *   Cluster status
+   *   State of all nodes in the cluster returned from 
+   *   ndb_mgm_get_status()
    */
   struct ndb_mgm_cluster_state {
-    int no_of_nodes;                        /*< No of entries in the
-					     *< node_states array
-					     */
-    struct ndb_mgm_node_state               /*< An array with node_states*/
-    node_states[1];
-    const char *hostname;
+    /** No of entries in the node_states array */
+    int no_of_nodes;
+    /** An array with node_states*/
+    struct ndb_mgm_node_state node_states[
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+					  1
+#endif
+    ];
   };
 
   /**
-   *   Default reply from the server
+   *   Default reply from the server (for future use, not used today)
    */
   struct ndb_mgm_reply {
-    int return_code;                        /*< 0 if successful,
-					     *< otherwise error code.
-					     */
-    char message[256];                      /*< Error or reply message.*/
+    /** 0 if successful, otherwise error code. */
+    int return_code;
+    /** Error or reply message.*/
+    char message[256];
   };
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
    *   Default information types
    */
   enum ndb_mgm_info {
-    NDB_MGM_INFO_CLUSTER,                   /*< ?*/
-    NDB_MGM_INFO_CLUSTERLOG                 /*< Cluster log*/
+    /** ?*/
+    NDB_MGM_INFO_CLUSTER,
+    /** Cluster log*/
+    NDB_MGM_INFO_CLUSTERLOG
   };
 
   /**
@@ -234,11 +282,16 @@ extern "C" {
    *   (Used only in the development of NDB Cluster.)
    */
   enum ndb_mgm_signal_log_mode {
-    NDB_MGM_SIGNAL_LOG_MODE_IN,             /*< Log receiving signals */
-    NDB_MGM_SIGNAL_LOG_MODE_OUT,            /*< Log sending signals*/
-    NDB_MGM_SIGNAL_LOG_MODE_INOUT,          /*< Log both sending/receiving*/
-    NDB_MGM_SIGNAL_LOG_MODE_OFF             /*< Log off*/
+    /** Log receiving signals */
+    NDB_MGM_SIGNAL_LOG_MODE_IN,
+    /** Log sending signals*/
+    NDB_MGM_SIGNAL_LOG_MODE_OUT,
+    /** Log both sending/receiving*/
+    NDB_MGM_SIGNAL_LOG_MODE_INOUT,
+    /** Log off*/
+    NDB_MGM_SIGNAL_LOG_MODE_OFF
   };
+#endif
 
   /**
    *   Log severities (used to filter the cluster log)
@@ -246,32 +299,31 @@ extern "C" {
   enum ndb_mgm_clusterlog_level {
     NDB_MGM_ILLEGAL_CLUSTERLOG_LEVEL = -1,
     /* must range from 0 and up, indexes into an array */
-    NDB_MGM_CLUSTERLOG_ON    = 0,           /*< Cluster log on*/
-    NDB_MGM_CLUSTERLOG_DEBUG = 1,           /*< Used in NDB Cluster
-					     *< developement
-					     */
-    NDB_MGM_CLUSTERLOG_INFO = 2,            /*< Informational messages*/
-    NDB_MGM_CLUSTERLOG_WARNING = 3,         /*< Conditions that are not
-					     *< error condition, but
-					     *< might require handling
-					     */
-    NDB_MGM_CLUSTERLOG_ERROR = 4,           /*< Conditions that should be
-					     *< corrected
-					     */
-    NDB_MGM_CLUSTERLOG_CRITICAL = 5,        /*< Critical conditions, like
-					     *< device errors or out of
-					     *< resources
-					     */
-    NDB_MGM_CLUSTERLOG_ALERT = 6,           /*< A condition that should be
-					     *< corrected immediately,
-					     *< such as a corrupted system
-					     */
+    /** Cluster log on*/
+    NDB_MGM_CLUSTERLOG_ON    = 0,
+    /** Used in NDB Cluster developement */
+    NDB_MGM_CLUSTERLOG_DEBUG = 1,
+    /** Informational messages*/
+    NDB_MGM_CLUSTERLOG_INFO = 2,
+    /** Conditions that are not error condition, but might require handling
+     */
+    NDB_MGM_CLUSTERLOG_WARNING = 3,
+    /** Conditions that should be corrected */
+    NDB_MGM_CLUSTERLOG_ERROR = 4,
+    /** Critical conditions, like device errors or out of resources */
+    NDB_MGM_CLUSTERLOG_CRITICAL = 5,
+    /** A condition that should be corrected immediately,
+     *  such as a corrupted system
+     */
+    NDB_MGM_CLUSTERLOG_ALERT = 6,
     /* must be next number, works as bound in loop */
-    NDB_MGM_CLUSTERLOG_ALL = 7              /*< All severities */
+    /** All severities */
+    NDB_MGM_CLUSTERLOG_ALL = 7
   };
 
   /**
-   *   Log categories
+   *  Log categories, used to set filter on the clusterlog using
+   *  ndb_mgm_set_loglevel_clusterlog()
    */
   enum ndb_mgm_event_category {
     /**
@@ -282,28 +334,56 @@ extern "C" {
      * Events during all kinds of startups
      */
     NDB_MGM_EVENT_CATEGORY_STARTUP = CFG_LOGLEVEL_STARTUP,
-
     /**
      * Events during shutdown
      */
     NDB_MGM_EVENT_CATEGORY_SHUTDOWN = CFG_LOGLEVEL_SHUTDOWN,
-
     /**
      * Transaction statistics (Job level, TCP/IP speed)
      */
     NDB_MGM_EVENT_CATEGORY_STATISTIC = CFG_LOGLEVEL_STATISTICS,
+    /**
+     * Events regarding checkpoints
+     */
     NDB_MGM_EVENT_CATEGORY_CHECKPOINT = CFG_LOGLEVEL_CHECKPOINT,
+    /**
+     * Events during node restart
+     */
     NDB_MGM_EVENT_CATEGORY_NODE_RESTART = CFG_LOGLEVEL_NODERESTART,
+    /**
+     * Events on connection between cluster nodes
+     */
     NDB_MGM_EVENT_CATEGORY_CONNECTION = CFG_LOGLEVEL_CONNECTION,
-    NDB_MGM_EVENT_CATEGORY_DEBUG = CFG_LOGLEVEL_DEBUG,
-    NDB_MGM_EVENT_CATEGORY_INFO = CFG_LOGLEVEL_INFO,
-    NDB_MGM_EVENT_CATEGORY_WARNING = CFG_LOGLEVEL_WARNING,
-    NDB_MGM_EVENT_CATEGORY_ERROR = CFG_LOGLEVEL_ERROR,
-    NDB_MGM_EVENT_CATEGORY_GREP = CFG_LOGLEVEL_GREP,
+    /**
+     * Backup events
+     */
     NDB_MGM_EVENT_CATEGORY_BACKUP = CFG_LOGLEVEL_BACKUP,
-
+    /**
+     * Loglevel debug
+     */
+    NDB_MGM_EVENT_CATEGORY_DEBUG = CFG_LOGLEVEL_DEBUG,
+    /**
+     * Loglevel info
+     */
+    NDB_MGM_EVENT_CATEGORY_INFO = CFG_LOGLEVEL_INFO,
+    /**
+     * Loglevel warning
+     */
+    NDB_MGM_EVENT_CATEGORY_WARNING = CFG_LOGLEVEL_WARNING,
+    /**
+     * Loglevel error
+     */
+    NDB_MGM_EVENT_CATEGORY_ERROR = CFG_LOGLEVEL_ERROR,
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    /**
+     *
+     */
+    NDB_MGM_EVENT_CATEGORY_GREP = CFG_LOGLEVEL_GREP,
+#endif
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     NDB_MGM_MIN_EVENT_CATEGORY = CFG_MIN_LOGLEVEL,
     NDB_MGM_MAX_EVENT_CATEGORY = CFG_MAX_LOGLEVEL
+#endif
   };
 
   /***************************************************************************/
@@ -618,7 +698,7 @@ extern "C" {
 
   /** @} *********************************************************************/
   /**
-   * @name Functions: Logging and Statistics
+   * @name Functions: Logging
    * @{
    */
 
@@ -670,6 +750,17 @@ extern "C" {
 				      enum ndb_mgm_event_category category,
 				      int level,
 				      struct ndb_mgm_reply* reply);
+
+  /**
+   * Listen to log events
+   *
+   * @param filter pairs of { level, ndb_mgm_event_category } that will be
+   *        pushed to fd, level=0 ends lists
+   *
+   * @return fd which events will be pushed to
+   */
+  int ndb_mgm_listen_event(NdbMgmHandle handle, int filter[]);
+
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
    * Set log category and levels for the Node
@@ -760,15 +851,11 @@ extern "C" {
   int ndb_mgm_exit_single_user(NdbMgmHandle handle,
 			       struct ndb_mgm_reply* reply);
 
+  /** @} *********************************************************************/
   /**
-   * Listen event
-   *
-   * @param filter pairs of { level, category } that will be
-   *        pushed to fd, level=0 ends lists
-   *
-   * @return fd which events will be pushed to
+   * @name Configuration handling
+   * @{
    */
-  int ndb_mgm_listen_event(NdbMgmHandle handle, int filter[]);
 
   /**
    * Get configuration
@@ -778,7 +865,7 @@ extern "C" {
    *
    * @return configuration
    *
-   * @note the caller must call ndb_mgm_detroy_configuration
+   * @note the caller must call ndb_mgm_destroy_configuration()
    */
   struct ndb_mgm_configuration * ndb_mgm_get_configuration(NdbMgmHandle handle,
 							   unsigned version);
