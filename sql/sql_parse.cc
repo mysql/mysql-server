@@ -3135,7 +3135,7 @@ mysql_execute_command(THD *thd)
       net_printf(thd,ER_WRONG_DB_NAME, lex->name);
       break;
     }
-    if (check_access(thd,DROP_ACL,lex->name,0,1,0))
+    if (check_access(thd,SELECT_ACL,lex->name,0,1,0))
       break;
     if (thd->locked_tables || thd->active_transaction())
     {
