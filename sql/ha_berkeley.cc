@@ -1940,6 +1940,24 @@ int ha_berkeley::delete_table(const char *name)
   DBUG_RETURN(error);
 }
 
+
+int ha_berkeley::rename_table(const char * from, const char * to)
+{
+  int error;
+  char from_buff[FN_REFLEN];
+  char to_buff[FN_REFLEN];
+
+  if ((error= db_create(&file, db_env, 0)))
+    my_errno= error;
+  else
+    error= file->rename(file, 
+			fn_format(from_buff, from, "", ha_berkeley_ext, 2 | 4),
+			NULL, fn_format(to_buff, to, "", ha_berkeley_ext,
+					2 | 4), 0);
+  return error;
+}
+
+
 /*
   How many seeks it will take to read through the table
   This is to be comparable to the number returned by records_in_range so

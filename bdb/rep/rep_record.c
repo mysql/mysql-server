@@ -1198,6 +1198,9 @@ gap_check:		lp->wait_recs = 0;
 			 * replica get flushed now and again.
 			 */
 			ret = dbenv->log_flush(dbenv, &ckp_lsn);
+		/* Update the last_ckp in the txn region. */
+		if (ret == 0)
+			__txn_updateckp(dbenv, &rp->lsn);
 		break;
 	case DB___txn_regop:
 		if (!F_ISSET(dbenv, DB_ENV_REP_LOGSONLY))
