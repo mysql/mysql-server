@@ -1,6 +1,3 @@
-#ifndef SQL_REPL_H
-#define SQL_REPL_H
-
 #include "slave.h"
 
 typedef struct st_slave_info
@@ -27,7 +24,7 @@ extern bool opt_sporadic_binlog_dump_fail;
 #define KICK_SLAVE(thd) thd->awake(0 /* do not prepare to die*/);
 
 File open_binlog(IO_CACHE *log, const char *log_file_name,
-	      const char **errmsg);
+		 const char **errmsg);
 
 int start_slave(THD* thd, MASTER_INFO* mi, bool net_report);
 int stop_slave(THD* thd, MASTER_INFO* mi, bool net_report);
@@ -58,6 +55,3 @@ typedef struct st_load_file_info
 } LOAD_FILE_INFO;
 
 int log_loaded_block(IO_CACHE* file);
-
-#endif
-

@@ -185,9 +185,9 @@ typedef struct st_copy_info {
   ha_rows records;
   ha_rows deleted;
   ha_rows copied;
-  ha_rows error;
+  ha_rows error_count;
   enum enum_duplicates handle_duplicates;
-  int escape_char, errorno;
+  int escape_char, last_errno;
 } COPY_INFO;
 
 

@@ -135,7 +135,8 @@ struct st_table {
 #define JOIN_TYPE_LEFT	1
 #define JOIN_TYPE_RIGHT	2
 
-typedef struct st_table_list {
+typedef struct st_table_list
+{
   struct	st_table_list *next;
   char		*db,*name,*real_name;
   uint32        db_length, real_name_length;
@@ -152,11 +153,14 @@ typedef struct st_table_list {
   bool		shared;				/* Used twice in union */
 } TABLE_LIST;
 
-typedef struct st_changed_table_list {
+
+typedef struct st_changed_table_list
+{
   struct	st_changed_table_list *next;
   char		*key;
   uint32        key_length;
 } CHANGED_TABLE_LIST;
+
 
 typedef struct st_open_table_list
 {

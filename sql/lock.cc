@@ -135,7 +135,7 @@ static int lock_external(TABLE **tables,uint count)
 
     if ((error=(*tables)->file->external_lock(thd,lock_type)))
     {
-      for ( ; i-- ; tables--)
+      for (; i-- ; tables--)
       {
 	(*tables)->file->external_lock(thd, F_UNLCK);
 	(*tables)->current_lock=F_UNLCK;
@@ -473,7 +473,7 @@ void unlock_table_name(THD *thd, TABLE_LIST *table_list)
 
 static bool locked_named_table(THD *thd, TABLE_LIST *table_list)
 {
-  for ( ; table_list ; table_list=table_list->next)
+  for (; table_list ; table_list=table_list->next)
   {
     if (table_list->table && table_is_used(table_list->table,0))
       return 1;

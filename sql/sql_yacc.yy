@@ -3654,17 +3654,17 @@ grant_option_list:
 
 grant_option:
 	GRANT OPTION { Lex->grant |= GRANT_ACL;}
-        | MAX_QUERIES_PER_HOUR EQ ULONG_NUM
+        | MAX_QUERIES_PER_HOUR ULONG_NUM
         {
-	  Lex->mqh.questions=$3;
+	  Lex->mqh.questions=$2;
 	}
-        | MAX_UPDATES_PER_HOUR EQ ULONG_NUM
+        | MAX_UPDATES_PER_HOUR ULONG_NUM
         {
-	  Lex->mqh.updates=$3;
+	  Lex->mqh.updates=$2;
 	}
-        | MAX_CONNECTIONS_PER_HOUR EQ ULONG_NUM
+        | MAX_CONNECTIONS_PER_HOUR ULONG_NUM
         {
-	  Lex->mqh.connections=$3;
+	  Lex->mqh.connections=$2;
 	}
 
 begin:

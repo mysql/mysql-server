@@ -40,15 +40,19 @@ const char *rpl_role_type[] = {"MASTER","SLAVE",NullS};
 TYPELIB rpl_role_typelib = {array_elements(rpl_role_type)-1,"",
 			    rpl_role_type};
 
-const char* rpl_status_type[] = {"AUTH_MASTER","ACTIVE_SLAVE","IDLE_SLAVE",
-				 "LOST_SOLDIER","TROOP_SOLDIER",
-				 "RECOVERY_CAPTAIN","NULL",NullS};
+const char* rpl_status_type[]=
+{
+  "AUTH_MASTER","ACTIVE_SLAVE","IDLE_SLAVE", "LOST_SOLDIER","TROOP_SOLDIER",
+  "RECOVERY_CAPTAIN","NULL",NullS
+};
 TYPELIB rpl_status_typelib= {array_elements(rpl_status_type)-1,"",
 			     rpl_status_type};
+
 
 static Slave_log_event* find_slave_event(IO_CACHE* log,
 					 const char* log_file_name,
 					 char* errmsg);
+
 
 static int init_failsafe_rpl_thread(THD* thd)
 {
@@ -93,6 +97,7 @@ static int init_failsafe_rpl_thread(THD* thd)
   DBUG_RETURN(0);
 }
 
+
 void change_rpl_status(RPL_STATUS from_status, RPL_STATUS to_status)
 {
   pthread_mutex_lock(&LOCK_rpl_status);
@@ -101,6 +106,7 @@ void change_rpl_status(RPL_STATUS from_status, RPL_STATUS to_status)
   pthread_cond_signal(&COND_rpl_status);
   pthread_mutex_unlock(&LOCK_rpl_status);
 }
+
 
 #define get_object(p, obj) \
 {\
@@ -111,27 +117,32 @@ void change_rpl_status(RPL_STATUS from_status, RPL_STATUS to_status)
   p+= len; \
 }\
 
+
 static inline int cmp_master_pos(Slave_log_event* sev, LEX_MASTER_INFO* mi)
 {
   return cmp_master_pos(sev->master_log, sev->master_pos, mi->log_file_name,
 			mi->pos);
 }
 
+
 void unregister_slave(THD* thd, bool only_mine, bool need_mutex)
 {
-  if (need_mutex)
-    pthread_mutex_lock(&LOCK_slave_list);
   if (thd->server_id)
   {
+    if (need_mutex)
+      pthread_mutex_lock(&LOCK_slave_list);
+
     SLAVE_INFO* old_si;
     if ((old_si = (SLAVE_INFO*)hash_search(&slave_list,
 					   (byte*)&thd->server_id, 4)) &&
 	(!only_mine || old_si->thd == thd))
     hash_delete(&slave_list, (byte*)old_si);
+
+    if (need_mutex)
+      pthread_mutex_unlock(&LOCK_slave_list);
   }
-  if (need_mutex)
-    pthread_mutex_unlock(&LOCK_slave_list);
 }
+
 
 int register_slave(THD* thd, uchar* packet, uint packet_length)
 {
@@ -199,16 +210,15 @@ void end_slave_list()
   }
 }
 
-static int find_target_pos(LEX_MASTER_INFO* mi, IO_CACHE* log, char* errmsg)
+static int find_target_pos(LEX_MASTER_INFO *mi, IO_CACHE *log, char *errmsg)
 {
-  uint32 log_pos = (uint32) mi->pos;
+  my_off_t log_pos =	    (my_off_t) mi->pos;
   uint32 target_server_id = mi->server_id;
 
   for (;;)
   {
     Log_event* ev;
-    if (!(ev = Log_event::read_log_event(log, (pthread_mutex_t*)0,
-					 0)))
+    if (!(ev = Log_event::read_log_event(log, (pthread_mutex_t*) 0, 0)))
     {
       if (log->error > 0)
 	strmov(errmsg, "Binary log truncated in the middle of event");
@@ -225,9 +235,9 @@ static int find_target_pos(LEX_MASTER_INFO* mi, IO_CACHE* log, char* errmsg)
       mi->pos = my_b_tell(log);
       return 0;
     }
-
     delete ev;
   }
+  /* Impossible */
 }
 
 
@@ -258,8 +268,6 @@ int translate_master(THD* thd, LEX_MASTER_INFO* mi, char* errmsg)
   }
 
   linfo.index_file_offset = 0;
-
-
   search_file_name[0] = 0;
 
   if (mysql_bin_log.find_first_log(&linfo, search_file_name))
@@ -357,7 +365,11 @@ err:
   return error;
 }
 
-// caller must delete result when done
+
+/*
+  Caller must delete result when done
+*/
+
 static Slave_log_event* find_slave_event(IO_CACHE* log,
 					 const char* log_file_name,
 					 char* errmsg)
@@ -431,6 +443,7 @@ int show_new_master(THD* thd)
   }
 }
 
+
 int update_slave_list(MYSQL* mysql)
 {
   MYSQL_RES* res=0;
@@ -446,8 +459,7 @@ int update_slave_list(MYSQL* mysql)
     goto err;
   }
 
-  switch (mc_mysql_num_fields(res))
-  {
+  switch (mc_mysql_num_fields(res)) {
   case 5:
     have_auth_info = 0;
     port_ind=2;
@@ -463,13 +475,13 @@ int update_slave_list(MYSQL* mysql)
 
   pthread_mutex_lock(&LOCK_slave_list);
 
-  while ((row = mc_mysql_fetch_row(res)))
+  while ((row= mc_mysql_fetch_row(res)))
   {
     uint32 server_id;
     SLAVE_INFO* si, *old_si;
     server_id = atoi(row[0]);
-    if ((old_si = (SLAVE_INFO*)hash_search(&slave_list,
-					   (byte*)&server_id,4)))
+    if ((old_si= (SLAVE_INFO*)hash_search(&slave_list,
+					  (byte*)&server_id,4)))
       si = old_si;
     else
     {
@@ -482,17 +494,18 @@ int update_slave_list(MYSQL* mysql)
       si->server_id = server_id;
       hash_insert(&slave_list, (byte*)si);
     }
-    strnmov(si->host, row[1], sizeof(si->host));
+    strmake(si->host, row[1], sizeof(si->host)-1);
     si->port = atoi(row[port_ind]);
     si->rpl_recovery_rank = atoi(row[port_ind+1]);
     si->master_id = atoi(row[port_ind+2]);
     if (have_auth_info)
     {
-      strnmov(si->user, row[2], sizeof(si->user));
-      strnmov(si->password, row[3], sizeof(si->password));
+      strmake(si->user, row[2], sizeof(si->user)-1);
+      strmake(si->password, row[3], sizeof(si->password)-1);
     }
   }
   pthread_mutex_unlock(&LOCK_slave_list);
+
 err:
   if (res)
     mc_mysql_free_result(res);
@@ -504,11 +517,12 @@ err:
   return 0;
 }
 
+
 int find_recovery_captain(THD* thd, MYSQL* mysql)
 {
-
   return 0;
 }
+
 
 pthread_handler_decl(handle_failsafe_rpl,arg)
 {
@@ -532,8 +546,7 @@ pthread_handler_decl(handle_failsafe_rpl,arg)
     thd->proc_info="Processing request";
     while (!break_req_chain)
     {
-      switch (rpl_status)
-      {
+      switch (rpl_status) {
       case RPL_LOST_SOLDIER:
 	if (find_recovery_captain(thd, recovery_captain))
 	  rpl_status=RPL_TROOP_SOLDIER;
@@ -557,6 +570,7 @@ err:
   pthread_exit(0);
   DBUG_RETURN(0);
 }
+
 
 int show_slave_hosts(THD* thd)
 {
@@ -606,6 +620,7 @@ int show_slave_hosts(THD* thd)
   DBUG_RETURN(0);
 }
 
+
 int connect_to_master(THD *thd, MYSQL* mysql, MASTER_INFO* mi)
 {
   if (!mi->host || !*mi->host)			/* empty host */
@@ -623,9 +638,9 @@ int connect_to_master(THD *thd, MYSQL* mysql, MASTER_INFO* mi)
 
 
 static inline void cleanup_mysql_results(MYSQL_RES* db_res,
-				  MYSQL_RES** cur, MYSQL_RES** start)
+					 MYSQL_RES** cur, MYSQL_RES** start)
 {
-  for( ; cur >= start; --cur)
+  for (; cur >= start; --cur)
   {
     if (*cur)
       mc_mysql_free_result(*cur);
@@ -638,7 +653,7 @@ static inline int fetch_db_tables(THD* thd, MYSQL* mysql, const char* db,
 				  MYSQL_RES* table_res, MASTER_INFO* mi)
 {
   MYSQL_ROW row;
-  for( row = mc_mysql_fetch_row(table_res); row;
+  for (row = mc_mysql_fetch_row(table_res); row;
        row = mc_mysql_fetch_row(table_res))
   {
     TABLE_LIST table;
@@ -690,7 +705,7 @@ int load_master_data(THD* thd)
   if (connect_to_master(thd, &mysql, active_mi))
   {
     net_printf(&thd->net, error = ER_CONNECT_TO_MASTER,
-		 mc_mysql_error(&mysql));
+	       mc_mysql_error(&mysql));
     goto err;
   }
 
@@ -742,8 +757,8 @@ int load_master_data(THD* thd)
 
     table_res_end = table_res + num_dbs;
 
-    for(cur_table_res = table_res; cur_table_res < table_res_end;
-	cur_table_res++)
+    for (cur_table_res = table_res; cur_table_res < table_res_end;
+	 cur_table_res++)
     {
       // since we know how many rows we have, this can never be NULL
       MYSQL_ROW row = mc_mysql_fetch_row(db_res);
@@ -761,7 +776,7 @@ int load_master_data(THD* thd)
       */
 
       if (!db_ok(db, replicate_do_db, replicate_ignore_db) ||
-	 !strcmp(db,"mysql"))
+	  !strcmp(db,"mysql"))
       {
 	*cur_table_res = 0;
 	continue;
@@ -777,7 +792,7 @@ int load_master_data(THD* thd)
 
       if (mc_mysql_select_db(&mysql, db) ||
 	  mc_mysql_query(&mysql, "show tables", 0) ||
-	 !(*cur_table_res = mc_mysql_store_result(&mysql)))
+	  !(*cur_table_res = mc_mysql_store_result(&mysql)))
       {
 	net_printf(&thd->net, error = ER_QUERY_ON_MASTER,
 		   mc_mysql_error(&mysql));
@@ -804,7 +819,7 @@ int load_master_data(THD* thd)
 	We need this check because the master may not be running with
 	log-bin, but it will still allow us to do all the steps
 	of LOAD DATA FROM MASTER - no reason to forbid it, really,
-	 although it does not make much sense for the user to do it
+	although it does not make much sense for the user to do it
       */
       if (row[0] && row[1])
       {
@@ -838,18 +853,18 @@ int load_master_data(THD* thd)
   }
   pthread_mutex_lock(&active_mi->rli.data_lock);
   active_mi->rli.master_log_pos = active_mi->master_log_pos;
-  strnmov(active_mi->rli.master_log_name,active_mi->master_log_name,
-	  sizeof(active_mi->rli.master_log_name));
+  strmake(active_mi->rli.master_log_name,active_mi->master_log_name,
+	  sizeof(active_mi->rli.master_log_name)-1);
   flush_relay_log_info(&active_mi->rli);
   pthread_cond_broadcast(&active_mi->rli.data_cond);
   pthread_mutex_unlock(&active_mi->rli.data_lock);
   thd->proc_info = "starting slave";
   if (restart_thread_mask)
   {
-      error=start_slave_threads(0 /* mutex not needed*/,
-			        1 /* wait for start*/,
-			        active_mi,master_info_file,relay_log_info_file,
-				restart_thread_mask);
+    error=start_slave_threads(0 /* mutex not needed */,
+			      1 /* wait for start */,
+			      active_mi,master_info_file,relay_log_info_file,
+			      restart_thread_mask);
   }
 
 err:

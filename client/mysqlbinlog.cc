@@ -20,7 +20,9 @@
 #include <time.h>
 #include "log_event.h"
 
-#define PROBE_HEADER_LEN (4+EVENT_LEN_OFFSET+4)
+#define BIN_LOG_HEADER_SIZE	4
+#define PROBE_HEADER_LEN	(BIN_LOG_HEADER_SIZE+EVENT_LEN_OFFSET+4)
+
 
 #define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_LOCAL_FILES)
 
@@ -178,8 +180,7 @@ static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
-  switch(optid)
-  {
+  switch(optid) {
 #ifndef DBUG_OFF
   case '#':
     DBUG_PUSH(argument ? argument : default_dbug_option);
@@ -234,7 +235,7 @@ static MYSQL* safe_connect()
   if(!local_mysql)
     die("Failed on mysql_init");
 
-  if(!mysql_real_connect(local_mysql, host, user, pass, 0, port, 0, 0))
+  if (!mysql_real_connect(local_mysql, host, user, pass, 0, port, 0, 0))
     die("failed on connect: %s", mysql_error(local_mysql));
 
   return local_mysql;
@@ -242,7 +243,7 @@ static MYSQL* safe_connect()
 
 static void dump_log_entries(const char* logname)
 {
-  if(use_remote)
+  if (use_remote)
     dump_remote_log_entries(logname);
   else
     dump_local_log_entries(logname);  
@@ -254,7 +255,7 @@ static void dump_remote_table(NET* net, const char* db, const char* table)
   char * p = buf;
   uint table_len = (uint) strlen(table);
   uint db_len = (uint) strlen(db);
-  if(table_len + db_len > sizeof(buf) - 2)
+  if (table_len + db_len > sizeof(buf) - 2)
     die("Buffer overrun");
 
   *p++ = db_len;
@@ -263,14 +264,14 @@ static void dump_remote_table(NET* net, const char* db, const char* table)
   *p++ = table_len;
   memcpy(p, table, table_len);
 
-  if(simple_command(mysql, COM_TABLE_DUMP, buf, p - buf + table_len, 1))
+  if (simple_command(mysql, COM_TABLE_DUMP, buf, p - buf + table_len, 1))
     die("Error sending the table dump command");
 
-  for(;;)
+  for (;;)
   {
     uint packet_len = my_net_read(net);
-    if(packet_len == 0) break; // end of file
-    if(packet_len == packet_error)
+    if (packet_len == 0) break; // end of file
+    if (packet_len == packet_error)
       die("Error reading packet in table dump");
     my_fwrite(result_file, (byte*)net->read_pos, packet_len, MYF(MY_WME));
     fflush(result_file);
@@ -284,8 +285,8 @@ static int check_master_version(MYSQL* mysql)
   const char* version;
   int old_format = 0;
 
-  if (mysql_query(mysql, "SELECT VERSION()")
-      || !(res = mysql_store_result(mysql)))
+  if (mysql_query(mysql, "SELECT VERSION()") ||
+      !(res = mysql_store_result(mysql)))
   {
     mysql_close(mysql);
     die("Error checking master version: %s",
@@ -305,12 +306,12 @@ static int check_master_version(MYSQL* mysql)
     die("Master reported NULL for the version");
   }
 
-  switch (*version)
-  {
+  switch (*version) {
   case '3':
     old_format = 1;
     break;
   case '4':
+  case '5':
     old_format = 0;
     break;
   default:
@@ -324,6 +325,7 @@ static int check_master_version(MYSQL* mysql)
   return old_format;
 }
 
+
 static void dump_remote_log_entries(const char* logname)
 {
   char buf[128];
@@ -333,38 +335,38 @@ static void dump_remote_log_entries(const char* logname)
   int old_format;
   old_format = check_master_version(mysql);
 
-  if(!position) position = 4; // protect the innocent from spam
-  if (position < 4)
+  if (!position)
+    position = BIN_LOG_HEADER_SIZE; // protect the innocent from spam
+  if (position < BIN_LOG_HEADER_SIZE)
   {
-    position = 4;
+    position = BIN_LOG_HEADER_SIZE;
     // warn the guity
-    sql_print_error("Warning: The position in the binary log can't be less than 4.\nStarting from position 4\n");
+    sql_print_error("Warning: The position in the binary log can't be less than %d.\nStarting from position %d\n", BIN_LOG_HEADER_SIZE, BIN_LOG_HEADER_SIZE);
   }
   int4store(buf, position);
-  int2store(buf + 4, binlog_flags);
+  int2store(buf + BIN_LOG_HEADER_SIZE, binlog_flags);
   len = (uint) strlen(logname);
   int4store(buf + 6, 0);
   memcpy(buf + 10, logname,len);
   if (simple_command(mysql, COM_BINLOG_DUMP, buf, len + 10, 1))
     die("Error sending the log dump command");
 
-  for(;;)
+  for (;;)
   {
     const char *error;
     len = net_safe_read(mysql);
     if (len == packet_error)
       die("Error reading packet from server: %s", mysql_error(mysql));
-    if(len == 1 && net->read_pos[0] == 254)
+    if (len == 1 && net->read_pos[0] == 254)
       break; // end of data
     DBUG_PRINT("info",( "len= %u, net->read_pos[5] = %d\n",
 			len, net->read_pos[5]));
-    Log_event * ev = Log_event::read_log_event(
-					  (const char*) net->read_pos + 1 ,
-					  len - 1, &error, old_format);
+    Log_event *ev = Log_event::read_log_event((const char*) net->read_pos + 1 ,
+					      len - 1, &error, old_format);
     if (ev)
     {
       ev->print(result_file, short_form, last_db);
-      if(ev->get_type_code() == LOAD_EVENT)
+      if (ev->get_type_code() == LOAD_EVENT)
 	dump_remote_file(net, ((Load_log_event*)ev)->fname);
       delete ev;
     }
@@ -373,10 +375,11 @@ static void dump_remote_log_entries(const char* logname)
   }
 }
 
+
 static int check_header(IO_CACHE* file)
 {
   byte buf[PROBE_HEADER_LEN];
-  int old_format;
+  int old_format=0;
 
   my_off_t pos = my_b_tell(file);
   my_b_seek(file, (my_off_t)0);
@@ -388,8 +391,6 @@ static int check_header(IO_CACHE* file)
     event_len = uint4korr(buf + EVENT_LEN_OFFSET + 4);
     old_format = (event_len < LOG_EVENT_HEADER_LEN + START_HEADER_LEN);
   }
-  else
-    old_format = 0;
   my_b_seek(file, pos);
   return old_format;
 }
@@ -425,7 +426,7 @@ static void dump_local_log_entries(const char* logname)
       for (length= (my_off_t) position ; length > 0 ; length-=tmp)
       {
 	tmp=min(length,sizeof(buff));
-	if (my_b_read(file,buff, (uint) tmp))
+	if (my_b_read(file, buff, (uint) tmp))
 	  exit(1);
       }
     }
@@ -435,10 +436,10 @@ static void dump_local_log_entries(const char* logname)
 
   if (!position)
   {
-    char magic[4];
+    char magic[BIN_LOG_HEADER_SIZE];
     if (my_b_read(file, (byte*) magic, sizeof(magic)))
       die("I/O error reading binlog magic number");
-    if(memcmp(magic, BINLOG_MAGIC, 4))
+    if (memcmp(magic, BINLOG_MAGIC, 4))
       die("Bad magic number;  The file is probably not a MySQL binary log");
   }
 
@@ -498,7 +499,7 @@ Could not read entry at offset %s : Error in log format or read error",
     rec_count++;
     delete ev;
   }
-  if(fd >= 0)
+  if (fd >= 0)
    my_close(fd, MYF(MY_WME));
   end_io_cache(file);
 }
@@ -509,34 +510,30 @@ int main(int argc, char** argv)
   MY_INIT(argv[0]);
   parse_args(&argc, (char***)&argv);
 
-  if(!argc && !table)
+  if (!argc && !table)
   {
     usage();
     return -1;
   }
 
-  if(use_remote)
-  {
+  if (use_remote)
     mysql = safe_connect();
-  }
 
   if (table)
   {
-    if(!use_remote)
+    if (!use_remote)
       die("You must specify connection parameter to get table dump");
-    char* db = (char*)table;
+    char* db = (char*) table;
     char* tbl = (char*) strchr(table, '.');
-    if(!tbl)
+    if (!tbl)
       die("You must use database.table syntax to specify the table");
     *tbl++ = 0;
     dump_remote_table(&mysql->net, db, tbl);
   }
   else
   {
-    while(--argc >= 0)
-    {
+    while (--argc >= 0)
       dump_log_entries(*(argv++));
-    }
   }
   if (result_file != stdout)
     my_fclose(result_file, MYF(0));

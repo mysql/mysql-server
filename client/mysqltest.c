@@ -1425,7 +1425,7 @@ int do_connect(struct st_query* q)
       con_port = var_port->int_val;
     }
     else
-     con_port=atoi(con_port_str);
+      con_port=atoi(con_port_str);
     p = safe_get_param(p, &con_sock, "missing connection socket");
     if (*con_sock == '$')
     {
@@ -1469,6 +1469,7 @@ int do_connect(struct st_query* q)
   DBUG_RETURN(0);
 }
 
+
 int do_done(struct st_query* q)
 {
   q->type = Q_END_BLOCK;
@@ -1480,8 +1481,8 @@ int do_done(struct st_query* q)
   }
   else
   {
-   ++parser.current_line;
-   --cur_block;
+    ++parser.current_line;
+    --cur_block;
   }
   return 0;
 }
@@ -1492,14 +1493,14 @@ int do_while(struct st_query* q)
   const char* expr_start, *expr_end;
   VAR v;
   if (cur_block == block_stack_end)
-	die("Nesting too deeply");
+    die("Nesting too deeply");
   if (!*block_ok)
-    {
-      ++false_block_depth;
-      *++block_ok = 0;
-      *cur_block++ = parser.current_line++;
-      return 0;
-    }
+  {
+    ++false_block_depth;
+    *++block_ok = 0;
+    *cur_block++ = parser.current_line++;
+    return 0;
+  }
 
   expr_start = strchr(p, '(');
   if (!expr_start)
@@ -1511,10 +1512,10 @@ int do_while(struct st_query* q)
   eval_expr(&v, ++expr_start, &expr_end);
   *cur_block++ = parser.current_line++;
   if (!v.int_val)
-    {
-      *++block_ok = 0;
-      false_block_depth++;
-    }
+  {
+    *++block_ok = 0;
+    false_block_depth++;
+  }
   else
     *++block_ok = 1;
   var_free(&v);
@@ -1530,45 +1531,42 @@ int safe_copy_unescape(char* dest, char* src, int size)
 
   size--; /* just to make life easier */
 
-  for(; p_dest - size < dest && p_src - size < src
-	&& (c = *p_src) != '\n' && c; ++p_src )
-    {
-      switch(state)
-	{
-	case ST_NORMAL:
-	  if (c == '\\')
-	    {
-	      state = ST_ESCAPED;
-	    }
-	  else
-	    *p_dest++ = c;
-	  break;
-	case ST_ESCAPED:
-	  if ((val = hex_val(c)) > 0)
-	    {
-	      *p_dest = val;
-	      state = ST_HEX2;
-	    }
-	  else
-	    {
-	      state = ST_NORMAL;
-	      *p_dest++ = c;
-	    }
-	  break;
-	case ST_HEX2:
-	  if ((val = hex_val(c)) > 0)
-	    {
-	      *p_dest = (*p_dest << 4) + val;
-	      p_dest++;
-	    }
-	  else
-	    *p_dest++ = c;
+  for (; p_dest - size < dest && p_src - size < src &&
+       (c = *p_src) != '\n' && c; ++p_src)
+  {
+    switch(state) {
+    case ST_NORMAL:
+      if (c == '\\')
+	state = ST_ESCAPED;
+      else
+	*p_dest++ = c;
+      break;
+    case ST_ESCAPED:
+      if ((val = hex_val(c)) > 0)
+      {
+	*p_dest = val;
+	state = ST_HEX2;
+      }
+      else
+      {
+	state = ST_NORMAL;
+	*p_dest++ = c;
+      }
+      break;
+    case ST_HEX2:
+      if ((val = hex_val(c)) > 0)
+      {
+	*p_dest = (*p_dest << 4) + val;
+	p_dest++;
+      }
+      else
+	*p_dest++ = c;
 
-	  state = ST_NORMAL;
-	  break;
+      state = ST_NORMAL;
+      break;
 
-	}
     }
+  }
 
   *p_dest = 0;
   return (p_dest - dest);

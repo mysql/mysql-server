@@ -449,7 +449,7 @@ int write_record(TABLE *table,COPY_INFO *info)
 err:
   if (key)
     my_afree(key);
-  info->errorno= error;
+  info->last_errno= error;
   table->file->print_error(error,MYF(0));
   return 1;
 }
@@ -1181,7 +1181,7 @@ bool delayed_insert::handle_inserts(void)
     thd.net.last_errno = 0; // reset error for binlog
     if (write_record(table,&info))
     {
-      info.error++;				// Ignore errors
+      info.error_count++;				// Ignore errors
       thread_safe_increment(delayed_insert_errors,&LOCK_delayed_status);
       row->log_query = 0;
     }

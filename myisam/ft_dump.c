@@ -148,16 +148,16 @@ int main(int argc,char *argv[])
             if (maxlen<keylen2)
             {
               maxlen=keylen2;
-              strcpy(buf_maxlen, buf2);
+              strmov(buf_maxlen, buf2);
             }
             if (max_doc_cnt < doc_cnt)
             {
               max_doc_cnt=doc_cnt;
-              strcpy(buf_min_gws, buf2);
+              strmov(buf_min_gws, buf2);
               min_gws=gws;
             }
           }
-          strcpy(buf2, buf);
+          strmov(buf2, buf);
           keylen2=keylen;
           doc_cnt=0;
         }

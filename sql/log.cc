@@ -384,6 +384,7 @@ int MYSQL_LOG::reset_logs(THD* thd)
   int error=0;
   const char* save_name;
   enum_log_type save_log_type;
+
   pthread_mutex_lock(&LOCK_log);
   if (find_first_log(&linfo,""))
   {
@@ -406,6 +407,7 @@ int MYSQL_LOG::reset_logs(THD* thd)
     need_start_event=1;
   open(save_name,save_log_type,0,io_cache_type,no_auto_events);
   my_free((gptr)save_name,MYF(0));
+
 err:  
   pthread_mutex_unlock(&LOCK_log);
   return error;
@@ -414,17 +416,19 @@ err:
 
 int MYSQL_LOG::purge_first_log(struct st_relay_log_info* rli)
 {
-  // pre-conditions
+  /*
+    Test pre-conditions.
+
+    Assume that we have previously read the first log and
+    stored it in rli->relay_log_name
+  */
   DBUG_ASSERT(is_open());
   DBUG_ASSERT(index_file >= 0);
   DBUG_ASSERT(rli->slave_running == 1);
   DBUG_ASSERT(!strcmp(rli->linfo.log_file_name,rli->relay_log_name));
-  /*
-    Assume that we have previously read the first log and
-    stored it in rli->relay_log_name
-  */
   DBUG_ASSERT(rli->linfo.index_file_offset ==
 	      strlen(rli->relay_log_name) + 1);
+
   int tmp_fd;
   char* fname, *io_buf;
   int error = 0;
@@ -486,9 +490,11 @@ err:
     pthread_mutex_lock(&rli->log_space_lock);
     rli->log_space_total -= s.st_size;
     pthread_mutex_unlock(&rli->log_space_lock);
-    // ok to broadcast after the critical region as there is no risk of
-    // the mutex being destroyed by this thread later - this helps save
-    // context switches
+    /*
+      Ok to broadcast after the critical region as there is no risk of
+      the mutex being destroyed by this thread later - this helps save
+      context switches
+    */
     pthread_cond_broadcast(&rli->log_space_cond);
     
     if ((error=find_first_log(&rli->linfo,"",0/*no mutex*/)))
@@ -500,8 +506,8 @@ err:
       goto err2;
     }
     rli->relay_log_pos = BIN_LOG_HEADER_SIZE;
-    strnmov(rli->relay_log_name,rli->linfo.log_file_name,
-	    sizeof(rli->relay_log_name));
+    strmake(rli->relay_log_name,rli->linfo.log_file_name,
+	    sizeof(rli->relay_log_name)-1);
     flush_relay_log_info(rli);
   }
   /*
@@ -689,7 +695,7 @@ void MYSQL_LOG::new_file(bool inside_mutex)
     if (!no_rotate)
     {
       /*
-	only rotate open logs that are marked non-rotatable
+	Only rotate open logs that are marked non-rotatable
 	(binlog with constant name are non-rotatable)
       */
       if (generate_new_name(new_name, name))
@@ -720,9 +726,11 @@ void MYSQL_LOG::new_file(bool inside_mutex)
 	  r.write(&log_file);
 	  bytes_written += r.get_event_len();
 	}
-	// update needs to be signaled even if there is no rotate event
-	// log rotation should give the waiting thread a signal to
-	// discover EOF and move on to the next log
+	/*
+	  Update needs to be signaled even if there is no rotate event
+	  log rotation should give the waiting thread a signal to
+	  discover EOF and move on to the next log.
+	*/
 	signal_update(); 
       }
       else
@@ -745,8 +753,10 @@ bool MYSQL_LOG::append(Log_event* ev)
   pthread_mutex_lock(&LOCK_log);
   
   DBUG_ASSERT(log_file.type == SEQ_READ_APPEND);
-  // Log_event::write() is smart enough to use my_b_write() or
-  // my_b_append() depending on the kind of cache we have
+  /*
+    Log_event::write() is smart enough to use my_b_write() or
+    my_b_append() depending on the kind of cache we have.
+  */
   if (ev->write(&log_file))
   {
     error=1;
@@ -758,10 +768,12 @@ bool MYSQL_LOG::append(Log_event* ev)
     new_file(1);
   }
   signal_update();
+
 err:  
   pthread_mutex_unlock(&LOCK_log);
   return error;
 }
+
 
 bool MYSQL_LOG::appendv(const char* buf, uint len,...)
 {
@@ -1232,8 +1244,12 @@ void MYSQL_LOG::close(bool exiting)
 }
 
 
-	/* Check if a string is a valid number */
-	/* Output: TRUE -> number */
+/*
+  Check if a string is a valid number
+  Return:
+    TRUE  String is a number
+    FALSE Error
+*/
 
 static bool test_if_number(register const char *str,
 			   long *res, bool allow_wildcards)

@@ -153,7 +153,7 @@ int vio_blocking(Vio * vio __attribute__((unused)), my_bool set_blocking_mode)
   }
 #endif /* !defined(__WIN__) && !defined(__EMX__) */
 #endif /* !defined (HAVE_OPENSSL) */ 
-  DBUG_PRINT("exit", ("return %d", r));
+  DBUG_PRINT("exit", ("%d", r));
   DBUG_RETURN(r);
 }
 
@@ -273,7 +273,7 @@ my_socket vio_fd(Vio* vio)
 my_bool vio_peer_addr(Vio * vio, char *buf)
 {
   DBUG_ENTER("vio_peer_addr");
-  DBUG_PRINT("enter", ("sd=%d", vio->sd));
+  DBUG_PRINT("enter", ("sd: %d", vio->sd));
   if (vio->localhost)
   {
     strmov(buf,"127.0.0.1");
@@ -284,12 +284,12 @@ my_bool vio_peer_addr(Vio * vio, char *buf)
     if (getpeername(vio->sd, (struct sockaddr *) (& (vio->remote)),
 		    &addrLen) != 0)
     {
-      DBUG_PRINT("exit", ("getpeername, error: %d", socket_errno));
+      DBUG_PRINT("exit", ("getpeername gave error: %d", socket_errno));
       DBUG_RETURN(1);
     }
     my_inet_ntoa(vio->remote.sin_addr,buf);
   }
-  DBUG_PRINT("exit", ("addr=%s", buf));
+  DBUG_PRINT("exit", ("addr: %s", buf));
   DBUG_RETURN(0);
 }
 

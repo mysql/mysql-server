@@ -105,8 +105,10 @@ void get_pass(char* pw, int len)
 {
   FILE* fp;
   char* pw_end=pw+len;
-/* /dev/random is more secure than  rand() because the seed is easy to
- predict, so we resort to rand() only if /dev/random is not available */
+  /*
+    /dev/random is more secure than  rand() because the seed is easy to
+    predict, so we resort to rand() only if /dev/random is not available
+  */
   if ((fp=fopen("/dev/random","r")))
   {
     fread(pw,len,1,fp);
@@ -128,6 +130,7 @@ void get_pass(char* pw, int len)
   }
   *pw_end=0;
 }
+
 
 int main(int argc, char** argv)
 {

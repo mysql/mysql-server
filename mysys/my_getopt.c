@@ -22,17 +22,17 @@
 #include <my_sys.h>
 #include <mysys_err.h>
 
-static int findopt (char *optpat, uint length,
-		    const struct my_option **opt_res,
-		    char **ffname);
-static my_bool compare_strings (register const char *s, register const char *t,
-				uint length);
-static longlong getopt_ll (char *arg, const struct my_option *optp, int *err);
-static ulonglong getopt_ull (char *arg, const struct my_option *optp,
-			     int *err);
+static int findopt(char *optpat, uint length,
+		   const struct my_option **opt_res,
+		   char **ffname);
+static my_bool compare_strings(register const char *s, register const char *t,
+			       uint length);
+static longlong getopt_ll(char *arg, const struct my_option *optp, int *err);
+static ulonglong getopt_ull(char *arg, const struct my_option *optp,
+			    int *err);
 static void init_variables(const struct my_option *options);
-static int setval (const struct my_option *opts, char *argument,
-		   my_bool set_maximum_value);
+static int setval(const struct my_option *opts, char *argument,
+		  my_bool set_maximum_value);
 
 /*
   The following three variables belong to same group and the number and
@@ -42,8 +42,8 @@ static const char *special_opt_prefix[]=
 {"skip", "disable", "enable", "maximum", "loose", 0};
 static const uint special_opt_prefix_lengths[]=
 { 4,      7,         6,        7,         5,      0};
-enum enum_special_opt { OPT_SKIP, OPT_DISABLE, OPT_ENABLE, OPT_MAXIMUM,
-			OPT_LOOSE};
+enum enum_special_opt
+{ OPT_SKIP, OPT_DISABLE, OPT_ENABLE, OPT_MAXIMUM, OPT_LOOSE};
 
 char *disabled_my_option= (char*) "0";
 
@@ -74,7 +74,7 @@ int handle_options(int *argc, char ***argv,
 {
   uint opt_found, argvpos= 0, length, i;
   my_bool end_of_options= 0, must_be_var, set_maximum_value, special_used,
-          option_is_loose, option_used= 0;
+          option_is_loose;
   char *progname= *(*argv), **pos, *optend, *prev_found;
   const struct my_option *optp;
   int error;
@@ -90,7 +90,6 @@ int handle_options(int *argc, char ***argv,
     if (cur_arg[0] == '-' && cur_arg[1] && !end_of_options) /* must be opt */
     {
       char *argument=    0;
-      option_used=       1;
       must_be_var=       0;
       set_maximum_value= 0;
       special_used=      0;
@@ -406,12 +405,13 @@ int handle_options(int *argc, char ***argv,
     else /* non-option found */
       (*argv)[argvpos++]= cur_arg;
   }
-  /* Destroy the first, already handled option, so that programs that look
-     for arguments in 'argv', without checking 'argc', know when to stop.
-     Items in argv, before the destroyed one, are all non-option -arguments
-     to the program, yet to be (possibly) handled. */
-  if (option_used)
-    (*argv)[argvpos]= 0;
+  /*
+    Destroy the first, already handled option, so that programs that look
+    for arguments in 'argv', without checking 'argc', know when to stop.
+    Items in argv, before the destroyed one, are all non-option -arguments
+    to the program, yet to be (possibly) handled.
+  */
+  (*argv)[argvpos]= 0;
   return 0;
 }
 
@@ -429,8 +429,8 @@ static int setval (const struct my_option *opts, char *argument,
 
   if (opts->value && argument)
   {
-    gptr *result_pos= (set_maximum_value) ?
-      opts->u_max_value : opts->value;
+    gptr *result_pos= ((set_maximum_value) ?
+		       opts->u_max_value : opts->value);
 
     if (!result_pos)
       return EXIT_NO_PTR_TO_VARIABLE;

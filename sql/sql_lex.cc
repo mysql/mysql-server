@@ -507,7 +507,7 @@ int yylex(void *arg)
       length= (uint) (lex->ptr - lex->tok_start)-1;
       if (lex->ignore_space)
       {
-	for ( ; state_map[c] == STATE_SKIP ; c= yyGet());
+	for (; state_map[c] == STATE_SKIP ; c= yyGet());
       }
       if (c == '.' && (state_map[yyPeek()] == STATE_IDENT ||
 		       state_map[yyPeek()] == STATE_NUMBER_IDENT))

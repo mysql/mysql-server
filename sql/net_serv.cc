@@ -815,7 +815,7 @@ my_net_read(NET *net)
   return len;
 }
 
-int net_request_file(NET* net, const char* fname)
+bool net_request_file(NET* net, const char* fname)
 {
   char tmp [FN_REFLEN+1],*end;
   DBUG_ENTER("net_request_file");

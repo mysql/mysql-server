@@ -77,7 +77,8 @@ static void usage()
   printf("MySQL AB, by Sasha Pachev\n");
   printf("This software comes with ABSOLUTELY NO WARRANTY\n\n");
   printf("Resolve numeric stack strace dump into symbols.\n\n");
-  printf("Usage: %s [OPTIONS] symbols-file [numeric-dump-file]\n", my_progname);
+  printf("Usage: %s [OPTIONS] symbols-file [numeric-dump-file]\n",
+	 my_progname);
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
   printf("\n\
@@ -159,14 +160,14 @@ static void open_files()
   fp_out = stdout;
   fp_dump = stdin;
 
-  if(dump_fname && !(fp_dump = my_fopen(dump_fname, O_RDONLY, MYF(MY_WME))))
+  if (dump_fname && !(fp_dump = my_fopen(dump_fname, O_RDONLY, MYF(MY_WME))))
       die("Could not open %s", dump_fname);
   /* if name not given, assume stdin*/
 
-  if(!sym_fname)
+  if (!sym_fname)
     die("Please run nm --numeric-sort on mysqld binary that produced stack \
 trace dump and specify the path to it with -s or --symbols-file");
-  if(!(fp_sym = my_fopen(sym_fname, O_RDONLY, MYF(MY_WME))))
+  if (!(fp_sym = my_fopen(sym_fname, O_RDONLY, MYF(MY_WME))))
     die("Could not open %s", sym_fname);
 
 }
@@ -174,10 +175,10 @@ trace dump and specify the path to it with -s or --symbols-file");
 static uchar hex_val(char c)
 {
   uchar l;
-  if(isdigit(c))
+  if (isdigit(c))
     return c - '0';
   l = tolower(c);
-  if(l < 'a' || l > 'f')
+  if (l < 'a' || l > 'f')
     return HEX_INVALID; 
   return (uchar)10 + ((uchar)c - (uchar)'a');
 }
@@ -200,25 +201,18 @@ static int init_sym_entry(SYM_ENTRY* se, char* buf)
   char* p, *p_end;
   se->addr = (uchar*)read_addr(&buf);
 
-  if(!se->addr)
+  if (!se->addr)
     return -1;
-  while(isspace(*buf++))
-    /* empty */;
+  while (isspace(*buf++)) ;
 
-  while(isspace(*buf++))
-    /* empty - skip more space */;
+  while (isspace(*buf++)) ; /* skip more space */
   --buf;
   /* now we are on the symbol */
-  for(p = se->symbol, p_end = se->symbol + sizeof(se->symbol) - 1;
-      *buf != '\n' && *buf; ++buf,++p )
-    {
-      if(p < p_end)
-	*p = *buf;
-      else
-	break;
-    }
+  for (p = se->symbol, p_end = se->symbol + sizeof(se->symbol) - 1;
+       *buf != '\n' && *buf && p < p_end; ++buf,++p)
+    *p = *buf;
   *p = 0;
-  if(!strcmp(se->symbol, "gcc2_compiled."))
+  if (!strcmp(se->symbol, "gcc2_compiled."))
     return -1;
   return 0;
 }
@@ -226,18 +220,18 @@ static int init_sym_entry(SYM_ENTRY* se, char* buf)
 static void init_sym_table()
 {
   char buf[512];
-  if(my_init_dynamic_array(&sym_table, sizeof(SYM_ENTRY), INIT_SYM_TABLE,
-		     INC_SYM_TABLE))
+  if (my_init_dynamic_array(&sym_table, sizeof(SYM_ENTRY), INIT_SYM_TABLE,
+			    INC_SYM_TABLE))
     die("Failed in my_init_dynamic_array() -- looks like out of memory problem");
 
-  while(fgets(buf, sizeof(buf), fp_sym))
-    {
-      SYM_ENTRY se;
-      if(init_sym_entry(&se, buf))
-	continue;
-      if(insert_dynamic(&sym_table, (gptr)&se))
-	die("insert_dynamic() failed - looks like we are out of memory");
-    }
+  while (fgets(buf, sizeof(buf), fp_sym))
+  {
+    SYM_ENTRY se;
+    if (init_sym_entry(&se, buf))
+      continue;
+    if (insert_dynamic(&sym_table, (gptr)&se))
+      die("insert_dynamic() failed - looks like we are out of memory");
+  }
 
   verify_sort();
 }
@@ -252,65 +246,67 @@ static void verify_sort()
   uint i;
   uchar* last = 0;
 
-  for(i = 0; i < sym_table.elements; i++)
-    {
-      SYM_ENTRY se;
-      get_dynamic(&sym_table, (gptr)&se, i);
-      if(se.addr < last)
-	die("sym table does not appear to be sorted, did you forget \
+  for (i = 0; i < sym_table.elements; i++)
+  {
+    SYM_ENTRY se;
+    get_dynamic(&sym_table, (gptr)&se, i);
+    if (se.addr < last)
+      die("sym table does not appear to be sorted, did you forget \
 --numeric-sort arg to nm? trouble addr = %p, last = %p", se.addr, last);
-      last = se.addr;
-    }
+    last = se.addr;
+  }
 }
+
 
 static SYM_ENTRY* resolve_addr(uchar* addr, SYM_ENTRY* se)
 {
   uint i;
   get_dynamic(&sym_table, (gptr)se, 0);
-  if(addr < se->addr)
+  if (addr < se->addr)
     return 0;
 
-  for(i = 1; i < sym_table.elements; i++)
+  for (i = 1; i < sym_table.elements; i++)
+  {
+    get_dynamic(&sym_table, (gptr)se, i);
+    if (addr < se->addr)
     {
-      get_dynamic(&sym_table, (gptr)se, i);
-      if(addr < se->addr)
-	{
-	  get_dynamic(&sym_table, (gptr)se, i - 1);
-	  return se;
-	}
+      get_dynamic(&sym_table, (gptr)se, i - 1);
+      return se;
     }
+  }
 
   return se;
 }
 
+
 static void do_resolve()
 {
   char buf[1024], *p;
-  while(fgets(buf, sizeof(buf), fp_dump))
+  while (fgets(buf, sizeof(buf), fp_dump))
+  {
+    p = buf;
+    while(isspace(*p))
+      ++p;
+
+    if (*p++ == '0' && *p++ == 'x')
     {
-      p = buf;
-      while(isspace(*p))
-	++p;
-	/* skip space */;
-
-      if(*p++ == '0' && *p++ == 'x')
-	{
-	  SYM_ENTRY se ;
-	  uchar* addr = (uchar*)read_addr(&p);
-	  if(resolve_addr(addr, &se))
-	    fprintf(fp_out, "%p %s + %d\n", addr, se.symbol,
-		    (int) (addr - se.addr));
-	  else
-	    fprintf(fp_out, "%p (?)\n", addr);
-
-	}
+      SYM_ENTRY se ;
+      uchar* addr = (uchar*)read_addr(&p);
+      if (resolve_addr(addr, &se))
+	fprintf(fp_out, "%p %s + %d\n", addr, se.symbol,
+		(int) (addr - se.addr));
       else
-	{
-	  fputs(buf, fp_out);
-	  continue;
-	}
+	fprintf(fp_out, "%p (?)\n", addr);
+
     }
+    else
+    {
+      fputs(buf, fp_out);
+      continue;
+    }
+  }
 }
+
 
 int main(int argc, char** argv)
 {

@@ -1102,7 +1102,7 @@ bool Item_sum_count_distinct::add()
     */
     if (tree.elements_in_tree > max_elements_in_tree)
     {
-      if(tree_to_myisam())
+      if (tree_to_myisam())
 	return 1;
     }
     else if (!tree_insert(&tree, table->record[0] + rec_offset, 0))

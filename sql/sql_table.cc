@@ -872,8 +872,9 @@ static int send_check_errmsg(THD* thd, TABLE_LIST* table,
   return 1;
 }
 
+
 static int prepare_for_restore(THD* thd, TABLE_LIST* table,
-    HA_CHECK_OPT *check_opt)
+			       HA_CHECK_OPT *check_opt)
 {
   DBUG_ENTER("prepare_for_restore");
 
@@ -915,15 +916,18 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table,
     }
   }
 
-  // now we should be able to open the partially restored table
-  // to finish the restore in the handler later on
+  /*
+    Now we should be able to open the partially restored table
+    to finish the restore in the handler later on
+  */
   if (!(table->table = reopen_name_locked_table(thd, table)))
-     unlock_table_name(thd, table);
+    unlock_table_name(thd, table);
   DBUG_RETURN(0);
 }
 
+
 static int prepare_for_repair(THD* thd, TABLE_LIST* table,
-    HA_CHECK_OPT *check_opt)
+			      HA_CHECK_OPT *check_opt)
 {
   DBUG_ENTER("prepare_for_repair");
 
@@ -966,12 +970,15 @@ static int prepare_for_repair(THD* thd, TABLE_LIST* table,
     }
   }
 
-  // now we should be able to open the partially repaired table
-  // to finish the repair in the handler later on
+  /*
+    Now we should be able to open the partially repaired table
+    to finish the repair in the handler later on.
+  */
   if (!(table->table = reopen_name_locked_table(thd, table)))
      unlock_table_name(thd, table);
   DBUG_RETURN(0);
 }
+
 
 static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 			     HA_CHECK_OPT* check_opt,

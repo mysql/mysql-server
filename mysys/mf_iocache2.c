@@ -27,32 +27,36 @@
 
 my_off_t my_b_append_tell(IO_CACHE* info)
 {
-  /* prevent optimizer from putting res in a register when debugging
-     we need this to be able to see the value of res when the assert fails
+  /*
+    Prevent optimizer from putting res in a register when debugging
+    we need this to be able to see the value of res when the assert fails
   */
   dbug_volatile my_off_t res; 
-/* we need to lock the append buffer mutex to keep flush_io_cache()
-   from messing with the variables that we need in order to provide the
-   answer to the question.
-*/
+
+  /*
+    We need to lock the append buffer mutex to keep flush_io_cache()
+    from messing with the variables that we need in order to provide the
+    answer to the question.
+  */
 #ifdef THREAD
   pthread_mutex_lock(&info->append_buffer_lock);
 #endif
-  /* save the value of my_tell in res so we can see it when studying
-     coredump
-  */
 #ifndef DBUG_OFF
-  /* make sure EOF is where we think it is. Note that we cannot just use
-     my_tell() because we have a reader thread that could have left the
-     file offset in a non-EOF location
-     */
+  /*
+    Make sure EOF is where we think it is. Note that we cannot just use
+    my_tell() because we have a reader thread that could have left the
+    file offset in a non-EOF location
+  */
   {
-   volatile my_off_t save_pos;
-   save_pos = my_tell(info->file,MYF(0));
-   my_seek(info->file,(my_off_t)0,MY_SEEK_END,MYF(0));
-   DBUG_ASSERT(info->end_of_file - (info->append_read_pos-info->write_buffer)
-	      == (res=my_tell(info->file,MYF(0))));
-   my_seek(info->file,save_pos,MY_SEEK_SET,MYF(0));
+    volatile my_off_t save_pos;
+    save_pos = my_tell(info->file,MYF(0));
+    my_seek(info->file,(my_off_t)0,MY_SEEK_END,MYF(0));
+    /*
+      Save the value of my_tell in res so we can see it when studying coredump
+    */
+    DBUG_ASSERT(info->end_of_file - (info->append_read_pos-info->write_buffer)
+		== (res=my_tell(info->file,MYF(0))));
+    my_seek(info->file,save_pos,MY_SEEK_SET,MYF(0));
   }
 #endif  
   res = info->end_of_file + (info->write_pos-info->append_read_pos);
@@ -74,10 +78,9 @@ void my_b_seek(IO_CACHE *info,my_off_t pos)
   DBUG_PRINT("enter",("pos: %lu", (ulong) pos));
 
   /*
-    TODO: verify that it is OK to do seek in the non-append
-    area in SEQ_READ_APPEND cache
-  */
-  /* TODO:
+    TODO:
+       Verify that it is OK to do seek in the non-append
+       area in SEQ_READ_APPEND cache
      a) see if this always works
      b) see if there is a better way to make it work
   */

@@ -212,7 +212,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
     if (cond)
     {
       err=err;
-      if(!cond->val_int())
+      if (!cond->val_int())
         continue;
     }
     if (num_rows>=offset_limit)

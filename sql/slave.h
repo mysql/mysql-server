@@ -70,6 +70,7 @@ struct st_master_info;
 typedef struct st_relay_log_info
 {
   /*** The following variables can only be read when protect by data lock ****/
+
   /*
     info_fd - file descriptor of the info file. set only during
     initialization or clean up - safe to read anytime
@@ -126,7 +127,7 @@ typedef struct st_relay_log_info
   uint32 cur_log_old_open_count;
   
   /*
-    current offset in the relay log.
+    Current offset in the relay log.
     pending - in some cases we do not increment offset immediately after
     processing an event, because the following event needs to be processed
     atomically together with this one ( so far, there is only one type of

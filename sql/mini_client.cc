@@ -354,7 +354,7 @@ mc_net_safe_read(MYSQL *mysql)
     if (socket_errno != SOCKET_EINTR)
     {
       mc_end_server(mysql);
-      if(net->last_errno != ER_NET_PACKET_TOO_LARGE)
+      if (net->last_errno != ER_NET_PACKET_TOO_LARGE)
       {
 	net->last_errno=CR_SERVER_LOST;
 	strmov(net->last_error,ER(net->last_errno));
@@ -375,7 +375,7 @@ max_allowed_packet on this server");
 	net->last_errno=uint2korr(pos);
 	pos+=2;
 	len-=2;
-	if(!net->last_errno)
+	if (!net->last_errno)
 	  net->last_errno = CR_UNKNOWN_ERROR;
       }
       else
@@ -791,7 +791,7 @@ mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
   else
     {
       user = getenv("USER");
-      if(!user) user = "mysql";
+      if (!user) user = "mysql";
        strmov((char*) buff+5, user );
     }
 

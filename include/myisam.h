@@ -170,9 +170,11 @@ typedef struct st_mi_decode_tree	/* Decode huff-table */
 
 struct st_mi_bit_buff;
 
-/* Note that null markers should always be first in a row !
-   When creating a column, one should only specify:
-   type, length, null_bit and null_pos */
+/*
+  Note that null markers should always be first in a row !
+  When creating a column, one should only specify:
+  type, length, null_bit and null_pos
+*/
 
 typedef struct st_columndef		/* column information */
 {
@@ -253,14 +255,15 @@ extern uint mi_get_pointer_length(ulonglong file_length, uint def);
 #define   MYISAMCHK_VERIFY 2  /* run equivalent of myisamchk -c,
 			       * if corruption is detected, do myisamchk -r*/
 
-/* definitions needed for myisamchk.c -- by Sasha Pachev */
+/*
+  Definitions needed for myisamchk.c
 
-/* entries marked as   "QQ to be removed"   are NOT used to
- * pass check/repair options to mi_check.c. They are used
- * internally by myisamchk.c or/and ha_myisam.cc and should NOT
- * be stored together with other flags. They should be removed
- * from the following list to make adding of new flags possible.
- *                                                 -- Sergei */
+  Entries marked as   "QQ to be removed" are NOT used to
+  pass check/repair options to mi_check.c. They are used
+  internally by myisamchk.c or/and ha_myisam.cc and should NOT
+  be stored together with other flags. They should be removed
+  from the following list to make adding of new flags possible.
+*/
 
 #define T_VERBOSE               1
 #define T_SILENT                2
@@ -295,9 +298,10 @@ extern uint mi_get_pointer_length(ulonglong file_length, uint def);
 #define T_QUICK                 (1L << 30)
 #define T_RETRY_WITHOUT_QUICK   (1L << 31)
 
-/* flags used by myisamchk.c or/and ha_myisam.cc that are NOT passed
- * to mi_check.c follows:
- * */
+/*
+  Flags used by myisamchk.c or/and ha_myisam.cc that are NOT passed
+  to mi_check.c follows:
+*/
 
 #define TT_USEFRM               1
 
@@ -307,7 +311,8 @@ extern uint mi_get_pointer_length(ulonglong file_length, uint def);
 
 /* these struct is used by my_check to tell it what to do */
 
-typedef struct st_sort_key_blocks {		/* Used when sorting */
+typedef struct st_sort_key_blocks		/* Used when sorting */
+{
   uchar *buff,*end_pos;
   uchar lastkey[MI_MAX_POSSIBLE_KEY_BUFF];
   uint last_length;
@@ -316,7 +321,8 @@ typedef struct st_sort_key_blocks {		/* Used when sorting */
 
 struct st_mi_check_param;
 
-typedef struct st_sort_info {
+typedef struct st_sort_info
+{
   MI_INFO *info;
   struct st_mi_check_param *param;
   enum data_file_type new_data_file_type;
@@ -364,7 +370,8 @@ typedef struct st_mi_check_param
 } MI_CHECK;
 
 
-typedef struct st_mi_sortinfo {
+typedef struct st_mi_sortinfo
+{
   ha_rows max_records;
   SORT_INFO *sort_info;
   char *tmpdir;
@@ -403,7 +410,7 @@ int filecopy(MI_CHECK *param, File to,File from,my_off_t start,
 int movepoint(MI_INFO *info,byte *record,my_off_t oldpos,
 	      my_off_t newpos, uint prot_key);
 int sort_write_record(SORT_INFO *sort_info);
- int write_data_suffix(MI_CHECK *param, MI_INFO *info);
+int write_data_suffix(MI_CHECK *param, MI_INFO *info);
 int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
 			  ulong);
 int test_if_almost_full(MI_INFO *info);

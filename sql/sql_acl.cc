@@ -255,7 +255,7 @@ int acl_init(bool dont_read_acl_tables)
 	protocol_version == PROTOCOL_VERSION)
     {
       sql_print_error(
-		      "Found old style password for user '%s'. Ignoring user. (You may want to restart using --old-protocol)",
+		      "Found old style password for user '%s'. Ignoring user. (You may want to restart mysqld using --old-protocol)",
 		      user.user ? user.user : ""); /* purecov: tested */
     }
     else if (length % 8)		// This holds true for passwords
@@ -269,8 +269,9 @@ int acl_init(bool dont_read_acl_tables)
     get_salt_from_password(user.salt,user.password);
     user.access=get_access(table,3);
     user.sort=get_sort(2,user.host.hostname,user.user);
-    user.hostname_length=user.host.hostname ? (uint) strlen(user.host.hostname) : 0;
-    if (table->fields >=23)
+    user.hostname_length= (user.host.hostname ?
+			   (uint) strlen(user.host.hostname) : 0);
+    if (table->fields >= 23)
     {
       /* Table has new MySQL usage limits */
       char *ptr = get_field(&mem, table, 21);
@@ -279,7 +280,8 @@ int acl_init(bool dont_read_acl_tables)
       user.user_resource.updates=atoi(ptr);
       ptr = get_field(&mem, table, 23);
       user.user_resource.connections=atoi(ptr);
-      if (user.user_resource.questions || user.user_resource.updates || user.user_resource.connections)
+      if (user.user_resource.questions || user.user_resource.updates ||
+	  user.user_resource.connections)
 	mqh_used=1;
     }
     else
@@ -829,7 +831,7 @@ int wild_case_compare(const char *str,const char *wildstr)
 {
   reg3 int flag;
   DBUG_ENTER("wild_case_compare");
-  DBUG_PRINT("enter",("str='%s', wildstr='%s'",str,wildstr));
+  DBUG_PRINT("enter",("str: '%s'  wildstr: '%s'",str,wildstr));
   while (*wildstr)
   {
     while (*wildstr && *wildstr != wild_many && *wildstr != wild_one)
@@ -954,7 +956,8 @@ bool change_password(THD *thd, const char *host, const char *user,
 {
   uint length=0;
   DBUG_ENTER("change_password");
-  DBUG_PRINT("enter",("thd=%x, host='%s', user='%s', new_password='%s'",thd,host,user,new_password));
+  DBUG_PRINT("enter",("host: '%s'  user: '%s'  new_password: '%s'",
+		      host,user,new_password));
 
   if (!initialized)
   {
@@ -1027,7 +1030,7 @@ static ACL_USER *
 find_acl_user(const char *host, const char *user)
 {
   DBUG_ENTER("find_acl_user");
-  DBUG_PRINT("enter",("host='%s', user='%s'",host,user));
+  DBUG_PRINT("enter",("host: '%s'  user: '%s'",host,user));
   for (uint i=0 ; i < acl_users.elements ; i++)
   {
     ACL_USER *acl_user=dynamic_element(&acl_users,i,ACL_USER*);
@@ -1238,7 +1241,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   rights=get_access(table,3);
 #ifdef HAVE_OPENSSL
   /* We write down SSL related ACL stuff */
-  DBUG_PRINT("info",("table->fields=%d",table->fields));
+  DBUG_PRINT("info",("table->fields: %d",table->fields));
   if (table->fields >= 21)		/* From 4.0.0 we have more fields */
   {
     table->field[18]->store("",0);
@@ -1883,9 +1886,9 @@ int mysql_table_grant (THD *thd, TABLE_LIST *table_list,
   TABLE_LIST tables[3];
   bool create_new_users=0;
   DBUG_ENTER("mysql_table_grant");
-  DBUG_PRINT("info",("ssl_cipher=%s",thd->lex.ssl_cipher));
-  DBUG_PRINT("info",("x509_issuer=%s",thd->lex.x509_issuer));
-  DBUG_PRINT("info",("x509_subject=%s",thd->lex.x509_subject));
+  DBUG_PRINT("info",("ssl_cipher: %s",thd->lex.ssl_cipher));
+  DBUG_PRINT("info",("x509_issuer: %s",thd->lex.x509_issuer));
+  DBUG_PRINT("info",("x509_subject: %s",thd->lex.x509_subject));
 
   if (!initialized)
   {
@@ -2601,7 +2604,6 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 {
   uint counter, want_access,index;
   int  error = 0;
-  int ssl_options = 0;
   ACL_USER *acl_user; ACL_DB *acl_db;
   char buff[1024];
   DBUG_ENTER("mysql_show_grants");
@@ -2699,18 +2701,18 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
     /* "show grants" SSL related stuff */
     if (acl_user->ssl_type == SSL_TYPE_ANY)
       global.append(" REQUIRE SSL",12);
-    else if (acl_user->ssl_type==SSL_TYPE_X509)       
+    else if (acl_user->ssl_type == SSL_TYPE_X509)
       global.append(" REQUIRE X509",13);
-    else if (acl_user->ssl_type==SSL_TYPE_SPECIFIED)       
+    else if (acl_user->ssl_type == SSL_TYPE_SPECIFIED)
     {
+      int ssl_options = 0;
       global.append(" REQUIRE ",9);
       if (acl_user->x509_issuer)
       {
-        if (ssl_options++)
-          global.append(" AND ",5);
+        ssl_options++;
         global.append("ISSUER \"",8);
         global.append(acl_user->x509_issuer,strlen(acl_user->x509_issuer));
-        global.append("\"",1);
+	global.append('\'');
       }
       if (acl_user->x509_subject)
       {
@@ -2718,15 +2720,15 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
           global.append(" AND ",5);
         global.append("SUBJECT \"",9);
         global.append(acl_user->x509_subject,strlen(acl_user->x509_subject));
-        global.append("\"",1);
+	global.append('\'');
       }
       if (acl_user->ssl_cipher)
       {
         if (ssl_options++)
           global.append(" AND ",5);
-        global.append("CIPHER \"",8);
+        global.append("CIPHER '",8);
         global.append(acl_user->ssl_cipher,strlen(acl_user->ssl_cipher));
-        global.append("\"",1);
+	global.append('\'');
       }
     }
 #endif /* HAVE_OPENSSL */
@@ -2735,21 +2737,21 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
     if (acl_user->user_resource.questions)
     {
       char buff[65], *p; // just as in int2str
-      global.append(" WITH MAX_QUERIES_PER_HOUR = ",29);
+      global.append(" WITH MAX_QUERIES_PER_HOUR ",27);
       p=int2str(acl_user->user_resource.questions,buff,10);
       global.append(buff,p-buff);
     }
     if (acl_user->user_resource.updates)
     {
       char buff[65], *p; // just as in int2str
-      global.append(" WITH MAX_UPDATES_PER_HOUR = ",29);
+      global.append(" WITH MAX_UPDATES_PER_HOUR ",27);
       p=int2str(acl_user->user_resource.updates,buff,10);
       global.append(buff,p-buff);
     }
     if (acl_user->user_resource.connections)
     {
       char buff[65], *p; // just as in int2str
-      global.append(" WITH MAX_CONNECTIONS_PER_HOUR = ",33);
+      global.append(" WITH MAX_CONNECTIONS_PER_HOUR ",31);
       p=int2str(acl_user->user_resource.connections,buff,10);
       global.append(buff,p-buff);
     }

@@ -144,12 +144,12 @@ static MYSQL* spawn_init(MYSQL* parent, const char* host,
 
 
 /****************************************************************************
-* A modified version of connect().  connect2() allows you to specify
-* a timeout value, in seconds, that we should wait until we
-* derermine we can't connect to a particular host.  If timeout is 0,
-* my_connect() will behave exactly like connect().
-*
-* Base version coded by Steve Bernacki, Jr. <steve@navinet.net>
+  A modified version of connect().  connect2() allows you to specify
+  a timeout value, in seconds, that we should wait until we
+  derermine we can't connect to a particular host.  If timeout is 0,
+  my_connect() will behave exactly like connect().
+
+  Base version coded by Steve Bernacki, Jr. <steve@navinet.net>
 *****************************************************************************/
 
 int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
@@ -249,7 +249,7 @@ int my_connect(my_socket s, const struct sockaddr *name, uint namelen,
 }
 
 /*
-** Create a named pipe connection
+  Create a named pipe connection
 */
 
 #ifdef __WIN__
@@ -322,8 +322,8 @@ HANDLE create_named_pipe(NET *net, uint connect_timeout, char **arg_host,
 
 
 /*****************************************************************************
-** read a packet from server. Give error message if socket was down
-** or packet is an error message
+  read a packet from server. Give error message if socket was down
+  or packet is an error message
 *****************************************************************************/
 
 ulong
@@ -569,7 +569,7 @@ static my_bool is_NT(void)
 #endif
 
 /*
-** Expand wildcard to a sql string
+  Expand wildcard to a sql string
 */
 
 static void
@@ -595,7 +595,7 @@ append_wild(char *to, char *end, const char *wild)
 
 
 /**************************************************************************
-** Init debugging if MYSQL_DEBUG environment variable is found
+  Init debugging if MYSQL_DEBUG environment variable is found
 **************************************************************************/
 
 void STDCALL
@@ -632,7 +632,7 @@ mysql_debug(const char *debug __attribute__((unused)))
 
 
 /**************************************************************************
-** Close the server connection if we get a SIGPIPE
+  Close the server connection if we get a SIGPIPE
    ARGSUSED
 **************************************************************************/
 
@@ -647,7 +647,7 @@ pipe_sig_handler(int sig __attribute__((unused)))
 
 
 /**************************************************************************
-** Shut down connection
+  Shut down connection
 **************************************************************************/
 
 static void
@@ -701,7 +701,7 @@ mysql_free_result(MYSQL_RES *result)
 
 
 /****************************************************************************
-** Get options from my.cnf
+  Get options from my.cnf
 ****************************************************************************/
 
 static const char *default_options[]=
@@ -879,7 +879,7 @@ static void mysql_read_default_options(struct st_mysql_options *options,
 
 
 /***************************************************************************
-** Change field rows to field structs
+  Change field rows to field structs
 ***************************************************************************/
 
 static MYSQL_FIELD *
@@ -1004,8 +1004,8 @@ static MYSQL_DATA *read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
 
 
 /*
-** Read one row. Uses packet buffer as storage for fields.
-** When next packet is read, the previous field values are destroyed
+  Read one row. Uses packet buffer as storage for fields.
+  When next packet is read, the previous field values are destroyed
 */
 
 
@@ -1146,9 +1146,11 @@ static inline void expand_error(MYSQL* mysql, int error)
   mysql->net.last_errno = error;
 }
 
-/* This function assumes we have just called SHOW SLAVE STATUS and have
-   read the given result and row
+/*
+  This function assumes we have just called SHOW SLAVE STATUS and have
+  read the given result and row
 */
+
 static inline int get_master(MYSQL* mysql, MYSQL_RES* res, MYSQL_ROW row)
 {
   MYSQL* master;
@@ -1162,9 +1164,12 @@ static inline int get_master(MYSQL* mysql, MYSQL_RES* res, MYSQL_ROW row)
   return 0;
 }
 
-/* assuming we already know that mysql points to a master connection,
-   retrieve all the slaves
+
+/*
+  Assuming we already know that mysql points to a master connection,
+  retrieve all the slaves
 */
+
 static inline int get_slaves_from_master(MYSQL* mysql)
 {
   MYSQL_RES* res = 0;
@@ -1180,14 +1185,13 @@ static inline int get_slaves_from_master(MYSQL* mysql)
   }
 
   if (mysql_query(mysql, "SHOW SLAVE HOSTS") ||
-     !(res = mysql_store_result(mysql)))
+      !(res = mysql_store_result(mysql)))
   {
     expand_error(mysql, CR_PROBE_SLAVE_HOSTS);
     return 1;
   }
 
-  switch (mysql_num_fields(res))
-  {
+  switch (mysql_num_fields(res)) {
   case 5:
     has_auth_info = 0;
     port_ind=2;
@@ -1236,15 +1240,16 @@ int STDCALL mysql_rpl_probe(MYSQL* mysql)
   MYSQL_RES* res = 0;
   MYSQL_ROW row;
   int error = 1;
-  /* first determine the replication role of the server we connected to
-     the most reliable way to do this is to run SHOW SLAVE STATUS and see
-     if we have a non-empty master host. This is still not fool-proof -
-     it is not a sin to have a master that has a dormant slave thread with
-     a non-empty master host. However, it is more reliable to check 
-     for empty master than whether the slave thread is actually running
+  /*
+    First determine the replication role of the server we connected to
+    the most reliable way to do this is to run SHOW SLAVE STATUS and see
+    if we have a non-empty master host. This is still not fool-proof -
+    it is not a sin to have a master that has a dormant slave thread with
+    a non-empty master host. However, it is more reliable to check 
+    for empty master than whether the slave thread is actually running
   */
   if (mysql_query(mysql, "SHOW SLAVE STATUS") ||
-     !(res = mysql_store_result(mysql)))
+      !(res = mysql_store_result(mysql)))
   {
     expand_error(mysql, CR_PROBE_SLAVE_STATUS);
     return 1;
@@ -1275,51 +1280,54 @@ err:
 }
 
 
-/* make a not so fool-proof decision on where the query should go, to
-   the master or the slave. Ideally the user should always make this
-   decision himself with mysql_master_query() or mysql_slave_query().
-   However, to be able to more easily port the old code, we support the
-   option of an educated guess - this should work for most applications,
-   however, it may make the wrong decision in some particular cases. If
-   that happens, the user would have to change the code to call
-   mysql_master_query() or mysql_slave_query() explicitly in the place
-   where we have made the wrong decision
+/*
+  Make a not so fool-proof decision on where the query should go, to
+  the master or the slave. Ideally the user should always make this
+  decision himself with mysql_master_query() or mysql_slave_query().
+  However, to be able to more easily port the old code, we support the
+  option of an educated guess - this should work for most applications,
+  however, it may make the wrong decision in some particular cases. If
+  that happens, the user would have to change the code to call
+  mysql_master_query() or mysql_slave_query() explicitly in the place
+  where we have made the wrong decision
 */
+
 enum mysql_rpl_type
 STDCALL mysql_rpl_query_type(const char* q, int len)
 {
   const char* q_end;
   q_end = (len) ? q + len : strend(q);
-  for(; q < q_end; ++q)
+  for (; q < q_end; ++q)
   {
     char c;
     if (isalpha(c=*q))
-      switch(tolower(c))
-       {
-       case 'i':  /* insert */
-       case 'u':  /* update or unlock tables */
-       case 'l':  /* lock tables or load data infile */
-       case 'd':  /* drop or delete */
-       case 'a':  /* alter */
-	 return MYSQL_RPL_MASTER;
-       case 'c':  /* create or check */
-	 return tolower(q[1]) == 'h' ? MYSQL_RPL_ADMIN : MYSQL_RPL_MASTER ;
-       case 's': /* select or show */
-	 return tolower(q[1]) == 'h' ? MYSQL_RPL_ADMIN : MYSQL_RPL_SLAVE;
-       case 'f': /* flush */
-       case 'r': /* repair */
-       case 'g': /* grant */
-	 return MYSQL_RPL_ADMIN;
-       default:
-	 return MYSQL_RPL_SLAVE;
-       }
+    {
+      switch(tolower(c)) {
+      case 'i':  /* insert */
+      case 'u':  /* update or unlock tables */
+      case 'l':  /* lock tables or load data infile */
+      case 'd':  /* drop or delete */
+      case 'a':  /* alter */
+	return MYSQL_RPL_MASTER;
+      case 'c':  /* create or check */
+	return tolower(q[1]) == 'h' ? MYSQL_RPL_ADMIN : MYSQL_RPL_MASTER ;
+      case 's': /* select or show */
+	return tolower(q[1]) == 'h' ? MYSQL_RPL_ADMIN : MYSQL_RPL_SLAVE;
+      case 'f': /* flush */
+      case 'r': /* repair */
+      case 'g': /* grant */
+	return MYSQL_RPL_ADMIN;
+      default:
+	return MYSQL_RPL_SLAVE;
+      }
+    }
   }
   return MYSQL_RPL_MASTER;		/* By default, send to master */
 }
 
 
 /****************************************************************************
-** Init MySQL structure or allocate one
+  Init MySQL structure or allocate one
 ****************************************************************************/
 
 MYSQL * STDCALL
@@ -1338,8 +1346,9 @@ mysql_init(MYSQL *mysql)
   mysql->options.connect_timeout=CONNECT_TIMEOUT;
   mysql->last_used_con = mysql->next_slave = mysql->master = mysql;
   mysql->last_used_slave = 0;
-  /* By default, we are a replication pivot. The caller must reset it
-     after we return if this is not the case.
+  /*
+    By default, we are a replication pivot. The caller must reset it
+    after we return if this is not the case.
   */
   mysql->rpl_pivot = 1; 
 #if defined(SIGPIPE) && defined(THREAD) && !defined(__WIN__)
@@ -1403,37 +1412,42 @@ static void mysql_once_init()
 }
 
 /**************************************************************************
-** Fill in SSL part of MYSQL structure and set 'use_ssl' flag.
-** NB! Errors are not reported until you do mysql_real_connect.
+  Fill in SSL part of MYSQL structure and set 'use_ssl' flag.
+  NB! Errors are not reported until you do mysql_real_connect.
 **************************************************************************/
+
+#define strdup_if_not_null(A) (A) == 0 ? 0 : my_strdup((A),MYF(MY_WME))
 
 int STDCALL
 mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
-	const char *key __attribute__((unused)), 
-	const char *cert __attribute__((unused)),
-	const char *ca __attribute__((unused)), 
-	const char *capath __attribute__((unused)),
-	const char *cipher __attribute__((unused)))
+	      const char *key __attribute__((unused)), 
+	      const char *cert __attribute__((unused)),
+	      const char *ca __attribute__((unused)), 
+	      const char *capath __attribute__((unused)),
+	      const char *cipher __attribute__((unused)))
 {
 #ifdef HAVE_OPENSSL
-  mysql->options.ssl_key = key==0 ? 0 : my_strdup(key,MYF(0));
-  mysql->options.ssl_cert = cert==0 ? 0 : my_strdup(cert,MYF(0));
-  mysql->options.ssl_ca = ca==0 ? 0 : my_strdup(ca,MYF(0));
-  mysql->options.ssl_capath = capath==0 ? 0 : my_strdup(capath,MYF(0));
-  mysql->options.ssl_cipher = cipher==0 ? 0 : my_strdup(cipher,MYF(0));
-  mysql->options.use_ssl = TRUE;
-  mysql->connector_fd = (gptr)new_VioSSLConnectorFd(key, cert, ca, capath, cipher);
-  DBUG_PRINT("info",("mysql_ssl_set, context: %p",((struct st_VioSSLConnectorFd *)(mysql->connector_fd))->ssl_context_));
+  mysql->options.ssl_key=    strdup_if_not_null(key);
+  mysql->options.ssl_cert=   strdup_if_not_null(cert);
+  mysql->options.ssl_ca=     strdup_if_not_null(ca);
+  mysql->options.ssl_capath= strdup_if_not_null(capath);
+  mysql->options.ssl_cipher= strdup_if_not_null(cipher);
+  mysql->options.use_ssl=    TRUE;
+  mysql->connector_fd = (gptr) new_VioSSLConnectorFd(key, cert, ca, capath,
+						     cipher);
+  DBUG_PRINT("info",("mysql_ssl_set, context: %p",
+		     ((struct st_VioSSLConnectorFd *) (mysql->connector_fd))->
+		     ssl_context_));
 #endif
   return 0;
 }
 
-/*
-***************************************************************************
-** Free strings in the SSL structure and clear 'use_ssl' flag.
-** NB! Errors are not reported until you do mysql_real_connect.
-**************************************************************************
-*/
+
+/**************************************************************************
+  Free strings in the SSL structure and clear 'use_ssl' flag.
+  NB! Errors are not reported until you do mysql_real_connect.
+**************************************************************************/
+
 int STDCALL
 mysql_ssl_clear(MYSQL *mysql __attribute__((unused)))
 {
@@ -1443,21 +1457,21 @@ mysql_ssl_clear(MYSQL *mysql __attribute__((unused)))
   my_free(mysql->options.ssl_ca, MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.ssl_capath, MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.ssl_cipher, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mysql->connector_fd,MYF(MY_ALLOW_ZERO_PTR));
   mysql->options.ssl_key = 0;
   mysql->options.ssl_cert = 0;
   mysql->options.ssl_ca = 0;
   mysql->options.ssl_capath = 0;
   mysql->options.ssl_cipher= 0;
   mysql->options.use_ssl = FALSE;
-  my_free(mysql->connector_fd,MYF(MY_ALLOW_ZERO_PTR));
   mysql->connector_fd = 0;
 #endif /* HAVE_OPENSSL */
   return 0;
 }
 
 /**************************************************************************
-** Connect to sql server
-** If host == 0 then use localhost
+  Connect to sql server
+  If host == 0 then use localhost
 **************************************************************************/
 
 #ifdef USE_OLD_FUNCTIONS
@@ -1481,8 +1495,8 @@ mysql_connect(MYSQL *mysql,const char *host,
 
 
 /*
-** Note that the mysql argument must be initialized with mysql_init()
-** before calling mysql_real_connect !
+  Note that the mysql argument must be initialized with mysql_init()
+  before calling mysql_real_connect !
 */
 
 MYSQL * STDCALL
@@ -1824,8 +1838,10 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   mysql->client_flag=client_flag;
 
 #ifdef HAVE_OPENSSL
-  /* Oops.. are we careful enough to not send ANY information */
-  /* without encryption? */
+  /*
+    Oops.. are we careful enough to not send ANY information without
+    encryption?
+  */
   if (client_flag & CLIENT_SSL)
   {
     if (my_net_write(net,buff,(uint) (2)) || net_flush(net))
@@ -1897,7 +1913,9 @@ error:
   DBUG_RETURN(0);
 }
 
+
 /* needed when we move MYSQL structure to a different address */
+
 static void mysql_fix_pointers(MYSQL* mysql, MYSQL* old_mysql)
 {
   MYSQL *tmp, *tmp_prev;
@@ -1914,6 +1932,7 @@ static void mysql_fix_pointers(MYSQL* mysql, MYSQL* old_mysql)
   }
   tmp_prev->next_slave = mysql;
 }
+
 
 static my_bool mysql_reconnect(MYSQL *mysql)
 {
@@ -1947,7 +1966,7 @@ static my_bool mysql_reconnect(MYSQL *mysql)
 
 
 /**************************************************************************
-** Change user and database 
+  Change user and database 
 **************************************************************************/
 
 my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user, 
@@ -1980,7 +1999,7 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
 
 
 /**************************************************************************
-** Set current database
+  Set current database
 **************************************************************************/
 
 int STDCALL
@@ -1999,8 +2018,8 @@ mysql_select_db(MYSQL *mysql, const char *db)
 
 
 /*************************************************************************
-** Send a QUIT to the server and close the connection
-** If handle is alloced by mysql connect free it.
+  Send a QUIT to the server and close the connection
+  If handle is alloced by mysql connect free it.
 *************************************************************************/
 
 void STDCALL
@@ -2062,8 +2081,8 @@ mysql_close(MYSQL *mysql)
 
 
 /**************************************************************************
-** Do a query. If query returned rows, free old rows.
-** Read data by mysql_store_result or by repeat call of mysql_fetch_row
+  Do a query. If query returned rows, free old rows.
+  Read data by mysql_store_result or by repeat call of mysql_fetch_row
 **************************************************************************/
 
 int STDCALL
@@ -2287,8 +2306,8 @@ err:
 
 
 /**************************************************************************
-** Alloc result struct for buffered results. All rows are read to buffer.
-** mysql_data_seek may be used.
+  Alloc result struct for buffered results. All rows are read to buffer.
+  mysql_data_seek may be used.
 **************************************************************************/
 
 MYSQL_RES * STDCALL
@@ -2338,13 +2357,13 @@ mysql_store_result(MYSQL *mysql)
 
 
 /**************************************************************************
-** Alloc struct for use with unbuffered reads. Data is fetched by domand
-** when calling to mysql_fetch_row.
-** mysql_data_seek is a noop.
-**
-** No other queries may be specified with the same MYSQL handle.
-** There shouldn't be much processing per row because mysql server shouldn't
-** have to wait for the client (and will not wait more than 30 sec/packet).
+  Alloc struct for use with unbuffered reads. Data is fetched by domand
+  when calling to mysql_fetch_row.
+  mysql_data_seek is a noop.
+
+  No other queries may be specified with the same MYSQL handle.
+  There shouldn't be much processing per row because mysql server shouldn't
+  have to wait for the client (and will not wait more than 30 sec/packet).
 **************************************************************************/
 
 MYSQL_RES * STDCALL
@@ -2388,7 +2407,7 @@ mysql_use_result(MYSQL *mysql)
 
 
 /**************************************************************************
-** Return next field of the query results
+  Return next field of the query results
 **************************************************************************/
 
 MYSQL_FIELD * STDCALL
@@ -2401,7 +2420,7 @@ mysql_fetch_field(MYSQL_RES *result)
 
 
 /**************************************************************************
-**  Return next row of the query results
+   Return next row of the query results
 **************************************************************************/
 
 MYSQL_ROW STDCALL
@@ -2442,9 +2461,9 @@ mysql_fetch_row(MYSQL_RES *res)
 }
 
 /**************************************************************************
-** Get column lengths of the current row
-** If one uses mysql_use_result, res->lengths contains the length information,
-** else the lengths are calculated from the offset between pointers.
+  Get column lengths of the current row
+  If one uses mysql_use_result, res->lengths contains the length information,
+  else the lengths are calculated from the offset between pointers.
 **************************************************************************/
 
 ulong * STDCALL
@@ -2478,7 +2497,7 @@ mysql_fetch_lengths(MYSQL_RES *res)
 }
 
 /**************************************************************************
-** Move to a specific row and column
+  Move to a specific row and column
 **************************************************************************/
 
 void STDCALL
@@ -2493,9 +2512,9 @@ mysql_data_seek(MYSQL_RES *result, my_ulonglong row)
 }
 
 /*************************************************************************
-** put the row or field cursor one a position one got from mysql_row_tell()
-** This doesn't restore any data. The next mysql_fetch_row or
-** mysql_fetch_field will return the next row or field after the last used
+  put the row or field cursor one a position one got from mysql_row_tell()
+  This doesn't restore any data. The next mysql_fetch_row or
+  mysql_fetch_field will return the next row or field after the last used
 *************************************************************************/
 
 MYSQL_ROW_OFFSET STDCALL
@@ -2517,7 +2536,7 @@ mysql_field_seek(MYSQL_RES *result, MYSQL_FIELD_OFFSET field_offset)
 }
 
 /*****************************************************************************
-** List all databases
+  List all databases
 *****************************************************************************/
 
 MYSQL_RES * STDCALL
@@ -2534,8 +2553,8 @@ mysql_list_dbs(MYSQL *mysql, const char *wild)
 
 
 /*****************************************************************************
-** List all tables in a database
-** If wild is given then only the tables matching wild is returned
+  List all tables in a database
+  If wild is given then only the tables matching wild is returned
 *****************************************************************************/
 
 MYSQL_RES * STDCALL
@@ -2552,10 +2571,10 @@ mysql_list_tables(MYSQL *mysql, const char *wild)
 
 
 /**************************************************************************
-** List all fields in a table
-** If wild is given then only the fields matching wild is returned
-** Instead of this use query:
-** show fields in 'table' like "wild"
+  List all fields in a table
+  If wild is given then only the fields matching wild is returned
+  Instead of this use query:
+  show fields in 'table' like "wild"
 **************************************************************************/
 
 MYSQL_RES * STDCALL
@@ -2774,8 +2793,8 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
 }
 
 /****************************************************************************
-** Functions to get information from the MySQL structure
-** These are functions to make shared libraries more usable.
+  Functions to get information from the MySQL structure
+  These are functions to make shared libraries more usable.
 ****************************************************************************/
 
 /* MYSQL_RES */
@@ -2867,13 +2886,13 @@ uint STDCALL mysql_thread_safe(void)
 }
 
 /****************************************************************************
-** Some support functions
+  Some support functions
 ****************************************************************************/
 
 /*
-** Add escape characters to a string (blob?) to make it suitable for a insert
-** to should at least have place for length*2+1 chars
-** Returns the length of the to string
+  Add escape characters to a string (blob?) to make it suitable for a insert
+  to should at least have place for length*2+1 chars
+  Returns the length of the to string
 */
 
 ulong STDCALL

@@ -14,11 +14,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* MySQL server management daemon
- *
- * Written by:
- *   Sasha Pachev <sasha@mysql.com>
- **/
+/*
+  MySQL server management daemon
+
+  Written by:
+    Sasha Pachev <sasha@mysql.com>
+*/
 
 #include <my_global.h>
 #include <my_pthread.h>
@@ -90,9 +91,10 @@
 
 #define MAX_RETRY_COUNT 100
 
-/* Variable naming convention - if starts with manager_, either is set
-   directly by the user, or used closely in ocnjunction with a variable
-   set by the user
+/*
+  Variable naming convention - if starts with manager_, either is set
+  directly by the user, or used closely in ocnjunction with a variable
+  set by the user
 */
 
 #if defined(__i386__) && defined(HAVE_LINUXTHREADS)
@@ -180,10 +182,12 @@ typedef int (*manager_cmd_handler)(struct manager_thd*,char*,char*);
 static void handle_child(int __attribute__((unused)) sig);
 static void handle_sigpipe(int __attribute__((unused)) sig);
 
-/* exec() in a threaded application is full of problems
-   to solve this, we fork off a launcher at the very start
-   and communicate with it through a pipe
+/*
+  exec() in a threaded application is full of problems.
+  To solve this, we fork off a launcher at the very start
+  and communicate with it through a pipe
 */
+
 static void fork_launcher();
 static void run_launcher_loop();
 int to_launcher_pipe[2],from_launcher_pipe[2];
@@ -230,11 +234,12 @@ struct manager_exec
 static int set_exec_param(struct manager_thd* thd, char* args_start,
 			  char* args_end, PARAM_TYPE param_type);
 
-#define HANDLE_DECL(com) static int com (struct manager_thd* thd, char* args_start,char* args_end)
-#define HANDLE_NOARG_DECL(com) static int com \
-  (struct manager_thd* thd, char *args_start __attribute__((unused)),\
- char* args_end __attribute__((unused)))
-
+#define HANDLE_DECL(com) \
+static int com(struct manager_thd* thd, char* args_start,char* args_end)
+#define HANDLE_NOARG_DECL(com) \
+static int com(struct manager_thd *thd,\
+               char *args_start __attribute__((unused)),\
+               char* args_end __attribute__((unused)))
 
 HANDLE_NOARG_DECL(handle_ping);
 HANDLE_NOARG_DECL(handle_quit);
@@ -321,9 +326,8 @@ static int client_msg_pre(NET* net,int err_code,const char* fmt,...);
 static int client_msg_raw(NET* net,int err_code,int pre,const char* fmt,
 			    va_list args);
 static int authenticate(struct manager_thd* thd);
-static char* read_line(struct manager_thd* thd); /* returns pointer to end of
-						 line
-					      */
+/* returns pointer to end of line */
+static char* read_line(struct manager_thd* thd);
 static pthread_handler_decl(process_connection, arg);
 static pthread_handler_decl(process_launcher_messages, arg);
 static int exec_line(struct manager_thd* thd,char* buf,char* buf_end);
@@ -400,7 +404,7 @@ void print_stacktrace()
     fprintf(errfp,"frame points is NULL, cannot trace stack\n");
     return;
   }
-  for(i=0;i<MAX_DEPTH && fp<(uchar**)stack_bottom;i++)
+  for (i=0;i<MAX_DEPTH && fp<(uchar**)stack_bottom;i++)
   {
 #ifdef __i386__    
     uchar** new_fp = (uchar**)*fp;
@@ -429,8 +433,8 @@ static int exec_line(struct manager_thd* thd,char* buf,char* buf_end)
   log_info("Command '%s'", buf);
   if (!(cmd=lookup_cmd(buf,(int)(p-buf))))
   {
-    if(client_msg(&thd->net,MANAGER_CLIENT_ERR,
-	       "Unrecognized command '%s', type help to see list of supported\
+    if (client_msg(&thd->net,MANAGER_CLIENT_ERR,
+		   "Unrecognized command '%s', type help to see list of supported\
  commands", buf))
       thd->fatal=1;
     return 1;
@@ -521,7 +525,7 @@ HANDLE_DECL(handle_set_exec_con)
       else
 	e->con_sock[0]=0;
     }
-    else if(num_args > 4)
+    else if (num_args > 4)
     {
       pthread_mutex_unlock(&lock_exec_hash);
       error="Too many arguments";
@@ -572,8 +576,7 @@ static int set_exec_param(struct manager_thd* thd, char* args_start,
   }
   arg_p+=strlen(arg_p)+1;
   param_size=strlen(arg_p)+1;
-  switch (param_type)
-  {
+  switch (param_type) {
   case PARAM_STDOUT:
     param=e->stdout_path;
     e->req_len+=(param_size-e->stdout_path_size);
@@ -881,8 +884,7 @@ static int manager_exec_launch(struct manager_exec* e)
   if (one_thread)
   {
     pid_t tmp_pid;
-    switch ((tmp_pid=fork()))
-    {
+    switch ((tmp_pid=fork())) {
     case -1:
       e->error="Cannot fork";
       return 1;
@@ -973,7 +975,7 @@ static void manager_exec_print(NET* net,struct manager_exec* e)
     goto end;
   *p++='\t';
 
-  for(;p<buf_end && *args;args++)
+  for (;p<buf_end && *args;args++)
   {
     p=arg_strmov(p,*args,(int)(buf_end-p)-1);
     *p++='\t';
@@ -1060,8 +1062,7 @@ static void die(const char* fmt, ...)
 void print_msg_type(int msg_type)
 {
   const char* msg;
-  switch (msg_type)
-  {
+  switch (msg_type) {
   case LOG_ERR: msg = "ERROR"; break;
   case LOG_WARN: msg = "WARNING"; break;
   case LOG_INFO: msg = "INFO"; break;
@@ -1099,8 +1100,7 @@ static pthread_handler_decl(process_launcher_messages,
       sleep(1);
       continue;
     }
-    switch (buf[0])
-    {
+    switch (buf[0]) {
     case CHILD_START:
     {
       char* ident=buf+1;
@@ -1229,7 +1229,7 @@ static void handle_child(int __attribute__((unused)) sig)
   pid_t child;
   int child_status;
 
-  for(;(child=waitpid(-1,&child_status,WNOHANG))>0;)
+  for (;(child=waitpid(-1,&child_status,WNOHANG))>0;)
   {
     char msg_buf[1+sizeof(int)+sizeof(int)];
     msg_buf[0]=CHILD_STOP;
@@ -1284,7 +1284,7 @@ static void clean_up()
     close(manager_sock);
   log_info("Ended");
   if (errfp != stderr)
-    fclose(errfp);
+    my_fclose(errfp, MYF(0));
   hash_free(&exec_hash);
   if (created_pid_file)
     my_delete(pid_file, MYF(0));
@@ -1343,12 +1343,13 @@ static int init_server()
   log_info("Started");
   if ((manager_sock=socket(PF_INET,SOCK_STREAM,0)) < 0)
     die("Could not create socket");
-  bzero((char*)&manager_addr, sizeof(manager_addr));
+  bzero((char*) &manager_addr, sizeof(manager_addr));
   manager_addr.sin_family = AF_INET;
   manager_addr.sin_addr.s_addr = manager_bind_addr;
   manager_addr.sin_port = htons(manager_port);
   setsockopt(manager_sock,SOL_SOCKET, SO_REUSEADDR,(char*)&arg,sizeof(arg));
-  if (bind(manager_sock,(struct sockaddr*)&manager_addr, sizeof(manager_addr)) < 0)
+  if (bind(manager_sock,(struct sockaddr*)&manager_addr, sizeof(manager_addr))
+      < 0)
     die("Could not bind");
   if (listen(manager_sock,manager_back_log) < 0)
     die("Could not listen");
@@ -1432,8 +1433,11 @@ static int run_server_loop()
 static FILE* open_log_stream()
 {
   FILE* fp;
-  if (!(fp=fopen(manager_log_file,"a")))
-    die("Could not open log file '%s'", manager_log_file);
+  if (!(fp=my_fopen(manager_log_file, O_APPEND | FILE_BINARY, MYF(MY_WME))))
+  {
+    clean_up();
+    exit(1);
+  }
   return fp;
 }
 
@@ -1473,11 +1477,10 @@ static uint tokenize_args(char* arg_start,char** arg_end)
   int quoted=0,escaped=0,last_space=0;
   p_end=*arg_end;
   p_write=p=arg_start;
-  for(;p<p_end;p++)
+  for (; p < p_end ; p++)
   {
     char c = *p;
-    switch (c)
-    {
+    switch (c) {
     case ' ':
     case '\r':
     case '\n':  
@@ -1522,16 +1525,16 @@ static uint tokenize_args(char* arg_start,char** arg_end)
     arg_count++;
   *p_write=0;
   *arg_end=p_write;
-  log_debug("arg_count=%d,arg_start='%s'",arg_count,arg_start);
+  log_debug("arg_count: %d  arg_start: '%s'",arg_count,arg_start);
   return arg_count;
 }
 
 static void update_req_len(struct manager_exec* e)
 {
-  e->req_len=e->data_buf_size+
-    (e->stdout_path_size=strlen(e->stdout_path)+1)+
-    (e->stderr_path_size=strlen(e->stderr_path)+1);
- }
+  e->req_len=(e->data_buf_size+
+	      (e->stdout_path_size=strlen(e->stdout_path)+1)+
+	      (e->stderr_path_size=strlen(e->stderr_path)+1));
+}
 
 static struct manager_exec* manager_exec_new(char* arg_start,char* arg_end)
 {
@@ -1640,8 +1643,11 @@ static void init_user_hash()
   int line_num=1;
   if (hash_init(&user_hash,1024,0,0,get_user_key,manager_user_free,MYF(0)))
     die("Could not initialize user hash");
-  if (!(f=fopen(manager_pw_file,"r")))
-    die("Could not open password file '%s'", manager_pw_file);
+  if (!(f=my_fopen(manager_pw_file, O_RDONLY | O_BINARY, MYF(MY_WME))))
+  {
+    clean_up();
+    exit(1);
+  }
   for (;;line_num++)
   {
     struct manager_user* u;
@@ -1660,18 +1666,23 @@ static void init_user_hash()
       hash_insert(&user_hash,(gptr)u);
     }
   }
-  fclose(f);
+  my_fclose(f, MYF(0));
 }
+
 
 static void init_pid_file()
 {
-  FILE* fp = fopen(pid_file, "w");
+  FILE* fp = my_fopen(pid_file, O_WRONLY | O_BINARY, MYF(MY_WME));
   if (!fp)
-    die("Could not open pid file %s", pid_file);
+  {
+    clean_up();
+    exit(1);
+  }
   created_pid_file=1;
   fprintf(fp, "%d\n", (int) getpid());
-  fclose(fp);
+  my_fclose(fp, MYF(0));
 }
+
 
 static void init_globals()
 {
@@ -1751,8 +1762,7 @@ stdout_path=%s,stderr_path=%s",
 	      req_len,ident,ident_len,exec_path,stdout_path,stderr_path);
     init_arg_array(exec_path,args,num_args-1);    
 
-    switch ((pid=fork()))
-    {
+    switch ((pid=fork())) {
     case -1:
       log_err("launcher: cannot fork");
       sleep(1);
@@ -1779,8 +1789,7 @@ static void fork_launcher()
 {
   if (pipe(to_launcher_pipe) || pipe(from_launcher_pipe))
     die("Could not create launcher pipes");
-  switch ((launcher_pid=fork()))
-  {
+  switch ((launcher_pid=fork())) {
   case 0:
     signal(SIGCHLD,handle_child);
     run_launcher_loop();
@@ -1792,23 +1801,22 @@ static void fork_launcher()
 
 static int daemonize()
 {
-  switch (fork())
-    {
-    case -1:
-      die("Cannot fork");
-    case 0:
-      errfp = open_log_stream();
-      init_globals();
-      close(0);
-      close(1);
-      close(2);
-      init_server();
-      run_server_loop();
-      clean_up();
-      break;
-    default:
-      break;
-    }
+  switch (fork()) {
+  case -1:
+    die("Cannot fork");
+  case 0:
+    errfp = open_log_stream();
+    init_globals();
+    close(0);
+    close(1);
+    close(2);
+    init_server();
+    run_server_loop();
+    clean_up();
+    break;
+  default:
+    break;
+  }
   return 0;
 }
 

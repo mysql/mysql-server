@@ -341,13 +341,19 @@ int main(int argc, char *argv[])
       }
     }
   }
-  if (testflag==3) goto end;
+  if (testflag == 3)
+    goto end;
 
   for (i=999, dupp_keys=j=0 ; i>0 ; i--)
   {
-    if (key1[i] > dupp_keys) { dupp_keys=key1[i]; j=i; }
+    if (key1[i] > dupp_keys)
+    {
+      dupp_keys=key1[i]; j=i;
+    }
   }
   sprintf(key,"%6d",j);
+  start=keyinfo[0].seg[0].start;
+  length=keyinfo[0].seg[0].length;
   if (dupp_keys)
   {
     if (!silent)
@@ -355,8 +361,10 @@ int main(int argc, char *argv[])
     DBUG_PRINT("progpos",("first - next -> last - prev -> first"));
     if (verbose) printf("	 Using key: \"%s\"  Keys: %d\n",key,dupp_keys);
 
-    if (mi_rkey(file,read_record,0,key,0,HA_READ_KEY_EXACT)) goto err;
-    if (mi_rsame(file,read_record2,-1)) goto err;
+    if (mi_rkey(file,read_record,0,key,0,HA_READ_KEY_EXACT))
+      goto err;
+    if (mi_rsame(file,read_record2,-1))
+      goto err;
     if (memcmp(read_record,read_record2,reclength) != 0)
     {
       printf("mi_rsame didn't find same record\n");
@@ -381,7 +389,6 @@ int main(int argc, char *argv[])
       }
     }
     ant=1;
-    start=keyinfo[0].seg[0].start; length=keyinfo[0].seg[0].length;
     while (mi_rnext(file,read_record2,0) == 0 &&
 	   memcmp(read_record2+start,key,length) == 0) ant++;
     if (ant != dupp_keys)

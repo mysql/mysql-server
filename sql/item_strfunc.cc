@@ -42,7 +42,7 @@ uint nr_of_decimals(const char *str)
   if ((str=strchr(str,'.')))
   {
     const char *start= ++str;
-    for ( ; isdigit(*str) ; str++) ;
+    for (; isdigit(*str) ; str++) ;
     return (uint) (str-start);
   }
   return 0;
@@ -208,8 +208,7 @@ void Item_func_concat::fix_length_and_dec()
 /* 
   Function des_encrypt() by tonu@spam.ee & monty
   Works only if compiled with OpenSSL library support.
-  This returns a binary string where first character is
-  CHAR(128 | key-number).
+  This returns a binary string where first character is CHAR(128 | key-number).
   If one uses a string key key_number is 127.
   Encryption result is longer than original by formula:
   new_length= org_length + (8-(org_length % 8))+1
@@ -1903,7 +1902,7 @@ String* Item_func_export_set::val_str(String* str)
       str->append(*yes);
     else
       str->append(*no);
-    if(i != num_set_values - 1)
+    if (i != num_set_values - 1)
       str->append(*sep);
   }
   return str;

@@ -8180,7 +8180,7 @@ you need to rebuild them with @code{ALTER TABLE table_name TYPE=MyISAM},
 @strong{even} if they are of @code{MyISAM} type.
 @item
 @code{LOCATE()} and @code{INSTR()} are case-sensitive if one of the
-arguments is a binary string.
+arguments is a binary string. Otherwise they are case insensitive.
 @item
 @code{STRCMP()} now uses the current character set when doing comparisons,
 which means that the default comparison behavior now is case-insensitive.
@@ -16425,9 +16425,9 @@ GRANT priv_type [(column_list)] [, priv_type [(column_list)] ...]
 	[CIPHER cipher [AND]]
 	[ISSUER issuer [AND]]
 	[SUBJECT subject]]
-    [WITH [GRANT OPTION | MAX_QUERIES_PER_HOUR=# |
-                          MAX_UPDATES_PER_HOUR=# |
-                          MAX_CONNECTIONS_PER_HOUR=#]]
+    [WITH [GRANT OPTION | MAX_QUERIES_PER_HOUR # |
+                          MAX_UPDATES_PER_HOUR # |
+                          MAX_CONNECTIONS_PER_HOUR #]]
 
 REVOKE priv_type [(column_list)] [, priv_type [(column_list)] ...]
     ON @{tbl_name | * | *.* | db_name.*@}
@@ -16590,8 +16590,8 @@ to other users any privileges the user has at the specified privilege level.
 You should be careful to whom you give the @strong{grant} privilege, as two
 users with different privileges may be able to join privileges!
 
-@code{MAX_QUERIES_PER_HOUR=#}, @code{MAX_UPDATES_PER_HOUR=#} and
-@code{MAX_CONNECTIONS_PER_HOUR=#} limit the number of
+@code{MAX_QUERIES_PER_HOUR #}, @code{MAX_UPDATES_PER_HOUR #} and
+@code{MAX_CONNECTIONS_PER_HOUR #} limit the number of
 queries/updates and logins the user can do during one hour. 
 If @code{#} is 0 (default), then this means that there is no limitations
 for the user. @xref{User resources}.
@@ -17109,9 +17109,9 @@ unless the limits are granted to them. These limits can be granted
 @strong{only} via global @code{GRANT (*.*)}, using this syntax:
 
 @example
-GRANT ... WITH MAX_QUERIES_PER_HOUR = N1
-               MAX_UPDATES_PER_HOUR = N2
-               MAX_CONNECTIONS_PER_HOUR = N3;
+GRANT ... WITH MAX_QUERIES_PER_HOUR  N1
+               MAX_UPDATES_PER_HOUR N2
+               MAX_CONNECTIONS_PER_HOUR N3;
 @end example
 
 One can specify any combination of the above resources.
@@ -30959,7 +30959,7 @@ mysql> SELECT LOCATE('xbar', 'foobar');
 @end example
 
 This function is multi-byte safe.  In MySQL 3.23 this function is case
-insensitive, while in 4.0 it's only case-insensitive if either argument is
+sensitive, while in 4.0 it's only case sensitive if either argument is
 a binary string.
 
 @findex LOCATE()
@@ -30974,7 +30974,7 @@ mysql> SELECT LOCATE('bar', 'foobarbar',5);
 @end example
 
 This function is multi-byte safe.  In MySQL 3.23 this function is case
-insensitive, while in 4.0 it's only case-insensitive if either argument is
+sensitive, while in 4.0 it's only case sensitive if either argument is
 a binary string.
 
 @findex INSTR()
@@ -30991,7 +30991,7 @@ mysql> SELECT INSTR('xbar', 'foobar');
 @end example
 
 This function is multi-byte safe.  In MySQL 3.23 this function is case
-insensitive, while in 4.0 it's only case-insensitive if either argument is
+sensitive, while in 4.0 it's only case sensitive if either argument is
 a binary string.
 
 @findex LPAD()
@@ -49547,9 +49547,9 @@ Added @code{--no-beep} and @code{--prompt} options to @code{mysql} command-line 
 @item
 New feature: management of user resources.
 @example
-GRANT ... WITH MAX_QUERIES_PER_HOUR = N1
-               MAX_UPDATES_PER_HOUR = N2
-               MAX_CONNECTIONS_PER_HOUR = N3;
+GRANT ... WITH MAX_QUERIES_PER_HOUR  N1
+               MAX_UPDATES_PER_HOUR  N2
+               MAX_CONNECTIONS_PER_HOUR N3;
 @end example
 @xref{User resources}.
 

@@ -175,8 +175,8 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 
 
 /*****************************************************************************
-** check fields, find best join, do the select and output fields.
-** mysql_select assumes that all tables are already opened
+  Check fields, find best join, do the select and output fields.
+  mysql_select assumes that all tables are already opened
 *****************************************************************************/
 
 int
@@ -731,11 +731,11 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     }
 
     /*
-    ** If we have different sort & group then we must sort the data by group
-    ** and copy it to another tmp table
-    ** This code is also used if we are using distinct something
-    ** we haven't been able to store in the temporary table yet
-    ** like SEC_TO_TIME(SUM(...)).
+      If we have different sort & group then we must sort the data by group
+      and copy it to another tmp table
+      This code is also used if we are using distinct something
+      we haven't been able to store in the temporary table yet
+      like SEC_TO_TIME(SUM(...)).
     */
 
     if (group && (!test_if_subpart(group,order) || select_distinct) ||
@@ -889,8 +889,8 @@ err:
 }
 
 /*****************************************************************************
-**	Create JOIN_TABS, make a guess about the table types,
-**	Approximate how many records will be used in each table
+  Create JOIN_TABS, make a guess about the table types,
+  Approximate how many records will be used in each table
 *****************************************************************************/
 
 static ha_rows get_quick_record_count(SQL_SELECT *select,TABLE *table,
@@ -1210,11 +1210,11 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 
 
 /*****************************************************************************
-**	check with keys are used and with tables references with tables
-**	updates in stat:
-**	  keys	     Bitmap of all used keys
-**	  const_keys Bitmap of all keys with may be used with quick_select
-**	  keyuse     Pointer to possible keys
+  Check with keys are used and with tables references with tables
+  Updates in stat:
+	  keys	     Bitmap of all used keys
+	  const_keys Bitmap of all keys with may be used with quick_select
+	  keyuse     Pointer to possible keys
 *****************************************************************************/
 
 typedef struct key_field_t {		// Used when finding key fields
@@ -1446,8 +1446,8 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
 }
 
 /*
-** Add all keys with uses 'field' for some keypart
-** If field->and_level != and_level then only mark key_part as const_part
+  Add all keys with uses 'field' for some keypart
+  If field->and_level != and_level then only mark key_part as const_part
 */
 
 static uint
@@ -1582,9 +1582,9 @@ sort_keyuse(KEYUSE *a,KEYUSE *b)
 
 
 /*
-** Update keyuse array with all possible keys we can use to fetch rows
-** join_tab is a array in tablenr_order
-** stat is a reference array in 'prefered' order.
+  Update keyuse array with all possible keys we can use to fetch rows
+  join_tab is a array in tablenr_order
+  stat is a reference array in 'prefered' order.
 */
 
 static bool
@@ -1623,9 +1623,9 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   }
 
   /*
-  ** remove ref if there is a keypart which is a ref and a const.
-  ** remove keyparts without previous keyparts.
-  ** Special treatment for ft-keys.
+    Remove ref if there is a keypart which is a ref and a const.
+    Remove keyparts without previous keyparts.
+    Special treatment for ft-keys.
   */
   if (keyuse->elements)
   {
@@ -1675,8 +1675,8 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
 
 
 /*****************************************************************************
-**	Go through all combinations of not marked tables and find the one
-**	which uses least records
+  Go through all combinations of not marked tables and find the one
+  which uses least records
 *****************************************************************************/
 
 /* Save const tables first as used tables */
@@ -1691,7 +1691,7 @@ set_position(JOIN *join,uint idx,JOIN_TAB *table,KEYUSE *key)
   /* Move the const table as down as possible in best_ref */
   JOIN_TAB **pos=join->best_ref+idx+1;
   JOIN_TAB *next=join->best_ref[idx];
-  for ( ;next != table ; pos++)
+  for (;next != table ; pos++)
   {
     JOIN_TAB *tmp=pos[0];
     pos[0]=next;
@@ -1782,12 +1782,12 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 		  found_ref|= keyuse->used_tables;
 		}
 		/*
-		** If we find a ref, assume this table matches a proportional
-		** part of this table.
-		** For example 100 records matching a table with 5000 records
-		** gives 5000/100 = 50 records per key
-		** Constant tables are ignored and to avoid bad matches,
-		** we don't make rec less than 100.
+		  If we find a ref, assume this table matches a proportional
+		  part of this table.
+		  For example 100 records matching a table with 5000 records
+		  gives 5000/100 = 50 records per key
+		  Constant tables are ignored and to avoid bad matches,
+		  we don't make rec less than 100.
 		*/
 		if (keyuse->used_tables &
 		    (map=(keyuse->used_tables & ~join->const_table_map)))
@@ -1808,7 +1808,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	  } while (keyuse->table == table && keyuse->key == key);
 
 	  /*
-	  ** Assume that that each key matches a proportional part of table.
+	    Assume that that each key matches a proportional part of table.
 	  */
           if (!found_part && !ft_key)
 	    continue;				// Nothing usable found
@@ -1816,13 +1816,13 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	    rec=1L;				// Fix for small tables
 
           /*
-          ** ft-keys require special treatment
+	    ft-keys require special treatment
           */
           if (ft_key)
           {
             /*
-            ** Really, there should be records=0.0 (yes!)
-            ** but 1.0 would be probably safer
+	      Really, there should be records=0.0 (yes!)
+	      but 1.0 would be probably safer
             */
             tmp=prev_record_reads(join,found_ref);
             records=1.0;
@@ -1830,7 +1830,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
           else
           {
 	  /*
-	  ** Check if we found full key
+	    Check if we found full key
 	  */
 	  if (found_part == PREV_BITS(uint,keyinfo->key_parts))
 	  {				/* use eq key */
@@ -1877,17 +1877,18 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	  else
 	  {
 	    /*
-	    ** Use as much key-parts as possible and a uniq key is better
-	    ** than a not unique key
-	    ** Set tmp to (previous record count) * (records / combination)
+	      Use as much key-parts as possible and a uniq key is better
+	      than a not unique key
+	      Set tmp to (previous record count) * (records / combination)
 	    */
 	    if ((found_part & 1) &&
 		!(table->file->index_flags(key) & HA_ONLY_WHOLE_INDEX))
 	    {
 	      max_key_part=max_part_bit(found_part);
-	      /* Check if quick_range could determinate how many rows we
-		 will match */
-
+	      /*
+		Check if quick_range could determinate how many rows we
+		will match
+	      */
 	      if (table->quick_keys & ((key_map) 1 << key) &&
 		  table->quick_key_parts[key] <= max_key_part)
 		tmp=records= (double) table->quick_rows[key];
@@ -1899,18 +1900,18 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 		else
 		{
 		  /*
-		  ** Assume that the first key part matches 1% of the file
-		  ** and that the hole key matches 10 (dupplicates) or 1
-		  ** (unique) records.
-		  ** Assume also that more key matches proportionally more
-		  ** records
-		  ** This gives the formula:
-		  ** records= (x * (b-a) + a*c-b)/(c-1)
-		  **
-		  ** b = records matched by whole key
-		  ** a = records matched by first key part (10% of all records?)
-		  ** c = number of key parts in key
-		  ** x = used key parts (1 <= x <= c)
+		    Assume that the first key part matches 1% of the file
+		    and that the hole key matches 10 (dupplicates) or 1
+		    (unique) records.
+		    Assume also that more key matches proportionally more
+		    records
+		    This gives the formula:
+		    records= (x * (b-a) + a*c-b)/(c-1)
+		    
+		    b = records matched by whole key
+		    a = records matched by first key part (10% of all records?)
+		    c = number of key parts in key
+		    x = used key parts (1 <= x <= c)
 		  */
 		  double rec_per_key;
 		  if (!(rec_per_key=(double)
@@ -2034,7 +2035,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 
 
 /*
-** Find how much space the prevous read not const tables takes in cache
+  Find how much space the prevous read not const tables takes in cache
 */
 
 static void calc_used_field_length(THD *thd, JOIN_TAB *join_tab)
@@ -2110,7 +2111,7 @@ prev_record_reads(JOIN *join,table_map found_ref)
 
 
 /*****************************************************************************
-**	Set up join struct according to best position.
+  Set up join struct according to best position.
 *****************************************************************************/
 
 static bool
@@ -2176,7 +2177,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
   KEY *keyinfo;
 
   /*
-  ** Use best key from find_best
+    Use best key from find_best
   */
   table=j->table;
   key=keyuse->key;
@@ -2325,8 +2326,8 @@ get_store_key(THD *thd, KEYUSE *keyuse, table_map used_tables,
 }
 
 /*
-** This function is only called for const items on fields which are keys
-** returns 1 if there was some conversion made when the field was stored.
+  This function is only called for const items on fields which are keys
+  returns 1 if there was some conversion made when the field was stored.
 */
 
 bool
@@ -2603,7 +2604,7 @@ make_join_readinfo(JOIN *join,uint options)
       break;
     case JT_ALL:
       /*
-      ** if previous table use cache
+	If previous table use cache
       */
       table->status=STATUS_NO_RECORD;
       if (i != join->const_tables && !(options & SELECT_NO_JOIN_CACHE) &&
@@ -2715,8 +2716,10 @@ join_free(JOIN *join)
     }
     join->table=0;
   }
-  // We are not using tables anymore
-  // Unlock all tables. We may be in an INSERT .... SELECT statement.
+  /*
+    We are not using tables anymore
+    Unlock all tables. We may be in an INSERT .... SELECT statement.
+  */
   if (join->lock && join->thd->lock &&
       !(join->select_options & SELECT_NO_UNLOCK))
   {
@@ -2733,19 +2736,19 @@ join_free(JOIN *join)
 
 
 /*****************************************************************************
-** Remove the following expressions from ORDER BY and GROUP BY:
-** Constant expressions
-** Expression that only uses tables that are of type EQ_REF and the reference
-** is in the ORDER list or if all refereed tables are of the above type.
-**
-** In the following, the X field can be removed:
-** SELECT * FROM t1,t2 WHERE t1.a=t2.a ORDER BY t1.a,t2.X
-** SELECT * FROM t1,t2,t3 WHERE t1.a=t2.a AND t2.b=t3.b ORDER BY t1.a,t3.X
-**
-** These can't be optimized:
-** SELECT * FROM t1,t2 WHERE t1.a=t2.a ORDER BY t2.X,t1.a
-** SELECT * FROM t1,t2 WHERE t1.a=t2.a AND t1.b=t2.b ORDER BY t1.a,t2.c
-** SELECT * FROM t1,t2 WHERE t1.a=t2.a ORDER BY t2.b,t1.a
+  Remove the following expressions from ORDER BY and GROUP BY:
+  Constant expressions
+  Expression that only uses tables that are of type EQ_REF and the reference
+  is in the ORDER list or if all refereed tables are of the above type.
+
+  In the following, the X field can be removed:
+  SELECT * FROM t1,t2 WHERE t1.a=t2.a ORDER BY t1.a,t2.X
+  SELECT * FROM t1,t2,t3 WHERE t1.a=t2.a AND t2.b=t3.b ORDER BY t1.a,t3.X
+
+  These can't be optimized:
+  SELECT * FROM t1,t2 WHERE t1.a=t2.a ORDER BY t2.X,t1.a
+  SELECT * FROM t1,t2 WHERE t1.a=t2.a AND t1.b=t2.b ORDER BY t1.a,t2.c
+  SELECT * FROM t1,t2 WHERE t1.a=t2.a ORDER BY t2.b,t1.a
 *****************************************************************************/
 
 static bool
@@ -2785,7 +2788,7 @@ eq_ref_table(JOIN *join, ORDER *start_order, JOIN_TAB *tab)
     }
   }
   /* Check that there was no reference to table before sort order */
-  for ( ; found && start_order ; start_order=start_order->next)
+  for (; found && start_order ; start_order=start_order->next)
   {
     if (start_order->used & map)
     {
@@ -2803,7 +2806,7 @@ static bool
 only_eq_ref_tables(JOIN *join,ORDER *order,table_map tables)
 {
   if (specialflag &  SPECIAL_SAFE_MODE)
-    return 0;					// skip this optimize /* purecov: inspected */
+    return 0;			// skip this optimize /* purecov: inspected */
   for (JOIN_TAB **tab=join->map2table ; tables ; tab++, tables>>=1)
   {
     if (tables & 1 && !eq_ref_table(join, order, *tab))
@@ -2819,7 +2822,7 @@ static void update_depend_map(JOIN *join)
 {
   JOIN_TAB *join_tab=join->join_tab, *end=join_tab+join->tables;
 
-  for ( ; join_tab != end ; join_tab++)
+  for (; join_tab != end ; join_tab++)
   {
     TABLE_REF *ref= &join_tab->ref;
     table_map depend_map=0;
@@ -2843,7 +2846,7 @@ static void update_depend_map(JOIN *join)
 
 static void update_depend_map(JOIN *join, ORDER *order)
 {
-  for ( ; order ; order=order->next)
+  for (; order ; order=order->next)
   {
     table_map depend_map;
     order->item[0]->update_used_tables();
@@ -2973,12 +2976,12 @@ static void clear_tables(JOIN *join)
 }
 
 /*****************************************************************************
-** Make som simple condition optimization:
-** If there is a test 'field = const' change all refs to 'field' to 'const'
-** Remove all dummy tests 'item = item', 'const op const'.
-** Remove all 'item is NULL', when item can never be null!
-** item->marker should be 0 for all items on entry
-** Return in cond_value FALSE if condition is impossible (1 = 2)
+  Make som simple condition optimization:
+  If there is a test 'field = const' change all refs to 'field' to 'const'
+  Remove all dummy tests 'item = item', 'const op const'.
+  Remove all 'item is NULL', when item can never be null!
+  item->marker should be 0 for all items on entry
+  Return in cond_value FALSE if condition is impossible (1 = 2)
 *****************************************************************************/
 
 class COND_CMP :public ilink {
@@ -3000,8 +3003,8 @@ template class List_iterator<Item_func_match>;
 #endif
 
 /*
-** change field = field to field = const for each found field = const in the
-** and_level
+  change field = field to field = const for each found field = const in the
+  and_level
 */
 
 static void
@@ -3146,8 +3149,8 @@ optimize_cond(COND *conds,Item::cond_result *cond_value)
   DBUG_EXECUTE("where",print_where(conds,"original"););
   propagate_cond_constants((I_List<COND_CMP> *) 0,conds,conds);
   /*
-  ** Remove all instances of item == item
-  ** Remove all and-levels where CONST item != CONST item
+    Remove all instances of item == item
+    Remove all and-levels where CONST item != CONST item
   */
   DBUG_EXECUTE("where",print_where(conds,"after const change"););
   conds=remove_eq_conds(conds,cond_value) ;
@@ -3157,11 +3160,11 @@ optimize_cond(COND *conds,Item::cond_result *cond_value)
 
 
 /*
-** remove const and eq items. Return new item, or NULL if no condition
-** cond_value is set to according:
-** COND_OK    query is possible (field = constant)
-** COND_TRUE  always true	( 1 = 1 )
-** COND_FALSE always false	( 1 = 2 )
+  Remove const and eq items. Return new item, or NULL if no condition
+  cond_value is set to according:
+  COND_OK    query is possible (field = constant)
+  COND_TRUE  always true	( 1 = 1 )
+  COND_FALSE always false	( 1 = 2 )
 */
 
 static COND *
@@ -3299,7 +3302,7 @@ remove_eq_conds(COND *cond,Item::cond_result *cond_value)
 }
 
 /*
-** Return 1 if the item is a const value in all the WHERE clause
+  Return 1 if the item is a const value in all the WHERE clause
 */
 
 static bool
@@ -3358,10 +3361,10 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
 
 
 /****************************************************************************
-**	Create a temp table according to a field list.
-**	Set distinct if duplicates could be removed
-**	Given fields field pointers are changed to point at tmp_table
-**	for send_fields
+  Create a temp table according to a field list.
+  Set distinct if duplicates could be removed
+  Given fields field pointers are changed to point at tmp_table
+  for send_fields
 ****************************************************************************/
 
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
@@ -3824,7 +3827,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	  key_part_info->null_offset= (uint) (field->null_ptr -
 					      (uchar*) table->record[0]);
 	  group->field->move_field((char*) ++group->buff);
-	  ++group_buff;
+	  group_buff++;
 	}
 	else
 	  group->field->move_field((char*) group_buff);
@@ -4168,7 +4171,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
 
   join->procedure=procedure;
   /*
-  ** Tell the client how many fields there are in a row
+    Tell the client how many fields there are in a row
   */
   if (!table)
     join->result->send_fields(*fields,1);
@@ -4430,10 +4433,9 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skipp_last)
 
 
 /*****************************************************************************
-** The different ways to read a record
-** Returns -1 if row was not found, 0 if row was found and 1 on errors
+  The different ways to read a record
+  Returns -1 if row was not found, 0 if row was found and 1 on errors
 *****************************************************************************/
-
 static int
 join_read_const_table(JOIN_TAB *tab, POSITION *pos)
 {
@@ -4870,12 +4872,12 @@ join_ft_read_next(READ_RECORD *info)
 
 
 /*****************************************************************************
-** The different end of select functions
-** These functions returns < 0 when end is reached, 0 on ok and > 0 if a
-** fatal error (like table corruption) was detected
+  The different end of select functions
+  These functions returns < 0 when end is reached, 0 on ok and > 0 if a
+  fatal error (like table corruption) was detected
 *****************************************************************************/
 
-	/* ARGSUSED */
+/* ARGSUSED */
 static int
 end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	 bool end_of_records)
@@ -5268,11 +5270,11 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 
 
 /*****************************************************************************
-** Remove calculation with tables that aren't yet read. Remove also tests
-** against fields that are read through key where the table is not a
-** outer join table.
-** We can't remove tests that are made against columns which are stored
-** in sorted order.
+  Remove calculation with tables that aren't yet read. Remove also tests
+  against fields that are read through key where the table is not a
+  outer join table.
+  We can't remove tests that are made against columns which are stored
+  in sorted order.
 *****************************************************************************/
 
 /* Return 1 if right_item is used removable reference key on left_item */
@@ -5290,8 +5292,10 @@ static bool test_if_ref(Item_field *left_item,Item *right_item)
 	return (field->eq_def(((Item_field *) right_item)->field));
       if (right_item->const_item() && !(right_item->is_null()))
       {
-	// We can remove binary fields and numerical fields except float,
-	// as float comparison isn't 100 % secure
+	/*
+	  We can remove binary fields and numerical fields except float,
+	  as float comparison isn't 100 % secure
+	*/
 	if (field->binary() &&
 	    (field->type() != FIELD_TYPE_FLOAT || field->decimals() == 0))
 	{
@@ -5355,9 +5359,9 @@ make_cond_for_table(COND *cond,table_map tables,table_map used_table)
   }
 
   /*
-  ** Because the following test takes a while and it can be done
-  ** table_count times, we mark each item that we have examined with the result
-  ** of the test
+    Because the following test takes a while and it can be done
+    table_count times, we mark each item that we have examined with the result
+    of the test
   */
 
   if (cond->marker == 3 || (cond->used_tables() & ~tables))
@@ -5405,11 +5409,11 @@ part_of_refkey(TABLE *table,Field *field)
 
 
 /*****************************************************************************
-** Test if one can use the key to resolve ORDER BY
-** Returns: 1 if key is ok.
-**	    0 if key can't be used
-**	    -1 if reverse key can be used
-**          used_key_parts is set to key parts used if length != 0
+  Test if one can use the key to resolve ORDER BY
+  Returns: 1 if key is ok.
+	   0 if key can't be used
+	  -1 if reverse key can be used
+          used_key_parts is set to key parts used if length != 0
 *****************************************************************************/
 
 static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
@@ -5676,7 +5680,7 @@ err:
 }
 
 /*
-** Add the HAVING criteria to table->select
+  Add the HAVING criteria to table->select
 */
 
 #ifdef NOT_YET
@@ -5711,11 +5715,11 @@ static bool fix_having(JOIN *join, Item **having)
 
 
 /*****************************************************************************
-** Remove duplicates from tmp table
-** This should be recoded to add a uniuqe index to the table and remove
-** dupplicates
-** Table is a locked single thread table
-** fields is the number of fields to check (from the end)
+  Remove duplicates from tmp table
+  This should be recoded to add a unique index to the table and remove
+  duplicates
+  Table is a locked single thread table
+  fields is the number of fields to check (from the end)
 *****************************************************************************/
 
 static bool compare_record(TABLE *table, Field **ptr)
@@ -6145,7 +6149,7 @@ store_record_in_cache(JOIN_CACHE *cache)
     cache->ptr_record=cache->records;
 
   /*
-  ** There is room in cache. Put record there
+    There is room in cache. Put record there
   */
   cache->records++;
   for (copy=cache->field ; copy < end_field; copy++)
@@ -6271,13 +6275,13 @@ cp_buffer_from_ref(TABLE_REF *ref)
 
 
 /*****************************************************************************
-** Group and order functions
+  Group and order functions
 *****************************************************************************/
 
 /*
-** Find order/group item in requested columns and change the item to point at
-** it. If item doesn't exists, add it first in the field list
-** Return 0 if ok.
+  Find order/group item in requested columns and change the item to point at
+  it. If item doesn't exists, add it first in the field list
+  Return 0 if ok.
 */
 
 static int
@@ -6322,8 +6326,8 @@ find_order_in_list(THD *thd,TABLE_LIST *tables,ORDER *order,List<Item> &fields,
 
 
 /*
-** Change order to point at item in select list. If item isn't a number
-** and doesn't exits in the select list, add it the the field list.
+  Change order to point at item in select list. If item isn't a number
+  and doesn't exits in the select list, add it the the field list.
 */
 
 int setup_order(THD *thd,TABLE_LIST *tables,List<Item> &fields,
@@ -6357,7 +6361,7 @@ setup_group(THD *thd,TABLE_LIST *tables,List<Item> &fields,
   uint org_fields=all_fields.elements;
 
   thd->where="group statement";
-  for ( ; order; order=order->next)
+  for (; order; order=order->next)
   {
     if (find_order_in_list(thd,tables,order,fields,all_fields))
       return 1;
@@ -6392,7 +6396,7 @@ setup_group(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 }
 
 /*
-** Add fields with aren't used at start of field list. Return FALSE if ok
+  Add fields with aren't used at start of field list. Return FALSE if ok
 */
 
 static bool
@@ -6404,7 +6408,7 @@ setup_new_fields(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 
   thd->set_query_id=1;				// Not really needed, but...
   thd->where=0;					// Don't give error
-  for ( ; new_field ; new_field=new_field->next)
+  for (; new_field ; new_field=new_field->next)
   {
     if ((item=find_item_in_list(*new_field->item,fields)))
       new_field->item=item;			/* Change to shared Item */
@@ -6422,9 +6426,9 @@ setup_new_fields(THD *thd,TABLE_LIST *tables,List<Item> &fields,
 }
 
 /*
-** Create a group by that consist of all non const fields. Try to use
-** the fields in the order given by 'order' to allow one to optimize
-** away 'order by'.
+  Create a group by that consist of all non const fields. Try to use
+  the fields in the order given by 'order' to allow one to optimize
+  away 'order by'.
 */
 
 static ORDER *
@@ -6473,7 +6477,7 @@ create_distinct_group(ORDER *order_list,List<Item> &fields)
 
 
 /*****************************************************************************
-** Update join with count of the different type of fields
+  Update join with count of the different type of fields
 *****************************************************************************/
 
 void
@@ -6564,7 +6568,7 @@ get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables)
   if (!map || (map & RAND_TABLE_BIT))
     DBUG_RETURN(0);
 
-  for ( ; !(map & tables->table->map) ; tables=tables->next) ;
+  for (; !(map & tables->table->map) ; tables=tables->next) ;
   if (map != tables->table->map)
     DBUG_RETURN(0);				// More than one table
   DBUG_PRINT("exit",("sort by table: %d",tables->table->tablenr));
@@ -6608,8 +6612,8 @@ calc_group_buffer(JOIN *join,ORDER *group)
 
 
 /*
-** Get a list of buffers for saveing last group
-** Groups are saved in reverse order for easyer check loop
+  Get a list of buffers for saveing last group
+  Groups are saved in reverse order for easyer check loop
 */
 
 static bool
@@ -6647,10 +6651,10 @@ test_if_group_changed(List<Item_buff> &list)
 
 
 /*
-** Setup copy_fields to save fields at start of new group
-** Only FIELD_ITEM:s and FUNC_ITEM:s needs to be saved between groups.
-** Change old item_field to use a new field with points at saved fieldvalue
-** This function is only called before use of send_fields
+  Setup copy_fields to save fields at start of new group
+  Only FIELD_ITEM:s and FUNC_ITEM:s needs to be saved between groups.
+  Change old item_field to use a new field with points at saved fieldvalue
+  This function is only called before use of send_fields
 */
 
 bool
@@ -6719,7 +6723,7 @@ err2:
 
 
 /*
-** Copy fields and null values between two tables
+  Copy fields and null values between two tables
 */
 
 void
@@ -6728,7 +6732,7 @@ copy_fields(TMP_TABLE_PARAM *param)
   Copy_field *ptr=param->copy_field;
   Copy_field *end=param->copy_field_end;
 
-  for ( ; ptr != end; ptr++)
+  for (; ptr != end; ptr++)
     (*ptr->do_copy)(ptr);
 
   List_iterator_fast<Item> &it=param->copy_funcs_it;
@@ -6740,7 +6744,7 @@ copy_fields(TMP_TABLE_PARAM *param)
 
 
 /*****************************************************************************
-** Make an array of pointer to sum_functions to speed up sum_func calculation
+  Make an array of pointer to sum_functions to speed up sum_func calculation
 *****************************************************************************/
 
 static bool
@@ -6772,7 +6776,7 @@ make_sum_func_list(JOIN *join,List<Item> &fields)
 
 
 /*
-** Change all funcs and sum_funcs to fields in tmp table
+  Change all funcs and sum_funcs to fields in tmp table
 */
 
 static bool
@@ -6822,8 +6826,8 @@ change_to_use_tmp_fields(List<Item> &items)
 
 
 /*
-** Change all sum_func refs to fields to point at fields in tmp table
-** Change all funcs to be fields in tmp table
+  Change all sum_func refs to fields to point at fields in tmp table
+  Change all funcs to be fields in tmp table
 */
 
 static bool
@@ -6879,7 +6883,7 @@ change_refs_to_tmp_fields(THD *thd,List<Item> &items)
 
 
 /******************************************************************************
-** code for calculating functions
+  Code for calculating functions
 ******************************************************************************/
 
 static void
@@ -6947,8 +6951,8 @@ copy_funcs(Item_result_field **func_ptr)
 
 
 /*****************************************************************************
-** Create a condition for a const reference and add this to the
-** currenct select for the table
+  Create a condition for a const reference and add this to the
+  currenct select for the table
 *****************************************************************************/
 
 static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
@@ -6989,7 +6993,7 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
 }
 
 /****************************************************************************
-** Send a description about what how the select will be done to stdout
+  Send a description about what how the select will be done to stdout
 ****************************************************************************/
 
 static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,

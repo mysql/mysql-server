@@ -103,7 +103,7 @@ int mi_write(MI_INFO *info, byte *record)
     {
       bool local_lock_tree= (lock_tree &&
 			     !(info->bulk_insert &&
-			       is_tree_inited(& info->bulk_insert[i])));
+			       is_tree_inited(&info->bulk_insert[i])));
       if (local_lock_tree)
       {
 	rw_wrlock(&share->key_root_lock[i]);
@@ -168,9 +168,9 @@ err:
       uint j;
       for (j=0 ; j < share->base.keys ; j++)
       {
-        if (is_tree_inited(& info->bulk_insert[j]))
+        if (is_tree_inited(&info->bulk_insert[j]))
         {
-          reset_tree(& info->bulk_insert[j]);
+          reset_tree(&info->bulk_insert[j]);
         }
       }
     }
@@ -181,7 +181,7 @@ err:
       {
 	bool local_lock_tree= (lock_tree &&
 			       !(info->bulk_insert &&
-				 is_tree_inited(& info->bulk_insert[i])));
+				 is_tree_inited(&info->bulk_insert[i])));
 	if (local_lock_tree)
 	  rw_wrlock(&share->key_root_lock[i]);
 	if (share->keyinfo[i].flag & HA_FULLTEXT)
@@ -227,7 +227,7 @@ int _mi_ck_write(MI_INFO *info, uint keynr, uchar *key, uint key_length)
 {
   DBUG_ENTER("_mi_ck_write");
 
-  if (info->bulk_insert && is_tree_inited(& info->bulk_insert[keynr]))
+  if (info->bulk_insert && is_tree_inited(&info->bulk_insert[keynr]))
   {
     DBUG_RETURN(_mi_ck_write_tree(info, keynr, key, key_length));
   }
@@ -750,7 +750,7 @@ int _mi_ck_write_tree(register MI_INFO *info, uint keynr, uchar *key,
   int error;
   DBUG_ENTER("_mi_ck_write_tree");
 
-  error= tree_insert(& info->bulk_insert[keynr], key,
+  error= tree_insert(&info->bulk_insert[keynr], key,
          key_length + info->s->rec_reflength) ? 0 : HA_ERR_OUT_OF_MEM ;
 
   DBUG_RETURN(error);

@@ -1348,9 +1348,6 @@ int main(int argc, char **argv)
   MYSQL_RES *master;
 
   MY_INIT(argv[0]);
-  /*
-  ** Check out the args
-  */
   if (get_options(&argc, &argv))
   {
     my_end(0);
@@ -1374,12 +1371,16 @@ int main(int argc, char **argv)
   }
   if (opt_alldbs)
     dump_all_databases();
-  /* Only one database and selected table(s) */
   else if (argc > 1 && !opt_databases)
+  {
+    /* Only one database and selected table(s) */
     dump_selected_tables(*argv, (argv + 1), (argc - 1));
-  /* One or more databases, all tables */
+  }
   else
+  {
+    /* One or more databases, all tables */
     dump_databases(argv);
+  }
 
   if (opt_first_slave)
   {
@@ -1387,14 +1388,13 @@ int main(int argc, char **argv)
     {
       if (mysql_query(sock, "SHOW MASTER STATUS") ||
 	  !(master = mysql_store_result(sock)))
-      {
 	my_printf_error(0, "Error: Couldn't execute 'SHOW MASTER STATUS': %s",
 			MYF(0), mysql_error(sock));
-      }
       else
       {
 	row = mysql_fetch_row(master);
-	if(row[0] && row[1]) {
+	if (row[0] && row[1])
+	{
 	  fprintf(md_result_file,
 		  "\n--\n-- Position to start replication from\n--\n\n");
 	  fprintf(md_result_file,
@@ -1406,15 +1406,11 @@ int main(int argc, char **argv)
       }
     }
     if (mysql_query(sock, "FLUSH MASTER"))
-    {
       my_printf_error(0, "Error: Couldn't execute 'FLUSH MASTER': %s",
 		      MYF(0), mysql_error(sock));
-    }
     if (mysql_query(sock, "UNLOCK TABLES"))
-    {
       my_printf_error(0, "Error: Couldn't execute 'UNLOCK TABLES': %s",
 		      MYF(0), mysql_error(sock));
-   }
   }
   dbDisconnect(current_host);
   fputs("\n", md_result_file);

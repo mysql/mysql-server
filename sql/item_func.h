@@ -921,7 +921,8 @@ public:
 
   Item_func_match(List<Item> &a, Item *b): Item_real_func(b),
        fields(a), table(0), master(0), ft_handler(0),
-       concat(0), key(0), join_key(0) {}
+       concat(0), key(0), join_key(0)
+  {}
   ~Item_func_match()
   {
     if (!master && ft_handler)
@@ -932,7 +933,8 @@ public:
 	table->file->ft_handler=0;
       table->fulltext_searched=0;
     }
-    if (concat) delete concat;
+    if (concat)
+      delete concat;
   }
   enum Functype functype() const { return FT_FUNC; }
   void update_used_tables() {}
@@ -945,19 +947,23 @@ public:
   void init_search(bool no_order);
 };
 
+
 class Item_func_match_nl :public Item_func_match
 {
 public:
-  Item_func_match_nl(List<Item> &a, Item *b):
-      Item_func_match(a,b) { mode=FT_NL; }
+  Item_func_match_nl(List<Item> &a, Item *b)
+    :Item_func_match(a,b)
+  { mode=FT_NL; }
   const char *func_name() const { return "match_nl"; }
 };
+
 
 class Item_func_match_bool :public Item_func_match
 {
 public:
-  Item_func_match_bool(List<Item> &a, Item *b):
-     Item_func_match(a,b) { mode=FT_BOOL; }
+  Item_func_match_bool(List<Item> &a, Item *b)
+    :Item_func_match(a,b)
+  { mode=FT_BOOL; }
   const char *func_name() const { return "match_bool"; }
 };
 

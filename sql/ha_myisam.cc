@@ -45,6 +45,7 @@ TYPELIB myisam_recover_typelib= {array_elements(myisam_recover_names)-1,"",
 *****************************************************************************/
 
 // collect errors printed by mi_check routines
+
 static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
 			       const char *fmt, va_list args)
 {
@@ -134,7 +135,7 @@ int ha_myisam::net_read_dump(NET* net)
   int error = 0;
 
   my_seek(data_fd, 0L, MY_SEEK_SET, MYF(MY_WME));
-  for(;;)
+  for (;;)
   {
     ulong packet_len = my_net_read(net);
     if (!packet_len)
@@ -171,7 +172,7 @@ int ha_myisam::dump(THD* thd, int fd)
 
   int error = 0;
   my_seek(data_fd, 0L, MY_SEEK_SET, MYF(MY_WME));
-  for(; bytes_to_read > 0;)
+  for (; bytes_to_read > 0;)
   {
     uint bytes = my_read(data_fd, buf, blocksize, MYF(MY_WME));
     if (bytes == MY_FILE_ERROR)
@@ -494,8 +495,8 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
   while ((error=repair(thd,param,0)) && param.retry_repair)
   {
     param.retry_repair=0;
-    if ((param.testflag & T_RETRY_WITHOUT_QUICK) &&
-        (param.testflag & T_QUICK))
+    if (test_all_bits(param.testflag,
+		      (uint) (T_RETRY_WITHOUT_QUICK | T_QUICK)))
     {
       param.testflag&= ~T_RETRY_WITHOUT_QUICK;
       sql_print_error("Warning: Retrying repair of: '%s' without quick",

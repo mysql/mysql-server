@@ -205,7 +205,7 @@ void create_record(char *pos, int n)
   {
     uint tmp;
     char *ptr;
-    strncpy(blob_key,data[n].f0,keyinfo[0].seg[0].length);
+    strnmov(blob_key,data[n].f0,keyinfo[0].seg[0].length);
     tmp=strlen(blob_key);
     int4store(pos,tmp);
     ptr=blob_key;
@@ -215,21 +215,21 @@ void create_record(char *pos, int n)
   else if (recinfo[0].type == FIELD_VARCHAR)
   {
     uint tmp;
-    strncpy(pos+2,data[n].f0,keyinfo[0].seg[0].length);
+    strnmov(pos+2,data[n].f0,keyinfo[0].seg[0].length);
     tmp=strlen(pos+2);
     int2store(pos,tmp);
     pos+=recinfo[0].length;
   }
   else
   {
-    strncpy(pos,data[n].f0,keyinfo[0].seg[0].length);
+    strnmov(pos,data[n].f0,keyinfo[0].seg[0].length);
     pos+=recinfo[0].length;
   }
   if (recinfo[1].type == FIELD_BLOB)
   {
     uint tmp;
     char *ptr;
-    strncpy(blob_key,data[n].f2,keyinfo[0].seg[0].length);
+    strnmov(blob_key,data[n].f2,keyinfo[0].seg[0].length);
     tmp=strlen(blob_key);
     int4store(pos,tmp);
     ptr=blob_key;
@@ -239,14 +239,14 @@ void create_record(char *pos, int n)
   else if (recinfo[1].type == FIELD_VARCHAR)
   {
     uint tmp;
-    strncpy(pos+2,data[n].f2,keyinfo[0].seg[0].length);
+    strnmov(pos+2,data[n].f2,keyinfo[0].seg[0].length);
     tmp=strlen(pos+2);
     int2store(pos,tmp);
     pos+=recinfo[1].length;
   }
   else
   {
-    strncpy(pos,data[n].f2,keyinfo[0].seg[0].length);
+    strnmov(pos,data[n].f2,keyinfo[0].seg[0].length);
     pos+=recinfo[1].length;
   }
 }

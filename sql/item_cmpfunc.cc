@@ -549,7 +549,7 @@ Item_func_nullif::fix_length_and_dec()
 }
 
 /*
-  nullif() returns NULL if arguments are different, else it returns the
+  nullif () returns NULL if arguments are different, else it returns the
   first argument.
   Note that we have to evaluate the first argument twice as the compare
   may have been done with a different type than return value
@@ -1296,7 +1296,7 @@ bool Item_func_like::fix_fields(THD *thd,struct st_table_list *tlist)
 	*last  == wild_many)
     {
       const char* tmp = first + 1;
-      for ( ; *tmp != wild_many && *tmp != wild_one && *tmp != escape; tmp++) ;
+      for (; *tmp != wild_many && *tmp != wild_one && *tmp != escape; tmp++) ;
       canDoTurboBM = tmp == last;
     }
 

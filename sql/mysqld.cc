@@ -238,9 +238,10 @@ SHOW_COMP_OPTION have_query_cache=SHOW_OPTION_NO;
 
 bool opt_skip_slave_start = 0; // If set, slave is not autostarted
 
-/* if set, some standard measures to enforce
-   slave data intergity will not be performed
- */
+/*
+  If set, some standard measures to enforce slave data integrity will not
+  be performed
+*/
 bool opt_reckless_slave = 0; 
 static bool opt_do_pstack = 0;
 static ulong opt_specialflag=SPECIAL_ENGLISH;
@@ -279,7 +280,7 @@ char glob_hostname[FN_REFLEN];
 #include "sslopt-vars.h"
 #ifdef HAVE_OPENSSL
 char *des_key_file = 0;
-struct st_VioSSLAcceptorFd * ssl_acceptor_fd = 0;
+struct st_VioSSLAcceptorFd *ssl_acceptor_fd= 0;
 #endif /* HAVE_OPENSSL */
 
 I_List <i_string_pair> replicate_rewrite_db;
@@ -582,9 +583,7 @@ static void close_connections(void)
   (void) pthread_mutex_unlock(&LOCK_thread_count); // For unlink from list
 
   if (thread_count)
-  {
     sleep(1);					// Give threads time to die
-  }
 
   /* Force remaining threads to die by closing the connection to the client */
 
@@ -1185,9 +1184,8 @@ void end_thread(THD *thd, bool put_in_cache)
   DBUG_PRINT("info", ("sending a broadcast"))
 
   /* Tell main we are ready */
-    // TODO: explain why we broadcast outside of the lock or
-    // fix the bug - Sasha
   (void) pthread_mutex_unlock(&LOCK_thread_count);
+  /* It's safe to broadcast outside a lock (COND... is not deleted here) */
   (void) pthread_cond_broadcast(&COND_thread_count);
   DBUG_PRINT("info", ("unlocked thread_count mutex"))
 #ifdef ONE_THREAD
@@ -1226,11 +1224,11 @@ void flush_thread_cache()
 }
 
 
-	/*
-	** Aborts a thread nicely. Commes here on SIGPIPE
-	** TODO: One should have to fix that thr_alarm know about this
-	** thread too
-	*/
+/*
+  Aborts a thread nicely. Commes here on SIGPIPE
+  TODO: One should have to fix that thr_alarm know about this
+  thread too.
+*/
 
 #ifdef THREAD_SPECIFIC_SIGPIPE
 static sig_handler abort_thread(int sig __attribute__((unused)))
@@ -1244,9 +1242,9 @@ static sig_handler abort_thread(int sig __attribute__((unused)))
 #endif
 
 /******************************************************************************
-** Setup a signal thread with handles all signals
-** Because linux doesn't support scemas use a mutex to check that
-** the signal thread is ready before continuing
+  Setup a signal thread with handles all signals.
+  Because Linux doesn't support schemas use a mutex to check that
+  the signal thread is ready before continuing
 ******************************************************************************/
 
 #if defined(__WIN__) || defined(OS2)
@@ -1269,7 +1267,8 @@ static void start_signal_handler(void)
 #elif defined(__EMX__)
 static void sig_reload(int signo)
 {
-  reload_acl_and_cache((THD*) 0,REFRESH_LOG, (TABLE_LIST*) 0); // Flush everything
+ // Flush everything
+  reload_acl_and_cache((THD*) 0,REFRESH_LOG, (TABLE_LIST*) 0);
   signal(signo, SIG_ACK);
 }
 
@@ -1357,7 +1356,7 @@ the thread stack. Please read http://www.mysql.com/doc/L/i/Linux.html\n\n",
 #endif /* HAVE_LINUXTHREADS */
 
 #ifdef HAVE_STACKTRACE
-  if(!(test_flags & TEST_NO_STACKTRACE))
+  if (!(test_flags & TEST_NO_STACKTRACE))
   {
     fprintf(stderr,"thd=%p\n",thd);
     print_stacktrace(thd ? (gptr) thd->thread_stack : (gptr) 0,
@@ -1476,9 +1475,7 @@ static void start_signal_handler(void)
 }
 
 
-/*
-** This threads handles all signals and alarms
-*/
+/* This threads handles all signals and alarms */
 
 /* ARGSUSED */
 static void *signal_hand(void *arg __attribute__((unused)))
@@ -1596,8 +1593,8 @@ static void *signal_hand(void *arg __attribute__((unused)))
 
 
 /*
-** All global error messages are sent here where the first one is stored for
-** the client
+  All global error messages are sent here where the first one is stored for
+  the client
 */
 
 
@@ -1689,6 +1686,7 @@ pthread_handler_decl(handle_shutdown,arg)
 }
 #endif
 
+
 const char *load_default_groups[]= { "mysqld","server",0 };
 
 #ifdef HAVE_LIBWRAP
@@ -1739,9 +1737,10 @@ int main(int argc, char **argv)
   my_umask=0660;		// Default umask for new files
   my_umask_dir=0700;		// Default umask for new directories
   MAIN_THD;
-  /* initialize signal_th and shutdown_th to main_th for default value
-     as we need to initialize them to something safe. They are used
-     when compiled with safemalloc
+  /*
+    Initialize signal_th and shutdown_th to main_th for default value
+    as we need to initialize them to something safe. They are used
+    when compiled with safemalloc.
   */
   SIGNAL_THD;
   SHUTDOWN_THD;
@@ -1845,13 +1844,13 @@ int main(int argc, char **argv)
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
   {
-    ssl_acceptor_fd = new_VioSSLAcceptorFd(opt_ssl_key, opt_ssl_cert,
-					   opt_ssl_ca, opt_ssl_capath,
-					   opt_ssl_cipher);
-    DBUG_PRINT("info",("ssl_acceptor_fd: %p",ssl_acceptor_fd));
+    /* having ssl_acceptor_fd != 0 signals the use of SSL */
+    ssl_acceptor_fd= new_VioSSLAcceptorFd(opt_ssl_key, opt_ssl_cert,
+					  opt_ssl_ca, opt_ssl_capath,
+					  opt_ssl_cipher);
+    DBUG_PRINT("info",("ssl_acceptor_fd: %p", ssl_acceptor_fd));
     if (!ssl_acceptor_fd)
       opt_use_ssl = 0;
-    /* having ssl_acceptor_fd != 0 signals the use of SSL */
   }
   if (des_key_file)
     load_des_key_file(des_key_file);
@@ -2186,11 +2185,12 @@ The server will not act as a slave.");
 }
 
 
+/****************************************************************************
+  Main and thread entry function for Win32
+  (all this is needed only to run mysqld as a service on WinNT)
+****************************************************************************/
+
 #if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
-/* ------------------------------------------------------------------------
-   main and thread entry function for Win32
-   (all this is needed only to run mysqld as a service on WinNT)
- -------------------------------------------------------------------------- */
 int mysql_service(void *p)
 {
   win_main(Service.my_argc, Service.my_argv);
@@ -2202,8 +2202,8 @@ int main(int argc, char **argv)
   if (Service.GetOS())	/* true NT family */
   {
     char file_path[FN_REFLEN];
-    my_path(file_path, argv[0], ""); /* Find name in path */
-    fn_format(file_path,argv[0],file_path,"",1+4+16); /* Force use of full path */
+    my_path(file_path, argv[0], "");		      /* Find name in path */
+    fn_format(file_path,argv[0],file_path,"",1+4+16); /* Force full path */
 
     if (argc == 2)
     {	
@@ -2268,9 +2268,13 @@ int main(int argc, char **argv)
   mysql_service(NULL);
   return 0;
 }
-/* ------------------------------------------------------------------------ */
 #endif
 
+
+/*
+  Execute all commands from a file. Used by the mysql_install_db script to
+  create MySQL privilege tables without having to start a full MySQL server.
+*/
 
 static int bootstrap(FILE *file)
 {
@@ -2476,10 +2480,8 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
       MAYBE_BROKEN_SYSCALL;
       break;
     }
-    /*
-    ** Is this a new connection request
-    */
 
+    /* Is this a new connection request ? */
 #ifdef HAVE_SYS_UN_H
     if (FD_ISSET(unix_sock,&readFDs))
     {
@@ -2717,109 +2719,109 @@ pthread_handler_decl(handle_connections_namedpipes,arg)
 ******************************************************************************/
 
 enum options {
-               OPT_ISAM_LOG=256,            OPT_SKIP_NEW, 
-               OPT_SKIP_GRANT,              OPT_SKIP_LOCK, 
-               OPT_ENABLE_LOCK,             OPT_USE_LOCKING,
-               OPT_SOCKET,                  OPT_UPDATE_LOG, 
-               OPT_BIN_LOG,                 OPT_SKIP_RESOLVE, 
-               OPT_SKIP_NETWORKING,         OPT_BIN_LOG_INDEX,
-               OPT_BIND_ADDRESS,            OPT_PID_FILE,
-               OPT_SKIP_PRIOR,              OPT_BIG_TABLES,    
-               OPT_STANDALONE,              OPT_ONE_THREAD,
-               OPT_CONSOLE,                 OPT_LOW_PRIORITY_UPDATES,
-               OPT_SKIP_HOST_CACHE,         OPT_LONG_FORMAT,   
-               OPT_FLUSH,                   OPT_SAFE, 
-               OPT_BOOTSTRAP,               OPT_SKIP_SHOW_DB,
-               OPT_TABLE_TYPE,              OPT_INIT_FILE,   
-               OPT_DELAY_KEY_WRITE,         OPT_SLOW_QUERY_LOG, 
-               OPT_USE_DELAY_KEY_WRITE,     OPT_CHARSETS_DIR,
-               OPT_BDB_HOME,                OPT_BDB_LOG,  
-               OPT_BDB_TMP,                 OPT_BDB_NOSYNC,
-               OPT_BDB_LOCK,                OPT_BDB_SKIP, 
-               OPT_BDB_NO_RECOVER,	    OPT_BDB_SHARED,
-	       OPT_MASTER_HOST,             OPT_MASTER_USER,
-               OPT_MASTER_PASSWORD,         OPT_MASTER_PORT,
-               OPT_MASTER_INFO_FILE,        OPT_MASTER_CONNECT_RETRY,
-	       OPT_MASTER_RETRY_COUNT,
-	       OPT_MASTER_SSL,             OPT_MASTER_SSL_KEY,
-	       OPT_MASTER_SSL_CERT,            
-               OPT_SQL_BIN_UPDATE_SAME,     OPT_REPLICATE_DO_DB,      
-               OPT_REPLICATE_IGNORE_DB,     OPT_LOG_SLAVE_UPDATES,
-               OPT_BINLOG_DO_DB,            OPT_BINLOG_IGNORE_DB,
-               OPT_WANT_CORE,               OPT_CONCURRENT_INSERT,
-               OPT_MEMLOCK,                 OPT_MYISAM_RECOVER,
-               OPT_REPLICATE_REWRITE_DB,    OPT_SERVER_ID, 
-               OPT_SKIP_SLAVE_START,        OPT_SKIP_INNOBASE,
-               OPT_SAFEMALLOC_MEM_LIMIT,    OPT_REPLICATE_DO_TABLE, 
-               OPT_REPLICATE_IGNORE_TABLE,  OPT_REPLICATE_WILD_DO_TABLE, 
-               OPT_REPLICATE_WILD_IGNORE_TABLE, 
-               OPT_DISCONNECT_SLAVE_EVENT_COUNT, 
-               OPT_ABORT_SLAVE_EVENT_COUNT,
-	       OPT_INNODB_DATA_HOME_DIR,
-               OPT_INNODB_DATA_FILE_PATH,
-	       OPT_INNODB_LOG_GROUP_HOME_DIR, 
-               OPT_INNODB_LOG_ARCH_DIR, 
-               OPT_INNODB_LOG_ARCHIVE, 
-               OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT, 
-               OPT_INNODB_FLUSH_METHOD, 
-               OPT_INNODB_FAST_SHUTDOWN, 
-               OPT_SAFE_SHOW_DB,
-	       OPT_INNODB_SKIP, OPT_SKIP_SAFEMALLOC,
-               OPT_TEMP_POOL, OPT_TX_ISOLATION,
-	       OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
-	       OPT_MAX_BINLOG_DUMP_EVENTS, OPT_SPORADIC_BINLOG_DUMP_FAIL,
-	       OPT_SAFE_USER_CREATE, OPT_SQL_MODE,
-	       OPT_HAVE_NAMED_PIPE,
-               OPT_DO_PSTACK, OPT_REPORT_HOST,
-	       OPT_REPORT_USER, OPT_REPORT_PASSWORD, OPT_REPORT_PORT,
-               OPT_SHOW_SLAVE_AUTH_INFO, OPT_OLD_RPL_COMPAT,
-               OPT_SLAVE_LOAD_TMPDIR, OPT_NO_MIX_TYPE,
-	       OPT_RPL_RECOVERY_RANK,OPT_INIT_RPL_ROLE,
-	       OPT_RELAY_LOG, OPT_RELAY_LOG_INDEX, OPT_RELAY_LOG_INFO_FILE,
-               OPT_SLAVE_SKIP_ERRORS, OPT_DES_KEY_FILE, OPT_LOCAL_INFILE,
-	       OPT_RECKLESS_SLAVE,
-	       OPT_SSL_SSL, OPT_SSL_KEY, OPT_SSL_CERT, OPT_SSL_CA,
-	       OPT_SSL_CAPATH, OPT_SSL_CIPHER,
-	       OPT_BACK_LOG, OPT_BINLOG_CACHE_SIZE,
-	       OPT_CONNECT_TIMEOUT, OPT_DELAYED_INSERT_TIMEOUT,
-	       OPT_DELAYED_INSERT_LIMIT, OPT_DELAYED_QUEUE_SIZE,
-	       OPT_FLUSH_TIME, OPT_FT_MIN_WORD_LEN,
-	       OPT_FT_MAX_WORD_LEN, OPT_FT_MAX_WORD_LEN_FOR_SORT,
-	       OPT_INTERACTIVE_TIMEOUT, OPT_JOIN_BUFF_SIZE,
-	       OPT_KEY_BUFFER_SIZE, OPT_LONG_QUERY_TIME,
-	       OPT_LOWER_CASE_TABLE_NAMES, OPT_MAX_ALLOWED_PACKET,
-	       OPT_MAX_BINLOG_CACHE_SIZE, OPT_MAX_BINLOG_SIZE,
-	       OPT_MAX_CONNECTIONS, OPT_MAX_CONNECT_ERRORS,
-	       OPT_MAX_DELAYED_THREADS, OPT_MAX_HEP_TABLE_SIZE,
-	       OPT_MAX_JOIN_SIZE, OPT_MAX_SORT_LENGTH,
-	       OPT_MAX_TMP_TABLES, OPT_MAX_USER_CONNECTIONS,
-	       OPT_MAX_WRITE_LOCK_COUNT, OPT_MYISAM_BULK_INSERT_TREE_SIZE,
-	       OPT_MYISAM_BLOCK_SIZE, OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
-	       OPT_MYISAM_MAX_SORT_FILE_SIZE, OPT_MYISAM_SORT_BUFFER_SIZE,
-	       OPT_NET_BUFFER_LENGTH, OPT_NET_RETRY_COUNT,
-	       OPT_NET_READ_TIMEOUT, OPT_NET_WRITE_TIMEOUT,
-	       OPT_OPEN_FILES_LIMIT, OPT_QUERY_BUFFER_SIZE,
-	       OPT_QUERY_CACHE_LIMIT, OPT_QUERY_CACHE_SIZE,
-	       OPT_QUERY_CACHE_STARTUP_TYPE, OPT_RECORD_BUFFER,
-	       OPT_RECORD_RND_BUFFER, OPT_RELAY_LOG_SPACE_LIMIT,
-	       OPT_SLAVE_NET_TIMEOUT, OPT_SLOW_LAUNCH_TIME,
-	       OPT_SORT_BUFFER, OPT_TABLE_CACHE,
-	       OPT_THREAD_CONCURRENCY, OPT_THREAD_CACHE_SIZE,
-	       OPT_TMP_TABLE_SIZE, OPT_THREAD_STACK,
-	       OPT_WAIT_TIMEOUT,
-	       OPT_INNODB_MIRRORED_LOG_GROUPS,
-	       OPT_INNODB_LOG_FILES_IN_GROUP,
-	       OPT_INNODB_LOG_FILE_SIZE,
-	       OPT_INNODB_LOG_BUFFER_SIZE,
-	       OPT_INNODB_BUFFER_POOL_SIZE,
-	       OPT_INNODB_ADDITIONAL_MEM_POOL_SIZE,
-	       OPT_INNODB_FILE_IO_THREADS,
-	       OPT_INNODB_LOCK_WAIT_TIMEOUT,
-	       OPT_INNODB_THREAD_CONCURRENCY,
-	       OPT_INNODB_FORCE_RECOVERY,
-	       OPT_BDB_CACHE_SIZE,
-	       OPT_BDB_LOG_BUFFER_SIZE,
-	       OPT_BDB_MAX_LOCK
+  OPT_ISAM_LOG=256,            OPT_SKIP_NEW, 
+  OPT_SKIP_GRANT,              OPT_SKIP_LOCK, 
+  OPT_ENABLE_LOCK,             OPT_USE_LOCKING,
+  OPT_SOCKET,                  OPT_UPDATE_LOG, 
+  OPT_BIN_LOG,                 OPT_SKIP_RESOLVE, 
+  OPT_SKIP_NETWORKING,         OPT_BIN_LOG_INDEX,
+  OPT_BIND_ADDRESS,            OPT_PID_FILE,
+  OPT_SKIP_PRIOR,              OPT_BIG_TABLES,    
+  OPT_STANDALONE,              OPT_ONE_THREAD,
+  OPT_CONSOLE,                 OPT_LOW_PRIORITY_UPDATES,
+  OPT_SKIP_HOST_CACHE,         OPT_LONG_FORMAT,   
+  OPT_FLUSH,                   OPT_SAFE, 
+  OPT_BOOTSTRAP,               OPT_SKIP_SHOW_DB,
+  OPT_TABLE_TYPE,              OPT_INIT_FILE,   
+  OPT_DELAY_KEY_WRITE,         OPT_SLOW_QUERY_LOG, 
+  OPT_USE_DELAY_KEY_WRITE,     OPT_CHARSETS_DIR,
+  OPT_BDB_HOME,                OPT_BDB_LOG,  
+  OPT_BDB_TMP,                 OPT_BDB_NOSYNC,
+  OPT_BDB_LOCK,                OPT_BDB_SKIP, 
+  OPT_BDB_NO_RECOVER,	    OPT_BDB_SHARED,
+  OPT_MASTER_HOST,             OPT_MASTER_USER,
+  OPT_MASTER_PASSWORD,         OPT_MASTER_PORT,
+  OPT_MASTER_INFO_FILE,        OPT_MASTER_CONNECT_RETRY,
+  OPT_MASTER_RETRY_COUNT,
+  OPT_MASTER_SSL,             OPT_MASTER_SSL_KEY,
+  OPT_MASTER_SSL_CERT,            
+  OPT_SQL_BIN_UPDATE_SAME,     OPT_REPLICATE_DO_DB,      
+  OPT_REPLICATE_IGNORE_DB,     OPT_LOG_SLAVE_UPDATES,
+  OPT_BINLOG_DO_DB,            OPT_BINLOG_IGNORE_DB,
+  OPT_WANT_CORE,               OPT_CONCURRENT_INSERT,
+  OPT_MEMLOCK,                 OPT_MYISAM_RECOVER,
+  OPT_REPLICATE_REWRITE_DB,    OPT_SERVER_ID, 
+  OPT_SKIP_SLAVE_START,        OPT_SKIP_INNOBASE,
+  OPT_SAFEMALLOC_MEM_LIMIT,    OPT_REPLICATE_DO_TABLE, 
+  OPT_REPLICATE_IGNORE_TABLE,  OPT_REPLICATE_WILD_DO_TABLE, 
+  OPT_REPLICATE_WILD_IGNORE_TABLE, 
+  OPT_DISCONNECT_SLAVE_EVENT_COUNT, 
+  OPT_ABORT_SLAVE_EVENT_COUNT,
+  OPT_INNODB_DATA_HOME_DIR,
+  OPT_INNODB_DATA_FILE_PATH,
+  OPT_INNODB_LOG_GROUP_HOME_DIR, 
+  OPT_INNODB_LOG_ARCH_DIR, 
+  OPT_INNODB_LOG_ARCHIVE, 
+  OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT, 
+  OPT_INNODB_FLUSH_METHOD, 
+  OPT_INNODB_FAST_SHUTDOWN, 
+  OPT_SAFE_SHOW_DB,
+  OPT_INNODB_SKIP, OPT_SKIP_SAFEMALLOC,
+  OPT_TEMP_POOL, OPT_TX_ISOLATION,
+  OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
+  OPT_MAX_BINLOG_DUMP_EVENTS, OPT_SPORADIC_BINLOG_DUMP_FAIL,
+  OPT_SAFE_USER_CREATE, OPT_SQL_MODE,
+  OPT_HAVE_NAMED_PIPE,
+  OPT_DO_PSTACK, OPT_REPORT_HOST,
+  OPT_REPORT_USER, OPT_REPORT_PASSWORD, OPT_REPORT_PORT,
+  OPT_SHOW_SLAVE_AUTH_INFO, OPT_OLD_RPL_COMPAT,
+  OPT_SLAVE_LOAD_TMPDIR, OPT_NO_MIX_TYPE,
+  OPT_RPL_RECOVERY_RANK,OPT_INIT_RPL_ROLE,
+  OPT_RELAY_LOG, OPT_RELAY_LOG_INDEX, OPT_RELAY_LOG_INFO_FILE,
+  OPT_SLAVE_SKIP_ERRORS, OPT_DES_KEY_FILE, OPT_LOCAL_INFILE,
+  OPT_RECKLESS_SLAVE,
+  OPT_SSL_SSL, OPT_SSL_KEY, OPT_SSL_CERT, OPT_SSL_CA,
+  OPT_SSL_CAPATH, OPT_SSL_CIPHER,
+  OPT_BACK_LOG, OPT_BINLOG_CACHE_SIZE,
+  OPT_CONNECT_TIMEOUT, OPT_DELAYED_INSERT_TIMEOUT,
+  OPT_DELAYED_INSERT_LIMIT, OPT_DELAYED_QUEUE_SIZE,
+  OPT_FLUSH_TIME, OPT_FT_MIN_WORD_LEN,
+  OPT_FT_MAX_WORD_LEN, OPT_FT_MAX_WORD_LEN_FOR_SORT,
+  OPT_INTERACTIVE_TIMEOUT, OPT_JOIN_BUFF_SIZE,
+  OPT_KEY_BUFFER_SIZE, OPT_LONG_QUERY_TIME,
+  OPT_LOWER_CASE_TABLE_NAMES, OPT_MAX_ALLOWED_PACKET,
+  OPT_MAX_BINLOG_CACHE_SIZE, OPT_MAX_BINLOG_SIZE,
+  OPT_MAX_CONNECTIONS, OPT_MAX_CONNECT_ERRORS,
+  OPT_MAX_DELAYED_THREADS, OPT_MAX_HEP_TABLE_SIZE,
+  OPT_MAX_JOIN_SIZE, OPT_MAX_SORT_LENGTH,
+  OPT_MAX_TMP_TABLES, OPT_MAX_USER_CONNECTIONS,
+  OPT_MAX_WRITE_LOCK_COUNT, OPT_MYISAM_BULK_INSERT_TREE_SIZE,
+  OPT_MYISAM_BLOCK_SIZE, OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
+  OPT_MYISAM_MAX_SORT_FILE_SIZE, OPT_MYISAM_SORT_BUFFER_SIZE,
+  OPT_NET_BUFFER_LENGTH, OPT_NET_RETRY_COUNT,
+  OPT_NET_READ_TIMEOUT, OPT_NET_WRITE_TIMEOUT,
+  OPT_OPEN_FILES_LIMIT, OPT_QUERY_BUFFER_SIZE,
+  OPT_QUERY_CACHE_LIMIT, OPT_QUERY_CACHE_SIZE,
+  OPT_QUERY_CACHE_STARTUP_TYPE, OPT_RECORD_BUFFER,
+  OPT_RECORD_RND_BUFFER, OPT_RELAY_LOG_SPACE_LIMIT,
+  OPT_SLAVE_NET_TIMEOUT, OPT_SLOW_LAUNCH_TIME,
+  OPT_SORT_BUFFER, OPT_TABLE_CACHE,
+  OPT_THREAD_CONCURRENCY, OPT_THREAD_CACHE_SIZE,
+  OPT_TMP_TABLE_SIZE, OPT_THREAD_STACK,
+  OPT_WAIT_TIMEOUT,
+  OPT_INNODB_MIRRORED_LOG_GROUPS,
+  OPT_INNODB_LOG_FILES_IN_GROUP,
+  OPT_INNODB_LOG_FILE_SIZE,
+  OPT_INNODB_LOG_BUFFER_SIZE,
+  OPT_INNODB_BUFFER_POOL_SIZE,
+  OPT_INNODB_ADDITIONAL_MEM_POOL_SIZE,
+  OPT_INNODB_FILE_IO_THREADS,
+  OPT_INNODB_LOCK_WAIT_TIMEOUT,
+  OPT_INNODB_THREAD_CONCURRENCY,
+  OPT_INNODB_FORCE_RECOVERY,
+  OPT_BDB_CACHE_SIZE,
+  OPT_BDB_LOG_BUFFER_SIZE,
+  OPT_BDB_MAX_LOCK
 };
 
 
@@ -4020,123 +4022,125 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_bin_log=1;
     break;
   case (int) OPT_INIT_RPL_ROLE:
+  {
+    int role;
+    if ((role=find_type(argument, &rpl_role_typelib, 2)) <= 0)
     {
-      int role;
-      if ((role=find_type(argument, &rpl_role_typelib, 2)) <= 0)
-      {
-	fprintf(stderr, "Unknown replication role: %s\n", argument);
-	exit(1);
-      }
-      rpl_status = (role == 1) ?  RPL_AUTH_MASTER : RPL_IDLE_SLAVE;
-      break;
+      fprintf(stderr, "Unknown replication role: %s\n", argument);
+      exit(1);
     }
+    rpl_status = (role == 1) ?  RPL_AUTH_MASTER : RPL_IDLE_SLAVE;
+    break;
+  }
   case (int)OPT_REPLICATE_IGNORE_DB:
-    {
-      i_string *db = new i_string(argument);
-      replicate_ignore_db.push_back(db);
-      break;
-    }
+  {
+    i_string *db = new i_string(argument);
+    replicate_ignore_db.push_back(db);
+    break;
+  }
   case (int)OPT_REPLICATE_DO_DB:
-    {
-      i_string *db = new i_string(argument);
-      replicate_do_db.push_back(db);
-      break;
-    }
+  {
+    i_string *db = new i_string(argument);
+    replicate_do_db.push_back(db);
+    break;
+  }
   case (int)OPT_REPLICATE_REWRITE_DB:
+  {
+    char* key = argument,*p, *val;
+    
+    if (!(p= strstr(argument, "->")))
     {
-      char* key = argument,*p, *val;
-      p = strstr(argument, "->");
-      if (!p)
-      {
-	fprintf(stderr,
-		"Bad syntax in replicate-rewrite-db - missing '->'!\n");
-	exit(1);
-      }
-      val = p--;
-      while(isspace(*p) && p > argument) *p-- = 0;
-      if(p == argument)
-      {
-	fprintf(stderr,
-		"Bad syntax in replicate-rewrite-db - empty FROM db!\n");
-	exit(1);
-      }
-      *val = 0;
-      val += 2;
-      while(*val && isspace(*val)) *val++;
-      if (!*val)
-      {
-	fprintf(stderr,
-		"Bad syntax in replicate-rewrite-db - empty TO db!\n");
-	exit(1);
-      }
-
-      i_string_pair* db_pair = new i_string_pair(key, val);
-      replicate_rewrite_db.push_back(db_pair);
-      break;
+      fprintf(stderr,
+	      "Bad syntax in replicate-rewrite-db - missing '->'!\n");
+      exit(1);
     }
+    val= p--;
+    while (isspace(*p) && p > argument)
+      *p-- = 0;
+    if (p == argument)
+    {
+      fprintf(stderr,
+	      "Bad syntax in replicate-rewrite-db - empty FROM db!\n");
+      exit(1);
+    }
+    *val= 0;
+    val+= 2;
+    while (*val && isspace(*val))
+      *val++;
+    if (!*val)
+    {
+      fprintf(stderr,
+	      "Bad syntax in replicate-rewrite-db - empty TO db!\n");
+      exit(1);
+    }
+
+    i_string_pair *db_pair = new i_string_pair(key, val);
+    replicate_rewrite_db.push_back(db_pair);
+    break;
+  }
 
   case (int)OPT_BINLOG_IGNORE_DB:
-    {
-      i_string *db = new i_string(argument);
-      binlog_ignore_db.push_back(db);
-      break;
-    }
+  {
+    i_string *db = new i_string(argument);
+    binlog_ignore_db.push_back(db);
+    break;
+  }
   case (int)OPT_BINLOG_DO_DB:
-    {
-      i_string *db = new i_string(argument);
-      binlog_do_db.push_back(db);
-      break;
-    }
+  {
+    i_string *db = new i_string(argument);
+    binlog_do_db.push_back(db);
+    break;
+  }
   case (int)OPT_REPLICATE_DO_TABLE:
+  {
+    if (!do_table_inited)
+      init_table_rule_hash(&replicate_do_table, &do_table_inited);
+    if (add_table_rule(&replicate_do_table, argument))
     {
-      if (!do_table_inited)
-	init_table_rule_hash(&replicate_do_table, &do_table_inited);
-      if(add_table_rule(&replicate_do_table, argument))
-      {
-	fprintf(stderr, "Could not add do table rule '%s'!\n", argument);
-	exit(1);
-      }
-      table_rules_on = 1;
-      break;
+      fprintf(stderr, "Could not add do table rule '%s'!\n", argument);
+      exit(1);
     }
+    table_rules_on = 1;
+    break;
+  }
   case (int)OPT_REPLICATE_WILD_DO_TABLE:
+  {
+    if (!wild_do_table_inited)
+      init_table_rule_array(&replicate_wild_do_table,
+			    &wild_do_table_inited);
+    if (add_wild_table_rule(&replicate_wild_do_table, argument))
     {
-      if (!wild_do_table_inited)
-	init_table_rule_array(&replicate_wild_do_table,
-			      &wild_do_table_inited);
-      if(add_wild_table_rule(&replicate_wild_do_table, argument))
-      {
-	fprintf(stderr, "Could not add do table rule '%s'!\n", argument);
-	exit(1);
-      }
-      table_rules_on = 1;
-      break;
+      fprintf(stderr, "Could not add do table rule '%s'!\n", argument);
+      exit(1);
     }
+    table_rules_on = 1;
+    break;
+  }
   case (int)OPT_REPLICATE_WILD_IGNORE_TABLE:
+  {
+    if (!wild_ignore_table_inited)
+      init_table_rule_array(&replicate_wild_ignore_table,
+			    &wild_ignore_table_inited);
+    if (add_wild_table_rule(&replicate_wild_ignore_table, argument))
     {
-      if (!wild_ignore_table_inited)
-	init_table_rule_array(&replicate_wild_ignore_table,
-			      &wild_ignore_table_inited);
-      if(add_wild_table_rule(&replicate_wild_ignore_table, argument))
-      {
-	fprintf(stderr, "Could not add ignore table rule '%s'!\n", argument);
-	exit(1);
-      }
-      table_rules_on = 1;
-      break;
+      fprintf(stderr, "Could not add ignore table rule '%s'!\n", argument);
+      exit(1);
     }
+    table_rules_on = 1;
+    break;
+  }
   case (int)OPT_REPLICATE_IGNORE_TABLE:
+  {
+    if (!ignore_table_inited)
+      init_table_rule_hash(&replicate_ignore_table, &ignore_table_inited);
+    if (add_table_rule(&replicate_ignore_table, argument))
     {
-      if (!ignore_table_inited)
-	init_table_rule_hash(&replicate_ignore_table, &ignore_table_inited);
-      if(add_table_rule(&replicate_ignore_table, argument))
-      {
-	fprintf(stderr, "Could not add ignore table rule '%s'!\n", argument);
-	exit(1);
-      }
-      table_rules_on = 1;
-      break;
+      fprintf(stderr, "Could not add ignore table rule '%s'!\n", argument);
+      exit(1);
     }
+    table_rules_on = 1;
+    break;
+  }
   case (int) OPT_SLOW_QUERY_LOG:
     opt_slow_log=1;
     break;
@@ -4260,16 +4264,16 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_noacl=opt_bootstrap=1;
     break;
   case OPT_TABLE_TYPE:
+  {
+    int type;
+    if ((type=find_type(argument, &ha_table_typelib, 2)) <= 0)
     {
-      int type;
-      if ((type=find_type(argument, &ha_table_typelib, 2)) <= 0)
-      {
-	fprintf(stderr,"Unknown table type: %s\n",argument);
-	exit(1);
-      }
-      default_table_type= (enum db_type) type;
-      break;
+      fprintf(stderr,"Unknown table type: %s\n",argument);
+      exit(1);
     }
+    default_table_type= (enum db_type) type;
+    break;
+  }
   case OPT_SERVER_ID:
     server_id_supplied = 1;
     break;
@@ -4293,16 +4297,16 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #endif
     break;
   case OPT_TX_ISOLATION:
+  {
+    int type;
+    if ((type=find_type(argument, &tx_isolation_typelib, 2)) <= 0)
     {
-      int type;
-      if ((type=find_type(argument, &tx_isolation_typelib, 2)) <= 0)
-      {
-	fprintf(stderr,"Unknown transaction isolation type: %s\n",argument);
-	exit(1);
-      }
-      default_tx_isolation= (enum_tx_isolation) (type-1);
-      break;
+      fprintf(stderr,"Unknown transaction isolation type: %s\n",argument);
+      exit(1);
     }
+    default_tx_isolation= (enum_tx_isolation) (type-1);
+    break;
+  }
 #ifdef HAVE_BERKELEY_DB
   case OPT_BDB_NOSYNC:
     berkeley_env_flags|=DB_TXN_NOSYNC;
@@ -4311,22 +4315,22 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     berkeley_init_flags&= ~(DB_RECOVER);
     break;
   case OPT_BDB_LOCK:
+  {
+    int type;
+    if ((type=find_type(argument, &berkeley_lock_typelib, 2)) > 0)
+      berkeley_lock_type=berkeley_lock_types[type-1];
+    else
     {
-      int type;
-      if ((type=find_type(argument, &berkeley_lock_typelib, 2)) > 0)
-	berkeley_lock_type=berkeley_lock_types[type-1];
+      if (test_if_int(argument,(uint) strlen(argument)))
+	berkeley_lock_scan_time=atoi(argument);
       else
       {
-	if (test_if_int(argument,(uint) strlen(argument)))
-	  berkeley_lock_scan_time=atoi(argument);
-	else
-	{
-	  fprintf(stderr,"Unknown lock type: %s\n",argument);
-	  exit(1);
-	}
+	fprintf(stderr,"Unknown lock type: %s\n",argument);
+	exit(1);
       }
-      break;
     }
+    break;
+  }
   case OPT_BDB_SHARED:
     berkeley_init_flags&= ~(DB_PRIVATE);
     berkeley_shared_data=1;
@@ -4361,39 +4365,39 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
 #endif /* HAVE_INNOBASE_DB */
   case OPT_MYISAM_RECOVER:
+  {
+    if (!argument || !argument[0])
     {
-      if (!argument || !argument[0])
-      {
-	myisam_recover_options=    HA_RECOVER_DEFAULT;
-	myisam_recover_options_str= myisam_recover_typelib.type_names[0];
-      }
-      else
-      {
-	myisam_recover_options_str=argument;
-	if ((myisam_recover_options=
-	     find_bit_type(argument, &myisam_recover_typelib)) == ~(ulong) 0)
-	{
-	  fprintf(stderr, "Unknown option to myisam-recover: %s\n",argument);
-	  exit(1);
-	}
-      }
-      ha_open_options|=HA_OPEN_ABORT_IF_CRASHED;
-      break;
+      myisam_recover_options=    HA_RECOVER_DEFAULT;
+      myisam_recover_options_str= myisam_recover_typelib.type_names[0];
     }
-  case OPT_SQL_MODE:
+    else
     {
-      sql_mode_str = argument;
-      if ((opt_sql_mode =
-	   find_bit_type(argument, &sql_mode_typelib)) == ~(ulong) 0)
+      myisam_recover_options_str=argument;
+      if ((myisam_recover_options=
+	   find_bit_type(argument, &myisam_recover_typelib)) == ~(ulong) 0)
       {
-	fprintf(stderr, "Unknown option to sql-mode: %s\n", argument);
+	fprintf(stderr, "Unknown option to myisam-recover: %s\n",argument);
 	exit(1);
       }
-      default_tx_isolation= ((opt_sql_mode & MODE_SERIALIZABLE) ?
-			     ISO_SERIALIZABLE :
-			     ISO_READ_COMMITTED);
-      break;
     }
+    ha_open_options|=HA_OPEN_ABORT_IF_CRASHED;
+    break;
+  }
+  case OPT_SQL_MODE:
+  {
+    sql_mode_str = argument;
+    if ((opt_sql_mode =
+	 find_bit_type(argument, &sql_mode_typelib)) == ~(ulong) 0)
+    {
+      fprintf(stderr, "Unknown option to sql-mode: %s\n", argument);
+      exit(1);
+    }
+    default_tx_isolation= ((opt_sql_mode & MODE_SERIALIZABLE) ?
+			   ISO_SERIALIZABLE :
+			   ISO_READ_COMMITTED);
+    break;
+  }
   case OPT_MASTER_PASSWORD:
     master_password=argument;
     break;
@@ -4576,10 +4580,10 @@ static uint set_maximum_open_files(uint max_file_limit)
 }
 #endif
 
-	/*
-	  Return a bitfield from a string of substrings separated by ','
-	  returns ~(ulong) 0 on error.
-	*/
+/*
+  Return a bitfield from a string of substrings separated by ','
+  returns ~(ulong) 0 on error.
+*/
 
 static ulong find_bit_type(const char *x, TYPELIB *bit_lib)
 {
@@ -4637,7 +4641,7 @@ skipp: ;
 
 
 /*****************************************************************************
-** Instantiate templates
+  Instantiate templates
 *****************************************************************************/
 
 #ifdef __GNUC__
