@@ -76,12 +76,11 @@ This is a manual about @strong{MySQL} internals.
 We use @uref{http://www.bitkeeper.com/, BitKeeper} for source management.
 
 @item
-You should use the @strong{MySQL} 4.0 source for all developments.
+You should use the @strong{MySQL} 4.1 source for all developments.
 
 @item
 If you have any questions about the @strong{MySQL} source, you can post these
-to @email{dev-public@@mysql.com} and we will answer them.  Please
-remember to not use this internal email list in public!
+to @email{internals@@mysql.com} and we will answer them.
 
 @item
 Try to write code in a lot of black boxes that can be reused or use at
@@ -2136,8 +2135,9 @@ record and the next one. The overflow pointer is the location of the rest of
 the record if there are multiple parts.
 @*
 
-For example, here is a dynamic row:@*
-@example(
+For example, here is a dynamic row:
+@*
+@example
 03, 00             start of header
 04                 actual length
 0c                 unused length
@@ -2171,7 +2171,7 @@ format), and /myisam/mi_packrec.c (for packed format).
 
 Note: Internally, MySQL uses a format much like the fixed format 
 which it uses for disk storage. The main differences are:
-@enumerate @bullet
+@enumerate
 @item
 BLOBs have a length and a memory pointer rather than being stored inline.
 @item
