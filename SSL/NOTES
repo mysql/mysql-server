@@ -1,0 +1,361 @@
+Quick notes:
+
+To remove passwords from keyfiles:
+
+
+[tonu@x153 SSL]$ openssl rsa -inform pem  < server-req.pem > server-key.pem
+read RSA key
+Enter PEM pass phrase:
+writing RSA key
+[tonu@x153 SSL]$
+--------------------------------------------
+To run server:
+
+sql/mysqld --ssl-ca=SSL/cacert.pem --ssl-cert=SSL/server-cert.pem --ssl-key=SSL/server-key.pem --skip-grant --debug='d:t:O,-' > /tmp/mysqld.trace
+
+--------------------------------------------
+To run client:
+
+client/mysql --ssl-ca=SSL/cacert.pem --ssl-cert=SSL/server-cert.pem --ssl-key=SSL/server-key.pem --debug='d:t:O,/tmp/client.trace' -h 127.0.0.1
+
+--------------------------------------------
+openssl s_client -host 127.0.0.1 -port 1111 -debug -verify 1 -cert ../SSL/client-cert.pem -key ../SSL/client-key.pem -CAfile ../SSL/cacert.pem -pause  -showcerts -state
+
+--------------------------------------------
+openssl s_server -port 1111 -cert ../SSL/server-cert.pem -key ../SSL/server-key.pem
+
+
+
+
+
+
+
+[tonu@x153 bin]$ pwd
+/usr/local/ssl/bin
+[tonu@x153 bin]$
+[tonu@x153 bin]$ ./CA.sh
+[tonu@x153 bin]$ ./CA.sh -h
+usage: CA -newcert|-newreq|-newca|-sign|-verify
+[tonu@x153 bin]$
+[root@x153 bin]# ./CA.sh -newca
+CA certificate filename (or enter to create)
+
+Making CA certificate ...
+Using configuration from /usr/lib/ssl/openssl.cnf
+Generating a 1024 bit RSA private key
+.++++++
+................++++++
+writing new private key to './demoCA/private/./cakey.pem'
+Enter PEM pass phrase:
+Verifying password - Enter PEM pass phrase:
+phrase is too short, needs to be at least 4 chars
+Enter PEM pass phrase:
+Verifying password - Enter PEM pass phrase:
+-----
+You are about to be asked to enter information that will be incorporated
+into your certificate request.
+What you are about to enter is what is called a Distinguished Name or a DN.
+There are quite a few fields but you can leave some blank
+For some fields there will be a default value,
+If you enter '.', the field will be left blank.
+-----
+ountry Name (2 letter code) [AU]:FI
+State or Province Name (full name) [Some-State]:
+Locality Name (eg, city) []:Helsinki
+Organization Name (eg, company) [Internet Widgits Pty Ltd]:MySQL Finland AB
+Organizational Unit Name (eg, section) []:
+Common Name (eg, YOUR name) []:Tonu Samuel
+Email Address []:tonu@mysql.com
+[root@x153 bin]#
+[root@x153 bin]# ls -la demoCA/
+total 13
+drwxr-xr-x    6 root     root          232 Jun 24 18:50 ./
+drwxr-xr-x    3 root     root         2136 Jun 24 18:41 ../
+-rw-r--r--    1 root     root         1241 Jun 24 18:50 cacert.pem
+drwxr-xr-x    2 root     root           48 Jun 24 18:41 certs/
+drwxr-xr-x    2 root     root           48 Jun 24 18:41 crl/
+-rw-r--r--    1 root     root            0 Jun 24 18:44 index.txt
+drwxr-xr-x    2 root     root           48 Jun 24 18:41 newcerts/
+drwxr-xr-x    2 root     root           80 Jun 24 18:44 private/
+-rw-r--r--    1 root     root            3 Jun 24 18:44 serial
+[root@x153 bin]#
+[root@x153 bin]# ls -la demoCA/private/
+total 5
+drwxr-xr-x    2 root     root           80 Jun 24 18:44 ./
+drwxr-xr-x    6 root     root          232 Jun 24 18:50 ../
+-rw-r--r--    1 root     root          963 Jun 24 18:50 cakey.pem
+[root@x153 bin]#
+[root@x153 bin]# ./CA.sh -newreq
+Using configuration from /usr/lib/ssl/openssl.cnf
+Generating a 1024 bit RSA private key
+..................++++++
+........................++++++
+writing new private key to 'newreq.pem'
+Enter PEM pass phrase: <- new key password, not CA
+Verifying password - Enter PEM pass phrase:
+-----
+You are about to be asked to enter information that will be incorporated
+into your certificate request.
+What you are about to enter is what is called a Distinguished Name or a DN.
+There are quite a few fields but you can leave some blank
+For some fields there will be a default value,
+If you enter '.', the field will be left blank.
+-----
+Country Name (2 letter code) [AU]:EE
+State or Province Name (full name) [Some-State]:
+Locality Name (eg, city) []:Tallinn
+Organization Name (eg, company) [Internet Widgits Pty Ltd]:Noname
+Organizational Unit Name (eg, section) []:
+Common Name (eg, YOUR name) []:Mr Noname
+Email Address []:a@b.c
+
+Please enter the following 'extra' attributes
+to be sent with your certificate request
+A challenge password []:
+An optional company name []:
+Request (and private key) is in newreq.pem
+[root@x153 bin]#
+[root@x153 bin]# ls -la newreq.pem
+-rw-r--r--    1 root     root         1623 Jun 24 18:54 newreq.pem
+[root@x153 bin]#
+[root@x153 bin]# ./CA.sh -sign
+Using configuration from /usr/lib/ssl/openssl.cnf
+Enter PEM pass phrase: <- CA's one!
+Check that the request matches the signature
+Signature ok
+The Subjects Distinguished Name is as follows
+countryName           :PRINTABLE:'EE'
+stateOrProvinceName   :PRINTABLE:'Some-State'
+localityName          :PRINTABLE:'Tallinn'
+organizationName      :PRINTABLE:'Noname'
+commonName            :PRINTABLE:'Mr Noname'
+emailAddress          :IA5STRING:'a@b.c'
+Certificate is to be certified until Jun 24 15:50:23 2002 GMT (365 days)
+Sign the certificate? [y/n]:y
+
+
+1 out of 1 certificate requests certified, commit? [y/n]y
+Write out database with 1 new entries
+Data Base Updated
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 1 (0x1)
+        Signature Algorithm: md5WithRSAEncryption
+        Issuer: C=FI, ST=Some-State, L=Helsinki, O=MySQL Finland AB, CN=Tonu Samuel/Email=tonu@mysql.com
+        Validity
+            Not Before: Jun 24 15:50:23 2001 GMT
+            Not After : Jun 24 15:50:23 2002 GMT
+        Subject: C=EE, ST=Some-State, L=Tallinn, O=Noname, CN=Mr Noname/Email=a@b.c
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+            RSA Public Key: (1024 bit)
+                Modulus (1024 bit):
+                    00:ab:3b:7d:5b:6c:93:f6:46:1a:2c:46:73:6f:89:
+                    8a:99:bb:e9:6b:94:0d:74:aa:aa:c4:5c:a2:61:cf:
+                    56:bb:a1:a9:5a:37:c4:4e:b2:ec:5c:18:3a:a4:8d:
+                    af:3d:23:66:7c:85:7f:d1:f2:e3:fc:16:a7:4c:a2:
+                    d6:45:06:92:75:d8:a2:3b:f9:aa:77:da:26:b9:87:
+                    e0:df:50:54:e4:36:9f:35:87:39:8e:a6:7c:3e:a8:
+                    e4:49:1a:76:c2:6f:73:0b:22:93:2a:04:67:0d:7d:
+                    ae:34:5c:fe:7c:29:b8:a2:fe:1e:ef:d1:0c:4d:dd:
+                    5b:7a:67:b0:0a:22:88:a0:af
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Basic Constraints: 
+                CA:FALSE
+            Netscape Comment: 
+                OpenSSL Generated Certificate
+            X509v3 Subject Key Identifier: 
+                83:D1:0D:52:0F:DE:61:2D:A6:10:20:B8:46:0C:77:D5:D2:D0:BE:20
+            X509v3 Authority Key Identifier: 
+                keyid:A5:0A:D6:72:B5:DF:E4:C2:2B:7B:07:5E:D3:4D:52:07:E1:83:6B:7F
+                DirName:/C=FI/ST=Some-State/L=Helsinki/O=MySQL Finland AB/CN=Tonu Samuel/Email=tonu@mysql.com
+                serial:00
+
+    Signature Algorithm: md5WithRSAEncryption
+        60:85:f7:d0:54:2a:67:88:0e:37:a6:a8:8e:fd:a0:c9:a1:d7:
+        c6:fc:4c:2e:59:8d:88:6d:69:0a:b8:b2:67:5f:81:94:39:0e:
+        ab:67:fc:8b:62:de:85:f6:b3:8c:2d:1a:e3:dc:28:fc:f5:99:
+        39:f0:3d:50:ca:88:c0:8e:f8:c2:02:5d:34:19:63:9f:c4:a2:
+        f6:a8:81:c9:8d:6d:bd:c4:42:4a:0c:49:5a:cc:24:ea:65:80:
+        dd:79:20:89:9e:ea:6b:80:7a:86:f9:bb:6d:24:3c:80:13:5b:
+        e6:16:fc:3d:8d:f6:16:ea:33:25:c6:90:20:81:a4:b0:15:2e:
+        9c:1c
+-----BEGIN CERTIFICATE-----
+MIIDfjCCAuegAwIBAgIBATANBgkqhkiG9w0BAQQFADCBhTELMAkGA1UEBhMCRkkx
+EzARBgNVBAgTClNvbWUtU3RhdGUxETAPBgNVBAcTCEhlbHNpbmtpMRkwFwYDVQQK
+ExBNeVNRTCBGaW5sYW5kIEFCMRQwEgYDVQQDEwtUb251IFNhbXVlbDEdMBsGCSqG
+SIb3DQEJARYOdG9udUBteXNxbC5jb20wHhcNMDEwNjI0MTU1MDIzWhcNMDIwNjI0
+MTU1MDIzWjBvMQswCQYDVQQGEwJFRTETMBEGA1UECBMKU29tZS1TdGF0ZTEQMA4G
+A1UEBxMHVGFsbGlubjEPMA0GA1UEChMGTm9uYW1lMRIwEAYDVQQDEwlNciBOb25h
+bWUxFDASBgkqhkiG9w0BCQEWBWFAYi5jMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCB
+iQKBgQCrO31bbJP2RhosRnNviYqZu+lrlA10qqrEXKJhz1a7oalaN8ROsuxcGDqk
+ja89I2Z8hX/R8uP8FqdMotZFBpJ12KI7+ap32ia5h+DfUFTkNp81hzmOpnw+qORJ
+GnbCb3MLIpMqBGcNfa40XP58Kbii/h7v0QxN3Vt6Z7AKIoigrwIDAQABo4IBETCC
+AQ0wCQYDVR0TBAIwADAsBglghkgBhvhCAQ0EHxYdT3BlblNTTCBHZW5lcmF0ZWQg
+Q2VydGlmaWNhdGUwHQYDVR0OBBYEFIPRDVIP3mEtphAguEYMd9XS0L4gMIGyBgNV
+HSMEgaowgaeAFKUK1nK13+TCK3sHXtNNUgfhg2t/oYGLpIGIMIGFMQswCQYDVQQG
+EwJGSTETMBEGA1UECBMKU29tZS1TdGF0ZTERMA8GA1UEBxMISGVsc2lua2kxGTAX
+BgNVBAoTEE15U1FMIEZpbmxhbmQgQUIxFDASBgNVBAMTC1RvbnUgU2FtdWVsMR0w
+GwYJKoZIhvcNAQkBFg50b251QG15c3FsLmNvbYIBADANBgkqhkiG9w0BAQQFAAOB
+gQBghffQVCpniA43pqiO/aDJodfG/EwuWY2IbWkKuLJnX4GUOQ6rZ/yLYt6F9rOM
+LRrj3Cj89Zk58D1QyojAjvjCAl00GWOfxKL2qIHJjW29xEJKDElazCTqZYDdeSCJ
+nuprgHqG+bttJDyAE1vmFvw9jfYW6jMlxpAggaSwFS6cHA==
+-----END CERTIFICATE-----
+Signed certificate is in newcert.pem
+[root@x153 bin]# ls -la demoCA/newcerts/
+total 5
+drwxr-xr-x    2 root     root           72 Jun 24 18:58 ./
+drwxr-xr-x    6 root     root          296 Jun 24 18:58 ../
+-rw-r--r--    1 root     root         3533 Jun 24 18:58 01.pem
+[root@x153 bin]#
+[root@x153 mysql-4.0]# ./sql/mysqld --ssl-cert=SSL/server-cert.pem --ssl-ca=SSL/cacert.pem --ssl-ke
+y=SSL/server-req.pem  -L /home/tonu/mysql-4.0/sql/share/english/ -u root
+Enter PEM pass phrase:
+./sql/mysqld: ready for connections
+[tonu@x153 mysql-4.0]$ client/mysql --ssl-key=SSL/client-req.pem --ssl-ca=SSL/cacert.pem --ssl-cert
+=SSL/client-cert.pem
+Enter PEM pass phrase:
+ERROR:
+
+[tonu@x153 mysql-4.0]$
+
+
+
+
+-8<------------------------
+SSL encrypts data between MySQL server and client.
+
+You need openssl (formerly SSLeay) for MySQL SSL support. Development
+and testing was done on openssl version 0.9.3a 
+
+To compile MySQL one must do:
+./configure --with-openssl=/usr  
+
+or
+
+./configure --with-openssl=yes
+
+There are sample keys and certificates included with MySQL tarball in
+directory ./SSL. They are meant to be for quick start and 
+testing only. Using them in production environment means same as not
+using encryption. This is because private keys are publicly 
+accessible for everyone. You must use openssl distribution for new key
+and certificate generation for both client and server.
+
+----------- for manual: ---------------------
+*New API calls:*
+
+mysql_ssl_set()                 - Set SSL properties (key, certificate,
+certificates authority certificate). Must be called before
+mysql_real_connect();
+mysql_ssl_clear()               - Clear and free resources occupied by
+mysql_ssl_set() API call.
+char *mysql_ssl_cipher(MYSQL *) - returns cipher in use. For example
+"DES-CDC3-SHA" means that you have combined triple DES symmetric
+algorithm and SHA
+hashing algorithm. 
+
+
+*New command line switches:*
+--ssl            Use SSL for connection (automatically set with
+other flags. This means one can use encrypted connection without strong
+cryptological authentication. Normally one must use all switches
+together including ssl-key, ssl-cert and ssl-ca and never mind about
+--ssl because this is assumed by defult if any of them (--ssl-...)
+included.
+--ssl-key        X509 key in PEM format (implies --ssl)
+--ssl-cert       X509 cert in PEM format (implies --ssl)
+--ssl-ca         CA file in PEM format (check OpenSSL docs,
+implies --ssl)
+--ssl-capath     CA directory (check OpenSSL docs, implies --ssl
+																										            ----------------
+																											    This is about using SSL in MySQL privilege system. My idea is to make 
+																											possible use of x509 certificates and keys instead of MySQL native
+																											passwords
+Some basic theory about crypt, SSL and x509:
+x509 is standard for certificates. SSL is standard for secure
+communication. Certificates are issued by someone anyone can trust. This
+trusted party is called "Certificate Authority" or "CA". This is
+someone, we MUST trust. Everyone must have some "fingerprint" of CA (so
+called "CA certificate" or "CA cert") using which one can verify
+authenticity of other 
+certificates issued by this CA. CA uses his power to give certificates
+to persons (they can be physical (like "monty") or logical (like some
+process). Person is identified by "subject" like
+"/C=EE/ST=Harjumaa/L=Tallinn/O=MySQL client bogus certificate/CN=Tonu
+Samuel/Email=<EMAIL: PROTECTED>". and signed cryptologically. This sign can be
+verified using CA-cert. So, if we trust CA, then we can trust identity
+of user.
+There can be many CA-s (usually not but who knows). Also there can be
+some users we don`t trust or have different privileges. This means we
+must have one table to hold CA-certs and other table to hold so called
+"subjects" (users). I think it`s a good idea to use existing structure
+of host/user/db/field and add some x509 relationship. Then we can
+use usual simple user/host pair or x509 subject/CA pair. 
+So I think user must grant rights using old method GRANT blabla ON
+blabla TO blabla IDENTIFIED BY blabla
+or new way:
+-----------8<---------------------------
+GRANT blabla ON blabla TO blabla 
+IDENTIFIED BY X509 SUBJECT "/C=EE/ST=Harjumaa/L=Tallinn/O=MySQL client
+bogus certificate/CN=Tonu Samuel/Email=<EMAIL: PROTECTED>" AND ISSUER
+"/C=EE/ST=Harjumaa/L=Tallinn/O=TCX AB/CN=Tonu
+Samuel/Email=<EMAIL: PROTECTED>";
+-----------8<---------------------------
+Please note the difference in Subject and Issuer. This command requests
+user to authenticate itself with exact subject and exact certificate
+issuer. Next possibility is just have any certificate of some good CA:
+-----------8<---------------------------
+GRANT blabla ON blabla TO blabla IDENTIFIED BY X509 ISSUER
+"/C=EE/ST=Harjumaa/L=Tallinn/O=TCX
+AB/CN=Tonu Samuel/Email=<EMAIL: PROTECTED>";
+-----------8<---------------------------
+or if any registered CA is good enough (usual case when only one CA is
+registered) 
+but we care about exact user, then something like: 
+-----------8<---------------------------
+GRANT blabla ON blabla TO blabla IDENTIFIED BY X509 SUBJECT
+"/C=EE/ST=Harjumaa/L=Tallinn/O=MySQL client
+bogus certificate/CN=Tonu Samuel/Email=<EMAIL: PROTECTED>";
+-----------8<---------------------------
+And case if user must authenticate itself but we don`t care about exact 
+person until he have some certificate issued by CA registered in our
+system:
+-----------8<---------------------------
+GRANT blabla ON blabla TO blabla IDENTIFIED BY X509;
+-----------8<---------------------------
+Then additionally we need one exception. Let`s assume we need SSL
+encryption 
+for preventing eavesdropping but we don`t care who it is at all. We need 
+privilege to exclude all non-SSL users but we accept anyone using SSL.
+How 
+this must be done in GRANT syntax? Maybe:
+-----------8<---------------------------
+GRANT blabla ON blabla TO blabla 
+IDENTIFIED BY blabla AND USING SSL
+-----------8<---------------------------
+But maybe we want to add in future possibility to check different
+algorithms and key lengths? Something like:
+-----------8<---------------------------
+GRANT blabla ON blabla TO blabla IDENTIFIED BY blabla AND USING SSL WITH
+CIPHER "DES-CBC3-SHA" OR "DES-CBC3-MD5"
+-----------8<---------------------------
+Also we need some command to include/exclude CA certificates. This must
+be some commands like INSERT/DELETE/UPDATE/REPLACE to do it. 
+All examples is given for clarify my problem. I asking for help because
+I don`t know
+any similar command in other SQL-s. 
+------------8<------------------------
+
+So, at moment SSL communications is ready and working. I don`t have this
+command iterface at moment yet and this can be changed a lot if someone
+can suggest good idea or reason to change them. We are ready to listen
+every opinion. 
+About Kerberos: I just don`t know much about it. I have to read this
+again before I can comment. I never used it itself and forgot most of
+theory. Sorry. Anyway now the problem/need is known and I will put
+thinking about this in personal TODO. 
+
+

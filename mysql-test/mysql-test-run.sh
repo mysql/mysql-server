@@ -138,6 +138,15 @@ while test $# -gt 0; do
     --tmpdir=*) MYSQL_TMP_DIR=`$ECHO "$1" | $SED -e "s;--tmpdir=;;"` ;;
     --master_port=*) MASTER_MYPORT=`$ECHO "$1" | $SED -e "s;--master_port=;;"` ;;
     --slave_port=*) SLAVE_MYPORT=`$ECHO "$1" | $SED -e "s;--slave_port=;;"` ;;
+    --with-openssl)
+     EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT \
+     --ssl-ca=../SSL/cacert.pem \
+     --ssl-cert=../SSL/server-cert.pem \
+     --ssl-key=../SSL/server-key.pem"
+     EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT \
+     --ssl-ca=../SSL/cacert.pem \
+     --ssl-cert=../SSL/server-cert.pem \
+     --ssl-key=../SSL/server-key.pem" ;;
     --skip-innobase)
      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-innobase"
      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-innobase" ;;
