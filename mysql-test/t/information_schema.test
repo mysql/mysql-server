@@ -2,6 +2,7 @@
 # Test for information_schema.schemata &
 # show databases
 
+show variables variable_name where variable_name like "skip_show_database";
 grant all privileges on test.* to mysqltest_1@localhost;
 
 select * from information_schema.SCHEMATA where schema_name > 'm';
@@ -346,3 +347,10 @@ select TABLE_ROWS from information_schema.tables where
 table_schema="information_schema" and table_name="COLUMNS";
 select table_type from information_schema.tables
 where table_schema="mysql" and table_name="user";
+
+# test for 'show open tables ... where'
+show open tables where `table` like "user";
+# test for 'show status ... where'
+show status variable_name where variable_name like "%database%";
+# test for 'show variables ... where'
+show variables variable_name where variable_name like "%database%";
