@@ -28,7 +28,8 @@ all:			$(targets) txt_files
 txt_files:		../INSTALL-SOURCE ../COPYING ../COPYING.LIB \
 			../MIRRORS INSTALL-BINARY
 
-CLEAN_FILES:		manual.ps
+CLEAN_FILES:		$(BUILD_SOURCES)
+	touch $(BUILD_SOURCES)
 
 # The PostScript and PDF version are so big that they are not included in the
 # standard distribution. It is available for download from the home page.  
