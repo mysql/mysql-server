@@ -626,6 +626,28 @@ int Item_field::save_in_field(Field *to)
   Store null in field
 
   SYNOPSIS
+    save_in_field()
+    field		Field where we want to store NULL
+
+  DESCRIPTION
+    This is used on INSERT.
+    Allow NULL to be inserted in timestamp and auto_increment values
+
+  RETURN VALUES
+    0	 ok
+    1	 Field doesn't support NULL values and can't handle 'field = NULL'
+*/   
+
+int Item_null::save_in_field(Field *field)
+{
+  return set_field_to_null_with_conversions(field);
+}
+
+
+/*
+  Store null in field
+
+  SYNOPSIS
     save_safe_in_field()
     field		Field where we want to store NULL
 
