@@ -1470,7 +1470,14 @@ void st_select_lex::print_order(String *str, ORDER *order)
 {
   for (; order; order= order->next)
   {
-    (*order->item)->print(str);
+    if (order->counter_used)
+    {
+      char buffer[20];
+      my_snprintf(buffer, 20, "%u", order->counter);
+      str->append(buffer);
+    }
+    else
+      (*order->item)->print(str);
     if (!order->asc)
       str->append(" desc", 5);
     if (order->next)

@@ -2274,6 +2274,18 @@ bool Item_func_set_collation::eq(const Item *item, bool binary_cmp) const
   return 1;
 }
 
+
+void Item_func_set_collation::print(String *str)
+{
+  str->append('(');
+  args[0]->print(str);
+  str->append(" collate ", 9);
+  DBUG_ASSERT(args[1]->basic_const_item() &&
+              args[1]->type() == Item::STRING_ITEM);
+  args[1]->str_value.print(str);
+  str->append(')');
+}
+
 String *Item_func_charset::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);

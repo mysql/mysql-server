@@ -2136,7 +2136,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_DO:
     if (all_tables &&
 	((res= check_table_access(thd, SELECT_ACL, all_tables, 0)) ||
-		   (res= open_and_lock_tables(thd, all_tables))))
+         (res= open_and_lock_tables(thd, all_tables))))
 	break;
 
     res= mysql_do(thd, *lex->insert_list);
@@ -2400,7 +2400,6 @@ mysql_execute_command(THD *thd)
 
       if (!(res= open_and_lock_tables(thd, select_tables)))
       {
-	res= -1;				// If error
         if ((result= new select_create(create_table,
 				       &lex->create_info,
 				       lex->create_list,
@@ -4247,7 +4246,7 @@ mysql_init_query(THD *thd, uchar *buf, uint length, bool lexonly)
   lex->lock_option= TL_READ;
   lex->found_colon= 0;
   lex->safe_to_cache_query= 1;
-  lex->query_tables= 0;
+  lex->proc_table= lex->query_tables= 0;
   lex->query_tables_last= &lex->query_tables;
   lex->variables_used= 0;
   lex->select_lex.parent_lex= lex;
@@ -4936,6 +4935,7 @@ bool add_to_list(THD *thd, SQL_LIST &list,Item *item,bool asc)
   order->asc = asc;
   order->free_me=0;
   order->used=0;
+  order->counter_used= 0;
   list.link_in_list((byte*) order,(byte**) &order->next);
   DBUG_RETURN(0);
 }

@@ -99,8 +99,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     loaded is located
   */
   char *tdb= thd->db ? thd->db : db;		// Result is never null
-  bool transactional_table, log_delayed;
   ulong skip_lines= ex->skip_lines;
+  int res;
+  bool transactional_table, log_delayed;
   DBUG_ENTER("mysql_load");
 
 #ifdef EMBEDDED_LIBRARY
@@ -114,8 +115,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     DBUG_RETURN(-1);
   }
   table_list->lock_type= lock_type;
-  if (open_and_lock_tables(thd, table_list))
-    DBUG_RETURN(-1);
+  if ((res= open_and_lock_tables(thd, table_list)))
+    DBUG_RETURN(res);
   /* TODO: add key check when we will support VIEWs in LOAD */
   if (!table_list->updatable)
   {
