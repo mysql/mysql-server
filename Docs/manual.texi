@@ -23554,12 +23554,23 @@ logging on the master. If you start your slaves with data that doesn't
 agree with what was on the master @strong{when the binary log was
 started}, your slaves may fail.
 
-Starting in 4.0.0, one can use @code{LOAD DATA FROM MASTER} to set up
-a slave. Note that 4.0.0 slaves cannot communicate with 3.23 masters, but 4.0.1
-and later version slaves can. 3.23 slave cannot talk to 4.0 master.
+Please see the following table for an indication of master-slave
+compatibility between different versions. With regard to version 4.0,
+we recommend using same version on both sides.
 
-You must also be aware that @code{LOAD DATA FROM MASTER} currently works only
-if all the tables on the master are @code{MyISAM} type, and will acuire a
+@c FIX arjen 2002-07-17 new table, not yet measured for XML/DocBook.
+@multitable @columnfractions .10 .15 .15 .10 .10 .10
+@item                @tab                         @tab @strong{Master}         @tab @strong{Master} @tab @strong{Master} @tab @strong{Master}
+@item                @tab                         @tab @strong{3.23.33 and up} @tab @strong{4.0.0}  @tab @strong{4.0.1}  @tab @strong{4.0.2}
+@item @strong{Slave} @tab @strong{3.23.33 and up} @tab yes                     @tab no              @tab no              @tab no
+@item @strong{Slave} @tab @strong{4.0.0}          @tab no                      @tab yes             @tab no              @tab no
+@item @strong{Slave} @tab @strong{4.0.1}          @tab yes                     @tab no              @tab yes             @tab no
+@item @strong{Slave} @tab @strong{4.0.2}          @tab yes                     @tab no              @tab no              @tab yes
+@end multitable
+
+Starting from 4.0.0, one can use @code{LOAD DATA FROM MASTER} to set up
+a slave. Be aware that @code{LOAD DATA FROM MASTER} currently works only
+if all the tables on the master are @code{MyISAM} type, and will acquire a
 global read lock, so no writes are possible while the tables are being
 transferred from the master. This limitation is of a temporary nature, and is
 due to the fact that we have not yet implemented hot lock-free table backup.
