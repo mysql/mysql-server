@@ -4064,6 +4064,9 @@ lock_print_info(
 		(ulong) ut_dulint_get_low(purge_sys->purge_undo_no));
 
 	fprintf(file,
+	"History list length %lu\n", (ulong) trx_sys->rseg_history_len);
+
+	fprintf(file,
 		"Total number of lock structs in row lock hash table %lu\n",
 					 (ulong) lock_get_n_rec_locks());
 
