@@ -159,10 +159,18 @@ File open_binlog(IO_CACHE *log, const char *log_file_name,
   File file;
   DBUG_ENTER("open_binlog");
 
-  if ((file = my_open(log_file_name, O_RDONLY | O_BINARY, MYF(MY_WME))) < 0 ||
-      init_io_cache(log, file, IO_SIZE*2, READ_CACHE, 0, 0,
+  if ((file = my_open(log_file_name, O_RDONLY | O_BINARY, MYF(MY_WME))) < 0)
+  {
+    sql_print_error("Failed to open log (\
+file '%s', errno %d)", log_file_name, my_errno);
+    *errmsg = "Could not open log file";	// This will not be sent
+    goto err;
+  }
+  if (init_io_cache(log, file, IO_SIZE*2, READ_CACHE, 0, 0,
 		    MYF(MY_WME | MY_DONT_CHECK_FILESIZE)))
   {
+    sql_print_error("Failed to create a cache on log (\
+file '%s')", log_file_name);
     *errmsg = "Could not open log file";	// This will not be sent
     goto err;
   }
@@ -743,6 +751,9 @@ int reset_slave(THD *thd, MASTER_INFO* mi)
   //Clear master's log coordinates (only for good display of SHOW SLAVE STATUS)
   mi->master_log_name[0]= 0;
   mi->master_log_pos= BIN_LOG_HEADER_SIZE;
+  //Clear the errors displayed by SHOW SLAVE STATUS
+  mi->rli.last_slave_error[0]=0;
+  mi->rli.last_slave_errno=0;
   //close master_info_file, relay_log_info_file, set mi->inited=rli->inited=0
   end_master_info(mi);
   //and delete these two files

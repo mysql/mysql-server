@@ -1064,6 +1064,16 @@ stop_slave ()
   fi
 }
 
+stop_slave_threads ()
+{
+  eval "this_slave_running=\$SLAVE$1_RUNNING"
+  slave_ident="slave$1"
+  if [ x$this_slave_running = x1 ]
+  then
+    $MYSQLADMIN --no-defaults -uroot --socket=$MYSQL_TMP_DIR/$slave_ident.sock stop-slave > /dev/null 2>&1
+  fi
+}
+
 stop_master ()
 {
   if [ x$MASTER_RUNNING = x1 ]
@@ -1156,6 +1166,12 @@ run_testcase ()
    skip_test $tname;
    return
  fi
+
+ # Stop all slave threads, so that we don't have useless reconnection attempts
+ # and error messages in case the slave and master servers restart.
+ stop_slave_threads
+ stop_slave_threads 1
+ stop_slave_threads 2
 
  if [ -z "$USE_RUNNING_SERVER" ] ;
  then
