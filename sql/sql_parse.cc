@@ -1290,6 +1290,11 @@ restore_user:
     mysql_stmt_free(thd, packet);
     break;
   }
+  case COM_RESET_STMT:
+  {
+    mysql_stmt_reset(thd, packet);
+    break;
+  }
   case COM_QUERY:
   {
     if (alloc_query(thd, packet, packet_length))

@@ -965,7 +965,7 @@ void mysql_stmt_reset(THD *thd, char *packet)
   PREP_STMT *stmt;
   DBUG_ENTER("mysql_stmt_reset");
 
-  if (!(stmt=find_prepared_statement(thd, stmt_id, "close")))
+  if (!(stmt= find_prepared_statement(thd, stmt_id, "reset")))
   {
     send_error(thd);
     DBUG_VOID_RETURN;
