@@ -47,7 +47,7 @@
    ParserRow<CPCDAPISession>::IgnoreMinMax, \
    0, 0, \
    fun, \
-   desc }
+   desc, 0 }
 
 #define CPCD_ARG(name, type, opt, desc) \
  { name, \
@@ -58,7 +58,7 @@
    ParserRow<CPCDAPISession>::IgnoreMinMax, \
    0, 0, \
    0, \
-  desc }
+   desc, 0 }
 
 #define CPCD_ARG2(name, type, opt, min, max, desc) \
  { name, \
@@ -69,7 +69,7 @@
    ParserRow<CPCDAPISession>::IgnoreMinMax, \
    min, max, \
    0, \
-  desc }
+   desc, 0 }
 
 #define CPCD_END() \
  { 0, \
@@ -80,7 +80,7 @@
    ParserRow<CPCDAPISession>::IgnoreMinMax, \
    0, 0, \
    0, \
-   0 }
+   0, 0 }
 
 #define CPCD_CMD_ALIAS(name, realName, fun) \
  { name, \
@@ -91,7 +91,7 @@
    ParserRow<CPCDAPISession>::IgnoreMinMax, \
    0, 0, \
    0, \
-   0 }
+   0, 0 }
 
 #define CPCD_ARG_ALIAS(name, realName, fun) \
  { name, \
@@ -102,7 +102,7 @@
    ParserRow<CPCDAPISession>::IgnoreMinMax, \
    0, 0, \
    0, \
-   0 }
+   0, 0 }
 
 const
 ParserRow<CPCDAPISession> commands[] = 

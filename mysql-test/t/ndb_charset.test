@@ -1,0 +1,159 @@
+--source include/have_ndb.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#
+# Minimal NDB charset test.
+#
+
+# pk - binary
+
+create table t1 (
+  a char(3) character set latin1 collate latin1_bin primary key
+) engine=ndb;
+# ok
+insert into t1 values('aAa');
+insert into t1 values('aaa');
+insert into t1 values('AAA');
+# 3
+select * from t1 order by a;
+# 1
+select * from t1 where a = 'aAa';
+# 1
+select * from t1 where a = 'aaa';
+# 0
+select * from t1 where a = 'AaA';
+# 1
+select * from t1 where a = 'AAA';
+drop table t1;
+
+# pk - case insensitive
+
+create table t1 (
+  a char(3) character set latin1 collate latin1_swedish_ci primary key
+) engine=ndb;
+# ok
+insert into t1 values('aAa');
+# fail
+--error 1062
+insert into t1 values('aaa');
+--error 1062
+insert into t1 values('AAA');
+# 1
+select * from t1 order by a;
+# 1
+select * from t1 where a = 'aAa';
+# 1
+select * from t1 where a = 'aaa';
+# 1
+select * from t1 where a = 'AaA';
+# 1
+select * from t1 where a = 'AAA';
+drop table t1;
+
+# unique hash index - binary
+
+create table t1 (
+  p int primary key,
+  a char(3) character set latin1 collate latin1_bin not null,
+  unique key(a)
+) engine=ndb;
+# ok
+insert into t1 values(1, 'aAa');
+insert into t1 values(2, 'aaa');
+insert into t1 values(3, 'AAA');
+# 3
+select * from t1 order by p;
+# 1
+select * from t1 where a = 'aAa';
+# 1
+select * from t1 where a = 'aaa';
+# 0
+select * from t1 where a = 'AaA';
+# 1
+select * from t1 where a = 'AAA';
+drop table t1;
+
+# unique hash index - case insensitive
+
+create table t1 (
+  p int primary key,
+  a char(3) character set latin1 collate latin1_swedish_ci not null,
+  unique key(a)
+) engine=ndb;
+# ok
+insert into t1 values(1, 'aAa');
+# fail
+--error 1169
+insert into t1 values(2, 'aaa');
+--error 1169
+insert into t1 values(3, 'AAA');
+# 1
+select * from t1 order by p;
+# 1
+select * from t1 where a = 'aAa';
+# 1
+select * from t1 where a = 'aaa';
+# 1
+select * from t1 where a = 'AaA';
+# 1
+select * from t1 where a = 'AAA';
+drop table t1;
+
+# ordered index - binary
+
+create table t1 (
+  p int primary key,
+  a char(3) character set latin1 collate latin1_bin not null,
+  index(a)
+) engine=ndb;
+# ok
+insert into t1 values(1, 'aAa');
+insert into t1 values(2, 'aaa');
+insert into t1 values(3, 'AAA');
+insert into t1 values(4, 'aAa');
+insert into t1 values(5, 'aaa');
+insert into t1 values(6, 'AAA');
+# 6
+select * from t1 order by p;
+# plan
+explain select * from t1 where a = 'zZz' order by p;
+# 2
+select * from t1 where a = 'aAa' order by p;
+# 2
+select * from t1 where a = 'aaa' order by p;
+# 0
+select * from t1 where a = 'AaA' order by p;
+# 2
+select * from t1 where a = 'AAA' order by p;
+drop table t1;
+
+# ordered index - case insensitive
+
+create table t1 (
+  p int primary key,
+  a char(3) character set latin1 collate latin1_swedish_ci not null,
+  index(a)
+) engine=ndb;
+# ok
+insert into t1 values(1, 'aAa');
+insert into t1 values(2, 'aaa');
+insert into t1 values(3, 'AAA');
+insert into t1 values(4, 'aAa');
+insert into t1 values(5, 'aaa');
+insert into t1 values(6, 'AAA');
+# 6
+select * from t1 order by p;
+# plan
+explain select * from t1 where a = 'zZz' order by p;
+# 6
+select * from t1 where a = 'aAa' order by p;
+# 6
+select * from t1 where a = 'aaa' order by p;
+# 6
+select * from t1 where a = 'AaA' order by p;
+# 6
+select * from t1 where a = 'AAA' order by p;
+drop table t1;
