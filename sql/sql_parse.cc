@@ -4935,6 +4935,7 @@ bool add_to_list(THD *thd, SQL_LIST &list,Item *item,bool asc)
   order->asc = asc;
   order->free_me=0;
   order->used=0;
+  order->counter_used= 0;
   list.link_in_list((byte*) order,(byte**) &order->next);
   DBUG_RETURN(0);
 }
