@@ -5,18 +5,28 @@ DOXYDIR =	doxygen
 DOXYTMP =	.doxytmp
 DOXYOUT =	.doxyout
 
+NDB_RELEASE = @NDB_VERSION_MAJOR@.@NDB_VERSION_MINOR@.@NDB_VERSION_BUILD@-@NDB_VERSION_STATUS@
+
 clean:
 	rm -rf ndbapi.pdf ndbapi.html mgmapi.pdf mgmapi.html
 	rm -rf $(DOXYTMP) $(DOXYOUT)
 
 do-check:
 	@set -x; \
-	if test $(PERL) = no ; then \
+	if test @PERL@ = no ; then \
 	  echo "Perl needed to make docs"; \
 	  exit 1; \
 	fi; \
-	if test $(DOXYGEN) = no ; then \
+	if test @DOXYGEN@ = no ; then \
 	  echo "Doxygen needed to make docs"; \
+	  exit 1; \
+	fi; \
+	if test @PDFLATEX@ = no ; then \
+	  echo "Pdflatex needed to make docs"; \
+	  exit 1; \
+	fi; \
+	if test @MAKEINDEX@ = no ; then \
+	  echo "Makeindex needed to make docs"; \
 	  exit 1; \
 	fi;
 ###
@@ -27,9 +37,10 @@ ndbapidoc: ndbapi.pdf
 
 ndbapi.pdf: $(top_srcdir)/ndb/include/ndb_version.h
 	@set -x; \
+	export NDB_RELEASE=$(NDB_RELEASE) \
 	@RM@ -f ndbapi.pdf ndbapi.html; \
 	@RM@ -rf $(DOXYTMP) $(DOXYOUT); \
-	@mkdir_p@ $(DOXYTMP) $(DOXYOUT); \
+	mkdir -p $(DOXYTMP) $(DOXYOUT); \
 	@CP@ $(top_srcdir)/ndb/include/ndbapi/*  $(DOXYTMP); \
 	@CP@ $(top_srcdir)/ndb/examples/*/*.[ch]pp $(DOXYTMP); \
 	@PERL@ $(DOXYDIR)/predoxy.pl; \
@@ -39,7 +50,7 @@ ndbapi.pdf: $(top_srcdir)/ndb/include/ndb_version.h
 	(cd $(DOXYOUT) && \
 		find ndbapi.html -print | cpio -pdm ..); \
 	(cd $(DOXYOUT)/ndbapi.latex && \
-		pdflatex refman.tex && makeindex refman && pdflatex refman.tex && \
+		@PDFLATEX@ refman.tex && @MAKEINDEX@ refman && @PDFLATEX@ refman.tex && \
 		cp -p refman.pdf ../../ndbapi.pdf);
 
 ###
@@ -50,9 +61,10 @@ mgmapidoc: mgmapi.pdf
 
 mgmapi.pdf: $(top_srcdir)/ndb/include/ndb_version.h
 	@set -x; \
+	export NDB_RELEASE=$(NDB_RELEASE) \
 	@RM@ -f mgmapi.pdf mgmapi.html; \
 	@RM@ -rf $(DOXYTMP) $(DOXYOUT); \
-	@mkdir_p@ $(DOXYTMP) $(DOXYOUT); \
+	mkdir -p $(DOXYTMP) $(DOXYOUT); \
 	@CP@ $(top_srcdir)/ndb/include/mgmapi/*  $(DOXYTMP); \
 	@PERL@ $(DOXYDIR)/predoxy.pl; \
 	mv footer.html $(DOXYTMP); \
@@ -61,7 +73,7 @@ mgmapi.pdf: $(top_srcdir)/ndb/include/ndb_version.h
 	(cd $(DOXYOUT) && \
 		find mgmapi.html -print | cpio -pdm ..); \
 	(cd $(DOXYOUT)/mgmapi.latex && \
-		pdflatex refman.tex && makeindex refman && pdflatex refman.tex && \
+		@PDFLATEX@ refman.tex && @MAKEINDEX@ refman && @PDFLATEX@ refman.tex && \
 		cp -p refman.pdf ../../mgmapi.pdf);
 
 ###
