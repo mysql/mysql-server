@@ -6586,7 +6586,7 @@ static const char polish[]=
     "& N < \\u0144 <<< \\u0143 "
     "& O < \\u00F3 <<< \\u00D3 "
     "& S < \\u015B <<< \\u015A "
-    "& Z < \\u017A <<< \\u017B ";
+    "& Z < \\u017A <<< \\u0179 < \\u017C <<< \\u017B";
 
 static const char estonian[]=
     "& S < \\u0161 <<< \\u0160 "
@@ -6889,9 +6889,9 @@ static int my_uca_scanner_next_any(my_uca_scanner *scanner)
                                             scanner->sbeg, 
                                             scanner->send)) >=0) &&
            (!(page1= (wc >> 8))) &&
-           ((code1= wc & 0xFF) > 0x40) &&
+           ((code1= (wc & 0xFF)) > 0x40) &&
            (code1 < 0x80) && 
-           (cweight= scanner->contractions[(scanner->code-0x40)*0x40+scanner->sbeg[1]-0x40]))
+           (cweight= scanner->contractions[(scanner->code-0x40)*0x40 + code1-0x40]))
       {
         scanner->implicit[0]= 0;
         scanner->wbeg= scanner->implicit;
@@ -7137,6 +7137,7 @@ static int my_strnxfrm_uca(CHARSET_INFO *cs,
     dst[1]= s_res & 0xFF;
     dst+= 2;
   }
+  for ( ; dst < de; *dst++='\0');
   return dst - dst_orig;
 }
 
@@ -7851,7 +7852,7 @@ static void my_hash_sort_any_uca(CHARSET_INFO *cs,
                                  const uchar *s, uint slen,
                                  ulong *n1, ulong *n2)
 {
-  return my_hash_sort_uca(cs, &my_any_uca_scanner_handler, s, slen, n1, n2); 
+  my_hash_sort_uca(cs, &my_any_uca_scanner_handler, s, slen, n1, n2); 
 }
 
 static int my_strnxfrm_any_uca(CHARSET_INFO *cs, 
@@ -7888,7 +7889,7 @@ static void my_hash_sort_ucs2_uca(CHARSET_INFO *cs,
                                   const uchar *s, uint slen,
                                   ulong *n1, ulong *n2)
 {
-  return my_hash_sort_uca(cs, &my_ucs2_uca_scanner_handler, s, slen, n1, n2); 
+  my_hash_sort_uca(cs, &my_ucs2_uca_scanner_handler, s, slen, n1, n2); 
 }
 
 static int my_strnxfrm_ucs2_uca(CHARSET_INFO *cs, 
@@ -7919,7 +7920,7 @@ CHARSET_INFO my_charset_ucs2_general_uca=
     "ucs2",		/* cs name    */
     "ucs2_unicode_ci",	/* name         */
     "",			/* comment      */
-    NULL,		/* tailoring    */
+    "",			/* tailoring    */
     NULL,		/* ctype        */
     NULL,		/* to_lower     */
     NULL,		/* to_upper     */
@@ -8271,7 +8272,7 @@ CHARSET_INFO my_charset_ucs2_slovak_uca_ci=
     "ucs2",		/* cs name    */
     "ucs2_slovak_ci",	/* name         */
     "",			/* comment      */
-    lithuanian,		/* tailoring    */
+    slovak,		/* tailoring    */
     NULL,		/* ctype        */
     NULL,		/* to_lower     */
     NULL,		/* to_upper     */
@@ -8723,7 +8724,7 @@ CHARSET_INFO my_charset_utf8_slovak_uca_ci=
     "utf8",		/* cs name    */
     "utf8_slovak_ci",	/* name         */
     "",			/* comment      */
-    lithuanian,		/* tailoring    */
+    slovak,		/* tailoring    */
     ctype_utf8,		/* ctype        */
     NULL,		/* to_lower     */
     NULL,		/* to_upper     */
