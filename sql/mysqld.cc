@@ -5403,13 +5403,12 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case OPT_TABLE_TYPE:
   {
-    int type;
-    if ((type=find_type(argument, &ha_table_typelib, 2)) <= 0)
+    if ((enum db_type)((global_system_variables.table_type= 
+    	  ha_resolve_by_name(argument, strlen(argument)))) == DB_TYPE_UNKNOWN)
     {
       fprintf(stderr,"Unknown table type: %s\n",argument);
       exit(1);
     }
-    global_system_variables.table_type= type-1;
     break;
   }
   case OPT_SERVER_ID:

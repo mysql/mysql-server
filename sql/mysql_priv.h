@@ -860,7 +860,6 @@ extern MY_BITMAP temp_pool;
 extern String my_empty_string;
 extern String my_null_string;
 extern SHOW_VAR init_vars[],status_vars[], internal_vars[];
-extern struct show_table_type_st table_type_vars[];
 extern SHOW_COMP_OPTION have_isam;
 extern SHOW_COMP_OPTION have_innodb;
 extern SHOW_COMP_OPTION have_berkeley_db;
