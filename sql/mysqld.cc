@@ -683,8 +683,9 @@ pthread_handler_decl(kill_server_thread,arg __attribute__((unused)))
 
 static sig_handler print_signal_warning(int sig)
 {
-  sql_print_error("Warning: Got signal %d from thread %d",
-		  sig,my_thread_id());
+  if (opt_warnings)
+    sql_print_error("Warning: Got signal %d from thread %d",
+		    sig,my_thread_id());
 #ifdef DONT_REMEMBER_SIGNAL
   sigset(sig,print_signal_warning);		/* int. thread system calls */
 #endif
