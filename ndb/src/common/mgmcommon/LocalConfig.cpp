@@ -89,7 +89,7 @@ LocalConfig::init(const char *connectString,
   //7. Check
   {
     char buf[256];
-    snprintf(buf, sizeof(buf), "host=localhost:%u", NDB_BASE_PORT);
+    snprintf(buf, sizeof(buf), "host=localhost:%s", NDB_BASE_PORT);
     if(readConnectString(buf))
       return true;
   }
