@@ -280,6 +280,7 @@ do
 
 	timestr="$USERT	$SYST	$REALT"
 	tf=`$BASENAME $tf`
+	tf=`$ECHO $tf | $CUT -d . -f 1`
 	$SETCOLOR_NORMAL && $ECHO -n "$tf		$timestr"
 
 	[ $res != 1 ] && pass_inc && echo_pass
