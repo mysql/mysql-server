@@ -227,7 +227,8 @@ public:
   void change_table_ptr(TABLE *table_arg) { table=table_arg; }
   virtual double scan_time()
     { return ulonglong2double(data_file_length) / IO_SIZE + 1; }
-  virtual double read_time(ha_rows rows) { return rows2double(rows); }
+  virtual double read_time(uint index, uint ranges, ha_rows rows)
+ { return rows2double(ranges+rows); }
   virtual bool fast_key_read() { return 0;}
   virtual key_map keys_to_use_for_scanning() { return 0; }
   virtual bool has_transactions(){ return 0;}
