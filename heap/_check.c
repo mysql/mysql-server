@@ -117,7 +117,7 @@ static int check_one_rb_key(HP_INFO *info, uint keynr, ulong records,
       {
 	error= 1;
 	DBUG_PRINT("error",("Record in wrong link: Link %d  Record: %lx\n", 
-		   link, recpos));
+		   key, recpos));
       }
       else
       {
@@ -130,7 +130,7 @@ static int check_one_rb_key(HP_INFO *info, uint keynr, ulong records,
   }
   if (found != records)
   {
-    DBUG_PRINT("error",("Found %ld of %ld records"));
+    DBUG_PRINT("error",("Found %ld of %ld records", found, records));
     error= 1;
   }
   if (print_status)
