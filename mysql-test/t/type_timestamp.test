@@ -72,3 +72,9 @@ set new=1;
 select * from t1;
 drop table t1;
 
+#
+# Bug #1885
+#
+
+--error 1067
+create table t1 (a timestamp default 1);
