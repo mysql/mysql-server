@@ -122,40 +122,41 @@ t2	t4	t6	t8	t10	t12	t14
 0000-00-00 00:00:00	0000-00-00 00:00:00	0000-00-00 00:00:00	0000-00-00 00:00:00	0000-00-00 00:00:00	0000-00-00 00:00:00	0000-00-00 00:00:00
 1997-12-31 23:47:59	1997-12-31 23:47:59	1997-12-31 23:47:59	1997-12-31 23:47:59	1997-12-31 23:47:59	1997-12-31 23:47:59	1997-12-31 23:47:59
 drop table t1;
+set new=0;
 create table t1 (t1 timestamp default '2003-01-01 00:00:00', 
 t2 timestamp default '2003-01-01 00:00:00');
 set TIMESTAMP=1000000000;
 insert into t1 values();
 select * from t1;
 t1	t2
-2001-09-09 04:46:40	2003-01-01 00:00:00
+20010909044640	20030101000000
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `t1` timestamp(14) NOT NULL,
-  `t2` timestamp(14) NOT NULL default '2003-01-01 00:00:00'
+  `t2` timestamp(14) NOT NULL default '20030101000000'
 ) TYPE=MyISAM
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
 t1	timestamp(14)	YES		NULL	
-t2	timestamp(14)	YES		2003-01-01 00:00:00	
+t2	timestamp(14)	YES		20030101000000	
 show columns from t1 like 't2';
 Field	Type	Null	Key	Default	Extra
-t2	timestamp(14)	YES		2003-01-01 00:00:00	
+t2	timestamp(14)	YES		20030101000000	
 create table t2 (select * from t1);
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `t1` timestamp(14) NOT NULL,
-  `t2` timestamp(14) NOT NULL default '2003-01-01 00:00:00'
+  `t2` timestamp(14) NOT NULL default '20030101000000'
 ) TYPE=MyISAM
 alter table t1 add column t0 timestamp first;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `t0` timestamp(14) NOT NULL,
-  `t1` timestamp(14) NOT NULL default '2003-01-01 00:00:00',
-  `t2` timestamp(14) NOT NULL default '2003-01-01 00:00:00'
+  `t1` timestamp(14) NOT NULL default '20030101000000',
+  `t2` timestamp(14) NOT NULL default '20030101000000'
 ) TYPE=MyISAM
 drop table t1,t2;
 create table t1 (ts1 timestamp, ts2 timestamp);
@@ -164,8 +165,8 @@ insert into t1 values ();
 insert into t1 values (DEFAULT, DEFAULT);
 select * from t1;
 ts1	ts2
-2001-09-09 04:46:40	0000-00-00 00:00:00
-2001-09-09 04:46:40	0000-00-00 00:00:00
+20010909044640	00000000000000
+20010909044640	00000000000000
 drop table t1;
 create table t1 (ts timestamp(19));
 show create table t1;
@@ -178,4 +179,45 @@ insert into t1 values ();
 select * from t1;
 ts
 2001-09-09 04:46:40
+drop table t1;
+set new=1;
+create table t1 (a char(2), t timestamp);
+insert into t1 values ('a', '2004-01-01 00:00:00'), ('a', '2004-01-01 01:00:00'),
+('b', '2004-02-01 00:00:00');
+select max(t) from t1 group by a;
+max(t)
+2004-01-01 01:00:00
+2004-02-01 00:00:00
+drop table t1;
+create table t1 (ts1 timestamp);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `ts1` timestamp(19) NOT NULL
+) TYPE=MyISAM
+alter table t1 add ts2 timestamp;
+set new=0;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `ts1` timestamp(19) NOT NULL,
+  `ts2` timestamp(19) NOT NULL default '0000-00-00 00:00:00'
+) TYPE=MyISAM
+drop table t1;
+create table t1 (ts1 timestamp);
+insert into t1 values ('2004-01-01 00:00:00'), ('2004-01-01 01:00:00');
+select * from t1;
+ts1
+20040101000000
+20040101010000
+set new=1;
+select * from t1;
+ts1
+2004-01-01 00:00:00
+2004-01-01 01:00:00
+set new=0;
+select * from t1;
+ts1
+20040101000000
+20040101010000
 drop table t1;
