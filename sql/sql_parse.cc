@@ -1978,17 +1978,21 @@ mysql_execute_command(THD *thd)
     uint query_len;
     if (lex->prepared_stmt_code_is_varref)
     {
-      /* This is PREPARE stmt FROM @var*/
+      /* This is PREPARE stmt FROM @var. */
       String str;
       CHARSET_INFO *to_cs= thd->variables.collation_connection;
       CHARSET_INFO *from_cs;
       const char *buf;
       uint  buf_len;
       bool need_conversion;
-      //// psergey: find the variable and convert it.
-      LINT_INIT(from_cs);
+      LINT_INIT(from_cs); /* protected by need_conversion */
       user_var_entry *entry;
       uint32 unused;
+      /*
+        Convert @var contents to string in connection character set. Although 
+        it is known that int/real/NULL value cannot be a valid query we still 
+        convert it for error messages to uniform.  
+      */
       if ((entry= 
              (user_var_entry*)hash_search(&thd->user_vars, 
                                           (byte*)lex->prepared_stmt_code.str,
@@ -2033,32 +2037,29 @@ mysql_execute_command(THD *thd)
                                                   to_cs, &unused);
       }
        
-      query_len = need_conversion? (buf_len* to_cs->mbmaxlen) : buf_len;
+      query_len = need_conversion? (buf_len * to_cs->mbmaxlen) : buf_len;
       if (!(query_str= alloc_root(&thd->mem_root, query_len+1)))
-      {
         send_error(thd, ER_OUT_OF_RESOURCES);
-      }              
       
       if (need_conversion)
         query_len= copy_and_convert(query_str, query_len, to_cs, buf, buf_len,
                                     from_cs);
       else
         memcpy(query_str, buf, query_len);
-      query_str[query_len] = 0;
+      query_str[query_len]= 0;
     }
     else
     {
+      query_str= lex->prepared_stmt_code.str;
+      query_len= lex->prepared_stmt_code.length;
       DBUG_PRINT("info", ("PREPARE: %.*s FROM '%.*s' \n", 
                           lex->prepared_stmt_name.length,
                           lex->prepared_stmt_name.str,
-                          lex->prepared_stmt_code.length,
-                          lex->prepared_stmt_code.str));
-      query_str= lex->prepared_stmt_code.str;
-      query_len= lex->prepared_stmt_code.length + 1;
+                          query_len, query_str));
     }
     thd->command= COM_PREPARE;
-    if (!mysql_stmt_prepare(thd, query_str, query_len + 1, 
-                            &lex->prepared_stmt_name))    
+    if (!mysql_stmt_prepare(thd, query_str, query_len + 1,
+                            &lex->prepared_stmt_name))
       send_ok(thd, 0L, 0L, "Statement prepared");
     break;
   }
