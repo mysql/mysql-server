@@ -792,3 +792,38 @@ INSERT INTO t1 VALUES("2f6161e879db43c1a5b82c21ddc49089", "Default", "System", "
 INSERT INTO t1 VALUES("c373e9f5ad0791724315444553544200", "AddDocumentTest", "admin", "2003-06-09 10:51:25", "Movie Reviews", "0", "2003-06-09 10:51:25", "admin", "0", "2f6161e879db43c1a5b82c21ddc49089", "03eea05112b845949f3fd03278b5fe43", NULL);
 SELECT 'c373e9f5ad0791a0dab5444553544200' IN(SELECT t1.FOLDERID FROM t1 WHERE t1.PARENTID='2f6161e879db43c1a5b82c21ddc49089' AND t1.FOLDERNAME = 'Level1');
 drop table t1;
+
+#
+# IN subselect optimization test
+#
+create table t1 (a int not null, b int, primary key (a));
+create table t2 (a int not null, primary key (a));
+create table t3 (a int not null, b int, primary key (a));
+insert into t1 values (1,10), (2,20), (3,30),  (4,40);
+insert into t2 values (2), (3), (4), (5);
+insert into t3 values (10,3), (20,4), (30,5);
+select * from t2 where t2.a in (select a from t1);
+explain select * from t2 where t2.a in (select a from t1);
+select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
+explain select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
+drop table t1, t2, t3;
+create table t1 (a int, b int, index a (a));
+create table t2 (a int, index a (a));
+create table t3 (a int, b int, index a (a));
+insert into t1 values (1,10), (2,20), (3,30), (4,40);
+disable_query_log;
+# making table large enough
+let $1 = 10000;
+while ($1)
+ {
+  eval insert into t1 values (rand()*100000+200,rand()*100000); 
+  dec $1;
+ }
+enable_query_log;
+insert into t2 values (2), (3), (4), (5);
+insert into t3 values (10,3), (20,4), (30,5);
+select * from t2 where t2.a in (select a from t1);
+explain select * from t2 where t2.a in (select a from t1);
+select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
+explain select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
+drop table t1, t2, t3;

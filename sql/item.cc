@@ -1412,17 +1412,15 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
     }
   }
 
-/*
- * The following conditional is changed as to correctly identify 
- * incorrect references in group functions or forward references 
- * with sub-select's / derived tables, while it prevents this 
- * check when Item_ref is created in an expression involving 
- * summing function, which is to be placed in the user variable.
- *
- */
- 
+  /*
+    The following conditional is changed as to correctly identify 
+    incorrect references in group functions or forward references 
+    with sub-select's / derived tables, while it prevents this 
+    check when Item_ref is created in an expression involving 
+    summing function, which is to be placed in the user variable.
+  */
   if (((*ref)->with_sum_func && name &&
-       (depended_from || 
+       (depended_from ||
 	!(thd->lex.current_select->linkage != GLOBAL_OPTIONS_TYPE &&
 	  thd->lex.current_select->select_lex()->having_fix_field))) ||
       !(*ref)->fixed)
@@ -1669,11 +1667,11 @@ Item_cache* Item_cache::get_cache(Item_result type)
 
 void Item_cache_str::store(Item *item)
 {
-  str_value.set(buffer, sizeof(buffer), item->charset());
-  value= item->str_result(&str_value);
+  value_buff.set(buffer, sizeof(buffer), item->charset());
+  value= item->str_result(&value_buff);
   if ((null_value= item->null_value))
     value= 0;
-  else if (value != &str_value)
+  else if (value != &value_buff)
   {
     /*
       We copy string value to avoid changing value if 'item' is table field
@@ -1683,10 +1681,10 @@ void Item_cache_str::store(Item *item)
              (select c from t1 where a=t2.a)
         from t2;
     */
-    str_value.copy(*value);
-    value= &str_value;
+    value_buff.copy(*value);
+    value= &value_buff;
   }
-
+  set_charset(&item->collation);
 }
 double Item_cache_str::val()
 { 

@@ -367,16 +367,24 @@ int Arg_comparator::compare_e_row()
   return 1;
 }
 
-bool Item_in_optimizer::preallocate_row()
+
+bool Item_in_optimizer::fix_left(THD *thd,
+				 struct st_table_list *tables,
+				 Item **ref)
 {
-  return (!(cache= Item_cache::get_cache(ROW_RESULT)));
+  if (args[0]->fix_fields(thd, tables, ref) ||
+      (!cache && !(cache= Item_cache::get_cache(args[0]->result_type()))))
+    return 1;
+  cache->setup(args[0]);
+  return 0;
 }
+
 
 
 bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
 				   Item ** ref)
 {
-  if (args[0]->fix_fields(thd, tables, args))
+  if (fix_left(thd, tables, ref))
     return 1;
   if (args[0]->maybe_null)
     maybe_null=1;
@@ -389,9 +397,6 @@ bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
   with_sum_func= args[0]->with_sum_func;
   used_tables_cache= args[0]->used_tables();
   const_item_cache= args[0]->const_item();
-  if (!cache && !(cache= Item_cache::get_cache(args[0]->result_type())))
-    return 1;
-  cache->setup(args[0]);
   if (cache->cols() == 1)
   {
     if (args[0]->used_tables())
@@ -410,7 +415,7 @@ bool Item_in_optimizer::fix_fields(THD *thd, struct st_table_list *tables,
 	((Item_cache *)cache->el(i))->set_used_tables(0);
     }
   }
-  if (args[1]->fix_fields(thd, tables, args))
+  if (!args[1]->fixed && args[1]->fix_fields(thd, tables, args))
     return 1;
   Item_in_subselect * sub= (Item_in_subselect *)args[1];
   if (args[0]->cols() != sub->engine->cols())
@@ -1648,7 +1653,8 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     }
     if (abort_on_null)
       item->top_level_item();
-    if (item->fix_fields(thd, tables, li.ref()) || item->check_cols(1))
+    if ((!item->fixed &&
+	 item->fix_fields(thd, tables, li.ref())) || item->check_cols(1))
       return 1; /* purecov: inspected */
     used_tables_cache|=item->used_tables();
     with_sum_func= with_sum_func || item->with_sum_func;

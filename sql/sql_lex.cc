@@ -1310,11 +1310,13 @@ bool st_select_lex_unit::create_total_list_n_last_return(THD *thd, st_lex *lex,
 	    return 1;
 	  }
 	  *new_table_list= cursor;
+	  cursor->table_list= aux; //to be able mark this table as shared
 	  new_table_list= &cursor->next;
 	  *new_table_list= 0;			// end result list
 	}
 	else
-	  aux->shared= 1;			// Mark that it's used twice
+	  // Mark that it's used twice
+	  cursor->table_list->shared= aux->shared= 1;
 	aux->table_list= cursor;
       }
     }
@@ -1411,6 +1413,7 @@ ulong st_select_lex::get_table_join_options()
 }
 
 st_select_lex::st_select_lex(struct st_lex *lex)
+  :fake_select(0)
 {
   select_number= ++lex->thd->select_number;
   init_query();

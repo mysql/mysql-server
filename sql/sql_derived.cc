@@ -200,7 +200,8 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 	    if (tables)
 	    {
 	      for (TABLE_LIST *cursor= tables;  cursor;  cursor= cursor->next)
-		cursor->table_list->table=cursor->table;
+		if (cursor->table_list)
+		  cursor->table_list->table=cursor->table;
 	    }
 	  }
 	  else

@@ -188,42 +188,33 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
   union_result->not_describe=1;
   union_result->tmp_table_param=tmp_table_param;
 
-  /*
-    The following piece of code is placed here solely for the purpose of 
-    getting correct results with EXPLAIN when UNION is withing a sub-select
-    or derived table ...
-  */
-
-  if (thd->lex.describe)
+  for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
   {
-    for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
-    {
-      JOIN *join= new JOIN(thd, sl->item_list, 
-			   sl->options | thd->options | SELECT_NO_UNLOCK,
-			   union_result);
-      thd->lex.current_select= sl;
-      offset_limit_cnt= sl->offset_limit;
-      select_limit_cnt= sl->select_limit+sl->offset_limit;
-      if (select_limit_cnt < sl->select_limit)
-	select_limit_cnt= HA_POS_ERROR;		// no limit
-      if (select_limit_cnt == HA_POS_ERROR)
-	sl->options&= ~OPTION_FOUND_ROWS;
-      
-      res= join->prepare(&sl->ref_pointer_array,
-			 (TABLE_LIST*) sl->table_list.first, sl->with_wild,
-			 sl->where,
-			 ((sl->braces) ? sl->order_list.elements : 0) +
-			 sl->group_list.elements,
-			 (sl->braces) ? 
-			 (ORDER *)sl->order_list.first : (ORDER *) 0,
-			 (ORDER*) sl->group_list.first,
-			 sl->having,
-			 (ORDER*) NULL,
-			 sl, this, t_and_f);
-      t_and_f= 0;
-      if (res || thd->is_fatal_error)
-	goto err;
-    }
+    JOIN *join= new JOIN(thd, sl->item_list, 
+			 sl->options | thd->options | SELECT_NO_UNLOCK,
+			 union_result);
+    thd->lex.current_select= sl;
+    offset_limit_cnt= sl->offset_limit;
+    select_limit_cnt= sl->select_limit+sl->offset_limit;
+    if (select_limit_cnt < sl->select_limit)
+      select_limit_cnt= HA_POS_ERROR;		// no limit
+    if (select_limit_cnt == HA_POS_ERROR)
+      sl->options&= ~OPTION_FOUND_ROWS;
+    
+    res= join->prepare(&sl->ref_pointer_array,
+		       (TABLE_LIST*) sl->table_list.first, sl->with_wild,
+		       sl->where,
+		       ((sl->braces) ? sl->order_list.elements : 0) +
+		       sl->group_list.elements,
+		       (sl->braces) ? 
+		       (ORDER *)sl->order_list.first : (ORDER *) 0,
+		       (ORDER*) sl->group_list.first,
+		       sl->having,
+		       (ORDER*) NULL,
+		       sl, this, t_and_f);
+    t_and_f= 0;
+    if (res || thd->is_fatal_error)
+      goto err;
   }
 
   item_list.empty();
@@ -268,14 +259,12 @@ int st_select_lex_unit::exec()
     }
     for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
     {
+      thd->lex.current_select= sl;
+
       if (optimized)
 	res= sl->join->reinit();
       else
       {
-	JOIN *join= new JOIN(thd, sl->item_list, 
-			     sl->options | thd->options | SELECT_NO_UNLOCK,
-			     union_result);
-	thd->lex.current_select= sl;
 	offset_limit_cnt= sl->offset_limit;
 	select_limit_cnt= sl->select_limit+sl->offset_limit;
 	if (select_limit_cnt < sl->select_limit)
@@ -283,22 +272,36 @@ int st_select_lex_unit::exec()
 	if (select_limit_cnt == HA_POS_ERROR)
 	  sl->options&= ~OPTION_FOUND_ROWS;
 	
-	res= join->prepare(&sl->ref_pointer_array,
-			   (TABLE_LIST*) sl->table_list.first, sl->with_wild,
-			   sl->where,
-			   ((sl->braces) ? sl->order_list.elements : 0) +
-			   sl->group_list.elements,
-			   (sl->braces) ? 
-			   (ORDER *)sl->order_list.first : (ORDER *) 0,
-			   (ORDER*) sl->group_list.first,
-			   sl->having,
-			   (ORDER*) NULL,
-			   sl, this, t_and_f);
-	t_and_f=0;
-	if (res | thd->is_fatal_error)
+	/* 
+	   As far as union share table space we should reassign table map,
+	   which can be spoiled by 'prepare' of JOIN of other UNION parts
+	   if it use same tables
+	*/
+	uint tablenr=0;
+	for (TABLE_LIST *table_list= (TABLE_LIST*) sl->table_list.first;
+	     table_list;
+	     table_list= table_list->next, tablenr++)
 	{
-	  thd->lex.current_select= lex_select_save;
-	  DBUG_RETURN(res);
+	  if (table_list->shared)
+	  {
+	    /*
+	      review notes: Check it carefully. I still can't understand
+	      why I should not touch table->used_keys. For my point of
+	      view we should do here same procedura as it was done by
+	      setup_table
+	    */
+	    DBUG_PRINT("SUBS", ("shared %s", table_list->real_name));
+	    TABLE *table= table_list->table;
+	    table->used_fields=0;
+	    table->const_table=0;
+	    table->outer_join=table->null_row=0;
+	    table->status=STATUS_NO_RECORD;
+	    table->keys_in_use_for_query= table->keys_in_use;
+	    table->maybe_null=test(table->outer_join=table_list->outer_join);
+	    table->tablenr=tablenr;
+	    table->map= (table_map) 1 << tablenr;
+	    table->force_index= table_list->force_index;
+	  }
 	}
 	res= sl->join->optimize();
       }
@@ -334,6 +337,7 @@ int st_select_lex_unit::exec()
     if (!thd->is_fatal_error)			// Check if EOM
     {
       SELECT_LEX *fake_select  = new SELECT_LEX(&thd->lex);
+      fake_select->fake_select= 1;
       offset_limit_cnt= (select_cursor->braces ?
 			 global_parameters->offset_limit : 0);
       select_limit_cnt= (select_cursor->braces ?
