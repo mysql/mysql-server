@@ -292,15 +292,16 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	    }
 	  }
 	}
-	if (share->keyinfo[i].flag & HA_FULLTEXT)		    /* SerG */
+	if (share->keyinfo[i].flag & HA_FULLTEXT)
 	{
-	  share->keyinfo[i].seg=pos-FT_SEGS;			    /* SerG */
+	  share->keyinfo[i].seg=pos-FT_SEGS;
 	  share->fulltext_index=1;
 	}
 	share->keyinfo[i].end=pos;
 	pos->type=HA_KEYTYPE_END;			/* End */
 	pos->length=share->base.rec_reflength;
 	pos->null_bit=0;
+	pos->flag=0;					/* For purify */
 	pos++;
       }
       for (i=0 ; i < uniques ; i++)
@@ -324,6 +325,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	share->uniqueinfo[i].end=pos;
 	pos->type=HA_KEYTYPE_END;			/* End */
 	pos->null_bit=0;
+	pos->flag=0;
 	pos++;
       }
     }
