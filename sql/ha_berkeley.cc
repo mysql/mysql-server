@@ -68,6 +68,7 @@ ulong berkeley_cache_size;
 char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
 long berkeley_lock_scan_time=0;
 ulong berkeley_trans_retry=5;
+ulong berkeley_lock_max;
 pthread_mutex_t bdb_mutex;
 
 static DB_ENV *db_env;
@@ -116,6 +117,8 @@ bool berkeley_init(void)
   
   db_env->set_cachesize(db_env, 0, berkeley_cache_size, 0);
   db_env->set_lk_detect(db_env, berkeley_lock_type);
+  if (berkeley_lock_max)
+    db_env->set_lk_max(db_env, berkeley_lock_max);
   if (db_env->open(db_env,
 		   berkeley_home,
 		   berkeley_init_flags |  DB_INIT_LOCK | 
@@ -224,8 +227,13 @@ berkeley_cmp_packed_key(DB *file, const DBT *new_key, const DBT *saved_key)
     int cmp;
     if (key_part->null_bit)
     {
-      if (*new_key_ptr++ != *saved_key_ptr++)
-	return ((int) new_key_ptr[-1] - (int) saved_key_ptr[-1]);
+      if (*new_key_ptr != *saved_key_ptr++)
+	return ((int) *new_key_ptr - (int) saved_key_ptr[-1]);
+      if (!*new_key_ptr++)
+      {
+	key_length--;
+	continue;
+      }
     }
     if ((cmp=key_part->field->pack_cmp(new_key_ptr,saved_key_ptr,
 				       key_part->length)))
@@ -260,6 +268,36 @@ berkeley_cmp_fix_length_key(DB *file, const DBT *new_key, const DBT *saved_key)
     saved_key_ptr+=key_part->length;
   }
   return key->handler.bdb_return_if_eq;
+}
+
+
+/* Compare key against row */
+
+static bool
+berkeley_key_cmp(TABLE *table, KEY *key_info, const char *key, uint key_length)
+{
+  KEY_PART_INFO *key_part= key_info->key_part,
+	        *end=key_part+key_info->key_parts;
+
+  for ( ; key_part != end && (int) key_length > 0; key_part++)
+  {
+    int cmp;
+    if (key_part->null_bit)
+    {
+      key_length--;
+      if (*key != (table->record[0][key_part->null_offset] &
+		   key_part->null_bit) ? 0 : 1)
+	return 1;
+      if (!*key++)					// Null value
+	continue;
+    }
+    if ((cmp=key_part->field->pack_cmp(key,key_part->length)))
+      return cmp;
+    uint length=key_part->field->packed_col_length(key);
+    key+=length;
+    key_length-=length;
+  }
+  return 0;
 }
 
 
@@ -1118,9 +1156,8 @@ int ha_berkeley::index_read(byte * buf, const byte * key,
     key_info->handler.bdb_return_if_eq= 0;
     if (!error && find_flag == HA_READ_KEY_EXACT)
     {
-      /* Check that we didn't find a key that wasn't equal to the current
-	 one */
-      if (!error && ::key_cmp(table, key_buff2, active_index, key_len))
+      /* Ensure that we found a key that is equal to the current one */
+      if (!error && berkeley_key_cmp(table, key_info, key_buff2, key_len))
 	error=HA_ERR_KEY_NOT_FOUND;
     }
   }
