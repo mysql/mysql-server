@@ -41,6 +41,6 @@ insert into x values (des_encrypt('jumped over the lazy brown dog','sabakala'));
 insert into x values (des_encrypt('jumped over the lazy brown dog','sabakala'));
 select * from x;
 select des_decrypt(x,'sabakala') from x;
-#drop table x;
+drop table x;
 
 
