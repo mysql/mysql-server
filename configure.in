@@ -1144,7 +1144,8 @@ dnl Is this the right match for DEC OSF on alpha?
       # gethostbyname_r is deprecated and doesn't work ok on OSF1
       CFLAGS="$CFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R"
       CXXFLAGS="$CXXFLAGS -DUNDEF_HAVE_GETHOSTBYNAME_R"
-      ndb_cxxflags_fix="$ndb_cxxflags_fix -I/usr/include.dtk"
+      # fix to handle include of <stdint.h> correctly on OSF1 with cxx compiler
+      CXXFLAGS="$CXXFLAGS -I/usr/include/cxx -I/usr/include/cxx_cname -I/usr/include.dtk"
     ;;
   *netware*)
     # No need for curses library so set it to null
