@@ -980,13 +980,14 @@ int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
 void ha_key_cache(void)
 {
   if (keybuff_size)
-    (void) init_key_cache((ulong) keybuff_size);
+    (void) init_key_cache(&dflt_keycache,dflt_key_block_size,
+                          (ulong) keybuff_size);
 }
 
 
 void ha_resize_key_cache(void)
 {
-  (void) resize_key_cache((ulong) keybuff_size);
+  (void) resize_key_cache(&dflt_keycache,(ulong) keybuff_size);
 }
 
 
