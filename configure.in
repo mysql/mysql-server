@@ -119,6 +119,17 @@ AC_PROG_AWK
 AC_PROG_CC
 AC_PROG_CXX
 AC_PROG_CPP
+
+# Fix for sgi gcc / sgiCC which tries to emulate gcc
+if test "$CC" = "sgicc"
+then
+  ac_cv_prog_gcc="no"
+fi
+if test "$CXX" = "sgi++"
+then
+  GXX="no"
+fi
+
 if test "$ac_cv_prog_gcc" = "yes"
 then
   AS="$CC -c"
@@ -1248,7 +1259,7 @@ fi
 AC_SUBST(COMPILATION_COMMENT)
 
 AC_MSG_CHECKING("need of special linking flags")
-if test "$IS_LINUX" = "true" -a "$all_is_static" != "yes"
+if test "$IS_LINUX" = "true" -a "$ac_cv_prog_gcc" = "yes" -a "$all_is_static" != "yes"
 then
   LDFLAGS="$LDFLAGS -rdynamic"
   AC_MSG_RESULT("-rdynamic")
@@ -1326,10 +1337,11 @@ MYSQL_CXX_BOOL
 MYSQL_CHECK_LONGLONG_TO_FLOAT
 if test "$ac_cv_conv_longlong_to_float" != "yes"
 then
-  AC_MSG_ERROR([Your compiler can't convert a longlong value to a float!
+  AC_MSG_ERROR([Your compiler cannot convert a longlong value to a float!
 If you are using gcc 2.8.# you should upgrade to egcs 1.0.3 or newer and try
 again]);
 fi
+MYSQL_PTHREAD_YIELD
 
 ######################################################################
 # For readline-4.0 (We simply move the mimimum amount of stuff from
@@ -1386,7 +1398,7 @@ AC_CHECK_FUNCS(alarm bmove \
  sigset sigthreadmask pthread_sigmask pthread_setprio pthread_setprio_np \
  pthread_setschedparam pthread_attr_setprio pthread_attr_setschedparam \
  pthread_attr_create pthread_getsequence_np pthread_attr_setstacksize \
- pthread_condattr_create rwlock_init pthread_rwlock_rdlock pthread_yield\
+ pthread_condattr_create rwlock_init pthread_rwlock_rdlock \
  fchmod getpass getpassphrase initgroups mlockall)
 
 # Sanity check: We chould not have any fseeko symbol unless
@@ -2103,7 +2115,7 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile \
  merge/Makefile dbug/Makefile scripts/Makefile \
  include/Makefile sql-bench/Makefile \
  tests/Makefile Docs/Makefile support-files/Makefile \
- mysql-test/Makefile fs/Makefile \
+ mysql-test/Makefile \
  include/mysql_version.h
  , , [
   test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h

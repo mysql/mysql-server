@@ -449,3 +449,29 @@ a
 1
 table	type	possible_keys	key	key_len	ref	rows	Extra
 t1	range	PRIMARY	PRIMARY	4	NULL	1	where used
+id
+0
+1
+2
+id
+0
+1
+2
+id
+0
+1
+2
+id	id3
+0	0
+1	1
+2	2
+100	2
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(20) default NULL,
+  KEY `a` (`a`)
+) TYPE=InnoDB
+a
+1
+2
+3

@@ -204,7 +204,28 @@ ulint		buf_dbg_counter	= 0; /* This is used to insert validation
 ibool		buf_debug_prints = FALSE; /* If this is set TRUE,
 					the program prints info whenever
 					read-ahead or flush occurs */
-					
+
+/************************************************************************
+Calculates a page checksum which is stored to the page when it is written
+to a file. Note that we must be careful to calculate the same value
+on 32-bit and 64-bit architectures. */
+
+ulint
+buf_calc_page_checksum(
+/*===================*/
+		       /* out: checksum */
+	byte*    page) /* in: buffer page */
+{
+  ulint checksum;
+
+  checksum = ut_fold_binary(page, FIL_PAGE_FILE_FLUSH_LSN);
+  + ut_fold_binary(page + FIL_PAGE_DATA, UNIV_PAGE_SIZE - FIL_PAGE_DATA
+		   - FIL_PAGE_END_LSN);
+  checksum = checksum & 0xFFFFFFFF;
+
+  return(checksum);
+}
+
 /************************************************************************
 Initializes a buffer control block when the buf_pool is created. */
 static
@@ -1171,12 +1192,36 @@ buf_page_io_complete(
 	dulint		id;
 	dict_index_t*	index;
 	ulint		io_type;
+	ulint           checksum;
 
 	ut_ad(block);
 
 	io_type = block->io_fix;
 
 	if (io_type == BUF_IO_READ) {
+		checksum = buf_calc_page_checksum(block->frame);
+
+		/* From version 3.23.38 up we store the page checksum
+		   to the 4 upper bytes of the page end lsn field */
+
+		if ((mach_read_from_4(block->frame + FIL_PAGE_LSN + 4)
+		    != mach_read_from_4(block->frame + UNIV_PAGE_SIZE
+					- FIL_PAGE_END_LSN + 4))
+		    || (checksum != mach_read_from_4(block->frame
+                                        + UNIV_PAGE_SIZE
+					- FIL_PAGE_END_LSN)
+			&& mach_read_from_4(block->frame + FIL_PAGE_LSN)
+			    != mach_read_from_4(block->frame
+                                        + UNIV_PAGE_SIZE
+						- FIL_PAGE_END_LSN))) {
+		  fprintf(stderr,
+			  "InnoDB: Database page corruption or a failed\n"
+			  "InnoDB: file read of page %lu.\n", block->offset);
+		  fprintf(stderr,
+			  "InnoDB: You may have to recover from a backup.\n");
+		  exit(1);
+		}
+
 		if (recv_recovery_is_on()) {
 			recv_recover_page(TRUE, block->frame, block->space,
 								block->offset);
@@ -1208,17 +1253,8 @@ buf_page_io_complete(
 		ut_ad(buf_pool->n_pend_reads > 0);
 		buf_pool->n_pend_reads--;
 		buf_pool->n_pages_read++;
-/*		
-		if (0 != ut_dulint_cmp(
-				mach_read_from_8(block->frame + FIL_PAGE_LSN),
-				mach_read_from_8(block->frame + UNIV_PAGE_SIZE
-						- FIL_PAGE_END_LSN))) {
 
-			printf("DB error: file page corrupted!\n");
 
-			ut_error;
-		}
-*/
 		rw_lock_x_unlock_gen(&(block->lock), BUF_IO_READ);
 		rw_lock_x_unlock_gen(&(block->read_lock), BUF_IO_READ);
 

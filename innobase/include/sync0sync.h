@@ -55,6 +55,7 @@ Calling this function is obligatory only if the memory buffer containing
 the mutex is freed. Removes a mutex object from the mutex list. The mutex
 is checked to be in the reset state. */
 
+#undef mutex_free			/* Fix for MacOS X */
 void
 mutex_free(
 /*=======*/

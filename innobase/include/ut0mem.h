@@ -9,9 +9,9 @@ Created 5/30/1994 Heikki Tuuri
 #ifndef ut0mem_h
 #define ut0mem_h
 
+#include "univ.i"
 #include <string.h>
 #include <stdlib.h>
-#include "univ.i"
 
 UNIV_INLINE
 void*

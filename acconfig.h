@@ -117,6 +117,12 @@
 /* pthread_attr_setscope */
 #undef HAVE_PTHREAD_ATTR_SETSCOPE
 
+/* pthread_yield that doesn't take any arguments */
+#undef HAVE_PTHREAD_YIELD_ZERO_ARG
+
+/* pthread_yield function with one argument */
+#undef HAVE_PTHREAD_YIELD_ONE_ARG
+
 /* POSIX readdir_r */
 #undef HAVE_READDIR_R
 

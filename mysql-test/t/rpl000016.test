@@ -1,6 +1,5 @@
 connect (master,localhost,root,,test,0,mysql-master.sock);
 connect (slave,localhost,root,,test,0,mysql-slave.sock);
-source include/have_default_master.inc;
 system cat /dev/null > var/slave-data/master.info;
 system chmod 000 var/slave-data/master.info;
 connection slave;
@@ -23,6 +22,7 @@ insert into t1 values('Could not break slave'),('Tried hard');
 save_master_pos;
 connection slave;
 sync_with_master;
+--replace_result 9306 9999 3334 9999 3335 9999
 show slave status;
 select * from t1;
 connection master;
@@ -68,6 +68,7 @@ insert into t2 values (65);
 save_master_pos;
 connection slave;
 sync_with_master;
+--replace_result 9306 9999 3334 9999 3335 9999
 show slave status;
 select * from t2;
 connection master;
@@ -87,6 +88,7 @@ connection slave;
 slave stop;
 slave start;
 sync_with_master;
+--replace_result 9306 9999 3334 9999 3335 9999
 show slave status;
 # because of concurrent insert, the table may not be up to date
 # if we do not lock

@@ -9,5 +9,7 @@ connection master;
 reset master;
 connection slave;
 reset slave;
+# Clean up old test tables
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 slave start;
 @r/slave-running.result show status like 'Slave_running';
