@@ -1461,7 +1461,8 @@ static void start_signal_handler(void)
   if (!opt_bootstrap)
   {
     File pidFile;
-    if ((pidFile = my_create(pidfile_name,0664, O_WRONLY, MYF(MY_WME))) >= 0)
+    if ((pidFile = my_create(pidfile_name,0664,
+                             O_WRONLY | O_TRUNC, MYF(MY_WME))) >= 0)
     {
       char buff[21];
       sprintf(buff,"%lu",(ulong) getpid());
@@ -1754,7 +1755,8 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
   if (!opt_bootstrap)
   {
     File pidFile;
-    if ((pidFile = my_create(pidfile_name,0664, O_WRONLY, MYF(MY_WME))) >= 0)
+    if ((pidFile = my_create(pidfile_name,0664,
+                             O_WRONLY | O_TRUNC, MYF(MY_WME))) >= 0)
     {
       char buff[21];
       sprintf(buff,"%lu",(ulong) getpid());
