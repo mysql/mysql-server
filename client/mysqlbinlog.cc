@@ -952,7 +952,7 @@ int main(int argc, char** argv)
 
   exit_value= 0;
   fprintf(result_file,
-	  "/*!40001 SET @@session.max_insert_delayed_threads=0*/;\n");
+	  "/*!40019 SET @@session.max_insert_delayed_threads=0*/;\n");
   while (--argc >= 0)
   {
     if (dump_log_entries(*(argv++)))
