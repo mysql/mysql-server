@@ -1334,7 +1334,7 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
 		      HA_CREATE_INFO *info)
 {
   int error;
-  uint i,j,recpos,minpos,fieldpos,temp_length,length, create_flags;
+  uint i,j,recpos,minpos,fieldpos,temp_length,length, create_flags= 0;
   bool found_real_auto_increment=0;
   enum ha_base_keytype type;
   char buff[FN_REFLEN];
