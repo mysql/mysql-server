@@ -1869,7 +1869,7 @@ then
   if test X"$have_berkeley_db" != Xno; then
     if test X"$have_berkeley_db" != Xyes; then
       # we must build berkeley db from source
-      sql_server_dirs="$have_berkeley_db/build_unix $sql_server_dirs"
+      sql_server_dirs="$have_berkeley_db $sql_server_dirs"
 
       echo "CONFIGURING FOR BERKELEY DB" 
       bdb_conf_flags=
@@ -1879,19 +1879,6 @@ then
       fi
       (cd $bdb && cd build_unix && sh ../dist/configure $bdb_conf_flags) \
       || AC_MSG_ERROR([could not configure Berkeley DB])
-
-      echo "Modifying Berkeley DB install target"
-      sed -e '/^install:/ c\
-install: all		# modified by MySQL configure\
-dnl This is needed because in some versions of BDB the install target
-dnl is continued on a second line.
-mysql-noinstall-hack:' \
-        "$bdb/build_unix/Makefile" > ac_BDB_Makefile
-
-      rm "$bdb/build_unix/Makefile" \
-      && cp ac_BDB_Makefile "$bdb/build_unix/Makefile" \
-      && rm ac_BDB_Makefile \
-      || AC_MSG_ERROR([could not modify Berkeley DB Makefile])
 
       echo "END OF BERKELEY DB CONFIGURATION"
     fi
@@ -1944,6 +1931,7 @@ AC_SUBST(GXX)
 # Output results
 AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile \
  strings/Makefile regex/Makefile heap/Makefile \
+ bdb/Makefile \
  myisam/Makefile myisammrg/Makefile \
  man/Makefile \
  readline/Makefile libmysql_r/Makefile libmysql/Makefile client/Makefile \
