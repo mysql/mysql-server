@@ -37,7 +37,7 @@ bk export $BD
 cd "$BD"
 chmod -R u+rw,g+rw .
 
-#Make it easy to remove an old build
+# Make it easy to remove an old build
 umask 002
 
 CC=$cc CXX=$ccc 
@@ -52,12 +52,12 @@ set -e
 /bin/rm -f */.deps/*.P
 /bin/rm -f config.cache
 
-aclocal && autoheader && aclocal && automake && autoconf
-(cd innobase && aclocal && autoheader && aclocal && automake && autoconf)
+aclocal; autoheader; aclocal; automake; autoconf
 (cd bdb/dist && sh s_all)
+(cd innobase && aclocal && autoheader && aclocal && automake && autoconf)
 
-# A normal user starts here. We must use mit-threads. Otherwise it
-# does not end up in the distribution.
+# A normal user starts here. We must use mit-threads, bdb and innobase.
+# Otherwise they do not end up in the distribution.
 ./configure \
  --with-unix-socket-path=/var/tmp/mysql.sock \
  --with-low-memory \
