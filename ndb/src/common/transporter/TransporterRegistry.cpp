@@ -1141,7 +1141,7 @@ TransporterRegistry::start_clients_thread()
       switch(performStates[nodeId]){
       case CONNECTING:
 	if(!t->isConnected() && !t->isServer) {
-	  if(server_port <= 0) {		// Port is dynamic
+	  if(t->get_r_port() <= 0) {		// Port is dynamic
 	    Uint32 server_port=0;
 	    struct ndb_mgm_reply mgm_reply;
 	    int res;
