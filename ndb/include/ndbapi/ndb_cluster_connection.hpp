@@ -82,7 +82,7 @@ public:
 
   void set_optimized_node_selection(int val);
 
-  int no_db_nodes();
+  unsigned no_db_nodes();
 #endif
 
 private:
