@@ -945,7 +945,7 @@ void st_select_lex_unit::init_query()
   select_limit_cnt= HA_POS_ERROR;
   offset_limit_cnt= 0;
   union_option= 0;
-  prepared= optimized= 0;
+  prepared= optimized= executed= 0;
   item= 0;
 }
 
