@@ -235,9 +235,10 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
     if (fields.elements || !value_count)
     {
       restore_record(table,2);			// Get empty record
-      if (fill_record(fields,*values) || check_null_fields(thd,table))
+      if (fill_record(fields,*values)|| thd->net.report_error ||
+	  check_null_fields(thd,table))
       {
-	if (values_list.elements != 1)
+	if (values_list.elements != 1 && !thd->net.report_error)
 	{
 	  info.records++;
 	  continue;
@@ -252,9 +253,9 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
 	restore_record(table,2);		// Get empty record
       else
 	table->record[0][0]=table->record[2][0]; // Fix delete marker
-      if (fill_record(table->field,*values))
+      if (fill_record(table->field,*values) ||  thd->net.report_error)
       {
-	if (values_list.elements != 1)
+	if (values_list.elements != 1 && ! thd->net.report_error)
 	{
 	  info.records++;
 	  continue;
@@ -1349,7 +1350,7 @@ bool select_insert::send_data(List<Item> &values)
     fill_record(*fields,values);
   else
     fill_record(table->field,values);
-  if (write_record(table,&info))
+  if (thd->net.report_error || write_record(table,&info))
     return 1;
   if (table->next_number_field)		// Clear for next record
   {
@@ -1463,7 +1464,7 @@ bool select_create::send_data(List<Item> &values)
     return 0;
   }
   fill_record(field,values);
-  if (write_record(table,&info))
+  if (thd->net.report_error ||write_record(table,&info))
     return 1;
   if (table->next_number_field)		// Clear for next record
   {
