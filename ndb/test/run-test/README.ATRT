@@ -1,0 +1,34 @@
+
+!-- install ndb_cpcd
+!-- many steps? future RPM
+
+!-- deploy binaries and libraries to hosts, rsync
+% export DEPLOY_DST="mc05:/space/tomas/keso"
+% ssh mc05 mkdir /space/tomas/keso
+% export RSYNC_RSH=ssh
+% make
+
+% mkdir -p /tmp/atrt-run-2-node
+% cd /tmp/atrt-run-2-node
+% cat > d.txt
+baseport: 9321
+basedir: /space/tomas/keso
+mgm: localhost
+ndb: localhost localhost
+api: localhost
+% cat > default.txt
+[DB DEFAULT]
+NoOfReplicas: 2
+% bin/make-config.sh -m d.txt -t default.txt -d .
+
+% atrt -v -v
+test_event -r 5 T1
+
+
+!-- check output
+% tail -f /space/tomas/keso/run/4.ndb_api/log.out
+
+
+!-- check processes
+% export NDB_CPCC_HOSTS="mc05"
+% ndb_cpcc

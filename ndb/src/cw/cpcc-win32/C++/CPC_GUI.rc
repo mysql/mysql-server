@@ -1,0 +1,193 @@
+//Microsoft Developer Studio generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#define APSTUDIO_HIDDEN_SYMBOLS
+#include "windows.h"
+#undef APSTUDIO_HIDDEN_SYMBOLS
+#include "resource.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (U.S.) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+#endif //_WIN32
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDI_CPC_GUI             ICON    DISCARDABLE     "CPC_GUI.ICO"
+IDI_SMALL               ICON    DISCARDABLE     "SMALL.ICO"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+IDM_CPC_GUI MENU DISCARDABLE 
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "E&xit",                       IDM_EXIT
+    END
+    POPUP "&Actions"
+    BEGIN
+        MENUITEM "&Insert...",                  ID_ACTIONS_INSERT
+        MENUITEM "&Delete",                     ID_ACTIONS_DELETE
+        MENUITEM "&Properties",                 ID_ACTIONS_PROPERTIES
+    END
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "&About ...",                  IDM_ABOUT
+    END
+END
+
+IDM_TREEVIEW MENU DISCARDABLE 
+BEGIN
+    MENUITEM "&Insert",                     ID_TREEVIEW1
+    MENUITEM "&Delete",                     ID_DELETE
+    MENUITEM "&Properties",                 ID_PROPERTIES
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Accelerator
+//
+
+IDC_CPC_GUI ACCELERATORS MOVEABLE PURE 
+BEGIN
+    "?",            IDM_ABOUT,              ASCII,  ALT
+    "/",            IDM_ABOUT,              ASCII,  ALT
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_ABOUTBOX DIALOG DISCARDABLE  22, 17, 230, 75
+STYLE DS_MODALFRAME | WS_CAPTION | WS_SYSMENU
+CAPTION "About"
+FONT 8, "MS Sans Serif"
+BEGIN
+    LTEXT           "NDB Cluster Process Control Applet v1.0",IDC_STATIC,7,8,
+                    213,8,SS_NOPREFIX
+    LTEXT           "Copyright (C) 2003 MySQL AB",
+                    IDC_STATIC,7,20,213,20
+    DEFPUSHBUTTON   "OK",IDOK,185,55,41,16,WS_GROUP
+END
+
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+2 TEXTINCLUDE MOVEABLE PURE 
+BEGIN
+    "#define APSTUDIO_HIDDEN_SYMBOLS\r\n"
+    "#include ""windows.h""\r\n"
+    "#undef APSTUDIO_HIDDEN_SYMBOLS\r\n"
+    "#include ""resource.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE MOVEABLE PURE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+1 TEXTINCLUDE MOVEABLE PURE 
+BEGIN
+    "resource.h\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+IDR_TOOLBAR             BITMAP  MOVEABLE PURE   "toolbar.bmp"
+IDB_TOOLBAR             BITMAP  MOVEABLE PURE   "bitmap1.bmp"
+IDB_COMPUTER            BITMAP  MOVEABLE PURE   "TowerIC1.BMP"
+IDB_OPEN                BITMAP  MOVEABLE PURE   "Open.BMP"
+IDB_CLOSED              BITMAP  MOVEABLE PURE   "Closed.BMP"
+IDB_DATABASE            BITMAP  MOVEABLE PURE   "DB.bmp"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Toolbar
+//
+
+IDR_TOOLBAR TOOLBAR MOVEABLE PURE  18, 18
+BEGIN
+    BUTTON      ID_BUTTON32773
+    BUTTON      ID_BUTTON32783
+    BUTTON      ID_BUTTON32784
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    IDS_APP_TITLE           "NDB Cluster Process Control Applet"
+    IDS_TV_ROOT_COMPUTERS   "Computers"
+    IDS_TV_ROOT_DATABASES   "Databases"
+    IDS_LV_COMPUTER_HEADER_1 "Computer"
+    IDS_LV_COMPUTER_HEADER_2 "Hostname"
+    IDS_LV_PROCESS_HEADER_1 "Process"
+    IDC_CPC_GUI             "CPC_GUI"
+    IDS_TIP_NEW             "Add new computer or database"
+    IDS_TIP_DELETE          "Delete selected computer or database"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    IDS_TIP_PROPS           "Display properties for selected computer or database"
+    IDS_LV_PROCESS_HEADER_2 "Name"
+    IDS_LV_PROCESS_HEADER_3 "Owner"
+    IDS_LV_PROCESS_HEADER_4 "Status"
+    IDS_LV_COMPUTER_HEADER_3 "Status"
+END
+
+#endif    // English (U.S.) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

@@ -1,0 +1,33 @@
+#! /bin/sh
+
+if [ $# -gt 0 -a "$1" = "-p" ]
+then
+	shift
+	NDB_TOP=$1
+	shift
+else
+	NDB_TOP=`pwd`
+fi
+
+cd $NDB_TOP
+NDB_TOP=`pwd`
+
+for i in `find . -name 'Makefile' -exec dirname {} \;`
+do
+    cd $i
+    rel_path=.
+    while [ $NDB_TOP != `pwd` ]
+    do
+	rel_path=$rel_path"/.."
+	cd ..
+    done
+
+    (
+		echo "NDB_TOP=$rel_path"
+		echo "include $rel_path/Defs.mk"
+    ) > $i/.defs.mk
+done
+
+( cd config ; aclocal ; automake ; aclocal ; autoconf ; ./configure )
+export NDB_TOP
+. config/GuessConfig.sh  $*
