@@ -119,9 +119,7 @@ public:
   const char *table_name;
   const char *field_name;
   Item_ident(const char *db_name_par,const char *table_name_par,
-	     const char *field_name_par)
-    :db_name(db_name_par),table_name(table_name_par),field_name(field_name_par)
-    { name = (char*) field_name_par; }
+	     const char *field_name_par);
   const char *full_name() const;
   unsigned int size_of() { return sizeof(*this);}  
 };

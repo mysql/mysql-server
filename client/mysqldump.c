@@ -36,7 +36,7 @@
 ** Added --single-transaction option 06/06/2002 by Peter Zaitsev
 */
 
-#define DUMP_VERSION "9.09"
+#define DUMP_VERSION "9.10"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -236,8 +236,8 @@ static struct my_option my_long_options[] =
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET, "",
     (gptr*) &max_allowed_packet, (gptr*) &max_allowed_packet, 0,
-    GET_ULONG, REQUIRED_ARG, 24*1024*1024, 4096, 1024*1024L*1024L,
-    MALLOC_OVERHEAD, 1024, 0},
+    GET_ULONG, REQUIRED_ARG, 24*1024*1024, 4096, 
+   (longlong) 2L*1024L*1024L*1024L, MALLOC_OVERHEAD, 1024, 0},
   {"net_buffer_length", OPT_NET_BUFFER_LENGTH, "",
     (gptr*) &net_buffer_length, (gptr*) &net_buffer_length, 0,
     GET_ULONG, REQUIRED_ARG, 1024*1024L-1025, 4096, 16*1024L*1024L,
@@ -262,6 +262,8 @@ static int dump_databases(char **);
 static int dump_all_databases();
 static char *quote_name(const char *name, char *buff, my_bool force);
 static void print_quoted_xml(FILE *output, char *fname, char *str, uint len);
+static const char *check_if_ignore_table(const char *table_name);
+
 
 static void print_version(void)
 {
@@ -564,6 +566,23 @@ static char *quote_name(const char *name, char *buff, my_bool force)
 } /* quote_name */
 
 
+
+static char *quote_for_like(const char *name, char *buff)
+{
+  char *to= buff;
+  *to++= '\'';
+  while (*name)
+  {
+    if (*name == '\'' || *name == '_' || *name == '\\' || *name == '%')
+      *to++= '\\';
+    *to++= *name++;
+  }
+  to[0]= '\'';
+  to[1]= 0;
+  return buff;
+}
+
+
 /*
   getStructure -- retrievs database structure, prints out corresponding
   CREATE statement and fills out insert_pat.
@@ -590,7 +609,8 @@ static uint getTableStructure(char *table, char* db)
   if (verbose)
     fprintf(stderr, "-- Retrieving table structure for table %s...\n", table);
 
-  sprintf(insert_pat,"SET OPTION SQL_QUOTE_SHOW_CREATE=%d", (opt_quoted || opt_keywords));
+  sprintf(insert_pat,"SET OPTION SQL_QUOTE_SHOW_CREATE=%d",
+	  (opt_quoted || opt_keywords));
   result_table=     quote_name(table, table_buff, 1);
   opt_quoted_table= quote_name(table, table_buff2, 0);
   if (!mysql_query(sock,insert_pat))
@@ -819,7 +839,9 @@ static uint getTableStructure(char *table, char* db)
       /* Get MySQL specific create options */
       if (create_options)
       {
-        sprintf(buff,"show table status like %s",result_table);
+	char show_name_buff[FN_REFLEN];
+        sprintf(buff,"show table status like %s",
+		quote_for_like(table, show_name_buff));
         if (mysql_query(sock, buff))
         {
 	  if (mysql_errno(sock) != ER_PARSE_ERROR)
@@ -924,11 +946,23 @@ static void dumpTable(uint numFields, char *table)
   MYSQL_FIELD	*field;
   MYSQL_ROW	row;
   ulong		rownr, row_break, total_length, init_length;
+  const char    *table_type;
+
+  result_table= quote_name(table,table_buff, 1);
+  opt_quoted_table= quote_name(table, table_buff2, 0);
+
+  /* Check table type */
+  if ((table_type= check_if_ignore_table(table)))
+  {
+    if (verbose)
+      fprintf(stderr,
+	      "-- Skipping data for table '%s' because it's of type %s\n",
+	      table, table_type);
+    return;
+  }
 
   if (verbose)
     fprintf(stderr, "-- Sending SELECT query...\n");
-  result_table= quote_name(table,table_buff, 1);
-  opt_quoted_table= quote_name(table, table_buff2, 0);
   if (path)
   {
     char filename[FN_REFLEN], tmp_path[FN_REFLEN];
@@ -1432,6 +1466,61 @@ static void print_value(FILE *file, MYSQL_RES  *result, MYSQL_ROW row,
   }
   return;					/* This shouldn't happen */
 } /* print_value */
+
+
+/*
+  Check if we the table is one of the table types that should be ignored:
+  MRG_ISAM, MRG_MYISAM
+
+  SYNOPSIS
+    check_if_ignore_table()
+    table_name			Table name to check
+
+  GLOBAL VARIABLES
+    sock			MySQL socket
+    verbose			Write warning messages
+
+  RETURN
+    0	Table should be backuped
+    #	Type of table (that should be skipped)
+*/
+
+static const char *check_if_ignore_table(const char *table_name)
+{
+  char buff[FN_REFLEN+80], show_name_buff[FN_REFLEN];
+  MYSQL_RES *res;
+  MYSQL_ROW row;
+  const char *result= 0;
+
+  sprintf(buff,"show table status like %s",
+	  quote_for_like(table_name, show_name_buff));
+  if (mysql_query(sock, buff))
+  {
+    if (mysql_errno(sock) != ER_PARSE_ERROR)
+    {					/* If old MySQL version */
+      if (verbose)
+	fprintf(stderr,
+		"-- Warning: Couldn't get status information for table %s (%s)\n",
+		table_name,mysql_error(sock));
+      return 0;					/* assume table is ok */
+    }
+  }
+  if (!(res= mysql_store_result(sock)) ||
+      !(row= mysql_fetch_row(res)))
+  {
+    fprintf(stderr,
+	    "Error: Couldn't read status information for table %s (%s)\n",
+	    table_name, mysql_error(sock));
+    if (res)
+      mysql_free_result(res);
+    return 0;					/* assume table is ok */
+  }
+  if (strcmp(row[1], (result= "MRG_MyISAM")) &&
+      strcmp(row[1], (result= "MRG_ISAM")))
+    result= 0;
+  mysql_free_result(res);  
+  return result;
+}
 
 
 int main(int argc, char **argv)

@@ -538,8 +538,10 @@ int my_strnncoll_tis620(const uchar * s1, int len1, const uchar * s2, int len2)
   tc1= thai2sortable(s1, len1);
   tc2= thai2sortable(s2, len2);
   i= strcmp((char*)tc1, (char*)tc2);
-  free(tc1);
-  free(tc2);
+  if (tc1 != s1)
+    free(tc1);
+  if (tc2 != s2)
+    free(tc2);
   return i;
 }
 
@@ -555,7 +557,8 @@ int my_strnxfrm_tis620(uchar * dest, const uchar * src, int len, int srclen)
   tmp= thai2sortable(src,srclen);
   set_if_smaller(bufSize,(uint) len);
   memcpy((uchar *)dest, tmp, bufSize);
-  free(tmp);
+  if (tmp != src)
+    free(tmp);
   return (int)bufSize;
 }
 
@@ -570,8 +573,10 @@ int my_strcoll_tis620(const uchar * s1, const uchar * s2)
   tc1= thai2sortable(s1, (int) strlen((char*)s1));
   tc2= thai2sortable(s2, (int) strlen((char*)s2));
   i= strcmp((char*)tc1, (char*)tc2);
-  free(tc1);
-  free(tc2);
+  if (tc1 != s1)
+    free(tc1);
+  if (tc2 != s2)
+    free(tc2);
   return i;
 }
 
@@ -587,7 +592,8 @@ int my_strxfrm_tis620(uchar * dest, const uchar * src, int len)
   bufSize= (uint)buffsize((char*) src);
   tmp= thai2sortable(src, len);
   memcpy((uchar *)dest, tmp, bufSize);
-  free(tmp);
+  if (tmp != src)
+    free(tmp);
   return bufSize;
 }
 

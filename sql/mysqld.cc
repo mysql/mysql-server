@@ -500,6 +500,8 @@ static uint set_maximum_open_files(uint max_file_limit);
 static ulong find_bit_type(const char *x, TYPELIB *bit_lib);
 static void clean_up(bool print_message);
 static void clean_up_mutexes(void);
+static int test_if_case_insensitive(const char *dir_name);
+static void create_pid_file();
 
 /****************************************************************************
 ** Code to end mysqld
@@ -1459,17 +1461,7 @@ static void start_signal_handler(void)
 {
   // Save vm id of this process
   if (!opt_bootstrap)
-  {
-    File pidFile;
-    if ((pidFile = my_create(pidfile_name,0664,
-                             O_WRONLY | O_TRUNC, MYF(MY_WME))) >= 0)
-    {
-      char buff[21];
-      sprintf(buff,"%lu\n",(ulong) getpid());
-      (void) my_write(pidFile, buff,strlen(buff),MYF(MY_WME));
-      (void) my_close(pidFile,MYF(0));
-    }
-  }
+    create_pid_file();
   // no signal handler
 }
 
@@ -1753,17 +1745,8 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
 
   /* Save pid to this process (or thread on Linux) */
   if (!opt_bootstrap)
-  {
-    File pidFile;
-    if ((pidFile = my_create(pidfile_name,0664,
-                             O_WRONLY | O_TRUNC, MYF(MY_WME))) >= 0)
-    {
-      char buff[21];
-      sprintf(buff,"%lu",(ulong) getpid());
-      (void) my_write(pidFile, buff,strlen(buff),MYF(MY_WME));
-      (void) my_close(pidFile,MYF(0));
-    }
-  }
+    create_pid_file();
+
 #ifdef HAVE_STACK_TRACE_ON_SEGV
   if (opt_do_pstack)
   {
@@ -4963,6 +4946,17 @@ static void fix_paths(void)
     if (!(slave_load_tmpdir = (char*) my_strdup(mysql_tmpdir, MYF(MY_FAE))))
       exit(1);
   }
+
+  /*
+    Ensure that lower_case_table_names is set on system where we have case
+    insensitive names.  If this is not done the users MyISAM tables will
+    get corrupted if accesses with names of different case.
+  */
+  if (!lower_case_table_names &&
+      test_if_case_insensitive(mysql_real_data_home) == 1)
+  {
+    sql_print_error("Warning: Setting lower_case_table_names=1 becasue file system %s is case insensitve", mysql_real_data_home);
+  }
 }
 
 
@@ -5094,6 +5088,60 @@ skipp: ;
   DBUG_PRINT("exit",("bit-field: %ld",(ulong) found));
   DBUG_RETURN(found);
 } /* find_bit_type */
+
+
+/*
+  Check if file system used for databases is case insensitive
+
+  SYNOPSIS
+    test_if_case_sensitive()
+    dir_name			Directory to test
+
+  RETURN
+    -1  Don't know (Test failed)
+    0   File system is case sensitive
+    1   File system is case insensitive
+*/
+
+static int test_if_case_insensitive(const char *dir_name)
+{
+  int result= 0;
+  File file;
+  char buff[FN_REFLEN], buff2[FN_REFLEN];
+  MY_STAT stat_info;
+
+  fn_format(buff, glob_hostname, dir_name, ".lower-test",
+	    MY_UNPACK_FILENAME | MY_REPLACE_EXT | MY_REPLACE_DIR);
+  fn_format(buff2, glob_hostname, dir_name, ".LOWER-TEST",
+	    MY_UNPACK_FILENAME | MY_REPLACE_EXT | MY_REPLACE_DIR);
+  (void) my_delete(buff2, MYF(0));
+  if ((file= my_create(buff, 0666, O_RDWR, MYF(0))) < 0)
+  {
+    sql_print_error("Warning: Can't create test file %s", buff);
+    return -1;
+  }
+  my_close(file, MYF(0));
+  if (my_stat(buff2, &stat_info, MYF(0)))
+    result= 1;					// Can access file
+  (void) my_delete(buff, MYF(MY_WME));
+  return result;
+}
+
+
+/* Create file to store pid number */
+
+static void create_pid_file()
+{
+  File file;
+  if ((file = my_create(pidfile_name,0664,
+			O_WRONLY | O_TRUNC, MYF(MY_WME))) >= 0)
+  {
+    char buff[21];
+    sprintf(buff,"%lu\n",(ulong) getpid());
+    (void) my_write(file, buff,strlen(buff),MYF(MY_WME));
+    (void) my_close(file, MYF(0));
+  }
+}
 
 
 /*****************************************************************************
