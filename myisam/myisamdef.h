@@ -384,6 +384,7 @@ extern uchar NEAR myisam_file_magic[],NEAR myisam_pack_file_magic[];
 extern uint NEAR myisam_read_vec[],NEAR myisam_readnext_vec[];
 extern uint myisam_quick_table_bits;
 extern File myisam_log_file;
+extern ulong myisam_pid;
 
 	/* This is used by _mi_calc_xxx_key_length och _mi_store_key */
 

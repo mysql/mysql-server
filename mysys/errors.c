@@ -44,7 +44,7 @@ const char * NEAR globerrs[GLOBERRS]=
   "%d files and %d streams is left open\n",
   "Disk is full writing '%s'. Waiting for someone to free space...",
   "Can't create directory '%s' (Errcode: %d)",
-  "Character set '%s' is not a compiled character set and is not specified in the '%s' file"
+  "Character set '%s' is not a compiled character set and is not specified in the '%s' file",
   "Out of resources when opening file '%s' (Errcode: %d)",
 };
 
