@@ -6508,6 +6508,11 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @uref{http://mysql.kpnqwest.fi/, WWW}
 
 @item
+@c EMAIL: root@omegatomic.com (John Berry)
+@image{Flags/france} France [Omegatomic] @
+@uref{http://mysql.omegatomic.com/, WWW}
+
+@item
 @c Added 981208
 @c EMAIL: noel@uni-bonn.de (Noel Koethe)
 @image{Flags/germany} Germany [Kernelnotes.de, Bonn] @
