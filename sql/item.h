@@ -1321,14 +1321,14 @@ protected:
   Item_result orig_type;
   Field *field_example;
 public:
-  Item_type_holder(THD*, Item*);
+  Item_type_holder(THD*, Item*, TABLE *);
 
   Item_result result_type () const { return item_type; }
   enum Type type() const { return TYPE_HOLDER; }
   double val();
   longlong val_int();
   String *val_str(String*);
-  bool join_types(THD *thd, Item *);
+  bool join_types(THD *thd, Item *, TABLE *);
   Field *example() { return field_example; }
   static uint32 real_length(Item *item);
   void cleanup()
