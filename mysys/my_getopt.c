@@ -367,9 +367,10 @@ int handle_options(int *argc, char ***argv,
 		  /* Check if there are more arguments after this one */
 		  if (!pos[1])
 		  {
-                    if (optp->var_type == GET_BOOL && optp->arg_type == OPT_ARG)
+                    if (optp->arg_type == OPT_ARG)
                     {
-                      *((my_bool*) optp->value)= (my_bool) 1;
+                      if (optp->var_type == GET_BOOL)
+                        *((my_bool*) optp->value)= (my_bool) 1;
                       get_one_option(optp->id, optp, argument);
                       continue;
                     }
