@@ -24,10 +24,9 @@
 #include "mysql_priv.h"
 #include "sql_select.h"
 
-int mysql_union(THD *thd, LEX *lex, select_result *result)
+int mysql_union(THD *thd, LEX *lex, select_result *result,SELECT_LEX_UNIT *unit)
 {
   DBUG_ENTER("mysql_union");
-  SELECT_LEX_UNIT *unit= &lex->unit;
   int res= 0;
   if (!(res= unit->prepare(thd, result)))
     res= unit->exec();
@@ -125,8 +124,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *result)
   SELECT_LEX_NODE *lex_select_save= thd->lex.current_select;
   SELECT_LEX *sl;
 
-  if (lex_select_save->linkage != DERIVED_TABLE_TYPE)
-    thd->lex.current_select=first_select();
+  thd->lex.current_select=first_select();
   /* Global option */
   if (((void*)(global_parameters)) == ((void*)this))
   {

@@ -324,7 +324,7 @@ void field_str::add()
       }
       else
       {
-//	bzero((char*) &s, sizeof(s));  // Let tree handle free of this
+	bzero((char*) &s, sizeof(s));  // Let tree handle free of this
 	if ((treemem += length) > pc->max_treemem)
 	{
 	  room_in_tree = 0;	 // Remove tree, too big tree
