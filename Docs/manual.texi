@@ -46897,6 +46897,9 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.50
 @itemize @bullet
 @item
+Fixed core-dump bug when using @code{--log-bin} with @code{LOAD DATA
+INFILE} without an active database.
+@item
 Fixed bug in @code{RENAME TABLE} when used with
 @code{lower_case_table_names=1} (default on Windows).
 @item
