@@ -1,4 +1,5 @@
 drop table if exists t1,t2,t3;
+drop database if exists test_$1;
 create table t1 (b char(0));
 insert into t1 values (""),(null);
 select * from t1;
@@ -302,9 +303,6 @@ t3	CREATE TABLE `t3` (
 select * from t3;
 id	name
 drop table t2, t3;
-drop database if exists test_$1;
-Warnings:
-Note	1008	Can't drop database 'test_$1'; database doesn't exist
 create database test_$1;
 create table test_$1.t3 like t1;
 create temporary table t3 like test_$1.t3;
@@ -411,7 +409,6 @@ a	b	c	d	e	f	g	h	dd
 1	-7	7	2000-01-01	b	2000-01-01 00:00:00	05:04:03	yet another binary data	02:00:00
 2	-2	2	1825-12-14	a	2003-01-01 03:02:01	04:03:02	binary data	02:00:00
 drop table t1, t2;
-drop database if exists test_$1;
 create database test_$1;
 use test_$1;
 select database();
