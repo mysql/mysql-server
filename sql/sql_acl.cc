@@ -4107,10 +4107,10 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
     ulong table_access= grant_table->cols;
     if (table_access != 0)
     {
-      ulong test_access= grant_table->cols & ~GRANT_ACL;
-      if (!(table_access & GRANT_ACL))
+      if (!(grant_table->privs & GRANT_ACL))
         is_grantable= "NO";
 
+      ulong test_access= table_access & ~GRANT_ACL;
       strxmov(buff,"'",user,"'@'",grant_table->orig_host,"'",NullS);
       if (!test_access)
         continue;

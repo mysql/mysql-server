@@ -1,16 +1,16 @@
 grant all privileges on test.* to mysqltest_1@localhost;
 select * from information_schema.SCHEMATA where schema_name > 'm';
 CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME
-NULL	mysql	latin1_swedish_ci
-NULL	test	latin1_swedish_ci
+NULL	mysql	latin1
+NULL	test	latin1
 select schema_name from information_schema.schemata;
 schema_name
 mysql
 test
 show databases *;
 CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME
-NULL	mysql	latin1_swedish_ci
-NULL	test	latin1_swedish_ci
+NULL	mysql	latin1
+NULL	test	latin1
 show databases like 't%';
 Database (t%)
 test
@@ -20,7 +20,7 @@ mysql
 test
 show databases * where schema_name like 't%';
 CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME
-NULL	test	latin1_swedish_ci
+NULL	test	latin1
 show databases * where schema_name = 't%';
 CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME
 create database testtets;
@@ -119,10 +119,10 @@ Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 c	char(64)	latin1_swedish_ci					select,insert,update,references	
 select * from information_schema.COLUMNS where table_name="t1"
 and column_name= "a";
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	TYPE	COLLATION_NAME	IS_NULLABLE	KEY	COLUMN_DEFAULT	EXTRA	PRIVILIGES	COMMENT
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	TYPE	COLLATION_NAME	IS_NULLABLE	KEY	COLUMN_DEFAULT	EXTRA	PRIVILEGES	COMMENT
 NULL	testtets	t1	a	1	int	0	11	4	0	NULL	int(11)	NULL	YES		NULL		select,insert,update,references	
 show columns * where table_name = "t1";
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	TYPE	COLLATION_NAME	IS_NULLABLE	KEY	COLUMN_DEFAULT	EXTRA	PRIVILIGES	COMMENT
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	TYPE	COLLATION_NAME	IS_NULLABLE	KEY	COLUMN_DEFAULT	EXTRA	PRIVILEGES	COMMENT
 NULL	testtets	t1	a	1	int	0	11	4	0	NULL	int(11)	NULL	YES		NULL			
 NULL	testtets	t1	b	2	varchar	30	30	30	31	latin1	varchar(30)	latin1_swedish_ci	YES	MUL	NULL			
 drop view v1;
@@ -352,7 +352,7 @@ t1	CREATE TABLE `t1` (
 select * from information_schema.TABLE_CONSTRAINTS where
 TABLE_SCHEMA= "test";
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE	CONSTRAINT_METHOD
-NULL	test	PRIMARY	test	t1	PRIMARY	NULL
+NULL	test	PRIMARY	test	t1	PRIMARY KEY	NULL
 NULL	test	constraint_1	test	t1	UNIQUE	NULL
 NULL	test	key_1	test	t1	UNIQUE	NULL
 NULL	test	key_2	test	t1	UNIQUE	NULL
@@ -371,10 +371,10 @@ FOREIGN KEY (t1_id) REFERENCES t1(id)  ON UPDATE CASCADE) ENGINE=INNODB;
 select * from information_schema.TABLE_CONSTRAINTS where
 TABLE_SCHEMA= "test";
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE	CONSTRAINT_METHOD
-NULL	test	PRIMARY	test	t1	PRIMARY	NULL
-NULL	test	PRIMARY	test	t2	PRIMARY	NULL
-NULL	test	t2_ibfk_1	test	t2	FOREIGN	ON DELETE CASCADE
-NULL	test	t2_ibfk_2	test	t2	FOREIGN	ON UPDATE CASCADE
+NULL	test	PRIMARY	test	t1	PRIMARY KEY	NULL
+NULL	test	PRIMARY	test	t2	PRIMARY KEY	NULL
+NULL	test	t2_ibfk_1	test	t2	FOREIGN KEY	ON DELETE CASCADE
+NULL	test	t2_ibfk_2	test	t2	FOREIGN KEY	ON UPDATE CASCADE
 select * from information_schema.KEY_COLUMN_USAGE where
 TABLE_SCHEMA= "test";
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
@@ -400,3 +400,42 @@ drop table t2;
 drop table t1;
 drop procedure sel2;
 drop function sub1;
+create table t1(a int);
+create view v1 (c) as select a from t1 with check option;
+create view v2 (c) as select a from t1 WITH LOCAL CHECK OPTION;
+create view v3 (c) as select a from t1 WITH CASCADED CHECK OPTION;
+select * from information_schema.views;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE
+NULL	test	v1	select `test`.`t1`.`a` AS `c` from `test`.`t1`	WITH CASCADED CHECK OPTION	YES
+NULL	test	v2	select `test`.`t1`.`a` AS `c` from `test`.`t1`	WITH LOCAL CHECK OPTION	YES
+NULL	test	v3	select `test`.`t1`.`a` AS `c` from `test`.`t1`	WITH CASCADED CHECK OPTION	YES
+grant select (a) on test.t1 to joe@localhost with grant option;
+select * from INFORMATION_SCHEMA.COLUMN_PRIVILEGES;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
+'joe'@'localhost'	NULL	test	t1	a	SELECT	YES
+select * from INFORMATION_SCHEMA.TABLE_PRIVILEGES;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
+'joe'@'localhost'	NULL	test	t1	USAGE	YES
+drop view v1, v2, v3;
+drop table t1;
+delete from mysql.user where user='joe';
+delete from mysql.db where user='joe';
+delete from mysql.tables_priv where user='joe';
+delete from mysql.columns_priv where user='joe';
+flush privileges;
+create procedure px5 ()
+begin
+declare v int;
+declare c cursor for select version from
+information_schema.tables;
+open c;
+fetch c into v;
+select v;
+close c;
+end;//
+call px5()//
+v
+9
+call px5()//
+v
+9
