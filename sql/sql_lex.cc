@@ -146,7 +146,8 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->length=0;
   lex->select->in_sum_expr=0;
   lex->select->expr_list.empty();
-  lex->select->ftfunc_list.empty();
+  lex->select->ftfunc_list_alloc.empty();
+  lex->select->ftfunc_list= &lex->select->ftfunc_list_alloc;
   lex->convert_set=(lex->thd=thd)->convert_set;
   lex->yacc_yyss=lex->yacc_yyvs=0;
   lex->ignore_space=test(thd->sql_mode & MODE_IGNORE_SPACE);
@@ -918,6 +919,8 @@ void st_select_lex_unit::init_query()
   global_parameters= this;
   select_limit_cnt= HA_POS_ERROR;
   offset_limit_cnt= 0;
+  optimized= 0;
+  item= 0;
 }
 
 void st_select_lex::init_query()
@@ -941,9 +944,11 @@ void st_select_lex::init_select()
   expr_list.empty();
   interval_list.empty(); 
   use_index.empty();
-  ftfunc_list.empty();
+  ftfunc_list_alloc.empty();
+  ftfunc_list= &ftfunc_list_alloc;
   linkage= UNSPECIFIED_TYPE;
   depended= having_fix_field= 0;
+  
 }
 
 /*

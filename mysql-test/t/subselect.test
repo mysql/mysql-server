@@ -1,6 +1,6 @@
 
 select (select 2);
-drop table if exists t1,t2,t3,t4;
+drop table if exists t1,t2,t3,t4,t5;
 create table t1 (a int);
 create table t2 (a int, b int);
 create table t3 (a int);
@@ -33,4 +33,12 @@ select b,max(a) as ma from t4 group by b having b < (select max(t2.a)
 from t2 where t2.b=t4.b);
 select b,max(a) as ma from t4 group by b having b >= (select max(t2.a)
 from t2 where t2.b=t4.b);
-drop table t1,t2,t3,t4;
+create table t5 (a int);
+select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a), a from t2;
+insert into t5 values (5);
+select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a), a from t2;
+insert into t5 values (2);
+select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a), a from t2;
+-- error 1230
+select (select a from t1 where t1.a=t2.a union all select a from t5 where t5.a=t2.a), a from t2;
+drop table t1,t2,t3,t4,t5;

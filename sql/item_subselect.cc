@@ -23,9 +23,6 @@ SUBSELECT TODO:
    - remove double 'having' & 'having_list' from JOIN
      (sql_select.h/sql_select.cc)
 
-   - subselect in HAVING clause
-   - add subselect union select (sql_union.cc)
-   
 */
 
 #ifdef __GNUC__
@@ -37,21 +34,17 @@ SUBSELECT TODO:
 
 Item_subselect::Item_subselect(THD *thd, st_select_lex *select_lex,
 			       select_subselect *result):
-  assigned(0), executed(0), optimized(0), error(0)
+  engine_owner(1), value_assigned(0)
 {
   DBUG_ENTER("Item_subselect::Item_subselect");
   DBUG_PRINT("subs", ("select_lex 0x%xl", (long) select_lex));
-  this->result= result;
-  SELECT_LEX_UNIT *unit= select_lex->master_unit();
-  unit->offset_limit_cnt= unit->global_parameters->offset_limit;
-  unit->select_limit_cnt= unit->global_parameters->select_limit+
-    unit->global_parameters ->offset_limit;
-  if (unit->select_limit_cnt < unit->global_parameters->select_limit)
-    unit->select_limit_cnt= HA_POS_ERROR;		// no limit
-  if (unit->select_limit_cnt == HA_POS_ERROR)
-    select_lex->options&= ~OPTION_FOUND_ROWS;
-  join= new JOIN(thd, select_lex->item_list, select_lex->options, result);
-  this->select_lex= select_lex;
+
+  if (select_lex->next_select())
+    engine= new subselect_union_engine(thd, select_lex->master_unit(), result,
+				       this);
+  else
+    engine= new subselect_single_select_engine(thd, select_lex, result,
+					       this);
   assign_null();
   /*
     item value is NULL if select_subselect not changed this value 
@@ -59,6 +52,12 @@ Item_subselect::Item_subselect(THD *thd, st_select_lex *select_lex,
   */
   null_value= 1;
   DBUG_VOID_RETURN;
+}
+
+Item_subselect::~Item_subselect()
+{
+  if (engine_owner)
+    delete engine;
 }
 
 void Item_subselect::make_field (Send_field *tmp_field)
@@ -78,62 +77,17 @@ void Item_subselect::make_field (Send_field *tmp_field)
 bool Item_subselect::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   // Is it one field subselect?
-  if (select_lex->item_list.elements > max_columns)
+  if (engine->cols() > max_columns)
   {  
-    my_printf_error(ER_SUBSELECT_NO_1_COL, ER(ER_SUBSELECT_NO_1_COL), MYF(0));
+    my_message(ER_SUBSELECT_NO_1_COL, ER(ER_SUBSELECT_NO_1_COL), MYF(0));
     return 1;
   }
-  SELECT_LEX *save_select= thd->lex.select;
-  thd->lex.select= select_lex;
-  if(join->prepare((TABLE_LIST*) select_lex->table_list.first,
-		   select_lex->where,
-		   (ORDER*) select_lex->order_list.first,
-		   (ORDER*) select_lex->group_list.first,
-		   select_lex->having,
-		   (ORDER*) 0, select_lex, 
-		   select_lex->master_unit()))
-    return 1;
-  thd->lex.select= save_select;
-  return 0;
-}
-
-int Item_subselect::exec()
-{
-  DBUG_ENTER("Item_subselect::exec");
-  if (!optimized)
-  {
-    optimized=1;
-    if (join->optimize())
-    {
-      executed= 1;
-      DBUG_RETURN(join->error?join->error:1);
-    }
-  }
-  if (join->select_lex->depended && executed)
-  {
-    if (join->reinit())
-    {
-      error= 1;
-      DBUG_RETURN(1);
-    }
-    assign_null();
-    executed= assigned= 0;
-  }
-  if (!executed)
-  {
-    SELECT_LEX *save_select= join->thd->lex.select;
-    join->thd->lex.select= select_lex;
-    join->exec();
-    join->thd->lex.select= save_select;
-    executed= 1;
-    DBUG_RETURN(join->error);
-  }
-  DBUG_RETURN(0);
+  return engine->prepare();
 }
 
 inline table_map Item_subselect::used_tables() const
 {
-  return (table_map) select_lex->depended ? 1L : 0L; 
+  return (table_map) engine->depended() ? 1L : 0L; 
 }
 
 Item_singleval_subselect::Item_singleval_subselect(THD *thd,
@@ -151,21 +105,21 @@ Item::Type Item_subselect::type() const
 
 double Item_singleval_subselect::val () 
 {
-  if (exec())
+  if (engine->exec())
     return 0;
   return real_value;
 }
 
 longlong Item_singleval_subselect::val_int () 
 {
-  if (exec())
+  if (engine->exec())
     return 0;
   return int_value;
 }
 
 String *Item_singleval_subselect::val_str (String *str) 
 {
-  if (exec() || null_value)
+  if (engine->exec() || null_value)
     return 0;
   return &str_value;
 }
@@ -183,23 +137,143 @@ Item_exists_subselect::Item_exists_subselect(THD *thd,
 
 double Item_exists_subselect::val () 
 {
-  if (exec())
+  if (engine->exec())
     return 0;
   return (double) value;
 }
 
 longlong Item_exists_subselect::val_int () 
 {
-  if (exec())
+  if (engine->exec())
     return 0;
   return value;
 }
 
 String *Item_exists_subselect::val_str(String *str)
 {
-  if (exec())
+  if (engine->exec())
     return 0;
   str->set(value);
   return str;
 }
 
+
+subselect_single_select_engine::subselect_single_select_engine(THD *thd, 
+							       st_select_lex *select,
+							       select_subselect *result,
+							       Item_subselect *item):
+  subselect_engine(thd, item, result),
+   executed(0), optimized(0)
+{
+  select_lex= select;
+  SELECT_LEX_UNIT *unit= select_lex->master_unit();
+  unit->offset_limit_cnt= unit->global_parameters->offset_limit;
+  unit->select_limit_cnt= unit->global_parameters->select_limit+
+    unit->global_parameters ->offset_limit;
+  if (unit->select_limit_cnt < unit->global_parameters->select_limit)
+    unit->select_limit_cnt= HA_POS_ERROR;		// no limit
+  if (unit->select_limit_cnt == HA_POS_ERROR)
+    select_lex->options&= ~OPTION_FOUND_ROWS;
+  join= new JOIN(thd, select_lex->item_list, select_lex->options, result);
+  if (!join || !result)
+  {
+    //out of memory
+    thd->fatal_error= 1;
+    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+  } 
+  this->select_lex= select_lex;
+}
+
+subselect_union_engine::subselect_union_engine(THD *thd,
+					       st_select_lex_unit *u,
+					       select_subselect *result,
+					       Item_subselect *item):
+  subselect_engine(thd, item, result)
+{
+  unit= u;
+  if( !result)
+  {
+    //out of memory
+    thd->fatal_error= 1;
+    my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+  }
+  unit->item= item;
+}
+
+int subselect_single_select_engine::prepare()
+{
+  SELECT_LEX *save_select= thd->lex.select;
+  thd->lex.select= select_lex;
+  if(join->prepare((TABLE_LIST*) select_lex->table_list.first,
+		   select_lex->where,
+		   (ORDER*) select_lex->order_list.first,
+		   (ORDER*) select_lex->group_list.first,
+		   select_lex->having,
+		   (ORDER*) 0, select_lex, 
+		   select_lex->master_unit(), 0))
+    return 1;
+  thd->lex.select= save_select;
+  return 0;
+}
+
+int subselect_union_engine::prepare()
+{
+  return unit->prepare(thd, result);
+}
+
+
+int subselect_single_select_engine::exec()
+{
+  DBUG_ENTER("subselect_single_select_engine::exec");
+  if (!optimized)
+  {
+    optimized=1;
+    if (join->optimize())
+    {
+      executed= 1;
+      DBUG_RETURN(join->error?join->error:1);
+    }
+  }
+  if (select_lex->depended && executed)
+  {
+    if (join->reinit())
+      DBUG_RETURN(1);
+    item->assign_null();
+    item->assigned((executed= 0));
+  }
+  if (!executed)
+  {
+    SELECT_LEX *save_select= join->thd->lex.select;
+    join->thd->lex.select= select_lex;
+    join->exec();
+    join->thd->lex.select= save_select;
+    executed= 1;
+    DBUG_RETURN(join->error||thd->fatal_error);
+  }
+  DBUG_RETURN(0);
+}
+
+int subselect_union_engine::exec()
+{
+  return unit->exec();
+}
+
+uint subselect_single_select_engine::cols()
+{
+  return select_lex->item_list.elements;
+}
+
+uint subselect_union_engine::cols()
+{
+  return unit->first_select()->item_list.elements;
+}
+
+bool subselect_single_select_engine::depended()
+{
+  return select_lex->depended;
+}
+
+bool subselect_union_engine::depended()
+{
+  return unit->depended;
+}

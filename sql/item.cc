@@ -457,7 +457,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   if (!field)					// If field is not checked
   {
     Field *tmp;
-    if (!(tmp=find_field_in_tables(thd,this,tables)))
+    if (!(tmp=find_field_in_tables(thd, this, tables, 0)))
     {
       /*
 	We can't find table field in table list of current select, 
@@ -473,9 +473,14 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	   sl && !tmp;
 	   sl= sl->outer_select())
 	tmp=find_field_in_tables(thd, this,
-				 (TABLE_LIST*)(last= sl)->table_list.first);
+				 (TABLE_LIST*)(last= sl)->table_list.first,
+				 0);
       if (!tmp)
-	return 1;
+      {
+	// Call to produce appropriate error message
+	find_field_in_tables(thd, this, tables, 1);
+	return -1;
+      }
       else
       {
 	depended_from= last;
@@ -488,7 +493,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	     s= s->outer_select())
 	  if( !s->depended )
 	  {
-	    s->depended= 1; //Select is depended of outer select
+	    // Select is depended of outer select
+	    s->depended= s->master_unit()->depended= 1;
 	    //Tables will be reopened many times
 	    for (TABLE_LIST *tbl= 
 		   (TABLE_LIST*)s->table_list.first;
@@ -803,7 +809,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 {
   if (!ref)
   {
-        if (!(ref= find_item_in_list(this,thd->lex.select->item_list)))
+        if (!(ref= find_item_in_list(this, thd->lex.select->item_list, 0)))
     {
       /*
 	We can't find table field in table list of current select, 
@@ -818,9 +824,13 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
       for (SELECT_LEX *sl= thd->lex.select->outer_select();
 	   sl && !ref;
 	   sl= sl->outer_select())
-	ref= find_item_in_list(this, (last= sl)->item_list);
+	ref= find_item_in_list(this, (last= sl)->item_list, 0);
       if (!ref)
+      {
+	// Call to report error
+	find_item_in_list(this, thd->lex.select->item_list, 1);
 	return 1;
+      }
       else
       {
 	depended_from= last;
@@ -833,7 +843,8 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	     s= s->outer_select())
 	  if( !s->depended )
 	  {
-	    s->depended= 1; //Select is depended of outer select
+	    // Select is depended of outer select
+	    s->depended= s->master_unit()->depended= 1; 
 	    //Tables will be reopened many times
 	    for (TABLE_LIST *tbl= 
 		   (TABLE_LIST*)s->table_list.first;

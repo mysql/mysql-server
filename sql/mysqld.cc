@@ -1608,8 +1608,9 @@ static int my_message_sql(uint error, const char *str,
   NET *net;
   DBUG_ENTER("my_message_sql");
   DBUG_PRINT("error",("Message: '%s'",str));
-  if ((net=my_pthread_getspecific_ptr(NET*,THR_NET)))
+  if ((net= my_pthread_getspecific_ptr(NET*,THR_NET)))
   {
+    net->report_error= 1;
     if (!net->last_error[0])			// Return only first message
     {
       strmake(net->last_error,str,sizeof(net->last_error)-1);

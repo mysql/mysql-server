@@ -665,7 +665,7 @@ pthread_handler_decl(handle_one_connection,arg)
     if (thd->user_connect)
       decrease_user_connections(thd->user_connect);
     free_root(&thd->mem_root,MYF(0));
-    if (net->error && net->vio != 0)
+    if (net->error && net->vio != 0 && net->report_error)
     {
       if (!thd->killed && opt_warnings)
 	sql_print_error(ER(ER_NEW_ABORTING_CONNECTION),
@@ -1169,6 +1169,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   }
   case COM_PING:
+    DBUG_PRINT("info", ("query: PING"));
     thread_safe_increment(com_other,&LOCK_thread_count);
     send_ok(net);				// Tell client we are alive
     break;
@@ -1257,6 +1258,7 @@ mysql_execute_command(void)
   SELECT_LEX_UNIT *unit= &lex->unit;
   DBUG_ENTER("mysql_execute_command");
 
+  thd->net.report_error= 0;
   if (thd->slave_thread)
   {
     /* 
@@ -1864,7 +1866,7 @@ mysql_execute_command(void)
 			  (ORDER *)NULL,
 			  select_lex->options | thd->options |
 			  SELECT_NO_JOIN_CACHE,
-			  result, unit);
+			  result, unit, 0);
 	delete result;
       }
       else
@@ -2029,13 +2031,13 @@ mysql_execute_command(void)
 						       lex->lock_option,
 						       table_count)))
     {
-      res=mysql_select(thd,tables,select_lex->item_list,
-		       select_lex->where,
-		       (ORDER *)NULL,(ORDER *)NULL,(Item *)NULL,
-		       (ORDER *)NULL,
-		       select_lex->options | thd->options |
-		       SELECT_NO_JOIN_CACHE,
-		       result, unit);
+      res= mysql_select(thd,tables,select_lex->item_list,
+			select_lex->where,
+			(ORDER *)NULL,(ORDER *)NULL,(Item *)NULL,
+			(ORDER *)NULL,
+			select_lex->options | thd->options |
+			SELECT_NO_JOIN_CACHE,
+			result, unit, 0);
       delete result;
     }
     else
