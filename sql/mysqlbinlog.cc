@@ -267,6 +267,15 @@ static void dump_remote_log_entries(const char* logname)
   char buf[128];
   uint len;
   NET* net = &mysql->net;
+  if(!position) position = 4; // protect the innocent from spam
+  if(position < 4)
+    {
+      position = 4;
+      // warn the guity
+      fprintf(stderr,
+      "Warning: with the position so small you would hit the magic number\n\
+Unfortunately, no sweepstakes today, adjusted position to 4\n");
+    }
   int4store(buf, position);
   int2store(buf + 4, binlog_flags);
   len = (uint) strlen(logname);
@@ -305,7 +314,7 @@ static void dump_local_log_entries(const char* logname)
  int rec_count = 0;
 
  if(logname && logname[0] != '-')
-   file = my_fopen(logname, O_RDONLY, MYF(MY_WME));
+   file = my_fopen(logname, O_RDONLY|O_BINARY, MYF(MY_WME));
  else
    file = stdin;
 
@@ -314,6 +323,15 @@ static void dump_local_log_entries(const char* logname)
 
  if(my_fseek(file, position, MY_SEEK_SET, MYF(MY_WME)))
    die("failed on my_fseek()");
+
+ if(!position)
+   {
+     char magic[4];
+     if(my_fread(file, magic, sizeof(magic), MYF(MY_NABP|MY_WME)))
+	die("I/O error reading binlog magic number");
+     if(memcmp(magic, BINLOG_MAGIC, 4))
+       die("Bad magic number");
+  }
  
  while(1)
    {
