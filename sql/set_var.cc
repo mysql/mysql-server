@@ -370,12 +370,6 @@ sys_ndb_force_send("ndb_force_send",
 sys_var_thd_bool
 sys_ndb_use_exact_count("ndb_use_exact_count",
 			&SV::ndb_use_exact_count);
-#ifdef HAVE_QUERY_CACHE
-sys_var_thd_enum
-sys_ndb_query_cache_type("ndb_query_cache_type",
-		    &SV::ndb_query_cache_type,
-		    &ndb_query_cache_type_typelib);
-#endif
 sys_var_thd_bool
 sys_ndb_use_transactions("ndb_use_transactions",
 			 &SV::ndb_use_transactions);
@@ -640,9 +634,6 @@ sys_var *sys_variables[]=
   &sys_ndb_autoincrement_prefetch_sz,
   &sys_ndb_force_send,
   &sys_ndb_use_exact_count,
-#ifdef HAVE_QUERY_CACHE
-  &sys_ndb_query_cache_type,
-#endif
   &sys_ndb_use_transactions,
 #endif
   &sys_unique_checks,
@@ -810,9 +801,6 @@ struct show_var_st init_vars[]= {
    (char*) &sys_ndb_autoincrement_prefetch_sz,                      SHOW_SYS},
   {sys_ndb_force_send.name,   (char*) &sys_ndb_force_send,          SHOW_SYS},
   {sys_ndb_use_exact_count.name,(char*) &sys_ndb_use_exact_count,   SHOW_SYS},
-#ifdef HAVE_QUERY_CACHE
-  {sys_ndb_query_cache_type.name,(char*) &sys_ndb_query_cache_type, SHOW_SYS},
-#endif
   {sys_ndb_use_transactions.name,(char*) &sys_ndb_use_transactions, SHOW_SYS},
 #endif
   {sys_net_buffer_length.name,(char*) &sys_net_buffer_length,       SHOW_SYS},

@@ -366,12 +366,6 @@ TYPELIB query_cache_type_typelib=
   array_elements(query_cache_type_names)-1,"", query_cache_type_names, NULL
 };
 
-const char *ndb_query_cache_type_names[]= { "OFF", "ON", "LOCAL",NullS };
-TYPELIB ndb_query_cache_type_typelib=
-{
-  array_elements(ndb_query_cache_type_names)-1,"", ndb_query_cache_type_names, NULL
-};
-
 /*****************************************************************************
  Query_cache_block_table method(s)
 *****************************************************************************/
