@@ -673,6 +673,7 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
  *
  */
 
+#if 0
 void
 SumaParticipant::convertNameToId(SubscriptionPtr subPtr, Signal * signal)
 {
@@ -703,6 +704,7 @@ SumaParticipant::convertNameToId(SubscriptionPtr subPtr, Signal * signal)
     sendSubCreateConf(signal, subPtr.p->m_subscriberRef, subPtr);
   }
 }
+#endif
 
 
 void 
@@ -719,6 +721,7 @@ SumaParticipant::addTableId(Uint32 tableId,
     psyncRec->m_tableList.append(&tableId, 1);  
 }
 
+#if 0
 void 
 SumaParticipant::execGET_TABLEID_CONF(Signal * signal)
 {
@@ -766,6 +769,8 @@ SumaParticipant::execGET_TABLEID_REF(Signal * signal)
 	     SubCreateRef::SignalLength,
 	     JBB);
 }
+#endif
+
 
 /*************************************************************
  *
@@ -999,6 +1004,7 @@ SumaParticipant::execSUB_CREATE_REQ(Signal* signal) {
 	}
       }
     break;
+#if 0
     case SubCreateReq::SelectiveTableSnapshot:
       /**
        * Tables specified by the user that does not exist
@@ -1041,6 +1047,7 @@ SumaParticipant::execSUB_CREATE_REQ(Signal* signal) {
 	return;
       }
     break;
+#endif
     case SubCreateReq::DatabaseSnapshot:
       {
 	jam();

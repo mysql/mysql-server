@@ -37,7 +37,7 @@
 #include <signaldata/UtilLock.hpp>
 #include <SimpleProperties.hpp>
 
-#define UTIL_WORDS_PER_PAGE 8191
+#define UTIL_WORDS_PER_PAGE 1023
 
 /**
  * @class DbUtil 

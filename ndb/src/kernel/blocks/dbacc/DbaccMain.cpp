@@ -1021,7 +1021,7 @@ void Dbacc::initialiseTableRec(Signal* signal)
   for (tabptr.i = 0; tabptr.i < ctablesize; tabptr.i++) {
     refresh_watch_dog();
     ptrAss(tabptr, tabrec);
-    for (Uint32 i = 0; i < NO_OF_FRAG_PER_NODE; i++) {
+    for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
       tabptr.p->fragholder[i] = RNIL;
       tabptr.p->fragptrholder[i] = RNIL;
     }//for
@@ -1187,7 +1187,7 @@ void Dbacc::releaseRootFragResources(Signal* signal, Uint32 tableId)
   TabrecPtr tabPtr;
   tabPtr.i = tableId;
   ptrCheckGuard(tabPtr, ctablesize, tabrec);
-  for (Uint32 i = 0; i < NO_OF_FRAG_PER_NODE; i++) {
+  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
     jam();
     if (tabPtr.p->fragholder[i] != RNIL) {
       jam();
@@ -1419,7 +1419,7 @@ void Dbacc::execFSREMOVEREF(Signal* signal)
 /* -------------------------------------------------------------------------- */
 bool Dbacc::addfragtotab(Signal* signal, Uint32 rootIndex, Uint32 fid) 
 {
-  for (Uint32 i = 0; i < NO_OF_FRAG_PER_NODE; i++) {
+  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
     jam();
     if (tabptr.p->fragholder[i] == RNIL) {
       jam();
@@ -2435,7 +2435,7 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
     ptrCheckGuard(tabptr, ctablesize, tabrec);
     // find fragment (TUX will know it)
     if (req->fragPtrI == RNIL) {
-      for (Uint32 i = 0; i < NO_OF_FRAG_PER_NODE; i++) {
+      for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
         jam();
         if (tabptr.p->fragptrholder[i] != RNIL) {
           rootfragrecptr.i = tabptr.p->fragptrholder[i];
@@ -12184,7 +12184,7 @@ void Dbacc::takeOutReadyScanQueue(Signal* signal)
 
 bool Dbacc::getrootfragmentrec(Signal* signal, RootfragmentrecPtr& rootPtr, Uint32 fid) 
 {
-  for (Uint32 i = 0; i < NO_OF_FRAG_PER_NODE; i++) {
+  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
     jam();
     if (tabptr.p->fragholder[i] == fid) {
       jam();
