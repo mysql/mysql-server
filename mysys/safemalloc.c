@@ -374,11 +374,11 @@ void TERMINATE(FILE *file)
   {
     if (file)
     {
-      fprintf(file, "Warning: Not freed memory segments: %d\n",
+      fprintf(file, "Warning: Not freed memory segments: %u\n",
 	      sf_malloc_count);
       (void) fflush(file);
     }
-    DBUG_PRINT("safe",("sf_malloc_count: %d", sf_malloc_count));
+    DBUG_PRINT("safe",("sf_malloc_count: %u", sf_malloc_count));
   }
 
   /*
@@ -482,7 +482,7 @@ int _sanity(const char *filename, uint lineno)
 
   pthread_mutex_lock(&THR_LOCK_malloc);
 #ifndef PEDANTIC_SAFEMALLOC  
-  if (sf_malloc_tampered && sf_malloc_count < 0)
+  if (sf_malloc_tampered && (int) sf_malloc_count < 0)
     sf_malloc_count=0;
 #endif  
   count=sf_malloc_count;

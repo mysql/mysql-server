@@ -172,10 +172,13 @@ static int check_lock(struct st_lock_list *list, const char* lock_type,
   return 0;
 }
 
+
 static void check_locks(THR_LOCK *lock, const char *where,
 			my_bool allow_no_locks)
 {
   uint old_found_errors=found_errors;
+  DBUG_ENTER("check_locks");
+
   if (found_errors < MAX_FOUND_ERRORS)
   {
     if (check_lock(&lock->write,"write",where,1,1) |
@@ -252,18 +255,21 @@ static void check_locks(THR_LOCK *lock, const char *where,
 	}
 	if (lock->read.data)
 	{
-	  if ((!pthread_equal(lock->write.data->thread,
-			      lock->read.data->thread) &&
-	       lock->write.data->type > TL_WRITE_DELAYED &&
-	       lock->write.data->type != TL_WRITE_ONLY) ||
-	      ((lock->write.data->type == TL_WRITE_CONCURRENT_INSERT ||
-		lock->write.data->type == TL_WRITE_ALLOW_WRITE) &&
-	       lock->read_no_write_count))
+	  if (!pthread_equal(lock->write.data->thread,
+			     lock->read.data->thread) &&
+	      ((lock->write.data->type > TL_WRITE_DELAYED &&
+		lock->write.data->type != TL_WRITE_ONLY) ||
+	       ((lock->write.data->type == TL_WRITE_CONCURRENT_INSERT ||
+		 lock->write.data->type == TL_WRITE_ALLOW_WRITE) &&
+		lock->read_no_write_count)))
 	  {
 	    found_errors++;
 	    fprintf(stderr,
 		    "Warning at '%s': Found lock of type %d that is write and read locked\n",
 		    where, lock->write.data->type);
+	    DBUG_PRINT("warning",("At '%s': Found lock of type %d that is write and read locked\n",
+		    where, lock->write.data->type));
+
 	  }
 	}
 	if (lock->read_wait.data)
@@ -286,6 +292,7 @@ static void check_locks(THR_LOCK *lock, const char *where,
       DBUG_PRINT("error",("Found wrong lock"));
     }
   }
+  DBUG_VOID_RETURN;
 }
 
 #else /* EXTRA_DEBUG */
