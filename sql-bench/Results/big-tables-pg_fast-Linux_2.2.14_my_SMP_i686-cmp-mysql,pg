@@ -1,0 +1,28 @@
+Testing server 'PostgreSQL version 7.0.2' at 2000-08-17  3:10:25
+
+Testing of some unusual tables
+All tests are done 1000 times with 1000 fields
+
+Testing table with 1000 fields
+NOTICE:  Vacuum: table not found
+Time for book-keeping (1):  1 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing select * from table with 1 record
+Time to select_many_fields(1000): 398 wallclock secs ( 3.66 usr  0.36 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing select all_fields from table with 1 record
+Time to select_many_fields(1000): 488 wallclock secs ( 3.97 usr  0.36 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing insert VALUES()
+Time to insert_many_fields(1000): 143 wallclock secs ( 0.41 usr  0.10 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+NOTICE:  Vacuum: table not found
+Time for book-keeping (1):  2 wallclock secs ( 0.00 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Testing insert (all_fields) VALUES()
+Time to insert_many_fields(1000): 213 wallclock secs ( 0.71 usr  0.09 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+NOTICE:  Vacuum: table not found
+Time for book-keeping (1):  1 wallclock secs ( 0.01 usr  0.00 sys +  0.00 cusr  0.00 csys =  0.00 CPU)
+
+Total time: 1247 wallclock secs ( 8.78 usr  0.92 sys +  0.00 cusr  0.00 csys =  0.00 CPU)

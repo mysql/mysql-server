@@ -25,3 +25,6 @@ EXTRA_DIST =		auto_increment.res auto_increment.tst \
 			grant.pl grant.res test_delayed_insert.pl \
 			pmail.pl mail_to_db.pl table_types.pl \
 			udf_test udf_test.res
+
+# Don't update the files from bitkeeper
+%::SCCS/s.%

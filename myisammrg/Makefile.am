@@ -29,3 +29,6 @@ OMIT_DEPENDENCIES =	pthread.h stdio.h __stdio.h stdlib.h __stdlib.h math.h\
 			prio_queue.h pthread_attr.h pthread_once.h queue.h\
 			sleep.h specific.h version.h pwd.h timers.h uio.h \
 			cdefs.h machdep.h signal.h __signal.h util.h
+
+# Don't update the files from bitkeeper
+%::SCCS/s.%
