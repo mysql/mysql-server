@@ -4,7 +4,33 @@ select length(encrypt('foo', 'ff')) <> 0;
 --replace_result $1$aa$4OSUA5cjdx0RUQ08opV27/ aaqPiZY5xR5l.
 
 # Test new and old password handling functions 
-select password("a",""), password("a",NULL), password("","a"), password(NULL,"a");
-select password("aaaaaaaaaaaaaaaa","a"), password("a","aaaaaaaaaaaaaaaa");
-select old_password('test'), length(password("1")), length(encrypt('test')), encrypt('test','aa');
-select old_password(""), old_password(NULL), password(""), password(NULL);
+select password('abc');
+select password('');
+select old_password('abc');
+select old_password('');
+select password('gabbagabbahey');
+select old_password('idkfa');
+select length(password('1'));
+select length(encrypt('test'));
+select encrypt('test','aa');
+select old_password(NULL);
+select password(NULL);
+set global old_passwords=on;
+select password('');
+select old_password('');
+select password('idkfa');
+select old_password('idkfa');
+set old_passwords=on;
+select password('idkfa');
+select old_password('idkfa');
+set global old_passwords=off;
+select password('idkfa');
+select old_password('idkfa');
+
+# this test shows that new scrambles honor spaces in passwords:
+set old_passwords=off;
+select password('idkfa ');
+select password('idkfa');
+select password(' idkfa');
+select old_password('idkfa');
+select old_password(' i 	 d k f a ');

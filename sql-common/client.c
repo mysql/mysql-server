@@ -1335,76 +1335,6 @@ mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
 
 
 /*
-  Handle password authentication
-*/
-
-my_bool mysql_autenticate(MYSQL *mysql, const char *passwd)
-{
-  ulong pkt_length;
-  NET *net= &mysql->net;
-  char buff[SCRAMBLE41_LENGTH];
-  char password_hash[SCRAMBLE41_LENGTH]; /* Used for storage of stage1 hash */
-
-  /* We shall only query server if it expect us to do so */
-  if ((pkt_length=net_safe_read(mysql)) == packet_error)
-    goto error;
-
-  if (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
-  {
-    /*
-      This should always happen with new server unless empty password
-      OK/Error packets have zero as the first char
-    */
-    if (pkt_length == 24 && net->read_pos[0])
-    {
-      /* Old passwords will have '*' at the first byte of hash */
-      if (net->read_pos[0] != '*')
-      {
-        /* Build full password hash as it is required to decode scramble */
-        password_hash_stage1(buff, passwd);
-        /* Store copy as we'll need it later */
-        memcpy(password_hash,buff,SCRAMBLE41_LENGTH);
-        /* Finally hash complete password using hash we got from server */
-        password_hash_stage2(password_hash,(const char*) net->read_pos);
-        /* Decypt and store scramble 4 = hash for stage2 */
-        password_crypt((const char*) net->read_pos+4,mysql->scramble_buff,
-		       password_hash, SCRAMBLE41_LENGTH);
-        mysql->scramble_buff[SCRAMBLE41_LENGTH]=0;
-        /* Encode scramble with password. Recycle buffer */
-        password_crypt(mysql->scramble_buff,buff,buff,SCRAMBLE41_LENGTH);
-      }
-      else
-      {
-	/* Create password to decode scramble */
-	create_key_from_old_password(passwd,password_hash);
-	/* Decypt and store scramble 4 = hash for stage2 */
-	password_crypt((const char*) net->read_pos+4,mysql->scramble_buff,
-		       password_hash, SCRAMBLE41_LENGTH);
-	mysql->scramble_buff[SCRAMBLE41_LENGTH]=0;
-	/* Finally scramble decoded scramble with password */
-	scramble(buff, mysql->scramble_buff, passwd,0);
-      }
-      /* Write second package of authentication */
-      if (my_net_write(net,buff,SCRAMBLE41_LENGTH) || net_flush(net))
-      {
-        net->last_errno= CR_SERVER_LOST;
-	strmov(net->sqlstate, unknown_sqlstate);
-        strmov(net->last_error,ER(net->last_errno));
-        goto error;
-      }
-      /* Read what server thinks about out new auth message report */
-      if (net_safe_read(mysql) == packet_error)
-	goto error;
-    }
-  }
-  return 0;
-
-error:
-  return 1;
-}
-
-
-/*
   Note that the mysql argument must be initialized with mysql_init()
   before calling mysql_real_connect !
 */
@@ -1481,7 +1411,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   mysql->server_status=SERVER_STATUS_AUTOCOMMIT;
 
   /*
-    Grab a socket and connect it to the server
+    Part 0: Grab a socket and connect it to the server
   */
 #if defined(HAVE_SMEM)
   if ((!mysql->options.protocol ||
@@ -1682,6 +1612,11 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     strmov(net->last_error,ER(net->last_errno));
     goto error;
   }
+
+  /*
+    Part 1: Connection established, read and parse first packet
+  */
+
   if ((pkt_length=net_safe_read(mysql)) == packet_error)
     goto error;
 
@@ -1702,8 +1637,14 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   end=strend((char*) net->read_pos+1);
   mysql->thread_id=uint4korr(end+1);
   end+=5;
-  strmake(mysql->scramble_buff,end,8);
-  end+=9;
+  /* 
+    Scramble is split into two parts because old clients does not understand
+    long scrambles; here goes the first part.
+  */
+  strmake(mysql->scramble_323, end, SCRAMBLE_LENGTH_323);
+  end+= SCRAMBLE_LENGTH_323+1;
+  memcpy(mysql->scramble, mysql->scramble_323, SCRAMBLE_LENGTH_323);
+
   if (pkt_length >= (uint) (end+1 - (char*) net->read_pos))
     mysql->server_capabilities=uint2korr(end);
   if (pkt_length >= (uint) (end+18 - (char*) net->read_pos))
@@ -1712,6 +1653,13 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     mysql->server_language=end[2];
     mysql->server_status=uint2korr(end+3);
   }
+  end+= 18;
+  if (pkt_length >= (uint) (end + SCRAMBLE_LENGTH - SCRAMBLE_LENGTH_323 + 1 - 
+                           (char *) net->read_pos))
+    strmake(mysql->scramble+SCRAMBLE_LENGTH_323, end,
+            SCRAMBLE_LENGTH-SCRAMBLE_LENGTH_323);
+  else
+    mysql->server_capabilities&= ~CLIENT_SECURE_CONNECTION;
 
   /* Set character set */
   if ((charset_name=mysql->options.charset_name))
@@ -1783,9 +1731,12 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     mysql->unix_socket=0;
   strmov(mysql->server_version,(char*) net->read_pos+1);
   mysql->port=port;
-  client_flag|=mysql->options.client_flag;
 
-  /* Send client information for access check */
+  /*
+    Part 2: format and send client info to the server for access check
+  */
+  
+  client_flag|=mysql->options.client_flag;
   client_flag|=CLIENT_CAPABILITIES;
   if (client_flag & CLIENT_MULTI_QUERIES)
     client_flag|= CLIENT_MULTI_RESULTS;
@@ -1872,7 +1823,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		     mysql->server_status, client_flag));
   /* This needs to be changed as it's not useful with big packets */
   if (user && user[0])
-    strmake(end,user,32);			/* Max user name */
+    strmake(end,user,USERNAME_LENGTH);          /* Max user name */
   else
     read_user_name((char*) end);
 
@@ -1881,41 +1832,27 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 #include "_cust_libmysql.h"
 #endif
   DBUG_PRINT("info",("user: %s",end));
-  /*
-    We always start with old type handshake the only difference is message sent
-    If server handles secure connection type we'll not send the real scramble
-  */
-  if (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
+  end= strend(end) + 1;
+  if (passwd[0])
   {
-    if (passwd[0])
+    if (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
     {
-      /* Prepare false scramble  */
-      end=strend(end)+1;
-      bfill(end, SCRAMBLE_LENGTH, 'x');
-      end+=SCRAMBLE_LENGTH;
-      *end=0;
+      *end++= SCRAMBLE_LENGTH;
+      scramble(end, mysql->scramble, passwd);
+      end+= SCRAMBLE_LENGTH;
     }
-    else				/* For empty password*/
-    {
-      end=strend(end)+1;
-      *end=0;				/* Store zero length scramble */
-    }
+    else
+      end= scramble_323(end, mysql->scramble_323, passwd) + 1;
   }
   else
-  {
-    /*
-      Real scramble is only sent to old servers. This can be blocked 
-      by calling mysql_options(MYSQL *, MYSQL_SECURE_CONNECT, (char*) &1);
-    */
-    end=scramble(strend(end)+1, mysql->scramble_buff, passwd,
-                 (my_bool) (mysql->protocol_version == 9));
-  }
+    *end++= '\0';                               /* empty password */
+
   /* Add database if needed */
   if (db && (mysql->server_capabilities & CLIENT_CONNECT_WITH_DB))
   {
-    end=strmake(end+1,db,NAME_LEN);
-    mysql->db=my_strdup(db,MYF(MY_WME));
-    db=0;
+    end= strmake(end, db, NAME_LEN) + 1;
+    mysql->db= my_strdup(db,MYF(MY_WME));
+    db= 0;
   }
   /* Write authentication package */
   if (my_net_write(net,buff,(ulong) (end-buff)) || net_flush(net))
@@ -1925,9 +1862,36 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     strmov(net->last_error,ER(net->last_errno));
     goto error;
   }
+  
+  /*
+    Part 3: Authorization data's been sent. Now server can reply with
+    OK-packet, or re-request scrambled password.
+  */
 
-  if (mysql_autenticate(mysql, passwd))
+  if ((pkt_length=net_safe_read(mysql)) == packet_error)
     goto error;
+
+  if (net->read_pos[0] == mysql->scramble_323[0] &&
+      pkt_length == SCRAMBLE_LENGTH_323 + 1 &&
+      mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
+  {
+    /*
+      By sending this very specific reply server asks us to send scrambled
+      password in old format. The reply contains scramble_323.
+    */
+    scramble_323(buff, mysql->scramble_323, passwd);
+    if (my_net_write(net, buff, SCRAMBLE_LENGTH_323 + 1) || net_flush(net))
+    {
+      net->last_errno= CR_SERVER_LOST;
+      strmov(net->sqlstate, unknown_sqlstate);
+      strmov(net->last_error,ER(net->last_errno));
+      goto error;
+    }
+    /* Read what server thinks about out new auth message report */
+    if (net_safe_read(mysql) == packet_error)
+      goto error;
+  }
+
 
   if (client_flag & CLIENT_COMPRESS)		/* We will use compression */
     net->compress=1;
