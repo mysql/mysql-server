@@ -512,10 +512,6 @@ pthread_handler_decl(handle_one_connection,arg)
     return 0;
   }
 
-  // copy global state map into thread
-  for(int x=0; x < 256; x++)
-    thd->state_map[x] = global_state_map[x];
-
   do
   {
     int error;
