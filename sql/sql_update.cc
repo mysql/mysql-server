@@ -21,7 +21,6 @@
 */
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include "sql_select.h"
 
 static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields);

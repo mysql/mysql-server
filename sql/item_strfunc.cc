@@ -25,7 +25,6 @@
 #endif
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include <m_ctype.h>
 #ifdef HAVE_OPENSSL
 #include <openssl/des.h>
