@@ -299,7 +299,6 @@ mutex_enter_nowait(
 	return(1);
 }
 
-#ifdef UNIV_DEBUG
 /**********************************************************************
 Checks that the mutex has been initialized. */
 
@@ -313,7 +312,6 @@ mutex_validate(
 
 	return(TRUE);
 }
-#endif /* UNIV_DEBUG */
 
 /**********************************************************************
 Sets the waiters field in a mutex. */
@@ -1060,12 +1058,8 @@ sync_thread_add_level(
 	} else if (level == SYNC_DICT_HEADER) {
 		ut_a(sync_thread_levels_g(array, SYNC_DICT_HEADER));
 	} else if (level == SYNC_DICT) {
-#ifdef UNIV_DEBUG
-		ut_a(buf_debug_prints ||
-			sync_thread_levels_g(array, SYNC_DICT));
-#else /* UNIV_DEBUG */
-		ut_a(sync_thread_levels_g(array, SYNC_DICT));
-#endif /* UNIV_DEBUG */
+		ut_a(buf_debug_prints
+		     || sync_thread_levels_g(array, SYNC_DICT));
 	} else {
 		ut_error;
 	}

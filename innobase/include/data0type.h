@@ -190,7 +190,6 @@ dtype_read_for_order_and_null_size(
 /*===============================*/
 	dtype_t*	type,	/* in: type struct */
 	byte*		buf);	/* in: buffer for the stored order info */
-#ifdef UNIV_DEBUG
 /*************************************************************************
 Validates a data type structure. */
 
@@ -199,7 +198,6 @@ dtype_validate(
 /*===========*/
 				/* out: TRUE if ok */
 	dtype_t*	type);	/* in: type struct to validate */
-#endif /* UNIV_DEBUG */
 /*************************************************************************
 Prints a data type structure. */
 

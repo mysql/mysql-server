@@ -558,7 +558,6 @@ mem_area_free(
 	ut_ad(mem_pool_validate(pool));
 }
 
-#ifdef UNIV_DEBUG
 /************************************************************************
 Validates a memory pool. */
 
@@ -636,7 +635,6 @@ mem_pool_print_info(
 							pool->reserved);
 	mutex_exit(&(pool->mutex));
 }
-#endif /* UNIV_DEBUG */
 
 /************************************************************************
 Returns the amount of reserved memory. */

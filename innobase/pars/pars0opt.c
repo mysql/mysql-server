@@ -1190,7 +1190,6 @@ opt_search_plan(
 #endif
 }
 
-#ifdef UNIV_SQL_DEBUG
 /************************************************************************
 Prints info of a query plan. */
 
@@ -1236,4 +1235,3 @@ opt_print_query_plan(
 			UT_LIST_GET_LEN(plan->end_conds));
 	}
 }
-#endif /* UNIV_SQL_DEBUG */
