@@ -80,15 +80,17 @@ int mi_status(MI_INFO *info, register MI_ISAMINFO *x, uint flag)
 			(HA_OPTION_PACK_RECORD | HA_OPTION_COMPRESS_RECORD)) ?
 		       0L : share->base.pack_reclength);
     x->sortkey= -1;				/* No clustering */
-    /* The following should be included even if we are not compiling with
-       USE_RAID as the client must be able to request it! */
     x->rec_per_key	= share->state.rec_per_key_part;
-    x->raid_type= share->base.raid_type;
-    x->raid_chunks= share->base.raid_chunks;
-    x->raid_chunksize= share->base.raid_chunksize;
     x->key_map	 	= share->state.key_map;
     x->data_file_name   = share->data_file_name;
     x->index_file_name  = share->index_file_name;
+    /*
+      The following should be included even if we are not compiling with
+      USE_RAID as the client must be able to request it!
+    */
+    x->raid_type= share->base.raid_type;
+    x->raid_chunks= share->base.raid_chunks;
+    x->raid_chunksize= share->base.raid_chunksize;
   }
   if ((flag & HA_STATUS_TIME) && !my_fstat(info->dfile,&state,MYF(0)))
     x->update_time=state.st_mtime;

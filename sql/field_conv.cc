@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -118,7 +118,7 @@ set_field_to_null(Field *field)
     field->reset();
     return 0;
   }
-  field->set_default();
+  field->reset();
   if (current_thd->count_cuted_fields)
   {
     current_thd->cuted_fields++;		// Increment error counter
@@ -170,7 +170,7 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     ((Field_timestamp*) field)->set_time();
     return 0;					// Ok to set time to NULL
   }
-  field->set_default();
+  field->reset();
   if (field == field->table->next_number_field)
     return 0;					// field is set in handler.cc
   if (current_thd->count_cuted_fields)

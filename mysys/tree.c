@@ -90,6 +90,11 @@ void init_tree(TREE *tree, uint default_alloc_size, uint memory_limit,
   if (!free_element && size >= 0 &&
       ((uint) size <= sizeof(void*) || ((uint) size & (sizeof(void*)-1))))
   {
+    /*
+      We know that the data doesn't have to be aligned (like if the key
+      contains a double), so we can store the data combined with the
+      TREE_ELEMENT.
+    */
     tree->offset_to_key=sizeof(TREE_ELEMENT); /* Put key after element */
     /* Fix allocation size so that we don't lose any memory */
     default_alloc_size/=(sizeof(TREE_ELEMENT)+size);
