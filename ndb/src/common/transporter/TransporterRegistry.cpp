@@ -71,15 +71,14 @@ SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
   DBUG_RETURN(0);
 }
 
-TransporterRegistry::TransporterRegistry(NdbMgmHandle mgm_handle,
-					 void * callback,
+TransporterRegistry::TransporterRegistry(void * callback,
 					 unsigned _maxTransporters,
 					 unsigned sizeOfLongSignalMemory) {
 
   nodeIdSpecified = false;
   maxTransporters = _maxTransporters;
   sendCounter = 1;
-  m_mgm_handle = mgm_handle;
+  m_mgm_handle= 0;
   
   callbackObj=callback;
 
@@ -114,6 +113,27 @@ TransporterRegistry::TransporterRegistry(NdbMgmHandle mgm_handle,
   theOSEJunkSocketRecv = 0;
 }
 
+void TransporterRegistry::set_mgm_handle(NdbMgmHandle h)
+{
+  DBUG_ENTER("TransporterRegistry::set_mgm_handle");
+  if (m_mgm_handle)
+    ndb_mgm_destroy_handle(&m_mgm_handle);
+  m_mgm_handle= h;
+#ifndef DBUG_OFF
+  if (h)
+  {
+    char buf[256];
+    DBUG_PRINT("info",("handle set with connectstring: %s",
+		       ndb_mgm_get_connectstring(h,buf, sizeof(buf))));
+  }
+  else
+  {
+    DBUG_PRINT("info",("handle set to NULL"));
+  }
+#endif
+  DBUG_VOID_RETURN;
+};
+
 TransporterRegistry::~TransporterRegistry() {
   
   removeAll();
@@ -134,6 +154,8 @@ TransporterRegistry::~TransporterRegistry() {
     theOSEReceiver = 0;
   }
 #endif
+  if (m_mgm_handle)
+    ndb_mgm_destroy_handle(&m_mgm_handle);
 }
 
 void
@@ -1211,40 +1233,32 @@ TransporterRegistry::start_clients_thread()
       switch(performStates[nodeId]){
       case CONNECTING:
 	if(!t->isConnected() && !t->isServer) {
-	  int result= 0;
+	  bool connected= false;
 	  /**
 	   * First, we try to connect (if we have a port number).
 	   */
 	  if (t->get_s_port())
-	    result= t->connect_client();
+	    connected= t->connect_client();
 
-
-	  if (result<0 && t->get_s_port()!=0)
-	    g_eventLogger.warning("Error while trying to make connection "
-				  "(Node %u to %u via port %u) "
-				  "error: %d. Retrying...",
-				  t->getRemoteNodeId(),
-				  t->getLocalNodeId(),
-				  t->get_s_port());
-	  
 	  /**
 	   * If dynamic, get the port for connecting from the management server
 	   */
-	  if(t->get_s_port() <= 0) {		// Port is dynamic
+	  if( !connected && t->get_s_port() <= 0) {	// Port is dynamic
 	    int server_port= 0;
 	    struct ndb_mgm_reply mgm_reply;
-	    int res;
+	    int res= -1;
 
 	    if(!ndb_mgm_is_connected(m_mgm_handle))
 	      if(ndb_mgm_connect(m_mgm_handle, 0, 0, 0)<0)
 		ndbout_c("Failed to reconnect to management server");
-
-	    res= ndb_mgm_get_connection_int_parameter(m_mgm_handle,
-						     t->getRemoteNodeId(),
-						     t->getLocalNodeId(),
-						     CFG_CONNECTION_SERVER_PORT,
-						     &server_port,
-						     &mgm_reply);
+	      else
+		res=
+		  ndb_mgm_get_connection_int_parameter(m_mgm_handle,
+						       t->getRemoteNodeId(),
+						       t->getLocalNodeId(),
+						       CFG_CONNECTION_SERVER_PORT,
+						       &server_port,
+						       &mgm_reply);
 	    DBUG_PRINT("info",("Got dynamic port %d for %d -> %d (ret: %d)",
 			       server_port,t->getRemoteNodeId(),
 			       t->getLocalNodeId(),res));

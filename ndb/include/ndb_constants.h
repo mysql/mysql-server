@@ -48,7 +48,7 @@
 #define NDB_TYPE_BIGUNSIGNED            10
 #define NDB_TYPE_FLOAT                  11
 #define NDB_TYPE_DOUBLE                 12
-#define NDB_TYPE_DECIMAL                13      /* not used */
+#define NDB_TYPE_OLDDECIMAL             13
 #define NDB_TYPE_CHAR                   14
 #define NDB_TYPE_VARCHAR                15
 #define NDB_TYPE_BINARY                 16
@@ -63,7 +63,10 @@
 #define NDB_TYPE_TIME                   25
 #define NDB_TYPE_YEAR                   26
 #define NDB_TYPE_TIMESTAMP              27
+#define NDB_TYPE_OLDDECIMALUNSIGNED     28
+#define NDB_TYPE_DECIMAL                29
+#define NDB_TYPE_DECIMALUNSIGNED        30
 
-#define NDB_TYPE_MAX                    28
+#define NDB_TYPE_MAX                    31
  
 #endif

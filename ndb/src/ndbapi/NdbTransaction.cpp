@@ -1420,14 +1420,18 @@ Remark:        Sets TC Connect pointer.
 int			
 NdbTransaction::receiveTCSEIZEREF(NdbApiSignal* aSignal)
 {
+  DBUG_ENTER("NdbTransaction::receiveTCSEIZEREF");
   if (theStatus != Connecting)
   {
-    return -1;
+    DBUG_RETURN(-1);
   } else
   {
     theStatus = ConnectFailure;
     theNdb->theError.code = aSignal->readData(2);
-    return 0;
+    DBUG_PRINT("info",("error code %d, %s",
+		       theNdb->getNdbError().code,
+		       theNdb->getNdbError().message));
+    DBUG_RETURN(0);
   }
 }//NdbTransaction::receiveTCSEIZEREF()
 
