@@ -689,8 +689,7 @@ of MySQL:
 @c list comparable to commercial competition and a very technical on
 @c with max limits (from crash-me) and so on.
 @itemize @asis
-@item
-Internals and portability
+@item Internals and Portability
 @itemize @bullet
 @item
 Written in C and C++.  Tested with a broad range of different compilers.
@@ -720,8 +719,7 @@ should be as fast as possible!  Usually there isn't any memory allocation
 at all after query initialization.
 @end itemize
 
-@item
-Column types
+@item Column Types
 @itemize @bullet
 @item
 Many column types: signed/unsigned integers 1, 2, 3, 4, and 8 bytes
@@ -739,8 +737,7 @@ columns that are not explicitly given values are set to their default
 values.
 @end itemize
 
-@item
-Commands and functions
+@item Commands and Functions
 @itemize @bullet
 @item
 Full operator and function support in the @code{SELECT} and @code{WHERE}
@@ -779,8 +776,7 @@ You can mix tables from different databases in the same query (as of
 Version 3.22).
 @end itemize
 
-@item
-Security
+@item Security
 @itemize @bullet
 @item
 A privilege and password system that is very flexible and secure, and
@@ -788,9 +784,8 @@ allows host-based verification.  Passwords are secure because all
 password traffic is encrypted when you connect to a server.
 @end itemize
 
-@item
+@item Scalability and Limits
 @itemize @bullet
-Scalability and limits
 @item
 Handles large databases.  We are using MySQL with some
 databases that contain 50,000,000 records and we know of users that
@@ -802,41 +797,27 @@ columns or parts of columns.  The maximum index width is 500 bytes
 of a @code{CHAR} or @code{VARCHAR} field.
 @end itemize
 
-@item
-Clients and tools
+@item Connectivity
 @itemize @bullet
 @item
-Includes @code{myisamchk}, a very fast utility for table checking,
-optimization, and repair.  All of the functionality of @code{myisamchk}
-is also available through the SQL interface as well.  
-@xref{MySQL Database Administration}.
-@item
-All MySQL programs can be invoked with the @code{--help} or @code{-?}
-options to obtain online assistance.
-@end itemize
-@item
-Connectivity
-@itemize @bullet
+Clients may connect to the MySQL server using TCP/IP Sockets,
+Unix Sockets (Unix), or Named Pipes (NT).
 @item
 ODBC (Open-DataBase-Connectivity) support for Win32 (with source).  All
 ODBC 2.5 functions and many others.  For example, you can use MS Access to
 connect to your MySQL server.  @xref{ODBC}.
-@item
-Clients may connect to the MySQL server using TCP/IP Sockets,
-Unix Sockets (Unix), or Named Pipes (NT).
 @end itemize
 
-@item
-Localization
+@item Localization
 @itemize @bullet
 @item
 The server can provide error messages to clients in many languages. 
 @xref{Languages}.
 @item
 Full support for several different character sets, including
-ISO-8859-1 (Latin1), german, big5, ujis, and more.  For example, the
-Scandinavian characters `@ringaccent{a}', `@"a' and `@"o' are allowed
-in table and column names.
+ISO-8859-1 (Latin1), german, big5, ujis, and more.  For example,
+the Scandinavian characters 'å', 'ä' and 'ö' are allowed in table
+and column names.
 @item
 All data is saved in the chosen character set.  All comparisons for normal
 string columns are case insensitive.
@@ -846,6 +827,18 @@ way by default).  It is possible to change this when the MySQL server
 is started up.  To see an example of very advanced sorting, look at the
 Czech sorting code.  MySQL supports many different character sets
 that can be specified at compile and run time.
+@end itemize
+
+@item Clients and Tools
+@itemize @bullet
+@item
+Includes @code{myisamchk}, a very fast utility for table checking,
+optimization, and repair.  All of the functionality of @code{myisamchk}
+is also available through the SQL interface as well.  
+@xref{MySQL Database Administration}.
+@item
+All MySQL programs can be invoked with the @code{--help} or @code{-?}
+options to obtain online assistance.
 @end itemize
 
 @end itemize
@@ -18535,8 +18528,8 @@ To get secure connections to work with MySQL you must do the following:
 
 @enumerate
 @item
-Install the openssh library. We have tested MySQL with openssl 0.9.6.
-@uref{http://www.openssh.org}.
+Install the openssl library. We have tested MySQL with openssl 0.9.6.
+@uref{http://www.openssl.org}.
 @item
 Configure MySQL with @code{--with-vio --with-openssl}.
 @item
