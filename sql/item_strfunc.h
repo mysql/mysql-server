@@ -75,7 +75,8 @@ public:
     return (separator->fix_fields(thd,tlist)
 	    || Item_func::fix_fields(thd,tlist));
   }
- const char *func_name() const { return "concat_ws"; }
+  void split_sum_func(List<Item> &fields);
+  const char *func_name() const { return "concat_ws"; }
 };
 
 class Item_func_reverse :public Item_str_func
@@ -296,6 +297,7 @@ public:
   {
     return (item->fix_fields(thd,tlist) || Item_func::fix_fields(thd,tlist));
   }
+  void split_sum_func(List<Item> &fields);
   void fix_length_and_dec();
   void update_used_tables();
   const char *func_name() const { return "elt"; }
@@ -315,6 +317,7 @@ public:
   {
     return (item->fix_fields(thd,tlist) || Item_func::fix_fields(thd,tlist));
   }
+  void split_sum_func(List<Item> &fields);
   void fix_length_and_dec();
   void update_used_tables();
   const char *func_name() const { return "make_set"; }

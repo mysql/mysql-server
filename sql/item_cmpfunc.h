@@ -180,6 +180,7 @@ public:
   {
     return (item->fix_fields(thd,tlist) || Item_func::fix_fields(thd,tlist));
   }
+  void split_sum_func(List<Item> &fields);
   void fix_length_and_dec();
   ~Item_func_interval() { delete item; }
   const char *func_name() const { return "interval"; }
@@ -259,6 +260,7 @@ public:
   const char *func_name() const { return "case"; }
   void print(String *str);
   bool fix_fields(THD *thd,struct st_table_list *tlist);
+  void split_sum_func(List<Item> &fields);
   Item *find_item(String *str);
 };
 
