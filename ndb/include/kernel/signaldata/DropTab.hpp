@@ -101,7 +101,8 @@ public:
     NoSuchTable = 1,
     DropWoPrep = 2, // Calling Drop with first calling PrepDrop
     PrepDropInProgress = 3,
-    DropInProgress = 4
+    DropInProgress = 4,
+    NF_FakeErrorREF = 5
   };
   
 private:

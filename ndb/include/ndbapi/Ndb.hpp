@@ -867,6 +867,7 @@ class NdbObjectIdMap;
 class NdbOperation;
 class NdbEventOperationImpl;
 class NdbScanOperation;
+class NdbIndexScanOperation;
 class NdbIndexOperation;
 class NdbConnection;
 class NdbApiSignal;
@@ -875,7 +876,6 @@ class NdbLabel;
 class NdbBranch;
 class NdbSubroutine;
 class NdbCall;
-class NdbScanReceiver;
 class Table;
 class BaseString;
 class NdbEventOperation;
@@ -960,8 +960,9 @@ class Ndb
   friend class NdbConnection;
   friend class Table;
   friend class NdbApiSignal;
-  friend class NdbScanReceiver;
   friend class NdbIndexOperation;
+  friend class NdbScanOperation;
+  friend class NdbIndexScanOperation;
   friend class NdbDictionaryImpl;
   friend class NdbDictInterface;
 
@@ -1439,7 +1440,7 @@ private:
   NdbConnection* doConnect(Uint32 nodeId); 
   void    doDisconnect();	 
   
-  NdbScanReceiver*	getNdbScanRec();// Get a NdbScanReceiver from idle list
+  NdbReceiver*	        getNdbScanRec();// Get a NdbScanReceiver from idle list
   NdbLabel*		getNdbLabel();	// Get a NdbLabel from idle list
   NdbBranch*            getNdbBranch();	// Get a NdbBranch from idle list
   NdbSubroutine*	getNdbSubroutine();// Get a NdbSubroutine from idle
@@ -1448,21 +1449,21 @@ private:
   NdbRecAttr*	        getRecAttr();	// Get a receeive attribute object from
 					// idle list of the Ndb object.
   NdbOperation* 	getOperation();	// Get an operation from idle list
-  NdbScanOperation* 	getScanOperation(); // Get a scan operation from idle
+  NdbIndexScanOperation* getScanOperation(); // Get a scan operation from idle
   NdbIndexOperation* 	getIndexOperation();// Get an index operation from idle
 
   class NdbGlobalEventBufferHandle* getGlobalEventBufferHandle();
 
   void			releaseSignal(NdbApiSignal* anApiSignal);
   void                  releaseSignalsInList(NdbApiSignal** pList);
-  void			releaseNdbScanRec(NdbScanReceiver* aNdbScanRec);
+  void			releaseNdbScanRec(NdbReceiver* aNdbScanRec);
   void			releaseNdbLabel(NdbLabel* anNdbLabel);
   void			releaseNdbBranch(NdbBranch* anNdbBranch);
   void			releaseNdbSubroutine(NdbSubroutine* anNdbSubroutine);
   void			releaseNdbCall(NdbCall* anNdbCall);
   void			releaseRecAttr (NdbRecAttr* aRecAttr);	
   void		 	releaseOperation(NdbOperation* anOperation);	
-  void		 	releaseScanOperation(NdbScanOperation* aScanOperation);
+  void		 	releaseScanOperation(NdbIndexScanOperation*);
 
   void                  check_send_timeout();
   void                  remove_sent_list(Uint32);
@@ -1558,7 +1559,6 @@ private:
   void*              int2void     (Uint32 val);
   NdbReceiver*       void2rec     (void* val);
   NdbConnection*     void2con     (void* val);
-  NdbScanReceiver*   void2rec_srec(void* val);
   NdbOperation*      void2rec_op  (void* val);
   NdbIndexOperation* void2rec_iop (void* val);
 
@@ -1598,7 +1598,7 @@ private:
 
   NdbOperation*		theOpIdleList;	// First operation in the idle list. 
 
-  NdbScanOperation*	theScanOpIdleList;	// First scan operation in the idle list. 
+  NdbIndexScanOperation* theScanOpIdleList;	// First scan operation in the idle list. 
   NdbIndexOperation*	theIndexOpIdleList;	// First index operation in the idle list. 
   NdbConnection*	theTransactionList;
   NdbConnection**       theConnectionArray;
@@ -1608,7 +1608,7 @@ private:
   NdbBranch*		theBranchList;	     // First branch descriptor in list
   NdbSubroutine*	theSubroutineList;   // First subroutine descriptor in
   NdbCall*		theCallList;	     // First call descriptor in list
-  NdbScanReceiver*      theScanList;
+  NdbReceiver*      theScanList;
 
   Uint32   theMyRef;        // My block reference  
   Uint32   theNode;         // The node number of our node

@@ -551,7 +551,8 @@ struct Con {
   NdbConnection* m_tx;
   NdbOperation* m_op;
   NdbConnection* m_scantx;
-  NdbOperation* m_scanop;
+  NdbIndexScanOperation* m_scanop;
+  NdbResultSet* m_resultSet;
   enum ScanMode { ScanNo = 0, Committed, Latest, Exclusive };
   ScanMode m_scanmode;
   enum ErrType { ErrNone = 0, ErrDeadlock, ErrOther };
@@ -632,7 +633,7 @@ Con::getNdbOperation(const Tab& tab)
 int
 Con::getNdbOperation(const ITab& itab, const Tab& tab)
 {
-  CHKCON((m_op = m_tx->getNdbOperation(itab.m_name, tab.m_name)) != 0, *this);
+  CHKCON((m_scanop = m_tx->getNdbIndexScanOperation(itab.m_name, tab.m_name)) != 0, *this);
   return 0;
 }
 
@@ -664,7 +665,7 @@ int
 Con::setBound(int num, int type, const void* value)
 {
   assert(m_tx != 0 && m_op != 0);
-  CHKCON(m_op->setBound(num, type, value) == 0, *this);
+  CHKCON(m_scanop->setBound(num, type, value) == 0, *this);
   return 0;
 }
 
@@ -680,7 +681,7 @@ int
 Con::openScanRead(unsigned parallelism)
 {
   assert(m_tx != 0 && m_op != 0);
-  CHKCON(m_op->openScanRead(parallelism) == 0, *this);
+  CHKCON((m_resultSet = m_scanop->readTuples(parallelism)) != 0, *this);
   return 0;
 }
 
@@ -688,14 +689,14 @@ int
 Con::openScanExclusive(unsigned parallelism)
 {
   assert(m_tx != 0 && m_op != 0);
-  CHKCON(m_op->openScanExclusive(parallelism) == 0, *this);
+  CHKCON((m_resultSet = m_scanop->readTuplesExclusive(parallelism)) != 0, *this);
   return 0;
 }
 
 int
 Con::executeScan()
 {
-  CHKCON(m_tx->executeScan() == 0, *this);
+  CHKCON(m_tx->execute(NoCommit) == 0, *this);
   return 0;
 }
 
@@ -703,7 +704,8 @@ int
 Con::nextScanResult()
 {
   int ret;
-  CHKCON((ret = m_tx->nextScanResult()) != -1, *this);
+  assert(m_resultSet != 0);
+  CHKCON((ret = m_resultSet->nextResult()) != -1, *this);
   assert(ret == 0 || ret == 1);
   return ret;
 }
@@ -712,7 +714,7 @@ int
 Con::takeOverForUpdate(Con& scan)
 {
   assert(m_tx != 0 && scan.m_op != 0);
-  CHKCON((m_op = scan.m_op->takeOverForUpdate(m_tx)) != 0, scan);
+  CHKCON((m_op = scan.m_resultSet->updateTuple(m_tx)) != 0, scan);
   return 0;
 }
 
@@ -720,7 +722,7 @@ int
 Con::takeOverForDelete(Con& scan)
 {
   assert(m_tx != 0 && scan.m_op != 0);
-  CHKCON((m_op = scan.m_op->takeOverForUpdate(m_tx)) != 0, scan);
+  CHKCON(scan.m_resultSet->deleteTuple(m_tx) == 0, scan);
   return 0;
 }
 
