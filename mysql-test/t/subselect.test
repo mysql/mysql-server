@@ -67,7 +67,7 @@ insert into t4 values (4,8),(3,8),(5,9);
 select (select a from t1 where t1.a = a1) as a2, (select b from t2 where t2.b=a2) as a1;
 select (select a from t1 where t1.a=t2.a), a from t2;
 select (select a from t1 where t1.a=t2.b), a from t2;
-select (select a from t1), a from t2;
+select (select a from t1), a, (select 1 union select 2 limit 1) from t2;
 select (select a from t3), a from t2;
 select * from t2 where t2.a=(select a from t1);
 insert into t3 values (6),(7),(3);
