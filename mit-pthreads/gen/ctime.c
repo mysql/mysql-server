@@ -177,7 +177,7 @@ time_t			altzone = 0;
 
 static int detzcode(const char * codep)
 {
-	long result;
+	int result;
 	int	i;
 
 	result = 0;

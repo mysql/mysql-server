@@ -170,12 +170,13 @@ int mysql_delete(THD *thd,TABLE_LIST *table_list,COND *conds,ha_rows limit,
   select=make_select(table,0,0,conds,&error);
   if (error)
     DBUG_RETURN(-1);
-  if (select && select->check_quick(test(thd->options & SQL_SAFE_UPDATES),
-				    limit))
+  if ((select && select->check_quick(test(thd->options & SQL_SAFE_UPDATES),
+				     limit)) || 
+      !limit)
   {
     delete select;
     send_ok(&thd->net,0L);
-    DBUG_RETURN(0);
+    DBUG_RETURN(0);				// Nothing to delete
   }
 
   /* If running in safe sql mode, don't allow updates without keys */
