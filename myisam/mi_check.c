@@ -2947,14 +2947,12 @@ int sort_write_record(MI_SORT_PARAM *sort_param)
   ulong block_length,reclength;
   byte *from;
   byte block_buff[8];
-  MI_INFO *info;
   SORT_INFO *sort_info=sort_param->sort_info;
-  MYISAM_SHARE *share;
   MI_CHECK *param=sort_info->param;
+  MI_INFO *info=sort_info->info;
+  MYISAM_SHARE *share=info->s;
   DBUG_ENTER("sort_write_record");
 
-  info=sort_info->info;
-  share=info->s;
   if (sort_param->fix_datafile)
   {
     switch (sort_info->new_data_file_type) {
