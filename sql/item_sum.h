@@ -734,4 +734,5 @@ class Item_func_group_concat : public Item_sum
   }
   String* val_str(String* str);
   Item *copy_or_same(THD* thd);
+  void no_rows_in_result() {}
 };
