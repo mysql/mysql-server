@@ -174,7 +174,8 @@ void load_defaults(const char *conf_file, const char **groups,
   res= (char**) (ptr+sizeof(alloc));
 
   /* copy name + found arguments + command line arguments to new array */
-  res[0]=argv[0][0];
+  res[0]=*argc ? argv[0][0] : "";
+
   memcpy((gptr) (res+1), args.buffer, args.elements*sizeof(char*));
   /* Skipp --defaults-file and --defaults-extra-file */
   (*argc)-= args_used;
@@ -187,8 +188,9 @@ void load_defaults(const char *conf_file, const char **groups,
     --*argc; ++*argv;				/* skipp argument */
   }
 
-  memcpy((gptr) (res+1+args.elements), (char*) ((*argv)+1),
-	 (*argc-1)*sizeof(char*));
+  if (*argc)
+    memcpy((gptr) (res+1+args.elements), (char*) ((*argv)+1),
+	   (*argc-1)*sizeof(char*));
   res[args.elements+ *argc]=0;			/* last null */
 
   (*argc)+=args.elements;
