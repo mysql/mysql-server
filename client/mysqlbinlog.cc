@@ -346,7 +346,7 @@ static void dump_remote_log_entries(const char* logname)
 }
 
 
-static int check_header(IO_CACHE* file)
+static int check_header(IO_CACHE* file, const char *fname)
 {
   byte header[BIN_LOG_HEADER_SIZE];
   byte buf[PROBE_HEADER_LEN];
@@ -357,7 +357,7 @@ static int check_header(IO_CACHE* file)
   if (my_b_read(file, header, sizeof(header)))
     die("Failed reading header;  Probably an empty file");
   if (memcmp(header, BINLOG_MAGIC, sizeof(header)))
-    die("File is not a binary log file");
+    die("File %s is not a binary log file",fname);
   if (!my_b_read(file, buf, sizeof(buf)))
   {
     if (buf[4] == START_EVENT)
@@ -390,14 +390,14 @@ static void dump_local_log_entries(const char* logname)
     if (init_io_cache(file, fd, 0, READ_CACHE, (my_off_t) position, 0,
 		      MYF(MY_WME | MY_NABP)))
       exit(1);
-    old_format = check_header(file);
+    old_format = check_header(file,logname);
   }
   else
   {
     if (init_io_cache(file, fileno(result_file), 0, READ_CACHE, (my_off_t) 0,
 		      0, MYF(MY_WME | MY_NABP | MY_DONT_CHECK_FILESIZE)))
       exit(1);
-    old_format = check_header(file);
+    old_format = check_header(file,"");
     if (position)
     {
       /* skip 'position' characters from stdout */
