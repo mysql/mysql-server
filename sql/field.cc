@@ -5842,25 +5842,47 @@ bool Field_num::eq_def(Field *field)
 
 void create_field::create_length_to_internal_length(void)
 {
-  switch (sql_type)
+  switch (sql_type) {
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_STRING:
+    length*= charset->mbmaxlen;
+    pack_length= calc_pack_length(sql_type == FIELD_TYPE_VAR_STRING ?
+                                  FIELD_TYPE_STRING : sql_type, length);
+    break;
+#ifdef CORRECT_CODE_BUT_CANT_YET_BE_USED
+  case MYSQL_TYPE_ENUM:
+  case MYSQL_TYPE_SET:
+    length*= charset->mbmaxlen;
+    break;
+#else
+    /*
+      Because of a bug in MySQL 4.1 where length was extended for ENUM and SET
+      fields for every ALTER TABLE, we have to recalculate lengths here
+    */
+  case MYSQL_TYPE_ENUM:
   {
-    case MYSQL_TYPE_TINY_BLOB:
-    case MYSQL_TYPE_MEDIUM_BLOB:
-    case MYSQL_TYPE_LONG_BLOB:
-    case MYSQL_TYPE_BLOB:
-    case MYSQL_TYPE_VAR_STRING:
-    case MYSQL_TYPE_STRING:
-      length*= charset->mbmaxlen;
-      pack_length= calc_pack_length(sql_type == FIELD_TYPE_VAR_STRING ?
-				    FIELD_TYPE_STRING : sql_type, length);
-      break;
-    case MYSQL_TYPE_ENUM:
-    case MYSQL_TYPE_SET:
-      length*= charset->mbmaxlen;
-      break;
-    default:
-      /* do nothing */
-      break;
+    uint32 tot_length, max_length;
+    calculate_interval_lengths(current_thd, interval,
+                               &max_length, &tot_length);
+    length= max_length * charset->mbmaxlen;
+    break;
+  }
+  case MYSQL_TYPE_SET:
+  {
+    uint32 tot_length, max_length;
+    calculate_interval_lengths(current_thd, interval,
+                               &max_length, &tot_length);
+    length= (tot_length + (interval->count - 1)) * charset->mbmaxlen;
+    break;
+  }
+#endif
+  default:
+    /* do nothing */
+    break;
   }
 }
 
@@ -6085,6 +6107,8 @@ create_field::create_field(Field *old_field,Field *orig_field)
       }
       length=(length+charset->mbmaxlen-1)/charset->mbmaxlen; // QQ: Probably not needed
       break;
+    case MYSQL_TYPE_ENUM:
+    case MYSQL_TYPE_SET:
     case FIELD_TYPE_STRING:
     case FIELD_TYPE_VAR_STRING:
       length=(length+charset->mbmaxlen-1)/charset->mbmaxlen;

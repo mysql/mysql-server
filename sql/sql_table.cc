@@ -934,8 +934,7 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	DBUG_RETURN(-1);
       }
     }
-    else
-    if (key_info->algorithm == HA_KEY_ALG_RTREE)
+    else if (key_info->algorithm == HA_KEY_ALG_RTREE)
     {
 #ifdef HAVE_RTREE_KEYS
       if ((key_info->key_parts & 1) == 1)
@@ -959,6 +958,8 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     CHARSET_INFO *ft_key_charset=0;  // for FULLTEXT
     for (uint column_nr=0 ; (column=cols++) ; column_nr++)
     {
+      key_part_spec *dup_column;
+
       it.rewind();
       field=0;
       while ((sql_field=it++) &&
@@ -973,9 +974,8 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 			column->field_name);
 	DBUG_RETURN(-1);
       }
-      for (uint dup_nr= 0; dup_nr < column_nr; dup_nr++)
+      while ((dup_column= cols2++) != column)
       {
-	key_part_spec *dup_column= cols2++;
         if (!my_strcasecmp(system_charset_info,
 	     	           column->field_name, dup_column->field_name))
 	{
@@ -986,12 +986,6 @@ int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 	}
       }
       cols2.rewind();
-      /* for fulltext keys keyseg length is 1 for blobs (it's ignored in
-	 ft code anyway, and 0 (set to column width later) for char's.
-	 it has to be correct col width for char's, as char data are not
-	 prefixed with length (unlike blobs, where ft code takes data length
-	 from a data prefix, ignoring column->length).
-      */
       if (key->type == Key::FULLTEXT)
       {
 	if ((sql_field->sql_type != FIELD_TYPE_STRING &&
