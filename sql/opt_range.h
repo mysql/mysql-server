@@ -70,7 +70,7 @@ class QUICK_SELECT {
 public:
   bool next,dont_free;
   int error;
-  uint index,max_used_key_length;
+  uint index, max_used_key_length, used_key_parts;
   TABLE *head;
   handler *file;
   byte    *record;

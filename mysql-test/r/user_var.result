@@ -1,6 +1,6 @@
 drop table if exists t1,t2;
 set @a := foo;
-Unknown column 'foo' in 'field list'
+ERROR 42S22: Unknown column 'foo' in 'field list'
 set @a := connection_id() + 3;
 select @a - connection_id();
 @a - connection_id()

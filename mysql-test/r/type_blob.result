@@ -1,22 +1,22 @@
 drop table if exists t1,t2,t3,t4,t5,t6,t7;
 CREATE TABLE t1 (a blob, b text, c blob(250), d text(70000), e text(70000000));
 show columns from t1;
-Field	Type	Collation	Null	Key	Default	Extra
-a	blob	NULL	YES		NULL	
-b	text	latin1_swedish_ci	YES		NULL	
-c	blob	NULL	YES		NULL	
-d	mediumtext	latin1_swedish_ci	YES		NULL	
-e	longtext	latin1_swedish_ci	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+a	blob	YES		NULL	
+b	text	YES		NULL	
+c	blob	YES		NULL	
+d	mediumtext	YES		NULL	
+e	longtext	YES		NULL	
 CREATE TABLE t2 (a char(257), b varchar(70000) binary, c varchar(70000000));
 Warnings:
 Warning	1244	Converting column 'a' from CHAR to TEXT
 Warning	1244	Converting column 'b' from CHAR to BLOB
 Warning	1244	Converting column 'c' from CHAR to TEXT
 show columns from t2;
-Field	Type	Collation	Null	Key	Default	Extra
-a	text	latin1_swedish_ci	YES		NULL	
-b	mediumblob	NULL	YES		NULL	
-c	longtext	latin1_swedish_ci	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+a	text	YES		NULL	
+b	mediumblob	YES		NULL	
+c	longtext	YES		NULL	
 create table t3 (a long, b long byte);
 show create TABLE t3;
 Table	Create Table
@@ -27,9 +27,9 @@ t3	CREATE TABLE `t3` (
 drop table t1,t2,t3
 #;
 CREATE TABLE t1 (a char(257) default "hello");
-Too big column length for column 'a' (max = 255). Use BLOB instead
+ERROR 42000: Too big column length for column 'a' (max = 255). Use BLOB instead
 CREATE TABLE t2 (a blob default "hello");
-BLOB column 'a' can't have a default value
+ERROR 42000: BLOB/TEXT column 'a' can't have a default value
 drop table if exists t1,t2;
 create table t1 (nr int(5) not null auto_increment,b blob,str char(10), primary key (nr));
 insert into t1 values (null,"a","A");
@@ -347,7 +347,7 @@ a	1
 hello	1
 drop table t1;
 create table t1 (a text, key (a(300)));
-Incorrect sub part key. The used key part isn't a string, the used length is longer than the key part or the store engine doesn't support unique sub keys
+ERROR HY000: Incorrect sub part key. The used key part isn't a string, the used length is longer than the key part or the store engine doesn't support unique sub keys
 create table t1 (a text, key (a(255)));
 drop table t1;
 CREATE TABLE t1 (
@@ -486,8 +486,19 @@ fish	10
 drop table t1;
 create table t1 (id integer auto_increment unique,imagem LONGBLOB not null);
 insert into t1 (id) values (1);
+select 
+charset(load_file('../../std_data/words.dat')),
+collation(load_file('../../std_data/words.dat')),
+coercibility(load_file('../../std_data/words.dat'));
+charset(load_file('../../std_data/words.dat'))	collation(load_file('../../std_data/words.dat'))	coercibility(load_file('../../std_data/words.dat'))
+binary	binary	3
 update t1 set imagem=load_file('../../std_data/words.dat') where id=1;
 select if(imagem is null, "ERROR", "OK"),length(imagem) from t1 where id = 1;
 if(imagem is null, "ERROR", "OK")	length(imagem)
 OK	581
+drop table t1;
+create table t1 select load_file('../../std_data/words.dat');
+show full fields from t1;
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+load_file('../../std_data/words.dat')	mediumblob	NULL	YES		NULL		select,insert,update,references	
 drop table t1;

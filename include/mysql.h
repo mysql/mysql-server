@@ -135,9 +135,9 @@ typedef struct st_mysql_data {
 } MYSQL_DATA;
 
 struct st_mysql_options {
-  unsigned int connect_timeout;
+  unsigned int connect_timeout, read_timeout, write_timeout;
+  unsigned int port, protocol;
   unsigned long client_flag;
-  unsigned int port;
   char *host,*user,*password,*unix_socket,*db;
   struct st_dynamic_array *init_commands;
   char *my_cnf_file,*my_cnf_group, *charset_dir, *charset_name;
@@ -146,6 +146,7 @@ struct st_mysql_options {
   char *ssl_ca;					/* PEM CA file */
   char *ssl_capath;				/* PEM directory of CA-s? */
   char *ssl_cipher;				/* cipher to use */
+  char *shared_memory_base_name;
   unsigned long max_allowed_packet;
   my_bool use_ssl;				/* if to use SSL or not */
   my_bool compress,named_pipe;
@@ -167,18 +168,15 @@ struct st_mysql_options {
 #ifdef EMBEDDED_LIBRARY
   my_bool separate_thread;
 #endif
-  char *shared_memory_base_name;
-  unsigned int protocol;
 };
 
 enum mysql_option 
 {
-  MYSQL_OPT_CONNECT_TIMEOUT, MYSQL_OPT_COMPRESS, MYSQL_OPT_NAMED_PIPE, MYSQL_INIT_COMMAND,
-  MYSQL_READ_DEFAULT_FILE, MYSQL_READ_DEFAULT_GROUP,MYSQL_SET_CHARSET_DIR, MYSQL_SET_CHARSET_NAME,
-  MYSQL_OPT_LOCAL_INFILE, MYSQL_OPT_PROTOCOL, MYSQL_SHARED_MEMORY_BASE_NAME
-#ifdef EMBEDDED_LIBRARY
-  , MYSQL_OPT_USE_RESULT
-#endif
+  MYSQL_OPT_CONNECT_TIMEOUT, MYSQL_OPT_COMPRESS, MYSQL_OPT_NAMED_PIPE,
+  MYSQL_INIT_COMMAND, MYSQL_READ_DEFAULT_FILE, MYSQL_READ_DEFAULT_GROUP,
+  MYSQL_SET_CHARSET_DIR, MYSQL_SET_CHARSET_NAME, MYSQL_OPT_LOCAL_INFILE,
+  MYSQL_OPT_PROTOCOL, MYSQL_SHARED_MEMORY_BASE_NAME, MYSQL_OPT_READ_TIMEOUT,
+  MYSQL_OPT_WRITE_TIMEOUT, MYSQL_OPT_USE_RESULT
 };
 
 enum mysql_status 
@@ -188,8 +186,8 @@ enum mysql_status
 
 enum mysql_protocol_type 
 {
-  MYSQL_PROTOCOL_DEFAULT, MYSQL_PROTOCOL_TCP, MYSQL_PROTOCOL_SOCKET, MYSQL_PROTOCOL_PIPE, 
-  MYSQL_PROTOCOL_MEMORY
+  MYSQL_PROTOCOL_DEFAULT, MYSQL_PROTOCOL_TCP, MYSQL_PROTOCOL_SOCKET,
+  MYSQL_PROTOCOL_PIPE, MYSQL_PROTOCOL_MEMORY
 };
 /*
   There are three types of queries - the ones that have to go to
@@ -268,7 +266,9 @@ typedef struct st_mysql
   my_bool	free_me;		/* If free in mysql_close */
   my_ulonglong insert_id;		/* id if insert on table with NEXTNR */
   unsigned int last_errno;
-  char *last_error;
+  unsigned int 	server_status;
+  char *last_error;			/* Used by embedded server */
+  char sqlstate[SQLSTATE_LENGTH+1];	/* Used by embedded server */
 } MYSQL;
 
 #endif
@@ -295,6 +295,10 @@ typedef struct st_mysql_res {
 #define MANAGER_ACCESS       401
 #define MANAGER_CLIENT_ERR   450
 #define MANAGER_INTERNAL_ERR 500
+
+#ifndef MYSQL_SERVER
+#define MYSQL_CLIENT
+#endif
 
 
 
@@ -562,6 +566,7 @@ unsigned long STDCALL mysql_param_count(MYSQL_STMT * stmt);
 my_bool STDCALL mysql_bind_param(MYSQL_STMT * stmt, MYSQL_BIND * bnd);
 my_bool STDCALL mysql_bind_result(MYSQL_STMT * stmt, MYSQL_BIND * bnd);
 my_bool STDCALL mysql_stmt_close(MYSQL_STMT * stmt);
+my_bool STDCALL mysql_stmt_free_result(MYSQL_STMT *stmt);
 unsigned int STDCALL mysql_stmt_errno(MYSQL_STMT * stmt);
 const char *STDCALL mysql_stmt_error(MYSQL_STMT * stmt);
 const char *STDCALL mysql_stmt_sqlstate(MYSQL_STMT * stmt);

@@ -28,10 +28,6 @@
 #include <floatingpoint.h>
 #endif
 
-CHARSET_INFO *system_charset_info= &my_charset_utf8_general_ci;
-CHARSET_INFO *files_charset_info= &my_charset_utf8_general_ci;
-CHARSET_INFO *national_charset_info= &my_charset_utf8_general_ci;
-
 extern gptr sql_alloc(unsigned size);
 extern void sql_element_free(void *ptr);
 
@@ -265,9 +261,9 @@ bool String::copy(const char *str, uint32 arg_length,
 
 */
 
-bool String::set_latin1(const char *str, uint32 arg_length)
+bool String::set_ascii(const char *str, uint32 arg_length)
 {
-  if (str_charset->mbmaxlen == 1)
+  if (!(str_charset->state & MY_CS_NONTEXT))
   {
     set(str, arg_length, str_charset);
     return 0;

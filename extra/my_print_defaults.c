@@ -29,21 +29,21 @@ const char *config_file="my";			/* Default config file */
 
 static struct my_option my_long_options[] =
 {
-  {"config-file", 'c', "The config file to be used",
+  {"config-file", 'c', "The config file to be used.",
    (gptr*) &config_file, (gptr*) &config_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
-  {"defaults-file", 'c', "Synonym for --config-file",
+  {"defaults-file", 'c', "Synonym for --config-file.",
    (gptr*) &config_file, (gptr*) &config_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
-  {"defaults-extra-file", 'e', 
+  {"defaults-extra-file", 'e',
    "Read this file after the global /etc config file and before the config file in the users home directory.",
    (gptr*) &defaults_extra_file, (gptr*) &defaults_extra_file, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"extra-file", 'e', 
-   "Synonym for --defaults-extra-file",
+  {"extra-file", 'e',
+   "Synonym for --defaults-extra-file.",
    (gptr*) &defaults_extra_file, (gptr*) &defaults_extra_file, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"no-defaults", 'n', "Return an empty string (useful for scripts)",
+  {"no-defaults", 'n', "Return an empty string (useful for scripts).",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"help", '?', "Display this help message and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -51,7 +51,6 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
-
 
 static void usage(my_bool version)
 {

@@ -123,6 +123,10 @@ SOURCE=..\mysys\charset.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\client.c
+# End Source File
+# Begin Source File
+
 SOURCE="..\strings\ctype-big5.c"
 # End Source File
 # Begin Source File
@@ -212,10 +216,6 @@ SOURCE=..\strings\is_prefix.c
 # Begin Source File
 
 SOURCE=.\libmysql.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\pack.c
 # End Source File
 # Begin Source File
 
@@ -403,15 +403,15 @@ SOURCE=..\sql\net_serv.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\pack.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\password.c
 # End Source File
 # Begin Source File
 
 SOURCE=..\mysys\safemalloc.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\client\select_test.c
 # End Source File
 # Begin Source File
 

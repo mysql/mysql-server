@@ -218,8 +218,12 @@ void ha_close_connection(THD* thd)
 }
 
 /*
-  This is used to commit or rollback a single statement depending
-  on the value of error
+  This is used to commit or rollback a single statement depending on the value
+  of error. Note that if the autocommit is on, then the following call inside
+  InnoDB will commit or rollback the whole transaction (= the statement). The
+  autocommit mechanism built into InnoDB is based on counting locks, but if
+  the user has used LOCK TABLES then that mechanism does not know to do the
+  commit.
 */
 
 int ha_autocommit_or_rollback(THD *thd, int error)
@@ -612,6 +616,11 @@ int handler::optimize(THD* thd, HA_CHECK_OPT* check_opt)
 }
 
 int handler::analyze(THD* thd, HA_CHECK_OPT* check_opt)
+{
+  return HA_ADMIN_NOT_IMPLEMENTED;
+}
+
+int handler::preload_keys(THD* thd, HA_CHECK_OPT* check_opt)
 {
   return HA_ADMIN_NOT_IMPLEMENTED;
 }

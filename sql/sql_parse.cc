@@ -59,6 +59,9 @@ static void refresh_status(void);
 static bool append_file_to_dir(THD *thd, char **filename_ptr,
 			       char *table_name);
 
+static bool single_table_command_access(THD *thd, ulong privilege,
+					TABLE_LIST *tables, int *res);
+
 const char *any_db="*any*";	// Special symbol for check_access
 
 const char *command_name[]={
@@ -620,7 +623,7 @@ check_connections(THD *thd)
     memcpy(end,thd->scramble,SCRAMBLE_LENGTH+1);
     end+=SCRAMBLE_LENGTH +1;
     int2store(end,client_flags);
-    end[2]=(char) MY_CHARSET_CURRENT;
+    end[2]=(char) default_charset_info->number;
     int2store(end+3,thd->server_status);
     bzero(end+5,13);
     end+=18;
@@ -661,8 +664,20 @@ check_connections(THD *thd)
     thd->max_client_packet_length= uint4korr(net->read_pos+4);
     if (!(thd->variables.character_set_client=
 	  get_charset((uint) net->read_pos[8], MYF(0))))
+    {
       thd->variables.character_set_client=
 	global_system_variables.character_set_client;
+      thd->variables.collation_connection=
+	global_system_variables.collation_connection;
+      thd->variables.character_set_results=
+	global_system_variables.character_set_results;
+    }
+    else
+    {
+      thd->variables.character_set_results=
+      thd->variables.collation_connection= 
+	thd->variables.character_set_client;
+    }
     end= (char*) net->read_pos+32;
   }
   else
@@ -876,7 +891,11 @@ pthread_handler_decl(handle_one_connection,arg)
       send_error(thd,net->last_errno,NullS);
       statistic_increment(aborted_threads,&LOCK_status);
     }
-
+    else if (thd->killed)
+    {
+      statistic_increment(aborted_threads,&LOCK_status);
+    }
+    
 end_thread:
     close_connection(thd, 0, 1);
     end_thread(thd,1);
@@ -1053,7 +1072,10 @@ bool do_command(THD *thd)
 		       vio_description(net->vio)));
     /* Check if we can continue without closing the connection */
     if (net->error != 3)
+    {
+      statistic_increment(aborted_threads,&LOCK_status);
       DBUG_RETURN(TRUE);			// We have to close it.
+    }
     send_error(thd,net->last_errno,NullS);
     net->error= 0;
     DBUG_RETURN(FALSE);
@@ -1307,7 +1329,8 @@ restore_user:
     break;
 #else
   {
-    char *fields;
+    char *fields, *pend;
+    String convname;
     TABLE_LIST table_list;
     statistic_increment(com_stat[SQLCOM_SHOW_FIELDS],&LOCK_status);
     bzero((char*) &table_list,sizeof(table_list));
@@ -1317,8 +1340,11 @@ restore_user:
       break;
     }
     thd->free_list=0;
-    table_list.alias= table_list.real_name= thd->strdup(packet);
-    packet=strend(packet)+1;
+    pend= strend(packet);
+    convname.copy(packet, pend-packet, 
+		  thd->variables.character_set_client, system_charset_info);
+    table_list.alias= table_list.real_name= convname.c_ptr();
+    packet= pend+1;
     // command not cachable => no gap for data base name
     if (!(thd->query=fields=thd->memdup(packet,thd->query_length+1)))
       break;
@@ -1855,6 +1881,15 @@ mysql_execute_command(THD *thd)
     res = mysql_restore_table(thd, tables);
     break;
   }
+  case SQLCOM_PRELOAD_KEYS:
+  {
+    if (check_db_used(thd, tables) ||
+        check_access(thd, INDEX_ACL, tables->db, &tables->grant.privilege))
+      goto error; 
+    res = mysql_preload_keys(thd, tables);
+    break;
+  }
+      
 
 #ifndef EMBEDDED_LIBRARY
   case SQLCOM_CHANGE_MASTER:
@@ -2282,18 +2317,12 @@ mysql_execute_command(THD *thd)
     break;
   }
   case SQLCOM_UPDATE:
-    TABLE_LIST *table;
     if (check_db_used(thd,tables))
       goto error;
-    for (table=tables ; table ; table=table->next)
-    {
-      if (table->derived)
-	table->grant.privilege= SELECT_ACL;
-      else if (check_access(thd,UPDATE_ACL,table->db,&table->grant.privilege))
+
+    if (single_table_command_access(thd, UPDATE_ACL, tables, &res))
 	goto error;
-    }
-    if (grant_option && check_grant(thd,UPDATE_ACL,tables))
-      goto error;
+
     if (select_lex->item_list.elements != lex->value_list.elements)
     {
       send_error(thd,ER_WRONG_VALUE_COUNT);
@@ -2347,10 +2376,10 @@ mysql_execute_command(THD *thd)
     my_bool update=(lex->value_list.elements ? UPDATE_ACL : 0);
     ulong privilege= (lex->duplicates == DUP_REPLACE ?
                       INSERT_ACL | DELETE_ACL : INSERT_ACL | update);
-    if (check_access(thd,privilege,tables->db,&tables->grant.privilege))
-      goto error; /* purecov: inspected */
-    if (grant_option && check_grant(thd,privilege,tables))
-      goto error;
+
+    if (single_table_command_access(thd, privilege, tables, &res))
+	goto error;
+
     if (select_lex->item_list.elements != lex->value_list.elements)
     {
       send_error(thd,ER_WRONG_VALUE_COUNT);
@@ -2432,10 +2461,9 @@ mysql_execute_command(THD *thd)
     break;
   case SQLCOM_DELETE:
   {
-    if (check_access(thd,DELETE_ACL,tables->db,&tables->grant.privilege))
-      goto error; /* purecov: inspected */
-    if (grant_option && check_grant(thd,DELETE_ACL,tables))
+    if (single_table_command_access(thd, DELETE_ACL, tables, &res))
       goto error;
+
     // Set privilege for the WHERE clause
     tables->grant.want_privilege=(SELECT_ACL & ~tables->grant.privilege);
     res = mysql_delete(thd,tables, select_lex->where,
@@ -2884,6 +2912,38 @@ mysql_execute_command(THD *thd)
     res= -1;
 #endif
     break;
+  case SQLCOM_DROP_USER:
+  {
+    if (check_access(thd, GRANT_ACL,"mysql",0,1))
+      break;
+    if (!(res= mysql_drop_user(thd, lex->users_list)))
+    {
+      mysql_update_log.write(thd, thd->query, thd->query_length);
+      if (mysql_bin_log.is_open())
+      {
+	Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+	mysql_bin_log.write(&qinfo);
+      }
+      send_ok(thd);
+    }
+    break;
+  }
+  case SQLCOM_REVOKE_ALL:
+  {
+    if (check_access(thd, GRANT_ACL ,"mysql",0,1))
+      break;
+    if (!(res = mysql_revoke_all(thd, lex->users_list)))
+    {
+      mysql_update_log.write(thd, thd->query, thd->query_length);
+      if (mysql_bin_log.is_open())
+      {
+	Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+	mysql_bin_log.write(&qinfo);
+      }
+      send_ok(thd);
+    }
+    break;
+  }
   case SQLCOM_REVOKE:
   case SQLCOM_GRANT:
   {
@@ -3091,6 +3151,46 @@ mysql_execute_command(THD *thd)
 
 error:
   DBUG_VOID_RETURN;
+}
+
+
+/*
+  Check grants for commands which work only with one table and all other
+  tables belong to subselects.
+
+  SYNOPSYS
+    single_table_command_access()
+    thd - Thread handler
+    privilege - asked privelage
+    tables - table list of command
+    res - pointer on result code variable
+
+  RETURN
+    0 - OK
+    1 - access denied
+*/
+
+static bool single_table_command_access(THD *thd, ulong privilege,
+					TABLE_LIST *tables, int *res)
+					 
+{
+    if (check_access(thd, privilege, tables->db, &tables->grant.privilege))
+      return 1;
+
+    // Show only 1 table for check_grant
+    TABLE_LIST *subselects_tables= tables->next;
+    tables->next= 0;
+    if (grant_option && check_grant(thd,  privilege, tables))
+      return 1;
+
+    // check rights on tables of subselect (if exists)
+    if (subselects_tables)
+    {
+      tables->next= subselects_tables;
+      if ((*res= check_table_access(thd, SELECT_ACL, subselects_tables)))
+	return 1;
+    }
+    return 0;
 }
 
 
@@ -3490,7 +3590,7 @@ void mysql_init_multi_delete(LEX *lex)
   lex->select_lex.select_limit= lex->unit.select_limit_cnt=
     HA_POS_ERROR;
   lex->auxilliary_table_list= lex->select_lex.table_list;
-  lex->select_lex.init_query();
+  lex->select_lex.table_list.empty();
 }
 
 
@@ -4016,6 +4116,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   ptr->lock_type=   lock_type;
   ptr->updating=    test(table_options & TL_OPTION_UPDATING);
   ptr->force_index= test(table_options & TL_OPTION_FORCE_INDEX);
+  ptr->ignore_leaves= test(table_options & TL_OPTION_IGNORE_LEAVES);
   ptr->derived=	    table->sel;
   if (use_index)
     ptr->use_index=(List<String> *) thd->memdup((gptr) use_index,

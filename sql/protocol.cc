@@ -102,8 +102,8 @@ void send_error(THD *thd, uint sql_errno, const char *err)
     if (thd->client_capabilities & CLIENT_PROTOCOL_41)
     {
       /* The first # is to make the protocol backward compatible */
-      strmov(buff+2, "#000000");
-      pos= buff + 2 + SQLSTATE_LENGTH +1;
+      buff[2]= '#';
+      pos= strmov(buff+3, mysql_errno_to_sqlstate(sql_errno));
     }
     length= (uint) (strmake(pos, err, MYSQL_ERRMSG_SIZE-1) - buff);
     err=buff;
@@ -222,8 +222,8 @@ net_printf(THD *thd, uint errcode, ...)
     int2store(pos, errcode);
     if (thd->client_capabilities & CLIENT_PROTOCOL_41)
     {
-      /* The first # is to make the protocol backward compatible */
-      memcpy(pos+2, "#000000", SQLSTATE_LENGTH +1);
+      pos[2]= '#';      /* To make the protocol backward compatible */
+      memcpy(pos+3, mysql_errno_to_sqlstate(errcode), SQLSTATE_LENGTH);
     }
   }
   VOID(net_real_write(net,(char*) net->buff,length+head_length+1+offset));
@@ -235,28 +235,6 @@ net_printf(THD *thd, uint errcode, ...)
   DBUG_VOID_RETURN;
 }
 
-/*
-  Function called by my_net_init() to set some check variables
-*/
-
-#ifndef EMBEDDED_LIBRARY
-extern "C" {
-void my_net_local_init(NET *net)
-{
-  net->max_packet=   (uint) global_system_variables.net_buffer_length;
-  net->read_timeout= (uint) global_system_variables.net_read_timeout;
-  net->write_timeout=(uint) global_system_variables.net_write_timeout;
-  net->retry_count=  (uint) global_system_variables.net_retry_count;
-  net->max_packet_size= max(global_system_variables.net_buffer_length,
-			    global_system_variables.max_allowed_packet);
-}
-}
-
-#else /* EMBEDDED_LIBRARY */
-void my_net_local_init(NET *net __attribute__(unused))
-{
-}
-#endif /* EMBEDDED_LIBRARY */
 
 /*
   Return ok to the client.
@@ -499,7 +477,7 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
   String tmp((char*) buff,sizeof(buff),&my_charset_bin);
   Protocol_simple prot(thd);
   String *packet= prot.storage_packet();
-  CHARSET_INFO *thd_charset= thd->charset();
+  CHARSET_INFO *thd_charset= thd->variables.character_set_results;
   DBUG_ENTER("send_fields");
 
   if (flag & 1)

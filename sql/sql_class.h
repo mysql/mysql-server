@@ -366,6 +366,7 @@ struct system_variables
   ulong net_retry_count;
   ulong net_wait_timeout;
   ulong net_write_timeout;
+  ulong preload_buff_size;
   ulong query_cache_type;
   ulong read_buff_size;
   ulong read_rnd_buff_size;
@@ -386,6 +387,8 @@ struct system_variables
   my_bool low_priority_updates;
   my_bool new_mode;
   
+  CHARSET_INFO	*character_set_server;
+  CHARSET_INFO	*character_set_database;
   CHARSET_INFO 	*character_set_client;
   CHARSET_INFO  *character_set_results;
   CHARSET_INFO  *collation_connection;
@@ -972,8 +975,7 @@ class user_var_entry
   char *value;
   ulong length, update_query_id, used_query_id;
   Item_result type;
-  CHARSET_INFO *var_charset;
-  enum Item::coercion var_coercibility;
+  DTCollation collation;
 };
 
 /* Class for unique (removing of duplicates) */

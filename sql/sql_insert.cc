@@ -188,7 +188,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   if (duplic == DUP_UPDATE && !table->insert_values)
   {
     /* it should be allocated before Item::fix_fields() */
-    table->insert_values=alloc_root(&table->mem_root, table->rec_buff_length);
+    table->insert_values=(byte *)alloc_root(&table->mem_root, table->rec_buff_length);
     if (!table->insert_values)
       goto abort;
   }
@@ -308,6 +308,11 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     }
     thd->row_count++;
   }
+
+  /*
+    Now all rows are inserted.  Time to update logs and sends response to
+    user
+  */
   if (lock_type == TL_WRITE_DELAYED)
   {
     if (!error)
@@ -341,7 +346,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     }
     if (id && values_list.elements != 1)
       thd->insert_id(id);			// For update log
-    else if (table->next_number_field)
+    else if (table->next_number_field && info.copied)
       id=table->next_number_field->val_int();	// Return auto_increment value
 
     /*
@@ -383,9 +388,15 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   thd->next_insert_id=0;			// Reset this if wrongly used
   if (duplic != DUP_ERROR)
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
+
+  /* Reset value of LAST_INSERT_ID if no rows where inserted */
+  if (!info.copied && thd->insert_id_used)
+  {
+    thd->insert_id(0);
+    id=0;
+  }
   if (error)
     goto abort;
-
   if (values_list.elements == 1 && (!(thd->options & OPTION_WARNINGS) ||
 				    !thd->cuted_fields))
     send_ok(thd,info.copied+info.deleted,id);
@@ -1421,6 +1432,24 @@ void select_insert::send_error(uint errcode,const char *err)
   ::send_error(thd,errcode,err);
   table->file->extra(HA_EXTRA_NO_CACHE);
   table->file->activate_all_index(thd);
+  /* 
+     If at least one row has been inserted/modified and will stay in the table
+     (the table doesn't have transactions) (example: we got a duplicate key
+     error while inserting into a MyISAM table) we must write to the binlog (and
+     the error code will make the slave stop).
+  */
+  if ((info.copied || info.deleted) && !table->file->has_transactions())
+  {
+    if (last_insert_id)
+      thd->insert_id(last_insert_id);		// For binary log
+    mysql_update_log.write(thd,thd->query,thd->query_length);
+    if (mysql_bin_log.is_open())
+    {
+      Query_log_event qinfo(thd, thd->query, thd->query_length,
+                            table->file->has_transactions());
+      mysql_bin_log.write(&qinfo);
+    }
+  }
   if (info.copied || info.deleted)
     query_cache_invalidate3(thd, table, 1);
   ha_rollback_stmt(thd);
@@ -1442,7 +1471,10 @@ bool select_insert::send_eof()
   if (info.copied || info.deleted)
     query_cache_invalidate3(thd, table, 1);
 
+  if (last_insert_id)
+    thd->insert_id(last_insert_id);		// For binary log
   /* Write to binlog before commiting transaction */
+  mysql_update_log.write(thd,thd->query,thd->query_length);
   if (mysql_bin_log.is_open())
   {
     Query_log_event qinfo(thd, thd->query, thd->query_length,
@@ -1467,10 +1499,7 @@ bool select_insert::send_eof()
     else
       sprintf(buff,ER(ER_INSERT_INFO),info.records,info.deleted,
 	      thd->cuted_fields);
-    if (last_insert_id)
-      thd->insert_id(last_insert_id);		// For update log
     ::send_ok(thd,info.copied+info.deleted,last_insert_id,buff);
-    mysql_update_log.write(thd,thd->query,thd->query_length);
     return 0;
   }
 }

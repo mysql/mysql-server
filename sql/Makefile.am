@@ -46,7 +46,7 @@ mysqld_LDADD =		@MYSQLD_EXTRA_LDFLAGS@ \
 noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			item_strfunc.h item_timefunc.h item_uniq.h \
 			item_create.h item_subselect.h item_row.h \
-			mysql_priv.h \
+			mysql_priv.h item_geofunc.h \
 			procedure.h sql_class.h sql_lex.h sql_list.h \
 			sql_manager.h sql_map.h sql_string.h unireg.h \
 			field.h handler.h \
@@ -55,16 +55,17 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			opt_range.h opt_ft.h protocol.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h\
 			lex.h lex_symbol.h sql_acl.h sql_crypt.h  \
-			log_event.h mini_client.h sql_repl.h slave.h \
+			log_event.h sql_repl.h slave.h \
 			stacktrace.h sql_sort.h sql_cache.h set_var.h \
-			spatial.h gstream.h
+			spatial.h gstream.h client_settings.h
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
 			item_cmpfunc.cc item_strfunc.cc item_timefunc.cc \
 			thr_malloc.cc item_create.cc item_subselect.cc \
-			item_row.cc \
+			item_row.cc item_geofunc.cc \
 			field.cc key.cc sql_class.cc sql_list.cc \
-			net_serv.cc protocol.cc lock.cc my_lock.c \
+			net_serv.cc protocol.cc sql_state.c \
+			lock.cc my_lock.c \
 			sql_string.cc sql_manager.cc sql_map.cc \
 			mysqld.cc password.c hash_filo.cc hostname.cc \
 			set_var.cc sql_parse.cc sql_yacc.yy \
@@ -83,7 +84,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			sql_load.cc mf_iocache.cc field_conv.cc sql_show.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \
 			slave.cc sql_repl.cc sql_union.cc sql_derived.cc \
-			mini_client.cc mini_client_errors.c pack.c\
+			client.c sql_client.cc mini_client_errors.c pack.c\
 			stacktrace.c repl_failsafe.h repl_failsafe.cc sql_olap.cc\
 			gstream.cc spatial.cc sql_help.cc protocol_cursor.cc
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
@@ -104,6 +105,8 @@ link_sources:
 	@LN_CP_F@ ../libmysql/errmsg.c mini_client_errors.c
 	rm -f pack.c
 	@LN_CP_F@ ../sql-common/pack.c pack.c
+	rm -f client.c
+	@LN_CP_F@ ../sql-common/client.c client.c
 
 gen_lex_hash.o:		gen_lex_hash.cc lex.h
 			$(CXXCOMPILE) -c $(INCLUDES) $<

@@ -1,212 +1,169 @@
 #!/bin/sh
+# This script is a wrapper to pipe the mysql_fix_privilege_tables.sql
+# through the mysql client program to the mysqld server
 
-root_password="$1"
+# Default values (Can be changed in my.cnf)
+password=""
 host="localhost"
 user="root"
+sql_only=0
+basedir=""
+verbose=0
+args=""
 
-if test -z $1 ; then
-  cmd="@bindir@/mysql -f --user=$user --host=$host mysql"
+file=mysql_fix_privilege_tables.sql
+
+# The following code is almost identical to the code in mysql_install_db.sh
+
+parse_arguments() {
+  # We only need to pass arguments through to the server if we don't
+  # handle them here.  So, we collect unrecognized options (passed on
+  # the command line) into the args variable.
+  pick_args=
+  if test "$1" = PICK-ARGS-FROM-ARGV
+  then
+    pick_args=1
+    shift
+  fi
+
+  for arg do
+    case "$arg" in
+      --basedir=*) basedir=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+      --user=*) user=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+      --password=*) password=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+      --host=*) host=`echo "$arg" | sed -e 's/^[^=]*=//'` ;;
+      --sql|--sql-only) sql_only=1;;
+      --verbose) verbose=1 ;;
+      *)
+        if test -n "$pick_args"
+        then
+          # This sed command makes sure that any special chars are quoted,
+          # so the arg gets passed exactly to the server.
+          args="$args "`echo "$arg" | sed -e 's,\([^a-zA-Z0-9_.-]\),\\\\\1,g'`
+        fi
+        ;;
+    esac
+  done
+}
+
+# Get first arguments from the my.cfg file, groups [mysqld] and
+# [mysql_install_db], and then merge with the command line arguments
+if test -x ./bin/my_print_defaults
+then
+  print_defaults="./bin/my_print_defaults"
+elif test -x @bindr@/my_print_defaults
+then
+  print_defaults="@bindir@/my_print_defaults"
+elif test -x @bindir@/mysql_print_defaults
+then
+  print_defaults="@bindir@/mysql_print_defaults"
+elif test -x extra/my_print_defaults
+then
+  print_defaults="extra/my_print_defaults"
 else
-  root_password="$1"
-  cmd="@bindir@/mysql -f --user=$user --password=$root_password --host=$host mysql"
+  print_defaults="my_print_defaults"
 fi
 
-# Debian addition
-if [ "$1" = "--sql-only" ]; then
-  root_password=""
-  cmd="/usr/share/mysql/echo_stderr"
-fi
+parse_arguments `$print_defaults $defaults mysql_install_db mysql_fix_privilege_tables`
+parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
-echo "This scripts updates the mysql.user, mysql.db, mysql.host and the"
-echo "mysql.func tables to MySQL 3.22.14 and above."
-echo ""
-echo "This is needed if you want to use the new GRANT functions,"
-echo "CREATE AGGREGATE FUNCTION or want to use the more secure passwords in 3.23"
-echo ""
-echo "If you get 'Access denied' errors, you should run this script again"
-echo "and give the MySQL root user password as an argument!"
-
-echo "Converting all privilege tables to MyISAM format"
-$cmd <<END_OF_DATA
-ALTER TABLE user type=MyISAM;
-ALTER TABLE db type=MyISAM;
-ALTER TABLE host type=MyISAM;
-ALTER TABLE func type=MyISAM;
-ALTER TABLE columns_priv type=MyISAM;
-ALTER TABLE tables_priv type=MyISAM;
-END_OF_DATA
-
-
-# Fix old password format, add File_priv and func table
-echo ""
-echo "If your tables are already up to date or partially up to date you will"
-echo "get some warnings about 'Duplicated column name'. You can safely ignore these!"
-
-$cmd <<END_OF_DATA
-alter table user change password password char(16) NOT NULL;
-alter table user add File_priv enum('N','Y') NOT NULL;
-CREATE TABLE if not exists func (
-  name char(64) DEFAULT '' NOT NULL,
-  ret tinyint(1) DEFAULT '0' NOT NULL,
-  dl char(128) DEFAULT '' NOT NULL,
-  type enum ('function','aggregate') NOT NULL,
-  PRIMARY KEY (name)
-);
-END_OF_DATA
-echo ""
-
-# Add the new grant colums
-
-echo "Creating Grant Alter and Index privileges if they don't exists"
-echo "You can ignore any Duplicate column errors"
-$cmd <<END_OF_DATA
-alter table user add Grant_priv enum('N','Y') NOT NULL,add References_priv enum('N','Y') NOT NULL,add Index_priv enum('N','Y') NOT NULL,add Alter_priv enum('N','Y') NOT NULL;
-alter table host add Grant_priv enum('N','Y') NOT NULL,add References_priv enum('N','Y') NOT NULL,add Index_priv enum('N','Y') NOT NULL,add Alter_priv enum('N','Y') NOT NULL;
-alter table db add Grant_priv enum('N','Y') NOT NULL,add References_priv enum('N','Y') NOT NULL,add Index_priv enum('N','Y') NOT NULL,add Alter_priv enum('N','Y') NOT NULL;
-END_OF_DATA
-res=$?
-echo ""
-
-# If the new grant columns didn't exists, copy File -> Grant
-# and Create -> Alter, Index, References
-
-if test $res = 0
+if test -z "$basedir"
 then
-  echo "Setting default privileges for the new grant, index and alter privileges"
-  $cmd <<END_OF_DATA
-  UPDATE user SET Grant_priv=File_priv,References_priv=Create_priv,Index_priv=Create_priv,Alter_priv=Create_priv;
-  UPDATE db SET References_priv=Create_priv,Index_priv=Create_priv,Alter_priv=Create_priv;
-  UPDATE host SET References_priv=Create_priv,Index_priv=Create_priv,Alter_priv=Create_priv;
-END_OF_DATA
-  echo ""
+  basedir=@prefix@
+  bindir=@bindir@
+  execdir=@libexecdir@ 
+  pkgdatadir=@pkgdatadir@
+else
+  bindir="$basedir/bin"
+  if test -x "$basedir/libexec/mysqld"
+  then
+    execdir="$basedir/libexec"
+  elif test -x "@libexecdir@/mysqld"
+  then
+    execdir="@libexecdir@"
+  else
+    execdir="$basedir/bin"
+  fi
 fi
 
-#
-# The second alter changes ssl_type to new 4.0.2 format
-
-echo "Adding columns needed by GRANT .. REQUIRE (openssl)"
-echo "You can ignore any Duplicate column errors"
-$cmd <<END_OF_DATA
-ALTER TABLE user
-ADD ssl_type enum('','ANY','X509', 'SPECIFIED') NOT NULL,
-ADD ssl_cipher BLOB NOT NULL,
-ADD x509_issuer BLOB NOT NULL,
-ADD x509_subject BLOB NOT NULL;
-ALTER TABLE user MODIFY ssl_type enum('','ANY','X509', 'SPECIFIED') NOT NULL;
-END_OF_DATA
-echo ""
-
-#
-# Create tables_priv and columns_priv if they don't exists
-#
-
-echo "Creating the new table and column privilege tables"
-
-$cmd <<END_OF_DATA
-CREATE TABLE IF NOT EXISTS tables_priv (
-  Host char(60) DEFAULT '' NOT NULL,
-  Db char(60) DEFAULT '' NOT NULL,
-  User char(16) DEFAULT '' NOT NULL,
-  Table_name char(60) DEFAULT '' NOT NULL,
-  Grantor char(77) DEFAULT '' NOT NULL,
-  Timestamp timestamp(14),
-  Table_priv set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter') DEFAULT '' NOT NULL,
-  Column_priv set('Select','Insert','Update','References') DEFAULT '' NOT NULL,
-  PRIMARY KEY (Host,Db,User,Table_name)
-);
-CREATE TABLE IF NOT EXISTS columns_priv (
-  Host char(60) DEFAULT '' NOT NULL,
-  Db char(60) DEFAULT '' NOT NULL,
-  User char(16) DEFAULT '' NOT NULL,
-  Table_name char(60) DEFAULT '' NOT NULL,
-  Column_name char(59) DEFAULT '' NOT NULL,
-  Timestamp timestamp(14),
-  Column_priv set('Select','Insert','Update','References') DEFAULT '' NOT NULL,
-  PRIMARY KEY (Host,Db,User,Table_name,Column_name)
-);
-END_OF_DATA
-
-#
-# Name change of Type -> Column_priv from MySQL 3.22.12
-#
-
-echo "Changing name of columns_priv.Type -> columns_priv.Column_priv"
-echo "You can ignore any Unknown column errors from this"
-
-$cmd <<END_OF_DATA
-ALTER TABLE columns_priv change Type Column_priv set('Select','Insert','Update','References') DEFAULT '' NOT NULL;
-END_OF_DATA
-echo ""
-
-#
-# Add the new 'type' column to the func table.
-#
-
-echo "Fixing the func table"
-echo "You can ignore any Duplicate column errors"
-
-$cmd <<EOF
-alter table func add type enum ('function','aggregate') NOT NULL;
-EOF
-echo ""
-
-#
-# Change the user,db and host tables to MySQL 4.0 format
-#
-
-echo "Adding new fields used by MySQL 4.0.2 to the privilege tables"
-echo "You can ignore any Duplicate column errors"
-
-$cmd <<END_OF_DATA
-alter table user
-add Show_db_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER alter_priv,
-add Super_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Show_db_priv,
-add Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Super_priv,
-add Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Create_tmp_table_priv,
-add Execute_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Lock_tables_priv,
-add Repl_slave_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Execute_priv,
-add Repl_client_priv enum('N','Y') DEFAULT 'N' NOT NULL AFTER Repl_slave_priv;
-END_OF_DATA
-
-if test $? -eq "0"
+# The following test is to make this script compatible with the 4.0 where
+# the first argument was the password
+if test -z $password
 then
-  # Convert privileges so that users have similar privileges as before
-  echo ""
-  echo "Updating new privileges in MySQL 4.0.2 from old ones"
-  $cmd <<END_OF_DATA
-  update user set show_db_priv= select_priv, super_priv=process_priv, execute_priv=process_priv, create_tmp_table_priv='Y', Lock_tables_priv='Y', Repl_slave_priv=file_priv, Repl_client_priv=file_priv where user<>"";
-END_OF_DATA
-  echo ""
+  password=`echo $args | sed -e 's/ *//g'`
 fi
 
-# Add fields that can be used to limit number of questions and connections
-# for some users.
+if test -z $password ; then
+  cmd="$bindir/mysql -f --user=$user --host=$host mysql"
+else
+  cmd="$bindir/mysql -f --user=$user --password=$password --host=$host mysql"
+fi
+if test $sql_only = 1
+then
+  cmd="cat"
+fi
 
-$cmd <<END_OF_DATA
-alter table user
-add max_questions int(11) NOT NULL AFTER x509_subject,
-add max_updates   int(11) unsigned NOT NULL AFTER max_questions,
-add max_connections int(11) unsigned NOT NULL AFTER max_updates;
-END_OF_DATA
+# Find where mysql_fix_privilege_tables.sql is located
+for i in $basedir/support-files $basedir/share $basedir/share/mysql \
+        $basedir/scripts @pkgdatadir@ . ./scripts
+do
+  if test -f $i/$file
+  then
+    pkgdatadir=$i
+  fi
+done
 
-# Increase password length to handle new passwords
+sql_file="$pkgdatadir/$file"
+if test ! -f $sql_file
+then
+  echo "Could not find file '$file'."
+  echo "Please use --basedir to specify the directory where MySQL is installed"
+  exit 1
+fi
 
-@bindir@/mysql -f --user=root --password="$root_password" --host="$host" mysql <<END_OF_DATA
-alter table user
-change password password char(45) not null;
-END_OF_DATA
+s_echo()
+{
+   if test $sql_only = 0
+   then
+     echo $1
+   fi
+}
 
+s_echo "This scripts updates all the mysql privilege tables to be usable by"
+s_echo "MySQL 4.0 and above."
+s_echo ""
+s_echo "This is needed if you want to use the new GRANT functions,"
+s_echo "CREATE AGGREGATE FUNCTION or want to use the more secure passwords in 4.1"
+s_echo ""
 
+if test $verbose = 1
+then
+  s_echo "You can safely ignore all 'Duplicate column' and 'Unknown column' errors"
+  s_echo "as this just means that your tables where already up to date."
+  s_echo "This script is safe to run even if your tables are already up to date!"
+  s_echo ""
+fi
 
-#
-# Add Create_tmp_table_priv and Lock_tables_priv to db and host
-#
-
-$cmd <<END_OF_DATA
-alter table db
-add Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL,
-add Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL;
-alter table host
-add Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL,
-add Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL;
-END_OF_DATA
+if test $verbose = 0
+then
+  cat $sql_file | $cmd > /dev/null 2>&1
+else
+  cat $sql_file | $cmd > /dev/null
+fi
+if test $? = 0
+then
+  s_echo "done"
+else
+  s_echo "Got a failure from command:"
+  s_echo "$cmd"
+  s_echo "Please check the above output and try again."
+  if test $verbose = 0
+  then
+    s_echo ""
+    s_echo "Running the script with the --verbose option may give you some information"
+    s_echo "of what went wrong."
+  fi
+  s_echo ""
+  s_echo "If you get an 'Access denied' error, you should run this script again and"
+  s_echo "give the MySQL root user password as an argument with the --password= option"
+fi

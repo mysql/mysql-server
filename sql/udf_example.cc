@@ -284,8 +284,8 @@ char *metaphon(UDF_INIT *initid, UDF_ARGS *args, char *result,
 
   for (n = ntrans + 1, n_end = ntrans + sizeof(ntrans)-2;
 	word != w_end && n < n_end; word++ )
-    if ( my_isalpha ( my_charset_latin1, *word ))
-      *n++ = my_toupper ( my_charset_latin1, *word );
+    if ( my_isalpha ( &my_charset_latin1, *word ))
+      *n++ = my_toupper ( &my_charset_latin1, *word );
 
   if ( n == ntrans + 1 )	/* return empty string if 0 bytes */
   {

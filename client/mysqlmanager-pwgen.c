@@ -29,14 +29,14 @@ const char* outfile=0,*user="root";
 
 static struct my_option my_long_options[] =
 {
-  {"output-file", 'o', "Write the output to the file with the given name",
+  {"output-file", 'o', "Write the output to the file with the given name.",
    (gptr*) &outfile, (gptr*) &outfile, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
-  {"user", 'u', "Put given user in the password file", (gptr*) &user,
+  {"user", 'u', "Put given user in the password file.", (gptr*) &user,
    (gptr*) &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"help", '?', "Display this message and exit", 0, 0, 0, GET_NO_ARG, NO_ARG,
+  {"help", '?', "Display this message and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG,
    0, 0, 0, 0, 0, 0},
-  {"version", 'V', "Display version info", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
+  {"version", 'V', "Display version info.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };

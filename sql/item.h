@@ -23,12 +23,73 @@ class Protocol;
 struct st_table_list;
 void item_init(void);			/* Init item functions */
 
+
+/*
+   "Declared Type Collation"
+   A combination of collation and its deriviation.
+*/
+
+enum Derivation
+{
+  DERIVATION_COERCIBLE= 3,
+  DERIVATION_IMPLICIT= 2,
+  DERIVATION_NONE= 1,
+  DERIVATION_EXPLICIT= 0
+};
+
+class DTCollation {
+public:
+  CHARSET_INFO     *collation;
+  enum Derivation derivation;
+  
+  DTCollation()
+  {
+    collation= &my_charset_bin;
+    derivation= DERIVATION_NONE;
+  }
+  DTCollation(CHARSET_INFO *collation_arg, Derivation derivation_arg)
+  {
+    collation= collation_arg;
+    derivation= derivation_arg;
+  }
+  void set(DTCollation &dt)
+  { 
+    collation= dt.collation;
+    derivation= dt.derivation;
+  }
+  void set(CHARSET_INFO *collation_arg, Derivation derivation_arg)
+  {
+    collation= collation_arg;
+    derivation= derivation_arg;
+  }
+  void set(CHARSET_INFO *collation_arg)
+  { collation= collation_arg; }
+  void set(Derivation derivation_arg)
+  { derivation= derivation_arg; }
+  bool aggregate(DTCollation &dt);
+  bool set(DTCollation &dt1, DTCollation &dt2)
+  { set(dt1); return aggregate(dt2); }
+  const char *derivation_name() const
+  {
+    switch(derivation)
+    {
+      case DERIVATION_COERCIBLE: return "COERCIBLE";
+      case DERIVATION_IMPLICIT:  return "IMPLICIT";
+      case DERIVATION_EXPLICIT:  return "EXPLICIT";
+      case DERIVATION_NONE:      return "NONE";
+      default: return "UNKNOWN";
+    }
+  }
+};
+
 class Item {
   uint loop_id;                         /* Used to find selfrefering loops */
   Item(const Item &);			/* Prevent use of these */
   void operator=(Item &);
 public:
   static void *operator new(size_t size) {return (void*) sql_alloc((uint) size); }
+  static void *operator new(size_t size, MEM_ROOT *mem_root)
+  { return (void*) alloc_root(mem_root, (uint) size); }
   static void operator delete(void *ptr,size_t size) {} /*lint -e715 */
 
   enum Type {FIELD_ITEM, FUNC_ITEM, SUM_FUNC_ITEM, STRING_ITEM,
@@ -39,19 +100,6 @@ public:
              SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM};
 
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
-  enum coercion    { COER_COERCIBLE=3, COER_IMPLICIT=2,
-		     COER_NOCOLL=1,    COER_EXPLICIT=0  };
-  const char *coercion_name(enum coercion coer) const
-  {
-    switch(coer)
-    {
-      case COER_COERCIBLE: return "COERCIBLE";
-      case COER_IMPLICIT:  return "IMPLICIT";
-      case COER_EXPLICIT:  return "EXPLICIT";
-      case COER_NOCOLL:    return "NO COLLATION";
-      default: return "UNKNOWN";
-    }
-  }
   
   String str_value;			/* used to store value */
   my_string name;			/* Name from select */
@@ -63,8 +111,8 @@ public:
   my_bool unsigned_flag;
   my_bool with_sum_func;
   my_bool fixed;                        /* If item fixed with fix_fields */
-  enum coercion coercibility;		/* Precedence order of collation */
-
+  DTCollation collation;
+  
   // alloc & destruct is done as start of select using sql_alloc
   Item();
   /*
@@ -121,18 +169,25 @@ public:
   virtual Item *real_item() { return this; }
   virtual Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
 
-  virtual bool binary() const
-  { return str_value.charset()->state & MY_CS_BINSORT ? 1 : 0 ; }
   CHARSET_INFO *default_charset() const;
-  CHARSET_INFO *charset() const { return str_value.charset(); };
-  void set_charset(CHARSET_INFO *cs) { str_value.set_charset(cs); }
-  void set_charset(CHARSET_INFO *cs, enum coercion coer)
-  {
-    str_value.set_charset(cs);
-    coercibility= coer;
+  Derivation derivation() const { return collation.derivation; }
+  CHARSET_INFO *charset() const { return collation.collation; }
+  void set_charset(CHARSET_INFO *cs) 
+  { collation.collation= cs; }
+  void set_charset(Derivation dv) 
+  { collation.derivation= dv; }
+  void set_charset(CHARSET_INFO *cs, Derivation dv)
+  { collation.collation= cs; collation.derivation= dv; }
+  void set_charset(Item &item)
+  { collation= item.collation; }
+  void set_charset(DTCollation *collation_arg)
+  { 
+    collation.collation= collation_arg->collation; 
+    collation.derivation= collation_arg->derivation;
   }
-  bool set_charset(CHARSET_INFO *cs1, enum coercion co1, 
-  		   CHARSET_INFO *cs2, enum coercion co2);
+  bool binary() const
+  { return charset()->state & MY_CS_BINSORT ? 1 : 0 ; }
+  
   virtual void set_outer_resolving() {}
 
   // Row emulation
@@ -178,7 +233,7 @@ public:
   Item_field(const char *db_par,const char *table_name_par,
 	     const char *field_name_par)
     :Item_ident(db_par,table_name_par,field_name_par),field(0),result_field(0)
-  { coercibility= COER_IMPLICIT; }
+  { set_charset(DERIVATION_IMPLICIT); }
   // Constructor need to process subselect with temporary tables (see Item)
   Item_field(THD *thd, Item_field &item);
   Item_field(Field *field);
@@ -379,19 +434,19 @@ class Item_string :public Item
 {
 public:
   Item_string(const char *str,uint length,
-  	      CHARSET_INFO *cs, enum coercion coer= COER_COERCIBLE)
+  	      CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)
   {
+    set_charset(cs, dv);
     str_value.set(str,length,cs);
-    coercibility= coer;
     max_length=length;
     set_name(str, length, cs);
     decimals=NOT_FIXED_DEC;
   }
   Item_string(const char *name_par, const char *str, uint length,
-	      CHARSET_INFO *cs, enum coercion coer= COER_COERCIBLE)
+	      CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)
   {
+    set_charset(cs, dv);
     str_value.set(str,length,cs);
-    coercibility= coer;
     max_length=length;
     set_name(name_par,0,cs);
     decimals=NOT_FIXED_DEC;
@@ -662,6 +717,7 @@ public:
 #include "item_row.h"
 #include "item_cmpfunc.h"
 #include "item_strfunc.h"
+#include "item_geofunc.h"
 #include "item_timefunc.h"
 #include "item_uniq.h"
 #include "item_subselect.h"

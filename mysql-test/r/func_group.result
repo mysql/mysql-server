@@ -603,3 +603,12 @@ a	count(b)	sum(b)	avg(b)	std(b)	min(b)	max(b)	bit_and(b)	bit_or(b)
 2	1	1	1.0000	0.0000	1	1	1	1
 3	1	1	1.0000	0.0000	1	1	1	1
 drop table t1;
+create table t1 (USR_ID integer not null, MAX_REQ integer not null, constraint PK_SEA_USER primary key (USR_ID)) type=InnoDB;
+insert into t1 values (1, 3);
+select count(*) + MAX_REQ - MAX_REQ + MAX_REQ - MAX_REQ + MAX_REQ - MAX_REQ + MAX_REQ - MAX_REQ + MAX_REQ - MAX_REQ from t1 group by MAX_REQ;
+count(*) + MAX_REQ - MAX_REQ + MAX_REQ - MAX_REQ + MAX_REQ - MAX_REQ + MAX_REQ - MAX_REQ + MAX_REQ - MAX_REQ
+1
+select Case When Count(*) < MAX_REQ Then 1 Else 0 End from t1 where t1.USR_ID = 1 group by MAX_REQ;
+Case When Count(*) < MAX_REQ Then 1 Else 0 End
+1
+drop table t1;
