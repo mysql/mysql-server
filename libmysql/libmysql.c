@@ -4413,6 +4413,12 @@ mysql_stmt_data_seek(MYSQL_STMT *stmt, my_ulonglong row)
   for (; tmp && row; --row, tmp= tmp->next)
     ;
   stmt->data_cursor= tmp;
+  if (!row && tmp)
+  {
+       /*  Rewind the counter */
+    stmt->read_row_func= stmt_read_row_buffered;
+    stmt->state= MYSQL_STMT_EXECUTE_DONE;
+  }
   DBUG_VOID_RETURN;
 }
 
