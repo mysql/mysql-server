@@ -1684,18 +1684,21 @@ longlong Item_func_bit_count::val_int()
 
 udf_handler::~udf_handler()
 {
-  if (initialized)
+  if (!not_original)
   {
-    if (u_d->func_deinit != NULL)
+    if (initialized)
     {
-      void (*deinit)(UDF_INIT *) = (void (*)(UDF_INIT*))
-	u_d->func_deinit;
-      (*deinit)(&initid);
+      if (u_d->func_deinit != NULL)
+      {
+        void (*deinit)(UDF_INIT *) = (void (*)(UDF_INIT*))
+        u_d->func_deinit;
+        (*deinit)(&initid);
+      }
+      free_udf(u_d);
     }
-    free_udf(u_d);
+    if (buffers)				// Because of bug in ecc
+      delete [] buffers;
   }
-  if (buffers)					// Because of bug in ecc
-    delete [] buffers;
 }
 
 

@@ -4837,11 +4837,11 @@ when_list2:
 table_ref:
         table_factor            { $$=$1; }
         | join_table            { $$=$1; }
-          { 
+          {
 	    LEX *lex= Lex;
             if (!($$= lex->current_select->nest_last_join(lex->thd)))
               YYABORT;
-          }     	        
+          }
         ;
 
 join_table_list:
@@ -4931,20 +4931,20 @@ table_factor:
 					   sel->get_use_index(),
 					   sel->get_ignore_index())))
 	    YYABORT;
-          sel->add_joined_table($$); 
+          sel->add_joined_table($$);
 	}
         | '('
-          { 
+          {
             LEX *lex= Lex;
             if (lex->current_select->init_nested_join(lex->thd))
               YYABORT;
-          }            
+          }
           join_table_list ')'
           {
             LEX *lex= Lex;
             if (!($$= lex->current_select->end_nested_join(lex->thd)))
               YYABORT;
-          }	
+          }
 	| '{' ident table_ref LEFT OUTER JOIN_SYM table_ref ON expr '}'
 	  { add_join_on($7,$9); $7->outer_join|=JOIN_TYPE_LEFT; $$=$7; }
         | '(' SELECT_SYM select_derived ')' opt_table_alias

@@ -2030,6 +2030,7 @@ bool
 mysql_execute_command(THD *thd)
 {
   bool	res= FALSE;
+  int result= 0;
   LEX	*lex= thd->lex;
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
   SELECT_LEX *select_lex= &lex->select_lex;
@@ -2874,26 +2875,35 @@ create_error:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if (update_precheck(thd, all_tables))
       break;
-    res= mysql_update(thd, all_tables,
-                      select_lex->item_list,
-                      lex->value_list,
-                      select_lex->where,
-		      select_lex->order_list.elements,
-                      (ORDER *) select_lex->order_list.first,
-                      select_lex->select_limit,
-                      lex->duplicates);
-    break;
-  case SQLCOM_UPDATE_MULTI:
-  {
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if ((res= multi_update_precheck(thd, all_tables)))
+    res= (result= mysql_update(thd, all_tables,
+                               select_lex->item_list,
+                               lex->value_list,
+                               select_lex->where,
+                               select_lex->order_list.elements,
+                               (ORDER *) select_lex->order_list.first,
+                               select_lex->select_limit,
+                               lex->duplicates));
+    /* mysql_update return 2 if we need to switch to multi-update */
+    if (result != 2)
       break;
-    res= mysql_multi_update(thd, all_tables,
-			    &select_lex->item_list,
-			    &lex->value_list,
-			    select_lex->where,
-			    select_lex->options,
-			    lex->duplicates, unit, select_lex);
+  case SQLCOM_UPDATE_MULTI:
+    {
+      DBUG_ASSERT(first_table == all_tables && first_table != 0);
+      /* if we switched from normal update, rights are checked */
+      if (result != 2)
+      {
+        if ((res= multi_update_precheck(thd, all_tables)))
+          break;
+      }
+      else
+        res= 0;
+
+      res= mysql_multi_update(thd, all_tables,
+                              &select_lex->item_list,
+                              &lex->value_list,
+                              select_lex->where,
+                              select_lex->options,
+                              lex->duplicates, unit, select_lex);
     break;
   }
   case SQLCOM_REPLACE:
@@ -2929,35 +2939,28 @@ create_error:
 
     if (!(res= open_and_lock_tables(thd, all_tables)))
     {
-      /*
-        Is table which we are changing used somewhere in other parts of
-        query
-      */
-      if (unique_table(first_table, all_tables->next_global))
-      {
-        /* Using same table for INSERT and SELECT */
-        select_lex->options |= OPTION_BUFFER_RESULT;
-      }
+      /* Skip first table, which is the table we are inserting in */
+      lex->select_lex.table_list.first= (byte*)first_table->next_local;
 
-      if ((res= mysql_insert_select_prepare(thd)))
-        break;
-      if ((result= new select_insert(first_table, first_table->table,
-                                     &lex->field_list, lex->duplicates,
-                                     lex->duplicates == DUP_IGNORE)))
+      res= mysql_insert_select_prepare(thd);
+      if (!res && (result= new select_insert(first_table, first_table->table,
+                                             &lex->field_list,
+                                             lex->duplicates,
+                                             lex->duplicates == DUP_IGNORE)))
       {
-	/* Skip first table, which is the table we are inserting in */
-	lex->select_lex.table_list.first= (byte*) first_table->next_local;
+        TABLE_LIST *first_select_table;
+
         /*
           insert/replace from SELECT give its SELECT_LEX for SELECT,
           and item_list belong to SELECT
         */
 	lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
 	res= handle_select(thd, lex, result);
-	/* revert changes for SP */
-	lex->select_lex.table_list.first= (byte*) first_table;
 	lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
         delete result;
       }
+      /* revert changes for SP */
+      lex->select_lex.table_list.first= (byte*) first_table;
     }
     else
       res= TRUE;
@@ -3012,8 +3015,20 @@ create_error:
       goto error;
 
     thd->proc_info="init";
-    if ((res= open_and_lock_tables(thd, all_tables)) ||
-        (res= mysql_multi_delete_prepare(thd)))
+    if ((res= open_and_lock_tables(thd, all_tables)))
+      break;
+
+    if (!first_table->table)
+    {
+      DBUG_ASSERT(first_table->view &&
+                  first_table->ancestor && first_table->ancestor->next_local);
+      my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
+               first_table->view_db.str, first_table->view_name.str);
+      res= -1;
+      break;
+    }
+
+    if ((res= mysql_multi_delete_prepare(thd)))
       goto error;
 
     if (!thd->is_fatal_error && (result= new multi_delete(thd,aux_tables,
