@@ -524,13 +524,6 @@ AC_ARG_WITH(mit-threads,
 if test "$with_mit_threads" = "yes"
 then
   enable_largefile="no"		# Will not work on Linux.
-  if test "$GXX" = "yes"
-  then
-    # Needed for gcc 3.0
-    CCLD=g++
-    export CCLD
-    AC_SUBST(CCLD)
-  fi
 fi
 
 # Set flags if we want to force to use pthreads
