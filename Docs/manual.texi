@@ -4031,6 +4031,11 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c @image{Flags/france} France [minet] @
 @c @uref{http://www.minet.net/devel/mysql/, WWW}
 
+@item
+@c EMAIL: alex@mtesa.net (Alexandre Dupouy)
+@image{Flags/france} France [mtesa.net] @
+@uref{http://mysql.mtesa.net/, WWW}
+
 @c @item
 @c Not ok 20000919; Old site (Matt)
 @c EMAIL: Jaakko.Hyvatti@eunet.fi
@@ -39376,8 +39381,8 @@ An open source client for exploring databases and executing SQL. Supports
 A query tool for @strong{MySQL} and PostgreSQL.
 @item @uref{http://dbman.linux.cz/,dbMan}
 A query tool written in Perl. Uses DBI and Tk.
-@item @uref{http://www.mysql.com/Downloads/Win32/Msc18.exe, Mascon 2000.1.8}
-@item @uref{http://www.mysql.com/Downloads/Win32/FrMsc18.exe, Free Mascon 2000.1.8}
+@item @uref{http://www.mysql.com/Downloads/Win32/Msc110.EXE, Mascon 2000.1.10.48}
+@item @uref{http://www.mysql.com/Downloads/Win32/FrMsc110.EXE, Free Mascon 2000.1.10.47}
 Mascon is a powerful Win32 GUI for the administering MySQL server
 databases. Mascon's features include visual table design, connections to
 multiple servers, data and blob editing of tables, security setting, SQL
