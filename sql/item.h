@@ -125,7 +125,7 @@ public:
      optimisation changes in prepared statements
   */
   Item(THD *thd, Item *item);
-  virtual ~Item() { name=0; cleanup(); }		/*lint -e1509 */
+  virtual ~Item() { name=0; }		/*lint -e1509 */
   void set_name(const char *str,uint length, CHARSET_INFO *cs);
   void init_make_field(Send_field *tmp_field,enum enum_field_types type);
   virtual void cleanup() { fixed=0; }
@@ -227,6 +227,11 @@ public:
   
   /* Used in sql_select.cc:eliminate_not_funcs() */
   virtual Item *neg_transformer() { return NULL; }
+  void delete_self()
+  {
+    cleanup();
+    delete this;
+  }
 };
 
 
@@ -1003,6 +1008,7 @@ class Item_type_holder: public Item
 {
 protected:
   Item_result item_type;
+  Item_result orig_type;
   Field *field_example;
 public:
   Item_type_holder(THD*, Item*);
@@ -1014,6 +1020,11 @@ public:
   String *val_str(String*);
   bool join_types(THD *thd, Item *);
   Field *example() { return field_example; }
+  void cleanup()
+  {
+    Item::cleanup();
+    item_type= orig_type;
+  }
 };
 
 

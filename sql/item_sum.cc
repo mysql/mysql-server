@@ -1097,6 +1097,7 @@ void Item_sum_count_distinct::cleanup()
     if (use_tree)
       delete_tree(tree);
     table= 0;
+    use_tree= 0;
   }
 }
 

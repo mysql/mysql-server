@@ -1109,7 +1109,7 @@ end:
 void free_items(Item *item)
 {
   for (; item ; item=item->next)
-    delete item;
+    item->delete_self();
 }
 
     /* This works because items are allocated with sql_alloc() */

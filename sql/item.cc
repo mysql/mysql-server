@@ -2024,7 +2024,8 @@ void Item_cache_row::bring_value()
 
 
 Item_type_holder::Item_type_holder(THD *thd, Item *item)
-  :Item(thd, item), item_type(item->result_type())
+  :Item(thd, item), item_type(item->result_type()),
+   orig_type(item_type)
 {
   DBUG_ASSERT(item->fixed);
 
