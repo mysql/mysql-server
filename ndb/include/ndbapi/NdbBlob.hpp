@@ -18,7 +18,6 @@
 #define NdbBlob_H
 
 #include <ndb_types.h>
-#include <AttrType.hpp>
 #include <NdbDictionary.hpp>
 #include <NdbConnection.hpp>
 #include <NdbError.hpp>
