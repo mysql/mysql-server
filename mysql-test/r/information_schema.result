@@ -441,7 +441,7 @@ character_sets	CREATE TEMPORARY TABLE `character_sets` (
   `DEFAULT_COLLATE_NAME` varchar(64) NOT NULL default '',
   `DESCRIPTION` varchar(60) NOT NULL default '',
   `MAXLEN` bigint(3) NOT NULL default '0'
-) ENGINE=MEMORY DEFAULT CHARSET=utf8 MAX_ROWS=1818
+) ENGINE=MEMORY DEFAULT CHARSET=utf8
 set names latin2;
 SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
 Table	Create Table
@@ -450,7 +450,7 @@ character_sets	CREATE TEMPORARY TABLE `character_sets` (
   `DEFAULT_COLLATE_NAME` varchar(64) NOT NULL default '',
   `DESCRIPTION` varchar(60) NOT NULL default '',
   `MAXLEN` bigint(3) NOT NULL default '0'
-) ENGINE=MEMORY DEFAULT CHARSET=utf8 MAX_ROWS=1818
+) ENGINE=MEMORY DEFAULT CHARSET=utf8
 set names latin1;
 create table t1 select * from information_schema.CHARACTER_SETS
 where CHARACTER_SET_NAME like "latin1";
@@ -651,6 +651,8 @@ drop table t1, t2;
 CREATE TABLE t_crashme ( f1 BIGINT);
 CREATE VIEW a1 (t_CRASHME) AS SELECT f1 FROM t_crashme GROUP BY f1;
 CREATE VIEW a2 AS SELECT t_CRASHME FROM a1;
+count(*)
+100
 drop view a2, a1;
 drop table t_crashme;
 select table_schema,table_name, column_name from

@@ -91,15 +91,6 @@ show create table t1;
 drop table t1;
 
 #
-# conversion from ucs2
-#
-CREATE TABLE t1 (a varchar(64) character set ucs2, b decimal(10,3));
-INSERT INTO t1 VALUES ("1.1", 0), ("2.1", 0);
-update t1 set b=a;
-SELECT * FROM t1;
-DROP TABLE t1;
-
-#
 # Trydy's tests
 #
 set session sql_mode='traditional';

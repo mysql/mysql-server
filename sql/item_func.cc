@@ -2772,8 +2772,8 @@ String *Item_func_udf_str::val_str(String *str)
 
 
 /*
-   This has to come last in the udf_handler methods, or the compiler for IBM
-   AIX fails to compile with debugging enabled. (Yes, really.)
+   This has to come last in the udf_handler methods, or C for AIX
+   version 6.0.0.0 fails to compile with debugging enabled. (Yes, really.)
  */
 
 udf_handler::~udf_handler()
@@ -3569,20 +3569,20 @@ Item_func_set_user_var::update()
   case REAL_RESULT:
   {
     res= update_hash((void*) &save_result.vreal,sizeof(save_result.vreal),
-		     REAL_RESULT, &my_charset_bin, DERIVATION_NONE);
+		     REAL_RESULT, &my_charset_bin, DERIVATION_IMPLICIT);
     break;
   }
   case INT_RESULT:
   {
     res= update_hash((void*) &save_result.vint, sizeof(save_result.vint),
-		     INT_RESULT, &my_charset_bin, DERIVATION_NONE);
+		     INT_RESULT, &my_charset_bin, DERIVATION_IMPLICIT);
     break;
   }
   case STRING_RESULT:
   {
     if (!save_result.vstr)					// Null value
       res= update_hash((void*) 0, 0, STRING_RESULT, &my_charset_bin,
-		       DERIVATION_NONE);
+		       DERIVATION_IMPLICIT);
     else
       res= update_hash((void*) save_result.vstr->ptr(),
 		       save_result.vstr->length(), STRING_RESULT,
@@ -3594,11 +3594,11 @@ Item_func_set_user_var::update()
   {
     if (!save_result.vdec)					// Null value
       res= update_hash((void*) 0, 0, DECIMAL_RESULT, &my_charset_bin,
-                       DERIVATION_NONE);
+                       DERIVATION_IMPLICIT);
     else
       res= update_hash((void*) save_result.vdec,
                        sizeof(my_decimal), DECIMAL_RESULT,
-                       &my_charset_bin, DERIVATION_NONE);
+                       &my_charset_bin, DERIVATION_IMPLICIT);
     break;
   }
   case ROW_RESULT:
@@ -3850,7 +3850,10 @@ void Item_func_get_user_var::fix_length_and_dec()
     }
   }
   else
+  {
+    collation.set(&my_charset_bin, DERIVATION_IMPLICIT);
     null_value= 1;
+  }
 
   if (error)
     thd->fatal_error();

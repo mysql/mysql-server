@@ -75,4 +75,8 @@ select * from t1 where a=database();
 a
 select * from t1 where a=user();
 a
+insert into t1 values ('a');
+select left(concat(a,version()),1) from t1;
+left(concat(a,version()),1)
+a
 drop table t1;

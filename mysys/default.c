@@ -73,7 +73,7 @@ static int search_default_file(Process_option_func func, void *func_ctx,
 static int search_default_file_with_ext(Process_option_func func,
                                         void *func_ctx,
 					const char *dir, const char *ext,
-					const char *config_file);
+					const char *config_file, int recursion_level);
 static void init_default_directories();
 
 static char *remove_end_comment(char *ptr);
@@ -124,7 +124,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
   if (forced_default_file)
   {
     if ((error= search_default_file_with_ext(func, func_ctx, "", "",
-                                             forced_default_file)) < 0)
+                                             forced_default_file, 0)) < 0)
       goto err;
     if (error > 0)
     {
@@ -328,7 +328,7 @@ int load_defaults(const char *conf_file, const char **groups,
   ctx.alloc= &alloc;
   ctx.args= &args;
   ctx.group= &group;
-  
+
   error= my_search_option_files(conf_file, argc, argv, &args_used,
                       handle_default_option, (void *) &ctx);
   /*
@@ -402,7 +402,7 @@ static int search_default_file(Process_option_func opt_handler,
     int error;
     if ((error= search_default_file_with_ext(opt_handler, handler_ctx,
                                              dir, *ext,
-					     config_file)) < 0)
+					     config_file, 0)) < 0)
       return error;
   }
   return 0;
@@ -411,7 +411,7 @@ static int search_default_file(Process_option_func opt_handler,
 
 /*
   Open a configuration file (if exists) and read given options from it
-  
+
   SYNOPSIS
     search_default_file_with_ext()
     opt_handler                 Option handler function. It is used to process
@@ -420,8 +420,10 @@ static int search_default_file(Process_option_func opt_handler,
                                 parameters of the function.
     dir				directory to read
     ext				Extension for configuration file
-    config_file			Name of configuration file
+    config_file                 Name of configuration file
     group			groups to read
+    recursion_level             the level of recursion, got while processing
+                                "!include" or "!includedir"
 
   RETURN
     0   Success
@@ -433,13 +435,20 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
                                         void *handler_ctx,
                                         const char *dir,
                                         const char *ext,
-                                        const char *config_file)
+                                        const char *config_file,
+                                        int recursion_level)
 {
-  char name[FN_REFLEN+10], buff[4096], curr_gr[4096], *ptr, *end;
-  char *value, option[4096];
+  char name[FN_REFLEN + 10], buff[4096], curr_gr[4096], *ptr, *end, **tmp_ext;
+  char *value, option[4096], tmp[FN_REFLEN];
+  static const char includedir_keyword[]= "includedir";
+  static const char include_keyword[]= "include";
+  const int max_recursion_level= 10;
   FILE *fp;
   uint line=0;
   my_bool found_group=0;
+  uint i;
+  MY_DIR *search_dir;
+  FILEINFO *search_file;
 
   if ((dir ? strlen(dir) : 0 )+strlen(config_file) >= FN_REFLEN-3)
     return 0;					/* Ignore wrong paths */
@@ -468,22 +477,117 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
     if ((stat_info.st_mode & S_IWOTH) &&
 	(stat_info.st_mode & S_IFMT) == S_IFREG)
     {
-      fprintf(stderr, "warning: World-writeable config file %s is ignored\n",
+      fprintf(stderr, "warning: World-writable config file %s is ignored\n",
               name);
       return 0;
     }
   }
 #endif
-  if (!(fp = my_fopen(fn_format(name,name,"","",4),O_RDONLY,MYF(0))))
+  if (!(fp= my_fopen(fn_format(name, name, "", "", 4), O_RDONLY, MYF(0))))
     return 0;					/* Ignore wrong files */
 
-  while (fgets(buff,sizeof(buff)-1,fp))
+  while (fgets(buff, sizeof(buff) - 1, fp))
   {
     line++;
     /* Ignore comment and empty lines */
-    for (ptr=buff ; my_isspace(&my_charset_latin1,*ptr) ; ptr++ ) ;
+    for (ptr= buff; my_isspace(&my_charset_latin1, *ptr); ptr++)
+    {}
+
     if (*ptr == '#' || *ptr == ';' || !*ptr)
       continue;
+
+    /* Configuration File Directives */
+    if ((*ptr == '!') && (recursion_level < max_recursion_level))
+    {
+      /* skip over `!' and following whitespace */
+      for (++ptr; my_isspace(&my_charset_latin1, ptr[0]); ptr++)
+      {}
+
+      if ((!strncmp(ptr, includedir_keyword, sizeof(includedir_keyword) - 1))
+         && my_isspace(&my_charset_latin1, ptr[sizeof(includedir_keyword) - 1]))
+      {
+        /* skip over "includedir" and following whitespace */
+        for (ptr+= sizeof(includedir_keyword) - 1;
+            my_isspace(&my_charset_latin1, ptr[0]); ptr++)
+        {}
+
+        /* trim trailing whitespace from directory name */
+        end= ptr + strlen(ptr) - 1;
+        /*
+          This would work fine even if no whitespaces are met
+          since fgets() stores the newline character in the buffer
+        */
+        for (; my_isspace(&my_charset_latin1, *(end - 1)); end--)
+        {}
+        end[0]= 0;
+
+        /* print error msg if there is nothing after !inludedir directive */
+        if (end == ptr)
+        {
+          fprintf(stderr,
+                  "error: Wrong !includedir directive in config "
+                  "file: %s at line %d\n",
+                  name,line);
+          goto err;
+        }
+
+        if (!(search_dir= my_dir(ptr, MYF(MY_WME))))
+          goto err;
+
+        for (i= 0; i < (uint) search_dir->number_off_files; i++)
+        {
+          search_file= search_dir->dir_entry + i;
+          ext= fn_ext(search_file->name);
+
+          /* check extenstion */
+          for (tmp_ext= (char**) f_extensions; *tmp_ext; *tmp_ext++)
+          {
+            if (!strcmp(ext, *tmp_ext))
+              break;
+          }
+
+          if (*tmp_ext)
+          {
+            fn_format(tmp, search_file->name, ptr, "",
+                      MY_UNPACK_FILENAME | MY_SAFE_PATH);
+
+            search_default_file_with_ext(opt_handler, handler_ctx, "", "", tmp,
+                                         recursion_level + 1);
+          }
+        }
+
+        my_dirend(search_dir);
+      }
+      else if ((!strncmp(ptr, include_keyword, sizeof(include_keyword) - 1))
+          && my_isspace(&my_charset_latin1, ptr[sizeof(include_keyword) - 1]))
+      {
+        /* skip over `include' and following whitespace */
+        for (ptr+= sizeof(include_keyword) - 1;
+            my_isspace(&my_charset_latin1, ptr[0]); ptr++)
+        {}
+
+        /* trim trailing whitespace from filename */
+        end= ptr + strlen(ptr) - 1;
+        for (; my_isspace(&my_charset_latin1, *(end - 1)) ; end--)
+        {}
+        end[0]= 0;
+
+        if (end == ptr)
+        {
+          fprintf(stderr,
+                  "error: Wrong !include directive in config "
+                  "file: %s at line %d\n",
+                  name,line);
+          goto err;
+        }
+
+        search_default_file_with_ext(opt_handler, handler_ctx, "", "", ptr,
+                                     recursion_level + 1);
+      }
+
+      continue;
+    }
+
     if (*ptr == '[')				/* Group name */
     {
       found_group=1;

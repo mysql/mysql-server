@@ -77,3 +77,10 @@ big5_bin	6109
 big5_bin	61
 big5_bin	6120
 drop table t1;
+SET NAMES big5;
+CREATE TABLE t1 (a text) character set big5;
+INSERT INTO t1 VALUES ('ùØ');
+SELECT * FROM t1;
+a
+ùØ
+DROP TABLE t1;
