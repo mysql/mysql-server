@@ -1604,11 +1604,11 @@ int main(int argc, char **argv)
   }
 #endif
 
-  if ((flush_time && flush_time != ~(ulong) 0L)
+  if (
 #ifdef HAVE_BERKELEY_DB
-      || !berkeley_skip
+      !berkeley_skip ||
 #endif
-      )
+      (flush_time && flush_time != ~(ulong) 0L))
   {
     pthread_t hThread;
     if (pthread_create(&hThread,&connection_attrib,handle_manager,0))
