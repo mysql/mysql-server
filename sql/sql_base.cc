@@ -3400,8 +3400,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves, COND **conds)
               thd->restore_backup_item_arena(arena, &backup);
             if (*conds && !(*conds)->fixed)
             {
-              if (!(*conds)->fixed &&
-                  (*conds)->fix_fields(thd, tables, conds))
+              if ((*conds)->fix_fields(thd, tables, conds))
                 goto err_no_arena;
             }
           }
@@ -3413,8 +3412,8 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves, COND **conds)
               thd->restore_backup_item_arena(arena, &backup);
             if (embedded->on_expr && !embedded->on_expr->fixed)
             {
-              if (!embedded->on_expr->fixed &&
-                  embedded->on_expr->fix_fields(thd, tables, &embedded->on_expr))
+              if (embedded->on_expr->fix_fields(thd, tables,
+                                                &embedded->on_expr))
                 goto err_no_arena;
             }
           }

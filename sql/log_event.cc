@@ -3281,7 +3281,7 @@ void User_var_log_event::print(FILE* file, bool short_form, LAST_EVENT_INFO* las
       bin2decimal(val+2, &dec, precision, scale);
       decimal2string(&dec, str_buf, &str_len, 0, 0, 0);
       str_buf[str_len]= 0;
-      fprintf(file, "%s",str_buf);
+      fprintf(file, ":=%s;\n",str_buf);
       break;
     }
     case STRING_RESULT:
