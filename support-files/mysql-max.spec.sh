@@ -208,7 +208,7 @@ chmod -R og-rw $mysql_datadir/mysql
 # Restart in the same way that mysqld will be started normally.
 /etc/rc.d/init.d/mysql start
 
-# Allow safe_mysqld to start mysqld and print a message before we exit
+# Allow mysqld_safe to start mysqld and print a message before we exit
 sleep 2
 
 %preun
@@ -244,7 +244,7 @@ fi
 %attr(755, root, root) /usr/bin/perror
 %attr(755, root, root) /usr/bin/replace
 %attr(755, root, root) /usr/bin/resolveip
-%attr(755, root, root) /usr/bin/safe_mysqld
+%attr(755, root, root) /usr/bin/mysqld_safe
 %attr(755, root, root) /usr/bin/mysqld_multi
 %attr(755, root, root) /usr/bin/my_print_defaults
 

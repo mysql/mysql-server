@@ -117,7 +117,7 @@ rm -f $BASE/bin/Makefile* $BASE/bin/*.in $BASE/bin/*.sh $BASE/bin/mysql_install_
 
 $BASE/bin/replace \@localstatedir\@ ./data \@bindir\@ ./bin \@scriptdir\@ ./bin \@libexecdir\@ ./bin \@sbindir\@ ./bin \@prefix\@ . \@HOSTNAME\@ @HOSTNAME@ < $SOURCE/scripts/mysql_install_db.sh > $BASE/scripts/mysql_install_db
 $BASE/bin/replace \@prefix\@ /usr/local/mysql \@bindir\@ ./bin \@MYSQLD_USER\@ root \@localstatedir\@ /usr/local/mysql/data < $SOURCE/support-files/mysql.server.sh > $BASE/support-files/mysql.server
-$BASE/bin/replace /my/gnu/bin/hostname /bin/hostname -- $BASE/bin/safe_mysqld
+$BASE/bin/replace /my/gnu/bin/hostname /bin/hostname -- $BASE/bin/mysqld_safe
 
 mv $BASE/support-files/binary-configure $BASE/configure
 chmod a+x $BASE/bin/* $BASE/scripts/* $BASE/support-files/mysql-* $BASE/configure

@@ -457,12 +457,12 @@ sub example
 #   directory, that you have (just change the socket, -S=...)
 #   See more detailed information from chapter:
 #   '6 The MySQL Access Privilege System' from the MySQL manual.
-# 2.pid-file is very important, if you are using safe_mysqld to start mysqld
-#   (e.g. --mysqld=safe_mysqld) Every mysqld should have it's own pid-file.
-#   The advantage using safe_mysqld instead of mysqld directly here is, that
-#   safe_mysqld 'guards' every mysqld process and will restart it, if mysqld
+# 2.pid-file is very important, if you are using mysqld_safe to start mysqld
+#   (e.g. --mysqld=mysqld_safe) Every mysqld should have it's own pid-file.
+#   The advantage using mysqld_safe instead of mysqld directly here is, that
+#   mysqld_safe 'guards' every mysqld process and will restart it, if mysqld
 #   process fails due to signal kill -9, or similar. (Like segmentation fault,
-#   which MySQL should never do, of course ;) Please note that safe_mysqld
+#   which MySQL should never do, of course ;) Please note that mysqld_safe
 #   script may require that you start it from a certain place. This means that
 #   you may have to CD to a certain directory, before you start the
 #   mysqld_multi. If you have problems starting, please see the script.
@@ -497,7 +497,7 @@ sub example
 #   give you extra performance in a threaded system!
 #
 [mysqld_multi]
-mysqld     = @bindir@/safe_mysqld
+mysqld     = @bindir@/mysqld_safe
 mysqladmin = @bindir@/mysqladmin
 user       = multi_admin
 password   = multipass
@@ -591,9 +591,9 @@ Options:
                    Using: $opt_log
 --mysqladmin=...   mysqladmin binary to be used for a server shutdown.
                    Using: $mysqladmin
---mysqld=...       mysqld binary to be used. Note that you can give safe_mysqld
+--mysqld=...       mysqld binary to be used. Note that you can give mysqld_safe
                    to this option also. The options are passed to mysqld. Just
-                   make sure you have mysqld in your PATH or fix safe_mysqld.
+                   make sure you have mysqld in your PATH or fix mysqld_safe.
                    Using: $mysqld
 --no-log           Print to stdout instead of the log file. By default the log
                    file is turned on.

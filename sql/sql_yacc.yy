@@ -197,6 +197,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	IDENT
 %token	IGNORE_SYM
 %token	INDEX
+%token	INDEXES
 %token	INFILE
 %token	INNER_SYM
 %token	INNOBASE_SYM
@@ -1047,6 +1048,7 @@ key_or_index:
 keys_or_index:
 	KEYS {}
 	| INDEX {}
+	| INDEXES {}
 
 opt_unique_or_fulltext:
 	/* empty */	{ $$= Key::MULTIPLE; }
@@ -2392,7 +2394,7 @@ show_param:
 	    lex->select->db= $3;
 	    lex->select->options=0;
 	  }
-	| opt_full COLUMNS FROM table_ident opt_db wild
+	| opt_full COLUMNS from_or_in table_ident opt_db wild
 	  {
 	    Lex->sql_command= SQLCOM_SHOW_FIELDS;
 	    if ($5)
@@ -2452,7 +2454,7 @@ show_param:
 
 opt_db:
 	/* empty */  { $$= 0; }
-	| FROM ident { $$= $2.str; }
+	| from_or_in ident { $$= $2.str; }
 
 wild:
 	/* empty */
@@ -2461,6 +2463,10 @@ wild:
 opt_full:
 	/* empty */ { Lex->verbose=0; }
 	| FULL	    { Lex->verbose=1; }
+
+from_or_in:
+	FROM
+	| IN_SYM
 
 binlog_in:
 	/* empty */ { Lex->mi.log_file_name = 0; }
@@ -2818,6 +2824,7 @@ keyword:
 	| HOSTS_SYM		{}
 	| HOUR_SYM		{}
 	| IDENTIFIED_SYM	{}
+	| INDEXES		{}
 	| ISOLATION		{}
 	| ISAM_SYM		{}
 	| INNOBASE_SYM		{}
@@ -2901,6 +2908,8 @@ set:
 	  lex->select->select_limit=lex->thd->default_select_limit;
 	  lex->gemini_spin_retries=lex->thd->gemini_spin_retries;
 	  lex->tx_isolation=lex->thd->tx_isolation;
+	  lex->option_type=0;
+	  lex->option_list.empty()
 	}
 	option_value_list
 
@@ -2910,6 +2919,8 @@ opt_option:
 
 option_value_list:
 	option_value
+	| GLOBAL_SYM { Lex->option_type=1; } option_value
+	| LOCAL_SYM  { Lex->option_type=0; } option_value
 	| option_value_list ',' option_value
 
 option_value:
@@ -3017,6 +3028,28 @@ option_value:
 	      slave_skip_counter = $3;
 	    pthread_mutex_unlock(&LOCK_slave);
           }
+	| ident equal DEFAULT
+	  {
+	    LEX *lex=Lex;
+	    lex->option_list.push_back(new Set_option(lex->option_type,
+						      $1.str,$1.length,
+						      (Item*) 0));
+	   }
+	| ident equal expr
+	  {
+	     THD *thd=current_thd;
+	     Item *item= $3;
+	     if (item->fix_fields(current_thd,0))
+	     {
+		send_error(&thd->net, ER_SET_CONSTANTS_ONLY);
+	        YYABORT;
+	     }
+	     thd->lex.option_list.
+	       push_back(new Set_option(thd->lex.option_type,
+					$1.str,$1.length,
+					item));
+	   }
+
 
 text_or_password:
 	TEXT_STRING { $$=$1.str;}

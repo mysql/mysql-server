@@ -133,14 +133,14 @@ case "$mode" in
   'start')
     # Start daemon
 
-    if test -x $bindir/safe_mysqld
+    if test -x $bindir/mysqld_safe
     then
       # We only need to specify datadir and pid-file here and we
       # get all other instance-specific config from $datadir/my.cnf.
       # We have to explicitly pass --defaults-extra-file because it
       # reads the config files before the command line options.
-      # Also it must be first because of the way safe_mysqld works.
-      $bindir/safe_mysqld --defaults-extra-file=$datadir/my.cnf \
+      # Also it must be first because of the way mysqld_safe works.
+      $bindir/mysqld_safe --defaults-extra-file=$datadir/my.cnf \
                           --datadir=$datadir --pid-file=$pid_file &
       # Make lock for RedHat / SuSE
       if test -d /var/lock/subsys
@@ -148,7 +148,7 @@ case "$mode" in
         touch /var/lock/subsys/mysql
       fi
     else
-      echo "Can't execute $bindir/safe_mysqld"
+      echo "Can't execute $bindir/mysqld_safe"
     fi
     ;;
 
