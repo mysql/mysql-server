@@ -329,7 +329,11 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
             {
               *pos=ft_keysegs[j];
               pos[0].language= pos[-1].language;
-              pos[0].charset= pos[-1].charset;
+              if (!(pos[0].charset= pos[-1].charset))
+              {
+                my_errno=HA_ERR_CRASHED;
+                goto err;
+              }
               pos++;
             }
           }
