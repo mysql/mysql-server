@@ -83,6 +83,36 @@ soundex('')	soundex('he')	soundex('hello all folks')
 select md5('hello');
 md5('hello')
 5d41402abc4b2a76b9719d911017c592
+select sha('abc');
+sha('abc')
+a9993e364706816aba3e25717850c26c9cd0d89d
+select sha1('abc');
+sha1('abc')
+a9993e364706816aba3e25717850c26c9cd0d89d
+select aes_decrypt(aes_encrypt('abc','1'),'1');
+aes_decrypt(aes_encrypt('abc','1'),'1')
+abc
+select aes_decrypt(aes_encrypt('abc','1'),1);
+aes_decrypt(aes_encrypt('abc','1'),1)
+abc
+select aes_encrypt(NULL,"a");
+aes_encrypt(NULL,"a")
+NULL
+select aes_encrypt("a",NULL);
+aes_encrypt("a",NULL)
+NULL
+select aes_decrypt(NULL,"a");
+aes_decrypt(NULL,"a")
+NULL
+select aes_decrypt("a",NULL);
+aes_decrypt("a",NULL)
+NULL
+select aes_decrypt("a","a");
+aes_decrypt("a","a")
+NULL
+select aes_decrypt(aes_encrypt("","a"),"a");
+aes_decrypt(aes_encrypt("","a"),"a")
+
 select repeat('monty',5),concat('*',space(5),'*');
 repeat('monty',5)	concat('*',space(5),'*')
 montymontymontymontymonty	*     *

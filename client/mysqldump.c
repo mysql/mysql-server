@@ -33,6 +33,7 @@
 ** Tõnu Samuel  <tonu@please.do.not.remove.this.spam.ee>
 ** XML by Gary Huntress <ghuntress@mediaone.net> 10/10/01, cleaned up
 ** and adapted to mysqldump 05/11/01 by Jani Tolonen
+** Added --single-transaction option 06/06/2002 by Peter Zaitsev
 */
 
 #define DUMP_VERSION "9.06"
@@ -76,7 +77,7 @@ static my_bool  verbose=0,tFlag=0,cFlag=0,dFlag=0,quick=0, extended_insert = 0,
                 opt_delayed=0,create_options=0,opt_quoted=0,opt_databases=0,
 	        opt_alldbs=0,opt_create_db=0,opt_first_slave=0,
                 opt_autocommit=0,opt_master_data,opt_disable_keys=0,opt_xml=0,
-                tty_password=0;
+                tty_password=0,opt_single_transaction=0;
 static MYSQL  mysql_connection,*sock=0;
 static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
              *current_host=0,*path=0,*fields_terminated=0,
@@ -171,6 +172,10 @@ static struct my_option my_long_options[] =
    "Wrap tables with autocommit/commit statements.",
    (gptr*) &opt_autocommit, (gptr*) &opt_autocommit, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
+  {"single-transaction", OPT_TRANSACTION,
+   "Dump all tables in single transaction to get consistent snapshot. Mutually exclusive with --lock-tables.",
+   (gptr*) &opt_single_transaction, (gptr*) &opt_single_transaction, 0, GET_BOOL, NO_ARG,
+   0, 0, 0, 0, 0, 0},   
   {"no-create-db", 'n',
    "'CREATE DATABASE /*!32312 IF NOT EXISTS*/ db_name;' will not be put in the output. The above line will be added otherwise, if --databases or --all-databases option was given.}",
    (gptr*) &opt_create_db, (gptr*) &opt_create_db, 0, GET_BOOL, NO_ARG, 0, 0,
@@ -340,8 +345,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     usage();
     exit(0);
   case (int) OPT_OPTIMIZE:
-    extended_insert=opt_drop=opt_lock=lock_tables=quick=create_options=
-      opt_disable_keys=1;
+    extended_insert=opt_drop=opt_lock=quick=create_options=opt_disable_keys=
+    lock_tables=1;
+    if (opt_single_transaction) lock_tables=0;
     break;
   case (int) OPT_TABLES:
     opt_databases=0;
@@ -370,6 +376,12 @@ static int get_options(int *argc, char ***argv)
     fprintf(stderr,
 	    "%s: You must use option --tab with --fields-...\n", my_progname);
     return(1);
+  }
+  
+  if (opt_single_transaction && lock_tables) 
+  {
+    fprintf(stderr, "%s: You can't use --lock-tables and --single-transaction at the same time.\n", my_progname);
+    return(1);    
   }
 
   if (enclosed && opt_enclosed)
@@ -1372,6 +1384,18 @@ int main(int argc, char **argv)
       return(first_error);
     }
   }
+  /* There is no sense to start transaction if all tables are locked */
+  else if (opt_single_transaction)
+    {
+      if (mysql_query(sock, "BEGIN"))
+      {
+        my_printf_error(0, "Error: Couldn't execute 'BEGIN': %s",
+                        MYF(0), mysql_error(sock));
+        my_end(0);
+        return(first_error);
+      }
+    
+    }
   if (opt_alldbs)
     dump_all_databases();
   /* Only one database and selected table(s) */
@@ -1415,6 +1439,19 @@ int main(int argc, char **argv)
       my_printf_error(0, "Error: Couldn't execute 'UNLOCK TABLES': %s",
 		      MYF(0), mysql_error(sock));
    }
+  }
+  /*
+   In case we were locking all tables, we did not start transaction
+   so there is no need to commit it.
+  */
+  else if (opt_single_transaction) /* Just to make it beautiful enough */
+  {
+    /* This should just free locks as we did not change anything */
+    if (mysql_query(sock, "COMMIT"))
+    {
+      my_printf_error(0, "Error: Couldn't execute 'COMMIT': %s",
+  	      MYF(0), mysql_error(sock));
+    }		      
   }
   dbDisconnect(current_host);
   fputs("\n", md_result_file);

@@ -32,6 +32,16 @@ Item *create_func_acos(Item* a)
   return new Item_func_acos(a);
 }
 
+Item *create_func_aes_encrypt(Item* a, Item* b)
+{
+  return new Item_func_aes_encrypt(a, b); 
+}
+     
+Item *create_func_aes_decrypt(Item* a, Item* b)
+{
+  return new Item_func_aes_decrypt(a, b);
+}
+        
 Item *create_func_ascii(Item* a)
 {
   return new Item_func_ascii(a);
@@ -327,6 +337,11 @@ Item *create_func_sin(Item* a)
   return new Item_func_sin(a);
 }
 
+Item *create_func_sha(Item* a)
+{
+  return new Item_func_sha(a);  
+}
+    
 Item *create_func_space(Item *a)
 {
   return new Item_func_repeat(new Item_string(" ",1),a);
