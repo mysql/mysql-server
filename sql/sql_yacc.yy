@@ -98,7 +98,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	MIN_SYM
 %token	SUM_SYM
 %token	STD_SYM
-
+%token  ABORT_SYM
 %token	ADD
 %token	ALTER
 %token	AFTER_SYM
@@ -134,7 +134,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  BINLOG_SYM
 %token  EVENTS_SYM
 
-%token	ABORT_SYM
 %token	ACTION
 %token	AGGREGATE_SYM
 %token	ALL
@@ -449,6 +448,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	SQL_SAFE_UPDATES
 %token  SQL_QUOTE_SHOW_CREATE
 %token  SQL_SLAVE_SKIP_COUNTER
+
+%token  ISSUER_SYM
+%token  SUBJECT_SYM
+%token  CIPHER_SYM
 
 %left   SET_VAR
 %left	OR_OR_CONCAT OR
@@ -2819,6 +2822,7 @@ keyword:
 	| CHANGED		{}
 	| CHECKSUM_SYM		{}
 	| CHECK_SYM		{}
+	| CIPHER_SYM		{}
 	| CLOSE_SYM		{}
 	| COMMENT_SYM		{}
 	| COMMIT_SYM		{}
@@ -2856,6 +2860,7 @@ keyword:
 	| INDEXES		{}
 	| ISOLATION		{}
 	| ISAM_SYM		{}
+	| ISSUER_SYM		{}
 	| INNOBASE_SYM		{}
 	| LAST_SYM		{}
 	| LEVEL_SYM		{}
@@ -2909,10 +2914,10 @@ keyword:
 	| SESSION_SYM		{}
 	| SHARE_SYM		{}
 	| SHUTDOWN		{}
-	| START_SYM		{}
 	| STATUS_SYM		{}
 	| STOP_SYM		{}
 	| STRING_SYM		{}
+	| SUBJECT_SYM		{}
 	| TEMPORARY		{}
 	| TEXT_SYM		{}
 	| TRANSACTION_SYM	{}
@@ -3251,9 +3256,10 @@ grant:
 	  lex->columns.empty();
 	  lex->grant= lex->grant_tot_col=0;
 	  lex->select->db=0;
+	  lex->ssl_chipher=lex->ssl_subject=lex->ssl_issuer=0;
 	}
 	grant_privileges ON opt_table TO_SYM user_list
-	grant_option
+	grant_option require_clause
 
 grant_privileges:
 	grant_privilege_list {}
@@ -3287,6 +3293,27 @@ grant_privilege:
 	| FILE_SYM	{ Lex->grant |= FILE_ACL;}
 	| GRANT OPTION  { Lex->grant |= GRANT_ACL;}
 
+require_clause: /* empty */
+ | REQUIRE_SYM require_list
+
+
+require_list: require_list_element AND require_list
+| require_list_element 
+
+
+require_list_element: SUBJECT_SYM TEXT_STRING
+ {
+   Lex->ssl_subject=$2.str;
+ }
+ | ISSUER_SYM TEXT_STRING
+ {
+   Lex->ssl_issuer=$2.str;
+ }
+ | CHIPHER_SYM TEXT_STRING
+ {
+   Lex->ssl_chipher=$2.str;
+ }
+ 
 opt_table:
 	'*'
 	  {
