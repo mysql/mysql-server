@@ -10,6 +10,7 @@
 in_rpm=0
 windows=0
 defaults=""
+user=""
 case "$1" in
     -IN-RPM)
       in_rpm="1"; shift
@@ -334,10 +335,14 @@ then
   c_c="$c_c   comment='Column privileges';"
 fi
 
+if test -n "$user"; then
+  args="$args --user=$user"
+fi
+
 echo "Installing all prepared tables"
 if eval "$mysqld $defaults $mysqld_opt --bootstrap --skip-grant-tables \
          --basedir=$basedir --datadir=$ldata --skip-innodb --skip-bdb \
-         --user=$user $args" << END_OF_DATA
+         $extra_arg $args" << END_OF_DATA
 use mysql;
 $c_d
 $i_d

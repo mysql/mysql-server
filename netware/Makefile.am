@@ -16,6 +16,8 @@
 
 if HAVE_NETWARE
 INCLUDES =			-I$(srcdir)/../include -I../include -I..
+LDADD =				@CLIENT_EXTRA_LDFLAGS@ ../mysys/libmysys.a \
+				../dbug/libdbug.a ../strings/libmystrings.a
 bin_PROGRAMS =			mysqld_safe mysql_install_db mysql_test_run libmysql
 mysqld_safe_SOURCES=		mysqld_safe.c my_manage.c
 mysql_install_db_SOURCES=	mysql_install_db.c my_manage.c
