@@ -6704,6 +6704,11 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @image{Flags/usa} USA [adgrafix.com/Boston, MA] @
 @uref{http://mysql.adgrafix.com/, WWW}
 
+@item
+@c EMAIL: Pjacob@netnumina.com (Philip Jacob)
+@image{Flags/usa} USA [netNumina/Cambridge, MA] @
+@uref{http://mysql.mirrors.netnumina.com/, WWW}
+
 @end itemize
 
 @strong{South America:}
@@ -6764,6 +6769,12 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c EMAIL: vfong@hklpg.org (Vincent Fong)
 @image{Flags/china} China [HKLPG/Hong Kong] @
 @uref{http://mysql.hklpg.org, WWW}
+
+@item
+@c EMAIL: jason-wong@gremlins.com.hk (Gremlins Jason Wong)
+@image{Flags/china} China [Gremlins/Hong Kong] @
+@uref{http://mysql.gremlins.com.hk/, WWW}
+@uref{ftp://ftp.mirrors.gremlins.com.hk/mysql/, FTP}
 
 @c @item
 @c Not ok 20010308; Other content! (Tonu)
@@ -6897,9 +6908,9 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @item
 @c Added 980610
 @c EMAIL: jason@dstc.edu.au (Jason Andrade)
-@image{Flags/australia} Australia [AARNet/Queensland] @
-@uref{http://mysql.mirror.aarnet.edu.au/, WWW}
-@uref{ftp://mysql.mirror.aarnet.edu.au/, FTP}
+@c @image{Flags/australia} Australia [AARNet/Queensland] @
+@c @uref{http://mysql.mirror.aarnet.edu.au/, WWW}
+@c @uref{ftp://mysql.mirror.aarnet.edu.au/, FTP}
 
 @c @item
 @c Added 980805. Removed 000102 'no such directory'
