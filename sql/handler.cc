@@ -694,6 +694,15 @@ void handler::print_error(int error, myf errflag)
   case HA_ERR_RECORD_FILE_FULL:
     textno=ER_RECORD_FILE_FULL;
     break;
+  case HA_ERR_LOCK_WAIT_TIMEOUT:
+    textno=ER_LOCK_WAIT_TIMEOUT;
+    break;
+  case HA_ERR_LOCK_TABLE_FULL:
+    textno=ER_LOCK_TABLE_FULL;
+    break;
+  case HA_ERR_READ_ONLY_TRANSACTION:
+    textno=ER_READ_ONLY_TRANSACTION;
+    break;
   default:
     {
       my_error(ER_GET_ERRNO,errflag,error);
@@ -755,6 +764,25 @@ int ha_commit_rename(THD *thd)
       error= -1;
 #endif
     return error;
+}
+
+/* Tell the handler to turn on or off logging to the handler's
+   recovery log
+*/
+int ha_recovery_logging(THD *thd, bool on)
+{
+  int error=0;
+
+  DBUG_ENTER("ha_recovery_logging");
+#ifdef USING_TRANSACTIONS
+  if (opt_using_transactions)
+  {
+#ifdef HAVE_GEMINI_DB
+    error = gemini_recovery_logging(thd, on);
+#endif
+  }
+#endif
+  DBUG_RETURN(error);
 }
 
 int handler::index_next_same(byte *buf, const byte *key, uint keylen)

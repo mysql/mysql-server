@@ -213,6 +213,7 @@ enum ha_base_keytype {
 #define HA_ERR_CRASHED_ON_USAGE  145	/* Table must be repaired */
 #define HA_ERR_LOCK_WAIT_TIMEOUT 146    
 #define HA_ERR_LOCK_TABLE_FULL   147
+#define HA_ERR_READ_ONLY_TRANSACTION 148 /* Updates not allowed */
 
 	/* Other constants */
 

@@ -314,7 +314,6 @@ Windows Notes
 * Windows and SSH::             Connecting to a remote @strong{MySQL} from Windows with SSH
 * Windows symbolic links::      Splitting data across different disks under Win32
 * Windows compiling::           Compiling MySQL clients on Windows.
-* Windows and BDB tables.::     Windows and BDB Tables
 * Windows vs Unix::             @strong{MySQL}-Windows compared to Unix @strong{MySQL}
 
 Post-installation Setup and Testing
@@ -530,10 +529,25 @@ BDB or Berkeley_DB Tables
 
 GEMINI Tables
 
-* GEMINI overview::             
-* GEMINI start::                
-* GEMINI features::             
-* GEMINI TODO::                 
+* GEMINI Overview::             
+* Using GEMINI Tables::         
+
+GEMINI Overview
+
+* GEMINI Features::             
+* GEMINI Concepts::             
+* GEMINI Limitations::          
+
+Using GEMINI Tables
+
+* Startup Options::             
+* Creating GEMINI Tables::      
+* Backing Up GEMINI Tables::    
+* Restoring GEMINI Tables::     
+* Using Auto_Increment Columns With GEMINI Tables::  
+* Performance Considerations::  
+* Sample Configurations::       
+* When To Use GEMINI Tables::   
 
 InnoDB Tables
 
@@ -554,7 +568,7 @@ InnoDB Tables
 
 Creating InnoDB table space
 
-* Error creating InnoDB::      
+* Error creating InnoDB::       
 
 Backing up and recovering an InnoDB database
 
@@ -717,6 +731,7 @@ MySQL Utilites
 Maintaining a MySQL Installation
 
 * Table maintenance::           Table maintenance and crash recovery
+* Using mysqlcheck::            Using mysqlcheck for maintenance and recovery
 * Maintenance regimen::         Setting up a table maintenance regimen
 * Table-info::                  Getting information about a table
 * Crash recovery::              Using @code{myisamchk} for crash recovery
@@ -2835,7 +2850,7 @@ PTS: Project Tracking System.
 @item @uref{http://tomato.nvgc.vt.edu/~hroberts/mot}
 Job and software tracking system.
 
-@item @uref{http://www.cynergi.net/non-secure/exportsql/}
+@item @uref{http://www.cynergi.net/exportsql/}
 ExportSQL: A script to export data from Access95+.
 
 @item @uref{http://SAL.KachinaTech.COM/H/1/MYSQL.html}
@@ -3060,21 +3075,21 @@ from the local @strong{MySQL} list.
 The following @strong{MySQL} mailing lists exist:
 
 @table @code
-@item @email{announce-subscribe@@lists.mysql.com, announce}
+@item @email{announce-subscribe@@lists.mysql.com} announce
 This is for announcement of new versions of @strong{MySQL} and related
 programs.  This is a low volume list all @strong{MySQL} users should
 subscribe to.
 
-@item @email{mysql-subscribe@@lists.mysql.com, mysql}
+@item @email{mysql-subscribe@@lists.mysql.com} mysql
 The main list for general @strong{MySQL} discussion.  Please note that some
 topics are better discussed on the more-specialized lists.  If you post to the
 wrong list, you may not get an answer!
 
-@item @email{mysql-digest-subscribe@@lists.mysql.com, mysql-digest}
+@item @email{mysql-digest-subscribe@@lists.mysql.com} mysql-digest
 The @code{mysql} list in digest form.  That means you get all individual
 messages, sent as one large mail message once a day.
 
-@item @email{bugs-subscribe@@lists.mysql.com, bugs}
+@item @email{bugs-subscribe@@lists.mysql.com} bugs
 On this list you should only post a full, repeatable bug report using
 the @code{mysqlbug} script (if you are running on Windows, you should
 include a description of the operating system and the @strong{MySQL} version).
@@ -3085,55 +3100,45 @@ bugs posted on this list will be corrected or documented in the next
 @strong{MySQL} release!  If there are only small code changes involved, we
 will also post a patch that fixes the problem.
 
-@item @email{bugs-digest-subscribe@@lists.mysql.com, bugs-digest}
+@item @email{bugs-digest-subscribe@@lists.mysql.com} bugs-digest
 The @code{bugs} list in digest form.
 
-@item @email{developer-subscribe@@lists.mysql.com, developer}
-This list has been depreciated in favor of the
-@email{internals-subscribe@@lists.mysql.com, internals} list (below).
-
-@item @email{developer-digest-subscribe@@lists.mysql.com, developer-digest}
-This list has been deprecated in favor of the
-@email{internals-digest-subscribe@@lists.mysql.com, internals-digest} 
-list (below).
-
-@item @email{internals-subscribe@@lists.mysql.com, internals}
+@item @email{internals-subscribe@@lists.mysql.com} internals
 A list for people who work on the @strong{MySQL} code.  On this list one
 can also discuss @strong{MySQL} development and post patches.
 
-@item @email{internals-digest-subscribe@@lists.mysql.com, internals-digest}
-A digest version of the @email{internals-subscribe@@lists.mysql.com, internals}
-list.
+@item @email{internals-digest-subscribe@@lists.mysql.com} internals-digest
+A digest version of the @code{internals} list.
 
-@item @email{java-subscribe@@lists.mysql.com, java}
+@item @email{java-subscribe@@lists.mysql.com} java
 Discussion about @strong{MySQL} and Java.  Mostly about the JDBC drivers.
 
-@item @email{java-digest-subscribe@@lists.mysql.com, java-digest}
+@item @email{java-digest-subscribe@@lists.mysql.com} java-digest
 A digest version of the @code{java} list.
 
-@item @email{win32-subscribe@@lists.mysql.com, win32}
+@item @email{win32-subscribe@@lists.mysql.com} win32
 All things concerning @strong{MySQL} on Microsoft operating systems such as
 Win95, Win98, NT, and Win2000.
 
-@item @email{win32-digest-subscribe@@lists.mysql.com, win32-digest}
+@item @email{win32-digest-subscribe@@lists.mysql.com} win32-digest
 A digest version of the @code{win32} list.
 
-@item @email{myodbc-subscribe@@lists.mysql.com, myodbc}
+@item @email{myodbc-subscribe@@lists.mysql.com} myodbc
 All things about connecting to @strong{MySQL} with ODBC.
 
-@item @email{myodbc-digest-subscribe@@lists.mysql.com, myodbc-digest}
+@item @email{myodbc-digest-subscribe@@lists.mysql.com} myodbc-digest
 A digest version of the @code{myodbc} list.
 
-@item @email{plusplus-subscribe@@lists.mysql.com, plusplus}
+@item @email{plusplus-subscribe@@lists.mysql.com} plusplus
 All things concerning programming with the C++ API to @strong{MySQL}.
 
-@item @email{plusplus-digest-subscribe@@lists.mysql.com, plusplus-digest}
+@item @email{plusplus-digest-subscribe@@lists.mysql.com} plusplus-digest
 A digest version of the @code{plusplus} list.
 
-@item @email{msql-mysql-modules-subscribe@@lists.mysql.com, msql-mysql-modules}
-A list about the Perl support in @strong{MySQL}.
+@item @email{msql-mysql-modules-subscribe@@lists.mysql.com} msql-mysql-modules
+A list about the Perl support in @strong{MySQL}. msql-mysql-modules
 
-@item @email{msql-mysql-modules-digest-subscribe@@lists.mysql.com, msql-mysql-modules-digest}
+@item @email{msql-mysql-modules-digest-subscribe@@lists.mysql.com} msql-mysql-modules-digest
 A digest version of the @code{msql-mysql-modules} list.
 @end table
 
@@ -3149,16 +3154,16 @@ English.  Note that these are not operated by @strong{MySQL AB}, so we can't
 guarantee the quality on these.
 
 @table @code
-@item @email{mysql-france-subscribe@@yahoogroups.com, A French mailing list}
-@item @email{list@@tinc.net, A Korean mailing list}
+@item @email{mysql-france-subscribe@@yahoogroups.com} A French mailing list
+@item @email{list@@tinc.net} A Korean mailing list
 Email @code{subscribe mysql your@@email.address} to this list.
-@item @email{mysql-de-request@@lists.4t2.com, A German mailing list}
+@item @email{mysql-de-request@@lists.4t2.com} A German mailing list
 Email @code{subscribe mysql-de your@@email.address} to this list.
 You can find information about this mailing list at
 @uref{http://www.4t2.com/mysql}.
-@item @email{mysql-br-request@@listas.linkway.com.br, A Portugese mailing list}
+@item @email{mysql-br-request@@listas.linkway.com.br} A Portugese mailing list
 Email @code{subscribe mysql-br your@@email.address} to this list.
-@item @email{mysql-alta@@elistas.net, A Spanish mailing list}
+@item @email{mysql-alta@@elistas.net} A Spanish mailing list
 Email @code{subscribe mysql your@@email.address} to this list.
 @end table
 
@@ -4517,6 +4522,12 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @uref{ftp://ftp.esat.net/mirrors/download.sourceforge.net/pub/mirrors/mysql/, FTP}
 
 @item
+@c Added 20010524
+@c EMAIL: arvids@parks.lv (Arvids)
+@image{Flags/latvia} Latvia [linux.lv] @
+@uref{ftp://ftp.linux.lv/pub/software/mysql/, FTP}
+
+@item
 @c Added 20001125
 @c EMAIL: mleicher@silverpoint.nl (Marcel Leicher)
 @image{Flags/netherlands} Netherlands [Silverpoint] @
@@ -4796,10 +4807,10 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @uref{http://mysql.linuxwired.net/, WWW}
 @uref{ftp://ftp.linuxwired.net/pub/mirrors/mysql/, FTP}
 
-@item
+@c @item
 @c EMAIL: dan@surfsouth.com (Dan Muntz)
-@image{Flags/usa} USA [Venoma.Org/Valdosta, GA] @
-@uref{http://mysql.venoma.org/, WWW}
+@c @image{Flags/usa} USA [Venoma.Org/Valdosta, GA] @
+@c @uref{http://mysql.venoma.org/, WWW}
 
 @item
 @c EMAIL: hkind@adgrafix.com (Hans Kind)
@@ -4999,8 +5010,8 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c Added 980610
 @c EMAIL: jason@dstc.edu.au (Jason Andrade)
 @image{Flags/australia} Australia [AARNet/Queensland] @
-@uref{http://mirror.aarnet.edu.au/mysql, WWW}
-@uref{ftp://mirror.aarnet.edu.au/pub/mysql, FTP}
+@uref{http://mysql.mirror.aarnet.edu.au/, WWW}
+@uref{ftp://mysql.mirror.aarnet.edu.au/, FTP}
 
 @c @item
 @c Added 980805. Removed 000102 'no such directory'
@@ -8479,7 +8490,7 @@ The following @code{configure} command should work:
 @example
 shell> CFLAGS="-D_XOPEN_XPG4" CXX=gcc CXXFLAGS="-D_XOPEN_XPG4" \
        ./configure \
-           --with-debug --prefix=/usr/local/mysql \
+           --prefix=/usr/local/mysql \
            --with-named-thread-libs="-lgthreads -lsocket -lgen -lgthreads" \
            --with-named-curses-libs="-lcurses"
 @end example
@@ -8876,7 +8887,6 @@ This is also described in the @file{README} file that comes with the
 * Windows and SSH::             Connecting to a remote @strong{MySQL} from Windows with SSH
 * Windows symbolic links::      Splitting data across different disks under Win32
 * Windows compiling::           Compiling MySQL clients on Windows.
-* Windows and BDB tables.::     Windows and BDB Tables
 * Windows vs Unix::             @strong{MySQL}-Windows compared to Unix @strong{MySQL}
 @end menu
 
@@ -8925,9 +8935,8 @@ symbolic links, BDB and InnoDB tables.
 @item @code{mysqld-opt} @tab
 Optimized binary with no support for transactional tables.
 @item @code{mysqld-nt} @tab
-Optimized for a Pentium Pro processor. Has support for
-named pipes. You can run this version on Win98, but in
-this case no named pipes are created and you must
+Optimized binary for NT with support for named pipes. You can run this
+version on Win98, but in this case no named pipes are created and you must
 have TCP/IP installed.
 @item @code{mysqld-max} @tab
 Optimized binary with support for symbolic links, BDB and InnoDB tables.
@@ -9229,7 +9238,7 @@ text @code{D:\data\foo}.  After that, all tables created in the database
 
 @cindex compiling, on Windows
 @cindex Windows, compiling on
-@node Windows compiling, Windows and BDB tables., Windows symbolic links, Windows
+@node Windows compiling, Windows vs Unix, Windows symbolic links, Windows
 @subsection Compiling MySQL Clients on Windows
 
 In your source files, you should include @file{windows.h} before you include
@@ -9249,19 +9258,9 @@ with the static @file{mysqlclient.lib} library.
 Note that as the mysqlclient libraries are compiled as threaded libraries,
 you should also compile your code to be multi-threaded!
 
-@cindex BDB tables
-@cindex tables, BDB
-@node Windows and BDB tables., Windows vs Unix, Windows compiling, Windows
-@subsection Windows and BDB Tables
-
-We will shortly do a full test on the new BDB interface on Windows.
-When this is done we will start to release binary distributions (for
-Windows and Unix) of @strong{MySQL} that will include support for BDB
-tables.
-
 @cindex Windows, versus Unix
 @cindex operating systems, Windows versus Unix
-@node Windows vs Unix,  , Windows and BDB tables., Windows
+@node Windows vs Unix,  , Windows compiling, Windows
 @subsection MySQL-Windows Compared to Unix MySQL
 
 @strong{MySQL}-Windows has by now proven itself to be very stable. This version
@@ -9528,19 +9527,19 @@ and are configured with the following compilers and options:
 @code{CC=gcc CXX=gcc CXXFLAGS="-O3 -felide-constructors" ./configure --prefix=/usr/local/mysql --disable-shared --with-extra-charsets=complex --enable-assembler}
 
 @item SunOS 5.5.1 sun4u with @code{egcs} 1.0.3a
-@code{CC=gcc CFLAGS="-O3 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O3 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --with-low-memory --with-extra-charsets=complex}
+@code{CC=gcc CFLAGS="-O3" CXX=gcc CXXFLAGS="-O3 -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --with-low-memory --with-extra-charsets=complex}
 
 @item SunOS 5.6 sun4u with @code{egcs} 2.90.27
-@code{CC=gcc CFLAGS="-O3 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O3 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --with-low-memory --with-extra-charsets=complex}
+@code{CC=gcc CFLAGS="-O3" CXX=gcc CXXFLAGS="-O3 -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --with-low-memory --with-extra-charsets=complex}
 
 @item SunOS 5.6 i86pc with @code{gcc} 2.8.1
 @code{CC=gcc CXX=gcc CXXFLAGS=-O3 ./configure --prefix=/usr/local/mysql --with-low-memory --with-extra-charsets=complex}
 
 @item Linux 2.0.33 i386 with @code{pgcc} 2.90.29 (@code{egcs} 1.0.3a)
-@code{CFLAGS="-O3 -mpentium -mstack-align-double -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O3 -mpentium -mstack-align-double -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static --with-extra-charsets=complex}
+@code{CFLAGS="-O3 -mpentium -mstack-align-double" CXX=gcc CXXFLAGS="-O3 -mpentium -mstack-align-double -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static --with-extra-charsets=complex}
 
 @item Linux 2.2.x with x686 with @code{gcc} 2.95.2
-@code{CFLAGS="-O3 -mpentiumpro -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O3 -mpentiumpro -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static --disable-shared --with-extra-charset=complex}
+@code{CFLAGS="-O3 -mpentiumpro" CXX=gcc CXXFLAGS="-O3 -mpentiumpro -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static --disable-shared --with-extra-charset=complex}
 
 @item SCO 3.2v5.0.4 i386 with @code{gcc} 2.7-95q4
 @code{CC=gcc CXX=gcc CXXFLAGS=-O3 ./configure --prefix=/usr/local/mysql --with-extra-charsets=complex}
@@ -10115,7 +10114,7 @@ If you are using BDB (Berkeley DB) tables, you should familiarize
 yourself with the different BDB specific startup options.  @xref{BDB start}.
 
 If you are using Gemini tables, refer to the Gemini-specific startup options.
-@xref{GEMINI start}.
+@xref{Using GEMINI Tables}.
 
 If you are using InnoDB tables, refer to the InnoDB-specific startup
 options.  @xref{InnoDB start}.
@@ -10743,8 +10742,8 @@ the old @code{ISAM} type.  You don't have to convert your old tables to
 use these with Version 3.23.  By default, all new tables will be created with
 type @code{MyISAM} (unless you start @code{mysqld} with the
 @code{--default-table-type=isam} option). You can change an @code{ISAM}
-table to a @code{MyISAM} table with @code{ALTER TABLE} or the Perl script
-@code{mysql_convert_table_format}.
+table to a @code{MyISAM} table with @code{ALTER TABLE table_name TYPE=MyISAM}
+or the Perl script @code{mysql_convert_table_format}.
 
 Version 3.22 and 3.21 clients will work without any problems with a Version
 3.23 server.
@@ -18865,10 +18864,10 @@ When you insert a value of @code{NULL} (recommended) or @code{0} into an
 
 If you delete the row containing the maximum value for an
 @code{AUTO_INCREMENT} column, the value will be reused with an
-@code{ISAM}, @code{BDB} or @code{INNODB} table but not with a
-@code{MyISAM} table.  If you delete all rows in the table with
-@code{DELETE FROM table_name} (without a @code{WHERE}) in
-@code{AUTOCOMMIT} mode, the sequence starts over for both table types.
+@code{ISAM}, @code{GEMINI} or @code{BDB} table but not with a
+@code{MyISAM} or @code{InnoDB} table.  If you delete all rows in the table
+with @code{DELETE FROM table_name} (without a @code{WHERE}) in
+@code{AUTOCOMMIT} mode, the sequence starts over for all table types.
 
 @strong{NOTE:} There can be only one @code{AUTO_INCREMENT} column per
 table, and it must be indexed. @strong{MySQL} Version 3.23 will also only
@@ -24635,87 +24634,849 @@ not in @code{auto_commit} mode, until this problem is fixed (the fix is
 not trivial).
 @end itemize
 
-@cindex tables, @code{GEMINI}
+@cindex GEMINI tables
 @node GEMINI, InnoDB, BDB, Table types
 @section GEMINI Tables
 
+@cindex GEMINI tables, overview
 @menu
-* GEMINI overview::             
-* GEMINI start::                
-* GEMINI features::             
-* GEMINI TODO::                 
+* GEMINI Overview::             
+* Using GEMINI Tables::         
 @end menu
 
-@node GEMINI overview, GEMINI start, GEMINI, GEMINI
-@subsection Overview of GEMINI tables
+@node GEMINI Overview, Using GEMINI Tables, GEMINI, GEMINI
+@subsection GEMINI Overview
 
-The @code{GEMINI} table type is developed and supported by NuSphere Corporation
-(@uref{http://www.nusphere.com}).  It features row-level locking, transaction
-support (@code{COMMIT} and @code{ROLLBACK}), and automatic crash recovery.
+@code{GEMINI} is a transaction-safe table handler for @strong{MySQL}. It
+provides row-level locking, robust transaction support and reliable
+crash recovery. It is targeted for databases that need to handle heavy
+multi-user updates typical of transaction processing applications while
+still providing excellent performance for read-intensive operations. The
+@code{GEMINI} table type is developed and supported by NuSphere
+Corporation (see @url{http://www.nusphere.com}).
 
-@code{GEMINI} tables will be included in some future @strong{MySQL} 3.23.X
-source distribution.
+@code{GEMINI} provides full ACID transaction properties (Atomic,
+Consistent, Independent, and Durable) with a programming model that
+includes support for statement atomicity and all four standard isolation
+levels (Read Uncommitted, Read Committed, Repeatable Read, and
+Serializable) defined in the SQL standard.
 
-@node GEMINI start, GEMINI features, GEMINI overview, GEMINI
-@subsection GEMINI startup options
+The @code{GEMINI} tables support row-level and table-level locking to
+increase concurrency in applications and allow reading of tables without
+locking for maximum concurrency in a heavy update environment. The
+transaction, locking, and recovery mechanisms are tightly integrated to
+eliminate unnecessary administration overhead.
 
-If you are running with @code{AUTOCOMMIT=0} then your changes in @code{GEMINI}
-tables will not be updated until you execute @code{COMMIT}.  Instead of commit
-you can execute @code{ROLLBACK} to forget your changes. @xref{COMMIT}.
+In general, if @code{GEMINI} tables are selected for an application, it
+is recommended that all tables updated in the application be
+@code{GEMINI} tables to provide well-defined system behavior. If
+non-@code{GEMINI} tables are mixed into the application then, ACID
+transaction properties cannot be maintained. While there are clearly
+cases where mixing table types is appropriate, it should always be done
+with careful consideration of the impact on transaction consistency and
+recoverability needs of the application and underlying database.
 
-If you are running with @code{AUTOCOMMIT=1} (the default), your changes
-will be committed immediately.  You can start an extended transaction with
-the @code{BEGIN WORK} SQL command, after which your changes will not be
-committed until you execute @code{COMMIT} (or decide to @code{ROLLBACK}
-the changes).
+The @code{GEMINI} table type is derived from a successful commercial
+database and uses the storage kernel technology tightly integrated with
+@strong{MySQL} server. The basic @code{GEMINI} technology is in use by
+millions of users worldwide in production environments today. This
+maturity allows @code{GEMINI} tables to provide a solution for those
+users who require transaction-based behavior as part of their
+applications.
 
-The following options to @code{mysqld} can be used to change the behavior of
-GEMINI tables:
+The @code{GEMINI} table handler supports a configurable data cache that
+allows a significant portion of any database to be maintained in memory
+while still allowing durable updates.
 
-@multitable @columnfractions .30 .70
-@item @strong{Option} @tab @strong{Meaning}
-@item @code{--gemini-full-recovery} @tab Default.
-@item @code{--gemini-no-recovery} @tab Turn off recovery logging.  Not recommended.
-@item @code{--gemini-lazy-commit} @tab Relaxes the flush log at commit rule.
-@item @code{--gemini-unbuffered-io} @tab All database writes bypass OS cache.
-@item @code{--skip-gemini} @tab Don't use Gemini.
-@item @code{--O gemini_db_buffers=#} @tab Number of database buffers in database cache.
-@item @code{--O gemini_connection_limit=#} @tab Maximum number of connections to Gemini.
-@item @code{--O gemini_spin_retries=#} @tab Spin lock retries (optimization).
-@item @code{--O gemini_io_threads=#} @tab Number of background I/O threads.
-@item @code{--O gemini_lock_table_size=#} @tab Set the maximum number of locks.  Default 4096.
+@cindex GEMINI tables, features
+@menu
+* GEMINI Features::             
+* GEMINI Concepts::             
+* GEMINI Limitations::          
+@end menu
+
+@node GEMINI Features, GEMINI Concepts, GEMINI Overview, GEMINI Overview
+@subsubsection GEMINI Features
+
+The following summarizes the major features provided by @code{GEMINI}
+tables.
+
+@itemize @bullet
+@item
+Supports all optimization statistics used by the @strong{MySQL} optimizer
+including table cardinality, index range estimates and multi-component
+selectivity to insure optimal query performance.
+
+@item
+Maintains exact cardinality information for each table so @code{SELECT
+COUNT(*) FROM} table-name always returns an answer immediately.
+
+@item
+Supports index-only queries; when index data is sufficient to resolve a
+query no record data is read (for non character types).
+
+@item
+@code{GEMINI} uses block based I/O for better performance. There is no
+performance penalty for using @code{VARCHAR} fields. The maximum record size is
+currently 32K.
+
+@item
+The number of rows in a single @code{GEMINI} table can be 4 quintillion
+(full use of 64 bits).
+
+@item
+Individual tables can be as large as 16 petabytes.
+
+@item
+Locking is done at a record or row level rather than at table level
+unless table locks are explicitly requested. When a row is inserted into
+a table, other rows can be updated, inserted or deleted without waiting
+for the inserted row to be committed.
+
+@item
+Provides durable transactions backed by a crash recovery mechanism that
+returns the database to a known consistent state in the event of an
+unexpected failure.
+
+@item
+Support for all isolation levels and statement atomicity defined in the
+SQL standard.
+
+@item
+Reliable Master Replication; the master database can survive system
+failure and recover all committed transactions.
+@end itemize
+
+@cindex GEMINI tables, concepts
+@node GEMINI Concepts, GEMINI Limitations, GEMINI Features, GEMINI Overview
+@subsubsection GEMINI Concepts
+
+This section highlights some of the important concepts behind
+@code{GEMINI} and the @code{GEMINI} programming model, including:
+
+@itemize @bullet
+@item
+ACID Transactions
+@item
+Transaction COMMIT/ROLLBACK
+@item
+Statement Atomicity
+@item
+Recovery
+@item
+Isolation Levels
+@item
+Row-Level Locking
+@end itemize
+
+These features are described below.
+
+@cindex GEMINI tables, ACID transactions
+@noindent
+@strong{ACID Transactions}
+
+ACID in the context of transactions is an acronym which stands for
+@emph{Atomicity}, @emph{Consistency}, @emph{Isolation}, @emph{Durability}.
+
+@multitable @columnfractions .25 .75
+@item @sc{Attribute} @tab @sc{Description}
+@item
+@strong{Atomicity}
+@tab A transaction allows for the grouping of one or more changes to
+tables and rows in the database to form an atomic or indivisible
+operation. That is, either all of the changes occur or none of them
+do. If for any reason the transaction cannot be completed, everything
+this transaction changed can be restored to the state it was in prior to
+the start of the transaction via a rollback operation.
+
+@item
+@strong{Consistency}
+@tab
+Transactions always operate on a consistent view of the data and when
+they end always leave the data in a consistent state. Data may be said to
+be consistent as long as it conforms to a set of invariants, such as no
+two rows in the customer table have the same customer ID and all orders
+have an associated customer row. While a transaction executes, these
+invariants may be violated, but no other transaction will be allowed to
+see these inconsistencies, and all such inconsistencies will have been
+eliminated by the time the transaction ends.
+
+@item
+@strong{Isolation}
+@tab To a given transaction, it should appear as though it is running
+all by itself on the database. The effects of concurrently running
+transactions are invisible to this transaction, and the effects of this
+transaction are invisible to others until the transaction is committed.
+
+@item
+@strong{Durability}
+@tab Once a transaction is committed, its effects are guaranteed to
+persist even in the event of subsequent system failures. Until the
+transaction commits, not only are any changes made by that transaction
+not durable, but are guaranteed not to persist in the face of a system
+failures, as crash recovery will rollback their effects.
 @end multitable
 
-If you use @code{--skip-gemini}, @strong{MySQL} will not initialize the
-Gemini table handler, saving memory; you cannot use Gemini tables if you
-use @code{--skip-gemini}.
+@cindex GEMINI tables, COMMIT/ROLLBACK
+@noindent
+@strong{Transaction COMMIT/ROLLBACK}
 
-@node GEMINI features, GEMINI TODO, GEMINI start, GEMINI
-@subsection Features of @code{GEMINI} tables:
+As stated above, a transaction is a group of work being done to
+data. Unless otherwise directed, @strong{MySQL} considers each statement
+a transaction in itself. Multiple updates can be accomplished by placing
+them in a single statement, however they are limited to a single table.
+
+Applications tend to require more robust use of transaction
+concepts. Take, for example, a system that processes an order: A row may
+be inserted in an order table, additional rows may be added to an
+order-line table, updates may be made to inventory tables, etc. It is
+important that if the order completes, all the changes are made to all
+the tables involved; likewise if the order fails, none of the changes to
+the tables must occur. To facilitate this requirement, @strong{MySQL}
+has syntax to start a transaction called @code{BEGIN WORK}. All
+statements that occur after the @code{BEGIN WORK} statement are grouped
+into a single transaction. The end of this transaction occurs when a
+@code{COMMIT} or @code{ROLLBACK} statement is encountered. After the
+@code{COMMIT} or @code{ROLLBACK} the system returns back to the behavior
+before the @code{BEGIN WORK} statement was encountered where every
+statement is a transaction.
+
+To permanently turn off the behavior where every statement is a
+transaction, @strong{MySQL} added a variable called
+@code{AUTOCOMMIT}. The @code{AUTOCOMMIT} variable can have two values,
+@code{1} and @code{0}. The mode where every statement is a transaction
+is when @code{AUTOCOMMIT} is set to @code{1} (@code{AUTOCOMMIT=1}). When
+@code{AUTOCOMMIT} is set to @code{0} (@code{AUTOCOMMIT=0}), then every
+statement is part of the same transaction until the transaction end by
+either @code{COMMIT} or @code{ROLLBACK}. Once a transaction completes, a
+new transaction is immediately started and the process repeats.
+
+Here is an example of the SQL statements that you may find in a typical
+order:
+
+@example
+BEGIN WORK;
+     INSERT INTO order VALUES ...;
+     INSERT INTO order-lines VALUES ...;
+     INSERT INTO order-lines VALUES ...;
+     INSERT INTO order-lines VALUES ...;
+     UPDATE inventory WHERE ...;
+COMMIT;
+@end example
+
+This example shows how to use the @code{BEGIN WORK} statement to start a
+transaction. If the variable @code{AUTOCOMMIT} is set to @code{0}, then
+a transaction would have been started already. In this case, the
+@code{BEGIN WORK} commits the current transaction and starts a new one.
+
+@cindex GEMINI tables, statement atomicity
+@noindent
+@strong{Statement Atomicity}
+
+As mentioned above, when running with @code{AUTOCOMMIT} set to @code{1},
+each statement executes as a single transaction. When a statement has an
+error, then all changes make by the statement must be
+undone. Transactions support this behavior. Non-transaction safe table
+handlers would have a partial statement update where some of the changes
+from the statement would be contained in the database and other changes
+from the statement would not. Work would need to be done to manually
+recover from the error.
+
+@cindex GEMINI tables, recovery
+@noindent
+@strong{Recovery}
+
+Transactions are the basis for database recovery. Recovery is what
+supports the Durability attribute of the ACID transaction.
+
+@code{GEMINI} uses a separate file called the Recovery Log located in
+the @code{$DATADIR} directory named @code{gemini.rl}. This file
+maintains the integrity of all the @code{GEMINI} tables. @code{GEMINI}
+can not recover any data from non-@code{GEMINI} tables. In addition, the
+@code{gemini.rl} file is used to rollback transactions in support of the
+@code{ROLLBACK} statement.
+
+In the event of a system failure, the next time the @strong{MySQL}
+server is started, @code{GEMINI} will automatically go through its
+crash recovery process. The result of crash recovery is that all the
+@code{GEMINI} tables will contain the latest changes made to them, and
+all transactions that were open at the time of the crash will have been
+rolled back.
+
+The @code{GEMINI} Recovery Log reuses space when it can. Space can be
+reused when information in the Recovery Log is no longer needed for
+crash recovery or rollback.
+
+@cindex GEMINI tables, isolation levels
+@noindent
+@strong{Isolation Levels}
+
+There are four isolation levels supported by @code{GEMINI}:
 
 @itemize @bullet
 @item
-If a query result can be resolved solely from the index key, Gemini will
-not read the actual row stored in the database.
+READ UNCOMMITTED
 @item
-Locking on Gemini tables is done at row level.
+READ COMMITTED
 @item
-@code{SELECT COUNT(*) FROM table_name} is fast; Gemini maintains a count
-of the number of rows in the table.
+REPEATABLE READ
+@item
+SERIALIZABLE
 @end itemize
 
-@node GEMINI TODO,  , GEMINI features, GEMINI
-@subsection Current limitations of @code{GEMINI} tables:
+These isolation levels apply only to shared locks obtained by select
+statements, excluding select for update. Statements that get exclusive
+locks always retain those locks until the transaction commits or rolls
+back.
+
+By default, @code{GEMINI} operates at the @code{READ COMMITTED}
+level. You can override the default using the following command:
+
+@example
+SET [GLOBAL | SESSION] TRANSACTION ISOLATION LEVEL [READ UNCOMMITTED |
+READ COMMITTED | REPEATABLE READ | SERIALIZABLE ]
+@end example
+
+If the @code{SESSION} qualifier used, the specified isolation level
+persists for the entire session. If the @code{GLOBAL} qualifier is used,
+the specified isolation level is applied to all new connections from
+this point forward. Note that the specified isolation level will not
+change the behavior for existing connections including the connection
+that exectues the @code{SET GLOBAL TRANSACTION ISOLATION LEVEL}
+statement.
+
+@multitable @columnfractions .30 .70
+@item @sc{Isolation Level} @tab @sc{Description}
+
+@item
+@strong{READ UNCOMMITTED}
+@tab Does not obtain any locks when reading rows. This means that if a
+row is locked by another process in a transaction that has a more strict
+isolation level, the @code{READ UNCOMMITTED} query will not wait until
+the locks are released before reading the row. You will get an error if
+attempt any updates while running at this isolation level.
+
+@item
+@strong{READ COMMITTED}
+@tab Locks the requested rows long enough to copy the row from the
+database block to the client row buffer. If a @code{READ COMMITTED}
+query finds that a row is locked exclusively by another process, it will
+wait until either the row has been released, or the lock timeout value
+has expired.
+
+@item
+@strong{REPEATABLE READ}
+@tab Locks all the rows needed to satisfy the query. These locks are
+held until the transaction ends (commits or rolls back). If a
+@code{REPEATABLE READ} query finds that a row is locked exclusively by
+another process, it will wait until either the row has been released, or
+the lock timeout value has expired.
+
+@item
+@strong{SERIALIZABLE}
+@tab Locks the table that contains the rows needed to satisfy the
+query. This lock is held until the transaction ends (commits or rolls
+back). If a @code{SERIALIZABLE} query finds that a row is exclusively
+locked by another process, it will wait until either the row has been
+released, or the lock timeout value has expired.
+@end multitable
+
+The statements that get exclusive locks are @code{INSERT},
+@code{UPDATE}, @code{DELETE} and @code{SELECT ... FOR UPDATE}. Select
+statements without the @code{FOR UPDATE} qualifier get shared locks
+which allow other not ''for update'' select statements to read the same
+rows but block anyone trying to update the row from accessing it. Rows
+or tables with exclusive locks block all access to the row from other
+transactions until the transaction ends.
+
+In general terms, the higher the Isolation level the more likelihood of
+having concurrent locks and therefore lock conflicts. In such cases,
+adjust the @code{-O gemini_lock_table_size} accordingly.
+
+@cindex GEMINI tables, row-level locking
+@noindent
+@strong{Row-Level Locking}
+
+@code{GEMINI} uses row locks, which allows high concurrency for requests
+on the same table.
+
+In order to avoid lock table overflow, SQL statements that require
+applying locks to a large number of rows should either be run at the
+serializable isolation level or should be covered by a lock table
+statement.
+
+Memory must be pre-allocated for the lock table. The mysqld server
+startup option @code{-0 gemini_lock_table_size} can be used to adjust
+the number of concurrent locks.
+
+@cindex GEMINI tables, limitations
+@node GEMINI Limitations,  , GEMINI Concepts, GEMINI Overview
+@subsubsection GEMINI Limitations
+
+The following limitations are in effect for the current version of
+@code{GEMINI}:
 
 @itemize @bullet
 @item
-BLOB columns are not supported in @code{GEMINI} tables.
+@code{DROP DATABASE} does not work with @code{GEMINI} tables; instead,
+drop all the tables in the database first, then drop the database.
+
 @item
-The maximum number of concurrent users accessing @code{GEMINI} tables is
-limited by @code{gemini_connection_limit}.  The default is 100 users.
+Maximum number of @code{GEMINI} tables is 1012.
+
+@item
+Maximum number of @code{GEMINI} files a server can manage is 1012.  Each
+table consumes one file; an additional file is consumed if the table has
+any indexes defined on it.
+
+@item
+Maximum size of BLOBs is 16MB.
+
+@item
+@code{FULLTEXT} indexes are not supported with @code{GEMINI} tables.
+
+@item
+There is no support for multi-component @code{AUTO_INCREMENT} fields
+that provide alternating values at the component level. If you try to
+create such a field, @code{GEMINI} will refuse.
+
+@item
+@code{TEMPORARY TABLES} are not supported by @code{GEMINI}. The
+statement @code{CREATE TEMPORARY TABLE ... TYPE=GEMINI} will generate
+the response: @code{ERROR 1005: Can't create table '/tmp/#sqlxxxxx'
+(errno: 0)}.
+
+@item
+@code{FLUSH TABLES} has not been implemented with @code{GEMINI} tables.
 @end itemize
 
-NuSphere is working on removing these limitations.
+@cindex GEMINI tables, using
+@node Using GEMINI Tables,  , GEMINI Overview, GEMINI
+@subsection Using GEMINI Tables
+
+This section explains the various startup options you can use with
+@code{GEMINI} tables, how to backup @code{GEMINI} tables, some
+performance considerations and sample configurations, and a brief
+discussion of when to use @code{GEMINI} tables.
+
+Specifically, the topics covered in this section are:
+
+@itemize @bullet
+@item
+Startup Options
+@item
+Creating @code{GEMINI} Tables
+@item
+Backing Up @code{GEMINI} Tables
+@item
+Using Auto_Increment Columns With @code{GEMINI} Tables
+@item
+Performance Considerations
+@item
+Sample Configurations
+@item
+When To Use @code{GEMINI} Tables
+@end itemize
+
+@cindex GEMINI tables, startup options
+@menu
+* Startup Options::             
+* Creating GEMINI Tables::      
+* Backing Up GEMINI Tables::    
+* Restoring GEMINI Tables::     
+* Using Auto_Increment Columns With GEMINI Tables::  
+* Performance Considerations::  
+* Sample Configurations::       
+* When To Use GEMINI Tables::   
+@end menu
+
+@node Startup Options, Creating GEMINI Tables, Using GEMINI Tables, Using GEMINI Tables
+@subsubsection Startup Options
+
+The table below lists options to mysqld that can be used to change the
+behavior of @code{GEMINI} tables.
+
+@multitable @columnfractions .40 .60
+@item @sc{Option} @tab @sc{Description}
+
+@item
+@code{--default-table-type=gemini}
+@tab Sets the default table handler to be @code{GEMINI}. All create
+table statements will create @code{GEMINI} tables unless otherwise
+specified with @code{TYPE=@var{table-type}}. As noted above, there is
+currently a limitation with @code{TEMPORARY} tables using @code{GEMINI}.
+
+@item
+@code{--gemini-flush-log-at-commit}
+@tab Forces the recovery log buffers to be flushed after every
+commit. This can have a serious performance penalty, so use with
+caution.
+
+@item
+@code{--gemini-recovery=FULL | NONE | FORCE}
+@tab Sets the recovery mode. Default is @code{FULL}. @code{NONE} is
+useful for performing repeatable batch operations because the updates
+are not recorded in the recovery log. @code{FORCE} skips crash recovery
+upon startup; this corrupts the database, and should be used in
+emergencies only.
+
+@item
+@code{--gemini-unbuffered-io}
+@tab All database writes bypass the OS cache. This can provide a
+performance boost on heavily updated systems where most of the dataset
+being worked on is cached in memory with the @code{gemini_buffer_cache}
+parameter.
+
+@item
+@code{--O gemini_buffer_cache=size}
+@tab Amount of memory to allocate for database buffers, including Index
+and Record information. It is recommended that this number be 10% of the
+total size of all @code{GEMINI} tables. Do not exceed amount of memory
+on the system!
+
+@item
+@code{--O gemini_connection_limit=#}
+@tab Maximum number of connections to @code{GEMINI}; default is
+@code{100}. Each connection consumes about 1K of memory.
+
+@item
+@code{--O gemini_io_threads=#}
+@tab Number of background I/O threads; default is @code{2}. Increase the 
+number when using @code{--gemini-unbuffered-io}
+
+@item
+@code{--O gemini_lock_table_size=#}
+@tab Sets the maximum number of concurrent locks; default is 4096. Using
+@code{SET [ GLOBAL | SESSION ] TRANSACTION ISOLATION = ...} will
+determine how long a program will hold row locks.
+
+@item
+@code{--O gemini_lock_wait_timeout=seconds}
+@tab Number of seconds to wait for record locks when performing queries;
+default is 10 seconds. Using @code{SET [ GLOBAL | SESSION ] TRANSACTION
+ISOLATION = ...} will determine how long a program will hold row locks.
+
+@item
+@code{--skip-gemini}
+@tab Do not use @code{GEMINI}. If you use @code{--skip-gemini}, @strong{MySQL}
+will not initialize the @code{GEMINI} table handler, saving memory; you
+cannot use @code{GEMINI} tables if you use @code{--skip-gemini}.
+
+@item
+@code{--transaction-isolation=READ-UNCOMMITTED | READ-COMMITTED | REPEATABLE-READ | SERIALIZABLE}
+@tab Sets the GLOBAL transaction isolation level for all users that
+connect to the server; can be overridden with the SET ISOLATION LEVEL
+statement.
+@end multitable
+
+@cindex GEMINI tables, creating
+@node Creating GEMINI Tables, Backing Up GEMINI Tables, Startup Options, Using GEMINI Tables
+@subsubsection Creating GEMINI Tables
+
+@code{GEMINI} tables can be created by either using the @code{CREATE
+TABLE} syntax or the @code{ALTER TABLE} syntax.
+
+@itemize @bullet
+@item
+The syntax for creating a @code{GEMINI} table is:
+
+@example
+CREATE TABLE @var{table-name} (....) TYPE=GEMINI;
+@end example
+
+@item
+The syntax to convert a table to @code{GEMINI} is:
+
+@example
+ALTER TABLE @var{table-name} TYPE=GEMINI;
+@end example
+@end itemize
+
+@xref{Tutorial}, for more information on how to create and use
+@code{MySQL} tables.
+
+@cindex GEMINI tables, backing up
+@node Backing Up GEMINI Tables, Restoring GEMINI Tables, Creating GEMINI Tables, Using GEMINI Tables
+@subsubsection Backing Up GEMINI Tables
+
+@code{GEMINI} supports both @code{BACKUP TABLE} and @code{RESTORE TABLE}
+syntax. To learn more about how to use @code{BACKUP} and @code{RESTORE},
+see @ref{BACKUP TABLE} and @ref{RESTORE TABLE}.
+
+To backup @code{GEMINI} tables outside of the @code{MySQL} environment,
+you must first shut down the @code{MySQL} server. Once the server is
+shut down, you can copy the files associated with @code{GEMINI} to a
+different location. The files that make up the @code{GEMINI} table
+handler are:
+
+@itemize @bullet
+@item
+All files associated with a table with a @code{.gmd} extention below the
+@code{$DATADIR} directory. Such files include @code{@var{table}.gmd},
+@code{@var{table}.gmi}, and @code{@var{table}.frm}
+@item
+@code{gemini.db} in the @code{$DATADIR} directory
+@item
+@code{gemini.rl} in the @code{$DATADIR} directory
+@item
+@code{gemini.lg} in the @code{$DATADIR} directory
+@end itemize
+
+All the @code{GEMINI} files must be copied together. You can not copy
+just the @code{.gmi} and @code{.gmd} files to a different
+@code{$DATADIR} and have them become part of a new database. You can
+copy an entire @code{$DATADIR} directory to another location and start a
+@strong{MySQL} server using the new @code{$DATADIR}.
+
+@cindex GEMINI tables, restoring
+@node Restoring GEMINI Tables, Using Auto_Increment Columns With GEMINI Tables, Backing Up GEMINI Tables, Using GEMINI Tables
+@subsubsection Restoring GEMINI Tables
+
+To restore @code{GEMINI} tables outside of the @code{MySQL} environment,
+you must first shut down the @code{MySQL} server. Once the server is
+shut down, you can remove all @code{GEMINI} files in the target
+@code{$DATADIR} and then copy the files previously backed up into the
+@code{$DATADIR} directory.
+
+As mentioned above, the files that make up the @code{GEMINI} table
+handler are:
+
+@itemize @bullet
+@item
+All files associated with a table with a @code{.gmd} extention below the
+@code{$DATADIR} directory. Such files include @code{@var{table}.gmd},
+@code{@var{table}.gmi}, and @code{@var{table}.frm}
+@item
+@code{gemini.db} in the @code{$DATADIR} directory
+@item
+@code{gemini.rl} in the @code{$DATADIR} directory
+@item
+@code{gemini.lg} in the @code{$DATADIR} directory
+@end itemize
+
+When restoring a table, all the @code{GEMINI} files must be copied
+together. You can not restore just the @code{.gmi} and @code{.gmd}
+files.
+
+@cindex GEMINI tables, auto_increment
+@node Using Auto_Increment Columns With GEMINI Tables, Performance Considerations, Restoring GEMINI Tables, Using GEMINI Tables
+@subsubsection Using Auto_Increment Columns With GEMINI Tables
+
+As mentioned previously, @code{GEMINI} tables support row-level and
+table-level locking to increase concurrency in applications and to allow
+reading of tables without locking for maximum concurrency in heavy
+update environments. This feature has several implications when working
+with @code{auto_increment} tables.
+
+In @code{MySQL}, when a column is defined as an @code{auto_increment}
+column, and a row is inserted into the table with a @code{NULL} for the
+column, the @code{auto_increment} column is updated to be 1 higher than
+the highest value in the column.
+
+With @code{MyISAM} tables, the @code{auto_increment} function is
+implemented by looking in the index and finding the highest value and
+adding 1 to it. This is possible because the entire @code{ISAM} table is
+locked during the update period and the increment value is therefore
+guaranteed to not be changing.
+
+With @code{GEMINI} tables, the @code{auto_increment} function is
+implemented by maintaining a counter in a separate location from the
+table data. Instead of looking at the highest value in the table index,
+@code{GEMINI} tables look at this separately maintained counter. This
+means that in a transactional model, unlike the bottleneck inherent in
+the @code{MyISAM} approach, @code{GEMINI} users do @b{not} have to wait
+until the transaction that added the last value either commits or
+rollbacks before looking at the value.
+
+Two side-effects of the @code{GEMINI} implementation are:
+
+@itemize @bullet
+@item
+If an insert is done where the column with the @code{auto_increment} is
+specified, and this specified value is the highest value, @code{MyISAM}
+uses it as its @code{auto_increment} value, and every subsequent insert
+is based on this. By contrast, @code{GEMINI} does not use this value,
+but instead uses the value maintained in the separate @code{GEMINI}
+counter location.
+
+@item
+To set the counter to a specific value, you can use @code{SET
+insert_id=#} and insert a new row in the table. However, as a general
+rule, values should not be inserted into an @code{auto_increment}
+column; the database manager should be maintaining this field, not the
+application. @code{SET insert_id} is a recovery mechanism that should be
+used in case of error only.
+@end itemize
+
+Note that if you delete the row containing the maximum value for an
+@code{auto_increment} column, the value will be reused with a
+@code{GEMINI} table but not with a @code{MyISAM} table.
+
+See @ref{CREATE TABLE} for more information about creating
+@code{auto_increment} columns.
+
+@cindex GEMINI tables, peformance considerations
+@node Performance Considerations, Sample Configurations, Using Auto_Increment Columns With GEMINI Tables, Using GEMINI Tables
+@subsubsection Performance Considerations
+
+In addition to designing the best possible application, configuration of
+the data and the server startup parameters need to be considered. How
+the hardware is being used can have a dramatic affect on how fast the
+system will respond to queries. Disk Drives and Memory must both be
+considered.
+
+@noindent
+@strong{Disk Drives}
+
+For best performance, you want to spread the data out over as many disks
+as possible. Using RAID 10 stripes work very well. If there are a lot of
+updates then the recovery log (@code{gemini.rl}) should be on a
+relatively quiet disk drive.
+
+To spread the data out without using RAID 10, you can do the following:
+
+@itemize @bullet
+@item
+Group all the tables into three categories: Heavy Use, Moderate Use,
+Light Use.
+
+@item
+Take the number of disk drives available and use a round-robin approach
+to the three categories grouping the tables on a disk drive. The result
+will be an equal distribution of Heavy/Moderate/Light tables assigned to
+each disk drive.
+
+@item
+Once the tables have been converted to @code{GEMINI} by using the
+@code{ALTER TABLE <name> TYPE=GEMINI} statements, move (@code{mv}) the
+@code{.gmd} and @code{.gmi} files to a different disk drive and link
+(@code{ln -s}) them back to the original directory where the @code{.frm}
+file resides.
+
+@item
+Finally, move the @code{gemini.rl} file to its quiet disk location and link
+the file back to the @code{$DATADIR} directory.
+@end itemize
+
+@noindent
+@strong{Memory}
+
+The more data that can be placed in memory the faster the access to the
+data. Figure out how large the @code{GEMINI} data is by adding up the
+@code{.gmd} and @code{.gmi} file sizes. If you can, put at least 10% of
+the data into memory. You allocate memory for the rows and indexes by
+using the @code{gemini_buffer_cache} startup parameter. For example:
+
+@example
+mysqld -O gemini_buffer_cache=800M
+@end example
+
+@noindent
+would allocate 800 MB of memory for the @code{GEMINI} buffer cache.
+
+@cindex GEMINI tables, sample configurations
+@node Sample Configurations, When To Use GEMINI Tables, Performance Considerations, Using GEMINI Tables
+@subsubsection Sample Configurations
+
+Based on the performance considerations above, we can look at some
+examples for how to get the best performance out of the system when
+using @code{GEMINI} tables.
+
+@multitable @columnfractions .30 .70
+@item @sc{Hardware} @tab @sc{Configuration}
+@item
+One CPU, 128MB memory, one disk drive
+@tab Allocate 80MB of memory for reading and updating @code{GEMINI}
+tables by starting the mysqld server with the following option:
+
+@example
+-O gemini_buffer_cache=80M
+@end example
+
+@item
+Two CPUs, 512MB memory, four disk drives
+@tab Use RAID 10 to stripe the data across all available disks, or use
+the method described in the performance considerations section,
+above. Allocate 450MB of memory for reading/updating @code{GEMINI}
+tables:
+
+@example
+-O gemini_buffer_cache=450M
+@end example
+@end multitable
+
+@cindex GEMINI tables, when to use
+@node When To Use GEMINI Tables,  , Sample Configurations, Using GEMINI Tables
+@subsubsection When To Use GEMINI Tables
+
+Because the @code{GEMINI} table handler provides crash recovery and
+transaction support, there is extra overhead that is not found in other
+non-transaction safe table handlers. Here are some general guidelines
+for when to employ @code{GEMINI} and when to use other non-transaction
+safe tables (@code{NTST}).
+
+@multitable @columnfractions .30 .25 .45
+@item
+@sc{Access Trends} @tab @sc{Table Type} @tab @sc{Reason}
+@item
+Read-only
+@tab @code{NTST}
+@tab Less overhead and faster
+@item
+Critical data
+@tab @code{GEMINI}
+@tab Crash recovery protection
+@item
+High concurrency
+@tab @code{GEMINI}
+@tab Row-level locking
+@item
+Heavy update
+@tab @code{GEMINI}
+@tab Row-level locking
+@end multitable
+
+The table below shows how a typical application schema could be defined.
+
+@multitable @columnfractions .15 .30 .25 .30
+@item
+@sc{Table} @tab @sc{Contents} @tab @sc{Table Type} @tab @sc{Reason}
+@item
+account
+@tab Customer account data
+@tab @code{GEMINI}
+@tab Critical data, heavy update
+@item
+order
+@tab Orders for a customer
+@tab @code{GEMINI}
+@tab Critical data, heavy update
+@item
+orderline
+@tab Orderline detail for an order
+@tab @code{GEMINI}
+@tab Critical data, heavy update
+@item
+invdesc
+@tab Inventory description
+@tab @code{NTST}
+@tab Read-only, frequent access
+@item
+salesrep
+@tab Sales rep information
+@tab @code{NTST}
+@tab Infrequent update
+@item
+inventory
+@tab Inventory information
+@tab @code{GEMINI}
+@tab High concurrency, critical data
+@item
+config
+@tab System configuration
+@tab @code{NTST}
+@tab Read-only
+@end multitable
 
 @node InnoDB,  , GEMINI, Table types
 @section InnoDB Tables
@@ -24918,6 +25679,17 @@ in its own lock table and rolls back the transaction. If you use
 than InnoDB in the same transaction, then a deadlock may arise which
 InnoDB cannot notice. In cases like this the timeout is useful to
 resolve the situation.
+@item @code{innodb_unix_file_flush_method} @tab
+(Available from 3.23.39 up.)
+The default value for this is @code{fdatasync}.
+Another option is @code{O_DSYNC}.
+Options @code{littlesync} and @code{nosync} have the
+risk that in an operating system crash or a power outage you may easily
+end up with a half-written database page, and you have to do a recovery
+from a backup. See the section "InnoDB performance tuning", item 6, below
+for tips on how to set this parameter. If you are happy with your database
+performance it is wisest not to specify this parameter at all, in which
+case it will get the default value.
 @end multitable
  
 @node InnoDB init, Using InnoDB tables, InnoDB start, InnoDB
@@ -24979,7 +25751,7 @@ mysqld: ready for connections
 @end example
 
 @menu
-* Error creating InnoDB::      
+* Error creating InnoDB::       
 @end menu
 
 @node Error creating InnoDB,  , InnoDB init, InnoDB init
@@ -25034,6 +25806,46 @@ add @file{.frm} files to your InnoDB database manually: use
 InnoDB has its own internal data dictionary, and you will get problems
 if the @strong{MySQL} @file{.frm} files are out of 'sync' with the InnoDB
 internal data dictionary.
+
+@subsubsection Converting MyISAM tables to InnoDB
+
+InnoDB does not have a special optimization for separate index creation.
+Therefore it does not pay to export and import the table and create indexes
+afterwards.
+The fastest way to alter a table to InnoDB is to do the inserts
+directly to an InnoDB table, that is, use @code{ALTER TABLE ... TYPE=INNODB},
+or create an empty InnoDB table with identical definitions and insert
+the rows with @code{INSERT INTO ... SELECT * FROM ...}.
+
+To get better control over the insertion process, it may be good to insert
+big tables in pieces:
+
+@example
+INSERT INTO newtable SELECT * FROM oldtable WHERE yourkey > something
+                                             AND yourkey <= somethingelse;
+@end example
+
+After all data has been inserted you can rename the tables.
+
+During the conversion of big tables you should set the InnoDB
+buffer pool size big 
+to reduce disk i/o. Not bigger than 80 % of the physical memory, though.
+You should set InnoDB log files big, and also the log buffer large.
+
+Make sure you do not run out of tablespace: InnoDB tables take a lot
+more space than MyISAM tables. If an @code{ALTER TABLE} runs out
+of space, it will start a rollback, and that can take hours if it is
+disk-bound.
+In inserts InnoDB uses the insert buffer to merge secondary index records
+to indexes in batches. That saves a lot of disk i/o. In rollback no such
+mechanism is used, and the rollback can take 30 times longer than the
+insertion.
+
+In the case of a runaway rollback, if you do not have valuable data in your
+database,
+it is better that you kill the database process and delete all InnoDB data
+and log files and all InnoDB table @file{.frm} files, and start
+your job again, rather than wait for millions of disk i/os to complete.
 
 @node Adding and removing, Backing up, Using InnoDB tables, InnoDB
 @subsection Adding and removing InnoDB data and log files
@@ -25435,6 +26247,103 @@ set by the SQL statement may be preserved. This is because InnoDB
 stores row locks in a format where it cannot afterwards know which was
 set by which SQL statement.
 
+@subsection Performance tuning tips
+
+@strong{1.}
+If the Unix @file{top} or the Windows @file{Task Manager} shows that
+the CPU usage percentage with your workload is less than 70 %,
+your workload is probably
+disk-bound. Maybe you are making too many transaction commits, or the
+buffer pool is too small.
+Making the buffer pool bigger can help, but do not set
+it bigger than 80 % of physical memory.
+
+@strong{2.}
+Wrap several modifications into one transaction. InnoDB must
+flush the log to disk at each transaction commit, if that transaction
+made modifications to the database. Since the rotation speed of a disk
+is typically
+at most 167 revolutions/second, that constrains the number of commits
+to the same 167/second if the disk does not fool the operating system.
+
+@strong{3.}
+If you can afford the loss of some latest committed transactions, you can
+set the @file{my.cnf} parameter @code{innodb_flush_log_at_trx_commit}
+to zero. InnoDB tries to flush the log anyway once in a second,
+though the flush is not guaranteed.
+
+@strong{4.}
+Make your log files big, even as big as the buffer pool. When InnoDB
+has written the log files full, it has to write the modified contents
+of the buffer pool to disk in a checkpoint. Small log files will cause many
+unnecessary disk writes. The drawback in big log files is that recovery
+time will be longer.
+
+@strong{5.}
+Also the log buffer should be quite big, say 8 MB.
+
+@strong{6.} (Relevant from 3.23.39 up.)
+In some versions of Linux and other Unixes flushing files to disk with the Unix
+@code{fdatasync} and other similar methods is surprisingly slow.
+The default method InnoDB uses is the @code{fdatasync} function.
+If you are not satisfied with the database write performance, you may
+try setting @code{innodb_unix_file_flush_method} in @file{my.cnf}
+to @code{O_DSYNC}, though O_DSYNC seems to be slower on most systems.
+You can also try setting it to @code{littlesync}, which means that
+InnoDB does not call the file flush for every write it does to a
+file, but only
+in log flush at transaction commits and data file flush at a checkpoint.
+The drawback in @code{littlesync} is that if the operating system
+crashes, you can easily end up with a half-written database page,
+and you have to
+do a recovery from a backup. With @code{nosync} you have even less safety:
+InnoDB will only flush the database files to disk at database shutdown
+
+@strong{7.} In importing data to InnoDB, make sure that MySQL does not have
+@code{autocommit=1} on. Then every insert requires a log flush to disk.
+Put before your plain SQL import file line
+
+@example
+set autocommit=0;
+@end example
+
+and after it
+
+@example
+commit;
+@end example
+
+If you use the @file{mysqldump} option @code{--opt}, you will get dump
+files which are fast to import also to an InnoDB table, even without wrapping
+them to the above @code{set autocommit=0; ... commit;} wrappers.
+
+@strong{8.}
+Beware of big rollbacks of mass inserts: InnoDB uses the insert buffer
+to save disk i/o in inserts, but in a corresponding rollback no such
+mechanism is used. A disk-bound rollback can take 30 times the time
+of the corresponding insert. Killing the database process will not
+help because the rollback will start again at the database startup. The
+only way to get rid of a runaway rollback is to increase the buffer pool
+so that the rollback becomes CPU-bound and runs fast, or delete the whole
+InnoDB database.
+
+@strong{9.}
+Beware also of other big disk-bound operations.
+Use @code{DROP TABLE}
+or @code{TRUNCATE} (from MySQL-4.0 up) to empty a table, not
+@code{DELETE FROM yourtable}.
+
+@strong{10.}
+Use the multi-line @code{INSERT} to reduce
+communication overhead between the client and the server if you need
+to insert many rows:
+
+@example
+INSERT INTO yourtable VALUES (1, 2), (5, 5);
+@end example
+
+This tip is of course valid for inserts into any table type, not just InnoDB.
+
 @node Implementation, Table and index, InnoDB transaction model, InnoDB
 @subsection Implementation of multiversioning
 
@@ -25787,6 +26696,11 @@ they roll back the corresponding SQL statement.
 @subsection Some restrictions on InnoDB tables
 
 @itemize @bullet
+
+@item @code{SHOW TABLE STATUS} does not give accurate statistics
+on InnoDB tables, except for the physical size reserved by the table.
+The row count is only a rough estimate used in SQL optimization.
+
 @item
 If you try to create an unique index on a prefix of a column you will get an
 error:
@@ -25835,7 +26749,7 @@ files your operating system supports. Support for > 4 GB files will
 be added to InnoDB in a future version.
 @item
 The maximum tablespace size is 4 billion database pages. This is also
-the maximum size for a table.
+the maximum size for a table. The minimum tablespace size is 10 MB.
 @end itemize
 
 @node InnoDB contact information,  , InnoDB restrictions, InnoDB
@@ -33764,7 +34678,8 @@ to start using the new table.
 @cindex maintaining, tables
 @cindex tables, maintaining
 @cindex databases, maintaining
-@cindex @code{mysiamchk}
+@cindex @code{myisamchk}
+@cindex @code{mysqlcheck}
 @cindex crash, recovery
 @cindex recovery, from crash
 @node Maintenance, Adding functions, Tools, Top
@@ -33772,6 +34687,7 @@ to start using the new table.
 
 @menu
 * Table maintenance::           Table maintenance and crash recovery
+* Using mysqlcheck::            Using mysqlcheck for maintenance and recovery
 * Maintenance regimen::         Setting up a table maintenance regimen
 * Table-info::                  Getting information about a table
 * Crash recovery::              Using @code{myisamchk} for crash recovery
@@ -33782,7 +34698,7 @@ This chapter covers what you should know about maintaining a @strong{MySQL}
 distribution.  You will learn how to care for your tables on a regular
 basis, and what to do when disaster strikes.
 
-@node Table maintenance, Maintenance regimen, Maintenance, Maintenance
+@node Table maintenance, Using mysqlcheck, Maintenance, Maintenance
 @section Using @code{myisamchk} for Table Maintenance and Crash Recovery
 
 Starting with @strong{MySQL} Version 3.23.13, you can check MyISAM
@@ -34164,9 +35080,132 @@ This space is allocated on the temporary disk (specified by @code{TMPDIR} or
 If you have a problem with disk space during repair, you can try to use
 @code{--safe-recover} instead of @code{--recover}.
 
+@node Using mysqlcheck, Maintenance regimen, Table maintenance, Maintenance
+@section Using @code{mysqlcheck} for Table Maintenance and Crash Recovery
+
+Since @strong{MySQL} version 3.23.38 you will be able to use a new
+checking and repairing tool for @code{MyISAM} tables. The difference to
+@code{myisamchk} is that @code{mysqlcheck} should be used when the
+@code{mysqld} server is running, where as @code{myisamchk} should be used
+when it is not. The benefit is that you no longer have to take the
+server down for checking or repairing your tables.
+
+@code{mysqlcheck} uses @strong{MySQL} server commands @code{CHECK},
+@code{REPAIR}, @code{ANALYZE} and @code{OPTIMIZE} in a convenient way
+for the user.
+
+There are three alternative ways to invoke @code{mysqlcheck}:
+
+@example
+shell> mysqlcheck [OPTIONS] database [tables]
+shell> mysqlcheck [OPTIONS] --databases DB1 [DB2 DB3...]
+shell> mysqlcheck [OPTIONS] --all-databases
+@end example
+
+So it can be used in a similar way as @code{mysqldump} when it
+comes to what databases and tables you want to choose.
+
+@code{mysqlcheck} does have a special feature compared to the other
+clients; the default behavior, checking tables (-c), can be changed by
+renaming the binary. So if you want to have a tool that repairs tables
+by default, you should just copy @code{mysqlcheck} to your harddrive
+with a new name, @code{mysqlrepair}, or alternatively make a symbolic
+link to @code{mysqlrepair} and name the symbolic link as
+@code{mysqlrepair}. If you invoke @code{mysqlrepair} now, it will repair
+tables by default.
+
+The names that you can use to change @code{mysqlcheck} default behavior
+are here:
+
+@example
+mysqlrepair:   The default option will be -r
+mysqlanalyze:  The default option will be -a
+mysqloptimize: The default option will be -o
+@end example
+
+The options available for @code{mysqlcheck} are listed here, please
+check what your version supports with @code{mysqlcheck --help}.
+
+@table @code
+@item -A, --all-databases
+Check all the databases. This will be same as --databases with all
+databases selected
+@item -1, --all-in-1
+Instead of making one query for each table, execute all queries in 1
+query separately for each database. Table names will be in a comma
+separated list.
+@item  -a, --analyze
+Analyze given tables.
+@item --auto-repair
+If a checked table is corrupted, automatically fix it. Repairing will be
+done after all tables have been checked, if corrupted ones were found.
+@item -#, --debug=...
+Output debug log. Often this is 'd:t:o,filename'
+@item --character-sets-dir=...
+Directory where character sets are
+@item -c, --check
+Check table for errors
+@item -C, --check-only-changed
+Check only tables that have changed since last check or haven't been
+closed properly.
+@item --compress
+Use compression in server/client protocol.
+@item -?, --help
+Display this help message and exit.
+@item -B, --databases
+To check several databases. Note the difference in usage; In this case
+no tables are given. All name arguments are regarded as database names.
+@item --default-character-set=...
+Set the default character set
+@item -F, --fast
+Check only tables that hasn't been closed properly
+@item -f, --force
+Continue even if we get an sql-error.
+@item -e, --extended
+If you are using this option with CHECK TABLE, it will ensure that the
+table is 100 percent consistent, but will take a long time.
+
+If you are using this option with REPAIR TABLE, it will run an extended
+repair on the table, which may not only take a long time to execute, but
+may produce a lot of garbage rows also!
+@item -h, --host=...
+Connect to host.
+@item -m, --medium-check
+Faster than extended-check, but only finds 99.99 percent of all
+errors. Should be good enough for most cases.
+@item -o, --optimize
+Optimize table
+@item -p, --password[=...]
+Password to use when connecting to server. If password is not given
+it's solicited on the tty.
+@item -P, --port=...
+Port number to use for connection.
+@item -q, --quick
+If you are using this option with CHECK TABLE, it prevents the check
+from scanning the rows to check for wrong links. This is the fastest
+check.
+
+If you are using this option with REPAIR TABLE, it will try to repair
+only the index tree. This is the fastest repair method for a table.
+@item -r, --repair
+Can fix almost anything except unique keys that aren't unique.
+@item -s, --silent
+Print only error messages.
+@item -S, --socket=...
+Socket file to use for connection.
+@item --tables
+Overrides option --databases (-B).
+@item -u, --user=#
+User for login if not current user.
+@item -v, --verbose
+Print info about the various stages.
+@item -V, --version
+Output version information and exit.
+@end table
+
 @cindex maintaining, tables
 @cindex tables, maintenance regimen
-@node Maintenance regimen, Table-info, Table maintenance, Maintenance
+@node Maintenance regimen, Table-info, Using mysqlcheck, Maintenance
 @section Setting Up a Table Maintenance Regimen
 
 Starting with @strong{MySQL} Version 3.23.13, you can check MyISAM
@@ -42648,7 +43687,7 @@ attachments, you should ftp all the relevant files to:
 @end itemize
 
 @node Reporting mysqltest bugs,  , extending mysqltest, MySQL test suite
-@subsection Extending the MySQL Test Suite
+@subsection Reporting bugs in the MySQL Test Suite
 
 If your @strong{MySQL} version doesn't pass the test suite you should
 do the following:
@@ -42678,6 +43717,10 @@ If this fails, then you should configure @strong{MySQL} with
 so that we can examine it. Please remember to also include a full
 description of your system, the version of the mysqld binary and how you
 compiled it.
+
+@item
+Try also to run @code{mysql-test-run} with the @code{--force} option to
+see if there is any other test that fails.
 
 @item
 If you have compiled @strong{MySQL} yourself, check our manual for how
@@ -42919,6 +43962,8 @@ An online magazine featuring music, literature, arts, and design content.
 @item @uref{http://kids.msfc.nasa.gov, NASA KIDS}
 @item @uref{http://science.nasa.gov, Sience@@NASA}
 
+@item @uref{http://www.handy.de/, handy.de}
+
 @item @uref{http://lindev.jmc.tju.edu/qwor, Qt Widget and Object Repository}
 
 @item @uref{http://www.samba-choro.com.br, Brazilian samba site (in Portuguese)}
@@ -42933,6 +43978,9 @@ tickets for this event is implemented using @strong{MySQL} and tcl/tk. More than
 service with millions of users.}
 
 @item @uref{http://f1.tauzero.se, Forza Motorsport}
+
+@item @uref{http://www.dreamhost.com/, DreamHost Web Hosting}
+
 @end itemize
 
 @cindex services
@@ -43270,16 +44318,16 @@ interface, you should fetch the @code{Data-Dumper}, @code{DBI}, and
 Perl @code{Data-Dumper} module.  Useful with @code{DBI}/@code{DBD} support for
 older Perl installations.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/DBI-1.14.tar.gz, DBI-1.14.tar.gz}
+@item @uref{http://www.mysql.com/Downloads/Contrib/DBI-1.15.tar.gz, DBI-1.15.tar.gz}
 Perl @code{DBI} module.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/KAMXbase1.0.tar.gz,KAMXbase1.0.tar.gz}
+@item @uref{http://www.mysql.com/Downloads/Contrib/KAMXbase1.2.tar.gz,KAMXbase1.2.tar.gz}
 Convert between @file{.dbf} files and @strong{MySQL} tables.  Perl
 module written by Pratap Pereira @email{pereira@@ee.eng.ohio-state.edu},
 extended by Kevin A. McGrail @email{kmcgrail@@digital1.peregrinehw.com}.
 This converter can handle MEMO fields.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/Msql-Mysql-modules-1.2215.tar.gz, Msql-Mysql-modules-1.2215.tar.gz}
+@item @uref{http://www.mysql.com/Downloads/Contrib/Msql-Mysql-modules-1.2216.tar.gz, Msql-Mysql-modules-1.2216.tar.gz}
 Perl @code{DBD} module to access mSQL and @strong{MySQL} databases.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/Data-ShowTable-3.3.tar.gz,  Data-ShowTable-3.3.tar.gz}
@@ -43569,6 +44617,11 @@ Some features:
 @itemize @bullet
 @item Manage servers, databases, tables, columns, indexes, and users
 @item Import wizard to import structure and data from MS Access, MS Excel, Dbase, FoxPro, Paradox, and ODBC Databases.
+
+@item @uref{http://www.mysql.com/Downloads/Contrib/KMYENG113.zip,KMYENG113.zip}
+An administrator GUI for @strong{MySQL}. Works only on windows, no source.
+Available in English and Japanese. By Mitunobu Kaneko.
+Home page: @uref{http://sql.jnts.ne.jp/}
 @end itemize
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/xmysqladmin-1.0.tar.gz, xmysqladmin-1.0.tar.gz}
@@ -43839,7 +44892,7 @@ detection of @code{TIMESTAMP} fields), provides warnings and suggestions
 while converting, quotes @strong{all} special characters in text and
 binary data, and so on.  It will also convert to @code{mSQL} v1 and v2,
 and is free of charge for anyone. See
-@uref{http://www.cynergi.net/prod/exportsql/} for the latest version. By
+@uref{http://www.cynergi.net/exportsql/} for the latest version. By
 Pedro Freire, @email{support@@cynergi.net}.  NOTE: Doesn't work with
 Access2!
 @item @uref{http://www.mysql.com/Downloads/Contrib/access_to_mysql.txt, access_to_mysql.txt}
@@ -43876,6 +44929,11 @@ By Steve Shreeve.
 Perl program to convert Oracle databases to @strong{MySQL}. By Johan Andersson.
 @item @uref{http://www.mysql.com/Downloads/Contrib/excel2mysql, excel2mysql}
 Perl program to import Excel spreadsheets into a @strong{MySQL} database. By Stephen Hurd @email{shurd@@sk.sympatico.ca}
+
+@item @uref{http://www.mysql.com/Downloads/Contrib/T2S_100.ZIP, T2S_100.ZIP}.
+Windows program to convert text files to @strong{MySQL} databases. By
+Asaf Azulay.
+
 @end itemize
 
 @appendixsec Using MySQL with Other Products
@@ -44538,6 +45596,8 @@ Added @code{ORDER BY} syntax to @code{UPDATE} and @code{DELETE}.
 @item
 Optimized queries of type:
 @code{SELECT DISTINCT * from table_name ORDER by key_part1 LIMIT #}
+@item
+Added support for sym-linking of MyISAM tables.
 @end itemize
 
 @node News-3.23.x, News-3.22.x, News-4.0.x, News
@@ -44630,6 +45690,11 @@ not yet 100% confident in this code.
 @node News-3.23.39, News-3.23.38, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.39
 @itemize @bullet
+@item
+We are now using the @code{-lcma} thread library on HPUX 10.20 to
+get @strong{MySQL} more stabile on HPUX.
+@item
+Fixed problem with @code{IF()} and number of decimals in the result.
 @item
 Fixed that date-part extract functions works with dates where day
 and/or month is 0.
@@ -45861,7 +46926,7 @@ Added table locks to Berkeley DB.
 Fixed a bug with @code{LEFT JOIN} and @code{ORDER BY} where the first
 table had only one matching row.
 @item
-Added 4 sample @code{my.cfg} example files in the @file{support-files}
+Added 4 sample @code{my.cnf} example files in the @file{support-files}
 directory.
 @item
 Fixed @code{duplicated key} problem when doing big @code{GROUP BY}'s.
@@ -49964,7 +51029,7 @@ of @code{analyze} is run on all sub tables.
 @end itemize
 
 @node TODO future, TODO sometime, TODO MySQL 4.0, TODO
-@appendixsec Things that must done in the real near future
+@appendixsec Things that must be done in the real near future
 
 @itemize @bullet
 @item

@@ -39,7 +39,6 @@
 #include <signal.h>
 #include <errno.h>
 #include <sys/types.h>
-#include <violite.h>
 #include <assert.h>
 
 #ifdef MYSQL_SERVER
