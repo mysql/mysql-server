@@ -11201,17 +11201,14 @@ static void print_join(THD *thd, String *str, List<TABLE_LIST> *tables)
     *t= ti++;
 
   DBUG_ASSERT(tables->elements >= 1);
-  TABLE_LIST *prev= *table;
-  prev->print(thd, str);
+  (*table)->print(thd, str);
 
   TABLE_LIST **end= table + tables->elements;
   for(TABLE_LIST **tbl= table + 1; tbl < end; tbl++)
   {
     TABLE_LIST *curr= *tbl;
-    if (prev->outer_join & JOIN_TYPE_RIGHT)
-      str->append(" right join ", 12);
-    else if (curr->outer_join & JOIN_TYPE_LEFT)
-      str->append(" left join ", 11);
+    if (curr->outer_join)
+      str->append(" left join ", 11); // MySQL converg right to left joins
     else if (curr->straight)
       str->append(" straight_join ", 15);
     else
@@ -11223,7 +11220,6 @@ static void print_join(THD *thd, String *str, List<TABLE_LIST> *tables)
       curr->on_expr->print(str);
       str->append(')');
     }
-    prev= curr;
   }
 }
 
