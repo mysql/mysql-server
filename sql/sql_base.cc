@@ -2169,6 +2169,8 @@ find_field_in_table(THD *thd, TABLE_LIST *table_list,
             thd->change_item_tree(ref, item_ref);
 	  else if (item_ref)
 	    *ref= item_ref;
+          if (!(*ref)->fixed)
+            (*ref)->fix_fields(thd, 0, ref);
         }
 	DBUG_RETURN((Field*) view_ref_found);
       }
@@ -3389,7 +3391,8 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves, COND **conds)
         if (cond_and->list.elements)
         {
           COND *on_expr= cond_and;
-          on_expr->fix_fields(thd, 0, &on_expr);
+          if (!on_expr->fixed)
+            on_expr->fix_fields(thd, 0, &on_expr);
           if (!embedded->outer_join)			// Not left join
           {
             *conds= and_conds(*conds, cond_and);
@@ -3398,7 +3401,8 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves, COND **conds)
               thd->restore_backup_item_arena(arena, &backup);
             if (*conds && !(*conds)->fixed)
             {
-              if ((*conds)->fix_fields(thd, tables, conds))
+              if (!(*conds)->fixed &&
+                  (*conds)->fix_fields(thd, tables, conds))
                 goto err_no_arena;
             }
           }
@@ -3410,8 +3414,8 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves, COND **conds)
               thd->restore_backup_item_arena(arena, &backup);
             if (embedded->on_expr && !embedded->on_expr->fixed)
             {
-              if (embedded->on_expr->fix_fields(thd, tables,
-                                                &embedded->on_expr))
+              if (!embedded->on_expr->fixed &&
+                  embedded->on_expr->fix_fields(thd, tables, &embedded->on_expr))
                 goto err_no_arena;
             }
           }
