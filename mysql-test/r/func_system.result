@@ -46,7 +46,7 @@ create table t1 (version char(40)) select database(), user(), version() as 'vers
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `database()` char(34) character set utf8 NOT NULL default '',
+  `database()` char(34) character set utf8 default NULL,
   `user()` char(77) character set utf8 NOT NULL default '',
   `version` char(40) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1

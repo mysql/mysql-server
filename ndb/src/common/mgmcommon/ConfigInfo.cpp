@@ -16,10 +16,11 @@
 
 #include "ConfigInfo.hpp"
 #include <mgmapi_config_parameters.h>
+#include <ndb_limits.h>
 
 #define MAX_LINE_LENGTH 255
 #define KEY_INTERNAL 0
-
+#define MAX_INT_RNIL (RNIL - 1)
 /****************************************************************************
  * Section names
  ****************************************************************************/
@@ -171,24 +172,7 @@ struct DepricationTransform {
 
 static
 const DepricationTransform f_deprication[] = {
-  { "DB", "NoOfIndexPages", "IndexMemory", 0, 8192 }
-  ,{ "DB", "MemorySpaceIndexes", "IndexMemory", 0, 8192 }
-  ,{ "DB", "NoOfDataPages", "DataMemory", 0, 8192 }
-  ,{ "DB", "MemorySpaceTuples", "DataMemory", 0, 8192 }
-  ,{ "DB", "TransactionInactiveTimeBeforeAbort", "TransactionInactiveTimeout",
-     0, 1 }
-  ,{ "TCP", "ProcessId1", "NodeId1", 0, 1}
-  ,{ "TCP", "ProcessId2", "NodeId2", 0, 1}
-  ,{ "TCP", "SendBufferSize", "SendBufferMemory", 0, 16384 }
-  ,{ "TCP", "MaxReceiveSize", "ReceiveBufferMemory", 0, 16384 }
-
-  //  ,{ "SHM", "ProcessId1", "NodeId1", 0, 1}
-  //  ,{ "SHM", "ProcessId2", "NodeId2", 0, 1}
-  ,{ "SCI", "ProcessId1", "NodeId1", 0, 1}
-  ,{ "SCI", "ProcessId2", "NodeId2", 0, 1}
-  ,{ "OSE", "ProcessId1", "NodeId1", 0, 1}
-  ,{ "OSE", "ProcessId2", "NodeId2", 0, 1}
-  ,{ 0, 0, 0, 0, 0}
+  { 0, 0, 0, 0, 0}
 };
 
 /**
@@ -252,21 +236,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     MANDATORY,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
   
-  {
-    CFG_NODE_BYTE_ORDER,
-    "ByteOrder",
-    "COMPUTER",
-    "Not yet implemented",
-    ConfigInfo::USED,  // Actually not used, but since it is MANDATORY,
-    // we don't want any warning message
-    false,
-    ConfigInfo::STRING,
-    MANDATORY,  // Big == 0, Little == 1, NotSet == 2 (?)
-    0,
-    1 },
-
   /****************************************************************************
    * SYSTEM
    ***************************************************************************/
@@ -316,7 +287,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     0,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_SYS_CONFIG_GENERATION,
@@ -328,7 +299,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     0,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   /***************************************************************************
    * DB
@@ -355,7 +326,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     UNDEFINED,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_NODE_SYSTEM,
@@ -367,7 +338,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     UNDEFINED,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_NODE_ID,
@@ -403,7 +374,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     MANDATORY,
     1,
-    2 },
+    4 },
 
   {
     CFG_DB_NO_ATTRIBUTES,
@@ -415,7 +386,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     1000,
     32,
-    4096 },
+    MAX_INT_RNIL/16 },
   
   {
     CFG_DB_NO_TABLES,
@@ -425,9 +396,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    32,
+    128,
     8,
-    128 },
+    MAX_INT_RNIL },
   
   {
     CFG_DB_NO_INDEXES,
@@ -439,7 +410,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     128,
     0,
-    2048 },
+    MAX_INT_RNIL },
 
   {
     CFG_DB_NO_INDEX_OPS,
@@ -451,7 +422,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     8192,
     0,
-    1000000
+    MAX_INT_RNIL 
    },
 
   {
@@ -464,7 +435,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     768,
     0,
-    2432 },
+    MAX_INT_RNIL },
 
   {
     CFG_DB_NO_TRIGGER_OPS,
@@ -474,9 +445,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    1000,
+    4000,
     0,
-    1000000 },
+    MAX_INT_RNIL },
 
   {
     KEY_INTERNAL,
@@ -488,7 +459,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     MANDATORY,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
   
   {
     CFG_DB_NO_SAVE_MSGS,
@@ -500,7 +471,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     25,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_DB_MEMLOCK,
@@ -512,32 +483,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::BOOL,
     false,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
-  {
-    KEY_INTERNAL,
-    "SleepWhenIdle",
-    "DB",
-    0,
-    ConfigInfo::DEPRICATED,
-    true,
-    ConfigInfo::BOOL,
-    true,
-    0,
-    0x7FFFFFFF },
-
-  {
-    KEY_INTERNAL,
-    "NoOfSignalsToExecuteBetweenCommunicationInterfacePoll",
-    "DB",
-    0,
-    ConfigInfo::DEPRICATED,
-    true,
-    ConfigInfo::INT,
-    20,
-    1,
-    0x7FFFFFFF },
-  
   {
     CFG_DB_WATCHDOG_INTERVAL,
     "TimeBetweenWatchDogCheck",
@@ -548,7 +495,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     4000,
     70,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_DB_STOP_ON_ERROR,
@@ -560,7 +507,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::BOOL,
     true,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   { 
     CFG_DB_STOP_ON_ERROR_INSERT,
@@ -582,9 +529,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    8192,
+    32768,
     32,
-    1000000 },
+    MAX_INT_RNIL },
 
   {
     CFG_DB_NO_TRANSACTIONS,
@@ -596,7 +543,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     4096,
     32,
-    1000000 },
+    MAX_INT_RNIL },
 
   {
     CFG_DB_NO_SCANS,
@@ -606,7 +553,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    25,
+    256,
     2,
     500 },
 
@@ -618,9 +565,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    1024000,
+    (1024 * 1024),
     1024,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
  
   {
     CFG_DB_INDEX_MEM,
@@ -630,33 +577,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT64,
-    3000 * 8192,
+    3 * 1024 * 8192,
     128 * 8192,
-    ((Uint64)192000) * ((Uint64)8192) },
-
-  {
-    KEY_INTERNAL,
-    "NoOfIndexPages",
-    "DB",
-    "IndexMemory",
-    ConfigInfo::DEPRICATED,
-    false,
-    ConfigInfo::INT,
-    3000,
-    128,
-    192000 },
-
-  {
-    KEY_INTERNAL,
-    "MemorySpaceIndexes",
-    "DB",
-    "IndexMemory",
-    ConfigInfo::DEPRICATED,
-    false,
-    ConfigInfo::INT,
-    UNDEFINED,
-    128,
-    192000 },
+    ((Uint64)MAX_INT_RNIL) * ((Uint64)8192) },
 
   {
     CFG_DB_DATA_MEM,
@@ -666,34 +589,10 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT64,
-    10000 * 8192,
+    10 * 1024 * 8192,
     128 * 8192,
-    ((Uint64)400000) * ((Uint64)8192) },
+    ((Uint64)MAX_INT_RNIL) * ((Uint64)8192) },
 
-  {
-    KEY_INTERNAL,
-    "NoOfDataPages",
-    "DB",
-    "DataMemory",
-    ConfigInfo::DEPRICATED,
-    false,
-    ConfigInfo::INT,
-    10000,
-    128,
-    400000 },
-
-  {
-    KEY_INTERNAL,
-    "MemorySpaceTuples",
-    "DB",
-    "DataMemory",
-    ConfigInfo::DEPRICATED,
-    false,
-    ConfigInfo::INT,
-    UNDEFINED,
-    128,
-    400000 },
-  
   {
     CFG_DB_START_PARTIAL_TIMEOUT,
     "StartPartialTimeout",
@@ -726,22 +625,10 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     true,
     ConfigInfo::INT,
-    5*60000,
+    0,
     0,
     ~0 },
   
-  {
-    KEY_INTERNAL,
-    "TimeToWaitAlive",
-    "DB",
-    "Start{Partial/Partitioned/Failure}Time",
-    ConfigInfo::DEPRICATED,
-    true,
-    ConfigInfo::INT,
-    25,
-    2,
-    4000 },
-
   {
     CFG_DB_HEARTBEAT_INTERVAL,
     "HeartbeatIntervalDbDb",
@@ -752,7 +639,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     1500,
     10,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_DB_API_HEARTBEAT_INTERVAL,
@@ -764,7 +651,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     1500,
     100,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_DB_LCP_INTERVAL,
@@ -800,7 +687,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     8,
     1,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     KEY_INTERNAL,
@@ -825,7 +712,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     1000,
     1000,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
   
   {
     CFG_DB_TRANSACTION_INACTIVE_TIMEOUT,
@@ -839,9 +726,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     true,
     ConfigInfo::INT,
-    3000,
+    MAX_INT_RNIL,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_DB_TRANSACTION_DEADLOCK_TIMEOUT,
@@ -854,22 +741,10 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     true,
     ConfigInfo::INT,
-    3000,
+    1200,
     50,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
-  {
-    KEY_INTERNAL,
-    "TransactionInactiveTimeBeforeAbort",
-    "DB",
-    "TransactionInactiveTimeout",
-    ConfigInfo::DEPRICATED,
-    true,
-    ConfigInfo::INT,
-    3000,
-    20,
-    0x7FFFFFFF },
-  
   {
     KEY_INTERNAL,
     "NoOfDiskPagesToDiskDuringRestartTUP",
@@ -878,9 +753,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     true,
     ConfigInfo::INT,
-    50,
+    40,
     1,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     KEY_INTERNAL,
@@ -890,9 +765,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     true,
     ConfigInfo::INT,
-    10,
+    40,
     1,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     KEY_INTERNAL,
@@ -902,9 +777,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     true,
     ConfigInfo::INT,
-    25,
+    20,
     1,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     KEY_INTERNAL,
@@ -914,9 +789,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     true,
     ConfigInfo::INT,
-    5,
+    20,
     1,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
   
 
   {
@@ -939,9 +814,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    1000,
+    3000,
     10,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_DB_FILESYSTEM_PATH,
@@ -953,7 +828,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     UNDEFINED,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_LOGLEVEL_STARTUP,
@@ -1076,7 +951,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     (2 * 1024 * 1024) + (2 * 1024 * 1024), // sum of BackupDataBufferSize and BackupLogBufferSize
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
   
   { 
     CFG_DB_BACKUP_DATA_BUFFER_MEM,
@@ -1088,7 +963,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     (2 * 1024 * 1024), // remember to change BackupMemory
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   { 
     CFG_DB_BACKUP_LOG_BUFFER_MEM,
@@ -1100,7 +975,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     (2 * 1024 * 1024), // remember to change BackupMemory
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   { 
     CFG_DB_BACKUP_WRITE_SIZE,
@@ -1112,7 +987,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     32768,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   /***************************************************************************
    * REP
@@ -1139,7 +1014,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     UNDEFINED,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_NODE_SYSTEM,
@@ -1151,7 +1026,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     UNDEFINED,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_NODE_ID,
@@ -1175,7 +1050,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     MANDATORY,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_REP_HEARTBEAT_INTERVAL,
@@ -1187,7 +1062,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     3000,
     100,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   /***************************************************************************
    * API
@@ -1214,7 +1089,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     UNDEFINED,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_NODE_SYSTEM,
@@ -1226,7 +1101,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     UNDEFINED,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_NODE_ID,
@@ -1250,7 +1125,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     0,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_NODE_ARBIT_RANK,
@@ -1260,7 +1135,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    2,
+    0,
     0,
     2 },
 
@@ -1274,7 +1149,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     0,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   /****************************************************************************
    * MGM
@@ -1301,7 +1176,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     UNDEFINED,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_NODE_SYSTEM,
@@ -1313,7 +1188,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     UNDEFINED,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_NODE_ID,
@@ -1337,7 +1212,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     0,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
   
   {
     KEY_INTERNAL,
@@ -1349,7 +1224,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     0,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
   
   {
     KEY_INTERNAL,
@@ -1361,7 +1236,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     100,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_MGM_PORT,
@@ -1373,7 +1248,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     NDB_BASE_PORT,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     KEY_INTERNAL,
@@ -1385,7 +1260,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     2199,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_NODE_ARBIT_RANK,
@@ -1395,7 +1270,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    2,
+    1,
     0,
     2 },
 
@@ -1409,7 +1284,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     0,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   /****************************************************************************
    * TCP
@@ -1436,7 +1311,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     UNDEFINED,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_TCP_HOSTNAME_2,
@@ -1448,7 +1323,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     UNDEFINED,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_CONNECTION_NODE_1,
@@ -1460,19 +1335,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     MANDATORY,
     0,
-    0x7FFFFFFF },
-
-  {
-    KEY_INTERNAL,
-    "ProcessId1",
-    "TCP",
-    "NodeId1",
-    ConfigInfo::DEPRICATED,
-    false,
-    ConfigInfo::INT,
-    UNDEFINED,
-    0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_CONNECTION_NODE_2,
@@ -1484,43 +1347,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     MANDATORY,
     0,
-    0x7FFFFFFF },
-
-  {
-    KEY_INTERNAL,
-    "ProcessId2",
-    "TCP",
-    "NodeId2",
-    ConfigInfo::DEPRICATED,
-    false,
-    ConfigInfo::INT,
-    UNDEFINED,
-    0,
-    0x7FFFFFFF },
-
-  {
-    KEY_INTERNAL,
-    "IpAddress1",
-    "TCP",
-    "HostName1",
-    ConfigInfo::DEPRICATED,
-    false,
-    ConfigInfo::STRING,
-    UNDEFINED,
-    0,
-    0x7FFFFFFF },
-
-  {
-    KEY_INTERNAL,
-    "IpAddress2",
-    "TCP",
-    "HostName2",
-    ConfigInfo::DEPRICATED,
-    false,
-    ConfigInfo::STRING,
-    UNDEFINED,
-    0,
-    0 },
+    MAX_INT_RNIL },
 
   {
     CFG_CONNECTION_SEND_SIGNAL_ID,
@@ -1532,7 +1359,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::BOOL,
     true,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
 
   {
@@ -1545,7 +1372,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::BOOL,
     false,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_CONNECTION_SERVER_PORT,
@@ -1557,7 +1384,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     MANDATORY,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_TCP_SEND_BUFFER_SIZE,
@@ -1569,20 +1396,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     16 * 16384,
     1 * 16384,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
-  {
-    KEY_INTERNAL,
-    "SendBufferSize",
-    "TCP",
-    "SendBufferMemory",
-    ConfigInfo::DEPRICATED,
-    false,
-    ConfigInfo::INT,
-    16,
-    1,
-    0x7FFFFFFF },
-  
   {
     CFG_TCP_RECEIVE_BUFFER_SIZE,
     "ReceiveBufferMemory",
@@ -1593,19 +1408,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     4 * 16384,
     1 * 16384,
-    0x7FFFFFFF },
-
-  {
-    KEY_INTERNAL,
-    "MaxReceiveSize",
-    "TCP",
-    "ReceiveBufferMemory",
-    ConfigInfo::DEPRICATED,
-    false,
-    ConfigInfo::INT,
-    4,
-    1,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_TCP_PROXY,
@@ -1620,19 +1423,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0 },
 
   {
-    KEY_INTERNAL,
-    "Compression",
-    "TCP",
-    0,
-    ConfigInfo::DEPRICATED,
-    false,
-    ConfigInfo::BOOL,
-    false,
-    0,
-    0x7FFFFFFF },
-
-
-  {
     CFG_CONNECTION_NODE_1_SYSTEM,
     "NodeId1_System",
     "TCP",
@@ -1642,7 +1432,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     UNDEFINED,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_CONNECTION_NODE_2_SYSTEM,
@@ -1654,7 +1444,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     UNDEFINED,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
   
 
   /****************************************************************************
@@ -1682,7 +1472,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     MANDATORY,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
   
   {
     CFG_CONNECTION_SERVER_PORT,
@@ -1694,20 +1484,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     MANDATORY,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
-  {
-    KEY_INTERNAL,
-    "ProcessId1",
-    "SHM",
-    "NodeId1",
-    ConfigInfo::DEPRICATED,
-    false,
-    ConfigInfo::STRING,
-    UNDEFINED,
-    0,
-    0x7FFFFFFF },
-  
   {
     CFG_CONNECTION_NODE_2,
     "NodeId2",
@@ -1718,19 +1496,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     MANDATORY,
     0,
-    0x7FFFFFFF },
-  
-  {
-    KEY_INTERNAL,
-    "ProcessId2",
-    "SHM",
-    "NodeId1",
-    ConfigInfo::DEPRICATED,
-    false,
-    ConfigInfo::STRING,
-    UNDEFINED,
-    0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
   
   {
     CFG_CONNECTION_SEND_SIGNAL_ID,
@@ -1742,7 +1508,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::BOOL,
     false,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
   
   
   {
@@ -1755,7 +1521,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::BOOL,
     true,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
   
   {
     CFG_SHM_KEY,
@@ -1767,7 +1533,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     MANDATORY,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
   
   {
     CFG_SHM_BUFFER_MEM,
@@ -1779,20 +1545,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     1048576,
     4096,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
   
-  {
-    KEY_INTERNAL,
-    "Compression",
-    "SHM",
-    0,
-    ConfigInfo::DEPRICATED,
-    false,
-    ConfigInfo::BOOL,
-    false,
-    0,
-    0x7FFFFFFF },
-
   {
     CFG_CONNECTION_NODE_1_SYSTEM,
     "NodeId1_System",
@@ -1803,7 +1557,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     UNDEFINED,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_CONNECTION_NODE_2_SYSTEM,
@@ -1815,7 +1569,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     UNDEFINED,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   /****************************************************************************
    * SCI
@@ -1842,19 +1596,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     MANDATORY,
     0,
-    0x7FFFFFFF },
-
-  {
-    KEY_INTERNAL,
-    "ProcessId1",
-    "SCI",
-    "NodeId1",
-    ConfigInfo::DEPRICATED,
-    false,
-    ConfigInfo::INT,
-    UNDEFINED,
-    0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_CONNECTION_NODE_2,
@@ -1866,19 +1608,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     MANDATORY,
     0,
-    0x7FFFFFFF },
-
-  {
-    KEY_INTERNAL,
-    "ProcessId2",
-    "SCI",
-    "NodeId2",
-    ConfigInfo::DEPRICATED,
-    false,
-    ConfigInfo::INT,
-    UNDEFINED,
-    0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_SCI_ID_0,
@@ -1890,7 +1620,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     MANDATORY,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_SCI_ID_1,
@@ -1902,7 +1632,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     MANDATORY,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_CONNECTION_SEND_SIGNAL_ID,
@@ -1914,7 +1644,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::BOOL,
     true,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_CONNECTION_CHECKSUM,
@@ -1926,7 +1656,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::BOOL,
     false,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_SCI_SEND_LIMIT,
@@ -1938,7 +1668,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     2048,
     512,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_SCI_BUFFER_MEM,
@@ -1950,67 +1680,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     1048576,
     262144,
-    0x7FFFFFFF },
-
-  {
-    KEY_INTERNAL,
-    "Node1_NoOfAdapters",
-    "SCI",
-    0,
-    ConfigInfo::DEPRICATED,
-    false,
-    ConfigInfo::INT,
-    UNDEFINED,
-    0,
-    0x7FFFFFFF },
-
-  {
-    KEY_INTERNAL,
-    "Node2_NoOfAdapters",
-    "SCI",
-    0,
-    ConfigInfo::DEPRICATED,
-    false,
-    ConfigInfo::INT,
-    UNDEFINED,
-    0,
-    0x7FFFFFFF },
-
-  {
-    KEY_INTERNAL,
-    "Node1_Adapter",
-    "SCI",
-    0,
-    ConfigInfo::DEPRICATED,
-    false,
-    ConfigInfo::INT,
-    UNDEFINED,
-    0,
-    0x7FFFFFFF },
-
-  {
-    KEY_INTERNAL,
-    "Node2_Adapter",
-    "SCI",
-    0,
-    ConfigInfo::DEPRICATED,
-    false,
-    ConfigInfo::INT,
-    UNDEFINED,
-    0,
-    0x7FFFFFFF },
-
-  {
-    KEY_INTERNAL,
-    "Compression",
-    "SCI",
-    0,
-    ConfigInfo::DEPRICATED,
-    false,
-    ConfigInfo::BOOL,
-    false,
-    0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_CONNECTION_NODE_1_SYSTEM,
@@ -2022,7 +1692,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     UNDEFINED,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_CONNECTION_NODE_2_SYSTEM,
@@ -2034,7 +1704,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     UNDEFINED,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   /****************************************************************************
    * OSE
@@ -2061,7 +1731,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     UNDEFINED,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_OSE_HOSTNAME_2,
@@ -2073,7 +1743,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     UNDEFINED,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_CONNECTION_NODE_1,
@@ -2085,19 +1755,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     MANDATORY,
     0,
-    0x7FFFFFFF },
-
-  {
-    KEY_INTERNAL,
-    "ProcessId1",
-    "OSE",
-    "NodeId1",
-    ConfigInfo::DEPRICATED,
-    false,
-    ConfigInfo::INT,
-    UNDEFINED,
-    0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_CONNECTION_NODE_2,
@@ -2109,19 +1767,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     UNDEFINED,
     0,
-    0x7FFFFFFF },
-
-  {
-    KEY_INTERNAL,
-    "ProcessId2",
-    "OSE",
-    "NodeId2",
-    ConfigInfo::DEPRICATED,
-    false,
-    ConfigInfo::INT,
-    MANDATORY,
-    0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_CONNECTION_SEND_SIGNAL_ID,
@@ -2133,7 +1779,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::BOOL,
     true,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_CONNECTION_CHECKSUM,
@@ -2145,7 +1791,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::BOOL,
     false,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_OSE_PRIO_A_SIZE,
@@ -2157,7 +1803,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     1000,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_OSE_PRIO_B_SIZE,
@@ -2169,7 +1815,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     1000,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
   
   {
     CFG_OSE_RECEIVE_ARRAY_SIZE,
@@ -2181,19 +1827,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::INT,
     10,
     0,
-    0x7FFFFFFF },
-
-  {
-    KEY_INTERNAL,
-    "Compression",
-    "OSE",
-    0,
-    ConfigInfo::DEPRICATED,
-    false,
-    ConfigInfo::BOOL,
-    false,
-    0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 
   {
     CFG_CONNECTION_NODE_1_SYSTEM,
@@ -2205,7 +1839,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     UNDEFINED,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL},
 
   {
     CFG_CONNECTION_NODE_2_SYSTEM,
@@ -2217,7 +1851,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::STRING,
     UNDEFINED,
     0,
-    0x7FFFFFFF },
+    MAX_INT_RNIL },
 };
 
 const int ConfigInfo::m_NoOfParams = sizeof(m_ParamInfo) / sizeof(ParamInfo);

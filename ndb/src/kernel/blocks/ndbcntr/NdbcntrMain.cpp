@@ -2313,6 +2313,18 @@ void Ndbcntr::execWAIT_GCP_REF(Signal* signal){
 void Ndbcntr::execWAIT_GCP_CONF(Signal* signal){
   jamEntry();
 
+  ndbrequire(StopReq::getSystemStop(c_stopRec.stopReq.requestInfo));
+  NodeState newState(NodeState::SL_STOPPING_3, true); 
+
+  /**
+   * Inform QMGR so that arbitrator won't kill us
+   */
+  NodeStateRep * rep = (NodeStateRep *)&signal->theData[0];
+  rep->nodeState = newState;
+  rep->nodeState.masterNodeId = cmasterNodeId;
+  rep->nodeState.setNodeGroup(c_nodeGroup);
+  EXECUTE_DIRECT(QMGR, GSN_NODE_STATE_REP, signal, NodeStateRep::SignalLength);
+
   if(StopReq::getPerformRestart(c_stopRec.stopReq.requestInfo)){
     jam();
     StartOrd * startOrd = (StartOrd *)&signal->theData[0];

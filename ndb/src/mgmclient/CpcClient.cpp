@@ -478,9 +478,9 @@ SimpleCpcClient::connect() {
   if (::connect(cpc_sock, (struct sockaddr*) &sa, sizeof(sa)) < 0)
     return -1;
 
-  cpc_in = new SocketInputStream(cpc_sock);
+  cpc_in = new SocketInputStream(cpc_sock, 60000);
   cpc_out = new SocketOutputStream(cpc_sock);
-
+  
   return 0;
 }
 

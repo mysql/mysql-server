@@ -564,17 +564,17 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       if (tFirstDataPtr == 0) goto InvalidSignal;
 
       if (tWaitState != WAIT_TC_SEIZE) {
-	return;
+	goto InvalidSignal;
       }//if
       tCon = void2con(tFirstDataPtr);
       if (tCon->checkMagicNumber() != 0) {
-	return;
+	goto InvalidSignal;
       }//if
       tReturnCode = tCon->receiveTCSEIZECONF(aSignal);
       if (tReturnCode != -1) {
 	theWaiter.m_state = NO_WAIT;
       } else {
-        return;
+	goto InvalidSignal;
       }//if
       break;
     }
@@ -702,7 +702,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 				      tDataPtr + ScanTabConf::SignalLength, 
 				      tLen - ScanTabConf::SignalLength);
 	}
-	if (tReturnCode != -1)
+	if (tReturnCode != -1 && tWaitState == WAIT_SCAN)
 	  theWaiter.m_state = NO_WAIT;
 	break;
       } else {

@@ -524,7 +524,8 @@ inline NDB_INDEX_TYPE ha_ndbcluster::get_index_type(uint idx_no) const
     flags depending on the type of the index.
 */
 
-inline ulong ha_ndbcluster::index_flags(uint idx_no, uint part) const 
+inline ulong ha_ndbcluster::index_flags(uint idx_no, uint part,
+                                        bool all_parts) const 
 { 
   DBUG_ENTER("index_flags");
   DBUG_PRINT("info", ("idx_no: %d", idx_no));
@@ -1174,30 +1175,8 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   /* Check for update of primary key and return error */  
   if ((table->primary_key != MAX_KEY) &&
       (key_cmp(table->primary_key, old_data, new_data)))
-  {
-    DBUG_PRINT("info", ("primary key update, doing insert + delete"));
-    int insert_res = write_row(new_data);
-    if (!insert_res)
-    {
-      DBUG_PRINT("info", ("insert succeded"));
-      int delete_res = delete_row(old_data);
-      if (!delete_res)
-      {
-	DBUG_PRINT("info", ("insert + delete succeeded"));
-	DBUG_RETURN(0);
-      }
-      else
-      {
-	DBUG_PRINT("info", ("delete failed"));
-	DBUG_RETURN(delete_row(new_data));
-      }
-    } 
-    else
-    {
-      DBUG_PRINT("info", ("insert failed"));
-      DBUG_RETURN(insert_res);
-    }
-  }
+    DBUG_RETURN(HA_ERR_UNSUPPORTED);
+
   if (cursor)
   {
     /*
@@ -1650,8 +1629,10 @@ int ha_ndbcluster::rnd_init(bool scan)
   NdbResultSet *cursor= m_active_cursor;
   DBUG_ENTER("rnd_init");
   DBUG_PRINT("enter", ("scan: %d", scan));
-  // Check that cursor is not defined
-  if (cursor)
+  // Check if scan is to be restarted
+  if (cursor && scan)
+    cursor->restart();    
+  else
     DBUG_RETURN(1);
   index_init(table->primary_key);
   DBUG_RETURN(0);

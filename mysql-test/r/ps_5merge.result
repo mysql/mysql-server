@@ -432,12 +432,12 @@ where @arg01 = first.b or first.a = second.a or second.b = @arg02;
 a	@arg00	a
 1	ABC	1
 2	ABC	1
+3	ABC	1
+4	ABC	1
 2	ABC	2
 2	ABC	3
-2	ABC	4
-3	ABC	1
 3	ABC	3
-4	ABC	1
+2	ABC	4
 4	ABC	4
 prepare stmt1 from ' select first.a, ?, second.a FROM t1 first, t1 second
                     where ? = first.b or first.a = second.a or second.b = ? ';
@@ -445,12 +445,12 @@ execute stmt1 using @arg00, @arg01, @arg02;
 a	?	a
 1	ABC	1
 2	ABC	1
+3	ABC	1
+4	ABC	1
 2	ABC	2
 2	ABC	3
-2	ABC	4
-3	ABC	1
 3	ABC	3
-4	ABC	1
+2	ABC	4
 4	ABC	4
 test_sequence
 ------ subquery tests ------
@@ -1615,12 +1615,12 @@ where @arg01 = first.b or first.a = second.a or second.b = @arg02;
 a	@arg00	a
 1	ABC	1
 2	ABC	1
+3	ABC	1
+4	ABC	1
 2	ABC	2
 2	ABC	3
-2	ABC	4
-3	ABC	1
 3	ABC	3
-4	ABC	1
+2	ABC	4
 4	ABC	4
 prepare stmt1 from ' select first.a, ?, second.a FROM t1 first, t1 second
                     where ? = first.b or first.a = second.a or second.b = ? ';
@@ -1628,12 +1628,12 @@ execute stmt1 using @arg00, @arg01, @arg02;
 a	?	a
 1	ABC	1
 2	ABC	1
+3	ABC	1
+4	ABC	1
 2	ABC	2
 2	ABC	3
-2	ABC	4
-3	ABC	1
 3	ABC	3
-4	ABC	1
+2	ABC	4
 4	ABC	4
 test_sequence
 ------ subquery tests ------

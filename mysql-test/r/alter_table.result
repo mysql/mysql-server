@@ -123,7 +123,7 @@ grant all on mysqltest.t1 to mysqltest_1@localhost;
 alter table t1 rename t2;
 ERROR 42000: insert command denied to user 'mysqltest_1'@'localhost' for table 't2'
 revoke all privileges on mysqltest.t1 from mysqltest_1@localhost;
-delete from mysql.user where user='mysqltest_1';
+delete from mysql.user where user=_binary'mysqltest_1';
 drop database mysqltest;
 create table t1 (n1 int not null, n2 int, n3 int, n4 float,
 unique(n1),
