@@ -12704,6 +12704,7 @@ from t2);");
 
 static void test_bug8378()
 {
+#ifdef HAVE_CHARSET_gbk
   MYSQL *lmysql;
   char out[9]; /* strlen(TEST_BUG8378)*2+1 */
   int len;
@@ -12738,6 +12739,7 @@ static void test_bug8378()
   DIE_UNLESS(memcmp(out, TEST_BUG8378_OUT, len) == 0);
 
   mysql_close(lmysql);
+#endif
 }
 
 
