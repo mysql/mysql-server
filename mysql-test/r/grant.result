@@ -223,7 +223,7 @@ drop_user3@localhost, drop_user4@localhost;
 ERROR HY000: Can't revoke all privileges, grant for one or more of the requested users
 drop user drop_user1@localhost, drop_user2@localhost, drop_user3@localhost,
 drop_user4@localhost;
-ERROR HY000: Operation DROP USER failed for 4 of the requested users
+ERROR HY000: Operation DROP USER failed for 'drop_user1'@'localhost','drop_user2'@'localhost','drop_user3'@'localhost','drop_user4'@'localhost'
 drop table t1;
 grant usage on *.* to mysqltest_1@localhost identified by "password";
 grant select, update, insert on test.* to mysqltest_1@localhost;
