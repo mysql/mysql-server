@@ -12,7 +12,7 @@ sync_with_master;
 #discover slaves
 connection master;
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 33 #
+--replace_column 1 # 33 #
 SHOW SLAVE STATUS;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 SHOW SLAVE HOSTS;
