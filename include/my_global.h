@@ -103,7 +103,7 @@
 #ifdef _AIX			/* By soren@t.dk */
 #define _H_STRINGS
 #define _SYS_STREAM_H
-#define _AIX32_CURSES
+/* #define _AIX32_CURSES */	/* XXX: this breaks AIX 4.3.3 (others?). */
 #endif
 
 #ifdef HAVE_BROKEN_SNPRINTF	/* HPUX 10.20 don't have this defined */
