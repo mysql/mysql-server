@@ -975,3 +975,5 @@ drop table t1;
 select * from v1;
 ERROR HY000: View 'test.v1' references invalid table(s) or column(s)
 drop view v1;
+create view v1 (a,a) as select 'a','a';
+ERROR 42S21: Duplicate column name 'a'
