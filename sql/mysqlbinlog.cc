@@ -29,6 +29,8 @@
 
 #define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_LOCAL_FILES)
 
+char server_version[50];
+uint32 server_id = 0;
 
 // needed by net_serv.c
 ulong bytes_sent = 0L, bytes_received = 0L;
@@ -268,8 +270,9 @@ static void dump_remote_log_entries(const char* logname)
   int4store(buf, position);
   int2store(buf + 4, binlog_flags);
   len = (uint) strlen(logname);
-  memcpy(buf + 6, logname,len);
-  if(mc_simple_command(mysql, COM_BINLOG_DUMP, buf, len + 6, 1))
+  int4store(buf + 6, 0);
+  memcpy(buf + 10, logname,len);
+  if(mc_simple_command(mysql, COM_BINLOG_DUMP, buf, len + 10, 1))
     die("Error sending the log dump command");
   
   for(;;)

@@ -463,15 +463,16 @@ static int safe_sleep(THD* thd, int sec)
 
 static int request_dump(MYSQL* mysql, MASTER_INFO* mi)
 {
-  char buf[FN_REFLEN + 6];
+  char buf[FN_REFLEN + 10];
   int len;
   int binlog_flags = 0; // for now
   char* logname = mi->log_file_name;
   int4store(buf, mi->pos);
   int2store(buf + 4, binlog_flags);
+  int4store(buf + 6, server_id);
   len = (uint) strlen(logname);
-  memcpy(buf + 6, logname,len);
-  if(mc_simple_command(mysql, COM_BINLOG_DUMP, buf, len + 6, 1))
+  memcpy(buf + 10, logname,len);
+  if(mc_simple_command(mysql, COM_BINLOG_DUMP, buf, len + 10, 1))
 	// something went wrong, so we will just reconnect and retry later
 	// in the future, we should do a better error analysis, but for
 	// now we just fill up the error log :-)
@@ -795,11 +796,17 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
   THD *thd;; // needs to be first for thread_stack
   MYSQL *mysql = NULL ;
 
+  if(!server_id)
+    {
+     sql_print_error("Server id not set, will not start slave");
+     pthread_exit(1);
+    }
+  
   pthread_mutex_lock(&LOCK_slave);
   if(slave_running)
     {
       pthread_mutex_unlock(&LOCK_slave);
-      return 0;  // safety just in case
+      pthread_exit(1);  // safety just in case
     }
   slave_running = 1;
   abort_slave = 0;
@@ -936,7 +943,7 @@ static void safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi)
   while(!slave_killed(thd) && mc_mysql_reconnect(mysql))
   {
     sql_print_error(
-		    "Slave thread: error connecting to slave:%s, retry in %d sec",
+		    "Slave thread: error connecting to master:%s, retry in %d sec",
 		    mc_mysql_error(mysql), mi->connect_retry);
     safe_sleep(thd, mi->connect_retry);
   }
