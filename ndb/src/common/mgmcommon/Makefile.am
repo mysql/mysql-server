@@ -7,7 +7,7 @@ libmgmsrvcommon_la_SOURCES = \
 
 INCLUDES_LOC = -I$(top_srcdir)/ndb/src/mgmapi -I$(top_srcdir)/ndb/src/mgmsrv
 
-DEFS_LOC = -DNDB_BASE_PORT="\"@ndb_port_base@\""
+DEFS_LOC = -DNDB_PORT="\"@ndb_port@\""
 
 include $(top_srcdir)/ndb/config/common.mk.am
 include $(top_srcdir)/ndb/config/type_ndbapi.mk.am

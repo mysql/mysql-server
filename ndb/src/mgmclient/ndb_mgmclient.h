@@ -14,20 +14,20 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef Ndb_mgmclient_hpp
-#define Ndb_mgmclient_hpp
+#ifndef Ndb_mgmclient_h
+#define Ndb_mgmclient_h
 
-class CommandInterpreter;
-class Ndb_mgmclient
-{
-public:
-  Ndb_mgmclient(const char*);
-  ~Ndb_mgmclient();
-  int execute(const char *_line, int _try_reconnect=-1);
-  int execute(int argc, const char** argv, int _try_reconnect=-1);
-  int disconnect();
-private:
-  CommandInterpreter *m_cmd;
-};
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#endif // Ndb_mgmclient_hpp
+typedef void* Ndb_mgmclient_handle;
+Ndb_mgmclient_handle ndb_mgmclient_handle_create(const char *connect_string);
+int ndb_mgmclient_execute(Ndb_mgmclient_handle, int argc, const char** argv);
+int ndb_mgmclient_handle_destroy(Ndb_mgmclient_handle);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* Ndb_mgmclient_h */
