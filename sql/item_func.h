@@ -512,13 +512,13 @@ class Item_func_rand :public Item_real_func
 {
   struct rand_struct *rand;
 public:
-  Item_func_rand(Item *a) :Item_real_func(a) {}
-  Item_func_rand()	  :Item_real_func()  {}
+  Item_func_rand(Item *a) :Item_real_func(a), rand(0) {}
+  Item_func_rand()	  :Item_real_func() {}
   double val();
   const char *func_name() const { return "rand"; }
   bool const_item() const { return 0; }
   void update_used_tables();
-  void fix_length_and_dec();
+  bool fix_fields(THD *thd, struct st_table_list *tables, Item **ref);
 };
 
 

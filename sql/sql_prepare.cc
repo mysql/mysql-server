@@ -1760,6 +1760,8 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
     DBUG_VOID_RETURN;
   }
 
+  DBUG_ASSERT(thd->free_list == NULL);
+  mysql_reset_thd_for_next_command(thd);
 #ifndef EMBEDDED_LIBRARY
   if (stmt->param_count)
   {
@@ -1778,7 +1780,6 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   if (stmt->param_count && stmt->set_params_data(stmt, &expanded_query))
     goto set_params_data_err;
 #endif
-  DBUG_ASSERT(thd->free_list == NULL);
   thd->protocol= &thd->protocol_prep;           // Switch to binary protocol
   execute_stmt(thd, stmt, &expanded_query, true);
   thd->protocol= &thd->protocol_simple;         // Use normal protocol
@@ -1823,7 +1824,8 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
   }
 
   DBUG_ASSERT(thd->free_list == NULL);
-
+  /* Must go before setting variables, as it clears thd->user_var_events */
+  mysql_reset_thd_for_next_command(thd);
   thd->set_n_backup_statement(stmt, &thd->stmt_backup);
   if (stmt->set_params_from_vars(stmt,
                                  thd->stmt_backup.lex->prepared_stmt_params,
@@ -1932,6 +1934,7 @@ void mysql_stmt_reset(THD *thd, char *packet)
   */
   reset_stmt_params(stmt);
 
+  mysql_reset_thd_for_next_command(thd);
   send_ok(thd);
   
   DBUG_VOID_RETURN;
