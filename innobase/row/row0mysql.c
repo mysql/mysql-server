@@ -1348,7 +1348,9 @@ row_create_table_for_mysql(
      "InnoDB: creating an InnoDB table with the same name in another\n"
      "InnoDB: database and moving the .frm file to the current database.\n"
      "InnoDB: Then MySQL thinks the table exists, and DROP TABLE will\n"
-     "InnoDB: succeed.\n");
+     "InnoDB: succeed.\n"
+     "InnoDB: You can look further help from section 15.1 of\n"
+     "InnoDB: http://www.innodb.com/ibman.html\n");
 		}
 
 		trx->error_state = DB_SUCCESS;
@@ -1867,7 +1869,9 @@ row_drop_table_for_mysql(
      	"  InnoDB: Error: table %s does not exist in the InnoDB internal\n"
      	"InnoDB: data dictionary though MySQL is trying to drop it.\n"
      	"InnoDB: Have you copied the .frm file of the table to the\n"
-	"InnoDB: MySQL database directory from another database?\n",
+	"InnoDB: MySQL database directory from another database?\n"
+	"InnoDB: You can look further help from section 15.1 of\n"
+        "InnoDB: http://www.innodb.com/ibman.html\n",
 				 name);
 		goto funct_exit;
 	}
@@ -2189,7 +2193,9 @@ row_rename_table_for_mysql(
 			fprintf(stderr,
      "  InnoDB: Error: table %s exists in the InnoDB internal data\n"
      "InnoDB: dictionary though MySQL is trying rename table %s to it.\n"
-     "InnoDB: Have you deleted the .frm file and not used DROP TABLE?\n",
+     "InnoDB: Have you deleted the .frm file and not used DROP TABLE?\n"
+     "InnoDB: You can look further help from section 15.1 of\n"
+     "InnoDB: http://www.innodb.com/ibman.html\n",
 			new_name, old_name);
 
 			fprintf(stderr,
