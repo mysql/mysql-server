@@ -3979,10 +3979,9 @@ each time a record is deleted from a transaction table and that automatically
 deletes the corresponding customer from a customer table when all his
 transactions are deleted.
 
-The planned update language will be able to handle stored procedures, but
-without triggers. Triggers usually slow down everything, even queries for
-which they are not needed. To see when MySQL will get stored procedures,
-see @ref{TODO}.
+The planned update language will be able to handle stored procedures.
+Our aim is to have stored procedures implemented in MySQL 4.1.
+We are also looking at triggers.
 
 
 @node ANSI diff Foreign Keys, ANSI diff Views, ANSI diff Triggers, Differences from ANSI
@@ -5987,11 +5986,9 @@ Add use of @code{zlib()} for @code{gzip}-ed files to @code{LOAD DATA INFILE}.
 @item
 Fix sorting and grouping of @code{BLOB} columns (partly solved now).
 @item
-Stored procedures.  This is currently not regarded to be very
-important as stored procedures are not very standardised yet.
-Another problem is that true stored procedures make it much harder for
-the optimiser and in many cases the result is slower than before
-We will, on the other hand, add a simple (atomic) update language that
+Stored procedures. Triggers are also being looked at.
+@item
+A simple (atomic) update language that
 can be used to write loops and such in the MySQL server.
 @item
 Change to use semaphores when counting threads.  One should first implement
