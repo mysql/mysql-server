@@ -166,16 +166,24 @@ CREATE TABLE `a/b` (i INT);
 #CREATE TABLE ```ab````cd``` (i INT);
 #SHOW CREATE TABLE ```ab````cd```;
 #DROP TABLE ```ab````cd```;
-
+#
 #CREATE TABLE ```a` (i INT);
 #SHOW CREATE TABLE ```a`;
 #DROP TABLE ```a`;
-
-SET sql_mode= 'ANSI_QUOTES';
-
+#
+#SET sql_mode= 'ANSI_QUOTES';
+#
 #CREATE TABLE """a" (i INT);
 #SHOW CREATE TABLE """a";
 #DROP TABLE """a";
+#
+#Bug #4374 SHOW TABLE STATUS FROM ignores collation_connection
+#set names latin1;
+#create database `ä`;
+#create table `ä`.`ä` (a int) engine=heap;
+#--replace_column 7 # 8 # 9 #
+#show table status from `ä` LIKE 'ä';
+#drop database `ä`;
 #########################################################
 # end of part that must be uncommented when WL#1324 is done
 #########################################################
@@ -306,10 +314,3 @@ delete from mysql.db
 where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
 flush privileges;
 
-#Bug #4374 SHOW TABLE STATUS FROM ignores collation_connection
-set names latin1;
-create database `ä`;
-create table `ä`.`ä` (a int) engine=heap;
---replace_column 7 # 8 # 9 #
-show table status from `ä` LIKE 'ä';
-drop database `ä`;
