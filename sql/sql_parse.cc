@@ -27,6 +27,7 @@
 
 #include "sp_head.h"
 #include "sp.h"
+#include "sp_cache.h"
 
 #ifdef HAVE_OPENSSL
 /*
@@ -3045,6 +3046,7 @@ unsent_create_error:
       goto error; /* purecov: inspected */
     thd->slow_command=TRUE;
     res = mysql_check_table(thd, first_table, &lex->check_opt);
+    sp_cache_invalidate();
     break;
   }
   case SQLCOM_ANALYZE:
@@ -3629,18 +3631,36 @@ unsent_create_error:
     if (thd->user)				// If not replication
     {
       LEX_USER *user;
+      uint counter;
+
       List_iterator <LEX_USER> user_list(lex->users_list);
       while ((user=user_list++))
       {
-	if (user->password.str &&
-	    (strcmp(thd->user, user->user.str) ||
-	     user->host.str &&
-	     my_strcasecmp(system_charset_info,
-			   user->host.str, thd->host_or_ip)))
+	if (strcmp(thd->user, user->user.str) ||
+	    user->host.str &&
+	    my_strcasecmp(system_charset_info,
+			  user->host.str, thd->host_or_ip))
 	{
-	  if (check_access(thd, UPDATE_ACL, "mysql", 0, 1, 0))
-	    goto error;
-	  break;			// We are allowed to do changes
+	  // We are trying to update another user, or create a new user
+	  
+	  if (!check_access(thd, GRANT_ACL, "mysql", 0, 1, 1))
+	    break; // We can update any existing, or add new users
+
+	  if (!check_acl_user(user, &counter) &&
+	      check_access(thd, INSERT_ACL, "mysql", 0, 1, 1))
+	  {
+	    my_error(ER_NO_PERMISSION_TO_CREATE_USER, MYF(0),
+		     thd->user, thd->host_or_ip);
+	    goto error; // Can't create new user, user does not exists
+	  }
+	  if (check_acl_user(user, &counter) &&
+	      user->password.str &&
+	      check_access(thd, UPDATE_ACL, "mysql", 0, 1, 1))
+	  {
+	    my_message(ER_PASSWORD_NOT_ALLOWED,
+		       ER(ER_PASSWORD_NOT_ALLOWED), MYF(0));
+	    goto error; // Can't update password, user already exists
+	  }
 	}
       }
     }
