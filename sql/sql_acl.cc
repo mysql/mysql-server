@@ -501,7 +501,6 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 {
   ulong user_access=NO_ACCESS;
   *priv_user=(char*) user;
-  char *ptr=0;
   DBUG_ENTER("acl_getroot");
 
   bzero(mqh,sizeof(USER_RESOURCES));
@@ -578,34 +577,29 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 	    if (acl_user->x509_issuer) 
 	    {
 	      DBUG_PRINT("info",("checkpoint 3"));
-	      ptr = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);
+	      char *ptr = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);
 	      DBUG_PRINT("info",("comparing issuers: '%s' and '%s'",
 				 acl_user->x509_issuer, ptr));
-	      if (!strcmp(acl_user->x509_issuer,ptr))
-		user_access=acl_user->access;
-	      else 
+	      if (strcmp(acl_user->x509_issuer, ptr))
 	      {
 		user_access=NO_ACCESS;
 		free(ptr);
 		break;
 	      }
+	      user_access=acl_user->access;
 	      free(ptr);
 	    }
 	    DBUG_PRINT("info",("checkpoint 4"));
 	    /* X509 subject is specified, we check it .. */
 	    if (acl_user->x509_subject)
 	    {
-	      ptr = X509_NAME_oneline(X509_get_subject_name(cert), 0, 0);
+	      char *ptr= X509_NAME_oneline(X509_get_subject_name(cert), 0, 0);
 	      DBUG_PRINT("info",("comparing subjects: '%s' and '%s'",
 				 acl_user->x509_subject, ptr));
-	      if (!strcmp(acl_user->x509_subject,ptr))
-		user_access=acl_user->access;
-	      else 
-	      {
+	      if (strcmp(acl_user->x509_subject,ptr))
 		user_access=NO_ACCESS;
-		free(ptr);
-		break;
-	      }
+	      else
+		user_access=acl_user->access;
 	      free(ptr);
 	    }
 	    break;

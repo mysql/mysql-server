@@ -129,7 +129,6 @@ static void check_unused(void)
 OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
 {
   int result = 0;
-  uint col_access=thd->col_access;
   OPEN_TABLE_LIST **start_list, *open_list;
   TABLE_LIST table_list;
   char name[NAME_LEN*2];

@@ -73,10 +73,6 @@ extern "C" {					// Because of SCO 3.2V4.2
 }
 
 static void mc_free_rows(MYSQL_DATA *cur);
-static MYSQL_FIELD *unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
-		  	          my_bool default_value,
-				  my_bool long_flag_protocol);
-
 void mc_end_server(MYSQL *mysql);
 static int mc_sock_connect(File s, const struct sockaddr *name, uint namelen, uint to);
 static void mc_free_old_query(MYSQL *mysql);

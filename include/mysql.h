@@ -100,7 +100,7 @@ typedef struct st_mysql_rows {
 
 typedef MYSQL_ROWS *MYSQL_ROW_OFFSET;	/* offset to current row */
 
-#include <my_alloc.h>
+#include "my_alloc.h"
 
 typedef struct st_mysql_data {
   my_ulonglong rows;

@@ -2042,7 +2042,6 @@ Query_cache::get_free_block(ulong len, my_bool not_less, ulong min)
   if (bins[start].number != 0)
   {
     Query_cache_block *list = bins[start].free_blocks;
-    ulong max_len = list->prev->length;
     if (list->prev->length >= len) // check block with max size 
     { 
       first = list;
