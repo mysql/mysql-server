@@ -138,7 +138,7 @@ MySQL is a very fast, multi-threaded, multi-user, and robust SQL
 (Structured Query Language) database server.
 
 You can use MySQL free of charge under the
-@strong{GNU GENERAL PUBLIC LICENSE} @uref{http://www.gnu.org/}.
+@strong{GNU GENERAL PUBLIC LICENSE} @uref{http://www.gnu.org/licenses/}.
 You can also purchase commercial MySQL licenses from MySQL AB if you
 do not wish to be bound by the terms of the GPL.
 @xref{Licensing and Support}.
@@ -435,7 +435,7 @@ Open Source means that it is possible for anyone to use and modify.
 Anybody can download MySQL from the Internet and use it
 without paying anything.  Anybody so inclined can study the source code
 and change it to fit their needs.  MySQL uses the GPL (GNU
-General Public License) @uref{http://www.gnu.org/}, to define what you
+General Public License) @uref{http://www.gnu.org/licenses/}, to define what you
 may and may not do with the software in different situations.  If you
 feel uncomfortable with the GPL or need to embed MySQL into a commercial
 application you can buy a commercially licensed version from us.
@@ -1442,8 +1442,8 @@ MySQL troubleshooters available, those employed by MySQL AB.
 
 The MySQL server is released under the GNU General Public License (GPL),
 which probably is the best known Open Source license. The formal terms
-of the GPL license can be found at @uref{http://www.gnu.org/}.
-See also @uref{http://www.gnu.org/copyleft/gpl-faq.html}.
+of the GPL license can be found at @uref{http://www.gnu.org/licenses/}.
+See also @uref{http://www.gnu.org/licenses/gpl-faq.html}.
 
 Since the MySQL server is released under the GPL, it may often be used
 for free, but for certain uses you need to buy commercial licenses from
@@ -1535,7 +1535,7 @@ When using the MySQL server internally in your company.
 When include the MySQL client code in a commercial program.
 The client part of MySQL is licensed under the LGPL
 @code{GNU Library General Public License}. The formal terms of the
-LGPL license can be found at @uref{http://www.gnu.org/}.
+LGPL license can be found at @uref{http://www.gnu.org/licenses/}.
 
 However, the @code{mysql} command-line client does include code
 from the GNU @code{readline} library that is under the @code{GPL}.
