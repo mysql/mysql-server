@@ -1834,7 +1834,7 @@ set latin_de which corrects the @emph{German sorting order}, placing German
 Umlauts in the same order as German telephone books.
 
 @item
-Features to simplify @code{migration} from other database systems to MySQL
+Features to simplify migration from other database systems to MySQL
 Server include @code{TRUNCATE TABLE} (like in Oracle) and @code{IDENTITY} as a
 synonym for automatically incremented keys (like in Sybase). Many users will
 also be happy to learn that MySQL Server now supports the @code{UNION} statement,
