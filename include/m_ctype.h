@@ -49,6 +49,7 @@ typedef struct unicase_info_st {
 #define MY_CS_INDEX     4      /* sets listed in the Index file  */
 #define MY_CS_LOADED    8      /* sets that are currently loaded */
 #define MY_CS_BINSORT	16     /* if binary sort order           */
+#define MY_CS_PRIMARY	32     /* if primary collation           */
 
 #define MY_CHARSET_UNDEFINED 0
 #define MY_CHARSET_CURRENT (default_charset_info->number)
@@ -65,6 +66,7 @@ typedef struct charset_info_st
 {
   uint      number;
   uint      state;
+  const char *csname;
   const char *name;
   const char *comment;
   uchar    *ctype;
@@ -127,6 +129,7 @@ typedef struct charset_info_st
   int  (*l10tostr)(struct charset_info_st *, char *to, uint n, int radix, long int val);
   int (*ll10tostr)(struct charset_info_st *, char *to, uint n, int radix, longlong val);
   
+  /* String-to-number convertion routines */
   long        (*strntol)(struct charset_info_st *, const char *s, uint l,char **e, int base);
   ulong      (*strntoul)(struct charset_info_st *, const char *s, uint l, char **e, int base);
   longlong   (*strntoll)(struct charset_info_st *, const char *s, uint l, char **e, int base);

@@ -260,6 +260,7 @@ static CHARSET_INFO my_charset_bin_st =
 {
     63,				/* number        */
     MY_CS_COMPILED|MY_CS_BINSORT,/* state        */
+    "binary",			/* cs name    */
     "binary",			/* name          */
     "",				/* comment       */
     ctype_bin,			/* ctype         */

@@ -2811,6 +2811,7 @@ static CHARSET_INFO compiled_charsets[] = {
   {
     8,			/* number     */
     MY_CS_COMPILED,	/* state      */
+    "latin1",		/* cs name    */
     "latin1",		/* name       */
     "",			/* comment    */
     ctype_latin1,
@@ -2856,6 +2857,7 @@ static CHARSET_INFO compiled_charsets[] = {
   {
     14,			/* number */
     MY_CS_COMPILED,	/* state      */
+    "cp1251",		/* cs name    */
     "cp1251",		/* name */
     "",			/* comment    */
     ctype_cp1251,
@@ -2900,6 +2902,7 @@ static CHARSET_INFO compiled_charsets[] = {
   {
     29,			/* number */
     MY_CS_COMPILED,	/* state      */
+    "cp1257",		/* cs name    */
     "cp1257",		/* name */
     "",			/* comment    */
     ctype_cp1257,
@@ -2944,6 +2947,7 @@ static CHARSET_INFO compiled_charsets[] = {
   {
     27,			/* number */
     MY_CS_COMPILED,	/* state      */
+    "latin2",		/* cs name    */
     "croat",		/* name */
     "",			/* comment    */
     ctype_croat,
@@ -2989,6 +2993,7 @@ static CHARSET_INFO compiled_charsets[] = {
   {
     15,			/* number */
     MY_CS_COMPILED,	/* state      */
+    "latin1",		/* cs name    */
     "danish",		/* name */
     "",			/* comment    */
     ctype_danish,
@@ -3033,6 +3038,7 @@ static CHARSET_INFO compiled_charsets[] = {
   {
     3,			/* number */
     MY_CS_COMPILED,	/* state      */
+    "dec8",		/* cs name    */
     "dec8",		/* name */
     "",			/* comment    */
     ctype_dec8,
@@ -3077,6 +3083,7 @@ static CHARSET_INFO compiled_charsets[] = {
   {
     4,			/* number */
     MY_CS_COMPILED,	/* state      */
+    "cp850",		/* cs name    */
     "dos",		/* name */
     "",			/* comment    */
     ctype_dos,
@@ -3121,6 +3128,7 @@ static CHARSET_INFO compiled_charsets[] = {
   {
     20,			/* number */
     MY_CS_COMPILED,	/* state      */
+    "latin7",		/* cs name    */
     "estonia",		/* name */
     "",			/* comment    */
     ctype_estonia,
@@ -3166,6 +3174,7 @@ static CHARSET_INFO compiled_charsets[] = {
   {
     5,			/* number */
     MY_CS_COMPILED,	/* state      */
+    "latin1",		/* cs name    */
     "german1",		/* name */
     "",			/* comment    */
     ctype_german1,
@@ -3210,6 +3219,7 @@ static CHARSET_INFO compiled_charsets[] = {
   {
     25,			/* number */
     MY_CS_COMPILED,	/* state      */
+    "greek",		/* cs name    */
     "greek",		/* name */
     "",			/* comment    */
     ctype_greek,
@@ -3254,6 +3264,7 @@ static CHARSET_INFO compiled_charsets[] = {
   {
     16,			/* number */
     MY_CS_COMPILED,	/* state      */
+    "hebrew",		/* cs name    */
     "hebrew",		/* name */
     "",			/* comment    */
     ctype_hebrew,
@@ -3298,6 +3309,7 @@ static CHARSET_INFO compiled_charsets[] = {
   {
     6,			/* number */
     MY_CS_COMPILED,	/* state      */
+    "hp8",		/* cs name    */
     "hp8",		/* name */
     "",			/* comment    */
     ctype_hp8,
@@ -3342,6 +3354,7 @@ static CHARSET_INFO compiled_charsets[] = {
   {
     21,			/* number */
     MY_CS_COMPILED,	/* state      */
+    "latin2",		/* cs name    */
     "hungarian",	/* name */
     "",			/* comment    */
     ctype_hungarian,
@@ -3386,6 +3399,7 @@ static CHARSET_INFO compiled_charsets[] = {
   {
     7,			/* number */
     MY_CS_COMPILED,	/* state      */
+    "koi8_ru",		/* cs name    */
     "koi8_ru",		/* name */
     "",			/* comment    */
     ctype_koi8_ru,
@@ -3430,6 +3444,7 @@ static CHARSET_INFO compiled_charsets[] = {
   {
     22,			/* number */
     MY_CS_COMPILED,	/* state      */
+    "koi8_ukr",		/* cs name    */
     "koi8_ukr",		/* name */
     "",			/* comment    */
     ctype_koi8_ukr,
@@ -3475,6 +3490,7 @@ static CHARSET_INFO compiled_charsets[] = {
   {
     9,			/* number */
     MY_CS_COMPILED,	/* state      */
+    "latin2",		/* cs name    */
     "latin2",		/* name */
     "",			/* comment    */
     ctype_latin2,
@@ -3519,6 +3535,7 @@ static CHARSET_INFO compiled_charsets[] = {
   {
     30,			/* number */
     MY_CS_COMPILED,	/* state      */
+    "latin5",		/* cs name    */
     "latin5",		/* name */
     "",			/* comment    */
     ctype_latin5,
@@ -3564,6 +3581,7 @@ static CHARSET_INFO compiled_charsets[] = {
   {
     10,			/* number */
     MY_CS_COMPILED,	/* state      */
+    "swe7",		/* cs name    */
     "swe7",		/* name */
     "",			/* comment    */
     ctype_swe7,
@@ -3609,6 +3627,7 @@ static CHARSET_INFO compiled_charsets[] = {
   {
     11,			/* number */
     MY_CS_COMPILED,	/* state      */
+    "ascii",		/* cs name    */
     "usa7",		/* name */
     "",			/* comment    */
     ctype_usa7,
@@ -3653,6 +3672,7 @@ static CHARSET_INFO compiled_charsets[] = {
   {
     26,			/* number */
     MY_CS_COMPILED,	/* state      */
+    "cp1250",		/* cs name    */
     "win1250",		/* name */
     "",			/* comment    */
     ctype_win1250,
@@ -3697,6 +3717,7 @@ static CHARSET_INFO compiled_charsets[] = {
   {
     23,			/* number */
     MY_CS_COMPILED,	/* state      */
+    "cp1251",		/* cs name    */
     "win1251ukr",	/* name */
     "",			/* comment    */
     ctype_win1251ukr,
@@ -3741,6 +3762,7 @@ static CHARSET_INFO compiled_charsets[] = {
   {
     32,			/* number */
     MY_CS_COMPILED,	/* state      */
+    "armscii8",		/* cs name    */
     "armscii8",		/* name */
     "",			/* comment    */
     ctype_armscii8,
@@ -3785,6 +3807,7 @@ static CHARSET_INFO compiled_charsets[] = {
   {
     17,			/* number */
     MY_CS_COMPILED,	/* state      */
+    "cp1251",		/* cs name    */
     "win1251",		/* name */
     "",			/* comment    */
     ctype_win1251,
@@ -3828,6 +3851,7 @@ static CHARSET_INFO compiled_charsets[] = {
   {
     0,			/* end-of-list marker */
     0,			/* state      */
+    NullS,		/* cs name    */
     NullS,		/* name       */
     NullS,		/* comment    */
     NULL,

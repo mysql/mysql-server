@@ -6219,6 +6219,7 @@ CHARSET_INFO my_charset_big5 =
 {
     1,			/* number     */
     MY_CS_COMPILED,	/* state      */
+    "big5",		/* cs name    */
     "big5",		/* name       */
     "",			/* comment    */
     ctype_big5,

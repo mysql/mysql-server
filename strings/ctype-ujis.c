@@ -8431,6 +8431,7 @@ CHARSET_INFO my_charset_ujis =
 {
     12,			/* number       */
     MY_CS_COMPILED,	/* state        */
+    "ujis",		/* cs name    */
     "ujis",		/* name         */
     "",			/* comment      */
     ctype_ujis,

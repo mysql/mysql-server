@@ -9874,6 +9874,7 @@ CHARSET_INFO my_charset_gbk =
 {
     28,			/* number */
     MY_CS_COMPILED,	/* state      */
+    "gbk",		/* cs name    */
     "gbk",		/* name */
     "",			/* comment    */
     ctype_gbk,

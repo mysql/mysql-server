@@ -5687,6 +5687,7 @@ CHARSET_INFO my_charset_gb2312 =
 {
     24,			/* number */
     MY_CS_COMPILED,	/* state      */
+    "gb2312",		/* cs name    */
     "gb2312",		/* name */
     "",			/* comment    */
     ctype_gb2312,
