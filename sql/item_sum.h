@@ -415,13 +415,7 @@ class Item_sum_hybrid :public Item_sum
   table_map used_tables() const { return used_table_cache; }
   bool const_item() const { return !used_table_cache; }
 
-  void clear()
-  {
-    sum=0.0;
-    sum_int=0;
-    value.length(0);
-    null_value=1;
-  }
+  void clear();
   double val();
   longlong val_int();
   void reset_field();
