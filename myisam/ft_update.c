@@ -64,8 +64,18 @@ uint _mi_ft_segiterator(register FT_SEG_ITERATOR *ftsi)
 {
   DBUG_ENTER("_mi_ft_segiterator");
 
-  if (!ftsi->num) DBUG_RETURN(0) else ftsi->num--;
-  if (!ftsi->seg) DBUG_RETURN(1) else ftsi->seg--;
+  if (!ftsi->num)
+  {
+    DBUG_RETURN(0);
+  }
+  else
+    ftsi->num--;
+  if (!ftsi->seg)
+  {
+    DBUG_RETURN(1);
+  }
+  else
+    ftsi->seg--;
 
   if (ftsi->seg->null_bit &&
       (ftsi->rec[ftsi->seg->null_pos] & ftsi->seg->null_bit))
