@@ -36677,7 +36677,7 @@ unless you know what you are doing!
 
 @item
 The minimum length of words to be indexed is defined by the MySQL
-variable @code{ft_min_word_length}. @xref{SHOW VARIABLES}.
+variable @code{ft_min_word_len}. @xref{SHOW VARIABLES}.
 Change it to the value you prefer, and rebuild your @code{FULLTEXT} indexes.
 (This variable is only available from MySQL version 4.0.)
 
