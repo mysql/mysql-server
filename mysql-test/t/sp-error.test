@@ -388,6 +388,20 @@ call bug1653()|
 drop procedure bug1653|
 drop table t3|
 
+#
+# BUG#2272
+#
+create procedure bug2272()
+begin
+  declare v int;
+
+  update t1 set v = 42;
+end|
+
+insert into t1 values (666, 51.3)|
+--error 1054
+call bug2272()|
+delete from t1|
 
 drop table t1|
 

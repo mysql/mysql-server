@@ -283,4 +283,13 @@ create table t3 (column_1 int)|
 call bug1653()|
 drop procedure bug1653|
 drop table t3|
+create procedure bug2272()
+begin
+declare v int;
+update t1 set v = 42;
+end|
+insert into t1 values (666, 51.3)|
+call bug2272()|
+ERROR 42S22: Unknown column 'v' in 'field list'
+delete from t1|
 drop table t1|
