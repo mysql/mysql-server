@@ -3004,7 +3004,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       m_transaction_on= FALSE;
     else
       m_transaction_on= thd->variables.ndb_use_transactions;
-    //     m_use_local_query_cache= thd->variables.ndb_use_local_query_cache;
+    m_use_local_query_cache= thd->variables.ndb_use_local_query_cache;
 
     m_active_trans= thd->transaction.all.ndb_tid ? 
       (NdbConnection*)thd->transaction.all.ndb_tid:
