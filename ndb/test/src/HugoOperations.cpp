@@ -305,7 +305,7 @@ int HugoOperations::execute_Commit(Ndb* pNdb,
     m_executed_result_sets.push_back(m_result_sets[i]);
 
     int rows = m_result_sets[i].records;
-    NdbResultSet* rs = m_result_sets[i].m_result_set;
+    NdbScanOperation* rs = m_result_sets[i].m_result_set;
     int res = rs->nextResult();
     switch(res){
     case 1:
@@ -354,7 +354,7 @@ int HugoOperations::execute_NoCommit(Ndb* pNdb, AbortOption eao){
     m_executed_result_sets.push_back(m_result_sets[i]);
 
     int rows = m_result_sets[i].records;
-    NdbResultSet* rs = m_result_sets[i].m_result_set;
+    NdbScanOperation* rs = m_result_sets[i].m_result_set;
     int res = rs->nextResult();
     switch(res){
     case 1:
@@ -700,12 +700,10 @@ HugoOperations::scanReadRecords(Ndb* pNdb, NdbScanOperation::LockMode lm,
   if(!pOp)
     return -1;
 
-  NdbResultSet * rs = pOp->readTuples(lm, 1, 1);
-  
-  if(!rs){
+  if(pOp->readTuples(lm, 1, 1)){
     return -1;
   }
-
+  
   for(int a = 0; a<tab.getNoOfColumns(); a++){
     if((rows[0]->attributeStore(a) = 
 	pOp->getValue(tab.getColumn(a)->getName())) == 0) {
@@ -713,8 +711,8 @@ HugoOperations::scanReadRecords(Ndb* pNdb, NdbScanOperation::LockMode lm,
       return NDBT_FAILED;
     }
   } 
-
-  RsPair p = {rs, records};
+  
+  RsPair p = {pOp, records};
   m_result_sets.push_back(p);
   
   return 0;

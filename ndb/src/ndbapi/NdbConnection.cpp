@@ -1109,7 +1109,6 @@ NdbConnection::getNdbIndexScanOperation(const NdbIndexImpl* index,
       if(tOp)
       {
 	tOp->m_currentTable = table;
-	tOp->m_cursor_type = NdbScanOperation::IndexCursor;
       }
       return tOp;
     } else {

@@ -16,7 +16,6 @@
 
 #include <ndb_global.h>
 #include <NdbIndexOperation.hpp>
-#include <NdbResultSet.hpp>
 #include <Ndb.hpp>
 #include <NdbConnection.hpp>
 #include "NdbApiSignal.hpp"

@@ -46,20 +46,6 @@ class NdbScanOperation : public NdbOperation {
   friend class NdbBlob;
 public:
   /**
-   * Type of cursor
-   */
-  enum CursorType {
-    NoCursor = 0,
-    ScanCursor = 1,
-    IndexCursor = 2
-  };
-
-  /**
-   * Type of cursor
-   */
-  CursorType get_cursor_type() const;
-
-  /**
    * readTuples returns a NdbResultSet where tuples are stored.
    * Tuples are not stored in NdbResultSet until execute(NoCommit) 
    * has been executed and nextResult has been called.
@@ -67,33 +53,126 @@ public:
    * @param parallel  Scan parallelism
    * @param batch No of rows to fetch from each fragment at a time
    * @param LockMode  Scan lock handling   
-   * @returns NdbResultSet.
    * @note specifying 0 for batch and parallall means max performance
    */ 
-  NdbResultSet* readTuples(LockMode = LM_Read, 
-			   Uint32 batch = 0, Uint32 parallel = 0);
+  int readTuples(LockMode = LM_Read, 
+		 Uint32 batch = 0, Uint32 parallel = 0);
   
-  inline NdbResultSet* readTuples(int parallell){
+  inline int readTuples(int parallell){
     return readTuples(LM_Read, 0, parallell);
   }
   
-  inline NdbResultSet* readTuplesExclusive(int parallell = 0){
+  inline int readTuplesExclusive(int parallell = 0){
     return readTuples(LM_Exclusive, 0, parallell);
   }
   
   NdbBlob* getBlobHandle(const char* anAttrName);
   NdbBlob* getBlobHandle(Uint32 anAttrId);
 
-protected:
-  CursorType m_cursor_type;
+  /**
+   * Get the next tuple in a scan transaction. 
+   * 
+   * After each call to NdbResult::nextResult
+   * the buffers and NdbRecAttr objects defined in 
+   * NdbOperation::getValue are updated with values 
+   * from the scanned tuple. 
+   *
+   * @param  fetchAllowed  If set to false, then fetching is disabled
+   *
+   * The NDB API will contact the NDB Kernel for more tuples 
+   * when necessary to do so unless you set the fetchAllowed 
+   * to false. 
+   * This will force NDB to process any records it
+   * already has in it's caches. When there are no more cached 
+   * records it will return 2. You must then call nextResult
+   * with fetchAllowed = true in order to contact NDB for more 
+   * records.
+   *
+   * fetchAllowed = false is useful when you want to update or 
+   * delete all the records fetched in one transaction(This will save a
+   *  lot of round trip time and make updates or deletes of scanned 
+   * records a lot faster). 
+   * While nextResult(false)
+   * returns 0 take over the record to another transaction. When 
+   * nextResult(false) returns 2 you must execute and commit the other 
+   * transaction. This will cause the locks to be transferred to the 
+   * other transaction, updates or deletes will be made and then the 
+   * locks will be released.
+   * After that, call nextResult(true) which will fetch new records and
+   * cache them in the NdbApi. 
+   * 
+   * @note  If you don't take over the records to another transaction the 
+   *        locks on those records will be released the next time NDB Kernel
+   *        is contacted for more records.
+   *
+   * @note  Please contact for examples of efficient scan
+   *        updates and deletes.
+   * 
+   * @note  See ndb/examples/ndbapi_scan_example for usage.
+   *
+   * @return 
+   * -  -1: if unsuccessful,<br>
+   * -   0: if another tuple was received, and<br> 
+   * -   1: if there are no more tuples to scan.
+   * -   2: if there are no more cached records in NdbApi
+   */
+  int nextResult(bool fetchAllowed = true, bool forceSend = false);
 
+  /**
+   * Close result set (scan)
+   */
+  void close(bool forceSend = false);
+
+  /**
+   * Restart
+   */
+  int restart(bool forceSend = false);
+  
+  /**
+   * Transfer scan operation to an updating transaction. Use this function 
+   * when a scan has found a record that you want to update. 
+   * 1. Start a new transaction.
+   * 2. Call the function takeOverForUpdate using your new transaction 
+   *    as parameter, all the properties of the found record will be copied 
+   *    to the new transaction.
+   * 3. When you execute the new transaction, the lock held by the scan will 
+   *    be transferred to the new transaction(it's taken over).
+   *
+   * @note You must have started the scan with openScanExclusive
+   *       to be able to update the found tuple.
+   *
+   * @param updateTrans the update transaction connection.
+   * @return an NdbOperation or NULL.
+   */
+  NdbOperation* updateCurrentTuple();
+  NdbOperation*	updateCurrentTuple(NdbConnection* updateTrans);
+
+  /**
+   * Transfer scan operation to a deleting transaction. Use this function 
+   * when a scan has found a record that you want to delete. 
+   * 1. Start a new transaction.
+   * 2. Call the function takeOverForDelete using your new transaction 
+   *    as parameter, all the properties of the found record will be copied 
+   *    to the new transaction.
+   * 3. When you execute the new transaction, the lock held by the scan will 
+   *    be transferred to the new transaction(its taken over).
+   *
+   * @note You must have started the scan with openScanExclusive
+   *       to be able to delete the found tuple.
+   *
+   * @param deleteTrans the delete transaction connection.
+   * @return an NdbOperation or NULL.
+   */
+  int deleteCurrentTuple();
+  int deleteCurrentTuple(NdbConnection* takeOverTransaction);
+  
+protected:
   NdbScanOperation(Ndb* aNdb);
   virtual ~NdbScanOperation();
 
-  int nextResult(bool fetchAllowed = true, bool forceSend = false);
+  int nextResultImpl(bool fetchAllowed = true, bool forceSend = false);
   virtual void release();
   
-  void closeScan(bool forceSend = false);
   int close_impl(class TransporterFacade*, bool forceSend = false);
 
   // Overloaded methods from NdbCursorOperation
@@ -108,8 +187,6 @@ protected:
   virtual void setErrorCode(int aErrorCode);
   virtual void setErrorCodeAbort(int aErrorCode);
 
-  NdbResultSet * m_resultSet;
-  NdbResultSet* getResultSet();
   NdbConnection *m_transConnection;
 
   // Scan related variables
@@ -157,14 +234,35 @@ protected:
   
   Uint32 m_ordered;
   Uint32 m_read_range_no;
-
-  int restart(bool forceSend = false);
 };
 
 inline
-NdbScanOperation::CursorType
-NdbScanOperation::get_cursor_type() const {
-  return m_cursor_type;
+NdbOperation* 
+NdbScanOperation::updateCurrentTuple(){
+  return updateCurrentTuple(m_transConnection);
+}
+
+inline
+NdbOperation* 
+NdbScanOperation::updateCurrentTuple(NdbConnection* takeOverTrans){
+  return takeOverScanOp(NdbOperation::UpdateRequest, 
+			takeOverTrans);
+}
+
+inline
+int
+NdbScanOperation::deleteCurrentTuple(){
+  return deleteCurrentTuple(m_transConnection);
+}
+
+inline
+int
+NdbScanOperation::deleteCurrentTuple(NdbConnection * takeOverTrans){
+  void * res = takeOverScanOp(NdbOperation::DeleteRequest, 
+			      takeOverTrans);
+  if(res == 0)
+    return -1;
+  return 0;
 }
 
 #endif

@@ -141,8 +141,7 @@ int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab, int parallelism)
       goto failed;
     }
     
-    NdbResultSet * rs = pOp->readTuplesExclusive(par);
-    if( rs == 0 ) {
+    if( pOp->readTuplesExclusive(par) ) {
       goto failed;
     }
     
@@ -157,13 +156,13 @@ int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab, int parallelism)
       goto failed;
     }
     
-    while((check = rs->nextResult(true)) == 0){
+    while((check = pOp->nextResult(true)) == 0){
       do {
-	if (rs->deleteTuple() != 0){
+	if (pOp->deleteCurrentTuple() != 0){
 	  goto failed;
 	}
 	deletedRows++;
-      } while((check = rs->nextResult(false)) == 0);
+      } while((check = pOp->nextResult(false)) == 0);
       
       if(check != -1){
 	check = pTrans->execute(Commit);   
