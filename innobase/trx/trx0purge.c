@@ -195,8 +195,6 @@ void
 trx_purge_sys_create(void)
 /*======================*/
 {
-	com_endpoint_t*	com_endpoint;
-
 	ut_ad(mutex_own(&kernel_mutex));
 
 	purge_sys = mem_alloc(sizeof(trx_purge_t));
@@ -219,9 +217,7 @@ trx_purge_sys_create(void)
 
 	purge_sys->arr = trx_undo_arr_create();
 
-	com_endpoint = (com_endpoint_t*)purge_sys; /* This is a dummy non-NULL
-						   value */
-	purge_sys->sess = sess_open(com_endpoint, (byte*)"purge_system", 13);
+	purge_sys->sess = sess_open();
 
 	purge_sys->trx = purge_sys->sess->trx;
 
@@ -1034,11 +1030,11 @@ trx_purge(void)
 
 	mutex_enter(&kernel_mutex);
 
-	thr = que_fork_start_command(purge_sys->query, SESS_COMM_EXECUTE, 0);
+	thr = que_fork_start_command(purge_sys->query);
 
 	ut_ad(thr);
 	
-/*	thr2 = que_fork_start_command(purge_sys->query, SESS_COMM_EXECUTE, 0);
+/*	thr2 = que_fork_start_command(purge_sys->query);
 	
 	ut_ad(thr2); */
 	

@@ -171,8 +171,7 @@ trx_allocate_for_mysql(void)
 	/* Open a dummy session */
 
 	if (!trx_dummy_sess) {
-		trx_dummy_sess = sess_open(NULL, (byte*)"Dummy sess",
-					   ut_strlen((char *) "Dummy sess"));
+		trx_dummy_sess = sess_open();
 	}
 	
 	trx = trx_create(trx_dummy_sess);
@@ -205,8 +204,7 @@ trx_allocate_for_background(void)
 	/* Open a dummy session */
 
 	if (!trx_dummy_sess) {
-		trx_dummy_sess = sess_open(NULL, (byte*)"Dummy sess",
-						ut_strlen("Dummy sess"));
+		trx_dummy_sess = sess_open();
 	}
 	
 	trx = trx_create(trx_dummy_sess);
@@ -913,7 +911,7 @@ trx_handle_commit_sig_off_kernel(
 
 		if (sig->type == TRX_SIG_COMMIT) {
 
-			trx_sig_reply(trx, sig, next_thr);
+			trx_sig_reply(sig, next_thr);
 			trx_sig_remove(trx, sig);
 		}
 
@@ -1002,7 +1000,6 @@ trx_sig_reply_wait_to_suspended(
 		thr->state = QUE_THR_SUSPENDED;
 
 		sig->receiver = NULL;
-		sig->reply = FALSE;
 	
 		UT_LIST_REMOVE(reply_signals, trx->reply_signals, sig);
 			
@@ -1096,13 +1093,9 @@ trx_sig_send(
 	ulint		type,		/* in: signal type */
 	ulint		sender,		/* in: TRX_SIG_SELF or
 					TRX_SIG_OTHER_SESS */
-	ibool		reply,		/* in: TRUE if the sender of the signal
-					wants reply after the operation induced
-					by the signal is completed; if type
-					is TRX_SIG_END_WAIT, this must be
-					FALSE */
 	que_thr_t*	receiver_thr,	/* in: query thread which wants the
-					reply, or NULL */
+					reply, or NULL; if type is
+					TRX_SIG_END_WAIT, this must be NULL */
 	trx_savept_t* 	savept,		/* in: possible rollback savepoint, or
 					NULL */
 	que_thr_t**	next_thr)	/* in/out: next query thread to run;
@@ -1146,7 +1139,6 @@ trx_sig_send(
 	sig->type = type;
 	sig->state = TRX_SIG_WAITING;
 	sig->sender = sender;
-	sig->reply = reply;
 	sig->receiver = receiver_thr;
 
 	if (savept) {
@@ -1305,7 +1297,7 @@ loop:
 
 	} else if (type == TRX_SIG_BREAK_EXECUTION) {
 
-		trx_sig_reply(trx, sig, next_thr);
+		trx_sig_reply(sig, next_thr);
 		trx_sig_remove(trx, sig);
 	} else {
 		ut_error;
@@ -1321,7 +1313,6 @@ handled. */
 void
 trx_sig_reply(
 /*==========*/
-	trx_t*		trx,		/* in: trx handle */
 	trx_sig_t*	sig,		/* in: signal */
 	que_thr_t**	next_thr)	/* in/out: next query thread to run;
 					if the value which is passed in is
@@ -1331,11 +1322,10 @@ trx_sig_reply(
 {
 	trx_t*	receiver_trx;
 
-	ut_ad(trx && sig);
+	ut_ad(sig);
 	ut_ad(mutex_own(&kernel_mutex));
 
-	if (sig->reply && (sig->receiver != NULL)) {
-
+	if (sig->receiver != NULL) {
 		ut_ad((sig->receiver)->state == QUE_THR_SIG_REPLY_WAIT);
 
 		receiver_trx = thr_get_trx(sig->receiver);
@@ -1346,18 +1336,8 @@ trx_sig_reply(
 									
 		que_thr_end_wait(sig->receiver, next_thr);
 
-		sig->reply = FALSE;
 		sig->receiver = NULL;
 
-	} else if (sig->reply) {
-		/* In this case the reply should be sent to the client of
-		the session of the transaction */
-
-		sig->reply = FALSE;
-		sig->receiver = NULL;
-
-		sess_srv_msg_send_simple(trx->sess, SESS_SRV_SUCCESS,
-						SESS_NOT_RELEASE_KERNEL);
 	}
 }
 
@@ -1373,7 +1353,6 @@ trx_sig_remove(
 	ut_ad(trx && sig);
 	ut_ad(mutex_own(&kernel_mutex));
 
-	ut_ad(sig->reply == FALSE);
 	ut_ad(sig->receiver == NULL);
 
 	UT_LIST_REMOVE(signals, trx->signals, sig);
@@ -1435,8 +1414,7 @@ trx_commit_step(
 		/* Send the commit signal to the transaction */
 		
 		success = trx_sig_send(thr_get_trx(thr), TRX_SIG_COMMIT,
-					TRX_SIG_SELF, TRUE, thr, NULL,
-					&next_thr);
+					TRX_SIG_SELF, thr, NULL, &next_thr);
 		
 		mutex_exit(&kernel_mutex);
 

@@ -73,8 +73,7 @@ trx_general_rollback_for_mysql(
 
 	thr = pars_complete_graph_for_exec(roll_node, trx, heap);
 	
-	ut_a(thr == que_fork_start_command(que_node_get_parent(thr),
-						SESS_COMM_EXECUTE, 0));
+	ut_a(thr == que_fork_start_command(que_node_get_parent(thr)));
 	que_run_threads(thr);
 
 	mutex_enter(&kernel_mutex);
@@ -354,8 +353,7 @@ trx_rollback_or_clean_all_without_sess(void)
 	/* Open a dummy session */
 
 	if (!trx_dummy_sess) {
-		trx_dummy_sess = sess_open(NULL, (byte*)"Dummy sess",
-					ut_strlen((char *) "Dummy sess"));
+		trx_dummy_sess = sess_open();
 	}
 	
 	mutex_exit(&kernel_mutex);
@@ -418,7 +416,7 @@ loop:
 
 	trx->graph = fork;
 
-	ut_a(thr == que_fork_start_command(fork, SESS_COMM_EXECUTE, 0));
+	ut_a(thr == que_fork_start_command(fork));
 	
 	trx_roll_max_undo_no = ut_conv_dulint_to_longlong(trx->undo_no);
 	trx_roll_progress_printed_pct = 0;
@@ -981,11 +979,11 @@ trx_rollback(
 	trx->graph = roll_graph;
 	trx->que_state = TRX_QUE_ROLLING_BACK;
 
-	thr = que_fork_start_command(roll_graph, SESS_COMM_EXECUTE, 0);
+	thr = que_fork_start_command(roll_graph);
 
 	ut_ad(thr);
 
-/*	thr2 = que_fork_start_command(roll_graph, SESS_COMM_EXECUTE, 0);
+/*	thr2 = que_fork_start_command(roll_graph);
 
 	ut_ad(thr2); */
 	
@@ -1082,7 +1080,7 @@ trx_finish_partial_rollback_off_kernel(
 	/* Remove the signal from the signal queue and send reply message
 	to it */
 
-	trx_sig_reply(trx, sig, next_thr);
+	trx_sig_reply(sig, next_thr);
 	trx_sig_remove(trx, sig);
 
 	trx->que_state = TRX_QUE_RUNNING;
@@ -1145,7 +1143,7 @@ trx_finish_rollback_off_kernel(
 
 		if (sig->type == TRX_SIG_TOTAL_ROLLBACK) {
 
-			trx_sig_reply(trx, sig, next_thr);
+			trx_sig_reply(sig, next_thr);
 
 			trx_sig_remove(trx, sig);
 		}
@@ -1213,7 +1211,7 @@ trx_rollback_step(
 
 		success = trx_sig_send(thr_get_trx(thr),
 					sig_no, TRX_SIG_SELF,
-					TRUE, thr, savept, NULL);
+					thr, savept, NULL);
 
 		thr->state = QUE_THR_SIG_REPLY_WAIT;
 		

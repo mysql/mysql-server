@@ -39,7 +39,6 @@ Created 2/16/1996 Heikki Tuuri
 #include "rem0rec.h"
 #include "srv0srv.h"
 #include "que0que.h"
-#include "com0com.h"
 #include "usr0sess.h"
 #include "lock0lock.h"
 #include "trx0roll.h"
@@ -1210,8 +1209,6 @@ NetWare. */
 		
 		mutex_exit(&(log_sys->mutex));
 	}
-
-	sess_sys_init_at_db_start();
 
 	if (create_new_db) {
 		mtr_start(&mtr);
