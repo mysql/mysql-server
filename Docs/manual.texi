@@ -6594,6 +6594,12 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @uref{ftp://ftp.fh-wolfenbuettel.de/pub/database/mysql/, FTP}
 
 @item
+@c EMAIL: list@informatik.rwth-aachen.de (Thomas List)
+@image{Flags/germany} Germany [SunSITE Central Europe] @
+@uref{http://sunsite.informatik.rwth-aachen.de/mysql/, WWW}
+@uref{ftp://sunsite.informatik.rwth-aachen.de/pub/mirror/www.mysql.com/, FTP}
+
+@item
 @c EMAIL: emoenke@gwdg.de (Eberhard Moenkeberg)
 @image{Flags/germany} Germany [GWDG] @
 @uref{http://ftp.gwdg.de/pub/misc/mysql/, WWW}
@@ -6894,6 +6900,12 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @image{Flags/mexico} Mexico [UNAM] @
 @uref{http://mysql.unam.mx/, WWW}
 @uref{ftp://mysql.unam.mx/pub/mysql/, FTP}
+
+@item
+@c EMAIL: jpedral@correo.azc.uam.mx (Juan Carlos Pedral)
+@image{Flags/mexico} Mexico [UAM] @
+@uref{http://mysql.azc.uam.mx/, WWW}
+@uref{ftp://mysql.azc.uam.mx/mirrors/mysql/, FTP}
 
 @item
 @c EMAIL: mleber@he.net (Mike Leber)
