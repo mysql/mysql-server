@@ -33,12 +33,6 @@
 #include <os2emx.h>
 #endif
 
-#ifndef __EMX__
-#ifdef HAVE_FCNTL
-static struct flock lock;		/* Must be static for sun-sparc */
-#endif
-#endif
-
 	/* Lock a part of a file */
 
 int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
@@ -124,29 +118,32 @@ int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
   }
 #else
 #if defined(HAVE_FCNTL)
-  lock.l_type= (short) locktype;
-  lock.l_whence=0L;
-  lock.l_start=(long) start;
-  lock.l_len=(long) length;
-  if (MyFlags & MY_DONT_WAIT)
   {
-    if (fcntl(fd,F_SETLK,&lock) != -1)	/* Check if we can lock */
-      DBUG_RETURN(0);			/* Ok, file locked */
-    DBUG_PRINT("info",("Was locked, trying with alarm"));
-    ALARM_INIT;
-    while ((value=fcntl(fd,F_SETLKW,&lock)) && ! ALARM_TEST &&
-	   errno == EINTR)
-    {			/* Setup again so we don`t miss it */
-      ALARM_REINIT;
+    struct flock lock;
+    lock.l_type= (short) locktype;
+    lock.l_whence=0L;
+    lock.l_start=(long) start;
+    lock.l_len=(long) length;
+    if (MyFlags & MY_DONT_WAIT)
+    {
+      if (fcntl(fd,F_SETLK,&lock) != -1)	/* Check if we can lock */
+	DBUG_RETURN(0);			/* Ok, file locked */
+      DBUG_PRINT("info",("Was locked, trying with alarm"));
+      ALARM_INIT;
+      while ((value=fcntl(fd,F_SETLKW,&lock)) && ! ALARM_TEST &&
+	     errno == EINTR)
+      {			/* Setup again so we don`t miss it */
+	ALARM_REINIT;
+      }
+      ALARM_END;
+      if (value != -1)
+	DBUG_RETURN(0);
+      if (errno == EINTR)
+	errno=EAGAIN;
     }
-    ALARM_END;
-    if (value != -1)
+    else if (fcntl(fd,F_SETLKW,&lock) != -1) /* Wait until a lock */
       DBUG_RETURN(0);
-    if (errno == EINTR)
-      errno=EAGAIN;
   }
-  else if (fcntl(fd,F_SETLKW,&lock) != -1) /* Wait until a lock */
-    DBUG_RETURN(0);
 #else
   if (MyFlags & MY_SEEK_NOT_DONE)
     VOID(my_seek(fd,start,MY_SEEK_SET,MYF(MyFlags & ~MY_SEEK_NOT_DONE)));

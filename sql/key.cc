@@ -76,7 +76,7 @@ void key_copy(byte *key,TABLE *table,uint idx,uint key_length)
   KEY_PART_INFO *key_part;
 
   if (key_length == 0)
-    key_length=key_info->key_length+key_info->extra_length;
+    key_length=key_info->key_length;
   for (key_part=key_info->key_part;
        (int) key_length > 0 ;
        key_part++)
@@ -122,7 +122,7 @@ void key_restore(TABLE *table,byte *key,uint idx,uint key_length)
   {
     if (idx == (uint) -1)
       return;
-    key_length=key_info->key_length+key_info->extra_length;
+    key_length=key_info->key_length;
   }
   for (key_part=key_info->key_part;
        (int) key_length > 0 ;
