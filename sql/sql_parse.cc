@@ -4323,7 +4323,7 @@ unsent_create_error:
   case SQLCOM_XA_START:
     if (thd->transaction.xa_state == XA_IDLE && thd->lex->xa_opt == XA_RESUME)
     {
-      if (! thd->transaction.xid.eq(&thd->lex->ident))
+      if (! thd->transaction.xid.eq(thd->lex->xid))
       {
         my_error(ER_XAER_NOTA, MYF(0));
         break;
@@ -4332,7 +4332,7 @@ unsent_create_error:
       send_ok(thd);
       break;
     }
-    if (thd->lex->ident.length > MAXGTRIDSIZE || thd->lex->xa_opt != XA_NONE)
+    if (thd->lex->xa_opt != XA_NONE)
     { // JOIN is not supported yet. TODO
       my_error(ER_XAER_INVAL, MYF(0));
       break;
@@ -4350,7 +4350,7 @@ unsent_create_error:
     }
     DBUG_ASSERT(thd->transaction.xid.is_null());
     thd->transaction.xa_state=XA_ACTIVE;
-    thd->transaction.xid.set(&thd->lex->ident);
+    thd->transaction.xid.set(thd->lex->xid);
     thd->options= ((thd->options & (ulong) ~(OPTION_STATUS_NO_TRANS_UPDATE)) |
                    OPTION_BEGIN);
     thd->server_status|= SERVER_STATUS_IN_TRANS;
@@ -4369,7 +4369,7 @@ unsent_create_error:
                xa_state_names[thd->transaction.xa_state]);
       break;
     }
-    if (!thd->transaction.xid.eq(&thd->lex->ident))
+    if (!thd->transaction.xid.eq(thd->lex->xid))
     {
       my_error(ER_XAER_NOTA, MYF(0));
       break;
@@ -4384,7 +4384,7 @@ unsent_create_error:
                xa_state_names[thd->transaction.xa_state]);
       break;
     }
-    if (!thd->transaction.xid.eq(&thd->lex->ident))
+    if (!thd->transaction.xid.eq(thd->lex->xid))
     {
       my_error(ER_XAER_NOTA, MYF(0));
       break;
@@ -4399,9 +4399,9 @@ unsent_create_error:
     send_ok(thd);
     break;
   case SQLCOM_XA_COMMIT:
-    if (!thd->transaction.xid.eq(&thd->lex->ident))
+    if (!thd->transaction.xid.eq(thd->lex->xid))
     {
-      if (!(res= !ha_commit_or_rollback_by_xid(&thd->lex->ident, 1)))
+      if (!(res= !ha_commit_or_rollback_by_xid(thd->lex->xid, 1)))
         my_error(ER_XAER_NOTA, MYF(0));
       else
         send_ok(thd);
@@ -4434,9 +4434,9 @@ unsent_create_error:
     thd->transaction.xa_state=XA_NOTR;
     break;
   case SQLCOM_XA_ROLLBACK:
-    if (!thd->transaction.xid.eq(&thd->lex->ident))
+    if (!thd->transaction.xid.eq(thd->lex->xid))
     {
-      if (!(res= !ha_commit_or_rollback_by_xid(&thd->lex->ident, 0)))
+      if (!(res= !ha_commit_or_rollback_by_xid(thd->lex->xid, 0)))
         my_error(ER_XAER_NOTA, MYF(0));
       else
         send_ok(thd);
