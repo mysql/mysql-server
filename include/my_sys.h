@@ -37,6 +37,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #endif
 
 #include <stdarg.h>
+#include <typelib.h>
 
 #define MYSYS_PROGRAM_USES_CURSES()  { error_handler_hook = my_message_curses;	mysys_uses_curses=1; }
 #define MYSYS_PROGRAM_DONT_USE_CURSES()  { error_handler_hook = my_message_no_curses; mysys_uses_curses=0;}
@@ -246,12 +247,6 @@ typedef struct wild_file_pack	/* Struct to hold info when selecting files */
   uint		not_pos;	/* Start of not-theese-files */
   my_string	*wild;		/* Pointer to wildcards */
 } WF_PACK;
-
-typedef struct st_typelib {	/* Different types saved here */
-  uint count;			/* How many types */
-  const char *name;		/* Name of typelib */
-  const char **type_names;
-} TYPELIB;
 
 enum cache_type
 {
@@ -558,6 +553,7 @@ extern char *_my_strdup_with_length(const byte *from, uint length,
 				    const char *sFile, uint uLine,
 				    myf MyFlag);
 
+
 #ifndef TERMINATE
 extern void TERMINATE(FILE *file);
 #endif
@@ -706,9 +702,6 @@ extern void freeze_size(DYNAMIC_ARRAY *array);
 #define dynamic_element(array,array_index,type) ((type)((array)->buffer) +(array_index))
 #define push_dynamic(A,B) insert_dynamic(A,B)
 
-extern int find_type(my_string x,TYPELIB *typelib,uint full_name);
-extern void make_type(my_string to,uint nr,TYPELIB *typelib);
-extern const char *get_type(TYPELIB *typelib,uint nr);
 extern my_bool init_dynamic_string(DYNAMIC_STRING *str, const char *init_str,
 				   uint init_alloc,uint alloc_increment);
 extern my_bool dynstr_append(DYNAMIC_STRING *str, const char *append);
