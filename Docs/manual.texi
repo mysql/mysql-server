@@ -22314,7 +22314,7 @@ mysql>
 
 @cindex administration, server
 @cindex server administration
-@cindex @code{mysladmn}
+@cindex @code{mysqladmin}
 
 A utility for performing administrative operations. The syntax is:
 
