@@ -739,7 +739,7 @@ static int fetch_db_tables(THD *thd, MYSQL *mysql, const char *db,
     {
       bzero((char*) &table, sizeof(table)); //just for safe
       table.db= (char*) db;
-      table.real_name= (char*) table_name;
+      table.table_name= (char*) table_name;
       table.updating= 1;
 
       if (!tables_ok(thd, &table))
