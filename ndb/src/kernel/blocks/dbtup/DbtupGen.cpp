@@ -638,6 +638,7 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_PAGE, &tmp));
   Uint64 pages = (tmp * 2048 + (ZWORDS_ON_PAGE - 1))/ (Uint64)ZWORDS_ON_PAGE;
   cnoOfPage = (Uint32)pages;
+  Uint32 noOfTriggers= 0;
   
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_PAGE_RANGE, &tmp));
   initPageRangeSize(tmp);
@@ -647,10 +648,13 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 noOfStoredProc;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_STORED_PROC, 
 					&noOfStoredProc));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_TRIGGERS, 
+					&noOfTriggers));
 
   cnoOfTabDescrRec = (cnoOfTabDescrRec & 0xFFFFFFF0) + 16;
   c_storedProcPool.setSize(noOfStoredProc);
   c_buildIndexPool.setSize(c_noOfBuildIndexRec);
+  c_triggerPool.setSize(noOfTriggers);
 
   initRecords();
   czero = 0;
@@ -725,8 +729,6 @@ void Dbtup::initRecords()
 		sizeof(RestartInfoRecord),
 		cnoOfRestartInfoRec);
 
-  // Trigger data
-  c_triggerPool.setSize(cnoOfTablerec*c_maxTriggersPerTable);
   
   tablerec = (Tablerec*)allocRecord("Tablerec",
 				    sizeof(Tablerec), 
