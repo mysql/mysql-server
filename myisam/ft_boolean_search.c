@@ -341,7 +341,7 @@ static void _ftb_init_index_search(FT_INFO *ftb)
 
 FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
 				 uint query_len,
-				 my_bool presort __attribute__((unused)))
+				 uint flags __attribute__((unused)))
 {
   FTB       *ftb;
   FTB_EXPR  *ftbe;

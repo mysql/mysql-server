@@ -175,7 +175,7 @@ static int FT_DOC_cmp(FT_DOC *a, FT_DOC *b)
 
 
 FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, byte *query,
-			    uint query_len, my_bool presort)
+			    uint query_len, uint flags)
 {
   TREE	     allocated_wtree, *wtree=&allocated_wtree;
   ALL_IN_ONE  aio;
@@ -224,7 +224,7 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, byte *query,
   tree_walk(&aio.dtree, (tree_walk_action) &walk_and_copy,
 	    &dptr, left_root_right);
 
-  if (presort)
+  if (flags & FT_SORTED)
     qsort(dlist->doc, dlist->ndocs, sizeof(FT_DOC), (qsort_cmp)&FT_DOC_cmp);
 
 err2:

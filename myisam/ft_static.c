@@ -53,14 +53,14 @@ const struct _ft_vft _ft_vft_boolean = {
   ft_boolean_get_relevance,  ft_boolean_reinit_search
 };
 
-FT_INFO *(*_ft_init_vft[2])(MI_INFO *, uint, byte *, uint, my_bool) =
+FT_INFO *(*_ft_init_vft[2])(MI_INFO *, uint, byte *, uint, uint) =
 { ft_init_nlq_search, ft_init_boolean_search };
 
-FT_INFO *ft_init_search(uint mode, void *info, uint keynr,
-    byte *query, uint query_len, my_bool presort)
+FT_INFO *ft_init_search(uint flags, void *info, uint keynr,
+                        byte *query, uint query_len)
 {
-  return (*_ft_init_vft[mode])((MI_INFO *)info, keynr,
-          query, query_len, presort);
+  return (*_ft_init_vft[ flags&1 ])((MI_INFO *)info, keynr,
+          query, query_len, flags);
 }
 
 const char *ft_stopword_file = 0;

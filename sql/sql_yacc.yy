@@ -135,6 +135,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	DROP
 %token	EVENTS_SYM
 %token	EXECUTE_SYM
+%token	EXPANSION_SYM
 %token	FLUSH_SYM
 %token  HELP_SYM
 %token	INSERT
@@ -168,7 +169,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	SUPER_SYM
 %token	TRUNCATE_SYM
 %token	UNLOCK_SYM
-%token	UNTIL_SYM 
+%token	UNTIL_SYM
 %token	UPDATE_SYM
 
 %token	ACTION
@@ -604,8 +605,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %type <num>
 	type int_type real_type order_dir opt_field_spec lock_option
 	udf_type if_exists opt_local opt_table_options table_options
-	table_option opt_if_not_exists opt_no_write_to_binlog opt_var_type opt_var_ident_type
-	delete_option opt_temporary all_or_any opt_distinct opt_ignore_leaves
+        table_option opt_if_not_exists opt_no_write_to_binlog opt_var_type
+        opt_var_ident_type delete_option opt_temporary all_or_any opt_distinct
+        opt_ignore_leaves fulltext_options
 
 %type <ulong_num>
 	ULONG_NUM raid_types merge_insert_types
@@ -2448,14 +2450,10 @@ simple_expr:
 	| EXISTS exists_subselect { $$= $2; }
 	| singlerow_subselect   { $$= $1; }
 	| '{' ident expr '}'	{ $$= $3; }
-        | MATCH ident_list_arg AGAINST '(' expr ')'
+        | MATCH ident_list_arg AGAINST '(' expr fulltext_options ')'
           { $2->push_front($5);
-            Select->add_ftfunc_to_list((Item_func_match *)
-                   ($$=new Item_func_match_nl(*$2))); }
-        | MATCH ident_list_arg AGAINST '(' expr IN_SYM BOOLEAN_SYM MODE_SYM ')'
-          { $2->push_front($5);
-            Select->add_ftfunc_to_list((Item_func_match *)
-                   ($$=new Item_func_match_bool(*$2))); }
+            Select->add_ftfunc_to_list((Item_func_match*)
+                                        ($$=new Item_func_match(*$2,$6))); }
 	| ASCII_SYM '(' expr ')' { $$= new Item_func_ascii($3); }
 	| BINARY expr %prec NEG
 	  {
@@ -2842,6 +2840,12 @@ simple_expr:
 	  }
 	| EXTRACT_SYM '(' interval FROM expr ')'
 	{ $$=new Item_extract( $3, $5); };
+
+fulltext_options:
+        /* nothing */                   { $$= FT_NL;  }
+        | WITH QUERY_SYM EXPANSION_SYM  { $$= FT_NL | FT_EXPAND; }
+        | IN_SYM BOOLEAN_SYM MODE_SYM   { $$= FT_BOOL; }
+        ;
 
 udf_expr_list:
 	/* empty */	{ $$= NULL; }

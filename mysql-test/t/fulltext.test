@@ -130,9 +130,9 @@ select * from t2 having MATCH inhalt AGAINST ('foobar');
 # check of fulltext errors
 #
 
---error 1279
+--error 1280
 CREATE TABLE t3 (t int(11),i text,fulltext tix (t,i));
---error 1279
+--error 1280
 CREATE TABLE t3 (t int(11),i text,
                  j varchar(200) CHARACTER SET latin2,
                  fulltext tix (i,j));

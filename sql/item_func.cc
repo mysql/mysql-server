@@ -2587,10 +2587,10 @@ void Item_func_match::init_search(bool no_order)
     ft_tmp= &search_value;
   }
 
-  ft_handler=table->file->ft_init_ext(mode, key,
+  if (join_key && !no_order) flags|=FT_SORTED;
+  ft_handler=table->file->ft_init_ext(flags, key,
 				      (byte*) ft_tmp->ptr(),
-				      ft_tmp->length(),
-				      join_key && !no_order);
+				      ft_tmp->length());
 
   if (join_key)
     table->file->ft_handler=ft_handler;
@@ -2631,7 +2631,7 @@ bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   /* check that all columns come from the same table */
   if (my_count_bits(used_tables_cache) != 1)
     key=NO_SUCH_KEY;
-  if (key == NO_SUCH_KEY && mode != FT_BOOL)
+  if (key == NO_SUCH_KEY && !(flags & FT_BOOL))
   {
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"MATCH");
     return 1;
@@ -2711,7 +2711,7 @@ bool Item_func_match::fix_index()
   }
 
 err:
-  if (mode == FT_BOOL)
+  if (flags & FT_BOOL)
   {
     key=NO_SUCH_KEY;
     return 0;
@@ -2723,8 +2723,8 @@ err:
 
 bool Item_func_match::eq(const Item *item, bool binary_cmp) const
 {
-  if (item->type() != FUNC_ITEM ||
-      func_name() != ((Item_func*)item)->func_name())
+  if (item->type() != FUNC_ITEM || ((Item_func*)item)->functype() != FT_FUNC ||
+      flags != ((Item_func_match*)item)->flags)
     return 0;
 
   Item_func_match *ifm=(Item_func_match*) item;

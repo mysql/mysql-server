@@ -962,7 +962,7 @@ public:
 class Item_func_match :public Item_real_func
 {
 public:
-  uint key, mode;
+  uint key, flags;
   bool join_key;
   DTCollation cmp_collation;
   FT_INFO *ft_handler;
@@ -972,7 +972,7 @@ public:
   String value;              // value of concat
   String search_value;       // key_item()'s value converted to cmp_collation
 
-  Item_func_match(List<Item> &a): Item_real_func(a),
+  Item_func_match(List<Item> &a, uint b): Item_real_func(a), flags(b),
        table(0), master(0), ft_handler(0), concat(0), key(0), join_key(0) { }
   ~Item_func_match()
   {
@@ -988,6 +988,7 @@ public:
       delete concat;
   }
   enum Functype functype() const { return FT_FUNC; }
+  const char *func_name() const { return "match"; }
   void update_used_tables() {}
   table_map not_null_tables() const { return 0; }
   bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
@@ -997,22 +998,6 @@ public:
 
   bool fix_index();
   void init_search(bool no_order);
-};
-
-
-class Item_func_match_nl :public Item_func_match
-{
-public:
-  Item_func_match_nl(List<Item> &a) :Item_func_match(a) { mode=FT_NL; }
-  const char *func_name() const { return "match_nl"; }
-};
-
-
-class Item_func_match_bool :public Item_func_match
-{
-public:
-  Item_func_match_bool(List<Item> &a) :Item_func_match(a) { mode=FT_BOOL; }
-  const char *func_name() const { return "match_bool"; }
 };
 
 

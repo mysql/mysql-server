@@ -89,9 +89,8 @@ class ha_myisam: public handler
     ft_handler->please->reinit_search(ft_handler);
     return 0;
   }
-  FT_INFO *ft_init_ext(uint mode, uint inx,const byte *key, uint keylen,
-		       bool presort)
-  { return ft_init_search(mode, file,inx,(byte*) key,keylen,presort); }
+  FT_INFO *ft_init_ext(uint flags, uint inx,const byte *key, uint keylen)
+  { return ft_init_search(flags,file,inx,(byte*) key,keylen); }
   int ft_read(byte *buf);
   int rnd_init(bool scan=1);
   int rnd_next(byte *buf);
