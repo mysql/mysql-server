@@ -96,7 +96,7 @@ int FTB_WORD_cmp(void *v __attribute__((unused)), byte *a, byte *b)
 }
 
 void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
-                          FTB_EXPR *up, uint ndepth, uint depth)
+                          FTB_EXPR *up, uint depth)
 {
   byte        res;
   FTB_PARAM   param;
@@ -125,7 +125,7 @@ void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
         ftbw->weight=weight;
         ftbw->up=up;
         ftbw->docid=HA_POS_ERROR;
-        ftbw->ndepth= param.yesno<0 ? depth : ndepth;
+        ftbw->ndepth= (param.yesno<0) + depth;
         memcpy(ftbw->word+1, w.pos, w.len);
         ftbw->word[0]=w.len;
         if (ftbw->yesno > 0) up->ythresh++;
@@ -139,8 +139,7 @@ void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
         ftbe->ythresh=0;
         ftbe->docid=HA_POS_ERROR;
         if (ftbe->yesno > 0) up->ythresh++;
-        _ftb_parse_query(ftb, start, end, ftbe, depth+1,
-                         (param.yesno<0 ? depth+1 : ndepth));
+        _ftb_parse_query(ftb, start, end, ftbe, depth+1);
         break;
       case 3: /* right bracket */
         return;
@@ -169,7 +168,7 @@ void  _ftb_init_index_search(FT_INFO *ftb)
     ftbw=(FTB_WORD *)(ftb->queue.root[i]);
 
     r=_mi_search(info, keyinfo, (uchar*) ftbw->word, ftbw->len,
-                 SEARCH_FIND | SEARCH_PREFIX, keyroot);
+                 SEARCH_FIND | SEARCH_BIGGER, keyroot);
     if (!r)
     {
       r=_mi_compare_text(default_charset_info,
@@ -224,7 +223,7 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
   ftbe->ythresh=0;
   ftbe->docid=HA_POS_ERROR;
   ftb->root=ftbe;
-  _ftb_parse_query(ftb, &query, query+query_len, ftbe, 0, 0);
+  _ftb_parse_query(ftb, &query, query+query_len, ftbe, 0);
   ftb->state=READY;
   return ftb;
 }
