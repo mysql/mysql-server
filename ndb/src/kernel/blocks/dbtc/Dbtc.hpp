@@ -1194,6 +1194,9 @@ public:
 
     // Scan is on ordered index
     Uint8 rangeScan;
+
+    // Close is ordered
+    bool m_close_scan_req;
   };   
   typedef Ptr<ScanRecord> ScanRecordPtr;
   
@@ -1414,15 +1417,15 @@ private:
 		      Uint32 buddyPtr,
 		      UintR transid1, 
 		      UintR transid2);
-  void initScanrec(Signal* signal, 
+  void initScanrec(ScanRecordPtr, const class ScanTabReq*,
 		   const UintR scanParallel, 
 		   const UintR noOprecPerFrag);
   void initScanfragrec(Signal* signal);
   void releaseScanResources(ScanRecordPtr);
-  void seizeScanrec(Signal* signal);
-  void sendScanFragReq(Signal* signal);
-  void sendScanTabConf(Signal* signal);
-  void close_scan_req(Signal*, ScanRecordPtr);
+  ScanRecordPtr seizeScanrec(Signal* signal);
+  void sendScanFragReq(Signal* signal, ScanRecord*, ScanFragRec*);
+  void sendScanTabConf(Signal* signal, ScanRecord*);
+  void close_scan_req(Signal*, ScanRecordPtr, bool received_req);
   void close_scan_req_send_conf(Signal*, ScanRecordPtr);
   
   void checkGcp(Signal* signal);
@@ -1557,11 +1560,11 @@ private:
   void systemErrorLab(Signal* signal);
   void sendSignalErrorRefuseLab(Signal* signal);
   void scanTabRefLab(Signal* signal, Uint32 errCode);
-  void diFcountReqLab(Signal* signal);
+  void diFcountReqLab(Signal* signal, ScanRecordPtr);
   void signalErrorRefuseLab(Signal* signal);
   void abort080Lab(Signal* signal);
   void packKeyData000Lab(Signal* signal, BlockReference TBRef);
-  void abortScanLab(Signal* signal, Uint32 errCode);
+  void abortScanLab(Signal* signal, ScanRecordPtr, Uint32 errCode);
   void sendAbortedAfterTimeout(Signal* signal, int Tcheck);
   void abort010Lab(Signal* signal);
   void abort015Lab(Signal* signal);
@@ -1589,7 +1592,7 @@ private:
   void attrinfo020Lab(Signal* signal);
   void scanReleaseResourcesLab(Signal* signal);
   void scanCompletedLab(Signal* signal);
-  void scanFragError(Signal* signal, Uint32 errorCode);
+  void scanError(Signal* signal, ScanRecordPtr, Uint32 errorCode);
   void diverify010Lab(Signal* signal);
   void intstartphase2x010Lab(Signal* signal);
   void intstartphase3x010Lab(Signal* signal);
@@ -1699,7 +1702,6 @@ private:
   ApiConnectRecordPtr timeOutptr;
 
   ScanRecord *scanRecord;
-  ScanRecordPtr scanptr;
   UintR cscanrecFileSize;
 
   UnsafeArrayPool<ScanFragRec> c_scan_frag_pool;

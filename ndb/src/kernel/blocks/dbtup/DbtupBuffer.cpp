@@ -54,6 +54,9 @@ void Dbtup::execSEND_PACKED(Signal* signal)
 void Dbtup::bufferTRANSID_AI(Signal* signal, BlockReference aRef,
                              Uint32 Tlen)
 {
+  if(Tlen == 3)
+    return;
+  
   Uint32 hostId = refToNode(aRef);
   Uint32 Theader = ((refToBlock(aRef) << 16)+(Tlen-3));
   
