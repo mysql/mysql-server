@@ -182,8 +182,8 @@ INSERT INTO t3 VALUES (1,'V1',NULL);
 CREATE TABLE t4 (
   uid bigint(20) unsigned NOT NULL default '0',
   gid bigint(20) unsigned NOT NULL,
-  rid bigint(20) unsigned NOT NULL default '-1',
-  cid bigint(20) unsigned NOT NULL default '-1',
+  rid bigint(20) unsigned NOT NULL,
+  cid bigint(20) unsigned NOT NULL,
   UNIQUE KEY m (uid,gid,rid,cid)
 ) engine=ndbcluster;
 INSERT INTO t4 VALUES (1,1,2,4);
@@ -209,8 +209,8 @@ CREATE TABLE t7 (
   mid bigint(20) unsigned NOT NULL PRIMARY KEY,
   uid bigint(20) unsigned NOT NULL default '0',
   gid bigint(20) unsigned NOT NULL,
-  rid bigint(20) unsigned NOT NULL default '-1',
-  cid bigint(20) unsigned NOT NULL default '-1',
+  rid bigint(20) unsigned NOT NULL,
+  cid bigint(20) unsigned NOT NULL,
   UNIQUE KEY m (uid,gid,rid,cid)
 ) engine=ndbcluster;
 INSERT INTO t7 VALUES(1, 1, 1, 1, 1);

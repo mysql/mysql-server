@@ -46,7 +46,7 @@ void Hybrid_type_traits::fix_length_and_dec(Item *item, Item *arg) const
 
 const Hybrid_type_traits *Hybrid_type_traits::instance()
 {
-  const static Hybrid_type_traits real_traits;
+  static const Hybrid_type_traits real_traits;
   return &real_traits;
 }
 
@@ -70,7 +70,7 @@ Hybrid_type_traits::val_str(Hybrid_type *val, String *to, uint8 decimals) const
 
 const Hybrid_type_traits_decimal *Hybrid_type_traits_decimal::instance()
 {
-  const static Hybrid_type_traits_decimal decimal_traits;
+  static const Hybrid_type_traits_decimal decimal_traits;
   return &decimal_traits;
 }
 
@@ -146,7 +146,7 @@ Hybrid_type_traits_decimal::val_str(Hybrid_type *val, String *to,
 
 const Hybrid_type_traits_integer *Hybrid_type_traits_integer::instance()
 {
-  const static Hybrid_type_traits_integer integer_traits;
+  static const Hybrid_type_traits_integer integer_traits;
   return &integer_traits;
 }
 
@@ -1452,6 +1452,64 @@ void Item_string::print(String *str)
   str->append('\'');
   str_value.print(str);
   str->append('\'');
+}
+
+
+inline bool check_if_only_end_space(CHARSET_INFO *cs, char *str, char *end)
+{
+  return str+ cs->cset->scan(cs, str, end, MY_SEQ_SPACES) == end;
+}
+
+
+double Item_string::val_real()
+{
+  DBUG_ASSERT(fixed == 1);
+  int error;
+  char *end, *org_end;
+  double tmp;
+  CHARSET_INFO *cs= str_value.charset();
+
+  org_end= (char*) str_value.ptr() + str_value.length();
+  tmp= my_strntod(cs, (char*) str_value.ptr(), str_value.length(), &end,
+                  &error);
+  if (error || (end != org_end && !check_if_only_end_space(cs, end, org_end)))
+  {
+    /*
+      We can use str_value.ptr() here as Item_string is gurantee to put an
+      end \0 here.
+    */
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE,
+                        ER(ER_TRUNCATED_WRONG_VALUE), "DOUBLE",
+                        str_value.ptr());
+  }
+  return tmp;
+}
+
+
+longlong Item_string::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  int err;
+  longlong tmp;
+  char *end= (char*) str_value.ptr()+ str_value.length();
+  char *org_end= end;
+  CHARSET_INFO *cs= str_value.charset();
+
+  tmp= (*(cs->cset->my_strtoll10))(cs, str_value.ptr(), &end, &err);
+  /*
+    TODO: Give error if we wanted a signed integer and we got an unsigned
+    one
+  */
+  if (err > 0 ||
+      (end != org_end && !check_if_only_end_space(cs, end, org_end)))
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE,
+                        ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
+                        str_value.ptr());
+  }
+  return tmp;
 }
 
 
@@ -4848,7 +4906,7 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
     int intp2= max_length - min(decimals, NOT_FIXED_DEC - 1);
     /* can't be overflow because it work only for decimals (no strings) */
     int dec_length= max(intp1, intp2) + decimals;
-    max_length= max(max_length, max(item_length, dec_length));
+    max_length= max(max_length, (uint) max(item_length, dec_length));
     /*
       we can't allow decimals to be NOT_FIXED_DEC, to prevent creation
       decimal with max precision (see Field_new_decimal constcuctor)
@@ -4875,8 +4933,8 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   }
   maybe_null|= item->maybe_null;
   get_full_info(item);
-  DBUG_PRINT("info:", ("become type %d len %d, dec %d",
-                       fld_type, max_length, decimals));
+  DBUG_PRINT("info", ("become type: %d  len: %u  dec: %u",
+                      (int) fld_type, max_length, (uint) decimals));
   DBUG_RETURN(FALSE);
 }
 

@@ -46,9 +46,9 @@ SELECT ROW(1,2,3) > (SELECT 1,2,1);
 SELECT ROW(1,2,3) = (SELECT 1,2,NULL);
 SELECT (SELECT 1.5,2,'a') = ROW(1.5,2,'a');
 SELECT (SELECT 1.5,2,'a') = ROW(1.5,2,'b');
-SELECT (SELECT 1.5,2,'a') = ROW('b',2,'b');
+SELECT (SELECT 1.5,2,'a') = ROW('1.5b',2,'b');
 SELECT (SELECT 'b',2,'a') = ROW(1.5,2,'a');
-SELECT (SELECT 1.5,2,'a') = ROW(1.5,'c','a');
+SELECT (SELECT 1.5,2,'a') = ROW(1.5,'2','a');
 SELECT (SELECT 1.5,'c','a') = ROW(1.5,2,'a');
 
 -- error 1241

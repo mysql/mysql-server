@@ -500,10 +500,10 @@ select 'a' || 'b' ;
 prepare stmt4 from ' SET sql_mode="" ';
 execute stmt4;
 # check if the sql_mode is not ansi
-select 'a' || 'b' ;
+select '2' || '3' ;
 # Will a switch of the sqlmode affect the execution of already prepared 
 # statements ?
-prepare stmt5 from ' select ''a'' || ''b'' ' ;
+prepare stmt5 from ' select ''2'' || ''3'' ' ;
 execute stmt5;
 SET sql_mode=ansi;
 execute stmt5;
