@@ -52,7 +52,7 @@ HugoCalculator::HugoCalculator(const NdbDictionary::Table& tab) : m_tab(tab) {
 #endif
   // Check that idCol is not conflicting with updatesCol
   assert(m_idCol != m_updatesCol && m_idCol != -1 && m_updatesCol != -1);
-};
+}
 
 Int32
 HugoCalculator::calcValue(int record, 
@@ -74,7 +74,7 @@ HugoCalculator::calcValue(int record,
   else
     val = record + attrib + updates;
   return val;
-};
+}
 #if 0
 HugoCalculator::U_Int32 calcValue(int record, int attrib, int updates) const;
 HugoCalculator::U_Int64 calcValue(int record, int attrib, int updates) const;
@@ -109,8 +109,6 @@ HugoCalculator::calcValue(int record,
     
     // Calculate length of the string to create. We want the string 
     // length to be varied between max and min of this attribute.
-    Uint32 org = len;
-
     if(attr->getType() == NdbDictionary::Column::Varchar)
       len = val % (len + 1);
     else
@@ -137,7 +135,7 @@ HugoCalculator::calcValue(int record,
     }
   }
   return buf;
-}; 
+} 
 
 int
 HugoCalculator::verifyRowValues(NDBT_ResultRow* const  pRow) const{
