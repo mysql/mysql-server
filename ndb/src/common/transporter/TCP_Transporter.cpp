@@ -362,50 +362,56 @@ TCP_Transporter::doReceive() {
   // Select-function must return the socket for read
   // before this method is called
   // It reads the external TCP/IP interface once
-  
-  const int nBytesRead = recv(theSocket, 
-                              receiveBuffer.insertPtr, maxReceiveSize, 0);
-  
-  if (nBytesRead > 0) {
-    receiveBuffer.sizeOfData += nBytesRead;
-    receiveBuffer.insertPtr  += nBytesRead;
+  int size = receiveBuffer.sizeOfBuffer - receiveBuffer.sizeOfData;
+  if(size > 0){
+    const int nBytesRead = recv(theSocket, 
+				receiveBuffer.insertPtr, 
+				size < maxReceiveSize ? size : maxReceiveSize, 
+				0);
     
-    if(receiveBuffer.sizeOfData > receiveBuffer.sizeOfBuffer){
+    if (nBytesRead > 0) {
+      receiveBuffer.sizeOfData += nBytesRead;
+      receiveBuffer.insertPtr  += nBytesRead;
+      
+      if(receiveBuffer.sizeOfData > receiveBuffer.sizeOfBuffer){
 #ifdef DEBUG_TRANSPORTER
-      ndbout_c("receiveBuffer.sizeOfData(%d) > receiveBuffer.sizeOfBuffer(%d)",
-               receiveBuffer.sizeOfData, receiveBuffer.sizeOfBuffer);
-      ndbout_c("nBytesRead = %d", nBytesRead);
+	ndbout_c("receiveBuffer.sizeOfData(%d) > receiveBuffer.sizeOfBuffer(%d)",
+		 receiveBuffer.sizeOfData, receiveBuffer.sizeOfBuffer);
+	ndbout_c("nBytesRead = %d", nBytesRead);
 #endif
-      ndbout_c("receiveBuffer.sizeOfData(%d) > receiveBuffer.sizeOfBuffer(%d)",
-               receiveBuffer.sizeOfData, receiveBuffer.sizeOfBuffer);
-      report_error(TE_INVALID_MESSAGE_LENGTH);
-      return 0;
-    }
-    
-    receiveCount ++;
-    receiveSize  += nBytesRead;
-
-    if(receiveCount == reportFreq){
-      reportReceiveLen(get_callback_obj(), remoteNodeId, receiveCount, receiveSize);
-      receiveCount = 0;
-      receiveSize  = 0;
+	ndbout_c("receiveBuffer.sizeOfData(%d) > receiveBuffer.sizeOfBuffer(%d)",
+		 receiveBuffer.sizeOfData, receiveBuffer.sizeOfBuffer);
+	report_error(TE_INVALID_MESSAGE_LENGTH);
+	return 0;
+      }
+      
+      receiveCount ++;
+      receiveSize  += nBytesRead;
+      
+      if(receiveCount == reportFreq){
+	reportReceiveLen(get_callback_obj(), remoteNodeId, receiveCount, receiveSize);
+	receiveCount = 0;
+	receiveSize  = 0;
+      }
+      return nBytesRead;
+    } else {
+#if defined DEBUG_TRANSPORTER
+      ndbout_c("Receive Failure(disconnect==%d) to node = %d nBytesSent = %d "
+	       "errno = %d strerror = %s",
+	       DISCONNECT_ERRNO(InetErrno, nBytesRead),
+	       remoteNodeId, nBytesRead, InetErrno, 
+	       (char*)ndbstrerror(InetErrno));
+#endif   
+      if(DISCONNECT_ERRNO(InetErrno, nBytesRead)){
+	// The remote node has closed down
+	doDisconnect();
+	report_disconnect(InetErrno);
+      } 
     }
     return nBytesRead;
   } else {
-#if defined DEBUG_TRANSPORTER
-    ndbout_c("Receive Failure(disconnect==%d) to node = %d nBytesSent = %d "
-             "errno = %d strerror = %s",
-             DISCONNECT_ERRNO(InetErrno, nBytesRead),
-             remoteNodeId, nBytesRead, InetErrno, 
-	     (char*)ndbstrerror(InetErrno));
-#endif   
-    if(DISCONNECT_ERRNO(InetErrno, nBytesRead)){
-      // The remote node has closed down
-      doDisconnect();
-      report_disconnect(InetErrno);
-    } 
+    return 0;
   }
-  return nBytesRead;
 }
 
 void
