@@ -120,34 +120,21 @@ const char *ha_get_storage_engine(enum db_type db_type)
 
 enum db_type ha_checktype(enum db_type database_type)
 {
+  show_table_type_st *types;
+  for (types= sys_table_types; types->type; types++)
+  {
+    if ((database_type == types->db_type) && 
+	(SHOW_OPTION_YES == *types->value))
+      return database_type;
+  }
+
   switch (database_type) {
-#ifdef HAVE_BERKELEY_DB
-  case DB_TYPE_BERKELEY_DB:
-    if (berkeley_skip) break;
-    return (database_type);
-#endif
-#ifdef HAVE_INNOBASE_DB
-  case DB_TYPE_INNODB:
-    if (innodb_skip) break;
-    return (database_type);
-#endif
 #ifndef NO_HASH
   case DB_TYPE_HASH:
-#endif
-#ifdef HAVE_ISAM
-  case DB_TYPE_ISAM:
-    if (isam_skip) break;
     return (database_type);
-  case DB_TYPE_MRG_ISAM:
-    return (isam_skip ? DB_TYPE_MRG_MYISAM : database_type);
-#else
+#endif
   case DB_TYPE_MRG_ISAM:
     return (DB_TYPE_MRG_MYISAM);
-#endif
-  case DB_TYPE_HEAP:
-  case DB_TYPE_MYISAM:
-  case DB_TYPE_MRG_MYISAM:
-    return (database_type);			/* Database exists on system */
   default:
     break;
   }
@@ -165,7 +152,8 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
 {
   switch (db_type) {
 #ifndef NO_HASH
-  return new ha_hash(table);
+  case DB_TYPE_HASH:
+    return new ha_hash(table);
 #endif
 #ifdef HAVE_ISAM
   case DB_TYPE_MRG_ISAM:
@@ -203,30 +191,32 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
 
 int ha_init()
 {
+  int error= 0;
 #ifdef HAVE_BERKELEY_DB
-  if (!berkeley_skip)
+  if (have_berkeley_db == SHOW_OPTION_YES)
   {
-    int error;
-    if ((error=berkeley_init()))
-      return error;
-    if (!berkeley_skip)				// If we couldn't use handler
-      opt_using_transactions=1;
+    if (berkeley_init())
+    {
+      have_berkeley_db= SHOW_OPTION_DISABLED;	// If we couldn't use handler
+      error= 1;
+    }
     else
-      have_berkeley_db=SHOW_OPTION_DISABLED;
+      opt_using_transactions=1;
   }
 #endif
 #ifdef HAVE_INNOBASE_DB
-  if (!innodb_skip)
+  if (have_innodb == SHOW_OPTION_YES)
   {
     if (innobase_init())
-      return -1;
-    if (!innodb_skip)				// If we couldn't use handler
-      opt_using_transactions=1;
+    {
+      have_innodb= SHOW_OPTION_DISABLED;	// If we couldn't use handler
+      error= 1;
+    }
     else
-      have_innodb=SHOW_OPTION_DISABLED;
+      opt_using_transactions=1;
   }
 #endif
-  return 0;
+  return error;
 }
 
 	/* close, flush or restart databases */
@@ -246,11 +236,11 @@ int ha_panic(enum ha_panic_function flag)
   error|=mi_panic(flag);
   error|=myrg_panic(flag);
 #ifdef HAVE_BERKELEY_DB
-  if (!berkeley_skip)
+  if (have_berkeley_db == SHOW_OPTION_YES)
     error|=berkeley_end();
 #endif
 #ifdef HAVE_INNOBASE_DB
-  if (!innodb_skip)
+  if (have_innodb == SHOW_OPTION_YES)
     error|=innobase_end();
 #endif
   return error;
@@ -259,7 +249,7 @@ int ha_panic(enum ha_panic_function flag)
 void ha_drop_database(char* path)
 {
 #ifdef HAVE_INNOBASE_DB
-  if (!innodb_skip)
+  if (have_innodb == SHOW_OPTION_YES)
     innobase_drop_database(path);
 #endif
 }
@@ -267,7 +257,7 @@ void ha_drop_database(char* path)
 void ha_close_connection(THD* thd)
 {
 #ifdef HAVE_INNOBASE_DB
-  if (!innodb_skip)
+  if (have_innodb == SHOW_OPTION_YES)
     innobase_close_connection(thd);
 #endif
 }
@@ -632,11 +622,13 @@ bool ha_flush_logs()
 {
   bool result=0;
 #ifdef HAVE_BERKELEY_DB
-  if (!berkeley_skip && berkeley_flush_logs())
+  if ((have_berkeley_db == SHOW_OPTION_YES) && 
+      berkeley_flush_logs())
     result=1;
 #endif
 #ifdef HAVE_INNOBASE_DB
-  if (!innodb_skip && innobase_flush_logs())
+  if ((have_innodb == SHOW_OPTION_YES) && 
+      innobase_flush_logs())
     result=1;
 #endif
   return result;

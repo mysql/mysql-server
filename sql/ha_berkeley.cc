@@ -72,7 +72,7 @@
 #define STATUS_BDB_ANALYZE	4
 
 const char *ha_berkeley_ext=".db";
-bool berkeley_skip=0,berkeley_shared_data=0;
+bool berkeley_shared_data=0;
 u_int32_t berkeley_init_flags= DB_PRIVATE | DB_RECOVER, berkeley_env_flags=0,
           berkeley_lock_type=DB_LOCK_DEFAULT;
 ulong berkeley_cache_size, berkeley_log_buffer_size, berkeley_log_file_size=0;
