@@ -19022,6 +19022,8 @@ alter_specification:
   or    DROP [COLUMN] col_name
   or    DROP PRIMARY KEY
   or    DROP INDEX index_name
+  or    DISABLE KEYS
+  or    ENABLE KEYS
   or    RENAME [TO] new_tbl_name
   or    ORDER BY col
   or    table_options
@@ -19182,6 +19184,15 @@ performance.
 If you use @code{ALTER TABLE} on a @code{MyISAM} table, all non-unique
 indexes are created in a separate batch (like in @code{REPAIR}).
 This should make @code{ALTER TABLE} much faster when you have many indexes.
+
+@item
+Since @strong{MySQL 4.0} this feature could be activated explicitly.
+@code{ALTER TABLE ... DISABLE KEYS} makes @strong{MySQL} to stop updating
+non-unique indexes for @code{MyISAM} table.
+@code{ALTER TABLE ... ENABLE KEYS} then should be used to recreate missing
+indexes. As @strong{MySQL} does it with special algorithm which is much
+faster then inserting keys one by one, disabling keys could give a
+considerable speedup on bulk inserts.
 
 @item
 @findex mysql_info()
@@ -24645,14 +24656,11 @@ InnoDB: Database physically writes the file full: wait...
 InnoDB: Data file /home/heikki/data/ibdata2 did not exist: new to be created
 InnoDB: Setting file /home/heikki/data/ibdata2 size to 262144000
 InnoDB: Database physically writes the file full: wait...
-InnoDB: Log file /home/heikki/data/logs/ib_logfile0 did not exist: new to be c
-reated
+InnoDB: Log file /home/heikki/data/logs/ib_logfile0 did not exist: new to be created
 InnoDB: Setting log file /home/heikki/data/logs/ib_logfile0 size to 5242880
-InnoDB: Log file /home/heikki/data/logs/ib_logfile1 did not exist: new to be c
-reated
+InnoDB: Log file /home/heikki/data/logs/ib_logfile1 did not exist: new to be created
 InnoDB: Setting log file /home/heikki/data/logs/ib_logfile1 size to 5242880
-InnoDB: Log file /home/heikki/data/logs/ib_logfile2 did not exist: new to be c
-reated
+InnoDB: Log file /home/heikki/data/logs/ib_logfile2 did not exist: new to be created
 InnoDB: Setting log file /home/heikki/data/logs/ib_logfile2 size to 5242880
 InnoDB: Started
 mysqld: ready for connections
@@ -30936,8 +30944,13 @@ Execute a @code{FLUSH TABLES} statement or the shell command @code{mysqladmin
 flush-tables}.
 @end enumerate
 
-This procedure will be built into @code{LOAD DATA INFILE} in some future
-version of @strong{MySQL}.
+Since @strong{MySQL 4.0} you can also use
+@code{ALTER TABLE tbl_name DISABLE KEYS} instead of
+@code{myisamchk --keys-used=0 -rq /path/to/db/tbl_name} and
+@code{ALTER TABLE tbl_name ENABLE KEYS} instead of
+@code{myisamchk -r -q /path/to/db/tbl_name}. This way you can also skip
+@code{FLUSH TABLES} steps.
+
 @item
 You can speed up insertions by locking your tables:
 
@@ -43867,6 +43880,9 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @appendixsubsec Changes in release 4.0.0
 
 @itemize @bullet
+@item
+Added @code{ALTER TABLE table_name DISABLE KEYS} and
+      @code{ALTER TABLE table_name ENABLE KEYS} commands.
 @item
 Added @code{HANDLER} command.
 @item

@@ -112,6 +112,7 @@ static SYMBOL symbols[] = {
   { "DELETE",		SYM(DELETE_SYM),0,0},
   { "DESC",		SYM(DESC),0,0},
   { "DESCRIBE",		SYM(DESCRIBE),0,0},
+  { "DISABLE",		SYM(DISABLE_SYM),0,0},
   { "DISTINCT",		SYM(DISTINCT),0,0},
   { "DISTINCTROW",	SYM(DISTINCT),0,0},	/* Access likes this */
   { "DOUBLE",		SYM(DOUBLE_SYM),0,0},
@@ -122,6 +123,7 @@ static SYMBOL symbols[] = {
   { "ELSE",             SYM(ELSE),0,0},
   { "ESCAPE",		SYM(ESCAPE_SYM),0,0},
   { "ESCAPED",		SYM(ESCAPED),0,0},
+  { "ENABLE",		SYM(ENABLE_SYM),0,0},
   { "ENCLOSED",		SYM(ENCLOSED),0,0},
   { "ENUM",		SYM(ENUM),0,0},
   { "EXPLAIN",		SYM(DESCRIBE),0,0},

@@ -1080,7 +1080,9 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 		      List<Alter_column> &alter_list,
                       ORDER *order,
 		      bool drop_primary,
-		      enum enum_duplicates handle_duplicates)
+		      enum enum_duplicates handle_duplicates,
+       		      enum enum_enable_or_disable keys_onoff,
+                      bool simple_alter)
 {
   TABLE *table,*new_table;
   int error;
@@ -1145,39 +1147,50 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (create_info->row_type == ROW_TYPE_DEFAULT)
     create_info->row_type=table->row_type;
 
-  /* Check if the user only wants to do a simple RENAME */
+  /* In some simple cases we need not to recreate the table */
 
   thd->proc_info="setup";
-  if (new_name != table_name &&
-      !fields.elements && !keys.elements && ! drop_list.elements &&
-      !alter_list.elements && !drop_primary &&
-      new_db_type == old_db_type && create_info->max_rows == 0 &&
-      create_info->auto_increment_value == 0 && !table->tmp_table)
+  if (simple_alter)
   {
-    thd->proc_info="rename";
-    VOID(pthread_mutex_lock(&LOCK_open));
-    /* Then do a 'simple' rename of the table */
     error=0;
-    if (!access(new_name_buff,F_OK))
+    if (new_name != table_name)
     {
-      my_error(ER_TABLE_EXISTS_ERROR,MYF(0),new_name);
-      error= -1;
-    }
-    else
-    {
-      *fn_ext(new_name)=0;
-      close_cached_table(thd,table);
-      if (mysql_rename_table(old_db_type,db,table_name,new_db,new_name))
-	error= -1;
-    }
-    if (!error && (error=ha_commit_rename(thd)))
-    {
-      my_error(ER_GET_ERRNO,MYF(0),error);
-      error=1;
-    }
+      thd->proc_info="rename";
+      VOID(pthread_mutex_lock(&LOCK_open));
+      /* Then do a 'simple' rename of the table */
+      error=0;
+      if (!access(new_name_buff,F_OK))
+      {
+        my_error(ER_TABLE_EXISTS_ERROR,MYF(0),new_name);
+        error= -1;
+      }
+      else
+      {
+        *fn_ext(new_name)=0;
+        close_cached_table(thd,table);
+        if (mysql_rename_table(old_db_type,db,table_name,new_db,new_name))
+	  error= -1;
+      }
+      if (!error && (error=ha_commit_rename(thd)))
+      {
+        my_error(ER_GET_ERRNO,MYF(0),error);
+        error=1;
+      }
 
-    VOID(pthread_cond_broadcast(&COND_refresh));
-    VOID(pthread_mutex_unlock(&LOCK_open));
+      VOID(pthread_cond_broadcast(&COND_refresh));
+      VOID(pthread_mutex_unlock(&LOCK_open));
+    }
+    if (!error)
+    {
+      switch (keys_onoff)
+      {
+        case LEAVE_AS_IS: break;
+        case ENABLE: error=table->file->activate_all_index(thd); break;
+        case DISABLE:
+          table->file->deactivate_non_unique_index(table->file->records);
+          break;
+      }
+    }
     if (!error)
     {
       mysql_update_log.write(thd, thd->query, thd->query_length);
@@ -1188,7 +1201,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       }
       send_ok(&thd->net);
     }
-
     DBUG_RETURN(error);
   }
 
