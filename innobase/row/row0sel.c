@@ -1934,6 +1934,9 @@ row_sel_field_store_in_mysql_format(
 		dest = row_mysql_store_var_len(dest, len);
 		ut_memcpy(dest, data, len);
 
+		/* Pad with trailing spaces */
+		memset(dest + len, ' ', col_len - len); 
+
 		/* ut_ad(col_len >= len + 2); No real var implemented in
 		MySQL yet! */
 		

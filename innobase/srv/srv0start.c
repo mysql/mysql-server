@@ -175,6 +175,9 @@ open_or_create_log_file(
 		fprintf(stderr,
 		"Innobase: Log file %s did not exist: new to be created\n",
 									name);
+		printf("Innobase: Setting log file %s size to %lu\n",
+			             name, UNIV_PAGE_SIZE * srv_log_file_size);
+
 		ret = os_file_set_size(name, files[i],
 					UNIV_PAGE_SIZE * srv_log_file_size, 0);
 		if (!ret) {
@@ -322,6 +325,9 @@ open_or_create_data_files(
 			
 			printf("Innobase: Setting file %s size to %lu\n",
 			       name, UNIV_PAGE_SIZE * srv_data_file_sizes[i]);
+
+			printf(
+	    "Innobase: Database physically writes the file full: wait...\n");
 
 			ret = os_file_set_size(name, files[i],
 				UNIV_PAGE_SIZE * srv_data_file_sizes[i], 0);
