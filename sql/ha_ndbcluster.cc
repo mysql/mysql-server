@@ -2276,10 +2276,14 @@ void ha_ndbcluster::print_results()
       fprintf(DBUG_FILE, "Double\t%f", value);
       break;
     }
-    case NdbDictionary::Column::Decimal: {
+    case NdbDictionary::Column::Olddecimal: {
       char *value= field->ptr;
-
-      fprintf(DBUG_FILE, "Decimal\t'%-*s'", field->pack_length(), value);
+      fprintf(DBUG_FILE, "Olddecimal\t'%-*s'", field->pack_length(), value);
+      break;
+    }
+    case NdbDictionary::Column::Olddecimalunsigned: {
+      char *value= field->ptr;
+      fprintf(DBUG_FILE, "Olddecimalunsigned\t'%-*s'", field->pack_length(), value);
       break;
     }
     case NdbDictionary::Column::Char:{
@@ -3312,10 +3316,6 @@ static int create_ndb_column(NDBCOL &col,
   const enum enum_field_types mysql_type= field->real_type();
   switch (mysql_type) {
   // Numeric types
-  case MYSQL_TYPE_DECIMAL:    
-    col.setType(NDBCOL::Char);
-    col.setLength(field->pack_length());
-    break;
   case MYSQL_TYPE_TINY:        
     if (field->flags & UNSIGNED_FLAG)
       col.setType(NDBCOL::Tinyunsigned);
@@ -3358,6 +3358,26 @@ static int create_ndb_column(NDBCOL &col,
   case MYSQL_TYPE_DOUBLE:
     col.setType(NDBCOL::Double);
     col.setLength(1);
+    break;
+  case MYSQL_TYPE_DECIMAL:    
+    {
+      Field_decimal *f= (Field_decimal*)field;
+      uint precision= f->pack_length();
+      uint scale= f->decimals();
+      if (field->flags & UNSIGNED_FLAG)
+      {
+        col.setType(NDBCOL::Olddecimalunsigned);
+        precision-= (scale > 0);
+      }
+      else
+      {
+        col.setType(NDBCOL::Olddecimal);
+        precision-= 1 + (scale > 0);
+      }
+      col.setPrecision(precision);
+      col.setScale(scale);
+      col.setLength(1);
+    }
     break;
   // Date types
   case MYSQL_TYPE_DATETIME:    
