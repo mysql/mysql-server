@@ -47428,9 +47428,6 @@ Updated by Tobias Ritzau, @email{tobri@@ida.liu.se}.
 @item @uref{http://www.mysql.com/Downloads/Contrib/MyC-0.1.tar.gz}
 A Visual Basic-like API, by Ed Carp.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/sqlscreens-1.0.1.tar.gz}
-Tcl/Tk code to generate database screens. By Jean-Francois Dockes.
-
 @item @uref{http://www.mysql.com/Downloads/Contrib/Vdb-dflts-2.1.tar.gz}
 This is a new version of a set of library utilities intended
 to provide a generic interface to SQL database engines such that your
