@@ -19769,7 +19769,7 @@ SELECT [STRAIGHT_JOIN] [SQL_SMALL_RESULT] [SQL_BIG_RESULT] [SQL_BUFFER_RESULT]
         [ORDER BY @{unsigned_integer | col_name | formula@} [ASC | DESC] ,...]
         [LIMIT [offset,] rows]
         [PROCEDURE procedure_name]
-        [FOR UPDATE | IN SHARE MODE]]
+        [FOR UPDATE | LOCK IN SHARE MODE]]
 @end example
 @c help end
 
@@ -24976,10 +24976,10 @@ happen that meanwhile some other user has deleted the parent row
 from the table @code{PARENT}, and you are not aware of that.
 
 The solution is to perform the @code{SELECT} in a locking
-mode, @code{IN SHARE MODE}.
+mode, @code{LOCK IN SHARE MODE}.
 
 @example
-SELECT * FROM PARENT WHERE NAME = 'Jones' IN SHARE MODE;
+SELECT * FROM PARENT WHERE NAME = 'Jones' LOCK IN SHARE MODE;
 @end example
 
 Performing a read in share mode means that we read the latest
@@ -25078,7 +25078,7 @@ table.
 @code{SELECT ... FROM ...} : this is a consistent read, reading a
 snapshot of the database and setting no locks.
 @item
-@code{SELECT ... FROM ... IN SHARE MODE} : sets shared next-key locks
+@code{SELECT ... FROM ... LOCK IN SHARE MODE} : sets shared next-key locks
 on all index records the read encounters.
 @item
 @code{SELECT ... FROM ... FOR UPDATE} : sets exclusive next-key locks
