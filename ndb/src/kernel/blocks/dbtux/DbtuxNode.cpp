@@ -18,175 +18,107 @@
 #include "Dbtux.hpp"
 
 /*
- * Node handles.
- *
- * We use the "cache" implementation.  Node operations are done on
- * cached copies.  Index memory is updated at the end of the operation.
- * At most one node is inserted and it is always pre-allocated.
- *
- * An alternative "pointer" implementation which writes directly into
- * index memory is planned for later.
+ * Allocate index node in TUP.
  */
-
-// Dbtux
-
-void
-Dbtux::seizeNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr)
+int
+Dbtux::allocNode(Signal* signal, NodeHandle& node)
 {
-  if (! c_nodeHandlePool.seize(nodePtr)) {
+  Frag& frag = node.m_frag;
+  Uint32 pageId = NullTupLoc.m_pageId;
+  Uint32 pageOffset = NullTupLoc.m_pageOffset;
+  Uint32* node32 = 0;
+  int errorCode = c_tup->tuxAllocNode(signal, frag.m_tupIndexFragPtrI, pageId, pageOffset, node32);
+  if (errorCode == 0) {
     jam();
-    return;
+    node.m_loc = TupLoc(pageId, pageOffset);
+    node.m_node = reinterpret_cast<TreeNode*>(node32);
+    node.m_acc = AccNone;
+    ndbrequire(node.m_loc != NullTupLoc && node.m_node != 0);
   }
-  new (nodePtr.p) NodeHandle(*this, frag);
-  nodePtr.p->m_next = frag.m_nodeList;
-  frag.m_nodeList = nodePtr.i;
-  // node cache used always
-  nodePtr.p->m_node = (TreeNode*)nodePtr.p->m_cache;
-  new (nodePtr.p->m_node) TreeNode();
-#ifdef VM_TRACE
-  TreeHead& tree = frag.m_tree;
-  TreeNode* node = nodePtr.p->m_node;
-  memset(tree.getPref(node, 0), 0xa2, tree.m_prefSize << 2);
-  memset(tree.getPref(node, 1), 0xa2, tree.m_prefSize << 2);
-  TreeEnt* entList = tree.getEntList(node);
-  memset(entList, 0xa4, (tree.m_maxOccup + 1) * (TreeEntSize << 2));
-#endif
-}
-
-void
-Dbtux::preallocNode(Signal* signal, Frag& frag, Uint32& errorCode)
-{
-  ndbrequire(frag.m_nodeFree == RNIL);
-  NodeHandlePtr nodePtr;
-  seizeNode(signal, frag, nodePtr);
-  ndbrequire(nodePtr.i != RNIL);
-  // remove from cache  XXX ugly
-  frag.m_nodeFree = frag.m_nodeList;
-  frag.m_nodeList = nodePtr.p->m_next;
-  StorePar storePar;
-  storePar.m_opCode = TupStoreTh::OpInsert;
-  storePar.m_offset = 0;
-  storePar.m_size = 0;
-  tupStoreTh(signal, frag, nodePtr, storePar);
-  if (storePar.m_errorCode != 0) {
-    jam();
-    errorCode = storePar.m_errorCode;
-    c_nodeHandlePool.release(nodePtr);
-    frag.m_nodeFree = RNIL;
-  }
-}
-
-/*
- * Find node in the cache.  XXX too slow, use direct links instead
- */
-void
-Dbtux::findNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, TupAddr addr)
-{
-  NodeHandlePtr tmpPtr;
-  tmpPtr.i = frag.m_nodeList;
-  while (tmpPtr.i != RNIL) {
-    jam();
-    c_nodeHandlePool.getPtr(tmpPtr);
-    if (tmpPtr.p->m_addr == addr) {
-      jam();
-      nodePtr = tmpPtr;
-      return;
-    }
-    tmpPtr.i = tmpPtr.p->m_next;
-  }
-  nodePtr.i = RNIL;
-  nodePtr.p = 0;
-}
-
-/*
- * Get handle for existing node.
- */
-void
-Dbtux::selectNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, TupAddr addr, AccSize acc)
-{
-  ndbrequire(addr != NullTupAddr && acc > AccNone);
-  NodeHandlePtr tmpPtr;
-  // search in cache
-  findNode(signal, frag, tmpPtr, addr);
-  if (tmpPtr.i == RNIL) {
-    jam();
-    // add new node
-    seizeNode(signal, frag, tmpPtr);
-    ndbrequire(tmpPtr.i != RNIL);
-    tmpPtr.p->m_addr = addr;
-  }
-  if (tmpPtr.p->m_acc < acc) {
-    jam();
-    accessNode(signal, frag, tmpPtr, acc);
-  }
-  nodePtr = tmpPtr;
-}
-
-/*
- * Create new node in the cache and mark it for insert.
- */
-void
-Dbtux::insertNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, AccSize acc)
-{
-  ndbrequire(acc > AccNone);
-  NodeHandlePtr tmpPtr;
-  // use the pre-allocated node
-  tmpPtr.i = frag.m_nodeFree;
-  frag.m_nodeFree = RNIL;
-  c_nodeHandlePool.getPtr(tmpPtr);
-  // move it to the cache
-  tmpPtr.p->m_next = frag.m_nodeList;
-  frag.m_nodeList = tmpPtr.i;
-  tmpPtr.p->m_acc = acc;
-  tmpPtr.p->m_flags |= NodeHandle::DoInsert;
-  nodePtr = tmpPtr;
-}
-
-/*
- * Mark existing node for deletion.
- */
-void
-Dbtux::deleteNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr)
-{
-  NodeHandlePtr tmpPtr = nodePtr;
-  ndbrequire(tmpPtr.p->getOccup() == 0);
-  tmpPtr.p->m_flags |= NodeHandle::DoDelete;
-  // scans have already been moved by popDown or popUp
+  return errorCode;
 }
 
 /*
  * Access more of the node.
  */
 void
-Dbtux::accessNode(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, AccSize acc)
+Dbtux::accessNode(Signal* signal, NodeHandle& node, AccSize acc)
 {
-  TreeHead& tree = frag.m_tree;
-  NodeHandlePtr tmpPtr = nodePtr;
-  if (tmpPtr.p->m_acc >= acc)
+  ndbrequire(node.m_loc != NullTupLoc && node.m_node != 0);
+  if (node.m_acc >= acc)
     return;
-  if (! (tmpPtr.p->m_flags & NodeHandle::DoInsert)) {
-    jam();
-    StorePar storePar;
-    storePar.m_opCode = TupStoreTh::OpRead;
-    storePar.m_offset = tree.getSize(tmpPtr.p->m_acc);
-    storePar.m_size = tree.getSize(acc) - tree.getSize(tmpPtr.p->m_acc);
-    tmpPtr.p->m_tux.tupStoreTh(signal, frag, tmpPtr, storePar);
-    ndbrequire(storePar.m_errorCode == 0);
-  }
-  tmpPtr.p->m_acc = acc;
+  // XXX could do prefetch
+  node.m_acc = acc;
+}
+
+/*
+ * Set handle to point to existing node.
+ */
+void
+Dbtux::selectNode(Signal* signal, NodeHandle& node, TupLoc loc, AccSize acc)
+{
+  Frag& frag = node.m_frag;
+  ndbrequire(loc != NullTupLoc);
+  Uint32 pageId = loc.m_pageId;
+  Uint32 pageOffset = loc.m_pageOffset;
+  Uint32* node32 = 0;
+  c_tup->tuxGetNode(frag.m_tupIndexFragPtrI, pageId, pageOffset, node32);
+  node.m_loc = loc;
+  node.m_node = reinterpret_cast<TreeNode*>(node32);
+  node.m_acc = AccNone;
+  ndbrequire(node.m_loc != NullTupLoc && node.m_node != 0);
+  accessNode(signal, node, acc);
+}
+
+/*
+ * Set handle to point to new node.  Uses the pre-allocated node.
+ */
+void
+Dbtux::insertNode(Signal* signal, NodeHandle& node, AccSize acc)
+{
+  Frag& frag = node.m_frag;
+  TupLoc loc = frag.m_freeLoc;
+  frag.m_freeLoc = NullTupLoc;
+  selectNode(signal, node, loc, acc);
+  new (node.m_node) TreeNode();
+#ifdef VM_TRACE
+  TreeHead& tree = frag.m_tree;
+  memset(tree.getPref(node.m_node, 0), 0xa2, tree.m_prefSize << 2);
+  memset(tree.getPref(node.m_node, 1), 0xa2, tree.m_prefSize << 2);
+  TreeEnt* entList = tree.getEntList(node.m_node);
+  memset(entList, 0xa4, (tree.m_maxOccup + 1) * (TreeEntSize << 2));
+#endif
+}
+
+/*
+ * Delete existing node.
+ */
+void
+Dbtux::deleteNode(Signal* signal, NodeHandle& node)
+{
+  Frag& frag = node.m_frag;
+  ndbrequire(node.getOccup() == 0);
+  TupLoc loc = node.m_loc;
+  Uint32 pageId = loc.m_pageId;
+  Uint32 pageOffset = loc.m_pageOffset;
+  Uint32* node32 = reinterpret_cast<Uint32*>(node.m_node);
+  c_tup->tuxFreeNode(signal, frag.m_tupIndexFragPtrI, pageId, pageOffset, node32);
+  // invalidate handle and storage
+  node.m_loc = NullTupLoc;
+  node.m_node = 0;
 }
 
 /*
  * Set prefix.
  */
 void
-Dbtux::setNodePref(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, unsigned i)
+Dbtux::setNodePref(Signal* signal, NodeHandle& node, unsigned i)
 {
+  Frag& frag = node.m_frag;
   TreeHead& tree = frag.m_tree;
-  NodeHandlePtr tmpPtr = nodePtr;
   ReadPar readPar;
   ndbrequire(i <= 1);
-  readPar.m_ent = tmpPtr.p->getMinMax(i);
+  readPar.m_ent = node.getMinMax(i);
   readPar.m_first = 0;
   readPar.m_count = frag.m_numAttrs;
   // leave in signal data
@@ -198,61 +130,11 @@ Dbtux::setNodePref(Signal* signal, Frag& frag, NodeHandlePtr& nodePtr, unsigned 
   copyPar.m_items = readPar.m_count;
   copyPar.m_headers = true;
   copyPar.m_maxwords = tree.m_prefSize;
-  Data pref = tmpPtr.p->getPref(i);
+  Data pref = node.getPref(i);
   copyAttrs(pref, readPar.m_data, copyPar);
-  nodePtr.p->m_flags |= NodeHandle::DoUpdate;
 }
 
-/*
- * Commit and release nodes at the end of an operation.  Used also on
- * error since no changes have been made (updateOk false).
- */
-void
-Dbtux::commitNodes(Signal* signal, Frag& frag, bool updateOk)
-{
-  TreeHead& tree = frag.m_tree;
-  NodeHandlePtr nodePtr;
-  nodePtr.i = frag.m_nodeList;
-  frag.m_nodeList = RNIL;
-  while (nodePtr.i != RNIL) {
-    c_nodeHandlePool.getPtr(nodePtr);
-    const unsigned flags = nodePtr.p->m_flags;
-    if (flags & NodeHandle::DoDelete) {
-      jam();
-      ndbrequire(updateOk);
-      // delete
-      StorePar storePar;
-      storePar.m_opCode = TupStoreTh::OpDelete;
-      nodePtr.p->m_tux.tupStoreTh(signal, frag, nodePtr, storePar);
-      ndbrequire(storePar.m_errorCode == 0);
-    } else if (flags & NodeHandle::DoUpdate) {
-      jam();
-      ndbrequire(updateOk);
-      // set prefixes
-      if (flags & (1 << 0)) {
-        jam();
-        setNodePref(signal, frag, nodePtr, 0);
-      }
-      if (flags & (1 << 1)) {
-        jam();
-        setNodePref(signal, frag, nodePtr, 1);
-      }
-      // update
-      StorePar storePar;
-      storePar.m_opCode = TupStoreTh::OpUpdate;
-      storePar.m_offset = 0;
-      storePar.m_size = tree.getSize(nodePtr.p->m_acc);
-      nodePtr.p->m_tux.tupStoreTh(signal, frag, nodePtr, storePar);
-      ndbrequire(storePar.m_errorCode == 0);
-    }
-    // release
-    NodeHandlePtr tmpPtr = nodePtr;
-    nodePtr.i = nodePtr.p->m_next;
-    c_nodeHandlePool.release(tmpPtr);
-  }
-}
-
-// Dbtux::NodeHandle
+// node operations
 
 /*
  * Add entry at position.  Move entries greater than or equal to the old
@@ -264,25 +146,26 @@ Dbtux::commitNodes(Signal* signal, Frag& frag, bool updateOk)
  *      0 1 2 3 4 5 6      0 1 2 3 4 5 6
  */
 void
-Dbtux::NodeHandle::pushUp(Signal* signal, unsigned pos, const TreeEnt& ent)
+Dbtux::nodePushUp(Signal* signal, NodeHandle& node, unsigned pos, const TreeEnt& ent)
 {
-  TreeHead& tree = m_frag.m_tree;
-  const unsigned occup = getOccup();
+  Frag& frag = node.m_frag;
+  TreeHead& tree = frag.m_tree;
+  const unsigned occup = node.getOccup();
   ndbrequire(occup < tree.m_maxOccup && pos <= occup);
   // fix scans
   ScanOpPtr scanPtr;
-  scanPtr.i = getNodeScan();
+  scanPtr.i = node.getNodeScan();
   while (scanPtr.i != RNIL) {
     jam();
-    m_tux.c_scanOpPool.getPtr(scanPtr);
+    c_scanOpPool.getPtr(scanPtr);
     TreePos& scanPos = scanPtr.p->m_scanPos;
-    ndbrequire(scanPos.m_addr == m_addr && scanPos.m_pos < occup);
+    ndbrequire(scanPos.m_loc == node.m_loc && scanPos.m_pos < occup);
     if (scanPos.m_pos >= pos) {
       jam();
 #ifdef VM_TRACE
-      if (m_tux.debugFlags & m_tux.DebugScan) {
-        m_tux.debugOut << "Fix scan " << scanPtr.i << " " << *scanPtr.p << endl;
-        m_tux.debugOut << "At pushUp pos=" << pos << " " << *this << endl;
+      if (debugFlags & DebugScan) {
+        debugOut << "Fix scan " << scanPtr.i << " " << *scanPtr.p << endl;
+        debugOut << "At pushUp pos=" << pos << " " << node << endl;
       }
 #endif
       scanPos.m_pos++;
@@ -290,7 +173,7 @@ Dbtux::NodeHandle::pushUp(Signal* signal, unsigned pos, const TreeEnt& ent)
     scanPtr.i = scanPtr.p->m_nodeScan;
   }
   // fix node
-  TreeEnt* const entList = tree.getEntList(m_node);
+  TreeEnt* const entList = tree.getEntList(node.m_node);
   entList[occup] = entList[0];
   TreeEnt* const tmpList = entList + 1;
   for (unsigned i = occup; i > pos; i--) {
@@ -298,18 +181,18 @@ Dbtux::NodeHandle::pushUp(Signal* signal, unsigned pos, const TreeEnt& ent)
     tmpList[i] = tmpList[i - 1];
   }
   tmpList[pos] = ent;
-  if (occup == 0 || pos == 0)
-    m_flags |= (1 << 0);
-  if (occup == 0 || pos == occup)
-    m_flags |= (1 << 1);
   entList[0] = entList[occup + 1];
-  setOccup(occup + 1);
-  m_flags |= DoUpdate;
+  node.setOccup(occup + 1);
+  // fix prefixes
+  if (occup == 0 || pos == 0)
+    setNodePref(signal, node, 0);
+  if (occup == 0 || pos == occup)
+    setNodePref(signal, node, 1);
 }
 
 /*
  * Remove and return entry at position.  Move entries greater than the
- * removed one to the left.  This is the opposite of pushUp.
+ * removed one to the left.  This is the opposite of nodePushUp.
  *
  *                               D
  *            ^                  ^
@@ -317,46 +200,47 @@ Dbtux::NodeHandle::pushUp(Signal* signal, unsigned pos, const TreeEnt& ent)
  *      0 1 2 3 4 5 6      0 1 2 3 4 5 6
  */
 void
-Dbtux::NodeHandle::popDown(Signal* signal, unsigned pos, TreeEnt& ent)
+Dbtux::nodePopDown(Signal* signal, NodeHandle& node, unsigned pos, TreeEnt& ent)
 {
-  TreeHead& tree = m_frag.m_tree;
-  const unsigned occup = getOccup();
+  Frag& frag = node.m_frag;
+  TreeHead& tree = frag.m_tree;
+  const unsigned occup = node.getOccup();
   ndbrequire(occup <= tree.m_maxOccup && pos < occup);
   ScanOpPtr scanPtr;
   // move scans whose entry disappears
-  scanPtr.i = getNodeScan();
+  scanPtr.i = node.getNodeScan();
   while (scanPtr.i != RNIL) {
     jam();
-    m_tux.c_scanOpPool.getPtr(scanPtr);
+    c_scanOpPool.getPtr(scanPtr);
     TreePos& scanPos = scanPtr.p->m_scanPos;
-    ndbrequire(scanPos.m_addr == m_addr && scanPos.m_pos < occup);
+    ndbrequire(scanPos.m_loc == node.m_loc && scanPos.m_pos < occup);
     const Uint32 nextPtrI = scanPtr.p->m_nodeScan;
     if (scanPos.m_pos == pos) {
       jam();
 #ifdef VM_TRACE
-      if (m_tux.debugFlags & m_tux.DebugScan) {
-        m_tux.debugOut << "Move scan " << scanPtr.i << " " << *scanPtr.p << endl;
-        m_tux.debugOut << "At popDown pos=" << pos << " " << *this << endl;
+      if (debugFlags & DebugScan) {
+        debugOut << "Move scan " << scanPtr.i << " " << *scanPtr.p << endl;
+        debugOut << "At popDown pos=" << pos << " " << node << endl;
       }
 #endif
-      m_tux.scanNext(signal, scanPtr);
+      scanNext(signal, scanPtr);
     }
     scanPtr.i = nextPtrI;
   }
   // fix other scans
-  scanPtr.i = getNodeScan();
+  scanPtr.i = node.getNodeScan();
   while (scanPtr.i != RNIL) {
     jam();
-    m_tux.c_scanOpPool.getPtr(scanPtr);
+    c_scanOpPool.getPtr(scanPtr);
     TreePos& scanPos = scanPtr.p->m_scanPos;
-    ndbrequire(scanPos.m_addr == m_addr && scanPos.m_pos < occup);
+    ndbrequire(scanPos.m_loc == node.m_loc && scanPos.m_pos < occup);
     ndbrequire(scanPos.m_pos != pos);
     if (scanPos.m_pos > pos) {
       jam();
 #ifdef VM_TRACE
-      if (m_tux.debugFlags & m_tux.DebugScan) {
-        m_tux.debugOut << "Fix scan " << scanPtr.i << " " << *scanPtr.p << endl;
-        m_tux.debugOut << "At popDown pos=" << pos << " " << *this << endl;
+      if (debugFlags & DebugScan) {
+        debugOut << "Fix scan " << scanPtr.i << " " << *scanPtr.p << endl;
+        debugOut << "At popDown pos=" << pos << " " << node << endl;
       }
 #endif
       scanPos.m_pos--;
@@ -364,7 +248,7 @@ Dbtux::NodeHandle::popDown(Signal* signal, unsigned pos, TreeEnt& ent)
     scanPtr.i = scanPtr.p->m_nodeScan;
   }
   // fix node
-  TreeEnt* const entList = tree.getEntList(m_node);
+  TreeEnt* const entList = tree.getEntList(node.m_node);
   entList[occup] = entList[0];
   TreeEnt* const tmpList = entList + 1;
   ent = tmpList[pos];
@@ -372,13 +256,13 @@ Dbtux::NodeHandle::popDown(Signal* signal, unsigned pos, TreeEnt& ent)
     jam();
     tmpList[i] = tmpList[i + 1];
   }
-  if (occup != 1 && pos == 0)
-    m_flags |= (1 << 0);
-  if (occup != 1 && pos == occup - 1)
-    m_flags |= (1 << 1);
   entList[0] = entList[occup - 1];
-  setOccup(occup - 1);
-  m_flags |= DoUpdate;
+  node.setOccup(occup - 1);
+  // fix prefixes
+  if (occup != 1 && pos == 0)
+    setNodePref(signal, node, 0);
+  if (occup != 1 && pos == occup - 1)
+    setNodePref(signal, node, 1);
 }
 
 /*
@@ -391,47 +275,48 @@ Dbtux::NodeHandle::popDown(Signal* signal, unsigned pos, TreeEnt& ent)
  *      0 1 2 3 4 5 6      0 1 2 3 4 5 6
  */
 void
-Dbtux::NodeHandle::pushDown(Signal* signal, unsigned pos, TreeEnt& ent)
+Dbtux::nodePushDown(Signal* signal, NodeHandle& node, unsigned pos, TreeEnt& ent)
 {
-  TreeHead& tree = m_frag.m_tree;
-  const unsigned occup = getOccup();
+  Frag& frag = node.m_frag;
+  TreeHead& tree = frag.m_tree;
+  const unsigned occup = node.getOccup();
   ndbrequire(occup <= tree.m_maxOccup && pos < occup);
   ScanOpPtr scanPtr;
   // move scans whose entry disappears
-  scanPtr.i = getNodeScan();
+  scanPtr.i = node.getNodeScan();
   while (scanPtr.i != RNIL) {
     jam();
-    m_tux.c_scanOpPool.getPtr(scanPtr);
+    c_scanOpPool.getPtr(scanPtr);
     TreePos& scanPos = scanPtr.p->m_scanPos;
-    ndbrequire(scanPos.m_addr == m_addr && scanPos.m_pos < occup);
+    ndbrequire(scanPos.m_loc == node.m_loc && scanPos.m_pos < occup);
     const Uint32 nextPtrI = scanPtr.p->m_nodeScan;
     if (scanPos.m_pos == 0) {
       jam();
 #ifdef VM_TRACE
-      if (m_tux.debugFlags & m_tux.DebugScan) {
-        m_tux.debugOut << "Move scan " << scanPtr.i << " " << *scanPtr.p << endl;
-        m_tux.debugOut << "At pushDown pos=" << pos << " " << *this << endl;
+      if (debugFlags & DebugScan) {
+        debugOut << "Move scan " << scanPtr.i << " " << *scanPtr.p << endl;
+        debugOut << "At pushDown pos=" << pos << " " << node << endl;
       }
 #endif
       // here we may miss a valid entry "X"  XXX known bug
-      m_tux.scanNext(signal, scanPtr);
+      scanNext(signal, scanPtr);
     }
     scanPtr.i = nextPtrI;
   }
   // fix other scans
-  scanPtr.i = getNodeScan();
+  scanPtr.i = node.getNodeScan();
   while (scanPtr.i != RNIL) {
     jam();
-    m_tux.c_scanOpPool.getPtr(scanPtr);
+    c_scanOpPool.getPtr(scanPtr);
     TreePos& scanPos = scanPtr.p->m_scanPos;
-    ndbrequire(scanPos.m_addr == m_addr && scanPos.m_pos < occup);
+    ndbrequire(scanPos.m_loc == node.m_loc && scanPos.m_pos < occup);
     ndbrequire(scanPos.m_pos != 0);
     if (scanPos.m_pos <= pos) {
       jam();
 #ifdef VM_TRACE
-      if (m_tux.debugFlags & m_tux.DebugScan) {
-        m_tux.debugOut << "Fix scan " << scanPtr.i << " " << *scanPtr.p << endl;
-        m_tux.debugOut << "At pushDown pos=" << pos << " " << *this << endl;
+      if (debugFlags & DebugScan) {
+        debugOut << "Fix scan " << scanPtr.i << " " << *scanPtr.p << endl;
+        debugOut << "At pushDown pos=" << pos << " " << node << endl;
       }
 #endif
       scanPos.m_pos--;
@@ -439,7 +324,7 @@ Dbtux::NodeHandle::pushDown(Signal* signal, unsigned pos, TreeEnt& ent)
     scanPtr.i = scanPtr.p->m_nodeScan;
   }
   // fix node
-  TreeEnt* const entList = tree.getEntList(m_node);
+  TreeEnt* const entList = tree.getEntList(node.m_node);
   entList[occup] = entList[0];
   TreeEnt* const tmpList = entList + 1;
   TreeEnt oldMin = tmpList[0];
@@ -449,18 +334,18 @@ Dbtux::NodeHandle::pushDown(Signal* signal, unsigned pos, TreeEnt& ent)
   }
   tmpList[pos] = ent;
   ent = oldMin;
-  if (true)
-    m_flags |= (1 << 0);
-  if (occup == 1 || pos == occup - 1)
-    m_flags |= (1 << 1);
   entList[0] = entList[occup];
-  m_flags |= DoUpdate;
+  // fix prefixes
+  if (true)
+    setNodePref(signal, node, 0);
+  if (occup == 1 || pos == occup - 1)
+    setNodePref(signal, node, 1);
 }
 
 /*
  * Remove and return entry at position.  Move entries less than the
  * removed one to the right.  Replace min entry by the input entry.
- * This is the opposite of pushDown.
+ * This is the opposite of nodePushDown.
  *
  *      X                        D
  *      v     ^                  ^
@@ -468,47 +353,48 @@ Dbtux::NodeHandle::pushDown(Signal* signal, unsigned pos, TreeEnt& ent)
  *      0 1 2 3 4 5 6      0 1 2 3 4 5 6
  */
 void
-Dbtux::NodeHandle::popUp(Signal* signal, unsigned pos, TreeEnt& ent)
+Dbtux::nodePopUp(Signal* signal, NodeHandle& node, unsigned pos, TreeEnt& ent)
 {
-  TreeHead& tree = m_frag.m_tree;
-  const unsigned occup = getOccup();
+  Frag& frag = node.m_frag;
+  TreeHead& tree = frag.m_tree;
+  const unsigned occup = node.getOccup();
   ndbrequire(occup <= tree.m_maxOccup && pos < occup);
   ScanOpPtr scanPtr;
   // move scans whose entry disappears
-  scanPtr.i = getNodeScan();
+  scanPtr.i = node.getNodeScan();
   while (scanPtr.i != RNIL) {
     jam();
-    m_tux.c_scanOpPool.getPtr(scanPtr);
+    c_scanOpPool.getPtr(scanPtr);
     TreePos& scanPos = scanPtr.p->m_scanPos;
-    ndbrequire(scanPos.m_addr == m_addr && scanPos.m_pos < occup);
+    ndbrequire(scanPos.m_loc == node.m_loc && scanPos.m_pos < occup);
     const Uint32 nextPtrI = scanPtr.p->m_nodeScan;
     if (scanPos.m_pos == pos) {
       jam();
 #ifdef VM_TRACE
-      if (m_tux.debugFlags & m_tux.DebugScan) {
-        m_tux.debugOut << "Move scan " << scanPtr.i << " " << *scanPtr.p << endl;
-        m_tux.debugOut << "At popUp pos=" << pos << " " << *this << endl;
+      if (debugFlags & DebugScan) {
+        debugOut << "Move scan " << scanPtr.i << " " << *scanPtr.p << endl;
+        debugOut << "At popUp pos=" << pos << " " << node << endl;
       }
 #endif
       // here we may miss a valid entry "X"  XXX known bug
-      m_tux.scanNext(signal, scanPtr);
+      scanNext(signal, scanPtr);
     }
     scanPtr.i = nextPtrI;
   }
   // fix other scans
-  scanPtr.i = getNodeScan();
+  scanPtr.i = node.getNodeScan();
   while (scanPtr.i != RNIL) {
     jam();
-    m_tux.c_scanOpPool.getPtr(scanPtr);
+    c_scanOpPool.getPtr(scanPtr);
     TreePos& scanPos = scanPtr.p->m_scanPos;
-    ndbrequire(scanPos.m_addr == m_addr && scanPos.m_pos < occup);
+    ndbrequire(scanPos.m_loc == node.m_loc && scanPos.m_pos < occup);
     ndbrequire(scanPos.m_pos != pos);
     if (scanPos.m_pos < pos) {
       jam();
 #ifdef VM_TRACE
-      if (m_tux.debugFlags & m_tux.DebugScan) {
-        m_tux.debugOut << "Fix scan " << scanPtr.i << " " << *scanPtr.p << endl;
-        m_tux.debugOut << "At popUp pos=" << pos << " " << *this << endl;
+      if (debugFlags & DebugScan) {
+        debugOut << "Fix scan " << scanPtr.i << " " << *scanPtr.p << endl;
+        debugOut << "At popUp pos=" << pos << " " << node << endl;
       }
 #endif
       scanPos.m_pos++;
@@ -516,7 +402,7 @@ Dbtux::NodeHandle::popUp(Signal* signal, unsigned pos, TreeEnt& ent)
     scanPtr.i = scanPtr.p->m_nodeScan;
   }
   // fix node
-  TreeEnt* const entList = tree.getEntList(m_node);
+  TreeEnt* const entList = tree.getEntList(node.m_node);
   entList[occup] = entList[0];
   TreeEnt* const tmpList = entList + 1;
   TreeEnt newMin = ent;
@@ -526,12 +412,12 @@ Dbtux::NodeHandle::popUp(Signal* signal, unsigned pos, TreeEnt& ent)
     tmpList[i] = tmpList[i - 1];
   }
   tmpList[0] = newMin;
-  if (true)
-    m_flags |= (1 << 0);
-  if (occup == 1 || pos == occup - 1)
-    m_flags |= (1 << 1);
   entList[0] = entList[occup];
-  m_flags |= DoUpdate;
+  // fix prefixes
+  if (true)
+    setNodePref(signal, node, 0);
+  if (occup == 1 || pos == occup - 1)
+    setNodePref(signal, node, 1);
 }
 
 /*
@@ -539,14 +425,15 @@ Dbtux::NodeHandle::popUp(Signal* signal, unsigned pos, TreeEnt& ent)
  * after the max (i=1).  XXX can be optimized
  */
 void
-Dbtux::NodeHandle::slide(Signal* signal, NodeHandlePtr nodePtr, unsigned i)
+Dbtux::nodeSlide(Signal* signal, NodeHandle& dstNode, NodeHandle& srcNode, unsigned i)
 {
+  Frag& frag = dstNode.m_frag;
+  TreeHead& tree = frag.m_tree;
   ndbrequire(i <= 1);
-  TreeHead& tree = m_frag.m_tree;
-  while (getOccup() < tree.m_maxOccup && nodePtr.p->getOccup() != 0) {
+  while (dstNode.getOccup() < tree.m_maxOccup && srcNode.getOccup() != 0) {
     TreeEnt ent;
-    nodePtr.p->popDown(signal, i == 0 ? nodePtr.p->getOccup() - 1 : 0, ent);
-    pushUp(signal, i == 0 ? 0 : getOccup(), ent);
+    nodePopDown(signal, srcNode, i == 0 ? srcNode.getOccup() - 1 : 0, ent);
+    nodePushUp(signal, dstNode, i == 0 ? 0 : dstNode.getOccup(), ent);
   }
 }
 
@@ -555,50 +442,50 @@ Dbtux::NodeHandle::slide(Signal* signal, NodeHandlePtr nodePtr, unsigned i)
  * ordering does not matter.
  */
 void
-Dbtux::NodeHandle::linkScan(Dbtux::ScanOpPtr scanPtr)
+Dbtux::linkScan(NodeHandle& node, ScanOpPtr scanPtr)
 {
 #ifdef VM_TRACE
-  if (m_tux.debugFlags & m_tux.DebugScan) {
-    m_tux.debugOut << "Link scan " << scanPtr.i << " " << *scanPtr.p << endl;
-    m_tux.debugOut << "To node " << *this << endl;
+  if (debugFlags & DebugScan) {
+    debugOut << "Link scan " << scanPtr.i << " " << *scanPtr.p << endl;
+    debugOut << "To node " << node << endl;
   }
 #endif
-  ndbrequire(! islinkScan(scanPtr) && scanPtr.p->m_nodeScan == RNIL);
-  scanPtr.p->m_nodeScan = getNodeScan();
-  setNodeScan(scanPtr.i);
+  ndbrequire(! islinkScan(node, scanPtr) && scanPtr.p->m_nodeScan == RNIL);
+  scanPtr.p->m_nodeScan = node.getNodeScan();
+  node.setNodeScan(scanPtr.i);
 }
 
 /*
  * Unlink a scan from the list under the node.
  */
 void
-Dbtux::NodeHandle::unlinkScan(Dbtux::ScanOpPtr scanPtr)
+Dbtux::unlinkScan(NodeHandle& node, ScanOpPtr scanPtr)
 {
 #ifdef VM_TRACE
-  if (m_tux.debugFlags & m_tux.DebugScan) {
-    m_tux.debugOut << "Unlink scan " << scanPtr.i << " " << *scanPtr.p << endl;
-    m_tux.debugOut << "From node " << *this << endl;
+  if (debugFlags & DebugScan) {
+    debugOut << "Unlink scan " << scanPtr.i << " " << *scanPtr.p << endl;
+    debugOut << "From node " << node << endl;
   }
 #endif
-  Dbtux::ScanOpPtr currPtr;
-  currPtr.i = getNodeScan();
-  Dbtux::ScanOpPtr prevPtr;
+  ScanOpPtr currPtr;
+  currPtr.i = node.getNodeScan();
+  ScanOpPtr prevPtr;
   prevPtr.i = RNIL;
   while (true) {
     jam();
-    m_tux.c_scanOpPool.getPtr(currPtr);
+    c_scanOpPool.getPtr(currPtr);
     Uint32 nextPtrI = currPtr.p->m_nodeScan;
     if (currPtr.i == scanPtr.i) {
       jam();
       if (prevPtr.i == RNIL) {
-        setNodeScan(nextPtrI);
+        node.setNodeScan(nextPtrI);
       } else {
         jam();
         prevPtr.p->m_nodeScan = nextPtrI;
       }
       scanPtr.p->m_nodeScan = RNIL;
       // check for duplicates
-      ndbrequire(! islinkScan(scanPtr));
+      ndbrequire(! islinkScan(node, scanPtr));
       return;
     }
     prevPtr = currPtr;
@@ -610,13 +497,13 @@ Dbtux::NodeHandle::unlinkScan(Dbtux::ScanOpPtr scanPtr)
  * Check if a scan is linked to this node.  Only for ndbrequire.
  */
 bool
-Dbtux::NodeHandle::islinkScan(Dbtux::ScanOpPtr scanPtr)
+Dbtux::islinkScan(NodeHandle& node, ScanOpPtr scanPtr)
 {
-  Dbtux::ScanOpPtr currPtr;
-  currPtr.i = getNodeScan();
+  ScanOpPtr currPtr;
+  currPtr.i = node.getNodeScan();
   while (currPtr.i != RNIL) {
     jam();
-    m_tux.c_scanOpPool.getPtr(currPtr);
+    c_scanOpPool.getPtr(currPtr);
     if (currPtr.i == scanPtr.i) {
       jam();
       return true;
@@ -627,7 +514,7 @@ Dbtux::NodeHandle::islinkScan(Dbtux::ScanOpPtr scanPtr)
 }
 
 void
-Dbtux::NodeHandle::progError(int line, int cause, const char* extra)
+Dbtux::NodeHandle::progError(int line, int cause, const char* file)
 {
-  m_tux.progError(line, cause, extra);
+  ErrorReporter::handleAssert("Dbtux::NodeHandle: assert failed", file, line);
 }
