@@ -1499,16 +1499,38 @@ uint handler::get_dup_key(int error)
 }
 
 
+/*
+  Delete all files with extension from bas_ext()
+
+  SYNOPSIS
+    delete_table()
+    name		Base name of table
+
+  NOTES
+    We assume that the handler may return more extensions than
+    was actually used for the file.
+
+  RETURN
+    0   If we successfully deleted at least one file from base_ext and
+	didn't get any other errors than ENOENT    
+    #   Error from delete_file()
+*/
+
 int handler::delete_table(const char *name)
 {
-  int error=0;
+  int error= 0;
+  int enoent_or_zero= ENOENT;                   // Error if no file was deleted
+
   for (const char **ext=bas_ext(); *ext ; ext++)
   {
     if (delete_file(name,*ext,2))
     {
-      if ((error=errno) != ENOENT)
+      if ((error= my_errno) != ENOENT)
 	break;
     }
+    else
+      enoent_or_zero= 0;
+    error= enoent_or_zero;
   }
   return error;
 }
