@@ -383,7 +383,6 @@ struct system_variables max_system_variables;
 
 MY_TMPDIR mysql_tmpdir_list;
 MY_BITMAP temp_pool;
-KEY_CACHE *sql_key_cache;
 
 CHARSET_INFO *system_charset_info, *files_charset_info ;
 CHARSET_INFO *national_charset_info, *table_alias_charset;
@@ -1846,14 +1845,14 @@ We will try our best to scrape up some info that will hopefully help diagnose\n\
 the problem, but since we have already crashed, something is definitely wrong\n\
 and this may fail.\n\n");
   fprintf(stderr, "key_buffer_size=%lu\n", 
-          (ulong) sql_key_cache->key_cache_mem_size);
+          (ulong) dflt_key_cache->key_cache_mem_size);
   fprintf(stderr, "read_buffer_size=%ld\n", global_system_variables.read_buff_size);
   fprintf(stderr, "max_used_connections=%ld\n", max_used_connections);
   fprintf(stderr, "max_connections=%ld\n", max_connections);
   fprintf(stderr, "threads_connected=%d\n", thread_count);
   fprintf(stderr, "It is possible that mysqld could use up to \n\
 key_buffer_size + (read_buffer_size + sort_buffer_size)*max_connections = %ld K\n\
-bytes of memory\n", ((ulong) sql_key_cache->key_cache_mem_size +
+bytes of memory\n", ((ulong) dflt_key_cache->key_cache_mem_size +
 		     (global_system_variables.read_buff_size +
 		      global_system_variables.sortbuff_size) *
 		     max_connections)/ 1024);
@@ -2120,12 +2119,12 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
     case SIGHUP:
       if (!abort_loop)
       {
+	mysql_print_status((THD*) 0);		// Print some debug info
 	reload_acl_and_cache((THD*) 0,
 			     (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST |
 			      REFRESH_STATUS | REFRESH_GRANT |
 			      REFRESH_THREADS | REFRESH_HOSTS),
 			     (TABLE_LIST*) 0, NULL); // Flush logs
-	mysql_print_status((THD*) 0);		// Send debug some info
       }
       break;
 #ifdef USE_ONE_SIGNAL_HAND
@@ -2699,8 +2698,6 @@ server.");
 
   /* call ha_init_key_cache() on all key caches to init them */
   process_key_caches(&ha_init_key_cache);
-  /* We must set dflt_key_cache in case we are using ISAM tables */
-  dflt_key_cache= sql_key_cache;
 
 #if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT) && !defined(EMBEDDED_LIBRARY)
   if (locked_in_memory && !getuid())
@@ -5598,10 +5595,10 @@ static void mysql_init_variables(void)
   threads.empty();
   thread_cache.empty();
   key_caches.empty();
-  multi_keycache_init();
-  if (!(sql_key_cache= get_or_create_key_cache(default_key_cache_base.str,
+  if (!(dflt_key_cache= get_or_create_key_cache(default_key_cache_base.str,
 					       default_key_cache_base.length)))
     exit(1);
+  multi_keycache_init(); /* set key_cache_hash.default_value = dflt_key_cache */
 
   /* Initialize structures that is used when processing options */
   replicate_rewrite_db.empty();
