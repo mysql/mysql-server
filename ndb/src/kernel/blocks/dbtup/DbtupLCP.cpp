@@ -344,6 +344,8 @@ void Dbtup::lcpSaveDataPageLab(Signal* signal, Uint32 ciIndex)
     if (ciPtr.p->lcpTabPtr == c_errorInsert4000TableId) {
     // Delay writing of data pages during LCP
       ndbout << "Delay writing of data pages during LCP" << endl;
+      signal->theData[0] = ZCONT_SAVE_DP;
+      signal->theData[1] = ciIndex;
       sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 1000, 2);
       return;
     }//if
