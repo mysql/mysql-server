@@ -426,31 +426,6 @@ struct tm *localtime_r(const time_t *clock, struct tm *res);
 #define HAVE_PTHREAD_KILL
 #endif
 
-#if defined(HAVE_PTHREAD_ATTR_CREATE) || defined(_AIX) || defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE)
-#if !defined(HPUX)
-struct hostent;
-#endif /* HPUX */
-struct hostent *my_gethostbyname_r(const char *name,
-				   struct hostent *result, char *buffer,
-				   int buflen, int *h_errnop);
-#if defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE)
-#define GETHOSTBYNAME_BUFF_SIZE 2048
-#else
-#define GETHOSTBYNAME_BUFF_SIZE sizeof(struct hostent_data)
-#endif /* defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE) */
-
-#else
-#ifdef HAVE_GETHOSTBYNAME_R_RETURN_INT
-#define GETHOSTBYNAME_BUFF_SIZE sizeof(struct hostent_data)
-struct hostent *my_gethostbyname_r(const char *name,
-				   struct hostent *result, char *buffer,
-				   int buflen, int *h_errnop);
-#else
-#define GETHOSTBYNAME_BUFF_SIZE 2048
-#define my_gethostbyname_r(A,B,C,D,E) gethostbyname_r((A),(B),(C),(D),(E))
-#endif /* HAVE_GETHOSTBYNAME_R_RETURN_INT */
-#endif /* defined(HAVE_PTHREAD_ATTR_CREATE) || defined(_AIX) || defined(HAVE_GETHOSTBYNAME_R_GLIBC2_STYLE) */
-
 #endif /* defined(__WIN__) */
 
 	/* safe_mutex adds checking to mutex for easier debugging */
