@@ -1629,7 +1629,8 @@ lock_rec_enqueue_waiting(
 "  InnoDB: Error: a record lock wait happens in a dictionary operation!\n"
 "InnoDB: Table name ", stderr);
 		ut_print_name(stderr, index->table_name);
-		fputs(". Send a bug report to mysql@lists.mysql.com\n",
+		fputs(".\n"
+"InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n",
 			stderr);
 	}
 	
@@ -3269,7 +3270,8 @@ lock_table_enqueue_waiting(
 "  InnoDB: Error: a table lock wait happens in a dictionary operation!\n"
 "InnoDB: Table name ", stderr);
 		ut_print_name(stderr, table->name);
-		fputs(". Send a bug report to mysql@lists.mysql.com\n",
+		fputs(".\n"
+"InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n",
 			stderr);
 	}
 	

@@ -803,8 +803,7 @@ row_ins_foreign_check_on_constraint(
 				"InnoDB: clustered record ", stderr);
 			rec_print(stderr, clust_rec);
 			fputs("\n"
-			"InnoDB: Make a detailed bug report and send it\n"
-			"InnoDB: to mysql@lists.mysql.com\n", stderr);
+"InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n", stderr);
 
 			err = DB_SUCCESS;
 

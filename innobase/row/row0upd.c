@@ -1236,8 +1236,7 @@ row_upd_sec_index_entry(
 		trx_print(stderr, thr_get_trx(thr));
 
 		fputs("\n"
-			"InnoDB: Make a detailed bug report and send it\n"
-			"InnoDB: to mysql@lists.mysql.com\n", stderr);
+"InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n", stderr);
 	} else {
  	  	/* Delete mark the old index record; it can already be
           	delete marked if we return after a lock wait in

@@ -882,7 +882,7 @@ btr_page_reorganize_low(
 	        fprintf(stderr,
 "InnoDB: Error: page old data size %lu new data size %lu\n"
 "InnoDB: Error: page old max ins size %lu new max ins size %lu\n"
-"InnoDB: Make a detailed bug report and send it to mysql@lists.mysql.com\n",
+"InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n",
 			data_size1, data_size2, max_ins_size1, max_ins_size2);
 	}
 

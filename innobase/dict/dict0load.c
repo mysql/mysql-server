@@ -721,7 +721,7 @@ dict_load_table(
 "InnoDB: the foreign key table or the referenced table!\n"
 "InnoDB: The data dictionary of InnoDB is corrupt. You may need to drop\n"
 "InnoDB: and recreate the foreign key table or the referenced table.\n"
-"InnoDB: Send a detailed bug report to mysql@lists.mysql.com\n"
+"InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n"
 "InnoDB: Latest foreign key error printout:\n%s\n", dict_foreign_err_buf);
 				
 		mutex_exit(&dict_foreign_err_mutex);

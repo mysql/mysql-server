@@ -2385,7 +2385,7 @@ ibuf_insert_to_index_page(
 				fprintf(stderr, "Bitmap bits %lu\n", old_bits);
 
 				fputs(
-"InnoDB: Send a detailed bug report to mysql@lists.mysql.com!\n", stderr);
+"InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n", stderr);
 				
 			}	
 		}
@@ -2443,7 +2443,7 @@ ibuf_delete_rec(
 
 	if (!success) {
 		fprintf(stderr,
-		"InnoDB: ERROR: Send the output to mysql@lists.mysql.com\n"
+		"InnoDB: ERROR: Submit the output to http://bugs.mysql.com\n"
 		"InnoDB: ibuf cursor restoration fails!\n"
 		"InnoDB: ibuf record inserted to page %lu\n", page_no);
 		fflush(stderr);
@@ -2597,8 +2597,7 @@ ibuf_merge_or_delete_for_page(
 "InnoDB: We try to resolve the problem by skipping the insert buffer\n"
 "InnoDB: merge for this page. Please run CHECK TABLE on your tables\n"
 "InnoDB: to determine if they are corrupt after this.\n\n"
-"InnoDB: Please make a detailed bug report and send it to\n"
-"InnoDB: mysql@lists.mysql.com\n\n",
+"InnoDB: Please submit a detailed bug report to http://bugs.mysql.com\n\n",
 				page_no, fil_page_get_type(page));
 		}
 	}

@@ -2358,8 +2358,7 @@ row_sel_get_clust_rec_for_mysql(
 			trx_print(stderr, thr_get_trx(thr));
 
 			fputs("\n"
-			"InnoDB: Make a detailed bug report and send it\n"
-			"InnoDB: to mysql@lists.mysql.com\n", stderr);
+"InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n", stderr);
 		}
 
 		clust_rec = NULL;
