@@ -248,7 +248,7 @@ void thr_end_alarm(thr_alarm_t *alarmed)
       if (alarm_data->malloced)
 	my_free((gptr) alarm_data,MYF(0));
       found++;
-#ifndef DBUG_OFF
+#ifdef DBUG_OFF
       break;
 #endif
     }
