@@ -1,1 +1,1 @@
---set-variable=query_cache_size=1M
+--set-variable=query_cache_size=1355776
