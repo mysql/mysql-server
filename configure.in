@@ -699,7 +699,7 @@ int main()
   AC_MSG_RESULT($atom_ops)
 
   AC_ARG_WITH(pstack,
-    [  --with-pstack         Use the pstack backtrace library],
+    [  --with-pstack           Use the pstack backtrace library],
     [ USE_PSTACK=$withval ],
     [ USE_PSTACK=no ])
   pstack_libs=
@@ -1752,8 +1752,7 @@ AC_ARG_WITH(embedded-server,
 )
 
 AC_ARG_WITH(extra-tools,
-    [  --without-extra-tools        Skip building utilites in the tools \
-     directory.],
+    [  --without-extra-tools   Skip building utilites in the tools directory.],
     [with_tools=$withval],
     [with_tools=yes]
 )

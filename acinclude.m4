@@ -690,7 +690,7 @@ fi
 
 AC_DEFUN(MYSQL_CHECK_VIO, [
   AC_ARG_WITH([vio],
-              [  --with-vio          Include the Virtual IO support],
+              [  --with-vio              Include the Virtual IO support],
               [vio="$withval"],
               [vio=no])
 
@@ -1054,9 +1054,9 @@ dnl ---------------------------------------------------------------------------
 AC_DEFUN([MYSQL_CHECK_INNODB], [
   AC_ARG_WITH([innodb],
               [\
-  --with-innodb         Use Innodb],
+  --without-innodb        Do not include the InnoDB table handler],
               [innodb="$withval"],
-              [innodb=no])
+              [innodb=yes])
 
   AC_MSG_CHECKING([for Innodb])
 
@@ -1132,7 +1132,7 @@ dnl ---------------------------------------------------------------------------
 AC_DEFUN([MYSQL_CHECK_GEMINI], [
   AC_ARG_WITH([gemini],
               [\
-  --with-gemini[=DIR] Use Gemini DB located in DIR],
+  --with-gemini[=DIR]     Use Gemini DB located in DIR],
               [gemini="$withval"],
               [gemini=no])
 
@@ -1251,7 +1251,7 @@ changequote([, ])dnl
 AC_DEFUN(AC_SYS_LARGEFILE,
   [AC_REQUIRE([AC_CANONICAL_HOST])
    AC_ARG_ENABLE(largefile,
-     [  --disable-largefile    Omit support for large files])
+     [  --disable-largefile     Omit support for large files])
    if test "$enable_largefile" != no; then
      AC_CHECK_TOOL(GETCONF, getconf)
      AC_SYS_LARGEFILE_FLAGS(CFLAGS)

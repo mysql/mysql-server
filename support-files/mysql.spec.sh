@@ -219,7 +219,7 @@ automake
 BuildMySQL "--disable-shared" \
 	   "--with-mysqld-ldflags='-all-static'" \
 	   "--with-client-ldflags='-all-static'" \
-	   "--without-berkeley-db --without-innodb"
+	   "--without-berkeley-db --with-innodb"
 nm --numeric-sort sql/mysqld > sql/mysqld.sym
 
 %install -n mysql-%{mysql_version}
