@@ -45766,8 +45766,10 @@ Win32 development.
 
 @cindex contributors, list of
 
-Contributors to the MySQL distribution are listed here, in
-somewhat random order:
+While @code{MySQL AB} owns all copyrights in the @code{MySQL server}
+and the @code{MySQL manual}, we wish to recognise those who have made
+contributions of one kind or another to the @code{MySQL distribution}.
+Contributors are listed here, in somewhat random order:
 
 @table @asis
 @item Paul DuBois
@@ -46010,10 +46012,11 @@ ODBC and VisualC++ interface questions.
 
 @cindex contributing companies, list of
 
-The following companies has helped us finance development of
-MySQL by either paying us for developing a new feature,
-developed a MySQL feature themselves or by giving us hardware for
-MySQL development.
+While @code{MySQL AB} owns all copyrights in the @code{MySQL server}
+and the @code{MySQL manual}, we wish to recognise the following companies,
+which helped us finance the development of the @code{MySQL server},
+such as by paying us for developing a new feature or giving us hardware
+for development of the @code{MySQL server}.
 
 @table @asis
 @item VA Linux / Andover.net 
