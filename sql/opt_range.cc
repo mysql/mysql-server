@@ -919,6 +919,9 @@ get_mm_leaf(Field *field,KEY_PART *key_part,
 
   if (type == Item_func::LIKE_FUNC)
   {
+    if (!field->optimize_range())
+      DBUG_RETURN(0);				// Can't optimize this
+
     bool like_error;
     char buff1[MAX_FIELD_WIDTH],*min_str,*max_str;
     String tmp(buff1,sizeof(buff1)),*res;
@@ -971,7 +974,8 @@ get_mm_leaf(Field *field,KEY_PART *key_part,
                                   max_str+maybe_null,&min_length,&max_length);
       else
 #endif
-        like_error=like_range(res->ptr(),res->length(),wild_prefix,field_length,
+        like_error=like_range(res->ptr(),res->length(),wild_prefix,
+			      field_length,
                               min_str+offset,max_str+offset,
                               max_sort_char,&min_length,&max_length);
     }
