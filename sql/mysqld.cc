@@ -5634,14 +5634,16 @@ static uint set_maximum_open_files(uint max_file_limit)
     rlimit.rlim_cur=rlimit.rlim_max=max_file_limit;
     if (setrlimit(RLIMIT_NOFILE,&rlimit))
     {
-      sql_print_error("Warning: setrlimit couldn't increase number of open files to more than %lu (request: %u)",
-		      old_cur, max_file_limit);	/* purecov: inspected */
+      if (global_system_variables.log_warnings)
+	sql_print_error("Warning: setrlimit couldn't increase number of open files to more than %lu (request: %u)",
+			old_cur, max_file_limit); /* purecov: inspected */
       max_file_limit=old_cur;
     }
     else
     {
       (void) getrlimit(RLIMIT_NOFILE,&rlimit);
-      if ((uint) rlimit.rlim_cur != max_file_limit)
+      if ((uint) rlimit.rlim_cur != max_file_limit &&
+	  global_system_variables.log_warnings)
 	sql_print_error("Warning: setrlimit returned ok, but didn't change limits. Max open files is %ld (request: %u)",
 			(ulong) rlimit.rlim_cur,
 			max_file_limit); /* purecov: inspected */
