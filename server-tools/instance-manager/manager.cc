@@ -56,7 +56,7 @@ void manager(const char *socket_file_name)
     in the process.
   */
   int signo;
-  sigwait(&mask, &signo);
+  my_sigwait(&mask, &signo);
   thread_repository.deliver_shutdown();
   /* don't pthread_exit to kill all threads who did not shut down in time */
 }
