@@ -2681,8 +2681,10 @@ with --log-bin instead.");
 
   if (opt_bin_log)
   {
-    open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
-	     opt_binlog_index_name, LOG_BIN, 0, 0, max_binlog_size);
+    /* If we fail to open binlog, it's going to hinder our recovery, so die */
+    if (open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
+		 opt_binlog_index_name, LOG_BIN, 0, 0, max_binlog_size))
+      unireg_abort(1);
     using_update_log=1;
 #ifdef HAVE_REPLICATION
     if (expire_logs_days)

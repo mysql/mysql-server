@@ -26,8 +26,6 @@
 #include <InputStream.hpp>
 #include <OutputStream.hpp>
 
-extern int g_shm_pid;
-
 SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
 				 const char *lHostName,
 				 const char *rHostName, 
