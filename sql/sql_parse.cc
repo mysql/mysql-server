@@ -3727,6 +3727,26 @@ unsent_create_error:
   }
   thd->proc_info="query end";			// QQ
 
+  /*
+    The return value for ROW_COUNT() is "implementation dependent" if
+    the statement is not DELETE, INSERT or UPDATE (or a CALL executing
+    such a statement), but -1 is what JDBC and ODBC wants.
+   */
+  switch (lex->sql_command) {
+  case SQLCOM_UPDATE:
+  case SQLCOM_UPDATE_MULTI:
+  case SQLCOM_REPLACE:
+  case SQLCOM_INSERT:
+  case SQLCOM_REPLACE_SELECT:
+  case SQLCOM_INSERT_SELECT:
+  case SQLCOM_DELETE:
+  case SQLCOM_DELETE_MULTI:
+  case SQLCOM_CALL:
+    break;
+  default:
+    thd->row_count_func= -1;
+  }
+
   // We end up here if res == 0 and send_ok() has been done,
   // or res != 0 and no send_error() has yet been done.
   if (res < 0)

@@ -823,6 +823,11 @@ delete from t1|
 select row_count()|
 row_count()
 0
+select * from t1|
+id	data
+select row_count()|
+row_count()
+-1
 drop procedure rc|
 create procedure bug822(a_id char(16), a_data int)
 begin
