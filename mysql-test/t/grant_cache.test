@@ -43,10 +43,22 @@ grant SELECT(a) on mysqltest.t1 to mysqltest_3@localhost;
 # The following queries should be fetched from cache
 connect (user1,localhost,mysqltest_1,,mysqltest,$MASTER_MYPORT,master.sock);
 connection user1;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
 select "user1";
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
 select * from t1;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
 # The pre and end space are intentional
  select a from t1 ;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_hits";
+show status like "Qcache_not_cached";
 select c from t1;
 show status like "Qcache_queries_in_cache";
 show status like "Qcache_hits";

@@ -39,8 +39,7 @@ drop table t1;
 
 #
 # Test for bug #2342 "Running ANALYZE TABLE on bdb table 
-#                      inside a transaction hangs server thread"
-#
+# inside a transaction hangs server thread"
 
 create table t1 (a int) engine=bdb;
 
@@ -48,4 +47,3 @@ set autocommit=0;
 insert into t1 values(1);
 analyze table t1;
 drop table t1;
-

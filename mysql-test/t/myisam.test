@@ -448,6 +448,20 @@ select a,concat(b,'.') from t1;
 drop table t1;
 
 #
+# Test keys with 0 segments. (Bug #3203)
+#
+create table t1 (a int not null);
+create table t2 (a int not null, primary key (a));
+insert into t1 values (1);
+insert into t2 values (1),(2);
+select sql_big_result distinct t1.a from t1,t2 order by t2.a;
+select distinct t1.a from t1,t2 order by t2.a;
+select sql_big_result distinct t1.a from t1,t2;
+explain select sql_big_result distinct t1.a from t1,t2 order by t2.a;
+explain select distinct t1.a from t1,t2 order by t2.a;
+drop table t1,t2;
+
+#
 # Test RTREE index
 #
 --error 1235
