@@ -3337,14 +3337,10 @@ unsent_create_error:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     uint privilege= (lex->duplicates == DUP_REPLACE ?
-		     INSERT_ACL | DELETE_ACL : INSERT_ACL);
+		     INSERT_ACL | DELETE_ACL : INSERT_ACL) |
+                    (lex->local_file ? 0 : FILE_ACL);
 
-    if (!lex->local_file)
-    {
-      if (check_access(thd, privilege | FILE_ACL, first_table->db, 0, 0, 0))
-	goto error;
-    }
-    else
+    if (lex->local_file)
     {
       if (!(thd->client_capabilities & CLIENT_LOCAL_FILES) ||
 	  ! opt_local_infile)
@@ -3352,12 +3348,14 @@ unsent_create_error:
 	my_message(ER_NOT_ALLOWED_COMMAND, ER(ER_NOT_ALLOWED_COMMAND), MYF(0));
 	goto error;
       }
-      if (check_one_table_access(thd, privilege, all_tables))
-	goto error;
     }
+
+    if (check_one_table_access(thd, privilege, all_tables))
+      goto error;
+
     res= mysql_load(thd, lex->exchange, first_table, lex->field_list,
-                    lex->duplicates, lex->ignore, (bool) lex->local_file,
-		    lex->lock_option);
+                    lex->update_list, lex->value_list, lex->duplicates,
+                    lex->ignore, (bool) lex->local_file);
     break;
   }
 

@@ -36,8 +36,7 @@ select * from t3;
 # But we can't simply read this binlog, because as the slave has not been
 # restarted for this test, the file_id is uncertain (would cause test
 # failures). So instead, we test if the binlog looks long enough to
-# contain LOAD DATA. That is, I (Guilhem) have done SHOW BINLOG EVENTS on my
-# machine, saw that the binlog is of size 1068 (in 5.0.0) when things go fine.
+# contain LOAD DATA. Since 5.0.3 we assume that binlog of 1292 is ok.
 # If LOAD DATA was not logged, the binlog would be shorter.
 show master status;
 
@@ -84,7 +83,9 @@ set sql_log_bin=1;
 load data infile '../../std_data/rpl_loaddata.dat' into table t1;
 save_master_pos;
 connection slave;
-# The SQL slave thread should be stopped now.
+# The SQL slave thread should be stopped now. 
+# Exec_Master_Log_Pos should point to the start of Execute event
+# for last load data.
 wait_for_slave_to_stop;
 
 # CHANGE MASTER and see if error is cleared in SHOW SLAVE STATUS.
