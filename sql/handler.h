@@ -653,6 +653,7 @@ int ha_commit_trans(THD *thd, THD_TRANS *trans);
 int ha_rollback_trans(THD *thd, THD_TRANS *trans);
 int ha_rollback_to_savepoint(THD *thd, char *savepoint_name);
 int ha_savepoint(THD *thd, char *savepoint_name);
+int ha_release_savepoint_name(THD *thd, char *savepoint_name);
 int ha_autocommit_or_rollback(THD *thd, int error);
 void ha_set_spin_retries(uint retries);
 bool ha_flush_logs(void);
