@@ -34,6 +34,10 @@
 
 #include <rep/state/RepState.hpp>
 
+extern "C" {
+static void *  signalExecThread_C(void *);
+}
+
 /**
  * @class TransSS
  * @brief Responsible for REP-REP interface in Standby System role
@@ -57,8 +61,8 @@ private:
   /***************************************************************************
    * Private Methods
    ***************************************************************************/
+  friend void *  signalExecThread_C(void *);
   void           signalExecThreadRun();   ///< SignalQueue executor thread
-  static void *  signalExecThread_C(void *);
 
   static void execSignal(void* executorObj, NdbApiSignal* signal, 
 			 class LinearSectionPtr ptr[3]);

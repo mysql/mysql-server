@@ -56,13 +56,14 @@ public:
   NdbTableImpl* put(const char * name, NdbTableImpl *);
   void drop(NdbTableImpl *);
   void release(NdbTableImpl *);
-private:
+public:
   enum Status {
     OK = 0,
     DROPPED = 1,
     RETREIVING = 2
   };
   
+private:
   struct TableVersion {
     Uint32 m_version;
     Uint32 m_refCount;

@@ -103,7 +103,9 @@ private:
   static const unsigned MaxNodeHandles = 128;   // enough for 1 operation
 #endif
   static const unsigned MaxAttrDataSize = 2048;
+public:
   static const unsigned DescPageSize = 256;
+private:
   static const unsigned MaxTreeNodeSize = MAX_TTREE_NODE_SIZE;
   static const unsigned ScanBoundSegmentSize = 7;
   static const unsigned MaxAccLockOps = MAX_PARALLEL_OP_PER_SCAN;
@@ -126,10 +128,13 @@ private:
     Data& operator+=(size_t n);
     AttributeHeader& ah() const;
   };
+  friend class Data;
 
   /*
    * Pointer to constant Uint32 data.
    */
+  struct ConstData;
+  friend struct ConstData;
   struct ConstData {
   private:
     const Uint32* m_data;
@@ -173,6 +178,8 @@ private:
    * of "original" tuple and tuple version.  Uses 2 words to get correct
    * aligment (one byte is wasted currently).
    */
+  struct TreeEnt;
+  friend struct TreeEnt;
   struct TreeEnt {
     TupAddr m_tupAddr;          // address of original tuple
     Uint16 m_tupVersion;        // version
@@ -202,6 +209,8 @@ private:
    * a node is about to be removed.  If occupancy is 1, only max entry
    * is present but both min and max prefixes are set.
    */
+  struct TreeNode;
+  friend struct TreeNode;
   struct TreeNode {
     TupAddr m_link[3];          // link to 0-left child 1-right child 2-parent
     Uint8 m_side;               // we are 0-left child 1-right child 2-root
@@ -228,6 +237,8 @@ private:
    * Tree header.  There is one in each fragment.  Contains tree
    * parameters and address of root node.
    */
+  struct TreeHead;
+  friend struct TreeHead;
   struct TreeHead {
     Uint8 m_nodeSize;           // words in tree node
     Uint8 m_prefSize;           // words in min/max prefix each
@@ -248,6 +259,8 @@ private:
    * also represented by position 0 of next node.  Includes direction
    * and copy of entry used by scan.
    */
+  struct TreePos;
+  friend struct TreePos;
   struct TreePos {
     TupAddr m_addr;             // logical node address
     TupLoc m_loc;               // physical address
@@ -264,6 +277,8 @@ private:
    * Descriptor page.  The "hot" metadata for an index is stored as
    * a contiguous array of words on some page.
    */
+  struct DescPage;
+  friend struct DescPage;
   struct DescPage {
     Uint32 m_nextPage;
     Uint32 m_numFree;           // number of free words
@@ -301,6 +316,8 @@ private:
    * Complete metadata for one index. The array of attributes has
    * variable size.
    */
+  struct DescEnt;
+  friend struct DescEnt;
   struct DescEnt {
     DescHead m_descHead;
     DescAttr m_descAttr[1];     // variable size data
@@ -329,6 +346,8 @@ private:
    * be for an entry we were moved away from.  In any case nothing
    * happens with current entry before lock wait flag is cleared.
    */
+  struct ScanOp;
+  friend struct ScanOp;
   struct ScanOp {
     enum {
       Undef = 0,
@@ -382,6 +401,8 @@ private:
    * Ordered index.  Top level data structure.  The primary table (table
    * being indexed) lives in TUP.
    */
+  struct Index;
+  friend struct Index;
   struct Index {
     enum State {
       NotDefined = 0,
@@ -412,6 +433,8 @@ private:
    * duplicate fragments known to LQH/ACC/TUP.  Includes tree header.
    * There are no maintenance operation records yet.
    */
+  struct Frag;
+  friend struct Frag;
   struct Frag {
     Uint32 m_tableId;           // copy from index level
     Uint32 m_indexId;
@@ -458,6 +481,8 @@ private:
    * different implementations of index memory access.  The cache is
    * committed and released at the end of the operation.
    */
+  struct NodeHandle;
+  friend struct NodeHandle;
   struct NodeHandle {
     enum Flags {
       // bits 0,1 mark need for left,right prefix
@@ -508,7 +533,6 @@ private:
   };
   typedef Ptr<NodeHandle> NodeHandlePtr;
   ArrayPool<NodeHandle> c_nodeHandlePool;
-  friend class NodeHandle;
 
   // parameters for methods
   
@@ -528,6 +552,8 @@ private:
   /*
    * Read index key attributes.
    */
+  struct ReadPar;
+  friend struct ReadPar;
   struct ReadPar {
     TreeEnt m_ent;              // tuple to read
     unsigned m_first;           // first index attribute
@@ -551,6 +577,8 @@ private:
   /*
    * Tree search for entry.
    */
+  struct SearchPar;
+  friend struct SearchPar;
   struct SearchPar {
     ConstData m_data;           // input index key values
     TreeEnt m_ent;              // input tuple and version
@@ -560,6 +588,8 @@ private:
   /*
    * Attribute data comparison.
    */
+  struct CmpPar;
+  friend struct CmpPar;
   struct CmpPar {
     ConstData m_data1;          // full search key
     ConstData m_data2;          // full or prefix data
@@ -572,6 +602,8 @@ private:
   /*
    * Scan bound comparison.
    */
+  struct BoundPar;
+  friend struct BoundPar;
   struct BoundPar {
     ConstData m_data1;          // full bound data
     ConstData m_data2;          // full or prefix data
