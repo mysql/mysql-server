@@ -125,6 +125,10 @@ sub main
         print "\"./configure\" was not produced, exiting!\n";
         exit(0);
       }
+      if (-d "autom4te.cache") {
+        print "Trying to delete autom4te.cache dir\n" if $opt_verbose;
+        system("rm -rf autom4te.cache") or print "Unable to delete autom4te.cache dir: $!\n";
+      }
     }
 
     # fix file copyrights
