@@ -91,7 +91,8 @@ typedef struct st_join_table {
   SQL_SELECT	*select;
   COND		*select_cond;
   QUICK_SELECT_I *quick;
-  Item		*on_expr;       /* associated on expression                  */
+  Item	       **on_expr_ref;   /* pointer to the associated on expression   */
+  COND_EQUAL    *cond_equal;    /* multiple equalities for the on expression */
   st_join_table *first_inner;   /* first inner table for including outerjoin */
   bool           found;         /* true after all matches or null complement */
   bool           not_null_compl;/* true before null complement is added      */

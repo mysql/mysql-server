@@ -231,6 +231,8 @@ void Item_bool_func2::fix_length_and_dec()
         conv->collation.set(args[weak]->collation.derivation);
         conv->fix_fields(thd, 0, &conv);
       }
+      if (args[weak]->type() == FIELD_ITEM)
+        ((Item_field *)args[weak])->no_const_subst= 1;
       args[weak]= conv ? conv : args[weak];
     }
   }
@@ -1956,7 +1958,7 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   char buff[sizeof(char*)];			// Max local vars in function
 #endif
   not_null_tables_cache= used_tables_cache= 0;
-  const_item_cache= 0;
+  const_item_cache= 1;
   /*
     and_table_cache is the value that Item_cond_or() returns for
     not_null_tables()
@@ -1987,7 +1989,7 @@ Item_cond::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     tmp_table_map=	    item->not_null_tables();
     not_null_tables_cache|= tmp_table_map;
     and_tables_cache&=      tmp_table_map;
-    const_item_cache&=	    item->const_item();
+    const_item_cache&=      item->const_item();
     with_sum_func=	    with_sum_func || item->with_sum_func;
     if (item->maybe_null)
       maybe_null=1;
@@ -2051,7 +2053,7 @@ void Item_cond::split_sum_func(Item **ref_pointer_array, List<Item> &fields)
   List_iterator<Item> li(list);
   Item *item;
   used_tables_cache=0;
-  const_item_cache=0;
+  const_item_cache=1;
   while ((item=li++))
   {
     if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
@@ -2088,7 +2090,7 @@ void Item_cond::update_used_tables()
   {
     item->update_used_tables();
     used_tables_cache|= item->used_tables();
-    const_item_cache&=  item->const_item();
+    const_item_cache&= item->const_item();
   }
 }
 
@@ -2934,6 +2936,7 @@ void Item_equal::add(Item *c)
   }
   Item_func_eq *func= new Item_func_eq(c, const_item);
   func->set_cmp_func();
+  func->quick_fix_field();
   cond_false =  !(func->val_int());
 }
 

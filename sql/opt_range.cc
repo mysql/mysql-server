@@ -3339,6 +3339,63 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
     }
     
     DBUG_RETURN(ftree);
+  }
+  default:
+    if (cond_func->arguments()[0]->type() == Item::FIELD_ITEM)
+    {
+      field_item= (Item_field*) (cond_func->arguments()[0]);
+      value= cond_func->arg_count > 1 ? cond_func->arguments()[1] : 0;
+    }
+    else if (cond_func->have_rev_func() &&
+             cond_func->arguments()[1]->type() == Item::FIELD_ITEM)
+    {
+      field_item= (Item_field*) (cond_func->arguments()[1]);
+      value= cond_func->arguments()[0];
+    }
+    else
+      DBUG_RETURN(0);
+  }
+
+  /* 
+     If the where condition contains a predicate (ti.field op const),
+     then not only SELL_TREE for this predicate is built, but
+     the trees for the results of substitution of ti.field for
+     each tj.field belonging to the same multiple equality as ti.field
+     are built as well.
+     E.g. for WHERE t1.a=t2.a AND t2.a > 10 
+     a SEL_TREE for t2.a > 10 will be built for quick select from t2
+     and   
+     a SEL_TREE for t1.a > 10 will be built for quick select from t1.
+  */
+     
+  for (uint i= 0; i < cond_func->arg_count; i++)
+  {
+    Item *arg= cond_func->arguments()[i];
+    if (arg != field_item)
+      ref_tables|= arg->used_tables();
+  }
+  Field *field= field_item->field;
+  Item_result cmp_type= field->cmp_type();
+  if (!((ref_tables | field->table->map) & param_comp))
+    ftree= get_func_mm_tree(param, cond_func, field, value, cmp_type);
+  Item_equal *item_equal= field_item->item_equal;
+  if (item_equal)
+  {
+    Item_equal_iterator it(*item_equal);
+    Item_field *item;
+    while ((item= it++))
+    {
+      Field *f= item->field;
+      if (field->eq(f))
+        continue;
+      if (!((ref_tables | f->table->map) & param_comp))
+      {
+        tree= get_func_mm_tree(param, cond_func, f, value, cmp_type);
+        ftree= !ftree ? tree : tree_and(param, ftree, tree);
+      }
+    }
+  }
+  DBUG_RETURN(ftree);
 }
 
 
