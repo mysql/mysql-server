@@ -644,3 +644,20 @@ INSERT INTO t2 VALUES ('AZE','Azerbaijan','Asia','Middle East',86600.00,1991,773
 select t2.Continent, t1.Name, t1.Population from t2 LEFT JOIN t1 ON t2.Code = t1.t2  where t1.Population IN (select max(t1.Population) AS Population from t1, t2 where t1.t2 = t2.Code group by Continent); 
 
 drop table t1, t2;
+
+#
+# constants in IN
+#
+CREATE TABLE `t1` (
+  `id` mediumint(8) unsigned NOT NULL auto_increment,
+  `pseudo` varchar(35) character set latin1 NOT NULL default '',
+  PRIMARY KEY  (`id`),
+  UNIQUE KEY `pseudo` (`pseudo`),
+) TYPE=MyISAM PACK_KEYS=1 ROW_FORMAT=DYNAMIC;
+INSERT INTO t1 (pseudo) VALUES ('test');
+SELECT 0 IN (SELECT 1 FROM t1 a);
+EXPLAIN SELECT 0 IN (SELECT 1 FROM t1 a);
+INSERT INTO t1 (pseudo) VALUES ('test1');
+SELECT 0 IN (SELECT 1 FROM t1 a);
+EXPLAIN SELECT 0 IN (SELECT 1 FROM t1 a);
+drop table t1;
