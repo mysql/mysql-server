@@ -1943,7 +1943,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
         (ha_rows) (sort_info.filelength/ft_max_word_len_for_sort+1);
 
       sort_param.key_read=sort_ft_key_read;
-      sort_param.key_length+=ft_max_word_len_for_sort-ft_max_word_len;
+      sort_param.key_length+=ft_max_word_len_for_sort-HA_FT_MAXLEN;
     }
     else
       sort_param.key_read=sort_key_read;
