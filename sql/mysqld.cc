@@ -1689,7 +1689,7 @@ static void start_signal_handler(void)
   (void) pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED);
   if (!(opt_specialflag & SPECIAL_NO_PRIOR))
     my_pthread_attr_setprio(&thr_attr,INTERRUPT_PRIOR);
-  pthread_attr_setstacksize(&thr_attr,32768);
+  pthread_attr_setstacksize(&thr_attr,thread_stack);
 #endif
 
   (void) pthread_mutex_lock(&LOCK_thread_count);
