@@ -39006,7 +39006,10 @@ suffixed with @code{-slow.log}. If a filename is given, but doesn't
 contain a path, the file is written in the data directory.
 
 The slow query log can be used to find queries that take a long time to
-execute and are thus candidates for optimization.
+execute and are thus candidates for optimization. With a large log, that
+can become a difficult task. You can pipe the slow query log through the
+@code{mysqldumpslow} command to get a summary of the queries which
+appear in the log.
 
 You are using @code{--log-long-format} then also queries that are not
 using indexes are printed. @xref{Command-line options}.
