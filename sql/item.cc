@@ -2419,6 +2419,7 @@ Item_type_holder::Item_type_holder(THD *thd, Item *item)
     field_example= ((Item_field*) item)->field;
   else
     field_example= 0;
+  max_length= real_length(item);
   collation.set(item->collation);
 }
 
@@ -2438,6 +2439,7 @@ static Item_result type_convertor[4][4]=
 
 bool Item_type_holder::join_types(THD *thd, Item *item)
 {
+  uint32 new_length= real_length(item);
   bool change_field= 0, skip_store_field= 0;
   Item_result new_type= type_convertor[item_type][item->result_type()];
 
@@ -2463,7 +2465,7 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   // size/type should be changed
   if (change_field ||
       (new_type != item_type) ||
-      (max_length < item->max_length) ||
+      (max_length < new_length) ||
       ((new_type == INT_RESULT) &&
        (decimals < item->decimals)) ||
       (!maybe_null && item->maybe_null) ||
@@ -2472,7 +2474,7 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   {
     // new field has some parameters worse then current
     skip_store_field|= (change_field &&
-			(max_length > item->max_length) ||
+			(max_length > new_length) ||
 			((new_type == INT_RESULT) &&
 			 (decimals > item->decimals)) ||
 			(maybe_null && !item->maybe_null) ||
@@ -2501,7 +2503,7 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
       return 1;
     }
 
-    max_length= max(max_length, item->max_length);
+    max_length= max(max_length, new_length);
     decimals= max(decimals, item->decimals);
     maybe_null|= item->maybe_null;
     item_type= new_type;
@@ -2510,6 +2512,70 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   return 0;
 }
 
+uint32 Item_type_holder::real_length(Item *item)
+{
+  if (item->result_type() == STRING_RESULT)
+    return item->max_length;
+  if (item->type() == Item::FIELD_ITEM)
+  {
+    switch (((Item_field *)item)->field_type())
+    {
+      case MYSQL_TYPE_TINY:
+        return 4;
+      case MYSQL_TYPE_SHORT:
+        return 6;
+      case MYSQL_TYPE_LONG:
+        return 11;
+      case MYSQL_TYPE_FLOAT:
+        return 24;
+      case MYSQL_TYPE_DOUBLE:
+        return 53;
+      case MYSQL_TYPE_NULL:
+        return 4;
+      case MYSQL_TYPE_LONGLONG:
+        return 20;
+      case MYSQL_TYPE_INT24:
+        return 8;
+      case MYSQL_TYPE_TINY_BLOB:
+        return 256;
+      case MYSQL_TYPE_MEDIUM_BLOB:
+        return 65535;
+      case MYSQL_TYPE_LONG_BLOB:
+        return (uint32)4294967295;
+      case MYSQL_TYPE_BLOB:
+        return 16777215;
+      case MYSQL_TYPE_SET:
+      case MYSQL_TYPE_ENUM:
+      case MYSQL_TYPE_NEWDATE:
+      case MYSQL_TYPE_YEAR:
+      case MYSQL_TYPE_DATETIME:
+      case MYSQL_TYPE_TIME:
+      case MYSQL_TYPE_DATE:
+      case MYSQL_TYPE_TIMESTAMP:
+      case MYSQL_TYPE_DECIMAL:
+      case MYSQL_TYPE_VAR_STRING:
+      case MYSQL_TYPE_STRING:
+      case MYSQL_TYPE_GEOMETRY:
+        return item->max_length;
+      default:
+        DBUG_ASSERT(0); // we should never go there
+        return 0;
+    }
+  }
+  switch (item->result_type())
+  {
+  case STRING_RESULT:
+    return item->max_length;
+  case REAL_RESULT:
+    return 53;
+  case INT_RESULT:
+    return 20;
+  case ROW_RESULT:
+  default:
+    DBUG_ASSERT(0); // we should never go there
+    return 0;
+  }
+}
 
 double Item_type_holder::val()
 {
