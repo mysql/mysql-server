@@ -3025,9 +3025,6 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       m_transaction_on= FALSE;
     else
       m_transaction_on= thd->variables.ndb_use_transactions;
-#ifdef HAVE_QUERY_CACHE
-    m_query_cache_type= thd->variables.ndb_query_cache_type;
-#endif
 
     m_active_trans= thd->transaction.all.ndb_tid ? 
       (NdbConnection*)thd->transaction.all.ndb_tid:
@@ -3752,8 +3749,7 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_ha_not_exact_count(FALSE),
   m_force_send(TRUE),
   m_autoincrement_prefetch(32),
-  m_transaction_on(TRUE),
-  m_query_cache_type(0)
+  m_transaction_on(TRUE)
 {
   int i;
   
@@ -4457,22 +4453,8 @@ const char* ha_ndbcluster::index_type(uint key_number)
 }
 uint8 ha_ndbcluster::table_cache_type()
 {
-  DBUG_ENTER("ha_ndbcluster::table_cache_type");
-  switch (m_query_cache_type)
-  {
-  case 0:
-    DBUG_PRINT("exit",("HA_CACHE_TBL_NOCACHE"));
-    DBUG_RETURN(HA_CACHE_TBL_NOCACHE);
-  case 1:
-    DBUG_PRINT("exit",("HA_CACHE_TBL_ASKTRANSACT"));
-    DBUG_RETURN(HA_CACHE_TBL_ASKTRANSACT);
-  case 2:
-    DBUG_PRINT("exit",("HA_CACHE_TBL_TRANSACT"));
-    DBUG_RETURN(HA_CACHE_TBL_TRANSACT);
-  default:
-    DBUG_PRINT("exit",("HA_CACHE_TBL_NOCACHE"));
-    DBUG_RETURN(HA_CACHE_TBL_NOCACHE);
-  }
+  DBUG_ENTER("ha_ndbcluster::table_cache_type=HA_CACHE_TBL_ASKTRANSACT");
+  DBUG_RETURN(HA_CACHE_TBL_ASKTRANSACT);
 }
 
 static
