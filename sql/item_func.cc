@@ -205,7 +205,7 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     {
       Item *item;
       /* We can't yet set item to *arg as fix_fields may change *arg */
-      if ((*arg)->fix_fields(thd, tables, arg) ||
+      if ((!(*arg)->fixed && (*arg)->fix_fields(thd, tables, arg)) ||
 	  (*arg)->check_cols(allowed_arg_cols))
 	return 1;				/* purecov: inspected */
       item= *arg;
