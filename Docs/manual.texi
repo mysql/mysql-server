@@ -6059,7 +6059,6 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c EMAIL: tomi.hakala@clinet.fi (Tomi Hakala)
 @c @image{Flags/finland} Finland [clinet] @
 @c @uref{ftp://ftp.clinet.fi/mirrors/ftp.mysql.org/pub/mysql/, FTP}
-@c test again
 
 @item
 @c Added 20001019
