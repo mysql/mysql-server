@@ -29,4 +29,5 @@ drop table t1;
 create table t1 (a varchar(10), key(a));
 insert into t1 values ('a'), ('a\\b');
 select * from t1 where a like 'a\\%' escape '#';
+select * from t1 where a like 'a\\%' escape '#' and a like 'a\\\\b';
 drop table t1;
