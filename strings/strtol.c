@@ -18,6 +18,6 @@
 /* This defines strtol() if neaded */
 
 #include <global.h>
-#if !defined(MSDOS) && !defined(HAVE_STRTOUL) && !defined(__WIN__)
+#if !defined(MSDOS) && !defined(HAVE_STRTOL) && !defined(__WIN__)
 #include "strto.c"
 #endif

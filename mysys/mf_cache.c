@@ -21,18 +21,6 @@
 #include <m_string.h>
 #include "my_static.h"
 #include "mysys_err.h"
-#include <paths.h>
-
-#define TMP_EXT ".tmp"				/* Extension of tempfile  */
-#if ! defined(P_tmpdir)
-#define P_tmpdir ""
-#endif
-
-#ifdef HAVE_TEMPNAM
-#ifndef MSDOS
-extern char **environ;
-#endif
-#endif
 
 	/*
 	  Remove an open tempfile so that it doesn't survive
