@@ -62,13 +62,13 @@ cv_undo(EditLine *el)
 {
 	c_undo_t *vu = &el->el_chared.c_undo;
 	c_redo_t *r = &el->el_chared.c_redo;
-	uint size;
+	int size;
 
 	/* Save entire line for undo */
 	size = el->el_line.lastchar - el->el_line.buffer;
 	vu->len = size;
 	vu->cursor = el->el_line.cursor - el->el_line.buffer;
-	memcpy(vu->buf, el->el_line.buffer, size);
+	memcpy(vu->buf, el->el_line.buffer, (size_t)size);
 
 	/* save command info for redo */
 	r->count = el->el_state.doingarg ? el->el_state.argument : 0;
