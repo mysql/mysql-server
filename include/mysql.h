@@ -510,7 +510,7 @@ MYSQL_RES *STDCALL mysql_prepare_result(MYSQL_STMT *stmt);
 #define MYSQL_STATUS_ERROR 2
 #define MYSQL_NO_DATA   100
 #define MYSQL_NEED_DATA  99 
-#define MYSQL_LONG_DATA_END 0xFF
+#define MYSQL_NULL_DATA (-1)
 
 #define mysql_reload(mysql) mysql_refresh((mysql),REFRESH_GRANT)
 
