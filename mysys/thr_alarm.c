@@ -120,15 +120,19 @@ void init_thr_alarm(uint max_alarms)
   DBUG_VOID_RETURN;
 }
 
+
 void resize_thr_alarm(uint max_alarms)
 {
   pthread_mutex_lock(&LOCK_alarm);
-  /* it's ok not to shrink the queue sometimes */
+  /*
+    It's ok not to shrink the queue as there may be more pending alarms than
+    than max_alarms
+  */
   if (alarm_queue.elements < max_alarms)
     resize_queue(&alarm_queue,max_alarms+1);
   pthread_mutex_unlock(&LOCK_alarm);
-  return;
 }
+
 
 /*
   Request alarm after sec seconds.

@@ -61,6 +61,24 @@ int reinit_queue(QUEUE *queue, uint max_elements, uint offset_to_key,
   DBUG_RETURN(0);
 }
 
+
+/*
+  Resize queue
+
+  SYNOPSIS
+    resize_queue()
+    queue			Queue
+    max_elements		New max size for queue
+
+  NOTES
+    If you resize queue to be less than the elements you have in it,
+    the extra elements will be deleted
+
+  RETURN
+    0	ok
+    1	Error.  In this case the queue is unchanged
+*/
+
 int resize_queue(QUEUE *queue, uint max_elements)
 {
   byte **new_root;
@@ -68,13 +86,15 @@ int resize_queue(QUEUE *queue, uint max_elements)
   if (queue->max_elements == max_elements)
     DBUG_RETURN(0);
   if ((new_root= (byte **) my_realloc((void *)queue->root,
-          (max_elements+1)*sizeof(void*), MYF(MY_WME))) == 0)
+				      (max_elements+1)*sizeof(void*),
+				      MYF(MY_WME))) == 0)
     DBUG_RETURN(1);
   set_if_smaller(queue->elements, max_elements);
-  queue->max_elements=max_elements;
-  queue->root=new_root;
+  queue->max_elements= max_elements;
+  queue->root= new_root;
   DBUG_RETURN(0);
 }
+
 
 void delete_queue(QUEUE *queue)
 {
