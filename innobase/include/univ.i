@@ -14,6 +14,10 @@ Created 1/20/1994 Heikki Tuuri
 
 #include <windows.h>
 
+/* When compiling for Itanium IA64, undefine the flag below to prevent use
+of 32-bit assembler */
+#define UNIV_CAN_USE_X86_ASSEMBLER
+
 /* If you want to check for errors with compiler level -W4,
 comment out the above include of windows.h and let the following defines
 be defined:
@@ -70,13 +74,14 @@ memory is read outside the allocated blocks. */
 */
 
 /* Make a non-inline debug version */
+
 /*
 #define UNIV_DEBUG
 #define UNIV_MEM_DEBUG
-#define UNIV_SEARCH_DEBUG
+#define UNIV_SYNC_DEBUG
 
 #define UNIV_IBUF_DEBUG
-#define UNIV_SYNC_DEBUG
+#define UNIV_SEARCH_DEBUG
 #define UNIV_SYNC_PERF_STAT
 #define UNIV_SEARCH_PERF_STAT
 */
