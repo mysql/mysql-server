@@ -35,7 +35,8 @@ const char *Options::pid_file_name= QUOTE(DEFAULT_PID_FILE_NAME);
 const char *Options::socket_file_name= QUOTE(DEFAULT_SOCKET_FILE_NAME);
 const char *Options::password_file_name= QUOTE(DEFAULT_PASSWORD_FILE_NAME);
 const char *Options::default_mysqld_path= QUOTE(DEFAULT_MYSQLD_PATH);
-const char *Options::bind_address= 0;              /* No default value */
+const char *Options::bind_address= 0;           /* No default value */
+const char *Options::user= 0;                   /* No default value */
 uint Options::monitoring_interval= DEFAULT_MONITORING_INTERVAL;
 uint Options::port_number= DEFAULT_PORT;
 /* just to declare */
@@ -54,7 +55,6 @@ enum options {
   OPT_MYSQLD_PATH,
   OPT_RUN_AS_SERVICE,
   OPT_USER,
-  OPT_PASSWORD,
   OPT_MONITORING_INTERVAL,
   OPT_PORT,
   OPT_BIND_ADDRESS
@@ -106,6 +106,11 @@ static struct my_option my_long_options[] =
   { "run-as-service", OPT_RUN_AS_SERVICE,
     "Daemonize and start angel process.", (gptr *) &Options::run_as_service,
     0, 0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
+
+  { "user", OPT_USER, "Username to start mysqlmanager",
+                   (gptr *) &Options::user,
+                   (gptr *) &Options::user,
+                   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 
   { "version", 'V', "Output version information and exit.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
