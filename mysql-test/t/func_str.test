@@ -37,6 +37,16 @@ select replace('aaaa','a','b'),replace('aaaa','aa','b'),replace('aaaa','a','bb')
 select replace(concat(lcase(concat('THIS',' ','IS',' ','A',' ')),ucase('false'),' ','test'),'FALSE','REAL') ;
 select soundex(''),soundex('he'),soundex('hello all folks');
 select md5('hello');
+select sha('abc');
+select sha1('abc');
+select aes_decrypt(aes_encrypt('abc','1'),'1');
+select aes_decrypt(aes_encrypt('abc','1'),1);
+select aes_encrypt(NULL,"a");
+select aes_encrypt("a",NULL);
+select aes_decrypt(NULL,"a");
+select aes_decrypt("a",NULL);
+select aes_decrypt("a","a");
+select aes_decrypt(aes_encrypt("","a"),"a");
 select repeat('monty',5),concat('*',space(5),'*');
 select reverse('abc'),reverse('abcd');
 select rpad('a',4,'1'),rpad('a',4,'12'),rpad('abcd',3,'12');
