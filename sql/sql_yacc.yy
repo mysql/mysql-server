@@ -611,7 +611,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	udf_type if_exists opt_local opt_table_options table_options
         table_option opt_if_not_exists opt_no_write_to_binlog opt_var_type
         opt_var_ident_type delete_option opt_temporary all_or_any opt_distinct
-        opt_ignore_leaves fulltext_options spatial_type
+        opt_ignore_leaves fulltext_options spatial_type union_option
 
 %type <ulong_num>
 	ULONG_NUM raid_types merge_insert_types
@@ -718,7 +718,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	table_to_table_list table_to_table opt_table_list opt_as
 	handler_rkey_function handler_read_or_scan
 	single_multi table_wild_list table_wild_one opt_wild
-	union_clause union_list union_option
+	union_clause union_list
 	precision subselect_start opt_and charset
 	subselect_end select_var_list select_var_list_init help opt_len
 	opt_extended_describe
@@ -5571,7 +5571,7 @@ union_clause:
 	;
 
 union_list:
-	UNION_SYM    union_option
+	UNION_SYM union_option
 	{
 	  LEX *lex=Lex;
 	  if (lex->exchange)
@@ -5589,6 +5589,9 @@ union_list:
 	    YYABORT;
           mysql_init_select(lex);
 	  lex->current_select->linkage=UNION_TYPE;
+          if ($2) /* UNION DISTINCT - remember position */
+            lex->current_select->master_unit()->union_distinct=
+                                                      lex->current_select;
 	}
 	select_init {}
 	;
@@ -5630,9 +5633,10 @@ order_or_limit:
 	;
 
 union_option:
-	/* empty */ {}
-	| DISTINCT {}
-	| ALL {Select->master_unit()->union_option|= UNION_ALL;};
+	/* empty */ { $$=1; }
+	| DISTINCT  { $$=1; }
+	| ALL       { $$=0; }
+        ;
 
 singlerow_subselect:
 	subselect_start singlerow_subselect_init

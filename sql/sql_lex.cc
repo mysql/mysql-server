@@ -997,7 +997,7 @@ void st_select_lex_unit::init_query()
   global_parameters= first_select();
   select_limit_cnt= HA_POS_ERROR;
   offset_limit_cnt= 0;
-  union_option= 0;
+  union_distinct= 0;
   prepared= optimized= executed= 0;
   item= 0;
   union_result= 0;
@@ -1572,7 +1572,7 @@ void st_select_lex_unit::print(String *str)
     if (sl != first_select())
     {
       str->append(" union ", 7);
-      if (union_option & UNION_ALL)
+      if (!union_distinct)
 	str->append("all ", 4);
     }
     if (sl->braces)

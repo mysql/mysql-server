@@ -493,6 +493,7 @@ create table t1 (i int);
 insert into t1 values (1);
 select * from t1 UNION select * from t1;
 select * from t1 UNION ALL select * from t1;
-# The following should return 2 lines
 select * from t1 UNION select * from t1 UNION ALL select * from t1;
 drop table t1;
+select 1 as a union all select 1 union all select 2 union select 1 union all select 2;
+

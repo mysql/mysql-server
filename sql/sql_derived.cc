@@ -138,7 +138,7 @@ static int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
   */
   if (!(table= create_tmp_table(thd, &derived_result->tmp_table_param,
 				unit->types, (ORDER*) 0, 
-				is_union && !unit->union_option, 1,
+				is_union && unit->union_distinct, 1,
 				(first_select->options | thd->options |
 				 TMP_TABLE_ALL_COLUMNS),
 				HA_POS_ERROR,
