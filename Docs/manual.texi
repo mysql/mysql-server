@@ -31883,7 +31883,7 @@ mysql> SELECT LOG(2);
 mysql> SELECT LOG(-2);
         -> NULL
 @end example
-If you want the log of a number @code{X} to some arbitary base @code{B}, use
+If you want the log of a number @code{X} to some arbitrary base @code{B}, use
 the formula @code{LOG(X)/LOG(B)}.
 
 @findex LOG10()
