@@ -37,7 +37,7 @@ WARNING: THIS PROGRAM IS STILL IN BETA. Comments/patches welcome.
 
 # Documentation continued at end of file
 
-my $VERSION = "1.18";
+my $VERSION = "1.19";
 
 my $opt_tmpdir = $ENV{TMPDIR} || "/tmp";
 
@@ -770,6 +770,10 @@ sub quote_names {
   my ($db, $table, @cruft) = split( /\./, $name );
   die "Invalid db.table name '$name'" if (@cruft || !defined $db || !defined $table );
 
+  # Earlier versions of DBD return table name non-quoted,
+  # such as DBD-2.1012 and the newer ones, such as DBD-2.9002
+  # returns it quoted. Let's have a support for both.
+  $table=~ s/\`//g;
   return "`$db`.`$table`";
 }
 
