@@ -98,6 +98,8 @@ typedef struct st_lex_master_info
   uint port, connect_retry;
   ulonglong pos;
   ulong server_id;
+  char* relay_log_name;
+  ulong relay_log_pos;
 } LEX_MASTER_INFO;
 
 

@@ -38,7 +38,17 @@
 #define ONE_THREAD
 #endif
 
-/* do stack traces are only supported on linux intel */
+#ifdef SAFEMALLOC
+#define SHUTDOWN_THD shutdown_th=pthread_self();
+#define MAIN_THD main_th=pthread_self();
+#define SIGNAL_THD signal_th=pthread_self();
+#else
+#define SHUTDOWN_THD
+#define MAIN_THD
+#define SIGNAL_THD
+#endif
+
+/* stack traces are only supported on linux intel */
 #if defined(__linux__)  && defined(__i386__) && defined(USE_PSTACK)
 #define	HAVE_STACK_TRACE_ON_SEGV
 #include "../pstack/pstack.h"
@@ -701,6 +711,7 @@ static void __cdecl kill_server(int sig_ptr)
     sql_print_error(ER(ER_GOT_SIGNAL),my_progname,sig); /* purecov: inspected */
 
 #if defined(USE_ONE_SIGNAL_HAND) && !defined(__WIN__) && !defined(OS2)
+  SHUTDOWN_THD;
   my_thread_init();				// If this is a new thread
 #endif
   close_connections();
@@ -716,6 +727,7 @@ static void __cdecl kill_server(int sig_ptr)
 #ifdef USE_ONE_SIGNAL_HAND
 static pthread_handler_decl(kill_server_thread,arg __attribute__((unused)))
 {
+  SHUTDOWN_THD;
   my_thread_init();				// Initialize new thread
   kill_server(0);
   my_thread_end();				// Normally never reached
@@ -1262,6 +1274,7 @@ static void init_signals(void)
   signal(SIGALRM, SIG_IGN);
   signal(SIGBREAK,SIG_IGN);
   signal_thread = pthread_self();
+  SIGNAL_THD;
 }
 
 static void start_signal_handler(void)
@@ -1387,6 +1400,7 @@ static void init_signals(void)
     sigaction(SIGBUS, &sa, NULL);
 #endif
     sigaction(SIGILL, &sa, NULL);
+    sigaction(SIGFPE, &sa, NULL);
   }
   (void) sigemptyset(&set);
 #ifdef THREAD_SPECIFIC_SIGPIPE
@@ -1454,7 +1468,7 @@ static void *signal_hand(void *arg __attribute__((unused)))
   int sig;
   my_thread_init();				// Init new thread
   DBUG_ENTER("signal_hand");
-
+  SIGNAL_THD;
   /* Setup alarm handler */
   init_thr_alarm(max_connections+max_insert_delayed_threads);
 #if SIGINT != THR_KILL_SIGNAL
@@ -1509,7 +1523,10 @@ static void *signal_hand(void *arg __attribute__((unused)))
     else
       while ((error=my_sigwait(&set,&sig)) == EINTR) ;
     if (cleanup_done)
+    {
+      my_thread_end();
       pthread_exit(0);				// Safety
+    }
     switch (sig) {
     case SIGTERM:
     case SIGQUIT:
@@ -1603,6 +1620,7 @@ int uname(struct utsname *a)
 pthread_handler_decl(handle_shutdown,arg)
 {
   MSG msg;
+  SHUTDOWN_THD;
   my_thread_init();
 
   /* this call should create the message queue for this thread */
@@ -1629,6 +1647,7 @@ int __stdcall handle_kill(ulong ctrl_type)
 #ifdef OS2
 pthread_handler_decl(handle_shutdown,arg)
 {
+  SHUTDOWN_THD;
   my_thread_init();
 
   // wait semaphore
@@ -1700,6 +1719,7 @@ int main(int argc, char **argv)
 
   my_umask=0660;		// Default umask for new files
   my_umask_dir=0700;		// Default umask for new directories
+  MAIN_THD;
   MY_INIT(argv[0]);		// init my_sys library & pthreads
   tzset();			// Set tzname
 
@@ -1891,45 +1911,6 @@ int main(int argc, char **argv)
     using_update_log=1;
   }
  
-  init_slave();
-  
-  if (opt_bin_log && !server_id)
-  {
-    server_id= !master_host ? 1 : 2;
-    switch (server_id) {
-#ifdef EXTRA_DEBUG
-    case 1:
-      sql_print_error("\
-Warning: You have enabled the binary log, but you haven't set server-id:\n\
-Updates will be logged to the binary log, but connections to slaves will\n\
-not be accepted.");
-      break;
-#endif
-    case 2:
-      sql_print_error("\
-Warning: You should set server-id to a non-0 value if master_host is set.\n\
-The server will not act as a slave.");
-      break;
-    }
-  }
-  if (opt_bin_log)
-  {
-    if (!opt_bin_logname)
-    {
-      char tmp[FN_REFLEN];
-      /* TODO: The following should be using fn_format();  We just need to
-	 first change fn_format() to cut the file name if it's too long.
-      */
-      strmake(tmp,glob_hostname,FN_REFLEN-5);
-      strmov(strcend(tmp,'.'),"-bin");
-      opt_bin_logname=my_strdup(tmp,MYF(MY_WME));
-    }
-    mysql_bin_log.set_index_file_name(opt_binlog_index_name);
-    open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
-	     LOG_BIN);
-    using_update_log=1;
-  }
-
   if (opt_slow_log)
     open_log(&mysql_slow_log, glob_hostname, opt_slow_logname, "-slow.log",
 	     LOG_NORMAL);
@@ -2000,6 +1981,46 @@ The server will not act as a slave.");
   if (!opt_noacl)
     udf_init();
 #endif
+  /* init_slave() must be called after the thread keys are created */
+  init_slave();
+  
+  if (opt_bin_log && !server_id)
+  {
+    server_id= !master_host ? 1 : 2;
+    switch (server_id) {
+#ifdef EXTRA_DEBUG
+    case 1:
+      sql_print_error("\
+Warning: You have enabled the binary log, but you haven't set server-id:\n\
+Updates will be logged to the binary log, but connections to slaves will\n\
+not be accepted.");
+      break;
+#endif
+    case 2:
+      sql_print_error("\
+Warning: You should set server-id to a non-0 value if master_host is set.\n\
+The server will not act as a slave.");
+      break;
+    }
+  }
+  if (opt_bin_log)
+  {
+    if (!opt_bin_logname)
+    {
+      char tmp[FN_REFLEN];
+      /* TODO: The following should be using fn_format();  We just need to
+	 first change fn_format() to cut the file name if it's too long.
+      */
+      strmake(tmp,glob_hostname,FN_REFLEN-5);
+      strmov(strcend(tmp,'.'),"-bin");
+      opt_bin_logname=my_strdup(tmp,MYF(MY_WME));
+    }
+    mysql_bin_log.set_index_file_name(opt_binlog_index_name);
+    open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
+	     LOG_BIN);
+    using_update_log=1;
+  }
+
 
   if (opt_bootstrap)
   {

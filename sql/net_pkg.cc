@@ -108,7 +108,11 @@ net_printf(NET *net, uint errcode, ...)
     thd->query_error = 1;	// if we are here, something is wrong :-)
   query_cache_abort(net);	// Safety
   va_start(args,errcode);
-  format=ER(errcode);
+  // Sasha: this is needed to make net_printf() work with 0 argument for
+  // errorcode and use the argument after that as the format string. This
+  // is usefull for rare errors that are not worth the hassle to put in
+  // errmsg.sys, but at the same time, the message is not fixed text
+  format=errcode ? ER(errcode) : va_arg(args,char*);
   offset= net->return_errno ? 2 : 0;
   text_pos=(char*) net->buff+head_length+offset+1;
   (void) vsprintf(my_const_cast(char*) (text_pos),format,args);

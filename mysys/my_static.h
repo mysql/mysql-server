@@ -38,6 +38,7 @@ struct irem {
     my_string _sFileName;		/* File in which memory was new'ed */
     uint _uLineNum;			/* Line number in above file	   */
     uint _uDataSize;			/* Size requested		   */
+    pthread_t thread_id;
     long _lSpecialValue;		/* Underrun marker value	   */
 };
 
@@ -55,6 +56,11 @@ extern const char *soundex_map;
 
 extern USED_MEM* my_once_root_block;
 extern uint	 my_once_extra;
+
+/* these threads are exept from safemalloc leak scrutiny unless
+   PEDANTIC_SAFEMALLOC is defined
+*/
+extern pthread_t signal_thread,kill_thread;
 
 #ifndef HAVE_TEMPNAM
 extern int	_my_tempnam_used;
