@@ -351,7 +351,7 @@ class Cursor: public Sql_alloc, public Item_arena
   MYSQL_LOCK *lock;
   TABLE *derived_tables;
   /* List of items created during execution */
-  ulong query_id;
+  query_id_t query_id;
 public:
   select_send result;
 

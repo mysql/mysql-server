@@ -6646,7 +6646,6 @@ static COND *build_equal_items(THD *thd, COND *cond,
     {
       if (table->on_expr)
       {
-        Item *expr;
         List<TABLE_LIST> *join_list= table->nested_join ?
 	                             &table->nested_join->join_list : NULL;
         /*
@@ -8545,7 +8544,7 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
 	seg->type=
 	((keyinfo->key_part[i].key_type & FIELDFLAG_BINARY) ?
 	 HA_KEYTYPE_VARBINARY2 : HA_KEYTYPE_VARTEXT2);
-	seg->bit_start= field->pack_length() - table->s->blob_ptr_size;
+	seg->bit_start= (uint8)(field->pack_length() - table->s->blob_ptr_size);
 	seg->flag= HA_BLOB_PART;
 	seg->length=0;			// Whole blob in unique constraint
       }
@@ -11891,7 +11890,8 @@ calc_group_buffer(JOIN *join,ORDER *group)
     join->group= 1;
   for (; group ; group=group->next)
   {
-    Field *field=(*group->item)->get_tmp_table_field();
+    Item *group_item= *group->item;
+    Field *field= group_item->get_tmp_table_field();
     if (field)
     {
       if (field->type() == FIELD_TYPE_BLOB)
@@ -11901,27 +11901,36 @@ calc_group_buffer(JOIN *join,ORDER *group)
       else
 	key_length+= field->pack_length();
     }
-    else if ((*group->item)->result_type() == REAL_RESULT)
-      key_length+=sizeof(double);
-    else if ((*group->item)->result_type() == INT_RESULT)
-      key_length+=sizeof(longlong);
-    else if ((*group->item)->result_type() == STRING_RESULT)
-    {
-      /*
-        Group strings are taken as varstrings and require an length field.
-        A field is not yet created by create_tmp_field()
-        and the sizes should match up.
-      */
-      key_length+= (*group->item)->max_length + HA_KEY_BLOB_LENGTH;
-    }
     else
-    {
-      /* This case should never be choosen */
-      DBUG_ASSERT(0);
-      join->thd->fatal_error();
+    { 
+      switch (group_item->result_type()) {
+      case REAL_RESULT:
+        key_length+= sizeof(double);
+        break;
+      case INT_RESULT:
+        key_length+= sizeof(longlong);
+        break;
+      case DECIMAL_RESULT:
+        key_length+= my_decimal_get_binary_size(group_item->max_length - 
+                                                (group_item->decimals ? 1 : 0),
+                                                group_item->decimals);
+        break;
+      case STRING_RESULT:
+        /*
+          Group strings are taken as varstrings and require an length field.
+          A field is not yet created by create_tmp_field()
+          and the sizes should match up.
+        */
+        key_length+= group_item->max_length + HA_KEY_BLOB_LENGTH;
+        break;
+      default:
+        /* This case should never be choosen */
+        DBUG_ASSERT(0);
+        join->thd->fatal_error();
+      }
     }
     parts++;
-    if ((*group->item)->maybe_null)
+    if (group_item->maybe_null)
       null_parts++;
   }
   join->tmp_table_param.group_length=key_length+null_parts;

@@ -1212,7 +1212,7 @@ my_bool _mi_memmap_file(MI_INFO *info)
       DBUG_RETURN(0);
     }
     file_map=(byte*)
-      my_mmap(0,share->state.state.data_file_length+MEMMAP_EXTRA_MARGIN,PROT_READ,
+      my_mmap(0,(size_t)(share->state.state.data_file_length+MEMMAP_EXTRA_MARGIN),PROT_READ,
 	   MAP_SHARED | MAP_NORESERVE,info->dfile,0L);
     if (file_map == (byte*) MAP_FAILED)
     {

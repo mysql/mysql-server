@@ -3608,7 +3608,7 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     if (is_unsigned)
       data= ulonglong2double(value);
     else
-      data= value;
+      data= (double)value;
     doublestore(buffer, data);
     *param->error= is_unsigned ?
                    ((ulonglong) value) != ((ulonglong) (*(double*) buffer)) :
