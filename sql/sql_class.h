@@ -26,6 +26,8 @@
 class Query_log_event;
 class Load_log_event;
 class Slave_log_event;
+class sp_rcontext;
+class sp_cache;
 
 enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY };
@@ -447,7 +449,8 @@ public:
   ulong extra_length;
 #endif
   NET	  net;				// client connection descriptor
-  LEX	  lex;				// parse tree descriptor
+  LEX     main_lex;
+  LEX	  *lex;				// parse tree descriptor
   MEM_ROOT mem_root;			// 1 command-life memory pool
   MEM_ROOT con_root;                    // connection-life memory
   MEM_ROOT warn_root;			// For warnings and errors
@@ -605,11 +608,26 @@ public:
   bool	     query_start_used,last_insert_id_used,insert_id_used,rand_used;
   bool	     system_thread,in_lock_tables,global_read_lock;
   bool       query_error, bootstrap, cleanup_done;
-  bool	     volatile killed;
+
+  enum killed_state { NOT_KILLED=0, KILL_CONNECTION=ER_SERVER_SHUTDOWN, KILL_QUERY=ER_QUERY_INTERRUPTED };
+  killed_state volatile killed;
+  inline int killed_errno() const
+  {
+    return killed;
+  }
+  inline void send_kill_message() const
+  {
+    my_error(killed_errno(), MYF(0));
+  }
+
   bool       prepare_command;
   bool	     tmp_table_used;
   bool	     charset_is_system_charset, charset_is_collation_connection;
   bool       slow_command;
+
+  sp_rcontext *spcont;		// SP runtime context
+  sp_cache   *sp_proc_cache;
+  sp_cache   *sp_func_cache;
 
   /*
     If we do a purge of binary logs, log index info of the threads
@@ -648,7 +666,7 @@ public:
   }
   void close_active_vio();
 #endif  
-  void awake(bool prepare_to_die);
+  void awake(THD::killed_state state_to_set);
   inline const char* enter_cond(pthread_cond_t *cond, pthread_mutex_t* mutex,
 			  const char* msg)
   {
@@ -1144,13 +1162,25 @@ public:
   bool send_eof();
 };
 
+class my_var : public Sql_alloc  {
+public:
+  LEX_STRING s;
+  bool local;
+  uint offset;
+  enum_field_types type;
+  my_var (LEX_STRING& j, bool i, uint o, enum_field_types t)
+    :s(j), local(i), offset(o), type(t)
+  {}
+  ~my_var() {}
+};
 
 class select_dumpvar :public select_result {
   ha_rows row_count;
 public:
-  List<LEX_STRING> var_list;
+  List<my_var> var_list;
   List<Item_func_set_user_var> vars;
-  select_dumpvar(void)  { var_list.empty(); vars.empty(); row_count=0;}
+  List<Item_splocal> local_vars;
+  select_dumpvar(void)  { var_list.empty(); local_vars.empty(); vars.empty(); row_count=0;}
   ~select_dumpvar() {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_fields(List<Item> &list, uint flag) {return 0;}

@@ -86,3 +86,16 @@ use mysqltest;
 create table t1 (c int);
 insert into mysqltest.t1 set mysqltest.t1.c = '1';
 drop database mysqltest;
+use test;
+drop table if exists t1,t2,t3;
+create table t1(id1 int not null auto_increment primary key, t char(12));
+create table t2(id2 int not null, t char(12));
+create table t3(id3 int not null, t char(12), index(id3));
+select count(*) from t2;
+count(*)
+500
+insert into  t2 select t1.* from t1, t2 t, t3 where  t1.id1 = t.id2 and t.id2 = t3.id3;
+select count(*) from t2;
+count(*)
+25500
+drop table if exists t1,t2,t3;

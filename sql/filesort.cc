@@ -330,7 +330,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   byte *ref_pos,*next_pos,ref_buff[MAX_REFLENGTH];
   my_off_t record;
   TABLE *sort_form;
-  volatile bool *killed= &current_thd->killed;
+  volatile THD::killed_state *killed= &current_thd->killed;
   handler *file;
   DBUG_ENTER("find_all_keys");
   DBUG_PRINT("info",("using: %s",(select?select->quick?"ranges":"where":"every row")));
@@ -774,15 +774,15 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   BUFFPEK *buffpek,**refpek;
   QUEUE queue;
   qsort2_cmp cmp;
-  volatile bool *killed= &current_thd->killed;
-  bool not_killable;
+  volatile THD::killed_state *killed= &current_thd->killed;
+  THD::killed_state not_killable;
   DBUG_ENTER("merge_buffers");
 
   statistic_increment(filesort_merge_passes, &LOCK_status);
   if (param->not_killable)
   {
     killed= &not_killable;
-    not_killable= 0;
+    not_killable=THD::NOT_KILLED;
   }
 
   error=0;
@@ -1128,7 +1128,7 @@ get_addon_fields(THD *thd, Field **ptabfield, uint sortlength, uint *plength)
      The fact is the filter 'field->query_id != thd->query_id'
      doesn't work for alter table
   */
-  if (thd->lex.sql_command != SQLCOM_SELECT)
+  if (thd->lex->sql_command != SQLCOM_SELECT)
     return 0;
   for (pfield= ptabfield; (field= *pfield) ; pfield++)
   {

@@ -754,7 +754,7 @@ bool Protocol::convert_str(const char *from, uint length)
 bool setup_params_data(st_prep_stmt *stmt)
 {                                       
   THD *thd= stmt->thd;
-  List<Item> &params= thd->lex.param_list;
+  List<Item> &params= thd->lex->param_list;
   List_iterator<Item> param_iterator(params);
   Item_param *param;
   ulong param_no= 0;
@@ -787,7 +787,7 @@ bool setup_params_data(st_prep_stmt *stmt)
 bool setup_params_data_withlog(st_prep_stmt *stmt)
 {                                       
   THD *thd= stmt->thd;
-  List<Item> &params= thd->lex.param_list;
+  List<Item> &params= thd->lex->param_list;
   List_iterator<Item> param_iterator(params);
   Item_param *param;
   MYSQL_BIND *client_param= thd->client_params;

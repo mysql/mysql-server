@@ -344,9 +344,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   sprintf(name, ER(ER_LOAD_INFO), (ulong) info.records, (ulong) info.deleted,
 	  (ulong) (info.records - info.copied), (ulong) thd->cuted_fields);
   send_ok(thd,info.copied+info.deleted,0L,name);
-  // on the slave thd->query is never initialized
-  if (!thd->slave_thread)
-    mysql_update_log.write(thd,thd->query,thd->query_length);
 
   if (!log_delayed)
     thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
@@ -412,7 +409,7 @@ read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
   {
     if (thd->killed)
     {
-      my_error(ER_SERVER_SHUTDOWN,MYF(0));
+      thd->send_kill_message();
       DBUG_RETURN(1);
     }
     it.rewind();
@@ -500,7 +497,7 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
   {
     if (thd->killed)
     {
-      my_error(ER_SERVER_SHUTDOWN,MYF(0));
+      thd->send_kill_message();
       DBUG_RETURN(1);
     }
     while ((sql_field=(Item_field*) it++))

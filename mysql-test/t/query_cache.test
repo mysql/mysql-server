@@ -581,6 +581,21 @@ set character_set_results=cp1251;
 SELECT a,'Â','â'='Â' FROM t1; 
 show status like "Qcache_hits";
 show status like "Qcache_queries_in_cache";
+drop table t1;
+
+#
+# comments before command
+#
+create table t1 (a int);
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+/**/ select * from t1;
+/**/ select * from t1;
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
 #
 # Keep things tidy
 #

@@ -21,6 +21,8 @@
 #include "item_create.h"
 #include <m_ctype.h>
 #include <hash.h>
+#include "sp.h"
+#include "sp_head.h"
 
 LEX_STRING tmp_table_alias= {(char*) "tmp-table",8};
 
@@ -115,9 +117,10 @@ void lex_free(void)
 
 LEX *lex_start(THD *thd, uchar *buf,uint length)
 {
-  LEX *lex= &thd->lex;
+  LEX *lex= thd->lex;
   lex->thd= thd;
   lex->next_state=MY_LEX_START;
+  lex->buf= buf;
   lex->end_of_query=(lex->ptr=buf)+length;
   lex->yylineno = 1;
   lex->select_lex.parsing_place= SELECT_LEX_NODE::NO_MATTER;
@@ -132,6 +135,14 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->ignore_space=test(thd->variables.sql_mode & MODE_IGNORE_SPACE);
   lex->sql_command=SQLCOM_END;
   lex->duplicates= DUP_ERROR;
+  lex->sphead= NULL;
+  lex->spcont= NULL;
+
+  extern byte *sp_lex_spfuns_key(const byte *ptr, uint *plen, my_bool first);
+  hash_free(&lex->spfuns);
+  hash_init(&lex->spfuns, system_charset_info, 0, 0, 0,
+	    sp_lex_spfuns_key, 0, 0);
+
   return lex;
 }
 
@@ -155,6 +166,17 @@ static int find_keyword(LEX *lex, uint len, bool function)
     lex->yylval->symbol.length=len;
     return symbol->tok;
   }
+
+  LEX_STRING ls;
+  ls.str = (char *)tok; ls.length= len;
+  if (function && sp_function_exists(current_thd, &ls))	// QQ temp fix
+  {
+    lex->safe_to_cache_query= 0;
+    lex->yylval->lex_str.str= lex->thd->strmake((char*)lex->tok_start, len);
+    lex->yylval->lex_str.length= len;
+    return SP_FUNC;
+  }
+
 #ifdef HAVE_DLOPEN
   udf_func *udf;
   if (function && using_udf_functions && (udf=find_udf((char*) tok, len)))
@@ -433,7 +455,7 @@ int yylex(void *arg, void *yythd)
   int	tokval, result_state;
   uint length;
   enum my_lex_states state,prev_state;
-  LEX	*lex= &(((THD *)yythd)->lex);
+  LEX	*lex= (((THD *)yythd)->lex);
   YYSTYPE *yylval=(YYSTYPE*) arg;
   CHARSET_INFO *cs= ((THD *) yythd)->charset();
   uchar *state_map= cs->state_map;

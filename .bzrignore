@@ -385,6 +385,10 @@ libmysqld/repl_failsafe.cc
 libmysqld/set_var.cc
 libmysqld/simple-test
 libmysqld/slave.cc
+libmysqld/sp.cc
+libmysqld/sp_cache.cc
+libmysqld/sp_head.cc
+libmysqld/sp_pcontext.cc
 libmysqld/spatial.cc
 libmysqld/sql_acl.cc
 libmysqld/sql_analyse.cc

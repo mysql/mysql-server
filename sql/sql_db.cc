@@ -241,7 +241,6 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
       query= 	    thd->query;
       query_length= thd->query_length;
     }
-    mysql_update_log.write(thd, query, query_length);
     if (mysql_bin_log.is_open())
     {
       Query_log_event qinfo(thd, query, query_length, 0);
@@ -295,7 +294,6 @@ int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     thd->variables.collation_database= thd->db_charset;
   }
 
-  mysql_update_log.write(thd,thd->query, thd->query_length);
   if (mysql_bin_log.is_open())
   {
     Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
@@ -381,7 +379,6 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 	query=thd->query;
 	query_length=thd->query_length;
       }
-      mysql_update_log.write(thd, query, query_length);
       if (mysql_bin_log.is_open())
       {
 	Query_log_event qinfo(thd, query, query_length, 0);

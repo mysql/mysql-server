@@ -47,7 +47,8 @@ public:
 		  SP_CONTAINS_FUNC,SP_OVERLAPS_FUNC,
 		  SP_STARTPOINT,SP_ENDPOINT,SP_EXTERIORRING,
 		  SP_POINTN,SP_GEOMETRYN,SP_INTERIORRINGN,
-		  NOT_FUNC, NOT_ALL_FUNC};
+		  NOT_FUNC, NOT_ALL_FUNC,
+                  GUSERVAR_FUNC};
   enum optimize_type { OPTIMIZE_NONE,OPTIMIZE_KEY,OPTIMIZE_OP, OPTIMIZE_NULL };
   enum Type type() const { return FUNC_ITEM; }
   virtual enum Functype functype() const   { return UNKNOWN_FUNC; }
@@ -946,6 +947,8 @@ class Item_func_get_user_var :public Item_func
 public:
   Item_func_get_user_var(LEX_STRING a):
     Item_func(), name(a) {}
+  enum Functype functype() const { return GUSERVAR_FUNC; }
+  LEX_STRING get_name() { return name; }
   double val();
   longlong val_int();
   String *val_str(String* str);
@@ -1057,4 +1060,70 @@ enum Cast_target
 {
   ITEM_CAST_BINARY, ITEM_CAST_SIGNED_INT, ITEM_CAST_UNSIGNED_INT,
   ITEM_CAST_DATE, ITEM_CAST_TIME, ITEM_CAST_DATETIME, ITEM_CAST_CHAR
+};
+
+
+/*
+ *
+ * Stored FUNCTIONs
+ *
+ */
+
+class sp_head;
+
+class Item_func_sp :public Item_func
+{
+private:
+  LEX_STRING m_name;
+  mutable sp_head *m_sp;
+
+  int execute(Item **itp);
+
+public:
+
+  Item_func_sp(LEX_STRING name)
+    :Item_func(), m_name(name), m_sp(NULL)
+  {}
+
+  Item_func_sp(LEX_STRING name, List<Item> &list)
+    :Item_func(list), m_name(name), m_sp(NULL)
+  {}
+
+  virtual ~Item_func_sp()
+  {}
+
+  const char *func_name() const
+  {
+    return m_name.str;
+  }
+
+  enum enum_field_types field_type() const;
+
+  Item_result result_type() const;
+
+  longlong val_int()
+  {
+    return (longlong)Item_func_sp::val();
+  }
+
+  double val()
+  {
+    Item *it;
+
+    if (execute(&it))
+      return 0.0;
+    return it->val();
+  }
+
+  String *val_str(String *str)
+  {
+    Item *it;
+
+    if (execute(&it))
+      return NULL;
+    return it->val_str(str);
+  }
+
+  void fix_length_and_dec();
+
 };

@@ -130,6 +130,8 @@ enum enum_server_command
 #define NET_WRITE_TIMEOUT	60		/* Timeout on write */
 #define NET_WAIT_TIMEOUT	8*60*60		/* Wait for new query */
 
+#define ONLY_KILL_QUERY         1
+
 struct st_vio;					/* Only C */
 typedef struct st_vio Vio;
 
@@ -291,6 +293,8 @@ typedef struct st_udf_args
   char **args;				/* Pointer to argument */
   unsigned long *lengths;		/* Length of string arguments */
   char *maybe_null;			/* Set to 1 for all maybe_null args */
+  char **attributes;                    /* Pointer to attribute name */
+  unsigned long *attribute_lengths;     /* Length of attribute arguments */
 } UDF_ARGS;
 
   /* This holds information about the result */
