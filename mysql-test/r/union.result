@@ -77,6 +77,8 @@ a	b
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1);
 a	b
 1	a
+2	b
+3	c
 (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by b desc;
 a	b
 3	c
@@ -157,3 +159,22 @@ testtt
 tsestset
 1
 drop table t1;
+drop table if exists t1,t2;
+create table t1 (a int);
+create table t2 (a int);
+insert into t1 values (1),(2),(3),(4),(5);
+insert into t2 values (11),(12),(13),(14),(15);
+(select * from t1 limit 2) union (select * from t2 limit 3) limit 4;
+a
+1
+2
+11
+12
+(select * from t1 limit 2) union (select * from t2 limit 3);
+a
+1
+2
+11
+12
+13
+drop table t1,t2;
