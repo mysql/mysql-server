@@ -2208,4 +2208,35 @@ ndb_mgm_convert_to_transporter(NdbMgmHandle handle)
   return s;
 }
 
+extern "C"
+Uint32
+ndb_mgm_get_mgmd_nodeid(NdbMgmHandle handle)
+{
+  Uint32 nodeid=0;
+
+  DBUG_ENTER("ndb_mgm_get_mgmd_nodeid");
+  CHECK_HANDLE(handle, 0);
+  CHECK_CONNECTED(handle, 0);
+  
+  Properties args;
+
+  const ParserRow<ParserDummy> reply[]= {
+    MGM_CMD("get mgmd nodeid reply", NULL, ""),
+    MGM_ARG("nodeid", Int, Mandatory, "Node ID"),
+    MGM_END()
+  };
+  
+  const Properties *prop;
+  prop = ndb_mgm_call(handle, reply, "get mgmd nodeid", &args);
+  CHECK_REPLY(prop, 0);
+
+  if(!prop->get("nodeid",&nodeid)){
+    ndbout_c("Unable to get value");
+    return 0;
+  }
+
+  delete prop;
+  DBUG_RETURN(nodeid);
+}
+
 template class Vector<const ParserRow<ParserDummy>*>;
