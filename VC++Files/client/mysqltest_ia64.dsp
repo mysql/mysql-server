@@ -8,12 +8,12 @@ CFG=MYSQLTEST - WinIA64 RELEASE
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
 !MESSAGE use the Export Makefile command and run
 !MESSAGE 
-!MESSAGE NMAKE /f "mysqltest.mak".
+!MESSAGE NMAKE /f "mysqltest_ia64.mak".
 !MESSAGE 
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
 !MESSAGE 
-!MESSAGE NMAKE /f "mysqltest.mak" CFG="MYSQLTEST - WinIA64 RELEASE"
+!MESSAGE NMAKE /f "mysqltest_ia64.mak" CFG="MYSQLTEST - WinIA64 RELEASE"
 !MESSAGE 
 !MESSAGE Possible choices for configuration are:
 !MESSAGE 
@@ -46,16 +46,16 @@ MTL=midl.exe
 # ADD BASE MTL /nologo /tlb".\debug\mysqltest.tlb" /win64
 # ADD MTL /nologo /tlb".\debug\mysqltest.tlb" /win64
 # ADD BASE CPP /nologo /G6 /MTd /W3 /GX /Z7 /Od /I "../include" /I "../regex" /I "../" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_CONSOLE" /D "_WINDOWS" /D "_MBCS" /GZ /c
-# ADD CPP /nologo /MTd /W3 /Zi /Od /I "../include" /I "../regex" /I "../" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_CONSOLE" /D "_WINDOWS" /D "_MBCS" /D "_IA64_" /D "WIN64" /D "WIN32" /D "_AFX_NO_DAO_SUPPORT" /GZ /G2 /EHsc /Wp64 /Zm600 /c
+# ADD CPP /nologo /MTd /W3 /Zi /Od /I "../include" /I "../regex" /I "../" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_CONSOLE" /D "_WINDOWS" /D "_MBCS" /D "_IA64_" /D "WIN64" /D "WIN32" /D "_AFX_NO_DAO_SUPPORT" /G2 /EHsc /Wp64 /Zm600 /c
 # ADD BASE RSC /l 0x409 /d "_DEBUG"
 # ADD RSC /l 0x409 /d "_DEBUG"
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=link.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib  odbc32.lib odbccp32.lib  mysqlclient.lib wsock32.lib mysys.lib regex.lib /nologo /subsystem:console /debug /machine:I386 /out:"..\client_debug\mysqltest.exe" /libpath:"..\lib_debug\\"
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib mysqlclient.lib wsock32.lib mysys.lib regex.lib /nologo /subsystem:console /debug  /out:"..\client_debug\mysqltest.exe" /libpath:"..\lib_debug\\"
 # SUBTRACT BASE LINK32 /pdb:none
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib  odbc32.lib odbccp32.lib  mysqlclient.lib wsock32.lib mysys.lib regex.lib  /nologo /subsystem:console /incremental:no /debug /machine:I386 /out:"..\client_debug\mysqltest.exe" /libpath:"..\lib_debug\\"
+# ADD LINK32 ..\lib_debug\zlib.lib ..\lib_debug\dbug.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib mysqlclient.lib wsock32.lib mysys.lib regex.lib bufferoverflowU.lib /nologo /subsystem:console /incremental:no /debug  /out:"..\client_debug\mysqltest.exe" /libpath:"..\lib_debug\\" /machine:IA64
 # SUBTRACT LINK32 /pdb:none
 
 !ELSEIF  "$(CFG)" == "mysqltest - WinIA64 classic"
@@ -69,6 +69,7 @@ LINK32=link.exe
 # PROP Use_Debug_Libraries 0
 # PROP Output_Dir ".\classic"
 # PROP Intermediate_Dir ".\classic"
+# PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 MTL=midl.exe
 # ADD BASE MTL /nologo /tlb".\classic\mysqltest.tlb" /win64
@@ -81,9 +82,9 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=link.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib  odbc32.lib odbccp32.lib  mysqlclient.lib wsock32.lib mysys.lib regex.lib /nologo /subsystem:console /machine:I386 /out:"..\client_classic\mysqltest.exe" /libpath:"..\lib_release\\"
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib mysqlclient.lib wsock32.lib mysys.lib regex.lib /nologo /subsystem:console  /out:"..\client_classic\mysqltest.exe" /libpath:"..\lib_release\\"
 # SUBTRACT BASE LINK32 /pdb:none
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib  odbc32.lib odbccp32.lib  mysqlclient.lib wsock32.lib mysys.lib regex.lib /nologo /subsystem:console /machine:I386 /out:"..\client_classic\mysqltest.exe" /libpath:"..\lib_release\\"
+# ADD LINK32 ..\lib_release\zlib.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib mysqlclient.lib wsock32.lib mysys.lib regex.lib bufferoverflowU.lib /nologo /subsystem:console  /out:"..\client_classic\mysqltest.exe" /libpath:"..\lib_release\\" /machine:IA64
 # SUBTRACT LINK32 /pdb:none
 
 !ELSEIF  "$(CFG)" == "mysqltest - WinIA64 Release"
@@ -103,16 +104,16 @@ MTL=midl.exe
 # ADD BASE MTL /nologo /tlb".\release\mysqltest.tlb" /win64
 # ADD MTL /nologo /tlb".\release\mysqltest.tlb" /win64
 # ADD BASE CPP /nologo /G6 /MT /W3 /GX /Ob1 /Gy /I "../include" /I "../regex" /I "../" /D "DBUG_OFF" /D "_CONSOLE" /D "_WINDOWS" /D "NDEBUG" /D "_MBCS" /GF /c
-# ADD CPP /nologo /MT /W3 /Zi /O2 /I "../include" /I "../regex" /I "../" /D "DBUG_OFF" /D "_CONSOLE" /D "_WINDOWS" /D "NDEBUG" /D "_MBCS" /D "_IA64_" /D "WIN64" /D "WIN32" /D "_AFX_NO_DAO_SUPPORT" /GF /G2 /EHsc /Wp64 /Zm600 /c
+# ADD CPP /nologo /MT /W3 /Zi /O2 /I "../include" /I "../regex" /I "../" /D "DBUG_OFF" /D "_CONSOLE" /D "_WINDOWS" /D "NDEBUG" /D "_MBCS" /D "_IA64_" /D "WIN64" /D "WIN32" /D "_AFX_NO_DAO_SUPPORT" /G2 /GF /EHsc /Wp64 /Zm600 /c
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
 # ADD RSC /l 0x409 /d "NDEBUG"
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=link.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib  odbc32.lib odbccp32.lib  mysqlclient.lib wsock32.lib mysys.lib regex.lib /nologo /subsystem:console /machine:I386 /out:"..\client_release\mysqltest.exe" /libpath:"..\lib_release\\"
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib odbc32.lib odbccp32.lib mysqlclient.lib wsock32.lib mysys.lib regex.lib /nologo /subsystem:console  /out:"..\client_release\mysqltest.exe" /libpath:"..\lib_release\\"
 # SUBTRACT BASE LINK32 /pdb:none
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib  odbc32.lib odbccp32.lib  mysqlclient.lib wsock32.lib mysys.lib regex.lib /nologo /subsystem:console /machine:I386 /out:"..\client_release\mysqltest.exe" /libpath:"..\lib_release\\"
+# ADD LINK32 ..\lib_release\zlib.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib mysqlclient.lib wsock32.lib mysys.lib regex.lib bufferoverflowU.lib /nologo /subsystem:console  /out:"..\client_release\mysqltest.exe" /libpath:"..\lib_release\\" /machine:IA64
 # SUBTRACT LINK32 /pdb:none
 
 !ENDIF 

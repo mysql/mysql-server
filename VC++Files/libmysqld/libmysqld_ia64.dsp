@@ -8,12 +8,12 @@ CFG=libmysqld - WinIA64 pro
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
 !MESSAGE use the Export Makefile command and run
 !MESSAGE 
-!MESSAGE NMAKE /f "libmysqld.mak".
+!MESSAGE NMAKE /f "libmysqld_ia64.mak".
 !MESSAGE 
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
 !MESSAGE 
-!MESSAGE NMAKE /f "libmysqld.mak" CFG="libmysqld - WinIA64 pro"
+!MESSAGE NMAKE /f "libmysqld_ia64.mak" CFG="libmysqld - WinIA64 pro"
 !MESSAGE 
 !MESSAGE Possible choices for configuration are:
 !MESSAGE 
@@ -55,8 +55,8 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=link.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib  /nologo /dll /machine:IX86 /machine:IA64
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib  Wsock32.lib ..\lib_release\myisam_tls.lib ..\lib_release\myisammrg_tls.lib ..\lib_release\mysys_tls.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap_tls.lib ..\lib_release\innodb.lib  ..\lib_release\zlib.lib /nologo /dll /machine:IX86 /out:"../lib_release/libmysqld.dll" /implib:"../lib_release/libmysqld.lib" /machine:IA64
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /dll  /machine:IA64
+# ADD LINK32 ..\lib_release\myisam_tls.lib ..\lib_release\myisammrg_tls.lib ..\lib_release\mysys_tls.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap_tls.lib ..\lib_release\innodb.lib ..\lib_release\zlib.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib bufferoverflowU.lib /nologo /dll  /out:"../lib_release/libmysqld.dll" /implib:"../lib_release/libmysqld.lib" /machine:IA64
 
 !ELSEIF  "$(CFG)" == "libmysqld - WinIA64 Debug"
 
@@ -72,8 +72,7 @@ LINK32=link.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MTd /W3 /Gm /GX /ZI /Od /D "WIN64" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "LIBMYSQLD_EXPORTS" /YX /FD /GZ /c
-# ADD CPP /nologo /MT /W3 /Zi /Od /I "../include" /I "../libmysqld" /I "../sql" /I "../regex" /I "../zlib" /D "WIN64" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "SAFEMALLOC" /D "USE_SYMDIR" /D "SIGNAL_WITH_VIO_CLOSE" /D "HAVE_DLOPEN" /D "EMBEDDED_LIBRARY" /D "HAVE_INNOBASE_DB" /D "USE_TLS" /D "__WIN__" /D "_IA64_" /D "WIN32" /D "_AFX_NO_DAO_SUPPORT" /FD /GZ /G2 /EHsc /Wp64 /Zm600 /c
-# SUBTRACT CPP /X /Fr
+# ADD CPP /nologo /MT /W3 /Zi /Od /I "../include" /I "../libmysqld" /I "../sql" /I "../regex" /I "../zlib" /D "WIN64" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "SAFEMALLOC" /D "USE_SYMDIR" /D "SIGNAL_WITH_VIO_CLOSE" /D "HAVE_DLOPEN" /D "EMBEDDED_LIBRARY" /D "HAVE_INNOBASE_DB" /D "USE_TLS" /D "__WIN__" /D "_IA64_" /D "WIN32" /D "_AFX_NO_DAO_SUPPORT" /FD /G2 /EHsc /Wp64 /Zm600 /c
 # ADD BASE MTL /nologo /D "_DEBUG" /mktyplib203 /win64
 # ADD MTL /nologo /D "_DEBUG" /mktyplib203 /win64
 # ADD BASE RSC /l 0x416 /d "_DEBUG"
@@ -82,8 +81,8 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=link.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib  /nologo /dll /debug /machine:IA64
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib  Wsock32.lib ..\lib_debug\dbug_tls.lib ..\lib_debug\mysys_tls.lib ..\lib_debug\strings.lib ..\lib_debug\regex.lib ..\lib_debug\heap_tls.lib ..\lib_debug\innodb.lib /nologo /dll /incremental:no /debug /machine:IX86 /nodefaultlib:"LIBCMTD" /out:"../lib_debug/libmysqld.dll" /implib:"../lib_debug/libmysqld.lib"  /machine:IA64
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /dll /debug  /machine:IA64
+# ADD LINK32 ..\lib_debug\dbug_tls.lib ..\lib_debug\myisam_tls.lib ..\lib_debug\myisammrg_tls.lib ..\lib_debug\mysys_tls.lib ..\lib_debug\strings.lib ..\lib_debug\regex.lib ..\lib_debug\heap_tls.lib ..\lib_debug\innodb.lib ../lib_debug\zlib.lib bufferoverflowU.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib /nologo /dll /incremental:no /debug  /nodefaultlib:"LIBCMTD" /out:"../lib_debug/libmysqld.dll" /implib:"../lib_debug/libmysqld.lib" /machine:IA64
 
 !ELSEIF  "$(CFG)" == "libmysqld - WinIA64 classic"
 
@@ -110,8 +109,8 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=link.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib  Wsock32.lib ..\lib_release\myisam_tls.lib ..\lib_release\myisammrg_tls.lib ..\lib_release\mysys_tls.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap_tls.lib ..\lib_release\zlib.lib /nologo /dll /machine:IX86 /out:"../lib_release/libmysqld.dll" /implib:"../lib_release/libmysqld.lib" /machine:IA64
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib  Wsock32.lib ..\lib_release\myisam_tls.lib ..\lib_release\myisammrg_tls.lib ..\lib_release\mysys_tls.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap_tls.lib ..\lib_release\zlib.lib /nologo /dll /machine:IX86 /out:"../lib_classic/libmysqld.dll" /implib:"../lib_release/libmysqld.lib" /machine:IA64
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\myisam_tls.lib ..\lib_release\myisammrg_tls.lib ..\lib_release\mysys_tls.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap_tls.lib ..\lib_release\zlib.lib /nologo /dll  /out:"../lib_release/libmysqld.dll" /implib:"../lib_release/libmysqld.lib" /machine:IA64
+# ADD LINK32 ..\lib_release\myisam_tls.lib ..\lib_release\myisammrg_tls.lib ..\lib_release\mysys_tls.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap_tls.lib ..\lib_release\zlib.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib bufferoverflowU.lib /nologo /dll  /out:"../lib_classic/libmysqld.dll" /implib:"../lib_release/libmysqld.lib" /machine:IA64
 
 !ELSEIF  "$(CFG)" == "libmysqld - WinIA64 pro"
 
@@ -138,8 +137,8 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=link.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib  Wsock32.lib ..\lib_release\myisam_tls.lib ..\lib_release\myisammrg_tls.lib ..\lib_release\mysys_tls.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap_tls.lib ..\lib_release\innodb.lib ..\lib_release\zlib.lib /nologo /dll /machine:IX86 /out:"../lib_classic/libmysqld.dll" /implib:"../lib_release/libmysqld.lib" /machine:IA64
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib  Wsock32.lib ..\lib_release\myisam_tls.lib ..\lib_release\myisammrg_tls.lib ..\lib_release\mysys_tls.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap_tls.lib ..\lib_release\innodb.lib ..\lib_release\zlib.lib /nologo /dll /machine:IX86 /out:"../lib_pro/libmysqld.dll" /implib:"../lib_release/libmysqld.lib" /machine:IA64
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib ..\lib_release\myisam_tls.lib ..\lib_release\myisammrg_tls.lib ..\lib_release\mysys_tls.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap_tls.lib ..\lib_release\innodb.lib ..\lib_release\zlib.lib /nologo /dll  /out:"../lib_classic/libmysqld.dll" /implib:"../lib_release/libmysqld.lib" /machine:IA64
+# ADD LINK32 ..\lib_release\myisam_tls.lib ..\lib_release\myisammrg_tls.lib ..\lib_release\mysys_tls.lib ..\lib_release\strings.lib ..\lib_release\regex.lib ..\lib_release\heap_tls.lib ..\lib_release\innodb.lib ..\lib_release\zlib.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib Wsock32.lib bufferoverflowU.lib /nologo /dll  /out:"../lib_pro/libmysqld.dll" /implib:"../lib_release/libmysqld.lib" /machine:IA64
 
 !ENDIF 
 

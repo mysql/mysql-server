@@ -4,22 +4,22 @@
 
 # TARGTYPE "Win32 (x86) Console Application" 0x0103
 
-CFG=mysqlimport - Win32IAg4 classic
+CFG=mysqlimport - WinIA64 classic
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
 !MESSAGE use the Export Makefile command and run
 !MESSAGE 
-!MESSAGE NMAKE /f "mysqlimport.mak".
+!MESSAGE NMAKE /f "mysqlimport_ia64.mak".
 !MESSAGE 
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
 !MESSAGE 
-!MESSAGE NMAKE /f "mysqlimport.mak" CFG="mysqlimport - Win32IAg4 classic"
+!MESSAGE NMAKE /f "mysqlimport_ia64.mak" CFG="mysqlimport - WinIA64 classic"
 !MESSAGE 
 !MESSAGE Possible choices for configuration are:
 !MESSAGE 
-!MESSAGE "mysqlimport - Win32IAg4 Release" (based on "Win32 (x86) Console Application")
-!MESSAGE "mysqlimport - Win32IAg4 Debug" (based on "Win32 (x86) Console Application")
-!MESSAGE "mysqlimport - Win32IAg4 classic" (based on "Win32 (x86) Console Application")
+!MESSAGE "mysqlimport - WinIA64 Release" (based on "Win32 (x86) Console Application")
+!MESSAGE "mysqlimport - WinIA64 Debug" (based on "Win32 (x86) Console Application")
+!MESSAGE "mysqlimport - WinIA64 classic" (based on "Win32 (x86) Console Application")
 !MESSAGE 
 
 # Begin Project
@@ -29,7 +29,7 @@ CFG=mysqlimport - Win32IAg4 classic
 CPP=cl.exe
 RSC=rc.exe
 
-!IF  "$(CFG)" == "mysqlimport - Win32IAg4 Release"
+!IF  "$(CFG)" == "mysqlimport - WinIA64 Release"
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 0
@@ -52,10 +52,10 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=link.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib  /nologo /subsystem:console /machine:IX86 /machine:IA64
-# ADD LINK32 mysqlclient.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib  /nologo /subsystem:console /machine:IX86 /out:"../client_release/mysqlimport.exe" /libpath:"..\lib_release\\" /machine:IA64
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console  /machine:IA64
+# ADD LINK32 ..\lib_release\zlib.lib mysqlclient.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib bufferoverflowU.lib /nologo /subsystem:console  /out:"../client_release/mysqlimport.exe" /libpath:"..\lib_release\\" /machine:IA64
 
-!ELSEIF  "$(CFG)" == "mysqlimport - Win32IAg4 Debug"
+!ELSEIF  "$(CFG)" == "mysqlimport - WinIA64 Debug"
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 1
@@ -78,10 +78,10 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=link.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib  /nologo /subsystem:console /debug /machine:IX86 /machine:IA64
-# ADD LINK32 mysqlclient.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib  setargv.obj /nologo /subsystem:console /incremental:no /debug /machine:IX86 /out:"../client_debug/mysqlimport.exe" /libpath:"..\lib_debug\\" /machine:IA64
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /debug  /machine:IA64
+# ADD LINK32 setargv.obj ..\lib_debug\zlib.lib ..\lib_debug\dbug.lib mysqlclient.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib bufferoverflowU.lib /nologo /subsystem:console /incremental:no /debug  /out:"../client_debug/mysqlimport.exe" /libpath:"..\lib_debug\\" /machine:IA64
 
-!ELSEIF  "$(CFG)" == "mysqlimport - Win32IAg4 classic"
+!ELSEIF  "$(CFG)" == "mysqlimport - WinIA64 classic"
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 0
@@ -106,16 +106,16 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=link.exe
-# ADD BASE LINK32 mysqlclient.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib  /nologo /subsystem:console /machine:IX86 /out:"../client_release/mysqlimport.exe" /libpath:"..\lib_release\\" /machine:IA64
-# ADD LINK32 mysqlclient.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib  /nologo /subsystem:console /machine:IX86 /out:"../client_classic/mysqlimport.exe" /libpath:"..\lib_release\\" /machine:IA64
+# ADD BASE LINK32 mysqlclient.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console  /out:"../client_release/mysqlimport.exe" /libpath:"..\lib_release\\" /machine:IA64
+# ADD LINK32 ..\lib_release\zlib.lib mysqlclient.lib wsock32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib bufferoverflowU.lib /nologo /subsystem:console  /out:"../client_classic/mysqlimport.exe" /libpath:"..\lib_release\\" /machine:IA64
 
 !ENDIF 
 
 # Begin Target
 
-# Name "mysqlimport - Win32IAg4 Release"
-# Name "mysqlimport - Win32IAg4 Debug"
-# Name "mysqlimport - Win32IAg4 classic"
+# Name "mysqlimport - WinIA64 Release"
+# Name "mysqlimport - WinIA64 Debug"
+# Name "mysqlimport - WinIA64 classic"
 # Begin Source File
 
 SOURCE=.\mysqlimport.c
