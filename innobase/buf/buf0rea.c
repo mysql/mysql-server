@@ -686,7 +686,9 @@ buf_read_recv_pages(
 				fprintf(stderr,
 "InnoDB: Error: InnoDB has waited for 50 seconds for pending\n"
 "InnoDB: reads to the buffer pool to be finished.\n"
-"InnoDB: Number of pending reads %lu\n", (ulong) buf_pool->n_pend_reads);
+"InnoDB: Number of pending reads %lu, pending pread calls %lu\n",
+				(ulong) buf_pool->n_pend_reads,
+				(ulong)os_file_n_pending_preads);
 
 				os_aio_print_debug = TRUE;
 			}

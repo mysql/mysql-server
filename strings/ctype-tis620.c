@@ -593,7 +593,7 @@ int my_strnncollsp_tis620(CHARSET_INFO * cs __attribute__((unused)),
   }
   if (a_length != b_length)
   {
-    int swap= 0;
+    int swap= 1;
     if (diff_if_only_endspace_difference)
       res= 1;                                   /* Assume 'a' is bigger */
     /*
@@ -612,7 +612,7 @@ int my_strnncollsp_tis620(CHARSET_INFO * cs __attribute__((unused)),
     {
       if (*a != ' ')
       {
-	res= ((int) *a - (int) ' ') ^ swap;
+	res= (*a < ' ') ? -swap : swap;
 	goto ret;
       }
     }
