@@ -490,8 +490,12 @@ Item_func_if::fix_length_and_dec()
   decimals=max(args[1]->decimals,args[2]->decimals);
   enum Item_result arg1_type=args[1]->result_type();
   enum Item_result arg2_type=args[2]->result_type();
+  binary=1;
   if (arg1_type == STRING_RESULT || arg2_type == STRING_RESULT)
+  {
     cached_result_type = STRING_RESULT;
+    binary=args[1]->binary | args[2]->binary;
+  }
   else if (arg1_type == REAL_RESULT || arg2_type == REAL_RESULT)
     cached_result_type = REAL_RESULT;
   else
