@@ -2769,7 +2769,6 @@ static int bootstrap(FILE *file)
 {
   int error= 0;
   DBUG_ENTER("bootstrap");
-#ifndef EMBEDDED_LIBRARY			// TODO:  Enable this
 
   THD *thd= new THD;
   thd->bootstrap=1;
@@ -2781,6 +2780,7 @@ static int bootstrap(FILE *file)
   thread_count++;
 
   bootstrap_file=file;
+#ifndef EMBEDDED_LIBRARY			// TODO:  Enable this
   if (pthread_create(&thd->real_id,&connection_attrib,handle_bootstrap,
 		     (void*) thd))
   {
@@ -2795,11 +2795,17 @@ static int bootstrap(FILE *file)
     DBUG_PRINT("quit",("One thread died (count=%u)",thread_count));
   }
   (void) pthread_mutex_unlock(&LOCK_thread_count);
+#else
+  thd->mysql= 0;
+  handle_bootstrap((void *)thd);
+#endif
+
   error= thd->is_fatal_error;
+#ifndef EMBEDDED_LIBRARY
   net_end(&thd->net);
+#endif
   thd->cleanup();
   delete thd;
-#endif /* EMBEDDED_LIBRARY */
   DBUG_RETURN(error);
 }
 
