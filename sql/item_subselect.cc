@@ -713,9 +713,14 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 						select_lex->ref_pointer_array,
 						(char *)"<ref>",
 						this->full_name()));
+    /*
+      AND and comparison functions can't be changed during fix_fields()
+      we can assign select_lex->having here, and pass 0 as last
+      argument (reference) to fix_fields()
+    */
     select_lex->having= join->having= and_items(join->having, item);
     select_lex->having_fix_field= 1;
-    if (join->having->fix_fields(thd, join->tables_list, &join->having))
+    if (join->having->fix_fields(thd, join->tables_list, 0))
     {
       select_lex->having_fix_field= 0;
       goto err;
@@ -735,13 +740,17 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       if (!abort_on_null)
       {
 	having= new Item_is_not_null_test(this, having);
+	/*
+	  Item_is_not_null_test can't be changed during fix_fields()
+	  we can assign select_lex->having here, and pass 0 as last
+	  argument (reference) to fix_fields()
+	*/
 	select_lex->having=
 	  join->having= (join->having ?
 			 new Item_cond_and(having, join->having) :
 			 having);
 	select_lex->having_fix_field= 1;
-	if (join->having->fix_fields(thd, join->tables_list,
-				     &join->having))
+	if (join->having->fix_fields(thd, join->tables_list, 0))
 	{
 	  select_lex->having_fix_field= 0;
 	  goto err;
@@ -751,14 +760,24 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 			       new Item_func_isnull(isnull));
       }
       item->name= (char *)in_additional_cond;
+      /*
+	AND can't be changed during fix_fields()
+	we can assign select_lex->having here, and pass 0 as last
+	argument (reference) to fix_fields()
+      */
       select_lex->where= join->conds= and_items(join->conds, item);
-      if (join->conds->fix_fields(thd, join->tables_list, &join->conds))
+      if (join->conds->fix_fields(thd, join->tables_list, 0))
 	goto err;
     }
     else
     {
       if (select_lex->master_unit()->first_select()->next_select())
       {
+	/*
+	  comparison functions can't be changed during fix_fields()
+	  we can assign select_lex->having here, and pass 0 as last
+	  argument (reference) to fix_fields()
+	*/
 	select_lex->having=
 	  join->having=
 	  func->create(expr, 
@@ -767,7 +786,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 					    (char *)"<result>"));
 	select_lex->having_fix_field= 1;
 	if (join->having->fix_fields(thd, join->tables_list,
-				     &join->having))
+				     0))
 	{
 	  select_lex->having_fix_field= 0;
 	  goto err;
@@ -880,9 +899,14 @@ Item_in_subselect::row_value_transformer(JOIN *join)
       select_lex->group_list.first ||
       !select_lex->table_list.elements)
   {
+    /*
+      AND can't be changed during fix_fields()
+      we can assign select_lex->having here, and pass 0 as last
+      argument (reference) to fix_fields()
+    */
     select_lex->having= join->having= and_items(join->having, item);
     select_lex->having_fix_field= 1;
-    if (join->having->fix_fields(thd, join->tables_list, &join->having))
+    if (join->having->fix_fields(thd, join->tables_list, 0))
     {
       select_lex->having_fix_field= 0;
       goto err;
@@ -891,8 +915,13 @@ Item_in_subselect::row_value_transformer(JOIN *join)
   }
   else
   {
+    /*
+      AND can't be changed during fix_fields()
+      we can assign select_lex->having here, and pass 0 as last
+      argument (reference) to fix_fields()
+    */
     select_lex->where= join->conds= and_items(join->conds, item);
-    if (join->conds->fix_fields(thd, join->tables_list, &join->having))
+    if (join->conds->fix_fields(thd, join->tables_list, 0))
       goto err;
   }
   if (stmt)
