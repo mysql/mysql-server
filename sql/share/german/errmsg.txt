@@ -205,7 +205,7 @@
 "Diese Operation kann nicht bei einem aktiven Slave durchgeführt werden. Das Kommand SLAVE STOP muss zuerst ausgeführt werden.",
 "Diese Operationbenötigt einen aktiven Slave. Slave konfigurieren und mittels SLAVE START aktivieren.",
 "Der Server ist nicht als Slave konfigiriert. Im Konfigurations-File oder mittel CHANGE MASTER TO beheben.",
-"Konnte Master-Info-Struktur nicht initialisieren; Berechtigungen von master.info prüfen.",
+"Could not initialize master info structure, more error messages can be found in the MySQL error log",
 "Konnte keinen Slave-Thread starten. System-Resourcen überprüfen.",
 "Benutzer %-.64s hat mehr als 'max_user_connections' aktive Verbindungen",
 "Bei der Verwendung mit SET dürfen nur Constante Ausdrücke verwendet werden",
