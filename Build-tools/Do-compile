@@ -806,7 +806,7 @@ sub find
 sub rm_all
 {
   my(@rm_files)=@_;
-  my($dir,$current_dir,@files,@dirs);
+  my($dir,$current_dir,@files,@dirs,$removed);
   $current_dir = `pwd`; chomp($current_dir);
 
   foreach $dir (@rm_files)
@@ -830,7 +830,9 @@ sub rm_all
       }
       if ($#files >= 0)
       {
-	system("rm -f " . join(" ",@files)) && abort("Can't remove files from $dir");
+	$removed= unlink @files;
+	print "rm_all : removed $removed files in $current_dir/$dir\n" if ($opt_debug);
+	abort("Can't remove all $#files+1 from $current_dir/$dir, just $removed") if $removed != $#files+1;
       }
       foreach $dir (@dirs)
       {
