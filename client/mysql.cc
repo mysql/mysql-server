@@ -1793,9 +1793,8 @@ print_field_types(MYSQL_RES *result)
   MYSQL_FIELD	*field;  
   while ((field = mysql_fetch_field(result)))
   {
-    tee_fprintf(PAGER,"%s '%s' %d %d %d %d %d\n",
-		field->name,
-		field->table ? "" : field->table,
+    tee_fprintf(PAGER,"'%s.%s.%s.%s' %d %d %d %d %d\n",
+		field->catalog, field->db, field->table, field->name,
 		(int) field->type,
 		field->length, field->max_length, 
 		field->flags, field->decimals);

@@ -1207,6 +1207,10 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
       field->length= (uint) uint3korr(row->data[2]);
       field->type=   (enum enum_field_types) (uchar) row->data[3][0];
 
+      field->catalog=(char*)  "";
+      field->db=     (char*)  "";
+      field->catalog_length= 0;
+      field->db_length= 0;
       field->org_table_length=	field->table_length=	lengths[0];
       field->name_length=	lengths[1];
 
@@ -2883,7 +2887,7 @@ get_info:
 
   mysql->extra_info= net_field_length_ll(&pos); /* Maybe number of rec */
 
-  if (!(fields=read_rows(mysql,(MYSQL_FIELD*)0, protocol_41(mysql) ? 6 : 5)))
+  if (!(fields=read_rows(mysql,(MYSQL_FIELD*)0, protocol_41(mysql) ? 7 : 5)))
     DBUG_RETURN(1);
   if (!(mysql->fields=unpack_fields(fields,&mysql->field_alloc,
 				    (uint) field_count,0,

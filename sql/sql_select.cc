@@ -6275,14 +6275,14 @@ is_subkey(KEY_PART_INFO *key_part, KEY_PART_INFO *ref_key_part,
 */
 
 static uint
-test_if_subkey(ORDER *order, TABLE *table, uint ref, key_map usable_keys)
+test_if_subkey(ORDER *order, TABLE *table, uint ref, uint ref_key_parts,
+	       key_map usable_keys)
 {
   uint nr;
   uint min_length= (uint) ~0;
   uint best= MAX_KEY;
   uint not_used;
   KEY_PART_INFO *ref_key_part= table->key_info[ref].key_part;
-  uint ref_key_parts= table->key_info[ref].key_parts;
   KEY_PART_INFO *ref_key_part_end= ref_key_part + ref_key_parts;
   
   for (nr= 0; usable_keys; usable_keys>>= 1, nr++)
@@ -6317,10 +6317,12 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 			bool no_changes)
 {
   int ref_key;
+  uint ref_key_parts;
   TABLE *table=tab->table;
   SQL_SELECT *select=tab->select;
   key_map usable_keys;
   DBUG_ENTER("test_if_skip_sort_order");
+  LINT_INIT(ref_key_parts);
 
   /* Check which keys can be used to resolve ORDER BY */
   usable_keys= ~(key_map) 0;
@@ -6336,9 +6338,15 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 
   ref_key= -1;
   if (tab->ref.key >= 0)			// Constant range in WHERE
-    ref_key=tab->ref.key;
+  {
+    ref_key=	   tab->ref.key;
+    ref_key_parts= tab->ref.key_parts;
+  }
   else if (select && select->quick)		// Range found by opt_range
-    ref_key=select->quick->index;
+  {
+    ref_key=	   select->quick->index;
+    ref_key_parts= select->quick->used_key_parts;
+  }
 
   if (ref_key >= 0)
   {
@@ -6352,20 +6360,28 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       /*
 	We come here when ref_key is not among usable_keys
       */
-      uint a;
-      if ((a= test_if_subkey(order, table, ref_key, usable_keys)) < MAX_KEY)
+      uint new_ref_key;
+      /*
+	If using index only read, only consider other possible index only
+	keys
+      */
+      if (table->used_keys & (((key_map) 1 << ref_key)))
+	usable_keys|= table->used_keys;
+      if ((new_ref_key= test_if_subkey(order, table, ref_key, ref_key_parts,
+				       usable_keys)) < MAX_KEY)
       {
+	/* Found key that can be used to retrieve data in sorted order */
 	if (tab->ref.key >= 0)
 	{
-	  tab->ref.key= a;
-	  table->file->index_init(a);
+	  tab->ref.key= new_ref_key;
+	  table->file->index_init(new_ref_key);
 	}
 	else
 	{
-	  select->quick->index= a;
+	  select->quick->index= new_ref_key;
 	  select->quick->init();
 	}
-	ref_key= a;
+	ref_key= new_ref_key;
       }  
     }
     /* Check if we get the rows in requested sorted order by using the key */
