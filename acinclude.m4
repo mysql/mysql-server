@@ -1628,7 +1628,7 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
               [
   --without-ndb-debug   Disable special ndb debug features],
               [ndb_debug="$withval"],
-              [ndb_debug="no"])
+              [ndb_debug="default"])
                                                                                 
   AC_MSG_CHECKING([for NDB Cluster options])
   AC_MSG_RESULT([])
@@ -1671,18 +1671,18 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   case "$ndb_debug" in
     yes )
       AC_MSG_RESULT([-- including ndb extra debug options])
-      with_ndb_debug="yes"
+      have_ndb_debug="yes"
       ;;
     full )
       AC_MSG_RESULT([-- including ndb extra extra debug options])
-      with_ndb_debug="full"
+      have_ndb_debug="full"
       ;;
     no )
       AC_MSG_RESULT([-- not including ndb extra debug options])
-      with_ndb_debug="no"
+      have_ndb_debug="no"
       ;;
     * )
-      with_ndb_debug="default"
+      have_ndb_debug="default"
       ;;
   esac
 
