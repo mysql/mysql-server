@@ -2196,7 +2196,7 @@ ha_innobase::write_row(
 	longlong	dummy;
 	ibool           incremented_auto_inc_for_stat = FALSE;
 	ibool           incremented_auto_inc_counter = FALSE;
-	ibool           skip_auto_inc_decr, auto_inc_used= FALSE;
+	ibool           auto_inc_used= FALSE;
 
   	DBUG_ENTER("ha_innobase::write_row");
 
