@@ -608,7 +608,9 @@ x
 3
 3
 INSERT INTO t1 (x) select (SELECT SUM(x)+2 FROM t1) FROM t2;
-Unknown column 'x' in 'field list'
+ERROR HY000: You can't specify target table 't1' for update in FROM clause
+INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(x) FROM t2));
+ERROR 42S22: Unknown column 'x' in 'field list'
 INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(a) FROM t2));
 select * from t1;
 x
@@ -1151,9 +1153,6 @@ INSERT INTO t1 VALUES (1,0,NULL,NULL),(2,0,NULL,NULL);
 SELECT DISTINCT REF_ID FROM t1 WHERE ID= (SELECT DISTINCT REF_ID FROM t1 WHERE ID=2);
 REF_ID
 DROP TABLE t1;
-(SELECT 1 as a) UNION (SELECT 1) ORDER BY (SELECT a+0);
-a
-1
 CREATE TABLE `t1` (
 `id` mediumint(8) unsigned NOT NULL auto_increment,
 `pseudo` varchar(35) NOT NULL default '',
