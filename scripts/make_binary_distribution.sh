@@ -10,9 +10,17 @@ version=@VERSION@
 export machine system version
 SOURCE=`pwd` 
 
+# Debug option must come first
+DEBUG=0
+if test x$1 = x"--debug"
+then
+  DEBUG=1
+  shift 1
+fi  
+
 # Save temporary distribution here (must be full path) 
 TMP=/tmp
-if test $# -gt 0 -a x$1 != x"-debug" 
+if test $# -gt 0
 then
   TMP=$1
   shift 1
@@ -20,17 +28,11 @@ fi
 
 # Get optional suffix for distribution
 SUFFIX=""
-if test $# -gt 0 -a x$1 != x"-debug" 
+if test $# -gt 0
 then
   SUFFIX=$1
   shift 1
 fi
-
-if test x$1 = x"-debug"
-then
-  DEBUG=1
-  shift 1
-fi  
 
 
 #make
@@ -69,11 +71,12 @@ do
   if [ -f $i ]
   then
     cp -p $i $BASE/bin
-    strip $BASE/bin
   fi
 done
+strip $BASE/bin/*
 
 for i in sql/mysqld.sym.gz
+do
   if [ -f $i ]
   then
     cp -p $i $BASE/bin
@@ -100,8 +103,7 @@ rm -f $BASE/share/mysql/Makefile* $BASE/share/mysql/*/*.OLD
 cp -p mysql-test/mysql-test-run mysql-test/install_test_db $BASE/mysql-test/
 cp -p mysql-test/README $BASE/mysql-test/README
 cp -p mysql-test/include/*.inc $BASE/mysql-test/include
-cp -p mysql-test/std_data/*.dat  mysql-test/std_data/*.frm \
-      mysql-test/std_data/*.MRG  $BASE/mysql-test/std_data
+cp -p mysql-test/std_data/*.dat $BASE/mysql-test/std_data
 cp -p mysql-test/t/*.test mysql-test/t/*.opt $BASE/mysql-test/t
 cp -p mysql-test/r/*.result mysql-test/r/*.require $BASE/mysql-test/r
 
