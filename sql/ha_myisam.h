@@ -55,11 +55,11 @@ class ha_myisam: public handler
   const char *index_type(uint key_number);
   const char **bas_ext() const;
   ulong table_flags() const { return int_table_flags; }
-  ulong index_flags(uint inx, uint part) const
+  ulong index_flags(uint inx, uint part, bool all_parts) const
   {
     return ((table->key_info[inx].algorithm == HA_KEY_ALG_FULLTEXT) ?
-                    0 : HA_READ_NEXT | HA_READ_PREV | HA_READ_RANGE |
-                        HA_READ_ORDER | HA_KEYREAD_ONLY);
+            0 : HA_READ_NEXT | HA_READ_PREV | HA_READ_RANGE |
+            HA_READ_ORDER | HA_KEYREAD_ONLY);
   }
   uint max_supported_keys()          const { return MI_MAX_KEY; }
   uint max_supported_key_length()    const { return MI_MAX_KEY_LENGTH; }

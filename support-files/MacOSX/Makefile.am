@@ -23,7 +23,7 @@ EXTRA_DIST =	Info.plist.sh \
 		postinstall.sh \
 		preinstall.sh \
 		ReadMe.txt \
-		MySQL \
+		MySQLCOM \
 		StartupItem.Description.plist \
 		StartupItem.Info.plist \
 		StartupItem.postinstall
