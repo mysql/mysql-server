@@ -19,20 +19,20 @@ DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7;
 connection con1;
 create table t1 (x integer not null primary key, y varchar(32)) engine = ndb;
 insert into t1 values (1,'one'), (2,'two');
-select * from t1;
+select * from t1 order by x;
 
 connection con2;
-select * from t1;
+select * from t1 order by x;
 
 connection con1;
 start transaction; insert into t1 values (3,'three');
 
 connection con2;
-start transaction; select * from t1;
+start transaction; select * from t1 order by x;
 
 connection con1;
 commit;
 
 connection con2;
-select * from t1;
+select * from t1 order by x;
 commit;
