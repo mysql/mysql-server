@@ -783,7 +783,7 @@ static const char *default_options[]=
   "connect-timeout", "local-infile", "disable-local-infile",
   "replication-probe", "enable-reads-from-master", "repl-parse-query",
   "ssl-cipher", "max-allowed-packet", "protocol", "shared-memory-base-name",
-  "multi-results", "multi-queries",
+  "multi-results", "multi-queries", "secure-auth",
   NullS
 };
 
@@ -991,6 +991,9 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	case 31:
 	  options->client_flag|= CLIENT_MULTI_STATEMENTS | CLIENT_MULTI_RESULTS;
 	  break;
+        case 32: /* secure-auth */
+          options->secure_auth= TRUE;
+          break;
 	default:
 	  DBUG_PRINT("warning",("unknown option: %s",option[0]));
 	}
@@ -1473,7 +1476,11 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   if (!host || !host[0])
     host=mysql->options.host;
   if (!user || !user[0])
+  {
     user=mysql->options.user;
+    if (!user)
+      user= "";
+  }
   if (!passwd)
   {
     passwd=mysql->options.password;
@@ -1481,6 +1488,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     if (!passwd)
       passwd=getenv("MYSQL_PWD");		/* get it from environment */
 #endif
+    if (!passwd)
+      passwd= "";
   }
   if (!db || !db[0])
     db=mysql->options.db;
@@ -1742,6 +1751,14 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   else
     mysql->server_capabilities&= ~CLIENT_SECURE_CONNECTION;
 
+  if (mysql->options.secure_auth && passwd[0] &&
+      !(mysql->server_capabilities & CLIENT_SECURE_CONNECTION))
+  {
+    strmov(net->sqlstate, unknown_sqlstate);
+    strmov(net->last_error, ER(net->last_errno=CR_SECURE_AUTH));
+    goto error;
+  }
+
   charset_number= mysql->server_language;
 
   /* Set character set */
@@ -1793,8 +1810,6 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   }
 
   /* Save connection information */
-  if (!user) user="";
-  if (!passwd) passwd="";
   if (!my_multi_malloc(MYF(0),
 		       &mysql->host_info, (uint) strlen(host_info)+1,
 		       &mysql->host,      (uint) strlen(host)+1,
@@ -2542,6 +2557,9 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
     break;
   case MYSQL_SET_CLIENT_IP:
     mysql->options.client_ip= my_strdup(arg, MYF(MY_WME));
+  case MYSQL_SECURE_AUTH:
+    mysql->options.secure_auth= *(my_bool *) arg;
+    break;
   default:
     DBUG_RETURN(1);
   }

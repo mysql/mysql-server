@@ -145,7 +145,7 @@ enum mysql_option
   MYSQL_OPT_PROTOCOL, MYSQL_SHARED_MEMORY_BASE_NAME, MYSQL_OPT_READ_TIMEOUT,
   MYSQL_OPT_WRITE_TIMEOUT, MYSQL_OPT_USE_RESULT,
   MYSQL_OPT_USE_REMOTE_CONNECTION, MYSQL_OPT_USE_EMBEDDED_CONNECTION,
-  MYSQL_OPT_GUESS_CONNECTION, MYSQL_SET_CLIENT_IP
+  MYSQL_OPT_GUESS_CONNECTION, MYSQL_SET_CLIENT_IP, MYSQL_SECURE_AUTH
 };
 
 struct st_mysql_options {
@@ -184,6 +184,8 @@ struct st_mysql_options {
 #endif
   enum mysql_option methods_to_use;
   char *client_ip;
+  /* Refuse client connecting to server if it uses old (pre-4.1.1) protocol */
+  my_bool secure_auth;
 };
 
 enum mysql_status 
