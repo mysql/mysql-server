@@ -6,7 +6,7 @@ DROP TABLE IF EXISTS t1, `"t"1`;
 
 CREATE TABLE t1(a int);
 INSERT INTO t1 VALUES (1), (2);
---exec $MYSQL_DUMP --skip-all --skip-comments -X test t1
+--exec $MYSQL_DUMP --skip-create --skip-comments -X test t1
 DROP TABLE t1;
 
 #
@@ -16,7 +16,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (a decimal(240, 20));
 INSERT INTO t1 VALUES ("1234567890123456789012345678901234567890"),
 ("0987654321098765432109876543210987654321");
---exec $MYSQL_DUMP --skip-comments test t1
+--exec $MYSQL_DUMP --compact test t1
 DROP TABLE t1;
 
 #
@@ -28,11 +28,11 @@ INSERT INTO t1 VALUES (-9e999999);
 # The following replaces is here because some systems replaces the above
 # double with '-inf' and others with MAX_DOUBLE
 --replace_result (-1.79769313486232e+308) (RES) (NULL) (RES)
---exec $MYSQL_DUMP --skip-comments test t1
+--exec $MYSQL_DUMP --compact test t1
 DROP TABLE t1;
 
 #
-# Bug #3361 mysqldum quotes DECIMAL values
+# Bug #3361 mysqldump quotes DECIMAL values inconsistently
 #
 
 CREATE TABLE t1 (a DECIMAL(10,5), b FLOAT);
@@ -51,12 +51,15 @@ INSERT INTO t1 VALUES ("1.2345", 2.3456);
 SET SQL_MODE=@OLD_SQL_MODE;
 
 # check how mysqldump make quoting
---exec $MYSQL_DUMP --skip-comments test t1
+--exec $MYSQL_DUMP --compact test t1
+--exec $MYSQL_DUMP --compact --skip-create test t1
+--exec $MYSQL_DUMP --skip-create --skip-comments test t1
+--exec $MYSQL_DUMP --skip-opt --extended-insert --skip-comments test t1
 DROP TABLE t1;
 
 CREATE TABLE t1(a int, b text, c varchar(3));
 INSERT INTO t1 VALUES (1, "test", "tes"), (2, "TEST", "TES");
---exec $MYSQL_DUMP  --skip-all --skip-comments -X test t1
+--exec $MYSQL_DUMP --skip-create --compact -X test t1
 DROP TABLE t1;
 
 #
@@ -65,7 +68,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (`a"b"` char(2));
 INSERT INTO t1 VALUES ("1\""), ("\"2");
---exec $MYSQL_DUMP  --skip-all --skip-comments -X test t1
+--exec $MYSQL_DUMP --compact --skip-create -X test t1
 DROP TABLE t1;
 
 #
@@ -74,7 +77,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (a  VARCHAR(255)) DEFAULT CHARSET koi8r;
 INSERT INTO t1  VALUES (_koi8r x'C1C2C3C4C5');
---exec $MYSQL_DUMP  --skip-comments test t1
+--exec $MYSQL_DUMP --skip-comments test t1
 DROP TABLE t1;
 
 #
@@ -88,11 +91,11 @@ INSERT INTO t1 VALUES (1), (2);
 DROP TABLE t1;
 
 #
-# Bug #2592 'mysqldum doesn't quote "tricky" names correctly'
+# Bug #2592 'mysqldump doesn't quote "tricky" names correctly'
 #
 
 create table ```a` (i int);
---exec $MYSQL_DUMP  --skip-comments test
+--exec $MYSQL_DUMP --compact test
 drop table ```a`;
 
 #

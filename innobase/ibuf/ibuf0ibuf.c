@@ -332,9 +332,9 @@ ibuf_count_get(
 	return(*(ibuf_counts[space] + page_no));
 }
 
-#ifdef UNIV_IBUF_DEBUG
 /**********************************************************************
 Sets the ibuf count for a given page. */
+#ifdef UNIV_IBUF_DEBUG
 static
 void
 ibuf_count_set(
@@ -2710,17 +2710,17 @@ ibuf_insert_to_index_page(
 
 		fprintf(stderr,
 "InnoDB: Trying to insert a record from the insert buffer to an index page\n"
-"InnoDB: but the number of fields does not match!\n%s\n", errbuf);
+"InnoDB: but the number of fields does not match!\n");
 
 		buf_page_print(page);
 
-	        dtuple_sprintf(errbuf, 900, entry);
+	        dtuple_print(stderr, entry);
 
-		fprintf(stderr,
+		fputs(
 "InnoDB: The table where where this index record belongs\n"
 "InnoDB: is now probably corrupt. Please run CHECK TABLE on\n"
 "InnoDB: your tables.\n"
-"InnoDB: Send a detailed bug report to mysql@lists.mysql.com!\n");
+"InnoDB: Send a detailed bug report to mysql@lists.mysql.com!\n", stderr);
 
 		return;
 	}
@@ -3386,13 +3386,17 @@ ibuf_print(
 			       (ulong) data->seg_size);
 
 		if (data->empty) {
-			buf += sprintf(buf, " is empty\n");
+			fputs(" is empty\n", file);
 		} else {
-			buf += sprintf(buf, " is not empty\n");
+			fputs(" is not empty\n", file);
 		}
 		fprintf(file,
 	"Ibuf for space %lu: size %lu, free list len %lu, seg size %lu,\n"
 			"%lu inserts, %lu merged recs, %lu merges\n",
+                               (ulong) data->space,
+                               (ulong) data->size,
+                               (ulong) data->free_list_len,
+			       (ulong) data->seg_size,
 			       (ulong) data->n_inserts,
 			       (ulong) data->n_merged_recs,
 			       (ulong) data->n_merges);

@@ -125,11 +125,14 @@ buf_read_page_low(
 		return(0);
 	}
 
+#ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
-		printf("Posting read request for page %lu, sync %lu\n",
+		fprintf(stderr,
+                        "Posting read request for page %lu, sync %lu\n",
 							   (ulong) offset,
 		       					   (ulong) sync);
 	}
+#endif
 
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 

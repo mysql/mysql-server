@@ -361,19 +361,32 @@ void init_slave_skip_errors(const char* arg)
   }
 }
 
-void st_relay_log_info::inc_pending(ulonglong val)
-{
-  pending += val;
-}
 
-/* TODO: this probably needs to be fixed */
-void st_relay_log_info::inc_pos(ulonglong val, ulonglong log_pos, bool skip_lock)
+void st_relay_log_info::inc_group_relay_log_pos(ulonglong val,
+                                                ulonglong log_pos,
+                                                bool skip_lock)
 {
   if (!skip_lock)
     pthread_mutex_lock(&data_lock);
-  relay_log_pos += val+pending;
-  pending = 0;
-  if (log_pos)
+  inc_event_relay_log_pos(val);
+  group_relay_log_pos= event_relay_log_pos;
+  strmake(group_relay_log_name,event_relay_log_name,
+          sizeof(group_relay_log_name)-1);
+
+  notify_group_relay_log_name_update();
+        
+  /*
+    If the slave does not support transactions and replicates a transaction,
+    users should not trust group_master_log_pos (which they can display with
+    SHOW SLAVE STATUS or read from relay-log.info), because to compute
+    group_master_log_pos the slave relies on log_pos stored in the master's
+    binlog, but if we are in a master's transaction these positions are always
+    the BEGIN's one (excepted for the COMMIT), so group_master_log_pos does
+    not advance as it should on the non-transactional slave (it advances by
+    big leaps, whereas it should advance by small leaps).
+  */
+  if (log_pos) // 3.23 binlogs don't have log_posx
+  {
 #if MYSQL_VERSION_ID < 50000
     /*
       If the event was converted from a 3.23 format, get_event_len() has
@@ -384,28 +397,18 @@ void st_relay_log_info::inc_pos(ulonglong val, ulonglong log_pos, bool skip_lock
       mi->old_format will not help if the I/O thread has not started yet.
       Yes this is a hack but it's just to make 3.23->4.x replication work;
       3.23->5.0 replication is working much better.
-      
-      The line "mi->old_format ? : " below should NOT BE MERGED to 5.0 which
-      already works. But it SHOULD be merged to 4.1.
     */
-    master_log_pos= log_pos + val -
+    group_master_log_pos= log_pos + val -
       (mi->old_format ? (LOG_EVENT_HEADER_LEN - OLD_HEADER_LEN) : 0);
-#endif
+#else
+    group_master_log_pos= log_pos+ val;
+#endif /* MYSQL_VERSION_ID < 5000 */
+  }
   pthread_cond_broadcast(&data_cond);
   if (!skip_lock)
     pthread_mutex_unlock(&data_lock);
 }
 
-/*
-  thread safe read of position - not needed if we are in the slave thread,
-  but required otherwise as var is a longlong
-*/
-void st_relay_log_info::read_pos(ulonglong& var)
-{
-  pthread_mutex_lock(&data_lock);
-  var = relay_log_pos;
-  pthread_mutex_unlock(&data_lock);
-}
 
 void st_relay_log_info::close_temporary_tables()
 {

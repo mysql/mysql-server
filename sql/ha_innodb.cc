@@ -3748,7 +3748,7 @@ ha_innobase::delete_table(
   	/* Drop the table in InnoDB */
 
 	error = row_drop_table_for_mysql(norm_name, trx,
-		thd->lex.sql_command == SQLCOM_DROP_DB);
+		thd->lex->sql_command == SQLCOM_DROP_DB);
 
 	/* Flush the log to reduce probability that the .frm files and
 	the InnoDB data dictionary get out-of-sync if the user runs
@@ -4830,7 +4830,7 @@ innodb_show_status(
 
 	field_list.push_back(new Item_empty_string("Status", flen));
 
-	if (protocol->send_fields(field_list, 1)) {
+	if (protocol->send_fields(&field_list, 1)) {
 
 		my_free(str, MYF(0));
 
@@ -4844,7 +4844,7 @@ innodb_show_status(
         if (protocol->write())
           DBUG_RETURN(-1);
 
-	send_eof(&thd->net);
+	send_eof(thd);
   	DBUG_RETURN(0);
 }
 

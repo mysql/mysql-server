@@ -2035,8 +2035,7 @@ row_sel_convert_mysql_key_to_innobase(
 					  (ulong) data_field_len,
 					  (ulong) (key_ptr - key_end));
 			fflush(stderr);
-			ut_print_buf(original_key_ptr, key_len);
-			fflush(stdout);
+			ut_print_buf(stderr, original_key_ptr, key_len);
 			fprintf(stderr, "\n");
 
 			if (!is_null) {
@@ -2772,14 +2771,12 @@ row_search_for_mysql(
 	}
 
 	if (trx->n_mysql_tables_in_use == 0) {
-		char	err_buf[1000];
-
-		trx_print(err_buf, trx);
-
-		fprintf(stderr,
+		fputs(
 "InnoDB: Error: MySQL is trying to perform a SELECT\n"
-"InnoDB: but it has not locked any tables in ::external_lock()!\n%s\n",
-			err_buf);
+"InnoDB: but it has not locked any tables in ::external_lock()!\n",
+                      stderr);
+		trx_print(stderr, trx);
+                fputc('\n', stderr);
 		ut_a(0);
 	}
 
@@ -3092,14 +3089,12 @@ shortcut_fails_too_big_rec:
 
 		if (trx->read_view == NULL
 		    && prebuilt->select_lock_type == LOCK_NONE) {
-			char	err_buf[1000];
 
-			trx_print(err_buf, trx);
-
-			fprintf(stderr,
+			fputs(
 "InnoDB: Error: MySQL is trying to perform a consistent read\n"
-"InnoDB: but the read view is not assigned!\n%s\n", err_buf);
-			
+"InnoDB: but the read view is not assigned!\n", stderr);
+			trx_print(stderr, trx);
+                        fputc('\n', stderr);
 			ut_a(0);
 		}
 	} else if (prebuilt->select_lock_type == LOCK_NONE) {

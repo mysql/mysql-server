@@ -1868,7 +1868,7 @@ recv_report_corrupt_log(
 "InnoDB: Recv offset %lu, prev %lu\n",
 	(ulong) type, (ulong) space, (ulong) page_no,
 	(ulong) ut_dulint_get_high(recv_sys->recovered_lsn),
-	(ulong) ut_dulint_get_low(recv_sys->recovered_lsn));
+        (ulong) ut_dulint_get_low(recv_sys->recovered_lsn),
 	(ulong) recv_previous_parsed_rec_type,
 	(ulong) recv_previous_parsed_rec_is_multi,
 	(ulong) (ptr - recv_sys->buf),

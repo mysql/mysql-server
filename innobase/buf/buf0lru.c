@@ -97,13 +97,14 @@ scan_again:
 		}
 
 		if (block->space == id) {
+#ifdef UNIV_DEBUG
 			if (buf_debug_prints) {
 				printf(
 				"Dropping space %lu page %lu\n",
 					(ulong) block->space,
 				        (ulong) block->offset);
 			}
-
+#endif
 			if (block->is_hashed) {
 				page_no = block->offset;
 			
@@ -207,6 +208,7 @@ buf_LRU_search_and_free_block(
 	while (block != NULL) {
 	        ut_a(block->in_LRU_list);
 		if (buf_flush_ready_for_replace(block)) {
+
 #ifdef UNIV_DEBUG
 			if (buf_debug_prints) {
 				fprintf(stderr,
@@ -215,6 +217,7 @@ buf_LRU_search_and_free_block(
 				        (ulong) block->offset);
 			}
 #endif /* UNIV_DEBUG */
+
 			buf_LRU_block_remove_hashed_page(block);
 
 			mutex_exit(&(buf_pool->mutex));
@@ -419,7 +422,8 @@ loop:
 			(ulong) n_iterations,
 			(ulong) fil_n_pending_log_flushes,
 			(ulong) fil_n_pending_tablespace_flushes,
-			(ulong) os_n_file_reads, (ulong) os_n_file_writes, (ulong) os_n_fsyncs);
+			(ulong) os_n_file_reads, (ulong) os_n_file_writes,
+                        (ulong) os_n_fsyncs);
 
 		mon_value_was = srv_print_innodb_monitor;
 		started_monitor = TRUE;
@@ -849,11 +853,12 @@ buf_LRU_block_remove_hashed_page(
 		(ulong) block);
                 }
 
+#ifdef UNIV_DEBUG
                 buf_print();
                 buf_LRU_print();
                 buf_validate();
                 buf_LRU_validate();
-
+#endif
                 ut_a(0);
         }	
 

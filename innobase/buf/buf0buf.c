@@ -1545,11 +1545,12 @@ buf_page_init(
 "InnoDB: Error: page %lu %lu already found from the hash table\n",
 			(ulong) space,
 			(ulong) offset);
+#ifdef UNIV_DEBUG
                 buf_print();
                 buf_LRU_print();
                 buf_validate();
                 buf_LRU_validate();
-
+#endif /* UNIV_DEBUG */
                 ut_a(0);
         }
 
@@ -2243,7 +2244,7 @@ buf_print_io(
 		/ time_elapsed);
 
 	if (srv_use_awe) {
-		buf += sprintf(buf, "AWE: %.2f page remaps/s\n",
+		fprintf(file, "AWE: %.2f page remaps/s\n",
 		(buf_pool->n_pages_awe_remapped
 				- buf_pool->n_pages_awe_remapped_old)
 			/ time_elapsed);

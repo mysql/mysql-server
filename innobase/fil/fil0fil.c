@@ -86,7 +86,7 @@ the count drops to zero. */
 /* When mysqld is run, the default directory "." is the mysqld datadir,
 but in the MySQL Embedded Server Library and ibbackup it is not the default
 directory, and we must set the base file path explicitly */
-const char*	fil_path_to_mysql_datadir	= (char*)".";
+const char*	fil_path_to_mysql_datadir	= ".";
 
 ulint	fil_n_pending_log_flushes		= 0;
 ulint	fil_n_pending_tablespace_flushes	= 0;
@@ -2727,7 +2727,7 @@ fil_load_single_table_tablespaces(void)
 
 	/* The datadir of MySQL is always the default directory of mysqld */
 
-	dir = os_file_opendir(fil_path_to_mysql_datadir, TRUE);
+	dir = os_file_opendir((char*) fil_path_to_mysql_datadir, TRUE);
 
 	if (dir == NULL) {
 
@@ -2739,7 +2739,7 @@ fil_load_single_table_tablespaces(void)
 	/* Scan all directories under the datadir. They are the database
 	directories of MySQL. */
 
-	ret = os_file_readdir_next_file(fil_path_to_mysql_datadir, dir,
+	ret = os_file_readdir_next_file((char*) fil_path_to_mysql_datadir, dir,
 								&dbinfo);
 	while (ret == 0) {
 		/* printf("Looking at %s in datadir\n", dbinfo.name); */
@@ -2800,7 +2800,7 @@ next_file_item:
 		}
 		
 next_datadir_item:
-		ret = os_file_readdir_next_file(fil_path_to_mysql_datadir,
+		ret = os_file_readdir_next_file((char*) fil_path_to_mysql_datadir,
 								dir, &dbinfo);
 	}
 

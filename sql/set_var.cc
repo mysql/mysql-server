@@ -1090,9 +1090,9 @@ static void fix_max_relay_log_size(THD *thd, enum_var_type type)
 
 static int check_max_delayed_threads(THD *thd, set_var *var)
 {
-  int val= var->value->val_int();
+  longlong val= var->value->val_int();
   if (var->type != OPT_GLOBAL && val != 0 &&
-      val != global_system_variables.max_insert_delayed_threads)
+      val != (longlong) global_system_variables.max_insert_delayed_threads)
   {
     char buf[64];
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), var->var->name, llstr(val, buf));
@@ -1100,6 +1100,7 @@ static int check_max_delayed_threads(THD *thd, set_var *var)
   }
   return 0;
 }
+
 
 static void fix_max_connections(THD *thd, enum_var_type type)
 {
