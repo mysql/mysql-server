@@ -2017,7 +2017,7 @@ The server will not act as a slave.");
   }
 #else
   handle_connections_sockets(0);
-#ifdef EXTRA_DEBUG
+#ifdef EXTRA_DEBUG2
   sql_print_error("Exiting main thread");
 #endif
 #endif /* __NT__ */
@@ -2027,14 +2027,14 @@ The server will not act as a slave.");
   DBUG_PRINT("quit",("Exiting main thread"));
 
 #ifndef __WIN__
-#ifdef EXTRA_DEBUG
+#ifdef EXTRA_DEBUG2
   sql_print_error("Before Lock_thread_count");
 #endif
   (void) pthread_mutex_lock(&LOCK_thread_count);
   select_thread_in_use=0;			// For close_connections
   (void) pthread_cond_broadcast(&COND_thread_count);
   (void) pthread_mutex_unlock(&LOCK_thread_count);
-#ifdef EXTRA_DEBUG
+#ifdef EXTRA_DEBUG2
   sql_print_error("After lock_thread_count");
 #endif
 #else

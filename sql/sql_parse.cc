@@ -2120,6 +2120,12 @@ mysql_execute_command(void)
     break;
 
   case SQLCOM_BEGIN:
+    if (thd->locked_tables)
+    {
+      thd->lock=thd->locked_tables;
+      thd->locked_tables=0;			// Will be automaticly closed
+      close_thread_tables(thd);			// Free tables
+    }
     if (end_active_trans(thd))
     {
       res= -1;
