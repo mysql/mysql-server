@@ -953,7 +953,7 @@ ulong acl_get(const char *host, const char *ip,
   end=strmov((tmp_db=strmov(strmov(key, ip ? ip : "")+1,user)+1),db);
   if (lower_case_table_names)
   {
-    my_casedn_str(&my_charset_latin1, tmp_db);
+    my_casedn_str(files_charset_info, tmp_db);
     db=tmp_db;
   }
   key_length=(uint) (end-key);
@@ -1733,8 +1733,8 @@ GRANT_TABLE::GRANT_TABLE(const char *h, const char *d,const char *u,
   tname= strdup_root(&memex,t);
   if (lower_case_table_names)
   {
-    my_casedn_str(&my_charset_latin1, db);
-    my_casedn_str(&my_charset_latin1, tname);
+    my_casedn_str(files_charset_info, db);
+    my_casedn_str(files_charset_info, tname);
   }
   key_length =(uint) strlen(d)+(uint) strlen(u)+(uint) strlen(t)+3;
   hash_key = (char*) alloc_root(&memex,key_length);
@@ -1768,8 +1768,8 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
   }
   if (lower_case_table_names)
   {
-    my_casedn_str(&my_charset_latin1, db);
-    my_casedn_str(&my_charset_latin1, tname);
+    my_casedn_str(files_charset_info, db);
+    my_casedn_str(files_charset_info, tname);
   }
   key_length = ((uint) strlen(db) + (uint) strlen(user) +
                 (uint) strlen(tname) + 3);
@@ -2416,7 +2416,7 @@ int mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   if (lower_case_table_names && db)
   {
     strmov(tmp_db,db);
-    my_casedn_str(&my_charset_latin1, tmp_db);
+    my_casedn_str(files_charset_info, tmp_db);
     db=tmp_db;
   }
 
