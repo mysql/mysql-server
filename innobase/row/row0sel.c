@@ -2228,6 +2228,7 @@ row_sel_get_clust_rec_for_mysql(
 	  	rec_sprintf(err_buf, 900, clust_rec);
 	  	fprintf(stderr, "InnoDB: clust index record %s\n", err_buf);
 
+		trx = thr_get_trx(thr);
 		trx_print(err_buf, trx);
 
 	  	fprintf(stderr,
