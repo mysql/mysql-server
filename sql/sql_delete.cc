@@ -54,7 +54,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
     DBUG_RETURN(-1);
 
   /* Test if the user wants to delete all rows */
-  if (!using_limit && (!conds || conds->const_item()) &&
+  if (!using_limit && (!conds || (conds->const_item() && conds->val_int())) &&
       !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) && !safe_update)
   {
     deleted= table->file->records;

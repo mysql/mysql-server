@@ -53,5 +53,11 @@ select * from t1 where misc > 5 and bool is null;
 delete   from t1 where misc > 5 and bool is null;
 select * from t1 where misc > 5 and bool is null;
 
+select count(*) from t1;
+delete from t1 where 1 > 2;
+select count(*) from t1;
+delete from t1 where 3 > 2;
+select count(*) from t1;
+
 drop table t1;
 
