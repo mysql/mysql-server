@@ -3453,7 +3453,7 @@ ST_FIELD_INFO schema_fields_info[]=
 {
   {"CATALOG_NAME", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"SCHEMA_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Database"},
-  {"DEFAULT_CHARACTER_SET_NAME", 60, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"DEFAULT_CHARACTER_SET_NAME", 64, MYSQL_TYPE_STRING, 0, 0, 0},
   {"SQL_PATH", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
@@ -3500,8 +3500,8 @@ ST_FIELD_INFO columns_fields_info[]=
   {"CHARACTER_OCTET_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 0, 0},
   {"NUMERIC_PRECISION", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
   {"NUMERIC_SCALE", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
-  {"CHARACTER_SET_NAME", 40, MYSQL_TYPE_STRING, 0, 1, 0},
-  {"COLLATION_NAME", 40, MYSQL_TYPE_STRING, 0, 1, "Collation"},
+  {"CHARACTER_SET_NAME", 64, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"COLLATION_NAME", 64, MYSQL_TYPE_STRING, 0, 1, "Collation"},
   {"COLUMN_TYPE", 65535, MYSQL_TYPE_STRING, 0, 0, "Type"},
   {"COLUMN_KEY", 3, MYSQL_TYPE_STRING, 0, 0, "Key"},
   {"EXTRA", 20, MYSQL_TYPE_STRING, 0, 0, "Extra"},
@@ -3513,8 +3513,8 @@ ST_FIELD_INFO columns_fields_info[]=
 
 ST_FIELD_INFO charsets_fields_info[]=
 {
-  {"CHARACTER_SET_NAME", 30, MYSQL_TYPE_STRING, 0, 0, "Charset"},
-  {"DEFAULT_COLLATE_NAME", 60, MYSQL_TYPE_STRING, 0, 0, "Default collation"},
+  {"CHARACTER_SET_NAME", 64, MYSQL_TYPE_STRING, 0, 0, "Charset"},
+  {"DEFAULT_COLLATE_NAME", 64, MYSQL_TYPE_STRING, 0, 0, "Default collation"},
   {"DESCRIPTION", 60, MYSQL_TYPE_STRING, 0, 0, "Description"},
   {"MAXLEN", 3 ,MYSQL_TYPE_LONG, 0, 0, "Maxlen"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
@@ -3523,11 +3523,11 @@ ST_FIELD_INFO charsets_fields_info[]=
 
 ST_FIELD_INFO collation_fields_info[]=
 {
-  {"COLLATION_NAME", 30, MYSQL_TYPE_STRING, 0, 0, "Collation"},
-  {"CHARSET", 30, MYSQL_TYPE_STRING, 0, 0, "Charset"},
+  {"COLLATION_NAME", 64, MYSQL_TYPE_STRING, 0, 0, "Collation"},
+  {"CHARACTER_SET_NAME", 64, MYSQL_TYPE_STRING, 0, 0, "Charset"},
   {"ID", 11, MYSQL_TYPE_LONG, 0, 0, "Id"},
-  {"DEFAULT", 30 ,MYSQL_TYPE_STRING, 0, 0, "Default"},
-  {"COMPILED", 30 ,MYSQL_TYPE_STRING, 0, 0, "Compiled"},
+  {"IS_DEFAULT", 3, MYSQL_TYPE_STRING, 0, 0, "Default"},
+  {"IS_COMPILED", 3, MYSQL_TYPE_STRING, 0, 0, "Compiled"},
   {"SORTLEN", 3 ,MYSQL_TYPE_LONG, 0, 0, "Sortlen"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
@@ -3535,8 +3535,8 @@ ST_FIELD_INFO collation_fields_info[]=
 
 ST_FIELD_INFO coll_charset_app_fields_info[]=
 {
-  {"COLLATION_NAME", 30, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"CHARACTER_SET_NAME", 30, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"COLLATION_NAME", 64, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"CHARACTER_SET_NAME", 64, MYSQL_TYPE_STRING, 0, 0, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
