@@ -1673,56 +1673,6 @@ trx_undo_update_cleanup(
 	}
 }
 
-/**************************************************************************
-Discards an undo log and puts the segment to the list of cached update undo
-log segments. This optimized function is called if there is no need to keep
-the update undo log because there exist no read views and the transaction
-made no delete markings, which would make purge necessary. We restrict this
-to undo logs of size 1 to make things simpler. */
-
-dulint
-trx_undo_update_cleanup_by_discard(
-/*===============================*/
-			/* out: log sequence number at which mtr is
-			committed */	
-	trx_t*	trx,	/* in: trx owning the update undo log */
-	mtr_t*	mtr)	/* in: mtr */
-{
-	trx_rseg_t*	rseg;
-	trx_undo_t*	undo;
-	page_t*		undo_page;
-	
-	undo = trx->update_undo;
-	rseg = trx->rseg;
-
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(mutex_own(&(rseg->mutex)));
-	ut_ad(mutex_own(&kernel_mutex));
-#endif /* UNIV_SYNC_DEBUG */
-	ut_ad(undo->size == 1);
-	ut_ad(undo->del_marks == FALSE);	
-	ut_ad(UT_LIST_GET_LEN(trx_sys->view_list) == 1);
-	
-	/* NOTE: we must hold the kernel mutex, because we must prevent
-	creation of new read views before mtr gets committed! */
-
-	undo_page = trx_undo_page_get(undo->space, undo->hdr_page_no, mtr);
-
-	trx_undo_discard_latest_update_undo(undo_page, mtr);
-
-	undo->state = TRX_UNDO_CACHED;
-
-	UT_LIST_REMOVE(undo_list, rseg->update_undo_list, undo);
-
-	trx->update_undo = NULL;
-
-	UT_LIST_ADD_FIRST(undo_list, rseg->update_undo_cached, undo);
-
-	mtr_commit(mtr);
-	
-	return(mtr->end_lsn);
-}
-
 /**********************************************************************
 Frees or caches an insert undo log after a transaction commit or rollback.
 Knowledge of inserts is not needed after a commit or rollback, therefore
