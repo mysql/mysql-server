@@ -60,6 +60,48 @@
 // seen only when we debug the product
 #ifdef VM_TRACE
 #define DEBUG(x) ndbout << "DBLQH: "<< x << endl;
+NdbOut &
+operator<<(NdbOut& out, Dblqh::TcConnectionrec::TransactionState state){
+  out << (int)state;
+  return out;
+}
+
+NdbOut &
+operator<<(NdbOut& out, Dblqh::TcConnectionrec::LogWriteState state){
+  out << (int)state;
+  return out;
+}
+
+NdbOut &
+operator<<(NdbOut& out, Dblqh::TcConnectionrec::ListState state){
+  out << (int)state;
+  return out;
+}
+
+NdbOut &
+operator<<(NdbOut& out, Dblqh::TcConnectionrec::AbortState state){
+  out << (int)state;
+  return out;
+}
+
+NdbOut &
+operator<<(NdbOut& out, Dblqh::ScanRecord::ScanState state){
+  out << (int)state;
+  return out;
+}
+
+NdbOut &
+operator<<(NdbOut& out, Dblqh::LogFileOperationRecord::LfoState state){
+  out << (int)state;
+  return out;
+}
+
+NdbOut &
+operator<<(NdbOut& out, Dblqh::ScanRecord::ScanType state){
+  out << (int)state;
+  return out;
+}
+
 #else
 #define DEBUG(x)
 #endif
@@ -7177,7 +7219,7 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   ScanFragRef * ref;
   const Uint32 transid1 = scanFragReq->transId1;
   const Uint32 transid2 = scanFragReq->transId2;
-  Uint32 errorCode;
+  Uint32 errorCode= 0;
   Uint32 senderData;
   Uint32 hashIndex;
   TcConnectionrecPtr nextHashptr;
@@ -8466,7 +8508,7 @@ void Dblqh::sendKeyinfo20(Signal* signal,
   const Uint32 type = getNodeInfo(nodeId).m_type;
   const bool is_api = (type >= NodeInfo::API && type <= NodeInfo::REP);
   const bool old_dest = (getNodeInfo(nodeId).m_version < MAKE_VERSION(3,5,0));
-  const bool longable = is_api && !old_dest;
+  const bool longable = true; // TODO is_api && !old_dest;
 
   Uint32 * dst = keyInfo->keyData;
   dst += nodeId == getOwnNodeId() ? 0 : KeyInfo20::DataLength;
@@ -15736,7 +15778,7 @@ void Dblqh::completedLogPage(Signal* signal, Uint32 clpType)
 /* ---------------------------------------------------------------- */
 void Dblqh::deleteFragrec(Uint32 fragId) 
 {
-  Uint32 indexFound;
+  Uint32 indexFound= RNIL;
   fragptr.i = RNIL;
   for (Uint32 i = (NO_OF_FRAG_PER_NODE - 1); (Uint32)~i; i--) {
     jam();

@@ -92,7 +92,7 @@ NdbOperation::NdbOperation(Ndb* aNdb) :
   theBoundATTRINFO(NULL),
   theBlobList(NULL)
 {
-  theReceiver.init(NdbReceiver::NDB_OPERATION, this, false);
+  theReceiver.init(NdbReceiver::NDB_OPERATION, this);
   theError.code = 0;
 }
 /*****************************************************************************
@@ -195,7 +195,7 @@ NdbOperation::init(NdbTableImpl* tab, NdbConnection* myConnection){
   tcKeyReq->scanInfo = 0;
   theKEYINFOptr = &tcKeyReq->keyInfo[0];
   theATTRINFOptr = &tcKeyReq->attrInfo[0];
-  theReceiver.init(NdbReceiver::NDB_OPERATION, this, false);
+  theReceiver.init(NdbReceiver::NDB_OPERATION, this);
   return 0;
 }
 
@@ -291,6 +291,7 @@ NdbOperation::release()
     theNdb->releaseNdbBlob(tSaveBlob);
   }
   theBlobList = NULL;
+  theReceiver.release();
 }
 
 NdbRecAttr*

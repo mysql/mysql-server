@@ -220,7 +220,7 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
    */
   Uint32 routeBlockref = regOperPtr->coordinatorTC;
   
-  if(is_api && !old_dest){
+  if(true){ // TODO is_api && !old_dest){
     ljam();
     transIdAI->attrData[0] = recBlockref;
     LinearSectionPtr ptr[3];
