@@ -2156,8 +2156,8 @@ row_drop_table_for_mysql(
 		fputs("	 InnoDB: You are trying to drop table ", stderr);
 		ut_print_name(stderr, table->name);
 		fputs("\n"
-		  "InnoDB: though there are foreign key check running on it.\n"
-		  "InnoDB: Adding the table to the background drop queue.\n",
+		 "InnoDB: though there is a foreign key check running on it.\n"
+		 "InnoDB: Adding the table to the background drop queue.\n",
 			stderr);
 
 		row_add_table_to_background_drop_list(table);
