@@ -448,7 +448,7 @@ skipp:
       res->replace((uint) offset,from_length,*res3);
       offset+=(int) to_length;
     }
-    while ((offset=res->strstr(*res2,(uint) offset)) >0);
+    while ((offset=res->strstr(*res2,(uint) offset)) >= 0);
   return res;
 
 null:
@@ -768,7 +768,7 @@ String *Item_func_substr_index::val_str(String *str)
     }
     else
     {					// Start counting at end
-      for (offset=res->length() ; ; offset-=delimeter_length)
+      for (offset=res->length() ; ; offset-=delimeter_length-1)
       {
 	if ((int) (offset=res->strrstr(*delimeter,offset)) < 0)
 	  return res;			// Didn't find, return org string

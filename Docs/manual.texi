@@ -1807,6 +1807,13 @@ is as tested as the other table types.
 This only affects the new code that checks if the table was closed properly
 on open and executes an automatic check/repair of the table if it wasn't.
 
+@item MERGE tables -- Alpha / Beta
+The usage of keys on @code{MERGE} tables is still not that tested.  The
+other part of the @code{MERGE} code is quite well tested.
+
+@item FULLTEXT -- Alpha / Beta
+Text search seams to work, but is still not widely used.
+
 @end table
 
 MySQL AB provides e-mail support for paying customers, but the @strong{MySQL}
@@ -9029,9 +9036,9 @@ priority in one thread.
 @item --memlock
 Lock the @code{mysqld} process in memory.  This works only if your system
 supports the @code{mlockall()} system call.  This may help if you have
-a problem where the opearting system is causing @code{mysqld} to swap on disk.
+a problem where the operating system is causing @code{mysqld} to swap on disk.
 
-@item --myisam-recover [=option[,option...]]] where option is one of DEFAULT, BACKUP or FORCE.
+@item --myisam-recover [=option[,option...]]] where option is one of DEFAULT, BACKUP, FORCE or QUICK.
 If this option is used, @code{mysqld} will on open check if the table is
 marked as crashed or if if the table wasn't closed properly
 (The last option only works if you are running with @code{--skip-locking}).
@@ -9044,10 +9051,15 @@ The following options affects how the repair works.
 @item DEFAULT @tab The same as not giving any option to @code{--myisam-recover}.
 @item BACKUP @tab If the data table was changed during recover, save a backup of the @file{table_name.MYD} data file as @file{table_name-datetime.BAK}.
 @item FORCE @tab Run recover even if we will loose more than one row from the .MYD file.
+@item QUICK @tab Don't check the rows in the table if there isn't any delete blocks.
 @end multitable
 
-Before a table is automaticly repaired, mysqld will add a note about this
-in the error log.
+Before a table is automaticly repaired, mysqld will add a note about
+this in the error log.  If you want to be able to recover from most
+things without user intervention, you should use the options
+@code{BACKUP,FORCE}.  This will force a repair of a table even if some rows
+would be deleted, but it will keep the old data file as a backup so that
+you can later examine what happened.
 
 @item --pid-file=path
 Path to pid file used by @code{safe_mysqld}.
@@ -16312,7 +16324,8 @@ Version 3.22.  @code{ADDDATE()} and @code{SUBDATE()} are synonyms for
 @code{DATE_ADD()} and @code{DATE_SUB()}.
 
 In @strong{MySQL} Version 3.23, you can use @code{+} and @code{-} instead of
-@code{DATE_ADD()} and @code{DATE_SUB()}. (See example)
+@code{DATE_ADD()} and @code{DATE_SUB()} if the expression on the right side is
+a date or datetime column. (See example)
 
 @code{date} is a @code{DATETIME} or @code{DATE} value specifying the starting
 date.  @code{expr} is an expression specifying the interval value to be added
@@ -20214,7 +20227,9 @@ this join type is good.
 
 @item range
 Only rows that are in a given range will be retrieved, using an index to
-select the rows.  The @code{ref} column indicates which index is used.
+select the rows.  The @code{key} column indicates which index is used.
+The @code{key_len} contains the longest key part that was used.
+The @code{ref} column will be NULL for this type.
 
 @item index
 This is the same as @code{ALL}, except that only the index tree is
@@ -21256,7 +21271,7 @@ of both worlds.
 
 @menu
 * MyISAM::                      MyISAM tables
-* MERGE::
+* MERGE::			MERGE tables
 * ISAM::                        ISAM tables
 * HEAP::                        HEAP tables
 * BDB::                         BDB or Berkeley_db tables
@@ -21368,10 +21383,36 @@ The following options to @code{mysqld} can be used to change the behavior of
 
 @multitable @columnfractions .40 .60
 @item @strong{Option} @tab @strong{Meaning}
-@item @code{--myisam-recover} @tab Automatic recover of crashed tables.
+@item @code{--myisam-recover=#} @tab Automatic recover of crashed tables.
 @item @code{-O myisam_sort_buffer_size=#} @tab Buffer used when recovering tables.
 @item @code{--delay-key-write-for-all-tables} @tab Don't flush key buffers between writes for any MyISAM table
 @end multitable
+
+The automatic recovery is activated if you start mysqld with
+@code{--myisam-recover=#}. @xref{Command-line options}.
+On open, the table is checked if it's marked as crashed or if the open
+count variable for the table is not 0 and you are running with
+@code{--skip-locking}.  If either of the above is true the following happens.
+
+@itemize @bullet
+@item
+The table is checked for errors.
+@item
+If we found an error, try to do a fast repair (with sorting and without
+recreating the data file) of the table.
+@item
+If the repair fails because of an error in the data file (for example a
+duplicate key error), we try again, but this time we recreate the data file.
+@item
+If the repair fails, retry once more with the old repair option method
+(write row by row without sorting) which should be able to repair any
+type of error with little disk requirements..
+@end itemize
+
+Note that if you run automatic recover with the @code{BACKUP} option,
+you should have a cron script that automaticly moves file with names
+like @file{tablename-datetime.BAK} from the database directories to a
+backup media.
 
 @xref{Command-line options}.
 
@@ -21902,6 +21943,9 @@ properly locked if one another thread issues a table lock.
 @code{ALTER TABLE} doesn't yet work on @code{BDB} tables.
 @item
 Internal locking in @code{BDB} tables are done on page level.
+@item
+@code{SELECT COUNT(*) FROM table_name} is slow as @code{BDB} tables doesn't
+maintain a count of the number of rows in the table.
 @item
 Scanning is slower than with @code{MyISAM} tables as one has data in BDB
 tables is stored in B-trees and not in a separate data file.
@@ -37037,7 +37081,7 @@ This listing.
 Perl @code{Data-Dumper} module.  Useful with @code{DBI}/@code{DBD} support for
 older perl installations.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/DBI-1.13.tar.gz, DBI-1.13.tar.gz}
+@item @uref{http://www.mysql.com/Downloads/Contrib/DBI-1.14.tar.gz, DBI-1.14.tar.gz}
 Perl @code{DBI} module.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/KAMXbase1.0.tar.gz,KAMXbase1.0.tar.gz}
@@ -37046,7 +37090,7 @@ module written by Pratap Pereira @email{pereira@@ee.eng.ohio-state.edu},
 extened by Kevin A. McGrail @email{kmcgrail@@digital1.peregrinehw.com}.
 This converter can handle MEMO fields.
 
-@item @uref{http://www.mysql.com/Downloads/Contrib/Msql-Mysql-modules-1.2214.tar.gz, Msql-Mysql-modules-1.2214.tar.gz}
+@item @uref{http://www.mysql.com/Downloads/Contrib/Msql-Mysql-modules-1.2215.tar.gz, Msql-Mysql-modules-1.2215.tar.gz}
 Perl @code{DBD} module to access mSQL and @strong{MySQL} databases..
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/Data-ShowTable-3.3.tar.gz,  Data-ShowTable-3.3.tar.gz}
@@ -38002,6 +38046,12 @@ though, so 3.23 is not released as a stable version yet.
 @node News-3.23.26, News-3.23.25, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.26
 @itemize @bullet
+@item
+Fixed problem with @code{SUBSTRING_INDEX()} and @code{REPLACE()}.
+(Patch by Alexander Igonitchev)
+@item
+@code{CREATE TEMPORARY TABLE IF NOT EXISTS} doesn't anymore give an error
+if the table existed.
 @item
 If one don't create a @code{PRIMARY KEY} in a BDB table, a hidden
 @code{PRIMARY KEY} will be created.
