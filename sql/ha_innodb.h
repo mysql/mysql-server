@@ -191,6 +191,11 @@ extern my_bool innobase_log_archive,
                innobase_use_native_aio, innobase_fast_shutdown,
 	       innobase_file_per_table, innobase_locks_unsafe_for_binlog,
                innobase_create_status_file;
+extern my_bool innobase_very_fast_shutdown; /* set this to 1 just before
+					    calling innobase_end() if you want
+					    InnoDB to shut down without
+					    flushing the buffer pool: this
+					    is equivalent to a 'crash' */
 extern "C" {
 extern ulong srv_max_buf_pool_modified_pct;
 extern ulong srv_auto_extend_increment;
@@ -231,3 +236,4 @@ void innobase_release_temporary_latches(void* innobase_tid);
 
 void innobase_store_binlog_offset_and_flush_log(char *binlog_name,longlong offset);
 
+int innobase_start_trx_and_assign_read_view(THD* thd);
