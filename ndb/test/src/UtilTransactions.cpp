@@ -1147,7 +1147,6 @@ UtilTransactions::readRowFromTableAndIndex(Ndb* pNdb,
       if (row.attributeStore(col->getName())->isNULL())
       {
 	null_found= true;
-	ndbout_c("null found");
 	break;
       }
     }
