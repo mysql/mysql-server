@@ -40,7 +40,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER= "13.1";
+const char *VER= "13.3";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -195,7 +195,7 @@ static void end_pager();
 static int init_tee(char *);
 static void end_tee();
 static const char* construct_prompt();
-static char *get_arg(char *line);
+static char *get_arg(char *line, my_bool get_next_arg);
 static void init_username();
 static void add_int_to_prompt(int toadd);
 
@@ -280,7 +280,8 @@ static void initialize_readline (char *name);
 #endif
 
 static COMMANDS *find_command (char *name,char cmd_name);
-static bool add_line(String &buffer,char *line,char *in_string);
+static bool add_line(String &buffer,char *line,char *in_string,
+                     bool *ml_comment);
 static void remove_cntrl(String &buffer);
 static void print_table_data(MYSQL_RES *result);
 static void print_table_data_html(MYSQL_RES *result);
@@ -805,9 +806,10 @@ static int read_lines(bool execute_commands)
   char	*line;
   char	in_string=0;
   ulong line_number=0;
+  bool ml_comment= 0;  
   COMMANDS *com;
   status.exit_status=1;
-
+  
   for (;;)
   {
     if (status.batch || !execute_commands)
@@ -873,7 +875,7 @@ static int read_lines(bool execute_commands)
 #endif
       continue;
     }
-    if (add_line(glob_buffer,line,&in_string))
+    if (add_line(glob_buffer,line,&in_string,&ml_comment))
       break;
   }
   /* if in batch mode, send last query even if it doesn't end with \g or go */
@@ -934,7 +936,8 @@ static COMMANDS *find_command (char *name,char cmd_char)
 }
 
 
-static bool add_line(String &buffer,char *line,char *in_string)
+static bool add_line(String &buffer,char *line,char *in_string,
+                     bool *ml_comment)
 {
   uchar inchar;
   char buff[80],*pos,*out;
@@ -965,7 +968,7 @@ static bool add_line(String &buffer,char *line,char *in_string)
 	continue;
     }
 #endif
-    if (inchar == '\\')
+    if (!*ml_comment && inchar == '\\')
     {					// mSQL or postgreSQL style command ?
       if (!(inchar = (uchar) *++pos))
 	break;				// readline adds one '\'
@@ -999,7 +1002,7 @@ static bool add_line(String &buffer,char *line,char *in_string)
 	continue;
       }
     }
-    else if (inchar == ';' && !*in_string)
+    else if (!*ml_comment && inchar == ';' && !*in_string)
     {						// ';' is end of command
       if (out != line)
 	buffer.append(line,(uint) (out-line));	// Add this line
@@ -1019,17 +1022,33 @@ static bool add_line(String &buffer,char *line,char *in_string)
       buffer.length(0);
       out=line;
     }
-    else if (!*in_string && (inchar == '#' ||
-			     inchar == '-' && pos[1] == '-' &&
-			     my_isspace(system_charset_info,pos[2])))
+    else if (!*ml_comment && (!*in_string && (inchar == '#' ||
+			      inchar == '-' && pos[1] == '-' &&
+			      my_isspace(system_charset_info,pos[2]))))
       break;					// comment to end of line
+    else if (!*in_string && inchar == '/' && *(pos+1) == '*')
+    {
+      pos++;
+      *ml_comment= 1;
+      if (out != line)
+      {
+        buffer.append(line,(uint) (out-line));
+        out=line;
+      }
+    }
+    else if (*ml_comment && !*in_string && inchar == '*' && *(pos+1) == '/')
+    {
+      pos++;
+      *ml_comment= 0;
+    }      
     else
     {						// Add found char to buffer
       if (inchar == *in_string)
 	*in_string=0;
       else if (!*in_string && (inchar == '\'' || inchar == '"'))
 	*in_string=(char) inchar;
-      *out++ = (char) inchar;
+      if (!(*ml_comment))
+        *out++ = (char) inchar;
     }
   }
   if (out != line || !buffer.is_empty())
@@ -1038,7 +1057,7 @@ static bool add_line(String &buffer,char *line,char *in_string)
     uint length=(uint) (out-line);
     if (buffer.length() + length >= buffer.alloced_length())
       buffer.realloc(buffer.length()+length+IO_SIZE);
-    if (buffer.append(line,length))
+    if (!(*ml_comment) && buffer.append(line,length))
       return 1;
   }
   return 0;
@@ -2212,23 +2231,21 @@ com_print(String *buffer,char *line __attribute__((unused)))
 static int
 com_connect(String *buffer, char *line)
 {
-  char *tmp,buff[256];
+  char *tmp, buff[256];
   bool save_rehash= rehash;
   int error;
 
+  bzero(buff, sizeof(buff));
   if (buffer)
   {
-    while (my_isspace(system_charset_info,*line))
-      line++;
-    strnmov(buff,line,sizeof(buff)-1);		// Don't destroy history
-    if (buff[0] == '\\')			// Short command
-      buff[1]=' ';
-    tmp=(char *) strtok(buff," \t");		// Skip connect command
-    if (tmp && (tmp=(char *) strtok(NullS," \t;")))
+    strmov(buff, line);
+    tmp= get_arg(buff, 0);
+    if (tmp && *tmp)
     {
-      my_free(current_db,MYF(MY_ALLOW_ZERO_PTR));
-      current_db=my_strdup(tmp,MYF(MY_WME));
-      if ((tmp=(char *) strtok(NullS," \t;")))
+      my_free(current_db, MYF(MY_ALLOW_ZERO_PTR));
+      current_db= my_strdup(tmp, MYF(MY_WME));
+      tmp= get_arg(buff, 1);
+      if (tmp)
       {
 	my_free(current_host,MYF(MY_ALLOW_ZERO_PTR));
 	current_host=my_strdup(tmp,MYF(MY_WME));
@@ -2314,8 +2331,9 @@ com_use(String *buffer __attribute__((unused)), char *line)
   char *tmp;
   char buff[256];
 
+  bzero(buff, sizeof(buff));
   strmov(buff, line);
-  tmp= get_arg(buff);
+  tmp= get_arg(buff, 0);
   if (!tmp || !*tmp)
   {
     put_info("USE must be followed by a database name", INFO_ERROR);
@@ -2357,9 +2375,20 @@ com_use(String *buffer __attribute__((unused)), char *line)
 }
 
 
+
+/*
+  Gets argument from a command on the command line. If get_next_arg is
+  not defined, skips the command and returns the first argument. The
+  line is modified by adding zero to the end of the argument. If
+  get_next_arg is defined, then the function searches for end of string
+  first, after found, returns the next argument and adds zero to the
+  end. If you ever wish to use this feature, remember to initialize all
+  items in the array to zero first.
+*/
+
 enum quote_type { NO_QUOTE, SQUOTE, DQUOTE, BTICK };
 
-char *get_arg(char *line)
+char *get_arg(char *line, my_bool get_next_arg)
 {
   char *ptr;
   my_bool quoted= 0, valid_arg= 0;
@@ -2367,13 +2396,22 @@ char *get_arg(char *line)
   enum quote_type qtype= NO_QUOTE;
 
   ptr= line;
-  /* skip leading white spaces */
-  while (my_isspace(system_charset_info, *ptr))
-    ptr++;
-  if (*ptr == '\\') // short command was used
-    ptr+= 2;
-  while (!my_isspace(system_charset_info, *ptr)) // skip command
-    ptr++;
+  if (get_next_arg)
+  {
+    for (; ptr && *ptr; ptr++);
+    if ((ptr + 1) && *(ptr + 1))
+      ptr++;
+  }
+  else
+  {
+    /* skip leading white spaces */
+    while (my_isspace(system_charset_info, *ptr))
+      ptr++;
+    if (*ptr == '\\') // short command was used
+      ptr+= 2;
+    while (!my_isspace(system_charset_info, *ptr)) // skip command
+      ptr++;
+  }
   while (my_isspace(system_charset_info, *ptr))
     ptr++;
   if ((*ptr == '\'' && (qtype= SQUOTE)) ||
@@ -2396,9 +2434,8 @@ char *get_arg(char *line)
       ptr= line;
       ptr+= count;
     }
-    else if (!quoted && *ptr == ' ')
-      *(ptr + 1) = 0;
-    else if ((*ptr == '\'' && qtype == SQUOTE) ||
+    else if ((!quoted && *ptr == ' ') ||
+	     (*ptr == '\'' && qtype == SQUOTE) ||
 	     (*ptr == '\"' && qtype == DQUOTE) ||
 	     (*ptr == '`' && qtype == BTICK))
     {

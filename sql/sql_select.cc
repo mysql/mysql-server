@@ -7515,7 +7515,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
     item_list.push_back(new Item_string(message,strlen(message),
 					default_charset_info));
     if (result->send_data(item_list))
-      result->send_error(0,NullS);
+      join->error= 1;
   }
   else
   {
@@ -7656,7 +7656,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       // For next iteration
       used_tables|=table->map;
       if (result->send_data(item_list))
-	result->send_error(0,NullS);
+	join->error= 1;
     }
   }
   for (SELECT_LEX_UNIT *unit= join->select_lex->first_inner_unit();

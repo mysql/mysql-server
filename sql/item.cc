@@ -586,7 +586,8 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 				       REPORT_EXCEPT_NOT_FOUND)) !=
 	     (Item **)not_found_item)
 	    break;
-	  if (sl->linkage == DERIVED_TABLE_TYPE)
+	  if (sl->master_unit()->first_select()->linkage ==
+	      DERIVED_TABLE_TYPE)
 	    break; // do not look over derived table
 	}
       if (!tmp)
@@ -1024,7 +1025,8 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
     if ((ref= find_item_in_list(this, 
 				*(thd->lex.current_select->get_item_list()),
 				((sl && 
-				  thd->lex.current_select->linkage !=
+				  thd->lex.current_select->master_unit()->
+				  first_select()->linkage !=
 				  DERIVED_TABLE_TYPE) ? 
 				  REPORT_EXCEPT_NOT_FOUND :
 				  REPORT_ALL_ERRORS))) ==
@@ -1050,7 +1052,8 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	if ((tmp= find_field_in_tables(thd, this,
 				       sl->get_table_list(),
 				       0)) != not_found_field);
-	if (sl->linkage == DERIVED_TABLE_TYPE)
+	if (sl->master_unit()->first_select()->linkage ==
+	    DERIVED_TABLE_TYPE)
 	  break; // do not look over derived table
       }
 
