@@ -420,6 +420,14 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 {
   const char *status;
 
+/*
+  MySQL documentation relies on the fact that mysqladmin will
+  execute commands in the order specified, e.g.
+  mysqladmin -u root flush-privileges password "newpassword"
+  to reset a lost root password.
+  If this behaviour is ever changed, Docs should be notified.
+*/
+
   for (; argc > 0 ; argv++,argc--)
   {
     switch (find_type(argv[0],&command_typelib,2)) {
