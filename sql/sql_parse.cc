@@ -3708,8 +3708,12 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
     {
       if (lock_global_read_lock(thd))
 	return 1;
+      result=close_cached_tables(thd,(options & REFRESH_FAST) ? 0 : 1,
+                                 tables);
+      make_global_read_lock_block_commit(thd);
     }
-    result=close_cached_tables(thd,(options & REFRESH_FAST) ? 0 : 1, tables);
+    else
+      result=close_cached_tables(thd,(options & REFRESH_FAST) ? 0 : 1, tables);
   }
   if (options & REFRESH_HOSTS)
     hostname_cache_refresh();
