@@ -1186,6 +1186,57 @@ run_again:
 	return((int) err);
 }
 
+/*************************************************************************
+Does an unlock of a row for MySQL. */
+
+int
+row_unlock_for_mysql(
+/*=================*/
+					/* out: error code or DB_SUCCESS */
+	row_prebuilt_t*	prebuilt)	/* in: prebuilt struct in MySQL
+					handle */
+{
+	rec_t*		rec;
+	btr_pcur_t*	cur		= prebuilt->pcur;
+	trx_t*		trx		= prebuilt->trx;
+	mtr_t           mtr;
+	
+	ut_ad(prebuilt && trx);
+	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
+		
+	trx->op_info = "unlock_row";
+	
+	if (srv_locks_unsafe_for_binlog) {
+		if (trx->trx_create_lock == TRUE) {
+
+			mtr_start(&mtr);
+			
+			/* Restore a cursor position and find a record */
+			btr_pcur_restore_position(BTR_SEARCH_LEAF, cur, &mtr);
+			rec = btr_pcur_get_rec(cur);
+
+			if (rec) {
+
+				lock_rec_reset_and_release_wait(rec);
+			} else {
+				fputs("InnoDB: Error: "
+				      "Record for the lock not found\n",
+				      stderr);
+				mem_analyze_corruption((byte*) trx);
+				ut_error;
+			}
+
+			trx->trx_create_lock = FALSE;
+			mtr_commit(&mtr);
+		}
+		
+	}
+			
+	trx->op_info = "";
+	
+	return(DB_SUCCESS);
+}
+
 /**************************************************************************
 Does a cascaded delete or set null in a foreign key operation. */
 

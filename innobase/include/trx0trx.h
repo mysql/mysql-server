@@ -423,6 +423,8 @@ struct trx_struct{
 	lock_t*		auto_inc_lock;	/* possible auto-inc lock reserved by
 					the transaction; note that it is also
 					in the lock list trx_locks */
+	ibool		trx_create_lock;/* this is TRUE if we have created a
+					new lock for a record accessed */
 	ulint		n_lock_table_exp;/* number of explicit table locks
 					(LOCK TABLES) reserved by the
 					transaction, stored in trx_locks */
