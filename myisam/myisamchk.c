@@ -74,7 +74,8 @@ static int mi_sort_records(MI_CHECK *param,
 			   uint sort_key,
 			   my_bool write_info,
 			   my_bool update_index);
-static int sort_record_index(MI_CHECK *param,MI_INFO *info,MI_KEYDEF *keyinfo,
+static int sort_record_index(MI_SORT_PARAM *sort_param,MI_INFO *info,
+                             MI_KEYDEF *keyinfo,
 			     my_off_t page,uchar *buff,uint sortkey,
 			     File new_file, my_bool update_index);
 
@@ -1331,7 +1332,7 @@ static int mi_sort_records(MI_CHECK *param,
 			   register MI_INFO *info, my_string name,
 			   uint sort_key,
 			   my_bool write_info,
-			   my_bool update_index) 
+			   my_bool update_index)
 {
   int got_error;
   uint key;
@@ -1341,11 +1342,14 @@ static int mi_sort_records(MI_CHECK *param,
   ha_rows old_record_count;
   MYISAM_SHARE *share=info->s;
   char llbuff[22],llbuff2[22];
-  SORT_INFO *sort_info= &param->sort_info;
+  SORT_INFO sort_info;
+  MI_SORT_PARAM sort_param;
   DBUG_ENTER("sort_records");
 
-  bzero((char*) sort_info,sizeof(*sort_info));
-  sort_info->param=param;
+  bzero((char*)&sort_info,sizeof(sort_info));
+  bzero((char*)&sort_param,sizeof(sort_param));
+  sort_param.sort_info=&sort_info;
+  sort_info.param=param;
   keyinfo= &share->keyinfo[sort_key];
   got_error=1;
   temp_buff=0;
@@ -1381,7 +1385,7 @@ static int mi_sort_records(MI_CHECK *param,
     mi_check_print_error(param,"Not enough memory for key block");
     goto err;
   }
-  if (!(sort_info->record=(byte*) my_malloc((uint) share->base.pack_reclength,
+  if (!(sort_param.record=(byte*) my_malloc((uint) share->base.pack_reclength,
 					   MYF(0))))
   {
     mi_check_print_error(param,"Not enough memory for record");
@@ -1423,18 +1427,18 @@ static int mi_sort_records(MI_CHECK *param,
   }
 
   /* Setup param for sort_write_record */
-  sort_info->info=info;
-  sort_info->new_data_file_type=share->data_file_type;
-  sort_info->fix_datafile=1;
-  sort_info->filepos=share->pack.header_length;
+  sort_info.info=info;
+  sort_info.new_data_file_type=share->data_file_type;
+  sort_param.fix_datafile=1;
+  sort_param.filepos=share->pack.header_length;
   old_record_count=info->state->records;
   info->state->records=0;
-  if (sort_info->new_data_file_type != COMPRESSED_RECORD)
+  if (sort_info.new_data_file_type != COMPRESSED_RECORD)
     share->state.checksum=0;
 
-  if (sort_record_index(param, info,keyinfo,share->state.key_root[sort_key],
+  if (sort_record_index(&sort_param,info,keyinfo,share->state.key_root[sort_key],
 			temp_buff, sort_key,new_file,update_index) ||
-      write_data_suffix(param, info) ||
+      write_data_suffix(&sort_info,1) ||
       flush_io_cache(&info->rec_cache))
     goto err;
 
@@ -1452,7 +1456,7 @@ static int mi_sort_records(MI_CHECK *param,
   info->state->del=0;
   info->state->empty=0;
   share->state.dellink= HA_OFFSET_ERROR;
-  info->state->data_file_length=sort_info->filepos;
+  info->state->data_file_length=sort_param.filepos;
   share->state.split=info->state->records;	/* Only hole records */
   share->state.version=(ulong) time((time_t*) 0);
 
@@ -1476,11 +1480,11 @@ err:
   {
     my_afree((gptr) temp_buff);
   }
-  my_free(sort_info->record,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(sort_param.record,MYF(MY_ALLOW_ZERO_PTR));
   info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
   VOID(end_io_cache(&info->rec_cache));
-  my_free(sort_info->buff,MYF(MY_ALLOW_ZERO_PTR));
-  sort_info->buff=0;
+  my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));
+  sort_info.buff=0;
   share->state.sortkey=sort_key;
   DBUG_RETURN(flush_blocks(param, share->kfile) | got_error);
 } /* sort_records */
@@ -1488,7 +1492,8 @@ err:
 
 	 /* Sort records recursive using one index */
 
-static int sort_record_index(MI_CHECK *param,MI_INFO *info, MI_KEYDEF *keyinfo,
+static int sort_record_index(MI_SORT_PARAM *sort_param,MI_INFO *info,
+                             MI_KEYDEF *keyinfo,
 			     my_off_t page, uchar *buff, uint sort_key,
 			     File new_file,my_bool update_index)
 {
@@ -1497,7 +1502,8 @@ static int sort_record_index(MI_CHECK *param,MI_INFO *info, MI_KEYDEF *keyinfo,
   my_off_t next_page,rec_pos;
   uchar lastkey[MI_MAX_KEY_BUFF];
   char llbuff[22];
-  SORT_INFO *sort_info= &param->sort_info;
+  SORT_INFO *sort_info= sort_param->sort_info;
+  MI_CHECK *param=sort_info->param;
   DBUG_ENTER("sort_record_index");
 
   nod_flag=mi_test_if_nod(buff);
@@ -1528,7 +1534,7 @@ static int sort_record_index(MI_CHECK *param,MI_INFO *info, MI_KEYDEF *keyinfo,
 		    llstr(next_page,llbuff));
 	goto err;
       }
-      if (sort_record_index(param, info,keyinfo,next_page,temp_buff,sort_key,
+      if (sort_record_index(sort_param, info,keyinfo,next_page,temp_buff,sort_key,
 			    new_file, update_index))
 	goto err;
     }
@@ -1539,23 +1545,23 @@ static int sort_record_index(MI_CHECK *param,MI_INFO *info, MI_KEYDEF *keyinfo,
       break;
     rec_pos= _mi_dpos(info,0,lastkey+key_length);
 
-    if ((*info->s->read_rnd)(info,sort_info->record,rec_pos,0))
+    if ((*info->s->read_rnd)(info,sort_param->record,rec_pos,0))
     {
       mi_check_print_error(param,"%d when reading datafile",my_errno);
       goto err;
     }
-    if (rec_pos != sort_info->filepos && update_index)
+    if (rec_pos != sort_param->filepos && update_index)
     {
       _mi_dpointer(info,keypos-nod_flag-info->s->rec_reflength,
-		   sort_info->filepos);
-      if (movepoint(info,sort_info->record,rec_pos,sort_info->filepos,
+		   sort_param->filepos);
+      if (movepoint(info,sort_param->record,rec_pos,sort_param->filepos,
 		    sort_key))
       {
 	mi_check_print_error(param,"%d when updating key-pointers",my_errno);
 	goto err;
       }
     }
-    if (sort_write_record(sort_info))
+    if (sort_write_record(sort_param))
       goto err;
   }
   /* Clear end of block to get better compression if the table is backuped */
