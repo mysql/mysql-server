@@ -3757,7 +3757,7 @@ Subqueries.
 @item
 Foreign keys, including cascading delete.
 @item
-Fail safe replication.
+Fail-safe replication.
 @item
 Replication should work with @code{RAND()} and user variables @code{@@var}.
 @item
@@ -10532,7 +10532,7 @@ the IBM C compiler).
 
 If you are using @code{gcc} or @code{egcs} to compile MySQL, you
 @strong{must} use the @code{-fno-exceptions} flag, as the exception
-handling in @code{gcc}/@code{egcs} is not thread safe!  (This is tested with
+handling in @code{gcc}/@code{egcs} is not thread-safe!  (This is tested with
 @code{egcs} 1.1.)  There are also some known problems with IBM's assembler,
 which may cause it to generate bad code when used with gcc.
 
@@ -41378,7 +41378,7 @@ Retrieves a complete result set to the client.
 Returns the current thread ID.
 
 @item @strong{mysql_thread_safe()} @tab
-Returns 1 if the clients are compiled as thread safe.
+Returns 1 if the clients are compiled as thread-safe.
 
 @item @strong{mysql_use_result()} @tab
 Initiates a row-by-row result set retrieval.
@@ -43765,11 +43765,11 @@ None.
 
 @subsubheading Description
 
-This function indicates whether the client is compiled as thread safe.
+This function indicates whether the client is compiled as thread-safe.
 
 @subsubheading Return Values
 
-1 is the client is thread safe, 0 otherwise.
+1 is the client is thread-safe, 0 otherwise.
 
 @node C Embedded Server func, C API problems, C Thread functions, C
 @subsection C Embedded Server Function Descriptions
@@ -44040,17 +44040,17 @@ files.
 @cindex clients, threaded
 @cindex threaded clients
 
-The client library is almost thread safe. The biggest problem is
+The client library is almost thread-safe. The biggest problem is
 that the subroutines in @file{net.c} that read from sockets are not
 interrupt safe.  This was done with the thought that you might want to
 have your own alarm that can break a long read to a server.  If you
 install interrupt handlers for the @code{SIGPIPE} interrupt,
-the socket handling should be thread safe.
+the socket handling should be thread-safe.
 
 In the older binaries we distribute on our web site
 (@uref{http://www.mysql.com/}), the client libraries are not normally
 compiled with the thread-safe option (the Windows binaries are by
-default compiled to be thread safe). Newer binary distributions should
+default compiled to be thread-safe). Newer binary distributions should
 have both a normal and a thread-safe client library.
 
 To get a threaded client where you can interrupt the client from other
@@ -44058,8 +44058,8 @@ threads and set timeouts when talking with the MySQL server, you should
 use the @code{-lmysys}, @code{-lstring}, and @code{-ldbug} libraries and
 the @code{net_serv.o} code that the server uses.
 
-If you don't need interrupts or timeouts, you can just compile a thread
-safe client library @code{(mysqlclient_r)} and use this.  @xref{C,,
+If you don't need interrupts or timeouts, you can just compile a
+thread-safe client library @code{(mysqlclient_r)} and use this.  @xref{C,,
 MySQL C API}.  In this case you don't have to worry about the
 @code{net_serv.o} object file or the other MySQL libraries.
 
@@ -44070,13 +44070,13 @@ interrupts, you can make great use of the routines in the
 @code{my_init()} first! @xref{C Thread functions}.
 
 All functions except @code{mysql_real_connect()} are by default
-thread safe.  The following notes describe how to compile a thread-safe
+thread-safe.  The following notes describe how to compile a thread-safe
 client library and use it in a thread-safe manner.  (The notes below for
 @code{mysql_real_connect()} actually apply to @code{mysql_connect()} as
 well, but because @code{mysql_connect()} is deprecated, you should be
 using @code{mysql_real_connect()} anyway.)
 
-To make @code{mysql_real_connect()} thread safe, you must recompile the
+To make @code{mysql_real_connect()} thread-safe, you must recompile the
 client library with this command:
 
 @example
@@ -44084,7 +44084,7 @@ shell> ./configure --enable-thread-safe-client
 @end example
 
 This will create a thread-safe client library @code{libmysqlclient_r}.
-@code{--enable-thread-safe-client}.  This library is thread safe per
+@code{--enable-thread-safe-client}.  This library is thread-safe per
 connection.  You can let two threads share the same connection with
 the following caveats:
 
@@ -45075,7 +45075,7 @@ Repeat 3-5 until all rows has been processed
 Call @code{xxx_deinit()} to let the UDF free any memory it has allocated.
 @end enumerate
 
-All functions must be thread safe (not just the main function,
+All functions must be thread-safe (not just the main function,
 but the initialisation and deinitialisation functions as well). This means
 that you are not allowed to allocate any global or static variables that
 change!  If you need memory, you should allocate it in @code{xxx_init()}
@@ -45576,7 +45576,7 @@ can take a look at @code{Item_func_mod::fix_length_and_dec} for a
 typical example of how to do this.
 @end enumerate
 
-All functions must be thread safe (in other words, don't use any global or
+All functions must be thread-safe (in other words, don't use any global or
 static variables in the functions without protecting them with mutexes).
 
 If you want to return @code{NULL}, from @code{::val()}, @code{::val_int()}
@@ -47747,7 +47747,7 @@ Python interface for MySQL. By Joseph Skinner @email{joe@@earthlight.co.nz}. Mod
 @item @uref{http://www.mysql.com/Downloads/Contrib/MySQL-python-0.3.0.tar.gz}
 MySQLdb Python is an DB-API v2.0-compliant interface to MySQL. Transactions
 are supported if the server and tables support them.  It is
-thread safe, and contains a compatibility module for older code
+thread-safe, and contains a compatibility module for older code
 written for the no-longer-maintained MySQLmodule interface.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/mysql_mex_12.tar.gz}
@@ -51764,7 +51764,7 @@ Added @code{--quote-names} option to @code{mysqldump}.
 @item
 Fixed bug that one could make a part of a @code{PRIMARY KEY NOT NULL}.
 @item
-Fixed @code{encrypt()} to be thread safe and not reuse buffer.
+Fixed @code{encrypt()} to be thread-safe and not reuse buffer.
 @item
 Added @code{mysql_odbc_escape_string()} function to support big5 characters in
 MyODBC.
@@ -56000,7 +56000,7 @@ threads have to wait for data.  If the user thread packages are
 integrated in the standard libs (FreeBSD and BSDI threads) the thread
 package requires less overhead than thread packages that have to map all
 unsafe calls (MIT-pthreads, FSU Pthreads and RTS threads).  In some
-environments (for example, SCO), all system calls are thread safe so the
+environments (for example, SCO), all system calls are thread-safe so the
 mapping can be done very easily (FSU Pthreads on SCO).  Downside: All
 mapped calls take a little time and it's quite tricky to be able to
 handle all situations. There are usually also some system calls that are
@@ -56018,7 +56018,7 @@ somewhat expensive.
 Kernel threads. Thread switching is handled by the thread library or the
 kernel and is very fast. Everything is done in one process, but on some
 systems, @code{ps} may show the different threads. If one thread aborts, the
-whole process aborts. Most system calls are thread safe and should
+whole process aborts. Most system calls are thread-safe and should
 require very little overhead.  Solaris, HP-UX, AIX and OSF/1 have kernel
 threads.
 @end itemize
