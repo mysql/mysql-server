@@ -57,14 +57,14 @@
 #define INADDR_NONE	-1
 #endif
 
-static my_bool	mysql_client_init=0;
+#include <sql_common.h>
+
 uint		mysql_port=0;
 my_string	mysql_unix_port=0;
 ulong 		net_buffer_length=8192;
 ulong		max_allowed_packet= 1024L*1024L*1024L;
 ulong		net_read_timeout=  NET_READ_TIMEOUT;
 ulong		net_write_timeout= NET_WRITE_TIMEOUT;
-const char	*unknown_sqlstate= "000000";
 
 #define CLIENT_CAPABILITIES (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG	  \
                              | CLIENT_LOCAL_FILES   | CLIENT_TRANSACTIONS \
@@ -99,27 +99,15 @@ TYPELIB sql_protocol_typelib = {array_elements(sql_protocol_names_lib)-1,"",
   be changed
 */
 #define MAX_LONG_DATA_LENGTH 8192
-#define protocol_41(A) ((A)->server_capabilities & CLIENT_PROTOCOL_41)
+/*#define protocol_41(A) ((A)->server_capabilities & CLIENT_PROTOCOL_41)*/
 #define unsigned_field(A) ((A)->flags & UNSIGNED_FLAG)
 
-static MYSQL_DATA *read_rows (MYSQL *mysql,MYSQL_FIELD *fields,
-			      uint field_count);
-static int read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row,
-			ulong *lengths);
-static void end_server(MYSQL *mysql);
-static void read_user_name(char *name);
 static void append_wild(char *to,char *end,const char *wild);
-static my_bool mysql_reconnect(MYSQL *mysql);
-static my_bool send_file_to_server(MYSQL *mysql,const char *filename);
-static sig_handler pipe_sig_handler(int sig);
+sig_handler pipe_sig_handler(int sig);
 static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 				     const char *from, ulong length);
-static my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list);
-static void fetch_lengths(ulong *to, MYSQL_ROW column, uint field_count);
+my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list);
 static my_bool org_my_init_done=0;
-
-extern ulong STDCALL net_field_length(uchar **packet);
-extern my_ulonglong net_field_length_ll(uchar **packet);
 
 int STDCALL mysql_server_init(int argc __attribute__((unused)),
 			      char **argv __attribute__((unused)),
@@ -169,9 +157,10 @@ void STDCALL mysql_thread_end()
 #define reset_sigpipe(mysql)
 #endif
 
+/* TO DELETE
 #define _libmysql_c
 #include "../sql-common/client.c"
-
+*/
 static MYSQL* spawn_init(MYSQL* parent, const char* host,
 			 unsigned int port,
 			 const char* user,
@@ -448,7 +437,7 @@ mysql_debug(const char *debug __attribute__((unused)))
    ARGSUSED
 **************************************************************************/
 
-static sig_handler
+sig_handler
 pipe_sig_handler(int sig __attribute__((unused)))
 {
   DBUG_PRINT("info",("Hit by signal %d",sig));
@@ -869,6 +858,124 @@ error:
   DBUG_RETURN(1);
 }
 
+#if defined(HAVE_GETPWUID) && defined(NO_GETPWUID_DECL)
+struct passwd *getpwuid(uid_t);
+char* getlogin(void);
+#endif
+
+#if defined(__NETWARE__)
+/* default to "root" on NetWare */
+void read_user_name(char *name)
+{
+  char *str=getenv("USER");
+  strmake(name, str ? str : "UNKNOWN_USER", USERNAME_LENGTH);
+}
+
+#elif !defined(MSDOS) && ! defined(VMS) && !defined(__WIN__) && !defined(OS2)
+
+void read_user_name(char *name)
+{
+  DBUG_ENTER("read_user_name");
+  if (geteuid() == 0)
+    (void) strmov(name,"root");		/* allow use of surun */
+  else
+  {
+#ifdef HAVE_GETPWUID
+    struct passwd *skr;
+    const char *str;
+    if ((str=getlogin()) == NULL)
+    {
+      if ((skr=getpwuid(geteuid())) != NULL)
+	str=skr->pw_name;
+      else if (!(str=getenv("USER")) && !(str=getenv("LOGNAME")) &&
+	       !(str=getenv("LOGIN")))
+	str="UNKNOWN_USER";
+    }
+    (void) strmake(name,str,USERNAME_LENGTH);
+#elif HAVE_CUSERID
+    (void) cuserid(name);
+#else
+    strmov(name,"UNKNOWN_USER");
+#endif
+  }
+  DBUG_VOID_RETURN;
+}
+
+#else /* If MSDOS || VMS */
+
+void read_user_name(char *name)
+{
+  char *str=getenv("USER");		/* ODBC will send user variable */
+  strmake(name,str ? str : "ODBC", USERNAME_LENGTH);
+}
+
+#endif
+
+my_bool send_file_to_server(MYSQL *mysql, const char *filename)
+{
+  int fd, readcount;
+  my_bool result= 1;
+  uint packet_length=MY_ALIGN(mysql->net.max_packet-16,IO_SIZE);
+  char *buf, tmp_name[FN_REFLEN];
+  NET *net= &mysql->net;
+  DBUG_ENTER("send_file_to_server");
+
+  if (!(buf=my_malloc(packet_length,MYF(0))))
+  {
+    strmov(net->sqlstate, unknown_sqlstate);
+    strmov(net->last_error, ER(net->last_errno=CR_OUT_OF_MEMORY));
+    DBUG_RETURN(1);
+  }
+
+  fn_format(tmp_name,filename,"","",4);		/* Convert to client format */
+  if ((fd = my_open(tmp_name,O_RDONLY, MYF(0))) < 0)
+  {
+    my_net_write(net,"",0);		/* Server needs one packet */
+    net_flush(net);
+    strmov(net->sqlstate, unknown_sqlstate);
+    net->last_errno=EE_FILENOTFOUND;
+    my_snprintf(net->last_error,sizeof(net->last_error)-1,
+		EE(net->last_errno),tmp_name, errno);
+    goto err;
+  }
+
+  while ((readcount = (int) my_read(fd,(byte*) buf,packet_length,MYF(0))) > 0)
+  {
+    if (my_net_write(net,buf,readcount))
+    {
+      DBUG_PRINT("error",("Lost connection to MySQL server during LOAD DATA of local file"));
+      strmov(net->sqlstate, unknown_sqlstate);
+      net->last_errno=CR_SERVER_LOST;
+      strmov(net->last_error,ER(net->last_errno));
+      goto err;
+    }
+  }
+  /* Send empty packet to mark end of file */
+  if (my_net_write(net,"",0) || net_flush(net))
+  {
+    strmov(net->sqlstate, unknown_sqlstate);
+    net->last_errno=CR_SERVER_LOST;
+    sprintf(net->last_error,ER(net->last_errno),errno);
+    goto err;
+  }
+  if (readcount < 0)
+  {
+    strmov(net->sqlstate, unknown_sqlstate);
+    net->last_errno=EE_READ; /* the errmsg for not entire file read */
+    my_snprintf(net->last_error,sizeof(net->last_error)-1,
+		tmp_name,errno);
+    goto err;
+  }
+  result=0;					/* Ok */
+
+err:
+  if (fd >= 0)
+    (void) my_close(fd,MYF(0));
+  my_free(buf,MYF(0));
+  DBUG_RETURN(result);
+}
+
+
 /**************************************************************************
   Do a query. If query returned rows, free old rows.
   Read data by mysql_store_result or by repeat call of mysql_fetch_row
@@ -879,7 +986,6 @@ mysql_query(MYSQL *mysql, const char *query)
 {
   return mysql_real_query(mysql,query, (uint) strlen(query));
 }
-
 
 static MYSQL* spawn_init(MYSQL* parent, const char* host,
 			 unsigned int port, const char* user,
@@ -1074,7 +1180,6 @@ mysql_list_tables(MYSQL *mysql, const char *wild)
   DBUG_RETURN (mysql_store_result(mysql));
 }
 
-
 /**************************************************************************
   List all fields in a table
   If wild is given then only the fields matching wild is returned
@@ -1116,7 +1221,6 @@ mysql_list_fields(MYSQL *mysql, const char *table, const char *wild)
   DBUG_RETURN(result);
 }
 
-
 /* List all running processes (threads) in server */
 
 MYSQL_RES * STDCALL
@@ -1143,7 +1247,6 @@ mysql_list_processes(MYSQL *mysql)
   mysql->field_count=field_count;
   DBUG_RETURN(mysql_store_result(mysql));
 }
-
 
 #ifdef USE_OLD_FUNCTIONS
 int  STDCALL
@@ -1280,64 +1383,6 @@ mysql_get_client_info(void)
   return (char*) MYSQL_SERVER_VERSION;
 }
 
-
-int STDCALL
-mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
-{
-  DBUG_ENTER("mysql_option");
-  DBUG_PRINT("enter",("option: %d",(int) option));
-  switch (option) {
-  case MYSQL_OPT_CONNECT_TIMEOUT:
-    mysql->options.connect_timeout= *(uint*) arg;
-    break;
-  case MYSQL_OPT_COMPRESS:
-    mysql->options.compress= 1;			/* Remember for connect */
-    mysql->options.client_flag|= CLIENT_COMPRESS;
-    break;
-  case MYSQL_OPT_NAMED_PIPE:
-    mysql->options.protocol=MYSQL_PROTOCOL_PIPE; /* Force named pipe */
-    break;
-  case MYSQL_OPT_LOCAL_INFILE:			/* Allow LOAD DATA LOCAL ?*/
-    if (!arg || test(*(uint*) arg))
-      mysql->options.client_flag|= CLIENT_LOCAL_FILES;
-    else
-      mysql->options.client_flag&= ~CLIENT_LOCAL_FILES;
-    break;
-  case MYSQL_INIT_COMMAND:
-    add_init_command(&mysql->options,arg);
-    break;
-  case MYSQL_READ_DEFAULT_FILE:
-    my_free(mysql->options.my_cnf_file,MYF(MY_ALLOW_ZERO_PTR));
-    mysql->options.my_cnf_file=my_strdup(arg,MYF(MY_WME));
-    break;
-  case MYSQL_READ_DEFAULT_GROUP:
-    my_free(mysql->options.my_cnf_group,MYF(MY_ALLOW_ZERO_PTR));
-    mysql->options.my_cnf_group=my_strdup(arg,MYF(MY_WME));
-    break;
-  case MYSQL_SET_CHARSET_DIR:
-    my_free(mysql->options.charset_dir,MYF(MY_ALLOW_ZERO_PTR));
-    mysql->options.charset_dir=my_strdup(arg,MYF(MY_WME));
-    break;
-  case MYSQL_SET_CHARSET_NAME:
-    my_free(mysql->options.charset_name,MYF(MY_ALLOW_ZERO_PTR));
-    mysql->options.charset_name=my_strdup(arg,MYF(MY_WME));
-    break;
-  case MYSQL_OPT_PROTOCOL:
-    mysql->options.protocol= *(uint*) arg;
-    break;
-  case MYSQL_SHARED_MEMORY_BASE_NAME:
-#ifdef HAVE_SMEM
-    if (mysql->options.shared_memory_base_name != def_shared_memory_base_name)
-      my_free(mysql->options.shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
-    mysql->options.shared_memory_base_name=my_strdup(arg,MYF(MY_WME));
-#endif
-    break;
-  default:
-    DBUG_RETURN(1);
-  }
-  DBUG_RETURN(0);
-}
-
 my_bool STDCALL mysql_eof(MYSQL_RES *res)
 {
   return res->eof;
@@ -1380,19 +1425,9 @@ my_ulonglong STDCALL mysql_insert_id(MYSQL *mysql)
   return mysql->last_used_con->insert_id;
 }
 
-uint STDCALL mysql_errno(MYSQL *mysql)
-{
-  return mysql->net.last_errno;
-}
-
 const char *STDCALL mysql_sqlstate(MYSQL *mysql)
 {
   return mysql->net.sqlstate;
-}
-
-const char * STDCALL mysql_error(MYSQL *mysql)
-{
-  return mysql->net.last_error;
 }
 
 uint STDCALL mysql_warning_count(MYSQL *mysql)
@@ -3519,7 +3554,7 @@ my_ulonglong STDCALL mysql_stmt_num_rows(MYSQL_STMT *stmt)
     0	ok
     1	error
 */
-static my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list)
+my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list)
 {
   MYSQL *mysql;
   DBUG_ENTER("mysql_stmt_close");

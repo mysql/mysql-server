@@ -296,6 +296,10 @@ typedef struct st_mysql_res {
 #define MANAGER_CLIENT_ERR   450
 #define MANAGER_INTERNAL_ERR 500
 
+#ifndef MYSQL_SERVER
+#define MYSQL_CLIENT
+#endif
+
 
 
 typedef struct st_mysql_manager

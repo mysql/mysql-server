@@ -22,7 +22,6 @@
 #include "sql_repl.h"
 #include "sql_acl.h"
 #include "log_event.h"
-#include "mini_client.h"
 #include <my_dir.h>
 
 extern const char* any_db;

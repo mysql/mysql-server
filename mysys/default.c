@@ -174,7 +174,7 @@ void load_defaults(const char *conf_file, const char **groups,
   res= (char**) (ptr+sizeof(alloc));
 
   /* copy name + found arguments + command line arguments to new array */
-  res[0]=*argc ? argv[0][0] : "";
+  res[0]=*argc ? argv[0][0] : (char *)"";
 
   memcpy((gptr) (res+1), args.buffer, args.elements*sizeof(char*));
   /* Skipp --defaults-file and --defaults-extra-file */

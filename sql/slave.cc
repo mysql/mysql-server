@@ -20,12 +20,12 @@
 
 #include <mysql.h>
 #include <myisam.h>
-#include "mini_client.h"
 #include "slave.h"
 #include "sql_repl.h"
 #include "repl_failsafe.h"
 #include <thr_alarm.h>
 #include <my_dir.h>
+#include <sql_common.h>
 
 bool use_slave_mask = 0;
 MY_BITMAP slave_error_mask;
@@ -2948,9 +2948,10 @@ static int connect_to_master(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
 
   while (!(slave_was_killed = io_slave_killed(thd,mi)) &&
 	 (reconnect ? mysql_reconnect(mysql) != 0:
-	  !mysql_real_connect(mysql, mi->host, mi->user, mi->password, 0,
-			      mi->port, 0, client_flag,
-			      thd->variables.net_read_timeout)))
+	  !(mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, 
+			  (char *)&thd->variables.net_read_timeout),
+	    mysql_real_connect(mysql, mi->host, mi->user, mi->password, 0,
+			      mi->port, 0, client_flag))))
   {
     /* Don't repeat last error */
     if ((int)mysql_errno(mysql) != last_errno)

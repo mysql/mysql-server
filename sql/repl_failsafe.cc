@@ -23,7 +23,6 @@
 #include "sql_repl.h"
 #include "slave.h"
 #include "sql_acl.h"
-#include "mini_client.h"
 #include "log_event.h"
 #include <mysql.h>
 
@@ -669,9 +668,9 @@ int connect_to_master(THD *thd, MYSQL* mysql, MASTER_INFO* mi)
     strmov(mysql->net.last_error, "Master is not configured");
     DBUG_RETURN(1);
   }
+  mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *)&slave_net_timeout);
   if (!mysql_real_connect(mysql, mi->host, mi->user, mi->password, 0,
-			mi->port, 0, 0,
-			slave_net_timeout))
+			mi->port, 0, 0))
     DBUG_RETURN(1);
   DBUG_RETURN(0);
 }
