@@ -4190,7 +4190,10 @@ change_cond_ref_to_const(I_List<COND_CMP> *save_list,Item *and_father,
   Item *right_item= func->arguments()[1];
   Item_func::Functype functype=  func->functype();
 
-  if (right_item->eq(field,0) && left_item != value)
+  if (right_item->eq(field,0) && left_item != value &&
+      (left_item->result_type() != STRING_RESULT ||
+       value->result_type() != STRING_RESULT ||
+       left_item->collation.collation == value->collation.collation))
   {
     Item *tmp=value->new_item();
     if (tmp)
@@ -4208,7 +4211,10 @@ change_cond_ref_to_const(I_List<COND_CMP> *save_list,Item *and_father,
       func->set_cmp_func();
     }
   }
-  else if (left_item->eq(field,0) && right_item != value)
+  else if (left_item->eq(field,0) && right_item != value &&
+           (right_item->result_type() != STRING_RESULT ||
+            value->result_type() != STRING_RESULT ||
+            right_item->collation.collation == value->collation.collation))
   {
     Item *tmp=value->new_item();
     if (tmp)

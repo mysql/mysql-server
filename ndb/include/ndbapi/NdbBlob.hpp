@@ -234,14 +234,13 @@ private:
   // define blob table
   static void getBlobTableName(char* btname, const NdbTableImpl* t, const NdbColumnImpl* c);
   static void getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnImpl* c);
-  // table name
-  char theBlobTableName[BlobTableNameSize];
   // ndb api stuff
   Ndb* theNdb;
   NdbConnection* theNdbCon;
   NdbOperation* theNdbOp;
   NdbTableImpl* theTable;
   NdbTableImpl* theAccessTable;
+  NdbTableImpl* theBlobTable;
   const NdbColumnImpl* theColumn;
   char theFillChar;
   // sizes
