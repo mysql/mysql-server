@@ -160,6 +160,7 @@ static bool init_sum_functions(Item_sum **func, Item_sum **end);
 static bool update_sum_func(Item_sum **func);
 static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 			    bool distinct, const char *message=NullS);
+static Item *remove_additional_cond(Item* conds);
 
 
 /*
@@ -464,8 +465,10 @@ bool JOIN::test_in_subselect(Item **where)
       ((class Item_func *)this->conds)->functype() ==
       Item_func::COND_AND_FUNC)
   {
-    *where= conds;
-    join_tab->info= "Using index; Using where";
+    if ((*where= remove_additional_cond(conds)))
+      join_tab->info= "Using index; Using where";
+    else
+      join_tab->info= "Using index";
     return 1;
   }
   return 0;
@@ -806,6 +809,12 @@ JOIN::optimize()
     {
       join_tab[0].type= JT_INDEX_IN;
       error= 0;
+
+      if ((conds= remove_additional_cond(conds)))
+	join_tab->info= "Using index; Using where";
+      else
+	join_tab->info= "Using index";
+ 
       DBUG_RETURN(unit->item->
 		  change_engine(new subselect_indexin_engine(thd,
 							     join_tab,
@@ -3990,6 +3999,39 @@ change_cond_ref_to_const(I_List<COND_CMP> *save_list,Item *and_father,
   }
 }
 
+/*
+  Remove additional condition inserted by IN/ALL/ANY transformation
+
+  SYNOPSIS
+    remove_additional_cond()
+    conds - condition for processing
+
+  RETURN VALUES
+    new conditions
+*/
+
+static Item *remove_additional_cond(Item* conds)
+{
+  if (conds->name == in_additional_cond)
+    return 0;
+  if (conds->type() == Item::COND_ITEM)
+  {
+    Item_cond *cnd= (Item_cond*) conds;
+    List_iterator<Item> li(*(cnd->argument_list()));
+    Item *item;
+    while ((item= li++))
+    {
+      if (item->name == in_additional_cond)
+      {
+	li.remove();
+	if (cnd->argument_list()->elements == 1)
+	  return cnd->argument_list()->head();
+	return conds;
+      }
+    }
+  }
+  return conds;
+}
 
 static void
 propagate_cond_constants(I_List<COND_CMP> *save_list,COND *and_level,

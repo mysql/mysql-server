@@ -716,7 +716,7 @@ extern const char *command_name[];
 extern const char *first_keyword, *localhost, *delayed_user, *binary_keyword;
 extern const char **errmesg;			/* Error messages */
 extern const char *myisam_recover_options_str;
-extern const char *in_left_expr_name;
+extern const char *in_left_expr_name, *in_additional_cond;
 extern uchar *days_in_month;
 extern char language[LIBLEN],reg_ext[FN_EXTLEN];
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];

@@ -320,6 +320,8 @@ const char *myisam_recover_options_str="OFF";
 const char *sql_mode_str="OFF";
 /* name of reference on left espression in rewritten IN subquery */
 const char *in_left_expr_name= "<left expr>";
+/* name of additional condition */
+const char *in_additional_cond= "<IN COND>";
 
 FILE *bootstrap_file;
 
