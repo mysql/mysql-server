@@ -40841,6 +40841,13 @@ not yet 100 % confident in this code.
 @appendixsubsec Changes in release 3.23.33
 @itemize bullet
 @item
+Changed clients to use TCP/IP when -P or --port option is specified.
+@item
+Fixed bug in handling @code{STOP} event after @code{ROTATE} event in
+replication
+@item
+Fixed another buffer overrun in @code{DROP DATABASE}
+@item
 Added @code{Table_locks_immediate} and @code{Table_locks_waited} status
 variables
 @item
