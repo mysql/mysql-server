@@ -1773,7 +1773,7 @@ NdbDictionaryImpl::removeCachedObject(NdbTableImpl & impl)
  */
 NdbIndexImpl*
 NdbDictionaryImpl::getIndexImpl(const char * externalName, 
-			       const char * internalName)
+				const char * internalName)
 {
   NdbTableImpl* tab = getTableImpl(internalName);
   if(tab == 0){
@@ -1799,6 +1799,7 @@ NdbDictionaryImpl::getIndexImpl(const char * externalName,
   NdbIndexImpl* idx;
   if(NdbDictInterface::create_index_obj_from_table(&idx, tab, prim) == 0){
     idx->m_table = tab;
+    idx->m_externalName.assign(externalName);
     idx->m_internalName.assign(internalName);
     // TODO Assign idx to tab->m_index
     // Don't do it right now since assign can't asign a table with index
