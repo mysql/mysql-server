@@ -45,10 +45,10 @@ Variable_name	Value
 Handler_discover	4
 flush tables;
 delete from  t1 where id = 3;
-select * from t1;
+select * from t1 order by id;
 id	name
-2	Autodiscover
 1	Autodiscover
+2	Autodiscover
 show status like 'handler_discover%';
 Variable_name	Value
 Handler_discover	5
