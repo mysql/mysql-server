@@ -41,7 +41,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER= "12.1";
+const char *VER= "12.2";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -120,7 +120,7 @@ typedef enum enum_info_type INFO_TYPE;
 static MYSQL mysql;			/* The connection */
 static my_bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
                connected=0,opt_raw_data=0,unbuffered=0,output_tables=0,
-	       no_rehash=0,skip_updates=0,safe_updates=0,one_database=0,
+	       rehash=1,skip_updates=0,safe_updates=0,one_database=0,
 	       opt_compress=0, using_opt_local_infile=0,
 	       vertical=0, line_numbers=1, column_names=1,opt_html=0,
                opt_xml=0,opt_nopager=1, opt_outfile=0, named_cmds= 0,
@@ -451,8 +451,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, 0, 0},
   {"auto-rehash", OPT_AUTO_REHASH,
    "Enable automatic rehashing. One doesn't need to use 'rehash' to get table and field completion, but startup and reconnecting may take a longer time. Disable with --disable-auto-rehash.",
-   (gptr*) &no_rehash, (gptr*) &no_rehash, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
-   0},
+   (gptr*) &rehash, (gptr*) &rehash, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"no-auto-rehash", 'A',
    "No automatic rehashing. One has to use 'rehash' to get table and field completion. This gives a quicker start of mysql and disables rehashing on reconnect. WARNING: options depricated; use --disable-auto-rehash instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -658,6 +657,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     case OPT_PROMPT:
       my_free(current_prompt,MYF(MY_ALLOW_ZERO_PTR));
       current_prompt=my_strdup(optarg,MYF(MY_FAE));
+      break;
+    case 'A':
+      rehash= 0;
       break;
     case 'b':
       opt_nobeep = 1;
@@ -1177,7 +1179,7 @@ static char *new_command_generator(char *text,int state)
 
 /* Build up the completion hash */
 
-static void build_completion_hash(bool skip_rehash,bool write_info)
+static void build_completion_hash(bool rehash, bool write_info)
 {
   COMMANDS *cmd=commands;
   MYSQL_RES *databases=0,*tables=0;
@@ -1203,7 +1205,7 @@ static void build_completion_hash(bool skip_rehash,bool write_info)
     add_word(&ht,(char*) cmd->name);
     cmd++;
   }
-  if (skip_rehash)
+  if (!rehash)
     DBUG_VOID_RETURN;
 
   /* Free old used memory */
@@ -1342,7 +1344,7 @@ static int reconnect(void)
   {
     put_info("No connection. Trying to reconnect...",INFO_INFO);
     (void) com_connect((String *) 0, 0);
-    if(!no_rehash) com_rehash(NULL, NULL);
+    if(rehash) com_rehash(NULL, NULL);
   }
   if (!connected)
     return put_info("Can't connect to the server\n",INFO_ERROR);
@@ -2025,7 +2027,7 @@ com_rehash(String *buffer __attribute__((unused)),
 	 char *line __attribute__((unused)))
 {
 #ifdef HAVE_READLINE
-  build_completion_hash(0,0);
+  build_completion_hash(1, 0);
 #endif
   return 0;
 }
@@ -2069,7 +2071,7 @@ static int
 com_connect(String *buffer, char *line)
 {
   char *tmp,buff[256];
-  bool save_rehash=no_rehash;
+  bool save_rehash= rehash;
   int error;
 
   if (buffer)
@@ -2091,13 +2093,13 @@ com_connect(String *buffer, char *line)
       }
     }
     else
-      no_rehash=1;				// Quick re-connect
+      rehash= 0;				// Quick re-connect
     buffer->length(0);				// command used
   }
   else
-    no_rehash=1;
+    rehash= 0;
   error=sql_connect(current_host,current_db,current_user,opt_password,0);
-  no_rehash=save_rehash;
+  rehash= save_rehash;
 
   if (connected)
   {
@@ -2205,7 +2207,7 @@ com_use(String *buffer __attribute__((unused)), char *line)
       my_free(current_db,MYF(MY_ALLOW_ZERO_PTR));
       current_db=my_strdup(tmp,MYF(MY_WME));
 #ifdef HAVE_READLINE
-      build_completion_hash(no_rehash,1);
+      build_completion_hash(rehash, 1);
 #endif
     }
   }
@@ -2263,7 +2265,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   connected=1;
   mysql.reconnect=info_flag ? 1 : 0; // We want to know if this happens
 #ifdef HAVE_READLINE
-  build_completion_hash(no_rehash,1);
+  build_completion_hash(rehash, 1);
 #endif
   return 0;
 }
