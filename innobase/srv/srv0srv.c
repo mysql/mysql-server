@@ -121,12 +121,17 @@ semaphore contention and convoy problems can occur withput this restriction.
 Value 10 should be good if there are less than 4 processors + 4 disks in the
 computer. Bigger computers need bigger values. */
 
-ulint	srv_thread_concurrency	= 4;
+ulint	srv_thread_concurrency	= 8;
 
 os_fast_mutex_t	srv_conc_mutex;		/* this mutex protects srv_conc data
 					structures */
-ulint	srv_conc_n_threads	= 0;	/* number of OS threads currently
-					inside InnoDB */
+lint	srv_conc_n_threads	= 0;	/* number of OS threads currently
+					inside InnoDB; it is not an error
+					if this drops temporarily below zero
+					because we do not demand that every
+					thread increments this, but a thread
+					waiting for a lock decrements this
+					temporarily */
 
 typedef struct srv_conc_slot_struct	srv_conc_slot_t;
 struct srv_conc_slot_struct{
@@ -1646,7 +1651,7 @@ srv_conc_enter_innodb(
 
 	os_fast_mutex_lock(&srv_conc_mutex);
 
-	if (srv_conc_n_threads < srv_thread_concurrency) {
+	if (srv_conc_n_threads < (lint)srv_thread_concurrency) {
 		srv_conc_n_threads++;
 
 		os_fast_mutex_unlock(&srv_conc_mutex);
@@ -1654,7 +1659,7 @@ srv_conc_enter_innodb(
 		return;
 	}
 	
-	/* Too many threads inside: put to the current thread to a queue */
+	/* Too many threads inside: put the current thread to a queue */
 
 	for (i = 0; i < OS_THREAD_MAX_N; i++) {
 		slot = srv_conc_slots + i;
@@ -1734,11 +1739,9 @@ srv_conc_exit_innodb(void)
 
 	os_fast_mutex_lock(&srv_conc_mutex);
 
-	ut_a(srv_conc_n_threads > 0);
-	
 	srv_conc_n_threads--;
 
-	if (srv_conc_n_threads < srv_thread_concurrency) {
+	if (srv_conc_n_threads < (lint)srv_thread_concurrency) {
 		/* Look for a slot where a thread is waiting and no other
 		thread has yet released the thread */
 	
@@ -1985,16 +1988,18 @@ srv_lock_timeout_and_monitor_thread(
 	void*	arg)	/* in: a dummy parameter required by
 			os_thread_create */
 {
+	srv_slot_t*	slot;
 	double		time_elapsed;
 	time_t          current_time;
 	time_t          last_monitor_time;
+	time_t          last_table_monitor_time;
 	ibool		some_waits;
-	srv_slot_t*	slot;
 	double		wait_time;
 	ulint		i;
 
 	UT_NOT_USED(arg);
 	last_monitor_time = time(NULL);
+	last_table_monitor_time = time(NULL);
 loop:
 	srv_lock_timeout_and_monitor_active = TRUE;
 
@@ -2056,7 +2061,7 @@ loop:
 		       "ROW OPERATIONS\n"
 		       "--------------\n");
 		printf(
-	"%lu queries inside InnoDB; main thread: %s\n",
+	"%ld queries inside InnoDB; main thread: %s\n",
 				srv_conc_n_threads, srv_main_thread_op_info);
 		printf(
 	"Number of rows inserted %lu, updated %lu, deleted %lu, read %lu\n",
@@ -2083,12 +2088,13 @@ loop:
 		printf("----------------------------\n"
 		       "END OF INNODB MONITOR OUTPUT\n"
 		       "============================\n");
-
-		
             }
 
-            if (srv_print_innodb_tablespace_monitor) {
-	
+            if (srv_print_innodb_tablespace_monitor
+                && difftime(current_time, last_table_monitor_time) > 60) {
+
+		last_table_monitor_time = time(NULL);	
+
 		printf("================================================\n");
 
 		ut_print_timestamp(stdout);
@@ -2105,7 +2111,10 @@ loop:
 	       		"=======================================\n");
 	    }
 
-	    if (srv_print_innodb_table_monitor) {
+	    if (srv_print_innodb_table_monitor
+                && difftime(current_time, last_table_monitor_time) > 60) {
+
+		last_table_monitor_time = time(NULL);	
 
 		printf("===========================================\n");
 
@@ -2208,7 +2217,13 @@ loop:
 	os_thread_sleep(10000000);
 
 	sync_array_print_long_waits();
-			
+
+	/* Flush stdout and stderr so that a database user gets their output
+	to possible MySQL error file */
+
+	fflush(stderr);
+	fflush(stdout);
+
 	if (srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE) {
 
 		goto loop;
