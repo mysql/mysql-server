@@ -61,6 +61,8 @@ static int safe_sleep(THD* thd, int sec);
 static int request_table_dump(MYSQL* mysql, const char* db, const char* table);
 static int create_table_from_dump(THD* thd, NET* net, const char* db,
 				  const char* table_name);
+static int check_master_version(MYSQL* mysql, MASTER_INFO* mi);
+
 char* rewrite_db(char* db);
 
 static void free_table_ent(TABLE_RULE_ENT* e)
@@ -333,6 +335,54 @@ static int init_intvar_from_file(int* var, IO_CACHE* f, int default_val)
   return 1;
 }
 
+static int check_master_version(MYSQL* mysql, MASTER_INFO* mi)
+{
+  MYSQL_RES* res;
+  MYSQL_ROW row;
+  const char* version;
+  const char* errmsg = 0;
+  
+  if (mc_mysql_query(mysql, "SELECT VERSION()", 0)
+      || !(res = mc_mysql_store_result(mysql)))
+  {
+    sql_print_error("Error checking master version: %s",
+		    mc_mysql_error(mysql));
+    return 1;
+  }
+  if (!(row = mc_mysql_fetch_row(res)))
+  {
+    errmsg = "Master returned no rows for SELECT VERSION()";
+    goto err;
+  }
+  if (!(version = row[0]))
+  {
+    errmsg = "Master reported NULL for the version";
+    goto err;
+  }
+  
+  switch (*version)
+  {
+  case '3':
+    mi->old_format = 1;
+    break;
+  case '4':
+    mi->old_format = 0;
+    break;
+  default:
+    errmsg = "Master reported unrecognized MySQL version";
+    goto err;
+  }
+err:
+  if (res)
+    mc_mysql_free_result(res);
+  if (errmsg)
+  {
+    sql_print_error(errmsg);
+    return 1;
+  }
+  return 0;
+}
+
 
 static int create_table_from_dump(THD* thd, NET* net, const char* db,
 				  const char* table_name)
@@ -580,7 +630,7 @@ int init_master_info(MASTER_INFO* mi)
   mi->inited = 1;
   // now change the cache from READ to WRITE - must do this
   // before flush_master_info
-  reinit_io_cache(&mi->file, WRITE_CACHE, 0L,0,1);
+  reinit_io_cache(&mi->file, WRITE_CACHE,0L,0,1);
   error=test(flush_master_info(mi));
   pthread_mutex_unlock(&mi->lock);
   return error;
@@ -943,12 +993,14 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 {
   const char *error_msg;
   Log_event * ev = Log_event::read_log_event((const char*)net->read_pos + 1,
-					     event_len, &error_msg);
+					     event_len, &error_msg,
+					     mi->old_format);
   if (ev)
   {
     int type_code = ev->get_type_code();
     int exec_res;
-    if (ev->server_id == ::server_id || slave_skip_counter)
+    if (ev->server_id == ::server_id ||
+	(slave_skip_counter && ev->get_type_code() != ROTATE_EVENT))
     {
       if(type_code == LOAD_EVENT)
 	skip_load_data_infile(net);
@@ -1070,9 +1122,17 @@ connected:
   // register ourselves with the master
   // if fails, this is not fatal - we just print the error message and go
   // on with life
-  thd->proc_info = "Registering slave on master";
-  register_slave_on_master(mysql);
-  update_slave_list(mysql);
+  thd->proc_info = "Checking master version";
+  if (check_master_version(mysql, &glob_mi))
+  {
+    goto err;
+  }
+  if (!glob_mi.old_format)
+  {
+    thd->proc_info = "Registering slave on master";
+    if (register_slave_on_master(mysql) ||  update_slave_list(mysql))
+      goto err;
+  }
   
   while (!slave_killed(thd))
   {

@@ -81,7 +81,8 @@ static int find_uniq_filename(char *name)
 
 MYSQL_LOG::MYSQL_LOG(): last_time(0), query_start(0),index_file(-1),
 			name(0), log_type(LOG_CLOSED),write_error(0),
-			inited(0), log_seq(1), file_id(1),no_rotate(0)
+			inited(0), log_seq(1), file_id(1),no_rotate(0),
+			need_start_event(1)
 {
   /*
     We don't want to intialize LOCK_Log here as the thread system may
@@ -136,9 +137,11 @@ bool MYSQL_LOG::open_index( int options)
 			       MYF(MY_WME))) < 0);
 }
 
-void MYSQL_LOG::init(enum_log_type log_type_arg)
+void MYSQL_LOG::init(enum_log_type log_type_arg,
+		     enum cache_type io_cache_type_arg)
 {
   log_type = log_type_arg;
+  io_cache_type = io_cache_type_arg;
   if (!inited)
   {
     inited=1;
@@ -184,7 +187,7 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   
   if ((file=my_open(log_file_name,O_CREAT | O_APPEND | O_WRONLY | O_BINARY,
 		    MYF(MY_WME | ME_WAITTANG))) < 0 ||
-      init_io_cache(&log_file, file, IO_SIZE, WRITE_CACHE,
+      init_io_cache(&log_file, file, IO_SIZE, io_cache_type,
 		    my_tell(file,MYF(MY_WME)), 0, MYF(MY_WME | MY_NABP)))
     goto err;
 
@@ -220,6 +223,7 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   }
   else if (log_type == LOG_BIN)
   {
+      bool error;
     /*
       Explanation of the boolean black magic:
       if we are supposed to write magic number try write
@@ -232,10 +236,13 @@ void MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
       goto err;
 
     log_seq = 1;
-    Start_log_event s;
-    bool error;
-    s.set_log_seq(0, this);
-    s.write(&log_file);
+    if (need_start_event)
+    {
+      Start_log_event s;
+      s.set_log_seq(0, this);
+      s.write(&log_file);
+      need_start_event=0;
+    }
     flush_io_cache(&log_file);
     pthread_mutex_lock(&LOCK_index);
     error=(my_write(index_file, (byte*) log_file_name, strlen(log_file_name),
@@ -715,7 +722,8 @@ bool MYSQL_LOG::write(Log_event* event_info)
 	file == &log_file && flush_io_cache(file))
       goto err;
     error=0;
-    should_rotate = (file == &log_file && my_b_tell(file) >= max_binlog_size); 
+    should_rotate = (file == &log_file &&
+		     (uint)my_b_tell(file) >= max_binlog_size); 
 err:
     if (error)
     {
