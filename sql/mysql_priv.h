@@ -246,6 +246,7 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 /* Options to add_table_to_list() */
 #define TL_OPTION_UPDATING	1
 #define TL_OPTION_FORCE_INDEX	2
+#define TL_OPTION_IGNORE_LEAVES 4
 
 /* Some portable defines */
 
@@ -393,6 +394,8 @@ int mysql_analyze_table(THD* thd, TABLE_LIST* table_list,
 			HA_CHECK_OPT* check_opt);
 int mysql_optimize_table(THD* thd, TABLE_LIST* table_list,
 			 HA_CHECK_OPT* check_opt);
+int mysql_preload_keys(THD* thd, TABLE_LIST* table_list);
+
 bool check_simple_select();
 
 SORT_FIELD * make_unireg_sortorder(ORDER *order, uint *length);
@@ -584,6 +587,8 @@ enum find_item_error_report_type {REPORT_ALL_ERRORS, REPORT_EXCEPT_NOT_FOUND,
 extern const Item **not_found_item;
 Item ** find_item_in_list(Item *item, List<Item> &items, uint *counter,
 			  find_item_error_report_type report_error);
+key_map get_key_map_from_key_list(TABLE *table, 
+				  List<String> *index_list);
 bool insert_fields(THD *thd,TABLE_LIST *tables,
 		   const char *db_name, const char *table_name,
 		   List_iterator<Item> *it);

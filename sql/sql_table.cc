@@ -1331,6 +1331,7 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 	goto err;
       continue;
     }
+    table->table->pos_in_table_list= table;
     if ((table->table->db_stat & HA_READ_ONLY) && open_for_modify)
     {
       char buff[FN_REFLEN + MYSQL_ERRMSG_SIZE];
@@ -1483,6 +1484,28 @@ int mysql_optimize_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
 				"optimize", TL_WRITE, 1,0,0,
 				&handler::optimize));
+}
+
+
+/*
+  Preload specified indexes for a table into key cache
+
+  SYNOPSIS
+    mysql_preload_keys()
+    thd	        Thread object
+    tables      Table list (one table only)
+
+  RETURN VALUES
+    0	  ok
+   -1	  error
+*/
+
+int mysql_preload_keys(THD* thd, TABLE_LIST* tables)
+{
+  DBUG_ENTER("mysql_preload_keys");
+  DBUG_RETURN(mysql_admin_table(thd, tables, 0,
+				"preload_keys", TL_READ, 0, 0, 0,
+				&handler::preload_keys));
 }
 
 

@@ -199,6 +199,8 @@ sys_var_thd_ulong	sys_net_retry_count("net_retry_count",
 					    &SV::net_retry_count,
 					    fix_net_retry_count);
 sys_var_thd_bool	sys_new_mode("new", &SV::new_mode);
+sys_var_thd_ulong       sys_preload_buff_size("preload_buffer_size",
+                                              &SV::preload_buff_size);
 sys_var_thd_ulong	sys_read_buff_size("read_buffer_size",
 					   &SV::read_buff_size);
 sys_var_thd_ulong	sys_read_rnd_buff_size("read_rnd_buffer_size",
@@ -402,6 +404,7 @@ sys_var *sys_variables[]=
   &sys_net_wait_timeout,
   &sys_net_write_timeout,
   &sys_new_mode,
+  &sys_preload_buff_size,
   &sys_pseudo_thread_id,
   &sys_query_cache_size,
 #ifdef HAVE_QUERY_CACHE
@@ -573,6 +576,7 @@ struct show_var_st init_vars[]= {
   {"log_error",               (char*) log_error_file,               SHOW_CHAR},
   {"port",                    (char*) &mysql_port,                  SHOW_INT},
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
+  {sys_preload_buff_size.name, (char*) &sys_preload_buff_size,      SHOW_SYS},
   {sys_pseudo_thread_id.name, (char*) &sys_pseudo_thread_id,        SHOW_SYS},
   {sys_read_buff_size.name,   (char*) &sys_read_buff_size,	    SHOW_SYS},
   {sys_read_rnd_buff_size.name,(char*) &sys_read_rnd_buff_size,	    SHOW_SYS},
