@@ -2047,13 +2047,14 @@ err:
   return 0;
 }
 
+
 void Item_func_match::init_search(bool no_order)
 {
   if (ft_handler)
     return;
 
   if (key == NO_SUCH_KEY)
-    concat=new Item_func_concat_ws (new Item_string(" ",1), fields);
+    concat= new Item_func_concat_ws(new Item_string(" ",1), fields);
 
   if (master)
   {
@@ -2071,7 +2072,7 @@ void Item_func_match::init_search(bool no_order)
   // MATCH ... AGAINST (NULL) is meaningless, but possible
   if (!(ft_tmp=key_item()->val_str(&tmp2)))
   {
-    ft_tmp=&tmp2;
+    ft_tmp= &tmp2;
     tmp2.set("",0);
   }
 
@@ -2086,6 +2087,7 @@ void Item_func_match::init_search(bool no_order)
     return;
   }
 }
+
 
 bool Item_func_match::fix_fields(THD *thd,struct st_table_list *tlist)
 {

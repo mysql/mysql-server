@@ -57,8 +57,8 @@ void hostname_cache_refresh()
 
 bool hostname_cache_init()
 {
-  host_entry *tmp;
-  uint offset= (uint) ((char*) (&tmp->ip) - (char*) tmp);
+  host_entry tmp;
+  uint offset= (uint) ((char*) (&tmp.ip) - (char*) &tmp);
   (void) pthread_mutex_init(&LOCK_hostname,MY_MUTEX_INIT_SLOW);
 
   if (!(hostname_cache=new hash_filo(HOST_CACHE_SIZE, offset,

@@ -472,3 +472,11 @@ vio/viotest-ssl
 mysys/getopt.c
 mysys/getopt1.c
 scripts/mysql_secure_installation
+mit-pthreads/include/bits
+mit-pthreads/include/pthread/machdep.h
+mit-pthreads/include/pthread/posix.h
+mit-pthreads/include/sys
+mit-pthreads/machdep.c
+mit-pthreads/pg++
+mit-pthreads/pgcc
+scripts/mysql_tableinfo

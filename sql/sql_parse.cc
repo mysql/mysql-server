@@ -345,13 +345,12 @@ char  uc_update_queries[SQLCOM_END];
 static bool check_mqh(THD *thd, uint check_command)
 {
   bool error=0;
-  DBUG_ENTER("check_mqh");
+  time_t check_time = thd->start_time ?  thd->start_time : time(NULL);
   USER_CONN *uc=thd->user_connect;
+  DBUG_ENTER("check_mqh");
   DBUG_ASSERT(uc != 0);
 
-  bool my_start = thd->start_time != 0;
-  time_t check_time = (my_start) ?  thd->start_time : time(NULL);
-    
+  /* If more than a hour since last check, reset resource checking */
   if (check_time  - uc->intime >= 3600)
   {
     (void) pthread_mutex_lock(&LOCK_user_conn);
@@ -361,6 +360,7 @@ static bool check_mqh(THD *thd, uint check_command)
     uc->intime=check_time;
     (void) pthread_mutex_unlock(&LOCK_user_conn);
   }
+  /* Check that we have not done too many questions / hour */
   if (uc->user_resources.questions &&
       uc->questions++ >= uc->user_resources.questions)
   {
@@ -371,14 +371,15 @@ static bool check_mqh(THD *thd, uint check_command)
   }
   if (check_command < (uint) SQLCOM_END)
   {
-    if (uc->user_resources.updates && uc_update_queries[check_command]  && 
-	++(uc->updates) > uc->user_resources.updates)
-      {
-	net_printf(&thd->net, ER_USER_LIMIT_REACHED, uc->user, "max_updates",
-		   (long) uc->user_resources.updates);
-	error=1;
-	goto end;
-      }
+    /* Check that we have not done too many updates / hour */
+    if (uc->user_resources.updates && uc_update_queries[check_command] &&
+	uc->updates++ >= uc->user_resources.updates)
+    {
+      net_printf(&thd->net, ER_USER_LIMIT_REACHED, uc->user, "max_updates",
+		 (long) uc->user_resources.updates);
+      error=1;
+      goto end;
+    }
   }
 end:
   DBUG_RETURN(error);

@@ -275,7 +275,7 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts("Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB");
+  puts("Copyright (C) 2002 MySQL AB");
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,");
   puts("and you are welcome to modify and redistribute it under the GPL license\n");
 
