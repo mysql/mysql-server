@@ -337,15 +337,12 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
 static void
 sp_returns_type(THD *thd, String &result, sp_head *sp)
 {
-  struct {
-    TABLE table;
-    TABLE_SHARE share;
-  } dummy;
+  TABLE table;
   Field *field;
-  bzero(&dummy, sizeof(dummy));
-  dummy.table.in_use= thd;
-  dummy.table.s = &dummy.share;
-  field= sp->make_field(0, 0, &dummy.table);
+  bzero(&table, sizeof(table));
+  table.in_use= thd;
+  table.s = &table.share_not_to_be_used;
+  field= sp->make_field(0, 0, &table);
   field->sql_type(result);
   delete field;
 }
