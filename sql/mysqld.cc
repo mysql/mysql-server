@@ -306,6 +306,12 @@ my_bool lower_case_file_system= 0;
 my_bool opt_innodb_safe_binlog= 0;
 my_bool opt_large_pages= 0;
 uint   opt_large_page_size= 0;
+my_bool opt_old_style_user_limits= 0;
+/*
+  True if there is at least one per-hour limit for some user, so we should check
+  them before each query (and possibly reset counters when hour is changed).
+  False otherwise.
+*/
 volatile bool mqh_used = 0;
 my_bool sp_automatic_privileges= 1;
 
@@ -4215,7 +4221,8 @@ enum options_mysqld
   OPT_SP_AUTOMATIC_PRIVILEGES,
   OPT_AUTO_INCREMENT, OPT_AUTO_INCREMENT_OFFSET,
   OPT_ENABLE_LARGE_PAGES,
-  OPT_TIMED_MUTEXES
+  OPT_TIMED_MUTEXES,
+  OPT_OLD_STYLE_USER_LIMITS
 };
 
 
@@ -4655,6 +4662,10 @@ Disable with --skip-ndbcluster (will save memory).",
    "Only use one thread (for debugging under Linux).", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"old-style-user-limits", OPT_OLD_STYLE_USER_LIMITS,
+   "Enable old-style user limits (before 5.0.3 user resources were counted per each user+host vs. per account)",
+   (gptr*) &opt_old_style_user_limits, (gptr*) &opt_old_style_user_limits,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"pid-file", OPT_PID_FILE, "Pid file used by safe_mysqld.",
    (gptr*) &pidfile_name_ptr, (gptr*) &pidfile_name_ptr, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},

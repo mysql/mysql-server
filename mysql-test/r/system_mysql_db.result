@@ -102,6 +102,7 @@ user	CREATE TABLE `user` (
   `max_questions` int(11) unsigned NOT NULL default '0',
   `max_updates` int(11) unsigned NOT NULL default '0',
   `max_connections` int(11) unsigned NOT NULL default '0',
+  `max_user_connections` int(11) unsigned NOT NULL default '0',
   PRIMARY KEY  (`Host`,`User`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='Users and global privileges'
 show create table func;

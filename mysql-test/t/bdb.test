@@ -42,8 +42,13 @@ update ignore t1 set id=id+1; # This will change all rows
 select * from t1;
 update ignore t1 set id=1023 where id=1010;
 select * from t1 where parent_id=102 order by parent_id,id;
+# Here and below the differences in result are caused by difference in 
+# floating point calculations performed in BDB handler. 
+--replace_result 5 X 6 X
 explain select level from t1 where level=1;
+--replace_result 5 X 6 X
 explain select level,id from t1 where level=1;
+--replace_result 5 X 6 X
 explain select level,id,parent_id from t1 where level=1;
 select level,id from t1 where level=1;
 select level,id,parent_id from t1 where level=1;
@@ -349,6 +354,7 @@ update ignore t1 set id=id+1; # This will change all rows
 select * from t1;
 update ignore t1 set id=1023 where id=1010;
 select * from t1 where parent_id=102;
+--replace_result 5 X 6 X
 explain select level from t1 where level=1;
 select level,id from t1 where level=1;
 select level,id,parent_id from t1 where level=1;
