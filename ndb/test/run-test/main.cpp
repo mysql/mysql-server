@@ -106,13 +106,6 @@ main(int argc, const char ** argv){
   if(!setup_hosts(g_config))
     goto end;
 
-  if(!start_processes(g_config, atrt_process::NDB_MGM))
-    goto end;
-
-  if(!connect_ndb_mgm(g_config)){
-    goto end;
-  }
-
   /**
    * Main loop
    */
@@ -122,25 +115,32 @@ main(int argc, const char ** argv){
      */
     if(restart){
       g_logger.info("(Re)starting ndb processes");
+      if(!stop_processes(g_config, atrt_process::NDB_MGM))
+	goto end;
+
       if(!stop_processes(g_config, atrt_process::NDB_DB))
 	goto end;
 
-      if(!wait_ndb(g_config, NDB_MGM_NODE_STATUS_NO_CONTACT))
+      if(!start_processes(g_config, atrt_process::NDB_MGM))
 	goto end;
+      
+      if(!connect_ndb_mgm(g_config)){
+	goto end;
+      }
       
       if(!start_processes(g_config, atrt_process::NDB_DB))
 	goto end;
-
+      
       if(!wait_ndb(g_config, NDB_MGM_NODE_STATUS_NOT_STARTED))
         goto end;
-
+      
       for(Uint32 i = 0; i<3; i++)      
         if(wait_ndb(g_config, NDB_MGM_NODE_STATUS_STARTED))
 	  goto started;
-
+      
       goto end;
-
-started:
+      
+    started:
       g_logger.info("Ndb start completed");
     }
     
@@ -984,3 +984,5 @@ setup_hosts(atrt_config& config){
   }
   return true;
 }
+
+template class Vector<const ParserRow<SimpleCpcClient::ParserDummy>*>;

@@ -1127,13 +1127,14 @@ bool acl_check_host(const char *host, const char *ip)
       1		ERROR  ; In this case the error is sent to the client.
 */
 
-bool check_change_password(THD *thd, const char *host, const char *user)
+bool check_change_password(THD *thd, const char *host, const char *user,
+                           char *new_password)
 {
   if (!initialized)
   {
     net_printf(thd,ER_OPTION_PREVENTS_STATEMENT,
-             "--skip-grant-tables"); /* purecov: inspected */
-    return(1);                             /* purecov: inspected */
+             "--skip-grant-tables");
+    return(1);
   }
   if (!thd->slave_thread &&
       (strcmp(thd->user,user) ||
@@ -1146,6 +1147,15 @@ bool check_change_password(THD *thd, const char *host, const char *user)
   {
     send_error(thd, ER_PASSWORD_ANONYMOUS_USER);
     return(1);
+  }
+  uint len=strlen(new_password);
+  if (len && len != SCRAMBLED_PASSWORD_CHAR_LENGTH &&
+      len != SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
+  {
+    net_printf(thd, 0,
+               "Password hash should be a %d-digit hexadecimal number",
+               SCRAMBLED_PASSWORD_CHAR_LENGTH);
+    return -1;
   }
   return(0);
 }
@@ -1174,7 +1184,7 @@ bool change_password(THD *thd, const char *host, const char *user,
 		      host,user,new_password));
   DBUG_ASSERT(host != 0);			// Ensured by parent
 
-  if (check_change_password(thd, host, user))
+  if (check_change_password(thd, host, user, new_password))
     DBUG_RETURN(1);
 
   VOID(pthread_mutex_lock(&acl_cache->lock));
@@ -1433,7 +1443,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
     if (combo.password.length != SCRAMBLED_PASSWORD_CHAR_LENGTH &&
         combo.password.length != SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
     {
-      my_printf_error(ER_PASSWORD_NO_MATCH,
+      my_printf_error(ER_UNKNOWN_ERROR,
                       "Password hash should be a %d-digit hexadecimal number",
                       MYF(0), SCRAMBLED_PASSWORD_CHAR_LENGTH);
       DBUG_RETURN(-1);

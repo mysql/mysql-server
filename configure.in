@@ -396,7 +396,7 @@ then
   # we will gets some problems when linking static programs.
   # The following code is used to fix this problem.
 
-  if test "$CXX" = "gcc" -o "$CXX" = "ccache gcc"
+  if echo $CXX | grep gcc > /dev/null 2>&1
   then
     if $CXX -v 2>&1 | grep 'version 3' > /dev/null 2>&1
     then
@@ -664,15 +664,6 @@ AC_ARG_WITH(named-curses-libs,
     [ with_named_curses=no ]
     )
 
-# Force use of a zlib (compress)
-AC_ARG_WITH(named-z-libs,
-    [  --with-named-z-libs=ARG
-                          Use specified zlib libraries instead of
-                          those automatically found by configure.],
-    [ with_named_zlib=$withval ],
-    [ with_named_zlib=z ]
-    )
-
 # Make thread safe client
 AC_ARG_ENABLE(thread-safe-client,
     [  --enable-thread-safe-client   
@@ -806,16 +797,7 @@ AC_CHECK_FUNC(crypt, AC_DEFINE([HAVE_CRYPT], [1], [crypt]))
 
 # For sem_xxx functions on Solaris 2.6
 AC_CHECK_FUNC(sem_init, , AC_CHECK_LIB(posix4, sem_init))
-
-# For compress in zlib
-case $SYSTEM_TYPE in
-  *netware* | *modesto*)
-    AC_DEFINE(HAVE_COMPRESS, [1])
-    ;;
-  *)
-    MYSQL_CHECK_ZLIB_WITH_COMPRESS($with_named_zlib)
-    ;;
-esac
+MYSQL_CHECK_ZLIB_WITH_COMPRESS
 
 #--------------------------------------------------------------------
 # Check for TCP wrapper support
@@ -945,7 +927,7 @@ then
 fi
 # We make a special variable for client library's to avoid including
 # thread libs in the client.
-NON_THREADED_CLIENT_LIBS="$LIBS"
+NON_THREADED_CLIENT_LIBS="$LIBS $ZLIB_LIBS"
 
 AC_MSG_CHECKING([for int8])
 case $SYSTEM_TYPE in
@@ -2580,7 +2562,7 @@ case $default_charset in
       ;;
     cp1250)
       default_charset_default_collation="cp1250_general_ci"
-      default_charset_collations="cp1250_general_ci cp1250_czech_ci cp1250_bin"
+      default_charset_collations="cp1250_general_ci cp1250_czech_cs cp1250_bin"
       ;;
     cp1251)
       default_charset_default_collation="cp1251_general_ci"
@@ -2656,7 +2638,7 @@ case $default_charset in
       ;;
     latin2)
       default_charset_default_collation="latin2_general_ci"
-      default_charset_collations="latin2_general_ci latin2_bin latin2_czech_ci latin2_hungarian_ci latin2_croatian_ci"
+      default_charset_collations="latin2_general_ci latin2_bin latin2_czech_cs latin2_hungarian_ci latin2_croatian_ci"
       ;;
     latin5)
       default_charset_default_collation="latin5_turkish_ci"
@@ -2979,10 +2961,10 @@ then
   if test "$with_debug" = "yes"
   then
     # Medium debug.
-    NDB_DEFS="-DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
+    NDB_DEFS="-DNDB_DEBUG -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
   elif test "$with_debug" = "full"
   then
-    NDB_DEFS="-DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
+    NDB_DEFS="-DNDB_DEBUG_FULL -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
   else
     NDB_DEFS="-DNDEBUG"
   fi
@@ -3082,6 +3064,7 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  include/mysql_version.h dnl
  cmd-line-utils/Makefile dnl
  cmd-line-utils/libedit/Makefile dnl
+ zlib/Makefile dnl
  cmd-line-utils/readline/Makefile)
  AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h)
  AC_OUTPUT

@@ -32,49 +32,35 @@ enum MgmtSrvrId_Type {
 
 struct MgmtSrvrId {
   MgmtSrvrId_Type type;
-  union {
-    struct {
-      char * remoteHost;
-      unsigned int port;
-    } tcp;
-    struct {
-      char * filename;
-    } file;
-  } data;
+  BaseString name;
+  unsigned int port;
 };
 
 struct LocalConfig {
 
   int _ownNodeId;
-
-  int size;
-  int items;
-  MgmtSrvrId ** ids;
-
+  Vector<MgmtSrvrId> ids;
+  
   int error_line;
   char error_msg[256];
 
   LocalConfig();
   ~LocalConfig();
-  bool init(bool onlyNodeId = false,
-	    const char *connectString = 0,
-	    const char *fileName = 0,
-	    const char *defaultConnectString = 0);
-
-  void add(MgmtSrvrId *i);
+  bool init(const char *connectString = 0,
+	    const char *fileName = 0);
 
   void printError() const;
   void printUsage() const;
 
   void setError(int lineNumber, const char * _msg);
-  bool readConnectString(const char * connectString, bool onlyNodeId = false);  
-  bool readFile(const char * filename, bool &fopenError, bool onlyNodeId = false);
+  bool readConnectString(const char *);  
+  bool readFile(const char * file, bool &fopenError);
   bool parseLine(char * line, int lineNumber);
-
+  
   bool parseNodeId(const char *buf);
   bool parseHostName(const char *buf);
   bool parseFileName(const char *buf);
-  bool parseString(const char *buf, bool onlyNodeId, char *line);
+  bool parseString(const char *buf, char *line);
 };
 
 #endif // LocalConfig_H

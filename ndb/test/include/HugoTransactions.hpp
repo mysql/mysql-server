@@ -34,7 +34,8 @@ public:
 		int records,
 		int batch = 512,
 		bool allowConstraintViolation = true,
-		int doSleep = 0);
+		int doSleep = 0,
+                bool oneTrans = false);
   int scanReadRecords(Ndb*, 
 		      int records,
 		      int abort = 0,

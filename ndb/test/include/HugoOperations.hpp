@@ -58,9 +58,6 @@ public:
 		     int recordNo,
 		     int numRecords = 1);
   
-  NdbResultSet* scanReadRecords(Ndb* pNdb, ScanLock lock = SL_Read);
-  int readTuples(NdbResultSet*);
-
   int execute_Commit(Ndb*, 
 		     AbortOption ao = AbortOnError);
   int execute_NoCommit(Ndb*,
@@ -92,7 +89,11 @@ public:
 			int recordNo,
 			int numRecords = 1,
 			int updatesValue = 0);
-  
+
+  int scanReadRecords(Ndb*, NdbScanOperation::LockMode = 
+		      NdbScanOperation::LM_CommittedRead, 
+		      int numRecords = 1);
+
 protected:
   void allocRows(int rows);
   void deallocRows();
@@ -101,6 +102,10 @@ protected:
   HugoCalculator calc;
 
   Vector<BaseString> savedRecords;
+
+  struct RsPair { NdbResultSet* m_result_set; int records; };
+  Vector<RsPair> m_result_sets;
+  Vector<RsPair> m_executed_result_sets;
 private:
   NdbConnection* pTrans;
 };

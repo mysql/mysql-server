@@ -15,7 +15,7 @@ col2 varchar(30) not null,
 col3 varchar (20) not null,
 col4 varchar(4) not null,
 col5 enum('PENDING', 'ACTIVE', 'DISABLED') not null,
-col6 int not null, to_be_deleted int);
+col6 int not null, to_be_deleted int) ENGINE=ndbcluster;
 insert into t1 values (2,4,3,5,"PENDING",1,7), (NULL,4,3,5,"PENDING",1,7), (25, 4,3,5,"PENDING",1,7), (NULL,4,3,5,"PENDING",1,7);
 select * from t1 order by col1;
 col1	col2	col3	col4	col5	col6	to_be_deleted

@@ -47,10 +47,6 @@ handler(int sig){
 
 int main(int argc, const char** argv){
   int optind = 0;
-  char _default_connectstring_buf[256];
-  snprintf(_default_connectstring_buf, sizeof(_default_connectstring_buf),
-	   "host=localhost:%u", NDB_BASE_PORT);
-  const char *_default_connectstring= _default_connectstring_buf;
   const char *_host = 0;
   int _port = 0;
   int _help = 0;
@@ -79,9 +75,9 @@ int main(int argc, const char** argv){
       _port = atoi(argv[1]);
     }
   } else {
-    if(cfg.init(false, 0, 0, _default_connectstring) && cfg.items > 0 && cfg.ids[0]->type == MgmId_TCP){
-      _host = cfg.ids[0]->data.tcp.remoteHost;
-      _port = cfg.ids[0]->data.tcp.port;
+    if(cfg.init(0, 0) && cfg.ids.size() > 0 && cfg.ids[0].type == MgmId_TCP){
+      _host = cfg.ids[0].name.c_str();
+      _port = cfg.ids[0].port;
     } else {
       cfg.printError();
       cfg.printUsage();

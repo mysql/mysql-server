@@ -1170,6 +1170,7 @@ deleteScan(bool idx)
 static int
 testmain()
 {
+  int style;
   g_ndb = new Ndb("TEST_DB");
   CHK(g_ndb->init() == 0);
   CHK(g_ndb->waitUntilReady() == 0);
@@ -1197,7 +1198,7 @@ testmain()
     if (g_opt.m_seed == 0)
       srandom(g_loop);
     // pk
-    for (int style = 0; style <= 2; style++) {
+    for (style = 0; style <= 2; style++) {
       if (skipcase('k') || skipstyle(style))
         continue;
       DBG("--- pk ops " << stylename[style] << " ---");
@@ -1215,7 +1216,7 @@ testmain()
       CHK(verifyBlob() == 0);
     }
     // hash index
-    for (int style = 0; style <= 2; style++) {
+    for (style = 0; style <= 2; style++) {
       if (skipcase('i') || skipstyle(style))
         continue;
       DBG("--- idx ops " << stylename[style] << " ---");
@@ -1233,7 +1234,7 @@ testmain()
       CHK(verifyBlob() == 0);
     }
     // scan table
-    for (int style = 0; style <= 2; style++) {
+    for (style = 0; style <= 2; style++) {
       if (skipcase('s') || skipstyle(style))
         continue;
       DBG("--- table scan " << stylename[style] << " ---");
@@ -1249,7 +1250,7 @@ testmain()
       CHK(verifyBlob() == 0);
     }
     // scan index
-    for (int style = 0; style <= 2; style++) {
+    for (style = 0; style <= 2; style++) {
       if (skipcase('r') || skipstyle(style))
         continue;
       DBG("--- index scan " << stylename[style] << " ---");
@@ -1274,6 +1275,7 @@ testmain()
 static int
 bugtest_4088()
 {
+  unsigned i;
   DBG("bug test 4088 - ndb api hang with mixed ops on index table");
   // insert rows
   calcTups(false);
@@ -1285,7 +1287,7 @@ bugtest_4088()
     // read table pk via index as a table
     const unsigned pkcnt = 2;
     Tup pktup[pkcnt];
-    for (unsigned i = 0; i < pkcnt; i++) {
+    for (i = 0; i < pkcnt; i++) {
       char name[20];
       // XXX guess table id
       sprintf(name, "%d/%s", 4, g_opt.m_x1name);
@@ -1304,7 +1306,7 @@ bugtest_4088()
     // BUG 4088: gets 1 tckeyconf, 1 tcindxconf, then hangs
     CHK(g_con->execute(Commit) == 0);
     // verify
-    for (unsigned i = 0; i < pkcnt; i++) {
+    for (i = 0; i < pkcnt; i++) {
       CHK(pktup[i].m_pk1 == tup.m_pk1);
       CHK(memcmp(pktup[i].m_pk2, tup.m_pk2, g_opt.m_pk2len) == 0);
     }

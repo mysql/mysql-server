@@ -19,15 +19,8 @@
 #pragma interface			/* gcc class interface */
 #endif
 
-/* 
-  Portable time_t replacement. 
-  Should be signed and hold seconds for 1902-2038 range.
-*/
-typedef long my_time_t;
-#define MY_TIME_T_MAX LONG_MAX
-#define MY_TIME_T_MIN LONG_MIN
-
 #if !defined(TESTTIME) && !defined(TZINFO2SQL)
+
 /*
   This class represents abstract time zone and provides 
   basic interface for TIME <-> my_time_t conversion.

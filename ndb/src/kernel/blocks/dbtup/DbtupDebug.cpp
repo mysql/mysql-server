@@ -201,6 +201,10 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
 	ndbrequire(chunk.pageCount <= alloc);
 	if(chunk.pageCount != 0){
 	  chunks.push_back(chunk);
+	  if(chunk.pageCount != alloc) {
+	    ndbout_c("  Tried to allocate %d - only allocated %d - free: %d",
+		     alloc, chunk.pageCount, free);
+	  }
 	} else {
 	  ndbout_c("  Failed to alloc %d pages with %d pages free",
 		   alloc, free);
@@ -212,6 +216,9 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
 	  ptrCheckGuard(pagePtr, cnoOfPage, page);
 	  pagePtr.p->pageWord[ZPAGE_STATE_POS] = ~ZFREE_COMMON;
 	}
+
+	if(alloc == 1 && free > 0)
+	  ndbrequire(chunk.pageCount == alloc);
       }
 	break;
       }
@@ -238,11 +245,12 @@ void Dbtup::execMEMCHECKREQ(Signal* signal)
 
   ljamEntry();
   BlockReference blockref = signal->theData[0];
-  for (Uint32 i = 0; i < 25; i++) {
+  Uint32 i;
+  for (i = 0; i < 25; i++) {
     ljam();
     data[i] = 0;
   }//for
-  for (Uint32 i = 0; i < 16; i++) {
+  for (i = 0; i < 16; i++) {
     regPagePtr.i = cfreepageList[i];
     ljam();
     while (regPagePtr.i != RNIL) {
