@@ -1457,20 +1457,21 @@ automatically give you the right to use @code{MySQL AB} trademarks.
 @subsubsection Using the MySQL Software Under a Commercial License
 
 The @code{GPL} license is contagious in the sense that when a program
-is linked to a @code{GPL} program the resulting product must also be
-released under @code{GPL} lest you break the license terms and forfeit
-your right to use the @code{GPL} program altogether.
+is linked to a @code{GPL} program all the source code for all the parts
+of the resulting product must also be released under the @code{GPL}.
+Otherwise you break the license terms and forfeit your right to use the
+@code{GPL} program altogether and also risk damages.
 
 You need a commercial license:
 
 @itemize @bullet
 @item
-When you link a program with code from the @code{MySQL} software or from
-@code{GPL} released clients and don't want the resulting product to be
-@code{GPL}, maybe because you want to build a commercial product or keep
-the added non-@code{GPL} code closed source for other reasons. When
-purchasing commercial licenses, you are not using the @code{MySQL} software
-under @code{GPL} even though it's the same code.
+When you link a program with any @code{GPL} code from the @code{MySQL}
+software and don't want the resulting product to be @code{GPL}, maybe
+because you want to build a commercial product or keep the added
+non-@code{GPL} code closed source for other reasons. When purchasing
+commercial licenses, you are not using the @code{MySQL} software under
+@code{GPL} even though it's the same code.
 
 @item
 When you distribute a non-@code{GPL} application that @strong{only} works with the
@@ -1509,37 +1510,39 @@ please contact our sales staff at @email{sales@@mysql.com}.
 @cindex licensing, free
 @cindex free licensing
 
-You can use the @code{MySQL} software for free under the @code{GPL}:
+You can use the @code{MySQL} software for free under the @code{GPL} if
+you adhere to the conditions of the @code{GPL}.
+For more complete coverage of the common questions about the @code{GPL}
+see the generic FAQ from the Free Software Foundation at
+@uref{http://www.gnu.org/licenses/gpl-faq.html}.
+Some common cases:
 
 @itemize @bullet
 @item
-When you link a program with code from the @code{MySQL} software and
-release the resulting product under @code{GPL}.
+When you distribute both your own application as well as the @code{MySQL}
+source code under the @code{GPL} with your product.
 
 @item
-When you distribute the @code{MySQL} source code bundled with
-other programs that are not linked to or dependent on @code{MySQL Server}
+When you distribute the @code{MySQL} source code bundled with other
+programs that are not linked to or dependent on the @code{MySQL} system
 for their functionality even if you sell the distribution commercially.
+This is called mere aggregation in the @code{GPL} license.
 
 @item
-When using the @code{MySQL} software internally in your company.
+If you are not distributing @strong{any} part of the @code{MySQL}
+system, you can use it for free.
 
 @item
 @cindex ISP services
 @cindex services, ISP
 @cindex services, web
 @cindex Internet Service Providers
-When you are an Internet Service Provider (ISPs) offering web
-hosting with @code{MySQL} servers for your customers.
-On the other hand, we do encourage people to use ISPs that have
-@code{MySQL} support, as this will give them the confidence that if
-they have some problem with the @code{MySQL} installation, their ISP
-will in fact have the resources to solve the problem for them.
-
-All ISPs that want to keep themselves up-to-date should subscribe
-to our @code{announce} mailing list so that they can be aware of
-critical issues that may be relevant for their @code{MySQL} installations.
-
+When you are an Internet Service Provider (ISP), offering web hosting
+with @code{MySQL} servers for your customers.
+However, we do encourage people to use ISPs that have MySQL support,
+as this will give them the confidence that if they have some problem
+with the @code{MySQL} installation, their ISP will in fact have the
+resources to solve the problem for them.
 Note that even if an ISP does not have a commercial license for
 @code{MySQL Server}, they should at least give their customers read
 access to the source of the @code{MySQL} installation so that the
@@ -1548,12 +1551,13 @@ customers can verify that it is patched correctly.
 @item
 @cindex web server, running
 @cindex running a web server
-When you use the @code{MySQL} Database Software  in conjunction with
-a web server, you do not need a commercial license. This is true even
-if you run a commercial web server that uses @code{MySQL Server}, because
-you are not selling an embedded @code{MySQL} version yourself.  However,
-in this case we would like you to purchase @code{MySQL} support because
-the @code{MySQL} software is helping your enterprise.
+When you use the @code{MySQL} Database Software in conjunction with a
+web server, you do not need a commercial license (so long as it is not
+a product you distribute). This is true even if you run a commercial
+web server that uses @code{MySQL Server}, because you are not
+distributing any part of the @code{MySQL} system. However, in this
+case we would like you to purchase @code{MySQL} support because the
+@code{MySQL} software is helping your enterprise.
 @end itemize
 
 If your use of @code{MySQL} database software does not require a commercial
