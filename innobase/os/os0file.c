@@ -15,9 +15,6 @@ Created 10/21/1995 Heikki Tuuri
 #include "fil0fil.h"
 #include "buf0buf.h"
 
-#include <sys/types.h>
-#include <sys/stat.h>
-
 #undef HAVE_FDATASYNC
 
 #ifdef POSIX_ASYNC_IO
