@@ -137,7 +137,7 @@ a	t
 explain select count(*) from t1 as tt1, (select * from t1) as tt2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
-2	DERIVED	tt1	index	NULL	a	4	NULL	10000	Using index
+2	DERIVED	tt1	ALL	NULL	NULL	NULL	NULL	10000	
 drop table t1;
 SELECT * FROM (SELECT (SELECT * FROM (SELECT 1 as a) as a )) as b;
 (SELECT * FROM (SELECT 1 as a) as a )
