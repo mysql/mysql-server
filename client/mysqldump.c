@@ -35,7 +35,7 @@
 ** and adapted to mysqldump 05/11/01 by Jani Tolonen
 */
 
-#define DUMP_VERSION "8.21"
+#define DUMP_VERSION "8.22"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -1189,7 +1189,7 @@ static void dumpTable(uint numFields, char *table)
 	fputs(");\n", md_result_file);
     }
 
-    //XML - close table tag and supress regular output
+    /* XML - close table tag and supress regular output */
     if (opt_xml)
 	fprintf(md_result_file, "\t</%s>\n", table);
     else if (extended_insert && row_break)
@@ -1292,7 +1292,7 @@ static int dump_databases(char **db_names)
   int result=0;
   for ( ; *db_names ; db_names++)
   {
-    //XML edit - add database element
+    /* XML edit - add database element */
     if (opt_xml)
       fprintf(md_result_file, "<%s>\n", *db_names);
     if (dump_all_tables_in_db(*db_names))
