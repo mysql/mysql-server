@@ -47,6 +47,8 @@
 #include "NodeLogLevel.hpp"
 #include <NdbConfig.h>
 
+#include <NdbAutoPtr.hpp>
+
 #include <mgmapi.h>
 #include <mgmapi_configuration.hpp>
 #include <mgmapi_config_parameters.h>
@@ -240,10 +242,9 @@ MgmtSrvr::startEventLog()
   
   const char * tmp;
   BaseString logdest;
-  char clusterLog[MAXPATHLEN];
-  NdbConfig_ClusterLogFileName(clusterLog, sizeof(clusterLog));
-  
-  
+  char *clusterLog= NdbConfig_ClusterLogFileName(_ownNodeId);
+  NdbAutoPtr<char> tmp_aptr(clusterLog);
+
   if(ndb_mgm_get_string_parameter(iter, CFG_LOG_DESTINATION, &tmp) == 0){
     logdest.assign(tmp);
   }
@@ -2325,7 +2326,7 @@ MgmtSrvr::getFreeNodeId(NodeId * nodeId, enum ndb_mgm_node_type type,
 
     //  getsockname(int s, struct sockaddr *name, socklen_t *namelen);
 
-   if (config_hostname && config_hostname[0] != 0) {
+   if (config_hostname && config_hostname[0] != 0 && client_addr) {
      // check hostname compatability
      struct in_addr config_addr;
      if(Ndb_getInAddr(&config_addr, config_hostname) != 0

@@ -124,6 +124,7 @@ ParserRow<MgmApiSession> commands[] = {
   MGM_CMD("get nodeid", &MgmApiSession::get_nodeid, ""),
     MGM_ARG("version", Int, Mandatory, "Configuration version number"),
     MGM_ARG("nodetype", Int, Mandatory, "Node type"),
+    MGM_ARG("transporter", String, Optional, "Transporter type"),
     MGM_ARG("nodeid", Int, Optional, "Node ID"),
     MGM_ARG("user", String, Mandatory, "Password"),
     MGM_ARG("password", String, Mandatory, "Password"),
@@ -359,12 +360,14 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
 {
   const char *cmd= "get nodeid reply";
   Uint32 version, nodeid= 0, nodetype= 0xff;
+  const char * transporter;
   const char * user;
   const char * password;
   const char * public_key;
 
   args.get("version", &version);
   args.get("nodetype", &nodetype);
+  args.get("transporter", &transporter);
   args.get("nodeid", &nodeid);
   args.get("user", &user);
   args.get("password", &password);
@@ -388,9 +391,10 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
 
   struct sockaddr addr;
   socklen_t addrlen;
-  if (getsockname(m_socket, &addr, &addrlen)) {
+  int r;
+  if (r= getsockname(m_socket, &addr, &addrlen)) {
     m_output->println(cmd);
-    m_output->println("result: getsockname(%d)", m_socket);
+    m_output->println("result: getsockname(%d) failed, err= %d", m_socket, r);
     m_output->println("");
     return;
   }

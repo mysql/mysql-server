@@ -99,6 +99,8 @@ private:
   char *                m_connectString;
   char *                m_defaultConnectString;
 
+  NdbMgmHandle m_handle;
+
   /**
    * Verify config
    */

@@ -37,6 +37,8 @@
 #include <mgmapi_config_parameters.h>
 #include <getarg.h>
 
+#include <NdbAutoPtr.hpp>
+
 #if defined NDB_OSE || defined NDB_SOFTOSE
 #include <efs.h>
 #else
@@ -217,10 +219,10 @@ NDB_MAIN(mgmsrv){
 
   if (glob.daemon) {
     // Become a daemon
-    char homePath[255],lockfile[255], logfile[255];
-    NdbConfig_HomePath(homePath, 255);
-    snprintf(lockfile, 255, "%snode%d.pid", homePath, glob.localNodeId);
-    snprintf(logfile, 255, "%snode%d.out", homePath, glob.localNodeId);
+    char *lockfile= NdbConfig_PidFileName(glob.localNodeId);
+    char *logfile=  NdbConfig_StdoutFileName(glob.localNodeId);
+    NdbAutoPtr<char> tmp_aptr1(lockfile), tmp_aptr2(logfile);
+
     if (NdbDaemon_Make(lockfile, logfile, 0) == -1) {
       ndbout << "Cannot become daemon: " << NdbDaemon_ErrorText << endl;
       return 1;

@@ -443,7 +443,7 @@ IPCConfig::configureTransporters(Uint32 nodeId,
       
       if (nodeId <= nodeId1 && nodeId <= nodeId2) {
 	if (server_port && server_port != conf.port) {
-	  ndbout << "internal error in config setup line=" << __LINE__ << endl;
+	  ndbout << "internal error in config setup of server ports line= " << __LINE__ << endl;
 	  exit(-1);
 	}
 	server_port= conf.port;
