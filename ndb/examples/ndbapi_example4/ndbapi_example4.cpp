@@ -49,6 +49,22 @@ int main()
   Ndb_cluster_connection *cluster_connection=
     new Ndb_cluster_connection(); // Object representing the cluster
 
+  int r= cluster_connection->connect(5 /* retries               */,
+				     3 /* delay between retries */,
+				     1 /* verbose               */);
+  if (r > 0)
+  {
+    std::cout
+      << "Cluster connect failed, possibly resolved with more retries.\n";
+    exit(-1);
+  }
+  else if (r < 0)
+  {
+    std::cout
+      << "Cluster connect failed.\n";
+    exit(-1);
+  }
+					   
   if (cluster_connection->wait_until_ready(30,30))
   {
     std::cout << "Cluster was not ready within 30 secs." << std::endl;
@@ -61,24 +77,16 @@ int main()
   NdbDictionary::Column myColumn;
   NdbDictionary::Index myIndex;
 
-  NdbConnection	 	*myConnection;     // For transactions
+  NdbTransaction	*myTransaction;     // For transactions
   NdbOperation	 	*myOperation;      // For primary key operations
   NdbIndexOperation	*myIndexOperation; // For index operations
   NdbRecAttr     	*myRecAttr;        // Result of reading attribute value
   
-  /********************************************
-   * Initialize NDB and wait until it's ready *
-   ********************************************/
   if (myNdb->init() == -1) { 
     APIERROR(myNdb->getNdbError());
     exit(-1);
   }
 
-  if (myNdb->waitUntilReady(30) != 0) {
-    std::cout << "NDB was not ready within 30 secs." << std::endl;
-    exit(-1);
-  }
-  
   /*********************************************************
    * Create a table named MYTABLENAME if it does not exist *
    *********************************************************/
@@ -130,27 +138,27 @@ int main()
    * Using 5 transactions, insert 10 tuples in table: (0,0),(1,1),...,(9,9) *
    **************************************************************************/
   for (int i = 0; i < 5; i++) {
-    myConnection = myNdb->startTransaction();
-    if (myConnection == NULL) APIERROR(myNdb->getNdbError());
+    myTransaction = myNdb->startTransaction();
+    if (myTransaction == NULL) APIERROR(myNdb->getNdbError());
     
-    myOperation = myConnection->getNdbOperation("MYTABLENAME");	
-    if (myOperation == NULL) APIERROR(myConnection->getNdbError());
+    myOperation = myTransaction->getNdbOperation("MYTABLENAME");	
+    if (myOperation == NULL) APIERROR(myTransaction->getNdbError());
     
     myOperation->insertTuple();
     myOperation->equal("ATTR1", i);
     myOperation->setValue("ATTR2", i);
 
-    myOperation = myConnection->getNdbOperation("MYTABLENAME");	
-    if (myOperation == NULL) APIERROR(myConnection->getNdbError());
+    myOperation = myTransaction->getNdbOperation("MYTABLENAME");	
+    if (myOperation == NULL) APIERROR(myTransaction->getNdbError());
 
     myOperation->insertTuple();
     myOperation->equal("ATTR1", i+5);
     myOperation->setValue("ATTR2", i+5);
     
-    if (myConnection->execute( Commit ) == -1)
-      APIERROR(myConnection->getNdbError());
+    if (myTransaction->execute( Commit ) == -1)
+      APIERROR(myTransaction->getNdbError());
     
-    myNdb->closeTransaction(myConnection);
+    myNdb->closeTransaction(myTransaction);
   }
   
   /*****************************************
@@ -159,63 +167,63 @@ int main()
   std::cout << "ATTR1 ATTR2" << std::endl;
   
   for (int i = 0; i < 10; i++) {
-    myConnection = myNdb->startTransaction();
-    if (myConnection == NULL) APIERROR(myNdb->getNdbError());
+    myTransaction = myNdb->startTransaction();
+    if (myTransaction == NULL) APIERROR(myNdb->getNdbError());
     
-    myIndexOperation = myConnection->getNdbIndexOperation("MYINDEXNAME",
-							  "MYTABLENAME");	
-    if (myIndexOperation == NULL) APIERROR(myConnection->getNdbError());
+    myIndexOperation = myTransaction->getNdbIndexOperation("MYINDEXNAME",
+							   "MYTABLENAME");
+    if (myIndexOperation == NULL) APIERROR(myTransaction->getNdbError());
     
     myIndexOperation->readTuple();
     myIndexOperation->equal("ATTR2", i);
     
     myRecAttr = myIndexOperation->getValue("ATTR1", NULL);
-    if (myRecAttr == NULL) APIERROR(myConnection->getNdbError());
+    if (myRecAttr == NULL) APIERROR(myTransaction->getNdbError());
 
-    if(myConnection->execute( Commit ) != -1)
+    if(myTransaction->execute( Commit ) != -1)
       printf(" %2d    %2d\n", myRecAttr->u_32_value(), i);
     }
-    myNdb->closeTransaction(myConnection);
+    myNdb->closeTransaction(myTransaction);
 
   /*****************************************************************
    * Update the second attribute in half of the tuples (adding 10) *
    *****************************************************************/
   for (int i = 0; i < 10; i+=2) {
-    myConnection = myNdb->startTransaction();
-    if (myConnection == NULL) APIERROR(myNdb->getNdbError());
+    myTransaction = myNdb->startTransaction();
+    if (myTransaction == NULL) APIERROR(myNdb->getNdbError());
     
-    myIndexOperation = myConnection->getNdbIndexOperation("MYINDEXNAME",
-							  "MYTABLENAME");	
-    if (myIndexOperation == NULL) APIERROR(myConnection->getNdbError());
+    myIndexOperation = myTransaction->getNdbIndexOperation("MYINDEXNAME",
+							   "MYTABLENAME");
+    if (myIndexOperation == NULL) APIERROR(myTransaction->getNdbError());
     
     myIndexOperation->updateTuple();
     myIndexOperation->equal( "ATTR2", i );
     myIndexOperation->setValue( "ATTR2", i+10);
     
-    if( myConnection->execute( Commit ) == -1 ) 
-      APIERROR(myConnection->getNdbError());
+    if( myTransaction->execute( Commit ) == -1 ) 
+      APIERROR(myTransaction->getNdbError());
     
-    myNdb->closeTransaction(myConnection);
+    myNdb->closeTransaction(myTransaction);
   }
   
   /*************************************************
    * Delete one tuple (the one with primary key 3) *
    *************************************************/
-  myConnection = myNdb->startTransaction();
-  if (myConnection == NULL) APIERROR(myNdb->getNdbError());
+  myTransaction = myNdb->startTransaction();
+  if (myTransaction == NULL) APIERROR(myNdb->getNdbError());
   
-  myIndexOperation = myConnection->getNdbIndexOperation("MYINDEXNAME",
-							"MYTABLENAME");	
+  myIndexOperation = myTransaction->getNdbIndexOperation("MYINDEXNAME",
+							 "MYTABLENAME");
   if (myIndexOperation == NULL) 
-    APIERROR(myConnection->getNdbError());
+    APIERROR(myTransaction->getNdbError());
   
   myIndexOperation->deleteTuple();
   myIndexOperation->equal( "ATTR2", 3 );
   
-  if (myConnection->execute(Commit) == -1) 
-    APIERROR(myConnection->getNdbError());
+  if (myTransaction->execute(Commit) == -1) 
+    APIERROR(myTransaction->getNdbError());
   
-  myNdb->closeTransaction(myConnection);
+  myNdb->closeTransaction(myTransaction);
   
   /*****************************
    * Read and print all tuples *
@@ -223,29 +231,29 @@ int main()
   std::cout << "ATTR1 ATTR2" << std::endl;
   
   for (int i = 0; i < 10; i++) {
-    myConnection = myNdb->startTransaction();
-    if (myConnection == NULL) APIERROR(myNdb->getNdbError());
+    myTransaction = myNdb->startTransaction();
+    if (myTransaction == NULL) APIERROR(myNdb->getNdbError());
     
-    myOperation = myConnection->getNdbOperation("MYTABLENAME");	
-    if (myOperation == NULL) APIERROR(myConnection->getNdbError());
+    myOperation = myTransaction->getNdbOperation("MYTABLENAME");	
+    if (myOperation == NULL) APIERROR(myTransaction->getNdbError());
     
     myOperation->readTuple();
     myOperation->equal("ATTR1", i);
     
     myRecAttr = myOperation->getValue("ATTR2", NULL);
-    if (myRecAttr == NULL) APIERROR(myConnection->getNdbError());
+    if (myRecAttr == NULL) APIERROR(myTransaction->getNdbError());
     
-    if(myConnection->execute( Commit ) == -1)
+    if(myTransaction->execute( Commit ) == -1)
       if (i == 3) {
 	std::cout << "Detected that deleted tuple doesn't exist!" << std::endl;
       } else {
-	APIERROR(myConnection->getNdbError());
+	APIERROR(myTransaction->getNdbError());
       }
     
     if (i != 3) {
       printf(" %2d    %2d\n", i, myRecAttr->u_32_value());
     }
-    myNdb->closeTransaction(myConnection);
+    myNdb->closeTransaction(myTransaction);
   }
 
   /**************
