@@ -3663,8 +3663,8 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
   case MYSQL_TYPE_INT24: /* mediumint is sent as 4 bytes int */
   case MYSQL_TYPE_LONG:
   {
-    long value= sint4korr(*row);
-    longlong data= field_is_unsigned ? (longlong) (unsigned long) value :
+    int32 value= sint4korr(*row);
+    longlong data= field_is_unsigned ? (longlong) (uint32) value :
                                        (longlong) value;
     fetch_long_with_conversion(param, field, data);
     *row+= 4;
