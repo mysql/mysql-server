@@ -4399,6 +4399,8 @@ unsent_create_error:
     {
       if (!(res= !ha_commit_or_rollback_by_xid(&thd->lex->ident, 1)))
         my_error(ER_XAER_NOTA, MYF(0));
+      else
+        send_ok(thd);
       break;
     }
     if (thd->transaction.xa_state == XA_IDLE && thd->lex->xa_opt == XA_ONE_PHASE)
@@ -4407,9 +4409,7 @@ unsent_create_error:
       if ((r= ha_commit(thd)))
         my_error(r == 1 ? ER_XA_RBROLLBACK : ER_XAER_RMERR, MYF(0));
       else
-      {
         send_ok(thd);
-      }
     }
     else
     if (thd->transaction.xa_state == XA_PREPARED && thd->lex->xa_opt == XA_NONE)
@@ -4417,9 +4417,7 @@ unsent_create_error:
       if (ha_commit_one_phase(thd, 1))
         my_error(ER_XAER_RMERR, MYF(0));
       else
-      {
         send_ok(thd);
-      }
     }
     else
     {
@@ -4436,6 +4434,8 @@ unsent_create_error:
     {
       if (!(res= !ha_commit_or_rollback_by_xid(&thd->lex->ident, 0)))
         my_error(ER_XAER_NOTA, MYF(0));
+      else
+        send_ok(thd);
       break;
     }
     if (thd->transaction.xa_state != XA_IDLE &&
