@@ -40985,7 +40985,7 @@ not yet 100 % confident in this code.
 
 @node News-3.23.33, News-3.23.32, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.33
-@itemize bullet
+@itemize @bullet
 @item
 Fixed 'no found rows' bug in @code{MyISAM} tables when a @code{BLOB} was
 first part of a multi-part key.
