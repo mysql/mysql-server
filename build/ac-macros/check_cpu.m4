@@ -43,5 +43,5 @@ then
 else
   AC_MSG_RESULT($mysql_cv_cpu)
 fi
-]]))
+])])
 

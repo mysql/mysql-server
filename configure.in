@@ -13,7 +13,7 @@ AC_CANONICAL_SYSTEM
 # before we call AM_INIT_AUTOMAKE.
 #  -Brian
 sinclude(build/ac-macros/sanity.m4)
-AM_INIT_AUTOMAKE(mysql, 5.0.2-alpha)
+AM_INIT_AUTOMAKE(mysql, 5.0.3-alpha)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
