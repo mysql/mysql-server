@@ -26,6 +26,11 @@ SYST=0
 REALT=0
 TIMEFILE="$CWD/var/tmp/mysqltest-time"
 DASHBLANK="----	----	-------"
+MYSQLD_SRC_DIRS="strings mysys include extra regex isam merge myisam \
+ myisammrg heap sql"
+GCOV=`which gcov`
+GCOV_MSG=/tmp/mysqld-gcov.out
+GCOV_ERR=/tmp/mysqld-gcov.err  
 
 [ -z $COLUMNS ] && COLUMNS=80
 E=`expr $COLUMNS - 8`
@@ -64,7 +69,7 @@ MYSQL_TEST="$BASEDIR/client/mysqltest"
 MYSQLADMIN="$BASEDIR/client/mysqladmin"
 MYSQL_TEST="$MYSQL_TEST --socket=$MYSOCK --database=$DB --user=$DBUSER --password=$DBPASSWD --silent"
 INSTALL_DB="$MYBIN/mysql-test_install_db"
-
+[ $1 = "-gcov" ] && DO_GCOV=1
 
 #++
 # Terminal Modifications
@@ -166,8 +171,29 @@ mysql_install_db () {
     return 0
 }
 
+gcov_clean () {
+  find .. -name -name \*.gcov \
+   -or -name \*.da   | xargs rm
+}
+
+gcov_collect () {
+  echo "Collecting source coverage info..."
+  [ -f $GCOV_MSG ] && rm $GCOV_MSG
+  [ -f $GCOV_ERR ] && rm $GCOV_ERR
+  for d in $MYSQLD_SRC_DIRS; do
+    cd ../$d
+    for f in *.h *.cc *.c; do
+      $GCOV $f 2>>$GCOV_ERR  >>$GCOV_MSG
+    done
+    cd ../mysql-test
+  done
+
+  echo "gcov info in $GCOV_MSG, errors in $GCOV_ERR"
+}
+
 mysql_start () {
 
+    cd .. # for gcov
     $MYSQLD --no-defaults \
             --skip-networking \
             --basedir=$CWD \
@@ -176,7 +202,7 @@ mysql_start () {
 	    --socket=$MYSOCK \
             --log=$MYLOG \
             --language=english >> $MYERR 2>&1 &
-
+    cd mysql-test
     return 1
 }
 
@@ -206,6 +232,7 @@ mysql_loadstd () {
     return 1
 }
 
+[ $DO_GCOV = 1 ] && gcov_clean # clean up stale gcov files if running with gcov
 
 mysql_install_db
 
@@ -286,5 +313,7 @@ $SETCOLOR_NORMAL
 $ECHO
 report_stats
 $ECHO
+
+[ $DO_GCOV = 1 ] && gcov_collect # collect coverage information
 
 exit 0
