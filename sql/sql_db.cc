@@ -379,13 +379,13 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 		In this case the entry should not be logged.
 
   RETURN VALUES
-  0	ok
-  -1	Error
+  FALSE ok
+  TRUE  Error
 
 */
 
-int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
-		    bool silent)
+bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
+                     bool silent)
 {
   char	 path[FN_REFLEN+16];
   long result= 1;
@@ -489,7 +489,7 @@ exit2:
 
 /* db-name is already validated when we come here */
 
-int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
+bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
 {
   char path[FN_REFLEN+16];
   long result=1;
@@ -532,7 +532,7 @@ exit:
   start_waiting_global_read_lock(thd);
 exit2:
   VOID(pthread_mutex_unlock(&LOCK_mysql_create_db));
-  DBUG_RETURN(error ? -1 : 0); /* -1 to delegate send_error() */
+  DBUG_RETURN(error);
 }
 
 
@@ -548,11 +548,11 @@ exit2:
     silent		Don't generate errors
 
   RETURN
-    0   ok (Database dropped)
-    -1	Error generated
+    FALSE ok (Database dropped)
+    ERROR Error
 */
 
-int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
+bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 {
   long deleted=0;
   int error= 0;
@@ -985,12 +985,12 @@ bool mysql_change_db(THD *thd, const char *name)
   if (!dbname || !(db_length= strlen(dbname)))
   {
     x_free(dbname);				/* purecov: inspected */
-    send_error(thd,ER_NO_DB_ERROR);	/* purecov: inspected */
+    my_error(ER_NO_DB_ERROR, MYF(0));		/* purecov: inspected */
     DBUG_RETURN(1);				/* purecov: inspected */
   }
   if (check_db_name(dbname))
   {
-    net_printf(thd, ER_WRONG_DB_NAME, dbname);
+    my_error(ER_WRONG_DB_NAME, MYF(0), dbname);
     x_free(dbname);
     DBUG_RETURN(1);
   }
@@ -1003,10 +1003,10 @@ bool mysql_change_db(THD *thd, const char *name)
 		thd->master_access);
   if (!(db_access & DB_ACLS) && (!grant_option || check_grant_db(thd,dbname)))
   {
-    net_printf(thd,ER_DBACCESS_DENIED_ERROR,
-	       thd->priv_user,
-	       thd->priv_host,
-	       dbname);
+    my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
+             thd->priv_user,
+             thd->priv_host,
+             dbname);
     mysql_log.write(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
 		    thd->priv_user,
 		    thd->priv_host,
@@ -1021,7 +1021,7 @@ bool mysql_change_db(THD *thd, const char *name)
     path[length-1]=0;				// remove ending '\'
   if (access(path,F_OK))
   {
-    net_printf(thd,ER_BAD_DB_ERROR,dbname);
+    my_error(ER_BAD_DB_ERROR, MYF(0), dbname);
     my_free(dbname,MYF(0));
     DBUG_RETURN(1);
   }
