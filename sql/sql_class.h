@@ -178,6 +178,9 @@ public:
     convert_array(from_map, (uchar*) a,length);
   }
   bool store(String *, const char *,uint);
+#ifdef EMBEDDED_LIBRARY
+  void convert_back(char *dest, const char *source, uint length) const;
+#endif
   inline uint number() { return numb; }
 };
 
@@ -338,6 +341,10 @@ class select_result;
 #define THD_SENTRY_MAGIC 0xfeedd1ff
 #define THD_SENTRY_GONE  0xdeadbeef
 
+#ifdef EMBEDDED_LIBRARY
+typedef struct st_mysql;
+#endif
+
 #define THD_CHECK_SENTRY(thd) DBUG_ASSERT(thd->dbug_sentry == THD_SENTRY_MAGIC)
 
 struct system_variables
@@ -396,6 +403,9 @@ public:
   struct  rand_struct rand;		// used for authentication
   struct  system_variables variables;	// Changeable local variables
   pthread_mutex_t LOCK_delete;		// Locked before thd is deleted
+#ifdef EMBEDDED_LIBRARY
+  struct st_mysql  *mysql;
+#endif
 
   char	  *query;			// Points to the current query,
   /*

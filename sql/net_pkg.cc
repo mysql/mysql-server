@@ -47,6 +47,12 @@ void send_error(THD *thd, uint sql_errno, const char *err)
       }
     }
   }
+
+#ifdef EMBEDDED_LIBRARY
+  net->last_errno= sql_errno;
+  strmake(net->last_error, err, sizeof(net->last_error)-1);
+#else
+
   if (net->vio == 0)
   {
     if (thd->bootstrap)
@@ -69,6 +75,7 @@ void send_error(THD *thd, uint sql_errno, const char *err)
     set_if_smaller(length,MYSQL_ERRMSG_SIZE-1);
   }
   VOID(net_write_command(net,(uchar) 255, "", 0, (char*) err,length));
+#endif  /* EMBEDDED_LIBRARY*/
   thd->fatal_error=0;			// Error message is given
   thd->net.report_error= 0;
   DBUG_VOID_RETURN;
@@ -158,6 +165,7 @@ net_printf(THD *thd, uint errcode, ...)
     length=sizeof(net->last_error)-1;		/* purecov: inspected */
   va_end(args);
 
+#ifndef EMBEDDED_LIBRARY
   if (net->vio == 0)
   {
     if (thd->bootstrap)
@@ -175,6 +183,10 @@ net_printf(THD *thd, uint errcode, ...)
   if (offset)
     int2store(text_pos-2, errcode);
   VOID(net_real_write(net,(char*) net->buff,length+head_length+1+offset));
+#else
+  net->last_errno= errcode;
+  strmake(net->last_error, text_pos, length);
+#endif
   thd->fatal_error=0;			// Error message is given
   DBUG_VOID_RETURN;
 }
@@ -205,6 +217,7 @@ net_printf(THD *thd, uint errcode, ...)
 
    If net->no_send_ok return without sending packet
 */    
+#ifndef EMBEDDED_LIBRARY
 
 void
 send_ok(THD *thd, ha_rows affected_rows, ulonglong id, const char *message)
@@ -290,6 +303,7 @@ send_eof(THD *thd, bool no_flush)
   }
   DBUG_VOID_RETURN;
 }
+#endif /* EMBEDDED_LIBRARY */
 
 
 /****************************************************************************
