@@ -835,6 +835,7 @@ create:
 	  lex->create_info.options=$2 | $4;
 	  lex->create_info.db_type= (enum db_type) lex->thd->variables.table_type;
 	  lex->create_info.table_charset=thd->db_charset?thd->db_charset:default_charset_info;
+	  lex->name=0;
 	}
 	create2
 	{}
@@ -883,7 +884,13 @@ create:
 create2:
 	'(' field_list ')' opt_create_table_options create3 {}
 	| opt_create_table_options create3 {}
-        ;
+	| LIKE table_ident
+      	  {
+      	    LEX *lex=Lex;
+     	    if (!(lex->name= (char *)$2))
+              YYABORT;
+    	  }
+  	  ;
 
 create3:
 	/* empty */ {}
