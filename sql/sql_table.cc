@@ -946,6 +946,7 @@ static void safe_remove_from_cache(THD *thd,TABLE *table)
   DBUG_VOID_RETURN;
 }
 
+
 bool close_cached_table(THD *thd,TABLE *table)
 {
   DBUG_ENTER("close_cached_table");
@@ -957,7 +958,8 @@ bool close_cached_table(THD *thd,TABLE *table)
     /* Close lock if this is not got with LOCK TABLES */
     if (thd->lock)
     {
-      mysql_unlock_tables(thd, thd->lock); thd->lock=0;	// Start locked threads
+      mysql_unlock_tables(thd, thd->lock);
+      thd->lock=0;			// Start locked threads
     }
     /* Close all copies of 'table'.  This also frees all LOCK TABLES lock */
     thd->open_tables=unlink_open_table(thd,thd->open_tables,table);
@@ -1045,93 +1047,105 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table,
 }
 
 
-static int prepare_for_repair(THD* thd, TABLE_LIST* table,
+static int prepare_for_repair(THD* thd, TABLE_LIST *table_list,
 			      HA_CHECK_OPT *check_opt)
 {
+  int error= 0;
+  TABLE tmp_table, *table;
   DBUG_ENTER("prepare_for_repair");
 
-  if (!table->table)
-  {
-    DBUG_RETURN(send_check_errmsg(thd, table, "repair", "table is read-only or does not exists"));
-  }
-
   if (!(check_opt->sql_flags & TT_USEFRM))
-  {
     DBUG_RETURN(0);
-  }
-  else
+
+  if (!(table= table_list->table))		/* if open_ltable failed */
   {
-    /*
-      User gave us USE_FRM which means that the header in the index file is
-      trashed.
-      In this case we will try to fix the table the following way:
-      - Rename the data file to a temporary name
-      - Truncate the table
-      - Replace the new data file with the old one
-      - Run a normal repair using the new index file and the old data file
-    */
+    char name[FN_REFLEN];
+    strxmov(name, mysql_data_home, "/", table_list->db, "/",
+	    table_list->real_name, NullS);
+    if (openfrm(name, "", 0, 0, 0, &tmp_table))
+      DBUG_RETURN(0);				// Can't open frm file
+    table= &tmp_table;
+  }
 
-    char from[FN_REFLEN],tmp[FN_REFLEN+32];
-    const char **ext= table->table->file->bas_ext();
-    MY_STAT stat_info;
+  /*
+    User gave us USE_FRM which means that the header in the index file is
+    trashed.
+    In this case we will try to fix the table the following way:
+    - Rename the data file to a temporary name
+    - Truncate the table
+    - Replace the new data file with the old one
+    - Run a normal repair using the new index file and the old data file
+  */
 
-    /*
-      Check if this is a table type that stores index and data separately,
-      like ISAM or MyISAM
-    */
-    if (!ext[0] || !ext[1])
-      DBUG_RETURN(0);				// No data file
+  char from[FN_REFLEN],tmp[FN_REFLEN+32];
+  const char **ext= table->file->bas_ext();
+  MY_STAT stat_info;
 
-    strxmov(from, table->table->path, ext[1], NullS);	// Name of data file
-    if (!my_stat(from, &stat_info, MYF(0)))
-      DBUG_RETURN(0);				// Can't use USE_FRM flag
+  /*
+    Check if this is a table type that stores index and data separately,
+    like ISAM or MyISAM
+  */
+  if (!ext[0] || !ext[1])
+    goto end;					// No data file
 
-    sprintf(tmp,"%s-%lx_%lx", from, current_pid, thd->thread_id);
+  strxmov(from, table->path, ext[1], NullS);	// Name of data file
+  if (!my_stat(from, &stat_info, MYF(0)))
+    goto end;				// Can't use USE_FRM flag
 
+  sprintf(tmp,"%s-%lx_%lx", from, current_pid, thd->thread_id);
+
+  pthread_mutex_lock(&LOCK_open);
+  close_cached_table(thd,table_list->table);
+  pthread_mutex_unlock(&LOCK_open);
+
+  if (lock_and_wait_for_table_name(thd,table_list))
+  {
+    error= -1;
+    goto end;
+  }
+  if (my_rename(from, tmp, MYF(MY_WME)))
+  {
     pthread_mutex_lock(&LOCK_open);
-    close_cached_table(thd,table->table);
+    unlock_table_name(thd, table_list);
     pthread_mutex_unlock(&LOCK_open);
-
-    if (lock_and_wait_for_table_name(thd,table))
-      DBUG_RETURN(-1);
-
-    if (my_rename(from, tmp, MYF(MY_WME)))
-    {
-      pthread_mutex_lock(&LOCK_open);
-      unlock_table_name(thd, table);
-      pthread_mutex_unlock(&LOCK_open);
-      DBUG_RETURN(send_check_errmsg(thd, table, "repair",
-				    "Failed renaming data file"));
-    }
-    if (mysql_truncate(thd, table, 1))
-    {
-      pthread_mutex_lock(&LOCK_open);
-      unlock_table_name(thd, table);
-      pthread_mutex_unlock(&LOCK_open);
-      DBUG_RETURN(send_check_errmsg(thd, table, "repair",
-				    "Failed generating table from .frm file"));
-    }
-    if (my_rename(tmp, from, MYF(MY_WME)))
-    {
-      pthread_mutex_lock(&LOCK_open);
-      unlock_table_name(thd, table);
-      pthread_mutex_unlock(&LOCK_open);
-      DBUG_RETURN(send_check_errmsg(thd, table, "repair",
-				    "Failed restoring .MYD file"));
-    }
+    error= send_check_errmsg(thd, table_list, "repair",
+			     "Failed renaming data file");
+    goto end;
+  }
+  if (mysql_truncate(thd, table_list, 1))
+  {
+    pthread_mutex_lock(&LOCK_open);
+    unlock_table_name(thd, table_list);
+    pthread_mutex_unlock(&LOCK_open);
+    error= send_check_errmsg(thd, table_list, "repair",
+			     "Failed generating table from .frm file");
+    goto end;
+  }
+  if (my_rename(tmp, from, MYF(MY_WME)))
+  {
+    pthread_mutex_lock(&LOCK_open);
+    unlock_table_name(thd, table_list);
+    pthread_mutex_unlock(&LOCK_open);
+    error= send_check_errmsg(thd, table_list, "repair",
+			     "Failed restoring .MYD file");
+    goto end;
   }
 
   /*
     Now we should be able to open the partially repaired table
     to finish the repair in the handler later on.
   */
-  if (!(table->table = reopen_name_locked_table(thd, table)))
+  if (!(table_list->table = reopen_name_locked_table(thd, table_list)))
   {
     pthread_mutex_lock(&LOCK_open);
-    unlock_table_name(thd, table);
+    unlock_table_name(thd, table_list);
     pthread_mutex_unlock(&LOCK_open);
   }
-  DBUG_RETURN(0);
+
+end:
+  if (table == &tmp_table)
+    closefrm(table);				// Free allocated memory
+  DBUG_RETURN(error);
 }
 
 
