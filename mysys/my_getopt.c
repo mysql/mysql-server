@@ -17,10 +17,10 @@
 #include <my_global.h>
 #include <m_string.h>
 #include <stdlib.h>
-#include <my_getopt.h>
 #include <assert.h>
 #include <my_sys.h>
 #include <mysys_err.h>
+#include <my_getopt.h>
 
 static int findopt(char *optpat, uint length,
 		   const struct my_option **opt_res,
