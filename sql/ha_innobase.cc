@@ -731,6 +731,27 @@ innobase_commit(
 }
 
 /*********************************************************************
+This is called when MySQL writes the binlog entry for the current
+transaction. Writes to the InnoDB tablespace info which tells where the
+MySQL binlog entry for the current transaction ended. Also commits the
+transaction inside InnoDB. */
+
+int
+innobase_report_binlog_offset_and_commit(
+/*=====================================*/
+				/* out: 0 or error code */
+        THD*    thd,            /* in: user thread */
+	void*	trx_handle,     /* in: InnoDB trx handle */
+        char*   log_file_name,  /* in: latest binlog file name */
+        my_off_t end_offset)    /* in: the offset in the binlog file
+				   up to which we wrote */
+{
+  /* Currently does nothing ! */
+
+  return(0);
+}
+
+/*********************************************************************
 Rolls back a transaction in an InnoDB database. */
 
 int
