@@ -334,6 +334,9 @@ insert into t1 values ('2001-01-12 12:23:40');
 select ctime, hour(ctime) from t1;
 ctime	hour(ctime)
 2001-01-12 12:23:40	12
+select ctime from t1 where extract(MONTH FROM ctime) = 1 AND extract(YEAR FROM ctime) = 2001;
+ctime
+2001-01-12 12:23:40
 drop table t1;
 create table t1 (id int);
 create table t2 (id int, date date);

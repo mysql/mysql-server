@@ -27,6 +27,7 @@ Created 2/6/1997 Heikki Tuuri
 #include "row0upd.h"
 #include "rem0cmp.h"
 #include "read0read.h"
+#include "lock0lock.h"
 
 /*********************************************************************
 Finds out if an active transaction has inserted or modified a secondary
@@ -58,7 +59,6 @@ row_vers_impl_x_locked_off_kernel(
 	ibool		rec_del;
 	ulint		err;
 	mtr_t		mtr;
-	char            err_buf[1000];
 	
 	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
@@ -76,22 +76,20 @@ row_vers_impl_x_locked_off_kernel(
 	clust_rec = row_get_clust_rec(BTR_SEARCH_LEAF, rec, index,
 							&clust_index, &mtr);
 	if (!clust_rec) {
-	        rec_sprintf(err_buf, 900, rec);
+		/* In a rare case it is possible that no clust rec is found
+		for a secondary index record: if in row0umod.c
+		row_undo_mod_remove_clust_low() we have already removed the
+		clust rec, while purge is still cleaning and removing
+		secondary index records associated with earlier versions of
+		the clustered index record. In that case there cannot be
+		any implicit lock on the secondary index record, because
+		an active transaction which has modified the secondary index
+		record has also modified the clustered index record. And in
+		a rollback we always undo the modifications to secondary index
+		records before the clustered index record. */
 
-	        ut_print_timestamp(stderr);
-	        fprintf(stderr,
-"  InnoDB: Error: cannot find the clustered index record\n"
-"InnoDB: for a secondary index record in table %s index %s.\n"
-"InnoDB: Secondary index record %s.\n"
-"InnoDB: The table is probably corrupt. Please run CHECK TABLE on it.\n"
-"InnoDB: You can try to repair the table by dump + drop + reimport.\n"
-"InnoDB: Send a detailed bug report to mysql@lists.mysql.com.\n",
-		  index->table_name, index->name, err_buf);
-	        mutex_enter(&kernel_mutex);
-	        mtr_commit(&mtr);
-
-	        /* We assume there is no lock on the record, though this
-	        is not certain because the table is apparently corrupt */
+		mutex_enter(&kernel_mutex);
+		mtr_commit(&mtr);
 
 	        return(NULL);
 	}
@@ -105,6 +103,14 @@ row_vers_impl_x_locked_off_kernel(
 	if (!trx_is_active(trx_id)) {
 		/* The transaction that modified or inserted clust_rec is no
 		longer active: no implicit lock on rec */
+		
+		mtr_commit(&mtr);
+
+		return(NULL);
+	}
+
+	if (!lock_check_trx_id_sanity(trx_id, clust_rec, clust_index, TRUE)) {
+		/* Corruption noticed: try to avoid a crash by returning */
 		
 		mtr_commit(&mtr);
 
@@ -177,7 +183,8 @@ row_vers_impl_x_locked_off_kernel(
 
 		/* If we get here, we know that the trx_id transaction is
 		still active and it has modified prev_version. Let us check
-		if prev_version would require rec to be in a different state. */
+		if prev_version would require rec to be in a different
+		state. */
 
 		vers_del = rec_get_deleted_flag(prev_version);
 

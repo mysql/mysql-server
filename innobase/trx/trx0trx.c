@@ -86,6 +86,10 @@ trx_create(
 	trx->start_time = time(NULL);
 
 	trx->isolation_level = TRX_ISO_REPEATABLE_READ;
+
+	trx->id = ut_dulint_zero;
+	trx->no = ut_dulint_max;
+
 	trx->check_foreigns = TRUE;
 	trx->check_unique_secondary = TRUE;
 
@@ -134,6 +138,8 @@ trx_create(
 
 	trx->lock_heap = mem_heap_create_in_buffer(256);
 	UT_LIST_INIT(trx->trx_locks);
+
+	UT_LIST_INIT(trx->trx_savepoints);
 
 	trx->dict_operation_lock_mode = 0;
 	trx->has_search_latch = FALSE;
@@ -776,29 +782,53 @@ trx_commit_off_kernel(
 		efficient here: call os_thread_yield here to allow also other
 		trxs to come to commit! */
 
-		/* We now flush the log, as the transaction made changes to
-		the database, making the transaction committed on disk. It is
-		enough that any one of the log groups gets written to disk. */
-
 		/*-------------------------------------*/
 
-		/* Most MySQL users run with srv_flush_.. set to 0: */
+                /* Depending on the my.cnf options, we may now write the log
+                buffer to the log files, making the transaction durable if
+                the OS does not crash. We may also flush the log files to
+                disk, making the transaction durable also at an OS crash or a
+                power outage.
 
-		if (srv_flush_log_at_trx_commit != 0) {
-		        if (srv_unix_file_flush_method != SRV_UNIX_NOSYNC
-			    && srv_flush_log_at_trx_commit != 2
-			    && !trx->flush_log_later) {
-			       
-			       /* Write the log to the log files AND flush
-			       them to disk */
+                The idea in InnoDB's group commit is that a group of
+                transactions gather behind a trx doing a physical disk write
+                to log files, and when that physical write has been completed,
+                one of those transactions does a write which commits the whole
+                group. Note that this group commit will only bring benefit if
+                there are > 2 users in the database. Then at least 2 users can
+                gather behind one doing the physical log write to disk.
 
-			       log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, TRUE);
-			} else {
-			       /* Write the log but do not flush it to disk */
+                If we are calling trx_commit() under MySQL's binlog mutex, we
+                will delay possible log write and flush to a separate function
+                trx_commit_complete_for_mysql(), which is only called when the
+                thread has released the binlog mutex. This is to make the
+                group commit algorithm to work. Otherwise, the MySQL binlog
+                mutex would serialize all commits and prevent a group of
+                transactions from gathering. */
 
-			       log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, FALSE);
-			}
-		}
+                if (trx->flush_log_later) {
+                        /* Do nothing yet */
+                } else if (srv_flush_log_at_trx_commit == 0) {
+                        /* Do nothing */
+                } else if (srv_flush_log_at_trx_commit == 1) {
+                        if (srv_unix_file_flush_method == SRV_UNIX_NOSYNC) {
+                               /* Write the log but do not flush it to disk */
+
+                               log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, FALSE);
+                        } else {
+                               /* Write the log to the log files AND flush
+                               them to disk */
+
+                               log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, TRUE);
+                        }
+                } else if (srv_flush_log_at_trx_commit == 2) {
+
+                        /* Write the log but do not flush it to disk */
+
+                        log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, FALSE);
+                } else {
+                        ut_a(0);
+                }
 
 		trx->commit_lsn = lsn;
 		
@@ -806,6 +836,9 @@ trx_commit_off_kernel(
 	
 		mutex_enter(&kernel_mutex);
 	}
+
+	/* Free savepoints */
+	trx_roll_savepoints_free(trx, NULL);
 
 	trx->conc_state = TRX_NOT_STARTED;
 	trx->rseg = NULL;
@@ -1492,21 +1525,37 @@ trx_commit_complete_for_mysql(
 			/* out: 0 or error number */
 	trx_t*	trx)	/* in: trx handle */
 {
-	ut_a(trx);
+        dulint  lsn     = trx->commit_lsn;
 
-	if (srv_flush_log_at_trx_commit == 1
-	    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC) {
-			       
-		trx->op_info = (char *) "flushing log";
+        ut_a(trx);
+	
+	trx->op_info = (char*)"flushing log";
 
-		/* Flush the log files to disk */
+        if (srv_flush_log_at_trx_commit == 0) {
+                /* Do nothing */
+        } else if (srv_flush_log_at_trx_commit == 1) {
+                if (srv_unix_file_flush_method == SRV_UNIX_NOSYNC) {
+                        /* Write the log but do not flush it to disk */
 
-		log_write_up_to(trx->commit_lsn, LOG_WAIT_ONE_GROUP, TRUE);
+                        log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, FALSE);
+                } else {
+                        /* Write the log to the log files AND flush them to
+                        disk */
 
-		trx->op_info = (char *) "";
-	}
+                        log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, TRUE);
+                }
+        } else if (srv_flush_log_at_trx_commit == 2) {
 
-	return(0);
+                /* Write the log but do not flush it to disk */
+
+                log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, FALSE);
+        } else {
+                ut_a(0);
+        }
+
+	trx->op_info = (char*)"";
+
+        return(0);
 }
 
 /**************************************************************************
@@ -1575,6 +1624,13 @@ trx_print(
 	}
 
 	buf += sprintf(buf, "\n");
+
+	if (trx->n_mysql_tables_in_use > 0 || trx->mysql_n_tables_locked > 0) {
+
+		buf += sprintf(buf, "mysql tables in use %lu, locked %lu\n",
+				    trx->n_mysql_tables_in_use,
+				    trx->mysql_n_tables_locked);
+	}
   	
 	start_of_line = buf;
 

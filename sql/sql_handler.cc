@@ -203,6 +203,13 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
       Item *item;
       for (key_len=0 ; (item=it_ke++) ; key_part++)
       {
+	if (item->fix_fields(thd, tables))
+	  goto err;
+	if (item->used_tables() & ~RAND_TABLE_BIT)
+        {
+          my_error(ER_WRONG_ARGUMENTS,MYF(0),"HANDLER ... READ");
+	  goto err;
+        }
 	(void) item->save_in_field(key_part->field, 1);
 	key_len+=key_part->store_length;
       }
@@ -237,7 +244,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
     }
     if (cond && !cond->val_int())
       continue;
-    if (!err && num_rows >= offset_limit)
+    if (num_rows >= offset_limit)
     {
       String *packet = &thd->packet;
       Item *item;

@@ -85,8 +85,6 @@ dtype_print(
 			printf("DATA_MIX_ID");
 		} else if (prtype == DATA_ENGLISH) {
 			printf("DATA_ENGLISH");
-		} else if (prtype == DATA_FINNISH) {
-			printf("DATA_FINNISH");
 		} else {
 			printf("prtype %lu", mtype);
 		}

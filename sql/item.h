@@ -144,7 +144,24 @@ public:
   virtual double  val_result() { return val(); }
   virtual longlong val_int_result() { return val_int(); }
   virtual String *str_result(String* tmp) { return val_str(tmp); }
+  /* bit map of tables used by item */
   virtual table_map used_tables() const { return (table_map) 0L; }
+  /*
+    Return table map of tables that can't be NULL tables (tables that are
+    used in a context where if they would contain a NULL row generated
+    by a LEFT or RIGHT join, the item would not be true).
+    This expression is used on WHERE item to determinate if a LEFT JOIN can be
+    converted to a normal join.
+    Generally this function should return used_tables() if the function
+    would return null if any of the arguments are null
+    As this is only used in the beginning of optimization, the value don't
+    have to be updated in update_used_tables()
+  */
+  virtual table_map not_null_tables() const { return used_tables(); }
+  /*
+    Returns true if this is a simple constant item like an integer, not
+    a constant expression
+  */
   virtual bool basic_const_item() const { return 0; }
   virtual Item *new_item() { return 0; }	/* Only for const items */
   virtual cond_result eq_cmp_result() const { return COND_OK; }

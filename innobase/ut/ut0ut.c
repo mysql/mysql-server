@@ -54,6 +54,8 @@ ut_get_high32(
 	ulint	a)	/* in: ulint */
 {
 #if SIZEOF_LONG == 4
+	UT_NOT_USED(a);
+
 	return 0;
 #else
 	return(a >> 32);

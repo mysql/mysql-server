@@ -249,6 +249,7 @@
 "Foutieve toepassing/plaatsing van '%s'",
 "Deze versie van MySQL ondersteunt nog geen '%s'",
 "Kreeg fatale fout %d: '%-.128s' van master tijdens lezen van data uit binaire log",
+"Slave SQL thread ignored the query because of replicate-*-table rules",
 "Wrong foreign key definition for '%-.64s': %s",
 "Key reference and table reference doesn't match",
 "Cardinality error (more/less than %d columns)",

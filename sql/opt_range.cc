@@ -2390,9 +2390,17 @@ QUICK_SELECT *get_quick_select_for_ref(TABLE *table, TABLE_REF *ref)
 
   if (!quick)
     return 0;
+  if (cp_buffer_from_ref(ref))
+  {
+    if (current_thd->fatal_error)
+      return 0;					// End of memory
+    return quick;				// empty range
+  }
+
   QUICK_RANGE *range= new QUICK_RANGE();
-  if (!range || cp_buffer_from_ref(ref))
+  if (!range)
     goto err;
+
   range->min_key=range->max_key=(char*) ref->key_buff;
   range->min_length=range->max_length=ref->key_length;
   range->flag= ((ref->key_length == key_info->key_length &&

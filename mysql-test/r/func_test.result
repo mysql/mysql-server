@@ -109,6 +109,11 @@ select _koi8r'a' COLLATE koi8r_general_ci LIKE _koi8r'A' COLLATE koi8r_bin;
 ERROR HY000: Illegal mix of collations (koi8r_general_ci,EXPLICIT) and (koi8r_bin,EXPLICIT) for operation 'like'
 select _koi8r'a' LIKE _latin1'A';
 ERROR HY000: Illegal mix of collations (koi8r_general_ci,COERCIBLE) and (latin1_swedish_ci,COERCIBLE) for operation 'like'
+create table t1 (a int);
+insert t1 values (1);
+select * from t1 where 1 xor 1;
+a
+drop table t1;
 select 5 between 0 and 10 between 0 and 1,(5 between 0 and 10) between 0 and 1;
 5 between 0 and 10 between 0 and 1	(5 between 0 and 10) between 0 and 1
 0	1

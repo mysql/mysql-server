@@ -13,3 +13,6 @@ NULL	255.255.1.255	0.0.1.255
 select length(format('nan', 2)) > 0;
 length(format('nan', 2)) > 0
 1
+select concat("$",format(2500,2));
+concat("$",format(2500,2))
+$2,500.00

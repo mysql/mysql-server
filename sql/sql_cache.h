@@ -61,7 +61,7 @@
 #define QUERY_CACHE_PACK_ITERATION		2
 #define QUERY_CACHE_PACK_LIMIT			(512*1024L)
 
-#define TABLE_COUNTER_TYPE uint8
+#define TABLE_COUNTER_TYPE uint
 
 struct Query_cache_block;
 struct Query_cache_block_table;

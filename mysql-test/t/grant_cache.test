@@ -5,6 +5,7 @@
 #
 --disable_warnings
 drop table if exists test.t1,mysqltest.t1,mysqltest.t2;
+drop database if exists mysqltest;
 --enable_warnings
 
 reset query cache;

@@ -43,6 +43,10 @@
 #define HAVE_ERRNO_AS_DEFINE
 #endif /* __CYGWIN__ */
 
+#if defined(i386) && !defined(__i386__)
+#define __i386__
+#endif
+
 /* Macros to make switching between C and C++ mode easier */
 #ifdef __cplusplus
 #define C_MODE_START    extern "C" {
@@ -283,7 +287,9 @@ C_MODE_END
 #endif
 #ifdef HAVE_ATOMIC_ADD
 #define __SMP__
+#ifndef CONFIG_SMP
 #define CONFIG_SMP
+#endif
 #include <asm/atomic.h>
 #endif
 #include <errno.h>				/* Recommended by debian */
@@ -660,7 +666,6 @@ typedef long		my_ptrdiff_t;
 typedef long long	my_ptrdiff_t;
 #endif
 
-
 #define MY_ALIGN(A,L)	(((A) + (L) - 1) & ~((L) - 1))
 #define ALIGN_SIZE(A)	MY_ALIGN((A),sizeof(double))
 /* Size to make adressable obj. */
@@ -920,8 +925,11 @@ typedef union {
   double v;
   long m[2];
 } doubleget_union;
-#define doubleget(V,M)	{ ((doubleget_union *)&V)->m[0] = *((long*) M); \
-			  ((doubleget_union *)&V)->m[1] = *(((long*) M)+1); }
+#define doubleget(V,M)	\
+{ doubleget_union _tmp; \
+  _tmp.m[0] = *((long*)(M)); \
+  _tmp.m[1] = *(((long*) (M))+1); \
+  (V) = _tmp.v; }
 #define doublestore(T,V) { *((long *) T) = ((doubleget_union *)&V)->m[0]; \
 			   *(((long *) T)+1) = ((doubleget_union *)&V)->m[1]; }
 #define float4get(V,M) { *((long *) &(V)) = *((long*) (M)); }

@@ -1289,14 +1289,12 @@ String *Item_date_add_interval::val_str(String *str)
 longlong Item_date_add_interval::val_int()
 {
   TIME ltime;
+  longlong date;
   if (Item_date_add_interval::get_date(&ltime,0))
     return (longlong) 0;
-  return ((longlong) (((ulong) ltime.year)*10000L+
-		      (((uint) ltime.month)*100+
-		       (uint) ltime.day))*(longlong) 1000000L+
-	  (longlong) ((ulong) ((uint) ltime.hour)*10000L+
-		      (ulong) (((uint)ltime.minute)*100L+
-			       (uint) ltime.second)));
+  date = (ltime.year*100L + ltime.month)*100L + ltime.day;
+  return ltime.time_type == TIMESTAMP_DATE ? date :
+    ((date*100L + ltime.hour)*100L+ ltime.minute)*100L + ltime.second;
 }
 
 void Item_extract::fix_length_and_dec()
@@ -1388,6 +1386,22 @@ longlong Item_extract::val_int()
   return 0;					// Impossible
 }
 
+bool Item_extract::eq(const Item *item, bool binary_cmp) const
+{
+  if (this == item)
+    return 1;
+  if (item->type() != FUNC_ITEM ||
+      func_name() != ((Item_func*)item)->func_name())
+    return 0;
+
+  Item_extract* ie= (Item_extract*)item;
+  if (ie->int_type != int_type)
+    return 0;
+
+  if (!args[0]->eq(ie->args[0], binary_cmp))
+      return 0;
+  return 1;
+}
 
 void Item_typecast::print(String *str)
 {

@@ -196,6 +196,9 @@ strcmp('ßa','ss')	strcmp('ssa','ß')	strcmp('sssb','sßa')	strcmp('ß','s')
 select strcmp('u','öa'),strcmp('u','ö');
 strcmp('u','öa')	strcmp('u','ö')
 1	1
+select strcmp('sä', 'ßa'), strcmp('aä', 'äx');
+strcmp('sä', 'ßa')	strcmp('aä', 'äx')
+-1	-1
 create table t1 (a varchar(10), key(a), fulltext (a));
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
 select * from t1 where a like "abc%";
