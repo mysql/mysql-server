@@ -1104,7 +1104,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->free_list=0;
     table_list.alias= table_list.real_name= thd->strdup(packet);
     packet=strend(packet)+1;
-    // command not cachable => no gap for data base name
+    thd->query_length= strlen(packet);       // for simplicity: don't optimize
     if (!(thd->query=fields=thd->memdup(packet,thd->query_length+1)))
       break;
     mysql_log.write(thd,command,"%s %s",table_list.real_name,fields);
