@@ -72,7 +72,7 @@ mysqld_show_dbs(THD *thd,const char *wild)
     DBUG_RETURN(1);
   if (mysql_find_files(thd,&files,NullS,mysql_data_home,wild,1))
     DBUG_RETURN(1);
-  List_iterator<char> it(files);
+  List_iterator_fast<char> it(files);
   while ((file_name=it++))
   {
     if (!opt_safe_show_db || thd->master_access ||
@@ -154,7 +154,7 @@ int mysqld_show_tables(THD *thd,const char *db,const char *wild)
     DBUG_RETURN(1);
   if (mysql_find_files(thd,&files,db,path,wild,0))
     DBUG_RETURN(-1);
-  List_iterator<char> it(files);
+  List_iterator_fast<char> it(files);
   while ((file_name=it++))
   {
     thd->packet.length(0);
@@ -284,7 +284,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
 
   if (mysql_find_files(thd,&files,db,path,wild,0))
     DBUG_RETURN(-1);
-  List_iterator<char> it(files);
+  List_iterator_fast<char> it(files);
   while ((file_name=it++))
   {
     TABLE_LIST table_list;
@@ -1165,6 +1165,6 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables)
 }
 
 #ifdef __GNUC__
-template class List_iterator<char>;
+template class List_iterator_fast<char>;
 template class List<char>;
 #endif

@@ -78,7 +78,8 @@ check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
     table_list.grant=table->grant;
 
     thd->dupp_field=0;
-    if (setup_tables(&table_list) || setup_fields(thd,&table_list,fields,1,0))
+    if (setup_tables(&table_list) ||
+	setup_fields(thd,&table_list,fields,1,0,0))
       return -1;
     if (thd->dupp_field)
     {
@@ -109,7 +110,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   ulonglong id;
   COPY_INFO info;
   TABLE *table;
-  List_iterator<List_item> its(values_list);
+  List_iterator_fast<List_item> its(values_list);
   List_item *values;
   char *query=thd->query;
   DBUG_ENTER("mysql_insert");
@@ -151,7 +152,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   save_time_stamp=table->time_stamp;
   values= its++;
   if (check_insert_fields(thd,table,fields,*values,1) ||
-      setup_tables(table_list) || setup_fields(thd,table_list,*values,0,0))
+      setup_tables(table_list) || setup_fields(thd,table_list,*values,0,0,0))
   {
     table->time_stamp=save_time_stamp;
     goto abort;
@@ -168,7 +169,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
       table->time_stamp=save_time_stamp;
       goto abort;
     }
-    if (setup_fields(thd,table_list,*values,0,0))
+    if (setup_fields(thd,table_list,*values,0,0,0))
     {
       table->time_stamp=save_time_stamp;
       goto abort;
@@ -1237,14 +1238,14 @@ select_insert::prepare(List<Item> &values)
 
   restore_record(table,2);			// Get empty record
   table->next_number_field=table->found_next_number_field;
-  thd->count_cuted_fields=1;			/* calc cuted fields */
+  thd->count_cuted_fields=1;			// calc cuted fields
   thd->cuted_fields=0;
-	if (info.handle_duplicates != DUP_REPLACE)
-		table->file->extra(HA_EXTRA_WRITE_CACHE);
-	if (info.handle_duplicates == DUP_IGNORE ||
-			info.handle_duplicates == DUP_REPLACE)
-		table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-	table->file->deactivate_non_unique_index((ha_rows) 0);
+  if (info.handle_duplicates != DUP_REPLACE)
+    table->file->extra(HA_EXTRA_WRITE_CACHE);
+  if (info.handle_duplicates == DUP_IGNORE ||
+      info.handle_duplicates == DUP_REPLACE)
+    table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+  table->file->deactivate_non_unique_index((ha_rows) 0);
   DBUG_RETURN(0);
 }
 
@@ -1319,8 +1320,7 @@ bool select_insert::send_eof()
 	      thd->cuted_fields);
     if (last_insert_id)
       thd->insert_id(last_insert_id);		// For update log
-		if (!unions)
-			::send_ok(&thd->net,info.copied,last_insert_id,buff);
+    ::send_ok(&thd->net,info.copied,last_insert_id,buff);
     mysql_update_log.write(thd,thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
     {
@@ -1390,6 +1390,7 @@ bool select_create::send_data(List<Item> &values)
 
 extern HASH open_cache;
 
+
 bool select_create::send_eof()
 {
   bool tmp=select_insert::send_eof();
@@ -1403,8 +1404,7 @@ bool select_create::send_eof()
     if (!table->tmp_table)
       hash_delete(&open_cache,(byte*) table);
     lock=0; 
-		if (!unions)
-			table=0;
+    table=0;
     VOID(pthread_mutex_unlock(&LOCK_open));
   }
   return tmp;
@@ -1436,7 +1436,7 @@ void select_create::abort()
 *****************************************************************************/
 
 #ifdef __GNUC__
-template class List_iterator<List_item>;
+template class List_iterator_fast<List_item>;
 template class I_List<delayed_insert>;
 template class I_List_iterator<delayed_insert>;
 template class I_List<delayed_row>;

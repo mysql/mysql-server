@@ -174,6 +174,9 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define QUERY_NO_INDEX_USED		OPTION_STATUS_NO_TRANS_UPDATE*2
 #define QUERY_NO_GOOD_INDEX_USED	QUERY_NO_INDEX_USED*2
 
+#define SELECT_NO_UNLOCK	(QUERY_NO_GOOD_INDEX_USED*2)
+#define TMP_TABLE_ALL_COLUMNS	(SELECT_NO_UNLOCK*2)
+
 #define RAID_BLOCK_SIZE 1024
 
 /* BINLOG_DUMP options */
@@ -305,8 +308,8 @@ int setup_order(THD *thd,TABLE_LIST *tables, List<Item> &fields,
 int mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &list,COND *conds,
                  List<Item_func_match> &ftfuncs,
 		 ORDER *order, ORDER *group,Item *having,ORDER *proc_param,
-		 uint select_type,select_result *result);
-int mysql_union(THD *thd,LEX *lex, uint no);
+		 ulong select_type,select_result *result);
+int mysql_union(THD *thd,LEX *lex);
 Field *create_tmp_field(TABLE *table,Item *item, Item::Type type,
 			Item_result_field ***copy_func, Field **from_field,
 			bool group,bool modify_item);
@@ -422,7 +425,8 @@ bool insert_fields(THD *thd,TABLE_LIST *tables,
 		   List_iterator<Item> *it);
 bool setup_tables(TABLE_LIST *tables);
 int setup_fields(THD *thd,TABLE_LIST *tables,List<Item> &item,
-		 bool set_query_id,List<Item> *sum_func_list);
+		 bool set_query_id,List<Item> *sum_func_list,
+		 bool allow_sum_func);
 int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);
 int setup_ftfuncs(THD *thd,TABLE_LIST *tables, List<Item_func_match> &ftfuncs);
 void wait_for_refresh(THD *thd);

@@ -152,7 +152,7 @@ int
 mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
              List<Item_func_match> &ftfuncs,
 	     ORDER *order, ORDER *group,Item *having,ORDER *proc_param,
-	     uint select_options,select_result *result)
+	     ulong select_options,select_result *result)
 {
   TABLE		*tmp_table;
   int		error,tmp;
@@ -178,7 +178,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   thd->used_tables=0;				// Updated by setup_fields
 
   if (setup_tables(tables) ||
-      setup_fields(thd,tables,fields,1,&all_fields) ||
+      setup_fields(thd,tables,fields,1,&all_fields,1) ||
       setup_conds(thd,tables,&conds) ||
       setup_order(thd,tables,fields,all_fields,order) ||
       setup_group(thd,tables,fields,all_fields,group,&hidden_group_fields))
@@ -207,7 +207,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     if (!group)
     {
       uint flag=0;
-      List_iterator<Item> it(fields);
+      List_iterator_fast<Item> it(fields);
       Item *item;
       while ((item= it++))
       {
@@ -373,7 +373,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 	error=(int) result->send_eof();
     }
     delete procedure;
-    DBUG_RETURN(0);
+    DBUG_RETURN(error);
   }
 
   error = -1;
@@ -403,7 +403,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     error= 1;					/* purecov: inspected */
     goto err;					/* purecov: inspected */
   }
-  if (join.const_tables && !thd->locked_tables)
+  if (join.const_tables && !thd->locked_tables &&
+      !(select_options & SELECT_NO_UNLOCK))
   {
     TABLE **table, **end;
     for (table=join.table, end=table + join.const_tables ;
@@ -571,7 +572,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   /* Perform FULLTEXT search before all regular searches */
   if (ftfuncs.elements)
   {
-    List_iterator<Item_func_match> li(ftfuncs);
+    List_iterator_fast<Item_func_match> li(ftfuncs);
     Item_func_match *ifm;
     DBUG_PRINT("info",("Performing FULLTEXT search"));
     thd->proc_info="FULLTEXT searching";
@@ -1268,7 +1269,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
 {
   if (cond->type() == Item_func::COND_ITEM)
   {
-    List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
+    List_iterator_fast<Item> li(*((Item_cond*) cond)->argument_list());
     KEY_FIELD *org_key_fields= *key_fields;
 
     if (((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
@@ -1433,7 +1434,7 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
   }
   else if (cond->type() == Item::COND_ITEM)
   {
-    List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
+    List_iterator_fast<Item> li(*((Item_cond*) cond)->argument_list());
 
     if (((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
     {
@@ -2241,9 +2242,9 @@ make_simple_join(JOIN *join,TABLE *tmp_table)
   join->tables=1;
   join->const_tables=0;
   join->const_table_map=0;
-  join->tmp_table_param.copy_field_count=join->tmp_table_param.field_count=
-    join->tmp_table_param.sum_func_count= join->tmp_table_param.func_count=0;
-  join->tmp_table_param.copy_field=0;
+  join->tmp_table_param.field_count= join->tmp_table_param.sum_func_count=
+    join->tmp_table_param.func_count=0;
+  join->tmp_table_param.copy_field=join->tmp_table_param.copy_field_end=0;
   join->first_record=join->sort_and_group=0;
   join->sum_funcs=0;
   join->send_records=(ha_rows) 0;
@@ -2591,7 +2592,8 @@ join_free(JOIN *join)
   }
   // We are not using tables anymore
   // Unlock all tables. We may be in an INSERT .... SELECT statement.
-  if (join->lock && join->thd->lock)
+  if (join->lock && join->thd->lock &&
+      !(join->select_options & SELECT_NO_UNLOCK))
   {
     mysql_unlock_read_tables(join->thd, join->lock);// Don't free join->lock
     join->lock=0;
@@ -2949,7 +2951,7 @@ propagate_cond_constants(I_List<COND_CMP> *save_list,COND *and_level,
   {
     bool and_level= ((Item_cond*) cond)->functype() ==
       Item_func::COND_AND_FUNC;
-    List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
+    List_iterator_fast<Item> li(*((Item_cond*) cond)->argument_list());
     Item *item;
     I_List<COND_CMP> save;
     while ((item=li++))
@@ -3176,7 +3178,7 @@ const_expression_in_where(COND *cond, Item *comp_item, Item **const_item)
   {
     bool and_level= (((Item_cond*) cond)->functype()
 		     == Item_func::COND_AND_FUNC);
-    List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
+    List_iterator_fast<Item> li(*((Item_cond*) cond)->argument_list());
     Item *item;
     while ((item=li++))
     {
@@ -3348,6 +3350,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
         hidden_null_count, hidden_null_pack_length, hidden_field_count,
 	blob_count,group_null_items;
   bool	using_unique_constraint=0;
+  bool  not_all_columns= !(select_options & TMP_TABLE_ALL_COLUMNS);
   char	*tmpname,path[FN_REFLEN];
   byte	*pos,*group_buff;
   uchar *null_flags;
@@ -3438,24 +3441,27 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   reclength=blob_count=null_count=hidden_null_count=group_null_items=0;
   param->using_indirect_summary_function=0;
 
-  List_iterator<Item> li(fields);
+  List_iterator_fast<Item> li(fields);
   Item *item;
   Field **tmp_from_field=from_field;
   while ((item=li++))
   {
     Item::Type type=item->type();
-    if (item->with_sum_func && type != Item::SUM_FUNC_ITEM)
+    if (not_all_columns)
     {
-      /*
-	Mark that the we have ignored an item that refers to a summary
-	function. We need to know this if someone is going to use
-	DISTINCT on the result.
-      */
-      param->using_indirect_summary_function=1;
-      continue;
+      if (item->with_sum_func && type != Item::SUM_FUNC_ITEM)
+      {
+	/*
+	  Mark that the we have ignored an item that refers to a summary
+	  function. We need to know this if someone is going to use
+	  DISTINCT on the result.
+	*/
+	param->using_indirect_summary_function=1;
+	continue;
+      }
+      if (item->const_item())			// We don't have to store this
+	continue;
     }
-    if (item->const_item())			// We don't have to store this
-      continue;
     if (type == Item::SUM_FUNC_ITEM && !group && !save_sum_fields)
     {						/* Can't calc group yet */
       ((Item_sum*) item)->result_field=0;
@@ -3466,7 +3472,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	{
 	  Field *new_field=
 	    create_tmp_field(table,arg,arg->type(),&copy_func,tmp_from_field,
-			     group != 0,1);
+			     group != 0,not_all_columns);
 	  if (!new_field)
 	    goto err;					// Should be OOM
 	  tmp_from_field++;
@@ -3483,7 +3489,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     else
     {
       Field *new_field=create_tmp_field(table,item,type,&copy_func,
-					tmp_from_field, group != 0,1);
+					tmp_from_field, group != 0,
+					not_all_columns);
       if (!new_field)
       {
 	if (thd->fatal_error)
@@ -3620,7 +3627,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       null_count=(null_count+7) & ~7;		// move to next byte
   }
 
-  param->copy_field_count=(uint) (copy - param->copy_field);
+  param->copy_field_end=copy;
   param->recinfo=recinfo;
   store_record(table,2);			// Make empty default record
 
@@ -6414,7 +6421,7 @@ setup_copy_fields(TMP_TABLE_PARAM *param,List<Item> &fields)
 	goto err;
     }
   }
-  param->copy_field_count= (uint) (copy - param->copy_field);
+  param->copy_field_end= copy;
   DBUG_RETURN(0);
 
  err:
@@ -6432,17 +6439,16 @@ void
 copy_fields(TMP_TABLE_PARAM *param)
 {
   Copy_field *ptr=param->copy_field;
-  Copy_field *end=ptr+param->copy_field_count;
+  Copy_field *end=param->copy_field_end;
 
   for ( ; ptr != end; ptr++)
     (*ptr->do_copy)(ptr);
 
-  List_iterator<Item> it(param->copy_funcs);
+  List_iterator_fast<Item> &it=param->copy_funcs_it;
+  it.rewind();
   Item_copy_string *item;
   while ((item = (Item_copy_string*) it++))
-  {
     item->copy();
-  }
 }
 
 

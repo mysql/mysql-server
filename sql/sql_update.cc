@@ -90,7 +90,7 @@ int mysql_update(THD *thd,
 
   /* Check the fields we are going to modify */
   table->grant.want_privilege=want_privilege;
-  if (setup_fields(thd,table_list,fields,1,0))
+  if (setup_fields(thd,table_list,fields,1,0,0))
     DBUG_RETURN(-1);				/* purecov: inspected */
   if (table->timestamp_field)
   {
@@ -103,7 +103,7 @@ int mysql_update(THD *thd,
 
   /* Check values */
   table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
-  if (setup_fields(thd,table_list,values,0,0))
+  if (setup_fields(thd,table_list,values,0,0,0))
   {
     table->time_stamp=save_time_stamp;		// Restore timestamp pointer
     DBUG_RETURN(-1);				/* purecov: inspected */

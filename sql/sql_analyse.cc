@@ -127,7 +127,7 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
   pc->f_end = pc->f_info + field_list.elements;
   pc->fields = field_list;
 
-  List_iterator<Item> it(pc->fields);
+  List_iterator_fast<Item> it(pc->fields);
   f_info = pc->f_info;
 
   Item *item;

@@ -152,7 +152,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
                  MYF(0),keyinfo->key_parts);
              goto err;
           }
-          List_iterator<Item> it_ke(*key_expr);
+          List_iterator_fast<Item> it_ke(*key_expr);
 	  Item *item;
           for (key_len=0 ; (item=it_ke++) ; key_part++)
           {
