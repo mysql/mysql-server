@@ -3408,6 +3408,7 @@ int mysql_recreate_table(THD *thd, TABLE_LIST *table_list,
   lex->key_list.empty();
   lex->col_list.empty();
   lex->alter_info.reset();
+  lex->alter_info.is_simple= 0;                 // Force full recreate
   bzero((char*) &create_info,sizeof(create_info));
   create_info.db_type=DB_TYPE_DEFAULT;
   create_info.row_type=ROW_TYPE_DEFAULT;
