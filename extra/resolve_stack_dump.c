@@ -159,7 +159,7 @@ static uchar hex_val(char c)
   l = tolower(c);
   if(l < 'a' || l > 'f')
     return HEX_INVALID; 
-  return 10 + c - 'a';
+  return (uchar)10 + ((uchar)c - (uchar)'a');
 }
 
 static my_long_addr_t read_addr(char** buf)
@@ -189,7 +189,7 @@ static int init_sym_entry(SYM_ENTRY* se, char* buf)
     /* empty - skip more space */;
   --buf;
   /* now we are on the symbol */
-  for(p = se->symbol, p_end = se->symbol + sizeof(se->symbol);
+  for(p = se->symbol, p_end = se->symbol + sizeof(se->symbol) - 1;
       *buf != '\n' && *buf; ++buf,++p )
     {
       if(p < p_end)
@@ -203,7 +203,7 @@ static int init_sym_entry(SYM_ENTRY* se, char* buf)
 
 static void init_sym_table()
 {
-  char buf[256];
+  char buf[512];
   if(init_dynamic_array(&sym_table, sizeof(SYM_ENTRY), INIT_SYM_TABLE,
 		     INC_SYM_TABLE))
     die("Failed in init_dynamic_array() -- looks like out of memory problem");
@@ -236,7 +236,7 @@ static void verify_sort()
       get_dynamic(&sym_table, (gptr)&se, i);
       if(se.addr < last)
 	die("sym table does not appear to be sorted, did you forget \
---numeric-sort arg to nm");
+--numeric-sort arg to nm? trouble addr = %p, last = %p", se.addr, last);
       last = se.addr;
     }
 }

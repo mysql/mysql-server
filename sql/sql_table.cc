@@ -828,6 +828,7 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table)
 
       if(lock_retcode && wait_for_locked_table_names(thd, table))
 	{
+	  unlock_table_name(thd, table);
           pthread_mutex_unlock(&LOCK_open);
 	  return -1;
 	}
@@ -838,6 +839,7 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table)
 			   reg_ext, 4),
 		 MYF(MY_WME)))
 	{
+ 	   unlock_table_name(thd, table);
            return send_check_errmsg(thd, table, "restore",
 				    "Failed copying .frm file");
 	}
@@ -848,8 +850,9 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table)
 
       if(generate_table(thd, table, 0))
 	{
-	  thd->net.no_send_ok = save_no_send_ok;
-           return send_check_errmsg(thd, table, "restore",
+	  unlock_table_name(thd, table);
+          thd->net.no_send_ok = save_no_send_ok;
+          return send_check_errmsg(thd, table, "restore",
 				    "Failed generating table from .frm file");
 	}
 
@@ -906,7 +909,8 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
       // now we should be able to open the partially restored table
       // to finish the restore in the handler later on
-      table->table = reopen_name_locked_table(thd, table);
+      if(!(table->table = reopen_name_locked_table(thd, table)))
+        unlock_table_name(thd, table);
     }
 
     if (!table->table)
