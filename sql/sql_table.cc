@@ -1579,7 +1579,7 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table,
 					reg_ext))
       DBUG_RETURN(-1); // protect buffer overflow
 
-    my_snprintf(dst_path, sizeof(dst_path), "%s/%s/%s",
+    my_snprintf(dst_path, sizeof(dst_path), "%s%s/%s",
 		mysql_real_data_home, db, table_name);
 
     if (lock_and_wait_for_table_name(thd,table))

@@ -2752,7 +2752,6 @@ longlong Item_cond_xor::val_int()
 
 Item *Item_func_not::neg_transformer(THD *thd)	/* NOT(x)  ->  x */
 {
-  // We should apply negation elimination to the argument of the NOT function
   return args[0];
 }
 

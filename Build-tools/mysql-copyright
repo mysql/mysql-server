@@ -150,20 +150,20 @@ sub main
 ####
 sub fix_mysql_version
 {
-    chdir("$destdir");
-    my $header_file= (-f 'include/mysql_version.h.in')? 'include/mysql_version.h.in' : 'include/mysql_version.h';
-    
-    open(MYSQL_VERSION,"<$header_file") or die "Unable to open include/mysql_version.h for read: $!\n";
-    undef $/;
-    my $mysql_version= <MYSQL_VERSION>;
-    close(MYSQL_VERSION);
+  chdir("$destdir");
+  my $header_file= (-f 'include/mysql_version.h.in')? 'include/mysql_version.h.in' : 'include/mysql_version.h';
 
-    $mysql_version=~ s/\#define LICENSE[\s\t]+GPL/#define LICENSE Commercial/;
-    
-    open(MYSQL_VERSION,">$header_file") or die "Unable to open include/mysql_version.h for write: $!\n";
-    print MYSQL_VERSION $mysql_version;
-    close(MYSQL_VERSION);
-    chdir("$cwd");
+  open(MYSQL_VERSION,"<$header_file") or die "Unable to open $header_file for read: $!\n";
+  undef $/;
+  my $mysql_version= <MYSQL_VERSION>;
+  close(MYSQL_VERSION);
+
+  $mysql_version=~ s/\#define LICENSE[\s\t]+GPL/#define LICENSE Commercial/;
+
+  open(MYSQL_VERSION,">$header_file") or die "Unable to open $header_file for write: $!\n";
+  print MYSQL_VERSION $mysql_version;
+  close(MYSQL_VERSION);
+  chdir("$cwd");
 }
 
 ####
