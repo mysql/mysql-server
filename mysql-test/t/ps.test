@@ -8,7 +8,7 @@ drop table if exists t1,t2;
 create table t1
 (
   a int primary key,
-  b char(10),
+  b char(10)
 );
 insert into t1 values (1,'one');
 insert into t1 values (2,'two');
@@ -86,5 +86,17 @@ prepare stmt6 from 'insert into t1 values (5,"five"); select2';
 --error 1064
 explain prepare stmt6 from 'insert into t1 values (5,"five"); select2';
 
-drop table t1;
+create table t2
+(
+  a int
+);
+
+insert into t2 values (0);
+
+# parameter is NULL
+set @arg00=NULL ;
+prepare stmt1 from 'select 1 FROM t2 where a=?' ;
+execute stmt1 using @arg00 ;
+
+drop table t1,t2;
 
