@@ -99,7 +99,12 @@ public:
 		      unsigned sizeOfLongSignalMemory = 100);
   
   bool init(NodeId localNodeId);
-  
+
+  /**
+   * after a connect from client, perform connection using correct transporter
+   */
+  bool connect_server(NDB_SOCKET_TYPE sockfd);
+
   /**
    * Remove all transporters
    */
