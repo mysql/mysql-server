@@ -137,7 +137,8 @@ int mysqld_show_open_tables(THD *thd,const char *wild)
 ** A table is a .frm file in the current databasedir
 ***************************************************************************/
 
-int mysqld_show_tables(THD *thd,const char *db,const char *wild)
+int mysqld_show_tables(THD *thd, const char *db, const char *wild,
+		       bool show_type)
 {
   Item_string *field=new Item_string("",0,thd->charset());
   List<Item> field_list;
@@ -146,8 +147,6 @@ int mysqld_show_tables(THD *thd,const char *db,const char *wild)
   char *file_name;
   Protocol *protocol= thd->protocol;
   uint len;
-  bool show_type = !test(thd->variables.sql_mode &
-                         (MODE_NO_FIELD_OPTIONS | MODE_MYSQL323));
   DBUG_ENTER("mysqld_show_tables");
 
   field->name=(char*) thd->alloc(20+(uint) strlen(db)+
