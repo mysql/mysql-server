@@ -113,6 +113,27 @@ class Ndb_item {
   Field * get_field() { return value.field_value->field; };
   int get_field_no() { return value.field_value->column_no; };
 
+  const void * get_value()
+  {      
+    switch(qualification.value_type) {
+    case(Item::INT_ITEM): {
+      return (void *) &value.int_value;
+    } 
+    case(Item::REAL_ITEM): {
+      return (void *) &value.real_value;
+      break;
+    }
+    case(Item::STRING_ITEM): 
+    case(Item::VARBIN_ITEM): {	
+      return  value.string_value->s.ptr();
+    }
+    default:
+      break;
+    }
+
+    return NULL;
+  }
+    
  public:
   NDB_ITEM_TYPE type;
   NDB_ITEM_QUALIFICATION qualification;
@@ -178,6 +199,11 @@ class Ndb_cond_traverse_context {
   {
     expect_mask= 0;
   };
+  void expect_only(Item::Type type)
+  {
+    expect_mask= 0;
+    expect(type);
+  };
 
   void expect_field_result(Item_result result)
   {
@@ -191,13 +217,17 @@ class Ndb_cond_traverse_context {
   {
     expect_field_result_mask= 0;
   };
+  void expect_only_field_result(Item_result result)
+  {
+    expect_field_result_mask= 0;
+    expect_field_result(result);
+  };
 
   TABLE* table;
   void* ndb_table;
   bool *supported_ptr;
   Ndb_cond_stack* stack_ptr;
   Ndb_cond* cond_ptr;
-  private:
   uint expect_mask;
   uint expect_field_result_mask;
 };
