@@ -3852,6 +3852,8 @@ JOIN::join_free(bool full)
   JOIN_TAB *tab,*end;
   DBUG_ENTER("JOIN::join_free");
 
+  full= full || !select_lex->uncacheable;
+
   if (table)
   {
     /*
@@ -3863,7 +3865,18 @@ JOIN::join_free(bool full)
       free_io_cache(table[const_tables]);
       filesort_free_buffers(table[const_tables]);
     }
-    if (full || !select_lex->uncacheable)
+
+    for (SELECT_LEX_UNIT *unit= select_lex->first_inner_unit(); unit;
+         unit= unit->next_unit())
+    {
+      JOIN *join;
+      for (SELECT_LEX *sl= unit->first_select_in_union(); sl;
+           sl= sl->next_select())
+        if ((join= sl->join))
+          join->join_free(full);
+    }
+
+    if (full)
     {
       for (tab= join_tab, end= tab+tables; tab != end; tab++)
 	tab->cleanup();
@@ -3873,22 +3886,27 @@ JOIN::join_free(bool full)
     {
       for (tab= join_tab, end= tab+tables; tab != end; tab++)
       {
-	if (tab->table && tab->table->file->inited == handler::RND)
-	    tab->table->file->ha_rnd_end();
+	if (tab->table)
+	    tab->table->file->ha_index_or_rnd_end();
       }
     }
   }
+
   /*
     We are not using tables anymore
     Unlock all tables. We may be in an INSERT .... SELECT statement.
   */
-  if ((full || !select_lex->uncacheable) &&
-      lock && thd->lock &&
-      !(select_options & SELECT_NO_UNLOCK))
+  if (full && lock && thd->lock && !(select_options & SELECT_NO_UNLOCK))
   {
-    mysql_unlock_read_tables(thd, lock);// Don't free join->lock
-    lock=0;
+    // TODO: unlock tables even if the join isn't top level select in the tree
+    if (select_lex == (thd->lex->unit.fake_select_lex ?
+                       thd->lex->unit.fake_select_lex : &thd->lex->select_lex))
+    {
+      mysql_unlock_read_tables(thd, lock);        // Don't free join->lock
+      lock=0;
+    }
   }
+
   if (full)
   {
     group_fields.delete_elements();

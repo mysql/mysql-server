@@ -1190,3 +1190,23 @@ exists (select 'two' from t1 where 'two' = outer_table.b);
 b
 drop table t1;
 set autocommit=1;
+create table t1(a int primary key, b varchar(30)) engine=bdb;
+insert into t1 values (1,'one'), (2,'two'), (3,'three'), (4,'four');
+create table t2 like t1;
+insert t2 select * from t1;
+select a from t1 where a in (select a from t2);
+a
+1
+2
+3
+4
+delete from t2;
+insert into t2 (a, b)
+select a, b from t1 where (a, b) in (select a, b from t1);
+select * from t2;
+a	b
+1	one
+2	two
+3	three
+4	four
+drop table t1, t2;
