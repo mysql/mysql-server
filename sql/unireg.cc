@@ -92,15 +92,15 @@ int rea_create_table(THD *thd, my_string file_name,
     DBUG_RETURN(1);
   }
 
-  uint key_buff_length=uint2korr(fileinfo+14);
-  keybuff=(uchar*) my_alloca(key_buff_length);
+  uint key_buff_length=keys*(7+NAME_LEN+MAX_REF_PARTS*9)+16;
+  keybuff=(uchar*) my_malloc(key_buff_length, MYF(0));
   key_info_length=pack_keys(keybuff,keys,key_info);
   VOID(get_form_pos(file,fileinfo,&formnames));
   if (!(filepos=make_new_entry(file,fileinfo,&formnames,"")))
     goto err;
   maxlength=(uint) next_io_size((ulong) (uint2korr(forminfo)+1000));
   int2store(forminfo+2,maxlength);
-  int4store(fileinfo+10,(ulong) (filepos+maxlength));
+  int4store(fileinfo+10,key_buff_length);
   fileinfo[26]= (uchar) test((create_info->max_rows == 1) &&
 			     (create_info->min_rows == 1) && (keys == 0));
   int2store(fileinfo+28,key_info_length);
@@ -148,7 +148,7 @@ int rea_create_table(THD *thd, my_string file_name,
 #endif
 
   my_free((gptr) screen_buff,MYF(0));
-  my_afree((gptr) keybuff);
+  my_free((gptr) keybuff, MYF(0));
   VOID(my_close(file,MYF(MY_WME)));
   if (ha_create_table(file_name,create_info,0))
     goto err2;
@@ -156,7 +156,7 @@ int rea_create_table(THD *thd, my_string file_name,
 
 err:
   my_free((gptr) screen_buff,MYF(0));
-  my_afree((gptr) keybuff);
+  my_free((gptr) keybuff, MYF(0));
   VOID(my_close(file,MYF(MY_WME)));
  err2:
   my_delete(file_name,MYF(0));
@@ -291,10 +291,17 @@ static uint pack_keys(uchar *keybuff,uint key_count,KEY *keyinfo)
   }
   *(pos++)=0;
 
-  keybuff[0]=(uchar) key_count;
-  keybuff[1]=(uchar) key_parts;
-  length=(uint) (keyname_pos-keybuff);
-  int2store(keybuff+2,length);
+  if (key_count > 127 || key_parts > 127)
+  {
+    key_count|=0x8000;
+    int2store(keybuff,key_count);
+    int2store(keybuff+2,key_parts);
+  }
+  else
+  {
+    keybuff[0]=(uchar) key_count;
+    keybuff[1]=(uchar) key_parts;
+  }
   length=(uint) (pos-keyname_pos);
   int2store(keybuff+4,length);
   DBUG_RETURN((uint) (pos-keybuff));
