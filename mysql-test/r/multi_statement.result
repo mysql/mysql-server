@@ -1,0 +1,33 @@
+select 1;
+1
+1
+select 2;
+select 3;
+select 4||||
+2
+2
+3
+3
+4
+4
+select 5;
+select 6;
+select 50, 'abc';'abcd'
+5
+5
+6
+6
+50	abc
+50	abc
+select "abcd'";'abcd'
+abcd'
+abcd'
+select "'abcd";'abcd'
+'abcd
+'abcd
+select 5'abcd'
+5
+5
+select 'finish';
+finish
+finish
