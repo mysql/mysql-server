@@ -464,17 +464,17 @@ select 'a' || 'b' ;
 ab
 prepare stmt4 from ' SET sql_mode="" ';
 execute stmt4;
-select 'a' || 'b' ;
-'a' || 'b'
-0
-prepare stmt5 from ' select ''a'' || ''b'' ' ;
+select '2' || '3' ;
+'2' || '3'
+1
+prepare stmt5 from ' select ''2'' || ''3'' ' ;
 execute stmt5;
-'a' || 'b'
-0
+'2' || '3'
+1
 SET sql_mode=ansi;
 execute stmt5;
-'a' || 'b'
-0
+'2' || '3'
+1
 SET sql_mode="";
 prepare stmt1 from ' flush local privileges ' ;
 ERROR HY000: This command is not supported in the prepared statement protocol yet
