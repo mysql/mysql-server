@@ -856,8 +856,8 @@ int ha_berkeley::write_row(byte * record)
   DBUG_ENTER("write_row");
 
   statistic_increment(ha_write_count,&LOCK_status);
-  if (table->timestamp_default_now)
-    update_timestamp(record+table->timestamp_default_now-1);
+  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
+    table->timestamp_field->set_time();
   if (table->next_number_field && record == table->record[0])
     update_auto_increment();
   if ((error=pack_row(&row, record,1)))
@@ -1103,8 +1103,8 @@ int ha_berkeley::update_row(const byte * old_row, byte * new_row)
   LINT_INIT(error);
 
   statistic_increment(ha_update_count,&LOCK_status);
-  if (table->timestamp_on_update_now)
-    update_timestamp(new_row+table->timestamp_on_update_now-1);
+  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
+    table->timestamp_field->set_time();
 
   if (hidden_primary_key)
   {
