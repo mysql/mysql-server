@@ -1015,10 +1015,10 @@ int change_master(THD* thd, MASTER_INFO* mi)
     If we don't write new coordinates to disk now, then old will remain in
     relay-log.info until START SLAVE is issued; but if mysqld is shutdown
     before START SLAVE, then old will remain in relay-log.info, and will be the
-    in-memory value at restart (thus causing errors, as the old relay log
-    does not exist anymore).
+    in-memory value at restart (thus causing errors, as the old relay log does
+    not exist anymore).
   */
-  flush_relay_log_info(&mi->rli, 0);
+  flush_relay_log_info(&mi->rli); 
   pthread_cond_broadcast(&mi->data_cond);
   pthread_mutex_unlock(&mi->rli.data_lock);
 

@@ -584,26 +584,19 @@ int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
     lock_cond_sql = &mi->rli.run_lock;
   }
 
-  /*
-    We must first start the SQL thread, becasue for lock_slave_threads() to work
-    we must first unlock mi->rli.run_lock and then mi->run_lock
-    If we don't do this, we will get a deadlock if two threads calls START SLAVE
-    at the same time.
-  */
-
-  if (thread_mask & SLAVE_SQL)
-    error=start_slave_thread(handle_slave_sql,lock_sql,lock_cond_sql,
-			     cond_sql,
-			     &mi->rli.slave_running, &mi->rli.slave_run_id,
-			     mi);
-  if (!error && (thread_mask & SLAVE_IO))
-  {
+  if (thread_mask & SLAVE_IO)
     error=start_slave_thread(handle_slave_io,lock_io,lock_cond_io,
 			     cond_io,
 			     &mi->slave_running, &mi->slave_run_id,
 			     mi);
+  if (!error && (thread_mask & SLAVE_SQL))
+  {
+    error=start_slave_thread(handle_slave_sql,lock_sql,lock_cond_sql,
+			     cond_sql,
+			     &mi->rli.slave_running, &mi->rli.slave_run_id,
+			     mi);
     if (error)
-      terminate_slave_threads(mi, thread_mask & SLAVE_SQL, 0);
+      terminate_slave_threads(mi, thread_mask & SLAVE_IO, 0);
   }
   DBUG_RETURN(error);
 }
@@ -1438,7 +1431,7 @@ Failed to open the existing relay log info file '%s' (errno %d)",
     before flush_relay_log_info
   */
   reinit_io_cache(&rli->info_file, WRITE_CACHE,0L,0,1);
-  if ((error= flush_relay_log_info(rli, 0)))
+  if ((error= flush_relay_log_info(rli)))
     sql_print_error("Failed to flush relay log info file");
   if (count_relay_log_space(rli))
   {
@@ -2286,7 +2279,7 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
       rli->inc_pos(ev->get_event_len(),
 		   type_code != STOP_EVENT ? ev->log_pos : LL(0),
 		   1/* skip lock*/);
-      flush_relay_log_info(rli, 0);
+      flush_relay_log_info(rli);
 
       /*
 	Protect against common user error of setting the counter to 1
@@ -3246,7 +3239,6 @@ static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
   SYNOPSIS
     flush_relay_log_info()
     rli			Relay log information
-    flush_cur_log	Flush the current log if it's a hot log.
 
   NOTES
     - As this is only called by the slave thread, we don't need to
@@ -3259,8 +3251,6 @@ static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
       If this would not be the case, we would have to ensure that we
       don't delete the relay log file where the transaction started when
       we switch to a new relay log file.
-    - The reason for flushing current log is to ensure that we have saved on
-      disk the last query the SQL thread read
 
   TODO
     - Change the log file information to a binary format to avoid calling
@@ -3271,7 +3261,7 @@ static int safe_reconnect(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
     1	write error
 */
 
-bool flush_relay_log_info(RELAY_LOG_INFO* rli, bool flush_cur_log)
+bool flush_relay_log_info(RELAY_LOG_INFO* rli)
 {
   bool error=0;
   IO_CACHE *file = &rli->info_file;
@@ -3294,23 +3284,7 @@ bool flush_relay_log_info(RELAY_LOG_INFO* rli, bool flush_cur_log)
     error=1;
   if (flush_io_cache(file))
     error=1;
-
-  /*
-    We want to flush the io log here if this is a hot cache to ensure
-    that we have the execute SQL statement on disk.
-  */
-  if (flush_cur_log)
-  {
-    /*
-      The following mutex is to protect us against log changes in middle of
-      the flush_io_cache() call
-    */
-    pthread_mutex_lock(&rli->mi->data_lock);
-    /* Only flush hot logs */
-    if (rli->cur_log != &rli->cache_buf && flush_io_cache(rli->cur_log))
-      error=1;
-    pthread_mutex_unlock(&rli->mi->data_lock);
-  }
+  /* Flushing the relay log is done by the slave I/O thread */
   return error;
 }
 
@@ -3531,7 +3505,7 @@ rli->relay_log_pos=%s rli->pending=%lu",
 	rli->pending=0;
 	strmake(rli->relay_log_name,rli->linfo.log_file_name,
 		sizeof(rli->relay_log_name)-1);
-	flush_relay_log_info(rli, 0);
+	flush_relay_log_info(rli);
       }
 
       /*
