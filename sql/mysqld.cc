@@ -53,6 +53,10 @@
 #define IF_PURIFY(A,B) (B)
 #endif
 
+#ifndef INADDR_NONE
+#define INADDR_NONE -1				// Error value from inet_addr
+#endif
+
 /* stack traces are only supported on linux intel */
 #if defined(__linux__)  && defined(__i386__) && defined(USE_PSTACK)
 #define	HAVE_STACK_TRACE_ON_SEGV
@@ -5214,7 +5218,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     my_use_symdir=0;
     break;
   case (int) OPT_BIND_ADDRESS:
-    if (!argument || (my_bind_addr= (ulong) inet_addr(argument)) == INADDR_NONE)
+    if (!argument ||
+	(my_bind_addr= (ulong) inet_addr(argument)) == INADDR_NONE)
     {
       struct hostent *ent;
       if (argument || argument[0])
