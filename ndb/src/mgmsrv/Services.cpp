@@ -390,11 +390,11 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   }
 
   struct sockaddr addr;
-  socklen_t addrlen;
+  socklen_t addrlen= sizeof(addr);
   int r;
-  if (r= getsockname(m_socket, &addr, &addrlen)) {
+  if (r= getpeername(m_socket, &addr, &addrlen)) {
     m_output->println(cmd);
-    m_output->println("result: getsockname(%d) failed, err= %d", m_socket, r);
+    m_output->println("result: getpeername(%d) failed, err= %d", m_socket, r);
     m_output->println("");
     return;
   }

@@ -104,6 +104,7 @@ ConfigInfo::m_SectionRules[] = {
   { "OSE",  fixHostname, "HostName2" },
 
   { "TCP",  fixPortNumber, 0 }, // has to come after fixHostName
+  { "SHM",  fixPortNumber, 0 }, // has to come after fixHostName
   //{ "SHM",  fixShmKey, 0 },
 
   /**
@@ -1559,14 +1560,14 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0x7FFFFFFF },
 
   {
-    CFG_TCP_SERVER_PORT,
+    CFG_CONNECTION_SERVER_PORT,
     "PortNumber",
     "TCP",
     "Port used for this transporter",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
-    NDB_BASE_PORT+2,
+    MANDATORY,
     0,
     0x7FFFFFFF },
 
@@ -1695,6 +1696,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0,
     0x7FFFFFFF },
   
+  {
+    CFG_CONNECTION_SERVER_PORT,
+    "PortNumber",
+    "SHM",
+    "Port used for this transporter",
+    ConfigInfo::USED,
+    false,
+    ConfigInfo::INT,
+    MANDATORY,
+    0,
+    0x7FFFFFFF },
+
   {
     KEY_INTERNAL,
     "ProcessId1",

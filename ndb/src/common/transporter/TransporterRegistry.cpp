@@ -352,13 +352,17 @@ TransporterRegistry::createTransporter(SHM_TransporterConfiguration *config) {
   if(theTransporters[config->remoteNodeId] != NULL)
     return false;
 
-  SHM_Transporter * t = new SHM_Transporter(config->localNodeId,
+  SHM_Transporter * t = new SHM_Transporter(*this,
+					    "localhost",
+					    "localhost",
+					    config->port,
+					    localNodeId,
 					    config->remoteNodeId,
-					    config->shmKey,
-					    config->shmSize,
 					    config->compression,
 					    config->checksum,
-					    config->signalId
+					    config->signalId,
+					    config->shmKey,
+					    config->shmSize
 					    );
   if (t == NULL)
     return false;

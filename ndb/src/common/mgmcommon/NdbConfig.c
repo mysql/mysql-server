@@ -24,12 +24,13 @@ NdbConfig_AllocHomePath(int _len)
   const char *path= NdbEnv_GetEnv("NDB_HOME", 0, 0);
   int len= _len;
   int path_len= 0;
+  char *buf;
 
   if (path)
     path_len= strlen(path);
 
   len+= path_len;
-  char *buf= malloc(len);
+  buf= malloc(len);
   if (path_len > 0)
     snprintf(buf, len, "%s%c", path, DIR_SEPARATOR);
   else
