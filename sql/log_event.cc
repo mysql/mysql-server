@@ -288,8 +288,6 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
   server_id=	thd->server_id;
   when=		thd->start_time;
   cache_stmt=	using_trans;
-  cache_stmt=	(using_trans &&
-		 (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)));
 }
 
 
@@ -316,12 +314,12 @@ Log_event::Log_event()
 */
 
 Log_event::Log_event(const char* buf,
-                     const Format_description_log_event* description_event) 
+                     const Format_description_log_event* description_event)
   :temp_buf(0), cache_stmt(0)
 {
 #ifndef MYSQL_CLIENT
   thd = 0;
-#endif  
+#endif
   when = uint4korr(buf);
   server_id = uint4korr(buf + SERVER_ID_OFFSET);
   if (description_event->binlog_version==1)
@@ -2982,11 +2980,19 @@ void Xid_log_event::pack_info(Protocol *protocol)
 {
   char buf[64], *pos;
   pos= strmov(buf, "xid=");
-  pos= int10_to_str(xid, pos, 10);
+  pos= longlong10_to_str(xid, pos, 10);
   protocol->store(buf, (uint) (pos-buf), &my_charset_bin);
 }
 #endif
 
+/*
+  NOTE it's ok not to use int8store here,
+  as long as xid_t::set(ulonglong) and
+  xid_t::get_my_xid doesn't do it either
+
+  we don't care about actual values of xids as long as
+  identical numbers compare identically
+*/
 Xid_log_event::Xid_log_event(const char* buf,
                              const Format_description_log_event* description_event)
   :Log_event(buf, description_event)
@@ -3006,14 +3012,15 @@ bool Xid_log_event::write(IO_CACHE* file)
 #ifdef MYSQL_CLIENT
 void Xid_log_event::print(FILE* file, bool short_form, LAST_EVENT_INFO* last_event_info)
 {
-  char buf[512];
   if (!short_form)
   {
+    char buf[64];
+    longlong10_to_str(xid, buf, 10);
+
     print_header(file);
-    fprintf(file, "\tXid\n");
+    fprintf(file, "\tXid = %s\n", buf);
+    fflush(file);
   }
-  fprintf(file, "/* == %lu == */\n", xid);
-  fflush(file);
 }
 #endif /* MYSQL_CLIENT */
 
