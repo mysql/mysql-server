@@ -26,8 +26,6 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0byte.h"
 #include "trx0types.h"
 
-extern ibool		dict_char_0xA0_is_space;
-
 /************************************************************************
 Get the database name length in a table name. */
 
