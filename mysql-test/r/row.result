@@ -1,3 +1,9 @@
+select row(1,2,3) IN (row(3,2,3), row(1,2,3), row(1,3,3));
+row(1,2,3) IN (row(3,2,3), row(1,2,3), row(1,3,3))
+1
+select row(10,2,3) IN (row(3,2,3), row(1,2,3), row(1,3,3));
+row(10,2,3) IN (row(3,2,3), row(1,2,3), row(1,3,3))
+0
 SELECT ROW(1,2,3)=ROW(1,2,3);
 ROW(1,2,3)=ROW(1,2,3)
 1
@@ -47,6 +53,16 @@ a	b	c
 select * from t1 where ROW(1,2,3)<ROW(a,b,c);
 a	b	c
 2	3	1
+3	2	1
+select * from t1 where ROW(a,2,3) IN(row(1,b,c), row(2,3,1));
+a	b	c
+1	2	3
+select * from t1 where ROW(c,2,3) IN(row(1,b,a), row(2,3,1));
+a	b	c
+3	2	1
+select * from t1 where ROW(a,b,c) IN(row(1,2,3), row(3,2,1));
+a	b	c
+1	2	3
 3	2	1
 drop table t1;
 select ROW(1,1);

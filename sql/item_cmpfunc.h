@@ -38,16 +38,12 @@ public:
   Arg_comparator() {};
   Arg_comparator(Item **a1, Item **a2): a(a1), b(a2) {};
 
-  inline void seta(Item **item) { a= item; }
-  inline void setb(Item **item) { b= item; }
-
   int set_compare_func(Item_bool_func2 *owner, Item_result type);
   inline int set_compare_func(Item_bool_func2 *owner)
   {
     return set_compare_func(owner, item_cmp_type((*a)->result_type(),
 						 (*b)->result_type()));
   }
-
   inline int set_cmp_func(Item_bool_func2 *owner,
 			  Item **a1, Item **a2,
 			  Item_result type)
@@ -437,6 +433,7 @@ public:
   virtual ~cmp_item() {}
   virtual void store_value(Item *item)=0;
   virtual int cmp(Item *item)=0;
+  static cmp_item* get_comparator(Item *);
 };
 
 
@@ -503,6 +500,14 @@ public:
     }
 };
 
+class cmp_item_row :public cmp_item
+{
+  cmp_item **comparators;
+  uint n;
+public:
+  void store_value(Item *item);
+  int cmp(Item *arg);
+};
 
 class Item_func_in :public Item_int_func
 {
@@ -512,12 +517,15 @@ class Item_func_in :public Item_int_func
   bool have_null;
  public:
   Item_func_in(Item *a,List<Item> &list)
-    :Item_int_func(list), item(a), array(0), in_item(0), have_null(0) {}
+    :Item_int_func(list), item(a), array(0), in_item(0), have_null(0)
+  {
+    allowed_arg_cols= item->cols();
+  }
   longlong val_int();
   bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref)
   {
-    return (item->check_cols(1) ||
-	    item->fix_fields(thd, tlist, &item) ||
+    // We do not check item->cols(), because allowed_arg_cols assigned from it
+    return (item->fix_fields(thd, tlist, &item) ||
 	    Item_func::fix_fields(thd, tlist, ref));
   }
   void fix_length_and_dec();
