@@ -118,78 +118,8 @@ BaseString NDBT_ResultRow::c_str() {
 
 NdbOut & 
 operator << (NdbOut& ndbout, const NDBT_ResultRow & res) {
-  for(int i = 0; i<res.cols; i++){
-    if(res.data[i]->isNULL())
-      ndbout << "NULL";
-    else{
-      const int  size = res.data[i]->attrSize();
-      const int aSize = res.data[i]->arraySize();
-      switch(convertColumnTypeToAttrType(res.data[i]->getType())){
-      case UnSigned:
-	switch(size){
-	case 8:
-	  ndbout << res.data[i]->u_64_value();
-	  break;
-	case 4:
-	  ndbout << res.data[i]->u_32_value();
-	  break;
-	case 2:
-	  ndbout << res.data[i]->u_short_value();
-	  break;
-	case 1:
-	  ndbout << (unsigned) res.data[i]->u_char_value();
-	  break;
-	default:
-	  ndbout << "Unknown size";
-	}
-	break;
-	
-      case Signed:
-	switch(size){
-	case 8:
-	  ndbout << res.data[i]->int64_value();
-	  break;
-	case 4:
-	  ndbout << res.data[i]->int32_value();
-	  break;
-	case 2:
-	  ndbout << res.data[i]->short_value();
-	  break;
-	case 1:
-	  ndbout << (int) res.data[i]->char_value();
-	  break;
-	default:
-	  ndbout << "Unknown size";
-	}
-	break;
-	
-      case String:
-	{
-	  char * buf = new char[aSize+1];
-	  memcpy(buf, res.data[i]->aRef(), aSize);
-	  buf[aSize] = 0;
-	  ndbout << buf;
-	  delete [] buf;
-	  // Null terminate string
-	  //res.data[i][res.sizes[i]] = 0;
-	  //ndbout << res.data[i];
-	}
-	break;
-
-      case Float:
-	ndbout_c("%f", res.data[i]->float_value());
-	break;
-	
-      default:
-	ndbout << "Unknown(" << 
-	  convertColumnTypeToAttrType(res.data[i]->getType()) << ")";
-	break;
-      }
-    }
-    if (i < res.cols-1)
-      ndbout << res.ad;
-  }
-  
+  for(int i = 0; i<res.cols; i++)
+    ndbout << res.data[i];
   return ndbout;
 }
 
