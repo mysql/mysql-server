@@ -135,3 +135,24 @@ select * from t1, t2 where t1.id = t2.id;
 alter table t1 add key id (id);
 select * from t1, t2 where t1.id = t2.id;
 drop table t1,t2;
+
+#
+# Check bug when doing <=> NULL on an indexed null field
+#
+
+create table t1 (
+  id  integer,
+  id2 integer not null,
+  index (id),
+  index (id2)
+);
+insert into t1 values(null,null),(1,1);
+select * from t1;
+select * from t1 where id <=> null;
+select * from t1 where id <=> null or id > 0;
+select * from t1 where id is null or id > 0;
+select * from t1 where id2 <=> null or id2 > 0;
+select * from t1 where id2 is null or id2 > 0;
+delete from t1 where id <=> NULL;
+select * from t1;
+drop table t1;

@@ -90,6 +90,7 @@ my %opt = (
 Getopt::Long::Configure(qw(no_ignore_case)); # disambuguate -p and -P
 GetOptions( \%opt,
     "help",
+    "host|h=s",
     "user|u=s",
     "password|p=s",
     "port|P=s",

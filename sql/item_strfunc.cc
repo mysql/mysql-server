@@ -1363,20 +1363,30 @@ String *Item_func_decode::val_str(String *str)
 
 String *Item_func_database::val_str(String *str)
 {
-  if (!current_thd->db)
+  THD *thd= current_thd;
+  if (!thd->db)
     str->length(0);
   else
-    str->set((const char*) current_thd->db,(uint) strlen(current_thd->db), default_charset_info);
+    str->copy((const char*) thd->db,(uint) strlen(thd->db),
+	      system_charset_info, thd->thd_charset);
   return str;
 }
 
 String *Item_func_user::val_str(String *str)
 {
-  THD *thd=current_thd;
-  if (str->copy((const char*) thd->user,(uint) strlen(thd->user), system_charset_info) ||
-      str->append('@') ||
-      str->append(thd->host ? thd->host : thd->ip ? thd->ip : ""))
-    return &empty_string;
+  THD          *thd=current_thd;
+  CHARSET_INFO *cs=thd->thd_charset;
+  const char   *host=thd->host ? thd->host : thd->ip ? thd->ip : "";
+  uint32       res_length=(strlen(thd->user)+strlen(host)+10) * cs->mbmaxlen;
+  
+  if (str->alloc(res_length))
+  {
+      null_value=1;
+      return 0;
+  }
+  res_length=cs->snprintf(cs, (char*)str->ptr(), res_length, "%s@%s",thd->user,host);
+  str->length(res_length);
+  str->set_charset(cs);
   return str;
 }
 
@@ -1928,7 +1938,7 @@ String *Item_func_conv_charset::val_str(String *str)
   s=(const uchar*)arg->ptr();
   se=s+arg->length();
   
-  dmaxlen=arg->length()*(to->mbmaxlen?to->mbmaxlen:1)+1;
+  dmaxlen=arg->length()*to->mbmaxlen+1;
   str->alloc(dmaxlen);
   d0=d=(unsigned char*)str->ptr();
   de=d+dmaxlen;
@@ -1970,7 +1980,7 @@ outp:
 
 void Item_func_conv_charset::fix_length_and_dec()
 {
-  max_length = args[0]->max_length*(conv_charset->mbmaxlen?conv_charset->mbmaxlen:1);
+  max_length = args[0]->max_length*conv_charset->mbmaxlen;
   set_charset(conv_charset);
 }
 
@@ -2002,7 +2012,7 @@ String *Item_func_conv_charset3::val_str(String *str)
   s=(const uchar*)arg->ptr();
   se=s+arg->length();
   
-  dmaxlen=arg->length()*(to_charset->mbmaxlen?to_charset->mbmaxlen:1)+1;
+  dmaxlen=arg->length()*to_charset->mbmaxlen+1;
   str->alloc(dmaxlen);
   d0=d=(unsigned char*)str->ptr();
   de=d+dmaxlen;
@@ -2057,6 +2067,7 @@ bool Item_func_conv_charset::fix_fields(THD *thd,struct st_table_list *tables, I
   const_item_cache=args[0]->const_item();
   set_charset(conv_charset);
   fix_length_and_dec();
+  fixed= 1;
   return 0;
 }
 
@@ -2091,6 +2102,7 @@ bool Item_func_set_collation::fix_fields(THD *thd,struct st_table_list *tables, 
   used_tables_cache=args[0]->used_tables();
   const_item_cache=args[0]->const_item();
   fix_length_and_dec();
+  fixed= 1;
   return 0;
 }
 
@@ -2120,7 +2132,8 @@ String *Item_func_charset::val_str(String *str)
 
   if ((null_value=(args[0]->null_value || !res->charset())))
     return 0;
-  str->copy(res->charset()->name,strlen(res->charset()->name),default_charset_info);
+  str->copy(res->charset()->name,strlen(res->charset()->name),
+	    my_charset_latin1, thd_charset());
   return str;
 }
 

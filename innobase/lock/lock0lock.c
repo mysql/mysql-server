@@ -70,6 +70,11 @@ A waiting record lock can also be of the gap type. A waiting lock request
 can be granted when there is no conflicting mode lock request by another
 transaction ahead of it in the explicit lock queue.
 
+In version 4.0.5 we added yet another explicit lock type: LOCK_REC_NOT_GAP.
+It only locks the record it is placed on, not the gap before the record.
+This lock type is necessary to emulate an Oracle-like READ COMMITTED isolation
+level.
+
 -------------------------------------------------------------------------
 RULE 1: If there is an implicit x-lock on a record, and there are non-gap
 -------
@@ -294,7 +299,9 @@ struct lock_struct{
 	UT_LIST_NODE_T(lock_t)		
 			trx_locks;	/* list of the locks of the
 					transaction */
-	ulint		type_mode;	/* lock type, mode, gap flag, and
+	ulint		type_mode;	/* lock type, mode, LOCK_GAP or
+					LOCK_REC_NOT_GAP,
+					LOCK_INSERT_INTENTION,
 					wait flag, ORed */
 	hash_node_t	hash;		/* hash chain node for a record lock */
 	dict_index_t*	index;		/* index for a record lock */
@@ -308,6 +315,10 @@ struct lock_struct{
 Monitor will then fetch it and print */
 ibool	lock_deadlock_found = FALSE;
 char*	lock_latest_err_buf;		/* We allocate 5000 bytes for this */
+
+/* Flags for recursive deadlock search */
+#define LOCK_VICTIM_IS_START	1
+#define LOCK_VICTIM_IS_OTHER	2
 
 /************************************************************************
 Checks if a lock request results in a deadlock. */
@@ -700,23 +711,23 @@ lock_rec_get_gap(
 }
 
 /*************************************************************************
-Sets the gap flag of a record lock. */
+Gets the LOCK_REC_NOT_GAP flag of a record lock. */
 UNIV_INLINE
-void
-lock_rec_set_gap(
-/*=============*/
-	lock_t*	lock,	/* in: record lock */
-	ibool	val)	/* in: value to set: TRUE or FALSE */
+ibool
+lock_rec_get_rec_not_gap(
+/*=====================*/
+			/* out: TRUE if LOCK_REC_NOT_GAP flag set */
+	lock_t*	lock)	/* in: record lock */
 {
 	ut_ad(lock);
-	ut_ad((val == TRUE) || (val == FALSE));
 	ut_ad(lock_get_type(lock) == LOCK_REC);
 
-	if (val) {
- 		lock->type_mode = lock->type_mode | LOCK_GAP;
-	} else {
-		lock->type_mode = lock->type_mode & ~LOCK_GAP;
+	if (lock->type_mode & LOCK_REC_NOT_GAP) {
+
+		return(TRUE);
 	}
+
+	return(FALSE);
 }
 
 /*************************************************************************
@@ -737,26 +748,6 @@ lock_rec_get_insert_intention(
 	}
 
 	return(FALSE);
-}
-
-/*************************************************************************
-Sets the waiting insert flag of a record lock. */
-UNIV_INLINE
-void
-lock_rec_set_insert_intention(
-/*==========================*/
-	lock_t*	lock,	/* in: record lock */
-	ibool	val)	/* in: value to set: TRUE or FALSE */
-{
-	ut_ad(lock);
-	ut_ad((val == TRUE) || (val == FALSE));
-	ut_ad(lock_get_type(lock) == LOCK_REC);
-
-	if (val) {
- 		lock->type_mode = lock->type_mode | LOCK_INSERT_INTENTION;
-	} else {
-		lock->type_mode = lock->type_mode & ~LOCK_INSERT_INTENTION;
-	}
 }
 
 /*************************************************************************
@@ -848,48 +839,53 @@ lock_rec_has_to_wait(
 			/* out: TRUE if new lock has to wait for lock2 to be
 			removed */
 	trx_t*	trx,	/* in: trx of new lock */
-	ulint	mode,	/* in: LOCK_S or LOCK_X */
-	ulint	gap,	/* in: LOCK_GAP or 0 */
-	ulint	insert_intention,
-			/* in: LOCK_INSERT_INTENTION or 0 */
+	ulint	type_mode,/* in: precise mode of the new lock to set:
+			LOCK_S or LOCK_X, possibly ORed to
+			LOCK_GAP or LOCK_REC_NOT_GAP, LOCK_INSERT_INTENTION */
 	lock_t*	lock2)	/* in: another record lock; NOTE that it is assumed
 			that this has a lock bit set on the same record as
-			in lock1 */
+			in the new lock we are setting */
 {
 	ut_ad(trx && lock2);
 	ut_ad(lock_get_type(lock2) == LOCK_REC);
-	ut_ad(mode == LOCK_S || mode == LOCK_X);
-	ut_ad(gap == LOCK_GAP || gap == 0);
-	ut_ad(insert_intention == LOCK_INSERT_INTENTION
-	      				|| insert_intention == 0);
 
-	if (trx != lock2->trx && !lock_mode_compatible(mode,
+	if (trx != lock2->trx
+	    && !lock_mode_compatible(LOCK_MODE_MASK & type_mode,
 				     		lock_get_mode(lock2))) {
 
-		/* We have somewhat complex rules when gap type
-		record locks cause waits */
+		/* We have somewhat complex rules when gap type record locks
+		cause waits */
 
-		if (!gap && lock_rec_get_insert_intention(lock2)) {
+		if ((type_mode & LOCK_REC_NOT_GAP)
+						&& lock_rec_get_gap(lock2)) {
+			/* Lock on just the record does not need to wait for
+			a gap type lock */
 
-			/* Request of a full next-key record does not
-			need to wait for an insert intention lock to be
-			removed. This is ok since our rules allow conflicting
-			locks on gaps. This eliminates a spurious deadlock
-			caused by a next-key lock waiting for an insert
-			intention lock; when the insert intention lock was
-			granted, the insert deadlocked on the waiting
-			next-key lock. */
-				
 			return(FALSE);
 		}
 
-		if (insert_intention && lock_rec_get_insert_intention(lock2)) {
+		if ((type_mode & LOCK_GAP)
+					&& lock_rec_get_rec_not_gap(lock2)) {
+		
+			/* Lock on gap does not need to wait for
+			a LOCK_REC_NOT_GAP type lock */
 
-			/* An insert intention is not disturbed by another
-			insert intention; this removes a spurious deadlock
-			caused by inserts which had to wait for a next-key
-			lock to be removed */
+			return(FALSE);
+		}
 
+		if (lock_rec_get_insert_intention(lock2)) {
+
+			/* No lock request needs to wait for an insert
+			intention lock to be removed. This is ok since our
+			rules allow conflicting locks on gaps. This eliminates
+			a spurious deadlock caused by a next-key lock waiting
+			for an insert intention lock; when the insert
+			intention lock was granted, the insert deadlocked on
+			the waiting next-key lock.
+
+			Also, insert intention locks do not disturb each
+			other. */
+				
 			return(FALSE);
 		}
 
@@ -921,10 +917,7 @@ lock_has_to_wait(
 			ut_ad(lock_get_type(lock2) == LOCK_REC);
 				
 			return(lock_rec_has_to_wait(lock1->trx,
-				lock_get_mode(lock1),
-				lock_rec_get_gap(lock1),
-				lock_rec_get_insert_intention(lock1),
-				lock2));
+						lock1->type_mode, lock2));
 		}
 
 		return(TRUE);
@@ -1386,32 +1379,41 @@ lock_table_has(
 /*============= FUNCTIONS FOR ANALYZING RECORD LOCK QUEUE ================*/
 
 /*************************************************************************
-Checks if a transaction has a GRANTED explicit lock on rec, where the gap
-flag or the insert intention flag is not set, stronger or equal to mode.
-Note that locks on the supremum of a page are a special case here, since
-they are always gap type locks, even if the gap flag is not set in them. */
+Checks if a transaction has a GRANTED explicit lock on rec stronger or equal
+to precise_mode. */
 UNIV_INLINE
 lock_t*
 lock_rec_has_expl(
 /*==============*/
 			/* out: lock or NULL */
-	ulint	mode,	/* in: lock mode */
+	ulint	precise_mode,/* in: LOCK_S or LOCK_X possibly ORed to
+			LOCK_GAP or LOCK_REC_NOT_GAP,
+			for a supremum record we regard this always a gap
+			type request */
 	rec_t*	rec,	/* in: record */
 	trx_t*	trx)	/* in: transaction */
 {
 	lock_t*	lock;
-	
-	ut_ad(mutex_own(&kernel_mutex));
-	ut_ad((mode == LOCK_X) || (mode == LOCK_S));
 
+	ut_ad(mutex_own(&kernel_mutex));
+	ut_ad((precise_mode & LOCK_MODE_MASK) == LOCK_S
+	      || (precise_mode & LOCK_MODE_MASK) == LOCK_X);
+	ut_ad(!(precise_mode & LOCK_INSERT_INTENTION));
+	
 	lock = lock_rec_get_first(rec);
 
 	while (lock) {
 		if (lock->trx == trx
-		    && lock_mode_stronger_or_eq(lock_get_mode(lock), mode)
+		    && lock_mode_stronger_or_eq(lock_get_mode(lock),
+		    				precise_mode & LOCK_MODE_MASK)
 		    && !lock_get_wait(lock)
-		    && !lock_rec_get_insert_intention(lock)
-		    && !lock_rec_get_gap(lock)) {
+		    && (!lock_rec_get_rec_not_gap(lock)
+		    		|| (precise_mode & LOCK_REC_NOT_GAP)
+		    		|| page_rec_is_supremum(rec))
+		    && (!lock_rec_get_gap(lock)
+				|| (precise_mode & LOCK_GAP)
+				|| page_rec_is_supremum(rec))
+		    && (!lock_rec_get_insert_intention(lock))) {
 
 		    	return(lock);
 		}
@@ -1429,7 +1431,7 @@ lock_t*
 lock_rec_other_has_expl_req(
 /*========================*/
 			/* out: lock or NULL */
-	ulint	mode,	/* in: lock mode */
+	ulint	mode,	/* in: LOCK_S or LOCK_X */
 	ulint	gap,	/* in: LOCK_GAP if also gap locks are taken
 			into account, or 0 if not */
 	ulint	wait,	/* in: LOCK_WAIT if also waiting locks are
@@ -1471,27 +1473,21 @@ lock_t*
 lock_rec_other_has_conflicting(
 /*===========================*/
 			/* out: lock or NULL */
-	ulint	mode,	/* in: lock mode of the lock we are going to reserve */
-	ulint	gap,	/* in: LOCK_GAP if we are going to reserve a gap type
-			lock, else 0 */
-	ulint	insert_intention,
-			/* in: LOCK_INSERT_INTENTION if we are going to
-			reserve an insert intention lock */
+	ulint	mode,	/* in: LOCK_S or LOCK_X,
+			possibly ORed to LOCK_GAP or LOC_REC_NOT_GAP,
+			LOCK_INSERT_INTENTION */
 	rec_t*	rec,	/* in: record to look at */	
 	trx_t*	trx)	/* in: our transaction */
 {
 	lock_t*	lock;
 	
 	ut_ad(mutex_own(&kernel_mutex));
-	ut_ad(mode == LOCK_X || mode == LOCK_S);
-	ut_ad(gap == 0 || gap == LOCK_GAP);
-	ut_ad(insert_intention == LOCK_INSERT_INTENTION
-						|| insert_intention == 0);
+
 	lock = lock_rec_get_first(rec);
 
 	while (lock) {
-		if (lock_rec_has_to_wait(trx, mode, gap, insert_intention,
-								lock)) {
+		if (lock_rec_has_to_wait(trx, mode, lock)) {
+
 			return(lock);
 		}
 		
@@ -1607,14 +1603,14 @@ lock_rec_create(
 	page_no	= buf_frame_get_page_no(page);
 	heap_no = rec_get_heap_no(rec);
 
-	/* If rec is the supremum record, then we reset the gap bit, as
-	all locks on the supremum are automatically of the gap type, and
-	we try to avoid unnecessary memory consumption of a new record lock
-	struct for a gap type lock */
+	/* If rec is the supremum record, then we reset the gap and
+	LOCK_REC_NOT_GAP bits, as all locks on the supremum are
+	automatically of the gap type */
 
 	if (rec == page_get_supremum_rec(page)) {
+		ut_ad(!(type_mode & LOCK_REC_NOT_GAP));
 
-		type_mode = type_mode & ~LOCK_GAP;
+		type_mode = type_mode & ~(LOCK_GAP | LOCK_REC_NOT_GAP);
 	}
 
 	/* Make lock bitmap bigger by a safety margin */
@@ -1666,10 +1662,14 @@ ulint
 lock_rec_enqueue_waiting(
 /*=====================*/
 				/* out: DB_LOCK_WAIT, DB_DEADLOCK, or
-				DB_QUE_THR_SUSPENDED */
+				DB_QUE_THR_SUSPENDED, or DB_SUCCESS;
+				DB_SUCCESS means that there was a deadlock,
+				but another transaction was chosen as a
+				victim, and we got the lock immediately:
+				no need to wait then */
 	ulint		type_mode,/* in: lock mode this transaction is
-				requesting: LOCK_S or LOCK_X, ORed with
-				LOCK_GAP if a gap lock is requested, ORed
+				requesting: LOCK_S or LOCK_X, possibly ORed
+				with LOCK_GAP or LOCK_REC_NOT_GAP, ORed
 				with LOCK_INSERT_INTENTION if this waiting
 				lock request is set when performing an
 				insert of an index record */
@@ -1718,7 +1718,16 @@ index->table_name);
 		return(DB_DEADLOCK);
 	}
 
+	/* If there was a deadlock but we chose another transaction as a
+	victim, it is possible that we already have the lock now granted! */
+
+	if (trx->wait_lock == NULL) {
+
+		return(DB_SUCCESS);
+	}
+
 	trx->que_state = TRX_QUE_LOCK_WAIT;
+	trx->was_chosen_as_deadlock_victim = FALSE;
 	trx->wait_started = time(NULL);
 
 	ut_a(que_thr_stop(thr));
@@ -1744,8 +1753,8 @@ lock_rec_add_to_queue(
 /*==================*/
 				/* out: lock where the bit was set, NULL if out
 				of memory */
-	ulint		type_mode,/* in: lock mode, wait, and gap flags; type
-				is ignored and replaced by LOCK_REC */
+	ulint		type_mode,/* in: lock mode, wait, gap etc. flags;
+				type is ignored and replaced by LOCK_REC */
 	rec_t*		rec,	/* in: record on page */
 	dict_index_t*	index,	/* in: index of record */
 	trx_t*		trx)	/* in: transaction */
@@ -1759,12 +1768,11 @@ lock_rec_add_to_queue(
 	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad((type_mode & (LOCK_WAIT | LOCK_GAP))
 	      || ((type_mode & LOCK_MODE_MASK) != LOCK_S)
-	      || !lock_rec_other_has_expl_req(LOCK_X, 0, LOCK_WAIT,
-						rec, trx));
+	      || !lock_rec_other_has_expl_req(LOCK_X, 0, LOCK_WAIT, rec, trx));
 	ut_ad((type_mode & (LOCK_WAIT | LOCK_GAP))
 	      || ((type_mode & LOCK_MODE_MASK) != LOCK_X)
-	      || !lock_rec_other_has_expl_req(LOCK_S, 0, LOCK_WAIT,
-						rec, trx));
+	      || !lock_rec_other_has_expl_req(LOCK_S, 0, LOCK_WAIT, rec, trx));
+
 	type_mode = type_mode | LOCK_REC;
 
 	page = buf_frame_align(rec);
@@ -1775,12 +1783,15 @@ lock_rec_add_to_queue(
 	struct for a gap type lock */
 
 	if (rec == page_get_supremum_rec(page)) {
+		ut_ad(!(type_mode & LOCK_REC_NOT_GAP));
 
-		type_mode = type_mode & ~LOCK_GAP;
+		/* There should never be LOCK_REC_NOT_GAP on a supremum
+		record, but let us play safe */
+		
+		type_mode = type_mode & ~(LOCK_GAP | LOCK_REC_NOT_GAP);
 	}
 
-	/* Look for a waiting lock request on the same record, or for a
-	similar record lock on the same page */
+	/* Look for a waiting lock request on the same record or on a gap */
 
 	heap_no = rec_get_heap_no(rec);
 	lock = lock_rec_get_first_on_page(rec);
@@ -1794,6 +1805,9 @@ lock_rec_add_to_queue(
 
 		lock = lock_rec_get_next_on_page(lock);
 	}
+
+	/* Look for a similar record lock on the same page: if one is found
+	and there are no waiting lock requests, we can just set the bit */
 
 	similar_lock = lock_rec_find_similar_on_page(type_mode, rec, trx);
 
@@ -1822,7 +1836,8 @@ lock_rec_lock_fast(
 	ibool		impl,	/* in: if TRUE, no lock is set if no wait
 				is necessary: we assume that the caller will
 				set an implicit lock */
-	ulint		mode,	/* in: lock mode */
+	ulint		mode,	/* in: lock mode: LOCK_X or LOCK_S possibly
+				ORed to either LOCK_GAP or LOCK_REC_NOT_GAP */
 	rec_t*		rec,	/* in: record */
 	dict_index_t*	index,	/* in: index of record */
 	que_thr_t* 	thr)	/* in: query thread */
@@ -1831,8 +1846,16 @@ lock_rec_lock_fast(
 	ulint	heap_no;
 
 	ut_ad(mutex_own(&kernel_mutex));
-	ut_ad((mode == LOCK_X) || (mode == LOCK_S));
-
+	ut_ad((LOCK_MODE_MASK & mode) != LOCK_S
+		|| lock_table_has(thr_get_trx(thr), index->table, LOCK_IS));
+	ut_ad((LOCK_MODE_MASK & mode) != LOCK_X
+		|| lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
+	ut_ad((LOCK_MODE_MASK & mode) == LOCK_S
+		|| (LOCK_MODE_MASK & mode) == LOCK_X);
+	ut_ad(mode - (LOCK_MODE_MASK & mode) == LOCK_GAP
+			|| mode - (LOCK_MODE_MASK & mode) == 0
+			|| mode - (LOCK_MODE_MASK & mode) == LOCK_REC_NOT_GAP);
+			
 	heap_no = rec_get_heap_no(rec);
 	
 	lock = lock_rec_get_first_on_page(rec);
@@ -1877,7 +1900,8 @@ lock_rec_lock_slow(
 	ibool		impl,	/* in: if TRUE, no lock is set if no wait is
 				necessary: we assume that the caller will set
 				an implicit lock */
-	ulint		mode,	/* in: lock mode */
+	ulint		mode,	/* in: lock mode: LOCK_X or LOCK_S possibly
+				ORed to either LOCK_GAP or LOCK_REC_NOT_GAP */
 	rec_t*		rec,	/* in: record */
 	dict_index_t*	index,	/* in: index of record */
 	que_thr_t* 	thr)	/* in: query thread */
@@ -1886,20 +1910,24 @@ lock_rec_lock_slow(
 	ulint	err;
 
 	ut_ad(mutex_own(&kernel_mutex));
-	ut_ad((mode == LOCK_X) || (mode == LOCK_S));
-
+	ut_ad((LOCK_MODE_MASK & mode) != LOCK_S
+		|| lock_table_has(thr_get_trx(thr), index->table, LOCK_IS));
+	ut_ad((LOCK_MODE_MASK & mode) != LOCK_X
+		|| lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
+	ut_ad((LOCK_MODE_MASK & mode) == LOCK_S
+		|| (LOCK_MODE_MASK & mode) == LOCK_X);
+	ut_ad(mode - (LOCK_MODE_MASK & mode) == LOCK_GAP
+			|| mode - (LOCK_MODE_MASK & mode) == 0
+			|| mode - (LOCK_MODE_MASK & mode) == LOCK_REC_NOT_GAP);
+			
 	trx = thr_get_trx(thr);
-
-	ut_ad((mode != LOCK_S) || lock_table_has(trx, index->table,
-								LOCK_IS));
-	ut_ad((mode != LOCK_X) || lock_table_has(trx, index->table,
-								LOCK_IX));
+		
 	if (lock_rec_has_expl(mode, rec, trx)) {
 		/* The trx already has a strong enough lock on rec: do
 		nothing */
 
 		err = DB_SUCCESS;
-	} else if (lock_rec_other_has_conflicting(mode, 0, 0, rec, trx)) {
+	} else if (lock_rec_other_has_conflicting(mode, rec, trx)) {
 
 		/* If another transaction has a non-gap conflicting request in
 		the queue, as this transaction does not have a lock strong
@@ -1935,7 +1963,8 @@ lock_rec_lock(
 	ibool		impl,	/* in: if TRUE, no lock is set if no wait is
 				necessary: we assume that the caller will set
 				an implicit lock */
-	ulint		mode,	/* in: lock mode */
+	ulint		mode,	/* in: lock mode: LOCK_X or LOCK_S possibly
+				ORed to either LOCK_GAP or LOCK_REC_NOT_GAP */
 	rec_t*		rec,	/* in: record */
 	dict_index_t*	index,	/* in: index of record */
 	que_thr_t* 	thr)	/* in: query thread */
@@ -1943,11 +1972,16 @@ lock_rec_lock(
 	ulint	err;
 
 	ut_ad(mutex_own(&kernel_mutex));
-	ut_ad((mode != LOCK_S) || lock_table_has(thr_get_trx(thr),
-						index->table, LOCK_IS));
-	ut_ad((mode != LOCK_X) || lock_table_has(thr_get_trx(thr),
-						index->table, LOCK_IX));
-
+	ut_ad((LOCK_MODE_MASK & mode) != LOCK_S
+		|| lock_table_has(thr_get_trx(thr), index->table, LOCK_IS));
+	ut_ad((LOCK_MODE_MASK & mode) != LOCK_X
+		|| lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
+	ut_ad((LOCK_MODE_MASK & mode) == LOCK_S
+		|| (LOCK_MODE_MASK & mode) == LOCK_X);
+	ut_ad(mode - (LOCK_MODE_MASK & mode) == LOCK_GAP
+			|| mode - (LOCK_MODE_MASK & mode) == LOCK_REC_NOT_GAP
+			|| mode - (LOCK_MODE_MASK & mode) == 0);
+			
 	if (lock_rec_lock_fast(impl, mode, rec, index, thr)) {
 
 		/* We try a simplified and faster subroutine for the most
@@ -2011,26 +2045,33 @@ lock_grant(
 	ut_ad(mutex_own(&kernel_mutex));
 
 	lock_reset_lock_and_trx_wait(lock);
-	
-	if (lock_get_mode(lock) == LOCK_AUTO_INC) {
 
-	         if (lock->trx->auto_inc_lock != NULL) {
-	                 fprintf(stderr,
-		    "InnoDB: Error: trx already had an AUTO-INC lock!\n");
-	         }
+        if (lock_get_mode(lock) == LOCK_AUTO_INC) {
 
-	         /* Store pointer to lock to trx so that we know to
-	         release it at the end of the SQL statement */
+                if (lock->trx->auto_inc_lock != NULL) {
+                        fprintf(stderr,
+                   "InnoDB: Error: trx already had an AUTO-INC lock!\n");
+                }
 
-	         lock->trx->auto_inc_lock = lock;
-	}
+                /* Store pointer to lock to trx so that we know to
+                release it at the end of the SQL statement */
+
+                lock->trx->auto_inc_lock = lock;
+        }
 
 	if (lock_print_waits) {
 		printf("Lock wait for trx %lu ends\n",
 					ut_dulint_get_low(lock->trx->id));
 	}
+
+	/* If we are resolving a deadlock by choosing another transaction
+	as a victim, then our original transaction may not be in the
+	TRX_QUE_LOCK_WAIT state, and there is no need to end the lock wait
+	for it */
 	
-	trx_end_lock_wait(lock->trx);
+	if (lock->trx->que_state == TRX_QUE_LOCK_WAIT) {	
+		trx_end_lock_wait(lock->trx);
+	}
 }
 
 /*****************************************************************
@@ -2080,7 +2121,7 @@ lock_rec_dequeue_from_page(
 	ut_ad(lock_get_type(in_lock) == LOCK_REC);
 
 	trx = in_lock->trx;
-	
+
 	space = in_lock->un_member.rec_lock.space;
 	page_no = in_lock->un_member.rec_lock.page_no;
 
@@ -2199,9 +2240,10 @@ lock_rec_reset_and_release_wait(
 }	
 
 /*****************************************************************
-Makes a record to inherit the locks of another record as gap type locks, but
-does not reset the lock bits of the other record. Also waiting lock requests
-on rec are inherited as GRANTED gap locks. */
+Makes a record to inherit the locks (except LOCK_INSERT_INTENTION type)
+of another record as gap type locks, but does not reset the lock bits of
+the other record. Also waiting lock requests on rec are inherited as
+GRANTED gap locks. */
 
 void
 lock_rec_inherit_to_gap(
@@ -2217,9 +2259,45 @@ lock_rec_inherit_to_gap(
 	lock = lock_rec_get_first(rec);
 
 	while (lock != NULL) {
-		lock_rec_add_to_queue(((lock->type_mode | LOCK_GAP)
-					& ~LOCK_WAIT),
+		if (!lock_rec_get_insert_intention(lock)) {
+			
+			lock_rec_add_to_queue(LOCK_REC | lock_get_mode(lock)
+						| LOCK_GAP,
 	 			     		heir, lock->index, lock->trx);
+	 	}
+	 	
+		lock = lock_rec_get_next(rec, lock);
+	}
+}	
+
+/*****************************************************************
+Makes a record to inherit the gap locks (except LOCK_INSERT_INTENTION type)
+of another record as gap type locks, but does not reset the lock bits of the
+other record. Also waiting lock requests are inherited as GRANTED gap locks. */
+
+void
+lock_rec_inherit_to_gap_if_gap_lock(
+/*================================*/
+	rec_t*	heir,	/* in: record which inherits */
+	rec_t*	rec)	/* in: record from which inherited; does NOT reset
+			the locks on this record */
+{
+	lock_t*	lock;
+	
+	ut_ad(mutex_own(&kernel_mutex));
+	
+	lock = lock_rec_get_first(rec);
+
+	while (lock != NULL) {
+		if (!lock_rec_get_insert_intention(lock)
+		    && (page_rec_is_supremum(rec)
+			|| !lock_rec_get_rec_not_gap(lock))) {
+			
+			lock_rec_add_to_queue(LOCK_REC | lock_get_mode(lock)
+						| LOCK_GAP,
+	 			     		heir, lock->index, lock->trx);
+	 	}
+
 		lock = lock_rec_get_next(rec, lock);
 	}
 }	
@@ -2778,9 +2856,10 @@ lock_update_insert(
 {
 	lock_mutex_enter_kernel();
 
-	/* Inherit the locks for rec, in gap mode, from the next record */
+	/* Inherit the gap-locking locks for rec, in gap mode, from the next
+	record */
 
-	lock_rec_inherit_to_gap(rec, page_rec_get_next(rec));
+	lock_rec_inherit_to_gap_if_gap_lock(rec, page_rec_get_next(rec));
 
 	lock_mutex_exit_kernel();
 }	
@@ -2859,20 +2938,23 @@ static
 ibool
 lock_deadlock_occurs(
 /*=================*/
-			/* out: TRUE if a deadlock was detected */
+			/* out: TRUE if a deadlock was detected and we
+			chose trx as a victim; FALSE if no deadlock, or
+			there was a deadlock, but we chose other
+			transaction(s) as victim(s) */
 	lock_t*	lock,	/* in: lock the transaction is requesting */
 	trx_t*	trx)	/* in: transaction */
 {
 	dict_table_t*	table;
 	dict_index_t*	index;
 	trx_t*		mark_trx;
-	ibool		ret;
+	ulint		ret;
 	ulint		cost	= 0;
 	char*		err_buf;
 
 	ut_ad(trx && lock);
 	ut_ad(mutex_own(&kernel_mutex));
-
+retry:
 	/* We check that adding this trx to the waits-for graph
 	does not produce a cycle. First mark all active transactions
 	with 0: */
@@ -2886,7 +2968,14 @@ lock_deadlock_occurs(
 
 	ret = lock_deadlock_recursive(trx, trx, lock, &cost);
 
-	if (ret) {
+	if (ret == LOCK_VICTIM_IS_OTHER) {
+		/* We chose some other trx as a victim: retry if there still
+		is a deadlock */
+
+		goto retry;
+	}
+
+	if (ret == LOCK_VICTIM_IS_START) {
 		if (lock_get_type(lock) == LOCK_TABLE) {
 			table = lock->un_member.tab_lock.table;
 			index = NULL;
@@ -2898,19 +2987,6 @@ lock_deadlock_occurs(
 		lock_deadlock_found = TRUE;
 
 		err_buf = lock_latest_err_buf + strlen(lock_latest_err_buf);
-
-		err_buf += sprintf(err_buf,
-		"*** (2) WAITING FOR THIS LOCK TO BE GRANTED:\n");
-
-		ut_a(err_buf <= lock_latest_err_buf + 4000);
-			
-		if (lock_get_type(lock) == LOCK_REC) {
-			lock_rec_print(err_buf, lock);
-			err_buf += strlen(err_buf);
-		} else {
-			lock_table_print(err_buf, lock);
-			err_buf += strlen(err_buf);
-		}
 			
 		ut_a(err_buf <= lock_latest_err_buf + 4000);
 
@@ -2923,30 +2999,39 @@ lock_deadlock_occurs(
 		sess_raise_error_low(trx, DB_DEADLOCK, lock->type_mode, table,
 						index, NULL, NULL, NULL);
 		*/
+
+		return(TRUE);
 	}
 	
-	return(ret);
+	return(FALSE);
 }
 
 /************************************************************************
 Looks recursively for a deadlock. */
 static
-ibool
+ulint
 lock_deadlock_recursive(
 /*====================*/
-				/* out: TRUE if a deadlock was detected
-				or the calculation took too long */
+				/* out: 0 if no deadlock found,
+				LOCK_VICTIM_IS_START if there was a deadlock
+				and we chose 'start' as the victim,
+				LOCK_VICTIM_IS_OTHER if a deadlock
+				was found and we chose some other trx as a
+				victim: we must do the search again in this
+				last case because there may be another
+				deadlock! */
 	trx_t*	start,		/* in: recursion starting point */
 	trx_t*	trx,		/* in: a transaction waiting for a lock */
 	lock_t*	wait_lock,	/* in: the lock trx is waiting to be granted */
 	ulint*	cost)		/* in/out: number of calculation steps thus
 				far: if this exceeds LOCK_MAX_N_STEPS_...
-				we return TRUE */
+				we return LOCK_VICTIM_IS_START */
 {
 	lock_t*	lock;
 	ulint	bit_no;
 	trx_t*	lock_trx;
 	char*	err_buf;
+	ulint	ret;
 	
 	ut_a(trx && start && wait_lock);
 	ut_ad(mutex_own(&kernel_mutex));
@@ -2955,14 +3040,14 @@ lock_deadlock_recursive(
 		/* We have already exhaustively searched the subtree starting
 		from this trx */
 
-		return(FALSE);
+		return(0);
 	}
 
 	*cost = *cost + 1;
 
 	if (*cost > LOCK_MAX_N_STEPS_IN_DEADLOCK_CHECK) {
 
-		return(TRUE);
+		return(LOCK_VICTIM_IS_START);
 	}
 
 	lock = wait_lock;
@@ -2998,6 +3083,9 @@ lock_deadlock_recursive(
 			lock_trx = lock->trx;
 
 			if (lock_trx == start) {
+				/* We came back to the recursion starting
+				point: a deadlock detected */
+				
 				err_buf = lock_latest_err_buf;
 
 				ut_sprintf_timestamp(err_buf);
@@ -3045,11 +3133,60 @@ lock_deadlock_recursive(
 			
 				ut_a(err_buf <= lock_latest_err_buf + 4000);
 
+				err_buf += sprintf(err_buf,
+			"*** (2) WAITING FOR THIS LOCK TO BE GRANTED:\n");
+
+				ut_a(err_buf <= lock_latest_err_buf + 4000);
+			
+				if (lock_get_type(start->wait_lock)
+								== LOCK_REC) {
+					lock_rec_print(err_buf,
+							start->wait_lock);
+					err_buf += strlen(err_buf);
+				} else {
+					lock_table_print(err_buf,
+							start->wait_lock);
+					err_buf += strlen(err_buf);
+				}
+
 				if (lock_print_waits) {
 					printf("Deadlock detected\n");
 				}
 
-				return(TRUE);
+				if (ut_dulint_cmp(wait_lock->trx->undo_no,
+							start->undo_no) >= 0) {
+					/* Our recursion starting point
+					transaction is 'smaller', let us
+					choose 'start' as the victim and roll
+					back it */
+
+					return(LOCK_VICTIM_IS_START);
+				}		
+
+				lock_deadlock_found = TRUE;
+
+				ut_a(err_buf <= lock_latest_err_buf + 4000);
+
+				/* Let us choose the transaction of wait_lock
+				as a victim to try to avoid deadlocking our
+				recursion starting point transaction */
+				
+				err_buf += sprintf(err_buf,
+				"*** WE ROLL BACK TRANSACTION (1)\n");
+				
+				wait_lock->trx->was_chosen_as_deadlock_victim
+								= TRUE;
+				
+				lock_cancel_waiting_and_release(wait_lock);
+
+				/* Since trx and wait_lock are no longer
+				in the waits-for graph, we can return FALSE;
+				note that our selective algorithm can choose
+				several transactions as victims, but still
+				we may end up rolling back also the recursion
+				starting point transaction! */
+
+				return(LOCK_VICTIM_IS_OTHER);
 			}
 	
 			if (lock_trx->que_state == TRX_QUE_LOCK_WAIT) {
@@ -3058,10 +3195,11 @@ lock_deadlock_recursive(
 				incompatible mode, and is itself waiting for
 				a lock */
 
-				if (lock_deadlock_recursive(start, lock_trx,
-						lock_trx->wait_lock, cost)) {
+				ret = lock_deadlock_recursive(start, lock_trx,
+						lock_trx->wait_lock, cost);
+				if (ret != 0) {
 
-					return(TRUE);
+					return(ret);
 				}
 			}
 		}
@@ -3153,12 +3291,16 @@ lock_table_remove_low(
 /*************************************************************************
 Enqueues a waiting request for a table lock which cannot be granted
 immediately. Checks for deadlocks. */
-
+static
 ulint
 lock_table_enqueue_waiting(
 /*=======================*/
 				/* out: DB_LOCK_WAIT, DB_DEADLOCK, or
-				DB_QUE_THR_SUSPENDED */
+				DB_QUE_THR_SUSPENDED, or DB_SUCCESS;
+				DB_SUCCESS means that there was a deadlock,
+				but another transaction was chosen as a
+				victim, and we got the lock immediately:
+				no need to wait then */
 	ulint		mode,	/* in: lock mode this transaction is
 				requesting */
 	dict_table_t*	table,	/* in: table */
@@ -3205,7 +3347,15 @@ table->name);
 		return(DB_DEADLOCK);
 	}
 
+	if (trx->wait_lock == NULL) {
+		/* Deadlock resolution chose another transaction as a victim,
+		and we accidentally got our lock granted! */
+	
+		return(DB_SUCCESS);
+	}
+	
 	trx->que_state = TRX_QUE_LOCK_WAIT;
+	trx->was_chosen_as_deadlock_victim = FALSE;
 	trx->wait_started = time(NULL);
 
 	ut_a(que_thr_stop(thr));
@@ -3292,7 +3442,7 @@ lock_table(
 	if (lock_table_other_has_incompatible(trx, LOCK_WAIT, table, mode)) {
 	
 		/* Another trx has a request on the table in an incompatible
-		mode: this trx must wait */
+		mode: this trx may have to wait */
 
 		err = lock_table_enqueue_waiting(mode, table, thr);
 			
@@ -3659,7 +3809,11 @@ lock_rec_print(
 	}
 
 	if (lock_rec_get_gap(lock)) {
-		buf += sprintf(buf, " gap type lock");
+		buf += sprintf(buf, " locks gap before rec");
+	}
+
+	if (lock_rec_get_rec_not_gap(lock)) {
+		buf += sprintf(buf, " locks rec but not gap");
 	}
 
 	if (lock_rec_get_insert_intention(lock)) {
@@ -3776,8 +3930,8 @@ lock_print_info(
 	mtr_t	mtr;
 
 	if (buf_end - buf < 600) {
-		sprintf(buf, "... output truncated!\n");
-	
+                sprintf(buf, "... output truncated!\n");
+
 		return;
 	}
 
@@ -3802,8 +3956,8 @@ lock_print_info(
 		if ((ulint)(buf_end - buf)
 			< 100 + strlen(lock_latest_err_buf)) {
 
-			lock_mutex_exit_kernel();
-			sprintf(buf, "... output truncated!\n");
+		        lock_mutex_exit_kernel();
+		        sprintf(buf, "... output truncated!\n");
 
 			return;
 		}
@@ -3826,8 +3980,8 @@ lock_print_info(
 
 	while (trx) {
 		if (buf_end - buf < 900) {
-			lock_mutex_exit_kernel();
-			sprintf(buf, "... output truncated!\n");
+		        lock_mutex_exit_kernel();
+		        sprintf(buf, "... output truncated!\n");
 
 			return;
 		}
@@ -3879,8 +4033,8 @@ loop:
 		buf += strlen(buf);
 		
 		if (buf_end - buf < 500) {
-			lock_mutex_exit_kernel();
-			sprintf(buf, "... output truncated!\n");
+		        lock_mutex_exit_kernel();
+		        sprintf(buf, "... output truncated!\n");
 
 			return;
 		}
@@ -3936,7 +4090,7 @@ loop:
 	}
 
 	if (buf_end - buf < 500) {
-		lock_mutex_exit_kernel();
+	        lock_mutex_exit_kernel();
 		sprintf(buf, "... output truncated!\n");
 
 		return;
@@ -4080,7 +4234,8 @@ lock_rec_queue_validate(
 		if (impl_trx && lock_rec_other_has_expl_req(LOCK_S, 0,
 				LOCK_WAIT, rec, impl_trx)) {
 
-			ut_a(lock_rec_has_expl(LOCK_X, rec, impl_trx));
+			ut_a(lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP, rec,
+								impl_trx));
 		}
 	}
 
@@ -4095,7 +4250,8 @@ lock_rec_queue_validate(
 		if (impl_trx && lock_rec_other_has_expl_req(LOCK_S, 0,
 				LOCK_WAIT, rec, impl_trx)) {
 
-			ut_a(lock_rec_has_expl(LOCK_X, rec, impl_trx));
+			ut_a(lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP, rec,
+								impl_trx));
 		}
 	}
 
@@ -4359,8 +4515,8 @@ lock_rec_insert_check_and_lock(
 
 	*inherit = TRUE;
 
-	/* If another transaction has an explicit lock request, gap or not,
-	waiting or granted, on the successor, the insert has to wait.
+	/* If another transaction has an explicit lock request which locks
+	the gap, waiting or granted, on the successor, the insert has to wait.
 
 	An exception is the case where the lock by the another transaction
 	is a gap type lock which it placed to wait for its turn to insert. We
@@ -4369,8 +4525,10 @@ lock_rec_insert_check_and_lock(
 	had to wait for their insert. Both had waiting gap type lock requests
 	on the successor, which produced an unnecessary deadlock. */
 
-	if (lock_rec_other_has_conflicting(LOCK_X, LOCK_GAP,
-				LOCK_INSERT_INTENTION, next_rec, trx)) {
+	if (lock_rec_other_has_conflicting(LOCK_X | LOCK_GAP
+				| LOCK_INSERT_INTENTION, next_rec, trx)) {
+
+		/* Note that we may get DB_SUCCESS also here! */
 		err = lock_rec_enqueue_waiting(LOCK_X | LOCK_GAP
 						| LOCK_INSERT_INTENTION,
 						next_rec, index, thr);
@@ -4418,9 +4576,11 @@ lock_rec_convert_impl_to_expl(
 		/* If the transaction has no explicit x-lock set on the
 		record, set one for it */
 
-		if (!lock_rec_has_expl(LOCK_X, rec, impl_trx)) {
+		if (!lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP, rec,
+								impl_trx)) {
 
-			lock_rec_add_to_queue(LOCK_REC | LOCK_X, rec, index,
+			lock_rec_add_to_queue(LOCK_REC | LOCK_X
+					      | LOCK_REC_NOT_GAP, rec, index,
 								impl_trx);
 		}
 	}
@@ -4466,7 +4626,7 @@ lock_clust_rec_modify_check_and_lock(
 
 	lock_rec_convert_impl_to_expl(rec, index);
 
-	err = lock_rec_lock(TRUE, LOCK_X, rec, index, thr);
+	err = lock_rec_lock(TRUE, LOCK_X | LOCK_REC_NOT_GAP, rec, index, thr);
 
 	lock_mutex_exit_kernel();
 
@@ -4511,7 +4671,7 @@ lock_sec_rec_modify_check_and_lock(
 
 	ut_ad(lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
 
-	err = lock_rec_lock(TRUE, LOCK_X, rec, index, thr);
+	err = lock_rec_lock(TRUE, LOCK_X | LOCK_REC_NOT_GAP, rec, index, thr);
 
 	lock_mutex_exit_kernel();
 	
@@ -4545,6 +4705,8 @@ lock_sec_rec_read_check_and_lock(
 	ulint		mode,	/* in: mode of the lock which the read cursor
 				should set on records: LOCK_S or LOCK_X; the
 				latter is possible in SELECT FOR UPDATE */
+	ulint		gap_mode,/* in: LOCK_ORDINARY, LOCK_GAP, or
+				LOCK_REC_NOT_GAP */
 	que_thr_t*	thr)	/* in: query thread */
 {
 	ulint	err;
@@ -4576,7 +4738,7 @@ lock_sec_rec_read_check_and_lock(
  		lock_rec_convert_impl_to_expl(rec, index);
 	}
 
-	err = lock_rec_lock(FALSE, mode, rec, index, thr);
+	err = lock_rec_lock(FALSE, mode | gap_mode, rec, index, thr);
 
 	lock_mutex_exit_kernel();
 
@@ -4607,13 +4769,16 @@ lock_clust_rec_read_check_and_lock(
 	ulint		mode,	/* in: mode of the lock which the read cursor
 				should set on records: LOCK_S or LOCK_X; the
 				latter is possible in SELECT FOR UPDATE */
+	ulint		gap_mode,/* in: LOCK_ORDINARY, LOCK_GAP, or
+				LOCK_REC_NOT_GAP */
 	que_thr_t*	thr)	/* in: query thread */
 {
 	ulint	err;
 
 	ut_ad(index->type & DICT_CLUSTERED);
 	ut_ad(page_rec_is_user_rec(rec) || page_rec_is_supremum(rec));
-	
+	ut_ad(gap_mode == LOCK_ORDINARY || gap_mode == LOCK_GAP
+					|| gap_mode == LOCK_REC_NOT_GAP);
 	if (flags & BTR_NO_LOCKING_FLAG) {
 
 		return(DB_SUCCESS);
@@ -4631,7 +4796,7 @@ lock_clust_rec_read_check_and_lock(
 		lock_rec_convert_impl_to_expl(rec, index);
 	}
 
-	err = lock_rec_lock(FALSE, mode, rec, index, thr);
+	err = lock_rec_lock(FALSE, mode | gap_mode, rec, index, thr);
 
 	lock_mutex_exit_kernel();
 

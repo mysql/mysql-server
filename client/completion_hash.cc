@@ -27,7 +27,7 @@
 #include <my_sys.h>
 #include "completion_hash.h"
 
-uint hashpjw(char *arKey, uint nKeyLength)
+uint hashpjw(const char *arKey, uint nKeyLength)
 {
   uint h = 0, g, i;
 
@@ -111,7 +111,7 @@ int completion_hash_update(HashTable *ht, char *arKey, uint nKeyLength,
   return SUCCESS;
 }
 
-static Bucket *completion_hash_find(HashTable *ht, char *arKey,
+static Bucket *completion_hash_find(HashTable *ht, const char *arKey,
 				    uint nKeyLength)
 {
   uint h, nIndex;
@@ -156,7 +156,7 @@ int completion_hash_exists(HashTable *ht, char *arKey, uint nKeyLength)
   return 0;
 }
 
-Bucket *find_all_matches(HashTable *ht, char *str, uint length,
+Bucket *find_all_matches(HashTable *ht, const char *str, uint length,
 			 uint *res_length)
 {
   Bucket *b;

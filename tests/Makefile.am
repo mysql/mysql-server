@@ -24,14 +24,12 @@ EXTRA_DIST =		auto_increment.res auto_increment.tst \
 			insert_and_repair.pl \
 			grant.pl grant.res test_delayed_insert.pl \
 			pmail.pl mail_to_db.pl table_types.pl \
-			udf_test udf_test.res 
+			udf_test udf_test.res myisam-big-rows.tst
 
 #
 # C Test for 4.1 protocol
 #
-INCLUDES =		-I$(srcdir)/../include $(openssl_includes) \
-			-I../include -I$(srcdir)/.. -I$(top_srcdir) \
-			-I..
+INCLUDES =		-I$(top_srcdir)/include $(openssl_includes)
 LIBS =			@CLIENT_LIBS@
 LDADD =			@CLIENT_EXTRA_LDFLAGS@ ../libmysql/libmysqlclient.la
 noinst_PROGRAMS =	client_test

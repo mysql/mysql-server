@@ -45,6 +45,14 @@ read_view_close(
 /*============*/
 	read_view_t*	view);	/* in: read view */
 /*************************************************************************
+Closes a consistent read view for MySQL. This function is called at an SQL
+statement end if the trx isolation level is <= TRX_ISO_READ_COMMITTED. */
+
+void
+read_view_close_for_mysql(
+/*======================*/
+	trx_t*	trx);	/* in: trx which has a read view */
+/*************************************************************************
 Checks if a read view sees the specified transaction. */
 UNIV_INLINE
 ibool

@@ -153,7 +153,6 @@ typedef struct st_ha_create_information
   CHARSET_INFO *table_charset;
   char *comment,*password;
   char *data_file_name, *index_file_name;
-  char *create_statement;
   ulonglong max_rows,min_rows;
   ulonglong auto_increment_value;
   ulong table_options;
@@ -230,7 +229,7 @@ public:
   void change_table_ptr(TABLE *table_arg) { table=table_arg; }
   virtual double scan_time()
     { return ulonglong2double(data_file_length) / IO_SIZE + 1; }
-  virtual double read_time(ha_rows rows) { return rows; }
+  virtual double read_time(ha_rows rows) { return rows2double(rows); }
   virtual bool fast_key_read() { return 0;}
   virtual key_map keys_to_use_for_scanning() { return 0; }
   virtual bool has_transactions(){ return 0;}

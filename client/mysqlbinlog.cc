@@ -176,7 +176,7 @@ static void dump_remote_file(NET* net, const char* fname)
 }
 
 
-static my_bool
+extern "C" my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
@@ -210,7 +210,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     print_version();
     exit(0);
   case '?':
-  default:
     usage();
     exit(0);
   }

@@ -235,22 +235,25 @@ const char* Log_event::get_type_str()
 
  ****************************************************************************/
 #ifndef MYSQL_CLIENT
-Log_event::Log_event(THD* thd_arg, uint16 flags_arg)
-  :exec_time(0), flags(flags_arg), cached_event_len(0),
-   temp_buf(0), thd(thd_arg)
+Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
+  :temp_buf(0), exec_time(0), cached_event_len(0), flags(flags_arg), 
+   thd(thd_arg)
 {
-  if (thd)
-  {
-    server_id = thd->server_id;
-    when      = thd->start_time;
-    log_pos   = thd->log_pos;
-  }
-  else
-  {
-    server_id = ::server_id;
-    when      = time(NULL);
-    log_pos   =0;
-  }
+  server_id=	thd->server_id;
+  when=		thd->start_time;
+  log_pos=	thd->log_pos;
+  cache_stmt=	(using_trans &&
+		 (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)));
+}
+
+
+Log_event::Log_event()
+  :temp_buf(0), exec_time(0), cached_event_len(0), flags(0), cache_stmt(0),
+   thd(0)
+{
+  server_id=	::server_id;
+  when=		time(NULL);
+  log_pos=	0;
 }
 #endif // !MYSQL_CLIENT
 
@@ -260,7 +263,7 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg)
 
  ****************************************************************************/
 Log_event::Log_event(const char* buf, bool old_format)
-  :cached_event_len(0), temp_buf(0)
+  :temp_buf(0), cached_event_len(0), cache_stmt(0)
 {
   when = uint4korr(buf);
   server_id = uint4korr(buf + SERVER_ID_OFFSET);
@@ -330,11 +333,11 @@ void Log_event::init_show_field_list(List<Item>* field_list)
   Only called by SHOW BINLOG EVENTS
 
  ****************************************************************************/
-int Log_event::net_send(THD* thd, const char* log_name, my_off_t pos)
+int Log_event::net_send(THD* thd_arg, const char* log_name, my_off_t pos)
 {
-  String* packet = &thd->packet;
-  const char* p = strrchr(log_name, FN_LIBCHAR);
-  const char* event_type;
+  String* packet = &thd_arg->packet;
+  const char *p= strrchr(log_name, FN_LIBCHAR);
+  const char *event_type;
   if (p)
     log_name = p + 1;
   
@@ -346,7 +349,7 @@ int Log_event::net_send(THD* thd, const char* log_name, my_off_t pos)
   net_store_data(packet, server_id);
   net_store_data(packet, (longlong) log_pos);
   pack_info(packet);
-  return my_net_write(&thd->net, (char*) packet->ptr(), packet->length());
+  return my_net_write(&thd_arg->net, (char*) packet->ptr(), packet->length());
 }
 #endif // !MYSQL_CLIENT
 
@@ -725,12 +728,10 @@ int Query_log_event::write_data(IO_CACHE* file)
 #ifndef MYSQL_CLIENT
 Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 				 ulong query_length, bool using_trans)
-  :Log_event(thd_arg), data_buf(0), query(query_arg),  db(thd_arg->db),
-  q_len((uint32) query_length),
+  :Log_event(thd_arg, 0, using_trans), data_buf(0), query(query_arg),
+   db(thd_arg->db), q_len((uint32) query_length),
   error_code(thd_arg->killed ? ER_SERVER_SHUTDOWN: thd_arg->net.last_errno),
-  thread_id(thd_arg->thread_id),
-  cache_stmt(using_trans &&
-	     (thd_arg->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
+  thread_id(thd_arg->thread_id)
 {
   time_t end_time;
   time(&end_time);
@@ -1155,18 +1156,19 @@ int Load_log_event::write_data_body(IO_CACHE* file)
 
  ****************************************************************************/
 #ifndef MYSQL_CLIENT
-Load_log_event::Load_log_event(THD* thd, sql_exchange* ex,
-			       const char* db_arg, const char* table_name_arg,
-			       List<Item>& fields_arg,
-			       enum enum_duplicates handle_dup)
-  :Log_event(thd),thread_id(thd->thread_id), num_fields(0),fields(0),
-  field_lens(0),field_block_len(0),
-  table_name(table_name_arg ? table_name_arg : ""),
-  db(db_arg), fname(ex->file_name)
+Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
+			       const char *db_arg, const char *table_name_arg,
+			       List<Item> &fields_arg,
+			       enum enum_duplicates handle_dup,
+			       bool using_trans)
+  :Log_event(thd_arg, 0, using_trans), thread_id(thd_arg->thread_id),
+   num_fields(0), fields(0), field_lens(0),field_block_len(0),
+   table_name(table_name_arg ? table_name_arg : ""),
+   db(db_arg), fname(ex->file_name)
 {
   time_t end_time;
   time(&end_time);
-  exec_time = (ulong) (end_time  - thd->start_time);
+  exec_time = (ulong) (end_time  - thd_arg->start_time);
   /* db can never be a zero pointer in 4.0 */
   db_len = (uint32) strlen(db);
   table_name_len = (uint32) strlen(table_name);
@@ -1236,11 +1238,11 @@ Load_log_event::Load_log_event(THD* thd, sql_exchange* ex,
   constructed event.
 
  ****************************************************************************/
-Load_log_event::Load_log_event(const char* buf, int event_len,
-			       bool old_format):
-  Log_event(buf, old_format),num_fields(0),fields(0),
-  field_lens(0),field_block_len(0),
-  table_name(0),db(0),fname(0)
+Load_log_event::Load_log_event(const char *buf, int event_len,
+			       bool old_format)
+  :Log_event(buf, old_format),num_fields(0),fields(0),
+   field_lens(0),field_block_len(0),
+   table_name(0),db(0),fname(0)
 {
   if (!event_len) // derived class, will call copy_log_event() itself
     return;
@@ -1390,14 +1392,14 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db)
 
  ****************************************************************************/
 #ifndef MYSQL_CLIENT
-void Load_log_event::set_fields(List<Item> &fields)
+void Load_log_event::set_fields(List<Item> &field_list)
 {
   uint i;
-  const char* field = this->fields;
-  for (i = 0; i < num_fields; i++)
+  const char* field = fields;
+  for (i= 0; i < num_fields; i++)
   {
-    fields.push_back(new Item_field(db, table_name, field));	  
-    field += field_lens[i]  + 1;
+    field_list.push_back(new Item_field(db, table_name, field));	  
+    field+= field_lens[i]  + 1;
   }
 }
 #endif // !MYSQL_CLIENT
@@ -1458,8 +1460,8 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli)
 	ex.field_term->length(0);
 
       ex.skip_lines = skip_lines;
-      List<Item> fields;
-      set_fields(fields);
+      List<Item> field_list;
+      set_fields(field_list);
       thd->slave_proxy_id = thd->thread_id;
       if (net)
       {
@@ -1470,7 +1472,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli)
 	*/
 	thd->net.pkt_nr = net->pkt_nr;
       }
-      if (mysql_load(thd, &ex, &tables, fields, handle_dup, net != 0,
+      if (mysql_load(thd, &ex, &tables, field_list, handle_dup, net != 0,
 		     TL_WRITE))
 	thd->query_error = 1;
       if (thd->cuted_fields)
@@ -1795,14 +1797,12 @@ int Intvar_log_event::exec_event(struct st_relay_log_info* rli)
 #ifndef MYSQL_CLIENT
 void Rand_log_event::pack_info(String* packet)
 {
-  char buf1[256], buf[22];
-  String tmp(buf1, sizeof(buf1), system_charset_info);
-  tmp.length(0);
-  tmp.append("randseed1=");
-  tmp.append(llstr(seed1, buf));
-  tmp.append(",randseed2=");
-  tmp.append(llstr(seed2, buf));
-  net_store_data(packet, tmp.ptr(), tmp.length());
+  char buf1[256], *pos;
+  pos= strmov(buf1,"rand_seed1=");
+  pos= int10_to_str((long) seed1, pos, 10);
+  pos= strmov(pos, ",rand_seed2=");
+  pos= int10_to_str((long) seed2, pos, 10);
+  net_store_data(packet, buf1, (uint) (pos-buf1));
 }
 #endif // !MYSQL_CLIENT
 
@@ -1846,8 +1846,8 @@ void Rand_log_event::print(FILE* file, bool short_form, char* last_db)
     print_header(file);
     fprintf(file, "\tRand\n");
   }
-  fprintf(file, "SET RAND SEED1=%s;\n", llstr(seed1, llbuff));
-  fprintf(file, "SET RAND SEED2=%s;\n", llstr(seed2, llbuff));
+  fprintf(file, "SET @@RAND_SEED1=%s, @@RAND_SEED2=%s;\n",
+	  llstr(seed1, llbuff),llstr(seed2, llbuff));
   fflush(file);
 }
 #endif // MYSQL_CLIENT
@@ -1860,8 +1860,8 @@ void Rand_log_event::print(FILE* file, bool short_form, char* last_db)
 #ifndef MYSQL_CLIENT
 int Rand_log_event::exec_event(struct st_relay_log_info* rli)
 {
-  thd->rand.seed1 = seed1;
-  thd->rand.seed2 = seed2;
+  thd->rand.seed1= (ulong) seed1;
+  thd->rand.seed2= (ulong) seed2;
   rli->inc_pending(get_event_len());
   return 0;
 }
@@ -1907,8 +1907,8 @@ void Slave_log_event::pack_info(String* packet)
  ****************************************************************************/
 #ifndef MYSQL_CLIENT
 Slave_log_event::Slave_log_event(THD* thd_arg,
-				 struct st_relay_log_info* rli):
-  Log_event(thd_arg),mem_pool(0),master_host(0)
+				 struct st_relay_log_info* rli)
+  :Log_event(thd_arg, 0, 0), mem_pool(0), master_host(0)
 {
   DBUG_ENTER("Slave_log_event");
   if (!rli->inited)				// QQ When can this happen ?
@@ -2120,11 +2120,13 @@ int Stop_log_event::exec_event(struct st_relay_log_info* rli)
 
  ****************************************************************************/
 #ifndef MYSQL_CLIENT
-Create_file_log_event::Create_file_log_event(THD* thd_arg, sql_exchange* ex,
-		 const char* db_arg, const char* table_name_arg,
-		 List<Item>& fields_arg, enum enum_duplicates handle_dup,
-			char* block_arg, uint block_len_arg)
-  :Load_log_event(thd_arg,ex,db_arg,table_name_arg,fields_arg,handle_dup),
+Create_file_log_event::
+Create_file_log_event(THD* thd_arg, sql_exchange* ex,
+		      const char* db_arg, const char* table_name_arg,
+		      List<Item>& fields_arg, enum enum_duplicates handle_dup,
+		      char* block_arg, uint block_len_arg, bool using_trans)
+  :Load_log_event(thd_arg,ex,db_arg,table_name_arg,fields_arg,handle_dup,
+		  using_trans),
    fake_base(0),block(block_arg),block_len(block_len_arg),
    file_id(thd_arg->file_id = mysql_bin_log.next_file_id())
 {
@@ -2327,9 +2329,10 @@ err:
  ****************************************************************************/
 #ifndef MYSQL_CLIENT  
 Append_block_log_event::Append_block_log_event(THD* thd_arg, char* block_arg,
-					       uint block_len_arg)
-  :Log_event(thd_arg), block(block_arg),block_len(block_len_arg),
-   file_id(thd_arg->file_id)
+					       uint block_len_arg,
+					       bool using_trans)
+  :Log_event(thd_arg,0, using_trans), block(block_arg),
+   block_len(block_len_arg), file_id(thd_arg->file_id)
 {
 }
 #endif // !MYSQL_CLIENT
@@ -2447,8 +2450,8 @@ err:
 
  ****************************************************************************/
 #ifndef MYSQL_CLIENT
-Delete_file_log_event::Delete_file_log_event(THD* thd_arg)
-  :Log_event(thd_arg),file_id(thd_arg->file_id)
+Delete_file_log_event::Delete_file_log_event(THD *thd_arg, bool using_trans)
+  :Log_event(thd_arg, 0, using_trans),file_id(thd_arg->file_id)
 {
 }
 #endif // !MYSQL_CLIENT
@@ -2545,8 +2548,8 @@ int Delete_file_log_event::exec_event(struct st_relay_log_info* rli)
 
  ****************************************************************************/
 #ifndef MYSQL_CLIENT  
-Execute_load_log_event::Execute_load_log_event(THD* thd_arg)
-  :Log_event(thd_arg),file_id(thd_arg->file_id)
+Execute_load_log_event::Execute_load_log_event(THD *thd_arg, bool using_trans)
+  :Log_event(thd_arg, 0, using_trans), file_id(thd_arg->file_id)
 {
 }
 #endif // !MYSQL_CLIENT
@@ -2556,8 +2559,8 @@ Execute_load_log_event::Execute_load_log_event(THD* thd_arg)
   Execute_load_log_event ctor
 
  ****************************************************************************/
-Execute_load_log_event::Execute_load_log_event(const char* buf,int len)
-  :Log_event(buf, 0),file_id(0)
+Execute_load_log_event::Execute_load_log_event(const char* buf, int len)
+  :Log_event(buf, 0), file_id(0)
 {
   if ((uint)len < EXEC_LOAD_EVENT_OVERHEAD)
     return;

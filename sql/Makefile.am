@@ -22,9 +22,8 @@ MYSQLSHAREdir =		$(pkgdatadir)
 MYSQLBASEdir=		$(prefix)
 INCLUDES =		@MT_INCLUDES@ \
 			@bdb_includes@ @innodb_includes@ \
-			-I$(srcdir)/../include \
-			-I$(srcdir)/../regex \
-			-I$(srcdir) -I../include -I. $(openssl_includes)
+			-I$(top_srcdir)/include -I$(top_srcdir)/regex \
+			-I$(srcdir) $(openssl_includes)
 WRAPLIBS=		@WRAPLIBS@
 SUBDIRS =		share
 libexec_PROGRAMS =	mysqld

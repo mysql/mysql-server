@@ -730,11 +730,11 @@ static pthread_cond_t COND_thread_count;
 static pthread_mutex_t LOCK_thread_count;
 static uint thread_count;
 
-#ifdef HPUX
+#ifdef HPUX10
 typedef int * fd_set_ptr;
 #else
 typedef fd_set * fd_set_ptr;
-#endif /* HPUX */
+#endif /* HPUX10 */
 
 static void *test_thread(void *arg)
 {

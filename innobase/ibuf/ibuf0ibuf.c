@@ -1295,6 +1295,8 @@ ibuf_add_free_page(
 	flst_add_last(root + PAGE_HEADER + PAGE_BTR_IBUF_FREE_LIST,
 		      page + PAGE_HEADER + PAGE_BTR_IBUF_FREE_LIST_NODE, &mtr);
 
+	fil_page_set_type(page, FIL_PAGE_IBUF_FREE_LIST);
+		      
 	ibuf_data->seg_size++;
 	ibuf_data->free_list_len++;
 
@@ -1305,6 +1307,7 @@ ibuf_add_free_page(
 
 	ibuf_bitmap_page_set_bits(bitmap_page, page_no, IBUF_BITMAP_IBUF,
 								TRUE, &mtr);
+
 	mtr_commit(&mtr);
 
 	mutex_exit(&ibuf_mutex);

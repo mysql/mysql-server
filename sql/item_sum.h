@@ -389,6 +389,7 @@ public:
   const char *func_name() const { return udf.name(); }
   bool fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   {
+    fixed= 1;
     return udf.fix_fields(thd,tables,this,this->arg_count,this->args);
   }
   enum Sumfunctype sum_func () const { return UDF_SUM_FUNC; }

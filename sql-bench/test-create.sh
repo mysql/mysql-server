@@ -54,7 +54,7 @@ if ($opt_small_test)
 }
 
 
-print "Testing the speed of creating and droping tables\n";
+print "Testing the speed of creating and dropping tables\n";
 print "Testing with $max_tables tables and $opt_loop_count loop count\n\n";
 
 ####

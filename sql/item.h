@@ -20,10 +20,11 @@
 #endif
 
 struct st_table_list;
-void item_init(void);				/* Init item functions */
+void item_init(void);			/* Init item functions */
 
 class Item {
-  Item(const Item &);				/* Prevent use of these */
+  uint loop_id;                         /* Used to find selfrefering loops */
+  Item(const Item &);			/* Prevent use of these */
   void operator=(Item &);
 public:
   static void *operator new(size_t size) {return (void*) sql_alloc((uint) size); }
@@ -45,6 +46,7 @@ public:
   my_bool null_value;			/* if item is null */
   my_bool unsigned_flag;
   my_bool with_sum_func;
+  my_bool fixed;                        /* If item fixed with fix_fields */
 
   // alloc & destruct is done as start of select using sql_alloc
   Item();
@@ -84,10 +86,14 @@ public:
   virtual bool get_date(TIME *ltime,bool fuzzydate);
   virtual bool get_time(TIME *ltime);
   virtual bool is_null() { return 0; };
-  virtual CHARSET_INFO *thd_charset() const;
-  virtual CHARSET_INFO *charset() const { return str_value.charset(); };
-  virtual bool binary() const { return str_value.charset()->state & MY_CS_BINSORT ? 1 : 0 ; }
-  virtual void set_charset(CHARSET_INFO *cs) { str_value.set_charset(cs); }
+  virtual bool check_loop(uint id);
+  virtual void top_level_item() {}
+
+  virtual bool binary() const
+  { return str_value.charset()->state & MY_CS_BINSORT ? 1 : 0 ; }
+  CHARSET_INFO *thd_charset() const;
+  CHARSET_INFO *charset() const { return str_value.charset(); };
+  void set_charset(CHARSET_INFO *cs) { str_value.set_charset(cs); }
 };
 
 
@@ -230,8 +236,8 @@ public:
   Item_param(char *name_par=0)
   { 
     name= name_par ? name_par : (char*) "?";
-    long_data_supplied = false;
-    item_type = STRING_ITEM;
+    long_data_supplied= false;
+    item_type= STRING_ITEM;
     item_result_type = STRING_RESULT;
   }
   enum Type type() const { return item_type; }
@@ -243,12 +249,13 @@ public:
   void set_null();
   void set_int(longlong i);
   void set_double(double i);
-  void set_value(const char *str, uint length, CHARSET_INFO *cs);
-  void set_long_str(const char *str, ulong length, CHARSET_INFO *cs);
-  void set_long_binary(const char *str, ulong length, CHARSET_INFO *cs);
-  void set_longdata(const char *str, ulong length, CHARSET_INFO *cs);
+  void set_value(const char *str, uint length);
+  void set_long_str(const char *str, ulong length);
+  void set_long_binary(const char *str, ulong length);
+  void set_longdata(const char *str, ulong length);
   void set_long_end();
   void reset() {}
+  void (*setup_param_func)(Item_param *param, uchar **pos);
   enum Item_result result_type () const
   { return item_result_type; }
   Item *new_item() { return new Item_param(name); }
@@ -445,8 +452,8 @@ public:
     :Item_ident(NullS,table_name_par,field_name_par),ref(item) {}
   enum Type type() const		{ return REF_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const
-  { return (*ref)->eq(item, binary_cmp); }
-  ~Item_ref() { if (ref) delete *ref; }
+  { return ref && (*ref)->eq(item, binary_cmp); }
+  ~Item_ref() { if (ref && (*ref) != this) delete *ref; }
   double val()
   {
     double tmp=(*ref)->val_result();
@@ -481,6 +488,7 @@ public:
   void save_org_in_field(Field *field)	{ (*ref)->save_org_in_field(field); }
   enum Item_result result_type () const { return (*ref)->result_type(); }
   table_map used_tables() const		{ return (*ref)->used_tables(); }
+  bool check_loop(uint id);
 };
 
 

@@ -160,6 +160,16 @@ int ha_myisammrg::index_last(byte * buf)
   return error;
 }
 
+int ha_myisammrg::index_next_same(byte * buf,
+                                  const byte *key __attribute__((unused)),
+                                  uint length __attribute__((unused)))
+{
+  statistic_increment(ha_read_next_count,&LOCK_status);
+  int error=myrg_rnext_same(file,buf);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
 int ha_myisammrg::rnd_init(bool scan)
 {
   return myrg_extra(file,HA_EXTRA_RESET,0);
@@ -187,6 +197,19 @@ void ha_myisammrg::position(const byte *record)
   ha_store_ptr(ref, ref_length, (my_off_t) position);
 }
 
+ha_rows ha_myisammrg::records_in_range(int inx,
+				    const byte *start_key,uint start_key_len,
+				    enum ha_rkey_function start_search_flag,
+				    const byte *end_key,uint end_key_len,
+				    enum ha_rkey_function end_search_flag)
+{
+  return (ha_rows) myrg_records_in_range(file,
+				       inx,
+				       start_key,start_key_len,
+				       start_search_flag,
+				       end_key,end_key_len,
+				       end_search_flag);
+}
 
 void ha_myisammrg::info(uint flag)
 {
@@ -262,13 +285,15 @@ THR_LOCK_DATA **ha_myisammrg::store_lock(THD *thd,
 					 THR_LOCK_DATA **to,
 					 enum thr_lock_type lock_type)
 {
-  MYRG_TABLE *table;
+  MYRG_TABLE *open_table;
 
-  for (table=file->open_tables ; table != file->end_table ; table++)
+  for (open_table=file->open_tables ;
+       open_table != file->end_table ;
+       open_table++)
   {
-    *(to++)= &table->table->lock;
-    if (lock_type != TL_IGNORE && table->table->lock.type == TL_UNLOCK)
-      table->table->lock.type=lock_type;
+    *(to++)= &open_table->table->lock;
+    if (lock_type != TL_IGNORE && open_table->table->lock.type == TL_UNLOCK)
+      open_table->table->lock.type=lock_type;
   }
   return to;
 }
@@ -279,14 +304,16 @@ void ha_myisammrg::update_create_info(HA_CREATE_INFO *create_info)
   DBUG_ENTER("ha_myisammrg::update_create_info");
   if (!(create_info->used_fields & HA_CREATE_USED_UNION))
   {
-    MYRG_TABLE *table;
+    MYRG_TABLE *open_table;
     THD *thd=current_thd;
     create_info->merge_list.next= &create_info->merge_list.first;
     create_info->merge_list.elements=0;
 
-    for (table=file->open_tables ; table != file->end_table ; table++)
+    for (open_table=file->open_tables ;
+	 open_table != file->end_table ;
+	 open_table++)
     {
-      char *name=table->table->filename;
+      char *name=open_table->table->filename;
       char buff[FN_REFLEN];
       TABLE_LIST *ptr;
       if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
@@ -323,7 +350,28 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
 					sizeof(char*))))
     DBUG_RETURN(1);
   for (pos=table_names ; tables ; tables=tables->next)
-    *pos++= tables->real_name;
+  {
+    char *table_name;
+    if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
+    {
+      TABLE **tbl=find_temporary_table(current_thd,
+          tables->db, tables->real_name);
+      if (!tbl)
+      {
+        table_name=sql_alloc(1+
+            my_snprintf(buff,FN_REFLEN,"%s/%s/%s",mysql_real_data_home,
+                        tables->db, tables->real_name));
+        if (!table_name)
+          DBUG_RETURN(1);
+        strcpy(table_name, buff);
+      }
+      else
+        table_name=(*tbl)->path;
+    }
+    else
+      table_name=tables->real_name;
+    *pos++= table_name;
+  }
   *pos=0;
   DBUG_RETURN(myrg_create(fn_format(buff,name,"","",2+4+16),
 			  (const char **) table_names,
@@ -340,13 +388,15 @@ void ha_myisammrg::append_create_info(String *packet)
     packet->append(get_type(&merge_insert_method,file->merge_insert_method-1));
   }
   packet->append(" UNION=(",8);
-  MYRG_TABLE *table,*first;
+  MYRG_TABLE *open_table,*first;
 
-  for (first=table=file->open_tables ; table != file->end_table ; table++)
+  for (first=open_table=file->open_tables ;
+       open_table != file->end_table ;
+       open_table++)
   {
-    char *name=table->table->filename;
+    char *name= open_table->table->filename;
     fn_format(buff,name,"","",3);
-    if (table != first)
+    if (open_table != first)
       packet->append(',');
     packet->append(buff,(uint) strlen(buff));
   }

@@ -138,6 +138,7 @@ Item_sum_num::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   null_value=1;
   fix_length_and_dec();
   thd->allow_sum_func=1;			// Allow group functions
+  fixed= 1;
   return 0;
 }
 
@@ -168,6 +169,7 @@ Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   null_value=1;
   fix_length_and_dec();
   thd->allow_sum_func=1;			// Allow group functions
+  fixed= 1;
   return 0;
 }
 

@@ -119,6 +119,7 @@ static bool compare_hostname(const acl_host_and_ip *host, const char *hostname,
 
   SYNOPSIS
     acl_init()
+    thd				Thread handler
     dont_read_acl_tables	Set to 1 if run with --skip-grant
 
   RETURN VALUES
@@ -127,9 +128,9 @@ static bool compare_hostname(const acl_host_and_ip *host, const char *hostname,
 */
 
 
-my_bool acl_init(bool dont_read_acl_tables)
+my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
 {
-  THD  *thd, *org_thd;
+  THD  *thd;
   TABLE_LIST tables[3];
   TABLE *table;
   READ_RECORD read_record_info;
@@ -140,14 +141,13 @@ my_bool acl_init(bool dont_read_acl_tables)
   if (!acl_cache)
     acl_cache=new hash_filo(ACL_CACHE_SIZE,0,0,
 			    (hash_get_key) acl_entry_get_key,
-			    (void (*)(void*)) free);
+			    (hash_free_key) free);
   if (dont_read_acl_tables)
     DBUG_RETURN(0); /* purecov: tested */
 
   /*
     To be able to run this from boot, we allocate a temporary THD
   */
-  org_thd=current_thd;				// Save for restore
   if (!(thd=new THD))
     DBUG_RETURN(1); /* purecov: inspected */
   thd->store_globals();
@@ -339,6 +339,11 @@ end:
   delete thd;
   if (org_thd)
     org_thd->store_globals();			/* purecov: inspected */
+  else
+  {
+    /* Remember that we don't have a THD */
+    my_pthread_setspecific_ptr(THR_THD,  0);
+  }
   DBUG_RETURN(return_val);
 }
 
@@ -385,7 +390,7 @@ void acl_reload(THD *thd)
   delete_dynamic(&acl_wild_hosts);
   hash_free(&acl_check_hosts);
 
-  if (acl_init(0))
+  if (acl_init(thd, 0))
   {					// Error. Revert to old list
     acl_free();				/* purecov: inspected */
     acl_hosts=old_acl_hosts;
@@ -1089,7 +1094,7 @@ bool change_password(THD *thd, const char *host, const char *user,
 		acl_user->host.hostname ? acl_user->host.hostname : "",
 		new_password));
   mysql_update_log.write(thd, buff, query_length);
-  Query_log_event qinfo(thd, buff, query_length);
+  Query_log_event qinfo(thd, buff, query_length, 0);
   mysql_bin_log.write(&qinfo);
   DBUG_RETURN(0);
 }
@@ -1352,8 +1357,13 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
 				strlen(thd->lex.x509_subject), system_charset_info);
       break;
     case SSL_TYPE_NOT_SPECIFIED:
-    case SSL_TYPE_NONE:				// Impossible
-      break;					// Nothing to do
+      break;
+    case SSL_TYPE_NONE:
+      table->field[24]->store("", 0, system_charset_info);
+      table->field[25]->store("", 0, system_charset_info);
+      table->field[26]->store("", 0, system_charset_info);
+      table->field[27]->store("", 0, system_charset_info);
+      break;
     }
 
     USER_RESOURCES mqh = thd->lex.mqh;
@@ -2275,9 +2285,9 @@ void  grant_free(void)
 
 /* Init grant array if possible */
 
-my_bool grant_init(void)
+my_bool grant_init(THD *org_thd)
 {
-  THD  *thd, *org_thd;
+  THD  *thd;
   TABLE_LIST tables[2];
   MYSQL_LOCK *lock;
   my_bool return_val= 1;
@@ -2294,7 +2304,6 @@ my_bool grant_init(void)
   if (!initialized)
     DBUG_RETURN(0);				/* purecov: tested */
 
-  org_thd=current_thd;
   if (!(thd=new THD))
     DBUG_RETURN(1);				/* purecov: deadcode */
   thd->store_globals();
@@ -2352,13 +2361,18 @@ end:
   delete thd;
   if (org_thd)
     org_thd->store_globals();
+  else
+  {
+    /* Remember that we don't have a THD */
+    my_pthread_setspecific_ptr(THR_THD,  0);
+  }
   DBUG_RETURN(return_val);
 }
 
 
 /* Reload grant array if possible */
 
-void grant_reload(void)
+void grant_reload(THD *thd)
 {
   HASH old_hash_tables;bool old_grant_option;
   MEM_ROOT old_mem;
@@ -2372,7 +2386,7 @@ void grant_reload(void)
   old_grant_option = grant_option;
   old_mem = memex;
 
-  if (grant_init())
+  if (grant_init(thd))
   {						// Error. Revert to old hash
     grant_free();				/* purecov: deadcode */
     hash_tables=old_hash_tables;		/* purecov: deadcode */

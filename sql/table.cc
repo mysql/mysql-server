@@ -95,15 +95,15 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 
   if (my_read(file,(byte*) head,64,MYF(MY_NABP))) goto err_not_open;
   if (head[0] != (uchar) 254 || head[1] != 1 ||
-      (head[2] < FRM_VER && head[2] > FRM_VER+2))
-    goto err_not_open; /* purecov: inspected */
+      (head[2] != FRM_VER && head[2] > FRM_VER+2))
+    goto err_not_open;				/* purecov: inspected */
   new_field_pack_flag=head[27];
   new_frm_ver= (head[2] - FRM_VER);
   field_pack_length= new_frm_ver < 2 ? 11 : 15;
 
   error=3;
   if (!(pos=get_form_pos(file,head,(TYPELIB*) 0)))
-    goto err_not_open; /* purecov: inspected */
+    goto err_not_open;				/* purecov: inspected */
   *fn_ext(index_file)='\0';			// Remove .frm extension
 
   outparam->db_type=ha_checktype((enum db_type) (uint) *(head+3));
@@ -145,7 +145,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     goto err_not_open; /* purecov: inspected */
   bzero((char*) keyinfo,n_length);
   outparam->key_info=keyinfo;
-  outparam->max_key_length=0;
+  outparam->max_key_length= outparam->total_key_length= 0;
   key_part= (KEY_PART_INFO*) (keyinfo+keys);
   strpos=disk_buff+6;
 
@@ -203,11 +203,13 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     }
     set_if_bigger(outparam->max_key_length,keyinfo->key_length+
 		  keyinfo->key_parts);
+    outparam->total_key_length+= keyinfo->key_length;
     if (keyinfo->flags & HA_NOSAME)
       set_if_bigger(outparam->max_unique_length,keyinfo->key_length);
   }
   keynames=(char*) key_part;
   strpos+= (strmov(keynames, (char *) strpos) - keynames)+1;
+
   outparam->reclength = uint2korr((head+16));
   if (*(head+26) == 1)
     outparam->system=1;				/* one-record-database */
@@ -391,6 +393,11 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 		  (TYPELIB*) 0),
 		 outparam->fieldnames.type_names[i],
 		 outparam);
+    if (!reg_field)				// Not supported field type
+    {
+      error= 4;
+      goto err_not_open;			/* purecov: inspected */
+    }
     reg_field->comment=comment;
     reg_field->set_charset(charset);
     if (!(reg_field->flags & NOT_NULL_FLAG))

@@ -50,6 +50,7 @@ const char *client_errors[]=
   "Error on SHOW SLAVE HOSTS:",
   "Error connecting to slave:",
   "Error connecting to master:",
+  "SSL connection error",
   "Invalid connection handle",
   "Invalid use of null pointer",
   "Statement not prepared",
@@ -58,7 +59,18 @@ const char *client_errors[]=
   "No parameters exists in the statement",
   "Invalid parameter number",
   "Can't send long data for non string or binary data types (parameter: %d)",
-  "Using not supported parameter type: %d  (parameter: %d)"
+  "Using un supported parameter type: %d  (parameter: %d)"
+  "Shared memory (%lu)",
+  "Can't open shared memory. Request event don't create  (%lu)",
+  "Can't open shared memory. Answer event don't create  (%lu)",
+  "Can't open shared memory. File mapping don't create  (%lu)",
+  "Can't open shared memory. Map of memory don't create  (%lu)",
+  "Can't open shared memory. File mapping don't create for client (%lu)",
+  "Can't open shared memory. Map of memory don't create for client (%lu)",
+  "Can't open shared memory. %s event don't create for client (%lu)",
+  "Can't open shared memory. Server abandoded and don't sent the answer event (%lu)",
+  "Can't open shared memory. Can't send the request event to server (%lu)",
+  "Wrong or unknown protocol"
 };
 
 /* Start of code added by Roberto M. Serqueira - martinsc@uol.com.br - 05.24.2001 */
@@ -92,6 +104,7 @@ const char *client_errors[]=
   "Error on SHOW SLAVE HOSTS:",
   "Error connecting to slave:",
   "Error connecting to master:",
+  "SSL connection error",
   "Invalid connection handle",
   "Invalid use of null pointer",
   "Statement not prepared",
@@ -100,7 +113,18 @@ const char *client_errors[]=
   "No parameters exists in the statement",
   "Invalid parameter number",
   "Can't send long data for non string or binary data types (parameter: %d)",
-  "Using not supported parameter type: %d  (parameter: %d)"
+  "Using un supported parameter type: %d  (parameter: %d)"
+  "Shared memory (%lu)",
+  "Can't open shared memory. Request event don't create  (%lu)",
+  "Can't open shared memory. Answer event don't create  (%lu)",
+  "Can't open shared memory. File mapping don't create  (%lu)",
+  "Can't open shared memory. Map of memory don't create  (%lu)",
+  "Can't open shared memory. File mapping don't create for client (%lu)",
+  "Can't open shared memory. Map of memory don't create for client (%lu)",
+  "Can't open shared memory. %s event don't create for client (%lu)",
+  "Can't open shared memory. Server abandoded and don't sent the answer event (%lu)",
+  "Can't open shared memory. Can't send the request event to server (%lu)",
+  "Wrong or unknown protocol"
 };
 
 #else /* ENGLISH */
@@ -132,6 +156,7 @@ const char *client_errors[]=
   "Error on SHOW SLAVE HOSTS:",
   "Error connecting to slave:",
   "Error connecting to master:",
+  "SSL connection error",
   "Invalid connection handle",
   "Invalid use of null pointer",
   "Statement not prepared",
@@ -140,7 +165,18 @@ const char *client_errors[]=
   "No parameters exists in the statement",
   "Invalid parameter number",
   "Can't send long data for non string or binary data types (parameter: %d)",
-  "Using not supported parameter type: %d  (parameter: %d)"
+  "Using un supported parameter type: %d  (parameter: %d)"
+  "Shared memory (%lu)",
+  "Can't open shared memory. Request event don't create  (%lu)",
+  "Can't open shared memory. Answer event don't create  (%lu)",
+  "Can't open shared memory. File mapping don't create  (%lu)",
+  "Can't open shared memory. Map of memory don't create  (%lu)",
+  "Can't open shared memory. File mapping don't create for client (%lu)",
+  "Can't open shared memory. Map of memory don't create for client (%lu)",
+  "Can't open shared memory. %s event don't create for client (%lu)",
+  "Can't open shared memory. Server abandoded and don't sent the answer event (%lu)",
+  "Can't open shared memory. Can't send the request event to server (%lu)",
+  "Wrong or unknown protocol"
 };
 #endif
 
