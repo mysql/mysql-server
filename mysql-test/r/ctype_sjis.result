@@ -91,3 +91,7 @@ sjis_bin	6109
 sjis_bin	61
 sjis_bin	6120
 drop table t1;
+SET NAMES sjis;
+SELECT HEX('²“‘@\Œ\') FROM DUAL;
+HEX('²“‘@_Œ\')
+8DB2939181408C5C

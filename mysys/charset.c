@@ -581,6 +581,23 @@ ulong escape_string_for_mysql(CHARSET_INFO *charset_info, char *to,
       from--;
       continue;
     }
+    /*
+     If the next character appears to begin a multi-byte character, we
+     escape that first byte of that apparent multi-byte character. (The
+     character just looks like a multi-byte character -- if it were actually
+     a multi-byte character, it would have been passed through in the test
+     above.)
+
+     Without this check, we can create a problem by converting an invalid
+     multi-byte character into a valid one. For example, 0xbf27 is not
+     a valid GBK character, but 0xbf5c is. (0x27 = ', 0x5c = \)
+    */
+    if (use_mb_flag && (l= my_mbcharlen(charset_info, *from)) > 1)
+    {
+      *to++= '\\';
+      *to++= *from;
+      continue;
+    }
 #endif
     switch (*from) {
     case 0:				/* Must be escaped for 'mysql' */
