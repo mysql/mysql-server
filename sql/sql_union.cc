@@ -73,10 +73,11 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
 		       (ORDER*) sl->group_list.first,
 		       sl->having,
 		       (ORDER*) NULL,
-		       sl->options | thd->options | SELECT_NO_UNLOCK | SELECT_DESCRIBE,
+		       (sl->options | thd->options | SELECT_NO_UNLOCK |
+			SELECT_DESCRIBE),
 		       result);
     }
-    return 0;
+    DBUG_RETURN(0);
   } 
 
   order = (ORDER *) last_sl->order_list.first;

@@ -5680,11 +5680,10 @@ this without sacrifying the speed or compromise the code.
 @node TODO MySQL 4.0, TODO future, TODO, TODO
 @subsection Things that should be in 4.0
 
-We plan to make MySQL Version 4.0 a ``quick'' release where we only
-add some new stuff to enable others to help us with developing new features
-into Version 4.1.  The MySQL 4.0 version should only take us about
-a month to make after which we want to stabilize it and start working on
-Version 4.1.  Version 4.0 should have the following new features:
+We have now shifted development to MySQL Version 4.0.  Most of the basic
+things we want to have in 4.0 is already done.  The target is to quickly
+implement the rest of the following features and then shift development
+to MySQL 4.1.
 
 The news section for 4.0 includes a list of the features we have already
 implemented in the 4.0 tree. @xref{News-4.0.x}.
@@ -5717,13 +5716,6 @@ Replication should work with @code{RAND()} and user variables @code{@@var}.
 Online backup with very low performance penalty.  The online backup will
 make it easy to add a new replication slave without taking down the
 master.
-@item
-@code{DELETE FROM table_name} will return the number of deleted rows. For
-fast execution one should use @code{TRUNCATE table_name}.
-@item
-Multi-table @code{DELETE} (cascading @code{DELETE} and multi-table
-@code{DELETE}.
-@item
 Allow @code{DELETE} on @code{MyISAM} tables to use the record cache.
 To do this, we need to update the threads record cache when we update
 the @code{.MYD} file.
@@ -5740,9 +5732,6 @@ Allow users to change startup options without taking down the server.
 Help for all commands from the client.
 @item
 Secure connections (with SSL).
-@item
-Extend the optimizer to be able to optimize some @code{ORDER BY key_name DESC}
-queries.
 @item
 @code{SHOW COLUMNS FROM table_name} (used by @code{mysql} client to allow
 expansions of column names) should not open the table, but only the

@@ -903,7 +903,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       if (check_access(thd,CREATE_ACL,db,0,1))
 	break;
       mysql_log.write(thd,command,packet);
-      mysql_create_db(thd,db,0);
+      mysql_create_db(thd,db,0,0);
       break;
     }
   case COM_DROP_DB:				// QQ: To be removed
@@ -921,7 +921,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	break;
       }
       mysql_log.write(thd,command,db);
-      mysql_rm_db(thd,db,0);
+      mysql_rm_db(thd,db,0,0);
       break;
     }
   case COM_BINLOG_DUMP:
@@ -1974,7 +1974,7 @@ mysql_execute_command(void)
     }
     if (check_access(thd,CREATE_ACL,lex->name,0,1))
       break;
-    res=mysql_create_db(thd,lex->name,lex->create_info.options);
+    res=mysql_create_db(thd,lex->name,lex->create_info.options,0);
     break;
   }
   case SQLCOM_DROP_DB:
@@ -1991,7 +1991,7 @@ mysql_execute_command(void)
       send_error(&thd->net,ER_LOCK_OR_ACTIVE_TRANSACTION);
       goto error;
     }
-    res=mysql_rm_db(thd,lex->name,lex->drop_if_exists);
+    res=mysql_rm_db(thd,lex->name,lex->drop_if_exists,0);
     break;
   }
   case SQLCOM_CREATE_FUNCTION:

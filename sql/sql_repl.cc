@@ -1531,11 +1531,10 @@ int load_master_data(THD* thd)
 	continue;
       }
 
-      if ((drop_error = mysql_rm_db(0, db, 1)) ||
-	  mysql_create_db(0, db, 0))
+      if (mysql_rm_db(thd, db, 1,1) ||
+	  mysql_create_db(thd, db, 0, 1))
       {
-	error = (drop_error) ? ER_DB_DROP_DELETE : ER_CANT_CREATE_DB;
-	net_printf(&thd->net, error, db, my_error);
+	send_error(&thd->net, 0, 0);
 	cleanup_mysql_results(db_res, cur_table_res - 1, table_res);
 	goto err;
       }
