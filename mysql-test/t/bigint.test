@@ -29,3 +29,7 @@ alter table t1 modify big bigint not null;
 select min(big),max(big),max(big)-1 from t1;
 select min(big),max(big),max(big)-1 from t1 group by a;
 drop table t1;
+
+select UNSIGNED 1-2;
+select SIGNED (UNSIGNED 1-2);
+select UNSIGNED '-1';

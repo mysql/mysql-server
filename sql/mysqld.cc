@@ -448,15 +448,7 @@ static void close_connections(void)
     if (pthread_kill(select_thread,THR_CLIENT_ALARM))
       break;					// allready dead
 #endif
-#ifdef HAVE_TIMESPEC_TS_SEC
-    abstime.ts_sec=time(NULL)+2;		// Bsd 2.1
-    abstime.ts_nsec=0;
-#else
-    struct timeval tv;
-    gettimeofday(&tv,0);
-    abstime.tv_sec=tv.tv_sec+2;
-    abstime.tv_nsec=tv.tv_usec*1000;
-#endif
+    set_timespec(abstime, 2);
     for (uint tmp=0 ; tmp < 10 ; tmp++)
     {
       error=pthread_cond_timedwait(&COND_thread_count,&LOCK_thread_count,
@@ -2918,9 +2910,9 @@ CHANGEABLE_VAR changeable_vars[] = {
    (long*) &innobase_additional_mem_pool_size, 1*1024*1024L, 512*1024L,
      ~0L, 0, 1024},
   {"innodb_file_io_threads",
-     (long*) &innobase_file_io_threads, 9, 4, 64, 0, 1},
+     (long*) &innobase_file_io_threads, 4, 4, 64, 0, 1},
   {"innodb_lock_wait_timeout",
-     (long*) &innobase_lock_wait_timeout, 1024 * 1024 * 1024, 1,
+     (long*) &innobase_lock_wait_timeout, 50, 1,
 						1024 * 1024 * 1024, 0, 1},
   {"innodb_thread_concurrency",
      (long*) &innobase_thread_concurrency, 8, 1, 1000, 0, 1},
@@ -4087,6 +4079,7 @@ static void get_options(int argc,char **argv)
       break;
     case OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT:
       innobase_flush_log_at_trx_commit= optarg ? test(atoi(optarg)) : 1;
+      break;
     case OPT_INNODB_FAST_SHUTDOWN:
       innobase_fast_shutdown= optarg ? test(atoi(optarg)) : 1;
       break;

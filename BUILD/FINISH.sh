@@ -20,7 +20,8 @@ then
    (cd gemini && aclocal && autoheader && aclocal && automake && autoconf)
 fi
 
-CFLAGS=\"$cflags\" CXX=$CXX CXXFLAGS=\"$cxxflags\" $configure"
+CFLAGS=\"$cflags\" CXX=\"$CXX\" CXXFLAGS=\"$cxxflags\" CXXLDFLAGS=\"$CXXLDFLAGS\" \
+$configure"
 
 if [ -z "$just_configure" ]
 then

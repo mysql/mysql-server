@@ -196,6 +196,27 @@ public:
   }  
 };
 
+class Item_func_signed :public Item_int_func
+{
+public:
+  Item_func_signed(Item *a) :Item_int_func(a) {}
+  double val() { return args[0]->val(); }
+  longlong val_int() { return args[0]->val_int(); }
+  void fix_length_and_dec()
+  { decimals=0; max_length=args[0]->max_length; unsigned_flag=0; }
+};
+
+class Item_func_unsigned :public Item_int_func
+{
+public:
+  Item_func_unsigned(Item *a) :Item_int_func(a) {}
+  double val() { return args[0]->val(); }
+  longlong val_int() { return args[0]->val_int(); }
+  void fix_length_and_dec()
+  { decimals=0; max_length=args[0]->max_length; unsigned_flag=1; }
+};
+
+
 class Item_func_plus :public Item_num_op
 {
 public:
@@ -835,6 +856,7 @@ public:
   enum Item_result result_type () const { return cached_result_type; }
   bool fix_fields(THD *thd,struct st_table_list *tables);
   void fix_length_and_dec();
+  void print(String *str);
   const char *func_name() const { return "set_user_var"; }
 };
 
@@ -853,12 +875,15 @@ public:
   longlong val_int();
   String *val_str(String* str);
   void fix_length_and_dec();
+  void print(String *str);
   enum Item_result result_type() const;
   const char *func_name() const { return "get_user_var"; }
   bool const_item() const { return const_var_flag; }
   table_map used_tables() const
   { return const_var_flag ? 0 : RAND_TABLE_BIT; }
+  bool eq(const Item *item) const;
 };
+
 
 class Item_func_inet_aton : public Item_int_func
 {

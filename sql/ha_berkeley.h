@@ -98,6 +98,7 @@ class ha_berkeley: public handler
   }
   ~ha_berkeley() {}
   const char *table_type() const { return "BerkeleyDB"; }
+  const char *index_type(uint key_number) { return "BTREE"; }
   const char **bas_ext() const;
   ulong option_flag() const { return int_option_flag; }
   uint max_record_length() const { return HA_MAX_REC_LENGTH; }

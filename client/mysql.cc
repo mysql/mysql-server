@@ -171,7 +171,6 @@ static int sql_connect(char *host,char *database,char *user,char *password,
 		       uint silent);
 static int put_info(const char *str,INFO_TYPE info,uint error=0);
 static void safe_put_field(const char *pos,ulong length);
-static const char *array_value(const char **array, char *key);
 static void xmlencode_print(const char *src, uint length);
 static void init_pager();
 static void end_pager();

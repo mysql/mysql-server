@@ -55,3 +55,12 @@ select min(big),max(big),max(big)-1 from t1 group by a;
 min(big)	max(big)	max(big)-1
 -1	9223372036854775807	9223372036854775806
 drop table t1;
+select UNSIGNED 1-2;
+UNSIGNED 1-2
+18446744073709551615
+select SIGNED (UNSIGNED 1-2);
+SIGNED (UNSIGNED 1-2)
+-1
+select UNSIGNED '-1';
+UNSIGNED '-1'
+18446744073709551615

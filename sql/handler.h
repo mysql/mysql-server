@@ -236,6 +236,7 @@ public:
   virtual bool has_transactions(){ return 0;}
   virtual uint extra_rec_buf_length() { return 0; }
   virtual ha_rows estimate_number_of_rows() { return records+EXTRA_RECORDS; }
+  virtual const char *index_type(uint key_number) { return "";}
 
   virtual int index_init(uint idx) { active_index=idx; return 0;}
   virtual int index_end() {return 0; }

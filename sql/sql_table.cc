@@ -26,6 +26,7 @@
 #endif
 
 extern HASH open_cache;
+static const char *primary_key_name="PRIMARY";
 
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);
 static char *make_unique_key_name(const char *field_name,KEY *start,KEY *end);
@@ -196,6 +197,48 @@ int quick_rm_table(enum db_type base,const char *db,
   return ha_delete_table(base,path) || error;
 }
 
+/*
+  Sort keys in the following order:
+  - PRIMARY KEY
+  - UNIQUE keyws where all column are NOT NULL
+  - Other UNIQUE keys
+  - Normal keys
+  - Fulltext keys
+
+  This will make checking for duplicated keys faster and ensure that
+  PRIMARY keys are prioritized.
+*/
+
+
+static int sort_keys(KEY *a, KEY *b)
+{
+  if (a == b)					// Safety
+    return 0;
+  if (a->flags & HA_NOSAME)
+  {
+    if (!(b->flags & HA_NOSAME))
+      return -1;
+    if ((a->flags ^ b->flags) & HA_NULL_PART_KEY)
+    {
+      /* Sort NOT NULL keys before other keys */
+      return (a->flags & HA_NULL_PART_KEY) ? 1 : -1;
+    }
+    if (a->name == primary_key_name)
+      return -1;
+    if (b->name == primary_key_name)
+      return 1;
+  }
+  else if (b->flags & HA_NOSAME)
+    return 1;					// Prefer b
+
+  if ((a->flags ^ b->flags) & HA_FULLTEXT)
+  {
+    return (a->flags & HA_FULLTEXT) ? 1 : -1;
+  }
+  return a < b ? -1 : 1;			// Prefer original key order
+}
+
+
 /*****************************************************************************
  * Create a table.
  * If one creates a temporary table, this is automaticly opened
@@ -351,8 +394,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   List_iterator<Key> key_iterator(keys);
   uint key_parts=0,key_count=keys.elements;
   List<Key> keys_in_order;			// Add new keys here
-  Key *primary_key=0;
-  bool unique_key=0;
+  bool primary_key=0,unique_key=0;
   Key *key;
   uint tmp;
   tmp=min(file->max_keys(), MAX_KEY);
@@ -362,12 +404,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     DBUG_RETURN(-1);
   }
 
-  /*
-    Check keys;
-    Put PRIMARY KEY first, then UNIQUE keys and other keys last
-    This will make checking for duplicated keys faster and ensure that
-    primary keys are prioritized.
-  */
+  /* Calculate number of key segements */
 
   while ((key=key_iterator++))
   {
@@ -383,33 +420,6 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       DBUG_RETURN(-1);
     }
     key_parts+=key->columns.elements;
-    if (key->type == Key::PRIMARY)
-    {
-      if (primary_key)
-      {
-	my_error(ER_MULTIPLE_PRI_KEY,MYF(0));
-	DBUG_RETURN(-1);
-      }
-      primary_key=key;
-    }
-    else if (key->type == Key::UNIQUE)
-    {
-      unique_key=1;
-      if (keys_in_order.push_front(key))
-	DBUG_RETURN(-1);
-    }
-    else if (keys_in_order.push_back(key))
-      DBUG_RETURN(-1);
-  }
-  if (primary_key)
-  {
-    if (keys_in_order.push_front(primary_key))
-      DBUG_RETURN(-1);
-  }
-  else if (!unique_key && (file->option_flag() & HA_REQUIRE_PRIMARY_KEY))
-  {
-    my_error(ER_REQUIRES_PRIMARY_KEY,MYF(0));
-    DBUG_RETURN(-1);
   }
 
   key_info_buffer=key_info=(KEY*) sql_calloc(sizeof(KEY)*key_count);
@@ -417,8 +427,8 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   if (!key_info_buffer || ! key_part_info)
     DBUG_RETURN(-1);				// Out of memory
 
-  List_iterator<Key> key_iterator_in_order(keys_in_order);
-  for (; (key=key_iterator_in_order++) ; key_info++)
+  key_iterator.rewind();
+  for (; (key=key_iterator++) ; key_info++)
   {
     uint key_length=0;
     key_part_spec *column;
@@ -486,6 +496,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 			  MYF(0),column->field_name);
 	  DBUG_RETURN(-1);
 	}
+	key_info->flags|= HA_NULL_PART_KEY;
       }
       if (MTYP_TYPENR(sql_field->unireg_check) == Field::NEXT_NUMBER)
       {
@@ -545,7 +556,15 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       if (column_nr == 0)
       {
 	if (key->type == Key::PRIMARY)
-	  key_name="PRIMARY";
+	{
+	  if (primary_key)
+	  {
+	    my_error(ER_MULTIPLE_PRI_KEY,MYF(0));
+	    DBUG_RETURN(-1);
+	  }
+	  key_name=primary_key_name;
+	  primary_key=1;
+	}
 	else if (!(key_name = key->name()))
 	  key_name=make_unique_key_name(sql_field->field_name,
 					key_info_buffer,key_info);
@@ -557,6 +576,8 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 	key_info->name=(char*) key_name;
       }
     }
+    if (!(key_info->flags & HA_NULL_PART_KEY))
+      unique_key=1;
     key_info->key_length=(uint16) key_length;
     uint max_key_length= max(file->max_key_length(), MAX_KEY_LENGTH);
     if (key_length > max_key_length && key->type != Key::FULLTEXT)
@@ -565,11 +586,19 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       DBUG_RETURN(-1);
     }
   }
+  if (!unique_key && !primary_key &&
+      (file->option_flag() & HA_REQUIRE_PRIMARY_KEY))
+  {
+    my_error(ER_REQUIRES_PRIMARY_KEY,MYF(0));
+    DBUG_RETURN(-1);
+  }
   if (auto_increment > 0)
   {
     my_error(ER_WRONG_AUTO_KEY,MYF(0));
     DBUG_RETURN(-1);
   }
+  /* Sort keys in optimized order */
+  qsort((gptr) key_info_buffer, key_count, sizeof(KEY), (qsort_cmp) sort_keys);
 
       /* Check if table exists */
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)

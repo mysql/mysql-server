@@ -146,27 +146,23 @@ int vio_write(Vio * vio, const gptr buf, int size)
 
 int vio_blocking(Vio * vio, my_bool set_blocking_mode)
 {
-  int r=0;
-  return (r);
+  return (0);
 }
 
 my_bool
 vio_is_blocking(Vio * vio)
 {
-  my_bool r=0;
-  return(r);
+  return(0);
 }
 
 int vio_fastsend(Vio * vio)
 {
-  int r=0;
-  return(r);
+  return(0);
 }
 
 int vio_keepalive(Vio* vio, my_bool set_keep_alive)
 {
-  int r=0;
-  return (r);
+  return (0);
 }
 
 
@@ -181,8 +177,7 @@ vio_should_retry(Vio * vio __attribute__((unused)))
 
 int vio_close(Vio * vio)
 {
-  int r=0;
-  return(r);
+  return(0);
 }
 
 
