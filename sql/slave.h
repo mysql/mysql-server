@@ -411,7 +411,8 @@ void init_master_info_with_options(MASTER_INFO* mi);
 void clear_last_slave_error(RELAY_LOG_INFO* rli);
 int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
 		     const char* slave_info_fname,
-		     bool abort_if_no_master_info_file);
+		     bool abort_if_no_master_info_file,
+		     int thread_mask);
 void end_master_info(MASTER_INFO* mi);
 int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname);
 void end_relay_log_info(RELAY_LOG_INFO* rli);
