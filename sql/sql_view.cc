@@ -283,7 +283,7 @@ bool mysql_create_view(THD *thd,
         /*
           Do we have more privileges on view field then underlying table field?
         */
-        if ((~fld->have_privileges & priv))
+        if (!fld->field->table->tmp_table && (~fld->have_privileges & priv))
         {
           /* VIEW column has more privileges */
           my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),

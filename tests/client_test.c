@@ -7263,13 +7263,13 @@ static void test_explain_bug()
   verify_prepare_field(result, 0, "Field", "COLUMN_NAME",
                        MYSQL_TYPE_STRING, 0, 0, "", 192, 0);
 
-  verify_prepare_field(result, 1, "Type", "TYPE",
+  verify_prepare_field(result, 1, "Type", "COLUMN_TYPE",
                        MYSQL_TYPE_STRING, 0, 0, "", 120, 0);
 
   verify_prepare_field(result, 2, "Null", "IS_NULLABLE",
                        MYSQL_TYPE_STRING, 0, 0, "", 9, 0);
 
-  verify_prepare_field(result, 3, "Key", "KEY",
+  verify_prepare_field(result, 3, "Key", "COLUMN_KEY",
                        MYSQL_TYPE_STRING, 0, 0, "", 9, 0);
 
   verify_prepare_field(result, 4, "Default", "COLUMN_DEFAULT",
