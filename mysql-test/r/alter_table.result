@@ -53,7 +53,7 @@ SHOW FULL COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra	Privileges	Comment
 GROUP_ID	int(10) unsigned		PRI	0		select,insert,update,references	
 LANG_ID	smallint(5) unsigned		PRI	0		select,insert,update,references	
-NAME	char(80)		MUL			select,insert,update,references	
+NAME	char(80) character set latin1		MUL			select,insert,update,references	
 DROP TABLE t1;
 create table t1 (n int);
 insert into t1 values(9),(3),(12),(10);
@@ -120,5 +120,5 @@ alter table t2 rename t1, add c char(10) comment "no comment";
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
 i	int(10) unsigned		PRI	NULL	auto_increment
-c	char(10)	YES		NULL	
+c	char(10) character set latin1	YES		NULL	
 drop table t1;

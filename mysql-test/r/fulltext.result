@@ -136,7 +136,7 @@ show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `ticket` int(11) default NULL,
-  `inhalt` text,
+  `inhalt` text character set latin1,
   KEY `tig` (`ticket`),
   FULLTEXT KEY `tix` (`inhalt`)
 ) TYPE=MyISAM
