@@ -153,7 +153,6 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 
   for (i=0 ; i < keys ; i++, keyinfo++)
   {
-    uint null_parts=0;
     keyinfo->flags=	 ((uint) strpos[0]) ^ HA_NOSAME;
     keyinfo->key_length= (uint) uint2korr(strpos+1);
     keyinfo->key_parts=  (uint) strpos[3];  strpos+=4;
@@ -185,7 +184,6 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
       }
       key_part->store_length=key_part->length;
     }
-    keyinfo->key_length+=null_parts;
     set_if_bigger(outparam->max_key_length,keyinfo->key_length+
 		  keyinfo->key_parts);
     if (keyinfo->flags & HA_NOSAME)
@@ -420,6 +418,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	    key_part->store_length+=HA_KEY_NULL_LENGTH;
 	    keyinfo->flags|=HA_NULL_PART_KEY;
 	    keyinfo->extra_length+= HA_KEY_NULL_LENGTH;
+	    keyinfo->key_length+= HA_KEY_NULL_LENGTH;
 	  }
 	  if (field->type() == FIELD_TYPE_BLOB ||
 	      field->real_type() == FIELD_TYPE_VAR_STRING)
@@ -428,6 +427,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	      key_part->key_part_flag|= HA_BLOB_PART;
 	    keyinfo->extra_length+=HA_KEY_BLOB_LENGTH;
 	    key_part->store_length+=HA_KEY_BLOB_LENGTH;
+	    keyinfo->key_length+= HA_KEY_BLOB_LENGTH;
 	  }
 	  if (i == 0 && key != primary_key)
 	    field->flags |=
@@ -438,11 +438,16 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	    field->key_start|= ((key_map) 1 << key);
 	  if ((ha_option & HA_HAVE_KEY_READ_ONLY) &&
 	      field->key_length() == key_part->length &&
-	      field->type() != FIELD_TYPE_BLOB &&
-	      (field->key_type() != HA_KEYTYPE_TEXT ||
-	       (!(ha_option & HA_KEY_READ_WRONG_STR) &&
-		!(keyinfo->flags & HA_FULLTEXT))))
-	    field->part_of_key|= ((key_map) 1 << key);
+	      field->type() != FIELD_TYPE_BLOB)
+	  {
+	    if (field->key_type() != HA_KEYTYPE_TEXT ||
+		(!(ha_option & HA_KEY_READ_WRONG_STR) &&
+		 !(keyinfo->flags & HA_FULLTEXT)))
+	      field->part_of_key|= ((key_map) 1 << key);
+	    if (field->key_type() != HA_KEYTYPE_TEXT ||
+		!(keyinfo->flags & HA_FULLTEXT))
+	      field->part_of_sortkey|= ((key_map) 1 << key);
+	  }
 	  if (!(key_part->key_part_flag & HA_REVERSE_SORT) &&
 	      usable_parts == i)
 	    usable_parts++;			// For FILESORT

@@ -115,8 +115,9 @@ enum row_type { ROW_TYPE_DEFAULT, ROW_TYPE_FIXED, ROW_TYPE_DYNAMIC,
 /* struct to hold information about the table that should be created */
 
 /* Bits in used_fields */
-#define HA_CREATE_USED_AUTO 1
-#define HA_CREATE_USED_RAID 2
+#define HA_CREATE_USED_AUTO	1
+#define HA_CREATE_USED_RAID	2
+#define HA_CREATE_USED_UNION	4
 
 typedef struct st_thd_trans {
   void *bdb_tid;
@@ -191,6 +192,7 @@ public:
   time_t update_time;
   ulong mean_rec_length;		/* physical reclength */
   void  *ft_handler;
+  bool  auto_increment_column_changed;
 
   handler(TABLE *table_arg) : table(table_arg),active_index(MAX_REF_PARTS),
     ref(0),ref_length(sizeof(my_off_t)), block_size(0),records(0),deleted(0),

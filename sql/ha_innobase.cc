@@ -18,12 +18,6 @@
 Innobase */
 
 /* TODO list for the Innobase handler:
-  - How to check for deadlocks if Innobase tables are used alongside
-    other MySQL table types? Solution: we will use a timeout.
-  - Innobase currently includes the path to a table name: the path should
-    actually be dropped off, because we may move a whole database to a new
-    directory.
-  - Add a deadlock error message to MySQL.
   - Ask Monty if strings of different languages can exist in the same
     database. Answer: in near future yes, but not yet.
 */
@@ -415,10 +409,10 @@ innobase_init(void)
 /*===============*/
 			/* out: TRUE if error */
 {
-	int	err;
-	bool	ret;
-	ibool	test_bool;
-	static  char current_dir[3];
+	static char 	current_dir[3];
+	int		err;
+	bool		ret;
+
   	DBUG_ENTER("innobase_init");
 
 	/* Use current_dir if no paths are set */
@@ -499,6 +493,7 @@ innobase_end(void)
 	DBUG_ENTER("innobase_end");
 
 	err = innobase_shutdown_for_mysql();
+	hash_free(&innobase_open_tables);
 
 	if (err != DB_SUCCESS) {
 
@@ -736,7 +731,7 @@ ha_innobase::open(
 	stored the string length as the first byte. */
 
 	buff_len = table->reclength + table->max_key_length
-							+ MAX_REF_PARTS * 2;
+							+ MAX_REF_PARTS * 3;
 	if (!(mysql_byte*) my_multi_malloc(MYF(MY_WME),
 				     &upd_buff, buff_len,
 				     &key_val_buff, buff_len,
@@ -1214,7 +1209,7 @@ ha_innobase::write_row(
 	row_prebuilt_t* prebuilt = (row_prebuilt_t*)innobase_prebuilt;
   	int 		error;
 
-  	DBUG_ENTER("write_row");
+  	DBUG_ENTER("ha_innobase::write_row");
 
   	statistic_increment(ha_write_count, &LOCK_status);
 
@@ -1279,7 +1274,8 @@ innobase_convert_and_store_changed_col(
 
 	if (len == UNIV_SQL_NULL) {
 		data = NULL;
-	} else if (col_type == DATA_VARCHAR) {
+	} else if (col_type == DATA_VARCHAR || col_type == DATA_BINARY
+		   || col_type == DATA_VARMYSQL) {
 	        /* Remove trailing spaces */
         	while (len > 0 && data[len - 1] == ' ') {
 	                len--;
@@ -1345,12 +1341,12 @@ calc_row_difference(
 	for (i = 0; i < n_fields; i++) {
 		field = table->field[i];
 
-		if (thd->query_id != field->query_id) {
+		/* if (thd->query_id != field->query_id) { */
 			/* TODO: check that these fields cannot have
 			changed! */
 
-			goto skip_field;
-		}
+		/*	goto skip_field;
+		}*/
 
 		o_ptr = (byte*) old_row + get_field_offset(table, field);
 		n_ptr = (byte*) new_row + get_field_offset(table, field);
@@ -1403,7 +1399,6 @@ calc_row_difference(
 					(prebuilt->table->cols + i)->clust_pos;
 			n_changed++;
 		}
-skip_field:
 		;
 	}
 
@@ -1432,7 +1427,7 @@ ha_innobase::update_row(
 	upd_t*		uvect;
 	int		error = 0;
 
-	DBUG_ENTER("update_row");
+	DBUG_ENTER("ha_innobase::update_row");
 
 	if (prebuilt->upd_node) {
 		uvect = prebuilt->upd_node->update;
@@ -1476,7 +1471,7 @@ ha_innobase::delete_row(
 	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	int		error = 0;
 
-	DBUG_ENTER("update_row");
+	DBUG_ENTER("ha_innobase::delete_row");
 
 	if (!prebuilt->upd_node) {
 		row_get_prebuilt_update_vector(prebuilt);
@@ -1659,7 +1654,7 @@ ha_innobase::change_active_index(
 
   	statistic_increment(ha_read_key_count, &LOCK_status);
 
-  	DBUG_ENTER("ha_innobase::change_active_index");
+  	DBUG_ENTER("index_read_idx");
 
 	active_index = keynr;
 
@@ -1685,7 +1680,7 @@ ha_innobase::change_active_index(
 
 	build_template(prebuilt, user_thd, table, ROW_MYSQL_WHOLE_ROW);
 
-	DBUG_RETURN(0);
+	return(0);
 }
 
 /**************************************************************************
@@ -2219,7 +2214,6 @@ ha_innobase::create(
 {
 	int		error;
 	dict_table_t*	innobase_table;
-	uint		name_len;
 	trx_t*		trx;
 	int		primary_key_no	= -1;
 	KEY*		key;
@@ -2237,7 +2231,7 @@ ha_innobase::create(
 
   	/* Create the table definition in Innobase */
 
-  	if ((error = create_table_def(trx, form, norm_name))) {
+  	if (error = create_table_def(trx, form, norm_name)) {
 
 		trx_commit_for_mysql(trx);
 
@@ -2255,6 +2249,11 @@ ha_innobase::create(
     			primary_key_no = (int) i;
     		}
 	}
+
+	/* Our function row_get_mysql_key_number_for_index assumes
+	the primary key is always number 0, if it exists */
+
+	assert(primary_key_no == -1 || primary_key_no == 0);
 
 	/* Create the keys */
 
@@ -2569,9 +2568,9 @@ ha_innobase::info(
 	}
 
   	if (flag & HA_STATUS_ERRKEY) {
-
-		errkey = (unsigned int)-1; /* TODO: get the key number from
-                                           Innobase */
+		errkey = (unsigned int) row_get_mysql_key_number_for_index(
+						(dict_index_t*)
+						prebuilt->trx->error_info);
   	}
 
   	DBUG_VOID_RETURN;
@@ -2594,10 +2593,10 @@ ha_innobase::update_table_comment(
     return (char*)comment;
 
   sprintf(str,
-    "%s; (See manual about Innobase stats); Innobase free: %lu kB",
+    "%s; Innobase free: %lu kB",
 	  comment, (ulong) innobase_get_free_space());
 
-  return((char*) str);
+  return(str);
 }
 
 

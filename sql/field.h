@@ -45,7 +45,7 @@ public:
   uint8		null_bit;		// And position to it
   struct st_table *table;		// Pointer for table
   ulong query_id;			// For quick test of used fields
-  key_map key_start,part_of_key;	// Key is part of these keys.
+  key_map key_start,part_of_key,part_of_sortkey;// Field is part of these keys.
   const char *table_name,*field_name;
   utype unireg_check;
   uint32 field_length;			// Length of field
@@ -114,7 +114,7 @@ public:
       if (tmp)
       {
 	tmp->table=new_table;
-	tmp->key_start=tmp->part_of_key=0;
+	tmp->key_start=tmp->part_of_key=tmp->part_of_sortkey=0;
 	tmp->unireg_check=Field::NONE;
 	tmp->flags&= (NOT_NULL_FLAG | BLOB_FLAG | UNSIGNED_FLAG | ZEROFILL_FLAG | BINARY_FLAG | ENUM_FLAG | SET_FLAG);
 	tmp->reset_fields();

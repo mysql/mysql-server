@@ -72,5 +72,6 @@ class ha_myisammrg: public handler
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     enum thr_lock_type lock_type);
+  void update_create_info(HA_CREATE_INFO *create_info);
   void append_create_info(String *packet);
 };

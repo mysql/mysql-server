@@ -91,7 +91,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   tmp_table=0;
   lock=locked_tables=0;
   used_tables=0;
-  cuted_fields=0L;
+  cuted_fields=sent_row_count=0L;
   options=thd_startup_options;
   update_lock_default= low_priority_updates ? TL_WRITE_LOW_PRIORITY : TL_WRITE;
   start_time=(time_t) 0;
@@ -118,12 +118,15 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   system_thread=0;
   bzero((char*) &mem_root,sizeof(mem_root));
 #ifdef USING_TRANSACTIONS
-  bzero((char*) &transaction,sizeof(transaction));
-  if (open_cached_file(&transaction.trans_log,
-		       mysql_tmpdir, LOG_PREFIX, binlog_cache_size,
-		       MYF(MY_WME)))
-    killed=1;
-  transaction.trans_log.end_of_file= max_binlog_cache_size;
+  if (opt_using_transactions)
+  {
+    bzero((char*) &transaction,sizeof(transaction));
+    if (open_cached_file(&transaction.trans_log,
+			 mysql_tmpdir, LOG_PREFIX, binlog_cache_size,
+			 MYF(MY_WME)))
+      killed=1;
+    transaction.trans_log.end_of_file= max_binlog_cache_size;
+  }
 #endif
 
 #ifdef	__WIN__
@@ -148,8 +151,11 @@ THD::~THD()
   }
   close_temporary_tables(this);
 #ifdef USING_TRANSACTIONS
-  close_cached_file(&transaction.trans_log);
-  ha_close_connection(this);
+  if (opt_using_transactions)
+  {
+    close_cached_file(&transaction.trans_log);
+    ha_close_connection(this);
+  }
 #endif
   if (global_read_lock)
   {

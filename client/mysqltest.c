@@ -1412,13 +1412,13 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
   else
     ds= &ds_res;
   
-  if((flags & QUERY_SEND) &&
-    (q_error = mysql_send_query(mysql, q->query)))
+  if ((flags & QUERY_SEND) &&
+      (q_error = mysql_send_query(mysql, q->query, strlen(q->query))))
     die("At line %u: unable to send query '%s'", start_lineno, q->query);
   if(!(flags & QUERY_REAP))
     return 0;
   
-  if (mysql_reap_query(mysql))
+  if (mysql_read_query_result(mysql))
   {
     if (q->require_file)
       abort_not_supported_test();

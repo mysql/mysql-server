@@ -1,8 +1,16 @@
-#!/bin/bash
+#!/bin/sh
 
 WD=`pwd`
 # Don't write a wrong path for BD !!!!!
-BD=/my/tmp/BUILD
+if [ -w /my/tmp ]
+then
+  BD=/my/tmp/BUILD
+elif [ -n "$TMPDIR" ]
+then
+  BD=$TMPDIR/BUILD
+else
+  BD=/tmp/BUILD
+fi
 TMP_SCRIPT=$WD/Logs/00-temp-for-do-all-build-steps.$$
 
 # We build on work
@@ -29,7 +37,7 @@ bk export $BD
 cd "$BD"
 chmod -R u+rw,g+rw .
 
-#Make it easy to remove an old build
+# Make it easy to remove an old build
 umask 002
 
 CC=$cc CXX=$ccc 
@@ -41,30 +49,22 @@ rm -f NEW-RPMS/*
 # Stop on error
 set -e
 
-# Make everything readable for user and group
-# chmod -R u+rw,g+rw .
-
 /bin/rm -f */.deps/*.P
 /bin/rm -f config.cache
 
 aclocal; autoheader; aclocal; automake; autoconf
-cd innobase
-aclocal; autoheader; aclocal; automake; autoconf
-cd ..
+(cd bdb/dist && sh s_all)
+(cd innobase && aclocal && autoheader && aclocal && automake && autoconf)
 
-# Since we have moved the configure.in stuff from readline to the
-# toplevel why do this? David 990630
-# (cd readline; aclocal; autoheader; aclocal; automake; autoconf)
-
-# A normal user starts here. We must use mit-threads. Otherwise it
-# does not end up in the distribution.
+# A normal user starts here. We must use mit-threads, bdb and innobase.
+# Otherwise they do not end up in the distribution.
 ./configure \
  --with-unix-socket-path=/var/tmp/mysql.sock \
  --with-low-memory \
  --with-mit-threads=yes $EXTRA_CONFIG \
  --enable-thread-safe-client \
- --without-berkeley-db \
- --with-innobase-db
+ --with-berkeley-db \
+ --with-innobase
 
 gmake -j 2 
 
@@ -76,15 +76,19 @@ sh $BD/Build-tools/Do-rpm
 rm -f $TMP_SCRIPT
 END
 
+set -e
+
 log=$WD/Logs/Log-distcheck-`date +%y%m%d-%H%M`
+
+echo "Logging script $TMP_SCRIPT into $log"
 
 if test $to_host = "mysql-work"
 then
   # Try to get the right user for MySQL builds on work so that all
   # files is owned by the same user (mysql)
-  ssh -n $to_host -l my "time bash $TMP_SCRIPT" > $log 2>&1
+  ssh -n $to_host -l my "time sh $TMP_SCRIPT" > $log 2>&1
 else
-  time bash $TMP_SCRIPT > $log 2>&1
+  time sh $TMP_SCRIPT > $log 2>&1
 fi
 
 # Create a commercial MySQL distribution (mysqlcom-VER.tar.gz) from
