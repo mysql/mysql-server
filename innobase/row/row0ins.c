@@ -1928,9 +1928,8 @@ row_ins_index_entry_low(
 			buf_frame_align(btr_cur_get_rec(&cursor))));
 
 	if (!page_rec_is_supremum(first_rec)) {
-		offsets	= rec_get_offsets(first_rec, index,
-						ULINT_UNDEFINED, heap);
-		ut_a(rec_offs_n_fields(offsets) == dtuple_get_n_fields(entry));
+		ut_a(rec_get_n_fields(first_rec, index)
+			== dtuple_get_n_fields(entry));
 	}
 
 	n_unique = dict_index_get_n_unique(index);
