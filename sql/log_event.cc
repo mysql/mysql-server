@@ -2012,6 +2012,7 @@ int Format_description_log_event::exec_event(struct st_relay_log_info* rli)
   delete rli->relay_log.description_event_for_exec;
   rli->relay_log.description_event_for_exec= this;
 
+#ifdef USING_TRANSACTIONS
   /*
     As a transaction NEVER spans on 2 or more binlogs:
     if we have an active transaction at this point, the master died
@@ -2033,6 +2034,7 @@ int Format_description_log_event::exec_event(struct st_relay_log_info* rli)
                       "to its binary log.");
     end_trans(thd, ROLLBACK);
   }
+#endif
   /*
     If this event comes from ourselves, there is no cleaning task to perform,
     we don't call Start_log_event_v3::exec_event() (this was just to update the
