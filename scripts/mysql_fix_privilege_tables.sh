@@ -13,7 +13,7 @@ args=""
 port=""
 socket=""
 database="mysql"
-bindir=""
+bindir="."
 pkgdatadir="@pkgdatadir@"
 
 file=mysql_fix_privilege_tables.sql
@@ -74,6 +74,7 @@ parse_arguments() {
 # Get first arguments from the my.cfg file, groups [mysqld] and
 # [mysql_install_db], and then merge with the command line arguments
 
+print_defaults=my_print_defaults
 for dir in ./bin @bindir@ @bindir@ extra $bindir/../bin $bindir/../extra
 do
   if test -x $dir/my_print_defaults

@@ -91,7 +91,7 @@ static int run_test(const char *filename)
   keyinfo[0].keysegs=1;
   keyinfo[0].seg[0].type= key_type;
   keyinfo[0].seg[0].flag= (key_field == FIELD_BLOB)?HA_BLOB_PART:
-			  (key_field == FIELD_VARCHAR)?HA_VAR_LENGTH:0;
+			  (key_field == FIELD_VARCHAR)?HA_VAR_LENGTH_PART:0;
   keyinfo[0].seg[0].start=recinfo[0].length;
   keyinfo[0].seg[0].length=key_length;
   keyinfo[0].seg[0].null_bit= 0;

@@ -57,7 +57,11 @@ int mi_rnext_same(MI_INFO *info, byte *buf)
 #endif
     case HA_KEY_ALG_BTREE:
     default:
-      memcpy(info->lastkey2,info->lastkey,info->last_rkey_length);
+      if (!(info->update & HA_STATE_RNEXT_SAME))
+      {
+        /* First rnext_same; Store old key */
+        memcpy(info->lastkey2,info->lastkey,info->last_rkey_length);
+      }
       for (;;)
       {
         if ((error=_mi_search_next(info,keyinfo,info->lastkey,
@@ -81,7 +85,7 @@ int mi_rnext_same(MI_INFO *info, byte *buf)
     rw_unlock(&info->s->key_root_lock[inx]);
 	/* Don't clear if database-changed */
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
-  info->update|= HA_STATE_NEXT_FOUND;
+  info->update|= HA_STATE_NEXT_FOUND | HA_STATE_RNEXT_SAME;
 
   if (error)
   {

@@ -50,7 +50,7 @@ static int stopwords_inited= 0;
 static MY_TMPDIR myisamchk_tmpdir;
 
 static const char *type_names[]=
-{ "?","char","binary", "short", "long", "float",
+{ "impossible","char","binary", "short", "long", "float",
   "double","number","unsigned short",
   "unsigned long","longlong","ulonglong","int24",
   "uint24","int8","varchar", "varbin","?",
