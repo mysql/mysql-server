@@ -1365,6 +1365,7 @@ sp_decl:
 
 	        lex->sphead->add_instr(in);
 	        lex->spcont->set_isset(i, TRUE);
+		lex->spcont->set_default(i, it);
 	      }
 	    }
 	    $$.vars= $2;
@@ -6246,15 +6247,25 @@ option_value:
 	    }
             else
 	    { /* An SP local variable */
+	      sp_pvar_t *spv;
+              sp_instr_set *i;
+	      Item *it;
+
 	      if ($3 && $3->type() == Item::SUBSELECT_ITEM)
 	      {  /* QQ For now, just disallow subselects as values */
 	        send_error(lex->thd, ER_SP_SUBSELECT_NYI);
 	        YYABORT;
 	      }
-	      sp_pvar_t *spv= lex->spcont->find_pvar(&$1.base_name);
-              sp_instr_set *i= new sp_instr_set(lex->sphead->instructions(),
-	                                        spv->offset, $3, spv->type);
+	      spv= lex->spcont->find_pvar(&$1.base_name);
 
+	      if ($3)
+	        it= $3;
+	      else if (spv->dflt)
+	        it= spv->dflt;
+	      else
+	        it= new Item_null();
+              i= new sp_instr_set(lex->sphead->instructions(),
+	                          spv->offset, it, spv->type);
 	      lex->sphead->add_instr(i);
 	      spv->isset= TRUE;
 	    }

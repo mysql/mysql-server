@@ -1188,6 +1188,33 @@ create function bug2772() returns char(10) character set latin2
 select bug2772()|
 drop function bug2772|
 
+#
+# BUG#2776
+#
+create procedure bug2776_1(out x int)
+begin
+  declare v int;
+
+  set v = default;
+  set x = v;
+end|
+
+create procedure bug2776_2(out x int)
+begin
+  declare v int default 42;
+
+  set v = default;
+  set x = v;
+end|
+
+set @x = 1|
+call bug2776_1(@x)|
+select @x|
+call bug2776_2(@x)|
+select @x|
+drop procedure bug2776_1|
+drop procedure bug2776_2|
+
 
 #
 # Some "real" examples
