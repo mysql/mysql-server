@@ -26,7 +26,7 @@
  * same in min/max need not be checked.
  */
 void
-Dbtux::treeSearch(Signal* signal, Frag& frag, SearchPar searchPar, TreePos& treePos)
+Dbtux::treeSearch(Signal* signal, Frag& frag, TableData searchKey, TreeEnt searchEnt, TreePos& treePos)
 {
   const TreeHead& tree = frag.m_tree;
   const unsigned numAttrs = frag.m_numAttrs;
@@ -50,19 +50,12 @@ loop: {
       jam();
       unsigned start1 = 0;
       // compare prefix
-      int ret = cmpSearchKey(frag, start1, searchPar.m_data, node.getPref(i), tree.m_prefSize);
+      int ret = cmpSearchKey(frag, start1, searchKey, node.getPref(i), tree.m_prefSize);
       if (ret == NdbSqlUtil::CmpUnknown) {
         jam();
-        // read full value
-        ReadPar readPar;
-        readPar.m_ent = node.getMinMax(i);
-        ndbrequire(start1 < numAttrs);
-        readPar.m_first = start1;
-        readPar.m_count = numAttrs - start1;
-        readPar.m_data = 0;     // leave in signal data
-        tupReadAttrs(signal, frag, readPar);
-        // compare full value
-        ret = cmpSearchKey(frag, start1, searchPar.m_data, readPar.m_data);
+        // read and compare remaining attributes
+        readKeyAttrs(frag, node.getMinMax(i), start1, c_keyAttrs, c_entryKey);
+        ret = cmpSearchKey(frag, start1, searchKey, c_entryKey);
         ndbrequire(ret != NdbSqlUtil::CmpUnknown);
       }
       if (start > start1)
@@ -70,7 +63,7 @@ loop: {
       if (ret == 0) {
         jam();
         // keys are equal, compare entry values
-        ret = searchPar.m_ent.cmp(node.getMinMax(i));
+        ret = searchEnt.cmp(node.getMinMax(i));
       }
       if (i == 0 ? (ret < 0) : (ret > 0)) {
         jam();
@@ -102,24 +95,18 @@ loop: {
     for (unsigned j = 1; j <= numWithin; j++) {
       jam();
       int ret = 0;
-      // compare remaining attributes
       if (start < numAttrs) {
         jam();
-        ReadPar readPar;
-        readPar.m_ent = node.getEnt(j);
-        readPar.m_first = start;
-        readPar.m_count = numAttrs - start;
-        readPar.m_data = 0;     // leave in signal data
-        tupReadAttrs(signal, frag, readPar);
-        // compare
+        // read and compare remaining attributes
         unsigned start1 = start;
-        ret = cmpSearchKey(frag, start1, searchPar.m_data, readPar.m_data);
+        readKeyAttrs(frag, node.getEnt(j), start1, c_keyAttrs, c_entryKey);
+        ret = cmpSearchKey(frag, start1, searchKey, c_entryKey);
         ndbrequire(ret != NdbSqlUtil::CmpUnknown);
       }
       if (ret == 0) {
         jam();
         // keys are equal, compare entry values
-        ret = searchPar.m_ent.cmp(node.getEnt(j));
+        ret = searchEnt.cmp(node.getEnt(j));
       }
       if (ret <= 0) {
         jam();

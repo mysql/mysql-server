@@ -100,11 +100,6 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
       return;
     }
   }
-  // find position in tree
-  SearchPar searchPar;
-  searchPar.m_data = c_searchKey;
-  searchPar.m_ent = ent;
-  TreePos treePos;
 #ifdef VM_TRACE
   if (debugFlags & DebugMaint) {
     debugOut << "opCode=" << dec << opCode;
@@ -116,7 +111,9 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
     debugOut << endl;
   }
 #endif
-  treeSearch(signal, frag, searchPar, treePos);
+  // find position in tree
+  TreePos treePos;
+  treeSearch(signal, frag, c_searchKey, ent, treePos);
 #ifdef VM_TRACE
   if (debugFlags & DebugMaint) {
     debugOut << treePos << endl;
