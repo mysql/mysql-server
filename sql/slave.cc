@@ -3188,7 +3188,7 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
 		    llstr(rli->group_relay_log_pos,llbuff1));
 
   /* execute init_slave variable */
-  if (sys_init_slave.value)
+  if (sys_init_slave.value_length)
   {
     execute_init_command(thd, &sys_init_slave, &LOCK_sys_init_slave);
     if (thd->query_error)

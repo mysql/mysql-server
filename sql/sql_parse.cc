@@ -1000,7 +1000,7 @@ pthread_handler_decl(handle_one_connection,arg)
       net->compress=1;				// Use compression
 
     thd->version= refresh_version;
-    if (sys_init_connect.value && !(thd->master_access & SUPER_ACL))
+    if (sys_init_connect.value_length && !(thd->master_access & SUPER_ACL))
     {
       execute_init_command(thd, &sys_init_connect, &LOCK_sys_init_connect);
       if (thd->query_error)
