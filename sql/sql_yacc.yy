@@ -334,6 +334,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	UDF_SONAME_SYM
 %token	UDF_SYM
 %token  UNCOMMITTED_SYM
+%token	UNDERSCORE_CHARSET
 %token	UNION_SYM
 %token	UNIQUE_SYM
 %token	USAGE
@@ -525,7 +526,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %type <lex_str>
 	IDENT TEXT_STRING REAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM LEX_HOSTNAME
-	ULONGLONG_NUM field_ident select_alias ident ident_or_text
+	ULONGLONG_NUM field_ident select_alias ident ident_or_text UNDERSCORE_CHARSET
 
 %type <lex_str_ptr>
 	opt_table_alias
@@ -888,15 +889,9 @@ create_table_option:
 	    Lex->create_info.table_charset=NULL;
 	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
 	  }
-	| CHARSET EQ ident
+	| CHARSET EQ charset
 	  { 
-	    CHARSET_INFO *cs=get_charset_by_name($3.str,MYF(MY_WME));
-	    if (!cs)
-	    {
-	      net_printf(&current_thd->net,ER_UNKNOWN_CHARACTER_SET,$3);
-	      YYABORT;
-	    }
-	    Lex->create_info.table_charset=cs;
+	    Lex->create_info.table_charset=Lex->charset;
 	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
 	  }
 	| INSERT_METHOD EQ merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
@@ -1133,32 +1128,24 @@ attribute:
 	| UNIQUE_SYM KEY_SYM { Lex->type|= UNIQUE_KEY_FLAG; }
 	| COMMENT_SYM text_literal { Lex->comment= $2; };
 
+charset:
+	ident	
+	{ 
+	  if (!(Lex->charset=get_charset_by_name($1.str,MYF(0))))
+	  {
+	    net_printf(&current_thd->net,ER_UNKNOWN_CHARACTER_SET,$1);
+	    YYABORT;
+	  }
+	};
+
 opt_binary:
 	/* empty */		{ Lex->charset=NULL; }
 	| BINARY		{ Lex->type|=BINARY_FLAG; Lex->charset=NULL; }
-	| CHAR_SYM SET ident
-	  {
-	    CHARSET_INFO *cs=get_charset_by_name($3.str,MYF(MY_WME));
-	    if (!cs)
-	    {
-	      net_printf(&current_thd->net,ER_UNKNOWN_CHARACTER_SET,$3);
-	      YYABORT;
-	    }
-	    Lex->charset=cs;
-	  };
+	| CHAR_SYM SET charset  {/* charset is already in Lex->charset */} ;
 
 default_charset:
 	/* empty */			{ Lex->charset=NULL; }
-	| DEFAULT CHAR_SYM SET ident
-	  {
-	    CHARSET_INFO *cs=get_charset_by_name($4.str,MYF(MY_WME));
-	    if (!cs)
-	    {
-	      net_printf(&current_thd->net,ER_UNKNOWN_CHARACTER_SET,$4);
-	      YYABORT;
-	    }
-	    Lex->charset=cs;
-	  };
+	| DEFAULT CHAR_SYM SET charset ;
 
 references:
 	REFERENCES table_ident
@@ -1777,16 +1764,8 @@ simple_expr:
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
 	  { $$= new Item_func_case(* $4, $2, $5 ); }
 	| CONVERT_SYM '(' expr ',' cast_type ')'  { $$= create_func_cast($3, $5); }
-	| CONVERT_SYM '(' expr USING IDENT ')'
-	  { 
-	    CHARSET_INFO *cs=get_charset_by_name($5.str,MYF(MY_WME));
-	    if (!cs)
-	    {
-	      net_printf(&current_thd->net,ER_UNKNOWN_CHARACTER_SET,$5);
-	      YYABORT;
-	    }
-	    $$= new Item_func_conv_charset($3,cs); 
-	  }
+	| CONVERT_SYM '(' expr USING charset ')'
+	  { $$= new Item_func_conv_charset($3,Lex->charset); }
 	| CONVERT_SYM '(' expr ',' expr ',' expr ')'
 	  { 
 	    $$= new Item_func_conv_charset3($3,$7,$5); 
@@ -3094,6 +3073,7 @@ opt_ignore_lines:
 
 text_literal:
 	TEXT_STRING { $$ = new Item_string($1.str,$1.length,default_charset_info); }
+	| UNDERSCORE_CHARSET TEXT_STRING { $$ = new Item_string($2.str,$2.length,Lex->charset); }
 	| text_literal TEXT_STRING
 	{ ((Item_string*) $1)->append($2.str,$2.length); };
 
