@@ -122,7 +122,7 @@ os_thread_yield(void)
 #ifdef __WIN__	
 	Sleep(0);
 #else
-	os_thread_sleep(0);
+	pthread_yield();
 #endif
 }
 
@@ -139,8 +139,8 @@ os_thread_sleep(
 #else
 	struct timeval	t;
 
-	t.tv_sec = 0;
-	t.tv_usec = tm;
+	t.tv_sec = tm / 1000000;
+	t.tv_usec = tm % 1000000;
 	
 	select(0, NULL, NULL, NULL, &t);
 #endif
