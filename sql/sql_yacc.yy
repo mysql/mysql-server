@@ -38,7 +38,6 @@
 #include <myisam.h>
 #include <myisammrg.h>
 
-extern void yyerror(const char*);
 int yylex(void *yylval, void *yythd);
 
 #define yyoverflow(A,B,C,D,E,F) if (my_yyoverflow((B),(D),(int*) (F))) { yyerror((char*) (A)); return 2; }

@@ -44,7 +44,6 @@
 #define MIN_HANDSHAKE_SIZE      6
 #endif /* HAVE_OPENSSL */
 
-extern int yyparse(void *thd);
 extern "C" pthread_mutex_t THR_LOCK_keycache;
 #ifdef SOLARIS
 extern "C" int gethostname(char *name, int namelen);
@@ -120,7 +119,6 @@ static bool end_active_trans(THD *thd)
 
 
 static HASH hash_user_connections;
-extern  pthread_mutex_t LOCK_user_conn;
 
 static int get_or_create_user_conn(THD *thd, const char *user,
 				   const char *host,

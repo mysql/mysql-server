@@ -29,7 +29,6 @@
 #include <io.h>
 #endif
 
-extern HASH open_cache;
 static const char *primary_key_name="PRIMARY";
 
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);

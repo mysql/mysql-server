@@ -1913,8 +1913,6 @@ static byte *get_sys_var_length(const sys_var *var, uint *length,
 
 void set_var_init()
 {
-  extern struct my_option my_long_options[];	// From mysqld
-
   hash_init(&system_variable_hash, system_charset_info,
 	    array_elements(sys_variables),0,0,
 	    (hash_get_key) get_sys_var_length,0,0);
