@@ -154,6 +154,9 @@ public:
                         uint flags= 0);
   bool walk(Item_processor processor, byte *arg);
   Item *transform(Item_transformer transformer, byte *arg);
+  void traverse_cond(Item_cond_traverser traverser, 
+		     void * arg,
+		     traverse_order order = POSTFIX);
 };
 
 

@@ -342,6 +342,22 @@ bool Item_func::walk (Item_processor processor, byte *argument)
   return (this->*processor)(argument);
 }
 
+void Item_func::traverse_cond(Item_cond_traverser traverser, 
+			      void *argument,
+			      traverse_order order)
+{
+  if (arg_count)
+  {
+    Item **arg,**arg_end;
+    if (order == PREFIX) (traverser)(this, argument);
+    for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
+    {
+      (*arg)->traverse_cond(traverser, argument, order);
+    }
+  }
+  if (order == POSTFIX) (traverser)(this, argument);
+}
+
 
 /*
   Transform an Item_func object with a transformer callback function
