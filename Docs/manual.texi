@@ -33101,6 +33101,13 @@ mysql> select user,max(salary) AS sum from users
 @end example
 
 @item
+The options @code{DISTINCT}, @code{DISTINCTROW} and @code{ALL} specify
+whether duplicate rows should be returned. The default is (@code{ALL}),
+all matching rows are returned. @code{DISTINCT} and @code{DISTINCTROW}
+are synonyms and specify that duplicate rows in the result set should
+be removed.
+
+@item
 All options beginning with @code{SQL_}, @code{STRAIGHT_JOIN}, and
 @code{HIGH_PRIORITY} are MySQL extensions to ANSI SQL.
 
