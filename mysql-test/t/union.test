@@ -17,7 +17,6 @@ select a,b from t1 union select a,b from t1;
 select 't1',b,count(*) from t1 group by b UNION select 't2',b,count(*) from t2 group by b;
 
 # Test some error conditions with UNION
---error 1215
 explain select a,b from t1 union all select a,b from t2;
 
 --error 1215
