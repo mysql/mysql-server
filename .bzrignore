@@ -190,6 +190,7 @@ db-*.*.*
 dbug/user.t
 extra/comp_err
 extra/my_print_defaults
+extra/mysql_install
 extra/perror
 extra/replace
 extra/resolve_stack_dump
