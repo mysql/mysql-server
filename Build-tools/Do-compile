@@ -381,13 +381,15 @@ if ($opt_stage <= 9 && !$opt_no_test)
   log_system("rm -f output/*");
   $tmp= $opt_fast_benchmark ? "--fast --user root --small-test" : "";
   check_system("perl ./run-all-tests --log --die-on-errors $connect_option $tmp","RUN-mysql");
+	# Run additional fast test with dynamic-row tables
+  check_system("perl ./run-all-tests --log --suffix=\"_dynamic_rows\" --die-on-errors $connect_option --fast --user=root --small-test --create-options=\"row_format=dynamic\"","RUN-mysql");
   if ($opt_innodb)
   {
-    check_system("perl ./run-all-tests --log --suffix=\"_innodb\" --die-on-errors $connect_option $tmp --create-option=\"type=innodb\"","RUN-mysql");
+    check_system("perl ./run-all-tests --log --suffix=\"_innodb\" --die-on-errors $connect_option $tmp --create-options=\"type=innodb\"","RUN-mysql");
   }
   if ($opt_bdb)
   {
-    check_system("perl ./run-all-tests --log --suffix=\"_bdb\" --die-on-errors $connect_option $tmp --create-option=\"type=bdb\"","RUN-mysql");
+    check_system("perl ./run-all-tests --log --suffix=\"_bdb\" --die-on-errors $connect_option $tmp --create-options=\"type=bdb\"","RUN-mysql");
   }
 }
 

@@ -40,16 +40,11 @@ InnoDB */
 
 #include "ha_innodb.h"
 
-/* We must declare this here because we undef SAFE_MUTEX below */
 pthread_mutex_t innobase_mutex;
 
 /* Store MySQL definition of 'byte': in Linux it is char while InnoDB
 uses unsigned char */
 typedef byte	mysql_byte;
-
-#ifdef SAFE_MUTEX
-#undef pthread_mutex_t
-#endif
 
 #define INSIDE_HA_INNOBASE_CC
 
@@ -751,6 +746,14 @@ innobase_init(void)
 		memcpy(srv_latin1_ordering,
 				default_charset_info->sort_order, 256);
 	}
+
+	/* Since we in this module access directly the fields of a trx
+        struct, and due to different headers and flags it might happen that
+	mutex_t has a different size in this module and in InnoDB
+	modules, we check at run time that the size is the same in
+	these compilation modules. */
+
+	srv_sizeof_trx_t_in_ha_innodb_cc = sizeof(trx_t);
 
 	err = innobase_start_or_create_for_mysql();
 

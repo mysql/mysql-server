@@ -56,6 +56,8 @@ Created 2/16/1996 Heikki Tuuri
 #include "srv0start.h"
 #include "que0que.h"
 
+ulint           srv_sizeof_trx_t_in_ha_innodb_cc;
+
 ibool           srv_startup_is_before_trx_rollback_phase = FALSE;
 ibool           srv_is_being_started = FALSE;
 ibool           srv_was_started      = FALSE;
@@ -959,6 +961,15 @@ innobase_start_or_create_for_mysql(void)
 	fprintf(stderr,
 "InnoDB: !!!!!!!!!!!!!! UNIV_MEM_DEBUG switched on !!!!!!!!!!!!!!!\n"); 
 #endif
+
+        if (srv_sizeof_trx_t_in_ha_innodb_cc != (ulint)sizeof(trx_t)) {
+	        fprintf(stderr,
+  "InnoDB: Error: trx_t size is %lu in ha_innodb.cc but %lu in srv0start.c\n"
+  "InnoDB: Check that pthread_mutex_t is defined in the same way in these\n"
+  "InnoDB: compilation modules. Cannot continue.\n",
+		  srv_sizeof_trx_t_in_ha_innodb_cc, (ulint)sizeof(trx_t));
+		return(DB_ERROR);
+	}
 
 	log_do_write = TRUE;
 /*	yydebug = TRUE; */
