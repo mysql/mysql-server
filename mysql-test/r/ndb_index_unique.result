@@ -242,7 +242,7 @@ select * from t1 where cv = 'test';
 cid	cv
 select * from t2 where cap = 'another dummy';
 cid	cap
-0	another dummy
+1	another dummy
 select * from t4 where uid = 1 and gid=1 and rid=2 and cid=4;
 uid	gid	rid	cid
 1	1	2	4

@@ -27,17 +27,17 @@
 #include <NDBT.hpp>
 
 int 
-waitClusterStatus(const char* _addr,
-		  ndb_mgm_node_status _status= NDB_MGM_NODE_STATUS_STARTED,
-		  unsigned int _timeout= 120);
+waitClusterStatus(const char* _addr, ndb_mgm_node_status _status, unsigned int _timeout);
 
 int main(int argc, const char** argv){
 
   const char* _hostName = NULL;
   int _no_contact = 0;
   int _help = 0;
+  int _timeout = 120;
 
   struct getargs args[] = {
+    { "timeout", 0, arg_integer, &_timeout, "Timeout to wait", "#" },
     { "no-contact", 0, arg_flag, &_no_contact, "Wait for cluster no contact", "" },
     { "usage", '?', arg_flag, &_help, "Print help", "" }
   };
@@ -92,9 +92,9 @@ int main(int argc, const char** argv){
   }
 
   if (_no_contact) {
-    if (waitClusterStatus(_hostName, NDB_MGM_NODE_STATUS_NO_CONTACT) != 0)
+    if (waitClusterStatus(_hostName, NDB_MGM_NODE_STATUS_NO_CONTACT, _timeout) != 0)
       return NDBT_ProgramExit(NDBT_FAILED);
-  } else if (waitClusterStatus(_hostName) != 0)
+  } else if (waitClusterStatus(_hostName, NDB_MGM_NODE_STATUS_STARTED, _timeout) != 0)
     return NDBT_ProgramExit(NDBT_FAILED);
 
   return NDBT_ProgramExit(NDBT_OK);
