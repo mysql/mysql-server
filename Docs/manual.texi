@@ -12788,7 +12788,7 @@ this may be different than what you are used to.)
 @item Claws @tab Gwen @tab cat @tab m @tab 1994-03-17 @tab
 @item Buffy @tab Harold @tab dog @tab f @tab 1989-05-13 @tab
 @item Fang @tab Benny @tab dog @tab m @tab 1990-08-27 @tab
-@item Bowser @tab Diane @tab dog @tab m @tab 1989-08-31 @tab 1995-07-29
+@item Bowser @tab Diane @tab dog @tab m @tab 1998-08-31 @tab 1995-07-29
 @item Chirpy @tab Gwen @tab bird @tab f @tab 1998-09-11 @tab
 @item Whistler @tab Gwen @tab bird @tab @tab 1997-12-09 @tab
 @item Slim @tab Benny @tab snake @tab m @tab 1996-04-29 @tab
