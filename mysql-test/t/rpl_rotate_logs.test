@@ -50,7 +50,7 @@ drop table if exists t2;
 create table t2(m int not null auto_increment primary key);
 insert into t2 values (34),(67),(123);
 flush logs;
-show master logs;
+show binary logs;
 create table t3 select * from temp_table;
 
 sync_slave_with_master;
@@ -87,7 +87,7 @@ connection master;
 sync_slave_with_master;
 connection master;
 purge master logs to 'master-bin.003';
-show master logs;
+show binary logs;
 insert into t2 values (65);
 sync_slave_with_master;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
@@ -113,7 +113,7 @@ while ($1)
 }
 enable_query_log;
 create table t4 select * from temp_table;
-show master logs;
+show binary logs;
 show master status;
 save_master_pos;
 connection slave;

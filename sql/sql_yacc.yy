@@ -1426,6 +1426,20 @@ slave:
            lex->sql_command = SQLCOM_SLAVE_STOP;
 	   lex->type = 0;
          };
+         |
+	SLAVE START_SYM slave_thread_opts
+         {
+	   LEX *lex=Lex;
+           lex->sql_command = SQLCOM_SLAVE_START;
+	   lex->type = 0;
+         }
+         |
+	SLAVE STOP_SYM slave_thread_opts
+         {
+	   LEX *lex=Lex;
+           lex->sql_command = SQLCOM_SLAVE_STOP;
+	   lex->type = 0;
+         };
 
 slave_thread_opts:
 	slave_thread_opt
@@ -2961,7 +2975,7 @@ show_param:
 	    Lex->mi.pos = $12;
 	    Lex->mi.server_id = $16;
           }
-        | MASTER_SYM LOGS_SYM
+        | BINARY LOGS_SYM
           {
 	    Lex->sql_command = SQLCOM_SHOW_BINLOGS;
           }

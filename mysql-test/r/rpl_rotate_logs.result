@@ -25,7 +25,7 @@ drop table if exists t2;
 create table t2(m int not null auto_increment primary key);
 insert into t2 values (34),(67),(123);
 flush logs;
-show master logs;
+show binary logs;
 Log_name
 master-bin.001
 master-bin.002
@@ -41,7 +41,7 @@ insert into t2 values(NULL);
 set global sql_slave_skip_counter=1;
 start slave;
 purge master logs to 'master-bin.003';
-show master logs;
+show binary logs;
 Log_name
 master-bin.003
 insert into t2 values (65);
@@ -60,7 +60,7 @@ insert into temp_table values ("testing temporary tables part 2");
 drop table if exists t3;
 create table t3 (n int);
 create table t4 select * from temp_table;
-show master logs;
+show binary logs;
 Log_name
 master-bin.003
 master-bin.004

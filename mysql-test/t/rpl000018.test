@@ -12,7 +12,7 @@ connection slave;
 reset slave;
 start slave;
 connection master;
-show master logs;
+show binary logs;
 drop table if exists t1;
 create table t1(n int);
 insert into t1 values (3351);

@@ -59,12 +59,12 @@ Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
 master-bin.002	4	Query	1	4	use `test`; create table t1 (n int)
 master-bin.002	62	Query	1	62	use `test`; insert into t1 values (1)
 master-bin.002	122	Query	1	122	use `test`; drop table t1
-show master logs;
+show binary logs;
 Log_name
 master-bin.001
 master-bin.002
 start slave;
-show master logs;
+show binary logs;
 Log_name
 slave-bin.001
 slave-bin.002
