@@ -547,3 +547,19 @@ delete from t1;
 select * from t1;
 commit;
 drop table t1;
+
+#
+# Test of how ORDER BY works when doing it on the whole table
+#
+
+create table t1 (a int not null, b int not null, c int not null, primary key (a),key(b)) type=innodb;
+insert into t1 values (3,3,3),(1,1,1),(2,2,2),(4,4,4);
+explain select * from t1 order by a;
+explain select * from t1 order by b;
+explain select * from t1 order by c;
+explain select a from t1 order by a;
+explain select b from t1 order by b;
+explain select a,b from t1 order by b;
+explain select a,b from t1;
+explain select a,b,c from t1;
+drop table t1;

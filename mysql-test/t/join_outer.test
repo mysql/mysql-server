@@ -404,3 +404,15 @@ insert into t2 values (1,1),(1,2);
 insert into t1 values (1,1),(2,1);
 SELECT * FROM t1 LEFT JOIN t2 ON (t1.bug_id =  t2.bug_id AND  t2.who = 2) WHERE  (t1.reporter = 2 OR t2.who = 2);
 drop table t1,t2;
+
+#
+# Test problem with LEFT JOIN
+
+create table t1 (fooID smallint unsigned auto_increment, primary key (fooID));
+create table t2 (fooID smallint unsigned not null, barID smallint unsigned not null, primary key (fooID,barID));
+insert into t1 (fooID) values (10),(20),(30);
+insert into t2 values (10,1),(20,2),(30,3);
+explain select * from t2 left join t1 on t1.fooID = t2.fooID and t1.fooID = 30;
+select * from t2 left join t1 on t1.fooID = t2.fooID and t1.fooID = 30;
+select * from t2 left join t1 ignore index(primary) on t1.fooID = t2.fooID and t1.fooID = 30;
+drop table t1,t2;
