@@ -110,10 +110,6 @@ set @fvar= 123.4567;
 --error 1064
 prepare stmt1 from @fvar;
 
-set @str1 = 'select ?';
-set @str2 = convert(@str1 using ucs2);
-prepare stmt1 from @str2;
-execute stmt1 using @ivar;
 drop table t1,t2;
 
 #

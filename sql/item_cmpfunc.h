@@ -20,9 +20,6 @@
 #ifdef __GNUC__
 #pragma interface			/* gcc class implementation */
 #endif
-#ifdef __GNUC__
-template class List_iterator_fast<Item_field>;
-#endif
 
 extern Item_result item_cmp_type(Item_result a,Item_result b);
 class Item_bool_func2;

@@ -418,3 +418,18 @@ select count(*) from t2 where x > -16;
 select count(*) from t2 where x = 18446744073709551601;
 drop table t1,t2;
 
+#
+# Bug #6045: Binary Comparison regression in MySQL 4.1
+# Binary searches didn't use a case insensitive index.
+#
+set names latin1;
+create table t1 (a char(10), b text, key (a)) character set latin1;
+INSERT INTO t1 (a) VALUES
+('111'),('222'),('222'),('222'),('222'),('444'),('aaa'),('AAA'),('bbb');
+# all these three can be optimized
+explain select * from t1 where a='aaa';
+explain select * from t1 where a=binary 'aaa';
+explain select * from t1 where a='aaa' collate latin1_bin;
+# this one cannot:
+explain select * from t1 where a='aaa' collate latin1_german1_ci;
+drop table t1;

@@ -645,6 +645,7 @@ insert into t1 values(1,'foo'),(2,'foobar');
 select * from t1 where b like 'foob%';
 --disable_warnings
 alter table t1 engine=bdb;
+--enable_warnings
 select * from t1 where b like 'foob%';
 drop table t1;
 

@@ -22,7 +22,7 @@
  */
 
 #include <ndb_global.h>
-#include <getarg.h>
+#include <ndb_opts.h>
 
 #include <NdbApi.hpp>
 #include <NDBT.hpp>
@@ -161,39 +161,33 @@ list(const char * tabname,
     }
 }
 
-#ifndef DBUG_OFF
-const char *debug_option= 0;
-#endif
-
-int main(int argc, const char** argv){
-  ndb_init();
-  int _loops = 1;
-  const char* _tabname = NULL;
-  const char* _dbname = "TEST_DB";
-  int _type = 0;
-  int _help = 0;
-  const char* _connect_str = NULL;
-  
-  struct getargs args[] = {
-    { "loops", 'l', arg_integer, &_loops, "loops", 
-      "Number of times to run(default = 1)" },
-    { "unqualified", 'u', arg_flag, &_unqualified, "unqualified", 
-      "Use unqualified table names"}, 
-    { "database", 'd', arg_string, &_dbname, "dbname", 
-      "Name of database table is in"}, 
-    { "type", 't', arg_integer, &_type, "type", 
-      "Type of objects to show, see NdbDictionary.hpp for numbers(default = 0)" },
-    { "connect-string", 'c', arg_string, &_connect_str,
-      "Set connect string for connecting to ndb_mgmd. <constr>=\"host=<hostname:port>[;nodeid=<id>]\". Overides specifying entries in NDB_CONNECTSTRING and config file",
-      "<constr>" },
-#ifndef DBUG_OFF
-    { "debug", 0, arg_string, &debug_option,
-      "Specify debug options e.g. d:t:i:o,out.trace", "options" },
-#endif
-    { "usage", '?', arg_flag, &_help, "Print help", "" }
-  };
-  int num_args = sizeof(args) / sizeof(args[0]);
-  int optind = 0;
+static const char* opt_connect_str= 0;
+static const char* _dbname = "TEST_DB";
+static int _loops;
+static int _type;
+static struct my_option my_long_options[] =
+{
+  NDB_STD_OPTS("ndb_desc"),
+  { "database", 'd', "Name of database table is in",
+    (gptr*) &_dbname, (gptr*) &_dbname, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "loops", 'l', "loops",
+    (gptr*) &_loops, (gptr*) &_loops, 0,
+    GET_INT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0 }, 
+  { "type", 't', "type",
+    (gptr*) &_type, (gptr*) &_type, 0,
+    GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }, 
+  { "unqualified", 'u', "Use unqualified table names",
+    (gptr*) &_unqualified, (gptr*) &_unqualified, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+static void print_version()
+{
+  printf("MySQL distrib %s, for %s (%s)\n",MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
+}
+static void usage()
+{
   char desc[] = 
     "tabname\n"\
     "This program list all system objects in  NDB Cluster.\n"\
@@ -201,19 +195,39 @@ int main(int argc, const char** argv){
     " ex: list_tables -t 2 would show all UserTables\n"\
     "To show all indexes for a table write table name as final argument\n"\
     "  ex: list_tables T1\n";
-  
-  if(getarg(args, num_args, argc, argv, &optind) || _help) {
-    arg_printusage(args, num_args, argv[0], desc);
-    return NDBT_ProgramExit(NDBT_WRONGARGS);
+  print_version();
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
+}
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument)
+{
+  switch (optid) {
+  case '#':
+    DBUG_PUSH(argument ? argument : "d:t:O,/tmp/ndb_show_tables.trace");
+    break;
+  case 'V':
+    print_version();
+    exit(0);
+  case '?':
+    usage();
+    exit(0);
   }
-  _tabname = argv[optind];
-  
-#ifndef DBUG_OFF
-  if (debug_option)
-    DBUG_PUSH(debug_option);
-#endif
+  return 0;
+}
 
-  ndb_cluster_connection = new Ndb_cluster_connection(_connect_str);
+int main(int argc, char** argv){
+  NDB_INIT(argv[0]);
+  const char* _tabname;
+  const char *load_default_groups[]= { "ndb_tools",0 };
+  load_defaults("my",load_default_groups,&argc,&argv);
+  int ho_error;
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+    return NDBT_ProgramExit(NDBT_WRONGARGS);
+  _tabname = argv[0];
+
+  ndb_cluster_connection = new Ndb_cluster_connection(opt_connect_str);
   ndb = new Ndb(ndb_cluster_connection, _dbname);
   if (ndb->init() != 0)
     fatal("init");

@@ -4501,6 +4501,17 @@ void Dbacc::getdirindex(Signal* signal)
 /*                     BUCKET, AND SERCH FOR ELEMENT.THE PRIMARY KEYS WHICH IS SAVED */
 /*                     IN THE OPERATION REC ARE THE CHECK ITEMS IN THE SEARCHING.    */
 /* --------------------------------------------------------------------------------- */
+
+#if __ia64 == 1
+#if __INTEL_COMPILER == 810
+int ndb_acc_ia64_icc810_dummy_var = 0;
+void ndb_acc_ia64_icc810_dummy_func()
+{
+  ndb_acc_ia64_icc810_dummy_var++;
+}
+#endif
+#endif
+
 void Dbacc::getElement(Signal* signal) 
 {
   DirRangePtr geOverflowrangeptr;
@@ -4595,6 +4606,12 @@ void Dbacc::getElement(Signal* signal)
 	  /*       WE HAVE FOUND THE ELEMENT. GET THE LOCK INDICATOR AND RETURN FOUND.         */
 	  /* --------------------------------------------------------------------------------- */
           jam();
+#if __ia64 == 1
+#if __INTEL_COMPILER == 810
+          // prevents SIGSEGV under icc -O1
+          ndb_acc_ia64_icc810_dummy_func();
+#endif
+#endif
           tgeLocked = ElementHeader::getLocked(gePageptr.p->word32[tgeElementptr]);
           tgeResult = ZTRUE;
           TdataIndex = tgeElementptr + tgeForward;

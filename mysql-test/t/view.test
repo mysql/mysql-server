@@ -1554,3 +1554,37 @@ select concat('|',a,'|'), concat('|',b,'|') from v1;
 drop view v1;
 drop table t1;
 
+#
+# user with global DB privileges
+#
+connection root;
+--disable_warnings
+create database mysqltest;
+--enable_warnings
+create table mysqltest.t1 (a int);
+grant all privileges on mysqltest.* to mysqltest_1@localhost;
+
+connection user1;
+use mysqltest;
+create view v1 as select * from t1;
+
+connection root;
+revoke all privileges on mysqltest.* from mysqltest_1@localhost;
+drop database mysqltest;
+
+#
+# Trys update table from which we select using views and subqueries
+#
+create table t1 (s1 smallint);
+create view v1 as select * from t1 where 20 < (select (s1) from t1);
+-- error 1288
+insert into v1 values (30);
+create view v2 as select * from t1;
+create view v3 as select * from t1 where 20 < (select (s1) from v2);
+-- error 1288
+insert into v3 values (30);
+create view v4 as select * from v2 where 20 < (select (s1) from t1);
+-- error 1093
+insert into v4 values (30);
+drop view v4, v3, v2, v1;
+drop table t1;

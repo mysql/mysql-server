@@ -407,7 +407,6 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
                    // signals to other management servers.
   _ownReference(0),
   m_local_config(local_config),
-  m_allocated_resources(*this),
   theSignalIdleList(NULL),
   theWaitState(WAIT_SUBSCRIBE_CONF),
   m_statisticsListner(this)
@@ -480,6 +479,13 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
   _ownNodeId= 0;
   NodeId tmp= nodeId;
   BaseString error_string;
+
+  if ((m_node_id_mutex = NdbMutex_Create()) == 0)
+  {
+    ndbout << "mutex creation failed line = " << __LINE__ << endl;
+    exit(-1);
+  }
+
 #if 0
   char my_hostname[256];
   struct sockaddr_in tmp_addr;
@@ -512,7 +518,6 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
 #endif
   _ownNodeId = tmp;
 
-
   {
     DBUG_PRINT("info", ("verifyConfig"));
     ConfigRetriever cr(m_local_config, NDB_VERSION, NDB_MGM_NODE_TYPE_MGM);
@@ -534,12 +539,6 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
     m_statisticsListner.m_logLevel = se.m_logLevel;
   }
   
-  if ((m_node_id_mutex = NdbMutex_Create()) == 0)
-  {
-    ndbout << "mutex creation failed line = " << __LINE__ << endl;
-    exit(-1);
-  }
-
   DBUG_VOID_RETURN;
 }
 

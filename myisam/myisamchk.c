@@ -354,8 +354,12 @@ static void usage(void)
   puts("Description, check and repair of MyISAM tables.");
   puts("Used without options all tables on the command will be checked for errors");
   printf("Usage: %s [OPTIONS] tables[.MYI]\n", my_progname_short);
-  printf("\nGlobal options:\n\
-  -#, --debug=...     Output debug log. Often this is 'd:t:o,filename'.\n\
+  printf("\nGlobal options:\n");
+#ifndef DBUG_OFF
+  printf("\
+  -#, --debug=...     Output debug log. Often this is 'd:t:o,filename'.\n");
+#endif
+  printf("\
   -?, --help          Display this help and exit.\n\
   -O, --set-variable var=option.\n\
                       Change the value of a variable. Please note that\n\

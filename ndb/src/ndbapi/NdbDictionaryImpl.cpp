@@ -47,13 +47,13 @@
  * Column
  */
 NdbColumnImpl::NdbColumnImpl()
-  : NdbDictionary::Column(* this), m_facade(this)
+  : NdbDictionary::Column(* this), m_attrId(-1), m_facade(this)
 {
   init();
 }
 
 NdbColumnImpl::NdbColumnImpl(NdbDictionary::Column & f)
-  : NdbDictionary::Column(* this), m_facade(&f)
+  : NdbDictionary::Column(* this), m_attrId(-1), m_facade(&f)
 {
   init();
 }
@@ -93,8 +93,7 @@ NdbColumnImpl::init(Type t)
 {
   // do not use default_charset_info as it may not be initialized yet
   // use binary collation until NDB tests can handle charsets
-  CHARSET_INFO* default_cs = &my_charset_latin1_bin;
-  m_attrId = -1;
+  CHARSET_INFO* default_cs = &my_charset_bin;
   m_type = t;
   switch (m_type) {
   case Tinyint:
