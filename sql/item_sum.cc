@@ -41,8 +41,9 @@ Item_sum::Item_sum(List<Item> &list)
   list.empty();					// Fields are used
 }
 
-Item_sum::Item_sum(Item_sum &item):
-  Item_result_field(item), quick_group(item.quick_group)
+// Constructor used in processing select with temporary tebles
+Item_sum::Item_sum(THD *thd, Item_sum &item):
+  Item_result_field(thd, item), quick_group(item.quick_group)
 {
   arg_count= item.arg_count;
   if (arg_count <= 2)
@@ -96,9 +97,9 @@ void Item_sum::fix_num_length_and_dec()
   max_length=float_length(decimals);
 }
 
-Item * Item_sum::get_tmp_table_item()
+Item *Item_sum::get_tmp_table_item(THD *thd)
 {
-  Item_sum* sum_item= (Item_sum *) get_same();
+  Item_sum* sum_item= (Item_sum *) copy_or_same(thd);
   if (sum_item && sum_item->result_field)	   // If not a const sum func
   {
     Field *result_field= sum_item->result_field;
