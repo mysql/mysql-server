@@ -1737,7 +1737,9 @@ COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
       }
     }
 
-    /* Write the SQL command */
+    /* 
+       Write the SQL command 
+     */
 
     if (event_info->write(file))
       goto err;
