@@ -1377,7 +1377,7 @@ trx_undo_prev_version_build(
 		fields. Store the info to ext_vect: */
 
 		ext_vect = mem_alloc(sizeof(ulint) * rec_get_n_fields(rec));
-        	n_ext_vect = btr_push_update_extern_fields(ext_vect, rec,
+		n_ext_vect = btr_push_update_extern_fields(ext_vect, rec,
 								update);
 		entry = row_rec_to_index_entry(ROW_COPY_DATA, index, rec,
 								     heap);
