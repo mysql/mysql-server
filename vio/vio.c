@@ -32,7 +32,8 @@ void vio_reset(Vio* vio, enum enum_vio_type type,
 		      my_bool localhost)
 {
   DBUG_ENTER("vio_reset");
-  DBUG_PRINT("enter", ("type=%d  sd=%d  localhost=%d", type, sd, localhost));
+  DBUG_PRINT("enter", ("type: %d  sd: %d  localhost: %d", type, sd,
+                       localhost));
 
   bzero((char*) vio, sizeof(*vio));
   vio->type	= type;
@@ -123,7 +124,7 @@ Vio *vio_new(my_socket sd, enum enum_vio_type type, my_bool localhost)
 {
   Vio *vio;
   DBUG_ENTER("vio_new");
-  DBUG_PRINT("enter", ("sd=%d", sd));
+  DBUG_PRINT("enter", ("sd: %d", sd));
   if ((vio = (Vio*) my_malloc(sizeof(*vio),MYF(MY_WME))))
   {
     vio_reset(vio, type, sd, 0, localhost);

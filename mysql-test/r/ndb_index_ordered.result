@@ -383,6 +383,7 @@ b	c
 select min(b), max(b) from t1;
 min(b)	max(b)
 1	5000000
+drop table t1;
 CREATE TABLE test1 (
 SubscrID int(11) NOT NULL auto_increment,
 UsrID int(11) NOT NULL default '0',

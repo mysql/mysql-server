@@ -59,7 +59,7 @@ EXTRACT_PRIVATE        = NO
 # If the EXTRACT_STATIC tag is set to YES all static members of a file 
 # will be included in the documentation.
 
-EXTRACT_STATIC         = NO 
+EXTRACT_STATIC         = YES 
 
 # If the HIDE_UNDOC_MEMBERS tag is set to YES, Doxygen will hide all 
 # undocumented members of documented classes, files or namespaces. 
@@ -146,7 +146,7 @@ HIDE_SCOPE_NAMES       = NO
 # will generate a verbatim copy of the header file for each class for 
 # which an include is specified. Set to NO to disable this.
 
-VERBATIM_HEADERS       = YES
+VERBATIM_HEADERS       = NO
 
 # If the SHOW_INCLUDE_FILES tag is set to YES (the default) then Doxygen 
 # will put list of the files that are included by a file in the documentation 
