@@ -737,7 +737,7 @@ AC_ARG_WITH(libwrap,
 
     _libs=${LIBS}
     AC_CHECK_HEADER(tcpd.h,
-      LIBS="$LIBS -lwrap"
+      LIBS="-lwrap $LIBS"
       AC_MSG_CHECKING(for TCP wrappers library -lwrap)
       AC_TRY_LINK([#include <tcpd.h>
 int allow_severity = 0;

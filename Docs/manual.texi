@@ -50797,6 +50797,9 @@ each individual 4.0.x release.
 @appendixsubsec Changes in release 4.0.5
 @itemize
 @item
+Fixed a newly introduced bug that caused @code{ORDER BY ... LIMIT #}
+to not return all rows.
+@item
 Fixed a bug in multi-table deletes when outer join is used on an empty
 table, which get's first to be deleted
 @item
@@ -51589,6 +51592,7 @@ users use this code as the rest of the code and because of this we are
 not yet 100% confident in this code.
 
 @menu
+* News-3.23.54::                Changes in release 3.23.54
 * News-3.23.53::                Changes in release 3.23.53
 * News-3.23.52::                Changes in release 3.23.52 (14 Aug 2002)
 * News-3.23.51::                Changes in release 3.23.51 (31 May 2002)
@@ -51646,11 +51650,44 @@ not yet 100% confident in this code.
 * News-3.23.0::                 Changes in release 3.23.0 (05 Aug 1999: Alpha)
 @end menu
 
-@node News-3.23.53, News-3.23.52, News-3.23.x, News-3.23.x
+@node News-3.23.54, News-3.23.53, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.54
+@itemize
+@item
+Fixed reference to freed memory when doing complicated @code{GROUP BY
+... ORDER BY} queries.  Symptom was that @code{mysqld} died in function
+@code{send_fields}.
+@item
+Allocate heap rows in smaller blocks to get better memory usage.
+@item
+Fixed memory allocation bug when storing BLOB values in internal
+temporary tables used for some (unlikely) @code{GROUP BY} queries.
+@item
+Fixed a bug in key optimizing handling where the expression
+@code{WHERE column_name = key_column_name} was calculated as true
+for @code{NULL} values.
+@item
+Fixed core dump bug when doing @code{LEFT JOIN ... WHERE key_column=NULL}.
+@end itemize
+
+@node News-3.23.53, News-3.23.52, News-3.23.54, News-3.23.x
 @appendixsubsec Changes in release 3.23.53
 @itemize @bullet
 @item
+Fixed crash when @code{SHOW INNODB STATUS} was used and @code{skip-innodb}
+was defined.
+@item
+Fixed possible memory corruption bug in binary log file handling when
+slave rotated the logs (only affected 3.23, not 4.0).
+@item
+Fixed problem in @code{LOCK TABLES} on windows when one connects to a
+database that contains upper case letters.
+@item
+Fixed that @code{--skip-show-databases} doesn't reset the @code{--port} option.
+@item
 Small fix in @code{safe_mysqld} for some shells.
+@item
+Fixed that @code{FLUSH STATUS} doesn't reset @code{Delayed_insert_threads}.
 @item
 Fixed that @code{SHOW STATUS} doesn't reset @code{Delayed_insert_threads}.
 @item

@@ -15,7 +15,16 @@ Created 9/8/1995 Heikki Tuuri
 /* Maximum number of threads which can be created in the program;
 this is also the size of the wait slot array for MySQL threads which
 can wait inside InnoDB */
+#ifdef __WIN__
+/* Windows 95/98/ME seemed to have difficulties creating the all
+the event semaphores for the wait array slots. If the computer had
+<= 64 MB memory, InnoDB startup could take minutes or even crash.
+That is why we set this to only 1000 in Windows. */
+
+#define	OS_THREAD_MAX_N		1000
+#else
 #define	OS_THREAD_MAX_N		10000
+#endif
 
 /* Possible fixed priorities for threads */
 #define OS_THREAD_PRIORITY_NONE		100
