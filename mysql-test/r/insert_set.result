@@ -1,0 +1,6 @@
+drop database if exists a;
+create database a;
+use a;
+create table b (c int);
+insert into a.b set a.b.c = '1';
+drop database a;
