@@ -43,8 +43,8 @@ alpha_cflags="-mcpu=ev6 -Wa,-mev6"	# Not used yet
 pentium_cflags="-mpentiumpro"
 sparc_cflags=""
 
-fast_cflags="-O6 -fno-omit-frame-pointer"
-reckless_cflags="-O6 -fomit-frame-pointer -ffixed-ebp"
+fast_cflags="-O3 -fno-omit-frame-pointer"
+reckless_cflags="-O3 -fomit-frame-pointer -ffixed-ebp"
 debug_cflags="-DEXTRA_DEBUG -DFORCE_INIT_OF_VARS -DSAFEMALLOC -DSAFE_MUTEX -O2"
 
 base_cxxflags="-felide-constructors -fno-exceptions -fno-rtti"

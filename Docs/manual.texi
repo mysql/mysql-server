@@ -6152,13 +6152,13 @@ the compiler you are using:
 @tindex environment variable, CXXFLAGS
 @multitable @columnfractions .20 .80
 @item gcc 2.7.2.1 @tab
-CC=gcc CXX=gcc CXXFLAGS="-O6 -felide-constructors"
+CC=gcc CXX=gcc CXXFLAGS="-O3 -felide-constructors"
 @item egcs 1.0.3a @tab
-CC=gcc CXX=gcc CXXFLAGS="-O6 -felide-constructors -fno-exceptions -fno-rtti"
+CC=gcc CXX=gcc CXXFLAGS="-O3 -felide-constructors -fno-exceptions -fno-rtti"
 @item gcc 2.95.2 @tab
-CFLAGS="-O6 -mpentiumpro" CXX=gcc CXXFLAGS="-O6 -mpentiumpro -felide-constructors -fno-exceptions -fno-rtti"
+CFLAGS="-O3 -mpentiumpro" CXX=gcc CXXFLAGS="-O3 -mpentiumpro -felide-constructors -fno-exceptions -fno-rtti"
 @item pgcc 2.90.29 or newer @tab
-CFLAGS="-O6 -mpentiumpro -mstack-align-double" CXX=gcc CXXFLAGS="-O6 -mpentiumpro -mstack-align-double -felide-constructors -fno-exceptions -fno-rtti"
+CFLAGS="-O3 -mpentiumpro -mstack-align-double" CXX=gcc CXXFLAGS="-O3 -mpentiumpro -mstack-align-double -felide-constructors -fno-exceptions -fno-rtti"
 @end multitable
 
 In most cases you can get a reasonably optimal @strong{MySQL} binary by
@@ -6173,7 +6173,7 @@ The full configure line would in other words be something like the
 following for all recent gcc versions:
 
 @example
-CFLAGS="-O6 -mpentiumpro" CXX=gcc CXXFLAGS="-O6 -mpentiumpro -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static
+CFLAGS="-O3 -mpentiumpro" CXX=gcc CXXFLAGS="-O3 -mpentiumpro -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static
 @end example
 
 The binaries we provide on the @strong{MySQL} Web site at
@@ -6498,9 +6498,9 @@ and @code{CXX}.  For example:
 
 @example
 shell> CC=gcc
-shell> CFLAGS=-O6
+shell> CFLAGS=-O3
 shell> CXX=gcc
-shell> CXXFLAGS=-O6
+shell> CXXFLAGS=-O3
 shell> export CC CFLAGS CXX CXXFLAGS
 @end example
 
@@ -7017,8 +7017,8 @@ SPARC!
 The recommended @code{configure} line when using @code{gcc} 2.95.2 is:
 
 @example
-CC=gcc CFLAGS="-O6" \
-CXX=gcc CXXFLAGS="-O6 -felide-constructors -fno-exceptions -fno-rtti" \
+CC=gcc CFLAGS="-O3" \
+CXX=gcc CXXFLAGS="-O3 -felide-constructors -fno-exceptions -fno-rtti" \
 ./configure --prefix=/usr/local/mysql --with-low-memory --enable-assembler
 @end example
 
@@ -7231,9 +7231,9 @@ experience problems with core dumps under load, you should use the
 following @code{configure} command:
 
 @example
-CC=gcc CFLAGS="-O6 -fomit-frame-pointer -DHAVE_CURSES_H" \
+CC=gcc CFLAGS="-O3 -fomit-frame-pointer -DHAVE_CURSES_H" \
 CXX=gcc \
-CXXFLAGS="-O6 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti -DHAVE_CURSES_H" \
+CXXFLAGS="-O3 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti -DHAVE_CURSES_H" \
 ./configure --prefix=/usr/local/mysql
 @end example
 
@@ -7668,7 +7668,7 @@ CC=ccc CFLAGS="-fast" CXX=cxx CXXFLAGS="-fast -noexceptions -nortti" ./configure
 If you want to use egcs the following configure line worked for us:
 
 @example
-CFLAGS="-O6 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O6 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --disable-shared
+CFLAGS="-O3 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O3 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --disable-shared
 @end example
 
 Some known problems when running @strong{MySQL} on Linux-Alpha:
@@ -8484,7 +8484,7 @@ the definition in @file{pthread.h}.  Here's the diff:
 After this, the following configure line should work:
 
 @example
-CFLAGS="-fomit-frame-pointer -O6 -fpic" CXX=gcc CXXFLAGS="-felide-constructors -fno-exceptions -fno-rtti -O6" ./configure --prefix=/usr/local/mysql --disable-shared
+CFLAGS="-fomit-frame-pointer -O3 -fpic" CXX=gcc CXXFLAGS="-felide-constructors -fno-exceptions -fno-rtti -O3" ./configure --prefix=/usr/local/mysql --disable-shared
 @end example
 
 Here is some information that a HPUX Version 11.x user sent us about compiling
@@ -9217,19 +9217,19 @@ and are configured with the following compilers and options:
 @code{CC=gcc CXX=gcc CXXFLAGS="-O3 -felide-constructors" ./configure --prefix=/usr/local/mysql --disable-shared --with-extra-charsets=complex --enable-assembler}
 
 @item SunOS 5.5.1 sun4u with @code{egcs} 1.0.3a
-@code{CC=gcc CFLAGS="-O6 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O6 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --with-low-memory --with-extra-charsets=complex}
+@code{CC=gcc CFLAGS="-O3 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O3 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --with-low-memory --with-extra-charsets=complex}
 
 @item SunOS 5.6 sun4u with @code{egcs} 2.90.27
-@code{CC=gcc CFLAGS="-O6 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O6 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --with-low-memory --with-extra-charsets=complex}
+@code{CC=gcc CFLAGS="-O3 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O3 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --with-low-memory --with-extra-charsets=complex}
 
 @item SunOS 5.6 i86pc with @code{gcc} 2.8.1
 @code{CC=gcc CXX=gcc CXXFLAGS=-O3 ./configure --prefix=/usr/local/mysql --with-low-memory --with-extra-charsets=complex}
 
 @item Linux 2.0.33 i386 with @code{pgcc} 2.90.29 (@code{egcs} 1.0.3a)
-@code{CFLAGS="-O6 -mpentium -mstack-align-double -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O6 -mpentium -mstack-align-double -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static --with-extra-charsets=complex}
+@code{CFLAGS="-O3 -mpentium -mstack-align-double -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O3 -mpentium -mstack-align-double -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static --with-extra-charsets=complex}
 
 @item Linux 2.2.x with x686 with @code{gcc} 2.95.2
-@code{CFLAGS="-O6 -mpentiumpro -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O6 -mpentiumpro -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static --disable-shared --with-extra-charset=complex}
+@code{CFLAGS="-O3 -mpentiumpro -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O3 -mpentiumpro -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static --disable-shared --with-extra-charset=complex}
 
 @item SCO 3.2v5.0.4 i386 with @code{gcc} 2.7-95q4
 @code{CC=gcc CXX=gcc CXXFLAGS=-O3 ./configure --prefix=/usr/local/mysql --with-extra-charsets=complex}
@@ -28250,7 +28250,7 @@ other operating systems and workloads.
 You get the fastest executable when you link with @code{-static}.
 
 On Linux, you will get the fastest code when compiling with @code{pgcc}
-and @code{-O6}. To compile @file{sql_yacc.cc} with these options, you
+and @code{-O3}. To compile @file{sql_yacc.cc} with these options, you
 need about 200M memory because @code{gcc/pgcc} needs a lot of memory to
 make all functions inline. You should also set @code{CXX=gcc} when
 configuring @strong{MySQL} to avoid inclusion of the @code{libstdc++}
@@ -48577,7 +48577,7 @@ lists the @code{mysqld} version as @code{mysql ... -debug} in this case.
 If you are using gcc or egcs, the recommended configure line is:
 
 @example
-CC=gcc CFLAGS="-O6" CXX=gcc CXXFLAGS="-O6 -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --with-debug --with-extra-charsets=complex
+CC=gcc CFLAGS="-O2" CXX=gcc CXXFLAGS="-O2 -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --with-debug --with-extra-charsets=complex
 @end example
 
 This will avoid problems with the @code{libstdc++} library and with C++
