@@ -7585,7 +7585,7 @@ You should also add /etc/my.cnf:
 
 @example
 [safe_mysqld]
-open_files_limit=8192
+open-files-limit=8192
 @end example
 
 The above should allow @strong{MySQL} to create up to 8192 connections/files.
@@ -22952,17 +22952,9 @@ are locked by the current thread are automatically unlocked when the
 thread issues another @code{LOCK TABLES}, or when the connection to the
 server is closed.
 
-The main reasons to use @code{LOCK TABLES} are:
-
-@itemize @bullet
-@item
-Emulate transactions with not transaction safe tables.
-@item
-To get more speed with @code{MyISAM} tables when inserting/updating data
-over many statements. The main reason this gives more speed is that
-@strong{MySQL} will not flush the key cache for the locked tables until
-@code{UNLOCK TABLES} is called.
-@end itemize
+The main reasons to use @code{LOCK TABLES} are for emulating transactions
+or getting more speed when updating tables.  This is explained in more
+detail later.
 
 If a thread obtains a @code{READ} lock on a table, that thread (and all other
 threads) can only read from the table. If a thread obtains a @code{WRITE}
@@ -22975,8 +22967,10 @@ execute while the lock is held.  This can't however be used if you are
 going to manipulate the database files outside @strong{MySQL} while you
 hold the lock.
 
-Each thread waits (without timing out) until it obtains all the locks it has
-requested.
+When you use @code{LOCK TABLES}, you must lock all tables that you are
+going to use and you must use the same alias that you are going to use
+in your queries!  If you are using a table multiple times in a query
+(with aliases), you must get a lock for each alias!
 
 @code{WRITE} locks normally have higher priority than @code{READ} locks, to
 ensure that updates are processed as soon as possible. This means that if one
@@ -22988,15 +22982,32 @@ locks while the thread is waiting for the @code{WRITE} lock. You should only
 use @code{LOW_PRIORITY WRITE} locks if you are sure that there will
 eventually be a time when no threads will have a @code{READ} lock.
 
-@code{LOCK TABLES} and @code{UNLOCK TABLES} both commits any active
-transactions.
+@code{LOCK TABLES} works as follows:
+@enumerate
+@item
+Sort all tables to be locked in a internally defined order (from the
+user standpoint the order is undefined).
+@item
+If a table is locked with a read and a write lock, put the write lock
+before the read lock.
+@item
+Lock one table at a time until the thread gets all locks.
+@end enumerate
 
-When you use @code{LOCK TABLES}, you must lock all tables that you are
-going to use and you must use the same alias that you are going to use
-in your queries!  If you are using a table multiple times in a query
-(with aliases), you must get a lock for each alias! This policy ensures
-that table locking is deadlock free and makes the locking code smaller,
-simpler and much faster.
+This policy ensures that table locking is deadlock free. There is
+however other things one needs to be aware of with this schema:
+
+If you are using a @code{LOW_PRIORITY_WRITE} lock for a table, this
+means only that @strong{MySQL} will wait for this particlar lock until
+there is no threads that wants a @code{READ} lock.  When the thread has
+got the @code{WRITE} lock and is waiting to get the lock for the next
+table in the lock table list, all other threads will wait for the
+@code{WRITE} lock to be released.  If this becomes a serious problem
+with your application, you should consider converting some of your
+tables to transactions safe tables.
+
+You can safely kill a thread that is waiting for a table lock with
+@code{KILL}.  @xref{KILL}.
 
 Note that you should @strong{NOT} lock any tables that you are using with
 @code{INSERT DELAYED}.  This is because that in this case the @code{INSERT}
@@ -23013,6 +23024,12 @@ If you are going to run many operations on a bunch of tables, it's much
 faster to lock the tables you are going to use.  The downside is, of course,
 that no other thread can update a @code{READ}-locked table and no other
 thread can read a @code{WRITE}-locked table.
+
+The reason some things are faster under @code{LOCK TABLES} is that
+@strong{MySQL} will not flush the key cache for the locked tables until
+@code{UNLOCK TABLES} is called (normally the key cache is flushed after
+each SQL statement). This speeds up inserting/updateing/deletes on
+@code{MyISAM} tables.
 @item
 If you are using a table handler in @strong{MySQL} that doesn't support 
 transactions, you must use @code{LOCK TABLES} if you want to ensure that 
@@ -23044,7 +23061,7 @@ table in the server and implemented with @code{pthread_mutex_lock()} and
 
 See @ref{Internal locking}, for more information on locking policy.
 
-You can also lock all tables in all databases with read locks with the
+You can lock all tables in all databases with read locks with the
 @code{FLUSH TABLES WITH READ LOCK} command. @xref{FLUSH}. This is very
 convenient way to get backups if you have a file system, like Veritas,
 that can take snapshots in time.
@@ -43898,8 +43915,6 @@ more than one way to compute}
 
 @item @uref{http://www.spylog.ru/, SpyLOG ;  A very popular Web counter site}
 
-@item @uref{http://www.tucows.com/, TuCows Network; Free Software archive}
-
 @item @uref{http://www.jobvertise.com,Jobvertise: Post and search for jobs}
 
 @item @uref{http://www.musicdatabase.com, The Music Database}
@@ -45486,8 +45501,6 @@ For making @code{mysqlaccess} more secure.
 @item Albert Chin-A-Young.
 Configure updates for Tru64, large file support and better TCP wrappers
 support.
-@item Valueclick Inc.
-For sponsoring the optimize section in this manual.
 @end table
 
 Other contributors, bugfinders, and testers: James H. Thompson, Maurizio
