@@ -88,25 +88,6 @@ mach_read_from_4(
 /*=============*/
 			/* out: ulint integer */
 	byte*   b);      /* in: pointer to four bytes */
-/***********************************************************
-The following function is used to store data from a ulint to memory
-in standard order:
-we store the most significant byte to the lowest address. */
-UNIV_INLINE
-void 
-mach_write(
-/*=======*/
-	byte*   b,     /* in: pointer to sizeof(ulint) bytes where to store */
-	ulint   n);      /* in: ulint integer to be stored */ 
-/************************************************************
-The following function is used to fetch data from memory to a ulint.
-The most significant byte is at the lowest address. */
-UNIV_INLINE
-ulint 
-mach_read(
-/*======*/
-			/* out: ulint integer */
-	byte*   b);      /* in: pointer to sizeof(ulint) bytes */
 /*************************************************************
 Writes a ulint in a compressed form. */
 UNIV_INLINE

@@ -14,6 +14,7 @@ insert into t1 values ("Alas");
 flush logs;
 
 --- Local --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
 use test;
 SET TIMESTAMP=1000000000;
 create table t1 (word varchar(20));
@@ -31,19 +32,23 @@ LOAD DATA LOCAL INFILE 'MYSQL_TEST_DIR/var/tmp/words.dat-4-0' INTO TABLE `t1` FI
 LOAD DATA LOCAL INFILE 'MYSQL_TEST_DIR/var/tmp/words.dat-5-0' INTO TABLE `t1` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' STARTING BY '' (word);
 
 --- Broken LOAD DATA --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
 use test;
 SET TIMESTAMP=1000000000;
 insert into t1 values ("Alas");
 
 --- --database --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
 SET INSERT_ID=1;
 
 --- --position --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
 use test;
 SET TIMESTAMP=1000000000;
 insert into t1 values ("Alas");
 
 --- Remote --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
 use test;
 SET TIMESTAMP=1000000000;
 create table t1 (word varchar(20));
@@ -64,14 +69,17 @@ SET TIMESTAMP=1000000000;
 insert into t1 values ("Alas");
 
 --- Broken LOAD DATA --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
 use test;
 SET TIMESTAMP=1000000000;
 insert into t1 values ("Alas");
 
 --- --database --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
 SET INSERT_ID=1;
 
 --- --position --
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
 use test;
 SET TIMESTAMP=1000000000;
 insert into t1 values ("Alas");

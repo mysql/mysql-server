@@ -196,8 +196,10 @@ sys_var_long_ptr	sys_max_connections("max_connections",
                                             fix_max_connections);
 sys_var_long_ptr	sys_max_connect_errors("max_connect_errors",
 					       &max_connect_errors);
-sys_var_long_ptr	sys_max_delayed_threads("max_delayed_threads",
-						&max_insert_delayed_threads,
+sys_var_thd_ulong       sys_max_insert_delayed_threads("max_insert_delayed_threads",
+						       &SV::max_insert_delayed_threads);
+sys_var_thd_ulong	sys_max_delayed_threads("max_delayed_threads",
+						&SV::max_insert_delayed_threads,
 						fix_max_connections);
 sys_var_thd_ulong	sys_max_error_count("max_error_count",
 					    &SV::max_error_count);
@@ -290,6 +292,9 @@ sys_var_long_ptr        sys_query_cache_min_res_unit("query_cache_min_res_unit",
 sys_var_thd_enum	sys_query_cache_type("query_cache_type",
 					     &SV::query_cache_type,
 					     &query_cache_type_typelib);
+sys_var_thd_bool
+sys_query_cache_wlock_invalidate("query_cache_wlock_invalidate",
+				 &SV::query_cache_wlock_invalidate);
 #endif /* HAVE_QUERY_CACHE */
 sys_var_bool_ptr	sys_secure_auth("secure_auth", &opt_secure_auth);
 sys_var_long_ptr	sys_server_id("server_id",&server_id);
@@ -419,6 +424,18 @@ static sys_var_thd_ulong        sys_default_week_format("default_week_format",
 sys_var_thd_ulong               sys_group_concat_max_len("group_concat_max_len",
                                                          &SV::group_concat_max_len);
 
+static const char license[]= "GPL";
+
+/* Read only variables */
+
+sys_var_const_str		sys_os("version_compile_os", SYSTEM_TYPE);
+sys_var_const_str		sys_license("license", license);
+
+/* Global read-only variable describing server license */
+
+
+
+
 /*
   List of all variables for initialisation and storage in hash
   This is sorted in alphabetical order to make it easy to add new variables
@@ -471,6 +488,7 @@ sys_var *sys_variables[]=
   &sys_key_cache_division_limit,
   &sys_key_cache_age_threshold,
   &sys_last_insert_id,
+  &sys_license,
   &sys_local_infile,
   &sys_log_binlog,
   &sys_log_off,
@@ -485,6 +503,7 @@ sys_var *sys_variables[]=
   &sys_max_connections,
   &sys_max_delayed_threads,
   &sys_max_error_count,
+  &sys_max_insert_delayed_threads,
   &sys_max_heap_table_size,
   &sys_max_join_size,
   &sys_max_length_for_sort_data,
@@ -514,6 +533,7 @@ sys_var *sys_variables[]=
   &sys_query_cache_limit,
   &sys_query_cache_min_res_unit,
   &sys_query_cache_type,
+  &sys_query_cache_wlock_invalidate,
 #endif /* HAVE_QUERY_CACHE */
   &sys_quote_show_create,
   &sys_rand_seed1,
@@ -552,6 +572,7 @@ sys_var *sys_variables[]=
   &sys_trans_alloc_block_size,
   &sys_trans_prealloc_size,
   &sys_tx_isolation,
+  &sys_os,
 #ifdef HAVE_INNOBASE_DB
   &sys_innodb_max_dirty_pages_pct,
 #endif    
@@ -652,7 +673,8 @@ struct show_var_st init_vars[]= {
   {sys_key_cache_division_limit.name,   (char*) &sys_key_cache_division_limit,
                                                          	    SHOW_SYS},
   {"language",                language,                             SHOW_CHAR},
-  {"large_files_support",     (char*) &opt_large_files,             SHOW_BOOL},	
+  {"large_files_support",     (char*) &opt_large_files,             SHOW_BOOL},
+  {sys_license.name,	      (char*) &sys_license,                 SHOW_SYS},
   {sys_local_infile.name,     (char*) &sys_local_infile,	    SHOW_SYS},
 #ifdef HAVE_MLOCKALL
   {"locked_in_memory",	      (char*) &locked_in_memory,	    SHOW_BOOL},
@@ -668,6 +690,7 @@ struct show_var_st init_vars[]= {
   {sys_log_warnings.name,     (char*) &sys_log_warnings,	    SHOW_SYS},
   {sys_long_query_time.name,  (char*) &sys_long_query_time, 	    SHOW_SYS},
   {sys_low_priority_updates.name, (char*) &sys_low_priority_updates, SHOW_SYS},
+  {"lower_case_file_system",  (char*) &lower_case_file_system,      SHOW_BOOL},
   {"lower_case_table_names",  (char*) &lower_case_table_names,      SHOW_INT},
   {sys_max_allowed_packet.name,(char*) &sys_max_allowed_packet,	    SHOW_SYS},
   {sys_max_binlog_cache_size.name,(char*) &sys_max_binlog_cache_size, SHOW_SYS},
@@ -675,6 +698,8 @@ struct show_var_st init_vars[]= {
   {sys_max_connect_errors.name, (char*) &sys_max_connect_errors,    SHOW_SYS},
   {sys_max_connections.name,    (char*) &sys_max_connections,	    SHOW_SYS},
   {sys_max_delayed_threads.name,(char*) &sys_max_delayed_threads,   SHOW_SYS},
+  {sys_max_insert_delayed_threads.name,
+   (char*) &sys_max_insert_delayed_threads,   SHOW_SYS},
   {sys_max_error_count.name,	(char*) &sys_max_error_count,	    SHOW_SYS},
   {sys_max_heap_table_size.name,(char*) &sys_max_heap_table_size,   SHOW_SYS},
   {sys_max_join_size.name,	(char*) &sys_max_join_size,	    SHOW_SYS},
@@ -770,7 +795,7 @@ struct show_var_st init_vars[]= {
 #endif
   {"version_comment",         (char*) MYSQL_COMPILATION_COMMENT,    SHOW_CHAR},
   {"version_compile_machine", (char*) MACHINE_TYPE,		    SHOW_CHAR},
-  {"version_compile_os",      (char*) SYSTEM_TYPE,		    SHOW_CHAR},
+  {sys_os.name,		      (char*) &sys_os,			    SHOW_SYS},
   {sys_net_wait_timeout.name, (char*) &sys_net_wait_timeout,	    SHOW_SYS},
   {NullS, NullS, SHOW_LONG}
 };
@@ -1062,7 +1087,8 @@ static void fix_max_relay_log_size(THD *thd, enum_var_type type)
 
 static void fix_max_connections(THD *thd, enum_var_type type)
 {
-  resize_thr_alarm(max_connections + max_insert_delayed_threads + 10);
+  resize_thr_alarm(max_connections + 
+		   global_system_variables.max_insert_delayed_threads + 10);
 }
 
 
@@ -2166,7 +2192,7 @@ bool sys_var_pseudo_thread_id::check(THD *thd, set_var *var)
 bool sys_var_slave_skip_counter::check(THD *thd, set_var *var)
 {
   int result= 0;
-  LOCK_ACTIVE_MI;
+  pthread_mutex_lock(&LOCK_active_mi);
   pthread_mutex_lock(&active_mi->rli.run_lock);
   if (active_mi->rli.slave_running)
   {
@@ -2174,7 +2200,7 @@ bool sys_var_slave_skip_counter::check(THD *thd, set_var *var)
     result=1;
   }
   pthread_mutex_unlock(&active_mi->rli.run_lock);
-  UNLOCK_ACTIVE_MI;
+  pthread_mutex_unlock(&LOCK_active_mi);
   var->save_result.ulong_value= (ulong) var->value->val_int();
   return result;
 }
@@ -2182,7 +2208,7 @@ bool sys_var_slave_skip_counter::check(THD *thd, set_var *var)
 
 bool sys_var_slave_skip_counter::update(THD *thd, set_var *var)
 {
-  LOCK_ACTIVE_MI;
+  pthread_mutex_lock(&LOCK_active_mi);
   pthread_mutex_lock(&active_mi->rli.run_lock);
   /*
     The following test should normally never be true as we test this
@@ -2196,7 +2222,7 @@ bool sys_var_slave_skip_counter::update(THD *thd, set_var *var)
     pthread_mutex_unlock(&active_mi->rli.data_lock);
   }
   pthread_mutex_unlock(&active_mi->rli.run_lock);
-  UNLOCK_ACTIVE_MI;
+  pthread_mutex_unlock(&LOCK_active_mi);
   return 0;
 }
 #endif /* HAVE_REPLICATION */

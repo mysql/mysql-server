@@ -220,6 +220,18 @@ select * from t1;
 drop table t1;
 
 #
+# Test for Bug #2985 
+#   "Table truncated when creating another table name with Spaces"
+#
+
+--error 1103
+create table `t1 `(a int);
+--error 1102
+create database `db1 `;
+--error 1166;
+create table t1(`a ` int);
+
+#
 # Test create with foreign keys
 #
 

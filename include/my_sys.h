@@ -606,7 +606,7 @@ extern void pack_dirname(my_string to,const char *from);
 extern uint unpack_dirname(my_string to,const char *from);
 extern uint cleanup_dirname(my_string to,const char *from);
 extern uint system_filename(my_string to,const char *from);
-extern my_string unpack_filename(my_string to,const char *from);
+extern uint unpack_filename(my_string to,const char *from);
 extern my_string intern_filename(my_string to,const char *from);
 extern my_string directory_file_name(my_string dst, const char *src);
 extern int pack_filename(my_string to, const char *name, size_s max_length);
@@ -663,9 +663,9 @@ extern int my_b_safe_write(IO_CACHE *info,const byte *Buffer,uint Count);
 
 extern int my_block_write(IO_CACHE *info, const byte *Buffer,
 			  uint Count, my_off_t pos);
-extern int _flush_io_cache(IO_CACHE *info, int need_append_buffer_lock);
+extern int my_b_flush_io_cache(IO_CACHE *info, int need_append_buffer_lock);
 
-#define flush_io_cache(info) _flush_io_cache((info),1)
+#define flush_io_cache(info) my_b_flush_io_cache((info),1)
 
 extern int end_io_cache(IO_CACHE *info);
 extern uint my_b_fill(IO_CACHE *info);

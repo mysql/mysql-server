@@ -56,11 +56,21 @@ static void pretty_print_str(FILE* file, char* str, int len)
 #endif /* MYSQL_CLIENT */
 
 
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
+
+static void clear_all_errors(THD *thd, struct st_relay_log_info *rli)
+{
+  thd->query_error = 0;
+  thd->clear_error();
+  *rli->last_slave_error = 0;
+  rli->last_slave_errno = 0;
+}
+
+
 /*
-  ignored_error_code()
+  Ignore error code specified on command line
 */
 
-#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 inline int ignored_error_code(int err_code)
 {
   return ((err_code == ER_SLAVE_IGNORED_TABLE) ||
@@ -843,7 +853,9 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 	     0 : LOG_EVENT_THREAD_SPECIFIC_F, using_trans),
    data_buf(0), query(query_arg),
    db(thd_arg->db), q_len((uint32) query_length),
-   error_code(thd_arg->killed ? ER_SERVER_SHUTDOWN: thd_arg->net.last_errno),
+   error_code(thd_arg->killed ?
+              ((thd_arg->system_thread & SYSTEM_THREAD_DELAYED_INSERT) ?
+               0 : ER_SERVER_SHUTDOWN) : thd_arg->net.last_errno),
    thread_id(thd_arg->thread_id),
    /* save the original thread id; we already know the server id */
    slave_proxy_id(thd_arg->variables.pseudo_thread_id)
@@ -944,17 +956,15 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
   thd->db= (char*) rewrite_db(db);
 
   /*
-    InnoDB internally stores the master log position it has executed so far,
-    i.e. the position just after the COMMIT event.
-    When InnoDB will want to store, the positions in rli won't have
-    been updated yet, so group_master_log_* will point to old BEGIN
-    and event_master_log* will point to the beginning of current COMMIT.
-    So the position to store is event_master_log_pos + event_len
-    since we must store the pos of the END of the current log event (COMMIT).
+    InnoDB internally stores the master log position it has processed so far;
+    position to store is of the END of the current log event.
   */
-  rli->event_len= get_event_len();
-  thd->query_error= 0;			// clear error
-  thd->clear_error();
+#if MYSQL_VERSION_ID < 50000
+  rli->future_group_master_log_pos= log_pos + get_event_len();
+#else
+  rli->future_group_master_log_pos= log_pos;
+#endif
+  clear_all_errors(thd, rli);
 
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
@@ -966,75 +976,85 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
 
-    /*
-      Sanity check to make sure the master did not get a really bad
-      error on the query.
-    */
-    if (ignored_error_code((expected_error = error_code)) ||
+    mysql_log.write(thd,COM_QUERY,"%s",thd->query);
+    DBUG_PRINT("query",("%s",thd->query));
+    if (ignored_error_code((expected_error= error_code)) ||
 	!check_expected_error(thd,rli,expected_error))
-    {
-      mysql_log.write(thd,COM_QUERY,"%s",thd->query);
-      DBUG_PRINT("query",("%s",thd->query));
       mysql_parse(thd, thd->query, q_len);
-
+    else
+    {
       /*
-        If we expected a non-zero error code, and we don't get the same error
-        code, and none of them should be ignored.
+        The query got a really bad error on the master (thread killed etc),
+        which could be inconsistent. Parse it to test the table names: if the
+        replicate-*-do|ignore-table rules say "this query must be ignored" then
+        we exit gracefully; otherwise we warn about the bad error and tell DBA
+        to check/fix it.
       */
-      DBUG_PRINT("info",("expected_error: %d  last_errno: %d",
-			 expected_error, thd->net.last_errno));
-      if ((expected_error != (actual_error= thd->net.last_errno)) &&
-	  expected_error &&
-	  !ignored_error_code(actual_error) &&
-	  !ignored_error_code(expected_error))
+      if (mysql_test_parse_for_slave(thd, thd->query, q_len))
+        clear_all_errors(thd, rli);        /* Can ignore query */
+      else
       {
-	slave_print_error(rli, 0,
+        slave_print_error(rli,expected_error, 
                           "\
+Query '%s' partially completed on the master (error on master: %d) \
+and was aborted. There is a chance that your master is inconsistent at this \
+point. If you are sure that your master is ok, run this query manually on the \
+slave and then restart the slave with SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1; \
+START SLAVE; .", thd->query, expected_error);
+        thd->query_error= 1;
+      }
+      goto end;
+    }
+
+    /*
+      If we expected a non-zero error code, and we don't get the same error
+      code, and none of them should be ignored.
+    */
+    DBUG_PRINT("info",("expected_error: %d  last_errno: %d",
+		       expected_error, thd->net.last_errno));
+    if ((expected_error != (actual_error= thd->net.last_errno)) &&
+	expected_error &&
+	!ignored_error_code(actual_error) &&
+	!ignored_error_code(expected_error))
+    {
+      slave_print_error(rli, 0,
+			"\
 Query '%s' caused different errors on master and slave. \
 Error on master: '%s' (%d), Error on slave: '%s' (%d). \
 Default database: '%s'",
-                          query,
-                          ER_SAFE(expected_error),
-                          expected_error,
-                          actual_error ? thd->net.last_error: "no error",
-                          actual_error,
-                          print_slave_db_safe(db));
-	thd->query_error= 1;
-      }
-      /*
-        If we get the same error code as expected, or they should be ignored. 
-      */
-      else if (expected_error == actual_error ||
-	       ignored_error_code(actual_error))
-      {
-	DBUG_PRINT("info",("error ignored"));
-	thd->query_error= 0;
-        thd->clear_error();
-	*rli->last_slave_error = 0;
-	rli->last_slave_errno = 0;
-      }
-      /*
-        Other cases: mostly we expected no error and get one.
-      */
-      else if (thd->query_error || thd->is_fatal_error)
-      {
-        slave_print_error(rli,actual_error,
-			  "Error '%s' on query '%s'. Default database: '%s'",
-                          (actual_error ? thd->net.last_error :
-			   "unexpected success or fatal error"),
-			  query,
-                          print_slave_db_safe(db));
-        thd->query_error= 1;
-      }
-    } 
-    /* 
-       End of sanity check. If the test was wrong, the query got a really bad
-       error on the master, which could be inconsistent, abort and tell DBA to
-       check/fix it. check_expected_error() already printed the message to
-       stderr and rli, and set thd->query_error to 1.
+			query,
+			ER_SAFE(expected_error),
+			expected_error,
+			actual_error ? thd->net.last_error: "no error",
+			actual_error,
+			print_slave_db_safe(db));
+      thd->query_error= 1;
+    }
+    /*
+      If we get the same error code as expected, or they should be ignored. 
     */
+    else if (expected_error == actual_error ||
+	     ignored_error_code(actual_error))
+    {
+      DBUG_PRINT("info",("error ignored"));
+      clear_all_errors(thd, rli);
+    }
+    /*
+      Other cases: mostly we expected no error and get one.
+    */
+    else if (thd->query_error || thd->is_fatal_error)
+    {
+      slave_print_error(rli,actual_error,
+			"Error '%s' on query '%s'. Default database: '%s'",
+			(actual_error ? thd->net.last_error :
+			 "unexpected success or fatal error"),
+			query,
+			print_slave_db_safe(db));
+      thd->query_error= 1;
+    }
   } /* End of if (db_ok(... */
 
+end:
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->db= 0;	                        // prevent db from being freed
   thd->query= 0;			// just to be sure
@@ -1165,7 +1185,7 @@ int Start_log_event::exec_event(struct st_relay_log_info* rli)
     {
       slave_print_error(rli, 0, "\
 Rolling back unfinished transaction (no COMMIT or ROLLBACK) from relay log. \
-Probably cause is that the master died while writing the transaction to it's \
+A probable cause is that the master died while writing the transaction to its \
 binary log.");
       return(1);
     }
@@ -1643,7 +1663,15 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
   DBUG_ASSERT(thd->query == 0);
   thd->query= 0;				// Should not be needed
   thd->query_error= 0;
-  thd->clear_error();
+  clear_all_errors(thd, rli);
+  if (!use_rli_only_for_errors)
+  {
+#if MYSQL_VERSION_ID < 50000
+    rli->future_group_master_log_pos= log_pos + get_event_len();
+#else
+    rli->future_group_master_log_pos= log_pos;
+#endif
+  }
 
   /*
     We test replicate_*_db rules. Note that we have already prepared the file
@@ -2642,7 +2670,7 @@ Create_file_log_event::Create_file_log_event(const char* buf, int len,
     We must make copy of 'buf' as this event may have to live over a
     rotate log entry when used in mysqlbinlog
   */
-  if (!(event_buf= my_memdup((byte*)buf, len, MYF(MY_WME))) ||
+  if (!(event_buf= my_memdup((byte*) buf, len, MYF(MY_WME))) ||
       (copy_log_event(event_buf, len, old_format)))
     DBUG_VOID_RETURN;
 
@@ -3107,6 +3135,14 @@ int Execute_load_log_event::exec_event(struct st_relay_log_info* rli)
     lev->exec_event is the place where the table is loaded (it calls
     mysql_load()).
   */
+
+#if MYSQL_VERSION_ID < 40100
+    rli->future_master_log_pos= log_pos + get_event_len();
+#elif MYSQL_VERSION_ID < 50000
+    rli->future_group_master_log_pos= log_pos + get_event_len();
+#else
+    rli->future_group_master_log_pos= log_pos;
+#endif
   if (lev->exec_event(0,rli,1)) 
   {
     /*

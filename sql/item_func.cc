@@ -912,7 +912,8 @@ longlong Item_func_ceiling::val_int()
 
 longlong Item_func_floor::val_int()
 {
-  double value=args[0]->val();
+  // the volatile's for BUG #3051 to calm optimizer down (because of gcc's bug)
+  volatile double value=args[0]->val();
   null_value=args[0]->null_value;
   return (longlong) floor(value);
 }
@@ -1859,13 +1860,11 @@ longlong Item_master_pos_wait::val_int()
   longlong pos = (ulong)args[1]->val_int();
   longlong timeout = (arg_count==3) ? args[2]->val_int() : 0 ;
 #ifdef HAVE_REPLICATION
-  LOCK_ACTIVE_MI;
-   if ((event_count = active_mi->rli.wait_for_pos(thd, log_name, pos, timeout)) == -2)
-   {
+  if ((event_count = active_mi->rli.wait_for_pos(thd, log_name, pos, timeout)) == -2)
+  {
     null_value = 1;
     event_count=0;
   }
-  UNLOCK_ACTIVE_MI;
 #endif
   return event_count;
 }

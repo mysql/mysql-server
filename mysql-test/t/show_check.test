@@ -54,8 +54,8 @@ create table t1 (
   test_set set( 'val1', 'val2', 'val3' ) not null default '',
   name char(20) default 'O''Brien' comment 'O''Brien as default',
   c int not null comment 'int column',
-  `c-b` int comment 'name with a space',
-  `space ` int comment 'name with a space',
+  `c-b` int comment 'name with a minus',
+  `space 2` int comment 'name with a space',
   ) comment = 'it\'s a table' ;
 show create table t1;
 set sql_quote_show_create=0;

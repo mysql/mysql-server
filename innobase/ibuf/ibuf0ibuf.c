@@ -270,7 +270,9 @@ ibuf_header_page_get(
 
 	page = buf_page_get(space, FSP_IBUF_HEADER_PAGE_NO, RW_X_LATCH, mtr);
 
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(page, SYNC_IBUF_HEADER);
+#endif /* UNIV_SYNC_DEBUG */
 
 	return(page);
 }
@@ -295,7 +297,9 @@ ibuf_tree_root_get(
 
 	page = buf_page_get(space, FSP_IBUF_TREE_ROOT_PAGE_NO, RW_X_LATCH,
 									mtr);
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(page, SYNC_TREE_NODE);
+#endif /* UNIV_SYNC_DEBUG */
 
 	return(page);
 }
@@ -407,7 +411,9 @@ ibuf_data_sizes_update(
 {
 	ulint	old_size;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&ibuf_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	old_size = data->size;
 	
@@ -489,7 +495,9 @@ ibuf_data_init_for_space(
 	
 	root = buf_page_get(space, FSP_IBUF_TREE_ROOT_PAGE_NO, RW_X_LATCH,
 								&mtr);
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(root, SYNC_TREE_NODE);
+#endif /* UNIV_SYNC_DEBUG */
 
 	data->size = 0;
 	data->n_inserts = 0;
@@ -721,7 +729,9 @@ ibuf_bitmap_get_map_page(
 
 	page = buf_page_get(space, ibuf_bitmap_page_no_calc(page_no),
 							RW_X_LATCH, mtr);
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(page, SYNC_IBUF_BITMAP);
+#endif /* UNIV_SYNC_DEBUG */
 
 	return(page);
 }
@@ -1446,7 +1456,9 @@ ibuf_data_enough_free_for_insert(
 				/* out: TRUE if enough free pages in list */
 	ibuf_data_t*	data)	/* in: ibuf data for the space */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&ibuf_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	/* We want a big margin of free pages, because a B-tree can sometimes
 	grow in size also if records are deleted from it, as the node pointers
@@ -1472,7 +1484,9 @@ ibuf_data_too_much_free(
 				/* out: TRUE if enough free pages in list */
 	ibuf_data_t*	data)	/* in: ibuf data for the space */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&ibuf_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (data->free_list_len >= 3 + data->size / 2 + 3 * data->height) {
 
@@ -1532,7 +1546,9 @@ ibuf_add_free_page(
 
 	page = buf_page_get(space, page_no, RW_X_LATCH, &mtr);
 
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(page, SYNC_TREE_NODE_NEW);
+#endif /* UNIV_SYNC_DEBUG */
 
 	ibuf_enter();
 
@@ -1653,7 +1669,9 @@ ibuf_remove_free_page(
 
 	page = buf_page_get(space, page_no, RW_X_LATCH, &mtr);
 
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(page, SYNC_TREE_NODE);
+#endif /* UNIV_SYNC_DEBUG */
 
 	/* Remove the page from the free list and update the ibuf size data */
 	
@@ -1694,14 +1712,16 @@ ibuf_free_excess_pages(
 {
 	ibuf_data_t*	ibuf_data;
 	ulint		i;
-	
+
 	if (space != 0) {
 	        fprintf(stderr,
 "InnoDB: Error: calling ibuf_free_excess_pages for space %lu\n", (ulong) space);
 		return;
 	}
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(fil_space_get_latch(space), RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(rw_lock_get_x_lock_count(fil_space_get_latch(space)) == 1);
 	ut_ad(!ibuf_inside());
 	
@@ -2208,7 +2228,9 @@ ibuf_get_volume_buffered(
 
 	prev_page = buf_page_get(0, prev_page_no, RW_X_LATCH, mtr);
 
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(prev_page, SYNC_TREE_NODE);
+#endif /* UNIV_SYNC_DEBUG */
 
 	rec = page_get_supremum_rec(prev_page);
 	rec = page_rec_get_prev(rec);
@@ -2269,7 +2291,9 @@ count_later:
 
 	next_page = buf_page_get(0, next_page_no, RW_X_LATCH, mtr);
 
+#ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(next_page, SYNC_TREE_NODE);
+#endif /* UNIV_SYNC_DEBUG */
 
 	rec = page_get_infimum_rec(next_page);
 	rec = page_rec_get_next(rec);
@@ -3018,7 +3042,9 @@ loop:
 					IB__FILE__, __LINE__,
 					&mtr);
 		ut_a(success);
+#ifdef UNIV_SYNC_DEBUG
 		buf_page_dbg_add_level(page, SYNC_TREE_NODE);
+#endif /* UNIV_SYNC_DEBUG */
 	}
 		
 	/* Position pcur in the insert buffer at the first entry for this
@@ -3261,7 +3287,9 @@ ibuf_validate_low(void)
 	ibuf_data_t*	data;
 	ulint		sum_sizes;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&ibuf_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	sum_sizes = 0;
 	

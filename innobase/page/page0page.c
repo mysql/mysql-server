@@ -110,7 +110,7 @@ page_dir_find_owner_slot(
 
 			buf_page_print(page);
 
-	  		ut_a(0);
+	  		ut_error;
 	  	}
 
 		i--;
@@ -441,7 +441,7 @@ page_copy_rec_list_end_no_locks(
 			      (ulong)(rec - page),
 			      (ulong)(page_cur_get_rec(&cur1) - page),
 			      (ulong)(page_cur_get_rec(&cur2) - new_page));
-			ut_a(0);
+			ut_error;
 		}
 
 		page_cur_move_to_next(&cur1);

@@ -3183,6 +3183,8 @@ static const char* construct_prompt()
 	processed_prompt.append(' ');
 	break;
       case 'R':
+	if (t->tm_hour < 10)
+	  processed_prompt.append('0');
 	add_int_to_prompt(t->tm_hour);
 	break;
       case 'r':
@@ -3190,6 +3192,8 @@ static const char* construct_prompt()
 	getHour = t->tm_hour % 12;
 	if (getHour == 0)
 	  getHour=12;
+	if (getHour < 10)
+	  processed_prompt.append('0');
 	add_int_to_prompt(getHour);
 	break;
       case 'm':
@@ -3215,6 +3219,8 @@ static const char* construct_prompt()
 	processed_prompt.append(strtok(dateTime,"\n"));
 	break;
       case 's':
+	if (t->tm_sec < 10)
+	  processed_prompt.append('0');
 	add_int_to_prompt(t->tm_sec);
 	break;
       case 'w':

@@ -283,7 +283,7 @@ cmp_whole_field(
 	        fprintf(stderr,
 			"InnoDB: unknown type number %lu\n",
 			(ulong) data_type);
-	        ut_a(0);
+	        ut_error;
 	}
 
 	return(0);

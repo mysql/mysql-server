@@ -21,7 +21,9 @@ extern int	yydebug;
 /* If the following is set TRUE, the lexer will print the SQL string
 as it tokenizes it */
 
+#ifdef UNIV_SQL_DEBUG
 extern ibool	pars_print_lexed;
+#endif /* UNIV_SQL_DEBUG */
 
 /* Global variable used while parsing a single procedure or query : the code is
 NOT re-entrant */
@@ -390,41 +392,18 @@ pars_procedure_definition(
 					table */
 	sym_node_t*	param_list,	/* in: parameter declaration list */
 	que_node_t*	stat_list);	/* in: statement list */
-/*****************************************************************
-Reads stored procedure input parameter values from a buffer. */
 
-void
-pars_proc_read_input_params_from_buf(
-/*=================================*/
-	que_t*	graph,	/* in: query graph which contains a stored procedure */
-	byte*	buf);	/* in: buffer */
-/*****************************************************************
-Writes stored procedure output parameter values to a buffer. */
-
-ulint
-pars_proc_write_output_params_to_buf(
-/*=================================*/
-	byte*	buf,	/* in: buffer which must be big enough */
-	que_t*	graph);	/* in: query graph which contains a stored procedure */
 /*****************************************************************
 Parses a stored procedure call, when this is not within another stored
-procedure, that is, the client issues a procedure call directly. */
+procedure, that is, the client issues a procedure call directly.
+In MySQL/InnoDB, stored InnoDB procedures are invoked via the
+parsed procedure tree, not via InnoDB SQL, so this function is not used. */
 
 que_fork_t*
 pars_stored_procedure_call(
 /*=======================*/
 					/* out: query graph */
 	sym_node_t*	sym_node);	/* in: stored procedure name */
-/*****************************************************************
-Writes info about query parameter markers (denoted with '?' in ODBC) into a
-buffer. */
-
-ulint
-pars_write_query_param_info(
-/*========================*/
-				/* out: number of bytes used for info in buf */
-	byte*		buf,	/* in: buffer which must be big enough */
-	que_fork_t*	graph);	/* in: parsed query graph */
 /**********************************************************************
 Completes a query graph by adding query thread and fork nodes
 above it and prepares the graph for running. The fork created is of
