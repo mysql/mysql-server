@@ -503,8 +503,8 @@ ALTER TABLE t1 CHARACTER SET latin1 COLLATE latin1_bin;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `latin1_f` char(32) character set latin1 collate latin1_bin default NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+  `latin1_f` char(32) collate latin1_bin default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_bin
 SHOW FIELDS FROM  t1;
 Field	Type	Null	Key	Default	Extra
 latin1_f	char(32)	YES		NULL	

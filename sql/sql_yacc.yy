@@ -1108,25 +1108,15 @@ create_table_option:
 	    table_list->next=0;
 	    lex->create_info.used_fields|= HA_CREATE_USED_UNION;
 	  }
-	| DEFAULT charset opt_equal charset_name_or_default
+	| opt_default charset opt_equal charset_name_or_default
 	  {
 	    Lex->create_info.default_table_charset= $4;
 	    Lex->create_info.used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
 	  }
-	| charset opt_equal charset_name_or_default
+	| opt_default COLLATE_SYM opt_equal collation_name_or_default
 	  {
-	    Lex->create_info.table_charset= $3;
-	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
-	  }
-	| DEFAULT COLLATE_SYM opt_equal collation_name_or_default
-	  {
-	    Lex->create_info.table_charset= $4;
+	    Lex->create_info.default_table_charset= $4;
 	    Lex->create_info.used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
-	  }
-	| COLLATE_SYM opt_equal collation_name_or_default
-	  {
-	    Lex->create_info.table_charset= $3;
-	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;
 	  }
 	| INSERT_METHOD opt_equal merge_insert_types   { Lex->create_info.merge_insert_method= $3; Lex->create_info.used_fields|= HA_CREATE_USED_INSERT_METHOD;}
 	| DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys
@@ -1792,6 +1782,23 @@ alter_list_item:
 	    LEX *lex=Lex;
 	    lex->select_lex.db=$3->db.str;
 	    lex->name= $3->table.str;
+	  }
+	| CONVERT_SYM TO_SYM charset charset_name_or_default opt_collate
+	  {
+	    if (!$4)
+	    {
+	      THD *thd= YYTHD;
+	      $4= thd->variables.collation_database;
+	    }
+	    $5= $5 ? $5 : $4;
+	    if (!my_charset_same($4,$5))
+	    {
+	      net_printf(YYTHD,ER_COLLATION_CHARSET_MISMATCH,
+			 $5->name,$4->csname);
+	      YYABORT;
+	    }
+	    Lex->create_info.table_charset= $5;
+	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;  
 	  }
         | create_table_options_space_separated { Lex->simple_alter=0; }
 	| order_clause         { Lex->simple_alter=0; };
