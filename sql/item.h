@@ -1005,7 +1005,7 @@ public:
   double val();
   longlong val_int();
   String *val_str(String*);
-  void join_types(THD *thd, Item *);
+  bool join_types(THD *thd, Item *);
   Field *example() { return field_example; }
 };
 
