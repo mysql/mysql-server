@@ -428,11 +428,15 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
   uint field_length,year_length,digits,i,number_of_fields,date[7];
   bool date_used=0;
   const char *pos;
-  const char *end=str+length;
   DBUG_ENTER("str_to_TIME");
   DBUG_PRINT("enter",("str: %.*s",length,str));
 
-  for (; !isdigit(*str) && str != end ; str++) ; // Skipp garbage
+  if(!str)
+    DBUG_RETURN(TIMESTAMP_NONE);
+  
+  const char *end=str+length;
+
+  for (; !isdigit(*str) && str != end ; str++) ; // Skip garbage
   if (str == end)
     DBUG_RETURN(TIMESTAMP_NONE);
   /*

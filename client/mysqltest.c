@@ -241,8 +241,8 @@ static void do_eval(DYNAMIC_STRING* query_eval, const char* query)
 	  else
 	    {
 	      if(!(v = var_get(p, &p, 0)))
-		die("Bad variabled in eval");
-	      dynstr_append(query_eval, v->str_val);
+		die("Bad variable in eval");
+	      dynstr_append_mem(query_eval, v->str_val, v->str_val_len);
 	    }
 	  break;
 	case '\\':
@@ -436,6 +436,7 @@ VAR* var_get(const char* var_name, const char** var_name_end, int raw)
   {
     sprintf(v->str_val, "%d", v->int_val);
     v->int_dirty = 0;
+    v->str_val_len = strlen(v->str_val);
   }
   if(var_name_end)
     *var_name_end = var_name  ;
@@ -475,7 +476,7 @@ int var_set(char* var_name, char* var_name_end, char* var_val,
 	 die("Out of memory");
     }
   memcpy(v->str_val, var_val, val_len-1);
-  v->str_val_len = val_len;
+  v->str_val_len = val_len - 1;
   v->str_val[val_len] = 0;
   v->int_val = atoi(v->str_val);
   return 0;
