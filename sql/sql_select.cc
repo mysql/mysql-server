@@ -4354,9 +4354,9 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       case STRING_RESULT:
 	if (item_sum->max_length > 255)
 	  return  new Field_blob(item_sum->max_length,maybe_null,
-				 item->name,table,item->charset());
+				 item->name,table,item->collation.collation);
 	return	new Field_string(item_sum->max_length,maybe_null,
-				 item->name,table,item->charset());
+				 item->name,table,item->collation.collation);
       case ROW_RESULT:
       default:
 	// This case should never be choosen
@@ -4413,10 +4413,10 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     case STRING_RESULT:
       if (item->max_length > 255)
 	new_field=  new Field_blob(item->max_length,maybe_null,
-				   item->name,table,item->charset());
+				   item->name,table,item->collation.collation);
       else
 	new_field= new Field_string(item->max_length,maybe_null,
-				    item->name,table,item->charset());
+				    item->name,table,item->collation.collation);
       break;
     case ROW_RESULT: 
     default: 

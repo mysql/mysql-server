@@ -122,6 +122,16 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
       res= -1;
       goto exit;
     }
+
+    /* 
+       This is done in order to redo all field optimisations when any of the 
+       involved tables is used in the outer query 
+    */
+    if (tables)
+    {
+      for (TABLE_LIST *cursor= tables;  cursor;  cursor= cursor->next)
+	cursor->table->clear_query_id= 1;
+    }
 	
     item_list= select_cursor->item_list;
     select_cursor->with_wild= 0;

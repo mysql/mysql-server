@@ -767,12 +767,20 @@ int ha_myisam::preload_keys(THD* thd, HA_CHECK_OPT *check_opt)
 void ha_myisam::deactivate_non_unique_index(ha_rows rows)
 {
   MYISAM_SHARE* share = file->s;
+  bool do_warning=0;
   if (share->state.key_map == ((ulonglong) 1L << share->base.keys)-1)
   {
     if (!(specialflag & SPECIAL_SAFE_MODE))
     {
       if (rows == HA_POS_ERROR)
+      {
+	uint orig_update= file->update;
+	file->update ^= HA_STATE_CHANGED;
+	uint check_update= file->update;
         mi_extra(file, HA_EXTRA_NO_KEYS, 0);
+	do_warning= (file->update == check_update) && file->state->records;
+	file->update= orig_update;
+      }
       else
       {
 	/*
@@ -797,6 +805,10 @@ void ha_myisam::deactivate_non_unique_index(ha_rows rows)
   }
   else
     enable_activate_all_index=0;
+  if (do_warning)
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+			ER_ILLEGAL_HA,
+			ER(ER_ILLEGAL_HA), table->table_name);
 }
 
 
