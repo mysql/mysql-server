@@ -33,17 +33,16 @@ typedef struct st_ft_docstat {
   double max, nsum, nsum2;
 #endif /* EVAL_RUN */
 
-  MI_INFO *info;
-  uint keynr;
-  byte *keybuf;
+//  MI_INFO *info;
+//  uint keynr;
+//  byte *keybuf;
 } FT_DOCSTAT;
 
-static int FT_WORD_cmp(void* cmp_arg __attribute__((unused)),
-		       FT_WORD *w1, FT_WORD *w2)
+static int FT_WORD_cmp(void* cmp_arg, FT_WORD *w1, FT_WORD *w2)
 {
   return _mi_compare_text(default_charset_info,
 			  (uchar*) w1->pos,w1->len,
-			  (uchar*) w2->pos, w2->len,0);
+			  (uchar*) w2->pos, w2->len,(my_bool)cmp_arg);
 }
 
 static int walk_and_copy(FT_WORD *word,uint32 count,FT_DOCSTAT *docstat)
@@ -64,7 +63,9 @@ static int walk_and_copy(FT_WORD *word,uint32 count,FT_DOCSTAT *docstat)
 
 /* transforms tree of words into the array, applying normalization */
 
-FT_WORD * ft_linearize(MI_INFO *info, uint keynr, byte *keybuf, TREE *wtree)
+FT_WORD * ft_linearize(//MI_INFO *info, uint keynr,
+    //byte *keybuf,
+    TREE *wtree)
 {
   FT_WORD *wlist,*p;
   FT_DOCSTAT docstat;
@@ -73,9 +74,9 @@ FT_WORD * ft_linearize(MI_INFO *info, uint keynr, byte *keybuf, TREE *wtree)
   if ((wlist=(FT_WORD *) my_malloc(sizeof(FT_WORD)*
 				   (1+wtree->elements_in_tree),MYF(0))))
   {
-    docstat.info=info;
-    docstat.keynr=keynr;
-    docstat.keybuf=keybuf;
+//    docstat.info=info;
+//    docstat.keynr=keynr;
+//    docstat.keybuf=keybuf;
     docstat.list=wlist;
     docstat.uniq=wtree->elements_in_tree;
 #ifdef EVAL_RUN
@@ -203,19 +204,6 @@ byte ft_simple_get_word(byte **start, byte *end, FT_WORD *word)
       *start=doc;
       return 1;
     }
-  }
-  return 0;
-}
-
-int is_boolean(byte *q, uint len)
-{
-  if (!len) return 0;
-  if (*q == FTB_YES || *q == FTB_NO) return 1;
-
-  for (++q; --len; ++q)
-  {
-    if ((*q == FTB_YES || *q == FTB_NO) && q[-1] == ' ' && true_word_char(q[1]))
-      return 1;
   }
   return 0;
 }

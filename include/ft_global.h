@@ -35,7 +35,6 @@ struct _ft_vft {
   float     (*find_relevance)(FT_INFO *, my_off_t, byte *);
   void      (*close_search)(FT_INFO *);
   float     (*get_relevance)(FT_INFO *);
-  my_off_t  (*get_docid)(FT_INFO *);
   void      (*reinit_search)(FT_INFO *);
 };
 

@@ -30,6 +30,9 @@
 #ifdef HAVE_CRYPT_H
 #include <crypt.h>
 #endif
+#ifdef HAVE_OPENSSL
+#include <openssl/des.h>
+#endif /* HAVE_OPENSSL */
 #include "md5.h"
 
 String empty_string("");
@@ -197,6 +200,135 @@ void Item_func_concat::fix_length_and_dec()
     maybe_null=1;
   }
 }
+
+#define bin_to_ascii(c) ((c)>=38?((c)-38+'a'):(c)>=12?((c)-12+'A'):(c)+'.')
+
+String *Item_func_des_encrypt::val_str(String *str)
+{
+  String *res  =args[0]->val_str(str);
+
+#ifdef HAVE_OPENSSL
+  des_key_schedule ks1, ks2, ks3;
+  des_cblock ivec={0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
+  union {
+	  des_cblock allkeys[3];
+	  des_cblock key1;
+	  des_cblock key2;
+	  des_cblock key3;
+  } key;
+
+
+
+  if ((null_value=args[0]->null_value))
+    return 0;
+  if (res->length() == 0)
+    return &empty_string;
+  String *in_str=args[1]->val_str(&tmp_value);
+  char *tmp=my_malloc(res->length()+8, MYF(0));
+  DBUG_PRINT("info",("DES: key string='%s'",in_str->c_ptr()));
+  DBUG_PRINT("info",("DES: data string='%s'",res->c_ptr()));
+  DBUG_PRINT("info",("DES: cipher pointer='%x'",EVP_get_cipherbyname("DES-EDE3-CBC")));
+  EVP_BytesToKey(EVP_get_cipherbyname("DES-EDE3-CBC"),EVP_md5(),NULL,
+	(unsigned char *)in_str->c_ptr(),
+	in_str->length(),1,(uchar *)&key.allkeys,ivec);
+  des_set_key_unchecked(&key.key1,ks1);
+  des_set_key_unchecked(&key.key2,ks2);
+  des_set_key_unchecked(&key.key3,ks3);
+  DBUG_PRINT("info",("DES: checkpoint"));
+  des_ede3_cbc_encrypt(
+	(const unsigned char*)(res->c_ptr()) ,
+ 	(uchar*)tmp,
+	res->length(),
+	ks1,	ks2,	ks3,	&ivec,	TRUE);
+  res->length(res->length()+8-(res->length() % 8));
+  DBUG_PRINT("info",("DES: checkpoint"));
+    DBUG_PRINT("info",("DES: string length='%d' versus '%d'",res->length(),strlen(res->c_ptr())));
+    DBUG_PRINT("info",("DES: crypted data string='%s'",tmp));
+    str->set((const char*)0,(uint)0); 
+    for(uint i=0 ; i < res->length() ; ++i)
+    {
+	    str->append(tmp[i]);
+//	    str->append(bin_to_ascii(tmp[i] & 0x3f));
+//	    str->append(bin_to_ascii((tmp[i] >> 5) & 0x3f));
+    }
+    DBUG_PRINT("info",("DES: crypted data plain string='%s'",str->c_ptr()));
+    str->copy(); 
+    DBUG_PRINT("info",("DES: crypted data plain string='%s'",str->c_ptr()));
+    my_free(tmp,MYF(0));
+  return str;
+#else
+  null_value=1;
+  return 0;
+#endif	/* HAVE_OPENSSL */
+}
+
+
+String *Item_func_des_decrypt::val_str(String *str)
+{
+  String *res  =args[0]->val_str(str);
+
+#ifdef HAVE_OPENSSL
+  des_key_schedule ks1, ks2, ks3;
+  des_cblock ivec={0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
+  union {
+	  des_cblock allkeys[3];
+	  des_cblock key1;
+	  des_cblock key2;
+	  des_cblock key3;
+  } key;
+
+
+  if ((null_value=args[0]->null_value))
+    return 0;
+  if (res->length() == 0)
+    return &empty_string;
+  String *in_str=args[1]->val_str(&tmp_value);
+  char *tmp=my_malloc(res->length()+8, MYF(0));
+  DBUG_PRINT("info",("DES: key string='%s'",in_str->c_ptr()));
+  DBUG_PRINT("info",("DES: data string='%s'",res->c_ptr()));
+/*  int EVP_BytesToKey(const EVP_CIPHER *type, EVP_MD *md,
+	const unsigned char *salt, const unsigned char *data, int datal,
+	int count, unsigned char *key, unsigned char *iv)
+*/	   
+  EVP_BytesToKey(EVP_get_cipherbyname("DES-EDE3-CBC"),EVP_md5(),NULL,
+	(unsigned char *)in_str->c_ptr(),
+	in_str->length(),1,(uchar *)&key.allkeys,ivec);
+  des_set_key_unchecked(&key.key1,ks1);
+  des_set_key_unchecked(&key.key2,ks2);
+  des_set_key_unchecked(&key.key3,ks3);
+  DBUG_PRINT("info",("DES: cipher pointer='%x'",EVP_get_cipherbyname("DES-EDE3-CBC")));
+  EVP_BytesToKey(EVP_get_cipherbyname("DES-EDE3-CBC"),EVP_md5(),NULL,
+	(unsigned char *)in_str->c_ptr(),
+	in_str->length(),1,(uchar *)&key.allkeys,ivec);
+
+  DBUG_PRINT("info",("DES: checkpoint"));
+  des_ede3_cbc_encrypt(
+	(const unsigned char*)(res->c_ptr()) ,
+ 	(uchar*)tmp,
+	res->length(),
+	ks1,	ks2,	ks3,	&ivec,	FALSE);
+
+  DBUG_PRINT("info",("DES: checkpoint"));
+    DBUG_PRINT("info",("DES: string length='%d' versus '%d'",res->length(),strlen(res->c_ptr())));
+    DBUG_PRINT("info",("DES: crypted data string='%s'",tmp));
+    str->set((const char*)0,(uint)0); 
+    for(uint i=0 ; i < res->length() ; ++i)
+    {
+	    str->append(tmp[i]);
+//	    str->append(bin_to_ascii(tmp[i] & 0x3f));
+//	    str->append(bin_to_ascii((tmp[i] >> 5) & 0x3f));
+    }
+    DBUG_PRINT("info",("DES: crypted data plain string='%s'",str->c_ptr()));
+    str->copy(); 
+    DBUG_PRINT("info",("DES: crypted data plain string='%s'",str->c_ptr()));
+    my_free(tmp,MYF(0));
+  return str;
+#else
+  null_value=1;
+  return 0;
+#endif	/* HAVE_OPENSSL */
+}
+
 
 
 
@@ -992,7 +1124,6 @@ String *Item_func_password::val_str(String *str)
   return str;
 }
 
-#define bin_to_ascii(c) ((c)>=38?((c)-38+'a'):(c)>=12?((c)-12+'A'):(c)+'.')
 
 String *Item_func_encrypt::val_str(String *str)
 {

@@ -36,7 +36,7 @@
       break;
     case OPT_SSL_CAPATH:
       opt_use_ssl = 1;				/* true */
-      my_free(opt_ssl_ca, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(opt_ssl_capath, MYF(MY_ALLOW_ZERO_PTR));
       opt_ssl_capath = my_strdup(optarg, MYF(0));
       break;
     case OPT_SSL_CIPHER:

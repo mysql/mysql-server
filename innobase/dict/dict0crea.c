@@ -1044,8 +1044,8 @@ dict_create_or_check_foreign_constraint_tables(void)
 
 	mutex_enter(&(dict_sys->mutex));
 
-	table1 = dict_table_get_low("SYS_FOREIGN");
-	table2 = dict_table_get_low("SYS_FOREIGN_COLS");
+	table1 = dict_table_get_low((char *) "SYS_FOREIGN");
+	table2 = dict_table_get_low((char *) "SYS_FOREIGN_COLS");
 	
 	if (table1 && table2
             && UT_LIST_GET_LEN(table1->indexes) == 3
@@ -1061,18 +1061,18 @@ dict_create_or_check_foreign_constraint_tables(void)
 
 	trx = trx_allocate_for_mysql();
 	
-	trx->op_info = "creating foreign key sys tables";
+	trx->op_info = (char *) "creating foreign key sys tables";
 
 	if (table1) {
 		fprintf(stderr,
 		"InnoDB: dropping incompletely created SYS_FOREIGN table\n");
-		row_drop_table_for_mysql("SYS_FOREIGN", trx, TRUE);
+		row_drop_table_for_mysql((char *) "SYS_FOREIGN", trx, TRUE);
 	}
 
 	if (table2) {
 		fprintf(stderr,
 	"InnoDB: dropping incompletely created SYS_FOREIGN_COLS table\n");
-		row_drop_table_for_mysql("SYS_FOREIGN_COLS", trx, TRUE);
+		row_drop_table_for_mysql((char *) "SYS_FOREIGN_COLS",trx,TRUE);
 	}
 
 	fprintf(stderr,
@@ -1082,7 +1082,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 	there are 2 secondary indexes on SYS_FOREIGN, and they
 	are defined just like below */
 	
-	str =
+	str = (char *)
 	"PROCEDURE CREATE_FOREIGN_SYS_TABLES_PROC () IS\n"
 	"BEGIN\n"
 	"CREATE TABLE\n"
@@ -1121,15 +1121,15 @@ dict_create_or_check_foreign_constraint_tables(void)
 		fprintf(stderr,
 		"InnoDB: dropping incompletely created SYS_FOREIGN tables\n");
 
-		row_drop_table_for_mysql("SYS_FOREIGN", trx, TRUE);
-		row_drop_table_for_mysql("SYS_FOREIGN_COLS", trx, TRUE);
+		row_drop_table_for_mysql((char *) "SYS_FOREIGN", trx, TRUE);
+		row_drop_table_for_mysql((char *) "SYS_FOREIGN_COLS",trx,TRUE);
 
 		error = DB_MUST_GET_MORE_FILE_SPACE;
 	}
 
 	que_graph_free(graph);
 	
-	trx->op_info = "";
+	trx->op_info = (char *) "";
 
   	trx_free_for_mysql(trx);
 
@@ -1165,7 +1165,7 @@ dict_create_add_foreigns_to_dictionary(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));	
 
-	if (NULL == dict_table_get_low("SYS_FOREIGN")) {
+	if (NULL == dict_table_get_low((char *) "SYS_FOREIGN")) {
 		fprintf(stderr,
      "InnoDB: table SYS_FOREIGN not found from internal data dictionary\n");
 		return(DB_ERROR);

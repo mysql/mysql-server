@@ -124,7 +124,6 @@ byte *queue_remove(register QUEUE *queue, uint idx)
   }
 }
 
-
 	/* Fix when element on top has been replaced */
 
 #ifndef queue_replaced
@@ -166,3 +165,19 @@ void _downheap(register QUEUE *queue, uint idx)
   }
   queue->root[idx]=element;
 }
+
+
+static int queue_fix_cmp(QUEUE *queue, void *a, void *b)
+{
+  return queue->compare(queue->first_cmp_arg,
+                      a+queue->offset_to_key,
+                      b+queue->offset_to_key);
+}
+
+	/* Fix heap when every element was changed */
+void queue_fix(QUEUE *queue)
+{
+  qsort2(queue->root+1,queue->elements, sizeof(void *),
+      (qsort2_cmp)queue_fix_cmp, queue);
+}
+

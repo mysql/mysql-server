@@ -446,7 +446,7 @@ sync_array_cell_print(
 {
 	mutex_t*	mutex;
 	rw_lock_t*	rwlock;
-	char*		str	 = NULL;
+	char*		str __attribute__((unused)) = NULL;
 	ulint		type;
 
 	type = cell->request_type;

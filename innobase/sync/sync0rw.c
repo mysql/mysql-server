@@ -115,8 +115,8 @@ rw_lock_create_func(
 	lock->cfile_name = cfile_name;
 	lock->cline = cline;
 
-	lock->last_s_file_name = "not yet reserved";
-	lock->last_x_file_name = "not yet reserved";
+	lock->last_s_file_name = (char *) "not yet reserved";
+	lock->last_x_file_name = (char *) "not yet reserved";
 	lock->last_s_line = 0;
 	lock->last_x_line = 0;
 
@@ -789,7 +789,7 @@ Prints debug info of an rw-lock. */
 void
 rw_lock_print(
 /*==========*/
-	rw_lock_t*	lock)	/* in: rw-lock */
+	rw_lock_t*	lock __attribute__((unused)))	/* in: rw-lock */
 {
 #ifndef UNIV_SYNC_DEBUG
 	printf(

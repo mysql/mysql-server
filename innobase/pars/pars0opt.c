@@ -528,7 +528,7 @@ opt_search_plan_for_table(
 	ulint		goodness;
 	ulint		last_op;
 	ulint		best_goodness;
-	ulint		best_last_op;
+	ulint		best_last_op = 0; /* remove warning */
 	ulint		mix_id_pos;
 	que_node_t*	index_plan[128];
 	que_node_t*	best_index_plan[128];
@@ -546,6 +546,7 @@ opt_search_plan_for_table(
 	best_index = index; /* Eliminate compiler warning */
 	best_goodness = 0;
 	
+	/* should be do ... until ? comment by Jani */
 	while (index) {
 		goodness = opt_calc_index_goodness(index, sel_node, i,
 						index_plan, &last_op);

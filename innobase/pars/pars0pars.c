@@ -1942,7 +1942,7 @@ Called by yyparse on error. */
 void
 yyerror(
 /*====*/
-        char*	s)	/* in: error message string */
+        char*	s __attribute__((unused))) /* in: error message string */
 {
 	ut_ad(s);
 

@@ -57,7 +57,7 @@ ulint	srv_activity_count	= 0;
 ibool	srv_lock_timeout_and_monitor_active = FALSE;
 ibool	srv_error_monitor_active = FALSE;
 
-char*	srv_main_thread_op_info = "";
+char*	srv_main_thread_op_info = (char *) "";
 
 /* Server parameters which are read from the initfile */
 
@@ -929,6 +929,7 @@ srv_communication_init(
 	
 /*************************************************************************
 Implements the recovery utility. */
+#ifdef NOT_USED
 static
 ulint
 srv_recovery_thread(
@@ -966,7 +967,7 @@ srv_recovery_thread(
 
 	return(0);
 }
-
+#endif
 /*************************************************************************
 Implements the purge utility. */
 
@@ -1018,6 +1019,7 @@ srv_create_utility_threads(void)
 
 /*************************************************************************
 Implements the communication threads. */
+#ifdef NOT_USED
 static
 ulint
 srv_com_thread(
@@ -1065,7 +1067,7 @@ srv_com_thread(
 
 	return(0);
 }
-
+#endif
 /*************************************************************************
 Creates the communication threads. */
 
@@ -1087,6 +1089,7 @@ srv_create_com_threads(void)
 
 /*************************************************************************
 Implements the worker threads. */
+#ifdef NOT_USED
 static
 ulint
 srv_worker_thread(
@@ -1129,7 +1132,7 @@ srv_worker_thread(
 
 	return(0);
 }
-
+#endif
 /*************************************************************************
 Creates the worker threads. */
 
@@ -2283,7 +2286,7 @@ srv_master_thread(
 
 	os_event_set(srv_sys->operational);
 loop:
-	srv_main_thread_op_info = "reserving kernel mutex";
+	srv_main_thread_op_info = (char *) "reserving kernel mutex";
 
 	n_ios_very_old = log_sys->n_log_ios + buf_pool->n_pages_read
 						+ buf_pool->n_pages_written;
@@ -2299,7 +2302,7 @@ loop:
 	for (i = 0; i < 10; i++) {
 		n_ios_old = log_sys->n_log_ios + buf_pool->n_pages_read
 						+ buf_pool->n_pages_written;
-		srv_main_thread_op_info = "sleeping";
+		srv_main_thread_op_info = (char *) "sleeping";
 		os_thread_sleep(1000000);
 
 		if (srv_force_recovery >= SRV_FORCE_NO_BACKGROUND) {
@@ -2311,7 +2314,7 @@ loop:
 		is issued or the we have specified in my.cnf no flush
 		at transaction commit */
 
-		srv_main_thread_op_info = "flushing log";
+		srv_main_thread_op_info = (char *) "flushing log";
 		log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
 
 		/* If there were less than 10 i/os during the
@@ -2324,10 +2327,11 @@ loop:
 		n_ios = log_sys->n_log_ios + buf_pool->n_pages_read
 						+ buf_pool->n_pages_written;
 		if (n_pend_ios < 3 && (n_ios - n_ios_old < 10)) {
-			srv_main_thread_op_info = "doing insert buffer merge";
+			srv_main_thread_op_info =
+			  (char *) "doing insert buffer merge";
 			ibuf_contract_for_n_pages(TRUE, 5);
 
-			srv_main_thread_op_info = "flushing log";
+			srv_main_thread_op_info = (char *) "flushing log";
 			log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
 		}
 		
@@ -2359,20 +2363,20 @@ loop:
 						+ buf_pool->n_pages_written;
 	if (n_pend_ios < 3 && (n_ios - n_ios_very_old < 200)) {
 
-		srv_main_thread_op_info = "flushing buffer pool pages";
+		srv_main_thread_op_info =(char *) "flushing buffer pool pages";
 		buf_flush_batch(BUF_FLUSH_LIST, 50, ut_dulint_max);
 
-		srv_main_thread_op_info = "flushing log";
+		srv_main_thread_op_info = (char *) "flushing log";
 		log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
 	}
 
 	/* We run a batch of insert buffer merge every 10 seconds,
 	even if the server were active */
 
-	srv_main_thread_op_info = "doing insert buffer merge";
+	srv_main_thread_op_info = (char *) "doing insert buffer merge";
 	ibuf_contract_for_n_pages(TRUE, 5);
 
-	srv_main_thread_op_info = "flushing log";
+	srv_main_thread_op_info = (char *) "flushing log";
 	log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
 
 	/* We run a full purge every 10 seconds, even if the server
@@ -2389,13 +2393,13 @@ loop:
 			goto background_loop;
 		}
 
-		srv_main_thread_op_info = "purging";
+		srv_main_thread_op_info = (char *) "purging";
 		n_pages_purged = trx_purge();
 
 		current_time = time(NULL);
 
 		if (difftime(current_time, last_flush_time) > 1) {
-			srv_main_thread_op_info = "flushing log";
+			srv_main_thread_op_info = (char *) "flushing log";
 
 		        log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
 			last_flush_time = current_time;
@@ -2406,7 +2410,7 @@ background_loop:
 	/* In this loop we run background operations when the server
 	is quiet */
 
-	srv_main_thread_op_info = "reserving kernel mutex";
+	srv_main_thread_op_info = (char *) "reserving kernel mutex";
 
 	mutex_enter(&kernel_mutex);
 	if (srv_activity_count != old_activity_count) {
@@ -2419,11 +2423,11 @@ background_loop:
 	/* The server has been quiet for a while: start running background
 	operations */
 		
-	srv_main_thread_op_info = "purging";
+	srv_main_thread_op_info = (char *) "purging";
 
 	n_pages_purged = trx_purge();
 
-	srv_main_thread_op_info = "reserving kernel mutex";
+	srv_main_thread_op_info = (char *) "reserving kernel mutex";
 
 	mutex_enter(&kernel_mutex);
 	if (srv_activity_count != old_activity_count) {
@@ -2432,10 +2436,10 @@ background_loop:
 	}
 	mutex_exit(&kernel_mutex);
 
-	srv_main_thread_op_info = "doing insert buffer merge";
+	srv_main_thread_op_info = (char *) "doing insert buffer merge";
 	n_bytes_merged = ibuf_contract_for_n_pages(TRUE, 20);
 
-	srv_main_thread_op_info = "reserving kernel mutex";
+	srv_main_thread_op_info = (char *) "reserving kernel mutex";
 
 	mutex_enter(&kernel_mutex);
 	if (srv_activity_count != old_activity_count) {
@@ -2444,10 +2448,10 @@ background_loop:
 	}
 	mutex_exit(&kernel_mutex);
 	
-	srv_main_thread_op_info = "flushing buffer pool pages";
+	srv_main_thread_op_info = (char *) "flushing buffer pool pages";
 	n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 100, ut_dulint_max);
 
-	srv_main_thread_op_info = "reserving kernel mutex";
+	srv_main_thread_op_info = (char *) "reserving kernel mutex";
 
 	mutex_enter(&kernel_mutex);
 	if (srv_activity_count != old_activity_count) {
@@ -2456,14 +2460,15 @@ background_loop:
 	}
 	mutex_exit(&kernel_mutex);
 	
-	srv_main_thread_op_info = "waiting for buffer pool flush to end";
+	srv_main_thread_op_info =
+	  (char *) "waiting for buffer pool flush to end";
 	buf_flush_wait_batch_end(BUF_FLUSH_LIST);
 
-	srv_main_thread_op_info = "making checkpoint";
+	srv_main_thread_op_info = (char *) "making checkpoint";
 
 	log_checkpoint(TRUE, FALSE);
 
-	srv_main_thread_op_info = "reserving kernel mutex";
+	srv_main_thread_op_info = (char *) "reserving kernel mutex";
 
 	mutex_enter(&kernel_mutex);
 	if (srv_activity_count != old_activity_count) {
@@ -2472,7 +2477,8 @@ background_loop:
 	}
 	mutex_exit(&kernel_mutex);
 
-	srv_main_thread_op_info = "archiving log (if log archive is on)";
+	srv_main_thread_op_info =
+	  (char *) "archiving log (if log archive is on)";
 	
 	log_archive_do(FALSE, &n_bytes_archived);
 
@@ -2496,7 +2502,7 @@ background_loop:
 	master thread to wait for more server activity */
 	
 suspend_thread:
-	srv_main_thread_op_info = "suspending";
+	srv_main_thread_op_info = (char *) "suspending";
 
 	mutex_enter(&kernel_mutex);
 
@@ -2504,7 +2510,7 @@ suspend_thread:
 
 	mutex_exit(&kernel_mutex);
 
-	srv_main_thread_op_info = "waiting for server activity";
+	srv_main_thread_op_info = (char *) "waiting for server activity";
 
 	os_event_wait(event);
 

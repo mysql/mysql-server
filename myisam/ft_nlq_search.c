@@ -278,11 +278,6 @@ float ft_nlq_get_relevance(FT_INFO *handler)
   return handler->doc[handler->curdoc].weight;
 }
 
-my_off_t ft_nlq_get_docid(FT_INFO *handler)
-{
-  return handler->doc[handler->curdoc].dpos;
-}
-
 void ft_nlq_reinit_search(FT_INFO *handler)
 {
   handler->curdoc=-1;

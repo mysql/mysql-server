@@ -280,7 +280,7 @@ buf_page_print(
 	ut_sprintf_buf(buf, read_buf, UNIV_PAGE_SIZE);
 
 	fprintf(stderr,
-	"InnoDB: Page dump in ascii and hex (%lu bytes):\n%s",
+	"InnoDB: Page dump in ascii and hex (%u bytes):\n%s",
 					UNIV_PAGE_SIZE, buf);
 	fprintf(stderr, "InnoDB: End of page dump\n");
 
