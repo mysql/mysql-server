@@ -671,7 +671,7 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
   if (!(table_list = (TABLE_LIST*) sql_calloc(sizeof(TABLE_LIST))))
     DBUG_RETURN(1); // out of memory
   table_list->db = db;
-  table_list->real_name = table_list->name = tbl_name;
+  table_list->real_name = table_list->alias = tbl_name;
   table_list->lock_type = TL_READ_NO_INSERT;
   table_list->next = 0;
   remove_escape(table_list->real_name);
@@ -857,7 +857,7 @@ bool do_command(THD *thd)
       break;
     }
     thd->free_list=0;
-    table_list.name=table_list.real_name=thd->strdup(packet+1);
+    table_list.alias= table_list.real_name= thd->strdup(packet+1);
     thd->query=fields=thd->strdup(strend(packet+1)+1);
     mysql_log.write(thd,command,"%s %s",table_list.real_name,fields);
     remove_escape(table_list.real_name);	// This can't have wildcards
@@ -889,6 +889,8 @@ bool do_command(THD *thd)
 	net_printf(&thd->net,ER_WRONG_DB_NAME, db ? db : "NULL");
 	break;
       }
+      if (lower_case_table_names)
+	casedn_str(db);
       if (check_access(thd,CREATE_ACL,db,0,1))
 	break;
       mysql_log.write(thd,command,packet+1);
@@ -905,6 +907,8 @@ bool do_command(THD *thd)
 	net_printf(&thd->net,ER_WRONG_DB_NAME, db ? db : "NULL");
 	break;
       }
+      if (lower_case_table_names)
+	casedn_str(db);
       if (check_access(thd,DROP_ACL,db,0,1) || end_active_trans(thd))
 	break;
       mysql_log.write(thd,command,db);
@@ -1261,9 +1265,9 @@ mysql_execute_command(void)
       if (error)
 	  goto error;
     }
-    if (strlen(tables->name) > NAME_LEN)
+    if (strlen(tables->real_name) > NAME_LEN)
     {
-      net_printf(&thd->net,ER_WRONG_TABLE_NAME,tables->name);
+      net_printf(&thd->net,ER_WRONG_TABLE_NAME,tables->real_name);
       break;
     }
 
@@ -1292,9 +1296,9 @@ mysql_execute_command(void)
       if (error)
 	goto error;
     }
-    if (strlen(tables->name) > NAME_LEN)
+    if (strlen(tables->real_name) > NAME_LEN)
     {
-      net_printf(&thd->net,ER_WRONG_TABLE_NAME,tables->name);
+      net_printf(&thd->net,ER_WRONG_TABLE_NAME,tables->real_name);
       res=0;
       break;
     }
@@ -1767,7 +1771,7 @@ mysql_execute_command(void)
 	goto error;				/* purecov: inspected */
       }
       remove_escape(db);			// Fix escaped '_'
-      remove_escape(tables->name);
+      remove_escape(tables->real_name);
       if (!tables->db)
 	tables->db=thd->db;
       if (check_access(thd,SELECT_ACL | EXTRA_ACL,db,&thd->col_access))
@@ -1794,7 +1798,7 @@ mysql_execute_command(void)
 	goto error;				/* purecov: inspected */
       }
       remove_escape(db);			// Fix escaped '_'
-      remove_escape(tables->name);
+      remove_escape(tables->real_name);
       if (!tables->db)
 	tables->db=thd->db;
       if (check_access(thd,SELECT_ACL,db,&thd->col_access))
@@ -1923,6 +1927,8 @@ mysql_execute_command(void)
 	net_printf(&thd->net,ER_WRONG_DB_NAME, lex->name);
 	break;
       }
+      if (lower_case_table_names)
+	casedn_str(lex->name);
       if (check_access(thd,CREATE_ACL,lex->name,0,1))
 	break;
       mysql_create_db(thd,lex->name,lex->create_info.options);
@@ -1935,6 +1941,8 @@ mysql_execute_command(void)
 	net_printf(&thd->net,ER_WRONG_DB_NAME, lex->name);
 	break;
       }
+      if (lower_case_table_names)
+	casedn_str(lex->name);
       if (check_access(thd,DROP_ACL,lex->name,0,1) ||
 	  end_active_trans(thd))
 	break;
@@ -2748,12 +2756,16 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
     if (!(alias_str=sql_strmake(alias_str,table->table.length)))
       DBUG_RETURN(0);
   if (lower_case_table_names)
+  {
     casedn_str(table->table.str);
+    if (table->db.str)
+      casedn_str(table->db.str);
+  }
   if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
     DBUG_RETURN(0);				/* purecov: inspected */
   ptr->db= table->db.str;
   ptr->real_name=table->table.str;
-  ptr->name=alias_str;
+  ptr->alias=alias_str;
   ptr->lock_type=flags;
   ptr->updating=updating;
   if (use_index)
@@ -2771,7 +2783,7 @@ TABLE_LIST *add_table_to_list(Table_ident *table, LEX_STRING *alias,
     for (TABLE_LIST *tables=(TABLE_LIST*) thd->lex.table_list.first ; tables ;
 	 tables=tables->next)
     {
-      if (!strcmp(alias_str,tables->name) &&
+      if (!strcmp(alias_str,tables->alias) &&
 	  !strcmp(ptr->db ? ptr->db : current_db,
 		  tables->db ? tables->db : current_db))
       {

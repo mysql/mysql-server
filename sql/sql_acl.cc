@@ -130,9 +130,9 @@ int  acl_init(bool dont_read_acl_tables)
   thd->open_tables=0;
   thd->db=my_strdup("mysql",MYF(0));
   bzero((char*) &tables,sizeof(tables));
-  tables[0].name=tables[0].real_name=(char*) "host";
-  tables[1].name=tables[1].real_name=(char*) "user";
-  tables[2].name=tables[2].real_name=(char*) "db";
+  tables[0].alias=tables[0].real_name=(char*) "host";
+  tables[1].alias=tables[1].real_name=(char*) "user";
+  tables[2].alias=tables[2].real_name=(char*) "db";
   tables[0].next=tables+1;
   tables[1].next=tables+2;
   tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_READ;
@@ -922,7 +922,7 @@ static bool update_user_table(THD *thd, const char *host, const char *user,
   DBUG_PRINT("enter",("user: %s  host: %s",user,host));
 
   bzero((char*) &tables,sizeof(tables));
-  tables.name=tables.real_name=(char*) "user";
+  tables.alias=tables.real_name=(char*) "user";
   tables.db=(char*) "mysql";
   if (!(table=open_ltable(thd,&tables,TL_WRITE)))
     DBUG_RETURN(1); /* purecov: deadcode */
@@ -1653,7 +1653,7 @@ int mysql_table_grant (THD *thd, TABLE_LIST *table_list,
 			       check->column.length(),0,0))
       {
 	my_printf_error(ER_BAD_FIELD_ERROR,ER(ER_BAD_FIELD_ERROR),MYF(0),
-			check->column.c_ptr(),table_list->name);
+			check->column.c_ptr(),table_list->alias);
 	DBUG_RETURN(-1);
       }
       column_priv |= check->rights | (rights & COL_ACLS);
@@ -1664,11 +1664,11 @@ int mysql_table_grant (THD *thd, TABLE_LIST *table_list,
   {
     char buf[FN_REFLEN];
     sprintf(buf,"%s/%s/%s.frm",mysql_data_home,table_list->db,
-	    table_list->name);
+	    table_list->real_name);
     fn_format(buf,buf,"","",4+16+32);
     if (access(buf,F_OK))
     {
-      my_error(ER_NO_SUCH_TABLE,MYF(0),table_list->db,table_list->name);
+      my_error(ER_NO_SUCH_TABLE,MYF(0),table_list->db,table_list->real_name);
       DBUG_RETURN(-1);
     }
   }
@@ -1676,9 +1676,9 @@ int mysql_table_grant (THD *thd, TABLE_LIST *table_list,
   /* open the mysql.tables_priv and mysql.columns_priv tables */
 
   bzero((char*) &tables,sizeof(tables));
-  tables[0].name=tables[0].real_name= (char*) "user";
-  tables[1].name=tables[1].real_name= (char*) "tables_priv";
-  tables[2].name=tables[2].real_name= (char*) "columns_priv";
+  tables[0].alias=tables[0].real_name= (char*) "user";
+  tables[1].alias=tables[1].real_name= (char*) "tables_priv";
+  tables[2].alias=tables[2].real_name= (char*) "columns_priv";
   tables[0].next=tables+1;
   /* Don't open column table if we don't need it ! */
   tables[1].next=((column_priv ||
@@ -1702,6 +1702,7 @@ int mysql_table_grant (THD *thd, TABLE_LIST *table_list,
 
   while ((Str = str_list++))
   {
+    int error;
     GRANT_TABLE *grant_table;
     if (!Str->host.str)
     {
@@ -1716,11 +1717,14 @@ int mysql_table_grant (THD *thd, TABLE_LIST *table_list,
       continue;
     }
     /* Create user if needed */
-    if (replace_user_table(tables[0].table,
-			    *Str,
-			    0,
-			   revoke_grant ? 'N' : 'Y',
-			   create_new_users))
+    pthread_mutex_lock(&acl_cache->lock);
+    error=replace_user_table(tables[0].table,
+			     *Str,
+			     0,
+			     revoke_grant ? 'N' : 'Y',
+			     create_new_users);
+    pthread_mutex_unlock(&acl_cache->lock);
+    if (error)
     {
       result= -1;				// Remember error
       continue;					// Add next user
@@ -1729,20 +1733,20 @@ int mysql_table_grant (THD *thd, TABLE_LIST *table_list,
     /* Find/create cached table grant */
     grant_table= table_hash_search(Str->host.str,NullS,table_list->db,
 				   Str->user.str,
-				   table_list->name,1);
+				   table_list->real_name,1);
     if (!grant_table)
     {
       if (revoke_grant)
       {
 	my_printf_error(ER_NONEXISTING_TABLE_GRANT,
 			ER(ER_NONEXISTING_TABLE_GRANT),MYF(0),
-			Str->user.str, Str->host.str,table_list->name);
+			Str->user.str, Str->host.str, table_list->real_name);
 	result= -1;
 	continue;
       }
       grant_table = new GRANT_TABLE (Str->host.str,table_list->db,
 				     Str->user.str,
-				     table_list->name,
+				     table_list->real_name,
 				     rights,
 				     column_priv);
       if (!grant_table)				// end of memory
@@ -1789,7 +1793,7 @@ int mysql_table_grant (THD *thd, TABLE_LIST *table_list,
 
     if (replace_table_table(thd,grant_table,tables[1].table,*Str,
 			    table_list->db,
-			    table_list->name,
+			    table_list->real_name,
 			    rights, column_priv, revoke_grant))
     {						// Crashend table ??
       result= -1;			       /* purecov: deadcode */
@@ -1799,7 +1803,7 @@ int mysql_table_grant (THD *thd, TABLE_LIST *table_list,
       if ((replace_column_table(grant_table,tables[2].table, *Str,
 				columns,
 				table_list->db,
-				table_list->name,
+				table_list->real_name,
 				rights, revoke_grant)))
       {
 	result= -1;
@@ -1836,8 +1840,8 @@ int mysql_grant (THD *thd, const char *db, List <LEX_USER> &list, uint rights,
 
   /* open the mysql.user and mysql.db tables */
 
-  tables[0].name=tables[0].real_name=(char*) "user";
-  tables[1].name=tables[1].real_name=(char*) "db";
+  tables[0].alias=tables[0].real_name=(char*) "user";
+  tables[1].alias=tables[1].real_name=(char*) "db";
   tables[0].next=tables+1;
   tables[1].next=0;
   tables[0].lock_type=tables[1].lock_type=TL_WRITE;
@@ -1930,8 +1934,8 @@ int  grant_init (void)
   thd->open_tables=0;
   thd->db=my_strdup("mysql",MYF(0));
   bzero((char*) &tables,sizeof(tables));
-  tables[0].name=tables[0].real_name= (char*) "tables_priv";
-  tables[1].name=tables[1].real_name= (char*) "columns_priv";
+  tables[0].alias=tables[0].real_name= (char*) "tables_priv";
+  tables[1].alias=tables[1].real_name= (char*) "columns_priv";
   tables[0].next=tables+1;
   tables[0].lock_type=tables[1].lock_type=TL_READ;
   tables[0].db=tables[1].db=thd->db;
@@ -2270,6 +2274,7 @@ bool check_grant_db(THD *thd,const char *db)
 
 uint get_table_grant(THD *thd, TABLE_LIST *table)
 {
+  uint privilege;
   char *user = thd->priv_user;
   const char *db = table->db ? table->db : thd->db;
   GRANT_TABLE *grant_table;
@@ -2281,8 +2286,9 @@ uint get_table_grant(THD *thd, TABLE_LIST *table)
   table->grant.version=grant_version;
   if (grant_table)
     table->grant.privilege|= grant_table->privs;
+  privilege= table->grant.privilege;
   pthread_mutex_unlock(&LOCK_grant);
-  return table->grant.privilege;
+  return privilege;
 }
 
 
@@ -2335,7 +2341,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
   int  error = 0;
   ACL_USER *acl_user; ACL_DB *acl_db;
   char buff[1024];
-  DBUG_ENTER("mysql_grant");
+  DBUG_ENTER("mysql_show_grants");
 
   LINT_INIT(acl_user);
   if (!initialized)
@@ -2384,6 +2390,7 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
   if (send_fields(thd,field_list,1))
     DBUG_RETURN(-1);
 
+  pthread_mutex_lock(&LOCK_grant);
   VOID(pthread_mutex_lock(&acl_cache->lock));
 
   /* Add first global access grants */
@@ -2578,13 +2585,16 @@ int mysql_show_grants(THD *thd,LEX_USER *lex_user)
 			 thd->packet.length()))
 	{
 	  error=-1;
-	  goto end;
+	  break;
 	}
       }
     }
   }
+
  end:
   VOID(pthread_mutex_unlock(&acl_cache->lock));
+  pthread_mutex_unlock(&LOCK_grant);
+
   send_eof(&thd->net);
   DBUG_RETURN(error);
 }
