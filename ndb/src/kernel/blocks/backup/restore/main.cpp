@@ -69,10 +69,6 @@ typedef struct  {
 } restore_callback_t;
 
 static const char* ga_connect_NDB = NULL;
-static const char* ga_schema = NULL;
-static const char* ga_catalog = NULL;
-
-
 
 /**
  * print and restore flags
@@ -206,18 +202,6 @@ readArguments(const int argc, const char** argv)
       "No of parallel transactions during restore of data."
       "(parallelism can be 1 to 1024)", 
       "Parallelism"},
-#if NDB_VERSION_MAJOR >= VERSION_3X
-    { "catalog", 'd', arg_string, &ga_catalog, 
-      "Specifies the catalog/database where the data should be restored to. "
-      "Restores only to backups taken with v.2.x and restored on >v.3.x "
-      "systems. Note: system tables (if restored) defaults to sys/def/ ",
-      "catalog"},
-    { "schema", 's', arg_string, &ga_schema, 
-      "Specifies the schema where the data should be restored to."
-      "Restores only to backups taken with v.2.x and restored on >v.3.x "
-      "systems. Note: system tables (if restored) defaults to sys/def/ ",
-      "schema"},
-#endif
 #ifdef USE_MYSQL
     { "use_mysql", '\0', arg_flag, &use_mysql,
       "Restore meta data via mysql. Systab will be ignored. Data is restored "
@@ -353,10 +337,6 @@ main(int argc, const char** argv)
   {
     return -1;
   }
-  // Turn off table name completion
-#if NDB_VERSION_MAJOR >= VERSION_3X
-  Ndb::useFullyQualifiedNames(false);
-#endif
 
   /**
    * we must always load meta data, even if we will only print it to stdout
@@ -368,41 +348,19 @@ main(int argc, const char** argv)
     return -1;
   }
   /**
-   * check wheater we can restore the backup (right version, and if that
-   * version needs catalog and schema specified.
+   * check wheater we can restore the backup (right version).
    */
-  int res  = metaData.loadContent(ga_catalog, ga_schema);
+  int res  = metaData.loadContent();
 
-  if (res == 0) 
+  if (res == 0)
   {
     ndbout_c("Restore: Failed to load content");
-    return -1;
-  }
-  if (res == -1) 
-  {
-    ndbout_c("Restore: The backup is from a NDB Cluster v.2.x version. "
-	     "To restore this backup on a > 3.x version you must specify "
-	     "catalog and schema.");
-    return -1;
-  }
-  if (res == -2) 
-  {
-#ifdef NDB_VERSION
-    ndbout_c("Restore: The backup is from a NDB Cluster v.3.x version "
-	     "Catalog and schema are invalid parameters since they "
-	     "already exist implicitly.");
-#endif
-#ifdef NDB_KERNEL_VERSION
-    ndbout_c("Restore: The backup is from a NDB Cluster v.3.x version "
-	     "It is not possible to restore a 3.x backup on v.2.x. ");
-#endif
     return -1;
   }
   
   if (res == -3) 
   {
-    ndbout_c("Restore: The backup contains no tables "
-	     "Catalog and schema are invalid parameters. ");
+    ndbout_c("Restore: The backup contains no tables ");
     return -1;
   }
 
@@ -879,10 +837,14 @@ BackupRestore::init()
     Ndb::setConnectString(ga_connect_NDB);
   }
 
-  m_ndb = new Ndb("TEST_DB");
+  m_ndb = new Ndb();
+
   if (m_ndb == NULL)
     return false;
   
+  // Turn off table name completion
+  m_ndb->useFullyQualifiedNames(false);
+
   m_ndb->init(1024);
   if (m_ndb->waitUntilReady(30) != 0)
   {
@@ -1106,7 +1068,6 @@ BackupRestore::table(const TableS & table){
   {
     return true;
   }
-#ifndef restore_old_types
   NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
   if (dict->createTable(*table.m_dictTable) == -1) 
   {
@@ -1116,81 +1077,6 @@ BackupRestore::table(const TableS & table){
   }
   info << "Successfully restored table " << table.getTableName()<< endl ;
   return true;
-#else
-  NdbSchemaCon * tableTransaction = 0;
-  NdbSchemaOp * tableOp = 0;
-  
-  tableTransaction = m_ndb->startSchemaTransaction();
-  if (tableTransaction == NULL) 
-  {
-    err << table.getTableName() 
-	<< " - BackupRestore::table cannot startSchemaTransaction: "
-	<< tableTransaction->getNdbError() << endl;
-    return false;
-  } // if
-  
-  tableOp = tableTransaction->getNdbSchemaOp();
-  if (tableOp == NULL) 
-  {
-    err << table.getTableName()
-	<< " - BackupRestore::table cannot getNdbSchemaOp: "
-	<< tableTransaction->getNdbError() << endl;
-    m_ndb->closeSchemaTransaction(tableTransaction);
-    return false;
-  } // if
-  
-  // TODO: check for errors in table attributes. set aTupleKey
-  int check = 0;
-  check = tableOp->createTable(table.getTableName());
-  // aTableSize = 8, Not used?
-  // aTupleKey = TupleKey, go through attributes and check if there is a PK
-  // and so on....
-  if (check == -1) 
-  {
-    err << table.getTableName()
-	<< " - BackupRestore::table cannot createTable: "
-	<< tableTransaction->getNdbError() << endl;
-    m_ndb->closeSchemaTransaction(tableTransaction);
-    return false;
-  } // if
-  
-  // Create attributes from meta data
-  for (int i = 0; i < table.getNoOfAttributes(); i++) 
-  {
-    const AttributeDesc* desc = table[i];
-    check = tableOp->createAttribute(desc->name, // Attr name
-				     desc->key,  // Key type
-				     desc->size, // bits
-				     desc->arraySize,
-				     desc->type,
-				     MMBased,               // only supported
-				       desc->nullable
-				     // Rest is don't care for the moment
-				     );
-    
-    if (check == -1) 
-    {
-      err << table.getTableName()
-	    << " - RestoreDataIterator::createTable cannot createAttribute: "
-	  << tableTransaction->getNdbError() << endl;
-      m_ndb->closeSchemaTransaction(tableTransaction);
-      return false;
-    } // if
-  } // for 
-  
-  if (tableTransaction->execute() == -1) 
-  {
-    err << table.getTableName()
-	  << " - RestoreDataIterator::createTable cannot execute transaction: "
-	<< tableTransaction->getNdbError() << endl;
-    m_ndb->closeSchemaTransaction(tableTransaction);
-    return false;
-  } // if
-  
-  m_ndb->closeSchemaTransaction(tableTransaction);
-  info << "Successfully created table " << table.getTableName() << endl;
-  return true ;
-#endif
 }
 
 
@@ -1314,26 +1200,6 @@ void BackupRestore::tupleAsynch(const TupleS & tup, restore_callback_t * cbData)
       Uint32 length = (size * arraySize) / 8;
       if (key == TupleKey) 
       {
-#if NDB_VERSION_MAJOR >= VERSION3X
-	/**
-	 * Convert VARCHAR from v.2x to v3x representation
-	 */
-	if (getMajor(tup.getTable()->getBackupVersion()) < VERSION_3X && 
-	   ((tup.getTable()->m_dictTable->getColumn(i)->getType() ==
-	     NdbDictionary::Column::Varbinary  ) ||
-	    (tup.getTable()->m_dictTable->getColumn(i)->getType() ==
-	     NdbDictionary::Column::Varchar))  && !attr->Data.null) 
-	{	  
-	  char * src = dataPtr;
-	  char var_len[2];
-	  var_len[0]= *(dataPtr+length - 2);
-	  var_len[1]= *(dataPtr+length - 1);
-	  memmove((char*)dataPtr+2, dataPtr, length);
-	  src[0] = var_len[0];
-	  src[1] = var_len[1];
-	  dataPtr = src;
-	}	
-#endif
 	ret = op->equal(i, dataPtr, length);
 	if (ret<0) 
 	{
@@ -1358,48 +1224,21 @@ void BackupRestore::tupleAsynch(const TupleS & tup, restore_callback_t * cbData)
       KeyType key = attr->Desc->key;
       char * dataPtr = attr->Data.string_value;
       Uint32 length = (size * arraySize) / 8;
-#if NDB_VERSION_MAJOR >= VERSION3X
-      /**
-       * Convert VARCHAR from v.2x to v3x representation
-	 */
-      if (getMajor(tup.getTable()->getBackupVersion()) < VERSION_3X && 
-	 ((tup.getTable()->m_dictTable->getColumn(i)->getType() ==
-	     NdbDictionary::Column::Varbinary  ) ||
-	    (tup.getTable()->m_dictTable->getColumn(i)->getType() ==
-	     NdbDictionary::Column::Varchar)) && !attr->Data.null) 
-	  {
-	    char * src = dataPtr;
-	    char var_len[2];
-	    var_len[0]= *(dataPtr+length - 2);//length is last 2 bytes
-	    var_len[1]= *(dataPtr+length - 1);
-	    memmove((char*)dataPtr+2, dataPtr, length);
-	    src[0] = var_len[0];
-	    src[1] = var_len[1];
-	    dataPtr = src;
-	  }	
-#endif
 	
       if (key == NoKey && !attr->Data.null) 
-	{
 	  ret = op->setValue(i, dataPtr, length);
-	} 
       else if (key == NoKey && attr->Data.null) 
-	{
 	  ret = op->setValue(i, NULL, 0);
-	}
       
       if (ret<0) 
       {
 	ndbout_c("Column: %d type %d",i,
 		 tup.getTable()->m_dictTable->getColumn(i)->getType());
-
 	if (asynchErrorHandler(asynchTrans[nPreparedTransactions], m_ndb)) 
 	{
 	  retries++;
 	  continue;
 	}
-
-	
 	asynchExitHandler();
       }
     }
