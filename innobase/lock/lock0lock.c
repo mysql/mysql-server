@@ -509,6 +509,7 @@ lock_sys_create(
 	/* hash_create_mutexes(lock_sys->rec_hash, 2, SYNC_REC_LOCK); */
 
 	lock_latest_err_file = os_file_create_tmpfile();
+	ut_a(lock_latest_err_file);
 }
 
 /*************************************************************************

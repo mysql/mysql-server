@@ -139,7 +139,7 @@ Creates a temporary file. In case of error, causes abnormal termination. */
 FILE*
 os_file_create_tmpfile(void);
 /*========================*/
-				/* out: temporary file handle (never NULL) */
+				/* out: temporary file handle, or NULL */
 /********************************************************************
 A simple function to open or create a file. */
 
