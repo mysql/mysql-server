@@ -56,17 +56,6 @@ public:
 		  EXISTS_SUBS, IN_SUBS, ALL_SUBS, ANY_SUBS};
 
   Item_subselect();
-  Item_subselect(Item_subselect *item)
-  {
-    substitution= item->substitution;
-    null_value= item->null_value;
-    decimals= item->decimals;
-    max_columns= item->max_columns;
-    engine= item->engine;
-    engine_owner= 0;
-    engine_changed= item->engine_changed;
-    name= item->name;
-  }
 
   virtual subs_type substype() { return UNKNOWN_SUBS; }
 
@@ -123,13 +112,6 @@ protected:
   Item_cache *value, **row;
 public:
   Item_singlerow_subselect(THD *thd, st_select_lex *select_lex);
-  Item_singlerow_subselect(Item_singlerow_subselect *item):
-    Item_subselect(item)
-  {
-    value= item->value;
-    max_length= item->max_length;
-    decimals= item->decimals;
-  }
   Item_singlerow_subselect() :Item_subselect(), value(0), row (0) {}
 
   subs_type substype() { return SINGLEROW_SUBS; }
@@ -140,7 +122,6 @@ public:
   double val();
   longlong val_int ();
   String *val_str (String *);
-  Item *new_item() { return new Item_singlerow_subselect(this); }
   enum Item_result result_type() const;
   void fix_length_and_dec();
 
@@ -172,11 +153,6 @@ protected:
 
 public:
   Item_exists_subselect(THD *thd, st_select_lex *select_lex);
-  Item_exists_subselect(Item_exists_subselect *item):
-    Item_subselect(item)
-  {
-    value= item->value;
-  }
   Item_exists_subselect(): Item_subselect() {}
 
   subs_type substype() { return EXISTS_SUBS; }
@@ -185,7 +161,6 @@ public:
     value= 0;
   }
 
-  Item *new_item() { return new Item_exists_subselect(this); }
   enum Item_result result_type() const { return INT_RESULT;}
   longlong val_int();
   double val();
@@ -215,7 +190,6 @@ public:
   Item_func_not_all *upper_not; // point on NOT before ALL subquery
 
   Item_in_subselect(THD *thd, Item * left_expr, st_select_lex *select_lex);
-  Item_in_subselect(Item_in_subselect *item);
   Item_in_subselect()
     :Item_exists_subselect(), abort_on_null(0), upper_not(0) {}
 
@@ -252,7 +226,7 @@ protected:
 public:
   Item_allany_subselect(THD *thd, Item * left_expr, compare_func_creator f,
 		     st_select_lex *select_lex);
-  Item_allany_subselect(Item_allany_subselect *item);
+
   // only ALL subquery has upper not
   subs_type substype() { return upper_not?ALL_SUBS:ANY_SUBS; }
   trans_res select_transformer(JOIN *join);
