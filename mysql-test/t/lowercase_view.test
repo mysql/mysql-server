@@ -1,0 +1,11 @@
+--disable_warnings
+drop database if exists MySQLTest;
+--enable_warnings
+
+
+create database MySQLTest;
+use MySQLTest;
+create table TaB (Field int);
+create view ViE as select * from TAb;
+show create table VIe;
+drop database MySQLTest;

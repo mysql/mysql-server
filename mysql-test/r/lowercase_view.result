@@ -1,0 +1,9 @@
+drop database if exists MySQLTest;
+create database MySQLTest;
+use MySQLTest;
+create table TaB (Field int);
+create view ViE as select * from TAb;
+show create table VIe;
+Table	Create Table
+vie	CREATE VIEW `mysqltest`.`vie` AS select `mysqltest`.`tab`.`Field` AS `Field` from `mysqltest`.`tab`
+drop database MySQLTest;
