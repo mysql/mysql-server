@@ -15,11 +15,12 @@ typedef struct st_master_info
   char password[HASH_PASSWORD_LENGTH+1];
   uint port;
   uint connect_retry;
+  uint32 last_log_seq; // log sequence number of last processed event
   pthread_mutex_t lock;
   pthread_cond_t cond;
   bool inited;
   
-  st_master_info():pending(0),fd(-1),inited(0)
+  st_master_info():pending(0),fd(-1),last_log_seq(0),inited(0)
   {
     host[0] = 0; user[0] = 0; password[0] = 0;
     pthread_mutex_init(&lock, MY_MUTEX_INIT_FAST);

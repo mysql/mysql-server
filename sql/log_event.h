@@ -107,6 +107,7 @@
 #define BINLOG_MAGIC        "\xfe\x62\x69\x6e"
 
 #define LOG_EVENT_TIME_F           0x1
+#define LOG_EVENT_FORCED_ROTATE_F  0x2
 
 enum Log_event_type { START_EVENT = 1, QUERY_EVENT =2,
 		      STOP_EVENT=3, ROTATE_EVENT = 4, INTVAR_EVENT=5,

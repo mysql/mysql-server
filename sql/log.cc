@@ -534,7 +534,14 @@ void MYSQL_LOG::new_file()
 	to change base names at some point.
       */
       Rotate_log_event r(new_name+dirname_length(new_name));
+      THD* thd = current_thd;
       r.set_log_seq(0, this);
+      // this log rotation could have been initiated by a master of
+      // the slave running with log-bin
+      // we set the flag on rotate event to prevent inifinite log rotation
+      // loop
+      if(thd && slave_thd && thd == slave_thd)
+	r.flags |= LOG_EVENT_FORCED_ROTATE_F;
       r.write(&log_file);
       VOID(pthread_cond_broadcast(&COND_binlog_update));
     }

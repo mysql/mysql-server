@@ -189,7 +189,11 @@ void Load_log_event::pack_info(String* packet)
 
 void Rotate_log_event::pack_info(String* packet)
 {
-  net_store_data(packet, new_log_ident, ident_len);
+  String tmp;
+  tmp.append(new_log_ident, ident_len);
+  if(flags & LOG_EVENT_FORCED_ROTATE_F)
+    tmp.append("; forced by master");
+  net_store_data(packet, tmp.ptr(), tmp.length());
 }
 
 void Intvar_log_event::pack_info(String* packet)

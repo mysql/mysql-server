@@ -20,6 +20,9 @@ show binlog events from 79 limit 1;
 show binlog events from 79 limit 2;
 show binlog events from 79 limit 2,1;
 flush logs;
+create table t1 (n int);
+insert into t1 values (1);
+drop table t1;
 show binlog events;
 show binlog events in 'master-bin.002';
 show master logs;
@@ -30,3 +33,5 @@ sync_with_master;
 show master logs;
 show binlog events in 'slave-bin.001' from 4;
 show binlog events in 'slave-bin.002' from 4;
+--replace_result 9306 9999 3334 9999 3335 9999
+show slave status;

@@ -6,4 +6,5 @@ replicate
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 9306
 1
+0
 EOF
