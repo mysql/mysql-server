@@ -3063,11 +3063,15 @@ sum_expr:
 	  { $$=new Item_sum_variance($3); }
 	| SUM_SYM '(' in_sum_expr ')'
 	  { $$=new Item_sum_sum($3); }
-	| GROUP_CONCAT_SYM '(' opt_distinct expr_list opt_gorder_clause
-	  opt_gconcat_separator ')'
+	| GROUP_CONCAT_SYM '(' opt_distinct
+	  { Select->in_sum_expr++; }
+	  expr_list opt_gorder_clause
+	  opt_gconcat_separator
+	 ')'
 	  {
-	    $$=new Item_func_group_concat($3,$4,Select->gorder_list,$6);
-	    $4->empty();
+	    Select->in_sum_expr--;
+	    $$=new Item_func_group_concat($3,$5,Select->gorder_list,$7);
+	    $5->empty();
 	  };
 
 opt_distinct:

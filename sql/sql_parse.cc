@@ -3717,6 +3717,10 @@ static bool check_db_used(THD *thd,TABLE_LIST *tables)
 #define used_stack(A,B) (long) (B - A)
 #endif
 
+#ifndef DBUG_OFF
+long max_stack_used;
+#endif
+
 #ifndef EMBEDDED_LIBRARY
 bool check_stack_overrun(THD *thd,char *buf __attribute__((unused)))
 {
@@ -3729,6 +3733,9 @@ bool check_stack_overrun(THD *thd,char *buf __attribute__((unused)))
     thd->fatal_error();
     return 1;
   }
+#ifndef DBUG_OFF
+  max_stack_used= max(max_stack_used, stack_used);
+#endif
   return 0;
 }
 #endif /* EMBEDDED_LIBRARY */

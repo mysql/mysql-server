@@ -1120,10 +1120,10 @@ typedef union {
 			  *((T)+1)=(((A) >> 16));\
 			  *((T)+0)=(((A) >> 24)); }
 
-#define doubleget(V,M)	 memcpy((byte*) &V,(byte*) (M),sizeof(double))
-#define doublestore(T,V) memcpy((byte*) (T),(byte*) &V,sizeof(double))
-#define longlongget(V,M) memcpy((byte*) &V,(byte*) (M),sizeof(ulonglong))
-#define longlongstore(T,V) memcpy((byte*) (T),(byte*) &V,sizeof(ulonglong))
+#define doubleget(V,M)	 memcpy_fixed((byte*) &V,(byte*) (M),sizeof(double))
+#define doublestore(T,V) memcpy_fixed((byte*) (T),(byte*) &V,sizeof(double))
+#define longlongget(V,M) memcpy_fixed((byte*) &V,(byte*) (M),sizeof(ulonglong))
+#define longlongstore(T,V) memcpy_fixed((byte*) (T),(byte*) &V,sizeof(ulonglong))
 
 #else
 
