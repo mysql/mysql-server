@@ -1497,7 +1497,8 @@ ndb_mgm_get_configuration(NdbMgmHandle handle, unsigned int version) {
       ndbout_c("Failed to unpack buffer");
       break;
     }
-    
+
+    delete prop;
     return (ndb_mgm_configuration*)cvf.m_cfg;
   } while(0);
 

@@ -57,11 +57,15 @@ NdbScanOperation::NdbScanOperation(Ndb* aNdb) :
   m_conf_receivers = 0;
   m_sent_receivers = 0;
   m_receivers = 0;
+  m_array = new Uint32[1]; // skip if on delete in fix_receivers
 }
 
 NdbScanOperation::~NdbScanOperation()
 {
-  fix_receivers(0, false);
+  for(Uint32 i = 0; i<m_allocated_receivers; i++){
+    theNdb->releaseNdbScanRec(m_receivers[i]);
+  }
+  delete[] m_array;
   if (m_resultSet)
     delete m_resultSet;
 }
@@ -130,31 +134,23 @@ NdbScanOperation::init(NdbTableImpl* tab, NdbConnection* myConnection)
 
 NdbResultSet* NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
 					   Uint32 batch, 
-					   Uint32 parallell)
+					   Uint32 parallel)
 {
   m_ordered = 0;
 
   Uint32 fragCount = m_currentTable->m_fragmentCount;
 
-  if(batch + parallell == 0){ // Max speed
+  if (batch + parallel == 0) {
     batch = 16;
-    parallell = fragCount;
-  }
-
-  if(batch == 0 && parallell > 0){ // Backward
-    batch = (parallell >= 16 ? 16 : parallell & 15);
-    parallell = (parallell + 15) / 16;
-    
-    if(parallell == 0)
-      parallell = 1;
-  }
-  
-  if(parallell > fragCount) 
-    parallell = fragCount;
-  else if(parallell == 0)
-    parallell = fragCount;
-  
-  assert(parallell > 0);
+    parallel= fragCount;
+ } else {
+   if (batch == 0 && parallel > 0) { // Backward
+     batch = (parallel >= 16 ? 16 : parallel);
+     parallel = (parallel + 15) / 16;
+   }
+   if (parallel > fragCount || parallel == 0)
+     parallel = fragCount;
+ }
 
   // It is only possible to call openScan if 
   //  1. this transcation don't already  contain another scan operation
@@ -179,7 +175,7 @@ NdbResultSet* NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
     lockHoldMode = true;
     readCommitted = false;
     break;
-  case NdbScanOperation::LM_Dirty:
+  case NdbScanOperation::LM_CommittedRead:
     lockExcl = false;
     lockHoldMode = false;
     readCommitted = true;
@@ -204,10 +200,10 @@ NdbResultSet* NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
     range = true;
   }
   
-  theParallelism = parallell;
+  theParallelism = parallel;
   theBatchSize = batch;
 
-  if(fix_receivers(parallell, lockExcl) == -1){
+  if(fix_receivers(parallel) == -1){
     setErrorCodeAbort(4000);
     return 0;
   }
@@ -226,7 +222,7 @@ NdbResultSet* NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
   req->buddyConPtr = theNdbCon->theBuddyConPtr;
   
   Uint32 reqInfo = 0;
-  ScanTabReq::setParallelism(reqInfo, parallell);
+  ScanTabReq::setParallelism(reqInfo, parallel);
   ScanTabReq::setScanBatch(reqInfo, batch);
   ScanTabReq::setLockMode(reqInfo, lockExcl);
   ScanTabReq::setHoldLockFlag(reqInfo, lockHoldMode);
@@ -244,38 +240,38 @@ NdbResultSet* NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
 }
 
 int
-NdbScanOperation::fix_receivers(Uint32 parallell, bool keyInfo){
-  if(parallell == 0 || parallell > m_allocated_receivers){
-    if(m_prepared_receivers) delete[] m_prepared_receivers;
-    if(m_receivers) delete[] m_receivers;
-    if(m_api_receivers) delete[] m_api_receivers;
-    if(m_conf_receivers) delete[] m_conf_receivers;
-    if(m_sent_receivers) delete[] m_sent_receivers;
-    
-    m_allocated_receivers = parallell;
-    if(parallell == 0){
-      return 0;
-    }
-    
-    m_prepared_receivers = new Uint32[parallell];
-    m_receivers = new NdbReceiver*[parallell];
-    m_api_receivers = new NdbReceiver*[parallell];
-    m_conf_receivers = new NdbReceiver*[parallell];
-    m_sent_receivers = new NdbReceiver*[parallell];
+NdbScanOperation::fix_receivers(Uint32 parallel){
+  assert(parallel > 0);
+  if(parallel > m_allocated_receivers){
+    const Uint32 sz = parallel * (4*sizeof(char*)+sizeof(Uint32));
 
+    Uint32 * tmp = new Uint32[(sz+3)/4];
+    // Save old receivers
+    memcpy(tmp+parallel, m_receivers, m_allocated_receivers*sizeof(char*));
+    delete[] m_array;
+    m_array = tmp;
+    
+    m_prepared_receivers = tmp;
+    m_receivers = (NdbReceiver**)(tmp + parallel);
+    m_api_receivers = m_receivers + parallel;
+    m_conf_receivers = m_api_receivers + parallel;
+    m_sent_receivers = m_conf_receivers + parallel;
+
+    // Only get/init "new" receivers
     NdbReceiver* tScanRec;
-    for (Uint32 i = 0; i < parallell; i ++) {
+    for (Uint32 i = m_allocated_receivers; i < parallel; i ++) {
       tScanRec = theNdb->getNdbScanRec();
       if (tScanRec == NULL) {
 	setErrorCodeAbort(4000);
 	return -1;
       }//if
       m_receivers[i] = tScanRec;
-      tScanRec->init(NdbReceiver::NDB_SCANRECEIVER, this, keyInfo);
+      tScanRec->init(NdbReceiver::NDB_SCANRECEIVER, this);
     }
+    m_allocated_receivers = parallel;
   }
-
-  for(Uint32 i = 0; i<parallell; i++){
+  
+  for(Uint32 i = 0; i<parallel; i++){
     m_receivers[i]->m_list_index = i;
     m_prepared_receivers[i] = m_receivers[i]->getId();
     m_sent_receivers[i] = m_receivers[i];
@@ -285,7 +281,7 @@ NdbScanOperation::fix_receivers(Uint32 parallell, bool keyInfo){
   
   m_api_receivers_count = 0;
   m_current_api_receiver = 0;
-  m_sent_receivers_count = parallell;
+  m_sent_receivers_count = parallel;
   m_conf_receivers_count = 0;
   return 0;
 }
@@ -375,7 +371,7 @@ NdbScanOperation::getFirstATTRINFOScan()
  * a separate list.  Then continue with normal scan.
  */
 int
-NdbScanOperation::saveBoundATTRINFO()
+NdbIndexScanOperation::saveBoundATTRINFO()
 {
   theCurrentATTRINFO->setLength(theAI_LenInCurrAI);
   theBoundATTRINFO = theFirstATTRINFO;
@@ -395,18 +391,27 @@ NdbScanOperation::saveBoundATTRINFO()
    *   unless the one's with EqBound
    */
   if(!res && m_ordered){
-    Uint32 idx = 0;
-    Uint32 cnt = m_currentTable->getNoOfPrimaryKeys();
-    while(!theTupleKeyDefined[idx][0] && idx < cnt){
-      NdbColumnImpl* col = m_currentTable->getColumn(idx);
+
+    /**
+     * If setBound EQ
+     */
+    Uint32 i = 0;
+    while(theTupleKeyDefined[i][0] == SETBOUND_EQ)
+      i++;
+    
+    
+    Uint32 cnt = m_accessTable->getNoOfColumns() - 1;
+    m_sort_columns = cnt - i;
+    for(; i<cnt; i++){
+      NdbColumnImpl* key = m_accessTable->m_index->m_columns[i];
+      NdbColumnImpl* col = m_currentTable->getColumn(key->m_keyInfoPos);
       NdbRecAttr* tmp = NdbScanOperation::getValue_impl(col, (char*)-1);
       UintPtr newVal = UintPtr(tmp);
-      theTupleKeyDefined[idx][0] = FAKE_PTR;
-      theTupleKeyDefined[idx][1] = (newVal & 0xFFFFFFFF);
+      theTupleKeyDefined[i][0] = FAKE_PTR;
+      theTupleKeyDefined[i][1] = (newVal & 0xFFFFFFFF);
 #if (SIZEOF_CHARP == 8)
-      theTupleKeyDefined[idx][2] = (newVal >> 32);
+      theTupleKeyDefined[i][2] = (newVal >> 32);
 #endif
-      idx++;
     }
   }
   return res;
@@ -753,7 +758,7 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
   }
 
   if (theStatus == SetBound) {
-    saveBoundATTRINFO();
+    ((NdbIndexScanOperation*)this)->saveBoundATTRINFO();
     theStatus = GetValue;
   }
 
@@ -1049,18 +1054,32 @@ NdbIndexScanOperation::equal_impl(const NdbColumnImpl* anAttrObject,
 NdbRecAttr*
 NdbIndexScanOperation::getValue_impl(const NdbColumnImpl* attrInfo, 
 				     char* aValue){
-  if(!attrInfo->getPrimaryKey() || !m_ordered){
+  if(!m_ordered){
     return NdbScanOperation::getValue_impl(attrInfo, aValue);
   }
+  
+  if (theStatus == SetBound) {
+    saveBoundATTRINFO();
+    theStatus = GetValue;
+  }
 
-  Uint32 id = attrInfo->m_attrId;
+  int id = attrInfo->m_attrId;                // In "real" table
+  assert(m_accessTable->m_index);
+  int sz = (int)m_accessTable->m_index->m_key_ids.size();
+  if(id >= sz || (id = m_accessTable->m_index->m_key_ids[id]) == -1){
+    return NdbScanOperation::getValue_impl(attrInfo, aValue);
+  }
+  
+  assert(id < NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY);
   Uint32 marker = theTupleKeyDefined[id][0];
-
+  
   if(marker == SETBOUND_EQ){
     return NdbScanOperation::getValue_impl(attrInfo, aValue);
   } else if(marker == API_PTR){
     return NdbScanOperation::getValue_impl(attrInfo, aValue);
   }
+  
+  assert(marker == FAKE_PTR);
   
   UintPtr oldVal;
   oldVal = theTupleKeyDefined[id][1];
@@ -1071,6 +1090,7 @@ NdbIndexScanOperation::getValue_impl(const NdbColumnImpl* attrInfo,
 
   NdbRecAttr* tmp = (NdbRecAttr*)oldVal;
   tmp->setup(attrInfo, aValue);
+
   return tmp;
 }
 
@@ -1121,10 +1141,9 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
      * so it's safe to use [tIndexAttrId] 
      * (instead of looping as is NdbOperation::equal_impl)
      */
-    if(!theTupleKeyDefined[tIndexAttrId][0]){
+    if(type == BoundEQ && !theTupleKeyDefined[tIndexAttrId][0]){
       theNoOfTupKeyDefined++;
       theTupleKeyDefined[tIndexAttrId][0] = SETBOUND_EQ;
-      m_sort_columns -= m_ordered;
     }
     
     return 0;
@@ -1142,8 +1161,9 @@ NdbIndexScanOperation::readTuples(LockMode lm,
   NdbResultSet * rs = NdbScanOperation::readTuples(lm, batch, 0);
   if(rs && order_by){
     m_ordered = 1;
-    m_sort_columns = m_accessTable->getNoOfPrimaryKeys();
+    m_sort_columns = m_accessTable->getNoOfColumns() - 1; // -1 for NDB$NODE
     m_current_api_receiver = m_sent_receivers_count;
+    m_api_receivers_count = m_sent_receivers_count;
   }
   return rs;
 }
@@ -1154,33 +1174,29 @@ NdbIndexScanOperation::fix_get_values(){
    * Loop through all getValues and set buffer pointer to "API" pointer
    */
   NdbRecAttr * curr = theReceiver.theFirstRecAttr;
-  
-  Uint32 cnt = m_sort_columns;
+  Uint32 cnt = m_accessTable->getNoOfColumns() - 1;
   assert(cnt <  NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY);
-
-  Uint32 idx = 0;
+  
+  NdbIndexImpl * idx = m_accessTable->m_index;
   NdbTableImpl * tab = m_currentTable;
-  while(cnt > 0){ // To MAXNROFTUPLEKEY loops
-    NdbColumnImpl * col = tab->getColumn(idx);
-    if(col->getPrimaryKey()){
-      Uint32 val = theTupleKeyDefined[idx][0];
-      switch(val){
-      case FAKE_PTR:
-	curr->setup(col, 0);
-	// Fall-through
-      case API_PTR:
-	cnt--;
-	break;
-      case SETBOUND_EQ:
-	(void)1;
-#ifdef VM_TRACE
-	break;
-      default:
-	abort();
-#endif
-      }
+  for(Uint32 i = 0; i<cnt; i++){
+    Uint32 val = theTupleKeyDefined[i][0];
+    switch(val){
+    case FAKE_PTR:{
+      NdbColumnImpl * key = idx->m_columns[i];
+      NdbColumnImpl * col = tab->getColumn(key->m_keyInfoPos);
+      curr->setup(col, 0);
     }
-    idx++;
+      break;
+    case API_PTR:
+    case SETBOUND_EQ:
+      break;
+#ifdef VM_TRACE
+    default:
+      abort();
+#endif
+    }
+    curr = curr->next();
   }
 }
 
@@ -1222,24 +1238,23 @@ NdbIndexScanOperation::compare(Uint32 skip, Uint32 cols,
 int
 NdbIndexScanOperation::next_result_ordered(bool fetchAllowed){
   
-  Uint32 u_idx   = m_current_api_receiver; // start of unsorted
-  Uint32 u_last  = u_idx + 1;              // last unsorted
-  Uint32 s_idx   = u_last;                 // start of sorted
+  Uint32 u_idx = 0, u_last = 0;
+  Uint32 s_idx   = m_current_api_receiver; // first sorted
   Uint32 s_last  = theParallelism;         // last sorted
 
   NdbReceiver** arr = m_api_receivers;
-  NdbReceiver* tRec = arr[u_idx];
+  NdbReceiver* tRec = arr[s_idx];
   
   if(DEBUG_NEXT_RESULT) ndbout_c("nextOrderedResult(%d) nextResult: %d",
 				 fetchAllowed, 
-				 (u_idx < s_last ? tRec->nextResult() : 0));
+				 (s_idx < s_last ? tRec->nextResult() : 0));
   
   if(DEBUG_NEXT_RESULT) ndbout_c("u=[%d %d] s=[%d %d]", 
 				 u_idx, u_last,
 				 s_idx, s_last);
-
-  bool fetchNeeded = (u_idx == s_last) || !tRec->nextResult();
-
+  
+  bool fetchNeeded = (s_idx == s_last) || !tRec->nextResult();
+  
   if(fetchNeeded){
     if(fetchAllowed){
       if(DEBUG_NEXT_RESULT) ndbout_c("performing fetch...");
@@ -1247,8 +1262,9 @@ NdbIndexScanOperation::next_result_ordered(bool fetchAllowed){
       Guard guard(tp->theMutexPtr);
       Uint32 seq = theNdbCon->theNodeSequence;
       Uint32 nodeId = theNdbCon->theDBnode;
-      if(seq == tp->getNodeSequence(nodeId) && !send_next_scan_ordered(u_idx)){
+      if(seq == tp->getNodeSequence(nodeId) && !send_next_scan_ordered(s_idx)){
 	Uint32 tmp = m_sent_receivers_count;
+	s_idx = m_current_api_receiver; 
 	while(m_sent_receivers_count > 0 && !theError.code){
 	  theNdb->theWaiter.m_node = nodeId;
 	  theNdb->theWaiter.m_state = WAIT_SCAN;
@@ -1256,24 +1272,30 @@ NdbIndexScanOperation::next_result_ordered(bool fetchAllowed){
 	  if (return_code == 0 && seq == tp->getNodeSequence(nodeId)) {
 	    continue;
 	  }
+	  if(DEBUG_NEXT_RESULT) ndbout_c("return -1");
 	  return -1;
 	}
 	
 	u_idx = 0;
 	u_last = m_conf_receivers_count;
-	s_idx = (u_last > 1 ? s_last : s_idx);
 	m_conf_receivers_count = 0;
 	memcpy(arr, m_conf_receivers, u_last * sizeof(char*));
 	
 	if(DEBUG_NEXT_RESULT) ndbout_c("sent: %d recv: %d", tmp, u_last);
 	if(theError.code){
 	  setErrorCode(theError.code);
+	  if(DEBUG_NEXT_RESULT) ndbout_c("return -1");
 	  return -1;
 	}
       }
     } else {
+      if(DEBUG_NEXT_RESULT) ndbout_c("return 2");
       return 2;
     }
+  } else {
+    u_idx = s_idx;
+    u_last = s_idx + 1;
+    s_idx++;
   }
   
   if(DEBUG_NEXT_RESULT) ndbout_c("u=[%d %d] s=[%d %d]", 
@@ -1319,6 +1341,7 @@ NdbIndexScanOperation::next_result_ordered(bool fetchAllowed){
   tRec = m_api_receivers[s_idx];    
   if(s_idx < s_last && tRec->nextResult()){
     tRec->copyout(theReceiver);      
+    if(DEBUG_NEXT_RESULT) ndbout_c("return 0");
     return 0;
   }
 
@@ -1329,9 +1352,11 @@ NdbIndexScanOperation::next_result_ordered(bool fetchAllowed){
   if(seq == tp->getNodeSequence(nodeId) && 
      send_next_scan(0, true) == 0 &&
      theError.code == 0){
+    if(DEBUG_NEXT_RESULT) ndbout_c("return 1");
     return 1;
   }
   setErrorCode(theError.code);
+  if(DEBUG_NEXT_RESULT) ndbout_c("return -1");
   return -1;
 }
 
@@ -1363,7 +1388,8 @@ NdbIndexScanOperation::send_next_scan_ordered(Uint32 idx){
   tRec->prepareSend();
   
   m_sent_receivers_count = last + 1;
-    
+  m_current_api_receiver = idx + 1;
+  
   Uint32 nodeId = theNdbCon->theDBnode;
   TransporterFacade * tp = TransporterFacade::instance();
   tSignal.setLength(4+1);

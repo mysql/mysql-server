@@ -866,8 +866,8 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   index_name= get_index_name(active_index);
   if (!(op= trans->getNdbIndexScanOperation(index_name, m_tabname)))
     ERR_RETURN(trans->getNdbError());
-  if (!(cursor= op->readTuples(get_ndb_lock_type(m_lock.type), 0, 
-			       parallelism))) //, sorted))) // Bug
+  if (!(cursor= op->readTuples(get_ndb_lock_type(m_lock.type), 0,
+			       parallelism, sorted)))
     ERR_RETURN(trans->getNdbError());
   m_active_cursor= cursor;
 
