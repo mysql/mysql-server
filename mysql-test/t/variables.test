@@ -241,3 +241,10 @@ select * from t2 where a=3;
 check table t1,t2;
 drop table t1,t2;
 
+#
+# error conditions
+#
+
+--error 1193
+select @@xxxxxxxxxx;
+select 1;

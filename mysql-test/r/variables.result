@@ -335,3 +335,8 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 test.t2	check	status	OK
 drop table t1,t2;
+select @@xxxxxxxxxx;
+Unknown system variable 'xxxxxxxxxx'
+select 1;
+1
+1
