@@ -94,7 +94,8 @@ static int sp_mbr_from_wkb(uchar *wkb, uint size, uint n_dims, double *mbr)
 Add one point stored in wkb to mbr
 */
 static int sp_add_point_to_mbr(uchar *(*wkb), uchar *end, uint n_dims, 
-                                uchar byte_order, double *mbr)
+                               uchar byte_order __attribute__((unused)), 
+                               double *mbr)
 {
   double ord;
   double *mbr_end = mbr + n_dims * 2;

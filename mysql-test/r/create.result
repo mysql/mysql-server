@@ -150,5 +150,5 @@ t1	CREATE TABLE `t1` (
   KEY `b_29` (`b`),
   KEY `b_30` (`b`),
   KEY `b_31` (`b`)
-) TYPE=MyISAM
+) TYPE=MyISAM CHARSET=latin1
 drop table t1;

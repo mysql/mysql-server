@@ -41,7 +41,7 @@ static  void rtree_PrintWKB(uchar *wkb, uint n_dims);
 static char blob_key[MAX_REC_LENGTH];
 
 
-int main(int argc,char *argv[])
+int main(int argc __attribute__((unused)),char *argv[] __attribute__((unused)))
 {
   MY_INIT(argv[0]);
   exit(run_test("sp_test"));
@@ -320,14 +320,16 @@ static int read_with_pos (MI_INFO * file,int silent)
 }
 
 
-static void bprint_record(char * record, my_off_t offs,const char * tail)
+static void bprint_record(char * record, my_off_t offs __attribute__((unused)),
+			  const char * tail)
 {
   int i;
   char * pos;
   i=(unsigned char)record[0];
   printf("%02X ",i);
   
-  for( pos=record+1, i=0; i<32; i++,pos++){
+  for( pos=record+1, i=0; i<32; i++,pos++)
+  {
     int b=(unsigned char)*pos;
     printf("%02X",b);
   }
