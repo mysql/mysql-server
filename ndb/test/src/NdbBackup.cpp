@@ -69,17 +69,24 @@ NdbBackup::getFileSystemPathForNode(int _node_id){
   /**
    * Fetch configuration from management server
    */
-  ConfigRetriever cr;
+  ConfigRetriever cr(0, NODE_TYPE_API);
+  ndb_mgm_configuration * p;
 
-  ndb_mgm_configuration * p = cr.getConfig(host.c_str(), port, 0, NODE_TYPE_API);
-  if(p == 0){
-    const char * s = cr.getErrorString();
-    if(s == 0)
-      s = "No error given!";
+  BaseString tmp; tmp.assfmt("%s:%d", host.c_str(), port);
+  NdbMgmHandle handle = ndb_mgm_create_handle();
+  if(handle == 0 || ndb_mgm_connect(handle, tmp.c_str()) != 0 &&
+     (p = ndb_mgm_get_configuration(handle, 0)) == 0){
     
-    ndbout << "Could not fetch configuration" << endl;
-    ndbout << s << endl;
-    return NULL;
+    const char * s = 0;
+    if(p == 0 && handle != 0){
+      s = ndb_mgm_get_latest_error_msg(handle);
+      if(s == 0)
+	s = "No error given!";
+      
+      ndbout << "Could not fetch configuration" << endl;
+      ndbout << s << endl;
+      return NULL;
+    }
   }
   
   /**
