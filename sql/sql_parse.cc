@@ -2564,7 +2564,7 @@ mysql_execute_command(THD *thd)
     TABLE_LIST *select_tables= lex->query_tables;
 
     if ((res= create_table_precheck(thd, select_tables, create_table)))
-      goto create_error;
+      goto unsent_create_error;
 
 #ifndef HAVE_READLINK
     lex->create_info.data_file_name=lex->create_info.index_file_name=0;
@@ -2574,7 +2574,7 @@ mysql_execute_command(THD *thd)
 			   create_table->table_name) ||
 	append_file_to_dir(thd, &lex->create_info.index_file_name,
 			   create_table->table_name))
-      goto create_error;
+      goto unsent_create_error;
 #endif
     /*
       If we are using SET CHARSET without DEFAULT, add an implicit
@@ -2606,7 +2606,7 @@ mysql_execute_command(THD *thd)
             unique_table(create_table, select_tables))
         {
           my_error(ER_UPDATE_TABLE_USED, MYF(0), create_table->table_name);
-          goto create_error;
+          goto unsent_create_error;
         }
         /* If we create merge table, we have to test tables in merge, too */
         if (lex->create_info.used_fields & HA_CREATE_USED_UNION)
@@ -2619,7 +2619,7 @@ mysql_execute_command(THD *thd)
             if (unique_table(tab, select_tables))
             {
               my_error(ER_UPDATE_TABLE_USED, MYF(0), tab->table_name);
-              goto create_error;
+              goto unsent_create_error;
             }
           }
         }
@@ -2666,6 +2666,7 @@ mysql_execute_command(THD *thd)
     break;
 
     /* put tables back for PS rexecuting */
+unsent_create_error:
     lex->link_first_table_back(create_table, link_to_local);
     goto error;
   }
