@@ -93,284 +93,284 @@ static int send_file(THD *thd)
   DBUG_RETURN(error);
 }
 
+
+static File open_log(IO_CACHE *log, const char *log_file_name,
+		     const char **errmsg)
+{
+  File file;
+  char magic[4];
+  if ((file = my_open(log_file_name, O_RDONLY | O_BINARY, MYF(MY_WME))) < 0 ||
+      init_io_cache(log, file, IO_SIZE*2, READ_CACHE, 0, 0,
+		    MYF(MY_WME)))
+  {
+    *errmsg = "Could not open log file";		// This will not be sent
+    goto err;
+  }
+  
+  if (my_b_read(log, (byte*) magic, sizeof(magic)))
+  {
+    *errmsg = "I/O error reading binlog magic number";
+    goto err;
+  }
+  if (memcmp(magic, BINLOG_MAGIC, 4))
+  {
+    *errmsg = "Binlog has bad magic number, fire your magician";
+    goto err;
+  }
+  return file;
+
+err:
+  if (file > 0)
+    my_close(file,MYF(0));
+  end_io_cache(log);
+  return -1;
+}
+
+
 void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
 {
   LOG_INFO linfo;
   char *log_file_name = linfo.log_file_name;
   char search_file_name[FN_REFLEN];
-  char magic[4];
-  FILE* log = NULL;
+  IO_CACHE log;
+  File file = -1;
   String* packet = &thd->packet;
   int error;
   const char *errmsg = "Unknown error";
   NET* net = &thd->net;
-
   DBUG_ENTER("mysql_binlog_send");
 
-  if(!mysql_bin_log.is_open())
-    {
-      errmsg = "Binary log is not open";
-      goto err;
-    }
+  bzero((char*) &log,sizeof(log));
 
-  if(log_ident[0])
+  if(!mysql_bin_log.is_open())
+  {
+    errmsg = "Binary log is not open";
+    goto err;
+  }
+
+  if (log_ident[0])
     mysql_bin_log.make_log_name(search_file_name, log_ident);
   else
     search_file_name[0] = 0;
 
-  if(mysql_bin_log.find_first_log(&linfo, search_file_name))
-    {
-      errmsg = "Could not find first log";
-      goto err;
-    }
-  log = my_fopen(log_file_name, O_RDONLY|O_BINARY, MYF(MY_WME));
+  if (mysql_bin_log.find_first_log(&linfo, search_file_name))
+  {
+    errmsg = "Could not find first log";
+    goto err;
+  }
 
-  if(!log)
-    {
-      errmsg = "Could not open log file";
-      goto err;
-    }
-  
-  if(my_fread(log, (byte*) magic, sizeof(magic), MYF(MY_NABP|MY_WME)))
-    {
-      errmsg = "I/O error reading binlog magic number";
-      goto err;
-    }
-  if(memcmp(magic, BINLOG_MAGIC, 4))
-    {
-      errmsg = "Binlog has bad magic number, fire your magician";
-      goto err;
-    }
+  if ((file=open_log(&log, log_file_name, &errmsg)) < 0)
+    goto err;
 
   if(pos < 4)
-    {
-      errmsg = "Contratulations! You have hit the magic number and can win \
+  {
+    errmsg = "Contratulations! You have hit the magic number and can win \
 sweepstakes if you report the bug";
-      goto err;
-    }
-  
-  if(my_fseek(log, pos, MY_SEEK_SET, MYF(MY_WME)) == MY_FILEPOS_ERROR )
-    {
-      errmsg = "Error on fseek()";
-      goto err;
-    }
-
-
+    goto err;
+  }
+ 
+  my_b_seek(&log, pos);				// Seek will done on next read
   packet->length(0);
   packet->append("\0", 1);
   // we need to start a packet with something other than 255
   // to distiquish it from error
 
   while(!net->error && net->vio != 0 && !thd->killed)
-    {
-      pthread_mutex_t *log_lock = mysql_bin_log.get_log_lock();
+  {
+    pthread_mutex_t *log_lock = mysql_bin_log.get_log_lock();
       
-      while(!(error = Log_event::read_log_event(log, packet, log_lock)))
+    while (!(error = Log_event::read_log_event(&log, packet, log_lock)))
+    {
+      if(my_net_write(net, (char*)packet->ptr(), packet->length()) )
+      {
+	errmsg = "Failed on my_net_write()";
+	goto err;
+      }
+      DBUG_PRINT("info", ("log event code %d",
+			  (*packet)[LOG_EVENT_OFFSET+1] ));
+      if((*packet)[LOG_EVENT_OFFSET+1] == LOAD_EVENT)
+      {
+	if(send_file(thd))
 	{
-	  if(my_net_write(net, (char*)packet->ptr(), packet->length()) )
-	    {
-	      errmsg = "Failed on my_net_write()";
-	      goto err;
-	    }
-	  DBUG_PRINT("info", ("log event code %d",
-			      (*packet)[LOG_EVENT_OFFSET+1] ));
-	  if((*packet)[LOG_EVENT_OFFSET+1] == LOAD_EVENT)
-	    {
-	      if(send_file(thd))
-		{
-		  errmsg = "failed in send_file()";
-		  goto err;
-		}
-	    }
-	  packet->length(0);
-	  packet->append("\0",1);
-	}
-      if(error != LOG_READ_EOF)
-	{
-	  switch(error)
-	    {
-	    case LOG_READ_BOGUS: 
-	      errmsg = "bogus data in log event";
-	      break;
-	    case LOG_READ_IO:
-	      errmsg = "I/O error reading log event";
-	      break;
-	    case LOG_READ_MEM:
-	      errmsg = "memory allocation failed reading log event";
-	      break;
-	    case LOG_READ_TRUNC:
-	      errmsg = "binlog truncated in the middle of event";
-	      break;
-	    }
+	  errmsg = "failed in send_file()";
 	  goto err;
 	}
-
-      if(!(flags & BINLOG_DUMP_NON_BLOCK) &&
-	 mysql_bin_log.is_active(log_file_name))
-	// block until there is more data in the log
-	// unless non-blocking mode requested
-	{
-	  if(net_flush(net))
-	    {
-	      errmsg = "failed on net_flush()";
-	      goto err;
-	    }
-
-	  // we may have missed the update broadcast from the log
-	  // that has just happened, let's try to catch it if it did
-	  // if we did not miss anything, we just wait for other threads
-	  // to signal us
-          {
-	    clearerr(log);
-
-            // tell the kill thread how to wake us up
-	    pthread_mutex_lock(&thd->mysys_var->mutex);
-	    thd->mysys_var->current_mutex = log_lock;
-	    thd->mysys_var->current_cond = &COND_binlog_update;
-	    const char* proc_info = thd->proc_info;
-	    thd->proc_info = "Waiting for update";
-	    pthread_mutex_unlock(&thd->mysys_var->mutex);
-
-	    bool read_packet = 0, fatal_error = 0;
-
-	    // no one will update the log while we are reading
-	    // now, but we'll be quick and just read one record
-	    switch(Log_event::read_log_event(log, packet, log_lock))
-	      {
-	      case 0:
-		read_packet = 1;
-		// we read successfully, so we'll need to send it to the
-		// slave
-		break;
-	      case LOG_READ_EOF:
-		pthread_mutex_lock(log_lock);
-	        pthread_cond_wait(&COND_binlog_update, log_lock);
-		pthread_mutex_unlock(log_lock);
-		break;
-
-	      default:
-		fatal_error = 1;
-		break;
-	      }
-
-
-	    pthread_mutex_lock(&thd->mysys_var->mutex);
-	    thd->mysys_var->current_mutex= 0;
-	    thd->mysys_var->current_cond= 0;
-	    thd->proc_info= proc_info;
-	    pthread_mutex_unlock(&thd->mysys_var->mutex);
-
-	    if(read_packet)
-	    {
-	      thd->proc_info = "sending update to slave";
-	      if(my_net_write(net, (char*)packet->ptr(), packet->length()) )
-	      {
-		errmsg = "Failed on my_net_write()";
-		goto err;
-	      }
-
-	      if((*packet)[LOG_EVENT_OFFSET+1] == LOAD_EVENT)
-	      {
-		if(send_file(thd))
-		{
-		  errmsg = "failed in send_file()";
-		  goto err;
-		}
-	      }
-	      packet->length(0);
-	      packet->append("\0",1);
-	      // no need to net_flush because we will get to flush later when
-	      // we hit EOF pretty quick
-	    }
-
-	    if(fatal_error)
-	      {
-		errmsg = "error reading log entry";
-	        goto err;
-	      }
-
-	    clearerr(log);
-	  }
-	}
-      else
-	{
-	  bool loop_breaker = 0;
-	  // need this to break out of the for loop from switch
-          thd->proc_info = "switching to next log";
-	  switch(mysql_bin_log.find_next_log(&linfo))
-	    {
-	    case LOG_INFO_EOF:
-	      loop_breaker = (flags & BINLOG_DUMP_NON_BLOCK);
-	      break;
-	    case 0:
-	      break;
-	    default:
-	      errmsg = "could not find next log";
-	      goto err;
-	    }
-
-	  if(loop_breaker)
-	   break;
-
-	  (void) my_fclose(log, MYF(MY_WME));
-	  log = my_fopen(log_file_name, O_RDONLY|O_BINARY, MYF(MY_WME));
-	  if(!log)
-	    {
-	      errmsg = "Could not open next log";
-	      goto err;
-	    }
-
-	  //check the magic
-	  if(my_fread(log, (byte*) magic, sizeof(magic), MYF(MY_NABP|MY_WME)))
-	    {
-	      errmsg = "I/O error reading binlog magic number";
-	      goto err;
-	    }
-	  if(memcmp(magic, BINLOG_MAGIC, 4))
-	    {
-	      errmsg = "Binlog has bad magic number, fire your magician";
-	      goto err;
-	    }
-	  
-	  // fake Rotate_log event just in case it did not make it to the log
-	  // otherwise the slave make get confused about the offset
-	  {
-	    char header[LOG_EVENT_HEADER_LEN];
-	    memset(header, 0, 4); // when does not matter
-	    header[EVENT_TYPE_OFFSET] = ROTATE_EVENT;
-            char* p = strrchr(log_file_name, FN_LIBCHAR);
-	    // find the last slash
-            if(p)
-              p++;
-            else
-              p = log_file_name;
-
-	    uint ident_len = (uint) strlen(p);
-	    ulong event_len = ident_len + sizeof(header);
-	    int4store(header + EVENT_TYPE_OFFSET + 1, server_id);
-	    int4store(header + EVENT_LEN_OFFSET, event_len);
-	    packet->append(header, sizeof(header));
-	    packet->append(p,ident_len);
-	    if(my_net_write(net, (char*)packet->ptr(), packet->length()))
-	      {
-		errmsg = "failed on my_net_write()";
-	        goto err;
-	      }
-	    packet->length(0);
- 	    packet->append("\0",1);
-	  }
-	}
+      }
+      packet->length(0);
+      packet->append("\0",1);
+    }
+    if(error != LOG_READ_EOF)
+    {
+      switch(error)
+      {
+      case LOG_READ_BOGUS: 
+	errmsg = "bogus data in log event";
+	break;
+      case LOG_READ_IO:
+	errmsg = "I/O error reading log event";
+	break;
+      case LOG_READ_MEM:
+	errmsg = "memory allocation failed reading log event";
+	break;
+      case LOG_READ_TRUNC:
+	errmsg = "binlog truncated in the middle of event";
+	break;
+      }
+      goto err;
     }
 
-  (void)my_fclose(log, MYF(MY_WME));
+    if(!(flags & BINLOG_DUMP_NON_BLOCK) &&
+       mysql_bin_log.is_active(log_file_name))
+      // block until there is more data in the log
+      // unless non-blocking mode requested
+    {
+      if(net_flush(net))
+      {
+	errmsg = "failed on net_flush()";
+	goto err;
+      }
+
+      // we may have missed the update broadcast from the log
+      // that has just happened, let's try to catch it if it did
+      // if we did not miss anything, we just wait for other threads
+      // to signal us
+      {
+	log.error=0;
+
+	// tell the kill thread how to wake us up
+	pthread_mutex_lock(&thd->mysys_var->mutex);
+	thd->mysys_var->current_mutex = log_lock;
+	thd->mysys_var->current_cond = &COND_binlog_update;
+	const char* proc_info = thd->proc_info;
+	thd->proc_info = "Waiting for update";
+	pthread_mutex_unlock(&thd->mysys_var->mutex);
+
+	bool read_packet = 0, fatal_error = 0;
+
+	// no one will update the log while we are reading
+	// now, but we'll be quick and just read one record
+	switch(Log_event::read_log_event(&log, packet, log_lock))
+	{
+	case 0:
+	  read_packet = 1;
+	  // we read successfully, so we'll need to send it to the
+	  // slave
+	  break;
+	case LOG_READ_EOF:
+	  pthread_mutex_lock(log_lock);
+	  pthread_cond_wait(&COND_binlog_update, log_lock);
+	  pthread_mutex_unlock(log_lock);
+	  break;
+
+	default:
+	  fatal_error = 1;
+	  break;
+	}
+
+
+	pthread_mutex_lock(&thd->mysys_var->mutex);
+	thd->mysys_var->current_mutex= 0;
+	thd->mysys_var->current_cond= 0;
+	thd->proc_info= proc_info;
+	pthread_mutex_unlock(&thd->mysys_var->mutex);
+
+	if(read_packet)
+	{
+	  thd->proc_info = "sending update to slave";
+	  if(my_net_write(net, (char*)packet->ptr(), packet->length()) )
+	  {
+	    errmsg = "Failed on my_net_write()";
+	    goto err;
+	  }
+
+	  if((*packet)[LOG_EVENT_OFFSET+1] == LOAD_EVENT)
+	  {
+	    if(send_file(thd))
+	    {
+	      errmsg = "failed in send_file()";
+	      goto err;
+	    }
+	  }
+	  packet->length(0);
+	  packet->append("\0",1);
+	  // no need to net_flush because we will get to flush later when
+	  // we hit EOF pretty quick
+	}
+
+	if(fatal_error)
+	{
+	  errmsg = "error reading log entry";
+	  goto err;
+	}
+	log.error=0;
+      }
+    }
+    else
+    {
+      bool loop_breaker = 0;
+      // need this to break out of the for loop from switch
+      thd->proc_info = "switching to next log";
+      switch(mysql_bin_log.find_next_log(&linfo))
+      {
+      case LOG_INFO_EOF:
+	loop_breaker = (flags & BINLOG_DUMP_NON_BLOCK);
+	break;
+      case 0:
+	break;
+      default:
+	errmsg = "could not find next log";
+	goto err;
+      }
+
+      if(loop_breaker)
+	break;
+
+      end_io_cache(&log);
+      (void) my_close(file, MYF(MY_WME));
+      if ((file=open_log(&log, log_file_name, &errmsg)) < 0)
+	goto err;
+
+      // fake Rotate_log event just in case it did not make it to the log
+      // otherwise the slave make get confused about the offset
+      {
+	char header[LOG_EVENT_HEADER_LEN];
+	memset(header, 0, 4); // when does not matter
+	header[EVENT_TYPE_OFFSET] = ROTATE_EVENT;
+	char* p = strrchr(log_file_name, FN_LIBCHAR);
+	// find the last slash
+	if(p)
+	  p++;
+	else
+	  p = log_file_name;
+
+	uint ident_len = (uint) strlen(p);
+	ulong event_len = ident_len + sizeof(header);
+	int4store(header + EVENT_TYPE_OFFSET + 1, server_id);
+	int4store(header + EVENT_LEN_OFFSET, event_len);
+	packet->append(header, sizeof(header));
+	packet->append(p,ident_len);
+	if(my_net_write(net, (char*)packet->ptr(), packet->length()))
+	{
+	  errmsg = "failed on my_net_write()";
+	  goto err;
+	}
+	packet->length(0);
+	packet->append("\0",1);
+      }
+    }
+  }
+
+  end_io_cache(&log);
+  (void)my_close(file, MYF(MY_WME));
   
   send_eof(&thd->net);
   thd->proc_info = "waiting to finalize termination";
   DBUG_VOID_RETURN;
  err:
   thd->proc_info = "waiting to finalize termination";
-  if(log)
-   (void) my_fclose(log, MYF(MY_WME));
+  end_io_cache(&log);
+  if (file >= 0)
+    (void) my_close(file, MYF(MY_WME));
   send_error(&thd->net, 0, errmsg);
   DBUG_VOID_RETURN;
 }

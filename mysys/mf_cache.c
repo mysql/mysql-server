@@ -74,7 +74,7 @@ my_bool open_cached_file(IO_CACHE *cache, const char* dir, const char *prefix,
   }
   my_free(cache->dir,	MYF(MY_ALLOW_ZERO_PTR));
   my_free(cache->prefix,MYF(MY_ALLOW_ZERO_PTR));
-  DBUG_RETURN(0);
+  DBUG_RETURN(1);
 }
 
 	/* Create the temporary file */
@@ -101,10 +101,12 @@ void close_cached_file(IO_CACHE *cache)
   DBUG_ENTER("close_cached_file");
   if (my_b_inited(cache))
   {
+    File file=cache->file;
+    cache->file= -1;				/* Don't flush data */
     (void) end_io_cache(cache);
-    if (cache->file >= 0)
+    if (file >= 0)
     {
-      (void) my_close(cache->file,MYF(0));
+      (void) my_close(file,MYF(0));
 #ifdef CANT_DELETE_OPEN_FILES
       if (cache->file_name)
       {

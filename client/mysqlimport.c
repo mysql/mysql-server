@@ -25,7 +25,7 @@
 **			   *			   *
 **			   *************************
 */
-#define IMPORT_VERSION "2.5"
+#define IMPORT_VERSION "2.6"
 
 #include <global.h>
 #include <my_sys.h>
@@ -125,7 +125,7 @@ file. The SQL command 'LOAD DATA INFILE' is used to import the rows.\n");
                         Give the column names in a comma separated list.\n\
                         This is same as giving columns to LOAD DATA INFILE.\n\
   -C, --compress        Use compression in server/client protocol\n\
-  -d, --delete          Deletes first all rows from table.\n\
+  -d, --delete          First delete all rows from table.\n\
   -f, --force		Continue even if we get an sql-error.\n\
   -h, --host=...	Connect to host.\n\
   -i, --ignore          If duplicate unique key was found, keep old row.\n\

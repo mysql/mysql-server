@@ -319,11 +319,11 @@ bool net_store_data(String* packet, I_List<i_string>* str_list)
   i_string* s;
 
   while((s=it++))
-    {
-      if(tmp.length())
-	tmp.append(',');
-      tmp.append(s->ptr);
-    }
+  {
+    if(tmp.length())
+      tmp.append(',');
+    tmp.append(s->ptr);
+  }
 
   return net_store_data(packet, (char*)tmp.ptr(), tmp.length());
 }

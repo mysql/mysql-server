@@ -26,84 +26,78 @@
 static void pretty_print_char(FILE* file, int c)
 {
   fputc('\'', file);
-  switch(c)
-    {
-    case '\n': fprintf(file, "\\n"); break;
-    case '\r': fprintf(file, "\\r"); break;
-    case '\\': fprintf(file, "\\\\"); break;
-    case '\b': fprintf(file, "\\b"); break;
-    case '\'': fprintf(file, "\\'"); break;
-    case 0 : fprintf(file, "\\0"); break;
-    default:
-	fputc(c, file);
-        break;
-    }
-  fputc( '\'', file);
+  switch(c) {
+  case '\n': fprintf(file, "\\n"); break;
+  case '\r': fprintf(file, "\\r"); break;
+  case '\\': fprintf(file, "\\\\"); break;
+  case '\b': fprintf(file, "\\b"); break;
+  case '\'': fprintf(file, "\\'"); break;
+  case 0   : fprintf(file, "\\0"); break;
+  default:
+    fputc(c, file);
+    break;
+  }
+  fputc('\'', file);
 }
 
-int Query_log_event::write(FILE* file)
+int Query_log_event::write(IO_CACHE* file)
 {
   return query ? Log_event::write(file) : -1; 
 }
 
-int Log_event::write(FILE* file)
+int Log_event::write(IO_CACHE* file)
 {
-  if (write_header(file)
-      || write_data(file) || fflush(file)) return -1;
-  return 0;
+  return (write_header(file) || write_data(file)) ? -1 : 0;
 }
 
-int Log_event::write_header(FILE* file)
+int Log_event::write_header(IO_CACHE* file)
 {
-  char buf[LOG_EVENT_HEADER_LEN];
   // make sure to change this when the header gets bigger
+  char buf[LOG_EVENT_HEADER_LEN];
   char* pos = buf;
   int4store(pos, when); // timestamp
   pos += 4;
   *pos++ = get_type_code(); // event type code
   int4store(pos, server_id);
   pos += 4;
-  int4store(pos, get_data_size() + LOG_EVENT_HEADER_LEN);
+  long tmp=get_data_size() + LOG_EVENT_HEADER_LEN;
+  int4store(pos, tmp);
   pos += 4;
-  return (my_fwrite(file, (byte*) buf, (uint) (pos - buf),
-		    MYF(MY_NABP | MY_WME)));
+  return (my_b_write(file, (byte*) buf, (uint) (pos - buf)));
 }
 
 #ifndef MYSQL_CLIENT
 
-int Log_event::read_log_event(FILE* file, String* packet,
+int Log_event::read_log_event(IO_CACHE* file, String* packet,
 			      pthread_mutex_t* log_lock)
 {
   ulong data_len;
   char buf[LOG_EVENT_HEADER_LEN];
-  if(log_lock)
+  if (log_lock)
     pthread_mutex_lock(log_lock);
-  if (my_fread(file, (byte*)buf, sizeof(buf), MYF(MY_NABP)))
-    {
-      if(log_lock) pthread_mutex_unlock(log_lock);
-      return feof(file) ? LOG_READ_EOF: LOG_READ_IO;
-    }
+  if (my_b_read(file, (byte*) buf, sizeof(buf)))
+  {
+    if (log_lock) pthread_mutex_unlock(log_lock);
+    return file->error >= 0 ? LOG_READ_TRUNC: LOG_READ_IO;
+  }
   data_len = uint4korr(buf + EVENT_LEN_OFFSET);
   if (data_len < LOG_EVENT_HEADER_LEN || data_len > MAX_EVENT_LEN)
-    {
-      if(log_lock) pthread_mutex_unlock(log_lock);
-      return LOG_READ_BOGUS;
-    }
+  {
+    if (log_lock) pthread_mutex_unlock(log_lock);
+    return LOG_READ_BOGUS;
+  }
   packet->append(buf, sizeof(buf));
   data_len -= LOG_EVENT_HEADER_LEN;
-  if (!data_len)
-    {
-      if(log_lock) pthread_mutex_unlock(log_lock);
-      return 0; // the event does not have a data section
-    }
-  if (packet->append(file, data_len, MYF(MY_WME|MY_NABP)))
+  if (data_len)
+  {
+    if (packet->append(file, data_len))
     {
       if(log_lock)
 	pthread_mutex_unlock(log_lock);
-      return feof(file) ? LOG_READ_TRUNC: LOG_READ_IO;
+      return file->error >= 0 ? LOG_READ_TRUNC: LOG_READ_IO;
     }
-
-  if(log_lock) pthread_mutex_unlock(log_lock);
+  }
+  if (log_lock) pthread_mutex_unlock(log_lock);
   return 0;
 }
 
@@ -111,18 +105,18 @@ int Log_event::read_log_event(FILE* file, String* packet,
 
 // allocates memory - the caller is responsible for clean-up
 
-Log_event* Log_event::read_log_event(FILE* file, pthread_mutex_t* log_lock)
+Log_event* Log_event::read_log_event(IO_CACHE* file, pthread_mutex_t* log_lock)
 {
   time_t timestamp;
   uint32 server_id;
   
   char buf[LOG_EVENT_HEADER_LEN-4];
   if(log_lock) pthread_mutex_lock(log_lock);
-  if (my_fread(file, (byte *) buf, sizeof(buf), MY_NABP))
-    {
-      if(log_lock) pthread_mutex_unlock(log_lock);
-      return NULL;
-    }
+  if (my_b_read(file, (byte *) buf, sizeof(buf)))
+  {
+    if (log_lock) pthread_mutex_unlock(log_lock);
+    return NULL;
+  }
   timestamp = uint4korr(buf);
   server_id = uint4korr(buf + 5);
   
@@ -132,13 +126,11 @@ Log_event* Log_event::read_log_event(FILE* file, pthread_mutex_t* log_lock)
   {
     Query_log_event* q = new Query_log_event(file, timestamp, server_id);
     if(log_lock) pthread_mutex_unlock(log_lock);
-    
     if (!q->query)
     {
       delete q;
-      return NULL;
+      q=NULL;
     }
-
     return q;
   }
   
@@ -146,13 +138,11 @@ Log_event* Log_event::read_log_event(FILE* file, pthread_mutex_t* log_lock)
   {
     Load_log_event* l = new Load_log_event(file, timestamp, server_id);
     if(log_lock) pthread_mutex_unlock(log_lock);
-    
     if (!l->table_name)
     {
       delete l;
-      return NULL;
+      l=NULL;
     }
-
     return l;
   }
 
@@ -165,9 +155,8 @@ Log_event* Log_event::read_log_event(FILE* file, pthread_mutex_t* log_lock)
     if (!r->new_log_ident)
     {
       delete r;
-      return NULL;
+      r=NULL;
     }
-
     return r;
   }
 
@@ -179,9 +168,8 @@ Log_event* Log_event::read_log_event(FILE* file, pthread_mutex_t* log_lock)
     if (e->type == INVALID_INT_EVENT)
     {
       delete e;
-      return NULL;
+      e=NULL;
     }
-
     return e;
   }
   
@@ -198,12 +186,11 @@ Log_event* Log_event::read_log_event(FILE* file, pthread_mutex_t* log_lock)
       return e;
     }
   default:
-    if(log_lock) pthread_mutex_unlock(log_lock);
-    return NULL;
+    break;
   }
 
-  //impossible
-  if(log_lock) pthread_mutex_unlock(log_lock);
+  // default
+  if (log_lock) pthread_mutex_unlock(log_lock);
   return NULL;
 }
 
@@ -320,26 +307,24 @@ void Rotate_log_event::print(FILE* file, bool short_form)
   fflush(file);
 }
 
-Rotate_log_event::Rotate_log_event(FILE* file, time_t when_arg,
+Rotate_log_event::Rotate_log_event(IO_CACHE* file, time_t when_arg,
 				   uint32 server_id):
   Log_event(when_arg, 0, 0, server_id),new_log_ident(NULL),alloced(0)
 {
   char *tmp_ident;
   char buf[4];
 
-  if (my_fread(file, (byte*) buf, sizeof(buf), MYF(MY_NABP | MY_WME)))
+  if (my_b_read(file, (byte*) buf, sizeof(buf)))
     return;
-
   ulong event_len;
   event_len = uint4korr(buf);
-  if(event_len < ROTATE_EVENT_OVERHEAD)
+  if (event_len < ROTATE_EVENT_OVERHEAD)
     return;
 
   ident_len = (uchar)(event_len - ROTATE_EVENT_OVERHEAD);
-
   if (!(tmp_ident = (char*) my_malloc((uint)ident_len, MYF(MY_WME))))
     return;
-  if (my_fread( file, (byte*) tmp_ident, (uint)ident_len, MYF(MY_NABP | MY_WME)))
+  if (my_b_read( file, (byte*) tmp_ident, (uint) ident_len))
   {
     my_free((gptr) tmp_ident, MYF(0));
     return;
@@ -373,21 +358,18 @@ Rotate_log_event::Rotate_log_event(const char* buf, int max_buf):
   alloced = 1;
 }
 
-int Rotate_log_event::write_data(FILE* file)
+int Rotate_log_event::write_data(IO_CACHE* file)
 {
-  if (my_fwrite(file, (byte*) new_log_ident, (uint) ident_len,
-		MYF(MY_NABP | MY_WME)))
-    return -1;
-  return 0;
+  return my_b_write(file, (byte*) new_log_ident, (uint) ident_len) ? -1 :0;
 }
 
-Query_log_event::Query_log_event(FILE* file, time_t when_arg,
+Query_log_event::Query_log_event(IO_CACHE* file, time_t when_arg,
 				 uint32 server_id):
   Log_event(when_arg,0,0,server_id),data_buf(0),query(NULL),db(NULL)
 {
   char buf[QUERY_HEADER_LEN + 4];
   ulong data_len;
-  if (my_fread(file, (byte*) buf, sizeof(buf), MYF(MY_NABP | MY_WME)))
+  if (my_b_read(file, (byte*) buf, sizeof(buf)))
     return;				// query == NULL will tell the
 					// caller there was a problem
   data_len = uint4korr(buf);
@@ -399,9 +381,10 @@ Query_log_event::Query_log_event(FILE* file, time_t when_arg,
   db_len = (uint)buf[12];
   error_code = uint2korr(buf + 13);
   
+  /* Allocate one byte extra for end \0 */
   if (!(data_buf = (char*) my_malloc(data_len+1, MYF(MY_WME))))
     return;
-  if (my_fread( file, (byte*) data_buf, data_len, MYF(MY_NABP | MY_WME)))
+  if (my_b_read( file, (byte*) data_buf, data_len))
   {
     my_free((gptr) data_buf, MYF(0));
     data_buf = 0;
@@ -412,7 +395,7 @@ Query_log_event::Query_log_event(FILE* file, time_t when_arg,
   db = data_buf;
   query=data_buf + db_len + 1;
   q_len = data_len - 1 - db_len;
-  *((char*)query + q_len) = 0;
+  *((char*) query + q_len) = 0;			// Safety
 }
 
 Query_log_event::Query_log_event(const char* buf, int max_buf):
@@ -428,7 +411,7 @@ Query_log_event::Query_log_event(const char* buf, int max_buf):
   exec_time = uint4korr(buf + 8);
   error_code = uint2korr(buf + 13);
 
-  if (!(data_buf = (char*) my_malloc( data_len + 1, MYF(MY_WME))))
+  if (!(data_buf = (char*) my_malloc(data_len + 1, MYF(MY_WME))))
     return;
 
   memcpy(data_buf, buf + QUERY_HEADER_LEN + 4, data_len);
@@ -455,9 +438,9 @@ void Query_log_event::print(FILE* file, bool short_form)
   fprintf(file, ";\n");
 }
 
-int Query_log_event::write_data(FILE* file)
+int Query_log_event::write_data(IO_CACHE* file)
 {
-  if(!query) return -1;
+  if (!query) return -1;
   
   char buf[QUERY_HEADER_LEN]; 
   char* pos = buf;
@@ -469,23 +452,21 @@ int Query_log_event::write_data(FILE* file)
   int2store(pos, error_code);
   pos += 2;
 
-  if (my_fwrite(file, (byte*) buf, (uint)(pos - buf), MYF(MY_NABP | MY_WME)) ||
-      my_fwrite(file, (db) ? (byte*) db : (byte*)"",
-		db_len + 1, MYF(MY_NABP | MY_WME)) ||
-      my_fwrite(file, (byte*) query, q_len, MYF(MY_NABP | MY_WME)))
-    return -1;
-  return 0;
+  return (my_b_write(file, (byte*) buf, (uint)(pos - buf)) ||
+	  my_b_write(file, (db) ? (byte*) db : (byte*)"", db_len + 1) ||
+	  my_b_write(file, (byte*) query, q_len)) ? -1 : 0;
 }
 
-Intvar_log_event:: Intvar_log_event(FILE* file, time_t when_arg,
+Intvar_log_event:: Intvar_log_event(IO_CACHE* file, time_t when_arg,
 				    uint32 server_id)
   :Log_event(when_arg,0,0,server_id), type(INVALID_INT_EVENT)
 {
-  my_fseek(file, 4L, MY_SEEK_CUR, MYF(MY_WME)); // skip the event length
-  char buf[9];
-  if(my_fread(file, (byte*)buf, sizeof(buf), MYF(MY_NABP|MY_WME))) return;
-  type = buf[0];
-  val = uint8korr(buf+1);
+  char buf[9+4];
+  if (!my_b_read(file, (byte*) buf, sizeof(buf)))
+  {
+    type = buf[4];
+    val = uint8korr(buf+1+4);
+  }
 }
 
 Intvar_log_event::Intvar_log_event(const char* buf):Log_event(buf)
@@ -495,12 +476,12 @@ Intvar_log_event::Intvar_log_event(const char* buf):Log_event(buf)
   val = uint8korr(buf+1);
 }
 
-int Intvar_log_event::write_data(FILE* file)
+int Intvar_log_event::write_data(IO_CACHE* file)
 {
   char buf[9];
   buf[0] = type;
   int8store(buf + 1, val);
-  return my_fwrite(file, (byte*) buf, sizeof(buf), MYF(MY_NABP|MY_WME));
+  return my_b_write(file, (byte*) buf, sizeof(buf));
 }
 
 void Intvar_log_event::print(FILE* file, bool short_form)
@@ -527,7 +508,7 @@ void Intvar_log_event::print(FILE* file, bool short_form)
   
 }
 
-int Load_log_event::write_data(FILE* file __attribute__((unused)))
+int Load_log_event::write_data(IO_CACHE* file)
 {
   char buf[LOAD_HEADER_LEN];
   int4store(buf, thread_id);
@@ -537,77 +518,46 @@ int Load_log_event::write_data(FILE* file __attribute__((unused)))
   buf[13] = (char)db_len;
   int4store(buf + 14, num_fields);
   
-  if(my_fwrite(file, (byte*)buf, sizeof(buf), MYF(MY_NABP|MY_WME)) ||
-     my_fwrite(file, (byte*)&sql_ex, sizeof(sql_ex), MYF(MY_NABP|MY_WME)))
+  if(my_b_write(file, (byte*)buf, sizeof(buf)) ||
+     my_b_write(file, (byte*)&sql_ex, sizeof(sql_ex)))
     return 1;
 
-  if(num_fields && fields && field_lens)
-    {
-      if(my_fwrite(file, (byte*)field_lens, num_fields, MYF(MY_NABP|MY_WME)) ||
-         my_fwrite(file, (byte*)fields, field_block_len, MYF(MY_NABP|MY_WME)))
-	return 1;
-    }
-  
-  if(my_fwrite(file, (byte*)table_name, table_name_len + 1, MYF(MY_NABP|MY_WME)) ||
-     my_fwrite(file, (byte*)db, db_len + 1, MYF(MY_NABP|MY_WME)) ||
-     my_fwrite(file, (byte*)fname, fname_len, MYF(MY_NABP|MY_WME)) )
+  if (num_fields && fields && field_lens)
+  {
+    if(my_b_write(file, (byte*)field_lens, num_fields) ||
+       my_b_write(file, (byte*)fields, field_block_len))
+      return 1;
+  }
+  if(my_b_write(file, (byte*)table_name, table_name_len + 1) ||
+     my_b_write(file, (byte*)db, db_len + 1) ||
+     my_b_write(file, (byte*)fname, fname_len))
     return 1;
-
-     
   return 0;
 }
 
-Load_log_event::Load_log_event(FILE* file, time_t when, uint32 server_id):
+Load_log_event::Load_log_event(IO_CACHE* file, time_t when, uint32 server_id):
   Log_event(when,0,0,server_id),data_buf(0),num_fields(0),
   fields(0),field_lens(0),field_block_len(0),
   table_name(0),db(0),fname(0)
-							
 {
   char buf[LOAD_HEADER_LEN + 4];
   ulong data_len;
-  if(my_fread(file, (byte*)buf, sizeof(buf), MYF(MY_NABP|MY_WME)) ||
-     my_fread(file, (byte*)&sql_ex, sizeof(sql_ex), MYF(MY_NABP|MY_WME)))
+  if (my_b_read(file, (byte*)buf, sizeof(buf)) ||
+      my_b_read(file, (byte*)&sql_ex, sizeof(sql_ex)))
     return;
 
-  data_len = uint4korr(buf);
-  thread_id = uint4korr(buf+4);
-  exec_time = uint4korr(buf+8);
-  skip_lines = uint4korr(buf + 12);
-  table_name_len = (uint)buf[16];
-  db_len = (uint)buf[17];
-  num_fields = uint4korr(buf + 18);
-	  
-  data_len -= LOAD_EVENT_OVERHEAD;
-  if(!(data_buf = (char*)my_malloc(data_len + 1, MYF(MY_WME))))
+  data_len = uint4korr(buf) - LOAD_EVENT_OVERHEAD;
+  if (!(data_buf = (char*)my_malloc(data_len + 1, MYF(MY_WME))))
     return;
-
-  if(my_fread(file, (byte*)data_buf, data_len, MYF(MY_NABP|MY_WME)))
+  if (my_b_read(file, (byte*)data_buf, data_len))
     return;
-
-  if(num_fields > data_len) // simple sanity check against corruption
-    return;
-
-  field_lens = (uchar*)data_buf;
-  
-  uint i;
-  for(i = 0; i < num_fields; i++)
-    {
-      field_block_len += (uint)field_lens[i] + 1;
-    }
-  fields = (char*)field_lens + num_fields;
-  
-  *((char*)data_buf+data_len) = 0;
-  table_name  = fields + field_block_len;
-  db = table_name + table_name_len + 1;
-  fname = db + db_len + 1;
-  fname_len = data_len - 2 - db_len - table_name_len - num_fields - field_block_len;
+  copy_log_event(buf,data_len);
 }
 
 Load_log_event::Load_log_event(const char* buf, int max_buf):
   Log_event(when,0,0,server_id),data_buf(0),num_fields(0),fields(0),
   field_lens(0),field_block_len(0),
   table_name(0),db(0),fname(0)
-							     
 {
   ulong data_len;
 
@@ -617,9 +567,19 @@ Load_log_event::Load_log_event(const char* buf, int max_buf):
   buf += EVENT_LEN_OFFSET;
   
   data_len = uint4korr(buf);
-  if((uint)data_len > (uint)max_buf)
+  if ((uint)data_len > (uint) max_buf)
     return;
+  data_len -= LOAD_EVENT_OVERHEAD;
+  memcpy(&sql_ex, buf + 22, sizeof(sql_ex));
   
+  if(!(data_buf = (char*)my_malloc(data_len + 1, MYF(MY_WME))))
+    return;
+  memcpy(data_buf, buf + 22 + sizeof(sql_ex), data_len);
+  copy_log_event(buf, data_len);
+}
+
+void Load_log_event::copy_log_event(const char *buf, ulong data_len)
+{
   thread_id = uint4korr(buf+4);
   exec_time = uint4korr(buf+8);
   skip_lines = uint4korr(buf + 12);
@@ -627,32 +587,23 @@ Load_log_event::Load_log_event(const char* buf, int max_buf):
   db_len = (uint)buf[17];
   num_fields = uint4korr(buf + 18);
 	  
-  data_len -= LOAD_EVENT_OVERHEAD;
-  memcpy(&sql_ex, buf + 22, sizeof(sql_ex));
-  
-  if(!(data_buf = (char*)my_malloc(data_len + 1, MYF(MY_WME))))
+  if (num_fields > data_len) // simple sanity check against corruption
     return;
 
-  memcpy(data_buf, buf + 22 + sizeof(sql_ex), data_len);
-
-  if(num_fields > data_len) // simple sanity check against corruption
-    return;
-
-  field_lens = (uchar*)data_buf;
-  
+  field_lens = (uchar*) data_buf;
   uint i;
-  for(i = 0; i < num_fields; i++)
-    {
-      field_block_len += (uint)field_lens[i] + 1;
-    }
+  for (i = 0; i < num_fields; i++)
+  {
+    field_block_len += (uint)field_lens[i] + 1;
+  }
   fields = (char*)field_lens + num_fields;
   
   *((char*)data_buf+data_len) = 0;
   table_name  = fields + field_block_len;
   db = table_name + table_name_len + 1;
   fname = db + db_len + 1;
-  fname_len = data_len - 2 - db_len - table_name_len - num_fields - field_block_len;
-  
+  fname_len = data_len - 2 - db_len - table_name_len - num_fields -
+    field_block_len;
 }
 
 
@@ -711,21 +662,21 @@ void Load_log_event::print(FILE* file, bool short_form)
   if((int)skip_lines > 0)
     fprintf(file, " IGNORE %ld LINES ", skip_lines);
 
-  if(num_fields)
+  if (num_fields)
+  {
+    uint i;
+    const char* field = fields;
+    fprintf( file, " (");
+    for(i = 0; i < num_fields; i++)
     {
-      uint i;
-      const char* field = fields;
-      fprintf( file, " (");
-      for(i = 0; i < num_fields; i++)
-	{
-	  if(i)
-	    fputc(',', file);
-	  fprintf(file, field);
+      if(i)
+	fputc(',', file);
+      fprintf(file, field);
 	  
-	  field += field_lens[i]  + 1;
-	}
-      fputc(')', file);
+      field += field_lens[i]  + 1;
     }
+    fputc(')', file);
+  }
 
   fprintf(file, ";\n");
 }
