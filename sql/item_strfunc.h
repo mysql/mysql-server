@@ -277,7 +277,7 @@ public:
 /*
   Item_func_old_password -- PASSWORD() implementation used in MySQL 3.21 - 4.0
   compatibility mode. This item is created in sql_yacc.yy when
-  'use_old_passwords' session variable is set, and to handle OLD_PASSWORD()
+  'old_passwords' session variable is set, and to handle OLD_PASSWORD()
   function.
 */
 

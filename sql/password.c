@@ -89,24 +89,6 @@ void randominit(struct rand_struct *rand_st, ulong seed1, ulong seed2)
 
 
 /*
-  Old (MySQL 3.20) random generation structure initialization
-  XXX: is to be deleted very soon!
-  SYNOPSIS
-    old_randominit()
-    rand_st    OUT  Structure to initialize
-    seed1      IN   First initialization parameter
-*/
-
-static void old_randominit(struct rand_struct *rand_st, ulong seed1)
-{                                               /* For mysql 3.20.# */
-  rand_st->max_value= 0x01FFFFFFL;
-  rand_st->max_value_dbl=(double) rand_st->max_value;
-  seed1%=rand_st->max_value;
-  rand_st->seed1=seed1 ; rand_st->seed2=seed1/2;
-}
-
-
-/*
     Generate random number.
   SYNOPSIS
     my_rnd()
@@ -178,13 +160,11 @@ void make_scrambled_password_323(char *to, const char *password)
     message  IN  Message to scramble. Message must be exactly 
                  SRAMBLE_LENGTH_323 long and NULL terminated. 
     password IN  Password to use while scrambling
-    old_ver  IN  Force old version random number generator
   RETURN
     End of scrambled string
 */
 
-char *scramble_323(char *to, const char *message, const char *password,
-                   my_bool old_ver)
+char *scramble_323(char *to, const char *message, const char *password)
 {
   struct rand_struct rand_st;
   ulong hash_pass[2], hash_message[2];
@@ -194,21 +174,15 @@ char *scramble_323(char *to, const char *message, const char *password,
     char *to_start=to;
     hash_password(hash_pass,password);
     hash_password(hash_message, message);
-    if (old_ver)
-      old_randominit(&rand_st,hash_pass[0] ^ hash_message[0]);
-    else
-      randominit(&rand_st,hash_pass[0] ^ hash_message[0],
-                 hash_pass[1] ^ hash_message[1]);
+    randominit(&rand_st,hash_pass[0] ^ hash_message[0],
+               hash_pass[1] ^ hash_message[1]);
     while (*message++)
       *to++= (char) (floor(my_rnd(&rand_st)*31)+64);
-    if (!old_ver)
-    {                                           /* Make it harder to break */
-      char extra=(char) (floor(my_rnd(&rand_st)*31));
-      while (to_start != to)
-        *(to_start++)^=extra;
-    }
+    char extra=(char) (floor(my_rnd(&rand_st)*31));
+    while (to_start != to)
+      *(to_start++)^=extra;
   }
-  *to=0;
+  *to= 0;
   return to;
 }
 
@@ -223,7 +197,6 @@ char *scramble_323(char *to, const char *message, const char *password,
                   be exactly SCRAMBLED_LENGTH_323 bytes long and
                   NULL-terminated.
     hash_pass  IN password which should be used for scrambling
-    old_ver    IN force old (3.20) version random number generator
   RETURN VALUE
     0 - password correct
    !0 - password invalid
@@ -231,7 +204,7 @@ char *scramble_323(char *to, const char *message, const char *password,
 
 my_bool
 check_scramble_323(const char *scrambled, const char *message,
-                   ulong *hash_pass, my_bool old_ver)
+                   ulong *hash_pass)
 {
   struct rand_struct rand_st;
   ulong hash_message[2];
@@ -243,18 +216,12 @@ check_scramble_323(const char *scrambled, const char *message,
     return 1;                                   /* Wrong password */
 
   hash_password(hash_message,message);
-  if (old_ver)
-    old_randominit(&rand_st,hash_pass[0] ^ hash_message[0]);
-  else
-    randominit(&rand_st,hash_pass[0] ^ hash_message[0],
-               hash_pass[1] ^ hash_message[1]);
+  randominit(&rand_st,hash_pass[0] ^ hash_message[0],
+             hash_pass[1] ^ hash_message[1]);
   to=buff;
   for (pos=scrambled ; *pos ; pos++)
     *to++=(char) (floor(my_rnd(&rand_st)*31)+64);
-  if (old_ver)
-    extra=0;
-  else
-    extra=(char) (floor(my_rnd(&rand_st)*31));
+  extra=(char) (floor(my_rnd(&rand_st)*31));
   to=buff;
   while (*scrambled)
   {

@@ -87,14 +87,31 @@ set_user_salt(ACL_USER *acl_user, const char *password, uint password_len)
     get_salt_from_password(acl_user->salt, password);
     acl_user->salt_len= SCRAMBLE_LENGTH;
   }
-  else if (password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323
-           || password_len == 8 && protocol_version == 9)
+  else if (password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
   {
     get_salt_from_password_323((ulong *) acl_user->salt, password);
-    acl_user->salt_len= password_len/2;
+    acl_user->salt_len= SCRAMBLE_LENGTH_323;
   }
   else
     acl_user->salt_len= 0;
+}
+
+/*
+  This after_update function is used when user.password is less than
+  SCRAMBLE_LENGTH bytes.
+*/
+
+static void restrict_update_of_old_passwords_var(THD *thd,
+                                                 enum_var_type var_type)
+{
+  if (var_type == OPT_GLOBAL)
+  {
+    pthread_mutex_lock(&LOCK_global_system_variables);
+    global_system_variables.old_passwords= 1;
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+  }
+  else
+    thd->variables.old_passwords= 1;
 }
 
 
@@ -139,8 +156,6 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
   if (!(thd=new THD))
     DBUG_RETURN(1); /* purecov: inspected */
   thd->store_globals();
-  /* Use passwords according to command line option */
-  use_old_passwords= opt_old_passwords;
 
   acl_cache->clear(1);				// Clear locked hostname cache
   thd->db= my_strdup("mysql",MYF(0));
@@ -197,24 +212,43 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
 
   init_read_record(&read_record_info,thd,table=tables[1].table,NULL,1,0);
   VOID(my_init_dynamic_array(&acl_users,sizeof(ACL_USER),50,100));
-  if (table->field[2]->field_length == 8 &&
-      protocol_version == PROTOCOL_VERSION)
+  if (table->field[2]->field_length < SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
   {
-    sql_print_error("Old 'user' table. "
-                    "(Check README or the Reference manual). "
-                    "Continuing --old-protocol"); /* purecov: tested */
-    protocol_version=9; /* purecov: tested */
+    sql_print_error("Fatal error: mysql.user table is damaged or in "
+                    "unsupported 3.20 format.");
+    goto end;
   }
 
   DBUG_PRINT("info",("user table fields: %d, password length: %d",
 		     table->fields, table->field[2]->field_length));
-  if (table->field[2]->field_length < SCRAMBLED_PASSWORD_CHAR_LENGTH &&
-      !use_old_passwords)
+  
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  if (table->field[2]->field_length < SCRAMBLED_PASSWORD_CHAR_LENGTH)
   {
-    sql_print_error("mysql.user table is not updated to new password format; "
-                    "Disabling new password usage until "
-                    "mysql_fix_privilege_tables is run");
-    use_old_passwords= 1;
+    if (opt_secure_auth)
+    {
+      pthread_mutex_unlock(&LOCK_global_system_variables);
+      sql_print_error("Fatal error: mysql.user table is in old format, "
+                      "but server started with --secure-auth option.");
+      goto end;
+    }
+    sys_old_passwords.after_update= restrict_update_of_old_passwords_var;
+    if (global_system_variables.old_passwords)
+      pthread_mutex_unlock(&LOCK_global_system_variables);
+    else
+    {
+      global_system_variables.old_passwords= 1;
+      pthread_mutex_unlock(&LOCK_global_system_variables);
+      sql_print_error("mysql.user table is not updated to new password format; "
+                      "Disabling new password usage until "
+                      "mysql_fix_privilege_tables is run");
+    }
+    thd->variables.old_passwords= 1;
+  }
+  else
+  {
+    sys_old_passwords.after_update= 0;
+    pthread_mutex_unlock(&LOCK_global_system_variables);
   }
 
   allow_all_hosts=0;
@@ -229,12 +263,6 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     if (user.salt_len == 0 && password_len != 0)
     {
       switch (password_len) {
-      case 8: /* 3.20: to be removed */
-        sql_print_error("Found old style password for user '%s'. "
-                        "Ignoring user. (You may want to restart mysqld "
-                        "using --old-protocol) ",
-                        user.user ? user.user : "");
-        break;
       case 45: /* 4.1: to be removed */
         sql_print_error("Found 4.1 style password for user '%s'. "
                         "Ignoring user. "
@@ -513,7 +541,6 @@ static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b)
                        original random string,
     passwd_len   IN    length of passwd, must be one of 0, 8,
                        SCRAMBLE_LENGTH_323, SCRAMBLE_LENGTH
-    old_version  IN    if old (3.20) protocol is used
  RETURN VALUE
     0  success: thread data and mqh are updated
     1  user not found or authentification failure
@@ -521,9 +548,8 @@ static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b)
    -1  user found, has short (3.23) salt, but passwd is in new (4.1.1) format.
 */
 
-int
-acl_getroot(THD *thd, USER_RESOURCES  *mqh,
-            const char *passwd, uint passwd_len, bool old_version)
+int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
+                const char *passwd, uint passwd_len)
 {
   DBUG_ENTER("acl_getroot");
 
@@ -557,7 +583,7 @@ acl_getroot(THD *thd, USER_RESOURCES  *mqh,
               user_i->salt_len == SCRAMBLE_LENGTH &&
               check_scramble(passwd, thd->scramble, user_i->salt) == 0 ||
               check_scramble_323(passwd, thd->scramble_323,
-                (ulong *) user_i->salt, old_version) == 0)
+                                 (ulong *) user_i->salt) == 0)
           {
             acl_user= user_i;
             res= 0;

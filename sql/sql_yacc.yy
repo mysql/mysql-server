@@ -2517,7 +2517,8 @@ simple_expr:
 	  { $$= new Item_func_now($3); Lex->safe_to_cache_query=0;}
 	| PASSWORD '(' expr ')'
 	  {
-	    $$= use_old_passwords ?  (Item *) new Item_func_old_password($3) :
+	    $$= YYTHD->variables.old_passwords ?
+              (Item *) new Item_func_old_password($3) :
 	      (Item *) new Item_func_password($3);
 	  }
 	| OLD_PASSWORD '(' expr ')'
@@ -4607,7 +4608,7 @@ text_or_password:
 	TEXT_STRING { $$=$1.str;}
 	| PASSWORD '(' TEXT_STRING ')'
 	  {
-	    $$= $3.length ? use_old_passwords ?
+	    $$= $3.length ? YYTHD->variables.old_passwords ?
 	        Item_func_old_password::alloc(YYTHD, $3.str) :
 	        Item_func_password::alloc(YYTHD, $3.str) :
 	      $3.str;
@@ -4923,7 +4924,7 @@ grant_user:
 	   $$=$1; $1->password=$4;
 	   if ($4.length)
 	   {
-             if (use_old_passwords)
+             if (YYTHD->variables.old_passwords)
              {
                char *buff= 
                  (char *) YYTHD->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH_323+1);

@@ -319,10 +319,9 @@ void create_random_string(char *to, uint length, struct rand_struct *rand_st);
 
 void hash_password(ulong *to, const char *password);
 void make_scrambled_password_323(char *to, const char *password);
-char *scramble_323(char *to, const char *message, const char *password,
-                   my_bool old_ver);
+char *scramble_323(char *to, const char *message, const char *password);
 my_bool check_scramble_323(const char *, const char *message,
-                           unsigned long *salt, my_bool old_ver);
+                           unsigned long *salt);
 void get_salt_from_password_323(unsigned long *res, const char *password);
 void make_password_from_salt_323(char *to, const unsigned long *salt);
 

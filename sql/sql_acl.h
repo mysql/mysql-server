@@ -135,8 +135,8 @@ void acl_reload(THD *thd);
 void acl_free(bool end=0);
 ulong acl_get(const char *host, const char *ip, const char *bin_ip,
 	      const char *user, const char *db);
-int acl_getroot(THD *thd, USER_RESOURCES *mqh,
-                const char *passwd, uint passwd_len, bool old_ver);
+int acl_getroot(THD *thd, USER_RESOURCES *mqh, const char *passwd,
+                uint passwd_len);
 bool acl_check_host(const char *host, const char *ip);
 bool check_change_password(THD *thd, const char *host, const char *user);
 bool change_password(THD *thd, const char *host, const char *user,
