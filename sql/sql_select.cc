@@ -436,6 +436,9 @@ JOIN::optimize()
     DBUG_RETURN(0);
   optimized= 1;
 
+  // Ignore errors of execution if option IGNORE present
+  if (thd->lex.duplicates == DUP_IGNORE)
+    thd->lex.current_select->no_error= 1;
 #ifdef HAVE_REF_TO_FIELDS			// Not done yet
   /* Add HAVING to WHERE if possible */
   if (having && !group_list && !sum_func_count)
