@@ -1,6 +1,6 @@
 #this one assumes we are ignoring updates on tables in database foo, but doing
 #the ones in database bar
-source t/include/master-slave.inc;
+source include/master-slave.inc;
 connection master;
 drop database if exists foo;
 create database foo;
@@ -20,4 +20,4 @@ create table bar.bar (m int);
 insert into bar.bar values(15);
 connection slave;
 sleep 1;
-@r/3.23/rpl000009.result select foo.foo.n,bar.bar.m from foo.foo,bar.bar;
+@r/rpl000009.result select foo.foo.n,bar.bar.m from foo.foo,bar.bar;

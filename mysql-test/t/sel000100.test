@@ -21,7 +21,7 @@ CREATE TABLE test2 (
   KEY NAME (NAME)
 );
 
-@r/3.23/sel000100.result SELECT DISTINCT
+@r/sel000100.result SELECT DISTINCT
     test2.id AS key_link_id,
     test2.name AS link
 FROM test1

@@ -1,4 +1,4 @@
-source t/include/master-slave.inc;
+source include/master-slave.inc;
 connection master;
 drop table if exists test;
 CREATE TABLE test (name varchar(64), age smallint(3));
@@ -6,7 +6,7 @@ INSERT INTO  test SET name='Andy', age=31;
 INSERT test SET name='Jacob', age=2;
 INSERT into test SET name='Caleb', age=1;
 ALTER TABLE test ADD id int(8) ZEROFILL AUTO_INCREMENT PRIMARY KEY;
-@r/3.23/rpl000005.result select * from test;
+@r/rpl000005.result select * from test;
 connection slave;
 sleep 0.5;
-@r/3.23/rpl000005.result select * from test;
+@r/rpl000005.result select * from test;

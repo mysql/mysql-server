@@ -1,4 +1,4 @@
-source t/include/master-slave.inc;
+source include/master-slave.inc;
 connection master;
 use test;
 drop table if exists foo;
@@ -14,5 +14,5 @@ insert into foo values(2);
 connection slave;
 #let slave catch up
 sleep 1;
-@r/3.23/rpl000011.result select * from foo;
+@r/rpl000011.result select * from foo;
 

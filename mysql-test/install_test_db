@@ -5,26 +5,36 @@
 # This scripts creates the privilege tables db, host, user, tables_priv,
 # columns_priv in the mysql database, as well as the func table.
 
+if [ x$1 = x"-bin" ]; then
+ shift 1
+ execdir=../bin
+ bindir=../bin
+ BINARY_DIST=1
+ fix_bin=mysql-test
+else
+ execdir=../sql
+ bindir=../client
+ fix_bin=.
+fi
 
 if [ x$1 = x"-slave" ] 
 then
- shift $#
- ldata=var/slave-data
+ shift 1
+ data=var/slave-data
+ ldata=$fix_bin/var/slave-data
  logdir=var/log
- mdata=$ldata/mysql
- execdir=../sql
- bindir=../client
 else
- ldata=var/lib
+ data=var/lib
+ ldata=$fix_bin/var/lib
  logdir=var/log
- mdata=$ldata/mysql
- execdir=../sql
- bindir=../client
 fi
+
+mdata=$data/mysql
+
 
 if test ! -x $execdir/mysqld
 then
-  echo "I can't find no stinking mysqld!"
+  echo "mysqld is missing - looked in $execdir"
   exit 1
 fi
 
@@ -36,25 +46,18 @@ resolved=127.0.0.1
 
 
 # Create database directories mysql & test
-if test ! -d $ldata; then (mkdir -p $ldata || exit 1) && \
- (chmod 700  $ldata || exit 1) ; fi
-if test ! -d $ldata/mysql;
-then
- mkdir -p $ldata/mysql || exit 1;
- chmod 700 $ldata/mysql || exit 1 ; fi
-if test ! -d $ldata/test;
-then
- mkdir -p $ldata/test || exit 1;
- chmod 700 $ldata/test || exit 1 ;
- fi
-if test -w / -a ! -z "$user"; then
-  chown $user $ldata $ldata/mysql $ldata/test || exit 1;
-fi
+if [ -d $data ] ; then rm -rf $data ; fi
+mkdir -p $data $data/mysql $data/test 
 
 #for error messages
+if [ x$BINARY_DIST = x1 ] ; then
+basedir=..
+else
+basedir=.
 rm -rf share
 mkdir  share
 ln -sf ../../sql/share share/mysql 
+fi
 
 #create the directory for logs
 mkdir -p $logdir
@@ -192,7 +195,7 @@ then
 fi
 
 if $execdir/mysqld --no-defaults --bootstrap --skip-grant-tables \
-    --basedir=. --datadir=$ldata  << END_OF_DATA
+    --basedir=$basedir --datadir=$ldata  << END_OF_DATA
 use mysql;
 $c_d
 $i_d
