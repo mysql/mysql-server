@@ -478,11 +478,11 @@ static const ulong index_type_flags[]=
 
   /* PRIMARY_KEY_ORDERED_INDEX */
   /* 
-     Enable HA_KEY_READ_ONLY when "sorted" indexes are supported, 
+     Enable HA_KEYREAD_ONLY when "sorted" indexes are supported, 
      thus ORDERD BY clauses can be optimized by reading directly 
      through the index.
   */
-  // HA_KEY_READ_ONLY | 
+  // HA_KEYREAD_ONLY | 
   HA_READ_NEXT |              
   HA_READ_RANGE,
 
