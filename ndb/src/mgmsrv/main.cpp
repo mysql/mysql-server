@@ -103,10 +103,14 @@ static struct my_option my_long_options[] =
     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "version", 'V', "Output version information and exit.", 0, 0, 0,
     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "connect-string", 1023,
+  { "ndb-connectstring", 1023,
     "Set connect string for connecting to ndb_mgmd. "
-    "<constr>=\"host=<hostname:port>[;nodeid=<id>]\". "
-    "Overides specifying entries in NDB_CONNECTSTRING and config file",
+    "Syntax: \"[nodeid=<id>;][host=]<hostname>[:<port>]\". " 
+    "Overides specifying entries in NDB_CONNECTSTRING and Ndb.cfg",
+    (gptr*) &opt_connect_str, (gptr*) &opt_connect_str, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "connect-string", 1023,
+    "same as --ndb-connectstring.",
     (gptr*) &opt_connect_str, (gptr*) &opt_connect_str, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "config-file", 'f', "Specify cluster configuration file",
@@ -186,7 +190,7 @@ int main(int argc, char** argv)
   global_mgmt_server_check = 1;
   glob.config_filename= "config.ini";
 
-  const char *load_default_groups[]= { "ndb_mgmd",0 };
+  const char *load_default_groups[]= { "mysql_cluster","ndb_mgmd",0 };
   load_defaults("my",load_default_groups,&argc,&argv);
 
   int ho_error;
