@@ -195,3 +195,32 @@ delete from t1 where a is null;
 insert into t1 values ('2'), ('3');
 select * from t1;
 drop table t1;
+
+#
+# Bug #8489: Strange auto_increment behaviour
+#
+
+create table t1 (a bigint unsigned auto_increment primary key, b int,
+  key (b, a)) engine=heap;
+insert t1 (b) values (1);
+insert t1 (b) values (1);
+insert t1 (b) values (1);
+insert t1 (b) values (1);
+insert t1 (b) values (1);
+insert t1 (b) values (1);
+insert t1 (b) values (1);
+insert t1 (b) values (1);
+select * from t1;                                                               
+drop table t1;
+create table t1 (a int not null, b int not null auto_increment,
+  primary key(a, b), key(b)) engine=heap;
+insert t1 (a) values (1);
+insert t1 (a) values (1);
+insert t1 (a) values (1);
+insert t1 (a) values (1);
+insert t1 (a) values (1);
+insert t1 (a) values (1);
+insert t1 (a) values (1);
+insert t1 (a) values (1);
+select * from t1;                                                               
+drop table t1;
