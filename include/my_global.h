@@ -634,7 +634,12 @@ extern double		my_atof(const char*);
   Max size that must be added to a so that we know Size to make
   adressable obj.
 */
+#if SIZEOF_CHARP == 4
 typedef long		my_ptrdiff_t;
+#else
+typedef long long	my_ptrdiff_t;
+#endif
+
 #define MY_ALIGN(A,L)	(((A) + (L) - 1) & ~((L) - 1))
 #define ALIGN_SIZE(A)	MY_ALIGN((A),sizeof(double))
 /* Size to make adressable obj. */
