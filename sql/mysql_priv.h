@@ -1027,6 +1027,8 @@ extern uint opt_crash_binlog_innodb;
 extern char *shared_memory_base_name, *mysqld_unix_port;
 extern bool opt_enable_shared_memory;
 extern char *default_tz_name;
+extern my_bool opt_large_pages;
+extern uint opt_large_page_size;
 
 extern MYSQL_LOG mysql_log,mysql_slow_log,mysql_bin_log;
 extern FILE *bootstrap_file;
