@@ -1016,7 +1016,6 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
 
-    mysql_log.write(thd,COM_QUERY,"%s",thd->query);
     DBUG_PRINT("query",("%s",thd->query));
     if (ignored_error_code((expected_error= error_code)) ||
 	!check_expected_error(thd,rli,expected_error))
@@ -1045,6 +1044,10 @@ START SLAVE; . Query: '%s'", expected_error, thd->query);
       }
       goto end;
     }
+
+    /* If the query was not ignored, it is printed to the general log */
+    if (thd->net.last_errno != ER_SLAVE_IGNORED_TABLE)
+      mysql_log.write(thd,COM_QUERY,"%s",thd->query);
 
     /*
       If we expected a non-zero error code, and we don't get the same error
@@ -2528,7 +2531,12 @@ int User_var_log_event::exec_event(struct st_relay_log_info* rli)
     0 can be passed as last argument (reference on item)
   */
   e.fix_fields(thd, 0, 0);
-  e.update_hash(val, val_len, type, charset, DERIVATION_NONE);
+  /*
+    A variable can just be considered as a table with
+    a single record and with a single column. Thus, like
+    a column value, it could always have IMPLICIT derivation.
+   */
+  e.update_hash(val, val_len, type, charset, DERIVATION_IMPLICIT);
   free_root(thd->mem_root,0);
 
   rli->inc_event_relay_log_pos(get_event_len());

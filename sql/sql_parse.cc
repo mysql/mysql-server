@@ -2816,8 +2816,8 @@ unsent_create_error:
       
     TABLE *table= tables->table;
     /* Skip first table, which is the table we are inserting in */
-    tables= (TABLE_LIST *)
-      lex->select_lex.table_list.first= (byte*) first_local_table->next;
+    lex->select_lex.table_list.first= (byte*) first_local_table->next;
+    tables= (TABLE_LIST *) lex->select_lex.table_list.first;
     first_local_table->next= 0;
     
     if (!(res= mysql_prepare_insert(thd, tables, first_local_table, 

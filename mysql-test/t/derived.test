@@ -224,3 +224,15 @@ select distinct sum(b) from t1 group by a;
 select distinct sum(b) from (select a,b from t1) y group by a;
 drop table t1;
 
+#
+# test of union subquery in the FROM clause with complex distinct/all (BUG#6565)
+#
+create table t1(a int);
+create table t2(a int);
+create table t3(a int);
+insert into t1 values(1),(1);
+insert into t2 values(2),(2);
+insert into t3 values(3),(3);
+select * from t1 union distinct select * from t2 union all select * from t3;
+select * from (select * from t1 union distinct select * from t2 union all select * from t3) X;
+drop table t1, t2, t3;

@@ -693,3 +693,8 @@ INSERT INTO t1 VALUES ('one'),('two');
 SELECT CHARSET('a');
 SELECT user, CONCAT('<', user, '>') AS c FROM t1;
 DROP TABLE t1;
+
+#
+# Bug#8385: utf8_general_ci treats Cyrillic letters I and SHORT I as the same
+#
+select convert(_koi8r'É' using utf8) < convert(_koi8r'Ê' using utf8);
