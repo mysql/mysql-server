@@ -6622,8 +6622,8 @@ static void test_frm_bug()
   row= mysql_fetch_row(result);
   mytest(row);
 
-  fprintf(stdout, "\n Comment: %s", row[16]);
-  assert(row[16] != 0);
+  fprintf(stdout, "\n Comment: %s", row[17]);
+  assert(row[17] != 0);
 
   mysql_free_result(result);
   mysql_stmt_close(stmt);
