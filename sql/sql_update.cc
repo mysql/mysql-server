@@ -618,7 +618,18 @@ bool multi_update::send_data(List<Item> &not_used_values)
   for (cur_table= update_tables; cur_table ; cur_table= cur_table->next)
   {
     TABLE *table= cur_table->table;
-    /* Check if we are using outer join and we didn't find the row */
+    /*
+      Check if we are using outer join and we didn't find the row
+      or if we have already updated this row in the previous call to this
+      function.
+
+      The same row may be presented here several times in a join of type
+      UPDATE t1 FROM t1,t2 SET t1.a=t2.a
+
+      In this case we will do the update for the first found row combination.
+      The join algorithm guarantees that we will not find the a row in
+      t1 several times.
+    */
     if (table->status & (STATUS_NULL_ROW | STATUS_UPDATED))
       continue;
 

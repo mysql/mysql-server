@@ -58,6 +58,13 @@ a$1	$b	c$
 create table test_$1.test2$ (a int);
 drop table test_$1.test2$;
 drop database test_$1;
+create table `` (a int);
+Incorrect table name ''
+drop table if exists ``;
+Incorrect table name ''
+create table t1 (`` int);
+Incorrect column name ''
+drop table if exists t1;
 create table t1 (a int auto_increment not null primary key, B CHAR(20));
 insert into t1 (b) values ("hello"),("my"),("world");
 create table t2 (key (b)) select * from t1;
