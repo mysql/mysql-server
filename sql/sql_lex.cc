@@ -1603,9 +1603,6 @@ void st_select_lex::print_limit(THD *thd, String *str)
     return;
   }
 
-  if (!thd)
-    thd= current_thd;
-
   if (explicit_limit)
   {
     str->append(" limit ", 7);

@@ -4,7 +4,8 @@ BIN_DIRS := 	ndbapi_simple_example \
 		ndbapi_retries_example \
 		ndbapi_simple_index_example \
 		ndbapi_event_example \
-		ndbapi_scan_example
+		ndbapi_scan_example \
+		mgmapi_logevent_example
 
 bins: $(patsubst %, _bins_%, $(BIN_DIRS))
 
