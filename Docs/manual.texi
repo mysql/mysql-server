@@ -27568,8 +27568,8 @@ Uptime: 10077  Threads: 1  Questions: 9  Slow queries: 0  Opens: 6  Flush tables
 @cindex status command, results
 The @code{mysqladmin status} command result has the following columns:
 
-@multitable @columnfractions .3 .7
 @cindex uptime
+@multitable @columnfractions .3 .7
 @item Uptime @tab Number of seconds the @strong{MySQL} server has been up.
 @cindex threads
 @item Threads @tab Number of active threads (clients).
