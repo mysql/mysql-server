@@ -401,3 +401,6 @@ vio/viotest-ssl
 tools/mysqlmanager
 vio/test-ssl
 vio/test-ssl
+sql/mysqld-purecov
+sql/mysqld-purify
+sql/mysqld-quantify
