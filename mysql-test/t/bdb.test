@@ -727,13 +727,24 @@ DROP TABLE t1,t2;
 # Test problem with joining table to itself on a multi-part unique key
 #
 
-drop table if exists t;
-create table t (a int(11) not null, b int(11) not null, unique (a,b)) type=bdb;
+drop table if exists t1;
+create table t1 (a int(11) not null, b int(11) not null, unique (a,b)) type=bdb;
+insert into t1 values (1,1), (1,2);
+select * from t1 where a = 1;
+select t1.*, t2.* from t1, t1 t2 where t1.a = t2.a and t2.a = 1;
+select * from t1 where a = 1;
+drop table t1;
 
-insert into t values (1,1), (1,2);
+#
+# This caused a deadlock in BDB internal locks
+#
 
-select * from t where a = 1;
-select t1.*, t2.* from t t1, t t2 where t1.a = t2.a and t2.a = 1;
-select * from t where a = 1;
-
-drop table t;
+create table t1 (id int NOT NULL,id2 int NOT NULL,id3 int NOT NULL,dummy1 char(30),primary key (id,id2),index index_id3 (id3)) type=bdb;
+insert into t1 values (0,0,0,'ABCDEFGHIJ');
+create table t2 (id int NOT NULL,primary key (id)) type=bdb;
+LOCK TABLES t1 WRITE, t2 WRITE;
+insert into t2 values(1);
+SELECT t1.* FROM t1 WHERE id IN (1);
+SELECT t1.* FROM t2 left outer join t1 on (t1.id=t2.id);
+delete from t1 where id3 >= 0 and id3 <= 0;
+drop table t1,t2;

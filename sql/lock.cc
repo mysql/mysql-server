@@ -170,10 +170,9 @@ void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock)
 {
   DBUG_ENTER("mysql_unlock_tables");
   if (sql_lock->lock_count)
-  {
     thr_multi_unlock(sql_lock->locks,sql_lock->lock_count);
+  if (sql_lock->table_count)
     VOID(unlock_external(thd,sql_lock->table,sql_lock->table_count));
-  }
   my_free((gptr) sql_lock,MYF(0));
   DBUG_VOID_RETURN;
 }
@@ -317,7 +316,7 @@ static int unlock_external(THD *thd, TABLE **table,uint count)
   DBUG_ENTER("unlock_external");
 
   error_code=0;
-  for (; count-- ; table++)
+  do
   {
     if ((*table)->current_lock != F_UNLCK)
     {
@@ -325,7 +324,8 @@ static int unlock_external(THD *thd, TABLE **table,uint count)
       if ((error=(*table)->file->external_lock(thd, F_UNLCK)))
 	error_code=error;
     }
-  }
+    table++;
+  } while (--count);
   if (error_code)
     print_lock_error(error_code);
   DBUG_RETURN(error_code);
