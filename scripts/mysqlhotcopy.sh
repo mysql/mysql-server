@@ -77,7 +77,7 @@ Usage: $0 db_name[./table_regex/] [new_db_name | directory]
   --record_log_pos=#   record slave and master status in specified db.table
   --chroot=#           base directory of chroot jail in which mysqld operates
 
-  Try \'perldoc $0 for more complete documentation\'
+  Try \'perldoc $0\' for more complete documentation\'
 _OPTIONS
 
 sub usage {
