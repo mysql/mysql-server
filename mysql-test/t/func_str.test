@@ -195,6 +195,8 @@ select concat(_latin1'a',_latin2'a');
 select concat(_latin1'a',_latin2'a',_latin5'a');
 --error 1271
 select concat(_latin1'a',_latin2'a',_latin5'a',_latin7'a');
+--error 1267
+select concat_ws(_latin1'a',_latin2'a');
 
 #
 # Test FIELD() and collations
