@@ -6590,13 +6590,12 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c @image{Flags/spain} Spain [MasterD]
 @c @uref{http://mysql.masterd.es, WWW}
 
-@c @item
-@c Not ok 20000919; Old site (Matt)
+@item
 @c EMAIL: Patrik.Karen@sdi.slu.se (Patrik Karen)
 @c ftp -> remove old files
-@c @image{Flags/sweden} Sweden [Sunet] @
-@c @uref{http://ftp.sunet.se/pub/unix/databases/relational/mysql/, WWW}
-@c @uref{ftp://ftp.sunet.se/pub/unix/databases/relational/mysql/, FTP}
+@image{Flags/sweden} Sweden [Sunet] @
+@uref{http://ftp.sunet.se/pub/unix/databases/relational/mysql/, WWW}
+@uref{ftp://ftp.sunet.se/pub/unix/databases/relational/mysql/, FTP}
 
 @item
 @c EMAIL: archive@sunsite.cnlab-switch.ch (Thomas Lenggenhager)
@@ -6609,12 +6608,6 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c simon@oyster.co.uk (Simon Gornall)
 @c @image{Flags/great-britain} UK [Oyster/UK] @
 @c @uref{ftp://ftp.oyster.co.uk/pub/mysql, FTP}
-
-@item
-@c EMAIL: gareth@omnipotent.net (Gareth Watts)
-@image{Flags/great-britain} UK [Omnipotent/UK] @
-@uref{http://mysql.omnipotent.net/, WWW}
-@uref{ftp://mysql.omnipotent.net/, FTP}
 
 @item
 @c EMAIL: keet@mordor.plig.net (Christiaan Keet)
@@ -36076,7 +36069,9 @@ set-variable = innodb_lock_wait_timeout=50
 @end example
 
 Note that data files must be < 4G, and < 2G on
-some file systems! InnoDB does not create directories:
+some file systems! The total size of data files has
+to be >= 10 MB.
+InnoDB does not create directories:
 you have to create them yourself.
 
 Suppose you have a Linux machine with 512 MB RAM and
