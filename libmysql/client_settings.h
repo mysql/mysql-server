@@ -22,7 +22,7 @@ extern my_string	mysql_unix_port;
 			     CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONNECTION)
 
 sig_handler pipe_sig_handler(int sig __attribute__((unused)));
-my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list, my_bool skip_free);
+my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_free);
 void read_user_name(char *name);
 my_bool send_file_to_server(MYSQL *mysql, const char *filename);
 

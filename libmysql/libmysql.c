@@ -89,7 +89,6 @@ static void append_wild(char *to,char *end,const char *wild);
 sig_handler pipe_sig_handler(int sig);
 static ulong mysql_sub_escape_string(CHARSET_INFO *charset_info, char *to,
 				     const char *from, ulong length);
-my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list, my_bool skip_free);
 
 static my_bool mysql_client_init= 0;
 static my_bool org_my_init_done= 0;
@@ -1640,43 +1639,88 @@ my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
   DBUG_RETURN(0);
 }
 
+#ifdef HAVE_DEPRECATED_411_API
+MYSQL_STMT * STDCALL mysql_prepare(MYSQL *mysql, const char *query,
+                                   unsigned long query_length)
+{
+  DBUG_ENTER("mysql_prepare");
+
+  MYSQL_STMT *stmt= mysql_stmt_init(mysql);
+  if (stmt && mysql_stmt_prepare(stmt, query, query_length))
+  {
+    stmt_close(stmt, 0);
+    DBUG_RETURN(0);
+  }
+  DBUG_RETURN(stmt);
+}
+#endif
 
 /*
-  Prepare the query and return the new statement handle to
-  caller.
+  Allocate memory and init prepared statement structure
+  SYNOPSIS
+    mysql_stmt_init()
+    mysql connection handle
+  RETURN VALUE
+    statement structure upon success and NULL if out of
+    memory
+*/
+
+MYSQL_STMT * STDCALL
+mysql_stmt_init(MYSQL *mysql)
+{
+  MYSQL_STMT *stmt;
+  DBUG_ENTER("mysql_stmt_init");
+
+  if (!(stmt= (MYSQL_STMT *) my_malloc(sizeof(MYSQL_STMT),
+                                       MYF(MY_WME | MY_ZEROFILL))))
+  {
+    set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+    DBUG_RETURN(0);
+  }
+
+  init_alloc_root(&stmt->mem_root,8192,0);
+  mysql->stmts= list_add(mysql->stmts, &stmt->list);
+  stmt->list.data= stmt;
+  stmt->state= MY_ST_UNKNOWN;
+  stmt->mysql= mysql;
+
+  DBUG_RETURN(stmt);
+}
+
+/*
+  Prepare server side statement with query.
 
   Also update the total parameter count along with resultset
   metadata information by reading from server
 */
 
 
-MYSQL_STMT *STDCALL
-mysql_prepare(MYSQL  *mysql, const char *query, ulong length)
+int STDCALL
+mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query, ulong length)
 {
-  MYSQL_STMT  *stmt;
-  DBUG_ENTER("mysql_prepare");
+  MYSQL *mysql= stmt->mysql;
+  DBUG_ENTER("mysql_stmt_prepare");
+
   DBUG_ASSERT(mysql != 0);
 
-  if (!(stmt= (MYSQL_STMT *) my_malloc(sizeof(MYSQL_STMT),
-				       MYF(MY_WME | MY_ZEROFILL))) ||
-      !(stmt->query= my_strdup_with_length((byte *) query, length, MYF(0))))
+  /* In case we reprepare this handle with another statement */
+  free_root(&stmt->mem_root, MYF(0));
+
+  /* stmt->query is never used yet */
+  if (!(stmt->query= strmake_root(&stmt->mem_root, query, length)))
   {
-    my_free((gptr) stmt, MYF(MY_ALLOW_ZERO_PTR));
-    set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-    DBUG_RETURN(0);
+    set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate);
+    DBUG_RETURN(1);
   }
   if (simple_command(mysql, COM_PREPARE, query, length, 1))
   {
-    stmt_close(stmt, 1, 0);
-    DBUG_RETURN(0);
+    set_stmt_errmsg(stmt, mysql->net.last_error, mysql->net.last_errno,
+                    mysql->net.sqlstate);
+    DBUG_RETURN(1);
   }
 
-  init_alloc_root(&stmt->mem_root,8192,0);
   if ((*mysql->methods->read_prepare_result)(mysql, stmt))
-  {
-    stmt_close(stmt, 1, 0);
-    DBUG_RETURN(0);
-  }
+    DBUG_RETURN(1);
 
   if (!(stmt->params= (MYSQL_BIND *) alloc_root(&stmt->mem_root,
 						sizeof(MYSQL_BIND)*
@@ -1684,16 +1728,13 @@ mysql_prepare(MYSQL  *mysql, const char *query, ulong length)
                                                  stmt->field_count))))
   {
     set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate);
-    DBUG_RETURN(0);
+    DBUG_RETURN(1);
   }
   stmt->bind= stmt->params + stmt->param_count;
   stmt->state= MY_ST_PREPARE;
-  stmt->mysql= mysql;
-  mysql->stmts= list_add(mysql->stmts, &stmt->list);
   mysql->status= MYSQL_STATUS_READY;
-  stmt->list.data= stmt;
   DBUG_PRINT("info", ("Parameter count: %ld", stmt->param_count));
-  DBUG_RETURN(stmt);
+  DBUG_RETURN(0);
 }
 
 /*
@@ -1750,10 +1791,10 @@ unsigned int alloc_stmt_fields(MYSQL_STMT *stmt)
 */
 
 MYSQL_RES * STDCALL
-mysql_get_metadata(MYSQL_STMT *stmt)
+mysql_stmt_result_metadata(MYSQL_STMT *stmt)
 {
   MYSQL_RES *result;
-  DBUG_ENTER("mysql_get_metadata");
+  DBUG_ENTER("mysql_stmt_result_metadata");
   
   if (!stmt->field_count || !stmt->fields)
   {
@@ -1778,9 +1819,9 @@ mysql_get_metadata(MYSQL_STMT *stmt)
 */
 
 MYSQL_RES * STDCALL
-mysql_param_result(MYSQL_STMT *stmt)
+mysql_stmt_param_metadata(MYSQL_STMT *stmt)
 {
-  DBUG_ENTER("mysql_param_result");
+  DBUG_ENTER("mysql_stmt_param_metadata");
   
   if (!stmt->param_count)
     DBUG_RETURN(0);
@@ -2079,9 +2120,9 @@ int cli_stmt_execute(MYSQL_STMT *stmt)
   Execute the prepared query
 */
 
-int STDCALL mysql_execute(MYSQL_STMT *stmt)
+int STDCALL mysql_stmt_execute(MYSQL_STMT *stmt)
 {
-  DBUG_ENTER("mysql_execute");
+  DBUG_ENTER("mysql_stmt_execute");
 
   if ((*stmt->mysql->methods->stmt_execute)(stmt))
     DBUG_RETURN(1);
@@ -2099,9 +2140,9 @@ int STDCALL mysql_execute(MYSQL_STMT *stmt)
   Return total parameters count in the statement
 */
 
-ulong STDCALL mysql_param_count(MYSQL_STMT * stmt)
+ulong STDCALL mysql_stmt_param_count(MYSQL_STMT * stmt)
 {
-  DBUG_ENTER("mysql_param_count");
+  DBUG_ENTER("mysql_stmt_param_count");
   DBUG_RETURN(stmt->param_count);
 }
 
@@ -2122,11 +2163,11 @@ static my_bool int_is_null_false= 0;
   Setup the parameter data buffers from application
 */
 
-my_bool STDCALL mysql_bind_param(MYSQL_STMT *stmt, MYSQL_BIND * bind)
+my_bool STDCALL mysql_stmt_bind_param(MYSQL_STMT *stmt, MYSQL_BIND * bind)
 {
   uint count=0;
   MYSQL_BIND *param, *end;
-  DBUG_ENTER("mysql_bind_param");
+  DBUG_ENTER("mysql_stmt_bind_param");
 
   /* Allocated on prepare */
   memcpy((char*) stmt->params, (char*) bind,
@@ -2228,7 +2269,7 @@ my_bool STDCALL mysql_bind_param(MYSQL_STMT *stmt, MYSQL_BIND * bind)
   Send long data in pieces to the server
 
   SYNOPSIS
-    mysql_send_long_data()
+    mysql_stmt_send_long_data()
     stmt			Statement handler
     param_number		Parameter number (0 - N-1)
     data			Data to send to server
@@ -2241,11 +2282,11 @@ my_bool STDCALL mysql_bind_param(MYSQL_STMT *stmt, MYSQL_BIND * bind)
 
 
 my_bool STDCALL
-mysql_send_long_data(MYSQL_STMT *stmt, uint param_number,
+mysql_stmt_send_long_data(MYSQL_STMT *stmt, uint param_number,
 		     const char *data, ulong length)
 {
   MYSQL_BIND *param;
-  DBUG_ENTER("mysql_send_long_data");
+  DBUG_ENTER("mysql_stmt_send_long_data");
   DBUG_ASSERT(stmt != 0);
   DBUG_PRINT("enter",("param no : %d, data : %lx, length : %ld",
 		      param_number, data, length));
@@ -2811,12 +2852,12 @@ static void fetch_result_str(MYSQL_BIND *param, uchar **row)
   Setup the bind buffers for resultset processing
 */
 
-my_bool STDCALL mysql_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
+my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
 {
   MYSQL_BIND *param, *end;
   ulong       bind_count;
   uint        param_count= 0;
-  DBUG_ENTER("mysql_bind_result");
+  DBUG_ENTER("mysql_stmt_bind_result");
   DBUG_ASSERT(stmt != 0);
 
   if (!(bind_count= stmt->field_count) && 
@@ -2965,11 +3006,11 @@ int cli_unbuffered_fetch(MYSQL *mysql, char **row)
   Fetch and return row data to bound buffers, if any
 */
 
-int STDCALL mysql_fetch(MYSQL_STMT *stmt)
+int STDCALL mysql_stmt_fetch(MYSQL_STMT *stmt)
 {
   MYSQL *mysql= stmt->mysql;
   uchar *row;
-  DBUG_ENTER("mysql_fetch");
+  DBUG_ENTER("mysql_stmt_fetch");
 
   stmt->last_fetched_column= 0;			/* reset */
   if (stmt->result_buffered)			/* buffered */
@@ -3025,10 +3066,10 @@ no_data:
   Fetch data for one specified column data
 
   SYNOPSIS
-    mysql_fetch_column()
+    mysql_stmt_fetch_column()
     stmt		Prepared statement handler
     bind		Where data should be placed. Should be filled in as
-			when calling mysql_bind_result()
+			when calling mysql_stmt_bind_result()
     column		Column to fetch (first column is 0)
     ulong offset	Offset in result data (to fetch blob in pieces)
 			This is normally 0
@@ -3037,11 +3078,11 @@ no_data:
     1	error
 */
 
-int STDCALL mysql_fetch_column(MYSQL_STMT *stmt, MYSQL_BIND *bind, 
+int STDCALL mysql_stmt_fetch_column(MYSQL_STMT *stmt, MYSQL_BIND *bind, 
                                uint column, ulong offset)
 {
   MYSQL_BIND *param= stmt->bind+column; 
-  DBUG_ENTER("mysql_fetch_column");
+  DBUG_ENTER("mysql_stmt_fetch_column");
 
   if (!stmt->current_row)
     goto no_data;
@@ -3183,7 +3224,7 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
   result->fields=	stmt->fields;
   result->field_count=	stmt->field_count;
   stmt->result= result;
-  DBUG_RETURN(0); /* Data buffered, must be fetched with mysql_fetch() */
+  DBUG_RETURN(0); /* Data buffered, must be fetched with mysql_stmt_fetch() */
 }
 
 
@@ -3275,7 +3316,7 @@ my_ulonglong STDCALL mysql_stmt_num_rows(MYSQL_STMT *stmt)
   Close the statement handle by freeing all alloced resources
 
   SYNOPSIS
-    mysql_stmt_close()
+    mysql_stmt_free_result()
     stmt	       Statement handle
     skip_list    Flag to indicate delete from list or not
   RETURN VALUES
@@ -3313,10 +3354,10 @@ my_bool STDCALL mysql_stmt_free_result(MYSQL_STMT *stmt)
 }
 
 
-my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list, my_bool skip_free)
+my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_free)
 {
   MYSQL *mysql;
-  DBUG_ENTER("mysql_stmt_close");
+  DBUG_ENTER("stmt_close");
 
   DBUG_ASSERT(stmt != 0);
   
@@ -3341,10 +3382,8 @@ my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list, my_bool skip_free)
   }
   stmt->field_count= 0;
   free_root(&stmt->mem_root, MYF(0));
-  if (!skip_list)
-    mysql->stmts= list_delete(mysql->stmts, &stmt->list);
+  mysql->stmts= list_delete(mysql->stmts, &stmt->list);
   mysql->status= MYSQL_STATUS_READY;
-  my_free((gptr) stmt->query, MYF(MY_WME));
   my_free((gptr) stmt, MYF(MY_WME));
   DBUG_RETURN(0);
 }
@@ -3352,7 +3391,7 @@ my_bool stmt_close(MYSQL_STMT *stmt, my_bool skip_list, my_bool skip_free)
 
 my_bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt)
 {
-  return stmt_close(stmt, 0, 0);
+  return stmt_close(stmt, 0);
 }
 
 /*

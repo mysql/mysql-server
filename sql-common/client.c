@@ -2199,7 +2199,7 @@ void STDCALL mysql_close(MYSQL *mysql)
       for (element= mysql->stmts; element; element= next_element)
       {
         next_element= element->next;
-        stmt_close((MYSQL_STMT *)element->data, 0, 1);
+        stmt_close((MYSQL_STMT *)element->data, 1);
       }
       mysql->stmts= 0;
     }
