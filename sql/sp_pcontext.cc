@@ -26,78 +26,97 @@
 #include "sp_pcontext.h"
 #include "sp_head.h"
 
-sp_pcontext::sp_pcontext()
-  : Sql_alloc(), m_params(0), m_framesize(0), m_handlers(0), m_cursmax(0),
-    m_hndlrlev(0)
+sp_pcontext::sp_pcontext(sp_pcontext *prev)
+  : Sql_alloc(), m_psubsize(0), m_csubsize(0), m_hsubsize(0),
+    m_parent(prev), m_handlers(0)
 {
   VOID(my_init_dynamic_array(&m_pvar, sizeof(sp_pvar_t *), 16, 8));
   VOID(my_init_dynamic_array(&m_cond, sizeof(sp_cond_type_t *), 16, 8));
   VOID(my_init_dynamic_array(&m_cursor, sizeof(LEX_STRING), 16, 8));
-  VOID(my_init_dynamic_array(&m_scopes, sizeof(sp_scope_t), 16, 8));
-  VOID(my_init_dynamic_array(&m_glabel, sizeof(sp_label_t *), 16, 8));
   m_label.empty();
+  m_children.empty();
+  if (!prev)
+    m_poffset= m_coffset= 0;
+  else
+  {
+    m_poffset= prev->current_pvars();
+    m_coffset= prev->current_cursors();
+  }
 }
 
 void
 sp_pcontext::destroy()
 {
+  List_iterator_fast<sp_pcontext> li(m_children);
+  sp_pcontext *child;
+
+  while ((child= li++))
+    child->destroy();
+
+  m_children.empty();
+  m_label.empty();
   delete_dynamic(&m_pvar);
   delete_dynamic(&m_cond);
   delete_dynamic(&m_cursor);
-  delete_dynamic(&m_scopes);
-  delete_dynamic(&m_glabel);
-  m_label.empty();
 }
 
-void
-sp_pcontext::push_scope()
+sp_pcontext *
+sp_pcontext::push_context()
 {
-  sp_scope_t s;
+  sp_pcontext *child= new sp_pcontext(this);
 
-  s.vars= m_pvar.elements;
-  s.conds= m_cond.elements;
-  s.hndlrs= m_hndlrlev;
-  s.curs= m_cursor.elements;
-  s.glab= m_glabel.elements;
-  insert_dynamic(&m_scopes, (gptr)&s);
+  if (child)
+    m_children.push_back(child);
+  return child;
 }
 
-void
-sp_pcontext::pop_scope(sp_scope_t *sp)
+sp_pcontext *
+sp_pcontext::pop_context()
 {
-  byte *p= pop_dynamic(&m_scopes);
+  uint submax= max_pvars();
 
-  if (sp && p)
-    memcpy(sp, p, sizeof(sp_scope_t));
+  if (submax > m_parent->m_psubsize)
+    m_parent->m_psubsize= submax;
+  submax= max_handlers();
+  if (submax > m_parent->m_hsubsize)
+    m_parent->m_hsubsize= submax;
+  submax= max_cursors();
+  if (submax > m_parent->m_csubsize)
+    m_parent->m_csubsize= submax;
+  return m_parent;
 }
 
-void
-sp_pcontext::diff_scopes(uint sold, sp_scope_t *diffs)
+uint
+sp_pcontext::diff_handlers(sp_pcontext *ctx)
 {
-  uint snew= m_scopes.elements;
-  sp_scope_t scope;
+  uint n= 0;
+  sp_pcontext *pctx= this;
 
-  diffs->vars= diffs->conds= diffs->hndlrs= diffs->curs= diffs->glab= 0;
-  while (snew-- > sold)
+  while (pctx && pctx != ctx)
   {
-    get_dynamic(&m_scopes, (gptr)&scope, snew);
-    diffs->vars+= scope.vars;
-    diffs->conds+= scope.conds;
-    diffs->hndlrs+= scope.hndlrs;
-    diffs->curs+= scope.curs;
-    diffs->glab+= scope.glab;
+    n+= pctx->max_handlers();
+    pctx= pctx->parent_context();
   }
-  if (sold)
-  {
-    get_dynamic(&m_scopes, (gptr)&scope, sold-1);
-    diffs->vars-= scope.vars;
-    diffs->conds-= scope.conds;
-    diffs->hndlrs-= scope.hndlrs;
-    diffs->curs-= scope.curs;
-    diffs->glab-= scope.glab;
-  }
+  if (pctx)
+    return n;
+  return 0;			// Didn't find ctx
 }
 
+uint
+sp_pcontext::diff_cursors(sp_pcontext *ctx)
+{
+  uint n= 0;
+  sp_pcontext *pctx= this;
+
+  while (pctx && pctx != ctx)
+  {
+    n+= pctx->max_cursors();
+    pctx= pctx->parent_context();
+  }
+  if (pctx)
+    return n;
+  return 0;			// Didn't find ctx
+}
 
 /* This does a linear search (from newer to older variables, in case
 ** we have shadowed names).
@@ -109,20 +128,9 @@ sp_pcontext::diff_scopes(uint sold, sp_scope_t *diffs)
 sp_pvar_t *
 sp_pcontext::find_pvar(LEX_STRING *name, my_bool scoped)
 {
-  uint i = m_pvar.elements;
-  uint limit;
+  uint i= m_pvar.elements;
 
-  if (! scoped || m_scopes.elements == 0)
-    limit= 0;
-  else
-  {
-    sp_scope_t s;
-
-    get_dynamic(&m_scopes, (gptr)&s, m_scopes.elements-1);
-    limit= s.vars;
-  }
-      
-  while (i-- > limit)
+  while (i--)
   {
     sp_pvar_t *p;
 
@@ -134,6 +142,8 @@ sp_pcontext::find_pvar(LEX_STRING *name, my_bool scoped)
       return p;
     }
   }
+  if (!scoped && m_parent)
+    return m_parent->find_pvar(name, scoped);
   return NULL;
 }
 
@@ -145,13 +155,13 @@ sp_pcontext::push_pvar(LEX_STRING *name, enum enum_field_types type,
 
   if (p)
   {
-    if (m_pvar.elements == m_framesize)
-      m_framesize += 1;
+    if (m_pvar.elements == m_psubsize)
+      m_psubsize+= 1;
     p->name.str= name->str;
     p->name.length= name->length;
     p->type= type;
     p->mode= mode;
-    p->offset= m_pvar.elements;
+    p->offset= current_pvars();
     p->isset= (mode == sp_param_out ? FALSE : TRUE);
     p->dflt= NULL;
     insert_dynamic(&m_pvar, (gptr)&p);
@@ -168,7 +178,7 @@ sp_pcontext::push_label(char *name, uint ip)
     lab->name= name;
     lab->ip= ip;
     lab->type= SP_LAB_GOTO;
-    lab->scopes= 0;
+    lab->ctx= this;
     m_label.push_front(lab);
   }
   return lab;
@@ -184,6 +194,8 @@ sp_pcontext::find_label(char *name)
     if (my_strcasecmp(system_charset_info, name, lab->name) == 0)
       return lab;
 
+  if (m_parent)
+    return m_parent->find_label(name);
   return NULL;
 }
 
@@ -207,20 +219,9 @@ sp_pcontext::push_cond(LEX_STRING *name, sp_cond_type_t *val)
 sp_cond_type_t *
 sp_pcontext::find_cond(LEX_STRING *name, my_bool scoped)
 {
-  uint i = m_cond.elements;
-  uint limit;
+  uint i= m_cond.elements;
 
-  if (! scoped || m_scopes.elements == 0)
-    limit= 0;
-  else
-  {
-    sp_scope_t s;
-
-    get_dynamic(&m_scopes, (gptr)&s, m_scopes.elements-1);
-    limit= s.conds;
-  }
-      
-  while (i-- > limit)
+  while (i--)
   {
     sp_cond_t *p;
 
@@ -232,6 +233,8 @@ sp_pcontext::find_cond(LEX_STRING *name, my_bool scoped)
       return p->val;
     }
   }
+  if (!scoped && m_parent)
+    return m_parent->find_cond(name, scoped);
   return NULL;
 }
 
@@ -240,11 +243,11 @@ sp_pcontext::push_cursor(LEX_STRING *name)
 {
   LEX_STRING n;
 
+  if (m_cursor.elements == m_csubsize)
+    m_csubsize+= 1;
   n.str= name->str;
   n.length= name->length;
   insert_dynamic(&m_cursor, (gptr)&n);
-  if (m_cursor.elements > m_cursmax)
-    m_cursmax= m_cursor.elements;
 }
 
 /*
@@ -253,20 +256,9 @@ sp_pcontext::push_cursor(LEX_STRING *name)
 my_bool
 sp_pcontext::find_cursor(LEX_STRING *name, uint *poff, my_bool scoped)
 {
-  uint i = m_cursor.elements;
-  uint limit;
+  uint i= m_cursor.elements;
 
-  if (! scoped || m_scopes.elements == 0)
-    limit= 0;
-  else
-  {
-    sp_scope_t s;
-
-    get_dynamic(&m_scopes, (gptr)&s, m_scopes.elements-1);
-    limit= s.curs;
-  }
-      
-  while (i-- > limit)
+  while (i--)
   {
     LEX_STRING n;
 
@@ -279,43 +271,7 @@ sp_pcontext::find_cursor(LEX_STRING *name, uint *poff, my_bool scoped)
       return TRUE;
     }
   }
+  if (!scoped && m_parent)
+    return m_parent->find_cursor(name, poff, scoped);
   return FALSE;
-}
-
-sp_label_t *
-sp_pcontext::push_glabel(char *name, uint ip)
-{
-  sp_label_t *lab = (sp_label_t *)sql_alloc(sizeof(sp_label_t));
-
-  if (lab)
-  {
-    lab->name= name;
-    lab->ip= ip;
-    lab->type= SP_LAB_GOTO;
-    lab->scopes= 0;
-    insert_dynamic(&m_glabel, (gptr)&lab);
-  }
-  return lab;
-}
-
-sp_label_t *
-sp_pcontext::find_glabel(char *name)
-{
-  uint i= m_glabel.elements;
-
-  while (i--)
-  {
-    sp_label_t *lab;
-
-    get_dynamic(&m_glabel, (gptr)&lab, i);
-    if (my_strcasecmp(system_charset_info, name, lab->name) == 0)
-      return lab;
-  }
-  return NULL;
-}
-
-void
-sp_pcontext::pop_glabel(uint count)
-{
-  (void)pop_dynamic(&m_glabel);  
 }
