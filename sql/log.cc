@@ -276,7 +276,7 @@ int MYSQL_LOG::find_first_log(LOG_INFO* linfo, const char* log_name)
 
     // if the log entry matches, empty string matching anything
     if (!log_name_len ||
-	(log_name_len == length+1 && fname[log_name_len] == '\n' &&
+	(log_name_len == length-1 && fname[log_name_len] == '\n' &&
 	 !memcmp(fname, log_name, log_name_len)))
     {
       fname[length-1]=0;			// remove last \n

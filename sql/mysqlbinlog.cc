@@ -310,7 +310,7 @@ Unfortunately, no sweepstakes today, adjusted position to 4\n");
 
 static void dump_local_log_entries(const char* logname)
 {
-  File fd;
+  File fd = -1;
   IO_CACHE cache,*file= &cache;
   int rec_count = 0;
 
@@ -368,7 +368,8 @@ read error",
     rec_count++;
     delete ev;
   }
-  my_close(fd, MYF(MY_WME));
+  if(fd >= 0)
+   my_close(fd, MYF(MY_WME));
   end_io_cache(file);
 }
 
