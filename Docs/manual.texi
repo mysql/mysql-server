@@ -2055,230 +2055,250 @@ Platform independent ASP from Chili!Soft
 
 @c @item
 @c no answer from server 990830
-@c @uref{http://www.voicenet.com/~zellert/tjFM, A JDBC driver for @strong{MySQL}}
-@item
-@uref{http://www.wernhart.priv.at/php/, @strong{MySQL} + PHP demos}
-@item
-@uref{http://www.dbwww.com/, ForwardSQL: HTML interface to manipulate @strong{MySQL} databases}
-@item
-@uref{http://www.daa.com.au/~james/www-sql/, WWW-SQL: Display database
-information}
-@item
-@uref{http://www.minivend.com/minivend/, Minivend: A Web shopping cart}
-@item
-@uref{http://www.heitml.com/, HeiTML: A server-side extension of HTML and
-a 4GL language at the same time}
-@item
-@uref{http://www.metahtml.com/, Metahtml: A Dynamic Programming Language
-for WWW Applications}
-@item
-@uref{http://www.binevolve.com/, VelocityGen for Perl and Tcl}
-@item
-@uref{http://hawkeye.net/, Hawkeye Internet Server Suite}
-@item
-@uref{http://www.fastflow.com/, Network Database Connection For Linux}
-@item
-@uref{http://www.wdbi.net/,
+@c @uref{http://www.voicenet.com/~zellert/tjFM}@*
+@c A JDBC driver for @strong{MySQL}.
+
+@item @uref{http://www.wernhart.priv.at/php/}@*
+@strong{MySQL} + PHP demos.
+
+@item @uref{http://www.dbwww.com/}@*
+ForwardSQL: HTML interface to manipulate @strong{MySQL} databases.
+
+@item @uref{http://www.daa.com.au/~james/www-sql/}@*
+WWW-SQL: Display database information.
+
+@item @uref{http://www.minivend.com/minivend/}@*
+Minivend: A Web shopping cart.
+
+@item @uref{http://www.heitml.com/}@*
+HeiTML: A server-side extension of HTML and a 4GL language at the same time.
+
+@item @uref{http://www.metahtml.com/}@*
+Metahtml: A Dynamic Programming Language for WWW Applications.
+
+@item @uref{http://www.binevolve.com/}@*
+VelocityGen for Perl and Tcl.
+
+@item @uref{http://hawkeye.net/}@*
+Hawkeye Internet Server Suite.
+
+@item @uref{http://www.fastflow.com/}@*
+Network Database Connection For Linux
+
+@item @uref{http://www.wdbi.net/}@*
 WDBI: Web browser as a universal front end to databases which supports
-@strong{MySQL} well.}
-@item
-@uref{http://www.webgroove.com/, WebGroove Script: HTML compiler and server-side scripting language}
-@item
-@uref{http://www.ihtml.com/, A server-side web site scripting language}
-@item
-@uref{ftp://ftp.igc.apc.org/pub/myodbc/README, How to use @strong{MySQL} with ColdFusion on Solaris}
-@item
-@uref{http://calistra.com/MySQL/,Calistra's ODBC @strong{MySQL} Administrator}
-@item
-@uref{http://www.webmerger.com, Webmerger}
-This CGI tool interprets files and generates dynamic output
-based on a set of simple tags. Ready-to-run drivers for @strong{MySQL} and PostgreSQL
-through ODBC.
-@item
-@uref{http://phpclub.unet.ru/index_e.php3, PHPclub}. Tips and tricks for PHP
-@item
-@uref{http://www.penguinservices.com/scripts, @strong{MySQL} and Perl Scripts}
-@item
-@uref{http://www.widgetchuck.com, The Widgetchuck; Web Site Tools and Gadgets}
-@item
-@uref{http://www.adcycle.com/, AdCycle} advertising management software
-@item
-@uref{http://www.bidsystems.com/pwPage, pwPage} provides an extremely
+@strong{MySQL} well.
+
+@item @uref{http://www.webgroove.com/}@*
+WebGroove Script: HTML compiler and server-side scripting language.
+
+@item @uref{http://www.ihtml.com/}@*
+A server-side Web site scripting language.
+
+@item @uref{ftp://ftp.igc.apc.org/pub/myodbc/README}@*
+How to use @strong{MySQL} with ColdFusion on Solaris.
+
+@item @uref{http://calistra.com/MySQL/}@*
+Calistra's ODBC @strong{MySQL} Administrator.
+
+@item @uref{http://www.webmerger.com}@*
+Webmerger -  This CGI tool interprets files and generates dynamic output
+based on a set of simple tags. Ready-to-run drivers for @strong{MySQL} and
+PostgreSQL through ODBC.
+
+@item @uref{http://phpclub.unet.ru/index_e.php3}@*
+PHPclub - Tips and tricks for PHP.
+
+@item @uref{http://www.penguinservices.com/scripts}@*
+@strong{MySQL} and Perl Scripts.
+
+@item @uref{http://www.widgetchuck.com}@*
+The Widgetchuck; Web Site Tools and Gadgets
+
+@item @uref{http://www.adcycle.com/}@*
+AdCycle - advertising management software.
+
+@item @uref{http://www.bidsystems.com/pwPage}@*
+pwPage - provides an extremely
 fast and simple approach to the creation of database forms.  That is,
 if a database table exists and an HTML page has been constructed using
 a few simple guidelines, pwPage can be immediately used for table data
 selections, insertions, updates, deletions and selectable table content
 reviewing.
-@item
-@uref{http://www.omnis-software.com/products/studio/studio.html, OMNIS}
+
+@item @uref{http://www.omnis-software.com/products/studio/studio.html}@*
 OMNIS Studio is a rapid application development (RAD) tool.
-@item
-@uref{http://www.webplus.com, talentsoft Web+ 4.6}
-Web+ is a powerful and comprehensive development language for use in
-creating web-based client/server applications without writing complicated,
-low-level and time-consuming CGI programs.
+
+@item @uref{http://www.webplus.com}@*
+talentsoft Web+ 4.6 - a powerful and comprehensive development language for 
+use in creating web-based client/server applications without writing 
+complicated, low-level, and time-consuming CGI programs.
+
 @end itemize
 
-@subheading Database design tools with MySQL support
+@subheading Database Design Tools with MySQL Support
 @itemize @bullet
-@item
-@uref{http://www.mysql.com/dezign/index.html, "DeZign for
-databases" is a database development tool using an
-entity relationship diagram (ERD).}
+@item @uref{http://www.mysql.com/dezign/index.html}@*
+"DeZign for databases" is a database development tool that uses an
+entity relationship diagram (ERD).
 @end itemize
 
-@subheading Web servers with @strong{MySQL} tools
+@subheading Web Servers with @strong{MySQL} Tools
 
 @itemize @bullet
-@item
-@uref{http://bourbon.netvision.net.il/mysql/mod_auth_mysql/, An Apache
-authentication module}
-@item
-@uref{http://www.roxen.com/, The Roxen Challenger Web server}
+@item @uref{http://bourbon.netvision.net.il/mysql/mod_auth_mysql/}@*
+An Apache authentication module.
+@item @uref{http://www.roxen.com/}@*
+The Roxen Challenger Web server.
 @end itemize
 
-@subheading Extensions for other programs
+@subheading Extensions for Other Programs
 
 @itemize @bullet
-@item
-@uref{http://www.seawood.org/msql_bind/, @strong{MySQL} support for BIND
-(The Internet Domain Name Server)}
-@item
-@uref{http://www.inet-interactive.com/sendmail, @strong{MySQL} support for
-Sendmail and Procmail}
+@item @uref{http://www.seawood.org/msql_bind/}@*
+@strong{MySQL} support for BIND (The Internet Domain Name Server).
+
+@item @uref{http://www.inet-interactive.com/sendmail/}@*
+@strong{MySQL} support for Sendmail and Procmail.
 @end itemize
 
-@subheading Using @strong{MySQL} with other programs
+@subheading Using @strong{MySQL} with Other Programs
 
 @itemize @bullet
-@item
-@uref{http://www.iserver.com/support/addonhelp/database/mysql/msaccess.html, Using @strong{MySQL} with Access}
-@item
-@uref{http://www.iserver.com/support/contrib/perl5/modules.html,Installing new Perl modules that require locally installed modules}
+@item @uref{http://www.iserver.com/support/addonhelp/database/mysql/msaccess.html}
+Using @strong{MySQL} with Access.
+
+@item @uref{http://www.iserver.com/support/contrib/perl5/modules.html}
+Installing new Perl modules that require locally installed modules.
 @end itemize
 
-@subheading ODBC related links
+@subheading ODBC-related Links
 
 @itemize @bullet
-@item
-@uref{http://www.iodbc.org/,Popular iODBC Driver Manager (libiodbc) now available in Open Source format}
-@item
-@uref{http://users.ids.net/~bjepson/freeODBC/,The FreeODBC Pages}
-@item
-@uref{http:/http://genix.net/unixODBC/,unixodbc}
+@item @uref{http://www.iodbc.org/}@*
+Popular iODBC Driver Manager (libiodbc) now available in Open Source format.
+
+@item @uref{http://users.ids.net/~bjepson/freeODBC/}@*
+The FreeODBC Pages.
+
+@item @uref{http:/http://genix.net/unixODBC/}@*
 The unixODBC Project goals are to develop and promote unixODBC to be the
-definitive standard for ODBC on the Linux platform.
-This is to include GUI support for KDE.
-@item
-@uref{http://www.sw-soft.com/products/BtrieveODBC/}
-A @strong{MySQL}-based ODBC drivers for Btrieve
+definitive standard for ODBC on the Linux platform. This is to include GUI 
+support for KDE.
+
+@item @uref{http://www.sw-soft.com/products/BtrieveODBC/}@*
+A @strong{MySQL}-based ODBC drivers for Btrieve.
 @end itemize
 
-@subheading @strong{API} related links
+@subheading @strong{API}-related Links
 
 @itemize @bullet
-@item
 @c FIX i get no route on this host on 7/31/2k, check later (jcole)
-@uref{http://www.amedea.cz/mysqlx/index.html, MySQL COM extension}
-With this COM object you can use MySQL also on Windows with ASP
-pages or with Delphi, Visual Basic, Visual C++, ... languages.
-@item
-@uref{http://www.jppp.com, www.jppp.com}
+@item @uref{http://www.amedea.cz/mysqlx/index.html}@*
+MySQL COM extension - With this COM object you can use MySQL also on 
+Windows with ASP pages or with Delphi, Visual Basic, Visual C++, etc.
+
+@item @uref{http://www.jppp.com/}@*
 Partially implemented TDataset-compatible components for @strong{MySQL}.
-@item
-@uref{http://www.riverstyx.net/qpopmysql/,qpopmysql}
-A patch to allow POP3 authentication from a @strong{MySQL} database.
-There's also a link to Paul Khavkine's patch for Procmail to allow
+
+@item @uref{http://www.riverstyx.net/qpopmysql/}@*
+qpopmysql - A patch to allow POP3 authentication from a @strong{MySQL}
+database. There's also a link to Paul Khavkine's patch for Procmail to allow
 any MTA to deliver to users in a @strong{MySQL} database.
-@item
-@uref{http://www.pbc.ottawa.on.ca,Visual Basic class generator for Active X}
-@item
-@uref{http://www.lilback.com/macsql/, Client libraries for the Macintosh}
+
+@item @uref{http://www.pbc.ottawa.on.ca}@*
+Visual Basic class generator for Active X.
+
+@item @uref{http://www.lilback.com/macsql/}@*
+Client libraries for the Macintosh.
+
 @c 404 not found
-@c @item
-@c @uref{http://tfdec1.fys.kuleuven.ac.be/~michael/fpc-linux/mysql,
-@c @strong{MySQL} binding to Free Pascal}
-@item
-@uref{http://www.dedecker.net/jessie/scmdb/, SCMDB}.
-SCMDB is an add-on for SCM that ports the mysql C library to scheme (SCM).
+@c @item @uref{http://tfdec1.fys.kuleuven.ac.be/~michael/fpc-linux/mysql}@*
+@c @strong{MySQL} binding to Free Pascal.
+
+@item @uref{http://www.dedecker.net/jessie/scmdb/}@*
+SCMDB - an add-on for SCM that ports the mysql C library to scheme (SCM).
 With this library scheme developers can make connections to a mySQL
 database and use embedded SQL in their programs.
 @end itemize
 
-@subheading Other @strong{MySQL}-related links
+@subheading Other @strong{MySQL}-related Links
 
 @itemize @bullet
-@item
-@uref{http://www.wix.com/mysql-hosting, Registry of Web providers who
-support @strong{MySQL}}
-@item
-@uref{http://www.softagency.co.jp/mysql/index.en.phtml, Links about using
-@strong{MySQL} in Japan/Asia}
-@item
-@uref{http://abattoir.cc.ndsu.nodak.edu/~nem/mysql/udf/, @strong{MySQL} UDF Registry}
-@item
-@uref{http://www.open.com.au/products.html, Commercial Web defect tracking
-system}
-@item
-@uref{http://www.stonekeep.com/pts/, PTS: Project Tracking System}
-@item
-@uref{http://tomato.nvgc.vt.edu/~hroberts/mot, Job and software tracking
-system}
-@c @item
-@c Error 404 990830
-@c @uref{http://home.wxs.nl/cgi-bin/planeteers/pgidszoek.cgi, Full-text search engine using @strong{MySQL}}
-@item
-@uref{http://www.cynergi.net/non-secure/exportsql/, ExportSQL: A script
-to export data from Access95+}
-@item
-@uref{http://SAL.KachinaTech.COM/H/1/MYSQL.html, SAL (Scientific
-Applications on Linux) @strong{MySQL} entry}
-@c Removed 990510
-@c @item
-@c @uref{http://www.cgishop.com/bin/mysqllist, @strong{MySQL} Apps and
-@c Utilities Listing}
-@c @item
-@c @uref{http://www.luth.se/~goggi/proj/mysql/man/mysql.pdf, The
-@c @strong{MySQL} reference manual in Adobe PDF format}
-@item
-@uref{http://www.infotech-nj.com/itech/index.shtml, A consulting company
-which mentions @strong{MySQL} in the right company}
-@item
-@uref{http://www.pmpcs.com/, PMP Computer Solutions. Database developers using
-@strong{MySQL} and @code{mSQL}}
-@item
-@uref{http://www.aewa.org, Airborne Early Warning Association }
-@item
-@uref{http://21ccs.com/~gboersm/y2kmatrix/, Y2K tester}
+@item @uref{http://www.wix.com/mysql-hosting/}@*
+Registry of Web providers who support @strong{MySQL}.
+
+@item @uref{http://www.softagency.co.jp/mysql/index.en.phtml}@*
+Links about using @strong{MySQL} in Japan/Asia.
+
+@item @uref{http://abattoir.cc.ndsu.nodak.edu/~nem/mysql/udf/}@*
+@strong{MySQL} UDF Registry.
+
+@item @uref{http://www.open.com.au/products.html}@*
+Commercial Web defect tracking system.
+
+@item @uref{http://www.stonekeep.com/pts/}@*
+PTS: Project Tracking System.
+
+@item @uref{http://tomato.nvgc.vt.edu/~hroberts/mot}@*
+Job and software tracking system.
+
+@item @uref{http://www.cynergi.net/non-secure/exportsql/}@*
+ExportSQL: A script to export data from Access95+.
+
+@item @uref{http://SAL.KachinaTech.COM/H/1/MYSQL.html}@*
+SAL (Scientific Applications on Linux) @strong{MySQL} entry.
+
+@item @uref{http://www.infotech-nj.com/itech/index.shtml}@*
+A consulting company which mentions @strong{MySQL} in the right company.
+
+@item @uref{http://www.pmpcs.com/}@*
+PMP Computer Solutions. Database developers using @strong{MySQL} and 
+@code{mSQL}.
+
+@item @uref{http://www.aewa.org/}@*
+Airborne Early Warning Association.
+
+@item @uref{http://21ccs.com/~gboersm/y2kmatrix/}@*
+Y2K tester.
 @end itemize
 
-@subheading SQL and database interfaces
+@subheading SQL and Database Interfaces
 @itemize @bullet
-@item
-@uref{http://java.sun.com/products/jdbc/, The JDBC database access API}
-@item
-@uref{http://www.gagme.com/mysql, Patch for @code{mSQL} Tcl}
-@item
-@uref{http://www.amsoft.ru/easysql/, EasySQL: An ODBC-like driver manager}
-@item
-@uref{http://www.lightlink.com/hessling/rexxsql.html, A REXX interface to SQL databases}
-@item
-@uref{http://www.mytcl.cx/, Tcl interface based on tcl-sql with many bugfixes.}
-@item
-@uref{http://www.binevolve.com/~tdarugar/tcl-sql, Tcl interface}
+@item @uref{http://java.sun.com/products/jdbc/}@*
+The JDBC database access API.
+
+@item @uref{http://www.gagme.com/mysql}@*
+Patch for @code{mSQL} Tcl.
+
+@item @uref{http://www.amsoft.ru/easysql/}@*
+EasySQL: An ODBC-like driver manager.
+
+@item @uref{http://www.lightlink.com/hessling/rexxsql.html}@*
+A REXX interface to SQL databases.
+
+@item @uref{http://www.mytcl.cx/}@*
+Tcl interface based on tcl-sql with many bugfixes.
+
+@item @uref{http://www.binevolve.com/~tdarugar/tcl-sql/}@*
+Tcl interface.
 @end itemize
 
-@subheading Examples of MySQL use
+@subheading Examples of MySQL Use
 
 @itemize @bullet
-@item
 @c Added 990601
 @c EMAIL: thuss@little6.com (Todd Huss)
-@uref{http://www.little6.com/about/linux/, Little6 Inc} An online contract and job finding site that is powered by @strong{MySQL}, PHP3 and Linux.
-@item
+@item @uref{http://www.little6.com/about/linux/}@*
+Little6 Inc., An online contract and job finding site that is powered by 
+@strong{MySQL}, PHP3, and Linux.
+
 @c Added 990521
 @c EMAIL: nh@delec.com (Hillbrecht Nicole)
-@uref{http://www.delec.com/is/products/prep/examples/BookShelf/index.html, DELECis} A tool which makes it very easy to create an automatically generated table documentation. They have used @strong{MySQL} as an example.
+@item @uref{http://www.delec.com/is/products/prep/examples/BookShelf/index.html}
+DELECis - A tool that makes it very easy to create an automatically generated
+table documentation. They have used @strong{MySQL} as an example.
+
 @c @item
 @c Added 990531. Removed 000201 -> No answer from server
 @c EMAIL: sfambro@hotmail.com (Steve Fambro)
@@ -2287,93 +2307,110 @@ which mentions @strong{MySQL} in the right company}
 @c license plate database with all of the registered Utah vehicles (over
 @c 1.2 million). The License plate field is indexed.....so the *searches*
 @c are instantaneous.
-@item
+
 @c Added 990521
 @c EMAIL: info@worldrecords.com (Jim Rota)
-@uref{http://www.worldrecords.com, World Records} A search engine for information about music that uses @strong{MySQL} and PHP.
-@item
-@uref{http://www.webtechniques.com/archives/1998/01/note/,
-A Contact Database using @strong{MySQL} and PHP}
-@item
-@uref{http://modems.rosenet.net/mysql/, Web based interface and Community Calender with PHP}
-@item
-@uref{http://www.odbsoft.com/cook/sources.htm, Perl package to generate html from a SQL table structure and for generating SQL statements from an html form.}
-@item
-@uref{http://www.gusnet.cx/proj/telsql/,Basic telephone database using @code{DBI}/@code{DBD}}.
-@item
-@uref{http://tecfa.unige.ch/guides/java/staf2x/ex/jdbc/coffee-break, JDBC examples by Daniel K. Schneider}
-@item
-@uref{http://www.spade.com/linux/howto/PostgreSQL-HOWTO-41.html,SQL BNF}
-@item
-@uref{http://www.ooc.com/, Object Oriented Concepts Inc; CORBA applications with examples in source}
-@item
-@uref{http://www.pbc.ottawa.on.ca/,DBWiz; Includes an example of how to manage cursors in VB}
-@item
-@uref{http://keilor.cs.umass.edu/pluribus/, Pluribus}
-Pluribus, is a free search engine that learns to improve
+@item @uref{http://www.worldrecords.com}@*
+World Records - A search engine for information about music that uses
+@strong{MySQL} and PHP.
+
+@item @uref{http://www.webtechniques.com/archives/1998/01/note/}@*
+A Contact Database using @strong{MySQL} and PHP.
+
+@item @uref{http://modems.rosenet.net/mysql/}@*
+Web based interface and Community Calender with PHP.
+
+@item @uref{http://www.odbsoft.com/cook/sources.htm}@*
+Perl package to generate html from a SQL table structure and for generating
+SQL statements from an html form.
+
+@item @uref{http://www.gusnet.cx/proj/telsql/}@*
+Basic telephone database using @code{DBI}/@code{DBD}.
+
+@item @uref{http://tecfa.unige.ch/guides/java/staf2x/ex/jdbc/coffee-break}@*
+JDBC examples by Daniel K. Schneider.
+
+@item @uref{http://www.spade.com/linux/howto/PostgreSQL-HOWTO-41.html}
+SQL BNF
+
+@item @uref{http://www.ooc.com/}@*
+Object Oriented Concepts Inc; CORBA applications with examples in source.
+
+@item @uref{http://www.pbc.ottawa.on.ca/}@*
+DBWiz; Includes an example of how to manage cursors in VB.
+
+@item @uref{http://keilor.cs.umass.edu/pluribus/}@*
+Pluribus is a free search engine that learns to improve
 the quality of its results over time. Pluribus works by recording
 which pages a user prefers among those returned for a query. A user
 votes for a page by selecting it; Pluribus then uses that knowledge
 to improve the quality of the results when someone else submits the
 same (or similar) query. Uses PHP and @strong{MySQL}.
-@item
+
 @c EMAIL: paul@sword.damocles.com (Paul Bannister)
-@uref{http://www.stopbit.com/, Stopbit}
-A technology news site using @strong{MySQL} and PHP
-@item
+@item @uref{http://www.stopbit.com/}@*
+Stopbit - A technology news site using @strong{MySQL} and PHP.
+
 @c Added 990604
 @c EMAIL: ah@dybdahl.dk
-@uref{http://www.jokes2000.com/scripts/, Example scripts at Jokes2000}
-@item
-@uref{http://www.linuxsupportline.com/~kalendar/ KDE based calendar manager}
-The calendar manager has both single user (file based) and multi user
-(@strong{MySQL} database) support.
-@item
-@uref{http://tim.desert.net/~tim/imger/,Example of storing/retrieving images with @strong{MySQL} and CGI}
-@item
-@uref{http://www.penguinservices.com/scripts, Online shopping cart system}
-@item
+@item @uref{http://www.jokes2000.com/scripts/}@*
+Example scripts at Jokes2000.
+
+@item @uref{http://www.linuxsupportline.com/~kalendar/}@*
+KDE based calendar manager - The calendar manager has both single user 
+(file based) and multi-user (@strong{MySQL} database) support.
+
+@item @uref{http://tim.desert.net/~tim/imger/}@*
+Example of storing/retrieving images with @strong{MySQL} and CGI.
+
+@item @uref{http://www.penguinservices.com/scripts}@*
+Online shopping cart system.
+
 @c Added 990928 from editor@city-gallery.com
-@uref{http://www.city-gallery.com/album/, Old Photo Album}
-The album is a collaborative popular history of photography project that
-generates all pages from data stored in a @strong{MySQL} database. Pages are
-dynamically generated through a php3 interface to the database content.
-Users contribute images and descriptions. Contributed images are stored
-on the web server to avoid storing them in the database as BLOBs. All
-other information is stored on the shared @strong{MySQL} server.
+@item @uref{http://www.city-gallery.com/album/}@*
+Old Photo Album - The album is a collaborative popular history of photography 
+project that generates all pages from data stored in a @strong{MySQL} 
+database. Pages are dynamically generated through a php3 interface to the 
+database content. Users contribute images and descriptions. Contributed images
+are stored on the web server to avoid storing them in the database as BLOBs. 
+All other information is stored on the shared @strong{MySQL} server.
 @end itemize
 
-@subheading General database links
+@subheading General Database Links
 @itemize @bullet
-@item
-@uref{http://www.pcslink.com/~ej/dbweb.html, Database Jump Site}
-@item
-@uref{http://black.hole-in-the.net/guy/webdb/, Homepage of the webdb-l
-(Web Databases) mailing list.}
-@item
-@uref{http://www.symbolstone.org/technology/perl/DBI/index.html,
-Perl @code{DBI}/@code{DBD} modules homepage}
-@item
-@uref{http://www.student.uni-koeln.de/cygwin/, Cygwin tools. UNIX on top of Windows}
-@item
-@uref{http://dbasecentral.com/, dbasecentral.com; Development and distribution of powerful and easy-to-use database applications and systems.}
-@item
-@uref{http://www.Tek-Tips.com, Tek-Tips Forums} Tek-Tips Forums are 800+
-independent peer-to-peer non-commercial support forums for Computer
-Professionals.  Features include automatic e-mail notification of
-responses, a links library, and member confidentiality guaranteed.
+@item @uref{http://www.pcslink.com/~ej/dbweb.html}@*
+Database Jump Site
+
+@item @uref{http://black.hole-in-the.net/guy/webdb/}@*
+Homepage of the webdb-l (Web Databases) mailing list.
+
+@item @uref{http://www.symbolstone.org/technology/perl/DBI/index.html}
+Perl @code{DBI}/@code{DBD} modules homepage.
+
+@item @uref{http://www.student.uni-koeln.de/cygwin/}@*
+Cygwin tools. UNIX on top of Windows.
+
+@item @uref{http://dbasecentral.com/}@*
+dbasecentral.com; Development and distribution of powerful and easy-to-use
+database applications and systems.
+
+@item @uref{http://www.Tek-Tips.com}@*
+Tek-Tips Forums are 800+ independent peer-to-peer non-commercial support 
+forums for Computer Professionals.  Features include automatic e-mail 
+notification of responses, a links library, and member confidentiality 
+guaranteed.
 @end itemize
 
-There are also many web pages that use
+There are also many Web pages that use
 @strong{MySQL}. @xref{Users}. Send any additions to this list to
 @email{webmaster@@mysql.com}. We now require that you show a
-@strong{MySQL} logo somewhere (It is okay to have it on a ``used tools'' page
-or something similar) to be added.
+@strong{MySQL} logo somewhere to be added (It is okay to have it on a 
+``used tools'' page or something similar.)
 
 @cindex Reporting errors
 @cindex @strong{MySQL} mailing lists
 @node Questions, Licensing and Support, Introduction, Top
-@chapter MySQL mailing lists
+@chapter MySQL Mailing Lists
 
 @menu
 * Mailing-list::                The @strong{MySQL} mailing lists
@@ -2383,7 +2420,7 @@ or something similar) to be added.
 @end menu
 
 @node Mailing-list, Asking questions, Questions, Questions
-@section The MySQL mailing lists
+@section The MySQL Mailing Lists
 
 To subscribe to the main @strong{MySQL} mailing list, send a message to the
 electronic mail address @email{mysql-subscribe@@lists.mysql.com}.
@@ -2437,7 +2474,7 @@ The @code{mysql} list in digest form. That means you get all individual
 messages, sent as one large mail message once a day.
 
 @item @uref{mailto:bugs-subscribe@@lists.mysql.com, bugs}
-On this list you should only post a full, repeatable bug report, using
+On this list you should only post a full, repeatable bug report using
 the @code{mysqlbug} script (if you are running on Windows, you should
 include a description of the operating system and the @strong{MySQL} version).
 Preferably, you should test the problem using the latest stable or
@@ -2449,7 +2486,7 @@ If there are only small code changes involved, we will also post a patch that
 fixes the problem.
 
 @item @uref{mailto:bugs-digest-subscribe@@lists.mysql.com, bugs-digest}
-The @code{bugs} list in digest form
+The @code{bugs} list in digest form.
 
 @item @uref{mailto:developer-subscribe@@lists.mysql.com, developer}
 This list has been depreciated in favor of the
@@ -2475,13 +2512,13 @@ A digest version of the @code{java} list.
 
 @item @uref{mailto:win32-subscribe@@lists.mysql.com, win32}
 All things concerning @strong{MySQL} on Microsoft operating systems such as
-Win95, Win98, NT and Win2000.
+Win95, Win98, NT, and Win2000.
 
 @item @uref{mailto:win32-digest-subscribe@@lists.mysql.com, win32-digest}
 A digest version of the @code{win32} list.
 
 @item @uref{mailto:myodbc-subscribe@@lists.mysql.com, myodbc}
-All things concerning connecting to @strong{MySQL} with ODBC.
+All things about connecting to @strong{MySQL} with ODBC.
 
 @item @uref{mailto:myodbc-digest-subscribe@@lists.mysql.com, myodbc-digest}
 A digest version of the @code{myodbc} list.
@@ -2508,31 +2545,27 @@ unsubscribe from the @code{myodbc} list, send a message to
 
 @cindex Net etiquette
 @node Asking questions, Bug reports, Mailing-list, Questions
-@section Asking questions or reporting bugs
+@section Asking Questions or Reporting Bugs
 
 Before posting a bug report or question, please do the following:
 
 @itemize @bullet
 @item
 Start by searching the @strong{MySQL} online manual at:
-
-@example
+@*
 @uref{http://www.mysql.com/documentation/manual.php}
-@end example
-
+@*
 We try to keep the manual up to date by
 updating it frequently with solutions to newly found problems!
 
 @item
 Search the @strong{MySQL} mailing list archives:
-
-@example
+@*
 @uref{http://www.mysql.com/documentation/}
-@end example
-
+@*
 @item
 You can also use @uref{http://www.mysql.com/search.html} to search all the
-web pages (including the manual) that are located at
+Web pages (including the manual) that are located at
 @uref{http://www.mysql.com/}.
 @end itemize
 
@@ -2544,7 +2577,7 @@ question, go ahead and read the next section about how to send mail to
 @cindex Bug reports
 @cindex Reporting bugs
 @node Bug reports, Answering questions, Asking questions, Questions
-@section How to report bugs or problems
+@section How to Report Bugs or Problems
 
 Writing a good bug report takes patience, but doing it right the first
 time saves time for us and for you. A good bug report containing a full
@@ -2566,15 +2599,15 @@ missing, please include it with your message! Please read this section
 carefully and make sure that all the information described here is included
 in your report.
 
-If you can make a test case which clearly shows the bug, you should post
+If you can make a test case that clearly shows the bug, you should post
 it to the @email{bugs@@lists.mysql.com} list. Note that on this list you
-should only post a full, repeatable bug report, using the @code{mysqlbug}
-script (if you are running on Windows, you should include a
-description of the operating system and the @strong{MySQL} version).
+should only post a full, repeatable bug report using the @code{mysqlbug}
+script. If you are running on Windows, you should include a
+description of the operating system and the @strong{MySQL} version.
 Preferably, you should test the problem using the latest stable or development
 version of @strong{MySQL} before posting!  Anyone should be able to repeat the
-bug by just using @code{mysql test < script} on the included test case or run
-the shell or perl script that is included in the bug report.  All bugs
+bug by just using ``@code{mysql test < script}'' on the included test case or
+run the shell or perl script that is included in the bug report.  All bugs
 posted on this list will be corrected or documented in the next @strong{MySQL}
 release!  If there are only small code changes involved to correct this
 problem, we will also post a patch that fixes the problem.
@@ -2591,9 +2624,9 @@ first time.
 The most common errors are that people don't indicate the version number of
 the @strong{MySQL} distribution they are using, or don't indicate what
 platform they have @strong{MySQL} installed on (including the platform
-version number).  This is highly relevant information and in 99 cases out of
-100 the bug report is useless without it!  Very often we get questions like
-``Why doesn't this work for me?''  and then we find that the feature
+version number).  This is highly relevant information, and in 99 cases out of
+100 the bug report is useless without it!  Very often we get questions like,
+``Why doesn't this work for me?'' then we find that the feature
 requested wasn't implemented in that @strong{MySQL} version, or that a bug
 described in a report has been fixed already in newer @strong{MySQL}
 versions.  Sometimes the error is platform dependent; in such cases, it is
@@ -2628,7 +2661,7 @@ Please remember that many of the people who will read your report will
 do so using an 80-column display.  When generating reports or examples
 using the @code{mysql} command line tool, you should therefore use
 the @code{--vertical} option (or the @code{\G} statement terminator)
-for output which would exceed the available width for such a display
+for output that would exceed the available width for such a display
 (for example, with the @code{EXPLAIN SELECT} statement; see the
 example below).
 
@@ -2637,8 +2670,8 @@ Please include the following information in your report:
 @itemize @bullet
 @item
 The version number of the @strong{MySQL} distribution you are using (for
-example, @strong{MySQL} 3.22.22). You can find out which version you are
-running by executing @code{mysqladmin version}. @code{mysqladmin} can be
+example, @strong{MySQL} Version 3.22.22). You can find out which version you
+are running by executing @code{mysqladmin version}. @code{mysqladmin} can be
 found in the @file{bin} directory under your @strong{MySQL} installation
 directory.
 
@@ -2647,7 +2680,7 @@ The manufacturer and model of the machine you are working on.
 
 @item
 The operating system name and version. For most operating systems, you can
-get this information by executing the Unix command @code{uname -a}.
+get this information by executing the UNIX command @code{uname -a}.
 
 @item
 Sometimes the amount of memory (real and virtual) is relevant.
@@ -2716,7 +2749,7 @@ table names, etc., that exist in your actual situation than to come up with
 new names. The problem could be related to the name of a variable or table! 
 These cases are rare, perhaps, but it is better to be safe than
 sorry.  After all, it should be easier for you to provide an example that
-uses your actual situation and it is by all means better for us.  In case you
+uses your actual situation, and it is by all means better for us.  In case you
 have data you don't want to show to others, you can use @code{ftp} to
 transfer it to @uref{ftp://support.mysql.com/pub/mysql/secret/}.  If the data
 are really top secret and you don't want to show them even to us, then go ahead
@@ -2728,9 +2761,9 @@ Include all the options given to the relevant programs, if possible.  For
 example, indicate the options that you use when you start the @code{mysqld}
 daemon and that you use to run any @strong{MySQL} client programs.  The
 options to programs like @code{mysqld} and @code{mysql}, and to the
-@code{configure} script are often keys to answers and very relevant!  It is
-never a bad idea to include them anyway!  If you use any modules, such as
-Perl or PHP, please include the version number(s) of those as well.
+@code{configure} script, are often keys to answers and are very relevant!  
+It is never a bad idea to include them anyway!  If you use any modules, such 
+as Perl or PHP, please include the version number(s) of those as well.
 
 @item
 If you can't produce a test case in a few rows, or if the test table
@@ -2745,12 +2778,12 @@ Then send a short description of the problem to @email{mysql@@lists.mysql.com}.
 
 @item
 If your question is related to the privilege system, please include the
-output of @code{mysqlaccess}, the output of @code{mysqladmin reload} and all
+output of @code{mysqlaccess}, the output of @code{mysqladmin reload}, and all
 the error messages you get when trying to connect!  When you test your
 privileges, you should first run @code{mysqlaccess}. After this, execute
-@code{mysqladmin reload version}, and last you should try to connect with the
-program that gives you trouble.  @code{mysqlaccess} can be found in the
-@file{bin} directory under your @strong{MySQL} installation directory.
+@code{mysqladmin reload version} and try to connect with the program that 
+gives you trouble.  @code{mysqlaccess} can be found in the @file{bin} 
+directory under your @strong{MySQL} installation directory.
 
 @item
 If you have a patch for a bug, that is good, but don't assume the patch is
@@ -2771,7 +2804,7 @@ first using a debugger to determine the real cause of a bug.
 
 @item
 Indicate in your mail message that you have checked the reference manual
-and mail archive so others know that you have tried to solve your
+and mail archive so others know that you have tried to solve the
 problem yourself.
 
 @item
@@ -2781,7 +2814,7 @@ current version of @strong{MySQL} doesn't support the query you are
 using.  If you are using the current version and the manual at
 @uref{http://www.mysql.com/documentation/manual.php} doesn't cover the
 syntax you are using, @strong{MySQL} doesn't support your query.  In this
-case, your only options are to implement the syntax yourself or email
+case, your only options are to implement the syntax yourself or e-mail
 @email{mysql-licensing@@mysql.com} and ask for an offer to implement it!
 
 If the manual covers the syntax you are using, but you have an older version
@@ -2803,7 +2836,7 @@ why this happens!  In this case, the
 information about what happened.  Please include any relevant
 information from this file in your bug report!  Normally @code{mysqld}
 should @strong{NEVER} crash a table if nothing killed it in the middle
-of an update!  If you can find the cause @code{mysqld} dying,
+of an update!  If you can find the cause of @code{mysqld} dying,
 it's much easier for us to provide you with a fix for the problem!
 @xref{What is crashing}.
 
@@ -2811,7 +2844,7 @@ it's much easier for us to provide you with a fix for the problem!
 If possible, download the most recent version of @strong{MySQL} and check
 whether or not it solves your problem.  All versions of @strong{MySQL} are
 thoroughly tested and should work without problems!  We believe in making
-everything as backward compatible as possible and you should be able to
+everything as backward compatible as possible, and you should be able to
 switch @strong{MySQL} versions in minutes!  @xref{Which version}.
 @end itemize
 
@@ -2832,7 +2865,7 @@ responses you received that helped you solve your problem!
 
 @cindex Net etiquette
 @node Answering questions,  , Bug reports, Questions
-@section Guidelines for answering questions on the mailing list
+@section Guidelines for Answering Question on the Mailing List
 
 If you consider your answer to have broad interest, you may want to post it
 to the mailing list instead of replying directly to the individual who
@@ -2849,12 +2882,12 @@ Many users don't read mail with a browser!
 @cindex Licensing terms
 @cindex Support terms
 @node Licensing and Support, Installing, Questions, Top
-@chapter MySQL licensing and support
+@chapter MySQL Licensing and Support
 
 @menu
-* Licensing policy::            @strong{MySQL} licensing policy
+* Licensing Policy::            @strong{MySQL} licensing policy
 * Copyright::                   Copyrights used by @strong{MySQL}
-* Licensing examples::          Example licensing situations
+* Licensing Examples::          Example licensing situations
 * Cost::                        @strong{MySQL} licensing and support costs
 * Support::                     Types of commercial support
 @end menu
@@ -2870,7 +2903,7 @@ arrangements:
 @item Sample situations illustrating when a license is required
 (@pxref{Licensing examples})
 
-@item Support costs (@pxref{Cost}), and support benefits
+@item Support costs (@pxref{Cost}) and support benefits
 (@pxref{Support})
 
 @item Commercial licensing costs
@@ -2878,7 +2911,7 @@ arrangements:
 
 @cindex Licensing policy
 @node Licensing policy, Copyright, Licensing and Support, Licensing and Support
-@section MySQL licensing policy
+@section MySQL Licensing Policy
 
 The formal terms of the GPL license can be found at @ref{GPL license}.
 Basically, our licensing policy and intepretation of the GPL is as follows:
@@ -2892,12 +2925,12 @@ https://order.mysql.com/license.htmy.
 For normal internal use, @strong{MySQL} costs nothing.  You do not have
 to pay us if you do not want to.
 
-@heading A license is required if:
+A license is required if:
 
 @itemize @minus
 @item
 You link a part of the of @strong{MySQL} that has a GPL Copyright to a
-program which is not free software (embedded usage of the @strong{MySQL}
+program that is not free software (embedded usage of the @strong{MySQL}
 server).  In this case your application would also become GPL through the
 clause in the GPL license that acts as a virus. By licensing
 @strong{MySQL} from us under a commercial license you will avoid this
@@ -2906,7 +2939,7 @@ problem.
 @item
 You have a commercial application that ONLY works with @strong{MySQL}
 and ships the application with the @strong{MySQL} server. This is
-because we view this a linking even if it is done over the network.
+because we view this as linking even if it is done over the network.
 
 @item
 You have a distribution of @strong{MySQL} and you don't provide the
@@ -2914,15 +2947,15 @@ source code for your copy of the @strong{MySQL} server, as defined in
 the GPL license.
 @end itemize
 
-@heading A license is @strong{NOT} required if:
+A license is @strong{NOT} required if:
 
 @itemize @minus
 
 @item
 You do not need a license to include the client code in commercial
-programs.  The client access part of @strong{MySQL} licensed with the
-LGPL @code{GNU Library General Public License}. The @code{mysql} command
-line client includes code from the @code{readline} library that is under
+programs.  The client part of @strong{MySQL} licensed with the
+LGPL @code{GNU Library General Public License}. The @code{mysql} command-line 
+client includes code from the @code{readline} library that is under
 the @code{GPL}.
 
 @item
@@ -2958,10 +2991,10 @@ discussed in @ref{Payment information}.
 
 @cindex Copyright
 @node Copyright, Licensing examples, Licensing policy, Licensing and Support
-@section Copyrights used by MySQL
+@section Copyrights Used by MySQL
 
 @menu
-* Copyright changes::           Possible future copyright changes
+* Copyright Changes::           Possible future copyright changes
 @end menu
 
 There are several different copyrights on the @strong{MySQL} distribution:
@@ -2974,14 +3007,14 @@ programs in the @file{client} directory is GPL. Each file has a header
 that shows which copyright is used for that file.
 
 @item The client library and the (GNU @code{getopt}) library are covered
-by the ``GNU LIBRARY GENERAL PUBLIC LICENSE''. @xref{LGPL license}.
+by the ``GNU LIBRARY GENERAL PUBLIC LICENSE.'' @xref{LGPL license}.
 
 @item Some parts of the source (the @code{regexp} library) are covered
 by a Berkeley-style copyright.
 
 @item
 All the source in the server and the (GNU @code{readline}) library
-is covered by the ``GNU GENERAL PUBLIC LICENSE''. @xref{GPL
+is covered by the ``GNU GENERAL PUBLIC LICENSE.'' @xref{GPL
 license}. This is also available as the file @file{COPYING} in the
 distributions.
 
@@ -2998,16 +3031,16 @@ user for his own or company usage.
 
 However, if you use @strong{MySQL} for something important to you, you may
 want to help secure its development by purchasing licenses or a support
-contract, @ref{Support}.
+contract. @xref{Support}.
 
 @node Copyright changes,  , Copyright, Copyright
-@subsection Copyright changes
+@subsection Copyright Changes
 
 The stable versions of @strong{MySQL} are still using a more strict
 license. See the documentation for that version for more information.
 
 @node Licensing examples, Cost, Copyright, Licensing and Support
-@section Example licensing situations
+@section Example Licensing Situations
 
 @menu
 * Products that use MySQL::     Selling products that use @strong{MySQL}
@@ -3024,7 +3057,7 @@ Note that a single @strong{MySQL} license covers any number of CPUs and
 of clients that connect to the server in any way.
 
 @node Products that use MySQL, ISP, Licensing examples, Licensing examples
-@subsection Selling products that use @strong{MySQL}
+@subsection Selling Products that use @strong{MySQL}
 
 To determine whether or not you need a @strong{MySQL} license when
 selling your application, you should ask whether the proper functioning
@@ -3068,33 +3101,33 @@ don't need a license.
 @end itemize
 
 @node ISP, Web server, Products that use MySQL, Licensing examples
-@subsection ISP @strong{MySQL} services
+@subsection ISP @strong{MySQL} Services
 
 Internet Service Providers (ISPs) often host @strong{MySQL} servers for
 their customers. With the GPL license this does not require a license.
 
 On the other hand, we do encourage people to use ISPs that have
-@strong{MySQL} support as this will give them the confidence that if
+@strong{MySQL} support, as this will give them the confidence that if
 they have some problem with their @strong{MySQL} installation, their ISP
 will be able to solve the problem for them (in some cases with the help
 from the @strong{MySQL} development team).
 
 All ISPs that want to keep themselves up-to-date should subscribe
-to our announce mailing list so that they can be aware of fatal issues
+to our @code{announce} mailing list so that they can be aware of fatal issues
 that may be relevant for their @strong{MySQL} installations.
 
 Note that if the ISP doesn't have a license for @strong{MySQL},
-they should give their customers at least read access to the source of
-the @strong{MySQL} installation so that their customer can verify that
-it's patched correctly.
+it should give its customers at least read access to the source of
+the @strong{MySQL} installation so that its customer can verify that
+it is patched correctly.
 
 @node Web server,  , ISP, Licensing examples
-@subsection Running a web server using @strong{MySQL}
+@subsection Running a Web Server Using @strong{MySQL}
 
-If you use @strong{MySQL} in conjunction with a web server on Unix, you
+If you use @strong{MySQL} in conjunction with a Web server on UNIX, you
 don't have to pay for a license.
 
-This is true even if you run a commercial web server that uses
+This is true even if you run a commercial Web server that uses
 @strong{MySQL}, because you are not selling an embedded @strong{MySQL}
 version yourself. However, in this case we would like you to purchase
 @strong{MySQL} support, because @strong{MySQL} is helping your
@@ -3119,8 +3152,8 @@ will be posted on the @strong{MySQL} web site
 All prices are in US Dollars. If you pay by credit card, the currency is
 EURO (European Union Euro) so the prices will differ slightly.
 
-@multitable @columnfractions .25 .2 .3
-@item @strong{Number of licenses} @tab @strong{Price per copy} @tab @strong{Total}
+@multitable @columnfractions .3 .3 .3
+@item @strong{Number of licenses} @tab @strong{Per copy} @tab @strong{Total}
 @item 1                  @tab US $200 @tab US $200
 @item 10 pack            @tab US $150 @tab US $1500
 @item 50 pack            @tab US $120 @tab US $6000
@@ -3129,7 +3162,7 @@ EURO (European Union Euro) so the prices will differ slightly.
 For high volume (OEM) purchases, the following prices apply:
 
 @multitable @columnfractions .25 .2 .3 .25
-@item @strong{Number of licenses}  @tab @strong{Price per copy} @tab @strong{Minimum at one time} @tab @strong{Minimum payment}
+@item @strong{Number of licenses}  @tab @strong{Per copy} @tab @strong{Minimum } @tab @strong{Minimum payment}
 @item 100-999   @tab US $40        @tab 100                     @tab US $4000
 @item 1000-2499 @tab US $25        @tab 200                     @tab US $5000
 @item 2500-4999 @tab US $20        @tab 400                     @tab US $8000
@@ -3137,19 +3170,19 @@ For high volume (OEM) purchases, the following prices apply:
 
 For OEM purchases, you must act as the middle-man for eventual problems
 or extension requests from your users. We also require that OEM
-customers have at least an extended email support contract.  Note that
+customers have at least an extended e-mail support contract.  Note that
 OEM licenses only apply for products where the user doesn't have direct
-access to the @strong{MySQL} server (embedded system). In other words:
-The @strong{MySQL} server should only be used with the application
+access to the @strong{MySQL} server (embedded system). In other words,
+the @strong{MySQL} server should only be used with the application
 that was supplied you.
 
 If you have a low-margin high-volume product, you can always talk to us
 about other terms (for example, a percent of the sale price). If you do,
-please be informative about your product, pricing, market and any other
+please be informative about your product, pricing, market, and any other
 information that may be relevant.
 
 A full-price license is not a support agreement and includes very minimal
-support. This means that we try to answer any relevant question. If the
+support. This means that we try to answer any relevant questions. If the
 answer is in the documentation, we will direct you to the appropriate
 section. If you have not purchased a license or support, we probably will not
 answer at all.
@@ -3163,23 +3196,23 @@ level of support includes are given in @ref{Support}.  Costs for the various
 types of commercial support are shown below.  Support level prices are in
 EURO (European Union Euro). One EURO is about 1.17 USD.
 
-@multitable @columnfractions .3 .3
-@item @strong{Type of support} @tab @strong{Cost per year}
-@item Basic email support      @tab EURO 170
-@item Extended email support   @tab EURO 1000
-@item Login support            @tab EURO 2000
-@item Extended login support   @tab EURO 5000
+@multitable @columnfractions .5 .5
+@item @strong{Type of support}  @tab @strong{Cost per year}
+@item Basic e-mail support      @tab EURO 170
+@item Extended e-mail support   @tab EURO 1000
+@item Login support             @tab EURO 2000
+@item Extended login support    @tab EURO 5000
 @end multitable
 
 You may upgrade from any
 lower level of support to a higher level of support for the difference
-between the prices of the two support levels.
+in price between the two support levels.
 
 @cindex Payment information
 @node Payment information, Contact information, Cost, Cost
 @subsection Payment information
 
-Currently we can take SWIFT payments, cheques or credit cards.
+Currently we can take SWIFT payments, checks, or credit cards.
 
 Payment should be made to:
 @example
@@ -3194,12 +3227,12 @@ SWIFT address: PGSI SESS
 Account number: 96 77 06 - 3
 @end example
 
-Specify: license and/or support and your name and email address.
+Specify: license and/or support and your name and e-mail address.
 
 In Europe and Japan you can use EuroGiro (that should be less expensive) to the
 same account.
 
-If you want to pay by cheque, make it payable to ``MySQL Finland AB'' and
+If you want to pay by check, make it payable to ``MySQL Finland AB'' and
 mail it to the address below:
 
 @example
@@ -3211,7 +3244,7 @@ BOX 6434, Torsgatan 21
 If you want to pay by credit card over the Internet, you can use
 @uref{https://order.mysql.com/license.htmy, MySQL AB's secure license form}.
 
-You can also print a copy of the license form, fill it in and send it by fax
+You can also print a copy of the license form, fill it in, and send it by fax
 to:
 
 +46-8-729 69 05
@@ -3223,38 +3256,39 @@ with your company information and ask us to bill you.
 
 @cindex Contact information
 @node Contact information,  , Payment information, Cost
-@subsection Contact information
+@subsection Contact Information
 
 For commercial licensing, please contact the @strong{MySQL} licensing
-team. The much preferred method is by E-Mail to
+team. The much preferred method is by e-mail to
 @email{licensing@@mysql.com}. Fax is also possible but handling of
 these may take much longer (Fax +46-8-729 69 05).
 
-For general information inquires, please send mail to @email{info@@mysql.com}.
+For general information inquires, please send e-mail to 
+@email{info@@mysql.com}.
 
-If you represent a business that is interested in partnering with @strong{MySQL},
-please send mail to @email{partner@@mysql.com}.
+If you represent a business that is interested in partnering with 
+@strong{MySQL}, please send e-mail to @email{partner@@mysql.com}.
 
-If you are interested in placing a banner advertisement on our website, please send
-mail to @email{advertising@@mysql.com}.
+If you are interested in placing a banner advertisement on our Web site, 
+please send e-mail to @email{advertising@@mysql.com}.
 
 If you are interested in any of the jobs listed in our
-@uref{http://www.mysql.com/development/jobs/, jobs} section, please send mail
+@uref{http://www.mysql.com/development/jobs/, jobs} section, please send e-mail
 to @email{jobs@@mysql.com}.
 
-For technical questions about @strong{MySQL}, please direct your question to the
-appropriate @uref{http://www.mysql.com/documentation/lists.html, mailing list}.
-If this does not answer your question, perhaps it would better suit you to
-@uref{https://order.mysql.com/, order} one of our
+For technical questions about @strong{MySQL}, please direct your question to 
+the appropriate @uref{http://www.mysql.com/documentation/lists.html, mailing 
+list}. If this does not answer your question, perhaps it would better suit 
+you to @uref{https://order.mysql.com/, order} one of our
 @uref{http://www.mysql.com/support/arrangements/types.html, support contracts}.
 
-For questions or comments about the workings or content of this website, please
-send mail to @email{webmaster@@mysql.com}.
+For questions or comments about the workings or content of this Web site,
+please send e-mail to @email{webmaster@@mysql.com}.
 
 @cindex Support, types
 @cindex Types of support
 @node Support,  , Cost, Licensing and Support
-@section Types of commercial support
+@section Types of Commercial Support
 
 @menu
 * Basic email support::         Basic email support
@@ -3264,13 +3298,13 @@ send mail to @email{webmaster@@mysql.com}.
 @end menu
 
 @node Basic email support, Extended email support, Support, Support
-@subsection Basic email support
+@subsection Basic E-mail Support
 
-Basic email support is a very inexpensive support option and should be
+Basic e-mail support is a very inexpensive support option and should be
 thought of more as a way to support our development of @strong{MySQL}
 than as a real support option.  We at @strong{MySQL} do give a lot of free
-support in all the different @strong{MySQL} lists and the money we get from
-basic email support is largely used to make this possible.
+support in all the different @strong{MySQL} lists, and the money we get from
+basic e-mail support is largely used to make this possible.
 
 At this support level, the @strong{MySQL} mailing lists are the preferred
 means of communication.  Questions normally should be mailed to the primary
@@ -3279,7 +3313,7 @@ lists (for example, @email{win32@@lists.mysql.com} for Windows-related
 @strong{MySQL} questions), as someone else already may have experienced and
 solved the problem you have.  @xref{Asking questions}.
 
-However, by purchasing basic email support, you also have access to the
+However, by purchasing basic e-mail support, you also have access to the
 support address @email{mysql-support@@mysql.com}, which is not available
 as part of the minimal support that you get by purchasing a
 @strong{MySQL} license.  This means that for especially critical
@@ -3293,10 +3327,10 @@ expiration date when you send a message to
 
 Note that if you have encountered a critical repeatable bug and follow
 the rules outlined in the manual section of how to report bugs and send
-it to @email{bugs@@lists.mysql.com} we promise to try to fix this as
+it to @email{bugs@@lists.mysql.com}, we promise to try to fix this as
 soon as possible, regardless of your support level! @xref{Bug reports}.
 
-Basic email support includes the following types of service:
+Basic e-mail support includes the following types of service:
 
 @itemize @bullet
 @item
@@ -3305,14 +3339,14 @@ correct section in which you can find the answer.  If the answer is not in
 the manual, we will point you in the right direction to solve your problem.
 
 @item
-We guarantee a timely answer for your email messages.  We can't guarantee
+We guarantee a timely answer for your e-mail messages.  We can't guarantee
 that we can solve any problem, but at least you will receive an answer if we
-can contact you by email.
+can contact you by e-mail.
 
 @item
 We will help with unexpected problems when you install @strong{MySQL} from a
 binary distribution on supported platforms.  This level of support does not
-cover installing @strong{MySQL} from a source distribution.  ``Supported''
+cover installing @strong{MySQL} from a source distribution.  Supported
 platforms are those for which @strong{MySQL} is known to work.
 @xref{Which OS}.
 
@@ -3336,25 +3370,25 @@ higher level of support.
 @end itemize
 
 @node Extended email support, Login support, Basic email support, Support
-@subsection Extended email support
+@subsection Extended E-mail Support
 
-Extended email support includes everything in basic email support with
+Extended e-mail support includes everything in basic e-mail support with
 these additions:
 
 @itemize @bullet
 @item
-Your email will be dealt with before mail from basic email support users and
+Your e-mail will be dealt with before mail from basic e-mail support users and
 non-registered users.
 
 @item
 Your suggestions for the further development of @strong{MySQL} will
 receive strong consideration. Simple extensions that suit the basic
 goals of @strong{MySQL} are implemented in a matter of days. By taking
-extended email support you have already helped the further development
+extended e-mail support you have already helped the further development
 of @strong{MySQL}.
 
 @item
-Typical situations that are covered by extended email support are:
+Typical situations that are covered by extended e-mail support are:
 
 @itemize @minus
 @item
@@ -3381,14 +3415,14 @@ will be implemented sooner than they might be otherwise.
 @end itemize
 
 @node Login support, Extended login support, Extended email support, Support
-@subsection Login support
+@subsection Login Support
 
-Login support includes everything in extended email support with
+Login support includes everything in extended e-mail support with
 these additions:
 
 @itemize @bullet
 @item
-Your email will be dealt with even before mail from extended email
+Your e-mail will be dealt with even before e-mail from extended e-mail
 support users.
 
 @item
@@ -3403,7 +3437,7 @@ to solve the problem ``in place.''
 
 @item
 Like any database vendor, we can't guarantee that we can rescue any data from
-crashed tables, but if the worst happens we will help you rescue as much as
+crashed tables, but if the worst happens, we will help you rescue as much as
 possible. @strong{MySQL} has proven itself very reliable, but anything is
 possible due to circumstances beyond our control (for example, if your system
 crashes or someone kills the server by executing a @code{kill -9} command).
@@ -3417,14 +3451,14 @@ discuss your @strong{MySQL}-related problems.
 @end itemize
 
 @node Extended login support,  , Login support, Support
-@subsection Extended login support
+@subsection Extended Login Support
 
 Extended login support includes everything in login support with these
 additions:
 
 @itemize @bullet
 @item
-Your email has the highest possible priority.
+Your e-mail has the highest possible priority.
 
 @item
 We will actively examine your system and help you optimize it and your
@@ -3483,13 +3517,13 @@ For a list of sites from which you can obtain @strong{MySQL}, see
 To see which platforms are supported, see @ref{Which OS}.
 
 @item
-Several versions of @strong{MySQL} are available, in both binary and
+Several versions of @strong{MySQL} are available in both binary and
 source distributions.  To determine which version and type of
 distribution you should use, see @ref{Many versions}.
 
 @item
 Installation instructions for binary and source distributions are described
-in @ref{Installing binary}, and @ref{Installing source}.  Each set of
+in @ref{Installing binary} and @ref{Installing source}.  Each set of
 instructions includes a section on system-specific problems you may run
 into.
 
@@ -3504,7 +3538,7 @@ source distribution.
 @cindex Version, latest
 @cindex Getting @strong{MySQL}
 @node Getting MySQL, Which OS, Installing, Installing
-@section How to get MySQL
+@section How to Get MySQL
 
 Check the @uref{http://www.mysql.com/, @strong{MySQL} home page} for
 information about the current version and for downloading instructions.
@@ -3513,15 +3547,15 @@ Our main download mirror is located at:
 
 @uref{http://download.sourceforge.net/mirrors/mysql/, http://download.sourceforge.net/mirrors/mysql/}
 
-If you are interested in becoming a @strong{MySQL} mirror site, you may anonymously
-rsync with: @code{rsync://download.sourceforge.net/mysql/}. Please send mail to
-@email{webmaster@@mysql.com} notifying us of your mirror to be added to the list
-below.
+If you are interested in becoming a @strong{MySQL} mirror site, you may 
+anonymously rsync with: @code{rsync://download.sourceforge.net/mysql/}. Please
+send e-mail to @email{webmaster@@mysql.com} notifying us of your mirror to be 
+added to the list below.
 
 If you have problems downloading from our main site, try using one of the
 mirrors listed below.
 
-Please report bad or out of date mirrors to @email{webmaster@@mysql.com}.
+Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 
 @c START_OF_MIRROR_LISTING
 
@@ -4128,7 +4162,7 @@ Australia [ITworks Consulting/Victoria] @
 @c Ok 981010
 @c EMAIL: oskar@is.co.za (Oskar Pearson)
 @c @image{Flags/south-africa1}
-South-Africa [The Internet Solution/Johannesburg] @
+South Africa [The Internet Solution/Johannesburg] @
 @uref{ftp://ftp.is.co.za/linux/mysql/, FTP}
 
 @end itemize
@@ -4136,17 +4170,17 @@ South-Africa [The Internet Solution/Johannesburg] @
 @c END_OF_MIRROR_LISTING
 
 @node Which OS, Which version, Getting MySQL, Installing
-@section Operating systems supported by MySQL
+@section Operating Systems Supported by MySQL
 
-We use GNU Autoconf so it is possible to port @strong{MySQL} to all modern
+We use GNU Autoconf, so it is possible to port @strong{MySQL} to all modern
 systems with working Posix threads and a C++ compiler. (To compile only the
 client code, a C++ compiler is required but not threads.)  We use and develop
-the software ourselves primarily on Sun Solaris (versions 2.5 - 2.7) and
-RedHat Linux 6.x.
+the software ourselves primarily on Sun Solaris (Versions 2.5 - 2.7) and
+RedHat Linux Version 6.x.
 
-@strong{MySQL} has been reported to compile sucessfully on the following
-operating system/thread package combinations.  Note that for many operating
-systems, the native thread support works only in the latest versions.
+Note that for many operating systems, the native thread support works only 
+in the latest versions. @strong{MySQL} has been reported to compile 
+sucessfully on the following operating system/thread package combinations:
 
 @itemize @bullet
 @item
@@ -4156,7 +4190,7 @@ BSDI 2.x with the included MIT-pthreads package. @xref{BSDI}.
 @item
 BSDI 3.0, 3.1 and 4.x with native threads. @xref{BSDI}.
 @item
-DEC UNIX 4.x with native threads. @xref{Alpha-DEC-Unix}.
+DEC UNIX 4.x with native threads. @xref{Alpha-DEC-UNIX}.
 @item
 FreeBSD 2.x with the included MIT-pthreads package. @xref{FreeBSD}.
 @item
@@ -4187,9 +4221,9 @@ SCO OpenServer with a recent port of the FSU Pthreads package. @xref{SCO}.
 @item
 SCO UnixWare 7.0.1. @xref{SCO Unixware}.
 @item
-Tru64 Unix
+Tru64 UNIX
 @item
-Win95, Win98, NT and Win2000. @xref{Windows}.
+Win95, Win98, NT, and Win2000. @xref{Windows}.
 @end itemize
 
 @cindex @strong{MySQL} binary distribution
@@ -4198,7 +4232,7 @@ Win95, Win98, NT and Win2000. @xref{Windows}.
 @cindex Version, choosing
 @cindex Choosing version
 @node Which version, Many versions, Which OS, Installing
-@section Which MySQL version to use
+@section Which MySQL Version to Use
 
 The first decision to make is whether you want to use the latest development
 release or the last stable release:
@@ -4208,7 +4242,7 @@ release or the last stable release:
 Normally, if you are beginning to use @strong{MySQL} for the first time
 or trying to port it to some system for which there is no binary
 distribution, we recommend going with the development release (currently
-@value{mysql_version}. This is because there are usually no really
+Version @value{mysql_version}. This is because there are usually no really
 serious bugs in the development release, and you can easily test it on
 your machine with the @code{crash-me} and benchmark tests.
 @xref{Benchmarks}.  Note that all @strong{MySQL} releases are
@@ -4246,16 +4280,16 @@ numbers and a suffix.  For example, a release name like
 @itemize @bullet
 @item
 The first number (@code{3}) describes the file format.  All
-version 3 releases have the same file format. When a version 4 appears, every
+Version 3 releases have the same file format. When a Version 4 appears, every
 table will have to be converted to the new format (nice tools for this will
-be included, of course).
+be included, of course.)
 
 @item
 The second number (@code{21}) is the release level. Normally there are two to
 choose from. One is the release/stable branch (currently @code{22}) and the
 other is the development branch (currently @code{23}) . Normally both are
 stable, but the development version may have quirks, missing documentation on
-new features or may fail to compile on some systems.
+new features, or may fail to compile on some systems.
 
 @item
 The third number (@code{17}) is the version number within the
@@ -4323,15 +4357,15 @@ production environment, on at least one machine.  We have more than 100
 gigabytes of data to work with.
 
 @node Many versions, Installation layouts, Which version, Installing
-@section How and when updates are released
+@section How and When Updates Are Released
 
 @strong{MySQL} is evolving quite rapidly here at MySQL AB and we want
 to share this with other @strong{MySQL} users. We try to make a release
 when we have very useful features that others seem to have a need for.
 
 We also try to help out users who request features that are easy to
-implement. We take note of what our licensed users want to have and
-we especially take note of what our extended email supported customers
+implement. We take note of what our licensed users want to have, and
+we especially take note of what our extended e-mail supported customers
 want and try to help them out.
 
 No one has to download a new release. The News section will tell you if
@@ -4348,7 +4382,7 @@ file format changes, the first number is increased.
 
 @item
 Stable tested releases are meant to appear about 1-2 times a year, but
-if small bugs are found, a release with only bug-fixes will be released.
+if small bugs are found, a release with only bug fixes will be released.
 
 @item
 Working releases are meant to appear about every 1-8 weeks.
@@ -4370,18 +4404,18 @@ patch.
 @item
 If there is, by any chance, a fatal bug in a release we will make a new
 release as soon as possible. We would like other companies to do this,
-too. :)
+too.
 @end itemize
 
-The current stable release is 3.22; We have already moved active
-development to 3.23. Bugs will still be fixed in the stable version. We
-don't believe in a complete freeze, as this also leaves out bug fixes
-and things that ``must be done''. ``Somewhat frozen'' means that we may
+The current stable release is Version 3.22; We have already moved active
+development to Version 3.23. Bugs will still be fixed in the stable version. 
+We don't believe in a complete freeze, as this also leaves out bug fixes
+and things that ``must be done.'' ``Somewhat frozen'' means that we may
 add small things that ``almost surely will not affect anything that's
-already working''.
+already working.''
 
 @node Installation layouts, Installing binary, Many versions, Installing
-@section Installation layouts
+@section Installation Layouts
 
 This section describes the default layout of the directories created by
 installing binary and source distributions.
@@ -4414,7 +4448,7 @@ following subdirectories:
 @item @file{libexec}     @tab The @code{mysqld} server
 @item @file{share/mysql} @tab Error message files
 @item @file{sql-bench}   @tab Benchmarks and @code{crash-me} test
-@item @file{var}         @tab Databases and log files.
+@item @file{var}         @tab Databases and log files
 @end multitable
 
 Within an installation directory, the layout of a source installation differs
@@ -4438,10 +4472,10 @@ The header file and library directories are @file{include/mysql} and
 @end itemize
 
 You can create your own binary installation from a compiled source
-distribution, by executing the script @file{scripts/make_binary_distribution}.
+distribution by executing the script @file{scripts/make_binary_distribution}.
 
 @node Installing binary, Installing source, Installation layouts, Installing
-@section Installing a MySQL binary distribution
+@section Installing a MySQL Binary Distribution
 
 @menu
 * Linux-RPM::                   Linux RPM files
@@ -4492,7 +4526,7 @@ shell> bin/safe_mysqld --user=mysql &
 You can add new users using the @code{bin/mysql_setpermission} script if
 you install the @code{DBI} and @code{Msql-Mysql-modules} Perl modules.
 
-Here follows a more detailed description:
+A more detailed description follows.
 
 To install a binary distribution, follow the steps below, then proceed
 to @ref{Post-installation}, for post-installation setup and testing:
@@ -4512,9 +4546,9 @@ Obtain a distribution file from one of the sites listed in
 
 @strong{MySQL} binary distributions are provided as compressed @code{tar}
 archives and have names like @file{mysql-VERSION-OS.tar.gz}, where
-@code{VERSION} is a number (e.g., @code{3.21.15}), and @code{OS} indicates
-the type of operating system for which the distribution is intended (e.g.,
-@code{pc-linux-gnu-i586}).
+@code{VERSION} is a number (for example, @code{3.21.15}), and @code{OS} 
+indicates the type of operating system for which the distribution is intended 
+(for example, @code{pc-linux-gnu-i586}).
 
 @item
 Add a user and group for @code{mysqld} to run as:
@@ -4524,7 +4558,7 @@ shell> groupadd mysql
 shell> useradd -g mysql mysql
 @end example
 
-These commands add the @code{mysql} group, and the @code{mysql} user.  The
+These commands add the @code{mysql} group and the @code{mysql} user.  The
 syntax for @code{useradd} and @code{groupadd} may differ slightly on different
 Unixes.  They may also be called @code{adduser} and @code{addgroup}.  You may
 wish to call the user and group something else instead of @code{mysql}.
@@ -4595,12 +4629,12 @@ installed @strong{MySQL} before):
 shell> scripts/mysql_install_db
 @end example
 
-Note that @strong{MySQL} versions older than 3.22.10 started the
+Note that @strong{MySQL} versions older than Version 3.22.10 started the
 @strong{MySQL} server when you run @code{mysql_install_db}.  This is no
 longer true!
 
 @item
-Change ownership of the installation directory to the user which you will
+Change ownership of the installation directory to the user that you will
 run @code{mysqld} as:
 
 @example
@@ -4620,7 +4654,7 @@ see @ref{Perl support}.
 If you would like @strong{MySQL} to start automatically when you boot your
 machine, you can copy @code{support-files/mysql.server} to the location where
 your system has its startup files. More information can be found in the
-@code{support-files/mysql.server} script itself, and in @ref{Automatic
+@code{support-files/mysql.server} script itself and in @ref{Automatic
 start}.
 
 @end enumerate
@@ -4640,12 +4674,12 @@ shell> bin/safe_mysqld --user=mysql &
 @cindex RedHat Package Manager
 @c This node name is special
 @node Linux-RPM, Building clients, Installing binary, Installing binary
-@subsection Linux RPM notes
+@subsection Linux RPM Notes
 
 The recommended way to install @strong{MySQL} on Linux is by using an RPM
-file. The @strong{MySQL} RPMs are currently being built on a RedHat 5.2
-system but should work on other versions of Linux that support @code{rpm} and
-use @code{glibc}.
+file. The @strong{MySQL} RPMs are currently being built on a RedHat Version 
+6.2 system but should work on other versions of Linux that support @code{rpm}
+and use @code{glibc}.
 
 If you have problems with an RPM file, for example, if you receive the error 
 ``@code{Sorry, the host 'xxxx' could not be looked up}'', see 
@@ -4680,18 +4714,18 @@ be used to try to build RPMs for other architectures (for example, Alpha
 or SPARC).
 @end itemize
 
-To see all files in an RPM package:
+To see all files in an RPM package, run:
 @example
 shell> rpm -qpl MySQL-VERSION.i386.rpm
 @end example
 
-To perform a standard minimal installation, run this command:
+To perform a standard minimal installation, run:
 
 @example
 shell> rpm -i MySQL-VERSION.i386.rpm MySQL-client-VERSION.i386.rpm
 @end example
 
-To install just the client package:
+To install just the client package, run:
 
 @example
 shell> rpm -i MySQL-client-VERSION.i386.rpm
@@ -4700,7 +4734,7 @@ shell> rpm -i MySQL-client-VERSION.i386.rpm
 The RPM places data in @file{/var/lib/mysql}. The RPM also creates the
 appropriate entries in @file{/etc/rc.d/} to start the server automatically
 at boot time.  (This means that if you have performed a previous
-installation, you may want to make a copy of your previously-installed
+installation, you may want to make a copy of your previously installed
 @strong{MySQL} startup file if you made any changes to it, so you don't lose
 your changes.)
 
@@ -4715,7 +4749,7 @@ installation chapter. @xref{Installing binary}.
 @cindex Client programs, building
 @cindex Linking
 @node Building clients, Binary install system issues, Linux-RPM, Installing binary
-@subsection Building client programs
+@subsection Building Client Programs
 
 If you compile @strong{MySQL} clients that you've written yourself or that
 you obtain from a third party, they must be linked using the
@@ -4730,7 +4764,7 @@ For clients that use @strong{MySQL} header files, you may need to specify a
 files.
 
 @node Binary install system issues,  , Building clients, Installing binary
-@subsection System-specific issues
+@subsection System-specific Issues
 
 @menu
 * Binary notes-Linux::          Linux notes for binary distribution
@@ -4742,18 +4776,18 @@ on particular systems when installing @strong{MySQL} from a binary
 distribution.
 
 @node Binary notes-Linux, Binary notes-HP-UX, Binary install system issues, Binary install system issues
-@subsubsection Linux notes for binary distribution
+@subsubsection Linux Notes for Binary Distributions
 
-@strong{MySQL} needs at least Linux 2.0.
+@strong{MySQL} needs at least Linux Version 2.0.
 
-The binary release is linked with @code{-static}, which means you not
-normally need not worry about which version of the system libraries you
+The binary release is linked with @code{-static}, which means you do not
+normally need to worry about which version of the system libraries you
 have. You need not install LinuxThreads, either.  A program linked with
-@code{-static} is slightly bigger than a dynamically-linked program but
-also slightly faster (3-5%).  One problem however is that you can't use
-user definable functions (UDFs) with a statically-linked program.  If
+@code{-static} is slightly bigger than a dynamically linked program but
+also slightly faster (3-5%).  One problem, however, is that you can't use
+user-definable functions (UDFs) with a statically linked program.  If
 you are going to write or use UDF functions (this is something only for
-C or C++ programmers) you must compile @strong{MySQL} yourself, using
+C or C++ programmers), you must compile @strong{MySQL} yourself, using
 dynamic linking.
 
 If you are using a @code{libc}-based system (instead of a @code{glibc2}
@@ -4775,7 +4809,7 @@ option:
 getpwnam: No such file or directory
 @end example
 
-You can solve this problem one of the following ways:
+You can solve this problem in one of the following ways:
 
 @itemize @bullet
 @item
@@ -4786,7 +4820,7 @@ Execute @code{mysql_install_db --force}; This will not execute the
 @code{resolveip} test in @code{mysql_install_db}.  The downside is that
 you can't use host names in the grant tables; you must use IP numbers
 instead (except for @code{localhost}).  If you are using an old @strong{MySQL}
-release that doesn't support @code{--force} you have to remove the
+release that doesn't support @code{--force}, you have to remove the
 @code{resolveip} test in @code{mysql_install} with an editor.
 @item
 Start mysqld with @code{su} instead of using @code{--user}.
@@ -4796,7 +4830,7 @@ The Linux-Intel binary and RPM releases of @strong{MySQL} are configured
 for the highest possible speed. We are always trying to use the fastest
 stable compiler available.
 
-@strong{MySQL} Perl support requires Perl 5.004_03 or newer.
+@strong{MySQL} Perl support requires Version Perl 5.004_03 or newer.
 
 On some Linux 2.2 versions, you may get the error @code{Resource
 temporarily unavailable} when you do a lot of new connections to a
@@ -4804,13 +4838,13 @@ temporarily unavailable} when you do a lot of new connections to a
 
 The problem is that Linux has a delay between when you close a TCP/IP
 socket and until this is actually freed by the system.  As there is only
-room for a finite number of TCP/IP slots you will get the above error if
+room for a finite number of TCP/IP slots, you will get the above error if
 you try to do too many new TCP/IP connections during a small time, like
 when you run the @strong{MySQL} @file{test-connect} benchmark over
 TCP/IP.
 
 We have mailed about this problem a couple of times to different Linux
-mailing lists but have never been able to resolve this properly :(
+mailing lists but have never been able to resolve this properly.
 
 The only known 'fix' to this problem is to use persistent connections in
 your clients or use sockets, if you are running the database server
@@ -4818,7 +4852,7 @@ and clients on the same machine.  We hope that the @code{Linux 2.4}
 kernel will fix this problem in the future.
 
 @node Binary notes-HP-UX,  , Binary notes-Linux, Binary install system issues
-@subsubsection HP-UX notes for binary distribution
+@subsubsection HP-UX Notes for Binary Distributions
 
 Some of the binary distributions of @strong{MySQL} for HP-UX is
 distributed as an HP depot file and as a tar file.  To use the depot
@@ -4828,7 +4862,7 @@ software depot tools.
 The HP version of @strong{MySQL} was compiled on an HP 9000/8xx server
 under HP-UX 10.20, and uses MIT-pthreads. It is known to work
 well under this configuration.
-@strong{MySQL} 3.22.26 and newer can also be built with HP's native
+@strong{MySQL} Version 3.22.26 and newer can also be built with HP's native
 thread package.
 
 Other configurations that may work:
@@ -4891,7 +4925,7 @@ To install the HP-UX tar.gz distribution, you must have a copy of GNU
 @code{tar}.
 
 @node Installing source, Compilation problems, Installing binary, Installing
-@section Installing a MySQL source distribution
+@section Installing a MySQL Source Distribution
 
 You need the following tools to build and install @strong{MySQL} from source:
 
@@ -4905,7 +4939,7 @@ known to work.  Sun @code{tar} is known to have problems.
 
 @item
 A working ANSI C++ compiler. @code{gcc} >= 2.8.1, @code{egcs} >=
-1.0.2, SGI C++ and SunPro C++ are some of the compilers that are known to
+1.0.2, SGI C++, and SunPro C++ are some of the compilers that are known to
 work.  @code{libg++} is not needed when using @code{gcc}.  @code{gcc}
 2.7.x has a bug that makes it impossible to compile some perfectly legal
 C++ files, such as @file{sql/sql_base.cc}. If you only have @code{gcc} 2.7.x,
@@ -4935,7 +4969,7 @@ reports}.
 @end menu
 
 @node Quick install, Applying patches, Installing source, Installing source
-@subsection Quick installation overview
+@subsection Quick Installation Overview
 
 The basic commands you must execute to install a @strong{MySQL} source
 distribution are:
@@ -4954,7 +4988,7 @@ shell> chgrp -R mysql /usr/local/mysql
 shell> /usr/local/mysql/bin/safe_mysqld --user=mysql &
 @end example
 
-If you start from a source RPM, then do the following.
+If you start from a source RPM, then do the following:
 
 @example
 shell> rpm --rebuild MySQL-VERSION.src.rpm
@@ -4965,10 +4999,10 @@ This will make a binary RPM that you can install.
 You can add new users using the @code{bin/mysql_setpermission} script if
 you install the @code{DBI} and @code{Msql-Mysql-modules} Perl modules.
 
-Here follows a more detailed description:
+A more detailed description follows.
 
 To install a source distribution, follow the steps below, then proceed
-to @ref{Post-installation}, for post-installation initialization and testing.
+to @ref{Post-installation}, for post-installation initialization and testing:
 
 @enumerate
 @item
@@ -5051,12 +5085,12 @@ installed @strong{MySQL} before):
 shell> scripts/mysql_install_db
 @end example
 
-Note that @strong{MySQL} versions older than 3.22.10 started the
+Note that @strong{MySQL} versions older than Version 3.22.10 started the
 @strong{MySQL} server when you run @code{mysql_install_db}.  This is no
 longer true!
 
 @item
-Change ownership of the installation to the user which you will run
+Change ownership of the installation to the user that you will run
 @code{mysqld} as:
 
 @example
@@ -5076,12 +5110,12 @@ see @ref{Perl support}.
 If you would like @strong{MySQL} to start automatically when you boot your
 machine, you can copy @code{support-files/mysql.server} to the location where
 your system has its startup files. More information can be found in the
-@code{support-files/mysql.server} script itself, and in @ref{Automatic
+@code{support-files/mysql.server} script itself and in @ref{Automatic
 start}.
 @end enumerate
 
 After everything has been installed, you should initialize and test your
-distribution.
+distribution:
 
 @example
 shell> /usr/local/mysql/bin/safe_mysqld --user=mysql &
@@ -5096,15 +5130,15 @@ servers}.
 @xref{Post-installation}.
 
 @node Applying patches, configure options, Quick install, Installing source
-@subsection Applying patches
+@subsection Applying Patches
 
 Sometimes patches appear on the mailing list or are placed in the
-@uref{http://www.mysql.com/Downloads/Patches,patches area} of the
+@uref{http://www.mysql.com/Downloads/Patches, patches area} of the
 @strong{MySQL} Web site.
 
 To apply a patch from the mailing list, save the message in which the patch
 appears in a file, change into the top-level directory of your @strong{MySQL}
-source tree and run these commands:
+source tree, and run these commands:
 
 @example
 shell> patch -p1 < patch-file-name
@@ -5134,7 +5168,7 @@ systems do not allow you to install a new version of a program if it replaces
 the version that is currently executing.
 
 @node configure options,  , Applying patches, Installing source
-@subsection Typical @code{configure} options
+@subsection Typical @code{configure} Options
 
 The @code{configure} script gives you a great deal of control over how
 you configure your @strong{MySQL} distribution.  Typically you do this
@@ -5170,7 +5204,7 @@ to tell it to continue with the rest of the build even if errors occur.)
 
 @item
 If you don't want your log files and database directories located under
-@file{/usr/local/var}, use a @code{configure} command something like one
+@file{/usr/local/var}, use a @code{configure} command, something like one
 of these:
 @example
 shell> ./configure --prefix=/usr/local/mysql
@@ -5185,18 +5219,18 @@ prefix, but overrides the default location for database directories
 @code{/usr/local/mysql/data}.
 
 @item
-If you are using Unix and you want the @strong{MySQL} socket located somewhere
+If you are using UNIX and you want the @strong{MySQL} socket located somewhere
 other than the default location (normally in the directory @file{/tmp} or
-@file{/var/run}, use a @code{configure} command like this:
+@file{/var/run}) use a @code{configure} command like this:
 @example
 shell> ./configure --with-unix-socket-path=/usr/local/mysql/tmp/mysql.sock
 @end example
 Note that the given file must be an absolute pathname!
 
 @item
-If you want to compile statically-linked programs (e.g., to make a binary
-distribution, to get more speed or to work around problems with some RedHat
-distributions), run @code{configure} like this:
+If you want to compile statically linked programs (for example, to make a 
+binary distribution, to get more speed, or to work around problems with some 
+RedHat distributions), run @code{configure} like this:
 
 @example
 shell> ./configure --with-client-ldflags=-all-static \
@@ -5227,7 +5261,7 @@ is a version number), you can work around this problem by giving the
 
 @item
 You can configure @strong{MySQL} not to use @code{DEFAULT} column values for
-non-@code{NULL} columns (i.e., columns that are not allowed to be
+non-@code{NULL} columns (that is, columns that are not allowed to be
 @code{NULL}).  This causes @code{INSERT} statements to generate an error
 unless you explicitly specify values for all columns that require a
 non-@code{NULL} value.  To suppress use of default values, run
@@ -5246,11 +5280,11 @@ change the default set, use the @code{--with-charset} option:
 shell> ./configure --with-charset=CHARSET
 @end example
 @code{CHARSET} may be one of @code{big5}, @code{cp1251}, @code{cp1257},
-@code{czech}, @code{danish},@code{dec8}, @code{dos}, @code{euc_kr},
+@code{czech}, @code{danish}, @code{dec8}, @code{dos}, @code{euc_kr},
 @code{gb2312}, @code{gbk}, @code{german1}, @code{hebrew}, @code{hp8},
-@code{hungarian}, @code{koi8_ru}, @code{koi8_ukr}, @code{latin1}, @code{latin2},
-@code{sjis}, @code{swe7}, @code{tis620}, @code{ujis}, @code{usa7} or
-@code{win1251ukr}.
+@code{hungarian}, @code{koi8_ru}, @code{koi8_ukr}, @code{latin1}, 
+@code{latin2}, @code{sjis}, @code{swe7}, @code{tis620}, @code{ujis}, 
+@code{usa7}, or @code{win1251ukr}.
 @xref{Character sets}.
 
 If you want to convert characters between the server and the client,
@@ -5288,7 +5322,7 @@ system-specific sections later in this chapter.
 @end itemize
 
 @node Compilation problems, MIT-pthreads, Installing source, Installing
-@section Problems compiling?
+@section Problems Compiling?
 
 All @strong{MySQL} programs compile cleanly for us with no warnings on
 Solaris using @code{gcc}. On other systems, warnings may occur due to
@@ -5335,7 +5369,7 @@ that have been found to occur most often:
 @cindex @code{sql_yacc.cc} problems
 @cindex Internal compiler errors
 @cindex Virtual memory problems while compiling
-If you get errors when compiling @file{sql_yacc.cc} such as the ones shown
+If you get errors when compiling @file{sql_yacc.cc}, such as the ones shown
 below, you have probably run out of memory or swap space:
 
 @example
@@ -5375,10 +5409,10 @@ C++ compiler cannot create executables.
 @tindex CXX environment variable
 @tindex Environment variable, CXX
 You might also observe problems during compilation related to
-@code{g++}, @code{libg++} or @code{libstdc++}.
+@code{g++}, @code{libg++}, or @code{libstdc++}.
 
 One cause of these problems is that you may not have @code{g++}, or you may
-have @code{g++} but not @code{libg++} or @code{libstdc++}.  Take a look at
+have @code{g++} but not @code{libg++}, or @code{libstdc++}.  Take a look at
 the @file{config.log} file.  It should contain the exact reason why your c++
 compiler didn't work!  To work around these problems, you can use @code{gcc}
 as your C++ compiler.  Try setting the environment variable @code{CXX} to
@@ -5397,7 +5431,7 @@ Another way to fix these problems, of course, is to install @code{g++},
 @code{libg++} and @code{libstdc++}.
 
 @item
-If your compile fails with errors such as any of the following,
+If your compile fails with errors, such as any of the following,
 you must upgrade your version of @code{make} to GNU @code{make}:
 
 @example
@@ -5416,7 +5450,7 @@ pthread.h: No such file or directory
 @cindex Troubleshooting, FreeBSD
 Solaris and FreeBSD are known to have troublesome @code{make} programs.
 
-GNU @code{make} version 3.75 is known to work.
+GNU @code{make} Version 3.75 is known to work.
 
 @tindex CC environment variable
 @tindex Environment variable, CC
@@ -5457,7 +5491,7 @@ client/libmysql.c:273: parse error before `__attribute__'
 @item
 If you get errors such as those shown below when compiling @code{mysqld},
 @code{configure} didn't correctly detect the type of the last argument to
-@code{accept()}, @code{getsockname()} or @code{getpeername()}:
+@code{accept()}, @code{getsockname()}, or @code{getpeername()}:
 
 @example
 cxx: Error: mysqld.cc, line 645: In this statement, the referenced
@@ -5482,7 +5516,7 @@ operating system.  (Note that you will have to do this each time you run
 The @file{sql_yacc.cc} file is generated from @file{sql_yacc.yy}.  Normally
 the build process doesn't need to create @file{sql_yacc.cc}, because
 @strong{MySQL} comes with an already-generated copy.  However, if you do need
-to recreate it, you might encounter this error:
+to re-create it, you might encounter this error:
 
 @example
 "sql_yacc.yy", line xxx fatal: default action causes potential...
@@ -5500,7 +5534,7 @@ link your clients with the new client library.
 @end itemize
 
 @node MIT-pthreads, Perl support, Compilation problems, Installing
-@section MIT-pthreads notes
+@section MIT-pthreads Notes
 
 This section describes some of the issues involved in using MIT-pthreads.
 
@@ -5526,11 +5560,11 @@ MIT-pthreads, because we want to minimize our changes to this code.
 
 @item
 MIT-pthreads doesn't support the @code{AF_UNIX} protocol used to implement
-Unix sockets.  This means that if you compile using MIT-pthreads, all
+UNIX sockets.  This means that if you compile using MIT-pthreads, all
 connections must be made using TCP/IP (which is a little slower).  If you
 find after building @strong{MySQL} that you cannot connect to the local
 server, it may be that your client is attempting to connect to
-@code{localhost} using a Unix socket as the default. Try making a TCP/IP
+@code{localhost} using a UNIX socket as the default. Try making a TCP/IP
 connection with @code{mysql} by using a host option (@code{-h} or
 @code{--host}) to specify the local host name explicitly.
 
@@ -5539,8 +5573,8 @@ The checks that determine whether or not to use MIT-pthreads occur only
 during the part of the configuration process that deals with the server
 code.  If you have configured the distribution using @code{--without-server}
 to build only the client code, clients will not know whether or not
-MIT-pthreads is being used and will use Unix socket connections by default.
-Because Unix sockets do not work under MIT-pthreads, this means you will need
+MIT-pthreads is being used and will use UNIX socket connections by default.
+Because UNIX sockets do not work under MIT-pthreads, this means you will need
 to use @code{-h} or @code{--host} when you run client programs.
 
 @item
@@ -5570,7 +5604,7 @@ With MIT-pthreads, the @code{sleep()} system call isn't interruptible with
 interrupt is served and the process stops.
 
 @item
-When linking you may receive warning messages like these (at least on
+When linking, you may receive warning messages like these (at least on
 Solaris); they can be ignored:
 
 @example
@@ -5598,7 +5632,7 @@ needed, but may be interesting for someone.)
 @end itemize
 
 @node Perl support, Source install system issues, MIT-pthreads, Installing
-@section Perl installation comments
+@section Perl Installation Comments
 
 @menu
 * Perl installation::           Installing Perl on Unix
@@ -5608,11 +5642,11 @@ needed, but may be interesting for someone.)
 @end menu
 
 @node Perl installation, ActiveState Perl, Perl support, Perl support
-@subsection Installing Perl on Unix
+@subsection Installing Perl on UNIX
 
 Perl support for @strong{MySQL} is provided by means of the
 @code{DBI}/@code{DBD} client interface.  @xref{Perl}.  The Perl
-@code{DBD}/@code{DBI} client code requires Perl 5.004 or later.  The
+@code{DBD}/@code{DBI} client code requires Perl Version 5.004 or later.  The
 interface @emph{will not work} if you have an older version of Perl.
 
 @strong{MySQL} Perl support also requires that you've installed
@@ -5620,7 +5654,7 @@ interface @emph{will not work} if you have an older version of Perl.
 from RPM files, client programs are in the client RPM, but client programming
 support is in the developer RPM.  Make sure you've installed the latter RPM.
 
-As of release 3.22.8, Perl support is distributed separately from the main
+As of Version 3.22.8, Perl support is distributed separately from the main
 @strong{MySQL} distribution.  If you want to install Perl support, the files
 you will need can be obtained from @uref{http://www.mysql.com/Downloads/Contrib/}.
 
@@ -5630,7 +5664,7 @@ module name and @code{VERSION} is the version number.  You should get the
 @code{Data-Dumper}, @code{DBI}, and @code{Msql-Mysql-modules} distributions
 and install them in that order.  The installation procedure is shown below.
 The example shown is for the @code{Data-Dumper} module, but the procedure is
-the same for all three distributions.
+the same for all three distributions:
 
 @enumerate
 @item
@@ -5656,7 +5690,7 @@ shell> make install
 @end example
 @end enumerate
 
-The @code{make test} command is important, because it verifies that the
+The @code{make test} command is important because it verifies that the
 module is working.  Note that when you run that command during the
 @code{Msql-Mysql-modules} installation to exercise the interface code, the
 @strong{MySQL} server must be running or the test will fail.
@@ -5692,11 +5726,11 @@ Windows, you should do the following:
 @item If this succeeds, install @code{ftp://ftp.de.uu.net/pub/CPAN/authors/id/JWIED/DBD-mysql-1.2212.x86.ppd}
 @end itemize
 
-The above should work at least with ActiveState Perl 5.6.
+The above should work at least with ActiveState Perl Version 5.6.
 
 If you can't get the above to work, you should instead install the
 @strong{MyODBC} driver and connect to @strong{MySQL} server through
-ODBC.
+ODBC:
 
 @example
 use DBI;
@@ -5705,7 +5739,7 @@ $dbh= DBI->connect("DBI:ODBC:$dsn","$user","$password") ||
 @end example
 
 @node Windows Perl, Perl support problems, ActiveState Perl, Perl support
-@subsection Installing the MySQL Perl distribution on Windows
+@subsection Installing the MySQL Perl Distribution on Windows
 
 The @strong{MySQL} Perl distribution contains @code{DBI},
 @code{DBD:MySQL} and @code{DBD:ODBC}.
@@ -5721,7 +5755,7 @@ The @strong{MySQL} Perl distribution contains @code{DBI},
 @end itemize
 
 @node Perl support problems,  , Windows Perl, Perl support
-@subsection Problems using the Perl @code{DBI}/@code{DBD} interface
+@subsection Problems Using the Perl @code{DBI}/@code{DBD} Interface
 
 If Perl reports that it can't find the @code{../mysql/mysql.so} module,
 then the problem is probably that Perl can't locate the shared library
@@ -5732,7 +5766,7 @@ You can fix this by any of the following methods:
 @itemize @bullet
 @item
 Compile the @code{Msql-Mysql-modules} distribution with @code{perl
-Makefile.PL -static -config} rather than @code{perl Makefile.PL}
+Makefile.PL -static -config} rather than @code{perl Makefile.PL}.
 
 @item
 Copy @code{libmysqlclient.so} to the directory where your other shared
@@ -5758,7 +5792,7 @@ you are probably using @code{gcc} (or using an old binary compiled with
 /usr/bin/perl: can't resolve symbol '__divdi3'
 @end example
 
-If you get the following error from @code{Msql-Mysql-modules},
+If you get the following error from @code{Msql-Mysql-modules}
 when you run the tests:
 
 @example
@@ -5807,7 +5841,7 @@ shell> LIBPATH=/usr/lib:/lib:/usr/local/lib:/usr/ccs/lib:/usr/progressive/lib:/u
 shell> MANPATH=scohelp:/usr/man:/usr/local1/man:/usr/local/man:/usr/skunk/man:
 @end example
 
-First, create a Perl that includes a statically-linked @code{DBI} by running
+First, create a Perl that includes a statically linked @code{DBI} by running
 these commands in the directory where your @code{DBI} distribution is
 located:
 
@@ -5850,7 +5884,7 @@ distribution.
 * Solaris x86::                 Solaris x86 notes
 * SunOS::                       SunOS 4 notes
 * Linux::                       Linux notes (all Linux versions)
-* Alpha-DEC-Unix::              Alpha-DEC-Unix notes
+* Alpha-DEC-UNIX::              Alpha-DEC-UNIX notes
 * Alpha-DEC-OSF1::              Alpha-DEC-OSF1 notes
 * SGI-Irix::                    SGI-Irix notes
 * FreeBSD::                     FreeBSD notes
@@ -6146,7 +6180,7 @@ These may be ignored.
 When compiling @code{mysqld}, there will be some @code{implicit declaration
 of function} warnings. These may be ignored.
 
-@node Linux, Alpha-DEC-Unix, SunOS, Source install system issues
+@node Linux, Alpha-DEC-UNIX, SunOS, Source install system issues
 @subsection Linux notes (all Linux versions)
 
 @strong{MySQL} uses LinuxThreads on Linux.  If you are using an old
@@ -6567,8 +6601,8 @@ make_install
 
 and @strong{mysqld} should be ready to run.
 
-@node Alpha-DEC-Unix, Alpha-DEC-OSF1, Linux, Source install system issues
-@subsection Alpha-DEC-Unix notes (Tru64)
+@node Alpha-DEC-UNIX, Alpha-DEC-OSF1, Linux, Source install system issues
+@subsection Alpha-DEC-UNIX notes (Tru64)
 
 If you are using egcs 1.1.2 on Digital UNIX, you should upgrade to gcc
 2.95.2, as egcs on DEC has some serious bugs!
@@ -6645,7 +6679,7 @@ gnumake install
 scripts/mysql_install_db
 @end example
 
-@node Alpha-DEC-OSF1, SGI-Irix, Alpha-DEC-Unix, Source install system issues
+@node Alpha-DEC-OSF1, SGI-Irix, Alpha-DEC-UNIX, Source install system issues
 @subsection Alpha-DEC-OSF1 notes
 
 If you have problems compiling and have DEC @code{CC} and @code{gcc}
