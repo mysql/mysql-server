@@ -695,10 +695,7 @@ int change_master(THD* thd)
 
   if(lex_mi->host)
     {
-      if(glob_mi.virtual_master)
-	glob_mi.close_virtual_master();
       strmake(glob_mi.host, lex_mi->host, sizeof(glob_mi.host));
-      glob_mi.virtual_master = (glob_mi.host[0] == FN_LIBCHAR);
     }
   if(lex_mi->user)
     strmake(glob_mi.user, lex_mi->user, sizeof(glob_mi.user));
