@@ -52,6 +52,11 @@ inline int local_thr_alarm(my_bool *A,int B __attribute__((unused)),ALARM *C __a
 #include "errmsg.h"
 #include <violite.h>
 
+#if defined( OS2) && defined( MYSQL_SERVER)
+#undef  ER
+#define ER CER
+#endif
+
 extern ulong net_read_timeout;
 
 extern "C" {					// Because of SCO 3.2V4.2

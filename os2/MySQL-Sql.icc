@@ -81,7 +81,7 @@ option ProjectOptions = MySQLOptions
 
          // target source files
          source "rint.obj"
-         source zlib, ufc, regex
+         source zlib, ufc, regex, 'strings\bmove_upp.c'
          if debug_build  {
             source type('cpp') dbug
          }
