@@ -206,18 +206,24 @@ static void add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab);
   This handles SELECT with and without UNION
 */
 
-bool handle_select(THD *thd, LEX *lex, select_result *result)
+bool handle_select(THD *thd, LEX *lex, select_result *result,
+                   ulong setup_tables_done_option)
 {
   bool res;
   register SELECT_LEX *select_lex = &lex->select_lex;
   DBUG_ENTER("handle_select");
 
   if (select_lex->next_select())
-    res= mysql_union(thd, lex, result, &lex->unit);
+    res= mysql_union(thd, lex, result, &lex->unit, setup_tables_done_option);
   else
   {
     SELECT_LEX_UNIT *unit= &lex->unit;
     unit->set_limit(unit->global_parameters, select_lex);
+    /*
+      'options' of mysql_select will be set in JOIN, as far as JOIN for
+      every PS/SP execution new, we will not need reset this flag if 
+      setup_tables_done_option changed for next rexecution
+    */
     res= mysql_select(thd, &select_lex->ref_pointer_array,
 		      (TABLE_LIST*) select_lex->table_list.first,
 		      select_lex->with_wild, select_lex->item_list,
@@ -228,7 +234,8 @@ bool handle_select(THD *thd, LEX *lex, select_result *result)
 		      (ORDER*) select_lex->group_list.first,
 		      select_lex->having,
 		      (ORDER*) lex->proc_list.first,
-		      select_lex->options | thd->options,
+		      select_lex->options | thd->options |
+                      setup_tables_done_option,
 		      result, unit, select_lex);
   }
   DBUG_PRINT("info",("res: %d  report_error: %d", res,
@@ -311,8 +318,9 @@ JOIN::prepare(Item ***rref_pointer_array,
 
   /* Check that all tables, fields, conds and order are ok */
 
-  if (setup_tables(thd, tables_list, &conds, &select_lex->leaf_tables,
-                   FALSE, FALSE) ||
+  if ((!(select_options & OPTION_SETUP_TABLES_DONE) &&
+       setup_tables(thd, tables_list, &conds, &select_lex->leaf_tables,
+                    FALSE, FALSE)) ||
       setup_wild(thd, tables_list, fields_list, &all_fields, wild_num) ||
       select_lex->setup_ref_array(thd, og_num) ||
       setup_fields(thd, (*rref_pointer_array), tables_list, fields_list, 1,
@@ -1082,7 +1090,6 @@ JOIN::reinit()
   /* conds should not be used here, it is added just for safety */
   if (tables_list)
   {
-    tables_list->setup_is_done= 0;
     if (setup_tables(thd, tables_list, &conds, &select_lex->leaf_tables,
                      TRUE, FALSE))
       DBUG_RETURN(1);

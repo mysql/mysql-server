@@ -1639,12 +1639,9 @@ yz,yz
 drop procedure bug3368|
 drop table t3|
 drop table if exists t3|
-create table t3 (f1 int, f2 int);
-insert into t3 values (1,1);
---disable_warnings|
+create table t3 (f1 int, f2 int)|
+insert into t3 values (1,1)|
 drop procedure if exists bug4579_1|
-Warnings:
-Note	1305	PROCEDURE bug4579_1 does not exist
 create procedure bug4579_1 ()
 begin
 declare sf1 int;
