@@ -2121,7 +2121,7 @@ int Start_log_event::exec_event(struct st_relay_log_info* rli)
       slave_print_error(rli, 0,
                         "\
 Rolling back unfinished transaction (no COMMIT or ROLLBACK) from relay log. \
-Probably cause is that the master died while writing the transaction to it's \
+A probable cause is that the master died while writing the transaction to its \
 binary log.");
       return(1);
     }
@@ -2221,13 +2221,15 @@ int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
     In that case, we don't want to touch the coordinates which correspond to the
     beginning of the transaction.
   */
-  if (!rli->inside_transaction)
+  if (rli->inside_transaction)
+    rli->inc_pending(get_event_len());
+  else
   {
     memcpy(rli->master_log_name, new_log_ident, ident_len+1);
     rli->master_log_pos= pos;
+    rli->relay_log_pos += get_event_len();
     DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) rli->master_log_pos));
   }
-  rli->relay_log_pos += get_event_len();
   pthread_mutex_unlock(&rli->data_lock);
   pthread_cond_broadcast(&rli->data_cond);
   flush_relay_log_info(rli);
