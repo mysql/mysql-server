@@ -1373,13 +1373,16 @@ still a mystery, even for us.
 While this manual is still the right place for up to date techical
 information, its primary goal is to contain everything there is to know
 about @strong{MySQL}. It is sometimes nice to have a bound book to read
-in bed or while you travel. Here is a list of books about @strong{MySQL} (in
-English):
+in bed or while you travel. Here is a list of books about @strong{MySQL} and
+related subjects (in English).
+
+By purchasing a book through these hyperlinks provided herein, you are
+contributing to the development of @strong{MySQL}.
 
 @emph{MySQL}
 @multitable @columnfractions .3 .7
 @item Available	@tab
-@uref{http://shop.barnesandnoble.com/booksearch/isbnInquiry.asp?isbn=0735709211, Barnes and Noble}
+@uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0735709211&bfmtype=book, Barnes and Noble}
 @item Publisher	@tab		New Riders
 @item Author	@tab		Paul DuBois
 @item Pub Date	@tab		1st Edition December 1999
@@ -1441,7 +1444,7 @@ and PHP's @strong{MySQL}-related functions
 
 @emph{MySQL & mSQL}
 @multitable @columnfractions .3 .7
-@item Available	@tab		@uref{http://shop.barnesandnoble.com/booksearch/isbnInquiry.asp?isbn=1565924347, Barnes and Noble}
+@item Available	@tab		@uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=1565924347&bfmtype=book, Barnes and Noble}
 @item Publisher	@tab		O'Reilly
 @item Authors	@tab		Randy Jay Yarger, George Reese & Tim King
 @item Pub Date	@tab		1st Edition July 1999
@@ -1462,7 +1465,7 @@ material.
 
 @emph{Sams' Teach Yourself MySQL in 21 Days}
 @multitable @columnfractions .3 .7
-@item Available @tab            @uref{http://shop.barnesandnoble.com/bookSearch/isbnInquiry.asp?isbn=0672319144, Barnes and Noble}
+@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0672319144&bfmtype=book, Barnes and Noble}
 @item Publisher @tab            Sams
 @item Authors   @tab            Mark Maslakowski and Tony Butcher
 @item Pub Date  @tab            June 2000
@@ -1482,7 +1485,7 @@ hands-on examples to follow.
 
 @emph{E-Commerce Solutions with MySQL}
 @multitable @columnfractions .3 .7
-@item Available @tab            @uref{http://shop.barnesandnoble.com/bookSearch/isbnInquiry.asp?isbn=0761524452, Barnes and Noble}
+@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0761524452&bfmtype=book, Barnes and Noble}
 @item Publisher @tab            Prima Communications, Inc.
 @item Authors   @tab            N/A
 @item Pub Date  @tab            January 2000
@@ -1492,6 +1495,27 @@ hands-on examples to follow.
 @end multitable
 
 No description available.
+@*
+
+@emph{MySQL and PHP from Scratch}
+@multitable @columnfractions .3 .7
+@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0789724405&bfmtype=book, Barnes and Noble}
+@item Publisher @tab            Que
+@item Authors   @tab            N/A
+@item Pub Date  @tab            September 2000
+@item ISBN      @tab            0789724405
+@item Pages     @tab            550
+@item Price     @tab            $34.99
+@end multitable
+
+This book puts together information on installing, setting up, and
+troubleshooting Apache, MySQL, PHP3, and IMP into one complete
+volume. You also learn how each piece is part of a whole by learning,
+step-by-step, how to create a web-based e-mail system. Learn to run
+the equivalent of Active Server Pages (ASP) using PHP3, set up an
+e-commerce site using a database and the Apache web server, and create
+a data entry system (such as sales, product quality tracking, customer
+preferences, etc) that no installation in the PC.
 @*
 
 @emph{Professional MySQL Programming}
@@ -1508,18 +1532,185 @@ No description available.
 No description available.
 @*
 
-@emph{PHP3 and MySQL Web Development}
+@emph{Professional Linux Programming}
 @multitable @columnfractions .3 .7
-@item Available @tab            @uref{http://shop.barnesandnoble.com/bookSearch/isbnInquiry.asp?isbn=0672317842, Barnes and Noble}
+@item Available @tab            @uref{http://shop.barnesandnoble.com/bookSearch/isbnInquiry.asp?isbn=1861004281, Barnes and Noble}
+@item Publisher @tab            Wrox Press, Inc.
+@item Authors   @tab            N/A
+@item Pub Date  @tab            September 2000
+@item ISBN      @tab            1861003013
+@item Pages     @tab            1155
+@item Price     @tab            $47.99
+@end multitable
+
+In this follow-up to the best-selling Beginning Linux Programming, you
+will learn from the authors' real-world knowledge and experience of
+developing software for Linux; you'll be taken through the development
+of a sample 'DVD Store' application, with 'theme' chapters addressing
+different aspects of its implementation. Meanwhile, individual
+'take-a-break' chapters cover important topics that go beyond the
+bounds of the central theme. All focus on the practical aspects of
+programming, showing how crucial it is to choose the right tools for
+the job, use them as they should be used, and get things right first
+time.
+@*
+
+@emph{PHP and MySQL Web Development}
+@multitable @columnfractions .3 .7
+@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0672317842&bfmtype=book, Barnes and Noble}
 @item Publisher @tab            N/A
 @item Authors   @tab            William Jason Gilmore
-@item Pub Date  @tab            October 2000
+@item Pub Date  @tab            November 2000
 @item ISBN      @tab            0672317842
 @item Pages     @tab            N/A
 @item Price     @tab            $49.99
 @end multitable
 
-No description available.
+PHP3 and MySQL Web Development introduces you to the advantages of
+implementing both MySQL and PHP3. These advantages are detailed
+through the provision of both statistics and several case studies. A
+practical web application is developed throughout the book, providing
+you with the tools necessary to implement a functional online
+database. Each function is developed separately, allowing you the
+choice to incorporate only those parts that you would like to
+implement. Programming concepts of the PHP3 language are highlighted,
+including functions which tie MySQL support into a PHP3 script and
+advanced topics regarding table manipulation.
+@*
+
+@strong{Books recommended by the MySQL Developers}
+
+@emph{SQL-99 Complete, Really}
+@multitable @columnfractions .3 .7
+@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0879305681&bfmtype=book, Barnes and Noble}
+@item Publisher @tab            CMP Books
+@item Authors   @tab            Peter Gulutzan, Trudy Pelzer
+@item Pub Date  @tab            April 1999
+@item ISBN      @tab            0879305681
+@item Pages     @tab            1104
+@item Price     @tab            $55.96
+@end multitable
+
+This book contains complete descriptions of the new standards for
+syntax, data structures, and retrieval processes of SQL databases. As
+an example-based reference manual, it includes all of the CLI
+functions, information, schema tables, and status codes, as well as a
+working SQL database provided on the companion disk.
+@*
+
+@emph{C, A reference manual}
+@multitable @columnfractions .3 .7
+@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0133262243&bfmtype=book, Barnes and Noble}
+@item Publisher @tab            Prentice Hall
+@item Authors   @tab            Samuel P. Harbison, Guy L. Steele
+@item Pub Date  @tab            September 1994
+@item ISBN      @tab            0133262243
+@item Pages     @tab            480
+@item Price     @tab            $35.99
+@end multitable
+
+A new and improved revision of the bestselling C language
+reference. This manual introduces the notion of "Clean C, " writing C
+code that can be compiled as a C++ program, C programming style that
+emphasizes correctness, portability, and maintainability. and
+incorporates the ISO C Amendment 1 (1994) which specifies new
+facilities for writing portable, international programs in C.
+@*
+
+@emph{C++ for Real Programmers}
+@multitable @columnfractions .3 .7
+@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0120499428&bfmtype=book, Barnes and Noble}
+@item Publisher @tab            Academic Press, Incorporated
+@item Authors   @tab            Jeff Alger, Jim Keogh
+@item Pub Date  @tab            February 1998
+@item ISBN      @tab            0120499428
+@item Pages     @tab            388
+@item Price     @tab            $39.95
+@end multitable
+
+C++ For Real Programmers bridges the gap between C++ as described in
+beginner and intermediate-level books and C++ as it is practiced by
+experts. Numerous valuable techniques are described, organized into
+three simple themes: indirection, class hierarchies, and memory
+management. It also provides indepth coverage of template creation,
+exception handling, pointers and optimization techniques. The focus of
+the book is on ANSI C++ and so is compiler independent. C++ For Real
+Programmers is a revision of Secrets of the C++ Masters and includes a
+new appendix comparing C++ with Java. The book comes with a 3.5" disk
+for Windows with source code.
+@*
+
+@emph{Algorithms in C}
+@multitable @columnfractions .3 .7
+@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0201514257&bfmtype=book, Barnes and Noble}
+@item Publisher @tab            Addison Wesley Longman, Inc.
+@item Authors   @tab            Robert Sedgewick
+@item Pub Date  @tab            April 1990
+@item ISBN      @tab            0201514257
+@item Pages     @tab            648
+@item Price     @tab            $45.75
+@end multitable
+
+Algorithms in C describes a variety of algorithms in a number of areas
+of interest, including: sorting, searching, string-processing, and
+geometric, graph and mathematical algorithms. The book emphasizes
+fundamental techniques, providing readers with the tools to
+confidently implement, run, and debug useful algorithms.
+@*
+
+@emph{Multithreaded Programming with Pthreads}
+@multitable @columnfractions .3 .7
+@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=0136807291&bfmtype=book, Barnes and Noble}
+@item Publisher @tab            Prentice Hall
+@item Authors   @tab            Bil Lewis, Daniel J. Berg
+@item Pub Date  @tab            October 1997
+@item ISBN      @tab            0136807291
+@item Pages     @tab            432
+@item Price     @tab            $34.95
+@end multitable
+
+Based on the best-selling Threads Primer, Multithreaded Programming
+with Pthreads gives you a solid understanding of Posix threads: what
+they are, how they work, when to use them, and how to optimize
+them. It retains the clarity and humor of the Primer, but includes
+expanded comparisons to Win32 and OS/2 implementations. Code examples
+tested on all of the major UNIX platforms are featured along with
+detailed explanations of how and why they use threads.  
+@*
+
+@emph{Programming the PERL DBI: Database Programming with PERL}
+@multitable @columnfractions .3 .7
+@item Available @tab            @uref{http://service.bfast.com/bfast/click?bfmid=2181&sourceid=34233559&bfpid=1565926994&bfmtype=book, Barnes and Noble}
+@item Publisher @tab            O'Reilly & Associates, Incorporated
+@item Authors   @tab            Alligator Descartes, Tim Bunce
+@item Pub Date  @tab            February 2000
+@item ISBN      @tab            1565926994
+@item Pages     @tab            400
+@item Price     @tab            $27.96
+@end multitable
+
+Programming the Perl DBI is coauthored by Alligator Descartes, one of
+the most active members of the DBI community, and by Tim Bunce, the
+inventor of DBI. For the uninitiated, the book explains the
+architecture of DBI and shows you how to write DBI-based programs. For
+the experienced DBI dabbler, this book explains DBI's nuances and the
+peculiarities of each individual DBD.
+
+The book includes:               
+@itemize @bullet
+@item
+An introduction to DBI and its design                   
+@item
+How to construct queries and bind parameters                   
+@item
+Working with database, driver, and statement handles                   
+@item
+Debugging techniques                   
+@item
+Coverage of each existing DBD                   
+@item
+A complete reference to DBI 
+@end itemize
 @*
 
 @node Features, Stability, MySQL-Books, Introduction
