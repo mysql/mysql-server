@@ -440,11 +440,11 @@ set @arg00=0 ;
 execute stmt1 using @arg00;
 ERROR 42S22: Unknown column '?' in 'order clause'
 set @arg00=1;
-prepare stmt1 from ' select a,b from t1
+prepare stmt1 from ' select a,b from t1 order by a
 limit 1 ';
 execute stmt1 ;
 a	b
-2	two
+1	one
 prepare stmt1 from ' select a,b from t1
 limit ? ';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '?' at line 2
