@@ -501,22 +501,62 @@ drop table t1;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
+create table t1 (a int);
 set GLOBAL query_cache_size=1000;
 show global variables like "query_cache_size";
 Variable_name	Value
 query_cache_size	0
-set GLOBAL query_cache_size=1100;
-set GLOBAL query_cache_size=1200;
-set GLOBAL query_cache_size=1300;
-set GLOBAL query_cache_size=1400;
-set GLOBAL query_cache_size=1500;
-set GLOBAL query_cache_size=1600;
-set GLOBAL query_cache_size=1700;
-set GLOBAL query_cache_size=1800;
-set GLOBAL query_cache_size=1900;
+select * from t1;
+a
+set GLOBAL query_cache_size=1024;
 show global variables like "query_cache_size";
 Variable_name	Value
-query_cache_size	1024
+query_cache_size	0
+select * from t1;
+a
+set GLOBAL query_cache_size=10240;
+show global variables like "query_cache_size";
+Variable_name	Value
+query_cache_size	0
+select * from t1;
+a
+set GLOBAL query_cache_size=20480;
+show global variables like "query_cache_size";
+Variable_name	Value
+query_cache_size	0
+select * from t1;
+a
+set GLOBAL query_cache_size=40960;
+show global variables like "query_cache_size";
+Variable_name	Value
+query_cache_size	0
+select * from t1;
+a
+set GLOBAL query_cache_size=51200;
+show global variables like "query_cache_size";
+Variable_name	Value
+query_cache_size	51200
+select * from t1;
+a
+set GLOBAL query_cache_size=61440;
+show global variables like "query_cache_size";
+Variable_name	Value
+query_cache_size	61440
+select * from t1;
+a
+set GLOBAL query_cache_size=81920;
+show global variables like "query_cache_size";
+Variable_name	Value
+query_cache_size	81920
+select * from t1;
+a
+set GLOBAL query_cache_size=102400;
+show global variables like "query_cache_size";
+Variable_name	Value
+query_cache_size	102400
+select * from t1;
+a
+drop table t1;
 set GLOBAL query_cache_size=1048576;
 create table t1 (i int not null);
 create table t2 (i int not null);
