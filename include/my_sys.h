@@ -464,26 +464,7 @@ typedef struct st_changeable_var {
 } CHANGEABLE_VAR;
 
 
-/* structs for alloc_root */
-
-#ifndef ST_USED_MEM_DEFINED
-#define ST_USED_MEM_DEFINED
-typedef struct st_used_mem {			/* struct for once_alloc */
-  struct st_used_mem *next;			/* Next block in use */
-  unsigned int left;				/* memory left in block  */
-  unsigned int size;				/* Size of block */
-} USED_MEM;
-
-typedef struct st_mem_root {
-  USED_MEM *free;
-  USED_MEM *used;
-  USED_MEM *pre_alloc;
-  unsigned int	min_malloc;
-  unsigned int	block_size;
-
-  void (*error_handler)(void);
-} MEM_ROOT;
-#endif
+#include "my_alloc.h"
 
 	/* Prototypes for mysys and my_func functions */
 
