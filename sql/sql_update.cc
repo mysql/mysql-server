@@ -57,11 +57,11 @@ int mysql_update(THD *thd,
 		 enum enum_duplicates handle_duplicates,
                  bool ignore)
 {
-  bool 		using_limit=limit != HA_POS_ERROR;
+  bool		using_limit=limit != HA_POS_ERROR;
   bool		safe_update= thd->options & OPTION_SAFE_UPDATES;
   bool		used_key_is_modified, transactional_table, log_delayed;
   int		error=0;
-  uint		used_index= MAX_KEY;
+  uint		used_index;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint		want_privilege;
 #endif
@@ -71,7 +71,7 @@ int mysql_update(THD *thd,
   TABLE		*table;
   SQL_SELECT	*select;
   READ_RECORD	info;
-  TABLE_LIST    *update_table_list= ((TABLE_LIST*) 
+  TABLE_LIST    *update_table_list= ((TABLE_LIST*)
 				     thd->lex->select_lex.table_list.first);
   DBUG_ENTER("mysql_update");
 
@@ -159,10 +159,11 @@ int mysql_update(THD *thd,
   init_ftfuncs(thd, &thd->lex->select_lex, 1);
   /* Check if we are modifying a key that we are used to search with */
   if (select && select->quick)
+  {
+    used_index=select->quick->index;
     used_key_is_modified= (!select->quick->unique_key_range() &&
-			   check_if_key_used(table,
-					     (used_index=select->quick->index),
-					     fields));
+			   check_if_key_used(table, used_index, fields));
+  }
   else if ((used_index=table->file->key_used_on_scan) < MAX_KEY)
     used_key_is_modified=check_if_key_used(table, used_index, fields);
   else

@@ -443,3 +443,30 @@ select quote(trim(concat('    ', 'a')));
 #
 select trim(null from 'kate') as "must_be_null";
 select trim('xyz' from null) as "must_be_null";
+
+#
+# Bug #7751 - conversion for a bigint unsigned constant 
+#
+
+CREATE TABLE t1 (
+  id int(11) NOT NULL auto_increment,
+  a bigint(20) unsigned default NULL,
+  PRIMARY KEY  (id)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES
+('0','16307858876001849059');
+
+SELECT CONV('e251273eb74a8ee3', 16, 10);
+
+EXPLAIN 
+SELECT id
+  FROM t1
+  WHERE a = 16307858876001849059;
+
+EXPLAIN 
+  SELECT id
+  FROM t1
+  WHERE a = CONV('e251273eb74a8ee3', 16, 10);
+
+DROP TABLE t1;
