@@ -948,3 +948,5 @@ client/mysqladmin.c
 mysql-4.1.8-win-src.zip
 ndb/include/ndb_version.h
 ndb/include/ndb_global.h
+ndb/include/ndb_global.h
+ndb/include/ndb_version.h
