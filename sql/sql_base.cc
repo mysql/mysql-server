@@ -2293,14 +2293,14 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
 	DBUG_RETURN(-1);
 #endif
       Field **ptr=table->field,*field;
-      TABLE *natural_join_table;
+      TABLE *natural_join_table= 0;
+
       thd->used_tables|=table->map;
-      if (table->outer_join || 
-          !tables->natural_join ||
-          tables->natural_join->table->outer_join)
-        natural_join_table= NULL;
-      else
+      if (!table->outer_join &&
+          tables->natural_join &&
+          !tables->natural_join->table->outer_join)
         natural_join_table= tables->natural_join->table;
+
       while ((field = *ptr++))
       {
         /* Skip duplicate field names if NATURAL JOIN is used */

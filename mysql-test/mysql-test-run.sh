@@ -22,6 +22,9 @@ case `uname` in
     SCO_SV | UnixWare | OpenUNIX )
         # do nothing (Causes strange behavior)
         ;;
+    QNX)
+        # do nothing (avoid error message)
+        ;;
     * )
         ulimit -n 1024
         ;;
