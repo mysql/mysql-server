@@ -36,7 +36,9 @@ extern dtype_t* 	dtype_binary;
 #define DATA_BLOB	5	/* binary large object, or a TEXT type;
 				if prtype & DATA_BINARY_TYPE == 0, then this is
 				actually a TEXT column (or a BLOB created
-				with < 4.0.14) */
+				with < 4.0.14; since column prefix indexes
+				came only in 4.0.14, the missing flag in BLOBs
+				created before that does not cause any harm) */
 #define	DATA_INT	6	/* integer: can be any size 1 - 8 bytes */
 #define	DATA_SYS_CHILD	7	/* address of the child page in node pointer */
 #define	DATA_SYS	8	/* system column */
