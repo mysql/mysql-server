@@ -283,7 +283,7 @@ struct Ndb_logevent_body_row ndb_logevent_body[]= {
   ROW( BackupAborted,       "backup_id",     2, backup_id),
   ROW( BackupAborted,       "error",         3, error),
 
-  { NDB_LE_ILLEGAL_TYPE, 0, 0, 0, 0}
+  { NDB_LE_ILLEGAL_TYPE, 0, 0, 0, 0, 0}
 };
 
 struct Ndb_logevent_header_row {
