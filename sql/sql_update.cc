@@ -238,6 +238,8 @@ int mysql_update(THD *thd,
 	  }
 	}
       }
+      if (thd->killed && !error)
+	error= 1;				// Aborted
       limit= tmp_limit;
       end_read_record(&info);
       /* Change select to use tempfile */
@@ -309,6 +311,8 @@ int mysql_update(THD *thd,
     else
       table->file->unlock_row();
   }
+  if (thd->killed && !error)
+    error= 1;					// Aborted
   end_read_record(&info);
   free_io_cache(table);				// If ORDER BY
   thd->proc_info="end";

@@ -17,7 +17,14 @@ MY_TZ=GMT-3
 TZ=$MY_TZ; export TZ # for UNIX_TIMESTAMP tests to work
 
 # For query_cache test
-ulimit -n 1024
+case "$SYSTEM" in
+    SCO_SV | UnixWare | OpenUNIX )
+        # do nothing (Causes strange behavior)
+        ;;
+    * )
+        ulimit -n 1024
+        ;;
+esac
 
 #++
 # Program Definitions

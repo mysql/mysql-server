@@ -322,6 +322,10 @@ class base_ilist
     first_link->unlink();			// Unlink from list
     return first_link;
   }
+  inline struct ilink *head()
+  {
+    return (first != &last) ? first : 0;
+  }
   friend class base_list_iterator;
 };
 
@@ -353,6 +357,7 @@ public:
   inline void append(T* a)	{ base_ilist::append(a); }
   inline void push_back(T* a)	{ base_ilist::push_back(a); }
   inline T* get()		{ return (T*) base_ilist::get(); }
+  inline T* head()		{ return (T*) base_ilist::head(); }
 #ifndef _lint
   friend class I_List_iterator<T>;
 #endif
