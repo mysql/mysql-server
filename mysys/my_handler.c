@@ -21,13 +21,11 @@ int mi_compare_text(CHARSET_INFO *charset_info, uchar *a, uint a_length,
 		    uchar *b, uint b_length, my_bool part_key,
 		    my_bool skip_end_space)
 {
-  if (part_key && b_length < a_length)
-    a_length=b_length;
   if (skip_end_space)
     return charset_info->coll->strnncollsp(charset_info, a, a_length,
 					   b, b_length);
   return charset_info->coll->strnncoll(charset_info, a, a_length,
-				       b, b_length);
+				       b, b_length, part_key);
 }
 
 

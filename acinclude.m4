@@ -1452,6 +1452,7 @@ AC_DEFUN([MYSQL_CHECK_NDBCLUSTER], [
       ;;
   esac
 
+  AM_CONDITIONAL(HAVE_NDBCLUSTER_DB, test "have_ndbcluster" = "yes")
   AC_SUBST(ndbcluster_includes)
   AC_SUBST(ndbcluster_libs)
   AC_SUBST(ndbcluster_system_libs)
