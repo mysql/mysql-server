@@ -328,12 +328,13 @@
    - Scan subset of table using @ref NdbIndexScanOperation::setBound()
    - Ordering result set ascending or descending, 
      @ref NdbIndexScanOperation::readTuples()
-   - When using NdbIndexScanOperation::BoundEQ on distribution key 
-     only fragment containing rows will be scanned.
+   - When using NdbIndexScanOperation::BoundEQ on partition key 
+     only fragments containing rows will be scanned.
    
    Rows are returned unordered unless sorted is set to true.
 
-   @note When performing sorted scan, parameter parallelism to readTuples will
+   @note When performing sorted scan, parameter parallelism to 
+   NdbIndexScanOperation::readTuples() will
    be ignored and max parallelism will be used instead. 
 
    @subsection secScanLocks Lock handling with scans
@@ -343,10 +344,10 @@
 
    But Ndb will only lock a batch of rows per fragment at a time.
    How many rows will be locked per fragment is controlled by the 
-   batch parameter to @ref NdbScanOperation::readTuples.
+   batch parameter to NdbScanOperation::readTuples().
 
    To let the application handle how locks are released 
-   @ref NdbScanOperation::nextResult() have a parameter fetch_allow.
+   NdbScanOperation::nextResult() have a parameter fetch_allow.
    If NdbScanOperation::nextResult() is called with fetch_allow = false, no
    locks may be released as result of the function call. Otherwise the locks
    for the current batch may be released.
@@ -380,11 +381,12 @@
 
    One recommended way to handle a transaction failure 
    (i.e. an error is reported) is to:
-   -# Rollback transaction (NdbTransaction::execute with a special parameter)
+   -# Rollback transaction (NdbTransaction::execute() with a special parameter)
    -# Close transaction
    -# Restart transaction (if the error was temporary)
 
-   @note Transaction are not automatically closed when an error occur.
+   @note Transactions are not automatically closed when an error occur. Call
+   Ndb::closeTransaction() to close.
 
    Several errors can occur when a transaction holds multiple 
    operations which are simultaneously executed.
@@ -392,9 +394,9 @@
    objects and query for their NdbError objects to find out what really
    happened.
 
-   NdbTransaction::getNdbErrorOperation returns a reference to the 
+   NdbTransaction::getNdbErrorOperation() returns a reference to the 
    operation causing the latest error.
-   NdbTransaction::getNdbErrorLine delivers the method number of the 
+   NdbTransaction::getNdbErrorLine() delivers the method number of the 
    erroneous method in the operation.
 
    @code
@@ -417,14 +419,14 @@
    Getting errorLine == 0 means that the error occurred when executing the 
    operations.
    Here errorOperation will be a pointer to the theOperation object.
-   NdbTransaction::getNdbError will return the NdbError object 
+   NdbTransaction::getNdbError() will return the NdbError object 
    including holding information about the error.
 
    Since errors could have occurred even when a commit was reported,
-   there is also a special method, NdbTransaction::commitStatus,
+   there is also a special method, NdbTransaction::commitStatus(),
    to check the commit status of the transaction.
 
-*******************************************************************************/
+******************************************************************************/
 
 /**
  * @page ndbapi_simple.cpp ndbapi_simple.cpp
@@ -458,32 +460,14 @@
    @page secAdapt  Adaptive Send Algorithm
 
    At the time of "sending" the transaction 
-   (using NdbTransaction::execute), the transactions 
+   (using NdbTransaction::execute()), the transactions 
    are in reality <em>not</em> immediately transfered to the NDB Kernel.  
    Instead, the "sent" transactions are only kept in a 
    special send list (buffer) in the Ndb object to which they belong.
    The adaptive send algorithm decides when transactions should
    be transfered to the NDB kernel.
   
-   For each of these "sent" transactions, there are three 
-   possible states:
-   -# Waiting to be transferred to NDB Kernel.
-   -# Has been transferred to the NDB Kernel and is currently 
-      being processed.
-   -# Has been transferred to the NDB Kernel and has 
-      finished processing.
-      Now it is waiting for a call to a poll method.  
-      (When the poll method is invoked, 
-      then the transaction callback method will be executed.)
-      
-   The poll method invoked (either Ndb::pollNdb or Ndb::sendPollNdb)
-   will return when:
-   -# at least 'minNoOfEventsToWakeup' of the transactions
-      in the send list have transitioned to state 3 as described above, and 
-   -# all of these transactions have executed their callback methods.
-  
-  
-   Since the NDB API is designed as a multi-threaded interface, 
+   The NDB API is designed as a multi-threaded interface and
    it is desirable to transfer database operations from more than 
    one thread at a time. 
    The NDB API keeps track of which Ndb objects are active in transfering
@@ -514,13 +498,35 @@
       later releases of NDB Cluster.
       However, to support faster than 10 ms checks, 
       there has to be support from the operating system.
-   -# When calling NdbTransaction::execute synchronously or calling any 
-      of the poll-methods, there is a force parameter that overrides the 
-      adaptive algorithm and forces the send to all nodes.
+   -# When methods that are affected by the adaptive send alorithm,
+      e.g. NdbTransaction::execute(), there is a force parameter 
+      that overrides it forces the send to all nodes.
 
-   @note The times mentioned above are examples.  These might 
+   @note The reasons mentioned above are examples.  These might 
          change in later releases of NDB Cluster.
 */
+
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+/**
+
+   For each of these "sent" transactions, there are three 
+   possible states:
+   -# Waiting to be transferred to NDB Kernel.
+   -# Has been transferred to the NDB Kernel and is currently 
+      being processed.
+   -# Has been transferred to the NDB Kernel and has 
+      finished processing.
+      Now it is waiting for a call to a poll method.  
+      (When the poll method is invoked, 
+      then the transaction callback method will be executed.)
+      
+   The poll method invoked (either Ndb::pollNdb() or Ndb::sendPollNdb())
+   will return when:
+   -# at least 'minNoOfEventsToWakeup' of the transactions
+      in the send list have transitioned to state 3 as described above, and 
+   -# all of these transactions have executed their callback methods.
+*/
+#endif
 
 /**
    @page secConcepts  NDB Cluster Concepts
@@ -563,14 +569,17 @@
    
    The application programmer can however hint the NDB API which 
    transaction coordinator to use
-   by providing a <em>distribution key</em> (usually the primary key).
-   By using the primary key as distribution key, 
+   by providing a <em>partition key</em> (usually the primary key).
+   By using the primary key as partition key, 
    the transaction will be placed on the node where the primary replica
    of that record resides.
    Note that this is only a hint, the system can be 
    reconfigured and then the NDB API will choose a transaction
    coordinator without using the hint.
-   For more information, see NdbDictionary::Column::setDistributionKey.
+   For more information, see NdbDictionary::Column::getPartitionKey(),
+   Ndb::startTransaction().  The application programmer can specify
+   the partition key from SQL by using the construct, 
+   "CREATE TABLE ... ENGINE=NDB PARTITION BY KEY (<attribute list>)".
 
 
    @section secRecordStruct          Record Structure 
@@ -639,7 +648,7 @@
    A simple example is an application that uses many simple updates where
    a transaction needs to update one record. 
    This record has a 32 bit primary key, 
-   which is also the distribution key. 
+   which is also the partition key. 
    Then the keyData will be the address of the integer 
    of the primary key and keyLen will be 4.
 */
