@@ -512,7 +512,7 @@ BDB or Berkeley_db Tables
 INNOBASE Tables
 
 * INNOBASE overview::           
-* Innobase restrictions::       
+* INNOBASE restrictions::       
 
 MySQL Tutorial
 
@@ -580,7 +580,7 @@ Replication in MySQL
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
-* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.
+* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.
 
 Getting Maximum Performance from MySQL
 
@@ -706,7 +706,6 @@ Problems and Common Errors
 * Multiple sql commands::       How to run SQL commands from a text file
 * Temporary files::             Where @strong{MySQL} stores temporary files
 * Problems with mysql.sock::    How to protect @file{/tmp/mysql.sock}
-* Error Access denied::         @code{Access denied} error
 * Changing MySQL user::         How to run @strong{MySQL} as a normal user
 * Resetting permissions::       How to reset a forgotten password.
 * File permissions ::           Problems with file permissions
@@ -723,10 +722,12 @@ Problems and Common Errors
 
 Some Common Errors When Using MySQL
 
+* Error Access denied::         
 * Gone away::                   @code{MySQL server has gone away} error
 * Can not connect to server::   @code{Can't connect to [local] MySQL server} error
 * Blocked host::                @code{Host '...' is blocked} error
 * Too many connections::        @code{Too many connections} error
+* Non-transactional tables::    @code{Some non-transactional changed tables couldn't be rolled back} Error  
 * Out of memory::               @code{Out of memory} error
 * Packet too large::            @code{Packet too large} error
 * Communication errors::        Communication errors / Aborted connection
@@ -13806,6 +13807,7 @@ Some things you should be aware about @code{BIGINT} columns:
 
 @itemize @bullet
 @item
+@cindex rounding errors
 As all arithmetic is done using signed @code{BIGINT} or @code{DOUBLE}
 values, so you shouldn't use unsigned big integers larger than
 @code{9223372036854775807} (63 bits) except with bit functions! If you
@@ -16419,6 +16421,19 @@ mysql> select TRUNCATE(1.999,1);
 mysql> select TRUNCATE(1.999,0);
         -> 1
 @end example
+
+Note that as decimal numbers are normally not stored as exact numbers in
+computers, but as double values, you may be fooled by the following
+result:
+
+@cindex rounding errors
+@example
+mysql> select TRUNCATE(10.28*100,0);
+       -> 1027
+@end example
+
+The above happens because 10.28 is actually stored as something like 
+10.2799999999999999.
 @end table
 
 @findex string functions
@@ -17911,8 +17926,10 @@ column value even if it isn't unique. The following gives the value of
 column:
 
 @example
-substr(MIN(concat(sort,space(6-length(sort)),column),7,length(column)))
+substr(MIN(concat(rpad(sort,6,' '),column)),7)
 @end example
+
+@xref{example-Maximum-column-group-row}.
 
 @cindex @code{ORDER BY}, aliases in
 @cindex aliases, in @code{ORDER BY} clauses
@@ -20019,6 +20036,16 @@ terminated by carriage return-linefeed pairs, or to read a file
 containing such lines, specify a @code{LINES TERMINATED BY '\r\n'}
 clause.
 
+For example, to read a file of jokes, that are separated with a line
+of @code{%%}, into a SQL table you can do:
+
+@example
+create table jokes (a int not null auto_increment primary key, joke text
+not null);
+load data infile "/tmp/jokes.txt" into table jokes fields terminated by ""
+lines terminated by "\n%%\n" (joke);
+@end example
+
 @code{FIELDS [OPTIONALLY] ENCLOSED BY} controls quoting of fields.  For
 output (@code{SELECT ... INTO OUTFILE}), if you omit the word
 @code{OPTIONALLY}, all fields are enclosed by the @code{ENCLOSED BY}
@@ -20582,6 +20609,10 @@ For now, it tells whether index is FULLTEXT or not.
 @node SHOW TABLE STATUS, SHOW STATUS, SHOW DATABASE INFO, SHOW
 @subsection SHOW Status Information About Tables
 
+@example
+SHOW TABLE STATUS [FROM db_name] [LIKE wild]
+@end example
+
 @code{SHOW TABLE STATUS} (new in Version 3.23) works likes @code{SHOW
 STATUS}, but provides a lot of information about each table. You can
 also get this list using the @code{mysqlshow --status db_name} command.
@@ -20618,64 +20649,64 @@ in the table comment.
 below, though the format and numbers probably differ:
 
 @example
-+--------------------------+--------+
-| Variable_name            | Value  |
-+--------------------------+--------+
-| Aborted_clients          | 0      |
-| Aborted_connects         | 0      |
-| Bytes_received           | 629539 |
-| Bytes_sent               | 736394 |
-| Connections              | 62     |
-| Created_tmp_disk_tables  | 0      |
-| Created_tmp_tables       | 0      |
-| Created_tmp_files        | 0      |
-| Delayed_insert_threads   | 0      |
-| Delayed_writes           | 0      |
-| Delayed_errors           | 0      |
-| Flush_commands           | 1      |
-| Handler_delete           | 0      |
-| Handler_read_first       | 1      |
-| Handler_read_key         | 9201   |
-| Handler_read_next        | 0      |
-| Handler_read_prev        | 0      |
-| Handler_read_rnd         | 0      |
-| Handler_read_rnd_next    | 45     |
-| Handler_update           | 5998   |
-| Handler_write            | 0      |
-| Key_blocks_used          | 407    |
-| Key_read_requests        | 27683  |
-| Key_reads                | 407    |
-| Key_write_requests       | 0      |
-| Key_writes               | 0      |
-| Max_used_connections     | 60     |
-| Not_flushed_key_blocks   | 0      |
-| Not_flushed_delayed_rows | 0      |
-| Open_tables              | 60     |
-| Open_files               | 66     |
-| Open_streams             | 0      |
-| Opened_tables            | 66     |
-| Questions                | 9308   |
-| Select_full_join         | 0      |
-| Select_full_range_join   | 0      |
-| Select_range             | 0      |
-| Select_range_check       | 0      |
-| Select_scan              | 0      |
-| Slave_running            | OFF    |
-| Slave_open_temp_tables   | 0      |
-| Slow_launch_threads      | 0      |
-| Slow_queries             | 0      |
-| Sort_merge_passes        | 0      |
-| Sort_range               | 0      |
-| Sort_rows                | 0      |
-| Sort_scan                | 0      |
-| Table_locks_immediate    | 3183   |
-| Table_locks_waited       | 6030   |
-| Threads_cached           | 30     |
-| Threads_created          | 61     |
-| Threads_connected        | 31     |
-| Threads_running          | 31     |
-| Uptime                   | 135    |
-+--------------------------+--------+                                          
++--------------------------+------------+
+| Variable_name            | Value      |
++--------------------------+------------+
+| Aborted_clients          | 0          |
+| Aborted_connects         | 0          |
+| Bytes_received           | 155372598  |
+| Bytes_sent               | 1176560426 |
+| Connections              | 30023      |
+| Created_tmp_disk_tables  | 0          |
+| Created_tmp_tables       | 8340       |
+| Created_tmp_files        | 60         |
+| Delayed_insert_threads   | 0          |
+| Delayed_writes           | 0          |
+| Delayed_errors           | 0          |
+| Flush_commands           | 1          |
+| Handler_delete           | 462604     |
+| Handler_read_first       | 105881     |
+| Handler_read_key         | 27820558   |
+| Handler_read_next        | 390681754  |
+| Handler_read_prev        | 6022500    |
+| Handler_read_rnd         | 30546748   |
+| Handler_read_rnd_next    | 246216530  |
+| Handler_update           | 16945404   |
+| Handler_write            | 60356676   |
+| Key_blocks_used          | 14955      |
+| Key_read_requests        | 96854827   |
+| Key_reads                | 162040     |
+| Key_write_requests       | 7589728    |
+| Key_writes               | 3813196    |
+| Max_used_connections     | 0          |
+| Not_flushed_key_blocks   | 0          |
+| Not_flushed_delayed_rows | 0          |
+| Open_tables              | 1          |
+| Open_files               | 2          |
+| Open_streams             | 0          |
+| Opened_tables            | 44600      |
+| Questions                | 2026873    |
+| Select_full_join         | 0          |
+| Select_full_range_join   | 0          |
+| Select_range             | 99646      |
+| Select_range_check       | 0          |
+| Select_scan              | 30802      |
+| Slave_running            | OFF        |
+| Slave_open_temp_tables   | 0          |
+| Slow_launch_threads      | 0          |
+| Slow_queries             | 0          |
+| Sort_merge_passes        | 30         |
+| Sort_range               | 500        |
+| Sort_rows                | 30296250   |
+| Sort_scan                | 4650       |
+| Table_locks_immediate    | 1920382    |
+| Table_locks_waited       | 0          |
+| Threads_cached           | 0          |
+| Threads_created          | 30022      |
+| Threads_connected        | 1          |
+| Threads_running          | 1          |
+| Uptime                   | 80380      |
++--------------------------+------------+
 @end example
 
 @cindex variables, status
@@ -20772,6 +20803,10 @@ If @code{Threads_created} is big, you may want to increase the
 
 @node SHOW VARIABLES, SHOW LOGS, SHOW STATUS, SHOW
 @subsection SHOW VARIABLES
+
+@example
+SHOW VARIABLES [LIKE wild]
+@end example
 
 @code{SHOW VARIABLES} shows the values of some @strong{MySQL} system
 variables.  You can also get this information using the @code{mysqladmin
@@ -20871,6 +20906,7 @@ or @samp{M} to indicate kilobytes or megabytes. For example, @code{16M}
 indicates 16 megabytes.  The case of suffix letters does not matter;
 @code{16M} and @code{16m} are equivalent:
 
+@cindex variables, values
 @table @code
 @item @code{ansi_mode}.
 Is @code{ON} if @code{mysqld} was started with @code{--ansi}.
@@ -23452,10 +23488,10 @@ not trivial).
 
 @menu
 * INNOBASE overview::           
-* Innobase restrictions::       
+* INNOBASE restrictions::       
 @end menu
 
-@node INNOBASE overview, Innobase restrictions, INNOBASE, INNOBASE
+@node INNOBASE overview, INNOBASE restrictions, INNOBASE, INNOBASE
 @subsection INNOBASE Tables overview
 
 Innobase is included in the @strong{MySQL} source distribution starting
@@ -23637,15 +23673,17 @@ P.O.Box 800
 Finland
 @end example
 
-@node Innobase restrictions,  , INNOBASE overview, INNOBASE
-@subsection Some restrictions on @code{Innobase} tables:
+@node INNOBASE restrictions,  , INNOBASE overview, INNOBASE
+@subsection Some restrictions on @code{INNOBASE} tables:
 
 @itemize @bullet
 @item
 You can't have a key on a @code{BLOB} or @code{TEXT} column.
 @item
-@code{DELETE FROM TABLE} doesn't generate the table but instead deletes all
+@code{DELETE FROM TABLE} doesn't re-generate the table but instead deletes all
 rows, one by one, which isn't that fast.
+@item
+The maximum blob size is 8000 bytes.
 @end itemize
 
 @cindex tutorial
@@ -26382,7 +26420,7 @@ tables}.
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
-* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.
+* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.
 @end menu
 
 @node Replication Intro, Replication Implementation, Replication, Replication
@@ -33525,7 +33563,6 @@ pre-allocated MYSQL struct.
 * Multiple sql commands::       How to run SQL commands from a text file
 * Temporary files::             Where @strong{MySQL} stores temporary files
 * Problems with mysql.sock::    How to protect @file{/tmp/mysql.sock}
-* Error Access denied::         @code{Access denied} error
 * Changing MySQL user::         How to run @strong{MySQL} as a normal user
 * Resetting permissions::       How to reset a forgotten password.
 * File permissions ::           Problems with file permissions
@@ -33889,10 +33926,12 @@ sure that no other programs are using the dynamic libraries!
 @section Some Common Errors When Using MySQL
 
 @menu
+* Error Access denied::         @code{Access denied} Error
 * Gone away::                   @code{MySQL server has gone away} error
 * Can not connect to server::   @code{Can't connect to [local] MySQL server} error
 * Blocked host::                @code{Host '...' is blocked} error
 * Too many connections::        @code{Too many connections} error
+* Non-transactional tables::    @code{Some non-transactional changed tables couldn't be rolled back} Error
 * Out of memory::               @code{Out of memory} error
 * Packet too large::            @code{Packet too large} error
 * Communication errors::        Communication errors / Aborted connection
@@ -33904,7 +33943,15 @@ sure that no other programs are using the dynamic libraries!
 * Cannot initialize character set::  
 @end menu
 
-@node Gone away, Can not connect to server, Common errors, Common errors
+@cindex errors, access denied
+@cindex problems, access denied errors
+@cindex access denied errors
+@node Error Access denied, Gone away, Common errors, Common errors
+@subsection @code{Access denied} Error
+
+@xref{Privileges}, and especially see @xref{Access denied}.
+
+@node Gone away, Can not connect to server, Error Access denied, Common errors
 @subsection @code{MySQL server has gone away} Error
 
 This section also covers the related @code{Lost connection to server
@@ -34096,7 +34143,7 @@ check that there isn't anything wrong with TCP/IP connections from that
 host.  If your TCP/IP connections aren't working, it won't do you any good to
 increase the value of the @code{max_connect_errors} variable!
 
-@node Too many connections, Out of memory, Blocked host, Common errors
+@node Too many connections, Non-transactional tables, Blocked host, Common errors
 @subsection @code{Too many connections} Error
 
 If you get the error @code{Too many connections} when you try to connect
@@ -34118,7 +34165,32 @@ the thread library is on a given platform. Linux or Solaris should be
 able to support 500-1000 simultaneous connections, depending on how much
 RAM you have and what your clients are doing.
 
-@node Out of memory, Packet too large, Too many connections, Common errors
+@cindex Non-transactional tables
+@node Non-transactional tables, Out of memory, Too many connections, Common errors
+@subsection @code{Some non-transactional changed tables couldn't be rolled back} Error
+
+If you get the error/warning: @code{Warning: Some non-transactional
+changed tables couldn't be rolled back} when trying to do a
+@code{ROLLBACK}, this means that some of the tables you used in the
+transaction didn't support transactions.  These non-transactional tables
+will not be affected by the @code{ROLLBACK} statement.
+
+The most typical case when this happens is when you have tried to create
+a table of a type that is not supported by your @code{mysqld} binary.
+If @code{mysqld} doesn't support a table type (or if the table type is
+disabled by a startup option) , it will instead create the table type
+with the table type that is most resembles to the one you requested,
+probably @code{MyISAM}.
+
+You can check the table type for a table by doing:
+
+@code{SHOW TABLE STATUS LIKE 'table_name'}. @xref{SHOW TABLE STATUS}.
+
+You can check the extensions your @code{mysqld} binary supports by doing:
+
+@code{show variables like 'have_%'}. @xref{SHOW VARIABLES}.
+
+@node Out of memory, Packet too large, Non-transactional tables, Common errors
 @subsection @code{Out of memory} Error
 
 If you issue a query and get something like the following error:
@@ -34489,7 +34561,7 @@ the original table.
 
 @cindex @code{mysql.sock}, protection
 @cindex deletion, @code{mysql.sock}
-@node  Problems with mysql.sock, Error Access denied, Temporary files, Problems
+@node  Problems with mysql.sock, Changing MySQL user, Temporary files, Problems
 @section How to Protect @file{/tmp/mysql.sock} from Being Deleted
 
 If you have problems with the fact that anyone can delete the
@@ -34507,17 +34579,9 @@ only by their owners or the superuser (@code{root}).
 You can check if the @code{sticky} bit is set by executing @code{ls -ld /tmp}.
 If the last permission bit is @code{t}, the bit is set.
 
-@cindex errors, access denied
-@cindex problems, access denied errors
-@cindex access denied errors
-@node Error Access denied, Changing MySQL user, Problems with mysql.sock, Problems
-@section @code{Access denied} Error
-
-@xref{Privileges}, and especially see @xref{Access denied}.
-
 @cindex starting, @code{mysqld}
 @cindex @code{mysqld}, starting
-@node Changing MySQL user, Resetting permissions, Error Access denied, Problems
+@node Changing MySQL user, Resetting permissions, Problems with mysql.sock, Problems
 @section How to Run MySQL As a Normal User
 
 The @strong{MySQL} server @code{mysqld} can be started and run by any user.
@@ -41755,6 +41819,13 @@ not yet 100 % confident in this code.
 @appendixsubsec Changes in release 3.23.34
 @itemize @bullet
 @item
+@code{REPLACE} will not replace a row that conflicts with an
+@code{auto_increment} generated key.
+@item
+@code{mysqld} now only sets @code{CLIENT_TRANSACTIONS} in
+@code{mysql->server_capabilities} if the server supports a transaction
+safe handler.
+@item
 Fixed that one can with @code{LOAD DATA INFILE} read number values to
 @code{ENUM} and @code{SET} columns.
 @item
@@ -41774,6 +41845,8 @@ Fixed problem in automatic repair that could let some threads in state
 @item
 @code{SHOW CREATE TABLE} now dumps the @code{UNION()} for @code{MERGE} tables.
 @item
+@code{ALTER TABLE} now remembers the old @code{UNION()} definition.
+@item
 Fixed bug when replicating timestamps.
 @item
 Fixed bug in bi-directonal replication.
@@ -41788,6 +41861,8 @@ Fixed problem with 'garbage results' when using @code{BDB} tables and
 @code{BLOB} or @code{TEXT} fields when joining many tables.
 @item
 Fixed a problem with @code{BDB} tables and @code{TEXT} columns.
+@item
+Fixed bug when using a @code{BLOB} key where a const row wasn't found.
 @item
 Fixed that @code{mysqlbinlog} writes the timestamp value for each query.
 This ensures that on gets same values for date functions like @code{NOW()}

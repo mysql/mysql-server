@@ -50,7 +50,7 @@ insert into t2 (c) values ('test2');
 insert into t2 (c) values ('test2');
 select * from t3;
 select * from t3;
-delete from t3;
+delete from t3 where 1=1;
 select * from t3;
 select * from t1;
 drop table t3,t2,t1;
@@ -78,6 +78,16 @@ alter table t3 UNION=(t1,t2);
 select count(*) from t3;
 alter table t3 TYPE=MYISAM;
 select count(*) from t3;
+
+# Test that ALTER TABLE rembers the old UNION
+
+drop table t3;
+CREATE TABLE t3 (incr int not null, othr int not null, primary key(incr))
+TYPE=MERGE UNION=(t1,t2);
+show create table t3;
+alter table t3 drop primary key;
+show create table t3;
+
 drop table t3,t2,t1;
 
 #

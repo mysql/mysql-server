@@ -740,6 +740,7 @@ create_table_option:
 	    lex->table_list.elements=1;
 	    lex->table_list.next= (byte**) &(table_list->next);
 	    table_list->next=0;
+	    lex->create_info.used_fields|= HA_CREATE_USED_UNION;
 	  }
 
 table_types:
@@ -2666,8 +2667,11 @@ option_value:
 	  {
 	     Item_func_set_user_var *item = new Item_func_set_user_var($2,$4);
 	     if (item->fix_fields(current_thd,0) || item->update())
+	     { 
 		send_error(&current_thd->net, ER_SET_CONSTANTS_ONLY);
-	  }
+	        YYABORT;
+	     }
+	   }
          | SQL_SLAVE_SKIP_COUNTER equal ULONG_NUM
           {
 	    pthread_mutex_lock(&LOCK_slave);

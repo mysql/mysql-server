@@ -728,3 +728,18 @@ where
     t3.platform_id = 2;
 
 drop table t1, t2, t3, t4, t5, t6,t7;
+
+#
+# Test with blob + tinyint key
+#
+
+CREATE TABLE t1 (
+  a tinytext NOT NULL,
+  b tinyint(3) unsigned NOT NULL default '0',
+  PRIMARY KEY (a(32),b)
+) TYPE=BDB;
+INSERT INTO t1 VALUES ('a',1),('a',2);
+SELECT * FROM t1 WHERE a='a' AND b=2;
+SELECT * FROM t1 WHERE a='a' AND b in (2);
+SELECT * FROM t1 WHERE a='a' AND b in (1,2);
+drop table t1;
