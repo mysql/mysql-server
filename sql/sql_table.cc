@@ -1318,7 +1318,9 @@ static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
       thd->exit_cond(old_message);
       if (thd->killed)
 	goto err;
-      open_for_modify=0;
+      /* Flush entries in the query cache involving this table. */
+      query_cache_invalidate3(thd, table->table, 0);
+      open_for_modify= 0;
     }
 
     int result_code = (table->table->file->*operator_func)(thd, check_opt);
