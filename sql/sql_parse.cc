@@ -3101,6 +3101,15 @@ mysql_execute_command(THD *thd)
 	send_ok(thd);
 	break;
       case SP_KEY_NOT_FOUND:
+	if (lex->drop_if_exists)
+	{
+	  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			      ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
+			      SP_COM_STRING(lex), lex->udf.name.str);
+	  res= 0;
+	  send_ok(thd);
+	  break;
+	}
 	net_printf(thd, ER_SP_DOES_NOT_EXIST, SP_COM_STRING(lex),
 		   lex->udf.name.str);
 	goto error;

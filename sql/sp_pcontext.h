@@ -31,7 +31,7 @@ typedef enum
 
 typedef struct
 {
-  Item_string *name;
+  LEX_STRING name;
   enum enum_field_types type;
   sp_param_mode_t mode;
   uint offset;			// Offset in current frame

@@ -3699,17 +3699,19 @@ drop:
 	    lex->drop_if_exists=$3;
 	    lex->name=$4.str;
 	 }
-	| DROP FUNCTION_SYM IDENT_sys opt_restrict
+	| DROP FUNCTION_SYM if_exists IDENT_sys opt_restrict
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command = SQLCOM_DROP_FUNCTION;
-	    lex->udf.name= $3;
+	    lex->drop_if_exists= $3;
+	    lex->udf.name= $4;
 	  }
-	| DROP PROCEDURE ident opt_restrict
+	| DROP PROCEDURE if_exists IDENT_sys opt_restrict
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command = SQLCOM_DROP_PROCEDURE;
-	    lex->udf.name= $3;
+	    lex->drop_if_exists= $3;
+	    lex->udf.name= $4;
 	  }
 	;
 
