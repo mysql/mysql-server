@@ -174,7 +174,7 @@ static int ismbchar_gb2312(CHARSET_INFO *cs __attribute__((unused)),
 
 static int mbcharlen_gb2312(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
-  return (isgb2312head(c)? 2:0);
+  return (isgb2312head(c)? 2 : 1);
 }
 
 
