@@ -743,6 +743,7 @@ static int get_options(int argc, char **argv)
     strmov(pager, "stdout");
     opt_nopager= 1;
     opt_outfile= 0;
+    connect_flag= 0; /* Not in interactive mode */
   }
   if (default_charset)
   {
