@@ -757,6 +757,7 @@ void Dbacc::initialiseDirRec(Signal* signal)
   DirectoryarrayPtr idrDirptr;
   ndbrequire(cdirarraysize > 0);
   for (idrDirptr.i = 0; idrDirptr.i < cdirarraysize; idrDirptr.i++) {
+    refresh_watch_dog();
     ptrAss(idrDirptr, directoryarray);
     for (Uint32 i = 0; i <= 255; i++) {
       idrDirptr.p->pagep[i] = RNIL;
@@ -776,6 +777,7 @@ void Dbacc::initialiseDirRangeRec(Signal* signal)
 
   ndbrequire(cdirrangesize > 0);
   for (idrDirRangePtr.i = 0; idrDirRangePtr.i < cdirrangesize; idrDirRangePtr.i++) {
+    refresh_watch_dog();
     ptrAss(idrDirRangePtr, dirRange);
     idrDirRangePtr.p->dirArray[0] = idrDirRangePtr.i + 1;
     for (Uint32 i = 1; i < 256; i++) {
@@ -798,6 +800,7 @@ void Dbacc::initialiseFragRec(Signal* signal)
   ndbrequire(cfragmentsize > 0);
   for (regFragPtr.i = 0; regFragPtr.i < cfragmentsize; regFragPtr.i++) {
     jam();
+    refresh_watch_dog();
     ptrAss(regFragPtr, fragmentrec);
     initFragGeneral(regFragPtr);
     regFragPtr.p->nextfreefrag = regFragPtr.i + 1;
@@ -876,6 +879,7 @@ void Dbacc::initialiseOperationRec(Signal* signal)
 {
   ndbrequire(coprecsize > 0);
   for (operationRecPtr.i = 0; operationRecPtr.i < coprecsize; operationRecPtr.i++) {
+    refresh_watch_dog();
     ptrAss(operationRecPtr, operationrec);
     operationRecPtr.p->transactionstate = IDLE;
     operationRecPtr.p->operation = ZUNDEFINED_OP;
@@ -898,6 +902,7 @@ void Dbacc::initialiseOverflowRec(Signal* signal)
 
   ndbrequire(coverflowrecsize > 0);
   for (iorOverflowRecPtr.i = 0; iorOverflowRecPtr.i < coverflowrecsize; iorOverflowRecPtr.i++) {
+    refresh_watch_dog();
     ptrAss(iorOverflowRecPtr, overflowRecord);
     iorOverflowRecPtr.p->nextfreeoverrec = iorOverflowRecPtr.i + 1;
   }//for
@@ -958,6 +963,7 @@ void Dbacc::initialiseRootfragRec(Signal* signal)
 {
   ndbrequire(crootfragmentsize > 0);
   for (rootfragrecptr.i = 0; rootfragrecptr.i < crootfragmentsize; rootfragrecptr.i++) {
+    refresh_watch_dog();
     ptrAss(rootfragrecptr, rootfragmentrec);
     rootfragrecptr.p->nextroot = rootfragrecptr.i + 1;
     rootfragrecptr.p->fragmentptr[0] = RNIL;
@@ -1013,6 +1019,7 @@ void Dbacc::initialiseTableRec(Signal* signal)
 {
   ndbrequire(ctablesize > 0);
   for (tabptr.i = 0; tabptr.i < ctablesize; tabptr.i++) {
+    refresh_watch_dog();
     ptrAss(tabptr, tabrec);
     for (Uint32 i = 0; i < NO_OF_FRAG_PER_NODE; i++) {
       tabptr.p->fragholder[i] = RNIL;
