@@ -65,6 +65,7 @@ public:
   void print(String *str);
 
   bool walk(Item_processor processor, byte *arg);
+  Item *transform(Item_transformer transformer, byte *arg);
 
   uint cols() { return arg_count; }
   Item* el(uint i) { return items[i]; }

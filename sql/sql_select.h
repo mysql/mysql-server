@@ -222,6 +222,7 @@ class JOIN :public Sql_alloc
   Item *conds_history;                    // store WHERE for explain
   TABLE_LIST *tables_list;           //hold 'tables' parameter of mysql_select
   List<TABLE_LIST> *join_list;       // list of joined tables in reverse order
+  COND_EQUAL *cond_equal;
   SQL_SELECT *select;                //created in optimisation phase
   JOIN_TAB *return_tab;              //used only for outer joins
   Item **ref_pointer_array; //used pointer reference for this select
@@ -284,6 +285,7 @@ class JOIN :public Sql_alloc
     ref_pointer_array_size= 0;
     zero_result_cause= 0;
     optimized= 0;
+    cond_equal= 0;
 
     fields_list= fields_arg;
     bzero((char*) &keyuse,sizeof(keyuse));
