@@ -14,5 +14,5 @@ libndbclient_la_LIBADD =  \
               common/mgmcommon/libmgmsrvcommon.la \
               mgmapi/libmgmapi.la \
               common/logger/liblogger.la       \
-              common/portlib/unix/libportlib.la      \
+              common/portlib/libportlib.la      \
               common/util/libgeneral.la 
