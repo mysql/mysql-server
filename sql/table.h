@@ -137,6 +137,7 @@ struct st_table {
   uint          derived_select_number;   
   THD		*in_use;		/* Which thread uses this */
   struct st_table *next,*prev;
+  byte *default_values() { return record[2]; }
 };
 
 
