@@ -552,10 +552,8 @@ String *Item_param::query_val_str(String* str)
 { 
   switch (item_result_type) {
   case INT_RESULT:
-    str->set(int_value, default_charset());
-    break;
   case REAL_RESULT:
-    set->set(real_value, 2, default_charset());
+    return val_str(str);
     break;
   default:
     str->set("'", 1, default_charset());
@@ -599,13 +597,13 @@ String *Item_param::query_val_str(String* str)
         case TIMESTAMP_FULL:
           sprintf(buff, "%04d-%02d-%02d %02d:%02d:%02d",
  	                ltime.year,ltime.month,ltime.day,
-	                ltime.hour,ltime.minute,ltime.second));
+	                ltime.hour,ltime.minute,ltime.second);
           str->append(buff, 19);
           break;
         case TIMESTAMP_TIME:
         {
           sprintf(buff, "%02d:%02d:%02d",
-	  	        ltime.hour,ltime.minute,ltime.second));
+	  	            ltime.hour,ltime.minute,ltime.second);
           str->append(buff, 8);
           break;
         }

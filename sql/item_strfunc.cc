@@ -2919,7 +2919,7 @@ ret:
 }
 
 #ifdef HAVE_COMPRESS
-#include <zlib.h>
+#include "../zlib/zlib.h"
 
 String *Item_func_compress::val_str(String *str)
 {

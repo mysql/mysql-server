@@ -145,8 +145,7 @@ rm -r -f "$BASE/share/Makefile.am"
 
 if [ -d $BASE/SCCS ]  
 then
-  find $BASE/ -name SCCS -print | xargs rm -r -f
-  rm -r -f "$BASE/InstallShield/Script Files/SCCS"  
+  find $BASE/ -type d -name SCCS -printf " \"%p\"" | xargs rm -r -f
 fi
 
 mkdir $BASE/Docs $BASE/extra $BASE/include
@@ -161,8 +160,8 @@ copy_dir_files() {
   for arg do
     print_debug "Copying files from directory '$arg'"
     cd $SOURCE/$arg/
-    for i in *.c *.h *.ih *.i *.ic *.asm \
-             README INSTALL* LICENSE
+    for i in *.c *.h *.ih *.i *.ic *.asm *.def \
+             README INSTALL* LICENSE 
     do 
       if [ -f $i ] 
       then
