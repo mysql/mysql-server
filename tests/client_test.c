@@ -8495,7 +8495,7 @@ static void test_bug3117()
 }
 
 
-static void jest_join()
+static void test_join()
 {
   MYSQL_STMT *stmt;
   int rc, i, j;
@@ -8509,7 +8509,7 @@ static void jest_join()
 		       "SELECT * FROM t2 natural right join t1",
 		       "SELECT * FROM t2 right join t1 using(a)"};
 
-  myheader("jest_join");
+  myheader("test_join");
   
   rc = mysql_query(mysql, "DROP TABLE IF EXISTS t1,t2");
   myquery(rc);
@@ -8526,6 +8526,7 @@ static void jest_join()
 
   rc= mysql_query(mysql,
 		  "insert into t2 values (1,1), (2, 2), (3,3), (4,4), (5,5);");
+  myquery(rc);
 
   for (j= 0; j < 9; j++)
   {
@@ -8590,6 +8591,83 @@ static void test_selecttmp()
   myquery(rc);
 }
 
+
+static void test_create_drop()
+{
+  MYSQL_STMT *stmt_create, *stmt_drop;
+  char *query;
+  int rc, i;
+  myheader("test_table_manipulation");
+  
+  rc = mysql_query(mysql, "DROP TABLE IF EXISTS t1,t2");
+  myquery(rc);
+  
+  query= (char*)"create table t1 (a int)";
+  stmt_create= mysql_prepare(mysql, query, strlen(query));
+  mystmt_init(stmt_create);
+
+  query= (char*)"drop table t1";
+  stmt_drop= mysql_prepare(mysql, query, strlen(query));
+  mystmt_init(stmt_drop);
+
+  for (i= 0; i < 3; i++)
+  {
+    rc= mysql_execute(stmt_create);
+    mystmt(stmt_create, rc);
+    fprintf(stdout, "created %i\n", i);
+    rc= mysql_execute(stmt_drop);
+    mystmt(stmt_drop, rc);
+    fprintf(stdout, "droped %i\n", i);  
+  }
+  
+  mysql_stmt_close(stmt_create);
+  mysql_stmt_close(stmt_drop);
+}
+
+
+static void test_rename()
+{
+  MYSQL_STMT *stmt;
+  const char *query= "rename table t1 to t2, t3 to t4";
+  int rc;
+  myheader("test_table_manipulation");
+  
+  rc = mysql_query(mysql, "DROP TABLE IF EXISTS t1,t2,t3,t4");
+  myquery(rc);
+  
+  stmt= mysql_prepare(mysql, query, strlen(query));
+  mystmt_init(stmt);
+
+  rc= mysql_query(mysql,"create table t1 (a int)");
+  myquery(rc);
+
+  rc= mysql_execute(stmt);
+  mystmt_r(stmt, rc);
+  fprintf(stdout, "rename without t3\n");
+
+  rc= mysql_query(mysql,"create table t3 (a int)");
+  myquery(rc);
+
+  rc= mysql_execute(stmt);
+  mystmt(stmt, rc);
+  fprintf(stdout, "rename with t3\n");
+
+  rc= mysql_execute(stmt);
+  mystmt_r(stmt, rc);
+  fprintf(stdout, "rename renamed\n");
+
+  rc= mysql_query(mysql,"rename table t2 to t1, t4 to t3");
+  myquery(rc);
+
+  rc= mysql_execute(stmt);
+  mystmt(stmt, rc);
+  fprintf(stdout, "rename reverted\n");
+
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "DROP TABLE t2,t4");
+  myquery(rc);
+}
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -8850,9 +8928,10 @@ int main(int argc, char **argv)
 			       Item_field -> Item_ref */
     test_union();	    /* test union with prepared statements */
     test_bug3117();	    /* BUG#3117: LAST_INSERT_ID() */
-    jest_join();	    /* different kinds of join, BUG#2794 */
+    test_join();	    /* different kinds of join, BUG#2794 */
     test_selecttmp();	    /* temporary table used in select execution */
-
+    test_create_drop();	    /* some table manipulation BUG#2811 */
+    test_rename();	    /* rename test */
 
     end_time= time((time_t *)0);
     total_time+= difftime(end_time, start_time);

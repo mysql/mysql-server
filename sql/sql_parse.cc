@@ -1864,7 +1864,6 @@ mysql_execute_command(THD *thd)
   }
 #endif /* !HAVE_REPLICATION */
   if (&lex->select_lex != lex->all_selects_list &&
-      lex->sql_command != SQLCOM_CREATE_TABLE &&
       lex->unit.create_total_list(thd, lex, &tables))
     DBUG_VOID_RETURN;
   
@@ -2166,12 +2165,16 @@ mysql_execute_command(THD *thd)
   {
     /* Skip first table, which is the table we are creating */
     TABLE_LIST *create_table= tables;
+    TABLE_LIST *create_table_local=
+      (TABLE_LIST*)lex->select_lex.table_list.first;
+    // exclude from global table list
     tables= tables->next;
-    lex->select_lex.table_list.first= (byte*) (tables);
+    // and from local list if it is not the same
+    if (&lex->select_lex != lex->all_selects_list)
+      lex->select_lex.table_list.first= (gptr)create_table_local->next;
+    else
+      lex->select_lex.table_list.first= (gptr)tables;
     create_table->next= 0;
-    if (&lex->select_lex != lex->all_selects_list &&
-	lex->unit.create_total_list(thd, lex, &tables))
-      DBUG_VOID_RETURN;
 
     ulong want_priv= ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
 		      CREATE_TMP_ACL : CREATE_ACL);
@@ -2181,10 +2184,10 @@ mysql_execute_command(THD *thd)
 	check_merge_table_access(thd, create_table->db,
 				 (TABLE_LIST *)
 				 lex->create_info.merge_list.first))
-      goto error;				/* purecov: inspected */
+      goto create_eror;				/* purecov: inspected */
     if (grant_option && want_priv != CREATE_TMP_ACL &&
 	check_grant(thd, want_priv, create_table,0,0))
-	goto error;
+	goto create_eror;
 #ifndef HAVE_READLINK
     lex->create_info.data_file_name=lex->create_info.index_file_name=0;
 #else
@@ -2195,7 +2198,7 @@ mysql_execute_command(THD *thd)
 			   create_table->real_name))
     {
       res=-1;
-      break;
+      goto unsent_create_error;
     }
 #endif
     /*
@@ -2220,10 +2223,10 @@ mysql_execute_command(THD *thd)
 				  create_table->real_name))
       {
 	net_printf(thd,ER_UPDATE_TABLE_USED, create_table->real_name);
-	DBUG_VOID_RETURN;
+	goto create_eror;
       }
       if (tables && check_table_access(thd, SELECT_ACL, tables,0))
-	goto error;				// Error message is given
+	goto create_eror;			// Error message is given
       select_lex->options|= SELECT_NO_UNLOCK;
       unit->offset_limit_cnt= select_lex->offset_limit;
       unit->select_limit_cnt= select_lex->select_limit+
@@ -2257,6 +2260,35 @@ mysql_execute_command(THD *thd)
       }
       if (!res)
 	send_ok(thd);
+    }
+    // put tables back for PS rexecuting
+    create_table->next= tables;
+    tables= create_table;
+    if (&lex->select_lex != lex->all_selects_list)
+    {
+      /*
+	we do not touch local table 'next' field => we need just
+	put the table in the list
+      */
+      lex->select_lex.table_list.first= (gptr) create_table_local;
+    }
+    else
+      lex->select_lex.table_list.first= (gptr) tables;
+    break;
+
+create_eror:
+    res= 1; //error reported
+unsent_create_error:
+    // put tables back for PS rexecuting
+    create_table->next= tables;
+    tables= create_table;
+    if (&lex->select_lex != lex->all_selects_list)
+    {
+      /*
+	we do not touch local table 'next' field => we need just
+	put the table in the list
+      */
+      lex->select_lex.table_list.first= (gptr) create_table_local;
     }
     break;
   }
@@ -2617,12 +2649,7 @@ mysql_execute_command(THD *thd)
     {
       ulong privilege= (lex->duplicates == DUP_REPLACE ?
                         INSERT_ACL | DELETE_ACL : INSERT_ACL);
-      TABLE_LIST *save_next=tables->next;
-      tables->next=0;
       if (check_one_table_access(thd, privilege, tables, 0))
-	goto error;
-      tables->next=save_next;
-      if (check_table_access(thd, SELECT_ACL, save_next, 0))
 	goto error;
     }
 
@@ -3479,7 +3506,10 @@ static int check_one_table_access(THD *thd, ulong privilege,
   TABLE_LIST *subselects_tables= tables->next;
   tables->next= 0;
   if (grant_option && check_grant(thd,  privilege, tables, 0, 0))
+  {
+    tables->next= subselects_tables;
     return 1;
+  }
 
   // check rights on tables of subselect (if exists)
   if (subselects_tables)
