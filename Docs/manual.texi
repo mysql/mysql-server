@@ -2135,7 +2135,7 @@ The server can provide error messages to clients in many languages.
 
 @item
 Clients may connect to the @strong{MySQL} server using TCP/IP Sockets,
-Unix Sockets (Unixes), or Named Pipes (NT).
+Unix Sockets (Unix), or Named Pipes (NT).
 
 @item
 The @strong{MySQL}-specific @code{SHOW} command can be used to retrieve
@@ -5247,7 +5247,7 @@ clients can connect to both @strong{MySQL} versions.
 
 The extended @strong{MySQL} binary distribution is marked with the
 @code{-max} suffix and is configured with the same options as
-@code{mysqld-max}. @xref{mysqld-max}.
+@code{mysqld-max}. @xref{mysqld-max, @code{mysqld-max}}.
 
 If you want to use the @code{MySQL-Max} RPM, you must first
 install the standard @code{MySQL} RPM.
@@ -5588,8 +5588,8 @@ indicates the type of operating system for which the distribution is intended
 @item
 If you see a binary distribution marked with the @code{-max} prefix, this
 means that the binary has support for transaction-safe tables and other
-features. @xref{mysqld-max}.  Note that all binaries are built from
-the same @strong{MySQL} source distribution.
+features. @xref{mysqld-max, @code{mysqld-max}}.  Note that all binaries
+are built from the same @strong{MySQL} source distribution.
 
 @item
 Add a user and group for @code{mysqld} to run as:
@@ -5601,8 +5601,8 @@ shell> useradd -g mysql mysql
 
 These commands add the @code{mysql} group and the @code{mysql} user.  The
 syntax for @code{useradd} and @code{groupadd} may differ slightly on different
-Unixes.  They may also be called @code{adduser} and @code{addgroup}.  You may
-wish to call the user and group something else instead of @code{mysql}.
+versions of Unix.  They may also be called @code{adduser} and @code{addgroup}.
+You may wish to call the user and group something else instead of @code{mysql}.
 
 @item
 Change into the intended installation directory:
@@ -5645,7 +5645,8 @@ programs properly. @xref{Environment variables}.
 
 @item scripts
 This directory contains the @code{mysql_install_db} script used to initialize
-the server access permissions.
+the @code{mysql} database containing the grant tables that store the server
+access permissions.
 @end table
 
 @item
@@ -5711,7 +5712,7 @@ You can start the @strong{MySQL} server with the following command:
 shell> bin/safe_mysqld --user=mysql &
 @end example
 
-@xref{safe_mysqld}.
+@xref{safe_mysqld, @code{safe_mysqld}}.
 
 @xref{Post-installation}.
 
@@ -6115,8 +6116,8 @@ shell> useradd -g mysql mysql
 
 These commands add the @code{mysql} group, and the @code{mysql} user.  The
 syntax for @code{useradd} and @code{groupadd} may differ slightly on different
-Unixes.  They may also be called @code{adduser} and @code{addgroup}.  You may
-wish to call the user and group something else instead of @code{mysql}.
+versions of Unix.  They may also be called @code{adduser} and @code{addgroup}.
+You may wish to call the user and group something else instead of @code{mysql}.
 
 @item
 Unpack the distribution into the current directory:
@@ -7670,13 +7671,13 @@ To get a core dump on Linux if @code{mysqld} dies with a SIGSEGV
 signal, you can start @code{mysqld} with the @code{--core-file} option.  Note
 that you also probably need to raise the @code{core file size} by adding
 @code{ulimit -c 1000000} to @code{safe_mysqld} or starting @code{safe_mysqld}
-with @code{--core-file-sizes=1000000}. @xref{safe_mysqld}.
+with @code{--core-file-sizes=1000000}. @xref{safe_mysqld, @code{safe_mysqld}}.
 
 To get a core dump on Linux if @code{mysqld} dies with a SIGSEGV signal, you can 
 start @code{mysqld} with the @code{--core-file} option.  Note that you also probably
 need to raise the @code{core file size} by adding @code{ulimit -c 1000000} to
 @code{safe_mysqld} or starting @code{safe_mysqld} with 
-@code{--core-file-sizes=1000000}.  @xref{safe_mysqld}.
+@code{--core-file-sizes=1000000}.  @xref{safe_mysqld, @code{safe_mysqld}}.
 
 If you are linking your own @strong{MySQL} client and get the error:
 
@@ -8004,7 +8005,7 @@ shell> nohup mysqld [options] &
 @code{nohup} causes the command following it to ignore any @code{SIGHUP}
 signal sent from the terminal.  Alternatively, start the server by running
 @code{safe_mysqld}, which invokes @code{mysqld} using @code{nohup} for you.
-@xref{safe_mysqld}.
+@xref{safe_mysqld, @code{safe_mysqld}}.
 
 If you get a problem when compiling mysys/get_opt.c, just remove the
 line #define _NO_PROTO from the start of that file!
@@ -8261,7 +8262,8 @@ FreeBSD is also known to have a very low default file handle limit.
 safe_mysqld or raise the limits for the @code{mysqld} user in /etc/login.conf
 (and rebuild it with cap_mkdb /etc/login.conf).  Also be sure you set the
 appropriate class for this user in the password file if you are not
-using the default (use: chpass mysqld-user-name).  @xref{safe_mysqld}.
+using the default (use: chpass mysqld-user-name).  @xref{safe_mysqld,
+@code{safe_mysqld}}.
 
 If you get problems with the current date in @strong{MySQL}, setting the
 @code{TZ} variable will probably help.  @xref{Environment variables}.
@@ -9677,7 +9679,7 @@ mysqld: Can't find file: 'host.frm'
 
 The above may also happen with a binary @strong{MySQL} distribution if you
 don't start @strong{MySQL} by executing exactly @code{./bin/safe_mysqld}!
-@xref{safe_mysqld}.
+@xref{safe_mysqld, @code{safe_mysqld}}.
 
 You might need to run @code{mysql_install_db} as @code{root}.  However,
 if you prefer, you can run the @strong{MySQL} server as an unprivileged
@@ -9978,7 +9980,8 @@ system startup and shutdown, and is described more fully in
 
 @item
 By invoking @code{safe_mysqld}, which tries to determine the proper options
-for @code{mysqld} and then runs it with those options. @xref{safe_mysqld}.
+for @code{mysqld} and then runs it with those options. @xref{safe_mysqld,
+@code{safe_mysqld}}.
 
 @item
 On NT you should install @code{mysqld} as a service as follows:
@@ -10227,7 +10230,8 @@ though.
 
 @item --core-file
 Write a core file if @code{mysqld} dies.  For some systems you must also
-specify @code{--core-file-size} to @code{safe_mysqld}. @xref{safe_mysqld}.
+specify @code{--core-file-size} to @code{safe_mysqld}. @xref{safe_mysqld,
+@code{safe_mysqld}}.
 
 @item -h, --datadir=path
 Path to the database root.
@@ -24347,7 +24351,7 @@ this.  @xref{Table handler support}.
 If you have downloaded a binary version of @strong{MySQL} that includes
 support for BerkeleyDB, simply follow the instructions for installing a 
 binary version of @strong{MySQL}.  
-@xref{Installing binary}.  @xref{mysqld-max}.
+@xref{Installing binary}.  @xref{mysqld-max, @code{mysqld-max}}.
 
 To compile @strong{MySQL} with Berkeley DB support, download @strong{MySQL}
 Version 3.23.34 or newer and configure @code{MySQL} with the 
@@ -25459,7 +25463,7 @@ binary.
 If you have downloaded a binary version of @strong{MySQL} that includes
 support for InnoDB (mysqld-max), simply follow the instructions for
 installing a binary version of @strong{MySQL}. @xref{Installing binary}.
-@xref{mysqld-max}.
+@xref{mysqld-max, @code{mysqld-max}}.
 
 To compile @strong{MySQL} with InnoDB support, download MySQL-3.23.37 or newer
 and configure @code{MySQL} with the @code{--with-innodb} option.
@@ -26237,7 +26241,7 @@ time will be longer.
 Also the log buffer should be quite big, say 8 MB.
 
 @strong{6.} (Relevant from 3.23.39 up.)
-In some versions of Linux and other Unixes flushing files to disk with the Unix
+In some versions of Linux and Unix, flushing files to disk with the Unix
 @code{fdatasync} and other similar methods is surprisingly slow.
 The default method InnoDB uses is the @code{fdatasync} function.
 If you are not satisfied with the database write performance, you may
@@ -26518,11 +26522,11 @@ integer that can be stored in the specified integer type.
 
 In disk i/o InnoDB uses asynchronous i/o. On Windows NT
 it uses the native asynchronous i/o provided by the operating system.
-On Unixes InnoDB uses simulated asynchronous i/o built
+On Unix, InnoDB uses simulated asynchronous i/o built
 into InnoDB: InnoDB creates a number of i/o threads to take care
 of i/o operations, such as read-ahead. In a future version we will
 add support for simulated aio on Windows NT and native aio on those
-Unixes which have one.
+versions of Unix which have one.
 
 On Windows NT InnoDB uses non-buffered i/o. That means that the disk
 pages InnoDB reads or writes are not buffered in the operating system
@@ -26533,7 +26537,7 @@ just define the raw disk in place of a data file in @file{my.cnf}.
 You must give the exact size in bytes of the raw disk in @file{my.cnf},
 because at startup InnoDB checks that the size of the file
 is the same as specified in the configuration file. Using a raw disk
-you can on some Unixes perform non-buffered i/o.
+you can on some versions of Unix perform non-buffered i/o.
 
 There are two read-ahead heuristics in InnoDB: sequential read-ahead
 and random read-ahead. In sequential read-ahead InnoDB notices that
@@ -33106,7 +33110,7 @@ with the @code{-max} prefix. This makes it very easy to test out a
 another @code{mysqld} binary in an existing installation.  Just
 run @code{configure} with the options you want and then install the
 new @code{mysqld} binary as @code{mysqld-max} in the same directory
-where your old @code{mysqld} binary is. @xref{safe_mysqld}.
+where your old @code{mysqld} binary is. @xref{safe_mysqld, @code{safe_mysqld}}.
 
 The @code{mysqld-max} RPM uses the above mentioned @code{safe_mysqld}
 feature. It just installs the @code{mysqld-max} executable and
@@ -33354,7 +33358,7 @@ MY_PWD=`pwd` Check if we are starting this relative (for the binary
 release) if test -d /data/mysql -a -f ./share/mysql/english/errmsg.sys
 -a -x ./bin/mysqld
 --------------------------------------------------------------------------
-@xref{safe_mysqld}.
+@xref{safe_mysqld, @code{safe_mysqld}}.
 @end example
 The above test should be successful, or you may encounter problems.
 @item
@@ -33882,7 +33886,7 @@ server).  The dump will contain SQL statements to create the table
 and/or populate the table.
 
 If you are doing a backup on the server, you should consider using
-the @code{mysqlhotcopy} instead. @xref{mysqlhotcopy}.
+the @code{mysqlhotcopy} instead. @xref{mysqlhotcopy, @code{mysqlhotcopy}}.
 
 @example
 shell> mysqldump [OPTIONS] database [tables]
@@ -39087,7 +39091,8 @@ If you want to make a SQL level backup of a table, you can use
 TABLE}. @xref{SELECT}. @xref{BACKUP TABLE}.
 
 Another way to back up a database is to use the @code{mysqldump} program or
-the @code{mysqlhotcopy script}. @xref{mysqldump}. @xref{mysqlhotcopy}.
+the @code{mysqlhotcopy script}. @xref{mysqldump, @code{mysqldump}}.
+@xref{mysqlhotcopy, @code{mysqlhotcopy}}.
 
 @enumerate
 @item
@@ -46390,8 +46395,8 @@ read by @code{mysql_options()}.
 Added new options @code{--pager[=...]}, @code{--no-pager},
 @code{--tee=...} and @code{--no-tee} to the @code{mysql} client.  The
 new corresponding interactive commands are @code{pager}, @code{nopager},
-@code{tee} and @code{notee}. @xref{mysql}, @code{mysql --help} and the
-interactive help for more information.
+@code{tee} and @code{notee}. @xref{mysql, @code{mysql}}, @code{mysql --help}
+and the interactive help for more information.
 @item
 Fixed crash when automatic repair of @code{MyISAM} table failed.
 @item
