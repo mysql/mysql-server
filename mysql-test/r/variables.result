@@ -12,3 +12,14 @@ NULL	NULL	NULL	NULL
 5	5	1	4
 @t5
 1.23456
+@min_cid:=min(c_id)	@max_cid:=max(c_id)
+1	4
+c_id	c_name	c_country
+1	Bozo	USA
+4	Mr. Floppy	GB
+c_id	c_name	c_country
+1	Bozo	USA
+4	Mr. Floppy	GB
+c_id	c_name	c_country
+1	Bozo	USA
+4	Mr. Floppy	GB
