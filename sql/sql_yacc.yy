@@ -1873,6 +1873,11 @@ simple_expr:
 	| NOT expr %prec NEG	{ $$= new Item_func_not($2); }
 	| '!' expr %prec NEG	{ $$= new Item_func_not($2); }
 	| '(' expr ')'		{ $$= $2; }
+	| '(' expr ',' expr_list ')'
+	  {
+	    $4->push_front($2);
+	    $$= new Item_row(*$4);
+	  }
 	| EXISTS exists_subselect { $$= $2; }
 	| singleval_subselect   { $$= $1; }
 	| '{' ident expr '}'	{ $$= $3; }
