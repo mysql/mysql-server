@@ -258,6 +258,7 @@ class ha_ndbcluster: public handler
   uint32 blobs_buffer_size;
   uint dupkey;
 
+  void set_rec_per_key();
   void records_update();
   void no_uncommitted_rows_execute_failure();
   void no_uncommitted_rows_update(int);
