@@ -290,6 +290,7 @@ character-set=ujis
 "Column '%-.64s' cannot be part of FULLTEXT index",
 "Unknown key cache '%-.100s'",
 "MySQL is started in --skip-name-resolve mode. You need to restart it without this switch for this grant to work",
+"Unknown table engine '%s'",
 "Can't create a %s from within another stored routine"
 "%s %s already exists"
 "%s %s does not exist"
@@ -322,3 +323,4 @@ character-set=ujis
 "Duplicate condition: %s"
 "Duplicate cursor: %s"
 "Failed to ALTER %s %s"
+"Subselect value not supported"

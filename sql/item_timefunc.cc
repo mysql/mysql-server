@@ -869,8 +869,14 @@ static bool get_interval_value(Item *args,interval_type int_type,
   case INTERVAL_YEAR:
     interval->year=value;
     break;
+  case INTERVAL_QUARTER:
+    interval->month=value*3;
+    break;
   case INTERVAL_MONTH:
     interval->month=value;
+    break;
+  case INTERVAL_WEEK:
+    interval->day=value*7;
     break;
   case INTERVAL_DAY:
     interval->day=value;
@@ -1547,6 +1553,7 @@ bool Item_date_add_interval::get_date(TIME *ltime, uint fuzzy_date)
       goto null_date;
     break;
   case INTERVAL_DAY:
+  case INTERVAL_WEEK:
     period= calc_daynr(ltime->year,ltime->month,ltime->day) +
       sign*interval.day;
     if (period < 0 || period >= MAX_DAY_NUMBER) // Daynumber from year 0 to 9999-12-31
@@ -1562,6 +1569,7 @@ bool Item_date_add_interval::get_date(TIME *ltime, uint fuzzy_date)
       ltime->day=28;				// Was leap-year
     break;
   case INTERVAL_YEAR_MONTH:
+  case INTERVAL_QUARTER:
   case INTERVAL_MONTH:
     period= (ltime->year*12 + sign*interval.year*12 +
 	     ltime->month-1 + sign*interval.month);
@@ -1623,12 +1631,13 @@ longlong Item_date_add_interval::val_int()
 
 static const char *interval_names[]=
 {
-  "year", "month", "day", "hour", "minute",
-  "second", "microsecond", "year_month",
-  "day_hour", "day_minute", "day_second",
-  "hour_minute", "hour_second", "minute_second",
-  "day_microsecond", "hour_microsecond",
-  "minute_microsecond", "second_microsecond"
+  "year", "quarter", "month", "day", "hour",
+  "minute", "week", "second", "microsecond",
+  "year_month", "day_hour", "day_minute", 
+  "day_second", "hour_minute", "hour_second",
+  "minute_second", "day_microsecond",
+  "hour_microsecond", "minute_microsecond",
+  "second_microsecond"
 };
 
 void Item_date_add_interval::print(String *str)
@@ -1659,7 +1668,9 @@ void Item_extract::fix_length_and_dec()
   switch (int_type) {
   case INTERVAL_YEAR:		max_length=4; date_value=1; break;
   case INTERVAL_YEAR_MONTH:	max_length=6; date_value=1; break;
+  case INTERVAL_QUARTER:        max_length=2; date_value=1; break;
   case INTERVAL_MONTH:		max_length=2; date_value=1; break;
+  case INTERVAL_WEEK:		max_length=2; date_value=1; break;
   case INTERVAL_DAY:		max_length=2; date_value=1; break;
   case INTERVAL_DAY_HOUR:	max_length=9; date_value=0; break;
   case INTERVAL_DAY_MINUTE:	max_length=11; date_value=0; break;
@@ -1682,6 +1693,8 @@ void Item_extract::fix_length_and_dec()
 longlong Item_extract::val_int()
 {
   TIME ltime;
+  uint year;
+  ulong week_format;
   long neg;
   if (date_value)
   {
@@ -1703,7 +1716,16 @@ longlong Item_extract::val_int()
   switch (int_type) {
   case INTERVAL_YEAR:		return ltime.year;
   case INTERVAL_YEAR_MONTH:	return ltime.year*100L+ltime.month;
+  case INTERVAL_QUARTER:	return ltime.month/3 + 1;
   case INTERVAL_MONTH:		return ltime.month;
+  case INTERVAL_WEEK:
+  {
+    week_format= current_thd->variables.default_week_format;
+    return calc_week(&ltime, 
+		     (week_format & 2) != 0,
+		     (week_format & 1) == 0,
+		     &year);
+  }
   case INTERVAL_DAY:		return ltime.day;
   case INTERVAL_DAY_HOUR:	return (long) (ltime.day*100L+ltime.hour)*neg;
   case INTERVAL_DAY_MINUTE:	return (long) (ltime.day*10000L+
@@ -2086,6 +2108,79 @@ void Item_func_add_time::print(String *str)
 
 
 /*
+  SYNOPSIS
+    calc_time_diff()
+    l_time1		TIME/DATE/DATETIME value
+    l_time2		TIME/DATE/DATETIME value
+    l_sign		Can be 1 (operation of addition)
+                        or -1 (substraction)
+    seconds_out         Returns count of seconds bitween
+                        l_time1 and l_time2
+    microseconds_out    Returns count of microseconds bitween
+                        l_time1 and l_time2.
+
+  DESCRIPTION
+    Calculates difference in seconds(seconds_out)
+    and microseconds(microseconds_out)
+    bitween two TIME/DATE/DATETIME values.
+
+  RETURN VALUES
+    Rertuns sign of difference.
+    1 means negative result
+    0 means positive result
+
+*/
+
+bool calc_time_diff(TIME *l_time1,TIME *l_time2, int l_sign,
+		    longlong *seconds_out, long *microseconds_out)
+{
+  long days;
+  bool neg;
+  longlong seconds= *seconds_out;
+  long microseconds= *microseconds_out;
+
+  /*
+    We suppose that if first argument is TIMESTAMP_TIME
+    the second argument should be TIMESTAMP_TIME also.
+    We should check it before calc_time_diff call.
+  */
+  if (l_time1->time_type == TIMESTAMP_TIME)  // Time value
+    days= l_time1->day - l_sign*l_time2->day;
+  else                                      // DateTime value
+    days= (calc_daynr((uint) l_time1->year,
+		      (uint) l_time1->month,
+		      (uint) l_time1->day) - 
+	   l_sign*calc_daynr((uint) l_time2->year,
+			     (uint) l_time2->month,
+			     (uint) l_time2->day));
+
+  microseconds= l_time1->second_part - l_sign*l_time2->second_part;
+  seconds= ((longlong) days*86400L + l_time1->hour*3600L + 
+	    l_time1->minute*60L + l_time1->second + microseconds/1000000L -
+	    (longlong)l_sign*(l_time2->hour*3600L+l_time2->minute*60L+l_time2->second));
+
+  neg= 0;
+  if (seconds < 0)
+  {
+    seconds= -seconds;
+    neg= 1;
+  }
+  else if (seconds == 0 && microseconds < 0)
+  {
+    microseconds= -microseconds;
+    neg= 1;
+  }
+  if (microseconds < 0)
+  {
+    microseconds+= 1000000L;
+    seconds--;
+  }
+  *seconds_out= seconds;
+  *microseconds_out= microseconds;
+  return neg;
+}
+
+/*
   TIMEDIFF(t,s) is a time function that calculates the 
   time value between a start and end time.
 
@@ -2110,40 +2205,16 @@ String *Item_func_timediff::val_str(String *str)
   if (l_time1.neg != l_time2.neg)
     l_sign= -l_sign;
 
-  if (l_time1.time_type == TIMESTAMP_TIME)  // Time value
-    days= l_time1.day - l_sign*l_time2.day;
-  else                                      // DateTime value
-    days= (calc_daynr((uint) l_time1.year,
-		      (uint) l_time1.month,
-		      (uint) l_time1.day) - 
-	   l_sign*calc_daynr((uint) l_time2.year,
-			     (uint) l_time2.month,
-			     (uint) l_time2.day));
+  l_time3.neg= calc_time_diff(&l_time1,&l_time2, l_sign,
+			      &seconds, &microseconds);
 
-  microseconds= l_time1.second_part - l_sign*l_time2.second_part;
-  seconds= ((longlong) days*86400L + l_time1.hour*3600L + 
-	    l_time1.minute*60L + l_time1.second + microseconds/1000000L -
-	    (longlong)l_sign*(l_time2.hour*3600L+l_time2.minute*60L+
-			      l_time2.second));
-
-  l_time3.neg= 0;
-  if (seconds < 0)
-  {
-    seconds= -seconds;
-    l_time3.neg= 1;
-  }
-  else if (seconds == 0 && microseconds < 0)
-  {
-    microseconds= -microseconds;
-    l_time3.neg= 1;
-  }
-  if (microseconds < 0)
-  {
-    microseconds+= 1000000L;
-    seconds--;
-  }
+  /*
+    For TIMESTAMP_TIME only:
+      If both argumets are negative values and diff between them
+      is negative we need to swap sign as result should be positive.
+  */
   if ((l_time2.neg == l_time1.neg) && l_time1.neg)
-    l_time3.neg= l_time3.neg ? 0 : 1;
+    l_time3.neg= 1-l_time3.neg;         // Swap sign of result
 
   calc_time_from_sec(&l_time3, (long) seconds, microseconds);
 
@@ -2207,6 +2278,166 @@ longlong Item_func_microsecond::val_int()
   if (!get_arg0_time(&ltime))
     return ltime.second_part;
   return 0;
+}
+
+
+longlong Item_func_timestamp_diff::val_int()
+{
+  TIME ltime1, ltime2;
+  longlong seconds;
+  long microseconds;
+  long months= 0;
+  int neg= 1;
+
+  null_value= 0;  
+  if (args[0]->get_date(&ltime1, 0) ||
+      args[1]->get_date(&ltime2, 0))
+    goto null_date;
+
+  if (calc_time_diff(&ltime2,&ltime1, 1,
+		     &seconds, &microseconds))
+    neg= -1;
+
+  if (int_type == INTERVAL_YEAR ||
+      int_type == INTERVAL_QUARTER ||
+      int_type == INTERVAL_MONTH)
+  {
+    uint year, year_tmp;
+    uint year_beg, year_end, month_beg, month_end;
+    uint diff_days= seconds/86400L;
+    uint diff_months= 0;
+    uint diff_years= 0;
+    if (neg == -1)
+    {
+      year_beg= ltime2.year;
+      year_end= ltime1.year;
+      month_beg= ltime2.month;
+      month_end= ltime1.month;
+    }
+    else
+    {
+      year_beg= ltime1.year;
+      year_end= ltime2.year;
+      month_beg= ltime1.month;
+      month_end= ltime2.month;
+    }
+    /* calc years*/
+    for (year= year_beg;year < year_end; year++)
+    {
+      uint days=calc_days_in_year(year);
+      if (days > diff_days)
+	break;
+      diff_days-= days;
+      diff_years++;
+    }
+
+    /* calc months;  Current year is in the 'year' variable */
+    month_beg--;	/* Change months to be 0-11 for easier calculation */
+    month_end--;
+
+    months= 12*diff_years;
+    while (month_beg != month_end)
+    {
+      uint m_days= (uint) days_in_month[month_beg];
+      if (month_beg == 1)
+      {
+	/* This is only calculated once so there is no reason to cache it*/
+	uint leap= (uint) ((year & 3) == 0 && (year%100 ||
+					       (year%400 == 0 && year)));
+	m_days+= leap;
+      }
+      if (m_days > diff_days)
+	break;
+      diff_days-= m_days;
+      months++;
+      if (month_beg++ == 11)		/* if we wrap to next year */
+      {
+	month_beg= 0;
+	year++;
+      }
+    }
+    if (neg == -1)
+      months= -months;
+  }
+
+  switch (int_type) {
+  case INTERVAL_YEAR:
+    return months/12;
+  case INTERVAL_QUARTER:
+    return months/3;
+  case INTERVAL_MONTH:
+    return months;
+  case INTERVAL_WEEK:          
+    return seconds/86400L/7L*neg;
+  case INTERVAL_DAY:		
+    return seconds/86400L*neg;
+  case INTERVAL_HOUR:		
+    return seconds/3600L*neg;
+  case INTERVAL_MINUTE:		
+    return seconds/60L*neg;
+  case INTERVAL_SECOND:		
+    return seconds*neg;
+  case INTERVAL_MICROSECOND:
+  {
+    longlong max_sec= LONGLONG_MAX/1000000;
+    if (max_sec > seconds ||
+	max_sec == seconds && LONGLONG_MAX%1000000 >= microseconds)
+      return (longlong) (seconds*1000000L+microseconds)*neg;
+    goto null_date;
+  }
+  default:
+    break;
+  }
+
+null_date:
+  null_value=1;
+  return 0;
+}
+
+
+void Item_func_timestamp_diff::print(String *str)
+{
+  str->append(func_name());
+  str->append('(');
+
+  switch (int_type) {
+  case INTERVAL_YEAR:
+    str->append("YEAR");
+    break;
+  case INTERVAL_QUARTER:
+    str->append("QUARTER");
+    break;
+  case INTERVAL_MONTH:
+    str->append("MONTH");
+    break;
+  case INTERVAL_WEEK:          
+    str->append("WEEK");
+    break;
+  case INTERVAL_DAY:		
+    str->append("DAY");
+    break;
+  case INTERVAL_HOUR:
+    str->append("HOUR");
+    break;
+  case INTERVAL_MINUTE:		
+    str->append("MINUTE");
+    break;
+  case INTERVAL_SECOND:
+    str->append("SECOND");
+    break;		
+  case INTERVAL_MICROSECOND:
+    str->append("SECOND_FRAC");
+    break;
+  default:
+    break;
+  }
+
+  for (uint i=0 ; i < 2 ; i++)
+  {
+    str->append(',');
+    args[i]->print(str);
+  }
+  str->append(')');
 }
 
 

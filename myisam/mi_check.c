@@ -1979,7 +1979,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
 
       sort_param.key_read=sort_ft_key_read;
       sort_param.key_write=sort_ft_key_write;
-      sort_param.key_length+=FT_MAX_WORD_LEN_FOR_SORT-HA_FT_MAXLEN;
+      sort_param.key_length+=FT_MAX_WORD_LEN_FOR_SORT-HA_FT_MAXBYTELEN;
     }
     else
     {
@@ -2375,7 +2375,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
     total_key_length+=sort_param[i].key_length;
 
     if (sort_param[i].keyinfo->flag & HA_FULLTEXT)
-      sort_param[i].key_length+=FT_MAX_WORD_LEN_FOR_SORT-ft_max_word_len;
+      sort_param[i].key_length+=FT_MAX_WORD_LEN_FOR_SORT-HA_FT_MAXBYTELEN;
   }
   sort_info.total_keys=i;
   sort_param[0].master= 1;
@@ -3913,7 +3913,7 @@ static my_bool mi_too_big_key_for_sort(MI_KEYDEF *key, ha_rows rows)
 {
   uint key_maxlength=key->maxlength;
   if (key->flag & HA_FULLTEXT)
-    key_maxlength+=FT_MAX_WORD_LEN_FOR_SORT-HA_FT_MAXLEN;
+    key_maxlength+=FT_MAX_WORD_LEN_FOR_SORT-HA_FT_MAXBYTELEN;
   return (key->flag & (HA_BINARY_PACK_KEY | HA_VAR_LENGTH_KEY | HA_FULLTEXT) &&
 	  ((ulonglong) rows * key_maxlength >
 	   (ulonglong) myisam_max_temp_length));
