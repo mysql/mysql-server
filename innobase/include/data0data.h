@@ -329,7 +329,12 @@ dtuple_convert_big_rec(
 				the entry enough, i.e., if there are
 				too many short fields in entry */
 	dict_index_t*	index,	/* in: index */
-	dtuple_t*	entry);	/* in: index entry */
+	dtuple_t*	entry,	/* in: index entry */
+	ulint*		ext_vec,/* in: array of externally stored fields,
+				or NULL: if a field already is externally
+				stored, then we cannot move it to the vector
+				this function returns */
+	ulint		n_ext_vec);/* in: number of elements is ext_vec */
 /******************************************************************
 Puts back to entry the data stored in vector. Note that to ensure the
 fields in entry can accommodate the data, vector must have been created

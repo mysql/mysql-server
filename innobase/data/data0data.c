@@ -395,7 +395,12 @@ dtuple_convert_big_rec(
 				the entry enough, i.e., if there are
 				too many short fields in entry */
 	dict_index_t*	index,	/* in: index */
-	dtuple_t*	entry)	/* in: index entry */
+	dtuple_t*	entry,	/* in: index entry */
+	ulint*		ext_vec,/* in: array of externally stored fields,
+				or NULL: if a field already is externally
+				stored, then we cannot move it to the vector
+				this function returns */
+	ulint		n_ext_vec)/* in: number of elements is ext_vec */
 {
 	mem_heap_t*	heap;
 	big_rec_t*	vector;
@@ -404,7 +409,9 @@ dtuple_convert_big_rec(
 	ulint		n_fields;
 	ulint		longest;
 	ulint		longest_i;
+	ibool		is_externally_stored;
 	ulint		i;
+	ulint		j;
 	
 	size = rec_get_converted_size(entry);
 
@@ -431,9 +438,23 @@ dtuple_convert_big_rec(
 		for (i = dict_index_get_n_unique_in_tree(index);
 				i < dtuple_get_n_fields(entry); i++) {
 
+			/* Skip over fields which already are externally
+			stored */
+
+			is_externally_stored = FALSE;
+
+			if (ext_vec) {
+				for (j = 0; j < n_ext_vec; j++) {
+					if (ext_vec[j] == i) {
+						is_externally_stored = TRUE;
+					}
+				}
+			}
+				
 			/* Skip over fields which are ordering in some index */
 
-			if (dict_field_get_col(
+			if (!is_externally_stored &&
+			    dict_field_get_col(
 			    	dict_index_get_nth_field(index, i))
 			    ->ord_part == 0) {
 

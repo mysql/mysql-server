@@ -771,6 +771,17 @@ struct buf_pool_struct{
 	ulint		n_pages_written;/* number write operations */
 	ulint		n_pages_created;/* number of pages created in the pool
 					with no read */
+	ulint		n_page_gets;	/* number of page gets performed;
+					also successful seraches through
+					the adaptive hash index are
+					counted as page gets; this field
+					is NOT protected by the buffer
+					pool mutex */
+	ulint		n_page_gets_old;/* n_page_gets when buf_print was
+					last time called: used to calculate
+					hit rate */
+	ulint		n_pages_read_old;/* n_pages_read when buf_print was
+					last time called */
 	/* 2. Page flushing algorithm fields */
 
 	UT_LIST_BASE_NODE_T(buf_block_t) flush_list;

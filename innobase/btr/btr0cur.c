@@ -80,6 +80,9 @@ btr_rec_free_updated_extern_fields(
 				X-latched */
 	rec_t*		rec,	/* in: record */
 	upd_t*		update,	/* in: update vector */
+	ibool		do_not_free_inherited,/* in: TRUE if called in a
+				rollback and we do not want to free
+				inherited fields */
 	mtr_t*		mtr);	/* in: mini-transaction handle which contains
 				an X-latch to record page and to the tree */
 
@@ -813,7 +816,7 @@ calculate_sizes_again:
 		/* The record is so big that we have to store some fields
 		externally on separate database pages */
 		
-                big_rec_vec = dtuple_convert_big_rec(index, entry);
+                big_rec_vec = dtuple_convert_big_rec(index, entry, NULL, 0);
 
 		if (big_rec_vec == NULL) {
 		
@@ -1021,7 +1024,7 @@ btr_cur_pessimistic_insert(
 		/* The record is so big that we have to store some fields
 		externally on separate database pages */
 		
-                big_rec_vec = dtuple_convert_big_rec(index, entry);
+                big_rec_vec = dtuple_convert_big_rec(index, entry, NULL, 0);
 
 		if (big_rec_vec == NULL) {
 		
@@ -1242,6 +1245,7 @@ btr_cur_update_in_place(
 	rec_t*		rec;
 	dulint		roll_ptr;
 	trx_t*		trx;
+	ibool		was_delete_marked;
 
 	/* Only clustered index records are updated using this function */
 	ut_ad((cursor->index)->type & DICT_CLUSTERED);
@@ -1270,6 +1274,8 @@ btr_cur_update_in_place(
 
 	/* FIXME: in a mixed tree, all records may not have enough ordering
 	fields for btr search: */
+
+	was_delete_marked = rec_get_deleted_flag(rec);
 	
 	row_upd_rec_in_place(rec, update);
 
@@ -1279,6 +1285,13 @@ btr_cur_update_in_place(
 
 	btr_cur_update_in_place_log(flags, rec, index, update, trx, roll_ptr,
 									mtr);
+	if (was_delete_marked && !rec_get_deleted_flag(rec)) {
+		/* The new updated record owns its possible externally
+		stored fields */
+
+		btr_cur_unmark_extern_fields(rec, mtr);
+	}
+
 	return(DB_SUCCESS);
 }
 
@@ -1433,6 +1446,13 @@ btr_cur_optimistic_update(
 	rec = btr_cur_insert_if_possible(cursor, new_entry, &reorganized, mtr);
 
 	ut_a(rec); /* <- We calculated above the insert would fit */
+
+	if (!rec_get_deleted_flag(rec)) {
+		/* The new inserted record owns its possible externally
+		stored fields */
+
+		btr_cur_unmark_extern_fields(rec, mtr);
+	}
 
 	/* Restore the old explicit lock state on the record */
 
@@ -1655,11 +1675,15 @@ btr_cur_pessimistic_update(
 	if (flags & BTR_NO_UNDO_LOG_FLAG) {
 		/* We are in a transaction rollback undoing a row
 		update: we must free possible externally stored fields
-		which got new values in the update */
+		which got new values in the update, if they are not
+		inherited values. They can be inherited if we have
+		updated the primary key to another value, and then
+		update it back again. */
 
 		ut_a(big_rec_vec == NULL);
 		
-		btr_rec_free_updated_extern_fields(index, rec, update, mtr);
+		btr_rec_free_updated_extern_fields(index, rec, update,
+						 		TRUE, mtr);
 	}
 
 	/* We have to set appropriate extern storage bits in the new
@@ -1676,8 +1700,8 @@ btr_cur_pessimistic_update(
 				page_get_free_space_of_empty() / 2)
 	    || (rec_get_converted_size(new_entry) >= REC_MAX_DATA_SIZE)) {
 
-                big_rec_vec = dtuple_convert_big_rec(index, new_entry);
-
+                big_rec_vec = dtuple_convert_big_rec(index, new_entry,
+                					ext_vect, n_ext_vect);
 		if (big_rec_vec == NULL) {
 
 			mem_heap_free(heap);
@@ -1694,6 +1718,13 @@ btr_cur_pessimistic_update(
 		lock_rec_restore_from_page_infimum(rec, page);
 		rec_set_field_extern_bits(rec, ext_vect, n_ext_vect, mtr);
 		
+		if (!rec_get_deleted_flag(rec)) {
+			/* The new inserted record owns its possible externally
+			stored fields */
+
+			btr_cur_unmark_extern_fields(rec, mtr);
+		}
+
 		btr_cur_compress_if_useful(cursor, mtr);
 
 		err = DB_SUCCESS;
@@ -1724,6 +1755,13 @@ btr_cur_pessimistic_update(
 	ut_a(dummy_big_rec == NULL);
 
 	rec_set_field_extern_bits(rec, ext_vect, n_ext_vect, mtr);
+
+	if (!rec_get_deleted_flag(rec)) {
+		/* The new inserted record owns its possible externally
+		stored fields */
+
+		btr_cur_unmark_extern_fields(rec, mtr);
+	}
 
 	lock_rec_restore_from_page_infimum(rec, page);
 
@@ -2183,6 +2221,7 @@ btr_cur_pessimistic_delete(
 				if compression does not occur, the cursor
 				stays valid: it points to successor of
 				deleted record on function exit */
+	ibool		in_rollback,/* in: TRUE if called in rollback */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	page_t*		page;
@@ -2218,7 +2257,8 @@ btr_cur_pessimistic_delete(
 	}
 
 	btr_rec_free_externally_stored_fields(cursor->index,
-					btr_cur_get_rec(cursor), mtr);
+			btr_cur_get_rec(cursor), in_rollback, mtr);
+
 	if ((page_get_n_recs(page) < 2)
 	    && (dict_tree_get_page(btr_cur_get_tree(cursor))
 					!= buf_frame_get_page_no(page))) {
@@ -2517,6 +2557,199 @@ btr_estimate_number_of_different_key_vals(
 /*================== EXTERNAL STORAGE OF BIG FIELDS ===================*/
 
 /***********************************************************************
+Sets the ownership bit of an externally stored field in a record. */
+static
+void
+btr_cur_set_ownership_of_extern_field(
+/*==================================*/
+	rec_t*	rec,	/* in: clustered index record */
+	ulint	i,	/* in: field number */
+	ibool	val,	/* in: value to set */
+	mtr_t*	mtr)	/* in: mtr */
+{
+	byte*	data;
+	ulint	local_len;
+	ulint	byte_val;
+
+	data = rec_get_nth_field(rec, i, &local_len);
+	
+	ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
+
+	local_len -= BTR_EXTERN_FIELD_REF_SIZE;
+
+	byte_val = mach_read_from_1(data + local_len + BTR_EXTERN_LEN);
+
+	if (val) {
+		byte_val = byte_val & (~BTR_EXTERN_OWNER_FLAG);
+	} else {
+		byte_val = byte_val | BTR_EXTERN_OWNER_FLAG;
+	}
+	
+	mlog_write_ulint(data + local_len + BTR_EXTERN_LEN, byte_val,
+							MLOG_1BYTE, mtr);
+}
+
+/***********************************************************************
+Marks not updated extern fields as not-owned by this record. The ownership
+is transferred to the updated record which is inserted elsewhere in the
+index tree. In purge only the owner of externally stored field is allowed
+to free the field. */
+
+void
+btr_cur_mark_extern_inherited_fields(
+/*=================================*/
+	rec_t*	rec,	/* in: record in a clustered index */
+	upd_t*	update,	/* in: update vector */
+	mtr_t*	mtr)	/* in: mtr */
+{
+	ibool	is_updated;
+	ulint	n;
+	ulint	j;
+	ulint	i;
+	
+	n = rec_get_n_fields(rec);
+
+	for (i = 0; i < n; i++) {
+		if (rec_get_nth_field_extern_bit(rec, i)) {
+			
+			/* Check it is not in updated fields */
+			is_updated = FALSE;
+
+			if (update) {
+				for (j = 0; j < upd_get_n_fields(update);
+								j++) {
+					if (upd_get_nth_field(update, j)
+							->field_no == i) {
+						is_updated = TRUE;
+					}
+				}
+			}
+
+			if (!is_updated) {
+				btr_cur_set_ownership_of_extern_field(rec, i,
+								FALSE, mtr);
+			}
+		}
+	}
+}
+
+/***********************************************************************
+The complement of the previous function: in an update entry may inherit
+some externally stored fields from a record. We must mark them as inherited
+in entry, so that they are not freed in a rollback. */
+
+void
+btr_cur_mark_dtuple_inherited_extern(
+/*=================================*/
+	dtuple_t*	entry,		/* in: updated entry to be inserted to
+					clustered index */
+	ulint*		ext_vec,	/* in: array of extern fields in the
+					original record */
+	ulint		n_ext_vec,	/* in: number of elements in ext_vec */
+	upd_t*		update)		/* in: update vector */
+{
+	dfield_t* dfield;
+	ulint	byte_val;
+	byte*	data;
+	ulint	len;
+	ibool	is_updated;
+	ulint	j;
+	ulint	i;
+
+	if (ext_vec == NULL) {
+
+		return;
+	}
+	
+	for (i = 0; i < n_ext_vec; i++) {
+
+		/* Check ext_vec[i] is in updated fields */
+		is_updated = FALSE;
+
+		for (j = 0; j < upd_get_n_fields(update); j++) {
+			if (upd_get_nth_field(update, j)->field_no
+							== ext_vec[i]) {
+				is_updated = TRUE;
+			}
+		}
+
+		if (!is_updated) {
+			dfield = dtuple_get_nth_field(entry, ext_vec[i]);
+
+			data = dfield_get_data(dfield);
+			len = dfield_get_len(dfield);
+		
+			len -= BTR_EXTERN_FIELD_REF_SIZE;
+
+			byte_val = mach_read_from_1(data + len
+							+ BTR_EXTERN_LEN);
+
+			byte_val = byte_val | BTR_EXTERN_INHERITED_FLAG;
+		
+			mach_write_to_1(data + len + BTR_EXTERN_LEN, byte_val);
+		}
+	}
+}
+
+/***********************************************************************
+Marks all extern fields in a record as owned by the record. This function
+should be called if the delete mark of a record is removed: a not delete
+marked record always owns all its extern fields. */
+
+void
+btr_cur_unmark_extern_fields(
+/*=========================*/
+	rec_t*	rec,	/* in: record in a clustered index */
+	mtr_t*	mtr)	/* in: mtr */
+{
+	ulint	n;
+	ulint	i;
+
+	n = rec_get_n_fields(rec);
+
+	for (i = 0; i < n; i++) {
+		if (rec_get_nth_field_extern_bit(rec, i)) {
+			
+			btr_cur_set_ownership_of_extern_field(rec, i,
+								TRUE, mtr);
+		}
+	}	
+}
+
+/***********************************************************************
+Marks all extern fields in a dtuple as owned by the record. */
+
+void
+btr_cur_unmark_dtuple_extern_fields(
+/*================================*/
+	dtuple_t*	entry,		/* in: clustered index entry */
+	ulint*		ext_vec,	/* in: array of numbers of fields
+					which have been stored externally */
+	ulint		n_ext_vec)	/* in: number of elements in ext_vec */
+{
+	dfield_t* dfield;
+	ulint	byte_val;
+	byte*	data;
+	ulint	len;
+	ulint	i;
+
+	for (i = 0; i < n_ext_vec; i++) {
+		dfield = dtuple_get_nth_field(entry, ext_vec[i]);
+
+		data = dfield_get_data(dfield);
+		len = dfield_get_len(dfield);
+		
+		len -= BTR_EXTERN_FIELD_REF_SIZE;
+
+		byte_val = mach_read_from_1(data + len + BTR_EXTERN_LEN);
+
+		byte_val = byte_val & (~BTR_EXTERN_OWNER_FLAG);
+		
+		mach_write_to_1(data + len + BTR_EXTERN_LEN, byte_val);
+	}	
+}
+
+/***********************************************************************
 Stores the positions of the fields marked as extern storage in the update
 vector, and also those fields who are marked as extern storage in rec
 and not mentioned in updated fields. We use this function to remember
@@ -2766,7 +2999,9 @@ btr_store_big_rec_extern_fields(
 
 /***********************************************************************
 Frees the space in an externally stored field to the file space
-management. */
+management if the field in data is owned the externally stored field,
+in a rollback we may have the additional condition that the field must
+not be inherited. */
 
 void
 btr_free_externally_stored_field(
@@ -2777,6 +3012,9 @@ btr_free_externally_stored_field(
 					+ reference to the externally
 					stored part */
 	ulint		local_len,	/* in: length of data */
+	ibool		do_not_free_inherited,/* in: TRUE if called in a
+					rollback and we do not want to free
+					inherited fields */
 	mtr_t*		local_mtr)	/* in: mtr containing the latch to
 					data an an X-latch to the index
 					tree */
@@ -2828,6 +3066,26 @@ btr_free_externally_stored_field(
 			return;
 		}
 
+		if (mach_read_from_1(data + local_len + BTR_EXTERN_LEN)
+						& BTR_EXTERN_OWNER_FLAG) {
+			/* This field does not own the externally
+			stored field: do not free! */
+
+			mtr_commit(&mtr);
+
+			return;
+		}
+
+		if (do_not_free_inherited
+			&& mach_read_from_1(data + local_len + BTR_EXTERN_LEN)
+						& BTR_EXTERN_INHERITED_FLAG) {
+			/* Rollback and inherited field: do not free! */
+
+			mtr_commit(&mtr);
+
+			return;
+		}
+		
 		page = buf_page_get(space_id, page_no, RW_X_LATCH, &mtr);
 		
 		buf_page_dbg_add_level(page, SYNC_EXTERN_STORAGE);
@@ -2872,6 +3130,9 @@ btr_rec_free_externally_stored_fields(
 	dict_index_t*	index,	/* in: index of the data, the index
 				tree MUST be X-latched */
 	rec_t*		rec,	/* in: record */
+	ibool		do_not_free_inherited,/* in: TRUE if called in a
+				rollback and we do not want to free
+				inherited fields */
 	mtr_t*		mtr)	/* in: mini-transaction handle which contains
 				an X-latch to record page and to the index
 				tree */
@@ -2896,7 +3157,8 @@ btr_rec_free_externally_stored_fields(
 		if (rec_get_nth_field_extern_bit(rec, i)) {
 
 			data = rec_get_nth_field(rec, i, &len);
-			btr_free_externally_stored_field(index, data, len, mtr);
+			btr_free_externally_stored_field(index, data, len,
+						do_not_free_inherited, mtr);
 		}
 	}
 }
@@ -2912,6 +3174,9 @@ btr_rec_free_updated_extern_fields(
 				X-latched */
 	rec_t*		rec,	/* in: record */
 	upd_t*		update,	/* in: update vector */
+	ibool		do_not_free_inherited,/* in: TRUE if called in a
+				rollback and we do not want to free
+				inherited fields */
 	mtr_t*		mtr)	/* in: mini-transaction handle which contains
 				an X-latch to record page and to the tree */
 {
@@ -2938,7 +3203,8 @@ btr_rec_free_updated_extern_fields(
 		if (rec_get_nth_field_extern_bit(rec, ufield->field_no)) {
 
 			data = rec_get_nth_field(rec, ufield->field_no, &len);
-			btr_free_externally_stored_field(index, data, len, mtr);
+			btr_free_externally_stored_field(index, data, len,
+						do_not_free_inherited, mtr);
 		}
 	}
 }
