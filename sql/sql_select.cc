@@ -9770,9 +9770,6 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   {
     Item *item= *group->item;
     item->save_org_in_field(group->field);
-#ifdef EMBEDDED_LIBRARY
-    join->thd->net.last_errno= 0;
-#endif
     /* Store in the used key if the field was 0 */
     if (item->maybe_null)
       group->buff[-1]=item->null_value ? 1 : 0;
