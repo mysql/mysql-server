@@ -2038,7 +2038,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 			check->column.c_ptr(), table_list->alias);
 	DBUG_RETURN(-1);
       }
-      column_priv |= check->rights & COL_ACLS;
+      column_priv |= check->rights | (rights & COL_ACLS);
     }
     close_thread_tables(thd);
   }
@@ -2173,12 +2173,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     }
     else
     {
-    /*
-      This code makes sure that if there is X privilege on the entire table and 
-      X can be also a column privilege, that granting column privilege does not
-      revoke a table privilege.
-    */
-      column_priv&= ~(grant_table->privs & ~grant_table->cols);
+      column_priv|= grant_table->cols;
     }
 
 
@@ -2191,13 +2186,13 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     {						// Crashend table ??
       result= -1;			       /* purecov: deadcode */
     }
-    else if (tables[2].table && (column_priv | revoke_grant))
+    else if (tables[2].table)
     {
       if ((replace_column_table(grant_table,tables[2].table, *Str,
 				columns,
 				table_list->db,
 				table_list->real_name,
-				(revoke_grant) ? rights : column_priv, revoke_grant)))
+				rights, revoke_grant)))
       {
 	result= -1;
       }
