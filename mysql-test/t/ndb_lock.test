@@ -25,10 +25,13 @@ connection con2;
 select * from t1 order by x;
 
 connection con1;
-start transaction; insert into t1 values (3,'three');
+start transaction; 
+insert into t1 values (3,'three'); 
+select * from t1 order by x;
 
 connection con2;
-start transaction; select * from t1 order by x;
+start transaction; 
+select * from t1 order by x;
 
 connection con1;
 commit;
