@@ -603,12 +603,14 @@ public:
    byte * dup_checking;
    THD *thd;
    ha_rows deleted;
-   int num_of_tables, error;
+   uint num_of_tables;
+   int error;
    thr_lock_type lock_option;
    bool do_delete;
  public:
-   multi_delete(TABLE_LIST *dt, thr_lock_type o, uint n)
-     : delete_tables(dt), deleted(0), num_of_tables(n), error(0), lock_option(o)
+   multi_delete(TABLE_LIST *dt, thr_lock_type lock_option_arg, uint n)
+     : delete_tables (dt), deleted(0), num_of_tables(n), error(0),
+       lock_option(lock_option_arg)
    {
      thd = current_thd; do_delete = false;
    }
