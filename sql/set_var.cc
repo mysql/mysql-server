@@ -359,6 +359,23 @@ sys_var_thd_bool	sys_innodb_table_locks("innodb_table_locks",
 sys_var_long_ptr	sys_innodb_autoextend_increment("innodb_autoextend_increment",
 							&srv_auto_extend_increment);
 #endif
+#ifdef HAVE_NDBCLUSTER_DB
+// ndb thread specific variable settings
+sys_var_thd_ulong 
+sys_ndb_autoincrement_prefetch_sz("ndb_autoincrement_prefetch_sz",
+				  &SV::ndb_autoincrement_prefetch_sz);
+sys_var_thd_bool
+sys_ndb_force_send("ndb_force_send",
+		   &SV::ndb_force_send);
+sys_var_thd_bool
+sys_ndb_use_exact_count("ndb_use_exact_count",
+			&SV::ndb_use_exact_count);
+sys_var_thd_bool
+sys_ndb_use_transactions("ndb_use_transactions",
+			 &SV::ndb_use_transactions);
+// ndb server global variable settings
+// none
+#endif
 
 /* Time/date/datetime formats */
 
@@ -612,7 +629,13 @@ sys_var *sys_variables[]=
   &sys_innodb_table_locks,
   &sys_innodb_max_purge_lag,
   &sys_innodb_autoextend_increment,
-#endif    
+#endif  
+#ifdef HAVE_NDBCLUSTER_DB
+  &sys_ndb_autoincrement_prefetch_sz,
+  &sys_ndb_force_send,
+  &sys_ndb_use_exact_count,
+  &sys_ndb_use_transactions,
+#endif
   &sys_unique_checks,
   &sys_warning_count
 };
@@ -772,6 +795,13 @@ struct show_var_st init_vars[]= {
   {sys_myisam_sort_buffer_size.name, (char*) &sys_myisam_sort_buffer_size, SHOW_SYS},
 #ifdef __NT__
   {"named_pipe",	      (char*) &opt_enable_named_pipe,       SHOW_MY_BOOL},
+#endif
+#ifdef HAVE_NDBCLUSTER_DB
+  {sys_ndb_autoincrement_prefetch_sz.name,
+   (char*) &sys_ndb_autoincrement_prefetch_sz,                      SHOW_SYS},
+  {sys_ndb_force_send.name,   (char*) &sys_ndb_force_send,          SHOW_SYS},
+  {sys_ndb_use_exact_count.name,(char*) &sys_ndb_use_exact_count,   SHOW_SYS},
+  {sys_ndb_use_transactions.name,(char*) &sys_ndb_use_transactions, SHOW_SYS},
 #endif
   {sys_net_buffer_length.name,(char*) &sys_net_buffer_length,       SHOW_SYS},
   {sys_net_read_timeout.name, (char*) &sys_net_read_timeout,        SHOW_SYS},
