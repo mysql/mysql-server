@@ -664,3 +664,17 @@ SELECT * FROM t1 WHERE a='a' AND b=2;
 SELECT * FROM t1 WHERE a='a' AND b in (2);
 SELECT * FROM t1 WHERE a='a' AND b in (1,2);
 drop table t1;
+
+#
+# Test min-max optimization
+#
+
+CREATE TABLE t1 (
+  a int3 unsigned NOT NULL,
+  b int1 unsigned NOT NULL,
+  UNIQUE (a, b)
+) TYPE = BDB;
+ 
+INSERT INTO t1 VALUES (1, 1);
+SELECT MIN(B),MAX(b) FROM t1 WHERE t1.a = 1;
+drop table t1;

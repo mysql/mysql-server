@@ -36,11 +36,6 @@
 use DBI;
 
 $opt_silent=1;			# Don't write header
-$prog_args="";
-foreach $arg (@ARGV)
-{
-  $prog_args.="'" . $arg . "' ";
-}
 
 chomp($pwd = `pwd`); $pwd = "." if ($pwd eq '');
 require "$pwd/bench-init.pl" || die "Can't read Configuration file: $!\n";
@@ -49,6 +44,20 @@ $perl=$^X;
 $machine=machine();
 $redirect= !($machine =~ /windows/i || $machine =~ "^NT\s") ? "2>&1" : "";
 $dir= ($pwd =~ /\\/) ? '\\' : '/';	# directory symbol for shell
+
+$prog_args="";
+foreach $arg (@ARGV)
+{
+  if ($redirect)
+  {
+    $prog_args.="'" . $arg . "' ";
+  }
+  else
+  {
+    # Windows/NT can't handle ' around arguments
+    $prog_args.=$arg . " ";    
+  }
+}
 
 $prog_count=$errors=0;
 

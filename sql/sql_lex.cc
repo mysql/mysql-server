@@ -250,7 +250,8 @@ static char *get_text(LEX *lex)
 
       str=lex->tok_start+1;
       end=lex->ptr-1;
-      start=(uchar*) sql_alloc((uint) (end-str)+1);
+      if (!(start=(uchar*) sql_alloc((uint) (end-str)+1)))
+	return (char*) "";		// Sql_alloc has set error flag
       if (!found_escape)
       {
 	lex->yytoklen=(uint) (end-str);

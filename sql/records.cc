@@ -31,7 +31,7 @@ static int rr_cmp(uchar *a,uchar *b);
 
 void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
 		      SQL_SELECT *select,
-		      bool use_record_cache, bool print_error)
+		      int use_record_cache, bool print_error)
 {
   IO_CACHE *tempfile;
   DBUG_ENTER("init_read_record");
@@ -97,9 +97,11 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
     info->read_record=rr_sequential;
     table->file->rnd_init();
     /* We can use record cache if we don't update dynamic length tables */
-    if (use_record_cache ||
+    if (use_record_cache > 0 ||
 	(int) table->reginfo.lock_type <= (int) TL_READ_HIGH_PRIORITY ||
-	!(table->db_options_in_use & HA_OPTION_PACK_RECORD))
+	!(table->db_options_in_use & HA_OPTION_PACK_RECORD) ||
+	(use_record_cache < 0 &&
+	 !(table->file->option_flag() & HA_NOT_DELETE_WITH_CACHE)))
       VOID(table->file->extra(HA_EXTRA_CACHE));	// Cache reads
   }
   DBUG_VOID_RETURN;
