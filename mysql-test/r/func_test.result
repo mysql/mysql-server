@@ -46,6 +46,9 @@ select 3 ^ 11, 1 ^ 1, 1 ^ 0, 1 ^ NULL, NULL ^ 1;
 select 1 XOR 1, 1 XOR 0, 0 XOR 1, 0 XOR 0, NULL XOR 1, 1 XOR NULL, 0 XOR NULL;
 1 XOR 1	1 XOR 0	0 XOR 1	0 XOR 0	NULL XOR 1	1 XOR NULL	0 XOR NULL
 0	1	1	0	NULL	NULL	NULL
+select 1 like 2 xor 2 like 1;
+1 like 2 xor 2 like 1
+0
 create table t1 (a int);
 insert t1 values (1);
 select * from t1 where 1 xor 1;
