@@ -216,6 +216,7 @@ enum ha_base_keytype {
 #define HA_ERR_CRASHED		126	/* Indexfile is crashed */
 #define HA_ERR_WRONG_IN_RECORD	127	/* Record-file is crashed */
 #define HA_ERR_OUT_OF_MEM	128	/* Record-file is crashed */
+#define HA_ERR_NOT_A_TABLE      130     /* not a MYI file - no signature */
 #define HA_ERR_WRONG_COMMAND	131	/* Command not supported */
 #define HA_ERR_OLD_FILE		132	/* old databasfile */
 #define HA_ERR_NO_ACTIVE_RECORD 133	/* No record read in update() */
@@ -228,10 +229,10 @@ enum ha_base_keytype {
 #define HA_WRONG_CREATE_OPTION	140	/* Wrong create option */
 #define HA_ERR_FOUND_DUPP_UNIQUE 141	/* Dupplicate unique on write */
 #define HA_ERR_UNKNOWN_CHARSET	 142	/* Can't open charset */
-#define HA_ERR_WRONG_TABLE_DEF	 143
+#define HA_ERR_WRONG_MRG_TABLE_DEF 143    /* conflicting MyISAM tables in MERGE */
 #define HA_ERR_CRASHED_ON_REPAIR 144	/* Last (automatic?) repair failed */
 #define HA_ERR_CRASHED_ON_USAGE  145	/* Table must be repaired */
-#define HA_ERR_LOCK_WAIT_TIMEOUT 146    
+#define HA_ERR_LOCK_WAIT_TIMEOUT 146
 #define HA_ERR_LOCK_TABLE_FULL   147
 #define HA_ERR_READ_ONLY_TRANSACTION 148 /* Updates not allowed */
 #define HA_ERR_LOCK_DEADLOCK	 149
