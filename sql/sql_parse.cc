@@ -3611,13 +3611,24 @@ purposes internal to the MySQL server", MYF(0));
   case SQLCOM_CREATE_PROCEDURE:
   case SQLCOM_CREATE_SPFUNCTION:
   {
+    uint namelen;
+    char *name;
+
     if (!lex->sphead)
     {
       res= -1;                                  // Shouldn't happen
       break;
     }
-    uint namelen;
-    char *name= lex->sphead->name(&namelen);
+
+    if (! lex->sphead->m_db.str)
+    {
+      send_error(thd,ER_NO_DB_ERROR);
+      delete lex->sphead;
+      lex->sphead= 0;
+      goto error;
+    }
+
+    name= lex->sphead->name(&namelen);
 #ifdef HAVE_DLOPEN
     if (lex->sphead->m_type == TYPE_ENUM_FUNCTION)
     {
@@ -3627,7 +3638,7 @@ purposes internal to the MySQL server", MYF(0));
       {
 	net_printf(thd, ER_UDF_EXISTS, name);
 	delete lex->sphead;
-	lex->sphead=0;
+	lex->sphead= 0;
 	goto error;
       }
     }
@@ -3637,7 +3648,7 @@ purposes internal to the MySQL server", MYF(0));
     {
       net_printf(thd, ER_SP_NORETURN, name);
       delete lex->sphead;
-      lex->sphead=0;
+      lex->sphead= 0;
       goto error;
     }
 

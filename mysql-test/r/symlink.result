@@ -37,8 +37,8 @@ show create table t9;
 Table	Create Table
 t9	CREATE TABLE `t9` (
   `a` int(11) NOT NULL auto_increment,
-  `b` char(16) NOT NULL default '',
-  `c` int(11) NOT NULL default '0',
+  `b` char(16) NOT NULL,
+  `c` int(11) NOT NULL,
   PRIMARY KEY  (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 DATA DIRECTORY='TEST_DIR/var/tmp/' INDEX DIRECTORY='TEST_DIR/var/run/'
 alter table t9 rename t8, add column d int not null;
@@ -58,9 +58,9 @@ show create table mysqltest.t9;
 Table	Create Table
 t9	CREATE TABLE `t9` (
   `a` int(11) NOT NULL auto_increment,
-  `b` char(16) NOT NULL default '',
-  `c` int(11) NOT NULL default '0',
-  `d` int(11) NOT NULL default '0',
+  `b` char(16) NOT NULL,
+  `c` int(11) NOT NULL,
+  `d` int(11) NOT NULL,
   PRIMARY KEY  (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 DATA DIRECTORY='TEST_DIR/var/tmp/' INDEX DIRECTORY='TEST_DIR/var/run/'
 drop database mysqltest;
@@ -68,19 +68,19 @@ create table t1 (a int not null) engine=myisam;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL default '0'
+  `a` int(11) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 alter table t1 add b int;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL default '0',
+  `a` int(11) NOT NULL,
   `b` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL default '0',
+  `a` int(11) NOT NULL,
   `b` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
