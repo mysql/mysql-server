@@ -353,6 +353,7 @@ int quick_rm_table(enum db_type base,const char *db,
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list);
 bool mysql_change_db(THD *thd,const char *name);
 void mysql_parse(THD *thd,char *inBuf,uint length);
+bool mysql_test_parse_for_slave(THD *thd,char *inBuf,uint length);
 void mysql_init_select(LEX *lex);
 bool mysql_new_select(LEX *lex);
 void mysql_init_multi_delete(LEX *lex);
@@ -375,7 +376,7 @@ bool check_stack_overrun(THD *thd,char *dummy);
 #endif
 
 bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables);
-void table_cache_init(void);
+bool table_cache_init(void);
 void table_cache_free(void);
 uint cached_tables(void);
 void kill_mysql(void);

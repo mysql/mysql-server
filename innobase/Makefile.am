@@ -22,7 +22,7 @@ TAR =			gtar
 
 noinst_HEADERS = ib_config.h
 
-SUBDIRS =		os ut btr buf com data dict dyn eval fil fsp fut \
+SUBDIRS =		os ut btr buf data dict dyn eval fil fsp fut \
 			ha ibuf include lock log mach mem mtr page \
 			pars que read rem row srv sync thr trx usr
 

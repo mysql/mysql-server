@@ -59,3 +59,12 @@ ASIN(0.8+0.2)
 SELECT ASIN(1.2-0.2);
 ASIN(1.2-0.2)
 1.570796
+select floor(log(4)/log(2));
+floor(log(4)/log(2))
+2
+select floor(log(8)/log(2));
+floor(log(8)/log(2))
+3
+select floor(log(16)/log(2));
+floor(log(16)/log(2))
+4

@@ -958,7 +958,7 @@ int change_master(THD* thd, MASTER_INFO* mi)
              sizeof(mi->master_log_name)-1);
   }
 
-  flush_master_info(mi);
+  flush_master_info(mi, 0);
   if (need_relay_log_purge)
   {
     mi->rli.skip_log_purge= 0;
@@ -1011,12 +1011,12 @@ int change_master(THD* thd, MASTER_INFO* mi)
   mi->rli.abort_pos_wait++; /* for MASTER_POS_WAIT() to abort */
   /* Clear the error, for a clean start. */
   clear_last_slave_error(&mi->rli);
-  /* 
-     If we don't write new coordinates to disk now, then old will remain in
-     relay-log.info until START SLAVE is issued; but if mysqld is shutdown
-     before START SLAVE, then old will remain in relay-log.info, and will be the
-     in-memory value at restart (thus causing errors, as the old relay log does
-     not exist anymore).
+  /*
+    If we don't write new coordinates to disk now, then old will remain in
+    relay-log.info until START SLAVE is issued; but if mysqld is shutdown
+    before START SLAVE, then old will remain in relay-log.info, and will be the
+    in-memory value at restart (thus causing errors, as the old relay log does
+    not exist anymore).
   */
   flush_relay_log_info(&mi->rli); 
   pthread_cond_broadcast(&mi->data_cond);

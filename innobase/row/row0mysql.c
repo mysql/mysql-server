@@ -270,7 +270,7 @@ handle_new_error:
 
 	} else {
 		fprintf(stderr, "InnoDB: unknown error code %lu\n", err);
-		ut_a(0);
+		ut_error;
 	}		
 
 	if (trx->error_state != DB_SUCCESS) {
@@ -383,7 +383,7 @@ row_prebuilt_free(
 
 		mem_analyze_corruption((byte*)prebuilt);
 
-		ut_a(0);
+		ut_error;
 	}
 
 	prebuilt->magic_n = ROW_PREBUILT_FREED;
@@ -431,7 +431,7 @@ row_prebuilt_free(
 				mem_analyze_corruption(
 						prebuilt->fetch_cache[i]);
 
-				ut_a(0);
+				ut_error;
 			}
 
 			mem_free((prebuilt->fetch_cache[i]) - 4);
@@ -463,7 +463,7 @@ row_update_prebuilt_trx(
 
 		mem_analyze_corruption((byte*)trx);
 
-		ut_a(0);
+		ut_error;
 	}
 
 	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
@@ -474,7 +474,7 @@ row_update_prebuilt_trx(
 
 		mem_analyze_corruption((byte*)prebuilt);
 
-		ut_a(0);
+		ut_error;
 	}
 
 	prebuilt->trx = trx;
@@ -701,7 +701,7 @@ row_insert_for_mysql(
 
 		mem_analyze_corruption((byte*)prebuilt);
 
-		ut_a(0);
+		ut_error;
 	}
 
 	if (srv_created_new_raw || srv_force_recovery) {
@@ -917,7 +917,7 @@ row_update_for_mysql(
 
 		mem_analyze_corruption((byte*)prebuilt);
 
-		ut_a(0);
+		ut_error;
 	}
 
 	if (srv_created_new_raw || srv_force_recovery) {
@@ -1267,9 +1267,11 @@ row_create_table_for_mysql(
 	ulint		err;
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
-	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	
 	if (srv_created_new_raw) {
 		fprintf(stderr,
@@ -1402,8 +1404,7 @@ row_create_table_for_mysql(
 
 	thr = pars_complete_graph_for_exec(node, trx, heap);
 
-	ut_a(thr == que_fork_start_command(que_node_get_parent(thr),
-						SESS_COMM_EXECUTE, 0));
+	ut_a(thr == que_fork_start_command(que_node_get_parent(thr)));
 	que_run_threads(thr);
 
 	err = trx->error_state;
@@ -1472,8 +1473,10 @@ row_create_index_for_mysql(
 	ulint		err;
 	ulint		i, j;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	
 	trx->op_info = (char *) "creating index";
@@ -1525,8 +1528,7 @@ row_create_index_for_mysql(
 
 	thr = pars_complete_graph_for_exec(node, trx, heap);
 
-	ut_a(thr == que_fork_start_command(que_node_get_parent(thr),
-						SESS_COMM_EXECUTE, 0));
+	ut_a(thr == que_fork_start_command(que_node_get_parent(thr)));
 	que_run_threads(thr);
 
  	err = trx->error_state;
@@ -1578,8 +1580,10 @@ row_table_add_foreign_constraints(
 	ulint	keywordlen;
 	ulint	err;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_a(sql_string);
 	
 	trx->op_info = (char *) "adding foreign keys";
@@ -1750,7 +1754,9 @@ row_get_background_drop_list_len_low(void)
 /*======================================*/
 					/* out: how many tables in list */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (!row_mysql_drop_list_inited) {
 
@@ -1970,8 +1976,10 @@ row_drop_table_for_mysql(
 		locked_dictionary = TRUE;
 	}
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 	
 	graph = pars_sql(buf);
 
@@ -2070,7 +2078,7 @@ row_drop_table_for_mysql(
 	trx->dict_operation = TRUE;
 	trx->table_id = table->id;
 
-	ut_a(thr = que_fork_start_command(graph, SESS_COMM_EXECUTE, 0));
+	ut_a(thr = que_fork_start_command(graph));
 
 	que_run_threads(thr);
 
@@ -2083,7 +2091,7 @@ row_drop_table_for_mysql(
 		
 		row_mysql_handle_errors(&err, trx, thr, NULL);
 
-		ut_a(0);
+		ut_error;
 	} else {
 		dict_table_remove_from_cache(table);
 
@@ -2450,7 +2458,7 @@ row_rename_table_for_mysql(
 
 	graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
 
-	ut_a(thr = que_fork_start_command(graph, SESS_COMM_EXECUTE, 0));
+	ut_a(thr = que_fork_start_command(graph));
 
 	que_run_threads(thr);
 

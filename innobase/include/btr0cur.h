@@ -435,16 +435,6 @@ btr_cur_mark_dtuple_inherited_extern(
 	ulint		n_ext_vec,	/* in: number of elements in ext_vec */
 	upd_t*		update);	/* in: update vector */
 /***********************************************************************
-Marks all extern fields in a record as owned by the record. This function
-should be called if the delete mark of a record is removed: a not delete
-marked record always owns all its extern fields. */
-
-void
-btr_cur_unmark_extern_fields(
-/*=========================*/
-	rec_t*	rec,	/* in: record in a clustered index */
-	mtr_t*	mtr);	/* in: mtr */
-/***********************************************************************
 Marks all extern fields in a dtuple as owned by the record. */
 
 void

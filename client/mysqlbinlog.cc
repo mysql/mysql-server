@@ -306,6 +306,7 @@ int process_event(ulonglong *rec_count, char *last_db, Log_event *ev,
 		  my_off_t pos, int old_format)
 {
   char ll_buff[21];
+
   if ((*rec_count) >= offset)
   {
     if (!short_form)
@@ -437,9 +438,9 @@ static struct my_option my_long_options[] =
   {"user", 'u', "Connect to the remote server as username.",
    (gptr*) &user, (gptr*) &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
-  {"local-load", 'l', "Prepare files for local load in directory.",
+  {"local-load", 'l', "Prepare local temporary files for LOAD DATA INFILE in the specified directory.",
    (gptr*) &dirname_for_local_load, (gptr*) &dirname_for_local_load, 0,
-   GET_STR_ALLOC, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Print version and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -566,8 +567,6 @@ static MYSQL* safe_connect()
   if(!local_mysql)
     die("Failed on mysql_init");
   
-  mysql_options(local_mysql, MYSQL_INIT_COMMAND,
-		"/*!32210 SET @@session.max_insert_delayed_threads=0*/");
   if (!mysql_real_connect(local_mysql, host, user, pass, 0, port, sock, 0))
     die("failed on connect: %s", mysql_error(local_mysql));
 
@@ -948,10 +947,12 @@ int main(int argc, char** argv)
     exit(1);
   if (dirname_for_local_load)
     load_processor.init_by_dir_name(dirname_for_local_load);
-  else
+  else /* my_malloc() failed in my_strdup() */
     load_processor.init_by_cur_dir();
 
   exit_value= 0;
+  fprintf(result_file,
+	  "/*!40019 SET @@session.max_insert_delayed_threads=0*/;\n");
   while (--argc >= 0)
   {
     if (dump_log_entries(*(argv++)))

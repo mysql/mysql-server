@@ -158,7 +158,7 @@ dict_create_sys_tables_tuple(
  	if (table->type == DICT_TABLE_CLUSTER_MEMBER) {
 		dfield_set_data(dfield, table->cluster_name,
 				ut_strlen(table->cluster_name));
-		ut_a(0); /* Oracle-style clusters are not supported yet */
+		ut_error; /* Oracle-style clusters are not supported yet */
 	} else {
 		dfield_set_data(dfield, NULL, UNIV_SQL_NULL);
 	}
@@ -270,9 +270,10 @@ dict_build_table_def_step(
 	dict_table_t*	cluster_table;
 	dtuple_t*	row;
 
-	UT_NOT_USED(thr);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-	
+#endif /* UNIV_SYNC_DEBUG */
+
 	table = node->table;
 
 	table->id = dict_hdr_get_new_id(DICT_HDR_TABLE_ID);
@@ -341,7 +342,9 @@ dict_create_sys_indexes_tuple(
 	byte*		ptr;
 
 	UT_NOT_USED(trx);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(index && heap);
 
 	sys_indexes = dict_sys->sys_indexes;
@@ -534,8 +537,9 @@ dict_build_index_def_step(
 	dict_index_t*	index;
 	dtuple_t*	row;
 
-	UT_NOT_USED(thr);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	index = node->index;
 
@@ -607,8 +611,10 @@ dict_create_index_tree_step(
 	dtuple_t*	search_tuple;
 	btr_pcur_t	pcur;
 	mtr_t		mtr;
-	
+
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	UT_NOT_USED(thr);
 
 	index = node->index;	
@@ -670,7 +676,9 @@ dict_drop_index_tree(
 	byte*	ptr;
 	ulint	len;
 	
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	
 	ptr = rec_get_nth_field(rec, DICT_SYS_INDEXES_PAGE_NO_FIELD, &len);
 
@@ -791,8 +799,10 @@ dict_create_table_step(
 	trx_t*		trx;
 
 	ut_ad(thr);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-	
+#endif /* UNIV_SYNC_DEBUG */
+
 	trx = thr_get_trx(thr);
 	
 	node = thr->run_node;
@@ -899,7 +909,9 @@ dict_create_index_step(
 	trx_t*		trx;
 
 	ut_ad(thr);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	trx = thr_get_trx(thr);
 	
@@ -1088,7 +1100,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 
 	graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
 
-	ut_a(thr = que_fork_start_command(graph, SESS_COMM_EXECUTE, 0));
+	ut_a(thr = que_fork_start_command(graph));
 
 	que_run_threads(thr);
 
@@ -1160,7 +1172,9 @@ dict_create_add_foreigns_to_dictionary(
 	ulint		i;
 	char		buf[10000];
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));	
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (NULL == dict_table_get_low((char *) "SYS_FOREIGN")) {
 		fprintf(stderr,
@@ -1221,7 +1235,7 @@ loop:
 					foreign->referenced_col_names[i]);
 	}
 
-	ut_a(len < (sizeof buf) - 19)
+	ut_a(len < (sizeof buf) - 19);
 	len += sprintf(buf + len,"COMMIT WORK;\nEND;\n");
 
 	graph = pars_sql(buf);
@@ -1233,7 +1247,7 @@ loop:
 
 	graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
 
-	ut_a(thr = que_fork_start_command(graph, SESS_COMM_EXECUTE, 0));
+	ut_a(thr = que_fork_start_command(graph));
 
 	que_run_threads(thr);
 

@@ -1069,7 +1069,9 @@ trx_undo_report_row_operation(
 						IB__FILE__, __LINE__,
 						&mtr);
 
+#ifdef UNIV_SYNC_DEBUG
 		buf_page_dbg_add_level(undo_page, SYNC_TRX_UNDO_PAGE);
+#endif /* UNIV_SYNC_DEBUG */
 
 		if (op_type == TRX_UNDO_INSERT_OP) {
 			offset = trx_undo_page_report_insert(undo_page, trx,
@@ -1196,7 +1198,9 @@ trx_undo_get_undo_rec(
 	trx_undo_rec_t** undo_rec,	/* out, own: copy of the record */
 	mem_heap_t*	heap)		/* in: memory heap where copied */
 {
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (!trx_purge_update_undo_must_exist(trx_id)) {
 
@@ -1256,7 +1260,9 @@ trx_undo_prev_version_build(
 	ulint		i;
 	char		err_buf[1000];
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mtr_memo_contains(index_mtr, buf_block_align(index_rec), 
 						MTR_MEMO_PAGE_S_FIX) ||
 	      mtr_memo_contains(index_mtr, buf_block_align(index_rec), 

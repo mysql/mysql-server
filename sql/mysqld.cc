@@ -1040,8 +1040,8 @@ static void set_user(const char *user)
     {
       /* Don't give a warning, if real user is same as given with --user */
       struct passwd *user_info= getpwnam(user);
-
-      if (!user_info || user_id != user_info->pw_uid)
+      if ((!user_info || user_id != user_info->pw_uid) &&
+	  global_system_variables.log_warnings)
 	fprintf(stderr,
 		"Warning: One can only use the --user switch if running as root\n");
     }
@@ -2108,22 +2108,25 @@ int main(int argc, char **argv)
     insensitive names.  If this is not done the users MyISAM tables will
     get corrupted if accesses with names of different case.
   */
+  DBUG_PRINT("info", ("lower_case_table_names: %d", lower_case_table_names));
   if (!lower_case_table_names &&
       (lower_case_file_system=
        (test_if_case_insensitive(mysql_real_data_home) == 1)))
   {
     if (lower_case_table_names_used)
     {
-      sql_print_error("\
-Warning: You have forced lower_case_table_names to 0 through a command line \
-option, even if your file system '%s' is case insensitive.  This means that \
-you can corrupt an MyISAM table by accessing it with different cases.  You \
-should consider changing lower_case_table_names to 1 or 2",
-		      mysql_real_data_home);
+      if (global_system_variables.log_warnings)
+	sql_print_error("\
+Warning: You have forced lower_case_table_names to 0 through a command-line \
+option, even though your file system '%s' is case insensitive.  This means \
+that you can corrupt a MyISAM table by accessing it with different cases. \
+You should consider changing lower_case_table_names to 1 or 2",
+			mysql_real_data_home);
     }
     else
     {
-      sql_print_error("Warning: Setting lower_case_table_names=2 because file system for %s is case insensitive", mysql_real_data_home);
+      if (global_system_variables.log_warnings)
+	sql_print_error("Warning: Setting lower_case_table_names=2 because file system for %s is case insensitive", mysql_real_data_home);
       lower_case_table_names= 2;
     }
   }
@@ -2187,7 +2190,8 @@ should consider changing lower_case_table_names to 1 or 2",
       DBUG_PRINT("warning",
 		 ("Changed limits: max_connections: %ld  table_cache: %ld",
 		  max_connections,table_cache_size));
-      sql_print_error("Warning: Changed limits: max_connections: %ld  table_cache: %ld",max_connections,table_cache_size);
+      if (global_system_variables.log_warnings)
+	sql_print_error("Warning: Changed limits: max_connections: %ld  table_cache: %ld",max_connections,table_cache_size);
     }
     open_files_limit= files;
   }
@@ -2221,8 +2225,10 @@ should consider changing lower_case_table_names to 1 or 2",
   mysql_data_home[0]=FN_CURLIB;		// all paths are relative from here
   mysql_data_home[1]=0;
   server_init();
-  table_cache_init();
-  hostname_cache_init();
+  if (table_cache_init() || hostname_cache_init())
+  {
+    unireg_abort(1);
+  }
   query_cache_result_size_limit(query_cache_limit);
   query_cache_resize(query_cache_size);
   randominit(&sql_rand,(ulong) start_time,(ulong) start_time/2);
@@ -2277,7 +2283,8 @@ should consider changing lower_case_table_names to 1 or 2",
   {
     if (mlockall(MCL_CURRENT))
     {
-      sql_print_error("Warning: Failed to lock memory. Errno: %d\n",errno);
+      if (global_system_variables.log_warnings)
+	sql_print_error("Warning: Failed to lock memory. Errno: %d\n",errno);
     }
     else
       locked_in_memory=1;
@@ -2428,7 +2435,7 @@ Now disabling --log-slave-updates.");
       (!have_tcpip || opt_disable_networking))
   {
     sql_print_error("TCP/IP or --enable-named-pipe should be configured on NT OS");
-	unireg_abort(1);
+    unireg_abort(1);
   }
   else
   {
@@ -3744,11 +3751,11 @@ replicating a LOAD DATA INFILE command",
    0, 0, 0, 0},
   {"log-warnings", 'W', "Log some not critical warnings to the log file",
    (gptr*) &global_system_variables.log_warnings,
-   (gptr*) &max_system_variables.log_warnings, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   (gptr*) &max_system_variables.log_warnings, 0, GET_BOOL, NO_ARG, 1, 0, 0,
    0, 0, 0},
   {"warnings", 'W', "Deprecated ; Use --log-warnings instead",
    (gptr*) &global_system_variables.log_warnings,
-   (gptr*) &max_system_variables.log_warnings, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   (gptr*) &max_system_variables.log_warnings, 0, GET_BOOL, NO_ARG, 1, 0, 0,
    0, 0, 0},
   { "back_log", OPT_BACK_LOG,
     "The number of outstanding connection requests MySQL can have. This comes into play when the main MySQL thread gets very many connection requests in a very short time.",
@@ -4095,8 +4102,8 @@ this value; if zero (the default): when the size exceeds max_binlog_size. \
    1, 0},
   {"table_cache", OPT_TABLE_CACHE,
    "The number of open tables for all threads.", (gptr*) &table_cache_size,
-   (gptr*) &table_cache_size, 0, GET_ULONG, REQUIRED_ARG, 64, 1, ~0L, 0, 1,
-   0},
+   (gptr*) &table_cache_size, 0, GET_ULONG, REQUIRED_ARG, 64, 1, 512*1024L,
+   0, 1, 0},
   {"thread_concurrency", OPT_THREAD_CONCURRENCY,
    "Permits the application to give the threads system a hint for the desired number of threads that should be run at the same time.",
    (gptr*) &concurrency, (gptr*) &concurrency, 0, GET_ULONG, REQUIRED_ARG,
@@ -5032,14 +5039,16 @@ static uint set_maximum_open_files(uint max_file_limit)
     rlimit.rlim_cur=rlimit.rlim_max=max_file_limit;
     if (setrlimit(RLIMIT_NOFILE,&rlimit))
     {
-      sql_print_error("Warning: setrlimit couldn't increase number of open files to more than %lu (request: %u)",
-		      old_cur, max_file_limit);	/* purecov: inspected */
+      if (global_system_variables.log_warnings)
+	sql_print_error("Warning: setrlimit couldn't increase number of open files to more than %lu (request: %u)",
+			old_cur, max_file_limit);	/* purecov: inspected */
       max_file_limit=old_cur;
     }
     else
     {
       (void) getrlimit(RLIMIT_NOFILE,&rlimit);
-      if ((uint) rlimit.rlim_cur != max_file_limit)
+      if ((uint) rlimit.rlim_cur != max_file_limit &&
+	  global_system_variables.log_warnings)
 	sql_print_error("Warning: setrlimit returned ok, but didn't change limits. Max open files is %ld (request: %u)",
 			(ulong) rlimit.rlim_cur,
 			max_file_limit); /* purecov: inspected */
@@ -5064,10 +5073,12 @@ static uint set_maximum_open_files(uint max_file_limit)
    // set new limit
    cbReqCount = max_file_limit - cbCurMaxFH0;
    ulrc = DosSetRelMaxFH( &cbReqCount, &cbCurMaxFH);
-   if (ulrc) {
-      sql_print_error("Warning: DosSetRelMaxFH couldn't increase number of open files to more than %d",
-         cbCurMaxFH0);
-      cbCurMaxFH = cbCurMaxFH0;
+   if (ulrc)
+   {
+     if (global_system_variables.log_warnings)
+       sql_print_error("Warning: DosSetRelMaxFH couldn't increase number of open files to more than %d",
+		       cbCurMaxFH0);
+     cbCurMaxFH = cbCurMaxFH0;
    }
 
    return cbCurMaxFH;
@@ -5153,6 +5164,7 @@ static int test_if_case_insensitive(const char *dir_name)
   File file;
   char buff[FN_REFLEN], buff2[FN_REFLEN];
   MY_STAT stat_info;
+  DBUG_ENTER("test_if_case_insensitive");
 
   fn_format(buff, glob_hostname, dir_name, ".lower-test",
 	    MY_UNPACK_FILENAME | MY_REPLACE_EXT | MY_REPLACE_DIR);
@@ -5162,13 +5174,14 @@ static int test_if_case_insensitive(const char *dir_name)
   if ((file= my_create(buff, 0666, O_RDWR, MYF(0))) < 0)
   {
     sql_print_error("Warning: Can't create test file %s", buff);
-    return -1;
+    DBUG_RETURN(-1);
   }
   my_close(file, MYF(0));
   if (my_stat(buff2, &stat_info, MYF(0)))
     result= 1;					// Can access file
   (void) my_delete(buff, MYF(MY_WME));
-  return result;
+  DBUG_PRINT("exit", ("result: %d", result));
+  DBUG_RETURN(result);
 }
 
 
