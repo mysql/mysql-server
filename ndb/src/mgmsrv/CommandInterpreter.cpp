@@ -119,7 +119,8 @@ int CommandInterpreter::readAndExecute() {
 
 
 static const CommandInterpreter::CommandFunctionPair commands[] = {
-  { "LOGIN", &CommandInterpreter::executeLogIn }
+  { "TRACE", &CommandInterpreter::executeTrace }
+  ,{ "LOGIN", &CommandInterpreter::executeLogIn }
   ,{ "LOGOUT", &CommandInterpreter::executeLogOut }
   ,{ "LOGOFF", &CommandInterpreter::executeLogOff }
 };
@@ -305,4 +306,40 @@ void CommandInterpreter::executeLogOff(int processId,
     ndbout << get_error_text(result) << endl;
   }
 
+}
+
+void CommandInterpreter::executeTrace(int processId, 
+				      const char* parameters, bool all) {
+
+  (void)all;  // Don't want compiler warning
+
+  if (emptyString(parameters)) {
+    ndbout << "Missing trace number." << endl;
+    return;
+  }
+
+  char* newpar = strdup(parameters);
+  char* firstParameter = strtok(newpar, " ");
+
+
+  int traceNo;
+  if (! convert(firstParameter, traceNo)) {
+    ndbout << "Expected an integer." << endl;
+    free(newpar);
+    return;
+  }
+
+  char* allAfterFirstParameter = strtok(NULL, "\0");  
+
+  if (! emptyString(allAfterFirstParameter)) {
+    ndbout << "Nothing expected after trace number." << endl;
+    free(newpar);
+    return;
+  }
+
+  int result = _mgmtSrvr.setTraceNo(processId, traceNo);
+  if (result != 0) {
+    ndbout << get_error_text(result) << endl;
+  }
+  free(newpar);
 }
