@@ -57,7 +57,7 @@
 #endif
 
 #ifndef MNGD_LOG_FILE
-#define MNGD_LOG_FILE "/var/log/mysqlmngd.log"
+#define MNGD_LOG_FILE "/var/log/mysqlmanager.log"
 #endif
 
 #ifndef MNGD_BACK_LOG
@@ -68,22 +68,22 @@
 #define MAX_USER_NAME 16
 #endif
 
-/* Variable naming convention - if starts with mngd_, either is set
+/* Variable naming convention - if starts with manager_, either is set
    directly by the user, or used closely in ocnjunction with a variable
    set by the user
 */
 
-uint mngd_port = MNGD_PORT;
+uint manager_port = MNGD_PORT;
 FILE* errfp;
-const char* mngd_log_file = MNGD_LOG_FILE;
+const char* manager_log_file = MNGD_LOG_FILE;
 pthread_mutex_t lock_log, lock_shutdown;
-int mngd_sock = -1;
-struct sockaddr_in mngd_addr;
-ulong mngd_bind_addr = INADDR_ANY;
-int mngd_back_log = MNGD_BACK_LOG;
+int manager_sock = -1;
+struct sockaddr_in manager_addr;
+ulong manager_bind_addr = INADDR_ANY;
+int manager_back_log = MNGD_BACK_LOG;
 int in_shutdown = 0, shutdown_requested=0;
-const char* mngd_greeting = MNGD_GREETING;
-uint mngd_max_cmd_len = MNGD_MAX_CMD_LEN;
+const char* manager_greeting = MNGD_GREETING;
+uint manager_max_cmd_len = MNGD_MAX_CMD_LEN;
 
 /* messages */
 
@@ -103,7 +103,7 @@ uint mngd_max_cmd_len = MNGD_MAX_CMD_LEN;
 
 #define PRIV_SHUTDOWN 1
 
-struct mngd_thd
+struct manager_thd
 {
   Vio* vio;
   char user[MAX_USER_NAME];
@@ -112,25 +112,25 @@ struct mngd_thd
   int fatal,finished;
 };
 
-struct mngd_thd* mngd_thd_new(Vio* vio);
-void mngd_thd_free(struct mngd_thd* thd);
+struct manager_thd* manager_thd_new(Vio* vio);
+void manager_thd_free(struct manager_thd* thd);
 
-typedef int (*mngd_cmd_handler)(struct mngd_thd*,char*,char*);
+typedef int (*manager_cmd_handler)(struct manager_thd*,char*,char*);
 
 
-struct mngd_cmd
+struct manager_cmd
 {
   const char* name;
   const char* help;
-  mngd_cmd_handler handler_func;
+  manager_cmd_handler handler_func;
   int len;
 };
 
-#define HANDLE_DECL(com) static int handle_ ## com (struct mngd_thd* thd,\
+#define HANDLE_DECL(com) static int handle_ ## com (struct manager_thd* thd,\
  char* args_start,char* args_end)
 
 #define HANDLE_NOARG_DECL(com) static int handle_ ## com \
-  (struct mngd_thd* thd, char* __attribute__((unused)) args_start,\
+  (struct manager_thd* thd, char* __attribute__((unused)) args_start,\
  char* __attribute__((unused)) args_end)
 
 
@@ -139,7 +139,7 @@ HANDLE_NOARG_DECL(quit);
 HANDLE_NOARG_DECL(help);
 HANDLE_NOARG_DECL(shutdown);
 
-struct mngd_cmd commands[] =
+struct manager_cmd commands[] =
 {
   {"ping", "Check if this server is alive", handle_ping,4},
   {"quit", "Finish session", handle_quit,4},
@@ -165,22 +165,22 @@ struct option long_options[] =
 static void die(const char* fmt,...);
 static void print_time(FILE* fp);
 static void clean_up();
-static struct mngd_cmd* lookup_cmd(char* s,int len);
+static struct manager_cmd* lookup_cmd(char* s,int len);
 static void client_msg(Vio* vio,int err_code,const char* fmt,...);
 static void client_msg_pre(Vio* vio,int err_code,const char* fmt,...);
 static void client_msg_raw(Vio* vio,int err_code,int pre,const char* fmt,
 			    va_list args);
-static int authenticate(struct mngd_thd* thd);
-static char* read_line(struct mngd_thd* thd); /* returns pointer to end of
+static int authenticate(struct manager_thd* thd);
+static char* read_line(struct manager_thd* thd); /* returns pointer to end of
 						 line
 					      */
 static pthread_handler_decl(process_connection,arg);
-static int exec_line(struct mngd_thd* thd,char* buf,char* buf_end);
+static int exec_line(struct manager_thd* thd,char* buf,char* buf_end);
 
-static int exec_line(struct mngd_thd* thd,char* buf,char* buf_end)
+static int exec_line(struct manager_thd* thd,char* buf,char* buf_end)
 {
   char* p=buf;
-  struct mngd_cmd* cmd;
+  struct manager_cmd* cmd;
   for (;p<buf_end && !isspace(*p);p++)
     *p=tolower(*p);
   if (!(cmd=lookup_cmd(buf,(int)(p-buf))))
@@ -193,9 +193,9 @@ static int exec_line(struct mngd_thd* thd,char* buf,char* buf_end)
   return cmd->handler_func(thd,p,buf_end);
 }
 
-static struct mngd_cmd* lookup_cmd(char* s,int len)
+static struct manager_cmd* lookup_cmd(char* s,int len)
 {
-  struct mngd_cmd* cmd = commands;
+  struct manager_cmd* cmd = commands;
   for (;cmd->name;cmd++)
   {
     if (cmd->len == len && !memcmp(cmd->name,s,len))
@@ -219,7 +219,7 @@ HANDLE_NOARG_DECL(quit)
 
 HANDLE_NOARG_DECL(help)
 {
-  struct mngd_cmd* cmd = commands;
+  struct manager_cmd* cmd = commands;
   Vio* vio = thd->vio;
   client_msg_pre(vio,MSG_INFO,"Available commands:");
   for (;cmd->name;cmd++)
@@ -238,10 +238,10 @@ HANDLE_NOARG_DECL(shutdown)
   return 0;
 }
 
-static int authenticate(struct mngd_thd* thd)
+static int authenticate(struct manager_thd* thd)
 {
   char* buf_end;
-  client_msg(thd->vio,MSG_INFO, mngd_greeting);
+  client_msg(thd->vio,MSG_INFO, manager_greeting);
   if (!(buf_end=read_line(thd)))
     return -1;
   client_msg(thd->vio,MSG_OK,"OK");
@@ -327,7 +327,7 @@ LOG_MSG_FUNC(debug,DEBUG)
 
 static pthread_handler_decl(process_connection,arg)
 {
-  struct mngd_thd* thd = (struct mngd_thd*)arg;
+  struct manager_thd* thd = (struct manager_thd*)arg;
   my_thread_init();
   pthread_detach_this_thread();
   for (;!thd->finished;)
@@ -340,7 +340,7 @@ static pthread_handler_decl(process_connection,arg)
       break;
     }
   }
-  mngd_thd_free(thd);
+  manager_thd_free(thd);
   pthread_exit(0);
 }
 
@@ -377,10 +377,10 @@ static void client_msg_pre(Vio* vio, int err_code, const char* fmt, ...)
   client_msg_raw(vio,err_code,1,fmt,args);
 }
 
-static char* read_line(struct mngd_thd* thd)
+static char* read_line(struct manager_thd* thd)
 {
   char* p=thd->cmd_buf;
-  char* buf_end = thd->cmd_buf + mngd_max_cmd_len;
+  char* buf_end = thd->cmd_buf + manager_max_cmd_len;
   int escaped = 0;
   for (;p<buf_end;)
   {
@@ -422,13 +422,13 @@ static char* read_line(struct mngd_thd* thd)
   return 0;
 }
 
-struct mngd_thd* mngd_thd_new(Vio* vio)
+struct manager_thd* manager_thd_new(Vio* vio)
 {
-  struct mngd_thd* tmp;
-  if (!(tmp=(struct mngd_thd*)my_malloc(sizeof(*tmp)+mngd_max_cmd_len,
+  struct manager_thd* tmp;
+  if (!(tmp=(struct manager_thd*)my_malloc(sizeof(*tmp)+manager_max_cmd_len,
 					MYF(0))))
   {
-    log_err("Out of memory in mngd_thd_new");
+    log_err("Out of memory in manager_thd_new");
     return 0;
   }
   tmp->vio=vio;
@@ -439,7 +439,7 @@ struct mngd_thd* mngd_thd_new(Vio* vio)
   return tmp;
 }
 
-void mngd_thd_free(struct mngd_thd* thd)
+void manager_thd_free(struct manager_thd* thd)
 {
   if (thd->vio)
     vio_close(thd->vio);
@@ -457,8 +457,8 @@ static void clean_up()
   in_shutdown = 1;
   pthread_mutex_unlock(&lock_shutdown);
   log_info("Shutdown started");
-  if (mngd_sock)
-    close(mngd_sock);
+  if (manager_sock)
+    close(manager_sock);
   log_info("Ended");
   if (errfp != stderr)
     fclose(errfp);
@@ -505,21 +505,21 @@ int parse_args(int argc, char **argv)
 	DBUG_PUSH(optarg ? optarg : "d:t:O,/tmp/mysqlmgrd.trace");
 	break;
       case 'P':
-	mngd_port=atoi(optarg);
+	manager_port=atoi(optarg);
 	break;
       case 'm':
-	mngd_max_cmd_len=atoi(optarg);
+	manager_max_cmd_len=atoi(optarg);
 	break;
       case 'g':
-	mngd_greeting=optarg;
+	manager_greeting=optarg;
       case 'b':
-	mngd_bind_addr = inet_addr(optarg);
+	manager_bind_addr = inet_addr(optarg);
 	break;
       case 'B':
-	mngd_back_log = atoi(optarg);
+	manager_back_log = atoi(optarg);
 	break;
       case 'l':
-	mngd_log_file=optarg;
+	manager_log_file=optarg;
 	break;
       case 'V':
 	print_version();
@@ -539,16 +539,16 @@ int init_server()
 {
   int arg=1;
   log_info("Started");
-  if ((mngd_sock=socket(PF_INET,SOCK_STREAM,0)) < 0)
+  if ((manager_sock=socket(PF_INET,SOCK_STREAM,0)) < 0)
     die("Could not create socket");
-  bzero((char*)&mngd_addr, sizeof(mngd_addr));
-  mngd_addr.sin_family = AF_INET;
-  mngd_addr.sin_addr.s_addr = mngd_bind_addr;
-  mngd_addr.sin_port = htons(mngd_port);
-  setsockopt(mngd_sock,SOL_SOCKET, SO_REUSEADDR,(char*)&arg,sizeof(arg));
-  if (bind(mngd_sock,(struct sockaddr*)&mngd_addr, sizeof(mngd_addr)) < 0)
+  bzero((char*)&manager_addr, sizeof(manager_addr));
+  manager_addr.sin_family = AF_INET;
+  manager_addr.sin_addr.s_addr = manager_bind_addr;
+  manager_addr.sin_port = htons(manager_port);
+  setsockopt(manager_sock,SOL_SOCKET, SO_REUSEADDR,(char*)&arg,sizeof(arg));
+  if (bind(manager_sock,(struct sockaddr*)&manager_addr, sizeof(manager_addr)) < 0)
     die("Could not bind");
-  if (listen(mngd_sock,mngd_back_log) < 0)
+  if (listen(manager_sock,manager_back_log) < 0)
     die("Could not listen");
 
   return 0;
@@ -557,14 +557,14 @@ int init_server()
 int run_server_loop()
 {
   pthread_t th;
-  struct mngd_thd *thd;
+  struct manager_thd *thd;
   int client_sock,len;
   Vio* vio;
 
   for (;!shutdown_requested;)
   {
     len=sizeof(struct sockaddr_in);
-    if ((client_sock=accept(mngd_sock,(struct sockaddr*)&mngd_addr,&len))<0)
+    if ((client_sock=accept(manager_sock,(struct sockaddr*)&manager_addr,&len))<0)
     {
       if (shutdown_requested)
 	break;
@@ -583,7 +583,7 @@ int run_server_loop()
       close(client_sock);
       continue;
     }
-    if (!(thd=mngd_thd_new(vio)))
+    if (!(thd=manager_thd_new(vio)))
     {
       log_err("Could not create thread object");
       vio_close(vio);
@@ -593,7 +593,7 @@ int run_server_loop()
     if (authenticate(thd))
     {
       client_msg(vio,MSG_ACCESS, "Access denied");
-      mngd_thd_free(thd);
+      manager_thd_free(thd);
       continue;
     }
     if (shutdown_requested)
@@ -602,7 +602,7 @@ int run_server_loop()
     {
       client_msg(vio,MSG_INTERNAL_ERR,"Could not create thread, errno=%d",
 		 errno);
-      mngd_thd_free(thd);
+      manager_thd_free(thd);
       continue;
     }
   }
@@ -612,8 +612,8 @@ int run_server_loop()
 FILE* open_log_stream()
 {
   FILE* fp;
-  if (!(fp=fopen(mngd_log_file,"a")))
-    die("Could not open log file '%s'", mngd_log_file);
+  if (!(fp=fopen(manager_log_file,"a")))
+    die("Could not open log file '%s'", manager_log_file);
   return fp;
 }
 
