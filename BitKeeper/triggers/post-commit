@@ -11,6 +11,7 @@ then
  echo "Commit successful, notifying developers at $TO"
  (
    cat <<EOF
+List-ID: <bk.mysql>
 From: $FROM
 To: $TO
 Subject: bk commit
