@@ -79,7 +79,6 @@ static byte* get_table_key(TABLE_RULE_ENT* e, uint* len,
 void init_slave_skip_errors(char* arg)
 {
   char* p;
-  my_bool last_was_digit = 0;
   if (bitmap_init(&slave_error_mask,MAX_SLAVE_ERROR,0))
   {
     fprintf(stderr, "Badly out of memory, please check your system status\n");
