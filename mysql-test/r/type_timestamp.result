@@ -365,3 +365,15 @@ select * from t1;
 t1	i
 2004-04-01 00:00:00	10
 drop table t1;
+create table t1 (ts timestamp(19));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `ts` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+set TIMESTAMP=1000000000;
+insert into t1 values ();
+select * from t1;
+ts
+2001-09-09 04:46:40
+drop table t1;

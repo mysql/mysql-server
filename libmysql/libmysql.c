@@ -3429,7 +3429,7 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     char buff[22];                              /* Enough for longlong */
     char *end= longlong10_to_str(value, buff, field_is_unsigned ? 10: -10);
     /* Resort to string conversion which supports all typecodes */
-    fetch_string_with_conversion(param, buff, end - buff);
+    fetch_string_with_conversion(param, buff, (uint) (end - buff));
     break;
   }
   }
@@ -3505,7 +3505,7 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
       sprintf(buff, "%.*f", (int) field->decimals, value);
       end= strend(buff);
     }
-    fetch_string_with_conversion(param, buff, end - buff);
+    fetch_string_with_conversion(param, buff, (uint) (end - buff));
     break;
   }
   }
