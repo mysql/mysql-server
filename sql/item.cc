@@ -333,7 +333,7 @@ Item_field::Item_field(THD *thd, Item_field *item)
    result_field(item->result_field)
 {
   collation.set(DERIVATION_IMPLICIT);
-  item_equal= item.item_equal;
+  item_equal= item->item_equal;
 }
 
 void Item_field::set_field(Field *field_par)
@@ -1002,6 +1002,7 @@ void Item_field::cleanup()
 {
   Item_ident::cleanup();
   field= result_field= 0;
+}
 
 /*
   Find a field among specified multiple equalities 
