@@ -41,7 +41,8 @@ typedef struct st_ft_superdoc {
     ALL_IN_ONE *aio;
 } FT_SUPERDOC;
 
-static int FT_SUPERDOC_cmp(FT_SUPERDOC *p1, FT_SUPERDOC *p2)
+static int FT_SUPERDOC_cmp(void* cmp_arg __attribute__((unused)),
+			   FT_SUPERDOC *p1, FT_SUPERDOC *p2)
 {
   if (p1->doc.dpos < p2->doc.dpos)
     return -1;

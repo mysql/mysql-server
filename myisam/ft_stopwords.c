@@ -25,7 +25,8 @@ typedef struct st_ft_stopwords {
 
 static TREE *stopwords3=NULL;
 
-static int FT_STOPWORD_cmp(FT_STOPWORD *w1, FT_STOPWORD *w2)
+static int FT_STOPWORD_cmp(void* cmp_arg __attribute__((unused)),
+			   FT_STOPWORD *w1, FT_STOPWORD *w2)
 {
   return _mi_compare_text(default_charset_info,
 			  (uchar *)w1->pos,w1->len,
@@ -40,7 +41,7 @@ int ft_init_stopwords(const char **sws)
   if(!stopwords3)
   {
     if(!(stopwords3=(TREE *)my_malloc(sizeof(TREE),MYF(0)))) return -1;
-    init_tree(stopwords3,0,sizeof(FT_STOPWORD),(qsort_cmp)&FT_STOPWORD_cmp,0,
+    init_tree(stopwords3,0,sizeof(FT_STOPWORD),(qsort_cmp2)&FT_STOPWORD_cmp,0,
 	      NULL);
   }
 

@@ -38,6 +38,37 @@
 #define UINT_MAX24	  0xffffff
 #define UINT_MAX32	  0xffffffff
 
+int sortcmp2(void* cmp_arg __attribute__((unused)),
+	     const String *a,const String *b)
+{
+  return sortcmp(a,b);
+}
+
+int stringcmp2(void* cmp_arg __attribute__((unused)),
+	     const String *a,const String *b)
+{
+  return stringcmp(a,b);
+}
+
+int compare_double2(void* cmp_arg __attribute__((unused)),
+		    const double *s, const double *t)
+{
+  return compare_double(s,t);
+}
+
+int compare_longlong2(void* cmp_arg __attribute__((unused)),
+		      const longlong *s, const longlong *t)
+{
+  return compare_longlong(s,t);
+}
+
+int compare_ulonglong2(void* cmp_arg __attribute__((unused)),
+		       const ulonglong *s, const ulonglong *t)
+{
+  return compare_ulonglong(s,t);
+}
+
+
 Procedure *
 proc_analyse_init(THD *thd, ORDER *param, select_result *result,
 		  List<Item> &field_list)
