@@ -3791,8 +3791,10 @@ lock_wait_or_error:
 
 	que_thr_stop_for_mysql(thr);
 
+  thr->lock_state= QUE_THR_LOCK_ROW;
 	was_lock_wait = row_mysql_handle_errors(&err, trx, thr, NULL);
-	
+  thr->lock_state= QUE_THR_LOCK_NOLOCK;
+
 	if (was_lock_wait) {
 		mtr_start(&mtr);
 
