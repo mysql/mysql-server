@@ -322,36 +322,26 @@ do
     # but should work for the rest of the servers.
     # The only thing is ps x => redhat 5 gives warnings when using ps -x.
     # kill -9 is used or the process won't react on the kill.
-    if test -n "$mysql_tcp_port"
-    then
-      numofproces=`ps xa | grep -v "grep" | grep $ledir/$MYSQLD| grep -c "port=$mysql_tcp_port"`
-    else
-      numofproces=`ps xa | grep -v "grep" | grep -c $ledir/$MYSQLD`
-    fi
+    numofproces=`ps xa | grep -v "grep" | grep "$ledir/$MYSQLD\>" | grep -c "pid-file=$pid_file"`
 
     echo -e "\nNumber of processes running now: $numofproces" | tee -a $err_log
     I=1
     while test "$I" -le "$numofproces"
     do 
-      if test -n "$mysql_tcp_port"
-      then
-        PROC=`ps xa | grep "$ledir/$MYSQLD\>" | grep -v "grep" | grep "port=$mysql_tcp_port" | sed -n '$p'` 
-      else
-        PROC=`ps xa | grep "$ledir/$MYSQLD\>" | grep -v "grep" | sed -n '$p'` 
-      fi
+      PROC=`ps xa | grep "$ledir/$MYSQLD\>" | grep -v "grep" | grep "pid-file=$pid_file" | sed -n '$p'` 
 
-	for T in $PROC
-	do
-	  break
-	done
-	#    echo "TEST $I - $T **"
-	if kill -9 $T
-	then
-	  echo "$MYSQLD process hanging, pid $T - killed" | tee -a $err_log
-	else 
-	  break
-	fi
-	I=`expr $I + 1`
+      for T in $PROC
+      do
+        break
+      done
+      #    echo "TEST $I - $T **"
+      if kill -9 $T
+      then
+        echo "$MYSQLD process hanging, pid $T - killed" | tee -a $err_log
+      else 
+        break
+      fi
+      I=`expr $I + 1`
     done
   fi
   echo "`date +'%y%m%d %H:%M:%S'`  mysqld restarted" | tee -a $err_log
@@ -359,3 +349,4 @@ done
 
 echo "`date +'%y%m%d %H:%M:%S'`  mysqld ended" | tee -a $err_log
 echo "" | tee -a $err_log
+
