@@ -100,6 +100,7 @@ uint my_b_fill(IO_CACHE *info)
 
 uint my_b_gets(IO_CACHE *info, char *to, uint max_length)
 {
+  char *start = to;
   uint length;
   max_length--;					/* Save place for end \0 */
   /* Calculate number of characters in buffer */
@@ -115,10 +116,9 @@ uint my_b_gets(IO_CACHE *info, char *to, uint max_length)
     {
       if ((*to++ = *pos++) == '\n')
       {
-	length= (uint) (pos-info->rc_pos);
 	info->rc_pos=pos;
 	*to='\0';
-	return length;
+	return (uint) (to-start);
       }
     }
     if (!(max_length-=length))
@@ -126,7 +126,7 @@ uint my_b_gets(IO_CACHE *info, char *to, uint max_length)
      /* Found enough charcters;  Return found string */
       info->rc_pos=pos;
       *to='\0';
-      return length;
+      return (uint) (to-start);
     }
     if (!(length=my_b_fill(info)))
       return 0;

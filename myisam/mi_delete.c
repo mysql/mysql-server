@@ -707,9 +707,10 @@ static uint remove_key(MI_KEYDEF *keyinfo, uint nod_flag,
       }
       else
       {
-	/* A variable length first key part */
-	if (*keypos & 128)			/* Next key is packed */
+	/* Check if a variable length first key part */
+	if ((keyinfo->seg->flag & HA_PACK_KEY) && *keypos & 128)
 	{
+	  /* Next key is packed against the current one */
 	  uint next_length,prev_length,prev_pack_length,lastkey_length,
 	    rest_length;
 	  if (keyinfo->seg[0].length >= 127)

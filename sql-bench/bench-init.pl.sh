@@ -31,7 +31,7 @@
 # $server	Object for current server
 # $limits	Hash reference to limits for benchmark
 
-$benchmark_version="2.11";
+$benchmark_version="2.11a";
 use Getopt::Long;
 
 require "$pwd/server-cfg" || die "Can't read Configuration file: $!\n";
@@ -51,7 +51,7 @@ $log_prog_args=join(" ", skip_arguments(\@ARGV,"comments","cmp","server",
 					"user", "host", "database", "password",
 					"use-old-results","skip-test",
 					"machine", "dir", "suffix", "log"));
-GetOptions("skip-test=s","comments=s","cmp=s","server=s","user=s","host=s","database=s","password=s","loop-count=i","row-count=i","skip-create","skip-delete","verbose","fast-insert","lock-tables","debug","fast","force","field-count=i","regions=i","groups=i","time-limit=i","log","use-old-results","machine=s","dir=s","suffix=s","help","odbc","small-test","small-tables","small-key-tables","stage=i","old-headers","die-on-errors","create-options=s","hires","tcpip") || usage();
+GetOptions("skip-test=s","comments=s","cmp=s","server=s","user=s","host=s","database=s","password=s","loop-count=i","row-count=i","skip-create","skip-delete","verbose","fast-insert","lock-tables","debug","fast","force","field-count=i","regions=i","groups=i","time-limit=i","log","use-old-results","machine=s","dir=s","suffix=s","help","odbc","small-test","small-tables","small-key-tables","stage=i","old-headers","die-on-errors","create-options=s","hires","tcpip","silent") || usage();
 
 usage() if ($opt_help);
 $server=get_server($opt_server,$opt_host,$opt_database,$opt_odbc,
@@ -495,12 +495,15 @@ All benchmarks takes the following options:
   Known servers names are: Access, Adabas, AdabasD, Empress, Oracle,
   Informix, DB2, mSQL, MS-SQL, MySQL, Pg, Solid and Sybase
 
+--silent
+  Don't print info about the server when starting test.
+
 --skip-delete
   This is a test specific option that is only used when debugging a test.
   This will keep the test tables after the test is run.
 
 --skip-test=test1[,test2,...]
-  For run-all-programs;  Don\'t execute the named tests
+  For run-all-programs;  Don\'t execute the named tests.
 
 --small-test
   This runs some tests with smaller limits to get a faster test.

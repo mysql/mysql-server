@@ -138,6 +138,7 @@ while test $# -gt 0; do
     --debug)
       EXTRA_MASTER_MYSQLD_OPT=--debug=d:t:O,$MYSQL_TMP_DIR/master.trace
       EXTRA_SLAVE_MYSQLD_OPT=--debug=d:t:O,$MYSQL_TMP_DIR/slave.trace
+      EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT --debug"
       ;;
     -- )  shift; break ;;
     --* ) $ECHO "Unrecognized option: $1"; exit 1 ;;
@@ -162,6 +163,8 @@ SLAVE_MYSOCK="$MYSQL_TMP_DIR/mysql-slave.sock"
 SLAVE_MYPID="$MYRUN_DIR/mysqld-slave.pid"
 SLAVE_MYLOG="$MYSQL_TEST_DIR/var/log/mysqld-slave.log"
 SLAVE_MYERR="$MYSQL_TEST_DIR/var/log/mysqld-slave.err"
+
+SMALL_SERVER="-O key_buffer_size=1M -O sort_buffer=256K -O max_heap_table_size=1M"
 
 if [ x$SOURCE_DIST = x1 ] ; then
  MY_BASEDIR=$MYSQL_TEST_DIR
@@ -335,7 +338,9 @@ start_master()
             --log=$MASTER_MYLOG --default-character-set=latin1 \
 	    --core \
 	    --tmpdir=$MYSQL_TMP_DIR \
-	    --language=english $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
+	    --language=english \
+	     $SMALL_SERVER \
+	     $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
     if [ x$DO_DDD = x1 ]
     then
       $ECHO "set args $master_args" > $GDB_MASTER_INIT
@@ -378,7 +383,9 @@ start_slave()
             --log=$SLAVE_MYLOG --default-character-set=latin1 \
 	    --core \
 	    --tmpdir=$MYSQL_TMP_DIR \
-            --language=english $EXTRA_SLAVE_OPT $EXTRA_SLAVE_MYSQLD_OPT"
+            --language=english \
+	     $SMALL_SERVER \
+             $EXTRA_SLAVE_OPT $EXTRA_SLAVE_MYSQLD_OPT"
     if [ x$DO_DDD = x1 ]
     then
       $ECHO "set args $master_args" > $GDB_SLAVE_INIT
@@ -606,21 +613,23 @@ run_testcase ()
 [ "$DO_GCOV" ] && gcov_prepare 
 
 # Ensure that no old mysqld test servers are running
-$MYSQLADMIN --no-defaults --socket=$MASTER_MYSOCK -u root -O connect_timeout=5 shutdown > /dev/null 2>&1
-$MYSQLADMIN --no-defaults --socket=$SLAVE_MYSOCK -u root -O connect_timeout=5 shutdown > /dev/null 2>&1
-
-$ECHO "Installing Test Databases"
-mysql_install_db
+if [ -z "$USE_RUNNING_SERVER" ]
+then
+  $MYSQLADMIN --no-defaults --socket=$MASTER_MYSOCK -u root -O connect_timeout=5 shutdown > /dev/null 2>&1
+  $MYSQLADMIN --no-defaults --socket=$SLAVE_MYSOCK -u root -O connect_timeout=5 shutdown > /dev/null 2>&1
+  $ECHO "Installing Test Databases"
+  mysql_install_db
 
 #do not automagically start deamons if we are in gdb or running only one test
 #case
-if [ -z "$DO_GDB" ] && [ -z "$USE_RUNNING_SERVER" ] && [ -z "$DO_DDD" ]
-then
- mysql_start
+  if [ -z "$DO_GDB" ] && [ -z "$DO_DDD" ]
+  then
+    mysql_start
+  fi
+  $ECHO  "Loading Standard Test Databases"
+  mysql_loadstd
 fi
 
-$ECHO  "Loading Standard Test Databases"
-mysql_loadstd
 
 $ECHO  "Starting Tests"
 
@@ -637,6 +646,7 @@ then
   do
     run_testcase $tf
   done
+  $RM -f $TIMEFILE	# Remove for full test
  fi
 else 
 tname=`$BASENAME $1 .test`
@@ -650,8 +660,6 @@ fi
 
 $ECHO $DASH72
 $ECHO
-
-$RM -f $TIMEFILE
 
 if [ -z "$DO_GDB" ] && [ -z "$USE_RUNNING_SERVER" ] && [ -z "$DO_DDD" ]
 then

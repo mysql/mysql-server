@@ -274,86 +274,86 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     }
     else
     {
-    /* Test if prefix compression */
-    if (keydef->flag & HA_PACK_KEY)
-    {
-      /* Can't use space_compression on number keys */
-      if ((keydef->seg[0].flag & HA_SPACE_PACK) &&
-	  keydef->seg[0].type == (int) HA_KEYTYPE_NUM)
-	keydef->seg[0].flag&= ~HA_SPACE_PACK;
+      /* Test if prefix compression */
+      if (keydef->flag & HA_PACK_KEY)
+      {
+	/* Can't use space_compression on number keys */
+	if ((keydef->seg[0].flag & HA_SPACE_PACK) &&
+	    keydef->seg[0].type == (int) HA_KEYTYPE_NUM)
+	  keydef->seg[0].flag&= ~HA_SPACE_PACK;
 
-      /* Only use HA_PACK_KEY if the first segment is a variable length key */
-      if (!(keydef->seg[0].flag & (HA_SPACE_PACK | HA_BLOB_PART |
-				   HA_VAR_LENGTH)))
-      {
-	/* pack relative to previous key */
-	keydef->flag&= ~HA_PACK_KEY;
-	keydef->flag|= HA_BINARY_PACK_KEY | HA_VAR_LENGTH_KEY;
-      }
-      else
-      {
-	keydef->seg[0].flag|=HA_PACK_KEY;	/* for easyer intern test */
-	keydef->flag|=HA_VAR_LENGTH_KEY;
-	options|=HA_OPTION_PACK_KEYS;		/* Using packed keys */
-      }
-    }
-    if (keydef->flag & HA_BINARY_PACK_KEY)
-      options|=HA_OPTION_PACK_KEYS;		/* Using packed keys */
-
-    if (keydef->flag & HA_AUTO_KEY)
-      share.base.auto_key=i+1;
-    for (j=0, keyseg=keydef->seg ; j < keydef->keysegs ; j++, keyseg++)
-    {
-      /* numbers are stored with high by first to make compression easier */
-      switch (keyseg->type) {
-      case HA_KEYTYPE_SHORT_INT:
-      case HA_KEYTYPE_LONG_INT:
-      case HA_KEYTYPE_FLOAT:
-      case HA_KEYTYPE_DOUBLE:
-      case HA_KEYTYPE_USHORT_INT:
-      case HA_KEYTYPE_ULONG_INT:
-      case HA_KEYTYPE_LONGLONG:
-      case HA_KEYTYPE_ULONGLONG:
-      case HA_KEYTYPE_INT24:
-      case HA_KEYTYPE_UINT24:
-      case HA_KEYTYPE_INT8:
-	keyseg->flag|= HA_SWAP_KEY;
-	/* fall through */
-      default:
-	break;
-      }
-      if (keyseg->flag & HA_SPACE_PACK)
-      {
-	keydef->flag |= HA_SPACE_PACK_USED | HA_VAR_LENGTH_KEY;
-	options|=HA_OPTION_PACK_KEYS;		/* Using packed keys */
-	length++;				/* At least one length byte */
-	min_key_length_skipp+=keyseg->length;
-	if (keyseg->length >= 255)
-	{					/* prefix may be 3 bytes */
-	  min_key_length_skipp+=2;
-	  length+=2;
+	/* Only use HA_PACK_KEY if the first segment is a variable length key */
+	if (!(keydef->seg[0].flag & (HA_SPACE_PACK | HA_BLOB_PART |
+				     HA_VAR_LENGTH)))
+	{
+	  /* pack relative to previous key */
+	  keydef->flag&= ~HA_PACK_KEY;
+	  keydef->flag|= HA_BINARY_PACK_KEY | HA_VAR_LENGTH_KEY;
+	}
+	else
+	{
+	  keydef->seg[0].flag|=HA_PACK_KEY;	/* for easyer intern test */
+	  keydef->flag|=HA_VAR_LENGTH_KEY;
+	  options|=HA_OPTION_PACK_KEYS;		/* Using packed keys */
 	}
       }
-      if (keyseg->flag & (HA_VAR_LENGTH | HA_BLOB_PART))
-      {
-	keydef->flag|=HA_VAR_LENGTH_KEY;
-	length++;				/* At least one length byte */
+      if (keydef->flag & HA_BINARY_PACK_KEY)
 	options|=HA_OPTION_PACK_KEYS;		/* Using packed keys */
-	min_key_length_skipp+=keyseg->length;
-	if (keyseg->length >= 255)
-	{					/* prefix may be 3 bytes */
-	  min_key_length_skipp+=2;
-	  length+=2;
-	}
-      }
-      key_length+= keyseg->length;
-      if (keyseg->null_bit)
+
+      if (keydef->flag & HA_AUTO_KEY)
+	share.base.auto_key=i+1;
+      for (j=0, keyseg=keydef->seg ; j < keydef->keysegs ; j++, keyseg++)
       {
-	key_length++;
-	options|=HA_OPTION_PACK_KEYS;
-	keyseg->flag|=HA_NULL_PART;
-	keydef->flag|=HA_VAR_LENGTH_KEY | HA_NULL_PART_KEY;
-        }
+	/* numbers are stored with high by first to make compression easier */
+	switch (keyseg->type) {
+	case HA_KEYTYPE_SHORT_INT:
+	case HA_KEYTYPE_LONG_INT:
+	case HA_KEYTYPE_FLOAT:
+	case HA_KEYTYPE_DOUBLE:
+	case HA_KEYTYPE_USHORT_INT:
+	case HA_KEYTYPE_ULONG_INT:
+	case HA_KEYTYPE_LONGLONG:
+	case HA_KEYTYPE_ULONGLONG:
+	case HA_KEYTYPE_INT24:
+	case HA_KEYTYPE_UINT24:
+	case HA_KEYTYPE_INT8:
+	  keyseg->flag|= HA_SWAP_KEY;
+	  /* fall through */
+	default:
+	  break;
+	}
+	if (keyseg->flag & HA_SPACE_PACK)
+	{
+	  keydef->flag |= HA_SPACE_PACK_USED | HA_VAR_LENGTH_KEY;
+	  options|=HA_OPTION_PACK_KEYS;		/* Using packed keys */
+	  length++;				/* At least one length byte */
+	  min_key_length_skipp+=keyseg->length;
+	  if (keyseg->length >= 255)
+	  {					/* prefix may be 3 bytes */
+	    min_key_length_skipp+=2;
+	    length+=2;
+	  }
+	}
+	if (keyseg->flag & (HA_VAR_LENGTH | HA_BLOB_PART))
+	{
+	  keydef->flag|=HA_VAR_LENGTH_KEY;
+	  length++;				/* At least one length byte */
+	  options|=HA_OPTION_PACK_KEYS;		/* Using packed keys */
+	  min_key_length_skipp+=keyseg->length;
+	  if (keyseg->length >= 255)
+	  {					/* prefix may be 3 bytes */
+	    min_key_length_skipp+=2;
+	    length+=2;
+	  }
+	}
+	key_length+= keyseg->length;
+	if (keyseg->null_bit)
+	{
+	  key_length++;
+	  options|=HA_OPTION_PACK_KEYS;
+	  keyseg->flag|=HA_NULL_PART;
+	  keydef->flag|=HA_VAR_LENGTH_KEY | HA_NULL_PART_KEY;
+	}
       }
     } /* if HA_FULLTEXT */
     key_segs+=keydef->keysegs;
