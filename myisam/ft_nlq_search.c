@@ -90,6 +90,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 
   /* Skip rows inserted by current inserted */
   for (r=_mi_search(info, keyinfo, keybuff, keylen, SEARCH_FIND, key_root) ;
+       (subkeys=ft_sintXkorr(info->lastkey+info->lastkey_length-extra)) > 0 &&
        !r && info->lastpos >= info->state->data_file_length ;
        r= _mi_search_next(info, keyinfo, info->lastkey,
                           info->lastkey_length, SEARCH_BIGGER, key_root))
@@ -105,7 +106,6 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
                         info->lastkey_length-extra-1, keybuff+1,keylen-1,0,0))
      break;
 
-    subkeys=ft_sintXkorr(info->lastkey+info->lastkey_length-extra);
     if (subkeys<0)
     {
       if (doc_cnt)
@@ -119,7 +119,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
       key_root=info->lastpos;
       keylen=0;
       r=_mi_search_first(info, keyinfo, key_root);
-      continue;
+      goto do_skip;
     }
 #if HA_FT_WTYPE == HA_KEYTYPE_FLOAT
     tmp_weight=*(float*)&subkeys;
@@ -157,8 +157,9 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
     else
 	r=_mi_search(info, keyinfo, info->lastkey, info->lastkey_length,
                      SEARCH_BIGGER, key_root);
-
-    while (!r && info->lastpos >= info->state->data_file_length)
+do_skip:
+    while ((subkeys=ft_sintXkorr(info->lastkey+info->lastkey_length-extra)) > 0 &&
+           !r && info->lastpos >= info->state->data_file_length)
       r= _mi_search_next(info, keyinfo, info->lastkey, info->lastkey_length,
                          SEARCH_BIGGER, key_root);
 
