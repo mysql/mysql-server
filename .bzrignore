@@ -425,3 +425,7 @@ mysql-test/var/slave-data/mysql-bin.012
 mysql-test/var/slave-data/mysql-bin.013
 mysql-test/var/slave-data/mysql-bin.014
 mysql-test/var/slave-data/mysql-bin.index
+BitKeeper/tmp/applied.list
+BitKeeper/tmp/backup.list
+BitKeeper/tmp/backup.sfio
+BitKeeper/tmp/sfile.list
