@@ -425,7 +425,7 @@ int yylex(void *arg)
   uint length;
   enum lex_states state,prev_state;
   LEX	*lex=current_lex;
-  uchar *state_map = lex->thd->state_map;
+  uchar *state_map = global_state_map; // thd->lex->state_map;
   YYSTYPE *yylval=(YYSTYPE*) arg;
 
   lex->yylval=yylval;			// The global state
