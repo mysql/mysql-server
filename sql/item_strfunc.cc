@@ -2412,14 +2412,23 @@ String *Item_load_file::val_str(String *str)
   String *file_name;
   File file;
   MY_STAT stat_info;
+  char path[FN_REFLEN];
   DBUG_ENTER("load_file");
 
-  if (!(file_name= args[0]->val_str(str)) ||
+  if (!(file_name= args[0]->val_str(str))
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-      !(current_thd->master_access & FILE_ACL) ||
+      || !(current_thd->master_access & FILE_ACL)
 #endif
-      !my_stat(file_name->c_ptr(), &stat_info, MYF(MY_WME)))
+      )
     goto err;
+
+  (void) fn_format(path, file_name->c_ptr(),
+		   mysql_real_data_home, "", MY_RELATIVE_PATH);
+  unpack_filename(path, path);		/* Convert to system format */
+
+  if (!my_stat(path, &stat_info, MYF(MY_WME)))
+    goto err;
+
   if (!(stat_info.st_mode & S_IROTH))
   {
     /* my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), file_name->c_ptr()); */
