@@ -3684,7 +3684,7 @@ join_free(JOIN *join, bool full)
       free_io_cache(join->table[join->const_tables]);
       filesort_free_buffers(join->table[join->const_tables]);
     }
-    if (join->select_lex->dependent && !full)
+    if (!full && join->select_lex->dependent)
     {
       for (tab=join->join_tab,end=tab+join->tables ; tab != end ; tab++)
       {
@@ -3736,7 +3736,8 @@ join_free(JOIN *join, bool full)
     We are not using tables anymore
     Unlock all tables. We may be in an INSERT .... SELECT statement.
   */
-  if (join->lock && join->thd->lock &&
+  if ((full || !join->select_lex->dependent) &&
+      join->lock && join->thd->lock &&
       !(join->select_options & SELECT_NO_UNLOCK))
   {
     mysql_unlock_read_tables(join->thd, join->lock);// Don't free join->lock
