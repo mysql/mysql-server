@@ -200,10 +200,8 @@ public:
     }
   void process(Append_block_log_event *ae)
     {
-      Create_file_log_event* ce= 0;
-      
-      if (ae->file_id < file_names.elements)
-        ce= *((Create_file_log_event**)file_names.buffer + ae->file_id);
+      Create_file_log_event* ce= (ae->file_id < file_names.elements) ?
+          *((Create_file_log_event**)file_names.buffer + ae->file_id) : 0;
         
       if (ce)
         append_to_file(ce->fname,O_APPEND|O_BINARY|O_WRONLY,ae->block,ae->block_len);
