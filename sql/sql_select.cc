@@ -547,7 +547,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     for (uint i_h = join.const_tables; i_h < join.tables; i_h++)
     {
       TABLE*	  table_h = join.join_tab[i_h].table;
-      if (table_h->db_type == DB_TYPE_INNOBASE)
+      if (table_h->db_type == DB_TYPE_INNODB)
 	table_h->file->extra(HA_EXTRA_DONT_USE_CURSOR_TO_UPDATE);
     }
   }

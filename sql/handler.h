@@ -111,7 +111,7 @@ enum db_type { DB_TYPE_UNKNOWN=0,DB_TYPE_DIAB_ISAM=1,
 	       DB_TYPE_HASH,DB_TYPE_MISAM,DB_TYPE_PISAM,
 	       DB_TYPE_RMS_ISAM, DB_TYPE_HEAP, DB_TYPE_ISAM,
 	       DB_TYPE_MRG_ISAM, DB_TYPE_MYISAM, DB_TYPE_MRG_MYISAM,
-	       DB_TYPE_BERKELEY_DB, DB_TYPE_INNOBASE, DB_TYPE_GEMINI,
+	       DB_TYPE_BERKELEY_DB, DB_TYPE_INNODB, DB_TYPE_GEMINI,
 	       DB_TYPE_DEFAULT };
 
 enum row_type { ROW_TYPE_DEFAULT, ROW_TYPE_FIXED, ROW_TYPE_DYNAMIC,
@@ -336,6 +336,8 @@ extern TYPELIB ha_table_typelib, tx_isolation_typelib;
 #define ha_rollback_stmt(thd) (ha_rollback_trans((thd), &((thd)->transaction.stmt)))
 #define ha_commit(thd) (ha_commit_trans((thd), &((thd)->transaction.all)))
 #define ha_rollback(thd) (ha_rollback_trans((thd), &((thd)->transaction.all)))
+
+#define ha_supports_generate(T) (T != DB_TYPE_INNODB)
 
 handler *get_new_handler(TABLE *table, enum db_type db_type);
 my_off_t ha_get_ptr(byte *ptr, uint pack_length);

@@ -78,7 +78,7 @@ enum db_type ha_checktype(enum db_type database_type)
     return(berkeley_skip ? DB_TYPE_MYISAM : database_type);
 #endif
 #ifdef HAVE_INNOBASE_DB
-  case DB_TYPE_INNOBASE:
+  case DB_TYPE_INNODB:
     return(innodb_skip ? DB_TYPE_MYISAM : database_type);
 #endif
 #ifdef HAVE_GEMINI_DB
@@ -124,7 +124,7 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
     return new ha_berkeley(table);
 #endif
 #ifdef HAVE_INNOBASE_DB
-  case DB_TYPE_INNOBASE:
+  case DB_TYPE_INNODB:
     return new ha_innobase(table);
 #endif
 #ifdef HAVE_GEMINI_DB
@@ -801,8 +801,10 @@ int handler::index_next_same(byte *buf, const byte *key, uint keylen)
 
 
 /*
-  The following is only needed if we would like to use the database
-  for internal temporary tables
+  This is called to delete all rows in a table
+  If the handler don't support this, then this function will
+  return HA_ERR_WRONG_COMMAND and MySQL will delete the rows one
+  by one.
 */
 
 int handler::delete_all_rows()

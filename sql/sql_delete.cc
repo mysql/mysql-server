@@ -15,113 +15,28 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/* Delete of records */
+/*
+  Delete of records and truncate of tables.
 
-/* Multi-table deletes were introduced by Monty and Sinisa */
+  Multi-table deletes were introduced by Monty and Sinisa
+*/
+
+
 
 #include "mysql_priv.h"
 #include "ha_innobase.h"
 #include "sql_select.h"
 
-/*
-  Optimize delete of all rows by doing a full generate of the table
-  This will work even if the .ISM and .ISD tables are destroyed
-*/
-
-int generate_table(THD *thd, TABLE_LIST *table_list, TABLE *locked_table)
-{
-  char path[FN_REFLEN];
-  int error;
-  TABLE **table_ptr;
-  DBUG_ENTER("generate_table");
-
-  if (wait_if_global_read_lock(thd,0))
-    DBUG_RETURN(1);
-  thd->proc_info="generate_table";
- 
-    /* If it is a temporary table, close and regenerate it */
-  if ((table_ptr=find_temporary_table(thd,table_list->db,
-				      table_list->real_name)))
-  {
-    TABLE *table= *table_ptr;
-    HA_CREATE_INFO create_info;
-    table->file->info(HA_STATUS_AUTO | HA_STATUS_NO_LOCK);
-    bzero((char*) &create_info,sizeof(create_info));
-    create_info.auto_increment_value= table->file->auto_increment_value;
-    db_type table_type=table->db_type;
-
-    strmov(path,table->path);
-    *table_ptr= table->next;		// Unlink table from list
-    close_temporary(table,0);
-    *fn_ext(path)=0;				// Remove the .frm extension
-    ha_create_table(path, &create_info,1);
-    if ((error= (int) !(open_temporary_table(thd, path, table_list->db,
-					     table_list->real_name, 1))))
-    {
-      (void) rm_temporary_table(table_type, path);
-    }
-  }
-  else
-  {
-    (void) sprintf(path,"%s/%s/%s%s",mysql_data_home,table_list->db,
-		   table_list->real_name,reg_ext);
-    fn_format(path,path,"","",4);
-    VOID(pthread_mutex_lock(&LOCK_open));
-    if (locked_table)
-      mysql_lock_abort(thd,locked_table);	 // end threads waiting on lock
-    // close all copies in use
-    if (remove_table_from_cache(thd,table_list->db,table_list->real_name))
-    {
-      if (!locked_table)
-      {
-	VOID(pthread_mutex_unlock(&LOCK_open));
-	start_waiting_global_read_lock(thd);	
-	DBUG_RETURN(1);				// We must get a lock on table
-      }
-    }
-    if (locked_table)
-      locked_table->file->extra(HA_EXTRA_FORCE_REOPEN);
-    if (thd->locked_tables)
-      close_data_tables(thd,table_list->db,table_list->real_name);
-    else
-      close_thread_tables(thd,1);
-    HA_CREATE_INFO create_info;
-    bzero((char*) &create_info,sizeof(create_info));
-    *fn_ext(path)=0;				// Remove the .frm extension
-    error= ha_create_table(path,&create_info,1) ? -1 : 0;
-    if (thd->locked_tables && reopen_tables(thd,1,0))
-      error= -1;
-    VOID(pthread_mutex_unlock(&LOCK_open));
-  }
-  if (!error)
-  {
-    mysql_update_log.write(thd,thd->query,thd->query_length);
-    if (mysql_bin_log.is_open())
-    {
-      Query_log_event qinfo(thd, thd->query);
-      mysql_bin_log.write(&qinfo);
-    }
-    send_ok(&thd->net);		// This should return record count
-  }
-  start_waiting_global_read_lock(thd);
-  DBUG_RETURN(error ? -1 : 0);
-}
-
-
-int mysql_delete(THD *thd,
-                 TABLE_LIST *table_list,
-                 COND *conds,
-                 ORDER *order,
-                 ha_rows limit,
-		 thr_lock_type lock_type,
-                 ulong options)
+int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
+                 ha_rows limit, thr_lock_type lock_type, ulong options)
 {
   int		error;
   TABLE		*table;
-  SQL_SELECT	*select;
+  SQL_SELECT	*select=0;
   READ_RECORD	info;
   bool 		using_limit=limit != HA_POS_ERROR;
-  bool	        use_generate_table,using_transactions;
+  bool	        using_transactions;
+  ha_rows	deleted;
   DBUG_ENTER("mysql_delete");
 
   if (!table_list->db)
@@ -132,33 +47,32 @@ int mysql_delete(THD *thd,
     DBUG_RETURN(1);
   }
 
-  use_generate_table= (!using_limit && !conds &&
-		       !(specialflag &
-			 (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) &&
-		       !(thd->options &
-			 (OPTION_NOT_AUTO_COMMIT | OPTION_BEGIN)));
-#ifdef HAVE_INNOBASE_DB
-  /* We need to add code to not generate table based on the table type */
-  if (!innodb_skip)
-    use_generate_table=0;		// Innobase can't use re-generate table
-#endif
-  if (use_generate_table && ! thd->open_tables)
-  {
-    error=generate_table(thd,table_list,(TABLE*) 0);
-    if (error <= 0)
-      DBUG_RETURN(error);			// Error or ok
-  }
-  if (!(table = open_ltable(thd,table_list,
-			    limit != HA_POS_ERROR ? TL_WRITE_LOW_PRIORITY :
-			    lock_type)))
+  if (!(table = open_ltable(thd,table_list, lock_type)))
     DBUG_RETURN(-1);
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   thd->proc_info="init";
-  if (use_generate_table)
-    DBUG_RETURN(generate_table(thd,table_list,table));
   table->map=1;
   if (setup_conds(thd,table_list,&conds))
     DBUG_RETURN(-1);
+
+  /* Test if the user wants to delete all rows */
+  if (!using_limit && (!conds || conds->const_item()) &&
+      !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)))
+  {
+    deleted= table->file->records;
+    if (!(error=table->file->delete_all_rows()))
+    {
+      error= -1;				// ok
+      goto cleanup;
+    }
+    if (error != HA_ERR_WRONG_COMMAND)
+    {
+      table->file->print_error(error,MYF(0));
+      error=0;
+      goto cleanup;
+    }
+    /* Handler didn't support fast delete; Delete rows one by one */
+  }
 
   table->used_keys=table->quick_keys=0;		// Can't use 'only index'
   select=make_select(table,0,0,conds,&error);
@@ -215,7 +129,7 @@ int mysql_delete(THD *thd,
   }
 
   init_read_record(&info,thd,table,select,1,1);
-  ulong deleted=0L;
+  deleted=0L;
   thd->proc_info="updating";
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
@@ -244,6 +158,8 @@ int mysql_delete(THD *thd,
   (void) table->file->extra(HA_EXTRA_READCHECK);
   if (options & OPTION_QUICK)
     (void) table->file->extra(HA_EXTRA_NORMAL);
+
+cleanup:
   using_transactions=table->file->has_transactions();
   if (deleted && (error <= 0 || !using_transactions))
   {
@@ -554,4 +470,91 @@ bool multi_delete::send_eof()
   }
   ::send_ok(&thd->net,deleted);
   return 0;
+}
+
+
+/***************************************************************************
+* TRUNCATE TABLE
+****************************************************************************/
+
+/*
+  Optimize delete of all rows by doing a full generate of the table
+  This will work even if the .ISM and .ISD tables are destroyed
+
+  dont_send_ok should be set if:
+  - We should always wants to generate the table (even if the table type
+    normally can't safely do this.
+  - We don't want an ok to be sent to the end user.
+  - We don't want to log the truncate command
+*/
+
+int mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
+{
+  HA_CREATE_INFO create_info;
+  char path[FN_REFLEN];
+  TABLE **table_ptr;
+  int error;
+  DBUG_ENTER("mysql_truncate");
+
+  /* If it is a temporary table, close and regenerate it */
+  if ((table_ptr=find_temporary_table(thd,table_list->db,
+				      table_list->real_name)))
+  {
+    TABLE *table= *table_ptr;
+    HA_CREATE_INFO create_info;
+    table->file->info(HA_STATUS_AUTO | HA_STATUS_NO_LOCK);
+    bzero((char*) &create_info,sizeof(create_info));
+    create_info.auto_increment_value= table->file->auto_increment_value;
+    db_type table_type=table->db_type;
+
+    strmov(path,table->path);
+    *table_ptr= table->next;			// Unlink table from list
+    close_temporary(table,0);
+    *fn_ext(path)=0;				// Remove the .frm extension
+    ha_create_table(path, &create_info,1);
+    if ((error= (int) !(open_temporary_table(thd, path, table_list->db,
+					     table_list->real_name, 1))))
+      (void) rm_temporary_table(table_type, path);
+    DBUG_RETURN(error ? -1 : 0);
+  }
+
+  (void) sprintf(path,"%s/%s/%s%s",mysql_data_home,table_list->db,
+		 table_list->real_name,reg_ext);
+  fn_format(path,path,"","",4);
+
+  if (!dont_send_ok)
+  {
+    db_type table_type;
+    if ((table_type=get_table_type(path)) == DB_TYPE_UNKNOWN)
+    {
+      my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->real_name);
+      DBUG_RETURN(-1);
+    }
+    if (!ha_supports_generate(table_type))
+    {
+      /* Probably InnoDB table */
+      DBUG_RETURN(mysql_delete(thd,table_list, (COND*) 0, (ORDER*) 0,
+			       (ha_rows) 0, TL_WRITE, 0));
+    }
+    if (lock_and_wait_for_table_name(thd, table_list))
+      DBUG_RETURN(-1);
+  }
+
+  bzero((char*) &create_info,sizeof(create_info));
+  *fn_ext(path)=0;				// Remove the .frm extension
+  error= ha_create_table(path,&create_info,1) ? -1 : 0;
+  VOID(pthread_mutex_unlock(&LOCK_open));
+
+  if (!error && !dont_send_ok)
+  {
+    mysql_update_log.write(thd,thd->query,thd->query_length);
+    if (mysql_bin_log.is_open())
+    {
+      Query_log_event qinfo(thd, thd->query);
+      mysql_bin_log.write(&qinfo);
+    }
+    send_ok(&thd->net);		// This should return record count
+  }
+  unlock_table_name(thd, table_list);
+  DBUG_RETURN(error ? -1 : 0);
 }

@@ -326,6 +326,7 @@ Post-installation Setup and Testing
 
 Upgrading/Downgrading MySQL
 
+* Upgrading-from-3.23::         
 * Upgrading-from-3.22::         Upgrading from a 3.22 version to 3.23
 * Upgrading-from-3.21::         Upgrading from a 3.21 version to 3.22
 * Upgrading-from-3.20::         Upgrading from a 3.20 version to 3.21
@@ -643,7 +644,6 @@ Replication in MySQL
 
 MySQL Full-text Search
 
-* Fulltext Search::
 * Fulltext Fine-tuning::        
 * Fulltext Features to Appear in MySQL 4.0::  
 * Fulltext TODO::               
@@ -10828,6 +10828,7 @@ particularly if you notice symptoms such as all your @code{DBI} scripts
 dumping core after you upgrade @strong{MySQL}.
 
 @menu
+* Upgrading-from-3.23::         
 * Upgrading-from-3.22::         Upgrading from a 3.22 version to 3.23
 * Upgrading-from-3.21::         Upgrading from a 3.21 version to 3.22
 * Upgrading-from-3.20::         Upgrading from a 3.20 version to 3.21
@@ -10835,8 +10836,31 @@ dumping core after you upgrade @strong{MySQL}.
 @end menu
 
 @cindex compatibility, between MySQL versions
+@cindex upgrading, 3.23 to 4.0
+@node Upgrading-from-3.23, Upgrading-from-3.22, Upgrade, Upgrade
+@subsection Upgrading From Version 3.23 to Version 4.0
+
+You can use your old data files without any modification with Version 4.0
+
+All old clients will work with a Version 4.0 server.
+
+The following lists tell what you have to watch out for when upgrading to
+Version 4.0;
+
+@itemize @bullet
+@item
+You should use @code{TRUNCATE TABLE} when you want to delete all rows
+from a table and you don't care of how many rows where deleted.
+(Because @code{TRUNCATE TABLE} is faster than @code{DELETE FROM table_name}).
+@item
+You will get an error if you have an active @code{LOCK TABLES} or
+transaction when trying to execute @code{TRUNCATE TABLE} or @code{DROP
+DATABASE}.
+@end itemize
+
+@cindex compatibility, between MySQL versions
 @cindex upgrading, 3.22 to 3.23
-@node Upgrading-from-3.22, Upgrading-from-3.21, Upgrade, Upgrade
+@node Upgrading-from-3.22, Upgrading-from-3.21, Upgrading-from-3.23, Upgrade
 @subsection Upgrading From Version 3.22 to Version 3.23
 
 @strong{MySQL} Version 3.23 supports tables of the new @code{MyISAM} type and
@@ -20108,16 +20132,19 @@ the @code{LIMIT} value.
 TRUNCATE TABLE table_name
 @end example
 
-Is in 3.23 and the same thing as @code{DELETE FROM table_name}. @xref{DELETE}.
-The differences are:
+In 3.23 @code{TRUNCATE TABLE} is mapped to
+@code{COMMIT ; DELETE FROM table_name}. @xref{DELETE}.
+
+The differences between @code{TRUNCATE TABLE} and @code{DELETE FROM ..}
+are:
 
 @itemize @bullet
 @item
-Implemented as a drop and re-create of the table, which makes this
-much faster when deleting many rows.
+Truncates does a drop and re-create of the table, which is much faster
+than deleting rows one by one.
 @item
-Not transaction-safe; @code{TRUNCATE TABLE} will automatically end the current
-transaction as if @code{COMMIT} would have been called.
+Not transaction-safe; You will get an error if you have an active
+transaction or an active table lock.
 @item
 Doesn't return the number of deleted rows.
 @item
@@ -25970,7 +25997,7 @@ Finland
 
 @cindex tables, @code{BDB}
 @cindex tables, @code{Berkeley DB}
-@node BDB, , InnoDB, Table types
+@node BDB,  , InnoDB, Table types
 @section BDB or Berkeley_DB Tables
 
 @menu
@@ -45721,6 +45748,13 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @appendixsubsec Changes in release 4.0.0
 
 @itemize @bullet
+@item
+@code{TRUNCATE TABLE} and @code{DELETE FROM table_name} are now separate
+functions. One bonus is that @code{DELETE FROM table_name} now returns
+the number of deleted rows.
+@item
+@code{DROP DATABASE} now executes a @code{DROP TABLE} on all tables in
+the database, which fixes a problem with InnoDB tables.
 @item
 Changed WEEK(#,0) to match the calender in the USA.
 @item

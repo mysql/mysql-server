@@ -243,6 +243,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       table->time_stamp=0;
     table->next_number_field=table->found_next_number_field;
     VOID(table->file->extra(HA_EXTRA_WRITE_CACHE));
+    VOID(table->file->extra(HA_EXTRA_BULK_INSERT_BEGIN));
     if (handle_duplicates == DUP_IGNORE ||
 	handle_duplicates == DUP_REPLACE)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
@@ -252,9 +253,10 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       error=read_fixed_length(thd,info,table,fields,read_info);
     else
       error=read_sep_field(thd,info,table,fields,read_info,*enclosed);
-    if (table->file->extra(HA_EXTRA_NO_CACHE) ||
-	table->file->activate_all_index(thd))
-      error=1; /* purecov: inspected */
+    if (table->file->extra(HA_EXTRA_NO_CACHE))
+      error=1;					/* purecov: inspected */
+    if (table->file->activate_all_index(thd))
+      error=1;					/* purecov: inspected */
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     table->time_stamp=save_time_stamp;
     table->next_number_field=0;

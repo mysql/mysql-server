@@ -890,7 +890,8 @@ int ha_myisam::extra(enum ha_extra_function operation)
 {
   if (((specialflag & SPECIAL_SAFE_MODE) || (test_flags & TEST_NO_EXTRA)) &&
       (operation == HA_EXTRA_WRITE_CACHE ||
-       operation == HA_EXTRA_KEYREAD))
+       operation == HA_EXTRA_KEYREAD ||
+       operation == HA_EXTRA_BULK_INSERT_BEGIN))
     return 0;
   return mi_extra(file,operation);
 }
