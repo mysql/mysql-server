@@ -669,7 +669,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   DBUG_ENTER("create_table_from_items");
 
   /* Add selected items to field list */
-  List_iterator<Item> it(*items);
+  List_iterator_fast<Item> it(*items);
   Item *item;
   Field *tmp_field;
   tmp_table.db_create_options=0;

@@ -1,0 +1,60 @@
+a	b
+1	a
+2	b
+3	c
+4	d
+5	f
+6	e
+a	b
+1	a
+2	b
+3	c
+3	c
+3	c
+4	d
+5	f
+6	e
+a	b
+1	a
+2	b
+3	c
+3	c
+3	c
+4	d
+6	e
+5	f
+a	b
+1	a
+2	b
+3	c
+3	c
+3	c
+4	d
+5	f
+6	e
+7	g
+0	#
+0	#
+1	a
+2	b
+3	c
+3	c
+3	c
+4	d
+5	f
+6	e
+7	g
+a	b
+1	a
+2	b
+3	c
+t1	b	count(*)
+t1	a	1
+t1	b	1
+t1	c	2
+t2	c	1
+t2	d	1
+t2	e	1
+t2	f	1
+table	type	possible_keys	key	key_len	ref	rows	Extra
+t2	ALL	NULL	NULL	NULL	NULL	4	

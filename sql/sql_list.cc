@@ -20,3 +20,5 @@
 #endif
 
 #include "mysql_priv.h"
+
+list_node end_of_list;

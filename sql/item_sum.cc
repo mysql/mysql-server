@@ -30,7 +30,7 @@ Item_sum::Item_sum(List<Item> &list)
   if ((args=(Item**) sql_alloc(sizeof(Item*)*arg_count)))
   {
     uint i=0;
-    List_iterator<Item> li(list);
+    List_iterator_fast<Item> li(list);
     Item *item;
 
     while ((item=li++))
@@ -790,74 +790,71 @@ String *Item_std_field::val_str(String *str)
 
 static int simple_raw_key_cmp(void* arg, byte* key1, byte* key2)
 {
-  return memcmp(key1, key2, (int)arg);
+  return memcmp(key1, key2, (int) arg);
 }
 
 static int simple_str_key_cmp(void* arg, byte* key1, byte* key2)
 {
-  return my_sortcmp(key1, key2, (int)arg);
+  return my_sortcmp(key1, key2, (int) arg);
 }
 
-// did not make this one static - at least gcc gets confused when
-// I try to declare a static function as a friend. If you can figure
-// out the syntax to make a static function a friend, make this one
-// static
+/*
+  Did not make this one static - at least gcc gets confused when
+  I try to declare a static function as a friend. If you can figure
+  out the syntax to make a static function a friend, make this one
+  static
+*/
+
 int composite_key_cmp(void* arg, byte* key1, byte* key2)
 {
   Item_sum_count_distinct* item = (Item_sum_count_distinct*)arg;
-  Field** field = item->table->field, **field_end;
-  field_end = field + item->table->fields;
-  for(; field < field_end; ++field)
-    {
-      int res;
-      Field* f = *field;
-      int len = f->pack_length();
-      switch((*field)->type())
-	{
-	case FIELD_TYPE_STRING:
-	case FIELD_TYPE_VAR_STRING:
-	  res = f->key_cmp(key1, key2);
-	  break;
-	default:
-	  res = memcmp(key1, key2, len);
-	  break;
-	}
-      if(res)
-	return res;
-      key1 += len;
-      key2 += len;
-    }
+  Field **field    = item->table->field;
+  Field **field_end= field + item->table->fields;
+  uint32 *lengths=item->field_lengths;
+  for (; field < field_end; ++field)
+  {
+    Field* f = *field;
+    int len = *lengths++;
+    int res = f->key_cmp(key1, key2);
+    if (res)
+      return res;
+    key1 += len;
+    key2 += len;
+  }
   return 0;
 }
 
-// helper function for walking the tree when we dump it to MyISAM -
-// tree_walk will call it for each
-// leaf
+/*
+  helper function for walking the tree when we dump it to MyISAM -
+  tree_walk will call it for each leaf
+*/
 
 int dump_leaf(byte* key, uint32 count __attribute__((unused)),
 		     Item_sum_count_distinct* item)
 {
   char* buf = item->table->record[0];
   int error;
-  // the first item->rec_offset bytes are taken care of with
-  // restore_record(table,2) in setup()
+  /*
+    The first item->rec_offset bytes are taken care of with
+    restore_record(table,2) in setup()
+  */
   memcpy(buf + item->rec_offset, key, item->tree.size_of_element);
   if ((error = item->table->file->write_row(buf)))
   {
-        if (error != HA_ERR_FOUND_DUPP_KEY &&
-	    error != HA_ERR_FOUND_DUPP_UNIQUE)
-	  return 1;
+    if (error != HA_ERR_FOUND_DUPP_KEY &&
+	error != HA_ERR_FOUND_DUPP_UNIQUE)
+      return 1;
   }
-
   return 0;
 }
+
 
 Item_sum_count_distinct::~Item_sum_count_distinct()
 {
   if (table)
     free_tmp_table(current_thd, table);
   delete tmp_table_param;
-  if(use_tree)
+  if (use_tree)
     delete_tree(&tree);
 }
 
@@ -895,91 +892,108 @@ bool Item_sum_count_distinct::setup(THD *thd)
     tmp_table_param->cleanup();
   }
   if (!(table=create_tmp_table(thd, tmp_table_param, list, (ORDER*) 0, 1,
-			       0, 0, current_lex->select->options | thd->options)))
+			       0, 0,
+			       current_lex->select->options | thd->options)))
     return 1;
   table->file->extra(HA_EXTRA_NO_ROWS);		// Don't update rows
   table->no_rows=1;
 
   
-  if(table->db_type == DB_TYPE_HEAP) // no blobs, otherwise it would be
-    // MyISAM
-    {
-      qsort_cmp2 compare_key;
-      void* cmp_arg;
-      int key_len;
+  // no blobs, otherwise it would be MyISAM
+  if (table->db_type == DB_TYPE_HEAP)
+  {
+    qsort_cmp2 compare_key;
+    void* cmp_arg;
+    int key_len;
 
-      // to make things easier for dump_leaf if we ever have to dump to
-      // MyISAM
-      restore_record(table,2);
+    // to make things easier for dump_leaf if we ever have to dump to MyISAM
+    restore_record(table,2);
       
-      if(table->fields == 1) // if we have only one field, which is
-	// the most common use of count(distinct), it is much faster
-	// to use a simpler key compare method that can take advantage
-	// of not having to worry about other fields
-	{
-	  Field* field = table->field[0];
-	  switch(field->type())
-	    {
-	      // if we have a string, we must take care of charsets
-	      // and case sensitivity
-	    case FIELD_TYPE_STRING:
-	    case FIELD_TYPE_VAR_STRING:
-	      compare_key = (qsort_cmp2)(field->binary() ? simple_raw_key_cmp:
-					 simple_str_key_cmp);
-	      break;
-	    default: // since at this point we cannot have blobs
-	      // anything else can be compared with memcmp
-	      compare_key = (qsort_cmp2)simple_raw_key_cmp;
-	      break;
-	    }
-	  cmp_arg = (void*)(key_len = field->pack_length());
-	  rec_offset = 1;
-	}
-      else // too bad, cannot cheat - there is more than one field
-	{
-	  bool all_binary = 1;
-	  Field** field, **field_end;
-	  field_end = (field = table->field) + table->fields;
-	  for(key_len = 0; field < field_end; ++field)
-	    {
-	      key_len += (*field)->pack_length();
-	      if(!(*field)->binary())
-		all_binary = 0;
-	    }
-	  rec_offset = table->reclength - key_len;
-	  if(all_binary)
-	  {
-	    compare_key = (qsort_cmp2)simple_raw_key_cmp;
-	    cmp_arg = (void*)key_len;
-	  }
-	  else
-	  {
-	    compare_key = (qsort_cmp2)composite_key_cmp ;
- 	    cmp_arg = (void*)this;
-	  }
-	}
-
-      init_tree(&tree, min(max_heap_table_size, sortbuff_size/16), 0,
-		key_len, compare_key, 0, NULL, cmp_arg);
-      use_tree = 1;
-
-      // the only time key_len could be 0 is if someone does
-      // count(distinct) on a char(0) field - stupid thing to do,
-      // but this has to be handled - otherwise someone can crash
-      // the server with a DoS attack
-      max_elements_in_tree = (key_len) ? max_heap_table_size/key_len :
-	1;
+    if (table->fields == 1)
+    {
+      /*
+	If we have only one field, which is the most common use of
+	count(distinct), it is much faster to use a simpler key
+	compare method that can take advantage of not having to worry
+	about other fields
+      */
+      Field* field = table->field[0];
+      switch(field->type())
+      {
+	/*
+	  If we have a string, we must take care of charsets and case
+	  sensitivity
+	*/
+      case FIELD_TYPE_STRING:
+      case FIELD_TYPE_VAR_STRING:
+	compare_key = (qsort_cmp2)(field->binary() ? simple_raw_key_cmp:
+				   simple_str_key_cmp);
+	break;
+      default:
+	/*
+	  Since at this point we cannot have blobs anything else can
+	  be compared with memcmp
+	*/
+	compare_key = (qsort_cmp2)simple_raw_key_cmp;
+	break;
+      }
+      cmp_arg = (void*)(key_len = field->pack_length());
+      rec_offset = 1;
     }
-  
+    else // too bad, cannot cheat - there is more than one field
+    {
+      bool all_binary = 1;
+      Field** field, **field_end;
+      field_end = (field = table->field) + table->fields;
+      uint32 *lengths;
+      if (!(field_lengths= 
+	    (uint32*) thd->alloc(sizeof(uint32) * table->fields)))
+	return 1;
+
+      for (key_len = 0, lengths=field_lengths; field < field_end; ++field)
+      {
+	uint32 length= (*field)->pack_length();
+	key_len += length;
+	*lengths++ = length;
+	if (!(*field)->binary())
+	  all_binary = 0;			// Can't break loop here
+      }
+      rec_offset = table->reclength - key_len;
+      if (all_binary)
+      {
+	compare_key = (qsort_cmp2)simple_raw_key_cmp;
+	cmp_arg = (void*)key_len;
+      }
+      else
+      {
+	compare_key = (qsort_cmp2) composite_key_cmp ;
+	cmp_arg = (void*)this;
+      }
+    }
+
+    init_tree(&tree, min(max_heap_table_size, sortbuff_size/16), 0,
+	      key_len, compare_key, 0, NULL, cmp_arg);
+    use_tree = 1;
+
+    /*
+      The only time key_len could be 0 is if someone does
+      count(distinct) on a char(0) field - stupid thing to do,
+      but this has to be handled - otherwise someone can crash
+      the server with a DoS attack
+    */
+    max_elements_in_tree = ((key_len) ? max_heap_table_size/key_len :
+			    1);
+  }
   return 0;
 }
 
+
 int Item_sum_count_distinct::tree_to_myisam()
 {
-  if(create_myisam_from_heap(table, tmp_table_param,
-			     HA_ERR_RECORD_FILE_FULL, 1) ||
-     tree_walk(&tree, (tree_walk_action)&dump_leaf, (void*)this,
-	       left_root_right))
+  if (create_myisam_from_heap(table, tmp_table_param,
+			      HA_ERR_RECORD_FILE_FULL, 1) ||
+      tree_walk(&tree, (tree_walk_action)&dump_leaf, (void*)this,
+		left_root_right))
     return 1;
   delete_tree(&tree);
   use_tree = 0;
@@ -1011,18 +1025,20 @@ bool Item_sum_count_distinct::add()
     if ((*field)->is_real_null(0))
       return 0;					// Don't count NULL
 
-  if(use_tree)
+  if (use_tree)
+  {
+    /*
+      If the tree got too big, convert to MyISAM, otherwise insert into the
+      tree.
+    */
+    if (tree.elements_in_tree > max_elements_in_tree)
     {
-      // if the tree got too big, convert to MyISAM, otherwise
-      // insert into the tree
-      if(tree.elements_in_tree > max_elements_in_tree)
-      {
-	if(tree_to_myisam())
-	  return 1;
-      }
-      else if(!tree_insert(&tree, table->record[0] + rec_offset, 0))
+      if(tree_to_myisam())
 	return 1;
     }
+    else if (!tree_insert(&tree, table->record[0] + rec_offset, 0))
+      return 1;
+  }
   else if ((error=table->file->write_row(table->record[0])))
   {
     if (error != HA_ERR_FOUND_DUPP_KEY &&
@@ -1039,7 +1055,7 @@ longlong Item_sum_count_distinct::val_int()
 {
   if (!table)					// Empty query
     return LL(0);
-  if(use_tree)
+  if (use_tree)
     return tree.elements_in_tree;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   return table->file->records;

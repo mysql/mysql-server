@@ -32,7 +32,7 @@ static bool find_range_key(TABLE_REF *ref, Field* field,COND *cond);
 
 int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
 {
-  List_iterator<Item> it(all_fields);
+  List_iterator_fast<Item> it(all_fields);
   int const_result=1;
   bool recalc_const_item=0;
   table_map removed_tables=0;
@@ -205,7 +205,7 @@ uint count_table_entries(COND *cond,TABLE *table)
     if (((Item_cond*) cond)->functype() == Item_func::COND_OR_FUNC)
       return (cond->used_tables() & table->map) ? MAX_REF_PARTS+1 : 0;
 
-    List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
+    List_iterator_fast<Item> li(*((Item_cond*) cond)->argument_list());
     Item *item;
     uint count=0;
     while ((item=li++))
@@ -250,7 +250,7 @@ bool part_of_cond(COND *cond,Field *field)
     if (((Item_cond*) cond)->functype() == Item_func::COND_OR_FUNC)
       return 0;					// Already checked
 
-    List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
+    List_iterator_fast<Item> li(*((Item_cond*) cond)->argument_list());
     Item *item;
     while ((item=li++))
     {

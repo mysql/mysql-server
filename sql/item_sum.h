@@ -146,6 +146,7 @@ class Item_sum_count_distinct :public Item_sum_int
   TABLE *table;
   table_map used_table_cache;
   bool fix_fields(THD *thd,TABLE_LIST *tables);
+  uint32 *field_lengths;
   TMP_TABLE_PARAM *tmp_table_param;
   TREE tree;
 

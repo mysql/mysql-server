@@ -27,5 +27,11 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/charsets/Index $(DESTDIR)$(pkgdatadir)/charsets/Index
 	$(INSTALL_DATA) $(srcdir)/charsets/*.conf $(DESTDIR)$(pkgdatadir)/charsets
 
+fix_errors:
+	for lang in @AVAILABLE_LANGUAGES@; \
+	do \
+	../../extra/comp_err $(srcdir)/$$lang/errmsg.txt $(srcdir)/$$lang/errmsg.sys; \
+        done
+
 # Don't update the files from bitkeeper
 %::SCCS/s.%
