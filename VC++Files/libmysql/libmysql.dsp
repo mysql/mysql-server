@@ -92,7 +92,7 @@ LINK32=xilink6.exe
 # Begin Special Build Tool
 SOURCE="$(InputPath)"
 PostBuild_Desc=Move DLL export lib
-PostBuild_Cmds=xcopy ..\lib_debug\libmysql.dll C:\winnt\system32\ /y	xcopy     debug\libmysql.lib ..\lib_debug\ /y
+PostBuild_Cmds=xcopy ..\lib_debug\libmysql.dll %windir%\system32\ /y	xcopy     debug\libmysql.lib ..\lib_debug\ /y
 # End Special Build Tool
 
 !ENDIF
