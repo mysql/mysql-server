@@ -26,7 +26,8 @@
 #
 # Change this to match the version of the shared libs you want to include
 #
-%define version4 @MYSQL_NO_DASH_VERSION@
+%define version41 @MYSQL_NO_DASH_VERSION@
+%define version40 4.0.23
 %define version3 3.23.58
 
 Name:         MySQL-shared-compat
@@ -36,26 +37,31 @@ License:      GPL
 Group:        Applications/Databases
 URL:          http://www.mysql.com/
 Autoreqprov:  on
-Version:      %{version4}
+Version:      %{version41}
 Release:      0
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build
 Obsoletes:    MySQL-shared, mysql-shared
 Provides:     MySQL-shared
-Summary:      MySQL shared libraries for MySQL %{version4} and %{version3}
-Source0:      MySQL-shared-%{version4}-0.%{_arch}.rpm
-Source1:      MySQL-shared-%{version3}-1.%{_arch}.rpm
+Summary:      MySQL shared client libraries for MySQL %{version41}, %{version40} and %{version3}
+# We simply use the "MySQL-shared" subpackages as input sources instead of
+# rebuilding all from source
+Source0:      MySQL-shared-%{version41}-0.%{_arch}.rpm
+Source1:      MySQL-shared-%{version40}-0.%{_arch}.rpm
+Source2:      MySQL-shared-%{version3}-1.%{_arch}.rpm
 # No need to include the RPMs once more - they can be downloaded seperately
 # if you want to rebuild this package
 NoSource:     0
 NoSource:     1
+NoSource:     2
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build
 
 %description
-This package includes the shared libraries for both MySQL %{version3} and
-MySQL %{version4}. Install this package instead of "MySQL-shared", if you 
-have applications installed that are dynamically linked against MySQL
-3.23.xx but you want to upgrade to MySQL 4.0.xx without breaking the library
-dependencies.
+This package includes the shared libraries for both MySQL %{version3},
+MySQL %{version40} as well as MySQL %{version41}.
+Install this package instead of "MySQL-shared", if you have applications
+installed that are dynamically linked against older versions of the MySQL
+client library but you want to upgrade to MySQL 4.1.xx without breaking the
+library dependencies.
 
 %install
 [ "$RPM_BUILD_ROOT" != "/" ] && [ -d $RPM_BUILD_ROOT ] && rm -rf $RPM_BUILD_ROOT;
@@ -63,6 +69,8 @@ mkdir -p $RPM_BUILD_ROOT
 cd $RPM_BUILD_ROOT
 rpm2cpio %{SOURCE0} | cpio -iv --make-directories
 rpm2cpio %{SOURCE1} | cpio -iv --make-directories
+rpm2cpio %{SOURCE2} | cpio -iv --make-directories
+/sbin/ldconfig -n $RPM_BUILD_ROOT%{_libdir}
 
 %clean
 [ "$RPM_BUILD_ROOT" != "/" ] && [ -d $RPM_BUILD_ROOT ] && rm -rf $RPM_BUILD_ROOT;
