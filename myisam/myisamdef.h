@@ -272,7 +272,7 @@ struct st_myisam_info {
 #ifdef THREAD
   THR_LOCK_DATA lock;
 #endif
-  uchar * rtree_recursion_state;	/* For RTREE */
+  uchar  *rtree_recursion_state;	/* For RTREE */
   int     rtree_recursion_depth;
 };
 

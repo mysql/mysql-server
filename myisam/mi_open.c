@@ -484,6 +484,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     if (mi_open_datafile(&info, share, old_info->dfile))
       goto err;
     errpos=5;
+    have_rtree= old_info->rtree_recursion_state != NULL;
   }
 
   /* alloc and set up private structure parts */
@@ -492,12 +493,15 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 		       &info.blobs,sizeof(MI_BLOB)*share->base.blobs,
 		       &info.buff,(share->base.max_key_block_length*2+
 				   share->base.max_key_length),
-		       &info.rtree_recursion_state,have_rtree ? 1024 : 0,
 		       &info.lastkey,share->base.max_key_length*3+1,
 		       &info.filename,strlen(org_name)+1,
+		       &info.rtree_recursion_state,have_rtree ? 1024 : 0,
 		       NullS))
     goto err;
   errpos=6;
+  
+  if (!have_rtree) 
+    info.rtree_recursion_state= NULL;
 
   strmov(info.filename,org_name);
   memcpy(info.blobs,share->blobs,sizeof(MI_BLOB)*share->base.blobs);
