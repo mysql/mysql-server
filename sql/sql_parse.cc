@@ -1057,6 +1057,11 @@ bool do_command(THD *thd)
 
   net= &thd->net;
   thd->current_tablenr=0;
+  /*
+    indicator of uninitialized lex => normal flow of errors handling
+    (see my_message_sql)
+  */
+  thd->lex.current_select= 0;
 
   packet=0;
   old_timeout=net->read_timeout;
