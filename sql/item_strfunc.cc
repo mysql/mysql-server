@@ -2654,14 +2654,6 @@ static const char hex[] = "0123456789abcdef";
 #define UUID_VERSION      0x1000
 #define UUID_VARIANT      0x8000
 
-static ulonglong get_uuid_time()
-{
-  struct timeval tv;
-  gettimeofday(&tv,NULL);
-  return (ulonglong)tv.tv_sec*10000000 +
-         (ulonglong)tv.tv_usec*10   + UUID_TIME_OFFSET + nanoseq;
-}
-
 static void tohex(char *to, uint from, uint len)
 {
   to+= len;
@@ -2710,7 +2702,7 @@ String *Item_func_uuid::val_str(String *str)
     set_clock_seq_str();
   }
 
-  ulonglong tv=get_uuid_time();
+  ulonglong tv=my_getsystime() + UUID_TIME_OFFSET + nanoseq;
   if (unlikely(tv < uuid_time))
     set_clock_seq_str();
   else
