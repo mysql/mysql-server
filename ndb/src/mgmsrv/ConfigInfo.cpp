@@ -3501,6 +3501,8 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
     BaseString node_group_warning, arbitration_warning;
     const char *arbit_warn_fmt=
       "\n  arbitrator with id %d and db node with id %d on same host %s";
+    const char *arbit_warn_fmt2=
+      "\n  arbitrator with id %d has no hostname specified";
 
     ctx.m_userProperties.get("NoOfNodes", &n_nodes);
     for (i= 0, n= 0; n < n_nodes; i++){
@@ -3583,13 +3585,19 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
 	      arbitration_warning.appfmt(arbit_warn_fmt, i, ii, host);
 	    }
 	  }
+	  else
+	  {
+	    arbitration_warning.appfmt(arbit_warn_fmt2, i);
+	  }
 	}
       }
     }
     if (db_host_count > 1 && node_group_warning.length() > 0)
       ndbout_c("Cluster configuration warning:\n%s",node_group_warning.c_str());
     if (db_host_count > 1 && arbitration_warning.length() > 0)
-      ndbout_c("Cluster configuration warning:%s",arbitration_warning.c_str());
+      ndbout_c("Cluster configuration warning:%s%s",arbitration_warning.c_str(),
+	       "\n  Running arbitrator on the same host as a database node may"
+	       "\n  cause complete cluster shutdown in case of host failure.");
   }
   return true;
 }
