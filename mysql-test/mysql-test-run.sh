@@ -1151,8 +1151,7 @@ start_master()
   fi
   if [ -n "$EXTRA_MASTER_MYSQLD_TRACE" ] 
   then
-    EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT \
-        $EXTRA_MASTER_MYSQLD_TRACE$1"
+      CURR_MASTER_MYSQLD_TRACE="$EXTRA_MASTER_MYSQLD_TRACE$1"
   fi
   if [ -z "$DO_BENCH" ]
   then
@@ -1177,7 +1176,7 @@ start_master()
 	   $MASTER_40_ARGS \
            $SMALL_SERVER \
            $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT \
-           $NOT_FIRST_MASTER_EXTRA_OPTS"
+           $NOT_FIRST_MASTER_EXTRA_OPTS $CURR_MASTER_MYSQLD_TRACE"
   else
     master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin$1 \
           --server-id=$id --rpl-recovery-rank=1 \
