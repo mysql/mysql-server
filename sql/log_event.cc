@@ -1684,6 +1684,9 @@ void Start_log_event_v3::print(FILE* file, bool short_form, LAST_EVENT_INFO* las
     if (created)
       fprintf(file," at startup");
     fputc('\n', file);
+    if (flags & LOG_EVENT_BINLOG_IN_USE_F)
+      fprintf(file, "# Warning: this binlog was not closed properly. "
+              "Most probably mysqld crashed writing it.\n");
   }
   if (!artificial_event && created)
   {

@@ -2369,9 +2369,8 @@ Item *Item_cond::transform(Item_transformer transformer, byte *arg)
   return Item_func::transform(transformer, arg);
 }
 
-void Item_cond::traverse_cond(Item_cond_traverser traverser, 
-			      void *arg,
-			      traverse_order order)
+void Item_cond::traverse_cond(Cond_traverser traverser,
+                              void *arg, traverse_order order)
 {
   List_iterator<Item> li(list);
   Item *item;

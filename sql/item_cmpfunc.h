@@ -1028,9 +1028,7 @@ public:
   void copy_andor_arguments(THD *thd, Item_cond *item);
   bool walk(Item_processor processor, byte *arg);
   Item *transform(Item_transformer transformer, byte *arg);
-  void traverse_cond(Item_cond_traverser, 
-		     void *arg,
-		     traverse_order order = POSTFIX);
+  void traverse_cond(Cond_traverser, void *arg, traverse_order order);
   void neg_arguments(THD *thd);
 };
 
@@ -1039,8 +1037,8 @@ public:
   The class Item_equal is used to represent conjunctions of equality
   predicates of the form field1 = field2, and field=const in where
   conditions and on expressions.
- 
-  All equality predicates of the form field1=field2 contained in a 
+
+  All equality predicates of the form field1=field2 contained in a
   conjunction are substituted for a sequence of items of this class.
   An item of this class Item_equal(f1,f2,...fk) represents a
   multiple equality f1=f2=...=fk.

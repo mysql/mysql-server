@@ -6443,7 +6443,7 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
   // write index key attributes
   AttributeRecordPtr aRecPtr;
   c_attributeRecordPool.getPtr(aRecPtr, tablePtr.p->firstAttribute);
-  for (unsigned k = 0; k < opPtr.p->m_attrList.sz; k++) {
+  for (k = 0; k < opPtr.p->m_attrList.sz; k++) {
     // insert the attributes in the order decided above in attrid_map
     // k is new order, current_id is in previous order
     // ToDo: make sure "current_id" is stored with the table and

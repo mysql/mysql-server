@@ -24,6 +24,32 @@ Created 12/9/1995 Heikki Tuuri
 #include "trx0sys.h"
 #include "trx0trx.h"
 
+/*
+General philosophy of InnoDB redo-logs:
+
+1) Every change to a contents of a data page must be done
+through mtr, which in mtr_commit() writes log records
+to the InnoDB redo log.
+
+2) Normally these changes are performed using a mlog_write_ulint()
+or similar function.
+
+3) In some page level operations only a code number of a 
+c-function and its parameters are written to the log to 
+reduce the size of the log.
+
+  3a) You should not add parameters to these kind of functions
+  (e.g. trx_undo_header_create(), trx_undo_insert_header_reuse())
+
+  3b) You should not add such functionality which either change
+  working when compared with the old or are dependent on data
+  outside of the page. These kind of functions should implement
+  self-contained page transformation and it should be unchanged
+  if you don't have very essential reasons to change log
+  semantics or format.
+
+*/
+
 /* Current free limit of space 0; protected by the log sys mutex; 0 means
 uninitialized */
 ulint	log_fsp_current_free_limit		= 0;
