@@ -1,0 +1,74 @@
+This directory contains all of the test cases for the MySQL Test Suite
+marked up in XML.
+
+To convert these test cases from XML into 'mysqltest' format, one needs
+an XSL translator installed on their system. At MySQL, we use Sablotron
+(http://www.gingerall.com/). Once installed, conversion happens with a 
+command like this:
+
+	sabcmd xsl/mysqltest.xsl < tests/sel000001.xml > sel000001.test
+
+The file 'sel000001.test' contains the plain text conversion that is
+to be fed into the 'mysqltest' program.
+
+Below is an example of a test case marked up in XML; illustrating all
+of the XML mark-up currently supported in our 'mysqltest.xsl' stylesheet.
+
+----------------------------------------------------
+<?xml version="1.0" standalone="no"?>
+
+<!-- This file is maintained by matt@mysql.com -->
+
+<test name="sel000001">
+
+   <version value="3.22"/>
+   <version value="3.23"/>
+
+   <description>This test will monkey around trying to kill mysqld.</description>
+
+   <connect name="Test_Connect1"
+            host="MyHostName"
+            user="Matt"
+            pass="MattPass"
+              db="MyDB"
+            port="3306"
+            sock="MyDB.sock"
+    />
+
+    <connection name="Test_Connect1">
+       <resultfile name="sel000001.result">
+           <sql>SELECT y FROM foo WHERE bar='2'</sql>
+        </resultfile>
+           <sql>INSERT INTO foo  VALUES (y='2') WHERE bar='1'</sql> 
+    </connection>
+
+</test>
+----------------------------------------------------
+
+
+The converted (mysqltest format) output of this source XML file looks
+like:
+
+ 
+----------------------------------------------------
+# sel000001
+#
+# Versions
+# --------
+#   3.22
+#   3.23
+#
+# Description
+# -----------
+# This test will monkey around trying to kill mysqld.
+#
+
+
+connect(Test_Connect1, MyHostName, Matt, MattPass, MyDB, 3306, MyDB.sock)
+
+connection Test_Connect1
+INSERT INTO foo  VALUES (y='2') WHERE bar='1';
+@sel000001.result SELECT y FROM foo WHERE bar='2';
+----------------------------------------------------
+
+
