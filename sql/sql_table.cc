@@ -850,26 +850,35 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 	{
 	  if ((length=column->length) > file->max_key_length() ||
 	      length > file->max_key_part_length())
-	  {
-	    my_error(ER_WRONG_SUB_KEY,MYF(0));
-	    DBUG_RETURN(-1);
-	  }
+          {
+            length=min(file->max_key_length(), file->max_key_part_length());
+            if (key->type == Key::MULTIPLE)
+            {
+              /* not a critical problem */
+              char warn_buff[MYSQL_ERRMSG_SIZE];
+              sprintf(warn_buff,ER(ER_TOO_LONG_KEY),length);
+              push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                           ER_TOO_LONG_KEY, warn_buff);
+            }
+            else
+            {
+              my_error(ER_TOO_LONG_KEY,MYF(0),length);
+              DBUG_RETURN(-1);
+            }
+          }
 	}
-        /* TODO HF What's this for??? */
-	else if (f_is_geom(sql_field->pack_flag))
-	{
-	}
-	else if (column->length > length ||
-		 ((f_is_packed(sql_field->pack_flag) ||
-		   ((file->table_flags() & HA_NO_PREFIX_CHAR_KEYS) &&
-		    (key_info->flags & HA_NOSAME))) &&
-		  column->length != length))
-	{
-	  my_error(ER_WRONG_SUB_KEY,MYF(0));
-	  DBUG_RETURN(-1);
-	}
-	if (!(file->table_flags() & HA_NO_PREFIX_CHAR_KEYS))
-	  length=column->length;
+	else if (!f_is_geom(sql_field->pack_flag) &&
+                  (column->length > length ||
+                   ((f_is_packed(sql_field->pack_flag) ||
+                     ((file->table_flags() & HA_NO_PREFIX_CHAR_KEYS) &&
+                      (key_info->flags & HA_NOSAME))) &&
+                    column->length != length)))
+        {
+          my_error(ER_WRONG_SUB_KEY,MYF(0));
+          DBUG_RETURN(-1);
+        }
+        else if (!(file->table_flags() & HA_NO_PREFIX_CHAR_KEYS))
+          length=column->length;
       }
       else if (length == 0)
       {
@@ -879,8 +888,20 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       }
       if (length > file->max_key_part_length())
       {
-	my_error(ER_WRONG_SUB_KEY,MYF(0));
-	DBUG_RETURN(-1);
+        length=file->max_key_part_length();
+        if (key->type == Key::MULTIPLE)
+        {
+          /* not a critical problem */
+          char warn_buff[MYSQL_ERRMSG_SIZE];
+          sprintf(warn_buff,ER(ER_TOO_LONG_KEY),length);
+          push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                       ER_TOO_LONG_KEY, warn_buff);
+        }
+        else
+        {
+          my_error(ER_TOO_LONG_KEY,MYF(0),length);
+          DBUG_RETURN(-1);
+        }
       }
       key_part_info->length=(uint16) length;
       /* Use packed keys for long strings on the first column */
