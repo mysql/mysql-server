@@ -381,6 +381,9 @@ sql/lex_hash.h
 sql/mini_client_errors.c
 sql/mysqlbinlog
 sql/mysqld
+sql/mysqld-purecov
+sql/mysqld-purify
+sql/mysqld-quantify
 sql/share/*.sys
 sql/share/charsets/gmon.out
 sql/share/gmon.out
