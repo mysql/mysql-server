@@ -32,7 +32,7 @@ testTransactions \
 testDeadlock \
 test_event ndbapi_slow_select testReadPerf testLcp \
 testPartitioning \
-testBitfield
+testBitfield foo
 
 #flexTimedAsynch
 #testBlobs
@@ -73,6 +73,7 @@ testReadPerf_SOURCES = testReadPerf.cpp
 testLcp_SOURCES = testLcp.cpp
 testPartitioning_SOURCES = testPartitioning.cpp
 testBitfield_SOURCES = testBitfield.cpp
+foo_SOURCES = foo.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/ndb/include/kernel
 
@@ -87,5 +88,6 @@ testBackup_LDADD = $(LDADD) bank/libbank.a
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
+
 
 
