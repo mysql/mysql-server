@@ -7664,7 +7664,8 @@ QUICK_GROUP_MIN_MAX_SELECT(TABLE *table, JOIN *join_arg, bool have_min_arg,
    group_prefix_len(group_prefix_len_arg), have_min(have_min_arg),
    have_max(have_max_arg), seen_first_key(FALSE),
    min_max_arg_part(min_max_arg_part_arg), key_infix(key_infix_arg),
-   key_infix_len(key_infix_len_arg)
+   key_infix_len(key_infix_len_arg), min_functions_it(NULL),
+   max_functions_it(NULL)
 {
   head=       table;
   file=       head->file;
@@ -7773,16 +7774,12 @@ int QUICK_GROUP_MIN_MAX_SELECT::init()
       if (!(min_functions_it= new List_iterator<Item_sum>(*min_functions)))
         return 1;
     }
-    else
-      min_functions_it= NULL;
 
     if (have_max)
     {
       if (!(max_functions_it= new List_iterator<Item_sum>(*max_functions)))
         return 1;
     }
-    else
-      max_functions_it= NULL;
   }
   else
     min_max_ranges.elements= 0;
@@ -7799,6 +7796,8 @@ QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT()
   if (min_max_arg_part)
     delete_dynamic(&min_max_ranges);
   free_root(&alloc,MYF(0));
+  delete min_functions_it;
+  delete max_functions_it;
   delete quick_prefix_select;
   DBUG_VOID_RETURN; 
 }
