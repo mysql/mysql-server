@@ -10,3 +10,59 @@ insert into t2 (payoutID) SELECT DISTINCT payoutID FROM t1;
 insert into t2 (payoutID) SELECT payoutID+10 FROM t1;
 select * from t2;
 drop table t1,t2;
+#
+# bug in bulk insert optimization
+# test case by Fournier Jocelyn <joc@presence-pc.com>
+#
+
+DROP TABLE IF EXISTS crash1,crash2;
+CREATE TABLE `crash1` (
+  `numeropost` bigint(20) unsigned NOT NULL default '0',
+  `icone` tinyint(4) unsigned NOT NULL default '0',
+  `numreponse` bigint(20) unsigned NOT NULL auto_increment,
+  `contenu` text NOT NULL,
+  `pseudo` varchar(50) NOT NULL default '',
+  `date` datetime NOT NULL default '0000-00-00 00:00:00',
+  `ip` bigint(11) NOT NULL default '0',
+  `signature` tinyint(1) unsigned NOT NULL default '0',
+  PRIMARY KEY  (`numeropost`,`numreponse`)
+  ,KEY `ip` (`ip`),
+  KEY `date` (`date`),
+  KEY `pseudo` (`pseudo`),
+  KEY `numreponse` (`numreponse`)
+) TYPE=MyISAM;
+
+CREATE TABLE `crash2` (
+  `numeropost` bigint(20) unsigned NOT NULL default '0',
+  `icone` tinyint(4) unsigned NOT NULL default '0',
+  `numreponse` bigint(20) unsigned NOT NULL auto_increment,
+  `contenu` text NOT NULL,
+  `pseudo` varchar(50) NOT NULL default '',
+  `date` datetime NOT NULL default '0000-00-00 00:00:00',
+  `ip` bigint(11) NOT NULL default '0',
+  `signature` tinyint(1) unsigned NOT NULL default '0',
+  PRIMARY KEY  (`numeropost`,`numreponse`),
+  KEY `ip` (`ip`),
+  KEY `date` (`date`),
+  KEY `pseudo` (`pseudo`),
+  KEY `numreponse` (`numreponse`)
+) TYPE=MyISAM;
+
+INSERT INTO crash2
+(numeropost,icone,numreponse,contenu,pseudo,date,ip,signature) VALUES
+(9,1,56,'test','joce','2001-07-25 13:50:53'
+,3649052399,0);
+
+
+INSERT INTO crash1 (numeropost,icone,contenu,pseudo,date,signature,ip)
+SELECT 1618,icone,contenu,pseudo,date,signature,ip FROM crash2
+WHERE numeropost=9 ORDER BY numreponse ASC;
+
+show variables like '%bulk%';
+
+INSERT INTO crash1 (numeropost,icone,contenu,pseudo,date,signature,ip)
+SELECT 1718,icone,contenu,pseudo,date,signature,ip FROM crash2
+WHERE numeropost=9 ORDER BY numreponse ASC;
+
+DROP TABLE IF EXISTS crash1,crash2;
+
