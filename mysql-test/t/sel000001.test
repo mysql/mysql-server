@@ -14,4 +14,4 @@
 DROP TABLE IF EXISTS t;
 CREATE TABLE t (s CHAR(20) PRIMARY KEY, id INT);
 INSERT INTO t VALUES ('cat', 1), ('mouse', 3), ('dog', 2), ('snake', 77);
-@r/3.23/sel000001.result SELECT s, id FROM t WHERE s = 'mouse';
+@r/sel000001.result SELECT s, id FROM t WHERE s = 'mouse';

@@ -3,3 +3,5 @@ mwagner@evoq.home.mwagner.org|mysql-test/var/log/README|20001009213643|16203|df5
 mwagner@evoq.home.mwagner.org|mysql-test/var/run/README|20001009213643|17062|acb305e4c2ed5990
 mwagner@evoq.home.mwagner.org|mysql-test/var/tmp/README|20001009213643|17904|b32d866bfd50e72e
 mwagner@evoq.home.mwagner.org|mysql-test/share/README|20001009213643|10987|6cd25db633f30de5
+mwagner@evoq.home.mwagner.org|mysql-test/r/3.23/README|20001009213643|10190|f9fd36f3c3711305
+sasha@mysql.sashanet.com|mysql-test/t/include/master-slave.inc|20001118030458|01636|556fd038c3a3d54

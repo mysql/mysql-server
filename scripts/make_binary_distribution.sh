@@ -12,10 +12,18 @@ SOURCE=`pwd`
 
 # Save temporary distribution here (must be full path) 
 TMP=/tmp
-if test $# -gt 0
+if test $# -gt 0 -a x$1 != x"-debug" 
 then
   TMP=$1
+  shift 1
 fi
+
+if test x$1 = x"-debug"
+then
+  DEBUG=1
+  shift 1
+fi  
+
 
 #make
 
@@ -23,10 +31,17 @@ fi
 # installation list.
 
 BASE=$TMP/my_dist
+
+if [ -d $BASE ] ; then
+ rm -rf $BASE
+fi
+
 mkdir $BASE $BASE/bin $BASE/data $BASE/data/mysql $BASE/data/test \
  $BASE/include $BASE/lib $BASE/support-files $BASE/share $BASE/share/mysql \
- $BASE/tests $BASE/scripts $BASE/sql-bench
-
+ $BASE/tests $BASE/scripts $BASE/sql-bench $BASE/mysql-test \
+ $BASE/mysql-test/t  $BASE/mysql-test/r \
+ $BASE/mysql-test/include $BASE/mysql-test/std_data
+ 
 chmod o-rwx $BASE/data $BASE/data/*
 
 for i in sql/ChangeLog COPYING COPYING.LIB README Docs/INSTALL-BINARY \
@@ -37,8 +52,9 @@ done
 
 for i in extra/comp_err extra/replace extra/perror extra/resolveip \
  extra/my_print_defaults isam/isamchk isam/pack_isam myisam/myisamchk myisam/myisampack sql/mysqld sql/mysqlbinlog \
- client/mysql sql/mysqld client/mysqlshow client/mysqladmin client/mysqldump client/mysqlimport \
- client/.libs/mysql client/.libs/mysqlshow client/.libs/mysqladmin client/.libs/mysqldump client/.libs/mysqlimport
+ client/mysql sql/mysqld client/mysqlshow client/mysqladmin client/mysqldump \
+ client/mysqlimport client/mysqltest \
+ client/.libs/mysql client/.libs/mysqlshow client/.libs/mysqladmin client/.libs/mysqldump client/.libs/mysqlimport client/.libs/mysqltest
 do
   cp -p $i $BASE/bin
 done
@@ -49,7 +65,16 @@ rm $BASE/include/Makefile*; rm $BASE/include/*.in
 cp -p tests/*.res tests/*.tst tests/*.pl $BASE/tests
 cp -p support-files/* $BASE/support-files
 cp -p libmysql/.libs/libmysqlclient.a libmysql/.libs/libmysqlclient.so* libmysql/libmysqlclient.* libmysql_r/.libs/libmysqlclient_r.a libmysql_r/.libs/libmysqlclient_r.so* libmysql_r/libmysqlclient_r.* mysys/libmysys.a strings/libmystrings.a dbug/libdbug.a $BASE/lib
-cp -r -p sql/share/* $BASE/share/mysql; rm -f $BASE/share/mysql/Makefile* $BASE/share/mysql/*/*.OLD $BASE/share/CVS $BASE/share/*/CVS 
+cp -r -p sql/share/* $BASE/share/mysql
+rm -f $BASE/share/mysql/Makefile* $BASE/share/mysql/*/*.OLD
+rm -rf $BASE/share/SCCS  $BASE/share/*/SCCS 
+
+cp  -p mysql-test/mysql-test-run mysql-test/install_test_db $BASE/scripts
+cp -p mysql-test/README $BASE/README
+cp -p mysql-test/include/*.inc $BASE/mysql-test/include
+cp -p mysql-test/std_data/*.dat $BASE/mysql-test/std_data
+cp -p mysql-test/t/*.test mysql-test/t/*.opt $BASE/mysql-test/t
+cp -p mysql-test/r/*.result  $BASE/mysql-test/r
 
 cp -p scripts/* $BASE/bin
 rm -f $BASE/bin/Makefile* $BASE/bin/*.in $BASE/bin/*.sh $BASE/bin/mysql_install_db $BASE/bin/make_binary_distribution $BASE/bin/setsomevars $BASE/support-files/Makefile* $BASE/support-files/*.sh
@@ -62,6 +87,8 @@ mv $BASE/support-files/binary-configure $BASE/configure
 chmod a+x $BASE/bin/* $BASE/scripts/* $BASE/support-files/mysql-* $BASE/configure
 cp -r -p sql-bench/* $BASE/sql-bench
 rm -f $BASE/sql-bench/*.sh $BASE/sql-bench/Makefile* $BASE/lib/*.la
+rm -rf `find $BASE/sql-bench -name SCCS`
+rm -rf `find $BASE/share -name SCCS`
 
 # Change the distribution to a long descreptive name
 NEW_NAME=mysql-$version-$system-$machine
@@ -84,6 +111,11 @@ then
     cp -p $gcclib libmygcc.a
   fi
   cd $SOURCE
+fi
+
+#if we are debugging, do not do tar/gz
+if [ x$DEBUG = x1 ] ; then
+ exit
 fi
 
 # This is needed to prefere gnu tar instead of tar because tar can't

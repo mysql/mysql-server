@@ -1,4 +1,4 @@
-source t/include/master-slave.inc;
+source include/master-slave.inc;
 connection master;
 drop table if exists x;
 create table x(n int);
@@ -21,5 +21,5 @@ while ($1)
  sleep 0.2;
  dec $1;
 }
-@r/3.23/rpl000013.result select * from x;
-@r/3.23/rpl000013.status.result show status like 'Slave_open_temp_tables';
+@r/rpl000013.result select * from x;
+@r/rpl000013.status.result show status like 'Slave_open_temp_tables';

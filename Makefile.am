@@ -24,7 +24,7 @@ EXTRA_DIST =		INSTALL-SOURCE README \
 SUBDIRS =		include @docs_dirs@ @readline_dir@ \
 			@thread_dirs@ @sql_client_dirs@ \
 			@sql_server_dirs@ scripts tests man \
-			@bench_dirs@ support-files
+			@bench_dirs@ support-files mysql-test
 
 # Relink after clean
 CLEANFILES =		linked_client_sources linked_server_sources linked_libmysql_sources linked_libmysql_r_sources linked_include_sources
