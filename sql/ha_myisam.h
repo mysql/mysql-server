@@ -46,7 +46,8 @@ class ha_myisam: public handler
   ha_myisam(TABLE *table): handler(table), file(0),
     int_table_flags(HA_READ_RND_SAME | HA_KEYPOS_TO_RNDPOS | HA_LASTKEY_ORDER |
 		    HA_NULL_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
-		    HA_DUPP_POS | HA_BLOB_KEY | HA_AUTO_PART_KEY),
+		    HA_DUPP_POS | HA_BLOB_KEY | HA_AUTO_PART_KEY |
+		    HA_FILE_BASED),
     enable_activate_all_index(1)
   {}
   ~ha_myisam() {}

@@ -278,7 +278,7 @@ int ha_isam::create(const char *name, register TABLE *form,
   type=HA_KEYTYPE_BINARY;				// Keep compiler happy
   if (!(recinfo= (N_RECINFO*) my_malloc((form->fields*2+2)*sizeof(N_RECINFO),
 					MYF(MY_WME))))
-    DBUG_RETURN(1);
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 
   pos=form->key_info;
   for (i=0; i < form->keys ; i++, pos++)

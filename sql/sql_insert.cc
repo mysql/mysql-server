@@ -1434,8 +1434,8 @@ select_create::prepare(List<Item> &values)
 {
   DBUG_ENTER("select_create::prepare");
 
-  table=create_table_from_items(thd, create_info, db, name,
-				extra_fields, keys, &values, &lock);
+  table= create_table_from_items(thd, create_info, db, name,
+				 extra_fields, keys, &values, &lock);
   if (!table)
     DBUG_RETURN(-1);				// abort() deletes table
 

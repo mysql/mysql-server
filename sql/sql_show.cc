@@ -865,7 +865,9 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     packet->append("CREATE TEMPORARY TABLE ", 23);
   else
     packet->append("CREATE TABLE ", 13);
-  append_identifier(thd,packet,table->real_name);
+  append_identifier(thd,packet,
+		    (lower_case_table_names == 2 ? table->table_name :
+		     table->real_name));
   packet->append(" (\n", 3);
 
   for (ptr=table->field ; (field= *ptr); ptr++)

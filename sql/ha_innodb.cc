@@ -3394,7 +3394,7 @@ ha_innobase::create(
 		/* The limit probably should be REC_MAX_N_FIELDS - 3 = 1020,
 		but we play safe here */
 
-	        return(HA_ERR_TO_BIG_ROW);
+	     DBUG_RETURN(HA_ERR_TO_BIG_ROW);
 	} 
 
 	/* Get the transaction associated with the current thd, or create one

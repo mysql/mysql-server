@@ -440,10 +440,10 @@ static void free_used_memory()
     my_free((gptr) (*q),MYF(0));
   }
   for (i=0; i < 10; i++)
-    {
-      if (var_reg[i].alloced_len)
-	my_free(var_reg[i].str_val, MYF(MY_WME));
-    }
+  {
+    if (var_reg[i].alloced_len)
+      my_free(var_reg[i].str_val, MYF(MY_WME));
+  }
   while (embedded_server_arg_count > 1)
     my_free(embedded_server_args[--embedded_server_arg_count],MYF(0));
   delete_dynamic(&q_lines);
