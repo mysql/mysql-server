@@ -52,7 +52,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			field.h handler.h \
 			ha_isammrg.h ha_isam.h ha_myisammrg.h\
 			ha_heap.h ha_myisam.h ha_berkeley.h ha_innodb.h \
-			opt_range.h opt_ft.h \
+			opt_range.h opt_ft.h protocol.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h\
 			lex.h lex_symbol.h sql_acl.h sql_crypt.h  \
 			log_event.h mini_client.h sql_repl.h slave.h \
