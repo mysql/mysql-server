@@ -212,3 +212,4 @@
 "The server is not configured as slave, fix in config file or with CHANGE MASTER TO",
 "Could not initialize master info structure, check permisions on master.info",
 "Could not create slave thread, check system resources",
+"User %-.64s has already more than 'max_user_connections' active connections",
