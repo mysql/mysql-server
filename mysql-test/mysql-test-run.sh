@@ -1347,7 +1347,7 @@ run_testcase ()
  tsrcdir=$TESTDIR/$tname-src
  result_file="r/$tname.result"
  echo $tname > $CURRENT_TEST
- SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
+ SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0 \& \( $tname : federated \) = 0`
  if [ -n "$RESULT_EXT" -a \( x$RECORD = x1 -o -f "$result_file$RESULT_EXT" \) ] ; then
    result_file="$result_file$RESULT_EXT"
  fi

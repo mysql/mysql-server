@@ -80,7 +80,7 @@ public:
     FIELD_CAST_TIMESTAMP, FIELD_CAST_YEAR, FIELD_CAST_DATE, FIELD_CAST_NEWDATE,
     FIELD_CAST_TIME, FIELD_CAST_DATETIME,
     FIELD_CAST_STRING, FIELD_CAST_VARSTRING, FIELD_CAST_BLOB,
-    FIELD_CAST_GEOM, FIELD_CAST_ENUM, FIELD_CAST_SET
+    FIELD_CAST_GEOM, FIELD_CAST_ENUM, FIELD_CAST_SET, FIELD_CAST_BIT
   };
 
   utype		unireg_check;
@@ -211,6 +211,15 @@ public:
       ptr-=row_offset;
       return tmp;
     }
+
+  inline String *val_str(String *str, char *new_ptr)
+  {
+    char *old_ptr= ptr;
+    ptr= new_ptr;
+    val_str(str);
+    ptr= old_ptr;
+    return str;
+  }
   virtual bool send_binary(Protocol *protocol);
   virtual char *pack(char* to, const char *from, uint max_length=~(uint) 0)
   {
@@ -1173,6 +1182,53 @@ public:
 };
 
 
+class Field_bit :public Field {
+public:
+  uchar *bit_ptr;     // position in record where 'uneven' bits store
+  uchar bit_ofs;      // offset to 'uneven' high bits
+  uint bit_len;       // number of 'uneven' high bits
+  Field_bit(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
+            uchar null_bit_arg, uchar *bit_ptr_arg, uchar bit_ofs_arg,
+            enum utype unireg_check_arg, const char *field_name_arg,
+            struct st_table *table_arg)
+    : Field(ptr_arg, len_arg >> 3, null_ptr_arg, null_bit_arg,
+            unireg_check_arg, field_name_arg, table_arg),
+        bit_ptr(bit_ptr_arg), bit_ofs(bit_ofs_arg), bit_len(len_arg & 7)
+    { }
+  enum_field_types type() const { return FIELD_TYPE_BIT; }
+  enum ha_base_keytype key_type() const { return HA_KEYTYPE_BIT; }
+  uint32 key_length() const { return (uint32) field_length + (bit_len > 0); }
+  uint32 max_length() { return (uint32) field_length + (bit_len > 0); }
+  uint size_of() const { return sizeof(*this); }
+  Item_result result_type () const { return INT_RESULT; }
+  void make_field(Send_field *);
+  void reset(void) { bzero(ptr, field_length); }
+  int store(const char *to, uint length, CHARSET_INFO *charset);
+  int store(double nr);
+  int store(longlong nr);
+  double val_real(void);
+  longlong val_int(void);
+  String *val_str(String*, String *);
+  int cmp(const char *a, const char *b)
+  { return cmp_binary(a, b); }
+  int key_cmp(const byte *a, const byte *b)
+  { return cmp_binary(a, b); }
+  int key_cmp(const byte *str, uint length);
+  int cmp_offset(uint row_offset);
+  void get_key_image(char *buff, uint length, imagetype type);
+  void set_key_image(char *buff, uint length)
+  { Field_bit::store(buff, length, &my_charset_bin); }
+  void sort_string(char *buff, uint length)
+  { get_key_image(buff, length, itRAW); }
+  uint32 pack_length() const 
+  { return (uint32) field_length + (bit_len > 0); }
+  void sql_type(String &str) const;
+  field_cast_enum field_cast_type() { return FIELD_CAST_BIT; }
+  char *pack(char *to, const char *from, uint max_length=~(uint) 0);
+  const char *unpack(char* to, const char *from);
+};
+
+  
 /*
   Create field class for CREATE TABLE
 */

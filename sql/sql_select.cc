@@ -7780,6 +7780,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   KEY_PART_INFO *key_part_info;
   Item **copy_func;
   MI_COLUMNDEF *recinfo;
+  uint total_uneven_bit_length= 0;
   DBUG_ENTER("create_tmp_table");
   DBUG_PRINT("enter",("distinct: %d  save_sum_fields: %d  rows_limit: %lu  group: %d",
 		      (int) distinct, (int) save_sum_fields,
@@ -7969,6 +7970,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       reclength+=new_field->pack_length();
       if (!(new_field->flags & NOT_NULL_FLAG))
 	null_count++;
+      if (new_field->type() == FIELD_TYPE_BIT)
+        total_uneven_bit_length+= new_field->field_length & 7;
       if (new_field->flags & BLOB_FLAG)
       {
 	*blob_field++= new_field;
@@ -8017,7 +8020,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       null_count++;
   }
   hidden_null_pack_length=(hidden_null_count+7)/8;
-  null_pack_length=hidden_null_count+(null_count+7)/8;
+  null_pack_length= hidden_null_count +
+                    (null_count + total_uneven_bit_length + 7) / 8;
   reclength+=null_pack_length;
   if (!reclength)
     reclength=1;				// Dummy select
