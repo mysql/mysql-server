@@ -498,7 +498,7 @@ We also provide @code{MySQL Server} as a multi-threaded library which you
 can link into your application to get a smaller, faster, easier to manage
 product.
 
-@item There is a lot of contributed MySQL software available.
+@item There is a large amount of contributed MySQL software available.
 
 It is very likely that you will find that your favorite application or
 language already supports the @code{MySQL Database Server}.
