@@ -9,7 +9,7 @@
 #   changes
 # - Test creating a duplicate key error and recover from it
 
-connect (master,localhost,root,,test,$MASTER_MYPORT,master.sock);
+connect (master,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 --disable_warnings
 drop table if exists t1, t2, t3, t4;
 --enable_warnings

@@ -110,14 +110,14 @@ drop database mysqltest;
 #
 # Rights for renaming test (Bug #3270)
 #
-connect (root,localhost,root,,test,$MASTER_MYPORT,master.sock);
+connect (root,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection root;
 --disable_warnings
 create database mysqltest;
 --enable_warnings
 create table mysqltest.t1 (a int,b int,c int);
 grant all on mysqltest.t1 to mysqltest_1@localhost;
-connect (user1,localhost,mysqltest_1,,mysqltest,$MASTER_MYPORT,master.sock);
+connect (user1,localhost,mysqltest_1,,mysqltest,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection user1;
 -- error 1142
 alter table t1 rename t2;

@@ -486,10 +486,8 @@ bool Item_in_optimizer::fix_left(THD *thd,
   /*
     If it is preparation PS only then we do not know values of parameters =>
     cant't get there values and do not need that values.
-
-    TODO: during merge with 5.0 it should be changed on !thd->only_prepare()
   */
-  if (!thd->current_statement)
+  if (!thd->only_prepare())
     cache->store(args[0]);
   if (cache->cols() == 1)
   {

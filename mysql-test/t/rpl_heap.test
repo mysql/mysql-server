@@ -7,7 +7,7 @@ require_manager;
 # issue a query after the server restart.
 # Maybe this is something awkward in mysqltest or in the manager?
 # So we use sockets.
-connect (master,localhost,root,,test,0,master.sock);
+connect (master,localhost,root,,test,0,$MASTER_MYPORT);
 connect (slave,localhost,root,,test,0,slave.sock);
 
 connection master;

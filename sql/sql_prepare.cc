@@ -1647,10 +1647,17 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
     /* error is sent inside yyparse/send_prepare_results */
   }
   else
-   stmt->setup_set_params();
-
+  {
+    stmt->setup_set_params();
+    SELECT_LEX *sl= stmt->lex->all_selects_list;
+    /*
+      Save WHERE clause pointers, because they may be changed during query
+      optimisation.
+    */
+    for (; sl; sl= sl->next_select_in_list())
+      sl->prep_where= sl->where;
+  }
   DBUG_RETURN(!stmt);
-
 }
 
 /* Reinit statement before execution */
@@ -1839,7 +1846,9 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "EXECUTE");
     send_error(thd);
   }
+  thd->current_arena= stmt;
   execute_stmt(thd, stmt, &expanded_query, false);
+  thd->current_arena= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -1885,12 +1894,13 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
 
-  /* Free Items that were created during this execution of the PS. */
-  free_items(thd->free_list);
   cleanup_items(stmt->free_list);
   reset_stmt_params(stmt);
   close_thread_tables(thd);                    // to close derived tables
   thd->set_statement(&thd->stmt_backup);
+  /* Free Items that were created during this execution of the PS. */
+  free_items(thd->free_list);
+  thd->free_list= 0;
   DBUG_VOID_RETURN;
 }
 

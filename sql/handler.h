@@ -306,29 +306,33 @@ public:
 
   int ha_index_init(uint idx)
   {
+    DBUG_ENTER("ha_index_init");
     DBUG_ASSERT(inited==NONE);
     inited=INDEX;
-    return index_init(idx);
+    DBUG_RETURN(index_init(idx));
   }
   int ha_index_end()
   {
+    DBUG_ENTER("ha_index_end");
     DBUG_ASSERT(inited==INDEX);
     inited=NONE;
-    return index_end();
+    DBUG_RETURN(index_end());
   }
   int ha_rnd_init(bool scan)
   {
+    DBUG_ENTER("ha_rnd_init");
     DBUG_ASSERT(inited==NONE || (inited==RND && scan));
     inited=RND;
-    return rnd_init(scan);
+    DBUG_RETURN(rnd_init(scan));
   }
   int ha_rnd_end()
   {
+    DBUG_ENTER("ha_rnd_end");
     DBUG_ASSERT(inited==RND);
     inited=NONE;
-    return rnd_end();
+    DBUG_RETURN(rnd_end());
   }
-  /* this is neseccary in many places, e.g. in HANDLER command */
+  /* this is necessary in many places, e.g. in HANDLER command */
   int ha_index_or_rnd_end()
   {
     return inited == INDEX ? ha_index_end() : inited == RND ? ha_rnd_end() : 0;

@@ -2874,7 +2874,7 @@ best_access_path(JOIN      *join,
             Set tmp to (previous record count) * (records / combination)
           */
           if ((found_part & 1) &&
-              (!(table->file->index_flags(key) & HA_ONLY_WHOLE_INDEX) ||
+              (!(table->file->index_flags(key, 0, 0) & HA_ONLY_WHOLE_INDEX) ||
                found_part == PREV_BITS(uint,keyinfo->key_parts)))
           {
             max_key_part=max_part_bit(found_part);
@@ -5107,7 +5107,7 @@ JOIN::join_free(bool full)
   if (full)
   {
     group_fields.delete_elements();
-    tmp_table_param.copy_funcs.delete_elements();
+    tmp_table_param.copy_funcs.empty();
     tmp_table_param.cleanup();
   }
   DBUG_VOID_RETURN;
@@ -5575,8 +5575,10 @@ propagate_cond_constants(I_List<COND_CMP> *save_list,COND *and_father,
 
 COND *eliminate_not_funcs(THD *thd, COND *cond)
 {
+  DBUG_ENTER("eliminate_not_funcs");
+
   if (!cond)
-    return cond;
+    DBUG_RETURN(cond);
   if (cond->type() == Item::COND_ITEM)		/* OR or AND */
   {
     List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
@@ -5601,7 +5603,7 @@ COND *eliminate_not_funcs(THD *thd, COND *cond)
       cond= new_cond;
     }
   }
-  return cond;
+  DBUG_RETURN(cond);
 }
 
 
@@ -5838,8 +5840,7 @@ optimize_cond(JOIN *join, COND *conds, Item::cond_result *cond_value)
   SELECT_LEX *select= thd->lex->current_select;
   if (select->first_cond_optimization)
   {
-    Item_arena *arena= select->first_cond_optimization ?
-                        thd->current_arena : 0;
+    Item_arena *arena= thd->current_arena;
     Item_arena backup;
     if (arena)
       thd->set_n_backup_item_arena(arena, &backup);
@@ -8865,6 +8866,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	  */
 	  if (!select->quick->reverse_sorted())
 	  {
+            int quick_type= select->quick->get_type();
             /* here used_key_parts >0 */
             if (!(table->file->index_flags(ref_key,used_key_parts-1, 1)
                   & HA_READ_PREV) ||

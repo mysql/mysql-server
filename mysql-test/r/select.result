@@ -2076,8 +2076,6 @@ gvid	the_success	the_fail	the_size	the_time
 Warnings:
 Warning	1292	Truncated incorrect datetime value: 'wrong-date-value'
 Warning	1292	Truncated incorrect datetime value: 'wrong-date-value'
-Warning	1292	Truncated incorrect datetime value: 'wrong-date-value'
-Warning	1292	Truncated incorrect datetime value: 'wrong-date-value'
 SELECT a.gvid, (SUM(CASE b.sampletid WHEN 140 THEN b.samplevalue ELSE 0 END)) as the_success,(SUM(CASE b.sampletid WHEN 141 THEN b.samplevalue ELSE 0 END)) as the_fail,(SUM(CASE b.sampletid WHEN 142 THEN b.samplevalue ELSE 0 END)) as the_size,(SUM(CASE b.sampletid WHEN 143 THEN b.samplevalue ELSE 0 END)) as the_time FROM t1 a, t2 b WHERE a.hmid = b.hmid AND a.volid = b.volid AND b.sampletime >= NULL AND b.sampletime < NULL AND b.sampletid IN (140, 141, 142, 143) GROUP BY a.gvid;
 gvid	the_success	the_fail	the_size	the_time
 DROP TABLE t1,t2;

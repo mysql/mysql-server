@@ -28,7 +28,7 @@ select db1_secret.db();
 db1_secret.db()
 db1_secret
 select * from db1_secret.t1;
-ERROR 42000: Access denied for user: 'user1'@'localhost' to database 'db1_secret'
+ERROR 42000: Access denied for user 'user1'@'localhost' to database 'db1_secret'
 create procedure db1_secret.dummy() begin end;
 ERROR 42000: Unknown database 'db1_secret'
 drop procedure db1_secret.dummy;
@@ -38,7 +38,7 @@ select db1_secret.db();
 db1_secret.db()
 db1_secret
 select * from db1_secret.t1;
-ERROR 42000: Access denied for user: ''@'localhost' to database 'db1_secret'
+ERROR 42000: Access denied for user ''@'localhost' to database 'db1_secret'
 create procedure db1_secret.dummy() begin end;
 ERROR 42000: Unknown database 'db1_secret'
 drop procedure db1_secret.dummy;
@@ -67,13 +67,13 @@ select db();
 db()
 db1_secret
 call db1_secret.stamp(5);
-ERROR 42000: Access denied for user: 'user1'@'localhost' to database 'db1_secret'
+ERROR 42000: Access denied for user 'user1'@'localhost' to database 'db1_secret'
 select db1_secret.db();
-ERROR 42000: Access denied for user: 'user1'@'localhost' to database 'db1_secret'
+ERROR 42000: Access denied for user 'user1'@'localhost' to database 'db1_secret'
 call db1_secret.stamp(6);
-ERROR 42000: Access denied for user: ''@'localhost' to database 'db1_secret'
+ERROR 42000: Access denied for user ''@'localhost' to database 'db1_secret'
 select db1_secret.db();
-ERROR 42000: Access denied for user: ''@'localhost' to database 'db1_secret'
+ERROR 42000: Access denied for user ''@'localhost' to database 'db1_secret'
 drop database if exists db2;
 create database db2;
 use db2;
@@ -87,10 +87,10 @@ flush privileges;
 use db2;
 create procedure p () insert into t2 values (1);
 call p();
-ERROR 42000: Access denied for user: 'user1'@'localhost' to database 'db2'
+ERROR 42000: Access denied for user 'user1'@'localhost' to database 'db2'
 use db2;
 call p();
-ERROR 42000: Access denied for user: 'user1'@'localhost' to database 'db2'
+ERROR 42000: Access denied for user 'user1'@'localhost' to database 'db2'
 select * from t2;
 s1
 0

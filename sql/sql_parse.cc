@@ -1158,8 +1158,10 @@ end:
 
 void free_items(Item *item)
 {
+  DBUG_ENTER("free_items");
   for (; item ; item=item->next)
     item->delete_self();
+  DBUG_VOID_RETURN;
 }
 
     /* This works because items are allocated with sql_alloc() */
@@ -4380,16 +4382,17 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
 {
   LEX *lex;
   bool error= 0;
+  DBUG_ENTER("mysql_test_parse_for_slave");
 
   mysql_init_query(thd);
   lex= lex_start(thd, (uchar*) inBuf, length);
   if (!yyparse((void*) thd) && ! thd->is_fatal_error &&
       all_tables_not_ok(thd,(TABLE_LIST*) lex->select_lex.table_list.first))
-    error= 1;                /* Ignore question */
+    error= 1;                  /* Ignore question */
   free_items(thd->free_list);  /* Free strings used by items */
   lex_end(lex);
 
-  return error;
+  DBUG_RETURN(error);
 }
 #endif
 

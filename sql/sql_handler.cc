@@ -194,13 +194,14 @@ int mysql_ha_close_list(THD *thd, TABLE_LIST *tables, bool flushed)
 }
 
 static enum enum_ha_read_modes rkey_to_rnext[]=
-    { RNEXT_SAME, RNEXT, RPREV, RNEXT, RPREV, RNEXT, RPREV, RPREV };
+{ RNEXT_SAME, RNEXT, RPREV, RNEXT, RPREV, RNEXT, RPREV, RPREV };
 
 
 int mysql_ha_read(THD *thd, TABLE_LIST *tables,
-    enum enum_ha_read_modes mode, char *keyname, List<Item> *key_expr,
-    enum ha_rkey_function ha_rkey_mode, Item *cond,
-    ha_rows select_limit,ha_rows offset_limit)
+                  enum enum_ha_read_modes mode, char *keyname,
+                  List<Item> *key_expr,
+                  enum ha_rkey_function ha_rkey_mode, Item *cond,
+                  ha_rows select_limit,ha_rows offset_limit)
 {
   int err, keyno=-1;
   bool was_flushed;
@@ -227,7 +228,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
     if ((keyno=find_type(keyname, &table->keynames, 1+2)-1)<0)
     {
       my_printf_error(ER_KEY_DOES_NOT_EXITS,ER(ER_KEY_DOES_NOT_EXITS),MYF(0),
-          keyname,tables->alias);
+                      keyname,tables->alias);
       return -1;
     }
     table->file->ha_index_or_rnd_end();
@@ -257,7 +258,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   MYSQL_LOCK *lock=mysql_lock_tables(thd,&tables->table,1);
   HANDLER_TABLES_HACK(thd);
   if (!lock)
-     goto err0; // mysql_lock_tables() printed error message already
+    goto err0; // mysql_lock_tables() printed error message already
 
   /*
     In ::external_lock InnoDB resets the fields which tell it that
@@ -290,7 +291,7 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
       err=keyname ?
 	table->file->index_next(table->record[0]) :
 	table->file->rnd_next(table->record[0]);
-      break;
+        break;
     case RPREV:
       DBUG_ASSERT(keyname != 0);
       err=table->file->index_prev(table->record[0]);
@@ -442,6 +443,8 @@ static TABLE **find_table_ptr_by_name(THD *thd, const char *db,
       {
         if (!dont_lock)
           VOID(pthread_mutex_lock(&LOCK_open));
+        
+        table->file->ha_index_or_rnd_end();
         if (close_thread_table(thd, table_ptr))
         {
           /* Tell threads waiting for refresh that something has happened */
