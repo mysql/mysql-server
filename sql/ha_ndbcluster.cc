@@ -138,6 +138,16 @@ static int ndb_to_mysql_error(const NdbError *err)
 }
 
 
+
+inline
+int execute_no_commit(ha_ndbcluster *h, NdbConnection *trans)
+{
+  int m_batch_execute= 0;
+  if (false && m_batch_execute)
+    return 0;
+  return trans->execute(NoCommit);
+}
+
 /*
   Place holder for ha_ndbcluster thread specific data
 */
@@ -217,7 +227,8 @@ void ha_ndbcluster::no_uncommitted_rows_init(THD *thd)
 void ha_ndbcluster::no_uncommitted_rows_update(int c)
 {
   DBUG_ENTER("ha_ndbcluster::no_uncommitted_rows_update");
-  struct Ndb_table_local_info *info= (struct Ndb_table_local_info *)m_table_info;
+  struct Ndb_table_local_info *info=
+    (struct Ndb_table_local_info *)m_table_info;
   info->no_uncommitted_rows_count+= c;
   DBUG_PRINT("info", ("id=%d, no_uncommitted_rows_count=%d",
 		      ((const NDBTAB *)m_table)->getTableId(),
@@ -1023,7 +1034,7 @@ int ha_ndbcluster::complemented_pk_read(const byte *old_data, byte *new_data)
     }
   }
   
-  if (trans->execute(NoCommit) != 0) 
+  if (execute_no_commit(this,trans) != 0) 
   {
     table->status= STATUS_NOT_FOUND;
     DBUG_RETURN(ndb_err(trans));
@@ -1135,7 +1146,7 @@ inline int ha_ndbcluster::next_result(byte *buf)
     */
     if (ops_pending && blobs_pending)
     {
-      if (trans->execute(NoCommit) != 0)
+      if (execute_no_commit(this,trans) != 0)
 	DBUG_RETURN(ndb_err(trans));
       ops_pending= 0;
       blobs_pending= false;
@@ -1163,7 +1174,7 @@ inline int ha_ndbcluster::next_result(byte *buf)
       DBUG_PRINT("info", ("ops_pending: %d", ops_pending));    
       if (current_thd->transaction.on)
       {
-	if (ops_pending && (trans->execute(NoCommit) != 0))
+	if (ops_pending && (execute_no_commit(this,trans) != 0))
 	  DBUG_RETURN(ndb_err(trans));
       }
       else
@@ -1503,7 +1514,7 @@ int ha_ndbcluster::define_read_attrs(byte* buf, NdbOperation* op)
       ERR_RETURN(op->getNdbError());
   }
 
-  if (trans->execute(NoCommit) != 0)
+  if (execute_no_commit(this,trans) != 0)
     DBUG_RETURN(ndb_err(trans));
   DBUG_PRINT("exit", ("Scan started successfully"));
   DBUG_RETURN(next_result(buf));
@@ -1591,7 +1602,7 @@ int ha_ndbcluster::write_row(byte *record)
     bulk_insert_not_flushed= false;
     if (thd->transaction.on)
     {
-      if (trans->execute(NoCommit) != 0)
+      if (execute_no_commit(this,trans) != 0)
       {
 	skip_auto_increment= true;
 	no_uncommitted_rows_execute_failure();
@@ -1766,7 +1777,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   }
 
   // Execute update operation
-  if (!cursor && trans->execute(NoCommit) != 0) {
+  if (!cursor && execute_no_commit(this,trans) != 0) {
     no_uncommitted_rows_execute_failure();
     DBUG_RETURN(ndb_err(trans));
   }
@@ -1836,7 +1847,7 @@ int ha_ndbcluster::delete_row(const byte *record)
   }
   
   // Execute delete operation
-  if (trans->execute(NoCommit) != 0) {
+  if (execute_no_commit(this,trans) != 0) {
     no_uncommitted_rows_execute_failure();
     DBUG_RETURN(ndb_err(trans));
   }
@@ -2266,7 +2277,7 @@ int ha_ndbcluster::close_scan()
       deleteing/updating transaction before closing the scan    
     */
     DBUG_PRINT("info", ("ops_pending: %d", ops_pending));    
-    if (trans->execute(NoCommit) != 0) {
+    if (execute_no_commit(this,trans) != 0) {
       no_uncommitted_rows_execute_failure();
       DBUG_RETURN(ndb_err(trans));
     }
@@ -2573,7 +2584,7 @@ int ha_ndbcluster::end_bulk_insert()
                         "rows_inserted:%d, bulk_insert_rows: %d", 
                         rows_inserted, bulk_insert_rows)); 
     bulk_insert_not_flushed= false;
-    if (trans->execute(NoCommit) != 0) {
+    if (execute_no_commit(this,trans) != 0) {
       no_uncommitted_rows_execute_failure();
       my_errno= error= ndb_err(trans);
     }
