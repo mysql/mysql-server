@@ -389,7 +389,7 @@ int ha_ndbcluster::set_ndb_key(NdbOperation *ndb_op, Field *field,
 */
 
 int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field, 
-                                 uint fieldnr)
+                                 uint fieldnr, bool *set_blob_value)
 {
   const byte* field_ptr= field->ptr;
   uint32 pack_len=  field->pack_length();
@@ -434,6 +434,8 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
                            (unsigned)blob_ptr, blob_len));
       DBUG_DUMP("value", (char*)blob_ptr, min(blob_len, 26));
 
+      if (set_blob_value)
+	*set_blob_value= true;
       // No callback needed to write value
       DBUG_RETURN(ndb_blob->setValue(blob_ptr, blob_len) != 0);
     }
@@ -1583,11 +1585,12 @@ int ha_ndbcluster::write_row(byte *record)
   }
 
   // Set non-key attribute(s)
+  bool set_blob_value= false;
   for (i= 0; i < table->fields; i++) 
   {
     Field *field= table->field[i];
     if (!(field->flags & PRI_KEY_FLAG) &&
-	set_ndb_value(op, field, i))
+	set_ndb_value(op, field, i, &set_blob_value))
     {
       skip_auto_increment= true;
       ERR_RETURN(op->getNdbError());
@@ -1606,7 +1609,7 @@ int ha_ndbcluster::write_row(byte *record)
   bulk_insert_not_flushed= true;
   if ((rows_to_insert == 1) || 
       ((rows_inserted % bulk_insert_rows) == 0) ||
-      uses_blob_value(false) != 0)
+      set_blob_value)
   {
     THD *thd= current_thd;
     // Send rows to NDB

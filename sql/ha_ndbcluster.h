@@ -210,7 +210,7 @@ class ha_ndbcluster: public handler
 		      uint fieldnr, const byte* field_ptr);
   int set_ndb_key(NdbOperation*, Field *field,
 		  uint fieldnr, const byte* field_ptr);
-  int set_ndb_value(NdbOperation*, Field *field, uint fieldnr);
+  int set_ndb_value(NdbOperation*, Field *field, uint fieldnr, bool *set_blob_value= 0);
   int get_ndb_value(NdbOperation*, Field *field, uint fieldnr, byte*);
   friend int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg);
   int get_ndb_blobs_value(NdbBlob *last_ndb_blob);
