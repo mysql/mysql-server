@@ -23,6 +23,7 @@
 #endif
 #include <m_ctype.h>
 #include "sql_sort.h"
+#include "assert.h"
 
 #ifndef THREAD
 #define SKIP_DBUG_IN_FILESORT
@@ -579,6 +580,10 @@ static void make_sortkey(register SORTPARAM *param,
 	  change_double_for_sort(value,(byte*) to);
 	  break;
 	}
+      case ROW_RESULT: 
+	// This case should never be choosen
+	DBUG_ASSERT(0);
+	break;
       }
     }
     if (sort_field->reverse)
@@ -965,6 +970,9 @@ sortlength(SORT_FIELD *sortorder, uint s_length)
       case REAL_RESULT:
 	sortorder->length=sizeof(double);
 	break;
+      case ROW_RESULT: 
+	// This case should never be choosen
+	DBUG_ASSERT(0);
       }
       if (sortorder->item->maybe_null)
 	length++;				// Place for NULL marker

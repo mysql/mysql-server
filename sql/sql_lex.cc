@@ -191,6 +191,10 @@ static int find_keyword(LEX *lex, uint len, bool function)
       return (udf->type == UDFTYPE_FUNCTION) ? UDF_FLOAT_FUNC : UDA_FLOAT_SUM;
     case INT_RESULT:
       return (udf->type == UDFTYPE_FUNCTION) ? UDF_INT_FUNC : UDA_INT_SUM;
+    case ROW_RESULT:
+      // This case should never be choosen
+      DBUG_ASSERT(0);
+      return 0;
     }
   }
 #endif
