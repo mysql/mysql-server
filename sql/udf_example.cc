@@ -126,6 +126,8 @@ typedef long long longlong;
 #include <m_ctype.h>
 #include <m_string.h>		// To get strmov()
 
+static pthread_mutex_t LOCK_hostname;
+
 #ifdef HAVE_DLOPEN
 
 /* These must be right or mysqld will not find the symbol! */
@@ -282,8 +284,8 @@ char *metaphon(UDF_INIT *initid, UDF_ARGS *args, char *result,
 
   for (n = ntrans + 1, n_end = ntrans + sizeof(ntrans)-2;
 	word != w_end && n < n_end; word++ )
-    if ( isalpha ( *word ))
-      *n++ = toupper ( *word );
+    if ( my_isalpha ( my_charset_latin1, *word ))
+      *n++ = my_toupper ( my_charset_latin1, *word );
 
   if ( n == ntrans + 1 )	/* return empty string if 0 bytes */
   {
@@ -583,6 +585,8 @@ longlong myfunc_int(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
     case REAL_RESULT:			// Add numers as longlong
       val += (longlong) *((double*) args->args[i]);
       break;
+    default:
+      break;
     }
   }
   return val;
@@ -642,8 +646,6 @@ longlong sequence(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
 **
 ****************************************************************************/
 
-#if defined(HAVE_GETHOSTBYADDR_R) && defined(HAVE_SOLARIS_STYLE_GETHOST)
-
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -651,9 +653,11 @@ longlong sequence(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
 
 extern "C" {
 my_bool lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
+void lookup_deinit(UDF_INIT *initid);
 char *lookup(UDF_INIT *initid, UDF_ARGS *args, char *result,
 	     unsigned long *length, char *null_value, char *error);
 my_bool reverse_lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
+void reverse_lookup_deinit(UDF_INIT *initid);
 char *reverse_lookup(UDF_INIT *initid, UDF_ARGS *args, char *result,
 		     unsigned long *length, char *null_value, char *error);
 }
@@ -676,7 +680,17 @@ my_bool lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
   }
   initid->max_length=11;
   initid->maybe_null=1;
+#if !defined(HAVE_GETHOSTBYADDR_R) && defined(HAVE_SOLARIS_STYLE_GETHOST)
+  (void) pthread_mutex_init(&LOCK_hostname,MY_MUTEX_INIT_SLOW);
+#endif
   return 0;
+}
+
+void lookup_deinit(UDF_INIT *initid)
+{
+#if !defined(HAVE_GETHOSTBYADDR_R) && defined(HAVE_SOLARIS_STYLE_GETHOST)
+  (void) pthread_mutex_destroy(&LOCK_hostname);
+#endif
 }
 
 char *lookup(UDF_INIT *initid, UDF_ARGS *args, char *result,
@@ -696,13 +710,23 @@ char *lookup(UDF_INIT *initid, UDF_ARGS *args, char *result,
     length=sizeof(name_buff)-1;
   memcpy(name_buff,args->args[0],length);
   name_buff[length]=0;
-
+#if defined(HAVE_GETHOSTBYADDR_R) && defined(HAVE_SOLARIS_STYLE_GETHOST)
   if (!(hostent=gethostbyname_r(name_buff,&tmp_hostent,hostname_buff,
 				sizeof(hostname_buff), &tmp_errno)))
   {
     *null_value=1;
     return 0;
   }
+#else
+  VOID(pthread_mutex_lock(&LOCK_hostname));
+  if (!(hostent= gethostbyname((char*) name_buff)))
+  {
+    VOID(pthread_mutex_unlock(&LOCK_hostname));
+    *null_value= 1;
+    return 0;
+  }
+  VOID(pthread_mutex_unlock(&LOCK_hostname));
+#endif
   struct in_addr in;
   memcpy_fixed((char*) &in,(char*) *hostent->h_addr_list, sizeof(in.s_addr));
   *res_length= (ulong) (strmov(result, inet_ntoa(in)) - result);
@@ -731,9 +755,18 @@ my_bool reverse_lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
   }
   initid->max_length=32;
   initid->maybe_null=1;
+#if !defined(HAVE_GETHOSTBYADDR_R) && defined(HAVE_SOLARIS_STYLE_GETHOST)
+  (void) pthread_mutex_init(&LOCK_hostname,MY_MUTEX_INIT_SLOW);
+#endif
   return 0;
 }
 
+void reverse_lookup_deinit(UDF_INIT *initid) 
+{
+#if !defined(HAVE_GETHOSTBYADDR_R) && defined(HAVE_SOLARIS_STYLE_GETHOST)
+  (void) pthread_mutex_destroy(&LOCK_hostname);
+#endif
+}
 
 char *reverse_lookup(UDF_INIT *initid, UDF_ARGS *args, char *result,
 		     unsigned long *res_length, char *null_value, char *error)
@@ -776,6 +809,7 @@ char *reverse_lookup(UDF_INIT *initid, UDF_ARGS *args, char *result,
     return 0;
   }
   struct hostent *hp;
+#if defined(HAVE_GETHOSTBYADDR_R) && defined(HAVE_SOLARIS_STYLE_GETHOST)
   int tmp_errno;
   if (!(hp=gethostbyaddr_r((char*) &taddr,sizeof(taddr), AF_INET,
 			   &tmp_hostent, name_buff,sizeof(name_buff),
@@ -784,10 +818,19 @@ char *reverse_lookup(UDF_INIT *initid, UDF_ARGS *args, char *result,
     *null_value=1;
     return 0;
   }
+#else
+  VOID(pthread_mutex_lock(&LOCK_hostname));
+  if (!(hp= gethostbyaddr((char*) &taddr, sizeof(taddr), AF_INET)))
+  {
+    VOID(pthread_mutex_unlock(&LOCK_hostname));
+    *null_value= 1;
+    return 0;
+  }
+  VOID(pthread_mutex_unlock(&LOCK_hostname));
+#endif
   *res_length=(ulong) (strmov(result,hp->h_name) - result);
   return result;
 }
-#endif // defined(HAVE_GETHOSTBYADDR_R) && defined(HAVE_SOLARIS_STYLE_GETHOST)
 
 /*
 ** Syntax for the new aggregate commands are:
