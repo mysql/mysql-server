@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding="utf-8"?>
 
-<charsets max-id="91">
+<charsets max-id="93">
 
 <description>
 This file lists all of the available character sets.
@@ -520,6 +520,13 @@ To make maintaining easier please:
     <order>Pakistani</order>
     <order>Urdu</order>
   </collation>
+</charset>
+
+<charset name="geostd8">
+  <family>South Asian</family>
+  <description>GEOSTD8 Georgian</description>
+  <collation name="geostd8_general_ci"	id="92"	order="Georgian"	flag="primary"/>
+  <collation name="geostd8_bin"		id="93"	order="Binary"		flag="binary"/>
 </charset>
 
 <charset name="binary">

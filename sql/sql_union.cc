@@ -178,7 +178,7 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
 				(ORDER*) 0, !union_option,
 				1, (select_cursor->options | thd->options |
 				    TMP_TABLE_ALL_COLUMNS),
-				HA_POS_ERROR)))
+				HA_POS_ERROR, (char*) "")))
     goto err;
   table->file->extra(HA_EXTRA_WRITE_CACHE);
   table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
@@ -354,7 +354,8 @@ int st_select_lex_unit::exec()
 			global_parameters->order_list.elements,
 			(ORDER*)global_parameters->order_list.first,
 			(ORDER*) NULL, NULL, (ORDER*) NULL,
-			thd->options, result, this, fake_select, 0);
+			thd->options | SELECT_NO_UNLOCK,
+			result, this, fake_select, 0);
       if (found_rows_for_union && !res)
 	thd->limit_found_rows = (ulonglong)table->file->records;
       fake_select->exclude();

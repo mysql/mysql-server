@@ -1,5 +1,19 @@
 SET CHARACTER SET koi8r;
 DROP TABLE IF EXISTS таблица;
+SET CHARACTER SET koi8r;
+CREATE TABLE t1 (a CHAR(10) CHARACTER SET cp1251) SELECT _koi8r'проба' AS a;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) character set cp1251 default NULL
+) TYPE=MyISAM CHARSET=latin1
+SELECT a FROM t1;
+a
+проба
+SELECT HEX(a) FROM t1;
+HEX(a)
+EFF0EEE1E0
+DROP TABLE t1;
 CREATE TABLE таблица 
 (
 поле CHAR(32) CHARACTER SET koi8r NOT NULL
