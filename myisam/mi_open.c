@@ -602,6 +602,8 @@ void mi_setup_functions(register MYISAM_SHARE *share)
     share->compare_unique=_mi_cmp_dynamic_unique;
     share->calc_checksum= mi_checksum;
 
+    /* add bits used to pack data to pack_reclength for faster allocation */
+    share->base.pack_reclength+= share->base.pack_bits;
     if (share->base.blobs)
     {
       share->update_record=_mi_update_blob_record;
