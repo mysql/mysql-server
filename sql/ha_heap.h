@@ -41,13 +41,14 @@ class ha_heap: public handler
   {
     return (HA_READ_RND_SAME | HA_NO_INDEX | HA_KEYPOS_TO_RNDPOS |
 	    HA_NO_BLOBS | HA_NULL_KEY | HA_REC_NOT_IN_SEQ |
-	    HA_NOT_READ_PREFIX_LAST | HA_NO_AUTO_INCREMENT);
+	    HA_NO_AUTO_INCREMENT);
   }
   ulong index_flags(uint inx) const
   {
     return ((table->key_info[inx].algorithm == HA_KEY_ALG_BTREE) ?
 	    (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER) :
-	    (HA_ONLY_WHOLE_INDEX | HA_WRONG_ASCII_ORDER));
+	    (HA_ONLY_WHOLE_INDEX | HA_WRONG_ASCII_ORDER |
+	     HA_NOT_READ_PREFIX_LAST));
   }
   uint max_record_length() const { return HA_MAX_REC_LENGTH; }
   uint max_keys()          const { return MAX_KEY; }
