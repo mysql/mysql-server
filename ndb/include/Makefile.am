@@ -21,7 +21,6 @@ ndbapi/NdbBlob.hpp \
 ndbapi/NdbPool.hpp \
 ndbapi/NdbRecAttr.hpp \
 ndbapi/NdbReceiver.hpp \
-ndbapi/NdbResultSet.hpp \
 ndbapi/NdbScanFilter.hpp \
 ndbapi/NdbScanOperation.hpp \
 ndbapi/NdbIndexScanOperation.hpp \

@@ -31,7 +31,6 @@ class Ndb;             // Forward declaration
 class NdbOperation;    // Forward declaration
 class NdbConnection;   // Forward declaration
 class NdbRecAttr;      // Forward declaration
-class NdbResultSet;    // Forward declaration
 class NdbScanOperation; 
 class NdbIndexScanOperation; 
 class NdbBlob;
@@ -179,6 +178,7 @@ class ha_ndbcluster: public handler
 			 const key_range *end_key,
 			 bool sorted, byte* buf);
   int full_table_scan(byte * buf);
+  int fetch_next(NdbScanOperation* op);
   int next_result(byte *buf); 
   int define_read_attrs(byte* buf, NdbOperation* op);
   int filtered_scan(const byte *key, uint key_len, 
@@ -218,7 +218,7 @@ class ha_ndbcluster: public handler
   int check_ndb_connection();
 
   NdbConnection *m_active_trans;
-  NdbResultSet *m_active_cursor;
+  NdbScanOperation *m_active_cursor;
   Ndb *m_ndb;
   void *m_table;
   void *m_table_info;
@@ -256,11 +256,13 @@ class ha_ndbcluster: public handler
   bool m_use_local_query_cache;
 
   bool m_disable_multi_read;
-  byte* m_multi_range_result_ptr;
+  byte *m_multi_range_result_ptr;
   uint m_multi_range_defined_count;
-  const NdbOperation* m_current_multi_operation;
+  const NdbOperation *m_current_multi_operation;
+  NdbIndexScanOperation *m_multi_cursor;
+  byte *m_multi_range_cursor_result_ptr;
   int setup_recattr(const NdbRecAttr*);
-
+  
   void set_rec_per_key();
   void records_update();
   void no_uncommitted_rows_execute_failure();
