@@ -179,7 +179,8 @@ Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
     return 1;
   }
   thd->allow_sum_func=0;			// No included group funcs
-  if (item->fix_fields(thd, tables, args) || item->check_cols(1))
+  if (!item->fixed &&
+      item->fix_fields(thd, tables, args) || item->check_cols(1))
     return 1;
   hybrid_type=item->result_type();
   if (hybrid_type == INT_RESULT)

@@ -97,6 +97,22 @@ longlong Item_func_not::val_int()
 }
 
 /*
+  special NOT for ALL subquery
+*/
+
+longlong Item_func_not_all::val_int()
+{  
+  double value= args[0]->val();
+  if (abort_on_null)
+  {
+    null_value= 0;
+    return (args[0]->null_value || value == 0) ? 1 : 0;
+  }
+  null_value= args[0]->null_value;
+  return (!null_value && value == 0) ? 1 : 0;
+}
+
+/*
   Convert a constant expression or string to an integer.
   This is done when comparing DATE's of different formats and
   also when comparing bigint to strings (in which case the string

@@ -100,6 +100,7 @@ insert into t2 values (100, 5);
 select * from t3 where a < any (select b from t2);
 select * from t3 where a < all (select b from t2);
 select * from t3 where a >= any (select b from t2);
+explain select * from t3 where a >= any (select b from t2);
 select * from t3 where a >= all (select b from t2);
 delete from t2 where a=100;
 -- error 1239
@@ -854,6 +855,7 @@ select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30 and t1.b <> 31);
 explain select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 drop table t1, t2, t3;
+
 #
 # alloc_group_fields() working
 #
@@ -864,4 +866,14 @@ insert into t1 values (0,100),(1,2), (1,3), (2,2), (2,7), (2,-1), (3,10);
 insert into t2 values (0,0), (1,1), (2,1), (3,1), (4,1);
 insert into t3 values (3,3), (2,2), (1,1); 
 select a,(select count(distinct t1.b) as sum from t1,t2 where t1.a=t2.a and t2.b > 0 and t1.a <= t3.b group by t1.a order by sum limit 1) from t3;
-drop table t1,t2,t3;s
+drop table t1,t2,t3;
+
+#
+# correct ALL optimisation
+#
+create table t2 (a int, b int);
+create table t3 (a int);
+insert into t3 values (6),(7),(3);
+select * from t3 where a >= all (select b from t2);
+explain select * from t3 where a >= all (select b from t2);
+drop table if exists t2, t3;
