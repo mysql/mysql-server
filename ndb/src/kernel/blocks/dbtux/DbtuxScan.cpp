@@ -602,6 +602,8 @@ Dbtux::execACCKEYCONF(Signal* signal)
     // LQH has the ball
     return;
   }
+  // lose the lock
+  scan.m_accLockOp = RNIL;
   // continue at ACC_ABORTCONF
 }
 
@@ -644,6 +646,8 @@ Dbtux::execACCKEYREF(Signal* signal)
     // LQH has the ball
     return;
   }
+  // lose the lock
+  scan.m_accLockOp = RNIL;
   // continue at ACC_ABORTCONF
 }
 
