@@ -89,7 +89,8 @@ NdbConnection::NdbConnection( Ndb* aNdb ) :
   // Scan operations
   theScanningOp(NULL),
   theBuddyConPtr(0xFFFFFFFF),
-  theBlobFlag(false)
+  theBlobFlag(false),
+  thePendingBlobOps(0)
 {
   theListState = NotInList;
   theError.code = 0;
@@ -150,6 +151,7 @@ NdbConnection::init()
   theBuddyConPtr            = 0xFFFFFFFF;
   //
   theBlobFlag = false;
+  thePendingBlobOps = 0;
 }//NdbConnection::init()
 
 /*****************************************************************************
@@ -269,26 +271,34 @@ NdbConnection::execute(ExecType aTypeOfExec,
   if (! theBlobFlag)
     return executeNoBlobs(aTypeOfExec, abortOption, forceSend);
 
-  // execute prepared ops in batches, as requested by blobs
+  /*
+   * execute prepared ops in batches, as requested by blobs
+   * - blob error does not terminate execution
+   * - blob error sets error on operation
+   * - if error on operation skip blob calls
+   */
 
   ExecType tExecType;
   NdbOperation* tPrepOp;
 
+  int ret = 0;
   do {
     tExecType = aTypeOfExec;
     tPrepOp = theFirstOpInList;
     while (tPrepOp != NULL) {
-      bool batch = false;
-      NdbBlob* tBlob = tPrepOp->theBlobList;
-      while (tBlob != NULL) {
-        if (tBlob->preExecute(tExecType, batch) == -1)
-          return -1;
-        tBlob = tBlob->theNext;
-      }
-      if (batch) {
-        // blob asked to execute all up to here now
-        tExecType = NoCommit;
-        break;
+      if (tPrepOp->theError.code == 0) {
+        bool batch = false;
+        NdbBlob* tBlob = tPrepOp->theBlobList;
+        while (tBlob != NULL) {
+          if (tBlob->preExecute(tExecType, batch) == -1)
+            ret = -1;
+          tBlob = tBlob->theNext;
+        }
+        if (batch) {
+          // blob asked to execute all up to here now
+          tExecType = NoCommit;
+          break;
+        }
       }
       tPrepOp = tPrepOp->next();
     }
@@ -304,26 +314,30 @@ NdbConnection::execute(ExecType aTypeOfExec,
     if (tExecType == Commit) {
       NdbOperation* tOp = theCompletedFirstOp;
       while (tOp != NULL) {
-        NdbBlob* tBlob = tOp->theBlobList;
-        while (tBlob != NULL) {
-          if (tBlob->preCommit() == -1)
-            return -1;
-          tBlob = tBlob->theNext;
+        if (tOp->theError.code == 0) {
+          NdbBlob* tBlob = tOp->theBlobList;
+          while (tBlob != NULL) {
+            if (tBlob->preCommit() == -1)
+              ret = -1;
+            tBlob = tBlob->theNext;
+          }
         }
         tOp = tOp->next();
       }
     }
     if (executeNoBlobs(tExecType, abortOption, forceSend) == -1)
-        return -1;
+        ret = -1;
     {
       NdbOperation* tOp = theCompletedFirstOp;
       while (tOp != NULL) {
-        NdbBlob* tBlob = tOp->theBlobList;
-        while (tBlob != NULL) {
-          // may add new operations if batch
-          if (tBlob->postExecute(tExecType) == -1)
-            return -1;
-          tBlob = tBlob->theNext;
+        if (tOp->theError.code == 0) {
+          NdbBlob* tBlob = tOp->theBlobList;
+          while (tBlob != NULL) {
+            // may add new operations if batch
+            if (tBlob->postExecute(tExecType) == -1)
+              ret = -1;
+            tBlob = tBlob->theNext;
+          }
         }
         tOp = tOp->next();
       }
@@ -338,7 +352,7 @@ NdbConnection::execute(ExecType aTypeOfExec,
     }
   } while (theFirstOpInList != NULL || tExecType != aTypeOfExec);
 
-  return 0;
+  return ret;
 }
 
 int 
@@ -397,6 +411,7 @@ NdbConnection::executeNoBlobs(ExecType aTypeOfExec,
       break;
     }
   }
+  thePendingBlobOps = 0;
   return 0;
 }//NdbConnection::execute()
 

@@ -55,6 +55,13 @@ int NdbResultSet::nextResult(bool fetchAllowed)
         return -1;
       tBlob = tBlob->theNext;
     }
+    /*
+     * Flush blob part ops on behalf of user because
+     * - nextResult is analogous to execute(NoCommit)
+     * - user is likely to want blob value before next execute
+     */
+    if (m_operation->m_transConnection->executePendingBlobOps() == -1)
+      return -1;
     return 0;
   }
   return res;
