@@ -3778,9 +3778,11 @@ int Field_string::store(double nr)
 
 int Field_string::store(longlong nr)
 {
-  char buff[22];
-  char *end=longlong10_to_str(nr,buff,-10);
-  return Field_string::store(buff,(uint) (end-buff), default_charset_info);
+  char buff[64];
+  int  l;
+  CHARSET_INFO *cs=charset();
+  l=cs->ll10tostr(cs,buff,sizeof(buff),-10,nr);
+  return Field_string::store(buff,(uint)l,cs);
 }
 
 
@@ -3975,9 +3977,11 @@ int Field_varstring::store(double nr)
 
 int Field_varstring::store(longlong nr)
 {
-  char buff[22];
-  char *end=longlong10_to_str(nr,buff,-10);
-  return Field_varstring::store(buff,(uint) (end-buff), default_charset_info);
+  char buff[64];
+  int  l;
+  CHARSET_INFO *cs=charset();
+  l=cs->ll10tostr(cs,buff,sizeof(buff),-10,nr);
+  return Field_varstring::store(buff,(uint)l,cs);
 }
 
 
