@@ -270,7 +270,7 @@ static TABLE **find_table_ptr_by_name(THD *thd, const char *db,
   for (TABLE *table=*ptr; table ; table=*ptr)
   {
     if (!memcmp(table->table_cache_key, db, dblen) &&
-        !my_strcasecmp(table->table_name,table_name))
+        !my_strcasecmp(system_charset_info,table->table_name,table_name))
       break;
     ptr=&(table->next);
   }

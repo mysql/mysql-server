@@ -18,6 +18,9 @@
 
 #undef CRAY_STACKSEG_END
 
+/* Define the default charset name */
+#undef DEFAULT_CHARSET_NAME
+
 /* Version of .frm files */
 #undef DOT_FRM_VERSION
 
@@ -62,6 +65,41 @@
 
 /* READLINE: */
 #undef HAVE_BSD_SIGNALS
+
+/* Define charsets you want */
+#undef HAVE_CHARSET_armscii8
+#undef HAVE_CHARSET_big5
+#undef HAVE_CHARSET_cp1251
+#undef HAVE_CHARSET_cp1257
+#undef HAVE_CHARSET_croat
+#undef HAVE_CHARSET_czech
+#undef HAVE_CHARSET_danish
+#undef HAVE_CHARSET_dec8
+#undef HAVE_CHARSET_dos
+#undef HAVE_CHARSET_estonia
+#undef HAVE_CHARSET_euc_kr
+#undef HAVE_CHARSET_gb2312
+#undef HAVE_CHARSET_gbk
+#undef HAVE_CHARSET_german1
+#undef HAVE_CHARSET_greek
+#undef HAVE_CHARSET_hebrew
+#undef HAVE_CHARSET_hp8
+#undef HAVE_CHARSET_hungarian
+#undef HAVE_CHARSET_koi8_ru
+#undef HAVE_CHARSET_koi8_ukr
+#undef HAVE_CHARSET_latin1
+#undef HAVE_CHARSET_latin1_de
+#undef HAVE_CHARSET_latin2
+#undef HAVE_CHARSET_latin5
+#undef HAVE_CHARSET_sjis
+#undef HAVE_CHARSET_swe7
+#undef HAVE_CHARSET_tis620
+#undef HAVE_CHARSET_ujis
+#undef HAVE_CHARSET_usa7
+#undef HAVE_CHARSET_utf8
+#undef HAVE_CHARSET_win1250
+#undef HAVE_CHARSET_win1251ukr
+#undef HAVE_CHARSET_win1251
 
 /* ZLIB and compress: */
 #undef HAVE_COMPRESS

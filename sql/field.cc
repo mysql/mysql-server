@@ -68,7 +68,8 @@ const char field_separator=',';
 	*/
 
 static bool
-number_dec(struct st_decstr *sdec, const char *str, const char *end)
+number_dec(CHARSET_INFO *cs, struct st_decstr *sdec, 
+           const char *str, const char *end)
 {
   sdec->sign=sdec->extra=0;
   if (str == end)
@@ -86,7 +87,7 @@ number_dec(struct st_decstr *sdec, const char *str, const char *end)
     str++;
   }
   const char *start=str;
-  while (str != end && isdigit(*str))
+  while (str != end && my_isdigit(cs,*str))
     str++;
   if (!(sdec->nr_length=(uint) (str-start)))
     sdec->extra=1;				// We must put one 0 before .
@@ -95,13 +96,13 @@ number_dec(struct st_decstr *sdec, const char *str, const char *end)
   {
     str++;
     start=str;
-    while (str != end && isdigit(*str))
+    while (str != end && my_isdigit(cs,*str))
       str++;
   }
   sdec->nr_dec=(uint) (str-start);
   if (current_thd->count_cuted_fields)
   {
-    while (str != end && isspace(*str))
+    while (str != end && my_isspace(cs,*str))
       str++; /* purecov: inspected */
     if (str != end)
     {
@@ -135,7 +136,8 @@ bool test_if_int(const char *str,int length)
 {
   const char *end=str+length;
 
-  while (str != end && isspace(*str))	// Allow start space
+  // Allow start space
+  while (str != end && my_isspace(system_charset_info,*str))
     str++; /* purecov: inspected */
   if (str != end && (*str == '-' || *str == '+'))
     str++;
@@ -143,7 +145,7 @@ bool test_if_int(const char *str,int length)
     return 0;					// Error: Empty string
   for ( ; str != end ; str++)
   {
-    if (!isdigit(*str))
+    if (!my_isdigit(system_charset_info,*str))
     {
       if (*str == '.')
       {						// Allow '.0000'
@@ -151,10 +153,10 @@ bool test_if_int(const char *str,int length)
 	if (str == end)
 	  return 1;
       }
-      if (!isspace(*str))
+      if (!my_isspace(system_charset_info,*str))
 	return 0;
       for (str++ ; str != end ; str++)
-	if (!isspace(*str))
+	if (!my_isspace(system_charset_info,*str))
 	  return 0;
       return 1;
     }
@@ -165,7 +167,7 @@ bool test_if_int(const char *str,int length)
 
 static bool test_if_real(const char *str,int length)
 {
-  while (length && isspace(*str))
+  while (length && my_isspace(system_charset_info,*str))
   {						// Allow start space
     length--; str++;
   }
@@ -174,10 +176,10 @@ static bool test_if_real(const char *str,int length)
   if (*str == '+' || *str == '-')
   {
     length--; str++;
-    if (!length || !(isdigit(*str) || *str == '.'))
+    if (!length || !(my_isdigit(system_charset_info,*str) || *str == '.'))
       return 0;
   }
-  while (length && isdigit(*str))
+  while (length && my_isdigit(system_charset_info,*str))
   {
     length--; str++;
   }
@@ -186,7 +188,7 @@ static bool test_if_real(const char *str,int length)
   if (*str == '.')
   {
     length--; str++;
-    while (length && isdigit(*str))
+    while (length && my_isdigit(system_charset_info,*str))
     {
       length--; str++;
     }
@@ -195,18 +197,19 @@ static bool test_if_real(const char *str,int length)
     return 1;
   if (*str == 'E' || *str == 'e')
   {
-    if (length < 3 || (str[1] != '+' && str[1] != '-') || !isdigit(str[2]))
+    if (length < 3 || (str[1] != '+' && str[1] != '-') || 
+        !my_isdigit(system_charset_info,str[2]))
       return 0;
     length-=3;
     str+=3;
-    while (length && isdigit(*str))
+    while (length && my_isdigit(system_charset_info,*str))
     {
       length--; str++;
     }
   }
   for ( ; length ; length--, str++)
   {						// Allow end space
-    if (!isspace(*str))
+    if (!my_isspace(system_charset_info,*str))
       return 0;
   }
   return 1;
@@ -405,7 +408,7 @@ void Field_decimal::store(const char *from,uint len)
 
   if ((tmp_dec= dec))
     tmp_dec++;					// Calculate pos of '.'
-  while (from != end && isspace(*from))
+  while (from != end && my_isspace(system_charset_info,*from))
     from++;
   if (zerofill)
   {
@@ -416,7 +419,7 @@ void Field_decimal::store(const char *from,uint len)
   }
   else
     fyllchar=' ';
-  error=number_dec(&decstr,from,end);
+  error=number_dec(system_charset_info,&decstr,from,end);
   if (decstr.sign)
   {
     from++;
@@ -479,7 +482,7 @@ void Field_decimal::store(const char *from,uint len)
     {
       if (*from != '0')
       {
-	if (!isspace(*from))			// Space is ok
+	if (!my_isspace(system_charset_info,*from))	// Space is ok
 	  current_thd->cuted_fields++;
 	break;
       }
@@ -603,8 +606,10 @@ int Field_decimal::cmp(const char *a_ptr,const char *b_ptr)
   for (end=a_ptr+field_length;
        a_ptr != end &&
 	 (*a_ptr == *b_ptr ||
-	  ((isspace(*a_ptr)  || *a_ptr == '+' || *a_ptr == '0') &&
-	   (isspace(*b_ptr) || *b_ptr == '+' || *b_ptr == '0')));
+	  ((my_isspace(system_charset_info,*a_ptr)  || *a_ptr == '+' || 
+            *a_ptr == '0') &&
+	   (my_isspace(system_charset_info,*b_ptr) || *b_ptr == '+' || 
+            *b_ptr == '0')));
        a_ptr++,b_ptr++)
   {
     if (*a_ptr == '-')				// If both numbers are negative
@@ -631,7 +636,7 @@ void Field_decimal::sort_string(char *to,uint length)
   char *str,*end;
   for (str=ptr,end=ptr+length;
        str != end &&
-	 ((isspace(*str) || *str == '+' || *str == '0')) ;
+	 ((my_isspace(system_charset_info,*str) || *str == '+' || *str == '0')) ;
 
        str++)
     *to++=' ';
@@ -643,7 +648,7 @@ void Field_decimal::sort_string(char *to,uint length)
     *to++=1;					// Smaller than any number
     str++;
     while (str != end)
-      if (isdigit(*str))
+      if (my_isdigit(system_charset_info,*str))
 	*to++= (char) ('9' - *str++);
       else
 	*to++= *str++;
@@ -1265,7 +1270,7 @@ void Field_medium::sql_type(String &res) const
 
 void Field_long::store(const char *from,uint len)
 {
-  while (len && isspace(*from))
+  while (len && my_isspace(system_charset_info,*from))
   {
     len--; from++;
   }
@@ -1493,7 +1498,7 @@ void Field_long::sql_type(String &res) const
 
 void Field_longlong::store(const char *from,uint len)
 {
-  while (len && isspace(*from))
+  while (len && my_isspace(system_charset_info,*from))
   {						// For easy error check
     len--; from++;
   }
@@ -3331,7 +3336,7 @@ void Field_string::store(const char *from,uint length)
       const char *end=from+length;
       for (from+=field_length ; from != end ; from++)
       {
-	if (!isspace(*from))
+	if (!my_isspace(field_charset,*from))
 	{
 	  current_thd->cuted_fields++;
 	  break;
@@ -3402,7 +3407,7 @@ int Field_string::cmp(const char *a_ptr, const char *b_ptr)
   if (binary_flag)
     return memcmp(a_ptr,b_ptr,field_length);
   else
-    return my_sortcmp(a_ptr,b_ptr,field_length);
+    return my_sortcmp(field_charset,a_ptr,b_ptr,field_length);
 }
 
 void Field_string::sort_string(char *to,uint length)
@@ -3412,17 +3417,17 @@ void Field_string::sort_string(char *to,uint length)
   else
   {
 #ifdef USE_STRCOLL
-    if (use_strcoll(default_charset_info)) {
-      uint tmp=my_strnxfrm(default_charset_info,
-                          (unsigned char *)to, (unsigned char *) ptr,
-                          length, field_length);
+    if (use_strcoll(field_charset)) {
+      uint tmp=my_strnxfrm(field_charset,
+                          (unsigned char *)to, length,
+                          (unsigned char *) ptr, field_length);
       if (tmp < length)
         bzero(to + tmp, length - tmp);
     }
     else
 #endif
       for (char *from=ptr,*end=ptr+length ; from != end ;)
-        *to++=(char) my_sort_order[(uint) (uchar) *from++];
+        *to++=(char) field_charset->sort_order[(uint) (uchar) *from++];
   }
 }
 
@@ -3471,7 +3476,7 @@ int Field_string::pack_cmp(const char *a, const char *b, uint length)
     int cmp= memcmp(a,b,min(a_length,b_length));
     return cmp ? cmp : (int) (a_length - b_length);
   }
-  return my_sortncmp(a,a_length, b,b_length);
+  return my_sortncmp(field_charset, a,a_length, b,b_length);
 }
 
 
@@ -3488,7 +3493,7 @@ int Field_string::pack_cmp(const char *b, uint length)
     int cmp= memcmp(ptr,b,min(a_length,b_length));
     return cmp ? cmp : (int) (a_length - b_length);
   }
-  return my_sortncmp(ptr,a_length, b, b_length);
+  return my_sortncmp(field_charset, ptr,a_length, b, b_length);
 }
 
 
@@ -3593,7 +3598,7 @@ int Field_varstring::cmp(const char *a_ptr, const char *b_ptr)
   if (binary_flag)
     diff=memcmp(a_ptr+2,b_ptr+2,min(a_length,b_length));
   else
-    diff=my_sortcmp(a_ptr+2,b_ptr+2,min(a_length,b_length));
+    diff=my_sortcmp(field_charset, a_ptr+2,b_ptr+2,min(a_length,b_length));
   return diff ? diff : (int) (a_length - b_length);
 }
 
@@ -3605,10 +3610,10 @@ void Field_varstring::sort_string(char *to,uint length)
   else
   {
 #ifdef USE_STRCOLL
-    if (use_strcoll(default_charset_info))
-      tot_length=my_strnxfrm(default_charset_info,
-                             (unsigned char *) to, (unsigned char *)ptr+2,
-                             length, tot_length);
+    if (use_strcoll(field_charset))
+      tot_length=my_strnxfrm(field_charset,
+                             (unsigned char *) to, length,
+                             (unsigned char *)ptr+2, tot_length);
     else
     {
 #endif
@@ -3616,7 +3621,7 @@ void Field_varstring::sort_string(char *to,uint length)
       if (tot_length > length)
         tot_length=length;
       for (char *from=ptr+2,*end=from+tot_length ; from != end ;)
-        *tmp++=(char) my_sort_order[(uint) (uchar) *from++];
+        *tmp++=(char) field_charset->sort_order[(uint) (uchar) *from++];
 #ifdef USE_STRCOLL
     }
 #endif
@@ -3687,7 +3692,7 @@ int Field_varstring::pack_cmp(const char *a, const char *b, uint key_length)
     int cmp= memcmp(a,b,min(a_length,b_length));
     return cmp ? cmp : (int) (a_length - b_length);
   }
-  return my_sortncmp(a,a_length, b,b_length);
+  return my_sortncmp(field_charset, a,a_length, b,b_length);
 }
 
 int Field_varstring::pack_cmp(const char *b, uint key_length)
@@ -3708,7 +3713,7 @@ int Field_varstring::pack_cmp(const char *b, uint key_length)
     int cmp= memcmp(a,b,min(a_length,b_length));
     return cmp ? cmp : (int) (a_length - b_length);
   }
-  return my_sortncmp(a,a_length, b,b_length);
+  return my_sortncmp(field_charset, a,a_length, b,b_length);
 }
 
 uint Field_varstring::packed_col_length(const char *ptr, uint length)
@@ -3737,7 +3742,7 @@ Field_blob::Field_blob(char *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
   :Field_str(ptr_arg, (1L << min(blob_pack_length,3)*8)-1L,
 	     null_ptr_arg, null_bit_arg, unireg_check_arg, field_name_arg,
 	     table_arg),
-   packlength(blob_pack_length),binary_flag(binary_arg)
+   packlength(blob_pack_length),binary_flag(binary_arg), geom_flag(true)
 {
   flags|= BLOB_FLAG;
   if (binary_arg)
@@ -3931,7 +3936,7 @@ int Field_blob::cmp(const char *a,uint32 a_length, const char *b,
   if (binary_flag)
     diff=memcmp(a,b,min(a_length,b_length));
   else
-    diff=my_sortcmp(a,b,min(a_length,b_length));
+    diff=my_sortcmp(field_charset, a,b,min(a_length,b_length));
   return diff ? diff : (int) (a_length - b_length);
 }
 
@@ -3979,8 +3984,30 @@ int Field_blob::cmp_binary(const char *a_ptr, const char *b_ptr,
 
 /* The following is used only when comparing a key */
 
-void Field_blob::get_key_image(char *buff,uint length)
+void Field_blob::get_key_image(char *buff,uint length, imagetype type)
 {
+  if(type == itMBR)
+  {
+    length-=HA_KEY_BLOB_LENGTH;
+    ulong blob_length=get_length(ptr);
+    char *blob;
+    get_ptr(&blob);
+    if(!blob_length)
+    {
+      return;
+    }
+
+    MBR mbr;
+    Geometry gobj;
+    gobj.create_from_wkb(blob,blob_length);
+    gobj.get_mbr(&mbr);
+    float8store(buff,    mbr.xmin);
+    float8store(buff+8,  mbr.xmax);
+    float8store(buff+16, mbr.ymin);
+    float8store(buff+24, mbr.ymax);
+    return;
+  }
+
   length-=HA_KEY_BLOB_LENGTH;
   uint32 blob_length=get_length(ptr);
   char *blob;
@@ -4001,6 +4028,31 @@ void Field_blob::set_key_image(char *buff,uint length)
   length=uint2korr(buff);
   Field_blob::store(buff+2,length);
 }
+
+void Field_geom::get_key_image(char *buff,uint length, imagetype type)
+{
+  length-=HA_KEY_BLOB_LENGTH;
+  ulong blob_length=get_length(ptr);
+  char *blob;
+  get_ptr(&blob);
+  memcpy(buff+2,blob,length);
+
+  MBR mbr;
+  Geometry gobj;
+  gobj.create_from_wkb(blob,blob_length);
+  gobj.get_mbr(&mbr);
+  float8store(buff,    mbr.xmin);
+  float8store(buff+8,  mbr.xmax);
+  float8store(buff+16, mbr.ymin);
+  float8store(buff+24, mbr.ymax);
+  return;
+}
+
+void Field_geom::set_key_image(char *buff,uint length)
+{
+}
+
+
 
 int Field_blob::key_cmp(const byte *key_ptr, uint max_key_length)
 {
@@ -4041,11 +4093,11 @@ void Field_blob::sort_string(char *to,uint length)
     else
     {
 #ifdef USE_STRCOLL
-      if (use_strcoll(default_charset_info))
+      if (use_strcoll(field_charset))
       {
-        blob_length=my_strnxfrm(default_charset_info,
-                                (unsigned char *)to,(unsigned char *)blob,
-                                length,blob_org_length);
+        blob_length=my_strnxfrm(field_charset,
+                                (unsigned char *)to, length, 
+                                (unsigned char *)blob, blob_org_length);
         if (blob_length >= length)
           return;
         to+=blob_length;
@@ -4053,7 +4105,7 @@ void Field_blob::sort_string(char *to,uint length)
       else
 #endif
         for (char *end=blob+blob_length ; blob != end ;)
-          *to++=(char) my_sort_order[(uint) (uchar) *blob++];
+          *to++=(char) field_charset->sort_order[(uint) (uchar) *blob++];
     }
     bzero(to,length-blob_length);
   }
@@ -4131,7 +4183,7 @@ int Field_blob::pack_cmp(const char *a, const char *b, uint key_length)
     int cmp= memcmp(a,b,min(a_length,b_length));
     return cmp ? cmp : (int) (a_length - b_length);
   }
-  return my_sortncmp(a,a_length, b,b_length);
+  return my_sortncmp(field_charset, a,a_length, b,b_length);
 }
 
 
@@ -4157,7 +4209,7 @@ int Field_blob::pack_cmp(const char *b, uint key_length)
     int cmp= memcmp(a,b,min(a_length,b_length));
     return cmp ? cmp : (int) (a_length - b_length);
   }
-  return my_sortncmp(a,a_length, b,b_length);
+  return my_sortncmp(field_charset, a,a_length, b,b_length);
 }
 
 /* Create a packed key that will be used for storage from a MySQL row */
@@ -4268,14 +4320,16 @@ void Field_enum::store_type(ulonglong value)
 uint find_enum(TYPELIB *lib,const char *x, uint length)
 {
   const char *end=x+length;
-  while (end > x && isspace(end[-1]))
+  while (end > x && my_isspace(system_charset_info,end[-1]))
     end--;
 
   const char *i;
   const char *j;
   for (uint pos=0 ; (j=lib->type_names[pos]) ; pos++)
   {
-    for (i=x ; i != end && toupper(*i) == toupper(*j) ; i++, j++) ;
+    for (i=x ; i != end && 
+               my_toupper(system_charset_info,*i) == 
+               my_toupper(system_charset_info,*j) ; i++, j++) ;
     if (i == end && ! *j)
       return(pos+1);
   }
@@ -4452,7 +4506,7 @@ void Field_enum::sql_type(String &res) const
 ulonglong find_set(TYPELIB *lib,const char *x,uint length)
 {
   const char *end=x+length;
-  while (end > x && isspace(end[-1]))
+  while (end > x && my_isspace(system_charset_info, end[-1]))
     end--;
 
   ulonglong found=0;
@@ -4578,7 +4632,8 @@ bool Field_enum::eq_def(Field *field)
   if (typelib->count < from_lib->count)
     return 0;
   for (uint i=0 ; i < from_lib->count ; i++)
-    if (my_strcasecmp(typelib->type_names[i],from_lib->type_names[i]))
+    if (my_strcasecmp(field_charset,
+                      typelib->type_names[i],from_lib->type_names[i]))
       return 0;
   return 1;
 }
@@ -4631,6 +4686,7 @@ uint32 calc_pack_length(enum_field_types type,uint32 length)
   case FIELD_TYPE_LONG_BLOB:	return 4+portable_sizeof_char_ptr;
   case FIELD_TYPE_SET:
   case FIELD_TYPE_ENUM: abort(); return 0;	// This shouldn't happen
+  default: return 0;
   }
   return 0;					// This shouldn't happen
 }
@@ -4677,6 +4733,11 @@ Field *make_field(char *ptr, uint32 field_length,
       return new Field_blob(ptr,null_pos,null_bit,
 			    unireg_check, field_name, table,
 			    pack_length,f_is_binary(pack_flag) != 0);
+    if (f_is_geom(pack_flag))
+      return new Field_geom(ptr,null_pos,null_bit,
+			    unireg_check, field_name, table,
+			    pack_length,f_is_binary(pack_flag) != 0);
+
     if (interval)
     {
       if (f_is_enum(pack_flag))

@@ -276,7 +276,7 @@ static void do_cut_string(Copy_field *copy)
        ptr != end ;
        ptr++)
   {
-    if (!isspace(*ptr))
+    if (!my_isspace(system_charset_info, *ptr))
     {
       current_thd->cuted_fields++;		// Give a warning
       break;

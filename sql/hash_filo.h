@@ -75,8 +75,8 @@ public:
     if (!locked)
       (void) pthread_mutex_lock(&lock);
     (void) hash_free(&cache);
-    (void) hash_init(&cache,size,key_offset, key_length, get_key, free_element,
-		     0);
+    (void) hash_init(&cache,system_charset_info,size,key_offset, 
+    		     key_length, get_key, free_element,0);
     if (!locked)
       (void) pthread_mutex_unlock(&lock);
     first_link=last_link=0;

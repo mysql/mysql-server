@@ -184,7 +184,7 @@ static void slave_info_free(void *s)
 
 void init_slave_list()
 {
-  hash_init(&slave_list, SLAVE_LIST_CHUNK, 0, 0,
+  hash_init(&slave_list, system_charset_info, SLAVE_LIST_CHUNK, 0, 0,
 	    (hash_get_key) slave_list_key, slave_info_free, 0);
   pthread_mutex_init(&LOCK_slave_list, MY_MUTEX_INIT_FAST);
 }

@@ -47,6 +47,9 @@ public:
   enum utype  { NONE,DATE,SHIELD,NOEMPTY,CASEUP,PNR,BGNR,PGNR,YES,NO,REL,
 		CHECK,EMPTY,UNKNOWN_FIELD,CASEDN,NEXT_NUMBER,INTERVAL_FIELD,
 		BIT_FIELD, TIMESTAMP_FIELD,CAPITALIZE,BLOB_FIELD};
+
+  enum imagetype { itRAW, itMBR};
+  
   utype		unireg_check;
   uint32	field_length;		// Length of field
   uint16	flags;
@@ -137,17 +140,12 @@ public:
     { memcpy(buff,ptr,length); }
   inline void set_image(char *buff,uint length)
     { memcpy(ptr,buff,length); }
-  virtual void get_key_image(char *buff,uint length)
+  virtual void get_key_image(char *buff,uint length, imagetype type)
     { get_image(buff,length); }
   virtual void set_key_image(char *buff,uint length)
     { set_image(buff,length); }
   inline int cmp_image(char *buff,uint length)
-    {
-      if (binary())
-	return memcmp(ptr,buff,length);
-      else
-	return my_casecmp(ptr,buff,length);
-    }
+    { return memcmp(ptr,buff,length); }
   inline longlong val_int_offset(uint row_offset)
     {
       ptr+=row_offset;
@@ -238,6 +236,8 @@ public:
 
 
 class Field_str :public Field {
+protected:
+  CHARSET_INFO *field_charset;
 public:
   Field_str(char *ptr_arg,uint32 len_arg, uchar *null_ptr_arg,
 	    uchar null_bit_arg, utype unireg_check_arg,
@@ -245,12 +245,21 @@ public:
 	    struct st_table *table_arg)
     :Field(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
 	   unireg_check_arg, field_name_arg, table_arg)
-    {}
+    { field_charset=default_charset_info; }
   Item_result result_type () const { return STRING_RESULT; }
   uint decimals() const { return NOT_FIXED_DEC; }
   friend class create_field;
   void make_field(Send_field *);
   uint size_of() const { return sizeof(*this); }
+  inline CHARSET_INFO *charset() const { return field_charset; }
+  inline int cmp_image(char *buff,uint length)
+    {
+      if (binary())
+	return memcmp(ptr,buff,length);
+      else
+	return my_strncasecmp(field_charset,ptr,buff,length);
+  }
+
 };
 
 
@@ -825,6 +834,7 @@ class Field_blob :public Field_str {
   uint packlength;
   String value;					// For temporaries
   bool binary_flag;
+  bool geom_flag;
 public:
   Field_blob(char *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 	     enum utype unireg_check_arg, const char *field_name_arg,
@@ -834,7 +844,7 @@ public:
 	     struct st_table *table_arg, bool binary_arg)
     :Field_str((char*) 0,len_arg, maybe_null_arg ? (uchar*) "": 0,0,
 	       NONE, field_name_arg, table_arg),
-    packlength(3),binary_flag(binary_arg)
+    packlength(3),binary_flag(binary_arg), geom_flag(true)
     {
       flags|= BLOB_FLAG;
       if (binary_arg)
@@ -881,7 +891,7 @@ public:
       store_length(length);
       memcpy_fixed(ptr+packlength,&data,sizeof(char*));
     }
-  void get_key_image(char *buff,uint length);
+  void get_key_image(char *buff,uint length, imagetype type);
   void set_key_image(char *buff,uint length);
   void sql_type(String &str) const;
   inline bool copy()
@@ -907,6 +917,25 @@ public:
   inline void clear_temporary() { bzero((char*) &value,sizeof(value)); }
   friend void field_conv(Field *to,Field *from);
   uint size_of() const { return sizeof(*this); }
+};
+
+
+class Field_geom :public Field_blob {
+public:
+  Field_geom(char *ptr_arg, uchar *null_ptr_arg, uint null_bit_arg,
+	     enum utype unireg_check_arg, const char *field_name_arg,
+	     struct st_table *table_arg,uint blob_pack_length,
+             bool binary_arg)
+     :Field_blob(ptr_arg, null_ptr_arg, null_bit_arg, unireg_check_arg, 
+                 field_name_arg, table_arg, blob_pack_length,binary_arg) {}
+  Field_geom(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
+	     struct st_table *table_arg, bool binary_arg)
+     :Field_blob(len_arg, maybe_null_arg, field_name_arg,
+                 table_arg, binary_arg) {}
+  enum ha_base_keytype key_type() const { return HA_KEYTYPE_VARBINARY; }
+
+  void get_key_image(char *buff,uint length, imagetype type);
+  void set_key_image(char *buff,uint length);
 };
 
 
@@ -1059,6 +1088,8 @@ bool test_if_int(const char *str,int length);
 #define FIELDFLAG_INTERVAL		256
 #define FIELDFLAG_BITFIELD		512	// mangled with dec!
 #define FIELDFLAG_BLOB			1024	// mangled with dec!
+#define FIELDFLAG_GEOM			2048
+
 #define FIELDFLAG_LEFT_FULLSCREEN	8192
 #define FIELDFLAG_RIGHT_FULLSCREEN	16384
 #define FIELDFLAG_FORMAT_NUMBER		16384	// predit: ###,,## in output
@@ -1085,6 +1116,7 @@ bool test_if_int(const char *str,int length);
 #define f_is_enum(x)	((x) & FIELDFLAG_INTERVAL)
 #define f_is_bitfield(x)	((x) & FIELDFLAG_BITFIELD)
 #define f_is_blob(x)		(((x) & (FIELDFLAG_BLOB | FIELDFLAG_NUMBER)) == FIELDFLAG_BLOB)
+#define f_is_geom(x)		((x) & FIELDFLAG_GEOM)
 #define f_is_equ(x)		((x) & (1+2+FIELDFLAG_PACK+31*256))
 #define f_settype(x)		(((int) x) << FIELDFLAG_PACK_SHIFT)
 #define f_maybe_null(x)		(x & FIELDFLAG_MAYBE_NULL)

@@ -253,6 +253,7 @@ struct st_myisam_info {
   int	lastinx;			/* Last used index */
   uint	lastkey_length;			/* Length of key in lastkey */
   uint	last_rkey_length;		/* Last length in mi_rkey() */
+  enum ha_rkey_function last_key_func;  /* CONTAIN, OVERLAP, etc */
   uint  save_lastkey_length;
   int	errkey;				/* Got last error on this key */
   int   lock_type;			/* How database was locked */
@@ -272,6 +273,8 @@ struct st_myisam_info {
 #ifdef THREAD
   THR_LOCK_DATA lock;
 #endif
+  uchar * rtree_recursion_state;	/* For RTREE */
+  int     rtree_recursion_depth;
 };
 
 

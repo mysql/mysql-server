@@ -361,6 +361,7 @@ int mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &list,COND *conds,
 		 ORDER *order, ORDER *group,Item *having,ORDER *proc_param,
 		 ulong select_type,select_result *result);
 int mysql_union(THD *thd,LEX *lex,select_result *result);
+int mysql_derived(THD *thd,LEX *lex,SELECT_LEX *s, TABLE_LIST *t);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item_result_field ***copy_func, Field **from_field,
 			bool group,bool modify_item);
@@ -575,7 +576,7 @@ void open_log(MYSQL_LOG *log, const char *hostname,
 
 extern uint32 server_id;
 extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
-	    max_sort_char, mysql_real_data_home[];
+	    mysql_real_data_home[];
 extern my_string mysql_tmpdir;
 extern const char *first_keyword, *localhost, *delayed_user;
 extern ulong refresh_version,flush_version, thread_id,query_id,opened_tables,
@@ -734,10 +735,10 @@ bool check_db_name(const char *db);
 bool check_column_name(const char *name);
 bool check_table_name(const char *name, uint length);
 char *get_field(MEM_ROOT *mem,TABLE *table,uint fieldnr);
-int wild_case_compare(const char *str,const char *wildstr);
+int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);
 int wild_compare(const char *str,const char *str_end,
 		 const char *wildstr,const char *wildend,char escape);
-int wild_case_compare(const char *str,const char *str_end,
+int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *str_end,
 		 const char *wildstr,const char *wildend,char escape);
 
 /* from hostname.cc */

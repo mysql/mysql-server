@@ -155,7 +155,7 @@ static int get_answer(QUESTION_WIDGET* w)
     char c;
     if (!fgets(buf,sizeof(buf),w->in))
       die("Failed fgets on input stream");
-    switch ((c=tolower(*buf)))
+    switch ((c=my_tolower(system_charset_info,*buf)))
     {
     case '\n':
       return w->default_ind;
