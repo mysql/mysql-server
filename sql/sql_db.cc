@@ -392,7 +392,10 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 exit:
   start_waiting_global_read_lock(thd);
   if (thd->db && !strcmp(thd->db, db))
+  {
+    x_free(thd->db);
     thd->db= 0;
+  }
 exit2:
   VOID(pthread_mutex_unlock(&LOCK_mysql_create_db));
 
