@@ -816,13 +816,12 @@ protected:
   int branch_col_null(Uint32 type, Uint32 col, Uint32 Label);
   
   // Handle ATTRINFO signals   
-  int 	      insertATTRINFO(Uint32 aData);
-  int         insertATTRINFOloop(const Uint32* aDataPtr, Uint32 aLength);
-
-  int 	      insertKEYINFO(const char* aValue,	
-			    Uint32 aStartPosition,	
-			    Uint32 aKeyLenInByte,	
-			    Uint32 anAttrBitsInLastWord);
+  int insertATTRINFO(Uint32 aData);
+  int insertATTRINFOloop(const Uint32* aDataPtr, Uint32 aLength);
+  
+  int insertKEYINFO(const char* aValue,	
+		    Uint32 aStartPosition,	
+		    Uint32 aKeyLenInByte);
   
   virtual void setErrorCode(int aErrorCode);
   virtual void setErrorCodeAbort(int aErrorCode);

@@ -129,12 +129,9 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
       const int slack = sizeInBytes & 3;
       
       if ((((UintPtr)aValue & 3) != 0) || (slack != 0)){
+	tempData[attributeSize >> 2] = 0;
 	memcpy(&tempData[0], aValue, attributeSize);
 	aValue = (char*)&tempData[0];
-	if(slack != 0) {
-	  char * tmp = (char*)&tempData[0];
-	  memset(&tmp[attributeSize], 0, (4 - slack));
-	}//if
       }//if
     }
     const char* aValueToWrite = aValue;
@@ -152,9 +149,7 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
       aValue = (char*)xfrmData;
     }
 
-    Uint32 bitsInLastWord = 8 * (sizeInBytes & 3) ;
     Uint32 totalSizeInWords = (sizeInBytes + 3)/4; // Inc. bits in last word
-    Uint32 sizeInWords = sizeInBytes / 4;          // Exc. bits in last word
     
     if (true){ //tArraySize != 0) {
       Uint32 tTupKeyLen = theTupKeyLen;
@@ -195,8 +190,7 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
     if ((tDistrKey != 1)) {
       ;
     } else {
-      /** TODO DISTKEY */
-      theDistrKeyIndicator = 1;
+      //set_distribution_key(aValue, totalSizeInWords);
     }
     /******************************************************************************
      *	If the operation is an insert request and the attribute is stored then
@@ -216,21 +210,13 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
       const Uint32 sz = totalSizeInWords;
       AttributeHeader::init(&ahValue, tAttrId, sz);
       insertATTRINFO( ahValue );
-      insertATTRINFOloop((Uint32*)aValueToWrite, sizeInWords);
-      if (bitsInLastWord != 0) {
-	tData = *(Uint32*)(aValueToWrite + (sizeInWords << 2));
-	tData = convertEndian(tData);
-	tData = tData & ((1 << bitsInLastWord) - 1);
-	tData = convertEndian(tData);
-	insertATTRINFO( tData );
-      }//if
+      insertATTRINFOloop((Uint32*)aValueToWrite, sz);
     }//if
     
     /***************************************************************************
      *	Store the Key information in the TCKEYREQ and KEYINFO signals. 
      **************************************************************************/
-    if (insertKEYINFO(aValue, tKeyInfoPosition, 
-		      totalSizeInWords, bitsInLastWord) != -1) {
+    if (insertKEYINFO(aValue, tKeyInfoPosition, totalSizeInWords) != -1) {
       /*************************************************************************
        * Add one to number of tuple key attributes defined. 
        * If all have been defined then set the operation state to indicate 
@@ -239,7 +225,7 @@ NdbOperation::equal_impl(const NdbColumnImpl* tAttrInfo,
        ************************************************************************/
       Uint32 tNoKeysDef = theNoOfTupKeyDefined;
       Uint32 tErrorLine = theErrorLine;
-      int tNoTableKeys = m_currentTable->m_noOfKeys;
+      int tNoTableKeys = m_accessTable->m_noOfKeys;
       unsigned char tInterpretInd = theInterpretIndicator;
       tNoKeysDef++;
       theNoOfTupKeyDefined = tNoKeysDef;
@@ -365,8 +351,7 @@ NdbOperation::setTupleId()
 int
 NdbOperation::insertKEYINFO(const char* aValue,
 			    register Uint32 aStartPosition,
-			    register Uint32 anAttrSizeInWords,
-			    register Uint32 anAttrBitsInLastWord)
+			    register Uint32 anAttrSizeInWords)
 {
   NdbApiSignal* tSignal;
   NdbApiSignal* tCurrentKEYINFO;
@@ -386,7 +371,7 @@ NdbOperation::insertKEYINFO(const char* aValue,
  *****************************************************************************/
   tEndPos = aStartPosition + anAttrSizeInWords - 1;
 
-  if ((tEndPos < 9) && (anAttrBitsInLastWord == 0)) {
+  if ((tEndPos < 9)) {
     register Uint32 tkeyData = *(Uint32*)aValue;
     //TcKeyReq* tcKeyReq = CAST_PTR(TcKeyReq, tTCREQ->getDataPtrSend());
     register Uint32* tDataPtr = (Uint32*)aValue;
@@ -496,25 +481,6 @@ NdbOperation::insertKEYINFO(const char* aValue,
   } while (1);
 
 LastWordLabel:
-
-/*****************************************************************************
- *	There could be a last word that only contains partial data. This word*
- *	will contain zeroes in the rest of the bits since the index expects  *
- *	a certain number of words and do not care for parts of words.	     *
- *****************************************************************************/
-  if (anAttrBitsInLastWord != 0) {
-    tData = *(Uint32*)(aValue + (anAttrSizeInWords - 1) * 4);
-    tData = convertEndian(tData);
-    tData = tData & ((1 << anAttrBitsInLastWord) - 1);
-    tData = convertEndian(tData);
-    if (tPosition > 8) {
-      tCurrentKEYINFO->setData(tData, signalCounter);
-      signalCounter++;
-    } else {
-      theTCREQ->setData(tData, (12 + tPosition));
-    }//if
-  }//if
-
   return 0;
 }
 
