@@ -293,6 +293,16 @@ typedef struct st_dynamic_string {
 struct st_io_cache;
 typedef int (*IO_CACHE_CALLBACK)(struct st_io_cache*);
 
+#ifdef THREAD
+#define lock_append_buffer(info) \
+ pthread_mutex_lock(&(info)->append_buffer_lock)
+#define unlock_append_buffer(info) \
+ pthread_mutex_unlock(&(info)->append_buffer_lock)
+#else
+#define lock_append_buffer(info)
+#define unlock_append_buffer(info)
+#endif
+
 typedef struct st_io_cache		/* Used when cacheing files */
 {
   my_off_t pos_in_file,end_of_file;
@@ -301,13 +311,15 @@ typedef struct st_io_cache		/* Used when cacheing files */
 			     that will use a buffer allocated somewhere
 			     else
 			   */
-  byte *append_buffer, *append_pos, *append_end;
+  byte *append_buffer, *append_read_pos, *write_pos, *append_end,
+    *write_end;
 /* for append buffer used in READ_APPEND cache */
 #ifdef THREAD
   pthread_mutex_t append_buffer_lock;
   /* need mutex copying from append buffer to read buffer */
 #endif  
   int (*read_function)(struct st_io_cache *,byte *,uint);
+  int (*write_function)(struct st_io_cache *,const byte *,uint);
   /* callbacks when the actual read I/O happens */
   IO_CACHE_CALLBACK pre_read;
   IO_CACHE_CALLBACK post_read;
@@ -342,16 +354,19 @@ typedef int (*qsort2_cmp)(const void *, const void *, const void *);
     ((info)->rc_pos+=(Count)),0) :\
    (*(info)->read_function)((info),Buffer,Count))
 
+#define my_b_write(info,Buffer,Count) \
+ ((info)->write_pos + (Count) <=(info)->write_end ?\
+  (memcpy((info)->write_pos, (Buffer), (size_t)(Count)),\
+   ((info)->write_pos+=(Count)),0) : \
+   (*(info)->write_function)((info),(Buffer),(Count)))
+  
+ 
+
 #define my_b_get(info) \
   ((info)->rc_pos != (info)->rc_end ?\
    ((info)->rc_pos++, (int) (uchar) (info)->rc_pos[-1]) :\
    _my_b_get(info))
 
-#define my_b_write(info,Buffer,Count) \
-  ((info)->rc_pos + (Count) <= (info)->rc_end ?\
-   (memcpy((info)->rc_pos,Buffer,(size_t) (Count)), \
-    ((info)->rc_pos+=(Count)),0) :\
-   _my_b_write(info,Buffer,Count))
 
 	/* my_b_write_byte dosn't have any err-check */
 #define my_b_write_byte(info,chr) \
@@ -564,6 +579,7 @@ extern int _my_b_net_read(IO_CACHE *info,byte *Buffer,uint Count);
 extern int _my_b_get(IO_CACHE *info);
 extern int _my_b_async_read(IO_CACHE *info,byte *Buffer,uint Count);
 extern int _my_b_write(IO_CACHE *info,const byte *Buffer,uint Count);
+extern int _my_b_append(IO_CACHE *info,const byte *Buffer,uint Count);
 extern int my_block_write(IO_CACHE *info, const byte *Buffer,
 			  uint Count, my_off_t pos);
 extern int flush_io_cache(IO_CACHE *info);
@@ -634,6 +650,7 @@ byte *my_compress_alloc(const byte *packet, ulong *len, ulong *complen);
 ulong checksum(const byte *mem, uint count);
 uint my_bit_log2(ulong value);
 
+
 #if defined(_MSC_VER) && !defined(__WIN__)
 extern void sleep(int sec);
 #endif
@@ -646,3 +663,11 @@ extern my_bool have_tcpip;		/* Is set if tcpip is used */
 #endif
 #include "raid.h"
 #endif /* _my_sys_h */
+
+
+
+
+
+
+
+

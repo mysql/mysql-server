@@ -348,8 +348,10 @@ mysql.kdevprj
 mysql.proj
 mysqld.S
 mysqld.sym
+mysys/#mf_iocache.c#
 mysys/test_charset
 mysys/test_dir
+mysys/test_io_cache
 mysys/test_thr_alarm
 mysys/test_thr_lock
 mysys/testhash
