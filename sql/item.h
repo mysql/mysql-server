@@ -719,8 +719,9 @@ public:
   {
     DBUG_ASSERT(fixed == 1);
     int err;
+    char *end_not_used;
     return my_strntod(str_value.charset(), (char*) str_value.ptr(),
-		      str_value.length(), (char**) 0, &err);
+		      str_value.length(), &end_not_used, &err);
   }
   longlong val_int()
   {
@@ -1044,9 +1045,10 @@ public:
   double val()
   {
     int err;
+    char *end_not_used;
     return (null_value ? 0.0 :
 	    my_strntod(str_value.charset(), (char*) str_value.ptr(),
-		       str_value.length(),NULL,&err));
+		       str_value.length(), &end_not_used, &err));
   }
   longlong val_int()
   { 

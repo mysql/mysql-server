@@ -946,13 +946,10 @@ double      my_strntod_ucs2(CHARSET_INFO *cs __attribute__((unused)),
       break;					/* Can't be part of double */
     *b++= (char) wc;
   }
-  *b= 0;
 
-  errno= 0;
-  res=my_strtod(buf, endptr);
-  *err= errno;
-  if (endptr)
-    *endptr=(char*) (*endptr-buf+nptr);
+  *endptr= b;
+  res= my_strtod(buf, endptr, err);
+  *endptr= nptr + (uint) (*endptr- buf);
   return res;
 }
 

@@ -968,7 +968,9 @@ int Field_decimal::store(longlong nr)
 double Field_decimal::val_real(void)
 {
   int not_used;
-  return my_strntod(&my_charset_bin, ptr, field_length, NULL, &not_used);
+  char *end_not_used;
+  return my_strntod(&my_charset_bin, ptr, field_length, &end_not_used,
+                    &not_used);
 }
 
 longlong Field_decimal::val_int(void)
@@ -4370,8 +4372,9 @@ int Field_string::store(longlong nr)
 double Field_string::val_real(void)
 {
   int not_used;
+  char *end_not_used;
   CHARSET_INFO *cs=charset();
-  return my_strntod(cs,ptr,field_length,(char**)0,&not_used);
+  return my_strntod(cs, ptr, field_length, &end_not_used, &not_used);
 }
 
 
@@ -4587,7 +4590,9 @@ double Field_varstring::val_real(void)
   int not_used;
   uint length=uint2korr(ptr)+HA_KEY_BLOB_LENGTH;
   CHARSET_INFO *cs=charset();
-  return my_strntod(cs, ptr+HA_KEY_BLOB_LENGTH, length, (char**)0, &not_used);
+  char *end_not_used;
+  return my_strntod(cs, ptr+HA_KEY_BLOB_LENGTH, length, &end_not_used,
+                    &not_used);
 }
 
 
@@ -4965,12 +4970,13 @@ double Field_blob::val_real(void)
 {
   int not_used;
   char *blob;
+  char *end_not_used;
   memcpy_fixed(&blob,ptr+packlength,sizeof(char*));
   if (!blob)
     return 0.0;
   uint32 length=get_length(ptr);
   CHARSET_INFO *cs=charset();
-  return my_strntod(cs,blob,length,(char**)0, &not_used);
+  return my_strntod(cs,blob,length, &end_not_used, &not_used);
 }
 
 
