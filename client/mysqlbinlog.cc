@@ -45,17 +45,15 @@ static const char *load_default_groups[]= { "mysqlbinlog","client",0 };
 void sql_print_error(const char *format, ...);
 
 static bool one_database = 0;
-static bool force_opt= 0;
-static const char* database;
-static bool short_form = 0;
+static const char* database= 0;
+static my_bool force_opt= 0, short_form= 0, remote_opt= 0;
 static ulonglong offset = 0;
 static const char* host = 0;
 static int port = MYSQL_PORT;
-static const char* sock= MYSQL_UNIX_ADDR;
+static const char* sock= 0;
 static const char* user = 0;
 static const char* pass = "";
 static ulonglong position = 0;
-static bool use_remote = 0;
 static short binlog_flags = 0; 
 static MYSQL* mysql = NULL;
 
@@ -238,6 +236,9 @@ static struct my_option my_long_options[] =
    0, 0},
   {"result-file", 'r', "Direct output to a given file.", 0, 0, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"read-from-remote-server", 'R', "Read binary logs from a MySQL server",
+   (gptr*) &remote_opt, (gptr*) &remote_opt, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0},
   {"short-form", 's', "Just show the queries, no extra info.",
    (gptr*) &short_form, (gptr*) &short_form, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
@@ -342,22 +343,15 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'd':
     one_database = 1;
     break;
-  case 'h':
-    use_remote = 1;
-    break;
-  case 'P':
-    use_remote = 1;
-    break;
   case 'p':
-    use_remote = 1;
     pass = my_strdup(argument, MYF(0));
     break;
   case 'r':
     if (!(result_file = my_fopen(argument, O_WRONLY | O_BINARY, MYF(MY_WME))))
       exit(1);
     break;
-  case 'u':
-    use_remote = 1;
+  case 'R':
+    remote_opt= 1;
     break;
   case 'V':
     print_version();
@@ -396,7 +390,7 @@ static MYSQL* safe_connect()
 
 static void dump_log_entries(const char* logname)
 {
-  if (use_remote)
+  if (remote_opt)
     dump_remote_log_entries(logname);
   else
     dump_local_log_entries(logname);  
@@ -758,7 +752,7 @@ int main(int argc, char** argv)
     return -1;
   }
 
-  if (use_remote)
+  if (remote_opt)
     mysql = safe_connect();
 
   MY_TMPDIR tmpdir;
@@ -782,7 +776,7 @@ int main(int argc, char** argv)
     free_tmpdir(&tmpdir);
   if (result_file != stdout)
     my_fclose(result_file, MYF(0));
-  if (use_remote)
+  if (remote_opt)
     mysql_close(mysql);
   free_defaults(defaults_argv);
   my_end(0);
