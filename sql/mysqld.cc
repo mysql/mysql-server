@@ -382,7 +382,8 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
 	        LOCK_global_system_variables,
 		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi;
-rw_lock_t	LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
+rw_lock_t	LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave,
+                LOCK_dboptions;
 pthread_cond_t COND_refresh,COND_thread_count, COND_slave_stopped,
 	       COND_slave_start;
 pthread_cond_t COND_thread_cache,COND_flush_thread_cache;
@@ -901,6 +902,7 @@ void clean_up(bool print_message)
     bitmap_free(&slave_error_mask);
 #endif
   my_tz_free();
+  my_dbopt_free();
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   acl_free(1);
   grant_free();
@@ -986,6 +988,7 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_mysql_create_db);
   (void) pthread_mutex_destroy(&LOCK_Acl);
   (void) rwlock_destroy(&LOCK_grant);
+  (void) rwlock_destroy(&LOCK_dboptions);
   (void) pthread_mutex_destroy(&LOCK_open);
   (void) pthread_mutex_destroy(&LOCK_thread_count);
   (void) pthread_mutex_destroy(&LOCK_mapped_file);
@@ -2408,6 +2411,7 @@ static int init_thread_environment()
   (void) my_rwlock_init(&LOCK_sys_init_connect, NULL);
   (void) my_rwlock_init(&LOCK_sys_init_slave, NULL);
   (void) my_rwlock_init(&LOCK_grant, NULL);
+  (void) my_rwlock_init(&LOCK_dboptions, NULL);
   (void) pthread_cond_init(&COND_thread_count,NULL);
   (void) pthread_cond_init(&COND_refresh,NULL);
   (void) pthread_cond_init(&COND_thread_cache,NULL);
