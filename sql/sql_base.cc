@@ -121,7 +121,7 @@ int list_open_tables(THD *thd,List<char> *tables, const char *db,
   VOID(pthread_mutex_lock(&LOCK_open));
   bzero((char*) &table_list,sizeof(table_list));
 
-  for (uint idx=0 ; result == 0 && idx < open_cache.records; idx++)
+  for (uint idx=0 ; idx < open_cache.records; idx++)
   {
     TABLE *entry=(TABLE*) hash_element(&open_cache,idx);
     if ((!entry->real_name) || strcmp(entry->table_cache_key,db))
@@ -152,6 +152,7 @@ int list_open_tables(THD *thd,List<char> *tables, const char *db,
     if (tables->push_back(thd->strdup(entry->real_name)))
     {
       result = -1;
+      break;
     }
   }
   

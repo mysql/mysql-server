@@ -46423,7 +46423,9 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
-Don't anymore support the client protocol prior to 3.21.
+Multi-table @code{DELETE}.
+@item
+Don't anymore support old client protocols prior to @strong{MySQL} 3.21.
 @item
 Don't include the old C API functions @code{mysql_drop_db},
 @code{mysql_create_db} and @code{mysql_connect}, if not compiled with
@@ -51898,9 +51900,6 @@ master.
 @code{DELETE FROM table_name} will return the number of deleted rows. For
 fast execution one should use @code{TRUNCATE table_name}.
 @item
-Multi-table @code{DELETE} (cascading @code{DELETE} and multi-table
-@code{DELETE}.
-@item
 Allow @code{DELETE} on @code{MyISAM} tables to use the record cache.
 To do this, we need to update the threads record cache when we update
 the @code{.MYD} file.
@@ -51974,7 +51973,19 @@ structure.
 Don't allow more than a defined number of threads to run MyISAM recover
 at the same time.
 @item
-Change @code{INSERT ... SELECT} to use concurrent inserts.
+Change @code{INSERT ... SELECT} to optionally use concurrent inserts.
+@item
+Implement @code{RENAME DATABASE}. To make this safe for all table handlers,
+it should work as follows:
+@itemize @bullet
+@item
+Create the new database.
+@item
+For every table do a rename of the table to another database, as
+we do with the @code{RENAME} command.
+@item
+Drop the old database.
+@end itemize
 @item
 Return the original field types() when doing @code{SELECT MIN(column)
 ... GROUP BY}.
@@ -51989,9 +52000,11 @@ in microseconds.
 @item
 Add range checking to @code{MERGE} tables.
 @item
+Link the @code{myisampack} code into the server.
+@item
 Port of @strong{MySQL} to BeOS.
 @item
-Link the @code{myisampack} code into the server.
+Port of the @strong{MySQL} clients to LynxOS.
 @item
 Add a temporary key buffer cache during @code{INSERT/DELETE/UPDATE} so that we
 can gracefully recover if the index file gets full.
@@ -52019,6 +52032,8 @@ a concurrent insert at the end of the file if the file is read-locked.
 @item
 Remember @code{FOREIGN} key definitions in the @file{.frm} file.
 @item
+Cascading @code{DELETE}
+@item
 Server side cursors.
 @item
 Check if @code{lockd} works with modern Linux kernels; If not, we have
@@ -52027,6 +52042,13 @@ to fix @code{lockd}!  To test this, start @code{mysqld} with
 give any errors if @code{lockd} works.
 @item
 Allow SQL variables in @code{LIMIT}, like in @code{LIMIT @@a,@@b}.
+@item
+Allow update of variables in @code{UPDATE} statements. For example:
+@code{UPDATE TABLE foo SET @@a=a+b,a=@@a, b=@@a+c}
+@item
+Change when user variables are updated so that one can use them with
+@code{GROUP BY}, as in the following example:
+@code{SELECT id, @@a:=count(*), sum(sum_col)/@@a FROM table_name GROUP BY id}.
 @item
 Don't add automatic @code{DEFAULT} values to columns.  Give an error when using
 an @code{INSERT} that doesn't contain a column that doesn't have a
@@ -52165,9 +52187,6 @@ Change that @code{ALTER TABLE} doesn't abort clients that executes
 @item
 Fix that when columns referenced in an @code{UPDATE} clause contains the old
 values before the update started.
-@item
-Allow update of variables in @code{UPDATE} statements. For example:
-@code{UPDATE TABLE foo SET @@a=a+b,a=@@a, b=@@a+c}
 @item
 @code{myisamchk}, @code{REPAIR} and @code{OPTIMIZE TABLE} should be able
 to handle cases where the data and/or index files are symbolic links.

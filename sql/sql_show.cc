@@ -127,7 +127,6 @@ int mysqld_show_open_tables(THD *thd,const char *db,const char *wild)
       DBUG_RETURN(-1);
   }
 
-
   send_eof(&thd->net);
   DBUG_RETURN(0);
 }

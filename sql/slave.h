@@ -91,8 +91,7 @@ int init_master_info(MASTER_INFO* mi);
 void end_master_info(MASTER_INFO* mi);
 extern bool opt_log_slave_updates ;
 pthread_handler_decl(handle_slave,arg);
-extern bool volatile abort_loop, abort_slave;
-extern bool slave_running;
+extern bool volatile abort_loop, abort_slave, slave_running;
 extern uint32 slave_skip_counter;
 // needed for problems when slave stops and
 // we want to restart it skipping one or more events in the master log that
