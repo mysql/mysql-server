@@ -321,8 +321,8 @@ octet2hex(char *to, const uint8 *str, uint len)
   const uint8 *str_end= str + len; 
   for (; str != str_end; ++str)
   {
-    *to++= _dig_vec[(*str & 0xF0) >> 4];
-    *to++= _dig_vec[*str & 0x0F];
+    *to++= _dig_vec_upper[(*str & 0xF0) >> 4];
+    *to++= _dig_vec_upper[*str & 0x0F];
   }
   *to= '\0';
 }

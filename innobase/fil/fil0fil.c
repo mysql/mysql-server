@@ -274,7 +274,7 @@ fil_get_space_id_for_table(
 /*=======================*/
 				/* out: space id, ULINT_UNDEFINED if not
 				found */
-	char*	name);		/* in: table name in the standard
+	const char*	name);	/* in: table name in the standard
 				'databasename/tablename' format */
 
 
@@ -463,8 +463,9 @@ fil_node_open_file(
 	ulint		size_high;
 	ibool		ret;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(system->mutex)));
-
+#endif /* UNIV_SYNC_DEBUG */
 	ut_a(node->n_pending == 0);
 	ut_a(node->open == FALSE);
 
@@ -575,8 +576,9 @@ fil_try_to_close_file_in_LRU(
 	fil_system_t*	system		= fil_system;
 	fil_node_t*	node;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(system->mutex)));
-
+#endif /* UNIV_SYNC_DEBUG */
 	node = UT_LIST_GET_LAST(system->LRU);
 
 	if (print_info) {
@@ -630,7 +632,9 @@ fil_mutex_enter_and_prepare_for_io(
 	ulint		count		= 0;
 	ulint		count2		= 0;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&(system->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 retry:
 	mutex_enter(&(system->mutex));
 
@@ -1311,12 +1315,11 @@ fil_write_lsn_and_arch_no_to_file(
 	ulint	sum_of_sizes,	/* in: combined size of previous files in
 				space, in database pages */
 	dulint	lsn,		/* in: lsn to write */
-	ulint	arch_log_no)	/* in: archived log number to write */
+	ulint	arch_log_no	/* in: archived log number to write */
+	__attribute__((unused)))
 {
 	byte*	buf1;
 	byte*	buf;
-
-	UT_NOT_USED(arch_log_no);
 
 	buf1 = mem_alloc(2 * UNIV_PAGE_SIZE);
 	buf = ut_align(buf1, UNIV_PAGE_SIZE);
@@ -1396,17 +1399,16 @@ fil_read_flushed_lsn_and_arch_log_no(
 	os_file_t data_file,		/* in: open data file */
 	ibool	one_read_already,	/* in: TRUE if min and max parameters
 					below already contain sensible data */
-	dulint*	min_flushed_lsn,	/* in/out: */
+#ifdef UNIV_LOG_ARCHIVE
 	ulint*	min_arch_log_no,	/* in/out: */
-	dulint*	max_flushed_lsn,	/* in/out: */
-	ulint*	max_arch_log_no)	/* in/out: */
+	ulint*	max_arch_log_no,	/* in/out: */
+#endif /* UNIV_LOG_ARCHIVE */
+	dulint*	min_flushed_lsn,	/* in/out: */
+	dulint*	max_flushed_lsn)	/* in/out: */
 {
 	byte*	buf;
 	byte*	buf2;
 	dulint	flushed_lsn;
-        ulint   arch_log_no     = 0;    /* since InnoDB does not archive
-                                        its own logs under MySQL, this
-                                        parameter is not relevant */
 	buf2 = ut_malloc(2 * UNIV_PAGE_SIZE);
 	/* Align the memory for a possible read from a raw device */
 	buf = ut_align(buf2, UNIV_PAGE_SIZE);
@@ -1420,9 +1422,10 @@ fil_read_flushed_lsn_and_arch_log_no(
 	if (!one_read_already) {
 		*min_flushed_lsn = flushed_lsn;
 		*max_flushed_lsn = flushed_lsn;
+#ifdef UNIV_LOG_ARCHIVE
 		*min_arch_log_no = arch_log_no;
 		*max_arch_log_no = arch_log_no;
-
+#endif /* UNIV_LOG_ARCHIVE */
 		return;
 	}
 
@@ -1432,12 +1435,14 @@ fil_read_flushed_lsn_and_arch_log_no(
 	if (ut_dulint_cmp(*max_flushed_lsn, flushed_lsn) < 0) {
 		*max_flushed_lsn = flushed_lsn;
 	}
+#ifdef UNIV_LOG_ARCHIVE
 	if (*min_arch_log_no > arch_log_no) {
 		*min_arch_log_no = arch_log_no;
 	}
 	if (*max_arch_log_no < arch_log_no) {
 		*max_arch_log_no = arch_log_no;
 	}
+#endif /* UNIV_LOG_ARCHIVE */
 }
 
 /*================ SINGLE-TABLE TABLESPACES ==========================*/
@@ -1507,33 +1512,31 @@ fil_decr_pending_ibuf_merges(
 	mutex_exit(&(system->mutex));
 }
 
-/************************************************************
-Creates the database directory for a table if it does not exist yet. */
 static
 void
 fil_create_directory_for_tablename(
 /*===============================*/
-	char*	name)	/* in: name in the standard 'databasename/tablename'
-			format */
+	const char*	name)	/* in: name in the standard
+				'databasename/tablename' format */
 {
-	char*	ptr;
-	char	path[OS_FILE_MAX_PATH];
+	const char*	namend;
+	char*		path;
+	ulint		len;
 
-	sprintf(path, "%s/%s", fil_path_to_mysql_datadir, name);
+	len = strlen(fil_path_to_mysql_datadir);
+	namend = strchr(name, '/');
+	ut_a(namend);
+	path = mem_alloc(len + (namend - name) + 2);
 
-	ptr = path + ut_strlen(path);
-
-	while (*ptr != '/') {
-		ptr--;
-
-		ut_a(ptr >= path);
-	}
-
-	*ptr = '\0';
+	memcpy(path, fil_path_to_mysql_datadir, len);
+	path[len] = '/';
+	memcpy(path + len + 1, name, namend - name);
+	path[len + (namend - name) + 1] = 0;
 
 	srv_normalize_path_for_win(path);
 
 	ut_a(os_file_create_directory(path, FALSE));
+	mem_free(path);
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -1615,10 +1618,10 @@ fil_op_log_parse_or_replay(
 				the tablespace in question; otherwise
 				ignored */
 {
-	ulint	name_len;
-	ulint	new_name_len;
-	char*	name;
-	char*	new_name	= NULL;
+	ulint		name_len;
+	ulint		new_name_len;
+	const char*	name;
+	const char*	new_name	= NULL;
 
 	if (end_ptr < ptr + 2) {
 
@@ -1634,7 +1637,7 @@ fil_op_log_parse_or_replay(
 		return(NULL);
 	}
 
-	name = (char*) ptr;
+	name = (const char*) ptr;
 
 	ptr += name_len;
 
@@ -1653,7 +1656,7 @@ fil_op_log_parse_or_replay(
 			return(NULL);
 		}
 
-		new_name = (char*) ptr;
+		new_name = (const char*) ptr;
 
 		ptr += new_name_len;
 	}
@@ -1916,11 +1919,11 @@ fil_rename_tablespace_in_mem(
 				/* out: TRUE if success */
 	fil_space_t*	space,	/* in: tablespace memory object */
 	fil_node_t*	node,	/* in: file node of that tablespace */
-	char*		path)	/* in: new name */
+	const char*	path)	/* in: new name */
 {
 	fil_system_t*	system		= fil_system;
 	fil_space_t*	space2;
-	char*		old_name	= space->name;
+	const char*	old_name	= space->name;
 	
 	HASH_SEARCH(name_hash, system->name_hash, ut_fold_string(old_name),
 			       space2, 0 == strcmp(old_name, space2->name));
@@ -1945,11 +1948,8 @@ fil_rename_tablespace_in_mem(
 	mem_free(space->name);
 	mem_free(node->name);
 
-	space->name = mem_alloc(strlen(path) + 1);
-	node->name = mem_alloc(strlen(path) + 1);
-
-	strcpy(space->name, path);
-	strcpy(node->name, path);
+	space->name = mem_strdup(path);
+	node->name = mem_strdup(path);
 
 	HASH_INSERT(fil_space_t, name_hash, system->name_hash,
 						ut_fold_string(path), space);
@@ -1985,7 +1985,7 @@ fil_rename_tablespace(
 	ut_a(id != 0);
 	
 	if (old_name == NULL) {
-		old_name = (char*)"(name not specified)";
+		old_name = "(name not specified)";
 		old_name_was_specified = FALSE;
 	}
 retry:
@@ -2532,9 +2532,9 @@ static
 void
 fil_load_single_table_tablespace(
 /*=============================*/
-	char*	dbname,		/* in: database name */
-	char*	filename)	/* in: file name (not a path), including the
-				.ibd extension */
+	const char*	dbname,		/* in: database name */
+	const char*	filename)	/* in: file name (not a path),
+					including the .ibd extension */
 {
 	os_file_t	file;
 	char*		filepath;
@@ -2732,7 +2732,7 @@ fil_load_single_table_tablespaces(void)
 
 	/* The datadir of MySQL is always the default directory of mysqld */
 
-	dir = os_file_opendir((char*) fil_path_to_mysql_datadir, TRUE);
+	dir = os_file_opendir(fil_path_to_mysql_datadir, TRUE);
 
 	if (dir == NULL) {
 
@@ -2744,7 +2744,7 @@ fil_load_single_table_tablespaces(void)
 	/* Scan all directories under the datadir. They are the database
 	directories of MySQL. */
 
-	ret = os_file_readdir_next_file((char*) fil_path_to_mysql_datadir, dir,
+	ret = os_file_readdir_next_file(fil_path_to_mysql_datadir, dir,
 								&dbinfo);
 	while (ret == 0) {
 		/* printf("Looking at %s in datadir\n", dbinfo.name); */
@@ -2805,7 +2805,7 @@ next_file_item:
 		}
 		
 next_datadir_item:
-		ret = os_file_readdir_next_file((char*) fil_path_to_mysql_datadir,
+		ret = os_file_readdir_next_file(fil_path_to_mysql_datadir,
 								dir, &dbinfo);
 	}
 
@@ -3066,7 +3066,7 @@ fil_get_space_id_for_table(
 /*=======================*/
 				/* out: space id, ULINT_UNDEFINED if not
 				found */
-	char*	name)		/* in: table name in the standard
+	const char*	name)	/* in: table name in the standard
 				'databasename/tablename' format */
 {
 	fil_system_t*	system		= fil_system;

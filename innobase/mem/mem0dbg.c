@@ -33,7 +33,7 @@ struct mem_hash_node_struct {
 	UT_LIST_NODE_T(mem_hash_node_t)
 				list;	/* hash list node */
 	mem_heap_t*		heap;	/* memory heap */
-	char*			file_name;/* file where heap was created*/
+	const char*		file_name;/* file where heap was created*/
 	ulint			line;	/* file line of creation */
 	ulint			nth_heap;/* this is the nth heap created */
 	UT_LIST_NODE_T(mem_hash_node_t)
@@ -266,7 +266,7 @@ void
 mem_hash_insert(
 /*============*/
 	mem_heap_t*	heap,	   /* in: the created heap */
-	char*		file_name, /* in: file name of creation */
+	const char*	file_name, /* in: file name of creation */
 	ulint		line)	   /* in: line where created */
 {
 	mem_hash_node_t*	new_node;
@@ -309,7 +309,7 @@ void
 mem_hash_remove(
 /*============*/
 	mem_heap_t*	heap,	   /* in: the heap to be freed */
-	char*		file_name, /* in: file name of freeing */
+	const char*	file_name, /* in: file name of freeing */
 	ulint		line)	   /* in: line where freed */
 {
 	mem_hash_node_t*	node;
