@@ -1666,6 +1666,9 @@ int dump_leaf_key(byte* key, uint32 count __attribute__((unused)),
   String tmp((char *)&buff,sizeof(buff),default_charset_info), tmp2;
   char *record= (char*) item->table->record[0];
 
+  if (item->result.length())
+    item->result.append(*item->separator);
+
   tmp.length(0);
   
   for (uint i= 0; i < item->arg_count_field; i++)
@@ -1695,14 +1698,6 @@ int dump_leaf_key(byte* key, uint32 count __attribute__((unused)),
         item->result.append(*res);
     }
   }
-  if (item->tree_mode) // Last item of tree
-  {
-    item->show_elements++;
-    if (item->show_elements < item->tree->elements_in_tree)
-      item->result.append(*item->separator);
-  }
-  else
-    item->result.append(*item->separator); 
 
   /* stop if length of result more than group_concat_max_len */  
   if (item->result.length() > item->group_concat_max_len)
@@ -1733,7 +1728,7 @@ Item_func_group_concat::Item_func_group_concat(bool is_distinct,
    tree_mode(0), distinct(is_distinct), warning_for_row(0),
    separator(is_separator), tree(&tree_base), table(0),
    order(0), tables_list(0),
-   show_elements(0), arg_count_order(0), arg_count_field(0),
+   arg_count_order(0), arg_count_field(0),
    count_cut_values(0)
 {
   Item *item_select;
@@ -1799,7 +1794,6 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
   order(item->order),
   tables_list(item->tables_list),
   group_concat_max_len(item->group_concat_max_len),
-  show_elements(item->show_elements),
   arg_count_order(item->arg_count_order),
   arg_count_field(item->arg_count_field),
   field_list_offset(item->field_list_offset),
@@ -2107,14 +2101,8 @@ String* Item_func_group_concat::val_str(String* str)
     return 0;
   if (tree_mode)
   {
-    show_elements= 0;
     tree_walk(tree, (tree_walk_action)&dump_leaf_key, (void*)this,
               left_root_right);
-  }
-  else
-  {
-    if (!warning_for_row)
-      result.length(result.length()-separator->length());
   }
   if (count_cut_values && !warning_available)
   {
