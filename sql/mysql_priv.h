@@ -309,7 +309,6 @@ int setup_order(THD *thd,TABLE_LIST *tables, List<Item> &fields,
                 List <Item> &all_fields, ORDER *order);
 
 int mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &list,COND *conds,
-                 List<Item_func_match> &ftfuncs,
 		 ORDER *order, ORDER *group,Item *having,ORDER *proc_param,
 		 uint select_type,select_result *result);
 Field *create_tmp_field(TABLE *table,Item *item, Item::Type type,
@@ -417,7 +416,8 @@ bool setup_tables(TABLE_LIST *tables);
 int setup_fields(THD *thd,TABLE_LIST *tables,List<Item> &item,
 		 bool set_query_id,List<Item> *sum_func_list);
 int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);
-int setup_ftfuncs(THD *thd,TABLE_LIST *tables, List<Item_func_match> &ftfuncs);
+int setup_ftfuncs(THD *thd);
+int init_ftfuncs(THD *thd, bool no_order);
 void wait_for_refresh(THD *thd);
 int open_tables(THD *thd,TABLE_LIST *tables);
 int open_and_lock_tables(THD *thd,TABLE_LIST *tables);

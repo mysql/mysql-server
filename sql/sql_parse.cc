@@ -1133,7 +1133,6 @@ mysql_execute_command(void)
     {
       res=mysql_select(thd,tables,lex->item_list,
 		       lex->where,
-                       lex->ftfunc_list,
 		       (ORDER*) lex->order_list.first,
 		       (ORDER*) lex->group_list.first,
 		       lex->having,
@@ -1283,7 +1282,6 @@ mysql_execute_command(void)
 	{
 	  res=mysql_select(thd,tables->next,lex->item_list,
 			   lex->where,
-                           lex->ftfunc_list,
 			   (ORDER*) lex->order_list.first,
 			   (ORDER*) lex->group_list.first,
 			   lex->having,
@@ -1577,7 +1575,6 @@ mysql_execute_command(void)
       {
 	res=mysql_select(thd,tables->next,lex->item_list,
 			 lex->where,
-                         lex->ftfunc_list,
 			 (ORDER*) lex->order_list.first,
 			 (ORDER*) lex->group_list.first,
 			 lex->having,
