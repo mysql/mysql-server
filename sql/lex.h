@@ -398,6 +398,8 @@ static SYMBOL sql_functions[] = {
   { "LOWER",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_lcase)},
   { "LPAD",		SYM(FUNC_ARG3),0,CREATE_FUNC(create_func_lpad)},
   { "LTRIM",		SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_ltrim)},
+  { "MASTER_POS_WAIT", SYM(FUNC_ARG2),0,
+      CREATE_FUNC(create_wait_for_master_pos)},
   { "MAKE_SET",		SYM(MAKE_SET_SYM),0,0},
   { "MAX",		SYM(MAX_SYM),0,0},
   { "MD5",              SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_md5)},

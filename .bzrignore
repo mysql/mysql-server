@@ -188,3 +188,4 @@ Docs/my_sys.doc
 tmp/*
 extra/resolve_stack_dump
 sql/share/*.sys
+BitKeeper/tmp/bkr3sAHD

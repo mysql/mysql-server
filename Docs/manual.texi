@@ -17401,6 +17401,17 @@ Addresses may be 4 or 8 byte addresses:
 mysql> select INET_ATON("209.207.224.40");
        ->  3520061480
 @end example
+@findex MASTER_POS_WAIT()
+@item MASTER_POS_WAIT(log_name, log_pos)
+Blocks until the slave reaches the specified position in the master log during
+replication. If master information is not initialized, returns NULL. If the
+slave is not running, will block and wait until it is started and goes to or
+past
+the specified postion. If the slave is already past the specified postion,
+returns immediately. The return value is the number of log events it had to
+wait to get to the specified position, or NULL in case of error. Useful for
+control of master-slave synchronization, but was originally written to
+facilate replication testing.
 @end table
 
 @findex GROUP BY functions
@@ -25618,6 +25629,7 @@ tables}.
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
+* Troubleshooting Replication:: Troubleshooting Replication
 @end menu
 
 @node Replication Intro, Replication Implementation, Replication, Replication
@@ -25634,7 +25646,7 @@ Starting in Version 3.23.15, @strong{MySQL} supports one-way replication
 internally. One server acts as the master, while the other acts as the
 slave. Note that one server could play the roles of master in one pair
 and slave in the other. The master server keeps a binary log of updates
-(@xref{Binary log}.) and an index file of binary logs to keep track of
+(@xref{Binary log}.) and an index file to binary logs to keep track of
 log rotation.  The slave, upon connecting, informs the master where it
 left off since the last successfully propagated update, catches up on
 the updates, and then blocks and waits for the master to notify it of
@@ -25656,7 +25668,7 @@ master. @xref{Backup}.
 
 @strong{MySQL} replication is based on the server keeping track of all
 changes to your database (updates, deletes, etc) in the binary
-log (@xref{Binary log}.), and the slave server(s) reading the saved
+log. (@xref{Binary log}.) and the slave server(s) reading the saved
 queries from the master server's binary log so that the slave can
 execute the same queries on its copy of the data.
 
@@ -25668,9 +25680,11 @@ logging on the master. If you start your slaves with data that doesn't
 agree with what was on the master @strong{when the binary log was
 started}, your slaves may fail.
 
-A future Version of @strong{MySQL} is planned remove the need to keep a
+A future version (4.0) of @strong{MySQL} will remove the need to keep a
 (possibly large) snapshot of data for new slaves that you might wish to
-set up.
+set up through the live backup functionality with no locking required.
+However, at this time, it is necessary to block all writes either with a
+global read lock or by shutting down the master while taking a snapshot.
 
 Once a slave is properly configured and running, it will simply connect
 to the master and wait for updates to process. If the master goes away
@@ -25690,20 +25704,20 @@ The next section explains the master/slave setup process in more detail.
 Below is a quick description of how to set up complete replication on
 your current @strong{MySQL} server. It assumes you want to replicate all
 your databases and have not configured replication before. You will need
-to shutdown your master server briefly to complete the steps outlined
+to shutdown your master server briefly to complete the steops outlined
 below.
 
 @enumerate
 @item
-Make sure you have a recent version of @strong{MySQL} installed on the 
-master and slave(s).
+Make you have a recent version of @strong{MySQL} installed on the master
+and slave(s).
 
 Use Version 3.23.29 or higher. Previous releases used a different binary
-log format and had bugs which have been fixed in newer releases. Please
+log format and had bugs which have been fixed in newer releases. Please,
 do not report bugs until you have verified that the problem is present
 in the latest release.
 @item
-Set up a special replication user on the master with the @code{FILE}
+Set up special a replication user on the master with the @code{FILE}
 privilege and permission to connect from all the slaves. If the user is
 only doing replication (which is recommended), you don't need to grant any
 additional privileges.
@@ -25726,7 +25740,7 @@ mysqladmin -u root -p<password> shutdown
 Snapshot all the data on your master server.
 
 The easiest way to do this (on Unix) is to simply use @strong{tar} to
-produce an archive of your entrie data directory. The exact data
+produce an archvie of your entrie data directory. The exact data
 directory location depends on your installation.
 
 @example
@@ -25738,8 +25752,11 @@ the data directory.
 
 @item
 In @code{my.cnf} on the master add @code{log-bin} and
-@code{server-id=<some unique number>} to the @code{[mysqld]} section.
-
+@code{server-id=unique number} to the @code{[mysqld]} section and
+restart it. It is very important that the id of the slave is different from
+the id of the master. Think of @code{server-id} as something similar
+to the IP address - it uniquely identifies the server instance in the
+comminity of replication partners.
 
 @example
 [mysqld]
@@ -25764,7 +25781,12 @@ replacing the values in <> with what is relevant to your system.
 
 @code{server-id} must be different for each server participating in
 replication.  If you don't specify a server-id, it will be set to 1 if
-you have not defined @code{master-host}, else it will be set to 2.
+you have not defined @code{master-host}, else it will be set to 2. Note
+that in the case of @code{server-id} omission the master will refuse
+connections from all slaves, and the slave will refuse to connect to a
+master. Thus, omitting @code{server-id} is only good for backup with a
+binary log.
+
 
 @item
 Copy the snapshot data into your data directory on your slave(s). Make
@@ -25794,10 +25816,11 @@ If a slave is not able to replicate for any reason, you will find error
 messages in the error log on the slave.
 
 Once a slave is replicating, you will find a file called
-@code{master.info} in the same directory as your error log.  The
+@code{master.info} in the same directory as your error log. The
 @code{master.info} file is used by the slave to keep track of how much
-of the master's binary log it has processed.  @strong{Do not} remove or
-edit this file.
+of the master's binary log is has processed. @strong{Do not} remove or
+edit the file, unless you really know what you are doing. Even in that case,
+it is preferred that you use @code{CHANGE MASTER TO} command.
 
 @cindex options, replication
 @cindex @code{my.cnf} file
@@ -25812,20 +25835,16 @@ Below is an explanation of what is supported and what is not:
 Replication will be done correctly with @code{AUTO_INCREMENT},
 @code{LAST_INSERT_ID}, and @code{TIMESTAMP} values.
 @item
+@code{RAND()} in updates does not replicate properly. Use
+ @code{RAND(some_non_rand_expr)} if you are replcating updates with
+@code{RAND()}. You can, for example, use @code{UNIX_TIMESTAMP()} for the
+argument to @code{RAND()}.
+@item
 @code{LOAD DATA INFILE} will be handled properly as long as the file
 still resides on the master server at the time of update
 propagation. @code{LOAD LOCAL DATA INFILE} will be skipped.
 @item
-The master and slave is not synchronizing @code{RAND()}.  This means
-that you should not use @code{RAND()} with any statement that updates a
-table.  As fixing this will require a change in the protocol, we will
-delay fixing this until 4.0. A workaround is using @code{RAND(#)}, where
-# is a random integer genearated by your application or by first
-executing @code{LAST_INSERT_ID(RAND())} and then using
-@code{LAST_INSERT_ID()} in the next statement.
-@item
-Update queries that use user variables (@code{@@variable}) are not yet
-replication-safe.
+Update queries that use user variables are not replication-safe (yet).
 @item
 Temporary tables starting in 3.23.29 are replicated properly with the
 exception of the case when you shut down slave server ( not just slave thread),
@@ -25892,15 +25911,17 @@ Starting in Version 3.23.19, you can clean up stale replication leftovers when
 something goes wrong and you want a clean start with @code{FLUSH MASTER}
 and @code{FLUSH SLAVE} commands. In Version 3.23.26 we have renamed them to
 @code{RESET MASTER} and @code{RESET SLAVE} respectively to clarify
-what they do. The old @code{FLUSH} variants still work, though for
+what they do. The old @code{FLUSH} variants still work, though, for
 compatibility.
 
 @item
 Starting in Version 3.23.21, you can use @code{LOAD TABLE FROM MASTER} for
-network backup and to set up replication initially.
+network backup and to set up replication initially. We have recently
+received a number of bug reports concerning it that we are investigating, so
+we recommend that you use it only in testing until we make it more stable.
 @item
-Starting in Version 3.23.23, you can change masters with @code{CHANGE MASTER
-TO}.
+Starting in Version 3.23.23, you can change masters and adjust log position
+with @code{CHANGE MASTER TO}.
 @item
 Starting in Version 3.23.23, you tell the master that updates in certain
 databases should not be logged to the binary log with @code{binlog-ignore-db}.
@@ -25916,7 +25937,7 @@ to get rid of old logs while the slave is running.
 @node Replication Options, Replication SQL, Replication Features, Replication
 @section Replication Options in my.cnf
 
-If you are using replication, we recommend you to use MySQL Version 3.23.28 or
+If you are using replication, we recommend you to use MySQL Version 3.23.30 or
 later. Older versions work, but they do have some bugs and are missing some
 features.
 
@@ -26169,8 +26190,8 @@ last log on the list), backup all the logs you are about to delete
 
 @end multitable
 
-@node Replication FAQ,  , Replication SQL, Replication
-@section Frequently Asked Questions about replication
+@node Replication FAQ,Troubleshooting Replication, Replication SQL, Replication
+@section Replication FAQ
 
 @cindex @code{Binlog_Dump}
 @strong{Q}: Why do I sometimes see more than one @code{Binlog_Dump} thread on
@@ -26227,11 +26248,10 @@ the slave can stay down for some time - since the master is logging
 all the updates, the slave will be able to catch up once it is up and
 can connect.
 
-We plan to make post 3.23.26 versions to be backwards compatible
-for replication down to Version 3.23.26, so upgrade should be just a matter
-of plug and play. Of course, as one joke goes, plug and play works
-usually only 50% of the time - just the plug part. We hope to do much
-better than that, though.
+After 3.23.26, we have locked the replication protocol for modifications, so
+you can upgrade masters and slave on the fly to a newer 3.23 version and you
+can have different versions of @code{MySQL} running on the slave and the
+master, as long as they are both newer than 3.23.26. 
 
 @cindex replication, two-way
 @strong{Q}: What issues should I be aware of when setting up two-way
@@ -26251,10 +26271,6 @@ two-way replication relationship, unless you are sure that you updates
 can safely happen in any order, or unless you take care of mis-ordered
 updates somehow in the client code.
 
-Until we implement @code{server_id} variable, you cannot have more than
-two servers in a co-master replication relationship, and you must
-run @code{mysqld} without @code{log-slave-updates} (default) to avoid
-infinite update loops.
 
 You must also realize that two-way replication actually does not improve
 performance very much, if at all, as far as updates are concerned. Both
@@ -26365,7 +26381,7 @@ to all servers)
 
 So if N = 0, which means we have no replication, our system can handle
 1200/11, about 109 writes per second (which means we will have 9 times
-as many reads to the nature of our application).
+as many reads due to the nature of our application).
 
 If N = 1, we can get up to 184 writes per second.
 
@@ -26427,6 +26443,105 @@ directly).
 We are currently working on intergrating an automatic master election
 system into @strong{MySQL}, but until it is ready, you will have to
 create your own monitoring tools.
+
+@node Troubleshooting Replication, ,Replication FAQ, Replication
+@section Troubleshooting Replication
+
+If you have followed the instructions, and your replication setup is not
+working, first elliminate the user error factor by checking the following:
+
+@itemize @bullet
+@item
+Is the master logging to the binary log? Check with @code{SHOW MASTER STATUS}.
+If it is, @code{Position} will be non-zero. If not, verify that you have
+given the master @code{log-bin} option and have set @code{server-id}.
+@item
+Is the slave running? Check with @code{SHOW SLAVE STATUS}. The answer is found
+in @code{Slave_running} column. If not, verify slave options and check the
+error log for messages.
+@item
+If the slave is running, did it establish connection with the master? Do
+@code{SHOW PROCESSLIST}, find the thread with @code{system user} value in
+@code{User} column and @code{none} in the @code{Host} column, and check the
+@code{State} column. If it says @code{connecting to master}, verify the
+privileges for the replication user on the master, master host name, your
+DNS setup, whether the master is actually running, whether it is reachable
+from the slave, and if all that seems ok, read the error logs.
+@item
+If the slave was running, but then stopped, check the error logs. It usually
+happens when some query that succeeded on the master fails on the slave. This
+should never happen if you have taken a proper snapshot of the master, and
+never modify the data on the slave outside of the slave thread. If it does,
+it is a bug, read below on how to report it.
+@item
+Make sure you are not running into an old bug by upgrading to the most recent
+version.
+@item
+If all else fails, read the error logs. If they are big,
+@code{grep -i slave /path/to/your-log.err} on the slave. There is no
+generic pattern to search for on the master, as the only errors it logs
+are general system errors - if it can, it will send the error to the slave
+when things go wrong.
+@end itemize
+
+When you have determined that there is no user error involved, and replication
+still either does not work at all or is unstable, it is time to start working
+on a bug report. We need to get as much info as possible from you to be able
+to track down the bug. Please do spend some time and effort preparing a good
+bug report. Ideally, we would like to have a test case in the format found in
+@code{mysql-test/t/rpl*} directory of the source tree. If you submit a test
+case like that, you can expect a patch within a day or two in most cases,
+although, of course, you mileage may vary depending on a number of factors.
+
+Second best option is a just program with easily configurable connection
+arguments for the master and the slave that will demonstrate the problem on our
+systems. You can write one in Perl or in C, depending on which language you
+know better.
+
+If you have one of the above ways to demonstrate the bug, use
+@code{mysqlbug} to prepare a bug report and send it to
+@email{bugs@@lists.mysql.com}. If you have a phantom - a problem that
+does occur but you cannot duplicate "at will":
+
+@itemize @bullet
+@item
+Verify that there is no user error involved. For example, if you update the
+slave outside of the slave thread, the data will be out of sync, and you can
+have unique key violations on updates, in which case the slave thread will
+stop and wait for you to clean up the tables manually to bring them in sync.
+@item
+Run slave with @code{log-slave-updates} and @code{log-bin} - this will keep
+a log of all updates on the slave.
+@item
+Save all evidence before reseting the replication. If we have no or only
+sketchy information, it would take us a while to track down the problem. The
+evidence you should collect is:
+@itemize @bullet
+@item
+all binary logs on the master
+@item
+all binary log on the slave
+@item
+the output of @code{SHOW MASTER STATUS} on the master at the time
+you have discovered the problem
+@item
+the output of @code{SHOW SLAVE STATUS} on the master at the time
+you have discovered the problem
+@item
+Error logs on the master and on the slave
+@end itemize
+@item
+Use @code{mysqlbinlog} to examine the binary logs. The following should
+be helpful
+to find the trouble query, for example:
+@example
+mysqlbinlog -j pos_from_slave_status /path/to/log_from_slave_status | head
+@end example
+@end itemize
+
+Once you have collected the evidence on the phantom problem, try hard to
+isolate it into a separate test case first. Then report the problem to
+@email{bugs@@lists.mysql.com} with as much info as possible.
 
 
 @cindex performance, maximizing
@@ -40439,6 +40554,7 @@ version.  The replication and BerkeleyDB code is still under development,
 though, so Version 3.23 is not released as a stable version yet.
 
 @menu
+* News-3.23.32::                Changes in release 3.23.32
 * News-3.23.31::                Changes in release 3.23.31
 * News-3.23.30::                Changes in release 3.23.30
 * News-3.23.29::                Changes in release 3.23.29
@@ -40473,7 +40589,14 @@ though, so Version 3.23 is not released as a stable version yet.
 * News-3.23.0::                 Changes in release 3.23.0
 @end menu
 
-@node News-3.23.31, News-3.23.30, News-3.23.x, News-3.23.x
+@node News-3.23.32, News-3.23.31, News-3.23.x, News-3.23.x
+@appendixsubsec Changes in release 3.23.32
+@itemize @bullet
+@item
+Added MASTER_POS_WAIT()
+@end itemize
+
+@node News-3.23.31, News-3.23.30, News-3.23.32, News-3.23.x
 @appendixsubsec Changes in release 3.23.31
 @itemize @bullet
 @item

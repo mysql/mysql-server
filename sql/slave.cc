@@ -616,6 +616,46 @@ int flush_master_info(MASTER_INFO* mi)
   return 0;
 }
 
+int st_master_info::wait_for_pos(THD* thd, String* log_name, ulong log_pos)
+{
+  if(!inited) return -1;
+  bool pos_reached = 0;
+  int event_count = 0;
+  for(;!pos_reached && !thd->killed;)
+    {
+      int cmp_result;
+      char* basename;
+      pthread_mutex_lock(&lock);
+      if(*log_file_name)
+	{
+	  basename = strrchr(log_file_name, FN_LIBCHAR);
+	  if(basename)
+	    ++basename;
+	  else
+	    basename = log_file_name;
+          cmp_result =  strncmp(basename, log_name->ptr(),
+			       log_name->length());
+	}
+      else
+	cmp_result = 0;
+      
+      pos_reached = ((!cmp_result && pos >= log_pos) || cmp_result > 0);
+      if(!pos_reached && !thd->killed)
+	{
+	  const char* msg = thd->enter_cond(&cond, &lock,
+				       "Waiting for master update");
+          pthread_cond_wait(&cond, &lock);
+	  thd->exit_cond(msg);
+	  event_count++;
+	}
+      pthread_mutex_unlock(&lock);
+      if(thd->killed)
+	return -1;
+    }
+
+  return event_count;
+}
+
 
 static int init_slave_thread(THD* thd)
 {
@@ -1003,10 +1043,17 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
     {
       Rotate_log_event* rev = (Rotate_log_event*)ev;
       int ident_len = rev->ident_len;
+      pthread_mutex_lock(&mi->lock);
       memcpy(mi->log_file_name, rev->new_log_ident,ident_len );
       mi->log_file_name[ident_len] = 0;
       mi->pos = 4; // skip magic number
+      pthread_cond_broadcast(&mi->cond);
+      pthread_mutex_unlock(&mi->lock);
       flush_master_info(mi);
+#ifndef DBUG_OFF
+      if(abort_slave_event_count)
+	++events_till_abort;
+#endif      
       delete ev;
       break;
     }
@@ -1045,6 +1092,9 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 
 pthread_handler_decl(handle_slave,arg __attribute__((unused)))
 {
+#ifndef DBUG_OFF
+ slave_begin:  
+#endif  
   THD *thd; // needs to be first for thread_stack
   MYSQL *mysql = NULL ;
 
@@ -1068,8 +1118,8 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
 #ifndef DBUG_OFF  
   events_till_abort = abort_slave_event_count;
 #endif  
- pthread_cond_broadcast(&COND_slave_start);
- pthread_mutex_unlock(&LOCK_slave);
+  pthread_cond_broadcast(&COND_slave_start);
+  pthread_mutex_unlock(&LOCK_slave);
   
   int error = 1;
   bool retried_once = 0;
@@ -1241,6 +1291,10 @@ position %ld",
   net_end(&thd->net); // destructor will not free it, because we are weird
   delete thd;
   my_thread_end();
+#ifndef DBUG_OFF
+  if(abort_slave_event_count && !events_till_abort)
+    goto slave_begin;
+#endif  
   pthread_exit(0);
   DBUG_RETURN(0);				// Can't return anything here
 }
