@@ -81,8 +81,11 @@ insert into t1 values (NULL,NULL,NULL,NULL);
 update t1 set c="",b=null where c="1";
 
 lock tables t1 READ;
+# We mask out the Privileges column because it differs for embedded server
+--replace_column 8 #
 show full fields from t1;
 lock tables t1 WRITE;
+--replace_column 8 #
 show full fields from t1;
 unlock tables;
 
@@ -303,18 +306,25 @@ drop table t1;
 
 create table t1 (id integer auto_increment unique,imagem LONGBLOB not null);
 insert into t1 (id) values (1);
-select 
-  charset(load_file('../../std_data/words.dat')),
-  collation(load_file('../../std_data/words.dat')),
-  coercibility(load_file('../../std_data/words.dat'));
-explain extended select 
-  charset(load_file('../../std_data/words.dat')),
-  collation(load_file('../../std_data/words.dat')),
-  coercibility(load_file('../../std_data/words.dat'));
-update t1 set imagem=load_file('../../std_data/words.dat') where id=1;
+# We have to clean up the path in the results for safe comparison
+--replace_result $MYSQL_TEST_DIR ../..
+eval select 
+  charset(load_file('$MYSQL_TEST_DIR/std_data/words.dat')),
+  collation(load_file('$MYSQL_TEST_DIR/std_data/words.dat')),
+  coercibility(load_file('$MYSQL_TEST_DIR/std_data/words.dat'));
+--replace_result $MYSQL_TEST_DIR ../..
+eval explain extended select 
+  charset(load_file('$MYSQL_TEST_DIR/std_data/words.dat')),
+  collation(load_file('$MYSQL_TEST_DIR/std_data/words.dat')),
+  coercibility(load_file('$MYSQL_TEST_DIR/std_data/words.dat'));
+--replace_result $MYSQL_TEST_DIR ../..
+eval update t1 set imagem=load_file('$MYSQL_TEST_DIR/std_data/words.dat') where id=1;
 select if(imagem is null, "ERROR", "OK"),length(imagem) from t1 where id = 1;
 drop table t1;
-create table t1 select load_file('../../std_data/words.dat');
+--replace_result $MYSQL_TEST_DIR ../..
+eval create table t1 select load_file('$MYSQL_TEST_DIR/std_data/words.dat') l;
+# We mask out the Privileges column because it differs for embedded server
+--replace_column 8 #
 show full fields from t1;
 drop table t1;
 
