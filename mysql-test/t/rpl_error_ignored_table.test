@@ -48,7 +48,8 @@ connection master;
 --error 0,1053;
 reap;
 connection master1;
-show binlog events from 96;
+--replace_column 2 # 5 #
+show binlog events from 98;
 save_master_pos;
 connection slave;
 # SQL slave thread should not have stopped (because table of the killed
