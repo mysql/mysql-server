@@ -41,47 +41,6 @@ trx_undof_page_add_undo_rec_log(
 	byte*	log_ptr;
 	ulint	len;
 
-#ifdef notdefined
-	ulint	i;
-	byte*	prev_rec_ptr;
-	byte*	ptr;
-	ulint	min_len;
-
-	ut_ad(new_free >= old_free + 4);
-
-	i = 0;
-	ptr = undo_page + old_free + 2;
-	
-	if (old_free > mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
-					+ TRX_UNDO_PAGE_START)) {
-		prev_rec_ptr = undo_page + mach_read_from_2(ptr - 4) + 2;
-
-		min_len = ut_min(new_free - old_free - 4,
-				 (undo_page + old_free - 2) - prev_rec_ptr); 
-		for (;;) {
-			if (i >= min_len) {
-
-				break;
-			} else if ((*ptr == *prev_rec_ptr)
-				   || ((*ptr == *prev_rec_ptr + 1)
-				       && (ptr + 1 == suffix))) {
-				i++;
-				ptr++;
-				prev_rec_ptr++;
-			} else {
-				break;
-			}
-		}
-	}
-	
-	mlog_write_initial_log_record(undo_page, MLOG_UNDO_INSERT, mtr);
-
-	mlog_catenate_ulint(mtr, old_free, MLOG_2BYTES);
-
-	mlog_catenate_ulint_compressed(mtr, i);
-
-	mlog_catenate_string(mtr, ptr, new_free - old_free - 2 - i);
-#endif
 	log_ptr = mlog_open(mtr, 30 + MLOG_BUF_MARGIN);
 
 	if (log_ptr == NULL) {
