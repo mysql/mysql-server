@@ -2554,7 +2554,8 @@ static bool null_part_in_key(KEY_PART *key_part, const char *key, uint length)
 
 QUICK_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table, TABLE_REF *ref)
 {
-  QUICK_SELECT *quick=new QUICK_SELECT(thd, table, ref->key, 1);
+  MEM_ROOT *old_root= my_pthread_getspecific_ptr(MEM_ROOT*, THR_MALLOC);
+  QUICK_SELECT *quick= new QUICK_SELECT(thd, table, ref->key);
   KEY *key_info = &table->key_info[ref->key];
   KEY_PART *key_part;
   QUICK_RANGE *range;
@@ -2566,7 +2567,7 @@ QUICK_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table, TABLE_REF *ref)
   {
     if (thd->is_fatal_error)
       goto err;					// out of memory
-    return quick;				// empty range
+    goto ok;                                    // empty range
   }
 
   if (!(range= new QUICK_RANGE()))
@@ -2613,9 +2614,12 @@ QUICK_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table, TABLE_REF *ref)
       goto err;
   }
 
+ok:
+  my_pthread_setspecific_ptr(THR_MALLOC, old_root);
   return quick;
 
 err:
+  my_pthread_setspecific_ptr(THR_MALLOC, old_root);
   delete quick;
   return 0;
 }
