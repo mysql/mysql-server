@@ -937,6 +937,8 @@ btr_search_drop_page_hash_index(
 	ulint		n_recs;
 	ulint*		folds;
 	ulint		i;
+	mem_heap_t*	heap;
+	ulint*		offsets;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
@@ -984,10 +986,10 @@ btr_search_drop_page_hash_index(
 	rec = page_rec_get_next(rec);
 
 	if (rec != sup) {
-		ut_a(n_fields <= rec_get_n_fields(rec));
+		ut_a(n_fields <= rec_get_n_fields(rec, block->index));
 
 		if (n_bytes > 0) {
-			ut_a(n_fields < rec_get_n_fields(rec));
+			ut_a(n_fields < rec_get_n_fields(rec, block->index));
 		}
 	}
 
@@ -995,11 +997,15 @@ btr_search_drop_page_hash_index(
 	
 	prev_fold = 0;
 
+	heap = mem_heap_create(100);
+	offsets = NULL;
+
 	while (rec != sup) {
 		/* FIXME: in a mixed tree, not all records may have enough
 		ordering fields: */
-		
-		fold = rec_fold(rec, n_fields, n_bytes, tree_id);
+		offsets = rec_reget_offsets(rec, block->index,
+				offsets, n_fields + (n_bytes > 0), heap);
+		fold = rec_fold(rec, offsets, n_fields, n_bytes, tree_id);
 
 		if (fold == prev_fold && prev_fold != 0) {
 
@@ -1015,6 +1021,8 @@ next_rec:
 		rec = page_rec_get_next(rec);
 		prev_fold = fold;
 	}
+
+	mem_heap_free(heap);
 
 	rw_lock_x_lock(&btr_search_latch);
 
