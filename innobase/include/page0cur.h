@@ -182,9 +182,10 @@ next record after the deleted one. */
 void
 page_cur_delete_rec(
 /*================*/
-	page_cur_t*  	cursor,		/* in: a page cursor */
-	dict_index_t*	index,		/* in: record descriptor */
-	mtr_t*		mtr);		/* in: mini-transaction handle */
+	page_cur_t*  	cursor,	/* in: a page cursor */
+	dict_index_t*	index,	/* in: record descriptor */
+	const ulint*	offsets,/* in: rec_get_offsets(cursor->rec, index) */
+	mtr_t*		mtr);	/* in: mini-transaction handle */
 /********************************************************************
 Searches the right position for a page cursor. */
 UNIV_INLINE

@@ -440,7 +440,17 @@ loop:
 		if ((trx->sess || (trx->conc_state == TRX_NOT_STARTED))) {
 			trx = UT_LIST_GET_NEXT(trx_list, trx);
 		} else if (trx->conc_state == TRX_PREPARED) {
-			trx->sess = trx_dummy_sess;
+
+			/* Roll back all prepared transactions if
+			innobase_force_recovery > 0 in my.cnf */
+
+			if (srv_force_recovery > 0) {
+				trx->conc_state = TRX_ACTIVE;
+				break;
+			} else {
+				trx->sess = trx_dummy_sess;
+				trx = UT_LIST_GET_NEXT(trx_list, trx);
+			}
 		} else {
 			break;
 		}

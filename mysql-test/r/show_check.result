@@ -254,7 +254,7 @@ create table t1 (a int not null);
 create table t2 select max(a) from t1;
 show columns from t2;
 Field	Type	Null	Key	Default	Extra
-max(a)	bigint(20)	YES		NULL	
+max(a)	int(11)	YES		NULL	
 drop table t1,t2;
 create table t1 (c decimal, d double, f float, r real);
 show columns from t1;

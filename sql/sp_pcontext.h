@@ -60,6 +60,12 @@ typedef struct sp_cond_type
   uint mysqlerr;
 } sp_cond_type_t;
 
+/* Sanity check for SQLSTATEs. Will not check if it's really an existing
+ * state (there are just too many), but will check length bad characters.
+ */
+extern bool
+sp_cond_check(LEX_STRING *sqlstate);
+
 typedef struct sp_cond
 {
   LEX_STRING name;
