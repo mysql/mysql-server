@@ -1755,8 +1755,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
     if (setup_order(thd, &tables, fields, all_fields, order) ||
         !(sortorder=make_unireg_sortorder(order, &length)) ||
-        (from->found_records = filesort(&from, sortorder, length, 
-                                         (SQL_SELECT *) 0, 0L, HA_POS_ERROR,
+        (from->found_records = filesort(from, sortorder, length, 
+					(SQL_SELECT *) 0, 0L, HA_POS_ERROR,
 					&examined_rows))
         == HA_POS_ERROR)
       goto err;

@@ -2479,7 +2479,7 @@ enum options {
                OPT_INNODB_LOG_ARCH_DIR, 
                OPT_INNODB_LOG_ARCHIVE, 
                OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT, 
-               OPT_innodb_flush_method, 
+               OPT_INNODB_FLUSH_METHOD, 
                OPT_SAFE_SHOW_DB,
 	       OPT_GEMINI_SKIP, OPT_INNODB_SKIP,
                OPT_TEMP_POOL, OPT_DO_PSTACK, OPT_TX_ISOLATION,
@@ -2545,7 +2545,7 @@ static struct option long_options[] = {
   {"innodb_flush_log_at_trx_commit", optional_argument, 0,
      OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT},
   {"innodb_flush_method", required_argument, 0,
-    OPT_INNODB_UNIX_FILE_FLUSH_METHOD},
+    OPT_INNODB_FLUSH_METHOD},
 #endif
   {"help",                  no_argument,       0, '?'},
   {"init-file",             required_argument, 0, (int) OPT_INIT_FILE},
@@ -3703,7 +3703,7 @@ static void get_options(int argc,char **argv)
     case OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT:
       innobase_flush_log_at_trx_commit= optarg ? test(atoi(optarg)) : 1;
       break;
-    case OPT_INNODB_UNIX_FILE_FLUSH_METHOD:
+    case OPT_INNODB_FLUSH_METHOD:
       innobase_unix_file_flush_method=optarg;
       break;
 #endif /* HAVE_INNOBASE_DB */

@@ -10,3 +10,15 @@ insert into t1 values (a+3);
 insert into t1 values (4),(a+5);
 select * from t1;
 drop table t1;
+
+#
+# Test of duplicate key values with packed keys
+#
+
+create table t1 (id int not null auto_increment primary key, username varchar(32) not null, unique (username));
+insert into t1 values (0,"mysql");
+insert into t1 values (0,"mysql ab");
+insert into t1 values (0,"mysql a");
+insert into t1 values (0,"r1manic");
+insert into t1 values (0,"r1man");
+drop table t1;

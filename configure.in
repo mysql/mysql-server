@@ -403,7 +403,7 @@ AM_PROG_CC_STDC
 
 if test "$am_cv_prog_cc_stdc" = "no"
 then
-  AC_MSG_ERROR([MySQL requiers a ANSI C compiler (and a C++ compiler). Try gcc. See the Installation chapter in the Reference Manual.])
+  AC_MSG_ERROR([MySQL requires a ANSI C compiler (and a C++ compiler). Try gcc. See the Installation chapter in the Reference Manual.])
 fi
 
 NOINST_LDFLAGS=

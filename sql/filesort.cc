@@ -53,11 +53,19 @@ static int merge_index(SORTPARAM *param,uchar *sort_buffer,
 static bool save_index(SORTPARAM *param,uchar **sort_keys, uint count);
 static uint sortlength(SORT_FIELD *sortorder,uint length);
 
-	/* Makes a indexfil of recordnumbers of a sorted database */
-	/* outfile is reset before data is written to it, if it wasn't
-	 open a new file is opened */
+	/*
+	  Creates a set of pointers that can be used to read the rows
+	  in sorted order. This should be done with the functions
+	  in records.cc
 
-ha_rows filesort(TABLE **table, SORT_FIELD *sortorder, uint s_length,
+	  Before calling filesort, one must have done
+	  table->file->info(HA_STATUS_VARIABLE)
+
+	  The result set is stored in table->io_cache or
+	  table->record_pointers
+	*/
+
+ha_rows filesort(TABLE *table, SORT_FIELD *sortorder, uint s_length,
 		 SQL_SELECT *select, ha_rows special, ha_rows max_rows,
 		 ha_rows *examined_rows)
 {
@@ -69,19 +77,20 @@ ha_rows filesort(TABLE **table, SORT_FIELD *sortorder, uint s_length,
   IO_CACHE tempfile,*selected_records_file,*outfile;
   SORTPARAM param;
   DBUG_ENTER("filesort");
-  DBUG_EXECUTE("info",TEST_filesort(table,sortorder,s_length,special););
+  DBUG_EXECUTE("info",TEST_filesort(sortorder,s_length,special););
 #ifdef SKIPP_DBUG_IN_FILESORT
   DBUG_PUSH("");		/* No DBUG here */
 #endif
 
-  outfile= table[0]->io_cache;
+  outfile= table->io_cache;
   my_b_clear(&tempfile);
   buffpek= (BUFFPEK *) NULL; sort_keys= (uchar **) NULL; error= 1;
   maxbuffer=1;
-  param.ref_length= table[0]->file->ref_length;
+  param.ref_length= table->file->ref_length;
   param.sort_length=sortlength(sortorder,s_length)+ param.ref_length;
   param.max_rows= max_rows;
   param.examined_rows=0;
+  param.unique_buff=0;
 
   if (select && select->quick)
   {
@@ -106,17 +115,14 @@ ha_rows filesort(TABLE **table, SORT_FIELD *sortorder, uint s_length,
 #ifdef CAN_TRUST_RANGE
   else if (select && select->quick && select->quick->records > 0L)
   {
-    /* Get record-count */
-    table[0]->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
     records=min((ha_rows) (select->quick->records*2+EXTRA_RECORDS*2),
-		table[0]->file->records)+EXTRA_RECORDS;
+		table->file->records)+EXTRA_RECORDS;
     selected_records_file=0;
   }
 #endif
   else
   {
-    table[0]->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);/* Get record-count */
-    records=table[0]->file->estimate_number_of_rows();
+    records=table->file->estimate_number_of_rows();
     selected_records_file= 0;
   }
   if (param.sort_length == param.ref_length && records > param.max_rows)
@@ -170,7 +176,7 @@ ha_rows filesort(TABLE **table, SORT_FIELD *sortorder, uint s_length,
     my_error(ER_OUTOFMEMORY,MYF(ME_ERROR+ME_WAITTANG),sortbuff_size);
     goto err;
   }
-  param.sort_form= table[0];
+  param.sort_form= table;
   param.end=(param.local_sortorder=sortorder)+s_length;
   if ((records=find_all_keys(&param,select,sort_keys,buffpek,&maxbuffer,
 			     &tempfile, selected_records_file)) ==
