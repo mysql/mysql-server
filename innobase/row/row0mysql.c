@@ -1414,7 +1414,8 @@ row_create_table_for_mysql(
 	tab_node_t*	node;
 	mem_heap_t*	heap;
 	que_thr_t*	thr;
-	ulint		namelen;
+	const char*	table_name;
+	ulint		table_name_len;
 	ulint		err;
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
@@ -1466,10 +1467,17 @@ row_create_table_for_mysql(
 		return(row_mysql_recover_tmp_table(table, trx));
 	}
 
-	namelen = strlen(table->name) + 1;
+	/* The table name is prefixed with the database name and a '/'.
+	Certain table names starting with 'innodb_' have their special
+	meaning regardless of the database name.  Thus, we need to
+	ignore the database name prefix in the comparisons. */
+	table_name = strchr(table->name, '/');
+	ut_a(table_name);
+	table_name++;
+	table_name_len = strlen(table_name) + 1;
 
-	if (namelen == sizeof S_innodb_monitor
-			&& !memcmp(table->name, S_innodb_monitor,
+	if (table_name_len == sizeof S_innodb_monitor
+			&& !memcmp(table_name, S_innodb_monitor,
 				sizeof S_innodb_monitor)) {
 
 		/* Table equals "innodb_monitor":
@@ -1481,27 +1489,27 @@ row_create_table_for_mysql(
 		of InnoDB monitor prints */
 
 		os_event_set(srv_lock_timeout_thread_event);
-	} else if (namelen == sizeof S_innodb_lock_monitor
-			&& !memcmp(table->name, S_innodb_lock_monitor,
+	} else if (table_name_len == sizeof S_innodb_lock_monitor
+			&& !memcmp(table_name, S_innodb_lock_monitor,
 				sizeof S_innodb_lock_monitor)) {
 
 		srv_print_innodb_monitor = TRUE;
 		srv_print_innodb_lock_monitor = TRUE;
 		os_event_set(srv_lock_timeout_thread_event);
-	} else if (namelen == sizeof S_innodb_tablespace_monitor
-			&& !memcmp(table->name, S_innodb_tablespace_monitor,
+	} else if (table_name_len == sizeof S_innodb_tablespace_monitor
+			&& !memcmp(table_name, S_innodb_tablespace_monitor,
 				sizeof S_innodb_tablespace_monitor)) {
 
 		srv_print_innodb_tablespace_monitor = TRUE;
 		os_event_set(srv_lock_timeout_thread_event);
-	} else if (namelen == sizeof S_innodb_table_monitor
-			&& !memcmp(table->name, S_innodb_table_monitor,
+	} else if (table_name_len == sizeof S_innodb_table_monitor
+			&& !memcmp(table_name, S_innodb_table_monitor,
 				sizeof S_innodb_table_monitor)) {
 
 		srv_print_innodb_table_monitor = TRUE;
 		os_event_set(srv_lock_timeout_thread_event);
-	} else if (namelen == sizeof S_innodb_mem_validate
-			&& !memcmp(table->name, S_innodb_mem_validate,
+	} else if (table_name_len == sizeof S_innodb_mem_validate
+			&& !memcmp(table_name, S_innodb_mem_validate,
 				sizeof S_innodb_mem_validate)) {
 	        /* We define here a debugging feature intended for
 		developers */
@@ -2204,6 +2212,7 @@ row_drop_table_for_mysql(
 	que_thr_t*	thr;
 	que_t*		graph;
 	ulint		err;
+	const char*	table_name;
 	ulint		namelen;
 	ibool		success;
 	ibool		locked_dictionary	= FALSE;
@@ -2293,10 +2302,17 @@ row_drop_table_for_mysql(
 
 	trx_start_if_not_started(trx);
 
-	namelen = strlen(name) + 1;
+	/* The table name is prefixed with the database name and a '/'.
+	Certain table names starting with 'innodb_' have their special
+	meaning regardless of the database name.  Thus, we need to
+	ignore the database name prefix in the comparisons. */
+	table_name = strchr(name, '/');
+	ut_a(table_name);
+	table_name++;
+	namelen = strlen(table_name) + 1;
 
 	if (namelen == sizeof S_innodb_monitor
-			&& !memcmp(name, S_innodb_monitor,
+			&& !memcmp(table_name, S_innodb_monitor,
 				sizeof S_innodb_monitor)) {
 
 		/* Table name equals "innodb_monitor":
@@ -2305,17 +2321,17 @@ row_drop_table_for_mysql(
 		srv_print_innodb_monitor = FALSE;
 		srv_print_innodb_lock_monitor = FALSE;
 	} else if (namelen == sizeof S_innodb_lock_monitor
-			&& !memcmp(name, S_innodb_lock_monitor,
+			&& !memcmp(table_name, S_innodb_lock_monitor,
 				sizeof S_innodb_lock_monitor)) {
 		srv_print_innodb_monitor = FALSE;
 		srv_print_innodb_lock_monitor = FALSE;
 	} else if (namelen == sizeof S_innodb_tablespace_monitor
-			&& !memcmp(name, S_innodb_tablespace_monitor,
+			&& !memcmp(table_name, S_innodb_tablespace_monitor,
 				sizeof S_innodb_tablespace_monitor)) {
 
 		srv_print_innodb_tablespace_monitor = FALSE;
 	} else if (namelen == sizeof S_innodb_table_monitor
-			&& !memcmp(name, S_innodb_table_monitor,
+			&& !memcmp(table_name, S_innodb_table_monitor,
 				sizeof S_innodb_table_monitor)) {
 
 		srv_print_innodb_table_monitor = FALSE;

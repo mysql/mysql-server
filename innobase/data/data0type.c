@@ -123,7 +123,6 @@ dtype_validate(
 
 	return(TRUE);
 }
-#endif /* UNIV_DEBUG */
 
 /*************************************************************************
 Prints a data type structure. */

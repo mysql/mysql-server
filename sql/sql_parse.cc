@@ -1586,7 +1586,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	break;
       }
       mysql_log.write(thd,command,db);
-      mysql_rm_db(thd,alias,0,0);
+      mysql_rm_db(thd, (lower_case_table_names == 2 ? alias : db), 0, 0);
       break;
     }
 #ifndef EMBEDDED_LIBRARY
@@ -3114,7 +3114,8 @@ purposes internal to the MySQL server", MYF(0));
       send_error(thd,ER_LOCK_OR_ACTIVE_TRANSACTION);
       goto error;
     }
-    res=mysql_rm_db(thd,alias,lex->drop_if_exists,0);
+    res=mysql_rm_db(thd, (lower_case_table_names == 2 ? alias : lex->name),
+                    lex->drop_if_exists, 0);
     break;
   }
   case SQLCOM_ALTER_DB:
@@ -4185,7 +4186,12 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     break;
   case FIELD_TYPE_DECIMAL:
     if (!length)
-      new_field->length= 10;			// Default length for DECIMAL
+    {
+      if ((new_field->length= new_field->decimals))
+        new_field->length++;
+      else
+        new_field->length= 10;                  // Default length for DECIMAL
+    }
     if (new_field->length < MAX_FIELD_WIDTH)	// Skip wrong argument
     {
       new_field->length+=sign_len;

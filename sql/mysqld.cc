@@ -5458,7 +5458,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     mysql_data_home= mysql_real_data_home;
     break;
   case 'u':
-    if (!mysqld_user)
+    if (!mysqld_user || !strcmp(mysqld_user, argument))
       mysqld_user= argument;
     else
       fprintf(stderr, "Warning: Ignoring user change to '%s' because the user was set to '%s' earlier on the command line\n", argument, mysqld_user);
