@@ -17,6 +17,8 @@
 #ifndef _spatial_h
 #define _spatial_h
 
+#ifdef HAVE_SPATIAL
+
 const uint SRID_SIZE= 4;
 const uint SIZEOF_STORED_DOUBLE= 8;
 const uint POINT_DATA_SIZE= SIZEOF_STORED_DOUBLE*2; 
@@ -459,4 +461,5 @@ struct Geometry_buffer
   void *arr[(geometry_buffer_size - 1)/sizeof(void *) + 1];
 };
 
+#endif /*HAVE_SPATAIAL*/
 #endif

@@ -17,6 +17,8 @@
 
 #include "myisamdef.h"
 
+#ifdef HAVE_RTREE_KEYS
+
 #include "rt_index.h"
 #include "rt_key.h"
 #include "rt_mbr.h"
@@ -991,3 +993,6 @@ err1:
   my_afree((byte*)page_buf);
   return HA_POS_ERROR;
 }
+
+#endif /*HAVE_RTREE_KEYS*/
+
