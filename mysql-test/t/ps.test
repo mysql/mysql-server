@@ -206,3 +206,15 @@ execute stmt1;
 show table status from test like 't1%' ;
 deallocate prepare stmt1 ;
 drop table t1;
+
+#
+# Bug#4912 "mysqld crashs in case a statement is executed a second time":
+# negation elimination should and prepared statemens
+# 
+
+create table t1(a varchar(2), b varchar(3));
+prepare stmt1 from "select a, b from t1 where (not (a='aa' and b < 'zzz'))";
+execute stmt1;
+execute stmt1;
+deallocate prepare stmt1;
+

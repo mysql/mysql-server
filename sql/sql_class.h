@@ -418,6 +418,61 @@ struct system_variables
 void free_tmp_table(THD *thd, TABLE *entry);
 
 
+class Item_arena
+{
+public:
+  /*
+    List of items created in the parser for this query. Every item puts
+    itself to the list on creation (see Item::Item() for details))
+  */
+  Item *free_list;
+  MEM_ROOT mem_root;
+  static const int INITIALIZED= 0, PREPARED= 1, EXECUTED= 3,
+                   CONVENTIONAL_EXECUTION= 2, ERROR= -1;
+  int state;
+
+  /* We build without RTTI, so dynamic_cast can't be used. */
+  enum Type
+  {
+    STATEMENT, PREPARED_STATEMENT, STORED_PROCEDURE
+  };
+
+  Item_arena(THD *thd);
+  Item_arena();
+  Item_arena(bool init_mem_root);
+  virtual Type type() const;
+  virtual ~Item_arena();
+
+  inline bool is_stmt_prepare() const { return state < PREPARED; }
+  inline bool is_first_stmt_execute() const { return state == PREPARED; }
+  inline gptr alloc(unsigned int size) { return alloc_root(&mem_root,size); }
+  inline gptr calloc(unsigned int size)
+  {
+    gptr ptr;
+    if ((ptr=alloc_root(&mem_root,size)))
+      bzero((char*) ptr,size);
+    return ptr;
+  }
+  inline char *strdup(const char *str)
+  { return strdup_root(&mem_root,str); }
+  inline char *strmake(const char *str, uint size)
+  { return strmake_root(&mem_root,str,size); }
+  inline char *memdup(const char *str, uint size)
+  { return memdup_root(&mem_root,str,size); }
+  inline char *memdup_w_gap(const char *str, uint size, uint gap)
+  {
+    gptr ptr;
+    if ((ptr=alloc_root(&mem_root,size+gap)))
+      memcpy(ptr,str,size);
+    return ptr;
+  }
+
+  void set_n_backup_item_arena(Item_arena *set, Item_arena *backup);
+  void restore_backup_item_arena(Item_arena *set, Item_arena *backup);
+  void set_item_arena(Item_arena *set);
+};
+
+
 /*
   State of a single command executed against this connection.
   One connection can contain a lot of simultaneously running statements,
@@ -432,7 +487,7 @@ void free_tmp_table(THD *thd, TABLE *entry);
   be used explicitly.
 */
 
-class Statement
+class Statement: public Item_arena
 {
   Statement(const Statement &rhs);              /* not implemented: */
   Statement &operator=(const Statement &rhs);   /* non-copyable */
@@ -474,20 +529,8 @@ public:
   */
   char *query;
   uint32 query_length;                          // current query length
-  /*
-    List of items created in the parser for this query. Every item puts
-    itself to the list on creation (see Item::Item() for details))
-  */
-  Item *free_list;
-  MEM_ROOT mem_root;
 
 public:
-  /* We build without RTTI, so dynamic_cast can't be used. */
-  enum Type
-  {
-    STATEMENT,
-    PREPARED_STATEMENT
-  };
 
   /*
     This constructor is called when statement is a subobject of THD:
@@ -500,34 +543,10 @@ public:
 
   /* Assign execution context (note: not all members) of given stmt to self */
   void set_statement(Statement *stmt);
+  void set_n_backup_statement(Statement *stmt, Statement *backup);
+  void restore_backup_statement(Statement *stmt, Statement *backup);
   /* return class type */
   virtual Type type() const;
-
-  inline gptr alloc(unsigned int size) { return alloc_root(&mem_root,size); }
-  inline gptr calloc(unsigned int size)
-  {
-    gptr ptr;
-    if ((ptr=alloc_root(&mem_root,size)))
-      bzero((char*) ptr,size);
-    return ptr;
-  }
-  inline char *strdup(const char *str)
-  { return strdup_root(&mem_root,str); }
-  inline char *strmake(const char *str, uint size)
-  { return strmake_root(&mem_root,str,size); }
-  inline char *memdup(const char *str, uint size)
-  { return memdup_root(&mem_root,str,size); }
-  inline char *memdup_w_gap(const char *str, uint size, uint gap)
-  {
-    gptr ptr;
-    if ((ptr=alloc_root(&mem_root,size+gap)))
-      memcpy(ptr,str,size);
-    return ptr;
-  }
-
-  void set_n_backup_item_arena(Statement *set, Statement *backup);
-  void restore_backup_item_arena(Statement *set, Statement *backup);
-  void set_item_arena(Statement *set);
 };
 
 
@@ -760,9 +779,9 @@ public:
   Vio* active_vio;
 #endif
   /*
-    Current prepared Statement if there one, or 0
+    Current prepared Item_arena if there one, or 0
   */
-  Statement *current_statement;
+  Item_arena *current_arena;
   /*
     next_insert_id is set on SET INSERT_ID= #. This is used as the next
     generated auto_increment value in handler.cc
@@ -983,33 +1002,6 @@ public:
   }
   inline CHARSET_INFO *charset() { return variables.character_set_client; }
   void update_charset();
-
-  inline void allocate_temporary_memory_pool_for_ps_preparing()
-  {
-    DBUG_ASSERT(current_statement!=0);
-    /*
-      We do not want to have in PS memory all that junk,
-      which will be created by preparation => substitute memory
-      from original thread pool.
-
-      We know that PS memory pool is now copied to THD, we move it back
-      to allow some code use it.
-    */
-    current_statement->set_item_arena(this);
-    init_sql_alloc(&mem_root,
-		   variables.query_alloc_block_size,
-		   variables.query_prealloc_size);
-    free_list= 0;
-  }
-  inline void free_temporary_memory_pool_for_ps_preparing()
-  {
-    DBUG_ASSERT(current_statement!=0);
-    cleanup_items(current_statement->free_list);
-    free_items(free_list);
-    close_thread_tables(this); // to close derived tables
-    free_root(&mem_root, MYF(0));
-    set_item_arena(current_statement);
-  }
 };
 
 /* Flags for the THD::system_thread (bitmap) variable */

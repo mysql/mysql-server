@@ -1527,9 +1527,9 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
     We have to create array in prepared statement memory if it is
     prepared statement
   */
-  Statement *stmt= thd->current_statement ? thd->current_statement : thd;
+  Item_arena *arena= thd->current_arena;
   return (ref_pointer_array= 
-	  (Item **)stmt->alloc(sizeof(Item*) *
+	  (Item **)arena->alloc(sizeof(Item*) *
 			       (item_list.elements +
 				select_n_having_items +
 				order_group_num)* 5)) == 0;
