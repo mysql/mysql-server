@@ -336,6 +336,7 @@ public:
   st_select_lex *fake_select_lex;
 
   st_select_lex *union_distinct; /* pointer to the last UNION DISTINCT */
+  bool describe; /* union exec() called for EXPLAIN */
 
   void init_query();
   bool create_total_list(THD *thd, st_lex *lex, TABLE_LIST **result);
@@ -413,7 +414,7 @@ public:
 
   ulong table_join_options;
   uint in_sum_expr;
-  uint select_number; /* number of select (used for EXPLAIN) */
+  int select_number; /* number of select (used for EXPLAIN) */
   uint with_wild; /* item list contain '*' */
   bool  braces;   	/* SELECT ... UNION (SELECT ... ) <- this braces */
   /* TRUE when having fix field called in processing of this SELECT */
