@@ -265,12 +265,12 @@ int main(int argc, char *argv[])
       {
 	if (my_errno != HA_ERR_FOUND_DUPP_KEY || key3[n3] == 0)
 	{
-	  printf("error: %d; can't uppdate:\nFrom: \"%s\"\nTo:   \"%s\"\n",
+	  printf("error: %d; can't update:\nFrom: \"%s\"\nTo:   \"%s\"\n",
 		 my_errno,read_record,record2);
 	  goto err;
 	}
 	if (verbose)
-	  printf("Double key when tryed to uppdate:\nFrom: \"%s\"\nTo:   \"%s\"\n",record,record2);
+	  printf("Double key when tried to update:\nFrom: \"%s\"\nTo:   \"%s\"\n",record,record2);
       }
       else
       {

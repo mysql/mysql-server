@@ -1,0 +1,22 @@
+# We are testing if a binlog which contains BEGIN but not COMMIT (the master did
+# while writing the transaction to the binlog) triggers an error on slave.
+# So we use such a truncated binlog and simulate that the master restarted after
+# this.
+
+source include/master-slave.inc;
+
+connection slave;
+stop slave;
+connection master;
+flush logs;
+system mv -f var/log/master-bin.001 var/log/master-bin.002;
+system cp std_data/trunc_binlog.001 var/log/master-bin.001;
+connection slave;
+reset slave;
+start slave;
+# can't sync_with_master so we must sleep
+sleep 3;
+--replace_result $MASTER_MYPORT MASTER_PORT
+show slave status;
+connection master;
+reset master;

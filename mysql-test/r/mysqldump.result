@@ -4,8 +4,6 @@ INSERT INTO t1 VALUES (1), (2);
 <?xml version="1.0"?>
 <mysqldump>
 <database name="test">
-DROP TABLE IF EXISTS t1;
-LOCK TABLES t1 WRITE;
 	<table name="t1">
 	<row>
 		<field name="a">1</field>
@@ -14,7 +12,6 @@ LOCK TABLES t1 WRITE;
 		<field name="a">2</field>
 	</row>
 	</table>
-UNLOCK TABLES;
 </database>
 </mysqldump>
 DROP TABLE t1;

@@ -20,7 +20,6 @@
 #include <time.h>
 #include <assert.h>
 #include "log_event.h"
-#include "include/my_sys.h"
 
 #define BIN_LOG_HEADER_SIZE	4
 #define PROBE_HEADER_LEN	(EVENT_LEN_OFFSET+4)
@@ -49,10 +48,10 @@ static bool force_opt= 0;
 static const char* database;
 static bool short_form = 0;
 static ulonglong offset = 0;
-static const char* host = "localhost";
+static const char* host = 0;
 static int port = MYSQL_PORT;
 static const char* sock= MYSQL_UNIX_ADDR;
-static const char* user = "test";
+static const char* user = 0;
 static const char* pass = "";
 static ulonglong position = 0;
 static bool use_remote = 0;
@@ -73,34 +72,7 @@ class Load_log_processor
   int target_dir_name_len;
   DYNAMIC_ARRAY file_names;
 
-  const char* create_file(Create_file_log_event *ce)
-    {
-      const char *bname= ce->fname + ce->fname_len -1;
-      while (bname>ce->fname && bname[-1]!=FN_LIBCHAR)
-	bname--;
-
-      uint blen= ce->fname_len - (bname-ce->fname);
-      uint full_len= target_dir_name_len + blen;
-      char *tmp;
-      if (!(tmp= my_malloc(full_len + 9 + 1,MYF(MY_WME))) ||
-	  set_dynamic(&file_names,(gptr)&ce,ce->file_id))
-      {
-	die("Could not construct local filename %s%s",target_dir_name,bname);
-	return 0;
-      }
-
-      char *ptr= tmp;
-      memcpy(ptr,target_dir_name,target_dir_name_len);
-      ptr+= target_dir_name_len;
-      memcpy(ptr,bname,blen);
-      ptr+= blen;
-      sprintf(ptr,"-%08x",ce->file_id);
-
-      ce->set_fname_outside_temp_buf(tmp,full_len);
-
-      return tmp;
-    }
-
+  const char *create_file(Create_file_log_event *ce);
   void append_to_file(const char* fname, int flags, 
 		      gptr data, uint size)
     {
@@ -112,7 +84,6 @@ class Load_log_processor
     }
 
 public:
-
   Load_log_processor()
     {
       init_dynamic_array(&file_names,sizeof(Create_file_log_event*),
@@ -125,26 +96,10 @@ public:
       delete_dynamic(&file_names);
     }
 
-  void init_by_dir_name(const char *atarget_dir_name)
+  void init_by_dir_name(const char *dir)
     {
-      char *end= strmov(target_dir_name,atarget_dir_name);
-      if (end[-1]!=FN_LIBCHAR)
-	*end++= FN_LIBCHAR;
-      target_dir_name_len= end-target_dir_name;
-    }
-  void init_by_file_name(const char *file_name)
-    {
-      int len= strlen(file_name);
-      const char *end= file_name + len - 1;
-      while (end>file_name && *end!=FN_LIBCHAR)
-	end--;
-      if (*end!=FN_LIBCHAR)
-	target_dir_name_len= 0;
-      else
-      {
-	target_dir_name_len= end - file_name + 1;
-	memmove(target_dir_name,file_name,target_dir_name_len);
-      }
+      target_dir_name_len= (convert_dirname(target_dir_name, dir, NullS) -
+			    target_dir_name);
     }
   void init_by_cur_dir()
     {
@@ -168,6 +123,8 @@ public:
     }
   Create_file_log_event *grab_event(uint file_id)
     {
+      if (file_id >= file_names.elements)
+        return 0;
       Create_file_log_event **ptr= 
 	(Create_file_log_event**)file_names.buffer + file_id;
       Create_file_log_event *res= *ptr;
@@ -177,11 +134,18 @@ public:
   void process(Create_file_log_event *ce)
     {
       const char *fname= create_file(ce);
-      append_to_file(fname,O_CREAT|O_EXCL|O_BINARY|O_WRONLY,ce->block,ce->block_len);
+      append_to_file(fname,O_CREAT|O_EXCL|O_BINARY|O_WRONLY,ce->block,
+		     ce->block_len);
     }
   void process(Append_block_log_event *ae)
     {
-      if (ae->file_id >= file_names.elements)
+      Create_file_log_event* ce= (ae->file_id < file_names.elements) ?
+          *((Create_file_log_event**)file_names.buffer + ae->file_id) : 0;
+        
+      if (ce)
+        append_to_file(ce->fname,O_APPEND|O_BINARY|O_WRONLY, ae->block,
+		       ae->block_len);
+      else
       {
         /*
           There is no Create_file event (a bad binlog or a big
@@ -190,13 +154,57 @@ public:
         */
 	fprintf(stderr,"Warning: ignoring Append_block as there is no \
 Create_file event for file_id: %u\n",ae->file_id);
-        return;
       }
-      Create_file_log_event* ce= 
-	*((Create_file_log_event**)file_names.buffer + ae->file_id);
-      append_to_file(ce->fname,O_APPEND|O_BINARY|O_WRONLY,ae->block,ae->block_len);
     }
 };
+
+
+const char *Load_log_processor::create_file(Create_file_log_event *ce)
+{
+  const char *bname= ce->fname+dirname_length(ce->fname);
+  uint blen= ce->fname_len - (bname-ce->fname);
+  uint full_len= target_dir_name_len + blen + 9 + 9 + 1;
+  uint version= 0;
+  char *tmp, *ptr;
+
+  if (!(tmp= my_malloc(full_len,MYF(MY_WME))) ||
+      set_dynamic(&file_names,(gptr)&ce,ce->file_id))
+  {
+    die("Could not construct local filename %s%s",target_dir_name,bname);
+    return 0;
+  }
+
+  memcpy(tmp, target_dir_name, target_dir_name_len);
+  ptr= tmp+ target_dir_name_len;
+  memcpy(ptr,bname,blen);
+  ptr+= blen;
+  ptr+= my_sprintf(ptr,(ptr,"-%x",ce->file_id));
+
+  /*
+    Note that this code has a possible race condition if there was was
+    many simultaneous clients running which tried to create files at the same
+    time. Fortunately this should never be the case.
+
+    A better way to do this would be to use 'create_tmp_file() and avoid this
+    race condition altogether on the expense of getting more cryptic file
+    names.
+  */
+  for (;;)
+  {
+    sprintf(ptr,"-%x",version);
+    if (access(tmp,F_OK))
+      break;
+    /* If we have to try more than 1000 times, something is seriously wrong */
+    if (version++ > 1000)
+    {
+      die("Could not construct local filename %s%s",target_dir_name,bname);
+      return 0;
+    }
+  }
+  ce->set_fname_outside_temp_buf(tmp,strlen(tmp));
+  return tmp;
+}
+
 
 Load_log_processor load_processor;
 
@@ -613,10 +621,11 @@ Could not read entry at offset %s : Error in log format or read error",
           }
         }
         /*
-          We print the event, but with a leading '#': this is just to inform the
-          user of the original command; the command we want to execute will be a
-          derivation of this original command (we will change the filename and
-          use LOCAL), prepared in the 'case EXEC_LOAD_EVENT' below.
+          We print the event, but with a leading '#': this is just to inform
+	  the user of the original command; the command we want to execute
+	  will be a derivation of this original command (we will change the
+	  filename and use LOCAL), prepared in the 'case EXEC_LOAD_EVENT'
+	  below.
         */
 	ce->print(result_file, short_form, last_db, true);
 	load_processor.process(ce);

@@ -84,18 +84,27 @@ port='@MYSQL_TCP_PORT@'
 ldflags='@LDFLAGS@'
 client_libs='@CLIENT_LIBS@'
 
-libs="$ldflags -L'$pkglibdir' -lmysqlclient $client_libs"
-libs=`echo $libs | sed -e 's; +;;'`
-libs_r="$ldflags -L'$pkglibdir' -lmysqlclient_r $client_libs"
-libs_r=`echo $libs_r | sed -e 's; +;;'`
-cflags="-I'$pkgincludedir'"
-embedded_libs="$ldflags -L'$pkglibdir' -lmysqld @LIBS@ @innodb_system_libs@"
+# Create options, without end space
+
+libs="$ldflags -L$pkglibdir -lmysqlclient $client_libs"
+libs=`echo "$libs" | sed -e 's;  \+; ;g' | sed -e 's;^ *;;' | sed -e 's; *\$;;'`
+libs_r="$ldflags -L$pkglibdir -lmysqlclient_r @LIBS@ @openssl_libs@"
+libs_r=`echo "$libs_r" | sed -e 's;  \+; ;g' | sed -e 's;^ *;;' | sed -e 's; *\$;;'`
+cflags="-I$pkgincludedir @CFLAGS@"
+include="-I$pkgincludedir"
+embedded_libs="$ldflags -L$pkglibdir -lmysqld @LIBS@ @innodb_system_libs@"
+embedded_libs=`echo "$embedded_libs" | sed -e 's;  \+; ;g' | sed -e 's;^ *;;' | sed -e 's; *\$;;'`
+
+# Remove some options that a client doesn't have to care about
+
+cflags=`echo "$cflags " | sed -e 's;\(-DDBUG_OFF\|-DSAFEMALLOC\|-USAFEMALLOC\|-DSAFE_MUTEX\|-DPEDANTIC_SAFEMALLOC\|-DUNIV_MUST_NOT_INLINE\|-DFORCE_INIT_OF_VARS\|-DEXTRA_DEBUG\|-DHAVE_purify\|-O[0-9]\|-W[-A-Za-z]*\) *;;g' | sed -e 's; *\$;;'` 
 
 usage () {
         cat <<EOF
 Usage: $0 [OPTIONS]
 Options:
         --cflags         [$cflags]
+	--include	 [$include]
         --libs           [$libs]
         --libs_r         [$libs_r]
         --socket         [$socket]
@@ -111,6 +120,7 @@ if test $# -le 0; then usage; fi
 while test $# -gt 0; do
         case $1 in
         --cflags)  echo "$cflags" ;;
+	--include) echo "$include" ;;
         --libs)    echo "$libs" ;;
         --libs_r)  echo "$libs_r" ;;
         --socket)  echo "$socket" ;;

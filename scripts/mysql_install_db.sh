@@ -143,7 +143,7 @@ fi
 hostname=`@HOSTNAME@`
 
 # Check if hostname is valid
-if test "$windows" -eq 0 -a "$in_rpm" -eq 0 -a $force -eq 0
+if test "$windows" = 0 -a "$in_rpm" = 0 -a $force = 0
 then
   resolved=`$bindir/resolveip $hostname 2>&1`
   if [ $? -ne 0 ]
@@ -160,7 +160,7 @@ then
     fi
     echo "WARNING: The host '$hostname' could not be looked up with resolveip."
     echo "This probably means that your libc libraries are not 100 % compatible"
-    echo "with this binary MySQL version. The MySQL deamon, mysqld, should work"
+    echo "with this binary MySQL version. The MySQL daemon, mysqld, should work"
     echo "normally with the exception that host name resolving will not work."
     echo "This means that you should use IP addresses instead of hostnames"
     echo "when specifying MySQL privileges !"
@@ -207,7 +207,7 @@ if (
 ) | eval "$mysqld $defaults $mysqld_opt --bootstrap --skip-grant-tables \
          --basedir=$basedir --datadir=$ldata --skip-innodb --skip-bdb $args" 
 then
-  if test "$in_rpm" -eq 0 -a "$windows" -eq 0
+  if test "$in_rpm" = 0 -a "$windows" = 0
   then
     echo ""
     echo "To start mysqld at boot time you have to copy support-files/mysql.server"
@@ -231,7 +231,7 @@ then
     echo "able to use the new GRANT command!"
   fi
   echo
-  if test "$in_rpm" -eq 0
+  if test "$in_rpm" = "0"
   then
     echo "You can start the MySQL daemon with:"
     echo "cd @prefix@ ; $bindir/mysqld_safe &"
