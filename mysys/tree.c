@@ -45,7 +45,8 @@
 
 #define BLACK		1
 #define RED		0
-#define DEFAULT_ALLOC_SIZE (8192-MALLOC_OVERHEAD)
+#define DEFAULT_ALLOC_SIZE 8192
+#define DEFAULT_ALIGN_SIZE 8192
 
 static void delete_tree_element(TREE *,TREE_ELEMENT *);
 static int tree_walk_left_root_right(TREE *,TREE_ELEMENT *,
@@ -72,8 +73,9 @@ void init_tree(TREE *tree, uint default_alloc_size, uint memory_limit,
   DBUG_ENTER("init_tree");
   DBUG_PRINT("enter",("tree: %lx  size: %d",tree,size));
 
- if (!default_alloc_size)
-   default_alloc_size= DEFAULT_ALLOC_SIZE;
+  if (default_alloc_size < DEFAULT_ALLOC_SIZE)
+    default_alloc_size= DEFAULT_ALLOC_SIZE;
+  default_alloc_size= MY_ALIGN(default_alloc_size, DEFAULT_ALIGN_SIZE);
   bzero((gptr) &tree->null_element,sizeof(tree->null_element));
   tree->root= &tree->null_element;
   tree->compare=compare;

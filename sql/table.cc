@@ -143,7 +143,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     goto err_not_open; /* purecov: inspected */
   bzero((char*) keyinfo,n_length);
   outparam->key_info=keyinfo;
-  outparam->max_key_length=0;
+  outparam->max_key_length= outparam->total_key_length= 0;
   key_part= (KEY_PART_INFO*) (keyinfo+keys);
   strpos=disk_buff+6;
 
@@ -201,6 +201,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     }
     set_if_bigger(outparam->max_key_length,keyinfo->key_length+
 		  keyinfo->key_parts);
+    outparam->total_key_length+= keyinfo->key_length;
     if (keyinfo->flags & HA_NOSAME)
       set_if_bigger(outparam->max_unique_length,keyinfo->key_length);
   }
