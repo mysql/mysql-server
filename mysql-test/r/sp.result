@@ -1044,6 +1044,28 @@ select @x|
 42
 drop procedure bug2776_1|
 drop procedure bug2776_2|
+drop table if exists t3|
+create table t3 (s1 smallint)|
+insert into t3 values (123456789012)|
+Warnings:
+Warning	1263	Data truncated, out of range for column 's1' at row 1
+create procedure bug2780()
+begin
+declare exit handler for sqlwarning set @x = 1; 
+set @x = 0;
+insert into t3 values (123456789012);
+insert into t3 values (0);
+end|
+call bug2780()|
+select @x|
+@x
+1
+select * from t3|
+s1
+32767
+32767
+drop procedure bug2780|
+drop table t3|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 create procedure ifac(n int unsigned)
