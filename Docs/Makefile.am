@@ -202,7 +202,7 @@ INSTALL-BINARY:	mysql.info $(GT)
 	perl -w $(GT) mysql.info "Installing binary" "Installing source" > $@
 
 ../COPYING:		mysql.info $(GT)
-	perl -w $(GT) mysql.info "GPL license" "LGPL license" > $@
+	perl -w $(GT) mysql.info "GPL license" "Function Index" > $@
 
 ../support-files/MacOSX/ReadMe.txt:	mysql.info $(GT)
 	perl -w $(GT) mysql.info "Mac OS X installation" "NetWare installation" > $@
