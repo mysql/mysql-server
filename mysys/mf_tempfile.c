@@ -181,7 +181,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
 
       for (length=0 ; length < 8 && uniq ; length++)
       {
-	*end_pos++= _dig_vec[(int) (uniq & 31)];
+	*end_pos++= _dig_vec_upper[(int) (uniq & 31)];
 	uniq >>= 5;
       }
       (void) strmov(end_pos,TMP_EXT);

@@ -64,15 +64,15 @@ public:
     char *s=buf; int i;
     for (i=sizeof(buffer)-1; i>=0 ; i--)
     {
-      if ((*s=_dig_vec[buffer[i] >> 4]) != '0')
+      if ((*s=_dig_vec_upper[buffer[i] >> 4]) != '0')
         break;
-      if ((*s=_dig_vec[buffer[i] & 15]) != '0')
+      if ((*s=_dig_vec_upper[buffer[i] & 15]) != '0')
         break;
     }
     for (s++, i-- ; i>=0 ; i--)
     {
-      *s++=_dig_vec[buffer[i] >> 4];
-      *s++=_dig_vec[buffer[i] & 15];
+      *s++=_dig_vec_upper[buffer[i] >> 4];
+      *s++=_dig_vec_upper[buffer[i] & 15];
     }
     *s=0;
     return buf;
