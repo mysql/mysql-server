@@ -1013,13 +1013,22 @@ get_mm_leaf(PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
   }
 
   /*
-    We can't use an index when comparing strings of 
-    different collations 
+    1. Usually we can't use an index if the column collation
+       differ from the operation collation.
+
+    2. However, we can reuse a case insensitive index for
+       the binary searches:
+
+       WHERE latin1_swedish_ci_column = 'a' COLLATE lati1_bin;
+
+       WHERE latin1_swedish_ci_colimn = BINARY 'a '
+
   */
   if (field->result_type() == STRING_RESULT &&
       value->result_type() == STRING_RESULT &&
       key_part->image_type == Field::itRAW &&
-      ((Field_str*)field)->charset() != conf_func->compare_collation())
+      ((Field_str*)field)->charset() != conf_func->compare_collation() &&
+      !(conf_func->compare_collation()->state & MY_CS_BINSORT))
     DBUG_RETURN(0);
 
   if (type == Item_func::LIKE_FUNC)
