@@ -319,8 +319,7 @@ character.''
 Italic font is used for emphasis, @emph{like this}.
 
 @item @strong{boldface}
-Boldface font is used for access privilege names (for example, ``do not grant
-the @strong{process} privilege lightly'') and occasionally to convey
+Boldface font is used in table headings and to convey
 @strong{especially strong emphasis}.
 @end table
 
@@ -4055,7 +4054,7 @@ Implement function: @code{get_changed_tables(timeout,table1,table2,...)}.
 Change reading through tables to use memmap when possible. Now only
 compressed tables use memmap.
 @item
-Add a new privilege @code{Show_priv} for @code{SHOW} commands.
+Add a new @code{SHOW} privilege for @code{SHOW} commands.
 @item
 Make the automatic timestamp code nicer.  Add timestamps to the update
 log with @code{SET TIMESTAMP=#;}.
@@ -8154,11 +8153,11 @@ MySQL 4.0 has a lot of new privileges in the @code{mysql.user} table.
 
 To get these new privileges to work, one must run the
 @code{mysql_fix_privilege_tables} script.  Until this script is run all
-users have the @strong{show databases}, @strong{create temporary tables},
-and @strong{lock tables} privileges. @strong{super} and @strong{execute}
-privileges take their value from @strong{process}.
-@strong{replication slave} and @strong{replication client} take their
-values from @strong{file}.
+users have the @code{SHOW DATABASES}, @code{CREATE TEMPORARY TABLES},
+and @code{LOCK TABLES} privileges. @code{SUPER} and @code{EXECUTE}
+privileges take their value from @code{PROCESS}.
+@code{REPLICATION SLAVE} and @code{REPLICATION CLIENT} take their
+values from @code{FILE}.
 
 If you have any scripts that creates new users, you may want to change
 them to use the new privileges.  If you are not using @code{GRANT}
@@ -8169,8 +8168,8 @@ In version 4.0.2 the option @code{--safe-show-database} is deprecated
 
 If you get access denied errors for new users in version 4.0.2, you
 should check if you need some of the new grants that you didn't need
-before.  In particular, you will need @strong{replication slave}
-(instead of @strong{file}) for new slaves.
+before.  In particular, you will need @code{REPLICATION SLAVE}
+(instead of @code{FILE}) for new slaves.
 @item
 @code{DOUBLE} and @code{FLOAT} columns are now honoring the
 @code{UNSIGNED} flag on storage (before, @code{UNSIGNED} was ignored for
@@ -11910,7 +11909,7 @@ privileges.  The @code{test} database is often provided as a workspace for
 users to try things out.
 
 Note that you may not see all databases if you don't have the
-@strong{show databases} privilege. @xref{GRANT}.
+@code{SHOW DATABASES} privilege. @xref{GRANT}.
 
 If the @code{test} database exists, try to access it:
 
@@ -14310,11 +14309,11 @@ With this option, the @code{SHOW DATABASES} command returns only those
 databases for which the user has some kind of privilege.
 From version 4.0.2 this option is deprecated and doesn't do anything
 (the option is enabled by default) as we now have the
-@strong{show databases} privilege. @xref{GRANT}.
+@code{SHOW DATABASES} privilege. @xref{GRANT}.
 
 @item --safe-user-create
 If this is enabled, a user can't create new users with the GRANT
-command, if the user doesn't have @strong{insert} privilege to the
+command, if the user doesn't have @code{INSERT} privilege to the
 @code{mysql.user} table or any column in this table.
 
 @item --skip-concurrent-insert
@@ -14367,9 +14366,9 @@ need memory checking, by using this option.
 
 @item --skip-show-database
 Don't allow @code{SHOW DATABASES} command, unless the user has the
-@strong{show databases} privilege. From version 4.0.2 you should no longer
+@code{SHOW DATABASES} privilege. From version 4.0.2 you should no longer
 need this option, since access can now be granted specifically with the
-@strong{show databases} privilege.
+@code{SHOW DATABASES} privilege.
 
 @item --skip-stack-trace
 Don't write stack traces.  This option is useful when you are running
@@ -15061,7 +15060,7 @@ mysql> FLUSH PRIVILEGES;
 
 @item
 Don't run the MySQL daemon as the Unix @code{root} user.  This is
-very dangerous, because any user with the @strong{file} privilege will be able
+very dangerous, because any user with the @code{FILE} privilege will be able
 to create files as @code{root} (for example, @code{~root/.bashrc}). To
 prevent this, @code{mysqld} will refuse to run as @code{root} unless it
 is specified directly using a @code{--user=root} option.
@@ -15097,25 +15096,25 @@ Check that the Unix user that @code{mysqld} runs as is the only user with
 read/write privileges in the database directories.
 
 @item
-Don't give the @strong{process} privilege to all users.  The output of
+Don't give the @code{PROCESS} privilege to all users.  The output of
 @code{mysqladmin processlist} shows the text of the currently executing
 queries, so any user who is allowed to execute that command might be able to
 see if another user issues an @code{UPDATE user SET
 password=PASSWORD('not_secure')} query.
 
 @code{mysqld} reserves an extra connection for users who have the
-@strong{process} privilege, so that a MySQL @code{root} user can log
+@code{PROCESS} privilege, so that a MySQL @code{root} user can log
 in and check things even if all normal connections are in use.
 
 @item
-Don't give the @strong{file} privilege to all users.  Any user that has this
+Don't give the @code{FILE} privilege to all users.  Any user that has this
 privilege can write a file anywhere in the filesystem with the privileges of
 the @code{mysqld} daemon!  To make this a bit safer, all files generated with
 @code{SELECT ... INTO OUTFILE} are readable to everyone, and you cannot
 overwrite existing files.
 
 @tindex @file{/etc/passwd}
-The @strong{file} privilege may also be used to read any file accessible
+The @code{FILE} privilege may also be used to read any file accessible
 to the Unix user that the server runs as.  This could be abused, for example,
 by using @code{LOAD DATA} to load @file{/etc/passwd} into a table, which
 can then be read with @code{SELECT}.
@@ -15148,11 +15147,11 @@ With this option, the @code{SHOW DATABASES} command returns only those
 databases for which the user has some kind of privilege.
 From version 4.0.2 this option is deprecated and doesn't do anything
 (the option is enabled by default) as we now have the
-@strong{show databases} privilege. @xref{GRANT}.
+@code{SHOW DATABASES} privilege. @xref{GRANT}.
 
 @item --safe-user-create
 If this is enabled, an user can't create new users with the @code{GRANT}
-command, if the user doesn't have the @strong{insert} privilege for the
+command, if the user doesn't have the @code{INSERT} privilege for the
 @code{mysql.user} table.  If you want to give a user access to just create
 new users with those privileges that the user has right to grant, you should
 give the user the following privilege:
@@ -15182,9 +15181,9 @@ support Unix sockets.
 
 @item --skip-show-database
 Don't allow @code{SHOW DATABASES} command, unless the user has the
-@strong{show databases} privilege. From version 4.0.2 you should no longer
+@code{SHOW DATABASES} privilege. From version 4.0.2 you should no longer
 need this option, since access can now be granted specifically with the
-@strong{show databases} privilege.
+@code{SHOW DATABASES} privilege.
 
 @end table
 
@@ -15241,7 +15240,7 @@ The used command is not allowed with this MySQL version
 The primary function of the MySQL privilege system is to
 authenticate a user connecting from a given host, and to associate that user
 with privileges on a database such as
-@strong{select}, @strong{insert}, @strong{update} and @strong{delete}.
+@code{SELECT}, @code{INSERT}, @code{UPDATE} and @code{DELETE}.
 
 Additional functionality includes the ability to have an anonymous user and
 to grant privileges for MySQL-specific functions such as @code{LOAD
@@ -15279,8 +15278,8 @@ Stage 1: The server checks whether you are even allowed to connect.
 Stage 2: Assuming you can connect, the server checks each request you issue
 to see whether you have sufficient privileges to perform it.  For
 example, if you try to select rows from a table in a database or drop a table
-from the database, the server makes sure you have the @strong{select}
-privilege for the table or the @strong{drop} privilege for the database.
+from the database, the server makes sure you have the @code{SELECT}
+privilege for the table or the @code{DROP} privilege for the database.
 @end itemize
 
 The server uses the @code{user}, @code{db}, and @code{host} tables in the
@@ -15426,7 +15425,7 @@ the @code{db} table, but are more fine-grained: they apply at the
 table and column levels rather than at the database level.
 @end itemize
 
-Note that administrative privileges (@strong{reload}, @strong{shutdown},
+Note that administrative privileges (@code{RELOAD}, @code{SHUTDOWN},
 etc.) are specified only in the @code{user} table.  This is because
 administrative operations are operations on the server itself and are not
 database-specific, so there is no reason to list such privileges in the
@@ -15434,7 +15433,7 @@ other grant tables.  In fact, only the @code{user} table need
 be consulted to determine whether you can perform an administrative
 operation.
 
-The @strong{file} privilege is specified only in the @code{user} table, too.
+The @code{FILE} privilege is specified only in the @code{user} table, too.
 It is not an administrative privilege as such, but your ability to read or
 write files on the server host is independent of the database you are
 accessing.
@@ -15476,34 +15475,34 @@ which the privilege applies:
 @c FIX agl 2002-06-13 Long items added, will need to re-measure colwidths!
 @multitable @columnfractions .15 .20 .35
 @item @strong{Privilege}   @tab @strong{Column}      @tab @strong{Context}
-@item @strong{alter}       @tab @code{Alter_priv}    @tab tables
-@item @strong{delete}      @tab @code{Delete_priv}   @tab tables
-@item @strong{index}       @tab @code{Index_priv}    @tab tables
-@item @strong{insert}      @tab @code{Insert_priv}   @tab tables
-@item @strong{select}      @tab @code{Select_priv}   @tab tables
-@item @strong{update}      @tab @code{Update_priv}   @tab tables
-@item @strong{create}      @tab @code{Create_priv}   @tab databases, tables, or indexes
-@item @strong{drop}        @tab @code{Drop_priv}     @tab databases or tables
-@item @strong{grant}       @tab @code{Grant_priv}    @tab databases or tables
-@item @strong{references}  @tab @code{References_priv} @tab databases or tables
-@item @strong{create temporary tables} @tab @code{create_tmp_table_priv} @tab server administration
-@item @strong{execute} @tab @code{execute_priv} @tab server administration
-@item @strong{file}        @tab @code{File_priv}     @tab file access on server
-@item @strong{lock tables} @tab @code{Lock_tables_priv} @tab server administration
-@item @strong{process}     @tab @code{Process_priv}  @tab server administration
-@item @strong{reload}      @tab @code{Reload_priv}   @tab server administration
-@item @strong{replication client} @tab @code{Repl_client_priv} @tab server administration
-@item @strong{replication slave} @tab @code{Repl_slave_priv} @tab server administration
-@item @strong{show databases} @tab @code{Show_db_priv} @tab server administration
-@item @strong{shutdown}    @tab @code{Shutdown_priv} @tab server administration
-@item @strong{super}       @tab @code{Super_priv}    @tab server administration
+@item @code{ALTER}       @tab @code{Alter_priv}    @tab tables
+@item @code{DELETE}      @tab @code{Delete_priv}   @tab tables
+@item @code{INDEX}       @tab @code{Index_priv}    @tab tables
+@item @code{INSERT}      @tab @code{Insert_priv}   @tab tables
+@item @code{SELECT}      @tab @code{Select_priv}   @tab tables
+@item @code{UPDATE}      @tab @code{Update_priv}   @tab tables
+@item @code{CREATE}      @tab @code{Create_priv}   @tab databases, tables, or indexes
+@item @code{DROP}        @tab @code{Drop_priv}     @tab databases or tables
+@item @code{GRANT}       @tab @code{Grant_priv}    @tab databases or tables
+@item @code{REFERENCES}  @tab @code{References_priv} @tab databases or tables
+@item @code{CREATE TEMPORARY TABLES} @tab @code{Create_tmp_table_priv} @tab server administration
+@item @code{EXECUTE} @tab @code{Execute_priv} @tab server administration
+@item @code{FILE}        @tab @code{File_priv}     @tab file access on server
+@item @code{LOCK TABLES} @tab @code{Lock_tables_priv} @tab server administration
+@item @code{PROCESS}     @tab @code{Process_priv}  @tab server administration
+@item @code{RELOAD}      @tab @code{Reload_priv}   @tab server administration
+@item @code{REPLICATION CLIENT} @tab @code{Repl_client_priv} @tab server administration
+@item @code{REPLICATION SLAVE} @tab @code{Repl_slave_priv} @tab server administration
+@item @code{SHOW DATABASES} @tab @code{Show_db_priv} @tab server administration
+@item @code{SHUTDOWN}    @tab @code{Shutdown_priv} @tab server administration
+@item @code{SUPER}       @tab @code{Super_priv}    @tab server administration
 @end multitable
 
-The @strong{select}, @strong{insert}, @strong{update}, and @strong{delete}
+The @code{SELECT}, @code{INSERT}, @code{UPDATE}, and @code{DELETE}
 privileges allow you to perform operations on rows in existing tables in
 a database.
 
-@code{SELECT} statements require the @strong{select} privilege only if they
+@code{SELECT} statements require the @code{SELECT} privilege only if they
 actually retrieve rows from a table.  You can execute certain @code{SELECT}
 statements even without permission to access any of the databases on the
 server.  For example, you could use the @code{mysql} client as a simple
@@ -15514,21 +15513,21 @@ mysql> SELECT 1+1;
 mysql> SELECT PI()*2;
 @end example
 
-The @strong{index} privilege allows you to create or drop (remove) indexes.
+The @code{INDEX} privilege allows you to create or drop (remove) indexes.
 
-The @strong{alter} privilege allows you to use @code{ALTER TABLE}.
+The @code{ALTER} privilege allows you to use @code{ALTER TABLE}.
 
-The @strong{create} and @strong{drop} privileges allow you to create new
+The @code{CREATE} and @code{DROP} privileges allow you to create new
 databases and tables, or to drop (remove) existing databases and tables.
 
-Note that if you grant the @strong{drop} privilege for the @code{mysql}
+Note that if you grant the @code{DROP} privilege for the @code{mysql}
 database to a user, that user can drop the database in which the
 MySQL access privileges are stored!
 
-The @strong{grant} privilege allows you to give to other users those
+The @code{GRANT} privilege allows you to give to other users those
 privileges you yourself possess.
 
-The @strong{file} privilege gives you permission to read and write files on
+The @code{FILE} privilege gives you permission to read and write files on
 the server using the @code{LOAD DATA INFILE} and @code{SELECT ... INTO
 OUTFILE} statements.  Any user to whom this privilege is granted can read or
 write any file that the MySQL server can read or write.
@@ -15540,12 +15539,12 @@ execute:
 
 @multitable @columnfractions .15 .75
 @item @strong{Privilege}  @tab @strong{Commands permitted to privilege holders}
-@item @strong{reload}     @tab @code{reload}, @code{refresh},
+@item @code{RELOAD}     @tab @code{reload}, @code{refresh},
 @code{flush-privileges}, @code{flush-hosts}, @code{flush-logs}, and
 @code{flush-tables}
-@item @strong{shutdown}   @tab @code{shutdown}
-@item @strong{process}    @tab @code{processlist}
-@item @strong{super}	  @tab @code{kill}
+@item @code{SHUTDOWN}   @tab @code{shutdown}
+@item @code{PROCESS}    @tab @code{processlist}
+@item @code{SUPER}	  @tab @code{kill}
 @end multitable
 
 The @code{reload} command tells the server to re-read the grant tables.  The
@@ -15561,7 +15560,7 @@ The @code{shutdown} command shuts down the server.
 The @code{processlist} command displays information about the threads
 executing within the server.  The @code{kill} command kills server
 threads.  You can always display or kill your own threads, but you need
-the @strong{process} privilege to display and @strong{super} privilege to
+the @code{PROCESS} privilege to display and @code{SUPER} privilege to
 kill threads initiated by other users. @xref{KILL}.
 
 It is a good idea in general to grant privileges only to those users who need
@@ -15570,26 +15569,26 @@ privileges:
 
 @itemize @bullet
 @item
-The @strong{grant} privilege allows users to give away their privileges to
-other users.  Two users with different privileges and with the @strong{grant}
+The @code{GRANT} privilege allows users to give away their privileges to
+other users.  Two users with different privileges and with the @code{GRANT}
 privilege are able to combine privileges.
 
 @item
-The @strong{alter} privilege may be used to subvert the privilege system
+The @code{ALTER} privilege may be used to subvert the privilege system
 by renaming tables.
 
 @item
-The @strong{file} privilege can be abused to read any world-readable file on
+The @code{FILE} privilege can be abused to read any world-readable file on
 the server into a database table, the contents of which can then be
 accessed using @code{SELECT}. This includes the contents of all databases
 hosted by the server!
 
 @item
-The @strong{shutdown} privilege can be abused to deny service to other
+The @code{SHUTDOWN} privilege can be abused to deny service to other
 users entirely, by terminating the server.
 
 @item
-The @strong{process} privilege can be used to view the plain text of
+The @code{PROCESS} privilege can be used to view the plain text of
 currently executing queries, including queries that set or change passwords.
 
 @item
@@ -15928,7 +15927,7 @@ tables.)
 
 The @code{user} table grants privileges that are assigned to you on a global
 basis and that apply no matter what the current database is.  For example, if
-the @code{user} table grants you the @strong{delete} privilege, you can
+the @code{user} table grants you the @code{DELETE} privilege, you can
 delete rows from any database on the server host!  In other words,
 @code{user} table privileges are superuser privileges.  It is wise to grant
 privileges in the @code{user} table only to superusers such as server or
@@ -16006,16 +16005,16 @@ here differs slightly from the algorithm used in the code.  The description
 is equivalent to what the code actually does; it differs only to make the
 explanation simpler.)
 
-For administrative requests (@strong{shutdown}, @strong{reload}, etc.), the
+For administrative requests (@code{SHUTDOWN}, @code{RELOAD}, etc.), the
 server checks only the @code{user} table entry, because that is the only table
 that specifies administrative privileges.  Access is granted if the entry
 allows the requested operation and denied otherwise.  For example, if you
 want to execute @code{mysqladmin shutdown} but your @code{user} table entry
-doesn't grant the @strong{shutdown} privilege to you, access is denied
+doesn't grant the @code{SHUTDOWN} privilege to you, access is denied
 without even checking the @code{db} or @code{host} tables.  (They
 contain no @code{Shutdown_priv} column, so there is no need to do so.)
 
-For database-related requests (@strong{insert}, @strong{update}, etc.), the
+For database-related requests (@code{INSERT}, @code{UPDATE}, etc.), the
 server first checks the user's global (superuser) privileges by looking in
 the @code{user} table entry.  If the entry allows the requested operation,
 access is granted.  If the global privileges in the @code{user} table are
@@ -16071,7 +16070,7 @@ initially found to be insufficient for the requested operation, the server
 adds those privileges to the database-, table-, and column-specific privileges
 later. The reason is that a request might require more than one type of
 privilege.  For example, if you execute an @code{INSERT ...  SELECT}
-statement, you need both @strong{insert} and @strong{select} privileges.
+statement, you need both @code{INSERT} and @code{SELECT} privileges.
 Your privileges might be such that the @code{user} table entry grants one
 privilege and the @code{db} table entry grants the other.  In this case, you
 have the necessary privileges to perform the request, but the server cannot
@@ -16363,7 +16362,7 @@ applies to.
 
 If you get the error when using the SQL commands @code{SELECT ...
 INTO OUTFILE} or @code{LOAD DATA INFILE}, your entry in the @code{user} table
-probably doesn't have the @strong{file} privilege enabled.
+probably doesn't have the @code{FILE} privilege enabled.
 
 @item
 @cindex configuration files
@@ -16515,7 +16514,7 @@ specified as any of the following:
 @item @code{ALL [PRIVILEGES]} @tab Sets all simple privileges except @code{WITH GRANT OPTION}
 @item @code{ALTER}  @tab Allows usage of @code{ALTER TABLE}
 @item @code{CREATE} @tab Allows usage of @code{CREATE TABLE}
-@item @code{CREATE TEMPORARY TABLE} @tab Allows usage of @code{CREATE TEMPORARY TABLE}
+@item @code{CREATE TEMPORARY TABLES} @tab Allows usage of @code{CREATE TEMPORARY TABLE}
 @item @code{DELETE} @tab Allows usage of @code{DELETE}
 @item @code{DROP} @tab Allows usage of @code{DROP TABLE}.
 @item @code{EXECUTE} @tab Allows the user to run stored procedures (for MySQL 5.0)
@@ -16536,18 +16535,18 @@ specified as any of the following:
 @item @code{USAGE} @tab Synonym for ``no privileges.''
 @end multitable
 
-@strong{usage} can be used when you want to create a user that has no privileges.
+@code{USAGE} can be used when you want to create a user that has no privileges.
 
-The privileges @strong{create temporary table}, @strong{execute},
-@strong{lock tables}, @strong{replication ...}, @strong{show databases} and
-@strong{super} are new for in version 4.0.2.  To use these new privileges
+The privileges @code{CREATE TEMPORARY TABLES}, @code{EXECUTE},
+@code{LOCK TABLES}, @code{REPLICATION ...}, @code{SHOW DATABASES} and
+@code{SUPER} are new for in version 4.0.2.  To use these new privileges
 after upgrading to 4.0.2, you have to run the
 @code{mysql_fix_privilege_tables} script.
 
-In older MySQL versions, the @strong{process} privilege gives the same
-rights as the new @strong{super} privilege.
+In older MySQL versions, the @code{PROCESS} privilege gives the same
+rights as the new @code{SUPER} privilege.
 
-To revoke the @strong{grant} privilege from a user, use a @code{priv_type}
+To revoke the @code{GRANT} privilege from a user, use a @code{priv_type}
 value of @code{GRANT OPTION}:
 
 @example
@@ -16606,7 +16605,7 @@ characters.
 The privileges for a table or column are formed from the
 logical OR of the privileges at each of the four privilege
 levels.  For example, if the @code{mysql.user} table specifies that a
-user has a global @strong{select} privilege, this can't be denied by an
+user has a global @code{SELECT} privilege, this can't be denied by an
 entry at the database, table, or column level.
 
 The privileges for a column can be calculated as follows:
@@ -16657,7 +16656,7 @@ statement).
 
 The @code{WITH GRANT OPTION} clause gives the user the ability to give
 to other users any privileges the user has at the specified privilege level.
-You should be careful to whom you give the @strong{grant} privilege, as two
+You should be careful to whom you give the @code{GRANT} privilege, as two
 users with different privileges may be able to join privileges!
 
 @code{MAX_QUERIES_PER_HOUR #}, @code{MAX_UPDATES_PER_HOUR #} and
@@ -16667,20 +16666,20 @@ do during one hour. If @code{#} is 0 (default), then this means that there
 are no limitations for that user. @xref{User resources}.
 
 You cannot grant another user a privilege you don't have yourself;
-the @strong{grant} privilege allows you to give away only those privileges
+the @code{GRANT} privilege allows you to give away only those privileges
 you possess.
 
-Be aware that when you grant a user the @strong{grant} privilege at a
+Be aware that when you grant a user the @code{GRANT} privilege at a
 particular privilege level, any privileges the user already possesses (or
 is given in the future!) at that level are also grantable by that user.
-Suppose you grant a user the @strong{insert} privilege on a database.  If
-you then grant the @strong{select} privilege on the database and specify
-@code{WITH GRANT OPTION}, the user can give away not only the @strong{select}
-privilege, but also @strong{insert}.  If you then grant the @strong{update}
+Suppose you grant a user the @code{INSERT} privilege on a database.  If
+you then grant the @code{SELECT} privilege on the database and specify
+@code{WITH GRANT OPTION}, the user can give away not only the @code{SELECT}
+privilege, but also @code{INSERT}.  If you then grant the @code{UPDATE}
 privilege to the user on the database, the user can give away the
-@strong{insert}, @strong{select} and @strong{update}.
+@code{INSERT}, @code{SELECT} and @code{UPDATE}.
 
-You should not grant @strong{alter} privileges to a normal user.  If you
+You should not grant @code{ALTER} privileges to a normal user.  If you
 do that, the user can try to subvert the privilege system by renaming
 tables!
 
@@ -16721,11 +16720,11 @@ MySQL the granted privileges are not automatically revoked, but
 you have to revoke these yourself if needed.
 
 @item
-In MySQL, if you have the @strong{insert} privilege on only some of the
+In MySQL, if you have the @code{INSERT} privilege on only some of the
 columns in a table, you can execute @code{INSERT} statements on the
-table; the columns for which you don't have the @strong{insert} privilege
+table; the columns for which you don't have the @code{INSERT} privilege
 will be set to their default values. ANSI SQL requires you to have the
-@strong{insert} privilege on all columns.
+@code{INSERT} privilege on all columns.
 
 @item
 When you drop a table in ANSI SQL, all privileges for the table are revoked.
@@ -16978,8 +16977,8 @@ users.  These examples assume that privileges are set up according to the
 defaults described in the previous section.  This means that to make changes,
 you must be on the same machine where @code{mysqld} is running, you must
 connect as the MySQL @code{root} user, and the @code{root} user must
-have the @strong{insert} privilege for the @code{mysql} database and the
-@strong{reload} administrative privilege.  Also, if you have changed the
+have the @code{INSERT} privilege for the @code{mysql} database and the
+@code{RELOAD} administrative privilege.  Also, if you have changed the
 @code{root} user password, you must specify it for the @code{mysql} commands here.
 
 You can add new users by issuing @code{GRANT} statements:
@@ -17009,7 +17008,7 @@ earlier in the @code{user} table sort order.
 
 @item admin
 A user who can connect from @code{localhost} without a password and who is
-granted the @strong{reload} and @strong{process} administrative privileges.
+granted the @code{RELOAD} and @code{PROCESS} administrative privileges.
 This allows the user to execute the @code{mysqladmin reload},
 @code{mysqladmin refresh}, and @code{mysqladmin flush-*} commands, as well as
 @code{mysqladmin processlist} .  No database-related privileges are granted.
@@ -17017,7 +17016,7 @@ This allows the user to execute the @code{mysqladmin reload},
 
 @item dummy
 A user who can connect without a password, but only from the local host.  The
-global privileges are all set to @code{'N'}@-the @strong{usage} privilege
+global privileges are all set to @code{'N'}@-the @code{USAGE} privilege
 type allows you to create a user with no privileges.  It is assumed that you
 will grant database-specific privileges later.
 @end table
@@ -19129,7 +19128,7 @@ FLUSH flush_option [,flush_option] ...
 
 You should use the @code{FLUSH} command if you want to clear some of the
 internal caches MySQL uses.  To execute @code{FLUSH}, you must have
-the @strong{reload} privilege.
+the @code{RELOAD} privilege.
 
 @code{flush_option} can be any of the following:
 
@@ -19192,7 +19191,7 @@ RESET reset_option [,reset_option] ...
 The @code{RESET} command is used to clear things. It also acts as an stronger
 version of the @code{FLUSH} command.  @xref{FLUSH, , @code{FLUSH}}.
 
-To execute @code{RESET}, you must have the @strong{reload} privilege.
+To execute @code{RESET}, you must have the @code{RELOAD} privilege.
 
 @multitable @columnfractions .25 .75
 @item @strong{Option} @tab @strong{Description}
@@ -19222,8 +19221,8 @@ Each connection to @code{mysqld} runs in a separate thread.  You can see
 which threads are running with the @code{SHOW PROCESSLIST} command and kill
 a thread with the @code{KILL thread_id} command.
 
-If you have the @strong{process} privilege, you can see all threads.
-If you have the @strong{super} privilege, you can kill all threads.
+If you have the @code{PROCESS} privilege, you can see all threads.
+If you have the @code{SUPER} privilege, you can kill all threads.
 Otherwise, you can only see and kill your own threads.
 
 You can also use the @code{mysqladmin processlist} and @code{mysqladmin kill}
@@ -19334,7 +19333,7 @@ mysql> SHOW INDEX FROM mydb.mytable;
 @code{SHOW DATABASES} lists the databases on the MySQL server host.
 You can also get this list using the @code{mysqlshow} command line tool.
 In version 4.0.2 you will only see those databases for which you have some
-kind of privilege, if you don't have the global @strong{show databases}
+kind of privilege, if you don't have the global @code{SHOW DATABASES}
 privilege.
 
 @code{SHOW TABLES} lists the tables in a given database.  You can also
@@ -20132,7 +20131,7 @@ Is ON if we only allow local (socket) connections.
 
 @item @code{skip_show_database}
 This prevents people from doing @code{SHOW DATABASES} if they don't have
-the @strong{process} privilege. This can improve security if you're
+the @code{PROCESS} privilege. This can improve security if you're
 concerned about people being able to see what databases other users
 have. See also @code{safe_show_database}.
 
@@ -20242,7 +20241,7 @@ subsystem)
 
 @code{SHOW [FULL] PROCESSLIST} shows you which threads are running.
 You can also get this information using the @code{mysqladmin processlist}
-command.  If you have the @strong{super} privilege, you can see all
+command.  If you have the @code{SUPER} privilege, you can see all
 threads.  Otherwise, you can see only your own threads.
 @xref{KILL, ,@code{KILL}}.
 If you don't use the @code{FULL} option, then only the first 100
@@ -20250,7 +20249,7 @@ characters of each query will be shown.
 
 This command is very useful if you get the 'too many connections' error
 message and want to find out what's going on. MySQL reserves
-one extra connection for a client with the @strong{super} privilege
+one extra connection for a client with the @code{SUPER} privilege
 to ensure that you should always be able to login and check the system
 (assuming you are not giving this privilege to all your users).
 
@@ -22879,8 +22878,8 @@ documentation for @code{mysqlhotcopy}.
 from the option files.
 
 To be able to execute @code{mysqlhotcopy} you need write access to the
-backup directory, the @strong{select} privilege for the tables you are about to
-copy and the MySQL @strong{reload} privilege (to be able to
+backup directory, the @code{SELECT} privilege for the tables you are about to
+copy and the MySQL @code{RELOAD} privilege (to be able to
 execute @code{FLUSH TABLES}).
 
 
@@ -23606,8 +23605,8 @@ do not report bugs until you have verified that the problem is present
 in the latest release.
 
 @item
-Set up special a replication user on the master with the @strong{file}
-(in MySQL versions older than 4.0.2) or @strong{replication slave}
+Set up special a replication user on the master with the @code{FILE}
+(in MySQL versions older than 4.0.2) or @code{REPLICATION SLAVE}
 privilege in newer MySQL versions.  You must also have given permission
 to connect from all the slaves. If the user is only doing replication
 (which is recommended), you don't need to grant any additional privileges.
@@ -23825,8 +23824,8 @@ a database that was excluded from replication.
 @item
 Starting in Version 3.23.16, @code{SET SQL_LOG_BIN = 0} will turn off
 replication (binary) logging on the master, and @code{SET SQL_LOG_BIN =
-1} will turn it back on -- you must have the @strong{super} (in MySQL
-4.0.2 and above) or @strong{process} (in older MySQL versions) privilege
+1} will turn it back on -- you must have the @code{SUPER} (in MySQL
+4.0.2 and above) or @code{PROCESS} (in older MySQL versions) privilege
 to do this.
 @item
 Starting in Version 3.23.19, you can clean up stale replication leftovers when
@@ -23968,7 +23967,7 @@ Example: @code{master-host=db-master.mycompany.com}
 
 @item @code{master-user=username} @tab
 The username the slave thread will use for authentication when connecting to
-the master. The user must have the @strong{file} privilege. If the master user
+the master. The user must have the @code{FILE} privilege. If the master user
 is not set, user @code{test} is assumed. The value in @file{master.info} will
 take precedence if it can be read.
 
@@ -24165,11 +24164,11 @@ summary of commands:
  @tab Stops the slave thread. (Slave)
 
 @item @code{SET SQL_LOG_BIN=0}
-@tab Disables update logging if the user has the @strong{super} privilege.
+@tab Disables update logging if the user has the @code{SUPER} privilege.
  Ignored otherwise. (Master)
 
 @item @code{SET SQL_LOG_BIN=1}
- @tab Re-enables update logging if the user has the @strong{super} privilege.
+ @tab Re-enables update logging if the user has the @code{SUPER} privilege.
  Ignored otherwise. (Master)
 
 @item @code{SET SQL_SLAVE_SKIP_COUNTER=n}
@@ -27676,12 +27675,12 @@ can be restored by using a @code{SQL_SELECT_LIMIT} value of @code{DEFAULT}.
 
 @item SQL_LOG_OFF = 0 | 1
 If set to @code{1}, no logging will be done to the standard log for this
-client, if the client has the @strong{super} privilege.  This does not
+client, if the client has the @code{SUPER} privilege.  This does not
 affect the update log!
 
 @item SQL_LOG_UPDATE = 0 | 1
 If set to @code{0}, no logging will be done to the update log for the client,
-if the client has the @strong{super} privilege.  This does not affect the
+if the client has the @code{SUPER} privilege.  This does not affect the
 standard log!
 
 @item SQL_QUOTE_SHOW_CREATE = 0 | 1
@@ -31386,7 +31385,7 @@ This function is multi-byte safe.
 @item LOAD_FILE(file_name)
 Reads the file and returns the file contents as a string.  The file
 must be on the server, you must specify the full pathname to the
-file, and you must have the @strong{file} privilege.  The file must
+file, and you must have the @code{FILE} privilege.  The file must
 be readable by all and be smaller than @code{max_allowed_packet}.
 
 If the file doesn't exist or can't be read due to one of the above reasons,
@@ -33012,7 +33011,7 @@ If no @code{key_string} argument is given, @code{DES_DECRYPT()} examines
 the first byte of the encrypted string to determine the DES key number
 that was used to encrypt the original string, then reads the key
 from the @code{des-key-file} to decrypt the message.  For this to work
-the user must have the @strong{super} privilege.
+the user must have the @code{SUPER} privilege.
 
 If you pass this function a @code{key_string} argument, that string
 is used as the key for decrypting the message.
@@ -33668,7 +33667,7 @@ The @code{SELECT ... INTO OUTFILE 'file_name'} form of @code{SELECT} writes
 the selected rows to a file. The file is created on the server host and
 cannot already exist (among other things, this prevents database tables and
 files such as @file{/etc/passwd} from being destroyed).  You must have the
-@strong{file} privilege on the server host to use this form of @code{SELECT}.
+@code{FILE} privilege on the server host to use this form of @code{SELECT}.
 
 @code{SELECT ... INTO OUTFILE} is mainly intended to let you very
 quickly dump a table on the server machine. If you want to create the
@@ -34565,7 +34564,7 @@ MySQL Version 3.22.6 or later.)
 For security reasons, when reading text files located on the server, the
 files must either reside in the database directory or be readable by all.
 Also, to use @code{LOAD DATA INFILE} on server files, you must have the
-@strong{file} privilege on the server host.
+@code{FILE} privilege on the server host.
 @xref{Privileges provided}.
 
 In MySQL 3.23.49 and MySQL 4.0.2 @code{LOCAL} will only work if you have
@@ -34585,7 +34584,7 @@ the table at the same time.
 Using @code{LOCAL} will be a bit slower than letting the server access the
 files directly, because the contents of the file must travel from the client
 host to the server host.  On the other hand, you do not need the
-@strong{file} privilege to load local files.
+@code{FILE} privilege to load local files.
 
 @c old version
 If you are using MySQL before Version 3.23.24 you can't read from a
@@ -35234,7 +35233,7 @@ connection dies and the name is per connection.  This means that two different
 connections can both use the same temporary table name without conflicting
 with each other or with an existing table of the same name. (The existing table
 is hidden until the temporary table is deleted.).  In MySQL 4.0.2 one must
-have the @strong{create temporary table} privilege to be able to create
+have the @code{CREATE TEMPORARY TABLES} privilege to be able to create
 temporary tables.
 
 In MySQL Version 3.23 or later, you can use the keywords
@@ -35587,8 +35586,8 @@ to the datafile, the @code{RAID} handler will map the first
 tables as one. This only works with @code{MERGE} tables.
 @xref{MERGE, , @code{MERGE}}.
 
-For the moment you need to have @strong{select}, @strong{update}, and
-@strong{delete} privileges on the tables you map to a @code{MERGE} table.
+For the moment you need to have @code{SELECT}, @code{UPDATE}, and
+@code{DELETE} privileges on the tables you map to a @code{MERGE} table.
 All mapped tables must be in the same database as the @code{MERGE} table.
 
 @item
@@ -35729,8 +35728,8 @@ slowest part of the recreation process) by setting the
 
 @itemize @bullet
 @item
-To use @code{ALTER TABLE}, you need @strong{alter}, @strong{insert},
-and @strong{create} privileges on the table.
+To use @code{ALTER TABLE}, you need @code{ALTER}, @code{INSERT},
+and @code{CREATE} privileges on the table.
 
 @item
 @code{IGNORE} is a MySQL extension to ANSI SQL92.
@@ -35986,8 +35985,8 @@ RENAME TABLE current_db.tbl_name TO other_db.tbl_name;
 @end example
 
 When you execute @code{RENAME}, you can't have any locked tables or
-active transactions.  You must also have the @strong{alter} and @strong{drop}
-privileges on the original table, and the @strong{create} and @strong{insert}
+active transactions.  You must also have the @code{ALTER} and @code{DROP}
+privileges on the original table, and the @code{CREATE} and @code{INSERT}
 privileges on the new table.
 
 If MySQL encounters any errors in a multiple-table rename, it
@@ -36259,9 +36258,9 @@ thread issues another @code{LOCK TABLES}, or when the connection to the
 server is closed.
 
 To use @code{LOCK TABLES} in MySQL 4.0.2 you need the global
-@strong{lock tables} privilege and a @strong{select} privilege on the
-involved tables. In MySQL 3.23 you need to have @strong{select},
-@code{insert}, @strong{delete} and @strong{update} privileges for the
+@code{LOCK TABLES} privilege and a @code{SELECT} privilege on the
+involved tables. In MySQL 3.23 you need to have @code{SELECT},
+@code{insert}, @code{DELETE} and @code{UPDATE} privileges for the
 tables.
 
 The main reasons to use @code{LOCK TABLES} are for emulating transactions
@@ -36400,7 +36399,7 @@ the next transaction.
 The default behavior is to set the isolation level for the next (not
 started) transaction.  If you use the @code{GLOBAL} keyword, the statement
 sets the default transaction level globally for all new connections
-created from that point on.  You will need the @strong{super}
+created from that point on.  You will need the @code{SUPER}
 privilege to do do this.  Using the @code{SESSION} keyword sets the
 default transaction level for all future transactions performed on the
 current connection.
@@ -37584,8 +37583,8 @@ contains a list of the index files (@file{.MYI} files) that should
 be used as one.  All used tables must be in the same database as the
 @code{MERGE} table itself.
 
-For the moment, you need to have @strong{select}, @strong{update}, and
-@strong{delete} privileges on the tables you map to a @code{MERGE} table.
+For the moment, you need to have @code{SELECT}, @code{UPDATE}, and
+@code{DELETE} privileges on the tables you map to a @code{MERGE} table.
 
 @code{MERGE} tables can help you solve the following problems:
 
@@ -42348,7 +42347,7 @@ if(mysql_drop_db(&mysql, "my_database"))
 @subsubheading Description
 
 Instructs the server to write some debug information to the log. For
-this to work, the connected user must have the @strong{super} privilege.
+this to work, the connected user must have the @code{SUPER} privilege.
 
 @subsubheading Return Values
 
@@ -43794,7 +43793,7 @@ An unknown error occurred.
 @subsubheading Description
 
 Asks the MySQL server to reload the grant tables. The
-connected user must have the @strong{reload} privilege.
+connected user must have the @code{RELOAD} privilege.
 
 This function is deprecated.  It is preferable to use @code{mysql_query()}
 to issue a SQL @code{FLUSH PRIVILEGES} statement instead.
@@ -43913,7 +43912,7 @@ An unknown error occurred.
 @subsubheading Description
 
 Asks the database server to shut down. The connected user must have
-@strong{shutdown} privileges.
+@code{SHUTDOWN} privileges.
 
 @subsubheading Return Values
 
@@ -45377,7 +45376,7 @@ function that works like native (built in) MySQL functions such as
 
 @code{CREATE FUNCTION} saves the function's name, type, and shared library
 name in the @code{mysql.func} system table.  You must have the
-@strong{insert} and @strong{delete} privileges for the @code{mysql} database
+@code{INSERT} and @code{DELETE} privileges for the @code{mysql} database
 to create and drop functions.
 
 All active functions are reloaded each time the server starts, unless
@@ -45930,7 +45929,7 @@ mysql> DROP FUNCTION avgcost;
 The @code{CREATE FUNCTION} and @code{DROP FUNCTION} statements update the
 system table @code{func} in the @code{mysql} database.  The function's name,
 type and shared library name are saved in the table.  You must have the
-@strong{insert} and @strong{delete} privileges for the @code{mysql} database
+@code{INSERT} and @code{DELETE} privileges for the @code{mysql} database
 to create and drop functions.
 
 You should not use @code{CREATE FUNCTION} to add a function that has already
@@ -46487,7 +46486,7 @@ If you need more connections than the default (100), then you should restart
 
 Note that @code{mysqld} actually allows (@code{max_connections}+1)
 clients to connect.  The last connection is reserved for a user with the
-@strong{super} privilege.  By not giving this privilege to normal
+@code{SUPER} privilege.  By not giving this privilege to normal
 users (they shouldn't need this), an administrator with this privilege
 can log in and use @code{SHOW PROCESSLIST} to find out what could be
 wrong. @xref{SHOW}.
@@ -49457,9 +49456,9 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
-Added privileges @strong{create temporary table}, @strong{lock tables},
-@strong{replication client}, @strong{replication slave},
-@strong{show databases} and @strong{super}. To use these, you must have
+Added privileges @code{CREATE TEMPORARY TABLES}, @code{LOCK TABLES},
+@code{REPLICATION CLIENT}, @code{REPLICATION SLAVE},
+@code{SHOW DATABASES} and @code{SUPER}. To use these, you must have
 run the @code{mysql_fix_privilege_tables} script after upgrading.
 @item
 Fixed query cache align data bug.
@@ -50511,7 +50510,7 @@ Fixed problem with @code{UPDATE} and @code{BDB} tables.
 Fixed hard bug in @code{BDB} tables when using key parts.
 @item
 Fixed problem when using @code{GRANT FILE ON database.* ...}; previously
-we added the @strong{drop} privilege for the database.
+we added the @code{DROP} privilege for the database.
 @item
 Fixed @code{DELETE FROM tbl_name ... LIMIT 0} and
 @code{UPDATE FROM tbl_name ... LIMIT 0}, which acted as though the
@@ -52508,7 +52507,7 @@ Fixed problem with @code{LIKE "%"} on an index that may have @code{NULL} values.
 @item
 Allow creation of temporary tables with same name as the original table.
 @item
-When granting a user a @strong{grant} option for a database, he couldn't grant
+When granting a user a @code{GRANT} option for a database, he couldn't grant
 privileges to other users.
 @item
 New command: @code{SHOW GRANTS FOR user} (by Sinisa).
@@ -53543,9 +53542,9 @@ Changed optimiser to make it better at deciding when to do a full join
 and when using keys.
 @item
 You can now use @code{mysqladmin proc} to display information about your own
-threads. Only users with the @strong{process} privilege can get
+threads. Only users with the @code{PROCESS} privilege can get
 information about all threads.
-(In 4.0.2 one needs the @strong{super} privilege for this.)
+(In 4.0.2 one needs the @code{SUPER} privilege for this.)
 @item
 Added handling of formats @code{YYMMDD}, @code{YYYYMMDD},
 @code{YYMMDDHHMMSS} for numbers when using @code{DATETIME} and
@@ -53636,7 +53635,7 @@ and hours up to 32767.
 @item
 Added new option
 @code{SET OPTION SQL_LOG_UPDATE=@{0|1@}} to allow users with
-the @strong{process} privilege to bypass the update log.
+the @code{PROCESS} privilege to bypass the update log.
 (Modified patch from Sergey A Mukhin @email{violet@@rosnet.net}.)
 @item
 Fixed fatal bug in @code{LPAD()}.
@@ -54721,7 +54720,7 @@ NULL}.
 @item
 Added @code{CHAR} and @code{BIT} as synonyms for @code{CHAR(1)}.
 @item
-Fixed core dump when updating as a user who has only @strong{select} privilege.
+Fixed core dump when updating as a user who has only @code{SELECT} privilege.
 @item
 @code{INSERT ... SELECT ... GROUP BY} didn't work in some cases. An
 @code{Invalid use of group function} error occurred.
