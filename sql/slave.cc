@@ -1086,12 +1086,11 @@ static int get_master_version_and_clock(MYSQL* mysql, MASTER_INFO* mi)
       BINLOG_FORMAT_323_GEQ_57 ;
     break;
   case '4':
+  case '5':
     mi->old_format = BINLOG_FORMAT_CURRENT;
     break;
   default:
-    /* 5.0 is not supported */
-    errmsg = "Master reported an unrecognized MySQL version. Note that 4.0 \
-slaves can't replicate a 5.0 or newer master.";
+    errmsg = "Master reported unrecognized MySQL version";
     break;
   }
 

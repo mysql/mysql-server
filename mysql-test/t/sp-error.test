@@ -32,18 +32,18 @@ create function func1() returns int
   return 42|
 
 # Can't create recursively
---error 1279
+--error 1280
 create procedure foo()
   create procedure bar() set @x=3|
---error 1279
+--error 1280
 create procedure foo()
   create function bar() returns double return 2.3|
 
 # Already exists
---error 1280
+--error 1281
 create procedure proc1()
   set @x = 42|
---error 1280
+--error 1281
 create function func1() returns int
   return 42|
 
@@ -51,32 +51,32 @@ drop procedure proc1|
 drop function func1|
 
 # Does not exist
---error 1281
+--error 1282
 alter procedure foo|
---error 1281
+--error 1282
 alter function foo|
---error 1281
+--error 1282
 drop procedure foo|
---error 1281
+--error 1282
 drop function foo|
---error 1281
+--error 1282
 call foo()|
 drop procedure if exists foo|
 
 # LEAVE/ITERATE with no match
---error 1284
+--error 1285
 create procedure foo()
 foo: loop
   leave bar;
 end loop|
---error 1284
+--error 1285
 create procedure foo()
 foo: loop
   iterate bar;
 end loop|
 
 # Redefining label
---error 1285
+--error 1286 
 create procedure foo()
 foo: loop
   foo: loop
@@ -85,14 +85,14 @@ foo: loop
 end loop foo|
 
 # End label mismatch
---error 1286
+--error 1287
 create procedure foo()
 foo: loop
   set @x=2;
 end loop bar|
 
 # Referring to undef variable
---error 1287
+--error 1288
 create procedure foo(out x int)
 begin
   declare y int;
@@ -106,17 +106,17 @@ begin
   select name from mysql.proc;
   select type from mysql.proc;
 end|
---error 1288
+--error 1289
 call foo()|
 drop procedure foo|
 
 # RETURN in FUNCTION only
---error 1289
+--error 1290
 create procedure foo()
   return 42|
 
 # Doesn't allow queries in FUNCTIONs (for now :-( )
---error 1290
+--error 1291
 create function foo() returns int
 begin
   declare x int;
@@ -130,19 +130,19 @@ create procedure p(x int)
 create function f(x int) returns int
   return x+42|
 
---error 1294
+--error 1295
 call p()|
---error 1294
+--error 1295
 call p(1, 2)|
---error 1294
+--error 1295
 select f()|
---error 1294
+--error 1295
 select f(1, 2)|
 
 drop procedure p|
 drop function f|
 
---error 1295
+--error 1296
 create procedure p(val int, out res int)
 begin
   declare x int default 0;
@@ -156,7 +156,7 @@ begin
   end if;
 end|
 
---error 1295
+--error 1296
 create procedure p(val int, out res int)
 begin
   declare x int default 0;
@@ -171,7 +171,7 @@ begin
   end if;
 end|
 
---error 1296
+--error 1297
 create function f(val int) returns int
 begin
   declare x int;
@@ -189,12 +189,12 @@ begin
   end if;
 end|
 
---error 1297
+--error 1298
 select f(10)|
 
 drop function f|
 
---error 1298
+--error 1299
 create procedure p()
 begin
   declare c cursor for insert into test.t1 values ("foo", 42);
@@ -203,7 +203,7 @@ begin
   close c;
 end|
 
---error 1299
+--error 1300
 create procedure p()
 begin
   declare x int;
@@ -213,7 +213,7 @@ begin
   close c;
 end|
 
---error 1300
+--error 1301
 create procedure p()
 begin
   declare c cursor for select * from test.t;
@@ -235,7 +235,7 @@ begin
   open c;
   close c;
 end|
---error 1301
+--error 1302
 call p()|
 drop procedure p|
 
@@ -247,7 +247,7 @@ begin
   close c;
   close c;
 end|
---error 1302
+--error 1303
 call p()|
 drop procedure p|
 
@@ -259,7 +259,7 @@ drop table if exists t1|
 create table t1 (val int, x float)|
 insert into t1 values (42, 3.1), (19, 1.2)|
 
---error 1303
+--error 1304
 create procedure p()
 begin
   declare c cursor for select * from t1;
@@ -279,7 +279,7 @@ begin
   fetch c into x;
   close c;
 end|
---error 1304
+--error 1305
 call p()|
 drop procedure p|
 
@@ -294,7 +294,7 @@ begin
   fetch c into x, y, z;
   close c;
 end|
---error 1304
+--error 1305
 call p()|
 drop procedure p|
 

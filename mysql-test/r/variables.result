@@ -345,7 +345,7 @@ set sql_log_bin=1;
 set sql_log_off=1;
 set sql_log_update=1;
 Warnings:
-Note	1291	The update log is deprecated and replaced by the binary log. SET SQL_LOG_UPDATE has been ignored.
+Note	1292	The update log is deprecated and replaced by the binary log. SET SQL_LOG_UPDATE has been ignored.
 set sql_low_priority_updates=1;
 set sql_max_join_size=200;
 select @@sql_max_join_size,@@max_join_size;

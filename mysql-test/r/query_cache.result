@@ -762,7 +762,7 @@ Variable_name	Value
 Qcache_queries_in_cache	0
 show status like "Qcache_inserts";
 Variable_name	Value
-Qcache_inserts	44
+Qcache_inserts	48
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	12
@@ -775,7 +775,7 @@ Variable_name	Value
 Qcache_queries_in_cache	1
 show status like "Qcache_inserts";
 Variable_name	Value
-Qcache_inserts	45
+Qcache_inserts	49
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	13

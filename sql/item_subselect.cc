@@ -544,14 +544,14 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 				       func == &Item_bool_func2::lt_creator));
     }
     // left expression belong to outer select
-    SELECT_LEX *current= thd->lex.current_select, *up;
-    thd->lex.current_select= up= current->return_after_parsing();
+    SELECT_LEX *current= thd->lex->current_select, *up;
+    thd->lex->current_select= up= current->return_after_parsing();
     if (left_expr->fix_fields(thd, up->get_table_list(), 0))
     {
-      thd->lex.current_select= current;
+      thd->lex->current_select= current;
       DBUG_RETURN(RES_ERROR);
     }
-    thd->lex.current_select= current;
+    thd->lex->current_select= current;
     substitution= (*func)(left_expr, subs);
     DBUG_RETURN(RES_OK);
   }
