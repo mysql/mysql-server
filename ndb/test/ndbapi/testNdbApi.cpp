@@ -131,7 +131,7 @@ int runTestMaxTransaction(NDBT_Context* ctx, NDBT_Step* step){
 
       NdbConnection* pCon;
       
-      int type = i%4;
+      int type = i%2;
       switch (type){
       case 0:
 	pCon = pNdb->startTransaction();
@@ -141,25 +141,6 @@ int runTestMaxTransaction(NDBT_Context* ctx, NDBT_Step* step){
 				      "DATA",
 				      4);
 	break;
-      case 2:
-	ndbout_c("startTransactionDGroup not supported");
-	abort();
-	/*	  
-	pCon = pNdb->startTransactionDGroup(1, 
-					    "TEST",
-					    0);
-	*/
-	break;
-      case 3:      
-	ndbout_c("startTransactionDGroup not supported");
-	abort();
-	/*	  
-	pCon = pNdb->startTransactionDGroup(2, 
-					    "TEST",
-					    1);
-	*/
-	break;
-
       default:
 	abort();
       }
