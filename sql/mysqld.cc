@@ -2605,9 +2605,11 @@ static struct option long_options[] = {
   {"master-port",           required_argument, 0, (int) OPT_MASTER_PORT},
   {"master-connect-retry",  required_argument, 0, (int) OPT_MASTER_CONNECT_RETRY},
   {"master-info-file",      required_argument, 0, (int) OPT_MASTER_INFO_FILE},
+#ifdef HAVE_SSL  
   {"master-ssl",      	    optional_argument, 0, (int) OPT_MASTER_SSL},
   {"master-ssl-key",        optional_argument, 0, (int) OPT_MASTER_SSL_KEY},
   {"master-ssl-cert",       optional_argument, 0, (int) OPT_MASTER_SSL_CERT},
+#endif  
   {"myisam-recover",	    optional_argument, 0, (int) OPT_MYISAM_RECOVER},
   {"memlock",		    no_argument,       0, (int) OPT_MEMLOCK},
     // needs to be available for the test case to pass in non-debugging mode
