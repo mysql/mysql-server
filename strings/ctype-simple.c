@@ -1020,6 +1020,15 @@ uint my_charpos_8bit(CHARSET_INFO *cs __attribute__((unused)),
   return pos;
 }
 
+uint my_wellformedlen_8bit(CHARSET_INFO *cs __attribute__((unused)),
+			const char *b,
+			const char *e,
+			uint nchars)
+{
+  uint nbytes= e-b;
+  return nbytes < nchars ? nbytes : nchars;
+}
+
 uint my_lengthsp_8bit(CHARSET_INFO *cs __attribute__((unused)),
 		      const char *ptr, uint length)
 {
@@ -1096,6 +1105,7 @@ MY_CHARSET_HANDLER my_charset_8bit_handler=
     my_mbcharlen_8bit,		/* mbcharlen     */
     my_numchars_8bit,
     my_charpos_8bit,
+    my_wellformedlen_8bit,
     my_lengthsp_8bit,
     my_mb_wc_8bit,
     my_wc_mb_8bit,

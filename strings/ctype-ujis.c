@@ -8444,6 +8444,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
     mbcharlen_ujis,
     my_numchars_mb,
     my_charpos_mb,
+    my_wellformedlen_mb,
     my_lengthsp_8bit,
     my_mb_wc_euc_jp,	 /* mb_wc       */
     my_wc_mb_euc_jp,	 /* wc_mb       */
