@@ -123,34 +123,4 @@ TcIndxConf::setMarkerFlag(Uint32 & confInfo, Uint32 flag){
   confInfo |= (flag << 17);
 }
 
-class TcIndxRef {
-
-  /**
-   * Reciver(s)
-   */
-  friend class NdbIndexOperation;
-
-  /**
-   * Sender(s)
-   */
-  friend class Dbtc; 
-
-  /**
-   * For printing
-   */
-  friend bool printTCINDXREF(FILE *, const Uint32 *, Uint32, Uint16);
-
-public:
-  /**
-   * Length of signal
-   */
-public:
-  STATIC_CONST( SignalLength = 4 );
-
-private:
-  Uint32 connectPtr;
-  Uint32 transId[2];
-  Uint32 errorCode;
-};
-
 #endif

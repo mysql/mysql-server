@@ -34,12 +34,15 @@ create table r1 as select * from t1 where c in (2,8,12);
 select * from r1 order by a;
 drop table r1;
 
+# batch mixed
+create table r1 as select * from t1 where a in (2,8) or (a > 11) or (a <= 1);
+select * from r1 order by a;
+drop table r1;
+
 # batch on primary key, missing values
 create table r1 as select * from t1 where a in (33,8,12);
 select * from r1 order by a;
 drop table r1;
-select * from t1 where a in (33,34,35) order by a;
-select * from t1 where a in (33,8,12) order by a;
 create table r1 as select * from t1 where a in (2,33,8,12,34);
 select * from r1 order by a;
 drop table r1;
@@ -54,15 +57,19 @@ select * from r1 order by a;
 drop table r1;
 select * from t1 where b in (45,22) order by a;
 
-# current bug in ndb, cannot handle missing values for unique indexes
 # batch on unique hash index, missing values
-#create table r1 as select * from t1 where c in (2,8,33);
-#select * from r1 order by a;
-#drop table r1;
-#create table r1 as select * from t1 where c in (13,2,8,33,12);
-#select * from r1 order by a;
-#drop table r1;
+create table r1 as select * from t1 where c in (2,8,33);
+select * from r1 order by a;
+drop table r1;
+create table r1 as select * from t1 where c in (13,2,8,33,12);
+select * from r1 order by a;
+drop table r1;
 
+select * from t1 where a in (33,8,12) order by a;
+select * from t1 where a in (33,34,35) order by a;
+select * from t1 where a in (2,8) or (a > 11) or (a <= 1) order by a;
+select * from t1 where b in (6,7) or (b <= 5) or (b >= 10) order by b,a;
+select * from t1 where c in (13,2,8,33,12) order by c,a;
 drop table t1;
 
 #

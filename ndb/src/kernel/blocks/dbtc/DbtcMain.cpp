@@ -11144,14 +11144,14 @@ void Dbtc::execTCINDXREQ(Signal* signal)
   if (!seizeIndexOperation(regApiPtr, indexOpPtr)) {
     jam();
     // Failed to allocate index operation
-    TcIndxRef * const tcIndxRef = (TcIndxRef *)signal->getDataPtrSend();
+    TcKeyRef * const tcIndxRef = (TcKeyRef *)signal->getDataPtrSend();
 
     tcIndxRef->connectPtr = tcIndxReq->senderData;
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = 4000;
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
-	       TcIndxRef::SignalLength, JBB);
+	       TcKeyRef::SignalLength, JBB);
     return;
   }
   TcIndexOperation* indexOp = indexOpPtr.p;
@@ -11465,14 +11465,14 @@ void Dbtc::execTCKEYCONF(Signal* signal)
   case(IOS_NOOP): {
     jam();
     // Should never happen, abort
-    TcIndxRef * const tcIndxRef = (TcIndxRef *)signal->getDataPtrSend();
+    TcKeyRef * const tcIndxRef = (TcKeyRef *)signal->getDataPtrSend();
 
     tcIndxRef->connectPtr = indexOp->tcIndxReq.senderData;
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = 4349;    
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
-	       TcIndxRef::SignalLength, JBB);
+	       TcKeyRef::SignalLength, JBB);
     return;
   }
   case(IOS_INDEX_ACCESS): {
@@ -11484,14 +11484,14 @@ void Dbtc::execTCKEYCONF(Signal* signal)
   case(IOS_INDEX_ACCESS_WAIT_FOR_TRANSID_AI): {
     jam();
     // Double TCKEYCONF, should never happen, abort
-    TcIndxRef * const tcIndxRef = (TcIndxRef *)signal->getDataPtrSend();
+    TcKeyRef * const tcIndxRef = (TcKeyRef *)signal->getDataPtrSend();
 
     tcIndxRef->connectPtr = indexOp->tcIndxReq.senderData;
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = 4349;    
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
-	       TcIndxRef::SignalLength, JBB);
+	       TcKeyRef::SignalLength, JBB);
     return;
   }
   case(IOS_INDEX_ACCESS_WAIT_FOR_TCKEYCONF): {  
@@ -11578,7 +11578,7 @@ void Dbtc::execTCKEYREF(Signal* signal)
     
     jam();
     TcKeyReq * const tcIndxReq = &indexOp->tcIndxReq;
-    TcIndxRef * const tcIndxRef = (TcIndxRef *)signal->getDataPtrSend();
+    TcKeyRef * const tcIndxRef = (TcKeyRef *)signal->getDataPtrSend();
     
     ndbassert(regApiPtr->noIndexOp);
     regApiPtr->noIndexOp--; // Decrease count
@@ -11587,7 +11587,7 @@ void Dbtc::execTCKEYREF(Signal* signal)
     tcIndxRef->transId[1] = tcKeyRef->transId[1];
     tcIndxRef->errorCode = tcKeyRef->errorCode;
     sendSignal(regApiPtr->ndbapiBlockref, 
-               GSN_TCINDXREF, signal, TcIndxRef::SignalLength, JBB);
+               GSN_TCINDXREF, signal, TcKeyRef::SignalLength, JBB);
     return;
   }
   }
@@ -11654,14 +11654,14 @@ void Dbtc::execTRANSID_AI(Signal* signal)
                       signal->getLength() - TransIdAI::HeaderLength)) {
     jam();
     // Failed to allocate space for TransIdAI
-    TcIndxRef * const tcIndxRef = (TcIndxRef *)signal->getDataPtrSend();
+    TcKeyRef * const tcIndxRef = (TcKeyRef *)signal->getDataPtrSend();
     
     tcIndxRef->connectPtr = indexOp->tcIndxReq.senderData;
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = 4000;
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
-	       TcIndxRef::SignalLength, JBB);
+	       TcKeyRef::SignalLength, JBB);
     return;
   }
 
@@ -11669,14 +11669,14 @@ void Dbtc::execTRANSID_AI(Signal* signal)
   case(IOS_NOOP): {
     jam();
     // Should never happen, abort
-    TcIndxRef * const tcIndxRef = (TcIndxRef *)signal->getDataPtrSend();
+    TcKeyRef * const tcIndxRef = (TcKeyRef *)signal->getDataPtrSend();
     
     tcIndxRef->connectPtr = indexOp->tcIndxReq.senderData;
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = 4349;
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
-	       TcIndxRef::SignalLength, JBB);
+	       TcKeyRef::SignalLength, JBB);
     return;
     break;
   }
@@ -11697,14 +11697,14 @@ void Dbtc::execTRANSID_AI(Signal* signal)
 #endif
     /*
     // Too many TRANSID_AI
-    TcIndxRef * const tcIndxRef = (TcIndxRef *)signal->getDataPtrSend();
+    TcKeyRef * const tcIndxRef = (TcKeyRef *)signal->getDataPtrSend();
     
     tcIndexRef->connectPtr = indexOp->tcIndxReq.senderData;
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = 4349;
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
-               TcIndxRef::SignalLength, JBB);
+               TcKeyRef::SignalLength, JBB);
     */
     break;
   }
@@ -11722,14 +11722,14 @@ void Dbtc::execTRANSID_AI(Signal* signal)
   case(IOS_INDEX_OPERATION): {
     // Should never receive TRANSID_AI in this state!!
     jam();    
-    TcIndxRef * const tcIndxRef = (TcIndxRef *)signal->getDataPtrSend();
+    TcKeyRef * const tcIndxRef = (TcKeyRef *)signal->getDataPtrSend();
 
     tcIndxRef->connectPtr = indexOp->tcIndxReq.senderData;
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = 4349;
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
-	       TcIndxRef::SignalLength, JBB);
+	       TcKeyRef::SignalLength, JBB);
     return;
   }
   }
@@ -11775,14 +11775,14 @@ void Dbtc::readIndexTable(Signal* signal,
   if ((indexData = c_theIndexes.getPtr(indexOp->tcIndxReq.tableId)) == NULL) {
     jam();
     // Failed to find index record
-    TcIndxRef * const tcIndxRef = (TcIndxRef *)signal->getDataPtrSend();
+    TcKeyRef * const tcIndxRef = (TcKeyRef *)signal->getDataPtrSend();
 
     tcIndxRef->connectPtr = indexOp->tcIndxReq.senderData;
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = 4000;    
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
-	       TcIndxRef::SignalLength, JBB);
+	       TcKeyRef::SignalLength, JBB);
     return;
   }
   tcKeyReq->transId1 = transId1;
@@ -11895,14 +11895,14 @@ void Dbtc::executeIndexOperation(Signal* signal,
   if ((indexData = c_theIndexes.getPtr(tcIndxReq->tableId)) == NULL) {
     jam();
     // Failed to find index record 
-    TcIndxRef * const tcIndxRef = (TcIndxRef *)signal->getDataPtrSend();
+    TcKeyRef * const tcIndxRef = (TcKeyRef *)signal->getDataPtrSend();
 
     tcIndxRef->connectPtr = indexOp->tcIndxReq.senderData;
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = 4349;    
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
-	       TcIndxRef::SignalLength, JBB);
+	       TcKeyRef::SignalLength, JBB);
     return;
   }    
   // Find schema version of primary table
