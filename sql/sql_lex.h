@@ -800,6 +800,7 @@ typedef struct st_lex
   bool can_use_merged();
   bool can_not_use_merged();
   bool only_view_structure();
+  bool need_correct_ident();
 } LEX;
 
 extern TABLE_LIST fake_time_zone_tables_list;
