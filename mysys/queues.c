@@ -21,6 +21,7 @@
 */
 
 #include "mysys_priv.h"
+#include "mysys_err.h"
 #include <queues.h>
 
 
@@ -38,6 +39,23 @@ int init_queue(QUEUE *queue, uint max_elements, uint offset_to_key,
   queue->compare=compare;
   queue->first_cmp_arg=first_cmp_arg;
   queue->max_elements=max_elements;
+  queue->offset_to_key=offset_to_key;
+  queue->max_at_top= max_at_top ? (-1 ^ 1) : 0;
+  DBUG_RETURN(0);
+}
+
+int reinit_queue(QUEUE *queue, uint max_elements, uint offset_to_key,
+               pbool max_at_top, int (*compare) (void *, byte *, byte *),
+               void *first_cmp_arg)
+{
+  DBUG_ENTER("reinit_queue");
+  if (queue->max_elements < max_elements)
+    /* It's real easy to do realloc here, just don't want to bother */
+    DBUG_RETURN(my_errno=EE_OUTOFMEMORY);
+
+  queue->elements=0;
+  queue->compare=compare;
+  queue->first_cmp_arg=first_cmp_arg;
   queue->offset_to_key=offset_to_key;
   queue->max_at_top= max_at_top ? (-1 ^ 1) : 0;
   DBUG_RETURN(0);

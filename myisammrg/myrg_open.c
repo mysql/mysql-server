@@ -119,6 +119,7 @@ int handle_locking;
   pthread_mutex_lock(&THR_LOCK_open);
   myrg_open_list=list_add(myrg_open_list,&m_info->open_list);
   pthread_mutex_unlock(&THR_LOCK_open);
+  m_info->by_key.root=0;
   DBUG_RETURN(m_info);
 
 err:

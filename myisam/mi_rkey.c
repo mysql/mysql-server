@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -22,13 +22,13 @@
 	/* Read a record using key */
 	/* Ordinary search_flag is 0 ; Give error if no record with key */
 
-int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
-	    enum ha_rkey_function search_flag)
+int _mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
+	     enum ha_rkey_function search_flag, bool raw_key)
 {
   uchar *key_buff;
   MYISAM_SHARE *share=info->s;
   uint pack_key_length;
-  DBUG_ENTER("mi_rkey");
+  DBUG_ENTER("_mi_rkey");
   DBUG_PRINT("enter",("base: %lx  inx: %d  search_flag: %d",
 		      info,inx,search_flag));
 
@@ -36,6 +36,9 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
     DBUG_RETURN(my_errno);
 
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
+
+  if (raw_key)
+  {
   if (key_len == 0)
     key_len=USE_WHOLE_KEY;
   key_buff=info->lastkey+info->s->base.max_key_length;
@@ -43,6 +46,14 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
   info->last_rkey_length=pack_key_length;
   DBUG_EXECUTE("key",_mi_print_key(DBUG_FILE,share->keyinfo[inx].seg,
 				   key_buff,pack_key_length););
+  }
+  else
+  {
+    /* key is already packed! */
+    key_buff=info->lastkey+info->s->base.max_key_length;
+    info->last_rkey_length=pack_key_length=key_len;
+    bmove(key_buff,key,key_len);
+  }
 
   if (_mi_readinfo(info,F_RDLCK,1))
     goto err;
@@ -69,6 +80,9 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
   if (share->concurrent_insert)
     rw_unlock(&share->key_root_lock[inx]);
 
+  if (!buf)
+    DBUG_RETURN(info->lastpos==HA_OFFSET_ERROR ? my_errno : 0);
+
   if (!(*info->read_record)(info,info->lastpos,buf))
   {
     info->update|= HA_STATE_AKTIV;		/* Record is read */
@@ -86,4 +100,12 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
     info->update|=HA_STATE_NEXT_FOUND;		/* Previous gives last row */
 err:
   DBUG_RETURN(my_errno);
-} /* mi_rkey */
+} /* _mi_rkey */
+
+/* shouldn't forget to do it inline sometime */
+int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
+            enum ha_rkey_function search_flag)
+{
+  return _mi_rkey(info,buf,inx,key,key_len,search_flag,TRUE);
+}
+
