@@ -220,6 +220,9 @@ public:
   virtual void bring_value() {}
 
   Field *tmp_table_field_from_field_type(TABLE *table);
+  
+  /* Used in sql_select.cc:eliminate_not_funcs() */
+  virtual Item *neg_transformer() { return NULL; }
 };
 
 
