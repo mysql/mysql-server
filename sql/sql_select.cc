@@ -10066,8 +10066,10 @@ find_order_in_list(THD *thd, Item **ref_pointer_array,
 	       thd->where);
       return 1;
     }
-    order->item= ref_pointer_array + count-1;
+    order->item= ref_pointer_array + count - 1;
     order->in_field_list= 1;
+    order->counter= count;
+    order->counter_used= 1;
     return 0;
   }
   uint counter;

@@ -318,8 +318,10 @@ err:
 }
 
 
-// index of revision number in following table
-static const int revision_number_position= 4;
+/* index of revision number in following table */
+static const int revision_number_position= 5;
+/* index of last required parameter for making view */
+static const int last_parameter= 8;
 
 static char *view_field_names[]=
 {
@@ -327,6 +329,7 @@ static char *view_field_names[]=
   (char*)"md5",
   (char*)"updatable",
   (char*)"algorithm",
+  (char*)"syscharset",
   (char*)"revision",
   (char*)"timestamp",
   (char*)"create-version",
@@ -343,13 +346,15 @@ static File_option view_parameters[]=
   FILE_OPTIONS_ULONGLONG},
  {{view_field_names[3], 9},	offsetof(TABLE_LIST, algorithm),
   FILE_OPTIONS_ULONGLONG},
- {{view_field_names[4], 8},	offsetof(TABLE_LIST, revision),
+ {{view_field_names[4], 10},    offsetof(TABLE_LIST, syscharset),
+  FILE_OPTIONS_STRING},
+ {{view_field_names[5], 8},	offsetof(TABLE_LIST, revision),
   FILE_OPTIONS_REV},
- {{view_field_names[5], 9},	offsetof(TABLE_LIST, timestamp),
+ {{view_field_names[6], 9},	offsetof(TABLE_LIST, timestamp),
   FILE_OPTIONS_TIMESTAMP},
- {{view_field_names[6], 14},	offsetof(TABLE_LIST, file_version),
+ {{view_field_names[7], 14},	offsetof(TABLE_LIST, file_version),
   FILE_OPTIONS_ULONGLONG},
- {{view_field_names[7], 6},	offsetof(TABLE_LIST, source),
+ {{view_field_names[8], 6},	offsetof(TABLE_LIST, source),
   FILE_OPTIONS_ESTRING},
  {{NULL, 0},			0,
   FILE_OPTIONS_STRING}
@@ -468,6 +473,8 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   view->query.length= str.length()-1; // we do not need last \0
   view->source.str= thd->query;
   view->source.length= thd->query_length;
+  view->syscharset.str= (char *)system_charset_info->csname;
+  view->syscharset.length= strlen(view->syscharset.str);
   view->file_version= 1;
   view->calc_md5(md5);
   view->md5.str= md5;
@@ -520,6 +527,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
 my_bool
 mysql_make_view(File_parser *parser, TABLE_LIST *table)
 {
+  bool include_proc_table= 0;
   DBUG_ENTER("mysql_make_view");
 
   if (table->view)
@@ -551,7 +559,8 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     TODO: when VIEWs will be stored in cache, table mem_root should
     be used here
   */
-  if (parser->parse((gptr)table, &thd->mem_root, view_parameters, 6))
+  if (parser->parse((gptr)table, &thd->mem_root, view_parameters,
+                    last_parameter))
     goto err;
 
   /*
@@ -603,7 +612,21 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     */
     thd->options&= ~(MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
                      MODE_IGNORE_SPACE | MODE_NO_BACKSLASH_ESCAPES);
+    CHARSET_INFO *save_cs= thd->variables.character_set_client;
+    if (!table->syscharset.length)
+      thd->variables.character_set_client= system_charset_info;
+    else
+    {
+      if (!(thd->variables.character_set_client=
+            get_charset_by_csname(table->syscharset.str,
+                                  MY_CS_PRIMARY, MYF(MY_WME))))
+      {
+        thd->variables.character_set_client= save_cs;
+        goto err;
+      }
+    }
     res= yyparse((void *)thd);
+    thd->variables.character_set_client= save_cs;
     thd->options= options;
   }
   if (!res && !thd->is_fatal_error)
@@ -612,10 +635,25 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
                            table->belong_to_view :
                            table);
 
-    /* move SP to main LEX */
-    sp_merge_funs(old_lex, lex);
-    if (lex->spfuns.array.buffer)
-      hash_free(&lex->spfuns);
+    if (lex->spfuns.records)
+    {
+      /* move SP to main LEX */
+      sp_merge_funs(old_lex, lex);
+      if (lex->spfuns.array.buffer)
+        hash_free(&lex->spfuns);
+      if (old_lex->proc_table == 0 &&
+          (old_lex->proc_table=
+           (TABLE_LIST*)thd->calloc(sizeof(TABLE_LIST))) != 0)
+      {
+        TABLE_LIST *table= old_lex->proc_table;
+        table->db= (char*)"mysql";
+        table->db_length= 5;
+        table->real_name= table->alias= (char*)"proc";
+        table->real_name_length= 4;
+        table->cacheable_table= 1;
+        include_proc_table= 1;
+      }
+    }
 
     old_next= table->next_global;
     if ((table->next_global= lex->query_tables))
@@ -741,6 +779,17 @@ ok:
   old_lex->all_selects_list= lex->all_selects_list;
   lex->all_selects_list->link_prev=
     (st_select_lex_node**)&old_lex->all_selects_list;
+
+  if (include_proc_table)
+  {
+    TABLE_LIST *proc= old_lex->proc_table;
+    if((proc->next_global= table->next_global))
+    {
+      table->next_global->prev_global= &proc->next_global;
+    }
+    proc->prev_global= &table->next_global;
+    table->next_global= proc;
+  }
 
   thd->lex= old_lex;
   DBUG_RETURN(0);

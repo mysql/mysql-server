@@ -1302,11 +1302,21 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 					 table_list, ref,
 					 0, 1)) != not_found_field)
 	  {
-	    if (tmp && tmp != view_ref_found)
-	    {
-	      prev_subselect_item->used_tables_cache|= tmp->table->map;
-	      prev_subselect_item->const_item_cache= 0;
-	    }
+	    if (tmp)
+            {
+              if (tmp != view_ref_found)
+              {
+                prev_subselect_item->used_tables_cache|= tmp->table->map;
+                prev_subselect_item->const_item_cache= 0;
+              }
+              else
+              {
+                prev_subselect_item->used_tables_cache|=
+                  (*ref)->used_tables();
+                prev_subselect_item->const_item_cache&=
+                  (*ref)->const_item();
+              }
+            }
 	    break;
 	  }
 	  if (sl->resolve_mode == SELECT_LEX::SELECT_MODE &&
@@ -1756,6 +1766,21 @@ int Item_real::save_in_field(Field *field, bool no_conversions)
   return field->store(nr);
 }
 
+
+void Item_real::print(String *str)
+{
+  if (presentation)
+  {
+    str->append(presentation);
+    return;
+  }
+  char buffer[20];
+  String num(buffer, sizeof(buffer), &my_charset_bin);
+  num.set(value, decimals, &my_charset_bin);
+  str->append(num);
+}
+
+
 /****************************************************************************
 ** varbinary item
 ** In string context this is a binary string
@@ -2014,11 +2039,21 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 				       table_list, reference,
 				       0, 1)) != not_found_field)
 	{
-	  if (tmp && tmp != view_ref_found)
-	  {
-	    prev_subselect_item->used_tables_cache|= tmp->table->map;
-	    prev_subselect_item->const_item_cache= 0;
-	  }
+          if (tmp)
+          {
+            if (tmp != view_ref_found)
+            {
+              prev_subselect_item->used_tables_cache|= tmp->table->map;
+              prev_subselect_item->const_item_cache= 0;
+            }
+            else
+            {
+              prev_subselect_item->used_tables_cache|=
+                (*reference)->used_tables();
+              prev_subselect_item->const_item_cache&=
+                (*reference)->const_item();
+            }
+          }
 	  break;
 	}
 

@@ -497,6 +497,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
   TABLE *table;
   Protocol *protocol= thd->protocol;
   TIME time;
+  int res;
   DBUG_ENTER("mysqld_extend_show_tables");
 
   (void) sprintf(path,"%s/%s",mysql_data_home,db);
@@ -554,13 +555,18 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
     table_list.select_lex= &thd->lex->select_lex;
     if (lower_case_table_names)
       my_casedn_str(files_charset_info, file_name);
-    if (open_and_lock_tables(thd, &table_list))
+    if ((res= open_and_lock_tables(thd, &table_list)))
     {
       for (uint i=2 ; i < field_list.elements ; i++)
         protocol->store_null();
-      // Send error to Comment field
-      protocol->store(thd->net.last_error, system_charset_info);
-      thd->clear_error();
+      // Send error to Comment field if possible
+      if (res < 0)
+      {
+        protocol->store(thd->net.last_error, system_charset_info);
+        thd->clear_error();
+      }
+      else
+        DBUG_RETURN(1)
     }
     else if (table_list.view)
     {
@@ -695,14 +701,16 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
   char tmp[MAX_FIELD_WIDTH];
   Item *item;
   Protocol *protocol= thd->protocol;
+  int res;
   DBUG_ENTER("mysqld_show_fields");
   DBUG_PRINT("enter",("db: %s  table: %s",table_list->db,
                       table_list->real_name));
 
   table_list->lock_type= TL_UNLOCK;
-  if (open_and_lock_tables(thd, table_list))
+  if ((res= open_and_lock_tables(thd, table_list)))
   {
-    send_error(thd);
+    if (res < 0)
+      send_error(thd);
     DBUG_RETURN(1);
   }
   table= table_list->table;
@@ -836,14 +844,16 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   Protocol *protocol= thd->protocol;
   char buff[2048];
   String buffer(buff, sizeof(buff), system_charset_info);
+  int res;
   DBUG_ENTER("mysqld_show_create");
   DBUG_PRINT("enter",("db: %s  table: %s",table_list->db,
                       table_list->real_name));
 
   /* Only one table for now, but VIEW can involve several tables */
-  if (open_and_lock_tables(thd, table_list))
+  if ((res= open_and_lock_tables(thd, table_list)))
   {
-    send_error(thd);
+    if (res < 0)
+      send_error(thd);
     DBUG_RETURN(1);
   }
   /* TODO: add environment variables show when it become possible */

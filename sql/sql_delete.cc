@@ -39,8 +39,8 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
   ha_rows	deleted;
   DBUG_ENTER("mysql_delete");
 
-  if ((open_and_lock_tables(thd, table_list)))
-    DBUG_RETURN(-1);
+  if ((error= open_and_lock_tables(thd, table_list)))
+    DBUG_RETURN(error);
   table= table_list->table;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   thd->proc_info="init";
