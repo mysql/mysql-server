@@ -538,21 +538,11 @@ MySQL Tutorial
 
 * Connecting-disconnecting::    Connecting to and disconnecting from the server
 * Entering queries::            Entering queries
-* Examples::                    Examples
-* Searching on two keys::       Searching on two keys
 * Database use::                Creating and using a database
 * Getting information::         Getting information about databases and tables
+* Examples::                    Examples
 * Batch mode::                  Using @code{mysql} in batch mode
 * Twin::                        Queries from twin project
-
-Examples of Common Queries
-
-* example-Maximum-column::      The maximum value for a column
-* example-Maximum-row::         The row holding the maximum of a certain column
-* example-Maximum-column-group::  Maximum of column per group
-* example-Maximum-column-group-row::  The rows holding the group-wise maximum of a certain field
-* example-user-variables::      Using user variables
-* example-Foreign keys::        Using foreign keys
 
 Creating and Using a Database
 
@@ -560,7 +550,6 @@ Creating and Using a Database
 * Creating tables::             Creating a table
 * Loading tables::              Loading data into a table
 * Retrieving data::             Retrieving information from a table
-* Multiple tables::             Using more than one table
 
 Retrieving Information from a Table
 
@@ -572,6 +561,17 @@ Retrieving Information from a Table
 * Working with NULL::           Working with @code{NULL} values
 * Pattern matching::            Pattern matching
 * Counting rows::               Counting rows
+* Multiple tables::             
+
+Examples of Common Queries
+
+* example-Maximum-column::      The maximum value for a column
+* example-Maximum-row::         The row holding the maximum of a certain column
+* example-Maximum-column-group::  Maximum of column per group
+* example-Maximum-column-group-row::  The rows holding the group-wise maximum of a certain field
+* example-user-variables::      Using user variables
+* example-Foreign keys::        Using foreign keys
+* Searching on two keys::       
 
 Queries from Twin Project
 
@@ -2486,8 +2486,14 @@ which services were discovered on which dial-up numbers in your organization.
 @subheading SQL Clients and Report Writers
 
 @table @asis
-@item @uref{http://www.urbanresearch.com/software/utils/urbsql/index.html}
-@strong{MySQL} Editor/Utility for MS Windows Platforms.
+@item @uref{http://www.urbanresearch.com/software/utils/urbsql/index.html, urSQL}
+SQL Editor and Query Utility. Custom syntax highlighting, editable
+results grid, exportable result-sets, basic @strong{MySQL} admin functions,
+Etc.. For windows.
+
+@item @uref{http://www.edatanew.com/, MySQL Data Manager}
+@strong{MySQL} Data Manager * is platform independent web client
+(written in perl) for @strong{MySQL} server over TCP/IP.
 
 @item @uref{http://ksql.sourceforge.net/}
 KDE @strong{MySQL} client.
@@ -24429,10 +24435,9 @@ Innodb table space will not be reclaimed.
 @menu
 * Connecting-disconnecting::    Connecting to and disconnecting from the server
 * Entering queries::            Entering queries
-* Examples::                    Examples
-* Searching on two keys::       Searching on two keys
 * Database use::                Creating and using a database
 * Getting information::         Getting information about databases and tables
+* Examples::                    Examples
 * Batch mode::                  Using @code{mysql} in batch mode
 * Twin::                        Queries from twin project
 @end menu
@@ -24532,7 +24537,7 @@ server.  They indicate this by the @code{mysql>} prompt.
 @cindex running, queries
 @cindex queries, entering
 @cindex entering, queries
-@node Entering queries, Examples, Connecting-disconnecting, Tutorial
+@node Entering queries, Database use, Connecting-disconnecting, Tutorial
 @section Entering Queries
 
 Make sure you are connected to the server, as discussed in the previous
@@ -24754,358 +24759,10 @@ containing @code{QUIT}!  This can be quite confusing, especially if you
 don't know that you need to supply the terminating quote before you can
 cancel the current command.
 
-@cindex queries, examples
-@cindex examples, queries
-@node Examples, Searching on two keys, Entering queries, Tutorial
-@section Examples of Common Queries
-
-Here are examples of how to solve some common problems with
-@strong{MySQL}.
-
-Some of the examples use the table @code{shop} to hold the price of each
-article (item number) for certain traders (dealers).  Supposing that each
-trader has a single fixed price per article, then (@code{item},
-@code{trader}) is a primary key for the records.
-
-Start the command line tool @code{mysql} and select a database:
-
-@example
-mysql your-database-name
-@end example
-
-(In most @strong{MySQL} installations, you can use the database-name 'test').
-
-You can create the example table as:
-
-@example
-CREATE TABLE shop (
- article INT(4) UNSIGNED ZEROFILL DEFAULT '0000' NOT NULL,
- dealer  CHAR(20)                 DEFAULT ''     NOT NULL,
- price   DOUBLE(16,2)             DEFAULT '0.00' NOT NULL,
- PRIMARY KEY(article, dealer));
-
-INSERT INTO shop VALUES
-(1,'A',3.45),(1,'B',3.99),(2,'A',10.99),(3,'B',1.45),(3,'C',1.69),
-(3,'D',1.25),(4,'D',19.95);
-@end example
-
-Okay, so the example data is:
-
-@example
-mysql> SELECT * FROM shop;
-
-+---------+--------+-------+
-| article | dealer | price |
-+---------+--------+-------+
-|    0001 | A      |  3.45 |
-|    0001 | B      |  3.99 |
-|    0002 | A      | 10.99 |
-|    0003 | B      |  1.45 |
-|    0003 | C      |  1.69 |
-|    0003 | D      |  1.25 |
-|    0004 | D      | 19.95 |
-+---------+--------+-------+
-@end example
-
-@menu
-* example-Maximum-column::      The maximum value for a column
-* example-Maximum-row::         The row holding the maximum of a certain column
-* example-Maximum-column-group::  Maximum of column per group
-* example-Maximum-column-group-row::  The rows holding the group-wise maximum of a certain field
-* example-user-variables::      Using user variables
-* example-Foreign keys::        Using foreign keys
-@end menu
-
-@node example-Maximum-column, example-Maximum-row, Examples, Examples
-@subsection The Maximum Value for a Column
-
-``What's the highest item number?''
-
-@example
-SELECT MAX(article) AS article FROM shop
-
-+---------+
-| article |
-+---------+
-|       4 |
-+---------+
-@end example
-
-@node example-Maximum-row, example-Maximum-column-group, example-Maximum-column, Examples
-@subsection The Row Holding the Maximum of a Certain Column
-
-``Find number, dealer, and price of the most expensive article.''
-
-In ANSI SQL this is easily done with a sub-query:
-
-@example
-SELECT article, dealer, price
-FROM   shop
-WHERE  price=(SELECT MAX(price) FROM shop)
-@end example
-
-In @strong{MySQL} (which does not yet have sub-selects), just do it in
-two steps:
-
-@enumerate
-@item
-Get the maximum price value from the table with a @code{SELECT} statement.
-@item
-Using this value compile the actual query:
-@example
-SELECT article, dealer, price
-FROM   shop
-WHERE  price=19.95
-@end example
-@end enumerate
-
-Another solution is to sort all rows descending by price and only
-get the first row using the @strong{MySQL} specific @code{LIMIT} clause:
-
-@example
-SELECT article, dealer, price
-FROM   shop
-ORDER BY price DESC
-LIMIT 1
-@end example
-
-@strong{NOTE}:  If there are several most expensive articles (for example, each 19.95)
-the @code{LIMIT} solution shows only one of them!
-
-@node example-Maximum-column-group, example-Maximum-column-group-row, example-Maximum-row, Examples
-@subsection Maximum of Column per Group
-
-``What's the highest price per article?''
-
-@example
-SELECT article, MAX(price) AS price
-FROM   shop
-GROUP BY article
-
-+---------+-------+
-| article | price |
-+---------+-------+
-|    0001 |  3.99 |
-|    0002 | 10.99 |
-|    0003 |  1.69 |
-|    0004 | 19.95 |
-+---------+-------+
-@end example
-
-@node example-Maximum-column-group-row, example-user-variables, example-Maximum-column-group, Examples
-@subsection The Rows Holding the Group-wise Maximum of a Certain Field
-
-``For each article, find the dealer(s) with the most expensive price.''
-
-In ANSI SQL, I'd do it with a sub-query like this:
-
-@example
-SELECT article, dealer, price
-FROM   shop s1
-WHERE  price=(SELECT MAX(s2.price)
-              FROM shop s2
-              WHERE s1.article = s2.article);
-@end example
-
-In @strong{MySQL} it's best do it in several steps:
-
-@enumerate
-@item
-Get the list of (article,maxprice).
-@item
-For each article get the corresponding rows that have the stored maximum
-price.
-@end enumerate
-
-This can easily be done with a temporary table:
-
-@example
-CREATE TEMPORARY TABLE tmp (
-        article INT(4) UNSIGNED ZEROFILL DEFAULT '0000' NOT NULL,
-        price   DOUBLE(16,2)             DEFAULT '0.00' NOT NULL);
-
-LOCK TABLES shop read;
-
-INSERT INTO tmp SELECT article, MAX(price) FROM shop GROUP BY article;
-
-SELECT shop.article, dealer, shop.price FROM shop, tmp
-WHERE shop.article=tmp.article AND shop.price=tmp.price;
-
-UNLOCK TABLES;
-
-DROP TABLE tmp;
-@end example
-
-If you don't use a @code{TEMPORARY} table, you must also lock the 'tmp' table.
-
-``Can it be done with a single query?''
-
-Yes, but only by using a quite inefficient trick that I call the
-``MAX-CONCAT trick'':
-
-@example
-SELECT article,
-       SUBSTRING( MAX( CONCAT(LPAD(price,6,'0'),dealer) ), 7) AS dealer,
-  0.00+LEFT(      MAX( CONCAT(LPAD(price,6,'0'),dealer) ), 6) AS price
-FROM   shop
-GROUP BY article;
-
-+---------+--------+-------+
-| article | dealer | price |
-+---------+--------+-------+
-|    0001 | B      |  3.99 |
-|    0002 | A      | 10.99 |
-|    0003 | C      |  1.69 |
-|    0004 | D      | 19.95 |
-+---------+--------+-------+
-@end example
-
-The last example can, of course, be made a bit more efficient by doing the
-splitting of the concatenated column in the client.
-
-@node example-user-variables, example-Foreign keys, example-Maximum-column-group-row, Examples
-@subsection Using user variables
-
-You can use @strong{MySQL} user variables to remember results without
-having to store them in a temporary variables in the client.
-@xref{Variables}.
-
-For example, to find the articles with the highest and lowest price you
-can do:
-
-@example
-select @@min_price:=min(price),@@max_price:=max(price) from shop;
-select * from shop where price=@@min_price or price=@@max_price;
-
-+---------+--------+-------+
-| article | dealer | price |
-+---------+--------+-------+
-|    0003 | D      |  1.25 |
-|    0004 | D      | 19.95 |
-+---------+--------+-------+
-@end example
-
-@cindex foreign keys
-@cindex keys, foreign
-@node example-Foreign keys,  , example-user-variables, Examples
-@subsection Using Foreign Keys
-
-You don't need foreign keys to join 2 tables.
-
-The only thing @strong{MySQL} doesn't do is @code{CHECK} to make sure that
-the keys you use really exist in the table(s) you're referencing and it
-doesn't automatically delete rows from table with a foreign key
-definition. If you use your keys like normal, it'll work just fine:
-
-
-@example
-CREATE TABLE persons (
-    id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    name CHAR(60) NOT NULL,
-    PRIMARY KEY (id)
-);
-
-CREATE TABLE shirts (
-    id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    style ENUM('t-shirt', 'polo', 'dress') NOT NULL,
-    color ENUM('red', 'blue', 'orange', 'white', 'black') NOT NULL,
-    owner SMALLINT UNSIGNED NOT NULL REFERENCES persons,
-    PRIMARY KEY (id)
-);
-
-
-INSERT INTO persons VALUES (NULL, 'Antonio Paz');
-
-INSERT INTO shirts VALUES
-(NULL, 'polo', 'blue', LAST_INSERT_ID()),
-(NULL, 'dress', 'white', LAST_INSERT_ID()),
-(NULL, 't-shirt', 'blue', LAST_INSERT_ID());
-
-
-INSERT INTO persons VALUES (NULL, 'Lilliana Angelovska');
-
-INSERT INTO shirts VALUES
-(NULL, 'dress', 'orange', LAST_INSERT_ID()),
-(NULL, 'polo', 'red', LAST_INSERT_ID()),
-(NULL, 'dress', 'blue', LAST_INSERT_ID()),
-(NULL, 't-shirt', 'white', LAST_INSERT_ID());
-
-
-SELECT * FROM persons;
-+----+---------------------+
-| id | name                |
-+----+---------------------+
-|  1 | Antonio Paz         |
-|  2 | Lilliana Angelovska |
-+----+---------------------+
-
-SELECT * FROM shirts;
-+----+---------+--------+-------+
-| id | style   | color  | owner |
-+----+---------+--------+-------+
-|  1 | polo    | blue   |     1 |
-|  2 | dress   | white  |     1 |
-|  3 | t-shirt | blue   |     1 |
-|  4 | dress   | orange |     2 |
-|  5 | polo    | red    |     2 |
-|  6 | dress   | blue   |     2 |
-|  7 | t-shirt | white  |     2 |
-+----+---------+--------+-------+
-
-
-SELECT s.* FROM persons p, shirts s
- WHERE p.name LIKE 'Lilliana%'
-   AND s.owner = p.id
-   AND s.color <> 'white';
-
-+----+-------+--------+-------+
-| id | style | color  | owner |
-+----+-------+--------+-------+
-|  4 | dress | orange |     2 |
-|  5 | polo  | red    |     2 |
-|  6 | dress | blue   |     2 |
-+----+-------+--------+-------+
-@end example
-
-@findex UNION
-@cindex searching, two keys
-@cindex keys, searching on two
-@node Searching on two keys, Database use, Examples, Tutorial
-@section Searching on Two Keys
-
-@strong{MySQL} doesn't yet optimize when you search on two different
-keys combined with @code{OR} (Searching on one key with different @code{OR}
-parts is optimized quite good):
-
-@example
-SELECT field1_index, field2_index FROM test_table WHERE field1_index = '1'
-OR  field2_index = '1'
-@end example
-
-The reason is that we haven't yet had time to come up with an efficient
-way to handle this in the general case. (The @code{AND} handling is,
-in comparison, now completely general and works very well).
-
-For the moment you can solve this very efficiently by using a
-@code{TEMPORARY} table. This type of optimization is also very good if
-you are using very complicated queries where the SQL server does the
-optimizations in the wrong order.
-
-@example
-CREATE TEMPORARY TABLE tmp
-SELECT field1_index, field2_index FROM test_table WHERE field1_index = '1';
-INSERT INTO tmp
-SELECT field1_index, field2_index FROM test_table WHERE field2_index = '1';
-SELECT * from tmp;
-DROP TABLE tmp;
-@end example
-
-The above way to solve this query is in effect an @code{UNION} of two queries.
-
 @cindex databases, creating
 @cindex databases, using
 @cindex creating, databases
-@node Database use, Getting information, Searching on two keys, Tutorial
+@node Database use, Getting information, Entering queries, Tutorial
 @section Creating and Using a Database
 
 @menu
@@ -25113,7 +24770,6 @@ The above way to solve this query is in effect an @code{UNION} of two queries.
 * Creating tables::             Creating a table
 * Loading tables::              Loading data into a table
 * Retrieving data::             Retrieving information from a table
-* Multiple tables::             Using more than one table
 @end menu
 
 Now that you know how to enter commands, it's time to access a database.
@@ -25416,7 +25072,7 @@ than a single @code{LOAD DATA} statement.
 @cindex tables, retrieving data
 @cindex retrieving, data from tables
 @cindex unloading, tables
-@node Retrieving data, Multiple tables, Loading tables, Database use
+@node Retrieving data,  , Loading tables, Database use
 @subsection Retrieving Information from a Table
 
 @menu
@@ -25428,6 +25084,7 @@ than a single @code{LOAD DATA} statement.
 * Working with NULL::           Working with @code{NULL} values
 * Pattern matching::            Pattern matching
 * Counting rows::               Counting rows
+* Multiple tables::             
 @end menu
 
 The @code{SELECT} statement is used to pull information from a table.
@@ -26150,7 +25807,7 @@ mysql> SELECT * FROM pet WHERE name REGEXP "^.@{5@}$";
 @cindex rows, counting
 @cindex tables, counting rows
 @cindex counting, table rows
-@node Counting rows,  , Pattern matching, Retrieving data
+@node Counting rows, Multiple tables, Pattern matching, Retrieving data
 @subsubsection Counting Rows
 
 Databases are often used to answer the question, ``How often does a certain
@@ -26286,8 +25943,8 @@ mysql> SELECT species, sex, COUNT(*) FROM pet
 @end example
 
 @cindex tables, multiple
-@node Multiple tables,  , Retrieving data, Database use
-@subsection Using More Than one Table
+@node Multiple tables,  , Counting rows, Retrieving data
+@subsubsection Using More Than one Table
 
 The @code{pet} table keeps track of which pets you have.  If you want to
 record other information about them, such as events in their lives like
@@ -26408,7 +26065,7 @@ each column reference is associated with.
 @cindex databases, information about
 @cindex tables, information about
 @findex DESCRIBE
-@node Getting information, Batch mode, Database use, Tutorial
+@node Getting information, Examples, Database use, Tutorial
 @section Getting Information About Databases and Tables
 
 What if you forget the name of a database or table, or what the structure of
@@ -26469,12 +26126,361 @@ indexed, and @code{Default} specifies the column's default value.
 If you have indexes on a table,
 @code{SHOW INDEX FROM tbl_name} produces information about them.
 
+@cindex queries, examples
+@cindex examples, queries
+@node Examples, Batch mode, Getting information, Tutorial
+@section Examples of Common Queries
+
+Here are examples of how to solve some common problems with
+@strong{MySQL}.
+
+Some of the examples use the table @code{shop} to hold the price of each
+article (item number) for certain traders (dealers).  Supposing that each
+trader has a single fixed price per article, then (@code{item},
+@code{trader}) is a primary key for the records.
+
+Start the command line tool @code{mysql} and select a database:
+
+@example
+mysql your-database-name
+@end example
+
+(In most @strong{MySQL} installations, you can use the database-name 'test').
+
+You can create the example table as:
+
+@example
+CREATE TABLE shop (
+ article INT(4) UNSIGNED ZEROFILL DEFAULT '0000' NOT NULL,
+ dealer  CHAR(20)                 DEFAULT ''     NOT NULL,
+ price   DOUBLE(16,2)             DEFAULT '0.00' NOT NULL,
+ PRIMARY KEY(article, dealer));
+
+INSERT INTO shop VALUES
+(1,'A',3.45),(1,'B',3.99),(2,'A',10.99),(3,'B',1.45),(3,'C',1.69),
+(3,'D',1.25),(4,'D',19.95);
+@end example
+
+Okay, so the example data is:
+
+@example
+mysql> SELECT * FROM shop;
+
++---------+--------+-------+
+| article | dealer | price |
++---------+--------+-------+
+|    0001 | A      |  3.45 |
+|    0001 | B      |  3.99 |
+|    0002 | A      | 10.99 |
+|    0003 | B      |  1.45 |
+|    0003 | C      |  1.69 |
+|    0003 | D      |  1.25 |
+|    0004 | D      | 19.95 |
++---------+--------+-------+
+@end example
+
+@menu
+* example-Maximum-column::      The maximum value for a column
+* example-Maximum-row::         The row holding the maximum of a certain column
+* example-Maximum-column-group::  Maximum of column per group
+* example-Maximum-column-group-row::  The rows holding the group-wise maximum of a certain field
+* example-user-variables::      Using user variables
+* example-Foreign keys::        Using foreign keys
+* Searching on two keys::       
+@end menu
+
+@node example-Maximum-column, example-Maximum-row, Examples, Examples
+@subsection The Maximum Value for a Column
+
+``What's the highest item number?''
+
+@example
+SELECT MAX(article) AS article FROM shop
+
++---------+
+| article |
++---------+
+|       4 |
++---------+
+@end example
+
+@node example-Maximum-row, example-Maximum-column-group, example-Maximum-column, Examples
+@subsection The Row Holding the Maximum of a Certain Column
+
+``Find number, dealer, and price of the most expensive article.''
+
+In ANSI SQL this is easily done with a sub-query:
+
+@example
+SELECT article, dealer, price
+FROM   shop
+WHERE  price=(SELECT MAX(price) FROM shop)
+@end example
+
+In @strong{MySQL} (which does not yet have sub-selects), just do it in
+two steps:
+
+@enumerate
+@item
+Get the maximum price value from the table with a @code{SELECT} statement.
+@item
+Using this value compile the actual query:
+@example
+SELECT article, dealer, price
+FROM   shop
+WHERE  price=19.95
+@end example
+@end enumerate
+
+Another solution is to sort all rows descending by price and only
+get the first row using the @strong{MySQL} specific @code{LIMIT} clause:
+
+@example
+SELECT article, dealer, price
+FROM   shop
+ORDER BY price DESC
+LIMIT 1
+@end example
+
+@strong{NOTE}:  If there are several most expensive articles (for example, each 19.95)
+the @code{LIMIT} solution shows only one of them!
+
+@node example-Maximum-column-group, example-Maximum-column-group-row, example-Maximum-row, Examples
+@subsection Maximum of Column per Group
+
+``What's the highest price per article?''
+
+@example
+SELECT article, MAX(price) AS price
+FROM   shop
+GROUP BY article
+
++---------+-------+
+| article | price |
++---------+-------+
+|    0001 |  3.99 |
+|    0002 | 10.99 |
+|    0003 |  1.69 |
+|    0004 | 19.95 |
++---------+-------+
+@end example
+
+@node example-Maximum-column-group-row, example-user-variables, example-Maximum-column-group, Examples
+@subsection The Rows Holding the Group-wise Maximum of a Certain Field
+
+``For each article, find the dealer(s) with the most expensive price.''
+
+In ANSI SQL, I'd do it with a sub-query like this:
+
+@example
+SELECT article, dealer, price
+FROM   shop s1
+WHERE  price=(SELECT MAX(s2.price)
+              FROM shop s2
+              WHERE s1.article = s2.article);
+@end example
+
+In @strong{MySQL} it's best do it in several steps:
+
+@enumerate
+@item
+Get the list of (article,maxprice).
+@item
+For each article get the corresponding rows that have the stored maximum
+price.
+@end enumerate
+
+This can easily be done with a temporary table:
+
+@example
+CREATE TEMPORARY TABLE tmp (
+        article INT(4) UNSIGNED ZEROFILL DEFAULT '0000' NOT NULL,
+        price   DOUBLE(16,2)             DEFAULT '0.00' NOT NULL);
+
+LOCK TABLES shop read;
+
+INSERT INTO tmp SELECT article, MAX(price) FROM shop GROUP BY article;
+
+SELECT shop.article, dealer, shop.price FROM shop, tmp
+WHERE shop.article=tmp.article AND shop.price=tmp.price;
+
+UNLOCK TABLES;
+
+DROP TABLE tmp;
+@end example
+
+If you don't use a @code{TEMPORARY} table, you must also lock the 'tmp' table.
+
+``Can it be done with a single query?''
+
+Yes, but only by using a quite inefficient trick that I call the
+``MAX-CONCAT trick'':
+
+@example
+SELECT article,
+       SUBSTRING( MAX( CONCAT(LPAD(price,6,'0'),dealer) ), 7) AS dealer,
+  0.00+LEFT(      MAX( CONCAT(LPAD(price,6,'0'),dealer) ), 6) AS price
+FROM   shop
+GROUP BY article;
+
++---------+--------+-------+
+| article | dealer | price |
++---------+--------+-------+
+|    0001 | B      |  3.99 |
+|    0002 | A      | 10.99 |
+|    0003 | C      |  1.69 |
+|    0004 | D      | 19.95 |
++---------+--------+-------+
+@end example
+
+The last example can, of course, be made a bit more efficient by doing the
+splitting of the concatenated column in the client.
+
+@node example-user-variables, example-Foreign keys, example-Maximum-column-group-row, Examples
+@subsection Using user variables
+
+You can use @strong{MySQL} user variables to remember results without
+having to store them in a temporary variables in the client.
+@xref{Variables}.
+
+For example, to find the articles with the highest and lowest price you
+can do:
+
+@example
+select @@min_price:=min(price),@@max_price:=max(price) from shop;
+select * from shop where price=@@min_price or price=@@max_price;
+
++---------+--------+-------+
+| article | dealer | price |
++---------+--------+-------+
+|    0003 | D      |  1.25 |
+|    0004 | D      | 19.95 |
++---------+--------+-------+
+@end example
+
+@cindex foreign keys
+@cindex keys, foreign
+@node example-Foreign keys, Searching on two keys, example-user-variables, Examples
+@subsection Using Foreign Keys
+
+You don't need foreign keys to join 2 tables.
+
+The only thing @strong{MySQL} doesn't do is @code{CHECK} to make sure that
+the keys you use really exist in the table(s) you're referencing and it
+doesn't automatically delete rows from table with a foreign key
+definition. If you use your keys like normal, it'll work just fine:
+
+
+@example
+CREATE TABLE persons (
+    id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    name CHAR(60) NOT NULL,
+    PRIMARY KEY (id)
+);
+
+CREATE TABLE shirts (
+    id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    style ENUM('t-shirt', 'polo', 'dress') NOT NULL,
+    color ENUM('red', 'blue', 'orange', 'white', 'black') NOT NULL,
+    owner SMALLINT UNSIGNED NOT NULL REFERENCES persons,
+    PRIMARY KEY (id)
+);
+
+
+INSERT INTO persons VALUES (NULL, 'Antonio Paz');
+
+INSERT INTO shirts VALUES
+(NULL, 'polo', 'blue', LAST_INSERT_ID()),
+(NULL, 'dress', 'white', LAST_INSERT_ID()),
+(NULL, 't-shirt', 'blue', LAST_INSERT_ID());
+
+
+INSERT INTO persons VALUES (NULL, 'Lilliana Angelovska');
+
+INSERT INTO shirts VALUES
+(NULL, 'dress', 'orange', LAST_INSERT_ID()),
+(NULL, 'polo', 'red', LAST_INSERT_ID()),
+(NULL, 'dress', 'blue', LAST_INSERT_ID()),
+(NULL, 't-shirt', 'white', LAST_INSERT_ID());
+
+
+SELECT * FROM persons;
++----+---------------------+
+| id | name                |
++----+---------------------+
+|  1 | Antonio Paz         |
+|  2 | Lilliana Angelovska |
++----+---------------------+
+
+SELECT * FROM shirts;
++----+---------+--------+-------+
+| id | style   | color  | owner |
++----+---------+--------+-------+
+|  1 | polo    | blue   |     1 |
+|  2 | dress   | white  |     1 |
+|  3 | t-shirt | blue   |     1 |
+|  4 | dress   | orange |     2 |
+|  5 | polo    | red    |     2 |
+|  6 | dress   | blue   |     2 |
+|  7 | t-shirt | white  |     2 |
++----+---------+--------+-------+
+
+
+SELECT s.* FROM persons p, shirts s
+ WHERE p.name LIKE 'Lilliana%'
+   AND s.owner = p.id
+   AND s.color <> 'white';
+
++----+-------+--------+-------+
+| id | style | color  | owner |
++----+-------+--------+-------+
+|  4 | dress | orange |     2 |
+|  5 | polo  | red    |     2 |
+|  6 | dress | blue   |     2 |
++----+-------+--------+-------+
+@end example
+
+@findex UNION
+@cindex searching, two keys
+@cindex keys, searching on two
+@node Searching on two keys,  , example-Foreign keys, Examples
+@subsection Searching on Two Keys
+
+@strong{MySQL} doesn't yet optimize when you search on two different
+keys combined with @code{OR} (Searching on one key with different @code{OR}
+parts is optimized quite good):
+
+@example
+SELECT field1_index, field2_index FROM test_table WHERE field1_index = '1'
+OR  field2_index = '1'
+@end example
+
+The reason is that we haven't yet had time to come up with an efficient
+way to handle this in the general case. (The @code{AND} handling is,
+in comparison, now completely general and works very well).
+
+For the moment you can solve this very efficiently by using a
+@code{TEMPORARY} table. This type of optimization is also very good if
+you are using very complicated queries where the SQL server does the
+optimizations in the wrong order.
+
+@example
+CREATE TEMPORARY TABLE tmp
+SELECT field1_index, field2_index FROM test_table WHERE field1_index = '1';
+INSERT INTO tmp
+SELECT field1_index, field2_index FROM test_table WHERE field2_index = '1';
+SELECT * from tmp;
+DROP TABLE tmp;
+@end example
+
+The above way to solve this query is in effect an @code{UNION} of two queries.
+
 @cindex modes, batch
 @cindex batch mode
 @cindex running, batch mode
 @cindex script files
 @cindex files, script
-@node Batch mode, Twin, Getting information, Tutorial
+@node Batch mode, Twin, Examples, Tutorial
 @section Using @code{mysql} in Batch Mode
 
 In the previous sections, you used @code{mysql} interactively to enter
@@ -41240,6 +41246,10 @@ An online magazine featuring music, literature, arts, and design content.
 
 @itemize @bullet
 
+@item @uref{http://liftoff.msfc.nasa.gov, NASA}
+@item @uref{http://kids.msfc.nasa.gov, NASA KIDS}
+@item @uref{http://science.nasa.gov, Sience@@NASA}
+
 @item @uref{http://lindev.jmc.tju.edu/qwor, Qt Widget and Object Repository}
 
 @item @uref{http://www.samba-choro.com.br, Brazilian samba site (in Portuguese)}
@@ -42108,6 +42118,10 @@ An authentication module for the Cyrus IMAP server. By Aaron Newsome.
 @appendixsec Converters
 
 @itemize @bullet
+item @uref{http://www.mysql.com/Downloads/Contrib/mssql2mysql.txt, mssql2mysql.txt}
+Converter from MS-SQL to MySQL. By Michael Kofler.
+@uref{http://www.kofler.cc/mysql/mssql2mysql.html, mssql2mysql home page}.
+
 @item @uref{http://www.mysql.com/Downloads/Contrib/dbf2mysql-1.14.tar.gz, dbf2mysql-1.14.tar.gz}
 Convert between @file{.dbf} files and @strong{MySQL} tables. By Maarten
 Boekhold (@email{boekhold@@cindy.et.tudelft.nl}), William Volkman, and
