@@ -140,8 +140,8 @@ NdbSchemaOp::createAttribute( const char* anAttrName,
   case String:
     col.setType(NdbDictionary::Column::Char);
     break;
-  default:
-    assert(0);
+  case NoAttrTypeDef:
+    abort();
   }
   col.setLength(anArraySize);
   col.setNullable(nullable);
