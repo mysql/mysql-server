@@ -43,7 +43,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   myf create_flag;
   uint fields,length,max_key_length,packed,pointer,real_length_diff,
        key_length,info_length,key_segs,options,min_key_length_skip,
-       base_pos,varchar_count,long_varchar_count,varchar_length,
+       base_pos,long_varchar_count,varchar_length,
        max_key_block_length,unique_key_parts,fulltext_keys,offset;
   ulong reclength, real_reclength,min_pack_length;
   char filename[FN_REFLEN],linkname[FN_REFLEN], *linkname_ptr;
@@ -99,7 +99,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 
 	/* Start by checking fields and field-types used */
 
-  reclength=varchar_count=varchar_length=long_varchar_count=packed=
+  reclength=varchar_length=long_varchar_count=packed=
     min_pack_length=pack_reclength=0;
   for (rec=recinfo, fields=0 ;
        fields != columns ;
@@ -130,14 +130,15 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       }
       else if (type == FIELD_VARCHAR)
       {
-	varchar_count++;
-	varchar_length+=rec->length-2;
+	varchar_length+= rec->length-1;          /* Used for min_pack_length */
 	packed--;
-	pack_reclength+=1;
-	if (test(rec->length > 257))
-	{					/* May be packed on 3 bytes */
+	pack_reclength++;
+        min_pack_length++;
+        /* We must test for 257 as length includes pack-length */
+ 	if (test(rec->length >= 257))
+	{
 	  long_varchar_count++;
-	  pack_reclength+=2;
+	  pack_reclength+= 2;			/* May be packed on 3 bytes */
 	}
       }
       else if (type != FIELD_SKIP_ZERO)
@@ -169,12 +170,8 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   /* We can't use checksum with static length rows */
   if (!(options & HA_OPTION_PACK_RECORD))
     options&= ~HA_OPTION_CHECKSUM;
-  if (options & (HA_OPTION_PACK_RECORD | HA_OPTION_COMPRESS_RECORD))
-    min_pack_length+=varchar_count;		/* Min length to pack */
-  else
-  {
-    min_pack_length+=varchar_length+2*varchar_count;
-  }
+  if (!(options & (HA_OPTION_PACK_RECORD | HA_OPTION_COMPRESS_RECORD)))
+    min_pack_length+= varchar_length;
   if (flags & HA_CREATE_TMP_TABLE)
     options|= HA_OPTION_TMP_TABLE;
   if (flags & HA_CREATE_CHECKSUM || (options & HA_OPTION_CHECKSUM))
@@ -220,7 +217,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       reclength=pointer+1;		/* reserve place for delete link */
   }
   else
-    reclength+=long_varchar_count;	/* We need space for this! */
+    reclength+= long_varchar_count;	/* We need space for varchar! */
 
   max_key_length=0; tot_length=0 ; key_segs=0;
   fulltext_keys=0;
@@ -261,7 +258,8 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	   j++, keyseg++)
       {
         if (keyseg->type != HA_KEYTYPE_BINARY &&
-	    keyseg->type != HA_KEYTYPE_VARBINARY)
+	    keyseg->type != HA_KEYTYPE_VARBINARY1 &&
+            keyseg->type != HA_KEYTYPE_VARBINARY2)
         {
           my_errno=HA_WRONG_CREATE_OPTION;
           goto err;
@@ -285,10 +283,21 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	   j++, keyseg++)
       {
         if (keyseg->type != HA_KEYTYPE_TEXT &&
-	    keyseg->type != HA_KEYTYPE_VARTEXT)
+	    keyseg->type != HA_KEYTYPE_VARTEXT1 &&
+            keyseg->type != HA_KEYTYPE_VARTEXT2)
         {
           my_errno=HA_WRONG_CREATE_OPTION;
           goto err;
+        }
+        if (!(keyseg->flag & HA_BLOB_PART) &&
+	    (keyseg->type == HA_KEYTYPE_VARTEXT1 ||
+             keyseg->type == HA_KEYTYPE_VARTEXT2))
+        {
+          /* Make a flag that this is a VARCHAR */
+          keyseg->flag|= HA_VAR_LENGTH_PART;
+          /* Store in bit_start number of bytes used to pack the length */
+          keyseg->bit_start= ((keyseg->type == HA_KEYTYPE_VARTEXT1)?
+                              1 : 2);
         }
       }
 
@@ -345,10 +354,19 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	case HA_KEYTYPE_INT8:
 	  keyseg->flag|= HA_SWAP_KEY;
           break;
-        case HA_KEYTYPE_VARTEXT:
-        case HA_KEYTYPE_VARBINARY:
+        case HA_KEYTYPE_VARTEXT1:
+        case HA_KEYTYPE_VARTEXT2:
+        case HA_KEYTYPE_VARBINARY1:
+        case HA_KEYTYPE_VARBINARY2:
           if (!(keyseg->flag & HA_BLOB_PART))
+          {
+            /* Make a flag that this is a VARCHAR */
             keyseg->flag|= HA_VAR_LENGTH_PART;
+            /* Store in bit_start number of bytes used to pack the length */
+            keyseg->bit_start= ((keyseg->type == HA_KEYTYPE_VARTEXT1 ||
+                                 keyseg->type == HA_KEYTYPE_VARBINARY1) ?
+                                1 : 2);
+          }
           break;
 	default:
 	  break;
@@ -368,6 +386,8 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	}
 	if (keyseg->flag & (HA_VAR_LENGTH_PART | HA_BLOB_PART))
 	{
+          DBUG_ASSERT(!test_all_bits(keyseg->flag,
+                                    (HA_VAR_LENGTH_PART | HA_BLOB_PART)));
 	  keydef->flag|=HA_VAR_LENGTH_KEY;
 	  length++;				/* At least one length byte */
 	  options|=HA_OPTION_PACK_KEYS;		/* Using packed keys */
@@ -646,11 +666,31 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   /* Save unique definition */
   for (i=0 ; i < share.state.header.uniques ; i++)
   {
+    HA_KEYSEG *keyseg_end;
+    keyseg= uniquedefs[i].seg;
     if (mi_uniquedef_write(file, &uniquedefs[i]))
       goto err;
-    for (j=0 ; j < uniquedefs[i].keysegs ; j++)
+    for (keyseg= uniquedefs[i].seg, keyseg_end= keyseg+ uniquedefs[i].keysegs;
+         keyseg < keyseg_end;
+         keyseg++)
     {
-      if (mi_keyseg_write(file, &uniquedefs[i].seg[j]))
+      switch (keyseg->type) {
+      case HA_KEYTYPE_VARTEXT1:
+      case HA_KEYTYPE_VARTEXT2:
+      case HA_KEYTYPE_VARBINARY1:
+      case HA_KEYTYPE_VARBINARY2:
+        if (!(keyseg->flag & HA_BLOB_PART))
+        {
+          keyseg->flag|= HA_VAR_LENGTH_PART;
+          keyseg->bit_start= ((keyseg->type == HA_KEYTYPE_VARTEXT1 ||
+                               keyseg->type == HA_KEYTYPE_VARBINARY1) ?
+                              1 : 2);
+        }
+        break;
+      default:
+        break;
+      }
+      if (mi_keyseg_write(file, keyseg))
 	goto err;
     }
   }

@@ -96,6 +96,7 @@ class ha_ndbcluster: public handler
   int index_prev(byte *buf);
   int index_first(byte *buf);
   int index_last(byte *buf);
+  int index_read_last(byte * buf, const byte * key, uint key_len);
   int rnd_init(bool scan);
   int rnd_end();
   int rnd_next(byte *buf);
@@ -176,7 +177,7 @@ class ha_ndbcluster: public handler
 			byte *buf);
   int ordered_index_scan(const key_range *start_key,
 			 const key_range *end_key,
-			 bool sorted, byte* buf);
+			 bool sorted, bool descending, byte* buf);
   int full_table_scan(byte * buf);
   int fetch_next(NdbScanOperation* op);
   int next_result(byte *buf); 

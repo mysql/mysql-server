@@ -95,8 +95,10 @@ ha_checksum mi_unique_hash(MI_UNIQUEDEF *def, const byte *record)
     pos= record+keyseg->start;
     if (keyseg->flag & HA_VAR_LENGTH_PART)
     {
-      uint tmp_length=uint2korr(pos);
-      pos+=2;					/* Skip VARCHAR length */
+      uint pack_length=  keyseg->bit_start;
+      uint tmp_length= (pack_length == 1 ? (uint) *(uchar*) pos :
+                        uint2korr(pos));
+      pos+= pack_length;			/* Skip VARCHAR length */
       set_if_smaller(length,tmp_length);
     }
     else if (keyseg->flag & HA_BLOB_PART)
@@ -107,7 +109,8 @@ ha_checksum mi_unique_hash(MI_UNIQUEDEF *def, const byte *record)
 	length=tmp_length;			/* The whole blob */
     }
     end= pos+length;
-    if (type == HA_KEYTYPE_TEXT || type == HA_KEYTYPE_VARTEXT)
+    if (type == HA_KEYTYPE_TEXT || type == HA_KEYTYPE_VARTEXT1 ||
+        type == HA_KEYTYPE_VARTEXT2)
     {
       keyseg->charset->coll->hash_sort(keyseg->charset,
                                        (const uchar*) pos, length, &seed1,
@@ -157,12 +160,21 @@ int mi_unique_comp(MI_UNIQUEDEF *def, const byte *a, const byte *b,
     pos_b= b+keyseg->start;
     if (keyseg->flag & HA_VAR_LENGTH_PART)
     {
-      a_length= uint2korr(pos_a);
-      b_length= uint2korr(pos_b);
-      pos_a+= 2;				/* Skip VARCHAR length */
-      pos_b+= 2;
-      set_if_smaller(a_length, keyseg->length);
-      set_if_smaller(b_length, keyseg->length);
+      uint pack_length= keyseg->bit_start;
+      if (pack_length == 1)
+      {
+        a_length= (uint) *(uchar*) pos_a++;
+        b_length= (uint) *(uchar*) pos_b++;
+      }
+      else
+      {
+        a_length= uint2korr(pos_a);
+        b_length= uint2korr(pos_b);
+        pos_a+= 2;				/* Skip VARCHAR length */
+        pos_b+= 2;
+      }
+      set_if_smaller(a_length, keyseg->length); /* Safety */
+      set_if_smaller(b_length, keyseg->length); /* safety */
     }
     else if (keyseg->flag & HA_BLOB_PART)
     {
@@ -182,7 +194,8 @@ int mi_unique_comp(MI_UNIQUEDEF *def, const byte *a, const byte *b,
       memcpy_fixed((byte*) &pos_a,pos_a+keyseg->bit_start,sizeof(char*));
       memcpy_fixed((byte*) &pos_b,pos_b+keyseg->bit_start,sizeof(char*));
     }
-    if (type == HA_KEYTYPE_TEXT || type == HA_KEYTYPE_VARTEXT)
+    if (type == HA_KEYTYPE_TEXT || type == HA_KEYTYPE_VARTEXT1 ||
+        type == HA_KEYTYPE_VARTEXT2)
     {
       if (mi_compare_text(keyseg->charset, (uchar *) pos_a, a_length,
                                            (uchar *) pos_b, b_length, 0, 1))

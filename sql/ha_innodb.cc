@@ -88,6 +88,7 @@ extern "C" {
 
 uint 	innobase_init_flags 	= 0;
 ulong 	innobase_cache_size 	= 0;
+ulong 	innobase_large_page_size = 0;
 
 /* The default values for the following, type long, start-up parameters
 are declared in mysqld.cc: */
@@ -116,6 +117,9 @@ values */
 
 uint	innobase_flush_log_at_trx_commit	= 1;
 my_bool innobase_log_archive			= FALSE;/* unused */
+my_bool innobase_use_doublewrite    = TRUE;
+my_bool innobase_use_checksums      = TRUE;
+my_bool innobase_use_large_pages    = FALSE;
 my_bool	innobase_use_native_aio			= FALSE;
 my_bool	innobase_fast_shutdown			= TRUE;
 my_bool innobase_very_fast_shutdown		= FALSE; /* this can be set to
@@ -1123,6 +1127,12 @@ innobase_init(void)
 
 	srv_fast_shutdown = (ibool) innobase_fast_shutdown;
 
+  srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
+  srv_use_checksums = (ibool) innobase_use_checksums;
+
+  os_use_large_pages = (ibool) innobase_use_large_pages;
+  os_large_page_size = (ulint) innobase_large_page_size;
+  
 	srv_file_per_table = (ibool) innobase_file_per_table;
         srv_locks_unsafe_for_binlog = (ibool) innobase_locks_unsafe_for_binlog;
 

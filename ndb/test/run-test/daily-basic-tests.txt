@@ -147,34 +147,9 @@ max-time: 500
 cmd: testBasic
 args: -n MassiveRollback2 T1 T6 T13 
 
-#-m 500 1: testBasic -n ReadConsistency T6
 max-time: 500
 cmd: testTimeout
-args: -n DontTimeoutTransaction T1 
-
-max-time: 500
-cmd: testTimeout 
-args: -n DontTimeoutTransaction5 T1 
-
-max-time: 500
-cmd: testTimeout
-args: -n TimeoutTransaction T1 
-
-max-time: 500
-cmd: testTimeout 
-args: -n TimeoutTransaction5 T1 
-
-max-time: 500
-cmd: testTimeout
-args: -n BuddyTransNoTimeout T1 
-
-max-time: 500
-cmd: testTimeout
-args: -n BuddyTransNoTimeout5 T1 
-
-max-time: 500
-cmd: testTimeout
-args: -n TimeoutRandTransaction T1
+args: T1 
 
 # SCAN TESTS
 #
@@ -508,6 +483,10 @@ args:
 
 max-time: 2500
 cmd: testBitfield
+args:
+
+max-time: 2500
+cmd: testPartitioning
 args:
 
 #

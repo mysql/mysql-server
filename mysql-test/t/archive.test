@@ -1299,6 +1299,8 @@ INSERT INTO t2 VALUES (4,011403,37,'intercepted','audiology','tinily','');
 SELECT * FROM t2;
 OPTIMIZE TABLE t2;
 SELECT * FROM t2;
+REPAIR TABLE t2;
+SELECT * FROM t2;
 
 #
 # Test bulk inserts
