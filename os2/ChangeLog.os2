@@ -1,5 +1,8 @@
 
 
+2005/01/01
+	- removed references to ISAM and MERGE
+
 2002/05/02
 	- now libinit is automatically called on client dll startup
 

@@ -2,8 +2,6 @@ Docs/Makefile
 dbug/Makefile
 extra/Makefile
 heap/Makefile
-isam/Makefile
-merge/Makefile
 mysys/Makefile
 readline/Makefile
 regex/Makefile
