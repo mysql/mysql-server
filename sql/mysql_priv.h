@@ -751,6 +751,9 @@ bool open_log(MYSQL_LOG *log, const char *hostname,
 /* mysqld.cc */
 extern void yyerror(const char*);
 
+/* item_func.cc */
+extern bool check_reserved_words(LEX_STRING *name);
+
 /* strfunc.cc */
 ulonglong find_set(TYPELIB *typelib,const char *x, uint length,
 		   char **err_pos, uint *err_len, bool *set_warning);
