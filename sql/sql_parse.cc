@@ -1308,6 +1308,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   if (command != COM_STATISTICS && command != COM_PING)
     query_id++;
   thread_running++;
+  /* TODO: set thd->lex->sql_command to SQLCOM_PARSE here */
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
 
   thd->server_status&=
@@ -1478,6 +1479,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->query_length= length;
       thd->query= packet;
       thd->query_id= query_id++;
+      /* TODO: set thd->lex->sql_command to SQLCOM_PARSE here */
       VOID(pthread_mutex_unlock(&LOCK_thread_count));
 #ifndef EMBEDDED_LIBRARY
       mysql_parse(thd, packet, length);
@@ -1631,10 +1633,25 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
 #ifndef EMBEDDED_LIBRARY
   case COM_SHUTDOWN:
+  {
     statistic_increment(com_other,&LOCK_status);
     if (check_global_access(thd,SHUTDOWN_ACL))
       break; /* purecov: inspected */
-    DBUG_PRINT("quit",("Got shutdown command"));
+    enum enum_shutdown_level level= (packet_length >= 2) ?
+      (enum enum_shutdown_level) (uchar) packet[0] : SHUTDOWN_DEFAULT;
+    DBUG_PRINT("quit",("Got shutdown command for level %u", level));
+    /*
+      Accept old mysql_shutdown (with no argument). For now we do nothing of
+      the argument.
+    */
+    if (level == SHUTDOWN_DEFAULT)
+      level= SHUTDOWN_WAIT_ALL_BUFFERS; // soon default will be configurable
+    else if (level != SHUTDOWN_WAIT_ALL_BUFFERS)
+    {
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0), "this shutdown level");
+      send_error(thd);
+      break;
+    }
     mysql_log.write(thd,command,NullS);
     send_eof(thd);
 #ifdef __WIN__
@@ -1650,6 +1667,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     kill_mysql();
     error=TRUE;
     break;
+  }
 #endif
   case COM_STATISTICS:
   {
