@@ -10391,6 +10391,34 @@ static void test_bug5194()
 }
 
 
+static void test_bug5315()
+{
+  MYSQL_STMT *stmt;
+  const char *stmt_text;
+  int rc;
+
+  myheader("test_bug5315");
+
+  stmt_text= "SELECT 1";
+  stmt= mysql_stmt_init(mysql);
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  DBUG_ASSERT(rc == 0);
+  mysql_change_user(mysql, opt_user, opt_password, current_db);
+  rc= mysql_stmt_execute(stmt);
+  DBUG_ASSERT(rc != 0);
+  if (rc)
+    printf("Got error (as expected):\n%s", mysql_stmt_error(stmt));
+  /* check that connection is OK */
+  mysql_stmt_close(stmt);
+  stmt= mysql_stmt_init(mysql);
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  DBUG_ASSERT(rc == 0);
+  rc= mysql_stmt_execute(stmt);
+  DBUG_ASSERT(rc == 0);
+  mysql_stmt_close(stmt);
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -10694,6 +10722,8 @@ int main(int argc, char **argv)
     test_bug5399();         /* check that statement id uniquely identifies
                                statement */
     test_bug5194();         /* bulk inserts in prepared mode */
+    test_bug5315();         /* check that mysql_change_user closes all
+                               prepared statements */
     /*
       XXX: PLEASE RUN THIS PROGRAM UNDER VALGRIND AND VERIFY THAT YOUR TEST
       DOESN'T CONTAIN WARNINGS/ERRORS BEFORE YOU PUSH.
