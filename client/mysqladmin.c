@@ -28,7 +28,7 @@
 #include <my_pthread.h>				/* because of signal()	*/
 #endif
 
-#define ADMIN_VERSION "8.20"
+#define ADMIN_VERSION "8.21"
 #define MAX_MYSQL_VAR 64
 #define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
@@ -870,7 +870,7 @@ static int drop_db(MYSQL *mysql, const char *db)
       return -1;
     }
   }
-  sprintf(name_buff,"drop database %.*s",FN_REFLEN,db);
+  sprintf(name_buff,"drop database `%.*s`",FN_REFLEN,db);
   if (mysql_query(mysql,name_buff))
   {
     my_printf_error(0,"DROP DATABASE %s failed;\nerror: '%s'",MYF(ME_BELL),

@@ -300,8 +300,9 @@ show_failed_diff ()
     echo "-------------------------------------------------------"
     $DIFF -c $result_file $reject_file
     echo "-------------------------------------------------------"
-    echo "Please e-mail the above, along with the output of mysqlbug"
-    echo "and any other relevant info to bugs@lists.mysql.com"
+    echo "Please follow the instructions outlined at"
+    echo "http://www.mysql.com/doc/R/e/Reporting_mysqltest_bugs.html"
+    echo "to find the reason to this problem and how to report this."
   fi  
 }
 

@@ -314,7 +314,6 @@ Windows Notes
 * Windows and SSH::             Connecting to a remote @strong{MySQL} from Windows with SSH
 * Windows symbolic links::      Splitting data across different disks under Win32
 * Windows compiling::           Compiling MySQL clients on Windows.
-* Windows and BDB tables.::     Windows and BDB Tables
 * Windows vs Unix::             @strong{MySQL}-Windows compared to Unix @strong{MySQL}
 
 Post-installation Setup and Testing
@@ -553,7 +552,7 @@ InnoDB Tables
 
 Creating InnoDB table space
 
-* Error creating InnoDB::      
+* Error creating InnoDB::       
 
 Backing up and recovering an InnoDB database
 
@@ -8874,7 +8873,6 @@ This is also described in the @file{README} file that comes with the
 * Windows and SSH::             Connecting to a remote @strong{MySQL} from Windows with SSH
 * Windows symbolic links::      Splitting data across different disks under Win32
 * Windows compiling::           Compiling MySQL clients on Windows.
-* Windows and BDB tables.::     Windows and BDB Tables
 * Windows vs Unix::             @strong{MySQL}-Windows compared to Unix @strong{MySQL}
 @end menu
 
@@ -8923,9 +8921,8 @@ symbolic links, BDB and InnoDB tables.
 @item @code{mysqld-opt} @tab
 Optimized binary with no support for transactional tables.
 @item @code{mysqld-nt} @tab
-Optimized for a Pentium Pro processor. Has support for
-named pipes. You can run this version on Win98, but in
-this case no named pipes are created and you must
+Optimized binary for NT with support for named pipes. You can run this
+version on Win98, but in this case no named pipes are created and you must
 have TCP/IP installed.
 @item @code{mysqld-max} @tab
 Optimized binary with support for symbolic links, BDB and InnoDB tables.
@@ -9226,7 +9223,7 @@ text @code{D:\data\foo}.  After that, all tables created in the database
 
 @cindex compiling, on Windows
 @cindex Windows, compiling on
-@node Windows compiling, Windows and BDB tables., Windows symbolic links, Windows
+@node Windows compiling, Windows vs Unix, Windows symbolic links, Windows
 @subsection Compiling MySQL Clients on Windows
 
 In your source files, you should include @file{windows.h} before you include
@@ -9246,19 +9243,9 @@ with the static @file{mysqlclient.lib} library.
 Note that as the mysqlclient libraries are compiled as threaded libraries,
 you should also compile your code to be multi-threaded!
 
-@cindex BDB tables
-@cindex tables, BDB
-@node Windows and BDB tables., Windows vs Unix, Windows compiling, Windows
-@subsection Windows and BDB Tables
-
-We will shortly do a full test on the new BDB interface on Windows.
-When this is done we will start to release binary distributions (for
-Windows and Unix) of @strong{MySQL} that will include support for BDB
-tables.
-
 @cindex Windows, versus Unix
 @cindex operating systems, Windows versus Unix
-@node Windows vs Unix,  , Windows and BDB tables., Windows
+@node Windows vs Unix,  , Windows compiling, Windows
 @subsection MySQL-Windows Compared to Unix MySQL
 
 @strong{MySQL}-Windows has by now proven itself to be very stable. This version
@@ -24898,7 +24885,7 @@ mysqld: ready for connections
 @end example
 
 @menu
-* Error creating InnoDB::      
+* Error creating InnoDB::       
 @end menu
 
 @node Error creating InnoDB,  , InnoDB init, InnoDB init
@@ -42562,7 +42549,7 @@ attachments, you should ftp all the relevant files to:
 @end itemize
 
 @node Reporting mysqltest bugs,  , extending mysqltest, MySQL test suite
-@subsection Extending the MySQL Test Suite
+@subsection Reporting bugs in the MySQL Test Suite
 
 If your @strong{MySQL} version doesn't pass the test suite you should
 do the following:
@@ -42592,6 +42579,10 @@ If this fails, then you should configure @strong{MySQL} with
 so that we can examine it. Please remember to also include a full
 description of your system, the version of the mysqld binary and how you
 compiled it.
+
+@item
+Try also to run @code{mysql-test-run} with the @code{--force} option to
+see if there is any other test that fails.
 
 @item
 If you have compiled @strong{MySQL} yourself, check our manual for how
@@ -44537,6 +44528,8 @@ not yet 100% confident in this code.
 @node News-3.23.39, News-3.23.38, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.39
 @itemize @bullet
+@item
+Fixed problem with @code{IF()} and number of decimals in the result.
 @item
 Fixed that date-part extract functions works with dates where day
 and/or month is 0.

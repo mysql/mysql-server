@@ -34,7 +34,6 @@
 #include <signal.h>
 #include <errno.h>
 #include <sys/types.h>
-#include <violite.h>
 
 #ifdef MYSQL_SERVER
 ulong max_allowed_packet=65536;

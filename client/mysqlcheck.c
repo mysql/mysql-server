@@ -338,7 +338,7 @@ static int get_options(int *argc, char ***argv)
   {
     int pnlen = strlen(my_progname);
 
-    if (pnlen < 6) // name too short
+    if (pnlen < 6) /* name too short */
       what_to_do = DO_CHECK;
     else if (!strcmp("repair", my_progname + pnlen - 6))
       what_to_do = DO_REPAIR;
