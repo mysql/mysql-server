@@ -49,11 +49,13 @@ select aes_decrypt("a","a");
 select aes_decrypt(aes_encrypt("","a"),"a");
 select repeat('monty',5),concat('*',space(5),'*');
 select reverse('abc'),reverse('abcd');
-select rpad('a',4,'1'),rpad('a',4,'12'),rpad('abcd',3,'12');
-select lpad('a',4,'1'),lpad('a',4,'12'),lpad('abcd',3,'12');
+select rpad('a',4,'1'),rpad('a',4,'12'),rpad('abcd',3,'12'), rpad(11, 10 , 22), rpad("ab", 10, 22);
+select lpad('a',4,'1'),lpad('a',4,'12'),lpad('abcd',3,'12'), lpad(11, 10 , 22);
 select rpad(741653838,17,'0'),lpad(741653838,17,'0');
 select rpad('abcd',7,'ab'),lpad('abcd',7,'ab');
 select rpad('abcd',1,'ab'),lpad('abcd',1,'ab');
+select rpad('STRING', 20, CONCAT('p','a','d') );
+select lpad('STRING', 20, CONCAT('p','a','d') );
 
 select LEAST(NULL,'HARRY','HARRIOT',NULL,'HAROLD'),GREATEST(NULL,'HARRY','HARRIOT',NULL,'HAROLD');
 select least(1,2,3) | greatest(16,32,8), least(5,4)*1,greatest(-1.0,1.0)*1,least(3,2,1)*1.0,greatest(1,1.1,1.0),least("10",9),greatest("A","B","0");
