@@ -220,7 +220,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 	    }
 	  }
 	  else
-	    unit->exclude_level();
+	    unit->exclude_tree();
 	  org_table_list->db= (char *)"";
 #ifndef DBUG_OFF
 	  /* Try to catch errors if this is accessed */

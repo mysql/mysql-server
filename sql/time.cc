@@ -27,6 +27,10 @@ uchar *days_in_month= (uchar*) "\037\034\037\036\037\036\037\037\036\037\036\037
 	/* Init some variabels needed when using my_local_time */
 	/* Currently only my_time_zone is inited */
 
+bool parse_datetime_formats(datetime_format_types format_type, 
+			    const char *format_str, uint format_length,
+			    byte *dt_pos);
+
 static long my_time_zone=0;
 
 void init_time(void)
@@ -316,10 +320,12 @@ ulong convert_month_to_period(ulong month)
 */
 
 timestamp_type
-str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
+str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date,THD *thd)
 {
-  uint field_length,year_length,digits,i,number_of_fields,date[7];
+  uint field_length= 0, year_length= 0, digits, i, number_of_fields;
+  uint date[7], date_len[7];
   uint not_zero_date;
+  bool is_internal_format= 0;
   const char *pos;
   const char *end=str+length;
   bool found_delimitier= 0;
@@ -336,24 +342,32 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
     (YYYY-MM-DD,  YYYYMMDD, YYYYYMMDDHHMMSS)
   */
   for (pos=str; pos != end && my_isdigit(&my_charset_latin1,*pos) ; pos++) ;
+  /* Check for internal format */
   digits= (uint) (pos-str);
-  year_length= (digits == 4 || digits == 8 || digits >= 14) ? 4 : 2;
-  field_length=year_length-1;
+
+  if (pos == end || digits>=12)
+  {
+    is_internal_format= 1;
+    year_length= (digits == 4 || digits == 8 || digits >= 14) ? 4 : 2;
+    field_length=year_length-1;
+    date_len[0]= year_length;
+  }
   not_zero_date= 0;
   for (i=0 ; i < 6 && str != end && my_isdigit(&my_charset_latin1,*str) ; i++)
   {
+    if (!is_internal_format)
+      date_len[i]= 1;
     uint tmp_value=(uint) (uchar) (*str++ - '0');
-    while (str != end && my_isdigit(&my_charset_latin1,str[0]) &&
-	   field_length--)
+    while (str != end && my_isdigit(&my_charset_latin1,str[0]) 
+	   && (is_internal_format && field_length-- || !is_internal_format) )
     {
       tmp_value=tmp_value*10 + (uint) (uchar) (*str - '0');
       str++;
+      if (!is_internal_format)
+	date_len[i]+= 1;
     }
-    if (found_delimitier && (int) field_length < 0)
-    {
-      /* The number can't match any valid date or datetime string */
+    if (i == 2 && *str == '.')
       DBUG_RETURN(TIMESTAMP_NONE);
-    }
     date[i]=tmp_value;
     not_zero_date|= tmp_value;
     if (i == 2 && str != end && *str == 'T')
@@ -371,7 +385,8 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
 	found_delimitier=1;			// Should be a 'normal' date
       }
     }
-    field_length=1;				// Rest fields can only be 2
+    if (is_internal_format)
+	field_length=1;				// Rest fields can only be 2
   }
   /* Handle second fractions */
   if (i == 6 && (uint) (end-str) >= 2 && *str == '.' && 
@@ -389,14 +404,69 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
   else
     date[6]=0;
 
-  if (year_length == 2 && i >=2 && (date[1] || date[2]))
-    date[0]+= (date[0] < YY_PART_YEAR ? 2000 : 1900);
+  while (str != end && (my_ispunct(&my_charset_latin1,*str) || 
+			my_isspace(&my_charset_latin1,*str)))
+    str++;
+
+  uint add_hours= 0;
+  if (!my_strnncoll(&my_charset_latin1, 
+		    (const uchar *)str, 2, 
+		    (const uchar *)"PM", 2))
+    add_hours= 12;
+
   number_of_fields=i;
   while (i < 6)
     date[i++]=0;
-  if (number_of_fields < 3 || date[1] > 12 ||
-      date[2] > 31 || date[3] > 23 || date[4] > 59 || date[5] > 59 ||
-      (!fuzzy_date && (date[1] == 0 || date[2] == 0)))
+
+  if (!is_internal_format)
+  {
+    byte *frm_pos;
+
+    if (number_of_fields  <= 3)
+    {
+      frm_pos= t_datetime_frm(thd, DATE_FORMAT_TYPE).datetime_format.dt_pos;
+      l_time->hour=  0;
+      l_time->minute= 0;
+      l_time->second= 0;
+    }
+    else
+    {
+      frm_pos= t_datetime_frm(thd, DATETIME_FORMAT_TYPE).datetime_format.dt_pos;
+      l_time->hour=  date[(int) frm_pos[3]];
+      l_time->minute=date[(int) frm_pos[4]];
+      l_time->second=date[(int) frm_pos[5]];
+      if (frm_pos[6] == 1)
+      {
+	if (l_time->hour > 12)
+	  DBUG_RETURN(WRONG_TIMESTAMP_FULL);
+	l_time->hour= l_time->hour%12 + add_hours;
+      }
+    }
+
+    l_time->year=  date[(int) frm_pos[0]];
+    l_time->month= date[(int) frm_pos[1]];
+    l_time->day=  date[(int) frm_pos[2]];
+    year_length= date_len[(int) frm_pos[0]];
+  }
+  else
+  {
+    l_time->year=  date[0];
+    l_time->month= date[1];
+    l_time->day=  date[2];
+    l_time->hour=  date[3];
+    l_time->minute=date[4];
+    l_time->second=date[5];
+  }
+  l_time->second_part=date[6];
+  l_time->neg= 0;
+  if (year_length == 2 && i >=2 && (l_time->month || l_time->day))
+    l_time->year+= (l_time->year < YY_PART_YEAR ? 2000 : 1900);
+
+
+  if (number_of_fields < 3 || l_time->month > 12 ||
+      l_time->day > 31 || l_time->hour > 23 ||
+      l_time->minute > 59 || l_time->second > 59 ||
+      (!fuzzy_date && (l_time->month == 0 || l_time->day == 0)))
   {
     /* Only give warning for a zero date if there is some garbage after */
     if (!not_zero_date)				// If zero date
@@ -411,53 +481,46 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
       }
     }
     if (not_zero_date)
-      current_thd->cuted_fields++;
-    DBUG_RETURN(TIMESTAMP_NONE);
+      thd->cuted_fields++;
+    DBUG_RETURN(WRONG_TIMESTAMP_FULL);
   }
-  if (str != end && current_thd->count_cuted_fields)
+  if (str != end && thd->count_cuted_fields)
   {
     for (; str != end ; str++)
     {
       if (!my_isspace(&my_charset_latin1,*str))
       {
-	current_thd->cuted_fields++;
+	thd->cuted_fields++;
 	break;
       }
     }
   }
-  l_time->year=  date[0];
-  l_time->month= date[1];
-  l_time->day=	 date[2];
-  l_time->hour=  date[3];
-  l_time->minute=date[4];
-  l_time->second=date[5];
-  l_time->second_part=date[6];
-  l_time->neg= 0;
+
   DBUG_RETURN(l_time->time_type=
 	      (number_of_fields <= 3 ? TIMESTAMP_DATE : TIMESTAMP_FULL));
 }
 
 
-time_t str_to_timestamp(const char *str,uint length)
+time_t str_to_timestamp(const char *str,uint length, THD *thd)
 {
   TIME l_time;
   long not_used;
 
-  if (str_to_TIME(str,length,&l_time,0) == TIMESTAMP_NONE)
+  if (str_to_TIME(str,length,&l_time,0,thd) <= WRONG_TIMESTAMP_FULL)
     return(0);
   if (l_time.year >= TIMESTAMP_MAX_YEAR || l_time.year < 1900+YY_PART_YEAR)
   {
-    current_thd->cuted_fields++;
+    thd->cuted_fields++;
     return(0);
   }
   return(my_gmt_sec(&l_time, &not_used));
 }
 
 
-longlong str_to_datetime(const char *str,uint length,bool fuzzy_date)
+longlong str_to_datetime(const char *str,uint length,bool fuzzy_date, THD *thd)
 {
   TIME l_time;
-  if (str_to_TIME(str,length,&l_time,fuzzy_date) == TIMESTAMP_NONE)
+  if (str_to_TIME(str,length,&l_time,fuzzy_date,thd) <= WRONG_TIMESTAMP_FULL)
     return(0);
   return (longlong) (l_time.year*LL(10000000000) +
 		     l_time.month*LL(100000000)+
@@ -484,12 +547,13 @@ longlong str_to_datetime(const char *str,uint length,bool fuzzy_date)
      1  error
 */
 
-bool str_to_time(const char *str,uint length,TIME *l_time)
+bool str_to_time(const char *str,uint length,TIME *l_time, THD *thd)
 {
   long date[5],value;
   const char *end=str+length;
   bool found_days,found_hours;
   uint state;
+  byte *frm_pos= t_datetime_frm(thd, TIME_FORMAT_TYPE).datetime_format.dt_pos;
 
   l_time->neg=0;
   for (; str != end && 
@@ -507,8 +571,11 @@ bool str_to_time(const char *str,uint length,TIME *l_time)
   /* Check first if this is a full TIMESTAMP */
   if (length >= 12)
   {						// Probably full timestamp
-    if (str_to_TIME(str,length,l_time,1) == TIMESTAMP_FULL)
-      return 0;					// Was an ok timestamp
+    enum timestamp_type tres= str_to_TIME(str,length,l_time,1,thd);
+    if (tres == TIMESTAMP_FULL)
+      return 0;
+    else if (tres == WRONG_TIMESTAMP_FULL)
+      return 1;
   }
 
   /* Not a timestamp. Try to get this as a DAYS_TO_SECOND string */
@@ -533,7 +600,7 @@ bool str_to_time(const char *str,uint length,TIME *l_time)
     found_days=1;
     str++;					// Skip space;
   }
-  else if ((end-str) > 1 && *str == ':' && 
+  else if ((end-str) > 1 &&  *str == frm_pos[7] &&
            my_isdigit(&my_charset_latin1,str[1]))
   {
     date[0]=0;					// Assume we found hours
@@ -559,8 +626,8 @@ bool str_to_time(const char *str,uint length,TIME *l_time)
     for (value=0; str != end && my_isdigit(&my_charset_latin1,*str) ; str++)
       value=value*10L + (long) (*str - '0');
     date[state++]=value;
-    if (state == 4 || (end-str) < 2 || *str != ':' || 
-        !my_isdigit(&my_charset_latin1,str[1]))
+    if (state == 4 || (end-str) < 2 || *str != frm_pos[7] ||
+	!my_isdigit(&my_charset_latin1,str[1]))
       break;
     str++;					// Skip ':'
   }
@@ -577,7 +644,6 @@ bool str_to_time(const char *str,uint length,TIME *l_time)
     else
       bzero((char*) (date+state), sizeof(long)*(4-state));
   }
-
  fractional:
   /* Get fractional second part */
   if ((end-str) >= 2 && *str == '.' && my_isdigit(&my_charset_latin1,str[1]))
@@ -593,6 +659,20 @@ bool str_to_time(const char *str,uint length,TIME *l_time)
   else
     date[4]=0;
 
+  while (str != end && !my_isalpha(&my_charset_latin1,*str))
+    str++;
+
+  if ( (end-str)>= 2 &&
+       !my_strnncoll(&my_charset_latin1, 
+		     (const uchar *)str, 2, 
+		     (const uchar *)"PM", 2) &&
+       frm_pos[6] == 1)
+  {
+      uint days_i= date[1]/24;
+      uint hours_i= date[1]%24;
+      date[1]= hours_i%12 + 12 + 24*days_i;
+  }
+
   /* Some simple checks */
   if (date[2] >= 60 || date[3] >= 60)
   {
@@ -601,9 +681,9 @@ bool str_to_time(const char *str,uint length,TIME *l_time)
   }
   l_time->month=0;
   l_time->day=date[0];
-  l_time->hour=date[1];
-  l_time->minute=date[2];
-  l_time->second=date[3];
+  l_time->hour=date[frm_pos[3] + 1];
+  l_time->minute=date[frm_pos[4] + 1];
+  l_time->second=date[frm_pos[5] + 1];
   l_time->second_part=date[4];
   l_time->time_type= TIMESTAMP_TIME;
 
@@ -647,4 +727,166 @@ void calc_time_from_sec(TIME *to, long seconds, long microseconds)
   to->minute= t_seconds/60L;
   to->second= t_seconds%60L;
   to->second_part= microseconds;
+}
+
+
+DATETIME_FORMAT *make_format(DATETIME_FORMAT *datetime_format,
+			     datetime_format_types format_type,
+			     const char *format_str,
+			     uint format_length, bool is_alloc)
+{
+  if (format_length &&
+      !parse_datetime_formats(format_type, format_str,
+			      format_length, 
+			      datetime_format->dt_pos))
+  {
+    if (is_alloc)
+    {
+      if (!(datetime_format->format= my_strdup_with_length(format_str,
+							   format_length,
+							   MYF(0))))
+	return 0;
+    }
+    else
+      datetime_format->format= (char *) format_str;
+    datetime_format->format_length= format_length;
+    return datetime_format;
+  }
+  return 0;
+}
+
+
+bool parse_datetime_formats(datetime_format_types format_type, 
+			    const char *format_str, uint format_length,
+			    byte *dt_pos)
+{
+  uint pos= 0;
+  dt_pos[0]= dt_pos[1]= dt_pos[2]= dt_pos[3]= 
+             dt_pos[4]= dt_pos[5]= dt_pos[6]= dt_pos[7]= -1;
+
+  const char *ptr=format_str;
+  const char *end=ptr+format_length;
+  bool need_p= 0;
+
+  for (; ptr != end; ptr++)
+  {
+    if (*ptr == '%' && ptr+1 != end)
+    {
+      switch (*++ptr) {
+      case 'y':
+      case 'Y':
+	if (dt_pos[0] > -1)
+	  return 1;
+	dt_pos[0]= pos;
+	break;
+      case 'c':
+      case 'm':
+	if (dt_pos[1] > -1)
+	  return 1;
+	dt_pos[1]= pos;
+	break;
+      case 'd':
+      case 'e':
+	if (dt_pos[2] > -1)
+	  return 1;
+	dt_pos[2]= pos;
+	break;
+      case 'H':
+      case 'k':
+      case 'h':
+      case 'I':
+      case 'l':
+	if (dt_pos[3] > -1)
+	  return 1;
+	dt_pos[3]= pos;
+	need_p= (*ptr == 'h' || *ptr == 'l' || *ptr == 'I');
+	break;
+      case 'i':
+	if (dt_pos[4] > -1)
+	  return 1;
+	dt_pos[4]= pos;
+	break;
+      case 's':
+      case 'S':
+	if (dt_pos[5] > -1)
+	  return 1;
+	dt_pos[5]= pos;
+	break;
+      case 'p':
+	if (dt_pos[6] > -1)
+	  return 1;
+	/* %p should be last in format string */
+	if (format_type == DATE_FORMAT_TYPE ||
+	    (pos != 6 && format_type == DATETIME_FORMAT_TYPE) ||
+	    (pos != 3 && format_type == TIME_FORMAT_TYPE))
+	  return 1;
+	dt_pos[6]= 1;
+	break;
+      default:
+	return 1;
+      }
+      if (dt_pos[6] == -1)
+	pos++;
+    }
+  }
+
+  if (pos > 5 && format_type == DATETIME_FORMAT_TYPE &&
+      (dt_pos[0] + dt_pos[1] + dt_pos[2] + 
+       dt_pos[3] + dt_pos[4] + dt_pos[5] != 15) ||
+      pos > 2 && format_type == DATE_FORMAT_TYPE && 
+      (dt_pos[0] + dt_pos[1] + dt_pos[2] != 3) ||
+      pos > 2 && format_type == TIME_FORMAT_TYPE &&
+      (dt_pos[3] + dt_pos[4] + dt_pos[5] != 3) ||
+      (need_p && dt_pos[6] != 1))
+      return 1;
+
+  /*
+    Check for valid separators between date/time parst
+  */
+  uint tmp_len= format_length;
+  if (dt_pos[6] == 1)
+  {
+    end= end - 2;
+    if (my_ispunct(&my_charset_latin1, *end) || my_isspace(&my_charset_latin1, *end))
+      end--;
+    tmp_len= end - format_str;
+  }
+  switch (format_type) {
+  case DATE_FORMAT_TYPE:
+  case TIME_FORMAT_TYPE:
+    if ((tmp_len == 6 && 
+	 !my_strnncoll(&my_charset_bin,
+		      (const uchar *) format_str, 6, 
+		      (const uchar *) datetime_formats
+		      [format_type][INTERNAL_FORMAT], 6)) ||
+	tmp_len == 8 &&
+	my_ispunct(&my_charset_latin1, *(format_str+2)) &&
+	my_ispunct(&my_charset_latin1, *(format_str+5)))
+    {
+      if (format_type == TIME_FORMAT_TYPE && tmp_len == 8)
+      {
+	if (*(format_str+2) != *(format_str+5))
+	  return 1;
+	dt_pos[7]= *(format_str+2);
+      }
+      return 0;
+    }
+    break;
+  case DATETIME_FORMAT_TYPE:
+    if ((tmp_len == 12 && 
+	 !my_strnncoll(&my_charset_bin, 
+		      (const uchar *) format_str, 12, 
+		      (const uchar *) datetime_formats
+		      [DATETIME_FORMAT_TYPE][INTERNAL_FORMAT], 12)) ||
+	tmp_len == 17 &&
+	my_ispunct(&my_charset_latin1, *(format_str+2)) &&
+	my_ispunct(&my_charset_latin1, *(format_str+5)) &&
+	my_ispunct(&my_charset_latin1, *(format_str+11)) &&
+	my_ispunct(&my_charset_latin1, *(format_str+14)) &&
+	(my_ispunct(&my_charset_latin1, *(format_str+8)) ||
+	 my_isspace(&my_charset_latin1, *(format_str+8))))
+      return 0;
+    break;
+    }
+  return 1;
 }

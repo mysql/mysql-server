@@ -100,7 +100,7 @@ Deletes a struct from a hash table. */
 \
 		while (struct3333->NAME != DATA) {\
 \
-			ut_ad(struct3333)\
+			ut_a(struct3333)\
 			struct3333 = struct3333->NAME;\
 		}\
 \
@@ -322,6 +322,8 @@ struct hash_cell_struct{
 
 /* The hash table structure */
 struct hash_table_struct {
+	ibool		adaptive;/* TRUE if this is the hash table of the
+				adaptive hash index */
 	ulint		n_cells;/* number of cells in the hash table */
 	hash_cell_t*	array;	/* pointer to cell array */
 	ulint		n_mutexes;/* if mutexes != NULL, then the number of

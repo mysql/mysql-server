@@ -28,7 +28,7 @@ ha_search_and_get_data(
 /*************************************************************
 Looks for an element when we know the pointer to the data and updates
 the pointer to data if found. */
-UNIV_INLINE
+
 void
 ha_search_and_update_if_found(
 /*==========================*/

@@ -271,8 +271,8 @@ character-set=latin1
 "Slave läuft bereits",
 "Slave wurde bereits angehalten",
 "Unkomprimierte Daten sind zu groß. Die maximale Größe beträgt %d",
-"Z_BUF_ERROR: Für zlib steht nicht genug Speicher zur Verfügung",
-"Z_MEM_ERROR: Im Ausgabepuffer ist nicht genug Platz für zlib vorhanden (wahrscheinlich wurde die Länge der unkomprimierten Daten beschädigt)",
+"Z_MEM_ERROR: Für zlib steht nicht genug Speicher zur Verfügung",
+"Z_BUF_ERROR: Im Ausgabepuffer ist nicht genug Platz für zlib vorhanden (wahrscheinlich wurde die Länge der unkomprimierten Daten beschädigt)",
 "Z_DATA_ERROR: Eingabedaten für zlib beschädigt",
 "%d Zeile(n) durch group_concat() abgeschnitten",
 "Anzahl der Datensätze in Zeile %ld geringer als Anzahl der Spalten",
@@ -294,3 +294,4 @@ character-set=latin1
 "Falscher Parameter oder falsche Kombination von Parametern für START SLAVE UNTIL",
 "Es wird empfohlen, mit --skip-slave-start zu starten, wenn mit START SLAVE UNTIL eine Schritt-für-Schritt-Replikation ausgeführt wird. Ansonsten gibt es Probleme, wenn der Slave-Server unerwartet neu startet",
 "SQL-Thread soll nicht gestartet werden. Daher werden UNTIL-Optionen ignoriert"
+"Incorrect index name '%-.100s'",

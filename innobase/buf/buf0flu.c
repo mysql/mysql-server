@@ -50,6 +50,8 @@ buf_flush_insert_into_flush_list(
 {
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 
+	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+
 	ut_ad((UT_LIST_GET_FIRST(buf_pool->flush_list) == NULL)
 	      || (ut_dulint_cmp(
 			(UT_LIST_GET_FIRST(buf_pool->flush_list))
@@ -131,7 +133,7 @@ buf_flush_ready_for_flush(
 	ulint		flush_type)/* in: BUF_FLUSH_LRU or BUF_FLUSH_LIST */
 {
 	ut_ad(mutex_own(&(buf_pool->mutex)));
-	ut_ad(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
 	if ((ut_dulint_cmp(block->oldest_modification, ut_dulint_zero) > 0)
 	    					&& (block->io_fix == 0)) {
@@ -162,6 +164,8 @@ buf_flush_write_complete(
 {
 	ut_ad(block);
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+
+	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
 	block->oldest_modification = ut_dulint_zero;
 
@@ -282,6 +286,8 @@ buf_flush_buffered_writes(void)
 	for (i = 0; i < trx_doublewrite->first_free; i++) {
 		block = trx_doublewrite->buf_block_arr[i];
 
+		ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+
 		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
 			FALSE, block->space, block->offset, 0, UNIV_PAGE_SIZE,
 		 			(void*)block->frame, (void*)block);
@@ -320,6 +326,8 @@ buf_flush_post_to_doublewrite_buf(
 {
 try_again:
 	mutex_enter(&(trx_doublewrite->mutex));
+
+	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
 	if (trx_doublewrite->first_free
 				>= 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
@@ -395,6 +403,8 @@ buf_flush_write_block_low(
 /*======================*/
 	buf_block_t*	block)	/* in: buffer block to write */
 {
+	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+
 #ifdef UNIV_IBUF_DEBUG
 	ut_a(ibuf_count_get(block->space, block->offset) == 0);
 #endif
@@ -443,7 +453,7 @@ buf_flush_try_page(
 
 	block = buf_page_hash_get(space, offset);
 
-	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_a(!block || block->state == BUF_BLOCK_FILE_PAGE);
 
 	if (flush_type == BUF_FLUSH_LIST
 	    && block && buf_flush_ready_for_flush(block, flush_type)) {
@@ -635,6 +645,7 @@ buf_flush_try_neighbors(
 	for (i = low; i < high; i++) {
 
 		block = buf_page_hash_get(space, i);
+		ut_a(!block || block->state == BUF_BLOCK_FILE_PAGE);
 
 		if (block && flush_type == BUF_FLUSH_LRU && i != offset
 		    && !block->old) {
@@ -703,10 +714,10 @@ buf_flush_batch(
 	ulint		offset;
 	ibool		found;
 	
-	ut_ad((flush_type == BUF_FLUSH_LRU) || (flush_type == BUF_FLUSH_LIST)); 
-	ut_ad((flush_type != BUF_FLUSH_LIST) ||
-					sync_thread_levels_empty_gen(TRUE));
-
+	ut_ad((flush_type == BUF_FLUSH_LRU)
+					|| (flush_type == BUF_FLUSH_LIST)); 
+	ut_ad((flush_type != BUF_FLUSH_LIST)
+					|| sync_thread_levels_empty_gen(TRUE));
 	mutex_enter(&(buf_pool->mutex));
 
 	if ((buf_pool->n_flush[flush_type] > 0)
@@ -737,7 +748,6 @@ buf_flush_batch(
 			ut_ad(flush_type == BUF_FLUSH_LIST);
 
 			block = UT_LIST_GET_LAST(buf_pool->flush_list);
-
 			if (!block
 			    || (ut_dulint_cmp(block->oldest_modification,
 			    				lsn_limit) >= 0)) {
@@ -756,6 +766,7 @@ buf_flush_batch(
 		function a pointer to a block in the list! */
 
 	    	while ((block != NULL) && !found) {
+			ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
 			if (buf_flush_ready_for_flush(block, flush_type)) {
 
@@ -781,7 +792,6 @@ buf_flush_batch(
 			} else if (flush_type == BUF_FLUSH_LRU) {
 
 				block = UT_LIST_GET_PREV(LRU, block);
-
 			} else {
 				ut_ad(flush_type == BUF_FLUSH_LIST);
 

@@ -169,10 +169,10 @@ typedef struct st_ha_create_information
   SQL_LIST merge_list;
   enum db_type db_type;
   enum row_type row_type;
-  uint options;					/* OR of HA_CREATE_ options */
+  uint options;				/* OR of HA_CREATE_ options */
   uint raid_type,raid_chunks;
   uint merge_insert_method;
-  bool if_not_exists;
+  bool table_existed;			/* 1 in create if table existed */
 } HA_CREATE_INFO;
 
 
@@ -317,6 +317,7 @@ public:
   virtual int dump(THD* thd, int fd = -1) { return ER_DUMP_NOT_IMPLEMENTED; }
   virtual void deactivate_non_unique_index(ha_rows rows) {}
   virtual bool activate_all_index(THD *thd) {return 0;}
+  virtual int discard_or_import_tablespace(my_bool discard) {return -1;}
   // not implemented by default
   virtual int net_read_dump(NET* net)
   { return ER_DUMP_NOT_IMPLEMENTED; }

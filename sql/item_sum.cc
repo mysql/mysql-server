@@ -625,6 +625,20 @@ bool Item_sum_or::add()
   return 0;
 }
 
+Item *Item_sum_xor::copy_or_same(THD* thd)
+{
+  return new (&thd->mem_root) Item_sum_xor(thd, *this);
+}
+
+
+bool Item_sum_xor::add()
+{
+  ulonglong value= (ulonglong) args[0]->val_int();
+  if (!args[0]->null_value)
+    bits^=value;
+  return 0;
+}
+
 Item *Item_sum_and::copy_or_same(THD* thd)
 {
   return new (&thd->mem_root) Item_sum_and(thd, *this);
@@ -912,6 +926,15 @@ void Item_sum_or::update_field()
   int8store(res,nr);
 }
 
+void Item_sum_xor::update_field()
+{
+  ulonglong nr;
+  char *res=result_field->ptr;
+
+  nr=uint8korr(res);
+  nr^= (ulonglong) args[0]->val_int();
+  int8store(res,nr);
+}
 
 void Item_sum_and::update_field()
 {
@@ -1773,8 +1796,8 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   for (i= 0 ; i < arg_count_order ; i++)
   {
     ORDER *order_item= order[i];
-    Item *item=*order_item->item;
-    if (item->fix_fields(thd, tables, &item) || item->check_cols(1))
+    if ((*order_item->item)->fix_fields(thd, tables, order_item->item) ||
+	(*order_item->item)->check_cols(1))
       return 1;
   }
   result_field= 0;

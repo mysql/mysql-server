@@ -81,7 +81,7 @@ EXPORTS
 	mysql_param_result
 	mysql_ping
 	mysql_prepare
-	mysql_prepare_result
+	mysql_get_metadata
 	mysql_query
 	mysql_read_query_result
 	mysql_real_connect

@@ -34,6 +34,9 @@ enum enum_log_type { LOG_CLOSED, LOG_TO_BE_OPENED, LOG_NORMAL, LOG_NEW, LOG_BIN}
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 			    DELAY_KEY_WRITE_ALL };
 
+enum enum_check_fields { CHECK_FIELD_IGNORE, CHECK_FIELD_WARN,
+			 CHECK_FIELD_ERROR_FOR_NULL };
+
 extern char internal_table_name[2];
 
 /* log info errors */
@@ -389,10 +392,15 @@ struct system_variables
   ulong table_type;
   ulong tmp_table_size;
   ulong tx_isolation;
-  /* Determines if which non-standard SQL behaviour should be enabled */
+  /* Determines which non-standard SQL behaviour should be enabled */
   ulong sql_mode;
   ulong default_week_format;
   ulong max_seeks_for_key;
+  ulong range_alloc_block_size;
+  ulong query_alloc_block_size;
+  ulong query_prealloc_size;
+  ulong trans_alloc_block_size;
+  ulong trans_prealloc_size;
   ulong group_concat_max_len;
   /*
     In slave thread we need to know in behalf of which
@@ -413,6 +421,7 @@ struct system_variables
   CHARSET_INFO	*collation_server;
   CHARSET_INFO	*collation_database;
   CHARSET_INFO  *collation_connection;
+  sys_var_datetime_format datetime_formats[3];
 };
 
 void free_tmp_table(THD *thd, TABLE *entry);
@@ -502,6 +511,7 @@ public:
   time_t     connect_time,thr_create_time; // track down slow pthread_create
   thr_lock_type update_lock_default;
   delayed_insert *di;
+  my_bool    tablespace_op;	/* This is TRUE in DISCARD/IMPORT TABLESPACE */
   struct st_transactions {
     IO_CACHE trans_log;
     THD_TRANS all;			// Trans since BEGIN WORK
@@ -568,6 +578,7 @@ public:
   uint       select_number;             //number of select (used for EXPLAIN)
   /* variables.transaction_isolation is reset to this after each commit */
   enum_tx_isolation session_tx_isolation;
+  enum_check_fields count_cuted_fields;
   /* for user variables replication*/
   DYNAMIC_ARRAY user_var_events;
 
@@ -575,7 +586,7 @@ public:
   char	     scramble[SCRAMBLE_LENGTH+1];
 
   bool       slave_thread;
-  bool	     set_query_id,locked,count_cuted_fields,some_tables_deleted;
+  bool	     set_query_id,locked,some_tables_deleted;
   bool       last_cuted_field;
   bool	     no_errors, allow_sum_func, password, is_fatal_error;
   bool	     query_start_used,last_insert_id_used,insert_id_used,rand_used;
@@ -857,8 +868,7 @@ public:
 		 List<Item> &select_fields,enum_duplicates duplic)
     :select_insert (NULL, &select_fields, duplic), db(db_name),
     name(table_name), extra_fields(&fields_par),keys(&keys_par),
-    create_info(create_info_par),
-    lock(0)
+    create_info(create_info_par), lock(0)
     {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &values);

@@ -14,6 +14,7 @@ Created 10/5/1995 Heikki Tuuri
 #include "sync0sync.h"
 #include "hash0hash.h"
 #include "mem0mem.h"
+#include "srv0srv.h"
 
 /*
 	IMPLEMENTATION OF THREAD LOCAL STORAGE

@@ -16,6 +16,8 @@ b
 
 
 drop table t1;
+create table t1 (a int not null auto_increment,primary key (a)) type=heap;
+drop table t1;
 create table t2 type=heap select * from t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 create table t2 select auto+1 from t1;
@@ -26,10 +28,11 @@ Note	1051	Unknown table 't1'
 Note	1051	Unknown table 't2'
 create table t1 (b char(0) not null, index(b));
 ERROR 42000: The used storage engine can't index column 'b'
-create table t1 (a int not null auto_increment,primary key (a)) type=heap;
 create table t1 (a int not null,b text) type=heap;
 ERROR 42000: The used table type doesn't support BLOB/TEXT columns
 drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 't1'
 create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) type=heap;
 ERROR 42000: Incorrect table definition; There can only be one auto column and it must be defined as a key
 create table not_existing_database.test (a int);
@@ -66,9 +69,8 @@ drop table if exists ``;
 ERROR 42000: Incorrect table name ''
 create table t1 (`` int);
 ERROR 42000: Incorrect column name ''
-drop table if exists t1;
-Warnings:
-Note	1051	Unknown table 't1'
+create table t1 (i int, index `` (i));
+ERROR 42000: Incorrect index name ''
 create table t1 (a int auto_increment not null primary key, B CHAR(20));
 insert into t1 (b) values ("hello"),("my"),("world");
 create table t2 (key (b)) select * from t1;
@@ -220,6 +222,46 @@ ERROR 23000: Column 'k1' cannot be null
 insert into t1 values (NULL, NULL);
 ERROR 23000: Column 'k1' cannot be null
 drop table t1;
+create table t1 select x'4132';
+drop table t1;
+create table t1 select 1,2,3;
+create table if not exists t1 select 1,2;
+create table if not exists t1 select 1,2,3,4;
+ERROR 21S01: Column count doesn't match value count at row 1
+create table if not exists t1 select 1;
+select * from t1;
+1	2	3
+1	2	3
+0	1	2
+0	0	1
+drop table t1;
+create table t1 select 1,2,3;
+create table if not exists t1 select 1,2;
+create table if not exists t1 select 1,2,3,4;
+ERROR 21S01: Column count doesn't match value count at row 1
+create table if not exists t1 select 1;
+select * from t1;
+1	2	3
+1	2	3
+0	1	2
+0	0	1
+drop table t1;
+create table t1 (a int not null, b int, primary key (a));
+insert into t1 values (1,1);
+create table if not exists t1 select 2;
+select * from t1;
+a	b
+1	1
+0	2
+create table if not exists t1 select 3 as 'a',4 as 'b';
+create table if not exists t1 select 3 as 'a',3 as 'b';
+ERROR 23000: Duplicate entry '3' for key 1
+select * from t1;
+a	b
+1	1
+0	2
+3	4
+drop table t1;
 create table t1 (a int, key(a));
 create table t2 (b int, foreign key(b) references t1(a), key(b));
 drop table if exists t1,t2;
@@ -319,8 +361,6 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL default '0'
 ) TYPE=MyISAM CHARSET=latin1
 SET SESSION table_type=default;
-drop table t1;
-create table t1 select x'4132';
 drop table t1;
 create table t1(a int,b int,c int unsigned,d date,e char,f datetime,g time,h blob);
 insert into t1(a)values(1);

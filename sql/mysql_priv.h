@@ -85,6 +85,19 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define MYSQLD_NET_RETRY_COUNT  10	// Abort read after this many int.
 #endif
 #define TEMP_POOL_SIZE          128
+
+#define QUERY_ALLOC_BLOCK_SIZE		8192
+#define QUERY_ALLOC_PREALLOC_SIZE   	8192
+#define TRANS_ALLOC_BLOCK_SIZE		4096
+#define TRANS_ALLOC_PREALLOC_SIZE	4096
+#define RANGE_ALLOC_BLOCK_SIZE		2048
+#define ACL_ALLOC_BLOCK_SIZE		1024
+#define UDF_ALLOC_BLOCK_SIZE		1024
+#define TABLE_ALLOC_BLOCK_SIZE		1024
+#define BDB_LOG_ALLOC_BLOCK_SIZE	1024
+#define WARN_ALLOC_BLOCK_SIZE		2048
+#define WARN_ALLOC_PREALLOC_SIZE	1024
+
 /*
   The following parameters is to decide when to use an extra cache to
   optimise seeks when reading a big table in sorted order
@@ -214,7 +227,7 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define MODE_ORACLE			512
 #define MODE_MSSQL			1024
 #define MODE_DB2			2048
-#define MODE_SAPDB			4096
+#define MODE_MAXDB			4096
 #define MODE_NO_KEY_OPTIONS             8192
 #define MODE_NO_TABLE_OPTIONS          16384 
 #define MODE_NO_FIELD_OPTIONS          32768
@@ -486,6 +499,7 @@ int mysql_alter_table(THD *thd, char *new_db, char *new_name,
 		      bool drop_primary,
 		      enum enum_duplicates handle_duplicates,
 		      enum enum_enable_or_disable keys_onoff=LEAVE_AS_IS,
+		      enum tablespace_op_type tablespace_op=NO_TABLESPACE_OP,
 		      bool simple_alter=0);
 int mysql_create_like_table(THD *thd, TABLE_LIST *table,
                             HA_CREATE_INFO *create_info,
@@ -711,7 +725,7 @@ void key_restore(TABLE *form,byte *key,uint index,uint key_length);
 int key_cmp(TABLE *form,const byte *key,uint index,uint key_length);
 void key_unpack(String *to,TABLE *form,uint index);
 bool check_if_key_used(TABLE *table, uint idx, List<Item> &fields);
-void init_errmessage(void);
+bool init_errmessage(void);
 
 void sql_perror(const char *message);
 void sql_print_error(const char *format,...)
@@ -808,7 +822,7 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager,
        LOCK_global_system_variables, LOCK_user_conn;
-extern rw_lock_t	LOCK_grant;
+extern rw_lock_t      LOCK_grant;
 extern pthread_cond_t COND_refresh, COND_thread_count, COND_manager;
 extern pthread_attr_t connection_attrib;
 extern I_List<THD> threads;
@@ -825,6 +839,14 @@ extern SHOW_COMP_OPTION have_berkeley_db;
 extern struct system_variables global_system_variables;
 extern struct system_variables max_system_variables;
 extern struct rand_struct sql_rand;
+
+#define g_datetime_frm(a) (global_system_variables.datetime_formats[(a)])
+#define t_datetime_frm(a, b) ((a)->variables.datetime_formats[(b)])
+
+extern const char *datetime_formats[4][5];
+extern const char *opt_datetime_format_names[3];
+extern const char *opt_datetime_formats[3];
+
 extern String null_string;
 extern HASH open_cache;
 extern TABLE *unused_tables;
@@ -895,17 +917,31 @@ void get_date_from_daynr(long daynr,uint *year, uint *month,
 			 uint *day);
 void init_time(void);
 long my_gmt_sec(TIME *, long *current_timezone);
-time_t str_to_timestamp(const char *str,uint length);
-bool str_to_time(const char *str,uint length,TIME *l_time);
-longlong str_to_datetime(const char *str,uint length,bool fuzzy_date);
+time_t str_to_timestamp(const char *str,uint length, THD *thd);
+bool str_to_time(const char *str,uint length,TIME *l_time, THD *thd);
+longlong str_to_datetime(const char *str,uint length,bool fuzzy_date, THD *thd);
 timestamp_type str_to_TIME(const char *str, uint length, TIME *l_time,
-			   bool fuzzy_date);
+			   bool fuzzy_date, THD *thd);
 void localtime_to_TIME(TIME *to, struct tm *from);
 void calc_time_from_sec(TIME *to, long seconds, long microseconds);
 
+extern DATETIME_FORMAT *make_format(DATETIME_FORMAT *datetime_format,
+				    datetime_format_types format_type,
+				    const char *format_str, 
+				    uint format_length, bool is_alloc);
+extern String *make_datetime(String *str, TIME *l_time,
+			     const bool is_time_only,
+			     const bool add_second_frac,
+			     const char *ptr, uint format_length,
+			     bool set_len_to_zero);
+
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(byte *,uint,char,char);
+#ifndef EMBEDDED_LIBRARY
 extern "C" void unireg_abort(int exit_code);
+#else
+#define unireg_abort(exit_code) DBUG_RETURN(exit_code)
+#endif
 void init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,
 		      SQL_SELECT *select,
 		      int use_record_cache, bool print_errors);

@@ -40,9 +40,21 @@ uncompress(compress(""))
 select uncompressed_length("");
 uncompressed_length("")
 0
-select compress(NULL);
-compress(NULL)
+create table t1 (a text);
+insert t1 values (compress(null)), ('A\0\0\0BBBBBBBB'), (compress(space(50000))), (space(50000));
+select length(a) from t1;
+length(a)
 NULL
-select uncompress(NULL);
-uncompress(NULL)
+12
+76
+50000
+select length(uncompress(a)) from t1;
+length(uncompress(a))
 NULL
+NULL
+50000
+NULL
+Warnings:
+Error	1258	Z_DATA_ERROR: Input data was corrupted for zlib
+Error	1255	Too big size of uncompressed data. The maximum size is 1048576. (probably, length of uncompressed data was corrupted)
+drop table t1;

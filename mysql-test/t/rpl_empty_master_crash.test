@@ -1,6 +1,6 @@
 source include/master-slave.inc;
 
---replace_column 33 #
+--replace_column 1 # 33 #
 show slave status;
 
 #

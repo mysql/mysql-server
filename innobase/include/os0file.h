@@ -301,6 +301,14 @@ os_file_get_size(
 				size */
 	ulint*		size_high);/* out: most significant 32 bits of size */
 /***************************************************************************
+Gets file size as a 64-bit integer ib_longlong. */
+
+ib_longlong
+os_file_get_size_as_iblonglong(
+/*===========================*/
+				/* out: size in bytes, -1 if error */
+	os_file_t	file);	/* in: handle to a file */
+/***************************************************************************
 Sets a file size. This function can be used to extend or truncate a file. */
 
 ibool

@@ -49,20 +49,24 @@
 
 	/* The following is parameter to ha_rkey() how to use key */
 
-/* We define a complete-field prefix of a key value as a prefix where the
-last included field in the prefix contains the full field, not just some bytes
-from the start of the field. A partial-field prefix is allowed to
-contain only a few first bytes from the last included field.
+/*
+  We define a complete-field prefix of a key value as a prefix where
+  the last included field in the prefix contains the full field, not
+  just some bytes from the start of the field. A partial-field prefix
+  is allowed to contain only a few first bytes from the last included
+  field.
 
-Below HA_READ_KEY_EXACT, ..., HA_READ_BEFORE_KEY can take a
-complete-field prefix of a key value as the search key. HA_READ_PREFIX
-and HA_READ_PREFIX_LAST could also take a partial-field prefix, but
-currently (4.0.10) they are only used with complete-field prefixes. MySQL uses
-a padding trick to implement LIKE 'abc%' queries.
+  Below HA_READ_KEY_EXACT, ..., HA_READ_BEFORE_KEY can take a
+  complete-field prefix of a key value as the search
+  key. HA_READ_PREFIX and HA_READ_PREFIX_LAST could also take a
+  partial-field prefix, but currently (4.0.10) they are only used with
+  complete-field prefixes. MySQL uses a padding trick to implement
+  LIKE 'abc%' queries.
 
-NOTE that in InnoDB HA_READ_PREFIX_LAST will NOT work with a partial-field
-prefix because InnoDB currently strips spaces from the end of varchar
-fields! */
+  NOTE that in InnoDB HA_READ_PREFIX_LAST will NOT work with a
+  partial-field prefix because InnoDB currently strips spaces from the
+  end of varchar fields!
+*/
 
 enum ha_rkey_function {
   HA_READ_KEY_EXACT,              /* Find first record else error */

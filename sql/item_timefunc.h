@@ -763,3 +763,46 @@ public:
     maybe_null=1;
   }
 };
+
+
+enum datetime_format
+{
+  USA_FORMAT, JIS_FORMAT, ISO_FORMAT, EUR_FORMAT, INTERNAL_FORMAT
+};
+
+
+enum datetime_format_types
+{
+  DATE_FORMAT_TYPE= 0, TIME_FORMAT_TYPE, DATETIME_FORMAT_TYPE
+};
+
+
+class Item_func_get_format :public Item_str_func
+{
+  const datetime_format_types tm_format;
+public:
+  Item_func_get_format(datetime_format_types type_arg1, Item *a)
+    :Item_str_func(a), tm_format(type_arg1) {}
+  String *val_str(String *str);
+  const char *func_name() const { return "get_format"; }
+  void fix_length_and_dec()
+  {
+    decimals=0;
+    max_length=17*MY_CHARSET_BIN_MB_MAXLEN;
+  }
+};
+
+
+class Item_func_str_to_date :public Item_str_func
+{
+public:
+  Item_func_str_to_date(Item *a, Item *b)
+    :Item_str_func(a, b) {}
+  String *val_str(String *str);
+  const char *func_name() const { return "str_to_date"; }
+  void fix_length_and_dec()
+  {
+    decimals=0;
+    max_length=29*MY_CHARSET_BIN_MB_MAXLEN;
+  }
+};

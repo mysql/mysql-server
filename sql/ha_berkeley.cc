@@ -238,7 +238,8 @@ int berkeley_show_logs(Protocol *protocol)
   MEM_ROOT *old_root=my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC);
   DBUG_ENTER("berkeley_show_logs");
 
-  init_alloc_root(&show_logs_root, 1024, 1024);
+  init_sql_alloc(&show_logs_root, BDB_LOG_ALLOC_BLOCK_SIZE,
+		 BDB_LOG_ALLOC_BLOCK_SIZE);
   my_pthread_setspecific_ptr(THR_MALLOC,&show_logs_root);
 
   if ((error= db_env->log_archive(db_env, &all_logs,

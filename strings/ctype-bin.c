@@ -264,8 +264,8 @@ static int my_strnxfrm_bin(CHARSET_INFO *cs __attribute__((unused)),
 
 static
 uint my_instr_bin(CHARSET_INFO *cs __attribute__((unused)),
-                 const char *big,   uint b_length, 
-		 const char *small, uint s_length,
+                 const char *b, uint b_length, 
+		 const char *s, uint s_length,
 		 my_match_t *match, uint nmatch)
 {
   register const uchar *str, *search, *end, *search_end;
@@ -283,10 +283,10 @@ uint my_instr_bin(CHARSET_INFO *cs __attribute__((unused)),
       return 1;		/* Empty string is always found */
     }
     
-    str= (const uchar*) big;
-    search= (const uchar*) small;
-    end= (const uchar*) big+b_length-s_length+1;
-    search_end= (const uchar*) small + s_length;
+    str= (const uchar*) b;
+    search= (const uchar*) s;
+    end= (const uchar*) b+b_length-s_length+1;
+    search_end= (const uchar*) s + s_length;
     
 skipp:
     while (str != end)
@@ -305,7 +305,7 @@ skipp:
         if (nmatch > 0)
 	{
 	  match[0].beg= 0;
-	  match[0].end= str- (const uchar*)big-1;
+	  match[0].end= str- (const uchar*)b-1;
 	  match[0].mblen= match[0].end;
 	  
 	  if (nmatch > 1)

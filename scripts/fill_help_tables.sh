@@ -112,6 +112,7 @@ sub add_topic_to_category
 
   $categories{$current_category}->{$topic_name}= $topics{$topic_name};
   my $category= $categories{$current_category};
+  $category->{__name__}= $current_category;
     
   if (exists($category->{__parent_category__}))
   {
@@ -132,7 +133,7 @@ sub add_topic_to_category
     my $old_category= $topics{$topic_name}->{category};
     if ($old_category ne $category)
     {
-      print_error "wrong category for $topic_name\n";
+      print_error "wrong category for $topic_name (first one's \"$old_category->{__name__}\" second one's \"$current_category\")\n";
     }
   }
     

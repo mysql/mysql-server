@@ -213,24 +213,27 @@ os_file_get_last_error(
 
 	if (report_all_errors
 	    || (err != ERROR_DISK_FULL && err != ERROR_FILE_EXISTS)) {
+
 		ut_print_timestamp(stderr);
 	     	fprintf(stderr,
-  "  InnoDB: Operating system error number %lu in a file operation.\n"
-  "InnoDB: See http://www.innodb.com/ibman.html for installation help.\n",
-		err);
+  "  InnoDB: Operating system error number %lu in a file operation.\n", err);
 
 		if (err == ERROR_PATH_NOT_FOUND) {
-		         fprintf(stderr,
-  "InnoDB: The error means the system cannot find the path specified.\n"
-  "InnoDB: In installation you must create directories yourself, InnoDB\n"
-  "InnoDB: does not create them.\n");
+			fprintf(stderr,
+  "InnoDB: The error means the system cannot find the path specified.\n");
+
+			if (srv_is_being_started) {
+				fprintf(stderr,
+  "InnoDB: If you are installing InnoDB, remember that you must create\n"
+  "InnoDB: directories yourself, InnoDB does not create them.\n");
+			}
 		} else if (err == ERROR_ACCESS_DENIED) {
-		         fprintf(stderr,
+			fprintf(stderr,
   "InnoDB: The error means mysqld does not have the access rights to\n"
   "InnoDB: the directory. It may also be you have created a subdirectory\n"
   "InnoDB: of the same name as a data file.\n"); 
 		} else {
-			 fprintf(stderr,
+			fprintf(stderr,
   "InnoDB: See section 13.2 at http://www.innodb.com/ibman.html\n"
   "InnoDB: about operating system error numbers.\n");
 		}
@@ -252,29 +255,31 @@ os_file_get_last_error(
 
 	if (report_all_errors
 	    || (err != ENOSPC && err != EEXIST)) {
-		ut_print_timestamp(stderr);
 
+		ut_print_timestamp(stderr);
 	     	fprintf(stderr,
-  "  InnoDB: Operating system error number %lu in a file operation.\n"
-  "InnoDB: See http://www.innodb.com/ibman.html for installation help.\n",
-		err);
+  "  InnoDB: Operating system error number %lu in a file operation.\n", err);
 
 		if (err == ENOENT) {
-		         fprintf(stderr,
-  "InnoDB: The error means the system cannot find the path specified.\n"
-  "InnoDB: In installation you must create directories yourself, InnoDB\n"
-  "InnoDB: does not create them.\n");
+			fprintf(stderr,
+  "InnoDB: The error means the system cannot find the path specified.\n");
+			
+			if (srv_is_being_started) {
+				fprintf(stderr,
+  "InnoDB: If you are installing InnoDB, remember that you must create\n"
+  "InnoDB: directories yourself, InnoDB does not create them.\n");
+			}
 		} else if (err == EACCES) {
-		         fprintf(stderr,
+			fprintf(stderr,
   "InnoDB: The error means mysqld does not have the access rights to\n"
   "InnoDB: the directory.\n");
 		} else {
-			 if (strerror((int)err) != NULL) {
+			if (strerror((int)err) != NULL) {
 				fprintf(stderr,
   "InnoDB: Error number %lu means '%s'.\n", err, strerror((int)err));
-			 }
+			}
 
-			 fprintf(stderr,
+			fprintf(stderr,
   "InnoDB: See also section 13.2 at http://www.innodb.com/ibman.html\n"
   "InnoDB: about operating system error numbers.\n");
 		}
@@ -404,7 +409,7 @@ os_file_opendir(
 	ut_a(strlen(dirname) < OS_FILE_MAX_PATH);
 
 	strcpy(path, dirname);
-	strcpy(path + strlen(path), "\*");
+	strcpy(path + strlen(path), "\\");
 
 	/* Note that in Windows opening the 'directory stream' also retrieves
 	the first entry in the directory. Since it is '.', that is no problem,
@@ -493,18 +498,18 @@ next_file:
 	ret = FindNextFile(dir, lpFindFileData);
 
 	if (ret) {
-	        ut_a(strlen(lpFindFileData->cFilename) < OS_FILE_MAX_PATH);
+	        ut_a(strlen(lpFindFileData->cFileName) < OS_FILE_MAX_PATH);
 
-		if (strcmp(lpFindFileData->cFilename, ".") == 0
-		    || strcmp(lpFindFileData->cFilename, "..") == 0) {
+		if (strcmp(lpFindFileData->cFileName, ".") == 0
+		    || strcmp(lpFindFileData->cFileName, "..") == 0) {
 
 		        goto next_file;
 		}
 
-		strcpy(info->name, lpFindFileData->cFilename);
+		strcpy(info->name, lpFindFileData->cFileName);
 
-		info->size = (ib_longlong)(buf->nFileSizeLow)
-			    + (((ib_longlong)(buf->nFileSizeHigh)) << 32);
+		info->size = (ib_longlong)(lpFindFileData->nFileSizeLow)
+		     + (((ib_longlong)(lpFindFileData->nFileSizeHigh)) << 32);
 
 		if (lpFindFileData->dwFileAttributes
 					& FILE_ATTRIBUTE_REPARSE_POINT) {
@@ -827,14 +832,13 @@ os_file_create(
 	DWORD		create_flag;
 	DWORD		attributes;
 	ibool		retry;
-	
 try_again:	
 	ut_a(name);
 
 	if (create_mode == OS_FILE_OPEN_RAW) {
 		create_flag = OPEN_EXISTING;
 		share_mode = FILE_SHARE_WRITE;
-	if (create_mode == OS_FILE_OPEN) {
+	} else if (create_mode == OS_FILE_OPEN) {
 		create_flag = OPEN_EXISTING;
 	} else if (create_mode == OS_FILE_CREATE) {
 		create_flag = CREATE_NEW;
@@ -927,15 +931,12 @@ try_again:
 
 	if (create_mode == OS_FILE_OPEN || create_mode == OS_FILE_OPEN_RAW) {
 		mode_str = "OPEN";
-
 		create_flag = O_RDWR;
 	} else if (create_mode == OS_FILE_CREATE) {
 		mode_str = "CREATE";
-
 		create_flag = O_RDWR | O_CREAT | O_EXCL;
 	} else if (create_mode == OS_FILE_OVERWRITE) {
 		mode_str = "OVERWRITE";
-
 		create_flag = O_RDWR | O_CREAT | O_TRUNC;
 	} else {
 		create_flag = 0;
@@ -1015,8 +1016,7 @@ os_file_delete(
 	char*	name)	/* in: file path as a null-terminated string */
 {
 #ifdef __WIN__
-	os_file_t	dummy	= NULL;
-	BOOL		ret;
+	BOOL	ret;
 
 	ret = DeleteFile((LPCTSTR)name);
 
@@ -1024,17 +1024,16 @@ os_file_delete(
 		return(TRUE);
 	}
 
-	os_file_handle_error(dummy, name, "delete");
+	os_file_handle_error(NULL, name, "delete");
 
 	return(FALSE);
 #else
-	os_file_t	dummy	= 0;
-	int		ret;
+	int	ret;
 
 	ret = unlink((const char*)name);
 
 	if (ret != 0) {
-		os_file_handle_error(dummy, name, "delete");
+		os_file_handle_error(0, name, "delete");
 
 		return(FALSE);
 	}
@@ -1056,8 +1055,7 @@ os_file_rename(
 	char*	newpath)	/* in: new file path */
 {
 #ifdef __WIN__
-	os_file_t	dummy	= NULL;
-	BOOL		ret;
+	BOOL	ret;
 
 	ret = MoveFile((LPCTSTR)oldpath, (LPCTSTR)newpath);
 
@@ -1065,17 +1063,16 @@ os_file_rename(
 		return(TRUE);
 	}
 
-	os_file_handle_error(dummy, oldpath, "delete");
+	os_file_handle_error(NULL, oldpath, "delete");
 
 	return(FALSE);
 #else
-	os_file_t	dummy	= 0;
-	int		ret;
+	int	ret;
 
 	ret = rename((const char*)oldpath, (const char*)newpath);
 
 	if (ret != 0) {
-		os_file_handle_error(dummy, oldpath, "rename");
+		os_file_handle_error(0, oldpath, "rename");
 
 		return(FALSE);
 	}
@@ -1202,6 +1199,29 @@ os_file_get_size(
 	
 	return(TRUE);	
 #endif
+}
+
+/***************************************************************************
+Gets file size as a 64-bit integer ib_longlong. */
+
+ib_longlong
+os_file_get_size_as_iblonglong(
+/*===========================*/
+				/* out: size in bytes, -1 if error */
+	os_file_t	file)	/* in: handle to a file */
+{
+	ulint	size;
+	ulint	size_high;
+	ibool	success;
+
+	success = os_file_get_size(file, &size, &size_high);
+
+	if (!success) {
+
+		return(-1);
+	}
+
+	return((((ib_longlong)size_high) << 32) + (ib_longlong)size);
 }
 
 /***************************************************************************
