@@ -30,7 +30,11 @@ Prepare:
   - Without executing the query, return back to client the total 
     number of parameters along with result-set metadata information
     (if any) in the following format:
-    [STMT_ID:4][Columns:2][Param_count:2][Columns meta info][Params meta info]
+    [STMT_ID:4]
+    [Column_count:2]
+    [Param_count:2]
+    [Columns meta info] (if Column_count > 0)
+    [Params meta info]  (if Param_count > 0 ) (TODO : 4.1.1)
      
 Prepare-execute:
 

@@ -2513,11 +2513,6 @@ ha_innobase::change_active_index(
   the flag ROW_MYSQL_WHOLE_ROW below, but that caused unnecessary
   copying. Starting from MySQL-4.1 we use a more efficient flag here. */
 
-  /* 
-     TODO: In 4.0 the below user_thd was changed to NULL.
-     Heikki, please delete this comment after you have read this and may
-     acted upon it.
-  */
   build_template(prebuilt, user_thd, table, ROW_MYSQL_REC_FIELDS);
 
   DBUG_RETURN(0);
