@@ -2160,7 +2160,9 @@ uint Query_cache::find_bin(ulong size)
   }
   uint bin =  steps[left].idx - 
     (uint)((size - steps[left].size)/steps[left].increment);
+#ifndef DBUG_OFF
   bins_dump();
+#endif
   DBUG_PRINT("qcache", ("bin %u step %u, size %lu step size %lu",
 			bin, left, size, steps[left].size));
   DBUG_RETURN(bin);
