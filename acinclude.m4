@@ -183,8 +183,8 @@ dnl Auxiliary macro to check for zlib at given path
 AC_DEFUN([MYSQL_CHECK_ZLIB_DIR], [
 save_INCLUDES="$INCLUDES"
 save_LIBS="$LIBS"
-INCLUDES="$ZLIB_INCLUDES"
-LIBS="$ZLIB_LIBS"
+INCLUDES="$INCLUDES $ZLIB_INCLUDES"
+LIBS="$LIBS $ZLIB_LIBS"
 AC_CACHE_VAL([mysql_cv_compress],
   [AC_TRY_LINK([#include <zlib.h>],
     [int link_test() { return compress(0, (unsigned long*) 0, "", 0); }],
