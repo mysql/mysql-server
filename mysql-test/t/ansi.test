@@ -19,7 +19,8 @@ SELECT 'A' || 'B';
 
 CREATE TABLE t1 (id INT, id2 int);
 SELECT id,NULL,1,1.1,'a' FROM t1 GROUP BY id;
---error 1055
+#No --error 1055 error due to temporary fix for BUG#8510:
+#ONLY_FULL_GROUP_BY is overly restrictive, so remove it from ANSI mode.
 SELECT id FROM t1 GROUP BY id2;
 drop table t1;
 
