@@ -1055,3 +1055,14 @@ create view mysqltest.v1 as select a from mysqltest.t1;
 alter view mysqltest.v1 as select b from mysqltest.t1;
 alter view mysqltest.v1 as select a from mysqltest.t1;
 drop database mysqltest;
+
+#
+# VIEW with full text
+#
+CREATE TABLE t1 (c1 int not null auto_increment primary key, c2 varchar(20), fulltext(c2));
+insert into t1 (c2) VALUES ('real Beer'),('Water'),('Kossu'),('Coca-Cola'),('Vodka'),('Wine'),('almost real Beer');
+select * from t1 WHERE match (c2) against ('Beer');
+CREATE VIEW v1 AS SELECT  * from t1 WHERE match (c2) against ('Beer');
+select * from v1;
+drop view v1;
+drop table t1;
