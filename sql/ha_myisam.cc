@@ -228,6 +228,12 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
 {
   if (!(file=mi_open(name, mode, test_if_locked)))
     return (my_errno ? my_errno : -1);
+  
+  /* Synchronize key cache assignment of the handler */ 
+  KEY_CACHE_VAR *key_cache= table->key_cache ? table->key_cache :
+                                               &dflt_key_cache_var;
+  VOID(mi_extra(file, HA_EXTRA_SET_KEY_CACHE,
+                (void*) &key_cache->cache));
 
   if (test_if_locked & (HA_OPEN_IGNORE_IF_LOCKED | HA_OPEN_TMP_TABLE))
     VOID(mi_extra(file, HA_EXTRA_NO_WAIT_LOCK, 0));
@@ -688,6 +694,132 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
     mi_lock_database(file,F_UNLCK);
   DBUG_RETURN(error ? HA_ADMIN_FAILED :
 	      !optimize_done ? HA_ADMIN_ALREADY_DONE : HA_ADMIN_OK);
+}
+
+
+/*
+  Assign table indexes to a key cache.
+*/
+
+int ha_myisam::assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt)
+{
+  uint len;
+  KEY_CACHE_VAR *old_key_cache;
+  KEY_CACHE_VAR *new_key_cache;
+  const char *errmsg=0;
+  int error= HA_ADMIN_OK;
+  ulonglong map= ~(ulonglong) 0;
+  TABLE_LIST *table_list= table->pos_in_table_list;
+  const char *new_key_cache_name= table_list->option ?
+                                  (const char *) table_list->option :
+                                  DEFAULT_KEY_CACHE_NAME;
+  KEY_CACHE_ASMT *key_cache_asmt= table->key_cache_asmt;
+  bool triggered= key_cache_asmt->triggered;
+
+  DBUG_ENTER("ha_myisam::assign_to_keycache");
+
+  VOID(pthread_mutex_lock(&LOCK_assign));
+
+  old_key_cache= key_cache_asmt->key_cache;
+
+  /* Check validity of the index references */
+  if (!triggered && table_list->use_index)
+  {
+    key_map kmap;
+    get_key_map_from_key_list(&kmap, table, table_list->use_index);
+    if (kmap.is_set_all())
+    {
+      errmsg= thd->net.last_error;
+      error= HA_ADMIN_FAILED;
+      goto err;
+    }
+    if (!kmap.is_clear_all())
+      map= kmap.to_ulonglong();
+  }
+
+  len= strlen(new_key_cache_name);
+  new_key_cache= get_or_create_key_cache(new_key_cache_name, len);
+  if (old_key_cache == new_key_cache)
+  {
+    /* Nothing to do: table is assigned to the same key cache */
+    goto ok;
+  }
+
+  if (!new_key_cache ||
+      (!new_key_cache->cache && ha_key_cache(new_key_cache)))
+  {
+    if (key_cache_asmt->triggered)
+      error= HA_ERR_OUT_OF_MEM;
+    else
+    {
+      char buf[ERRMSGSIZE];
+      my_snprintf(buf, ERRMSGSIZE,
+                  "Failed to create key cache %s", new_key_cache_name);
+      errmsg= buf;
+      error= HA_ADMIN_FAILED;
+    }
+    goto err;
+  }
+
+  reassign_key_cache(key_cache_asmt, new_key_cache);
+
+  VOID(pthread_mutex_unlock(&LOCK_assign));
+  error= mi_assign_to_keycache(file, map, new_key_cache, &LOCK_assign);
+  VOID(pthread_mutex_lock(&LOCK_assign));
+
+  if (error && !key_cache_asmt->triggered)
+  { 
+    switch (error) {
+    default: 
+      char buf[ERRMSGSIZE+20];
+      my_snprintf(buf, ERRMSGSIZE, 
+                  "Failed to flush to index file (errno: %d)", my_errno);
+      errmsg= buf;
+    }
+    error= HA_ADMIN_CORRUPT;
+    goto err;
+  }
+
+  goto ok;
+
+ err:
+  if (!triggered)
+  {
+    MI_CHECK param;
+    myisamchk_init(&param);
+    param.thd= thd;
+    param.op_name= (char*)"assign_to_keycache";
+    param.db_name= table->table_cache_key;
+    param.table_name= table->table_name;
+    param.testflag= 0;
+    mi_check_print_error(&param, errmsg);
+ }
+
+ ok:
+  if (--key_cache_asmt->requests)
+  {
+    /* There is a queue of assignments for the table */
+
+    /* Remove the first member from the queue */
+    struct st_my_thread_var *last= key_cache_asmt->queue;
+    struct st_my_thread_var *thread= last->next;
+    if (thread->next == thread)
+      key_cache_asmt->queue= 0;
+    else
+    {
+      last->next= thread->next;
+      last->next->prev= &last->next;
+      thread->next= 0;
+    }
+    /* Signal the first waiting thread to proceed */
+    VOID(pthread_cond_signal(&thread->suspend));
+  }
+
+  key_cache_asmt->triggered= 0;
+
+  VOID(pthread_mutex_unlock(&LOCK_assign));
+
+  DBUG_RETURN(error);
 }
 
 

@@ -62,7 +62,6 @@ static store_key *get_store_key(THD *thd,
 static bool make_simple_join(JOIN *join,TABLE *tmp_table);
 static bool make_join_select(JOIN *join,SQL_SELECT *select,COND *item);
 static void make_join_readinfo(JOIN *join,uint options);
-static void join_free(JOIN *join, bool full);
 static bool only_eq_ref_tables(JOIN *join, ORDER *order, table_map tables);
 static void update_depend_map(JOIN *join);
 static void update_depend_map(JOIN *join, ORDER *order);
@@ -983,8 +982,7 @@ JOIN::optimize()
       }
     }
     
-    if (select_lex != &thd->lex.select_lex &&
-	select_lex->linkage != DERIVED_TABLE_TYPE)
+    if (select_lex->master_unit()->uncacheable)
     {
       if (!(tmp_join= (JOIN*)thd->alloc(sizeof(JOIN))))
 	DBUG_RETURN(-1);
@@ -997,10 +995,10 @@ JOIN::optimize()
   DBUG_RETURN(0);
 }
 
+
 /*
   Restore values in temporary join
 */
-
 void JOIN::restore_tmp()
 {
   memcpy(tmp_join, this, (size_t) sizeof(JOIN));
@@ -1042,11 +1040,28 @@ JOIN::reinit()
   if (items0)
     set_items_ref_array(items0);
 
+  if (join_tab_save)
+    memcpy(join_tab, join_tab_save, sizeof(JOIN_TAB) * tables);
+
   if (tmp_join)
     restore_tmp();
 
   DBUG_RETURN(0);
 }
+
+
+bool
+JOIN::save_join_tab()
+{
+  if (!join_tab_save && select_lex->master_unit()->uncacheable)
+  {
+    if (!(join_tab_save= (JOIN_TAB*)thd->memdup((gptr) join_tab,
+						sizeof(JOIN_TAB) * tables)))
+      return 1;
+  }
+  return 0;
+}
+
 
 /*
   Exec select
@@ -1216,7 +1231,7 @@ JOIN::exec()
       DBUG_PRINT("info",("Creating group table"));
       
       /* Free first data from old join */
-      join_free(curr_join, 0);
+      curr_join->join_free(0);
       if (make_simple_join(curr_join, curr_tmp_table))
 	DBUG_VOID_RETURN;
       calc_group_buffer(curr_join, group_list);
@@ -1249,6 +1264,10 @@ JOIN::exec()
       if (curr_join->group_list)
       {
 	thd->proc_info= "Creating sort index";
+	if (curr_join->join_tab == join_tab && save_join_tab())
+	{
+	  DBUG_VOID_RETURN;
+	}
 	if (create_sort_index(thd, curr_join, curr_join->group_list,
 			      HA_POS_ERROR, HA_POS_ERROR) ||
 	    make_group_fields(this, curr_join))
@@ -1307,7 +1326,7 @@ JOIN::exec()
     if (curr_tmp_table->distinct)
       curr_join->select_distinct=0;		/* Each row is unique */
     
-    join_free(curr_join, 0);			/* Free quick selects */
+    curr_join->join_free(0);			/* Free quick selects */
     if (select_distinct && ! group_list)
     {
       thd->proc_info="Removing duplicates";
@@ -1430,6 +1449,10 @@ JOIN::exec()
 	  }
 	}
       }
+      if (curr_join->join_tab == join_tab && save_join_tab())
+      {
+	DBUG_VOID_RETURN;
+      }
       if (create_sort_index(thd, curr_join,
 			    curr_join->group_list ? 
 			    curr_join->group_list : curr_join->order,
@@ -1477,7 +1500,7 @@ JOIN::cleanup()
   }
 
   lock=0;                                     // It's faster to unlock later
-  join_free(this, 1);
+  join_free(1);
    if (exec_tmp_table1)
      free_tmp_table(thd, exec_tmp_table1);
    if (exec_tmp_table2)
@@ -1579,7 +1602,7 @@ err:
 
 static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
 				      TABLE *table,
-				      const key_map& keys,ha_rows limit)
+				      const key_map *keys,ha_rows limit)
 {
   int error;
   DBUG_ENTER("get_quick_record_count");
@@ -1587,7 +1610,7 @@ static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
   {
     select->head=table;
     table->reginfo.impossible_range=0;
-    if ((error=select->test_quick_select(thd, keys,(table_map) 0,limit))
+    if ((error=select->test_quick_select(thd, *(key_map *)keys,(table_map) 0,limit))
 	== 1)
       DBUG_RETURN(select->quick->records);
     if (error == -1)
@@ -1876,7 +1899,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 			  s->on_expr ? s->on_expr : conds,
 			  &error);
       records= get_quick_record_count(join->thd, select, s->table,
-				      s->const_keys, join->row_limit);
+				      &s->const_keys, join->row_limit);
       s->quick=select->quick;
       s->needed_reg=select->needed_reg;
       select->quick=0;
@@ -2104,8 +2127,7 @@ add_key_field(KEY_FIELD **key_fields,uint and_level,
     else
     {
       JOIN_TAB *stat=field->table->reginfo.join_tab;
-      key_map possible_keys;
-      possible_keys=field->key_start;
+      key_map possible_keys=field->key_start;
       possible_keys.intersect(field->table->keys_in_use_for_query);
       stat[0].keys.merge(possible_keys);             // Add possible keys
 
@@ -3644,26 +3666,37 @@ bool error_if_full_join(JOIN *join)
 }
 
 
-static void
-join_free(JOIN *join, bool full)
+/*
+  Free resources of given join
+
+  SYNOPSIS
+    JOIN::join_free()
+    fill - true if we should free all resources, call with full==1 should be
+           last, before it this function can be called with full==0
+
+  NOTE: with subquery this function definitely will be called several times,
+    but even for simple query it can be called several times.
+*/
+void
+JOIN::join_free(bool full)
 {
   JOIN_TAB *tab,*end;
   DBUG_ENTER("join_free");
 
-  if (join->table)
+  if (table)
   {
     /*
       Only a sorted table may be cached.  This sorted table is always the
       first non const table in join->table
     */
-    if (join->tables > join->const_tables) // Test for not-const tables
+    if (tables > const_tables) // Test for not-const tables
     {
-      free_io_cache(join->table[join->const_tables]);
-      filesort_free_buffers(join->table[join->const_tables]);
+      free_io_cache(table[const_tables]);
+      filesort_free_buffers(table[const_tables]);
     }
-    if (join->select_lex->dependent && !full)
+    if (!full && select_lex->uncacheable)
     {
-      for (tab=join->join_tab,end=tab+join->tables ; tab != end ; tab++)
+      for (tab= join_tab, end= tab+tables; tab != end; tab++)
       {
 	if (tab->table)
 	{
@@ -3680,7 +3713,7 @@ join_free(JOIN *join, bool full)
     }
     else
     {
-      for (tab=join->join_tab,end=tab+join->tables ; tab != end ; tab++)
+      for (tab= join_tab, end= tab+tables; tab != end; tab++)
       {
 	delete tab->select;
 	delete tab->quick;
@@ -3706,24 +3739,25 @@ join_free(JOIN *join, bool full)
 	}
 	end_read_record(&tab->read_record);
       }
-      join->table= 0;
+      table= 0;
     }
   }
   /*
     We are not using tables anymore
     Unlock all tables. We may be in an INSERT .... SELECT statement.
   */
-  if (join->lock && join->thd->lock &&
-      !(join->select_options & SELECT_NO_UNLOCK))
+  if ((full || !select_lex->uncacheable) &&
+      lock && thd->lock &&
+      !(select_options & SELECT_NO_UNLOCK))
   {
-    mysql_unlock_read_tables(join->thd, join->lock);// Don't free join->lock
-    join->lock=0;
+    mysql_unlock_read_tables(thd, lock);// Don't free join->lock
+    lock=0;
   }
   if (full)
   {
-    join->group_fields.delete_elements();
-    join->tmp_table_param.copy_funcs.delete_elements();
-    join->tmp_table_param.cleanup();
+    group_fields.delete_elements();
+    tmp_table_param.copy_funcs.delete_elements();
+    tmp_table_param.cleanup();
   }
   DBUG_VOID_RETURN;
 }
@@ -4173,6 +4207,60 @@ propagate_cond_constants(I_List<COND_CMP> *save_list,COND *and_father,
 }
 
 
+/*
+  Eliminate NOT functions from the condition tree.
+
+  SYNPOSIS
+    eliminate_not_funcs()
+    cond	condition tree
+
+  DESCRIPTION
+    Eliminate NOT functions from the condition tree where it's possible.
+    Recursively traverse condition tree to find all NOT functions.
+    Call neg_transformer() method for negated arguments.
+
+  NOTE
+    If neg_transformer() returned a new condition we call fix_fields().
+    We don't delete any items as it's not needed. They will be deleted 
+    later at once.
+
+  RETURN
+    New condition tree
+*/
+
+COND *eliminate_not_funcs(COND *cond)
+{
+  if (!cond)
+    return cond;
+  if (cond->type() == Item::COND_ITEM)		/* OR or AND */
+  {
+    List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
+    Item *item;
+    while ((item= li++))
+    {
+      Item *new_item= eliminate_not_funcs(item);
+      if (item != new_item)
+	VOID(li.replace(new_item));	/* replace item with a new condition */
+    }
+  }
+  else if (cond->type() == Item::FUNC_ITEM &&	/* 'NOT' operation? */
+	   ((Item_func*) cond)->functype() == Item_func::NOT_FUNC)
+  {
+    COND *new_cond= ((Item_func*) cond)->arguments()[0]->neg_transformer();
+    if (new_cond)
+    {
+      /*
+        Here we can delete the NOT function. Something like: delete cond;
+        But we don't need to do it. All items will be deleted later at once.
+      */
+      new_cond->fix_fields(current_thd, 0, &new_cond);
+      cond= new_cond;
+    }
+  }
+  return cond;
+}
+
+
 static COND *
 optimize_cond(COND *conds,Item::cond_result *cond_value)
 {
@@ -4181,8 +4269,11 @@ optimize_cond(COND *conds,Item::cond_result *cond_value)
     *cond_value= Item::COND_TRUE;
     return conds;
   }
-  /* change field = field to field = const for each found field = const */
   DBUG_EXECUTE("where",print_where(conds,"original"););
+  /* eliminate NOT operators */
+  conds= eliminate_not_funcs(conds);
+  DBUG_EXECUTE("where", print_where(conds, "after negation elimination"););
+  /* change field = field to field = const for each found field = const */
   propagate_cond_constants((I_List<COND_CMP> *) 0,conds,conds);
   /*
     Remove all instances of item == item
@@ -5378,7 +5469,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
 	The following will unlock all cursors if the command wasn't an
 	update command
       */
-      join_free(join, 0);				// Unlock all cursors
+      join->join_free(0);				// Unlock all cursors
       if (join->result->send_eof())
 	error= 1;				// Don't send error
     }
@@ -8434,11 +8525,7 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
   if (thd->is_fatal_error)
     DBUG_RETURN(TRUE);
 
-  /*
-    Here we pass 0 as the first argument to fix_fields that don't need
-    to do any stack checking (This is already done in the initial fix_fields).
-  */
-  cond->fix_fields((THD *) 0,(TABLE_LIST *) 0, (Item**)&cond);
+  cond->fix_fields(thd,(TABLE_LIST *) 0, (Item**)&cond);
   if (join_tab->select)
   {
     error=(int) cond->add(join_tab->select->cond);
@@ -8777,7 +8864,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       uint j;
       if (!tab->keys.is_clear_all())
       {
-        for (j=0 ; j < tab->keys.length() ; j++)
+        for (j=0 ; j < table->keys ; j++)
         {
           if (tab->keys.is_set(j))
           {

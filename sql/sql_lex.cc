@@ -1112,8 +1112,11 @@ void st_select_lex_unit::exclude_level()
   SELECT_LEX_UNIT *units= 0, **units_last= &units;
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {
+    // unlink current level from global SELECTs list
     if (sl->link_prev && (*sl->link_prev= sl->link_next))
       sl->link_next->link_prev= sl->link_prev;
+
+    // bring up underlay levels
     SELECT_LEX_UNIT **last= 0;
     for (SELECT_LEX_UNIT *u= sl->first_inner_unit(); u; u= u->next_unit())
     {
@@ -1128,11 +1131,20 @@ void st_select_lex_unit::exclude_level()
   }
   if (units)
   {
+    // include brought up levels in place of current
     (*prev)= units;
     (*units_last)= (SELECT_LEX_UNIT*)next;
+    if (next)
+      next->prev= (SELECT_LEX_NODE**)units_last;
+    units->prev= prev;
   }
   else
+  {
+    // exclude currect unit from list of nodes
     (*prev)= next;
+    if (next)
+      next->prev= prev;
+  }
 }
 
 
@@ -1147,15 +1159,20 @@ void st_select_lex_unit::exclude_tree()
   SELECT_LEX_UNIT *units= 0, **units_last= &units;
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {
+    // unlink current level from global SELECTs list
     if (sl->link_prev && (*sl->link_prev= sl->link_next))
       sl->link_next->link_prev= sl->link_prev;
 
+    // unlink underlay levels
     for (SELECT_LEX_UNIT *u= sl->first_inner_unit(); u; u= u->next_unit())
     {
       u->exclude_level();
     }
   }
+  // exclude currect unit from list of nodes
   (*prev)= next;
+  if (next)
+    next->prev= prev;
 }
 
 
@@ -1178,16 +1195,16 @@ void st_select_lex::mark_as_dependent(SELECT_LEX *last)
     found table as depended (of select where was found table)
   */
   for (SELECT_LEX *s= this;
-       s &&s != last;
+       s && s != last;
        s= s->outer_select())
     if ( !s->dependent )
     {
       // Select is dependent of outer select
-      s->dependent= 1;
-      s->master_unit()->dependent= 1;
+      s->dependent= s->uncacheable= 1;
+      SELECT_LEX_UNIT *munit= s->master_unit();
+      munit->dependent= munit->uncacheable= 1;
       //Tables will be reopened many times
-      for (TABLE_LIST *tbl=
-	     s->get_table_list();
+      for (TABLE_LIST *tbl= s->get_table_list();
 	   tbl;
 	   tbl= tbl->next)
 	tbl->shared= 1;
@@ -1201,7 +1218,16 @@ TABLE_LIST* st_select_lex_node::get_table_list()     { return 0; }
 List<Item>* st_select_lex_node::get_item_list()      { return 0; }
 List<String>* st_select_lex_node::get_use_index()    { return 0; }
 List<String>* st_select_lex_node::get_ignore_index() { return 0; }
-
+TABLE_LIST *st_select_lex_node::add_table_to_list(THD *thd, Table_ident *table,
+						  LEX_STRING *alias,
+						  ulong table_join_options,
+						  thr_lock_type flags,
+						  List<String> *use_index,
+						  List<String> *ignore_index,
+                                                  LEX_STRING *option)
+{
+  return 0;
+}
 ulong st_select_lex_node::get_table_join_options()
 {
   return 0;
@@ -1224,6 +1250,28 @@ bool st_select_lex::test_limit()
   order_list.empty();
   return(0);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /*  
   Interface method of table list creation for query

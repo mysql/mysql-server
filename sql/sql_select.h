@@ -131,6 +131,7 @@ class JOIN :public Sql_alloc
 {
  public:
   JOIN_TAB *join_tab,**best_ref,**map2table;
+  JOIN_TAB *join_tab_save; //saved join_tab for subquery reexecution
   TABLE    **table,**all_tables,*sort_by_table;
   uint	   tables,const_tables;
   uint	   send_group_parts;
@@ -202,7 +203,7 @@ class JOIN :public Sql_alloc
   void init(THD *thd_arg, List<Item> &fields, ulong select_options_arg,
        select_result *result_arg)
   {
-    join_tab= 0;
+    join_tab= join_tab_save= 0;
     table= 0;
     tables= 0;
     const_tables= 0;
@@ -242,7 +243,7 @@ class JOIN :public Sql_alloc
     zero_result_cause= 0;
     optimized= 0;
 
-    fields_list = fields;
+    fields_list= fields;
     bzero((char*) &keyuse,sizeof(keyuse));
     tmp_table_param.copy_field=0;
     tmp_table_param.end_write_records= HA_POS_ERROR;
@@ -279,7 +280,9 @@ class JOIN :public Sql_alloc
 			  Item_sum ***func);
   int rollup_send_data(uint idx);
   bool test_in_subselect(Item **where);
+  void join_free(bool full);
   void clear();
+  bool save_join_tab();
 };
 
 
@@ -414,3 +417,4 @@ bool error_if_full_join(JOIN *join);
 void relink_tables(SELECT_LEX *select_lex);
 int report_error(TABLE *table, int error);
 int safe_index_read(JOIN_TAB *tab);
+COND *eliminate_not_funcs(COND *cond);

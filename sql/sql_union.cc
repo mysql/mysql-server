@@ -119,13 +119,18 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result,
   SELECT_LEX *select_cursor,*sl;
   DBUG_ENTER("st_select_lex_unit::prepare");
 
+  /*
+    result object should be reassigned even if preparing already done for
+    max/min subquery (ALL/ANY optimization)
+  */
+  result= sel_result;
+
   if (prepared)
     DBUG_RETURN(0);
   prepared= 1;
   res= 0;
   found_rows_for_union= first_select_in_union()->options & OPTION_FOUND_ROWS;
   TMP_TABLE_PARAM tmp_table_param;
-  result= sel_result;
   t_and_f= tables_and_fields_initied;
   
   bzero((char *)&tmp_table_param,sizeof(TMP_TABLE_PARAM));

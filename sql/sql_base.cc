@@ -30,6 +30,7 @@
 
 TABLE *unused_tables;				/* Used by mysql_test */
 HASH open_cache;				/* Used by mysql_test */
+HASH assign_cache;
 
 static int open_unireg_entry(THD *thd,TABLE *entry,const char *db,
 			     const char *name, const char *alias);
@@ -53,7 +54,6 @@ void table_cache_init(void)
   mysql_rm_tmp_tables();
 }
 
-
 void table_cache_free(void)
 {
   DBUG_ENTER("table_cache_free");
@@ -62,7 +62,6 @@ void table_cache_free(void)
     hash_free(&open_cache);
   DBUG_VOID_RETURN;
 }
-
 
 uint cached_tables(void)
 {
@@ -762,6 +761,8 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
   reg1	TABLE *table;
   char	key[MAX_DBKEY_LENGTH];
   uint	key_length;
+  KEY_CACHE_ASMT *key_cache_asmt;
+  KEY_CACHE_VAR *key_cache;
   DBUG_ENTER("open_table");
 
   /* find a unused table in the open table cache */
@@ -802,6 +803,77 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
     my_printf_error(ER_TABLE_NOT_LOCKED,ER(ER_TABLE_NOT_LOCKED),MYF(0),alias);
     DBUG_RETURN(0);
   }
+
+  VOID(pthread_mutex_lock(&LOCK_assign));
+  key_cache_asmt= (KEY_CACHE_ASMT*) hash_search(&assign_cache,
+                                              (byte*) key, key_length) ;
+  if (thd->open_options & HA_OPEN_TO_ASSIGN)
+  { 
+    /* When executing a CACHE INDEX command*/   
+    if (key_cache_asmt)
+    {
+      if (key_cache_asmt->requests++)
+      { 
+        /* Another thread are assigning this table to some key cache*/
+
+        /* Put the assignment request into the queue of such requests */
+        struct st_my_thread_var *last;
+        struct st_my_thread_var *thread= thd->mysys_var;        
+        if (! (last= key_cache_asmt->queue))
+          thread->next= thread;
+        else
+        {
+          thread->next= last->next;
+          last->next= thread;
+        }
+        key_cache_asmt->queue= thread;
+        
+        /* Wait until the request can be processed */
+        do
+        {
+          VOID(pthread_cond_wait(&thread->suspend, &LOCK_assign));
+        }
+        while (thread->next);
+      }
+    }
+    else
+    {
+      /* 
+         The table has not been explicitly assigned to any key cache yet;
+         by default it's assigned to the default key cache;
+      */
+      
+      if (!(key_cache_asmt=
+              (KEY_CACHE_ASMT *) my_malloc(sizeof(*key_cache_asmt),
+					   MYF(MY_WME | MY_ZEROFILL)))      ||
+          !(key_cache_asmt->db_name= my_strdup(db, MYF(MY_WME)))            ||
+	  !(key_cache_asmt->table_name= my_strdup(table_name, MYF(MY_WME))) ||
+          !(key_cache_asmt->table_key= my_memdup((const byte *) key,
+						 key_length, MYF(MY_WME))))
+      {
+        VOID(pthread_mutex_unlock(&LOCK_assign));
+        
+        if (key_cache_asmt)
+        {
+          if (key_cache_asmt->db_name)
+            my_free((gptr) key_cache_asmt->db_name, MYF(0));
+          if (key_cache_asmt->table_name)
+            my_free((gptr) key_cache_asmt->table_name, MYF(0));
+          my_free((gptr) key_cache_asmt, MYF(0));
+        }
+        DBUG_RETURN(NULL);
+      }
+      key_cache_asmt->key_length= key_length;
+      key_cache_asmt->key_cache= &dflt_key_cache_var;  
+      VOID(my_hash_insert(&assign_cache, (byte *) key_cache_asmt));
+      key_cache_asmt->requests++;     
+    }
+    key_cache_asmt->to_reassign= 0;
+  }
+
+  key_cache= key_cache_asmt ? key_cache_asmt->key_cache : &dflt_key_cache_var;  
+  VOID(pthread_mutex_unlock(&LOCK_assign));
+
   VOID(pthread_mutex_lock(&LOCK_open));
 
   if (!thd->open_tables)
@@ -844,6 +916,9 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
     }
     table->prev->next=table->next;		/* Remove from unused list */
     table->next->prev=table->prev;
+
+    table->key_cache= key_cache;
+    table->key_cache_asmt= key_cache_asmt;
   }
   else
   {
@@ -857,6 +932,8 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
       VOID(pthread_mutex_unlock(&LOCK_open));
       DBUG_RETURN(NULL);
     }
+    table->key_cache= key_cache;
+    table->key_cache_asmt= key_cache_asmt;
     if (open_unireg_entry(thd, table,db,table_name,alias) ||
 	!(table->table_cache_key=memdup_root(&table->mem_root,(char*) key,
 					     key_length)))
@@ -875,6 +952,8 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
 
   table->in_use=thd;
   check_unused();
+
+       
   VOID(pthread_mutex_unlock(&LOCK_open));
   if (refresh)
   {
@@ -1644,6 +1723,54 @@ bool rm_temporary_table(enum db_type base, char *path)
     error=1;
   delete file;
   DBUG_RETURN(error);
+}
+
+static void free_assign_entry(KEY_CACHE_ASMT *key_cache_asmt)
+{
+  DBUG_ENTER("free_assign_entry");
+  my_free((gptr) key_cache_asmt->table_key, MYF(0));
+  my_free((gptr) key_cache_asmt, MYF(0));
+  DBUG_VOID_RETURN;
+}
+
+static byte *assign_cache_key(const byte *record,uint *length,
+				 my_bool not_used __attribute__((unused)))
+{
+  KEY_CACHE_ASMT *entry=(KEY_CACHE_ASMT *) record;
+  *length=entry->key_length;
+  return (byte*) entry->table_key;
+}
+
+void assign_cache_init(void)
+{
+  VOID(hash_init(&assign_cache, &my_charset_bin,
+		 table_cache_size+16, 0, 0, assign_cache_key,
+		 (hash_free_key) free_assign_entry,0));
+}
+
+void assign_cache_free(void)
+{
+  DBUG_ENTER("assign_cache_free");
+  hash_free(&assign_cache);
+  DBUG_VOID_RETURN;
+}
+
+void reassign_key_cache(KEY_CACHE_ASMT *key_cache_asmt,
+                        KEY_CACHE_VAR *new_key_cache)
+{
+  if (key_cache_asmt->prev)
+  { 
+    /* Unlink key_cache_asmt from the assignment list for the old key cache */
+    if ((*key_cache_asmt->prev= key_cache_asmt->next))
+      key_cache_asmt->next->prev= key_cache_asmt->prev;
+  }
+  /* Link key_cache_asmt into the assignment list for the new key cache */
+  key_cache_asmt->prev= &new_key_cache->assign_list;
+  if ((key_cache_asmt->next= new_key_cache->assign_list))
+    key_cache_asmt->next->prev= &key_cache_asmt->next;
+  new_key_cache->assign_list= key_cache_asmt;
+
+  key_cache_asmt->key_cache= new_key_cache;
 }
 
 

@@ -310,8 +310,8 @@ int _mi_enlarge_root(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
   mi_putint(info->buff,t_length+2+nod_flag,nod_flag);
   (*keyinfo->store_key)(keyinfo,info->buff+2+nod_flag,&s_temp);
   info->buff_used=info->page_changed=1;		/* info->buff is used */
-  if ((*root= _mi_new(info,keyinfo)) == HA_OFFSET_ERROR ||
-      _mi_write_keypage(info,keyinfo,*root,info->buff))
+  if ((*root= _mi_new(info,keyinfo,DFLT_INIT_HITS)) == HA_OFFSET_ERROR ||
+      _mi_write_keypage(info,keyinfo,*root,DFLT_INIT_HITS,info->buff))
     DBUG_RETURN(-1);
   DBUG_RETURN(0);
 } /* _mi_enlarge_root */
@@ -342,7 +342,7 @@ static int w_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   if (!(temp_buff= (uchar*) my_alloca((uint) keyinfo->block_length+
 				      MI_MAX_KEY_BUFF*2)))
     DBUG_RETURN(-1);
-  if (!_mi_fetch_keypage(info,keyinfo,page,temp_buff,0))
+  if (!_mi_fetch_keypage(info,keyinfo,page,DFLT_INIT_HITS,temp_buff,0))
     goto err;
 
   flag=(*keyinfo->bin_search)(info,keyinfo,temp_buff,key,search_key_length,
@@ -386,7 +386,7 @@ static int w_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
         DBUG_ASSERT(subkeys < 0);
         ft_intXstore(keypos, subkeys);
         if (!error)
-          error=_mi_write_keypage(info,keyinfo,page,temp_buff);
+          error=_mi_write_keypage(info,keyinfo,page,DFLT_INIT_HITS,temp_buff);
         my_afree((byte*) temp_buff);
         DBUG_RETURN(error);
       }
@@ -409,7 +409,7 @@ static int w_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   {
     error=_mi_insert(info,keyinfo,key,temp_buff,keypos,keybuff,father_buff,
 		     father_keypos,father_page, insert_last);
-    if (_mi_write_keypage(info,keyinfo,page,temp_buff))
+    if (_mi_write_keypage(info,keyinfo,page,DFLT_INIT_HITS,temp_buff))
       goto err;
   }
   my_afree((byte*) temp_buff);
@@ -580,7 +580,7 @@ int _mi_split_page(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   }
 
 	/* Move middle item to key and pointer to new page */
-  if ((new_pos=_mi_new(info,keyinfo)) == HA_OFFSET_ERROR)
+  if ((new_pos=_mi_new(info,keyinfo,DFLT_INIT_HITS)) == HA_OFFSET_ERROR)
     DBUG_RETURN(-1);
   _mi_kpointer(info,_mi_move_key(keyinfo,key,key_buff),new_pos);
 
@@ -596,7 +596,7 @@ int _mi_split_page(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   (*keyinfo->store_key)(keyinfo,info->buff+key_ref_length,&s_temp);
   mi_putint(info->buff,length+t_length+key_ref_length,nod_flag);
 
-  if (_mi_write_keypage(info,keyinfo,new_pos,info->buff))
+  if (_mi_write_keypage(info,keyinfo,new_pos,DFLT_INIT_HITS,info->buff))
     DBUG_RETURN(-1);
   DBUG_DUMP("key",(byte*) key,_mi_keylength(keyinfo,key));
   DBUG_RETURN(2);				/* Middle key up */
@@ -747,7 +747,7 @@ static int _mi_balance_page(register MI_INFO *info, MI_KEYDEF *keyinfo,
     DBUG_PRINT("test",("use left page: %lu",next_page));
   }					/* father_key_pos ptr to parting key */
 
-  if (!_mi_fetch_keypage(info,keyinfo,next_page,info->buff,0))
+  if (!_mi_fetch_keypage(info,keyinfo,next_page,DFLT_INIT_HITS,info->buff,0))
     goto err;
   DBUG_DUMP("next",(byte*) info->buff,mi_getint(info->buff));
 
@@ -787,8 +787,8 @@ static int _mi_balance_page(register MI_INFO *info, MI_KEYDEF *keyinfo,
       memcpy((byte*) buff+2,(byte*) pos+k_length,(size_t) length);
     }
 
-    if (_mi_write_keypage(info,keyinfo,next_page,info->buff) ||
-	_mi_write_keypage(info,keyinfo,father_page,father_buff))
+    if (_mi_write_keypage(info,keyinfo,next_page,DFLT_INIT_HITS,info->buff) ||
+	_mi_write_keypage(info,keyinfo,father_page,DFLT_INIT_HITS,father_buff))
       goto err;
     DBUG_RETURN(0);
   }
@@ -828,12 +828,13 @@ static int _mi_balance_page(register MI_INFO *info, MI_KEYDEF *keyinfo,
   memcpy((byte*) (right ? key : father_key_pos),pos,(size_t) k_length);
   memcpy((byte*) (right ? father_key_pos : key),tmp_part_key, k_length);
 
-  if ((new_pos=_mi_new(info,keyinfo)) == HA_OFFSET_ERROR)
+  if ((new_pos=_mi_new(info,keyinfo,DFLT_INIT_HITS)) == HA_OFFSET_ERROR)
     goto err;
   _mi_kpointer(info,key+k_length,new_pos);
   if (_mi_write_keypage(info,keyinfo,(right ? new_pos : next_page),
-			info->buff) ||
-      _mi_write_keypage(info,keyinfo,(right ? next_page : new_pos),extra_buff))
+			DFLT_INIT_HITS,info->buff) ||
+      _mi_write_keypage(info,keyinfo,(right ? next_page : new_pos),
+                        DFLT_INIT_HITS,extra_buff))
     goto err;
 
   DBUG_RETURN(1);				/* Middle key up */

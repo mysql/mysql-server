@@ -1,4 +1,4 @@
-drop table if exists t1;
+drop table if exists t1, t2;
 CREATE TABLE t1 (
 event_date date DEFAULT '0000-00-00' NOT NULL,
 type int(11) DEFAULT '0' NOT NULL,
@@ -215,17 +215,6 @@ select count(*) from t1 where art = 'J';
 count(*)
 213
 drop table t1;
-create table t1 ( id1 int not null, id2 int not null, idnull int null, c char(20), primary key (id1,id2));
-insert into t1 values (0,1,NULL,"aaa"), (1,1,NULL,"aaa"), (2,1,NULL,"aaa"),
-(3,1,NULL,"aaa"), (4,1,NULL,"aaa"), (5,1,NULL,"aaa"),
-(6,1,NULL,"aaa"), (7,1,NULL,"aaa"), (8,1,NULL,"aaa"),
-(9,1,NULL,"aaa"), (10,1,NULL,"aaa"), (11,1,NULL,"aaa"),
-(12,1,NULL,"aaa"), (13,1,NULL,"aaa"), (14,1,NULL,"aaa"),
-(15,1,NULL,"aaa"), (16,1,NULL,"aaa"), (17,1,NULL,"aaa"),
-(18,1,NULL,"aaa"), (19,1,NULL,"aaa"), (20,1,NULL,"aaa");
-select a.id1, b.idnull from t1 as a, t1 as b where a.id2=1 and a.id1=1 and b.id1=a.idnull order by b.id2 desc limit 1;
-id1	idnull
-drop table t1;
 create table t1 (x int, y int, index(x), index(y));
 insert into t1 (x) values (1),(2),(3),(4),(5),(6),(7),(8),(9);
 update t1 set y=x;
@@ -286,3 +275,145 @@ id
 5
 9
 drop table t1;
+create table t1 ( id1 int not null, id2 int not null, idnull int null, c char(20), primary key (id1,id2));
+insert into t1 values (0,1,NULL,"aaa"), (1,1,NULL,"aaa"), (2,1,NULL,"aaa"),
+(3,1,NULL,"aaa"), (4,1,NULL,"aaa"), (5,1,NULL,"aaa"),
+(6,1,NULL,"aaa"), (7,1,NULL,"aaa"), (8,1,NULL,"aaa"),
+(9,1,NULL,"aaa"), (10,1,NULL,"aaa"), (11,1,NULL,"aaa"),
+(12,1,NULL,"aaa"), (13,1,NULL,"aaa"), (14,1,NULL,"aaa"),
+(15,1,NULL,"aaa"), (16,1,NULL,"aaa"), (17,1,NULL,"aaa"),
+(18,1,NULL,"aaa"), (19,1,NULL,"aaa"), (20,1,NULL,"aaa");
+select a.id1, b.idnull from t1 as a, t1 as b where a.id2=1 and a.id1=1 and b.id1=a.idnull order by b.id2 desc limit 1;
+id1	idnull
+drop table t1;
+create table t1 (
+id int not null auto_increment,
+name char(1) not null,
+uid int not null,
+primary key (id),
+index uid_index (uid));
+create table t2 (
+id int not null auto_increment,
+name char(1) not null,
+uid int not null,
+primary key (id),
+index uid_index (uid));
+insert into t1(id, uid, name) values(1, 0, ' ');
+insert into t1(uid, name) values(0, ' ');
+insert into t2(uid, name) select uid, name from t1;
+insert into t1(uid, name) select uid, name from t2;
+insert into t2(uid, name) select uid, name from t1;
+insert into t1(uid, name) select uid, name from t2;
+insert into t2(uid, name) select uid, name from t1;
+insert into t1(uid, name) select uid, name from t2;
+insert into t2(uid, name) select uid, name from t1;
+insert into t1(uid, name) select uid, name from t2;
+insert into t2(uid, name) select uid, name from t1;
+insert into t1(uid, name) select uid, name from t2;
+insert into t2(uid, name) select uid, name from t1;
+insert into t2(uid, name) select uid, name from t1;
+insert into t2(uid, name) select uid, name from t1;
+insert into t2(uid, name) select uid, name from t1;
+insert into t1(uid, name) select uid, name from t2;
+delete from t2;
+insert into t2(uid, name) values 
+(1, CHAR(64+1)),
+(2, CHAR(64+2)),
+(3, CHAR(64+3)),
+(4, CHAR(64+4)),
+(5, CHAR(64+5)),
+(6, CHAR(64+6)),
+(7, CHAR(64+7)),
+(8, CHAR(64+8)),
+(9, CHAR(64+9)),
+(10, CHAR(64+10)),
+(11, CHAR(64+11)),
+(12, CHAR(64+12)),
+(13, CHAR(64+13)),
+(14, CHAR(64+14)),
+(15, CHAR(64+15)),
+(16, CHAR(64+16)),
+(17, CHAR(64+17)),
+(18, CHAR(64+18)),
+(19, CHAR(64+19)),
+(20, CHAR(64+20)),
+(21, CHAR(64+21)),
+(22, CHAR(64+22)),
+(23, CHAR(64+23)),
+(24, CHAR(64+24)),
+(25, CHAR(64+25)),
+(26, CHAR(64+26));
+insert into t1(uid, name) select uid, name from t2;
+delete from t2;
+insert into t2(id, uid, name) select id, uid, name from t1;
+select count(*) from t1;
+count(*)
+1026
+select count(*) from t2;
+count(*)
+1026
+explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	128	Using where
+1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	
+explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid != 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	129	Using where
+1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	
+select * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
+id	name	uid	id	name	uid
+1001	A	1	1001	A	1
+1002	B	2	1002	B	2
+1003	C	3	1003	C	3
+1004	D	4	1004	D	4
+1005	E	5	1005	E	5
+1006	F	6	1006	F	6
+1007	G	7	1007	G	7
+1008	H	8	1008	H	8
+1009	I	9	1009	I	9
+1010	J	10	1010	J	10
+1011	K	11	1011	K	11
+1012	L	12	1012	L	12
+1013	M	13	1013	M	13
+1014	N	14	1014	N	14
+1015	O	15	1015	O	15
+1016	P	16	1016	P	16
+1017	Q	17	1017	Q	17
+1018	R	18	1018	R	18
+1019	S	19	1019	S	19
+1020	T	20	1020	T	20
+1021	U	21	1021	U	21
+1022	V	22	1022	V	22
+1023	W	23	1023	W	23
+1024	X	24	1024	X	24
+1025	Y	25	1025	Y	25
+1026	Z	26	1026	Z	26
+select * from t1, t2  where t1.uid=t2.uid AND t1.uid != 0;
+id	name	uid	id	name	uid
+1001	A	1	1001	A	1
+1002	B	2	1002	B	2
+1003	C	3	1003	C	3
+1004	D	4	1004	D	4
+1005	E	5	1005	E	5
+1006	F	6	1006	F	6
+1007	G	7	1007	G	7
+1008	H	8	1008	H	8
+1009	I	9	1009	I	9
+1010	J	10	1010	J	10
+1011	K	11	1011	K	11
+1012	L	12	1012	L	12
+1013	M	13	1013	M	13
+1014	N	14	1014	N	14
+1015	O	15	1015	O	15
+1016	P	16	1016	P	16
+1017	Q	17	1017	Q	17
+1018	R	18	1018	R	18
+1019	S	19	1019	S	19
+1020	T	20	1020	T	20
+1021	U	21	1021	U	21
+1022	V	22	1022	V	22
+1023	W	23	1023	W	23
+1024	X	24	1024	X	24
+1025	Y	25	1025	Y	25
+1026	Z	26	1026	Z	26
+drop table t1,t2;
