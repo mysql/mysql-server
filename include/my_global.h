@@ -121,14 +121,6 @@
 /* #define _AIX32_CURSES */	/* XXX: this breaks AIX 4.3.3 (others?). */
 #endif
 
-#ifdef __QNXNTO__
-#define HAVE_ERRNO_AS_DEFINE
-#define HAVE_FCNTL_LOCK
-#undef  HAVE_SYS_UN_H
-#undef  HAVE_FINITE
-#undef  HAVE_RINT
-#endif
-
 #ifdef HAVE_BROKEN_SNPRINTF	/* HPUX 10.20 don't have this defined */
 #undef HAVE_SNPRINTF
 #endif
@@ -251,6 +243,17 @@
 /* Fix bug in setrlimit */
 #undef setrlimit
 #define setrlimit cma_setrlimit64
+#endif
+
+#ifdef __QNXNTO__
+/* This has to be after include limits.h */
+#define HAVE_ERRNO_AS_DEFINE
+#define HAVE_FCNTL_LOCK
+#undef  HAVE_SYS_UN_H
+#undef  HAVE_FINITE
+#undef  HAVE_RINT
+#undef  LONGLONG_MIN            /* These get wrongly defined in QNX 6.2 */
+#undef  LONGLONG_MAX            /* standard system library 'limits.h' */
 #endif
 
 /* We can not live without the following defines */
@@ -546,11 +549,6 @@ extern double		my_atof(const char*);
 
 #if SIZEOF_LONG_LONG > 4
 #define HAVE_LONG_LONG 1
-#endif
-
-#ifdef __QNXNTO__
-#undef  LONGLONG_MIN            /* These get wrongly defined in QNX 6.2 */
-#undef  LONGLONG_MAX            /* standard system library 'limits.h' */
 #endif
 
 #if defined(HAVE_LONG_LONG) && !defined(LONGLONG_MIN)

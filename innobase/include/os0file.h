@@ -408,6 +408,12 @@ os_aio_print(
 	char*	buf,	/* in/out: buffer where to print */
 	char*	buf_end);/* in: buffer end */
 /**************************************************************************
+Refreshes the statistics used to print per-second averages. */
+
+void
+os_aio_refresh_stats(void);
+/*======================*/
+/**************************************************************************
 Checks that all slots in the system have been freed, that is, there are
 no pending io operations. */
 

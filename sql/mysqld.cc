@@ -1809,7 +1809,7 @@ int main(int argc, char **argv)
     exit( 1 );
   }
 #endif
-  load_defaults("my",load_default_groups,&argc,&argv);
+  load_defaults(MYSQL_CONFIG_NAME,load_default_groups,&argc,&argv);
   defaults_argv=argv;
 
   /* Get default temporary directory */
@@ -2373,7 +2373,15 @@ static void create_new_thread(THD *thd)
   for (uint i=0; i < 8 ; i++)			// Generate password teststring
     thd->scramble[i]= (char) (rnd(&sql_rand)*94+33);
   thd->scramble[8]=0;
-  thd->rand=sql_rand;
+  /* 
+     We need good random number initialization for new thread
+     Just coping global one will not work 
+  */
+  {
+    ulong tmp=(ulong) (rnd(&sql_rand) * 3000000);
+    randominit(&(thd->rand), tmp + (ulong) start_time,
+	       tmp + (ulong) thread_id);
+  }
   thd->real_id=pthread_self();			// Keep purify happy
 
   /* Start a new thread to handle connection */
@@ -3260,8 +3268,8 @@ struct my_option my_long_options[] =
 #endif
   {"temp-pool", OPT_TEMP_POOL, 
    "Using this option will cause most temporary files created to use a small set of names, rather than a unique name for each new file.",
-   (gptr*) &use_temp_pool, (gptr*) &use_temp_pool, 0, GET_BOOL, NO_ARG, 0, 0,
-   0, 0, 0, 0},
+   (gptr*) &use_temp_pool, (gptr*) &use_temp_pool, 0, GET_BOOL, NO_ARG, 1,
+   0, 0, 0, 0, 0},
   {"tmpdir", 't', "Path for temporary files", (gptr*) &opt_mysql_tmpdir,
    (gptr*) &opt_mysql_tmpdir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"transaction-isolation", OPT_TX_ISOLATION,
@@ -3805,7 +3813,7 @@ Starts the MySQL server\n");
 ");
   puts("");
 #endif
-  print_defaults("my",load_default_groups);
+  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
   puts("");
   fix_paths();
   set_ports();

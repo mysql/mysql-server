@@ -933,6 +933,36 @@ fsp_header_get_free_limit(
 	return(limit);
 }
 
+/**************************************************************************
+Gets the size of the tablespace from the tablespace header. If we do not
+have an auto-extending data file, this should be equal to the size of the
+data files. If there is an auto-extending data file, this can be smaller. */
+
+ulint
+fsp_header_get_tablespace_size(
+/*===========================*/
+			/* out: size in pages */
+	ulint	space)	/* in: space id */
+{
+	fsp_header_t*	header;
+	ulint		size;
+	mtr_t		mtr;
+
+	ut_a(space == 0); /* We have only one log_fsp_current_... variable */
+	
+	mtr_start(&mtr);
+
+	mtr_x_lock(fil_space_get_latch(space), &mtr);	
+
+	header = fsp_get_space_header(space, &mtr);
+
+	size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, &mtr);
+
+	mtr_commit(&mtr);
+
+	return(size);
+}
+
 /***************************************************************************
 Tries to extend the last data file file if it is defined as auto-extending. */
 static
@@ -2629,7 +2659,7 @@ fseg_free_page_low(
 "InnoDB: Dump of the tablespace extent descriptor: %s\n", errbuf);
 
 		fprintf(stderr,
-"InnoDB: Serious error! InnoDB is trying to free page %lu\n",
+"InnoDB: Serious error! InnoDB is trying to free page %lu\n"
 "InnoDB: though it is already marked as free in the tablespace!\n"
 "InnoDB: The tablespace free space info is corrupt.\n"
 "InnoDB: You may need to dump your InnoDB tables and recreate the whole\n"

@@ -35,8 +35,6 @@ C_MODE_START
 #ifdef HAVE_SEMAPHORE_H
 #include <semaphore.h>
 #elif defined(__bsdi__)
-#include <sys/errno.h>
-#else
 #ifdef __WIN__
 typedef HANDLE sem_t;
 #else
@@ -45,7 +43,7 @@ typedef struct {
   pthread_cond_t  cond;
   uint            count;
 } sem_t;
-#endif
+#endif /* __WIN__ */
 
 int sem_init(sem_t * sem, int pshared, unsigned int value);
 int sem_destroy(sem_t * sem);
@@ -55,7 +53,7 @@ int sem_post(sem_t * sem);
 int sem_post_multiple(sem_t * sem, unsigned int count);
 int sem_getvalue(sem_t * sem, unsigned int * sval);
 
-#endif
+#endif /* !__bsdi__ */
 
 C_MODE_END
 #endif /* !_my_semaphore_h_ */

@@ -301,6 +301,11 @@ struct lock_struct{
 	} un_member;
 };
 
+/* We store info on the latest deadlock error to this buffer. InnoDB
+Monitor will then fetch it and print */
+ibool	lock_deadlock_found = FALSE;
+char*	lock_latest_err_buf;		/* We allocate 5000 bytes for this */
+
 /************************************************************************
 Checks if a lock request results in a deadlock. */
 static
@@ -576,6 +581,8 @@ lock_sys_create(
 	lock_sys->rec_hash = hash_create(n_cells);
 
 	/* hash_create_mutexes(lock_sys->rec_hash, 2, SYNC_REC_LOCK); */
+
+	lock_latest_err_buf = mem_alloc(5000);
 }
 
 /*************************************************************************
@@ -1566,6 +1573,7 @@ index->table_name);
 	}
 
 	trx->que_state = TRX_QUE_LOCK_WAIT;
+	trx->wait_started = time(NULL);
 
 	ut_a(que_thr_stop(thr));
 
@@ -2698,6 +2706,7 @@ lock_deadlock_occurs(
 	trx_t*		mark_trx;
 	ibool		ret;
 	ulint		cost	= 0;
+	char*		err_buf;
 
 	ut_ad(trx && lock);
 	ut_ad(mutex_own(&kernel_mutex));
@@ -2723,6 +2732,29 @@ lock_deadlock_occurs(
 			index = lock->index;
 			table = index->table;
 		}
+
+		lock_deadlock_found = TRUE;
+
+		err_buf = lock_latest_err_buf + strlen(lock_latest_err_buf);
+
+		err_buf += sprintf(err_buf,
+		"*** (2) WAITING FOR THIS LOCK TO BE GRANTED:\n");
+
+		ut_a(err_buf <= lock_latest_err_buf + 4000);
+			
+		if (lock_get_type(lock) == LOCK_REC) {
+			lock_rec_print(err_buf, lock);
+			err_buf += strlen(err_buf);
+		} else {
+			lock_table_print(err_buf, lock);
+			err_buf += strlen(err_buf);
+		}
+			
+		ut_a(err_buf <= lock_latest_err_buf + 4000);
+
+		err_buf += sprintf(err_buf,
+		"*** WE ROLL BACK TRANSACTION (2)\n");
+
 		/*
 		sess_raise_error_low(trx, DB_DEADLOCK, lock->type_mode, table,
 						index, NULL, NULL, NULL);
@@ -2750,6 +2782,7 @@ lock_deadlock_recursive(
 	lock_t*	lock;
 	ulint	bit_no = 0; /* remove warning */
 	trx_t*	lock_trx;
+	char*	err_buf;
 	
 	ut_a(trx && start && wait_lock);
 	ut_ad(mutex_own(&kernel_mutex));
@@ -2801,6 +2834,53 @@ lock_deadlock_recursive(
 			lock_trx = lock->trx;
 
 			if (lock_trx == start) {
+				err_buf = lock_latest_err_buf;
+
+				ut_sprintf_timestamp(err_buf);
+				err_buf += strlen(err_buf);
+
+				err_buf += sprintf(err_buf,
+				"  LATEST DETECTED DEADLOCK:\n"
+				"*** (1) TRANSACTION:\n");
+
+				trx_print(err_buf, wait_lock->trx);
+				err_buf += strlen(err_buf);
+
+				err_buf += sprintf(err_buf,
+		      "*** (1) WAITING FOR THIS LOCK TO BE GRANTED:\n");
+
+				ut_a(err_buf <= lock_latest_err_buf + 4000);
+			
+				if (lock_get_type(wait_lock) == LOCK_REC) {
+					lock_rec_print(err_buf, wait_lock);
+					err_buf += strlen(err_buf);
+				} else {
+					lock_table_print(err_buf, wait_lock);
+					err_buf += strlen(err_buf);
+				}
+			
+				ut_a(err_buf <= lock_latest_err_buf + 4000);
+				err_buf += sprintf(err_buf,
+				"*** (2) TRANSACTION:\n");
+
+				trx_print(err_buf, lock->trx);
+				err_buf += strlen(err_buf);
+
+				err_buf += sprintf(err_buf,
+				"*** (2) HOLDS THE LOCK(S):\n");
+
+				ut_a(err_buf <= lock_latest_err_buf + 4000);
+			
+				if (lock_get_type(lock) == LOCK_REC) {
+					lock_rec_print(err_buf, lock);
+					err_buf += strlen(err_buf);
+				} else {
+					lock_table_print(err_buf, lock);
+					err_buf += strlen(err_buf);
+				}
+			
+				ut_a(err_buf <= lock_latest_err_buf + 4000);
+
 				if (lock_print_waits) {
 					printf("Deadlock detected\n");
 				}
@@ -2962,6 +3042,7 @@ table->name);
 	}
 
 	trx->que_state = TRX_QUE_LOCK_WAIT;
+	trx->wait_started = time(NULL);
 
 	ut_a(que_thr_stop(thr));
 
@@ -3432,6 +3513,9 @@ lock_rec_print(
 
 			buf += sprintf(buf,
 		"Suppressing further record lock prints for this page\n");
+
+			mtr_commit(&mtr);
+
 			return;
 		}
 	
@@ -3520,6 +3604,22 @@ lock_print_info(
 	buf += sprintf(buf,
 		"Total number of lock structs in row lock hash table %lu\n",
 						lock_get_n_rec_locks());
+	if (lock_deadlock_found) {
+
+		if ((ulint)(buf_end - buf)
+			< 100 + strlen(lock_latest_err_buf)) {
+
+			return;
+		}
+
+		buf += sprintf(buf, "%s", lock_latest_err_buf);
+	}
+
+	if (buf_end - buf < 600) {
+		return;
+	}
+
+	buf += sprintf(buf, "LIST OF TRANSACTIONS FOR EACH SESSION:\n");
 
 	/* First print info on non-active transactions */
 
@@ -3588,7 +3688,8 @@ loop:
 
 		if (trx->que_state == TRX_QUE_LOCK_WAIT) {
 			buf += sprintf(buf,
-			"------------------TRX IS WAITING FOR THE LOCK:\n");
+ "------- TRX HAS BEEN WAITING %lu SEC FOR THIS LOCK TO BE GRANTED:\n",
+		   (ulint)difftime(time(NULL), trx->wait_started));
 
 			if (lock_get_type(trx->wait_lock) == LOCK_REC) {
 				lock_rec_print(buf, trx->wait_lock);

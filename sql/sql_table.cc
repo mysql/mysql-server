@@ -782,7 +782,9 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   table->reginfo.lock_type=TL_WRITE;
   if (!((*lock)=mysql_lock_tables(thd,&table,1)))
   {
+    VOID(pthread_mutex_lock(&LOCK_open));
     hash_delete(&open_cache,(byte*) table);
+    VOID(pthread_mutex_unlock(&LOCK_open));
     quick_rm_table(create_info->db_type,db,name);
     DBUG_RETURN(0);
   }
@@ -977,19 +979,25 @@ static int prepare_for_repair(THD* thd, TABLE_LIST* table,
 
     if (my_rename(from, tmp, MYF(MY_WME)))
     {
+      pthread_mutex_lock(&LOCK_open);
       unlock_table_name(thd, table);
+      pthread_mutex_unlock(&LOCK_open);
       DBUG_RETURN(send_check_errmsg(thd, table, "repair",
 				    "Failed renaming .MYD file"));
     }
     if (mysql_truncate(thd, table, 1))
     {
+      pthread_mutex_lock(&LOCK_open);
       unlock_table_name(thd, table);
+      pthread_mutex_unlock(&LOCK_open);
       DBUG_RETURN(send_check_errmsg(thd, table, "repair",
 				    "Failed generating table from .frm file"));
     }
     if (my_rename(tmp, from, MYF(MY_WME)))
     {
+      pthread_mutex_lock(&LOCK_open);
       unlock_table_name(thd, table);
+      pthread_mutex_unlock(&LOCK_open);
       DBUG_RETURN(send_check_errmsg(thd, table, "repair",
 				    "Failed restoring .MYD file"));
     }
@@ -1000,7 +1008,11 @@ static int prepare_for_repair(THD* thd, TABLE_LIST* table,
     to finish the repair in the handler later on.
   */
   if (!(table->table = reopen_name_locked_table(thd, table)))
-     unlock_table_name(thd, table);
+  {
+    pthread_mutex_lock(&LOCK_open);
+    unlock_table_name(thd, table);
+    pthread_mutex_unlock(&LOCK_open);
+  }
   DBUG_RETURN(0);
 }
 
@@ -1855,8 +1867,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     error=1;
   if (error)
   {
-    VOID(pthread_cond_broadcast(&COND_refresh));
     VOID(pthread_mutex_unlock(&LOCK_open));
+    VOID(pthread_cond_broadcast(&COND_refresh));
     goto err;
   }
 #ifdef HAVE_BERKELEY_DB

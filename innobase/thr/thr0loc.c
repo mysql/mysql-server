@@ -69,8 +69,8 @@ try_again:
 
 	local = NULL;
 	
-	HASH_SEARCH(hash, thr_local_hash, os_thread_conv_id_to_ulint(id),
-						local, local->id == id);
+	HASH_SEARCH(hash, thr_local_hash, os_thread_pf(id),
+				local, os_thread_eq(local->id, id));
 	if (local == NULL) {
 		mutex_exit(&thr_local_mutex);
 		
@@ -173,7 +173,7 @@ thr_local_create(void)
 	mutex_enter(&thr_local_mutex);
 
 	HASH_INSERT(thr_local_t, hash, thr_local_hash,
-			os_thread_conv_id_to_ulint(os_thread_get_curr_id()),
+			os_thread_pf(os_thread_get_curr_id()),
 			local);
 				
 	mutex_exit(&thr_local_mutex);
@@ -193,8 +193,8 @@ thr_local_free(
 
 	/* Look for the local struct in the hash table */
 
-	HASH_SEARCH(hash, thr_local_hash, os_thread_conv_id_to_ulint(id),
-						local, local->id == id);
+	HASH_SEARCH(hash, thr_local_hash, os_thread_pf(id),
+				local, os_thread_eq(local->id, id));
 	if (local == NULL) {
 		mutex_exit(&thr_local_mutex);
 
@@ -202,7 +202,7 @@ thr_local_free(
 	}
 						
 	HASH_DELETE(thr_local_t, hash, thr_local_hash,
-				os_thread_conv_id_to_ulint(id), local);
+				os_thread_pf(id), local);
 
 	mutex_exit(&thr_local_mutex);
 				

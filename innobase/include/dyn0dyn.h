@@ -17,7 +17,8 @@ typedef struct dyn_block_struct		dyn_block_t;
 typedef dyn_block_t			dyn_array_t;
 
 
-/* This must be > MLOG_BUF_MARGIN + 30 */
+/* This is the initial 'payload' size of a dynamic array;
+this must be > MLOG_BUF_MARGIN + 30! */
 #define	DYN_ARRAY_DATA_SIZE	512
 
 /*************************************************************************
@@ -122,14 +123,6 @@ byte*
 dyn_block_get_data(
 /*===============*/
 				/* out: pointer to data */
-	dyn_block_t*	block);	/* in: dyn array block */
-/************************************************************************
-Gets the next block in a dyn array. */
-UNIV_INLINE
-dyn_block_t*
-dyn_block_get_next(
-/*===============*/
-				/* out: pointer to next, NULL if end of list */
 	dyn_block_t*	block);	/* in: dyn array block */
 /************************************************************
 Pushes n bytes to a dyn array. */
