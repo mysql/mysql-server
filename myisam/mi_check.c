@@ -131,15 +131,8 @@ int chk_del(MI_CHECK *param, register MI_INFO *info, uint test_flag)
   char buff[22],buff2[22];
   DBUG_ENTER("chk_del");
 
-  if (!(test_flag & T_SILENT))
-    puts("- check key delete-chain");
-
   LINT_INIT(old_link);
   param->record_checksum=0;
-  param->key_file_blocks=info->s->base.keystart;
-  for (j=0 ; j < info->s->state.header.max_block_size ; j++)
-    if (check_k_link(param,info,j))
-      goto wrong;
   delete_link_length=((info->s->options & HA_OPTION_PACK_RECORD) ? 20 :
 		      info->s->rec_reflength+1);
 
@@ -361,6 +354,18 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
   MI_KEYDEF *keyinfo;
   char buff[22],buff2[22];
   DBUG_ENTER("chk_key");
+
+  if (!(param->testflag & T_SILENT))
+    puts("- check key delete-chain");
+
+  param->key_file_blocks=info->s->base.keystart;
+  for (key=0 ; key < info->s->state.header.max_block_size ; key++)
+    if (check_k_link(param,info,key))
+    {
+      if (param->testflag & T_VERBOSE) puts("");
+      mi_check_print_error(param,"key delete-link-chain corrupted");
+      DBUG_RETURN(-1);
+    }
 
   if (!(param->testflag & T_SILENT)) puts("- check index reference");
 
