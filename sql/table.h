@@ -185,9 +185,15 @@ struct st_table {
 #define VIEW_ALGORITHM_TMPTABLE	1
 #define VIEW_ALGORITHM_MERGE		2
 
+/* view WITH CHECK OPTION parameter options */
 #define VIEW_CHECK_NONE       0
 #define VIEW_CHECK_LOCAL      1
 #define VIEW_CHECK_CASCADED   2
+
+/* result of view WITH CHECK OPTION parameter check */
+#define VIEW_CHECK_OK         0
+#define VIEW_CHECK_ERROR      1
+#define VIEW_CHECK_SKIP       2
 
 struct st_lex;
 
@@ -264,6 +270,7 @@ typedef struct st_table_list
 
   void calc_md5(char *buffer);
   void set_ancestor();
+  int view_check_option(THD *thd, bool ignore_failure);
   bool setup_ancestor(THD *thd, Item **conds);
   bool placeholder() {return derived || view; }
   void print(THD *thd, String *str);

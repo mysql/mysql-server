@@ -1653,6 +1653,40 @@ err:
 }
 
 
+/*
+  check CHECK OPTION condition
+
+  SYNOPSIS
+    check_option()
+    ignore_failure ignore check option fail
+
+  RETURN
+    VIEW_CHECK_OK     OK
+    VIEW_CHECK_ERROR  FAILED
+    VIEW_CHECK_SKIP   FAILED, but continue
+*/
+
+int st_table_list::view_check_option(THD *thd, bool ignore_failure)
+{
+  if (check_option && check_option->val_int() == 0)
+  {
+    if (ignore_failure)
+    {
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                          ER_VIEW_CHECK_FAILED, ER(ER_VIEW_CHECK_FAILED),
+                          view_db.str, view_name.str);
+      return(VIEW_CHECK_SKIP);
+    }
+    else
+    {
+      my_error(ER_VIEW_CHECK_FAILED, MYF(0), view_db.str, view_name.str);
+      return(VIEW_CHECK_ERROR);
+    }
+  }
+  return(VIEW_CHECK_OK);
+}
+
+
 void Field_iterator_view::set(TABLE_LIST *table)
 {
   ptr= table->field_translation;

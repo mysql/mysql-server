@@ -228,7 +228,7 @@ typedef struct st_copy_info {
   List<Item> *update_fields;
   List<Item> *update_values;
 /* for VIEW ... WITH CHECK OPTION */
-  Item *check_option;
+  TABLE_LIST *view;
   bool ignore;
 } COPY_INFO;
 

@@ -477,7 +477,7 @@ drop view v1;
 drop table t1;
 create table t1 (a int);
 create view v1 as select distinct a from t1 WITH CHECK OPTION;
-ERROR HY000: CHECK OPTION on non-updatable view
+ERROR HY000: CHECK OPTION on non-updatable view 'test.v1'
 create view v1 as select a from t1 WITH CHECK OPTION;
 create view v2 as select a from t1 WITH CASCADED CHECK OPTION;
 create view v3 as select a from t1 WITH LOCAL CHECK OPTION;
@@ -1276,11 +1276,11 @@ create table t1 (a int);
 create view v1 as select * from t1 where a < 2 with check option;
 insert into v1 values(1);
 insert into v1 values(3);
-ERROR HY000: CHECK OPTION failed
+ERROR HY000: CHECK OPTION failed 'test.v1'
 insert ignore into v1 values (2),(3),(0);
 Warnings:
-Error	1359	CHECK OPTION failed
-Error	1359	CHECK OPTION failed
+Error	1359	CHECK OPTION failed 'test.v1'
+Error	1359	CHECK OPTION failed 'test.v1'
 select * from t1;
 a
 1
@@ -1288,20 +1288,20 @@ a
 delete from t1;
 insert into v1 SELECT 1;
 insert into v1 SELECT 3;
-ERROR HY000: CHECK OPTION failed
+ERROR HY000: CHECK OPTION failed 'test.v1'
 create table t2 (a int);
 insert into t2 values (2),(3),(0);
 insert ignore into v1 SELECT a from t2;
 Warnings:
-Error	1359	CHECK OPTION failed
-Error	1359	CHECK OPTION failed
+Error	1359	CHECK OPTION failed 'test.v1'
+Error	1359	CHECK OPTION failed 'test.v1'
 select * from t1;
 a
 1
 0
 update v1 set a=-1 where a=0;
 update v1 set a=2 where a=1;
-ERROR HY000: CHECK OPTION failed
+ERROR HY000: CHECK OPTION failed 'test.v1'
 select * from t1;
 a
 1
@@ -1316,7 +1316,7 @@ a
 update v1 set a=a+1;
 update ignore v1,t2 set v1.a=v1.a+1 where v1.a=t2.a;
 Warnings:
-Error	1359	CHECK OPTION failed
+Error	1359	CHECK OPTION failed 'test.v1'
 select * from t1;
 a
 1
@@ -1330,12 +1330,12 @@ create view v3 as select * from v1 where a > 0 with cascaded check option;
 insert into v2 values (1);
 insert into v3 values (1);
 insert into v2 values (0);
-ERROR HY000: CHECK OPTION failed
+ERROR HY000: CHECK OPTION failed 'test.v2'
 insert into v3 values (0);
-ERROR HY000: CHECK OPTION failed
+ERROR HY000: CHECK OPTION failed 'test.v3'
 insert into v2 values (2);
 insert into v3 values (2);
-ERROR HY000: CHECK OPTION failed
+ERROR HY000: CHECK OPTION failed 'test.v3'
 select * from t1;
 a
 1
@@ -1347,10 +1347,10 @@ create table t1 (a int, primary key (a));
 create view v1 as select * from t1 where a < 2 with check option;
 insert into v1 values (1) on duplicate key update a=2;
 insert into v1 values (1) on duplicate key update a=2;
-ERROR HY000: CHECK OPTION failed
+ERROR HY000: CHECK OPTION failed 'test.v1'
 insert ignore into v1 values (1) on duplicate key update a=2;
 Warnings:
-Error	1359	CHECK OPTION failed
+Error	1359	CHECK OPTION failed 'test.v1'
 select * from t1;
 a
 1

@@ -398,7 +398,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     char path_buff[FN_REFLEN];
     LEX_STRING path;
     File_parser *parser;
- 
+
     path.str= path_buff;
     fn_format(path_buff, file.str, dir.str, 0, MY_UNPACK_FILENAME);
     path.length= strlen(path_buff);
@@ -424,7 +424,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
 
       /*
         read revision number
-        
+
         TODO: read dependense list, too, to process cascade/restrict
         TODO: special cascade/restrict procedure for alter?
       */
@@ -481,7 +481,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   if (view->with_check != VIEW_CHECK_NONE &&
       !view->updatable_view)
   {
-    my_error(ER_VIEW_NONUPD_CHECK, MYF(0));
+    my_error(ER_VIEW_NONUPD_CHECK, MYF(0), view->db, view->real_name);
     DBUG_RETURN(-1);
   }
 

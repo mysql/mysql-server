@@ -363,5 +363,5 @@ character-set=koi8r
 "View '%-.64s.%-.64s' ссылается на несуществующие таблицы или слолбцы"
 "Can't drop a %s from within another stored routine"
 "GOTO is not allowed in a stored procedure handler"
-"CHECK OPTION для необновляемого VIEW"
-"проверка CHECK OPTION провалилась"
+"CHECK OPTION для необновляемого VIEW '%-.64s.%-.64s'"
+"проверка CHECK OPTION для VIEW '%-.64s.%-.64s' провалилась"

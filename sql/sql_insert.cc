@@ -128,7 +128,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   */
   bool log_on= (thd->options & OPTION_BIN_LOG) || (!(thd->master_access & SUPER_ACL));
   bool transactional_table, log_delayed;
-  bool check;
+  bool ignore_err= (thd->lex->duplicates == DUP_IGNORE);
   uint value_count;
   ulong counter = 1;
   ulonglong id;
@@ -242,8 +242,8 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   info.handle_duplicates=duplic;
   info.update_fields=&update_fields;
   info.update_values=&update_values;
-  info.check_option= table_list->check_option;
-  info.ignore= thd->lex->duplicates == DUP_IGNORE;
+  info.view= (table_list->view ? table_list : 0);
+  info.ignore= ignore_err;
   /*
     Count warnings for all inserts.
     For single line insert, generate an error if try to set a NOT NULL field
@@ -270,8 +270,6 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   */
   if (lock_type != TL_WRITE_DELAYED)
     table->file->start_bulk_insert(values_list.elements);
-
-  check= (table_list->check_option != 0);
 
   while ((values= its++))
   {
@@ -307,20 +305,13 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
 	break;
       }
     }
-    if (check && table_list->check_option->val_int() == 0)
+    if ((res= table_list->view_check_option(thd, ignore_err)) ==
+        VIEW_CHECK_SKIP)
+      continue;
+    else if (res == VIEW_CHECK_ERROR)
     {
-      if (thd->lex->duplicates == DUP_IGNORE)
-      {
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-                     ER_VIEW_CHECK_FAILED, ER(ER_VIEW_CHECK_FAILED));
-        continue;
-      }
-      else
-      {
-        my_error(ER_VIEW_CHECK_FAILED, MYF(0));
-        error=1;
-	break;
-      }
+      error= 1;
+      break;
     }
 #ifndef EMBEDDED_LIBRARY
     if (lock_type == TL_WRITE_DELAYED)
@@ -708,6 +699,7 @@ int write_record(TABLE *table,COPY_INFO *info)
       }
       if (info->handle_duplicates == DUP_UPDATE)
       {
+        int res= 0;
         /* we don't check for other UNIQUE keys - the first row
            that matches, is updated. If update causes a conflict again,
            an error is returned
@@ -718,21 +710,12 @@ int write_record(TABLE *table,COPY_INFO *info)
           goto err;
 
         /* CHECK OPTION for VIEW ... ON DUPLICATE KEY UPDATE ... */
-        if (info->check_option &&
-            info->check_option->val_int() == 0)
-        {
-          if (info->ignore)
-          {
-            push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-                         ER_VIEW_CHECK_FAILED, ER(ER_VIEW_CHECK_FAILED));
-            break;
-          }
-          else
-          {
-            my_error(ER_VIEW_CHECK_FAILED, MYF(0));
-            goto err;
-          }
-        }
+        if (info->view &&
+            (res= info->view->view_check_option(current_thd, info->ignore)) ==
+            VIEW_CHECK_SKIP)
+          break;
+        else if (res == VIEW_CHECK_ERROR)
+          goto err;
 
         if ((error=table->file->update_row(table->record[1],table->record[0])))
           goto err;
@@ -1663,7 +1646,7 @@ select_insert::select_insert(TABLE_LIST *table_list_par, TABLE *table_par,
   bzero((char*) &info,sizeof(info));
   info.handle_duplicates=duplic;
   if (table_list_par)
-    info.check_option= table_list_par->check_option;
+    info.view= (table_list_par->view ? table_list_par : 0);
   info.ignore= ignore_check_option_errors;
 }
 
@@ -1712,19 +1695,13 @@ bool select_insert::send_data(List<Item> &values)
     fill_record(*fields, values, 1);
   else
     fill_record(table->field, values, 1);
-  if (table_list->check_option && table_list->check_option->val_int() == 0)
+  switch (table_list->view_check_option(thd,
+                                        thd->lex->duplicates == DUP_IGNORE))
   {
-    if (thd->lex->duplicates == DUP_IGNORE)
-    {
-      push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-                   ER_VIEW_CHECK_FAILED, ER(ER_VIEW_CHECK_FAILED));
-      DBUG_RETURN(0);
-    }
-    else
-    {
-      my_error(ER_VIEW_CHECK_FAILED, MYF(0));
-      DBUG_RETURN(1);
-    }
+  case VIEW_CHECK_SKIP:
+    DBUG_RETURN(0);
+  case VIEW_CHECK_ERROR:
+    DBUG_RETURN(1);
   }
   if (thd->net.report_error || write_record(table,&info))
     DBUG_RETURN(1);
