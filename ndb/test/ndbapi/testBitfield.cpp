@@ -54,6 +54,9 @@ main(int argc, char** argv){
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
 
+  argc--;
+  argv++;
+  
   Ndb_cluster_connection con(opt_connect_str);
   if(con.connect(12, 5, 1))
   {
