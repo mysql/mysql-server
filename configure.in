@@ -1753,6 +1753,7 @@ MYSQL_CHECK_BDB
 # If we have threads generate some library functions and test programs
 sql_server_dirs=
 server_scripts=
+thread_dirs=
 
 dnl This probably should be cleaned up more - for now the threaded
 dnl client is just using plain-old libs.
@@ -1807,7 +1808,7 @@ install: all		# modified by MySQL configure' \
   if test "$with_posix_threads" = "no" -o "$with_mit_threads" = "yes"
   then
     # MIT user level threads
-    sql_server_dirs="mit-pthreads $sql_server_dirs"
+    thread_dirs="mit-pthreads"
     AC_DEFINE(HAVE_mit_thread)
     MT_INCLUDES="-I\$(top_srcdir)/mit-pthreads/include"
     AC_SUBST(MT_INCLUDES)
@@ -1823,6 +1824,7 @@ install: all		# modified by MySQL configure' \
   fi
 fi
 AC_SUBST(sql_server_dirs)
+AC_SUBST(thread_dirs)
 AC_SUBST(server_scripts)
 
 if test "$with_posix_threads" = "no" -o "$with_mit_threads" = "yes"

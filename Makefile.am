@@ -21,7 +21,8 @@ TAR =			gtar
 # These are built from source in the Docs directory
 EXTRA_DIST =		INSTALL-SOURCE README \
 			COPYING COPYING.LIB MIRRORS
-SUBDIRS =		include @docs_dirs@ @readline_dir@ @sql_client_dirs@ \
+SUBDIRS =		include @docs_dirs@ @readline_dir@ \
+			@thread_dirs@ @sql_client_dirs@ \
 			@sql_server_dirs@ scripts tests man \
 			@bench_dirs@ support-files
 
