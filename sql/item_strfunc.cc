@@ -650,7 +650,7 @@ String *Item_func_reverse::val_str(String *str)
   ptr = (char *) res->ptr();
   end=ptr+res->length();
 #ifdef USE_MB
-  if (use_mb(res->charset()) && !binary())
+  if (use_mb(res->charset()))
   {
     String tmpstr;
     tmpstr.copy(*res);
@@ -1015,7 +1015,7 @@ String *Item_func_substr_index::val_str(String *str)
     return &empty_string;		// Wrong parameters
 
 #ifdef USE_MB
-  if (use_mb(res->charset()) && !binary())
+  if (use_mb(res->charset()))
   {
     const char *ptr=res->ptr();
     const char *strend = ptr+res->length();
@@ -1169,7 +1169,7 @@ String *Item_func_rtrim::val_str(String *str)
   {
     char chr=(*remove_str)[0];
 #ifdef USE_MB
-    if (use_mb(res->charset()) && !binary())
+    if (use_mb(res->charset()))
     {
       while (ptr < end)
       {
@@ -1186,7 +1186,7 @@ String *Item_func_rtrim::val_str(String *str)
   {
     const char *r_ptr=remove_str->ptr();
 #ifdef USE_MB
-    if (use_mb(res->charset()) && !binary())
+    if (use_mb(res->charset()))
     {
   loop:
       while (ptr + remove_length < end)
@@ -1237,7 +1237,7 @@ String *Item_func_trim::val_str(String *str)
   while (ptr+remove_length <= end && !memcmp(ptr,r_ptr,remove_length))
     ptr+=remove_length;
 #ifdef USE_MB
-  if (use_mb(res->charset()) && !binary())
+  if (use_mb(res->charset()))
   {
     char *p=ptr;
     register uint32 l;

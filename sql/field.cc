@@ -5163,7 +5163,7 @@ void Field_set::sql_type(String &res) const
 
 bool Field::eq_def(Field *field)
 {
-  if (real_type() != field->real_type() || binary() != field->binary() ||
+  if (real_type() != field->real_type() || charset() != field->charset() ||
       pack_length() != field->pack_length())
     return 0;
   return 1;
