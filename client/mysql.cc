@@ -1070,9 +1070,13 @@ static void initialize_readline (char *name)
   rl_readline_name = name;
 
   /* Tell the completer that we want a crack first. */
-  /* rl_attempted_completion_function = (CPPFunction *)mysql_completion;*/
+#if RL_READLINE_VERSION > 0x0400
   rl_attempted_completion_function = &new_mysql_completion;
   rl_completion_entry_function= &no_completion;
+#else
+  rl_attempted_completion_function =(CPPFunction *)new_mysql_completion;
+  rl_completion_entry_function= (Function *)no_completion;
+#endif
 }
 
 /*
@@ -1087,7 +1091,11 @@ static char **new_mysql_completion (const char *text,
 				    int end __attribute__((unused)))
 {
   if (!status.batch && !quick)
+#if RL_READLINE_VERSION > 0x0400
     return rl_completion_matches(text, new_command_generator);
+#else
+    return completion_matches((char *)text, (CPFunction *)new_command_generator);
+#endif
   else
     return (char**) 0;
 }
