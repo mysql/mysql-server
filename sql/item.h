@@ -36,8 +36,8 @@ public:
 	     COPY_STR_ITEM, FIELD_AVG_ITEM, DEFAULT_ITEM,
 	     PROC_ITEM,COND_ITEM, REF_ITEM, FIELD_STD_ITEM, 
 	     FIELD_VARIANCE_ITEM, CONST_ITEM,
-             SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM,
-             DEFAULT_VALUE_ITEM};
+             SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM};
+
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
 
   String str_value;			/* used to store value */
@@ -369,26 +369,6 @@ public:
   void print(String *str);
 };
 
-
-/* For INSERT ... VALUES (DEFAULT) */
-
-class Item_default :public Item
-{
-public:
-  Item_default() { name= (char*) "DEFAULT"; }
-  enum Type type() const { return DEFAULT_ITEM; }
-  int save_in_field(Field *field, bool no_conversions)
-  {
-    field->set_default();
-    return 0;
-  }
-  virtual double val() { return 0.0; }
-  virtual longlong val_int() { return 0; }
-  virtual String *val_str(String *str) { return 0; }
-  bool basic_const_item() const { return 1; }
-};
-
-
 /* for show tables */
 
 class Item_datetime :public Item_string
@@ -669,9 +649,11 @@ class Item_default_value : public Item_field
 {
 public:
   Item *arg;
+  Item_default_value() :
+    Item_field((const char *)NULL, (const char *)NULL, (const char *)NULL), arg(NULL) {}
   Item_default_value(Item *a) : 
     Item_field((const char *)NULL, (const char *)NULL, (const char *)NULL), arg(a) {}
-  enum Type type() const { return DEFAULT_VALUE_ITEM; }
+  enum Type type() const { return DEFAULT_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
   bool fix_fields(THD *, struct st_table_list *, Item **);
   bool check_loop(uint id)
@@ -680,6 +662,22 @@ public:
   }
   void set_outer_resolving() { arg->set_outer_resolving(); }
   void print(String *str);
+  virtual bool basic_const_item() const { return true; }
+  int save_in_field(Field *field, bool no_conversions)
+  {
+    if (!arg)
+    {
+      field->set_default();
+      return 0;
+    }
+    return Item_field::save_in_field(field, no_conversions);
+  }
+  table_map used_tables() const
+  { 
+    if (!arg)
+      return (table_map) 0L; 
+    return Item_field::used_tables();
+  }
 };
 
 class Item_cache: public Item

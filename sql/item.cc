@@ -1121,15 +1121,20 @@ bool Item_ref::check_loop(uint id)
 
 bool Item_default_value::eq(const Item *item, bool binary_cmp) const
 {
-  return item->type() == DEFAULT_VALUE_ITEM && 
+  return item->type() == DEFAULT_ITEM && 
     ((Item_default_value *)item)->arg->eq(arg, binary_cmp);
 }
 
 bool Item_default_value::fix_fields(THD *thd, struct st_table_list *table_list, Item **items)
 {
+  if (!arg)
+    return false;
   bool res= arg->fix_fields(thd, table_list, items);
   if (res)
     return res;
+  /* arg->type() can be only REF_ITEM or FIELD_ITEM for it defined as
+   simple_ident in sql_yacc.yy
+  */
   if (arg->type() == REF_ITEM)
   {
     Item_ref *ref= (Item_ref *)arg;
@@ -1144,7 +1149,7 @@ bool Item_default_value::fix_fields(THD *thd, struct st_table_list *table_list, 
   if (!def_field)
     return 1;
   memcpy(def_field, field_arg->field, field_arg->field->size_of());
-  def_field->move_field(def_field->table->default_values - 
+  def_field->move_field(def_field->table->default_values() - 
 			def_field->table->record[0]);
   set_field(def_field);
   return 0;
@@ -1152,7 +1157,11 @@ bool Item_default_value::fix_fields(THD *thd, struct st_table_list *table_list, 
 
 void Item_default_value::print(String *str)
 {
-  str->append("default(");
+  if (!arg)
+  {
+    str->append("DEFAULT");
+  }
+  str->append("DEFAULT(");
   arg->print(str);
   str->append(')');
 }

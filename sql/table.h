@@ -54,7 +54,6 @@ struct st_table {
   Field_blob **blob_field;		/* Pointer to blob fields */
   HASH	name_hash;			/* hash of field names */
   byte *record[3];			/* Pointer to records */
-  byte *default_values;
   uint fields;				/* field count */
   uint reclength;			/* Recordlength */
   uint rec_buff_length;
@@ -137,6 +136,7 @@ struct st_table {
   uint          derived_select_number;   
   THD		*in_use;		/* Which thread uses this */
   struct st_table *next,*prev;
+  byte *default_values() { return record[2]; }
 };
 
 
