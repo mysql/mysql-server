@@ -1274,7 +1274,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
 	(local_db && !db_ok(local_db, binlog_do_db, binlog_ignore_db)))
     {
       VOID(pthread_mutex_unlock(&LOCK_log));
-      DBUG_PRINT("error",("!db_ok"));
+      DBUG_PRINT("error",("!db_ok('%s')", local_db));
       DBUG_RETURN(0);
     }
 #endif /* HAVE_REPLICATION */
@@ -1317,7 +1317,7 @@ COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
                              (uint) thd->variables.collation_connection->number,
                              (uint) thd->variables.collation_database->number,
                              (uint) thd->variables.collation_server->number);
-	Query_log_event e(thd, buf, written, 0);
+	Query_log_event e(thd, buf, written, 0, FALSE);
 	e.set_log_pos(this);
 	if (e.write(file))
 	  goto err;
@@ -1333,7 +1333,7 @@ COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
         char *buf_end= strxmov(buf, "SET ONE_SHOT TIME_ZONE='", 
                                thd->variables.time_zone->get_name()->ptr(),
                                "'", NullS);
-        Query_log_event e(thd, buf, buf_end - buf, 0);
+        Query_log_event e(thd, buf, buf_end - buf, 0, FALSE);
         e.set_log_pos(this);
         if (e.write(file))
           goto err;
@@ -1402,7 +1402,7 @@ COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
 
       if (thd->options & OPTION_NO_FOREIGN_KEY_CHECKS)
       {
-	Query_log_event e(thd, "SET FOREIGN_KEY_CHECKS=0", 24, 0);
+	Query_log_event e(thd, "SET FOREIGN_KEY_CHECKS=0", 24, 0, FALSE);
 	e.set_log_pos(this);
 	if (e.write(file))
 	  goto err;
@@ -1421,7 +1421,7 @@ COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
     {
       if (thd->options & OPTION_NO_FOREIGN_KEY_CHECKS)
       {
-        Query_log_event e(thd, "SET FOREIGN_KEY_CHECKS=1", 24, 0);
+        Query_log_event e(thd, "SET FOREIGN_KEY_CHECKS=1", 24, 0, FALSE);
         e.set_log_pos(this);
         if (e.write(file))
           goto err;
@@ -1597,7 +1597,7 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, bool commit_or_rollback)
       we will add the "COMMIT mark and write the buffer to the binlog.
     */
     {
-      Query_log_event qinfo(thd, "BEGIN", 5, TRUE);
+      Query_log_event qinfo(thd, "BEGIN", 5, TRUE, FALSE);
       /*
         Imagine this is rollback due to net timeout, after all statements of
         the transaction succeeded. Then we want a zero-error code in BEGIN.
@@ -1638,7 +1638,7 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache, bool commit_or_rollback)
       Query_log_event qinfo(thd, 
                             commit_or_rollback ? "COMMIT" : "ROLLBACK",
                             commit_or_rollback ? 6        : 8, 
-                            TRUE);
+                            TRUE, FALSE);
       qinfo.error_code= 0;
       qinfo.set_log_pos(this);
       if (qinfo.write(&log_file) || flush_io_cache(&log_file) ||

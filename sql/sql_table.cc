@@ -282,7 +282,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
         if (!error)
           thd->clear_error();
 	Query_log_event qinfo(thd, thd->query, thd->query_length,
-			      tmp_table_deleted && !some_tables_deleted);
+			      tmp_table_deleted && !some_tables_deleted, 
+			      FALSE);
 	mysql_bin_log.write(&qinfo);
       }
     }
@@ -1419,7 +1420,8 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    test(create_info->options &
-				 HA_LEX_CREATE_TMP_TABLE));
+				 HA_LEX_CREATE_TMP_TABLE),
+			    FALSE);
       mysql_bin_log.write(&qinfo);
     }
   }
@@ -2344,7 +2346,8 @@ int mysql_create_like_table(THD* thd, TABLE_LIST* table,
     thd->clear_error();
     Query_log_event qinfo(thd, thd->query, thd->query_length,
 			  test(create_info->options &
-			       HA_LEX_CREATE_TMP_TABLE));
+			       HA_LEX_CREATE_TMP_TABLE), 
+			  FALSE);
     mysql_bin_log.write(&qinfo);
   }
   res= 0;
@@ -2455,7 +2458,7 @@ mysql_discard_or_import_tablespace(THD *thd,
   mysql_update_log.write(thd, thd->query,thd->query_length);
   if (mysql_bin_log.is_open())
   {
-    Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+    Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
     mysql_bin_log.write(&qinfo);
   }
 err:
@@ -2842,7 +2845,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       if (mysql_bin_log.is_open())
       {
 	thd->clear_error();
-	Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+	Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
 	mysql_bin_log.write(&qinfo);
       }
       if (do_send_ok)
@@ -3237,7 +3240,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if (mysql_bin_log.is_open())
     {
       thd->clear_error();
-      Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+      Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
       mysql_bin_log.write(&qinfo);
     }
     goto end_temporary;
@@ -3372,7 +3375,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (mysql_bin_log.is_open())
   {
     thd->clear_error();
-    Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+    Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
     mysql_bin_log.write(&qinfo);
   }
   VOID(pthread_cond_broadcast(&COND_refresh));
