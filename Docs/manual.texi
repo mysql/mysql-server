@@ -1208,7 +1208,7 @@ distributing MySQL and related products. Partners get visibility on the
 versions of the MySQL trademarks to identify their products and promote
 their business.
 
-If you are interested in becoming a MySQL AB partner, please mail to
+If you are interested in becoming a MySQL AB partner, please e-mail to
 @email{partner@@mysql.com}.
 
 The word @code{MySQL} and the MySQL dolphin logo are trademarks of
@@ -1246,7 +1246,7 @@ an email to @email{advertising@@mysql.com}.
 provides the latest information about MySQL and MySQL AB.
 
 For press service and inquiries not covered in our News releases
-(@uref{http://www.mysql.com/news/}), please mail to
+(@uref{http://www.mysql.com/news/}), please e-mail to
 @email{press@@mysql.com}.
 
 If you have a valid support contract with MySQL AB; you will get
@@ -3385,7 +3385,7 @@ server.
 * ANSI mode::                   Running MySQL in ANSI mode
 * Extensions to ANSI::          MySQL extensions to ANSI SQL92
 * Differences from ANSI::       MySQL differences compared to ANSI SQL92
-* Bugs::                        Known errors and design deficiencies in MySQL
+* Bugs::                        Known Errors and Design Deficiencies in MySQL
 @end menu
 
 
@@ -4203,7 +4203,7 @@ shell> replace " #" " --" -- text-file-with-funny-comments.sql
 
 
 @node Bugs,  , Differences from ANSI, Compatibility
-@subsection Known errors and design deficiencies in MySQL
+@subsection Known Errors and Design Deficiencies in MySQL
 
 @cindex bugs, known
 @cindex errors, known
@@ -5584,15 +5584,15 @@ do and how to add more tests to the suite.
 
 
 @node TODO,  , Comparisons, Introduction
-@section MySQL and the future (The TODO)
+@section MySQL and The Future (The TODO)
 
 @cindex ToDo list for MySQL
 
 @menu
-* TODO MySQL 4.0::              Things that should be in Version 4.0
-* TODO future::                 Things that must be done in the near future
-* TODO sometime::               Things that have to be done sometime
-* TODO unplanned::              Some things we don't have any plans to do
+* TODO MySQL 4.0::              Things That Should be in Version 4.0
+* TODO future::                 Things That Must be Done in the Near Future
+* TODO sometime::               Things That Have to be Done Sometime
+* TODO unplanned::              Things we don't Have any Plans to do
 @end menu
 
 This appendix lists the features that we plan to implement in MySQL.
@@ -5607,7 +5607,7 @@ this without sacrifying the speed or compromise the code.
 
 
 @node TODO MySQL 4.0, TODO future, TODO, TODO
-@subsection Things that should be in 4.0
+@subsection Things That Should be in 4.0
 
 We have now shifted development to MySQL Version 4.0.  Most of the basic
 things we want to have in 4.0 is already done.  The target is to quickly
@@ -5671,7 +5671,7 @@ of @code{analyze} is run on all sub tables.
 
 
 @node TODO future, TODO sometime, TODO MySQL 4.0, TODO
-@subsection Things that must be done in the real near future
+@subsection Things That Must be Done in the Real Near Future
 
 @itemize @bullet
 @item
@@ -5956,7 +5956,7 @@ if it exists and @code{INSERT} a new row if the row didn't exist.
 
 
 @node TODO sometime, TODO unplanned, TODO future, TODO
-@subsection Things that have to be done sometime
+@subsection Things That Have to be Done Sometime
 
 @itemize @bullet
 @item
@@ -6049,11 +6049,11 @@ Time is given according to amount of work, not real time.
 
 
 @node TODO unplanned,  , TODO sometime, TODO
-@subsection Some things we don't have any plans to do
+@subsection Things we don't Have any Plans to do
 
 @itemize @bullet
 @item
-Nothing;  In the long run we plan to be fully ANSI 92 / ANSI 99 compliant.
+Nothing;  We aim towards full ANSI 92 / ANSI 99 compliancy.
 @end itemize
 
 
@@ -6235,13 +6235,13 @@ will also need the @code{MyODBC} driver. @xref{ODBC}.
 
 
 @menu
-* Windows binary installation::  Installing the binaries
-* Windows prepare environment::  Preparing the Windows MySQL environment
-* Windows server first start::  Starting the server for the first time
+* Windows binary installation::  Installing the Binaries
+* Windows prepare environment::  Preparing the Windows MySQL Environment
+* Windows server first start::  Starting the Server for the First Time
 @end menu
 
 @node Windows binary installation, Windows prepare environment, Windows installation, Windows installation
-@subsubsection Installing the binaries
+@subsubsection Installing the Binaries
 
 @enumerate
 @item
@@ -6283,7 +6283,7 @@ Finish the install process.
 
 
 @node Windows prepare environment, Windows server first start, Windows binary installation, Windows installation
-@subsubsection Preparing the Windows MySQL environment
+@subsubsection Preparing the Windows MySQL Environment
 
 Starting with MySQL 3.23.38, the Windows distribution includes
 both the normal and the @strong{MySQL-Max} server binaries.
@@ -6367,7 +6367,7 @@ Now you are ready to test starting the server.
 
 
 @node Windows server first start,  , Windows prepare environment, Windows installation
-@subsubsection Starting the server for the first time
+@subsubsection Starting the Server for the First Time
 
 Testing from a DOS command prompt is the best thing to do because
 the server prints messages, so if something is wrong with your
@@ -37467,7 +37467,7 @@ SUM_OVER_ALL_KEYS(max_length_of_key + sizeof(char*) * 2)
 * Table and index::             Table and index structures
 * File space management::       File space management and disk i/o
 * Error handling::              Error handling
-* InnoDB restrictions::         Some restrictions on InnoDB tables
+* InnoDB restrictions::         Restrictions on InnoDB tables
 * InnoDB contact information::  InnoDB contact information. 
 @end menu
 
@@ -38928,7 +38928,7 @@ they roll back the corresponding SQL statement.
 
 
 @node InnoDB restrictions, InnoDB contact information, Error handling, InnoDB
-@subsection Some restrictions on InnoDB tables
+@subsection Restrictions on InnoDB tables
 
 @itemize @bullet
 
@@ -39019,8 +39019,8 @@ Finland
 * BDB overview::                Overview of BDB Tables
 * BDB install::                 Installing BDB
 * BDB start::                   BDB startup options
-* BDB characteristic::          Some characteristic of @code{BDB} tables:
-* BDB TODO::                    Some things we need to fix for BDB in the near future:
+* BDB characteristics::         Characteristics of @code{BDB} tables:
+* BDB TODO::                    Things we need to fix for BDB in the near future:
 * BDB portability::             Operating systems supported by @strong{BDB}
 * BDB errors::                  Errors You May Get When Using BDB Tables
 @end menu
@@ -39080,7 +39080,7 @@ We are actively improving and optimising it to get it stable very
 soon.
 
 
-@node BDB start, BDB characteristic, BDB install, BDB
+@node BDB start, BDB characteristics, BDB install, BDB
 @subsection BDB startup options
 
 If you are running with @code{AUTOCOMMIT=0} then your changes in @code{BDB}
@@ -39130,8 +39130,8 @@ You may also want to change @code{binlog_cache_size} and
 @xref{COMMIT}.
 
 
-@node BDB characteristic, BDB TODO, BDB start, BDB
-@subsection Some characteristic of @code{BDB} tables:
+@node BDB characteristics, BDB TODO, BDB start, BDB
+@subsection Characteristics of @code{BDB} tables:
 
 @itemize @bullet
 @item
@@ -39211,8 +39211,8 @@ wait for enough free disk before continuing.
 @end itemize
 
 
-@node BDB TODO, BDB portability, BDB characteristic, BDB
-@subsection Some things we need to fix for BDB in the near future:
+@node BDB TODO, BDB portability, BDB characteristics, BDB
+@subsection Things we need to fix for BDB in the near future:
 
 @itemize @bullet
 @item
@@ -40340,7 +40340,7 @@ You have to change it to output @code{VARCHAR} rather than @code{ENUM}, as
 it exports the latter in a manner that causes MySQL grief.
 @cindex Excel
 @item Excel
-Works. Some tips:
+Works. A few tips:
 @itemize @bullet
 @item
 If you have problems with dates, try to select them as strings using the
@@ -43734,9 +43734,9 @@ included the thread libraries on the link/compile line.
 @menu
 * libmysqld overview::          Overview of the Embedded MySQL Server Library
 * libmysqld compiling::         Compiling Programs with @code{libmysqld}
-* libmysqld restrictions::      Restrictions when using the Embedded MySQL Server
-* libmysqld options::           Using option files with the embedded server
-* libmysqld TODO::              Things left to do in Embedded Server (TODO)
+* libmysqld restrictions::      Restrictions when Using the Embedded MySQL Server
+* libmysqld options::           Using Option files with the Embedded Server
+* libmysqld TODO::              Things left lo do in Embedded Server (TODO)
 * libmysqld example::           A Simple Embedded Server Example
 * libmysqld licensing::         Licensing the Embedded Server
 @end menu
@@ -43804,7 +43804,7 @@ Some of these limitations can be changed by editing the @file{mysql_embed.h}
 include file and recompiling MySQL.
 
 @node libmysqld options, libmysqld TODO, libmysqld restrictions, libmysqld
-@subsubsection Using option files with the embedded server
+@subsubsection Using Option Files with the Embedded Server
 
 The following is the recommended way to use option files to make it easy
 to switch between a client/server application and one where MySQL is
@@ -45147,7 +45147,7 @@ do that.  Just specify the @code{--with-debug} options to @code{configure}!
 
 @menu
 * What is crashing::            How to determine what is causing problems
-* Common errors::               Some common errors when using MySQL
+* Common errors::               Common errors when using MySQL
 * Installation Issues::         Installation Related Issues
 * Administration Issues::       Administration Related Issues
 * Query Issues::                Query Related Issues
@@ -45259,7 +45259,7 @@ described in this manual. @xref{Asking questions}.
 
 
 @node Common errors, Installation Issues, What is crashing, Problems
-@appendixsec Some Common Errors When Using MySQL
+@appendixsec Common Errors When Using MySQL
 
 @cindex errors, list of
 
@@ -46941,7 +46941,7 @@ more than one way to compute}
 
 @cindex search engines, web
 @cindex web search engines
-@appendixsec Some Web Search Engines
+@appendixsec Web Search Engines
 
 @itemize @bullet
 
@@ -46969,7 +46969,7 @@ more than one way to compute}
 @item @uref{http://osdls.library.arizona.edu/, The Open Source Digital Library System Project}
 @end itemize
 
-@appendixsec Some Information Search Engines Concentrated on Some Area
+@appendixsec Information Search Engines Specialising in a Particular Area
 
 @itemize @bullet
 
@@ -47055,7 +47055,7 @@ service with millions of users.}
 @end itemize
 
 @cindex services
-@appendixsec Some Domain/Internet/Web and Related Services
+@appendixsec Domain/Internet/Web and Related Services
 
 @itemize @bullet
 
@@ -47162,7 +47162,7 @@ Ecommerce site that is selling computers.
 @end itemize
 
 @cindex consultants, list of
-@appendixsec Some MySQL Consultants
+@appendixsec MySQL Consultants
 
 @itemize @bullet
 
@@ -47184,7 +47184,7 @@ Ecommerce site that is selling computers.
 @item @uref{http://www.spring.de, Spring infotainment gmbh & co. kg}
 @c added 990905 "Oliver Pischke" <opischke@spring.de>
 
-@item @uref{http://www.wamdesign.com/, Develops websites using MySQL}
+@item @uref{http://www.wamdesign.com/, Wam Design develops websites using MySQL}
 @c Added 990905; max@wamdesign.com
 
 @item @uref{http://www.berkeleyconsultants.com, Berkeley Consultants Group}
@@ -47277,7 +47277,7 @@ ANSI-92 compliance)}
 
 @item @uref{http://www.hek.com, HEK A construction company}
 
-@item @uref{http://www.nbi.nl, Elsevier Bussines Information}
+@item @uref{http://www.ebi.nl, Elsevier Bussiness Information}
 
 @item @uref{http://vaccination.medicallink.se/, Medical Links (Using ColdFusion and MySQL)}
 
@@ -48076,8 +48076,8 @@ Patches for @code{radiusd} to make it support MySQL. By Wim Bonis,
 @email{bonis@@kiss.de}.
 @end itemize
 
-@cindex tools, useful
-@appendixsec Useful Tools
+@cindex utilities
+@appendixsec Utilities
 
 @itemize @bullet
 @item @uref{http://worldcommunity.com/opensource/utilities/mysql_backup.html, MySQL Backup}.
