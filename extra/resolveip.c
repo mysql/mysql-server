@@ -1,30 +1,28 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
-   This library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Library General Public
-   License as published by the Free Software Foundation; either
-   version 2 of the License, or (at your option) any later version.
-   
-   This library is distributed in the hope that it will be useful,
+/* Copyright (C) 2000 MySQL AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
-   
-   You should have received a copy of the GNU Library General Public
-   License along with this library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA */
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* Resolves IP's to hostname and hostnames to IP's */
 
 #define RESOLVE_VERSION "2.0"
- 
-#include <global.h>
+
+#include <my_global.h>
 #include <m_ctype.h>
+#include <my_net.h>
 #include <my_sys.h>
-#ifndef SCO
 #include <m_string.h>
-#endif
 #include <sys/types.h>
 #include <sys/socket.h>
 #ifndef HAVE_BROKEN_NETINET_INCLUDES
@@ -34,9 +32,15 @@
 #include <netdb.h>
 #include <getopt.h>
 
+#ifdef SCO
+#undef h_errno
+#define h_errno errno
+#endif
+
 #if !defined(_AIX) && !defined(HAVE_UNIXWARE7_THREADS) && !defined(HAVE_UNIXWARE7_POSIX) && !defined(h_errno)
 extern int h_errno;
 #endif
+
 
 static int silent=0;
 
@@ -54,7 +58,7 @@ static void print_version(void)
 {
   printf("%s Ver %s, for %s (%s)\n",my_progname,RESOLVE_VERSION,
 	 SYSTEM_TYPE,MACHINE_TYPE);
-}	 
+}
 
 
 static void usage(void)
@@ -140,7 +144,7 @@ int main(int argc, char **argv)
 	  puts("Old-Bcast");
 	continue;
       }
-      
+
       hpaddr = gethostbyaddr((char*) &(taddr), sizeof(struct in_addr),AF_INET);
       if (hpaddr) 
       {
@@ -202,6 +206,3 @@ int main(int argc, char **argv)
   }
   exit(error);
 }
-
-
-
