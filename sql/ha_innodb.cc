@@ -602,7 +602,7 @@ innobase_mysql_tmpfile(void)
 {
 	char	filename[FN_REFLEN];
 	int	fd2 = -1;
-	File	fd = create_temp_file(filename, NullS, "ib",
+	File	fd = create_temp_file(filename, mysql_tmpdir, "ib",
 #ifdef __WIN__
 				O_BINARY | O_TRUNC | O_SEQUENTIAL |
 				O_TEMPORARY | O_SHORT_LIVED |
