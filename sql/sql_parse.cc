@@ -1905,7 +1905,7 @@ mysql_execute_command(THD *thd)
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
   */
   lex->first_lists_tables_same();
-  /* should be assigned after making firts tables same */
+  /* should be assigned after making first tables same */
   all_tables= lex->query_tables;
 
   if (lex->sql_command != SQLCOM_CREATE_PROCEDURE &&
@@ -2381,8 +2381,8 @@ mysql_execute_command(THD *thd)
         of query
       */
       if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
-	  find_real_table_in_list(select_tables, create_table->db,
-				  create_table->real_name))
+	  find_table_in_global_list(select_tables, create_table->db,
+                                    create_table->real_name))
       {
 	net_printf(thd, ER_UPDATE_TABLE_USED, create_table->real_name);
 	goto create_error;
@@ -2752,7 +2752,7 @@ unsent_create_error:
     unit->set_limit(select_lex, select_lex);
 
     // is table which we are changing used somewhere in other parts of query
-    if (find_real_table_in_list(all_tables->next_global,
+    if (find_table_in_global_list(all_tables->next_global,
 				first_table->db, first_table->real_name))
     {
       /* Using same table for INSERT and SELECT */
@@ -3907,7 +3907,7 @@ error:
     1 - access denied, error is sent to client
 */
 
-int check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables)
+bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables)
 {
   if (check_access(thd, privilege, all_tables->db,
 		   &all_tables->grant.privilege, 0, 0))
@@ -3951,13 +3951,13 @@ bool
 check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 	     bool dont_check_global_grants, bool no_errors)
 {
-  DBUG_ENTER("check_access");
-  DBUG_PRINT("enter",("want_access: %lu  master_access: %lu", want_access,
-		      thd->master_access));
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   ulong db_access;
 #endif
   ulong dummy;
+  DBUG_ENTER("check_access");
+  DBUG_PRINT("enter",("db: %s  want_access: %lu  master_access: %lu",
+                      db ? db : "", want_access, thd->master_access));
   if (save_priv)
     *save_priv=0;
   else
@@ -3965,8 +3965,9 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 
   if ((!db || !db[0]) && !thd->db && !dont_check_global_grants)
   {
+    DBUG_PRINT("error",("No database"));
     if (!no_errors)
-      send_error(thd,ER_NO_DB_ERROR);	/* purecov: tested */
+      send_error(thd,ER_NO_DB_ERROR);           /* purecov: tested */
     DBUG_RETURN(TRUE);				/* purecov: tested */
   }
 
@@ -3991,6 +3992,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   if (((want_access & ~thd->master_access) & ~(DB_ACLS | EXTRA_ACL)) ||
       ! db && dont_check_global_grants)
   {						// We can never grant this
+    DBUG_PRINT("error",("No possible access"));
     if (!no_errors)
       net_printf(thd,ER_ACCESS_DENIED_ERROR,
 		 thd->priv_user,
@@ -4009,13 +4011,17 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     db_access=thd->db_access;
   /* Remove SHOW attribute and access rights we already have */
   want_access &= ~(thd->master_access | EXTRA_ACL);
+  DBUG_PRINT("info",("db_access: %lu  want_access: %lu",
+                     db_access, want_access));
   db_access= ((*save_priv=(db_access | thd->master_access)) & want_access);
 
   /* grant_option is set if there exists a single table or column grant */
   if (db_access == want_access ||
-      ((grant_option && !dont_check_global_grants) &&
+      (grant_option && !dont_check_global_grants &&
        !(want_access & ~(db_access | TABLE_ACLS))))
     DBUG_RETURN(FALSE);				/* Ok */
+
+  DBUG_PRINT("error",("Access denied"));
   if (!no_errors)
     net_printf(thd,ER_DBACCESS_DENIED_ERROR,
 	       thd->priv_user,
@@ -4102,6 +4108,42 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
 		       test(want_access & EXTRA_ACL), UINT_MAX, no_errors);
   return FALSE;
 }
+
+
+/*
+  Check if the given table has any of the asked privileges
+
+  SYNOPSIS
+    check_some_access()
+    thd		 Thread handler
+    want_access	 Bitmap of possible privileges to check for
+
+  RETURN
+    0  ok
+    1  error
+*/
+
+
+bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
+{
+  ulong access;
+  DBUG_ENTER("check_some_access");
+
+  /* This loop will work as long as we have less than 32 privileges */
+  for (access= 1; access < want_access ; access<<= 1)
+  {
+    if (access & want_access)
+    {
+      if (!check_access(thd, access, table->db,
+                        &table->grant.privilege, 0, 1) &&
+          !grant_option || !check_grant(thd, access, table, 0, 1, 1))
+        DBUG_RETURN(0);
+    }
+  }
+  DBUG_PRINT("exit",("no matching access rights"));
+  DBUG_RETURN(1);
+}
+
 
 bool check_merge_table_access(THD *thd, char *db,
 			      TABLE_LIST *table_list)
@@ -4960,6 +5002,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 {
   register TABLE_LIST *ptr;
   char *alias_str;
+  LEX *lex= thd->lex;
   DBUG_ENTER("add_table_to_list");
 
   if (!table)
@@ -5011,7 +5054,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   ptr->force_index= test(table_options & TL_OPTION_FORCE_INDEX);
   ptr->ignore_leaves= test(table_options & TL_OPTION_IGNORE_LEAVES);
   ptr->derived=	    table->sel;
-  ptr->select_lex=  thd->lex->current_select;
+  ptr->select_lex=  lex->current_select;
   ptr->cacheable_table= 1;
   if (use_index_arg)
     ptr->use_index=(List<String> *) thd->memdup((gptr) use_index_arg,
@@ -5035,8 +5078,9 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
       }
     }
   }
+  /* Link table in local list (list for current select) */
   table_list.link_in_list((byte*) ptr, (byte**) &ptr->next_local);
-  LEX *lex= thd->lex;
+  /* Link table in global list (all used tables) */
   *(ptr->prev_global= lex->query_tables_last)= ptr;
   lex->query_tables_last= &ptr->next_global;
   DBUG_RETURN(ptr);
