@@ -743,7 +743,6 @@ JOIN::exec()
       else
 	error=(int) result->send_eof();
     }
-    delete procedure;
     DBUG_VOID_RETURN;
   }
 
