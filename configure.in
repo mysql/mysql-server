@@ -664,15 +664,6 @@ AC_ARG_WITH(named-curses-libs,
     [ with_named_curses=no ]
     )
 
-# Force use of a zlib (compress)
-AC_ARG_WITH(named-z-libs,
-    [  --with-named-z-libs=ARG
-                          Use specified zlib libraries instead of
-                          those automatically found by configure.],
-    [ with_named_zlib=$withval ],
-    [ with_named_zlib=z ]
-    )
-
 # Make thread safe client
 AC_ARG_ENABLE(thread-safe-client,
     [  --enable-thread-safe-client   
@@ -806,16 +797,7 @@ AC_CHECK_FUNC(crypt, AC_DEFINE([HAVE_CRYPT], [1], [crypt]))
 
 # For sem_xxx functions on Solaris 2.6
 AC_CHECK_FUNC(sem_init, , AC_CHECK_LIB(posix4, sem_init))
-
-# For compress in zlib
-case $SYSTEM_TYPE in
-  *netware* | *modesto*)
-    AC_DEFINE(HAVE_COMPRESS, [1])
-    ;;
-  *)
-    MYSQL_CHECK_ZLIB_WITH_COMPRESS($with_named_zlib)
-    ;;
-esac
+MYSQL_CHECK_ZLIB_WITH_COMPRESS
 
 #--------------------------------------------------------------------
 # Check for TCP wrapper support
@@ -945,7 +927,7 @@ then
 fi
 # We make a special variable for client library's to avoid including
 # thread libs in the client.
-NON_THREADED_CLIENT_LIBS="$LIBS"
+NON_THREADED_CLIENT_LIBS="$LIBS $ZLIB_LIBS"
 
 AC_MSG_CHECKING([for int8])
 case $SYSTEM_TYPE in
@@ -3082,6 +3064,7 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  include/mysql_version.h dnl
  cmd-line-utils/Makefile dnl
  cmd-line-utils/libedit/Makefile dnl
+ zlib/Makefile dnl
  cmd-line-utils/readline/Makefile)
  AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h)
  AC_OUTPUT
