@@ -2320,17 +2320,6 @@ String *Item_func_hex::val_str(String *str)
   return &tmp_value;
 }
 
-inline int hexchar_to_int(char c)
-{
-  if (c <= '9' && c >= '0')
-    return c-'0';
-  c|=32;
-  if (c <= 'f' && c >= 'a')
-    return c-'a'+10;
-  return -1;
-}
-
-
   /* Convert given hex string to a binary string */
 
 String *Item_func_unhex::val_str(String *str)

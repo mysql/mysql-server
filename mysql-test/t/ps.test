@@ -471,4 +471,3 @@ execute stmt using @var, @var, @var;
 set @var=null;
 select @var is null, @var is not null, @var;
 execute stmt using @var, @var, @var;
-
