@@ -1773,8 +1773,8 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   for (i= 0 ; i < arg_count_order ; i++)
   {
     ORDER *order_item= order[i];
-    Item *item=*order_item->item;
-    if (item->fix_fields(thd, tables, &item) || item->check_cols(1))
+    if ((*order_item->item)->fix_fields(thd, tables, order_item->item) ||
+	(*order_item->item)->check_cols(1))
       return 1;
   }
   result_field= 0;

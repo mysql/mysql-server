@@ -119,4 +119,11 @@ insert into t1 values('test'),('test2');
 select * from t1 having group_concat(bar)='';
 drop table t1;
 
-
+# ORDER BY fix_fields()
+create table t1 (a int, a1 varchar(10));
+create table t2 (a0 int);
+insert into t1 values (0,"a"),(0,"b"),(1,"c");
+insert into t2 values (1),(2),(3);
+select  group_concat(a1 order by (t1.a IN (select a0 from t2))) from t1;
+select  group_concat(a1 order by (t1.a)) from t1;
+drop table t1, t2;
