@@ -962,6 +962,7 @@ int runMassiveRollback(NDBT_Context* ctx, NDBT_Step* step){
   const Uint32 OPS_TOTAL = 4096;
 
   for(int row = 0; row < records; row++){
+    int res;
     CHECK(hugoOps.startTransaction(pNdb) == 0);  
     for(int i = 0; i<OPS_TOTAL; i += OPS_PER_TRANS){
       for(int j = 0; j<OPS_PER_TRANS; j++){
@@ -972,7 +973,12 @@ int runMassiveRollback(NDBT_Context* ctx, NDBT_Step* step){
       if(result != NDBT_OK){
 	break;
       }
-      CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
+      res = hugoOps.execute_NoCommit(pNdb);
+      if(res != 0){
+	NdbError err = pNdb->getNdbError(res);
+	CHECK(err.classification == NdbError::TimeoutExpired);
+	break;
+      }
     }
     if(result != NDBT_OK){
       break;

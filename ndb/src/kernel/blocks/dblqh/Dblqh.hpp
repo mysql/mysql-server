@@ -410,7 +410,6 @@
  */
 class Dblqh: public SimulatedBlock {
 public:
-  
   enum LcpCloseState {
     LCP_IDLE = 0,
     LCP_RUNNING = 1,       // LCP is running
@@ -1990,7 +1989,6 @@ public:
     UintR nextTcLogQueue;
     UintR nextTc;
     UintR nextTcConnectrec;
-    Uint16 nodeAfterNext[2];
     UintR prevHashRec;
     UintR prevLogTcrec;
     UintR prevTc;
@@ -2027,6 +2025,7 @@ public:
     Uint16 nextReplica;
     Uint16 primKeyLen;
     Uint16 save1;
+    Uint16 nodeAfterNext[3];
 
     Uint8 activeCreat;
     Uint8 apiVersionNo;
