@@ -48,6 +48,9 @@ tcx.se	.se
 select concat(':',ltrim('  left  '),':',rtrim('  right  '),':');
 concat(':',ltrim('  left  '),':',rtrim('  right  '),':')
 :left  :  right:
+select concat(':',trim(leading from '  left  '),':',trim(trailing from '  right  '),':');
+concat(':',trim(leading from '  left  '),':',trim(trailing from '  right  '),':')
+:left  :  right:
 select concat(':',trim(LEADING FROM ' left'),':',trim(TRAILING FROM ' right '),':');
 concat(':',trim(LEADING FROM ' left'),':',trim(TRAILING FROM ' right '),':')
 :left: right:
@@ -701,5 +704,11 @@ select trim(null from 'kate') as "must_be_null";
 must_be_null
 NULL
 select trim('xyz' from null) as "must_be_null";
+must_be_null
+NULL
+select trim(leading NULL from 'kate') as "must_be_null";
+must_be_null
+NULL
+select trim(trailing NULL from 'xyz') as "must_be_null";
 must_be_null
 NULL
