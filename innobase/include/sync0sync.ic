@@ -33,7 +33,7 @@ void
 mutex_set_debug_info(
 /*=================*/
 	mutex_t*	mutex,		/* in: mutex */
-	char*		file_name,	/* in: file where requested */
+	const char*	file_name,	/* in: file where requested */
 	ulint		line);		/* in: line where requested */
 #endif /* UNIV_SYNC_DEBUG */
 /**********************************************************************

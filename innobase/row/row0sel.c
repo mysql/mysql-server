@@ -2806,7 +2806,7 @@ row_search_for_mysql(
 	/* PHASE 1: Try to pop the row from the prefetch cache */
 
 	if (direction == 0) {
-		trx->op_info = (char *) "starting index read";
+		trx->op_info = "starting index read";
 	
 		prebuilt->n_rows_fetched = 0;
 		prebuilt->n_fetch_cached = 0;
@@ -2817,7 +2817,7 @@ row_search_for_mysql(
 			row_prebuild_sel_graph(prebuilt);
 		}
 	} else {
-		trx->op_info = (char *) "fetching rows";
+		trx->op_info = "fetching rows";
 
 		if (prebuilt->n_rows_fetched == 0) {
 			prebuilt->fetch_direction = direction;
@@ -2842,7 +2842,7 @@ row_search_for_mysql(
 			prebuilt->n_rows_fetched++;
 
 			srv_n_rows_read++;
-			trx->op_info = (char *) "";
+			trx->op_info = "";
 
 			return(DB_SUCCESS);
 		}
@@ -2854,7 +2854,7 @@ row_search_for_mysql(
 		    	cache, but the cache was not full at the time of the
 		    	popping: no more rows can exist in the result set */
 		    
-			trx->op_info = (char *) "";
+			trx->op_info = "";
 		    	return(DB_RECORD_NOT_FOUND);
 		}
 		
@@ -2899,7 +2899,7 @@ row_search_for_mysql(
 
 		if (direction != 0 && !prebuilt->used_in_HANDLER) {
         
-			trx->op_info = (char *) "";
+			trx->op_info = "";
 			return(DB_RECORD_NOT_FOUND);
 		}
 	}
@@ -2980,7 +2980,7 @@ row_search_for_mysql(
 					trx->has_search_latch = FALSE;
 				}    	
 				
-				trx->op_info = (char *) "";
+				trx->op_info = "";
 				
 				/* NOTE that we do NOT store the cursor
 				position */
@@ -3003,7 +3003,7 @@ row_search_for_mysql(
 					trx->has_search_latch = FALSE;
 				}
 
-				trx->op_info = (char *) "";
+				trx->op_info = "";
 
 				/* NOTE that we do NOT store the cursor
 				position */
@@ -3550,7 +3550,7 @@ lock_wait_or_error:
 /*	fputs("Using ", stderr);
 	dict_index_name_print(stderr, index);
 	fprintf(stderr, " cnt %lu ret value %lu err\n", cnt, err); */
-	trx->op_info = (char *) "";
+	trx->op_info = "";
 
 	return(err);
 
@@ -3573,7 +3573,7 @@ normal_return:
 		srv_n_rows_read++;
 	}
 
-	trx->op_info = (char *) "";
+	trx->op_info = "";
 
 	return(ret);
 }

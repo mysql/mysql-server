@@ -640,7 +640,7 @@ buf_read_ibuf_merge_pages(
 	if (buf_debug_prints) {
 		fprintf(stderr,
 			"Ibuf merge read-ahead space %lu pages %lu\n",
-							(ulong) space, (ulong) n_stored);
+				(ulong) space_ids[0], (ulong) n_stored);
 	}
 #endif /* UNIV_DEBUG */
 }
