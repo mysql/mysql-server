@@ -49677,7 +49677,7 @@ not yet 100% confident in this code.
 @node News-3.23.51, News-3.23.50, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.51
 @itemize @bullet
-Fixed the result from @code{IF()} is case in-sensitive if the 2 and
+Fixed the result from @code{IF()} to be case insensitive if the second and
 third arguments are case-sensitive.
 @end itemize
 
@@ -49685,7 +49685,7 @@ third arguments are case-sensitive.
 @appendixsubsec Changes in release 3.23.50
 @itemize @bullet
 @item
-Fixed problem with @code{crash-me} and gcc 3.0.4.
+Fixed problem with @code{crash-me} and @code{gcc} 3.0.4.
 @item
 Fixed that @code{@@@@unknown_variable} doesn't hang server.
 @item
