@@ -17,7 +17,7 @@
 /* Common defines for all clients */
 
 #include <my_global.h>
-#include <my_sys.h> 
+#include <my_sys.h>
 #include <m_string.h>
 #include <mysql.h>
 #include <mysql_embed.h>
@@ -37,4 +37,4 @@ enum options { OPT_CHARSETS_DIR=256, OPT_DEFAULT_CHARSET,
 	       OPT_SELECT_LIMIT, OPT_MAX_JOIN_SIZE, OPT_SSL_SSL,
                OPT_SSL_KEY, OPT_SSL_CERT, OPT_SSL_CA, OPT_SSL_CAPATH,
                OPT_SSL_CIPHER, OPT_SHUTDOWN_TIMEOUT, OPT_LOCAL_INFILE,
-               OPT_PROMPT, OPT_IGN_LINES,OPT_TRANSACTION };
+               OPT_PROMPT, OPT_IGN_LINES,OPT_TRANSACTION, OPT_FRM };
