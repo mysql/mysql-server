@@ -635,7 +635,7 @@ public:
   */
   virtual table_map used_tables() const
   { return state != NO_VALUE ? (table_map)0 : PARAM_TABLE_BIT; }
-  void print(String *str) { str->append('?'); }
+  void print(String *str);
   /* parameter never equal to other parameter of other item */
   bool eq(const Item *item, bool binary_cmp) const { return 0; }
 };

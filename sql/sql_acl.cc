@@ -2761,7 +2761,22 @@ void grant_reload(THD *thd)
 
 /****************************************************************************
   Check table level grants
-  All errors are written directly to the client if no_errors is given !
+
+  SYNPOSIS
+   bool check_grant()
+   thd		Thread handler
+   want_access  Bits of privileges user needs to have
+   tables	List of tables to check. The user should have 'want_access'
+		to all tables in list.
+   show_table	<> 0 if we are in show table. In this case it's enough to have
+	        any privilege for the table
+   number	Check at most this number of tables.
+   no_errors	If 0 then we write an error. The error is sent directly to
+		the client
+
+   RETURN
+     0  ok
+     1  Error: User did not have the requested privielges
 ****************************************************************************/
 
 bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
@@ -2769,14 +2784,17 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
 {
   TABLE_LIST *table;
   char *user = thd->priv_user;
+  DBUG_ENTER("check_grant");
+  DBUG_ASSERT(number > 0);
 
-  want_access &= ~thd->master_access;
+  want_access&= ~thd->master_access;
   if (!want_access)
-    return 0;					// ok
+    DBUG_RETURN(0);                             // ok
 
   rw_rdlock(&LOCK_grant);
   for (table= tables; table && number--; table= table->next_global)
   {
+    GRANT_TABLE *grant_table;
     if (!(~table->grant.privilege & want_access) || table->derived)
     {
       /*
@@ -2786,10 +2804,8 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
       table->grant.want_privilege= 0;
       continue;					// Already checked
     }
-    GRANT_TABLE *grant_table = table_hash_search(thd->host,thd->ip,
-						 table->db,user,
-						 table->real_name,0);
-    if (!grant_table)
+    if (!(grant_table= table_hash_search(thd->host,thd->ip,
+                                         table->db,user, table->real_name,0)))
     {
       want_access &= ~table->grant.privilege;
       goto err;					// No grants
@@ -2813,7 +2829,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     }
   }
   rw_unlock(&LOCK_grant);
-  return 0;
+  DBUG_RETURN(0);
 
 err:
   rw_unlock(&LOCK_grant);
@@ -2848,7 +2864,7 @@ err:
 	       thd->host_or_ip,
 	       table ? table->real_name : "unknown");
   }
-  return 1;
+  DBUG_RETURN(1);
 }
 
 
@@ -2942,7 +2958,7 @@ bool check_grant_all_columns(THD *thd, ulong want_access, GRANT_INFO *grant,
   if (!(grant_table= grant->grant_table))
     goto err;					/* purecov: inspected */
 
-  for (; fields->end(); fields->next())
+  for (; !fields->end_of_fields(); fields->next())
   {
     const char *field_name= fields->name();
     grant_column= column_hash_search(grant_table, field_name,

@@ -1680,8 +1680,8 @@ void reset_stmt_for_execute(THD *thd, LEX *lex)
 
   if (lex->empty_field_list_on_rset)
   {
-    lex->field_list.empty();
     lex->empty_field_list_on_rset= 0;
+    lex->field_list.empty();
   }
   for (; sl; sl= sl->next_select_in_list())
   {
