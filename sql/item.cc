@@ -1268,6 +1268,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
   maybe_null= (*ref)->maybe_null;
   decimals=   (*ref)->decimals;
   set_charset((*ref)->charset());
+  with_sum_func= (*ref)->with_sum_func;
   fixed= 1;
 
   if (ref && (*ref)->check_cols(1))

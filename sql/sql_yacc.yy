@@ -3091,6 +3091,7 @@ into:
 	  LEX *lex=Lex;
 	  if (!lex->describe)
 	  {
+	    lex->uncacheable();
 	    if (!(lex->exchange= new sql_exchange($3.str,0)))
 	      YYABORT;
 	    if (!(lex->result= new select_export(lex->exchange)))
@@ -3103,6 +3104,7 @@ into:
 	  LEX *lex=Lex;
 	  if (!lex->describe)
 	  {
+	    lex->uncacheable();
 	    if (!(lex->exchange= new sql_exchange($3.str,1)))
 	      YYABORT;
 	    if (!(lex->result= new select_dump(lex->exchange)))

@@ -3420,21 +3420,29 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     lex->col_list.empty();
   }
 
-  if (default_value && default_value->type() == Item::NULL_ITEM)
+  if (default_value)
   {
-    if ((type_modifier & (NOT_NULL_FLAG | AUTO_INCREMENT_FLAG)) ==
-	NOT_NULL_FLAG)
+    if (default_value->type() == Item::NULL_ITEM)
     {
-      net_printf(thd,ER_INVALID_DEFAULT,field_name);
+      default_value=0;
+      if ((type_modifier & (NOT_NULL_FLAG | AUTO_INCREMENT_FLAG)) ==
+	  NOT_NULL_FLAG)
+      {
+	net_printf(thd,ER_INVALID_DEFAULT,field_name);
+	DBUG_RETURN(1);
+      }
+    }
+    else if (type_modifier & AUTO_INCREMENT_FLAG)
+    {
+      net_printf(thd, ER_INVALID_DEFAULT, field_name);
       DBUG_RETURN(1);
     }
-    default_value=0;
   }
   if (!(new_field=new create_field()))
     DBUG_RETURN(1);
   new_field->field=0;
   new_field->field_name=field_name;
-  new_field->def= (type_modifier & AUTO_INCREMENT_FLAG ? 0 : default_value);
+  new_field->def= default_value;
   new_field->flags= type_modifier;
   new_field->unireg_check= (type_modifier & AUTO_INCREMENT_FLAG ?
 			    Field::NEXT_NUMBER : Field::NONE);

@@ -21,7 +21,7 @@
 #include <dirent.h>
 #include <string.h>
 #include <screen.h>
-#include <nks/vm.h>
+#include <proc.h>
 #include <ctype.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -54,18 +54,16 @@
 	Init an argument list.
 
 ******************************************************************************/
-void _init_args(arg_list *al)
+void init_args(arg_list_t *al)
 {
-  int i;
+  ASSERT(al != NULL);
   
-  *al = malloc(sizeof(arg_list_t));
+  al->argc = 0;
+  al->size = ARG_BUF;
+  al->argv = malloc(al->size * sizeof(char *));
+  ASSERT(al->argv != NULL);
 
-  (*al)->argc = 0;
-  
-  for(i = 0; i < ARG_MAX; i++)
-  {
-    (*al)->argv[i] = NULL;
-  }
+  return;
 }
 
 /******************************************************************************
@@ -75,49 +73,66 @@ void _init_args(arg_list *al)
 	Add an argument to a list.
 
 ******************************************************************************/
-void add_arg(arg_list al, char *format, ...)
+void add_arg(arg_list_t *al, char *format, ...)
 {
   va_list ap;
+  char temp[PATH_MAX];
 
   ASSERT(al != NULL);
-  ASSERT(al->argc < ARG_MAX);
 
-  al->argv[al->argc] = malloc(PATH_MAX);
+  // increase size
+  if (al->argc >= al->size)
+  {
+    al->size += ARG_BUF;
+    al->argv = realloc(al->argv, al->size * sizeof(char *));
+    ASSERT(al->argv != NULL);
+  }
 
-  ASSERT(al->argv[al->argc] != NULL);
+  if (format)
+  {
+    va_start(ap, format);
+    vsprintf(temp, format, ap);
+    va_end(ap);
 
-  va_start(ap, format);
+    al->argv[al->argc] = malloc(strlen(temp)+1);
+    ASSERT(al->argv[al->argc] != NULL);
+    strcpy(al->argv[al->argc], temp);
 
-  vsprintf(al->argv[al->argc], format, ap);
+    ++(al->argc);
+  }
+  else
+  {
+    al->argv[al->argc] = NULL;
+  }
 
-  va_end(ap);
-
-  ++(al->argc);
+  return;
 }
 
 /******************************************************************************
 
-	_free_args()
+	free_args()
 	
 	Free an argument list.
 
 ******************************************************************************/
-void _free_args(arg_list *al)
+void free_args(arg_list_t *al)
 {
   int i;
 
   ASSERT(al != NULL);
-  ASSERT(*al != NULL);
 
-  for(i = 0; i < (*al)->argc; i++)
+  for(i = 0; i < al->argc; i++)
   {
-    ASSERT((*al)->argv[i] != NULL);
-    free((*al)->argv[i]);
-    (*al)->argv[i] = NULL;
+    ASSERT(al->argv[i] != NULL);
+    free(al->argv[i]);
+    al->argv[i] = NULL;
   }
 
-  free(*al);
-  *al = NULL;
+  free(al->argv);
+  al->argc = 0;
+  al->argv = NULL;
+
+  return;
 }
 
 /******************************************************************************
@@ -167,7 +182,7 @@ int sleep_until_file_exists(char *pid_file)
 ******************************************************************************/
 int wait_for_server_start(char *bin_dir, char *user, char *password, int port)
 {
-  arg_list al;
+  arg_list_t al;
   int err, i;
   char mysqladmin_file[PATH_MAX];
   char trash[PATH_MAX];
@@ -177,27 +192,27 @@ int wait_for_server_start(char *bin_dir, char *user, char *password, int port)
   snprintf(trash, PATH_MAX, "/tmp/trash.out");
 	
   // args
-  init_args(al);
-  add_arg(al, "%s", mysqladmin_file);
-  add_arg(al, "--no-defaults");
-  add_arg(al, "--port=%u", port);
-  add_arg(al, "--user=%s", user);
-  add_arg(al, "--password=%s", password);
-  add_arg(al, "--silent");
-  add_arg(al, "-O");
-  add_arg(al, "connect_timeout=10");
-  add_arg(al, "-w");
-  add_arg(al, "--host=localhost");
-  add_arg(al, "ping");
+  init_args(&al);
+  add_arg(&al, "%s", mysqladmin_file);
+  add_arg(&al, "--no-defaults");
+  add_arg(&al, "--port=%u", port);
+  add_arg(&al, "--user=%s", user);
+  add_arg(&al, "--password=%s", password);
+  add_arg(&al, "--silent");
+  add_arg(&al, "-O");
+  add_arg(&al, "connect_timeout=10");
+  add_arg(&al, "-w");
+  add_arg(&al, "--host=localhost");
+  add_arg(&al, "ping");
 
 	// NetWare does not support the connect timeout in the TCP/IP stack
 	// -- we will try the ping multiple times
 	for(i = 0; (i < TRY_MAX)
-       && (err = spawn(mysqladmin_file, al, TRUE, NULL,
+       && (err = spawn(mysqladmin_file, &al, TRUE, NULL,
                        trash, NULL)); i++) sleep(1);
 	
   // free args
-  free_args(al);
+  free_args(&al);
 
   return err;
 }
@@ -206,71 +221,53 @@ int wait_for_server_start(char *bin_dir, char *user, char *password, int port)
 
 	spawn()
 	
-	Spawn the given file with the given arguments.
+	Spawn the given path with the given arguments.
 
 ******************************************************************************/
-int spawn(char *file, arg_list al, int join, char *input,
+int spawn(char *path, arg_list_t *al, int join, char *input,
           char *output, char *error)
 {
-	NXNameSpec_t name;
-	NXExecEnvSpec_t env;
-	NXVmId_t vm, ignore;
-	int result;
-	
-	// name
-	name.ssType = NX_OBJ_FILE;
-	name.ssPathCtx = 0;
-	name.ssPath = file;
-	
-	// env
-	env.esArgc = al->argc;
-	env.esArgv = al->argv;
-	env.esEnv = NULL;
-	
-	env.esStdin.ssPathCtx = 0;
-	env.esStdout.ssPathCtx = 0;
-	env.esStderr.ssPathCtx = 0;
-	
-  if (input == NULL)
-	{
-		env.esStdin.ssType = NX_OBJ_DEFAULT;
-		env.esStdin.ssPath = NULL;
-	}
-	else
-	{
-		env.esStdin.ssType = NX_OBJ_FILE;
-		env.esStdin.ssPath = input;
-	}
-	
-	if (output == NULL)
+	pid_t pid;
+  int result = 0;
+  wiring_t wiring = { FD_UNUSED, FD_UNUSED, FD_UNUSED };
+  unsigned long flags = PROC_CURRENT_SPACE | PROC_INHERIT_CWD;
+
+  // open wiring
+  if (input)
+    wiring.infd = open(input, O_RDONLY);
+
+  if (output)
+    wiring.outfd = open(output, O_WRONLY | O_CREAT | O_TRUNC);
+
+  if (error)
+    wiring.errfd = open(error, O_WRONLY | O_CREAT | O_TRUNC);
+
+  // procve requires a NULL
+  add_arg(al, NULL);
+
+  // go
+  pid = procve(path, flags, NULL, &wiring, NULL, NULL, 0,
+               NULL, (const char **)al->argv);
+
+	if (pid == -1)
   {
-    env.esStdout.ssType = NX_OBJ_DEFAULT;
-    env.esStdout.ssPath = NULL;
+    result = -1;
   }
-  else
+  else if (join)
   {
-    env.esStdout.ssType = NX_OBJ_FILE;
-    env.esStdout.ssPath = output;
+    waitpid(pid, &result, 0);
   }
 	
-	if (error == NULL)
-  {
-    env.esStderr.ssType = NX_OBJ_DEFAULT;
-    env.esStderr.ssPath = NULL;
-  }
-  else
-  {
-    env.esStderr.ssType = NX_OBJ_FILE;
-    env.esStderr.ssPath = error;
-  }
-	
-	result = NXVmSpawn(&name, &env, NX_VM_SAME_ADDRSPACE | NX_VM_INHERIT_ENV, &vm);
-	
-	if (!result && join)
-	{
-		NXVmJoin(vm, &ignore, &result);
-	}
-	
+  // close wiring
+  if (wiring.infd != -1)
+    close(wiring.infd);
+
+  if (wiring.outfd != -1)
+    close(wiring.outfd);
+
+  if (wiring.errfd != -1)
+    close(wiring.errfd);
+
 	return result;
 }
 
@@ -284,7 +281,7 @@ int spawn(char *file, arg_list al, int join, char *input,
 int stop_server(char *bin_dir, char *user, char *password, int port,
                 char *pid_file)
 {
-	arg_list al;
+	arg_list_t al;
 	int err, i, argc = 0;
   char mysqladmin_file[PATH_MAX];
   char trash[PATH_MAX];
@@ -294,18 +291,18 @@ int stop_server(char *bin_dir, char *user, char *password, int port,
   snprintf(trash, PATH_MAX, "/tmp/trash.out");
 	
   // args
-  init_args(al);
-	add_arg(al, "%s", mysqladmin_file);
-	add_arg(al, "--no-defaults");
-	add_arg(al, "--port=%u", port);
-	add_arg(al, "--user=%s", user);
-	add_arg(al, "--password=%s", password);
-	add_arg(al, "-O");
-	add_arg(al, "shutdown_timeout=20");
-	add_arg(al, "shutdown");
+  init_args(&al);
+	add_arg(&al, "%s", mysqladmin_file);
+	add_arg(&al, "--no-defaults");
+	add_arg(&al, "--port=%u", port);
+	add_arg(&al, "--user=%s", user);
+	add_arg(&al, "--password=%s", password);
+	add_arg(&al, "-O");
+	add_arg(&al, "shutdown_timeout=20");
+	add_arg(&al, "shutdown");
 
 	// spawn
-	if ((err = spawn(mysqladmin_file, al, TRUE, NULL,
+	if ((err = spawn(mysqladmin_file, &al, TRUE, NULL,
                    trash, NULL)) == 0)
 	{
 		sleep_until_file_deleted(pid_file);
@@ -324,7 +321,7 @@ int stop_server(char *bin_dir, char *user, char *password, int port,
   }
   
   // free args
-  free_args(al);
+  free_args(&al);
 
 	return err;
 }

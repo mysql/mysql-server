@@ -234,7 +234,7 @@ INSERT INTO t2 VALUES (11410,11410,131,0);
 INSERT INTO t2 VALUES (11416,11416,32767,0);
 INSERT INTO t2 VALUES (11409,0,0,0);
 CREATE TABLE t3 (
-id int(11) DEFAULT '0' NOT NULL auto_increment,
+id int(11) NOT NULL auto_increment,
 dni_pasaporte char(16) DEFAULT '' NOT NULL,
 idPla int(11) DEFAULT '0' NOT NULL,
 cod_asig int(11) DEFAULT '0' NOT NULL,
@@ -247,7 +247,7 @@ UNIQUE dni_pasaporte_2 (dni_pasaporte,idPla,cod_asig,any,quatrimestre)
 );
 INSERT INTO t3 VALUES (1,'11111111',1,10362,98,1,'M');
 CREATE TABLE t4 (
-id int(11) DEFAULT '0' NOT NULL auto_increment,
+id int(11) NOT NULL auto_increment,
 papa int(11) DEFAULT '0' NOT NULL,
 fill int(11) DEFAULT '0' NOT NULL,
 idPla int(11) DEFAULT '0' NOT NULL,
@@ -284,7 +284,7 @@ fill	idPla
 10362	NULL
 drop table t1,t2,t3,test.t4;
 CREATE TABLE t1 (
-id smallint(5) unsigned DEFAULT '0' NOT NULL auto_increment,
+id smallint(5) unsigned NOT NULL auto_increment,
 name char(60) DEFAULT '' NOT NULL,
 PRIMARY KEY (id)
 );
@@ -292,7 +292,7 @@ INSERT INTO t1 VALUES (1,'Antonio Paz');
 INSERT INTO t1 VALUES (2,'Lilliana Angelovska');
 INSERT INTO t1 VALUES (3,'Thimble Smith');
 CREATE TABLE t2 (
-id smallint(5) unsigned DEFAULT '0' NOT NULL auto_increment,
+id smallint(5) unsigned NOT NULL auto_increment,
 owner smallint(5) unsigned DEFAULT '0' NOT NULL,
 name char(60),
 PRIMARY KEY (id)
@@ -382,15 +382,15 @@ id	str
 2	NULL
 drop table t1;
 CREATE TABLE t1 (
-t1_id bigint(21) DEFAULT '0' NOT NULL auto_increment,
+t1_id bigint(21) NOT NULL auto_increment,
 PRIMARY KEY (t1_id)
 );
 CREATE TABLE t2 (
-t2_id bigint(21) DEFAULT '0' NOT NULL auto_increment,
+t2_id bigint(21) NOT NULL auto_increment,
 PRIMARY KEY (t2_id)
 );
 CREATE TABLE t3 (
-t3_id bigint(21) DEFAULT '0' NOT NULL auto_increment,
+t3_id bigint(21) NOT NULL auto_increment,
 PRIMARY KEY (t3_id)
 );
 CREATE TABLE t4 (

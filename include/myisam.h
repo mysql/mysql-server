@@ -364,8 +364,10 @@ typedef struct st_sort_info
   SORT_FT_BUF *ft_buf;
   /* sync things */
   uint got_error, threads_running;
+#ifdef THREAD
   pthread_mutex_t mutex;
   pthread_cond_t  cond;
+#endif
 } SORT_INFO;
 
 /* functions in mi_check */

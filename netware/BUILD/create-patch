@@ -1,0 +1,56 @@
+#! /bin/sh
+
+# debug
+#set -x
+
+# stop on errors
+set -e
+
+# repository direcotry
+repo_dir=`pwd`
+
+# show usage
+show_usage()
+{
+	cat << EOF
+
+usage: create-patch
+
+Creates a patch file between the latest revision of the current tree
+and the latest revision not create by \$BK_USER.
+
+EOF
+	exit 0;
+}
+
+if test $1 || test -z $BK_USER
+then
+	show_usage
+fi
+
+echo "starting patch..."
+
+echo "user: $BK_USER"
+
+# check for bk and repo_dir
+bk help > /dev/null
+repo_dir=`bk root $repo_dir`
+cd $repo_dir
+
+# determine version
+version=`grep -e "AM_INIT_AUTOMAKE(mysql, .*)" < configure.in | sed -e "s/AM_INIT_AUTOMAKE(mysql, \(.*\))/\1/"`
+echo "version: $version"
+
+# user revision
+user_rev=`bk changes -e -n -d':REV:' | head -1`
+echo "latest revision: $user_rev"
+ 
+# tree revision
+tree_rev=`bk changes -e -n -d':REV:' -U$BK_USER | head -1`
+echo "latest non-$BK_USER revision: $tree_rev"
+
+# create patch
+patch="$repo_dir/../$BK_USER-$version.patch"
+echo "creating \"$patch\"..."
+bk export -tpatch -r$tree_rev..$user_rev > $patch
+
