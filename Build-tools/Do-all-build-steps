@@ -1,8 +1,16 @@
-#!/bin/bash
+#!/bin/sh
 
 WD=`pwd`
 # Don't write a wrong path for BD !!!!!
-BD=/my/tmp/BUILD
+if [ -w /my/tmp ]
+then
+  BD=/my/tmp/BUILD
+elif [ -n "$TMPDIR" ]
+then
+  BD=$TMPDIR/BUILD
+else
+  BD=/tmp/BUILD
+fi
 TMP_SCRIPT=$WD/Logs/00-temp-for-do-all-build-steps.$$
 
 # We build on work
@@ -76,15 +84,18 @@ sh $BD/Build-tools/Do-rpm
 rm -f $TMP_SCRIPT
 END
 
+set -e
+
 log=$WD/Logs/Log-distcheck-`date +%y%m%d-%H%M`
 
+echo "Logging script $TMP_SCRIPT into $log"
 if test $to_host = "mysql-work"
 then
   # Try to get the right user for MySQL builds on work so that all
   # files is owned by the same user (mysql)
-  ssh -n $to_host -l my "time bash $TMP_SCRIPT" > $log 2>&1
+  ssh -n $to_host -l my "time sh $TMP_SCRIPT" > $log 2>&1
 else
-  time bash $TMP_SCRIPT > $log 2>&1
+  time sh $TMP_SCRIPT > $log 2>&1
 fi
 
 # Create a commercial MySQL distribution (mysqlcom-VER.tar.gz) from
