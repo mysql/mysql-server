@@ -4155,6 +4155,12 @@ USA [LinuxWired/Scottsdale, AZ] @
 USA [Venoma.Org/Valdosta, GA] @
 @uref{http://mysql.venoma.org/, WWW}
 
+@item
+@c EMAIL: hkind@adgrafix.com (Hans Kind)
+@c @image{Flags/usa}
+USA [adgrafix.com/Boston, MA] @
+@uref{http://mysql.adgrafix.com/, WWW}
+
 @end itemize
 
 @strong{South America:}
