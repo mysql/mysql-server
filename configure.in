@@ -1463,6 +1463,7 @@ install the static libraries and try again.  If this isn't the problem,
 examine config.log for possible errors.  If you want to report this, use
 'scripts/mysqlbug' and include at least the last 20 rows from config.log!])
 fi
+AC_CHECK_SIZEOF(char*, 4)
 AC_CHECK_SIZEOF(int, 4)
 if test "$ac_cv_sizeof_int" -eq 0
 then

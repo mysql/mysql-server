@@ -445,6 +445,7 @@ public:
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return 8; }
   void sql_type(String &str) const;
+  bool store_for_compare() { return 1; }
 };
 #endif
 
