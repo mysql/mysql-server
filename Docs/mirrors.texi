@@ -3,6 +3,11 @@
 @itemize @bullet
 
 @item
+@image{Flags/armenia} Armenia [AbideWeb Technologies] @@
+WWW (@uref{http://mysql.abideweb.com/})
+FTP (@uref{ftp://mysql.abideweb.com/mirrors/MySQL/})
+
+@item
 @image{Flags/austria} Austria [Univ. of Technology/Vienna] @@
 WWW (@uref{http://gd.tuwien.ac.at/db/mysql/})
 FTP (@uref{ftp://gd.tuwien.ac.at/db/mysql/})
@@ -77,6 +82,7 @@ FTP (@uref{ftp://sunsite.informatik.rwth-aachen.de/pub/mirror/www.mysql.com/})
 
 @item
 @image{Flags/germany} Germany [Tiscali] @@
+WWW (@uref{http://filepile.tiscali.de/mirror/mysql/})
 FTP (@uref{ftp://filepile.tiscali.de/mirror/mysql/})
 
 @item
@@ -321,11 +327,6 @@ FTP (@uref{ftp://mysql.ogmios.co.cr/pub/mysql/})
 @strong{Asia:}
 
 @itemize @bullet
-
-@item
-@image{Flags/armenia} Armenia [AbideWeb Technologies] @@
-WWW (@uref{http://mysql.abideweb.com/})
-FTP (@uref{ftp://mysql.abideweb.com/mirrors/MySQL/})
 
 @item
 @image{Flags/china} China [Gremlins/Hong Kong] @@
