@@ -29,6 +29,7 @@
 
 typedef struct char_info_st 
 {
+  int cod;
   int srt;
   int uni;
   int low;
@@ -43,20 +44,26 @@ static int chcmp(const void *vf, const void *vs)
   
   return f->srt-s->srt ? f->srt-s->srt : f->uni-s->uni;
 }
- 
+
 static void print_cs(CHARSET_INFO *cs)
 {
-  uint i;
+  uint  i;
+  int   srt;
+  int   clr=0;
   MY_CH ch[256];
-  
+    
   printf("<HTML>\n");
   printf("<HEAD>\n");
   printf("</HEAD>\n");
   printf("<BODY><PRE>\n");
   printf("Charset %s\n",cs->name);
+
+  printf("<TABLE>\n");
+  printf("<TR><TH>Code<TH>Uni<TH>Sort<TH>Ctype<TH>Ch<TH>Lo<TH>Up</TR>");
   
   for (i=0; i<256; i++)
   {
+    ch[i].cod=i;
     ch[i].srt=cs->sort_order[i];
     ch[i].uni=cs->tab_to_uni[i];
     ch[i].low=cs->tab_to_uni[cs->to_lower[i]];
@@ -65,12 +72,34 @@ static void print_cs(CHARSET_INFO *cs)
   }
   
   qsort(ch,256,sizeof(MY_CH),&chcmp);
-   
-  for (i=1; i<256; i++)
+  srt=ch[0].srt;
+  
+  for (i=0; i<256; i++)
   {
-    printf("%d %d &#%d; &#%d; &#%d;\n",ch[i].srt,ch[i].ctp,ch[i].uni,
-    				       ch[i].low,ch[i].upp);
+    clr = (srt!=ch[i].srt) ? !clr : clr;
+    
+    printf("<TR bgcolor=#%s>",clr ? "DDDDDD" : "EEEE99");
+    printf("<TD>%02X",ch[i].cod);
+    printf("<TD>%04X",ch[i].uni);
+    printf("<TD>%d",ch[i].srt);
+    
+    printf("<TD>%s%s%s%s%s%s%s%s",
+    		ch[i].ctp & _U ? "U" : "",
+    		ch[i].ctp & _L ? "L" : "",
+    		ch[i].ctp & _NMR ? "N" : "",
+    		ch[i].ctp & _SPC ? "S" : "",
+    		ch[i].ctp & _PNT ? "P" : "",
+    		ch[i].ctp & _CTR ? "C" : "",
+    		ch[i].ctp & _B ? "B" : "",
+    		ch[i].ctp & _X ? "X" : "");
+    
+    printf("<TD>&#%d;",ch[i].uni);
+    printf("<TD>&#%d;",ch[i].low);
+    printf("<TD>&#%d;",ch[i].upp);
+    printf("</TR>\n");
+    srt=ch[i].srt;
   }
+  printf("</TABLE>\n");
   printf("</PRE></BODY>\n");
   printf("</HTML>\n");
 }
