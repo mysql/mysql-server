@@ -41,68 +41,55 @@
 #include <signal.h>
 #include <errno.h>
 
+/*
+  The following handles the differences when this is linked between the
+  client and the server.
+
+  This gives an error if a too big packet is found
+  The server can change this with the -O switch, but because the client
+  can't normally do this the client should have a bigger max_allowed_packet.
+*/
+
 #ifdef MYSQL_SERVER
 ulong max_allowed_packet=65536;
 extern ulong net_read_timeout,net_write_timeout;
 extern uint test_flags;
 #else
-
-/*
-** Give error if a too big packet is found
-** The server can change this with the -O switch, but because the client
-** can't normally do this the client should have a bigger max_allowed_packet.
-*/
-
-ulong max_allowed_packet=~0L;
+ulong max_allowed_packet=16*1024*1024L;
 ulong net_read_timeout=  NET_READ_TIMEOUT;
 ulong net_write_timeout= NET_WRITE_TIMEOUT;
 #endif
-ulong net_buffer_length=8192;	/* Default length. Enlarged if necessary */
 
-#if defined(__WIN__) || defined(MSDOS)
-#undef MYSQL_SERVER			/* Win32 can't handle interrupts */
+#ifdef __WIN__
+/* The following is because alarms doesn't work on windows. */
+#undef MYSQL_SERVER
 #endif
+
 #ifdef MYSQL_SERVER
 #include "my_pthread.h"
-#include "thr_alarm.h"
 void sql_print_error(const char *format,...);
 #define RETRY_COUNT mysqld_net_retry_count
 extern ulong mysqld_net_retry_count;
-#else
-
-#ifdef OS2				/* avoid name conflict */
-#define thr_alarm_t  thr_alarm_t_net
-#define ALARM        ALARM_net
-#endif
-
-typedef my_bool thr_alarm_t;
-typedef my_bool ALARM;
-#define thr_alarm_init(A) (*(A))=0
-#define thr_alarm_in_use(A) (*(A) != 0)
-#define thr_end_alarm(A)
-#define thr_alarm(A,B,C) local_thr_alarm((A),(B),(C))
-inline int local_thr_alarm(my_bool *A,int B __attribute__((unused)),ALARM *C __attribute__((unused)))
-{
-  *A=1;
-  return 0;
-}
-#define thr_got_alarm(A) 0
-#define RETRY_COUNT 1
-#endif
-
-#ifdef MYSQL_SERVER
 extern ulong bytes_sent, bytes_received;
 extern pthread_mutex_t LOCK_bytes_sent , LOCK_bytes_received;
+
 extern void query_cache_insert(NET *net, const char *packet, ulong length);
 #else
 #undef statistic_add
 #define statistic_add(A,B,C)
-#endif
+#define DONT_USE_THR_ALARM
+#define RETRY_COUNT 1
+#endif /* MYSQL_SERVER */
+
+#include "thr_alarm.h"
 
 #define TEST_BLOCKING		8
+#define MAX_THREE_BYTES 255L*255L*255L
+
+ulong net_buffer_length=8192;	/* Default length. Enlarged if necessary */
+
 static int net_write_buff(NET *net,const char *packet,ulong len);
 
-#define MAX_THREE_BYTES 255L*255L*255L
 
 	/* Init with packet info */
 
@@ -335,7 +322,7 @@ net_real_write(NET *net,const char *packet,ulong len)
   long int length;
   char *pos,*end;
   thr_alarm_t alarmed;
-#if !defined(__WIN__) && !defined(__EMX__) && !defined(OS2)
+#if defined(MYSQL_SERVER)
   ALARM alarm_buff;
 #endif
   uint retry_count=0;
@@ -522,7 +509,7 @@ my_real_read(NET *net, ulong *complen)
   uint i,retry_count=0;
   ulong len=packet_error;
   thr_alarm_t alarmed;
-#if (!defined(__WIN__) && !defined(__EMX__) && !defined(OS2)) || defined(MYSQL_SERVER)
+#if defined(MYSQL_SERVER)
   ALARM alarm_buff;
 #endif
   my_bool net_blocking=vio_is_blocking(net->vio);
@@ -775,7 +762,7 @@ my_net_read(NET *net)
 
 	  if (read_length != MAX_THREE_BYTES)	    /* last package */
 	  {
-	    multi_byte_packet= 0;		// No last zero length packet
+	    multi_byte_packet= 0;		/* No last zero len packet */
 	    break;
 	  }
 	  multi_byte_packet= NET_HEADER_SIZE;

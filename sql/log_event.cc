@@ -1539,7 +1539,8 @@ int Query_log_event::exec_event(struct st_master_info* mi)
 {
   int expected_error,actual_error = 0;
   init_sql_alloc(&thd->mem_root, 8192,0);
-  thd->db = rewrite_db((char*)db);
+  thd->db= rewrite_db((char*)db);
+  thd->db_length=strlen(thd->db);
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
     thd->query = (char*)query;
@@ -1584,14 +1585,16 @@ int Query_log_event::exec_event(struct st_master_info* mi)
     else
     {
       // master could be inconsistent, abort and tell DBA to check/fix it
-      thd->db = thd->query = 0;
+      thd->db= thd->query= 0;
+      thd->db_length=0;
       thd->convert_set = 0;
       close_thread_tables(thd);
       free_root(&thd->mem_root,0);
       return 1;
     }
   }
-  thd->db = 0;				// prevent db from being freed
+  thd->db= 0;					// prevent db from being freed
+  thd->db_length=0;
   thd->query = 0;				// just to be sure
   // assume no convert for next query unless set explictly
   thd->convert_set = 0;
@@ -1612,7 +1615,7 @@ int Query_log_event::exec_event(struct st_master_info* mi)
 int Load_log_event::exec_event(NET* net, struct st_master_info* mi)
 {
   init_sql_alloc(&thd->mem_root, 8192,0);
-  thd->db = rewrite_db((char*)db);
+  thd->db= rewrite_db((char*)db);
   thd->query = 0;
   thd->query_error = 0;
 
@@ -1685,7 +1688,8 @@ int Load_log_event::exec_event(NET* net, struct st_master_info* mi)
   }
 
   thd->net.vio = 0; 
-  thd->db = 0;// prevent db from being freed
+  thd->db= 0;// prevent db from being freed
+  thd->db_length=0;
   close_thread_tables(thd);
   if (thd->query_error)
   {

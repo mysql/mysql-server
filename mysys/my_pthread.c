@@ -471,6 +471,8 @@ struct hostent *my_gethostbyname_r(const char *name,
   this has to be added here.
 *****************************************************************************/
 
+#ifdef HPUX
+
 int my_pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
 			      struct timespec *abstime)
 {
@@ -482,6 +484,18 @@ int my_pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
   return error;
 }
 
+
+int my_pthread_mutex_trylock(pthread_mutex_t *mutex)
+{
+  int error=pthread_mutex_trylock(mutex);
+  if (error == 1)			/* Safety if the lib is fixed */
+    return 0;				/* Mutex was locked */
+  if (error == -1)			/* Safety if the lib is fixed */
+    error=errno;
+   return error;
+}
+
+#endif
 
 /* Some help functions */
 

@@ -132,7 +132,8 @@ int  acl_init(bool dont_read_acl_tables)
   thd->mysys_var=my_thread_var;
   thd->current_tablenr=0;
   thd->open_tables=0;
-  thd->db=my_strdup("mysql",MYF(0));
+  thd->db= my_strdup("mysql",MYF(0));
+  thd->db_length=5;				// Safety
   bzero((char*) &tables,sizeof(tables));
   tables[0].name=tables[0].real_name=(char*) "host";
   tables[1].name=tables[1].real_name=(char*) "user";
@@ -2120,7 +2121,8 @@ int  grant_init (void)
   thd->mysys_var=my_thread_var;
   thd->current_tablenr=0;
   thd->open_tables=0;
-  thd->db=my_strdup("mysql",MYF(0));
+  thd->db= my_strdup("mysql",MYF(0));
+  thd->db_length=5;				// Safety
   bzero((char*) &tables,sizeof(tables));
   tables[0].name=tables[0].real_name= (char*) "tables_priv";
   tables[1].name=tables[1].real_name= (char*) "columns_priv";

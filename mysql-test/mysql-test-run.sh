@@ -674,9 +674,9 @@ manager_term()
   ident=$1
   shift
   if [ $USE_MANAGER = 0 ] ; then
-   $MYSQLADMIN --no-defaults -uroot --socket=$MYSQL_TMP_DIR/$ident.sock -O \
-   connect_timeout=5 -O shutdown_timeout=20 shutdown >/dev/null 2>&1
-   return
+    $MYSQLADMIN --no-defaults -uroot --socket=$MYSQL_TMP_DIR/$ident.sock -O \
+    connect_timeout=5 -O shutdown_timeout=20 shutdown >/dev/null 2>&1
+    return
   fi
   $MYSQL_MANAGER_CLIENT $MANAGER_QUIET_OPT --user=$MYSQL_MANAGER_USER \
    --password=$MYSQL_MANAGER_PW  --port=$MYSQL_MANAGER_PORT <<EOF
@@ -774,7 +774,7 @@ EOF
   else
     manager_launch master $MYSQLD $master_args
   fi
-  sleep_until_file_exists $MASTER_MYSOCK $wait_for_master
+  sleep_until_file_exists $MASTER_MYPID $wait_for_master
   wait_for_master=$SLEEP_TIME_FOR_SECOND_MASTER
   MASTER_RUNNING=1
 }
@@ -874,7 +874,7 @@ start_slave()
     manager_launch $slave_ident $SLAVE_MYSQLD $slave_args
   fi
   eval "SLAVE$1_RUNNING=1"
-  sleep_until_file_exists $slave_sock $wait_for_slave
+  sleep_until_file_exists $slave_pid $wait_for_slave
   wait_for_slave=$SLEEP_TIME_FOR_SECOND_SLAVE
 }
 

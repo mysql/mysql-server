@@ -247,6 +247,7 @@ select * from foo.t1;
 show status like "Qcache_queries_in_cache";
 drop database foo;
 show status like "Qcache_queries_in_cache";
+
 #
 # Charset convertion (cp1251_koi8 always present)
 #
@@ -263,3 +264,22 @@ drop table t1;
 #  machines :(
 #show variables like "query_cache_size";
 #show status like "Qcache_free_memory";
+
+#
+# Test insert delayed
+#
+
+flush query cache;
+reset query cache;
+
+create table t1 (a int not null);
+insert into t1 values (1),(2),(3);
+select * from t1;
+select * from t1;
+show status like "Qcache_queries_in_cache";
+insert delayed into t1 values (4);
+--sleep 5	# Wait for insert delayed to be executed.
+select a from t1;
+show status like "Qcache_queries_in_cache";
+drop table t1;
+show status like "Qcache_queries_in_cache";

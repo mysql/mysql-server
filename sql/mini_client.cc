@@ -22,21 +22,15 @@
  in case we decide to make them external at some point
  */
 
+#ifdef EMBEDDED_LIBRARY
+#define net_read_timeout net_read_timeout1
+#define net_write_timeout net_write_timeout1
+#endif
+
 #if defined(__WIN__)
 #include <winsock.h>
-#include <odbcinst.h>
-/* Disable alarms */
-typedef my_bool ALARM;
-#define thr_alarm_init(A) (*(A))=0
-#define thr_alarm_in_use(A) (*(A))
-#define thr_end_alarm(A)
-#define thr_alarm(A,B,C) local_thr_alarm((A),(B),(C))
-inline int local_thr_alarm(my_bool *A,int B __attribute__((unused)),ALARM *C __attribute__((unused)))
-{
-  *A=1;
-  return 0;
-}
-#define thr_got_alarm(A) 0
+#include <odbcinst.h>		/* QQ: Is this really needed ? */
+#define DONT_USE_THR_ALARM
 #endif
 
 #include <my_global.h>
@@ -53,12 +47,7 @@ inline int local_thr_alarm(my_bool *A,int B __attribute__((unused)),ALARM *C __a
 #include "mysqld_error.h"
 #include "errmsg.h"
 
-#ifdef EMBEDDED_LIBRARY
-#define net_read_timeout net_read_timeout1
-#define net_write_timeout net_write_timeout1
-#endif
-
-#if defined( OS2) && defined( MYSQL_SERVER)
+#if defined( OS2) && defined(MYSQL_SERVER)
 #undef  ER
 #define ER CER
 #endif
@@ -82,18 +71,17 @@ extern "C" {					// Because of SCO 3.2V4.2
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
-#endif
+#endif /*!defined(MSDOS) && !defined(__WIN__) */
 #ifdef HAVE_SYS_UN_H
 #  include <sys/un.h>
 #endif
 #if defined(THREAD)
 #include <my_pthread.h>				/* because of signal()	*/
-#include <thr_alarm.h>
 #endif
+#include <thr_alarm.h>
 #ifndef INADDR_NONE
 #define INADDR_NONE	-1
 #endif
-
 }
 
 static void mc_free_rows(MYSQL_DATA *cur);
@@ -1073,8 +1061,8 @@ static int mc_send_file_to_server(MYSQL *mysql, const char *filename)
     my_net_write(&mysql->net,"",0);		// Server needs one packet
     net_flush(&mysql->net);
     mysql->net.last_errno=EE_FILENOTFOUND;
-    snprintf(mysql->net.last_error,sizeof(mysql->net.last_error)-1,
-	     EE(mysql->net.last_errno),tmp_name, errno);
+    my_snprintf(mysql->net.last_error,sizeof(mysql->net.last_error)-1,
+		EE(mysql->net.last_errno),tmp_name, errno);
     goto err;
   }
 
@@ -1098,8 +1086,8 @@ static int mc_send_file_to_server(MYSQL *mysql, const char *filename)
   if (readcount < 0)
   {
     mysql->net.last_errno=EE_READ; /* the errmsg for not entire file read */
-    snprintf(mysql->net.last_error,sizeof(mysql->net.last_error)-1,
-	     tmp_name,errno);
+    my_snprintf(mysql->net.last_error,sizeof(mysql->net.last_error)-1,
+		tmp_name,errno);
     goto err;
   }
   result=0;					// Ok

@@ -1717,7 +1717,6 @@ print_table_data_xml(MYSQL_RES *result)
     (void) tee_fputs("\n  <row>\n", PAGER);
     for (uint i=0; i < mysql_num_fields(result); i++)
     {
-      char *data;
       ulong *lengths=mysql_fetch_lengths(result);
       tee_fprintf(PAGER, "\t<%s>", (fields[i].name ?
 				  (fields[i].name[0] ? fields[i].name :
