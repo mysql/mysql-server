@@ -181,7 +181,7 @@ Q_PING,             Q_EVAL,
 Q_RPL_PROBE,        Q_ENABLE_RPL_PARSE,
 Q_DISABLE_RPL_PARSE, Q_EVAL_RESULT,
 Q_ENABLE_QUERY_LOG, Q_DISABLE_QUERY_LOG,
-Q_SERVER_START, Q_SERVER_STOP,
+Q_SERVER_START, Q_SERVER_STOP,Q_REQUIRE_MANAGER,
 Q_UNKNOWN,                             /* Unknown command.   */
 Q_COMMENT,                             /* Comments, ignored. */
 Q_COMMENT_WITH_COMMAND
@@ -215,6 +215,7 @@ const char *command_names[] = {
   "disable_rpl_parse", "eval_result",
   "enable_query_log", "disable_query_log",
   "server_start", "server_stop",
+  "require_manager",
   0
 };
 
@@ -637,6 +638,13 @@ int open_file(const char* name)
   cur_file++;
   *++lineno=1;
 
+  return 0;
+}
+
+int do_require_manager(struct st_query* __attribute__((unused)) q)
+{
+  if (!manager)
+    abort_not_supported_test();
   return 0;
 }
 
@@ -1930,7 +1938,9 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
     ds= &ds_res;
   
   if ((flags & QUERY_SEND) && mysql_send_query(mysql, query, query_len))
-    die("At line %u: unable to send query '%s'", start_lineno, query);
+    die("At line %u: unable to send query '%s'(mysql_errno=%d,errno=%d)",
+	start_lineno, query,
+	mysql_errno(mysql), errno);
   if ((flags & QUERY_SEND) && !disable_query_log)
   {
     dynstr_append_mem(ds,query,query_len);
@@ -2236,6 +2246,7 @@ int main(int argc, char** argv)
       case Q_DISABLE_QUERY_LOG: disable_query_log=1; break;
       case Q_SOURCE: do_source(q); break;
       case Q_SLEEP: do_sleep(q); break;
+      case Q_REQUIRE_MANAGER: do_require_manager(q); break;
 #ifndef EMBEDDED_LIBRARY	
       case Q_SERVER_START: do_server_start(q); break;
       case Q_SERVER_STOP: do_server_stop(q); break;
