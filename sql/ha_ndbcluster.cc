@@ -4339,7 +4339,7 @@ bool ndbcluster_init()
     DBUG_PRINT("info",("NDBCLUSTER storage engine at %s on port %d",
 		       g_ndb_cluster_connection->get_connected_host(),
 		       g_ndb_cluster_connection->get_connected_port()));
-    g_ndb_cluster_connection->wait_until_ready(10,0);
+    g_ndb_cluster_connection->wait_until_ready(10,3);
   } 
   else if(res == 1)
   {

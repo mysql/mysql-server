@@ -222,7 +222,8 @@ Ndb_cluster_connection::wait_until_ready(int timeout,
     else if (foundAliveNode > 0)
     {
       noChecksSinceFirstAliveFound++;
-      if (noChecksSinceFirstAliveFound > timeout_after_first_alive)
+      // 100 ms delay -> 10*
+      if (noChecksSinceFirstAliveFound > 10*timeout_after_first_alive)
 	DBUG_RETURN(1);
     }
     else if (secondsCounter >= timeout)
