@@ -1288,6 +1288,18 @@ String *Item_func_trim::val_str(String *str)
 
 void Item_func_password::fix_length_and_dec()
 {
+  /*
+    If PASSWORD() was called with only one argument, it depends on a random
+    number so we need to save this random number into the binary log.
+    If called with two arguments, it is repeatable.
+  */
+  if (arg_count == 1)
+  {
+    THD *thd= current_thd;
+    thd->rand_used= 1;
+    thd->rand_saved_seed1= thd->rand.seed1;
+    thd->rand_saved_seed2= thd->rand.seed2;
+  } 
   max_length= get_password_length(use_old_passwords);
 }
 
