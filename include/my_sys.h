@@ -389,6 +389,8 @@ extern int my_realpath(char *to, const char *filename, myf MyFlags);
 extern File my_create_with_symlink(const char *linkname, const char *filename,
 				   int createflags, int access_flags,
 				   myf MyFlags);
+extern int my_delete_with_symlink(const char *name, myf MyFlags);
+extern int my_rename_with_symlink(const char *from,const char *to,myf MyFlags);
 extern int my_symlink(const char *content, const char *linkname, myf MyFlags);
 extern uint my_read(File Filedes,byte *Buffer,uint Count,myf MyFlags);
 extern uint my_pread(File Filedes,byte *Buffer,uint Count,my_off_t offset,
