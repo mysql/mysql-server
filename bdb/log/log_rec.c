@@ -50,6 +50,7 @@ static const char revid[] = "$Id: log_rec.c,v 11.48 2001/01/11 18:19:53 bostic E
 #include "db_am.h"
 #include "log.h"
 
+static int __log_check_master __P((DB_ENV *, u_int8_t *, char *));
 static int __log_do_open __P((DB_ENV *, DB_LOG *,
     u_int8_t *, char *, DBTYPE, int32_t, db_pgno_t));
 static int __log_open_file __P((DB_ENV *, DB_LOG *, __log_register_args *));
@@ -341,6 +342,9 @@ __log_do_open(dbenv, lp, uid, name, ftype, ndx, meta_pgno)
 		 * Verify that we are opening the same file that we were
 		 * referring to when we wrote this log record.
 		 */
+		if (meta_pgno != PGNO_BASE_MD &&
+		    __log_check_master(dbenv, uid, name) != 0)
+			goto not_right;
 		if (memcmp(uid, dbp->fileid, DB_FILE_ID_LEN) != 0) {
 			memset(zeroid, 0, DB_FILE_ID_LEN);
 			if (memcmp(dbp->fileid, zeroid, DB_FILE_ID_LEN) != 0)
@@ -359,6 +363,28 @@ not_right:
 	(void)__log_add_logid(dbenv, lp, NULL, ndx);
 
 	return (ENOENT);
+}
+
+static int
+__log_check_master(dbenv, uid, name)
+	DB_ENV *dbenv;
+	u_int8_t *uid;
+	char *name;
+{
+	DB *dbp;
+	int ret;
+
+	ret = 0;
+	if ((ret = db_create(&dbp, dbenv, 0)) != 0)
+		return (ret);
+	dbp->type = DB_BTREE;
+	ret = __db_dbopen(dbp, name, 0, __db_omode("rw----"), PGNO_BASE_MD);
+
+	if (ret == 0 && memcmp(uid, dbp->fileid, DB_FILE_ID_LEN) != 0) 
+		ret = EINVAL;
+	
+	(void) dbp->close(dbp, 0);
+	return (ret);
 }
 
 /*

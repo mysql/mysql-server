@@ -10794,7 +10794,12 @@ other contexts, however.
 @strong{MySQL} doesn't yet support the Oracle SQL extension:
 @code{SELECT ... INTO TABLE ...}.  @strong{MySQL} supports instead the
 ANSI SQL syntax @code{INSERT INTO ... SELECT ...}, which is basically
-the same thing.
+the same thing. @xref{INSERT}.
+
+@example
+INSERT INTO tblTemp2 (fldID) SELECT tblTemp1.fldOrder_ID FROM tblTemp1 WHERE
+tblTemp1.fldOrder_ID > 100;
+@end example
 
 Alternatively, you can use @code{SELECT INTO OUTFILE...} or @code{CREATE
 TABLE ... SELECT} to solve your problem.
@@ -11041,7 +11046,22 @@ constraints for application that can't easily be coded to avoid them.
 @subsection Views
 @cindex views
 
-@strong{MySQL} doesn't support views, but this is on the TODO.
+@strong{MySQL} doesn't yet support views, but we plan to implement these
+to about 4.1.
+
+Views are mostly useful in letting user access a set of relations as one
+table (in read-only mode).  Many SQL databases doesn't allow one to update
+any rows in a view, but you have to do the updates in the separate tables.
+
+As @strong{MySQL} is mostly used in applications and on web system where
+the application write has full control on the database usage, most of
+our users haven't regarded views to be very important. (At least no one
+has been interested enough of this to be prepared to finance the
+implementation of views).
+
+One doesn't need views in @strong{MySQL} to restrict access to columns
+as @strong{MySQL} has a very sophisticated privilege
+system. @xref{Privilege system}.
 
 @node Missing comments,  , Missing Views, Missing functions
 @subsection @samp{--} as the Start of a Comment
@@ -19539,15 +19559,18 @@ or  INSERT [LOW_PRIORITY | DELAYED] [IGNORE]
 or  INSERT [LOW_PRIORITY | DELAYED] [IGNORE]
         [INTO] tbl_name
         SET col_name=expression, col_name=expression, ...
+or  INSERT [LOW_PRIORITY] [IGNORE] [INTO] tbl_name
+        SELECT ...
+
 @end example
 
-@code{INSERT} inserts new rows into an existing table.  The @code{INSERT ...
-VALUES} form of the statement inserts rows based on explicitly specified
-values.  The @code{INSERT ... SELECT} form inserts rows selected from another
-table or tables.  The @code{INSERT ... VALUES} form with multiple value lists
-is supported in @strong{MySQL} Version 3.22.5 or later.  The
-@code{col_name=expression} syntax is supported in @strong{MySQL} Version 3.22.10 or
-later.
+@code{INSERT} inserts new rows into an existing table.  The @code{INSERT
+...  VALUES} form of the statement inserts rows based on explicitly
+specified values.  The @code{INSERT ... SELECT} form inserts rows
+selected from another table or tables.  The @code{INSERT ... VALUES}
+form with multiple value lists is supported in @strong{MySQL} Version
+3.22.5 or later.  The @code{col_name=expression} syntax is supported in
+@strong{MySQL} Version 3.22.10 or later.
 
 @code{tbl_name} is the table into which rows should be inserted.  The column
 name list or the @code{SET} clause indicates which columns the statement
@@ -19607,9 +19630,17 @@ specify values for all columns that require a non-@code{NULL} value.
 You can find the value used for an @code{AUTO_INCREMENT} column
 with the @code{mysql_insert_id} function.
 @xref{mysql_insert_id, , @code{mysql_insert_id()}}.
+@end itemize
 
-@item
-The following conditions hold for an @code{INSERT INTO ... SELECT} statement:
+With @code{INSERT ... SELECT} statement you can quickly insert many rows
+into a table from one or many tables.
+
+@example
+INSERT INTO tblTemp2 (fldID) SELECT tblTemp1.fldOrder_ID FROM tblTemp1 WHERE
+tblTemp1.fldOrder_ID > 100;
+@end example
+
+The following conditions hold for an @code{INSERT ... SELECT} statement:
 
 @itemize @minus
 @item
@@ -19625,7 +19656,6 @@ sub-select clauses, the situation could easily be very confusing!)
 
 @item
 @code{AUTO_INCREMENT} columns work as usual.
-@end itemize
 @end itemize
 
 @findex mysql_info()
@@ -29385,16 +29415,16 @@ going. Hopefully this will be better handled in future Linux Kernels.
 
 This should contain a technical description of the @strong{MySQL}
 benchmark suite (and @code{crash-me}), but that description is not
-written yet. Currently, you should look at the code and results in the
-@file{sql-bench} directory in the distribution (and of course on the Web page
-at @uref{http://www.mysql.com/information/crash-me.php} and (normally found in
-the @file{sql-bench} directory in the @strong{MySQL} distribution)).
+written yet. Currently, you can get a good idea of the benchmark by
+looking at the code and results in the @file{sql-bench} directory in any
+@strong{MySQL} source distributions.
 
-It is meant to be a benchmark that will tell any user what things a
-given SQL implementation performs well or poorly at.
+This benchmark suite is meant to be a benchmark that will tell any user
+what things a given SQL implementation performs well or poorly at.
 
 Note that this benchmark is single threaded, so it measures the minimum
-time for the operations.
+time for the operations. We plan to in the future add a lot of
+multi-threaded tests to the benchmark suite.
 
 For example, (run on the same NT 4.0 machine):
 
@@ -29424,12 +29454,28 @@ For example, (run on the same NT 4.0 machine):
 
 In the above test @strong{MySQL} was run with a 8M index cache.
 
+We have gather some more benchmark results at
+@uref{http://www.mysql.com/information/benchmarks.html}.
+
 Note that Oracle is not included because they asked to be removed. All
 Oracle benchmarks have to be passed by Oracle! We believe that makes
 Oracle benchmarks @strong{VERY} biased because the above benchmarks are
 supposed to show what a standard installation can do for a single
 client.
 
+To run the benchmark suite, you have to download a MySQL source distribution
+install the perl DBI driver, the perl DBD driver for the database you want to
+test and then do:
+
+@example
+cd sql-bench
+perl run-all-tests --server=#
+@end example
+
+where # is one of supported servers. You can get a list of all options
+and supported servers by doing @code{run-all-tests --help}.
+
+@cindex crash-me
 @code{crash-me} tries to determine what features a database supports and
 what it's capabilities and limitations are by actually running
 queries. For example, it determines:
@@ -29446,6 +29492,9 @@ How big a query can be
 @item
 How big a @code{VARCHAR} column can be
 @end itemize
+
+We can find the result from crash-me on a lot of different databases at
+@uref{http://www.mysql.com/information/crash-me.php}.
 
 @cindex utilities
 @node Tools, Maintenance, MySQL Benchmarks, Top
@@ -39011,6 +39060,7 @@ You can also find this at:
 
 There are 2 supported JDBC drivers for @strong{MySQL} (the mm driver and
 the Reisin JDBC driver).  You can find a copy of the mm driver at
+@uref{http://mmmysql.sourceforge.net/} or
 @uref{http://www.mysql.com/Downloads/Contrib/} and the Reisin driver at
 @uref{http://www.caucho.com/projects/jdbc-mysql/index.xtp} For
 documentation consult any JDBC documentation and the driver's own
