@@ -10128,6 +10128,10 @@ options.  @xref{InnoDB start}.
 @cindex stopping, the server
 @cindex server, starting and stopping
 
+The @code{mysql.server} and @code{safe_mysqld} scripts can be used to start
+the server automatically at system startup time. @code{mysql.server} can also
+be used to stop the server.
+
 The @code{mysql.server} script can be used to start or stop the server
 by invoking it with @code{start} or @code{stop} arguments:
 
@@ -10145,9 +10149,8 @@ the @strong{MySQL} installation directory, then invokes @code{safe_mysqld}.
 You might need to edit @code{mysql.server} if you have a binary distribution
 that you've installed in a non-standard location.  Modify it to @code{cd} 
 into the proper directory before it runs @code{safe_mysqld}. If you want the
-server to run as some specific user, you can change the 
-@code{mysql_daemon_user=root} line to use another user.  You can also modify 
-@code{mysql.server} to pass other options to @code{safe_mysqld}.
+server to run as some specific user, add an appropriate @code{user} line
+to the @file{/etc/my.cnf} file, as shown later in this section.
 
 @code{mysql.server stop} brings down the server by sending a signal to it.
 You can take down the server manually by executing @code{mysqladmin shutdown}.
@@ -10655,7 +10658,7 @@ The above is the quick and dirty way that one commonly uses for testing.
 The nice thing with this is that all connections you do in the above shell
 will automatically be directed to the new running server!
 
-If you need to do this more permanently, you should create an own option
+If you need to do this more permanently, you should create an option
 file for each server. @xref{Option files}.  In your startup script that
 is executed at boot time (mysql.server?) you should specify for both
 servers:
@@ -45753,19 +45756,19 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.39
 @itemize @bullet
 @item
-Fixed problem that client 'hang' when @code{LOAD TABLE FROM MASTER} failed.
+Fixed problem that client 'hung' when @code{LOAD TABLE FROM MASTER} failed.
 @item
-Running @code{myisamchk --fast --force} will not anymore repair tables
+Running @code{myisamchk --fast --force} will no longer repair tables
 that only had the open count wrong.
 @item
 Added functions to handle symbolic links to make life easier in 4.0.
 @item
 We are now using the @code{-lcma} thread library on HPUX 10.20 to
-get @strong{MySQL} more stabile on HPUX.
+get @strong{MySQL} more stable on HPUX.
 @item
 Fixed problem with @code{IF()} and number of decimals in the result.
 @item
-Fixed that date-part extract functions works with dates where day
+Fixed date-part extraction functions to work with dates where day
 and/or month is 0.
 @item
 Extended argument length in option files from 256 to 512 chars.
@@ -45773,7 +45776,7 @@ Extended argument length in option files from 256 to 512 chars.
 Fixed problem with shutdown when @code{INSERT DELAYED} was waiting for
 a @code{LOCK TABLE}.
 @item
-Fixed coredump bug buged in InnoDB when tablespace was full.
+Fixed coredump bug in InnoDB when tablespace was full.
 @item
 Fixed problem with @code{MERGE} tables and big tables (> 4G) when using
 @code{ORDER BY}.
