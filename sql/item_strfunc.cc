@@ -2576,15 +2576,15 @@ String *Item_func_geometry_type::val_str(String *str)
 
 String *Item_func_envelope::val_str(String *str)
 {
-  String arg_val;
-  String *wkb = args[0]->val_str(&arg_val);
+  String *res = args[0]->val_str(str);
   Geometry geom;
-
-  null_value = args[0]->null_value ||
-               geom.create_from_wkb(wkb->ptr(),wkb->length()) ||
-               geom.envelope(str);
-
-  return null_value ? 0 : str;
+  
+  if ((null_value = args[0]->null_value ||
+               geom.create_from_wkb(res->ptr(),res->length())))
+    return 0;
+  
+  res->length(0);
+  return (null_value= geom.envelope(res)) ? 0 : res;
 }
 
 
