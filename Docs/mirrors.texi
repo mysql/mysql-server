@@ -326,6 +326,10 @@ WWW (@uref{http://mysql.incaf.net/})
 FTP (@uref{ftp://mysql.incaf.net/})
 
 @item
+@image{Flags/indonesia} Indonesia [M-Web] @@
+WWW (@uref{http://mysql.mweb.net.id/})
+
+@item
 @image{Flags/indonesia} Indonesia [web.id] @@
 WWW (@uref{http://mysql.itb.web.id/})
 FTP (@uref{ftp://mysql.itb.web.id/pub/MySQL/})
@@ -389,5 +393,6 @@ WWW (@uref{http://www.mysql.mweb.co.za/})
 FTP (@uref{ftp://ftp.is.co.za/linux/mysql/})
 
 @end itemize
+
 
 
