@@ -4075,8 +4075,8 @@ char *Field_blob::pack(char *to, const char *from, uint max_length)
 const char *Field_blob::unpack(char *to, const char *from)
 {
   memcpy(to,from,packlength);
+  ulong length=get_length(from);
   from+=packlength;
-  ulong length=get_length();
   if (length)
     memcpy_fixed(to+packlength, &from, sizeof(from));
   else
