@@ -1659,7 +1659,7 @@ ha_innobase::change_active_index(
 
   	statistic_increment(ha_read_key_count, &LOCK_status);
 
-  	DBUG_ENTER("index_read_idx");
+  	DBUG_ENTER("ha_innobase::change_active_index");
 
 	active_index = keynr;
 
@@ -1685,7 +1685,7 @@ ha_innobase::change_active_index(
 
 	build_template(prebuilt, user_thd, table, ROW_MYSQL_WHOLE_ROW);
 
-	return(0);
+	DBUG_RETURN(0);
 }
 
 /**************************************************************************

@@ -33654,7 +33654,7 @@ First, you should try to find out whether the problem is that the
 client.  You can check how long your @code{mysqld} server has been up by
 executing @code{mysqladmin version}.  If @code{mysqld} has died, you may
 find the reason for this in the file
-@file{mysql-data-directory/'hostname'.err}. @xref{Error log}.
+@file{mysql-data-directory/`hostname`.err}. @xref{Error log}.
 
 Many crashes of @strong{MySQL} are caused by corrupted index / data
 files.  @strong{MySQL} will update the data on disk, with the
