@@ -1832,6 +1832,16 @@ mysql_execute_command(THD *thd)
 	res= mysql_explain_union(thd, &thd->lex.unit, result);
 	MYSQL_LOCK *save_lock= thd->lock;
 	thd->lock= (MYSQL_LOCK *)0;
+	if (lex->describe & DESCRIBE_EXTENDED)
+	{
+	  char buff[1024];
+	  String str(buff,(uint32) sizeof(buff), system_charset_info);
+	  str.length(0);
+	  thd->lex.unit.print(&str);
+	  str.append('\0');
+	  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+		       ER_YES, str.ptr());
+	}
 	result->send_eof();
 	thd->lock= save_lock;
       }

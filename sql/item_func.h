@@ -214,6 +214,7 @@ public:
   longlong val_int() { return args[0]->val_int(); }
   void fix_length_and_dec()
   { max_length=args[0]->max_length; unsigned_flag=0; }
+  void print(String *str);
 };
 
 
@@ -225,6 +226,7 @@ public:
   longlong val_int() { return args[0]->val_int(); }
   void fix_length_and_dec()
   { max_length=args[0]->max_length; unsigned_flag=1; }
+  void print(String *str);
 };
 
 
@@ -662,6 +664,7 @@ public:
   longlong val_int();
   const char *func_name() const { return "|"; }
   void fix_length_and_dec() { unsigned_flag=1; }
+  void print(String *str) { print_op(str); }
 };
 
 class Item_func_bit_and :public Item_int_func
@@ -671,6 +674,7 @@ public:
   longlong val_int();
   const char *func_name() const { return "&"; }
   void fix_length_and_dec() { unsigned_flag=1; }
+  void print(String *str) { print_op(str); }
 };
 
 class Item_func_bit_count :public Item_int_func
@@ -689,6 +693,7 @@ public:
   longlong val_int();
   const char *func_name() const { return "<<"; }
   void fix_length_and_dec() { unsigned_flag=1; }
+  void print(String *str) { print_op(str); }
 };
 
 class Item_func_shift_right :public Item_int_func
@@ -697,6 +702,7 @@ public:
   Item_func_shift_right(Item *a,Item *b) :Item_int_func(a,b) {}
   longlong val_int();
   const char *func_name() const { return ">>"; }
+  void print(String *str) { print_op(str); }
 };
 
 class Item_func_bit_neg :public Item_int_func
@@ -1005,6 +1011,7 @@ public:
   bool eq(const Item *, bool binary_cmp) const;
   longlong val_int() { return val()!=0.0; }
   double val();
+  void print(String *str);
 
   bool fix_index();
   void init_search(bool no_order);
@@ -1040,6 +1047,7 @@ public:
   longlong val_int();
   const char *func_name() const { return "^"; }
   void fix_length_xor_dec() { unsigned_flag=1; }
+  void print(String *str) { print_op(str); }
 };
 
 class Item_func_is_free_lock :public Item_int_func
