@@ -2954,9 +2954,6 @@ ha_innobase::records_in_range(
 
     	my_free((char*) key_val_buff2, MYF(0));
 
-	if (prebuilt->trx) {
-		prebuilt->trx->op_info = "";
-	}
    	
 	DBUG_RETURN((ha_rows) n_rows);
 }
