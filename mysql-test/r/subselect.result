@@ -1425,7 +1425,7 @@ Note	1003	(select test.t1.s1 AS `s1` from test.t1)
 s1
 tttt
 drop table t1;
-create table t1 (s1 char(5) not null, index s1(s1));
+create table t1 (s1 char(5), index s1(s1));
 create table t2 (s1 char(5), index s1(s1));
 insert into t1 values ('a1'),('a2'),('a3');
 insert into t2 values ('a1'),('a2');
@@ -1451,25 +1451,25 @@ a2	1
 a3	1
 explain extended select s1, s1 NOT IN (SELECT s1 FROM t2) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	index	NULL	s1	5	NULL	3	Using index
+1	PRIMARY	t1	index	NULL	s1	6	NULL	3	Using index
 2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	2	Using index
 Warnings:
 Note	1003	select test.t1.s1 AS `s1`,not(<in_optimizer>(test.t1.s1,<exists>(<index_lookup>(<cache>(test.t1.s1) in t2 on s1 chicking NULL)))) AS `s1 NOT IN (SELECT s1 FROM t2)` from test.t1
 explain extended select s1, s1 = ANY (SELECT s1 FROM t2) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	index	NULL	s1	5	NULL	3	Using index
+1	PRIMARY	t1	index	NULL	s1	6	NULL	3	Using index
 2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	2	Using index
 Warnings:
 Note	1003	select test.t1.s1 AS `s1`,<in_optimizer>(test.t1.s1,<exists>(<index_lookup>(<cache>(test.t1.s1) in t2 on s1 chicking NULL))) AS `s1 = ANY (SELECT s1 FROM t2)` from test.t1
 explain extended select s1, s1 <> ALL (SELECT s1 FROM t2) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	index	NULL	s1	5	NULL	3	Using index
+1	PRIMARY	t1	index	NULL	s1	6	NULL	3	Using index
 2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	2	Using index
 Warnings:
 Note	1003	select test.t1.s1 AS `s1`,not(<in_optimizer>(test.t1.s1,<exists>(<index_lookup>(<cache>(test.t1.s1) in t2 on s1 chicking NULL)))) AS `s1 <> ALL (SELECT s1 FROM t2)` from test.t1
 explain extended select s1, s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2') from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	index	NULL	s1	5	NULL	3	Using index
+1	PRIMARY	t1	index	NULL	s1	6	NULL	3	Using index
 2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	1	Using index; Using where
 Warnings:
 Note	1003	select test.t1.s1 AS `s1`,not(<in_optimizer>(test.t1.s1,<exists>(<index_lookup>(<cache>(test.t1.s1) in t2 on s1 chicking NULL where (test.t2.s1 < _latin1'a2'))))) AS `s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2')` from test.t1
@@ -2125,34 +2125,6 @@ SELECT DISTINCT Continent AS c FROM t1 WHERE Code <> SOME ( SELECT Code FROM t1 
 c
 Oceania
 drop table t1;
-CREATE TABLE t1 ( f1 BIGINT );
-INSERT INTO t1 SET f1= NULL;
-INSERT INTO t1 SET f1= 1;
-CREATE TABLE t2 ( f1 BIGINT );
-SELECT f1 FROM t1
-WHERE  f1 <> ALL ( SELECT f1 FROM t2 );
-f1
-NULL
-1
-INSERT INTO t2 VALUES (1), (2);
-SELECT f1 FROM t1
-WHERE f1 <> ALL ( SELECT f1 FROM t2 WHERE f1 > 2 );
-f1
-NULL
-1
-SELECT f1 FROM t1
-WHERE f1 <> ALL ( SELECT f1 FROM t2 WHERE f1 > 2
-UNION
-SELECT f1 FROM t2 WHERE f1 > 3);
-f1
-NULL
-1
-SELECT f1 FROM t1
-WHERE f1 <> ALL ( SELECT SUM(f1) AS sf1 FROM t2 HAVING sf1 > 10000);
-f1
-NULL
-1
-drop table t1,t2;
 create table t1 (a1 int);
 create table t2 (b1 int);
 select * from t1 where a2 > any(select b1 from t2);
