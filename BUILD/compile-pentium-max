@@ -7,6 +7,6 @@ extra_flags="$pentium_cflags $fast_cflags"
 extra_configs="$pentium_configs"
 strip=yes
 
-extra_configs="$extra_configs"
+extra_configs="$extra_configs --with-innobase --with-berkeley-db"
 
 . "$path/FINISH.sh"
