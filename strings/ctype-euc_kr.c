@@ -8637,6 +8637,7 @@ CHARSET_INFO my_charset_euc_kr =
 {
     19,			/* number */
     MY_CS_COMPILED,	/* state      */
+    "euc_kr",		/* cs name    */
     "euc_kr",		/* name */
     "",			/* comment    */
     ctype_euc_kr,

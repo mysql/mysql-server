@@ -689,6 +689,7 @@ CHARSET_INFO my_charset_tis620 =
 {
     18,			/* number    */
     MY_CS_COMPILED,	/* state     */
+    "tis620",		/* cs name    */
     "tis620",		/* name      */
     "",			/* comment   */
     ctype_tis620,

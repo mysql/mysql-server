@@ -1959,6 +1959,7 @@ CHARSET_INFO my_charset_utf8 =
 {
     33,			/* number       */
     MY_CS_COMPILED,	/* state        */
+    "utf8",		/* cs name      */
     "utf8",		/* name         */
     "",			/* comment      */
     ctype_utf8,		/* ctype        */
@@ -3025,6 +3026,7 @@ CHARSET_INFO my_charset_ucs2 =
 {
     35,			/* number       */
     MY_CS_COMPILED,	/* state        */
+    "ucs2",		/* cs name    */
     "ucs2",		/* name         */
     "",			/* comment      */
     ctype_ucs2,		/* ctype        */

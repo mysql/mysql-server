@@ -4461,6 +4461,7 @@ CHARSET_INFO my_charset_sjis =
 {
     13,			/* number */
     MY_CS_COMPILED,	/* state      */
+    "sjis",		/* cs name    */
     "sjis",		/* name */
     "",			/* comment    */
     ctype_sjis,

@@ -165,15 +165,24 @@ static int cs_leave(MY_XML_PARSER *st,const char *attr, uint len)
 {
   struct my_cs_file_info *i = (struct my_cs_file_info *)st->user_data;
   struct my_cs_file_section_st *s = cs_file_sec(attr,len);
+  int    state = s ? s->state : 0;
   
-  if (s && (s->state == _CS_COLLATION) && !all_charsets[i->cs.number])
+  if (state == _CS_COLLATION)
   {
-    if (!(all_charsets[i->cs.number]=
-         (CHARSET_INFO*) my_once_alloc(sizeof(CHARSET_INFO),i->myflags)))
+    if (!all_charsets[i->cs.number])
     {
-      return MY_XML_ERROR;
+      if (!(all_charsets[i->cs.number]=
+         (CHARSET_INFO*) my_once_alloc(sizeof(CHARSET_INFO),i->myflags)))
+      {
+        return MY_XML_ERROR;
+      }
+      all_charsets[i->cs.number][0]=i->cs;
     }
-    all_charsets[i->cs.number][0]=i->cs;
+    else
+    {
+      all_charsets[i->cs.number]->state |= i->cs.state;
+    }
+    i->cs.state=0;
   }
   return MY_XML_OK;
 }
@@ -203,6 +212,16 @@ static int cs_value(MY_XML_PARSER *st,const char *attr, uint len)
         ((char*)(i->cs.name))[len]='\0';
       }
       break;
+    case _CS_NAME:
+      if ((i->cs.csname = (char*) my_once_alloc(len+1,i->myflags)))
+      {
+        memcpy((char*)i->cs.csname,attr,len);
+        ((char*)(i->cs.csname))[len]='\0';
+      }
+      break;
+    case _CS_FLAG:
+      if (!strncmp("primary",attr,len))
+        i->cs.state |= MY_CS_PRIMARY;
   }
   return MY_XML_OK;
 }

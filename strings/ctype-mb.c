@@ -201,7 +201,7 @@ int my_wildcmp_mb(CHARSET_INFO *cs,
     {						// Found w_many
       uchar cmp;
       const char* mb = wildstr;
-      int mblen;
+      int mblen=0;
       
       wildstr++;
       /* Remove any '%' and '_' from the wild search string */
