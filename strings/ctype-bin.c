@@ -162,7 +162,7 @@ static CHARSET_INFO my_charset_bin_st =
     my_strnncoll_binary,	/* strnncoll     */
     NULL,			/* strxnfrm      */
     NULL,			/* like_rabge    */
-    0,				/* mbmaxlen      */
+    1,				/* mbmaxlen      */
     NULL,			/* ismbchar      */
     NULL,			/* ismbhead      */
     NULL,			/* mbcharlen     */

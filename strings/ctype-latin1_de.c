@@ -428,7 +428,7 @@ CHARSET_INFO my_charset_latin1_de =
     my_strnncoll_latin1_de,
     my_strnxfrm_latin1_de,
     my_like_range_latin1_de,
-    0,			/* mbmaxlen  */
+    1,			/* mbmaxlen  */
     NULL,		/* ismbchar  */
     NULL,		/* ismbhead  */
     NULL,		/* mbcharlen */
