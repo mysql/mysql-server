@@ -249,14 +249,16 @@
 "Referens '%-.64s' stöds inte (%s)",
 "Varje 'derived table' måste ha sitt eget alias",
 "Select %u reducerades vid optimiering",
-"Tabell '%-.64s' från en SELECT kan inte användas i %-.32s"
-"Klienten stöder inte autentiseringsprotokollet som begärts av servern. Överväg uppgradering av klientprogrammet."
-"Alla delar av en SPATIAL KEY måste vara NOT NULL"
-"COLLATION '%s' är inte tillåtet för CHARACTER SET '%s'"
-"Slaven har redan startat"
-"Slaven har redan stoppat"
-"Too big size of uncompressed data. The maximum size is %d. (probably, length of uncompressed data was corrupted)"
-"Z_BUF_ERROR: Not enough memory available for zlib"
-"Z_MEM_ERROR: Not enough room in the output buffer for zlib (probably, length of uncompressed data was corrupted)"
-"Z_DATA_ERROR: Input data was corrupted for zlib"
-"%d rad(er) kapades av group_concat()"
+"Tabell '%-.64s' från en SELECT kan inte användas i %-.32s",
+"Klienten stöder inte autentiseringsprotokollet som begärts av servern. Överväg uppgradering av klientprogrammet.",
+"Alla delar av en SPATIAL KEY måste vara NOT NULL",
+"COLLATION '%s' är inte tillåtet för CHARACTER SET '%s'",
+"Slaven har redan startat",
+"Slaven har redan stoppat",
+"Too big size of uncompressed data. The maximum size is %d. (probably, length of uncompressed data was corrupted)",
+"Z_BUF_ERROR: Not enough memory available for zlib",
+"Z_MEM_ERROR: Not enough room in the output buffer for zlib (probably, length of uncompressed data was corrupted)",
+"Z_DATA_ERROR: Input data was corrupted for zlib",
+"%d rad(er) kapades av group_concat()",
+"Använder handler %s för tabell '%s'",
+"Illegal mix of collations (%s,%s) and (%s,%s) for operation '%s'",

@@ -31,8 +31,8 @@
 "'%-.64s' is locked against change",
 "Sort aborted",
 "View '%-.64s' doesn't exist for '%-.64s'",
-"Got error %d from table handler",
-"Table handler for '%-.64s' doesn't have this option",
+"Got error %d from storage engine",
+"Table storage engine for '%-.64s' doesn't have this option",
 "Can't find record in '%-.64s'",
 "Incorrect information in file: '%-.64s'",
 "Incorrect key file for table: '%-.64s'. Try to repair it",
@@ -90,7 +90,7 @@
 "File '%-.80s' already exists",
 "Records: %ld  Deleted: %ld  Skipped: %ld  Warnings: %ld",
 "Records: %ld  Duplicates: %ld",
-"Incorrect sub part key. The used key part isn't a string, the used length is longer than the key part or the table handler doesn't support unique sub keys",
+"Incorrect sub part key. The used key part isn't a string, the used length is longer than the key part or the store engine doesn't support unique sub keys",
 "You can't delete all columns with ALTER TABLE. Use DROP TABLE instead",
 "Can't DROP '%-.64s'. Check that column/key exists",
 "Records: %ld  Duplicates: %ld  Warnings: %ld",
@@ -168,7 +168,7 @@
 "The used table type doesn't support AUTO_INCREMENT columns",
 "INSERT DELAYED can't be used with table '%-.64s' because it is locked with LOCK TABLES",
 "Incorrect column name '%-.100s'",
-"The used table handler can't index column '%-.64s'",
+"The used storage engine can't index column '%-.64s'",
 "All tables in the MERGE table are not identically defined",
 "Can't write, because of unique constraint, to table '%-.64s'",
 "BLOB column '%-.64s' used in key specification without a key length",
@@ -179,14 +179,14 @@
 "You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column",
 "Key '%-.64s' doesn't exist in table '%-.64s'",
 "Can't open table",
-"The handler for the table doesn't support %s",
+"The storage enginge for the table doesn't support %s",
 "You are not allowed to execute this command in a transaction",
 "Got error %d during COMMIT",
 "Got error %d during ROLLBACK",
 "Got error %d during FLUSH_LOGS",
 "Got error %d during CHECKPOINT",
 "Aborted connection %ld to db: '%-.64s' user: '%-.32s' host: `%-.64s' (%-.64s)",
-"The handler for the table does not support binary table dump",
+"The store engine for the table does not support binary table dump",
 "Binlog closed, cannot RESET MASTER",
 "Failed rebuilding the index of  dumped table '%-.64s'",
 "Error from master: '%-.64s'",
@@ -249,21 +249,16 @@
 "Reference '%-.64s' not supported (%s)",
 "Every derived table must have it's own alias",
 "Select %u was reduced during optimisation",
-"Table '%-.64s' from one of SELECT's can not be used  in %-.32s"
-"Client does not support authentication protocol requested by server. Consider upgrading MySQL client"
-"All parts of a SPATIAL KEY must be NOT NULL"
-"COLLATION '%s' is not valid for CHARACTER SET '%s'"
-"The slave was already running"
-"The slave was already stopped"
-"Too big size of uncompressed data. The maximum size is %d. (probably, length of uncompressed data was corrupted)"
-"Z_BUF_ERROR: Not enough memory available for zlib"
-"Z_MEM_ERROR: Not enough room in the output buffer for zlib (probably, length of uncompressed data was corrupted)"
-"Z_DATA_ERROR: Input data was corrupted for zlib"
-"%d line(s) was(were) cut by group_concat()";
-"Record count is fewer than the column count at row %ld";
-"Record count is more than the column count at row %ld";
-"Data truncated, NULL supplied to NOT NULL column '%s' at row %ld";
-"Data truncated, out of range for column '%s' at row %ld";
-"Data truncated for column '%s' at row %ld"
-
-
+"Table '%-.64s' from one of SELECT's can not be used  in %-.32s",
+"Client does not support authentication protocol requested by server. Consider upgrading MySQL client",
+"All parts of a SPATIAL KEY must be NOT NULL",
+"COLLATION '%s' is not valid for CHARACTER SET '%s'",
+"The slave was already running",
+"The slave was already stopped",
+"Too big size of uncompressed data. The maximum size is %d. (probably, length of uncompressed data was corrupted)",
+"Z_BUF_ERROR: Not enough memory available for zlib",
+"Z_MEM_ERROR: Not enough room in the output buffer for zlib (probably, length of uncompressed data was corrupted)",
+"Z_DATA_ERROR: Input data was corrupted for zlib",
+"%d line(s) was(were) cut by group_concat()",
+"Using storage engine %s for table '%s'",
+"Illegal mix of collations (%s,%s) and (%s,%s) for operation '%s'",

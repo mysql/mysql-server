@@ -29,6 +29,9 @@
 #include "ha_innodb.h"
 #endif
 #include "ha_myisam.h"
+#ifdef HAVE_ISAM
+#include "ha_isam.h"
+#endif
 #include <nisam.h>
 #include <thr_alarm.h>
 #include <ft_global.h>
@@ -314,18 +317,12 @@ my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool lower_case_table_names, opt_old_rpl_compat;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0, opt_old_passwords=0, use_old_passwords=0;
-my_bool	opt_console= 0, opt_bdb, opt_innodb;
+my_bool	opt_console= 0, opt_bdb, opt_innodb, opt_isam;
 
 volatile bool  mqh_used = 0;
 FILE *bootstrap_file=0;
-int segfaulted = 0; // ensure we do not enter SIGSEGV handler twice
 
-/*
-  If sql_bin_update is true, SQL_LOG_UPDATE and SQL_LOG_BIN are kept in sync,
-  and are treated as aliases for each other
-*/
-
-static bool kill_in_progress=FALSE;
+static bool kill_in_progress=0, segfaulted= 0;
 struct rand_struct sql_rand; // used by sql_class.cc:THD::THD()
 static int cleanup_done;
 static char **defaults_argv;
@@ -379,7 +376,7 @@ arg_cmp_func Arg_comparator::comparator_matrix[4][2] =
  {&Arg_comparator::compare_row, &Arg_comparator::compare_e_row}};
 #ifdef HAVE_SMEM
 char *shared_memory_base_name=default_shared_memory_base_name;
-bool opt_enable_shared_memory = 0;
+my_bool opt_enable_shared_memory = 0;
 #endif
 
 volatile ulong cached_thread_count=0;
@@ -1496,7 +1493,7 @@ static void check_data_home(const char *path)
 static void sig_reload(int signo)
 {
  // Flush everything
-  reload_acl_and_cache((THD*) 0,REFRESH_LOG, (TABLE_LIST*) 0);
+  reload_acl_and_cache((THD*) 0,REFRESH_LOG, (TABLE_LIST*) 0, NULL);
   signal(signo, SIG_ACK);
 }
 
@@ -1832,7 +1829,7 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
 			     (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST |
 			      REFRESH_STATUS | REFRESH_GRANT |
 			      REFRESH_THREADS | REFRESH_HOSTS),
-			     (TABLE_LIST*) 0); // Flush logs
+			     (TABLE_LIST*) 0, NULL); // Flush logs
 	mysql_print_status((THD*) 0);		// Send debug some info
       }
       break;
@@ -3431,7 +3428,7 @@ enum options
   OPT_INNODB_FLUSH_METHOD,
   OPT_INNODB_FAST_SHUTDOWN,
   OPT_SAFE_SHOW_DB,
-  OPT_INNODB, OPT_SKIP_SAFEMALLOC,
+  OPT_INNODB, OPT_ISAM, OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
   OPT_MAX_BINLOG_DUMP_EVENTS, OPT_SPORADIC_BINLOG_DUMP_FAIL,
@@ -3891,6 +3888,10 @@ Disable with --skip-bdb (will save memory)",
   {"innodb", OPT_INNODB, "Enable InnoDB (if this version of MySQL supports it). \
 Disable with --skip-innodb (will save memory)",
    (gptr*) &opt_innodb, (gptr*) &opt_innodb, 0, GET_BOOL, NO_ARG, 1, 0, 0,
+   0, 0, 0},
+  {"isam", OPT_ISAM, "Enable isam (if this version of MySQL supports it). \
+Disable with --skip-isam",
+   (gptr*) &opt_isam, (gptr*) &opt_isam, 0, GET_BOOL, NO_ARG, 1, 0, 0,
    0, 0, 0},
   {"skip-locking", OPT_SKIP_LOCK,
    "Deprecated option, use --skip-external-locking instead",
@@ -5042,6 +5043,20 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     {
       berkeley_skip=1;
       have_berkeley_db=SHOW_OPTION_DISABLED;
+    }
+#endif
+    break;
+  case OPT_ISAM:
+#ifdef HAVE_ISAM
+    if (opt_isam)
+    {
+      isam_skip=0;
+      have_isam= SHOW_OPTION_YES;
+    }
+    else
+    {
+      isam_skip=1;
+      have_isam= SHOW_OPTION_DISABLED;
     }
 #endif
     break;

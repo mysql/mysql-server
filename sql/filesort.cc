@@ -262,6 +262,22 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 } /* filesort */
 
 
+void filesort_free_buffers(TABLE *table)
+{
+  if (table->sort.record_pointers)
+  {
+    my_free((gptr) table->sort.record_pointers,MYF(0));
+    table->sort.record_pointers=0;
+  }
+  if (table->sort.addon_buf)
+  {
+    my_free((char *) table->sort.addon_buf, MYF(0));
+    my_free((char *) table->sort.addon_field, MYF(MY_ALLOW_ZERO_PTR));
+    table->sort.addon_buf=0;
+    table->sort.addon_field=0;
+  }
+}
+
 	/* Make a array of string pointers */
 
 static char **make_char_array(register uint fields, uint length, myf my_flag)

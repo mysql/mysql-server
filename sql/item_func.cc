@@ -859,7 +859,10 @@ void Item_func_min_max::fix_length_and_dec()
     else if (set_charset(charset(), coercibility, 
 			args[i]->charset(), args[i]->coercibility))
     {
-      my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
+      my_error(ER_CANT_AGGREGATE_COLLATIONS,MYF(0),
+	     charset()->name,coercion_name(coercibility),
+	     args[i]->charset()->name,coercion_name(args[i]->coercibility),
+	     func_name());
       break;
     }
   }

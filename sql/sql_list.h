@@ -319,7 +319,8 @@ template <class T> class I_List_iterator;
 class base_ilist {
   public:
   struct ilink *first,last;
-  base_ilist() { first= &last; last.prev= &first; }
+  inline void empty() { first= &last; last.prev= &first; }
+  base_ilist() { empty(); }
   inline bool is_empty() {  return first == &last; }
   inline void append(ilink *a)
   {

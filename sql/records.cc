@@ -134,19 +134,7 @@ void end_read_record(READ_RECORD *info)
   }
   if (info->table)
   {
-    TABLE *table= info->table;
-    if (table->sort.record_pointers)
-    {
-      my_free((gptr) table->sort.record_pointers,MYF(0));
-      table->sort.record_pointers=0;
-    }
-    if (table->sort.addon_buf)
-    {
-      my_free((char *) table->sort.addon_buf, MYF(0));
-      my_free((char *) table->sort.addon_field, MYF(MY_ALLOW_ZERO_PTR));
-      table->sort.addon_buf=0;
-      table->sort.addon_field=0;
-    }
+    filesort_free_buffers(info->table);
     (void) info->file->extra(HA_EXTRA_NO_CACHE);
     (void) info->file->rnd_end();
     info->table=0;

@@ -34,6 +34,8 @@
 #endif
 #ifdef HAVE_INNOBASE_DB
 #include "ha_innodb.h"
+#else
+#define innobase_query_caching_of_table_permitted(X,Y,Z) 1
 #endif
 #include <myisampack.h>
 #include <errno.h>
@@ -86,7 +88,12 @@ enum db_type ha_checktype(enum db_type database_type)
 #endif
 #ifdef HAVE_ISAM
   case DB_TYPE_ISAM:
+    return (isam_skip ? DB_TYPE_MYISAM : database_type);
   case DB_TYPE_MRG_ISAM:
+    return (isam_skip ? DB_TYPE_MRG_MYISAM : database_type);
+#else
+  case DB_TYPE_MRG_ISAM:
+    return (DB_TYPE_MRG_MYISAM);
 #endif
   case DB_TYPE_HEAP:
   case DB_TYPE_MYISAM:
@@ -110,6 +117,9 @@ handler *get_new_handler(TABLE *table, enum db_type db_type)
     return new ha_isammrg(table);
   case DB_TYPE_ISAM:
     return new ha_isam(table);
+#else
+  case DB_TYPE_MRG_ISAM:
+    return new ha_myisammrg(table);
 #endif
 #ifdef HAVE_BERKELEY_DB
   case DB_TYPE_BERKELEY_DB:
@@ -877,7 +887,7 @@ int handler::delete_all_rows()
   return (my_errno=HA_ERR_WRONG_COMMAND);
 }
 
-bool handler::caching_allowed(THD* thd, char* table_key, 
+bool handler::caching_allowed(THD* thd, char* table_key,
 			      uint key_length, uint8 cache_type)
 {
   if (cache_type == HA_CACHE_TBL_ASKTRANSACT)

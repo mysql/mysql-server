@@ -39,9 +39,9 @@ static char *database,*host,*user,*password,*unix_socket,*query;
 uint tcp_port;
 
 #ifndef __WIN__
-void *test_thread(void *arg)
+void *test_thread(void *arg __attribute__((unused)))
 #else
-unsigned __stdcall test_thread(void *arg)
+unsigned __stdcall test_thread(void *arg __attribute__((unused)))
 #endif
 {
   MYSQL *mysql;
@@ -186,7 +186,8 @@ int main(int argc, char **argv)
 {
   pthread_t tid;
   pthread_attr_t thr_attr;
-  int i,error;
+  uint i;
+  int error;
   MY_INIT(argv[0]);
   get_options(argc,argv);
 

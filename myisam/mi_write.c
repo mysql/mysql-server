@@ -662,7 +662,8 @@ static int _mi_balance_page(register MI_INFO *info, MI_KEYDEF *keyinfo,
   curr_keylength=k_length+nod_flag;
   info->page_changed=1;
 
-  if ((father_key_pos != father_buff+father_length && (info->s->rnd++ & 1)) ||
+  if ((father_key_pos != father_buff+father_length &&
+       (info->state->records & 1)) ||
       father_key_pos == father_buff+2+info->s->base.key_reflength)
   {
     right=1;
