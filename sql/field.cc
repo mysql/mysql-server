@@ -501,7 +501,8 @@ void Field_decimal::store(double nr)
 
   fyllchar = zerofill ? (char) '0' : (char) ' ';
 #ifdef HAVE_SNPRINTF_
-  snprintf(buff,sizeof(buff), "%.*f",(int) dec,nr);
+  buff[sizeof(buff)-1]=0;			// Safety
+  snprintf(buff,sizeof(buff)-1, "%.*f",(int) dec,nr);
 #else
   sprintf(buff,"%.*f",dec,nr);
 #endif
@@ -2075,7 +2076,8 @@ String *Field_double::val_str(String *val_buffer,
       *to++= *pos++;
 #else
 #ifdef HAVE_SNPRINTF
-    snprintf(to,to_length,"%.*f",dec,nr);
+    buff[to_length-1]=0;			// Safety
+    snprintf(to,to_length-1,"%.*f",dec,nr);
 #else
     sprintf(to,"%.*f",dec,nr);
 #endif

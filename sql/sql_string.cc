@@ -186,7 +186,8 @@ end:
   return FALSE;
 #else
 #ifdef HAVE_SNPRINTF
-  snprintf(buff,sizeof(buff), "%.*f",(int) decimals,num);
+  buff[sizeof(buff)-1]=0;			// Safety
+  snprintf(buff,sizeof(buff)-1, "%.*f",(int) decimals,num);
 #else
   sprintf(buff,"%.*f",(int) decimals,num);
 #endif
