@@ -532,8 +532,9 @@ public:
       SCAN = 1,
       COPY = 2
     };
-    UintR scan_acc_op_ptr[MAX_PARALLEL_OP_PER_SCAN];
+    UintR scan_acc_op_ptr[32];
     Uint32 scan_acc_index;
+    Uint32 scan_acc_attr_recs;
     UintR scanApiOpPtr;
     UintR scanLocalref[2];
     Uint32 scan_batch_len;
@@ -2226,6 +2227,7 @@ private:
   void release_acc_ptr_list(ScanRecord*);
   Uint32 get_acc_ptr_from_scan_record(ScanRecord*, Uint32);
   void set_acc_ptr_in_scan_record(ScanRecord*, Uint32, Uint32);
+  void get_acc_ptr(ScanRecord*, Uint32*, Uint32);
   
   void removeTable(Uint32 tableId);
   void sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId);
@@ -2392,6 +2394,8 @@ private:
   int saveTupattrbuf(Signal* signal, Uint32* dataPtr, Uint32 length);
   void seizeAddfragrec(Signal* signal);
   void seizeAttrinbuf(Signal* signal);
+  Uint32 seize_attrinbuf();
+  Uint32 release_attrinbuf(Uint32);
   void seizeFragmentrec(Signal* signal);
   void seizePageRef(Signal* signal);
   void seizeTcrec();
@@ -2595,13 +2599,14 @@ private:
   UintR cfirstfreeAddfragrec;
   UintR caddfragrecFileSize;
 
-#define ZATTRINBUF_FILE_SIZE 10000  // 1.25 MByte
+#define ZATTRINBUF_FILE_SIZE 12288  // 1.5 MByte
 #define ZINBUF_DATA_LEN 24            /* POSITION OF 'DATA LENGHT'-VARIABLE. */
 #define ZINBUF_NEXT 25                /* POSITION OF 'NEXT'-VARIABLE.        */
   Attrbuf *attrbuf;
   AttrbufPtr attrinbufptr;
   UintR cfirstfreeAttrinbuf;
   UintR cattrinbufFileSize;
+  Uint32 c_no_attrinbuf_recs;
 
 #define ZDATABUF_FILE_SIZE 10000    // 200 kByte
   Databuf *databuf;
