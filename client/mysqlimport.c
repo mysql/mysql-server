@@ -46,7 +46,7 @@ static char	*opt_password=0, *current_user=0,
 		*escaped=0, *opt_columns=0, *default_charset;
 static uint     opt_mysql_port=0;
 static my_string opt_mysql_unix_port=0;
-static my_string opt_ignore_lines=0;
+static longlong opt_ignore_lines= -1;
 #include <sslopt-vars.h>
 
 static struct my_option my_long_options[] =
@@ -90,7 +90,7 @@ static struct my_option my_long_options[] =
   {"ignore", 'i', "If duplicate unique key was found, keep old row.",
    (gptr*) &ignore, (gptr*) &ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"ignore-lines", OPT_IGN_LINES, "Ignore first n lines of data infile.",
-   (gptr*) &opt_ignore_lines, (gptr*) &opt_ignore_lines, 0, GET_STR,
+   (gptr*) &opt_ignore_lines, (gptr*) &opt_ignore_lines, 0, GET_LL,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"lines-terminated-by", OPT_LTB, "Lines in the i.file are terminated by ...",
    (gptr*) &lines_terminated, (gptr*) &lines_terminated, 0, GET_STR,
@@ -290,8 +290,9 @@ static int write_to_table(char *filename, MYSQL *sock)
 		       " OPTIONALLY ENCLOSED BY");
   end= add_load_option(end, escaped, " ESCAPED BY");
   end= add_load_option(end, lines_terminated, " LINES TERMINATED BY");
-  if (opt_ignore_lines)
-    end= strmov(strmov(strmov(end, " IGNORE "), opt_ignore_lines), " LINES");
+  if (opt_ignore_lines >= 0)
+    end= strmov(longlong10_to_str(opt_ignore_lines, 
+				  strmov(end, " IGNORE "),10), " LINES");
   if (opt_columns)
     end= strmov(strmov(strmov(end, " ("), opt_columns), ")");
   *end= '\0';
