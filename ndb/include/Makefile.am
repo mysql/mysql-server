@@ -41,3 +41,5 @@ portlib transporter util
 
 dist-hook:
 	-rm -rf `find $(distdir) -type d -name SCCS`
+
+windoze-dsp:

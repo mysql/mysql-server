@@ -150,6 +150,7 @@ void Cmvmi::execNDB_TAMPER(Signal* signal)
     ndbrequire(false);
   }
 
+#ifndef NDB_WIN32
   if(ERROR_INSERTED(9996)){
     simulate_error_during_shutdown= SIGSEGV;
     ndbrequire(false);
@@ -159,6 +160,7 @@ void Cmvmi::execNDB_TAMPER(Signal* signal)
     simulate_error_during_shutdown= SIGSEGV;
     kill(getpid(), SIGABRT);
   }
+#endif
 }//execNDB_TAMPER()
 
 void Cmvmi::execSET_LOGLEVELORD(Signal* signal) 
