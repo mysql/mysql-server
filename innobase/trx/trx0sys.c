@@ -832,7 +832,7 @@ trx_sys_init_at_db_start(void)
 {
 	trx_sysf_t*	sys_header;
 	ib_longlong	rows_to_undo	= 0;
-	char*		unit		= (char*)"";
+	const char*	unit		= "";
 	trx_t*		trx;
 	mtr_t		mtr;
 
@@ -881,7 +881,7 @@ trx_sys_init_at_db_start(void)
 		}
 	
 		if (rows_to_undo > 1000000000) {
-			unit = (char*)"M";
+			unit = "M";
 			rows_to_undo = rows_to_undo / 1000000;
 		}
 

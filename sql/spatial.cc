@@ -15,6 +15,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "mysql_priv.h"
+
+#ifdef HAVE_SPATIAL
+
 #define MAX_DIGITS_IN_DOUBLE 16
 
 /***************************** Gis_class_info *******************************/
@@ -1652,3 +1655,4 @@ const Geometry::Class_info *Gis_geometry_collection::get_class_info() const
   return &geometrycollection_class;
 }
 
+#endif /*HAVE_SPATIAL*/
