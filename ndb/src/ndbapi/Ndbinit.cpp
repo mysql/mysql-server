@@ -38,11 +38,11 @@ void NdbGlobalEventBuffer_drop(NdbGlobalEventBufferHandle *);
 /**
  * Static object for NDB
  */
-static int theNoOfNdbObjects = 0;
 
+// only needed for backwards compatability, before ndb_cluster_connection
 static char *ndbConnectString = 0;
+static int theNoOfNdbObjects = 0;
 static Ndb_cluster_connection *global_ndb_cluster_connection= 0;
-
 #if defined NDB_WIN32 || defined SCO
 static NdbMutex & createNdbMutex = * NdbMutex_Create();
 #else

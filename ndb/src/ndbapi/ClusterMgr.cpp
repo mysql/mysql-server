@@ -37,6 +37,8 @@
 #include <mgmapi_configuration.hpp>
 #include <mgmapi_config_parameters.h>
 
+int global_flag_send_heartbeat_now= 0;
+
 // Just a C wrapper for threadMain
 extern "C" 
 void*
@@ -177,6 +179,9 @@ ClusterMgr::threadMain( ){
     /**
      * Start of Secure area for use of Transporter
      */
+    int send_heartbeat_now= global_flag_send_heartbeat_now;
+    global_flag_send_heartbeat_now= 0;
+
     theFacade.lock_mutex();
     for (int i = 1; i < MAX_NODES; i++){
       /**
@@ -199,12 +204,16 @@ ClusterMgr::threadMain( ){
       }
       
       theNode.hbCounter += timeSlept;
-      if (theNode.hbCounter >= theNode.hbFrequency){
+      if (theNode.hbCounter >= theNode.hbFrequency ||
+	  send_heartbeat_now) {
 	/**
 	 * It is now time to send a new Heartbeat
 	 */
-	theNode.hbSent++;
-	theNode.hbCounter = 0;
+	if (theNode.hbCounter >= theNode.hbFrequency) {
+	  theNode.hbSent++;
+	  theNode.hbCounter = 0;
+	}
+
 	/**
 	 * If the node is of type REP, 
 	 * then the receiver of the signal should be API_CLUSTERMGR

@@ -107,7 +107,7 @@ struct getargs args[] = {
   { "version", 'v', arg_flag, &_print_version,
     "Print ndb_mgmd version"},
   { "config-file", 'c', arg_string, &glob.config_filename,
-    "Specify cluster configuration file", "filename" },
+    "Specify cluster configuration file (will default use config.ini if available)", "filename" },
 #ifndef DBUG_OFF
   { "debug", 0, arg_string, &debug_option,
     "Specify debug options e.g. d:t:i:o,out.trace", "options" },
@@ -151,8 +151,8 @@ NDB_MAIN(mgmsrv){
     glob.daemon= 0;
   }
 
-#ifndef DBUG_OFF
   my_init();
+#ifndef DBUG_OFF
   if (debug_option)
     DBUG_PUSH(debug_option);
 #endif

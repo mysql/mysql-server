@@ -19,7 +19,7 @@
 #include <NdbEnv.h>
 #include <NdbMem.h>
 
-static char *datadir_path= 0;
+static const char *datadir_path= 0;
 
 const char *
 NdbConfig_get_path(int *_len)
@@ -75,13 +75,14 @@ static
 char *get_prefix_buf(int len, int node_id)
 {
   char tmp_buf[sizeof("ndb_pid#########")+1];
+  char *buf;
   if (node_id > 0)
     snprintf(tmp_buf, sizeof(tmp_buf), "ndb_%u", node_id);
   else
     snprintf(tmp_buf, sizeof(tmp_buf), "ndb_pid%u", getpid());
   tmp_buf[sizeof(tmp_buf)-1]= 0;
 
-  char *buf= NdbConfig_AllocHomePath(len+strlen(tmp_buf));
+  buf= NdbConfig_AllocHomePath(len+strlen(tmp_buf));
   strcat(buf, tmp_buf);
   return buf;
 }
