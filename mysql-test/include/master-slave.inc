@@ -1,7 +1,7 @@
-connect (master,localhost,root,,test,0,master.sock);
-connect (master1,localhost,root,,test,0,master.sock);
-connect (slave,localhost,root,,test,0,slave.sock);
-connect (slave1,localhost,root,,test,0,slave.sock);
+connect (master,127.0.0.1,root,,test,$MASTER_MYPORT,);
+connect (master1,127.0.0.1,root,,test,$MASTER_MYPORT,);
+connect (slave,127.0.0.1,root,,test,$SLAVE_MYPORT,);
+connect (slave1,127.0.0.1,root,,test,$SLAVE_MYPORT,);
 connection slave;
 --error 0,1199
 !slave stop;
