@@ -210,8 +210,12 @@ INSERT INTO t1 (col1) VALUES(STR_TO_DATE('0.10.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect date value: '2004-10-00 15:30:00' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES(STR_TO_DATE('31.9.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect date value: '2004-09-31 15:30:00' for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES(STR_TO_DATE('32.10.2004 15.30','%d.%m.%Y %H.%i'));
+ERROR HY000: Incorrect datetime value: '32.10.2004 15.30' for function str_to_time
 INSERT INTO t1 (col1) VALUES(STR_TO_DATE('29.02.2003 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect date value: '2003-02-29 15:30:00' for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES(STR_TO_DATE('15.13.2004 15.30','%d.%m.%Y %H.%i'));
+ERROR HY000: Incorrect datetime value: '15.13.2004 15.30' for function str_to_time
 INSERT INTO t1 (col1) VALUES(STR_TO_DATE('00.00.0000','%d.%m.%Y'));
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'col1' at row 1
 INSERT INTO t1 (col2) VALUES(STR_TO_DATE('31.10.0000 15.30','%d.%m.%Y %H.%i'));
@@ -221,8 +225,14 @@ INSERT INTO t1 (col2) VALUES(STR_TO_DATE('0.10.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect datetime value: '2004-10-00 15:30:00' for column 'col2' at row 1
 INSERT INTO t1 (col2) VALUES(STR_TO_DATE('31.9.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect datetime value: '2004-09-31 15:30:00' for column 'col2' at row 1
+INSERT INTO t1 (col2) VALUES(STR_TO_DATE('32.10.2004 15.30','%d.%m.%Y %H.%i'));
+ERROR HY000: Incorrect datetime value: '32.10.2004 15.30' for function str_to_time
 INSERT INTO t1 (col2) VALUES(STR_TO_DATE('29.02.2003 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect datetime value: '2003-02-29 15:30:00' for column 'col2' at row 1
+INSERT INTO t1 (col2) VALUES(STR_TO_DATE('15.13.2004 15.30','%d.%m.%Y %H.%i'));
+ERROR HY000: Incorrect datetime value: '15.13.2004 15.30' for function str_to_time
+INSERT INTO t1 (col2) VALUES(STR_TO_DATE('00.00.0000','%d.%m.%Y'));
+ERROR 22007: Incorrect datetime value: '0000-00-00' for column 'col2' at row 1
 INSERT INTO t1 (col3) VALUES(STR_TO_DATE('31.10.0000 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect datetime value: '0000-10-31 15:30:00' for column 'col3' at row 1
 INSERT INTO t1 (col3) VALUES(STR_TO_DATE('31.0.2004 15.30','%d.%m.%Y %H.%i'));
@@ -231,8 +241,12 @@ INSERT INTO t1 (col3) VALUES(STR_TO_DATE('0.10.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect datetime value: '2004-10-00 15:30:00' for column 'col3' at row 1
 INSERT INTO t1 (col3) VALUES(STR_TO_DATE('31.9.2004 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect datetime value: '2004-09-31 15:30:00' for column 'col3' at row 1
+INSERT INTO t1 (col3) VALUES(STR_TO_DATE('32.10.2004 15.30','%d.%m.%Y %H.%i'));
+ERROR HY000: Incorrect datetime value: '32.10.2004 15.30' for function str_to_time
 INSERT INTO t1 (col3) VALUES(STR_TO_DATE('29.02.2003 15.30','%d.%m.%Y %H.%i'));
 ERROR 22007: Incorrect datetime value: '2003-02-29 15:30:00' for column 'col3' at row 1
+INSERT INTO t1 (col3) VALUES(STR_TO_DATE('15.13.2004 15.30','%d.%m.%Y %H.%i'));
+ERROR HY000: Incorrect datetime value: '15.13.2004 15.30' for function str_to_time
 INSERT INTO t1 (col3) VALUES(STR_TO_DATE('00.00.0000','%d.%m.%Y'));
 ERROR 22007: Incorrect datetime value: '0000-00-00' for column 'col3' at row 1
 drop table t1;

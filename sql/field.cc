@@ -4699,15 +4699,19 @@ int Field_datetime::store(const char *from,uint len,CHARSET_INFO *cs)
   TIME time_tmp;
   int error;
   ulonglong tmp= 0;
+  enum enum_mysql_timestamp_type func_res;
   
-  if (str_to_datetime(from, len, &time_tmp,
-                      (TIME_FUZZY_DATE |
-                       (table->in_use->variables.sql_mode &
-                        (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
-                         MODE_INVALID_DATES))),
-                      &error) > MYSQL_TIMESTAMP_ERROR)
+  func_res= str_to_datetime(from, len, &time_tmp,
+                            (TIME_FUZZY_DATE |
+                             (table->in_use->variables.sql_mode &
+                              (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
+                               MODE_INVALID_DATES))),
+                            &error);
+  if ((int) func_res > (int) MYSQL_TIMESTAMP_ERROR)
     tmp= TIME_to_ulonglong_datetime(&time_tmp);
-  
+  else
+    error= 1;                                 // Fix if invalid zero date
+
   if (error)
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
                          ER_WARN_DATA_OUT_OF_RANGE,
