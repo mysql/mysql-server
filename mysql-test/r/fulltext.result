@@ -253,11 +253,11 @@ KEY tig (ticket),
 fulltext index tix (inhalt)
 );
 select * from t2 where MATCH inhalt AGAINST (t2.inhalt);
-ERROR HY000: Wrong arguments to AGAINST
+ERROR HY000: Incorrect arguments to AGAINST
 select * from t2 where MATCH ticket AGAINST ('foobar');
 ERROR HY000: Can't find FULLTEXT index matching the column list
 select * from t2,t3 where MATCH (t2.inhalt,t3.inhalt) AGAINST ('foobar');
-ERROR HY000: Wrong arguments to MATCH
+ERROR HY000: Incorrect arguments to MATCH
 drop table t1,t2,t3;
 CREATE TABLE t1 (
 id int(11)  auto_increment,

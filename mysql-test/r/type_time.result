@@ -25,11 +25,11 @@ t
 36:30:31
 insert into t1 values("10.22.22"),(1234567),(123456789),(123456789.10),("10 22:22"),("12.45a");
 Warnings:
-Note	1292	Truncated wrong time value: '10.22.22'
+Note	1292	Truncated incorrect time value: '10.22.22'
 Warning	1264	Data truncated, out of range for column 't' at row 2
 Warning	1264	Data truncated, out of range for column 't' at row 3
 Warning	1264	Data truncated, out of range for column 't' at row 4
-Note	1292	Truncated wrong time value: '12.45a'
+Note	1292	Truncated incorrect time value: '12.45a'
 select * from t1;
 t
 10:22:33
