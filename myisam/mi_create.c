@@ -366,7 +366,13 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       my_errno=HA_WRONG_CREATE_OPTION;
       goto err;
     }
-    if ((keydef->flag & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME)
+    /*
+      key_segs may be 0 in the case when we only want to be able to
+      add on row into the table. This can happen with some DISTINCT queries
+      in MySQL
+    */
+    if ((keydef->flag & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME &&
+	key_segs)
       share.state.rec_per_key_part[key_segs-1]=1L;
     length+=key_length;
     keydef->block_length= MI_BLOCK_SIZE(length,pointer,MI_MAX_KEYPTR_SIZE);
