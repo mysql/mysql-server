@@ -1002,24 +1002,40 @@ ibuf_rec_get_volume(
 /*================*/
 			/* out: size of index record in bytes + an upper
 			limit of the space taken in the page directory */
-	rec_t*	rec)	/* in: ibuf record */
+	rec_t*	ibuf_rec)/* in: ibuf record */
 {
+	dtype_t	dtype;
+	ulint	data_size	= 0;
 	ulint	n_fields;
-	byte*	field;
+	byte*	types;
+	byte*	data;
 	ulint	len;
-	ulint	data_size;
+	ulint	i;
 
 	ut_ad(ibuf_inside());
 	ut_ad(rec_get_n_fields(rec) > 2);
+	
+	n_fields = rec_get_n_fields(ibuf_rec) - 2;
 
-	n_fields = rec_get_n_fields(rec) - 2;
+	types = rec_get_nth_field(ibuf_rec, 1, &len);
 
-	field = rec_get_nth_field(rec, 2, &len);
+	ut_ad(len == n_fields * DATA_ORDER_NULL_TYPE_BUF_SIZE);
 
-	data_size = rec_get_data_size(rec) - (field - rec);
+	for (i = 0; i < n_fields; i++) {
+		data = rec_get_nth_field(ibuf_rec, i + 2, &len);
+
+		dtype_read_for_order_and_null_size(&dtype,
+				   types + i * DATA_ORDER_NULL_TYPE_BUF_SIZE);
+
+		if (len == UNIV_SQL_NULL) {
+			data_size += dtype_get_sql_null_size(&dtype);
+		} else {
+			data_size += len;
+		}
+	}
 
 	return(data_size + rec_get_converted_extra_size(data_size, n_fields)
-					+ page_dir_calc_reserved_space(1));
+			+ page_dir_calc_reserved_space(1));
 }
 
 /*************************************************************************
