@@ -698,6 +698,7 @@ drop table t1;
 select table_name from information_schema.tables
 where table_schema="test";
 # Bug #8480: REPAIR TABLE needs to flush the table from the query cache
+SET SESSION query_cache_type = 1;
 set global query_cache_size=1024*1024;
 flush query cache;
 create table t1 ( a int );
