@@ -1471,6 +1471,10 @@ String *Item_func_format::val_str(String *str)
     return 0; /* purecov: inspected */
   dec= decimals ? decimals+1 : 0;
   str->set(nr,decimals);
+#ifdef HAVE_ISNAN
+  if (isnan(nr))
+    return str;
+#endif
   str_length=str->length();
   if (nr < 0)
     str_length--;				// Don't count sign
