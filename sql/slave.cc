@@ -406,7 +406,7 @@ static int init_slave_thread(THD* thd)
 
   if (init_thr_lock() ||
       my_pthread_setspecific_ptr(THR_THD,  thd) ||
-      my_pthread_setspecific_ptr(THR_MALLOC, &thd->alloc) ||
+      my_pthread_setspecific_ptr(THR_MALLOC, &thd->mem_root) ||
       my_pthread_setspecific_ptr(THR_NET,  &thd->net))
   {
     close_connection(&thd->net,ER_OUT_OF_RESOURCES); // is this needed?
@@ -422,7 +422,7 @@ static int init_slave_thread(THD* thd)
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
 #endif
 
-  thd->alloc.free=thd->alloc.used=0;
+  thd->mem_root.free=thd->mem_root.used=0;	// Probably not needed
   if (thd->max_join_size == (ulong) ~0L)
     thd->options |= OPTION_BIG_SELECTS;
 
@@ -557,7 +557,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	  {
 	    Query_log_event* qev = (Query_log_event*)ev;
 	    int q_len = qev->q_len;
-	    init_sql_alloc(&thd->alloc, 8192);
+	    init_sql_alloc(&thd->mem_root, 8192);
 	    thd->db = (char*)qev->db;
 	    if(db_ok(thd->db, replicate_do_db, replicate_ignore_db))
 	      {
@@ -602,13 +602,13 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
 	    thd->db = 0;// prevent db from being freed
 	    thd->query = 0; // just to be sure
 	    close_thread_tables(thd);
-	    free_root(&thd->alloc);
-	    if(thd->query_error)
-	      {
-		sql_print_error("Slave:  error running query '%s' ",
-				qev->query);
-		return 1;
-	      }
+	    free_root(&thd->mem_root);
+	    if (thd->query_error)
+	    {
+	      sql_print_error("Slave:  error running query '%s' ",
+			      qev->query);
+	      return 1;
+	    }
 	    delete ev;
 	    
 	    if(thd->fatal_error)
@@ -626,7 +626,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
   	case LOAD_EVENT:
 	  {
 	    Load_log_event* lev = (Load_log_event*)ev;
-	    init_sql_alloc(&thd->alloc, 8192);
+	    init_sql_alloc(&thd->mem_root, 8192);
 	    thd->db = (char*)lev->db;
 	    thd->query = 0;
 	    thd->query_error = 0;

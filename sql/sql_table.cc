@@ -644,7 +644,7 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 ** Alter a table definition
 ****************************************************************************/
 
-static bool
+bool
 mysql_rename_table(enum db_type base,
 		   const char *old_db,
 		   const char * old_name,
@@ -659,9 +659,17 @@ mysql_rename_table(enum db_type base,
   (void) sprintf(to,"%s/%s/%s",mysql_data_home,new_db,new_name);
   fn_format(from,from,"","",4);
   fn_format(to,to,    "","",4);
-  if (file->rename_table((const char*) from,(const char *) to) ||
-      rename_file_ext(from,to,reg_ext))
+  if (file->rename_table((const char*) from,(const char *) to))
     error=1;
+  else
+  {
+    if (rename_file_ext(from,to,reg_ext))
+    {
+      error=1;
+      /* Restore old file name */
+      file->rename_table((const char*) to,(const char *) from);
+    }
+  }
   delete file;
   DBUG_RETURN(error);
 }
@@ -1412,7 +1420,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
 #ifdef __WIN__
   // Win32 can't rename an open table, so we must close the org table!
-  table_name=sql_strdup(table_name);		// must be saved
+  table_name=thd->strdup(table_name);		// must be saved
   if (close_cached_table(thd,table))
   {						// Aborted
     VOID(quick_rm_table(new_db_type,new_db,tmp_name));

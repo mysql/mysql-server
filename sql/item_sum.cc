@@ -839,6 +839,10 @@ bool Item_sum_count_distinct::add()
   copy_fields(tmp_table_param);
   copy_funcs(tmp_table_param->funcs);
 
+  for (Field **field=table->field ; *field ; field++)
+    if ((*field)->is_real_null(0))
+      return 0;					// Don't count NULL
+
   if ((error=table->file->write_row(table->record[0])))
   {
     if (error != HA_ERR_FOUND_DUPP_KEY &&

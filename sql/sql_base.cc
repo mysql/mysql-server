@@ -29,8 +29,6 @@
 #include <io.h>
 #endif
 
-#define MAX_DBKEY_LENGTH (FN_LEN*2+2)
-
 static int key_cache_used=0;
 TABLE *unused_tables;				/* Used by mysql_test */
 HASH open_cache;				/* Used by mysql_test */
@@ -120,7 +118,7 @@ static byte *cache_key(const byte *record,uint *length,
 
 void table_cache_init(void)
 {
-  VOID(hash_init(&open_cache,table_cache_size,0,0,cache_key,
+  VOID(hash_init(&open_cache,table_cache_size+16,0,0,cache_key,
 		 (void (*)(void*)) free_cache_entry,0));
   mysql_rm_tmp_tables();
 }
@@ -1234,7 +1232,7 @@ void close_old_data_files(THD *thd, TABLE *table, bool abort_locks)
   if the table is closed
 */
 
-static bool table_is_used(TABLE *table)
+bool table_is_used(TABLE *table)
 {
   do
   {
@@ -2171,4 +2169,3 @@ int setup_ftfuncs(THD *thd,TABLE_LIST *tables, List<Item_func_match> &ftfuncs)
 
   return 0;
 }
-

@@ -193,3 +193,4 @@
 "Errore di rete ricevendo dal master",
 "Errore di rete inviando al master",
 "Impossibile trovare un indice FULLTEXT che corrisponda all'elenco delle colonne",
+"Can't execute the given command because you have active locked tables or an active transaction",

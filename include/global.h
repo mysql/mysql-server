@@ -113,6 +113,12 @@
 #define HAVE_ATOMIC_SUB
 #endif
 
+/* In Linux-ia64 including atomic.h will give us an error */
+#if defined(HAVE_LINUXTHREADS) && defined(__GNUC__) && defined(__ia64__)
+#undef HAVE_ATOMIC_ADD
+#undef HAVE_ATOMIC_SUB
+#endif
+
 #if defined(_lint) && !defined(lint)
 #define lint
 #endif
@@ -207,6 +213,7 @@
 #endif
 
 /* Define void to stop lint from generating "null effekt" comments */
+#ifndef DONT_DEFINE_VOID
 #ifdef _lint
 int	__void__;
 #define VOID(X)		(__void__ = (int) (X))
@@ -214,6 +221,7 @@ int	__void__;
 #undef VOID
 #define VOID(X)		(X)
 #endif
+#endif /* DONT_DEFINE_VOID */
 
 #if defined(_lint) || defined(FORCE_INIT_OF_VARS)
 #define LINT_INIT(var)	var=0			/* No uninitialize-warning */
@@ -515,6 +523,8 @@ typedef long		my_ptrdiff_t;
 #define NEAR				/* Who needs segments ? */
 #define FAR				/* On a good machine */
 #define HUGE_PTR
+#endif
+#ifndef STDCALL
 #define STDCALL
 #endif
 

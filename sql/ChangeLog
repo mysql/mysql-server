@@ -1,3 +1,8 @@
+2000-08-20  Michael Widenius  <monty@mysql.com>
+
+* Added memory as inline functions to THD to get them a bit faster
+* Don't count entries with NULL in COUNT(DISTINCT ..)
+
 2000-08-08  Michael Widenius  <monty@mysql.com>
 
 * Changed ALTER TABLE and LOAD DATA INFILE to create non unique, small keys

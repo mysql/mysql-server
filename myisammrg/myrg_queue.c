@@ -48,5 +48,6 @@ int _myrg_init_queue(MYRG_INFO *info,int inx,enum ha_rkey_function search_flag)
                      info->open_tables->table->s->keyinfo[inx].seg))
       return my_errno;
   }
+  return 0;
 }
 
