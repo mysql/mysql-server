@@ -264,7 +264,8 @@ public:
     ExtBigunsigned = NdbSqlUtil::Type::Bigunsigned,
     ExtFloat = NdbSqlUtil::Type::Float,
     ExtDouble = NdbSqlUtil::Type::Double,
-    ExtDecimal = NdbSqlUtil::Type::Decimal,
+    ExtOlddecimal = NdbSqlUtil::Type::Olddecimal,
+    ExtOlddecimalunsigned = NdbSqlUtil::Type::Olddecimalunsigned,
     ExtChar = NdbSqlUtil::Type::Char,
     ExtVarchar = NdbSqlUtil::Type::Varchar,
     ExtBinary = NdbSqlUtil::Type::Binary,
@@ -345,9 +346,18 @@ public:
         AttributeSize = DictTabInfo::a64Bit;
         AttributeArraySize = AttributeExtLength;
         break;
-      case DictTabInfo::ExtDecimal:
-        // not yet implemented anywhere
-        return false;
+      case DictTabInfo::ExtOlddecimal:
+        AttributeSize = DictTabInfo::an8Bit;
+        AttributeArraySize =
+          (1 + AttributeExtPrecision + (int(AttributeExtScale) > 0)) *
+          AttributeExtLength;
+        break;
+      case DictTabInfo::ExtOlddecimalunsigned:
+        AttributeSize = DictTabInfo::an8Bit;
+        AttributeArraySize =
+          (0 + AttributeExtPrecision + (int(AttributeExtScale) > 0)) *
+          AttributeExtLength;
+        break;
       case DictTabInfo::ExtChar:
       case DictTabInfo::ExtBinary:
         AttributeSize = DictTabInfo::an8Bit;

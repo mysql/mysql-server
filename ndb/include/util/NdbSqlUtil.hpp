@@ -80,7 +80,7 @@ public:
       Bigunsigned = NDB_TYPE_BIGUNSIGNED,
       Float = NDB_TYPE_FLOAT,
       Double = NDB_TYPE_DOUBLE,
-      Decimal = NDB_TYPE_DECIMAL,
+      Olddecimal = NDB_TYPE_OLDDECIMAL,
       Char = NDB_TYPE_CHAR,
       Varchar = NDB_TYPE_VARCHAR,
       Binary = NDB_TYPE_BINARY,
@@ -94,7 +94,8 @@ public:
       Longvarbinary = NDB_TYPE_LONG_VARBINARY,
       Time = NDB_TYPE_TIME,
       Year = NDB_TYPE_YEAR,
-      Timestamp = NDB_TYPE_TIMESTAMP
+      Timestamp = NDB_TYPE_TIMESTAMP,
+      Olddecimalunsigned = NDB_TYPE_OLDDECIMALUNSIGNED
     };
     Enum m_typeId;      // redundant
     Cmp* m_cmp;         // comparison method
@@ -130,6 +131,11 @@ public:
    */
   static int strnxfrm_bug7284(CHARSET_INFO* cs, unsigned char* dst, unsigned dstLen, const unsigned char*src, unsigned srcLen);
 
+  /**
+   * Compare decimal numbers.
+   */
+  static int cmp_olddecimal(const uchar* s1, const uchar* s2, unsigned n);
+
 private:
   /**
    * List of all types.  Must match Type::Enum.
@@ -150,7 +156,7 @@ private:
   static Cmp cmpBigunsigned;
   static Cmp cmpFloat;
   static Cmp cmpDouble;
-  static Cmp cmpDecimal;
+  static Cmp cmpOlddecimal;
   static Cmp cmpChar;
   static Cmp cmpVarchar;
   static Cmp cmpBinary;
@@ -165,6 +171,7 @@ private:
   static Cmp cmpTime;
   static Cmp cmpYear;
   static Cmp cmpTimestamp;
+  static Cmp cmpOlddecimalunsigned;
 };
 
 #endif
