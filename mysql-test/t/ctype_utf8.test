@@ -265,7 +265,7 @@ drop table t1;
 # Check HEAP+BTREE, case insensitive collation
 #
 create table t1 (
-c char(10) character set utf8 collate utf8_bin,
+c char(10) character set utf8,
 unique key a using btree (c(1))
 ) engine=heap;
 show create table t1;
