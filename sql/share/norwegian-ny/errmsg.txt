@@ -3,6 +3,8 @@
 
 /* Roy-Magne Mo rmo@www.hivolda.no 97 */
 
+character-set=latin1
+
 "hashchk",
 "isamchk",
 "NEI",

@@ -6,6 +6,8 @@
 
 */
 
+character-set=latin7
+
 "hashchk",
 "isamchk",
 "EI",

@@ -2,6 +2,9 @@
    This file is public domain and comes with NO WARRANTY of any kind
    Traduccion por Miguel Angel Fernandez Roiz -- LoboCom Sistemas, s.l.
    From June 28, 2001 translated by Miguel Solorzano miguel@mysql.com */
+
+character-set=latin1
+
 "hashchk",
 "isamchk",
 "NO",

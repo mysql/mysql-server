@@ -3,6 +3,8 @@
    This file is public domain and comes with NO WARRANTY of any kind */
 /* charset: KOI8-R */
 
+character-set=koi8r
+
 "hashchk",
 "isamchk",
 "ξετ",

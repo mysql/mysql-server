@@ -12,6 +12,8 @@
    Translated new error messages.
 */
 
+character-set=latin1
+
 "hashchk",
 "isamchk",
 "NEE",

@@ -5,6 +5,8 @@
    Charset ISO-8859-2
 */
 
+character-set=latin2
+
 "hashchk",
 "isamchk",
 "NIE",

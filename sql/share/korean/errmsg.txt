@@ -1,6 +1,8 @@
 /* Copyright Abandoned 1997 TCX DataKonsult AB & Monty Program KB & Detron HB
    This 화일 is public domain and comes with NO WARRANTY of any kind */
 
+character-set=euckr
+
 "hashchk",
 "isamchk",
 "아니오",
