@@ -1011,7 +1011,8 @@ map_init_meta(EditLine *el)
 			break;
 		default:
 			buf[1] = i & 0177;
-			key_add(el, buf, key_map_cmd(el, (int) map[i]), XK_CMD);
+			el_key_add(el, buf, 
+				   el_key_map_cmd(el, (int) map[i]), XK_CMD);
 			break;
 		}
 	map[(int) buf[0]] = ED_SEQUENCE_LEAD_IN;
@@ -1033,7 +1034,7 @@ map_init_vi(EditLine *el)
 	el->el_map.type = MAP_VI;
 	el->el_map.current = el->el_map.key;
 
-	key_reset(el);
+	el_key_reset(el);
 
 	for (i = 0; i < N_KEYS; i++) {
 		key[i] = vii[i];
@@ -1062,7 +1063,7 @@ map_init_emacs(EditLine *el)
 
 	el->el_map.type = MAP_EMACS;
 	el->el_map.current = el->el_map.key;
-	key_reset(el);
+	el_key_reset(el);
 
 	for (i = 0; i < N_KEYS; i++) {
 		key[i] = emacs[i];
@@ -1075,7 +1076,7 @@ map_init_emacs(EditLine *el)
 	buf[0] = CONTROL('X');
 	buf[1] = CONTROL('X');
 	buf[2] = 0;
-	key_add(el, buf, key_map_cmd(el, EM_EXCHANGE_MARK), XK_CMD);
+	el_key_add(el, buf, el_key_map_cmd(el, EM_EXCHANGE_MARK), XK_CMD);
 
 	tty_bind_char(el, 1);
 	term_bind_arrow(el);
@@ -1132,7 +1133,7 @@ map_print_key(EditLine *el, el_action_t *map, const char *in)
 	el_bindings_t *bp;
 
 	if (in[0] == '\0' || in[1] == '\0') {
-		(void) key__decode_str(in, outbuf, "");
+		(void) el_key__decode_str(in, outbuf, "");
 		for (bp = el->el_map.help; bp->name != NULL; bp++)
 			if (bp->func == map[(unsigned char) *in]) {
 				(void) fprintf(el->el_outfile,
@@ -1140,7 +1141,7 @@ map_print_key(EditLine *el, el_action_t *map, const char *in)
 				return;
 			}
 	} else
-		key_print(el, in);
+		el_key_print(el, in);
 }
 
 
@@ -1162,20 +1163,20 @@ map_print_some_keys(EditLine *el, el_action_t *map, int first, int last)
 		if (first == last)
 			(void) fprintf(el->el_outfile,
 			    "%-15s->  is undefined\n",
-			    key__decode_str(firstbuf, unparsbuf, STRQQ));
+			    el_key__decode_str(firstbuf, unparsbuf, STRQQ));
 		return;
 	}
 	for (bp = el->el_map.help; bp->name != NULL; bp++) {
 		if (bp->func == map[first]) {
 			if (first == last) {
 				(void) fprintf(el->el_outfile, "%-15s->  %s\n",
-				    key__decode_str(firstbuf, unparsbuf, STRQQ),
+				    el_key__decode_str(firstbuf, unparsbuf, STRQQ),
 				    bp->name);
 			} else {
 				(void) fprintf(el->el_outfile,
 				    "%-4s to %-7s->  %s\n",
-				    key__decode_str(firstbuf, unparsbuf, STRQQ),
-				    key__decode_str(lastbuf, extrabuf, STRQQ),
+				    el_key__decode_str(firstbuf, unparsbuf, STRQQ),
+				    el_key__decode_str(lastbuf, extrabuf, STRQQ),
 				    bp->name);
 			}
 			return;
@@ -1229,7 +1230,7 @@ map_print_all_keys(EditLine *el)
 	map_print_some_keys(el, el->el_map.alt, prev, i - 1);
 
 	(void) fprintf(el->el_outfile, "Multi-character bindings\n");
-	key_print(el, "");
+	el_key_print(el, "");
 	(void) fprintf(el->el_outfile, "Arrow key bindings\n");
 	term_print_arrow(el, "");
 }
@@ -1322,9 +1323,9 @@ map_bind(EditLine *el, int argc, const char **argv)
 			return (-1);
 		}
 		if (in[1])
-			(void) key_delete(el, in);
+			(void) el_key_delete(el, in);
 		else if (map[(unsigned char) *in] == ED_SEQUENCE_LEAD_IN)
-			(void) key_delete(el, in);
+			(void) el_key_delete(el, in);
 		else
 			map[(unsigned char) *in] = ED_UNASSIGNED;
 		return (0);
@@ -1352,9 +1353,9 @@ map_bind(EditLine *el, int argc, const char **argv)
 			return (-1);
 		}
 		if (key)
-			term_set_arrow(el, in, key_map_str(el, out), ntype);
+			term_set_arrow(el, in, el_key_map_str(el, out), ntype);
 		else
-			key_add(el, in, key_map_str(el, out), ntype);
+			el_key_add(el, in, el_key_map_str(el, out), ntype);
 		map[(unsigned char) *in] = ED_SEQUENCE_LEAD_IN;
 		break;
 
@@ -1365,13 +1366,13 @@ map_bind(EditLine *el, int argc, const char **argv)
 			return (-1);
 		}
 		if (key)
-			term_set_arrow(el, in, key_map_str(el, out), ntype);
+			term_set_arrow(el, in, el_key_map_str(el, out), ntype);
 		else {
 			if (in[1]) {
-				key_add(el, in, key_map_cmd(el, cmd), ntype);
+				el_key_add(el, in, el_key_map_cmd(el, cmd), ntype);
 				map[(unsigned char) *in] = ED_SEQUENCE_LEAD_IN;
 			} else {
-				key_clear(el, map, in);
+				el_key_clear(el, map, in);
 				map[(unsigned char) *in] = cmd;
 			}
 		}

@@ -1875,13 +1875,6 @@ else
 fi
 AC_SUBST(TERMCAP_LIB)
 
-# for libedit 2.6.7
-case "${host}" in
-  *-*-solaris2*)
-	AC_DEFINE_UNQUOTED(SUNOS, 1, [macro for libedit-2.6.7, current platform is solaris-2])
-	;;
-esac
-
 LIBEDIT_LOBJECTS=""
 AC_CHECK_FUNC(strunvis, ,[LIBEDIT_LOBJECTS="$LIBEDIT_LOBJECTS unvis.o"])
 AC_CHECK_FUNC(strvis,   ,[LIBEDIT_LOBJECTS="$LIBEDIT_LOBJECTS vis.o"])
