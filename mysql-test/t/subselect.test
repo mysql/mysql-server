@@ -1066,3 +1066,10 @@ select 2 in (select * from t1);
 SET SQL_SELECT_LIMIT=default;
 drop table t1;
 
+#
+# Static tables & rund() in subqueries
+#
+create table t1 (a int);
+insert into t1 values (1);
+explain select benchmark(1000, (select a from t1 where a=sha(rand())));
+drop table t1;
