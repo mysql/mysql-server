@@ -3620,12 +3620,12 @@ Greece [NTUA, Athens] @
 @uref{http://www.ntua.gr/mysql/, WWW}
 @uref{ftp://ftp.ntua.gr/pub/databases/mysql/, FTP}
 
-@c @item
-@c File not found 990730
+@item
 @c EMAIL: torlasz@xenia.sote.hu (Laszlo L. Tornoc)
-@c @image{Flags/hungary} Hungary [Xenia] @
-@c @uref{http://xenia.sote.hu/ftp/mirrors/www.mysql.com/, WWW}
-@c @uref{ftp://xenia.sote.hu/pub/mirrors/www.mysql.com/,FTP}
+@c @image{Flags/hungary}
+Hungary [Xenia] @
+@uref{http://mysql.sote.hu/, WWW}
+@uref{ftp://xenia.sote.hu/pub/mirrors/www.mysql.com/, FTP}
 
 @item
 @c EMAIL: mirrors@gm.is (Tomas Edwardsson)
