@@ -549,7 +549,6 @@ struct show_var_st init_vars[]= {
   {"bdb_logdir",              (char*) &berkeley_logdir,             SHOW_CHAR_PTR},
   {"bdb_shared_data",	      (char*) &berkeley_shared_data,	    SHOW_BOOL},
   {"bdb_tmpdir",              (char*) &berkeley_tmpdir,             SHOW_CHAR_PTR},
-  {"bdb_version",             (char*) DB_VERSION_STRING,            SHOW_CHAR},
 #endif
   {sys_binlog_cache_size.name,(char*) &sys_binlog_cache_size,	    SHOW_SYS},
   {sys_bulk_insert_buff_size.name,(char*) &sys_bulk_insert_buff_size,SHOW_SYS},
@@ -740,6 +739,12 @@ struct show_var_st init_vars[]= {
    SHOW_SYS},
   {sys_trans_prealloc_size.name, (char*) &sys_trans_prealloc_size,  SHOW_SYS},
   {"version",                 server_version,                       SHOW_CHAR},
+#ifdef HAVE_BERKELEY_DB
+  {"version_bdb",             (char*) DB_VERSION_STRING,            SHOW_CHAR},
+#endif
+  {"version_comment",         (char*) MYSQL_COMPILATION_COMMENT,    SHOW_CHAR},
+  {"version_compile_machine", (char*) MACHINE_TYPE,		    SHOW_CHAR},
+  {"version_compile_os",      (char*) SYSTEM_TYPE,		    SHOW_CHAR},
   {sys_net_wait_timeout.name, (char*) &sys_net_wait_timeout,	    SHOW_SYS},
   {NullS, NullS, SHOW_LONG}
 };

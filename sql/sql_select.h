@@ -207,14 +207,14 @@ class JOIN :public Sql_alloc
   bool union_part; // this subselect is part of union 
   bool optimized; // flag to avoid double optimization in EXPLAIN
 
-  JOIN(THD *thd_arg, List<Item> &fields, ulong select_options_arg,
+  JOIN(THD *thd_arg, List<Item> &fields_arg, ulong select_options_arg,
        select_result *result_arg)
-    :fields_list(fields)
+    :fields_list(fields_arg)
   {
-    init(thd_arg, fields, select_options_arg, result_arg);
+    init(thd_arg, fields_arg, select_options_arg, result_arg);
   }
   
-  void init(THD *thd_arg, List<Item> &fields, ulong select_options_arg,
+  void init(THD *thd_arg, List<Item> &fields_arg, ulong select_options_arg,
        select_result *result_arg)
   {
     join_tab= join_tab_save= 0;
@@ -247,8 +247,8 @@ class JOIN :public Sql_alloc
     hidden_group_fields= 0; /*safety*/
     buffer_result= test(select_options & OPTION_BUFFER_RESULT) &&
       !test(select_options & OPTION_FOUND_ROWS);
-    all_fields= fields;
-    fields_list= fields;
+    all_fields= fields_arg;
+    fields_list= fields_arg;
     error= 0;
     select= 0;
     ref_pointer_array= items0= items1= items2= items3= 0;
@@ -256,7 +256,7 @@ class JOIN :public Sql_alloc
     zero_result_cause= 0;
     optimized= 0;
 
-    fields_list= fields;
+    fields_list= fields_arg;
     bzero((char*) &keyuse,sizeof(keyuse));
     tmp_table_param.copy_field=0;
     tmp_table_param.end_write_records= HA_POS_ERROR;

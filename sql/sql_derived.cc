@@ -110,7 +110,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
       fix_tables_pointers(unit);
     }
 
-    if(!(derived_result= new select_union(0)))
+    if (!(derived_result= new select_union(0)))
       DBUG_RETURN(1); // out of memory
 
     // st_select_lex_unit::prepare correctly work for single select
@@ -127,7 +127,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 	cursor->table->clear_query_id= 1;
     }
 	
-    bzero((char*) &derived_result->tmp_table_param, sizeof(TMP_TABLE_PARAM));
+    derived_result->tmp_table_param.init();
     derived_result->tmp_table_param.field_count= unit->types.elements;
     /*
       Temp table is created so that it hounours if UNION without ALL is to be 
@@ -204,7 +204,6 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
 	table->file->info(HA_STATUS_VARIABLE);
       }
     }
-    delete derived_result;
 
     if (res)
       free_tmp_table(thd, table);
@@ -216,6 +215,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
     }
 
 exit:
+    delete derived_result;
     lex->current_select= save_current_select;
     close_thread_tables(thd, 0, 1);
   }

@@ -428,7 +428,7 @@ os_file_handle_error_no_exit(
 		return (FALSE);
 	}
 
-	return(FALSE);	
+	return(FALSE);		/* not reached */
 }
 
 /********************************************************************

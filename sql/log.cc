@@ -179,7 +179,7 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
 		     const char *new_name, const char *index_file_name_arg,
 		     enum cache_type io_cache_type_arg,
 		     bool no_auto_events_arg,
-                     ulong max_size)
+                     ulong max_size_arg)
 {
   char buff[512];
   File file= -1, index_file_nr= -1;
@@ -190,7 +190,7 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   last_time=query_start=0;
   write_error=0;
 
-  init(log_type_arg,io_cache_type_arg,no_auto_events_arg,max_size);
+  init(log_type_arg,io_cache_type_arg,no_auto_events_arg,max_size_arg);
   
   if (!(name=my_strdup(log_name,MYF(MY_WME))))
     goto err;

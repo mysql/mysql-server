@@ -285,6 +285,12 @@ send_ok(THD *thd, ha_rows affected_rows, ulonglong id, const char *message)
   pos=net_store_length(pos, (ulonglong) id);
   if (thd->client_capabilities & CLIENT_PROTOCOL_41)
   {
+    DBUG_PRINT("info",
+	       ("affected_rows: %lu  id: %lu  status: %u  warning_count: %u",
+		(ulong) affected_rows,		
+		(ulong) id,
+		(uint) (thd->server_status & 0xffff),
+		(uint) thd->total_warn_count));
     int2store(pos,thd->server_status);
     pos+=2;
 
@@ -483,7 +489,7 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
   char buff[80];
   String tmp((char*) buff,sizeof(buff),&my_charset_bin);
   Protocol_simple prot(thd);
-  String *packet= prot.storage_packet();
+  String *local_packet= prot.storage_packet();
   CHARSET_INFO *thd_charset= thd->variables.character_set_results;
   DBUG_ENTER("send_fields");
 
@@ -520,10 +526,10 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
 		     cs, thd_charset) ||
 	  prot.store(field.org_col_name, (uint) strlen(field.org_col_name),
 		     cs, thd_charset) ||
-	  packet->realloc(packet->length()+12))
+	  local_packet->realloc(local_packet->length()+12))
 	goto err;
       /* Store fixed length fields */
-      pos= (char*) packet->ptr()+packet->length();
+      pos= (char*) local_packet->ptr()+local_packet->length();
       *pos++= 12;				// Length of packed fields
       int2store(pos, field.charsetnr);
       int4store(pos+2, field.length);
@@ -540,9 +546,9 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
 		     cs, thd_charset) ||
 	  prot.store(field.col_name, (uint) strlen(field.col_name),
 		     cs, thd_charset) ||
-	  packet->realloc(packet->length()+10))
+	  local_packet->realloc(local_packet->length()+10))
 	goto err;
-      pos= (char*) packet->ptr()+packet->length();
+      pos= (char*) local_packet->ptr()+local_packet->length();
 
 #ifdef TO_BE_DELETED_IN_6
       if (!(thd->client_capabilities & CLIENT_LONG_FLAG))
@@ -569,7 +575,7 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
 	pos+= 10;
       }
     }
-    packet->length((uint) (pos - packet->ptr()));
+    local_packet->length((uint) (pos - local_packet->ptr()));
     if (flag & 2)
       item->send(&prot, &tmp);			// Send default value
     if (prot.write())
