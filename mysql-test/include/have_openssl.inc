@@ -1,2 +1,2 @@
--- require r/have_ssl.require
-show variables like "have_ssl";
+-- require r/have_openssl.require
+show variables like "have_openssl";

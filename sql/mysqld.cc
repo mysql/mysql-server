@@ -202,9 +202,9 @@ SHOW_COMP_OPTION have_raid=SHOW_OPTION_YES;
 SHOW_COMP_OPTION have_raid=SHOW_OPTION_NO;
 #endif
 #ifdef HAVE_OPENSSL
-SHOW_COMP_OPTION have_ssl=SHOW_OPTION_YES;
+SHOW_COMP_OPTION have_openssl=SHOW_OPTION_YES;
 #else
-SHOW_COMP_OPTION have_ssl=SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_openssl=SHOW_OPTION_NO;
 #endif
 SHOW_COMP_OPTION have_symlink=SHOW_OPTION_YES;
 
@@ -2894,7 +2894,7 @@ struct show_var_st init_vars[]= {
   {"have_isam",	      	      (char*) &have_isam,		    SHOW_HAVE},
   {"have_raid",		      (char*) &have_raid,		    SHOW_HAVE},
   {"have_symlink",            (char*) &have_symlink,         	    SHOW_HAVE},
-  {"have_ssl",		      (char*) &have_ssl,		    SHOW_HAVE},
+  {"have_openssl",	      (char*) &have_openssl,		    SHOW_HAVE},
   {"init_file",               (char*) &opt_init_file,               SHOW_CHAR_PTR},
 #ifdef HAVE_INNOBASE_DB
   {"innodb_data_file_path", (char*) &innobase_data_file_path,	    SHOW_CHAR_PTR},
