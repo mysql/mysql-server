@@ -1284,3 +1284,10 @@ SELECT id FROM t1 WHERE (list_id = 1) AND (term = "letterd");
 id
 4
 DROP TABLE t1;
+create temporary table t1 (a int, primary key(a)) engine=bdb;
+select * from t1;
+a
+alter table t1 add b int;
+select * from t1;
+a	b
+drop table t1;
