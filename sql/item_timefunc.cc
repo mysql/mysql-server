@@ -1123,3 +1123,13 @@ longlong Item_extract::val_int()
   }
   return 0;					// Impossible
 }
+
+
+void Item_typecast::print(String *str)
+{
+  str->append("CASE(");
+  args[0]->print(str);
+  str->append(" AS ");
+  str->append(func_name());
+  str->append(')');
+}
