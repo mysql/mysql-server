@@ -224,6 +224,8 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 
 #define RAID_BLOCK_SIZE 1024
 
+#define MY_CHARSET_BIN_MB_MAXLEN 1
+
 #ifdef EXTRA_DEBUG
 /*
   Sync points allow us to force the server to reach a certain line of code

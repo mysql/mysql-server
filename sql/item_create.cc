@@ -709,12 +709,12 @@ Item *create_func_makedate(Item* a,Item* b)
 
 Item *create_func_addtime(Item* a,Item* b)
 {
-  return new Item_func_add_time(a, b, 0);
+  return new Item_func_add_time(a, b, 0, 0);
 }
 
 Item *create_func_subtime(Item* a,Item* b)
 {
-  return new Item_func_add_time(a, b, 1);
+  return new Item_func_add_time(a, b, 0, 1);
 }
 
 Item *create_func_timediff(Item* a,Item* b)

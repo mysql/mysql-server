@@ -557,6 +557,8 @@ class Item_date_typecast :public Item_typecast
 {
 public:
   Item_date_typecast(Item *a) :Item_typecast(a) {}
+  String *val_str(String *str);
+  bool get_date(TIME *ltime, bool fuzzy_date);
   const char *func_name() const { return "date"; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
   Field *tmp_table_field() { return result_field; }
@@ -571,6 +573,8 @@ class Item_time_typecast :public Item_typecast
 {
 public:
   Item_time_typecast(Item *a) :Item_typecast(a) {}
+  String *val_str(String *str);
+  bool get_time(TIME *ltime);
   const char *func_name() const { return "time"; }
   enum_field_types field_type() const { return MYSQL_TYPE_TIME; }
   Field *tmp_table_field() { return result_field; }
@@ -585,6 +589,7 @@ class Item_datetime_typecast :public Item_typecast
 {
 public:
   Item_datetime_typecast(Item *a) :Item_typecast(a) {}
+  String *val_str(String *str);
   const char *func_name() const { return "datetime"; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
   Field *tmp_table_field() { return result_field; }
@@ -604,7 +609,7 @@ public:
   void fix_length_and_dec()
   { 
     decimals=0;
-    max_length=8*my_charset_bin.mbmaxlen;
+    max_length=8*MY_CHARSET_BIN_MB_MAXLEN;
   }
   Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)
@@ -613,18 +618,26 @@ public:
   }
 };
 
+
 class Item_func_add_time :public Item_str_func
 {
+  const bool is_date;
   int sign;
   enum_field_types cached_field_type;
 
 public:
-  Item_func_add_time(Item *a, Item *b, bool neg_arg)
-    :Item_str_func(a, b) { sign= neg_arg ? -1 : 1; }
+  Item_func_add_time(Item *a, Item *b, bool type_arg, bool neg_arg)
+    :Item_str_func(a, b), is_date(type_arg) { sign= neg_arg ? -1 : 1; }
   String *val_str(String *str);
   const char *func_name() const { return "addtime"; }
   enum_field_types field_type() const { return cached_field_type; }
   void fix_length_and_dec();
+
+/*
+  TODO:
+       Change this when we support 
+       microseconds in TIME/DATETIME
+*/
   Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)
   {
@@ -647,7 +660,7 @@ public:
   void fix_length_and_dec()
   {
     decimals=0;
-    max_length=17*my_charset_bin.mbmaxlen;
+    max_length=17*MY_CHARSET_BIN_MB_MAXLEN;
   }
   Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)
@@ -667,66 +680,7 @@ public:
   void fix_length_and_dec()
   {
     decimals=0;
-    max_length=8*my_charset_bin.mbmaxlen;
-  }
-  Field *tmp_table_field() { return result_field; }
-  Field *tmp_table_field(TABLE *t_arg)
-  {
-      return (new Field_time(maybe_null, name, t_arg, &my_charset_bin));
-  }
-};
-
-class Item_func_timestamp :public Item_str_func
-{
-public:
-  Item_func_timestamp(Item *a, Item *b) :Item_str_func(a, b) {}
-  String *val_str(String *str);
-  const char *func_name() const { return "timestamp"; }
-  enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
-  void fix_length_and_dec()
-  { 
-    decimals=0;
-    max_length=26*my_charset_bin.mbmaxlen;
-  }
-  Field *tmp_table_field() { return result_field; }
-  Field *tmp_table_field(TABLE *t_arg)
-  {
-    return (new Field_datetime(maybe_null, name, t_arg, &my_charset_bin));
-  }
-};
-
-class Item_func_date :public Item_str_func
-{
-public:
-  Item_func_date(Item *a)
-    :Item_str_func(a) {}
-  String *val_str(String *str);
-  const char *func_name() const { return "date"; }
-  enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
-  void fix_length_and_dec()
-  {
-    decimals=0;
-    max_length=10*my_charset_bin.mbmaxlen;
-  }
-  Field *tmp_table_field() { return result_field; }
-  Field *tmp_table_field(TABLE *t_arg)
-  {
-    return (new Field_date(maybe_null, name, t_arg, &my_charset_bin));
-  }
-};
-
-class Item_func_time :public Item_str_func
-{
-public:
-  Item_func_time(Item *a)
-    :Item_str_func(a) {}
-  String *val_str(String *str);
-  const char *func_name() const { return "time"; }
-  enum_field_types field_type() const { return MYSQL_TYPE_TIME; }
-  void fix_length_and_dec()
-  {
-    decimals=0;
-    max_length=15*my_charset_bin.mbmaxlen;
+    max_length=8*MY_CHARSET_BIN_MB_MAXLEN;
   }
   Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg)

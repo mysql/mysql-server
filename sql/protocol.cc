@@ -823,6 +823,13 @@ bool Protocol_simple::store(Field *field)
 }
 
 
+/*
+   TODO:
+        Second_part format ("%06") needs to change when 
+        we support 0-6 decimals for time.
+*/
+
+
 bool Protocol_simple::store(TIME *tm)
 {
 #ifndef DEBUG_OFF
@@ -862,6 +869,12 @@ bool Protocol_simple::store_date(TIME *tm)
   return net_store_data((char*) buff, length);
 }
 
+
+/*
+   TODO:
+        Second_part format ("%06") needs to change when 
+        we support 0-6 decimals for time.
+*/
 
 bool Protocol_simple::store_time(TIME *tm)
 {

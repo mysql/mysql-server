@@ -432,6 +432,7 @@ str_to_TIME(const char *str, uint length, TIME *l_time,bool fuzzy_date)
   l_time->minute=date[4];
   l_time->second=date[5];
   l_time->second_part=date[6];
+  l_time->neg= 0;
   DBUG_RETURN(l_time->time_type=
 	      (number_of_fields <= 3 ? TIMESTAMP_DATE : TIMESTAMP_FULL));
 }
