@@ -2256,7 +2256,7 @@ do
   done
   if test $charset_okay = 0;
   then
-    AC_MSG_ERROR([Charset $cs not available. (Available $CHARSETS_AVAILABLE).
+    AC_MSG_ERROR([Charset '$cs' not available. (Available $CHARSETS_AVAILABLE).
     See the Installation chapter in the Reference Manual.]);
   fi
 done
