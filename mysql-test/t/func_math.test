@@ -45,7 +45,9 @@ SELECT ASIN(1.2-0.2);
 # Bug #3051 FLOOR returns invalid 
 #
 
-select floor(log(4)/log(2));
-select floor(log(8)/log(2));
-select floor(log(16)/log(2));
+# This can't be tested as it's not portable
+#select floor(log(4)/log(2));
+#select floor(log(8)/log(2));
+#select floor(log(16)/log(2));
+
 explain extended select degrees(pi()),radians(360);

@@ -18,7 +18,7 @@ TZ=$MY_TZ; export TZ # for UNIX_TIMESTAMP tests to work
 LOCAL_SOCKET=@MYSQL_UNIX_ADDR@
 
 # For query_cache test
-case "$SYSTEM" in
+case `uname` in
     SCO_SV | UnixWare | OpenUNIX )
         # do nothing (Causes strange behavior)
         ;;
