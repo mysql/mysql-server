@@ -21486,7 +21486,7 @@ aborting the write.
 
 @item @code{open_files_limit}
 If this is not 0, then @code{mysqld} will use this value to reserve file
-descriptors to use with @code{getrlimit()}.  If this value is 0 then
+descriptors to use with @code{setrlimit()}.  If this value is 0 then
 @code{mysqld} will reserve @code{max_connections*5} or
 @code{max_connections + table_cache*2} (whichever is larger) number of
 files.  You should try increasing this if @code{mysqld} gives you the
@@ -42652,8 +42652,8 @@ MySQL 3.23 version).
 @item
 Fixed buffer overflow bug when writing a certain error message.
 @item
-Added usage of @code{getrlimit()} on Linux to get @code{-O
---open-files-limit=#} to work on Linux.
+Added usage of @code{setrlimit()} on Linux to get
+@code{-O --open-files-limit=#} to work on Linux.
 @item
 Added new @code{mysqld} variable: @code{bdb_version}.
 @item

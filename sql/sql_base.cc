@@ -32,8 +32,6 @@
 TABLE *unused_tables;				/* Used by mysql_test */
 HASH open_cache;				/* Used by mysql_test */
 
-static void reset_query_id_on_temp_tables(THD* thd);
-
 static int open_unireg_entry(THD *thd,TABLE *entry,const char *db,
 			     const char *name, const char *alias, bool locked);
 static bool insert_fields(THD *thd,TABLE_LIST *tables, const char *table_name,
@@ -1314,13 +1312,6 @@ err:
   DBUG_RETURN(1);
 }
 
-
-static void reset_query_id_on_temp_tables(THD* thd)
-{
-  for(TABLE* tmp = thd->temporary_tables; tmp; tmp = tmp->next)
-    tmp->query_id = 0;
-}
-
 /*****************************************************************************
 ** open all tables in list
 *****************************************************************************/
@@ -1348,13 +1339,13 @@ int open_tables(THD *thd,TABLE_LIST *start)
 	pthread_mutex_lock(&LOCK_open);
 	// if query_id is not reset, we will get an error
 	// re-opening a temp table
-	reset_query_id_on_temp_tables(thd);
 	thd->version=refresh_version;
 	TABLE **prev_table= &thd->open_tables;
 	bool found=0;
 	for (TABLE_LIST *tmp=start ; tmp ; tmp=tmp->next)
 	{
-	  if (tmp->table)
+	  /* Close normal (not temporary) changed tables */
+	  if (tmp->table && ! tmp->table->tmp_table)
 	  {
 	    if (tmp->table->version != refresh_version ||
 		! tmp->table->db_stat)
