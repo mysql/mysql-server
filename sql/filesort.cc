@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -115,10 +115,10 @@ ha_rows filesort(TABLE **table, SORT_FIELD *sortorder, uint s_length,
   param.ref_length= table[0]->file->ref_length;
   param.sort_length=sortlength(sortorder,s_length)+ param.ref_length;
   param.max_rows= max_rows;
-  
+
   if (select && select->quick)
   {
-    statistic_increment(filesort_range_count, &LOCK_status);	  
+    statistic_increment(filesort_range_count, &LOCK_status);
   }
   else
   {
@@ -336,6 +336,10 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     file->extra(HA_EXTRA_CACHE);	/* Quicker reads */
   }
 
+  if (quick_select)
+    error=select->quick->init();
+
+  if (!error)
   for (;;)
   {
     if (quick_select)
@@ -369,7 +373,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
 	  record+=sort_form->db_record_offset;
 	}
 	else
-	  file->position(sort_form->record[0]);	  
+	  file->position(sort_form->record[0]);
       }
       if (error && error != HA_ERR_RECORD_DELETED)
 	break;

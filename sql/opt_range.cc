@@ -19,11 +19,11 @@
   Fix that MAYBE_KEY are stored in the tree so that we can detect use
   of full hash keys for queries like:
 
-  select s.id, kws.keyword_id from sites as s,kws where s.id=kws.site_id and kws.keyword_id in (204,205); 
- 
+  select s.id, kws.keyword_id from sites as s,kws where s.id=kws.site_id and kws.keyword_id in (204,205);
+
 */
 
-  
+
 
 #ifdef __GNUC__
 #pragma implementation				// gcc: Class implementation

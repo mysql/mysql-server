@@ -23,6 +23,7 @@
 
 #include "mysql_priv.h"
 #include "sql_select.h"
+#include "opt_ft.h"
 #include <m_ctype.h>
 #include <hash.h>
 #include <ft_global.h>
@@ -4357,7 +4358,7 @@ join_ft_read_first(JOIN_TAB *tab)
 
 #if 0
   if (cp_buffer_from_ref(&tab->ref))       // as ft-key doesn't use store_key's
-    return -1;
+    return -1;                             // see also FT_SELECT::init()
 #endif
   if ((error=table->file->ft_init(tab->ref.key,
 				  tab->ref.key_buff,
@@ -5052,13 +5053,13 @@ create_sort_index(JOIN_TAB *tab,ORDER *order,ha_rows select_limit)
       }
     }
     else
-    if (tab->type != JT_FT) /* Beware! SerG */
+//    if (tab->type != JT_FT) /* Beware! SerG */
     {
       /*
 	We have a ref on a const;  Change this to a range that filesort
 	can use.
       */
-      if (!(select->quick=get_quick_select_for_ref(table, &tab->ref)))
+      if (!(select->quick=get_ft_or_quick_select_for_ref(table, tab)))
 	goto err;
     }
   }
