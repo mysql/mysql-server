@@ -28991,8 +28991,8 @@ mysql> select 0.1 <= 2;
 @item <
 Less than:
 @example
-mysql> select 2 <= 2;
-        -> 1
+mysql> select 2 < 2;
+        -> 0
 @end example
 
 @findex >= (greater than or equal)
@@ -38630,7 +38630,7 @@ you should be able to solve this by adding @code{-Lpath-to-the-mysql-library
 -lmysqlclient} @strong{LAST} on your link line.
 
 If you get @code{undefined reference} errors for the @code{uncompress}
-or @code{compress} function, add @code{-lgz} @strong{LAST} on your link
+or @code{compress} function, add @code{-lz} @strong{LAST} on your link
 line and try again!
 
 If you get @code{undefined reference} errors for functions that should
