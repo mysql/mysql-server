@@ -228,6 +228,7 @@ public:
   friend class Item_asterisk_remover;
   friend class Item_ref_null_helper;
   friend class Item_is_not_null_test;
+  friend class subselect_indexin_engine;
 };
 
 /* ALL/ANY/SOME subselect */
@@ -337,10 +338,13 @@ public:
 
 class subselect_indexin_engine: public subselect_simplein_engine
 {
+  bool check_null;
 public:
   subselect_indexin_engine(THD *thd, st_join_table *tab_arg,
-			    Item_subselect *subs, Item *where)
-    :subselect_simplein_engine(thd, tab_arg, subs, where)
+			    Item_subselect *subs, Item *where,
+			   bool chk_null)
+    :subselect_simplein_engine(thd, tab_arg, subs, where),
+     check_null(chk_null)
   {}
   int exec();
 };

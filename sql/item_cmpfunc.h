@@ -669,6 +669,7 @@ public:
   Item_is_not_null_test(Item_in_subselect* ow, Item *a)
     :Item_func_isnull(a), owner(ow)
   {}
+  enum Functype functype() const { return ISNOTNULLTEST_FUNC; }
   longlong val_int();
   const char *func_name() const { return "is_not_null_test"; }
   void update_used_tables();
