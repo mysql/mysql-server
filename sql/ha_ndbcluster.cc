@@ -2784,7 +2784,7 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
     {
       DBUG_PRINT("info", ("Ignoring duplicate key"));
       m_ignore_dup_key= TRUE;
-
+    }
     break;
   case HA_EXTRA_NO_IGNORE_DUP_KEY:
     DBUG_PRINT("info", ("HA_EXTRA_NO_IGNORE_DUP_KEY"));
@@ -3661,15 +3661,16 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
 
   if (check_ndb_connection())
     DBUG_RETURN(my_errno= HA_ERR_NO_CONNECTION);
-
-  dict= m_ndb->getDictionary();
+  
+  Ndb *ndb= get_ndb();
+  dict= ndb->getDictionary();
   if (!(orig_tab= dict->getTable(m_tabname)))
     ERR_RETURN(dict->getNdbError());
 
   m_table= (void *)orig_tab;
   // Change current database to that of target table
   set_dbname(to);
-  m_ndb->setDatabaseName(m_dbname);
+  ndb->setDatabaseName(m_dbname);
   if (!(result= alter_table_name(new_tabname)))
   {
     // Rename .ndb file
@@ -3688,7 +3689,6 @@ int ha_ndbcluster::alter_table_name(const char *to)
 {
   Ndb *ndb= get_ndb();
   NDBDICT *dict= ndb->getDictionary();
-  NDBDICT * dict= m_ndb->getDictionary();
   const NDBTAB *orig_tab= (const NDBTAB *) m_table;
   int ret;
   DBUG_ENTER("alter_table_name_table");
