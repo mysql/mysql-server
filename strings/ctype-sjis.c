@@ -183,17 +183,18 @@ uchar NEAR sort_order_sjis[]=
                        (0x80<=(c) && (c)<=0xfc))
 
 
-int ismbchar_sjis(const char* p, const char *e)
+int ismbchar_sjis(CHARSET_INFO *cs __attribute__((unused)),
+		  const char* p, const char *e)
 {
   return (issjishead((uchar) *p) && (e-p)>1 && issjistail((uchar)p[1]) ? 2: 0);
 }
 
-my_bool ismbhead_sjis(uint c)
+my_bool ismbhead_sjis(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return issjishead((uchar) c);
 }
 
-int mbcharlen_sjis(uint c)
+int mbcharlen_sjis(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return (issjishead((uchar) c) ? 2: 0);
 }
@@ -201,15 +202,15 @@ int mbcharlen_sjis(uint c)
 
 #define sjiscode(c,d)	((((uint) (uchar)(c)) << 8) | (uint) (uchar) (d))
 
-int my_strnncoll_sjis(CHARSET_INFO *cs,
+int my_strnncoll_sjis(CHARSET_INFO *cs __attribute__((unused)),
                       const uchar *s1, uint len1,
                       const uchar *s2, uint len2)
 {
   const uchar *e1 = s1 + len1;
   const uchar *e2 = s2 + len2;
   while (s1 < e1 && s2 < e2) {
-    if (ismbchar_sjis((char*) s1, (char*) e1) &&
-	ismbchar_sjis((char*) s2, (char*) e2)) {
+    if (ismbchar_sjis(cs,(char*) s1, (char*) e1) &&
+	ismbchar_sjis(cs,(char*) s2, (char*) e2)) {
       uint c1 = sjiscode(*s1, *(s1+1));
       uint c2 = sjiscode(*s2, *(s2+1));
       if (c1 != c2)
@@ -226,14 +227,14 @@ int my_strnncoll_sjis(CHARSET_INFO *cs,
   return len1 - len2;
 }
 
-int my_strnxfrm_sjis(CHARSET_INFO *cs,
+int my_strnxfrm_sjis(CHARSET_INFO *cs __attribute__((unused)),
                      uchar *dest, uint len,
                      const uchar *src, uint srclen)
 {
   uchar *d_end = dest + len;
   uchar *s_end = (uchar*) src + srclen;
   while (dest < d_end && src < s_end) {
-    if (ismbchar_sjis((char*) src, (char*) s_end)) {
+    if (ismbchar_sjis(cs,(char*) src, (char*) s_end)) {
       *dest++ = *src++;
       if (dest < d_end && src < s_end)
 	*dest++ = *src++;
@@ -265,7 +266,7 @@ int my_strnxfrm_sjis(CHARSET_INFO *cs,
 #define wild_one '_'
 #define wild_many '%'
 
-my_bool my_like_range_sjis(CHARSET_INFO *cs,
+my_bool my_like_range_sjis(CHARSET_INFO *cs __attribute__((unused)),
                            const char *ptr,uint ptr_length,pchar escape,
                            uint res_length, char *min_str,char *max_str,
                            uint *min_length,uint *max_length)
@@ -275,7 +276,7 @@ my_bool my_like_range_sjis(CHARSET_INFO *cs,
   char *min_end=min_str+res_length;
 
   while (ptr < end && min_str < min_end) {
-    if (ismbchar_sjis(ptr, end)) {
+    if (ismbchar_sjis(cs, ptr, end)) {
       *min_str++ = *max_str++ = *ptr++;
       if (min_str < min_end)
 	*min_str++ = *max_str++ = *ptr++;
@@ -283,7 +284,7 @@ my_bool my_like_range_sjis(CHARSET_INFO *cs,
     }
     if (*ptr == escape && ptr+1 < end) {
       ptr++;				/* Skip escape */
-      if (ismbchar_sjis(ptr, end))
+      if (ismbchar_sjis(cs, ptr, end))
 	*min_str++ = *max_str++ = *ptr++;
       if (min_str < min_end)
 	*min_str++ = *max_str++ = *ptr++;

@@ -537,7 +537,7 @@ static uchar* thai2sortable(const uchar * tstr,uint len)
    Arg: 2 Strings and it compare length
    Ret: strcmp result
 */
-int my_strnncoll_tis620(CHARSET_INFO *cs,
+int my_strnncoll_tis620(CHARSET_INFO *cs __attribute__((unused)),
                         const uchar * s1, uint len1, 
                         const uchar * s2, uint len2)
 {
@@ -555,7 +555,7 @@ int my_strnncoll_tis620(CHARSET_INFO *cs,
    Arg: Destination buffer, source string, dest length and source length
    Ret: Conveted string size
 */
-int my_strnxfrm_tis620(CHARSET_INFO *cs,
+int my_strnxfrm_tis620(CHARSET_INFO *cs __attribute__((unused)),
                        uchar * dest, uint len,
                        const uchar * src, uint srclen)
 {
@@ -613,7 +613,7 @@ int my_strxfrm_tis620(uchar * dest, const uchar * src, int len)
 #define wild_one '_'
 #define wild_many '%'
 
-my_bool my_like_range_tis620(CHARSET_INFO *cs,
+my_bool my_like_range_tis620(CHARSET_INFO *cs __attribute__((unused)),
                        const char *ptr, uint ptr_length, pchar escape,
 		       uint res_length, char *min_str, char *max_str,
 		       uint *min_length, uint *max_length)

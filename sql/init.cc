@@ -57,7 +57,10 @@ void unireg_init(ulong options)
 
   for (cs=compiled_charsets; cs->number; cs++)
   {
-    uchar max_char=cs->sort_order[(uchar) cs->max_sort_char];
+    uchar max_char;
+    if (!cs->sort_order)
+      continue;
+    cs->sort_order[(uchar) cs->max_sort_char];
     for (i = 0; i < 256; i++)
     {
       if ((uchar) cs->sort_order[i] > max_char)

@@ -183,7 +183,8 @@ uchar NEAR sort_order_ujis[]=
 #define isujis_ss3(c) (((c)&0xff) == 0x8f)
 
 
-int ismbchar_ujis(const char* p, const char *e)
+int ismbchar_ujis(CHARSET_INFO *cs __attribute__((unused)),
+		  const char* p, const char *e)
 {
   return ((*(uchar*)(p)<0x80)? 0:\
     isujis(*(p)) && (e)-(p)>1 && isujis(*((p)+1))? 2:\
@@ -192,12 +193,12 @@ int ismbchar_ujis(const char* p, const char *e)
     0);
 }
 
-my_bool ismbhead_ujis(uint c)
+my_bool ismbhead_ujis(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return (isujis(c) || isujis_ss2(c) || isujis_ss3(c));
 }
 
-int mbcharlen_ujis(uint c)
+int mbcharlen_ujis(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return (isujis(c)? 2: isujis_ss2(c)? 2: isujis_ss3(c)? 3: 0);
 }

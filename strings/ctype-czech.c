@@ -282,7 +282,7 @@ int my_strxfrm_czech(uchar * dest, const uchar * src, int len)
 
 /* Function strnncoll, actually strcoll, with Czech sorting, which expect
    the length of the strings being specified */
-int my_strnncoll_czech(CHARSET_INFO *cs,
+int my_strnncoll_czech(CHARSET_INFO *cs __attribute__((unused)),
                        const uchar * s1, uint len1, 
                        const uchar * s2, uint len2)
 	{
@@ -308,7 +308,7 @@ int my_strnncoll_czech(CHARSET_INFO *cs,
 
 /* Function strnxfrm, actually strxfrm, with Czech sorting, which expect
    the length of the strings being specified */
-int my_strnxfrm_czech(CHARSET_INFO *cs, 
+int my_strnxfrm_czech(CHARSET_INFO *cs __attribute__((unused)), 
                       uchar * dest, uint len,
                       const uchar * src, uint srclen)
 	{
@@ -378,7 +378,7 @@ int my_strnxfrm_czech(CHARSET_INFO *cs,
 
 #define EXAMPLE
 
-my_bool my_like_range_czech(CHARSET_INFO *cs,
+my_bool my_like_range_czech(CHARSET_INFO *cs __attribute__((unused)),
                             const char *ptr,uint ptr_length,pchar escape,
 		            uint res_length, char *min_str,char *max_str,
 		            uint *min_length,uint *max_length)
