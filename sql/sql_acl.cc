@@ -438,7 +438,7 @@ void acl_free(bool end)
 
   SYNOPSIS
     acl_reload()
-    thd			Thread handle
+    thd			Thread handle (can be NULL)
 */
 
 void acl_reload(THD *thd)
@@ -1128,6 +1128,10 @@ bool acl_check_host(const char *host, const char *ip)
     thd		THD
     host	hostname for the user
     user	user name
+    new_password new password
+
+  NOTE:
+    new_password cannot be NULL
 
     RETURN VALUE
       0		OK
@@ -1135,7 +1139,7 @@ bool acl_check_host(const char *host, const char *ip)
 */
 
 bool check_change_password(THD *thd, const char *host, const char *user,
-                           char *new_password)
+                           char *new_password, uint new_password_len)
 {
   if (!initialized)
   {
@@ -1186,12 +1190,13 @@ bool check_change_password(THD *thd, const char *host, const char *user,
 bool change_password(THD *thd, const char *host, const char *user,
 		     char *new_password)
 {
+  uint new_password_len= strlen(new_password);
   DBUG_ENTER("change_password");
   DBUG_PRINT("enter",("host: '%s'  user: '%s'  new_password: '%s'",
 		      host,user,new_password));
   DBUG_ASSERT(host != 0);			// Ensured by parent
 
-  if (check_change_password(thd, host, user, new_password))
+  if (check_change_password(thd, host, user, new_password, new_password_len))
     DBUG_RETURN(1);
 
   VOID(pthread_mutex_lock(&acl_cache->lock));
@@ -1203,7 +1208,6 @@ bool change_password(THD *thd, const char *host, const char *user,
     DBUG_RETURN(1);
   }
   /* update loaded acl entry: */
-  uint new_password_len= new_password ? strlen(new_password) : 0;
   set_user_salt(acl_user, new_password, new_password_len);
 
   if (update_user_table(thd,
@@ -2697,7 +2701,7 @@ end:
 
   SYNOPSIS
     grant_reload()
-    thd			Thread handler
+    thd			Thread handler (can be NULL)
 
   NOTES
     Locked tables are checked by acl_init and doesn't have to be checked here

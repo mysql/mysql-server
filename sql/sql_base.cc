@@ -251,13 +251,19 @@ void free_io_cache(TABLE *table)
   DBUG_VOID_RETURN;
 }
 
-	/* Close all tables which aren't in use by any thread */
+/*
+  Close all tables which aren't in use by any thread
+
+  THD can be NULL, but then if_wait_for_refresh must be FALSE
+  and tables must be NULL.
+*/
 
 bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
 			 TABLE_LIST *tables)
 {
   bool result=0;
   DBUG_ENTER("close_cached_tables");
+  DBUG_ASSERT(thd || (!if_wait_for_refresh && !tables));
 
   VOID(pthread_mutex_lock(&LOCK_open));
   if (!tables)
@@ -333,7 +339,6 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
   VOID(pthread_mutex_unlock(&LOCK_open));
   if (if_wait_for_refresh)
   {
-    THD *thd=current_thd;
     pthread_mutex_lock(&thd->mysys_var->mutex);
     thd->mysys_var->current_mutex= 0;
     thd->mysys_var->current_cond= 0;
@@ -2068,13 +2073,8 @@ find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
 	strxnmov(buff,sizeof(buff)-1,db,".",table_name,NullS);
 	table_name=buff;
       }
-      if (report_error)
-      {
-	my_printf_error(ER_UNKNOWN_TABLE, ER(ER_UNKNOWN_TABLE), MYF(0),
-			table_name, thd->where);
-      }
-      else
-	return (Field*) not_found_field;
+      my_printf_error(ER_UNKNOWN_TABLE, ER(ER_UNKNOWN_TABLE), MYF(0),
+                      table_name, thd->where);
     }
     else
       if (report_error)

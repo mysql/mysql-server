@@ -1444,7 +1444,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
                                         &not_used)) !=
 	       (Item **) not_found_item)
 	  {
-	    if (*refer && (*refer)->fixed) // Avoid crash in case of error
+	    if (refer && (*refer)->fixed) // Avoid crash in case of error
 	    {
 	      prev_subselect_item->used_tables_cache|= (*refer)->used_tables();
 	      prev_subselect_item->const_item_cache&= (*refer)->const_item();
@@ -2057,7 +2057,6 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
   if (!ref)
   {
     TABLE_LIST *where= 0, *table_list;
-    bool upward_lookup= 0;
     SELECT_LEX_UNIT *prev_unit= thd->lex->current_select->master_unit();
     SELECT_LEX *sl= prev_unit->outer_select();
     /*
@@ -2078,7 +2077,6 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
     {
       Field *tmp= (Field*) not_found_field;
       SELECT_LEX *last= 0;
-      upward_lookup= 1;
       /*
 	We can't find table field in select list of current select,
 	consequently we have to find it in outer subselect(s).
@@ -2098,7 +2096,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
                                     &not_used)) !=
 	   (Item **)not_found_item)
 	{
-	  if (*ref && (*ref)->fixed) // Avoid crash in case of error
+	  if (ref && (*ref)->fixed) // Avoid crash in case of error
 	  {
 	    prev_subselect_item->used_tables_cache|= (*ref)->used_tables();
 	    prev_subselect_item->const_item_cache&= (*ref)->const_item();
@@ -2142,20 +2140,10 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	return -1;
       if (ref == (Item **)not_found_item && tmp == not_found_field)
       {
-	if (upward_lookup)
-	{
-	  // We can't say exactly what absend (table or field)
-	  my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR), MYF(0),
-			  full_name(), thd->where);
-	}
-	else
-	{
-	  // Call to report error
-	  find_item_in_list(this,
-			    *(thd->lex->current_select->get_item_list()),
-			    &counter, REPORT_ALL_ERRORS, &not_used);
-	}
-        ref= 0;                                 // Safety
+        // We can't say exactly what absend (table or field)
+        my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR), MYF(0),
+                        full_name(), thd->where);
+	ref= 0;                                 // Safety
 	return 1;
       }
       if (tmp != not_found_field)
