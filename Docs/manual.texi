@@ -498,7 +498,7 @@ MySQL Table Types
 * HEAP::                        HEAP tables
 * BDB::                         BDB or Berkeley_db tables
 * GEMINI::                      GEMINI tables
-* INNODB::                      INNODB tables
+* InnoDB::                      InnoDB tables
 
 MyISAM Tables
 
@@ -529,12 +529,12 @@ GEMINI Tables
 * GEMINI features::             
 * GEMINI TODO::                 
 
-INNODB Tables
+InnoDB Tables
 
-* INNODB overview::             
-* INNODB start::                INNODB startup options
-* Using INNODB tables::         Using INNODB tables
-* INNODB restrictions::         Some restrictions on @code{INNODB} tables:
+* InnoDB overview::             
+* InnoDB start::                InnoDB startup options
+* Using InnoDB tables::         Using InnoDB tables
+* InnoDB restrictions::         Some restrictions on @code{InnoDB} tables:
 
 MySQL Tutorial
 
@@ -4141,12 +4141,12 @@ phone back within 48 hours to discuss @code{MySQL} related issues.
 @end itemize
 
 @cindex support, BDB Tables
-@cindex support, INNODB Tables
+@cindex support, InnoDB Tables
 @cindex support, GEMINI Tables
 @node Table handler support,  , Telephone support, Support
 @subsection Support for other table handlers
 
-To get support for @code{BDB} tables, @code{INNODB} tables or
+To get support for @code{BDB} tables, @code{InnoDB} tables or
 @code{GEMINI} tables you have to pay an additional 30% on the standard
 support price for each of the table handlers you would like to have
 support for.
@@ -4195,14 +4195,18 @@ For a list of sites from which you can obtain @strong{MySQL}, see
 @ref{Getting MySQL, , Getting @strong{MySQL}}.
 
 @item
-To see which platforms are supported, see @ref{Which OS}.
+To see which platforms are supported, see @ref{Which OS}. Please note that
+not all supported system are equally good for running @strong{MySQL} on them.
+On some it is much more robust and efficient than others - see  @ref{Which OS}
+for details.
 
 @item
 Several versions of @strong{MySQL} are available in both binary and
 source distributions.  We also provide public access to our current
 source tree for those who want to see our most recent developments and
 help us test new code.  To determine which version and type of
-distribution you should use, see @ref{Many versions}.
+distribution you should use, see @ref{Which version}. When in doubt,
+use the binary distribution.
 
 @item
 Installation instructions for binary and source distributions are described
@@ -4985,7 +4989,7 @@ We use GNU Autoconf, so it is possible to port @strong{MySQL} to all modern
 systems with working Posix threads and a C++ compiler.  (To compile only the
 client code, a C++ compiler is required but not threads.)  We use and develop
 the software ourselves primarily on Sun Solaris (Versions 2.5 - 2.7) and
-RedHat Linux Version 6.x.
+SuSE Linux Version 7.x.
 
 Note that for many operating systems, the native thread support works only
 in the latest versions. @strong{MySQL} has been reported to compile
@@ -5034,6 +5038,75 @@ Tru64 Unix
 @item
 Win95, Win98, NT, and Win2000.  @xref{Windows}.
 @end itemize
+
+Note that not all platforms are suited equally well for running
+@strong{MySQL}. How well a certain platform is suited for a high-load
+mission critical @strong{MySQL} server is determined by the following
+factors:
+
+@itemize
+@item
+General stability of the thread library. A platform may have excellent
+reputation otherwise, but if the thread library is unstable in the code
+that is called by @strong{MySQL}, even if
+everything else is perfect, @strong{MySQL} will be only as stable as the
+thread library.
+@item
+The ability of the kernel and/or thread library to take advantage of
+@strong{SMP} on
+multi-processor systems. In other words, when a process creates a thread, it
+should be possible for that thread to run on a different CPU than the original
+process.
+@item
+The ability of the kernel and/or the thread library to run many threads which
+acquire/release a mutex over a short critical region frequently without
+excessive context switches. In other words, if the implementation of
+@code{pthread_mutex_lock()} is too anxious to yield CPU, this will hurt
+@strong{MySQL} tremendously. If this issue
+is not taken care of, adding extra CPUs will actually make @strong{MySQL}
+slower.
+@item
+General file system stability/performance.
+@item
+Ability of the file system to deal with large files at all and deal with them
+efficiently, if your tables are big.
+@item
+Our level of expertise here at @strong{MySQL AB} with the platform. If we know
+a platform well, we introduce platform-specific optimizations/fixes enabled at
+compile time. We can also provide advice on configuring your system optimally
+for @strong{MySQL}.
+@item
+The amount of testing of similar configurations we have done internally.
+@item
+The number of users that have successfully run @strong{MySQL} on that
+platform in similar configurations. If this number is high, the chances of
+hitting some platform-specific surprise are much smaller.
+@end itemize
+
+Based on the above criterea, the best platforms for running
+@strong{MySQL} at this point are x86 with SuSE Linux 7.1, 2.4 kernel and
+ReiserFS (or any similar Linux distribution) and Sparc with Solaris 2.7
+or 2.8. FreeBSD comes third, but we really hope it will join the top
+club once the thread library is improved. We also hope that at some
+point we will be able to include all other platforms on which
+@strong{MySQL} compiles, runs ok, but not quite with the same level of
+stability and performance, into the top category. This will require some
+effort on our part in cooperation with the developers of the OS/library
+components @strong{MySQL} depends upon. If you are interested in making
+one of those components better, are in a position to influence their
+development, and need more detailed instructions on what @strong{MySQL}
+needs to run better, send an e-mail to
+@email{internals@@lists.mysql.com}.
+
+Please note that the comparison above is not to say that one OS is better or
+worse than the other in general. We are talking about choosing a particular OS
+for a dedicated purpose - running @strong{MySQL}, and compare platforms in that
+regard only. With this in mind, the result of this comparison
+would be different if we included more issues into it. And in some cases,
+the reason one OS is better than the other could simply be that we have put
+forth more effort into testing on and optimizing for that particular platform.
+We are just stating our observations to help you make a
+decision on which platform to use @strong{MySQL} on in your setup.
 
 @cindex MySQL binary distribution
 @cindex MySQL source distribution
@@ -5819,6 +5892,11 @@ To install the HP-UX tar.gz distribution, you must have a copy of GNU
 @node Installing source, Installing source tree, Installing binary, Installing
 @section Installing a MySQL Source Distribution
 
+Before you proceed with the source installation, check first to see if our
+binary is available for your platform and if it will work for you. We 
+put in a lot of effort into making sure that our binaries are built with the
+best possible options.
+
 You need the following tools to build and install @strong{MySQL} from source:
 
 @itemize @bullet
@@ -5845,6 +5923,20 @@ A good @code{make} program.  GNU @code{make} is always recommended and is
 sometimes required.  If you have problems, we recommend trying GNU
 @code{make} 3.75 or newer.
 @end itemize
+
+If you are using a recent version of @strong{gcc}, recent enough to understand
+@code{-fno-exceptions} option, it is @strong{VERY IMPORTANT} that you use
+it. Otherwise, you may compile a binary that crashes randomly. We also
+recommend that you use @code{-felide-contructors} and @code{-fno-rtti} along
+with @code{-fno-exceptions}. When in doubt, do the following:
+
+@example
+
+CFLAGS="-O3" CXX=gcc CXXFLAGS="-O3 -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static
+
+@end example
+
+On most systems this will give you a fast and stable binary.
 
 @c texi2html fails to split chapters if I use strong for all of this.
 If you run into problems, @strong{PLEASE ALWAYS USE @code{mysqlbug}} when
@@ -9847,7 +9939,7 @@ If you are using Gemini tables, refer to the Gemini-specific startup options.
 @xref{GEMINI start}.
 
 If you are using Innodb tables, refer to the Innodb-specific startup
-options.  @xref{INNODB start}.
+options.  @xref{InnoDB start}.
 
 @node Automatic start, Command-line options, Starting server, Post-installation
 @subsection Starting and Stopping MySQL Automatically
@@ -11259,7 +11351,7 @@ issue. For those of our users who are concerned with or have wondered
 about transactions vis-a-vis @strong{MySQL}, there is a ``@strong{MySQL}
 way'' as we have outlined above.  For those where safety is more
 important than speed, we recommend them to use the @code{BDB},
-@code{GEMINI} or @code{INNODB} tables for all their critical
+@code{GEMINI} or @code{InnoDB} tables for all their critical
 data. @xref{Table types}.
 
 One final note: We are currently working on a safe replication schema
@@ -11487,11 +11579,11 @@ Entry level SQL92. ODBC levels 0-2.
 @cindex updating, tables
 @cindex @code{BDB} tables
 @cindex @code{GEMINI} tables
-@cindex @code{INNODB} tables
+@cindex @code{InnoDB} tables
 
 The following mostly applies only for @code{ISAM}, @code{MyISAM}, and
 @code{HEAP} tables. If you only use transaction-safe tables (@code{BDB},
-@code{GEMINI} or @code{INNODB} tables) in an an update, you can do
+@code{GEMINI} or @code{InnoDB} tables) in an an update, you can do
 @code{COMMIT} and @code{ROLLBACK} also with @strong{MySQL}.
 @xref{COMMIT}.
 
@@ -18511,7 +18603,7 @@ reference_option:
         RESTRICT | CASCADE | SET NULL | NO ACTION | SET DEFAULT
 
 table_options:
-	TYPE = @{BDB | HEAP | ISAM | INNODB | MERGE | MYISAM @}
+	TYPE = @{BDB | HEAP | ISAM | InnoDB | MERGE | MYISAM @}
 or	AUTO_INCREMENT = #
 or	AVG_ROW_LENGTH = #
 or	CHECKSUM = @{0 | 1@}
@@ -18753,7 +18845,7 @@ The different table types are:
 @item GEMINI @tab Transaction-safe tables with row-level locking @xref{GEMINI}.
 @item HEAP @tab The data for this table is only stored in memory. @xref{HEAP}.
 @item ISAM @tab The original table handler. @xref{ISAM}.
-@item INNODB @tab Transaction-safe tables with row locking. @xref{INNODB}.
+@item InnoDB @tab Transaction-safe tables with row locking. @xref{InnoDB}.
 @item MERGE @tab A collection of MyISAM tables used as one table. @xref{MERGE}.
 @item MyISAM @tab The new binary portable table handler that is replacing ISAM. @xref{MyISAM}.
 @end multitable
@@ -21166,7 +21258,7 @@ The following columns are returned:
 @item @code{Comment} @tab The comment used when creating the table (or some information why @strong{MySQL} couldn't access the table information).
 @end multitable
 
-@code{INNODB} tables will report the free space in the tablespace
+@code{InnoDB} tables will report the free space in the tablespace
 in the table comment.
 
 @node SHOW STATUS, SHOW VARIABLES, SHOW TABLE STATUS, SHOW
@@ -22320,7 +22412,7 @@ as soon as you execute an update, @strong{MySQL} will store the update on
 disk.
 
 If you are using transactions safe tables (like @code{BDB},
-@code{INNODB} or @code{GEMINI}), you can put @strong{MySQL} into
+@code{InnoDB} or @code{GEMINI}), you can put @strong{MySQL} into
 non-@code{autocommit} mode with the following command:
 
 @example
@@ -23147,7 +23239,7 @@ used them.
 @cindex @code{GEMINI} table type
 @cindex @code{HEAP} table type
 @cindex @code{ISAM} table type
-@cindex @code{INNODB} table type
+@cindex @code{InnoDB} table type
 @cindex @code{MERGE} table type
 @cindex MySQL table types
 @cindex @code{MyISAM} table type
@@ -23158,7 +23250,7 @@ used them.
 As of @strong{MySQL} Version 3.23.6, you can choose between three basic
 table formats (@code{ISAM}, @code{HEAP} and @code{MyISAM}.  Newer
 @strong{MySQL} may support additional table type (@code{BDB},
-@code{GEMINI} or @code{INNODB}), depending on how you compile it.
+@code{GEMINI} or @code{InnoDB}), depending on how you compile it.
  
 When you create a new table, you can tell @strong{MySQL} which table
 type it should use for the table.  @strong{MySQL} will always create a
@@ -23173,7 +23265,7 @@ You can convert tables between different types with the @code{ALTER
 TABLE} statement. @xref{ALTER TABLE, , @code{ALTER TABLE}}.
 
 Note that @strong{MySQL} supports two different kinds of
-tables. Transaction-safe tables (@code{BDB}, @code{INNODB} or
+tables. Transaction-safe tables (@code{BDB}, @code{InnoDB} or
 @code{GEMINI}) and not transaction-safe tables (@code{HEAP}, @code{ISAM},
 @code{MERGE}, and @code{MyISAM}).
 
@@ -23216,7 +23308,7 @@ of both worlds.
 * HEAP::                        HEAP tables
 * BDB::                         BDB or Berkeley_db tables
 * GEMINI::                      GEMINI tables
-* INNODB::                      INNODB tables
+* InnoDB::                      InnoDB tables
 @end menu
 
 @node MyISAM, MERGE, Table types, Table types
@@ -24181,7 +24273,7 @@ not trivial).
 @end itemize
 
 @cindex tables, @code{GEMINI}
-@node GEMINI, INNODB, BDB, Table types
+@node GEMINI, InnoDB, BDB, Table types
 @section GEMINI Tables
 
 @menu
@@ -24262,214 +24354,1035 @@ limited by @code{gemini_connection_limit}.  The default is 100 users.
 
 NuSphere is working on removing these limitations.
 
-@node INNODB,  , GEMINI, Table types
-@section INNODB Tables
+@node InnoDB, , GEMINI, Table types 
+@section InnoDB Tables
 
 @menu
-* INNODB overview::             
-* INNODB start::                INNODB startup options
-* Using INNODB tables::         Using INNODB tables
-* INNODB restrictions::         Some restrictions on @code{INNODB} tables:
+* InnoDB overview::        InnoDB tables overview
+* InnoDB start::           InnoDB startup options
+* Creating an InnoDB database:: Creating an InnoDB database
+* Using InnoDB tables::    Creating InnoDB tables
+* Adding and removing::    Adding and removing InnoDB data and log files
+* Backing up::             Backing up and recovering an InnoDB database
+* Moving::                 Moving an InnoDB database to another machine
+* InnoDB transaction model:: InnoDB transaction model
+* Implementation::         Implementation of multiversioning
+* Table and index::        Table and index structures
+* File space management::  File space management and disk i/o
+* Error handling::         Error handling
+* InnoDB restrictions::    Some restrictions on InnoDB tables
+* InnoDB contact information:: InnoDB contact information
 @end menu
 
-@node INNODB overview, INNODB start, INNODB, INNODB
-@subsection INNODB Tables overview
+@node InnoDB overview, InnoDB start, InnoDB, InnoDB
+@subsection InnoDB tables overview
 
-Innodb tables are included in the @strong{MySQL} source distribution
-starting from 3.23.34 and will be activated in the @strong{MySQL}-max
+InnoDB tables are included in the @strong{MySQL} source distribution
+starting from 3.23.34a and are activated in the @strong{MySQL -max}
 binary.
 
-If you have downloaded a binary version of @strong{MySQL} that includes
-support for Innodb, simply follow the instructions for
-installing a binary version of @strong{MySQL}. @xref{Installing binary}.
+If you have downloaded a binary version of MySQL that includes
+support for InnoDB, simply follow the instructions for
+installing a binary version of MySQL.
+See section 4.6 'Installing a MySQL Binary Distribution'.
 
-To compile @strong{MySQL} with Innodb support, download @strong{MySQL}
-3.23.34 or newer and configure @code{MySQL} with the
-@code{--with-innodb} option. @xref{Installing source}.
+To compile MySQL with InnoDB support, download MySQL-3.23.34a or newer
+and configure @code{MySQL} with the
+@code{--with-innobase} option. Starting from MySQL-3.23.37 the option
+is @code{--with-innodb}. See section
+4.7 'Installing a MySQL Source Distribution'.
 
 @example
-cd /path/to/source/of/mysql-3.23.34
+cd /path/to/source/of/mysql-3.23.37
 ./configure --with-innodb
 @end example
 
-Innodb provides @strong{MySQL} with a transaction safe table handler with
-commit, rollback, and crash recovery capabilities.  Innodb does
+InnoDB provides MySQL with a transaction safe table handler with
+commit, rollback, and crash recovery capabilities. InnoDB does
 locking on row level, and also provides an Oracle-style consistent
 non-locking read in @code{SELECTS}, which increases transaction
-concurrency. There is neither need for lock escalation in Innodb,
-because row level locks in Innodb fit in very small space.
+concurrency. There is not need for lock escalation in InnoDB,
+because row level locks in InnoDB fit in very small space.
 
-Innodb is a table handler that is under the GNU GPL License Version 2
-(of June 1991). In the source distribution of @strong{MySQL}, Innodb
-appears as a subdirectory.
+Technically, InnoDB is a database backend placed under MySQL. InnoDB
+has its own buffer pool for caching data and indexes in main
+memory. InnoDB stores its tables and indexes in a tablespace, which
+may consist of several files. This is different from, for example,
+@code{MyISAM} tables where each table is stored as a separate file.
 
-@node INNODB start, Using INNODB tables, INNODB overview, INNODB
-@subsection INNODB startup options
+InnoDB is distributed under the GNU GPL License Version 2 (of June 1991).
+In the source distribution of MySQL, InnoDB appears as a subdirectory.
 
-To use Innodb tables you must specify configuration parameters
-in the @strong{MySQL} configuration file in the @code{[mysqld]} section of
-the configuration file. Below is an example of possible configuration
-parameters in my.cnf for Innodb:
+@node InnoDB start
+@subsection InnoDB startup options
+
+Beginning from MySQL-3.23.37 the prefix of the options is changed
+from @code{innobase_...} to @code{innodb_...}.
+
+To use InnoDB tables you must specify configuration parameters
+in the MySQL configuration file in the @code{[mysqld]} section of
+the configuration file @file{my.cnf}.
+Suppose you have a Windows NT machine with 128 MB RAM and a
+single 10 GB hard disk.
+Below is an example of possible configuration parameters in @file{my.cnf} for
+InnoDB:
 
 @example
-innodb_data_home_dir = /usr/local/mysql/var
-innodb_log_group_home_dir = /usr/local/mysql/var
-innodb_log_arch_dir = /usr/local/mysql/var
-innodb_data_file_path = ibdata1:25M;ibdata2:37M;ibdata3:100M;ibdata4:300M
+innodb_data_home_dir = c:\ibdata
+innodb_data_file_path = ibdata1:2000M;ibdata2:2000M
 set-variable = innodb_mirrored_log_groups=1
+innodb_log_group_home_dir = c:\iblogs
 set-variable = innodb_log_files_in_group=3
-set-variable = innodb_log_file_size=5M
+set-variable = innodb_log_file_size=30M
 set-variable = innodb_log_buffer_size=8M
 innodb_flush_log_at_trx_commit=1
+innodb_log_arch_dir = c:\iblogs
 innodb_log_archive=0
-set-variable = innodb_buffer_pool_size=16M
-set-variable = innodb_additional_mem_pool_size=2M
+set-variable = innodb_buffer_pool_size=80M
+set-variable = innodb_additional_mem_pool_size=10M
 set-variable = innodb_file_io_threads=4
 set-variable = innodb_lock_wait_timeout=50
 @end example
 
+Suppose you have a Linux machine with 512 MB RAM and
+three 20 GB hard disks (at directory paths @file{/},
+@file{/dr2} and @file{/dr3}).
+Below is an example of possible configuration parameters in @file{my.cnf} for
+InnoDB:
+
+@example
+innodb_data_home_dir = /
+innodb_data_file_path = ibdata/ibdata1:2000M;dr2/ibdata/ibdata2:2000M
+set-variable = innodb_mirrored_log_groups=1
+innodb_log_group_home_dir = /dr3
+set-variable = innodb_log_files_in_group=3
+set-variable = innodb_log_file_size=50M
+set-variable = innodb_log_buffer_size=8M
+innodb_flush_log_at_trx_commit=1
+innodb_log_arch_dir = /dr3/iblogs
+innodb_log_archive=0
+set-variable = innodb_buffer_pool_size=400M
+set-variable = innodb_additional_mem_pool_size=20M
+set-variable = innodb_file_io_threads=4
+set-variable = innodb_lock_wait_timeout=50
+@end example
+
+Note that we have placed the two data files on different disks.
+The reason for the name @code{innodb_data_file_path} is that
+you can also specify paths to your data files, and
+@code{innodb_data_home_dir} is just textually catenated
+before your data file paths, adding a possible slash or
+backslash in between. InnoDB will fill the tablespace
+formed by the data files from bottom up. In some cases it will
+improve the performance of the database if all data is not placed
+on the same physical disk. Putting log files on a different disk from
+data is very often beneficial for performance.
+
 The meanings of the configuration parameters are the following:
 
 @multitable @columnfractions .30 .70
-@item @code{innodb_data_home_dir} @tab
-The common part of the directory path for all innodb data files.
-@item @code{innodb_data_file_path} @tab
+@item @code{innodb_data_home_dir} @tab 
+The common part of the directory path for all innobase data files.
+@item @code{innodb_data_file_path} @tab 
 Paths to individual data files and their sizes. The full directory path
 to each data file is acquired by concatenating innodb_data_home_dir to
 the paths specified here. The file sizes are specified in megabytes,
 hence the 'M' after the size specification above. Do not set a file size
 bigger than 4000M, and on most operating systems not bigger than 2000M.
-innodb_mirrored_log_groups Number of identical copies of log groups we
+InnoDB also understands the abbreviation 'G', 1G meaning 1024M.
+@item @code{innodb_mirrored_log_groups} @tab 
+Number of identical copies of log groups we
 keep for the database. Currently this should be set to 1.
-@item @code{innodb_log_group_home_dir} @tab
-Directory path to Innodb log files.
-@item @code{innodb_log_files_in_group} @tab
-Number of log files in the log group. Innodb writes to the files in a
-circular fashion.  Value 3 is recommended here.
-@item @code{innodb_log_file_size} @tab
+@item @code{innodb_log_group_home_dir} @tab 
+Directory path to InnoDB log files.
+@item @code{innodb_log_files_in_group} @tab 
+Number of log files in the log group. InnoDB writes to the files in a
+circular fashion. Value 3 is recommended here.
+@item @code{innodb_log_file_size} @tab 
 Size of each log file in a log group in megabytes. Sensible values range
 from 1M to the size of the buffer pool specified below. The bigger the
 value, the less checkpoint flush activity is needed in the buffer pool,
 saving disk i/o. But bigger log files also mean that recovery will be
 slower in case of a crash. File size restriction as for a data file.
-@item @code{innodb_log_buffer_size} @tab
-The size of the buffer which Innodb uses to write log to the log files
+@item @code{innodb_log_buffer_size} @tab 
+The size of the buffer which InnoDB uses to write log to the log files
 on disk.  Sensible values range from 1M to half the combined size of log
 files. A big log buffer allows large transactions to run without a need
 to write the log to disk until the transaction commit. Thus, if you have
 big transactions, making the log buffer big will save disk i/o.
-@item @code{innodb_flush_log_at_trx_commit} @tab
+@item @code{innodb_flush_log_at_trx_commit} @tab 
 Normally this is set to 1, meaning that at a transaction commit the log
 is flushed to disk, and the modifications made by the transaction become
 permanent, and survive a database crash. If you are willing to
 compromise this safety, and you are running small transactions, you may
 set this to 0 to reduce disk i/o to the logs.
-@item @code{innodb_log_arch_dir} @tab
+@item @code{innodb_log_arch_dir} @tab 
 The directory where fully written log files would be archived if we used
 log archiving.  The value of this parameter should currently be set the
 same as @code{innodb_log_group_home_dir}.
-@item  @code{innodb_log_archive} @tab
+@item @code{innodb_log_archive} @tab 
 This value should currently be set to 0.  As recovery from a backup is
-done by @strong{MySQL} using its own log files, there is currently no need
-to archive Innodb log files.
-@item @code{innodb_buffer_pool_size} @tab
-The size of the memory buffer Innodb uses to cache data and indexes of
+done by MySQL using its own log files, there is currently no need to
+archive InnoDB log files.
+@item @code{innodb_buffer_pool_size} @tab 
+The size of the memory buffer InnoDB uses to cache data and indexes of
 its tables.  The bigger you set this the less disk i/o is needed to
 access data in tables. On a dedicated database server you may set this
 parameter up to 90 % of the machine physical memory size. Do not set it
 too large, though, because competition of the physical memory may cause
 paging in the operating system.
-@item @code{innodb_additional_mem_pool_size} @tab
-Size of a memory pool Innodb uses to store data dictionary information
+@item @code{innodb_additional_mem_pool_size} @tab 
+Size of a memory pool InnoDB uses to store data dictionary information
 and other internal data structures. A sensible value for this might be
 2M, but the more tables you have in your application the more you will
-need to allocate here. If Innodb runs out of memory in this pool, it
+need to allocate here. If InnoDB runs out of memory in this pool, it
 will start to allocate memory from the operating system, and write
-warning messages to the @strong{MySQL} error log.
-
-@item @code{innodb_file_io_threads} @tab
-Number of file i/o threads in Innodb. Normally, this should be 4, but
+warning messages to the MySQL error log.
+@item @code{innodb_file_io_threads} @tab 
+Number of file i/o threads in InnoDB. Normally, this should be 4, but
 on Windows NT disk i/o may benefit from a larger number.
-@item @code{innodb_lock_wait_timeout} @tab
-Timeout in seconds an Innodb transaction may wait for a lock before
-being rolled back.  Innodb automatically detects transaction deadlocks
+@item @code{innodb_lock_wait_timeout} @tab 
+Timeout in seconds an InnoDB transaction may wait for a lock before
+being rolled back.  InnoDB automatically detects transaction deadlocks
 in its own lock table and rolls back the transaction. If you use
 @code{LOCK TABLES} command, or other transaction safe table handlers
-than Innodb in the same transaction, then a deadlock may arise which
-Innodb cannot notice. In cases like this the timeout is useful to
+than InnoDB in the same transaction, then a deadlock may arise which
+InnoDB cannot notice. In cases like this the timeout is useful to
 resolve the situation.
 @end multitable
+ 
+@node Creating an InnoDB database
+@subsection Creating an InnoDB database
 
-@node Using INNODB tables, INNODB restrictions, INNODB start, INNODB
-@subsection Using INNODB tables
+Suppose you have installed MySQL and have edited @file{my.cnf} so that
+it contains the necessary InnoDB configuration parameters.
+Before starting MySQL you should check that the directories you have
+specified for InnoDB data files and log files exist and that you have
+access rights to those directories. InnoDB
+cannot create directories, only files. Check also you have enough disk space
+for the data and log files.
 
-Technically, Innodb is a database backend placed under @strong{MySQL}.
-Innodb has its own buffer pool for caching data and indexes in main
-memory. Innodb stores its tables and indexes in a tablespace, which
-may consist of several files. This is different from, for example,
-@code{MyISAM} tables where each table is stored as a separate file.
-
-To create a table in the Innodb format you must specify
-@code{TYPE = INNODB} in the table creation SQL command:
-
-@example
-CREATE TABLE CUSTOMERS (A INT, B CHAR (20), INDEX (A)) TYPE = INNODB;
-@end example
-
-A consistent non-locking read is the default locking behavior when you
-do a @code{SELECT} from an Innodb table. For a searched update and an
-insert row level exclusive locking is performed.
-
-You can query the amount of free space in the Innodb tablespace (=
-data files you specified in my.cnf) by issuing the table status command
-of @strong{MySQL} for any table you have created with @code{TYPE =
-INNODB}.  Then the amount of free space in the tablespace appears in
-the table comment section in the output of SHOW. An example:
+When you now start MySQL, InnoDB will start creating your data files
+and log files. InnoDB will print something like the following:
 
 @example
-SHOW TABLE STATUS FROM TEST LIKE 'CUSTOMER'
+~/mysqlm/sql > mysqld
+InnoDB: The first specified data file /home/heikki/data/ibdata1 did not exist:
+InnoDB: a new database to be created!
+InnoDB: Setting file /home/heikki/data/ibdata1 size to 134217728
+InnoDB: Database physically writes the file full: wait...
+InnoDB: Data file /home/heikki/data/ibdata2 did not exist: new to be created
+InnoDB: Setting file /home/heikki/data/ibdata2 size to 262144000
+InnoDB: Database physically writes the file full: wait...
+InnoDB: Log file /home/heikki/data/logs/ib_logfile0 did not exist: new to be c
+reated
+InnoDB: Setting log file /home/heikki/data/logs/ib_logfile0 size to 5242880
+InnoDB: Log file /home/heikki/data/logs/ib_logfile1 did not exist: new to be c
+reated
+InnoDB: Setting log file /home/heikki/data/logs/ib_logfile1 size to 5242880
+InnoDB: Log file /home/heikki/data/logs/ib_logfile2 did not exist: new to be c
+reated
+InnoDB: Setting log file /home/heikki/data/logs/ib_logfile2 size to 5242880
+InnoDB: Started
+mysqld: ready for connections
 @end example
 
-if you have created a table of name CUSTOMER in a database you have named
-TEST. Note that the statistics SHOW gives about Innodb tables
+A new InnoDB database has now been created. You can connect to the MySQL
+server with the usual MySQL client programs like @code{mysql}.
+When you shut down the MySQL server with @file{mysqladmin shutdown},
+InnoDB output will be like the following:
+
+@example
+010321 18:33:34  mysqld: Normal shutdown
+010321 18:33:34  mysqld: Shutdown Complete
+InnoDB: Starting shutdown...
+InnoDB: Shutdown completed
+@end example
+
+You can now look at the data files and logs directories and you
+will see the files created. The log directory will also contain
+a small file named @file{ib_arch_log_0000000000}. That file
+resulted from the database creation, after which InnoDB switched off
+log archiving.
+When MySQL is again started, the output will be like the following:
+
+@example
+~/mysqlm/sql > mysqld
+InnoDB: Started
+mysqld: ready for connections
+@end example
+
+@subsubsection If something goes wrong in database creation
+
+If something goes wrong in an InnoDB database creation, you should delete
+all files created by InnoDB. This means all data files, all log files,
+the small archived log file, and in the case you already did create
+some InnoDB tables, delete also the corresponding @file{.frm}
+files for these tables from the MySQL database directories. Then you can
+try the InnoDB database creation again.
+
+@node Using InnoDB tables
+@subsection Creating InnoDB tables
+
+Suppose you have started the MySQL client with the command
+@code{mysql test}.
+To create a table in the InnoDB format you must specify
+@code{TYPE = InnoDB} in the table creation SQL command:
+
+@example
+CREATE TABLE CUSTOMER (A INT, B CHAR (20), INDEX (A)) TYPE = InnoDB;
+@end example
+
+This SQL command will create a table and an index on column @code{A}
+into the InnoDB tablespace consisting of the data files you specified
+in @file{my.cnf}. In addition MySQL will create a file
+@file{CUSTOMER.frm} to the MySQL database directory @file{test}.
+Internally, InnoDB will add to its own data dictionary an entry
+for table @code{'test/CUSTOMER'}. Thus you can create a table
+of the same name @code{CUSTOMER} in another database of MySQL, and
+the table names will not collide inside InnoDB.
+
+You can query the amount of free space in the InnoDB tablespace
+by issuing the table status command of MySQL for any table you have
+created with @code{TYPE = InnoDB}. Then the amount of free
+space in the tablespace appears in the table comment section in the
+output of @code{SHOW}. An example:
+
+@example
+SHOW TABLE STATUS FROM test LIKE 'CUSTOMER'
+@end example
+
+Note that the statistics @code{SHOW} gives about InnoDB tables
 are only approximate: they are used in SQL optimization. Table and
 index reserved sizes in bytes are accurate, though.
 
-NOTE: DROP DATABASE does not currently work for Innodb tables!
-You must drop the tables individually.
+NOTE: @code{DROP DATABASE} does not currently work for InnoDB tables!
+You must drop the tables individually. Also take care not to delete or
+add @file{.frm} files to your InnoDB database manually: use
+@code{CREATE TABLE} and @code{DROP TABLE} commands.
+InnoDB has its own internal data dictionary, and you will get problems
+if the MySQL @file{.frm} files are out of 'sync' with the InnoDB
+internal data dictionary.
 
-Note that in addition to your tables, the rollback segment uses space
-from the tablespace.
+@node Adding and removing
+@subsection Adding and removing InnoDB data and log files
 
-Since Innodb is a multiversioned database, it must keep information
-of old versions of rows in the tablespace. This information is stored
-in a data structure called a rollback segment, like in Oracle. In contrast
-to Oracle, you do not need to configure the rollback segment in any way in
-Innodb. If you issue SELECTs, which by default do a consistent read in
-Innodb, remember to commit your transaction regularly. Otherwise
-the rollback segment will grow because it has to preserve the information
-needed for further consistent reads in your transaction: in Innodb
-all consistent reads within one transaction will see the same timepoint
-snapshot of the database: the reads are also 'consistent' with
-respect to each other. 
+You cannot increase the size of an InnoDB data file. To add more into
+your tablespace you have to add a new data file. To do this you have to
+shut down your MySQL database, edit the @file{my.cnf} file, adding a
+new file to @code{innodb_data_file_path}, and then start MySQL
+again.
 
-Some Innodb errors: If you run out of file space in the tablespace,
-you will get the @strong{MySQL} 'Table is full' error. If you want to
-make your tablespace bigger, you have to shut down @strong{MySQL} and 
-add a new datafile specification to @file{my.conf}, to the 
-@code{innodb_data_file_path} parameter.
+Currently you cannot remove a data file from InnoDB. To decrease the
+size of your database you have to use @code{mysqldump} to dump
+all your tables, create a new database, and import your tables to the
+new database.
 
-A transaction deadlock or a timeout in a lock wait will give 'Table handler
-error 1000000'.
+If you want to change the number or the size of your InnoDB log files,
+you have to shut down MySQL and make sure that it shuts down without errors.
+Then copy the old log files into a safe place just in case something
+went wrong in the shutdown and you will need them to recover the
+database. Delete then the old log files from the log file directory,
+edit @file{my.cnf}, and start MySQL again. InnoDB will tell
+you at the startup that it is creating new log files.
 
-Contact information of Innobase Oy, producer of the Innodb engine:
+@node Backing up
+@subsection Backing up and recovering an InnoDB database
 
-Website: @uref{http://www.innobase.fi}.
+The key to safe database management is taking regular backups.
+To take a 'binary' backup of your database you have to do the following:
 
-@email{Heikki.Tuuri@@innobase.inet.fi}
+@itemize @bullet
+@item
+Shut down your MySQL database and make sure it shuts down without errors.
+@item
+Copy all your data files into a safe place.
+@item
+Copy all your InnoDB log files to a safe place.
+@item
+Copy your @file{my.cnf} configuration file(s) to a safe place.
+@item
+Copy all the @file{.frm} files for your InnoDB tables into a
+safe place.
+@end itemize
+
+There is currently no on-line or incremental backup tool available for
+InnoDB, though they are in the TODO list.
+
+In addition to taking the binary backups described above,
+you should also regularly take dumps of your tables with
+@file{mysqldump}. The reason to this is that a binary file
+may be corrupted without you noticing it. Dumped tables are stored
+into text files which are human-readable and much simpler than
+database binary files. Seeing table corruption from dumped files
+is easier, and since their format is simpler, the chance for
+serious data corruption in them is smaller.
+
+A good idea is to take the dumps at the same time you take a binary
+backup of your database. You have to shut out all clients from your
+database to get a consistent snapshot of all your tables into your
+dumps. Then you can take the binary backup, and you will then have
+a consistent snapshot of your database in two formats. 
+
+To be able to recover your InnoDB database to the present from the
+binary backup described above, you have to run your MySQL database
+with the general logging and log archiving of MySQL switched on. Here
+by the general logging we mean the logging mechanism of the MySQL server
+which is independent of InnoDB logs.
+
+To recover from a crash of your MySQL server process, the only thing
+you have to do is to restart it. InnoDB will automatically check the
+logs and perform a roll-forward of the database to the present.
+InnoDB will automatically roll back uncommitted transactions which were
+present at the time of the crash. During recovery, InnoDB will print
+out something like the following:
+
 @example
+~/mysqlm/sql > mysqld
+InnoDB: Database was not shut down normally.
+InnoDB: Starting recovery from log files...
+InnoDB: Starting log scan based on checkpoint at
+InnoDB: log sequence number 0 13674004
+InnoDB: Doing recovery: scanned up to log sequence number 0 13739520
+InnoDB: Doing recovery: scanned up to log sequence number 0 13805056
+InnoDB: Doing recovery: scanned up to log sequence number 0 13870592
+InnoDB: Doing recovery: scanned up to log sequence number 0 13936128
+...
+InnoDB: Doing recovery: scanned up to log sequence number 0 20555264
+InnoDB: Doing recovery: scanned up to log sequence number 0 20620800
+InnoDB: Doing recovery: scanned up to log sequence number 0 20664692
+InnoDB: 1 uncommitted transaction(s) which must be rolled back
+InnoDB: Starting rollback of uncommitted transactions
+InnoDB: Rolling back trx no 16745
+InnoDB: Rolling back of trx no 16745 completed
+InnoDB: Rollback of uncommitted transactions completed
+InnoDB: Starting an apply batch of log records to the database...
+InnoDB: Apply batch completed
+InnoDB: Started
+mysqld: ready for connections
+@end example
+
+If your database gets corrupted or your disk fails, you have
+to do the recovery from a backup. In the case of corruption, you should
+first find a backup which is not corrupted. From a backup do the recovery
+from the general log files of MySQL according to instructions in the
+MySQL manual.
+
+@subsubsection Checkpoints
+
+InnoDB implements a checkpoint mechanism called a fuzzy
+checkpoint. InnoDB will flush modified database pages from the buffer
+pool in small batches, there is no need to flush the buffer pool
+in one single batch, which would in practice stop processing
+of user SQL statements for a while.
+
+In crash recovery InnoDB looks for a checkpoint label written
+to the log files. It knows that all modifications to the database
+before the label are already present on the disk image of the database.
+Then InnoDB scans the log files forward from the place of the checkpoint
+applying the logged modifications to the database.
+
+InnoDB writes to the log files in a circular fashion.
+All committed modifications which make the database pages in the buffer
+pool different from the images on disk must be available in the log files
+in case InnoDB has to do a recovery. This means that when InnoDB starts
+to reuse a log file in the circular fashion, it has to make sure that the
+database page images on disk already contain the modifications
+logged in the log file InnoDB is going to reuse. In other words, InnoDB
+has to make a checkpoint and often this involves flushing of
+modified database pages to disk.
+
+The above explains why making your log files very big may save
+disk i/o in checkpointing. It can make sense to set
+the total size of the log files as big as the buffer pool or even bigger.
+The drawback in big log files is that crash recovery can last longer
+because there will be more log to apply to the database.
+
+@node Moving
+@subsection Moving an InnoDB database to another machine
+
+InnoDB data and log files are binary-compatible on all platforms
+if the floating point number format on the machines is the same.
+You can move an InnoDB database simply by copying all the relevant
+files, which we already listed in the previous section on backing up
+a database. If the floating point formats on the machines are
+different but you have not used @code{FLOAT} or @code{DOUBLE}
+data types in your tables then the procedure is the same: just copy
+the relevant files. If the formats are different and your tables
+contain floating point data, you have to use @file{mysqldump}
+and @file{mysqlimport} to move those tables.
+
+A performance tip is to switch off the auto commit when you import
+data into your database, assuming your tablespace has enough space for
+the big rollback segment the big import transaction will generate.
+Do the commit only after importing a whole table or a segment of
+a table.
+
+@node InnoDB transaction model
+@subsection InnoDB transaction model
+
+In the InnoDB transaction model the goal has been to combine the best
+sides of a multiversioning database to traditional two-phase locking.
+InnoDB does locking on row level and runs queries by default
+as non-locking consistent reads, in the style of Oracle.
+The lock table in InnoDB is stored so space-efficiently that lock
+escalation is not needed: typically several users are allowed
+to lock every row in the database, or any random subset of the rows,
+without InnoDB running out of memory.
+
+In InnoDB all user activity happens inside transactions. If the
+auto commit mode is used in MySQL, then each SQL statement
+will form a single transaction. If the auto commit mode is
+switched off, then we can think that a user always has a transaction
+open. If he issues
+the SQL @code{COMMIT} or @code{ROLLBACK} statement, that
+ends the current transaction, and a new starts. Both statements
+will release all InnoDB locks that were set during the
+current transaction. A @code{COMMIT} means that the
+changes made in the current transaction are made permanent
+and become visible to other users. A @code{ROLLBACK}
+on the other hand cancels all modifications made by the current
+transaction.
+
+@subsubsection Consistent read
+
+A consistent read means that InnoDB uses its multiversioning to
+present to a query a snapshot of the database at a point in time.
+The query will see the changes made by exactly those transactions that
+committed before that point of time, and no changes made by later
+or uncommitted transactions. The exception to this rule is that the
+query will see the changes made by the transaction itself which issues
+the query.
+
+When a transaction issues its first consistent read, InnoDB assigns
+the snapshot, or the point of time, which all consistent reads in the
+same transaction will use. In the snapshot are all transactions that
+committed before assigning the snapshot. Thus the consistent reads
+within the same transaction will also be consistent with respect to each
+other. You can get a fresher snapshot for your queries by committing
+the current transaction and after that issuing new queries.
+
+Consistent read is the default mode in which InnoDB processes
+@code{SELECT} statements. A consistent read does not set any locks
+on the tables it accesses, and therefore other users are free to
+modify those tables at the same time a consistent read is being performed
+on the table.
+
+@subsubsection Locking reads
+
+A consistent read is not convenient in some circumstances.
+Suppose you want to add a new row into your table @code{CHILD},
+and make sure that the child already has a parent in table
+@code{PARENT}.
+
+Suppose you use a consistent read to read the table @code{PARENT}
+and indeed see the parent of the child in the table. Can you now safely
+add the child row to table @code{CHILD}? No, because it may
+happen that meanwhile some other user has deleted the parent row
+from the table @code{PARENT}, and you are not aware of that.
+
+The solution is to perform the @code{SELECT} in a locking
+mode, @code{IN SHARE MODE}.
+
+@example
+SELECT * FROM PARENT WHERE NAME = 'Jones' IN SHARE MODE;
+@end example
+
+Performing a read in share mode means that we read the latest
+available data, and set a shared mode lock on the rows we read.
+If the latest data belongs to a yet uncommitted transaction of another
+user, we will wait until that transaction commits.
+A shared mode lock prevents others from updating or deleting
+the row we have read. After we see that the above query returns
+the parent @code{'Jones'}, we can safely add his child
+to table @code{CHILD}, and commit our transaction.
+This example shows how to implement referential
+integrity in your application code.
+
+Let us look at another example: we have an integer counter field in
+a table @code{CHILD_CODES} which we use to assign
+a unique identifier to each child we add to table @code{CHILD}.
+Obviously, using a consistent read or a shared mode read
+to read the present value of the counter is not a good idea, since
+then two users of the database may see the same value for the
+counter, and we will get a duplicate key error when we add
+the two children with the same identifier to the table.
+
+In this case there are two good ways to implement the
+reading and incrementing of the counter: (1) update the counter
+first by incrementing it by 1 and only after that read it,
+or (2) read the counter first with
+a lock mode @code{FOR UPDATE}, and increment after that:
+
+@example
+SELECT COUNTER_FIELD FROM CHILD_CODES FOR UPDATE;
+UPDATE CHILD_CODES SET COUNTER_FIELD = COUNTER_FIELD + 1;
+@end example
+
+A @code{SELECT ... FOR UPDATE} will read the latest
+available data setting exclusive locks on each row it reads.
+Thus it sets the same locks a searched SQL @code{UPDATE} would set
+on the rows.
+
+@subsubsection Next-key locking: avoiding the 'phantom problem'
+
+In row level locking InnoDB uses an algorithm called next-key locking.
+InnoDB does the row level locking so that when it searches or
+scans an index of a table, it sets shared or exclusive locks
+on the index records in encounters. Thus the row level locks are
+more precisely called index record locks.
+
+The locks InnoDB sets on index records also affect the 'gap'
+before that index record. If a user has a shared or exclusive
+lock on record R in an index, then another user cannot insert
+a new index record immediately before R in the index order.
+This locking of gaps is done to prevent the so-called phantom
+problem. Suppose I want to read and lock all children with identifier
+bigger than 100 from table @code{CHILD},
+and update some field in the selected rows.
+
+@example
+SELECT * FROM CHILD WHERE ID > 100 FOR UPDATE;
+@end example
+
+Suppose there is an index on table @code{CHILD} on column
+@code{ID}. Our query will scan that index starting from
+the first record where @code{ID} is bigger than 100.
+Now, if the locks set on the index records would not lock out
+inserts made in the gaps, a new child might meanwhile be
+inserted to the table. If now I in my transaction execute
+
+@example
+SELECT * FROM CHILD WHERE ID > 100 FOR UPDATE;
+@end example
+
+again, I will see a new child in the result set the query returns.
+This is against the isolation principle of transactions:
+a transaction should be able to run so that the data
+it has read does not change during the transaction. If we regard
+a set of rows as a data item, then the new 'phantom' child would break
+this isolation principle.
+
+When InnoDB scans an index it can also lock the gap
+after the last record in the index. Just that happens in the previous
+example: the locks set by InnoDB will prevent any insert to
+the table where @code{ID} would be bigger than 100.
+
+You can use the next-key locking to implement a uniqueness
+check in your application: if you read your data in share mode
+and do not see a duplicate for a row you are going to insert,
+then you can safely insert your row and know that the next-key
+lock set on the successor of your row during the read will prevent
+anyone meanwhile inserting a duplicate for your row. Thus the next-key
+locking allows you to 'lock' the non-existence of something in your
+table.
+
+@subsubsection Locks set by different SQL statements in InnoDB
+
+@itemize @bullet
+@item
+@code{SELECT ... FROM ...} : this is a consistent read, reading a
+snapshot of the database and setting no locks.
+@item
+@code{SELECT ... FROM ... IN SHARE MODE} : sets shared next-key locks
+on all index records the read encounters.
+@item
+@code{SELECT ... FROM ... FOR UPDATE} : sets exclusive next-key locks
+on all index records the read encounters.
+@item
+@code{INSERT INTO ... VALUES (...)} : sets an exclusive lock
+on the inserted row; note that this lock is not a next-key lock
+and does not prevent other users from inserting to the gap before the
+inserted row. If a duplicate key error occurs, sets a shared lock
+on the duplicate index record.
+@item
+@code{INSERT INTO T SELECT ... FROM S WHERE ...} sets an exclusive
+(non-next-key) lock on each row inserted into @code{T}. Does
+the search on @code{S} as a consistent read, but sets shared next-key
+locks on @code{S} if the MySQL logging is on. InnoDB has to set
+locks in the latter case because in roll-forward recovery from a
+backup every SQL statement has to be executed in exactly the same
+way as it was done originally.
+@item
+@code{CREATE TABLE ... SELECT ...} performs the @code{SELECT}
+as a consistent read or with shared locks, like in the previous
+item.
+@item
+@code{REPLACE} is done like an insert if there is no collision
+on a unique key. Otherwise, an exclusive next-key lock is placed
+on the row which has to be updated.
+@item
+@code{UPDATE ... SET ... WHERE ...} : sets an exclusive next-key
+lock on every record the search encounters.
+@item
+@code{DELETE FROM ... WHERE ...} : sets an exclusive next-key
+lock on every record the search encounters.
+@item
+@code{LOCK TABLES ... } : sets table locks. In the implementation
+the MySQL layer of code sets these locks. The automatic deadlock detection
+of InnoDB cannot detect deadlocks where such table locks are involved:
+see the next section below. See also section 13 'InnoDB restrictions'
+about the following: since MySQL does know about row level locks,
+it is possible that you
+get a table lock on a table where another user currently has row level
+locks. But that does not put transaction integerity into danger.
+@end itemize
+
+@subsubsection Deadlock detection and rollback
+
+InnoDB automatically detects a deadlock of transactions and rolls
+back the transaction whose lock request was the last one to build
+a deadlock, that is, a cycle in the waits-for graph of transactions.
+InnoDB cannot detect deadlocks where a lock set by a MySQL
+@code{LOCK TABLES} statement is involved, or if a lock set
+in another table handler than InnoDB is involved. You have to resolve
+these situations using @code{innodb_lock_wait_timeout} set in
+@file{my.cnf}.
+
+When InnoDB performs a complete rollback of a transaction, all the
+locks of the transaction are released. However, if just a single SQL
+statement is rolled back as a result of an error, some of the locks
+set by the SQL statement may be preserved. This is because InnoDB
+stores row locks in a format where it cannot afterwards know which was
+set by which SQL statement.
+
+@node Implementation
+@subsection Implementation of multiversioning
+
+Since InnoDB is a multiversioned database, it must keep information
+of old versions of rows in the tablespace. This information is stored
+in a data structure we call a rollback segment after an analogous
+data structure in Oracle.
+
+InnoDB internally adds two fields to each row stored in the database.
+A 6-byte field tells the transaction identifier for the last
+transaction which inserted or updated the row. Also a deletion
+is internally treated as an update where a special bit in the row
+is set to mark it as deleted. Each row also contains a 7-byte
+field called the roll pointer. The roll pointer points to an
+undo log record written to the rollback segment. If the row was
+updated, then the undo log record contains the information necessary
+to rebuild the content of the row before it was updated.
+
+InnoDB uses the information in the rollback segment to perform the
+undo operations needed in a transaction rollback. It also uses the
+information to build earlier versions of a row for a consistent
+read.
+
+Undo logs in the rollback segment are divided into insert and update
+undo logs. Insert undo logs are only needed in transaction rollback
+and can be discarded as soon as the transaction commits. Update undo logs
+are used also in consistent reads, and they can be discarded only after
+there is no transaction present for which InnoDB has assigned
+a snapshot that in a consistent read could need the information
+in the update undo log to build an earlier version of a database
+row.
+
+You must remember to commit your transactions regularly. Otherwise
+InnoDB cannot discard data from the update undo logs, and the
+rollback segment may grow too big, filling up your tablespace.
+
+The physical size of an undo log record in the rollback segment
+is typically smaller than the corresponding inserted or updated
+row. You can use this information to calculate the space need
+for your rollback segment.
+
+In our multiversioning scheme a row is not physically removed from
+the database immediately when you delete it with an SQL statement.
+Only  when InnoDB can discard the update undo log record written for
+the deletion, it can also physically remove the corresponding row and
+its index records from the database. This removal operation is
+called a purge, and it is quite fast, usually taking the same order of
+time as the SQL statement which did the deletion.
+
+@node Table and index
+@subsection Table and index structures
+
+Every InnoDB table has a special index called the clustered index
+where the data of the rows is stored. If you define a
+@code{PRIMARY KEY} on your table, then the index of the primary key
+will be the clustered index.
+
+If you do not define a primary key for
+your table, InnoDB will internally generate a clustered index
+where the rows are ordered by the row id InnoDB assigns
+to the rows in such a table. The row id is a 6-byte field which
+monotonically increases as new rows are inserted. Thus the rows
+ordered by the row id will be physically in the insertion order.
+
+Accessing a row through the clustered index is fast, because
+the row data will be on the same page where the index search
+leads us. In many databases the data is traditionally stored on a different
+page from the index record. If a table is large, the clustered
+index architecture often saves a disk i/o when compared to the
+traditional solution.
+
+The records in non-clustered indexes (we also call them secondary indexes),
+in InnoDB contain the primary key value for the row. InnoDB
+uses this primary key value to search for the row from the clustered
+index. Note that if the primary key is long, the secondary indexes
+will use more space.
+
+@subsubsection Physical structure of an index
+
+All indexes in InnoDB are B-trees where the index records are
+stored in the leaf pages of the tree. The default size of an index
+page is 16 kB. When new records are inserted, InnoDB tries to
+leave 1 / 16 of the page free for future insertions and updates
+of the index records.
+
+If index records are inserted in a sequential (ascending or descending)
+order, the resulting index pages will be about 15/16 full.
+If records are inserted in a random order, then the pages will be
+1/2 - 15/16 full. If the fillfactor of an index page drops below 1/4,
+InnoDB will try to contract the index tree to free the page.
+
+@subsubsection Insert buffering
+
+It is a common situation in a database application that the
+primary key is a unique identifier and new rows are inserted in the
+ascending order of the primary key. Thus the insertions to the
+clustered index do not require random reads from a disk.
+
+On the other hand, secondary indexes are usually non-unique and
+insertions happen in a relatively random order into secondary indexes.
+This would cause a lot of random disk i/o's without a special mechanism
+used in InnoDB.
+
+If an index record should be inserted to a non-unique secondary index,
+InnoDB checks if the secondary index page is already in the buffer
+pool. If that is the case, InnoDB will do the insertion directly to
+the index page. But, if the index page is not found from the buffer
+pool, InnoDB inserts the record to a special insert buffer structure.
+The insert buffer is kept so small that it entirely fits in the buffer
+pool, and insertions can be made to it very fast.
+
+The insert buffer is periodically merged to the secondary index
+trees in the database. Often we can merge several insertions on the
+same page in of the index tree, and hence save disk i/o's.
+It has been measured that the insert buffer can speed up insertions
+to a table up to 15 times.
+
+@subsubsection Adaptive hash indexes
+
+If a database fits almost entirely in main memory, then the fastest way
+to perform queries on it is to use hash indexes. InnoDB has an
+automatic mechanism which monitors index searches made to the indexes
+defined for a table, and if InnoDB notices that queries could
+benefit from building of a hash index, such an index is automatically
+built.
+
+But note that the hash index is always built based on an existing
+B-tree index on the table. InnoDB can build a hash index on a prefix
+of any length of the key defined for the B-tree, depending on
+what search pattern InnoDB observes on the B-tree index.
+A hash index can be partial: it is not required that the whole
+B-tree index is cached in the buffer pool. InnoDB will build
+hash indexes on demand to those pages of the index which are
+often accessed.
+
+In a sense, through the adaptive hash index mechanism InnoDB adapts itself
+to ample main memory, coming closer to the architecture of main memory
+databases.
+
+@subsubsection Physical record structure
+
+@itemize @bullet
+@item
+Each index record in InnoDB contains a header of 6 bytes. The header
+is used to link consecutive records together, and also in the row level
+locking.
+@item
+Records in the clustered index contain fields for all user-defined
+columns. In addition, there is a 6-byte field for the transaction id
+and a 7-byte field for the roll pointer.
+@item
+If the user has not defined a primary key for a table, then each clustered
+index record contains also a 6-byte row id field.
+@item
+Each secondary index record contains also all the fields defined
+for the clustered index key.
+@item
+A record contains also a pointer to each field of the record.
+If the total length of the fields in a record is < 256 bytes, then
+the pointer is 1 byte, else 2 bytes.
+@end itemize
+
+@node File space management
+@subsection File space management and disk i/o
+
+@subsubsection Disk i/o
+
+In disk i/o InnoDB uses asynchronous i/o. On Windows NT
+it uses the native asynchronous i/o provided by the operating system.
+On Unixes InnoDB uses simulated asynchronous i/o built
+into InnoDB: InnoDB creates a number of i/o threads to take care
+of i/o operations, such as read-ahead. In a future version we will
+add support for simulated aio on Windows NT and native aio on those
+Unixes which have one.
+
+On Windows NT InnoDB uses non-buffered i/o. That means that the disk
+pages InnoDB reads or writes are not buffered in the operating system
+file cache. This saves some memory bandwidth.
+
+You can also use a raw disk in InnoDB, though this has not been tested yet:
+just define the raw disk in place of a data file in @file{my.cnf}.
+You must give the exact size in bytes of the raw disk in @file{my.cnf},
+because at startup InnoDB checks that the size of the file
+is the same as specified in the configuration file. Using a raw disk
+you can on some Unixes perform non-buffered i/o.
+
+There are two read-ahead heuristics in InnoDB: sequential read-ahead
+and random read-ahead. In sequential read-ahead InnoDB notices that
+the access pattern to a segment in the tablespace is sequential.
+Then InnoDB will post in advance a batch of reads of database pages to the
+i/o system. In random read-ahead InnoDB notices that some area
+in a tablespace seems to be in the process of being
+fully read into the buffer pool. Then InnoDB posts the remaining
+reads to the i/o system.
+
+@subsubsection File space management
+
+The data files you define in the configuration file form the tablespace
+of InnoDB. The files are simply catenated to form the tablespace,
+there is no striping in use.
+Currently you cannot directly instruct where the space is allocated
+for your tables, except by using the following fact: from a newly created
+tablespace InnoDB will allocate space starting from the low end.
+
+The tablespace consists of database pages whose default size is 16 kB.
+The pages are grouped into extents of 64 consecutive pages. The 'files' inside
+a tablespace are called segments in InnoDB. The name of the rollback
+segment is somewhat misleading because it actually contains many
+segments in the tablespace.
+
+For each index in InnoDB we allocate two segments: one is for non-leaf
+nodes of the B-tree, the other is for the leaf nodes. The idea here is
+to achieve better sequentiality for the leaf nodes, which contain the
+data.
+
+When a segment grows inside the tablespace, InnoDB allocates the
+first 32 pages to it individually. After that InnoDB starts
+to allocate whole extents to the segment.
+InnoDB can add to a large segment up to 4 extents at a time to ensure
+good sequentiality of data.
+
+Some pages in the tablespace contain bitmaps of other pages, and
+therefore a few extents in an InnoDB tablespace cannot be
+allocated to segments as a whole, but only as individual pages.
+
+When you issue a query @code{SHOW TABLE STATUS FROM ... LIKE ...}
+to ask for available free space in the tablespace, InnoDB will
+report you the space which is certainly usable in totally free extents
+of the tablespace. InnoDB always reserves some extents for
+clean-up and other internal purposes; these reserved extents are not
+included in the free space.
+
+When you delete data from a table, InnoDB will contract the corresponding
+B-tree indexes. It depends on the pattern of deletes if that frees
+individual pages or extents to the tablespace, so that the freed
+space is available for other users. Dropping a table or deleting
+all rows from it is guaranteed to release the space to other users,
+but remember that deleted rows can be physically removed only in a
+purge operation after they are no longer needed in transaction rollback or
+consistent read.
+
+@node Error handling
+@subsection Error handling
+
+The error handling in InnoDB is not always the same as
+specified in the ANSI SQL standards. According to the ANSI
+standard, any error during an SQL statement should cause the
+rollback of that statement. InnoDB sometimes rolls back only
+part of the statement.
+The following list specifies the error handling of InnoDB.
+
+@itemize @bullet
+@item
+If you run out of file space in the tablespace,
+you will get the MySQL @code{'Table is full'} error
+and InnoDB rolls back the SQL statement.
+@item
+A transaction deadlock or a timeout in a lock wait will give
+@code{'Table handler error 1000000'} and InnoDB rolls back
+the SQL statement.
+@item
+A duplicate key error only rolls back the insert of that particular row,
+even in a statement like @code{INSERT INTO ... SELECT ...}.
+This will probably change so that the SQL statement will be rolled
+back if you have not specified the @code{IGNORE} option in your
+statement.
+@item
+A 'row too long' error rolls back the SQL statement.
+@item
+Other errors are mostly detected by the MySQL layer of code, and
+they roll back the corresponding SQL statement.
+@end itemize
+
+@node InnoDB restrictions, InnoDB contact information, Error handling, InnoDB
+@subsection Some restrictions on InnoDB tables
+
+@itemize @bullet
+@item You cannot create an index on a prefix of a column:
+
+@example
+@code{CREATE TABLE T (A CHAR(20), B INT, INDEX T_IND (A(5))) TYPE = InnoDB;
+}
+@end example
+
+The above will not work. For a MyISAM table the above would create an index
+where only the first 5 characters from column @code{A} are stored.
+@item
+@code{INSERT DELAYED} is not supported for InnoDB tables.
+@item
+The MySQL @code{LOCK TABLES} operation does not know of InnoDB
+row level locks set in already completed SQL statements: this means that
+you can get a table lock on a table even if there still exist transactions
+of other users which have row level locks on the same table. Thus
+your operations on the table may have to wait if they collide with
+these locks of other users. Also a deadlock is possible. However,
+this does not endanger transaction integrity, because the row level
+locks set by InnoDB will always take care of the integrity. 
+Also, a table lock prevents other transactions from acquiring more
+row level locks (in a conflicting lock mode) on the table.
+@item
+You cannot have a key on a @code{BLOB} or @code{TEXT} column.
+@item
+A table cannot contain more than 1000 columns.
+@item
+@code{DELETE FROM TABLE} does not regenerate the table but instead
+deletes all rows, one by one, which is not that fast. In future versions
+of MySQL you can use @code{TRUNCATE} which is fast.
+@item
+Before dropping a database with InnoDB tables one has to drop
+the individual InnoDB tables first.
+@item
+The default database page size in InnoDB is 16 kB. By recompiling the
+code one can set it from 8 kB to 64 kB.
+The maximun row length is slightly less than a half of a database page,
+the row length also includes @code{BLOB} and @code{TEXT} type
+columns. The restriction on the size of @code{BLOB} and
+@code{TEXT} columns will be removed by June 2001 in a future version of
+InnoDB.
+@item
+The maximum data or log file size is 2 GB or 4 GB depending on how large
+files your operating system supports. Support for > 4 GB files will
+be added to InnoDB in a future version.
+@item
+The maximum tablespace size is 4 billion database pages. This is also
+the maximum size for a table.
+@end itemize
+
+@node InnoDB contact information, , InnoDB restrictions, InnoDB
+@subsection InnoDB contact information
+
+Contact information of Innobase Oy, producer of the InnoDB engine:
+
+@example
+Website: www.innobase.fi
+Heikki.Tuuri@@innobase.inet.fi
 phone: 358-9-6969 3250 (office) 358-40-5617367 (mobile)
-Innodb Oy Inc.
+InnoDB Oy Inc.
 World Trade Center Helsinki
 Aleksanterinkatu 17
 P.O.Box 800
@@ -24477,22 +25390,6 @@ P.O.Box 800
 Finland
 @end example
 
-@node INNODB restrictions,  , Using INNODB tables, INNODB
-@subsection Some restrictions on @code{INNODB} tables:
-
-@itemize @bullet
-@item
-You can't have a key on a @code{BLOB} or @code{TEXT} column.
-@item
-@code{DELETE FROM TABLE} doesn't re-generate the table but instead deletes all
-rows, one by one, which isn't that fast.
-@item
-The maximum blob size is 8000 bytes.
-@item
-Before dropping a database with @code{INNODB} tables one has to drop
-the individual tables first.  If one doesn't do that, the space in the
-Innodb table space will not be reclaimed.
-@end itemize
 
 @cindex tutorial
 @cindex terminal monitor, defined
@@ -42996,7 +43893,7 @@ Fixed a bug when using @code{HEAP} tables with @code{LIKE}.
 @item
 Added @code{--mysql-version} to @code{safe_mysqld}
 @item
-Changed @code{INNOBASE} to @code{INNODB} (because the @code{INNOBASE}
+Changed @code{INNOBASE} to @code{InnoDB} (because the @code{INNOBASE}
 name was already used). All @code{configure} options and @code{mysqld}
 start options are now using @code{innodb} instead of @code{innobase}. This
 means that you have to change any configuration files where you have used
