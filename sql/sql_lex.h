@@ -22,6 +22,7 @@ class Table_ident;
 class sql_exchange;
 class LEX_COLUMN;
 class sp_head;
+class sp_name;
 class sp_instr;
 class sp_pcontext;
 
@@ -604,6 +605,7 @@ typedef struct st_lex
   bool derived_tables;
   bool safe_to_cache_query;
   sp_head *sphead;
+  sp_name *spname;
   bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
   sp_pcontext *spcont;
   HASH spfuns;		/* Called functions */

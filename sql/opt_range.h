@@ -87,7 +87,16 @@ public:
 
   QUICK_SELECT_I();
   virtual ~QUICK_SELECT_I(){};
+  /* 
+    Call init() immediately after creation of quick select. if init() call 
+    fails, reset() or get_next() must not be called.
+  */
   virtual int  init() = 0;
+  
+  /* 
+    Call reset() before first get_next call. get_next must not be called if 
+    reset() call fails.
+  */
   virtual int  reset(void) = 0;
   virtual int  get_next() = 0;   /* get next record to retrieve */
   virtual bool reverse_sorted() = 0;

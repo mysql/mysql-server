@@ -35,10 +35,13 @@ void sp_cache_clear(sp_cache **cp);
 void sp_cache_insert(sp_cache **cp, sp_head *sp);
 
 /* Lookup an SP in cache */
-sp_head *sp_cache_lookup(sp_cache **cp, char *name, uint namelen);
+sp_head *sp_cache_lookup(sp_cache **cp, sp_name *name);
 
 /* Remove an SP from cache. Returns true if something was removed */
-bool sp_cache_remove(sp_cache **cp, char *name, uint namelen);
+bool sp_cache_remove(sp_cache **cp, sp_name *name);
+
+/* Invalidate a cache */
+void sp_cache_invalidate();
 
 
 /*
