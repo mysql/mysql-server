@@ -1899,19 +1899,10 @@ int Intvar_log_event::exec_event(struct st_relay_log_info* rli)
 #endif
 
 
-/*****************************************************************************
- *****************************************************************************
+/****************************************************************************
+  Rand_log_event methods
+****************************************************************************/
 
-                          Rand_log_event methods
-
- *****************************************************************************
- ****************************************************************************/
-
-/*****************************************************************************
-
-  Rand_log_event::pack_info()
-
- ****************************************************************************/
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 void Rand_log_event::pack_info(Protocol *protocol)
 {
@@ -1924,11 +1915,7 @@ void Rand_log_event::pack_info(Protocol *protocol)
 }
 #endif
 
-/*****************************************************************************
 
-  Rand_log_event::Rand_log_event()
-
- ****************************************************************************/
 Rand_log_event::Rand_log_event(const char* buf, bool old_format)
   :Log_event(buf, old_format)
 {
@@ -1937,11 +1924,7 @@ Rand_log_event::Rand_log_event(const char* buf, bool old_format)
   seed2 = uint8korr(buf+RAND_SEED2_OFFSET);
 }
 
-/*****************************************************************************
 
-  Rand_log_event::write_data()
-
- ****************************************************************************/
 int Rand_log_event::write_data(IO_CACHE* file)
 {
   char buf[16];
@@ -1950,11 +1933,7 @@ int Rand_log_event::write_data(IO_CACHE* file)
   return my_b_safe_write(file, (byte*) buf, sizeof(buf));
 }
 
-/*****************************************************************************
 
-  Rand_log_event::print()
-
- ****************************************************************************/
 #ifdef MYSQL_CLIENT
 void Rand_log_event::print(FILE* file, bool short_form, char* last_db)
 {
@@ -1970,11 +1949,7 @@ void Rand_log_event::print(FILE* file, bool short_form, char* last_db)
 }
 #endif // MYSQL_CLIENT
 
-/*****************************************************************************
 
-  Rand_log_event::exec_event()
-
- ****************************************************************************/
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Rand_log_event::exec_event(struct st_relay_log_info* rli)
 {
@@ -1986,19 +1961,10 @@ int Rand_log_event::exec_event(struct st_relay_log_info* rli)
 #endif // !MYSQL_CLIENT
 
 
-/*****************************************************************************
- *****************************************************************************
+/***************************************************************************
+  User_var_log_event methods
+***************************************************************************/
 
-                          User_var_log_event methods
-
- *****************************************************************************
- ****************************************************************************/
-
-/*****************************************************************************
-
-  User_var_log_event::pack_info()
-
- ****************************************************************************/
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 void User_var_log_event::pack_info(Protocol* protocol)
 {
@@ -2019,8 +1985,8 @@ void User_var_log_event::pack_info(Protocol* protocol)
       double real_val;
       float8get(real_val, val);
       buf= my_malloc(val_offset + FLOATING_POINT_BUFFER, MYF(MY_WME));
-      event_len += my_sprintf(buf + val_offset,
-			      (buf + val_offset, "%.14g", real_val));
+      event_len+= my_sprintf(buf + val_offset,
+			     (buf + val_offset, "%.14g", real_val));
       break;
     case INT_RESULT:
       buf= my_malloc(val_offset + 22, MYF(MY_WME));
@@ -2032,11 +1998,11 @@ void User_var_log_event::pack_info(Protocol* protocol)
 	only. But be carefull this is may be incorrect in other cases as
 	string may contain \ and '.
       */
-      buf= my_malloc(val_offset + 2 + val_len, MYF(MY_WME));
+      event_len= val_offset + 2 + val_len;
+      buf= my_malloc(event_len, MYF(MY_WME));
       buf[val_offset]= '\'';
       memcpy(buf + val_offset + 1, val, val_len);
-      buf[val_offset + val_len]= '\'';
-      event_len= val_offset + 1 + val_len;
+      buf[val_offset + val_len + 1]= '\'';
       break;
     case ROW_RESULT:
       DBUG_ASSERT(1);
@@ -2050,18 +2016,16 @@ void User_var_log_event::pack_info(Protocol* protocol)
   my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
 }
 #endif // !MYSQL_CLIENT
-/*****************************************************************************
 
-  User_var_log_event::User_var_log_event()
 
- ****************************************************************************/
 User_var_log_event::User_var_log_event(const char* buf, bool old_format)
   :Log_event(buf, old_format)
 {
   buf+= (old_format) ? OLD_HEADER_LEN : LOG_EVENT_HEADER_LEN;
   name_len= uint4korr(buf);
   name= (char *) buf + UV_NAME_LEN_SIZE;
-  is_null= buf[UV_NAME_LEN_SIZE + name_len];
+  buf+= UV_NAME_LEN_SIZE + name_len;
+  is_null= (bool) *buf;
   if (is_null)
   {
     type= STRING_RESULT;
@@ -2070,22 +2034,16 @@ User_var_log_event::User_var_log_event(const char* buf, bool old_format)
   }
   else
   {
-    type= (Item_result) buf[UV_VAL_IS_NULL + UV_NAME_LEN_SIZE + name_len];
-    charset_number= uint4korr(buf + UV_NAME_LEN_SIZE  + name_len +
-			      UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE);
-    val_len= uint4korr(buf + UV_NAME_LEN_SIZE  + name_len +
-		       UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE + 
+    type= (Item_result) buf[UV_VAL_IS_NULL];
+    charset_number= uint4korr(buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE);
+    val_len= uint4korr(buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE + 
 		       UV_CHARSET_NUMBER_SIZE);
-    val= (char *) buf + UV_NAME_LEN_SIZE + name_len + UV_VAL_IS_NULL +
-      UV_VAL_TYPE_SIZE + UV_CHARSET_NUMBER_SIZE + UV_VAL_LEN_SIZE;
+    val= (char *) (buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +
+		   UV_CHARSET_NUMBER_SIZE + UV_VAL_LEN_SIZE);
   }
 }
 
-/*****************************************************************************
 
-  User_var_log_event::write_data()
-
- ****************************************************************************/
 int User_var_log_event::write_data(IO_CACHE* file)
 {
   char buf[UV_NAME_LEN_SIZE];
@@ -2224,19 +2182,9 @@ int User_var_log_event::exec_event(struct st_relay_log_info* rli)
 #endif // !MYSQL_CLIENT
 
 
-/*****************************************************************************
- *****************************************************************************
-
-                          Slave_log_event methods
-
- *****************************************************************************
- ****************************************************************************/
-
-/*****************************************************************************
-
-  Slave_log_event::pack_info()
-
- ****************************************************************************/
+/****************************************************************************
+  Slave_log_event methods
+****************************************************************************/
 #ifdef HAVE_REPLICATION
 
 #ifndef MYSQL_CLIENT
@@ -2255,11 +2203,7 @@ void Slave_log_event::pack_info(Protocol *protocol)
 }
 #endif // !MYSQL_CLIENT
 
-/*****************************************************************************
 
-  Slave_log_event::Slave_log_event()
-
- ****************************************************************************/
 #ifndef MYSQL_CLIENT
 Slave_log_event::Slave_log_event(THD* thd_arg,
 				 struct st_relay_log_info* rli)
@@ -2296,21 +2240,13 @@ Slave_log_event::Slave_log_event(THD* thd_arg,
 }
 #endif // !MYSQL_CLIENT
 
-/*****************************************************************************
 
-  Slave_log_event dtor
-
- ****************************************************************************/
 Slave_log_event::~Slave_log_event()
 {
   my_free(mem_pool, MYF(MY_ALLOW_ZERO_PTR));
 }
 
-/*****************************************************************************
 
-  Slave_log_event::print()
-
- ****************************************************************************/
 #ifdef MYSQL_CLIENT
 void Slave_log_event::print(FILE* file, bool short_form, char* last_db)
 {
@@ -2325,21 +2261,13 @@ master_log: '%s'  master_pos: %s\n",
 }
 #endif // MYSQL_CLIENT
 
-/*****************************************************************************
 
-  Slave_log_event::get_data_size()
-
- ****************************************************************************/
 int Slave_log_event::get_data_size()
 {
   return master_host_len + master_log_len + 1 + SL_MASTER_HOST_OFFSET;
 }
 
-/*****************************************************************************
 
-  Slave_log_event::write_data()
-
- ****************************************************************************/
 int Slave_log_event::write_data(IO_CACHE* file)
 {
   int8store(mem_pool + SL_MASTER_POS_OFFSET, master_pos);
@@ -2348,11 +2276,7 @@ int Slave_log_event::write_data(IO_CACHE* file)
   return my_b_safe_write(file, (byte*)mem_pool, get_data_size());
 }
 
-/*****************************************************************************
 
-  Slave_log_event::init_from_mem_pool()
-
- ****************************************************************************/
 void Slave_log_event::init_from_mem_pool(int data_size)
 {
   master_pos = uint8korr(mem_pool + SL_MASTER_POS_OFFSET);
@@ -2369,11 +2293,7 @@ void Slave_log_event::init_from_mem_pool(int data_size)
   master_log_len = strlen(master_log);
 }
 
-/*****************************************************************************
 
-  Slave_log_event::Slave_log_event()
-
- ****************************************************************************/
 Slave_log_event::Slave_log_event(const char* buf, int event_len)
   :Log_event(buf,0),mem_pool(0),master_host(0)
 {
@@ -2387,11 +2307,7 @@ Slave_log_event::Slave_log_event(const char* buf, int event_len)
   init_from_mem_pool(event_len);
 }
 
-/*****************************************************************************
 
-  Slave_log_event::exec_event()
-
- ****************************************************************************/
 #ifndef MYSQL_CLIENT
 int Slave_log_event::exec_event(struct st_relay_log_info* rli)
 {

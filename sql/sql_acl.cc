@@ -485,7 +485,7 @@ void prepare_scramble(THD *thd, ACL_USER *acl_user,char* prepared_scramble)
   Get master privilges for user (priviliges for all tables).
   Required before connecting to MySQL
 
-  as we have 2 stage handshake now we cache user not to lookup
+  As we have 2 stage handshake now we cache user not to lookup
   it second time. At the second stage we do not lookup user in case
   we already know it;
 
@@ -494,14 +494,13 @@ void prepare_scramble(THD *thd, ACL_USER *acl_user,char* prepared_scramble)
 ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
 		  const char *password,const char *message,char **priv_user,
 		  bool old_ver, USER_RESOURCES  *mqh, char *prepared_scramble,
-                  uint *cur_priv_version,ACL_USER** hint_user)
+                  uint *cur_priv_version, ACL_USER **cached_user)
 {
   ulong user_access=NO_ACCESS;
   *priv_user= (char*) user;
   bool password_correct= 0;
-  int stage= (*hint_user != NULL); /* NULL passed as first stage */
+  int stage= (*cached_user != NULL); /* NULL passed as first stage */
   ACL_USER *acl_user= NULL;
-
   DBUG_ENTER("acl_getroot");
 
   bzero(mqh,sizeof(USER_RESOURCES));
@@ -512,7 +511,6 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
   }
   VOID(pthread_mutex_lock(&acl_cache->lock));
 
-
   /*
     Get possible access from user_list. This is or'ed to others not
     fully specified
@@ -520,9 +518,10 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
     If we have cached user use it, in other case look it up.
   */
 
-  if (stage && (*cur_priv_version==priv_version))
-    acl_user=*hint_user;
+  if (stage && (*cur_priv_version == priv_version))
+    acl_user= *cached_user;
   else
+  {
     for (uint i=0 ; i < acl_users.elements ; i++)
     {
       ACL_USER *acl_user_search=dynamic_element(&acl_users,i,ACL_USER*);
@@ -531,60 +530,59 @@ ulong acl_getroot(THD *thd, const char *host, const char *ip, const char *user,
         if (compare_hostname(&acl_user_search->host,host,ip))
         {
           /* Found mathing user */
-          acl_user=acl_user_search;
+          acl_user= acl_user_search;
           /* Store it as a cache */
-          *hint_user=acl_user;
-          *cur_priv_version=priv_version;
+          *cached_user= acl_user;
+          *cur_priv_version= priv_version;
           break;
         }
       }
     }
-
+  }
 
   /* Now we have acl_user found and may start our checks */
 
   if (acl_user)
   {
     /* Password should present for both or absend for both */
-    if (!acl_user->password && !*password ||
-       (acl_user->password && *password))
+    if (!acl_user->password && !*password)
+      password_correct=1;
+    else if (!acl_user->password || !*password)
     {
-      /* Quick check and accept for empty passwords*/
-      if (!acl_user->password && !*password)
-        password_correct=1;
-      else /* Normal password presents */
+      *cached_user= 0;				// Impossible to connect
+    }
+    else
+    {
+      /* New version password is checked differently */
+      if (acl_user->pversion)
       {
-        /* New version password is checked differently */
-        if (acl_user->pversion)
-        {
-          if (stage) /* We check password only on the second stage */
-          {
-            if (!validate_password(password,message,acl_user->salt))
-              password_correct=1;
-          }
-          else  /* First stage - just prepare scramble */
-            prepare_scramble(thd,acl_user,prepared_scramble);
-        }
-        /* Old way to check password */
-        else
-        {
-          /* Checking the scramble at any stage. First - old clients */
-          if (!check_scramble(password,message,acl_user->salt,
-	       (my_bool) old_ver))
-            password_correct=1;
-	  else if (!stage)		/* Here if password incorrect  */
-	  {
-	    /* At the first stage - prepare scramble */
-	    prepare_scramble(thd,acl_user,prepared_scramble);
-	  }
-        }
+	if (stage) /* We check password only on the second stage */
+	{
+	  if (!validate_password(password,message,acl_user->salt))
+	    password_correct=1;
+	}
+	else  /* First stage - just prepare scramble */
+	  prepare_scramble(thd,acl_user,prepared_scramble);
+      }
+      /* Old way to check password */
+      else
+      {
+	/* Checking the scramble at any stage. First - old clients */
+	if (!check_scramble(password,message,acl_user->salt,
+			    (my_bool) old_ver))
+	  password_correct=1;
+	else if (!stage)		/* Here if password incorrect  */
+	{
+	  /* At the first stage - prepare scramble */
+	  prepare_scramble(thd,acl_user,prepared_scramble);
+	}
       }
     }
   }
 
   /* If user not found password_correct will also be zero */
   if (!password_correct)
-   goto unlock_and_exit;
+    goto unlock_and_exit;
 
   /* OK. User found and password checked continue validation */
 
@@ -1120,7 +1118,10 @@ bool change_password(THD *thd, const char *host, const char *user,
   if (check_change_password(thd, host, user))
     DBUG_RETURN(1);
 
-  /* password should always be 0,16 or 45 chars; simple hack to avoid cracking */
+  /*
+    password should always be 0,16 or 45 chars;
+    Simple hack to avoid cracking
+  */
   length=(uint) strlen(new_password);
 
   if (length!=45)

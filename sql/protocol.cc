@@ -295,11 +295,12 @@ void
 send_ok(THD *thd, ha_rows affected_rows, ulonglong id, const char *message)
 {
   NET *net= &thd->net;
-  if (net->no_send_ok || !net->vio)	// hack for re-parsing queries
-    return;
-
   char buff[MYSQL_ERRMSG_SIZE+10],*pos;
   DBUG_ENTER("send_ok");
+
+  if (net->no_send_ok || !net->vio)	// hack for re-parsing queries
+    DBUG_VOID_RETURN;
+
   buff[0]=0;					// No fields
   pos=net_store_length(buff+1,(ulonglong) affected_rows);
   pos=net_store_length(pos, (ulonglong) id);
