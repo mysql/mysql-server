@@ -13,3 +13,20 @@ set SQL_WARNINGS=0;
 drop temporary table if exists not_exists;
 Warnings:
 Note	1051	Unknown table 'not_exists'
+drop table if exists not_exists_table;
+Warnings:
+Note	1051	Unknown table 'not_exists_table'
+show warnings limit 1;
+Level	Code	Message
+Note	1051	Unknown table 'not_exists_table'
+drop database if exists not_exists_db;
+Warnings:
+Note	1008	Can't drop database 'not_exists_db'. Database doesn't exist
+show count(*) warnings;
+@@session.warning_count
+1
+create table t1(id int);
+create table if not exists t1(id int);
+select @@warning_count;
+@@warning_count
+0
