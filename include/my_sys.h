@@ -324,7 +324,7 @@ typedef struct st_io_cache_share
   /* to sync on reads into buffer */
   pthread_mutex_t mutex;
   pthread_cond_t  cond;
-  int             count;
+  int             count, total;
   /* actual IO_CACHE that filled the buffer */
   struct st_io_cache *active;
 #ifdef NOT_YET_IMPLEMENTED

@@ -2129,7 +2129,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
 			const char * name, int rep_quick)
 {
   int got_error;
-  uint i,key, total_key_length;
+  uint i,key, total_key_length, istep;
   ulong rec_length;
   ha_rows start_records;
   my_off_t new_header_length,del;
@@ -2264,8 +2264,8 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
   info->state->records=info->state->del=share->state.split=0;
   info->state->empty=0;
 
-  for (i=key=0 ; key < share->base.keys ;
-       rec_per_key_part+=sort_param[i].keyinfo->keysegs, i++, key++)
+  for (i=key=0, istep=1 ; key < share->base.keys ;
+       rec_per_key_part+=sort_param[i].keyinfo->keysegs, i+=istep, key++)
   {
     sort_param[i].key=key;
     sort_param[i].keyinfo=share->keyinfo+key;
@@ -2276,9 +2276,10 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
 	     (char*) (share->state.rec_per_key_part+
 		      (uint) (rec_per_key_part - param->rec_per_key_part)),
 	     sort_param[i].keyinfo->keysegs*sizeof(*rec_per_key_part));
-      i--;
+      istep=0;
       continue;
     }
+    istep=1;
     if ((!(param->testflag & T_SILENT)))
       printf ("- Fixing index %d\n",key+1);
     sort_param[i].key_read= ((sort_param[i].keyinfo->flag & HA_FULLTEXT) ?
