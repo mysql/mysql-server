@@ -817,6 +817,7 @@ bool do_command(THD *thd)
       mysql_slow_log.write(thd, thd->query, thd->query_length, start_of_query);
     }
   }
+  thd->proc_info="cleaning up2";
   VOID(pthread_mutex_lock(&LOCK_thread_count)); // For process list
   thd->proc_info=0;
   thd->command=COM_SLEEP;
