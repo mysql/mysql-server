@@ -27,10 +27,11 @@
 #include "sp_head.h"
 
 sp_pcontext::sp_pcontext()
-  : Sql_alloc(), m_params(0), m_framesize(0), m_handlers(0), m_genlab(0)
+  : Sql_alloc(), m_params(0), m_framesize(0), m_handlers(0), m_cursmax(0)
 {
   VOID(my_init_dynamic_array(&m_pvar, sizeof(sp_pvar_t *), 16, 8));
   VOID(my_init_dynamic_array(&m_cond, sizeof(sp_cond_type_t *), 16, 8));
+  VOID(my_init_dynamic_array(&m_cursor, sizeof(LEX_STRING), 16, 8));
   m_label.empty();
 }
 
@@ -39,6 +40,7 @@ sp_pcontext::destroy()
 {
   delete_dynamic(&m_pvar);
   delete_dynamic(&m_cond);
+  delete_dynamic(&m_cursor);
   m_label.empty();
 }
 
@@ -124,8 +126,6 @@ sp_pcontext::push_cond(LEX_STRING *name, sp_cond_type_t *val)
 
   if (p)
   {
-    if (m_cond.elements == m_framesize)
-      m_framesize += 1;
     p->name.str= name->str;
     p->name.length= name->length;
     p->val= val;
@@ -154,4 +154,40 @@ sp_pcontext::find_cond(LEX_STRING *name)
     }
   }
   return NULL;
+}
+
+void
+sp_pcontext::push_cursor(LEX_STRING *name)
+{
+  LEX_STRING n;
+
+  n.str= name->str;
+  n.length= name->length;
+  insert_dynamic(&m_cursor, (gptr)&n);
+  if (m_cursor.elements > m_cursmax)
+    m_cursmax= m_cursor.elements;
+}
+
+/*
+ * See comment for find_pvar() above
+ */
+my_bool
+sp_pcontext::find_cursor(LEX_STRING *name, uint *poff)
+{
+  uint i = m_cursor.elements;
+
+  while (i-- > 0)
+  {
+    LEX_STRING n;
+
+    get_dynamic(&m_cursor, (gptr)&n, i);
+    if (my_strnncoll(system_charset_info,
+		     (const uchar *)name->str, name->length,
+		     (const uchar *)n.str, n.length) == 0)
+    {
+      *poff= i;
+      return TRUE;
+    }
+  }
+  return FALSE;
 }

@@ -138,3 +138,85 @@ end;
 select f(10);
 ERROR HY000: FUNCTION f ended without RETURN
 drop function f;
+create procedure p()
+begin
+declare c cursor for insert into test.t1 values ("foo", 42);
+open c;
+close c;
+end;
+ERROR HY000: Cursor statement must be a SELECT
+create procedure p()
+begin
+declare x int;
+declare c cursor for select * into x from test.t limit 1;
+open c;
+close c;
+end;
+ERROR HY000: Cursor SELECT must not have INTO
+create procedure p()
+begin
+declare c cursor for select * from test.t;
+open cc;
+close c;
+end;
+ERROR HY000: Undefined CURSOR: cc
+drop table if exists t1;
+create table t1 (val int);
+create procedure p()
+begin
+declare c cursor for select * from test.t1;
+open c;
+open c;
+close c;
+end;
+call p();
+ERROR HY000: Cursor is already open
+drop procedure p;
+create procedure p()
+begin
+declare c cursor for select * from test.t1;
+open c;
+close c;
+close c;
+end;
+call p();
+ERROR HY000: Cursor is not open
+drop procedure p;
+drop table t1;
+drop table if exists t1;
+create table t1 (val int, x float);
+insert into t1 values (42, 3.1), (19, 1.2);
+create procedure p()
+begin
+declare c cursor for select * from t1;
+declare x int;
+open c;
+fetch c into x, y;
+close c;
+end;
+ERROR HY000: Undeclared variable: y
+create procedure p()
+begin
+declare c cursor for select * from t1;
+declare x int;
+open c;
+fetch c into x;
+close c;
+end;
+call p();
+ERROR HY000: Wrong number of FETCH variables
+drop procedure p;
+create procedure p()
+begin
+declare c cursor for select * from t1;
+declare x int;
+declare y float;
+declare z int;
+open c;
+fetch c into x, y, z;
+close c;
+end;
+call p();
+ERROR HY000: Wrong number of FETCH variables
+drop procedure p;
+drop table t1;

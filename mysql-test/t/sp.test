@@ -588,7 +588,38 @@ select * from t1|
 delete from t1|
 drop procedure hndlr3|
 
+#
+# Cursors
+#
+create procedure cur1()
+begin
+  declare done int default 0;
+  declare continue handler for 1305 set done = 1;
+  declare c cursor for select * from test.t2;
+  declare a char(16);
+  declare b int;
+  declare c double;
 
+  open c;
+  repeat
+    fetch c into a, b, c;
+    if not done then
+       insert into test.t1 values (a, b+c);
+    end if;
+  until done end repeat;
+  close c;
+end|
+
+insert into t2 values ("foo", 42, -1.9), ("bar", 3, 12.1), ("zap", 666, -3.14)|
+call cur1()|
+select * from t1|
+delete from t1|
+delete from t2|
+drop procedure cur1|
+
+#
+# BUG#822
+#
 create procedure bug822(a_id char(16), a_data int)
 begin
   declare n int;

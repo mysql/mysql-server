@@ -11,7 +11,7 @@
   which dispatches on the command code (in Lex) to the corresponding code for
   executing that particular query.
 
-  There are thre structures involved in the execution of a query which are of
+  There are three structures involved in the execution of a query which are of
   interest to the stored procedure implementation:
 
   - Lex (mentioned above) is the "compiled" query, that is the output from
@@ -186,7 +186,7 @@
     stored in the table mysql.proc with the name and type as the key, the
     type being one of the enum ("procedure","function").
 
-    A PROCEDURE is just stored int the mysql.proc table. A FUNCTION has an
+    A PROCEDURE is just stored in the mysql.proc table. A FUNCTION has an
     additional requirement. They will be called in expressions with the same
     syntax as UDFs, so UDFs and stored FUNCTIONs share the namespace. Thus,
     we must make sure that we do not have UDFs and FUNCTIONs with the same
@@ -293,7 +293,7 @@
     So, stored functions must be handled in a simpilar way, and as a
     consequence, UDFs and functions must not have the same name.
 
-    - Detecting and parsing a FUNCTION invokation
+    - Detecting and parsing a FUNCTION invocation
 
       The existance of UDFs are checked during the lexical analysis (in
       sql_lex.cc:find_keyword()). This has the drawback that they must
@@ -319,7 +319,7 @@
       "on-the-fly" during the execution of *another* statement.
       This makes things a lot more complicated compared to CALL:
       - We can't read and parse the FUNCTION from the mysql.proc table at the
-        point of invokation; the server requires that all tables used are
+        point of invocation; the server requires that all tables used are
         opened and locked at the beginning of the query execution.
       One "obvious" solution would be to simply push "mysql.proc" to the list
       of tables used by the query, but this implies a "join" with this table
@@ -478,6 +478,67 @@
        7    sp_instr_hpop(2)
 
 
+  - Cursors
+
+    For stored procedures to be really useful, you want to have cursors.
+    MySQL doesn't yet have "real" cursor support (with API and ODBC support,
+    allowing updating, arbitrary scrolling, etc), but a simple asensitive,
+    non-scrolling, read-only cursor can be implemented in SPs using the
+    class Protocol_cursor.
+    This class intecepts the creation and sending of results sets and instead
+    stores it in-memory, as MYSQL_FIELDS and MYSQL_ROWS (as in the client API).
+
+    To support this, we need the usual name binding support in sp_pcontext
+    (similar to variables and conditions) to keep track on declared cursor
+    names, and a corresponding run-time mechanism in sp_rcontext.
+    Cursors are lexically scoped like everything with a body or BEGIN/END
+    block, so they are pushed and poped as usual (see conditions and variables
+    above).
+    The basic operations on a cursor are OPEN, FETCH and CLOSE, which will
+    each have a corresponding instruction. In addition, we need instructions
+    to push a new cursor (this will encapsulate the LEX of the SELECT statement
+    of the cursor), and a pop instruction:
+    - sp_instr_cpush
+      Push a cursor to the sp_rcontext. This instruction contains the LEX
+      for the select statement
+    - sp_instr_cpop
+      Pop a number of cursors from the sp_rcontext.
+    - sp_instr_copen
+      Open a cursor: This will execute the select and get the result set
+      in a sepeate memroot.
+    - sp_instr_cfetch
+      Fetch the next row from the in-memory result set. The instruction
+      contains a list of the variables (frame offsets) to set.
+    - sp_instr_cclose
+      Free the result set.
+
+    A cursor is a separate class, sp_cursor (defined in sp_rcontex.h) which
+    encapsulates the basic operations used by the above instructions.
+    This class contains the LEX, Protocol_cursor object, and its memroot,
+    as well as the cursor's current state.
+    Compiling and executing is fairly straight-forward. sp_instr_copen is
+    a subclass of sp_instr_stmt and uses its mechanism to execute a
+    substatement.
+
+    - Example:
+
+      begin
+        declare x int;
+        declare c cursor for select a from t1;
+
+        open c;
+        fetch c into x;
+        close c;
+      end
+
+      Pos.  Instruction
+       0    sp_instr_cpush('select a from ...')
+       1    sp_instr_copen(0)                   # The 0'th cursor
+       2    sp_instr_cfetch(0)                  # Contains the variable list
+       3    sp_instr_cclose(0)
+       4    sp_instr_cpop(1)
+    
+
   - Class and function APIs
     This is an outline of the key types. Some types and other details
     in the actual files have been omitted for readability.
@@ -569,6 +630,18 @@
 
         // Returns the handler count
         uint handlers();
+
+	// Push a cursor
+        void push_cursor(LEX_STRING *name);
+
+	// Find a cursor
+	my_bool find_cursor(LEX_STRING *name, uint *poff);
+
+	// Pop 'num' cursors
+	void pop_cursor(uint num);
+
+	// Return the number of cursors
+	uint cursors();
       }
 
 
@@ -589,8 +662,9 @@
 
     class sp_rcontext
     {
-      // 'fsize' is the max size of the context, 'hmax' the number of handlers
-      sp_rcontext(uint fsize, uint hmax);
+      // 'fsize' is the max size of the context, 'hmax' the number of handlers,
+      // 'cmax' the number of cursors
+      sp_rcontext(uint fsize, uint hmax, , uint cmax);
 
       // Push value (parameter) 'i' to the frame
       void push_item(Item *i);
@@ -644,6 +718,18 @@
 
       // Restore saved variables from to frame index 'fp' and up.
       void restore_variables(uint fp);
+
+      // Push a cursor for the statement (lex)
+      void push_cursor(LEX *lex);
+
+      // Pop 'count' cursors
+      void pop_cursors(uint count);
+
+      // Pop all cursors
+      void pop_all_cursors();
+
+      // Get the 'i'th cursor
+      sp_cursor *get_cursor(uint i);
 
     }
 
@@ -708,6 +794,7 @@
                          longlong created, longlong modified,
                          bool suid, char *comment, uint commentlen);
       }
+
 
     - Instructions
 
@@ -816,6 +903,55 @@
           int execute(THD *thd, uint *nextp);
         }
 
+      - Push a CURSOR
+        class sp_instr_cpush : public sp_instr_stmt
+	{
+          // Push a cursor for statement 'lex'
+	  sp_instr_cpush(uint ip, LEX *lex)
+
+	  int execute(THD *thd, uint *nextp);
+        }
+
+      - Pop CURSORs
+        class sp_instr_cpop : public sp_instr_stmt
+	{
+          // Pop 'count' cursors
+	  sp_instr_cpop(uint ip, uint count)
+
+	  int execute(THD *thd, uint *nextp);
+        }
+
+      - Open a CURSOR
+        class sp_instr_copen : public sp_instr_stmt
+	{
+          // Open the 'c'th cursor
+	  sp_instr_copen(uint ip, uint c);
+
+	  int execute(THD *thd, uint *nextp);
+        }
+
+      - Close a CURSOR
+        class sp_instr_cclose : public sp_instr
+	{
+          // Close the 'c'th cursor
+	  sp_instr_cclose(uint ip, uint c);
+
+	  int execute(THD *thd, uint *nextp);
+        }
+
+      - Fetch a row with CURSOR
+        class sp_instr_cfetch : public sp_instr
+	{
+          // Fetch next with the 'c'th cursor
+	  sp_instr_cfetch(uint ip, uint c);
+
+	  int execute(THD *thd, uint *nextp);
+
+	  // Add a target variable for the fetch
+	  void add_to_varlist(struct sp_pvar *var);
+        }
+
+	
     - Utility functions: sp.h
 
       #define SP_OK                 0
