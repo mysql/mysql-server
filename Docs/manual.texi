@@ -50815,6 +50815,8 @@ each individual 4.0.x release.
 @appendixsubsec Changes in release 4.0.5
 @itemize
 @item
+Read @code{--des-key-file} relative to database directory.
+@item
 Small code improvement in multi-table updates
 @item
 Fixed a newly introduced bug that caused @code{ORDER BY ... LIMIT #}
