@@ -326,7 +326,7 @@ char mysql_real_data_home[FN_REFLEN],
      language[LIBLEN],reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN],
      max_sort_char,*mysqld_user,*mysqld_chroot, *opt_init_file,
      *opt_init_connect, *opt_init_slave,
-     opt_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
+     def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
 
 const char *opt_date_time_formats[3];
 
@@ -5651,7 +5651,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       fprintf(stderr, "Invalid ft-boolean-syntax string: %s\n", argument);
       exit(1);
     }
-    strmake(opt_ft_boolean_syntax, argument, sizeof(ft_boolean_syntax)-1);
+    strmake(ft_boolean_syntax, argument, sizeof(ft_boolean_syntax)-1);
     break;
   case OPT_SKIP_SAFEMALLOC:
 #ifdef SAFEMALLOC
@@ -5701,7 +5701,7 @@ static void get_options(int argc,char **argv)
   int ho_error;
 
   my_getopt_register_get_addr(mysql_getopt_value);
-  strmake(opt_ft_boolean_syntax, ft_boolean_syntax, 
+  strmake(def_ft_boolean_syntax, ft_boolean_syntax,
 	  sizeof(ft_boolean_syntax)-1);
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(ho_error);
@@ -5758,8 +5758,6 @@ static void get_options(int argc,char **argv)
   table_alias_charset= (lower_case_table_names ?
 			files_charset_info :
 			&my_charset_bin);
-  strmake(ft_boolean_syntax, opt_ft_boolean_syntax,
-	  sizeof(ft_boolean_syntax)-1);
 
   if (opt_short_log_format)
     opt_specialflag|= SPECIAL_SHORT_LOG_FORMAT;
