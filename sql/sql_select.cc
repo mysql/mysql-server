@@ -2753,19 +2753,15 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
       if (!keyuse->used_tables &&
 	  !(join->select_options & SELECT_DESCRIBE))
       {					// Compare against constant
-	store_key_item *tmp=new store_key_item(thd,
-					       keyinfo->key_part[i].field,
-					       (char*)key_buff +
-					       maybe_null,
-					       maybe_null ?
-					       (char*) key_buff : 0,
-					       keyinfo->key_part[i].length,
-					       keyuse->val);
+	store_key_item tmp(thd, keyinfo->key_part[i].field,
+                           (char*)key_buff + maybe_null,
+                           maybe_null ?  (char*) key_buff : 0,
+                           keyinfo->key_part[i].length, keyuse->val);
 	if (thd->is_fatal_error)
 	{
 	  return TRUE;
 	}
-	tmp->copy();
+	tmp.copy();
       }
       else
 	*ref_key++= get_store_key(thd,

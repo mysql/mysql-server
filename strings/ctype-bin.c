@@ -75,6 +75,21 @@ static int my_strnncoll_binary(CHARSET_INFO * cs __attribute__((unused)),
   return cmp ? cmp : (int) (slen - tlen);
 }
 
+static int my_strnncollsp_binary(CHARSET_INFO * cs,
+                               const uchar *s, uint slen,
+                               const uchar *t, uint tlen)
+{
+  int len, cmp;
+
+  for ( ; slen && my_isspace(cs, s[slen-1]) ; slen--);
+  for ( ; tlen && my_isspace(cs, t[tlen-1]) ; tlen--);
+
+  len  = ( slen > tlen ) ? tlen : slen;
+
+  cmp= memcmp(s,t,len);
+  return cmp ? cmp : (int) (slen - tlen);
+}
+
 static void my_caseup_str_bin(CHARSET_INFO *cs __attribute__((unused)),
 		       char *str __attribute__((unused)))
 {
@@ -309,7 +324,7 @@ CHARSET_INFO my_charset_bin =
     "","",
     0,				/* strxfrm_multiply */
     my_strnncoll_binary,	/* strnncoll     */
-    my_strnncoll_binary,
+    my_strnncollsp_binary,
     my_strnxfrm_bin,		/* strxnfrm      */
     my_like_range_simple,	/* like_range    */
     my_wildcmp_bin,		/* wildcmp       */
