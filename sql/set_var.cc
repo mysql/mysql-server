@@ -732,7 +732,7 @@ struct show_var_st init_vars[]= {
   {"have_crypt",	      (char*) &have_crypt,		    SHOW_HAVE},
   {"have_csv",	              (char*) &have_csv_db,	            SHOW_HAVE},
   {"have_example_engine",     (char*) &have_example_db,	            SHOW_HAVE},
-  {"have_federated_db",       (char*) &have_federated_db,           SHOW_HAVE},
+  {"have_federated_engine",   (char*) &have_federated_db,           SHOW_HAVE},
   {"have_geometry",           (char*) &have_geometry,               SHOW_HAVE},
   {"have_innodb",	      (char*) &have_innodb,		    SHOW_HAVE},
   {"have_isam",		      (char*) &have_isam,		    SHOW_HAVE},
@@ -1599,6 +1599,14 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
     var_type= OPT_GLOBAL;
   }
   switch (type()) {
+  case SHOW_INT:
+  {
+    uint value;
+    pthread_mutex_lock(&LOCK_global_system_variables);
+    value= *(uint*) value_ptr(thd, var_type, base);
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+    return new Item_uint((int32) value);
+  }
   case SHOW_LONG:
   {
     ulong value;
