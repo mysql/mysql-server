@@ -337,8 +337,8 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() 
   { 
-    max_length= MAX_FIELD_NAME * default_charset()->mbmaxlen; 
-    set_charset(default_charset());
+    max_length= MAX_FIELD_NAME * system_charset_info->mbmaxlen; 
+    set_charset(system_charset_info);
   }
   const char *func_name() const { return "database"; }
 };
@@ -350,8 +350,8 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() 
   { 
-    max_length= (USERNAME_LENGTH+HOSTNAME_LENGTH+1)*default_charset()->mbmaxlen; 
-    set_charset(default_charset());
+    max_length= (USERNAME_LENGTH+HOSTNAME_LENGTH+1)*system_charset_info->mbmaxlen; 
+    set_charset(system_charset_info);
   }
   const char *func_name() const { return "user"; }
 };

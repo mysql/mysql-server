@@ -1459,10 +1459,12 @@ String *Item_func_database::val_str(String *str)
 {
   THD *thd= current_thd;
   if (!thd->db)
+  {
     str->length(0);
+    str->set_charset(system_charset_info);
+  }
   else
-    str->copy((const char*) thd->db,(uint) strlen(thd->db),
-	      system_charset_info, default_charset());
+    str->copy((const char*) thd->db,(uint) strlen(thd->db),system_charset_info);
   return str;
 }
 
@@ -1471,7 +1473,7 @@ String *Item_func_database::val_str(String *str)
 String *Item_func_user::val_str(String *str)
 {
   THD          *thd=current_thd;
-  CHARSET_INFO *cs= default_charset();
+  CHARSET_INFO *cs= system_charset_info;
   const char   *host= thd->host_or_ip;
   uint		res_length;
 

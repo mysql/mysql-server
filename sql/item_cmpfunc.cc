@@ -133,6 +133,60 @@ bool Item_bool_func2::fix_fields(THD *thd, struct st_table_list *tables,
 {
   if (Item_int_func::fix_fields(thd, tables, ref))
     return 1;
+
+  /* 
+    We allow to convert to Unicode character sets in some cases.
+    The conditions when conversion is possible are:
+    - arguments A and B have different charsets
+    - A wins according to coercibility rules
+    - character set of A is superset for character set of B
+   
+    If all of the above is true, then it's possible to convert
+    B into the character set of A, and then compare according
+    to the collation of A.
+  */
+
+  if (args[0] && args[1])
+  {
+    uint strong= 0;
+    uint weak= 0;
+
+    if ((args[0]->coercibility < args[1]->coercibility) && 
+	!my_charset_same(args[0]->charset(), args[1]->charset()) &&
+        (args[0]->charset()->state & MY_CS_UNICODE))
+    {
+      weak= 1;
+    }
+    else if ((args[1]->coercibility < args[0]->coercibility) && 
+	     !my_charset_same(args[0]->charset(), args[1]->charset()) &&
+             (args[1]->charset()->state & MY_CS_UNICODE))
+    {
+      strong= 1;
+    }
+    
+    if (strong || weak)
+    {
+      Item* conv= 0;
+      if (args[weak]->type() == STRING_ITEM)
+      {
+        String tmp, cstr;
+        String *ostr= args[weak]->val_str(&tmp);
+        cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), 
+		  args[strong]->charset());
+        conv= new Item_string(cstr.ptr(),cstr.length(),cstr.charset(),
+			      args[weak]->coercibility);
+	((Item_string*)conv)->str_value.copy();
+      }
+      else
+      {
+	conv= new Item_func_conv_charset(args[weak],args[strong]->charset());
+        conv->coercibility= args[weak]->coercibility;
+      }
+      args[weak]= conv ? conv : args[weak];
+      set_cmp_charset(args[0]->charset(), args[0]->coercibility,
+		      args[1]->charset(), args[1]->coercibility);
+    }
+  }
   if (!cmp_charset)
   {
     /* set_cmp_charset() failed */
@@ -156,6 +210,8 @@ void Item_bool_func2::fix_length_and_dec()
   */
   if (!args[0] || !args[1])
     return;
+
+
   // Make a special case of compare with fields to get nicer DATE comparisons
   if (args[0]->type() == FIELD_ITEM)
   {
