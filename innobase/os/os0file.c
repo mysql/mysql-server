@@ -311,13 +311,10 @@ os_file_handle_error(
 /*=================*/
 				/* out: TRUE if we should retry the
 				operation */
-	os_file_t	file,	/* in: file pointer */
 	const char*	name,	/* in: name of a file or NULL */
 	const char*	operation)/* in: operation */
 {
 	ulint	err;
-
-	UT_NOT_USED(file);
 
 	err = os_file_get_last_error(FALSE);
 	
@@ -482,6 +479,25 @@ os_io_init_simple(void)
 }
 
 /***************************************************************************
+Creates a temporary file. In case of error, causes abnormal termination. */
+
+FILE*
+os_file_create_tmpfile(void)
+/*========================*/
+				/* out: temporary file handle (never NULL) */
+{
+	FILE*	file	= tmpfile();
+	if (file == NULL) {
+		ut_print_timestamp(stderr);
+		fputs("  InnoDB: Error: unable to create temporary file\n",
+			stderr);
+		os_file_handle_error(NULL, "tmpfile");
+		ut_error;
+	}
+	return(file);
+}
+
+/***************************************************************************
 The os_file_opendir() function opens a directory stream corresponding to the
 directory named by the dirname argument. The directory stream is positioned
 at the first entry. In both Unix and Windows we automatically skip the '.'
@@ -523,7 +539,7 @@ os_file_opendir(
 	if (dir == INVALID_HANDLE_VALUE) {
 
 		if (error_is_fatal) {
-		        os_file_handle_error(NULL, dirname, "opendir");
+		        os_file_handle_error(dirname, "opendir");
 		}
 
 		return(NULL);
@@ -534,7 +550,7 @@ os_file_opendir(
 	dir = opendir(dirname);
 
 	if (dir == NULL && error_is_fatal) {
-	        os_file_handle_error(0, dirname, "opendir");
+	        os_file_handle_error(dirname, "opendir");
 	}
 
 	return(dir);
@@ -717,7 +733,7 @@ os_file_create_directory(
 	if (!(rcode != 0 ||
 		   (GetLastError() == ERROR_FILE_EXISTS && !fail_if_exists))) {
 		/* failure */
-		os_file_handle_error(NULL, pathname, "CreateDirectory");
+		os_file_handle_error(Npathname, "CreateDirectory");
 
 		return(FALSE);
 	}
@@ -730,7 +746,7 @@ os_file_create_directory(
 
 	if (!(rcode == 0 || (errno == EEXIST && !fail_if_exists))) {
 		/* failure */
-		os_file_handle_error(0, pathname, "mkdir");
+		os_file_handle_error(pathname, "mkdir");
 
 		return(FALSE);
 	}
@@ -809,7 +825,7 @@ try_again:
 	if (file == INVALID_HANDLE_VALUE) {
 		*success = FALSE;
 
-		retry = os_file_handle_error(file, name,
+		retry = os_file_handle_error(name,
 				create_mode == OS_FILE_OPEN ?
 				"open" : "create");
 		if (retry) {
@@ -859,7 +875,7 @@ try_again:
 	if (file == -1) {
 		*success = FALSE;
 
-		retry = os_file_handle_error(file, name,
+		retry = os_file_handle_error(name,
 				create_mode == OS_FILE_OPEN ?
 				"open" : "create");
 		if (retry) {
@@ -1101,7 +1117,7 @@ try_again:
 	if (file == INVALID_HANDLE_VALUE) {
 		*success = FALSE;
 
-		retry = os_file_handle_error(file, name,
+		retry = os_file_handle_error(name,
 				create_mode == OS_FILE_CREATE ?
 				"create" : "open");
 		if (retry) {
@@ -1186,7 +1202,7 @@ try_again:
 	if (file == -1) {
 		*success = FALSE;
 
-		retry = os_file_handle_error(file, name,
+		retry = os_file_handle_error(name,
 				create_mode == OS_FILE_CREATE ?
 				"create" : "open");
 		if (retry) {
@@ -1258,7 +1274,7 @@ loop:
 	ret = unlink((const char*)name);
 
 	if (ret != 0 && errno != ENOENT) {
-		os_file_handle_error(0, name, "delete");
+		os_file_handle_error(name, "delete");
 
 		return(FALSE);
 	}
@@ -1320,7 +1336,7 @@ loop:
 	ret = unlink((const char*)name);
 
 	if (ret != 0) {
-		os_file_handle_error(0, name, "delete");
+		os_file_handle_error(name, "delete");
 
 		return(FALSE);
 	}
@@ -1350,7 +1366,7 @@ os_file_rename(
 		return(TRUE);
 	}
 
-	os_file_handle_error(NULL, oldpath, "rename");
+	os_file_handle_error(oldpath, "rename");
 
 	return(FALSE);
 #else
@@ -1359,7 +1375,7 @@ os_file_rename(
 	ret = rename((const char*)oldpath, (const char*)newpath);
 
 	if (ret != 0) {
-		os_file_handle_error(0, oldpath, "rename");
+		os_file_handle_error(oldpath, "rename");
 
 		return(FALSE);
 	}
@@ -1389,7 +1405,7 @@ os_file_close(
 		return(TRUE);
 	}
 
-	os_file_handle_error(file, NULL, "close");
+	os_file_handle_error(NULL, "close");
 
 	return(FALSE);
 #else
@@ -1398,7 +1414,7 @@ os_file_close(
 	ret = close(file);
 
 	if (ret == -1) {
-		os_file_handle_error(file, NULL, "close");
+		os_file_handle_error(NULL, "close");
 
 		return(FALSE);
 	}
@@ -1651,7 +1667,7 @@ os_file_flush(
 	        return(TRUE);
 	}
 
-	os_file_handle_error(file, NULL, "flush");
+	os_file_handle_error(NULL, "flush");
 
 	/* It is a fatal error if a file flush does not succeed, because then
 	the database can get corrupt on disk */
@@ -1686,7 +1702,7 @@ os_file_flush(
 	fprintf(stderr,
 		"  InnoDB: Error: the OS said file flush did not succeed\n");
 
-	os_file_handle_error(file, NULL, "flush");
+	os_file_handle_error(NULL, "flush");
 
 	/* It is a fatal error if a file flush does not succeed, because then
 	the database can get corrupt on disk */
@@ -1946,7 +1962,7 @@ try_again:
 #ifdef __WIN__
 error_handling:
 #endif
-	retry = os_file_handle_error(file, NULL, "read"); 
+	retry = os_file_handle_error(NULL, "read"); 
 
 	if (retry) {
 		goto try_again;
@@ -3157,7 +3173,7 @@ try_again:
 
 	os_aio_array_free_slot(array, slot);
 
-	retry = os_file_handle_error(file, name,
+	retry = os_file_handle_error(name,
 			type == OS_FILE_READ ? "aio read" : "aio write");
 	if (retry) {
 
@@ -3257,7 +3273,7 @@ os_aio_windows_handle(
 		         ut_a(TRUE == os_file_flush(slot->file));
 		}
 	} else {
-		os_file_handle_error(slot->file, slot->name, "Windows aio");
+		os_file_handle_error(slot->name, "Windows aio");
 		
 		ret_val = FALSE;
 	}		  
