@@ -166,7 +166,7 @@ void Item_subselect::update_used_tables()
   if (!engine->uncacheable())
   {
     // did all used tables become ststic?
-    if ((used_tables_cache & ~engine->upper_select_const_tables()))
+    if (!(used_tables_cache & ~engine->upper_select_const_tables()))
       const_item_cache= 1;
   }
 }
