@@ -865,7 +865,7 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
     *ptr++= '\'';
     ptr+=
       escape_string_for_mysql(&my_charset_utf8_general_ci,
-                              ptr, entry->name.str, entry->name.length);
+                              ptr, 0, entry->name.str, entry->name.length);
     *ptr++= '\'';
     str.length(ptr - buf);
 
