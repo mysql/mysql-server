@@ -1863,6 +1863,19 @@ lock_grant(
 	ut_ad(mutex_own(&kernel_mutex));
 
 	lock_reset_lock_and_trx_wait(lock);
+	
+	if (lock_get_mode(lock) == LOCK_AUTO_INC) {
+
+	         if (lock->trx->auto_inc_lock != NULL) {
+	                 fprintf(stderr,
+		    "InnoDB: Error: trx already had an AUTO-INC lock!\n");
+	         }
+
+	         /* Store pointer to lock to trx so that we know to
+	         release it at the end of the SQL statement */
+
+	         lock->trx->auto_inc_lock = lock;
+	}
 
 	if (lock_print_waits) {
 		printf("Lock wait for trx %lu ends\n",
