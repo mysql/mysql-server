@@ -442,7 +442,6 @@ public:
   inline void unclean() { cleaned= 0; }
   void reinit_exec_mechanism();
 
-  bool check_updateable(char *db, char *table);
   void print(String *str);
 
   ulong init_prepare_fake_select_lex(THD *thd);
@@ -525,6 +524,8 @@ public:
   bool first_cond_optimization;
   /* do not wrap view fields with Item_ref */
   bool no_wrap_view_item;
+  /* exclude this select from check of unique_table() */
+  bool exclude_from_table_unique_test;
 
   /* 
      SELECT for SELECT command st_select_lex. Used to privent scaning
@@ -615,8 +616,6 @@ public:
     init_select();
   }
   bool setup_ref_array(THD *thd, uint order_group_num);
-  bool check_updateable(char *db, char *table);
-  bool check_updateable_in_subqueries(char *db, char *table);
   void print(THD *thd, String *str);
   static void print_order(String *str, ORDER *order);
   void print_limit(THD *thd, String *str);
