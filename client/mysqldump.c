@@ -68,6 +68,13 @@
 /* Size of buffer for dump's select query */
 #define QUERY_LENGTH 1536
 
+#define print_xml_tag(out_file, sbeg, sval, send) \
+{ \
+    fputs(sbeg, out_file); \
+    print_quoted_xml(out_file, sval, 0); \
+    fputs(send, out_file); \
+}
+
 static char *add_load_option(char *ptr, const char *object,
 			     const char *statement);
 static ulong find_set(TYPELIB *lib, const char *x, uint length,
@@ -298,7 +305,7 @@ static int init_dumping(char *);
 static int dump_databases(char **);
 static int dump_all_databases();
 static char *quote_name(const char *name, char *buff, my_bool force);
-static void print_quoted_xml(FILE *output, char *fname, char *str, uint len);
+static void print_quoted_xml(FILE *output, char *str, ulong len);
 
 static void print_version(void)
 {
@@ -339,8 +346,8 @@ static void write_header(FILE *sql_file, char *db_name)
 {
   if (opt_xml)
   {
-    fprintf(sql_file,"<?xml version=\"1.0\"?>\n");
-    fprintf(sql_file,"<mysqldump>\n");
+    fputs("<?xml version=\"1.0\"?>\n", sql_file);
+    fputs("<mysqldump>\n", sql_file);
   }
   else
   {
@@ -366,7 +373,7 @@ static void write_header(FILE *sql_file, char *db_name)
 static void write_footer(FILE *sql_file)
 {
   if (opt_xml)
-    fprintf(sql_file,"</mysqldump>");
+    fputs("</mysqldump>", sql_file);
   else
   {
     fprintf(md_result_file,"\n\
@@ -651,6 +658,29 @@ static char *quote_name(const char *name, char *buff, my_bool force)
 } /* quote_name */
 
 
+void print_xml_row(FILE *xml_file, const char *row_name, MYSQL_RES *tableRes,
+		   MYSQL_ROW *row)
+{
+  uint i;
+  MYSQL_FIELD *field;
+  ulong *lengths= mysql_fetch_lengths(tableRes);
+  
+  fprintf(xml_file, "\t\t<%s", row_name);
+  mysql_field_seek(tableRes, 0);
+  for (i= 0; (field= mysql_fetch_field(tableRes)); i++)
+  {
+    if ((*row)[i] && (*row)[i][0])
+    {
+      fputs(" ", xml_file);
+      print_quoted_xml(xml_file, field->name, 0);
+      fputs("=\"", xml_file);
+      print_quoted_xml(xml_file, (*row)[i], lengths[i]);
+      fputs("\"", xml_file);
+    }
+  }
+  fputs(" />\n", xml_file);
+}
+
 /*
   getStructure -- retrievs database structure, prints out corresponding
   CREATE statement and fills out insert_pat.
@@ -680,7 +710,7 @@ static uint getTableStructure(char *table, char* db)
   sprintf(insert_pat,"SET OPTION SQL_QUOTE_SHOW_CREATE=%d", (opt_quoted || opt_keywords));
   result_table=     quote_name(table, table_buff, 1);
   opt_quoted_table= quote_name(table, table_buff2, 0);
-  if (!mysql_query(sock,insert_pat))
+  if (!opt_xml && !mysql_query(sock,insert_pat))
   {
     /* using SHOW CREATE statement */
     if (!tFlag)
@@ -735,16 +765,14 @@ static uint getTableStructure(char *table, char* db)
         }
         write_header(sql_file, db);
       }
-      if (!opt_xml)
-	fprintf(sql_file, "\n--\n-- Table structure for table %s\n--\n\n",
+      fprintf(sql_file, "\n--\n-- Table structure for table %s\n--\n\n",
 		result_table);
       if (opt_drop)
         fprintf(sql_file, "DROP TABLE IF EXISTS %s;\n", opt_quoted_table);
 
       tableRes=mysql_store_result(sock);
       row=mysql_fetch_row(tableRes);
-      if (!opt_xml)
-	fprintf(sql_file, "%s;\n", row[1]);
+      fprintf(sql_file, "%s;\n", row[1]);
       mysql_free_result(tableRes);
     }
     sprintf(insert_pat,"show fields from %s", result_table);
@@ -818,7 +846,10 @@ static uint getTableStructure(char *table, char* db)
 		result_table);
       if (opt_drop)
         fprintf(sql_file, "DROP TABLE IF EXISTS %s;\n",result_table);
-      fprintf(sql_file, "CREATE TABLE %s (\n", result_table);
+      if (!opt_xml)
+	fprintf(sql_file, "CREATE TABLE %s (\n", result_table);
+      else
+        print_xml_tag(sql_file, "\t<table_structure name=\"", table, "\">\n");
     }
     if (cFlag)
       sprintf(insert_pat, "INSERT %sINTO %s (", delayed, result_table);
@@ -835,7 +866,7 @@ static uint getTableStructure(char *table, char* db)
       ulong *lengths=mysql_fetch_lengths(tableRes);
       if (init)
       {
-        if (!tFlag)
+        if (!opt_xml && !tFlag)
 	  fputs(",\n",sql_file);
         if (cFlag)
 	  strpos=strmov(strpos,", ");
@@ -845,6 +876,12 @@ static uint getTableStructure(char *table, char* db)
         strpos=strmov(strpos,quote_name(row[SHOW_FIELDNAME], name_buff, 0));
       if (!tFlag)
       {
+	if (opt_xml)
+	{
+	  print_xml_row(sql_file, "field", tableRes, &row);
+	  continue;
+	}
+	
         if (opt_keywords)
 	  fprintf(sql_file, "  %s.%s %s", result_table,
 		  quote_name(row[SHOW_FIELDNAME],name_buff, 0),
@@ -906,6 +943,12 @@ static uint getTableStructure(char *table, char* db)
       keynr=0;
       while ((row=mysql_fetch_row(tableRes)))
       {
+	if (opt_xml)
+	{
+	  print_xml_row(sql_file, "key", tableRes, &row);
+	  continue;
+	}
+        
         if (atoi(row[3]) == 1)
         {
 	  if (keynr++)
@@ -924,14 +967,26 @@ static uint getTableStructure(char *table, char* db)
         if (row[7])
 	  fprintf(sql_file, " (%s)",row[7]);      /* Sub key */
       }
-      if (keynr)
-        putc(')', sql_file);
-      fputs("\n)",sql_file);
+      if (!opt_xml)
+      {
+	if (keynr)
+	  putc(')', sql_file);
+	fputs("\n)",sql_file);
+      }
 
       /* Get MySQL specific create options */
       if (create_options)
       {
-        sprintf(buff,"show table status like %s",result_table);
+        ulong len= strlen(table);
+	char *tmp= (char*) my_malloc(len * 2 + 1, MYF(MY_WME));
+	if (!tmp)
+	{
+	  ignore_errors= 0;
+	  safe_exit(EX_MYSQLERR);
+	}
+	mysql_real_escape_string(&mysql_connection, tmp, table, len);
+        sprintf(buff,"show table status like \"%s\"", tmp);
+	my_free(tmp, MYF(MY_WME));
         if (mysql_query(sock, buff))
         {
 	  if (mysql_errno(sock) != ER_PARSE_ERROR)
@@ -951,15 +1006,25 @@ static uint getTableStructure(char *table, char* db)
         }
         else
         {
-	  fputs("/*!",sql_file);
-	  print_value(sql_file,tableRes,row,"type=","Type",0);
-	  print_value(sql_file,tableRes,row,"","Create_options",0);
-	  print_value(sql_file,tableRes,row,"comment=","Comment",1);
-	  fputs(" */",sql_file);
+	  if (opt_xml)
+	  {
+	    print_xml_row(sql_file, "options", tableRes, &row);
+	  }
+	  else
+	  {
+	    fputs("/*!",sql_file);
+	    print_value(sql_file,tableRes,row,"type=","Type",0);
+	    print_value(sql_file,tableRes,row,"","Create_options",0);
+	    print_value(sql_file,tableRes,row,"comment=","Comment",1);
+	    fputs(" */",sql_file);
+	  }
         }
         mysql_free_result(tableRes);		/* Is always safe to free */
       }
-      fputs(";\n", sql_file);
+      if (!opt_xml)
+	fputs(";\n", sql_file);
+      else
+	fputs("\t</table_structure>\n", sql_file);
     }
   }
   if (cFlag)
@@ -1127,7 +1192,9 @@ static void dumpTable(uint numFields, char *table)
     rownr=0;
     init_length=(uint) strlen(insert_pat)+4;
     if (opt_xml)
-      fprintf(md_result_file, "\t<table name=\"%s\">\n", table);
+    {
+      print_xml_tag(md_result_file, "\t<table_data name=\"", table, "\">\n");
+    }
 
     if (opt_autocommit)
       fprintf(md_result_file, "set autocommit=0;\n");
@@ -1142,7 +1209,7 @@ static void dumpTable(uint numFields, char *table)
       mysql_field_seek(res,0);
 
       if (opt_xml)
-        fprintf(md_result_file, "\t<row>\n");
+        fputs("\t<row>\n", md_result_file);
 
       for (i = 0; i < mysql_num_fields(res); i++)
       {
@@ -1207,8 +1274,12 @@ static void dumpTable(uint numFields, char *table)
 	    if (!IS_NUM_FIELD(field))
 	    {
 	      if (opt_xml)
-		print_quoted_xml(md_result_file, field->name, row[i],
-				 lengths[i]);
+	      {
+	        print_xml_tag(md_result_file, "\t\t<field name=\"", field->name,
+			      "\">");
+		print_quoted_xml(md_result_file, row[i], lengths[i]);
+		fputs("</field>\n", md_result_file);
+	      }
 	      else
 		unescape(md_result_file, row[i], lengths[i]);
 	    }
@@ -1217,9 +1288,13 @@ static void dumpTable(uint numFields, char *table)
 	      /* change any strings ("inf","nan",..) into NULL */
 	      char *ptr = row[i];
 	      if (opt_xml)
-		fprintf(md_result_file, "\t\t<field name=\"%s\">%s</field>\n",
-			field->name,
-			!my_isalpha(charset_info, *ptr) ? ptr: "NULL");
+	      {
+	        print_xml_tag(md_result_file, "\t\t<field name=\"", field->name,
+			      "\">");
+		fputs(!my_isalpha(charset_info, *ptr) ? ptr: "NULL",
+		      md_result_file);
+		fputs("</field>\n", md_result_file);
+	      }
 	      else
 		fputs((!my_isalpha(charset_info,*ptr)) ? 
 		       ptr : "NULL", md_result_file);
@@ -1228,8 +1303,10 @@ static void dumpTable(uint numFields, char *table)
 	  else
 	  {
 	    if (opt_xml)
-	      fprintf(md_result_file, "\t\t<field name=\"%s\">%s</field>\n",
-		      field->name, "NULL");
+	    {
+	      print_xml_tag(md_result_file, "\t\t<field name=\"", field->name,
+			    "\">NULL</field>\n");
+	    }
 	    else
 	      fputs("NULL", md_result_file);
 	  }
@@ -1237,7 +1314,7 @@ static void dumpTable(uint numFields, char *table)
       }
 
       if (opt_xml)
-        fprintf(md_result_file, "\t</row>\n");
+        fputs("\t</row>\n", md_result_file);
 
       if (extended_insert)
       {
@@ -1267,7 +1344,7 @@ static void dumpTable(uint numFields, char *table)
 
     /* XML - close table tag and supress regular output */
     if (opt_xml)
-	fprintf(md_result_file, "\t</table>\n");
+	fputs("\t</table_data>\n", md_result_file);
     else if (extended_insert && row_break)
       fputs(";\n", md_result_file);		/* If not empty table */
     fflush(md_result_file);
@@ -1295,25 +1372,30 @@ static void dumpTable(uint numFields, char *table)
 } /* dumpTable */
 
 
-static void print_quoted_xml(FILE *output, char *fname, char *str, uint len)
+static void print_quoted_xml(FILE *output, char *str, ulong len)
 {
-  const char *end;
-
-  fprintf(output, "\t\t<field name=\"%s\">", fname);
-  for (end = str + len; str != end; str++)
+  const char *end= str + (len ? len : strlen(str));
+  
+  for (; str != end; str++)
   {
-    if (*str == '<')
+    switch (*str) {
+    case '<':
       fputs("&lt;", output);
-    else if (*str == '>')
+      break;
+    case '>':
       fputs("&gt;", output);
-    else if (*str == '&')
+      break;
+    case '&':
       fputs("&amp;", output);
-    else if (*str == '\"')
+      break;
+    case '\"':
       fputs("&quot;", output);
-    else
+      break;
+    default:
       fputc(*str, output);
+      break;
+    }
   }
-  fprintf(output, "</field>\n");
 }
 
 static char *getTableName(int reset)
@@ -1434,7 +1516,9 @@ static int dump_all_tables_in_db(char *database)
   if (init_dumping(database))
     return 1;
   if (opt_xml)
-    fprintf(md_result_file, "<database name=\"%s\">\n", database);
+  {
+    print_xml_tag(md_result_file, "<database name=\"", database, "\">\n");
+  }
   if (lock_tables)
   {
     DYNAMIC_STRING query;
@@ -1462,7 +1546,7 @@ static int dump_all_tables_in_db(char *database)
       dumpTable(numrows,table);
   }
   if (opt_xml)
-    fprintf(md_result_file, "</database>\n");
+    fputs("</database>\n", md_result_file);
   if (lock_tables)
     mysql_query(sock,"UNLOCK_TABLES");
   return 0;
@@ -1500,7 +1584,9 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
      /* We shall countinue here, if --force was given */
   }
   if (opt_xml)
-    fprintf(md_result_file, "<database name=\"%s\">\n", db);
+  {
+    print_xml_tag(md_result_file, "<database name=\"", db, "\">\n");
+  }
   for (; tables > 0 ; tables-- , table_names++)
   {
     numrows = getTableStructure(*table_names, db);
@@ -1508,7 +1594,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
       dumpTable(numrows, *table_names);
   }
   if (opt_xml)
-    fprintf(md_result_file, "</database>\n");
+    fputs("</database>\n", md_result_file);
   if (lock_tables)
     mysql_query(sock,"UNLOCK_TABLES");
   return 0;
