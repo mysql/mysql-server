@@ -578,6 +578,9 @@ const GsnName SignalNames [] = {
   ,{ GSN_SUB_CREATE_REQ,         "SUB_CREATE_REQ" }
   ,{ GSN_SUB_CREATE_REF,         "SUB_CREATE_REF" }
   ,{ GSN_SUB_CREATE_CONF,        "SUB_CREATE_CONF" }
+  ,{ GSN_SUB_REMOVE_REQ,         "SUB_REMOVE_REQ" }
+  ,{ GSN_SUB_REMOVE_REF,         "SUB_REMOVE_REF" }
+  ,{ GSN_SUB_REMOVE_CONF,        "SUB_REMOVE_CONF" }
   ,{ GSN_SUB_START_REQ,          "SUB_START_REQ" }
   ,{ GSN_SUB_START_REF,          "SUB_START_REF" }
   ,{ GSN_SUB_START_CONF,         "SUB_START_CONF" }
