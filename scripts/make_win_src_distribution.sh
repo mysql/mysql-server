@@ -38,9 +38,9 @@ fi
 # Debug print of the status
 #
 
-print_debug()
+print_debug() 
 {
-  for statement
+  for statement 
   do
     if [ "$DEBUG" = "1" ] ; then
       echo $statement
@@ -52,7 +52,7 @@ print_debug()
 # Usage of the script
 #
 
-show_usage()
+show_usage() 
 {
   echo "MySQL utility script to create a Windows src package, and it takes"
   echo "the following arguments:"
@@ -98,14 +98,14 @@ parse_arguments "$@"
 
 for i in $TMP $TMPDIR $TEMPDIR $TEMP /tmp
 do
-  if [ "$i" ]; then
+  if [ "$i" ]; then 
     print_debug "Setting TMP to '$i'"
-    TMP=$i
+    TMP=$i 
     break
   fi
 done
 
-
+    
 #
 
 #
@@ -123,14 +123,12 @@ $CP -r $SOURCE/VC++Files $BASE
 (
 find $BASE \( -name "*.dsp" -o -name "*.dsw" \) -and -not -path \*SCCS\* -print
 )|(
-  while read v
+  while read v 
   do
     print_debug "Replacing LF -> CRLF from '$v'"
 
-    # ^M -> type CTRL V + CTRL M
-    cat $v | sed 's/
-//' | sed 's/$/
-/' > $v.tmp
+    # ^M -> type CTRL V + CTRL M 
+    cat $v | sed 's///' | sed 's/$//' > $v.tmp
     rm $v
     mv $v.tmp $v
   done
@@ -149,7 +147,7 @@ rm -r -f "$BASE/share/Makefile.am"
 # Clean up if we did this from a bk tree
 #
 
-if [ -d $BASE/SCCS ]
+if [ -d $BASE/SCCS ]  
 then
   find $BASE/ -type d -name SCCS -printf " \"%p\"" | xargs rm -r -f
 fi
@@ -171,9 +169,9 @@ copy_dir_files()
        mkdir $BASE/$arg
      fi
     for i in *.c *.cpp *.h *.ih *.i *.ic *.asm *.def \
-             README INSTALL* LICENSE
-    do
-      if [ -f $i ]
+             README INSTALL* LICENSE 
+    do 
+      if [ -f $i ] 
       then
         $CP $SOURCE/$arg/$i $BASE/$arg/$i
       fi
@@ -198,14 +196,14 @@ copy_dir_dirs() {
   for arg do
 
     basedir=$arg
-
+      
     if [ ! -d $BASE/$arg ]; then
       mkdir $BASE/$arg
     fi
-
+    
     copy_dir_files $arg
-
-    cd $SOURCE/$arg/
+    
+    cd $SOURCE/$arg/    
     for i in *
     do
       if [ -d $SOURCE/$basedir/$i ] && [ "$i" != "SCCS" ]; then
