@@ -398,7 +398,7 @@ buf_flush_write_block_low(
 	"Warning: cannot force log to disk in the log debug version!\n");
 #else
 	/* Force the log to the disk before writing the modified block */
-	log_flush_up_to(block->newest_modification, LOG_WAIT_ALL_GROUPS);
+	log_write_up_to(block->newest_modification, LOG_WAIT_ALL_GROUPS, TRUE);
 #endif	
 	buf_flush_init_for_writing(block->frame, block->newest_modification,
 						block->space, block->offset);

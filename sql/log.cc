@@ -1033,6 +1033,8 @@ bool MYSQL_LOG::write(THD *thd,enum enum_server_command command,
 
 bool MYSQL_LOG::write(Log_event* event_info)
 {
+  THD *thd=event_info->thd;
+  bool called_handler_commit=0;
   bool error=0;
   DBUG_ENTER("MYSQL_LOG::write(event)");
   
@@ -1047,7 +1049,6 @@ bool MYSQL_LOG::write(Log_event* event_info)
   if (is_open())
   {
     bool should_rotate = 0;
-    THD *thd=event_info->thd;
     const char *local_db = event_info->get_db();
 #ifdef USING_TRANSACTIONS    
     IO_CACHE *file = ((event_info->get_cache_stmt()) ?
@@ -1147,6 +1148,7 @@ bool MYSQL_LOG::write(Log_event* event_info)
       {
 	error = ha_report_binlog_offset_and_commit(thd, log_file_name,
                                                  file->pos_in_file);
+	called_handler_commit=1;
       }
 
       should_rotate= (my_b_tell(file) >= (my_off_t) max_binlog_size); 
@@ -1172,6 +1174,15 @@ err:
   }
 
   pthread_mutex_unlock(&LOCK_log);
+
+  /* Flush the transactional handler log file now that we have released
+  LOCK_log; the flush is placed here to eliminate the bottleneck on the
+  group commit */  
+
+  if (called_handler_commit) {
+    ha_commit_complete(thd);
+  }
+
   DBUG_RETURN(error);
 }
 
@@ -1277,6 +1288,13 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache)
 
   }
   VOID(pthread_mutex_unlock(&LOCK_log));
+
+  /* Flush the transactional handler log file now that we have released
+  LOCK_log; the flush is placed here to eliminate the bottleneck on the
+  group commit */  
+
+  ha_commit_complete(thd);
+
   DBUG_RETURN(0);
 
 err:

@@ -2812,8 +2812,7 @@ loop:
 		at transaction commit */
 
 		srv_main_thread_op_info = (char*)"flushing log";
-		log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
-		log_flush_to_disk();
+		log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP, TRUE);
 
 		/* If there were less than 10 i/os during the
 		one second sleep, we assume that there is free
@@ -2831,8 +2830,8 @@ loop:
 
 			srv_main_thread_op_info =
 						(char*)"flushing log";
-			log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
-			log_flush_to_disk();
+			log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP,
+									TRUE);
 		}
 
 		if (srv_activity_count == old_activity_count) {
@@ -2867,8 +2866,7 @@ loop:
 		buf_flush_batch(BUF_FLUSH_LIST, 100, ut_dulint_max);
 
 		srv_main_thread_op_info = (char*) "flushing log";
-		log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
-		log_flush_to_disk();
+		log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP, TRUE);
 	}
 
 	/* We run a batch of insert buffer merge every 10 seconds,
@@ -2878,8 +2876,7 @@ loop:
 	ibuf_contract_for_n_pages(TRUE, 5);
 
 	srv_main_thread_op_info = (char*)"flushing log";
-	log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
-	log_flush_to_disk();
+	log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP, TRUE);
 
 	/* We run a full purge every 10 seconds, even if the server
 	were active */
@@ -2903,8 +2900,8 @@ loop:
 		if (difftime(current_time, last_flush_time) > 1) {
 			srv_main_thread_op_info = (char*) "flushing log";
 
-		        log_flush_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP);
-			log_flush_to_disk();
+		        log_write_up_to(ut_dulint_max, LOG_WAIT_ONE_GROUP,
+									TRUE);
 			last_flush_time = current_time;
 		}
 	}
