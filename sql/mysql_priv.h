@@ -268,6 +268,10 @@ bool net_store_data(String *packet,const char *from,uint length);
 bool net_store_data(String *packet,struct tm *tmp);
 bool net_store_data(String* packet, I_List<i_string>* str_list);
 
+SORT_FIELD * make_unireg_sortorder(ORDER *order, uint *length);
+int setup_order(THD *thd,TABLE_LIST *tables, List<Item> &fields,
+                List <Item> &all_fields, ORDER *order);
+
 int mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &list,COND *conds,
                  List<Item_func_match> &ftfuncs,
 		 ORDER *order, ORDER *group,Item *having,ORDER *proc_param,
@@ -294,6 +298,7 @@ int mysql_alter_table(THD *thd, char *new_db, char *new_name,
 		      List<create_field> &fields,
 		      List<Key> &keys,List<Alter_drop> &drop_list,
 		      List<Alter_column> &alter_list,
+                      ORDER *order,
 		      bool drop_primary,
 		      enum enum_duplicates handle_duplicates);
 bool mysql_rename_table(enum db_type base,

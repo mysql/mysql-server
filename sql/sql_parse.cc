@@ -1158,6 +1158,7 @@ mysql_execute_command(void)
 			       &lex->create_info,
 			       tables, lex->create_list,
 			       lex->key_list, lex->drop_list, lex->alter_list,
+                               (ORDER *) lex->order_list.first,
 			       lex->drop_primary, lex->duplicates);
       break;
     }
@@ -1262,6 +1263,7 @@ mysql_execute_command(void)
       res= mysql_alter_table(thd, NullS, NullS, &create_info,
 			     tables, lex->create_list,
 			     lex->key_list, lex->drop_list, lex->alter_list,
+                             (ORDER *) 0,
 			     0,DUP_ERROR);
     }
     else

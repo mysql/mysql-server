@@ -17683,7 +17683,7 @@ using @code{myisampack}. @xref{Compressed format}.
 @section @code{ALTER TABLE} Syntax
 
 @example
-ALTER [IGNORE] TABLE tbl_name alter_spec [, alter_spec ...]
+ALTER [IGNORE] TABLE tbl_name alter_spec [, alter_spec ...] [ORDER BY col]
 
 alter_specification:
         ADD [COLUMN] create_definition [FIRST | AFTER column_name ]
@@ -17831,6 +17831,14 @@ dropped, the index is dropped as well.
 index exists, it drops the first @code{UNIQUE} index in the table.
 (@strong{MySQL} marks the first @code{UNIQUE} key as the @code{PRIMARY KEY}
 if no @code{PRIMARY KEY} was specified explicitly.)
+
+@findex ORDER BY
+@item
+@code{ORDER BY} allows you to create the new table with the rows in a
+specific order.  Note that the table will not remain in this order after
+inserts and deletes.  In some cases, it may make sorting easier for 
+@strong{MySQL} if the table is in order by the column that you wish to
+order it by later.
 
 @findex ALTER TABLE
 @item
@@ -38312,6 +38320,9 @@ a temporary table
 @item
 @code{CHANGE MASTER TO} without specifying @code{MASTER_LOG_POS} would
 set it to 0 instead of 4 and hit the magic number in the master binlog.
+@item
+@code{ALTER TABLE ... ORDER BY ...} syntax added.  This will create the 
+new table with the rows in a specific order.
 
 @end itemize
 
