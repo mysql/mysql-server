@@ -36,7 +36,7 @@ static int FT_STOPWORD_cmp(void* cmp_arg __attribute__((unused)),
 static void FT_STOPWORD_free(FT_STOPWORD *w, TREE_FREE action,
                              void *arg __attribute__((unused)))
 {
-  if (action == free_free && ft_stopword_file)
+  if (action == free_free)
     my_free(w->pos, MYF(0));
 }
 
@@ -55,7 +55,9 @@ int ft_init_stopwords()
     if (!(stopwords3=(TREE *)my_malloc(sizeof(TREE),MYF(0))))
       return -1;
     init_tree(stopwords3,0,0,sizeof(FT_STOPWORD),(qsort_cmp2)&FT_STOPWORD_cmp,
-              0, (tree_element_free)&FT_STOPWORD_free, NULL);
+              0,
+              (ft_stopword_file ? (tree_element_free)&FT_STOPWORD_free : 0),
+              NULL);
   }
 
   if (ft_stopword_file)
@@ -102,6 +104,7 @@ err0:
       if (ft_add_stopword(*sws))
         return -1;
     }
+    ft_stopword_file="(built-in)"; /* for SHOW VARIABLES */
   }
   return 0;
 }
