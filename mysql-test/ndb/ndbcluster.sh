@@ -212,8 +212,8 @@ if [ -f "$fs_ndb/$pidfile" ] ; then
     attempt=`expr $attempt + 1`
   done
   if [ "$kill_pids" != "" ] ; then
-    echo "Failed to shutdown ndbcluster, executing kill -9 "$kill_pids
-    kill -9 $kill_pids
+    echo "Failed to shutdown ndbcluster, executing kill "$kill_pids
+    kill $kill_pids
   fi
   rm "$fs_ndb/$pidfile"
 fi
