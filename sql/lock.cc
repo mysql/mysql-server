@@ -543,6 +543,7 @@ bool lock_global_read_lock(THD *thd)
     while (protect_against_global_read_lock && !thd->killed)
       pthread_cond_wait(&COND_refresh, &LOCK_open);
     waiting_for_read_lock--;
+    thd->exit_cond(old_message);
     if (thd->killed)
     {
       (void) pthread_mutex_unlock(&LOCK_open);
