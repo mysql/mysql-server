@@ -69,7 +69,7 @@ Item::Item():
 }
 
 /*
-  Constructor used by Item_field, Item_ref & agregate (sum) functions.
+  Constructor used by Item_field, Item_*_ref & agregate (sum) functions.
   Used for duplicating lists in processing queries with temporary
   tables
 */
@@ -114,7 +114,7 @@ Item_ident::Item_ident(const char *db_name_par,const char *table_name_par,
   name = (char*) field_name_par;
 }
 
-// Constructor used by Item_field & Item_ref (see Item comment)
+// Constructor used by Item_field & Item_*_ref (see Item comment)
 Item_ident::Item_ident(THD *thd, Item_ident *item)
   :Item(thd, item),
    orig_db_name(item->orig_db_name),
@@ -837,12 +837,38 @@ void Item_param::set_double(double d)
 }
 
 
+/*
+  Set parameter value from TIME value.
+
+  SYNOPSIS
+    set_time()
+      tm             - datetime value to set (time_type is ignored)
+      type           - type of datetime value
+      max_length_arg - max length of datetime value as string
+
+  NOTE
+    If we value to be stored is not normalized, zero value will be stored
+    instead and proper warning will be produced. This function relies on
+    the fact that even wrong value sent over binary protocol fits into
+    MAX_DATE_STRING_REP_LENGTH buffer.
+*/
 void Item_param::set_time(TIME *tm, timestamp_type type, uint32 max_length_arg)
 { 
   DBUG_ENTER("Item_param::set_time");
 
   value.time= *tm;
   value.time.time_type= type;
+
+  if (value.time.year > 9999 || value.time.month > 12 ||
+      value.time.day > 31 ||
+      type != MYSQL_TIMESTAMP_TIME && value.time.hour > 23 ||
+      value.time.minute > 59 || value.time.second > 59)
+  {
+    char buff[MAX_DATE_STRING_REP_LENGTH];
+    uint length= my_TIME_to_str(&value.time, buff);
+    make_truncated_value_warning(current_thd, buff, length, type);
+    set_zero_time(&value.time, MYSQL_TIMESTAMP_ERROR);
+  }
 
   state= TIME_VALUE;
   maybe_null= 0;
@@ -1346,6 +1372,7 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
 
 bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
+  enum_parsing_place place= NO_MATTER;
   DBUG_ASSERT(fixed == 0);
   if (!field)					// If field is not checked
   {
@@ -1393,8 +1420,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	  }
 
 	  Item_subselect *prev_subselect_item= prev_unit->item;
-          enum_parsing_place place=
-            prev_subselect_item->parsing_place;
+          place= prev_subselect_item->parsing_place;
           /*
             check table fields only if subquery used somewhere out of HAVING
             or outer SELECT do not use groupping (i.e. tables are
@@ -1462,12 +1488,25 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 		   "forward reference in item list");
 	  return -1;
 	}
-
-	Item_ref *rf= new Item_ref(last->ref_pointer_array + counter,
-                                   (char *)table_name, (char *)field_name);
+        /*
+          Here, a subset of actions performed by Item_ref::set_properties
+          is not enough. So we pass ptr to NULL into Item_[direct]_ref
+          constructor, so no initialization is performed, and call 
+          fix_fields() below.
+        */
+        Item *save= last->ref_pointer_array[counter];
+        last->ref_pointer_array[counter]= NULL;
+	Item_ref *rf= (place == IN_HAVING ?
+                       new Item_ref(last->ref_pointer_array + counter,
+                                    (char *)table_name,
+                                    (char *)field_name) :
+                       new Item_direct_ref(last->ref_pointer_array + counter,
+                                           (char *)table_name,
+                                           (char *)field_name));
 	if (!rf)
 	  return 1;
         thd->change_item_tree(ref, rf);
+        last->ref_pointer_array[counter]= save;
 	/*
 	  rf is Item_ref => never substitute other items (in this case)
 	  during fix_fields() => we can use rf after fix_fields()
@@ -2013,6 +2052,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 {
   DBUG_ASSERT(fixed == 0);
   uint counter;
+  enum_parsing_place place= NO_MATTER;
   bool not_used;
   if (!ref)
   {
@@ -2071,8 +2111,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	  // it is primary INSERT st_select_lex => skip first table resolving
 	  table_list= table_list->next;
 	}
-        enum_parsing_place place=
-            prev_subselect_item->parsing_place;
+        place= prev_subselect_item->parsing_place;
         /*
           check table fields only if subquery used somewhere out of HAVING
           or SELECT list or outer SELECT do not use groupping (i.e. tables
@@ -2142,6 +2181,19 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
       }
       mark_as_dependent(thd, last, thd->lex->current_select,
                         this);
+      if (place == IN_HAVING)
+      {
+        Item_ref *rf;
+        if (!(rf= new Item_direct_ref(last->ref_pointer_array + counter,
+                                      (char *)table_name,
+                                      (char *)field_name)))
+          return 1;
+        ref= 0;                                 // Safety
+        if (rf->fix_fields(thd, tables, ref) || rf->check_cols(1))
+	  return 1;
+        thd->change_item_tree(reference, rf);
+        return 0;
+      }
       ref= last->ref_pointer_array + counter;
     }
     else if (!ref)
@@ -2177,18 +2229,23 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	      "forward reference in item list"));
     return 1;
   }
-  max_length= (*ref)->max_length;
-  maybe_null= (*ref)->maybe_null;
-  decimals=   (*ref)->decimals;
-  collation.set((*ref)->collation);
-  with_sum_func= (*ref)->with_sum_func;
-  fixed= 1;
+
+  set_properties();
 
   if (ref && (*ref)->check_cols(1))
     return 1;
   return 0;
 }
 
+void Item_ref::set_properties()
+{
+  max_length= (*ref)->max_length;
+  maybe_null= (*ref)->maybe_null;
+  decimals=   (*ref)->decimals;
+  collation.set((*ref)->collation);
+  with_sum_func= (*ref)->with_sum_func;
+  fixed= 1;
+}
 
 void Item_ref::print(String *str)
 {
@@ -2235,7 +2292,7 @@ bool Item_default_value::fix_fields(THD *thd,
     fixed= 1;
     return 0;
   }
-  if (arg->fix_fields(thd, table_list, &arg))
+  if (!arg->fixed && arg->fix_fields(thd, table_list, &arg))
     return 1;
   
   if (arg->type() == REF_ITEM)
@@ -2282,7 +2339,7 @@ bool Item_insert_value::fix_fields(THD *thd,
 				   Item **items)
 {
   DBUG_ASSERT(fixed == 0);
-  if (arg->fix_fields(thd, table_list, &arg))
+  if (!arg->fixed && arg->fix_fields(thd, table_list, &arg))
     return 1;
 
   if (arg->type() == REF_ITEM)

@@ -547,8 +547,9 @@ buf_pool_init(
 		}
 		/*----------------------------------------*/
 	} else {
-		buf_pool->frame_mem = ut_malloc(
-					UNIV_PAGE_SIZE * (n_frames + 1));
+		buf_pool->frame_mem = ut_malloc_low(
+					UNIV_PAGE_SIZE * (n_frames + 1),
+					TRUE, FALSE);
 	}
 
 	if (buf_pool->frame_mem == NULL) {

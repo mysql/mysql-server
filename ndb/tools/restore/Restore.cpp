@@ -260,16 +260,16 @@ TupleS & TupleS::operator=(const TupleS& tuple)
     memcpy(allAttrData, tuple.allAttrData, getNoOfAttributes()*sizeof(AttributeData));
   
   return *this;
-};
+}
 int TupleS::getNoOfAttributes() const {
   if (m_currentTable == 0)
     return 0;
   return m_currentTable->getNoOfAttributes();
-};
+}
 
 TableS * TupleS::getTable() const {
   return m_currentTable;
-};
+}
 
 const AttributeDesc * TupleS::getDesc(int i) const {
   return m_currentTable->allAttributesDesc[i];
@@ -277,7 +277,7 @@ const AttributeDesc * TupleS::getDesc(int i) const {
 
 AttributeData * TupleS::getData(int i) const{
   return &(allAttrData[i]);
-};
+}
 
 bool
 TupleS::prepareRecord(TableS & tab){

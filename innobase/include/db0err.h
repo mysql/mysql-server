@@ -53,7 +53,11 @@ Created 5/24/1996 Heikki Tuuri
 					name already exists */
 #define DB_TABLESPACE_DELETED	44	/* tablespace does not exist or is
 					being dropped right now */
-					
+#define	DB_LOCK_TABLE_FULL	45	/* lock structs have exhausted the
+					buffer pool (for big transactions,
+					InnoDB stores the lock structs in the
+					buffer pool) */
+
 /* The following are partial failure codes */
 #define DB_FAIL 		1000
 #define DB_OVERFLOW 		1001

@@ -529,6 +529,7 @@ show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled
 create table t2 (a int);
+set @@rand_seed1=31415926,@@rand_seed2=2718281828;
 insert t1 select * from t2;
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment

@@ -15,7 +15,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include "sql_repl.h"
 #include "repl_failsafe.h"
 #include <m_ctype.h>
@@ -1102,13 +1101,25 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
   thd->init_for_queries();
   while (fgets(buff, thd->net.max_packet, file))
   {
-    uint length=(uint) strlen(buff);
-    if (buff[length-1]!='\n' && !feof(file))
+    ulong length= (ulong) strlen(buff);
+    while (buff[length-1] != '\n' && !feof(file))
     {
-      send_error(thd,ER_NET_PACKET_TOO_LARGE, NullS);
-      thd->fatal_error();
-      break;
+      /*
+        We got only a part of the current string. Will try to increase
+        net buffer then read the rest of the current string.
+      */
+      if (net_realloc(&(thd->net), 2 * thd->net.max_packet))
+      {
+        send_error(thd, thd->net.last_errno, NullS);
+        thd->is_fatal_error= 1;
+        break;
+      }
+      buff= (char*) thd->net.buff;
+      fgets(buff + length, thd->net.max_packet - length, file);
+      length+= (ulong) strlen(buff + length);
     }
+    if (thd->is_fatal_error)
+      break;
     while (length && (my_isspace(thd->charset(), buff[length-1]) ||
            buff[length-1] == ';'))
       length--;
@@ -2588,7 +2599,9 @@ unsent_create_error:
 	  check_access(thd, SELECT_ACL | EXTRA_ACL, tables->db,
 		       &tables->grant.privilege,0,0))
 	goto error;
-      res = mysqld_show_create(thd, tables);
+      if (grant_option && check_grant(thd, SELECT_ACL, tables, 2, UINT_MAX, 0))
+	goto error;
+      res= mysqld_show_create(thd, tables);
       break;
     }
 #endif
@@ -2614,7 +2627,7 @@ unsent_create_error:
       if (mysql_bin_log.is_open())
       {
 	thd->clear_error(); // No binlog error generated
-        Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
         mysql_bin_log.write(&qinfo);
       }
     }
@@ -2643,7 +2656,7 @@ unsent_create_error:
       if (mysql_bin_log.is_open())
       {
 	thd->clear_error(); // No binlog error generated
-        Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
         mysql_bin_log.write(&qinfo);
       }
     }
@@ -2666,7 +2679,7 @@ unsent_create_error:
       if (mysql_bin_log.is_open())
       {
 	thd->clear_error(); // No binlog error generated
-        Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
         mysql_bin_log.write(&qinfo);
       }
     }
@@ -2704,7 +2717,7 @@ unsent_create_error:
     if ((res= insert_precheck(thd, tables)))
       break;
     res = mysql_insert(thd,tables,lex->field_list,lex->many_values,
-                       select_lex->item_list, lex->value_list,
+                       lex->update_list, lex->value_list,
                        lex->duplicates);
     if (thd->net.report_error)
       res= -1;
@@ -2714,7 +2727,7 @@ unsent_create_error:
   case SQLCOM_INSERT_SELECT:
   {
     TABLE_LIST *first_local_table= (TABLE_LIST *) select_lex->table_list.first;
-    if ((res= insert_select_precheck(thd, tables)))
+    if ((res= insert_precheck(thd, tables)))
       break;
 
     /* Fix lock for first table */
@@ -2736,11 +2749,16 @@ unsent_create_error:
       select_lex->options |= OPTION_BUFFER_RESULT;
     }
 
-
     if (!(res= open_and_lock_tables(thd, tables)) &&
+        !(res= mysql_prepare_insert(thd, tables, first_local_table, 
+				    tables->table, lex->field_list, 0,
+				    lex->update_list, lex->value_list,
+				    lex->duplicates)) &&
         (result= new select_insert(tables->table, &lex->field_list,
+				   &lex->update_list, &lex->value_list,
                                    lex->duplicates)))
     {
+      TABLE *table= tables->table;
       /* Skip first table, which is the table we are inserting in */
       lex->select_lex.table_list.first= (byte*) first_local_table->next;
       /*
@@ -2753,6 +2771,7 @@ unsent_create_error:
       lex->select_lex.table_list.first= (byte*) first_local_table;
       lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
       delete result;
+      table->insert_values= 0;
       if (thd->net.report_error)
         res= -1;
     }
@@ -3184,9 +3203,15 @@ purposes internal to the MySQL server", MYF(0));
   }
   case SQLCOM_ALTER_DB:
   {
-    if (!strip_sp(lex->name) || check_db_name(lex->name))
+    char *db= lex->name ? lex->name : thd->db;
+    if (!db)
     {
-      net_printf(thd, ER_WRONG_DB_NAME, lex->name);
+      send_error(thd, ER_NO_DB_ERROR);
+      goto error;
+    }
+    if (!strip_sp(db) || check_db_name(db))
+    {
+      net_printf(thd, ER_WRONG_DB_NAME, db);
       break;
     }
     /*
@@ -3198,21 +3223,21 @@ purposes internal to the MySQL server", MYF(0));
     */
 #ifdef HAVE_REPLICATION
     if (thd->slave_thread && 
-	(!db_ok(lex->name, replicate_do_db, replicate_ignore_db) ||
-	 !db_ok_with_wild_table(lex->name)))
+	(!db_ok(db, replicate_do_db, replicate_ignore_db) ||
+	 !db_ok_with_wild_table(db)))
     {
       my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
       break;
     }
 #endif
-    if (check_access(thd,ALTER_ACL,lex->name,0,1,0))
+    if (check_access(thd, ALTER_ACL, db, 0, 1, 0))
       break;
     if (thd->locked_tables || thd->active_transaction())
     {
       send_error(thd,ER_LOCK_OR_ACTIVE_TRANSACTION);
       goto error;
     }
-    res=mysql_alter_db(thd,lex->name,&lex->create_info);
+    res= mysql_alter_db(thd, db, &lex->create_info);
     break;
   }
   case SQLCOM_SHOW_CREATE_DB:
@@ -3262,7 +3287,7 @@ purposes internal to the MySQL server", MYF(0));
       mysql_update_log.write(thd, thd->query, thd->query_length);
       if (mysql_bin_log.is_open())
       {
-	Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+	Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
 	mysql_bin_log.write(&qinfo);
       }
       send_ok(thd);
@@ -3278,7 +3303,7 @@ purposes internal to the MySQL server", MYF(0));
       mysql_update_log.write(thd, thd->query, thd->query_length);
       if (mysql_bin_log.is_open())
       {
-	Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+	Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
 	mysql_bin_log.write(&qinfo);
       }
       send_ok(thd);
@@ -3345,7 +3370,7 @@ purposes internal to the MySQL server", MYF(0));
 	if (mysql_bin_log.is_open())
 	{
           thd->clear_error();
-	  Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+	  Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
 	  mysql_bin_log.write(&qinfo);
 	}
       }
@@ -3366,7 +3391,7 @@ purposes internal to the MySQL server", MYF(0));
 	if (mysql_bin_log.is_open())
 	{
           thd->clear_error();
-	  Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+	  Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
 	  mysql_bin_log.write(&qinfo);
 	}
 	if (mqh_used && lex->sql_command == SQLCOM_GRANT)
@@ -3409,7 +3434,7 @@ purposes internal to the MySQL server", MYF(0));
         mysql_update_log.write(thd, thd->query, thd->query_length);
         if (mysql_bin_log.is_open())
         {
-          Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+          Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
           mysql_bin_log.write(&qinfo);
         }
       }
@@ -3571,7 +3596,7 @@ error:
 
 /*
   Check grants for commands which work only with one table and all other
-  tables belong to subselects.
+  tables belonging to subselects or implicitly opened tables.
 
   SYNOPSIS
     check_one_table_access()
@@ -3593,7 +3618,7 @@ int check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *tables)
   if (grant_option && check_grant(thd, privilege, tables, 0, 1, 0))
     return 1;
 
-  /* Check rights on tables of subselect (if exists) */
+  /* Check rights on tables of subselects and implictly opened tables */
   TABLE_LIST *subselects_tables;
   if ((subselects_tables= tables->next))
   {
@@ -3940,7 +3965,6 @@ mysql_init_select(LEX *lex)
   {
     DBUG_ASSERT(lex->result == 0);
     lex->exchange= 0;
-    lex->proc_list.first= 0;
   }
 }
 
@@ -3956,6 +3980,7 @@ mysql_new_select(LEX *lex, bool move_down)
   select_lex->init_select();
   if (move_down)
   {
+    lex->subqueries= TRUE;
     /* first select_lex of subselect or derived table */
     SELECT_LEX_UNIT *unit;
     if (!(unit= new(lex->thd->mem_root) SELECT_LEX_UNIT()))
@@ -4115,31 +4140,6 @@ bool mysql_test_parse_for_slave(THD *thd, char *inBuf, uint length)
 #endif
 
 
-/*
-  Calculate interval lengths.
-  Strip trailing spaces from all strings.
-  After this function call:
-  - ENUM uses max_length
-  - SET uses tot_length.
-*/
-void calculate_interval_lengths(THD *thd, TYPELIB *interval,
-                                uint32 *max_length, uint32 *tot_length)
-{
-  const char **pos;
-  uint *len;
-  CHARSET_INFO *cs= thd->variables.character_set_client;
-  *max_length= *tot_length= 0;
-  for (pos= interval->type_names, len= interval->type_lengths;
-       *pos ; pos++, len++)
-  {
-    *len= (uint) strip_sp((char*) *pos);
-    uint length= cs->cset->numchars(cs, *pos, *pos + *len);
-    *tot_length+= length;
-    set_if_bigger(*max_length, (uint32)length);
-  }
-}
-
-
 /*****************************************************************************
 ** Store field definition for create
 ** Return 0 if ok
@@ -4150,7 +4150,8 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
 		       uint type_modifier,
 		       Item *default_value, Item *on_update_value,
                        LEX_STRING *comment,
-		       char *change, TYPELIB *interval, CHARSET_INFO *cs,
+		       char *change,
+                       List<String> *interval_list, CHARSET_INFO *cs,
 		       uint uint_geom_type)
 {
   register create_field *new_field;
@@ -4445,62 +4446,39 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     break;
   case FIELD_TYPE_SET:
     {
-      if (interval->count > sizeof(longlong)*8)
+      if (interval_list->elements > sizeof(longlong)*8)
       {
-	net_printf(thd,ER_TOO_BIG_SET,field_name); /* purecov: inspected */
-	DBUG_RETURN(1);				/* purecov: inspected */
+        net_printf(thd,ER_TOO_BIG_SET,field_name); /* purecov: inspected */
+        DBUG_RETURN(1);				/* purecov: inspected */
       }
-      new_field->pack_length=(interval->count+7)/8;
+      new_field->pack_length= (interval_list->elements + 7) / 8;
       if (new_field->pack_length > 4)
-	new_field->pack_length=8;
-      new_field->interval=interval;
-      uint32 dummy_max_length;
-      calculate_interval_lengths(thd, interval,
-                                 &dummy_max_length, &new_field->length);
-      new_field->length+= (interval->count - 1);
-      set_if_smaller(new_field->length,MAX_FIELD_WIDTH-1);
-      if (default_value)
-      {
-	char *not_used;
-	uint not_used2;
-	bool not_used3;
+        new_field->pack_length=8;
 
-	thd->cuted_fields=0;
-	String str,*res;
-	res=default_value->val_str(&str);
-	(void) find_set(interval, res->ptr(), res->length(),
-                        &my_charset_bin,
-                        &not_used, &not_used2, &not_used3);
-	if (thd->cuted_fields)
-	{
-	  net_printf(thd,ER_INVALID_DEFAULT,field_name);
-	  DBUG_RETURN(1);
-	}
-      }
+      List_iterator<String> it(*interval_list);
+      String *tmp;
+      while ((tmp= it++))
+        new_field->interval_list.push_back(tmp);
+      /*
+        Set fake length to 1 to pass the below conditions.
+        Real length will be set in mysql_prepare_table()
+        when we know the character set of the column
+      */
+      new_field->length= 1;
     }
     break;
   case FIELD_TYPE_ENUM:
     {
-      new_field->interval=interval;
-      new_field->pack_length=interval->count < 256 ? 1 : 2; // Should be safe
+      // Should be safe
+      new_field->pack_length= interval_list->elements < 256 ? 1 : 2; 
 
-      uint32 dummy_tot_length;
-      calculate_interval_lengths(thd, interval,
-                                 &new_field->length, &dummy_tot_length);
-      set_if_smaller(new_field->length,MAX_FIELD_WIDTH-1);
-      if (default_value)
-      {
-	String str,*res;
-	res=default_value->val_str(&str);
-	res->strip_sp();
-	if (!find_type(interval, res->ptr(), res->length(), 0))
-	{
-	  net_printf(thd,ER_INVALID_DEFAULT,field_name);
-	  DBUG_RETURN(1);
-	}
-      }
-      break;
+      List_iterator<String> it(*interval_list);
+      String *tmp;
+      while ((tmp= it++))
+        new_field->interval_list.push_back(tmp);
+      new_field->length= 1; // See comment for FIELD_TYPE_SET above.
     }
+    break;
   }
 
   if ((new_field->length > MAX_FIELD_CHARLENGTH && type != FIELD_TYPE_SET && 
@@ -5114,9 +5092,9 @@ Item * all_any_subquery_creator(Item *left_expr,
   Item_allany_subselect *it=
     new Item_allany_subselect(left_expr, (*cmp)(all), select_lex, all);
   if (all)
-    return it->upper_not= new Item_func_not_all(it);	/* ALL */
+    return it->upper_item= new Item_func_not_all(it);	/* ALL */
 
-  return it;						/* ANY/SOME */
+  return it->upper_item= new Item_func_nop_all(it);      /* ANY/SOME */
 }
 
 
@@ -5229,7 +5207,10 @@ int multi_update_precheck(THD *thd, TABLE_LIST *tables)
     DBUG_PRINT("info",("Checking sub query list"));
     for (table= tables; table; table= table->next)
     {
-      if (table->table_in_update_from_clause)
+      if (my_tz_check_n_skip_implicit_tables(&table,
+                                             lex->time_zone_tables_used))
+        continue;
+      else if (table->table_in_update_from_clause)
       {
 	/*
 	  If we check table by local TABLE_LIST copy then we should copy
@@ -5330,33 +5311,6 @@ int multi_delete_precheck(THD *thd, TABLE_LIST *tables, uint *table_count)
 
 
 /*
-  INSERT ... SELECT query pre-check
-
-  SYNOPSIS
-    insert_delete_precheck()
-    thd		Thread handler
-    tables	Global table list
-
-  RETURN VALUE
-    0   OK
-    1   Error (message is sent to user)
-    -1  Error (message is not sent to user)
-*/
-
-int insert_select_precheck(THD *thd, TABLE_LIST *tables)
-{
-  DBUG_ENTER("insert_select_precheck");
-  /*
-    Check that we have modify privileges for the first table and
-    select privileges for the rest
-  */
-  ulong privilege= (thd->lex->duplicates == DUP_REPLACE ?
-		    INSERT_ACL | DELETE_ACL : INSERT_ACL);
-  DBUG_RETURN(check_one_table_access(thd, privilege, tables) ? 1 : 0);
-}
-
-
-/*
   simple UPDATE query pre-check
 
   SYNOPSIS
@@ -5427,6 +5381,10 @@ int insert_precheck(THD *thd, TABLE_LIST *tables)
   LEX *lex= thd->lex;
   DBUG_ENTER("insert_precheck");
 
+  /*
+    Check that we have modify privileges for the first table and
+    select privileges for the rest
+  */
   ulong privilege= INSERT_ACL |
                    (lex->duplicates == DUP_REPLACE ? DELETE_ACL : 0) |
                    (lex->duplicates == DUP_UPDATE ? UPDATE_ACL : 0);
@@ -5434,7 +5392,7 @@ int insert_precheck(THD *thd, TABLE_LIST *tables)
   if (check_one_table_access(thd, privilege, tables))
     DBUG_RETURN(1);
 
-  if (lex->select_lex.item_list.elements != lex->value_list.elements)
+  if (lex->update_list.elements != lex->value_list.elements)
   {
     my_error(ER_WRONG_VALUE_COUNT, MYF(0));
     DBUG_RETURN(-1);

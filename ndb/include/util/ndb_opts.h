@@ -32,10 +32,13 @@
     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }, \
   { "version", 'V', "Output version information and exit.", 0, 0, 0, \
     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }, \
-  { "connect-string", 'c', \
+  { "ndb-connectstring", 'c', \
     "Set connect string for connecting to ndb_mgmd. " \
-    "<constr>=\"host=<hostname:port>[;nodeid=<id>]\". " \
-    "Overides specifying entries in NDB_CONNECTSTRING and config file", \
+    "Syntax: \"[nodeid=<id>;][host=]<hostname>[:<port>]\". " \
+    "Overides specifying entries in NDB_CONNECTSTRING and Ndb.cfg", \
+    (gptr*) &opt_connect_str, (gptr*) &opt_connect_str, 0, \
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
+  { "connect-string", 'c', "same as --ndb-connectstring",\
     (gptr*) &opt_connect_str, (gptr*) &opt_connect_str, 0, \
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }
 #else
@@ -46,11 +49,14 @@
     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }, \
   { "version", 'V', "Output version information and exit.", 0, 0, 0, \
     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }, \
-  { "connect-string", 'c', \
+  { "ndb-connectstring", 'c', \
     "Set connect string for connecting to ndb_mgmd. " \
-    "<constr>=\"host=<hostname:port>[;nodeid=<id>]\". " \
-    "Overides specifying entries in NDB_CONNECTSTRING and config file", \
+    "Syntax: \"[nodeid=<id>;][host=]<hostname>[:<port>]\". " \
+    "Overides specifying entries in NDB_CONNECTSTRING and Ndb.cfg", \
     (gptr*) &opt_connect_str, (gptr*) &opt_connect_str, 0, \
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
+  { "connect-string", 'c', "same as --ndb-connectstring",\
+    (gptr*) &opt_connect_str, (gptr*) &opt_connect_str, 0,\
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }
 #endif
 

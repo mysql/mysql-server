@@ -171,7 +171,7 @@ bool Item_func::agg_arg_charsets(DTCollation &coll,
   for (arg= args, last= args + nargs; arg < last; arg++)
   {
     Item* conv;
-    uint dummy_offset;
+    uint32 dummy_offset;
     if (!String::needs_conversion(0, coll.collation,
                                   (*arg)->collation.collation,
                                   &dummy_offset))
@@ -349,6 +349,7 @@ void Item_func::split_sum_func(THD *thd, Item **ref_pointer_array,
     else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
     {
       uint el= fields.elements;
+      ref_pointer_array[el]= item;
       Item *new_item= new Item_ref(ref_pointer_array + el, 0, item->name);
       fields.push_front(item);
       ref_pointer_array[el]= item;
@@ -1601,18 +1602,21 @@ longlong Item_func_bit_count::val_int()
 
 udf_handler::~udf_handler()
 {
-  if (initialized)
+  if (!not_original)
   {
-    if (u_d->func_deinit != NULL)
+    if (initialized)
     {
-      void (*deinit)(UDF_INIT *) = (void (*)(UDF_INIT*))
-	u_d->func_deinit;
-      (*deinit)(&initid);
+      if (u_d->func_deinit != NULL)
+      {
+        void (*deinit)(UDF_INIT *) = (void (*)(UDF_INIT*))
+        u_d->func_deinit;
+        (*deinit)(&initid);
+      }
+      free_udf(u_d);
     }
-    free_udf(u_d);
+    if (buffers)				// Because of bug in ecc
+      delete [] buffers;
   }
-  if (buffers)					// Because of bug in ecc
-    delete [] buffers;
 }
 
 
@@ -1659,7 +1663,8 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
 	 arg != arg_end ;
 	 arg++,i++)
     {
-      if ((*arg)->fix_fields(thd, tables, arg))
+      if (!(*arg)->fixed && 
+          (*arg)->fix_fields(thd, tables, arg))
 	DBUG_RETURN(1);
       // we can't assign 'item' before, because fix_fields() can change arg
       Item *item= *arg;
@@ -2006,7 +2011,7 @@ void item_user_lock_release(User_level_lock *ull)
     tmp.copy(command, strlen(command), tmp.charset());
     tmp.append(ull->key,ull->key_length);
     tmp.append("\")", 2);
-    Query_log_event qev(current_thd, tmp.ptr(), tmp.length(),1);
+    Query_log_event qev(current_thd, tmp.ptr(), tmp.length(),1, FALSE);
     qev.error_code=0; // this query is always safe to run on slave
     mysql_bin_log.write(&qev);
   }

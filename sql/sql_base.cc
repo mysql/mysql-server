@@ -18,7 +18,6 @@
 /* Basic functions needed by many modules */
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include "sql_select.h"
 #include <m_ctype.h>
 #include <my_dir.h>
@@ -524,7 +523,7 @@ void close_temporary_tables(THD *thd)
   {
     /* The -1 is to remove last ',' */
     thd->clear_error();
-    Query_log_event qinfo(thd, query, (ulong)(end-query)-1, 0);
+    Query_log_event qinfo(thd, query, (ulong)(end-query)-1, 0, FALSE);
     /*
       Imagine the thread had created a temp table, then was doing a SELECT, and
       the SELECT was killed. Then it's not clever to mark the statement above as
@@ -1441,7 +1440,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
       {
         end = strxmov(strmov(query, "DELETE FROM `"),
                       db,"`.`",name,"`", NullS);
-        Query_log_event qinfo(thd, query, (ulong)(end-query), 0);
+        Query_log_event qinfo(thd, query, (ulong)(end-query), 0, FALSE);
         mysql_bin_log.write(&qinfo);
         my_free(query, MYF(0));
       }
@@ -2685,7 +2684,8 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
             thd->restore_backup_item_arena(arena, &backup);
           if (*conds && !(*conds)->fixed)
           {
-            if ((*conds)->fix_fields(thd, tables, conds))
+            if (!(*conds)->fixed && 
+                (*conds)->fix_fields(thd, tables, conds))
               DBUG_RETURN(1);
           }
         }
@@ -2697,7 +2697,8 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
             thd->restore_backup_item_arena(arena, &backup);
           if (table->on_expr && !table->on_expr->fixed)
           {
-            if (table->on_expr->fix_fields(thd, tables, &table->on_expr))
+            if (!table->on_expr->fixed && 
+                table->on_expr->fix_fields(thd, tables, &table->on_expr))
              DBUG_RETURN(1);
           }
         }

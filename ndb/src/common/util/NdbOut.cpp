@@ -54,7 +54,7 @@ NdbOut&
 NdbOut::operator<<(unsigned long int v) { return *this << (Uint64) v; }
 
 NdbOut& 
-NdbOut::operator<<(const char* val){ m_out->print("%s", val); return * this; }
+NdbOut::operator<<(const char* val){ m_out->print("%s", val ? val : "(null)"); return * this; }
 NdbOut& 
 NdbOut::operator<<(const void* val){ m_out->print("%p", val); return * this; }
 NdbOut&

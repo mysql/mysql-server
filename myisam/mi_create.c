@@ -16,7 +16,7 @@
 
 /* Create a MyISAM table */
 
-#include "fulltext.h"
+#include "ftdefs.h"
 #include "sp_defs.h"
 
 #if defined(MSDOS) || defined(__WIN__)
@@ -41,7 +41,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   File dfile,file;
   int errpos,save_errno;
   myf create_flag;
-  uint fields,length,max_key_length,packed,pointer,
+  uint fields,length,max_key_length,packed,pointer,real_length_diff,
        key_length,info_length,key_segs,options,min_key_length_skip,
        base_pos,varchar_count,long_varchar_count,varchar_length,
        max_key_block_length,unique_key_parts,fulltext_keys,offset;
@@ -238,7 +238,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   {
 
     share.state.key_root[i]= HA_OFFSET_ERROR;
-    min_key_length_skip=length=0;
+    min_key_length_skip=length=real_length_diff=0;
     key_length=pointer;
     if (keydef->flag & HA_SPATIAL)
     {
@@ -297,6 +297,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       key_length+= HA_FT_MAXBYTELEN+HA_FT_WLEN;
       length++;                              /* At least one length byte */
       min_key_length_skip+=HA_FT_MAXBYTELEN;
+      real_length_diff=HA_FT_MAXBYTELEN-FT_MAX_WORD_LEN_FOR_SORT;
     }
     else
     {
@@ -397,7 +398,8 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	key_segs)
       share.state.rec_per_key_part[key_segs-1]=1L;
     length+=key_length;
-    keydef->block_length= MI_BLOCK_SIZE(length,pointer,MI_MAX_KEYPTR_SIZE);
+    keydef->block_length= MI_BLOCK_SIZE(length-real_length_diff,
+                                        pointer,MI_MAX_KEYPTR_SIZE);
     if (keydef->block_length > MI_MAX_KEY_BLOCK_LENGTH ||
         length >= MI_MAX_KEY_BUFF)
     {

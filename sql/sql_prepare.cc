@@ -68,7 +68,6 @@ Long data handling:
 ***********************************************************************/
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include "sql_select.h" // for JOIN
 #include <m_ctype.h>  // for isspace()
 #ifdef EMBEDDED_LIBRARY
@@ -349,12 +348,6 @@ static void set_param_time(Item_param *param, uchar **pos, ulong len)
 
     tm.neg= (bool) to[0];
     day= (uint) sint4korr(to+1);
-    /*
-      Note, that though ranges of hour, minute and second are not checked
-      here we rely on them being < 256: otherwise
-      we'll get buffer overflow in make_{date,time} functions,
-      which are called when time value is converted to string.
-    */
     tm.hour=   (uint) to[5] + day * 24;
     tm.minute= (uint) to[6];
     tm.second= (uint) to[7];
@@ -369,7 +362,7 @@ static void set_param_time(Item_param *param, uchar **pos, ulong len)
     tm.day= tm.year= tm.month= 0;
   }
   else
-    set_zero_time(&tm);
+    set_zero_time(&tm, MYSQL_TIMESTAMP_TIME);
   param->set_time(&tm, MYSQL_TIMESTAMP_TIME,
                   MAX_TIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
   *pos+= length;
@@ -388,11 +381,6 @@ static void set_param_datetime(Item_param *param, uchar **pos, ulong len)
     tm.year=   (uint) sint2korr(to);
     tm.month=  (uint) to[2];
     tm.day=    (uint) to[3];
-    /*
-      Note, that though ranges of hour, minute and second are not checked
-      here we rely on them being < 256: otherwise
-      we'll get buffer overflow in make_{date,time} functions.
-    */
     if (length > 4)
     {
       tm.hour=   (uint) to[4];
@@ -405,7 +393,7 @@ static void set_param_datetime(Item_param *param, uchar **pos, ulong len)
     tm.second_part= (length > 7) ? (ulong) sint4korr(to+7) : 0;
   }
   else
-    set_zero_time(&tm);
+    set_zero_time(&tm, MYSQL_TIMESTAMP_DATETIME);
   param->set_time(&tm, MYSQL_TIMESTAMP_DATETIME,
                   MAX_DATETIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
   *pos+= length;
@@ -419,11 +407,7 @@ static void set_param_date(Item_param *param, uchar **pos, ulong len)
   if (length >= 4)
   {
     uchar *to= *pos;
-    /*
-      Note, that though ranges of hour, minute and second are not checked
-      here we rely on them being < 256: otherwise
-      we'll get buffer overflow in make_{date,time} functions.
-    */
+
     tm.year=  (uint) sint2korr(to);
     tm.month=  (uint) to[2];
     tm.day= (uint) to[3];
@@ -433,7 +417,7 @@ static void set_param_date(Item_param *param, uchar **pos, ulong len)
     tm.neg= 0;
   }
   else
-    set_zero_time(&tm);
+    set_zero_time(&tm, MYSQL_TIMESTAMP_DATE);
   param->set_time(&tm, MYSQL_TIMESTAMP_DATE,
                   MAX_DATE_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
   *pos+= length;
@@ -442,8 +426,17 @@ static void set_param_date(Item_param *param, uchar **pos, ulong len)
 #else/*!EMBEDDED_LIBRARY*/
 void set_param_time(Item_param *param, uchar **pos, ulong len)
 {
-  MYSQL_TIME *to= (MYSQL_TIME*)*pos;
-  param->set_time(to, MYSQL_TIMESTAMP_TIME,
+  MYSQL_TIME tm= *((MYSQL_TIME*)*pos);
+  tm.hour+= tm.day * 24;
+  tm.day= tm.year= tm.month= 0;
+  if (tm.hour > 838)
+  {
+    /* TODO: add warning 'Data truncated' here */
+    tm.hour= 838;
+    tm.minute= 59;
+    tm.second= 59;
+  }
+  param->set_time(&tm, MYSQL_TIMESTAMP_TIME,
                   MAX_TIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
 
 }
@@ -1350,7 +1343,7 @@ static int mysql_test_insert_select(Prepared_statement *stmt,
 {
   int res;
   LEX *lex= stmt->lex;
-  if ((res= insert_select_precheck(stmt->thd, tables)))
+  if ((res= insert_precheck(stmt->thd, tables)))
     return res;
   TABLE_LIST *first_local_table=
     (TABLE_LIST *)lex->select_lex.table_list.first;
@@ -1521,6 +1514,27 @@ static bool init_param_array(Prepared_statement *stmt)
 }
 
 
+/* Init statement before execution */
+
+static void cleanup_stmt_for_execute(Prepared_statement *stmt)
+{
+  THD *thd= stmt->thd;
+  LEX *lex= stmt->lex;
+  SELECT_LEX *sl= lex->all_selects_list;
+
+  for (; sl; sl= sl->next_select_in_list())
+  {
+    for (TABLE_LIST *tables= (TABLE_LIST*) sl->table_list.first;
+	 tables;
+	 tables= tables->next)
+    {
+      if (tables->table)
+        tables->table->insert_values= 0;
+    }
+  }
+}
+
+
 /*
   Given a query string with parameter markers, create a Prepared Statement
   from it and send PS info back to the client.
@@ -1621,6 +1635,7 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
 
   if (!error)
     error= send_prepare_results(stmt, test(name));
+  cleanup_stmt_for_execute(stmt);
 
   /* restore to WAIT_PRIOR: QUERY_PRIOR is set inside alloc_query */
   if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -1911,6 +1926,7 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
   reset_stmt_params(stmt);
   close_thread_tables(thd);                    // to close derived tables
   thd->set_statement(&thd->stmt_backup);
+  cleanup_stmt_for_execute(stmt);
   DBUG_VOID_RETURN;
 }
 

@@ -20,15 +20,15 @@
 INCLUDES =			-I$(top_srcdir)/include -I$(top_srcdir)/regex \
 				$(openssl_includes)
 LIBS =				@CLIENT_LIBS@
-DEPLIB=				@ndb_mgmclient_libs@ \
-				../libmysql/libmysqlclient.la
+DEPLIB=				../libmysql/libmysqlclient.la
+REGEXLIB=			../regex/libregex.a
 LDADD =				@CLIENT_EXTRA_LDFLAGS@ $(DEPLIB)
 bin_PROGRAMS =			mysql mysqladmin mysqlcheck mysqlshow \
  mysqldump mysqlimport mysqltest mysqlbinlog mysqlmanagerc mysqlmanager-pwgen
 noinst_HEADERS =		sql_string.h completion_hash.h my_readline.h \
 				client_priv.h
-mysqladmin_SOURCES =		mysqladmin.cc
 mysql_SOURCES =			mysql.cc readline.cc sql_string.cc completion_hash.cc
+mysqladmin_SOURCES =		mysqladmin.cc
 mysql_LDADD =			@readline_link@ @TERMCAP_LIB@ $(LDADD) $(CXXLDFLAGS)
 mysqlbinlog_LDADD =		$(LDADD) $(CXXLDFLAGS)
 mysql_DEPENDENCIES=		$(LIBRARIES) $(pkglib_LTLIBRARIES) $(DEPLIB)
@@ -38,8 +38,8 @@ mysqlshow_DEPENDENCIES=		$(LIBRARIES) $(pkglib_LTLIBRARIES) $(DEPLIB)
 mysqldump_DEPENDENCIES=		$(LIBRARIES) $(pkglib_LTLIBRARIES) $(DEPLIB)
 mysqlimport_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES) $(DEPLIB)
 mysqltest_SOURCES=		mysqltest.c ../mysys/my_getsystime.c
-mysqltest_DEPENDENCIES=   	$(LIBRARIES) $(pkglib_LTLIBRARIES) $(DEPLIB)
-mysqltest_LDADD =		$(LDADD) $(top_builddir)/regex/libregex.a
+mysqltest_DEPENDENCIES=   	$(LIBRARIES) $(pkglib_LTLIBRARIES) $(REGEXLIB) $(DEPLIB)
+mysqltest_LDADD =		$(REGEXLIB) $(LDADD)
 mysqlbinlog_SOURCES =   mysqlbinlog.cc ../mysys/mf_tempdir.c
 mysqlbinlog_DEPENDENCIES=   	$(LIBRARIES) $(pkglib_LTLIBRARIES) $(DEPLIB)
 mysqlmanagerc_SOURCES =   mysqlmanagerc.c 

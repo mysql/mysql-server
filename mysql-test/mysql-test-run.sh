@@ -490,6 +490,7 @@ if [ x$SOURCE_DIST = x1 ] ; then
      echo "Fatal error: Cannot find embedded server 'mysqltest'" 1>&2
      exit 1
    fi
+   TESTS_BINDIR="$BASEDIR/libmysqld/examples"
  else
    MYSQLD="$VALGRIND $BASEDIR/sql/mysqld"
    if [ -f "$BASEDIR/client/.libs/lt-mysqltest" ] ; then
@@ -499,6 +500,7 @@ if [ x$SOURCE_DIST = x1 ] ; then
    else
      MYSQL_TEST="$BASEDIR/client/mysqltest"
    fi
+   TESTS_BINDIR="$BASEDIR/tests"
  fi
  if [ -f "$BASEDIR/client/.libs/mysqldump" ] ; then
    MYSQL_DUMP="$BASEDIR/client/.libs/mysqldump"
@@ -515,7 +517,6 @@ if [ x$SOURCE_DIST = x1 ] ; then
  fi
 
  CLIENT_BINDIR="$BASEDIR/client"
- TESTS_BINDIR="$BASEDIR/tests"
  MYSQLADMIN="$CLIENT_BINDIR/mysqladmin"
  WAIT_PID="$BASEDIR/extra/mysql_waitpid"
  MYSQL_MANAGER_CLIENT="$CLIENT_BINDIR/mysqlmanagerc"
@@ -946,7 +947,7 @@ start_ndbcluster()
     else
       NDBCLUSTER_EXTRA_OPTS="--small"
     fi
-    ./ndb/ndbcluster $NDBCLUSTER_OPTS $NDBCLUSTER_EXTRA_OPTS --diskless --initial || exit 1
+    ./ndb/ndbcluster $NDBCLUSTER_OPTS $NDBCLUSTER_EXTRA_OPTS --initial || exit 1
     NDB_CONNECTSTRING="host=localhost:$NDBCLUSTER_PORT"
   else
     NDB_CONNECTSTRING="$USE_RUNNING_NDBCLUSTER"
@@ -1387,13 +1388,18 @@ run_testcase ()
  # script soon anyway so it is not worth it spending the time
  if [ "x$USE_EMBEDDED_SERVER" = "x1" -a -z "$DO_TEST" ] ; then
    for t in \
+        "alter_table" \
 	"bdb-deadlock" \
 	"connect" \
+        "ctype_latin1_de" \
+        "ctype_ucs" \
 	"flush_block_commit" \
 	"grant2" \
 	"grant_cache" \
 	"grant" \
 	"init_connect" \
+	"init_file" \
+        "innodb" \
 	"innodb-deadlock" \
 	"innodb-lock" \
 	"mix_innodb_myisam_binlog" \
@@ -1401,10 +1407,12 @@ run_testcase ()
 	"mysqlbinlog" \
 	"mysqldump" \
 	"mysql_protocols" \
+        "packet" \
 	"ps_1general" \
 	"rename" \
 	"show_check" \
         "system_mysql_db_fix" \
+        "timezone2" \
 	"user_var" \
 	"variables"
    do

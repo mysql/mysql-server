@@ -5,7 +5,7 @@ AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
 # remember to also change ndb version below and update version.c in ndb
-AM_INIT_AUTOMAKE(mysql, 4.1.8)
+AM_INIT_AUTOMAKE(mysql, 4.1.9)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -16,7 +16,7 @@ SHARED_LIB_VERSION=14:0:0
 # ndb version
 NDB_VERSION_MAJOR=4
 NDB_VERSION_MINOR=1
-NDB_VERSION_BUILD=8
+NDB_VERSION_BUILD=9
 NDB_VERSION_STATUS=""
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
@@ -1931,9 +1931,11 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bzero chsize cuserid fchmod fcntl \
 #
 #
 case "$target" in
- *-*-aix4*)
+ *-*-aix4* | *-*-sco*)
 	# (grr) aix 4.3 has a stub for clock_gettime, (returning ENOSYS)
 	# and using AC_TRY_RUN is hard when cross-compiling
+	# We also disable for SCO for the time being, the headers for the
+	# thread library we use conflicts with other headers.
     ;;
  *) AC_CHECK_FUNCS(clock_gettime)
     ;;
@@ -2712,7 +2714,7 @@ case $default_charset in
       ;;
     latin1)
       default_charset_default_collation="latin1_swedish_ci"
-      default_charset_collations="latin1_general_ci latin1_general_cs latin1_bin latin1_german1_ci latin1_german2_ci latin1_danish_ci latin1_swedish_ci"
+      default_charset_collations="latin1_general_ci latin1_general_cs latin1_bin latin1_german1_ci latin1_german2_ci latin1_danish_ci latin1_spanish_ci latin1_swedish_ci"
       ;;
     latin2)
       default_charset_default_collation="latin2_general_ci"
@@ -2828,7 +2830,7 @@ thread_dirs=
 
 dnl This probably should be cleaned up more - for now the threaded
 dnl client is just using plain-old libs.
-sql_client_dirs="libmysql strings regex client"
+sql_client_dirs="libmysql client"
 linked_client_targets="linked_libmysql_sources"
 CLIENT_LIBS=$NON_THREADED_CLIENT_LIBS
 if test "$THREAD_SAFE_CLIENT" != "no"
@@ -3037,15 +3039,26 @@ then
   MAKE_BINARY_DISTRIBUTION_OPTIONS="$MAKE_BINARY_DISTRIBUTION_OPTIONS --with-ndbcluster"
 
   CXXFLAGS="$CXXFLAGS \$(NDB_CXXFLAGS)"
-  if test "$with_debug" = "yes"
+  if test "$have_ndb_debug" = "default"
+  then
+    have_ndb_debug=$with_debug
+  fi
+
+  if test "$have_ndb_debug" = "yes"
   then
     # Medium debug.
     NDB_DEFS="-DNDB_DEBUG -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
-  elif test "$with_debug" = "full"
+  elif test "$have_ndb_debug" = "full"
   then
     NDB_DEFS="-DNDB_DEBUG_FULL -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
   else
-    NDB_DEFS="-DNDEBUG"
+    # no extra ndb debug but still do asserts if debug version
+    if test "$with_debug" = "yes" -o "$with_debug" = "full"
+    then
+      NDB_DEFS=""
+    else
+      NDB_DEFS="-DNDEBUG"
+    fi
   fi
 
 AC_SUBST([NDB_DEFS])

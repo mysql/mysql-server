@@ -1601,50 +1601,46 @@ void Item_func_from_unixtime::fix_length_and_dec()
 String *Item_func_from_unixtime::val_str(String *str)
 {
   TIME time_tmp;
-  my_time_t tmp;
-  
+
   DBUG_ASSERT(fixed == 1);
-  tmp= (time_t) args[0]->val_int();
-  if ((null_value=args[0]->null_value))
-    goto null_date;
-  
-  thd->variables.time_zone->gmt_sec_to_TIME(&time_tmp, tmp);
-  
+
+  if (get_date(&time_tmp, 0))
+    return 0;
+
   if (str->alloc(20*MY_CHARSET_BIN_MB_MAXLEN))
-    goto null_date;
+  {
+    null_value= 1;
+    return 0;
+  }
+
   make_datetime((DATE_TIME_FORMAT *) 0, &time_tmp, str);
   return str;
-
-null_date:
-  null_value=1;
-  return 0;
 }
 
 
 longlong Item_func_from_unixtime::val_int()
 {
   TIME time_tmp;
-  my_time_t tmp;
-  
+
   DBUG_ASSERT(fixed == 1);
 
-  tmp= (time_t) (ulong) args[0]->val_int();
-  if ((null_value=args[0]->null_value))
+  if (get_date(&time_tmp, 0))
     return 0;
-  
-  current_thd->variables.time_zone->gmt_sec_to_TIME(&time_tmp, tmp);
-  
+
   return (longlong) TIME_to_ulonglong_datetime(&time_tmp);
 }
 
 bool Item_func_from_unixtime::get_date(TIME *ltime,
 				       uint fuzzy_date __attribute__((unused)))
 {
-  my_time_t tmp=(my_time_t) args[0]->val_int();
-  if ((null_value=args[0]->null_value))
+  longlong tmp= args[0]->val_int();
+
+  if ((null_value= (args[0]->null_value ||
+                    tmp < TIMESTAMP_MIN_VALUE ||
+                    tmp > TIMESTAMP_MAX_VALUE)))
     return 1;
-  
-  current_thd->variables.time_zone->gmt_sec_to_TIME(ltime, tmp);
+
+  thd->variables.time_zone->gmt_sec_to_TIME(ltime, (my_time_t)tmp);
 
   return 0;
 }

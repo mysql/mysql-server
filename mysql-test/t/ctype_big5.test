@@ -7,12 +7,6 @@
 drop table if exists t1;
 --enable_warnings
 
-SET NAMES big5;
-
-#
-# Bug 1883: LIKE did not work in some cases with a key.
-#
-CREATE TABLE t1 (c CHAR(10) CHARACTER SET big5, KEY(c));
-INSERT INTO t1 VALUES ('aaa'),('aaaa'),('aaaaa');
-SELECT * FROM t1 WHERE c LIKE 'aaa%';
-DROP TABLE t1;
+SET @test_character_set= 'big5';
+SET @test_collation= 'big5_chinese_ci';
+-- source include/ctype_common.inc

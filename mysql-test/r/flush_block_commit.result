@@ -20,4 +20,12 @@ commit;
 a
 1
 unlock tables;
+commit;
+begin;
+insert into t1 values(10);
+flush tables with read lock;
+commit;
+unlock tables;
+flush tables with read lock;
+unlock tables;
 drop table t1;

@@ -1192,7 +1192,7 @@ Dbdict::~Dbdict()
 {
 }//Dbdict::~Dbdict()
 
-BLOCK_FUNCTIONS(Dbdict);
+BLOCK_FUNCTIONS(Dbdict)
 
 void Dbdict::initCommonData() 
 {

@@ -587,12 +587,11 @@ typedef struct st_lex
   List<LEX_COLUMN>    columns;
   List<Key>	      key_list;
   List<create_field>  create_list;
-  List<Item>	      *insert_list,field_list,value_list;
+  List<Item>	      *insert_list,field_list,value_list,update_list;
   List<List_item>     many_values;
   List<set_var_base>  var_list;
   List<Item_param>    param_list;
   SQL_LIST	      proc_list, auxilliary_table_list, save_list;
-  TYPELIB	      *interval;
   create_field	      *last_field;
   char		      *savepoint_name;		// Transaction savepoint id
   udf_func udf;
@@ -619,6 +618,7 @@ typedef struct st_lex
   bool in_comment, ignore_space, verbose, no_write_to_binlog;
   bool derived_tables;
   bool safe_to_cache_query;
+  bool subqueries;
   ALTER_INFO alter_info;
   /* Prepared statements SQL syntax:*/
   LEX_STRING prepared_stmt_name; /* Statement name (in all queries) */

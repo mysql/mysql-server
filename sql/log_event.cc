@@ -373,6 +373,9 @@ int Log_event::exec_event(struct st_relay_log_info* rli)
          Note that Rotate_log_event::exec_event() does not call this function,
          so there is no chance that a fake rotate event resets
          last_master_timestamp.
+         Note that we update without mutex (probably ok - except in some very
+         rare cases, only consequence is that value may take some time to
+         display in Seconds_Behind_Master - not critical).
       */
       rli->last_master_timestamp= when;
     }
@@ -780,7 +783,8 @@ void Query_log_event::pack_info(Protocol *protocol)
   if (!(buf= my_malloc(9 + db_len + q_len, MYF(MY_WME))))
     return;
   pos= buf;    
-  if (db && db_len)
+  if (!(flags & LOG_EVENT_SUPPRESS_USE_F) 
+      && db && db_len)
   {
     pos= strmov(buf, "use `");
     memcpy(pos, db, db_len);
@@ -872,9 +876,12 @@ int Query_log_event::write_data(IO_CACHE* file)
 
 #ifndef MYSQL_CLIENT
 Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
-				 ulong query_length, bool using_trans)
-  :Log_event(thd_arg, !thd_arg->tmp_table_used ?
-	     0 : LOG_EVENT_THREAD_SPECIFIC_F, using_trans),
+				 ulong query_length, bool using_trans,
+				 bool suppress_use)
+  :Log_event(thd_arg, 
+	     ((thd_arg->tmp_table_used ? LOG_EVENT_THREAD_SPECIFIC_F : 0)
+	      | (suppress_use          ? LOG_EVENT_SUPPRESS_USE_F    : 0)),
+	     using_trans),
    data_buf(0), query(query_arg),
    db(thd_arg->db), q_len((uint32) query_length),
    error_code(thd_arg->killed ?
@@ -949,14 +956,20 @@ void Query_log_event::print(FILE* file, bool short_form, char* last_db)
 
   bool different_db= 1;
 
-  if (db && last_db)
+  if (!(flags & LOG_EVENT_SUPPRESS_USE_F))
   {
-    if (different_db= memcmp(last_db, db, db_len + 1))
-      memcpy(last_db, db, db_len + 1);
+    if (db && last_db) 
+    {
+      if (different_db= memcmp(last_db, db, db_len + 1))
+        memcpy(last_db, db, db_len + 1);
+    }
+    
+    if (db && db[0] && different_db) 
+    {
+      fprintf(file, "use %s;\n", db);
+    }
   }
-  
-  if (db && db[0] && different_db)
-    fprintf(file, "use %s;\n", db);
+
   end=int10_to_str((long) when, strmov(buff,"SET TIMESTAMP="),10);
   *end++=';';
   *end++='\n';
@@ -1406,7 +1419,9 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
 			       List<Item> &fields_arg,
 			       enum enum_duplicates handle_dup,
 			       bool using_trans)
-  :Log_event(thd_arg, 0, using_trans), thread_id(thd_arg->thread_id),
+  :Log_event(thd_arg, !thd_arg->tmp_table_used ?
+	     0 : LOG_EVENT_THREAD_SPECIFIC_F, using_trans),
+   thread_id(thd_arg->thread_id),
    slave_proxy_id(thd_arg->variables.pseudo_thread_id),
    num_fields(0),fields(0),
    field_lens(0),field_block_len(0),
@@ -1596,6 +1611,9 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db,
             commented ? "# " : "",
             db);
 
+  if (flags & LOG_EVENT_THREAD_SPECIFIC_F)
+    fprintf(file,"%sSET @@session.pseudo_thread_id=%lu;\n",
+            commented ? "# " : "", (ulong)thread_id);
   fprintf(file, "%sLOAD DATA ",
           commented ? "# " : "");
   if (check_fname_outside_temp_buf())
@@ -2842,7 +2860,7 @@ void Create_file_log_event::print(FILE* file, bool short_form,
 
   if (enable_local)
   {
-    Load_log_event::print(file, 1, last_db, !check_fname_outside_temp_buf());
+    Load_log_event::print(file, short_form, last_db, !check_fname_outside_temp_buf());
     /* 
        That one is for "file_id: etc" below: in mysqlbinlog we want the #, in
        SHOW BINLOG EVENTS we don't.

@@ -615,10 +615,12 @@ my_bool sequence_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
     return 1;
   }
   bzero(initid->ptr,sizeof(longlong));
-  // Fool MySQL to think that this function is a constant
-  // This will ensure that MySQL only evalutes the function
-  // when the rows are sent to the client and not before any ORDER BY
-  // clauses
+  /*
+    Fool MySQL to think that this function is a constant
+    This will ensure that MySQL only evalutes the function
+    when the rows are sent to the client and not before any ORDER BY
+    clauses
+  */
   initid->const_item=1;
   return 0;
 }
@@ -635,8 +637,9 @@ longlong sequence(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
   ulonglong val=0;
   if (args->arg_count)
     val= *((longlong*) args->args[0]);
-  return ++ *((longlong*) initid->ptr) + val;
+  return ++*((longlong*) initid->ptr) + val;
 }
+
 
 /****************************************************************************
 ** Some functions that handles IP and hostname conversions

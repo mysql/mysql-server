@@ -89,17 +89,17 @@ public:
    * -   1: if there are no more tuples to scan.
    * -   2: if there are no more cached records in NdbApi
    */
-  int nextResult(bool fetchAllowed = true);
+  int nextResult(bool fetchAllowed = true, bool forceSend = false);
 
   /**
    * Close result set (scan)
    */
-  void close();
+  void close(bool forceSend = false);
 
   /**
    * Restart
    */
-  int restart();
+  int restart(bool forceSend = false);
   
   /**
    * Transfer scan operation to an updating transaction. Use this function 

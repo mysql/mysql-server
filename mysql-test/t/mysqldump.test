@@ -127,3 +127,13 @@ insert into t1 values (1),(2),(3);
 --exec rm $MYSQL_TEST_DIR/var/tmp/t1.sql
 --exec rm $MYSQL_TEST_DIR/var/tmp/t1.txt
 drop table t1;
+
+#
+# Bug #6101: create database problem
+#
+
+--exec $MYSQL_DUMP --skip-comments --databases test
+
+create database mysqldump_test_db character set latin2 collate latin2_bin;
+--exec $MYSQL_DUMP --skip-comments --databases mysqldump_test_db;
+drop database mysqldump_test_db;

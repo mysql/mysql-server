@@ -27,7 +27,6 @@
 #endif
 
 #include "mysql_priv.h"
-#include "sql_acl.h"
 #include <m_ctype.h>
 #include <sys/stat.h>
 #include <thr_alarm.h>
@@ -280,6 +279,9 @@ void THD::init(void)
 					       variables.date_format);
   variables.datetime_format= date_time_format_copy((THD*) 0,
 						   variables.datetime_format);
+#ifdef HAVE_NDBCLUSTER_DB
+  variables.ndb_use_transactions= 1;
+#endif
   pthread_mutex_unlock(&LOCK_global_system_variables);
   server_status= SERVER_STATUS_AUTOCOMMIT;
   options= thd_startup_options;
@@ -959,7 +961,7 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
     return -1;
   }
   /* Create the file world readable */
-  if ((file= my_create(path, 0666, O_WRONLY, MYF(MY_WME))) < 0)
+  if ((file= my_create(path, 0666, O_WRONLY|O_EXCL, MYF(MY_WME))) < 0)
     return file;
 #ifdef HAVE_FCHMOD
   (void) fchmod(file, 0666);			// Because of umask()
@@ -1241,9 +1243,10 @@ bool select_singlerow_subselect::send_data(List<Item> &items)
 bool select_max_min_finder_subselect::send_data(List<Item> &items)
 {
   DBUG_ENTER("select_max_min_finder_subselect::send_data");
-  Item_singlerow_subselect *it= (Item_singlerow_subselect *)item;
+  Item_maxmin_subselect *it= (Item_maxmin_subselect *)item;
   List_iterator_fast<Item> li(items);
   Item *val_item= li++;
+  it->register_value();
   if (it->assigned())
   {
     cache->store(val_item);

@@ -454,10 +454,12 @@ sub print_verbose_errors
   print STDERR "number of help keywords            - ",$count_keywords,"\n";
     
   my $count_without_help= scalar(@without_help);
+  my $percent_without_help= $count_lex ?
+                            int (($count_without_help/$count_lex)*100) :
+                            "100";
   print_bad_names(\@without_help,"lexems without help (".
                             $count_without_help." ~ ".
-                            (int (($count_without_help/$count_lex)*100)).
-                            "%)");
+                            $percent_without_help."%)");
   print_bad_names(\@description_with_at,
           " topics below have symbol \'@\' in their descriptions.\n".
           "it's probably the litter from 'texi' tags (script needs fixing)");
@@ -467,10 +469,12 @@ sub print_verbose_errors
   print_bad_names(\@without_description,"topics without description");
     
   my $count_without_example= scalar(@without_example);
+  my $percent_without_example= $count_topics ?
+                            int (($count_without_example/$count_topics)*100) :
+                            "100";
   print_bad_names(\@without_example,"topics without example (".
                             $count_without_example." ~ ".
-                            (int (($count_without_example/$count_topics)*100)).
-                            "%)");
+                            $percent_without_example."%)");
 }
 
 print_verbose_errors if ($verbose_option ne 0);

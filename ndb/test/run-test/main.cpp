@@ -538,15 +538,19 @@ connect_ndb_mgm(atrt_process & proc){
   }
   BaseString tmp = proc.m_hostname;
   tmp.appfmt(":%d", proc.m_ndb_mgm_port);
-  time_t start = time(0);
-  const time_t max_connect_time = 30;
-  do {
-    if(ndb_mgm_connect(handle, tmp.c_str()) != -1){
-      proc.m_ndb_mgm_handle = handle;
-      return true;
-    }
-    sleep(1);
-  } while(time(0) < (start + max_connect_time));
+
+  if (ndb_mgm_set_connectstring(handle,tmp.c_str()))
+  {
+    g_logger.critical("Unable to create parse connectstring");
+    return false;
+  }
+
+  if(ndb_mgm_connect(handle, 30, 1, 0) != -1)
+  {
+    proc.m_ndb_mgm_handle = handle;
+    return true;
+  }
+
   g_logger.critical("Unable to connect to ndb mgm %s", tmp.c_str());
   return false;
 }
