@@ -269,8 +269,7 @@ public:
   virtual void fix_length_and_dec(Item_cache** row)= 0;
   virtual int exec()= 0;
   virtual uint cols()= 0; /* return number of columnss in select */
-  virtual bool dependent()= 0; /* depended from outer select */
-  virtual bool uncacheable()= 0; /* query is uncacheable */
+  virtual uint8 uncacheable()= 0; /* query is uncacheable */
   enum Item_result type() { return res_type; }
   virtual void exclude()= 0;
   bool may_be_null() { return maybe_null; };
@@ -295,8 +294,7 @@ public:
   void fix_length_and_dec(Item_cache** row);
   int exec();
   uint cols();
-  bool dependent();
-  bool uncacheable();
+  uint8 uncacheable();
   void exclude();
   table_map upper_select_const_tables();
   void print (String *str);
@@ -314,8 +312,7 @@ public:
   void fix_length_and_dec(Item_cache** row);
   int exec();
   uint cols();
-  bool dependent();
-  bool uncacheable();
+  uint8 uncacheable();
   void exclude();
   table_map upper_select_const_tables();
   void print (String *str);
@@ -342,8 +339,7 @@ public:
   void fix_length_and_dec(Item_cache** row);
   int exec();
   uint cols() { return 1; }
-  bool dependent() { return 1; }
-  bool uncacheable() { return 1; }
+  uint8 uncacheable() { return UNCACHEABLE_DEPENDENT; }
   void exclude();
   table_map upper_select_const_tables() { return 0; }
   void print (String *str);
