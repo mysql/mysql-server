@@ -2228,14 +2228,14 @@ bool Item_sum_count_distinct::setup(THD *thd)
     return FALSE;
 
   if (!(tmp_table_param= new TMP_TABLE_PARAM))
-    return 1;
+    return TRUE;
 
   /* Create a table with an unique key over all parameters */
   for (uint i=0; i < arg_count ; i++)
   {
     Item *item=args[i];
     if (list.push_back(item))
-      return 1;					// End of memory
+      return TRUE;                              // End of memory
     if (item->const_item())
     {
       (void) item->val_int();
@@ -2244,14 +2244,14 @@ bool Item_sum_count_distinct::setup(THD *thd)
     }
   }
   if (always_null)
-    return 0;
+    return FALSE;
   count_field_types(tmp_table_param,list,0);
   DBUG_ASSERT(table == 0);
   if (!(table= create_tmp_table(thd, tmp_table_param, list, (ORDER*) 0, 1,
 				0,
 				select_lex->options | thd->options,
 				HA_POS_ERROR, (char*)"")))
-    return 1;
+    return TRUE;
   table->file->extra(HA_EXTRA_NO_ROWS);		// Don't update rows
   table->no_rows=1;
 
