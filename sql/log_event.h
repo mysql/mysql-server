@@ -53,16 +53,46 @@
 #define LINE_START_EMPTY 0x8
 #define ESCAPED_EMPTY    0x10
 
-
-struct sql_ex_info
+struct old_sql_ex
   {
     char field_term;
     char enclosed;
     char line_term;
     char line_start;
     char escaped;
-    char opt_flags; // flags for the options
-    char empty_flags; // flags to indicate which of the terminating charact
+    char opt_flags;
+    char empty_flags;
+  };
+
+
+struct sql_ex_info
+  {
+    char* field_term;
+    char* enclosed;
+    char* line_term;
+    char* line_start;
+    char* escaped;
+    uchar field_term_len,enclosed_len,line_term_len,line_start_len,
+      escaped_len;
+    char opt_flags; 
+    char empty_flags;
+    int cached_new_format;
+    
+    // store in new format even if old is possible
+    void force_new_format() { cached_new_format = 1;} 
+    int data_size() { return new_format() ?
+			field_term_len + enclosed_len + line_term_len +
+			line_start_len + escaped_len + 6 : 7;}
+    int write_data(IO_CACHE* file);
+    char* init(char* buf,char* buf_end,bool use_new_format);
+    bool new_format()
+      {
+	return (cached_new_format != -1) ? cached_new_format :
+	  (cached_new_format=(field_term_len > 1 ||
+			      enclosed_len > 1 ||
+			      line_term_len > 1 || line_start_len > 1 ||
+			      escaped_len > 1));
+      }
   } ;
 
 /* Binary log consists of events. Each event has a fixed length header,
@@ -76,7 +106,7 @@ struct sql_ex_info
 /* event-specific post-header sizes */
 #define LOG_EVENT_HEADER_LEN 19
 #define QUERY_HEADER_LEN     (4 + 4 + 1 + 2)
-#define LOAD_HEADER_LEN      (4 + 4 + 4 + 1 +1 + 4+sizeof(struct sql_ex_info))
+#define LOAD_HEADER_LEN      (4 + 4 + 4 + 1 +1 + 4)
 #define START_HEADER_LEN     (2 + ST_SERVER_VER_LEN + 4)
 #define ROTATE_HEADER_LEN    8
 #define CREATE_FILE_HEADER_LEN 4
@@ -162,7 +192,8 @@ struct sql_ex_info
 enum Log_event_type { START_EVENT = 1, QUERY_EVENT =2,
 		      STOP_EVENT=3, ROTATE_EVENT = 4, INTVAR_EVENT=5,
                       LOAD_EVENT=6, SLAVE_EVENT=7, CREATE_FILE_EVENT=8,
- APPEND_BLOCK_EVENT=9, EXEC_LOAD_EVENT=10, DELETE_FILE_EVENT=11};
+ APPEND_BLOCK_EVENT=9, EXEC_LOAD_EVENT=10, DELETE_FILE_EVENT=11,
+ NEW_LOAD_EVENT=12};
 enum Int_event_type { INVALID_INT_EVENT = 0, LAST_INSERT_ID_EVENT = 1, INSERT_ID_EVENT = 2
  };
 
@@ -359,7 +390,6 @@ public:
   const char* table_name;
   const char* db;
   const char* fname;
-  bool fname_null_term;
   uint32 skip_lines;
   sql_ex_info sql_ex;
   
@@ -384,7 +414,8 @@ public:
   ~Load_log_event()
   {
   }
-  Log_event_type get_type_code() { return LOAD_EVENT; }
+  Log_event_type get_type_code() { return sql_ex.new_format() ?
+				     NEW_LOAD_EVENT: LOAD_EVENT; }
   int write_data_header(IO_CACHE* file); 
   int write_data_body(IO_CACHE* file); 
   bool is_valid() { return table_name != 0; }
@@ -395,7 +426,7 @@ public:
       + 4 // exec_time
       + 4 // skip_lines
       + 4 // field block len
-      + sizeof(sql_ex) + field_block_len + num_fields;
+      + sql_ex.data_size() + field_block_len + num_fields;
       ;
   }
   int get_data_body_offset() { return LOAD_EVENT_OVERHEAD; }
@@ -545,8 +576,10 @@ public:
   ~Create_file_log_event()
   {
   }
-  Log_event_type get_type_code() { return fake_base ? LOAD_EVENT :
-     CREATE_FILE_EVENT;}
+  Log_event_type get_type_code()
+    {
+     return fake_base ? Load_log_event::get_type_code() : CREATE_FILE_EVENT;
+    }
   int get_data_size() { return  fake_base ? Load_log_event::get_data_size() :
 			  Load_log_event::get_data_size() +
 			  4 + 1 + block_len;}
