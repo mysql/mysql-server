@@ -19,7 +19,7 @@ select 'a  a' > 'a', 'a  \0' < 'a';
 1	1
 select binary 'a  a' > 'a', binary 'a  \0' > 'a', binary 'a\0' > 'a';
 binary 'a  a' > 'a'	binary 'a  \0' > 'a'	binary 'a\0' > 'a'
-1	0	0
+1	1	1
 create table t1 (text1 varchar(32) not NULL, KEY key1 (text1));
 insert into t1 values ('teststring'), ('nothing'), ('teststring\t');
 check table t1;
