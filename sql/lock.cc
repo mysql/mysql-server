@@ -182,12 +182,12 @@ static int lock_external(THD *thd, TABLE **tables, uint count)
 
     if ((error=(*tables)->file->external_lock(thd,lock_type)))
     {
+      print_lock_error(error, (*tables)->file->table_type());
       for (; i-- ; tables--)
       {
 	(*tables)->file->external_lock(thd, F_UNLCK);
 	(*tables)->current_lock=F_UNLCK;
       }
-      print_lock_error(error, (*tables)->file->table_type());
       DBUG_RETURN(error);
     }
     else
@@ -375,12 +375,13 @@ static int unlock_external(THD *thd, TABLE **table,uint count)
     {
       (*table)->current_lock = F_UNLCK;
       if ((error=(*table)->file->external_lock(thd, F_UNLCK)))
+      {
 	error_code=error;
+	print_lock_error(error_code, (*table)->file->table_type());
+      }
     }
     table++;
   } while (--count);
-  if (error_code)
-    print_lock_error(error_code, (*table)->file->table_type());
   DBUG_RETURN(error_code);
 }
 
