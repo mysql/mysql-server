@@ -1390,7 +1390,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     send_error(thd, ER_UNKNOWN_COM_ERROR);
     break;
   }
-  if (thd->lock || thd->open_tables)
+  if (thd->lock || thd->open_tables || thd->derived_tables)
   {
     thd->proc_info="closing tables";
     close_thread_tables(thd);			/* Free tables */
@@ -1534,9 +1534,11 @@ mysql_execute_command(THD *thd)
     for (SELECT_LEX *sl= lex->all_selects_list;
 	 sl;
 	 sl= sl->next_select_in_list())
+    {
       for (TABLE_LIST *cursor= sl->get_table_list();
 	   cursor;
 	   cursor= cursor->next)
+      {
 	if (cursor->derived && (res=mysql_derived(thd, lex,
 						  (SELECT_LEX_UNIT *)
 						  cursor->derived,
@@ -1546,6 +1548,8 @@ mysql_execute_command(THD *thd)
 	    send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN : 0);
 	  DBUG_VOID_RETURN;
 	}
+      }
+    }
   }
   if ((&lex->select_lex != lex->all_selects_list &&
        lex->unit.create_total_list(thd, lex, &tables)) ||

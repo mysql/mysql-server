@@ -121,6 +121,7 @@ void my_end(int infoflag)
     }
   }
   free_charsets();
+  my_once_free();
   if (infoflag & MY_GIVE_INFO || info_file != stderr)
   {
 #ifdef HAVE_GETRUSAGE
@@ -163,7 +164,6 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
   pthread_mutex_destroy(&THR_LOCK_malloc);
   pthread_mutex_destroy(&THR_LOCK_open);
   DBUG_POP();				/* Must be done before my_thread_end */
-  my_once_free();
   my_thread_end();
   my_thread_global_end();
 #endif

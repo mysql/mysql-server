@@ -579,8 +579,7 @@ bool rm_temporary_table(enum db_type base, char *path);
 void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
 bool close_thread_table(THD *thd, TABLE **table_ptr);
-void close_thread_tables(THD *thd,bool locked=0);
-bool close_thread_table(THD *thd, TABLE **table_ptr);
+void close_thread_tables(THD *thd, bool locked=0, bool skip_derived=0);
 void close_temporary_tables(THD *thd);
 TABLE_LIST * find_table_in_list(TABLE_LIST *table,
 				const char *db_name, const char *table_name);
