@@ -25,7 +25,7 @@
 **			   *			   *
 **			   *************************
 */
-#define IMPORT_VERSION "3.4"
+#define IMPORT_VERSION "3.5"
 
 #include "client_priv.h"
 #include "mysql_version.h"
@@ -191,6 +191,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       while (*argument) *argument++= 'x';		/* Destroy argument */
       if (*start)
 	start[1]=0;				/* Cut length of argument */
+      tty_password= 0;
     }
     else
       tty_password= 1;

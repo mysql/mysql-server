@@ -16,7 +16,7 @@
 
 /* Show databases, tables or columns */
 
-#define SHOW_VERSION "9.4"
+#define SHOW_VERSION "9.5"
 
 #include "client_priv.h"
 #include <my_sys.h>
@@ -257,6 +257,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       while (*argument) *argument++= 'x';		/* Destroy argument */
       if (*start)
 	start[1]=0;				/* Cut length of argument */
+      tty_password= 0;
     }
     else
       tty_password=1;

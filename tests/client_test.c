@@ -8442,7 +8442,7 @@ static void test_subqueries_ref()
   int rc, i;
   const char *query= "SELECT a as ccc from t1 where a+1=(SELECT 1+ccc from t1 where ccc+1=a+1 and a=1)";
 
-  myheader("test_subquery_ref");
+  myheader("test_subqueries_ref");
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
   myquery(rc);

@@ -295,7 +295,7 @@ mem_strdupq(
 
 /**************************************************************************
 Duplicates a NUL-terminated string, allocated from a memory heap. */
-UNIV_INLINE
+
 char*
 mem_heap_strdup(
 /*============*/
