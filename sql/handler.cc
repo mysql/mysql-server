@@ -1127,7 +1127,7 @@ void handler::print_error(int error, myf errflag)
       temporary= get_error_message(error, &str);
       if (!str.is_empty())
       {
-	const char* engine= ha_get_storage_engine(table->db_type);
+	const char* engine= table_type();
 	if (temporary)
 	  my_error(ER_GET_TEMPORARY_ERRMSG,MYF(0),error,str.ptr(),engine);
 	else
