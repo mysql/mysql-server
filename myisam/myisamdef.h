@@ -55,7 +55,8 @@ typedef struct st_mi_state_info
     uchar uniques;			/* number of UNIQUE definitions */
     uchar language;			/* Language for indexes */
     uchar max_block_size;		/* max keyblock size */
-    uchar not_used[2];			/* To align to 8 */
+    uchar fulltext_keys;                /* reserved for 4.1 */
+    uchar not_used;			/* To align to 8 */
   } header;
 
   MI_STATUS_INFO state;
