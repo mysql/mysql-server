@@ -166,7 +166,7 @@ public:
       ptr-=row_offset;
       return tmp;
     }
-  bool send_binary(Protocol *protocol);
+  virtual bool send_binary(Protocol *protocol);
   virtual char *pack(char* to, const char *from, uint max_length=~(uint) 0)
   {
     uint32 length=pack_length();
@@ -792,7 +792,6 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
-  bool send_binary(Protocol *protocol);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
   void sql_type(String &str) const;
@@ -833,7 +832,6 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
-  bool send_binary(Protocol *protocol);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
   void get_key_image(char *buff,uint length, CHARSET_INFO *cs, imagetype type);
@@ -876,7 +874,6 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
-  bool send_binary(Protocol *protocol);
   int cmp(const char *,const char*);
   int cmp(const char *a, uint32 a_length, const char *b, uint32 b_length);
   int cmp_offset(uint offset);
@@ -982,7 +979,6 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
-  bool send_binary(Protocol *protocol);
   int cmp(const char *,const char*);
   void sort_string(char *buff,uint length);
   uint32 pack_length() const { return (uint32) packlength; }
