@@ -38,8 +38,8 @@ in addition to the data and the offsets */
 
 /* Number of elements that should be initially allocated for the
 offsets[] array, first passed to rec_get_offsets() */
-#define REC_OFFS_NORMAL_SIZE	1/*00*/
-#define REC_OFFS_SMALL_SIZE	1/*0*/
+#define REC_OFFS_NORMAL_SIZE	100
+#define REC_OFFS_SMALL_SIZE	10
 
 /**********************************************************
 The following function is used to get the offset of the
