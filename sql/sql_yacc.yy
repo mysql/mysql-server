@@ -3051,8 +3051,8 @@ opt_insert_update:
 /* Update rows in a table */
 
 update:
-	UPDATE_SYM 
-	{ 
+	UPDATE_SYM
+	{
 	  LEX *lex= Lex;
           lex->sql_command= SQLCOM_UPDATE;
           lex->select_lex.init_order();
@@ -3061,6 +3061,8 @@ update:
 	SET update_list where_clause opt_order_clause delete_limit_clause
 	{
 	  Select->set_lock_for_tables($3);
+          if (lex->select_lex->table_list.elements > 1)
+            lex->sql_command=SQLCOM_UPDATE_MULTI;
 	}
 	;
 
