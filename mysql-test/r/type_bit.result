@@ -377,3 +377,6 @@ hex(concat(a))	hex(concat(b))
 07	0FFE
 01	01FF
 drop table t1;
+create table t1(a int, b bit not null);
+alter table t1 add primary key (a);
+drop table t1;
