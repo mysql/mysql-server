@@ -4691,10 +4691,9 @@ Disable with --skip-ndbcluster (will save memory).",
    (gptr*) &opt_ndb_optimized_node_selection,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
   { "ndb-cache-check-time", OPT_NDB_CACHE_CHECK_TIME,
-    "A dedicated thread is created to update cached commit count value"
-    " at the given interval.",
-    (gptr*) &opt_ndb_cache_check_time, (gptr*) &opt_ndb_cache_check_time,
-    0, GET_ULONG, REQUIRED_ARG, 0, 0, LONG_TIMEOUT, 0, 1, 0},
+    "A dedicated thread is created to, at the given millisecons interval, invalidate the query cache if another MySQL server in the cluster has changed the data in the database.",
+    (gptr*) &opt_ndb_cache_check_time, (gptr*) &opt_ndb_cache_check_time, 0, GET_ULONG, REQUIRED_ARG,
+    0, 0, LONG_TIMEOUT, 0, 1, 0},
 #endif
   {"new", 'n', "Use very new possible 'unsafe' functions.",
    (gptr*) &global_system_variables.new_mode,

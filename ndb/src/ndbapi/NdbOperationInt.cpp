@@ -1014,8 +1014,14 @@ NdbOperation::branch_col(Uint32 type,
 			 Uint32 ColId, const void * val, Uint32 len, 
 			 bool nopad, Uint32 Label){
 
+  DBUG_ENTER("NdbOperation::branch_col");
+  DBUG_PRINT("enter", ("type=%u col=%u val=0x%x len=%u label=%u",
+                       type, ColId, val, len, Label));
+  if (val != NULL)
+    DBUG_DUMP("value", (char*)val, len);
+
   if (initial_interpreterCheck() == -1)
-    return -1;
+    DBUG_RETURN(-1);
 
   Interpreter::BinaryCondition c = (Interpreter::BinaryCondition)type;
   
@@ -1029,26 +1035,26 @@ NdbOperation::branch_col(Uint32 type,
   if (val == NULL)
     len = 0;
   else {
-    if (! col->getCharType()) {
+    if (! col->getStringType()) {
       // prevent assert in NdbSqlUtil on length error
       Uint32 sizeInBytes = col->m_attrSize * col->m_arraySize;
       if (len != 0 && len != sizeInBytes)
       {
         setErrorCodeAbort(4209);
-        return -1;
+        DBUG_RETURN(-1);
       }
       len = sizeInBytes;
     }
   }
 
   if (insertATTRINFO(Interpreter::BranchCol(c, 0, 0, false)) == -1)
-    return -1;
+    DBUG_RETURN(-1);
   
   if (insertBranch(Label) == -1)
-    return -1;
+    DBUG_RETURN(-1);
   
   if (insertATTRINFO(Interpreter::BranchCol_2(ColId, len)))
-    return -1;
+    DBUG_RETURN(-1);
   
   Uint32 len2 = Interpreter::mod4(len);
   if(len2 == len){
@@ -1065,7 +1071,7 @@ NdbOperation::branch_col(Uint32 type,
   }
   
   theErrorLine++;
-  return 0;
+  DBUG_RETURN(0);
 }
 
 int 
