@@ -4744,22 +4744,23 @@ MySQL Server offers the following advantages over PostgreSQL:
 
 @itemize @bullet
 @item
-@code{MySQL} Server is generally much faster than PostgreSQL.
+@code{MySQL} Server is generally much faster than PostgreSQL.  MySQL
+4.0.1 has also a query cache that can boost up the query speed for
+mostly-read-only sites many times.
 
 @item
-MySQL has a much larger user base than PostgreSQL, therefore the
-code is more tested and has historically proven more stable than
-PostgreSQL.  MySQL Server is the much more used in production
-environments than PostgreSQL, mostly thanks to that MySQL AB,
-formerly TCX DataKonsult AB, has provided top quality commercial support
-for MySQL Server from the day it was released, whereas until recently
-PostgreSQL was unsupported.
+MySQL has a much larger user base than PostgreSQL, therefore the code is
+more tested and has historically proven more stable than PostgreSQL.
+MySQL Server is more used in production environments than PostgreSQL,
+mostly thanks to that MySQL AB, formerly TCX DataKonsult AB, has
+provided top quality commercial support for MySQL Server from the day it
+was released, whereas until recently PostgreSQL was unsupported.
 
 @item
-MySQL Server works better on Windows than PostgreSQL does.  MySQL Server runs as a
-native Windows application (a service on NT/Win2000/WinXP), while
-PostgreSQL is run under the @code{Cygwin} emulation.  We have heard
-that PostgreSQL is not yet that stable on Windows but we haven't
+MySQL Server works better on Windows than PostgreSQL does.  MySQL Server
+runs as a native Windows application (a service on NT/Win2000/WinXP),
+while PostgreSQL is run under the @code{Cygwin} emulation.  We have
+heard that PostgreSQL is not yet that stable on Windows but we haven't
 been able to verify this ourselves.
 
 @item
@@ -4844,19 +4845,21 @@ You can access many databases from the same connection (depending of course
 on your privileges).
 
 @item
-MySQL Server is coded from the start to be multi-threaded while PostgreSQL uses
-processes.  Context switching and access to common storage areas is much 
-faster between threads than between separate processes, this gives MySQL Server
-a big speed advantage in multi-user applications and also makes it easier
-for MySQL Server to take full advantage of symmetric multiprocessor (SMP) systems.
+MySQL Server is coded from the start to be multi-threaded while
+PostgreSQL uses processes.  Context switching and access to common
+storage areas is much faster between threads than between separate
+processes, this gives MySQL Server a big speed advantage in multi-user
+applications and also makes it easier for MySQL Server to take full
+advantage of symmetric multiprocessor (SMP) systems.
 
 @item
-MySQL Server has a much more sophisticated privilege system than PostgreSQL.  
-While PostgreSQL only supports @code{INSERT}, @code{SELECT}, and
-@code{UPDATE/DELETE} grants per user on a database or a table, MySQL Server allows
-you to define a full set of different privileges on database, table and 
-column level.  MySQL Server also allows you to specify the privilege on host and 
-user combinations.  @xref{GRANT}.
+MySQL Server has a much more sophisticated privilege system than
+PostgreSQL.  While PostgreSQL only supports @code{INSERT},
+@code{SELECT}, and @code{UPDATE/DELETE} grants per user on a database or
+a table, MySQL Server allows you to define a full set of different
+privileges on database, table and column level.  MySQL Server also
+allows you to specify the privilege on host and user combinations.
+@xref{GRANT}.
 
 @item
 MySQL Server supports a compressed client/server protocol which improves 
@@ -4880,16 +4883,17 @@ of a data file happens, usually from a hardware failure.  It allows a
 majority of the data to be recovered.
 
 @item
-Upgrading MySQL Server is painless.  When you are upgrading MySQL Server, you don't need
-to dump/restore your data, as you have to do with most PostgreSQL upgrades.
+Upgrading MySQL Server is painless.  When you are upgrading MySQL
+Server, you don't need to dump/restore your data, as you have to do with
+most PostgreSQL upgrades.
 @end itemize
 
 Drawbacks with MySQL Server compared to PostgreSQL:
 
 @itemize @bullet
 @item
-The transaction support in MySQL Server is not yet as well tested as PostgreSQL's
-system.
+The transaction support in MySQL Server is not yet as well tested as
+PostgreSQL's system.
 
 @item
 Because MySQL Server uses threads, which are not yet flawless on many OSes, one
@@ -4914,10 +4918,10 @@ as in PostgreSQL.  @xref{Adding functions}.
 
 @item
 Updates that run over multiple tables is harder to do in MySQL Server.
-This will, however, be fixed in MySQL Server 4.0 with multi-table @code{UPDATE}
-and in MySQL Server 4.1 with subselects.
-In MySQL Server 4.0 one can use multi-table deletes to delete from many tables
-at the same time. @xref{DELETE}.
+This will, however, be fixed in MySQL Server 4.0.2 with multi-table
+@code{UPDATE} and in MySQL Server 4.1 with subselects.  In MySQL Server
+4.0 one can use multi-table deletes to delete from many tables at the
+same time. @xref{DELETE}.
 @end itemize
 
 PostgreSQL currently offers the following advantages over MySQL Server:

@@ -1127,7 +1127,7 @@ longlong Item_extract::val_int()
 
 void Item_typecast::print(String *str)
 {
-  str->append("CASE(");
+  str->append("CAST(");
   args[0]->print(str);
   str->append(" AS ");
   str->append(func_name());

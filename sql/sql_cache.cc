@@ -344,7 +344,8 @@ inline Query_cache_block * Query_cache_block_table::block()
 void Query_cache_block::init(ulong block_length)
 {
   DBUG_ENTER("Query_cache_block::init");
-  DBUG_PRINT("qcache", ("init block 0x%lx", (ulong) this));
+  DBUG_PRINT("qcache", ("init block 0x%lx  length: %lu", (ulong) this,
+			block_length));
   length = block_length;
   used = 0;
   type = Query_cache_block::FREE;
@@ -587,7 +588,7 @@ void query_cache_insert(NET *net, const char *packet, ulong length)
   }
   else
     STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
-  DBUG_EXECUTE("check_querycache",query_cache.check_integrity(););
+  DBUG_EXECUTE("check_querycache",query_cache.check_integrity(0););
   DBUG_VOID_RETURN;
 }
 
@@ -615,7 +616,7 @@ void query_cache_abort(NET *net)
     }
     net->query_cache_query=0;
     STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
-    DBUG_EXECUTE("check_querycache",query_cache.check_integrity(););
+    DBUG_EXECUTE("check_querycache",query_cache.check_integrity(0););
   }
   DBUG_VOID_RETURN;
 }
@@ -662,7 +663,7 @@ void query_cache_end_of_result(NET *net)
       STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
     }
     net->query_cache_query=0;
-    DBUG_EXECUTE("check_querycache",query_cache.check_integrity(););
+    DBUG_EXECUTE("check_querycache",query_cache.check_integrity(0););
   }
   DBUG_VOID_RETURN;
 }
@@ -670,7 +671,7 @@ void query_cache_end_of_result(NET *net)
 void query_cache_invalidate_by_MyISAM_filename(const char *filename)
 {
   query_cache.invalidate_by_MyISAM_filename(filename);
-  DBUG_EXECUTE("check_querycache",query_cache.check_integrity(););
+  DBUG_EXECUTE("check_querycache",query_cache.check_integrity(0););
 }
 
 
@@ -2482,6 +2483,7 @@ my_bool Query_cache::move_by_type(byte **border,
 		      *pprev = block->pprev,
 		      *pnext = block->pnext,
 		      *new_block =(Query_cache_block *) *border;
+    uint tablename_offset = block->table()->table() - block->table()->db();
     char *data = (char*) block->data();
     byte *key;
     uint key_length;
@@ -2493,7 +2495,7 @@ my_bool Query_cache::move_by_type(byte **border,
     new_block->type=Query_cache_block::TABLE;
     new_block->used=used;
     new_block->n_tables=1;
-    memcpy((char*) new_block->data(), data, len-new_block->headers_len());
+    memmove((char*) new_block->data(), data, len-new_block->headers_len());
     relink(block, new_block, next, prev, pnext, pprev);
     if (tables_blocks[new_block->table()->type()] == block)
       tables_blocks[new_block->table()->type()] = new_block;
@@ -2515,10 +2517,18 @@ my_bool Query_cache::move_by_type(byte **border,
       nlist_root->prev = tnext;
       tprev->next = nlist_root;
     }
+
+    /*
+      Go through all queries that uses this table and change them to
+      point to the new table object
+    */
+    Query_cache_table *new_block_table=new_block->table();
     for (;tnext != nlist_root; tnext=tnext->next)
-      tnext->parent = new_block->table();
+      tnext->parent= new_block_table;
     *border += len;
     *before = new_block;
+    /* Fix pointer to table name */
+    new_block->table()->table(new_block->table()->db() + tablename_offset);
     /* Fix hash to point at moved block */
     hash_replace(&tables, tables.current_record, (byte*) new_block);
 
@@ -2546,8 +2556,8 @@ my_bool Query_cache::move_by_type(byte **border,
     uint key_length;
     key=query_cache_query_get_key((byte*) block, &key_length, 0);
     hash_search(&queries, (byte*) key, key_length);
-
-    memcpy((char*) new_block->table(0), (char*) block->table(0),
+    // Move table of used tables 
+    memmove((char*) new_block->table(0), (char*) block->table(0),
 	   ALIGN_SIZE(n_tables*sizeof(Query_cache_block_table)));
     block->query()->unlock_n_destroy();
     block->destroy();
@@ -2555,7 +2565,7 @@ my_bool Query_cache::move_by_type(byte **border,
     new_block->type=Query_cache_block::QUERY;
     new_block->used=used;
     new_block->n_tables=n_tables;
-    memcpy((char*) new_block->data(), data, len - new_block->headers_len());
+    memmove((char*) new_block->data(), data, len - new_block->headers_len());
     relink(block, new_block, next, prev, pnext, pprev);
     if (queries_blocks == block)
       queries_blocks = new_block;
@@ -2620,7 +2630,7 @@ my_bool Query_cache::move_by_type(byte **border,
     new_block->init(len);
     new_block->type=type;
     new_block->used=used;
-    memcpy((char*) new_block->data(), data, len - new_block->headers_len());
+    memmove((char*) new_block->data(), data, len - new_block->headers_len());
     relink(block, new_block, next, prev, pnext, pprev);
     new_block->result()->parent(query_block);
     Query_cache_query *query = query_block->query();
@@ -2786,7 +2796,7 @@ void bins_dump() {}
 void cache_dump() {}
 void queries_dump() {}
 void tables_dump() {}
-my_bool check_integrity() { return 0; }
+my_bool check_integrity(bool not_locked) { return 0; }
 my_bool in_list(Query_cache_block * root, Query_cache_block * point,
 		const char *name) { return 0;}
 my_bool in_blocks(Query_cache_block * point) { return 0; }
@@ -2806,7 +2816,7 @@ void Query_cache::wreck(uint line, const char *message)
   if (thd)
     thd->killed = 1;
   cache_dump();
-  /* check_integrity(); */ /* Can't call it here because of locks */
+  /* check_integrity(0); */ /* Can't call it here because of locks */
   bins_dump();
   DBUG_VOID_RETURN;
 }
@@ -2977,19 +2987,19 @@ void Query_cache::tables_dump()
 }
 
 
-my_bool Query_cache::check_integrity()
+my_bool Query_cache::check_integrity(bool not_locked)
 {
   my_bool result = 0;
   uint i;
-  STRUCT_LOCK(&structure_guard_mutex);
   DBUG_ENTER("check_integrity");
 
-  if ( !initialized )
+  if (!initialized )
   {
-    STRUCT_UNLOCK(&structure_guard_mutex);
     DBUG_PRINT("qcache", ("Query Cache not initialized"));
     DBUG_RETURN(0);
   }
+  if (!not_locked)
+    STRUCT_LOCK(&structure_guard_mutex);
 
   if (hash_check(&queries))
   {
@@ -3213,7 +3223,8 @@ my_bool Query_cache::check_integrity()
     }
   }
   DBUG_ASSERT(result == 0);
-  STRUCT_UNLOCK(&structure_guard_mutex);
+  if (!not_locked)
+    STRUCT_UNLOCK(&structure_guard_mutex);
   DBUG_RETURN(result);
 }
 
