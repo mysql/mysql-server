@@ -1503,7 +1503,7 @@ void mysql_cb_init()
 }
 
 
-/ *To get the name of the NetWare volume having MySQL data folder */
+/* To get the name of the NetWare volume having MySQL data folder */
 
 static void getvolumename()
 {
@@ -1574,6 +1574,7 @@ static void registerwithneb()
 /*
   Callback for NSS Volume Deactivation event
 */
+
 ulong neb_event_callback(struct EventBlock *eblock)
 {
   EventChangeVolStateEnter_s *voldata;
@@ -1602,7 +1603,7 @@ ulong neb_event_callback(struct EventBlock *eblock)
 
 #define ADMIN_VOL_PATH					"_ADMIN:/Volumes/"
 
-staticvoid getvolumeID(BYTE *volumeName)
+static void getvolumeID(BYTE *volumeName)
 {
   char path[zMAX_FULL_NAME];
   Key_t rootKey= 0, fileKey= 0;
@@ -1610,7 +1611,7 @@ staticvoid getvolumeID(BYTE *volumeName)
   zInfo_s info;
   STATUS status;
 
-  /* Get the  root key */
+  /* Get the root key */
   if ((status= zRootKey(0, &rootKey)) != zOK)
   {
     consoleprintf("\nGetNSSVolumeProperties - Failed to get root key, status: %d\n.", (int) status);

@@ -1,6 +1,5 @@
 
 LDADD += $(top_srcdir)/ndb/test/src/libNDBT.a \
-         $(top_srcdir)/ndb/src/ndbapi/libNDB_API.la \
-         $(top_srcdir)/ndb/src/mgmapi/libMGM_API.la
+         $(top_srcdir)/ndb/src/libndbclient.la
 
 INCLUDES += @NDB_NDBAPITEST_INCLUDES@
