@@ -179,6 +179,17 @@ explain select max(t1.a1), max(t2.a2) from t1, t2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
 insert into t2 values('AAA', 10, 0.5);
+insert into t2 values('BBB', 20, 1.0);
+select t1.a1, t1.a2, t2.a1, t2.a2 from t1,t2;
+a1	a2	a1	a2
+10	aaa	AAA	10
+10	NULL	AAA	10
+10	bbb	AAA	10
+20	zzz	AAA	10
+10	aaa	BBB	20
+10	NULL	BBB	20
+10	bbb	BBB	20
+20	zzz	BBB	20
 select max(t1.a1), max(t2.a1) from t1, t2 where t2.a2=9;
 max(t1.a1)	max(t2.a1)
 NULL	NULL
@@ -188,19 +199,252 @@ NULL	NULL
 select t1.a1, t1.a2, t2.a1, t2.a2 from t1 left outer join t2 on t1.a1=10;
 a1	a2	a1	a2
 10	aaa	AAA	10
+10	aaa	BBB	20
 10	NULL	AAA	10
+10	NULL	BBB	20
 10	bbb	AAA	10
+10	bbb	BBB	20
 20	zzz	NULL	NULL
 select max(t1.a2) from t1 left outer join t2 on t1.a1=10;
 max(t1.a2)
 zzz
-select max(t1.a2) from t1 left outer join t2 on t1.a1=10 where t1.a1=20;
-max(t1.a2)
-zzz
-select max(t1.a2) from t1 left outer join t2 on t1.a1=10 where t1.a1=10;
-max(t1.a2)
-bbb
+select max(t2.a1) from t2 left outer join t1 on t2.a2=10 where t2.a2=20;
+max(t2.a1)
+BBB
+select max(t2.a1) from t2 left outer join t1 on t2.a2=10 where t2.a2=10;
+max(t2.a1)
+AAA
 select max(t2.a1) from t1 left outer join t2 on t1.a2=t2.a1 and 1=0 where t2.a1='AAA';
 max(t2.a1)
 NULL
+select max(t1.a2),max(t2.a1) from t1 left outer join t2 on t1.a1=10;
+max(t1.a2)	max(t2.a1)
+zzz	BBB
 drop table t1,t2;
+create table t1(
+a1 char(3) primary key,
+a2 smallint,
+a3 char(3),
+a4 real,
+a5 date,
+key k1(a2,a3),
+key k2(a4 desc,a1),
+key k3(a5,a1)
+);
+create table t2(
+a1 char(3) primary key,
+a2 char(17),
+a3 char(2),
+a4 char(3),
+key k1(a3, a2),
+key k2(a4)
+);
+insert into t1 values('AME',0,'SEA',0.100,date'1942-02-19');
+insert into t1 values('HBR',1,'SEA',0.085,date'1948-03-05');
+insert into t1 values('BOT',2,'SEA',0.085,date'1951-11-29');
+insert into t1 values('BMC',3,'SEA',0.085,date'1958-09-08');
+insert into t1 values('TWU',0,'LAX',0.080,date'1969-10-05');
+insert into t1 values('BDL',0,'DEN',0.080,date'1960-11-27');
+insert into t1 values('DTX',1,'NYC',0.080,date'1961-05-04');
+insert into t1 values('PLS',1,'WDC',0.075,date'1949-01-02');
+insert into t1 values('ZAJ',2,'CHI',0.075,date'1960-06-15');
+insert into t1 values('VVV',2,'MIN',0.075,date'1959-06-28');
+insert into t1 values('GTM',3,'DAL',0.070,date'1977-09-23');
+insert into t1 values('SSJ',null,'CHI',null,date'1974-03-19');
+insert into t1 values('KKK',3,'ATL',null,null);
+insert into t1 values('XXX',null,'MIN',null,null);
+insert into t2 values('TKF','Seattle','WA','AME');
+insert into t2 values('LCC','Los Angeles','CA','TWU');
+insert into t2 values('DEN','Denver','CO','BDL');
+insert into t2 values('SDC','San Diego','CA','TWU');
+insert into t2 values('NOL','New Orleans','LA','GTM');
+insert into t2 values('LAK','Los Angeles','CA','TWU');
+select * from t1;
+a1	a2	a3	a4	a5
+AME	0	SEA	0.1	1942-02-19
+HBR	1	SEA	0.085	1948-03-05
+BOT	2	SEA	0.085	1951-11-29
+BMC	3	SEA	0.085	1958-09-08
+TWU	0	LAX	0.08	1969-10-05
+BDL	0	DEN	0.08	1960-11-27
+DTX	1	NYC	0.08	1961-05-04
+PLS	1	WDC	0.075	1949-01-02
+ZAJ	2	CHI	0.075	1960-06-15
+VVV	2	MIN	0.075	1959-06-28
+GTM	3	DAL	0.07	1977-09-23
+SSJ	NULL	CHI	NULL	1974-03-19
+KKK	3	ATL	NULL	NULL
+XXX	NULL	MIN	NULL	NULL
+select * from t2;
+a1	a2	a3	a4
+TKF	Seattle	WA	AME
+LCC	Los Angeles	CA	TWU
+DEN	Denver	CO	BDL
+SDC	San Diego	CA	TWU
+NOL	New Orleans	LA	GTM
+LAK	Los Angeles	CA	TWU
+explain 
+select min(a1) from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select min(a1) from t1;
+min(a1)
+AME
+explain 
+select max(a4) from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select max(a4) from t1;
+max(a4)
+0.1
+explain 
+select min(a5), max(a5) from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select min(a5), max(a5) from t1;
+min(a5)	max(a5)
+1942-02-19	1977-09-23
+explain 
+select min(a3) from t1 where a2 = 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select min(a3) from t1 where a2 = 2;
+min(a3)
+CHI
+explain 
+select min(a1), max(a1) from t1 where a4 = 0.080;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select min(a1), max(a1) from t1 where a4 = 0.080;
+min(a1)	max(a1)
+BDL	TWU
+explain 
+select min(t1.a5), max(t2.a3) from t1, t2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select min(t1.a5), max(t2.a3) from t1, t2;
+min(t1.a5)	max(t2.a3)
+1942-02-19	WA
+explain 
+select min(t1.a3), max(t2.a2) from t1, t2 where t1.a2 = 0 and t2.a3 = 'CA';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select min(t1.a3), max(t2.a2) from t1, t2 where t1.a2 = 0 and t2.a3 = 'CA';
+min(t1.a3)	max(t2.a2)
+DEN	San Diego
+explain 
+select min(a1) from t1 where a1 > 'KKK';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select min(a1) from t1 where a1 > 'KKK';
+min(a1)
+PLS
+explain 
+select min(a1) from t1 where a1 >= 'KKK';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select min(a1) from t1 where a1 >= 'KKK';
+min(a1)
+KKK
+explain 
+select max(a3) from t1 where a2 = 2 and a3 < 'SEA';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select max(a3) from t1 where a2 = 2 and a3 < 'SEA';
+max(a3)
+MIN
+explain 
+select max(a5) from t1 where a5 < date'1970-01-01';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select max(a5) from t1 where a5 < date'1970-01-01';
+max(a5)
+1969-10-05
+explain 
+select max(a3) from t1 where a2 is null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select max(a3) from t1 where a2 is null;
+max(a3)
+MIN
+explain 
+select max(a3) from t1 where a2 = 0 and a3 between 'K' and 'Q';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select max(a3) from t1 where a2 = 0 and a3 between 'K' and 'Q';
+max(a3)
+LAX
+explain
+select min(a1), max(a1) from t1 where a1 between 'A' and 'P';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select min(a1), max(a1) from t1 where a1 between 'A' and 'P';
+min(a1)	max(a1)
+AME	KKK
+explain 
+select max(a3) from t1 where a3 < 'SEA' and a2 = 2 and a3 <= 'MIN';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select max(a3) from t1 where a3 < 'SEA' and a2 = 2 and a3 <= 'MIN';
+max(a3)
+MIN
+explain 
+select max(a3) from t1 where a3 = 'SEA' and a2 = 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select max(a3) from t1 where a3 = 'SEA' and a2 = 2;
+max(a3)
+SEA
+explain 
+select max(a3) from t1 where a3 = 'DEN' and a2 = 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+select max(a3) from t1 where a3 = 'DEN' and a2 = 2;
+max(a3)
+NULL
+explain
+select max(t1.a3), min(t2.a2) from t1, t2 where t1.a2 = 2 and t1.a3 < 'MIN' and t2.a3 = 'CA';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select max(t1.a3), min(t2.a2) from t1, t2 where t1.a2 = 2 and t1.a3 < 'MIN' and t2.a3 = 'CA';
+max(t1.a3)	min(t2.a2)
+CHI	Los Angeles
+explain
+select max(a3) from t1 where a2 is null and a2 = 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+select max(a3) from t1 where a2 is null and a2 = 2;
+max(a3)
+NULL
+explain
+select max(a2) from t1 where a2 >= 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select max(a2) from t1 where a2 >= 1;
+max(a2)
+3
+explain
+select min(a3) from t1 where a2 = 2 and a3 < 'SEA';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select min(a3) from t1 where a2 = 2 and a3 < 'SEA';
+min(a3)
+CHI
+explain 
+select min(a1) from t1 where a1 > 'KKK' or a1 < 'XXX';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	0	NULL	15	Using where; Using index
+explain 
+select min(a1) from t1 where a1 != 'KKK';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	3	NULL	14	Using where; Using index
+explain
+select max(a3) from t1 where a2 < 2 and a3 < 'SEA';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	k1	k1	3	NULL	5	Using where; Using index
+explain
+select max(t1.a3), min(t2.a2) from t1, t2 where t1.a2 = 2 and t1.a3 < 'MIN' and t2.a3 > 'CA';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	k1	k1	7	NULL	1	Using where; Using index
+1	SIMPLE	t2	range	k1	k1	3	NULL	4	Using where; Using index
+drop table if exists t1, t2;
