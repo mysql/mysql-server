@@ -62,7 +62,9 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #endif
 #endif
 
-#define files_charset_info system_charset_info
+extern CHARSET_INFO *system_charset_info;
+extern CHARSET_INFO *files_charset_info;
+extern CHARSET_INFO *national_charset_info;
 
 /***************************************************************************
   Configuration parameters

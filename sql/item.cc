@@ -93,20 +93,23 @@ bool Item::check_cols(uint c)
 void Item::set_name(const char *str,uint length, CHARSET_INFO *cs)
 {
   if (!length)
-    length= str ? strlen(str) : 0;
-  while (length && !my_isgraph(cs,*str))
-  {						// Fix problem with yacc
-    length--;
-    str++;
-  }
-  if (!my_charset_same(cs, system_charset_info))
-  {
-    String tmp;
-    tmp.copy(str, length, cs, system_charset_info);
-    name=sql_strmake(tmp.ptr(),min(tmp.length(),MAX_FIELD_WIDTH));
-  }
+    name= (char*) str;				// Empty string, used by AS
   else
-    name=sql_strmake(str,min(length,MAX_FIELD_WIDTH));
+  {
+    while (length && !my_isgraph(cs,*str))
+    {						// Fix problem with yacc
+      length--;
+      str++;
+    }
+    if (length && !my_charset_same(cs, system_charset_info))
+    {
+      String tmp;
+      tmp.copy(str, length, cs, system_charset_info);
+      name=sql_strmake(tmp.ptr(),min(tmp.length(),MAX_FIELD_WIDTH));
+    }
+    else
+      name=sql_strmake(str,min(length,MAX_FIELD_WIDTH));
+  }
 }
 
 /*
@@ -196,10 +199,17 @@ bool Item::set_charset(CHARSET_INFO *cs1, enum coercion co1,
   {
     if (cs1 != cs2)
     {
-      CHARSET_INFO *bin= get_charset_by_csname(cs1->csname, MY_CS_BINSORT,MYF(0));
-      if (!bin)
-	return 1;
-      set_charset(bin, COER_NOCOLL);
+      if (co1 == COER_EXPLICIT)
+      {
+        return 1;
+      }
+      else
+      {
+        CHARSET_INFO *bin= get_charset_by_csname(cs1->csname, MY_CS_BINSORT,MYF(0));
+        if (!bin)
+	  return 1;
+        set_charset(bin, COER_NOCOLL);
+      }
     }
     else
       set_charset(cs2, co2);
@@ -984,6 +994,7 @@ Item_varbinary::Item_varbinary(const char *str, uint str_length)
     str+=2;
   }
   *ptr=0;					// Keep purify happy
+  coercibility= COER_COERCIBLE;
 }
 
 longlong Item_varbinary::val_int()

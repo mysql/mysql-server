@@ -109,6 +109,8 @@ sys_var_bool_ptr	sys_concurrent_insert("concurrent_insert",
 					      &myisam_concurrent_insert);
 sys_var_long_ptr	sys_connect_timeout("connect_timeout",
 					    &connect_timeout);
+sys_var_thd_bool	sys_convert_result_charset("convert_result_charset",
+						   &SV::convert_result_charset);
 sys_var_enum		sys_delay_key_write("delay_key_write",
 					    &delay_key_write_options,
 					    &delay_key_write_typelib,
@@ -337,6 +339,7 @@ sys_var *sys_variables[]=
   &sys_client_collation,
   &sys_concurrent_insert,
   &sys_connect_timeout,
+  &sys_convert_result_charset,
   &sys_default_week_format,
   &sys_delay_key_write,
   &sys_delayed_insert_limit,
@@ -445,6 +448,7 @@ struct show_var_st init_vars[]= {
   {sys_client_collation.name, (char*) &sys_client_collation,	    SHOW_SYS},
   {sys_concurrent_insert.name,(char*) &sys_concurrent_insert,       SHOW_SYS},
   {sys_connect_timeout.name,  (char*) &sys_connect_timeout,         SHOW_SYS},
+  {sys_convert_result_charset.name, (char*) &sys_convert_result_charset, SHOW_SYS},
   {"datadir",                 mysql_real_data_home,                 SHOW_CHAR},
   {"default_week_format",     (char*) &sys_default_week_format,     SHOW_SYS},
   {sys_delay_key_write.name,  (char*) &sys_delay_key_write,         SHOW_SYS},
@@ -1455,7 +1459,6 @@ void set_var_init()
     (*var)->option_limits= find_option(my_long_options, (*var)->name);
     hash_insert(&system_variable_hash, (byte*) *var);
   }
-
   /*
     Special cases
     Needed because MySQL can't find the limits for a variable it it has
