@@ -6,7 +6,7 @@
 
 if [ -d ../sql ] ; then
    SOURCE_DIST=1
-   ndbtop=../ndb
+   ndbtop=`pwd`/../ndb
    exec_mgmtclient=$ndbtop/src/mgmclient/mgmtclient
 else
    BINARY_DIST=1

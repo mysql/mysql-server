@@ -17,6 +17,8 @@
 
 ## Process this file with automake to create Makefile.in
 
+SUBDIRS = ndb
+
 benchdir_root=		$(prefix)
 testdir =	        $(benchdir_root)/mysql-test
 EXTRA_SCRIPTS = 	mysql-test-run.sh install_test_db.sh
