@@ -68,6 +68,10 @@ typedef int sig_atomic_t;
 
 #define	__SIGFILLSET		{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
 #define	__SIGEMPTYSET		{ 0,0,0,0,0,0,0,0 }
+#define	__SIGADDSET(s,n)	__sigaddset((s),(n))
+#define	__SIGDELSET(s,n)	__sigdelset((s),(n))
+#define	__SIGISMEMBER(s,n)	__sigismember((s),(n))
+
 
 struct sigaction {
 	__sighandler_t sa_handler;
