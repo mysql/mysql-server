@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#define MANAGER_CLIENT_VERSION "1.0"
+#define MANAGER_CLIENT_VERSION "1.1"
 
 #include <my_global.h>
 #include <mysql.h>
@@ -28,7 +28,7 @@
 #include <unistd.h>
 
 #ifndef MYSQL_MANAGER_PORT
-#define MYSQL_MANAGER_PORT 23546
+#define MYSQL_MANAGER_PORT 9305
 #endif
 
 static void die(const char* fmt, ...);

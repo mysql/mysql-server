@@ -106,10 +106,25 @@ static int fake_rotate_event(NET* net, String* packet, char* log_file_name,
   p+= len; \
 }\
 
+void unregister_slave(THD* thd, bool only_mine, bool need_mutex)
+{
+  if (need_mutex)
+    pthread_mutex_lock(&LOCK_slave_list);
+  if (thd->server_id)
+  {
+    SLAVE_INFO* old_si;
+    if ((old_si = (SLAVE_INFO*)hash_search(&slave_list,
+					   (byte*)&thd->server_id, 4)) &&
+	(!only_mine || old_si->thd == thd))
+    hash_delete(&slave_list, (byte*)old_si);
+  }
+  if (need_mutex)
+    pthread_mutex_unlock(&LOCK_slave_list);
+}
 
 int register_slave(THD* thd, uchar* packet, uint packet_length)
 {
-  SLAVE_INFO *si, *old_si;
+  SLAVE_INFO *si;
   int res = 1;
   uchar* p = packet, *p_end = packet + packet_length;
 
@@ -119,18 +134,16 @@ int register_slave(THD* thd, uchar* packet, uint packet_length)
   if (!(si = (SLAVE_INFO*)my_malloc(sizeof(SLAVE_INFO), MYF(MY_WME))))
     goto err;
 
-  si->server_id = uint4korr(p);
+  thd->server_id = si->server_id = uint4korr(p);
   p += 4;
   get_object(p,si->host);
   get_object(p,si->user);
   get_object(p,si->password);
   si->port = uint2korr(p);
+  si->thd = thd;
   pthread_mutex_lock(&LOCK_slave_list);
 
-  if ((old_si = (SLAVE_INFO*)hash_search(&slave_list,
-					(byte*)&si->server_id, 4)))
-     hash_delete(&slave_list, (byte*)old_si);
-
+  unregister_slave(thd,0,0);
   res = hash_insert(&slave_list, (byte*) si);
   pthread_mutex_unlock(&LOCK_slave_list);
   return res;
