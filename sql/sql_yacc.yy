@@ -917,6 +917,11 @@ create:
 	  {
 	    LEX *lex= Lex;
 
+	    if (lex->sphead)
+	    {
+	      net_printf(YYTHD, ER_SP_NO_RECURSIVE_CREATE, "PROCEDURE");
+	      YYABORT;
+	    }
 	    lex->spcont= new sp_pcontext();
 	    lex->sphead= new sp_head(&$3, lex);
 	    lex->sphead->m_type= TYPE_ENUM_PROCEDURE;
@@ -948,7 +953,11 @@ create_function_tail:
 	  {
 	    LEX *lex= Lex;
 
-	    lex->sql_command = SQLCOM_CREATE_PROCEDURE;
+	    if (lex->sphead)
+	    {
+	      net_printf(YYTHD, ER_SP_NO_RECURSIVE_CREATE, "FUNCTION");
+	      YYABORT;
+	    }
 	    lex->spcont= new sp_pcontext();
 	    lex->sphead= new sp_head(&lex->udf.name, lex);
 	    lex->sphead->m_type= TYPE_ENUM_FUNCTION;
@@ -962,7 +971,9 @@ create_function_tail:
 	    Lex->sphead->m_returns= (enum enum_field_types)$7;
 	  }
 	  sp_proc_stmt
-	  {}
+	  {
+	    Lex->sql_command = SQLCOM_CREATE_SPFUNCTION;
+	  }
 	;
 
 call:
@@ -1110,10 +1121,25 @@ sp_proc_stmt:
 	      if (lex->sql_command != SQLCOM_SET_OPTION ||
 	          !lex->var_list.is_empty())
 	      {
-	        sp_instr_stmt *i= new sp_instr_stmt(lex->sphead->instructions());
+		/* Currently we can't handle queries inside a FUNCTION,
+		** because of the way table locking works.
+		** This is unfortunate, and limits the usefulness of functions
+		** a great deal, but it's nothing we can do about this at the
+		** moment.
+		*/
+	        if (lex->sphead->m_type == TYPE_ENUM_FUNCTION &&
+		    lex->sql_command != SQLCOM_SET_OPTION)
+		{
+		  send_error(YYTHD, ER_SP_BADQUERY);
+		  YYABORT;
+		}
+		else
+		{
+	          sp_instr_stmt *i= new sp_instr_stmt(lex->sphead->instructions());
 
-	        i->set_lex(lex);
-	        lex->sphead->add_instr(i);
+	          i->set_lex(lex);
+	          lex->sphead->add_instr(i);
+		}
               }
 	      lex->sphead->restore_lex(YYTHD);
 	    }
@@ -1185,7 +1211,7 @@ sp_proc_stmt:
 
 	    if (! lab)
 	    {
-	      send_error(YYTHD, ER_SP_LILABEL_MISMATCH, "LEAVE");
+	      net_printf(YYTHD, ER_SP_LILABEL_MISMATCH, "LEAVE", $2.str);
 	      YYABORT;
 	    }
 	    else
@@ -1203,7 +1229,7 @@ sp_proc_stmt:
 
 	    if (! lab)
 	    {
-	      send_error(YYTHD, ER_SP_LILABEL_MISMATCH, "ITERATE");
+	      net_printf(YYTHD, ER_SP_LILABEL_MISMATCH, "ITERATE", $2.str);
 	      YYABORT;
 	    }
 	    else
@@ -1305,7 +1331,7 @@ sp_labeled_control:
 
 	    if (lab)
 	    {
-	      send_error(YYTHD, ER_SP_LABEL_REDEFINE);
+	      net_printf(YYTHD, ER_SP_LABEL_REDEFINE, $1.str);
 	      YYABORT;
 	    }
 	    else
@@ -1321,7 +1347,7 @@ sp_labeled_control:
 
 	    if (! lab || strcasecmp($5.str, lab->name) != 0)
 	    {
-	      send_error(YYTHD, ER_SP_LABEL_MISMATCH);
+	      net_printf(YYTHD, ER_SP_LABEL_MISMATCH, $5.str);
 	      YYABORT;
 	    }
 	    else
@@ -1963,6 +1989,17 @@ alter:
 	    /* This is essensially an no-op right now, since we haven't
 	       put the characteristics in yet. */
 	    lex->sql_command= SQLCOM_ALTER_PROCEDURE;
+	    lex->udf.name= $3;
+	  }
+	| ALTER FUNCTION_SYM ident
+	  /* QQ Characteristics missing for now */
+	  opt_restrict
+	  {
+	    LEX *lex=Lex;
+
+	    /* This is essensially an no-op right now, since we haven't
+	       put the characteristics in yet. */
+	    lex->sql_command= SQLCOM_ALTER_FUNCTION;
 	    lex->udf.name= $3;
 	  }
 	;
@@ -3526,10 +3563,13 @@ select_var_ident:
 	       send_error(lex->thd, ER_SYNTAX_ERROR);
 	       YYABORT;
 	     }
-	     if (lex->result)
-	       ((select_dumpvar *)lex->result)->var_list.push_back( new my_var($1,1,t->offset));
-	     else
+	     if (! lex->result)
 	       YYABORT;
+	     else
+	     {
+	       ((select_dumpvar *)lex->result)->var_list.push_back( new my_var($1,1,t->offset));
+	       t->isset= TRUE;
+	     }
 	   }
            ;
 
@@ -4384,7 +4424,7 @@ simple_ident:
 	  { /* We're compiling a stored procedure and found a variable */
 	    if (lex->sql_command != SQLCOM_CALL && ! spv->isset)
 	    {
-	      send_error(YYTHD, ER_SP_UNINIT_VAR);
+	      net_printf(YYTHD, ER_SP_UNINIT_VAR, $1.str);
 	      YYABORT;
 	    }
 	    else

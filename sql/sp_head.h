@@ -265,11 +265,7 @@ public:
   virtual ~sp_instr_jump()
   {}
 
-  virtual int execute(THD *thd, uint *nextp)
-  {
-    *nextp= m_dest;
-    return 0;
-  }
+  virtual int execute(THD *thd, uint *nextp);
 
   virtual void
   set_destination(uint dest)

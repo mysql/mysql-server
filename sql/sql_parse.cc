@@ -52,6 +52,15 @@
 #define TRANS_MEM_ROOT_BLOCK_SIZE 4096
 #define TRANS_MEM_ROOT_PREALLOC   4096
 
+/* Used in error handling only */
+#define SP_TYPE_STRING(LP) \
+  ((LP)->sphead->m_type == TYPE_ENUM_FUNCTION ? "FUNCTION" : "PROCEDURE")
+#define SP_COM_STRING(LP) \
+  ((LP)->sql_command == SQLCOM_CREATE_SPFUNCTION || \
+   (LP)->sql_command == SQLCOM_ALTER_FUNCTION || \
+   (LP)->sql_command == SQLCOM_DROP_FUNCTION ? \
+   "FUNCTION" : "PROCEDURE")
+
 extern int yyparse(void *thd);
 extern "C" pthread_mutex_t THR_LOCK_keycache;
 #ifdef SOLARIS
@@ -1589,7 +1598,7 @@ mysql_execute_command(THD *thd)
   */
   sp_clear_function_cache(thd);
   if (lex->sql_command != SQLCOM_CREATE_PROCEDURE &&
-      lex->sql_command != SQLCOM_CREATE_FUNCTION)
+      lex->sql_command != SQLCOM_CREATE_SPFUNCTION)
   {
     if (sp_cache_functions(thd, lex))
       DBUG_RETURN(-1);
@@ -2961,23 +2970,27 @@ mysql_execute_command(THD *thd)
       res= -1;
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     break;
-  case SQLCOM_CREATE_PROCEDURE:	// FUNCTION too (but not UDF!)
+  case SQLCOM_CREATE_PROCEDURE:
+  case SQLCOM_CREATE_SPFUNCTION:
     if (!lex->sphead)
     {
-      send_error(thd, ER_SP_NO_RECURSIVE_CREATE);
-      goto error;
+      res= -1;			// Shouldn't happen
+      break;
     }
     else
     {
       uint namelen;
       char *name= lex->sphead->name(&namelen);
 #ifdef HAVE_DLOPEN
-      udf_func *udf = find_udf(name, namelen);
-
-      if (udf)
+      if (lex->sphead->m_type == TYPE_ENUM_FUNCTION)
       {
-	net_printf(thd, ER_UDF_EXISTS, name);
-	goto error;
+	udf_func *udf = find_udf(name, namelen);
+
+	if (udf)
+	{
+	  net_printf(thd, ER_UDF_EXISTS, name);
+	  goto error;
+	}
       }
 #endif
       res= lex->sphead->create(thd);
@@ -2987,10 +3000,10 @@ mysql_execute_command(THD *thd)
 	send_ok(thd);
 	break;
       case SP_WRITE_ROW_FAILED:
-	send_error(thd, ER_SP_ALREADY_EXISTS);
+	net_printf(thd, ER_SP_ALREADY_EXISTS, SP_TYPE_STRING(lex), name);
 	goto error;
       default:
-	send_error(thd, ER_SP_STORE_FAILED);
+	net_printf(thd, ER_SP_STORE_FAILED, SP_TYPE_STRING(lex), name);
 	goto error;
       }
     }
@@ -3002,7 +3015,7 @@ mysql_execute_command(THD *thd)
       sp= sp_find_procedure(thd, &lex->udf.name);
       if (! sp)
       {
-	send_error(thd, ER_SP_DOES_NOT_EXIST);
+	net_printf(thd, ER_SP_DOES_NOT_EXIST, "PROCEDURE", lex->udf.name);
 	goto error;
       }
       else
@@ -3037,7 +3050,7 @@ mysql_execute_command(THD *thd)
 	sp= sp_find_function(thd, &lex->udf.name);
       if (! sp)
       {
-	send_error(thd, ER_SP_DOES_NOT_EXIST);
+	net_printf(thd, ER_SP_DOES_NOT_EXIST, SP_COM_STRING(lex),lex->udf.name);
 	goto error;
       }
       else
@@ -3079,10 +3092,12 @@ mysql_execute_command(THD *thd)
 	send_ok(thd);
 	break;
       case SP_KEY_NOT_FOUND:
-	send_error(thd, ER_SP_DOES_NOT_EXIST);
+	net_printf(thd, ER_SP_DOES_NOT_EXIST, SP_COM_STRING(lex),
+		   lex->udf.name.str);
 	goto error;
       default:
-	send_error(thd, ER_SP_DROP_FAILED);
+	net_printf(thd, ER_SP_DROP_FAILED, SP_COM_STRING(lex),
+		   lex->udf.name.str);
 	goto error;
       }
     }
