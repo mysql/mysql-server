@@ -1843,7 +1843,7 @@ Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
     find_field_in_tables()
     thd			Pointer to current thread structure
     item		Field item that should be found
-    tables		Tables for scaning
+    tables		Tables for scanning
     where		Table where field found will be returned via
 			this parameter
     report_error	If FALSE then do not report error if item not found
