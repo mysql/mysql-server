@@ -62,7 +62,7 @@ my_string	mysql_unix_port=0;
 #define closesocket(A) close(A)
 #endif
 
-void STDCALL mysql_once_init(void);
+static void mysql_once_init(void);
 static MYSQL_DATA *read_rows (MYSQL *mysql,MYSQL_FIELD *fields,
 			      uint field_count);
 static int read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row,

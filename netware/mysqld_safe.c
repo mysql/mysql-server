@@ -190,7 +190,7 @@ void finish_defaults()
   if (!err_log[0]) snprintf(err_log, PATH_MAX, "%s/%s.err", datadir, hostname);
 
   // safe-log
-  if (!safe_log[0]) snprintf(safe_log, PATH_MAX, "%s/%s.log", datadir, hostname);
+  if (!safe_log[0]) snprintf(safe_log, PATH_MAX, "%s/%s.safe", datadir, hostname);
 
   // mysqld
   if (!mysqld[0]) snprintf(mysqld, PATH_MAX, "%s/bin/mysqld-max", basedir);
@@ -364,7 +364,7 @@ void get_options(int argc, char *argv[])
 
   // default file arguments
   init_args(al);
-  add_arg(al, "dummy");
+  add_arg(al, "ignore");
   read_defaults(al);
   parse_args(al->argc, al->argv);
   free_args(al);
