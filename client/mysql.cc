@@ -41,7 +41,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER= "12.2";
+const char *VER= "12.3";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -460,6 +460,9 @@ static struct my_option my_long_options[] =
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory where character sets are.", (gptr*) &charsets_dir,
    (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"default-character-set", OPT_DEFAULT_CHARSET,
+   "Set the default character set.", (gptr*) &default_charset,
+   (gptr*) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", 'C', "Use compression in server/client protocol.",
    (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
