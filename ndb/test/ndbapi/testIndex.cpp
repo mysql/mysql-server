@@ -1277,7 +1277,7 @@ TESTCASE("CreateLoadDrop_O",
 TESTCASE("NFNR1", 
 	 "Test that indexes are correctly maintained during node fail and node restart"){ 
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
-  //TC_PROPERTY("Threads", 2);
+  TC_PROPERTY("PauseThreads", 2);
   INITIALIZER(runClearTable);
   INITIALIZER(createRandomIndex);
   INITIALIZER(runLoadTable);
@@ -1292,6 +1292,7 @@ TESTCASE("NFNR1_O",
 	 "Test that indexes are correctly maintained during node fail and node restart"){ 
   TC_PROPERTY("OrderedIndex", 1);
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
+  TC_PROPERTY("PauseThreads", 2);
   INITIALIZER(runClearTable);
   INITIALIZER(createRandomIndex);
   INITIALIZER(runLoadTable);
@@ -1305,6 +1306,7 @@ TESTCASE("NFNR1_O",
 TESTCASE("NFNR2", 
 	 "Test that indexes are correctly maintained during node fail and node restart"){ 
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
+  TC_PROPERTY("PauseThreads", 2);
   INITIALIZER(runClearTable);
   INITIALIZER(createRandomIndex);
   INITIALIZER(createPkIndex);
@@ -1321,6 +1323,7 @@ TESTCASE("NFNR2_O",
 	 "Test that indexes are correctly maintained during node fail and node restart"){ 
   TC_PROPERTY("OrderedIndex", 1);
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
+  TC_PROPERTY("PauseThreads", 2);
   INITIALIZER(runClearTable);
   INITIALIZER(createRandomIndex);
   INITIALIZER(createPkIndex);
@@ -1336,6 +1339,7 @@ TESTCASE("NFNR2_O",
 TESTCASE("NFNR3", 
 	 "Test that indexes are correctly maintained during node fail and node restart"){ 
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
+  TC_PROPERTY("PauseThreads", 2);
   INITIALIZER(runClearTable);
   INITIALIZER(createRandomIndex);
   INITIALIZER(createPkIndex);
@@ -1351,6 +1355,7 @@ TESTCASE("NFNR3_O",
 	 "Test that indexes are correctly maintained during node fail and node restart"){ 
   TC_PROPERTY("OrderedIndex", 1);
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
+  TC_PROPERTY("PauseThreads", 2);
   INITIALIZER(runClearTable);
   INITIALIZER(createRandomIndex);
   INITIALIZER(createPkIndex);
@@ -1365,6 +1370,7 @@ TESTCASE("NFNR3_O",
 TESTCASE("NFNR4", 
 	 "Test that indexes are correctly maintained during node fail and node restart"){ 
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
+  TC_PROPERTY("PauseThreads", 4);
   INITIALIZER(runClearTable);
   INITIALIZER(createRandomIndex);
   INITIALIZER(createPkIndex);
@@ -1383,6 +1389,7 @@ TESTCASE("NFNR4_O",
 	 "Test that indexes are correctly maintained during node fail and node restart"){ 
   TC_PROPERTY("OrderedIndex", 1);
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
+  TC_PROPERTY("PauseThreads", 4);
   INITIALIZER(runClearTable);
   INITIALIZER(createRandomIndex);
   INITIALIZER(createPkIndex);
