@@ -695,6 +695,15 @@ SELECT user, CONCAT('<', user, '>') AS c FROM t1;
 DROP TABLE t1;
 
 #
+# Bug#8785
+# the same problem with the above, but with nested CONCATs
+#
+create table t1 (f1 varchar(1) not null) default charset utf8;
+insert into t1 values (''), ('');
+select concat(concat(_latin1'->',f1),_latin1'<-') from t1;
+drop table t1;
+
+#
 # Bug#8385: utf8_general_ci treats Cyrillic letters I and SHORT I as the same
 #
 select convert(_koi8r'É' using utf8) < convert(_koi8r'Ê' using utf8);
