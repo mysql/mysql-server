@@ -144,6 +144,7 @@ static int ndb_to_mysql_error(const NdbError *err)
 
 int ha_ndbcluster::ndb_err(NdbConnection *trans)
 {
+  int res;
   const NdbError err= trans->getNdbError();
   if (!err.code)
     return 0;			// Don't log things to DBUG log if no error
@@ -161,7 +162,13 @@ int ha_ndbcluster::ndb_err(NdbConnection *trans)
   default:
     break;
   }
-  DBUG_RETURN(ndb_to_mysql_error(&err));
+  res= ndb_to_mysql_error(&err);
+  DBUG_PRINT("info", ("transformed ndbcluster error %d to mysql error %d", 
+		      err.code, res));
+  if (res == HA_ERR_FOUND_DUPP_KEY)
+    dupkey= table->primary_key;
+  
+  DBUG_RETURN(res);
 }
 
 
@@ -2167,7 +2174,10 @@ void ha_ndbcluster::info(uint flag)
   if (flag & HA_STATUS_VARIABLE)
     DBUG_PRINT("info", ("HA_STATUS_VARIABLE"));
   if (flag & HA_STATUS_ERRKEY)
+  {
     DBUG_PRINT("info", ("HA_STATUS_ERRKEY"));
+    errkey= dupkey;
+  }
   if (flag & HA_STATUS_AUTO)
     DBUG_PRINT("info", ("HA_STATUS_AUTO"));
   DBUG_VOID_RETURN;
@@ -2621,7 +2631,7 @@ int ndbcluster_commit(THD *thd, void *ndb_transaction)
     const NdbOperation *error_op= trans->getNdbErrorOperation();
     ERR_PRINT(err);     
     res= ndb_to_mysql_error(&err);
-    if (res != -1)
+    if (res != -1) 
       ndbcluster_print_error(res, error_op);
   }
   ndb->closeTransaction(trans);    
@@ -3126,7 +3136,8 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   ops_pending(0),
   skip_auto_increment(true),
   blobs_buffer(0),
-  blobs_buffer_size(0)
+  blobs_buffer_size(0),
+  dupkey((uint) -1)
 { 
   int i;
   
