@@ -2515,6 +2515,7 @@ btr_index_rec_validate(
 
 	for (i = 0; i < n; i++) {
 		dtype_t*	type = dict_index_get_nth_type(index, i);
+		ulint		fixed_size = dtype_get_fixed_size(type);
 
 		rec_get_nth_field(rec, offsets, i, &len);
 
@@ -2522,8 +2523,8 @@ btr_index_rec_validate(
 		their type is CHAR. */
 
 		if ((dict_index_get_nth_field(index, i)->prefix_len == 0
-		    && len != UNIV_SQL_NULL && dtype_is_fixed_size(type)
-		    && len != dtype_get_fixed_size(type))
+		    && len != UNIV_SQL_NULL && fixed_size
+		    && len != fixed_size)
 		   ||
 		   (dict_index_get_nth_field(index, i)->prefix_len > 0
 		    && len != UNIV_SQL_NULL

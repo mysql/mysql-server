@@ -521,6 +521,25 @@ innobase_mysql_print_thd(
 }
 
 /**********************************************************************
+Determines whether the given character set is of variable length.
+
+NOTE that the exact prototype of this function has to be in
+/innobase/data/data0type.ic! */
+extern "C"
+ibool
+innobase_is_mb_cset(
+/*================*/
+	ulint	cset)	/* in: MySQL charset-collation code */
+{
+	CHARSET_INFO*	cs;
+	ut_ad(cset < 256);
+
+	cs = all_charsets[cset];
+
+	return(cs && cs->mbminlen != cs->mbmaxlen);
+}
+
+/**********************************************************************
 Compares NUL-terminated UTF-8 strings case insensitively.
 
 NOTE that the exact prototype of this function has to be in
