@@ -877,7 +877,7 @@ insert into t1 values (1), (2), (3), (200);
 create view v1 (x) as select a from t1 where a > 1;
 create view v2 (y) as select x from v1 where x < 100;
 select * from v2;
-x
+y
 2
 3
 drop table t1;
@@ -1424,3 +1424,201 @@ a
 1
 drop view v1;
 drop table t1;
+drop table t1,t2;
+create table t1 (a int);
+create table t2 (a int);
+create table t3 (a int);
+insert into t1 values (1), (2), (3);
+insert into t2 values (1), (3);
+insert into t3 values (1), (2), (4);
+create view v3 (a,b) as select t1.a as a, t2.a as b from t1 left join t2 on (t1.a=t2.a);
+select * from t3 left join v3 on (t3.a = v3.a);
+a	a	b
+1	1	1
+2	2	NULL
+4	NULL	NULL
+explain extended select * from t3 left join v3 on (t3.a = v3.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+Warnings:
+Note	1003	select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`t1` left join `test`.`t2` on((`test`.`t1`.`a` = `test`.`t2`.`a`))) on((`test`.`t3`.`a` = `test`.`t1`.`a`)) where 1
+create view v1 (a) as select a from t1;
+create view v2 (a) as select a from t2;
+create view v4 (a,b) as select v1.a as a, v2.a as b from v1 left join v2 on (v1.a=v2.a);
+select * from t3 left join v4 on (t3.a = v4.a);
+a	a	b
+1	1	1
+2	2	NULL
+4	NULL	NULL
+explain extended select * from t3 left join v4 on (t3.a = v4.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+Warnings:
+Note	1003	select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`v1` left join `test`.`v2` on((`test`.`t1`.`a` = `test`.`t2`.`a`))) on((`test`.`t3`.`a` = `test`.`t1`.`a`)) where 1
+prepare stmt1 from "select * from t3 left join v4 on (t3.a = v4.a);";
+execute stmt1;
+a	a	b
+1	1	1
+2	2	NULL
+4	NULL	NULL
+execute stmt1;
+a	a	b
+1	1	1
+2	2	NULL
+4	NULL	NULL
+deallocate prepare stmt1;
+drop view v4,v3,v2,v1;
+drop tables t1,t2,t3;
+create table t1 (a int, primary key (a), b int);
+create table t2 (a int, primary key (a));
+insert into t1 values (1,100), (2,200);
+insert into t2 values (1), (3);
+create view v3 (a,b) as select t1.a as a, t2.a as b from t1, t2;
+update v3 set a= 10 where a=1;
+select * from t1;
+a	b
+10	100
+2	200
+select * from t2;
+a
+1
+3
+create view v2 (a,b) as select t1.b as a, t2.a as b from t1, t2;
+update v2 set a= 10 where a=200;
+ERROR HY000: The target table v2 of the UPDATE is not updatable
+select * from v3;
+a	b
+2	1
+10	1
+2	3
+10	3
+select * from v2;
+a	b
+100	1
+200	1
+100	3
+200	3
+set @a= 10;
+set @b= 100;
+prepare stmt1 from "update v3 set a= ? where a=?";
+execute stmt1 using @a,@b;
+select * from v3;
+a	b
+2	1
+10	1
+2	3
+10	3
+set @a= 300;
+set @b= 10;
+execute stmt1 using @a,@b;
+select * from v3;
+a	b
+2	1
+300	1
+2	3
+300	3
+deallocate prepare stmt1;
+drop view v3,v2;
+drop tables t1,t2;
+create table t1 (a int, primary key (a), b int);
+create table t2 (a int, primary key (a), b int);
+insert into t2 values (1000, 2000);
+create view v3 (a,b) as select t1.a as a, t2.a as b from t1, t2;
+insert into v3 values (1,2);
+ERROR HY000: Can not insert into join view 'test.v3' without fields list
+insert into v3 select * from t2;
+ERROR HY000: Can not insert into join view 'test.v3' without fields list
+insert into v3(a,b) values (1,2);
+ERROR HY000: Can not modify more than one base table through a join view 'test.v3'
+insert into v3(a,b) select * from t2;
+ERROR HY000: Can not modify more than one base table through a join view 'test.v3'
+insert into v3(a) values (1);
+insert into v3(b) values (10);
+insert into v3(a) select a from t2;
+insert into v3(b) select b from t2;
+Warnings:
+Warning	1263	Data truncated; NULL supplied to NOT NULL column 'a' at row 2
+insert into v3(a) values (1) on duplicate key update a=a+10000+VALUES(a);
+select * from t1;
+a	b
+10002	NULL
+10	NULL
+1000	NULL
+select * from t2;
+a	b
+1000	2000
+10	NULL
+2000	NULL
+0	NULL
+create view v2 (a,b) as select t1.b as a, t2.a as b from t1, t2;
+insert into v2(a) values (10);
+ERROR HY000: The target table v2 of the INSERT is not updatable
+select * from v3;
+a	b
+10	1000
+1000	1000
+10002	1000
+10	10
+1000	10
+10002	10
+10	2000
+1000	2000
+10002	2000
+10	0
+1000	0
+10002	0
+select * from v2;
+a	b
+NULL	1000
+NULL	1000
+NULL	1000
+NULL	10
+NULL	10
+NULL	10
+NULL	2000
+NULL	2000
+NULL	2000
+NULL	0
+NULL	0
+NULL	0
+delete from v3;
+ERROR HY000: Can not delete from join view 'test.v3'
+delete v3,t1 from v3,t1;
+ERROR HY000: Can not delete from join view 'test.v3'
+delete from t1;
+prepare stmt1 from "insert into v3(a) values (?);";
+set @a= 100;
+execute stmt1 using @a;
+set @a= 300;
+execute stmt1 using @a;
+deallocate prepare stmt1;
+prepare stmt1 from "insert into v3(a) select ?;";
+set @a= 101;
+execute stmt1 using @a;
+set @a= 301;
+execute stmt1 using @a;
+deallocate prepare stmt1;
+select * from v3;
+a	b
+100	1000
+101	1000
+300	1000
+301	1000
+100	10
+101	10
+300	10
+301	10
+100	2000
+101	2000
+300	2000
+301	2000
+100	0
+101	0
+300	0
+301	0
+drop view v3,v2;
+drop tables t1,t2;

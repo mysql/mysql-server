@@ -138,7 +138,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     thd->dupp_field=0;
     /* TODO: use this conds for 'WITH CHECK OPTIONS' */
     Item *unused_conds= 0;
-    if (setup_tables(thd, table_list, &unused_conds) ||
+    TABLE_LIST *leaves= 0;
+    if (setup_tables(thd, table_list, &unused_conds, &leaves, 0) ||
 	setup_fields(thd, 0, table_list, fields, 1, 0, 0))
       DBUG_RETURN(-1);
     if (thd->dupp_field)
