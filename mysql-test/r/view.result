@@ -1074,3 +1074,12 @@ s1	s2
 2	3
 drop view v1;
 drop tables t1, t2;
+create table t1 (col1 int);
+insert into t1 values (1);
+create view v1 as select count(*) from t1;
+insert into t1 values (null);
+select * from v1;
+count(*)
+2
+drop view v1;
+drop table t1;

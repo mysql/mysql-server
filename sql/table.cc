@@ -1506,6 +1506,7 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
   uint i= 0;
   bool save_set_query_id= thd->set_query_id;
   bool save_wrapper= thd->lex->select_lex.no_wrap_view_item;
+  bool save_allow_sum_func= thd->allow_sum_func;
   DBUG_ENTER("st_table_list::setup_ancestor");
 
   if (ancestor->ancestor &&
@@ -1525,6 +1526,8 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
       uint want_privilege= ancestor->table->grant.want_privilege;
       /* real rights will be checked in VIEW field */
       ancestor->table->grant.want_privilege= 0;
+      /* aggregate function are allowed */
+      thd->allow_sum_func= 1;
       if (!(*i)->fixed && (*i)->fix_fields(thd, ancestor, i))
         goto err;
       ancestor->table->grant.want_privilege= want_privilege;
@@ -1558,6 +1561,8 @@ bool st_table_list::setup_ancestor(THD *thd, Item **conds)
     uint want_privilege= ancestor->table->grant.want_privilege;
     /* real rights will be checked in VIEW field */
     ancestor->table->grant.want_privilege= 0;
+    /* aggregate function are allowed */
+    thd->allow_sum_func= 1;
     if (!item->fixed && item->fix_fields(thd, ancestor, &item))
     {
       goto err;
@@ -1602,6 +1607,7 @@ ok:
   thd->lex->select_lex.no_wrap_view_item= save_wrapper;
   thd->lex->current_select= current_select_save;
   thd->set_query_id= save_set_query_id;
+  thd->allow_sum_func= save_allow_sum_func;
   DBUG_RETURN(0);
 
 err:
@@ -1614,6 +1620,7 @@ err:
   thd->lex->select_lex.no_wrap_view_item= save_wrapper;
   thd->lex->current_select= current_select_save;
   thd->set_query_id= save_set_query_id;
+  thd->allow_sum_func= save_allow_sum_func;
   DBUG_RETURN(1);
 }
 
