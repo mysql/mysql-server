@@ -502,5 +502,5 @@ set sql_select_limit=1;
 select 1 union select 2;
 (select 1) union (select 2);
 (select 1) union (select 2) union (select 3) limit 2;
-set sql_select_limit=1;
+set sql_select_limit=default;
 
