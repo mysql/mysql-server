@@ -134,7 +134,7 @@
 "Host '%-.64s' is not allowed to connect to this MySQL server",
 "You are using MySQL as an anonymous users and anonymous users are not allowed to change passwords",
 "You must have privileges to update tables in the mysql database to be able to change passwords for others",
-"Can't find any matching row in the user table",
+"Password string is of inadequate length",
 "Rows matched: %ld  Changed: %ld  Warnings: %ld",
 "Can't create a new thread (errno %d). If you are not out of available memory, you can consult the manual for a possible OS-dependent bug",
 "Column count doesn't match value count at row %ld",
