@@ -1933,16 +1933,16 @@ int decimal_mul(decimal_t *from1, decimal_t *from2, decimal_t *to)
   XXX if this library is to be used with huge numbers of thousands of
   digits, fast division must be implemented and alloca should be
   changed to malloc (or at least fallback to malloc if alloca() fails)
-  but then, decimal_mod() should be rewritten too :(
+  but then, decimal_mul() should be rewritten too :(
 */
 static int do_div_mod(decimal_t *from1, decimal_t *from2,
                        decimal_t *to, decimal_t *mod, int scale_incr)
 {
   int frac1=ROUND_UP(from1->frac)*DIG_PER_DEC1, prec1=from1->intg+frac1,
       frac2=ROUND_UP(from2->frac)*DIG_PER_DEC1, prec2=from2->intg+frac2,
-      error, i, intg0, frac0, len1, len2, dlen1, dintg, div=(!mod);
+      error, i, intg0, frac0, len1, len2, dintg, div=(!mod);
   dec1 *buf0, *buf1=from1->buf, *buf2=from2->buf, *tmp1,
-       *start2, *stop2, *stop1, *stop0, norm2, carry, *start1;
+       *start2, *stop2, *stop1, *stop0, norm2, carry, *start1, dcarry;
   dec2 norm_factor, x, guess, y;
 
   LINT_INIT(error);
@@ -2043,7 +2043,7 @@ static int do_div_mod(decimal_t *from1, decimal_t *from2,
   /* removing end zeroes */
   while (*stop2 == 0 && stop2 >= start2)
     stop2--;
-  len2= ++stop2 - start2;
+  len2= stop2++ - start2;
 
   /*
     calculating norm2 (normalized *start2) - we need *start2 to be large
@@ -2055,87 +2055,70 @@ static int do_div_mod(decimal_t *from1, decimal_t *from2,
   */
   norm_factor=DIG_BASE/(*start2+1);
   norm2=(dec1)(norm_factor*start2[0]);
-  if (likely(len2>1))
+  if (likely(len2>0))
     norm2+=(dec1)(norm_factor*start2[1]/DIG_BASE);
 
+  if (*start1 < *start2)
+    dcarry=*start1++;
+  else
+    dcarry=0;
+
   /* main loop */
-  for ( ; buf0 < stop0; buf0++)
+  for (; buf0 < stop0; buf0++)
   {
     /* short-circuit, if possible */
-    if (unlikely(*start1 == 0))
-    {
-      start1++;
-      if (likely(div))
-        *buf0=0;
-      continue;
-    }
-
-    /* D3: make a guess */
-    if (*start1 >= *start2)
-    {
-      x=start1[0];
-      y=start1[1];
-      dlen1=len2-1;
-    }
+    if (unlikely(dcarry == 0 && *start1 < *start2))
+      guess=0;
     else
     {
-      x=((dec2)start1[0])*DIG_BASE+start1[1];
-      y=start1[2];
-      dlen1=len2;
-    }
-    guess=(norm_factor*x+norm_factor*y/DIG_BASE)/norm2;
-    if (unlikely(guess >= DIG_BASE))
-      guess=DIG_BASE-1;
-    if (likely(len2>1))
-    {
-      /* hmm, this is a suspicious trick - I removed normalization here */
-      if (start2[1]*guess > (x-guess*start2[0])*DIG_BASE+y)
-        guess--;
-      if (unlikely(start2[1]*guess > (x-guess*start2[0])*DIG_BASE+y))
-        guess--;
-      DBUG_ASSERT(start2[1]*guess <= (x-guess*start2[0])*DIG_BASE+y);
-    }
+      /* D3: make a guess */
+      x=start1[0]+((dec2)dcarry)*DIG_BASE;
+      y=start1[1];
+      guess=(norm_factor*x+norm_factor*y/DIG_BASE)/norm2;
+      if (unlikely(guess >= DIG_BASE))
+        guess=DIG_BASE-1;
+      if (likely(len2>0))
+      {
+        /* hmm, this is a suspicious trick - I removed normalization here */
+        if (start2[1]*guess > (x-guess*start2[0])*DIG_BASE+y)
+          guess--;
+        if (unlikely(start2[1]*guess > (x-guess*start2[0])*DIG_BASE+y))
+          guess--;
+        DBUG_ASSERT(start2[1]*guess <= (x-guess*start2[0])*DIG_BASE+y);
+      }
 
-    /* D4: multiply and subtract */
-    buf2=stop2;
-    buf1=start1+dlen1;
-    DBUG_ASSERT(buf1 < stop1);
-    for (carry=0; buf2 > start2; buf1--)
-    {
-      dec1 hi, lo;
-      x=guess * (*--buf2);
-      hi=(dec1)(x/DIG_BASE);
-      lo=(dec1)(x-((dec2)hi)*DIG_BASE);
-      SUB2(*buf1, *buf1, lo, carry);
-      carry+=hi;
-    }
-    for (; buf1 >= start1; buf1--)
-    {
-      SUB2(*buf1, *buf1, 0, carry);
-    }
-
-    /* D5: check the remainder */
-    if (unlikely(carry))
-    {
-      DBUG_ASSERT(carry==1);
-      /* D6: correct the guess */
-      guess--;
+      /* D4: multiply and subtract */
       buf2=stop2;
-      buf1=start1+dlen1;
+      buf1=start1+len2;
+      DBUG_ASSERT(buf1 < stop1);
       for (carry=0; buf2 > start2; buf1--)
       {
-        ADD(*buf1, *buf1, *--buf2, carry);
+        dec1 hi, lo;
+        x=guess * (*--buf2);
+        hi=(dec1)(x/DIG_BASE);
+        lo=(dec1)(x-((dec2)hi)*DIG_BASE);
+        SUB2(*buf1, *buf1, lo, carry);
+        carry+=hi;
       }
-      for (; buf1 >= start1; buf1--)
+      carry= dcarry < carry;
+
+      /* D5: check the remainder */
+      if (unlikely(carry))
       {
-        SUB2(*buf1, *buf1, 0, carry);
+        /* D6: correct the guess */
+        guess--;
+        buf2=stop2;
+        buf1=start1+len2;
+        for (carry=0; buf2 > start2; buf1--)
+        {
+          ADD(*buf1, *buf1, *--buf2, carry);
+        }
       }
-      DBUG_ASSERT(carry==1);
     }
     if (likely(div))
       *buf0=(dec1)guess;
-    if (*start1 == 0)
-      start1++;
+    dcarry= *start1;
+    start1++;
   }
   if (mod)
   {
@@ -2144,6 +2127,8 @@ static int do_div_mod(decimal_t *from1, decimal_t *from2,
         intg=prec1-frac1
         frac=max(frac1, frac2)=to->frac
     */
+    if (dcarry)
+      *--start1=dcarry;
     buf0=to->buf;
     intg0=ROUND_UP(prec1-frac1)-(start1-tmp1);
     frac0=ROUND_UP(to->frac);
@@ -2753,6 +2738,8 @@ int main()
   test_dv("1.000000000000", "3","0.333333333333333333", 0);
   test_dv("1", "1","1.000000000", 0);
   test_dv("0.0123456789012345678912345", "9999999999","0.000000000001234567890246913578148141", 0);
+  test_dv("10.333000000", "12.34500","0.837019036046982584042122316", 0);
+  test_dv("10.000000000060", "2","5.000000000030000000", 0);
 
   printf("==== decimal_mod ====\n");
   test_md("234","10","4", 0);
