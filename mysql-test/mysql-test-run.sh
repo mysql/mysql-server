@@ -832,6 +832,7 @@ start_slave()
   slave_args="--no-defaults $master_info \
   	    --exit-info=256 \
           --log-bin=$MYSQL_TEST_DIR/var/log/$slave_ident-bin \
+          --relay-log=$MYSQL_TEST_DIR/var/log/$slave_ident-relay-bin \
           --log-slave-updates \
           --log=$slave_log \
           --basedir=$MY_BASEDIR \
