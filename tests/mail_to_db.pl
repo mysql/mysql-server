@@ -17,7 +17,7 @@ use DBI;
 use Getopt::Long;
 
 $| = 1;
-$VER = "2.1";
+$VER = "2.2";
 
 $opt_help          = 0;
 $opt_version       = 0;
@@ -34,6 +34,7 @@ $opt_create        = 0;
 $opt_test          = 0;
 $opt_no_path       = 0;
 $opt_stop_on_error = 0;
+$opt_stdin         = 0;
 
 my ($dbh, $progname, $mail_no_from_f, $mail_no_txt_f, $mail_too_big,
     $mail_forwarded, $mail_duplicates, $mail_no_subject_f, $mail_inserted);
@@ -98,13 +99,14 @@ sub main
   }
   GetOptions("help","version","host=s","port=i","socket=s","db=s","table=s",
 	     "user=s","password=s","max_mail_size=i","create","test",
-	     "no_path","debug","stop_on_error")
+	     "no_path","debug","stop_on_error","stdin")
   || die "Wrong option! See $progname --help\n";
 
-  usage($VER) if ($opt_help || $opt_version || (!$ARGV[0] && !$opt_create));
+  usage($VER) if ($opt_help || $opt_version ||
+		  (!$ARGV[0] && !$opt_create && !$opt_stdin));
 
   # Check that the given inbox files exist and are regular files
-  for ($i = 0; defined($ARGV[$i]); $i++)
+  for ($i = 0; ! $opt_stdin && defined($ARGV[$i]); $i++)
   {
     die "FATAL: Can't find inbox file: $ARGV[$i]\n" if (! -f $ARGV[$i]);
   }
@@ -125,18 +127,26 @@ sub main
 
   create_table($dbh) if ($opt_create);
 
-  foreach (@ARGV)
+  if ($opt_stdin)
   {
-    # Check if the file is compressed
-    if (/^(.*)\.(gz|Z)$/)
+    open(FILE, "-");
+    process_mail_file($dbh, "READ-FROM-STDIN");
+  }
+  else
+  {
+    foreach (@ARGV)
     {
-      open(FILE, "zcat $_ |");
-      process_mail_file($dbh, $1);
-    }
-    else
-    {
-      open(FILE, $_);
-      process_mail_file($dbh, $_);
+      # Check if the file is compressed
+      if (/^(.*)\.(gz|Z)$/)
+      {
+	open(FILE, "zcat $_ |");
+	process_mail_file($dbh, $1);
+      }
+      else
+      {
+	open(FILE, $_);
+	process_mail_file($dbh, $_);
+      }
     }
   }
   $dbh->disconnect if (!$opt_test);
@@ -190,7 +200,7 @@ EOF
 }
 
 ####
-#### inbox processing
+#### inbox processing. Can be either a real file, or standard input.
 ####
 
 sub process_mail_file
@@ -483,31 +493,36 @@ sub usage
     print <<EOF;
 $progname version $VER
 
-Description: Insert mails from inbox file(s) into a table.
-This program can read group [mail_to_db] from the my.cnf
-file. You may want to have db and table set there at least.
+Description: Insert mails from inbox file(s) into a table. This program 
+can read group [mail_to_db] from the my.cnf file. You may want to have db
+and table set there at least.
 
-Usage: $progname [options] file1 [file2 file3 ...] [>& /path/to/log.txt]
-or:    $progname [options] --create [file1 file2...] [>& /path/to/log.txt]
+Usage: $progname [options] file1 [file2 file3 ...]
+or:    $progname [options] --create [file1 file2...]
+or:    cat inbox | $progname [options] --stdin
+
+The last example can be used to read mails from standard input and can
+useful when inserting mails to database via a program 'on-the-fly'.
+The filename will be 'READ-FROM-STDIN' in this case.
 
 Options:
 --help             Show this help and exit.
 --version          Show the version number and exit.
 --debug            Print some extra information during the run.
---host=...         Hostname to be used. (Using: $opt_host)
---port=#           TCP/IP port to be used with connection. (Using: $opt_port)
+--host=...         Hostname to be used.
+--port=#           TCP/IP port to be used with connection.
 --socket=...       MySQL UNIX socket to be used with connection.
-                   (Using: $opt_socket)
---db=...           Database to be used.     (Using: $opt_db)
---table=...        Table name for mails.    (Using: $opt_table)
---user=...         Username for connecting. (Using: $opt_user)
+--db=...           Database to be used.
+--table=...        Table name for mails.
+--user=...         Username for connecting.
 --password=...     Password for the user.
+--stdin            Read mails from stdin.
 --max_mail_size=#  Maximum size of a mail.
                    Beware of the downside letting this variable be too big;
                    you may easily end up inserting a lot of attached 
                    binary files (like MS Word documents etc), which take
                    space, make the database slower and are not really
-                   searchable anyway. (Default: $opt_max_mail_size)
+                   searchable anyway.
 --create           Create the mails table. This can be done with the first run.
 --test		   Dry run. Print the queries and the result as it would be.
 --no_path          When inserting the file name, leave out any paths of
