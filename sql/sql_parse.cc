@@ -59,7 +59,7 @@ static void refresh_status(void);
 static bool append_file_to_dir(THD *thd, char **filename_ptr,
 			       char *table_name);
 
-inline bool single_table_command_access(THD *thd, ulong privilege,
+static bool single_table_command_access(THD *thd, ulong privilege,
 					TABLE_LIST *tables, int *res);
 
 const char *any_db="*any*";	// Special symbol for check_access
@@ -3123,7 +3123,7 @@ error:
     1 - access denied
 */
 
-inline bool single_table_command_access(THD *thd, ulong privilege,
+static bool single_table_command_access(THD *thd, ulong privilege,
 					TABLE_LIST *tables, int *res)
 					 
 {
@@ -3135,12 +3135,14 @@ inline bool single_table_command_access(THD *thd, ulong privilege,
     tables->next= 0;
     if (grant_option && check_grant(thd,  privilege, tables))
       return 1;
-    tables->next= subselects_tables;
 
     // check rights on tables of subselect (if exists)
-    if (subselects_tables &&
-	(*res= check_table_access(thd, SELECT_ACL, subselects_tables)))
-      return 1;
+    if (subselects_tables)
+    {
+      tables->next= subselects_tables;
+      if ((*res= check_table_access(thd, SELECT_ACL, subselects_tables)))
+	return 1;
+    }
     return 0;
 }
 
