@@ -1,0 +1,678 @@
+set @@sql_mode='ansi,traditional';
+select @@sql_mode;
+@@sql_mode
+REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (col1 date);
+INSERT INTO t1 VALUES('2004-01-01'),('0000-10-31'),('2004-02-29');
+INSERT INTO t1 VALUES('2004-0-31');
+ERROR 22007: Incorrect date value: '2004-0-31' for column 'col1' at row 1
+INSERT INTO t1 VALUES('2004-01-02'),('2004-0-31');
+ERROR 22007: Incorrect date value: '2004-0-31' for column 'col1' at row 2
+INSERT INTO t1 VALUES('2004-10-0');
+ERROR 22007: Incorrect date value: '2004-10-0' for column 'col1' at row 1
+INSERT INTO t1 VALUES('2004-09-31');
+ERROR 22007: Incorrect date value: '2004-09-31' for column 'col1' at row 1
+INSERT INTO t1 VALUES('2004-10-32');
+ERROR 22007: Incorrect date value: '2004-10-32' for column 'col1' at row 1
+INSERT INTO t1 VALUES('2003-02-29');
+ERROR 22007: Incorrect date value: '2003-02-29' for column 'col1' at row 1
+INSERT INTO t1 VALUES('2004-13-15');
+ERROR 22007: Incorrect date value: '2004-13-15' for column 'col1' at row 1
+INSERT INTO t1 VALUES('0000-00-00');
+ERROR 22007: Incorrect date value: '0000-00-00' for column 'col1' at row 1
+INSERT INTO t1 VALUES ('59');
+ERROR 22007: Incorrect date value: '59' for column 'col1' at row 1
+set @@sql_mode='STRICT_ALL_TABLES';
+INSERT INTO t1 VALUES('2004-01-03'),('2004-0-31');
+set @@sql_mode='STRICT_ALL_TABLES,NO_ZERO_IN_DATE';
+INSERT INTO t1 VALUES('2004-0-31');
+ERROR 22007: Incorrect date value: '2004-0-31' for column 'col1' at row 1
+INSERT INTO t1 VALUES('2004-01-04'),('2004-0-31'),('2004-01-05');
+ERROR 22007: Incorrect date value: '2004-0-31' for column 'col1' at row 2
+INSERT INTO t1 VALUES('0000-00-00');
+set @@sql_mode='STRICT_ALL_TABLES,NO_ZERO_DATE';
+INSERT INTO t1 VALUES('0000-00-00');
+ERROR 22007: Incorrect date value: '0000-00-00' for column 'col1' at row 1
+INSERT INTO t1 VALUES ('2004-0-30');
+INSERT INTO t1 VALUES ('2004-2-30');
+ERROR 22007: Incorrect date value: '2004-2-30' for column 'col1' at row 1
+set @@sql_mode='STRICT_ALL_TABLES,ALLOW_INVALID_DATES';
+INSERT INTO t1 VALUES ('2004-2-30');
+set @@sql_mode='ansi,traditional';
+INSERT IGNORE INTO t1 VALUES('2004-02-29'),('2004-13-15'),('0000-00-00');
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 2
+Warning	1265	Data truncated for column 'col1' at row 3
+select * from t1;
+col1
+2004-01-01
+0000-10-31
+2004-02-29
+2004-01-02
+2004-01-03
+2004-00-31
+2004-01-04
+0000-00-00
+2004-00-30
+2004-02-30
+2004-02-29
+0000-00-00
+0000-00-00
+drop table t1;
+set @@sql_mode="strict_trans_tables";
+CREATE TABLE t1 (col1 date) engine=myisam;
+INSERT INTO t1 VALUES('2004-13-31'),('2004-1-1');
+ERROR 22007: Incorrect date value: '2004-13-31' for column 'col1' at row 1
+INSERT INTO t1 VALUES ('2004-1-2'), ('2004-13-31'),('2004-1-3');
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 2
+INSERT IGNORE INTO t1 VALUES('2004-13-31'),('2004-1-4');
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 1
+INSERT INTO t1 VALUES ('2003-02-29');
+ERROR 22007: Incorrect date value: '2003-02-29' for column 'col1' at row 1
+INSERT ignore INTO t1 VALUES('2003-02-30');
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 1
+set @@sql_mode='STRICT_ALL_TABLES,ALLOW_INVALID_DATES';
+INSERT ignore INTO t1 VALUES('2003-02-31');
+select * from t1;
+col1
+2004-01-02
+0000-00-00
+2004-01-03
+0000-00-00
+2004-01-04
+0000-00-00
+2003-02-31
+drop table t1;
+set @@sql_mode="strict_trans_tables";
+CREATE TABLE t1 (col1 date) engine=innodb;
+INSERT INTO t1 VALUES('2004-13-31'),('2004-1-1');
+ERROR 22007: Incorrect date value: '2004-13-31' for column 'col1' at row 1
+INSERT INTO t1 VALUES ('2004-1-2'), ('2004-13-31'),('2004-1-3');
+ERROR 22007: Incorrect date value: '2004-13-31' for column 'col1' at row 2
+INSERT IGNORE INTO t1 VALUES('2004-13-31'),('2004-1-4');
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 1
+INSERT INTO t1 VALUES ('2003-02-29');
+ERROR 22007: Incorrect date value: '2003-02-29' for column 'col1' at row 1
+INSERT ignore INTO t1 VALUES('2003-02-30');
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 1
+set @@sql_mode='STRICT_ALL_TABLES,ALLOW_INVALID_DATES';
+INSERT ignore INTO t1 VALUES('2003-02-31');
+select * from t1;
+col1
+0000-00-00
+2004-01-04
+0000-00-00
+2003-02-31
+drop table t1;
+set @@sql_mode='ansi,traditional';
+CREATE TABLE t1 (col1 datetime);
+INSERT INTO t1 VALUES('2004-10-31 15:30:00'),('0000-10-31 15:30:00'),('2004-02-29 15:30:00');
+INSERT INTO t1 VALUES('2004-0-31 15:30:00');
+ERROR 22007: Incorrect datetime value: '2004-0-31 15:30:00' for column 'col1' at row 1
+INSERT INTO t1 VALUES('2004-10-0 15:30:00');
+ERROR 22007: Incorrect datetime value: '2004-10-0 15:30:00' for column 'col1' at row 1
+INSERT INTO t1 VALUES('2004-09-31 15:30:00');
+ERROR 22007: Incorrect datetime value: '2004-09-31 15:30:00' for column 'col1' at row 1
+INSERT INTO t1 VALUES('2004-10-32 15:30:00');
+ERROR 22007: Incorrect datetime value: '2004-10-32 15:30:00' for column 'col1' at row 1
+INSERT INTO t1 VALUES('2004-13-15 15:30:00');
+ERROR 22007: Incorrect datetime value: '2004-13-15 15:30:00' for column 'col1' at row 1
+INSERT INTO t1 VALUES('0000-00-00 15:30:00');
+ERROR 22007: Incorrect datetime value: '0000-00-00 15:30:00' for column 'col1' at row 1
+INSERT INTO t1 VALUES ('59');
+ERROR 22007: Incorrect datetime value: '59' for column 'col1' at row 1
+select * from t1;
+col1
+2004-10-31 15:30:00
+0000-10-31 15:30:00
+2004-02-29 15:30:00
+drop table t1;
+CREATE TABLE t1 (col1 timestamp);
+INSERT INTO t1 VALUES('2004-10-31 15:30:00'),('2004-02-29 15:30:00');
+INSERT INTO t1 VALUES('0000-10-31 15:30:00');
+ERROR 22007: Incorrect datetime value: '0000-10-31 15:30:00' for column 'col1' at row 1
+INSERT INTO t1 VALUES('2004-0-31 15:30:00');
+ERROR 22007: Incorrect datetime value: '2004-0-31 15:30:00' for column 'col1' at row 1
+INSERT INTO t1 VALUES('2004-10-0 15:30:00');
+ERROR 22007: Incorrect datetime value: '2004-10-0 15:30:00' for column 'col1' at row 1
+INSERT INTO t1 VALUES('2004-09-31 15:30:00');
+ERROR 22007: Incorrect datetime value: '2004-09-31 15:30:00' for column 'col1' at row 1
+INSERT INTO t1 VALUES('2004-10-32 15:30:00');
+ERROR 22007: Incorrect datetime value: '2004-10-32 15:30:00' for column 'col1' at row 1
+INSERT INTO t1 VALUES('2004-13-15 15:30:00');
+ERROR 22007: Incorrect datetime value: '2004-13-15 15:30:00' for column 'col1' at row 1
+INSERT INTO t1 VALUES('2004-02-29 25:30:00');
+ERROR 22007: Incorrect datetime value: '2004-02-29 25:30:00' for column 'col1' at row 1
+INSERT INTO t1 VALUES('2004-02-29 15:65:00');
+ERROR 22007: Incorrect datetime value: '2004-02-29 15:65:00' for column 'col1' at row 1
+INSERT INTO t1 VALUES('2004-02-29 15:31:61');
+ERROR 22007: Incorrect datetime value: '2004-02-29 15:31:61' for column 'col1' at row 1
+INSERT INTO t1 VALUES('0000-00-00 15:30:00');
+ERROR 22007: Incorrect datetime value: '0000-00-00 15:30:00' for column 'col1' at row 1
+INSERT INTO t1 VALUES('0000-00-00 00:00:00');
+ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'col1' at row 1
+INSERT IGNORE INTO t1 VALUES('0000-00-00 00:00:00');
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 1
+INSERT INTO t1 VALUES ('59');
+ERROR 22007: Incorrect datetime value: '59' for column 'col1' at row 1
+set @@sql_mode='STRICT_ALL_TABLES,ALLOW_INVALID_DATES';
+INSERT INTO t1 VALUES('2004-0-31 15:30:00');
+ERROR 22007: Incorrect datetime value: '2004-0-31 15:30:00' for column 'col1' at row 1
+INSERT INTO t1 VALUES('2004-10-0 15:30:00');
+ERROR 22007: Incorrect datetime value: '2004-10-0 15:30:00' for column 'col1' at row 1
+INSERT INTO t1 VALUES('2004-10-32 15:30:00');
+ERROR 22007: Incorrect datetime value: '2004-10-32 15:30:00' for column 'col1' at row 1
+INSERT INTO t1 VALUES('2004-02-30 15:30:04');
+ERROR 22007: Incorrect datetime value: '2004-02-30 15:30:04' for column 'col1' at row 1
+INSERT INTO t1 VALUES('0000-00-00 00:00:00');
+set @@sql_mode='STRICT_ALL_TABLES,NO_ZERO_IN_DATE';
+INSERT INTO t1 VALUES('0000-00-00 00:00:00');
+set @@sql_mode='STRICT_ALL_TABLES,NO_ZERO_DATE';
+INSERT INTO t1 VALUES('0000-00-00 00:00:00');
+ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'col1' at row 1
+set @@sql_mode='ansi,traditional';
+SELECT * FROM t1;
+col1
+2004-10-31 15:30:00
+2004-02-29 15:30:00
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+0000-00-00 00:00:00
+DROP TABLE t1;
+CREATE TABLE t1(col1 TINYINT, col2 TINYINT UNSIGNED);
+INSERT INTO t1 VALUES(-128,0),(0,0),(127,255),('-128','0'),('0','0'),('127','255'),(-128.0,0.0),(0.0,0.0),(127.0,255.0);
+INSERT INTO t1 (col1) VALUES(-129);
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES(128);
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col2) VALUES(-1);
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+INSERT INTO t1 (col2) VALUES(256);
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+INSERT INTO t1 (col1) VALUES('-129');
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES('128');
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col2) VALUES('-1');
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+INSERT INTO t1 (col2) VALUES('256');
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+INSERT INTO t1 (col1) VALUES(128.0);
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col2) VALUES(-1.0);
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+INSERT INTO t1 (col2) VALUES(256.0);
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+UPDATE t1 SET col1 = col1 - 50 WHERE col1 < 0;
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+UPDATE t1 SET col2=col2 + 50 WHERE col2 > 0;
+ERROR 22003: Out of range value adjusted for column 'col2' at row 3
+UPDATE t1 SET col1=col1 / 0 WHERE col1 > 0;
+ERROR 22012: Division by 0
+SELECT MOD(col1,0) FROM t1;
+ERROR 22012: Division by 0
+INSERT INTO t1 (col1) VALUES ('');
+ERROR HY000: Incorrect integer value: '' for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES ('a59b');
+ERROR HY000: Incorrect integer value: 'a59b' for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES ('1a');
+ERROR 01000: Data truncated for column 'col1' at row 1
+INSERT IGNORE INTO t1 (col1) VALUES ('2a');
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 1
+INSERT IGNORE INTO t1 values (1/0,1/0);
+Warnings:
+Error	1365	Division by 0
+Error	1365	Division by 0
+INSERT IGNORE INTO t1 VALUES('-129','-1'),('128','256');
+Warnings:
+Warning	1264	Out of range value adjusted for column 'col1' at row 1
+Warning	1264	Out of range value adjusted for column 'col2' at row 1
+Warning	1264	Out of range value adjusted for column 'col1' at row 2
+Warning	1264	Out of range value adjusted for column 'col2' at row 2
+INSERT IGNORE INTO t1 VALUES(-129.0,-1.0),(128.0,256.0);
+Warnings:
+Warning	1264	Out of range value adjusted for column 'col1' at row 1
+Warning	1264	Out of range value adjusted for column 'col2' at row 1
+Warning	1264	Out of range value adjusted for column 'col1' at row 2
+Warning	1264	Out of range value adjusted for column 'col2' at row 2
+UPDATE IGNORE t1 SET col2=1/NULL where col1=0;
+SELECT * FROM t1;
+col1	col2
+-128	0
+0	NULL
+127	255
+-128	0
+0	NULL
+127	255
+-128	0
+0	NULL
+127	255
+2	NULL
+NULL	NULL
+-128	0
+127	255
+-128	0
+127	255
+DROP TABLE t1;
+CREATE TABLE t1(col1 SMALLINT, col2 SMALLINT UNSIGNED);
+INSERT INTO t1 VALUES(-32768,0),(0,0),(32767,65535),('-32768','0'),('32767','65535'),(-32768.0,0.0),(32767.0,65535.0);
+INSERT INTO t1 (col1) VALUES(-32769);
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES(32768);
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col2) VALUES(-1);
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+INSERT INTO t1 (col2) VALUES(65536);
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+INSERT INTO t1 (col1) VALUES('-32769');
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES('32768');
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col2) VALUES('-1');
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+INSERT INTO t1 (col2) VALUES('65536');
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+INSERT INTO t1 (col1) VALUES(-32769.0);
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES(32768.0);
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col2) VALUES(-1.0);
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+INSERT INTO t1 (col2) VALUES(65536.0);
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+UPDATE t1 SET col1 = col1 - 50 WHERE col1 < 0;
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+UPDATE t1 SET col2 = col2 + 50 WHERE col2 > 0;
+ERROR 22003: Out of range value adjusted for column 'col2' at row 3
+UPDATE t1 SET col1 = col1 / 0 WHERE col1 > 0;
+ERROR 22012: Division by 0
+SELECT MOD(col1,0) FROM t1;
+ERROR 22012: Division by 0
+INSERT INTO t1 (col1) VALUES ('');
+ERROR HY000: Incorrect integer value: '' for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES ('a59b');
+ERROR HY000: Incorrect integer value: 'a59b' for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES ('1a');
+ERROR 01000: Data truncated for column 'col1' at row 1
+INSERT IGNORE INTO t1 (col1) VALUES ('2a');
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 1
+INSERT IGNORE INTO t1 values (1/0,1/0);
+Warnings:
+Error	1365	Division by 0
+Error	1365	Division by 0
+INSERT IGNORE INTO t1 VALUES(-32769,-1),(32768,65536);
+Warnings:
+Warning	1264	Out of range value adjusted for column 'col1' at row 1
+Warning	1264	Out of range value adjusted for column 'col2' at row 1
+Warning	1264	Out of range value adjusted for column 'col1' at row 2
+Warning	1264	Out of range value adjusted for column 'col2' at row 2
+INSERT IGNORE INTO t1 VALUES('-32769','-1'),('32768','65536');
+Warnings:
+Warning	1264	Out of range value adjusted for column 'col1' at row 1
+Warning	1264	Out of range value adjusted for column 'col2' at row 1
+Warning	1264	Out of range value adjusted for column 'col1' at row 2
+Warning	1264	Out of range value adjusted for column 'col2' at row 2
+INSERT IGNORE INTO t1 VALUES(-32769,-1.0),(32768.0,65536.0);
+Warnings:
+Warning	1264	Out of range value adjusted for column 'col1' at row 1
+Warning	1264	Out of range value adjusted for column 'col2' at row 1
+Warning	1264	Out of range value adjusted for column 'col1' at row 2
+Warning	1264	Out of range value adjusted for column 'col2' at row 2
+UPDATE IGNORE t1 SET col2=1/NULL where col1=0;
+SELECT * FROM t1;
+col1	col2
+-32768	0
+0	NULL
+32767	65535
+-32768	0
+32767	65535
+-32768	0
+32767	65535
+2	NULL
+NULL	NULL
+-32768	0
+32767	65535
+-32768	0
+32767	65535
+-32768	0
+32767	65535
+DROP TABLE t1;
+CREATE TABLE t1 (col1 MEDIUMINT, col2 MEDIUMINT UNSIGNED);
+INSERT INTO t1 VALUES(-8388608,0),(0,0),(8388607,16777215),('-8388608','0'),('8388607','16777215'),(-8388608.0,0.0),(8388607.0,16777215.0);
+INSERT INTO t1 (col1) VALUES(-8388609);
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES(8388608);
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col2) VALUES(-1);
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+INSERT INTO t1 (col2) VALUES(16777216);
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+INSERT INTO t1 (col1) VALUES('-8388609');
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES('8388608');
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col2) VALUES('-1');
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+INSERT INTO t1 (col2) VALUES('16777216');
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+INSERT INTO t1 (col1) VALUES(-8388609.0);
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES(8388608.0);
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col2) VALUES(-1.0);
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+INSERT INTO t1 (col2) VALUES(16777216.0);
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+UPDATE t1 SET col1 = col1 - 50 WHERE col1 < 0;
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+UPDATE t1 SET col2 = col2 + 50 WHERE col2 > 0;
+ERROR 22003: Out of range value adjusted for column 'col2' at row 3
+UPDATE t1 SET col1 =col1 / 0 WHERE col1 > 0;
+ERROR 22012: Division by 0
+SELECT MOD(col1,0) FROM t1;
+ERROR 22012: Division by 0
+INSERT INTO t1 (col1) VALUES ('');
+ERROR HY000: Incorrect integer value: '' for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES ('a59b');
+ERROR HY000: Incorrect integer value: 'a59b' for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES ('1a');
+ERROR 01000: Data truncated for column 'col1' at row 1
+INSERT IGNORE INTO t1 (col1) VALUES ('2a');
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 1
+INSERT IGNORE INTO t1 values (1/0,1/0);
+Warnings:
+Error	1365	Division by 0
+Error	1365	Division by 0
+INSERT IGNORE INTO t1 VALUES(-8388609,-1),(8388608,16777216);
+Warnings:
+Warning	1264	Out of range value adjusted for column 'col1' at row 1
+Warning	1264	Out of range value adjusted for column 'col2' at row 1
+Warning	1264	Out of range value adjusted for column 'col1' at row 2
+Warning	1264	Out of range value adjusted for column 'col2' at row 2
+INSERT IGNORE INTO t1 VALUES('-8388609','-1'),('8388608','16777216');
+Warnings:
+Warning	1264	Out of range value adjusted for column 'col1' at row 1
+Warning	1264	Out of range value adjusted for column 'col2' at row 1
+Warning	1264	Out of range value adjusted for column 'col1' at row 2
+Warning	1264	Out of range value adjusted for column 'col2' at row 2
+INSERT IGNORE INTO t1 VALUES(-8388609.0,-1.0),(8388608.0,16777216.0);
+Warnings:
+Warning	1264	Out of range value adjusted for column 'col1' at row 1
+Warning	1264	Out of range value adjusted for column 'col2' at row 1
+Warning	1264	Out of range value adjusted for column 'col1' at row 2
+Warning	1264	Out of range value adjusted for column 'col2' at row 2
+UPDATE IGNORE t1 SET col2=1/NULL where col1=0;
+SELECT * FROM t1;
+col1	col2
+-8388608	0
+0	NULL
+8388607	16777215
+-8388608	0
+8388607	16777215
+-8388608	0
+8388607	16777215
+2	NULL
+NULL	NULL
+-8388608	0
+8388607	16777215
+-8388608	0
+8388607	16777215
+-8388608	0
+8388607	16777215
+DROP TABLE t1;
+CREATE TABLE t1 (col1 INT, col2 INT UNSIGNED);
+INSERT INTO t1 VALUES(-2147483648,0),(0,0),(2147483647,4294967295),('-2147483648','0'),('2147483647','4294967295'),(-2147483648.0,0.0),(2147483647.0,4294967295.0);
+INSERT INTO t1 (col1) VALUES(-2147483649);
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES(2147643648);
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col2) VALUES(-1);
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+INSERT INTO t1 (col2) VALUES(4294967296);
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+INSERT INTO t1 (col1) VALUES('-2147483649');
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES('2147643648');
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col2) VALUES('-1');
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+INSERT INTO t1 (col2) VALUES('4294967296');
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+INSERT INTO t1 (col1) VALUES(-2147483649.0);
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES(2147643648.0);
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col2) VALUES(-1.0);
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+INSERT INTO t1 (col2) VALUES(4294967296.0);
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+UPDATE t1 SET col1 = col1 - 50 WHERE col1 < 0;
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+UPDATE t1 SET col2 =col2 + 50 WHERE col2 > 0;
+ERROR 22003: Out of range value adjusted for column 'col2' at row 3
+UPDATE t1 SET col1 =col1 / 0 WHERE col1 > 0;
+ERROR 22012: Division by 0
+SELECT MOD(col1,0) FROM t1;
+ERROR 22012: Division by 0
+INSERT INTO t1 (col1) VALUES ('');
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES ('a59b');
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES ('1a');
+ERROR 01000: Data truncated for column 'col1' at row 1
+INSERT IGNORE INTO t1 (col1) VALUES ('2a');
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 1
+INSERT IGNORE INTO t1 values (1/0,1/0);
+Warnings:
+Error	1365	Division by 0
+Error	1365	Division by 0
+INSERT IGNORE INTO t1 values (-2147483649, -1),(2147643648,4294967296);
+Warnings:
+Warning	1264	Out of range value adjusted for column 'col1' at row 1
+Warning	1264	Out of range value adjusted for column 'col2' at row 1
+Warning	1264	Out of range value adjusted for column 'col1' at row 2
+Warning	1264	Out of range value adjusted for column 'col2' at row 2
+INSERT IGNORE INTO t1 values ('-2147483649', '-1'),('2147643648','4294967296');
+Warnings:
+Warning	1264	Out of range value adjusted for column 'col1' at row 1
+Warning	1264	Out of range value adjusted for column 'col2' at row 1
+Warning	1264	Out of range value adjusted for column 'col1' at row 2
+Warning	1264	Out of range value adjusted for column 'col2' at row 2
+INSERT IGNORE INTO t1 values (-2147483649.0, -1.0),(2147643648.0,4294967296.0);
+Warnings:
+Warning	1264	Out of range value adjusted for column 'col1' at row 1
+Warning	1264	Out of range value adjusted for column 'col2' at row 1
+Warning	1264	Out of range value adjusted for column 'col1' at row 2
+Warning	1264	Out of range value adjusted for column 'col2' at row 2
+UPDATE IGNORE t1 SET col2=1/NULL where col1=0;
+SELECT * FROM t1;
+col1	col2
+-2147483648	0
+0	NULL
+2147483647	4294967295
+-2147483648	0
+2147483647	4294967295
+-2147483648	0
+2147483647	4294967295
+2	NULL
+NULL	NULL
+-2147483648	0
+2147483647	4294967295
+-2147483648	0
+2147483647	4294967295
+-2147483648	0
+2147483647	4294967295
+DROP TABLE t1;
+CREATE TABLE t1 (col1 BIGINT, col2 BIGINT UNSIGNED);
+INSERT INTO t1 VALUES(-9223372036854775808,0),(0,0),(9223372036854775807,18446744073709551615);
+INSERT INTO t1 VALUES('-9223372036854775808','0'),('9223372036854775807','18446744073709551615');
+INSERT INTO t1 VALUES(-9223372036854774000.0,0.0),(9223372036854775700.0,1844674407370954000.0);
+INSERT INTO t1 (col1) VALUES(-9223372036854775809);
+INSERT INTO t1 (col1) VALUES(9223372036854775808);
+INSERT INTO t1 (col2) VALUES(-1);
+INSERT INTO t1 (col2) VALUES(18446744073709551616);
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+INSERT INTO t1 (col1) VALUES('-9223372036854775809');
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES('9223372036854775808');
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col2) VALUES('-1');
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+INSERT INTO t1 (col2) VALUES('18446744073709551616');
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+INSERT INTO t1 (col1) VALUES(-9223372036854775809.0);
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES(9223372036854775808.0);
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col2) VALUES(-1.0);
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+INSERT INTO t1 (col2) VALUES(18446744073709551616.0);
+ERROR 22003: Out of range value adjusted for column 'col2' at row 1
+UPDATE t1 SET col1 =col1 / 0 WHERE col1 > 0;
+ERROR 22012: Division by 0
+SELECT MOD(col1,0) FROM t1;
+ERROR 22012: Division by 0
+INSERT INTO t1 (col1) VALUES ('');
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES ('a59b');
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES ('1a');
+ERROR 01000: Data truncated for column 'col1' at row 1
+INSERT IGNORE INTO t1 (col1) VALUES ('2a');
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 1
+INSERT IGNORE INTO t1 values (1/0,1/0);
+Warnings:
+Error	1365	Division by 0
+Error	1365	Division by 0
+INSERT IGNORE INTO t1 VALUES(-9223372036854775809,-1),(9223372036854775808,18446744073709551616);
+Warnings:
+Warning	1264	Out of range value adjusted for column 'col2' at row 2
+INSERT IGNORE INTO t1 VALUES('-9223372036854775809','-1'),('9223372036854775808','18446744073709551616');
+Warnings:
+Warning	1264	Out of range value adjusted for column 'col1' at row 1
+Warning	1264	Out of range value adjusted for column 'col2' at row 1
+Warning	1264	Out of range value adjusted for column 'col1' at row 2
+Warning	1264	Out of range value adjusted for column 'col2' at row 2
+INSERT IGNORE INTO t1 VALUES(-9223372036854775809.0,-1.0),(9223372036854775808.0,18446744073709551616.0);
+Warnings:
+Warning	1264	Out of range value adjusted for column 'col1' at row 1
+Warning	1264	Out of range value adjusted for column 'col2' at row 1
+Warning	1264	Out of range value adjusted for column 'col1' at row 2
+Warning	1264	Out of range value adjusted for column 'col2' at row 2
+UPDATE IGNORE t1 SET col2=1/NULL where col1=0;
+SELECT * FROM t1;
+col1	col2
+-9223372036854775808	0
+0	NULL
+9223372036854775807	18446744073709551615
+-9223372036854775808	0
+9223372036854775807	18446744073709551615
+-9223372036854773760	0
+-9223372036854775808	1844674407370953984
+-9223372036854775808	NULL
+-9223372036854775808	NULL
+NULL	18446744073709551615
+2	NULL
+NULL	NULL
+-9223372036854775808	18446744073709551615
+-9223372036854775808	18446744073709551615
+-9223372036854775808	0
+9223372036854775807	18446744073709551615
+-9223372036854775808	0
+9223372036854775807	18446744073709551615
+DROP TABLE t1;
+CREATE TABLE t1 (col1 NUMERIC(4,2));
+INSERT INTO t1 VALUES (10.55),(10.5555),(0),(-10.55),(-10.5555),(11),(1e+01);
+INSERT INTO t1 VALUES ('10.55'),('10.5555'),('-10.55'),('-10.5555'),('11'),('1e+01');
+Warnings:
+Note	1265	Data truncated for column 'col1' at row 2
+Note	1265	Data truncated for column 'col1' at row 4
+INSERT INTO t1 VALUES (101.55);
+INSERT INTO t1 VALUES (101);
+INSERT INTO t1 VALUES (-101.55);
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 VALUES (1010.55);
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 VALUES (1010);
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 VALUES ('101.55');
+INSERT INTO t1 VALUES ('101');
+INSERT INTO t1 VALUES ('-101.55');
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 VALUES ('-1010.55');
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 VALUES ('-100E+1');
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+INSERT INTO t1 VALUES ('-100E');
+ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+UPDATE t1 SET col1 =col1 * 50000 WHERE col1 =11;
+ERROR 22003: Out of range value adjusted for column 'col1' at row 6
+UPDATE t1 SET col1 =col1 / 0 WHERE col1 > 0;
+ERROR 22012: Division by 0
+SELECT MOD(col1,0) FROM t1;
+ERROR 22012: Division by 0
+INSERT INTO t1 (col1) VALUES ('');
+ERROR 01000: Data truncated for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES ('a59b');
+ERROR 01000: Data truncated for column 'col1' at row 1
+INSERT INTO t1 (col1) VALUES ('1a');
+ERROR 01000: Data truncated for column 'col1' at row 1
+INSERT IGNORE INTO t1 (col1) VALUES ('2a');
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 1
+INSERT IGNORE INTO t1 values (1/0);
+Warnings:
+Error	1365	Division by 0
+INSERT IGNORE INTO t1 VALUES(1000),(-1000);
+Warnings:
+Warning	1264	Out of range value adjusted for column 'col1' at row 1
+Warning	1264	Out of range value adjusted for column 'col1' at row 2
+INSERT IGNORE INTO t1 VALUES('1000'),('-1000');
+Warnings:
+Warning	1264	Out of range value adjusted for column 'col1' at row 1
+Warning	1264	Out of range value adjusted for column 'col1' at row 2
+INSERT IGNORE INTO t1 VALUES(1000.0),(-1000.0);
+Warnings:
+Warning	1264	Out of range value adjusted for column 'col1' at row 1
+Warning	1264	Out of range value adjusted for column 'col1' at row 2
+UPDATE IGNORE t1 SET col1=1/NULL where col1=0;
+SELECT * FROM t1;
+col1
+10.55
+10.56
+NULL
+-10.55
+-10.56
+11.00
+10.00
+10.55
+10.55
+-10.55
+-10.55
+11.00
+10.00
+101.55
+101.00
+101.55
+101.00
+2.00
+NULL
+999.99
+-99.99
+999.99
+-99.99
+999.99
+-99.99
+DROP TABLE t1;

@@ -270,13 +270,24 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   if (lock_type != TL_WRITE_DELAYED)
     table->file->start_bulk_insert(values_list.elements);
 
+  thd->no_trans_update= 0;
+  thd->abort_on_warning= (duplic != DUP_IGNORE &&
+                          (thd->variables.sql_mode &
+                           (MODE_STRICT_TRANS_TABLES |
+                            MODE_STRICT_ALL_TABLES)));
+
+  if (check_that_all_fields_are_given_values(thd, table))
+  {
+    /* thd->net.report_error is now set, which will abort the next loop */
+    error= 1;
+  }
+
   while ((values= its++))
   {
     if (fields.elements || !value_count)
     {
       restore_record(table,default_values);	// Get empty record
-      if (fill_record(fields, *values, 0)|| thd->net.report_error ||
-	  check_null_fields(thd,table))
+      if (fill_record(fields, *values, 0)|| thd->net.report_error)
       {
 	if (values_list.elements != 1 && !thd->net.report_error)
 	{
@@ -305,10 +316,13 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
       }
     }
 
-    // FIXME: Actually we should do this before check_null_fields.
-    //        Or even go into write_record ?
+    /*
+      FIXME: Actually we should do this before
+      check_that_all_fields_are_given_values Or even go into write_record ?
+    */
     if (table->triggers)
-      table->triggers->process_triggers(thd, TRG_EVENT_INSERT, TRG_ACTION_BEFORE);
+      table->triggers->process_triggers(thd, TRG_EVENT_INSERT,
+                                        TRG_ACTION_BEFORE);
 
 #ifndef EMBEDDED_LIBRARY
     if (lock_type == TL_WRITE_DELAYED)
@@ -318,7 +332,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     }
     else
 #endif
-      error=write_record(table,&info);
+      error=write_record(thd, table ,&info);
     /*
       If auto_increment values are used, save the first one
        for LAST_INSERT_ID() and for the update log.
@@ -447,6 +461,7 @@ abort:
 #endif
   free_underlaid_joins(thd, &thd->lex->select_lex);
   table->insert_values=0;
+  thd->abort_on_warning= 0;
   DBUG_RETURN(-1);
 }
 
@@ -633,10 +648,12 @@ static int last_uniq_key(TABLE *table,uint keynr)
 
 /*
   Write a record to table with optional deleting of conflicting records
+
+  Sets thd->no_trans_update if table which is updated didn't have transactions
 */
 
 
-int write_record(TABLE *table,COPY_INFO *info)
+int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 {
   int error;
   char *key=0;
@@ -735,6 +752,8 @@ int write_record(TABLE *table,COPY_INFO *info)
         else if ((error=table->file->delete_row(table->record[1])))
           goto err;
         info->deleted++;
+        if (!table->file->has_transactions())
+          thd->no_trans_update= 1;
       }
     }
     info->copied++;
@@ -750,6 +769,8 @@ int write_record(TABLE *table,COPY_INFO *info)
     info->copied++;
   if (key)
     my_safe_afree(key,table->max_unique_length,MAX_KEY_LENGTH);
+  if (!table->file->has_transactions())
+    thd->no_trans_update= 1;
   DBUG_RETURN(0);
 
 err:
@@ -767,22 +788,22 @@ err:
   fields.
 ******************************************************************************/
 
-static int check_null_fields(THD *thd __attribute__((unused)),
-			     TABLE *entry __attribute__((unused)))
+int check_that_all_fields_are_given_values(THD *thd, TABLE *entry)
 {
-#ifdef DONT_USE_DEFAULT_FIELDS
+  if (!thd->abort_on_warning)
+    return 0;
+
   for (Field **field=entry->field ; *field ; field++)
   {
-    if ((*field)->query_id != thd->query_id && !(*field)->maybe_null() &&
-	*field != entry->timestamp_field &&
-	*field != entry->next_number_field)
+    if ((*field)->query_id != thd->query_id &&
+        ((*field)->flags & NO_DEFAULT_VALUE_FLAG))
     {
-      my_printf_error(ER_BAD_NULL_ERROR, ER(ER_BAD_NULL_ERROR),MYF(0),
+      my_printf_error(ER_NO_DEFAULT_FOR_FIELD,
+                      ER(ER_NO_DEFAULT_FOR_FIELD),MYF(0),
 		      (*field)->field_name);
       return 1;
     }
   }
-#endif
   return 0;
 }
 
@@ -1503,7 +1524,7 @@ bool delayed_insert::handle_inserts(void)
       using_ignore=1;
     }
     thd.clear_error(); // reset error for binlog
-    if (write_record(table,&info))
+    if (write_record(&thd, table, &info))
     {
       info.error_count++;				// Ignore errors
       thread_safe_increment(delayed_insert_errors,&LOCK_delayed_status);
@@ -1640,7 +1661,12 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
       info.handle_duplicates == DUP_REPLACE)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   table->file->start_bulk_insert((ha_rows) 0);
-  DBUG_RETURN(0);
+  thd->no_trans_update= 0;
+  thd->abort_on_warning= (info.handle_duplicates != DUP_IGNORE &&
+                          (thd->variables.sql_mode &
+                           (MODE_STRICT_TRANS_TABLES |
+                            MODE_STRICT_ALL_TABLES)));
+  DBUG_RETURN(check_that_all_fields_are_given_values(thd, table));
 }
 
 
@@ -1659,6 +1685,7 @@ select_insert::~select_insert()
     table->file->reset();
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  thd->abort_on_warning= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -1675,7 +1702,7 @@ bool select_insert::send_data(List<Item> &values)
     fill_record(*fields, values, 1);
   else
     fill_record(table->field, values, 1);
-  if (thd->net.report_error || write_record(table,&info))
+  if (thd->net.report_error || write_record(thd, table, &info))
     DBUG_RETURN(1);
   if (table->next_number_field)		// Clear for next record
   {
@@ -1824,7 +1851,12 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
       info.handle_duplicates == DUP_REPLACE)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   table->file->start_bulk_insert((ha_rows) 0);
-  DBUG_RETURN(0);
+  thd->no_trans_update= 0;
+  thd->abort_on_warning= (info.handle_duplicates != DUP_IGNORE &&
+                          (thd->variables.sql_mode &
+                           (MODE_STRICT_TRANS_TABLES |
+                            MODE_STRICT_ALL_TABLES)));
+  DBUG_RETURN(check_that_all_fields_are_given_values(thd, table));
 }
 
 
@@ -1836,7 +1868,7 @@ bool select_create::send_data(List<Item> &values)
     return 0;
   }
   fill_record(field, values, 1);
-  if (thd->net.report_error ||write_record(table,&info))
+  if (thd->net.report_error || write_record(thd, table, &info))
     return 1;
   if (table->next_number_field)		// Clear for next record
   {

@@ -461,6 +461,7 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
       field_length= (uint) strpos[3];
       recpos=	    uint2korr(strpos+4),
       pack_flag=    uint2korr(strpos+6);
+      pack_flag&=   ~NO_DEFAULT_VALUE_FLAG;     // Safety for old files
       unireg_type=  (uint) strpos[8];
       interval_nr=  (uint) strpos[10];
 

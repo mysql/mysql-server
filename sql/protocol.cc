@@ -65,7 +65,8 @@ void send_error(THD *thd, uint sql_errno, const char *err)
 		      err ? err : net->last_error[0] ?
 		      net->last_error : "NULL"));
 
-  if (thd->spcont && thd->spcont->find_handler(sql_errno))
+  if (thd->spcont && thd->spcont->find_handler(sql_errno,
+                                               MYSQL_ERROR::WARN_LEVEL_ERROR))
   {
     DBUG_VOID_RETURN;
   }
@@ -152,7 +153,8 @@ void send_error(THD *thd, uint sql_errno, const char *err)
 void send_warning(THD *thd, uint sql_errno, const char *err)
 {
   DBUG_ENTER("send_warning");  
-  if (thd->spcont && thd->spcont->find_handler(sql_errno))
+  if (thd->spcont &&
+      thd->spcont->find_handler(sql_errno, MYSQL_ERROR::WARN_LEVEL_WARN))
   {
     DBUG_VOID_RETURN;
   }
@@ -186,7 +188,8 @@ net_printf(THD *thd, uint errcode, ...)
   DBUG_ENTER("net_printf");
   DBUG_PRINT("enter",("message: %u",errcode));
 
-  if (thd->spcont && thd->spcont->find_handler(errcode))
+  if (thd->spcont && thd->spcont->find_handler(errcode,
+                                               MYSQL_ERROR::WARN_LEVEL_ERROR))
   {
     DBUG_VOID_RETURN;
   }

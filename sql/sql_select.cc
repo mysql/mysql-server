@@ -8050,6 +8050,19 @@ join_read_system(JOIN_TAB *tab)
 }
 
 
+/*
+  Read a table when there is at most one matching row
+
+  SYNOPSIS
+    join_read_const()
+    tab			Table to read
+
+  RETURN
+    0	Row was found
+    -1  Row was not found
+   1    Got an error (other than row not found) during read
+*/
+
 static int
 join_read_const(JOIN_TAB *tab)
 {
@@ -8057,6 +8070,7 @@ join_read_const(JOIN_TAB *tab)
   TABLE *table= tab->table;
   if (table->status & STATUS_GARBAGE)		// If first read
   {
+    table->status= 0;
     if (cp_buffer_from_ref(&tab->ref))
       error=HA_ERR_KEY_NOT_FOUND;
     else
@@ -8067,6 +8081,7 @@ join_read_const(JOIN_TAB *tab)
     }
     if (error)
     {
+      table->status= STATUS_NOT_FOUND;
       table->null_row=1;
       empty_record(table);
       if (error != HA_ERR_KEY_NOT_FOUND)

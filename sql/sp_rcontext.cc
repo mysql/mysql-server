@@ -57,7 +57,8 @@ sp_rcontext::set_item_eval(uint idx, Item *i, enum_field_types type)
 }
 
 int
-sp_rcontext::find_handler(uint sql_errno)
+sp_rcontext::find_handler(uint sql_errno,
+                          MYSQL_ERROR::enum_warning_level level)
 {
   if (in_handler)
     return 0;			// Already executing a handler
@@ -82,7 +83,8 @@ sp_rcontext::find_handler(uint sql_errno)
 	found= 1;
       break;
     case sp_cond_type_t::warning:
-      if (sqlstate[0] == '0' && sqlstate[1] == '1')
+      if (sqlstate[0] == '0' && sqlstate[1] == '1' ||
+          level == MYSQL_ERROR::WARN_LEVEL_WARN)
 	found= 1;
       break;
     case sp_cond_type_t::notfound:
@@ -90,7 +92,8 @@ sp_rcontext::find_handler(uint sql_errno)
 	found= 1;
       break;
     case sp_cond_type_t::exception:
-      if (sqlstate[0] != '0' || sqlstate[1] > '2')
+      if (sqlstate[0] != '0' || sqlstate[1] > '2' ||
+          level == MYSQL_ERROR::WARN_LEVEL_ERROR)
 	found= 1;
       break;
     }
