@@ -27,7 +27,7 @@
 
   SYNOPSYS
     append()
-    position         start position in the buffer
+    position          start position in the buffer
     string            string to be put in the buffer
     len_arg           the length of the string. This way we can avoid some
                       strlens.
@@ -43,12 +43,12 @@
     1 - The buffer came to 16Mb barrier
 */
 
-int Buffer::append(char *position, const char *string, uint len_arg)
+int Buffer::append(uint position, const char *string, uint len_arg)
 {
-  if (reserve(position - buffer, len_arg))
+  if (reserve(position, len_arg))
     return 1;
 
-  strnmov(position, string, len_arg);
+  strnmov(buffer + position, string, len_arg);
   return 0;
 }
 
@@ -89,3 +89,4 @@ int Buffer::reserve(uint position, uint len_arg)
   }
   return 0;
 }
+

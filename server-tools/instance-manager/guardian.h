@@ -66,13 +66,19 @@ public:
   ~Guardian_thread();
   void run();
   int init();
-  int guard(const char *instance_name, uint name_len);
-  int stop_guard(const char *instance_name, uint name_len);
+  int start();
+  int guard(Instance *instance);
+  int stop_guard(Instance *instance);
+
+private:
+  int add_instance_to_list(Instance *instance, LIST **list);
+  void move_to_list(LIST **from, LIST **to);
 
 private:
   pthread_mutex_t LOCK_guardian;
   Thread_info thread_info;
   LIST *guarded_instances;
+  LIST *starting_instances;
   MEM_ROOT alloc;
   enum { MEM_ROOT_BLOCK_SIZE= 512 };
 };

@@ -319,10 +319,10 @@ int Mysql_connection_thread::dispatch_command(enum enum_server_command command,
 {
   switch (command) {
   case COM_QUIT:                                // client exit
-    log_info("query for connection %d received quit command",connection_id);
+    log_info("query for connection %d received quit command", connection_id);
     return 1;
   case COM_PING:
-    log_info("query for connection %d received ping command",connection_id);
+    log_info("query for connection %d received ping command", connection_id);
     net_send_ok(&net, connection_id);
     break;
   case COM_QUERY:

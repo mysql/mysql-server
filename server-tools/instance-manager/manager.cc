@@ -161,7 +161,7 @@ void manager(const Options &options)
     alarm structures initialization as we have to use net_* functions while
     making the list. And they in their turn need alarms for timeout suppport.
   */
-  instance_map.init_guardian();
+  guardian_thread.start();
 
   while (!shutdown_complete)
   {

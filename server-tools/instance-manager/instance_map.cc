@@ -127,6 +127,18 @@ Instance_map::~Instance_map()
 }
 
 
+int Instance_map::lock()
+{
+  pthread_mutex_lock(&LOCK_instance_map);
+}
+
+
+int Instance_map::unlock()
+{
+  pthread_mutex_unlock(&LOCK_instance_map);
+}
+
+
 int Instance_map::flush_instances()
 {
   int rc;
@@ -138,242 +150,6 @@ int Instance_map::flush_instances()
   rc= load();
   pthread_mutex_unlock(&LOCK_instance_map);
   return rc;
-}
-
-
-int Instance_map::show_instance_options(struct st_net *net,
-                                        const char *instance_name)
-{
-  enum { MAX_VERSION_LENGTH= 40 };
-  Buffer send_buff;  /* buffer for packets */
-  LIST name, option;
-  LIST *field_list;
-  NAME_WITH_LENGTH name_field, option_field;
-  uint position=0;
-
-  /* create list of the fileds to be passed to send_fields */
-  name_field.name= (char *) "option_name";
-  name_field.length= 20;
-  name.data= &name_field;
-  option_field.name= (char *) "value";
-  option_field.length= 20;
-  option.data= &option_field;
-  field_list= list_add(NULL, &option);
-  field_list= list_add(field_list, &name);
-
-  send_fields(net, field_list);
-
-  {
-    Instance *instance;
-
-    if ((instance= find(instance_name, strlen(instance_name))) == NULL)
-      goto err;
-    store_to_string(&send_buff, (char *) "instance_name", &position);
-    store_to_string(&send_buff, (char *) instance_name, &position);
-    my_net_write(net, send_buff.buffer, (uint) position);
-    if (instance->options.mysqld_path != NULL)
-    {
-      position= 0;
-      store_to_string(&send_buff, (char *) "mysqld_path", &position);
-      store_to_string(&send_buff,
-                     (char *) instance->options.mysqld_path,
-                     &position);
-      my_net_write(net, send_buff.buffer, (uint) position);
-    }
-
-    if (instance->options.mysqld_user != NULL)
-    {
-      position= 0;
-      store_to_string(&send_buff, (char *) "admin_user", &position);
-      store_to_string(&send_buff,
-                      (char *) instance->options.mysqld_user,
-                      &position);
-      my_net_write(net, send_buff.buffer, (uint) position);
-    }
-
-    if (instance->options.mysqld_password != NULL)
-    {
-      position= 0;
-      store_to_string(&send_buff, (char *) "admin_password", &position);
-      store_to_string(&send_buff,
-                      (char *) instance->options.mysqld_password,
-                      &position);
-      my_net_write(net, send_buff.buffer, (uint) position);
-    }
-
-    /* loop through the options stored in DYNAMIC_ARRAY */
-    for (int i= 0; i < instance->options.options_array.elements; i++)
-    {
-      char *tmp_option, *option_value;
-      get_dynamic(&(instance->options.options_array), (gptr) &tmp_option, i);
-      option_value= strchr(tmp_option, '=');
-      /* split the option string into two parts */
-      *option_value= 0;
-      position= 0;
-      store_to_string(&send_buff, tmp_option + 2, &position);
-      store_to_string(&send_buff, option_value + 1, &position);
-      /* join name and the value into the same option again */
-      *option_value= '=';
-      my_net_write(net, send_buff.buffer, (uint) position);
-    }
-  }
-
-  send_eof(net);
-  net_flush(net);
-
-  return 0;
-
-err:
-  return 1;
-}
-
-/* return the list of running guarded instances */
-int Instance_map::init_guardian()
-{
-  Instance *instance;
-  uint i= 0;
-
-  while (i < hash.records)
-  {
-    instance= (Instance *) hash_element(&hash, i);
-    if ((instance->options.is_guarded != NULL) && (instance->is_running()))
-      if (guardian->guard(instance->options.instance_name,
-                          instance->options.instance_name_len))
-        return 1;
-    i++;
-  }
-
-  return 0;
-}
-
-
-/*
-  The method sends a list of instances in the instance map to the client.
-
-  SYNOPSYS
-    show_instances()
-    net               The network connection to the client.
-
-  RETURN
-    0 - ok
-    1 - error occured
-*/
-
-int Instance_map::show_instances(struct st_net *net)
-{
-  Buffer send_buff;  /* buffer for packets */
-  LIST name, status;
-  NAME_WITH_LENGTH name_field, status_field;
-  LIST *field_list;
-  uint position=0;
-
-  name_field.name= (char *) "instance_name";
-  name_field.length= 20;
-  name.data= &name_field;
-  status_field.name= (char *) "status";
-  status_field.length= 20;
-  status.data= &status_field;
-  field_list= list_add(NULL, &status);
-  field_list= list_add(field_list, &name);
-
-  send_fields(net, field_list);
-
-  {
-    Instance *instance;
-    uint i= 0;
-
-    pthread_mutex_lock(&LOCK_instance_map);
-    while (i < hash.records)
-    {
-      position= 0;
-      instance= (Instance *) hash_element(&hash, i);
-      store_to_string(&send_buff, instance->options.instance_name, &position);
-      if (instance->is_running())
-        store_to_string(&send_buff, (char *) "online", &position);
-      else
-        store_to_string(&send_buff, (char *) "offline", &position);
-      if (my_net_write(net, send_buff.buffer, (uint) position))
-        goto err;
-      i++;
-    }
-    pthread_mutex_unlock(&LOCK_instance_map);
-  }
-  if (send_eof(net))
-    goto err;
-  if (net_flush(net))
-    goto err;
-
-  return 0;
-err:
-  return 1;
-}
-
-
-/*
-  The method sends a table with a status of requested instance to the client.
-
-  SYNOPSYS
-    show_instance_status()
-    net               The network connection to the client.
-    instance_name     The name of the instance.
-
-  RETURN
-    0 - ok
-    1 - error occured
-*/
-
-int Instance_map::show_instance_status(struct st_net *net,
-                                       const char *instance_name)
-{
-  enum { MAX_VERSION_LENGTH= 40 };
-  Buffer send_buff;  /* buffer for packets */
-  LIST name, status, version;
-  LIST *field_list;
-  NAME_WITH_LENGTH name_field, status_field, version_field;
-  uint position=0;
-
-  /* create list of the fileds to be passed to send_fields */
-  name_field.name= (char *) "instance_name";
-  name_field.length= 20;
-  name.data= &name_field;
-  status_field.name= (char *) "status";
-  status_field.length= 20;
-  status.data= &status_field;
-  version_field.name= (char *) "version";
-  version_field.length= MAX_VERSION_LENGTH;
-  version.data= &version_field;
-  field_list= list_add(NULL, &version);
-  field_list= list_add(field_list, &status);
-  field_list= list_add(field_list, &name);
-
-  send_fields(net, field_list);
-
-  {
-    Instance *instance;
-
-    store_to_string(&send_buff, (char *) instance_name, &position);
-    if ((instance= find(instance_name, strlen(instance_name))) == NULL)
-      goto err;
-    if (instance->is_running())
-    {
-      store_to_string(&send_buff, (char *) "online", &position);
-      store_to_string(&send_buff, mysql_get_server_info(&(instance->mysql)), &position);
-    }
-    else
-    {
-      store_to_string(&send_buff, (char *) "offline", &position);
-      store_to_string(&send_buff, (char *) "unknown", &position);
-    }
-
-
-    my_net_write(net, send_buff.buffer, (uint) position);
-  }
-
-  send_eof(net);
-  net_flush(net);
-
-err:
-  return 0;
 }
 
 
@@ -448,3 +224,28 @@ int Instance_map::load()
 
   return error;
 }
+
+
+Instance *Instance_map::get_instance(uint instance_number)
+{
+  if (instance_number < hash.records)
+    return (Instance *) hash_element(&hash, instance_number);
+  else
+    return NULL;
+}
+
+
+/*--- Implementaton of the Instance map iterator class (Imap_iterator) ---*/
+
+
+void Imap_iterator::go_to_first()
+{
+  current_instance=0;
+}
+
+
+Instance *Imap_iterator::next()
+{
+  return instance_map->get_instance(current_instance++);
+}
+
