@@ -462,14 +462,6 @@ int init_embedded_server(int argc, char **argv, char **groups)
     }
   }
 
-  /*
-    Update mysqld variables from client variables if set
-    The client variables are set also by get_one_option() in mysqld.cc
-  */
-  if (max_allowed_packet)
-    global_system_variables.max_allowed_packet= max_allowed_packet;
-  if (net_buffer_length)
-    global_system_variables.net_buffer_length= net_buffer_length;
   return 0;
 }
 
@@ -498,18 +490,20 @@ void *create_embedded_thd(int client_flag, char *db)
   if (thd->store_globals())
   {
     fprintf(stderr,"store_globals failed.\n");
-    return NULL;
+    goto err;
   }
 
   thd->mysys_var= my_thread_var;
   thd->dbug_thread_id= my_thread_id();
   thd->thread_stack= (char*) &thd;
 
+/* TODO - add init_connect command execution */
+
   thd->proc_info=0;				// Remove 'login'
   thd->command=COM_SLEEP;
   thd->version=refresh_version;
   thd->set_time();
-  init_sql_alloc(&thd->mem_root,8192,8192);
+  thd->init_for_queries();
   thd->client_capabilities= client_flag;
 
   thd->db= db;
@@ -524,6 +518,9 @@ void *create_embedded_thd(int client_flag, char *db)
 
   thread_count++;
   return thd;
+err:
+  delete(thd);
+  return NULL;
 }
 
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
@@ -629,7 +626,7 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
     client_field->org_table_length=	strlen(client_field->org_table);
     client_field->charsetnr=		server_field.charsetnr;
 
-    client_field->catalog= strdup_root(field_alloc, "std");
+    client_field->catalog= strdup_root(field_alloc, "def");
     client_field->catalog_length= 3;
     
     if (INTERNAL_NUM_FIELD(client_field))
