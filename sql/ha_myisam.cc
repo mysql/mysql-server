@@ -509,16 +509,16 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
 		      (uint) (T_RETRY_WITHOUT_QUICK | T_QUICK)))
     {
       param.testflag&= ~T_RETRY_WITHOUT_QUICK;
-      sql_print_error("Note: Retrying repair of: '%s' without quick",
-		      table->path);
+      sql_print_information("Retrying repair of: '%s' without quick",
+                            table->path);
       continue;
     }
     param.testflag&= ~T_QUICK;
     if ((param.testflag & T_REP_BY_SORT))
     {
       param.testflag= (param.testflag & ~T_REP_BY_SORT) | T_REP;
-      sql_print_error("Note: Retrying repair of: '%s' with keycache",
-		      table->path);
+      sql_print_information("Retrying repair of: '%s' with keycache",
+                            table->path);
       continue;
     }
     break;
@@ -527,10 +527,10 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
       !(check_opt->flags & T_VERY_SILENT))
   {
     char llbuff[22],llbuff2[22];
-    sql_print_error("Note: Found %s of %s rows when repairing '%s'",
-		    llstr(file->state->records, llbuff),
-		    llstr(start_records, llbuff2),
-		    table->path);
+    sql_print_information("Found %s of %s rows when repairing '%s'",
+                          llstr(file->state->records, llbuff),
+                          llstr(start_records, llbuff2),
+                          table->path);
   }
   return error;
 }
@@ -1034,7 +1034,7 @@ bool ha_myisam::check_and_repair(THD *thd)
   // Don't use quick if deleted rows
   if (!file->state->del && (myisam_recover_options & HA_RECOVER_QUICK))
     check_opt.flags|=T_QUICK;
-  sql_print_error("Warning: Checking table:   '%s'",table->path);
+  sql_print_warning("Checking table:   '%s'",table->path);
 
   old_query= thd->query;
   old_query_length= thd->query_length;
@@ -1045,7 +1045,7 @@ bool ha_myisam::check_and_repair(THD *thd)
 
   if ((marked_crashed= mi_is_crashed(file)) || check(thd, &check_opt))
   {
-    sql_print_error("Warning: Recovering table: '%s'",table->path);
+    sql_print_warning("Recovering table: '%s'",table->path);
     check_opt.flags=
       ((myisam_recover_options & HA_RECOVER_BACKUP ? T_BACKUP_DATA : 0) |
        (marked_crashed                             ? 0 : T_QUICK) |
