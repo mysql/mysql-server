@@ -73,13 +73,14 @@ static int NEAR_F merge_index(MI_SORT_PARAM *,uint,uchar **,BUFFPEK *, int,
                               IO_CACHE *);
 			      
 static int NEAR_F write_keys_varlen(MI_SORT_PARAM *info,uchar **sort_keys,
-                                    uint count, BUFFPEK *buffpek,IO_CACHE *tempfile);
+                                    uint count, BUFFPEK *buffpek,
+                                    IO_CACHE *tempfile);
 static uint NEAR_F read_to_buffer_varlen(IO_CACHE *fromfile,BUFFPEK *buffpek,
                                          uint sort_length);
-static int NEAR_F write_merge_key(MI_SORT_PARAM *info, IO_CACHE *to_file,char* key,
-                                  uint sort_length, uint count);
-static int NEAR_F write_merge_key_varlen(MI_SORT_PARAM *info, IO_CACHE *to_file,char* key,
-                                         uint sort_length, uint count);
+static int NEAR_F write_merge_key(MI_SORT_PARAM *info, IO_CACHE *to_file,
+                                  char* key, uint sort_length, uint count);
+static int NEAR_F write_merge_key_varlen(MI_SORT_PARAM *info, IO_CACHE *to_file,
+                                       char* key, uint sort_length, uint count);
 inline int my_var_write(MI_SORT_PARAM *info,IO_CACHE *to_file,char *bufs);
 /*
   Creates a index of sorted keys
@@ -786,7 +787,7 @@ static uint NEAR_F read_to_buffer_varlen(IO_CACHE *fromfile, BUFFPEK *buffpek,
         return((uint) -1);     
       buffpek->file_pos+=length_of_key;
       buffp = buffp + sort_length;
-    }
+    }
     buffpek->key=buffpek->base;
     buffpek->count-=    count;
     buffpek->mem_count= count;
