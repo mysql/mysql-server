@@ -69,6 +69,7 @@ static void remove_escape(char *name);
 static void refresh_status(void);
 static bool append_file_to_dir(THD *thd, const char **filename_ptr,
 			       const char *table_name);
+static bool check_sp_definer_access(THD *thd, sp_head *sp);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -3110,7 +3111,8 @@ create_error:
 	goto error;
     }
     res= mysql_load(thd, lex->exchange, first_table, lex->field_list,
-                    lex->duplicates, (bool) lex->local_file, lex->lock_option);
+                    lex->duplicates, (bool) lex->local_file,
+		    lex->lock_option, lex->duplicates == DUP_IGNORE);
     break;
   }
 
@@ -3722,21 +3724,27 @@ create_error:
   case SQLCOM_ALTER_FUNCTION:
     {
       int result;
-      uint newname_len= 0;
-      if (lex->name)
-	newname_len= strlen(lex->name);
-      if (newname_len > NAME_LEN)
-      {
-	my_error(ER_TOO_LONG_IDENT, MYF(0), lex->name);
-        goto error;
-      }
+      sp_head *sp;
+      st_sp_chistics chistics;
+
+      memcpy(&chistics, &lex->sp_chistics, sizeof(chistics));
       if (lex->sql_command == SQLCOM_ALTER_PROCEDURE)
-	result= sp_update_procedure(thd, lex->spname,
-                                    lex->name, newname_len, &lex->sp_chistics);
+	sp= sp_find_procedure(thd, lex->spname);
       else
-	result= sp_update_function(thd, lex->spname,
-                                   lex->name, newname_len, &lex->sp_chistics);
-      res= result;
+	sp= sp_find_function(thd, lex->spname);
+      mysql_reset_errors(thd);
+      if (! sp)
+	result= SP_KEY_NOT_FOUND;
+      else
+      {
+	if (check_sp_definer_access(thd, sp))
+          goto error;
+	memcpy(&lex->sp_chistics, &chistics, sizeof(lex->sp_chistics));
+	if (lex->sql_command == SQLCOM_ALTER_PROCEDURE)
+	  result= sp_update_procedure(thd, lex->spname, &lex->sp_chistics);
+	else
+	  result= sp_update_function(thd, lex->spname, &lex->sp_chistics);
+      }
       switch (result)
       {
       case SP_OK:
@@ -3756,29 +3764,43 @@ create_error:
   case SQLCOM_DROP_PROCEDURE:
   case SQLCOM_DROP_FUNCTION:
     {
+      sp_head *sp;
       int result;
+
       if (lex->sql_command == SQLCOM_DROP_PROCEDURE)
-	result= sp_drop_procedure(thd, lex->spname);
+	sp= sp_find_procedure(thd, lex->spname);
+      else
+	sp= sp_find_function(thd, lex->spname);
+      mysql_reset_errors(thd);
+      if (! sp)
+	result= SP_KEY_NOT_FOUND;
       else
       {
-	result= sp_drop_function(thd, lex->spname);
-#ifdef HAVE_DLOPEN
-	if (result == SP_KEY_NOT_FOUND)
+	if (check_sp_definer_access(thd, sp))
+          goto error;
+	if (lex->sql_command == SQLCOM_DROP_PROCEDURE)
+	  result= sp_drop_procedure(thd, lex->spname);
+	else
 	{
-	  udf_func *udf = find_udf(lex->spname->m_name.str,
-				   lex->spname->m_name.length);
-	  if (udf)
+	  result= sp_drop_function(thd, lex->spname);
+#ifdef HAVE_DLOPEN
+	  if (result == SP_KEY_NOT_FOUND)
 	  {
-	    if (check_access(thd, DELETE_ACL, "mysql", 0, 1, 0))
-	      goto error;
-	    if (!(result = mysql_drop_function(thd,&lex->spname->m_name)))
+	    udf_func *udf = find_udf(lex->spname->m_name.str,
+				     lex->spname->m_name.length);
+	    if (udf)
 	    {
-	      send_ok(thd);
-	      break;
+	      if (check_access(thd, DELETE_ACL, "mysql", 0, 1, 0))
+		goto error;
+	      if (!(res = mysql_drop_function(thd,&lex->spname->m_name)))
+	      {
+		send_ok(thd);
+		break;
+	      }
 	    }
 	  }
-	}
 #endif
+	}
       }
       res= result;
       switch (result)
@@ -4219,6 +4241,41 @@ static bool check_db_used(THD *thd,TABLE_LIST *tables)
   }
   return FALSE;
 }
+
+
+/*
+  Check if the given SP is owned by thd->priv_user/host, or priv_user is root.
+  QQ This is not quite complete, but it will do as a basic security check
+     for now. The question is exactly which rights should 'root' have?
+     Should root have access regardless of host for instance?
+
+  SYNOPSIS
+    check_sp_definer_access()
+    thd		 Thread handler
+    sp           The SP pointer
+
+  RETURN
+    0  ok
+    1  error     Error message has been sent
+*/
+
+static bool
+check_sp_definer_access(THD *thd, sp_head *sp)
+{
+  LEX_STRING *usr, *hst;
+
+  if (strcmp("root", thd->priv_user) == 0)
+    return FALSE;		/* QQ Any root is ok now */
+  usr= &sp->m_definer_user;
+  hst= &sp->m_definer_host;
+  if (strncmp(thd->priv_user, usr->str, usr->length) == 0 &&
+      strncmp(thd->priv_host, hst->str, hst->length) == 0)
+    return FALSE;		/* Both user and host must match */
+
+  my_error(ER_SP_ACCESS_DENIED_ERROR, MYF(0), sp->m_qname.str);
+  return TRUE;			/* Not definer or root */
+}
+
 
 /****************************************************************************
 	Check stack size; Send error if there isn't enough stack to continue

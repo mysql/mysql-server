@@ -71,16 +71,19 @@ public:
   void set_io_cache_arg(void* arg) { cache.arg = arg; }
 };
 
-static int read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,
+static int read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 			     List<Item> &fields, READ_INFO &read_info,
-			     ulong skip_lines);
-static int read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
+			     ulong skip_lines,
+			     bool ignore_check_option_errors);
+static int read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 			  List<Item> &fields, READ_INFO &read_info,
-			  String &enclosed, ulong skip_lines);
+			  String &enclosed, ulong skip_lines,
+			  bool ignore_check_option_errors);
 
 bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	       List<Item> &fields, enum enum_duplicates handle_duplicates,
-	       bool read_file_from_client,thr_lock_type lock_type)
+	       bool read_file_from_client,thr_lock_type lock_type,
+	       bool ignore_check_option_errors)
 {
   char name[FN_REFLEN];
   File file;
@@ -88,6 +91,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   int error;
   String *field_term=ex->field_term,*escaped=ex->escaped;
   String *enclosed=ex->enclosed;
+  Item *unused_conds;
   bool is_fifo=0;
 #ifndef EMBEDDED_LIBRARY
   LOAD_FILE_INFO lf_info;
@@ -117,8 +121,9 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   table_list->lock_type= lock_type;
   if (open_and_lock_tables(thd, table_list))
     DBUG_RETURN(TRUE);
-  /* TODO: add key check when we will support VIEWs in LOAD */
-  if (!table_list->updatable)
+  if (setup_tables(thd, table_list, &unused_conds))
+     DBUG_RETURN(-1);
+  if (!table_list->updatable || check_key_in_view(thd, table_list))
   {
     my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "LOAD");
     DBUG_RETURN(TRUE);
@@ -294,11 +299,12 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
                               MODE_STRICT_ALL_TABLES)));
 
     if (!field_term->length() && !enclosed->length())
-      error=read_fixed_length(thd,info,table,fields,read_info,
-			      skip_lines);
+      error= read_fixed_length(thd, info, table_list, fields,read_info,
+			       skip_lines, ignore_check_option_errors);
     else
-      error=read_sep_field(thd,info,table,fields,read_info,*enclosed,
-			   skip_lines);
+      error= read_sep_field(thd, info, table_list, fields, read_info,
+			    *enclosed, skip_lines,
+			    ignore_check_option_errors);
     if (table->file->end_bulk_insert())
       error=1;					/* purecov: inspected */
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
@@ -401,11 +407,13 @@ err:
 ****************************************************************************/
 
 static int
-read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
-		  READ_INFO &read_info, ulong skip_lines)
+read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
+		  List<Item> &fields, READ_INFO &read_info, ulong skip_lines,
+		  bool ignore_check_option_errors)
 {
   List_iterator_fast<Item> it(fields);
   Item_field *sql_field;
+  TABLE *table= table_list->table;
   ulonglong id;
   bool no_trans_update;
   DBUG_ENTER("read_fixed_length");
@@ -472,6 +480,17 @@ read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
                           ER_WARN_TOO_MANY_RECORDS, 
                           ER(ER_WARN_TOO_MANY_RECORDS), thd->row_count); 
     }
+
+    switch(table_list->view_check_option(thd,
+					 ignore_check_option_errors))
+    {
+    case VIEW_CHECK_SKIP:
+      read_info.next_line();
+      goto continue_loop;
+    case VIEW_CHECK_ERROR:
+      DBUG_RETURN(-1);
+    }
+
     if (thd->killed || write_record(thd,table,&info))
       DBUG_RETURN(1);
     thd->no_trans_update= no_trans_update;
@@ -496,6 +515,7 @@ read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
                           ER(ER_WARN_TOO_MANY_RECORDS), thd->row_count); 
     }
     thd->row_count++;
+continue_loop:;
   }
   if (id && !read_info.error)
     thd->insert_id(id);			// For binary/update log
@@ -505,12 +525,14 @@ read_fixed_length(THD *thd,COPY_INFO &info,TABLE *table,List<Item> &fields,
 
 
 static int
-read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
+read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 	       List<Item> &fields, READ_INFO &read_info,
-	       String &enclosed, ulong skip_lines)
+	       String &enclosed, ulong skip_lines,
+	       bool ignore_check_option_errors)
 {
   List_iterator_fast<Item> it(fields);
   Item_field *sql_field;
+  TABLE *table= table_list->table;
   uint enclosed_length;
   ulonglong id;
   bool no_trans_update;
@@ -580,6 +602,18 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
                 	    ER(ER_WARN_TOO_FEW_RECORDS), thd->row_count);
       }
     }
+
+    switch(table_list->view_check_option(thd,
+					 ignore_check_option_errors))
+    {
+    case VIEW_CHECK_SKIP:
+      read_info.next_line();
+      goto continue_loop;
+    case VIEW_CHECK_ERROR:
+      DBUG_RETURN(-1);
+    }
+
+
     if (thd->killed || write_record(thd, table, &info))
       DBUG_RETURN(1);
     /*
@@ -605,6 +639,7 @@ read_sep_field(THD *thd,COPY_INFO &info,TABLE *table,
         DBUG_RETURN(1);
     }
     thd->row_count++;
+continue_loop:;
   }
   if (id && !read_info.error)
     thd->insert_id(id);			// For binary/update log

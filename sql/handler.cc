@@ -1004,12 +1004,12 @@ next_insert_id(ulonglong nr,struct system_variables *variables)
     The next row will be given the id
     next_insert_id(next_insert_id)
 
-    The idea is the generated auto_increment values are predicatable and
+    The idea is that generated auto_increment values are predictable and
     independent of the column values in the table.  This is needed to be
-    able to replicate into a table that alread has rows with a higher
+    able to replicate into a table that already has rows with a higher
     auto-increment value than the one that is inserted.
 
-    After we have already generated an auto-increment number and the users
+    After we have already generated an auto-increment number and the user
     inserts a column with a higher value than the last used one, we will
     start counting from the inserted value.
 
@@ -1035,7 +1035,7 @@ void handler::update_auto_increment()
   {
     /* Clear flag for next row */
     table->auto_increment_field_not_null= FALSE;
-    /* Mark that we didn't generated a new value **/
+    /* Mark that we didn't generate a new value **/
     auto_increment_column_changed=0;
 
     /* Update next_insert_id if we have already generated a value */
@@ -1076,7 +1076,7 @@ void handler::update_auto_increment()
 
   /*
     We can't set next_insert_id if the auto-increment key is not the
-    first key part, as there is no gurantee that the first parts will be in
+    first key part, as there is no guarantee that the first parts will be in
     sequence
   */
   if (!table->next_number_key_offset)
