@@ -8,4 +8,5 @@ INSERT into test SET name='Caleb', age=1;
 ALTER TABLE test ADD id int(8) ZEROFILL AUTO_INCREMENT PRIMARY KEY;
 @test.master select * from test;
 connection slave;
+sleep 3;
 @test.master select * from test;
