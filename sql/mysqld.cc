@@ -2105,7 +2105,7 @@ int main(int argc, char **argv)
     size_t stack_size= 0;
     pthread_attr_getstacksize(&connection_attrib, &stack_size);
     /* We must check if stack_size = 0 as Solaris 2.9 can return 0 here */
-    if (stack_size && stack_size != thread_stack)
+    if (stack_size && stack_size < thread_stack)
     {
       if (global_system_variables.log_warnings)
 	sql_print_error("Warning: Asked for %ld thread stack, but got %ld",
@@ -3321,7 +3321,7 @@ struct my_option my_long_options[] =
    (gptr*) &opt_local_infile, 0, GET_BOOL, OPT_ARG,
    1, 0, 0, 0, 0, 0},
   {"log-bin", OPT_BIN_LOG,
-   "Log queries in new binary format (for replication)",
+   "Log update queries in binary format",
    (gptr*) &opt_bin_logname, (gptr*) &opt_bin_logname, 0, GET_STR_ALLOC,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-bin-index", OPT_BIN_LOG_INDEX,
@@ -3375,27 +3375,32 @@ struct my_option my_long_options[] =
    (gptr*) &master_retry_count, (gptr*) &master_retry_count, 0, GET_ULONG,
    REQUIRED_ARG, 3600*24, 0, 0, 0, 0, 0},
   {"master-info-file", OPT_MASTER_INFO_FILE,
-   "The location of the file that remembers where we left off on the master during the replication process. The default is `master.info' in the data directory. You should not need to change this.",
+   "The location and name of the file that remembers the master and where the I/O replication \
+thread is in the master's binlogs.",
    (gptr*) &master_info_file, (gptr*) &master_info_file, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"master-ssl", OPT_MASTER_SSL,
-   "Turn SSL on for replication. Be warned that is this is a relatively new feature.",
+   "Planned to enable the slave to connect to the master using SSL. Does nothing yet.",
    (gptr*) &master_ssl, (gptr*) &master_ssl, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"master-ssl-key", OPT_MASTER_SSL_KEY,
-   "Master SSL keyfile name. Only applies if you have enabled master-ssl.",
+   "Master SSL keyfile name. Only applies if you have enabled master-ssl. Does \
+nothing yet.",
    (gptr*) &master_ssl_key, (gptr*) &master_ssl_key, 0, GET_STR, OPT_ARG,
    0, 0, 0, 0, 0, 0},
   {"master-ssl-cert", OPT_MASTER_SSL_CERT,
-   "Master SSL certificate file name. Only applies if you have enabled master-ssl.",
+   "Master SSL certificate file name. Only applies if you have enabled \
+master-ssl. Does nothing yet.",
    (gptr*) &master_ssl_cert, (gptr*) &master_ssl_cert, 0, GET_STR, OPT_ARG,
    0, 0, 0, 0, 0, 0},
   {"master-ssl-capath", OPT_MASTER_SSL_CAPATH,
-   "Master SSL CA path. Only applies if you have enabled master-ssl.",
+   "Master SSL CA path. Only applies if you have enabled master-ssl. \
+Does nothing yet.",
    (gptr*) &master_ssl_capath, (gptr*) &master_ssl_capath, 0, GET_STR, OPT_ARG,
    0, 0, 0, 0, 0, 0},
   {"master-ssl-cipher", OPT_MASTER_SSL_CIPHER,
-   "Master SSL cipher. Only applies if you have enabled master-ssl.",
+   "Master SSL cipher. Only applies if you have enabled master-ssl. \
+Does nothing yet.",
    (gptr*) &master_ssl_cipher, (gptr*) &master_ssl_capath, 0, GET_STR, OPT_ARG,
    0, 0, 0, 0, 0, 0},
   {"myisam-recover", OPT_MYISAM_RECOVER,
@@ -3494,10 +3499,13 @@ struct my_option my_long_options[] =
   {"rpl-recovery-rank", OPT_RPL_RECOVERY_RANK, "Undocumented",
    (gptr*) &rpl_recovery_rank, (gptr*) &rpl_recovery_rank, 0, GET_ULONG,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"relay-log", OPT_RELAY_LOG, "Undocumented",
+  {"relay-log", OPT_RELAY_LOG, 
+   "The location and name to use for relay logs",
    (gptr*) &opt_relay_logname, (gptr*) &opt_relay_logname, 0,
    GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"relay-log-index", OPT_RELAY_LOG_INDEX, "Undocumented",
+  {"relay-log-index", OPT_RELAY_LOG_INDEX, 
+   "The location and name to use for the file that keeps a list of the last \
+relay logs",
    (gptr*) &opt_relaylog_index_name, (gptr*) &opt_relaylog_index_name, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"safe-mode", OPT_SAFE, "Skip some optimize stages (for testing).",
@@ -3559,10 +3567,14 @@ struct my_option my_long_options[] =
   {"skip-thread-priority", OPT_SKIP_PRIOR,
    "Don't give threads different priorities.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
-  {"relay-log-info-file", OPT_RELAY_LOG_INFO_FILE, "Undocumented",
+  {"relay-log-info-file", OPT_RELAY_LOG_INFO_FILE, 
+   "The location and name of the file that remembers where the SQL replication \
+thread is in the relay logs",
    (gptr*) &relay_log_info_file, (gptr*) &relay_log_info_file, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"slave-load-tmpdir", OPT_SLAVE_LOAD_TMPDIR, "Undocumented",
+  {"slave-load-tmpdir", OPT_SLAVE_LOAD_TMPDIR, 
+   "The location where the slave should put its temporary files when \
+replicating a LOAD DATA INFILE command",
    (gptr*) &slave_load_tmpdir, (gptr*) &slave_load_tmpdir, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"slave-skip-errors", OPT_SLAVE_SKIP_ERRORS,
@@ -3888,7 +3900,7 @@ struct my_option my_long_options[] =
    (gptr*) &max_system_variables.read_buff_size,0, GET_ULONG, REQUIRED_ARG,
    128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD, IO_SIZE, 0},
   {"relay_log_space_limit", OPT_RELAY_LOG_SPACE_LIMIT,
-   "Max space to use for all relay logs",
+   "Maximum space to use for all relay logs",
    (gptr*) &relay_log_space_limit,
    (gptr*) &relay_log_space_limit, 0, GET_ULL, REQUIRED_ARG, 0L, 0L,
    (longlong) ULONG_MAX, 0, 1, 0},
