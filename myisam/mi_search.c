@@ -540,7 +540,7 @@ my_off_t _mi_dpos(MI_INFO *info, uint nod_flag, uchar *after_key)
   after_key-=(nod_flag + info->s->rec_reflength);
   switch (info->s->rec_reflength) {
 #if SIZEOF_OFF_T > 4
-  case 8:  pos= (my_off_t) mi_uint5korr(after_key);  break;
+  case 8:  pos= (my_off_t) mi_uint8korr(after_key);  break;
   case 7:  pos= (my_off_t) mi_uint7korr(after_key);  break;
   case 6:  pos= (my_off_t) mi_uint6korr(after_key);  break;
   case 5:  pos= (my_off_t) mi_uint5korr(after_key);  break;
