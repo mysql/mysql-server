@@ -809,4 +809,6 @@ NULL
 select ROW(1, 1, 'a') IN (select b,a,c from t where c='b' or c='a');
 ROW(1, 1, 'a') IN (select b,a,c from t where c='b' or c='a')
 1
+select ROW(1, 1, 'a') IN (select b,a,c from t limit 2);
+This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
 drop table if exists t;
