@@ -63,21 +63,24 @@ sub collect_test_cases ($) {
   # To speed things up, we sort first in if the test require a restart
   # or not, second in alphanumeric order.
 
-#  @$cases = sort {
-#    if ( $a->{'master_restart'} and $b->{'master_restart'} or
-#         ! $a->{'master_restart'} and ! $b->{'master_restart'} )
-#    {
-#      return $a->{'name'} cmp $b->{'name'};
-#    }
-#    if ( $a->{'master_restart'} )
-#    {
-#      return 1;                 # Is greater
-#    }
-#    else
-#    {
-#      return -1;                # Is less
-#    }
-#  } @$cases;
+  if ( $::opt_reorder )
+  {
+    @$cases = sort {
+      if ( $a->{'master_restart'} and $b->{'master_restart'} or
+           ! $a->{'master_restart'} and ! $b->{'master_restart'} )
+      {
+        return $a->{'name'} cmp $b->{'name'};
+      }
+      if ( $a->{'master_restart'} )
+      {
+        return 1;                 # Is greater
+      }
+      else
+      {
+        return -1;                # Is less
+      }
+    } @$cases;
+  }
 
   return $cases;
 }
