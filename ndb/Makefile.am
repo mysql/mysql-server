@@ -24,6 +24,6 @@ windoze:
 windoze-dsp:
 
 all-windoze-dsp: windoze
-	find . -name '*.dsp' | xargs unix2dos
+	find . -name '*.dsp' | grep -v SCCS | xargs unix2dos
 	$(top_srcdir)/ndb/config/make-win-dsw.sh | unix2dos > ndb.dsw
-	tar cvfz ndb-win-dsp.tar.gz ndb.dsw `find . -name '*.dsp'`
+	tar cvfz ndb-win-dsp.tar.gz ndb.dsw `find . -name '*.dsp' | grep -v SCCS`
