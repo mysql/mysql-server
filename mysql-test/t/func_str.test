@@ -39,7 +39,7 @@ SELECT CONCAT('"',CONCAT_WS('";"',repeat('a',60),repeat('b',60),repeat('c',60),r
 select insert('txs',2,1,'hi'),insert('is ',4,0,'a'),insert('txxxxt',2,4,'es');
 select replace('aaaa','a','b'),replace('aaaa','aa','b'),replace('aaaa','a','bb'),replace('aaaa','','b'),replace('bbbb','a','c');
 select replace(concat(lcase(concat('THIS',' ','IS',' ','A',' ')),ucase('false'),' ','test'),'FALSE','REAL') ;
-select soundex(''),soundex('he'),soundex('hello all folks');
+select soundex(''),soundex('he'),soundex('hello all folks'),soundex('#3556 in bugdb');
 select 'mood' sounds like 'mud';
 select 'Glazgo' sounds like 'Liverpool';
 select null sounds like 'null';
@@ -146,7 +146,7 @@ CREATE TABLE t1 (
   wid int(10) unsigned NOT NULL auto_increment,
   data_podp date default NULL,
   status_wnio enum('nowy','podp','real','arch') NOT NULL default 'nowy',
-  PRIMARY KEY(wid),
+  PRIMARY KEY(wid)
 );
 
 INSERT INTO t1 VALUES (8,NULL,'real');
