@@ -153,7 +153,6 @@ private:
 
   NdbMgmHandle m_mgmsrv;
   bool connected;
-  const char *host;
   int try_reconnect;
 #ifdef HAVE_GLOBAL_REPLICATION  
   NdbRepHandle m_repserver;
@@ -193,7 +192,7 @@ extern "C" {
   {
     return (Ndb_mgmclient_handle) new Ndb_mgmclient(connect_string);
   }
-  int ndb_mgmclient_execute(Ndb_mgmclient_handle h, int argc, const char** argv)
+  int ndb_mgmclient_execute(Ndb_mgmclient_handle h, int argc, char** argv)
   {
     return ((Ndb_mgmclient*)h)->execute(argc, argv, 1);
   }
@@ -226,7 +225,7 @@ extern "C" {
 #include <util/InputStream.hpp>
 #include <util/OutputStream.hpp>
 
-int Ndb_mgmclient::execute(int argc, const char** argv, int _try_reconnect)
+int Ndb_mgmclient::execute(int argc, char** argv, int _try_reconnect)
 {
   if (argc <= 0)
     return 0;
@@ -379,15 +378,16 @@ CommandInterpreter::CommandInterpreter(const char *_host)
   m_mgmsrv = ndb_mgm_create_handle();
   if(m_mgmsrv == NULL) {
     ndbout_c("Cannot create handle to management server.");
+    exit(-1);
+  }
+  if (ndb_mgm_set_connectstring(m_mgmsrv, _host))
+  {
     printError();
+    exit(-1);
   }
 
   connected = false;
   try_reconnect = 0;
-  if (_host)
-    host= my_strdup(_host,MYF(MY_WME));
-  else
-    host= 0;
 #ifdef HAVE_GLOBAL_REPLICATION
   rep_host = NULL;
   m_repserver = NULL;
@@ -402,8 +402,6 @@ CommandInterpreter::~CommandInterpreter()
 {
   connected = false;
   ndb_mgm_destroy_handle(&m_mgmsrv);
-  my_free((char *)host,MYF(MY_ALLOW_ZERO_PTR));
-  host = NULL;
 }
 
 static bool 
@@ -438,18 +436,8 @@ bool
 CommandInterpreter::connect() 
 {
   if(!connected) {
-    int tries = try_reconnect; // tries == 0 => infinite
-    while(!connected) {
-      if(ndb_mgm_connect(m_mgmsrv, host) == -1) {
-	ndbout << "Cannot connect to management server (" << host << ").";
-	tries--;
-	if (tries == 0)
-	  break;
-	ndbout << "Retrying in 5 seconds." << endl;
-	NdbSleep_SecSleep(5);
-      } else
-	connected = true;
-    }
+    if(!ndb_mgm_connect(m_mgmsrv, try_reconnect-1, 5, 1))
+      connected = true;
   }
   return connected;
 }
