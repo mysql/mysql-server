@@ -1460,3 +1460,97 @@ execute stmt1;
 deallocate prepare stmt1;
 drop view v2;
 drop table t1, t2;
+
+#
+# test of substring_index with view
+#
+create table t1 (t time);
+create view v1 as select substring_index(t,':',2) as t from t1;
+insert into t1 (t) values ('12:24:10');
+select substring_index(t,':',2) from t1;
+select substring_index(t,':',2) from v1;
+drop view v1;
+drop table t1;
+
+#
+# test of cascaded check option for whiew without WHERE clause
+#
+create table t1 (s1 tinyint);
+create view v1 as select * from t1 where s1 <> 0 with local check option;
+create view v2 as select * from v1 with cascaded check option;
+-- error 1369
+insert into v2 values (0);
+drop view v2, v1;
+drop table t1;
+
+#
+# inserting single value with check option failed always get error
+#
+create table t1 (s1 int);
+create view v1 as select * from t1 where s1 < 5 with check option;
+#single value
+-- error 1369
+insert ignore into v1 values (6);
+#several values
+insert ignore into v1 values (6),(3);
+select * from t1;
+drop view v1;
+drop table t1;
+
+#
+# changing value by trigger and CHECK OPTION
+#
+create table t1 (s1 tinyint);
+create trigger t1_bi before insert on t1 for each row set new.s1 = 500;
+create view v1 as select * from t1 where s1 <> 127 with check option;
+-- error 1369
+insert into v1 values (0);
+select * from v1;
+select * from t1;
+drop trigger t1.t1_bi;
+drop view v1;
+drop table t1;
+
+#
+# CASCADED should be used for all underlaying VIEWs
+#
+create table t1 (s1 tinyint);
+create view v1 as select * from t1 where s1 <> 0;
+create view v2 as select * from v1 where s1 <> 1 with cascaded check option;
+-- error 1369
+insert into v2 values (0);
+select * from v2;
+select * from t1;
+drop view v2, v1;
+drop table t1;
+
+#
+# LOAD DATA with view and CHECK OPTION
+#
+# fixed length fields
+create table t1 (a int, b char(10));
+create view v1 as select * from t1 where a != 0 with check option;
+-- error 1369
+load data infile '../../std_data/loaddata3.dat' into table v1 fields terminated by '' enclosed by '' ignore 1 lines;
+select * from t1;
+select * from v1;
+delete from t1;
+load data infile '../../std_data/loaddata3.dat' ignore into table v1 fields terminated by '' enclosed by '' ignore 1 lines;
+select * from t1;
+select * from v1;
+drop view v1;
+drop table t1;
+# variable length fields
+create table t1 (a text, b text);
+create view v1 as select * from t1 where a <> 'Field A' with check option;
+-- error 1369
+load data infile '../../std_data/loaddata2.dat' into table v1 fields terminated by ',' enclosed by '''';
+select concat('|',a,'|'), concat('|',b,'|') from t1;
+select concat('|',a,'|'), concat('|',b,'|') from v1;
+delete from t1;
+load data infile '../../std_data/loaddata2.dat' ignore into table v1 fields terminated by ',' enclosed by '''';
+select concat('|',a,'|'), concat('|',b,'|') from t1;
+select concat('|',a,'|'), concat('|',b,'|') from v1;
+drop view v1;
+drop table t1;
+
