@@ -187,7 +187,8 @@ public:
       Datetime,    ///< Precision down to 1 sec (sizeof(Datetime) == 8 bytes )
       Timespec,    ///< Precision down to 1 nsec(sizeof(Datetime) == 12 bytes )
       Blob,        ///< Binary large object (see NdbBlob)
-      Text         ///< Text blob
+      Text,         ///< Text blob,
+      Bit           ///< Bit, length specifies no of bits
     };
 
     /** 
