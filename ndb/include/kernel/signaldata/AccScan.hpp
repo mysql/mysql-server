@@ -51,11 +51,9 @@ private:
    * Previously there where also a scan type
    */
   static Uint32 getLockMode(const Uint32 & requestInfo);
-  static Uint32 getKeyinfoFlag(const Uint32 & requestInfo);
   static Uint32 getReadCommittedFlag(const Uint32 & requestInfo);
   
   static void setLockMode(Uint32 & requestInfo, Uint32 lockMode);
-  static void setKeyinfoFlag(Uint32 & requestInfo, Uint32 keyinfo);
   static void setReadCommittedFlag(Uint32 & requestInfo, Uint32 readCommitted);
 };
 
@@ -63,29 +61,20 @@ private:
  * Request Info
  *
  * l = Lock Mode             - 1  Bit 2
- * k = Keyinfo               - 1  Bit 4
  * h = Read Committed        - 1  Bit 5
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
- *   l kh    
+ *   l  h    
  */
 #define AS_LOCK_MODE_SHIFT       (2)
 #define AS_LOCK_MODE_MASK        (1)
-
-#define AS_KEYINFO_SHIFT         (4)
 #define AS_READ_COMMITTED_SHIFT  (5)
 
 inline 
 Uint32
 AccScanReq::getLockMode(const Uint32 & requestInfo){
   return (requestInfo >> AS_LOCK_MODE_SHIFT) & AS_LOCK_MODE_MASK;
-}
-
-inline
-Uint32
-AccScanReq::getKeyinfoFlag(const Uint32 & requestInfo){
-  return (requestInfo >> AS_KEYINFO_SHIFT) & 1;
 }
 
 inline
@@ -99,13 +88,6 @@ void
 AccScanReq::setLockMode(UintR & requestInfo, UintR val){
   ASSERT_MAX(val, AS_LOCK_MODE_MASK, "AccScanReq::setLockMode");
   requestInfo |= (val << AS_LOCK_MODE_SHIFT);
-}
-
-inline
-void
-AccScanReq::setKeyinfoFlag(UintR & requestInfo, UintR val){
-  ASSERT_BOOL(val, "AccScanReq::setKeyinfoFlag");
-  requestInfo |= (val << AS_KEYINFO_SHIFT);
 }
 
 inline

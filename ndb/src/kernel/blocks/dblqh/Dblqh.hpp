@@ -29,6 +29,9 @@
 #include <signaldata/LqhTransConf.hpp>
 #include <signaldata/LqhFrag.hpp>
 
+// primary key is stored in TUP
+#include <../dbtup/Dbtup.hpp>
+
 #ifdef DBLQH_C
 // Constants
 /* ------------------------------------------------------------------------- */
@@ -500,9 +503,7 @@ public:
       WAIT_DELETE_STORED_PROC_ID_COPY = 6,
       WAIT_ACC_COPY = 7,
       WAIT_ACC_SCAN = 8,
-      WAIT_SCAN_KEYINFO = 9,
       WAIT_SCAN_NEXTREQ = 10,
-      WAIT_COPY_KEYINFO = 11,
       WAIT_CLOSE_SCAN = 12,
       WAIT_CLOSE_COPY = 13,
       WAIT_RELEASE_LOCK = 14,
@@ -2025,6 +2026,7 @@ public:
     Uint8 opExec;
     Uint8 operation;
     Uint8 reclenAiLqhkey;
+    Uint8 m_offset_current_keybuf;
     Uint8 replicaType;
     Uint8 simpleRead;
     Uint8 seqNoReplica;
@@ -2128,8 +2130,6 @@ private:
   void execACC_SCANREF(Signal* signal);
   void execNEXT_SCANCONF(Signal* signal);
   void execNEXT_SCANREF(Signal* signal);
-  void execACC_SCAN_INFO(Signal* signal);
-  void execACC_SCAN_INFO24(Signal* signal);
   void execACC_TO_REF(Signal* signal);
   void execSTORED_PROCCONF(Signal* signal);
   void execSTORED_PROCREF(Signal* signal);
@@ -2250,7 +2250,7 @@ private:
   void finishScanrec(Signal* signal);
   void releaseScanrec(Signal* signal);
   void seizeScanrec(Signal* signal);
-  void sendKeyinfo20(Signal* signal, ScanRecord *, TcConnectionrec *);
+  Uint32 sendKeyinfo20(Signal* signal, ScanRecord *, TcConnectionrec *);
   void sendScanFragConf(Signal* signal, Uint32 scanCompleted);
   void initCopyrec(Signal* signal);
   void initCopyTc(Signal* signal);
@@ -2379,6 +2379,8 @@ private:
   void seizeAttrinbuf(Signal* signal);
   Uint32 seize_attrinbuf();
   Uint32 release_attrinbuf(Uint32);
+  Uint32 copy_bounds(Uint32 * dst, TcConnectionrec*);
+
   void seizeFragmentrec(Signal* signal);
   void seizePageRef(Signal* signal);
   void seizeTcrec();
@@ -2425,7 +2427,6 @@ private:
   void localCommitLab(Signal* signal);
   void abortErrorLab(Signal* signal);
   void continueAfterReceivingAllAiLab(Signal* signal);
-  void sendScanFragRefLateLab(Signal* signal);
   void abortStateHandlerLab(Signal* signal);
   void writeAttrinfoLab(Signal* signal);
   void scanAttrinfoLab(Signal* signal, Uint32* dataPtr, Uint32 length);
@@ -2492,7 +2493,7 @@ private:
   void nextScanConfScanLab(Signal* signal);
   void nextScanConfCopyLab(Signal* signal);
   void continueScanNextReqLab(Signal* signal);
-  bool keyinfoLab(Signal* signal, Uint32* dataPtr, Uint32 length);
+  void keyinfoLab(const Uint32 * src, const Uint32 * end);
   void copySendTupkeyReqLab(Signal* signal);
   void storedProcConfScanLab(Signal* signal);
   void storedProcConfCopyLab(Signal* signal);
@@ -2548,7 +2549,6 @@ private:
   void accScanConfScanLab(Signal* signal);
   void accScanConfCopyLab(Signal* signal);
   void scanLockReleasedLab(Signal* signal);
-  void accScanInfoEnterLab(Signal* signal, Uint32* dataPtr, Uint32 length);
   void openSrFourthNextLab(Signal* signal);
   void closingInitLab(Signal* signal);
   void closeExecSrCompletedLab(Signal* signal);
@@ -2563,6 +2563,8 @@ private:
   void initData();
   void initRecords();
 
+  Dbtup* c_tup;
+  Uint32 readPrimaryKeys(ScanRecord*, TcConnectionrec*, Uint32 * dst);
 // ----------------------------------------------------------------
 // These are variables handling the records. For most records one
 // pointer to the array of structs, one pointer-struct, a file size
