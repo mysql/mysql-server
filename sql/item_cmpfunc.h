@@ -91,7 +91,7 @@ protected:
   char buffer[80];
   longlong int_cache;
   double flt_cache;
-  String str_cache_buff, *str_cache;
+  String *str_cache;
   bool int_cache_ok, flt_cache_ok, str_cache_ok;
 public:
   Item_in_optimizer(Item *a,Item *b):
@@ -442,11 +442,14 @@ public:
   }
 };
 
+typedef int (*str_cmp_func_pointer)(const String *, const String *);
 class cmp_item_string :public cmp_item 
 {
 protected:
+  str_cmp_func_pointer str_cmp_func;
   String *value_res;
 public:
+  cmp_item_string (str_cmp_func_pointer cmp): str_cmp_func(cmp) {}
   friend class cmp_item_sort_string;
   friend class cmp_item_binary_string;
   friend class cmp_item_sort_string_in_static;
@@ -459,7 +462,11 @@ protected:
   char value_buff[80];
   String value;
 public:
+  cmp_item_sort_string(str_cmp_func_pointer cmp):
+    cmp_item_string(cmp),
+    value(value_buff, sizeof(value_buff), default_charset_info) {}
   cmp_item_sort_string():
+    cmp_item_string(&sortcmp),
     value(value_buff, sizeof(value_buff), default_charset_info) {}
   void store_value(Item *item)
   {
@@ -471,32 +478,19 @@ public:
     String tmp(buff, sizeof(buff), default_charset_info), *res;
     if (!(res= arg->val_str(&tmp)))
       return 1;				/* Can't be right */
-    return sortcmp(value_res, res);
+    return (*str_cmp_func)(value_res, res);
   }
   int compare(cmp_item *c)
   {
     cmp_item_string *cmp= (cmp_item_string *)c;
-    return sortcmp(value_res, cmp->value_res);
+    return (*str_cmp_func)(value_res, cmp->value_res);
   } 
   cmp_item *make_same();
 };
 
 class cmp_item_binary_string :public cmp_item_sort_string {
 public:
-  cmp_item_binary_string() {}
-  int cmp(Item *arg)
-  {
-    char buff[80];
-    String tmp(buff,sizeof(buff),default_charset_info),*res;
-    if (!(res=arg->val_str(&tmp)))
-      return 1;				/* Can't be right */
-    return stringcmp(value_res,res);
-  }
-  int compare(cmp_item *c)
-  {
-    cmp_item_string *cmp= (cmp_item_string *)c;
-    return stringcmp(value_res, cmp->value_res);
-  }
+  cmp_item_binary_string(): cmp_item_sort_string(&stringcmp)  {}
   cmp_item *make_same();
 };
 
@@ -580,7 +574,9 @@ class cmp_item_sort_string_in_static :public cmp_item_string
  protected:
   String value;
 public:
-  cmp_item_sort_string_in_static() {}
+  cmp_item_sort_string_in_static(str_cmp_func_pointer cmp):
+    cmp_item_string(cmp) {}
+  cmp_item_sort_string_in_static(): cmp_item_string(&sortcmp) {}
   void store_value(Item *item)
   {
     value_res= item->val_str(&value);
@@ -594,7 +590,7 @@ public:
   int compare(cmp_item *c)
   {
     cmp_item_string *cmp= (cmp_item_string *)c;
-    return sortcmp(value_res, cmp->value_res);
+    return (*str_cmp_func)(value_res, cmp->value_res);
   }
   cmp_item * make_same()
   {
@@ -604,12 +600,8 @@ public:
 
 class cmp_item_binary_string_in_static :public cmp_item_sort_string_in_static {
 public:
-  cmp_item_binary_string_in_static() {}
-  int compare(cmp_item *c)
-  {
-    cmp_item_string *cmp= (cmp_item_string *)c;
-    return stringcmp(value_res, cmp->value_res);
-  }
+  cmp_item_binary_string_in_static():
+    cmp_item_sort_string_in_static(&stringcmp) {}
   cmp_item * make_same()
   {
     return new cmp_item_binary_string_in_static();
@@ -654,6 +646,7 @@ class Item_func_in :public Item_int_func
       DBUG_RETURN(1);
     DBUG_RETURN(item->check_loop(id));
   }
+  bool nulls_in_row();
 };
 
 /* Functions used by where clause */

@@ -9,7 +9,7 @@ row(1,2,3) IN (row(3,NULL,3), row(1,2,3), row(1,3,3))
 1
 select row(10,2,3) IN (row(3,NULL,3), row(1,2,3), row(1,3,3));
 row(10,2,3) IN (row(3,NULL,3), row(1,2,3), row(1,3,3))
-NULL
+0
 select row('a',1.5,3) IN (row(1,2,3), row('a',1.5,3), row('a','a','a'));
 row('a',1.5,3) IN (row(1,2,3), row('a',1.5,3), row('a','a','a'))
 1
@@ -24,7 +24,13 @@ row('a',1.5,3) IN (row(3,NULL,3), row('a',1.5,3), row(1,3,3))
 1
 select row('b',1.5,3) IN (row(3,NULL,3), row('a',1.5,3), row(1,3,3));
 row('b',1.5,3) IN (row(3,NULL,3), row('a',1.5,3), row(1,3,3))
+0
+select row('b',1.5,3) IN (row('b',NULL,3), row('a',1.5,3), row(1,3,3));
+row('b',1.5,3) IN (row('b',NULL,3), row('a',1.5,3), row(1,3,3))
 NULL
+select row('b',1.5,3) IN (row('b',NULL,4), row('a',1.5,3), row(1,3,3));
+row('b',1.5,3) IN (row('b',NULL,4), row('a',1.5,3), row(1,3,3))
+0
 select row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,row(3,4)));
 row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,row(3,4)))
 1

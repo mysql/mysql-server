@@ -81,3 +81,22 @@ bool Item_row::check_cols(uint c)
   }
   return 0;
 }
+
+bool Item_row::null_inside()
+{
+  for (uint i= 0; i < arg_count; i++)
+  {
+    if (items[i]->cols() > 1)
+    {
+      if (items[i]->null_inside())
+	return 1;
+    }
+    else
+    {
+      items[i]->val_int();
+      if (items[i]->null_value)
+	return 1;
+    }
+  }
+  return 0;
+}

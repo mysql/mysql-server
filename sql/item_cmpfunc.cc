@@ -90,7 +90,7 @@ static bool convert_constant_item(Field *field, Item **item)
 
 void Item_bool_func2::fix_length_and_dec()
 {
-  max_length=1;					// Function returns 0 or 1
+  max_length= 1;				     // Function returns 0 or 1
 
   /*
     As some compare functions are generated after sql_yacc,
@@ -276,13 +276,13 @@ longlong Item_in_optimizer::val_int()
   flt_cache_ok= 0;
   str_cache_ok= 0;
   int_cache= args[0]->val_int_result();
-  if (args[0]->is_null_result())
+  if (args[0]->null_value)
   {
     null_value= 1;
     return 0;
   }
   longlong tmp= args[1]->val_int_result();
-  null_value= args[1]->is_null_result();
+  null_value= args[1]->null_value;
   return tmp;
 }
 
@@ -294,7 +294,7 @@ longlong Item_in_optimizer::get_cache_int()
     flt_cache_ok= 0;
     str_cache_ok= 0;
     int_cache= args[0]->val_int_result();
-    null_value= args[0]->is_null_result();
+    null_value= args[0]->null_value;
   }
   return int_cache;
 }
@@ -303,11 +303,11 @@ double Item_in_optimizer::get_cache()
 {
   if (!flt_cache_ok)
   {
-    int_cache_ok= 0;
     flt_cache_ok= 1;
+    int_cache_ok= 0;
     str_cache_ok= 0;
     flt_cache= args[0]->val_result();
-    null_value= args[0]->is_null_result();
+    null_value= args[0]->null_value;
   }
   return flt_cache;
 }
@@ -316,12 +316,12 @@ String *Item_in_optimizer::get_cache_str(String *s)
 {
   if (!str_cache_ok)
   {
+    str_cache_ok= 1;
     int_cache_ok= 0;
     flt_cache_ok= 0;
-    str_cache_ok= 1;
-    str_cache_buff.set(buffer, sizeof(buffer), s->charset());
-    str_cache= args[0]->str_result(&str_cache_buff);
-    null_value= args[0]->is_null_result();
+    str_value.set(buffer, sizeof(buffer), s->charset());
+    str_cache= args[0]->str_result(&str_value);
+    null_value= args[0]->null_value;
   }
   return str_cache;
 }
@@ -418,7 +418,8 @@ void Item_func_interval::fix_length_and_dec()
 	intervals[i]=args[i]->val();
     }
   }
-  maybe_null=0; max_length=2;
+  maybe_null= 0;
+  max_length= 2;
   used_tables_cache|=item->used_tables();
 }
 
@@ -477,7 +478,7 @@ bool Item_func_interval::check_loop(uint id)
 
 void Item_func_between::fix_length_and_dec()
 {
-   max_length=1;
+   max_length= 1;
 
   /*
     As some compare functions are generated after sql_yacc,
@@ -1030,8 +1031,8 @@ double Item_func_coalesce::val()
 
 void Item_func_coalesce::fix_length_and_dec()
 {
-  max_length=0;
-  decimals=0;
+  max_length= 0;
+  decimals= 0;
   cached_result_type = args[0]->result_type();
   for (uint i=0 ; i < arg_count ; i++)
   {
@@ -1214,8 +1215,9 @@ cmp_item* cmp_item_row::make_same()
 
 void cmp_item_row::store_value(Item *item)
 {
+  THD *thd= current_thd;
   n= item->cols();
-  if ((comparators= (cmp_item **) sql_alloc(sizeof(cmp_item *)*n)))
+  if ((comparators= (cmp_item **) thd->alloc(sizeof(cmp_item *)*n)))
   {
     item->null_value= 0;
     for (uint i=0; i < n; i++)
@@ -1227,14 +1229,14 @@ void cmp_item_row::store_value(Item *item)
       else
       {
 	my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-	current_thd->fatal_error= 1;
+	thd->fatal_error= 1;
 	return;
       }	  
   }
   else
   {
     my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
-    current_thd->fatal_error= 1;
+    thd->fatal_error= 1;
     return;
   }
 }
@@ -1281,33 +1283,53 @@ int cmp_item_row::cmp(Item *arg)
     my_error(ER_CARDINALITY_COL, MYF(0), n);
     return 1;
   }
-  for(uint i=0; i < n; i++)
-    if(comparators[i]->cmp(arg->el(i)))
+  bool was_null= 0;
+  for (uint i=0; i < n; i++)
+    if (comparators[i]->cmp(arg->el(i)))
     {
-      arg->null_value|= arg->el(i)->null_value;
-      return 1;
+      if (!arg->el(i)->null_value)
+	return 1;
+      was_null= 1;
     }
-  return 0;
+  if (!was_null)
+    return 0;
+  arg->null_value= 1;
+  return 1;
 }
 
 int cmp_item_row::compare(cmp_item *c)
 {
   int res;
   cmp_item_row *cmp= (cmp_item_row *) c;
-  for(uint i=0; i < n; i++)
-    if((res= comparators[i]->compare(cmp->comparators[i])))
+  for (uint i=0; i < n; i++)
+    if ((res= comparators[i]->compare(cmp->comparators[i])))
       return res;
+  return 0;
+}
+
+bool Item_func_in::nulls_in_row()
+{
+  Item **arg,**arg_end;
+  for (arg= args, arg_end= args+arg_count; arg != arg_end ; arg++)
+  {
+    if ((*arg)->null_inside())
+      return 1;
+  }
   return 0;
 }
 
 void Item_func_in::fix_length_and_dec()
 {
-  if (const_item())
+  /*
+    Row item with NULLs inside can return NULL or FALSE => 
+    they can't be processed as static
+  */
+  if (const_item() && !nulls_in_row())
   {
     switch (item->result_type()) {
     case STRING_RESULT:
       if (item->binary())
-	array=new in_string(arg_count,(qsort_cmp) stringcmp); /* purecov: inspected */
+	array=new in_string(arg_count,(qsort_cmp) stringcmp);
       else
 	array=new in_string(arg_count,(qsort_cmp) sortcmp);
       break;
@@ -1338,7 +1360,7 @@ void Item_func_in::fix_length_and_dec()
     in_item= cmp_item:: get_comparator(item);
   }
   maybe_null= item->maybe_null;
-  max_length=2;
+  max_length= 1;
   used_tables_cache|=item->used_tables();
   const_item_cache&=item->const_item();
 }
@@ -1661,7 +1683,8 @@ longlong Item_func_isnotnull::val_int()
 
 void Item_func_like::fix_length_and_dec()
 {
-  decimals=0; max_length=1;
+  decimals= 0;
+  max_length= 1;
   //  cmp_type=STRING_RESULT;			// For quick select
 }
 
@@ -1768,7 +1791,8 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       args[1]->fix_fields(thd,tables, args + 1))
     return 1;					/* purecov: inspected */
   with_sum_func=args[0]->with_sum_func || args[1]->with_sum_func;
-  max_length=1; decimals=0;
+  max_length= 1;
+  decimals= 0;
   if (args[0]->binary() || args[1]->binary())
     set_charset(my_charset_bin);
 
