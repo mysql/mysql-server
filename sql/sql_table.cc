@@ -2208,7 +2208,12 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   if (!(copy= new Copy_field[to->fields]))
     DBUG_RETURN(-1);				/* purecov: inspected */
 
-  to->file->external_lock(thd,F_WRLCK);
+  if (to->file->external_lock(thd, F_WRLCK))
+  {
+    /* We must always unlock, even when lock failed. */
+    (void) to->file->external_lock(thd, F_UNLCK);
+    DBUG_RETURN(-1);
+  }
   to->file->extra(HA_EXTRA_WRITE_CACHE);
   from->file->info(HA_STATUS_VARIABLE);
   to->file->deactivate_non_unique_index(from->file->records);
@@ -2308,11 +2313,12 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     error=1;
   if (ha_commit(thd))
     error=1;
-  if (to->file->external_lock(thd,F_UNLCK))
-    error=1;
  err:
   free_io_cache(from);
   *copied= found_count;
   *deleted=delete_count;
+  /* we must always unlock the table on return. */
+  if (to->file->external_lock(thd,F_UNLCK))
+    error=1;
   DBUG_RETURN(error > 0 ? -1 : 0);
 }
