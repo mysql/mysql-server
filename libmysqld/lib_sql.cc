@@ -403,6 +403,21 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
   DBUG_PRINT("info",("%s  Ver %s for %s on %s\n",my_progname,
 		     server_version, SYSTEM_TYPE,MACHINE_TYPE));
 
+  if (opt_error_log)
+  {
+    if (!log_error_file_ptr[0])
+      fn_format(log_error_file, glob_hostname, mysql_data_home, ".err", 0);
+    else
+      fn_format(log_error_file, log_error_file_ptr, mysql_data_home, ".err",
+		MY_UNPACK_FILENAME | MY_SAFE_PATH);
+    if (!log_error_file[0])
+      opt_error_log= 1;				// Too long file name
+    else
+    {
+      freopen(log_error_file, "a+", stderr);
+    }
+  }
+
   /* These must be set early */
 
   (void) pthread_mutex_init(&LOCK_mysql_create_db,MY_MUTEX_INIT_SLOW);
