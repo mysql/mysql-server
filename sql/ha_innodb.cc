@@ -395,12 +395,9 @@ innobase_mysql_print_thd(
 					but better be safe */
 		}
 		
-		for (i = 0; i < len && s[i]; i++);
-
-		memcpy(buf, s, i);	/* Use memcpy to reduce the timeframe
-					for a race, compared to fwrite() */
-		buf[300] = '\0';	/* not needed, just extra safety */
-
+                /* Use strmake to reduce the timeframe
+                   for a race, compared to fwrite() */
+		i= (uint) (strmake(buf, s, len) - buf);
 		putc('\n', f);
 		fwrite(buf, 1, i, f);
 	}
