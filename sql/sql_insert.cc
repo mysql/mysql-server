@@ -168,7 +168,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     runs without --log-update or --log-bin).
   */
   bool log_on= (thd->options & OPTION_BIN_LOG) || (!(thd->master_access & SUPER_ACL));
-  bool transactional_table, log_delayed;
+  bool transactional_table;
   uint value_count;
   ulong counter = 1;
   ulonglong id;
@@ -433,7 +433,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     /*
       Invalidate the table in the query cache if something changed.
       For the transactional algorithm to work the invalidation must be
-      before binlog writing and ha_autocommit_...
+      before binlog writing and ha_autocommit_or_rollback
     */
     if (info.copied || info.deleted || info.updated)
     {
@@ -442,7 +442,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 
     transactional_table= table->file->has_transactions();
 
-    log_delayed= (transactional_table || table->s->tmp_table);
     if ((info.copied || info.deleted || info.updated) &&
 	(error <= 0 || !transactional_table))
     {
@@ -451,11 +450,11 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
         if (error <= 0)
           thd->clear_error();
 	Query_log_event qinfo(thd, thd->query, thd->query_length,
-			      log_delayed, FALSE);
+			      transactional_table, FALSE);
 	if (mysql_bin_log.write(&qinfo) && transactional_table)
 	  error=1;
       }
-      if (!log_delayed)
+      if (!transactional_table)
 	thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
     }
     if (transactional_table)
@@ -1974,7 +1973,7 @@ bool select_insert::send_eof()
 
   /*
     We must invalidate the table in the query cache before binlog writing
-    and ha_autocommit_...
+    and ha_autocommit_or_rollback
   */
 
   if (info.copied || info.deleted || info.updated)
