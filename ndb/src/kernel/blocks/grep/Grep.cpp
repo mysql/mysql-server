@@ -599,7 +599,7 @@ Grep::PSCoord::execCREATE_SUBID_CONF(Signal* signal)
   c_subCoordinatorPool.release(subData);
   
   m_grep->sendEventRep(signal,
-			 EventReport::GrepSubscriptionInfo, 
+			 NDB_LE_GrepSubscriptionInfo, 
 			 GrepEvent::GrepPS_CreateSubIdConf,
 			 subId,
 			 subKey,
@@ -863,7 +863,7 @@ Grep::PSCoord::execGREP_CREATE_CONF(Signal* signal)
    * Send event report
    */
   m_grep->sendEventRep(signal,
-		       EventReport::GrepSubscriptionInfo,
+		       NDB_LE_GrepSubscriptionInfo,
 		       GrepEvent::GrepPS_SubCreateConf,
 		       subId,
 		       subKey,
@@ -1099,7 +1099,7 @@ Grep::PSCoord::execGREP_START_CONF(Signal* signal)
      * Send event report
      */
     m_grep->sendEventRep(signal,
-			 EventReport::GrepSubscriptionInfo,
+			 NDB_LE_GrepSubscriptionInfo,
 			 GrepEvent::GrepPS_SubStartMetaConf,
 			 subId, subKey,
 			 (Uint32)GrepError::GE_NO_ERROR);
@@ -1115,7 +1115,7 @@ Grep::PSCoord::execGREP_START_CONF(Signal* signal)
      * Send event report
      */
     m_grep->sendEventRep(signal,
-			 EventReport::GrepSubscriptionInfo,
+			 NDB_LE_GrepSubscriptionInfo,
 			 GrepEvent::GrepPS_SubStartDataConf,
 			 subId, subKey,
 			 (Uint32)GrepError::GE_NO_ERROR);
@@ -1339,7 +1339,7 @@ Grep::PSCoord::execGREP_REMOVE_CONF(Signal* signal)
    *************************/
 
   m_grep->sendEventRep(signal,
-		       EventReport::GrepSubscriptionInfo,
+		       NDB_LE_GrepSubscriptionInfo,
 		       GrepEvent::GrepPS_SubRemoveConf,
 		       subId, subKey,
 		       GrepError::GE_NO_ERROR);
@@ -1675,7 +1675,7 @@ Grep::PSCoord::execGREP_SYNC_CONF(Signal* signal)
     event = GrepEvent::GrepPS_SubSyncDataConf;
   
   /* @todo Johan: Add firstGCI here. /Lars */
-  m_grep->sendEventRep(signal, EventReport::GrepSubscriptionInfo,
+  m_grep->sendEventRep(signal, NDB_LE_GrepSubscriptionInfo,
 		       event, subId, subKey,
 		       (Uint32)GrepError::GE_NO_ERROR,
 		       lastGCI);
@@ -1799,7 +1799,7 @@ Grep::PSCoord::sendRefToSS(Signal * signal,
        * Send event report
        */
       m_grep->sendEventRep(signal,
-			   EventReport::GrepSubscriptionAlert,
+			   NDB_LE_GrepSubscriptionAlert,
 			   event,
 			   sub.m_subscriptionId,
 			   sub.m_subscriptionKey,
@@ -1831,7 +1831,7 @@ Grep::PSCoord::sendRefToSS(Signal * signal,
    * Finally, send an event.
    */
   m_grep->sendEventRep(signal,
-		       EventReport::GrepSubscriptionAlert,
+		       NDB_LE_GrepSubscriptionAlert,
 		       event,
 		       sub.m_subscriptionId,
 		       sub.m_subscriptionKey,
@@ -1920,7 +1920,7 @@ Grep::PSPart::sendRefToPSCoord(Signal * signal,
    * Finally, send an event.
    */
   m_grep->sendEventRep(signal,
-		       EventReport::GrepSubscriptionAlert,
+		       NDB_LE_GrepSubscriptionAlert,
 		       event,
 		       sub.m_subscriptionId,
 		       sub.m_subscriptionKey,
@@ -1988,7 +1988,7 @@ Grep::PSPart::execSUB_SYNC_CONTINUE_REQ(Signal* signal)
 
 void
 Grep::sendEventRep(Signal * signal,
-		   EventReport::EventType type, 
+		   Ndb_logevent_type type, 
 		   GrepEvent::Subscription event,
 		   Uint32 subId,
 		   Uint32 subKey,

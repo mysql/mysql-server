@@ -303,7 +303,7 @@ private:
   void stateArbitChoose(Signal* signal);
   void stateArbitCrash(Signal* signal);
   void computeArbitNdbMask(NodeBitmask& aMask);
-  void reportArbitEvent(Signal* signal, EventReport::EventType type);
+  void reportArbitEvent(Signal* signal, Ndb_logevent_type type);
 
   // Initialisation
   void initData();
