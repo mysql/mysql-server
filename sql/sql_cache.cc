@@ -268,6 +268,23 @@ are stored in one block.
  +-------------+      +-------------+
 
 If join_results allocated new block(s) then we need call pack_cache again.
+
+TODO list:
+
+  - Invalidate queries that use innoDB tables changed in transaction & remove
+      invalidation by table type
+  - Allocate bigger blocks for results (may be we should estimate the 
+        allocatedblock's size dynamicaly) and shrink last block with 
+        results in query_cache_end_of_result.
+  - Delayed till after-parsing qache answer (for column rights processing)
+  - Optimize cache resizing
+      - if new_size < old_size then pack & shrink
+      - if new_size > old_size copy cached query to new cache
+  - Move MRG_MYISAM table type processing to handlers, something like:
+        tables_used->table->file->register_used_filenames(callback,
+                                                          first_argument);
+  - In Query_cache::insert_table eliminate strlen(). To do this we have to
+        add db_len to the TABLE_LIST and TABLE structures.
 */
 
 #include "mysql_priv.h"
@@ -705,13 +722,6 @@ Query_cache::Query_cache(ulong query_cache_limit,
 
 ulong Query_cache::resize(ulong query_cache_size)
 {
-  /*
-     TODO:
-     When will be realized pack() optimize case when
-     query_cache_size < this->query_cache_size
-
-     Try to copy old cache in new memory
-  */
   DBUG_ENTER("Query_cache::resize");
   DBUG_PRINT("qcache", ("from %lu to %lu",this->query_cache_size,
 		      query_cache_size));
@@ -723,11 +733,6 @@ ulong Query_cache::resize(ulong query_cache_size)
 
 void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
 {
-  /*
-    TODO:
-    Maybe better convert keywords to upper case when query stored/compared.
-    (Not important at this stage)
-  */
   TABLE_COUNTER_TYPE tables;
   ulong tot_length;
   DBUG_ENTER("Query_cache::store_query");
@@ -879,18 +884,9 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   /* Check that we haven't forgot to reset the query cache variables */
   DBUG_ASSERT(thd->net.query_cache_query == 0);
 
-  /*
-    We can't cache the query if we are using a temporary table because
-    we don't know if the query is using a temporary table.
-
-    TODO:  We could parse the query and then check if the query used
-	   a temporary table.
-  */
-  if (thd->temporary_tables != 0 || !thd->safe_to_cache_query)
+  if (thd->temporary_tables != 0 )
   {
-    DBUG_PRINT("qcache", ("SELECT is non-cacheable: tmp_tables: %d  safe: %d",
-			  thd->temporary_tables,
-			  thd->safe_to_cache_query));
+    DBUG_PRINT("qcache", ("SELECT is non-cacheable"));
     goto err;
   }
 
@@ -1066,12 +1062,8 @@ void Query_cache::invalidate(TABLE *table)
   DBUG_VOID_RETURN;
 }
 
-
 /*
   Remove all cached queries that uses the given table type.
-  TODO: This is currently used to invalidate InnoDB tables on commit.
-	We should remove this function and only invalidate tables
-	used in the transaction.
 */
 
 void Query_cache::invalidate(Query_cache_table::query_cache_table_type type)
@@ -1596,7 +1588,6 @@ Query_cache::append_result_data(Query_cache_block **current_block,
   // If no space in last block (even after join) allocate new block
   if (last_block_free_space < data_len)
   {
-    // TODO: Try get memory from next free block (if exist) (is it needed?)
     DBUG_PRINT("qcache", ("allocate new block for %lu bytes",
 			data_len-last_block_free_space));
     Query_cache_block *new_block = 0;
@@ -1827,15 +1818,7 @@ my_bool Query_cache::register_all_tables(Query_cache_block *block,
 		      Query_cache_table::type_convertion(tables_used->table->
 							 db_type)))
       break;
-    /*
-      TODO: (Low priority)
-      The following has to be recoded to not test for a specific table
-      type but instead call a handler function that does this for us.
-      Something like the following:
 
-      tables_used->table->file->register_used_filenames(callback,
-							first_argument);
-    */
     if (tables_used->table->db_type == DB_TYPE_MRG_MYISAM)
     {
       ha_myisammrg *handler = (ha_myisammrg *) tables_used->table->file;
@@ -1913,10 +1896,6 @@ Query_cache::insert_table(uint key_len, char *key,
       DBUG_RETURN(0);
     }
     char *db = header->db();
-    /*
-      TODO: Eliminate strlen() by sending this to the function
-      To do this we have to add db_len to the TABLE_LIST and TABLE structures.
-    */
     header->table(db + strlen(db) + 1);
   }
 
