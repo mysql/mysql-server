@@ -2892,7 +2892,8 @@ col_loop1:
 	}
 
 	foreign->foreign_table = table;
-	foreign->foreign_table_name = table->name;
+	foreign->foreign_table_name = mem_heap_strdup(foreign->heap,
+							table->name);
 	foreign->foreign_index = index;
 	foreign->n_fields = i;
 	foreign->foreign_col_names = mem_heap_alloc(foreign->heap,
