@@ -5043,11 +5043,11 @@ void Dbtc::execLQHKEYREF(Signal* signal)
 	  jam();
 	  diverify010Lab(signal);
 	  return;
-	} else if (regApiPtr->tckeyrec > 0) {
+	} else if (regApiPtr->tckeyrec > 0 || regApiPtr->m_exec_flag) {
 	  jam();
 	  sendtckeyconf(signal, 2);
 	  return;
-	}//if
+	}
       }//if
       return;
       
@@ -10531,6 +10531,13 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     jam();
     if(signal->getLength() > 1){
       set_timeout_value(signal->theData[1]);
+    }
+  }
+
+  if (dumpState->args[0] == DumpStateOrd::TcSetApplTransactionTimeout){
+    jam();
+    if(signal->getLength() > 1){
+      set_appl_timeout_value(signal->theData[1]);
     }
   }
 }//Dbtc::execDUMP_STATE_ORD()
