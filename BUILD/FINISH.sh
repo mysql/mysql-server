@@ -23,12 +23,16 @@ autoconf   || (echo \"Can't execute autoconf\"    && exit 1)
 if [ -d gemini ]
 then
    (cd gemini && aclocal && autoheader && aclocal && automake && autoconf)
-fi
+fi"
 
+if [ -z "$just_clean" ]
+then
+commands="$commands
 CFLAGS=\"$cflags\" CXX=\"$CXX\" CXXFLAGS=\"$cxxflags\" CXXLDFLAGS=\"$CXXLDFLAGS\" \
 $configure"
+fi
 
-if [ -z "$just_configure" ]
+if [ -z "$just_configure" -a -z "$just_clean" ]
 then
   commands="$commands
 

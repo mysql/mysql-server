@@ -4409,6 +4409,7 @@ keyword:
 	| DYNAMIC_SYM		{}
 	| END			{}
 	| ENUM			{}
+	| ERRORS		{}
 	| ESCAPE_SYM		{}
 	| EVENTS_SYM		{}
 	| EXECUTE_SYM		{}
@@ -4546,6 +4547,7 @@ keyword:
 	| USE_FRM		{}
 	| VARIABLES		{}
 	| VALUE_SYM		{}
+	| WARNINGS		{}
 	| WORK_SYM		{}
 	| X509_SYM		{}
 	| YEAR_SYM		{}
