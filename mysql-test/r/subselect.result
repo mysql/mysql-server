@@ -2115,9 +2115,7 @@ GovernmentForm char(45) NOT NULL default '',
 HeadOfState char(60) default NULL,
 Capital int(11) default NULL,
 Code2 char(2) NOT NULL default ''
-) TYPE=MyISAM;
-Warnings:
-Warning	1287	'TYPE=storage_engine' is deprecated; use 'ENGINE=storage_engine' instead
+) ENGINE=MyISAM;
 INSERT INTO t1 VALUES ('XXX','Xxxxx','Oceania','Xxxxxx',26.00,0,0,0,0,0,'Xxxxx','Xxxxx','Xxxxx',NULL,'XX');
 INSERT INTO t1 VALUES ('ASM','American Samoa','Oceania','Polynesia',199.00,0,68000,75.1,334.00,NULL,'Amerika Samoa','US Territory','George W. Bush',54,'AS');
 INSERT INTO t1 VALUES ('ATF','French Southern territories','Antarctica','Antarctica',7780.00,0,0,NULL,0.00,NULL,'Terres australes françaises','Nonmetropolitan Territory of France','Jacques Chirac',NULL,'TF');

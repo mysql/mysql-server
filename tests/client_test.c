@@ -1101,7 +1101,8 @@ static void test_prepare_simple()
   mysql_stmt_close(stmt);
 
   /* update */
-  strmov(query, "UPDATE test_prepare_simple SET id=? WHERE id=? AND name= ?");
+  strmov(query, "UPDATE test_prepare_simple SET id=? "
+                "WHERE id=? AND CONVERT(name USING utf8)= ?");
   stmt= mysql_simple_prepare(mysql, query);
   check_stmt(stmt);
 
@@ -1129,7 +1130,8 @@ static void test_prepare_simple()
   mysql_stmt_close(stmt);
 
   /* select */
-  strmov(query, "SELECT * FROM test_prepare_simple WHERE id=? AND name= ?");
+  strmov(query, "SELECT * FROM test_prepare_simple WHERE id=? "
+                "AND CONVERT(name USING utf8)= ?");
   stmt= mysql_simple_prepare(mysql, query);
   check_stmt(stmt);
 
@@ -1158,7 +1160,7 @@ static void test_prepare_field_result()
 
   rc= mysql_query(mysql, "CREATE TABLE test_prepare_field_result(int_c int, "
                          "var_c varchar(50), ts_c timestamp(14), "
-                         "char_c char(3), date_c date, extra tinyint)");
+                         "char_c char(4), date_c date, extra tinyint)");
   myquery(rc);
 
   /* insert */
@@ -1184,8 +1186,8 @@ static void test_prepare_field_result()
                        "t1", "test_prepare_field_result", current_db, 10, 0);
   verify_prepare_field(result, 3, "ts_c", "ts_c", MYSQL_TYPE_TIMESTAMP,
                        "t1", "test_prepare_field_result", current_db, 19, 0);
-  verify_prepare_field(result, 4, "char_c", "char_c", MYSQL_TYPE_STRING,
-                       "t1", "test_prepare_field_result", current_db, 3, 0);
+  verify_prepare_field(result, 4, "char_c", "char_c", MYSQL_TYPE_VAR_STRING,
+                       "t1", "test_prepare_field_result", current_db, 4, 0);
 
   verify_field_count(result, 5);
   mysql_free_result(result);
@@ -1921,7 +1923,8 @@ static void test_select()
   rc= mysql_commit(mysql);
   myquery(rc);
 
-  strmov(query, "SELECT * FROM test_select WHERE id= ? AND name=?");
+  strmov(query, "SELECT * FROM test_select WHERE id= ? "
+                "AND CONVERT(name USING utf8) =?");
   stmt= mysql_simple_prepare(mysql, query);
   check_stmt(stmt);
 
@@ -1981,7 +1984,8 @@ static void test_ps_conj_select()
                           "(2, 'hh', 'hh'), (1, 'ii', 'ii'), (2, 'ii', 'ii')");
   myquery(rc);
 
-  strmov(query, "select id1, value1 from t1 where id1= ? or value1= ?");
+  strmov(query, "select id1, value1 from t1 where id1= ? or "
+                "CONVERT(value1 USING utf8)= ?");
   stmt= mysql_simple_prepare(mysql, query);
   check_stmt(stmt);
 
@@ -2060,7 +2064,8 @@ session_id  char(9) NOT NULL, \
                          "(\"abx\", 1, 2, 3, 2003-08-30)");
   myquery(rc);
 
-  strmov(query, "SELECT * FROM test_select WHERE session_id= ?");
+  strmov(query, "SELECT * FROM test_select WHERE "
+                "CONVERT(session_id USING utf8)= ?");
   stmt= mysql_simple_prepare(mysql, query);
   check_stmt(stmt);
 
@@ -2898,7 +2903,8 @@ static void test_simple_delete()
   myquery(rc);
 
   /* insert by prepare */
-  strmov(query, "DELETE FROM test_simple_delete WHERE col1= ? AND col2= ? AND col3= 100");
+  strmov(query, "DELETE FROM test_simple_delete WHERE col1= ? AND "
+                "CONVERT(col2 USING utf8)= ? AND col3= 100");
   stmt= mysql_simple_prepare(mysql, query);
   check_stmt(stmt);
 
@@ -4866,7 +4872,8 @@ static void test_multi_stmt()
 
   /* alter the table schema now */
   stmt1= mysql_simple_prepare(mysql, "DELETE FROM test_multi_table "
-                                     "WHERE id= ? AND name=?");
+                                     "WHERE id= ? AND "
+                                     "CONVERT(name USING utf8)=?");
   check_stmt(stmt1);
 
   verify_param_count(stmt1, 2);
@@ -5629,9 +5636,6 @@ static void test_subselect()
   rc= mysql_stmt_bind_param(stmt, bind);
   check_execute(stmt, rc);
 
-  rc= mysql_stmt_bind_result(stmt, bind);
-  check_execute(stmt, rc);
-
   id= 2;
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
@@ -5975,7 +5979,7 @@ static void test_pure_coverage()
   check_execute(stmt, rc);
 
   rc= mysql_stmt_bind_result(stmt, (MYSQL_BIND*)0);
-  check_execute(stmt, rc);
+  DIE_UNLESS(rc == 1);
 
   mysql_stmt_close(stmt);
 
@@ -6632,7 +6636,7 @@ static void test_field_misc()
                        "@@table_type", "",   /* field and its org name */
                        MYSQL_TYPE_STRING,   /* field type */
                        "", "",              /* table and its org name */
-                       "", type_length*3, 0);   /* db name, length */
+                       "", type_length, 0);   /* db name, length */
 
   mysql_free_result(result);
   mysql_stmt_close(stmt);
