@@ -1053,3 +1053,8 @@ create index i1 on v1 (col1);
 ERROR HY000: 'test.v1' is not BASIC TABLE
 drop view v1;
 drop table t1;
+CREATE VIEW v1 (f1,f2,f3,f4) AS SELECT connection_id(), pi(), current_user(), version();
+SHOW CREATE VIEW v1;
+Table	Create Table
+v1	CREATE VIEW test.v1 AS select sql_no_cache connection_id() AS `f1`,pi() AS `f2`,current_user() AS `f3`,version() AS `f4`
+drop view v1;
