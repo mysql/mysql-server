@@ -2183,6 +2183,12 @@ String *Item_datetime_typecast::val_str(String *str)
 bool Item_time_typecast::get_time(TIME *ltime)
 {
   bool res= get_arg0_time(ltime);
+  /*
+    For MYSQL_TIMESTAMP_TIME value we can have non-zero day part,
+    which we should not lose.
+  */
+  if (ltime->time_type == MYSQL_TIMESTAMP_DATETIME)
+    ltime->year= ltime->month= ltime->day= 0;
   ltime->time_type= MYSQL_TIMESTAMP_TIME;
   return res;
 }
@@ -2206,6 +2212,7 @@ String *Item_time_typecast::val_str(String *str)
 bool Item_date_typecast::get_date(TIME *ltime, uint fuzzy_date)
 {
   bool res= get_arg0_date(ltime,1);
+  ltime->hour= ltime->minute= ltime->second= ltime->second_part= 0;
   ltime->time_type= MYSQL_TIMESTAMP_DATE;
   return res;
 }
