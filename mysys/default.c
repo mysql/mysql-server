@@ -37,6 +37,9 @@
 #include "m_string.h"
 #include "m_ctype.h"
 #include <my_dir.h>
+#ifdef __WIN__
+#include <winbase.h>
+#endif
 
 char *defaults_extra_file=0;
 
@@ -60,10 +63,10 @@ DATADIR,
 NullS,
 };
 
-#define default_ext	".cnf"		/* extension for config file */
 #ifdef __WIN__
-#include <winbase.h>
-#define windows_ext	".ini"
+static const char *f_extensions[]= { ".ini", ".cnf", 0 };
+#else
+static const char *f_extensions[]= { ".cnf", 0 };
 #endif
 
 /*
@@ -81,8 +84,10 @@ struct handle_option_ctx
 };
 
 static int search_default_file(Process_option_func func, void *func_ctx,
-			       const char *dir, const char *config_file,
-			       const char *ext);
+			       const char *dir, const char *config_file);
+static int search_default_file_with_ext(DYNAMIC_ARRAY *args, MEM_ROOT *alloc,
+					const char *dir, const char *ext,
+					const char *config_file);
 
 static char *remove_end_comment(char *ptr);
 
@@ -137,8 +142,8 @@ static int search_files(const char *conf_file, int *argc, char ***argv,
 
   if (forced_default_file)
   {
-    if ((error= search_default_file(func, func_ctx, "",
-                                    forced_default_file, "")) < 0)
+    if ((error= search_default_file_with_ext(func, func_ctx, "", "",
+                                             forced_default_file)) < 0)
       goto err;
     if (error > 0)
     {
@@ -149,8 +154,7 @@ static int search_files(const char *conf_file, int *argc, char ***argv,
   }
   else if (dirname_length(conf_file))
   {
-    if ((error= search_default_file(func, func_ctx, NullS, conf_file,
-                                    default_ext)) < 0)
+    if ((error= search_default_file(func, func_ctx, NullS, conf_file)) < 0)
       goto err;
   }
   else
@@ -158,28 +162,30 @@ static int search_files(const char *conf_file, int *argc, char ***argv,
 #ifdef __WIN__
     char system_dir[FN_REFLEN];
     GetWindowsDirectory(system_dir,sizeof(system_dir));
-    if ((search_default_file(func, func_ctx, system_dir, conf_file,
-                             windows_ext)))
+    if ((search_default_file(func, func_ctx, system_dir, conf_file)))
       goto err;
 #endif
 #if defined(__EMX__) || defined(OS2)
-    if (getenv("ETC") &&
-        (search_default_file(func, func_ctx, getenv("ETC"), conf_file,
-			     default_ext)) < 0)
+    {
+      const char *etc; 
+      if ((etc= getenv("ETC")) &&
+          (search_default_file(func, func_ctx, etc, conf_file)) < 0)
       goto err;
+    }
 #endif
     for (dirs= default_directories ; *dirs; dirs++)
     {
       if (**dirs)
       {
-	if (search_default_file(func, func_ctx, *dirs, conf_file, default_ext) < 0)
+	if (search_default_file(func, func_ctx, *dirs, conf_file) < 0)
 	  goto err;
       }
       else if (defaults_extra_file)
       {
-	if (search_default_file(func, func_ctx, NullS, defaults_extra_file,
-				default_ext) < 0)
+	if (search_default_file(func, func_ctx, NullS,
+                                defaults_extra_file) < 0)
 	  goto err;				/* Fatal error */
+
       }
     }
   }
@@ -226,22 +232,23 @@ int process_default_option_files(const char *conf_file,
   return search_files(conf_file, &argc, NULL, &args_used, func, func_ctx);
 }
 
+
 /*
   The option handler for load_defaults.
 
   SYNOPSIS
-  handle_deault_option()
-  in_ctx                    Handler context. In this case it is a
+    handle_deault_option()
+    in_ctx                  Handler context. In this case it is a
                             handle_option_ctx structure.
-  group_name                The name of the group the option belongs to.
-  option                    The very option to be processed. It is already
+    group_name              The name of the group the option belongs to.
+    option                  The very option to be processed. It is already
                             prepared to be used in argv (has -- prefix)
 
   DESCRIPTION
-
-  This handler checks whether a group is one of the listed and adds an option
-  to the array if yes. Some other handler can record, for instance, all groups
-  and their options, not knowing in advance the names and amount of groups.
+    This handler checks whether a group is one of the listed and adds an option
+    to the array if yes. Some other handler can record, for instance, all
+    groups and their options, not knowing in advance the names and amount of
+    groups.
 
   RETURN
     0 - ok
@@ -249,12 +256,12 @@ int process_default_option_files(const char *conf_file,
 */
 
 static int handle_default_option(void *in_ctx, const char *group_name,
-                                   const char *option)
+                                 const char *option)
 {
   char *tmp;
-  struct handle_option_ctx *ctx;
-  ctx= (struct handle_option_ctx *) in_ctx;
-  if(find_type((char *)group_name, ctx->group, 3))
+  struct handle_option_ctx *ctx= (struct handle_option_ctx *) in_ctx;
+
+  if (find_type((char *)group_name, ctx->group, 3))
   {
     if (!(tmp= alloc_root(ctx->alloc, (uint) strlen(option) + 1)))
       return 1;
@@ -299,7 +306,7 @@ static int handle_default_option(void *in_ctx, const char *group_name,
 
 
 int load_defaults(const char *conf_file, const char **groups,
-		   int *argc, char ***argv)
+                  int *argc, char ***argv)
 {
   DYNAMIC_ARRAY args;
   TYPELIB group;
@@ -405,18 +412,37 @@ void free_defaults(char **argv)
 }
 
 
+static int search_default_file(Process_option_func opt_handler,
+                               void *handler_ctx,
+			       const char *dir,
+			       const char *config_file)
+{
+  char **ext;
+
+  for (ext= (char**) f_extensions; *ext; *ext++)
+  {
+    int error;
+    if ((error= search_default_file_with_ext(opt_handler, handler_ctx,
+                                             dir, *ext,
+					     config_file)) < 0)
+      return error;
+  }
+  return 0;
+}
+
+
 /*
   Open a configuration file (if exists) and read given options from it
   
   SYNOPSIS
-    search_default_file()
+    search_default_file_with_ext()
     opt_handler                 Option handler function. It is used to process
                                 every separate option.
     handler_ctx                 Pointer to the structure to store actual 
                                 parameters of the function.
     dir				directory to read
-    config_file			Name of configuration file
     ext				Extension for configuration file
+    config_file			Name of configuration file
     group			groups to read
 
   RETURN
@@ -425,9 +451,11 @@ void free_defaults(char **argv)
      1	File not found (Warning)
 */
 
-static int search_default_file(Process_option_func opt_handler, void *handler_ctx,
-			       const char *dir, const char *config_file,
-			       const char *ext)
+static int search_default_file_with_ext(Process_option_func opt_handler,
+                                        void *handler_ctx,
+                                        const char *dir,
+                                        const char *ext,
+                                        const char *config_file)
 {
   char name[FN_REFLEN+10], buff[4096], curr_gr[4096], *ptr, *end;
   char *value, option[4096];
@@ -618,10 +646,11 @@ static char *remove_end_comment(char *ptr)
 void print_defaults(const char *conf_file, const char **groups)
 {
 #ifdef __WIN__
-  bool have_ext=fn_ext(conf_file)[0] != 0;
+  my_bool have_ext= fn_ext(conf_file)[0] != 0;
 #endif
-  char name[FN_REFLEN];
+  char name[FN_REFLEN], **ext;
   const char **dirs;
+
   puts("\nDefault options are read from the following files in the given order:");
 
   if (dirname_length(conf_file))
@@ -630,27 +659,43 @@ void print_defaults(const char *conf_file, const char **groups)
   {
 #ifdef __WIN__
     GetWindowsDirectory(name,sizeof(name));
-    printf("%s\\%s%s ",name,conf_file,have_ext ? "" : windows_ext);
+    if (!have_ext)
+    {
+      for (ext= (char**) f_extensions; *ext; *ext++)
+        printf("%s\\%s%s ", name, conf_file, *ext);
+    }
+    else
+        printf("%s\\%s ", name, conf_file);
 #endif
 #if defined(__EMX__) || defined(OS2)
-    if (getenv("ETC"))
-      printf("%s\\%s%s ", getenv("ETC"), conf_file, default_ext);
+    {
+      const char *etc;
+
+      if ((etc= getenv("ETC")))
+      {
+	for (ext= (char**) f_extensions; *ext; *ext++)
+	  printf("%s\\%s%s ", etc, conf_file, *ext);
+      }
+    }
 #endif
     for (dirs=default_directories ; *dirs; dirs++)
     {
-      const char *pos;
-      char *end;
-      if (**dirs)
-	pos= *dirs;
-      else if (defaults_extra_file)
-	pos= defaults_extra_file;
-      else
-	continue;
-      end=convert_dirname(name, pos, NullS);
-      if (name[0] == FN_HOMELIB)	/* Add . to filenames in home */
-	*end++='.';
-      strxmov(end,conf_file,default_ext," ",NullS);
-      fputs(name,stdout);
+      for (ext= (char**) f_extensions; *ext; *ext++)
+      {
+	const char *pos;
+	char *end;
+	if (**dirs)
+	  pos= *dirs;
+	else if (defaults_extra_file)
+	  pos= defaults_extra_file;
+	else
+	  continue;
+	end= convert_dirname(name, pos, NullS);
+	if (name[0] == FN_HOMELIB)	/* Add . to filenames in home */
+	  *end++='.';
+	strxmov(end, conf_file, *ext, " ", NullS);
+	fputs(name,stdout);
+      }
     }
     puts("");
   }

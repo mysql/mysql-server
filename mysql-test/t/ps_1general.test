@@ -8,7 +8,11 @@
 # NOTE: PLEASE SEE THE DETAILED DESCRIPTION AT THE BOTTOM OF THIS FILE
 #       BEFORE ADDING NEW TEST CASES HERE !!!
 
-use test;
+--disable_warnings
+drop table if exists t5, t6, t7, t8;
+drop database if exists mysqltest ;
+--enable_warnings
+
 --disable_query_log
 select '------ basic tests ------' as test_sequence ;
 --enable_query_log
@@ -585,12 +589,9 @@ rename table new_t2 to t2;
 drop table t2;
 ## RENAME more than on TABLE within one statement
 # cases derived from client_test.c: test_rename()
---disable_warnings
-drop table if exists t5, t6, t7, t8 ;
---enable_warnings
 prepare stmt1 from ' rename table t5 to t6, t7 to t8 ' ;
 create table t5 (a int) ;
-# rename must fail, tc does not exist
+# rename must fail, t7 does not exist
 --error 1017
 execute stmt1 ;
 create table t7 (a int) ;
@@ -859,15 +860,23 @@ select '------ grant/revoke/drop affects a parallel session test ------'
 --error 1141
 show grants for second_user@localhost ;
 ## create a new user account by using GRANT statements on t9
-grant usage on test.* to second_user@localhost
+create database mysqltest;
+# create the tables (t1 and t9) used in many tests
+use mysqltest;
+--disable_query_log
+--source include/ps_create.inc
+--source include/ps_renew.inc
+--enable_query_log
+eval use $DB;
+grant usage on mysqltest.* to second_user@localhost
 identified by 'looser' ;
-grant select on test.t9 to second_user@localhost
+grant select on mysqltest.t9 to second_user@localhost
 identified by 'looser' ;
 show grants for second_user@localhost ;
 
 
 #### establish a second session to the new user account
-connect (con3,localhost,second_user,looser,test);
+connect (con3,localhost,second_user,looser,mysqltest);
 ## switch to the second session
 connection con3;
 # Who am I ?
@@ -885,10 +894,10 @@ select a as my_col from t1;
 #### give access rights to t1 and drop table t9
 ## switch back to the first session
 connection default;
-grant select on test.t1 to second_user@localhost
+grant select on mysqltest.t1 to second_user@localhost
 identified by 'looser' ;
 show grants for second_user@localhost ;
-drop table t9 ;
+drop table mysqltest.t9 ;
 show grants for second_user@localhost ;
 
 
@@ -907,7 +916,7 @@ execute s_t9 ;
 #### revoke the access rights to t1
 ## switch back to the first session
 connection default;
-revoke all privileges on test.t1 from second_user@localhost
+revoke all privileges on mysqltest.t1 from second_user@localhost
 identified by 'looser' ;
 show grants for second_user@localhost ;
 
@@ -932,8 +941,8 @@ commit ;
 --error 1141
 show grants for second_user@localhost ;
 
-
-drop table t1 ;
+drop table t1,t9 ;
+drop database mysqltest;
 
 
 ##### RULES OF THUMB TO PRESERVE THE SYSTEMATICS OF THE PS TEST CASES #####
