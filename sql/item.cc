@@ -172,7 +172,7 @@ bool Item::get_time(TIME *ltime)
 
 CHARSET_INFO * Item::default_charset() const
 {
-  return current_thd->variables.connection_collation;
+  return current_thd->variables.collation_connection;
 }
 
 bool Item::set_charset(CHARSET_INFO *cs1, enum coercion co1,

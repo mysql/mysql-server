@@ -3924,7 +3924,7 @@ text_literal:
 	TEXT_STRING_literal
 	{
 	  THD *thd= YYTHD;
-	  $$ = new Item_string($1.str,$1.length,thd->variables.connection_collation);
+	  $$ = new Item_string($1.str,$1.length,thd->variables.collation_connection);
 	}
 	| NCHAR_STRING
 	{ $$=  new Item_string($1.str,$1.length,national_charset_info); }
@@ -3936,7 +3936,7 @@ text_literal:
 
 text_string:
 	TEXT_STRING_literal
-	{ $$=  new String($1.str,$1.length,YYTHD->variables.connection_collation); }
+	{ $$=  new String($1.str,$1.length,YYTHD->variables.collation_connection); }
 	| HEX_NUM
 	  {
 	    Item *tmp = new Item_varbinary($1.str,$1.length);
@@ -4106,14 +4106,14 @@ TEXT_STRING_literal:
 	TEXT_STRING
 	{
 	  THD *thd= YYTHD;
-	  if (my_charset_same(thd->charset(),thd->variables.connection_collation))
+	  if (my_charset_same(thd->charset(),thd->variables.collation_connection))
 	  {
 	    $$=$1;
 	  }
 	  else
 	  {
 	    String ident;
-	    ident.copy($1.str,$1.length,thd->charset(),thd->variables.connection_collation);
+	    ident.copy($1.str,$1.length,thd->charset(),thd->variables.collation_connection);
 	    $$.str= thd->strmake(ident.ptr(),ident.length());
 	    $$.length= ident.length();
 	  }
@@ -4405,28 +4405,27 @@ option_value:
 	{
 	  THD *thd= YYTHD;
 	  LEX *lex= Lex;
-	  $2= $2 ? $2: global_system_variables.client_collation;
+	  $2= $2 ? $2: global_system_variables.collation_client;
 	  $3= $3 ? $3 : $2;
 	  if (!my_charset_same($2,$3))
 	  {
-	      net_printf(YYTHD,ER_COLLATION_CHARSET_MISMATCH,
-			 $3->name,$2->csname);
-	      YYABORT;
+	    net_printf(thd,ER_COLLATION_CHARSET_MISMATCH,$3->name,$2->csname);
+	    YYABORT;
 	  }
-	  lex->var_list.push_back(new set_var_client_collation($3,thd->db_charset,$3));
+	  lex->var_list.push_back(new set_var_collation_client($3,thd->db_charset,$3));
 	}
 	| NAMES_SYM charset_name_or_default opt_collate
 	{
+	  THD *thd= YYTHD;
 	  LEX *lex= Lex;
-	  $2= $2 ? $2 : global_system_variables.client_collation;
+	  $2= $2 ? $2 : global_system_variables.collation_client;
 	  $3= $3 ? $3 : $2;
 	  if (!my_charset_same($2,$3))
 	  {
-	      net_printf(YYTHD,ER_COLLATION_CHARSET_MISMATCH,
-			 $3->name,$2->csname);
-	      YYABORT;
+	    net_printf(thd,ER_COLLATION_CHARSET_MISMATCH,$3->name,$2->csname);
+	    YYABORT;
 	  }
-	  lex->var_list.push_back(new set_var_client_collation($3,$3,$3));
+	  lex->var_list.push_back(new set_var_collation_client($3,$3,$3));
 	}
 	| PASSWORD equal text_or_password
 	  {

@@ -2092,9 +2092,9 @@ static int init_common_variables(const char *conf_file_name, int argc,
 #endif
   if (!(default_charset_info= get_charset_by_name(sys_charset.value, MYF(MY_WME))))
     return 1;
-  global_system_variables.result_collation= default_charset_info;
-  global_system_variables.client_collation= default_charset_info;
-  global_system_variables.connection_collation= default_charset_info;
+  global_system_variables.collation_results= default_charset_info;
+  global_system_variables.collation_client= default_charset_info;
+  global_system_variables.collation_connection= default_charset_info;
 
   charsets_list= list_charsets(MYF(MY_CS_COMPILED | MY_CS_CONFIG));
 
@@ -4575,9 +4575,9 @@ static void set_options(void)
 		 sizeof(mysql_real_data_home)-1);
 
   /* Set default values for some variables */
-  global_system_variables.result_collation= default_charset_info;
-  global_system_variables.client_collation= default_charset_info;
-  global_system_variables.connection_collation= default_charset_info;
+  global_system_variables.collation_results= default_charset_info;
+  global_system_variables.collation_client= default_charset_info;
+  global_system_variables.collation_connection= default_charset_info;
   global_system_variables.table_type=   DB_TYPE_MYISAM;
   global_system_variables.tx_isolation= ISO_REPEATABLE_READ;
   global_system_variables.select_limit= (ulonglong) HA_POS_ERROR;
