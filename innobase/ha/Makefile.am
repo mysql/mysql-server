@@ -17,7 +17,7 @@
 
 include ../include/Makefile.i
 
-libs_LIBRARIES =	libha.a
+noinst_LIBRARIES =	libha.a
 
 libha_a_SOURCES =	ha0ha.c hash0hash.c
 

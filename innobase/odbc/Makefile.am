@@ -17,7 +17,7 @@
 
 include ../include/Makefile.i
 
-libs_LIBRARIES =	libodbc.a
+noinst_LIBRARIES =	libodbc.a
 
 libodbc_a_SOURCES =	odbc0odbc.c
 

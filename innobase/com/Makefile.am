@@ -17,7 +17,7 @@
 
 include ../include/Makefile.i
 
-libs_LIBRARIES =	libcom.a
+noinst_LIBRARIES =	libcom.a
 
 libcom_a_SOURCES =	com0com.c com0shm.c
 
