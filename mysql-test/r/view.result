@@ -1646,3 +1646,18 @@ insert into v4 values (30);
 ERROR HY000: You can't specify target table 'v4' for update in FROM clause
 drop view v4, v3, v2, v1;
 drop table t1;
+create table t1 (a int);
+create view v1 as select * from t1;
+check table t1,v1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+test.v1	check	status	OK
+check table v1,t1;
+Table	Op	Msg_type	Msg_text
+test.v1	check	status	OK
+test.t1	check	status	OK
+drop table t1;
+check table v1;
+Table	Op	Msg_type	Msg_text
+test.v1	check	error	View 'test.v1' references invalid table(s) or column(s)
+drop view v1;
