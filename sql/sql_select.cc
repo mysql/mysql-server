@@ -1374,7 +1374,7 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
 	   sizeof(POSITION)*join->const_tables);
     join->best_read=1.0;
   }
-  DBUG_RETURN(get_best_combination(join));
+  DBUG_RETURN(join->thd->killed || get_best_combination(join));
 }
 
 
@@ -1904,6 +1904,8 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
   ha_rows rec;
   double tmp;
   THD *thd= join->thd;
+  if (thd->killed)				// Abort
+    return;
 
   if (!rest_tables)
   {

@@ -329,9 +329,16 @@ static sys_var_rand_seed2	sys_rand_seed2("rand_seed2");
 static sys_var_thd_ulong        sys_default_week_format("default_week_format",
 							&SV::default_week_format);
 
+static const char license[]= "GPL";
+
+/* Read only variables */
+
+sys_var_const_str		sys_os("version_compile_os", SYSTEM_TYPE);
+sys_var_const_str		sys_license("license", license);
+
 /* Global read-only variable describing server license */
 
-static const char license[]= "GPL";
+
 
 
 /*
@@ -368,6 +375,7 @@ sys_var *sys_variables[]=
   &sys_join_buffer_size,
   &sys_key_buffer_size,
   &sys_last_insert_id,
+  &sys_license,
   &sys_local_infile,
   &sys_log_binlog,
   &sys_log_off,
@@ -434,6 +442,7 @@ sys_var *sys_variables[]=
   &sys_trans_alloc_block_size,
   &sys_trans_prealloc_size,
   &sys_tx_isolation,
+  &sys_os,
 #ifdef HAVE_INNOBASE_DB
   &sys_innodb_max_dirty_pages_pct,
 #endif    
@@ -512,8 +521,8 @@ struct show_var_st init_vars[]= {
   {sys_join_buffer_size.name,   (char*) &sys_join_buffer_size,	    SHOW_SYS},
   {sys_key_buffer_size.name,	(char*) &sys_key_buffer_size,	    SHOW_SYS},
   {"language",                language,                             SHOW_CHAR},
-  {"large_files_support",     (char*) &opt_large_files,             SHOW_BOOL},	
-  {"license",                 (char*) license,                      SHOW_CHAR},	
+  {"large_files_support",     (char*) &opt_large_files,             SHOW_BOOL},
+  {sys_license.name,	      (char*) &sys_license,                 SHOW_SYS},
   {sys_local_infile.name,     (char*) &sys_local_infile,	    SHOW_SYS},
 #ifdef HAVE_MLOCKALL
   {"locked_in_memory",	      (char*) &locked_in_memory,	    SHOW_BOOL},
@@ -526,6 +535,7 @@ struct show_var_st init_vars[]= {
   {sys_log_warnings.name,     (char*) &sys_log_warnings,	    SHOW_SYS},
   {sys_long_query_time.name,  (char*) &sys_long_query_time, 	    SHOW_SYS},
   {sys_low_priority_updates.name, (char*) &sys_low_priority_updates, SHOW_SYS},
+  {"lower_case_file_system",  (char*) &lower_case_file_system,      SHOW_BOOL},
   {"lower_case_table_names",  (char*) &lower_case_table_names,      SHOW_INT},
   {sys_max_allowed_packet.name,(char*) &sys_max_allowed_packet,	    SHOW_SYS},
   {sys_max_binlog_cache_size.name,(char*) &sys_max_binlog_cache_size, SHOW_SYS},
@@ -606,6 +616,7 @@ struct show_var_st init_vars[]= {
   {sys_trans_prealloc_size.name, (char*) &sys_trans_prealloc_size,  SHOW_SYS},
   {"version",                 server_version,                       SHOW_CHAR},
   {"version_comment",         (char*) MYSQL_COMPILATION_COMMENT,    SHOW_CHAR},
+  {sys_os.name,		      (char*) &sys_os,			    SHOW_SYS},
   {sys_net_wait_timeout.name, (char*) &sys_net_wait_timeout,	    SHOW_SYS},
   {NullS, NullS, SHOW_LONG}
 };

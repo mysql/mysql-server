@@ -287,8 +287,10 @@ char log_error_file[FN_REFLEN];
 bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
 bool opt_error_log= IF_WIN(1,0);
 bool opt_disable_networking=0, opt_skip_show_db=0;
+bool lower_case_table_names_used= 0;
 my_bool opt_enable_named_pipe= 0, opt_debugging= 0;
 my_bool opt_local_infile, opt_external_locking, opt_slave_compressed_protocol;
+my_bool lower_case_file_system= 0;
 uint delay_key_write_options= (uint) DELAY_KEY_WRITE_ON;
 uint lower_case_table_names;
 
@@ -2106,10 +2108,23 @@ int main(int argc, char **argv)
     get corrupted if accesses with names of different case.
   */
   if (!lower_case_table_names &&
-      test_if_case_insensitive(mysql_real_data_home) == 1)
+      (lower_case_file_system=
+       (test_if_case_insensitive(mysql_real_data_home) == 1)))
   {
-    sql_print_error("Warning: Setting lower_case_table_names=2 because file system for %s is case insensitive", mysql_real_data_home);
-    lower_case_table_names= 2;
+    if (lower_case_table_names_used)
+    {
+      sql_print_error("\
+Warning: You have forced lower_case_table_names to 0 through a command line \
+option, even if your file system '%s' is case insensitive.  This means that \
+you can corrupt an MyISAM table by accessing it with different cases.  You \
+should consider changing lower_case_table_names to 1 or 2",
+		      mysql_real_data_home);
+    }
+    else
+    {
+      sql_print_error("Warning: Setting lower_case_table_names=2 because file system for %s is case insensitive", mysql_real_data_home);
+      lower_case_table_names= 2;
+    }
   }
 
 #ifdef HAVE_OPENSSL
@@ -4845,6 +4860,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case OPT_LOWER_CASE_TABLE_NAMES:
     lower_case_table_names= argument ? atoi(argument) : 1;
+    lower_case_table_names_used= 1;
     break;
   }
   return 0;
