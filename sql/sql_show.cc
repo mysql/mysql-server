@@ -247,10 +247,11 @@ struct show_privileges_st {
 static struct show_privileges_st sys_privileges[]=
 {
   {"Alter", "Tables",  "To alter the table"},
-  {"Create temporary tables","Databases","To use CREATE TEMPORARY TABLE"},
   {"Create", "Databases,Tables,Indexes",  "To create new databases and tables"},
+  {"Create temporary tables","Databases","To use CREATE TEMPORARY TABLE"},
+  {"Create view", "Tables",  "To create new views"},
   {"Delete", "Tables",  "To delete existing rows"},
-  {"Drop", "Databases,Tables", "To drop databases and tables"},
+  {"Drop", "Databases,Tables", "To drop databases, tables, and views"},
   {"File", "File access on server",   "To read and write files on the server"},
   {"Grant option",  "Databases,Tables", "To give to other users those privileges you possess"},
   {"Index", "Tables",  "To create or drop indexes"},
@@ -263,7 +264,8 @@ static struct show_privileges_st sys_privileges[]=
   {"Replication slave","Server Admin","To read binary log events from the master"},
   {"Select", "Tables",  "To retrieve rows from table"},
   {"Show databases","Server Admin","To see all databases with SHOW DATABASES"},
-  {"Shutdown","Server Admin", "To shutdown the server"},
+  {"Show view","Tables","To see views with SHOW CREATE VIEW"},
+  {"Shutdown","Server Admin", "To shut down the server"},
   {"Super","Server Admin","To use KILL thread, SET GLOBAL, CHANGE MASTER, etc."},
   {"Update", "Tables",  "To update existing rows"},
   {"Usage","Server Admin","No privileges - allow connect only"},
