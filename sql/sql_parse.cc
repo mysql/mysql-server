@@ -3191,7 +3191,7 @@ unsent_create_error:
       Don't allow this within a transaction because we want to use
       re-generate table
     */
-    if (thd->locked_tables || thd->active_transaction())
+    if ((thd->locked_tables && !lex->sphead) || thd->active_transaction())
     {
       my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
                  ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
