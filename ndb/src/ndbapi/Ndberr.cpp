@@ -18,7 +18,6 @@
 #include <NdbError.hpp>
 #include "NdbImpl.hpp"
 #include "NdbDictionaryImpl.hpp"
-#include <NdbSchemaCon.hpp>
 #include <NdbOperation.hpp>
 #include <NdbConnection.hpp>
 
@@ -63,13 +62,6 @@ NdbConnection::getNdbError() const {
 const 
 NdbError & 
 NdbOperation::getNdbError() const {
-  update(theError);
-  return theError;
-}
-
-const 
-NdbError & 
-NdbSchemaCon::getNdbError() const {
   update(theError);
   return theError;
 }
