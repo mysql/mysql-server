@@ -538,8 +538,10 @@ public:
     UintR scanApiOpPtr;
     UintR scanLocalref[2];
     Uint32 scan_batch_len;
+    Uint32 batch_size;
     Uint32 first_batch_size;
     Uint32 batch_byte_size;
+
     UintR copyPtr;
     union {
       Uint32 nextPool;
@@ -569,14 +571,15 @@ public:
     ScanType scanType;
     BlockReference scanApiBlockref;
     NodeId scanNodeId;
+    Uint16 scanReleaseCounter;
+    Uint16 scanNumber;
+ 
     Uint8 scanCompletedStatus;
     Uint8 scanFlag;
     Uint8 scanLockHold;
     Uint8 scanLockMode;
     Uint8 readCommitted;
     Uint8 rangeScan;
-    Uint8 scanNumber;
-    Uint8 scanReleaseCounter;
     Uint8 scanTcWaiting;
     Uint8 scanKeyinfoFlag;
   }; // Size 272 bytes
@@ -2225,9 +2228,10 @@ private:
   void init_acc_ptr_list(ScanRecord*);
   bool seize_acc_ptr_list(ScanRecord*, Uint32);
   void release_acc_ptr_list(ScanRecord*);
-  Uint32 get_acc_ptr_from_scan_record(ScanRecord*, Uint32);
+  Uint32 get_acc_ptr_from_scan_record(ScanRecord*, Uint32, bool);
   void set_acc_ptr_in_scan_record(ScanRecord*, Uint32, Uint32);
-  void get_acc_ptr(ScanRecord*, Uint32*, Uint32);
+  void i_get_acc_ptr(ScanRecord*, Uint32*&, Uint32);
+  bool check_scan_batch_completed(ScanRecord*);
   
   void removeTable(Uint32 tableId);
   void sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId);
@@ -2926,4 +2930,11 @@ public:
   DLHashTable<ScanRecord> c_scanTakeOverHash;
 };
 
+inline
+bool
+Dblqh::check_scan_batch_completed(ScanRecord* scanP)
+{
+  return (scanP->scanCompletedOperations == scanP->scanConcurrentOperations) ||
+         (scanP->scan_batch_len >= scanP->batch_byte_size);
+}
 #endif
