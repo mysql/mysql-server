@@ -558,8 +558,13 @@ SQL_SELECT *prepare_simple_select(THD *thd, Item *cond, TABLE_LIST *tables,
 {
   if (!cond->fixed)
     cond->fix_fields(thd, tables, &cond);	// can never fail
+
+  /* Assume that no indexes cover all required fields */
+  table->used_keys.clear_all();
+
   SQL_SELECT *res= make_select(table,0,0,cond,error);
-  if (*error || (res && res->check_quick(thd, 0, HA_POS_ERROR)))
+  if (*error || (res && res->check_quick(thd, 0, HA_POS_ERROR)) ||
+      (res->quick && res->quick->reset()))
   {
     delete res;
     res=0;
