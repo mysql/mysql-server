@@ -4142,7 +4142,12 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
     }
     else if (default_value->type() == Item::NULL_ITEM)
     {
-      default_value=0;
+      /*
+        TIMESTAMP type should be able to distingush non-specified default
+        value and default value NULL later.
+      */
+      if (type != FIELD_TYPE_TIMESTAMP)
+        default_value= 0;
       if ((type_modifier & (NOT_NULL_FLAG | AUTO_INCREMENT_FLAG)) ==
 	  NOT_NULL_FLAG)
       {
@@ -4334,7 +4339,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       new_field->length=((new_field->length+1)/2)*2; /* purecov: inspected */
       new_field->length= min(new_field->length,14); /* purecov: inspected */
     }
-    new_field->flags|= ZEROFILL_FLAG | UNSIGNED_FLAG | NOT_NULL_FLAG;
+    new_field->flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
     if (default_value)
     {
       /* Grammar allows only NOW() value for ON UPDATE clause */
@@ -4352,6 +4357,9 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
       else
         new_field->unireg_check= (on_update_value?Field::TIMESTAMP_UN_FIELD:
                                                   Field::NONE);
+
+      if (default_value->type() == Item::NULL_ITEM)
+        new_field->def= 0;
     }
     else
     {

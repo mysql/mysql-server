@@ -164,7 +164,8 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
 
   /*
     Check if this is a special type, which will get a special walue
-    when set to NULL
+    when set to NULL (TIMESTAMP fields which allow setting to NULL
+    are handled by first check).
   */
   if (field->type() == FIELD_TYPE_TIMESTAMP)
   {

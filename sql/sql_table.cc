@@ -3053,12 +3053,8 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
 
 
-  /*
-    We don't want update TIMESTAMP fields during ALTER TABLE
-    and copy_data_between_tables uses only write_row() for new_table so
-    don't need to set up timestamp_on_update_now member.
-  */
-  new_table->timestamp_default_now= 0;
+  /* We don't want update TIMESTAMP fields during ALTER TABLE. */
+  new_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
   new_table->next_number_field=new_table->found_next_number_field;
   thd->count_cuted_fields= CHECK_FIELD_WARN;	// calc cuted fields
   thd->cuted_fields=0L;

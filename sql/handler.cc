@@ -942,22 +942,6 @@ int handler::read_first_row(byte * buf, uint primary_key)
 }
 
 
-/* Set a timestamp in record */
-
-void handler::update_timestamp(byte *record)
-{
-  long skr= (long) current_thd->query_start();
-#ifdef WORDS_BIGENDIAN
-  if (table->db_low_byte_first)
-  {
-    int4store(record,skr);
-  }
-  else
-#endif
-  longstore(record,skr);
-  return;
-}
-
 /*
   Updates field with field_type NEXT_NUMBER according to following:
   if field = 0 change field to the next free key in database.
