@@ -148,6 +148,7 @@ int Thread_registry::cond_wait(Thread_info *info, pthread_cond_t *cond,
 
 void Thread_registry::deliver_shutdown()
 {
+  Thread_info *info;
   struct timespec shutdown_time;
   set_timespec(shutdown_time, 1);
 
@@ -161,7 +162,7 @@ void Thread_registry::deliver_shutdown()
     stopped alarm processing.
   */
   process_alarm(THR_SERVER_ALARM);
-  for (Thread_info *info= head.next; info != &head; info= info->next)
+  for (info= head.next; info != &head; info= info->next)
   {
     pthread_kill(info->thread_id, THREAD_KICK_OFF_SIGNAL);
     /*
@@ -190,7 +191,7 @@ void Thread_registry::deliver_shutdown()
     so this time everybody should be informed (presumably each worker can
     get CPU during shutdown_time.)
   */
-  for (Thread_info *info= head.next; info != &head; info= info->next)
+  for (info= head.next; info != &head; info= info->next)
   {
     pthread_kill(info->thread_id, THREAD_KICK_OFF_SIGNAL);
     if (info->current_cond)
