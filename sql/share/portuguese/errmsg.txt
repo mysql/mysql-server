@@ -264,3 +264,5 @@
 "Combinação ilegal de collations (%s,%s) e (%s,%s) para operação '%s'",
 "Can't drop one or more of the requested users"
 "Can't revoke all privileges, grant for one or more of the requested users"
+"Illegal mix of collations (%s,%s), (%s,%s), (%s,%s) for operation '%s'",
+"Illegal mix of collations for operation '%s'",
