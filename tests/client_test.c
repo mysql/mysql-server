@@ -9143,7 +9143,7 @@ static void test_derived()
   int rc, i;
   MYSQL_BIND      bind[1];
   long            my_val = 0L;
-  ulong            my_length = 0L;
+  ulong           my_length = 0L;
   long            my_null = 0L;
   const char *query=
     "select count(1) from (select f.id from t1 f where f.id=?) as x";
@@ -9640,6 +9640,47 @@ group by b ");
 }
 
 
+static void test_union_param()
+{
+  MYSQL_STMT *stmt;
+  char *query;
+  int rc, i;
+  MYSQL_BIND      bind[2];
+  char            my_val[4];
+  ulong           my_length = 3L;
+  long            my_null = 0L;
+  myheader("test_union_param");
+
+  strcpy(my_val, "abc");
+  
+  query= (char*)"select ? as my_col union distinct select ?";
+  stmt= mysql_prepare(mysql, query, strlen(query));
+  check_stmt(stmt);
+
+  /* bind parameters */
+  bind[0].buffer_type=    FIELD_TYPE_STRING;
+  bind[0].buffer=         &my_val;
+  bind[0].buffer_length=  4;
+  bind[0].length=         &my_length;
+  bind[0].is_null=        (char*)&my_null;
+  bind[1].buffer_type=    FIELD_TYPE_STRING;
+  bind[1].buffer=         &my_val;
+  bind[1].buffer_length=  4;
+  bind[1].length=         &my_length;
+  bind[1].is_null=        (char*)&my_null;
+
+  rc= mysql_bind_param(stmt, bind);
+  check_execute(stmt,rc);
+
+  for (i= 0; i < 3; i++)
+  {
+    rc= mysql_stmt_execute(stmt);
+    check_execute(stmt,rc);
+    assert(1 == my_process_stmt_result(stmt));
+  }
+
+  mysql_stmt_close(stmt);
+}
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -9784,6 +9825,7 @@ int main(int argc, char **argv)
    
     start_time= time((time_t *)0);
 
+    test_union_param();
     client_query();         /* simple client query test */
 #if NOT_YET_WORKING
     /* Used for internal new development debugging */
