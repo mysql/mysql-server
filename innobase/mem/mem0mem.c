@@ -50,7 +50,7 @@ of the blocks stay the same. An exception is, of course, the case
 where the caller requests a memory buffer whose size is
 bigger than the threshold. In that case a block big enough must
 be allocated.
-
+ 
 The heap is physically arranged so that if the current block
 becomes full, a new block is allocated and always inserted in the
 chain of blocks as the last block.
@@ -118,6 +118,10 @@ mem_heap_create_block(
 	
 	ut_ad((type == MEM_HEAP_DYNAMIC) || (type == MEM_HEAP_BUFFER)
 		|| (type == MEM_HEAP_BUFFER + MEM_HEAP_BTR_SEARCH));
+
+	if (heap && heap->magic_n != MEM_BLOCK_MAGIC_N) {
+		mem_analyze_corruption((byte*)heap);
+	}
 
 	/* In dynamic allocation, calculate the size: block header + data. */
 
@@ -250,6 +254,10 @@ mem_heap_block_free(
 	ulint	type;
 	ulint	len;
 	ibool	init_block;	
+
+	if (block->magic_n != MEM_BLOCK_MAGIC_N) {
+		mem_analyze_corruption((byte*)block);
+	}
 
 	UT_LIST_REMOVE(list, heap->base, block);
 		
