@@ -117,6 +117,9 @@
 /* POSIX sigwait */
 #undef HAVE_SIGWAIT
 
+/* crypt */
+#undef HAVE_CRYPT
+
 /* Solaris define gethostbyaddr_r with 7 arguments. glibc2 defines
    this with 8 arguments */
 #undef HAVE_SOLARIS_STYLE_GETHOST

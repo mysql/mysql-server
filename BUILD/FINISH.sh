@@ -8,5 +8,13 @@ done
 
 CFLAGS="$cflags" CXX=gcc CXXFLAGS="$cxxflags" eval "$configure"
 
-test "$make" = no || $make $AM_MAKEFLAGS
-test -z "$strip" || strip mysqld
+if [ "x$do_make" = "xno" ] ; then
+ exit 0
+fi
+
+$make $AM_MAKEFLAGS
+if [ "x$strip" = "xyes" ]; then
+  nm --numeric-sort sql/mysqld  > mysqld.sym
+  objdump -d sql/mysqld > mysqld.S 
+  strip sql/mysqld
+fi  

@@ -507,7 +507,9 @@ AC_CHECK_FUNC(p2open, , AC_CHECK_LIB(gen, p2open))
 # This may get things to compile even if bind-8 is installed
 AC_CHECK_FUNC(bind, , AC_CHECK_LIB(bind, bind))
 # For crypt() on Linux
-AC_CHECK_FUNC(crypt, , AC_CHECK_LIB(crypt, crypt))
+AC_CHECK_LIB(crypt, crypt)
+AC_CHECK_FUNC(crypt, AC_DEFINE(HAVE_CRYPT)) 
+
 # For compress in zlib
 MYSQL_CHECK_ZLIB_WITH_COMPRESS($with_named_zlib)
 
@@ -1259,7 +1261,7 @@ AC_CHECK_FUNCS(alarm bmove \
  pthread_setschedparam pthread_attr_setprio pthread_attr_setschedparam \
  pthread_attr_create pthread_getsequence_np pthread_attr_setstacksize \
  pthread_condattr_create rwlock_init pthread_rwlock_rdlock \
- crypt dlopen dlerror fchmod getpass getpassphrase initgroups mlockall)
+ dlopen dlerror fchmod getpass getpassphrase initgroups mlockall)
 
 # Sanity check: We chould not have any fseeko symbol unless
 # large_file_support=yes
