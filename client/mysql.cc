@@ -31,6 +31,8 @@
 
 #include "client_priv.h"
 #include <m_ctype.h>
+#include <stdarg.h>
+#include <my_getopt.h>
 #include <my_dir.h>
 #ifndef __GNU_LIBRARY__
 #define __GNU_LIBRARY__		      // Skip warnings in getopt.h
@@ -39,7 +41,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER="12.1";
+const char *VER= "12.1";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -116,13 +118,13 @@ enum enum_info_type { INFO_INFO,INFO_ERROR,INFO_RESULT};
 typedef enum enum_info_type INFO_TYPE;
 
 static MYSQL mysql;			/* The connection */
-static bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
-	    connected=0,opt_raw_data=0,unbuffered=0,output_tables=0,
-	    no_rehash=0,skip_updates=0,safe_updates=0,one_database=0,
-	    opt_compress=0, using_opt_local_infile=0,
-	    vertical=0,skip_line_numbers=0,skip_column_names=0,opt_html=0,
-            opt_xml=0,opt_nopager=1, opt_outfile=0, no_named_cmds=1,
-            opt_nobeep=0;
+static my_bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
+               connected=0,opt_raw_data=0,unbuffered=0,output_tables=0,
+	       no_rehash=0,skip_updates=0,safe_updates=0,one_database=0,
+	       opt_compress=0, using_opt_local_infile=0,
+	       vertical=0, line_numbers=1, column_names=1,opt_html=0,
+               opt_xml=0,opt_nopager=1, opt_outfile=0, named_cmds= 0,
+               tty_password= 0, opt_nobeep=0;
 static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
 static my_string opt_mysql_unix_port=0;
 static int connect_flag=CLIENT_INTERACTIVE;
@@ -145,9 +147,9 @@ static const char *day_names[]={"Sun","Mon","Tue","Wed","Thu","Fri","Sat"};
 static const char *month_names[]={"Jan","Feb","Mar","Apr","May","Jun","Jul",
 			    "Aug","Sep","Oct","Nov","Dec"};
 static char default_pager[FN_REFLEN];
-char pager[FN_REFLEN], outfile[FN_REFLEN];
-FILE *PAGER, *OUTFILE;
-MEM_ROOT hash_mem_root;
+static char pager[FN_REFLEN], outfile[FN_REFLEN];
+static FILE *PAGER, *OUTFILE;
+static MEM_ROOT hash_mem_root;
 static uint prompt_counter;
 
 #include "sslopt-vars.h"
@@ -316,7 +318,7 @@ int main(int argc,char *argv[])
     status.add_to_history=1;
   status.exit_status=1;
   load_defaults("my",load_default_groups,&argc,&argv);
-  if (get_options(argc,(char **) argv))
+  if (get_options(argc, (char **) argv))
   {
     my_end(0);
     exit(1);
@@ -443,76 +445,149 @@ sig_handler mysql_end(int sig)
   exit(status.exit_status);
 }
 
-static struct option long_options[] =
+
+static struct my_option my_long_options[] =
 {
-  {"i-am-a-dummy",  optional_argument,	   0, 'U'},
-  {"batch",	    no_argument,	   0, 'B'},
-  {"character-sets-dir",required_argument, 0, OPT_CHARSETS_DIR},
-  {"compress",	    no_argument,	   0, 'C'},
+  {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
+   0, 0, 0, 0, 0},
+  {"auto-rehash", OPT_AUTO_REHASH,
+   "Enable automatic rehashing. One doesn't need to use 'rehash' to get table and field completion, but startup and reconnecting may take a longer time. Disable with --disable-auto-rehash.",
+   (gptr*) &no_rehash, (gptr*) &no_rehash, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
+   0},
+  {"no-auto-rehash", 'A',
+   "No automatic rehashing. One has to use 'rehash' to get table and field completion. This gives a quicker start of mysql and disables rehashing on reconnect. WARNING: options depricated; use --disable-auto-rehash instead.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"batch", 'B',
+   "Print results with a tab as separator, each row on new line. Doesn't use history file.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"character-sets-dir", OPT_CHARSETS_DIR,
+   "Directory where character sets are.", (gptr*) &charsets_dir,
+   (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"compress", 'C', "Use compression in server/client protocol.",
+   (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   0, 0, 0},
 #ifndef DBUG_OFF
-  {"debug",	    optional_argument,	   0, '#'},
+  {"debug", '#', "Output debug log.", (gptr*) &default_dbug_option,
+   (gptr*) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"database",	    required_argument,     0, 'D'},
-  {"debug-info",    no_argument,	   0, 'T'},
-  {"default-character-set", required_argument,0, OPT_DEFAULT_CHARSET},
-  {"enable-named-commands", no_argument,   0, 'G'},
-  {"execute",	    required_argument,	   0, 'e'},
-  {"force",	    no_argument,	   0, 'f'},
-  {"help",	    no_argument,	   0, '?'},
-  {"html",	    no_argument,	   0, 'H'},
-  {"xml",           no_argument,           0, 'X'},
-  {"host",	    required_argument,	   0, 'h'},
-  {"ignore-spaces", no_argument,	   0, 'i'},
-  {"local-infile",  optional_argument,	   0, OPT_LOCAL_INFILE},
-  {"no-auto-rehash",no_argument,	   0, 'A'},
-  {"no-beep",       no_argument,           0, 'b'},
-  {"no-named-commands", no_argument,       0, 'g'},
+  {"database", 'D', "Database to use.", 0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0,
+   0, 0, 0, 0},
+  {"execute", 'e', "Execute command and quit. (Output like with --batch).", 0,
+   0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"vertical", 'E', "Print the output of a query (rows) vertically.",
+   (gptr*) &vertical, (gptr*) &vertical, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
+   0},
+  {"force", 'f', "Continue even if we get an sql error.",
+   (gptr*) &ignore_errors, (gptr*) &ignore_errors, 0, GET_BOOL, NO_ARG, 0, 0,
+   0, 0, 0, 0},
+  {"no-named-commands", 'g', "Named commands are disabled. Use \\* form only, or use named commands only in the beginning of a line ending with a semicolon (;) Since version 10.9 the client now starts with this option ENABLED by default! Disable with '-G'. Long format commands still work from the first line. WARNING: option depricated; use --disable-named-commands instead.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"named-commands", 'G',
+   "Enable named commands. Disable with --disable-named-commands. This option is disabled by default.",
+   (gptr*) &named_cmds, (gptr*) &named_cmds, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0},
+  {"ignore-space", 'i', "Ignore space after function names.", 0, 0, 0,
+   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"local-infile", OPT_LOCAL_INFILE, "Enable/disable LOAD DATA LOCAL INFILE.",
+   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"no-beep", 'b', "Turn off beep on error.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
+   0, 0, 0, 0, 0}, 
+ {"host", 'h', "Connect to host.", (gptr*) &current_host,
+   (gptr*) &current_host, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"html", 'H', "Produce HTML output.", (gptr*) &opt_html, (gptr*) &opt_html,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"xml", 'X', "Produce XML output", (gptr*) &opt_xml, (gptr*) &opt_xml, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"line-numbers", OPT_LINE_NUMBERS, "Write line numbers for errors.",
+   (gptr*) &line_numbers, (gptr*) &line_numbers, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},  
+  {"skip-line-numbers", 'L', "Don't write line number for errors. WARNING: -L is depricated, use long version of this option instead.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef __WIN__
-  {"no-pager",      no_argument,           0, OPT_NOPAGER},
-  {"nopager",       no_argument,           0, OPT_NOPAGER},  /* we are kind */
-  {"pager",         optional_argument,     0, OPT_PAGER},
+  {"no-pager", OPT_NOPAGER,
+   "Disable pager and print to stdout. See interactive help (\\h) also. WARNING: option depricated; use --disable-pager instead.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"no-tee",        no_argument,           0, OPT_NOTEE},
-  {"notee",         no_argument,           0, OPT_NOTEE},    /* we are kind */
-  {"tee",           required_argument,     0, OPT_TEE},
-  {"one-database",  no_argument,	   0, 'o'},
-  {"password",	    optional_argument,	   0, 'p'},
+  {"no-tee", OPT_NOTEE, "Disable outfile. See interactive help (\\h) also. WARNING: option depricated; use --disable-tee instead", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"unbuffered", 'n', "Flush buffer after each query.", (gptr*) &unbuffered,
+   (gptr*) &unbuffered, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"column-names", OPT_COLUMN_NAMES, "Write column names in results.",
+   (gptr*) &column_names, (gptr*) &column_names, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"skip-column-names", 'N',
+   "Don't write column names in results. WARNING: -N is depricated, use long version of this options instead.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"set-variable", 'O',
+   "Change the value of a variable. Please note that this option is depricated; you can set variables directly with --variable-name=value.",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"one-database", 'o',
+   "Only update the default database. This is useful for skipping updates to other database in the update log.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+#ifndef __WIN__
+  {"pager", OPT_PAGER,
+   "Pager to use to display results. If you don't supply an option the default pager is taken from your ENV variable PAGER. Valid pagers are less, more, cat [> filename], etc. See interactive help (\\h) also. This option does not work in batch mode.",
+   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#endif
+  {"password", 'p',
+   "Password to use when connecting to server. If password is not given it's asked from the tty.",
+   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __WIN__
-  {"pipe",	    no_argument,	   0, 'W'},
+  {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"port",	    required_argument,	   0, 'P'},
-  {"prompt",        required_argument,     0, OPT_PROMPT},
-  {"quick",	    no_argument,	   0, 'q'},
-  {"set-variable",  required_argument,	   0, 'O'},
-  {"raw",	    no_argument,	   0, 'r'},
-  {"safe-updates",  optional_argument,	   0, 'U'},
-  {"silent",	    no_argument,	   0, 's'},
-  {"skip-column-names",no_argument,	   0, 'N'},
-  {"skip-line-numbers",no_argument,	   0, 'L'},
-  {"socket",	    required_argument,	   0, 'S'},
+  {"port", 'P', "Port number to use for connection.", 0, 0, 0, 
+   GET_LONG, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"prompt", OPT_PROMPT, "Set the mysql prompt to this value.", 0, 0, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"quick", 'q',
+   "Don't cache result, print it row by row. This may slow down the server if the output is suspended. Doesn't use history file. ",
+   (gptr*) &quick, (gptr*) &quick, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"raw", 'r', "Write fields without conversion. Used with --batch",
+   (gptr*) &opt_raw_data, (gptr*) &opt_raw_data, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   0, 0, 0},
+  {"silent", 's', "Be more silent.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0,
+   0, 0},
+  {"socket", 'S', "Socket file to use for connection.",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include "sslopt-longopts.h"
-  {"table",	    no_argument,	   0, 't'},
+  {"table", 't', "Output in table format.", (gptr*) &output_tables,
+   (gptr*) &output_tables, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", 'T', "Print some debug info at exit.", (gptr*) &info_flag,
+   (gptr*) &info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"tee", OPT_TEE,
+   "Append everything into outfile. See interactive help (\\h) also. Does not work in batch mode.",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DONT_ALLOW_USER_CHANGE
-  {"user",	    required_argument,	   0, 'u'},
+  {"user", 'u', "User for login if not current user.", (gptr*) &current_user,
+   (gptr*) &current_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"unbuffered",    no_argument,	   0, 'n'},
-  {"verbose",	    no_argument,	   0, 'v'},
-  {"version",	    no_argument,	   0, 'V'},
-  {"vertical",	    no_argument,	   0, 'E'},
-  {"wait",	    optional_argument,	   0, 'w'},
-  {0, 0, 0, 0}
-};
-
-
-CHANGEABLE_VAR changeable_vars[] = {
-  { "connect_timeout", (long*) &opt_connect_timeout, 0, 0, 3600*12, 0, 1},
-  { "max_allowed_packet", (long*) &max_allowed_packet,16*1024L*1024L,4096,
-    512*1024L*1024L, MALLOC_OVERHEAD,1024},
-  { "net_buffer_length",(long*) &net_buffer_length,16384,1024,512*1024*1024L,
-    MALLOC_OVERHEAD,1024},
-  { "select_limit", (long*) &select_limit, 1000L, 1, ~0L, 0, 1},
-  { "max_join_size", (long*) &max_join_size, 1000000L, 1, ~0L, 0, 1},
-  { 0, 0, 0, 0, 0, 0, 0}
+  {"safe-updates", 'U', "Only allow UPDATE and DELETE that uses keys.",
+   (gptr*) &safe_updates, (gptr*) &safe_updates, 0, GET_BOOL, OPT_ARG, 0, 0,
+   0, 0, 0, 0},
+  {"i-am-a-dummy", 'U', "Synonym for option --safe-updates, -U.", 0, 0, 0,
+   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"verbose", 'v', "Write more. (-v -v -v gives the table output format)", 0,
+   0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"version", 'V', "Output version information and exit.", 0, 0, 0,
+   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"wait", 'w', "Wait and retry if connection is down.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"connect_timeout", OPT_CONNECT_TIMEOUT, "", (gptr*) &opt_connect_timeout,
+   (gptr*) &opt_connect_timeout, 0, GET_LONG, REQUIRED_ARG, 0, 0, 3600*12, 0,
+   0, 1},
+  {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET, "",
+   (gptr*) &max_allowed_packet, (gptr*) &max_allowed_packet, 0, GET_LONG,
+   REQUIRED_ARG, 16 *1024L*1024L, 4096, 512*1024L*1024L, MALLOC_OVERHEAD,
+   1024, 0},
+  {"net_buffer_length", OPT_NET_BUFFER_LENGTH, "",
+   (gptr*) &net_buffer_length, (gptr*) &net_buffer_length, 0, GET_LONG,
+   REQUIRED_ARG, 16384, 1024, 512*1024*1024L, MALLOC_OVERHEAD, 1024, 0},
+  {"select_limit", OPT_SELECT_LIMIT, "", (gptr*) &select_limit,
+   (gptr*) &select_limit, 0, GET_LONG, REQUIRED_ARG, 1000L, 1, ~0L, 0, 1, 0},
+  {"max_join_size", OPT_MAX_JOIN_SIZE, "", (gptr*) &max_join_size,
+   (gptr*) &max_join_size, 0, GET_LONG, REQUIRED_ARG, 1000000L, 1, ~0L, 0, 1,
+   0},
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
 
@@ -527,167 +602,59 @@ Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB\n\
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
 and you are welcome to modify and redistribute it under the GPL license\n");
   printf("Usage: %s [OPTIONS] [database]\n", my_progname);
-  printf("\n\
-  -?, --help		Display this help and exit.\n\
-  -A, --no-auto-rehash  No automatic rehashing. One has to use 'rehash' to\n\
-			get table and field completion. This gives a quicker\n\
-			start of mysql and disables rehashing on reconnect.\n\
-  -b, --no-beep         Turn off beep on error.\n\
-  -B, --batch		Print results with a tab as separator, each row on\n\
-			a new line. Doesn't use history file.\n\
-  --character-sets-dir=...\n\
-                        Directory where character sets are located.\n\
-  -C, --compress	Use compression in server/client protocol.\n");
-#ifndef DBUG_OFF
-  printf("\
-  -#, --debug[=...]     Debug log. Default is '%s'.\n", default_dbug_option);
-#endif
-  printf("\
-  -D, --database=..	Database to use.\n\
-  --default-character-set=...\n\
-                        Set the default character set.\n\
-  -e, --execute=...     Execute command and quit. (Output like with --batch)\n\
-  -E, --vertical        Print the output of a query (rows) vertically.\n\
-  -f, --force           Continue even if we get an sql error.\n\
-  -g, --no-named-commands\n\
-			Named commands are disabled. Use \\* form only, or\n\
-                        use named commands only in the beginning of a line\n\
-                        ending with a semicolon (;) Since version 10.9 the\n\
-                        client now starts with this option ENABLED by\n\
-                        default! Disable with '-G'. Long format commands\n\
-                        still work from the first line.\n\
-  -G, --enable-named-commands\n\
-                        Named commands are enabled. Opposite to -g.\n\
-  -i, --ignore-spaces	Ignore spaces after function names.\n\
-  -h, --host=...	Connect to host.\n\
-  -H, --html		Produce HTML output.\n\
-  -X, --xml		Produce XML output.\n\
-  --local-infile=[1|0]  Enable/disable LOAD DATA LOCAL INFILE\n\
-  -L, --skip-line-numbers\n\
-                        Don't write line number for errors.\n");
-#ifndef __WIN__
-  printf("\
-  --no-pager            Disable pager and print to stdout. See interactive\n\
-                        help (\\h) also.\n");
-#endif
-  printf("\
-  --no-tee              Disable outfile. See interactive help (\\h) also.\n\
-  -n, --unbuffered	Flush buffer after each query.\n\
-  -N, --skip-column-names\n\
-                        Don't write column names in results.\n\
-  -O, --set-variable var=option\n\
-			Give a variable an value. --help lists variables.\n\
-  -o, --one-database	Only update the default database. This is useful\n\
-			for skipping updates to other database in the update\n\
-			log.\n");
-#ifndef __WIN__
-  printf("\
-  --pager[=...]         Pager to use to display results. If you don't supply\n\
-                        an option the default pager is taken from your ENV\n\
-                        variable PAGER (%s).\n\
-                        Valid pagers are less, more, cat [> filename], etc.\n\
-                        See interactive help (\\h) also. This option does\n\
-                        not work in batch mode.\n", 
-                          getenv("PAGER") ? getenv("PAGER") : "");
-#endif
-  printf("\
-  -p[password], --password[=...]\n\
-			Password to use when connecting to server\n\
-			If password is not given it's asked from the tty.\n");
-#ifdef __WIN__
-  printf("\
-  -W, --pipe		Use named pipes to connect to server");
-#endif
-  printf("\n\
-  -P, --port=...	Port number to use for connection.\n\
-  -q, --quick		Don't cache result, print it row by row. This may\n\
-			slow down the server if the output is suspended.\n\
-			Doesn't use history file.\n\
-  -r, --raw		Write fields without conversion. Used with --batch\n\
-  --prompt=...          Set the mysql prompt to this value\n\
-  -s, --silent		Be more silent.\n\
-  -S  --socket=...	Socket file to use for connection.\n");
-#include "sslopt-usage.h"
-  printf("\
-  -t, --table		Output in table format.\n\
-  -T, --debug-info	Print some debug info at exit.\n\
-  --tee=...             Append everything into outfile. See interactive help\n\
-                        (\\h) also. Does not work in batch mode.\n");
-#ifndef DONT_ALLOW_USER_CHANGE
-  printf("\
-  -u, --user=#		User for login if not current user.\n");
-#endif
-  printf("\
-  -U, --safe-updates[=#], --i-am-a-dummy[=#]\n\
-		        Only allow UPDATE and DELETE that uses keys.\n\
-  -v, --verbose		Write more. (-v -v -v gives the table output format)\n\
-  -V, --version		Output version information and exit.\n\
-  -w, --wait		Wait and retry if connection is down.\n");
-
-  print_defaults("my",load_default_groups);
-
-  printf("\nPossible variables for option --set-variable (-O) are:\n");
-  for (uint i=0 ; changeable_vars[i].name ; i++)
-    printf("%-20s  current value: %lu\n",
-	   changeable_vars[i].name,
-	   (ulong) *changeable_vars[i].varptr);
+  my_print_help(my_long_options);
+  print_defaults("my", load_default_groups);
+  my_print_variables(my_long_options);
 }
 
-
-static int get_options(int argc, char **argv)
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument)
 {
-  int c,option_index=0;
-  bool tty_password=0;
-
-  set_all_changeable_vars(changeable_vars);
-  while ((c=getopt_long(argc,argv,
-			(char*) "?AbBCD:LfgGHXinNoqrstTU::vVw::WEe:h:O:P:S:u:#::p::",
-			long_options, &option_index)) != EOF)
-  {
-    switch(c) {
-    case OPT_CHARSETS_DIR:
-      strmov(mysql_charsets_dir, optarg);
-      charsets_dir = mysql_charsets_dir;
-      break;
+  switch(optid) {
     case OPT_DEFAULT_CHARSET:
-      default_charset= optarg;
+      default_charset= argument;
+      break;
+    case OPT_CHARSETS_DIR:
+      strmov(mysql_charsets_dir, argument);
+      charsets_dir = mysql_charsets_dir;
       break;
     case OPT_LOCAL_INFILE:
       using_opt_local_infile=1;
       opt_local_infile= test(!optarg || atoi(optarg)>0);
       break;
     case OPT_TEE:
-      if (!opt_outfile && strlen(optarg))
+      if (argument == disabled_my_option)
       {
-	strmov(outfile, optarg);
-	opt_outfile=1;
-	init_tee();
+	if (opt_outfile)
+	  end_tee();
+	opt_outfile= 0;
       }
+      else
+	if (!opt_outfile)
+	{
+	  strmov(outfile, argument);
+	  opt_outfile= 1;
+	  init_tee();
+	}
       break;
     case OPT_NOTEE:
+      printf("WARNING: option depricated; use --disable-tee instead.\n");
       if (opt_outfile)
 	end_tee();
-      opt_outfile=0;
+      opt_outfile= 0;
       break;
     case OPT_PAGER:
-      opt_nopager=0;
-      if (optarg)
-	strmov(pager, optarg);
+      opt_nopager= 0;
+      if (argument)
+	strmov(pager, argument);
       else
-      {
-	char *pagpoint = getenv("PAGER");
-	if (!((char*) (pagpoint)))
-	{
-	  strmov(pager, "stdout");
-	  opt_nopager=1;
-	}
-	else
-	  strmov(pager, pagpoint);
-      }
+	strmov(pager, default_pager);
       strmov(default_pager, pager);
       break;
     case OPT_NOPAGER:
-      opt_nopager=1;
+      printf("WARNING: option depricated; use --disable-pager instead.\n");
+      opt_nopager= 1;
       break;
     case OPT_PROMPT:
       my_free(current_prompt,MYF(MY_ALLOW_ZERO_PTR));
@@ -697,130 +664,138 @@ static int get_options(int argc, char **argv)
       opt_nobeep = 1;
       break;
     case 'D':
-      my_free(current_db,MYF(MY_ALLOW_ZERO_PTR));      
-      current_db=my_strdup(optarg,MYF(MY_WME));
+      my_free(current_db, MYF(MY_ALLOW_ZERO_PTR));      
+      current_db= my_strdup(argument, MYF(MY_WME));
       break;
     case 'e':
-      status.batch=1;
-      status.add_to_history=0;
+      status.batch= 1;
+      status.add_to_history= 0;
       batch_readline_end(status.line_buff);	// If multiple -e
-      if (!(status.line_buff=batch_readline_command(optarg)))
+      if (!(status.line_buff= batch_readline_command(argument)))
 	return 1;
-      ignore_errors=0;
-      break;
-    case 'f':
-      ignore_errors=1;
+      ignore_errors= 0;
       break;
     case 'h':
-      my_free(current_host,MYF(MY_ALLOW_ZERO_PTR));
-      current_host=my_strdup(optarg,MYF(MY_WME));
+      my_free(current_host, MYF(MY_ALLOW_ZERO_PTR));
+      current_host= my_strdup(argument, MYF(MY_WME));
       break;
 #ifndef DONT_ALLOW_USER_CHANGE
     case 'u':
-      my_free(current_user,MYF(MY_ALLOW_ZERO_PTR));
-      current_user= my_strdup(optarg,MYF(MY_WME));
+      my_free(current_user, MYF(MY_ALLOW_ZERO_PTR));
+      current_user= my_strdup(argument, MYF(MY_WME));
       break;
 #endif
-    case 'U':
-      if (!optarg)
-	safe_updates=1;
-      else
-	safe_updates=atoi(optarg) != 0;
-      break;
     case 'o':
-      one_database=skip_updates=1;
-      break;
-    case 'O':
-      if (set_changeable_var(optarg, changeable_vars))
-      {
-	usage(0);
-	return(1);
-      }
+      if (argument == disabled_my_option)
+	one_database= 0;
+      else
+	one_database= skip_updates= 1;
       break;
     case 'p':
-      if (optarg)
-      {
-	char *start=optarg;
-	my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
-	opt_password=my_strdup(optarg,MYF(MY_FAE));
-	while (*optarg) *optarg++= 'x';		// Destroy argument
-	if (*start)
-	  start[1]=0;
-      }
+      if (argument == disabled_my_option)
+	opt_password= "";
       else
-	tty_password=1;
+      {
+	if (argument)
+	{
+	  char *start= argument;
+	  my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
+	  opt_password= my_strdup(argument, MYF(MY_FAE));
+	  while (*argument) *argument++= 'x';		// Destroy argument
+	  if (*start)
+	    start[1]=0 ;
+	}
+	else
+	  tty_password= 1;
+      }
       break;
-    case 't': output_tables=1; break;
-    case 'r': opt_raw_data=1;  break;
-    case 'q': quick=1; break;
-    case 's': opt_silent++; break;
-    case 'T': info_flag=1; break;
-    case 'n': unbuffered=1; break;
-    case 'v': verbose++; break;
-    case 'E': vertical=1; break;
-    case 'A': no_rehash=1; break;
-    case 'G': no_named_cmds=0; break;
-    case 'g': no_named_cmds=1; break;
-    case 'H': opt_html=1; break;
-    case 'X': opt_xml=1; break;
-    case 'i': connect_flag|= CLIENT_IGNORE_SPACE; break;
-    case 'C': opt_compress=1; break;
-    case 'L': skip_line_numbers=1; break;
-    case 'N': skip_column_names=1; break;
-    case 'w':
-      wait_flag=1;
-      if(optarg) wait_time = atoi(optarg) ;
+    case '#':
+      DBUG_PUSH(argument ? argument : default_dbug_option);
+      info_flag= 1;
+      break;
+    case 's':
+      if (argument == disabled_my_option)
+	opt_silent= 0;
+      else
+	opt_silent++;
+      break;
+    case 'v':
+      if (argument == disabled_my_option)
+	verbose= 0;
+      else
+	verbose++;
       break;
     case 'B':
       if (!status.batch)
       {
-	status.batch=1;
-	status.add_to_history=0;
+	status.batch= 1;
+	status.add_to_history= 0;
 	opt_silent++;				// more silent
       }
       break;
     case 'P':
-      opt_mysql_port= (unsigned int) atoi(optarg);
+      opt_mysql_port= (unsigned int) atoi(argument);
       break;
     case 'S':
-      my_free(opt_mysql_unix_port,MYF(MY_ALLOW_ZERO_PTR));
-      opt_mysql_unix_port= my_strdup(optarg,MYF(0));
+      my_free(opt_mysql_unix_port, MYF(MY_ALLOW_ZERO_PTR));
+      opt_mysql_unix_port= my_strdup(argument, MYF(0));
       break;
     case 'W':
 #ifdef __WIN__
-      opt_mysql_unix_port=my_strdup(MYSQL_NAMEDPIPE,MYF(0));
+      opt_mysql_unix_port= my_strdup(MYSQL_NAMEDPIPE, MYF(0));
 #endif
       break;
-    case 'V': usage(1); exit(0);
+    case 'V':
+      usage(1);
+      exit(0);
     case 'I':
     case '?':
       usage(0);
       exit(0);
-    case '#':
-      DBUG_PUSH(optarg ? optarg : default_dbug_option);
-      info_flag=1;
-      break;
 #include "sslopt-case.h"
-    default:
-      tee_fprintf(stderr,"illegal option: -%c\n",opterr);
-      usage(0);
-      exit(1);
-    }
   }
+  return 0;
+}
+
+
+static int get_options(int argc, char **argv)
+{
+  char *tmp, *pagpoint;
+  int ho_error;
+
+  tmp= (char *) getenv("MYSQL_HOST");
+  if (tmp)
+    current_host= my_strdup(tmp, MYF(MY_WME));
+
+  pagpoint= getenv("PAGER");
+  if (!((char*) (pagpoint)))
+  {
+    strmov(pager, "stdout");
+    opt_nopager= 1;
+  }
+  else
+    strmov(pager, pagpoint);
+  strmov(default_pager, pager);
+
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+  {
+    printf("%s: handle_options() failed with error %d\n", my_progname,
+	   ho_error);
+    exit(1);
+  }
+
   if (status.batch) /* disable pager and outfile in this case */
   {
     strmov(default_pager, "stdout");
     strmov(pager, "stdout");
-    opt_nopager=1;
-    opt_outfile=0;
+    opt_nopager= 1;
+    opt_outfile= 0;
   }
   if (default_charset)
   {
     if (set_default_charset_by_name(default_charset, MYF(MY_WME)))
       exit(1);
   }
-  argc-=optind;
-  argv+=optind;
   if (argc > 1)
   {
     usage(0);
@@ -828,17 +803,11 @@ static int get_options(int argc, char **argv)
   }
   if (argc == 1)
   {
-    my_free(current_db,MYF(MY_ALLOW_ZERO_PTR));
-    current_db= my_strdup(*argv,MYF(MY_WME));
-  }
-  if (!current_host)
-  {	/* If we don't have a hostname have a look at MYSQL_HOST */
-    char *tmp=(char *) getenv("MYSQL_HOST");
-    if (tmp)
-      current_host = my_strdup(tmp,MYF(MY_WME));
+    my_free(current_db, MYF(MY_ALLOW_ZERO_PTR));
+    current_db= my_strdup(*argv, MYF(MY_WME));
   }
   if (tty_password)
-    opt_password=get_tty_password(NullS);
+    opt_password= get_tty_password(NullS);
   return(0);
 }
 
@@ -903,7 +872,7 @@ static int read_lines(bool execute_commands)
 
     /* Check if line is a mysql command line */
     /* (We want to allow help, print and clear anywhere at line start */
-    if (execute_commands && (!no_named_cmds || glob_buffer.is_empty()) 
+    if (execute_commands && (named_cmds || glob_buffer.is_empty()) 
 	&& !in_string && (com=find_command(line,0)))
     {
       if ((*com->func)(&glob_buffer,line) > 0)
@@ -1393,7 +1362,7 @@ com_help (String *buffer __attribute__((unused)),
   reg1 int i;
 
   put_info("\nMySQL commands:",INFO_INFO);
-  if (no_named_cmds)
+  if (!named_cmds)
     put_info("Note that all text commands must be first on line and end with ';'",INFO_INFO);
   for (i = 0; commands[i].name; i++)
   {
@@ -1643,7 +1612,7 @@ print_table_data(MYSQL_RES *result)
   separator.copy("+",1);
   while ((field = mysql_fetch_field(result)))
   {
-    uint length=skip_column_names ? 0 : (uint) strlen(field->name);
+    uint length= column_names ? (uint) strlen(field->name) : 0;
     if (quick)
       length=max(length,field->length);
     else
@@ -1655,7 +1624,7 @@ print_table_data(MYSQL_RES *result)
     separator.append('+');
   }
   tee_puts(separator.c_ptr(), PAGER);
-  if (!skip_column_names)
+  if (column_names)
   {
     mysql_field_seek(result,0);
     (void) tee_fputs("|", PAGER);
@@ -1700,7 +1669,7 @@ print_table_data_html(MYSQL_RES *result)
 
   mysql_field_seek(result,0);
   (void) tee_fputs("<TABLE BORDER=1><TR>", PAGER);
-  if (!skip_column_names)
+  if (column_names)
   {
     while((field = mysql_fetch_field(result)))
     {
@@ -1863,7 +1832,7 @@ print_tab_data(MYSQL_RES *result)
   MYSQL_FIELD	*field;
   ulong		*lengths;
 
-  if (opt_silent < 2 && !skip_column_names)
+  if (opt_silent < 2 && column_names)
   {
     int first=0;
     while ((field = mysql_fetch_field(result)))
@@ -2215,7 +2184,7 @@ com_use(String *buffer __attribute__((unused)), char *line)
   if (!current_db || cmp_database(current_db,tmp))
   {
     if (one_database)
-      skip_updates=1;
+      skip_updates= 1;
     else
     {
       /*
@@ -2242,7 +2211,7 @@ com_use(String *buffer __attribute__((unused)), char *line)
     }
   }
   else
-    skip_updates=0;
+    skip_updates= 0;
   put_info("Database changed",INFO_INFO);
   return 0;
 }
@@ -2278,8 +2247,8 @@ sql_real_connect(char *host,char *database,char *user,char *password,
 	    select_limit,max_join_size);
     mysql_options(&mysql, MYSQL_INIT_COMMAND, init_command);
   }
-  if (!mysql_real_connect(&mysql,host,user,password,
-			  database,opt_mysql_port,opt_mysql_unix_port,
+  if (!mysql_real_connect(&mysql, host, user, password,
+			  database, opt_mysql_port, opt_mysql_unix_port,
 			  connect_flag))
   {
     if (!silent ||
@@ -2436,7 +2405,7 @@ put_info(const char *str,INFO_TYPE info_type,uint error)
       fprintf(stderr,"ERROR");
       if (error)
 	(void) fprintf(stderr," %d",error);
-      if (status.query_start_line && ! skip_line_numbers)
+      if (status.query_start_line && line_numbers)
       {
 	(void) fprintf(stderr," at line %lu",status.query_start_line);
 	if (status.file_name)

@@ -35,7 +35,7 @@
 ** and adapted to mysqldump 05/11/01 by Jani Tolonen
 */
 
-#define DUMP_VERSION "8.24"
+#define DUMP_VERSION "9.00"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -46,7 +46,7 @@
 #include "mysql.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
-#include <getopt.h>
+#include <my_getopt.h>
 
 /* Exit codes */
 
@@ -73,7 +73,8 @@ static my_bool  verbose=0,tFlag=0,cFlag=0,dFlag=0,quick=0, extended_insert = 0,
 		ignore=0,opt_drop=0,opt_keywords=0,opt_lock=0,opt_compress=0,
                 opt_delayed=0,create_options=0,opt_quoted=0,opt_databases=0,
 	        opt_alldbs=0,opt_create_db=0,opt_first_slave=0,
-                opt_autocommit=0,opt_master_data,opt_disable_keys=0,opt_xml=0;
+                opt_autocommit=0,opt_master_data,opt_disable_keys=0,opt_xml=0,
+                tty_password=0;
 static MYSQL  mysql_connection,*sock=0;
 static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
              *current_host=0,*path=0,*fields_terminated=0,
@@ -87,71 +88,152 @@ static DYNAMIC_STRING extended_row;
 #include "sslopt-vars.h"
 FILE  *md_result_file;
 
-static struct option long_options[] =
+static struct my_option my_long_options[] =
 {
-  {"all-databases",     no_argument,    0,      'A'},
-  {"all",		no_argument,    0,	'a'},
-  {"add-drop-table",	no_argument,    0,	OPT_DROP},
-  {"add-locks",         no_argument,    0,	OPT_LOCKS},
-  {"allow-keywords",	no_argument,    0,	OPT_KEYWORDS},
-  {"character-sets-dir",required_argument,0,    OPT_CHARSETS_DIR},
-  {"complete-insert",	no_argument,    0,	'c'},
-  {"compress",          no_argument,    0,	'C'},
-  {"databases",         no_argument,    0,      'B'},
-  {"debug",		optional_argument,	0, '#'},
-  {"default-character-set", required_argument,  0, OPT_DEFAULT_CHARSET},
-  {"delayed-insert",	no_argument,    0,	OPT_DELAYED},
-  {"disable-keys",	no_argument,    0,	'K'},
-  {"extended-insert",   no_argument,    0,	'e'},
-  {"fields-terminated-by", required_argument,   0, (int) OPT_FTB},
-  {"fields-enclosed-by", required_argument,	0, (int) OPT_ENC},
-  {"fields-optionally-enclosed-by", required_argument, 0, (int) OPT_O_ENC},
-  {"fields-escaped-by", required_argument,	0, (int) OPT_ESC},
-  {"first-slave",	no_argument,    0,	'x'},
-  {"flush-logs",	no_argument,    0,	'F'},
-  {"force",		no_argument,    0,	'f'},
-  {"help",		no_argument,    0,	'?'},
-  {"host",		required_argument,	0, 'h'},
-  {"lines-terminated-by", required_argument,    0, (int) OPT_LTB},
-  {"lock-tables",       no_argument,    0,	'l'},
-  {"master-data",	no_argument,    0,	OPT_MASTER_DATA},
-  {"no-autocommit",     no_argument,    0,      OPT_AUTOCOMMIT},
-  {"no-create-db",      no_argument,    0,      'n'},
-  {"no-create-info",	no_argument,    0,	't'},
-  {"no-data",		no_argument,    0,	'd'},
-  {"opt",		no_argument,    0,	OPT_OPTIMIZE},
-  {"password",          optional_argument,	0, 'p'},
+  {"all-databases", 'A',
+   "Dump all the databases. This will be same as --databases with all databases selected.",
+   (gptr*) &opt_alldbs, (gptr*) &opt_alldbs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0},
+  {"all", 'a', "Include all MySQL specific create options.", 0, 0, 0,
+   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"add-drop-table", OPT_DROP, "Add a 'drop table' before each create.",
+   (gptr*) &opt_drop, (gptr*) &opt_drop, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
+   0},
+  {"add-locks", OPT_LOCKS, "Add locks around insert statements.",
+   (gptr*) &opt_lock, (gptr*) &opt_lock, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
+   0},
+  {"allow-keywords", OPT_KEYWORDS,
+   "Allow creation of column names that are keywords.", (gptr*) &opt_keywords,
+   (gptr*) &opt_keywords, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"character-sets-dir", OPT_CHARSETS_DIR,
+   "Directory where character sets are", (gptr*) &charsets_dir,
+   (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"complete-insert", 'c', "Use complete insert statements.", 0, 0, 0,
+   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"compress", 'C', "Use compression in server/client protocol.",
+   (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   0, 0, 0},
+  {"databases", 'B',
+   "To dump several databases. Note the difference in usage; In this case no tables are given. All name arguments are regarded as databasenames. 'USE db_name;' will be included in the output.",
+   (gptr*) &opt_databases, (gptr*) &opt_databases, 0, GET_BOOL, NO_ARG, 0, 0,
+   0, 0, 0, 0},
+  {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
+   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"default-character-set", OPT_DEFAULT_CHARSET,
+   "Set the default character set.", (gptr*) &default_charset,
+   (gptr*) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"delayed-insert", OPT_DELAYED, "Insert rows with INSERT DELAYED.",
+   (gptr*) &opt_delayed, (gptr*) &opt_delayed, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0},
+  {"disable-keys", 'K',
+   "'/*!40000 ALTER TABLE tb_name DISABLE KEYS */; and '/*!40000 ALTER TABLE tb_name ENABLE KEYS */; will be put in the output.", (gptr*) &opt_disable_keys,
+   (gptr*) &opt_disable_keys, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"extended-insert", 'e',
+   "Allows utilization of the new, much faster INSERT syntax.",
+   (gptr*) &extended_insert, (gptr*) &extended_insert, 0, GET_BOOL, NO_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"fields-terminated-by", OPT_FTB,
+   "Fields in the textfile are terminated by ...", (gptr*) &fields_terminated,
+   (gptr*) &fields_terminated, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"fields-enclosed-by", OPT_ENC,
+   "Fields in the importfile are enclosed by ...", (gptr*) &enclosed,
+   (gptr*) &enclosed, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0 ,0, 0},
+  {"fields-optionally-enclosed-by", OPT_O_ENC,
+   "Fields in the i.file are opt. enclosed by ...", (gptr*) &opt_enclosed,
+   (gptr*) &opt_enclosed, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0 ,0, 0},
+  {"fields-escaped-by", OPT_ESC, "Fields in the i.file are escaped by ...",
+   (gptr*) &escaped, (gptr*) &escaped, 0, GET_STR, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"first-slave", 'x', "Locks all tables across all databases.",
+   (gptr*) &opt_first_slave, (gptr*) &opt_first_slave, 0, GET_BOOL, NO_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"flush-logs", 'F', "Flush logs file in server before starting dump.",
+   (gptr*) &flush_logs, (gptr*) &flush_logs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0},
+  {"force", 'f', "Continue even if we get an sql-error.",
+   (gptr*) &ignore_errors, (gptr*) &ignore_errors, 0, GET_BOOL, NO_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"help", '?', "Display this help message and exit.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"host", 'h', "Connect to host.", (gptr*) &current_host,
+   (gptr*) &current_host, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"lines-terminated-by", OPT_LTB, "Lines in the i.file are terminated by ...",
+   (gptr*) &lines_terminated, (gptr*) &lines_terminated, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"lock-tables", 'l', "Lock all tables for read.", (gptr*) &lock_tables,
+   (gptr*) &lock_tables, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"master-data", OPT_MASTER_DATA,
+   "This will cause the master position and filename to be appended to your output. This will automagically enable --first-slave.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"no-autocommit", OPT_AUTOCOMMIT,
+   "Wrap tables with autocommit/commit statements.",
+   (gptr*) &opt_autocommit, (gptr*) &opt_autocommit, 0, GET_BOOL, NO_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"no-create-db", 'n',
+   "'CREATE DATABASE /*!32312 IF NOT EXISTS*/ db_name;' will not be put in the output. The above line will be added otherwise, if --databases or --all-databases option was given.}",
+   (gptr*) &opt_create_db, (gptr*) &opt_create_db, 0, GET_BOOL, NO_ARG, 0, 0,
+   0, 0, 0, 0},
+  {"no-create-info", 't', "Don't write table creation info.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"no-data", 'd', "No row information.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
+   0, 0, 0, 0},
+  {"set-variable", 'O',
+   "Change the value of a variable. Please note that this option is depricated; you can set variables directly with --variable-name=value.",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"opt", OPT_OPTIMIZE,
+   "Same as --add-drop-table --add-locks --all --quick --extended-insert --lock-tables --disable-keys",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"password", 'p',
+   "Password to use when connecting to server. If password is not given it's solicited on the tty.",
+   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __WIN__
-  {"pipe",		no_argument,		0, 'W'},
+  {"pipe", 'W', "Use named pipes to connect to server", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"port",		required_argument,	0, 'P'},
-  {"quick",		no_argument,		0, 'q'},
-  {"quote-names",	no_argument,		0, 'Q'},
-  {"result-file",       required_argument,      0, 'r'},
-  {"set-variable",	required_argument,	0, 'O'},
-  {"socket",		required_argument,	0, 'S'},
+  {"port", 'P', "Port number to use for connection.", 0, 0, 0, GET_LONG,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"quick", 'q', "Don't buffer query, dump directly to stdout.",
+   (gptr*) &quick, (gptr*) &quick, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"quote-names",'Q', "Quote table and column names with a `",
+   (gptr*) &opt_quoted, (gptr*) &opt_quoted, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0},
+  {"result-file", 'r',
+   "Direct output to a given file. This option should be used in MSDOS, because it prevents new line '\\n' from being converted to '\\n\\r' (newline + carriage return).",
+   (gptr*) &md_result_file, (gptr*) &md_result_file, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"socket", 'S', "Socket file to use for connection.",
+   (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include "sslopt-longopts.h"
-  {"tab",		required_argument,	0, 'T'},
-  {"tables",            no_argument,            0, OPT_TABLES},
+  {"tab",'T',
+   "Creates tab separated textfile for each table to given path. (creates .sql and .txt files). NOTE: This only works if mysqldump is run on the same machine as the mysqld daemon.",
+   (gptr*) &path, (gptr*) &path, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"tables", OPT_TABLES, "Overrides option --databases (-B).",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DONT_ALLOW_USER_CHANGE
-  {"user",		required_argument,	0, 'u'},
+  {"user", 'u', "User for login if not current user.",
+   (gptr*) &current_user, (gptr*) &current_user, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
 #endif
-  {"verbose",	        no_argument,		0, 'v'},
-  {"version",	        no_argument,	        0, 'V'},
-  {"where",		required_argument,	0, 'w'},
-  {"xml",		no_argument,		0, 'X'},
-  {0, 0, 0, 0}
+  {"verbose", 'v', "Print info about the various stages.",
+   (gptr*) &verbose, (gptr*) &verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"version",'V', "Output version information and exit.", 0, 0, 0,
+   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"where", 'w', "Dump only selected records; QUOTES mandatory!",
+   (gptr*) &where, (gptr*) &where, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"xml", 'X', "Dump a database as well formed XML.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  { "max_allowed_packet", OPT_MAX_ALLOWED_PACKET, "",
+    (gptr*) &max_allowed_packet, (gptr*) &max_allowed_packet, 0,
+    GET_LONG, REQUIRED_ARG, 24*1024*1024, 4096, 512*1024L*1024L,
+    MALLOC_OVERHEAD, 1024, 0},
+  { "net_buffer_length", OPT_NET_BUFFER_LENGTH, "",
+    (gptr*) &net_buffer_length, (gptr*) &net_buffer_length, 0,
+    GET_LONG, REQUIRED_ARG, 1024*1024L-1025, 4096, 16*1024L*1024L,
+    MALLOC_OVERHEAD-1024, 1024, 0},
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
 static const char *load_default_groups[]= { "mysqldump","client",0 };
-
-CHANGEABLE_VAR md_changeable_vars[] = {
-  { "max_allowed_packet", (long*) &max_allowed_packet,24*1024*1024,4096,
-    512*1024L*1024L,MALLOC_OVERHEAD,1024},
-  { "net_buffer_length", (long*) &net_buffer_length,1024*1024L-1025,4096,
-    16*1024L*1024L,MALLOC_OVERHEAD-1024,1024},
-  { 0, 0, 0, 0, 0, 0, 0}
-};
 
 static void safe_exit(int error);
 static void write_header(FILE *sql_file, char *db_name);
@@ -184,101 +266,9 @@ static void usage(void)
   printf("OR     %s [OPTIONS] --databases [OPTIONS] DB1 [DB2 DB3...]\n",
 	 my_progname);
   printf("OR     %s [OPTIONS] --all-databases [OPTIONS]\n", my_progname);
-  printf("\n\
-  -A, --all-databases   Dump all the databases. This will be same as\n\
-		        --databases with all databases selected.\n\
-  -a, --all		Include all MySQL specific create options.\n\
-  -#, --debug=...       Output debug log. Often this is 'd:t:o,filename`.\n\
-  --character-sets-dir=...\n\
-                        Directory where character sets are\n\
-  -?, --help		Display this help message and exit.\n\
-  -B, --databases       To dump several databases. Note the difference in\n\
-			usage; In this case no tables are given. All name\n\
-			arguments are regarded as databasenames.\n\
-			'USE db_name;' will be included in the output\n\
-  -c, --complete-insert Use complete insert statements.\n\
-  -C, --compress        Use compression in server/client protocol.\n\
-  --default-character-set=...\n\
-                        Set the default character set\n\
-  -e, --extended-insert Allows utilization of the new, much faster\n\
-                        INSERT syntax.\n\
-  --add-drop-table	Add a 'drop table' before each create.\n\
-  --add-locks		Add locks around insert statements.\n\
-  --allow-keywords	Allow creation of column names that are keywords.\n\
-  --delayed-insert      Insert rows with INSERT DELAYED.\n\
-  --master-data         This will cause the master position and filename to \n\
-                        be appended to your output. This will automagically \n\
-                        enable --first-slave.\n\
-  -F, --flush-logs	Flush logs file in server before starting dump.\n\
-  -f, --force		Continue even if we get an sql-error.\n\
-  -h, --host=...	Connect to host.\n");
-puts("\
-  -l, --lock-tables     Lock all tables for read.\n\
-  --no-autocommit       Wrap tables with autocommit/commit statements.\n\
-  -K, --disable-keys   '/*!40000 ALTER TABLE tb_name DISABLE KEYS */;\n\
-                        and '/*!40000 ALTER TABLE tb_name ENABLE KEYS */;\n\
-                        will be put in the output.\n\
-  -n, --no-create-db    'CREATE DATABASE /*!32312 IF NOT EXISTS*/ db_name;'\n\
-                        will not be put in the output. The above line will\n\
-                        be added otherwise, if --databases or\n\
-                        --all-databases option was given.\n\
-  -t, --no-create-info	Don't write table creation info.\n\
-  -d, --no-data		No row information.\n\
-  -O, --set-variable var=option\n\
-                        give a variable a value. --help lists variables\n\
-  --opt			Same as --add-drop-table --add-locks --all --quick\n\
-                        --extended-insert --lock-tables --disable-keys\n\
-  -p, --password[=...]	Password to use when connecting to server.\n\
-                        If password is not given it's solicited on the tty.\n");
-#ifdef __WIN__
-  puts("-W, --pipe	Use named pipes to connect to server");
-#endif
-  printf("\
-  -P, --port=...	Port number to use for connection.\n\
-  -q, --quick		Don't buffer query, dump directly to stdout.\n\
-  -Q, --quote-names	Quote table and column names with `\n\
-  -r, --result-file=... Direct output to a given file. This option should be\n\
-                        used in MSDOS, because it prevents new line '\\n'\n\
-                        from being converted to '\\n\\r' (newline + carriage\n\
-                        return).\n\
-  -S, --socket=...	Socket file to use for connection.\n\
-  --tables              Overrides option --databases (-B).\n");
-#include "sslopt-usage.h"
-  printf("\
-  -T, --tab=...         Creates tab separated textfile for each table to\n\
-                        given path. (creates .sql and .txt files).\n\
-                        NOTE: This only works if mysqldump is run on\n\
-                              the same machine as the mysqld daemon.\n");
-#ifndef DONT_ALLOW_USER_CHANGE
-  printf("\
-  -u, --user=#		User for login if not current user.\n");
-#endif
-  printf("\
-  -v, --verbose		Print info about the various stages.\n\
-  -V, --version		Output version information and exit.\n\
-  -w, --where=		dump only selected records; QUOTES mandatory!\n\
-  -X, --xml             dump a database as well formed XML\n\
-  -x, --first-slave     Locks all tables across all databases.\n\
-  EXAMPLES: \"--where=user=\'jimf\'\" \"-wuserid>1\" \"-wuserid<1\"\n\
-  Use -T (--tab=...) with --fields-...\n\
-  --fields-terminated-by=...\n\
-                        Fields in the textfile are terminated by ...\n\
-  --fields-enclosed-by=...\n\
-                        Fields in the importfile are enclosed by ...\n\
-  --fields-optionally-enclosed-by=...\n\
-                        Fields in the i.file are opt. enclosed by ...\n\
-  --fields-escaped-by=...\n\
-                        Fields in the i.file are escaped by ...\n\
-  --lines-terminated-by=...\n\
-                        Lines in the i.file are terminated by ...\n\
-");
   print_defaults("my",load_default_groups);
-
-  printf("\nPossible variables for option --set-variable (-O) are:\n");
-  for (i=0 ; md_changeable_vars[i].name ; i++)
-    printf("%-20s  current value: %lu\n",
-     md_changeable_vars[i].name,
-     (ulong) *md_changeable_vars[i].varptr);
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
 } /* usage */
 
 
@@ -300,179 +290,136 @@ static void write_header(FILE *sql_file, char *db_name)
 } /* write_header */
 
 
-static int get_options(int *argc,char ***argv)
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument)
 {
-  int c,option_index;
-  my_bool tty_password=0;
-
-  md_result_file=stdout;
-  load_defaults("my",load_default_groups,argc,argv);
-  set_all_changeable_vars(md_changeable_vars);
-  while ((c=getopt_long(*argc,*argv,
-			"#::p::h:u:O:P:r:S:T:EBaAcCdefFKlnqQtvVw:?IxX",
-			long_options, &option_index)) != EOF)
-  {
-    switch(c) {
-    case OPT_MASTER_DATA:
-      opt_master_data=1;
-      opt_first_slave=1;
-      break;
-    case OPT_AUTOCOMMIT:
-      opt_autocommit=1;
-      break;
-    case 'a':
-      create_options=1;
-      break;
-    case 'e':
-      extended_insert=1;
-      break;
-    case 'A':
-      opt_alldbs=1;
-      break;
-    case OPT_DEFAULT_CHARSET:
-      default_charset= optarg;
-      break;
-    case OPT_CHARSETS_DIR:
-      charsets_dir= optarg;
-      break;
-    case 'f':
-      ignore_errors=1;
-      break;
-    case 'F':
-      flush_logs=1;
-      break;
-    case 'h':
-      my_free(current_host,MYF(MY_ALLOW_ZERO_PTR));
-      current_host=my_strdup(optarg,MYF(MY_WME));
-      break;
-    case 'K':
-      opt_disable_keys=1;
-      break;
-    case 'n':
-      opt_create_db = 1;
-      break;
+  switch(optid) {
+  case OPT_MASTER_DATA:
+    opt_master_data=1;
+    opt_first_slave=1;
+    break;
+  case 'a':
+    create_options=1;
+    break;
+  case OPT_DEFAULT_CHARSET:
+    default_charset= argument;
+    break;
+  case OPT_CHARSETS_DIR:
+    charsets_dir= argument;
+    break;
+  case 'h':
+    my_free(current_host,MYF(MY_ALLOW_ZERO_PTR));
+    current_host=my_strdup(argument,MYF(MY_WME));
+    break;
 #ifndef DONT_ALLOW_USER_CHANGE
-    case 'u':
-      current_user=optarg;
-      break;
+  case 'u':
+    current_user=argument;
+    break;
 #endif
-    case 'O':
-      if (set_changeable_var(optarg, md_changeable_vars))
-      {
-	usage();
-	return(1);
-      }
-      break;
-    case 'p':
-      if (optarg)
-      {
-	char *start=optarg;
-	my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
-	opt_password=my_strdup(optarg,MYF(MY_FAE));
-	while (*optarg) *optarg++= 'x';		/* Destroy argument */
-	if (*start)
-	  start[1]=0;				/* Cut length of argument */
-      }
-      else
-	tty_password=1;
-      break;
-    case 'P':
-      opt_mysql_port= (unsigned int) atoi(optarg);
-      break;
-    case 'r':
-      if (!(md_result_file = my_fopen(optarg, O_WRONLY | O_BINARY,
-				   MYF(MY_WME))))
-	exit(1);
-      break;
-    case 'S':
-      opt_mysql_unix_port= optarg;
-      break;
-    case 'W':
-#ifdef __WIN__
-      opt_mysql_unix_port=MYSQL_NAMEDPIPE;
-#endif
-      break;
-    case 'T':
-      path= optarg;
-      opt_disable_keys=0;
-      break;
-    case 'B':
-      opt_databases = 1;
-      break;
-    case '#':
-      DBUG_PUSH(optarg ? optarg : "d:t:o");
-      break;
-    case 'c': cFlag=1; break;
-    case 'C':
-      opt_compress=1;
-      break;
-    case 'd': dFlag=1; break;
-    case 'l': lock_tables=1; break;
-    case 'q': quick=1; break;
-    case 'Q': opt_quoted=1; break;
-    case 't': tFlag=1;  break;
-    case 'v': verbose=1; break;
-    case 'V': print_version(); exit(0);
-    case 'w':
-      where=optarg;
-      break;
-    case 'X':
-      opt_xml = 1;
-      opt_disable_keys=0;
-      break;
-    case 'x':
-      opt_first_slave=1;
-      break;
-    default:
-      fprintf(stderr,"%s: Illegal option character '%c'\n",my_progname,opterr);
-      /* Fall throught */
-    case 'I':
-    case '?':
-      usage();
-      exit(0);
-    case (int) OPT_FTB:
-      fields_terminated= optarg;
-      break;
-    case (int) OPT_LTB:
-      lines_terminated= optarg;
-      break;
-    case (int) OPT_ENC:
-      enclosed= optarg;
-      break;
-    case (int) OPT_O_ENC:
-      opt_enclosed= optarg;
-      break;
-    case (int) OPT_ESC:
-      escaped= optarg;
-      break;
-    case (int) OPT_DROP:
-      opt_drop=1;
-      break;
-    case (int) OPT_KEYWORDS:
-      opt_keywords=1;
-      break;
-    case (int) OPT_LOCKS:
-      opt_lock=1;
-      break;
-    case (int) OPT_OPTIMIZE:
-      extended_insert=opt_drop=opt_lock=lock_tables=quick=create_options=
-	opt_disable_keys=1;
-      break;
-    case (int) OPT_DELAYED:
-      opt_delayed=1;
-      break;
-    case (int) OPT_TABLES:
-      opt_databases=0;
-      break;
-#include "sslopt-case.h"
+  case 'p':
+    if (argument)
+    {
+      char *start=argument;
+      my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
+      opt_password=my_strdup(argument,MYF(MY_FAE));
+      while (*argument) *argument++= 'x';		/* Destroy argument */
+      if (*start)
+	start[1]=0;				/* Cut length of argument */
     }
+    else
+      tty_password=1;
+    break;
+  case 'P':
+    opt_mysql_port= (unsigned int) atoi(argument);
+    break;
+  case 'r':
+    if (!(md_result_file = my_fopen(argument, O_WRONLY | O_BINARY,
+				    MYF(MY_WME))))
+      exit(1);
+    break;
+  case 'S':
+    opt_mysql_unix_port= argument;
+    break;
+  case 'W':
+#ifdef __WIN__
+    opt_mysql_unix_port=MYSQL_NAMEDPIPE;
+#endif
+    break;
+  case 'T':
+    path= argument;
+    opt_disable_keys=0;
+    break;
+  case '#':
+    DBUG_PUSH(argument ? argument : "d:t:o");
+    break;
+  case 'c': cFlag=1; break;
+  case 'd': dFlag=1; break;
+  case 't': tFlag=1;  break;
+  case 'V': print_version(); exit(0);
+  case 'w':
+    where=argument;
+    break;
+  case 'X':
+    opt_xml = 1;
+    opt_disable_keys=0;
+    break;
+  default:
+    fprintf(stderr,"%s: Illegal option character '%c'\n",my_progname,opterr);
+    /* Fall throught */
+  case 'I':
+  case '?':
+    usage();
+    exit(0);
+  case (int) OPT_FTB:
+    fields_terminated= argument;
+    break;
+  case (int) OPT_LTB:
+    lines_terminated= argument;
+    break;
+  case (int) OPT_ENC:
+    enclosed= argument;
+    break;
+  case (int) OPT_O_ENC:
+    opt_enclosed= argument;
+    break;
+  case (int) OPT_ESC:
+    escaped= argument;
+    break;
+  case (int) OPT_OPTIMIZE:
+    extended_insert=opt_drop=opt_lock=lock_tables=quick=create_options=
+      opt_disable_keys=1;
+    break;
+  case (int) OPT_TABLES:
+    opt_databases=0;
+    break;
+#include "sslopt-case.h"
   }
+  return 0;
+}
+
+
+static int get_options(int *argc, char ***argv)
+{
+  int ho_error;
+
+  md_result_file= stdout;
+  load_defaults("my",load_default_groups,argc,argv);
+
+  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
+  {
+    printf("%s: handle_options() failed with error %d\n", my_progname,
+	   ho_error);
+    exit(1);
+  }
+
   if (opt_delayed)
     opt_lock=0;				/* Can't have lock with delayed */
   if (!path && (enclosed || opt_enclosed || escaped || lines_terminated ||
 		fields_terminated))
   {
-    fprintf(stderr, "%s: You must use option --tab with --fields-...\n", my_progname);
+    fprintf(stderr,
+	    "%s: You must use option --tab with --fields-...\n", my_progname);
     return(1);
   }
 
@@ -498,8 +445,6 @@ static int get_options(int *argc,char ***argv)
     if (set_default_charset_by_name(default_charset, MYF(MY_WME)))
       exit(1);
   }
-  (*argc)-=optind;
-  (*argv)+=optind;
   if ((*argc < 1 && !opt_alldbs) || (*argc > 0 && opt_alldbs))
   {
     usage();
