@@ -32,8 +32,10 @@ typedef struct st_archive_share {
   uint table_name_length,use_count;
   pthread_mutex_t mutex;
   THR_LOCK lock;
+  File meta_file;                   /* Meta file we use */
   gzFile archive_write;             /* Archive file we are working with */
   bool dirty;                       /* Flag for if a flush should occur */
+  ulonglong rows_recorded;          /* Number of rows in tables */
 } ARCHIVE_SHARE;
 
 /*
@@ -50,7 +52,8 @@ class ha_archive: public handler
   z_off_t current_position;  /* The position of the row we just read */
   byte byte_buffer[IO_SIZE]; /* Initial buffer for our string */
   String buffer;             /* Buffer used for blob storage */
-  unsigned int version;      /* Used for recording version */
+  uint version;              /* Used for recording version */
+  ulonglong scan_rows;       /* Number of rows left in scan */
 
 public:
   ha_archive(TABLE *table): handler(table)
@@ -104,7 +107,14 @@ public:
   int rnd_init(bool scan=1);
   int rnd_next(byte *buf);
   int rnd_pos(byte * buf, byte *pos);
-  int get_row(byte *buf);
+  int get_row(gzFile file_to_read, byte *buf);
+  int read_meta_file(File meta_file, ulonglong *rows);
+  int write_meta_file(File meta_file, ulonglong rows, bool dirty);
+  ARCHIVE_SHARE *get_share(const char *table_name, TABLE *table);
+  int free_share(ARCHIVE_SHARE *share);
+  int rebuild_meta_file(char *table_name, File meta_file);
+  int read_data_header(gzFile file_to_read);
+  int write_data_header(gzFile file_to_write);
   void position(const byte *record);
   void info(uint);
   int extra(enum ha_extra_function operation);
