@@ -537,7 +537,15 @@ extern lock_sys_t*	lock_sys;
 				the bit is set; locks of this type are created
 				when records are removed from the index chain
 				of records */
-
+#define LOCK_INSERT_INTENTION 1024 /* this bit is set when we place a waiting
+				gap type record lock request in order to let
+				an insert of an index record to wait until
+				there are no conflicting locks by other
+				transactions on the gap; note that this flag
+				remains set when the waiting lock is granted,
+				or if the lock is inherited to a neighboring
+				record */
+				
 /* When lock bits are reset, the following flags are available: */
 #define LOCK_RELEASE_WAIT	1
 #define LOCK_NOT_RELEASE_WAIT	2
