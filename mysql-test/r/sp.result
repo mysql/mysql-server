@@ -327,9 +327,17 @@ drop procedure into_dumpfile;
 create procedure create_select(x char(16), y int)
 begin
 insert into test.t1 values (x, y);
-create table test.t2 select * from test.t1;
-insert into test.t2 values (concat(x, "2"), y+2);
+create table test.t3 select * from test.t1;
+insert into test.t3 values (concat(x, "2"), y+2);
 end;
+drop table if exists t3;
+call create_select("cs", 90);
+select * from t1, t3;
+id	data	id	data
+cs	90	cs	90
+cs	90	cs2	92
+drop table if exists t3;
+delete from t1;
 drop procedure create_select;
 create function e() returns double
 return 2.7182818284590452354;
