@@ -67,6 +67,10 @@ static HA_ERRORS ha_errlist[]=
   { 143,"Conflicting table definition between MERGE and mapped table"},
   { 144,"Table is crashed and last repair failed"},
   { 145,"Table was marked as crashed and should be repaired"},
+  { 146,"Lock timed out; Retry transaction"},
+  { 147,"Lock table is full;  Restart program with a larger locktable"},
+  { 148,"Updates are not allowed under a read only transactions"},
+  { 149,"Lock deadlock; Retry transaction"},
   { 0,NullS },
 };
 

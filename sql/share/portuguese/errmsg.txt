@@ -214,6 +214,7 @@
 "Argumentos errados para %s",
 "Não é permitido a %-.32s@%-.64s criar novos usuários",
 "Incorrect table definition; All MERGE tables must be in the same database",
+"Deadlock found when trying to get lock; Try restarting transaction",
 "Error connecting to master: %-.128s",
 "Error running query on master: %-.128s",
 "Error when executing command %s: %-.128s",

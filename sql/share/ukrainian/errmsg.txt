@@ -219,6 +219,7 @@
 "Хибний аргумент для %s",
 "Користувачу %-.32s@%-.64s не дозволено створювати нових користувач╕в",
 "Incorrect table definition; All MERGE tables must be in the same database",
+"Deadlock found when trying to get lock; Try restarting transaction",
 "Error connecting to master: %-.128s",
 "Error running query on master: %-.128s",
 "Error when executing command %s: %-.128s",
