@@ -1701,3 +1701,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 2	UNCACHEABLE SUBQUERY	t1	system	NULL	NULL	NULL	NULL	1	
 drop table t1;
+create table t1(id int);
+create table t2(id int);
+create table t3(flag int);
+select (select * from t3 where id not null) from t1, t2;
+ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near 'null) from t1, t2' at line 1
