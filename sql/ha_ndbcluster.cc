@@ -333,11 +333,11 @@ int ha_ndbcluster::set_ndb_value(NdbOperation *ndb_op, Field *field,
   - TODO allocate blob part aligned buffers
 */
 
-NdbBlob::ActiveHook get_ndb_blobs_value;
+NdbBlob::ActiveHook g_get_ndb_blobs_value;
 
-int get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
+int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
 {
-  DBUG_ENTER("get_ndb_blobs_value [callback]");
+  DBUG_ENTER("g_get_ndb_blobs_value");
   if (ndb_blob->blobsNextBlob() != NULL)
     DBUG_RETURN(0);
   ha_ndbcluster *ha= (ha_ndbcluster *)arg;
@@ -428,7 +428,7 @@ int ha_ndbcluster::get_ndb_value(NdbOperation *ndb_op, Field *field,
       {
         // Set callback
         void *arg= (void *)this;
-        DBUG_RETURN(ndb_blob->setActiveHook(::get_ndb_blobs_value, arg) != 0);
+        DBUG_RETURN(ndb_blob->setActiveHook(g_get_ndb_blobs_value, arg) != 0);
       }
       DBUG_RETURN(1);
     }
