@@ -828,6 +828,8 @@ CommandInterpreter::executeShow(char* parameters)
       case NDB_MGM_NODE_TYPE_UNKNOWN:
         ndbout << "Error: Unknown Node Type" << endl;
         return;
+      case NDB_MGM_NODE_TYPE_REP:
+	abort();
       }
     }
 
@@ -1638,7 +1640,7 @@ CommandInterpreter::executeStartBackup(char* /*parameters*/)
       if(tmp)
       {
 	ndbout << tmp;
-	int id;
+	unsigned int id;
 	if(sscanf(tmp, "%*[^:]: Backup %d ", &id) == 1 && id == backupId){
 	  count++;
 	}
