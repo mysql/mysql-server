@@ -407,6 +407,7 @@ row_ins_scan_sec_index_for_duplicate(
 	ut_a(dupl_count >= 1);
 
 	if (dupl_count > 1) {
+		trx->error_info = index;
 
 		return(DB_DUPLICATE_KEY);
 	}
@@ -468,7 +469,8 @@ row_ins_duplicate_error(
 			if (row_ins_dupl_error_with_rec(rec, entry,
 							cursor->index, trx)) {
 				*dupl_rec = rec;
-
+				trx->error_info = cursor->index;
+				
 				return(DB_DUPLICATE_KEY);
 			}
 		}
@@ -484,6 +486,7 @@ row_ins_duplicate_error(
 			if (row_ins_dupl_error_with_rec(rec, entry,
 							cursor->index, trx)) {
 				*dupl_rec = rec;
+				trx->error_info = cursor->index;
 
 				return(DB_DUPLICATE_KEY);
 			}
