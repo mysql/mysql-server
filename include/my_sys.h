@@ -220,7 +220,8 @@ extern CHARSET_INFO *get_charset_by_csname(const char *cs_name,
 extern void free_charsets(void);
 extern char *get_charsets_dir(char *buf);
 extern my_bool my_charset_same(CHARSET_INFO *cs1, CHARSET_INFO *cs2);
-
+extern my_bool init_compiled_charsets(myf flags);
+extern void add_compiled_collation(CHARSET_INFO *cs);
 
 /* statistics */
 extern ulong	my_cache_w_requests, my_cache_write, my_cache_r_requests,
