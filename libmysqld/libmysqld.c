@@ -1038,11 +1038,10 @@ mysql_list_fields(MYSQL *mysql __attribute__((unused)), const char *table __attr
 }
 
 /* List all running processes (threads) in server */
-#ifdef DUMMY
-
 MYSQL_RES * STDCALL
 mysql_list_processes(MYSQL *mysql)
 {
+#ifdef DUMMY
   MYSQL_DATA *fields;
   uint field_count;
   uchar *pos;
@@ -1063,9 +1062,9 @@ mysql_list_processes(MYSQL *mysql)
   mysql->status=MYSQL_STATUS_GET_RESULT;
   mysql->field_count=field_count;
   DBUG_RETURN(mysql_store_result(mysql));
-  return (MYSQL_RES*)mysql;
-}
 #endif /*DUMMY*/
+  return 0;
+}
 
 
 int  STDCALL
