@@ -123,9 +123,8 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result)
     DBUG_RETURN(0);
   prepared= 1;
   res= 0;
-  TMP_TABLE_PARAM tmp_table_param;
+  TMP_TABLE_PARAM *tmp_table_param, tmp_table_param_storage;
   
-  bzero((char *)&tmp_table_param,sizeof(TMP_TABLE_PARAM));
   thd->lex.current_select= sl= first_select= first_select_in_union();
   found_rows_for_union= first_select->options & OPTION_FOUND_ROWS;
 
@@ -136,14 +135,17 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result)
     if (!(tmp_result= union_result= new select_union(0)))
       goto err;
     union_result->not_describe= 1;
-    union_result->tmp_table_param= tmp_table_param;
+    tmp_table_param= &union_result->tmp_table_param;
   }
   else
   {
     tmp_result= sel_result;
     // single select should be processed like select in p[arantses
     first_select->braces= 1;
+    tmp_table_param= &tmp_table_param_storage;
   }
+  bzero((char *)tmp_table_param,sizeof(TMP_TABLE_PARAM));
+
 
   for (;sl; sl= sl->next_select())
   {
@@ -205,8 +207,8 @@ int st_select_lex_unit::prepare(THD *thd, select_result *sel_result)
 
   if (first_select->next_select())
   {
-    tmp_table_param.field_count= types.elements;
-    if (!(table= create_tmp_table(thd, &tmp_table_param, types,
+    tmp_table_param->field_count= types.elements;
+    if (!(table= create_tmp_table(thd, tmp_table_param, types,
 				  (ORDER*) 0, !union_option, 1, 
 				  (first_select_in_union()->options |
 				   thd->options |
