@@ -201,7 +201,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.46 for %s at %s\n",my_progname,SYSTEM_TYPE,
+  printf("%s  Ver 1.47 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -234,7 +234,8 @@ static void usage(void)
   -F, --fast	      Check only tables that hasn't been closed properly\n\
   -C, --check-only-changed\n\
 		      Check only tables that has changed since last check\n\
-  -f, --force         Restart with -r if there are any errors in the table\n\
+  -f, --force         Restart with -r if there are any errors in the table.\n\
+		      States will be updated as with --update-state\n\
   -i, --information   Print statistics information about table that is checked\n\
   -m, --medium-check  Faster than extended-check, but only finds 99.99% of\n\
 		      all errors.  Should be good enough for most cases\n\
@@ -359,7 +360,7 @@ static void get_options(register int *argc,register char ***argv)
       break;
     case 'f':
       check_param.tmpfile_createflag= O_RDWR | O_TRUNC;
-      check_param.testflag|=T_FORCE_CREATE;
+      check_param.testflag|= T_FORCE_CREATE | T_UPDATE_STATE;
       break;
     case 'F':
       check_param.testflag|=T_FAST;
