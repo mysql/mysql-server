@@ -4959,6 +4959,7 @@ void Dbtc::execLQHKEYREF(Signal* signal)
 	}
       }
       
+      Uint32 marker = regTcPtr->commitAckMarker;
       markOperationAborted(regApiPtr, regTcPtr);
       
       if(regApiPtr->apiConnectstate == CS_ABORTING){
@@ -4978,7 +4979,7 @@ void Dbtc::execLQHKEYREF(Signal* signal)
 	return;
       }//if
 
-      if (regTcPtr->commitAckMarker != RNIL){
+      if (marker != RNIL){
 	/**
 	 * This was an insert/update/delete/write which failed
 	 *   that contained the marker
