@@ -19,3 +19,16 @@ alter table vchar add i int;
 show create table vchar;
 select length(v),length(c),length(e),length(t) from vchar;
 drop table t1, vchar;
+create table t1 (v varchar(20));
+insert into t1 values('a ');
+select v='a' from t1;
+select binary v='a' from t1;
+select binary v='a ' from t1;
+insert into t1 values('a');
+--error 1062
+alter table t1 add primary key (v);
+drop table t1;
+create table t1 (v varbinary(20));
+insert into t1 values('a');
+insert into t1 values('a ');
+alter table t1 add primary key (v);
