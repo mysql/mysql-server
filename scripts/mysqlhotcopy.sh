@@ -559,15 +559,15 @@ sub copy_files {
 	my @cp = ($method);
 	# add option to preserve mod time etc of copied files
 	# not critical, but nice to have
-	push @cp, "-p" if $^O =~ m/^(solaris|linux|freebsd)$/;
+	push @cp, "-p" if $^O =~ m/^(solaris|linux|freebsd|darwin)$/;
 
 	# add recursive option for scp
-	push @cp, "-r" if $^O =~ /m^(solaris|linux|freebsd)$/ && $method =~ /^scp\b/;
+	push @cp, "-r" if $^O =~ /m^(solaris|linux|freebsd|darwin)$/ && $method =~ /^scp\b/;
 
 	my @non_raid = map { "'$_'" } grep { ! m:/\d{2}/[^/]+$: } @$files;
 
 	# add files to copy and the destination directory
-+ 	safe_system( @cp, @non_raid, "'$target'" );
+	safe_system( @cp, @non_raid, "'$target'" );
 	
 	foreach my $rd ( @$raid_dirs ) {
 	    my @raid = map { "'$_'" } grep { m:$rd/: } @$files;

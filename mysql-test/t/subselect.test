@@ -1,6 +1,6 @@
-
 select (select 2);
 SELECT (SELECT 1) UNION SELECT (SELECT 2);
+SELECT (SELECT (SELECT 0 UNION SELECT 0));
 drop table if exists t1,t2,t3,t4,t5,attend,clinic,inscrit;
 create table t1 (a int);
 create table t2 (a int, b int);
@@ -110,4 +110,8 @@ EXPLAIN SELECT DISTINCT date FROM searchconthardwarefr3 WHERE date='2002-08-03';
 EXPLAIN SELECT (SELECT DISTINCT date FROM searchconthardwarefr3 WHERE date='2002-08-03');
 SELECT DISTINCT date FROM searchconthardwarefr3 WHERE date='2002-08-03';
 SELECT (SELECT DISTINCT date FROM searchconthardwarefr3 WHERE date='2002-08-03');
+SELECT 1 FROM searchconthardwarefr3 WHERE 1=(SELECT 1 UNION SELECT 1) UNION ALL SELECT 1;
+-- error 1240
+SELECT 1 FROM searchconthardwarefr3 WHERE 1=(SELECT 1 UNION ALL SELECT 1) UNION SELECT 1;
+EXPLAIN SELECT 1 FROM searchconthardwarefr3 WHERE 1=(SELECT 1 UNION SELECT 1);
 drop table searchconthardwarefr3;
