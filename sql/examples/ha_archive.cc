@@ -116,10 +116,14 @@ static ARCHIVE_SHARE *get_share(const char *table_name, TABLE *table)
     pthread_mutex_lock(&LOCK_mysql_create_db);
     if (!archive_init)
     {
-      archive_init++;
       VOID(pthread_mutex_init(&archive_mutex,MY_MUTEX_INIT_FAST));
-      (void) hash_init(&archive_open_tables,system_charset_info,32,0,0,
-                       (hash_get_key) archive_get_key,0,0);
+      if (!hash_init(&archive_open_tables,system_charset_info,32,0,0,
+                       (hash_get_key) archive_get_key,0,0))
+      {
+        pthread_mutex_unlock(&LOCK_mysql_create_db);
+        return NULL;
+      }
+      archive_init++;
     }
     pthread_mutex_unlock(&LOCK_mysql_create_db);
   }
@@ -130,11 +134,10 @@ static ARCHIVE_SHARE *get_share(const char *table_name, TABLE *table)
                                            (byte*) table_name,
                                            length)))
   {
-    if (!(share=(ARCHIVE_SHARE *)
-          my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
+    if (!my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
                           &share, sizeof(*share),
                           &tmp_name, length+1,
-                          NullS))) 
+                          NullS)) 
     {
       pthread_mutex_unlock(&archive_mutex);
       return NULL;
@@ -238,11 +241,7 @@ int ha_archive::open(const char *name, int mode, uint test_if_locked)
 int ha_archive::close(void)
 {
   DBUG_ENTER("ha_archive::close");
-  int rc= 0;
-  if (gzclose(archive) == Z_ERRNO)
-    rc =-1;
-  rc |= free_share(share);
-  DBUG_RETURN(rc);
+  DBUG_RETURN(((gzclose(archive) == Z_ERRNO || free_share(share)) ? -1 : 0));
 }
 
 
@@ -276,12 +275,7 @@ int ha_archive::create(const char *name, TABLE *table_arg, HA_CREATE_INFO *creat
   }
   version= ARCHIVE_VERSION;
   written= gzwrite(archive, &version, sizeof(version));
-  if (written == 0 || written != sizeof(version))
-  {
-    delete_table(name);
-    DBUG_RETURN(-1);
-  }
-  if (gzclose(archive))
+  if (written != sizeof(version) || gzclose(archive))
   {
     delete_table(name);
     DBUG_RETURN(-1);
@@ -305,7 +299,7 @@ int ha_archive::write_row(byte * buf)
     update_timestamp(buf+table->timestamp_default_now-1);
   written= gzwrite(share->archive_write, buf, table->reclength);
   share->dirty= true;
-  if (written == 0 || written != table->reclength)
+  if (written != table->reclength)
     DBUG_RETURN(-1);
 
   for (Field_blob **field=table->blob_field ; *field ; field++)
@@ -315,7 +309,7 @@ int ha_archive::write_row(byte * buf)
 
     (*field)->get_ptr(&ptr);
     written= gzwrite(share->archive_write, ptr, (unsigned)size);
-    if (written == 0 || written != size)
+    if (written != size)
       DBUG_RETURN(-1);
   }
 

@@ -104,14 +104,13 @@ void lex_free(void)
   (We already do too much here)
 */
 
-LEX *lex_start(THD *thd, uchar *buf,uint length)
+void lex_start(THD *thd, uchar *buf,uint length)
 {
   LEX *lex= thd->lex;
   lex->thd= thd;
   lex->next_state=MY_LEX_START;
   lex->end_of_query=(lex->ptr=buf)+length;
   lex->yylineno = 1;
-  lex->select_lex.parsing_place= SELECT_LEX_NODE::NO_MATTER;
   lex->in_comment=0;
   lex->length=0;
   lex->select_lex.in_sum_expr=0;
@@ -125,7 +124,6 @@ LEX *lex_start(THD *thd, uchar *buf,uint length)
   lex->ignore_space=test(thd->variables.sql_mode & MODE_IGNORE_SPACE);
   lex->sql_command=SQLCOM_END;
   lex->duplicates= DUP_ERROR;
-  return lex;
 }
 
 void lex_end(LEX *lex)
@@ -1009,6 +1007,7 @@ void st_select_lex::init_query()
   select_n_having_items= 0;
   prep_where= 0;
   subquery_in_having= explicit_limit= 0;
+  parsing_place= SELECT_LEX_NODE::NO_MATTER;
 }
 
 void st_select_lex::init_select()
@@ -1022,9 +1021,9 @@ void st_select_lex::init_select()
   in_sum_expr= with_wild= 0;
   options= 0;
   braces= 0;
-  when_list.empty(); 
+  when_list.empty();
   expr_list.empty();
-  interval_list.empty(); 
+  interval_list.empty();
   use_index.empty();
   ftfunc_list_alloc.empty();
   ftfunc_list= &ftfunc_list_alloc;
@@ -1035,7 +1034,6 @@ void st_select_lex::init_select()
   select_limit= HA_POS_ERROR;
   offset_limit= 0;
   with_sum_func= 0;
-  parsing_place= SELECT_LEX_NODE::NO_MATTER;
 }
 
 /*
@@ -1055,7 +1053,7 @@ void st_select_lex_node::include_down(st_select_lex_node *upper)
 
 /*
   include on level down (but do not link)
-  
+
   SYNOPSYS
     st_select_lex_node::include_standalone()
     upper - reference on node underr which this node should be included

@@ -38,6 +38,7 @@ EXTRA_DIST =		FINISH.sh \
 			compile-solaris-sparc \
 			compile-solaris-sparc-debug \
 			compile-irix-mips64-mipspro \
+			compile-hpux11-parisc2-aCC \
 			compile-solaris-sparc-forte \
 			compile-solaris-sparc-purify
 
