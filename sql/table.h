@@ -243,7 +243,7 @@ typedef struct st_schema_table
   const char* table_name;
   ST_FIELD_INFO *fields_info;
   /* Create information_schema table */
-  TABLE *(*create_table)  (THD *thd, struct st_schema_table *schema_table);
+  TABLE *(*create_table)  (THD *thd, struct st_table_list *table_list);
   /* Fill table with data */
   int (*fill_table) (THD *thd, struct st_table_list *tables, COND *cond);
   /* Handle fileds for old SHOW */
