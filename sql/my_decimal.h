@@ -150,12 +150,12 @@ void my_decimal2decimal(const my_decimal *from, my_decimal *to)
 }
 
 
-int my_decimal2binary(uint mask, const my_decimal *d, byte *bin, int prec,
+int my_decimal2binary(uint mask, const my_decimal *d, char *bin, int prec,
 		      int scale);
 
 
 inline
-int binary2my_decimal(uint mask, const byte *bin, my_decimal *d, int prec,
+int binary2my_decimal(uint mask, const char *bin, my_decimal *d, int prec,
 		      int scale)
 {
   return check_result(mask, bin2decimal((char *)bin, (decimal *)d, prec,

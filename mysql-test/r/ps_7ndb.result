@@ -59,8 +59,8 @@ def	test	t9	t9	c7	c7	4	12	1	Y	32768	31	63
 def	test	t9	t9	c8	c8	5	22	1	Y	32768	31	63
 def	test	t9	t9	c9	c9	5	22	1	Y	32768	31	63
 def	test	t9	t9	c10	c10	5	22	1	Y	32768	31	63
-def	test	t9	t9	c11	c11	0	9	6	Y	32768	4	63
-def	test	t9	t9	c12	c12	0	10	6	Y	32768	4	63
+def	test	t9	t9	c11	c11	246	7	6	Y	0	4	63
+def	test	t9	t9	c12	c12	246	8	6	Y	0	4	63
 def	test	t9	t9	c13	c13	10	10	10	Y	128	0	63
 def	test	t9	t9	c14	c14	12	19	19	Y	128	0	63
 def	test	t9	t9	c15	c15	7	19	19	N	1249	0	63
@@ -1755,8 +1755,8 @@ Table	Create Table
 t5	CREATE TABLE `t5` (
   `const01` bigint(1) NOT NULL default '0',
   `param01` bigint(20) default NULL,
-  `const02` double(3,1) NOT NULL default '0.0',
-  `param02` double default NULL,
+  `const02` decimal(3,1) NOT NULL default '0.0',
+  `param02` decimal(64,30) default NULL,
   `const03` double NOT NULL default '0',
   `param03` double default NULL,
   `const04` varchar(3) NOT NULL default '',
@@ -1777,7 +1777,7 @@ t5	CREATE TABLE `t5` (
   `param11` bigint(20) default NULL,
   `const12` binary(0) default NULL,
   `param12` bigint(20) default NULL,
-  `param13` double default NULL,
+  `param13` decimal(64,30) default NULL,
   `param14` longtext,
   `param15` longblob
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
@@ -1785,9 +1785,9 @@ select * from t5 ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Name	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	test	t5	t5	const01	const01	8	1	1	N	32769	0	63
 def	test	t5	t5	param01	param01	8	20	1	Y	32768	0	63
-def	test	t5	t5	const02	const02	5	3	3	N	32769	1	63
-def	test	t5	t5	param02	param02	5	20	1	Y	32768	31	63
-def	test	t5	t5	const03	const03	5	23	1	N	32769	31	63
+def	test	t5	t5	const02	const02	246	3	3	N	1	1	63
+def	test	t5	t5	param02	param02	246	64	32	Y	0	30	63
+def	test	t5	t5	const03	const03	5	17	1	N	32769	31	63
 def	test	t5	t5	param03	param03	5	20	1	Y	32768	31	63
 def	test	t5	t5	const04	const04	253	3	3	N	1	0	8
 def	test	t5	t5	param04	param04	252	16777215	3	Y	16	0	8
@@ -1807,13 +1807,13 @@ def	test	t5	t5	const11	const11	3	4	4	Y	32768	0	63
 def	test	t5	t5	param11	param11	8	20	4	Y	32768	0	63
 def	test	t5	t5	const12	const12	254	0	0	Y	128	0	63
 def	test	t5	t5	param12	param12	8	20	0	Y	32768	0	63
-def	test	t5	t5	param13	param13	5	20	0	Y	32768	31	63
+def	test	t5	t5	param13	param13	246	64	0	Y	0	30	63
 def	test	t5	t5	param14	param14	252	16777215	0	Y	16	0	8
 def	test	t5	t5	param15	param15	252	16777215	0	Y	144	0	63
 const01	8
 param01	8
 const02	8.0
-param02	8
+param02	8.000000000000000000000000000000
 const03	8
 param03	8
 const04	abc
@@ -1905,8 +1905,8 @@ def					@arg07	253	20	1	Y	128	31	63
 def					@arg08	253	20	1	Y	128	31	63
 def					@arg09	253	20	1	Y	128	31	63
 def					@arg10	253	20	1	Y	128	31	63
-def					@arg11	253	20	1	Y	128	31	63
-def					@arg12	253	20	1	Y	128	31	63
+def					@arg11	253	64	6	Y	128	30	63
+def					@arg12	253	64	6	Y	128	30	63
 def					@arg13	253	8192	10	Y	128	31	63
 def					@arg14	253	8192	19	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
@@ -1928,7 +1928,7 @@ def					@arg30	253	8192	8	Y	0	31	8
 def					@arg31	253	8192	3	Y	0	31	8
 def					@arg32	253	8192	6	Y	0	31	8
 @arg01	@arg02	@arg03	@arg04	@arg05	@arg06	@arg07	@arg08	@arg09	@arg10	@arg11	@arg12	@arg13	@arg14	@arg15	@arg16	@arg17	@arg18	@arg19	@arg20	@arg21	@arg22	@arg23	@arg24	@arg25	@arg26	@arg27	@arg28	@arg29	@arg30	@arg31	@arg32
-1	1	1	1	1	1	1	1	1	1	1	1	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	1	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	one	monday
+1	1	1	1	1	1	1	1	1	1	1.0000	1.0000	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	1	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	one	monday
 select @arg01:=  c1, @arg02:=  c2, @arg03:=  c3, @arg04:=  c4,
 @arg05:=  c5, @arg06:=  c6, @arg07:=  c7, @arg08:=  c8,
 @arg09:=  c9, @arg10:= c10, @arg11:= c11, @arg12:= c12,
@@ -1952,8 +1952,8 @@ def					@arg07	253	20	0	Y	128	31	63
 def					@arg08	253	20	0	Y	128	31	63
 def					@arg09	253	20	0	Y	128	31	63
 def					@arg10	253	20	0	Y	128	31	63
-def					@arg11	253	20	0	Y	128	31	63
-def					@arg12	253	20	0	Y	128	31	63
+def					@arg11	253	64	0	Y	128	30	63
+def					@arg12	253	64	0	Y	128	30	63
 def					@arg13	253	8192	0	Y	128	31	63
 def					@arg14	253	8192	0	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
@@ -2002,8 +2002,8 @@ def					@arg07	253	20	1	Y	128	31	63
 def					@arg08	253	20	1	Y	128	31	63
 def					@arg09	253	20	1	Y	128	31	63
 def					@arg10	253	20	1	Y	128	31	63
-def					@arg11	253	20	1	Y	128	31	63
-def					@arg12	253	20	1	Y	128	31	63
+def					@arg11	253	64	6	Y	128	30	63
+def					@arg12	253	64	6	Y	128	30	63
 def					@arg13	253	8192	10	Y	128	31	63
 def					@arg14	253	8192	19	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
@@ -2025,7 +2025,7 @@ def					@arg30	253	8192	8	Y	0	31	8
 def					@arg31	253	8192	3	Y	0	31	8
 def					@arg32	253	8192	6	Y	0	31	8
 @arg01	@arg02	@arg03	@arg04	@arg05	@arg06	@arg07	@arg08	@arg09	@arg10	@arg11	@arg12	@arg13	@arg14	@arg15	@arg16	@arg17	@arg18	@arg19	@arg20	@arg21	@arg22	@arg23	@arg24	@arg25	@arg26	@arg27	@arg28	@arg29	@arg30	@arg31	@arg32
-1	1	1	1	1	1	1	1	1	1	1	1	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	1	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	one	monday
+1	1	1	1	1	1	1	1	1	1	1.0000	1.0000	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	1	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	one	monday
 set @my_key= 0 ;
 execute stmt1 using @my_key ;
 @arg01:=  c1	@arg02:=  c2	@arg03:=  c3	@arg04:=  c4	@arg05:=  c5	@arg06:=  c6	@arg07:=  c7	@arg08:=  c8	@arg09:=  c9	@arg10:= c10	@arg11:= c11	@arg12:= c12	@arg13:= c13	@arg14:= c14	@arg15:= c15	@arg16:= c16	@arg17:= c17	@arg18:= c18	@arg19:= c19	@arg20:= c20	@arg21:= c21	@arg22:= c22	@arg23:= c23	@arg24:= c24	@arg25:= c25	@arg26:= c26	@arg27:= c27	@arg28:= c28	@arg29:= c29	@arg30:= c30	@arg31:= c31	@arg32:= c32
@@ -2042,8 +2042,8 @@ def					@arg07	253	20	0	Y	128	31	63
 def					@arg08	253	20	0	Y	128	31	63
 def					@arg09	253	20	0	Y	128	31	63
 def					@arg10	253	20	0	Y	128	31	63
-def					@arg11	253	20	0	Y	128	31	63
-def					@arg12	253	20	0	Y	128	31	63
+def					@arg11	253	64	0	Y	128	30	63
+def					@arg12	253	64	0	Y	128	30	63
 def					@arg13	253	8192	0	Y	128	31	63
 def					@arg14	253	8192	0	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
@@ -2090,8 +2090,8 @@ def					@arg07	253	20	1	Y	128	31	63
 def					@arg08	253	20	1	Y	128	31	63
 def					@arg09	253	20	1	Y	128	31	63
 def					@arg10	253	20	1	Y	128	31	63
-def					@arg11	253	20	1	Y	128	31	63
-def					@arg12	253	20	1	Y	128	31	63
+def					@arg11	253	64	6	Y	128	30	63
+def					@arg12	253	64	6	Y	128	30	63
 def					@arg13	253	8192	10	Y	128	31	63
 def					@arg14	253	8192	19	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
@@ -2113,7 +2113,7 @@ def					@arg30	253	8192	8	Y	0	31	8
 def					@arg31	253	8192	3	Y	0	31	8
 def					@arg32	253	8192	6	Y	0	31	8
 @arg01	@arg02	@arg03	@arg04	@arg05	@arg06	@arg07	@arg08	@arg09	@arg10	@arg11	@arg12	@arg13	@arg14	@arg15	@arg16	@arg17	@arg18	@arg19	@arg20	@arg21	@arg22	@arg23	@arg24	@arg25	@arg26	@arg27	@arg28	@arg29	@arg30	@arg31	@arg32
-1	1	1	1	1	1	1	1	1	1	1	1	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	1	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	one	monday
+1	1	1	1	1	1	1	1	1	1	1.0000	1.0000	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	1	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	one	monday
 select c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12,
 c13, c14, c15, c16, c17, c18, c19, c20, c21, c22, c23, c24,
 c25, c26, c27, c28, c29, c30, c31, c32
@@ -2134,8 +2134,8 @@ def					@arg07	253	20	0	Y	128	31	63
 def					@arg08	253	20	0	Y	128	31	63
 def					@arg09	253	20	0	Y	128	31	63
 def					@arg10	253	20	0	Y	128	31	63
-def					@arg11	253	20	0	Y	128	31	63
-def					@arg12	253	20	0	Y	128	31	63
+def					@arg11	253	64	0	Y	128	30	63
+def					@arg12	253	64	0	Y	128	30	63
 def					@arg13	253	8192	0	Y	128	31	63
 def					@arg14	253	8192	0	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
@@ -2180,8 +2180,8 @@ def					@arg07	253	20	1	Y	128	31	63
 def					@arg08	253	20	1	Y	128	31	63
 def					@arg09	253	20	1	Y	128	31	63
 def					@arg10	253	20	1	Y	128	31	63
-def					@arg11	253	20	1	Y	128	31	63
-def					@arg12	253	20	1	Y	128	31	63
+def					@arg11	253	64	6	Y	128	30	63
+def					@arg12	253	64	6	Y	128	30	63
 def					@arg13	253	8192	10	Y	128	31	63
 def					@arg14	253	8192	19	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
@@ -2203,7 +2203,7 @@ def					@arg30	253	8192	8	Y	0	31	8
 def					@arg31	253	8192	3	Y	0	31	8
 def					@arg32	253	8192	6	Y	0	31	8
 @arg01	@arg02	@arg03	@arg04	@arg05	@arg06	@arg07	@arg08	@arg09	@arg10	@arg11	@arg12	@arg13	@arg14	@arg15	@arg16	@arg17	@arg18	@arg19	@arg20	@arg21	@arg22	@arg23	@arg24	@arg25	@arg26	@arg27	@arg28	@arg29	@arg30	@arg31	@arg32
-1	1	1	1	1	1	1	1	1	1	1	1	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	1	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	one	monday
+1	1	1	1	1	1	1	1	1	1	1.0000	1.0000	2004-02-29	2004-02-29 11:11:11	2004-02-29 11:11:11	11:11:11	2004	1	1	a	123456789a	123456789a123456789b123456789c	tinyblob	tinytext	blob	text	mediumblob	mediumtext	longblob	longtext	one	monday
 set @my_key= 0 ;
 execute stmt1 using @my_key ;
 execute full_info ;
@@ -2218,8 +2218,8 @@ def					@arg07	253	20	0	Y	128	31	63
 def					@arg08	253	20	0	Y	128	31	63
 def					@arg09	253	20	0	Y	128	31	63
 def					@arg10	253	20	0	Y	128	31	63
-def					@arg11	253	20	0	Y	128	31	63
-def					@arg12	253	20	0	Y	128	31	63
+def					@arg11	253	64	0	Y	128	30	63
+def					@arg12	253	64	0	Y	128	30	63
 def					@arg13	253	8192	0	Y	128	31	63
 def					@arg14	253	8192	0	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
@@ -2567,7 +2567,7 @@ c7	9.22337e+18
 c8	9.22337203685478e+18
 c9	9.22337203685478e+18
 c10	9.22337203685478e+18
-c12	99999.9999
+c12	9999.9999
 execute my_delete ;
 set @arg00= '9223372036854775807' ;
 execute my_insert using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
@@ -2590,7 +2590,7 @@ c7	9.22337e+18
 c8	9.22337203685478e+18
 c9	9.22337203685478e+18
 c10	9.22337203685478e+18
-c12	99999.9999
+c12	9999.9999
 execute my_delete ;
 set @arg00= -9223372036854775808 ;
 execute my_insert using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
@@ -2661,7 +2661,7 @@ c7	3.40282e+38
 c8	1.11111111111111e+50
 c9	1.11111111111111e+50
 c10	1.11111111111111e+50
-c12	99999.9999
+c12	9999.9999
 execute my_delete ;
 set @arg00= '1.11111111111111111111e+50' ;
 execute my_insert using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
@@ -2674,7 +2674,6 @@ Warning	1265	Data truncated for column 'c4' at row 1
 Warning	1265	Data truncated for column 'c5' at row 1
 Warning	1265	Data truncated for column 'c6' at row 1
 Warning	1264	Out of range value adjusted for column 'c7' at row 1
-Note	1265	Data truncated for column 'c12' at row 1
 Warning	1264	Out of range value adjusted for column 'c12' at row 1
 execute my_select ;
 c1	1
@@ -2687,7 +2686,7 @@ c7	3.40282e+38
 c8	1.11111111111111e+50
 c9	1.11111111111111e+50
 c10	1.11111111111111e+50
-c12	99999.9999
+c12	9999.9999
 execute my_delete ;
 set @arg00= -1.11111111111111111111e+50 ;
 execute my_insert using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
@@ -2725,7 +2724,6 @@ Warning	1265	Data truncated for column 'c4' at row 1
 Warning	1265	Data truncated for column 'c5' at row 1
 Warning	1265	Data truncated for column 'c6' at row 1
 Warning	1264	Out of range value adjusted for column 'c7' at row 1
-Note	1265	Data truncated for column 'c12' at row 1
 Warning	1264	Out of range value adjusted for column 'c12' at row 1
 execute my_select ;
 c1	-1
@@ -2798,10 +2796,10 @@ c1	c20	c21	c22	c23	c24	c25	c26	c27	c28	c29	c30
 41	4	41	41	41	41	41	41	41	41	41	41
 42	4	42	42	42	42	42	42	42	42	42	42
 43	4	43	43	43	43	43	43	43	43	43	43
-50	5	50	50	50.00	50.00	50.00	50.00	50.00	50.00	50.00	50.00
-51	5	51	51	51	51	51	51	51	51	51	51
-52	5	52	52	52.00	52.00	52.00	52.00	52.00	52.00	52.00	52.00
-53	5	53	53	53.00	53.00	53.00	53.00	53.00	53.00	53.00	53.00
+50	5	50.0	50.0	50.0	50.0	50.0	50.0	50.0	50.0	50.0	50.0
+51	5	51.0	51.0	51.0	51.0	51.0	51.0	51.0	51.0	51.0	51.0
+52	5	52.0	52.0	52.0	52.0	52.0	52.0	52.0	52.0	52.0	52.0
+53	5	53.0	53.0	53.0	53.0	53.0	53.0	53.0	53.0	53.0	53.0
 54	5	54	54	54.00	54.00	54.00	54.00	54.00	54.00	54.00	54.00
 55	5	55	55	55	55	55	55	55	55	55	55
 56	6	56	56	56.00	56.00	56.00	56.00	56.00	56.00	56.00	56.00

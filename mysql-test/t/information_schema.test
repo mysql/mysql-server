@@ -352,3 +352,14 @@ show variables where variable_name like "skip_show_databas";
 # Bug #7981:SHOW GLOBAL STATUS crashes server
 #
 show global status like "Threads_running";
+
+#
+# Bug #7915  crash,JOIN VIEW, subquery, 
+# SELECT .. FROM INFORMATION_SCHEMA.COLUMNS
+#
+create table t1(f1 int);
+create table t2(f2 int);
+create view v1 as select * from t1, t2;
+set @got_val= (select count(*) from information_schema.columns);
+drop view v1;
+drop table t1, t2;

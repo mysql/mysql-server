@@ -2783,7 +2783,8 @@ MgmtSrvr::setConnectionDbParameter(int node1,
     Uint32 n1,n2;
     iter.get(CFG_CONNECTION_NODE_1, &n1);
     iter.get(CFG_CONNECTION_NODE_2, &n2);
-    if(n1 == (unsigned)node1 && n2 == (unsigned)node2)
+    if((n1 == (unsigned)node1 && n2 == (unsigned)node2)
+       || (n1 == (unsigned)node2 && n2 == (unsigned)node1))
       break;
   }
   if(!iter.valid()) {

@@ -121,8 +121,7 @@ public:
   static void *operator new(size_t size, MEM_ROOT *mem_root)
   { return (void*) alloc_root(mem_root, (uint) size); }
   static void operator delete(void *ptr,size_t size) { TRASH(ptr, size); }
-  static void operator delete(void *ptr,size_t size, MEM_ROOT *mem_root)
-  { TRASH(ptr, size); }
+  static void operator delete(void *ptr, MEM_ROOT *mem_root) {}
 
   enum Type {FIELD_ITEM, FUNC_ITEM, SUM_FUNC_ITEM, STRING_ITEM,
 	     INT_ITEM, REAL_ITEM, NULL_ITEM, VARBIN_ITEM,
@@ -461,7 +460,10 @@ public:
   {
     Item *it= this_item();
 
-    it->set_name(m_name.str, m_name.length, system_charset_info);
+    if (name)
+      it->set_name(name, strlen(name), system_charset_info);
+    else
+      it->set_name(m_name.str, m_name.length, system_charset_info);
     it->make_field(field);
   }
 
@@ -983,7 +985,7 @@ public:
   Item *new_item() 
   {
     return new Item_string(name, str_value.ptr(), 
-    			   str_value.length(), &my_charset_bin);
+    			   str_value.length(), collation.collation);
   }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
   String *const_string() { return &str_value; }

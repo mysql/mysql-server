@@ -1718,9 +1718,6 @@ Innodb_rows_deleted	2070
 show status like "Innodb_rows_inserted";
 Variable_name	Value
 Innodb_rows_inserted	31708
-show status like "Innodb_rows_read";
-Variable_name	Value
-Innodb_rows_read	80162
 show status like "Innodb_rows_updated";
 Variable_name	Value
 Innodb_rows_updated	29530
