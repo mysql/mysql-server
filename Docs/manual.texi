@@ -546,9 +546,6 @@ of the @code{MySQL Database Software}. @xref{MySQL 4.0 In A Nutshell}.
 @item
 Written in C and C++.  Tested with a broad range of different compilers.
 @item
-No memory leaks.  The @code{MySQL} code has been tested with Purify,
-a commercial memory leakage detector.
-@item
 Works on many different platforms.  @xref{Which OS}.
 @item
 Uses GNU Automake (1.4), Autoconf (Version 2.52 or newer), and Libtool for
@@ -570,6 +567,10 @@ In-memory hash tables which are used as temporary tables.
 SQL functions are implemented through a highly optimised class library and
 should be as fast as possible!  Usually there isn't any memory allocation
 at all after query initialisation.
+@item
+The @code{MySQL} code gets tested with Purify
+(a commercial memory leakage detector) as well as with Valgrind,
+a GPL tool (@uref{http://developer.kde.org/~sewardj/}).
 @end itemize
 
 @item Column Types
@@ -27645,11 +27646,10 @@ flag again, the @code{SQL_MAX_JOIN_SIZE} variable will be ignored.
 You can set a default value for this variable by starting @code{mysqld} with
 @code{-O max_join_size=#}.
 
-Note that if the result of the query is in the query cache, the above
-check will not be made, but MySQL will instead send the result to the
-client. We regard this as a feature as in this case the query result is
-already computed and it will not cause any big burden for the server to
-send the result to the client.
+Note that if the result of the query is already in the query cache, the
+above check will not be made. Instead, MySQL will send the result to the
+client. Since the query result is already computed and it will not burden
+the server to send the result to the client.
 
 @item SQL_QUERY_CACHE_TYPE = OFF | ON | DEMAND
 @item SQL_QUERY_CACHE_TYPE = 0   | 1  | 2
@@ -35315,6 +35315,9 @@ value.
 
 @item
 @cindex default values
+A @code{DEFAULT} value has to be a constant, it can not be a function or
+an expression.
+
 If no @code{DEFAULT} value is specified for a column, MySQL
 automatically assigns one.
 
@@ -35805,8 +35808,10 @@ MySQL tries to convert data to the new type as well as possible.
 
 @item
 In MySQL Version 3.22 or later, you can use @code{FIRST} or
-@code{ADD ... AFTER col_name} to add a column at a specific position within
-a table row. The default is to add the column last.
+@code{ADD ... AFTER col_name} to add a column at a specific position
+within a table row. The default is to add the column last.
+From MySQL Version 4.0.1, you can also use the @code{FIRST} and
+@code{AFTER} keywords in @code{CHANGE} or @code{MODIFY}.
 
 @findex ALTER COLUMN
 @item
@@ -49780,7 +49785,7 @@ Ignore @code{DATA DIRECTORY} and @code{INDEX DIRECTORY} directives on Windows.
 Added boolean full-text search code. It should be considered early alpha.
 @item
 Extended @code{MODIFY} and @code{CHANGE} in @code{ALTER TABLE} to accept
-the @code{AFTER} keyword.
+the @code{FIRST} and @code{AFTER} keywords.
 @item
 Indexes are now used with @code{ORDER BY} on a whole @code{InnoDB} table.
 @end itemize
