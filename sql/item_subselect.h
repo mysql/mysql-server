@@ -90,44 +90,28 @@ public:
 
 /* single value subselect */
 
+class Item_cache;
 class Item_singleval_subselect :public Item_subselect
 {
 protected:
-  longlong int_value; /* Here stored integer value of this item */
-  double real_value; /* Here stored real value of this item */
-  /* 
-     Here stored string value of this item.
-     (str_value used only as temporary buffer, because it can be changed 
-     by Item::save_field)
-  */
-  String string_value; 
-  enum Item_result res_type; /* type of results */
+  Item_cache *value;
   
 public:
   Item_singleval_subselect(THD *thd, st_select_lex *select_lex);
   Item_singleval_subselect(Item_singleval_subselect *item):
     Item_subselect(item)
   {
-    int_value= item->int_value;
-    real_value= item->real_value;
-    string_value.set(item->string_value, 0, item->string_value.length());
+    value= item->value;
     max_length= item->max_length;
     decimals= item->decimals;
-    res_type= item->res_type;
   }
-  virtual void reset() 
-  {
-    null_value= 1;
-    int_value= 0;
-    real_value= 0;
-    max_length= 4;
-    res_type= STRING_RESULT;
-  }
-  double val ();
+  void reset();
+  void store(Item* item);
+  double val();
   longlong val_int ();
   String *val_str (String *);
   Item *new_item() { return new Item_singleval_subselect(this); }
-  enum Item_result result_type() const { return res_type; }
+  enum Item_result result_type() const;
   void fix_length_and_dec();
 
   friend class select_singleval_subselect;
@@ -149,7 +133,7 @@ public:
   }
   Item_exists_subselect(): Item_subselect() {}
 
-  virtual void reset() 
+  void reset() 
   {
     value= 0;
   }

@@ -31,12 +31,12 @@ public:
   static void *operator new(size_t size) {return (void*) sql_alloc((uint) size); }
   static void operator delete(void *ptr,size_t size) {} /*lint -e715 */
 
-  enum Type {FIELD_ITEM,FUNC_ITEM,SUM_FUNC_ITEM,STRING_ITEM,
-	     INT_ITEM,REAL_ITEM,NULL_ITEM,VARBIN_ITEM,
-	     COPY_STR_ITEM,FIELD_AVG_ITEM, DEFAULT_ITEM,
-	     PROC_ITEM,COND_ITEM,REF_ITEM,FIELD_STD_ITEM, 
-	     FIELD_VARIANCE_ITEM,CONST_ITEM,
-             SUBSELECT_ITEM, ROW_ITEM};
+  enum Type {FIELD_ITEM, FUNC_ITEM, SUM_FUNC_ITEM, STRING_ITEM,
+	     INT_ITEM, REAL_ITEM, NULL_ITEM, VARBIN_ITEM,
+	     COPY_STR_ITEM, FIELD_AVG_ITEM, DEFAULT_ITEM,
+	     PROC_ITEM,COND_ITEM, REF_ITEM, FIELD_STD_ITEM, 
+	     FIELD_VARIANCE_ITEM, CONST_ITEM,
+             SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM};
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
 
   String str_value;			/* used to store value */
@@ -381,7 +381,8 @@ public:
     name=(char*) str_value.ptr();
     decimals=NOT_FIXED_DEC;
   }
-  Item_string(const char *name_par,const char *str,uint length,CHARSET_INFO *cs)
+  Item_string(const char *name_par, const char *str, uint length,
+	      CHARSET_INFO *cs)
   {
     str_value.set(str,length,cs);
     max_length=length;
@@ -392,11 +393,13 @@ public:
   enum Type type() const { return STRING_ITEM; }
   double val()
   { 
-    return my_strntod(str_value.charset(),str_value.ptr(),str_value.length(),(char**)NULL);
+    return my_strntod(str_value.charset(), str_value.ptr(),
+		      str_value.length(), (char**) 0);
   }
   longlong val_int()
   {
-    return my_strntoll(str_value.charset(),str_value.ptr(),str_value.length(),(char**) 0,10);
+    return my_strntoll(str_value.charset(), str_value.ptr(),
+		       str_value.length(), (char**) 0, 10);
   }
   String *val_str(String*) { return (String*) &str_value; }
   int save_in_field(Field *field, bool no_conversions);
@@ -704,6 +707,86 @@ public:
     buff= (char*) sql_calloc(length=field->pack_length());
   }
   bool cmp(void);
+};
+
+class Item_cache: public Item
+{
+public:
+  virtual void store(Item *)= 0;
+  void set_len_n_dec(uint32 max_len, uint8 dec)
+  {
+    max_length= max_len;
+    decimals= dec;
+  }
+  enum Type type() const { return CACHE_ITEM; }
+};
+
+class Item_cache_int: public Item_cache
+{
+  longlong value;
+public:
+  Item_cache_int() { fixed= 1; null_value= 1; }
+  
+  void store(Item *item)
+  {
+    value= item->val_int_result();
+    null_value= item->null_value;
+  }
+  double val() { return (double) value; }
+  longlong val_int() { return value; }
+  String* val_str(String *str) { str->set(value, thd_charset()); return str; }
+  enum Item_result result_type() const { return INT_RESULT; }
+};
+
+class Item_cache_real: public Item_cache
+{
+  double value;
+public:
+  Item_cache_real() { fixed= 1; null_value= 1; }
+  
+  void store(Item *item)
+  {
+    value= item->val_result();
+    null_value= item->null_value;
+  }
+  double val() { return value; }
+  longlong val_int() { return (longlong) (value+(value > 0 ? 0.5 : -0.5)); }
+  String* val_str(String *str)
+  {
+    str->set(value, decimals, thd_charset());
+    return str;
+  }
+  enum Item_result result_type() const { return REAL_RESULT; }
+};
+
+class Item_cache_str: public Item_cache
+{
+  char buffer[80];
+  String *value;
+public:
+  Item_cache_str() { fixed= 1; null_value= 1; }
+  
+  void store(Item *item)
+  {
+    str_value.set(buffer, sizeof(buffer), item->charset());
+    value= item->str_result(&str_value);
+    // TODO remove if str_value charset have no side effect for now
+    str_value.set_charset(value->charset());
+    null_value= item->null_value;
+  }
+  double val()
+  { 
+    return my_strntod(value->charset(), value->ptr(),
+		      value->length(), (char**)0);
+  }
+  longlong val_int()
+  {
+    return my_strntoll(value->charset(), value->ptr(),
+		       value->length(), (char**) 0, 10);
+  }
+  String* val_str(String *) { return value; }
+  enum Item_result result_type() const { return STRING_RESULT; }
+  CHARSET_INFO *charset() const { return value->charset(); };
 };
 
 extern Item_buff *new_Item_buff(Item *item);
