@@ -775,7 +775,7 @@ int Item::save_in_field(Field *field)
       field->result_type() == STRING_RESULT)
   {
     String *result;
-    CHARSET_INFO *cs=field->charset();
+    CHARSET_INFO *cs=charset();
     char buff[MAX_FIELD_WIDTH];		// Alloc buffer for small columns
     str_value.set_quick(buff,sizeof(buff),cs);
     result=val_str(&str_value);
@@ -807,12 +807,11 @@ int Item::save_in_field(Field *field)
 int Item_string::save_in_field(Field *field)
 {
   String *result;
-  CHARSET_INFO *cs=field->charset();
   result=val_str(&str_value);
   if (null_value)
     return set_field_to_null(field);
   field->set_notnull();
-  return (field->store(result->ptr(),result->length(),cs)) ? -1 : 0;
+  return (field->store(result->ptr(),result->length(),charset())) ? -1 : 0;
 }
 
 int Item_int::save_in_field(Field *field)
@@ -880,11 +879,10 @@ longlong Item_varbinary::val_int()
 int Item_varbinary::save_in_field(Field *field)
 {
   int error;
-  CHARSET_INFO *cs=field->charset();
   field->set_notnull();
   if (field->result_type() == STRING_RESULT)
   {
-    error=field->store(str_value.ptr(),str_value.length(),cs);
+    error=field->store(str_value.ptr(),str_value.length(),charset());
   }
   else
   {
