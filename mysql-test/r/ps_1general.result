@@ -252,8 +252,8 @@ mysql
 test
 prepare stmt4 from ' show tables from test like ''t2%'' ';
 execute stmt4;
-Tables_in_test (t2%)	table_type
-t2	BASE TABLE
+Tables_in_test (t2%)
+t2
 prepare stmt4 from ' show columns from t2 from test like ''a%'' ';
 execute stmt4;
 Field	Type	Null	Key	Default	Extra
