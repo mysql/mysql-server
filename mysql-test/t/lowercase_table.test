@@ -39,7 +39,6 @@ create database mysqltest;
 use MYSQLTEST;
 create table t1 (a int);
 select T1.a from MYSQLTEST.T1;
---error 1109
 select t1.a from MYSQLTEST.T1;
 select mysqltest.t1.* from MYSQLTEST.t1;
 select MYSQLTEST.t1.* from MYSQLTEST.t1;
@@ -48,6 +47,7 @@ select MYSQLTEST.T1.* from T1;
 alter table t1 rename to T1;
 select MYSQLTEST.t1.* from MYSQLTEST.t1;
 drop database mysqltest;
+use test;
 
 #
 # multiupdate/delete & --lower-case-table-names

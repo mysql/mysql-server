@@ -2458,7 +2458,7 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
       'name' of the item which may be used in the select list
     */
     strmake(name_buff, db_name, sizeof(name_buff)-1);
-    my_casedn_str(name_buff);
+    my_casedn_str(files_charset_info, name_buff);
     db_name= name_buff;
   }
 
