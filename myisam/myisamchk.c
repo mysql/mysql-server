@@ -219,7 +219,7 @@ static struct my_option my_long_options[] =
   {"recover", 'r',
    "Can fix almost anything except unique keys that aren't unique.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"paraller-recover", 'p',
+  {"parallel-recover", 'p',
    "Same as '-r' but creates all the keys in parallel",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"safe-recover", 'o',
