@@ -1297,7 +1297,7 @@ mysql_execute_command(THD *thd)
     that is not a SHOW command or a select that only access local
     variables, but for now this is probably good enough.
   */
-  if (tables)
+  if (tables || lex->select_lex.next_select_in_list())
     mysql_reset_errors(thd);
   /*
     Save old warning count to be able to send to client how many warnings we
