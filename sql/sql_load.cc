@@ -252,7 +252,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   restore_record(table,default_values);
 
-  thd->count_cuted_fields=1;			/* calc cuted fields */
+  thd->count_cuted_fields= CHECK_FIELD_WARN;		/* calc cuted fields */
   thd->cuted_fields=0L;
   if (ex->line_term->length() && field_term->length())
   {
@@ -293,7 +293,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   if  (file >= 0) my_close(file,MYF(0));
   free_blobs(table);				/* if pack_blob was used */
   table->copy_blobs=0;
-  thd->count_cuted_fields=0;			/* Don`t calc cuted fields */
+  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
 
   /*
     We must invalidate the table in query cache before binlog writing and

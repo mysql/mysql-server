@@ -2200,6 +2200,9 @@ double user_var_entry::val(my_bool *null_value)
     return (double) *(longlong*) value;
   case STRING_RESULT:
     return atof(value);				// This is null terminated
+  case ROW_RESULT:
+    DBUG_ASSERT(1);				// Impossible
+    break;
   }
   return 0.0;					// Impossible
 }
@@ -2219,6 +2222,9 @@ longlong user_var_entry::val_int(my_bool *null_value)
     return *(longlong*) value;
   case STRING_RESULT:
     return strtoull(value,NULL,10);		// String is null terminated
+  case ROW_RESULT:
+    DBUG_ASSERT(1);				// Impossible
+    break;
   }
   return LL(0);					// Impossible
 }
@@ -2242,6 +2248,9 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
   case STRING_RESULT:
     if (str->copy(value, length, collation.collation))
       str= 0;					// EOM error
+  case ROW_RESULT:
+    DBUG_ASSERT(1);				// Impossible
+    break;
   }
   return(str);
 }
