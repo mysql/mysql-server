@@ -1036,3 +1036,25 @@ n	d
 1	30
 2	20
 drop table t1,t2;
+create table t1 (a int, b int) type=innodb;
+insert into t1 values(20,null);
+select t2.b, ifnull(t2.b,"this is null") from t1 as t2 left join t1 as t3 on
+t2.b=t3.a;
+b	ifnull(t2.b,"this is null")
+NULL	this is null
+select t2.b, ifnull(t2.b,"this is null") from t1 as t2 left join t1 as t3 on
+t2.b=t3.a order by 1;
+b	ifnull(t2.b,"this is null")
+NULL	this is null
+insert into t1 values(10,null);
+select t2.b, ifnull(t2.b,"this is null") from t1 as t2 left join t1 as t3 on
+t2.b=t3.a order by 1;
+b	ifnull(t2.b,"this is null")
+NULL	this is null
+NULL	this is null
+drop table t1;
+create table t1 (a varchar(10) not null) type=myisam;
+create table t2 (b varchar(10) not null unique) type=innodb;
+select t1.a from t1,t2 where t1.a=t2.b;
+a
+drop table t1,t2;

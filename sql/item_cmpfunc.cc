@@ -48,7 +48,7 @@ static bool convert_constant_item(Field *field, Item **item)
 {
   if ((*item)->const_item() && (*item)->type() != Item::INT_ITEM)
   {
-    if (!(*item)->save_in_field(field) &&
+    if (!(*item)->save_in_field(field, 1) &&
 	!((*item)->null_value))
     {
       Item *tmp=new Item_int_with_ref(field->val_int(), *item);
@@ -444,14 +444,28 @@ longlong Item_func_between::val_int()
   return 0;
 }
 
+static Item_result item_store_type(Item_result a,Item_result b)
+{
+  if (a == STRING_RESULT || b == STRING_RESULT)
+    return STRING_RESULT;
+  else if (a == REAL_RESULT || b == REAL_RESULT)
+    return REAL_RESULT;
+  else
+    return INT_RESULT;
+}
+
 void
 Item_func_ifnull::fix_length_and_dec()
 {
   maybe_null=args[1]->maybe_null;
   max_length=max(args[0]->max_length,args[1]->max_length);
   decimals=max(args[0]->decimals,args[1]->decimals);
-  cached_result_type=args[0]->result_type();
+  if ((cached_result_type=item_store_type(args[0]->result_type(),
+					  args[1]->result_type())) !=
+      REAL_RESULT)
+    decimals= 0;
 }
+
 
 double
 Item_func_ifnull::val()

@@ -247,12 +247,12 @@ class store_key_field: public store_key
       copy_field.set(to_field,from_field,0);
     }
   }
- bool copy()
- {
-   copy_field.do_copy(&copy_field);
-   return err != 0;
- }
- const char *name() const { return field_name; }
+  bool copy()
+  {
+    copy_field.do_copy(&copy_field);
+    return err != 0;
+  }
+  const char *name() const { return field_name; }
 };
 
 
@@ -269,8 +269,7 @@ public:
   {}
   bool copy()
   {
-    item->save_in_field(to_field);
-    return err != 0;
+    return item->save_in_field(to_field, 1) || err != 0;
   }
   const char *name() const { return "func"; }
 };
@@ -293,7 +292,8 @@ public:
     if (!inited)
     {
       inited=1;
-      item->save_in_field(to_field);
+      if (item->save_in_field(to_field, 1))
+	err= 1;
     }
     return err != 0;
   }

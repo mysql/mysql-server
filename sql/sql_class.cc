@@ -158,9 +158,8 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   {
     pthread_mutex_lock(&LOCK_thread_count);
     ulong tmp=(ulong) (rnd(&sql_rand) * 3000000);
-    randominit(&rand, tmp + (ulong) start_time,
-	       tmp + (ulong) thread_id);
     pthread_mutex_unlock(&LOCK_thread_count);
+    randominit(&rand, tmp + (ulong) start_time, tmp + (ulong) thread_id);
   }
 }
 
@@ -171,16 +170,16 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
 
 void THD::init(void)
 {
-  server_status= SERVER_STATUS_AUTOCOMMIT;
-  update_lock_default= (variables.low_priority_updates ?
-			TL_WRITE_LOW_PRIORITY :
-			TL_WRITE);
-  options= thd_startup_options;
-  sql_mode=(uint) opt_sql_mode;
-  open_options=ha_open_options;
   pthread_mutex_lock(&LOCK_global_system_variables);
   variables= global_system_variables;
   pthread_mutex_unlock(&LOCK_global_system_variables);
+  server_status= SERVER_STATUS_AUTOCOMMIT;
+  options= thd_startup_options;
+  sql_mode=(uint) opt_sql_mode;
+  open_options=ha_open_options;
+  update_lock_default= (variables.low_priority_updates ?
+			TL_WRITE_LOW_PRIORITY :
+			TL_WRITE);
   session_tx_isolation= (enum_tx_isolation) variables.tx_isolation;
 }
 
