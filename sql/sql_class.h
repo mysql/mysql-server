@@ -564,7 +564,7 @@ public:
   List<TABLE> temporary_tables_should_be_free; // list of temporary tables
   List	     <MYSQL_ERROR> warn_list;  
   uint	     warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_END];
-  uint	     total_warn_count, old_total_warn_count;
+  uint	     total_warn_count;
   ulong	     query_id, warn_id, version, options, thread_id, col_access;
   ulong      current_stmt_id;
   ulong	     rand_saved_seed1, rand_saved_seed2;
