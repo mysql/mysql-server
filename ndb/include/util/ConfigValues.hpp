@@ -32,9 +32,8 @@ public:
   class ConstIterator {
     friend class ConfigValuesFactory;
     const ConfigValues & m_cfg;
-  protected:
-    Uint32 m_currentSection;
   public:
+    Uint32 m_currentSection;
     ConstIterator(const ConfigValues&c) : m_cfg(c) { m_currentSection = 0;}
     
     bool openSection(Uint32 key, Uint32 no);
@@ -57,6 +56,9 @@ public:
     ConfigValues & m_cfg;
   public:
     Iterator(ConfigValues&c) : ConstIterator(c), m_cfg(c) {}
+    Iterator(ConfigValues&c, const ConstIterator& i):ConstIterator(c),m_cfg(c){
+      m_currentSection = i.m_currentSection;
+    }
     
     bool set(Uint32 key, Uint32 value);
     bool set(Uint32 key, Uint64 value);

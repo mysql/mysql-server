@@ -634,7 +634,8 @@ CommandInterpreter::executeHelp(char* parameters)
 
 void
 CommandInterpreter::executeShow(char* parameters) 
-{
+{ 
+  int i;
   connect();
   if (emptyString(parameters)) {
     ndbout << "Cluster Configuration" << endl
@@ -652,7 +653,7 @@ CommandInterpreter::executeShow(char* parameters)
       api_nodes = 0,
       mgm_nodes = 0;
 
-    for(int i=0; i < state->no_of_nodes; i++) {
+    for(i=0; i < state->no_of_nodes; i++) {
       switch(state->node_states[i].node_type) {
       case NDB_MGM_NODE_TYPE_API:
 	api_nodes++;
@@ -673,7 +674,7 @@ CommandInterpreter::executeShow(char* parameters)
 	   << " NDB Node(s)" 
 	   << endl;
 
-    for(int i=0; i < state->no_of_nodes; i++) {
+    for(i=0; i < state->no_of_nodes; i++) {
       if(state->node_states[i].node_type == NDB_MGM_NODE_TYPE_NDB) {
 	ndbout << "DB node:\t" << state->node_states[i].node_id;
 	if(state->node_states[i].version != 0) {
@@ -695,7 +696,7 @@ CommandInterpreter::executeShow(char* parameters)
 	   << " API Node(s)" 
 	   << endl;
 
-    for(int i=0; i < state->no_of_nodes; i++) {
+    for(i=0; i < state->no_of_nodes; i++) {
       if(state->node_states[i].node_type == NDB_MGM_NODE_TYPE_API) {
 	ndbout << "API node:\t" << state->node_states[i].node_id;
 	if(state->node_states[i].version != 0) {
@@ -716,7 +717,7 @@ CommandInterpreter::executeShow(char* parameters)
 	   << " MGM Node(s)" 
 	   << endl;
 
-    for(int i=0; i < state->no_of_nodes; i++) {
+    for(i=0; i < state->no_of_nodes; i++) {
       if(state->node_states[i].node_type == NDB_MGM_NODE_TYPE_MGM) {
 	ndbout << "MGM node:\t" << state->node_states[i].node_id;
 	if(state->node_states[i].version != 0) {
@@ -759,6 +760,7 @@ CommandInterpreter::executeShow(char* parameters)
 void 
 CommandInterpreter::executeClusterLog(char* parameters) 
 {
+  int i;
   connect();
   if (parameters != 0 && strlen(parameters) != 0) {
   enum ndb_mgm_clusterlog_level severity = NDB_MGM_CLUSTERLOG_ALL;
@@ -846,10 +848,10 @@ CommandInterpreter::executeClusterLog(char* parameters)
 	ndbout << "Cluster logging is disabled." << endl;
 
       
-      for(int i = 0; i<7;i++)
+      for(i = 0; i<7;i++)
 	printf("enabled[%d] = %d\n", i, enabled[i]);
       ndbout << "Severities enabled: ";
-      for(int i = 1; i < 7; i++) {
+      for(i = 1; i < 7; i++) {
 	if(enabled[i])
 	  ndbout << names[i] << " ";
       }
@@ -1298,14 +1300,15 @@ CommandInterpreter::executeLog(int processId,
     return;
   }
   int len=0;  
-  for(Uint32 i=0; i<blocks.size(); i++) {
+  Uint32 i;
+  for(i=0; i<blocks.size(); i++) {
     ndbout_c("blocks %s %d",blocks[i], strlen(blocks[i]));
     len +=  strlen(blocks[i]);
   }
   len += blocks.size()*2;
   char * blockNames = (char*)malloc(len);
   
-  for(Uint32 i=0; i<blocks.size(); i++) {
+  for(i=0; i<blocks.size(); i++) {
     strcat(blockNames, blocks[i]);
     strcat(blockNames, "|");
   }
@@ -1478,7 +1481,7 @@ CommandInterpreter::executeSet(int /*processId*/,
 	     << endl;
     }
     else {
-      NDB_ASSERT(false, "");
+      assert(false);
     }
   }
   else {
@@ -1497,7 +1500,7 @@ CommandInterpreter::executeSet(int /*processId*/,
     }
     else {
       // The primary is not tried to write if the write of backup file fails
-      NDB_ASSERT(false, "");
+      abort();
     }
   }
   free(newpar);

@@ -694,17 +694,18 @@ NdbDictionary::Table*
 NDBT_Tables::getTable(const char* _nam){
   // Search tables list to find a table
   NDBT_Table* tab = NULL;
-  for (int i=0; i<numTestTables; i++){
+  int i;
+  for (i=0; i<numTestTables; i++){
     if (strcmp(test_tables[i]->getName(), _nam) == 0){
       return test_tables[i];
     }
   }
-  for (int i=0; i<numFailTables; i++){
+  for (i=0; i<numFailTables; i++){
     if (strcmp(fail_tables[i]->getName(), _nam) == 0){
       return fail_tables[i];
     }
   }
-  for (int i=0; i<numUtilTables; i++){
+  for (i=0; i<numUtilTables; i++){
     if (strcmp(util_tables[i]->getName(), _nam) == 0){
       return util_tables[i];
     }

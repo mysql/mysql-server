@@ -22,7 +22,7 @@
 #include <NdbSleep.h>
 #include <getarg.h>
 #include <kernel/ndb_limits.h>
-#include "../src/common/mgmcommon/LocalConfig.hpp"
+#include "../include/mgmcommon/LocalConfig.hpp"
 
 #include <NDBT.hpp>
 
@@ -67,13 +67,13 @@ int main(int argc, const char** argv){
       return NDBT_ProgramExit(NDBT_FAILED);
     }
 
-    for (int i = 0; i<lcfg.items; i++)
+    for (int i = 0; i<lcfg.ids.size();i++)
     {
-      MgmtSrvrId * m = lcfg.ids[i];
+      MgmtSrvrId * m = &lcfg.ids[i];
       
       switch(m->type){
       case MgmId_TCP:
-	snprintf(buf, 255, "%s:%d", m->data.tcp.remoteHost, m->data.tcp.port);
+	snprintf(buf, 255, "%s:%d", m->name.c_str(), m->port);
 	_hostName = buf;
 	break;
       case MgmId_File:
@@ -129,7 +129,8 @@ getStatus(){
       retries++;
       continue;
     }
-    for (int i = 0; i < status->no_of_nodes; i++){
+    int count = status->no_of_nodes;
+    for (int i = 0; i < count; i++){
       node = &status->node_states[i];      
       switch(node->node_type){
       case NDB_MGM_NODE_TYPE_NDB:
@@ -150,7 +151,7 @@ getStatus(){
 	  apiNodes.clear();
 	  free(status); 
 	  status = NULL;
-	  i = status->no_of_nodes;
+          count = 0;
 
 	  ndbout << "kalle"<< endl;
 	  break;

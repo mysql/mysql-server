@@ -168,13 +168,6 @@ setSignalLog(){
 #endif
 #endif
 
-// These symbols are needed, but not used in the API
-int g_sectionSegmentPool;
-struct ErrorReporter {
-  void handleAssert(const char*, const char*, int);
-};
-void ErrorReporter::handleAssert(const char*, const char*, int) {}
-
 /**
  * The execute function : Handle received signal
  */
@@ -318,6 +311,14 @@ execute(void * callbackObj, SignalHeader * const header,
   }
 }
 
+// These symbols are needed, but not used in the API
+void 
+SignalLoggerManager::printSegmentedSection(FILE *, const SignalHeader &,
+					   const SegmentedSectionPtr ptr[3],
+					   unsigned i){
+  abort();
+}
+
 void 
 copy(Uint32 * & insertPtr, 
      class SectionSegmentPool & thePool, const SegmentedSectionPtr & _ptr){
@@ -342,27 +343,39 @@ TransporterFacade*
 TransporterFacade::start_instance(const char * connectString){
 
   // TransporterFacade used from API get config from mgmt srvr
-  s_config_retriever= new ConfigRetriever;
+  s_config_retriever= new ConfigRetriever(NDB_VERSION, NODE_TYPE_API);
 
-  ConfigRetriever &configRetriever= *s_config_retriever;
-  configRetriever.setConnectString(connectString);
-  ndb_mgm_configuration * props = configRetriever.getConfig(NDB_VERSION, 
-							    NODE_TYPE_API);
-  if (props == 0) {
-    ndbout << "Configuration error: ";
-    const char* erString = configRetriever.getErrorString();
-    if (erString == 0) {
-      erString = "No error specified!";
-    }
-    ndbout << erString << endl;
-    return 0;
+  s_config_retriever->setConnectString(connectString);
+  const char* error = 0;
+  do {
+    if(s_config_retriever->init() == -1)
+      break;
+    
+    if(s_config_retriever->do_connect() == -1)
+      break;
+    
+    const Uint32 nodeId = s_config_retriever->allocNodeId();
+    if(nodeId == 0)
+      break;
+    
+    
+    ndb_mgm_configuration * props = s_config_retriever->getConfig();
+    if(props == 0)
+      break;
+    
+    TransporterFacade * tf = start_instance(nodeId, props);
+    
+    free(props);
+    return tf;
+  } while(0);
+  
+  ndbout << "Configuration error: ";
+  const char* erString = s_config_retriever->getErrorString();
+  if (erString == 0) {
+    erString = "No error specified!";
   }
-  const int nodeId = configRetriever.getOwnNodeId();
-  
-  TransporterFacade * tf = start_instance(nodeId, props);
-  
-  free(props);
-  return tf;
+  ndbout << erString << endl;
+  return 0;
 }
 
 TransporterFacade* 
@@ -462,11 +475,15 @@ void TransporterFacade::threadMainSend(void)
   SocketServer socket_server;
 
   theTransporterRegistry->startSending();
-  if (!theTransporterRegistry->start_service(socket_server))
-    NDB_ASSERT(0, "Unable to start theTransporterRegistry->start_service");
+  if (!theTransporterRegistry->start_service(socket_server)){
+    ndbout_c("Unable to start theTransporterRegistry->start_service");
+    exit(0);
+  }
 
-  if (!theTransporterRegistry->start_clients())
-    NDB_ASSERT(0, "Unable to start theTransporterRegistry->start_clients");
+  if (!theTransporterRegistry->start_clients()){
+    ndbout_c("Unable to start theTransporterRegistry->start_clients");
+    exit(0);
+  }
 
   socket_server.startServer();
 
@@ -1023,3 +1040,6 @@ TransporterFacade::ThreadData::close(int number){
   m_statusFunction[number] = 0;
   return 0;
 }
+
+template class Vector<NodeStatusFunction>;
+template class Vector<TransporterFacade::ThreadData::Object_Execute>;
