@@ -34,6 +34,7 @@
 #include <nisam.h>
 #include <thr_alarm.h>
 #include <ft_global.h>
+#include "vio.h"
 
 #ifndef DBUG_OFF
 #define ONE_THREAD
@@ -243,7 +244,7 @@ static char *opt_ssl_key = 0;
 static char *opt_ssl_cert = 0;
 static char *opt_ssl_ca = 0;
 static char *opt_ssl_capath = 0;
-static VioSSLAcceptorFd* ssl_acceptor_fd = 0;
+static struct st_VioSSLAcceptorFd * ssl_acceptor_fd = 0;
 #endif /* HAVE_OPENSSL */
 
 
@@ -518,7 +519,7 @@ static void close_connections(void)
 
   /* Force remaining threads to die by closing the connection to the client */
 
-  (void) my_net_init(&net, (Vio*) 0);
+  (void) my_net_init(&net, (st_vio*) 0);
   for (;;)
   {
     DBUG_PRINT("quit",("Locking LOCK_thread_count"));
@@ -960,7 +961,7 @@ void yyerror(const char *s)
 
 void close_connection(NET *net,uint errcode,bool lock)
 {
-  Vio* vio;
+  st_vio* vio;
   DBUG_ENTER("close_connection");
   DBUG_PRINT("enter",("fd: %s  error: '%s'",
                     net->vio? vio_description(net->vio):"(not connected)",
@@ -1609,8 +1610,9 @@ int main(int argc, char **argv)
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
   {
-    ssl_acceptor_fd = VioSSLAcceptorFd_new(opt_ssl_key, opt_ssl_cert,
+    ssl_acceptor_fd = new_VioSSLAcceptorFd(opt_ssl_key, opt_ssl_cert,
 					   opt_ssl_ca, opt_ssl_capath);
+    DBUG_PRINT("info",("ssl_acceptor_fd: %p",ssl_acceptor_fd));
     if (!ssl_acceptor_fd)
       opt_use_ssl=0;
     /* having ssl_acceptor_fd!=0 signals the use of SSL */
@@ -2025,7 +2027,7 @@ static int bootstrap(FILE *file)
   int error;
   thd->bootstrap=1;
   thd->client_capabilities=0;
-  my_net_init(&thd->net,(Vio*) 0);
+  my_net_init(&thd->net,(st_vio*) 0);
   thd->max_packet_length=thd->net.max_packet;
   thd->master_access= ~0;
   thd->thread_id=thread_id++;
@@ -2162,7 +2164,7 @@ pthread_handler_decl(handle_connections_sockets,arg __attribute__((unused)))
   THD *thd;
   struct sockaddr_in cAddr;
   int ip_flags=0,socket_flags=0,flags;
-  Vio *vio_tmp;
+  st_vio *vio_tmp;
   DBUG_ENTER("handle_connections_sockets");
 
   LINT_INIT(new_sock);

@@ -24,7 +24,7 @@ INCLUDES =		@MT_INCLUDES@ \
 			@bdb_includes@ @innodb_includes@ @gemini_includes@ \
 			-I$(srcdir)/../include \
 			-I$(srcdir)/../regex \
-			-I$(srcdir) -I../include -I.. -I.
+			-I$(srcdir) -I../include -I.. -I. $(openssl_includes)
 WRAPLIBS=		@WRAPLIBS@
 SUBDIRS =		share
 bin_PROGRAMS	=	mysqlbinlog
@@ -39,11 +39,12 @@ LDADD =			../isam/libnisam.a \
 			../mysys/libmysys.a \
 			../dbug/libdbug.a \
 			../regex/libregex.a \
+			../vio/libvio.a \
 			../strings/libmystrings.a
 mysqld_LDADD =		@MYSQLD_EXTRA_LDFLAGS@ \
 			@bdb_libs@ @innodb_libs@ @pstack_libs@ \
                         @gemini_libs@ \
-			$(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS) @LIBDL@
+			$(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS) @LIBDL@ @openssl_libs@
 noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			item_strfunc.h item_timefunc.h item_uniq.h \
 			item_create.h mysql_priv.h \
@@ -62,7 +63,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			item_cmpfunc.cc item_strfunc.cc item_timefunc.cc \
 			thr_malloc.cc item_create.cc \
 			field.cc key.cc sql_class.cc sql_list.cc \
-			net_serv.cc violite.c net_pkg.cc lock.cc my_lock.c \
+			net_serv.cc net_pkg.cc lock.cc my_lock.c \
 			sql_string.cc sql_manager.cc sql_map.cc \
 			mysqld.cc password.c hash_filo.cc hostname.cc \
 			convert.cc sql_parse.cc sql_yacc.yy \
@@ -85,7 +86,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
 mysqlbinlog_SOURCES =   mysqlbinlog.cc mini_client.cc net_serv.cc \
-			mini_client_errors.c violite.c password.c
+			mini_client_errors.c password.c
 mysqlbinlog_LDADD = $(LDADD) $(CXXLDFLAGS) $(mysqld_LDADD)
 
 DEFS =			-DMYSQL_SERVER \
