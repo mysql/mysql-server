@@ -1,9 +1,9 @@
 #!/usr/bin/perl -w
 #
-# This is a test with uses 3 processes to insert, delete and select
+# This is a test with uses 4 processes to insert, delete , check and select
 #
 
-$opt_loop_count=100000; # Change this to make test harder/easier
+$opt_loop_count=200000; # Change this to make test harder/easier
 
 ##################### Standard benchmark inits ##############################
 
@@ -21,8 +21,8 @@ GetOptions("host=s","db=s","loop-count=i","skip-create","skip-in","skip-delete",
 "verbose","fast-insert","lock-tables","debug","fast","force") || die "Aborted";
 $opt_verbose=$opt_debug=$opt_lock_tables=$opt_fast_insert=$opt_fast=$opt_skip_in=$opt_force=undef;  # Ignore warnings from these
 
-print "Testing 3 multiple connections to a server with 1 insert, 1 delete\n";
-print "and 1 select connections.\n";
+print "Testing 4 multiple connections to a server with 1 insert, 1 delete\n";
+print "1 select and one repair/check connection.\n";
 
 $firsttable  = "bench_f1";
 
@@ -51,6 +51,7 @@ $|= 1;				# Autoflush
 test_insert() if (($pid=fork()) == 0); $work{$pid}="insert";
 test_delete() if (($pid=fork()) == 0); $work{$pid}="delete";
 test_select() if (($pid=fork()) == 0); $work{$pid}="select1";
+repair_and_check() if (($pid=fork()) == 0); $work{$pid}="repair/check";
 
 $errors=0;
 while (($pid=wait()) != -1)
@@ -146,5 +147,42 @@ sub test_select
   }
   $dbh->disconnect; $dbh=0;
   print "Test_select: ok\n";
+  exit(0);
+}
+
+sub repair_and_check
+{
+  my ($dbh,$row,$found1,$last_found1,$i,$type, $table);
+  $found1=0; $last_found1= -1;
+
+  $dbh = DBI->connect("DBI:mysql:$opt_db:$opt_host",
+		      $opt_user, $opt_password,
+		    { PrintError => 0}) || die $DBI::errstr;
+
+  for ($i=0; $found1 != $last_found1 ; $i++)
+  {
+    $type=($i & 2) ? "repair" : "check";
+    $table=$firsttable;
+    $last_found1=$found1;
+    $sth=$dbh->prepare("$type table $table") || die "Got error on prepare: $dbh->errstr\n";
+    $sth->execute || die $dbh->errstr;    
+
+    while (($row=$sth->fetchrow_arrayref))
+    {
+      if ($row->[3] ne "OK")
+      {
+	print "Got error " . $row->[3] . " when doing $type on $table\n";
+	exit(1);
+      }
+    }
+    $sth=$dbh->prepare("select count(*) from $table") || die "Got error on prepare: $dbh->errstr\n";
+    $sth->execute || die $dbh->errstr;
+    @row = $sth->fetchrow_array();
+    $found1= $row[0];
+    $sth->finish;
+    sleep(3);
+  }
+  $dbh->disconnect; $dbh=0;
+  print "check/repair: Did $i repair/checks\n";
   exit(0);
 }
