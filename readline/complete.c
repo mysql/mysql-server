@@ -1377,7 +1377,7 @@ completion_matches (text, entry_function)
   match_list = (char **)xmalloc ((match_list_size + 1) * sizeof (char *));
   match_list[1] = (char *)NULL;
 
-  while (string = (*entry_function) (text, matches))
+  while ((string = (*entry_function) (text, matches)))
     {
       if (matches + 1 == match_list_size)
 	match_list = (char **)xrealloc
@@ -1427,7 +1427,7 @@ username_completion_function (text, state)
       setpwent ();
     }
 
-  while (entry = getpwent ())
+  while ((entry = getpwent ()))
     {
       /* Null usernames should result in all users as possible completions. */
       if (namelen == 0 || (STREQN (username, entry->pw_name, namelen)))

@@ -284,7 +284,7 @@ extern pthread_handler_decl(handle_slave,arg);
 #ifdef SET_RLIMIT_NOFILE
 static uint set_maximum_open_files(uint max_file_limit);
 #endif
-
+static ulong find_bit_type(const char *x, TYPELIB *bit_lib);
 
 /****************************************************************************
 ** Code to end mysqld
@@ -1066,6 +1066,7 @@ static void init_signals(void)
   sigaddset(&set,SIGTERM);
   sigaddset(&set,SIGHUP);
   signal(SIGTERM,SIG_DFL);			// If it's blocked by parent
+  signal(SIGHUP,SIG_DFL);			// If it's blocked by parent
 #ifdef SIGTSTP
   sigaddset(&set,SIGTSTP);
 #endif
@@ -2588,6 +2589,8 @@ static void usage(void)
 			Log slow queries to this log file.  Defaults logging\n\
                         to hostname-slow.log\n\
   --pid-file=path	Pid file used by safe_mysqld\n\
+  --myisam-recover[=option[,option...]] where options is one of DEAULT,\n\
+			BACKUP or FORCE.\n\
   --memlock		Lock mysqld in memory\n\
   -n, --new		Use very new possible 'unsafe' functions\n\
   -o, --old-protocol	Use the old (3.20) protocol\n\
@@ -2879,13 +2882,13 @@ static void get_options(int argc,char **argv)
       default_table_type=DB_TYPE_ISAM;
       myisam_delay_key_write=0;
       myisam_concurrent_insert=0;
-      myisam_recover_type= HA_RECOVER_NONE;
+      myisam_recover_options= 0;
       break;
     case (int) OPT_SAFE:
       opt_specialflag|= SPECIAL_SAFE_MODE;
       myisam_delay_key_write=0;
       myisam_concurrent_insert=0;
-      myisam_recover_type= HA_RECOVER_NONE;	// For now
+      myisam_recover_options= HA_RECOVER_NONE;	// To be changed
       break;
     case (int) OPT_SKIP_CONCURRENT_INSERT:
       myisam_concurrent_insert=0;
@@ -3052,13 +3055,14 @@ static void get_options(int argc,char **argv)
 #endif
     case OPT_MYISAM_RECOVER:
     {
-      int type;
-      if ((type=find_type(optarg, &myisam_recover_typelib, 2)) <= 0)
+      if (!optarg || !optarg[0])
+	myisam_recover_options=HA_RECOVER_DEFAULT;
+      else if ((myisam_recover_options=
+		find_bit_type(optarg, &myisam_recover_typelib)) == ~(ulong) 0)
       {
-	fprintf(stderr,"Unknown option to myisam-recover: %s\n",optarg);
+	fprintf(stderr, "Unknown option to myisam-recover: %s\n",optarg);
 	exit(1);
       }
-      myisam_recover_type=(myisam_recover_types) (type-1);
       break;
     }
     case OPT_MASTER_HOST:
@@ -3592,6 +3596,64 @@ static uint set_maximum_open_files(uint max_file_limit)
   return max_file_limit;
 }
 #endif
+
+
+	/*
+	  Return a bitfield from a string of substrings separated by ','
+	  returns ~(ulong) 0 on error.
+	*/
+
+static ulong find_bit_type(const char *x, TYPELIB *bit_lib)
+{
+  bool found_end;
+  int  found_count;
+  const char *end,*i,*j;
+  const char **array, *pos;
+  ulong found,found_int,bit;
+  DBUG_ENTER("find_bit_type");
+  DBUG_PRINT("enter",("x: '%s'",x));
+
+  found=0;
+  found_end= 0;
+  pos=(my_string) x;
+  do
+  {
+    if (!*(end=strcend(pos,',')))		/* Let end point at fieldend */
+    {
+      while (end > pos && end[-1] == ' ')
+	end--;					/* Skipp end-space */
+      found_end=1;
+    }
+    found_int=0; found_count=0;
+    for (array=bit_lib->type_names, bit=1 ; (i= *array++) ; bit<<=1)
+    {
+      j=pos;
+      while (j != end)
+      {
+	if (toupper(*i++) != toupper(*j++))
+	  goto skipp;
+      }
+      found_int=bit;
+      if (! *i)
+      {
+	found_count=1;
+	break;
+      }
+      else if (j != pos)			// Half field found
+      {
+	found_count++;				// Could be one of two values
+      }
+skipp: ;
+    }
+    if (found_count != 1)
+      DBUG_RETURN(~(ulong) 0);				// No unique value
+    found|=found_int;
+    pos=end+1;
+  } while (! found_end);
+
+  DBUG_PRINT("exit",("bit-field: %ld",(ulong) found));
+  DBUG_RETURN(found);
+} /* find_bit_type */
 
 
 /*****************************************************************************

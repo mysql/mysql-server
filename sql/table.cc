@@ -40,7 +40,7 @@ static byte* get_field_name(Field *buff,uint *length,
 	/* Open a .frm file */
 
 int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
-	    TABLE *outparam)
+	    uint ha_open_flags, TABLE *outparam)
 {
   reg1 uint i;
   reg2 uchar *strpos;
@@ -216,12 +216,12 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	 ha_open(index_file,
 		 (db_stat & HA_READ_ONLY ? O_RDONLY : O_RDWR),
 		 (db_stat & HA_OPEN_TEMPORARY ? HA_OPEN_TMP_TABLE :
-		  db_stat & HA_WAIT_IF_LOCKED ||
-		  specialflag & SPECIAL_WAIT_IF_LOCKED ?
+		  (db_stat & HA_WAIT_IF_LOCKED ||
+		   specialflag & SPECIAL_WAIT_IF_LOCKED) ?
 		  HA_OPEN_WAIT_IF_LOCKED :
 		  (db_stat & (HA_ABORT_IF_LOCKED | HA_GET_INFO)) ?
 		  HA_OPEN_ABORT_IF_LOCKED :
-		  HA_OPEN_IGNORE_IF_LOCKED) | ha_open_options)))
+		  HA_OPEN_IGNORE_IF_LOCKED) | ha_open_flags)))
       goto err_not_open; /* purecov: inspected */
   }
   outparam->db_low_byte_first=outparam->file->low_byte_first();
