@@ -4258,7 +4258,7 @@ in_subselect:
 in_subselect_init:
   select_init
   {
-    $$= Lex->select->master_unit()->first_select();
+    $$= Lex->current_select->master_unit()->first_select();
   };
 
 subselect_start:
