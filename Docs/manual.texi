@@ -8403,9 +8403,9 @@ shell> run-all-tests
 If you don't have the @file{sql-bench} directory, you are probably using an
 RPM for a binary distribution.  (Source distribution RPMs include the
 benchmark directory.) In this case, you must first install the benchmark
-suite before you can use it.  Beginning with @strong{MySQL} 3.22, there are
-benchmark RPM files named @file{mysql-bench-VERSION-i386.rpm} that contain
-benchmark code and data.
+suite before you can use it.  Beginning with @strong{MySQL} Version 3.22, 
+there are benchmark RPM files named @file{mysql-bench-VERSION-i386.rpm} that 
+contain benchmark code and data.
 
 If you have a source distribution, you can also run the tests in the
 @file{tests} subdirectory. For example, to run @file{auto_increment.tst}, do
@@ -8419,17 +8419,17 @@ The expected results are shown in the @file{./tests/auto_increment.res} file.
 @end enumerate
 
 @node mysql_install_db, Starting server, Post-installation, Post-installation
-@subsection Problems running @code{mysql_install_db}
+@subsection Problems Running @code{mysql_install_db}
 @cindex mysql_install_db script
 @cindex scripts, mysql_install_db
 
 
 The purpose of the @code{mysql_install_db} script is to generate new
 @strong{MySQL} privilege tables.  It will not affect any other data!
-It will also not do anything if you have already have MySQL privilege
+It will also not do anything if you already have MySQL privilege
 tables installed!
 
-If you want to recreate your privilege tables, you should take down
+If you want to re-create your privilege tables, you should take down
 the mysqld server, if its running, and then do something like:
 
 @example
@@ -8460,18 +8460,18 @@ what happened, include the log when you post a bug report using
 
 @item There is already a @code{mysqld} daemon running
 
-In this case, you have probably don't have to run @code{mysql_install_db} at
+In this case, you probably don't have to run @code{mysql_install_db} at
 all.  You have to run @code{mysql_install_db} only once, when you install
 @strong{MySQL} the first time.
 
 @item Installing a second @code{mysqld} daemon doesn't work when one daemon is running
 
 This can happen when you already have an existing @strong{MySQL}
-installation, but want to put a new installation in a different place (e.g.,
-for testing, or perhaps you simply want to run two installations at the same
-time).  Generally the problem that occurs when you try to run the second
-server is that it tries to use the same socket and port as the old one.  In
-this case you will get the error message: @code{Can't start server: Bind on
+installation, but want to put a new installation in a different place (for 
+example, for testing, or perhaps you simply want to run two installations at 
+the same time).  Generally the problem that occurs when you try to run the 
+second server is that it tries to use the same socket and port as the old one.
+In this case you will get the error message: @code{Can't start server: Bind on
 TCP/IP port: Address already in use} or @code{Can't start server : Bind on
 unix socket...}  You can start the new server with a different socket and
 port as follows:
@@ -8493,7 +8493,7 @@ variables you can use to affect @code{mysqld}. @xref{Environment variables}.
 
 After this, you should edit your server boot script to start both daemons
 with different sockets and ports.  For example, it could invoke
-@code{safe_mysqld} twice, but with different @code{--socket}, @code{--port}
+@code{safe_mysqld} twice, but with different @code{--socket}, @code{--port},
 and @code{--basedir} options for each invocation.
 
 @item You don't have write access to @file{/tmp}
@@ -8531,7 +8531,7 @@ shell> BINDIR/safe_mysqld &
 
 @item @code{mysqld} crashes immediately
 
-If you are running RedHat 5.0 with a version of @code{glibc} older than
+If you are running RedHat Version 5.0 with a version of @code{glibc} older than
 2.0.7-5, you should make sure you have installed all @code{glibc} patches!
 There is a lot of information about this in the @strong{MySQL} mail
 archives.  Links to the mail archives are available at the online
@@ -8553,7 +8553,7 @@ reload the grant tables.
 @end table
 
 @node Starting server, Automatic start, mysql_install_db, Post-installation
-@subsection Problems starting the MySQL server
+@subsection Problems Starting the MySQL Server
 @cindex server, starting problems
 @cindex problems, starting the server
 
@@ -8593,8 +8593,8 @@ Whichever method you use to start the server, if it fails to start up
 correctly, check the log file to see if you can find out why.  Log files
 are located in the data directory (typically
 @file{/usr/local/mysql/data} for a binary distribution,
-@file{/usr/local/var} for a source distribution),
-@file{\mysql\mysql.err} on Windows.  Look in the data directory for
+@file{/usr/local/var} for a source distribution,
+@file{\mysql\mysql.err} on Windows.)  Look in the data directory for
 files with names of the form @file{host_name.err} and
 @file{host_name.log} where @code{host_name} is the name of your server
 host.  Then check the last few lines of these files:
@@ -8611,7 +8611,7 @@ If you find something like the following in the log file:
 000729 14:50:10  Can't init databases
 @end example
 
-This means that you started mysqld with @code{--bdb-recover} and that
+this means that you started mysqld with @code{--bdb-recover} and that
 Berkeley DB found something wrong with it's log files when it tried to
 recover your databases.  To be able to continue, you should move away
 the old Berkeley DB log file from the database directory to some other
@@ -8660,8 +8660,7 @@ the command @code{telnet your-host-name tcp-ip-port-number} and press
 @code{RETURN} a couple of times.  If you don't get an error message like
 @code{telnet: Unable to connect to remote host: Connection refused},
 something is using the TCP/IP port @code{mysqld} is trying to use.
-@xref{mysql_install_db, , @code{mysql_install_db}}, and @ref{Multiple
-servers}.
+See @ref{mysql_install_db} and @ref{Multiple servers}.
 
 The @code{safe_mysqld} script is written so that it normally is able to start
 a server that was installed from either a source or a binary version of
@@ -8679,7 +8678,7 @@ distributions).  This condition should be met if you execute
 example, @file{/usr/local/mysql} for a binary distribution).
 
 @item
-If the server and databases cannot be found relative to its working directory,
+If the server and databases cannot be found relative to the working directory,
 @code{safe_mysqld} attempts to locate them by absolute pathnames.  Typical
 locations are @file{/usr/local/libexec} and @file{/usr/local/var}.
 The actual locations are determined when the distribution was built from which
@@ -8737,12 +8736,12 @@ This will not run in the background and it should also write a trace in
 problems. @xref{Windows}.
 
 @node Automatic start, Command-line options, Starting server, Post-installation
-@subsection Starting and stopping MySQL automatically
+@subsection Starting and Stopping MySQL Automatically
 @cindex starting, the server automatically
 @cindex stopping, the server
 @cindex server, starting and stopping
 
-The @code{mysql.server} script can be used to start or stop the server,
+The @code{mysql.server} script can be used to start or stop the server
 by invoking it with @code{start} or @code{stop} arguments:
 
 @example
@@ -8751,7 +8750,7 @@ shell> mysql.server stop
 @end example
 
 @code{mysql.server} can be found in the @file{share/mysql} directory
-under the @strong{MySQL} installation directory, or in the @file{support-files}
+under the @strong{MySQL} installation directory or in the @file{support-files}
 directory of the @strong{MySQL} source tree.
 
 Before @code{mysql.server} starts the server, it changes directory to
@@ -8764,15 +8763,14 @@ user, you can change the @code{mysql_daemon_user=root} line to use
 another user.  You can also modify @code{mysql.server} to pass other
 options to @code{safe_mysqld}.
 
-@code{mysql.server stop} brings down server by sending a signal to it.
+@code{mysql.server stop} brings down the server by sending a signal to it.
 You can take down the server manually by executing @code{mysqladmin shutdown}.
 
 You might want to add these start and stop commands to the appropriate places
 in your @file{/etc/rc*} files when you start using @strong{MySQL} for
 production applications.  Note that if you modify @code{mysql.server}, then
-if you upgrade @strong{MySQL} sometime, your modified version will be
-overwritten, so you should make a copy of your edited version that you can
-reinstall.
+upgrade @strong{MySQL} sometime, your modified version will be overwritten, 
+so you should make a copy of your edited version that you can reinstall.
 
 If your system uses @file{/etc/rc.local} to start external scripts, you
 should append the following to it:
@@ -8796,14 +8794,15 @@ basedir=/usr/local/mysql
 @end example
 
 The @code{mysql.server} script uses the following variables:
-@code{user}, @code{datadir}, @code{basedir}, @code{bindir} and @code{pid-file}.
+@code{user}, @code{datadir}, @code{basedir}, @code{bindir}, and 
+@code{pid-file}.
 
 @xref{Option files}.
 
 @findex command-line options
 @cindex options, command-line
 @node Command-line options, Option files, Automatic start, Post-installation
-@subsection Command-line options
+@subsection Command-line Options
 
 @code{mysqld} accepts the following command-line options:
 
@@ -8819,7 +8818,7 @@ usually resolved relative to this.
 @item --big-tables
 Allow big result sets by saving all temporary sets on file. It solves
 most 'table full' errors, but also slows down the queries where
-in-memory tables would suffice. Since version 3.23.2 @strong{MySQL} is
+in-memory tables would suffice. Since Version 3.23.2, @strong{MySQL} is
 able to solve it automaticaly by using memory for small temporary
 tables and switching to disk tables where necessary.
 
@@ -8854,8 +8853,8 @@ Enable system locking.
 Print some debug info at exit.
 
 @item --flush
-Flush all changes to disk after each SQL commands;  Normally @strong{MySQL}
-only does a write of all changes to disk after each SQL command, and lets
+Flush all changes to disk after each SQL command.  Normally @strong{MySQL}
+only does a write of all changes to disk after each SQL command and lets
 the operating system handle the syncing to disk.
 @xref{Crashing}.
 
@@ -8870,7 +8869,7 @@ Client error messages in given language. May be given as a full path.
 @xref{Languages}.
 
 @item -l, --log[=file]
-Log connections and queries to file
+Log connections and queries to file.
 
 @item --log-isam[=file]
 Log all ISAM/MyISAM changes to file (only used when debugging ISAM/MyISAM).
@@ -8914,7 +8913,7 @@ Use the 3.20 protocol for compatibility with some very old clients.
 Only use one thread (for debugging under Linux). @xref{Debugging server}.
 
 @item -O, --set-variable var=option
-Give a variable an value. @code{--help} lists variables.
+Give a variable a value. @code{--help} lists variables.
 You can find a full description for all variables in the @code{SHOW VARIABLES}
 section in this manual. @xref{SHOW VARIABLES}.
 The tuning server parameters section includes information of how to optimize
@@ -8935,13 +8934,13 @@ IP numbers returned by the @code{gethostbyname()} system call are
 checked to make sure they resolve back to the original hostname. This
 makes it harder for someone on the outside to get access by pretending
 to be another host. This option also adds some sanity checks of
-hostnames. The option is turned off by default in @strong{MySQL} 3.21
+hostnames. The option is turned off by default in @strong{MySQL} Version 3.21
 because sometimes it takes a long time to perform backward resolutions.
-@strong{MySQL} 3.22 caches hostnames (unless @code{--skip-host-cache} is
-used) and has this option enabled by default.
+@strong{MySQL} Version 3.22 caches hostnames (unless @code{--skip-host-cache} 
+is used) and has this option enabled by default.
 
 @item --skip-concurrent-insert
-Turn of that one can insert and select at the same time on @code{MyISAM}
+Turn off the ability to select and insert at the same time on @code{MyISAM}
 tables. (This is only to be used if you think you have found a bug
 in this feature).
 
@@ -8950,9 +8949,9 @@ Ignore the @code{delay_key_write} option for all tables.
 @xref{Server parameters}.
 
 @item --skip-locking
-Don't use system locking. To use @code{isamchk} or @code{myisamchk} one has
-to shut down the server. @xref{Stability}.  Note that in @strong{MySQL} 3.23
-one can use @code{REPAIR} and @code{CHECK} to repair/check @code{MyISAM}
+Don't use system locking. To use @code{isamchk} or @code{myisamchk} you must
+shut down the server. @xref{Stability}.  Note that in @strong{MySQL} Version 
+3.23 you can use @code{REPAIR} and @code{CHECK} to repair/check @code{MyISAM}
 tables.
 
 @item --skip-name-resolve
@@ -8961,7 +8960,7 @@ tables must be IP numbers or @code{localhost}.
 
 @item --skip-networking
 Don't listen for TCP/IP connections at all.
-All interaction with @code{mysqld} must be made via Unix sockets.
+All interaction with @code{mysqld} must be made via UNIX sockets.
 This option is highly recommended for systems where only local requests
 are allowed. However, this option is unsuitable for systems that use
 MIT-pthreads, because the MIT-pthreads package doesn't support Unix
@@ -8981,7 +8980,7 @@ Don't allow 'SHOW DATABASE' commands, unless the user has
 @strong{process} privilege.
 
 @item --skip-thread-priority
-Disable using thread priorities for faster responce time.
+Disable using thread priorities for faster response time.
 
 @item --socket=path
 Socket file to use for local connections instead of default
@@ -8996,7 +8995,7 @@ Run @code{mysqld} daemon as user @code{user_name}. This option is
 @emph{mandatory} when starting @code{mysqld} as root.
 
 @item -V, --version
-output version information and exit
+Output version information and exit.
 
 @end table
 
@@ -9005,12 +9004,12 @@ output version information and exit
 @cindex creating, default startup options
 @cindex startup options, default
 @node Option files,  , Command-line options, Post-installation
-@subsection Option files
+@subsection Option Files
 
-@strong{MySQL} 3.22 can read default startup options for the server and
+@strong{MySQL} Version 3.22 can read default startup options for the server and
 for clients from option files.
 
-@strong{MySQL} reads default options from the following files on Unix:
+@strong{MySQL} reads default options from the following files on UNIX:
 
 @tindex .my.cnf file
 @multitable @columnfractions .3 .7
@@ -9021,7 +9020,7 @@ for clients from option files.
 @end multitable
 
 @code{DATADIR} is the @strong{MySQL} data directory (typically
-@file{/usr/local/mysql/data} for a binary installation, or
+@file{/usr/local/mysql/data} for a binary installation or
 @file{/usr/local/var} for a source installation).  Note that this is the
 directory that was specified at configuration time, not the one specified
 with @code{--datadir} when @code{mysqld} starts up!  (@code{--datadir} has no
@@ -9037,7 +9036,7 @@ before it processes any command-line arguments.)
 @item @code{C:\mysql\data\my.cnf} @tab Server-specific options
 @end multitable
 
-Note that you on Windows should specify all paths with @code{/} instead of
+Note that on Windows, you should specify all paths with @code{/} instead of
 @code{\}. If you use @code{\}, you need to specify this twice, as
 @code{\} is the escape character in @strong{MySQL}.
 
@@ -9052,7 +9051,7 @@ environment variable values. @xref{Environment variables}.
 
 The following programs support option files:  @code{mysql},
 @code{mysqladmin}, @code{mysqld}, @code{mysqldump}, @code{mysqlimport},
-@code{mysql.server}, @code{myisamchk} and @code{myisampack}.
+@code{mysql.server}, @code{myisamchk}, and @code{myisampack}.
 
 You can use option files to specify any long option that a program supports!
 Run the program with @code{--help} to get a list of available options.
@@ -9087,7 +9086,7 @@ sure the option file is readable and writable only to yourself.)
 
 Note that for options and values, all leading and trailing blanks are
 automatically deleted.  You may use the escape sequences @samp{\b},
-@samp{\t}, @samp{\n}, @samp{\r}, @samp{\\} and @samp{\s} in your value string
+@samp{\t}, @samp{\n}, @samp{\r}, @samp{\\}, and @samp{\s} in your value string
 (@samp{\s} == blank).
 
 Here is a typical global option file:
@@ -9124,7 +9123,7 @@ files named @file{my-xxxx.cnf} in the @file{support-files} directory.
 If you have a binary distribution, look in the @file{DIR/share/mysql}
 directory, where @code{DIR} is the pathname to the @strong{MySQL}
 installation directory (typically @file{/usr/local/mysql}).  Currently
-there is sample configuration files for small, medium, large and very
+there are sample configuration files for small, medium, large, and very
 large systems.  You can copy @file{my-xxxx.cnf} to your home directory
 (rename the copy to @file{.my.cnf}) to experiment with this.
 
@@ -9139,8 +9138,8 @@ If you want to force the use of a specific config file, you can use the option
 specified file will be read.
 
 Note for developers:  Option file handling is implemented simply by
-processing all matching options (i.e., options in the appropriate group)
-before any command line arguments. This works nicely for programs that use
+processing all matching options (that is, options in the appropriate group)
+before any command-line arguments. This works nicely for programs that use
 the last instance of an option that is specified multiple times. If you have
 an old program that handles multiply-specified options this way but doesn't
 read option files, you need add only two lines to give it that capability.
@@ -9148,7 +9147,7 @@ Check the source code of any of the standard @strong{MySQL} clients to see
 how to do this.
 
 @node Upgrade,  , Post-installation, Installing
-@section Is there anything special to do when upgrading/downgrading MySQL?
+@section Is There Anything Special to Do when Upgrading/Downgrading MySQL?
 @cindex upgrading
 @cindex downgrading
 
@@ -9159,15 +9158,14 @@ base version of @strong{MySQL}. The current base version is
 also change the sort order), you must run @code{myisamchk -r -q} on all
 tables.  Otherwise your indexes may not be ordered correctly.
 
-If you are paranoid and/or afraid of new versions, you can always rename your
-old @code{mysqld} to something like @code{mysqld}-'old-version-number'.  If
+If you are afraid of new versions, you can always rename your old 
+@code{mysqld} to something like @code{mysqld}-'old-version-number'.  If
 your new @code{mysqld} then does something unexpected, you can simply shut it
 down and restart with your old @code{mysqld}!
 
-When you do an upgrade you should also backup your old databases, of course.
-Sometimes it's good to be a little paranoid!
+When you do an upgrade you should also back up your old databases, of course.
 
-After an upgrade, if you experience problems with recompiled client programs,
+If after an upgrade, you experience problems with recompiled client programs,
 like @code{Commands out of sync} or unexpected core dumps, you probably have
 used an old header or library file when compiling your programs.  In this
 case you should check the date for your @file{mysql.h} file and
@@ -9196,19 +9194,21 @@ dumping core after you upgrade @strong{MySQL}.
 @cindex compatibility, between @strong{MySQL} versions
 @cindex upgrading, 3.22 to 3.23
 @node Upgrading-from-3.22, Upgrading-from-3.21, Upgrade, Upgrade
-@subsection Upgrading from a 3.22 version to 3.23
+@subsection Upgrading From Version 3.22 to Version 3.23
 
-@strong{MySQL} 3.23 supports tables of the new @code{MyISAM} type and
+@strong{MySQL} Version 3.23 supports tables of the new @code{MyISAM} type and
 the old @code{ISAM} type.  You don't have to convert your old tables to
-use these with 3.23.  By default, all new tables will be created with
+use these with Version 3.23.  By default, all new tables will be created with
 type @code{MyISAM} (unless you start @code{mysqld} with the
-@code{--default-table-type=isam} option. You can change an @code{ISAM}
+@code{--default-table-type=isam} option). You can change an @code{ISAM}
 table to a @code{MyISAM} table with @code{ALTER TABLE} or the Perl script
 @code{mysql_convert_table_format}.
 
-3.22 and 3.21 clients will work without any problems with a 3.23 server.
+Version 3.22 and 3.21 clients will work without any problems with a Version 
+3.23 server.
 
-The following lists tell what you have to watch out for when upgrading to 3.23:
+The following lists tell what you have to watch out for when upgrading to 
+Version 3.23:
 
 @itemize @bullet
 @item
@@ -9245,11 +9245,11 @@ flag.
 or @code{myisamchk} for @code{MyISAM} tables (@code{.MYI}) and
 @code{isamchk} for ISAM (@code{.ISM}) tables.
 @item If you want your @code{mysqldump} files to be compatible between
-@strong{MySQL} 3.22 and 3.23, you should not use the @code{--opt} or
-@code{--full} option to @code{mysqldump}.
+@strong{MySQL} Version 3.22 and Version 3.23, you should not use the 
+@code{--opt} or @code{--full} option to @code{mysqldump}.
 @item Check all your calls to @code{DATE_FORMAT()} to make sure there is a
-@samp{%} before each format character.  (Later @strong{MySQL} 3.22
-version did allow this syntax.)
+@samp{%} before each format character.  (Later @strong{MySQL} Version 3.22
+did allow this syntax.)
 @item
 @code{mysql_fetch_fields_direct} is now a function (it was a macro) and
 it returns a pointer to a @code{MYSQL_FIELD} instead of a
@@ -9259,34 +9259,33 @@ it returns a pointer to a @code{MYSQL_FIELD} instead of a
 now a function that takes @code{MYSQL_RES*} as an argument. You should now
 use @code{mysql_field_count()} instead.
 @item
-In @strong{MySQL} 3.22, the output of @code{SELECT DISTINCT ...} was
-almost always sorted.  In 3.23, you must use @code{GROUP BY} or
+In @strong{MySQL} Version 3.22, the output of @code{SELECT DISTINCT ...} was
+almost always sorted.  In Version 3.23, you must use @code{GROUP BY} or
 @code{ORDER BY} to obtain sorted output.
 @item
 @code{SUM()} now returns @code{NULL}, instead of 0, if there is no matching
 rows. This is according to ANSI SQL.
-@item
-New restricted words: @code{CASE, THEN, WHEN, ELSE, END and RIGHT}
+@item New restricted words: @code{CASE, THEN, WHEN, ELSE, END, and RIGHT}.
 @item An @code{AND} or @code{OR} with @code{NULL} values will now return
-@code{NULL} instead of 0. This mostly affects queries that uses @code{NOT}
+@code{NULL} instead of 0. This mostly affects queries that use @code{NOT}
 on an @code{AND/OR} expression as @code{NOT NULL} = @code{NULL}.
 @end itemize
 
 @cindex compatibility, between MySQL versions
 @node Upgrading-from-3.21, Upgrading-from-3.20, Upgrading-from-3.22, Upgrade
-@subsection Upgrading from a 3.21 version to 3.22
+@subsection Upgrading from Version 3.21 to Version 3.22
 @cindex upgrading, 3.21 to 3.22
 
-Nothing that affects compatibility has changed between 3.21 and 3.22.  The
-only pitfall is that new tables that are created with @code{DATE} type
+Nothing that affects compatibility has changed between Version 3.21 and 3.22. 
+The only pitfall is that new tables that are created with @code{DATE} type
 columns will use the new way to store the date. You can't access these new
 fields from an old version of @code{mysqld}.
 
-After installing @strong{MySQL} 3.22, you should start the new server and
-then run the @code{mysql_fix_privilege_tables} script. This will add the new
-privileges that you need to use the @code{GRANT} command.  If you forget
+After installing @strong{MySQL} Version 3.22, you should start the new server 
+and then run the @code{mysql_fix_privilege_tables} script. This will add the 
+new privileges that you need to use the @code{GRANT} command.  If you forget
 this, you will get @code{Access denied} when you try to use @code{ALTER
-TABLE}, @code{CREATE INDEX} or @code{DROP INDEX}. If your @strong{MySQL} root
+TABLE}, @code{CREATE INDEX}, or @code{DROP INDEX}. If your @strong{MySQL} root
 user requires a password, you should give this as an argument to
 @code{mysql_fix_privilege_tables}.
 
@@ -9303,17 +9302,17 @@ The @code{mysqld} variable @code{key_buffer} has changed names to
 startup files.
 
 @node Upgrading-from-3.20, Upgrading-to-arch, Upgrading-from-3.21, Upgrade
-@subsection Upgrading from a 3.20 version to 3.21
-@cindex upgrading, 3.202 to 3.21
+@subsection Upgrading from Version 3.20 to Version 3.21
+@cindex upgrading, 3.20 to 3.21
 
-If you are running a version older than 3.20.28 and want to
-switch to 3.21.x, you need to do the following:
+If you are running a version older than Version 3.20.28 and want to
+switch to Version 3.21, you need to do the following:
 
-You can start the @code{mysqld} 3.21 server with @code{safe_mysqld
---old-protocol} to use it with clients from the 3.20 distribution.
+You can start the @code{mysqld} Version 3.21 server with @code{safe_mysqld
+--old-protocol} to use it with clients from a Version 3.20 distribution.
 In this case, the new client function @code{mysql_errno()} will not
-return any server error, only @code{CR_UNKNOWN_ERROR}, (but it
-works for client errors) and the server uses the old @code{password()} 
+return any server error, only @code{CR_UNKNOWN_ERROR} (but it
+works for client errors), and the server uses the old @code{password()} 
 checking rather than the new one.
 
 If you are @strong{NOT} using the @code{--old-protocol} option to
@@ -9333,11 +9332,11 @@ rather than 31-bit passwords).
 The table format hasn't changed, so you don't have to convert any tables.
 @end itemize
 
-@strong{MySQL} 3.20.28 and above can handle the new @code{user} table format
-without affecting clients. If you have a @strong{MySQL} version earlier than
-3.20.28, passwords will no longer work with it if you convert the @code{user}
-table. So to be safe, you should first upgrade to at least 3.20.28 and then
-upgrade to 3.21.x.
+@strong{MySQL} Version 3.20.28 and above can handle the new @code{user} table 
+format without affecting clients. If you have a @strong{MySQL} version earlier
+than Version 3.20.28, passwords will no longer work with it if you convert the
+@code{user} table. So to be safe, you should first upgrade to at least Version 
+3.20.28 and then upgrade to Version 3.21.
 
 @cindex Protocol mismatch
 The new client code works with a 3.20.x @code{mysqld} server, so
@@ -9368,20 +9367,21 @@ The following changes may affect queries in old applications:
 The parameters to @code{LOCATE()} have been swapped.
 @item
 There are some new reserved words. The most notable are @code{DATE},
-@code{TIME} and @code{TIMESTAMP}.
+@code{TIME}, and @code{TIMESTAMP}.
 @end itemize
 
-@node Upgrading-to-arch,  , Upgrading-from-3.20, Upgrade
-@subsection Upgrading to another architecture
 @cindex upgrading, different architecture
+@node Upgrading-to-arch,  , Upgrading-from-3.20, Upgrade
+@subsection Upgrading to Another Architecture
 
-If you are using @strong{MySQL} 3.23, you can copy the @code{.frm}, the
-@code{.MYI} and the @code{.MYD} files between different architectures
-that support the same floating point format.  (@strong{MySQL} takes care
-of any byte swapping issues).
 
-The @strong{MySQL} @code{ISAM} data @file{*.ISD} and the index files
-@file{*.ISM} files) are architecture-dependent and in some case
+If you are using @strong{MySQL} Version 3.23, you can copy the @code{.frm}, 
+@code{.MYI}, and @code{.MYD} files between different architectures that 
+support the same floating point format.  (@strong{MySQL} takes care of any 
+byte swapping issues.)
+
+The @strong{MySQL} @code{ISAM} data and index files (@file{.ISD} and 
+@file{*.ISM}, respectively) are architecture-dependent and in some case
 OS-dependent.  If you want to move your applications to another machine
 that has a different architecture or OS than your current machine, you
 should not try to move a database by simply copying the files to the
@@ -9470,7 +9470,7 @@ information.
 @cindex extensions, to ANSI SQL
 @cindex ANSI SQL92, extensions to
 @node Compatibility, Privilege system, Installing, Top
-@chapter How standards-compatible is MySQL?
+@chapter How Standards-compatible Is MySQL?
 
 @menu
 * Extensions to ANSI::          @strong{MySQL} extensions to ANSI SQL92
@@ -9482,7 +9482,7 @@ information.
 @end menu
 
 @node Extensions to ANSI, Ansi mode, Compatibility, Compatibility
-@section MySQL extensions to ANSI SQL92
+@section MySQL Extensions to ANSI SQL92
 
 @strong{MySQL} includes some extensions that you probably will not find in
 other SQL databases.  Be warned that if you use them, your code will not be
@@ -9497,26 +9497,26 @@ SELECT /*! STRAIGHT_JOIN */ col_name FROM table1,table2 WHERE ...
 @end example
 
 If you add a version number after the @code{'!'}, the syntax will only be
-executed if the @strong{MySQL} version is equal or newer than the used
+executed if the @strong{MySQL} version is equal to or newer than the used
 version number:
 
 @example
 CREATE /*!32302 TEMPORARY */ TABLE (a int);
 @end example
 
-The above means that if you have 3.23.02 or newer, then @strong{MySQL} will use
-the @code{TEMPORARY} keyword.
+The above means that if you have Version 3.23.02 or newer, then @strong{MySQL}
+will use the @code{TEMPORARY} keyword.
 
 @strong{MySQL} extensions are listed below:
 
 @itemize @bullet
 @item
-The field types @code{MEDIUMINT}, @code{SET}, @code{ENUM} and the
+The field types @code{MEDIUMINT}, @code{SET}, @code{ENUM}, and the
 different @code{BLOB} and @code{TEXT} types.
 
 @item
 The field attributes @code{AUTO_INCREMENT}, @code{BINARY}, @code{NULL},
-@code{UNSIGNED} and @code{ZEROFILL}.
+@code{UNSIGNED}, and @code{ZEROFILL}.
 
 @item
 All string comparisons are case insensitive by default, with sort
@@ -9533,25 +9533,27 @@ directory.
 
 This has a few implications:
 
-@itemize @minus
-@item
 @cindex Database names, case sensitivity
 @cindex Table names, case sensitivity
 @cindex Case sensitivity, of database names
 @cindex Case sensitivity, of table names
+
+@itemize @minus
+
+@item
 Database names and table names are case sensitive in @strong{MySQL} on
-operating systems that have case sensitive filenames (like most Unix
+operating systems that have case-sensitive filenames (like most UNIX
 systems). If you have a problem remembering table names, adopt a consistent
 convention, such as always creating databases and tables using lowercase
 names.
 
 @item
-Database, table, index, column or alias names may begin with a digit
+Database, table, index, column, or alias names may begin with a digit
 (but may not consist solely of digits).
 
 @item
-You can use standard system commands to backup, rename, move, delete and copy
-tables.  For example, to rename a table, rename the @file{.MYD}, @file{.MYI}
+You can use standard system commands to backup, rename, move, delete, and copy
+tables.  For example, to rename a table, rename the @file{.MYD}, @file{.MYI},
 and @file{.frm} files to which the table corresponds.
 @end itemize
 
@@ -9559,7 +9561,7 @@ and @file{.frm} files to which the table corresponds.
 In SQL statements, you can access tables from different databases
 with the @code{db_name.tbl_name} syntax.  Some SQL servers provide
 the same functionality but call this @code{User space}.
-@strong{MySQL} doesn't support tablespaces like in:
+@strong{MySQL} doesn't support tablespaces as in:
 @code{create table ralph.my_table...IN my_tablespace}.
 
 @item
@@ -9587,7 +9589,7 @@ Use of @code{TEMPORARY} or @code{IF NOT EXISTS} with @code{CREATE TABLE}.
 Use of @code{COUNT(DISTINCT list)} where 'list' is more than one element.
 
 @item
-Use of @code{CHANGE col_name}, @code{DROP col_name} or @code{DROP
+Use of @code{CHANGE col_name}, @code{DROP col_name}, or @code{DROP
 INDEX}, @code{IGNORE} or @code{RENAME} in an @code{ALTER TABLE}
 statement. @xref{ALTER TABLE, , @code{ALTER TABLE}}.
 
@@ -9595,7 +9597,7 @@ statement. @xref{ALTER TABLE, , @code{ALTER TABLE}}.
 Use of @code{RENAME TABLE}. @xref{RENAME TABLE, , @code{RENAME TABLE}}.
 
 @item
-Use of multiple @code{ADD}, @code{ALTER}, @code{DROP} or @code{CHANGE}
+Use of multiple @code{ADD}, @code{ALTER}, @code{DROP}, or @code{CHANGE}
 clauses in an @code{ALTER TABLE} statement.
 
 @item
@@ -9613,7 +9615,7 @@ statements.
 
 @item
 The @code{LOW_PRIORITY} clause of the @code{INSERT}, @code{REPLACE},
-@code{DELETE} and @code{UPDATE} statements.
+@code{DELETE}, and @code{UPDATE} statements.
 
 @cindex Oracle compatibility
 @cindex Compatibility, with Oracle
@@ -9622,7 +9624,7 @@ Use of @code{LOAD DATA INFILE}. In many cases, this syntax is compatible with
 Oracle's @code{LOAD DATA INFILE}. @xref{LOAD DATA, , @code{LOAD DATA}}.
 
 @item
-The @code{ANALYZE TABLE}, @code{CHECK TABLE}, @code{OPTIMIZE TABLE} and
+The @code{ANALYZE TABLE}, @code{CHECK TABLE}, @code{OPTIMIZE TABLE}, and
 @code{REPAIR TABLE} statements.
 
 @item
@@ -9645,7 +9647,7 @@ queries.
 @xref{Group by functions}.
 
 @item
-To make it easier for users that come from other SQL environments,
+To make it easier for users who come from other SQL environments,
 @strong{MySQL} supports aliases for many functions. For example, all
 string functions support both ANSI SQL syntax and ODBC syntax.
 
@@ -9672,7 +9674,7 @@ for C programmers and for compatibility with PostgreSQL.
 
 @item
 The @code{=}, @code{<>}, @code{<=} ,@code{<}, @code{>=},@code{>},
-@code{<<}, @code{>>}, @code{<=>}, @code{AND}, @code{OR} or @code{LIKE}
+@code{<<}, @code{>>}, @code{<=>}, @code{AND}, @code{OR}, or @code{LIKE}
 operators may be used in column comparisons to the left of the
 @code{FROM} in @code{SELECT} statements.  For example:
 
@@ -9704,7 +9706,7 @@ Use of @code{TRIM()} to trim substrings. ANSI SQL only supports removal
 of single characters.
 
 @item
-The @code{GROUP BY} functions @code{STD()}, @code{BIT_OR()} and
+The @code{GROUP BY} functions @code{STD()}, @code{BIT_OR()}, and
 @code{BIT_AND()}.
 
 @item
@@ -9724,18 +9726,18 @@ SELECT @@t1:=(@@t2:=1)+@@t3:=4,@@t1,@@t2,@@t3;
 @end itemize
 
 @node Ansi mode, Differences from ANSI, Extensions to ANSI, Compatibility
-@section Running MySQL in ANSI mode
+@section Running MySQL in ANSI Mode
 @cindex running, ANSI mode
 @cindex ANSI mode, running
 
-If you start mysqld with the @code{--ansi} option, the following behaviour
-of @strong{MySQL} changes.
+If you start mysqld with the @code{--ansi} option, the following behavior
+of @strong{MySQL} changes:
 
 @itemize @bullet
 @item
 @code{||} is string concatenation instead of @code{OR}.
 @item
-One can have any number of spaces between a function name and the @samp{(}. 
+You can have any number of spaces between a function name and the @samp{(}. 
 This makes also all function names reserved words.
 @item
 @samp{"} will be an identifier quote character (like the @strong{MySQL}
@@ -9746,7 +9748,7 @@ This makes also all function names reserved words.
 @end itemize
 
 @node Differences from ANSI, Missing functions, Ansi mode, Compatibility
-@section MySQL differences compared to ANSI SQL92
+@section MySQL Differences Compared to ANSI SQL92
 
 We try to make @strong{MySQL} follow the ANSI SQL standard and the
 ODBC SQL standard, but in some cases @strong{MySQL} does some things
@@ -9762,7 +9764,7 @@ stored. @xref{Bugs}.
 In some cases, @code{CHAR} columns are silently changed to @code{VARCHAR}
 columns. @xref{Silent column changes}.
 @item
-Privileges for a table is not automatically revoked when you delete a
+Privileges for a table are not automatically revoked when you delete a
 table. You must explicitly issue a @code{REVOKE} to revoke privileges for
 a table. @xref{GRANT, , @code{GRANT}}.
 @item
@@ -9772,7 +9774,7 @@ extra conditions in this case.
 @end itemize
 
 @node Missing functions, Standards, Differences from ANSI, Compatibility
-@section Functionality missing from MySQL
+@section Functionality Missing from MySQL
 @cindex missing functionality
 @cindex functionality, missing
 
@@ -9804,7 +9806,7 @@ SELECT * FROM table1 WHERE id IN (SELECT id FROM table2);
 SELECT * FROM table1 WHERE id NOT IN (SELECT id FROM table2);
 @end example
 
-However, in many cases you can rewrite the query without a sub select:
+However, in many cases you can rewrite the query without a sub-select:
 
 @example
 SELECT table1.* FROM table1,table2 WHERE table1.id=table2.id;
@@ -9844,8 +9846,8 @@ prompt> mysql --skip-column-names mydb < myscript.sql | mysql mydb
 @end example
 
 @strong{MySQL} only supports @code{INSERT ... SELECT ...} and
-@code{REPLACE ... SELECT ...} Independent sub-selects will be probably
-be available in 3.24.0.  You can now use the function @code{IN()} in
+@code{REPLACE ... SELECT ...} Independent sub-selects will probably
+be available in Version 4.0.  You can now use the function @code{IN()} in
 other contexts, however.
 
 @node Missing SELECT INTO TABLE, Missing Transactions, Missing Sub-selects, Missing functions
@@ -9889,7 +9891,7 @@ First, in the transactional paradigm, if your applications are written
 in a way that is dependent on the calling of ``rollback'' instead of
 ``commit'' in critical situations, then transactions are more
 convenient. Moreover, transactions ensure that unfinished updates or
-corrupting activities are not commited to the database; the server is
+corrupting activities are not committed to the database; the server is
 given the opportunity to do an automatic rollback and your database is
 saved.
 
@@ -9900,7 +9902,7 @@ repair or warn if such occurs. Note that just by using the
 @strong{MySQL} log or even adding one extra log, one can normally fix
 tables perfectly with no data integrity loss.
 
-Moreover, ``fatal'' transactional updates can be rewritten to be
+Moreover, fatal transactional updates can be rewritten to be
 atomic. In fact,we will go so far as to say that all integrity problems
 that transactions solve can be done with @code{LOCK TABLES} or atomic updates,
 ensuring that you never will get an automatic abort from the database,
@@ -9921,17 +9923,17 @@ use.
 
 The transactional paradigm has its benefits and its drawbacks. Many
 users and application developers depend on the ease with which they can
-code around problems where an ``abort'' appears or is necessary, and they
+code around problems where an abort appears to be, or is necessary, and they
 may have to do a little more work with @strong{MySQL} to either think
 differently or write more. If you are new to the atomic operations
 paradigm, or more familiar or more comfortable with transactions, do not
 jump to the conclusion that @strong{MySQL} has not addressed these
 issues. Reliability and integrity are foremost in our minds.  Recent
-estimates are that there are more than 1,000,000 mysqld servers
+estimates indicate that there are more than 1,000,000 mysqld servers
 currently running, many of which are in production environments.  We
 hear very, very seldom from our users that they have lost any data, and
-in almost all of those cases user error is involved. This is in our
-opinion the best proof of @strong{MySQL}'s stability and reliability.
+in almost all of those cases user error is involved. This is, in our
+opinion, the best proof of @strong{MySQL}'s stability and reliability.
 
 Lastly, in situations where integrity is of highest importance,
 @strong{MySQL}'s current features allow for transaction-level or better
@@ -9939,43 +9941,43 @@ reliability and integrity. If you lock tables with @code{LOCK TABLES}, all
 updates will stall until any integrity checks are made.  If you only obtain
 a read lock (as opposed to a write lock), then reads and inserts are
 still allowed to happen.  The new inserted records will not be seen by
-any of the clients that have a @code{READ} lock until they relaease their read
+any of the clients that have a @code{READ} lock until they release their read
 locks.  With @code{INSERT DELAYED} you can queue inserts into a local queue,
-until the locks are released, without having to have the client wait
-for the insert to complete.
+until the locks are released, without having the client wait for the insert 
+to complete.
 
 ``Atomic,'' in the sense that we mean it, is nothing magical. It only means
-that you can be sure that while each specific update is running no other
-user can interfere with it and that there will never be an automatic
+that you can be sure that while each specific update is running, no other
+user can interfere with it, and there will never be an automatic
 rollback (which can happen on transaction based systems if you are not
 very careful).  @strong{MySQL} also guarantees that there will not be
 any dirty reads.  You can find some example of how to write atomic updates
-in the in the commit-rollback section. @xref{Commit-rollback}.
+in the commit-rollback section. @xref{Commit-rollback}.
 
-We have thought quite a bit about integrity and performance and we
+We have thought quite a bit about integrity and performance, and we
 believe that our atomic operations paradigm allows for both high
 reliability and extremely high performance, on the order of three to
 five times the speed of the fastest and most optimally tuned of
 transactional databases. We didn't leave out transactions because they
-are hard to do; The main reason we went with atomic operations as
+are hard to do. The main reason we went with atomic operations as
 opposed to transactions is that by doing this we could apply many speed
 optimizations that would not otherwise have been possible.
 
 Many of our users who have speed foremost in their minds are not at all
 concerned about transactions. For them transactions are not an
 issue. For those of our users who are concerned with or have wondered
-about transactions vis a vis @strong{MySQL}, there is a ``@strong{MySQL}
+about transactions vis-a-vis @strong{MySQL}, there is a ``@strong{MySQL}
 way'' as we have outlined above.  For those where safety is more important
 than speed, we recommend them to use the @code{BDB} tables for all their
 critical data. @xref{BDB}.
 
-One final note: we are currently working on a safe replication schema
+One final note: We are currently working on a safe replication schema
 that we believe to be better than any commercial replication system we
 know of. This system will work most reliably under the atomic
 operations, non-transactional, paradigm. Stay tuned.
 
 @node Missing Triggers, Missing Foreign Keys, Missing Transactions, Missing functions
-@subsection Stored procedures and triggers
+@subsection Stored Procedures and Triggers
 @cindex stored procedures and triggers, defined
 @cindex procedures, stored
 @cindex triggers, stored
@@ -9984,7 +9986,7 @@ operations, non-transactional, paradigm. Stay tuned.
 A stored procedure is a set of SQL commands that can be compiled and stored
 in the server. Once this has been done, clients don't need to keep reissuing
 the entire query but can refer to the stored procedure. This provides better
-performance because the query has to be parsed only once and less information
+performance because the query has to be parsed only once, and less information
 needs to be sent between the server and the client. You can also raise the
 conceptual level by having libraries of functions in the server.
 
@@ -10008,11 +10010,12 @@ To see when @strong{MySQL} might get stored procedures, see @ref{TODO}.
 Note that foreign keys in SQL are not used to join tables, but are used
 mostly for checking referential integrity.  If you want to get results from
 multiple tables from a @code{SELECT} statement, you do this by joining
-tables!
+tables:
 
 @example
 SELECT * from table1,table2 where table1.id = table2.id;
 @end example
+
 @xref{JOIN, , @code{JOIN}}. @xref{example-Foreign keys}.
 
 The @code{FOREIGN KEY} syntax in @strong{MySQL} exists only for compatibility
@@ -10024,7 +10027,7 @@ override. @code{FOREIGN KEY} is sometimes used as a constraint check, but
 this check is unnecessary in practice if rows are inserted into the tables in
 the right order. @strong{MySQL} only supports these clauses because some
 applications require them to exist (regardless of whether or not they
-work!).
+work).
 
 In @strong{MySQL}, you can work around the problem of @code{ON DELETE
 ...} not being implemented by adding the appropriate @code{DELETE} statement to
@@ -10041,17 +10044,17 @@ and may be retrieved by @code{mysqldump} and ODBC.
 @end menu
 
 @node Broken Foreign KEY,  , Missing Foreign Keys, Missing Foreign Keys
-@subsubsection Reasons NOT to use foreign keys
+@subsubsection Reasons NOT to Use Foreign Keys
 @cindex foreign keys, reasons not to use
 
-There are so many problems with @code{FOREIGN KEY}s that we don't
+There are so many problems with foreign keys that we don't
 know where to start:
 
 @itemize @bullet
 @item
 Foreign keys make life very complicated, because the foreign key definitions
 must be stored in a database and implementing them would destroy the whole
-``nice approach'' of using files that can be moved, copied and removed.
+``nice approach'' of using files that can be moved, copied, and removed.
 
 @item
 The speed impact is terrible for @code{INSERT} and @code{UPDATE} statements,
@@ -10074,7 +10077,7 @@ in a very specific order.
 
 @item
 It's very easy to do ``allowed'' circular definitions that make the
-tables impossible to recreate each table with a single create statement,
+tables impossible to re-create each table with a single create statement,
 even if the definition works and is usable.
 @end itemize
 
@@ -10083,8 +10086,8 @@ other client programs the ability to see how a table is connected and to use
 this to show connection diagrams and to help in building applicatons.
 
 @strong{MySQL} will soon store @code{FOREIGN KEY} definitions so that
-a client can ask for and receive an answer how the original connection was
-made. The current @file{.frm} file format does not have any place for it.
+a client can ask for and receive an answer about how the original connection 
+was made. The current @file{.frm} file format does not have any place for it.
 
 @node Missing Views, Missing comments, Missing Foreign Keys, Missing functions
 @subsection Views
@@ -10093,18 +10096,18 @@ made. The current @file{.frm} file format does not have any place for it.
 @strong{MySQL} doesn't support views, but this is on the TODO.
 
 @node Missing comments,  , Missing Views, Missing functions
-@subsection @samp{--} as the start of a comment
+@subsection @samp{--} as the Start of a Comment
 @cindex comments, starting
 @cindex starting, comments
 
 Some other SQL databases use @samp{--} to start comments. @strong{MySQL}
 has @samp{#} as the start comment character, even if the @code{mysql}
-command line tool removes all lines that start with @samp{--}.
+command-line tool removes all lines that start with @samp{--}.
 You can also use the C comment style @code{/* this is a comment */} with
 @strong{MySQL}.
 @xref{Comments}.
 
-@strong{MySQL} 3.23.3 and above supports the @samp{--} comment style
+@strong{MySQL} Version 3.23.3 and above supports the @samp{--} comment style
 only if the comment is followed by a space.  This is because this
 degenerate comment style has caused many problems with automatically
 generated SQL queries that have used something like the following code,
@@ -10120,10 +10123,11 @@ What do you think will happen when the value of @code{payment} is negative?
 Because @code{1--1} is legal in SQL, we think it is terrible that
 @samp{--} means start comment.
 
-In @strong{MySQL} 3.23 you can however use: @code{1-- This is a comment}
+In @strong{MySQL} Version 3.23 you can, however, use: 
+@code{1-- This is a comment}
 
-The following discussing only concerns you if you are running an
-@strong{MySQL} version earlier than 3.23:
+The following discussion only concerns you if you are running a @strong{MySQL}
+version earlier than Version 3.23:
 
 If you have a SQL program in a text file that contains @samp{--} comments
 you should use:
@@ -10153,12 +10157,12 @@ shell> replace " #" " --" -- text-file-with-funny-comments.sql
 @end example
 
 @node Standards, Commit-rollback, Missing functions, Compatibility
-@section What standards does MySQL follow?
+@section What Standards Does MySQL Follow?
 
 Entry level SQL92. ODBC levels 0-2.
 
 @node Commit-rollback,  , Standards, Compatibility
-@section How to cope without @code{COMMIT}/@code{ROLLBACK}
+@section How to Cope Without @code{COMMIT}/@code{ROLLBACK}
 @findex COMMIT
 @findex ROLLBACK
 @cindex transaction safe tables
@@ -10167,22 +10171,21 @@ Entry level SQL92. ODBC levels 0-2.
 @cindex BDB tables
 
 
-The following mostly apply only for @code{ISAM}, @code{MyISAM} and
-@code{HEAP} tables; If you only use transaction safe tables (@code{BDB}
-tables) in an a update you can do @code{COMMIT} and @code{ROLLBACK} also
+The following mostly applies only for @code{ISAM}, @code{MyISAM}, and
+@code{HEAP} tables. If you only use transaction safe tables (@code{BDB}
+tables) in an a update, you can do @code{COMMIT} and @code{ROLLBACK} also
 with @strong{MySQL}.  @xref{COMMIT}.
 
 The problem with handling @code{COMMIT}-@code{ROLLBACK} efficiently with
 the above table types would require a completely different table layout
 than @strong{MySQL} uses today.  The table type would also need extra
-threads that do automatic cleanups on the tables and the disk usage
-would be much higher. This would these table types about 2-4 times
+threads that do automatic cleanups on the tables, and the disk usage
+would be much higher. This would make these table types about 2-4 times
 slower than they are today.
 
-For the moment, we are much more for implementing the SQL server
-language (something like stored procedures). With this you would very
-seldom really need @code{COMMIT}-@code{ROLLBACK.} This would also give much
-better performance.
+For the moment, we prefer implementing the SQL server language (something 
+like stored procedures). With this you would very seldom really need 
+@code{COMMIT}-@code{ROLLBACK.} This would also give much better performance.
 
 Loops that need transactions normally can be coded with the help of
 @code{LOCK TABLES}, and you don't need cursors when you can update records
@@ -10228,16 +10231,13 @@ You can also use functions to update records in a single operation.
 You can get a very efficient application by using the following techniques:
 
 @itemize @bullet
-@item
-Modify fields relative to their current value
-
-@item
-Update only those fields that actually have changed
+@item Modify fields relative to their current value.
+@item Update only those fields that actually have changed.
 @end itemize
 
 For example, when we are doing updates to some customer information, we
-update only the customer data that have changed and test only that none of
-the changed data, or data that depend on the changed data, have changed
+update only the customer data that has changed and test only that none of
+the changed data, or data that depend on the changed data, has changed
 compared to the original row. The test for changed data is done with the
 @code{WHERE} clause in the @code{UPDATE} statement. If the record wasn't
 updated, we give the client a message: "Some of the data you have changed
@@ -10245,7 +10245,7 @@ have been changed by another user". Then we show the old row versus the new
 row in a window, so the user can decide which version of the customer record
 he should use.
 
-This gives us something that is similar to ``column locking'' but is actually
+This gives us something that is similar to column locking but is actually
 even better, because we only update some of the columns, using values that
 are relative to their current values.  This means that typical @code{UPDATE}
 statements look something like these:
@@ -10294,7 +10294,7 @@ UPDATE tbl_name SET row_flag=1 WHERE id=ID and row_flag <> 1;
 @end example
 
 @node Privilege system, Reference, Compatibility, Top
-@chapter The MySQL access privilege system
+@chapter The MySQL Access Privilege System
 @cindex system, security
 @cindex access privileges
 @cindex privleges, access
@@ -10324,20 +10324,20 @@ system.  This section describes how it works.
 @end menu
 
 @node General security, Security, Privilege system, Privilege system
-@section General security
+@section General Security
 
 Anyone using @strong{MySQL} on a computer connected to the Internet
 should read this section to avoid the most common security mistakes.
 
-In discussing ``security'', we emphasize the necessity of fully protecting the
+In discussing security, we emphasize the necessity of fully protecting the
 entire server host (not simply the @strong{MySQL} server) against all types
-of applicable attacks: eavesdropping, altering, playback and Denial of
-Service. We do not cover all aspects of availability and fault tolerance
+of applicable attacks: eavesdropping, altering, playback, and denial of
+service. We do not cover all aspects of availability and fault tolerance
 here.
 
 @strong{MySQL} uses Access Control Lists (ACLs) security for all
-connections, queries, and other operations which a user may attempt to
-perform. There is also some support for SSL encrypted connections
+connections, queries, and other operations that a user may attempt to
+perform. There is also some support for SSL-encrypted connections
 between @strong{MySQL} clients and servers. Many of the concepts
 discussed here are not specific to @strong{MySQL} at all; the same
 general ideas apply to almost all applications.
@@ -10348,7 +10348,7 @@ When running @strong{MySQL}, follow these guidelines whenever possible:
 @item
 DON'T EVER GIVE ANYONE (EXCEPT THE @strong{MySQL} ROOT USER) ACCESS TO THE
 mysql.user TABLE!  The encrypted password is the real password in
-@strong{MySQL}; If you know this for one user you can easily login as
+@strong{MySQL}. If you know this for one user you can easily login as
 him if you have access to his 'host'.
 
 @item
@@ -10358,7 +10358,7 @@ not grant any more privileges than necessary. Never grant privileges to all
 hosts.
 
 Checklist:
-@itemize @bullet
+@itemize @minus
 @item
 Try @code{mysql -u root}. If you are able to connect successfully to the
 server without being asked for a password, you have problems. Any user (not
@@ -10367,7 +10367,7 @@ Review the @strong{MySQL} installation instructions, paying particular
 attention to the item about setting a @code{root} password.
 @item
 Use the command @code{SHOW GRANTS} and check to see who has access to
-what. Remove those privileges which are not necessary using the @code{REVOKE}
+what. Remove those privileges that are not necessary using the @code{REVOKE}
 command.
 @end itemize
 
@@ -10381,21 +10381,21 @@ Do not use passwords from dictionaries. There are special programs to
 break them. Even passwords like ``xfish98'' are very bad.  Much better is
 ``duag98'' which contains the same word ``fish'' but typed one key to the
 left on a standard QWERTY keyboard. Another method is to use ``Mhall'' which
-is taken from first characters of sentence ``Mary had a little lamb''. This
-is easy to remember and type, but hard to guess for someone who does not know
-it.
+is taken from the first characters of of each word in the sentence ``Mary had 
+a little lamb.'' This is easy to remember and type, but hard to guess for 
+someone who does not know it.
 @item
 Invest in a firewall. This protects from at least 50% of all types of
 exploits in any software. Put @strong{MySQL} behind the firewall or in
 a demilitarized zone (DMZ).
 
 Checklist:
-@itemize @bullet
+@itemize @minus
 @item
 Try to scan your ports from the Internet using a tool such as
 @code{nmap}. @strong{MySQL} uses port 3306 by default. This port should
-be inaccessible from untrusted hosts. Another simple way to check whether or not
-your @strong{MySQL} port is open is to type @code{telnet
+be inaccessible from untrusted hosts. Another simple way to check whether or 
+not your @strong{MySQL} port is open is to type @code{telnet
 server_host 3306} from some remote machine, where
 @code{server_host} is the hostname of your @strong{MySQL}
 server. If you get a connection and some garbage characters, the port is
@@ -10406,25 +10406,25 @@ everything is OK, the port is blocked.
 
 @item
 Do not trust any data entered by your users. They can try to trick your
-code by entering special or escaped character sequences in web forms,
+code by entering special or escaped character sequences in Web forms,
 URLs, or whatever application you have built. Be sure that your
-application remains secure if user enters something like @code{; DROP
-DATABASE mysql;}. This is an extreme example, but large security leaks
+application remains secure if a user enters something like ``@code{; DROP
+DATABASE mysql;}''. This is an extreme example, but large security leaks
 and data loss may occur as a result of hackers using similar techniques,
 if you do not prepare for them.
 
 Also remember to check numeric data. A common mistake is to protect only
 strings. Sometimes people think that if a database contains only publicly
 available data that it need not be protected. This is incorrect. At least
-Denial-of-Service type attacks can be performed on such
+denial-of-service type attacks can be performed on such
 databases. The simplest way to protect from this type of attack is to use
 apostrophes around the numeric constants: @code{SELECT * FROM table
 WHERE ID='234'} instead of @code{SELECT * FROM table WHERE ID=234}.
 @strong{MySQL} automatically converts this string to a number and
-meanwhile strips all non-numeric symbols from it.
+strips all non-numeric symbols from it.
 
 Checklist:
-@itemize @bullet
+@itemize @minus
 @item
 All WWW applications:
 @itemize @bullet
@@ -10433,13 +10433,13 @@ Try to enter @samp{'} and @samp{"} in all your Web forms. If you get any kind
 of @strong{MySQL} error, investigate the problem right away.
 @item
 Try to modify any dynamic URLs by adding @code{%22} (@samp{"}), @code{%23}
-(@samp{#}) and @code{%27} (@samp{'}) in the URL.
+(@samp{#}), and @code{%27} (@samp{'}) in the URL.
 @item
 Try to modify datatypes in dynamic URLs from numeric ones to character
-ones containing characters from previous example. Your application
+ones containing characters from previous examples. Your application
 should be safe against this and similar attacks.
 @item
-Try to enter characters, spaces, special symbols instead of numbers in
+Try to enter characters, spaces, and special symbols instead of numbers in
 numeric fields. Your application should remove them before passing them to
 @strong{MySQL} or your application should generate an error. Passing
 unchecked values to @strong{MySQL} is very dangerous!
@@ -10448,32 +10448,27 @@ Check data sizes before passing them to @strong{MySQL}.
 @item
 Consider having your application connect to the database using a
 different user name than the one you use for administrative purposes. Do
-not give your applications any more access privileges than what they
-need.
+not give your applications any more access privileges than they need.
 @end itemize
 @item
 Users of PHP:
 @itemize @bullet
-@item
-Check out the @code{addslashes()} function.
+@item Check out the @code{addslashes()} function.
 @end itemize
 @item
 Users of @strong{MySQL} C API:
 @itemize @bullet
-@item
-Check out the @code{mysql_escape()} API call.
+@item Check out the @code{mysql_escape()} API call.
 @end itemize
 @item
 Users of @strong{MySQL}++:
 @itemize @bullet
-@item
-Check out the @code{escape} and @code{quote} modifiers for query streams.
+@item Check out the @code{escape} and @code{quote} modifiers for query streams.
 @end itemize
 @item
-Users of Perl DBI
+Users of Perl DBI:
 @itemize @bullet
-@item
-Check out the @code{quote()} method.
+@item Check out the @code{quote()} method.
 @end itemize
 @end itemize
 
@@ -10481,7 +10476,7 @@ Check out the @code{quote()} method.
 Do not transmit plain (unencrypted) data over the Internet. These data are
 accessible to everyone who has the time and ability to intercept it and use
 it for their own purposes. Instead, use an encrypted protocol such as SSL or
-SSH. @strong{MySQL} supports internal SSL connections as of version 3.23.9.
+SSH. @strong{MySQL} supports internal SSL connections as of Version 3.23.9.
 SSH port-forwarding can be used to create an encrypted (and compressed)
 tunnel for the communication.
 @item
@@ -10500,7 +10495,7 @@ consult with a security expert.
 @end itemize
 
 @node Security, What Privileges, General security, Privilege system
-@section How to make MySQL secure against crackers
+@section How to Make MySQL Secure Against Crackers
 @cindex crackers, security against
 @cindex security, against crackers
 
@@ -10509,8 +10504,8 @@ password.  The password is not transmitted in clear text over the
 connection.
 
 All other information is transferred as text that can be read by anyone
-that is able to watch the connection.  If you are concerned about this,
-you can use the compressed protocol (in @strong{MySQL} 3.22 and above)
+who is able to watch the connection.  If you are concerned about this,
+you can use the compressed protocol (in @strong{MySQL} Version 3.22 and above)
 to make things much harder.  To make things even more secure you should
 use @code{ssh} (see @uref{http://www.cs.hut.fi/ssh}).  With this, you
 can get an encrypted TCP/IP connection between a @strong{MySQL} server
@@ -10537,7 +10532,7 @@ mysql> FLUSH PRIVILEGES;
 @end example
 
 @item
-Don't run the @strong{MySQL} daemon as the Unix @code{root} user.
+Don't run the @strong{MySQL} daemon as the UNIX @code{root} user.
 It is very dangerous as any user with @code{FILE} privileges will be able to
 create files
 as @code{root} (e.g. @code{~root/.bashrc}). To prevent this
@@ -10545,24 +10540,24 @@ as @code{root} (e.g. @code{~root/.bashrc}). To prevent this
 directly via @code{--user=root} option.
 
 @code{mysqld} can be run as any user instead.  You can also create a new
-Unix user @code{mysql} to make everything even more secure.  If you run
-@code{mysqld} as another Unix user, you don't need to change the
+UNIX user @code{mysql} to make everything even more secure.  If you run
+@code{mysqld} as another UNIX user, you don't need to change the
 @code{root} user name in the @code{user} table, because @strong{MySQL}
-user names have nothing to do with Unix user names.  You can edit the
-@code{mysql.server} script to start @code{mysqld} as another Unix user.
+user names have nothing to do with UNIX user names.  You can edit the
+@code{mysql.server} script to start @code{mysqld} as another UNIX user.
 Normally this is done with the @code{su} command.  For more details, see
 @ref{Changing MySQL user, , Changing @strong{MySQL} user}.
 
 @item
-If you put a password for the Unix @code{root} user in the @code{mysql.server}
+If you put a password for the UNIX @code{root} user in the @code{mysql.server}
 script, make sure this script is readable only by @code{root}.
 
 @item
-Check that the Unix user that @code{mysqld} runs as is the only user with
+Check that the UNIX user that @code{mysqld} runs as is the only user with
 read/write privileges in the database directories.
 
 @item
-On Unix platforms, do not run @code{mysqld} as root unless you really
+On UNIX platforms, do not run @code{mysqld} as root unless you really
 need to. Consider creating a user named @code{mysql} for that purpose.
 
 @item
@@ -10585,7 +10580,7 @@ overwrite existing files.
 
 @tindex /etc/passwd
 The @strong{file} privilege may also be used to read any file accessible
-to the Unix user that the server runs as.  This could be abused, for example,
+to the UNIX user that the server runs as.  This could be abused, for example,
 by using @code{LOAD DATA} to load @file{/etc/passwd} into a table, which
 can then be read with @code{SELECT}.
 
@@ -10594,7 +10589,7 @@ If you don't trust your DNS, you should use IP numbers instead of hostnames
 in the grant tables.  In principle, the @code{--secure} option to
 @code{mysqld} should make hostnames safe.  In any case, you should be very
 careful about creating grant table entries using hostname values that
-contain wildcards!
+contain wild cards!
 @end itemize
 
 The following @code{mysqld} options affect networking security:
@@ -10605,9 +10600,9 @@ IP numbers returned by the @code{gethostbyname()} system call are
 checked to make sure they resolve back to the original hostname. This
 makes it harder for someone on the outside to get access by pretending
 to be another host.  This option also adds some sanity checks of
-hostnames.  The option is turned off by default in @strong{MySQL} 3.21
-because sometimes it takes a long time to perform backward resolutions.
-@strong{MySQL} 3.22 caches hostnames and has this option enabled by
+hostnames.  The option is turned off by default in @strong{MySQL} Version 
+3.21 because sometimes it takes a long time to perform backward resolutions.
+@strong{MySQL} Version 3.22 caches hostnames and has this option enabled by
 default.
 
 @item --skip-grant-tables
@@ -10622,13 +10617,13 @@ tables must be IP numbers or @code{localhost}.
 
 @item --skip-networking
 Don't allow TCP/IP connections over the network.  All connections to
-@code{mysqld} must be made via Unix sockets. This option is unsuitable for
+@code{mysqld} must be made via UNIX sockets. This option is unsuitable for
 systems that use MIT-pthreads, because the MIT-pthreads package doesn't
-support Unix sockets.
+support UNIX sockets.
 @end table
 
 @node What Privileges, User names, Security, Privilege system
-@section What the privilege system does
+@section What the Privilege System Does
 @cindex system, privilege
 @cindex privilege system
 @cindex passwords, security
@@ -10644,19 +10639,19 @@ to grant privileges for @strong{MySQL}-specific functions such as @code{LOAD
 DATA INFILE} and administrative operations.
 
 @node User names, Connecting, What Privileges, Privilege system
-@section MySQL user names and passwords
+@section MySQL User Names and Passwords
 @cindex user names, and passwords
 @cindex passwords, for users
 
 
 There are several distinctions between the way user names and passwords are
-used by @strong{MySQL}, and the way they are used by Unix or Windows:
+used by @strong{MySQL} and the way they are used by UNIX or Windows:
 
 @itemize @bullet
 @item
 User names, as used by @strong{MySQL} for authentication purposes, have
-nothing to do with Unix user names (login names) or Windows user names.  Most
-@strong{MySQL} clients by default try to log in using the current Unix user
+nothing to do with UNIX user names (login names) or Windows user names.  Most
+@strong{MySQL} clients by default try to log in using the current UNIX user
 name as the @strong{MySQL} user name, but that is for convenience only.
 Client programs allow a different name to be specified with the @code{-u} or
 @code{--user} options. This means that you can't make a database secure in
@@ -10665,25 +10660,25 @@ attempt to connect to the server using any name, and they will succeed if
 they specify any name that doesn't have a password.
 
 @item
-@strong{MySQL} user names can be up to 16 characters long; Unix user names
+@strong{MySQL} user names can be up to 16 characters long; UNIX user names
 typically are limited to 8 characters.
 
 @item
-@strong{MySQL} passwords have nothing to do with Unix passwords.  There is no
-necessary connection between the password you use to log in to a Unix machine
+@strong{MySQL} passwords have nothing to do with UNIX passwords.  There is no
+necessary connection between the password you use to log in to a UNIX machine
 and the password you use to access a database on that machine.
 
 @item
 @strong{MySQL} encrypts passwords using a different algorithm than the
-one used during the Unix login process.  See the descriptions of the
+one used during the UNIX login process.  See the descriptions of the
 @code{PASSWORD()} and @code{ENCRYPT()} functions in @ref{Miscellaneous
-functions}.  Note that even if the password is stored 'scrambled', as
-it's enough to know your 'scrambled' password to be able to connect to
-the the @strong{MySQL} server !
+functions}.  Note that even if the password is stored 'scrambled', and
+knowing your 'scrambled' password is enough to be able to connect to
+the the @strong{MySQL} server!
 @end itemize
 
 @node Connecting, Password security, User names, Privilege system
-@section Connecting to the MySQL server
+@section Connecting to the MySQL Server
 @cindex connecting, to the server
 @cindex default hostname
 @cindex hostname, default
@@ -10691,7 +10686,7 @@ the the @strong{MySQL} server !
 
 @strong{MySQL} client programs generally require that you specify connection
 parameters when you want to access a @strong{MySQL} server: the host you want
-to connect to, your user name and your password.  For example, the
+to connect to, your user name, and your password.  For example, the
 @code{mysql} client can be started like this (optional arguments are enclosed
 between @samp{[} and @samp{]}):
 
@@ -10699,8 +10694,8 @@ between @samp{[} and @samp{]}):
 shell> mysql [-h host_name] [-u user_name] [-pyour_pass]
 @end example
 
-Alternate forms of the @code{-h}, @code{-u} and @code{-p} options are
-@code{--host=host_name}, @code{--user=user_name} and
+Alternate forms of the @code{-h}, @code{-u}, and @code{-p} options are
+@code{--host=host_name}, @code{--user=user_name}, and
 @code{--password=your_pass}.  Note that there is @emph{no space} between
 @code{-p} or @code{--password=} and the password following it.
 
@@ -10716,13 +10711,13 @@ from the command line:
 The default hostname is @code{localhost}.
 
 @item
-The default user name is your Unix login name.
+The default user name is your UNIX login name.
 
 @item
 No password is supplied if @code{-p} is missing.
 @end itemize
 
-Thus, for a Unix user @code{joe}, the following commands are equivalent:
+Thus, for a UNIX user @code{joe}, the following commands are equivalent:
 
 @example
 shell> mysql -h localhost -u joe
@@ -10733,7 +10728,7 @@ shell> mysql
 
 Other @strong{MySQL} clients behave similarly.
 
-On Unix systems, you can specify different default values to be used when you
+On UNIX systems, you can specify different default values to be used when you
 make a connection, so that you need not enter them on the command line each
 time you invoke a client program.  This can be done in a couple of ways:
 
@@ -10764,11 +10759,11 @@ You can specify connection parameters using environment variables.  The
 host can be specified for @code{mysql} using @code{MYSQL_HOST}.  The
 @strong{MySQL} user name can be specified using @code{USER} (this is for
 Windows only).  The password can be specified using @code{MYSQL_PWD}
-(but this is insecure; see next section).  @xref{Environment variables}.
+(but this is insecure; see the next section).  @xref{Environment variables}.
 @end itemize
 
 @node Password security, Privileges provided, Connecting, Privilege system
-@section Keeping your password secure
+@section Keeping Your Password Secure
 
 It is inadvisable to specify your password in a way that exposes it to
 discovery by other users.  The methods you can use to specify your password
@@ -10788,7 +10783,7 @@ Use a @code{-pyour_pass} or @code{--password=your_pass} option on the command
 line.  This is convenient but insecure, because your password becomes visible
 to system status programs (such as @code{ps}) that may be invoked by other
 users to display command lines.  (@strong{MySQL} clients typically overwrite
-the command line argument with zeroes during their initialization sequence,
+the command-line argument with zeroes during their initialization sequence,
 but there is still a brief interval during which the value is visible.)
 
 @item
@@ -10840,18 +10835,18 @@ environments. @xref{Environment variables}.
 @end itemize
 
 All in all, the safest methods are to have the client program prompt for the
-password or to specify the password in a properly-protected @file{.my.cnf}
+password or to specify the password in a properly protected @file{.my.cnf}
 file.
 
 @node Privileges provided, Privileges, Password security, Privilege system
-@section Privileges provided by MySQL
+@section Privileges Provided by MySQL
 @cindex privilege information, location
 
-Privilege information is stored in the @code{user}, @code{db}, @code{host},
-@code{tables_priv} and @code{columns_priv} tables in the @code{mysql}
-database (that is, in the database named @code{mysql}).  The @strong{MySQL}
-server reads the contents of these tables when it starts up and under the
-circumstances indicated in @ref{Privilege changes}.
+Information about user privileges is stored in the @code{user}, @code{db}, 
+@code{host}, @code{tables_priv}, and @code{columns_priv} tables in the 
+@code{mysql} database (that is, in the database named @code{mysql}).  The 
+@strong{MySQL} server reads the contents of these tables when it starts up 
+and under the circumstances indicated in @ref{Privilege changes}.
 
 The names used in this manual to refer to the privileges provided by
 @strong{MySQL} are shown below, along with the table column name associated
@@ -10859,24 +10854,24 @@ with each privilege in the grant tables and the context in which the
 privilege applies:
 
 @multitable @columnfractions .15 .25 .6
-@item @strong{Privilege}  @tab @strong{Column}       @tab @strong{Context}
+@item @strong{Privilege}   @tab @strong{Column}      @tab @strong{Context}
 @item @strong{select}      @tab @code{Select_priv}   @tab tables
 @item @strong{insert}      @tab @code{Insert_priv}   @tab tables
 @item @strong{update}      @tab @code{Update_priv}   @tab tables
 @item @strong{delete}      @tab @code{Delete_priv}   @tab tables
 @item @strong{index}       @tab @code{Index_priv}    @tab tables
 @item @strong{alter}       @tab @code{Alter_priv}    @tab tables
-@item @strong{create}      @tab @code{Create_priv}   @tab databases, tables or indexes
+@item @strong{create}      @tab @code{Create_priv}   @tab databases, tables, or indexes
 @item @strong{drop}        @tab @code{Drop_priv}     @tab databases or tables
 @item @strong{grant}       @tab @code{Grant_priv}    @tab databases or tables
-@item @strong{references}   @tab @code{References_priv} @tab databases or tables
+@item @strong{references}  @tab @code{References_priv} @tab databases or tables
 @item @strong{reload}      @tab @code{Reload_priv}   @tab server administration
 @item @strong{shutdown}    @tab @code{Shutdown_priv} @tab server administration
 @item @strong{process}     @tab @code{Process_priv}  @tab server administration
 @item @strong{file}        @tab @code{File_priv}     @tab file access on server
 @end multitable
 
-The @strong{select}, @strong{insert}, @strong{update} and @strong{delete}
+The @strong{select}, @strong{insert}, @strong{update}, and @strong{delete}
 privileges allow you to perform operations on rows in existing tables in
 a database.
 
@@ -10918,13 +10913,13 @@ execute:
 @multitable @columnfractions .15 .85
 @item @strong{Privilege}  @tab @strong{Commands permitted to privilege holders}
 @item @strong{reload}     @tab @code{reload}, @code{refresh},
-@code{flush-privileges},
-@code{flush-hosts}, @code{flush-logs}, @code{flush-tables}
+@code{flush-privileges}, @code{flush-hosts}, @code{flush-logs}, and 
+@code{flush-tables}
 @item @strong{shutdown}   @tab @code{shutdown}
 @item @strong{process}    @tab @code{processlist}, @code{kill}
 @end multitable
 
-The @code{reload} command tells the server to reread the grant tables.  The
+The @code{reload} command tells the server to re-read the grant tables.  The
 @code{refresh} command flushes all tables and opens and closes the log
 files.  @code{flush-privileges} is a synonym for @code{reload}.  The other
 @code{flush-*} commands perform functions similar to @code{refresh} but are
@@ -10973,7 +10968,7 @@ Privileges on the @code{mysql} database can be used to change passwords
 and other access privilege information.  (Passwords are stored
 encrypted, so a malicious user cannot simply read them to know the plain
 text password).  If they can access the @code{mysql.user} password
-column, they can use it to login into the @strong{MySQL} server
+column, they can use it to log into the @strong{MySQL} server
 for the given user.  (With sufficient privileges, the same user can
 replace a password with a different one.)
 @end itemize
@@ -10992,7 +10987,7 @@ in a database but not to create or drop the database itself.
 @end itemize
 
 @node Privileges, Connection access, Privileges provided, Privilege system
-@section How the privilege system works
+@section How the Privilege System Works
 @cindex privilege system, described
 
 The @strong{MySQL} privilege system ensures that all users may do exactly the
@@ -11025,7 +11020,7 @@ from the database, the server makes sure you have the @strong{select}
 privilege for the table or the @strong{drop} privilege for the database.
 @end itemize
 
-The server uses the @code{user}, @code{db} and @code{host} tables in the
+The server uses the @code{user}, @code{db}, and @code{host} tables in the
 @code{mysql} database at both stages of access control.  The fields in these
 grant tables are shown below:
 
@@ -11075,12 +11070,12 @@ tables are shown below:
 
 Each grant table contains scope fields and privilege fields.
 
-Scope fields determine the scope of each entry in the tables, i.e., the
+Scope fields determine the scope of each entry in the tables, that is, the
 context in which the entry applies.  For example, a @code{user} table entry
 with @code{Host} and @code{User} values of @code{'thomas.loc.gov'} and
 @code{'bob'} would be used for authenticating connections made to the server
 by @code{bob} from the host @code{thomas.loc.gov}.  Similarly, a @code{db}
-table entry with @code{Host}, @code{User} and @code{Db} fields of
+table entry with @code{Host}, @code{User}, and @code{Db} fields of
 @code{'thomas.loc.gov'}, @code{'bob'} and @code{'reports'} would be used when
 @code{bob} connects from the host @code{thomas.loc.gov} to access the
 @code{reports} database.  The @code{tables_priv} and @code{columns_priv}
@@ -11089,10 +11084,10 @@ to which each entry applies.
 
 @cindex Case sensitivity, in access checking
 For access-checking purposes, comparisons of @code{Host} values are
-case insensitive.  @code{User}, @code{Password}, @code{Db} and
+case insensitive.  @code{User}, @code{Password}, @code{Db}, and
 @code{Table_name} values are case sensitive.
-@code{Column_name} values are case insensitive in @strong{MySQL} 3.22.12
-or later.
+@code{Column_name} values are case insensitive in @strong{MySQL} Version 
+3.22.12 or later.
 
 Privilege fields indicate the privileges granted by a table entry, that is,
 what operations can be performed.  The server combines the information in the
@@ -11160,7 +11155,7 @@ hosts.  This mechanism is described more detail in @ref{Request access}.
 @item
 The @code{tables_priv} and @code{columns_priv} tables are similar to
 the @code{db} table, but are more fine-grained: they apply at the
-table and column level rather than at the database level.
+table and column levels rather than at the database level.
 @end itemize
 
 Note that administrative privileges (@strong{reload}, @strong{shutdown},
@@ -11183,7 +11178,7 @@ starts up.  Changes to the grant tables take effect as indicated in
 When you modify the contents of the grant tables, it is a good idea to make
 sure that your changes set up privileges the way you want.  For help in
 diagnosing problems, see @ref{Access denied}.  For advice on security issues,
-@ref{Security}.
+@pxref{Security}.
 
 A useful
 diagnostic tool is the @code{mysqlaccess} script, which Yves Carlier has
@@ -11194,7 +11189,7 @@ Note that @code{mysqlaccess} checks access using only the @code{user},
 privileges.
 
 @node Connection access, Request access, Privileges, Privilege system
-@section Access control, stage 1: Connection verification
+@section Access control, Stage 1: Connection Verification
 @cindex access control
 @cindex control access
 @cindex connecting, verification
@@ -11204,7 +11199,7 @@ When you attempt to connect to a @strong{MySQL} server, the server accepts or
 rejects the connection based on your identity and whether or not you can
 verify your identity by supplying the correct password.  If not, the server
 denies access to you completely.  Otherwise, the server accepts the
-connection, then enters stage 2 and waits for requests.
+connection, then enters Stage 2 and waits for requests.
 
 Your identity is based on two pieces of information:
 
@@ -11230,7 +11225,7 @@ to indicate the local host.
 
 @item
 @cindex Wildcards, in @code{mysql.user} table
-You can use the wildcard characters @samp{%} and @samp{_} in the @code{Host}
+You can use the wild card characters @samp{%} and @samp{_} in the @code{Host}
 field.
 
 @item
@@ -11240,7 +11235,7 @@ host that can create a connection to your server!}
 
 @cindex Netmask notation, in @code{mysql.user} table
 @item
-As of MySQL 3.23, for @code{Host} values specified as IP numbers, you
+As of MySQL Version 3.23, for @code{Host} values specified as IP numbers, you
 can specify a netmask indicating how many address bits to use for the
 network number. For example:
 
@@ -11259,13 +11254,13 @@ In the above example all IP:s in the interval 192.58.197.0 -
 
 @item
 @cindex Anonymous user
-Wildcard characters are not allowed in the @code{User} field, but you can
+Wild card characters are not allowed in the @code{User} field, but you can
 specify a blank value, which matches any name.  If the @code{user} table
 entry that matches an incoming connection has a blank user name, the user is
 considered to be the anonymous user (the user with no name), rather than the
 name that the client actually specified.  This means that a blank user name
 is used for all further access checking for the duration of the connection
-(that is, during stage 2).
+(that is, during Stage 2).
 
 @item
 The @code{Password} field can be blank.  This does not mean that any password
@@ -11279,7 +11274,7 @@ see.  Rather, the password supplied by a user who is attempting to
 connect is encrypted (using the @code{PASSWORD()} function). The
 encrypted password is then used when the client/server is checking if
 the password is correct (This is done without the encrypted password
-ever traveling over the connection).  Note that from @strong{MySQL}'s
+ever traveling over the connection.)  Note that from @strong{MySQL}'s
 point of view the encrypted password is the REAL password, so you should
 not give anyone access to it!  In particular, don't give normal users
 read access to the tables in the @code{mysql} database!
@@ -11301,14 +11296,14 @@ connections:
 @item @code{'144.155.166.0/24'} @tab @code{'fred'} @tab Same as previous example
 @end multitable
 
-Because you can use IP wildcard values in the @code{Host} field (e.g.,
+Because you can use IP wild card values in the @code{Host} field (for example,
 @code{'144.155.166.%'} to match every host on a subnet), there is the
 possibility that someone might try to exploit this capability by naming a
 host @code{144.155.166.somewhere.com}.  To foil such attempts, @strong{MySQL}
 disallows matching on hostnames that start with digits and a dot. Thus, if
 you have a host named something like @code{1.2.foo.com}, its name will never
 match the @code{Host} column of the grant tables.  Only an IP number can
-match an IP wildcard value.
+match an IP wild card value.
 
 An incoming connection may be matched by more than one entry in the
 @code{user} table.  For example, a connection from @code{thomas.loc.gov} by
@@ -11397,14 +11392,14 @@ If you have problems connecting to the server, print out the @code{user}
 table and sort it by hand to see where the first match is being made.
 
 @node Request access, Privilege changes, Connection access, Privilege system
-@section Access control, stage 2: Request verification
+@section Access control, Stage 2: Request Verification
 
-Once you establish a connection, the server enters stage 2.  For each request
+Once you establish a connection, the server enters Stage 2.  For each request
 that comes in on the connection, the server checks whether you have
 sufficient privileges to perform it, based on the type of operation you wish
 to perform.  This is where the privilege fields in the grant tables come into
 play.  These privileges can come from any of the @code{user}, @code{db},
-@code{host}, @code{tables_priv} or @code{columns_priv} tables.  The grant
+@code{host}, @code{tables_priv}, or @code{columns_priv} tables.  The grant
 tables are manipulated with @code{GRANT} and @code{REVOKE} commands.
 @xref{GRANT, , @code{GRANT}}.  (You may find it helpful to refer to
 @ref{Privileges}, which lists the fields present in each of the grant
@@ -11421,16 +11416,15 @@ in the @code{user} table set to @code{'N'} and grant privileges on a
 database-specific basis only, using the @code{db} and @code{host} tables.
 
 @cindex Anonymous user
-@cindex Wildcards, in @code{mysql.db} table
-@cindex Wildcards, in @code{mysql.host} table
+@cindex Wild cards, in @code{mysql.db} table
+@cindex Wild cards, in @code{mysql.host} table
 The @code{db} and @code{host} tables grant database-specific privileges.
 Values in the scope fields may be specified as follows:
 
 @itemize @bullet
 @item
-The
-wildcard characters @samp{%} and @samp{_} can be used in the @code{Host} and
-@code{Db} fields of either table.
+The wild card characters @samp{%} and @samp{_} can be used in the @code{Host}
+and @code{Db} fields of either table.
 
 @item
 A @code{'%'} @code{Host} value in the @code{db} table means ``any host.'' A
@@ -11454,22 +11448,22 @@ A blank @code{User} value in either table matches the anonymous user.
 @cindex @code{host} table, sorting
 The @code{db} and @code{host} tables are read in and sorted when the server
 starts up (at the same time that it reads the @code{user} table).  The
-@code{db} table is sorted on the @code{Host}, @code{Db} and @code{User} scope
+@code{db} table is sorted on the @code{Host}, @code{Db}, and @code{User} scope
 fields, and the @code{host} table is sorted on the @code{Host} and @code{Db}
 scope fields.  As with the @code{user} table, sorting puts the most-specific
 values first and least-specific values last, and when the server looks for
 matching entries, it uses the first match that it finds.
 
 
-@cindex Wildcards, in @code{mysql.tables_priv} table
-@cindex Wildcards, in @code{mysql.columns_priv} table
+@cindex Wild cards, in @code{mysql.tables_priv} table
+@cindex Wild cards, in @code{mysql.columns_priv} table
 The @code{tables_priv} and @code{columns_priv} tables grant table- and
 column-specific privileges.  Values in the scope fields may be specified as
 follows:
 
 @itemize @bullet
 @item
-The wildcard characters @samp{%} and @samp{_}
+The wild card characters @samp{%} and @samp{_}
 can be used in the @code{Host} field of either table.
 
 @item
@@ -11477,7 +11471,7 @@ A @code{'%'} or blank @code{Host} value in either table means ``any host.''
 
 @item
 The @code{Db}, @code{Table_name} and @code{Column_name} fields cannot contain
-wildcards or be blank in either table.
+wild cards or be blank in either table.
 @end itemize
 
 The @code{tables_priv} and @code{columns_priv} tables are sorted on
@@ -11510,7 +11504,7 @@ by checking the @code{db} and @code{host} tables:
 @enumerate
 @item
 The server looks in the @code{db} table for a match on the @code{Host},
-@code{Db} and @code{User} fields.  The @code{Host} and @code{User} fields are
+@code{Db}, and @code{User} fields.  The @code{Host} and @code{User} fields are
 matched to the connecting user's hostname and @strong{MySQL} user name.  The
 @code{Db} field is matched to the database the user wants to access.  If
 there is no entry for the @code{Host} and @code{User}, access is denied.
@@ -11527,7 +11521,7 @@ access to the database.  In this case, a further lookup is done in the
 If no @code{host} table entry matches, access is denied.  If there is a
 match, the user's database-specific privileges are computed as the
 intersection (@emph{not} the union!) of the privileges in the @code{db} and
-@code{host} table entries, i.e., the privileges that are @code{'Y'} in both
+@code{host} table entries, that is, the privileges that are @code{'Y'} in both
 entries.  (This way you can grant general privileges in the @code{db} table
 entry and then selectively restrict them on a host-by-host basis using the
 @code{host} table entries.)
@@ -11553,7 +11547,7 @@ OR column privileges
 
 It may not be apparent why, if the global @code{user} entry privileges are
 initially found to be insufficient for the requested operation, the server
-adds those privileges to the database-, table- and column-specific privileges
+adds those privileges to the database-, table-, and column-specific privileges
 later. The reason is that a request might require more than one type of
 privilege.  For example, if you execute an @code{INSERT ...  SELECT}
 statement, you need both @strong{insert} and @strong{select} privileges.
