@@ -680,6 +680,8 @@ int merge_many_buff(SORTPARAM *param, uchar *sort_buffer,
     if (flush_io_cache(to_file))
       break;					/* purecov: inspected */
     temp=from_file; from_file=to_file; to_file=temp;
+    setup_io_cache(from_file);
+    setup_io_cache(to_file);
     *maxbuffer= (uint) (lastbuff-buffpek)-1;
   }
   close_cached_file(to_file);			// This holds old result
