@@ -28,7 +28,7 @@
 #include <my_pthread.h>				/* because of signal()	*/
 #endif
 
-#define ADMIN_VERSION "8.18"
+#define ADMIN_VERSION "8.19"
 #define MAX_MYSQL_VAR 64
 #define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
@@ -817,8 +817,6 @@ static void usage(void)
   -s, --silent		Silently exit if one can't connect to server\n\
   -S, --socket=...	Socket file to use for connection\n");
 #include "sslopt-usage.h"
-  printf("\
-  -t, --timeout=...	Timeout for connection to the mysqld server\n");
 #ifndef DONT_ALLOW_USER_CHANGE
   printf("\
   -u, --user=#		User for login if not current user\n");

@@ -57,13 +57,17 @@ CREATE TABLE t1 (
   PRIMARY KEY (id)
 ) TYPE=MyISAM;
 
-ALTER TABLE
-t1
-ORDER BY
-t1.id,
-t1.status,
-t1.type_id,
-t1.user_id,
-t1.body;
+ALTER TABLE t1 ORDER BY t1.id, t1.status, t1.type_id, t1.user_id, t1.body;
+DROP TABLE t1;
 
-drop table t1;
+#
+# The following combination found a hang-bug in MyISAM
+#
+
+CREATE TABLE t1 (AnamneseId int(10) unsigned NOT NULL auto_increment,B BLOB,PRIMARY KEY (AnamneseId)) type=myisam;
+insert into t1 values (null,"hello");
+LOCK TABLES t1 WRITE;
+ALTER TABLE t1 ADD Column new_col int not null;
+UNLOCK TABLES;
+OPTIMIZE TABLE t1;
+DROP TABLE t1;

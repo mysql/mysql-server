@@ -258,6 +258,7 @@ struct st_myisam_info {
   my_bool quick_mode;
   my_bool page_changed;		/* If info->buff can't be used for rnext */
   my_bool buff_used;		/* If info->buff has to be reread for rnext */
+  my_bool use_packed_key;		/* For MYISAMMRG */
   myf lock_wait;			/* is 0 or MY_DONT_WAIT */
   int (*read_record)(struct st_myisam_info*, my_off_t, byte*);
   LIST	open_list;
@@ -630,8 +631,6 @@ void mi_update_status(void* param);
 void mi_copy_status(void* to,void *from);
 my_bool mi_check_status(void* param);
 void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows);
-int _mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
-	     enum ha_rkey_function search_flag, bool raw_key);
 
 my_bool check_table_is_closed(const char *name, const char *where);
 int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share);
