@@ -1480,7 +1480,6 @@ dnl END OF MYSQL_CHECK_NDBCLUSTER SECTION
 dnl ---------------------------------------------------------------------------
 
 
->>>>>>>
 dnl By default, many hosts won't let programs access large files;
 dnl one must use special compiler options to get large-file access to work.
 dnl For more details about this brain damage please see:

@@ -1387,6 +1387,205 @@ group_concat(v)
 yz,yz
 drop procedure bug3368|
 drop table t3|
+drop table if exists t3|
+create table t3 (f1 int, f2 int);
+insert into t3 values (1,1);
+create procedure bug4579_1 ()
+begin
+declare sf1 int;
+select f1 into sf1 from t3 where f1=1 and f2=1;
+update t3 set f2 = f2 + 1 where f1=1 and f2=1;
+call bug4579_2();
+end|
+create procedure bug4579_2 ()
+begin
+end|
+call bug4579_1()|
+call bug4579_1()|
+Warnings:
+call bug4579_1()|
+Warnings:
+drop procedure bug4579_1|
+drop procedure bug4579_2|
+drop table t3|
+drop table if exists t3|
+create table t3 (f1 int, f2 int, f3 int)|
+insert into t3 values (1,1,1)|
+create procedure bug4726()
+begin
+declare tmp_o_id INT;
+declare tmp_d_id INT default 1;
+while tmp_d_id <= 2 do
+begin
+select f1 into tmp_o_id from t3 where f2=1 and f3=1;
+set tmp_d_id = tmp_d_id + 1;
+end;
+end while;
+end|
+call bug4726()|
+call bug4726()|
+call bug4726()|
+drop procedure bug4726|
+drop table t3|
+drop table if exists t3|
+create table t3 (s1 int)|
+insert into t3 values (3), (4)|
+create procedure bug4318()
+handler t3 read next|
+handler t3 open|
+call bug4318()|
+s1
+3
+call bug4318()|
+s1
+4
+handler t3 close|
+drop procedure bug4318|
+drop table t3|
+create procedure bug4902()
+begin
+show charset like 'foo';
+show collation like 'foo';
+show column types;
+show create table t1;
+show create database test;
+show databases like 'foo';
+show errors;
+show columns from t1;
+show grants for 'root'@'localhost';
+show keys from t1;
+show master status;
+show open tables like 'foo';
+show privileges;
+show processlist;
+show slave hosts;
+show slave status;
+show status like 'foo';
+show tables like 'foo';
+show variables like 'foo';
+show warnings;
+end|
+call bug4902()|
+Charset	Description	Default collation	Maxlen
+Collation	Charset	Id	Default	Compiled	Sortlen
+Type	Size	Min_Value	Max_Value	Prec	Scale	Nullable	Auto_Increment	Unsigned	Zerofill	Searchable	Case_Sensitive	Default	Comment
+tinyint	1	-128	127	0	0	YES	YES	NO	YES	YES	NO	NULL,0	A very small integer
+tinyint unsigned	1	0	255	0	0	YES	YES	YES	YES	YES	NO	NULL,0	A very small integer
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` char(16) NOT NULL default '',
+  `data` int(11) NOT NULL default '0'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+Database	Create Database
+test	CREATE DATABASE `test` /*!40100 DEFAULT CHARACTER SET latin1 */
+Database (foo)
+Level	Code	Message
+Field	Type	Null	Key	Default	Extra
+id	char(16)				
+data	int(11)			0	
+Grants for root@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	22185		
+Database	Table	In_use	Name_locked
+Privilege	Context	Comment
+Alter	Tables	To alter the table
+Create	Databases,Tables,Indexes	To create new databases and tables
+Create temporary tables	Databases	To use CREATE TEMPORARY TABLE
+Create view	Tables	To create new views
+Delete	Tables	To delete existing rows
+Drop	Databases,Tables	To drop databases, tables, and views
+File	File access on server	To read and write files on the server
+Grant option	Databases,Tables	To give to other users those privileges you possess
+Index	Tables	To create or drop indexes
+Insert	Tables	To insert data into tables
+Lock tables	Databases	To use LOCK TABLES (together with SELECT privilege)
+Process	Server Admin	To view the plain text of currently executing queries
+References	Databases,Tables	To have references on tables
+Reload	Server Admin	To reload or refresh tables, logs and privileges
+Replication client	Server Admin	To ask where the slave or master servers are
+Replication slave	Server Admin	To read binary log events from the master
+Select	Tables	To retrieve rows from table
+Show databases	Server Admin	To see all databases with SHOW DATABASES
+Show view	Tables	To see views with SHOW CREATE VIEW
+Shutdown	Server Admin	To shut down the server
+Super	Server Admin	To use KILL thread, SET GLOBAL, CHANGE MASTER, etc.
+Update	Tables	To update existing rows
+Usage	Server Admin	No privileges - allow connect only
+Id	User	Host	db	Command	Time	State	Info
+1	root	localhost	test	Query	0	query end	call bug4902()
+Server_id	Host	Port	Rpl_recovery_rank	Master_id
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
+Variable_name	Value
+Tables_in_test (foo)	table_type
+Variable_name	Value
+Level	Code	Message
+call bug4902()|
+Charset	Description	Default collation	Maxlen
+Collation	Charset	Id	Default	Compiled	Sortlen
+Type	Size	Min_Value	Max_Value	Prec	Scale	Nullable	Auto_Increment	Unsigned	Zerofill	Searchable	Case_Sensitive	Default	Comment
+tinyint	1	-128	127	0	0	YES	YES	NO	YES	YES	NO	NULL,0	A very small integer
+tinyint unsigned	1	0	255	0	0	YES	YES	YES	YES	YES	NO	NULL,0	A very small integer
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` char(16) NOT NULL default '',
+  `data` int(11) NOT NULL default '0'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+Database	Create Database
+test	CREATE DATABASE `test` /*!40100 DEFAULT CHARACTER SET latin1 */
+Database (foo)
+Level	Code	Message
+Field	Type	Null	Key	Default	Extra
+id	char(16)				
+data	int(11)			0	
+Grants for root@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	22185		
+Database	Table	In_use	Name_locked
+Privilege	Context	Comment
+Alter	Tables	To alter the table
+Create	Databases,Tables,Indexes	To create new databases and tables
+Create temporary tables	Databases	To use CREATE TEMPORARY TABLE
+Create view	Tables	To create new views
+Delete	Tables	To delete existing rows
+Drop	Databases,Tables	To drop databases, tables, and views
+File	File access on server	To read and write files on the server
+Grant option	Databases,Tables	To give to other users those privileges you possess
+Index	Tables	To create or drop indexes
+Insert	Tables	To insert data into tables
+Lock tables	Databases	To use LOCK TABLES (together with SELECT privilege)
+Process	Server Admin	To view the plain text of currently executing queries
+References	Databases,Tables	To have references on tables
+Reload	Server Admin	To reload or refresh tables, logs and privileges
+Replication client	Server Admin	To ask where the slave or master servers are
+Replication slave	Server Admin	To read binary log events from the master
+Select	Tables	To retrieve rows from table
+Show databases	Server Admin	To see all databases with SHOW DATABASES
+Show view	Tables	To see views with SHOW CREATE VIEW
+Shutdown	Server Admin	To shut down the server
+Super	Server Admin	To use KILL thread, SET GLOBAL, CHANGE MASTER, etc.
+Update	Tables	To update existing rows
+Usage	Server Admin	No privileges - allow connect only
+Id	User	Host	db	Command	Time	State	Info
+1	root	localhost	test	Query	0	query end	call bug4902()
+Server_id	Host	Port	Rpl_recovery_rank	Master_id
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
+Variable_name	Value
+Tables_in_test (foo)	table_type
+Variable_name	Value
+Level	Code	Message
+drop procedure bug4902|
+drop table if exists t3|
+create procedure bug4904()
+begin
+declare continue handler for sqlstate 'HY000' begin end;
+create table t2 as select * from t;
+end|
+call bug4904()|
+drop procedure bug4904|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 create procedure ifac(n int unsigned)

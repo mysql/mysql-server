@@ -46,10 +46,11 @@ static void unlink_blobs(register TABLE *table);
   to timestamp field, depending on if timestamp should be updated or not.
 */
 
-int
-check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
-		    List<Item> &values, ulong counter)
+static int
+check_insert_fields(THD *thd, TABLE_LIST *table_list, List<Item> &fields,
+		    List<Item> &values, ulong counter, bool check_unique)
 {
+  TABLE *table= table_list->table;
   if (fields.elements == 0 && values.elements != 0)
   {
     if (values.elements != table->fields)
@@ -60,14 +61,22 @@ check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
       return -1;
     }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-    if (grant_option &&
-	check_grant_all_columns(thd,INSERT_ACL,table))
-      return -1;
+    {
+      Field_iterator_table fields;
+      fields.set_table(table);
+      if (grant_option &&
+          check_grant_all_columns(thd, INSERT_ACL, &table->grant,
+                                  table->table_cache_key, table->real_name,
+                                  &fields))
+        return -1;
+    }
 #endif
     table->timestamp_default_now= table->timestamp_on_update_now= 0;
   }
   else
   {						// Part field list
+    TABLE_LIST *save_next= table_list->next_local;
+    int res;
     if (fields.elements != values.elements)
     {
       my_printf_error(ER_WRONG_VALUE_COUNT_ON_ROW,
@@ -75,19 +84,19 @@ check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
 		      MYF(0),counter);
       return -1;
     }
-    TABLE_LIST table_list;
-    bzero((char*) &table_list,sizeof(table_list));
-    table_list.db=  table->table_cache_key;
-    table_list.real_name= table_list.alias= table->table_name;
-    table_list.table=table;
-    table_list.grant=table->grant;
 
+    table_list->next_local= 0;
     thd->dupp_field=0;
-    if (setup_tables(&table_list) ||
-	setup_fields(thd, 0, &table_list,fields,1,0,0))
+    thd->lex->select_lex.no_wrap_view_item= 1;
+    res= setup_fields(thd, 0, table_list, fields, 1, 0, 0);
+    thd->lex->select_lex.no_wrap_view_item= 0;
+    table_list->next_local= save_next;
+    if (res)
+    {
       return -1;
+    }
 
-    if (thd->dupp_field)
+    if (check_unique && thd->dupp_field)
     {
       my_error(ER_FIELD_SPECIFIED_TWICE,MYF(0), thd->dupp_field->field_name);
       return -1;
@@ -130,8 +139,6 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   char *query= thd->query;
 #endif
   thr_lock_type lock_type = table_list->lock_type;
-  TABLE_LIST *insert_table_list= (TABLE_LIST*)
-    thd->lex->select_lex.table_list.first;
   DBUG_ENTER("mysql_insert");
 
   /*
@@ -170,8 +177,14 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     if ((table= delayed_get_table(thd,table_list)) && !thd->is_fatal_error)
     {
       res= 0;
-      if (table_list->next)			/* if sub select */
-	res= open_and_lock_tables(thd, table_list->next);
+      if (table_list->next_global)			/* if sub select */
+	res= open_and_lock_tables(thd, table_list->next_global);
+      /*
+	First is not processed by open_and_lock_tables() => we need set
+	updateability flags "by hands".
+      */
+      if (!table_list->derived && !table_list->view)
+        table_list->updatable= 1;  // usual table
     }
     else
     {
@@ -194,17 +207,17 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   if (duplic == DUP_UPDATE && !table->insert_values)
   {
     /* it should be allocated before Item::fix_fields() */
-    table->insert_values= 
+    table->insert_values=
       (byte *)alloc_root(&thd->mem_root, table->rec_buff_length);
     if (!table->insert_values)
       goto abort;
   }
 
-  if (mysql_prepare_insert(thd, table_list, insert_table_list, table,
-			   fields, values, update_fields,
-			   update_values, duplic))
+  if (mysql_prepare_insert(thd, table_list, table, fields, values,
+			   update_fields, update_values, duplic))
     goto abort;
 
+  // is table which we are changing used somewhere in other parts of query
   value_count= values->elements;
   while ((values= its++))
   {
@@ -216,7 +229,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
 		      MYF(0),counter);
       goto abort;
     }
-    if (setup_fields(thd, 0, insert_table_list, *values, 0, 0, 0))
+    if (setup_fields(thd, 0, table_list, *values, 0, 0, 0))
       goto abort;
   }
   its.rewind ();
@@ -397,7 +410,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
 				    !thd->cuted_fields))
   {
     thd->row_count_func= info.copied+info.deleted+info.updated;
-    send_ok(thd, thd->row_count_func, id);
+    send_ok(thd, (ulong) (ulong) thd->row_count_func, id);
   }
   else
   {
@@ -410,7 +423,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
       sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	      (ulong) (info.deleted+info.updated), (ulong) thd->cuted_fields);
     thd->row_count_func= info.copied+info.deleted+info.updated;
-    ::send_ok(thd, thd->row_count_func, (ulonglong)id,buff);
+    ::send_ok(thd, (ulong) thd->row_count_func, (ulonglong)id,buff);
   }
   free_underlaid_joins(thd, &thd->lex->select_lex);
   table->insert_values=0;
@@ -428,33 +441,122 @@ abort:
 
 
 /*
+  Additional check for insertability for VIEW
+
+  SYNOPSIS
+    check_view_insertability()
+    view    - reference on VIEW
+
+  RETURN
+    FALSE - OK
+    TRUE  - can't be used for insert
+*/
+
+static bool check_view_insertability(TABLE_LIST *view, ulong query_id)
+{
+  DBUG_ENTER("check_key_in_view");
+
+  uint i;
+  TABLE *table= view->table;
+  Item **trans= view->field_translation;
+  Field **field_ptr= table->field;
+  uint num= view->view->select_lex.item_list.elements;
+  ulong other_query_id= query_id - 1;
+  DBUG_ASSERT(view->table != 0 && view->field_translation != 0);
+
+  view->contain_auto_increment= 0;
+  /* check simplicity and prepare unique test of view */
+  for (i= 0; i < num; i++)
+  {
+    /* simple SELECT list entry (field without expression) */
+    if (trans[i]->type() != Item::FIELD_ITEM)
+      DBUG_RETURN(TRUE);
+    if (((Item_field *)trans[i])->field->unireg_check == Field::NEXT_NUMBER)
+      view->contain_auto_increment= 1;
+    /* prepare unique test */
+    ((Item_field *)trans[i])->field->query_id= other_query_id;
+  }
+  /* unique test */
+  for (i= 0; i < num; i++)
+  {
+    Item_field *field= (Item_field *)trans[i];
+    if (field->field->query_id == query_id)
+      DBUG_RETURN(TRUE);
+    field->field->query_id= query_id;
+  }
+
+  /* VIEW contain all fields without default value */
+  for (; *field_ptr; ++field_ptr)
+  {
+    Field *field= *field_ptr;
+    /* field have not default value */
+    if ((field->type() == FIELD_TYPE_BLOB) &&
+        (table->timestamp_field != field ||
+         field->unireg_check == Field::TIMESTAMP_UN_FIELD))
+    {
+      uint i= 0;
+      for (; i < num; i++)
+      {
+        if (((Item_field *)trans[i])->field == *field_ptr)
+          break;
+      }
+      if (i >= num)
+        DBUG_RETURN(TRUE);
+    }
+  }
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
   Prepare items in INSERT statement
 
   SYNOPSIS
     mysql_prepare_insert()
     thd			- thread handler
-    table_list		- global table list
-    insert_table_list	- local table list of INSERT SELECT_LEX
+    table_list		- global/local table list
 
   RETURN VALUE
     0  - OK
     -1 - error (message is not sent to user)
 */
-int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
-			 TABLE_LIST *insert_table_list, TABLE *table,
+int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
 			 List<Item> &fields, List_item *values,
 			 List<Item> &update_fields, List<Item> &update_values,
 			 enum_duplicates duplic)
 {
+  bool insert_into_view= (table_list->view != 0);
   DBUG_ENTER("mysql_prepare_insert");
-  if (check_insert_fields(thd, table, fields, *values, 1) ||
-      setup_tables(insert_table_list) ||
-      setup_fields(thd, 0, insert_table_list, *values, 0, 0, 0) ||
-      (duplic == DUP_UPDATE &&
-       (setup_fields(thd, 0, insert_table_list, update_fields, 0, 0, 0) ||
-        setup_fields(thd, 0, insert_table_list, update_values, 0, 0, 0))))
+
+  /* TODO: use this condition for 'WHITH CHECK OPTION' */
+  Item *unused_conds= 0;
+  if (setup_tables(thd, table_list, &unused_conds))
     DBUG_RETURN(-1);
-  if (find_real_table_in_list(table_list->next, 
+
+  if (insert_into_view && !fields.elements)
+  {
+    thd->lex->empty_field_list_on_rset= 1;
+    insert_view_fields(&fields, table_list);
+  }
+
+  if (!table_list->updatable ||
+      check_key_in_view(thd, table_list) ||
+      (insert_into_view &&
+       check_view_insertability(table_list, thd->query_id)))
+  {
+    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "INSERT");
+    DBUG_RETURN(-1);
+  }
+
+  if (check_insert_fields(thd, table_list, fields, *values, 1,
+                          !insert_into_view) ||
+      setup_fields(thd, 0, table_list, *values, 0, 0, 0) ||
+      (duplic == DUP_UPDATE &&
+       (setup_fields(thd, 0, table_list, update_fields, 0, 0, 0) ||
+        setup_fields(thd, 0, table_list, update_values, 0, 0, 0))))
+    DBUG_RETURN(-1);
+
+  if (find_real_table_in_list(table_list->next_global,
 			      table_list->db, table_list->real_name))
   {
     my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
@@ -1440,13 +1542,55 @@ bool delayed_insert::handle_inserts(void)
   Store records in INSERT ... SELECT *
 ***************************************************************************/
 
+
+/*
+  make insert specific preparation and checks after opening tables
+
+  SYNOPSIS
+    mysql_insert_select_prepare()
+    thd         thread handler
+
+  RETURN
+    0   OK
+    -1  Error
+*/
+
+int mysql_insert_select_prepare(THD *thd)
+{
+  LEX *lex= thd->lex;
+  TABLE_LIST *table_list= lex->query_tables;
+  bool insert_into_view= (table_list->view != 0);
+  DBUG_ENTER("mysql_insert_select_prepare");
+
+  if (setup_tables(thd, table_list, &lex->select_lex.where))
+    DBUG_RETURN(-1);
+
+  if (insert_into_view && !lex->field_list.elements)
+  {
+    lex->empty_field_list_on_rset= 1;
+    insert_view_fields(&lex->field_list, table_list);
+  }
+
+  if (!table_list->updatable ||
+      check_key_in_view(thd, table_list) ||
+      (insert_into_view &&
+       check_view_insertability(table_list, thd->query_id)))
+  {
+    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "INSERT");
+    DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(0);
+}
+
+
 int
 select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
   DBUG_ENTER("select_insert::prepare");
 
   unit= u;
-  if (check_insert_fields(thd,table,*fields,values,1))
+  if (check_insert_fields(thd, table_list, *fields, values, 1,
+                          !insert_into_view))
     DBUG_RETURN(1);
 
   restore_record(table,default_values);			// Get empty record
@@ -1588,7 +1732,7 @@ bool select_insert::send_eof()
     sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	    (ulong) (info.deleted+info.updated), (ulong) thd->cuted_fields);
   thd->row_count_func= info.copied+info.deleted+info.updated;
-  ::send_ok(thd, thd->row_count_func, last_insert_id, buff);
+  ::send_ok(thd, (ulong) thd->row_count_func, last_insert_id, buff);
   DBUG_RETURN(0);
 }
 
@@ -1603,7 +1747,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   DBUG_ENTER("select_create::prepare");
 
   unit= u;
-  table= create_table_from_items(thd, create_info, db, name,
+  table= create_table_from_items(thd, create_info, create_table,
 				 extra_fields, keys, &values, &lock);
   if (!table)
     DBUG_RETURN(-1);				// abort() deletes table
@@ -1692,9 +1836,13 @@ void select_create::abort()
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     enum db_type table_type=table->db_type;
     if (!table->tmp_table)
+    {
       hash_delete(&open_cache,(byte*) table);
-    if (!create_info->table_existed)
-      quick_rm_table(table_type,db,name);
+      if (!create_info->table_existed)
+        quick_rm_table(table_type, create_table->db, create_table->real_name);
+    }
+    else if (!create_info->table_existed)
+      close_temporary_table(thd, create_table->db, create_table->real_name);
     table=0;
   }
   VOID(pthread_mutex_unlock(&LOCK_open));

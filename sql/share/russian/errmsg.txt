@@ -306,6 +306,7 @@ character-set=koi8r
 "Unknown or incorrect time zone: '%-.64s'",
 "Invalid TIMESTAMP value in column '%s' at row %ld",
 "Invalid %s character string: '%.64s'",
+"Result of %s() was larger than max_allowed_packet (%d) - truncated"
 "Can't create a %s from within another stored routine"
 "%s %s already exists"
 "%s %s does not exist"
@@ -348,3 +349,16 @@ character-set=koi8r
 "Неожиданный конец файла в коментарии '%-.64s'"
 "Ошибка при распознавании параметра '%-.64s' (строка: '%-.64s')"
 "Неожиданный конец файла при пропуске неизвестного параметра '%-.64s'"
+"EXPLAIN/SHOW не может быть выполненно; недостаточно прав на такблицы запроса"
+"Файл '%-.64s' содержит неизвестный тип '%-.64s' в заголовке"
+"'%-.64s.%-.64s' - не %s"
+"Столбец '%-.64s' не обновляемый"
+"View SELECT содержит подзапрос в конструкции FROM"
+"View SELECT содержит конструкцию PROCEDURE"
+"View SELECT содержит переменную или параметр" 
+"View SELECT содержит ссылку на временную таблицу '%-.64s'"
+"View SELECT и список полей view имеют разное количество столбцов"
+"Алгоритм слияния view не может быть использован сейчас (алгоритм будет неопеределенным)"
+"Обновляемый view не содержит ключа использованной в нем таблиц(ы)"
+"View '%-.64s.%-.64s' ссылается на несуществующие таблицы или слолбцы"
+"Can't drop a %s from within another stored routine"

@@ -50,7 +50,12 @@ public:
   Protocol(THD *thd_arg) { init(thd_arg); }
   virtual ~Protocol() {}
   void init(THD* thd_arg);
-  virtual bool send_fields(List<Item> *list, uint flag);
+
+  static const uint SEND_NUM_ROWS= 1;
+  static const uint SEND_DEFAULTS= 2;
+  static const uint SEND_EOF= 4;
+  virtual bool send_fields(List<Item> *list, uint flags);
+
   bool send_records_num(List<Item> *list, ulonglong records);
   bool store(I_List<i_string> *str_list);
   bool store(const char *from, CHARSET_INFO *cs);
@@ -163,7 +168,7 @@ public:
     prev_record= &data;
     return Protocol_simple::prepare_for_send(item_list);
   }
-  bool send_fields(List<Item> *list, uint flag);
+  bool send_fields(List<Item> *list, uint flags);
   bool write();
   uint get_field_count() { return field_count; }
 };

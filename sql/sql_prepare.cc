@@ -75,6 +75,8 @@ Long data handling:
 #ifdef EMBEDDED_LIBRARY
 /* include MYSQL_BIND headers */
 #include <mysql.h>
+#else
+#include <mysql_com.h>
 #endif
 
 /******************************************************************************
@@ -107,7 +109,7 @@ public:
 };
 
 static void execute_stmt(THD *thd, Prepared_statement *stmt,
-                         String *expanded_query, bool set_context);
+                         String *expanded_query);
 
 /******************************************************************************
   Implementation
@@ -166,7 +168,8 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
   return my_net_write(net, buff, sizeof(buff)) || 
          (stmt->param_count &&
           stmt->thd->protocol_simple.send_fields((List<Item> *)
-                                                 &stmt->lex->param_list, 0)) ||
+                                                 &stmt->lex->param_list,
+                                                 Protocol::SEND_EOF)) ||
          net_flush(net);
   return 0;
 }
@@ -863,7 +866,7 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
   SYNOPSIS
     mysql_test_insert()
     stmt	prepared statemen handler
-    tables	list of tables queries  
+    tables	global/local table list  
 
   RETURN VALUE
     0   ok
@@ -883,8 +886,6 @@ static int mysql_test_insert(Prepared_statement *stmt,
   List_iterator_fast<List_item> its(values_list);
   List_item *values;
   int res= -1;
-  TABLE_LIST *insert_table_list=
-    (TABLE_LIST*) lex->select_lex.table_list.first;
   my_bool update= (lex->value_list.elements ? UPDATE_ACL : 0);
   DBUG_ENTER("mysql_test_insert");
 
@@ -907,9 +908,9 @@ static int mysql_test_insert(Prepared_statement *stmt,
     uint value_count;
     ulong counter= 0;
 
-    if ((res= mysql_prepare_insert(thd, table_list, insert_table_list,
-				   table_list->table, fields, values,
-				   update_fields, update_values, duplic)))
+    if ((res= mysql_prepare_insert(thd, table_list, table_list->table, 
+				   fields, values, update_fields,
+				   update_values, duplic)))
       goto error;
     
     value_count= values->elements;
@@ -925,7 +926,7 @@ static int mysql_test_insert(Prepared_statement *stmt,
 			MYF(0), counter);
         goto error;
       }
-      if (setup_fields(thd, 0, insert_table_list, *values, 0, 0, 0))
+      if (setup_fields(thd, 0, table_list, *values, 0, 0, 0))
 	goto error;
     }
   }
@@ -972,16 +973,14 @@ static int mysql_test_update(Prepared_statement *stmt,
     res= -1;
   else
   {
-    TABLE_LIST *update_table_list= (TABLE_LIST *)select->table_list.first;
     if (!(res= mysql_prepare_update(thd, table_list,
-				    update_table_list,
 				    &select->where,
 				    select->order_list.elements,
 				    (ORDER *) select->order_list.first)))
     {
-      if (setup_fields(thd, 0, update_table_list,
+      if (setup_fields(thd, 0, table_list,
 		       select->item_list, 1, 0, 0) ||
-	  setup_fields(thd, 0, update_table_list,
+	  setup_fields(thd, 0, table_list,
 		       stmt->lex->value_list, 0, 0, 0))
 	res= -1;
     }
@@ -1102,7 +1101,8 @@ static int mysql_test_select(Prepared_statement *stmt,
     if (!text_protocol)
     {
       if (send_prep_stmt(stmt, lex->select_lex.item_list.elements) ||
-        thd->protocol_simple.send_fields(&lex->select_lex.item_list, 0)
+        thd->protocol_simple.send_fields(&lex->select_lex.item_list,
+                                         Protocol::SEND_EOF)
 #ifndef EMBEDDED_LIBRARY
           || net_flush(&thd->net)
 #endif
@@ -1219,8 +1219,9 @@ error:
 
   SYNOPSIS
     select_like_statement_test()
-      stmt	- prepared table handler
-      tables	- global list of tables
+      stmt              - prepared table handler
+      tables            - global list of tables
+      specific_prepare  - function of command specific prepare
 
   RETURN VALUE
     0   success
@@ -1228,7 +1229,8 @@ error:
    -1   error, not sent to client
 */
 static int select_like_statement_test(Prepared_statement *stmt,
-				      TABLE_LIST *tables)
+				      TABLE_LIST *tables,
+                                      int (*specific_prepare)(THD *thd))
 {
   DBUG_ENTER("select_like_statement_test");
   THD *thd= stmt->thd;
@@ -1240,6 +1242,9 @@ static int select_like_statement_test(Prepared_statement *stmt,
   */
   thd->allocate_temporary_memory_pool_for_ps_preparing();
   if (tables && (res= open_and_lock_tables(thd, tables)))
+    goto end;
+
+  if (specific_prepare && (res= (*specific_prepare)(thd)))
     goto end;
 
   thd->used_tables= 0;                        // Updated by setup_fields
@@ -1269,31 +1274,28 @@ end:
     1   error, sent to client
    -1   error, not sent to client
 */
-static int mysql_test_create_table(Prepared_statement *stmt,
-				   TABLE_LIST *tables)
+static int mysql_test_create_table(Prepared_statement *stmt)
 {
   DBUG_ENTER("mysql_test_create_table");
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
   SELECT_LEX *select_lex= &lex->select_lex;
   int res= 0;
-
   /* Skip first table, which is the table we are creating */
-  TABLE_LIST *create_table, *create_table_local;
-  tables= lex->unlink_first_table(tables, &create_table,
-				  &create_table_local);
+  bool link_to_local;
+  TABLE_LIST *create_table= lex->unlink_first_table(&link_to_local);
+  TABLE_LIST *tables= lex->query_tables;
 
   if (!(res= create_table_precheck(thd, tables, create_table)) &&
       select_lex->item_list.elements)
   {
     select_lex->resolve_mode= SELECT_LEX::SELECT_MODE;
-    res= select_like_statement_test(stmt, tables);
+    res= select_like_statement_test(stmt, tables, 0);
     select_lex->resolve_mode= SELECT_LEX::NOMATTER_MODE;
   }
 
   /* put tables back for PS rexecuting */
-  tables= lex->link_first_table_back(tables, create_table,
-				     create_table_local);
+  lex->link_first_table_back(create_table, link_to_local);
   DBUG_RETURN(res);
 }
 
@@ -1317,7 +1319,7 @@ static int mysql_test_multiupdate(Prepared_statement *stmt,
   int res;
   if ((res= multi_update_precheck(stmt->thd, tables)))
     return res;
-  return select_like_statement_test(stmt, tables);
+  return select_like_statement_test(stmt, tables, &mysql_multi_update_prepare);
 }
 
 
@@ -1345,7 +1347,7 @@ static int mysql_test_multidelete(Prepared_statement *stmt,
   uint fake_counter;
   if ((res= multi_delete_precheck(stmt->thd, tables, &fake_counter)))
     return res;
-  return select_like_statement_test(stmt, tables);
+  return select_like_statement_test(stmt, tables, &mysql_multi_delete_prepare);
 }
 
 
@@ -1371,14 +1373,15 @@ static int mysql_test_insert_select(Prepared_statement *stmt,
     return res;
   TABLE_LIST *first_local_table=
     (TABLE_LIST *)lex->select_lex.table_list.first;
+  DBUG_ASSERT(first_local_table != 0);
   /* Skip first table, which is the table we are inserting in */
-  lex->select_lex.table_list.first= (byte*) first_local_table->next;
+  lex->select_lex.table_list.first= (byte*) first_local_table->next_local;
   /*
     insert/replace from SELECT give its SELECT_LEX for SELECT,
     and item_list belong to SELECT
   */
   lex->select_lex.resolve_mode= SELECT_LEX::SELECT_MODE;
-  res= select_like_statement_test(stmt, tables);
+  res= select_like_statement_test(stmt, tables, &mysql_insert_select_prepare);
   /* revert changes*/
   lex->select_lex.table_list.first= (byte*) first_local_table;
   lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
@@ -1400,7 +1403,7 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
   SELECT_LEX *select_lex= &lex->select_lex;
-  TABLE_LIST *tables=(TABLE_LIST*) select_lex->table_list.first;
+  TABLE_LIST *tables;
   enum enum_sql_command sql_command= lex->sql_command;
   int res= 0;
   DBUG_ENTER("send_prepare_results");
@@ -1408,11 +1411,9 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
   DBUG_PRINT("enter",("command: %d, param_count: %ld",
                       sql_command, stmt->param_count));
 
-  if (select_lex != lex->all_selects_list &&
-      lex->unit.create_total_list(thd, lex, &tables))
-    DBUG_RETURN(1);
+  lex->first_lists_tables_same();
+  tables= lex->query_tables;
 
-  
   switch (sql_command) {
   case SQLCOM_REPLACE:
   case SQLCOM_INSERT:
@@ -1438,7 +1439,7 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
     DBUG_RETURN(0);
 
   case SQLCOM_CREATE_TABLE:
-    res= mysql_test_create_table(stmt, tables);
+    res= mysql_test_create_table(stmt);
     break;
   
   case SQLCOM_DO:
@@ -1479,6 +1480,12 @@ static int send_prepare_results(Prepared_statement *stmt, bool text_protocol)
   case SQLCOM_SHOW_GRANTS:
   case SQLCOM_DROP_TABLE:
   case SQLCOM_RENAME_TABLE:
+  case SQLCOM_ALTER_TABLE:
+  case SQLCOM_COMMIT:
+  case SQLCOM_CREATE_INDEX:
+  case SQLCOM_DROP_INDEX:
+  case SQLCOM_ROLLBACK:
+  case SQLCOM_TRUNCATE:
     break;
 
   default:
@@ -1614,8 +1621,8 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
   mysql_log.write(thd, COM_PREPARE, "%s", packet);
 
   thd->current_arena= stmt;
-  lex= lex_start(thd, (uchar *) thd->query, thd->query_length);
-  mysql_init_query(thd);
+  mysql_init_query(thd, (uchar *) thd->query, thd->query_length);
+  lex= thd->lex;
   lex->safe_to_cache_query= 0;
 
   error= yyparse((void *)thd) || thd->is_fatal_error ||
@@ -1666,6 +1673,11 @@ void reset_stmt_for_execute(THD *thd, LEX *lex)
 {
   SELECT_LEX *sl= lex->all_selects_list;
 
+  if (lex->empty_field_list_on_rset)
+  {
+    lex->field_list.empty();
+    lex->empty_field_list_on_rset= 0;
+  }
   for (; sl; sl= sl->next_select_in_list())
   {
     if (!sl->first_execution)
@@ -1677,7 +1689,10 @@ void reset_stmt_for_execute(THD *thd, LEX *lex)
         Copy WHERE clause pointers to avoid damaging they by optimisation
       */
       if (sl->prep_where)
+      {
         sl->where= sl->prep_where->copy_andor_structure(thd);
+        sl->where->cleanup();
+      }
       DBUG_ASSERT(sl->join == 0);
       ORDER *order;
       /* Fix GROUP list */
@@ -1687,22 +1702,10 @@ void reset_stmt_for_execute(THD *thd, LEX *lex)
       for (order= (ORDER *)sl->order_list.first; order; order= order->next)
         order->item= &order->item_ptr;
     }
-
-    /*
-      TODO: When the new table structure is ready, then have a status bit 
-      to indicate the table is altered, and re-do the setup_* 
-      and open the tables back.
-    */
-    for (TABLE_LIST *tables= (TABLE_LIST*) sl->table_list.first;
-	 tables;
-	 tables= tables->next)
     {
-      /*
-        Reset old pointers to TABLEs: they are not valid since the tables
-        were closed in the end of previous prepare or execute call.
-      */
-      tables->table= 0;
-      tables->table_list= 0;
+      TABLE_LIST *tables= (TABLE_LIST *)sl->table_list.first;
+      if (tables)
+        tables->setup_is_done= 0;
     }
     {
       SELECT_LEX_UNIT *unit= sl->master_unit();
@@ -1711,6 +1714,22 @@ void reset_stmt_for_execute(THD *thd, LEX *lex)
       /* for derived tables & PS (which can't be reset by Item_subquery) */
       unit->reinit_exec_mechanism();
     }
+  }
+
+  /*
+    TODO: When the new table structure is ready, then have a status bit 
+    to indicate the table is altered, and re-do the setup_* 
+    and open the tables back.
+  */
+  for (TABLE_LIST *tables= lex->query_tables;
+	 tables;
+	 tables= tables->next_global)
+  {
+    /*
+      Reset old pointers to TABLEs: they are not valid since the tables
+      were closed in the end of previous prepare or execute call.
+    */
+    tables->table= 0;
   }
   lex->current_select= &lex->select_lex;
 }
@@ -1747,6 +1766,7 @@ static void reset_stmt_params(Prepared_statement *stmt)
 void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
 {
   ulong stmt_id= uint4korr(packet);
+  ulong flags= (ulong) ((uchar) packet[4]);
   /*
     Query text for binary log, or empty string if the query is not put into
     binary log.
@@ -1773,6 +1793,28 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
     DBUG_VOID_RETURN;
   }
 
+  if (flags & (ulong) CURSOR_TYPE_READ_ONLY)
+  {
+    if (stmt->lex->result)
+    {
+      /*
+        If lex->result is set in the parser, this is not a SELECT
+        statement: we can't open a cursor for it.
+      */
+      flags= 0;
+    }
+    else
+    {
+      if (!stmt->cursor &&
+          !(stmt->cursor= new (&stmt->mem_root) Cursor()))
+      {
+        send_error(thd, ER_OUT_OF_RESOURCES);
+        DBUG_VOID_RETURN;
+      }
+      /* If lex->result is set, mysql_execute_command will use it */
+      stmt->lex->result= &stmt->cursor->result;
+    }
+  }
 #ifndef EMBEDDED_LIBRARY
   if (stmt->param_count)
   {
@@ -1791,16 +1833,55 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   if (stmt->param_count && stmt->set_params_data(stmt, &expanded_query))
     goto set_params_data_err;
 #endif
+  thd->stmt_backup.set_statement(thd);
+  thd->set_statement(stmt);
   thd->current_arena= stmt;
+  reset_stmt_for_execute(thd, stmt->lex);
+  /* From now cursors assume that thd->mem_root is clean */
+  if (expanded_query.length() &&
+      alloc_query(thd, (char *)expanded_query.ptr(),
+                  expanded_query.length()+1))
+  {
+    my_error(ER_OUTOFMEMORY, 0, expanded_query.length());
+    goto err;
+  }
+
   thd->protocol= &thd->protocol_prep;           // Switch to binary protocol
-  execute_stmt(thd, stmt, &expanded_query, true);
+  if (!(specialflag & SPECIAL_NO_PRIOR))
+    my_pthread_setprio(pthread_self(),QUERY_PRIOR);
+  mysql_execute_command(thd);
+  if (!(specialflag & SPECIAL_NO_PRIOR))
+    my_pthread_setprio(pthread_self(), WAIT_PRIOR);
   thd->protocol= &thd->protocol_simple;         // Use normal protocol
+
+  if (flags & (ulong) CURSOR_TYPE_READ_ONLY)
+  {
+    if (stmt->cursor->is_open())
+      stmt->cursor->init_from_thd(thd);
+    thd->set_item_arena(&thd->stmt_backup);
+  }
+  else
+  {
+    thd->lex->unit.cleanup();
+    cleanup_items(stmt->free_list);
+    reset_stmt_params(stmt);
+    close_thread_tables(thd);                   /* to close derived tables */
+    /*
+      Free items that were created during this execution of the PS by
+      query optimizer.
+    */
+    free_items(thd->free_list);
+    thd->free_list= 0;
+  }
+
+  thd->set_statement(&thd->stmt_backup);
   thd->current_arena= 0;
   DBUG_VOID_RETURN;
 
 set_params_data_err:
   reset_stmt_params(stmt);
   my_error(ER_WRONG_ARGUMENTS, MYF(0), "mysql_stmt_execute");
+err:
   send_error(thd);
   DBUG_VOID_RETURN;
 }
@@ -1836,7 +1917,6 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
     DBUG_VOID_RETURN;
   }
 
-  thd->free_list= NULL;
   thd->stmt_backup.set_statement(thd);
   thd->set_statement(stmt);
   if (stmt->set_params_from_vars(stmt,
@@ -1847,7 +1927,7 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
     send_error(thd);
   }
   thd->current_arena= stmt;
-  execute_stmt(thd, stmt, &expanded_query, false);
+  execute_stmt(thd, stmt, &expanded_query);
   thd->current_arena= 0;
   DBUG_VOID_RETURN;
 }
@@ -1863,20 +1943,13 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
                      placeholders replaced with actual values. Otherwise empty
                      string.
   NOTES
-  Caller must set parameter values and thd::protocol.
-  thd->free_list is assumed to be garbage.
+    Caller must set parameter values and thd::protocol.
 */
 
 static void execute_stmt(THD *thd, Prepared_statement *stmt,
-                         String *expanded_query, bool set_context)
+                         String *expanded_query)
 {
   DBUG_ENTER("execute_stmt");
-  if (set_context)
-  {
-    thd->free_list= NULL;
-    thd->stmt_backup.set_statement(thd);
-    thd->set_statement(stmt);
-  }
   reset_stmt_for_execute(thd, stmt->lex);
 
   if (expanded_query->length() &&
@@ -1890,17 +1963,72 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),QUERY_PRIOR);
   mysql_execute_command(thd);
-  thd->lex->unit.cleanup();
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
 
+  thd->lex->unit.cleanup();
   cleanup_items(stmt->free_list);
   reset_stmt_params(stmt);
   close_thread_tables(thd);                    // to close derived tables
   thd->set_statement(&thd->stmt_backup);
   /* Free Items that were created during this execution of the PS. */
   free_items(thd->free_list);
+  /*
+    In the rest of prepared statements code we assume that free_list
+    never points to garbage: keep this predicate true.
+  */
   thd->free_list= 0;
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  COM_FETCH handler: fetches requested amount of rows from cursor
+  SYNOPSIS
+*/
+
+void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
+{
+  /* assume there is always place for 8-16 bytes */
+  ulong stmt_id= uint4korr(packet);
+  ulong num_rows= uint4korr(packet+=4);
+  Statement *stmt;
+  int error;
+
+  DBUG_ENTER("mysql_stmt_fetch");
+
+  if (!(stmt= thd->stmt_map.find(stmt_id)) ||
+      !stmt->cursor ||
+      !stmt->cursor->is_open())
+  {
+    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), stmt_id, "fetch");
+    send_error(thd);
+    DBUG_VOID_RETURN;
+  }
+
+  thd->stmt_backup.set_statement(thd);
+  thd->stmt_backup.set_item_arena(thd);
+  thd->set_statement(stmt);
+  stmt->cursor->init_thd(thd);
+
+  if (!(specialflag & SPECIAL_NO_PRIOR))
+    my_pthread_setprio(pthread_self(), QUERY_PRIOR);
+
+  thd->protocol= &thd->protocol_prep;		// Switch to binary protocol
+  error= stmt->cursor->fetch(num_rows);
+  thd->protocol= &thd->protocol_simple;         // Use normal protocol
+
+  if (!(specialflag & SPECIAL_NO_PRIOR))
+    my_pthread_setprio(pthread_self(), WAIT_PRIOR);
+
+  /* Restore THD state */
+  stmt->cursor->reset_thd(thd);
+  thd->set_statement(&thd->stmt_backup);
+  thd->set_item_arena(&thd->stmt_backup);
+
+  if (error && error != -4)
+    send_error(thd, ER_OUT_OF_RESOURCES);
+
   DBUG_VOID_RETURN;
 }
 
@@ -2075,8 +2203,11 @@ void Prepared_statement::setup_set_params()
   }
 }
 
+
 Prepared_statement::~Prepared_statement()
 {
+  if (cursor)
+    cursor->Cursor::~Cursor();
   free_items(free_list);
 }
 

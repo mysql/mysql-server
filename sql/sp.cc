@@ -265,8 +265,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
        */
       List<Item> vals= thd->lex->value_list;
 
-      mysql_init_query(thd, TRUE);
-      lex_start(thd, (uchar*)defstr.c_ptr(), defstr.length());
+      mysql_init_query(thd, (uchar*)defstr.c_ptr(), defstr.length(), TRUE);
       thd->lex->value_list= vals;
     }
 
@@ -293,6 +292,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
       *sphp= thd->lex->sphead;
       (*sphp)->set_info((char *)definer, (uint)strlen(definer),
 			created, modified, &chistics, sql_mode);
+      (*sphp)->optimize();
     }
     thd->lex->sql_command= oldcmd;
     thd->variables.sql_mode= old_sql_mode;
@@ -564,23 +564,27 @@ db_show_routine_status(THD *thd, int type, const char *wild)
       }
     }
     /* Print header */
-    if (thd->protocol->send_fields(&field_list,1))
+    if (thd->protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS |
+                                                Protocol::SEND_EOF))
     {
       res= SP_INTERNAL_ERROR;
       goto err_case;
     }
 
-    /* Init fields */
-    setup_tables(&tables);
+    /*
+      Init fields
+
+      tables is not VIEW for sure => we can pass 0 as condition
+    */
+    setup_tables(thd, &tables, 0);
     for (used_field= &used_fields[0];
 	 used_field->field_name;
 	 used_field++)
     {
-      TABLE_LIST *not_used;
       Item_field *field= new Item_field("mysql", "proc",
 					used_field->field_name);
       if (!(used_field->field= find_field_in_tables(thd, field, &tables, 
-						    &not_used, TRUE)))
+						    0, TRUE, 1)))
       {
 	res= SP_INTERNAL_ERROR;
 	goto err_case1;
@@ -718,11 +722,14 @@ int
 sp_drop_procedure(THD *thd, sp_name *name)
 {
   int ret;
+  bool found;
   DBUG_ENTER("sp_drop_procedure");
   DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
 
-  sp_cache_remove(&thd->sp_proc_cache, name);
+  found= sp_cache_remove(&thd->sp_proc_cache, name);
   ret= db_drop_routine(thd, TYPE_ENUM_PROCEDURE, name);
+  if (!found && !ret)
+    sp_cache_invalidate();
   DBUG_RETURN(ret);
 }
 
@@ -733,12 +740,15 @@ sp_update_procedure(THD *thd, sp_name *name,
 		    st_sp_chistics *chistics)
 {
   int ret;
+  bool found;
   DBUG_ENTER("sp_update_procedure");
   DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
 
-  sp_cache_remove(&thd->sp_proc_cache, name);
+  found= sp_cache_remove(&thd->sp_proc_cache, name);
   ret= db_update_routine(thd, TYPE_ENUM_PROCEDURE, name,
 			 newname, newnamelen, chistics);
+  if (!found && !ret)
+    sp_cache_invalidate();
   DBUG_RETURN(ret);
 }
 
@@ -810,11 +820,14 @@ int
 sp_drop_function(THD *thd, sp_name *name)
 {
   int ret;
+  bool found;
   DBUG_ENTER("sp_drop_function");
   DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
 
-  sp_cache_remove(&thd->sp_func_cache, name);
+  found= sp_cache_remove(&thd->sp_func_cache, name);
   ret= db_drop_routine(thd, TYPE_ENUM_FUNCTION, name);
+  if (!found && !ret)
+    sp_cache_invalidate();
   DBUG_RETURN(ret);
 }
 
@@ -825,12 +838,15 @@ sp_update_function(THD *thd, sp_name *name,
 		    st_sp_chistics *chistics)
 {
   int ret;
+  bool found;
   DBUG_ENTER("sp_update_procedure");
   DBUG_PRINT("enter", ("name: %*s", name->m_name.length, name->m_name.str));
 
-  sp_cache_remove(&thd->sp_func_cache, name);
+  found= sp_cache_remove(&thd->sp_func_cache, name);
   ret= db_update_routine(thd, TYPE_ENUM_FUNCTION, name,
 			 newname, newnamelen, chistics);
+  if (!found && !ret)
+    sp_cache_invalidate();
   DBUG_RETURN(ret);
 }
 

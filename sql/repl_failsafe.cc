@@ -461,7 +461,8 @@ int show_new_master(THD* thd)
     field_list.push_back(new Item_empty_string("Log_name", 20));
     field_list.push_back(new Item_return_int("Log_pos", 10,
 					     MYSQL_TYPE_LONGLONG));
-    if (protocol->send_fields(&field_list, 1))
+    if (protocol->send_fields(&field_list,
+                              Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
       DBUG_RETURN(-1);
     protocol->prepare_for_resend();
     protocol->store(lex_mi->log_file_name, &my_charset_bin);
@@ -651,7 +652,8 @@ int show_slave_hosts(THD* thd)
   field_list.push_back(new Item_return_int("Master_id", 10,
 					   MYSQL_TYPE_LONG));
 
-  if (protocol->send_fields(&field_list, 1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(-1);
 
   pthread_mutex_lock(&LOCK_slave_list);

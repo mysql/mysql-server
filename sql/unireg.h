@@ -139,6 +139,7 @@
 #define DONT_GIVE_ERROR		256	/* Don't do frm_error on openfrm  */
 #define READ_SCREENS		1024	/* Read screens, info and helpfile */
 #define DELAYED_OPEN		4096	/* Open table later */
+#define NO_ERR_ON_NEW_FRM	8192	/* stop error sending on new format */
 
 #define SC_INFO_LENGTH 4		/* Form format constant */
 #define TE_INFO_LENGTH 3

@@ -36,6 +36,11 @@
 #define MYSQL_SERVICENAME "MySQL"
 #endif /* __WIN__ */
 
+/*
+  You should add new commands to the end of this list, otherwise old
+  servers won't be able to handle them as 'unsupported'.
+*/
+
 enum enum_server_command
 {
   COM_SLEEP, COM_QUIT, COM_INIT_DB, COM_QUERY, COM_FIELD_LIST,
@@ -44,7 +49,7 @@ enum enum_server_command
   COM_TIME, COM_DELAYED_INSERT, COM_CHANGE_USER, COM_BINLOG_DUMP,
   COM_TABLE_DUMP, COM_CONNECT_OUT, COM_REGISTER_SLAVE,
   COM_PREPARE, COM_EXECUTE, COM_LONG_DATA, COM_CLOSE_STMT,
-  COM_RESET_STMT, COM_SET_OPTION,
+  COM_RESET_STMT, COM_SET_OPTION, COM_FETCH,
   COM_END				/* Must be last */
 };
 
@@ -127,6 +132,17 @@ enum enum_server_command
 #define SERVER_MORE_RESULTS_EXISTS 8    /* Multi query - next query exists */
 #define SERVER_QUERY_NO_GOOD_INDEX_USED 16
 #define SERVER_QUERY_NO_INDEX_USED      32
+/*
+  The server was able to fulfill client request and open read-only
+  non-scrollable cursor for the query.  This flag comes in server
+  status with reply to COM_EXECUTE and COM_EXECUTE_DIRECT commands.
+*/
+#define SERVER_STATUS_CURSOR_EXISTS 64
+/*
+  This flag is sent with last row of read-only cursor, in reply to
+  COM_FETCH command.
+*/
+#define SERVER_STATUS_LAST_ROW_SENT 128
 
 #define MYSQL_ERRMSG_SIZE	512
 #define NET_READ_TIMEOUT	30		/* Timeout on read */
@@ -251,6 +267,16 @@ enum enum_shutdown_level {
 #endif
   KILL_CONNECTION= 255
 };
+
+
+enum enum_cursor_type
+{
+  CURSOR_TYPE_NO_CURSOR= 0,
+  CURSOR_TYPE_READ_ONLY= 1,
+  CURSOR_TYPE_FOR_UPDATE= 2,
+  CURSOR_TYPE_SCROLLABLE= 4
+};
+
 
 /* options for mysql_set_option */
 enum enum_mysql_set_option

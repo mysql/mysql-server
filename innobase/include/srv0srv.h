@@ -157,6 +157,7 @@ extern	ulint	srv_test_n_mutexes;
 extern	ulint	srv_test_array_size;
 
 extern ulint	srv_activity_count;
+extern ulint	srv_fatal_semaphore_wait_threshold;
 
 extern mutex_t*	kernel_mutex_temp;/* mutex protecting the server, trx structs,
 				query threads, and lock table: we allocate

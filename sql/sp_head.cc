@@ -45,6 +45,54 @@ sp_map_result_type(enum enum_field_types type)
   }
 }
 
+/*
+ * Returns TRUE if the 'cmd' is a command that might result in
+ * multiple result sets being sent back.
+ * Note: This does not include SQLCOM_SELECT which is treated
+ *       separately in sql_yacc.yy.
+ */
+bool
+sp_multi_results_command(enum enum_sql_command cmd)
+{
+  switch (cmd) {
+  case SQLCOM_ANALYZE:
+  case SQLCOM_HA_READ:
+  case SQLCOM_SHOW_BINLOGS:
+  case SQLCOM_SHOW_BINLOG_EVENTS:
+  case SQLCOM_SHOW_CHARSETS:
+  case SQLCOM_SHOW_COLLATIONS:
+  case SQLCOM_SHOW_COLUMN_TYPES:
+  case SQLCOM_SHOW_CREATE:
+  case SQLCOM_SHOW_CREATE_DB:
+  case SQLCOM_SHOW_CREATE_FUNC:
+  case SQLCOM_SHOW_CREATE_PROC:
+  case SQLCOM_SHOW_DATABASES:
+  case SQLCOM_SHOW_ERRORS:
+  case SQLCOM_SHOW_FIELDS:
+  case SQLCOM_SHOW_GRANTS:
+  case SQLCOM_SHOW_INNODB_STATUS:
+  case SQLCOM_SHOW_KEYS:
+  case SQLCOM_SHOW_LOGS:
+  case SQLCOM_SHOW_MASTER_STAT:
+  case SQLCOM_SHOW_NEW_MASTER:
+  case SQLCOM_SHOW_OPEN_TABLES:
+  case SQLCOM_SHOW_PRIVILEGES:
+  case SQLCOM_SHOW_PROCESSLIST:
+  case SQLCOM_SHOW_SLAVE_HOSTS:
+  case SQLCOM_SHOW_SLAVE_STAT:
+  case SQLCOM_SHOW_STATUS:
+  case SQLCOM_SHOW_STATUS_FUNC:
+  case SQLCOM_SHOW_STATUS_PROC:
+  case SQLCOM_SHOW_STORAGE_ENGINES:
+  case SQLCOM_SHOW_TABLES:
+  case SQLCOM_SHOW_VARIABLES:
+  case SQLCOM_SHOW_WARNS:
+    return TRUE;
+  default:
+    return FALSE;
+  }
+}
+
 /* Evaluate a (presumed) func item. Always returns an item, the parameter
 ** if nothing else.
 */
@@ -58,7 +106,7 @@ sp_eval_func_item(THD *thd, Item *it, enum enum_field_types type)
   if (!it->fixed && it->fix_fields(thd, 0, &it))
   {
     DBUG_PRINT("info", ("fix_fields() failed"));
-    DBUG_RETURN(it);		// Shouldn't happen?
+    DBUG_RETURN(NULL);
   }
 
   /* QQ How do we do this? Is there some better way? */
@@ -317,22 +365,26 @@ sp_head::create(THD *thd)
 
   DBUG_PRINT("info", ("type: %d name: %s params: %s body: %s",
 		      m_type, m_name.str, m_params.str, m_body.str));
-#ifndef DBUG_OFF
-  String s;
-  sp_instr *i;
-  uint ip= 0;
-  while ((i = get_instr(ip)))
-  {
-    char buf[8];
 
-    sprintf(buf, "%4u: ", ip);
-    s.append(buf);
-    i->print(&s);
-    s.append('\n');
-    ip+= 1;
+#ifndef DBUG_OFF
+  optimize();
+  {
+    String s;
+    sp_instr *i;
+    uint ip= 0;
+    while ((i = get_instr(ip)))
+    {
+      char buf[8];
+
+      sprintf(buf, "%4u: ", ip);
+      s.append(buf);
+      i->print(&s);
+      s.append('\n');
+      ip+= 1;
+    }
+    s.append('\0');
+    DBUG_PRINT("info", ("Code %s\n%s", m_qname.str, s.ptr()));
   }
-  s.append('\0');
-  DBUG_PRINT("info", ("Code %s\n%s", m_qname.str, s.ptr()));
 #endif
 
   if (m_type == TYPE_ENUM_FUNCTION)
@@ -377,9 +429,11 @@ sp_head::execute(THD *thd)
   DBUG_ENTER("sp_head::execute");
   char olddb[128];
   bool dbchanged;
-  sp_rcontext *ctx= thd->spcont;
+  sp_rcontext *ctx;
   int ret= 0;
   uint ip= 0;
+  Item_arena *old_arena;
+
 
 #ifndef EMBEDDED_LIBRARY
   if (check_stack_overrun(thd, olddb))
@@ -392,10 +446,12 @@ sp_head::execute(THD *thd)
   if ((ret= sp_use_new_db(thd, m_db.str, olddb, sizeof(olddb), 0, &dbchanged)))
     goto done;
 
-  if (ctx)
+  if ((ctx= thd->spcont))
     ctx->clear_handler();
   thd->query_error= 0;
+  old_arena= thd->current_arena;
   thd->current_arena= this;
+
   do
   {
     sp_instr *i;
@@ -430,18 +486,17 @@ sp_head::execute(THD *thd)
 	continue;
       }
     }
-  } while (ret == 0 && !thd->killed && !thd->query_error &&
-	   !thd->net.report_error);
+  } while (ret == 0 && !thd->killed && !thd->query_error);
+
+  if (thd->current_arena)
+    cleanup_items(thd->current_arena->free_list);
+  thd->current_arena= old_arena;
 
  done:
   DBUG_PRINT("info", ("ret=%d killed=%d query_error=%d",
 		      ret, thd->killed, thd->query_error));
 
-  if (thd->current_arena)
-    cleanup_items(thd->current_arena->free_list);
-  thd->current_arena= 0;
-
-  if (thd->killed || thd->query_error || thd->net.report_error)
+  if (thd->killed || thd->query_error)
     ret= -1;
   /* If the DB has changed, the pointer has changed too, but the
      original thd->db will then have been freed */
@@ -482,8 +537,14 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount, Item **resp)
   for (i= 0 ; i < params && i < argcount ; i++)
   {
     sp_pvar_t *pvar = m_pcont->find_pvar(i);
+    Item *it= sp_eval_func_item(thd, *argp++, pvar->type);
 
-    nctx->push_item(sp_eval_func_item(thd, *argp++, pvar->type));
+    if (it)
+      nctx->push_item(it);
+    else
+    {
+      DBUG_RETURN(-1);
+    }
   }
 #ifdef NOT_WORKING
   /*
@@ -532,7 +593,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 {
   DBUG_ENTER("sp_head::execute_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
-  int ret;
+  int ret= 0;
   uint csize = m_pcont->max_framesize();
   uint params = m_pcont->params();
   uint hmax = m_pcont->handlers();
@@ -577,7 +638,17 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 	  nctx->push_item(nit); // OUT
 	}
 	else
-	  nctx->push_item(sp_eval_func_item(thd, it,pvar->type)); // IN or INOUT
+	{
+	  Item *it2= sp_eval_func_item(thd, it,pvar->type);
+
+	  if (it2)
+	    nctx->push_item(it2); // IN or INOUT
+	  else
+	  {
+	    ret= -1;		// Eval failed
+	    break;
+	  }
+	}
 	// Note: If it's OUT or INOUT, it must be a variable.
 	// QQ: We can check for global variables here, or should we do it
 	//     while parsing?
@@ -602,7 +673,8 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     thd->spcont= nctx;
   }
 
-  ret= execute(thd);
+  if (! ret)
+    ret= execute(thd);
 
   // Don't copy back OUT values if we got an error
   if (ret)
@@ -673,17 +745,18 @@ sp_head::reset_lex(THD *thd)
 
   (void)m_lex.push_front(oldlex);
   thd->lex= sublex= new st_lex;
+
   /* Reset most stuff. The length arguments doesn't matter here. */
-  lex_start(thd, oldlex->buf, oldlex->end_of_query - oldlex->ptr);
-  sublex->yylineno= oldlex->yylineno;
+  mysql_init_query(thd,oldlex->buf, oldlex->end_of_query - oldlex->ptr, TRUE);
+
   /* We must reset ptr and end_of_query again */
   sublex->ptr= oldlex->ptr;
   sublex->end_of_query= oldlex->end_of_query;
   sublex->tok_start= oldlex->tok_start;
+  sublex->yylineno= oldlex->yylineno;
   /* And keep the SP stuff too */
   sublex->sphead= oldlex->sphead;
   sublex->spcont= oldlex->spcont;
-  mysql_init_query(thd, true);	// Only init lex
   sublex->sp_lex_in_use= FALSE;
   DBUG_VOID_RETURN;
 }
@@ -695,7 +768,6 @@ sp_head::restore_lex(THD *thd)
   DBUG_ENTER("sp_head::restore_lex");
   LEX *sublex= thd->lex;
   LEX *oldlex= (LEX *)m_lex.pop();
-  SELECT_LEX *sl;
 
   if (! oldlex)
     return;			// Nothing to restore
@@ -859,14 +931,16 @@ sp_head::show_create_procedure(THD *thd)
 
   DBUG_ENTER("sp_head::show_create_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
-
+  LINT_INIT(sql_mode_str);
+  LINT_INIT(sql_mode_len);
+  
   old_sql_mode= thd->variables.sql_mode;
   thd->variables.sql_mode= m_sql_mode;
   sql_mode_var= find_sys_var("SQL_MODE", 8);
   if (sql_mode_var)
   {
     sql_mode_str= sql_mode_var->value_ptr(thd, OPT_SESSION, 0);
-    sql_mode_len= strlen(sql_mode_str);
+    sql_mode_len= strlen((char*) sql_mode_str);
   }
 
   field_list.push_back(new Item_empty_string("Procedure", NAME_LEN));
@@ -875,7 +949,8 @@ sp_head::show_create_procedure(THD *thd)
   // 1024 is for not to confuse old clients
   field_list.push_back(new Item_empty_string("Create Procedure",
 					     max(buffer.length(), 1024)));
-  if (protocol->send_fields(&field_list, 1))
+  if (protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS |
+                                         Protocol::SEND_EOF))
   {
     res= 1;
     goto done;
@@ -883,7 +958,7 @@ sp_head::show_create_procedure(THD *thd)
   protocol->prepare_for_resend();
   protocol->store(m_name.str, m_name.length, system_charset_info);
   if (sql_mode_var)
-    protocol->store(sql_mode_str, sql_mode_len, system_charset_info);
+    protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
   protocol->store(m_defstr.str, m_defstr.length, system_charset_info);
   res= protocol->write();
   send_eof(thd);
@@ -924,6 +999,8 @@ sp_head::show_create_function(THD *thd)
   ulong sql_mode_len;
   DBUG_ENTER("sp_head::show_create_function");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
+  LINT_INIT(sql_mode_str);
+  LINT_INIT(sql_mode_len);
 
   old_sql_mode= thd->variables.sql_mode;
   thd->variables.sql_mode= m_sql_mode;
@@ -931,7 +1008,7 @@ sp_head::show_create_function(THD *thd)
   if (sql_mode_var)
   {
     sql_mode_str= sql_mode_var->value_ptr(thd, OPT_SESSION, 0);
-    sql_mode_len= strlen(sql_mode_str);
+    sql_mode_len= strlen((char*) sql_mode_str);
   }
 
   field_list.push_back(new Item_empty_string("Function",NAME_LEN));
@@ -939,7 +1016,8 @@ sp_head::show_create_function(THD *thd)
     field_list.push_back(new Item_empty_string("sql_mode", sql_mode_len));
   field_list.push_back(new Item_empty_string("Create Function",
 					     max(buffer.length(),1024)));
-  if (protocol->send_fields(&field_list, 1))
+  if (protocol->send_fields(&field_list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
   {
     res= 1;
     goto done;
@@ -947,7 +1025,7 @@ sp_head::show_create_function(THD *thd)
   protocol->prepare_for_resend();
   protocol->store(m_name.str, m_name.length, system_charset_info);
   if (sql_mode_var)
-    protocol->store(sql_mode_str, sql_mode_len, system_charset_info);
+    protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
   protocol->store(m_defstr.str, m_defstr.length, system_charset_info);
   res= protocol->write();
   send_eof(thd);
@@ -956,6 +1034,58 @@ sp_head::show_create_function(THD *thd)
   thd->variables.sql_mode= old_sql_mode;
   DBUG_RETURN(res);
 }
+
+void
+sp_head::optimize()
+{
+  List<sp_instr> bp;
+  sp_instr *i;
+  uint src, dst;
+
+  opt_mark(0);
+
+  bp.empty();
+  src= dst= 0;
+  while ((i= get_instr(src)))
+  {
+    if (! i->marked)
+    {
+      delete i;
+      src+= 1;
+    }
+    else
+    {
+      if (src != dst)
+      {
+	sp_instr *ibp;
+	List_iterator_fast<sp_instr> li(bp);
+
+	set_dynamic(&m_instr, (gptr)&i, dst);
+	while ((ibp= li++))
+	{
+	  sp_instr_jump *ji= static_cast<sp_instr_jump *>(ibp);
+	  if (ji->m_dest == src)
+	    ji->m_dest= dst;
+	}
+      }
+      i->opt_move(dst, &bp);
+      src+= 1;
+      dst+= 1;
+    }
+  }
+  m_instr.elements= dst;
+  bp.empty();
+}
+
+void
+sp_head::opt_mark(uint ip)
+{
+  sp_instr *i;
+
+  while ((i= get_instr(ip)) && !i->marked)
+    ip= i->opt_mark(this);
+}
+
 // ------------------------------------------------------------------
 
 //
@@ -990,7 +1120,6 @@ int
 sp_instr_stmt::exec_stmt(THD *thd, LEX *lex)
 {
   LEX *olex;			// The other lex
-  SELECT_LEX *sl;
   int res;
 
   olex= thd->lex;		// Save the other lex
@@ -1027,7 +1156,11 @@ sp_instr_set::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_set::execute");
   DBUG_PRINT("info", ("offset: %u", m_offset));
-  thd->spcont->set_item(m_offset, sp_eval_func_item(thd, m_value, m_type));
+  Item *it= sp_eval_func_item(thd, m_value, m_type);
+
+  if (! it)
+    DBUG_RETURN(-1);
+  thd->spcont->set_item(m_offset, it);
   *nextp = m_ip+1;
   DBUG_RETURN(0);
 }
@@ -1063,6 +1196,42 @@ sp_instr_jump::print(String *str)
   str->qs_append(m_dest);
 }
 
+uint
+sp_instr_jump::opt_mark(sp_head *sp)
+{
+  marked= 1;
+  m_dest= opt_shortcut_jump(sp);
+  m_optdest= sp->get_instr(m_dest);
+  return m_dest;
+}
+
+uint
+sp_instr_jump::opt_shortcut_jump(sp_head *sp)
+{
+  uint dest= m_dest;
+  sp_instr *i;
+
+  while ((i= sp->get_instr(dest)))
+  {
+    uint ndest= i->opt_shortcut_jump(sp);
+
+    if (ndest == dest)
+      break;
+    dest= ndest;
+  }
+  return dest;
+}
+
+void
+sp_instr_jump::opt_move(uint dst, List<sp_instr> *bp)
+{
+  if (m_dest > m_ip)
+    bp->push_back(this);	// Forward
+  else if (m_optdest)
+    m_dest= m_optdest->m_ip;	// Backward
+  m_ip= dst;
+}
+
 //
 // sp_instr_jump_if
 //
@@ -1073,6 +1242,8 @@ sp_instr_jump_if::execute(THD *thd, uint *nextp)
   DBUG_PRINT("info", ("destination: %u", m_dest));
   Item *it= sp_eval_func_item(thd, m_expr, MYSQL_TYPE_TINY);
 
+  if (!it)
+    DBUG_RETURN(-1);
   if (it->val_int())
     *nextp = m_dest;
   else
@@ -1090,6 +1261,21 @@ sp_instr_jump_if::print(String *str)
   m_expr->print(str);
 }
 
+uint
+sp_instr_jump_if::opt_mark(sp_head *sp)
+{
+  sp_instr *i;
+
+  marked= 1;
+  if ((i= sp->get_instr(m_dest)))
+  {
+    m_dest= i->opt_shortcut_jump(sp);
+    m_optdest= sp->get_instr(m_dest);
+  }
+  sp->opt_mark(m_dest);
+  return m_ip+1;
+}
+
 //
 // sp_instr_jump_if_not
 //
@@ -1100,6 +1286,8 @@ sp_instr_jump_if_not::execute(THD *thd, uint *nextp)
   DBUG_PRINT("info", ("destination: %u", m_dest));
   Item *it= sp_eval_func_item(thd, m_expr, MYSQL_TYPE_TINY);
 
+  if (! it)
+    DBUG_RETURN(-1);
   if (! it->val_int())
     *nextp = m_dest;
   else
@@ -1117,6 +1305,21 @@ sp_instr_jump_if_not::print(String *str)
   m_expr->print(str);
 }
 
+uint
+sp_instr_jump_if_not::opt_mark(sp_head *sp)
+{
+  sp_instr *i;
+
+  marked= 1;
+  if ((i= sp->get_instr(m_dest)))
+  {
+    m_dest= i->opt_shortcut_jump(sp);
+    m_optdest= sp->get_instr(m_dest);
+  }
+  sp->opt_mark(m_dest);
+  return m_ip+1;
+}
+
 //
 // sp_instr_freturn
 //
@@ -1124,7 +1327,11 @@ int
 sp_instr_freturn::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_freturn::execute");
-  thd->spcont->set_result(sp_eval_func_item(thd, m_value, m_type));
+  Item *it= sp_eval_func_item(thd, m_value, m_type);
+
+  if (! it)
+    DBUG_RETURN(-1);
+  thd->spcont->set_result(it);
   *nextp= UINT_MAX;
   DBUG_RETURN(0);
 }
@@ -1168,6 +1375,21 @@ sp_instr_hpush_jump::print(String *str)
   str->qs_append(m_frame);
   str->append(" h=");
   str->qs_append(m_handler);
+}
+
+uint
+sp_instr_hpush_jump::opt_mark(sp_head *sp)
+{
+  sp_instr *i;
+
+  marked= 1;
+  if ((i= sp->get_instr(m_dest)))
+  {
+    m_dest= i->opt_shortcut_jump(sp);
+    m_optdest= sp->get_instr(m_dest);
+  }
+  sp->opt_mark(m_dest);
+  return m_ip+1;
 }
 
 //
