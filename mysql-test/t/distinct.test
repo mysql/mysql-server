@@ -326,9 +326,9 @@ drop table t1,t2;
 CREATE TABLE t1 (
   html varchar(5) default NULL,
   rin int(11) default '0',
-  out int(11) default '0'
+  rout int(11) default '0'
 ) TYPE=MyISAM;
 
 INSERT INTO t1 VALUES ('1',1,0);
-SELECT DISTINCT html,SUM(out)/(SUM(rin)+1) as 'prod' FROM t1 GROUP BY rin;
+SELECT DISTINCT html,SUM(rout)/(SUM(rin)+1) as 'prod' FROM t1 GROUP BY rin;
 drop table t1;

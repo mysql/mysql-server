@@ -793,7 +793,7 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
   // store pointer on SELECT_LEX from wich item is dependent
   item->depended_from= last;
   current->mark_as_dependent(last);
-  if (thd->lex.describe)
+  if (thd->lex->describe)
   {
     char warn_buff[MYSQL_ERRMSG_SIZE];
     sprintf(warn_buff, ER(ER_WARN_FIELD_RESOLVED),

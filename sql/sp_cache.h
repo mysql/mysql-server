@@ -41,7 +41,7 @@ public:
   inline void
   insert(sp_head *sp)
   {
-    hash_insert(&m_hashtable, (const byte *)sp);
+    my_hash_insert(&m_hashtable, (const byte *)sp);
   }
 
   inline sp_head *

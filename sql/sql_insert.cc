@@ -616,7 +616,7 @@ public:
     thd.current_tablenr=0;
     thd.version=refresh_version;
     thd.command=COM_DELAYED_INSERT;
-    thd.lex.current_select= 0; /* for my_message_sql */
+    thd.lex->current_select= 0; /* for my_message_sql */
 
     bzero((char*) &thd.net,sizeof(thd.net));	// Safety
     thd.system_thread=1;

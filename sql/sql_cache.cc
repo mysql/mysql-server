@@ -2588,7 +2588,7 @@ my_bool Query_cache::ask_handler_allowance(THD *thd,
     {
       DBUG_PRINT("qcache", ("Handler does not allow caching for %s.%s",
 			    tables_used->db, tables_used->alias));
-      thd->lex.safe_to_cache_query= 0;          // Don't try to cache this
+      thd->lex->safe_to_cache_query= 0;          // Don't try to cache this
       DBUG_RETURN(1);
     }
   }

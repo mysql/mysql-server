@@ -901,7 +901,7 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
     my_pthread_setprio(pthread_self(),WAIT_PRIOR);
 
   // save WHERE clause pointers to avoid damaging they by optimisation
-  for (SELECT_LEX *sl= thd->lex.all_selects_list;
+  for (SELECT_LEX *sl= thd->lex->all_selects_list;
        sl;
        sl= sl->next_select_in_list())
   {
