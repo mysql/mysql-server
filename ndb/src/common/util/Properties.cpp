@@ -31,6 +31,7 @@ char * f_strdup(const char * s){
  * Note has to be a multiple of 4 bytes
  */
 const char Properties::version[] = { 2, 0, 0, 1, 1, 1, 1, 4 };
+const char Properties::delimiter = ':';
 
 /**
  * PropertyImpl
