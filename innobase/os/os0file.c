@@ -9,6 +9,7 @@ Created 10/21/1995 Heikki Tuuri
 #include "os0file.h"
 #include "os0sync.h"
 #include "ut0mem.h"
+#include "srv0srv.h"
 
 
 #ifdef POSIX_ASYNC_IO
@@ -345,12 +346,11 @@ try_again:
 
 	UT_NOT_USED(purpose);
 
-	/* On Linux opening a file in the O_SYNC mode seems to be much
-        more efficient for small writes than calling an explicit fsync or
-	fdatasync after each write, but on Solaris O_SYNC and O_DSYNC is
-	extremely slow in large block writes to a big file. Therefore we
-	do not use these options, but use explicit fdatasync. */
-
+#ifdef O_DSYNC
+	if (srv_unix_file_flush_method == SRV_UNIX_O_DSYNC) {
+	        create_flag = create_flag | O_DSYNC;
+	}
+#endif
 	if (create_mode == OS_FILE_CREATE) {
 	        file = open(name, create_flag, S_IRUSR | S_IWUSR | S_IRGRP
 			                     | S_IWGRP | S_IROTH | S_IWOTH);
@@ -546,6 +546,12 @@ os_file_flush(
 	return(FALSE);
 #else
 	int	ret;
+
+#ifdef O_DSYNC
+	if (srv_unix_file_flush_method == SRV_UNIX_O_DSYNC) {
+	        return(TRUE);
+	}
+#endif
 	
 #ifdef HAVE_FDATASYNC
 	ret = fdatasync(file);
@@ -621,10 +627,15 @@ os_file_pwrite(
 #ifdef HAVE_PWRITE
 	ret = pwrite(file, buf, n, offs);
 
-	/* Always do fsync to reduce the probability that when the OS crashes,
-	a database page is only partially physically written to disk. */
+	if (srv_unix_file_flush_method != SRV_UNIX_LITTLESYNC
+	    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC) {
 
-	ut_a(TRUE == os_file_flush(file));
+	        /* Always do fsync to reduce the probability that when
+                the OS crashes, a database page is only partially
+                physically written to disk. */
+
+	        ut_a(TRUE == os_file_flush(file));
+	}
 
         return(ret);
 #else
@@ -645,10 +656,15 @@ os_file_pwrite(
 	
 	ret = write(file, buf, n);
 
-	/* Always do fsync to reduce the probability that when the OS crashes,
-	a database page is only partially physically written to disk. */
+	if (srv_unix_file_flush_method != SRV_UNIX_LITTLESYNC
+	    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC) {
 
-	ut_a(TRUE == os_file_flush(file));
+	        /* Always do fsync to reduce the probability that when
+                the OS crashes, a database page is only partially
+                physically written to disk. */
+
+	        ut_a(TRUE == os_file_flush(file));
+	}
 
 	os_mutex_exit(os_file_seek_mutexes[i]);
 

@@ -83,6 +83,7 @@ long innobase_mirrored_log_groups, innobase_log_files_in_group,
 
 char *innobase_data_home_dir, *innobase_data_file_path;
 char *innobase_log_group_home_dir, *innobase_log_arch_dir;
+char *innobase_unix_file_flush_method;
 bool innobase_flush_log_at_trx_commit, innobase_log_archive,
 	innobase_use_native_aio;
 
@@ -473,6 +474,10 @@ innobase_init(void)
 	if (ret == FALSE) {
 	  DBUG_RETURN(TRUE);
 	}
+
+	srv_unix_file_flush_method_str = (innobase_unix_file_flush_method ?
+				      innobase_unix_file_flush_method :
+				      (char*)"fdatasync");
 
 	srv_n_log_groups = (ulint) innobase_mirrored_log_groups;
 	srv_n_log_files = (ulint) innobase_log_files_in_group;

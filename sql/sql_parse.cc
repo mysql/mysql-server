@@ -1864,15 +1864,6 @@ mysql_execute_command(void)
     }
     if (check_db_used(thd,tables) || end_active_trans(thd))
       goto error;
-    for (TABLE_LIST *tmp = tables; tmp; tmp = tmp->next)
-    {
-      if (!(tmp->lock_type == TL_READ_NO_INSERT ?
-            !check_table_access(thd, SELECT_ACL, tmp) :
-            (!check_table_access(thd, INSERT_ACL, tmp) ||
-             !check_table_access(thd, UPDATE_ACL, tmp) ||
-             !check_table_access(thd, DELETE_ACL, tmp))))
-         goto error;
-    }
     thd->in_lock_tables=1;
     if (!(res=open_and_lock_tables(thd,tables)))
     {
