@@ -635,12 +635,15 @@ static void verify_prepare_field(MYSQL_RES *result,
                                  unsigned long length, const char *def)
 {
   MYSQL_FIELD *field;
+  CHARSET_INFO *cs;
 
   if (!(field= mysql_fetch_field_direct(result, no)))
   {
     fprintf(stdout, "\n *** ERROR: FAILED TO GET THE RESULT ***");
     exit(1);
   }
+  cs= get_charset(field->charsetnr, 0);
+  DIE_UNLESS(cs);
   if (!opt_silent)
   {
     fprintf(stdout, "\n field[%d]:", no);
@@ -654,7 +657,7 @@ static void verify_prepare_field(MYSQL_RES *result,
             field->org_table, org_table);
     fprintf(stdout, "\n    database :`%s`\t(expected: `%s`)", field->db, db);
     fprintf(stdout, "\n    length   :`%ld`\t(expected: `%ld`)",
-            field->length, length);
+            field->length, length * cs->mbmaxlen);
     fprintf(stdout, "\n    maxlength:`%ld`", field->max_length);
     fprintf(stdout, "\n    charsetnr:`%d`", field->charsetnr);
     fprintf(stdout, "\n    default  :`%s`\t(expected: `%s`)",
@@ -663,11 +666,24 @@ static void verify_prepare_field(MYSQL_RES *result,
   }
   DIE_UNLESS(strcmp(field->name, name) == 0);
   DIE_UNLESS(strcmp(field->org_name, org_name) == 0);
-  DIE_UNLESS(field->type == type);
+  /*
+    XXX: silent column specification change works based on number of
+    bytes a column occupies. So CHAR -> VARCHAR upgrade is possible even
+    for CHAR(2) column if its character set is multibyte.
+    VARCHAR -> CHAR downgrade won't work for VARCHAR(3) as one would
+    expect.
+  */
+  if (cs->mbmaxlen == 1)
+    DIE_UNLESS(field->type == type);
   DIE_UNLESS(strcmp(field->table, table) == 0);
   DIE_UNLESS(strcmp(field->org_table, org_table) == 0);
   DIE_UNLESS(strcmp(field->db, db) == 0);
-  DIE_UNLESS(field->length == length);
+  /*
+    Character set should be taken into account for multibyte encodings, such
+    as utf8. Field length is calculated as number of characters * maximum
+    number of bytes a character can occupy.
+  */
+  DIE_UNLESS(field->length == length * cs->mbmaxlen);
   if (def)
     DIE_UNLESS(strcmp(field->def, def) == 0);
 }
