@@ -153,9 +153,9 @@ production systems as well as for embedding into mass-deployed software.
 @code{MySQL} is a trademark of @code{MySQL AB}.
 
 The @code{MySQL} software has @code{Dual Licensing}, you can use
-@code{MySQL Server} free of charge under the
+the @code{MySQL} software free of charge under the
 @code{GNU GENERAL PUBLIC LICENSE} (@uref{http://www.gnu.org/licenses/}).
-You can also purchase commercial @code{MySQL Server} licenses from
+You can also purchase commercial @code{MySQL} licenses from
 @code{MySQL AB} if you do not wish to be bound by the terms of the
 @code{GPL}.
 @xref{Licensing and Support}.
@@ -448,7 +448,7 @@ may and may not do with the software in different situations.
 If you feel uncomfortable with the @code{GPL} or need to embed
 @code{MySQL} code into a commercial application you can buy a
 commercially licensed version from us.
-@xref{MySQL server licenses}.
+@xref{MySQL licenses}.
 
 @cindex Open Source, defined
 @cindex General Public License
@@ -1140,7 +1140,7 @@ we are able to employ @code{Dual Licensing} which means that the same
 product is available both under @code{GPL} and under a commercial
 license. This does not in any way affect the @code{Open Source}
 commitment of @code{MySQL AB}. For details about when a commercial
-license is required, please see @ref{MySQL server licenses}.
+license is required, please see @ref{MySQL licenses}.
 
 We also sell commercial licenses of third-party @code{Open Source GPL}
 software that adds value to @code{MySQL Server}. A good example is the
@@ -1235,7 +1235,7 @@ license deal, please fill in the contact form on our web site
 (@uref{http://www.mysql.com/}) or send an e-mail message
 to @email{licensing@@mysql.com} (for licensing questions) or to
 @email{sales@@mysql.com} (for sales inquiries).
-@xref{MySQL server licenses}.
+@xref{MySQL licenses}.
 
 If you represent a business that is interested in partnering with
 @code{MySQL AB}, please send e-mail to @email{partner@@mysql.com}.
@@ -1301,7 +1301,7 @@ This section describes @code{MySQL} support and licensing arrangements:
 @menu
 * Support::                     Support Offered by MySQL AB
 * Copyright::                   Copyrights and Licenses Used by MySQL
-* MySQL server licenses::       MySQL Server Licenses
+* MySQL licenses::              MySQL Licenses
 * MySQL AB Logos and Trademarks::  MySQL AB Logos and Trademarks
 @end menu
 
@@ -1346,7 +1346,7 @@ yourself. You may need immediate access to the most experienced
 @code{MySQL} troubleshooters available, those employed by @code{MySQL AB}.
 
 
-@node Copyright, MySQL server licenses, Support, Licensing and Support
+@node Copyright, MySQL licenses, Support, Licensing and Support
 @subsection Copyrights and Licenses Used by MySQL
 
 @cindex copyrights
@@ -1401,12 +1401,12 @@ if you are interested in doing a translation.
 @end enumerate
 
 For information about how the @code{MySQL} licenses work in practice,
-please refer to @ref{MySQL server licenses}.
+please refer to @ref{MySQL licenses}.
 Also see @ref{MySQL AB Logos and Trademarks}.
 
 
-@node MySQL server licenses, MySQL AB Logos and Trademarks, Copyright, Licensing and Support
-@subsection MySQL Server Licenses
+@node MySQL licenses, MySQL AB Logos and Trademarks, Copyright, Licensing and Support
+@subsection MySQL Licenses
 
 @cindex licensing policy
 @cindex technical support, licensing
@@ -1441,12 +1441,12 @@ automatically give you the right to use @code{MySQL AB} trademarks.
 
 
 @menu
-* Using the MySQL server under a commercial license::  Using the MySQL Server Under a Commercial License
-* Using the MySQL server for free under GPL::  Using the MySQL Server for Free Under GPL
+* Using the MySQL software under a commercial license::  Using the MySQL Software Under a Commercial License
+* Using the MySQL software for free under GPL::  Using the MySQL Software for Free Under GPL
 @end menu
 
-@node Using the MySQL server under a commercial license, Using the MySQL server for free under GPL, MySQL server licenses, MySQL server licenses
-@subsubsection Using the MySQL Server Under a Commercial License
+@node Using the MySQL software under a commercial license, Using the MySQL software for free under GPL, MySQL licenses, MySQL licenses
+@subsubsection Using the MySQL Software Under a Commercial License
 
 The @code{GPL} license is contagious in the sense that when a program
 is linked to a @code{GPL} program the resulting product must also be
@@ -1494,8 +1494,8 @@ licensing needs or you have restricted access to the Internet, please contact
 our sales staff at @email{sales@@mysql.com}.
 
 
-@node Using the MySQL server for free under GPL,  , Using the MySQL server under a commercial license, MySQL server licenses
-@subsubsection Using the MySQL Server for Free Under GPL
+@node Using the MySQL software for free under GPL,  , Using the MySQL software under a commercial license, MySQL licenses
+@subsubsection Using the MySQL Software for Free Under GPL
 
 @cindex licensing, free
 @cindex free licensing
@@ -1514,16 +1514,6 @@ for their functionality even if you sell the distribution commercially.
 
 @item
 When using the @code{MySQL} software internally in your company.
-
-@item
-When include the @code{MySQL} client code in a commercial program.
-The client part of the @code{MySQL} software is licensed under the
-@code{LGPL} (@code{GNU Lesser General Public License}).
-The formal terms of the @code{LGPL} license can be found at
-@uref{http://www.gnu.org/licenses/}.
-
-However, the @code{mysql} command-line client does include code
-from the @code{GNU} @code{readline} library that is under the @code{GPL}.
 
 @item
 @cindex ISP services
@@ -1572,7 +1562,7 @@ for free something into which we've put a lot a work, you're asking
 us to provide free support, too.)
 
 
-@node MySQL AB Logos and Trademarks,  , MySQL server licenses, Licensing and Support
+@node MySQL AB Logos and Trademarks,  , MySQL licenses, Licensing and Support
 @subsection MySQL AB Logos and Trademarks
 
 @cindex logos
@@ -44474,9 +44464,9 @@ compatible with the GPL).
 
 We encourage everyone to promote free software by releasing
 code under the GPL or a compatible license.  For those who
-are not able to do this, another option is to purchase the
-MySQL code from MySQL AB under a commercial license.  For details
-concerning this issue, please see @ref{MySQL server licenses}.
+are not able to do this, another option is to purchase a
+commercial licence for the MySQL code from MySQL AB.
+For details, please see @ref{MySQL licenses}.
 
 @node Cplusplus, Java, C, Clients
 @section MySQL C++ APIs
