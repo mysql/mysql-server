@@ -268,7 +268,7 @@ System-specific Issues
 * HP-UX 10.20::                 HP-UX 10.20 notes
 * HP-UX 11.x::                  HP-UX 11.x notes
 * Mac OS X::                    Mac OS X notes
-* BEOS::                        
+* BEOS::
 
 Linux Notes (All Linux Versions)
 
@@ -279,7 +279,7 @@ Linux Notes (All Linux Versions)
 * Linux-Alpha::                 Linux-Alpha notes
 * MKLinux::                     MkLinux notes
 * Qube2::                       Qube2 Linux notes
-* Linux-Ia64::                  
+* Linux-Ia64::
 
 BSD/OS Notes
 
@@ -456,13 +456,13 @@ Functions for Use in @code{SELECT} and @code{WHERE} Clauses
 
 @code{SHOW} Syntax (Get Information About Tables, Columns,...)
 
-* SHOW DATABASE INFO::          
-* SHOW TABLE STATUS::           
-* SHOW STATUS::                 
-* SHOW VARIABLES::              
-* SHOW PROCESSLIST::            
-* SHOW GRANTS::                 
-* SHOW CREATE TABLE::           
+* SHOW DATABASE INFO::
+* SHOW TABLE STATUS::
+* SHOW STATUS::
+* SHOW VARIABLES::
+* SHOW PROCESSLIST::
+* SHOW GRANTS::
+* SHOW CREATE TABLE::
 
 MySQL Table Types
 
@@ -485,12 +485,12 @@ MyISAM Table Formats
 
 BDB or Berkeley_db Tables
 
-* BDB overview::                
-* BDB install::                 
-* BDB start::                   
-* BDB characteristic::          
-* BDB TODO::                    
-* BDB errors::                  
+* BDB overview::
+* BDB install::
+* BDB start::
+* BDB characteristic::
+* BDB TODO::
+* BDB errors::
 
 MySQL Tutorial
 
@@ -509,7 +509,7 @@ Examples of Common Queries
 * example-Maximum-row::         The row holding the maximum of a certain column
 * example-Maximum-column-group::  Maximum of column per group
 * example-Maximum-column-group-row::  The rows holding the group-wise maximum of a certain field
-* example-user-variables::      
+* example-user-variables::
 * example-Foreign keys::        Using foreign keys
 
 Creating and Using a Database
@@ -593,7 +593,7 @@ Speed of queries that access or update data
 * Estimating performance::      Estimating query performance
 * SELECT speed::                Speed of @code{SELECT} queries
 * Where optimizations::         How MySQL optimizes @code{WHERE} clauses
-* DISTINCT optimization::       
+* DISTINCT optimization::
 * LEFT JOIN optimization::      How MySQL optimizes @code{LEFT JOIN}
 * LIMIT optimization::          How MySQL optimizes @code{LIMIT}
 * Insert speed::                Speed of @code{INSERT} queries
@@ -603,7 +603,7 @@ Speed of queries that access or update data
 MySQL Utilites
 
 * Programs::                    What do the executables do?
-* safe_mysqld::                 
+* safe_mysqld::
 * mysql::                       The command line tool
 * mysqladmin::                  Administering a @strong{MySQL} server
 * mysqldump::                   Dumping the structure and data from @strong{MySQL} databases and tables
@@ -626,10 +626,10 @@ Using @code{myisamchk} for table maintenance and crash recovery
 
 @code{myisamchk} invocation syntax
 
-* myisamchk general options::   
-* myisamchk check options::     
-* myisamchk repair options::    
-* myisamchk other options::     
+* myisamchk general options::
+* myisamchk check options::
+* myisamchk repair options::
+* myisamchk other options::
 
 Using @code{myisamchk} for crash recovery
 
@@ -702,7 +702,7 @@ Some common errors when using MySQL
 * Packet too large::            @code{Packet too large} error
 * Communication errors::        Communication errors / Aborted connection
 * Full table::                  @code{The table is full} error
-* Cannot create::               
+* Cannot create::
 * Commands out of sync::        @code{Commands out of sync} error in client
 * Ignoring user::               @code{Ignoring user} error
 * Cannot find table::           @code{Table 'xxx' doesn't exist} error
@@ -712,7 +712,7 @@ Solving some common problems with MySQL
 * Log Replication::             Database replication with  update log
 * Backup::                      Database backups
 * Update log::                  The update log
-* Binary log::                  
+* Binary log::
 * Slow query log::              Log of slow queries
 * Multiple servers::            Running multiple @strong{MySQL} servers on the same machine
 
@@ -818,8 +818,8 @@ MySQL internals
 
 Credits
 
-* Developers::                  
-* Contributors::                
+* Developers::
+* Contributors::
 
 MySQL change history
 
@@ -974,7 +974,7 @@ Comments on porting to other systems
 * Debugging server::            Debugging a @strong{MySQL} server
 * Debugging client::            Debugging a @strong{MySQL} client
 * The DBUG package::            The DBUG package
-* Locking methods::             
+* Locking methods::
 * RTS-threads::                 Comments about RTS threads
 * Thread packages::             Differences between different thread packages
 
@@ -1675,7 +1675,7 @@ they are, how they work, when to use them, and how to optimize
 them. It retains the clarity and humor of the Primer, but includes
 expanded comparisons to Win32 and OS/2 implementations. Code examples
 tested on all of the major UNIX platforms are featured along with
-detailed explanations of how and why they use threads.  
+detailed explanations of how and why they use threads.
 @*
 
 @emph{Programming the PERL DBI: Database Programming with PERL}
@@ -1696,20 +1696,20 @@ architecture of DBI and shows you how to write DBI-based programs. For
 the experienced DBI dabbler, this book explains DBI's nuances and the
 peculiarities of each individual DBD.
 
-The book includes:               
+The book includes:
 @itemize @bullet
 @item
-An introduction to DBI and its design                   
+An introduction to DBI and its design
 @item
-How to construct queries and bind parameters                   
+How to construct queries and bind parameters
 @item
-Working with database, driver, and statement handles                   
+Working with database, driver, and statement handles
 @item
-Debugging techniques                   
+Debugging techniques
 @item
-Coverage of each existing DBD                   
+Coverage of each existing DBD
 @item
-A complete reference to DBI 
+A complete reference to DBI
 @end itemize
 @*
 
@@ -2308,7 +2308,7 @@ MySQL-Databases, creating of new DBs and tables, editing etc.
 
 @item @uref{http://www.scibit.com/Products/Software/Utils/Mascon.asp,
 Mascon home page}.
-Mascon is a powerful Win32 GUI for the administering MySQL server databases. 
+Mascon is a powerful Win32 GUI for the administering MySQL server databases.
 @end itemize
 
 @subheading Distributions that Include MySQL
@@ -5901,12 +5901,12 @@ system-specific sections later in this chapter.
 @node Installing source tree, Compilation problems, Installing source, Installing
 @section Installing from development source tree
 
-@strong{CAUTION:} You should only read this section if you are 
+@strong{CAUTION:} You should only read this section if you are
 interested in helping us test our new code. If you just want to get
 @strong{MySQL} up and running on your system, you should use either
 source or binary distribution.
 
-Below are the instructions to obtain our most recent development 
+Below are the instructions to obtain our most recent development
 source tree:
 
 @itemize
@@ -5915,52 +5915,52 @@ Download @strong{BitKeeper} from @uref{http://www.bitmover.com/cgi-bin/download.
 @item
 Follow the instructions to install it.
 @item
-Once @strong{BitKeeper} is installed, 
+Once @strong{BitKeeper} is installed,
 @code{bk clone bk://work.mysql.com:7000 mysql} - the initial download
 may take a while, depending on the speed of your connection.
-@item 
-@code{cd mysql; bk -r edit; aclocal; autoheader; autoconf; 
- automake; ./configure} with your favorite options, and then 
+@item
+@code{cd mysql; bk -r edit; aclocal; autoheader; autoconf;
+ automake; ./configure} with your favorite options, and then
 @code{ make}.
 You will need GNU autoconf/automake, libtool, and m4 to do this.
 We have a
-collection of our standard configure scripts in the @code{BUILD/} 
-subdirectory - if you are lazy, you can do 
+collection of our standard configure scripts in the @code{BUILD/}
+subdirectory - if you are lazy, you can do
 @code{BUILD/compile-pentium-debug} . It will actually work on a lot of
 non-x86 machines despite its name.
 @item
 Once the build is done, @code{make install}. Be careful with this on
 a production machine - this may overwrite your live release binary. We
 recommend that if you have another installation of @strong{MySQL} that
-you @code{./configure} with different values for @code{prefix}, 
+you @code{./configure} with different values for @code{prefix},
 @code{tcp-port}, and @code{unix-socket-path}.
 @item
 Play hard with your new installation and try to make the new features
 crash. Report bugs to @email{bugs@@lists.mysql.com}. As always, make
 sure you have a full test case for the bug that we can run.
 @item
-If you have gotten to the @code{make} stage and it does not compile, 
-please report it to @email{bugs@@lists.mysql.com}. If you have 
+If you have gotten to the @code{make} stage and it does not compile,
+please report it to @email{bugs@@lists.mysql.com}. If you have
 installed the update version of the required GNU tools, and they crash
 trying to process our configuration files, please report it also. However,
 if you execute @code{aclocal} and get @code{command not found}, or a
 similar problem, do not report it - make sure all the needed tools are
-installed and your @code{PATH} variable is set correctly.  
+installed and your @code{PATH} variable is set correctly.
 @item
 After the initial @code{bk clone}, do @code{bk pull} to get the updates.
 @item
 You can examine change history of the tree with all the diffs with
-@code{bk sccstool}. If you see some funny diffs or code that you have a 
-question about, do not hesitate and e-mail 
-@email{internals@@lists.mysql.com}. Also if you think you have a 
-better idea on how to do something, send an email to the same place 
+@code{bk sccstool}. If you see some funny diffs or code that you have a
+question about, do not hesitate and e-mail
+@email{internals@@lists.mysql.com}. Also if you think you have a
+better idea on how to do something, send an email to the same place
 with a patch - @code{bk diffs} will produce a patch for you after you
 have made changes to the source. If you do not have the time to code
 your idea, just send a description.
 @item
 @strong{BitKeeper} has a nice help utility - @code{bk helptool}.
 
-@end itemize  
+@end itemize
 
 @cindex compiling, problems
 @cindex problems, compiling
@@ -6542,7 +6542,7 @@ distribution.
 * HP-UX 10.20::                 HP-UX 10.20 notes
 * HP-UX 11.x::                  HP-UX 11.x notes
 * Mac OS X::                    Mac OS X notes
-* BEOS::                        
+* BEOS::
 @end menu
 
 
@@ -6986,7 +6986,7 @@ CC=fcc CFLAGS="-O -K fast -K lib -K omitfp -Kpreex -D_GNU_SOURCE -DCONST=const -
 * Linux-Alpha::                 Linux-Alpha notes
 * MKLinux::                     MkLinux notes
 * Qube2::                       Qube2 Linux notes
-* Linux-Ia64::                  
+* Linux-Ia64::
 @end menu
 
 @node Linux-x86, Linux-RedHat50, Linux, Linux
@@ -11045,9 +11045,9 @@ When you connect to a @strong{MySQL} server, you normally should use a
 password.  The password is not transmitted in clear text over the
 connection, however the encryption algorithm is not very strong, and
 with some effort a clever attacker can crack the password if he is able
-to sniff the traffic between the client and the server. If the 
+to sniff the traffic between the client and the server. If the
 connection between the client and the server goes through an untrusted
-network, you should use an @strong{SSH} tunnel to encrypt the 
+network, you should use an @strong{SSH} tunnel to encrypt the
 communication.
 
 All other information is transferred as text that can be read by anyone
@@ -19864,13 +19864,13 @@ and @samp{_} wild-card characters.
 @findex SHOW INDEX
 @findex SHOW KEYS
 @menu
-* SHOW DATABASE INFO::          
-* SHOW TABLE STATUS::           
-* SHOW STATUS::                 
-* SHOW VARIABLES::              
-* SHOW PROCESSLIST::            
-* SHOW GRANTS::                 
-* SHOW CREATE TABLE::           
+* SHOW DATABASE INFO::
+* SHOW TABLE STATUS::
+* SHOW STATUS::
+* SHOW VARIABLES::
+* SHOW PROCESSLIST::
+* SHOW GRANTS::
+* SHOW CREATE TABLE::
 @end menu
 
 @cindex displaying, information, @code{SHOW}
@@ -19927,6 +19927,8 @@ are returned:
 This is updated by running @code{isamchk -a}.
 @item @code{Sub_part} @tab Number of indexed characters if the column is
 only partly indexed. @code{NULL} if the entire key is indexed.
+@item @code{Comment} @tab Various remarks.
+For now, it tells whether index is FULLTEXT or not.
 @end multitable
 
 @cindex displaying, table status
@@ -22416,12 +22418,12 @@ SUM_OVER_ALL_KEYS(max_length_of_key + sizeof(char*) * 2)
 @section BDB or Berkeley_db Tables
 
 @menu
-* BDB overview::                
-* BDB install::                 
-* BDB start::                   
-* BDB characteristic::          
-* BDB TODO::                    
-* BDB errors::                  
+* BDB overview::
+* BDB install::
+* BDB start::
+* BDB characteristic::
+* BDB TODO::
+* BDB errors::
 @end menu
 
 @node BDB overview, BDB install, BDB, BDB
@@ -22586,7 +22588,7 @@ error file:
 
 @example
 001119 23:43:56  bdb:  Missing log fileid entry
-001119 23:43:56  bdb:  txn_abort: Log undo failed for LSN: 1 3644744: Invalid 
+001119 23:43:56  bdb:  txn_abort: Log undo failed for LSN: 1 3644744: Invalid
 @end example
 
 This is not fatal but we don't recommend that you delete tables if you are
@@ -22986,7 +22988,7 @@ SELECT * FROM shop
 * example-Maximum-row::         The row holding the maximum of a certain column
 * example-Maximum-column-group::  Maximum of column per group
 * example-Maximum-column-group-row::  The rows holding the group-wise maximum of a certain field
-* example-user-variables::      
+* example-user-variables::
 * example-Foreign keys::        Using foreign keys
 @end menu
 
@@ -23257,7 +23259,7 @@ OR  field2_index = '1'
 @end example
 
 The reason is that we haven't yet had time to come up with an efficient
-way to handle this in the general case. (The @code{AND} handling is, 
+way to handle this in the general case. (The @code{AND} handling is,
 in comparison, now completely general and works very well).
 
 For the moment you can solve this very efficently by using a
@@ -24558,7 +24560,7 @@ mysql> SELECT p1.name, p1.sex, p2.name, p2.sex, p1.species
 +--------+------+--------+------+---------+
 @end example
 
-In this query, we specify aliases for the table name in order 
+In this query, we specify aliases for the table name in order
 to refer to the columns and keep straight which instance of the table
 each column reference is associated with.
 
@@ -25636,8 +25638,8 @@ command line. (Slave)
  @tab Only available starting in Version 3.23.28. Lists the binary logs on the master. You should use this command
 prior to @code{PURGE MASTER LOGS TO} to find out how far you should go.
 
-@item @code{PURGE MASTER LOGS TO 'logname'} 
- @tab  Available starting in Version 3.23.28. Deletes all the 
+@item @code{PURGE MASTER LOGS TO 'logname'}
+ @tab  Available starting in Version 3.23.28. Deletes all the
 replication logs that are listed in the log
 index as being prior to the specified log, and removed them from the
 log index, so that the given log now becomes first. Example:
@@ -25646,7 +25648,7 @@ log index, so that the given log now becomes first. Example:
 PURGE MASTER LOGS TO 'mysql-bin.010'
 @end example
 
-This command will do nothing and  fail with an error 
+This command will do nothing and  fail with an error
 if you have an active slave that
 is currently reading one of the logs you are trying to delete. However,
 if you have a dormant slave, and happen to purge one of the logs it
@@ -25655,10 +25657,10 @@ The command is safe to run while slaves are replicating - you do not
 need to stop them.
 
 You must first check all the slaves with @code{SHOW SLAVE STATUS} to
-see which log they are on, then do a listing of the logs on the 
+see which log they are on, then do a listing of the logs on the
 master with @code{SHOW MASTER LOGS}, find the earliest log among all
-the slaves (if all the slaves are up to date, this will be the 
-last log on the list), backup all the logs you are about to delete 
+the slaves (if all the slaves are up to date, this will be the
+last log on the list), backup all the logs you are about to delete
 (optional) and purge up to the target log.
 
 @end multitable
@@ -25701,11 +25703,11 @@ connects from the same slave
 
 @strong{Q}: How do I rotate replication logs?
 
-@strong{A}: In Version 3.23.28 you should use @code{PURGE MASTER LOGS TO} 
+@strong{A}: In Version 3.23.28 you should use @code{PURGE MASTER LOGS TO}
 command after determining which logs can be deleted, and optionally
 backing them up first. In earlier versions the process is much more
 painful, and cannot be safely done without stopping all the slaves in
-the case that you plan to re-use log names  . 
+the case that you plan to re-use log names  .
 You will need  to stop the slave threads,  edit the binary log index
  file, delete all the old logs, restart the master, start slave threads,
 and then remove the old log files.
@@ -26140,7 +26142,7 @@ other things). @xref{Symbolic links}.
 @cindex striping, defined
 @item Striping
 Striping means that you have many disks and put the first block on the
-first disk, the second block on the second disk, and the Nth on the 
+first disk, the second block on the second disk, and the Nth on the
 (N mod number_of_disks) disk, and so on. This means if your normal data
 size is less than the stripe size (or perfectly aligned) you will get
 much better performance. Note that striping is very dependent on the OS
@@ -27005,7 +27007,7 @@ great tool to find out if this is a problem with your query.
 * Estimating performance::      Estimating query performance
 * SELECT speed::                Speed of @code{SELECT} queries
 * Where optimizations::         How MySQL optimizes @code{WHERE} clauses
-* DISTINCT optimization::       
+* DISTINCT optimization::
 * LEFT JOIN optimization::      How MySQL optimizes @code{LEFT JOIN}
 * LIMIT optimization::          How MySQL optimizes @code{LIMIT}
 * Insert speed::                Speed of @code{INSERT} queries
@@ -27868,7 +27870,7 @@ We are also experimenting with Intel-Linux to be able to get more CPU
 power cheaper. Now that we have the binary portable database format (new
 in Version 3.23), we will start to use this for some parts of the application.
 
-Our initial feelings are that Linux will perform much better on 
+Our initial feelings are that Linux will perform much better on
 low-to-medium load and Solaris will perform better when you start to get a
 high load because of extreme disk IO, but we don't yet have anything
 conclusive about this. After some discussion with a Linux Kernel
@@ -27952,7 +27954,7 @@ How big a @code{VARCHAR} column can be
 
 @menu
 * Programs::                    What do the executables do?
-* safe_mysqld::                 
+* safe_mysqld::
 * mysql::                       The command line tool
 * mysqladmin::                  Administering a @strong{MySQL} server
 * mysqldump::                   Dumping the structure and data from @strong{MySQL} databases and tables
@@ -29445,10 +29447,10 @@ isamchk --silent /path/to/datadir/*/*.ISM
 @code{myisamchk} supports the following options.
 
 @menu
-* myisamchk general options::   
-* myisamchk check options::     
-* myisamchk repair options::    
-* myisamchk other options::     
+* myisamchk general options::
+* myisamchk check options::
+* myisamchk repair options::
+* myisamchk other options::
 @end menu
 
 Note that if you get an error like:
@@ -31020,7 +31022,7 @@ SELECT ... FROM ... WHERE ... PROCEDURE ANALYSE([max elements,[max memory]])
 @node Writing a procedure,  , procedure analyse, Adding procedures
 @section Writing a Procedure
 
-For the moment, the only documentation for this is the source. 
+For the moment, the only documentation for this is the source.
 
 You can find all information about procedures by examining the following files:
 
@@ -31898,7 +31900,7 @@ an error that is related to your particular system libraries).
 If you have a problem with tables with dynamic-length rows and you are
 not using @code{BLOB/TEXT} columns (but only @code{VARCHAR} columns), you
 can try to change all @code{VARCHAR} to @code{CHAR} with @code{ALTER
-TABLE}.  This will force @strong{MySQL} to use fixed-size rows. 
+TABLE}.  This will force @strong{MySQL} to use fixed-size rows.
 Fixed-size rows take a little extra space, but are much more tolerant to
 corruption!
 
@@ -31987,7 +31989,7 @@ sure that no other programs are using the dynamic libraries!
 * Packet too large::            @code{Packet too large} error
 * Communication errors::        Communication errors / Aborted connection
 * Full table::                  @code{The table is full} error
-* Cannot create::               
+* Cannot create::
 * Commands out of sync::        @code{Commands out of sync} error in client
 * Ignoring user::               @code{Ignoring user} error
 * Cannot find table::           @code{Table 'xxx' doesn't exist} error
@@ -32107,7 +32109,7 @@ shell> ./configure --with-unix-socket-path=/path/to/socket
 You can also start @code{safe_mysqld} with the
 @code{--socket=/path/to/socket} option and set the environment variable
 @code{MYSQL_UNIX_PORT} to the socket pathname before starting your
-@strong{MySQL} clients.  
+@strong{MySQL} clients.
 @item You have started the @code{mysqld} server with
 the @code{--socket=/path/to/socket} option.  If you change the socket
 pathname for the server, you must also notify the @strong{MySQL} clients
@@ -33038,7 +33040,7 @@ simple rename should get your data back.
 @cindex changing, column order
 @cindex tables, changing column order
 @node Change column order,  , ALTER TABLE problems, Problems
-@Section How To Change the Order of Columns in a Table
+@section How To Change the Order of Columns in a Table
 
 The whole point of SQL is to abstract the application from the data
 storage format.  You should always specify the order in which you wish to
@@ -33086,7 +33088,7 @@ Drop or rename @code{old_table}.
 * Log Replication::             Database replication with  update log
 * Backup::                      Database backups
 * Update log::                  The update log
-* Binary log::                  
+* Binary log::
 * Slow query log::              Log of slow queries
 * Multiple servers::            Running multiple @strong{MySQL} servers on the same machine
 @end menu
@@ -33629,7 +33631,7 @@ or more of the following bits set:
 @item @code{UNSIGNED_FLAG}       @tab Field has the @code{UNSIGNED} attribute
 @item @code{ZEROFILL_FLAG}       @tab Field has the @code{ZEROFILL} attribute
 @item @code{BINARY_FLAG}         @tab Field has the @code{BINARY} attribute
-@item @code{AUTO_INCREMENT_FLAG} @tab Field has the @code{AUTO_INCREMENT} 
+@item @code{AUTO_INCREMENT_FLAG} @tab Field has the @code{AUTO_INCREMENT}
 attribute
 @item @code{ENUM_FLAG}           @tab Field is an @code{ENUM} (deprecated)
 @item @code{BLOB_FLAG}           @tab Field is a @code{BLOB} or @code{TEXT} (deprecated)
@@ -36173,7 +36175,7 @@ adding @code{-lm} to the end of the compile/link line.
 @node Thread-safe clients,  , C API linking problems, C API functions
 @subsection How to Make a Thread-safe Client
 
-The client library is almost thread safe. The biggest problem is 
+The client library is almost thread safe. The biggest problem is
 that the subroutines in @file{net.c} that read from sockets are not
 interrupt safe.  This was done with the thought that you might want to
 have your own alarm that can break a long read to a server.  If you
@@ -36625,7 +36627,7 @@ append mode and output for @emph{all} traced handles is written to that
 file.  Example:
 @example
 DBI->trace(2);                # trace everything
-DBI->trace(2,"/tmp/dbi.out"); # trace everything to 
+DBI->trace(2,"/tmp/dbi.out"); # trace everything to
                               # /tmp/dbi.out
 $dth->trace(2);               # trace this database handle
 $sth->trace(2);               # trace this statement handle
@@ -38141,7 +38143,7 @@ With source code. By Matthias Fichtner.
 A library to use @strong{MySQL} with Delphi}
 
 @item @uref{http://www.geocities.com/CapeCanaveral/2064/mysql.html, Delphi TDataset-component}
-@item 
+@item
 @item @uref{http://www.mysql.com/Downloads/Contrib/Win32/SBMySQL50Share.exe, Delphi 5 Shareware MySQL Dataset Components}
 @end itemize
 
@@ -38688,8 +38690,8 @@ The following persons have helped us make MySQL what it's today
 
 @cindex developers, list of
 @menu
-* Developers::                  
-* Contributors::                
+* Developers::
+* Contributors::
 @end menu
 
 @node Developers, Contributors, Credits, Credits
@@ -38732,7 +38734,7 @@ Most of crash-me and the foundation for the @strong{MySQL} benchmarks.
 @itemize @bullet
 @item
 Coordinator and initial main writer of the @strong{Reference Manual},
-including enhancements to @code{texi2html}. 
+including enhancements to @code{texi2html}.
 @item
 Automatic website updating from the manual.
 @item
@@ -39159,8 +39161,10 @@ though, so Version 3.23 is not released as a stable version yet.
 @appendixsubsec Changes in release 3.23.29
 @itemize @bullet
 @item
+@code{SHOW KEYS} now shows whether key is FULLTEXT or not.
+@item
 Added new script, mysql-multi.server.sh.  Thanks to
-Tim Bunce <Tim.Bunce@ig.co.uk> for modifying mysql.server to
+Tim Bunce @email{Tim.Bunce@@ig.co.uk} for modifying mysql.server to
 easily handle hosts running many mysqlds.
 @item
 safe_mysqld, mysql.server and mysql_install_db have been modified
@@ -39170,6 +39174,8 @@ made more consistent with how mysqld handles them by default.
 @item
 Automatically remove Berkeley DB transaction logs that are no longer in
 use.
+@item
+Fixed bug with several FULLTEXT indexes in one table.
 @item
 Added a warning if number of rows changes on @code{REPAIR}/@code{OPTIMIZE}.
 @item
@@ -39182,6 +39188,9 @@ properly to disk.
 that @code{mysql_install_db} core dumped on some Linux machines.
 @item
 Changed @code{mi_create()} to use less stack.
+@item
+Fixed bug with optimizer trying to over-optimize MATCH when used
+with UNIQUE key.
 @item
 Changed crash-me and the MySQL benchmarks to also work with FrontBase.
 @item
@@ -39291,7 +39300,7 @@ Fixed an overflow bug in the client code when using overly long database names.
 @code{mysql_connect()} now aborts on Linux if the server doesn't answer in
 @code{timeout} seconds.
 @item
-@code{SLAVE START} did not work if you started with 
+@code{SLAVE START} did not work if you started with
 @code{--skip-slave-start} and had not explicitly run @code{CHANGE
 MASTER TO}.
 @item
@@ -39316,7 +39325,7 @@ a temporary table.
 @code{CHANGE MASTER TO} without specifying @code{MASTER_LOG_POS} would
 set it to 0 instead of 4 and hit the magic number in the master binlog.
 @item
-@code{ALTER TABLE ... ORDER BY ...} syntax added.  This will create the 
+@code{ALTER TABLE ... ORDER BY ...} syntax added.  This will create the
 new table with the rows in a specific order.
 @end itemize
 
@@ -44172,7 +44181,7 @@ will ensure that your thread installation has even a remote chance to work!
 * Debugging server::            Debugging a @strong{MySQL} server
 * Debugging client::            Debugging a @strong{MySQL} client
 * The DBUG package::            The DBUG package
-* Locking methods::             
+* Locking methods::
 * RTS-threads::                 Comments about RTS threads
 * Thread packages::             Differences between different thread packages
 @end menu
