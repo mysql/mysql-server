@@ -331,3 +331,11 @@ drop table t4;
 #
 --error 1109
 select * from information_schema.table_names;
+
+#
+# Bug#2719 information_schema: errors in "columns"
+#
+select column_type from information_schema.columns
+where table_schema="information_schema" and table_name="COLUMNS" and
+(column_name="character_set_name" or column_name="collation_name");
+
