@@ -1497,8 +1497,8 @@ No description available.
 @node Features, Stability, MySQL-Books, Introduction
 @section The Main Features of MySQL
 
-@cindex main features of @strong {MySQL}
-@cindex features of @strong {MySQL}
+@cindex main features of @strong{MySQL}
+@cindex features of @strong{MySQL}
 
 The following list describes some of the important characteristics
 of @strong{MySQL}:
