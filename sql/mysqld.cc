@@ -303,13 +303,15 @@ uint volatile thread_count=0, thread_running=0, kill_cached_threads=0,
 ulong thd_startup_options=(OPTION_UPDATE_LOG | OPTION_AUTO_IS_NULL |
 			   OPTION_BIN_LOG | OPTION_QUOTE_SHOW_CREATE );
 uint protocol_version=PROTOCOL_VERSION;
-ulong keybuff_size,sortbuff_size,max_item_sort_length,table_cache_size,
-      max_join_size,join_buff_size,tmp_table_size,thread_stack,
-      thread_stack_min,net_wait_timeout,what_to_log= ~ (1L << (uint) COM_TIME),
+struct system_variables global_system_variables;
+struct system_variables max_system_variables;
+ulong keybuff_size,table_cache_size,
+      thread_stack,
+      thread_stack_min,what_to_log= ~ (1L << (uint) COM_TIME),
       query_buff_size, lower_case_table_names, mysqld_net_retry_count,
-      net_interactive_timeout, slow_launch_time = 2L,
+      slow_launch_time = 2L,
       net_read_timeout,net_write_timeout,slave_open_temp_tables=0,
-      open_files_limit=0, max_binlog_size, record_rnd_cache_size;
+      open_files_limit=0, max_binlog_size;
 ulong com_stat[(uint) SQLCOM_END], com_other;
 ulong slave_net_timeout;
 ulong thread_cache_size=0, binlog_cache_size=0, max_binlog_cache_size=0;
@@ -334,16 +336,15 @@ uint master_port = MYSQL_PORT, master_connect_retry = 60;
 uint report_port = MYSQL_PORT;
 bool master_ssl = 0;
 
-ulong max_tmp_tables,max_heap_table_size,master_retry_count=0;
+ulong master_retry_count=0;
 ulong bytes_sent = 0L, bytes_received = 0L;
 
 bool opt_endinfo,using_udf_functions,low_priority_updates, locked_in_memory;
-bool opt_using_transactions, using_update_log, opt_warnings=0;
-my_bool opt_local_infile=1;
+bool opt_using_transactions, using_update_log;
 bool volatile abort_loop,select_thread_in_use,grant_option;
 bool volatile ready_to_exit,shutdown_in_progress;
 ulong refresh_version=1L,flush_version=1L;	/* Increments on each reload */
-ulong query_id=1L,long_query_count,long_query_time,aborted_threads,
+ulong query_id=1L,long_query_count,aborted_threads,
       aborted_connects,delayed_insert_timeout,delayed_insert_limit,
       delayed_queue_size,delayed_insert_threads,delayed_insert_writes,
       delayed_rows_in_use,delayed_insert_errors,flush_time, thread_created;
@@ -357,7 +358,6 @@ ulong max_connections,max_insert_delayed_threads,max_used_connections,
       max_connect_errors, max_user_connections = 0;
 ulong thread_id=1L,current_pid;
 ulong slow_launch_threads = 0;
-ulong myisam_max_sort_file_size, myisam_max_extra_sort_file_size;
   
 char mysql_real_data_home[FN_REFLEN],
      language[LIBLEN],reg_ext[FN_EXTLEN],
@@ -411,7 +411,7 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_error_log,
 		LOCK_delayed_insert, LOCK_delayed_status, LOCK_delayed_create,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
-	        LOCK_server_id,
+	        LOCK_server_id, LOCK_global_system_variables,
 		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi;
 
 pthread_cond_t COND_refresh,COND_thread_count,COND_binlog_update,
@@ -766,7 +766,7 @@ static pthread_handler_decl(kill_server_thread,arg __attribute__((unused)))
 
 static sig_handler print_signal_warning(int sig)
 {
-  if (opt_warnings)
+  if (current_thd->variables.opt_warnings)
     sql_print_error("Warning: Got signal %d from thread %d",
 		    sig,my_thread_id());
 #ifdef DONT_REMEMBER_SIGNAL
@@ -1335,14 +1335,15 @@ the problem, but since we have already crashed, something is definitely wrong\n\
 and this may fail.\n\n");
   fprintf(stderr, "key_buffer_size=%ld\n", keybuff_size);
   fprintf(stderr, "record_buffer=%ld\n", my_default_record_cache_size);
-  fprintf(stderr, "sort_buffer=%ld\n", sortbuff_size);
+  fprintf(stderr, "sort_buffer=%ld\n", thd->variables.sortbuff_size);
   fprintf(stderr, "max_used_connections=%ld\n", max_used_connections);
   fprintf(stderr, "max_connections=%ld\n", max_connections);
   fprintf(stderr, "threads_connected=%d\n", thread_count);
   fprintf(stderr, "It is possible that mysqld could use up to \n\
 key_buffer_size + (record_buffer + sort_buffer)*max_connections = %ld K\n\
 bytes of memory\n", (keybuff_size + (my_default_record_cache_size +
-			     sortbuff_size) * max_connections)/ 1024);
+				     thd->variables.sortbuff_size) *
+		     max_connections)/ 1024);
   fprintf(stderr, "Hope that's ok; if not, decrease some variables in the equation.\n\n");
   
 #if defined(HAVE_LINUXTHREADS)
@@ -1831,6 +1832,7 @@ int main(int argc, char **argv)
   (void) pthread_mutex_init(&LOCK_user_conn, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_rpl_status, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_active_mi, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_global_system_variables, MY_MUTEX_INIT_FAST);
   (void) pthread_cond_init(&COND_thread_count,NULL);
   (void) pthread_cond_init(&COND_refresh,NULL);
   (void) pthread_cond_init(&COND_thread_cache,NULL);
@@ -2978,7 +2980,8 @@ static struct my_option my_long_options[] =
    0, 0, 0, 0, 0, 0},
   {"local-infile", OPT_LOCAL_INFILE,
    "Enable/disable LOAD DATA LOCAL INFILE (takes values 1|0)",
-   (gptr*) &opt_local_infile, (gptr*) &opt_local_infile, 0, GET_BOOL, OPT_ARG,
+   (gptr*) &global_system_variables.opt_local_infile,
+   (gptr*) &max_system_variables.opt_local_infile, 0, GET_BOOL, OPT_ARG,
    1, 0, 0, 0, 0, 0},
   {"log-bin", OPT_BIN_LOG,
    "Log queries in new binary format (for replication)",
@@ -3254,7 +3257,8 @@ static struct my_option my_long_options[] =
   {"version", 'v', "Synonym for option -v", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"warnings", 'W', "Log some not critical warnings to the log file",
-   (gptr*) &opt_warnings, (gptr*) &opt_warnings, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   (gptr*) &global_system_variables.opt_warnings,
+   (gptr*) &max_system_variables.opt_warnings, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
   { "back_log", OPT_BACK_LOG,
     "The number of outstanding connection requests MySQL can have. This comes into play when the main MySQL thread gets very many connection requests in a very short time.", (gptr*) &back_log, (gptr*) &back_log, 0, GET_ULONG,
@@ -3359,11 +3363,13 @@ static struct my_option my_long_options[] =
 #endif /* HAVE_INNOBASE_DB */
   {"interactive_timeout", OPT_INTERACTIVE_TIMEOUT,
    "The number of seconds the server waits for activity on an interactive connection before closing it.",
-   (gptr*) &net_interactive_timeout, (gptr*) &net_interactive_timeout, 0,
+   (gptr*) &global_system_variables.net_interactive_timeout,
+   (gptr*) &max_system_variables.net_interactive_timeout, 0,
    GET_ULONG, REQUIRED_ARG, NET_WAIT_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0},
   {"join_buffer_size", OPT_JOIN_BUFF_SIZE,
    "The size of the buffer that is used for full joins.",
-   (gptr*) &join_buff_size, (gptr*) &join_buff_size, 0, GET_ULONG,
+   (gptr*) &global_system_variables.join_buff_size,
+   (gptr*) &max_system_variables.join_buff_size, 0, GET_ULONG,
    REQUIRED_ARG, 128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD,
    IO_SIZE, 0},
   {"key_buffer_size", OPT_KEY_BUFFER_SIZE,
@@ -3372,15 +3378,18 @@ static struct my_option my_long_options[] =
    KEY_CACHE_SIZE, MALLOC_OVERHEAD, (long) ~0, MALLOC_OVERHEAD, IO_SIZE, 0},
   {"long_query_time", OPT_LONG_QUERY_TIME,
    "Log all queries that have taken more than long_query_time seconds to execute to file.",
-   (gptr*) &long_query_time, (gptr*) &long_query_time, 0, GET_ULONG,
+   (gptr*) &global_system_variables.long_query_time,
+   (gptr*) &max_system_variables.long_query_time, 0, GET_ULONG,
    REQUIRED_ARG, 10, 1, LONG_TIMEOUT, 0, 1, 0},
   {"lower_case_table_names", OPT_LOWER_CASE_TABLE_NAMES,
    "If set to 1 table names are stored in lowercase on disk and table names will be case-insensitive.",
-   (gptr*) &lower_case_table_names, (gptr*) &lower_case_table_names, 0,
+   (gptr*) &lower_case_table_names,
+   (gptr*) &lower_case_table_names, 0,
    GET_ULONG, REQUIRED_ARG, IF_WIN(1,0), 0, 1, 0, 1, 0},
   {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET,
    "Max packetlength to send/receive from to server.",
-   (gptr*) &max_allowed_packet, (gptr*) &max_allowed_packet, 0, GET_ULONG,
+   (gptr*) &max_allowed_packet,
+   (gptr*) &max_allowed_packet, 0, GET_ULONG,
    REQUIRED_ARG, 1024*1024L, 80, 64*1024*1024L, MALLOC_OVERHEAD, 1024, 0},
   {"max_binlog_cache_size", OPT_MAX_BINLOG_CACHE_SIZE,
    "Can be used to restrict the total size used to cache a multi-transaction query.",
@@ -3404,19 +3413,23 @@ static struct my_option my_long_options[] =
    0, GET_ULONG, REQUIRED_ARG, 20, 1, 16384, 0, 1, 0},
   {"max_heap_table_size", OPT_MAX_HEP_TABLE_SIZE,
    "Don't allow creation of heap tables bigger than this.",
-   (gptr*) &max_heap_table_size, (gptr*) &max_heap_table_size, 0, GET_ULONG,
+   (gptr*) &global_system_variables.max_heap_table_size,
+   (gptr*) &max_system_variables.max_heap_table_size, 0, GET_ULONG,
    REQUIRED_ARG, 16*1024*1024L, 16384, ~0L, MALLOC_OVERHEAD, 1024, 0},
   {"max_join_size", OPT_MAX_JOIN_SIZE,
    "Joins that are probably going to read more than max_join_size records return an error.",
-   (gptr*) &max_join_size, (gptr*) &max_join_size, 0, GET_ULONG, REQUIRED_ARG,
+   (gptr*) &global_system_variables.max_join_size,
+   (gptr*) &max_system_variables.max_join_size, 0, GET_ULONG, REQUIRED_ARG,
    ~0L, 1, ~0L, 0, 1, 0},
   {"max_sort_length", OPT_MAX_SORT_LENGTH,
    "The number of bytes to use when sorting BLOB or TEXT values (only the first max_sort_length bytes of each value are used; the rest are ignored).",
-   (gptr*) &max_item_sort_length, (gptr*) &max_item_sort_length, 0, GET_ULONG,
+   (gptr*) &global_system_variables.max_item_sort_length,
+   (gptr*) &max_system_variables.max_item_sort_length, 0, GET_ULONG,
    REQUIRED_ARG, 1024, 4, 8192*1024L, 0, 1, 0},
   {"max_tmp_tables", OPT_MAX_TMP_TABLES,
    "Maximum number of temporary tables a client can keep open at a time.",
-   (gptr*) &max_tmp_tables, (gptr*) &max_tmp_tables, 0, GET_ULONG,
+   (gptr*) &global_system_variables.max_tmp_tables,
+   (gptr*) &max_system_variables.max_tmp_tables, 0, GET_ULONG,
    REQUIRED_ARG, 32, 1, ~0L, 0, 1, 0},
   {"max_user_connections", OPT_MAX_USER_CONNECTIONS,
    "The maximum number of active connections for a single user (0 = no limit).",
@@ -3429,8 +3442,8 @@ static struct my_option my_long_options[] =
   {"myisam_bulk_insert_tree_size", OPT_MYISAM_BULK_INSERT_TREE_SIZE,
    "Size of tree cache used in bulk insert optimisation. Note that this is a limit per thread!",
    (gptr*) &myisam_bulk_insert_tree_size,
-   (gptr*) &myisam_bulk_insert_tree_size, 0, GET_ULONG, REQUIRED_ARG,
-   8192*1024, 0, ~0L, 0, 1, 0},
+   (gptr*) &myisam_bulk_insert_tree_size,
+   0, GET_ULONG, REQUIRED_ARG, 8192*1024, 0, ~0L, 0, 1, 0},
   {"myisam_block_size", OPT_MYISAM_BLOCK_SIZE,
    "Undocumented", (gptr*) &opt_myisam_block_size,
    (gptr*) &opt_myisam_block_size, 0, GET_ULONG, REQUIRED_ARG,
@@ -3438,32 +3451,37 @@ static struct my_option my_long_options[] =
    0, MI_MIN_KEY_BLOCK_LENGTH, 0},
   {"myisam_max_extra_sort_file_size", OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
    "Used to help MySQL to decide when to use the slow but safe key cache index create method. Note that this parameter is given in megabytes!",
-   (gptr*) &myisam_max_extra_sort_file_size,
-   (gptr*) &myisam_max_extra_sort_file_size, 0, GET_ULONG, REQUIRED_ARG,
-   (long) (MI_MAX_TEMP_LENGTH/(1024L*1024L)), 0, ~0L, 0, 1, 0},
+   (gptr*) &global_system_variables.myisam_max_extra_sort_file_size,
+   (gptr*) &max_system_variables.myisam_max_extra_sort_file_size,
+   0, GET_ULONG, REQUIRED_ARG, (long) (MI_MAX_TEMP_LENGTH/(1024L*1024L)),
+   0, ~0L, 0, 1, 0},
   {"myisam_max_sort_file_size", OPT_MYISAM_MAX_SORT_FILE_SIZE,
    "Don't use the fast sort index method to created index if the temporary file would get bigger than this. Note that this paramter is given in megabytes!",
-   (gptr*) &myisam_max_sort_file_size, (gptr*) &myisam_max_sort_file_size, 0,
+   (gptr*) &global_system_variables.myisam_max_sort_file_size,
+   (gptr*) &max_system_variables.myisam_max_sort_file_size, 0,
    GET_ULONG, REQUIRED_ARG, (long) (LONG_MAX/(1024L*1024L)), 0, ~0L, 0, 1, 0},
   {"myisam_sort_buffer_size", OPT_MYISAM_SORT_BUFFER_SIZE,
    "The buffer that is allocated when sorting the index when doing a REPAIR or when creating indexes with CREATE INDEX or ALTER TABLE.",
    (gptr*) &myisam_sort_buffer_size, (gptr*) &myisam_sort_buffer_size, 0,
    GET_ULONG, REQUIRED_ARG, 8192*1024, 4, ~0L, 0, 1, 0},
   {"net_buffer_length", OPT_NET_BUFFER_LENGTH,
-   "Buffer for TCP/IP and socket communication.", (gptr*) &net_buffer_length,
-   (gptr*) &net_buffer_length, 0, GET_ULONG, REQUIRED_ARG, 16384, 1024,
-   1024*1024L, MALLOC_OVERHEAD, 1024, 0},
+   "Buffer for TCP/IP and socket communication.", 
+   (gptr*) &net_buffer_length,
+   (gptr*) &net_buffer_length, 0, GET_ULONG,
+   REQUIRED_ARG, 16384, 1024, 1024*1024L, MALLOC_OVERHEAD, 1024, 0},
   {"net_retry_count", OPT_NET_RETRY_COUNT,
    "If a read on a communication port is interrupted, retry this many times before giving up.",
    (gptr*) &mysqld_net_retry_count, (gptr*) &mysqld_net_retry_count, 0,
    GET_ULONG, REQUIRED_ARG, MYSQLD_NET_RETRY_COUNT, 1, ~0L, 0, 1, 0},
   {"net_read_timeout", OPT_NET_READ_TIMEOUT,
    "Number of seconds to wait for more data from a connection before aborting the read.",
-   (gptr*) &net_read_timeout, (gptr*) &net_read_timeout, 0, GET_ULONG,
+   (gptr*) &net_read_timeout,
+   (gptr*) &net_read_timeout, 0, GET_ULONG,
    REQUIRED_ARG, NET_READ_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0},
   {"net_write_timeout", OPT_NET_WRITE_TIMEOUT,
    "Number of seconds to wait for a block to be written to a connection  before aborting the write.",
-   (gptr*) &net_write_timeout, (gptr*) &net_write_timeout, 0, GET_ULONG,
+   (gptr*) &net_write_timeout,
+   (gptr*) &net_write_timeout, 0, GET_ULONG,
    REQUIRED_ARG, NET_WRITE_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0},
   {"open_files_limit", OPT_OPEN_FILES_LIMIT,
    "If this is not 0, then mysqld will use this value to reserve file descriptors to use with setrlimit(). If this value is 0 then mysqld will reserve max_connections*5 or max_connections + table_cache*2 (whichever is larger) number of files.",
@@ -3496,7 +3514,8 @@ static struct my_option my_long_options[] =
    128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD, IO_SIZE, 0},
   {"record_rnd_buffer", OPT_RECORD_RND_BUFFER,
    "When reading rows in sorted order after a sort, the rows are read through this buffer to avoid a disk seeks. If not set, then it's set to the value of record_buffer.",
-   (gptr*) &record_rnd_cache_size, (gptr*) &record_rnd_cache_size, 0,
+   (gptr*) &global_system_variables.record_rnd_cache_size,
+   (gptr*) &max_system_variables.record_rnd_cache_size, 0,
    GET_ULONG, REQUIRED_ARG, 0, IO_SIZE*2+MALLOC_OVERHEAD,
    ~0L, MALLOC_OVERHEAD, IO_SIZE, 0},
   {"relay_log_space_limit", OPT_RELAY_LOG_SPACE_LIMIT,
@@ -3513,7 +3532,8 @@ static struct my_option my_long_options[] =
    REQUIRED_ARG, 2L, 0L, LONG_TIMEOUT, 0, 1, 0},
   {"sort_buffer", OPT_SORT_BUFFER,
    "Each thread that needs to do a sort allocates a buffer of this size.",
-   (gptr*) &sortbuff_size, (gptr*) &sortbuff_size, 0, GET_ULONG, REQUIRED_ARG,
+   (gptr*) &global_system_variables.sortbuff_size,
+   (gptr*) &max_system_variables.sortbuff_size, 0, GET_ULONG, REQUIRED_ARG,
    MAX_SORT_MEMORY, MIN_SORT_MEMORY+MALLOC_OVERHEAD*2, ~0L, MALLOC_OVERHEAD,
    1, 0},
   {"table_cache", OPT_TABLE_CACHE,
@@ -3530,7 +3550,8 @@ static struct my_option my_long_options[] =
    REQUIRED_ARG, 0, 0, 16384, 0, 1, 0},
   {"tmp_table_size", OPT_TMP_TABLE_SIZE,
    "If an in-memory temporary table exceeds this size, MySQL will automatically convert it to an on-disk MyISAM table.",
-   (gptr*) &tmp_table_size, (gptr*) &tmp_table_size, 0, GET_ULONG,
+   (gptr*) &global_system_variables.tmp_table_size,
+   (gptr*) &max_system_variables.tmp_table_size, 0, GET_ULONG,
    REQUIRED_ARG, 32*1024*1024L, 1024, ~0L, 0, 1, 0},
   {"thread_stack", OPT_THREAD_STACK,
    "The stack size for each thread.", (gptr*) &thread_stack,
@@ -3538,7 +3559,8 @@ static struct my_option my_long_options[] =
    1024*32, ~0L, 0, 1024, 0},
   {"wait_timeout", OPT_WAIT_TIMEOUT,
    "The number of seconds the server waits for activity on a connection before closing it",
-   (gptr*) &net_wait_timeout, (gptr*) &net_wait_timeout, 0, GET_ULONG,
+   (gptr*) &global_system_variables.net_wait_timeout,
+   (gptr*) &max_system_variables.net_wait_timeout, 0, GET_ULONG,
    REQUIRED_ARG, NET_WAIT_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -3600,11 +3622,18 @@ struct show_var_st init_vars[]= {
   {"innodb_log_group_home_dir", (char*) &innobase_log_group_home_dir, SHOW_CHAR_PTR},
   {"innodb_mirrored_log_groups", (char*) &innobase_mirrored_log_groups, SHOW_LONG},
 #endif
-  {"interactive_timeout",     (char*) &net_interactive_timeout,     SHOW_LONG},
-  {"join_buffer_size",        (char*) &join_buff_size,              SHOW_LONG},
+  {"interactive_timeout",
+   (char*) offsetof(struct system_variables, net_interactive_timeout),
+   SHOW_LONG_OFFSET},
+  {"join_buffer_size",
+   (char*) offsetof(struct system_variables, join_buff_size),
+   SHOW_LONG_OFFSET},
   {"key_buffer_size",         (char*) &keybuff_size,                SHOW_LONG},
   {"language",                language,                             SHOW_CHAR},
   {"large_files_support",     (char*) &opt_large_files,             SHOW_BOOL},	
+  {"local_infile",
+   (char*) offsetof(struct system_variables, opt_local_infile),
+   SHOW_MY_BOOL_OFFSET},
 #ifdef HAVE_MLOCKALL
   {"locked_in_memory",	      (char*) &locked_in_memory,	    SHOW_BOOL},
 #endif
@@ -3613,7 +3642,9 @@ struct show_var_st init_vars[]= {
   {"log_bin",                 (char*) &opt_bin_log,                 SHOW_BOOL},
   {"log_slave_updates",       (char*) &opt_log_slave_updates,       SHOW_BOOL},
   {"log_slow_queries",        (char*) &opt_slow_log,                SHOW_BOOL},
-  {"long_query_time",         (char*) &long_query_time,             SHOW_LONG},
+  {"long_query_time",         
+   (char*) offsetof(struct system_variables, long_query_time),
+   SHOW_LONG_OFFSET},
   {"low_priority_updates",    (char*) &low_priority_updates,        SHOW_BOOL},
   {"lower_case_table_names",  (char*) &lower_case_table_names,      SHOW_LONG},
   {"max_allowed_packet",      (char*) &max_allowed_packet,          SHOW_LONG},
@@ -3622,31 +3653,45 @@ struct show_var_st init_vars[]= {
   {"max_connections",         (char*) &max_connections,             SHOW_LONG},
   {"max_connect_errors",      (char*) &max_connect_errors,          SHOW_LONG},
   {"max_delayed_threads",     (char*) &max_insert_delayed_threads,  SHOW_LONG},
-  {"max_heap_table_size",     (char*) &max_heap_table_size,         SHOW_LONG},
-  {"max_join_size",           (char*) &max_join_size,               SHOW_LONG},
-  {"max_sort_length",         (char*) &max_item_sort_length,        SHOW_LONG},
+  {"max_heap_table_size",
+   (char*) offsetof(struct system_variables, max_heap_table_size),
+   SHOW_LONG_OFFSET},
+  {"max_join_size",
+   (char*) offsetof(struct system_variables, max_join_size),
+   SHOW_LONG_OFFSET},
+  {"max_sort_length",
+   (char*) offsetof(struct system_variables, max_item_sort_length),
+   SHOW_LONG_OFFSET},
   {"max_user_connections",    (char*) &max_user_connections,        SHOW_LONG},
-  {"max_tmp_tables",          (char*) &max_tmp_tables,              SHOW_LONG},
+  {"max_tmp_tables",
+   (char*) offsetof(struct system_variables, max_tmp_tables),
+   SHOW_LONG_OFFSET},
   {"max_write_lock_count",    (char*) &max_write_lock_count,        SHOW_LONG},
-  {"myisam_bulk_insert_tree_size", (char*) &myisam_bulk_insert_tree_size, SHOW_INT},
-  {"myisam_max_extra_sort_file_size", (char*) &myisam_max_extra_sort_file_size,
-   SHOW_LONG},
-  {"myisam_max_sort_file_size",(char*) &myisam_max_sort_file_size,  SHOW_LONG},
+    {"myisam_bulk_insert_tree_size", (char*) &myisam_bulk_insert_tree_size, SHOW_INT},
+  {"myisam_max_extra_sort_file_size",
+   (char*) offsetof(struct system_variables,
+		    myisam_max_extra_sort_file_size),
+   SHOW_LONG_OFFSET},
+  {"myisam_max_sort_file_size",
+   (char*) offsetof(struct system_variables, myisam_max_sort_file_size),
+   SHOW_LONG_OFFSET},
   {"myisam_recover_options",  (char*) &myisam_recover_options_str,  SHOW_CHAR_PTR},
   {"myisam_sort_buffer_size", (char*) &myisam_sort_buffer_size,     SHOW_LONG},
 #ifdef __NT__
   {"named_pipe",	      (char*) &opt_enable_named_pipe,       SHOW_BOOL},
 #endif
   {"net_buffer_length",       (char*) &net_buffer_length,           SHOW_LONG},
-  {"net_read_timeout",        (char*) &net_read_timeout,	    SHOW_LONG},
+  {"net_read_timeout",        (char*) &net_read_timeout,            SHOW_LONG},
   {"net_retry_count",         (char*) &mysqld_net_retry_count,      SHOW_LONG},
-  {"net_write_timeout",       (char*) &net_write_timeout,	    SHOW_LONG},
+  {"net_write_timeout",       (char*) &net_write_timeout,           SHOW_LONG},
   {"open_files_limit",	      (char*) &open_files_limit,	    SHOW_LONG},
   {"pid_file",                (char*) pidfile_name,                 SHOW_CHAR},
   {"port",                    (char*) &mysql_port,                  SHOW_INT},
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
   {"record_buffer",           (char*) &my_default_record_cache_size,SHOW_LONG},
-  {"record_rnd_buffer",       (char*) &record_rnd_cache_size,	    SHOW_LONG},
+  {"record_rnd_buffer",
+   (char*) offsetof(struct system_variables, record_rnd_cache_size),
+   SHOW_LONG_OFFSET},
   {"rpl_recovery_rank",       (char*) &rpl_recovery_rank,           SHOW_LONG},
   {"query_buffer_size",       (char*) &query_buff_size,		    SHOW_LONG},
 #ifdef HAVE_QUERY_CACHE
@@ -3662,7 +3707,9 @@ struct show_var_st init_vars[]= {
   {"skip_show_database",      (char*) &opt_skip_show_db,            SHOW_BOOL},
   {"slow_launch_time",        (char*) &slow_launch_time,            SHOW_LONG},
   {"socket",                  (char*) &mysql_unix_port,             SHOW_CHAR_PTR},
-  {"sort_buffer",             (char*) &sortbuff_size,               SHOW_LONG},
+  {"sort_buffer",
+   (char*) offsetof(struct system_variables, sortbuff_size),
+   SHOW_LONG_OFFSET},
   {"sql_mode",                (char*) &opt_sql_mode,                SHOW_LONG},
   {"table_cache",             (char*) &table_cache_size,            SHOW_LONG},
   {"table_type",              (char*) &default_table_type_name,     SHOW_CHAR_PTR},
@@ -3675,10 +3722,17 @@ struct show_var_st init_vars[]= {
 #ifdef HAVE_TZNAME
   {"timezone",                time_zone,                            SHOW_CHAR},
 #endif
-  {"tmp_table_size",          (char*) &tmp_table_size,              SHOW_LONG},
+  {"tmp_table_size",
+   (char*) offsetof(struct system_variables, tmp_table_size),
+   SHOW_LONG_OFFSET},
   {"tmpdir",                  (char*) &mysql_tmpdir,                SHOW_CHAR_PTR},
   {"version",                 server_version,                       SHOW_CHAR},
-  {"wait_timeout",            (char*) &net_wait_timeout,            SHOW_LONG},
+  {"wait_timeout",
+   (char*) offsetof(struct system_variables, net_wait_timeout),
+   SHOW_LONG_OFFSET},
+  {"warnings",
+   (char*) offsetof(struct system_variables, opt_warnings),
+   SHOW_MY_BOOL_OFFSET},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -4418,6 +4472,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 static void get_options(int argc,char **argv)
 {
   int ho_error;
+  THD *thd= current_thd;
 
   myisam_delay_key_write=1;			// Allow use of this
 #ifndef HAVE_purify
@@ -4438,12 +4493,18 @@ static void get_options(int argc,char **argv)
   default_table_type_name=ha_table_typelib.type_names[default_table_type-1];
   default_tx_isolation_name=tx_isolation_typelib.type_names[default_tx_isolation];
   /* To be deleted in MySQL 4.0 */
-  if (!record_rnd_cache_size)
-    record_rnd_cache_size=my_default_record_cache_size;
+  if (!thd->variables.record_rnd_cache_size)
+    thd->variables.record_rnd_cache_size= my_default_record_cache_size;
 
   /* Fix variables that are base 1024*1024 */
-  myisam_max_temp_length= (my_off_t) min(((ulonglong) myisam_max_sort_file_size)*1024*1024, (ulonglong) MAX_FILE_SIZE);
-  myisam_max_extra_temp_length= (my_off_t) min(((ulonglong) myisam_max_extra_sort_file_size)*1024*1024, (ulonglong) MAX_FILE_SIZE);
+  myisam_max_temp_length=
+    (my_off_t) min(((ulonglong)
+		    thd->variables.myisam_max_sort_file_size)*1024 * 1024,
+		   (ulonglong) MAX_FILE_SIZE);
+  myisam_max_extra_temp_length= 
+    (my_off_t) min(((ulonglong)
+		    thd->variables.myisam_max_extra_sort_file_size)*1024*1024,
+		   (ulonglong) MAX_FILE_SIZE);
 
   myisam_block_size=(uint) 1 << my_bit_log2(opt_myisam_block_size);
 }

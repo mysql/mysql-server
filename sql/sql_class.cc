@@ -87,6 +87,9 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   host_or_ip="unknown ip";
   locked=killed=count_cuted_fields=some_tables_deleted=no_errors=password=
     query_start_used=safe_to_cache_query=0;
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  variables= global_system_variables;
+  pthread_mutex_unlock(&LOCK_global_system_variables);
   db_length=query_length=col_access=0;
   query_error=0;
   next_insert_id=last_insert_id=0;
@@ -134,14 +137,15 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   query_cache_type= 0; //Safety
 #endif
   sql_mode=(uint) opt_sql_mode;
-  inactive_timeout=net_wait_timeout;
+  inactive_timeout= variables.net_wait_timeout;
   open_options=ha_open_options;
   tx_isolation=session_tx_isolation=default_tx_isolation;
   command=COM_CONNECT;
   set_query_id=1;
   default_select_limit= HA_POS_ERROR;
-  max_join_size=  ((::max_join_size != ~ (ulong) 0L) ? ::max_join_size :
-		   HA_POS_ERROR);
+  max_join_size= ((variables.max_join_size != ~ (ulong) 0L) ?
+		  variables.max_join_size :
+		  HA_POS_ERROR);
   db_access=NO_ACCESS;
 
   /* Initialize sub structures */

@@ -61,7 +61,7 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
     table->file->rnd_init(0);
 
     if (! (specialflag & SPECIAL_SAFE_MODE) &&
-	record_rnd_cache_size &&
+	thd->variables.record_rnd_cache_size &&
 	!table->file->fast_key_read() &&
 	(table->db_stat & HA_READ_ONLY ||
 	 table->reginfo.lock_type <= TL_READ_NO_INSERT) &&
@@ -229,6 +229,8 @@ tryNext:
 static int init_rr_cache(READ_RECORD *info)
 {
   uint rec_cache_size;
+  THD *thd= current_thd;
+
   DBUG_ENTER("init_rr_cache");
 
   info->struct_length=3+MAX_REFLENGTH;
@@ -237,7 +239,7 @@ static int init_rr_cache(READ_RECORD *info)
     info->reclength=ALIGN_SIZE(info->struct_length);
 
   info->error_offset=info->table->reclength;
-  info->cache_records=record_rnd_cache_size/
+  info->cache_records= thd->variables.record_rnd_cache_size /
     (info->reclength+info->struct_length);
   rec_cache_size=info->cache_records*info->reclength;
   info->rec_cache_size=info->cache_records*info->ref_length;
