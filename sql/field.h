@@ -800,7 +800,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*,String *);
-  bool get_date(TIME *ltime,bool fuzzydate);
+  bool get_date(TIME *ltime, uint fuzzydate);
   bool send_binary(Protocol *protocol);
   bool get_time(TIME *ltime);
   int cmp(const char *,const char*);

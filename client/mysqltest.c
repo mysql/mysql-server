@@ -60,6 +60,7 @@
 #include <violite.h>
 
 #define MAX_QUERY     131072
+#define MAX_VAR_NAME	256
 #define MAX_COLUMNS	256
 #define PAD_SIZE	128
 #define MAX_CONS	128
@@ -386,6 +387,7 @@ static void do_eval(DYNAMIC_STRING* query_eval, const char* query)
   register char c;
   register int escaped = 0;
   VAR* v;
+  DBUG_ENTER("do_eval");
 
   for (p= query; (c = *p); ++p)
   {
@@ -417,6 +419,7 @@ static void do_eval(DYNAMIC_STRING* query_eval, const char* query)
       break;
     }
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1739,6 +1742,7 @@ int read_line(char* buf, int size)
   enum {R_NORMAL, R_Q1, R_ESC_Q_Q1, R_ESC_Q_Q2,
 	R_ESC_SLASH_Q1, R_ESC_SLASH_Q2,
 	R_Q2, R_COMMENT, R_LINE_START} state= R_LINE_START;
+  DBUG_ENTER("read_line");
 
   start_lineno= *lineno;
   for (; p < buf_end ;)
@@ -1752,7 +1756,7 @@ int read_line(char* buf, int size)
       cur_file--;
       lineno--;
       if (cur_file == file_stack)
-	return 1;
+	DBUG_RETURN(1);
       continue;
     }
 
@@ -1762,7 +1766,7 @@ int read_line(char* buf, int size)
       if (end_of_query(c))
       {
 	*p= 0;
-	return 0;
+	DBUG_RETURN(0);
       }
       else if (c == '\'')
 	state = R_Q1;
@@ -1779,7 +1783,7 @@ int read_line(char* buf, int size)
       {
 	*p= 0;
 	(*lineno)++;
-	return 0;
+	DBUG_RETURN(0);
       }
       break;
     case R_LINE_START:
@@ -1797,12 +1801,12 @@ int read_line(char* buf, int size)
       {
 	*buf++= '}';
 	*buf= 0;
-	return 0;
+	DBUG_RETURN(0);
       }
       else if (end_of_query(c) || c == '{')
       {
 	*p= 0;
-	return 0;
+	DBUG_RETURN(0);
       }
       else if (c == '\'')
 	state= R_Q1;
@@ -1822,7 +1826,7 @@ int read_line(char* buf, int size)
       if (end_of_query(c))
       {
 	*p= 0;
-	return 0;
+	DBUG_RETURN(0);
       }
       if (c != '\'')
 	state= R_NORMAL;
@@ -1843,7 +1847,7 @@ int read_line(char* buf, int size)
       if (end_of_query(c))
       {
 	*p= 0;
-	return 0;
+	DBUG_RETURN(0);
       }
       if (c != '"')
 	state= R_NORMAL;
@@ -1859,7 +1863,7 @@ int read_line(char* buf, int size)
       *p++= c;
   }
   *p= 0;					/* Always end with \0 */
-  return feof(*cur_file);
+  DBUG_RETURN(feof(*cur_file));
 }
 
 
@@ -1894,8 +1898,11 @@ int read_query(struct st_query** q_ptr)
   q->type = Q_UNKNOWN;
   q->query_buf= q->query= 0;
   if (read_line(read_query_buf, sizeof(read_query_buf)))
+  {
+    DBUG_PRINT("warning",("too long query"));
     DBUG_RETURN(1);
-
+  }
+   DBUG_PRINT("info", ("query: %s", read_query_buf));
   if (*p == '#')
   {
     q->type = Q_COMMENT;
@@ -2261,6 +2268,7 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
   char* query;
   int query_len, got_error_on_send= 0;
   DBUG_ENTER("run_query");
+  DBUG_PRINT("enter",("flags: %d", flags));
   
   if (q->type != Q_EVAL)
   {
@@ -2728,7 +2736,10 @@ int main(int argc, char **argv)
       case Q_EVAL_RESULT: eval_result = 1; break;
       case Q_EVAL:
 	if (q->query == q->query_buf)
+        {
 	  q->query= q->first_argument;
+          q->first_word_len= 0;
+        }
 	/* fall through */
       case Q_QUERY_VERTICAL:
       case Q_QUERY_HORIZONTAL:
@@ -2738,13 +2749,16 @@ int main(int argc, char **argv)
 	{
 	  /* This happens when we use 'query_..' on it's own line */
 	  q_send_flag=1;
+          DBUG_PRINT("info",
+                     ("query: '%s' first_word_len: %d  send_flag=1",
+                      q->query, q->first_word_len));
 	  break;
 	}
 	/* fix up query pointer if this is * first iteration for this line */
 	if (q->query == q->query_buf)
 	  q->query += q->first_word_len + 1;
 	display_result_vertically= (q->type==Q_QUERY_VERTICAL);
-	error |= run_query(&cur_con->mysql, q, QUERY_REAP|QUERY_SEND);
+	error|= run_query(&cur_con->mysql, q, QUERY_REAP|QUERY_SEND);
 	display_result_vertically= old_display_result_vertically;
 	break;
       }
