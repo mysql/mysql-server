@@ -11,7 +11,7 @@ $opt_distribution=$opt_user=$opt_config_env=$opt_config_extra_env="";
 $opt_dbd_options=$opt_perl_options=$opt_config_options=$opt_make_options=$opt_suffix="";
 $opt_tmp=$opt_version_suffix="";
 $opt_help=$opt_delete=$opt_debug=$opt_stage=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=$opt_with_cluster=$opt_with_debug=$opt_no_benchmark=$opt_no_mysqltest=$opt_without_embedded=$opt_readline=0;
-$opt_innodb=$opt_bdb=$opt_raid=$opt_libwrap=$opt_clearlogs=$opt_without_ndbcluster=0;
+$opt_innodb=$opt_bdb=$opt_raid=$opt_libwrap=$opt_clearlogs=0;
 
 GetOptions(
 	"bdb",
@@ -57,8 +57,7 @@ GetOptions(
 	"with-other-libc=s",
 	"with-small-disk",
 	"without-embedded",
-        "clearlogs",
-        "without-ndbcluster",
+	"clearlogs",
 ) || usage();
 
 usage() if ($opt_help);
@@ -252,7 +251,6 @@ if ($opt_stage <= 1)
   $opt_config_options.= " --with-raid" if ($opt_raid);
   $opt_config_options.= " --with-readline" if ($opt_readline);
   $opt_config_options.= " --with-embedded-server" unless ($opt_without_embedded);
-  $opt_config_options.= " --without-ndbcluster" if ($opt_without_ndbcluster);
   $opt_config_options.= " --with-ndbcluster" if ($opt_with_cluster);
 
   # Only enable InnoDB when requested (required to be able to
@@ -308,7 +306,7 @@ if ($opt_stage <= 3)
   }
 
   $flags.= " --no-strip" if ($opt_no_strip || $opt_with_debug);
-  $flags.= " --with-ndbcluster" if ($opt__with_ndbcluster);
+  $flags.= " --with-ndbcluster" if ($opt_with_cluster);
   check_system("scripts/make_binary_distribution --tmp=$opt_tmp --suffix=$opt_suffix $flags",".tar.gz created");
   safe_system("mv mysql*.t*gz $pwd/$host");
   if (-f "client/.libs/mysqladmin")
@@ -347,10 +345,12 @@ $ENV{"LD_LIBRARY_PATH"}= ("$test_dir/lib" .
 #
 if ($opt_stage <= 5 && !$opt_no_test && !$opt_no_mysqltest)
 {
+  my $flags= "";
+  $flags.= " --with-ndbcluster" if ($opt_with_cluster);
   log_timestamp();
   system("mkdir $bench_tmpdir") if (! -d $bench_tmpdir);
   safe_cd("${test_dir}/mysql-test");
-  check_system("./mysql-test-run --warnings --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --manager-port=$manager_port --no-manager --sleep=10", "tests were successful");
+  check_system("./mysql-test-run $flags --warnings --tmpdir=$bench_tmpdir --master_port=$mysql_tcp_port --slave_port=$slave_port --manager-port=$manager_port --no-manager --sleep=10", "tests were successful");
 }
 
 #
@@ -571,7 +571,7 @@ If user is empty then no mail is sent.
 Set name suffix (e.g. 'com' or '-max') for a distribution
 
 --with cluster
-Compile with NDB Cluster
+Compile and test with NDB Cluster enabled
 
 --with-debug
 Build binaries with debug information (implies "--no-strip")
