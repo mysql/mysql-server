@@ -5636,9 +5636,6 @@ static void test_subselect()
   rc= mysql_stmt_bind_param(stmt, bind);
   check_execute(stmt, rc);
 
-  rc= mysql_stmt_bind_result(stmt, bind);
-  check_execute(stmt, rc);
-
   id= 2;
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
@@ -5982,7 +5979,7 @@ static void test_pure_coverage()
   check_execute(stmt, rc);
 
   rc= mysql_stmt_bind_result(stmt, (MYSQL_BIND*)0);
-  check_execute(stmt, rc);
+  DIE_UNLESS(rc == 1);
 
   mysql_stmt_close(stmt);
 
