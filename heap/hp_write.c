@@ -61,6 +61,8 @@ int heap_write(HP_INFO *info, const byte *record)
   info->current_ptr=pos;
   info->current_hash_ptr=0;
   info->update|=HA_STATE_AKTIV;
+  if (share->auto_key)
+    heap_update_auto_increment(info, record);
   DBUG_RETURN(0);
 err:
   DBUG_PRINT("info",("Duplicate key: %d", keydef - share->keydef));
