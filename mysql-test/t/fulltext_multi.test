@@ -17,7 +17,7 @@ INSERT INTO t1 VALUES (1,'lala lolo lili','oooo aaaa pppp');
 INSERT INTO t1 VALUES (2,'asdf fdsa','lkjh fghj');
 INSERT INTO t1 VALUES (3,'qpwoei','zmxnvb');
 
-SELECT a, MATCH  b  AGAINST ('lala lkjh') FROM t1;
-SELECT a, MATCH  c  AGAINST ('lala lkjh') FROM t1;
-SELECT a, MATCH b,c AGAINST ('lala lkjh') FROM t1;
+SELECT a, FORMAT(MATCH  b  AGAINST ('lala lkjh'),6) FROM t1;
+SELECT a, FORMAT(MATCH  c  AGAINST ('lala lkjh'),6) FROM t1;
+SELECT a, FORMAT(MATCH b,c AGAINST ('lala lkjh'),6) FROM t1;
 drop table t1;
