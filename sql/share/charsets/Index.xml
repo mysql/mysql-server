@@ -348,7 +348,9 @@ To make maintaining easier please:
     <order>Slovenian</order>
     <order>Sorbian</order>
   </collation>
-  <collation name="cp1250_czech_ci"	id="34"	order="Czech"/>
+  <collation name="cp1250_czech_ci"	id="34"	order="Czech">
+    <flag>compiled</flag>
+  </collation>
   <collation name="cp1250_bin"		id="66"	order="Binary"	flag="binary"/>
 </charset>
 
