@@ -276,7 +276,7 @@ int Show_instance_options::do_command(struct st_net *net,
         goto err;
     }
 
-    if (instance->options.nonguarded == NULL)
+    if (instance->options.nonguarded != NULL)
     {
       position= 0;
       store_to_string(&send_buff, (char *) "nonguarded", &position);

@@ -48,7 +48,7 @@ public:
   int add_option(const char* option);
   int init(const char *instance_name_arg);
   pid_t get_pid();
-  void get_pid_filename(char *result);
+  int get_pid_filename(char *result);
   int unlink_pidfile();
   void print_argv();
 

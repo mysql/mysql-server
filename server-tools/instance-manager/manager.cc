@@ -77,8 +77,18 @@ void manager(const Options &options)
 
   instance_map.guardian= &guardian_thread;
 
-  if (instance_map.init() || user_map.init() || instance_map.load() ||
-      user_map.load(options.password_file_name))
+  if (instance_map.init() || user_map.init())
+      return;
+
+  if (instance_map.load())
+  {
+    log_error("Cannot init instances repository. This might be caused by "
+               "the wrong config file options. For instance, missing mysqld "
+               "binary. Aborting.");
+    return;
+    }
+
+  if (user_map.load(options.password_file_name))
     return;
 
   /* write pid file */
@@ -173,7 +183,7 @@ void manager(const Options &options)
   {
     int status= 0;
 
-    if (status= my_sigwait(&mask, &signo))
+    if ((status= my_sigwait(&mask, &signo)) != 0)
     {
       log_error("sigwait() failed");
       goto err;
