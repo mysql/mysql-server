@@ -57,7 +57,7 @@ typedef struct st_tree {
   void (*free)(void *);
 } TREE;
 
-	/* Functions on hole tree */
+	/* Functions on whole tree */
 void init_tree(TREE *tree,uint default_alloc_size, int element_size,
 	       qsort_cmp2 compare, my_bool with_delete,
 	       void (*free_element)(void*));
