@@ -59,7 +59,8 @@ int compare_ulonglong2(void* cmp_arg __attribute__((unused)),
   return compare_ulonglong(s,t);
 }
 
-static bool append_escaped(String *to_str, String *from_str);
+bool append_escaped(String *to_str, String *from_str);
+bool append_escaped(String *to_str, char *from, uint from_len);
 
 Procedure *
 proc_analyse_init(THD *thd, ORDER *param, select_result *result,
@@ -1052,7 +1053,7 @@ uint check_ulonglong(const char *str, uint length)
     1 Out of memory
 */
 
-static bool append_escaped(String *to_str, String *from_str)
+bool append_escaped(String *to_str, String *from_str)
 {
   char *from, *end, c;
 
@@ -1061,6 +1062,41 @@ static bool append_escaped(String *to_str, String *from_str)
 
   from= (char*) from_str->ptr();
   end= from + from_str->length();
+  for (; from < end; from++)
+  {
+    c= *from;
+    switch (c) {
+    case '\0':
+      c= '0';
+      break;
+    case '\032':
+      c= 'Z';
+      break;
+    case '\\':
+    case '\'':
+      break;
+    default:
+      goto normal_character;
+    }
+    if (to_str->append('\\'))
+      return 1;
+
+  normal_character:
+    if (to_str->append(c))
+      return 1;
+  }
+  return 0;
+}
+
+bool append_escaped(String *to_str, char *from, uint from_len)
+{
+  char *end, c;
+
+  if (to_str->realloc(to_str->length() + from_len))
+    return 1;
+
+  end= from + from_len;
+
   for (; from < end; from++)
   {
     c= *from;
