@@ -432,8 +432,6 @@ bool check_stack_overrun(THD *thd,char *dummy);
 void table_cache_init(void);
 void table_cache_free(void);
 uint cached_tables(void);
-void reassign_key_cache(KEY_CACHE_ASMT *key_cache_asmt,
-                        KEY_CACHE_VAR *new_key_cache);
 void kill_mysql(void);
 void close_connection(THD *thd, uint errcode, bool lock);
 bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables, 
@@ -466,8 +464,8 @@ int mysql_optimize_table(THD* thd, TABLE_LIST* table_list,
 int mysql_assign_to_keycache(THD* thd, TABLE_LIST* table_list,
 			     LEX_STRING *key_cache_name);
 int mysql_preload_keys(THD* thd, TABLE_LIST* table_list);
-int reassign_keycache_tables(THD* thd, KEY_CACHE_VAR *src_cache,
-                             KEY_CACHE_VAR *dst_cache);
+int reassign_keycache_tables(THD* thd, KEY_CACHE *src_cache,
+                             KEY_CACHE *dst_cache);
 
 bool check_simple_select();
 
@@ -870,8 +868,7 @@ extern SHOW_COMP_OPTION have_berkeley_db;
 extern struct system_variables global_system_variables;
 extern struct system_variables max_system_variables;
 extern struct rand_struct sql_rand;
-extern KEY_CACHE_VAR *sql_key_cache;
-extern KEY_CACHE_HANDLE sql_key_cache_handle;
+extern KEY_CACHE *sql_key_cache;
 
 extern const char *opt_date_time_formats[];
 extern KNOWN_DATE_TIME_FORMAT known_date_time_formats[];

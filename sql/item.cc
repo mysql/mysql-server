@@ -1190,6 +1190,15 @@ int Item_string::save_in_field(Field *field, bool no_conversions)
 	  -1 : 0;
 }
 
+int Item_uint::save_in_field(Field *field, bool no_conversions)
+{
+  /*
+    TODO: To be fixed when wen have a
+    field->store(longlong, unsigned_flag) method 
+  */
+  return Item_int::save_in_field(field, no_conversions);
+}
+
 
 int Item_int::save_in_field(Field *field, bool no_conversions)
 {
@@ -1347,7 +1356,7 @@ bool Item::send(Protocol *protocol, String *buffer)
   case MYSQL_TYPE_FLOAT:
   {
     float nr;
-    nr= val();
+    nr= (float) val();
     if (!null_value)
       result= protocol->store(nr, decimals, buffer);
     break;

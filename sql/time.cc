@@ -357,7 +357,6 @@ str_to_TIME(const char *str, uint length, TIME *l_time, uint flags)
   const char *end=str+length;
   const uchar *format_position;
   bool found_delimitier= 0, found_space= 0;
-  DATE_TIME_FORMAT *format;
   DBUG_ENTER("str_to_TIME");
   DBUG_PRINT("ENTER",("str: %.*s",length,str));
 

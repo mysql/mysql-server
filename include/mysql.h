@@ -535,10 +535,10 @@ typedef struct st_mysql_stmt
   char		 *query;	       /* query buffer */
   MEM_ROOT	 mem_root;	       /* root allocations */
   my_ulonglong   last_fetched_column;  /* last fetched column */
-  unsigned long  param_count;	       /* parameters count */
-  unsigned long  field_count;	       /* fields count */
   unsigned long	 stmt_id;	       /* Id for prepared statement */
   unsigned int	 last_errno;	       /* error code */
+  unsigned int   param_count;	       /* parameters count */
+  unsigned int   field_count;	       /* fields count */
   enum PREP_STMT_STATE state;	       /* statement state */
   char		 last_error[MYSQL_ERRMSG_SIZE]; /* error message */
   char		 sqlstate[SQLSTATE_LENGTH+1];
@@ -552,27 +552,27 @@ typedef struct st_mysql_stmt
 
 typedef struct st_mysql_methods
 {
-  my_bool (* STDCALL read_query_result)(MYSQL *mysql);
-  my_bool (* STDCALL advanced_command)(MYSQL *mysql,
-				      enum enum_server_command command,
-				      const char *header,
-				      unsigned long header_length,
-				      const char *arg,
-				      unsigned long arg_length,
-				      my_bool skip_check);
-  MYSQL_DATA *(* STDCALL read_rows)(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
-				   unsigned int fields);
-  MYSQL_RES * (* STDCALL use_result)(MYSQL *mysql);
-  void (* STDCALL fetch_lengths)(unsigned long *to, 
-				MYSQL_ROW column, unsigned int field_count);
+  my_bool (*read_query_result)(MYSQL *mysql);
+  my_bool (*advanced_command)(MYSQL *mysql,
+			      enum enum_server_command command,
+			      const char *header,
+			      unsigned long header_length,
+			      const char *arg,
+			      unsigned long arg_length,
+			      my_bool skip_check);
+  MYSQL_DATA *(*read_rows)(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
+			   unsigned int fields);
+  MYSQL_RES * (*use_result)(MYSQL *mysql);
+  void (*fetch_lengths)(unsigned long *to, 
+			MYSQL_ROW column, unsigned int field_count);
 #if !defined(MYSQL_SERVER) || defined(EMBEDDED_LIBRARY)
-  MYSQL_FIELD * (* STDCALL list_fields)(MYSQL *mysql);
-  my_bool (* STDCALL read_prepare_result)(MYSQL *mysql, MYSQL_STMT *stmt);
-  int (* STDCALL stmt_execute)(MYSQL_STMT *stmt);
-  MYSQL_DATA *(* STDCALL read_binary_rows)(MYSQL_STMT *stmt);
-  int (* STDCALL unbuffered_fetch)(MYSQL *mysql, char **row);
-  void (* STDCALL free_embedded_thd)(MYSQL *mysql);
-  const char *(* STDCALL read_statistic)(MYSQL *mysql);
+  MYSQL_FIELD * (*list_fields)(MYSQL *mysql);
+  my_bool (*read_prepare_result)(MYSQL *mysql, MYSQL_STMT *stmt);
+  int (*stmt_execute)(MYSQL_STMT *stmt);
+  MYSQL_DATA *(*read_binary_rows)(MYSQL_STMT *stmt);
+  int (*unbuffered_fetch)(MYSQL *mysql, char **row);
+  void (*free_embedded_thd)(MYSQL *mysql);
+  const char *(*read_statistic)(MYSQL *mysql);
 #endif
 } MYSQL_METHODS;
 

@@ -404,6 +404,7 @@ public:
   double val() { return ulonglong2double((ulonglong)value); }
   String *val_str(String*);
   Item *new_item() { return new Item_uint(name,max_length); }
+  int save_in_field(Field *field, bool no_conversions);
   bool fix_fields(THD *thd, struct st_table_list *list, Item **item)
   {
     bool res= Item::fix_fields(thd, list, item);

@@ -49,19 +49,19 @@
 
 int mi_assign_to_key_cache(MI_INFO *info,
 			   ulonglong key_map __attribute__((unused)),
-			   KEY_CACHE_VAR *key_cache)
+			   KEY_CACHE *key_cache)
 {
   int error= 0;
   MYISAM_SHARE* share= info->s;
   DBUG_ENTER("mi_assign_to_key_cache");
   DBUG_PRINT("enter",("old_key_cache_handle: %lx  new_key_cache_handle: %lx",
-		      share->key_cache, &key_cache->cache));
+		      share->key_cache, key_cache));
 
   /*
     Skip operation if we didn't change key cache. This can happen if we
     call this for all open instances of the same table
   */
-  if (*share->key_cache == key_cache->cache)
+  if (share->key_cache == key_cache)
     DBUG_RETURN(0);
 
   /*
@@ -76,7 +76,7 @@ int mi_assign_to_key_cache(MI_INFO *info,
     in the old key cache.
   */
 
-  if (flush_key_blocks(*share->key_cache, share->kfile, FLUSH_REMOVE))
+  if (flush_key_blocks(share->key_cache, share->kfile, FLUSH_REMOVE))
   {
     error= my_errno;
     mi_mark_crashed(info);		/* Mark that table must be checked */
@@ -90,18 +90,24 @@ int mi_assign_to_key_cache(MI_INFO *info,
     (This can never fail as there is never any not written data in the
     new key cache)
   */
-  (void) flush_key_blocks(key_cache->cache, share->kfile, FLUSH_REMOVE);
+  (void) flush_key_blocks(key_cache, share->kfile, FLUSH_REMOVE);
 
+  /*
+    ensure that setting the key cache and changing the multi_key_cache
+    is done atomicly
+  */
+  pthread_mutex_lock(&share->intern_lock);
   /*
     Tell all threads to use the new key cache
     This should be seen at the lastes for the next call to an myisam function.
   */
-  share->key_cache= &key_cache->cache;
+  share->key_cache= key_cache;
 
   /* store the key cache in the global hash structure for future opens */
   if (multi_key_cache_set(share->unique_file_name, share->unique_name_length,
 			  share->key_cache))
     error= my_errno;
+  pthread_mutex_unlock(&share->intern_lock);
   DBUG_RETURN(error);
 }
 
@@ -127,8 +133,8 @@ int mi_assign_to_key_cache(MI_INFO *info,
 */
 
 
-void mi_change_key_cache(KEY_CACHE_VAR *old_key_cache,
-			 KEY_CACHE_VAR *new_key_cache)
+void mi_change_key_cache(KEY_CACHE *old_key_cache,
+			 KEY_CACHE *new_key_cache)
 {
   LIST *pos;
   DBUG_ENTER("mi_change_key_cache");
@@ -141,7 +147,7 @@ void mi_change_key_cache(KEY_CACHE_VAR *old_key_cache,
   {
     MI_INFO *info= (MI_INFO*) pos->data;
     MYISAM_SHARE *share= info->s;
-    if (share->key_cache == &old_key_cache->cache)
+    if (share->key_cache == old_key_cache)
       mi_assign_to_key_cache(info, (ulonglong) ~0, new_key_cache);
   }
 
@@ -150,6 +156,6 @@ void mi_change_key_cache(KEY_CACHE_VAR *old_key_cache,
     MyISAM list structure to ensure that another thread is not trying to
     open a new table that will be associted with the old key cache
   */
-  multi_key_cache_change(&old_key_cache->cache, &new_key_cache->cache);
+  multi_key_cache_change(old_key_cache, new_key_cache);
   pthread_mutex_unlock(&THR_LOCK_myisam);
 }

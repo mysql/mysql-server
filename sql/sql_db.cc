@@ -265,7 +265,6 @@ int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   char path[FN_REFLEN+16];
   long result=1;
   int error = 0;
-  uint create_options = create_info ? create_info->options : 0;
   DBUG_ENTER("mysql_alter_db");
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
