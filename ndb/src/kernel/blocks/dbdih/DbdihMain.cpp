@@ -6174,7 +6174,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal){
       break;
     case DictTabInfo::AllNodesLargeTable:
       jam();
-      noOfFragments = 8 * cnoOfNodeGroups;
+      noOfFragments = 4 * csystemnodes;
       break;
     case DictTabInfo::SingleFragment:
       jam();
@@ -11054,6 +11054,7 @@ void Dbdih::initRestorableGciFiles()
 
 void Dbdih::initTable(TabRecordPtr tabPtr)
 {
+  tabPtr.p->noOfFragChunks = 0;
   tabPtr.p->method = TabRecord::NOTDEFINED;
   tabPtr.p->tabStatus = TabRecord::TS_IDLE;
   tabPtr.p->noOfWords = 0;
