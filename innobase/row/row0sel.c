@@ -2352,15 +2352,9 @@ row_sel_store_mysql_rec(
 	byte*			blob_buf;
 	int			pad_char;
 	ulint			i;
-	dict_index_t*		index;
 	
 	ut_ad(prebuilt->mysql_template);
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
-
-	index = prebuilt->index;
-	if (prebuilt->need_to_access_clustered) {
-		index = dict_table_get_first_index(index->table);
-	}
 
 	if (prebuilt->blob_heap != NULL) {
 		mem_heap_free(prebuilt->blob_heap);
