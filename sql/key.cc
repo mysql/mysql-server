@@ -269,5 +269,13 @@ bool check_if_key_used(TABLE *table, uint idx, List<Item> &fields)
 	return 1;
     }
   }
+
+  /*
+    If table handler has primary key as part of the index, check that primary
+    key is not updated
+  */
+  if (idx != table->primary_key && table->primary_key < MAX_KEY &&
+      (table->file->table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX))
+    return check_if_key_used(table, table->primary_key, fields);
   return 0;
 }
