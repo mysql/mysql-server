@@ -39,6 +39,61 @@ static void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fnam
 	   fname);
 }
 
+static void my_coll_agg_error(DTCollation &c1, 
+			       DTCollation &c2,
+			       DTCollation &c3,
+			       const char *fname)
+{
+  my_error(ER_CANT_AGGREGATE_3COLLATIONS,MYF(0),
+  	   c1.collation->name,c1.derivation_name(),
+	   c2.collation->name,c2.derivation_name(),
+	   c3.collation->name,c3.derivation_name(),
+	   fname);
+}
+
+static void my_coll_agg_error(Item** args, uint ac, const char *fname)
+{
+  if (2 == ac)
+    my_coll_agg_error(args[0]->collation, args[1]->collation, fname);
+  else if (3 == ac)
+    my_coll_agg_error(args[0]->collation,
+		      args[1]->collation,
+		      args[2]->collation,
+		      fname);
+  else
+    my_error(ER_CANT_AGGREGATE_NCOLLATIONS,MYF(0),fname);
+}
+
+bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint ac)
+{
+  uint i;
+  c.set(av[0]->collation);
+  for (i= 1; i < ac; i++)
+  {
+    if (c.aggregate(av[i]->collation))
+    {
+      my_coll_agg_error(av, ac, func_name());
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
+bool Item_func::agg_arg_collations_for_comparison(DTCollation &c, 
+						  Item **av, uint ac)
+{
+  if (agg_arg_collations(c, av, ac))
+    return TRUE;
+  
+  if (c.derivation == DERIVATION_NONE)
+  {
+    my_coll_agg_error(av, ac, func_name());
+    return TRUE;
+  }
+  return FALSE;
+}
+
+
 /* return TRUE if item is a constant */
 
 bool
@@ -870,14 +925,9 @@ void Item_func_min_max::fix_length_and_dec()
     if (!args[i]->maybe_null)
       maybe_null=0;
     cmp_type=item_cmp_type(cmp_type,args[i]->result_type());
-    if (i==0)
-      collation.set(args[0]->collation);
-    if (collation.aggregate(args[i]->collation))
-    {
-      my_coll_agg_error(collation, args[i]->collation, func_name());
-      break;
-    }
   }
+  if (cmp_type == STRING_RESULT)
+    agg_arg_collations_for_comparison(collation, args, arg_count);
 }
 
 
@@ -1052,8 +1102,7 @@ longlong Item_func_coercibility::val_int()
 void Item_func_locate::fix_length_and_dec()
 {
   maybe_null=0; max_length=11;
-  if (cmp_collation.set(args[0]->collation, args[1]->collation))
-    my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
+  agg_arg_collations_for_comparison(cmp_collation, args, 2);
 }
 
 longlong Item_func_locate::val_int()
@@ -1122,17 +1171,63 @@ longlong Item_func_locate::val_int()
 
 longlong Item_func_field::val_int()
 {
-  String *field;
-  if (!(field=item->val_str(&value)))
-    return 0;					// -1 if null ?
-  for (uint i=0 ; i < arg_count ; i++)
+  if (cmp_type == STRING_RESULT)
   {
-    String *tmp_value=args[i]->val_str(&tmp);
-    if (tmp_value && field->length() == tmp_value->length() &&
-	!memcmp(field->ptr(),tmp_value->ptr(),tmp_value->length()))
-      return (longlong) (i+1);
+    String *field;
+    if (!(field=item->val_str(&value)))
+      return 0;					// -1 if null ?
+    for (uint i=0 ; i < arg_count ; i++)
+    {
+      String *tmp_value=args[i]->val_str(&tmp);
+      if (tmp_value && field->length() == tmp_value->length() &&
+	  !sortcmp(field,tmp_value,cmp_collation.collation))
+        return (longlong) (i+1);
+    }
+  }
+  else if (cmp_type == INT_RESULT)
+  {
+    longlong val= item->val_int();
+    for (uint i=0; i < arg_count ; i++)
+    {
+      if (val == args[i]->val_int())
+ 	return (longlong) (i+1);
+    }
+  }
+  else
+  {
+    double val= item->val();
+    for (uint i=0; i < arg_count ; i++)
+    {
+      if (val == args[i]->val())
+ 	return (longlong) (i+1);
+    }
   }
   return 0;
+}
+
+void Item_func_field::fix_length_and_dec()
+{
+  maybe_null=0; max_length=3;
+  used_tables_cache|= item->used_tables();
+  const_item_cache&=  item->const_item();
+  with_sum_func= with_sum_func || item->with_sum_func;
+  
+  cmp_type= item->result_type();
+  for (uint i=0; i < arg_count ; i++)
+    cmp_type= item_cmp_type(cmp_type, args[i]->result_type());
+  
+  if (cmp_type == STRING_RESULT)
+  {
+    cmp_collation.set(item->collation);
+    for (uint i=0 ; i < arg_count ; i++)
+    {
+      if (cmp_collation.aggregate(args[i]->collation))
+      {
+	my_error(ER_CANT_AGGREGATE_NCOLLATIONS,MYF(0),func_name());
+	return;
+      }
+    }
+  }
 }
 
 
@@ -1213,8 +1308,7 @@ void Item_func_find_in_set::fix_length_and_dec()
       }
     }
   }
-  if (cmp_collation.set(args[0]->collation, args[1]->collation))
-    my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
+  agg_arg_collations_for_comparison(cmp_collation, args, 2);
 }
 
 static const char separator=',';

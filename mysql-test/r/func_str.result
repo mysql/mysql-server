@@ -1,4 +1,5 @@
 drop table if exists t1;
+set names latin1;
 select 'hello',"'hello'",'""hello""','''h''e''l''l''o''',"hel""lo",'hel\'lo';
 hello	'hello'	""hello""	'h'e'l'l'o'	hel"lo	hel'lo
 hello	'hello'	""hello""	'h'e'l'l'o'	hel"lo	hel'lo
@@ -249,6 +250,59 @@ INSERT INTO t1 VALUES (1, 'a545f661efdd1fb66fdee3aab79945bf');
 SELECT 1 FROM t1 WHERE tmp=AES_DECRYPT(tmp,"password");
 1
 DROP TABLE t1;
+select 1=_latin1'1';
+1=_latin1'1'
+1
+select _latin1'1'=1;
+_latin1'1'=1
+1
+select _latin2'1'=1;
+_latin2'1'=1
+1
+select 1=_latin2'1';
+1=_latin2'1'
+1
+select _latin1'1'=_latin2'1';
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,COERCIBLE) and (latin2_general_ci,COERCIBLE) for operation '='
+select row('a','b','c') = row('a','b','c');
+row('a','b','c') = row('a','b','c')
+1
+select row('A','b','c') = row('a','b','c');
+row('A','b','c') = row('a','b','c')
+1
+select row('A' COLLATE latin1_bin,'b','c') = row('a','b','c');
+row('A' COLLATE latin1_bin,'b','c') = row('a','b','c')
+0
+select row('A','b','c') = row('a' COLLATE latin1_bin,'b','c');
+row('A','b','c') = row('a' COLLATE latin1_bin,'b','c')
+0
+select row('A' COLLATE latin1_general_ci,'b','c') = row('a' COLLATE latin1_bin,'b','c');
+ERROR HY000: Illegal mix of collations (latin1_general_ci,EXPLICIT) and (latin1_bin,EXPLICIT) for operation '='
+select concat(_latin1'a',_latin2'a');
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,COERCIBLE) and (latin2_general_ci,COERCIBLE) for operation 'concat'
+select concat(_latin1'a',_latin2'a',_latin5'a');
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,COERCIBLE), (latin2_general_ci,COERCIBLE), (latin5_turkish_ci,COERCIBLE) for operation 'concat'
+select concat(_latin1'a',_latin2'a',_latin5'a',_latin7'a');
+ERROR HY000: Illegal mix of collations for operation 'concat'
+select FIELD('b','A','B');
+FIELD('b','A','B')
+2
+select FIELD('B','A','B');
+FIELD('B','A','B')
+2
+select FIELD('b' COLLATE latin1_bin,'A','B');
+FIELD('b' COLLATE latin1_bin,'A','B')
+0
+select FIELD('b','A' COLLATE latin1_bin,'B');
+FIELD('b','A' COLLATE latin1_bin,'B')
+0
+select FIELD(_latin2'b','A','B');
+ERROR HY000: Illegal mix of collations for operation 'field'
+select FIELD('b',_latin2'A','B');
+ERROR HY000: Illegal mix of collations for operation 'field'
+select FIELD('b',_latin2'A','B',1);
+FIELD('b',_latin2'A','B',1)
+1
 select POSITION(_latin1'B' IN _latin1'abcd');
 POSITION(_latin1'B' IN _latin1'abcd')
 2

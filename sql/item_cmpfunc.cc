@@ -32,18 +32,6 @@ static void my_coll_agg_error(DTCollation &c1, DTCollation &c2, const char *fnam
 	   fname);
 }
 
-static void my_coll_agg3_error(DTCollation &c1, 
-			       DTCollation &c2,
-			       DTCollation &c3,
-			       const char *fname)
-{
-  my_error(ER_CANT_AGGREGATE_3COLLATIONS,MYF(0),
-  	   c1.collation->name,c1.derivation_name(),
-	   c2.collation->name,c2.derivation_name(),
-	   c3.collation->name,c3.derivation_name(),
-	   fname);
-}
-
 Item_bool_func2* Item_bool_func2::eq_creator(Item *a, Item *b)
 {
   return new Item_func_eq(a, b);
@@ -105,15 +93,6 @@ static bool convert_constant_item(Field *field, Item **item)
       return 1;					// Item was replaced
     }
   }
-  return 0;
-}
-
-
-bool Item_bool_func2::fix_fields(THD *thd, struct st_table_list *tables,
-				 Item ** ref)
-{
-  if (Item_int_func::fix_fields(thd, tables, ref))
-    return 1;
   return 0;
 }
 
@@ -191,8 +170,6 @@ void Item_bool_func2::fix_length_and_dec()
       {
 	cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
 			 INT_RESULT);		// Works for all types.
-	cmp_collation.set(&my_charset_bin, 
-			  DERIVATION_NONE);	// For test in fix_fields
 	return;
       }
     }
@@ -206,23 +183,11 @@ void Item_bool_func2::fix_length_and_dec()
       {
 	cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
 			 INT_RESULT); // Works for all types.
-	cmp_collation.set(&my_charset_bin,
-			  DERIVATION_NONE);	// For test in fix_fields
 	return;
       }
     }
   }
   set_cmp_func();
-  /*
-    We must set cmp_charset here as we may be called from for an automatic
-    generated item, like in natural join
-  */
-  if (cmp_collation.set(args[0]->collation, args[1]->collation))
-  {
-    /* set_cmp_charset() failed */
-    my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
-    return;
-  }
 }
 
 
@@ -252,6 +217,18 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
       comparators[i].set_cmp_func(owner, (*a)->addr(i), (*b)->addr(i));
     }
   }
+  else if (type == STRING_RESULT)
+  {
+    /*
+      We must set cmp_charset here as we may be called from for an automatic
+      generated item, like in natural join
+    */
+    if (cmp_collation.set((*a)->collation, (*b)->collation))
+    {
+      my_coll_agg_error((*a)->collation, (*b)->collation, owner->func_name());
+      return 1;
+    }
+  }
   return 0;
 }
 
@@ -264,7 +241,7 @@ int Arg_comparator::compare_string()
     if ((res2= (*b)->val_str(&owner->tmp_value2)))
     {
       owner->null_value= 0;
-      return sortcmp(res1,res2,owner->cmp_collation.collation);
+      return sortcmp(res1,res2,cmp_collation.collation);
     }
   }
   owner->null_value= 1;
@@ -278,7 +255,7 @@ int Arg_comparator::compare_e_string()
   res2= (*b)->val_str(&owner->tmp_value2);
   if (!res1 || !res2)
     return test(res1 == res2);
-  return test(sortcmp(res1, res2, owner->cmp_collation.collation) == 0);
+  return test(sortcmp(res1, res2, cmp_collation.collation) == 0);
 }
 
 
@@ -507,7 +484,7 @@ longlong Item_func_strcmp::val_int()
     null_value=1;
     return 0;
   }
-  int value= sortcmp(a,b,cmp_collation.collation);
+  int value= sortcmp(a,b,cmp.cmp_collation.collation);
   null_value=0;
   return !value ? 0 : (value < 0 ? (longlong) -1 : (longlong) 1);
 }
@@ -588,18 +565,9 @@ void Item_func_between::fix_length_and_dec()
            item_cmp_type(args[1]->result_type(),
                          args[2]->result_type()));
 
-  if (cmp_type == STRING_RESULT)
-  {
-    cmp_collation.set(args[0]->collation);
-    if (!cmp_collation.aggregate(args[1]->collation))
-      cmp_collation.aggregate(args[2]->collation);
-    if (cmp_collation.derivation == DERIVATION_NONE)
-    {
-      my_coll_agg3_error(args[0]->collation, args[1]->collation, 
-			 args[2]->collation, func_name());
-      return;
-    }
-  }
+  if (cmp_type == STRING_RESULT &&
+      agg_arg_collations_for_comparison(cmp_collation, args, 3))
+    return;
 
   /*
     Make a special case of compare with date/time and longlong fields.
@@ -707,8 +675,8 @@ Item_func_ifnull::fix_length_and_dec()
 					  args[1]->result_type())) !=
       REAL_RESULT)
     decimals= 0;
-  if (collation.set(args[0]->collation,args[1]->collation))
-    my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
+  if (cached_result_type == STRING_RESULT)
+    agg_arg_collations(collation, args, arg_count);
 }
 
 
@@ -784,11 +752,8 @@ Item_func_if::fix_length_and_dec()
   else if (arg1_type == STRING_RESULT || arg2_type == STRING_RESULT)
   {
     cached_result_type = STRING_RESULT;
-    if (collation.set(args[1]->collation, args[2]->collation))
-    {
-      my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
+    if (agg_arg_collations(collation, args+1, 2))
       return;
-    }
   }
   else
   {
@@ -1900,7 +1865,7 @@ longlong Item_func_like::val_int()
   null_value=0;
   if (canDoTurboBM)
     return turboBM_matches(res->ptr(), res->length()) ? 1 : 0;
-  return my_wildcmp(cmp_collation.collation,
+  return my_wildcmp(cmp.cmp_collation.collation,
 		    res->ptr(),res->ptr()+res->length(),
 		    res2->ptr(),res2->ptr()+res2->length(),
 		    escape,wild_one,wild_many) ? 0 : 1;
@@ -1990,11 +1955,8 @@ Item_func_regex::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   max_length= 1;
   decimals= 0;
 
-  if (cmp_collation.set(args[0]->collation, args[1]->collation))
-  {
-    my_coll_agg_error(args[0]->collation, args[1]->collation, func_name());
+  if (agg_arg_collations(cmp_collation, args, 2))
     return 1;
-  }
 
   used_tables_cache=args[0]->used_tables() | args[1]->used_tables();
   const_item_cache=args[0]->const_item() && args[1]->const_item();
@@ -2110,7 +2072,7 @@ void Item_func_like::turboBM_compute_suffixes(int *suff)
 
   *splm1 = pattern_len;
 
-  if (cmp_collation.collation == &my_charset_bin)
+  if (cmp.cmp_collation.collation == &my_charset_bin)
   {
     int i;
     for (i = pattern_len - 2; i >= 0; i--)
@@ -2213,7 +2175,7 @@ void Item_func_like::turboBM_compute_bad_character_shifts()
   for (i = bmBc; i < end; i++)
     *i = pattern_len;
 
-  if (cmp_collation.collation == &my_charset_bin)
+  if (cmp.cmp_collation.collation == &my_charset_bin)
   {
     for (j = 0; j < plm1; j++)
       bmBc[(uint) (uchar) pattern[j]] = plm1 - j;
@@ -2244,7 +2206,7 @@ bool Item_func_like::turboBM_matches(const char* text, int text_len) const
   const int tlmpl= text_len - pattern_len;
 
   /* Searching */
-  if (cmp_collation.collation == &my_charset_bin)
+  if (cmp.cmp_collation.collation == &my_charset_bin)
   {
     while (j <= tlmpl)
     {

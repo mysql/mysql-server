@@ -35,6 +35,8 @@ class Arg_comparator: public Sql_alloc
   Arg_comparator *comparators;   // used only for compare_row()
 
 public:
+  DTCollation cmp_collation;
+
   Arg_comparator() {};
   Arg_comparator(Item **a1, Item **a2): a(a1), b(a2) {};
 
@@ -111,13 +113,10 @@ class Item_bool_func2 :public Item_int_func
 protected:
   Arg_comparator cmp;
   String tmp_value1,tmp_value2;
-  DTCollation cmp_collation;
 
 public:
   Item_bool_func2(Item *a,Item *b):
-    Item_int_func(a,b), cmp(tmp_arg, tmp_arg+1)
-    { cmp_collation.set(0,DERIVATION_NONE);}
-  bool fix_fields(THD *thd, TABLE_LIST *tlist, Item ** ref);
+    Item_int_func(a,b), cmp(tmp_arg, tmp_arg+1) {}
   void fix_length_and_dec();
   void set_cmp_func()
   {
