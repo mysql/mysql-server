@@ -123,8 +123,8 @@ typedef struct my_collation_handler_st
   int  (*strcasecmp)(struct charset_info_st *, const char *, const char *);
   
   uint (*instr)(struct charset_info_st *,
-                const char *big,   uint b_length,
-                const char *small, uint s_length,
+                const char *b, uint b_length,
+                const char *s, uint s_length,
                 my_match_t *match, uint nmatch);
   
   /* Hash calculation */
@@ -257,8 +257,8 @@ extern void my_hash_sort_simple(CHARSET_INFO *cs,
 extern uint my_lengthsp_8bit(CHARSET_INFO *cs, const char *ptr, uint length);
 
 extern uint my_instr_simple(struct charset_info_st *,
-                            const char *big,   uint b_length,
-                            const char *small, uint s_length,
+                            const char *b, uint b_length,
+                            const char *s, uint s_length,
                             my_match_t *match, uint nmatch);
 
 
@@ -326,8 +326,8 @@ int my_wildcmp_mb(CHARSET_INFO *,
 uint my_numchars_mb(CHARSET_INFO *, const char *b, const char *e);
 uint my_charpos_mb(CHARSET_INFO *, const char *b, const char *e, uint pos);
 uint my_instr_mb(struct charset_info_st *,
-                 const char *big,   uint b_length,
-                 const char *small, uint s_length,
+                 const char *b, uint b_length,
+                 const char *s, uint s_length,
                  my_match_t *match, uint nmatch);
 
 

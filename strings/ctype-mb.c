@@ -275,11 +275,11 @@ uint my_charpos_mb(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 uint my_instr_mb(CHARSET_INFO *cs,
-                 const char *big,   uint b_length, 
-                 const char *small, uint s_length,
+                 const char *b, uint b_length, 
+                 const char *s, uint s_length,
                  my_match_t *match, uint nmatch)
 {
-  register const char *end, *big0;
+  register const char *end, *b0;
   int res= 0;
   
   if (s_length <= b_length)
@@ -295,20 +295,20 @@ uint my_instr_mb(CHARSET_INFO *cs,
       return 1;		/* Empty string is always found */
     }
     
-    big0= big;
-    end= big+b_length-s_length+1;
+    b0= b;
+    end= b+b_length-s_length+1;
     
-    while (big < end)
+    while (b < end)
     {
       int mblen;
       
-      if (!cs->coll->strnncoll(cs, (unsigned char*) big,   s_length, 
-      				   (unsigned char*) small, s_length))
+      if (!cs->coll->strnncoll(cs, (unsigned char*) b,   s_length, 
+      				   (unsigned char*) s, s_length))
       {
         if (nmatch)
         {
           match[0].beg= 0;
-          match[0].end= big-big0;
+          match[0].end= b-b0;
           match[0].mblen= res;
           if (nmatch > 1)
           {
@@ -319,8 +319,8 @@ uint my_instr_mb(CHARSET_INFO *cs,
         }
         return 2;
       }
-      mblen= (mblen= my_ismbchar(cs, big, end)) ? mblen : 1;
-      big+= mblen;
+      mblen= (mblen= my_ismbchar(cs, b, end)) ? mblen : 1;
+      b+= mblen;
       b_length-= mblen;
       res++;
     }
