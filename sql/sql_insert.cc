@@ -113,8 +113,15 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   char *query=thd->query;
   DBUG_ENTER("mysql_insert");
 
+  /*
+    in safe mode or with skip-new change delayed insert to be regular
+    if we are told to replace duplicates, the insert cannot be concurrent
+    delayed insert changed to regular in slave thread
+   */
   if (lock_type == TL_WRITE_DELAYED &&
-      (specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) ||
+      ((specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) ||
+       thd->slave_thread
+       ) ||
       lock_type == TL_WRITE_CONCURRENT_INSERT && duplic == DUP_REPLACE)
     lock_type=TL_WRITE;
 
@@ -1083,6 +1090,7 @@ bool delayed_insert::handle_inserts(void)
     table->time_stamp=row->time_stamp;
 
     info.handle_duplicates= row->dup;
+    thd.net.last_errno = 0; // reset error for binlog
     if (write_record(table,&info))
     {
       info.error++;				// Ignore errors

@@ -1,0 +1,18 @@
+source t/include/master-slave.inc;
+connection master;
+use test;
+set SQL_LOG_BIN=0;
+drop table if exists words;
+create table words (word char(20) not null, index(word));
+load data infile '../../std_data/words' into table words;
+drop table if exists words1;
+create table words1 (word char(20) not null);
+load data infile '../../std_data/words' into table words1;
+connection slave;
+use test;
+drop table if exists words;
+load table words from master;
+drop table if exists words1;
+load table words1 from master;
+@r/3.23/rpl000004.a.result check table words;
+@r/3.23/rpl000004.b.result select count(*) from words1;
