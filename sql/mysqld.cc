@@ -38,6 +38,7 @@
 #include <ft_global.h>
 #include <errmsg.h>
 #include "sp_rcontext.h"
+#include "sp_cache.h"
 
 #define mysqld_charset &my_charset_latin1
 
@@ -2140,6 +2141,7 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_rpl_status, MY_MUTEX_INIT_FAST);
   (void) pthread_cond_init(&COND_rpl_status, NULL);
 #endif
+  sp_cache_init();
   /* Parameter for threads created for connections */
   (void) pthread_attr_init(&connection_attrib);
   (void) pthread_attr_setdetachstate(&connection_attrib,
