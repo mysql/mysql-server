@@ -3609,8 +3609,12 @@ select_item:
 	      YYABORT;
 	    if ($4.str)
 	      $2->set_name($4.str,$4.length,system_charset_info);
-	    else if (!$2->name)
-	      $2->set_name($1,(uint) ($3 - $1), YYTHD->charset());
+	    else if (!$2->name) {
+	      char *str = $1;
+	      if (str[-1] == '`')
+	        str--;
+	      $2->set_name(str,(uint) ($3 - str), YYTHD->charset());
+	    }
 	  };
 
 remember_name:
