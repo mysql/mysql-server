@@ -575,9 +575,13 @@ get_one_option(int optid,
     break;
   case '#':
     if (argument && *argument == '0')
+    {
       DBUG_POP();
+    }
     else
+    {
       DBUG_PUSH(argument ? argument : "d:t:o,/tmp/myisamchk.trace");
+    }
     break;
   case 'V':
     print_version();
