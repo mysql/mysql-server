@@ -382,8 +382,7 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
   }
   l_time->neg= 0;
 
-  if (year_length == 2 && i >= format_position[1] && i >=format_position[2] &&
-      (l_time->month || l_time->day))
+  if (year_length == 2 && not_zero_date)
     l_time->year+= (l_time->year < YY_PART_YEAR ? 2000 : 1900);
 
   if (!not_zero_date && (flags & TIME_NO_ZERO_DATE))
