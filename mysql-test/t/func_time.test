@@ -39,6 +39,18 @@ select yearweek("2000-01-06",1) as '2000', yearweek("2001-01-06",1) as '2001', y
 select week(19981231,2), week(19981231,3), week(20000101,2), week(20000101,3);
 select week(20001231,2),week(20001231,3);
 
+select week(19981231,0) as '0', week(19981231,1) as '1', week(19981231,2) as '2', week(19981231,3) as '3', week(19981231,4) as '4', week(19981231,5) as '5', week(19981231,6) as '6', week(19981231,7) as '7';
+select week(20000101,0) as '0', week(20000101,1) as '1', week(20000101,2) as '2', week(20000101,3) as '3', week(20000101,4) as '4', week(20000101,5) as '5', week(20000101,6) as '6', week(20000101,7) as '7';
+select week(20000106,0) as '0', week(20000106,1) as '1', week(20000106,2) as '2', week(20000106,3) as '3', week(20000106,4) as '4', week(20000106,5) as '5', week(20000106,6) as '6', week(20000106,7) as '7';
+select week(20001231,0) as '0', week(20001231,1) as '1', week(20001231,2) as '2', week(20001231,3) as '3', week(20001231,4) as '4', week(20001231,5) as '5', week(20001231,6) as '6', week(20001231,7) as '7';
+select week(20010101,0) as '0', week(20010101,1) as '1', week(20010101,2) as '2', week(20010101,3) as '3', week(20010101,4) as '4', week(20010101,5) as '5', week(20010101,6) as '6', week(20010101,7) as '7';
+
+select yearweek(20001231,0), yearweek(20001231,1), yearweek(20001231,2), yearweek(20001231,3), yearweek(20001231,4), yearweek(20001231,5), yearweek(20001231,6), yearweek(20001231,7);
+
+set default_week_format = 6;
+select week(20001231), week(20001231,6);
+set default_week_format = 0;
+
 set default_week_format = 2;
 select week(20001231),week(20001231,2),week(20001231,0);
 set default_week_format = 0;

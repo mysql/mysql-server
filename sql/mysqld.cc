@@ -4105,7 +4105,7 @@ this value; if zero (the default): when the size exceeds max_binlog_size. \
     "The default week format used by WEEK() functions.",
     (gptr*) &global_system_variables.default_week_format, 
     (gptr*) &max_system_variables.default_week_format, 
-    0, GET_ULONG, REQUIRED_ARG, 0, 0, 3L, 0, 1, 0},
+    0, GET_ULONG, REQUIRED_ARG, 0, 0, 7L, 0, 1, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
