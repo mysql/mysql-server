@@ -33450,7 +33450,7 @@ mysql> SELECT COUNT(DISTINCT results) FROM student;
 In MySQL you can get the number of distinct expression
 combinations that don't contain NULL by giving a list of expressions.
 In ANSI SQL you would have to do a concatenation of all expressions
-inside @code{CODE(DISTINCT ...)}.
+inside @code{COUNT(DISTINCT ...)}.
 
 @findex AVG()
 @item AVG(expr)
@@ -33592,7 +33592,8 @@ SELECT [STRAIGHT_JOIN]
     [INTO @{OUTFILE | DUMPFILE@} 'file_name' export_options]
     [FROM table_references
       [WHERE where_definition]
-      [GROUP BY @{unsigned_integer | col_name | formula@} [ASC | DESC], ...]
+      [GROUP BY @{unsigned_integer | col_name | formula@} [ASC | DESC], ...
+        [WITH @{CUBE | ROLLUP@}] ]
       [HAVING where_definition]
       [ORDER BY @{unsigned_integer | col_name | formula@} [ASC | DESC] ,...]
       [LIMIT [offset,] rows]
@@ -33802,6 +33803,10 @@ read the @code{GROUP BY} description.
 @xref{Group by functions}.
 
 @item
+Since Version 3.23.12 MySQL supports @code{CUBE} and @code{ROLLUP}
+clauses. @xref{CUBE and ROLLUP}.
+
+@item
 @cindex hints
 @code{STRAIGHT_JOIN} forces the optimiser to join the tables in the order in
 which they are listed in the @code{FROM} clause. You can use this to speed up
@@ -33910,6 +33915,7 @@ the examined rows will be write locked.
 @menu
 * JOIN::                        @code{JOIN} Syntax
 * UNION::                       @code{UNION} Syntax
+* CUBE and ROLLUP               @code{CUBE} and @code{ROLLUP} Syntax
 @end menu
 
 @node JOIN, UNION, SELECT, SELECT
@@ -34074,7 +34080,7 @@ mysql> SELECT * FROM table1 IGNORE INDEX (key3)
 @xref{LEFT JOIN optimisation, , @code{LEFT JOIN} optimisation}.
 
 
-@node UNION,  , JOIN, SELECT
+@node UNION, CUBE and ROLLUP, JOIN, SELECT
 @subsubsection @code{UNION} Syntax
 
 @findex UNION
@@ -34118,6 +34124,141 @@ UNION
 (SELECT a FROM table_name WHERE a=11 AND B=2 ORDER BY a LIMIT 10)
 ORDER BY a;
 @end example
+
+@node CUBE and ROLLUP, , UNION, SELECT
+@subsubsection @code{CUBE} and @code{ROLLUP} Syntax
+
+Documentation for OLAP extension
+
+Introduction 
+------------
+
+MySQL will first support CUBE and ROLLUP operators from entire OLAP
+functionality.  
+
+The  CUBE  and ROLLUP extensions  to  SQL make querying  and reporting
+easier  in data warehousing  environments. ROLLUP creates subtotals at
+increasing levels of aggregation, from the most detailed up to a grand
+total. CUBE  is an extension   similar to  ROLLUP,  enabling a  single
+statement to calculate all possible combinations of subtotals.
+
+
+Syntax: 
+------	
+
+The syntax supported by the enhanced mysql for CUBE and ROLLUP
+operators.  
+
+CUBE 
+---- 
+
+SELECT field1, field2, ... AGGR(fieldn) FROM
+table GROUP BY field1, field2 field(n-1) WITH CUBE 
+
+This would generate the aggregates with group bys of all the
+combinations of dimensions.
+
+ROLLUP:
+-----        
+
+	SELECT field1, field2, ... AGGR(fieldn) FROM table 
+	GROUP BY field1, field2 field(n-1) WITH ROLLUP 
+
+Example:
+-------
+
+mysql> select * from sales;
++------------+---------------+------+--------+
+| product    | country       | year | profit |
++------------+---------------+------+--------+
+| Computer   | India         | 2000 |   1200 |
+| TV         | United States | 1999 |    150 |
+| Calculator | United States | 1999 |     50 |
+| Computer   | United States | 1999 |   1500 |
+| Computer   | United States | 2000 |   1500 |
+| TV         | United States | 2000 |    150 |
+| TV         | India         | 2000 |    100 |
+| TV         | India         | 2000 |    100 |
+| Calculator | United States | 2000 |     75 |
+| Calculator | India         | 2000 |     75 |
+| TV         | India         | 1999 |    100 |
+| Computer   | India         | 1999 |   1200 |
+| Computer   | United States | 2000 |   1500 |
+| Calculator | United States | 2000 |     75 |
++------------+---------------+------+--------+
+14 rows in set (0.00 sec)
+
+
+ 
+mysql> Select sales.product, sales.country , sales.year, sum(profit) from 
+sales group by product, country, year with cube;
+
++------------+---------------+------+-------------+
+| product    | country       | year | sum(profit) |
++------------+---------------+------+-------------+
+| Calculator | India         | 2000 |          75 |
+| Calculator | United States | 1999 |          50 |
+| Calculator | United States | 2000 |         150 |
+| Computer   | India         | 1999 |        1200 |
+| Computer   | India         | 2000 |        1200 |
+| Computer   | United States | 1999 |        1500 |
+| Computer   | United States | 2000 |        3000 |
+| TV         | India         | 1999 |         100 |
+| TV         | India         | 2000 |         200 |
+| TV         | United States | 1999 |         150 |
+| TV         | United States | 2000 |         150 |
+| ALL        | India         | 1999 |        1300 |
+| ALL        | India         | 2000 |        1475 |
+| ALL        | United States | 1999 |        1700 |
+| ALL        | United States | 2000 |        3300 |
+| Calculator | ALL           | 1999 |          50 |
+| Calculator | ALL           | 2000 |         225 |
+| Computer   | ALL           | 1999 |        2700 |
+| Computer   | ALL           | 2000 |        4200 |
+| TV         | ALL           | 1999 |         250 |
+| TV         | ALL           | 2000 |         350 |
+| Calculator | India         | 0    |          75 |
+| Calculator | United States | 0    |         200 |
+| Computer   | India         | 0    |        2400 |
+| Computer   | United States | 0    |        4500 |
+| TV         | India         | 0    |         300 |
+| TV         | United States | 0    |         300 |
+| ALL        | ALL           | 1999 |        3000 |
+| ALL        | ALL           | 2000 |        4775 |
+| ALL        | India         | 0    |        2775 |
+| ALL        | United States | 0    |        5000 |
+| Calculator | ALL           | 0    |         275 |
+| Computer   | ALL           | 0    |        6900 |
+| TV         | ALL           | 0    |         600 |
+| ALL        | ALL           | 0    |        7775 |
++------------+---------------+------+-------------+
+35 rows in set (0.00 sec)
+
+
+MySQL supports now CUBE and ROLLUP extensions, with all  functions
+that one wishes to use with them.
+
+Those extensions already work in all tested combinations. They work
+with UNION's, should work with sub-selects in 4.1 and derived tables. 
+
+TODO
+----
+
+For the moment, ORDER and LIMIT are disabled for CUBE and ROLLUP. This
+however remains to be added later.
+
+Another feature that has to be added later is grouping of select list
+itmes in order to alleviate user errors. For the moment, missing
+(hidden) columns are not used at all.
+
+Third feature to be done is to make  SQL SET OPTION to set values for
+all values of the column optionally to:
+
+* ALL (as it is now)
+* NULL 
+* blank
+
+-------------------------------------------------------------------------
 
 @findex HANDLER
 @node HANDLER, INSERT, SELECT, Data Manipulation
@@ -37823,8 +37964,8 @@ The disadvantages with @code{MERGE} tables are:
 @itemize @bullet
 @item
 You can only use identical @code{MyISAM} tables for a @code{MERGE} table.
-@item
-@code{AUTO_INCREMENT} columns are not automatically updated on @code{INSERT}.
+@c @item
+@c @code{AUTO_INCREMENT} columns are not automatically updated on @code{INSERT}.
 @item
 @code{REPLACE} doesn't work.
 @item
@@ -37864,13 +38005,13 @@ CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, message CHAR(20));
 CREATE TABLE t2 (a INT AUTO_INCREMENT PRIMARY KEY, message CHAR(20));
 INSERT INTO t1 (message) VALUES ("Testing"),("table"),("t1");
 INSERT INTO t2 (message) VALUES ("Testing"),("table"),("t2");
-CREATE TABLE total (a INT NOT NULL, message CHAR(20), KEY(a))
+CREATE TABLE total (a INT AUTO_INCREMENT PRIMARY KEY, message CHAR(20))
              TYPE=MERGE UNION=(t1,t2) INSERT_METHOD=LAST;
 @end example
 
-Note that we didn't create a @code{UNIQUE} or @code{PRIMARY KEY} in the
-@code{total} table as the key isn't going to be unique in the @code{total}
-table.
+@c Note that we didn't create a @code{UNIQUE} or @code{PRIMARY KEY} in the
+@c @code{total} table as the key isn't going to be unique in the @code{total}
+@c table.
 
 Note that you can also manipulate the @file{.MRG} file directly from
 the outside of the MySQL server:
@@ -37896,6 +38037,10 @@ mysql> SELECT * FROM total;
 | 3 | t2      |
 +---+---------+
 @end example
+
+Note that the @code{a} column, though declared as @code{PRIMARY KEY},
+is not really unique, as @code{MERGE} table cannot enforce uniqueness
+over a set of underlying @code{MyISAM} tables.
 
 To remap a @code{MERGE} table you can do one of the following:
 
@@ -37924,8 +38069,8 @@ The following are the known problems with @code{MERGE} tables:
 A @code{MERGE} table cannot maintain @code{UNIQUE} constraints over the
 whole table.  When you do @code{INSERT}, the data goes into the first or
 last table (according to @code{INSERT_METHOD=xxx}) and this @code{MyISAM}
-table ensures that the data are unique, but it knows nothing about the
-first @code{MyISAM} table.
+table ensures that the data are unique, but it knows nothing about
+others @code{MyISAM} tables.
 @item
 @code{DELETE FROM merge_table} used without a @code{WHERE}
 will only clear the mapping for the table, not delete everything in the
@@ -49735,13 +49880,9 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @itemize @bullet
 @item
 Fixed a bug that made the pager option in the mysql client non-functional.
-Extended @code{LOG()} function to accept an optional arbitrary base parameter.
-@xref{Mathematical functions}.
-@item
-Added @code{LOG2()} function (useful for finding out how many bits a number would require for storage).
-@item
-Added @code{LN()} natural logarithm function for compatibility with other databases. It is synonymous with @code{LOG(X)}.
 @end itemize
+@item
+Added full @code{AUTO_INCREMENT} support to @code{MERGE} tables.
 Added OLAP functionality.
 
 @c Arjen , please add the following text somewhere appropriate in the 
@@ -49750,6 +49891,7 @@ text above:
 -------------------------------------------------------------------------
 
 Documentation for OLAP extension
+
 Introduction 
 ------------
 
@@ -49879,6 +50021,7 @@ all values of the column optionally to:
 * blank
 
 -------------------------------------------------------------------------
+
 
 @node News-4.0.2, News-4.0.1, News-4.0.3, News-4.0.x
 @appendixsubsec Changes in release 4.0.2 (01 July 2002)
