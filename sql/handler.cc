@@ -241,7 +241,7 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
 #endif
   if (error && trans == &thd->transaction.all && mysql_bin_log.is_open())
     sql_print_error("Error: Got error during commit;  Binlog is not up to date!");
-#endif
+#endif // using transactions
   DBUG_RETURN(error);
 }
 
