@@ -42,7 +42,7 @@ cfgfile=Ndb.cfg
 stop_ndb=
 initial_ndb=
 status_ndb=
-ndb_discless=0
+ndb_diskless=0
 
 ndb_con_op=100000
 ndb_dmem=80M
@@ -54,7 +54,7 @@ while test $# -gt 0; do
      stop_ndb=1
      ;;
     --initial)
-     flags_ndb=$flags_ndb" -i"
+     flags_ndb="$flags_ndb -i"
      initial_ndb=1
      ;;
     --status)
@@ -65,8 +65,8 @@ while test $# -gt 0; do
      ndb_dmem=40M
      ndb_imem=12M
      ;;
-    --discless)
-     ndb_discless=1
+    --diskless)
+     ndb_diskless=1
      ;;
     --data-dir=*)
      fsdir=`echo "$1" | sed -e "s;--data-dir=;;"`
@@ -81,123 +81,101 @@ while test $# -gt 0; do
   shift
 done
 
-fs_ndb=$fsdir/ndbcluster
-fs_mgm_1=$fs_ndb/1.ndb_mgm
-fs_ndb_2=$fs_ndb/2.ndb_db
-fs_ndb_3=$fs_ndb/3.ndb_db
-fs_name_2=$fs_ndb/node-2-fs-$port_base
-fs_name_3=$fs_ndb/node-3-fs-$port_base
+fs_ndb="$fsdir/ndbcluster-$port_base"
 
 NDB_HOME=
-export NDB_CONNECTSTRING
-if [ ! -x $fsdir ]; then
+if [ ! -x "$fsdir" ]; then
   echo "$fsdir missing"
   exit 1
 fi
-if [ ! -x $exec_ndb ]; then
+if [ ! -x "$exec_ndb" ]; then
   echo "$exec_ndb missing"
   exit 1
 fi
-if [ ! -x $exec_mgmtsrvr ]; then
+if [ ! -x "$exec_mgmtsrvr" ]; then
   echo "$exec_mgmtsrvr missing"
   exit 1
 fi
+
+ndb_host="localhost"
+ndb_mgmd_port=$port_base
+NDB_CONNECTSTRING="host=$ndb_host:$ndb_mgmd_port"
+export NDB_CONNECTSTRING
 
 start_default_ndbcluster() {
 
 # do some checks
 
-NDB_CONNECTSTRING=
-
-if [ $initial_ndb ] ; then
-  [ -d $fs_ndb ] || mkdir $fs_ndb
-  [ -d $fs_mgm_1 ] || mkdir $fs_mgm_1
-  [ -d $fs_ndb_2 ] || mkdir $fs_ndb_2
-  [ -d $fs_ndb_3 ] || mkdir $fs_ndb_3
-  [ -d $fs_name_2 ] || mkdir $fs_name_2
-  [ -d $fs_name_3 ] || mkdir $fs_name_3
+if [ "$initial_ndb" ] ; then
+  [ -d "$fs_ndb" ] || mkdir "$fs_ndb"
 fi
-if [ -d "$fs_ndb" -a -d "$fs_mgm_1" -a -d "$fs_ndb_2" -a -d "$fs_ndb_3" -a -d "$fs_name_2" -a -d "$fs_name_3" ]; then :; else
+if [ -d "$fs_ndb" ]; then :; else
   echo "$fs_ndb filesystem directory does not exist"
   exit 1
 fi
 
 # set som help variables
 
-ndb_host="localhost"
-ndb_mgmd_port=$port_base
 port_transporter=`expr $ndb_mgmd_port + 2`
-NDB_CONNECTSTRING_BASE="host=$ndb_host:$ndb_mgmd_port;nodeid="
-
 
 # Start management server as deamon
-
-NDB_ID="1"
-NDB_CONNECTSTRING=$NDB_CONNECTSTRING_BASE$NDB_ID
 
 # Edit file system path and ports in config file
 
 if [ $initial_ndb ] ; then
 sed \
-    -e s,"CHOOSE_MaxNoOfConcurrentOperations",$ndb_con_op,g \
-    -e s,"CHOOSE_DataMemory",$ndb_dmem,g \
-    -e s,"CHOOSE_IndexMemory",$ndb_imem,g \
-    -e s,"CHOOSE_Discless",$ndb_discless,g \
+    -e s,"CHOOSE_MaxNoOfConcurrentOperations","$ndb_con_op",g \
+    -e s,"CHOOSE_DataMemory","$ndb_dmem",g \
+    -e s,"CHOOSE_IndexMemory","$ndb_imem",g \
+    -e s,"CHOOSE_Diskless","$ndb_diskless",g \
     -e s,"CHOOSE_HOSTNAME_".*,"$ndb_host",g \
-    -e s,"CHOOSE_FILESYSTEM_NODE_2","$fs_name_2",g \
-    -e s,"CHOOSE_FILESYSTEM_NODE_3","$fs_name_3",g \
-    -e s,"CHOOSE_PORT_MGM",$ndb_mgmd_port,g \
-    -e s,"CHOOSE_PORT_TRANSPORTER",$port_transporter,g \
+    -e s,"CHOOSE_FILESYSTEM","$fs_ndb",g \
+    -e s,"CHOOSE_PORT_MGM","$ndb_mgmd_port",g \
+    -e s,"CHOOSE_PORT_TRANSPORTER","$port_transporter",g \
     < ndb/ndb_config_2_node.ini \
-    > "$fs_mgm_1/config.ini"
+    > "$fs_ndb/config.ini"
 fi
 
-if ( cd $fs_mgm_1 ; echo $NDB_CONNECTSTRING > $cfgfile ; $exec_mgmtsrvr -d -c config.ini ) ; then :; else
+rm -f "$cfgfile" 2>&1 | cat > /dev/null
+rm -f "$fs_ndb/$cfgfile" 2>&1 | cat > /dev/null
+
+if ( cd "$fs_ndb" ; $exec_mgmtsrvr -d -c config.ini ) ; then :; else
   echo "Unable to start $exec_mgmtsrvr from `pwd`"
   exit 1
 fi
 
-cat `find $fs_ndb -name 'node*.pid'` > $pidfile
+cat `find "$fs_ndb" -name 'ndb_*.pid'` > "$fs_ndb/$pidfile"
 
 # Start database node 
 
-NDB_ID="2"
-NDB_CONNECTSTRING=$NDB_CONNECTSTRING_BASE$NDB_ID
-echo "Starting ndbd connectstring=\""$NDB_CONNECTSTRING\"
-( cd $fs_ndb_2 ; echo $NDB_CONNECTSTRING > $cfgfile ; $exec_ndb -d $flags_ndb & )
+echo "Starting ndbd"
+( cd "$fs_ndb" ; $exec_ndb -d $flags_ndb & )
 
-cat `find $fs_ndb -name 'node*.pid'` > $pidfile
+cat `find "$fs_ndb" -name 'ndb_*.pid'` > "$fs_ndb/$pidfile"
 
 # Start database node 
 
-NDB_ID="3"
-NDB_CONNECTSTRING=$NDB_CONNECTSTRING_BASE$NDB_ID
-echo "Starting ndbd connectstring=\""$NDB_CONNECTSTRING\"
-( cd $fs_ndb_3 ; echo $NDB_CONNECTSTRING > $cfgfile ; $exec_ndb -d $flags_ndb & )
+echo "Starting ndbd"
+( cd "$fs_ndb" ; $exec_ndb -d $flags_ndb & )
 
-cat `find $fs_ndb -name 'node*.pid'` > $pidfile
+cat `find "$fs_ndb" -name 'ndb_*.pid'` > "$fs_ndb/$pidfile"
 
 # test if Ndb Cluster starts properly
 
 echo "Waiting for started..."
-NDB_ID="11"
-NDB_CONNECTSTRING=$NDB_CONNECTSTRING_BASE$NDB_ID
 if ( $exec_waiter ) | grep "NDBT_ProgramExit: 0 - OK"; then :; else
   echo "Ndbcluster startup failed"
   exit 1
 fi
 
-echo $NDB_CONNECTSTRING > $cfgfile
-
-cat `find $fs_ndb -name 'node*.pid'` > $pidfile
+cat `find "$fs_ndb" -name 'ndb_*.pid'` > $fs_ndb/$pidfile
 
 status_ndbcluster
 }
 
 status_ndbcluster() {
-# Start management client
-
-echo "show" | $exec_mgmtclient $ndb_host $ndb_mgmd_port
+  # Start management client
+  echo "show" | $exec_mgmtclient
 }
 
 stop_default_ndbcluster() {
@@ -206,26 +184,21 @@ stop_default_ndbcluster() {
 #  exit 0
 #fi
 
-if [ ! -f $cfgfile ] ; then
-  echo "$cfgfile missing"
-  exit 1
-fi
-
-ndb_host=`cat $cfgfile | sed -e "s,.*host=\(.*\)\:.*,\1,1"`
-ndb_mgmd_port=`cat $cfgfile | sed -e "s,.*host=$ndb_host\:\([0-9]*\).*,\1,1"`
+#if [ ! -f $cfgfile ] ; then
+#  echo "$cfgfile missing"
+#  exit 1
+#fi
 
 # Start management client
 
-exec_mgmtclient="$exec_mgmtclient --try-reconnect=1 $ndb_host $ndb_mgmd_port"
+exec_mgmtclient="$exec_mgmtclient --try-reconnect=1"
 
-echo "$exec_mgmtclient"
-echo "all stop" | $exec_mgmtclient
+echo "all stop" | $exec_mgmtclient 2>&1 | cat > /dev/null
+echo "3 stop" | $exec_mgmtclient 2>&1 | cat > /dev/null
 
-sleep 5
-
-if [ -f $pidfile ] ; then
-  kill `cat $pidfile` 2> /dev/null
-  rm $pidfile
+if [ -f "$fs_ndb/$pidfile" ] ; then
+  kill -9 `cat "$fs_ndb/$pidfile"` 2> /dev/null
+  rm "$fs_ndb/$pidfile"
 fi
 
 }

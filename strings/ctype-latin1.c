@@ -387,6 +387,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
     my_charpos_8bit,
     my_well_formed_len_8bit,
     my_lengthsp_8bit,
+    my_numcells_8bit,
     my_mb_wc_latin1,
     my_wc_mb_latin1,
     my_caseup_str_8bit,
@@ -728,7 +729,7 @@ CHARSET_INFO my_charset_latin1_bin=
   ctype_latin1,
   to_lower_latin1,
   to_upper_latin1,
-  sort_order_latin1_de,
+  NULL,					/* sort_order   */
   NULL,					/* contractions */
   NULL,					/* sort_order_big*/
   cs_to_uni,				/* tab_to_uni   */

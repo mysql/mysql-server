@@ -25,7 +25,8 @@ printSTART_LCP_REQ(FILE * output, const Uint32 * theData,
   
   const StartLcpReq * const sig = (StartLcpReq *) theData;
  
-  char buf1[sig->participatingDIH.TextLength+1], buf2[sig->participatingLQH.TextLength+1]; 
+  char buf1[8*_NDB_NODE_BITMASK_SIZE+1];
+  char buf2[8*_NDB_NODE_BITMASK_SIZE+1];
   fprintf(output, 
 	  " Sender: %d LcpId: %d\n"
 	  " ParticipatingDIH = %s\n"

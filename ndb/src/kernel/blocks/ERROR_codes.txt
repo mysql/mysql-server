@@ -3,7 +3,7 @@ Next NDBCNTR 1000
 Next NDBFS 2000
 Next DBACC 3001
 Next DBTUP 4007
-Next DBLQH 5036
+Next DBLQH 5040
 Next DBDICT 6006
 Next DBDIH 7173
 Next DBTC 8035
@@ -189,6 +189,10 @@ Delay execution of ABORTREQ signal 2 seconds to generate time-out.
 5034: Don't pop scan queue
 
 5035: Delay ACC_CONTOPCONT
+
+5038: Drop LQHKEYREQ + set 5039
+5039: Drop ABORT + set 5003
+
 
 ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBTC
 -------------------------------------------------

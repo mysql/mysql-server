@@ -1,4 +1,4 @@
-/*	$NetBSD: prompt.c,v 1.8 2001/01/10 07:45:41 jdolecek Exp $	*/
+/*	$NetBSD: prompt.c,v 1.9 2002/03/18 16:00:56 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -36,12 +36,18 @@
  * SUCH DAMAGE.
  */
 
-#include "compat.h"
+#include "config.h"
+#if !defined(lint) && !defined(SCCSID)
+#if 0
+static char sccsid[] = "@(#)prompt.c	8.1 (Berkeley) 6/4/93";
+#else
+__RCSID("$NetBSD: prompt.c,v 1.9 2002/03/18 16:00:56 christos Exp $");
+#endif
+#endif /* not lint && not SCCSID */
 
 /*
  * prompt.c: Prompt printing functions
  */
-#include "sys.h"
 #include <stdio.h>
 #include "el.h"
 

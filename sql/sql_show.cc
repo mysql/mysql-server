@@ -699,6 +699,7 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
   TABLE *table;
   handler *file;
   char tmp[MAX_FIELD_WIDTH];
+  char tmp1[MAX_FIELD_WIDTH];
   Item *item;
   Protocol *protocol= thd->protocol;
   int res;
@@ -787,9 +788,24 @@ mysqld_show_fields(THD *thd, TABLE_LIST *table_list,const char *wild,
         else if (field->unireg_check != Field::NEXT_NUMBER &&
                  !field->is_null())
         {                                               // Not null by default
+          /*
+            Note: we have to convert the default value into
+            system_charset_info before sending.
+            This is necessary for "SET NAMES binary":
+            If the client character set is binary, we want to
+            send metadata in UTF8 rather than in the column's
+            character set.
+            This conversion also makes "SHOW COLUMNS" and
+            "SHOW CREATE TABLE" output consistent. Without
+            this conversion the default values were displayed
+            differently.
+          */
+          String def(tmp1,sizeof(tmp1), system_charset_info);
           type.set(tmp, sizeof(tmp), field->charset());
           field->val_str(&type);
-          protocol->store(type.ptr(),type.length(),type.charset());
+          def.copy(type.ptr(), type.length(), type.charset(), 
+                   system_charset_info);
+          protocol->store(def.ptr(), def.length(), def.charset());
         }
         else if (field->unireg_check == Field::NEXT_NUMBER ||
                  field->maybe_null())

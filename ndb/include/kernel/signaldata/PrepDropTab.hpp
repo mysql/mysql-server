@@ -88,7 +88,8 @@ public:
     NoSuchTable = 1,
     PrepDropInProgress = 2,
     DropInProgress = 3,
-    InvalidTableState = 4
+    InvalidTableState = 4,
+    NF_FakeErrorREF = 5
   };
   
 private:
@@ -137,7 +138,8 @@ public:
   enum ErrorCode {
     NoSuchTable = 1,
     IllegalTableState = 2,
-    DropInProgress = 3
+    DropInProgress = 3,
+    NF_FakeErrorREF = 4
   };
   
   Uint32 tableId;

@@ -116,7 +116,7 @@ col1
 2
 3
 2
-select col1 as id from t1 order by t1.id;
+select col1 as id from t1 order by id;
 id
 1
 1
@@ -126,16 +126,16 @@ id
 2
 2
 3
-select concat(col1) as id from t1 order by t1.id;
+select concat(col1) as id from t1 order by id;
 id
+1
+1
+1
 2
 2
-1
-1
-1
+2
 2
 3
-2
 drop table t1;
 CREATE TABLE t1 (id int auto_increment primary key,aika varchar(40),aikakentta  timestamp);
 insert into t1 (aika) values ('Keskiviikko');
@@ -328,7 +328,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	a	a	9	NULL	5	Using where; Using index
 explain select * from t1 where a = 2 and b < 2 order by a desc,b desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	4	const	2	Using where; Using index
+1	SIMPLE	t1	range	a	a	9	NULL	2	Using where; Using index
 explain select * from t1 where a = 1 order by b desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	a	a	4	const	5	Using where; Using index
@@ -659,4 +659,67 @@ a	b	c	d
 1	1	52	-5
 1	1	12	-1
 1	1	2	0
+drop table t1, t2;
+create table t1 (col1 int, col int);
+create table t2 (col2 int, col int);
+insert into t1 values (1,1),(2,2),(3,3);
+insert into t2 values (1,3),(2,2),(3,1);
+select t1.* , t2.col as t2_col from t1 left join t2 on (t1.col1=t2.col2)
+order by col;
+col1	col	t2_col
+1	1	3
+2	2	2
+3	3	1
+select col1 as col, col from t1 order by col;
+ERROR 23000: Column 'col' in order clause is ambiguous
+select t1.col as c1, t2.col as c2 from t1, t2 where t1.col1=t2.col2
+order by col;
+ERROR 23000: Column 'col' in order clause is ambiguous
+select t1.col as c1, t2.col as c2 from t1, t2 where t1.col1=t2.col2
+order by col;
+ERROR 23000: Column 'col' in order clause is ambiguous
+select col1 from t1, t2 where t1.col1=t2.col2 order by col;
+ERROR 23000: Column 'col' in order clause is ambiguous
+select t1.col as t1_col, t2.col from t1, t2 where t1.col1=t2.col2
+order by col;
+t1_col	col
+3	1
+2	2
+1	3
+select col2 as c, col as c from t2 order by col;
+c	c
+3	1
+2	2
+1	3
+select col2 as col, col as col2 from t2 order by col;
+col	col2
+1	3
+2	2
+3	1
+select t1.col as t1_col, t2.col2 from t1, t2 where t1.col1=t2.col2
+order by col;
+t1_col	col2
+1	1
+2	2
+3	3
+select t2.col2, t2.col, t2.col from t2 order by col;
+col2	col	col
+3	1	1
+2	2	2
+1	3	3
+select t2.col2 as col from t2 order by t2.col;
+col
+3
+2
+1
+select t2.col2 as col, t2.col from t2 order by t2.col;
+col	col
+3	1
+2	2
+1	3
+select t2.col2, t2.col, t2.col from t2 order by t2.col;
+col2	col	col
+3	1	1
+2	2	2
+1	3	3
 drop table t1, t2;

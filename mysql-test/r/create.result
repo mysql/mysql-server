@@ -1,5 +1,5 @@
 drop table if exists t1,t2,t3;
-drop database if exists test_$1;
+drop database if exists mysqltest;
 create table t1 (b char(0));
 insert into t1 values (""),(null);
 select * from t1;
@@ -58,18 +58,18 @@ select 1ea10.1a20,1e+ 1e+10 from 1ea10;
 drop table 1ea10;
 create table t1 (t1.index int);
 drop table t1;
-drop database if exists test_$1;
+drop database if exists mysqltest;
 Warnings:
-Note	1008	Can't drop database 'test_$1'; database doesn't exist
-create database test_$1;
-create table test_$1.$test1 (a$1 int, $b int, c$ int);
-insert into test_$1.$test1 values (1,2,3);
-select a$1, $b, c$ from test_$1.$test1;
+Note	1008	Can't drop database 'mysqltest'; database doesn't exist
+create database mysqltest;
+create table mysqltest.$test1 (a$1 int, $b int, c$ int);
+insert into mysqltest.$test1 values (1,2,3);
+select a$1, $b, c$ from mysqltest.$test1;
 a$1	$b	c$
 1	2	3
-create table test_$1.test2$ (a int);
-drop table test_$1.test2$;
-drop database test_$1;
+create table mysqltest.test2$ (a int);
+drop table mysqltest.test2$;
+drop database mysqltest;
 create table `` (a int);
 ERROR 42000: Incorrect table name ''
 drop table if exists ``;
@@ -298,7 +298,7 @@ select * from t3;
 id	name
 create table if not exists t3 like t1;
 Warnings:
-Warning	1050	Table 't3' already exists
+Note	1050	Table 't3' already exists
 select @@warning_count;
 @@warning_count
 1
@@ -320,9 +320,9 @@ t3	CREATE TABLE `t3` (
 select * from t3;
 id	name
 drop table t2, t3;
-create database test_$1;
-create table test_$1.t3 like t1;
-create temporary table t3 like test_$1.t3;
+create database mysqltest;
+create table mysqltest.t3 like t1;
+create temporary table t3 like mysqltest.t3;
 show create table t3;
 Table	Create Table
 t3	CREATE TEMPORARY TABLE `t3` (
@@ -339,7 +339,7 @@ t2	CREATE TABLE `t2` (
 select * from t2;
 id	name
 create table t3 like t1;
-create table t3 like test_$1.t3;
+create table t3 like mysqltest.t3;
 ERROR 42S01: Table 't3' already exists
 create table non_existing_database.t1 like t1;
 Got one of the listed errors
@@ -351,7 +351,7 @@ create table t3 like `a/a`;
 ERROR 42000: Incorrect table name 'a/a'
 drop table t1, t2, t3;
 drop table t3;
-drop database test_$1;
+drop database mysqltest;
 SET SESSION storage_engine="heap";
 SELECT @@storage_engine;
 @@storage_engine
@@ -488,12 +488,12 @@ Note	1291	Column 'cset' has duplicated value 'b' in SET
 Note	1291	Column 'cset' has duplicated value 'B' in SET
 Note	1291	Column 'cset' has duplicated value 'd' in SET
 drop table t1, t2, t3;
-create database test_$1;
-use test_$1;
+create database mysqltest;
+use mysqltest;
 select database();
 database()
-test_$1
-drop database test_$1;
+mysqltest
+drop database mysqltest;
 select database();
 database()
 NULL

@@ -287,8 +287,6 @@ TESTCASE("Terror",
   STEP(runPkUpdateUntilStopped);
   STEP(runScanReadUntilStopped);
   STEP(runScanUpdateUntilStopped);
-  STEP(runInsertUntilStopped);
-  STEP(runClearTableUntilStopped);
   FINALIZER(runClearTable);
 }
 TESTCASE("FullDb", 

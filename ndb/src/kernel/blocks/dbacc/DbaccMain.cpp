@@ -46,13 +46,17 @@ Dbacc::remainingUndoPages(){
   ndbrequire(HeadPage>=TailPage);
 
   Uint32 UsedPages = HeadPage - TailPage;
-  Uint32 Remaining = cundopagesize - UsedPages;
+  Int32 Remaining = cundopagesize - UsedPages;
 
   // There can not be more than cundopagesize remaining
-  ndbrequire(Remaining<=cundopagesize);
-
+  if (Remaining <= 0){
+    // No more undolog, crash node
+    progError(__LINE__,
+	      ERR_NO_MORE_UNDOLOG,
+	      "There are more than 1Mbyte undolog writes outstanding");
+  }
   return Remaining;
-}//Dbacc::remainingUndoPages()
+}
 
 void
 Dbacc::updateLastUndoPageIdWritten(Signal* signal, Uint32 aNewValue){
@@ -193,6 +197,17 @@ void Dbacc::execCONTINUEB(Signal* signal)
     return;
   }
 
+  case ZLCP_OP_WRITE_RT_BREAK:
+  {
+    operationRecPtr.i= signal->theData[1];
+    fragrecptr.i= signal->theData[2];
+    lcpConnectptr.i= signal->theData[3];
+    ptrCheckGuard(operationRecPtr, coprecsize, operationrec);
+    ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
+    ptrCheckGuard(lcpConnectptr, clcpConnectsize, lcpConnectrec);
+    lcp_write_op_to_undolog(signal);
+    return;
+  }
   default:
     ndbrequire(false);
     break;
@@ -742,6 +757,7 @@ void Dbacc::initialiseDirRec(Signal* signal)
   DirectoryarrayPtr idrDirptr;
   ndbrequire(cdirarraysize > 0);
   for (idrDirptr.i = 0; idrDirptr.i < cdirarraysize; idrDirptr.i++) {
+    refresh_watch_dog();
     ptrAss(idrDirptr, directoryarray);
     for (Uint32 i = 0; i <= 255; i++) {
       idrDirptr.p->pagep[i] = RNIL;
@@ -761,6 +777,7 @@ void Dbacc::initialiseDirRangeRec(Signal* signal)
 
   ndbrequire(cdirrangesize > 0);
   for (idrDirRangePtr.i = 0; idrDirRangePtr.i < cdirrangesize; idrDirRangePtr.i++) {
+    refresh_watch_dog();
     ptrAss(idrDirRangePtr, dirRange);
     idrDirRangePtr.p->dirArray[0] = idrDirRangePtr.i + 1;
     for (Uint32 i = 1; i < 256; i++) {
@@ -783,6 +800,7 @@ void Dbacc::initialiseFragRec(Signal* signal)
   ndbrequire(cfragmentsize > 0);
   for (regFragPtr.i = 0; regFragPtr.i < cfragmentsize; regFragPtr.i++) {
     jam();
+    refresh_watch_dog();
     ptrAss(regFragPtr, fragmentrec);
     initFragGeneral(regFragPtr);
     regFragPtr.p->nextfreefrag = regFragPtr.i + 1;
@@ -861,6 +879,7 @@ void Dbacc::initialiseOperationRec(Signal* signal)
 {
   ndbrequire(coprecsize > 0);
   for (operationRecPtr.i = 0; operationRecPtr.i < coprecsize; operationRecPtr.i++) {
+    refresh_watch_dog();
     ptrAss(operationRecPtr, operationrec);
     operationRecPtr.p->transactionstate = IDLE;
     operationRecPtr.p->operation = ZUNDEFINED_OP;
@@ -883,6 +902,7 @@ void Dbacc::initialiseOverflowRec(Signal* signal)
 
   ndbrequire(coverflowrecsize > 0);
   for (iorOverflowRecPtr.i = 0; iorOverflowRecPtr.i < coverflowrecsize; iorOverflowRecPtr.i++) {
+    refresh_watch_dog();
     ptrAss(iorOverflowRecPtr, overflowRecord);
     iorOverflowRecPtr.p->nextfreeoverrec = iorOverflowRecPtr.i + 1;
   }//for
@@ -943,6 +963,7 @@ void Dbacc::initialiseRootfragRec(Signal* signal)
 {
   ndbrequire(crootfragmentsize > 0);
   for (rootfragrecptr.i = 0; rootfragrecptr.i < crootfragmentsize; rootfragrecptr.i++) {
+    refresh_watch_dog();
     ptrAss(rootfragrecptr, rootfragmentrec);
     rootfragrecptr.p->nextroot = rootfragrecptr.i + 1;
     rootfragrecptr.p->fragmentptr[0] = RNIL;
@@ -998,6 +1019,7 @@ void Dbacc::initialiseTableRec(Signal* signal)
 {
   ndbrequire(ctablesize > 0);
   for (tabptr.i = 0; tabptr.i < ctablesize; tabptr.i++) {
+    refresh_watch_dog();
     ptrAss(tabptr, tabrec);
     for (Uint32 i = 0; i < NO_OF_FRAG_PER_NODE; i++) {
       tabptr.p->fragholder[i] = RNIL;
@@ -2324,13 +2346,14 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
       fragrecptr.p->slack += operationRecPtr.p->insertDeleteLen;
       if (fragrecptr.p->slack > fragrecptr.p->slackCheck) {           /* TIME FOR JOIN BUCKETS PROCESS */
         if (fragrecptr.p->expandCounter > 0) {
-          if (fragrecptr.p->expandFlag == 0) {
+	  if (fragrecptr.p->expandFlag < 2) {
             jam();
-            fragrecptr.p->expandFlag = 1;
             signal->theData[0] = fragrecptr.i;
             signal->theData[1] = fragrecptr.p->p;
             signal->theData[2] = fragrecptr.p->maxp;
-            sendSignal(cownBlockref, GSN_SHRINKCHECK2, signal, 3, JBB);
+	    signal->theData[3] = fragrecptr.p->expandFlag;
+            fragrecptr.p->expandFlag = 2;
+            sendSignal(cownBlockref, GSN_SHRINKCHECK2, signal, 4, JBB);
           }//if
         }//if
       }//if
@@ -2344,7 +2367,7 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
     if (fragrecptr.p->slack >= (Uint32)(1 << 31)) { /* IT MEANS THAT IF SLACK < ZERO */
       if (fragrecptr.p->expandFlag == 0) {
         jam();
-        fragrecptr.p->expandFlag = 1;
+        fragrecptr.p->expandFlag = 2;
         signal->theData[0] = fragrecptr.i;
         signal->theData[1] = fragrecptr.p->p;
         signal->theData[2] = fragrecptr.p->maxp;
@@ -6316,9 +6339,16 @@ Uint32 Dbacc::checkScanExpand(Signal* signal)
 
 void Dbacc::execEXPANDCHECK2(Signal* signal) 
 {
+  jamEntry();
+
+  if(refToBlock(signal->getSendersBlockRef()) == DBLQH){
+    jam();
+    reenable_expand_after_redo_log_exection_complete(signal);
+    return;
+  }
+
   DirectoryarrayPtr newDirptr;
 
-  jamEntry();
   fragrecptr.i = signal->theData[0];
   tresult = 0;	/* 0= FALSE,1= TRUE,> ZLIMIT_OF_ERROR =ERRORCODE */
   Uint32 tmp = 1;
@@ -6375,6 +6405,7 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
       return;
     }//if
   }//if
+
   /*--------------------------------------------------------------------------*/
   /*       WE START BY FINDING THE PAGE, THE PAGE INDEX AND THE PAGE DIRECTORY*/
   /*       OF THE NEW BUCKET WHICH SHALL RECEIVE THE ELEMENT WHICH HAVE A 1 IN*/
@@ -6428,6 +6459,7 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   } else {
     ptrCheckGuard(expPageptr, cpagesize, page8);
   }//if
+
   fragrecptr.p->expReceivePageptr = expPageptr.i;
   fragrecptr.p->expReceiveIndex = texpReceivedBucket & ((1 << fragrecptr.p->k) - 1);
   /*--------------------------------------------------------------------------*/
@@ -6455,7 +6487,7 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   endofexpLab(signal);
   return;
 }//Dbacc::execEXPANDCHECK2()
-
+  
 void Dbacc::endofexpLab(Signal* signal) 
 {
   fragrecptr.p->p++;
@@ -6478,7 +6510,7 @@ void Dbacc::endofexpLab(Signal* signal)
     /*       IT IS STILL NECESSARY TO EXPAND THE FRAGMENT EVEN MORE. START IT FROM HERE  */
     /*       WITHOUT WAITING FOR NEXT COMMIT ON THE FRAGMENT.                            */
     /* --------------------------------------------------------------------------------- */
-    fragrecptr.p->expandFlag = 1;
+    fragrecptr.p->expandFlag = 2;
     signal->theData[0] = fragrecptr.i;
     signal->theData[1] = fragrecptr.p->p;
     signal->theData[2] = fragrecptr.p->maxp;
@@ -6486,6 +6518,47 @@ void Dbacc::endofexpLab(Signal* signal)
   }//if
   return;
 }//Dbacc::endofexpLab()
+
+void Dbacc::reenable_expand_after_redo_log_exection_complete(Signal* signal){
+
+  tabptr.i = signal->theData[0];
+  Uint32 fragId = signal->theData[1];
+
+  ptrCheckGuard(tabptr, ctablesize, tabrec);
+  ndbrequire(getrootfragmentrec(signal, rootfragrecptr, fragId));
+#if 0
+  ndbout_c("reenable expand check for table %d fragment: %d", 
+	   tabptr.i, fragId);
+#endif
+
+  for (Uint32 i = 0; i < 2; i++) {
+    fragrecptr.i = rootfragrecptr.p->fragmentptr[i];
+    ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
+    switch(fragrecptr.p->expandFlag){
+    case 0:
+      /**
+       * Hmm... this means that it's alreay has been reenabled...
+       */
+      ndbassert(false);
+      continue;
+    case 1:
+      /**
+       * Nothing is going on start expand check
+       */
+    case 2:
+      /**
+       * A shrink is running, do expand check anyway
+       *  (to reset expandFlag)
+       */
+      fragrecptr.p->expandFlag = 2; 
+      signal->theData[0] = fragrecptr.i;
+      signal->theData[1] = fragrecptr.p->p;
+      signal->theData[2] = fragrecptr.p->maxp;
+      sendSignal(cownBlockref, GSN_EXPANDCHECK2, signal, 3, JBB);
+      break;
+    }
+  }
+}
 
 void Dbacc::execDEBUG_SIG(Signal* signal) 
 {
@@ -6882,9 +6955,10 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
 
   jamEntry();
   fragrecptr.i = signal->theData[0];
-  tresult = 0;	/* 0= FALSE,1= TRUE,> ZLIMIT_OF_ERROR =ERRORCODE */
+  Uint32 oldFlag = signal->theData[3];
   ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
-  fragrecptr.p->expandFlag = 0;
+  fragrecptr.p->expandFlag = oldFlag;
+  tresult = 0;	/* 0= FALSE,1= TRUE,> ZLIMIT_OF_ERROR =ERRORCODE */
   if (fragrecptr.p->slack <= fragrecptr.p->slackCheck) {
     jam();
     /* TIME FOR JOIN BUCKETS PROCESS */
@@ -6965,6 +7039,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     jam();
     fragrecptr.p->p--;
   }//if
+
   /*--------------------------------------------------------------------------*/
   /*       WE START BY FINDING THE NECESSARY INFORMATION OF THE BUCKET TO BE  */
   /*       REMOVED WHICH WILL SEND ITS ELEMENTS TO THE RECEIVING BUCKET.      */
@@ -7157,11 +7232,13 @@ void Dbacc::endofshrinkbucketLab(Signal* signal)
 	/*       SHRINKING BELOW 2^K - 1 (NOW 63). THIS WAS A BUG THAT  */
 	/*       WAS REMOVED 2000-05-12.                                */
 	/*--------------------------------------------------------------*/
-        fragrecptr.p->expandFlag = 1;
         signal->theData[0] = fragrecptr.i;
         signal->theData[1] = fragrecptr.p->p;
         signal->theData[2] = fragrecptr.p->maxp;
-        sendSignal(cownBlockref, GSN_SHRINKCHECK2, signal, 3, JBB);
+        signal->theData[3] = fragrecptr.p->expandFlag;
+	ndbrequire(fragrecptr.p->expandFlag < 2);
+        fragrecptr.p->expandFlag = 2;
+        sendSignal(cownBlockref, GSN_SHRINKCHECK2, signal, 4, JBB);
       }//if
     }//if
   }//if
@@ -7697,32 +7774,70 @@ void Dbacc::execACC_LCPREQ(Signal* signal)
   fragrecptr.p->lcpMaxOverDirIndex = fragrecptr.p->lastOverIndex;
   fragrecptr.p->createLcp = ZTRUE;
   operationRecPtr.i = fragrecptr.p->lockOwnersList;
-  while (operationRecPtr.i != RNIL) {
-    jam();
-    ptrCheckGuard(operationRecPtr, coprecsize, operationrec);
+  lcp_write_op_to_undolog(signal);
+}
 
-    if ((operationRecPtr.p->operation == ZINSERT) ||
-	(operationRecPtr.p->elementIsDisappeared == ZTRUE)){
+void
+Dbacc::lcp_write_op_to_undolog(Signal* signal)
+{
+  bool delay_continueb= false;
+  Uint32 i, j;
+  for (i= 0; i < 16; i++) {
+    jam();
+    if (remainingUndoPages() <= ZMIN_UNDO_PAGES_AT_COMMIT) {
+      jam();
+      delay_continueb= true;
+      break;
+    }
+    for (j= 0; j < 32; j++) {
+      if (operationRecPtr.i == RNIL) {
+        jam();
+        break;
+      }
+      jam();
+      ptrCheckGuard(operationRecPtr, coprecsize, operationrec);
+
+      if ((operationRecPtr.p->operation == ZINSERT) ||
+          (operationRecPtr.p->elementIsDisappeared == ZTRUE)){
       /*******************************************************************
        * Only log inserts and elements that are marked as dissapeared.
        * All other operations update the element header and that is handled
        * when pages are written to disk
        ********************************************************************/
-      undopageptr.i = (cundoposition>>ZUNDOPAGEINDEXBITS) & (cundopagesize-1);
-      ptrAss(undopageptr, undopage);
-      theadundoindex = cundoposition & ZUNDOPAGEINDEX_MASK;
-      tundoindex = theadundoindex + ZUNDOHEADSIZE;
+        undopageptr.i = (cundoposition>>ZUNDOPAGEINDEXBITS) & (cundopagesize-1);
+        ptrAss(undopageptr, undopage);
+        theadundoindex = cundoposition & ZUNDOPAGEINDEX_MASK;
+        tundoindex = theadundoindex + ZUNDOHEADSIZE;
 
-      writeUndoOpInfo(signal);/* THE INFORMATION ABOUT ELEMENT HEADER, STORED*/
-                              /* IN OP REC, IS WRITTEN AT UNDO PAGES */
-      cundoElemIndex = 0;/* DEFAULT VALUE USED BY WRITE_UNDO_HEADER SUBROTINE */
-      writeUndoHeader(signal, RNIL, UndoHeader::ZOP_INFO); /* WRITE THE HEAD OF THE UNDO ELEMENT */
-      checkUndoPages(signal);	/* SEND UNDO PAGE TO DISK WHEN A GROUP OF  */
+        writeUndoOpInfo(signal);/* THE INFORMATION ABOUT ELEMENT HEADER, STORED*/
+                                /* IN OP REC, IS WRITTEN AT UNDO PAGES */
+        cundoElemIndex = 0;/* DEFAULT VALUE USED BY WRITE_UNDO_HEADER SUBROTINE */
+        writeUndoHeader(signal, RNIL, UndoHeader::ZOP_INFO); /* WRITE THE HEAD OF THE UNDO ELEMENT */
+        checkUndoPages(signal);	/* SEND UNDO PAGE TO DISK WHEN A GROUP OF  */
                                 /* UNDO PAGES,CURRENTLY 8, IS FILLED */
-    }//if
-
-    operationRecPtr.i = operationRecPtr.p->nextLockOwnerOp;
-  }//while
+      }
+      operationRecPtr.i = operationRecPtr.p->nextLockOwnerOp;
+    }
+    if (operationRecPtr.i == RNIL) {
+      jam();
+      break;
+    }
+  }
+  if (operationRecPtr.i != RNIL) {
+    jam();
+    signal->theData[0]= ZLCP_OP_WRITE_RT_BREAK;
+    signal->theData[1]= operationRecPtr.i;
+    signal->theData[2]= fragrecptr.i;
+    signal->theData[3]= lcpConnectptr.i;
+    if (delay_continueb) {
+      jam();
+      sendSignalWithDelay(cownBlockref, GSN_CONTINUEB, signal, 10, 4);
+    } else {
+      jam();
+      sendSignal(cownBlockref, GSN_CONTINUEB, signal, 4, JBB);
+    }
+    return;
+  }
 
   signal->theData[0] = fragrecptr.p->lcpLqhPtr;
   sendSignal(lcpConnectptr.p->lcpUserblockref, GSN_ACC_LCPSTARTED, 
@@ -7735,8 +7850,7 @@ void Dbacc::execACC_LCPREQ(Signal* signal)
   signal->theData[0] = lcpConnectptr.i;
   signal->theData[1] = fragrecptr.i;
   sendSignal(cownBlockref, GSN_ACC_SAVE_PAGES, signal, 2, JBB);
-  return;
-}//Dbacc::execACC_LCPREQ()
+}
 
 /* ******************--------------------------------------------------------------- */
 /* ACC_SAVE_PAGES           A GROUP OF PAGES IS ALLOCATED. THE PAGES AND OVERFLOW    */
@@ -8595,12 +8709,6 @@ void Dbacc::checkUndoPages(Signal* signal)
    * RECORDS IN
    */
   Uint16 nextUndoPageId = tundoPageId + 1;
-  if (nextUndoPageId > (clastUndoPageIdWritten + cundopagesize)){
-    // No more undolog, crash node
-    progError(__LINE__,
-	      ERR_NO_MORE_UNDOLOG,
-	      "There are more than 1Mbyte undolog writes outstanding");
-  }
   updateUndoPositionPage(signal, nextUndoPageId << ZUNDOPAGEINDEXBITS);
 
   if ((tundoPageId & (ZWRITE_UNDOPAGESIZE - 1)) == (ZWRITE_UNDOPAGESIZE - 1)) {
@@ -9146,7 +9254,14 @@ void Dbacc::initFragAdd(Signal* signal,
   ndbrequire(req->kValue == 6);
   regFragPtr.p->k = req->kValue;	/* TK_SIZE = 6 IN THIS VERSION */
   regFragPtr.p->expandCounter = 0;
-  regFragPtr.p->expandFlag = 0;
+
+  /**
+   * Only allow shrink during SR
+   *   - to make sure we don't run out of pages during REDO log execution
+   *
+   * Is later restored to 0 by LQH at end of REDO log execution
+   */
+  regFragPtr.p->expandFlag = (getNodeState().getSystemRestartInProgress()?1:0);
   regFragPtr.p->p = 0;
   regFragPtr.p->maxp = (1 << req->kValue) - 1;
   regFragPtr.p->minloadfactor = minLoadFactor;
@@ -9199,8 +9314,8 @@ void Dbacc::initFragGeneral(FragmentrecPtr regFragPtr)
   for (Uint32 i = 0; i < ZWRITEPAGESIZE; i++) {
     regFragPtr.p->datapages[i] = RNIL;
   }//for
-  for (Uint32 i = 0; i < 4; i++) {
-    regFragPtr.p->longKeyPageArray[i] = RNIL;
+  for (Uint32 j = 0; j < 4; j++) {
+    regFragPtr.p->longKeyPageArray[j] = RNIL;
   }//for
 }//Dbacc::initFragGeneral()
 

@@ -29,10 +29,13 @@ main(int argc, const char** argv){
 
   const char* _dbname = "TEST_DB";
   int _help = 0;
+  int _ordered, _pk;
 
   struct getargs args[] = {
     { "database", 'd', arg_string, &_dbname, "dbname", 
       "Name of database table is in"},
+    { "ordered", 'o', arg_flag, &_ordered, "Create ordered index", "" },
+    { "pk", 'p', arg_flag, &_pk, "Create index on primary key", "" },
     { "usage", '?', arg_flag, &_help, "Print help", "" }
   };
 
@@ -73,14 +76,21 @@ main(int argc, const char** argv){
     }
     
     NdbDictionary::Index ind;
+    if(_ordered){
+      ind.setType(NdbDictionary::Index::OrderedIndex);
+      ind.setLogging(false);
+    } else {
+      ind.setType(NdbDictionary::Index::UniqueHashIndex);
+    }
     char buf[512];
-    sprintf(buf, "IND_%s", argv[i]);
+    sprintf(buf, "IND_%s_%s_%c", 
+	    argv[i], (_pk ? "PK" : "FULL"), (_ordered ? 'O' : 'U'));
     ind.setName(buf);
     ind.setTable(argv[i]);
-    ind.setType(NdbDictionary::Index::UniqueHashIndex);
-    for(int c = 0; c<tab->getNoOfColumns(); c++)
-      ind.addIndexColumn(tab->getColumn(c)->getName());
-    
+    for(int c = 0; c<tab->getNoOfColumns(); c++){
+      if(!_pk || tab->getColumn(c)->getPrimaryKey())
+	ind.addIndexColumn(tab->getColumn(c)->getName());
+    }
     ndbout << "creating index " << buf << " on table " << argv[i] << "...";
     const int res = dict->createIndex(ind);
     if(res != 0)

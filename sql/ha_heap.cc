@@ -360,7 +360,8 @@ THR_LOCK_DATA **ha_heap::store_lock(THD *thd,
 
 int ha_heap::delete_table(const char *name)
 {
-  int error=heap_delete_table(name);
+  char buff[FN_REFLEN];
+  int error= heap_delete_table(fn_format(buff,name,"","",4+2));
   return error == ENOENT ? 0 : error;
 }
 
@@ -429,7 +430,7 @@ int ha_heap::create(const char *name, TABLE *table_arg,
       {
 	if (!f_is_packed(flag) &&
 	    f_packtype(flag) == (int) FIELD_TYPE_DECIMAL &&
-	    !(flag & FIELDFLAG_BINARY))
+	    !(field->charset() == &my_charset_bin))
 	  seg->type= (int) HA_KEYTYPE_TEXT;
 	else
 	  seg->type= (int) HA_KEYTYPE_BINARY;

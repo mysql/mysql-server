@@ -99,7 +99,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd,TABLE **tables,uint count)
 	Someone has issued LOCK ALL TABLES FOR READ and we want a write lock
 	Wait until the lock is gone
       */
-      if (wait_if_global_read_lock(thd, 1))
+      if (wait_if_global_read_lock(thd, 1, 1))
       {
 	my_free((gptr) sql_lock,MYF(0));
 	sql_lock=0;
@@ -474,7 +474,7 @@ int lock_and_wait_for_table_name(THD *thd, TABLE_LIST *table_list)
   int error= -1;
   DBUG_ENTER("lock_and_wait_for_table_name");
 
-  if (wait_if_global_read_lock(thd,0))
+  if (wait_if_global_read_lock(thd, 0, 1))
     DBUG_RETURN(1);
   VOID(pthread_mutex_lock(&LOCK_open));
   if ((lock_retcode = lock_table_name(thd, table_list)) < 0)
@@ -709,13 +709,22 @@ static void print_lock_error(int error)
 
   The global locks are handled through the global variables:
   global_read_lock
+  global_read_lock_blocks_commit
   waiting_for_read_lock 
   protect_against_global_read_lock
+
+  Taking the global read lock is TWO steps (2nd step is optional; without
+  it, COMMIT of existing transactions will be allowed):
+  lock_global_read_lock() THEN make_global_read_lock_block_commit().
 ****************************************************************************/
 
 volatile uint global_read_lock=0;
+volatile uint global_read_lock_blocks_commit=0;
 static volatile uint protect_against_global_read_lock=0;
 static volatile uint waiting_for_read_lock=0;
+
+#define GOT_GLOBAL_READ_LOCK               1
+#define MADE_GLOBAL_READ_LOCK_BLOCK_COMMIT 2
 
 bool lock_global_read_lock(THD *thd)
 {
@@ -734,40 +743,54 @@ bool lock_global_read_lock(THD *thd)
     while (protect_against_global_read_lock && !thd->killed)
       pthread_cond_wait(&COND_refresh, &LOCK_open);
     waiting_for_read_lock--;
-    thd->exit_cond(old_message);
     if (thd->killed)
     {
-      (void) pthread_mutex_unlock(&LOCK_open);
+      thd->exit_cond(old_message);
       DBUG_RETURN(1);
     }
-    thd->global_read_lock=1;
+    thd->global_read_lock= GOT_GLOBAL_READ_LOCK;
     global_read_lock++;
-    (void) pthread_mutex_unlock(&LOCK_open);
+    thd->exit_cond(old_message);
   }
+  /*
+    We DON'T set global_read_lock_blocks_commit now, it will be set after
+    tables are flushed (as the present function serves for FLUSH TABLES WITH
+    READ LOCK only). Doing things in this order is necessary to avoid
+    deadlocks (we must allow COMMIT until all tables are closed; we should not
+    forbid it before, or we can have a 3-thread deadlock if 2 do SELECT FOR
+    UPDATE and one does FLUSH TABLES WITH READ LOCK).
+  */
   DBUG_RETURN(0);
 }
 
 void unlock_global_read_lock(THD *thd)
 {
   uint tmp;
-  thd->global_read_lock=0;
   pthread_mutex_lock(&LOCK_open);
   tmp= --global_read_lock;
+  if (thd->global_read_lock == MADE_GLOBAL_READ_LOCK_BLOCK_COMMIT)
+    --global_read_lock_blocks_commit;
   pthread_mutex_unlock(&LOCK_open);
   /* Send the signal outside the mutex to avoid a context switch */
   if (!tmp)
     pthread_cond_broadcast(&COND_refresh);
+  thd->global_read_lock= 0;
 }
 
+#define must_wait (global_read_lock &&                             \
+                   (is_not_commit ||                               \
+                    global_read_lock_blocks_commit))
 
-bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh)
+bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
+                              bool is_not_commit)
 {
   const char *old_message;
-  bool result=0;
+  bool result= 0, need_exit_cond;
   DBUG_ENTER("wait_if_global_read_lock");
 
+  LINT_INIT(old_message);
   (void) pthread_mutex_lock(&LOCK_open);
-  if (global_read_lock)
+  if ((need_exit_cond= must_wait))
   {
     if (thd->global_read_lock)		// This thread had the read locks
     {
@@ -777,16 +800,22 @@ bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh)
     }
     old_message=thd->enter_cond(&COND_refresh, &LOCK_open,
 				"Waiting for release of readlock");
-    while (global_read_lock && ! thd->killed &&
+    while (must_wait && ! thd->killed &&
 	   (!abort_on_refresh || thd->version == refresh_version))
       (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
     if (thd->killed)
       result=1;
-    thd->exit_cond(old_message);
   }
   if (!abort_on_refresh && !result)
     protect_against_global_read_lock++;
-  pthread_mutex_unlock(&LOCK_open);
+  /*
+    The following is only true in case of a global read locks (which is rare)
+    and if old_message is set
+  */
+  if (unlikely(need_exit_cond)) 
+    thd->exit_cond(old_message);
+  else
+    pthread_mutex_unlock(&LOCK_open);
   DBUG_RETURN(result);
 }
 
@@ -801,4 +830,22 @@ void start_waiting_global_read_lock(THD *thd)
   if (tmp)
     pthread_cond_broadcast(&COND_refresh);
   DBUG_VOID_RETURN;
+}
+
+
+void make_global_read_lock_block_commit(THD *thd)
+{
+  /*
+    If we didn't succeed lock_global_read_lock(), or if we already suceeded
+    make_global_read_lock_block_commit(), do nothing.
+  */
+  if (thd->global_read_lock != GOT_GLOBAL_READ_LOCK)
+    return;
+  pthread_mutex_lock(&LOCK_open);
+  /* increment this BEFORE waiting on cond (otherwise race cond) */
+  global_read_lock_blocks_commit++;
+  while (protect_against_global_read_lock)
+    pthread_cond_wait(&COND_refresh, &LOCK_open);
+  pthread_mutex_unlock(&LOCK_open);
+  thd->global_read_lock= MADE_GLOBAL_READ_LOCK_BLOCK_COMMIT;
 }

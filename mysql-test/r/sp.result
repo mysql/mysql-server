@@ -1,6 +1,28 @@
 use test;
-drop table if exists t1;
-drop table if exists t2;
+drop table if exists t1,t2,t3,t4;
+drop procedure if exists goto1;
+drop procedure if exists goto2;
+drop procedure if exists goto3;
+drop procedure if exists goto4;
+drop procedure if exists goto5;
+drop procedure if exists goto6;
+drop procedure if exists into_outfile;
+drop procedure if exists into_dumpfile;
+drop procedure if exists create_select;
+drop procedure if exists bar;
+drop procedure if exists hndlr1;
+drop procedure if exists hndlr2;
+drop procedure if exists hndlr3;
+drop procedure if exists hndlr4;
+drop procedure if exists cur1;
+drop procedure if exists cur2;
+drop procedure if exists chistics;
+drop procedure if exists chistics2;
+drop procedure if exists modes;
+drop procedure if exists dummy;
+drop procedure if exists bug;
+drop procedure if exists bug2;
+drop function if exists fac;
 create table t1 (
 id   char(16) not null,
 data int not null
@@ -78,7 +100,6 @@ foo	1
 kaka	3
 delete from t1|
 drop procedure setcontext|
-drop table if exists t3|
 create table t3 ( d date, i int, f double, s varchar(32) )|
 create procedure nullset()
 begin
@@ -962,7 +983,7 @@ select row_count()|
 row_count()
 -1
 drop procedure rc|
-create procedure bug822(a_id char(16), a_data int)
+create procedure bug(a_id char(16), a_data int)
 begin
 declare n int;
 select count(*) into n from t1 where id = a_id and data = a_data;
@@ -970,16 +991,16 @@ if n = 0 then
 insert into t1 (id, data) values (a_id, a_data);
 end if;
 end|
-call bug822('foo', 42)|
-call bug822('foo', 42)|
-call bug822('bar', 666)|
+call bug('foo', 42)|
+call bug('foo', 42)|
+call bug('bar', 666)|
 select * from t1|
 id	data
 foo	42
 bar	666
 delete from t1|
-drop procedure bug822|
-create procedure bug1495()
+drop procedure bug|
+create procedure bug()
 begin
 declare x int;
 select data into x from t1 order by id limit 1;
@@ -990,18 +1011,18 @@ insert into t1 values ("more", x+10);
 end if;
 end|
 insert into t1 values ('foo', 12)|
-call bug1495()|
+call bug()|
 delete from t1 where id='foo'|
 insert into t1 values ('bar', 7)|
-call bug1495()|
+call bug()|
 delete from t1 where id='bar'|
 select * from t1|
 id	data
 less	2
 more	17
 delete from t1|
-drop procedure bug1495|
-create procedure bug1547(s char(16))
+drop procedure bug|
+create procedure bug(s char(16))
 begin
 declare x int;
 select data into x from t1 where s = id limit 1;
@@ -1012,8 +1033,8 @@ insert into t1 values ("more", x+10);
 end if;
 end|
 insert into t1 values ("foo", 12), ("bar", 7)|
-call bug1547("foo")|
-call bug1547("bar")|
+call bug("foo")|
+call bug("bar")|
 select * from t1|
 id	data
 foo	12
@@ -1021,34 +1042,34 @@ bar	7
 less	2
 more	17
 delete from t1|
-drop procedure bug1547|
+drop procedure bug|
 drop table if exists t70|
 create table t70 (s1 int,s2 int)|
 insert into t70 values (1,2)|
-create procedure bug1656(out p1 int, out p2 int)
+create procedure bug(out p1 int, out p2 int)
 select * into p1, p1 from t70|
-call bug1656(@1, @2)|
+call bug(@1, @2)|
 select @1, @2|
 @1	@2
 2	NULL
 drop table t70|
-drop procedure bug1656|
+drop procedure bug|
 drop table if exists t3|
 create table t3(a int)|
-create procedure bug1862()
+create procedure bug()
 begin
 insert into t3 values(2);    
 flush tables;
 end|
-call bug1862()|
-call bug1862()|
+call bug()|
+call bug()|
 select * from t3|
 a
 2
 2
 drop table t3|
-drop procedure bug1862|
-create procedure bug1874()
+drop procedure bug|
+create procedure bug()
 begin
 declare x int;
 declare y double;
@@ -1062,7 +1083,7 @@ select avg(data) into y from t1;
 insert into t2 values ("avg", 0, y);
 end|
 insert into t1 (data) values (3), (1), (5), (9), (4)|
-call bug1874()|
+call bug()|
 select * from t2|
 s	i	d
 max	9	0
@@ -1071,8 +1092,8 @@ sum	22	0
 avg	0	4.4
 delete from t1|
 delete from t2|
-drop procedure bug1874|
-create procedure bug2260()
+drop procedure bug|
+create procedure bug()
 begin
 declare v1 int;
 declare c1 cursor for select data from t1;
@@ -1082,11 +1103,11 @@ fetch c1 into v1;
 set @x2 = 2;
 close c1;
 end|
-call bug2260()|
+call bug()|
 select @x2|
 @x2
 2
-drop procedure bug2260|
+drop procedure bug|
 create procedure bug2267_1()
 begin
 show procedure status;
@@ -1133,35 +1154,35 @@ drop procedure bug2267_1|
 drop procedure bug2267_2|
 drop procedure bug2267_3|
 drop procedure bug2267_4|
-create procedure bug2227(x int)
+create procedure bug(x int)
 begin
 declare y float default 2.6;
 declare z char(16) default "zzz";
 select 1.3, x, y, 42, z;
 end|
-call bug2227(9)|
+call bug(9)|
 1.3	x	y	42	z
 1.3	9	2.6	42	zzz
-drop procedure bug2227|
-create procedure bug2614()
+drop procedure bug|
+create procedure bug()
 begin
 drop table if exists t3;
 create table t3 (id int default '0' not null);
 insert into t3 select 12;
 insert into t3 select * from t3;
 end|
-call bug2614()|
-call bug2614()|
+call bug()|
+call bug()|
 drop table t3|
-drop procedure bug2614|
-create function bug2674 () returns int
+drop procedure bug|
+create function bug () returns int
 return @@sort_buffer_size|
 set @osbs = @@sort_buffer_size|
 set @@sort_buffer_size = 262000|
-select bug2674()|
-bug2674()
+select bug()|
+bug()
 262000
-drop function bug2674|
+drop function bug|
 set @@sort_buffer_size = @osbs|
 create procedure bug3259_1 () begin end|
 create procedure BUG3259_2 () begin end|
@@ -1175,48 +1196,48 @@ call bUG3259_3()|
 drop procedure bUg3259_1|
 drop procedure BuG3259_2|
 drop procedure BUG3259_3|
-create function bug2772() returns char(10) character set latin2
+create function bug() returns char(10) character set latin2
 return 'a'|
-select bug2772()|
-bug2772()
+select bug()|
+bug()
 a
-drop function bug2772|
-create procedure bug2776_1(out x int)
+drop function bug|
+create procedure bug(out x int)
 begin
 declare v int;
 set v = default;
 set x = v;
 end|
-create procedure bug2776_2(out x int)
+create procedure bug2(out x int)
 begin
 declare v int default 42;
 set v = default;
 set x = v;
 end|
 set @x = 1|
-call bug2776_1(@x)|
+call bug(@x)|
 select @x|
 @x
 NULL
-call bug2776_2(@x)|
+call bug2(@x)|
 select @x|
 @x
 42
-drop procedure bug2776_1|
-drop procedure bug2776_2|
+drop procedure bug|
+drop procedure bug2|
 drop table if exists t3|
 create table t3 (s1 smallint)|
 insert into t3 values (123456789012)|
 Warnings:
 Warning	1264	Data truncated; out of range for column 's1' at row 1
-create procedure bug2780()
+create procedure bug()
 begin
 declare exit handler for sqlwarning set @x = 1; 
 set @x = 0;
 insert into t3 values (123456789012);
 insert into t3 values (0);
 end|
-call bug2780()|
+call bug()|
 select @x|
 @x
 1
@@ -1224,13 +1245,11 @@ select * from t3|
 s1
 32767
 32767
-drop procedure bug2780|
+drop procedure bug|
 drop table t3|
-drop table if exists t3|
 create table t3 (content varchar(10) )|
 insert into t3 values ("test1")|
 insert into t3 values ("test2")|
-drop table if exists t4|
 create table t4 (f1 int, rc int, t3 int)|
 create procedure bug1863(in1 int)
 begin 
@@ -1406,7 +1425,6 @@ select @a|
 @a
 5
 drop procedure bug3863|
-drop table if exists t3|
 create table t3 (
 id int(10) unsigned not null default 0,
 rid int(10) unsigned not null default 0,

@@ -19,11 +19,6 @@
 
 #include <ndb_global.h>
 
-#ifndef NDB_ASSERT
-#define NDB_ASSERT(x, s) \
-  do { if (!(x)) { printf("%s\n", s); abort(); } } while (0)
-#endif
-
 /**
  * Bitmask implementation.  Size is given explicitly
  * (as first argument).  All methods are static.
@@ -140,7 +135,7 @@ public:
 inline bool
 BitmaskImpl::get(unsigned size, const Uint32 data[], unsigned n)
 {
-  NDB_ASSERT(n < (size << 5), "bit get out of range");
+  assert(n < (size << 5));
   return (data[n >> 5] & (1 << (n & 31))) != 0;
 }
 
@@ -153,7 +148,7 @@ BitmaskImpl::set(unsigned size, Uint32 data[], unsigned n, bool value)
 inline void
 BitmaskImpl::set(unsigned size, Uint32 data[], unsigned n)
 {
-  NDB_ASSERT(n < (size << 5), "bit set out of range");
+  assert(n < (size << 5));
   data[n >> 5] |= (1 << (n & 31));
 }
 
@@ -176,7 +171,7 @@ BitmaskImpl::assign(unsigned size, Uint32 dst[], const Uint32 src[])
 inline void
 BitmaskImpl::clear(unsigned size, Uint32 data[], unsigned n)
 {
-  NDB_ASSERT(n < (size << 5), "bit clear out of range");
+  assert(n < (size << 5));
   data[n >> 5] &= ~(1 << (n & 31));
 }
 
@@ -326,7 +321,7 @@ BitmaskImpl::getText(unsigned size, const Uint32 data[], char* buf)
  * XXX replace size by length in bits
  */
 template <unsigned size>
-class Bitmask {
+struct BitmaskPOD {
 public:
   /**
    * POD data representation
@@ -334,7 +329,7 @@ public:
   struct Data {
     Uint32 data[size];
 #if 0
-    Data & operator=(const Bitmask<size> & src) {
+    Data & operator=(const BitmaskPOD<size> & src) {
       src.copyto(size, data);
       return *this;
     }
@@ -348,19 +343,17 @@ public:
   STATIC_CONST( NotFound = BitmaskImpl::NotFound );
   STATIC_CONST( TextLength = size * 8 );
 
-  Bitmask() { clear();}
-
   /**
    * assign - Set all bits in <em>dst</em> to corresponding in <em>src/<em>
    */
-  void assign(const typename Bitmask<size>::Data & src);
+  void assign(const typename BitmaskPOD<size>::Data & src);
 
   /**
    * assign - Set all bits in <em>dst</em> to corresponding in <em>src/<em>
    */
   static void assign(Uint32 dst[], const Uint32 src[]);
-  static void assign(Uint32 dst[], const Bitmask<size> & src);
-  void assign(const Bitmask<size> & src);
+  static void assign(Uint32 dst[], const BitmaskPOD<size> & src);
+  void assign(const BitmaskPOD<size> & src);
 
   /**
    * copy this to <em>dst</em>
@@ -432,43 +425,43 @@ public:
    * equal - Bitwise equal.
    */
   static bool equal(const Uint32 data[], const Uint32 data2[]);
-  bool equal(const Bitmask<size>& mask2) const;
+  bool equal(const BitmaskPOD<size>& mask2) const;
 
   /**
    * bitOR - Bitwise (x | y) into first operand.
    */
   static void bitOR(Uint32 data[], const Uint32 data2[]);
-  Bitmask<size>& bitOR(const Bitmask<size>& mask2);
+  BitmaskPOD<size>& bitOR(const BitmaskPOD<size>& mask2);
 
   /**
    * bitAND - Bitwise (x & y) into first operand.
    */
   static void bitAND(Uint32 data[], const Uint32 data2[]);
-  Bitmask<size>& bitAND(const Bitmask<size>& mask2);
+  BitmaskPOD<size>& bitAND(const BitmaskPOD<size>& mask2);
 
   /**
    * bitANDC - Bitwise (x & ~y) into first operand.
    */
   static void bitANDC(Uint32 data[], const Uint32 data2[]);
-  Bitmask<size>& bitANDC(const Bitmask<size>& mask2);
+  BitmaskPOD<size>& bitANDC(const BitmaskPOD<size>& mask2);
 
   /**
    * bitXOR - Bitwise (x ^ y) into first operand.
    */
   static void bitXOR(Uint32 data[], const Uint32 data2[]);
-  Bitmask<size>& bitXOR(const Bitmask<size>& mask2);
+  BitmaskPOD<size>& bitXOR(const BitmaskPOD<size>& mask2);
 
   /**
    * contains - Check if all bits set in data2 (that) are also set in data (this)
    */
   static bool contains(Uint32 data[], const Uint32 data2[]);
-  bool contains(Bitmask<size> that);
+  bool contains(BitmaskPOD<size> that);
 
   /**
-   * overlaps - Check if any bit set in this Bitmask (data) is also set in that (data2)
+   * overlaps - Check if any bit set in this BitmaskPOD (data) is also set in that (data2)
    */
   static bool overlaps(Uint32 data[], const Uint32 data2[]);
-  bool overlaps(Bitmask<size> that);
+  bool overlaps(BitmaskPOD<size> that);
 
   /**
    * getText - Return as hex-digits (only for debug routines).
@@ -479,286 +472,292 @@ public:
 
 template <unsigned size>
 inline void
-Bitmask<size>::assign(Uint32 dst[], const Uint32 src[])
+BitmaskPOD<size>::assign(Uint32 dst[], const Uint32 src[])
 {
   BitmaskImpl::assign(size, dst, src);
 }
 
 template <unsigned size>
 inline void
-Bitmask<size>::assign(Uint32 dst[], const Bitmask<size> & src)
+BitmaskPOD<size>::assign(Uint32 dst[], const BitmaskPOD<size> & src)
 {
   BitmaskImpl::assign(size, dst, src.rep.data);
 }
 
 template <unsigned size>
 inline void
-Bitmask<size>::assign(const typename Bitmask<size>::Data & src)
+BitmaskPOD<size>::assign(const typename BitmaskPOD<size>::Data & src)
 {
-  assign(rep.data, src.data);
+  BitmaskPOD<size>::assign(rep.data, src.data);
 }
 
 template <unsigned size>
 inline void
-Bitmask<size>::assign(const Bitmask<size> & src)
+BitmaskPOD<size>::assign(const BitmaskPOD<size> & src)
 {
-  assign(rep.data, src.rep.data);
+  BitmaskPOD<size>::assign(rep.data, src.rep.data);
 }
 
 template <unsigned size>
 inline void
-Bitmask<size>::copyto(unsigned sz, Uint32 dst[]) const
+BitmaskPOD<size>::copyto(unsigned sz, Uint32 dst[]) const
 {
   BitmaskImpl::assign(sz, dst, rep.data);
 }
 
 template <unsigned size>
 inline void
-Bitmask<size>::assign(unsigned sz, const Uint32 src[])
+BitmaskPOD<size>::assign(unsigned sz, const Uint32 src[])
 {
   BitmaskImpl::assign(sz, rep.data, src);
 }
 
 template <unsigned size>
 inline bool
-Bitmask<size>::get(const Uint32 data[], unsigned n)
+BitmaskPOD<size>::get(const Uint32 data[], unsigned n)
 {
   return BitmaskImpl::get(size, data, n);
 }
 
 template <unsigned size>
 inline bool
-Bitmask<size>::get(unsigned n) const
+BitmaskPOD<size>::get(unsigned n) const
 {
-  return get(rep.data, n);
+  return BitmaskPOD<size>::get(rep.data, n);
 }
 
 template <unsigned size>
 inline void
-Bitmask<size>::set(Uint32 data[], unsigned n, bool value)
+BitmaskPOD<size>::set(Uint32 data[], unsigned n, bool value)
 {
   BitmaskImpl::set(size, data, n, value);
 }
 
 template <unsigned size>
 inline void
-Bitmask<size>::set(unsigned n, bool value)
+BitmaskPOD<size>::set(unsigned n, bool value)
 {
-  set(rep.data, n, value);
+  BitmaskPOD<size>::set(rep.data, n, value);
 }
 
 template <unsigned size>
 inline void
-Bitmask<size>::set(Uint32 data[], unsigned n)
+BitmaskPOD<size>::set(Uint32 data[], unsigned n)
 {
   BitmaskImpl::set(size, data, n);
 }
 
 template <unsigned size>
 inline void
-Bitmask<size>::set(unsigned n)
+BitmaskPOD<size>::set(unsigned n)
 {
-  set(rep.data, n);
+  BitmaskPOD<size>::set(rep.data, n);
 }
 
 template <unsigned size>
 inline void
-Bitmask<size>::set(Uint32 data[])
+BitmaskPOD<size>::set(Uint32 data[])
 {
   BitmaskImpl::set(size, data);
 }
 
 template <unsigned size>
 inline void
-Bitmask<size>::set()
+BitmaskPOD<size>::set()
 {
-  set(rep.data);
+  BitmaskPOD<size>::set(rep.data);
 }
 
 template <unsigned size>
 inline void
-Bitmask<size>::clear(Uint32 data[], unsigned n)
+BitmaskPOD<size>::clear(Uint32 data[], unsigned n)
 {
   BitmaskImpl::clear(size, data, n);
 }
 
 template <unsigned size>
 inline void
-Bitmask<size>::clear(unsigned n)
+BitmaskPOD<size>::clear(unsigned n)
 {
-  clear(rep.data, n);
+  BitmaskPOD<size>::clear(rep.data, n);
 }
 
 template <unsigned size>
 inline void
-Bitmask<size>::clear(Uint32 data[])
+BitmaskPOD<size>::clear(Uint32 data[])
 {
   BitmaskImpl::clear(size, data);
 }
 
 template <unsigned size>
 inline void
-Bitmask<size>::clear()
+BitmaskPOD<size>::clear()
 {
-  clear(rep.data);
+  BitmaskPOD<size>::clear(rep.data);
 }
 
 template <unsigned size>
 inline bool
-Bitmask<size>::isclear(const Uint32 data[])
+BitmaskPOD<size>::isclear(const Uint32 data[])
 {
   return BitmaskImpl::isclear(size, data);
 }
 
 template <unsigned size>
 inline bool
-Bitmask<size>::isclear() const
+BitmaskPOD<size>::isclear() const
 {
-  return isclear(rep.data);
+  return BitmaskPOD<size>::isclear(rep.data);
 }
 
 template <unsigned size>
 unsigned
-Bitmask<size>::count(const Uint32 data[])
+BitmaskPOD<size>::count(const Uint32 data[])
 {
   return BitmaskImpl::count(size, data);
 }
 
 template <unsigned size>
 inline unsigned
-Bitmask<size>::count() const
+BitmaskPOD<size>::count() const
 {
-  return count(rep.data);
+  return BitmaskPOD<size>::count(rep.data);
 }
 
 template <unsigned size>
 unsigned
-Bitmask<size>::find(const Uint32 data[], unsigned n)
+BitmaskPOD<size>::find(const Uint32 data[], unsigned n)
 {
   return BitmaskImpl::find(size, data, n);
 }
 
 template <unsigned size>
 inline unsigned
-Bitmask<size>::find(unsigned n) const
+BitmaskPOD<size>::find(unsigned n) const
 {
-  return find(rep.data, n);
+  return BitmaskPOD<size>::find(rep.data, n);
 }
 
 template <unsigned size>
 inline bool
-Bitmask<size>::equal(const Uint32 data[], const Uint32 data2[])
+BitmaskPOD<size>::equal(const Uint32 data[], const Uint32 data2[])
 {
   return BitmaskImpl::equal(size, data, data2);
 }
 
 template <unsigned size>
 inline bool
-Bitmask<size>::equal(const Bitmask<size>& mask2) const
+BitmaskPOD<size>::equal(const BitmaskPOD<size>& mask2) const
 {
-  return equal(rep.data, mask2.rep.data);
+  return BitmaskPOD<size>::equal(rep.data, mask2.rep.data);
 }
 
 template <unsigned size>
 inline void
-Bitmask<size>::bitOR(Uint32 data[], const Uint32 data2[])
+BitmaskPOD<size>::bitOR(Uint32 data[], const Uint32 data2[])
 {
   BitmaskImpl::bitOR(size,data, data2);
 }
 
 template <unsigned size>
-inline Bitmask<size>&
-Bitmask<size>::bitOR(const Bitmask<size>& mask2)
+inline BitmaskPOD<size>&
+BitmaskPOD<size>::bitOR(const BitmaskPOD<size>& mask2)
 {
-  bitOR(rep.data, mask2.rep.data);
+  BitmaskPOD<size>::bitOR(rep.data, mask2.rep.data);
   return *this;
 }
 
 template <unsigned size>
 inline void
-Bitmask<size>::bitAND(Uint32 data[], const Uint32 data2[])
+BitmaskPOD<size>::bitAND(Uint32 data[], const Uint32 data2[])
 {
   BitmaskImpl::bitAND(size,data, data2);
 }
 
 template <unsigned size>
-inline Bitmask<size>&
-Bitmask<size>::bitAND(const Bitmask<size>& mask2)
+inline BitmaskPOD<size>&
+BitmaskPOD<size>::bitAND(const BitmaskPOD<size>& mask2)
 {
-  bitAND(rep.data, mask2.rep.data);
+  BitmaskPOD<size>::bitAND(rep.data, mask2.rep.data);
   return *this;
 }
 
 template <unsigned size>
 inline void
-Bitmask<size>::bitANDC(Uint32 data[], const Uint32 data2[])
+BitmaskPOD<size>::bitANDC(Uint32 data[], const Uint32 data2[])
 {
   BitmaskImpl::bitANDC(size,data, data2);
 }
 
 template <unsigned size>
-inline Bitmask<size>&
-Bitmask<size>::bitANDC(const Bitmask<size>& mask2)
+inline BitmaskPOD<size>&
+BitmaskPOD<size>::bitANDC(const BitmaskPOD<size>& mask2)
 {
-  bitANDC(rep.data, mask2.rep.data);
+  BitmaskPOD<size>::bitANDC(rep.data, mask2.rep.data);
   return *this;
 }
 
 template <unsigned size>
 inline void
-Bitmask<size>::bitXOR(Uint32 data[], const Uint32 data2[])
+BitmaskPOD<size>::bitXOR(Uint32 data[], const Uint32 data2[])
 {
   BitmaskImpl::bitXOR(size,data, data2);
 }
 
 template <unsigned size>
-inline Bitmask<size>&
-Bitmask<size>::bitXOR(const Bitmask<size>& mask2)
+inline BitmaskPOD<size>&
+BitmaskPOD<size>::bitXOR(const BitmaskPOD<size>& mask2)
 {
-  bitXOR(rep.data, mask2.rep.data);
+  BitmaskPOD<size>::bitXOR(rep.data, mask2.rep.data);
   return *this;
 }
 
 template <unsigned size>
 char *
-Bitmask<size>::getText(const Uint32 data[], char* buf)
+BitmaskPOD<size>::getText(const Uint32 data[], char* buf)
 {
   return BitmaskImpl::getText(size, data, buf);
 }
 
 template <unsigned size>
 inline char *
-Bitmask<size>::getText(char* buf) const
+BitmaskPOD<size>::getText(char* buf) const
 {
-  return getText(rep.data, buf);
+  return BitmaskPOD<size>::getText(rep.data, buf);
 }
 
 template <unsigned size>
 inline bool
-Bitmask<size>::contains(Uint32 data[], const Uint32 data2[])
+BitmaskPOD<size>::contains(Uint32 data[], const Uint32 data2[])
 {
   return BitmaskImpl::contains(size, data, data2);
 }
 
 template <unsigned size>
 inline bool
-Bitmask<size>::contains(Bitmask<size> that)
+BitmaskPOD<size>::contains(BitmaskPOD<size> that)
 {
-  return contains(this->rep.data, that.rep.data);
+  return BitmaskPOD<size>::contains(this->rep.data, that.rep.data);
 }
 
 template <unsigned size>
 inline bool
-Bitmask<size>::overlaps(Uint32 data[], const Uint32 data2[])
+BitmaskPOD<size>::overlaps(Uint32 data[], const Uint32 data2[])
 {
   return BitmaskImpl::overlaps(size, data, data2);
 }
 
 template <unsigned size>
 inline bool
-Bitmask<size>::overlaps(Bitmask<size> that)
+BitmaskPOD<size>::overlaps(BitmaskPOD<size> that)
 {
-  return overlaps(this->rep.data, that.rep.data);
+  return BitmaskPOD<size>::overlaps(this->rep.data, that.rep.data);
 }
+
+template <unsigned size>
+class Bitmask : public BitmaskPOD<size> {
+public:
+  Bitmask() { this->clear();}
+};
 
 #endif

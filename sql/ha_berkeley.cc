@@ -357,9 +357,11 @@ ulong ha_berkeley::index_flags(uint idx, uint part, bool all_parts) const
     case HA_KEYTYPE_VARTEXT:
       /*
         As BDB stores only one copy of equal strings, we can't use key read
-        on these
+        on these. Binary collations do support key read though.
       */
-      flags&= ~HA_KEYREAD_ONLY;
+      if (!(table->key_info[idx].key_part[i].field->charset()->state
+           & MY_CS_BINSORT))
+        flags&= ~HA_KEYREAD_ONLY;
       break;
     default:                                    // Keep compiler happy
       break;

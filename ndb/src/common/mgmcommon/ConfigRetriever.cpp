@@ -37,37 +37,26 @@
  
 #include <mgmapi.h>
 #include <mgmapi_config_parameters.h>
+#include <mgmapi_configuration.hpp>
 #include <ConfigValues.hpp>
 #include <NdbHost.h>
 
 //****************************************************************************
 //****************************************************************************
 
-ConfigRetriever::ConfigRetriever() {
+ConfigRetriever::ConfigRetriever(Uint32 version, Uint32 node_type) {
   
-  _localConfigFileName = NULL;
-  m_defaultConnectString = NULL;
-
-
-  errorString = 0;
-  _localConfig = new LocalConfig();  
-  m_connectString = NULL;
+  m_handle= 0;
+  m_version = version;
+  m_node_type = node_type;
 }
 
 ConfigRetriever::~ConfigRetriever(){
-  if(_localConfigFileName != 0)
-    free(_localConfigFileName);
-  
-  if(m_defaultConnectString != 0)
-    free(m_defaultConnectString);
 
-  if(m_connectString != 0)
-    free(m_connectString);
-
-  if(errorString != 0)
-    free(errorString);
-  
-  delete _localConfig;
+  if (m_handle) {
+    ndb_mgm_disconnect(m_handle);
+    ndb_mgm_destroy_handle(&m_handle);
+  }
 }
 
 
@@ -75,67 +64,51 @@ ConfigRetriever::~ConfigRetriever(){
 //****************************************************************************
  
 int 
-ConfigRetriever::init(bool onlyNodeId) {
-  if (_localConfig->init(onlyNodeId, m_connectString, _localConfigFileName, m_defaultConnectString)) {
-    return _ownNodeId = (*_localConfig)._ownNodeId;
+ConfigRetriever::init() {
+  if (!_localConfig.init(m_connectString.c_str(), 
+			 _localConfigFileName.c_str())){
+    
+    setError(CR_ERROR, "error in retrieving contact info for mgmtsrvr");
+    _localConfig.printError();
+    _localConfig.printUsage();
+    return -1;
   }
-
-  setError(CR_ERROR, "error in retrieving contact info for mgmtsrvr");
-  _localConfig->printError();
-  _localConfig->printUsage();
-
-  return -1;
-}
   
-//****************************************************************************
-//****************************************************************************
-//****************************************************************************
-//****************************************************************************
-struct ndb_mgm_configuration*
-ConfigRetriever::getConfig(int verId, int nodeType) {
+  return _ownNodeId = _localConfig._ownNodeId;
+}
 
-  int res = init();
-  if (res == -1) {
-    return 0;
-  }
+int
+ConfigRetriever::do_connect(){
 
-  if (_localConfig->items == 0){
-    setError(CR_ERROR,"No Management Servers configured in local config file");
-    return 0;
+  if(!m_handle)
+    m_handle= ndb_mgm_create_handle();
+
+  if (m_handle == 0) {
+    setError(CR_ERROR, "Unable to allocate mgm handle");
+    return -1;
   }
 
   int retry = 1;
   int retry_max = 12;    // Max number of retry attempts
   int retry_interval= 5; // Seconds between each retry
-  do {
+  while(retry < retry_max){
     Uint32 type = CR_ERROR;
-    for (int i = 0; i<_localConfig->items; i++){
-      MgmtSrvrId * m = _localConfig->ids[i];
-      struct ndb_mgm_configuration * p = 0;
+    BaseString tmp;
+    for (int i = 0; i<_localConfig.ids.size(); i++){
+      MgmtSrvrId * m = &_localConfig.ids[i];
       switch(m->type){
       case MgmId_TCP:
-	p = getConfig(m->data.tcp.remoteHost, m->data.tcp.port, verId);
-	break;
-      case MgmId_File:
-	p = getConfig(m->data.file.filename, verId);
-	break;
-      default:
-	setError(CR_ERROR, "Unknown error type");
-	break;
-      }
-      
-      if (p != 0) {
-	if(!verifyConfig(p, nodeType)){
-	  free(p);
+	tmp.assfmt("%s:%d", m->name.c_str(), m->port);
+	if (ndb_mgm_connect(m_handle, tmp.c_str()) == 0) {
 	  return 0;
 	}
-	return p;
+	setError(CR_RETRY, ndb_mgm_get_latest_error_desc(m_handle));
+      case MgmId_File:
+	break;
       }
-      if(latestErrorType == CR_RETRY)
-	type = CR_RETRY;
-    } // for
-    
-    if(type == CR_RETRY){
+    }
+
+    if(latestErrorType == CR_RETRY){
       REPORT_WARNING("Failed to retrieve cluster configuration");
       ndbout << "(Cause of failure: " << getErrorString() << ")" << endl;
       ndbout << "Attempt " << retry << " of " << retry_max << ". " 
@@ -146,60 +119,63 @@ ConfigRetriever::getConfig(int verId, int nodeType) {
       break;
     }
     retry++;
-    
-  } while (retry <= retry_max);
+  }
   
-  return 0;
+  ndb_mgm_destroy_handle(&m_handle);
+  m_handle= 0;
+  return -1;
+}
+
+//****************************************************************************
+//****************************************************************************
+//****************************************************************************
+//****************************************************************************
+struct ndb_mgm_configuration*
+ConfigRetriever::getConfig() {
+
+  struct ndb_mgm_configuration * p = 0;
+
+  if(m_handle != 0){
+    p = getConfig(m_handle);
+  } else {
+    for (int i = 0; i<_localConfig.ids.size(); i++){
+      MgmtSrvrId * m = &_localConfig.ids[i];
+      switch(m->type){
+      case MgmId_File:
+	p = getConfig(m->name.c_str());
+	break;
+      case MgmId_TCP:
+	break;
+      }
+      if(p)
+	break;
+    }
+  }
+  if(p == 0)
+    return 0;
+  
+  if(!verifyConfig(p)){
+    free(p);
+    p= 0;
+  }
+  
+  return p;
 }
 
 ndb_mgm_configuration *
-ConfigRetriever::getConfig(const char * mgmhost, 
-			   short port,
-			   int versionId){
+ConfigRetriever::getConfig(NdbMgmHandle m_handle){
   
-  NdbMgmHandle h;
-  h = ndb_mgm_create_handle();
-  if (h == NULL) {
-    setError(CR_ERROR, "Unable to allocate mgm handle");
-    return 0;
-  }
-
-  BaseString tmp;
-  tmp.assfmt("%s:%d", mgmhost, port);
-  if (ndb_mgm_connect(h, tmp.c_str()) != 0) {
-    setError(CR_RETRY, ndb_mgm_get_latest_error_desc(h));
-    ndb_mgm_destroy_handle(&h);
-    return 0;
-  }
-
-  ndb_mgm_configuration * conf = ndb_mgm_get_configuration(h, versionId);
+  ndb_mgm_configuration * conf = ndb_mgm_get_configuration(m_handle,m_version);
   if(conf == 0){
-    setError(CR_ERROR, ndb_mgm_get_latest_error_desc(h));
-  }
-
-  ndb_mgm_disconnect(h);
-  ndb_mgm_destroy_handle(&h);
-
-  return conf;
-#if 0  
-  bool compatible;
-  if (global_ndb_check)
-    compatible = ndbCompatible_ndb_mgmt(versionId, version);
-  else
-    compatible = ndbCompatible_api_mgmt(versionId, version);
-
-  if(!compatible){ //  if(version != versionId){
-    NDB_CLOSE_SOCKET(sockfd);
-    snprintf(err_buf, sizeof(err_buf), "Management Server: Invalid version. "
-	     "Version from server: %d Own version: %d", version, versionId);
-    setError(CR_ERROR, err_buf);
+    setError(CR_ERROR, ndb_mgm_get_latest_error_desc(m_handle));
     return 0;
   }
-#endif
+  
+  return conf;
 }
 	
 ndb_mgm_configuration *
-ConfigRetriever::getConfig(const char * filename, int versionId){
+ConfigRetriever::getConfig(const char * filename){
 
   struct stat sbuf;
   const int res = stat(filename, &sbuf);
@@ -242,60 +218,29 @@ ConfigRetriever::getConfig(const char * filename, int versionId){
 
 void
 ConfigRetriever::setError(ErrorType et, const char * s){
-  if(errorString != 0){
-    free(errorString);
-  }
-  if(s == 0)
-    errorString = 0;
-  else
-    errorString = strdup(s);
+  errorString.assign(s ? s : "");
   latestErrorType = et;
 }
 
 
 const char * 
 ConfigRetriever::getErrorString(){
-  return errorString;
+  return errorString.c_str();
 }
 
 void 
 ConfigRetriever::setLocalConfigFileName(const char * localConfigFileName) {
-  if(_localConfigFileName != 0)
-    free(_localConfigFileName);
-  if(localConfigFileName != 0)
-    _localConfigFileName = strdup(localConfigFileName);
-  else
-    _localConfigFileName = 0;
+  _localConfigFileName.assign(localConfigFileName ? localConfigFileName : "");
 }
 
 void 
 ConfigRetriever::setConnectString(const char * connectString) {
-  if(m_connectString != 0)
-    free(m_connectString);
-  if (connectString != 0) {
-    m_connectString = strdup(connectString);
-  } else {
-    m_connectString = 0;
-  }
-}
-
-/**
- * @note Do not use!  Use the one above if possible. /elathal
- */
-void 
-ConfigRetriever::setDefaultConnectString(const char * defaultConnectString) {
-  if(m_defaultConnectString != 0)
-    free(m_defaultConnectString);
-  if (defaultConnectString != 0) {
-    m_defaultConnectString = strdup(defaultConnectString);
-  } else {
-    m_defaultConnectString = 0;
-  }
+  m_connectString.assign(connectString ? connectString : "");
 }
 
 bool
-ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf, 
-			      int type){
+ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf){
+
   char buf[255];
   ndb_mgm_configuration_iterator * it;
   it = ndb_mgm_create_configuration_iterator((struct ndb_mgm_configuration *)conf, CFG_SECTION_NODE);
@@ -308,8 +253,8 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf,
   }
   NdbAutoPtr<ndb_mgm_configuration_iterator> ptr(it);
   
-  if(ndb_mgm_find(it, CFG_NODE_ID, getOwnNodeId()) != 0){
-    snprintf(buf, 255, "Unable to find node with id: %d", getOwnNodeId());
+  if(ndb_mgm_find(it, CFG_NODE_ID, _ownNodeId) != 0){
+    snprintf(buf, 255, "Unable to find node with id: %d", _ownNodeId);
     setError(CR_ERROR, buf);
     return false;
   }
@@ -323,12 +268,15 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf,
 
   char localhost[MAXHOSTNAMELEN];
   if(NdbHost_GetHostName(localhost) != 0){
-    snprintf(buf, 255, "Unable to own hostname");
+    snprintf(buf, 255, "Unable to get own hostname");
     setError(CR_ERROR, buf);
     return false;
   }
 
   do {
+    if(strlen(hostname) == 0)
+      break;
+
     if(strcasecmp(hostname, localhost) == 0)
       break;
 
@@ -363,11 +311,67 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf,
     return false;
   }
   
-  if(_type != type){
+  if(_type != m_node_type){
     snprintf(buf, 255, "Supplied node type(%d) and config node type(%d) "
-	     " don't match", type, _type);
+	     " don't match", m_node_type, _type);
     setError(CR_ERROR, buf);
     return false;
   }
+
+  /**
+   * Check hostnames
+   */
+  ndb_mgm_configuration_iterator iter(* conf, CFG_SECTION_CONNECTION);
+  for(iter.first(); iter.valid(); iter.next()){
+
+    Uint32 type = CONNECTION_TYPE_TCP + 1;
+    if(iter.get(CFG_TYPE_OF_SECTION, &type)) continue;
+    if(type != CONNECTION_TYPE_TCP) continue;
+    
+    Uint32 nodeId1, nodeId2, remoteNodeId;
+    if(iter.get(CFG_CONNECTION_NODE_1, &nodeId1)) continue;
+    if(iter.get(CFG_CONNECTION_NODE_2, &nodeId2)) continue;
+    
+    if(nodeId1 != _ownNodeId && nodeId2 != _ownNodeId) continue;
+    remoteNodeId = (_ownNodeId == nodeId1 ? nodeId2 : nodeId1);
+
+    const char * name;
+    struct in_addr addr;
+    BaseString tmp;
+    if(!iter.get(CFG_TCP_HOSTNAME_1, &name) && strlen(name)){
+      if(Ndb_getInAddr(&addr, name) != 0){
+	tmp.assfmt("Unable to lookup/illegal hostname %s, "
+		   "connection from node %d to node %d",
+		   name, _ownNodeId, remoteNodeId);
+	setError(CR_ERROR, tmp.c_str());
+	return false;
+      }
+    }
+
+    if(!iter.get(CFG_TCP_HOSTNAME_2, &name) && strlen(name)){
+      if(Ndb_getInAddr(&addr, name) != 0){
+	tmp.assfmt("Unable to lookup/illegal hostname %s, "
+		   "connection from node %d to node %d",
+		   name, _ownNodeId, remoteNodeId);
+	setError(CR_ERROR, tmp.c_str());
+	return false;
+      }
+    }
+  }
   return true;
+}
+
+Uint32
+ConfigRetriever::allocNodeId(){
+  unsigned nodeid= _ownNodeId;
+  
+  if(m_handle != 0){
+    int res= ndb_mgm_alloc_nodeid(m_handle, m_version, &nodeid, m_node_type);
+    if(res != 0) {
+      setError(CR_ERROR, ndb_mgm_get_latest_error_desc(m_handle));
+      return 0;
+    }
+  }
+  
+  return _ownNodeId= nodeid;
 }

@@ -188,7 +188,7 @@ static struct my_option my_long_options[] =
   {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory).",
    0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
-  {"shared_memory_base_name", OPT_SHARED_MEMORY_BASE_NAME,
+  {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
@@ -268,7 +268,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case OPT_MYSQL_PROTOCOL:
   {
-    if ((opt_protocol = find_type(argument, &sql_protocol_typelib,0)) == ~(ulong) 0)
+    if ((opt_protocol= find_type(argument, &sql_protocol_typelib,0)) <= 0)
     {
       fprintf(stderr, "Unknown option to protocol: %s\n", argument);
       exit(1);
