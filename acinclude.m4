@@ -315,14 +315,6 @@ case "x$am_cv_prog_cc_stdc" in
 esac
 ])
 
-# serial 1
-
-AC_DEFUN(AM_PROG_INSTALL,
-[AC_REQUIRE([AC_PROG_INSTALL])
-test -z "$INSTALL_SCRIPT" && INSTALL_SCRIPT='${INSTALL_PROGRAM}'
-AC_SUBST(INSTALL_SCRIPT)dnl
-])
-
 #
 # Check to make sure that the build environment is sane.
 #
@@ -527,7 +519,7 @@ fi
 ])dnl
 
 AC_DEFUN(MYSQL_STACK_DIRECTION,
- AC_CACHE_CHECK(stack direction for C alloca, ac_cv_c_stack_direction,
+ [AC_CACHE_CHECK(stack direction for C alloca, ac_cv_c_stack_direction,
  [AC_TRY_RUN([find_stack_direction ()
  {
    static char *addr = 0;
@@ -546,7 +538,7 @@ AC_DEFUN(MYSQL_STACK_DIRECTION,
  }], ac_cv_c_stack_direction=1, ac_cv_c_stack_direction=-1,
    ac_cv_c_stack_direction=0)])
  AC_DEFINE_UNQUOTED(STACK_DIRECTION, $ac_cv_c_stack_direction)
-)dnl
+])dnl
 
 AC_DEFUN(MYSQL_FUNC_ALLOCA,
 [
@@ -708,6 +700,7 @@ dnl echo "DBG2: [$mode] bdb='$bdb'; incl='$bdb_includes'; lib='$bdb_libs'"
     no )
       bdb_includes=
       bdb_libs=
+      bdb_libs_with_path=
       ;;
     supplied-two )
       MYSQL_CHECK_INSTALLED_BDB([$bdb_includes], [$bdb_libs])
@@ -737,6 +730,7 @@ dnl echo "DBG2: [$mode] bdb='$bdb'; incl='$bdb_includes'; lib='$bdb_libs'"
           esac
          bdb_includes=
          bdb_libs=
+	 bdb_libs_with_path=
           ;;
       esac
       ;;
@@ -765,6 +759,7 @@ dnl echo "DBG3: [$mode] bdb='$bdb'; incl='$bdb_includes'; lib='$bdb_libs'"
 
   AC_SUBST(bdb_includes)
   AC_SUBST(bdb_libs)
+  AC_SUBST(bdb_libs_with_path)
 ])
 
 AC_DEFUN([MYSQL_CHECK_INSTALLED_BDB], [
@@ -785,6 +780,7 @@ dnl echo ["MYSQL_CHECK_INSTALLED_BDB ($1) ($2)"]
         MYSQL_TOP_BUILDDIR([lib])
         bdb_includes="-I$inc"
         bdb_libs="-L$lib -ldb"
+        bdb_libs_with_path="$lib/libdb.a"
       ])
       LDFLAGS="$save_LDFLAGS"
     else
@@ -813,6 +809,7 @@ dnl echo ["MYSQL_CHECK_BDB_DIR ($1)"]
         MYSQL_TOP_BUILDDIR([dir])
         bdb_includes="-I$dir/build_unix"
         bdb_libs="-L$dir/build_unix -ldb"
+	bdb_libs_with_path="$dir/build_unix/libdb.a"
       else
         bdb_dir_ok="$bdb_version_ok"
       fi
@@ -924,47 +921,48 @@ AC_DEFUN([MYSQL_CHECK_INNODB], [
       AC_DEFINE(HAVE_INNOBASE_DB)
       have_innodb="yes"
       innodb_includes="-I../innobase/include"
+      innodb_system_libs=""
 dnl Some libs are listed several times, in order for gcc to sort out
 dnl circular references.
       innodb_libs="\
- ../innobase/usr/libusr.a\
- ../innobase/odbc/libodbc.a\
- ../innobase/srv/libsrv.a\
- ../innobase/que/libque.a\
- ../innobase/srv/libsrv.a\
- ../innobase/dict/libdict.a\
- ../innobase/ibuf/libibuf.a\
- ../innobase/row/librow.a\
- ../innobase/pars/libpars.a\
- ../innobase/btr/libbtr.a\
- ../innobase/trx/libtrx.a\
- ../innobase/read/libread.a\
- ../innobase/usr/libusr.a\
- ../innobase/buf/libbuf.a\
- ../innobase/ibuf/libibuf.a\
- ../innobase/eval/libeval.a\
- ../innobase/log/liblog.a\
- ../innobase/fsp/libfsp.a\
- ../innobase/fut/libfut.a\
- ../innobase/fil/libfil.a\
- ../innobase/lock/liblock.a\
- ../innobase/mtr/libmtr.a\
- ../innobase/page/libpage.a\
- ../innobase/rem/librem.a\
- ../innobase/thr/libthr.a\
- ../innobase/com/libcom.a\
- ../innobase/sync/libsync.a\
- ../innobase/data/libdata.a\
- ../innobase/mach/libmach.a\
- ../innobase/ha/libha.a\
- ../innobase/dyn/libdyn.a\
- ../innobase/mem/libmem.a\
- ../innobase/sync/libsync.a\
- ../innobase/ut/libut.a\
- ../innobase/os/libos.a\
- ../innobase/ut/libut.a"
+ \$(top_builddir)/innobase/usr/libusr.a\
+ \$(top_builddir)/innobase/odbc/libodbc.a\
+ \$(top_builddir)/innobase/srv/libsrv.a\
+ \$(top_builddir)/innobase/dict/libdict.a\
+ \$(top_builddir)/innobase/que/libque.a\
+ \$(top_builddir)/innobase/srv/libsrv.a\
+ \$(top_builddir)/innobase/ibuf/libibuf.a\
+ \$(top_builddir)/innobase/row/librow.a\
+ \$(top_builddir)/innobase/pars/libpars.a\
+ \$(top_builddir)/innobase/btr/libbtr.a\
+ \$(top_builddir)/innobase/trx/libtrx.a\
+ \$(top_builddir)/innobase/read/libread.a\
+ \$(top_builddir)/innobase/usr/libusr.a\
+ \$(top_builddir)/innobase/buf/libbuf.a\
+ \$(top_builddir)/innobase/ibuf/libibuf.a\
+ \$(top_builddir)/innobase/eval/libeval.a\
+ \$(top_builddir)/innobase/log/liblog.a\
+ \$(top_builddir)/innobase/fsp/libfsp.a\
+ \$(top_builddir)/innobase/fut/libfut.a\
+ \$(top_builddir)/innobase/fil/libfil.a\
+ \$(top_builddir)/innobase/lock/liblock.a\
+ \$(top_builddir)/innobase/mtr/libmtr.a\
+ \$(top_builddir)/innobase/page/libpage.a\
+ \$(top_builddir)/innobase/rem/librem.a\
+ \$(top_builddir)/innobase/thr/libthr.a\
+ \$(top_builddir)/innobase/com/libcom.a\
+ \$(top_builddir)/innobase/sync/libsync.a\
+ \$(top_builddir)/innobase/data/libdata.a\
+ \$(top_builddir)/innobase/mach/libmach.a\
+ \$(top_builddir)/innobase/ha/libha.a\
+ \$(top_builddir)/innobase/dyn/libdyn.a\
+ \$(top_builddir)/innobase/mem/libmem.a\
+ \$(top_builddir)/innobase/sync/libsync.a\
+ \$(top_builddir)/innobase/ut/libut.a\
+ \$(top_builddir)/innobase/os/libos.a\
+ \$(top_builddir)/innobase/ut/libut.a"
 
-      AC_CHECK_LIB(rt, aio_read, [innodb_libs="$innodb_libs -lrt"])
+      AC_CHECK_LIB(rt, aio_read, [innodb_system_libs="-lrt"])
       ;;
     * )
       AC_MSG_RESULT([Not using Innodb])
@@ -973,6 +971,7 @@ dnl circular references.
 
   AC_SUBST(innodb_includes)
   AC_SUBST(innodb_libs)
+  AC_SUBST(innodb_system_libs)
 ])
 
 dnl ---------------------------------------------------------------------------
@@ -1103,10 +1102,10 @@ changequote([, ])dnl
      AC_DEFINE_UNQUOTED([$1], [$]$2, [$3])
    fi])
 
-AC_DEFUN(AC_SYS_LARGEFILE,
+AC_DEFUN(MYSQL_SYS_LARGEFILE,
   [AC_REQUIRE([AC_CANONICAL_HOST])
-   AC_ARG_ENABLE(largefile,
-     [  --disable-largefile    Omit support for large files])
+  AC_ARG_ENABLE(largefile,
+     [  --disable-largefile     Omit support for large files])
    if test "$enable_largefile" != no; then
      AC_CHECK_TOOL(GETCONF, getconf)
      AC_SYS_LARGEFILE_FLAGS(CFLAGS)
