@@ -2963,15 +2963,27 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
       /*-------------------------------------------------------------*/
       arrGuard(tnoOfBackup, 4);
       UintR Tindex;
+      UintR TownNode = cownNodeid;
       for (Tindex = 1; Tindex <= tnoOfBackup; Tindex++) {
         UintR Tnode = regTcPtr->tcNodedata[Tindex];
-        UintR TownNode = cownNodeid;
         jam();
         if (Tnode == TownNode) {
           jam();
           regTcPtr->tcNodedata[0] = Tnode;
         }//if
       }//for
+      if(ERROR_INSERTED(8048))
+      {
+	for (Tindex = 0; Tindex <= tnoOfBackup; Tindex++) 
+	{
+	  UintR Tnode = regTcPtr->tcNodedata[Tindex];
+	  jam();
+	  if (Tnode != TownNode) {
+	    jam();
+	    regTcPtr->tcNodedata[0] = Tnode;
+	  }//if
+	}//for
+      }
     }//if
     jam();
     regTcPtr->lastReplicaNo = 0;

@@ -3305,6 +3305,9 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   UintR TreclenAiLqhkey   = LqhKeyReq::getAIInLqhKeyReq(Treqinfo);
   regTcPtr->apiVersionNo  = 0; 
   
+  CRASH_INSERTION2(5041, regTcPtr->simpleRead && 
+		   refToNode(signal->senderBlockRef()) != cownNodeid);
+  
   regTcPtr->reclenAiLqhkey = TreclenAiLqhkey;
   regTcPtr->currReclenAi = TreclenAiLqhkey;
   UintR TitcKeyLen = LqhKeyReq::getKeyLen(Treqinfo);

@@ -1150,6 +1150,20 @@ void NDBT_Step::print(){
 
 }
 
+void
+NDBT_Context::sync_down(const char * key){
+  Uint32 threads = getProperty(key, (unsigned)0);
+  if(threads){
+    decProperty(key);
+  }
+}
+
+void
+NDBT_Context::sync_up_and_wait(const char * key, Uint32 value){
+  setProperty(key, value);
+  getPropertyWait(key, (unsigned)0);
+}
+
 template class Vector<NDBT_TestCase*>;
 template class Vector<NDBT_TestCaseResult*>;
 template class Vector<NDBT_Step*>;
