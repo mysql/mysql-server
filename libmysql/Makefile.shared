@@ -59,8 +59,10 @@ mysysobjects1 =		my_init.lo my_static.lo my_malloc.lo my_realloc.lo \
 # Not needed in the minimum library
 mysysobjects2 =		getopt.lo getopt1.lo getvar.lo my_lib.lo
 mysysobjects =		$(mysysobjects1) $(mysysobjects2)
-target_libadd = $(mysysobjects) $(mystringsobjects) $(dbugobjects)
+target_libadd = $(mysysobjects) $(mystringsobjects) $(dbugobjects) \
+ $(vio_objects)
 target_ldflags = -version-info @SHARED_LIB_VERSION@
+vio_objects= vio.lo viosocket.lo
 CLEANFILES =		$(target_libadd) $(SHLIBOBJS) \
 			$(target)
 DEFS =			-DDEFAULT_CHARSET_HOME="\"$(MYSQLBASEdir)\"" \
@@ -75,6 +77,7 @@ clean-local:
 	rm -f `echo $(mystringsobjects) | sed "s;\.lo;.c;g"` \
 	      `echo $(dbugobjects) | sed "s;\.lo;.c;g"` \
 	      `echo $(mysysobjects) | sed "s;\.lo;.c;g"` \
+	      `echo $(vio_objects) | sed "s;\.lo;.c;g"` \
 	       $(mystringsextra) $(mysysheaders) ctype_extra_sources.c \
 	       ../linked_client_sources
 
