@@ -66,28 +66,6 @@ sess_open(
 	byte*		addr_buf,	/* in: client address */
 	ulint		addr_len);	/* in: client address length */
 /*************************************************************************
-Closes a session, freeing the memory occupied by it. */
-
-void
-sess_close(
-/*=======*/
-	sess_t*		sess);	/* in, own: session object */
-/*************************************************************************
-Raises an SQL error. */
-
-void
-sess_raise_error_low(
-/*=================*/
-	trx_t*		trx,	/* in: transaction */
-	ulint		err_no,	/* in: error number */
-	ulint		type,	/* in: more info of the error, or 0 */
-	dict_table_t*	table,	/* in: dictionary table or NULL */
-	dict_index_t*	index,	/* in: table index or NULL */
-	dtuple_t*	tuple,	/* in: tuple to insert or NULL */
-	rec_t*		rec,	/* in: record or NULL */
-	char*		err_str);/* in: arbitrary null-terminated error string,
-				or NULL */
-/*************************************************************************
 Closes a session, freeing the memory occupied by it, if it is in a state
 where it should be closed. */
 
@@ -117,16 +95,6 @@ sess_srv_msg_send_simple(
 	ulint	rel_kernel);	/* in: SESS_RELEASE_KERNEL or
 				SESS_NOT_RELEASE_KERNEL */
 /***************************************************************************
-Processes a message from a client. NOTE: May release the kernel mutex
-temporarily. */
-
-void
-sess_receive_msg_rel_kernel(
-/*========================*/
-	sess_t*	sess,	/* in: session */
-	byte*	str,	/* in: message string */
-	ulint	len);	/* in: message length */
-/***************************************************************************
 When a command has been completed, this function sends the message about it
 to the client. */
 
@@ -136,17 +104,6 @@ sess_command_completed_message(
 	sess_t*	sess,	/* in: session */
 	byte*	msg,	/* in: message buffer */
 	ulint	len);	/* in: message data length */
-/***********************************************************************
-Starts a new connection and a session, or starts a query based on a client
-message. This is called by a SRV_COM thread. */
-
-void
-sess_process_cli_msg(
-/*=================*/
-	byte*	str,	/* in: message string */
-	ulint	len,	/* in: string length */
-	byte*	addr,	/* in: address string */
-	ulint	alen);	/* in: address length */
 
 
 /* The session handle. All fields are protected by the kernel mutex */

@@ -1147,8 +1147,6 @@ trx_sig_send(
 
 		ut_a(0);
 		
-		/* sess_raise_error_low(trx, 0, 0, NULL, NULL, NULL, NULL,
-						"Incompatible signal"); */
 		return(FALSE);
 	}
 
@@ -1197,9 +1195,6 @@ trx_sig_send(
 		in the error state: */
 
 		ut_a(0);
-
-		sess_raise_error_low(trx, 0, 0, NULL, NULL, NULL, NULL,
-				     (char *) "Signal from another session, or a break execution signal");
 	}
 
 	/* If there were no other signals ahead in the queue, try to start

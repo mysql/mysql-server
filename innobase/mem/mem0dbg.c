@@ -406,12 +406,12 @@ mem_heap_validate_or_print(
 	ulint		total_len 	= 0;
 	ulint		block_count	= 0;
 	ulint		phys_len	= 0;
-	#ifdef UNIV_MEM_DEBUG
+#ifdef UNIV_MEM_DEBUG
 	ulint		len;
 	byte*		field;
 	byte*		user_field;
 	ulint		check_field;
-	#endif
+#endif
 
 	/* Pessimistically, we set the parameters to error values */
  	if (us_size != NULL) {
@@ -446,7 +446,7 @@ mem_heap_validate_or_print(
 		    	return;
 		}
 
-		#ifdef UNIV_MEM_DEBUG
+#ifdef UNIV_MEM_DEBUG
 		/* We can trace the fields of the block only in the debug
 		version */
 		if (print) {
@@ -502,7 +502,7 @@ mem_heap_validate_or_print(
 			return;
 		}
 
-		#endif
+#endif
 
 		block = UT_LIST_GET_NEXT(list, block);
 		block_count++;
@@ -714,7 +714,7 @@ mem_all_freed(void)
 /*===============*/
 			/* out: TRUE if no heaps exist */
 {
-	#ifdef UNIV_MEM_DEBUG
+#ifdef UNIV_MEM_DEBUG
 
 	mem_hash_node_t*	node;
 	ulint			heap_count	= 0;
@@ -744,14 +744,14 @@ mem_all_freed(void)
 		return(FALSE);
 	}
 	
-	#else
+#else
 	
 	printf(
 	"Sorry, non-debug version cannot check if all memory is freed.\n");
 
 	return(FALSE);
 
-	#endif
+#endif
 }
 
 /*********************************************************************
@@ -762,7 +762,7 @@ mem_validate_no_assert(void)
 /*========================*/
 			/* out: TRUE if error */
 {
-	#ifdef UNIV_MEM_DEBUG
+#ifdef UNIV_MEM_DEBUG
 
 	mem_hash_node_t*	node;
 	ulint			n_heaps 		= 0;
@@ -823,13 +823,13 @@ mem_validate_no_assert(void)
  
 	return(error);
 
-	#else
+#else
 
 	printf("Sorry, non-debug version cannot validate dynamic memory\n");
 
 	return(FALSE);
 
-	#endif
+#endif
 }
 
 /****************************************************************
