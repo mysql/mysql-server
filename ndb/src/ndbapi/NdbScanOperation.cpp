@@ -492,6 +492,7 @@ int NdbScanOperation::nextResult(bool fetchAllowed)
    */
   if(!fetchAllowed || !retVal){
     m_current_api_receiver = idx;
+    if(DEBUG_NEXT_RESULT) ndbout_c("return %d", retVal);
     return retVal;
   }
   
@@ -507,6 +508,7 @@ int NdbScanOperation::nextResult(bool fetchAllowed)
     do {
       if(theError.code){
 	setErrorCode(theError.code);
+	if(DEBUG_NEXT_RESULT) ndbout_c("return -1");
 	return -1;
       }
       
@@ -546,6 +548,7 @@ int NdbScanOperation::nextResult(bool fetchAllowed)
 	  int return_code = theNdb->receiveResponse(WAITFOR_SCAN_TIMEOUT);
 	  if (return_code == 0 && seq == tp->getNodeSequence(nodeId)) {
 	    theError.code = -1; // make sure user gets error if he tries again
+	    if(DEBUG_NEXT_RESULT) ndbout_c("return 1");
 	    return 1;
 	  }
 	  retVal = -1; //return_code;
@@ -578,6 +581,7 @@ int NdbScanOperation::nextResult(bool fetchAllowed)
   case 0:
   case 1:
   case 2:
+    if(DEBUG_NEXT_RESULT) ndbout_c("return %d", retVal);
     return retVal;
   case -1:
     setErrorCode(4008); // Timeout
@@ -591,6 +595,7 @@ int NdbScanOperation::nextResult(bool fetchAllowed)
     
   theNdbCon->theTransactionIsStarted = false;
   theNdbCon->theReleaseOnClose = true;
+  if(DEBUG_NEXT_RESULT) ndbout_c("return -1", retVal);
   return -1;
 }
 
@@ -662,8 +667,18 @@ NdbScanOperation::doSend(int ProcessorId)
 void NdbScanOperation::closeScan()
 {
   int self = pthread_self() ;
-  
+
   if(m_transConnection) do {
+    if(DEBUG_NEXT_RESULT)
+      ndbout_c("closeScan() theError.code = %d "
+	       "m_api_receivers_count = %d "
+	       "m_conf_receivers_count = %d "
+	       "m_sent_receivers_count = %d",
+	       theError.code, 
+	       m_api_receivers_count,
+	       m_conf_receivers_count,
+	       m_sent_receivers_count);
+    
     TransporterFacade* tp = TransporterFacade::instance();
     Guard guard(tp->theMutexPtr);
 
@@ -675,7 +690,7 @@ void NdbScanOperation::closeScan()
       break;
     }
     
-    while(m_sent_receivers_count){
+    while(theError.code == 0 && m_sent_receivers_count){
       theNdb->theWaiter.m_node = nodeId;
       theNdb->theWaiter.m_state = WAIT_SCAN;
       int return_code = theNdb->receiveResponse(WAITFOR_SCAN_TIMEOUT);
