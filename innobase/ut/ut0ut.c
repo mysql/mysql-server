@@ -428,7 +428,7 @@ ut_copy_file(
 			len < (long) sizeof buf ? (size_t) len : sizeof buf;
 		size_t	size = fread(buf, 1, maxs, src);
 		fwrite(buf, 1, size, dest);
-		len -= size;
+		len -= (long) size;
 		if (size < maxs) {
 			break;
 		}
