@@ -1137,7 +1137,6 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
     return 1;
   }
   thd->query= query;
-  thd->current_tablenr = 0;
   thd->query_error = 0;
   thd->net.no_send_ok = 1;
 
@@ -1811,7 +1810,8 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
   field_list.push_back(new Item_empty_string("Replicate_do_table", 20));
   field_list.push_back(new Item_empty_string("Replicate_ignore_table", 23));
   field_list.push_back(new Item_empty_string("Replicate_wild_do_table", 24));
-  field_list.push_back(new Item_empty_string("Replicate_wild_ignore_table", 28));
+  field_list.push_back(new Item_empty_string("Replicate_wild_ignore_table",
+					     28));
   field_list.push_back(new Item_return_int("Last_errno", 4, MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Last_error", 20));
   field_list.push_back(new Item_return_int("Skip_counter", 10,
@@ -1838,7 +1838,8 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
     protocol->store(mi->master_log_name, &my_charset_bin);
     protocol->store((ulonglong) mi->master_log_pos);
     protocol->store(mi->rli.group_relay_log_name +
-		   dirname_length(mi->rli.group_relay_log_name), &my_charset_bin);
+		    dirname_length(mi->rli.group_relay_log_name),
+		    &my_charset_bin);
     protocol->store((ulonglong) mi->rli.group_relay_log_pos);
     protocol->store(mi->rli.group_master_log_name, &my_charset_bin);
     protocol->store(mi->slave_running ? "Yes":"No", &my_charset_bin);
@@ -2384,6 +2385,7 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
   
     thd->server_id = ev->server_id; // use the original server id for logging
     thd->set_time();				// time the query
+    thd->lex.current_select= 0;
     if (!ev->when)
       ev->when = time(NULL);
     ev->thd = thd;

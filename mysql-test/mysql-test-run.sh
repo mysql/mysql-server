@@ -344,8 +344,8 @@ while test $# -gt 0; do
       ;;
     --valgrind)
       VALGRIND="valgrind --alignment=8 --leak-check=yes --num-callers=16"
-      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-safemalloc"
-      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-safemalloc"
+      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-safemalloc --skip-bdb"
+      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-safemalloc --skip-bdb"
       SLEEP_TIME_AFTER_RESTART=10
       SLEEP_TIME_FOR_DELETE=60
       USE_RUNNING_SERVER=""
@@ -998,7 +998,7 @@ start_slave()
 
   if [ x$DO_DDD = x1 ]
   then
-    $ECHO "set args $master_args" > $GDB_SLAVE_INIT
+    $ECHO "set args $slave_args" > $GDB_SLAVE_INIT
     manager_launch $slave_ident ddd -display $DISPLAY --debugger \
      "gdb -x $GDB_SLAVE_INIT" $SLAVE_MYSQLD
   elif [ x$DO_GDB = x1 ]

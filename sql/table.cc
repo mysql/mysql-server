@@ -1173,22 +1173,24 @@ rename_file_ext(const char * from,const char * to,const char * ext)
     res         result String
 
   RETURN VALUES
-    true   string is empty
-    false  all ok
+    1   string is empty
+    0	all ok
 */
 
 bool get_field(MEM_ROOT *mem, Field *field, String *res)
 {
-  char buff[MAX_FIELD_WIDTH];
+  char buff[MAX_FIELD_WIDTH], *to;
   String str(buff,sizeof(buff),&my_charset_bin);
+  uint length;
+
   field->val_str(&str,&str);
-  uint length=str.length();
-  if (!length)
-    return true;
-  char *to= strmake_root(mem, str.ptr(), length);
-  res->set(to,length,((Field_str*)field)->charset());
-  return false;
+  if (!(length= str.length()))
+    return 1;
+  to= strmake_root(mem, str.ptr(), length);
+  res->set(to, length, ((Field_str*)field)->charset());
+  return 0;
 }
+
 
 /*
   Allocate string field in MEM_ROOT and return it as NULL-terminated string
@@ -1205,14 +1207,15 @@ bool get_field(MEM_ROOT *mem, Field *field, String *res)
 
 char *get_field(MEM_ROOT *mem, Field *field)
 {
-  char buff[MAX_FIELD_WIDTH];
+  char buff[MAX_FIELD_WIDTH], *to;
   String str(buff,sizeof(buff),&my_charset_bin);
+  uint length;
+
   field->val_str(&str,&str);
-  uint length=str.length();
-  if (!length)
+  if (!(length= str.length()))
     return NullS;
-  char *to= (char*) alloc_root(mem,length+1);
-  memcpy(to,str.ptr(),(uint) length);
+  to= (char*) alloc_root(mem,length+1);
+  memcpy(to, str.ptr(), (uint) length);
   to[length]=0;
   return to;
 }

@@ -911,7 +911,6 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
     thd->set_time((time_t)when);
-    thd->current_tablenr = 0;
     thd->query_length= q_len;
     VOID(pthread_mutex_lock(&LOCK_thread_count));
     thd->query = (char*)query;
@@ -1617,7 +1616,6 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
   if (db_ok(thd->db, replicate_do_db, replicate_ignore_db))
   {
     thd->set_time((time_t)when);
-    thd->current_tablenr = 0;
     VOID(pthread_mutex_lock(&LOCK_thread_count));
     thd->query_id = query_id++;
     VOID(pthread_mutex_unlock(&LOCK_thread_count));

@@ -982,7 +982,6 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
            buff[length-1] == ';'))
       length--;
     buff[length]=0;
-    thd->current_tablenr=0;
     thd->query_length=length;
     thd->query= thd->memdup_w_gap(buff, length+1, thd->db_length+1);
     thd->query[length] = '\0';
@@ -1085,7 +1084,6 @@ bool do_command(THD *thd)
   DBUG_ENTER("do_command");
 
   net= &thd->net;
-  thd->current_tablenr=0;
   /*
     indicator of uninitialized lex => normal flow of errors handling
     (see my_message_sql)
@@ -1172,21 +1170,20 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
 #endif
   case COM_TABLE_DUMP:
-    {
-      statistic_increment(com_other, &LOCK_status);
-      slow_command = TRUE;
-      uint db_len = *(uchar*)packet;
-      uint tbl_len = *(uchar*)(packet + db_len + 1);
-      char* db = thd->alloc(db_len + tbl_len + 2);
-      memcpy(db, packet + 1, db_len);
-      char* tbl_name = db + db_len;
-      *tbl_name++ = 0;
-      memcpy(tbl_name, packet + db_len + 2, tbl_len);
-      tbl_name[tbl_len] = 0;
-      if (mysql_table_dump(thd, db, tbl_name, -1))
-	send_error(thd); // dump to NET
-      break;
-    }
+  {
+    char *db, *tbl_name;
+    uint db_len= *(uchar*) packet;
+    uint tbl_len= *(uchar*) (packet + db_len + 1);
+
+    statistic_increment(com_other, &LOCK_status);
+    slow_command= TRUE;
+    db= thd->alloc(db_len + tbl_len + 2);
+    tbl_name= strmake(db, packet + 1, db_len)+1;
+    strmake(tbl_name, packet + db_len + 2, tbl_len);
+    if (mysql_table_dump(thd, db, tbl_name, -1))
+      send_error(thd); // dump to NET
+    break;
+  }
 #ifndef EMBEDDED_LIBRARY
   case COM_CHANGE_USER:
   {
@@ -1703,9 +1700,9 @@ mysql_execute_command(THD *thd)
     }
 #ifndef TO_BE_DELETED
     /*
-       This is a workaround to deal with the shortcoming in 3.23.44-3.23.46
-       masters in RELEASE_LOCK() logging. We re-write SELECT RELEASE_LOCK()
-       as DO RELEASE_LOCK()
+      This is a workaround to deal with the shortcoming in 3.23.44-3.23.46
+      masters in RELEASE_LOCK() logging. We re-write SELECT RELEASE_LOCK()
+      as DO RELEASE_LOCK()
     */
     if (lex->sql_command == SQLCOM_SELECT)
     {
