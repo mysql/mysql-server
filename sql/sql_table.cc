@@ -1680,16 +1680,24 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 #ifdef HAVE_BERKELEY_DB
   if (old_db_type == DB_TYPE_BERKELEY_DB)
   {
-    (void) berkeley_flush_logs();
     /*
       For the alter table to be properly flushed to the logs, we
       have to open the new table.  If not, we get a problem on server
       shutdown.
     */
-    if (!open_tables(thd, table_list))		// Should always succeed
+    char path[FN_REFLEN];
+    (void) sprintf(path,"%s/%s/%s",mysql_data_home,new_db,table_name);
+    fn_format(path,path,"","",4);
+    table=open_temporary_table(thd, path, new_db, tmp_name,0);
+    if (table)
     {
-      close_thread_table(thd, &table_list->table);
+      intern_close_table(table);
+      my_free((char*) table, MYF(0));
     }
+    else
+      sql_print_error("Warning: Could not open BDB table %s.%s after rename\n",
+		      new_db,table_name);
+    (void) berkeley_flush_logs();
   }
 #endif
 
