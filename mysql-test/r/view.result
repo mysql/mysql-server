@@ -1535,3 +1535,15 @@ insert into v2 values (0);
 ERROR HY000: CHECK OPTION failed 'test.v2'
 drop view v2, v1;
 drop table t1;
+create table t1 (s1 int);
+create view v1 as select * from t1 where s1 < 5 with check option;
+insert ignore into v1 values (6);
+ERROR HY000: CHECK OPTION failed 'test.v1'
+insert ignore into v1 values (6),(3);
+Warnings:
+Error	1369	CHECK OPTION failed 'test.v1'
+select * from t1;
+s1
+3
+drop view v1;
+drop table t1;
