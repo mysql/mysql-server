@@ -118,7 +118,7 @@ then
   cmd="cat"
 fi
 
-# Find where mysql_fix_privilege_tables.sql is located
+# Find where first mysql_fix_privilege_tables.sql is located
 for i in $basedir/support-files $basedir/share $basedir/share/mysql \
         $basedir/scripts @pkgdatadir@ . ./scripts
 do
