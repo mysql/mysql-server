@@ -37719,7 +37719,7 @@ extened by Kevin A. McGrail @email{kmcgrail@@digital1.peregrinehw.com}.
 This converter can handle MEMO fields.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/Msql-Mysql-modules-1.2215.tar.gz, Msql-Mysql-modules-1.2215.tar.gz}
-Perl @code{DBD} module to access mSQL and @strong{MySQL} databases..
+Perl @code{DBD} module to access mSQL and @strong{MySQL} databases.
 
 @item @uref{http://www.mysql.com/Downloads/Contrib/Data-ShowTable-3.3.tar.gz,  Data-ShowTable-3.3.tar.gz}
 Perl @code{Data-ShowTable} module.  Useful with @code{DBI}/@code{DBD} support.
@@ -38867,7 +38867,7 @@ Added options @code{--open-files} and @code{--timezone} to @code{safe_mysqld}.
 @item
 Fixed a fatal bug in @code{CREATE TEMPORARY TABLE ... SELECT ...}.
 @item
-Fixed a problem with @code{CREATE TABLE .. SELECT NULL}.
+Fixed a problem with @code{CREATE TABLE ... SELECT NULL}.
 @item
 Added variables @code{large_file_support},@code{net_read_timeout},
 @code{net_write_timeout} and @code{query_buffer_size} to @code{SHOW VARIABLES}.
@@ -39171,7 +39171,7 @@ Added atomic @code{RENAME} command.
 Don't count entries with @code{NULL} in @code{COUNT(DISTINCT ...)}.
 @item
 Changed @code{ALTER TABLE}, @code{LOAD DATA INFILE} on empty tables and
-@code{INSERT ... SELECT...} on empty tables to create non-unique indexes
+@code{INSERT ... SELECT ...} on empty tables to create non-unique indexes
 in a separate batch with sorting. This will make the above calls much
 faster when you have many indexes.
 @item
@@ -39196,7 +39196,7 @@ Fixed bug in range optimizer for HEAP tables for searches on a part index.
 @item
 Fixed that @code{SELECT} on part keys works with BDB tables.
 @item
-Fixed @code{INSERT INTO bdb_table  ... SELECT} to work with BDB tables.
+Fixed @code{INSERT INTO bdb_table ... SELECT} to work with BDB tables.
 @item
 @code{CHECK TABLE} now updates key statistics for the table.
 @item
@@ -39249,7 +39249,7 @@ connection is closed unexpectedly.
 Added workaround for a bug in @code{gcc} 2.96 (intel) and @code{gcc} 2.9
 (Ia64) in @code{gen_lex_hash.c}.
 @item
-Fixed memory leak in the client library when using @code{host=..} in the
+Fixed memory leak in the client library when using @code{host=} in the
 @code{my.cnf} file.
 @item
 Optimized functions that manipulate the hours/minutes/seconds.
@@ -39371,7 +39371,7 @@ Fixed a problem from 3.23.17 when choosing character set on the client side.
 Added @code{FLUSH TABLES WITH READ LOCK} to make a global lock suitable to
 make a copy of @strong{MySQL} data files.
 @item
-@code{CREATE TABLE  ... SELECT ... PROCEDURE} now works.
+@code{CREATE TABLE ... SELECT ... PROCEDURE} now works.
 @item
 Internal temporary tables will now uses compressed index when using
 @code{GROUP BY} on @code{VARCHAR/CHAR} columns.
@@ -39521,7 +39521,7 @@ Fixed bug when using @code{LOAD DATA INFILE} on a table with
 @item
 Optimised MyISAM to be faster when inserting keys in sorted order.
 @item
-@code{EXPLAIN SELECT..} now also prints out whether @strong{MySQL} needs to
+@code{EXPLAIN SELECT ...} now also prints out whether @strong{MySQL} needs to
 create a temporary table or use file sorting when resolving the @code{SELECT}.
 @item
 Added optimization to skip @code{ORDER BY} parts where the part is a
@@ -39614,7 +39614,7 @@ rpm file.
 @appendixsubsec Changes in release 3.23.12
 @itemize @bullet
 @item
-Fixed bug in @code{MyISAM} involving @code{REPLACE ... SELECT} which could
+Fixed bug in @code{MyISAM} involving @code{REPLACE ... SELECT ...} which could
 give a corrupted table.
 @item
 Fixed bug in @code{myisamchk} where it wrongly reset the auto_increment value.
@@ -39624,7 +39624,7 @@ stable on Alpha.
 @item
 Changed @code{DISTINCT} on @code{HEAP} temporary tables to use hashed
 keys to quickly find duplicated rows. This mostly concerns queries of
-type @code{SELECT DISTINCT ... GROUP BY ..}.  This fixes a problem where
+type @code{SELECT DISTINCT ... GROUP BY ...}.  This fixes a problem where
 not all duplicates were removed in queries of the above type.  In
 addition, the new code is MUCH faster.
 @item
@@ -39690,7 +39690,7 @@ Added sql variables: @code{SQL_MAX_JOIN_SIZE} and @code{SQL_SAFE_UPDATES}.
 Added @code{READ LOCAL} lock that doesn't lock the table for concurrent
 inserts. (This is used by @code{mysqldump}).
 @item
-Changed that @code{LOCK TABLES .. READ} doesn't anymore allow concurrent
+Changed that @code{LOCK TABLES ... READ} doesn't anymore allow concurrent
 inserts.
 @item
 Added option @code{--skip-delay-key-write} to @code{mysqld}.
@@ -39767,7 +39767,7 @@ long time to a separate log file with a time of how long the query took.
 @item
 Fixed core dump when doing @code{WHERE key_column=RAND(...)}
 @item
-Fixed optimization bug in @code{SELECT .. LEFT JOIN ... key_column IS NULL},
+Fixed optimization bug in @code{SELECT ... LEFT JOIN ... key_column IS NULL},
 when @code{key_column} could contain @code{NULL} values.
 @item
 Fixed problem with 8-bit characters as separators in @code{LOAD DATA INFILE}.
@@ -39971,7 +39971,7 @@ Added new @code{mysqld} variable @code{concurrency} for Solaris.
 Added option @code{--relative} to @code{mysqladmin} to make
 @code{extended-status} more useful to monitor changes.
 @item
-Fixed bug when using @code{COUNT(DISTINCT..)} on an empty table.
+Fixed bug when using @code{COUNT(DISTINCT ...)} on an empty table.
 @item
 Added support for the Chinese character set GBK.
 @item
@@ -40043,7 +40043,7 @@ default value.
 Changed @code{SUBSTRING(text FROM pos)} to conform to ANSI SQL. (Before this
 construct returned the rightmost 'pos' characters).
 @item
-@code{SUM(..)} with @code{GROUP BY} returned 0 on some systems.
+@code{SUM()} with @code{GROUP BY} returned 0 on some systems.
 @item
 Changed output for @code{SHOW TABLE STATUS}.
 @item
@@ -40112,7 +40112,7 @@ Automatic change of HEAP temporary tables to MyISAM tables in case of
 @item
 Added option @code{--init-file=file_name} to @code{mysqld}.
 @item
-@code{COUNT(DISTINCT value,[value,...])}
+@code{COUNT(DISTINCT value, [value, ...])}
 @item
 @code{CREATE TEMPORARY TABLE} now creates a temporary table, in its own
 namespace, that is automatically deleted if connection is dropped.
@@ -40175,7 +40175,7 @@ Added comments to tables (with @code{CREATE TABLE ... COMMENT "xxx"}).
 Added @code{UNIQUE}, as in
 @code{CREATE TABLE table_name (col int not null UNIQUE)}
 @item
-New create syntax: @code{CREATE TABLE table_name SELECT ....}
+New create syntax: @code{CREATE TABLE table_name SELECT ...}
 @item
 New create syntax: @code{CREATE TABLE IF NOT EXISTS ...}
 @item
@@ -40588,7 +40588,7 @@ Changed the @code{mysql.db} column from @code{char(32)} to @code{char(60)}.
 @item
 Fixed a bug when storing days in a @code{TIME} column.
 @item
-Fixed a problem with @code{Host '..' is not allowed to connect to this MySQL
+Fixed a problem with @code{Host '...' is not allowed to connect to this MySQL
 server} after one had inserted a new @strong{MySQL} user with a @code{GRANT}
 command.
 @item
@@ -40661,7 +40661,7 @@ Using @code{LEFT JOIN} on tables that had circular dependencies caused
 @code{DELETE FROM tbl_name WHERE key_column=col_name} didn't find any matching
 rows.  Fixed.
 @item
-@code{DATE_ADD(column,...)} didn't work.
+@code{DATE_ADD(column, ...)} didn't work.
 @item
 @code{INSERT DELAYED} could deadlock with status 'upgrading lock'
 @item
@@ -40832,7 +40832,7 @@ shutdown to work better on FreeBSD.
 @item
 Added option @code{\G} (print vertically) to @code{mysql}.
 @item
-@code{SELECT HIGH_PRIORITY} ... killed @code{mysqld}.
+@code{SELECT HIGH_PRIORITY ...} killed @code{mysqld}.
 @item
 @code{IS NULL} on a @code{AUTO_INCREMENT} column in a @code{LEFT JOIN} didn't
 work as expected.
@@ -40861,7 +40861,7 @@ Fixed a bug in @code{ALTER TABLE} that caused @code{mysqld} to crash.
 @strong{MySQL} now always reports the conflicting key values when a
 duplicate key entry occurs. (Before this was only reported for @code{INSERT}).
 @item
-New syntax: @code{INSERT INTO tbl_name SET col_name=value,col_name=value,...}
+New syntax: @code{INSERT INTO tbl_name SET col_name=value, col_name=value, ...}
 @item
 Most errors in the @file{.err} log are now prefixed with a time stamp.
 @item
@@ -41052,7 +41052,7 @@ the current version of @code{mysqld}. (To avoid errors if you accidentally
 try to use an old error message file.)
 @item
 All count structures in the client (@code{affected_rows()},
-@code{insert_id()},...) are now of type @code{BIGINT} to allow 64-bit values
+@code{insert_id()}, ...) are now of type @code{BIGINT} to allow 64-bit values
 to be used.
 This required a minor change in the @strong{MySQL} protocol which should affect
 only old clients when using tables with @code{AUTO_INCREMENT} values > 16M.
@@ -43214,30 +43214,30 @@ select * from temporary_table, temporary_table as t2;
 @end example
 
 @item
-Because @strong{MySQL} allows you to work with table types that doesn't
-support transactions (and thus can't @code{rollback} data) some things
-behaves a little different in @strong{MySQL} than in other SQL servers:
-(This is just to ensure that @strong{MySQL} never need to do a rollback
-for a SQL command).  This may be a little akward at times as column
+Because @strong{MySQL} allows you to work with table types that don't
+support transactions, and thus can't @code{rollback} data, some things
+behave a little differently in @strong{MySQL} than in other SQL servers.
+This is just to ensure that @strong{MySQL} never need to do a rollback
+for a SQL command.  This may be a little akward at times as column
 values must be checked in the application, but this will actually give
 you a nice speed increase as it allows @strong{MySQL} to do some
-optimizations that otherwice would be very hard to do.
+optimizations that otherwise would be very hard to do.
 
-If you set a colum to a wrong value, @strong{MySQL} will instead of doing
-a rollback instead store the @code{best possible value} in the column.
+If you set a column to a wrong value, @strong{MySQL} will, instead of doing
+a rollback, store the @code{best possible value} in the column.
 
 @itemize @bullet
 @item
-If you try to store a value outside of the range in a numerical column,
+If you try to store a value outside the range in a numerical column,
 @strong{MySQL} will instead store the smallest or biggest possible value in
 the column.
 @item
-If you try to store a string, that doesn't start with a number, into a
-numerical column @strong{MySQL} will store 0 into it.
+If you try to store a string that doesn't start with a number into a
+numerical column, @strong{MySQL} will store 0 into it.
 @item
 If you try to store @code{NULL} into a column that doesn't take
 @code{NULL} values, @strong{MySQL} will store 0 or @code{''} (empty
-string) in it instead. (This behavour can, however, be changed with the
+string) in it instead. (This behavior can, however, be changed with the
 -DDONT_USE_DEFAULT_FIELDS compile option).
 @item
 @strong{MySQL} allows you to store some wrong date values into
@@ -43245,22 +43245,22 @@ string) in it instead. (This behavour can, however, be changed with the
 If the date is totally wrong, @strong{MySQL} will store the special
 0000-00-00 date value in the column.
 @item
-If you set an @code{enum} to an not supported value, it will be set to
+If you set an @code{enum} to an unsupported value, it will be set to
 the error value 'empty string', with numeric value 0.
 @end itemize
 @item
-If you execute a @code{PROCEDURE} on a query with returns an empty set then
+If you execute a @code{PROCEDURE} on a query that returns an empty set,
 in some cases the @code{PROCEDURE} will not transform the columns.
 @item
-Creation of a table of type @code{MERGE} doesn't check if the underlaying
+Creation of a table of type @code{MERGE} doesn't check if the underlying
 tables are of compatible types.
 @end itemize
 
-The following is known bugs in earlier versions of @strong{MySQL}:
+The following are known bugs in earlier versions of @strong{MySQL}:
 
 @itemize @bullet
 @item
-You can get a hanged thread if you do a @code{DROP TABLE} on a table that is
+You can get a hung thread if you do a @code{DROP TABLE} on a table that is
 one among many tables that is locked with @code{LOCK TABLES}.
 
 @item
@@ -43300,12 +43300,12 @@ decimals.
 
 For platform-specific bugs, see the sections about compiling and porting.
 
-@cindex To Do list for MySQL
+@cindex ToDo list for MySQL
 @node TODO, Porting, Bugs, Top
 @appendix MySQL and the future (The TODO)
 
 @menu
-* TODO MySQL 4.0::              Things that should be in 4.0
+* TODO MySQL 4.0::              Things that should be in Version 4.0
 * TODO future::                 Things that must done in the very near future
 * TODO sometime::               Things that have to be done sometime
 * TODO unplanned::              Some things we don't have any plans to do
@@ -43318,26 +43318,26 @@ tell us what you want to have done more quickly. @xref{Licensing and Support}.
 @node TODO MySQL 4.0, TODO future, TODO, TODO
 @appendixsec Things that should be in 4.0
 
-We plan to make @strong{MySQL} 4.0 a 'quick' release where we only add
-some new stuff to enable others to help us with developing new features
-into 4.1.  The @strong{MySQL} 4.0 version should only take us about a
-month to make after which we want to stabilize it and start working on
-4.1.  4.0 should have the following new features:
+We plan to make @strong{MySQL} Version 4.0 a 'quick' release where we only 
+add some new stuff to enable others to help us with developing new features
+into Version 4.1.  The @strong{MySQL} 4.0 version should only take us about
+a month to make after which we want to stabilize it and start working on
+Version 4.1.  Version 4.0 should have the following new features:
 
 @itemize @bullet
 @item
 New table definition file format (@code{.frm} files) This will enable us
 to not run out of bits when adding more table options.  One will still
-be able to use the old .frm file format with 4.0;  All new created tables
-will, however, use the new format.
+be able to use the old @code{.frm} file format with 4.0.  All newly created
+tables will, however, use the new format.
 
 The new file format will enable us to add new column types, more options
-for keys and @code{FOREIGN KEYS}.
+for keys and @code{FOREIGN KEY} support.
 @item
 @code{mysqld} as a library.  This will have the same interface as the
 standard MySQL client (with an extra function to just set up startup
 parameters) but will be faster (no TCP/IP or socket overhead), smaller
-and much easer to use from embedded products.
+and much easier to use for embedded products.
 
 One will be able to define at link time if one wants to use the
 client/server model or a stand-alone application just by defining which
@@ -43354,11 +43354,12 @@ master.
 @code{DELETE FROM table_name} will return the number of deleted rows. For
 fast execution one should use @code{TRUNCATE table_name}.
 @item
-Multi table deletes (cascading deletes) and multi table updates.
+Multi-table @code{DELETE} (cascading @code{DELETE} and multi-table 
+@code{DELETE}.
 @item
 Better replication.
 @item
-More functions for full text search.
+More functions for full-text search.
 @item
 Character set casts and syntax for handling multiple character sets.
 @item
@@ -43368,8 +43369,8 @@ Help for all commands from the client.
 @item
 Secure connections (with SSL).
 @item
-Extend the optimizer to be able to optimize some
-@code{ORDER BY key_name DESC} queries.
+Extend the optimizer to be able to optimize some @code{ORDER BY key_name DESC}
+queries.
 @item
 New key cache
 @end itemize
@@ -43381,13 +43382,11 @@ New key cache
 @item
 Fail safe replication.
 @item
-Subqueries. @code{select id from t where grp in (select grp from g where u > 100)}
+Subqueries. 
+@code{select id from t where grp in (select grp from g where u > 100)}
 @item
-Don't allow more than # threads to run MyISAM recover at the same time.
-@item
-@code{INSERT SQL_CONCURRENT ...};  This will force the insert to happen at the
-end of the data file if the table is in use by an select to allow
-concurrent inserts.
+Don't allow more than a defined number of threads to run MyISAM recover 
+at the same time.
 @item
 Change @code{INSERT ... SELECT} to use concurrent inserts.
 @item
@@ -43447,7 +43446,7 @@ should remove as few queries as possible from the cache.
 This should give a big speed bost on machines with much RAM where
 queries are often repeated (like WWW applications).
 One idea would be to only cache queries of type:
-@code{SELECT CACHED ....}
+@code{SELECT CACHED ...}
 @item
 Fix @file{libmysql.c} to allow two @code{mysql_query()} commands in a row
 without reading results or give a nice error message when one does this.
@@ -43456,13 +43455,13 @@ Optimize @code{BIT} type to take 1 bit (now @code{BIT} takes 1 char).
 @item
 Check why MIT-pthreads @code{ctime()} doesn't work on some FreeBSD systems.
 @item
-Add @code{ORDER BY} to update. This would be handy with functions like:
+Add @code{ORDER BY} to @code{UPDATE}. This would be handy with functions like:
 @code{generate_id(start,step)}.
 @item
 Add an @code{IMAGE} option to @code{LOAD DATA INFILE} to not update
 @code{TIMESTAMP} and @code{AUTO_INCREMENT} fields.
 @item
-Make @code{LOAD DATA INFILE} understand a syntax like:
+Make @code{LOAD DATA INFILE} understand syntax like:
 @example
 LOAD DATA INFILE 'file_name.txt' INTO TABLE tbl_name
 TEXT_FIELDS (text_field1, text_field2, text_field3)
@@ -43545,7 +43544,7 @@ Processlist should show number of queries/thread.
 @code{SHOW HOSTS} for printing information about the hostname cache.
 @item
 @code{DELETE} and @code{REPLACE} options to the @code{UPDATE} statement
-(this will delete rows when one gets a dupplicate key error while updating).
+(this will delete rows when one gets a duplicate key error while updating).
 @item
 Change the format of @code{DATETIME} to store fractions of seconds.
 @item
@@ -43566,7 +43565,7 @@ Change that @code{ALTER TABLE} doesn't abort clients that executes
 Fix that when columns referenced in an @code{UPDATE} clause contains the old
 values before the update started.
 @item
-Allow update of varibles in @code{UPDATE} statements. For example:
+Allow update of variables in @code{UPDATE} statements. For example:
 @code{UPDATE TABLE foo SET @@a=a+b,a=@@a, b=@@a+c}
 @item
 @code{myisamchk}, @code{REPAIR} and @code{OPTIMIZE TABLE} should be able
