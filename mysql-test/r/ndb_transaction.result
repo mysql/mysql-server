@@ -192,26 +192,6 @@ count(*)
 select count(*) from t4;
 count(*)
 0
-ERROR HY000: Lock wait timeout exceeded; try restarting transaction
-select count(*) from t2;
-count(*)
-0
-select count(*) from t3;
-count(*)
-0
-select count(*) from t4;
-count(*)
-0
-ERROR HY000: Lock wait timeout exceeded; try restarting transaction
-select count(*) from t2;
-count(*)
-0
-select count(*) from t3;
-count(*)
-0
-select count(*) from t4;
-count(*)
-0
 select count(*) from t2;
 count(*)
 100
