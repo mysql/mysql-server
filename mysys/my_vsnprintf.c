@@ -39,7 +39,7 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
       *to++= *fmt;			/* Copy ordinary char */
       continue;
     }
-    /* Skipp if max size is used (to be compatible with printf) */
+    /* Skip if max size is used (to be compatible with printf) */
     fmt++;
     while (isdigit(*fmt) || *fmt == '.' || *fmt == '-')
       fmt++;
@@ -48,14 +48,13 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
     if (*fmt == 's')				/* String parameter */
     {
       reg2 char	*par = va_arg(ap, char *);
-      uint plen;
+      uint plen,left_len = (uint)(end-to);
       if (!par) par = (char*)"(null)";
       plen = (uint) strlen(par);
-      if ((uint) (end-to) > plen)	/* Replace if possible */
-      {
-	to=strmov(to,par);
-	continue;
-      }
+      if (left_len <= plen)
+	plen = left_len - 1;
+      to=strmov(to,par);
+      continue;
     }
     else if (*fmt == 'd' || *fmt == 'u')	/* Integer parameter */
     {

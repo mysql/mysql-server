@@ -1762,6 +1762,7 @@ reconnect done to recover from failed read");
 from master");
 	goto err;
       }
+      flush_master_info(mi);
       // TODO: check debugging abort code
 #ifndef DBUG_OFF
       if (abort_slave_event_count && !--events_till_abort)
