@@ -106,6 +106,36 @@ select * from t3 where a not in (select b from t2);
 a
 6
 3
+select * from t3 where a = some (select b from t2);
+a
+7
+select * from t3 where a <> any (select b from t2);
+a
+6
+3
+select * from t3 where a = all (select b from t2);
+a
+7
+select * from t3 where a <> all (select b from t2);
+a
+6
+3
+insert into t2 values (100, 5);
+select * from t3 where a < any (select b from t2);
+a
+6
+3
+select * from t3 where a < all (select b from t2);
+a
+3
+select * from t3 where a >= any (select b from t2);
+a
+6
+7
+select * from t3 where a >= all (select b from t2);
+a
+7
+delete from t2 where a=100;
 select * from t3 where a in (select a,b from t2);
 Subselect returns more than 1 field
 select * from t3 where a in (select * from t2);
@@ -241,6 +271,26 @@ topic	date	pseudo
 43506	2002-10-02	joce
 SELECT * from searchconthardwarefr3 where topic IN (SELECT SUM(topic) FROM searchconthardwarefr3);
 topic	date	pseudo
+SELECT * from searchconthardwarefr3 where topic = any (SELECT topic FROM searchconthardwarefr3 GROUP BY date);
+topic	date	pseudo
+40143	2002-08-03	joce
+43506	2002-10-02	joce
+SELECT * from searchconthardwarefr3 where topic = any (SELECT topic FROM searchconthardwarefr3 GROUP BY date HAVING topic < 4100);
+topic	date	pseudo
+43506	2002-10-02	joce
+SELECT * from searchconthardwarefr3 where topic = any (SELECT SUM(topic) FROM searchconthardwarefr3);
+topic	date	pseudo
+SELECT * from searchconthardwarefr3 where topic = all (SELECT topic FROM searchconthardwarefr3 GROUP BY date);
+topic	date	pseudo
+SELECT * from searchconthardwarefr3 where topic = all (SELECT topic FROM searchconthardwarefr3 GROUP BY date HAVING topic < 4100);
+topic	date	pseudo
+40143	2002-08-03	joce
+SELECT * from searchconthardwarefr3 where topic = all (SELECT SUM(topic) FROM searchconthardwarefr3);
+topic	date	pseudo
+SELECT * from searchconthardwarefr3 where topic <> any (SELECT SUM(topic) FROM searchconthardwarefr3);
+topic	date	pseudo
+40143	2002-08-03	joce
+43506	2002-10-02	joce
 CREATE TABLE `forumconthardwarefr7` (
 `numeropost` mediumint(8) unsigned NOT NULL auto_increment,
 `maxnumrep` int(10) unsigned NOT NULL default '0',

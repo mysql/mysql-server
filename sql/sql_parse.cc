@@ -3706,3 +3706,33 @@ bool check_simple_select()
   }
   return 0;
 }
+
+compare_func_creator comp_eq_creator(bool invert)
+{
+  return invert?&Item_bool_func2::ne_creator:&Item_bool_func2::eq_creator;
+}
+
+compare_func_creator comp_ge_creator(bool invert)
+{
+  return invert?&Item_bool_func2::lt_creator:&Item_bool_func2::ge_creator;
+}
+
+compare_func_creator comp_gt_creator(bool invert)
+{
+  return invert?&Item_bool_func2::le_creator:&Item_bool_func2::gt_creator;
+}
+
+compare_func_creator comp_le_creator(bool invert)
+{
+  return invert?&Item_bool_func2::gt_creator:&Item_bool_func2::le_creator;
+}
+
+compare_func_creator comp_lt_creator(bool invert)
+{
+  return invert?&Item_bool_func2::ge_creator:&Item_bool_func2::lt_creator;
+}
+
+compare_func_creator comp_ne_creator(bool invert)
+{
+  return invert?&Item_bool_func2::eq_creator:&Item_bool_func2::ne_creator;
+}

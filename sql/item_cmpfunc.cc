@@ -24,6 +24,30 @@
 #include "mysql_priv.h"
 #include <m_ctype.h>
 
+Item_bool_func2* Item_bool_func2::eq_creator(Item *a, Item *b)
+{
+  return new Item_func_eq(a, b);
+}
+Item_bool_func2* Item_bool_func2::ne_creator(Item *a, Item *b)
+{
+  return new Item_func_ne(a, b);
+}
+Item_bool_func2* Item_bool_func2::gt_creator(Item *a, Item *b)
+{
+  return new Item_func_gt(a, b);
+}
+Item_bool_func2* Item_bool_func2::lt_creator(Item *a, Item *b)
+{
+  return new Item_func_lt(a, b);
+}
+Item_bool_func2* Item_bool_func2::ge_creator(Item *a, Item *b)
+{
+  return new Item_func_ge(a, b);
+}
+Item_bool_func2* Item_bool_func2::le_creator(Item *a, Item *b)
+{
+  return new Item_func_le(a, b);
+}
 
 /*
   Test functions
