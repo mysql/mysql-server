@@ -974,7 +974,7 @@ mysql_list_tables(MYSQL *mysql, const char *wild)
 **************************************************************************/
 
 MYSQL_RES * STDCALL
-mysql_list_fields(MYSQL *mysql, const char *table, const char *wild)
+cli_list_fields(MYSQL *mysql, const char *table, const char *wild)
 {
   MYSQL_RES *result;
   MYSQL_DATA *query;

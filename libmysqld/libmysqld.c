@@ -179,6 +179,39 @@ static void STDCALL emb_fetch_lengths(ulong *to, MYSQL_ROW column, uint field_co
     *to= *column ? *(uint *)((*column) - sizeof(uint)) : 0;
 }
 
+/**************************************************************************
+  List all fields in a table
+  If wild is given then only the fields matching wild is returned
+  Instead of this use query:
+  show fields in 'table' like "wild"
+**************************************************************************/
+
+static MYSQL_RES * STDCALL
+emb_list_fields(MYSQL *mysql, const char *table, const char *wild)
+{
+  MYSQL_RES *result;
+  MYSQL_DATA *query;
+  char	     buff[257],*end;
+  DBUG_ENTER("mysql_list_fields");
+  DBUG_PRINT("enter",("table: '%s'  wild: '%s'",table,wild ? wild : ""));
+
+  LINT_INIT(query);
+
+  end=strmake(strmake(buff, table,128)+1,wild ? wild : "",128);
+  if (simple_command(mysql,COM_FIELD_LIST,buff,(ulong) (end-buff),1))
+    DBUG_RETURN(NULL);
+
+  result= mysql->result;
+  if (!result)
+    return 0;
+  
+  result->methods= mysql->methods;
+  result->eof=1;
+
+  DBUG_RETURN(result);
+}
+
+
 
 /*
 ** Note that the mysql argument must be initialized with mysql_init()
@@ -195,7 +228,8 @@ static MYSQL_METHODS embedded_methods=
   emb_advanced_command,
   emb_mysql_store_result,
   emb_mysql_use_result,
-  emb_fetch_lengths
+  emb_fetch_lengths,
+  emb_list_fields
 };
 
 MYSQL * STDCALL

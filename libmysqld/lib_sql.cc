@@ -487,11 +487,12 @@ bool Protocol_simple::store_null()
 bool Protocol::net_store_data(const char *from, uint length)
 {
   char *field_buf;
-  if (!(field_buf=alloc_root(alloc, length + sizeof(uint))))
+  if (!(field_buf=alloc_root(alloc, length + sizeof(uint) + 1)))
     return true;
   *(uint *)field_buf= length;
   *next_field= field_buf + sizeof(uint);
   memcpy(*next_field, from, length);
+  (*next_field)[length]= 0;
   if (next_mysql_field->max_length < length)
     next_mysql_field->max_length=length;
   ++next_field;
