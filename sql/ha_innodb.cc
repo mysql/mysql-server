@@ -1074,6 +1074,8 @@ innobase_init(void)
 
   	DBUG_ENTER("innobase_init");
 
+	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
+
   	os_innodb_umask = (ulint)my_umask;
 
 	/* First calculate the default path for innodb_data_home_dir etc.,
@@ -2244,7 +2246,9 @@ innobase_mysql_cmp(
 }
 
 /******************************************************************
-Converts a MySQL type to an InnoDB type. */
+Converts a MySQL type to an InnoDB type. Note that this function returns
+the 'mtype' of InnoDB. InnoDB differentiates between MySQL's old <= 4.1
+VARCHAR and the new true VARCHAR in >= 5.0.3 by the 'prtype'. */
 inline
 ulint
 get_innobase_type_from_mysql_type(
@@ -2259,8 +2263,9 @@ get_innobase_type_from_mysql_type(
 	switch (field->type()) {
 	        /* NOTE that we only allow string types in DATA_MYSQL
 		and DATA_VARMYSQL */
-                case MYSQL_TYPE_VAR_STRING:
-                case MYSQL_TYPE_VARCHAR: if (field->binary()) {
+                case MYSQL_TYPE_VAR_STRING: /* old <= 4.1 VARCHAR */
+                case MYSQL_TYPE_VARCHAR:    /* new >= 5.0.3 true VARCHAR */
+					if (field->binary()) {
 						return(DATA_BINARY);
 					} else if (strcmp(
 						  field->charset()->name,
@@ -2314,6 +2319,35 @@ get_innobase_type_from_mysql_type(
 }
 
 /***********************************************************************
+Writes an unsigned integer value < 64k to 2 bytes, in the little-endian
+storage format. */
+inline
+void
+innobase_write_to_2_little_endian(
+/*==============================*/
+	byte*	buf,	/* in: where to store */
+	ulint	val)	/* in: value to write, must be < 64k */
+{
+	ut_a(val < 256 * 256);
+
+	buf[0] = (byte)(val & 0xFF);
+	buf[1] = (byte)(val / 256);
+}
+
+/***********************************************************************
+Reads an unsigned integer value < 64k from 2 bytes, in the little-endian
+storage format. */
+inline
+uint
+innobase_read_from_2_little_endian(
+/*===============================*/
+			/* out: value */
+	const mysql_byte*	buf)	/* in: from where to read */
+{
+	return((ulint)(buf[0]) + 256 * ((ulint)(buf[1])));
+}
+
+/***********************************************************************
 Stores a key value for a row to a buffer. */
 
 uint
@@ -2352,9 +2386,14 @@ ha_innobase::store_key_val_for_row(
 	3. In a column prefix field, prefix_len next bytes are reserved for
 	data. In a normal field the max field length next bytes are reserved
 	for data. For a VARCHAR(n) the max field length is n. If the stored
-	value is the SQL NULL then these data bytes are set to 0. */	
+	value is the SQL NULL then these data bytes are set to 0.
 
-	/* We have to zero-fill the buffer so that MySQL is able to use a
+	4. We always use a 2 byte length for a true >= 5.0.3 VARCHAR. Note that
+	in the MySQL row format, the length is stored in 1 or 2 bytes,
+	depending on the maximum allowed length. But in the MySQL key value
+	format, the length always takes 2 bytes.
+
+	We have to zero-fill the buffer so that MySQL is able to use a
 	simple memcmp to compare two key values to determine if they are
 	equal. MySQL does this to compare contents of two 'ref' values. */
 
@@ -2377,7 +2416,43 @@ ha_innobase::store_key_val_for_row(
 		field = key_part->field;
 		mysql_type = field->type();
 
-		if (mysql_type == FIELD_TYPE_TINY_BLOB
+		if (mysql_type == MYSQL_TYPE_VARCHAR) {
+						/* >= 5.0.3 true VARCHAR */
+			ulint	lenlen;
+			ulint	len;
+			byte*	data;
+
+			if (is_null) {
+				buff += key_part->length + 2;
+				
+				continue;
+			}
+
+			lenlen = (ulint)
+				(((Field_varstring*)field)->length_bytes);
+
+			data = row_mysql_read_true_varchar(&len, 
+				(byte*) (record
+				+ (ulint)get_field_offset(table, field)),
+				lenlen);
+		
+			/* The length in a key value is always stored in 2
+			bytes */
+
+			row_mysql_store_true_var_len((byte*)buff, len, 2);
+			buff += 2;
+
+			memcpy(buff, data, len);
+
+			/* Note that we always reserve the maximum possible
+			length of the true VARCHAR in the key value, though
+			only len first bytes after the 2 length bytes contain
+			actual data. The rest of the space was reset to zero
+			in the bzero() call above. */
+
+			buff += key_part->length;
+
+		} else if (mysql_type == FIELD_TYPE_TINY_BLOB
 		    || mysql_type == FIELD_TYPE_MEDIUM_BLOB
 		    || mysql_type == FIELD_TYPE_BLOB
 		    || mysql_type == FIELD_TYPE_LONG_BLOB) {
@@ -2385,9 +2460,9 @@ ha_innobase::store_key_val_for_row(
 			ut_a(key_part->key_part_flag & HA_PART_KEY_SEG);
 
 		        if (is_null) {
-				 buff += key_part->length + 2;
+				buff += key_part->length + 2;
 				 
-				 continue;
+				continue;
 			}
 		    
 		        blob_data = row_mysql_read_blob_ref(&blob_len,
@@ -2404,11 +2479,14 @@ ha_innobase::store_key_val_for_row(
 			/* MySQL reserves 2 bytes for the length and the
 			storage of the number is little-endian */
 
-			ut_a(blob_len < 256);
-			*((byte*)buff) = (byte)blob_len;
+			innobase_write_to_2_little_endian(
+					(byte*)buff, (ulint)blob_len);
 			buff += 2;
 
 			memcpy(buff, blob_data, blob_len);
+
+			/* Note that we always reserve the maximum possible
+			length of the BLOB prefix in the key value. */
 
 			buff += key_part->length;
 		} else {
@@ -2573,6 +2651,13 @@ build_template(
 
 		templ->mysql_col_len = (ulint) field->pack_length();
 		templ->type = get_innobase_type_from_mysql_type(field);
+		templ->mysql_type = (ulint)field->type();
+
+		if (templ->mysql_type == DATA_MYSQL_TRUE_VARCHAR) {
+			templ->mysql_length_bytes = (ulint)
+				    (((Field_varstring*)field)->length_bytes);
+		}
+	
 		templ->charset = dtype_get_charset_coll_noninline(
 				index->table->cols[i].type.prtype);
 		templ->mbminlen = index->table->cols[i].type.mbminlen;
@@ -2810,54 +2895,6 @@ func_exit:
   	DBUG_RETURN(error);
 }
 
-/******************************************************************
-Converts field data for storage in an InnoDB update vector. */
-inline
-mysql_byte*
-innobase_convert_and_store_changed_col(
-/*===================================*/
-				/* out: pointer to the end of the converted
-				data in the buffer */
-	upd_field_t*	ufield,	/* in/out: field in the update vector */
-	mysql_byte*	buf,	/* in: buffer we can use in conversion */
-	mysql_byte*	data,	/* in: column data to store */
-	ulint		len,	/* in: data len */
-	ulint		col_type,/* in: data type in InnoDB type numbers */
-	ulint		is_unsigned)/* in: != 0 if an unsigned integer type */
-{
-	uint	i;
-
-	if (len == UNIV_SQL_NULL) {
-		data = NULL;
-        } else if (col_type == DATA_VARCHAR || col_type == DATA_BINARY
-                   || col_type == DATA_VARMYSQL) {
-                /* Remove trailing spaces */
-                while (len > 0 && data[len - 1] == ' ') {
-                        len--;
-                }
-	} else if (col_type == DATA_INT) {
-		/* Store integer data in InnoDB in a big-endian
-		format, sign bit negated, if signed */
-
-		for (i = 0; i < len; i++) {
-			buf[len - 1 - i] = data[i];
-		}
-
-		if (!is_unsigned) {
-			buf[0] = buf[0] ^ 128;
-		}
-
-		data = buf;
-
-		buf += len;
-	}
-
-	ufield->new_val.data = data;
-	ufield->new_val.len = len;
-
-	return(buf);
-}
-
 /**************************************************************************
 Checks which fields have changed in a row and stores information
 of them to an update vector. */
@@ -2878,9 +2915,11 @@ calc_row_difference(
 {
 	mysql_byte*	original_upd_buff = upd_buff;
 	Field*		field;
+	enum_field_types field_mysql_type;
 	uint		n_fields;
 	ulint		o_len;
 	ulint		n_len;
+	ulint		col_pack_len;
 	byte*	        o_ptr;
         byte*	        n_ptr;
         byte*	        buf;
@@ -2888,6 +2927,7 @@ calc_row_difference(
 	ulint		col_type;
 	ulint		is_unsigned;
 	ulint		n_changed = 0;
+	dfield_t	dfield;
 	uint		i;
 
 	n_fields = table->s->fields;
@@ -2907,9 +2947,13 @@ calc_row_difference(
 
 		o_ptr = (byte*) old_row + get_field_offset(table, field);
 		n_ptr = (byte*) new_row + get_field_offset(table, field);
-		o_len = field->pack_length();
-		n_len = field->pack_length();
+		
+		col_pack_len = field->pack_length();
+		o_len = col_pack_len;
+		n_len = col_pack_len;
 
+		field_mysql_type = field->type();
+	
 		col_type = get_innobase_type_from_mysql_type(field);
 		is_unsigned = (ulint) (field->flags & UNSIGNED_FLAG);
 
@@ -2918,14 +2962,29 @@ calc_row_difference(
 		case DATA_BLOB:
 			o_ptr = row_mysql_read_blob_ref(&o_len, o_ptr, o_len);
 			n_ptr = row_mysql_read_blob_ref(&n_len, n_ptr, n_len);
+
 			break;
+
 		case DATA_VARCHAR:
 		case DATA_BINARY:
 		case DATA_VARMYSQL:
-			o_ptr = row_mysql_read_var_ref_noninline(&o_len,
-								o_ptr);
-			n_ptr = row_mysql_read_var_ref_noninline(&n_len,
-								n_ptr);
+			if (field_mysql_type == MYSQL_TYPE_VARCHAR) {
+				/* This is a >= 5.0.3 type true VARCHAR where
+				the real payload data length is stored in
+				1 or 2 bytes */
+			
+				o_ptr = row_mysql_read_true_varchar(
+						&o_len, o_ptr,
+				    (ulint)
+				    (((Field_varstring*)field)->length_bytes));
+								
+				n_ptr = row_mysql_read_true_varchar(
+						&n_len, n_ptr,
+				    (ulint)
+				    (((Field_varstring*)field)->length_bytes));
+			}
+
+			break;
 		default:
 			;
 		}
@@ -2947,12 +3006,29 @@ calc_row_difference(
 			/* The field has changed */
 
 			ufield = uvect->fields + n_changed;
+	
+			/* Let us use a dummy dfield to make the conversion
+			from the MySQL column format to the InnoDB format */
 
-			buf = (byte*)
-                          innobase_convert_and_store_changed_col(ufield,
-					  (mysql_byte*)buf,
-					  (mysql_byte*)n_ptr, n_len, col_type,
-						is_unsigned);
+			dfield.type = (prebuilt->table->cols + i)->type;
+
+			if (n_len != UNIV_SQL_NULL) {
+				buf = row_mysql_store_col_in_innobase_format(
+						&dfield,
+						(byte*)buf,
+						TRUE,
+						n_ptr,
+						col_pack_len,
+						prebuilt->table->comp);
+				ufield->new_val.data =
+						dfield_get_data(&dfield);
+				ufield->new_val.len =
+						dfield_get_len(&dfield);
+			} else {
+				ufield->new_val.data = NULL;
+				ufield->new_val.len = UNIV_SQL_NULL;
+			}
+
 			ufield->exp = NULL;
 			ufield->field_no =
 					(prebuilt->table->cols + i)->clust_pos;
@@ -3701,7 +3777,7 @@ ha_innobase::rnd_pos(
 	}
 
 	if (error) {
-	        DBUG_PRINT("error",("Got error: %ld",error));
+	        DBUG_PRINT("error", ("Got error: %ld", error));
 		DBUG_RETURN(error);
 	}
 
@@ -3709,10 +3785,11 @@ ha_innobase::rnd_pos(
         for the table, and it is == ref_length */
 
 	error = index_read(buf, pos, ref_length, HA_READ_KEY_EXACT);
-	if (error)
-	{
-	  DBUG_PRINT("error",("Got error: %ld",error));
+
+	if (error) {
+		DBUG_PRINT("error", ("Got error: %ld", error));
 	}
+
 	change_active_index(keynr);
 
   	DBUG_RETURN(error);
@@ -3752,12 +3829,11 @@ ha_innobase::position(
 							 ref_length, record);
 	}
 
-	/* Since we do not store len to the buffer 'ref', we must assume
-	that len is always fixed for this table. The following assertion
-	checks this. */
+	/* We assume that the 'ref' value len is always fixed for the same
+	table. */
   
 	if (len != ref_length) {
-	        fprintf(stderr,
+		fprintf(stderr,
 	 "InnoDB: Error: stored ref len is %lu, but table ref len is %lu\n",
 		  (ulong)len, (ulong)ref_length);
 	}
@@ -3788,9 +3864,11 @@ create_table_def(
 	ulint		n_cols;
   	int 		error;
   	ulint		col_type;
+	ulint		col_len;
   	ulint		nulls_allowed;
 	ulint		unsigned_type;
 	ulint		binary_type;
+	ulint		long_true_varchar;
 	ulint		charset_no;
   	ulint		i;
 
@@ -3837,17 +3915,40 @@ create_table_def(
 
 			charset_no = (ulint)field->charset()->number;
 
-			ut_a(charset_no < 256); /* in ut0type.h we assume that
-						the number fits in one byte */
+			ut_a(charset_no < 256); /* in data0type.h we assume
+						that the number fits in one
+						byte */
 		}
 
-		dict_mem_table_add_col(table, (char*) field->field_name,
-					col_type, dtype_form_prtype( 
-					(ulint)field->type()
-					| nulls_allowed | unsigned_type
-					| binary_type,
-					+ charset_no),
-					field->pack_length(), 0);
+		ut_a(field->type() < 256); /* we assume in dtype_form_prtype()
+					   that this fits in one byte */
+		col_len = field->pack_length();
+
+		/* The MySQL pack length contains 1 or 2 bytes length field
+		for a true VARCHAR. Let us subtract that, so that the InnoDB
+		column length in the InnoDB data dictionary is the real
+		maximum byte length of the actual data. */
+	
+		long_true_varchar = 0;
+
+		if (field->type() == MYSQL_TYPE_VARCHAR) {
+			col_len -= ((Field_varstring*)field)->length_bytes;
+
+			if (((Field_varstring*)field)->length_bytes == 2) {
+				long_true_varchar = DATA_LONG_TRUE_VARCHAR;
+			}
+		}
+
+		dict_mem_table_add_col(table,
+					(char*) field->field_name,
+					col_type,
+					dtype_form_prtype( 
+					    (ulint)field->type()
+					     | nulls_allowed | unsigned_type
+					     | binary_type | long_true_varchar,
+					    charset_no),
+					col_len,
+					0);
 	}
 
 	error = row_create_table_for_mysql(table, trx);
@@ -6125,54 +6226,79 @@ ha_innobase::get_auto_increment()
 	return((ulonglong) nr);
 }
 
+/***********************************************************************
+Compares two 'refs'. A 'ref' is the (internal) primary key value of the row.
+If there is no explicitly declared non-null unique key or a primary key, then
+InnoDB internally uses the row id as the primary key. */
 
 int
 ha_innobase::cmp_ref(
-	const mysql_byte *ref1,
-	const mysql_byte *ref2)
+/*=================*/
+				/* out: < 0 if ref1 < ref2, 0 if equal, else
+				> 0 */
+	const mysql_byte* ref1,	/* in: an (internal) primary key value in the
+				MySQL key value format */
+	const mysql_byte* ref2)	/* in: an (internal) primary key value in the
+				MySQL key value format */
 {
-	row_prebuilt_t*	 prebuilt = (row_prebuilt_t*) innobase_prebuilt;
+	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	enum_field_types mysql_type;
-	Field*		 field;
-	int result;
+	Field*		field;
+	KEY_PART_INFO*	key_part;
+	KEY_PART_INFO*	key_part_end;
+	uint		len1;
+	uint		len2;
+	int 		result;
 
-	if (prebuilt->clust_index_was_generated)
-		return memcmp(ref1, ref2, DATA_ROW_ID_LEN);
+	if (prebuilt->clust_index_was_generated) {
+		/* The 'ref' is an InnoDB row id */
 
-	/* Do type-aware comparison of Primary Key members. PK members
-	are always NOT NULL, so no checks for NULL are performed */
-	KEY_PART_INFO *key_part=
-			table->key_info[table->s->primary_key].key_part;
-	KEY_PART_INFO *key_part_end= 
-	  key_part + table->key_info[table->s->primary_key].key_parts;
+		return(memcmp(ref1, ref2, DATA_ROW_ID_LEN));
+	}
+
+	/* Do a type-aware comparison of primary key fields. PK fields
+	are always NOT NULL, so no checks for NULL are performed. */
+
+	key_part = table->key_info[table->s->primary_key].key_part;
+
+	key_part_end = key_part
+			+ table->key_info[table->s->primary_key].key_parts;
+
 	for (; key_part != key_part_end; ++key_part) {
 		field = key_part->field;
 		mysql_type = field->type();
+
 		if (mysql_type == FIELD_TYPE_TINY_BLOB
 		    || mysql_type == FIELD_TYPE_MEDIUM_BLOB
 		    || mysql_type == FIELD_TYPE_BLOB
 		    || mysql_type == FIELD_TYPE_LONG_BLOB) {
 		    
-			ut_a(!ref1[1]);
-			ut_a(!ref2[1]);
-			byte len1= *ref1;
-			byte len2= *ref2;
+			/* In the MySQL key value format, a column prefix of
+			a BLOB is preceded by a 2-byte length field */
+
+			len1 = innobase_read_from_2_little_endian(ref1);
+			len2 = innobase_read_from_2_little_endian(ref2);
+
 			ref1 += 2;
 			ref2 += 2;
-			result =
-			  ((Field_blob*)field)->cmp((const char*)ref1, len1,
+			result = ((Field_blob*)field)->cmp(
+						    (const char*)ref1, len1,
 			                            (const char*)ref2, len2);
 		} else {
-			result = 
-			  field->cmp((const char*)ref1, (const char*)ref2);
+			result = field->cmp((const char*)ref1,
+					    (const char*)ref2);
 		}
 
-		if (result)
-			return result;
+		if (result) {
+
+			return(result);
+		}
+
 		ref1 += key_part->length;
 		ref2 += key_part->length;
 	}
-	return 0;
+
+	return(0);
 }
 
 char*

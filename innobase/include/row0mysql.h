@@ -22,36 +22,6 @@ Created 9/17/2000 Heikki Tuuri
 typedef struct row_prebuilt_struct row_prebuilt_t;
 
 /***********************************************************************
-Stores a variable-length field (like VARCHAR) length to dest, in the
-MySQL format. */
-UNIV_INLINE
-byte*
-row_mysql_store_var_len(
-/*====================*/
-			/* out: dest + 2 */
-	byte*	dest,	/* in: where to store */
-	ulint	len);	/* in: length, must fit in two bytes */
-/***********************************************************************
-Reads a MySQL format variable-length field (like VARCHAR) length and
-returns pointer to the field data. */
-UNIV_INLINE
-byte*
-row_mysql_read_var_ref(
-/*===================*/
-			/* out: field + 2 */
-	ulint*	len,	/* out: variable-length field length */
-	byte*	field);	/* in: field */
-/***********************************************************************
-Reads a MySQL format variable-length field (like VARCHAR) length and
-returns pointer to the field data. */
-
-byte*
-row_mysql_read_var_ref_noninline(
-/*=============================*/
-			/* out: field + 2 */
-	ulint*	len,	/* out: variable-length field length */
-	byte*	field);	/* in: field */
-/***********************************************************************
 Frees the blob heap in prebuilt when no longer needed. */
 
 void
@@ -59,6 +29,30 @@ row_mysql_prebuilt_free_blob_heap(
 /*==============================*/
 	row_prebuilt_t*	prebuilt);	/* in: prebuilt struct of a
 					ha_innobase:: table handle */
+/***********************************************************************
+Stores a >= 5.0.3 format true VARCHAR length to dest, in the MySQL row
+format. */
+
+byte*
+row_mysql_store_true_var_len(
+/*=========================*/
+			/* out: pointer to the data, we skip the 1 or 2 bytes
+			at the start that are used to store the len */
+	byte*	dest,	/* in: where to store */
+	ulint	len,	/* in: length, must fit in two bytes */
+	ulint	lenlen);/* in: storage length of len: either 1 or 2 bytes */
+/***********************************************************************
+Reads a >= 5.0.3 format true VARCHAR length, in the MySQL row format, and
+returns a pointer to the data. */
+
+byte*
+row_mysql_read_true_varchar(
+/*========================*/
+			/* out: pointer to the data, we skip the 1 or 2 bytes
+			at the start that are used to store the len */
+	ulint*	len,	/* out: variable-length field length */
+	byte*	field,	/* in: field in the MySQL format */
+	ulint	lenlen);/* in: storage length of len: either 1 or 2 bytes */
 /***********************************************************************
 Stores a reference to a BLOB in the MySQL format. */
 
@@ -83,24 +77,40 @@ row_mysql_read_blob_ref(
 	ulint	col_len);	/* in: BLOB reference length (not BLOB
 				length) */
 /******************************************************************
-Stores a non-SQL-NULL field given in the MySQL format in the Innobase
-format. */
-UNIV_INLINE
-void
+Stores a non-SQL-NULL field given in the MySQL format in the InnoDB format.
+The counterpart of this function is row_sel_field_store_in_mysql_format() in
+row0sel.c. */
+
+byte*
 row_mysql_store_col_in_innobase_format(
 /*===================================*/
-	dfield_t*	dfield,		/* in/out: dfield */
-	byte*		buf,		/* in/out: buffer for the converted
-					value */
+					/* out: up to which byte we used
+					buf in the conversion */
+	dfield_t*	dfield,		/* in/out: dfield where dtype
+					information must be already set when
+					this function is called! */
+	byte*		buf,		/* in/out: buffer for a converted
+					integer value; this must be at least
+					col_len long then! */
+	ibool		row_format_col,	/* TRUE if the mysql_data is from
+					a MySQL row, FALSE if from a MySQL
+					key value;
+					in MySQL, a true VARCHAR storage
+					format differs in a row and in a
+					key value: in a key value the length
+					is always stored in 2 bytes! */
 	byte*		mysql_data,	/* in: MySQL column value, not
 					SQL NULL; NOTE that dfield may also
 					get a pointer to mysql_data,
 					therefore do not discard this as long
 					as dfield is used! */
-	ulint		col_len,	/* in: MySQL column length */
-	ulint		type,		/* in: data type */
-	bool		comp,		/* in: TRUE=compact format */
-	ulint		is_unsigned);	/* in: != 0 if unsigned integer type */
+	ulint		col_len,	/* in: MySQL column length; NOTE that
+					this is the storage length of the
+					column in the MySQL format row, not
+					necessarily the length of the actual
+					payload data; if the column is a true
+					VARCHAR then this is irrelevant */
+	ibool		comp);		/* in: TRUE = compact format */
 /********************************************************************
 Handles user errors and lock waits detected by the database engine. */
 
@@ -457,6 +467,16 @@ struct mysql_row_templ_struct {
 					zero if column cannot be NULL */
 	ulint	type;			/* column type in Innobase mtype
 					numbers DATA_CHAR... */
+	ulint	mysql_type;		/* MySQL type code; this is always
+					< 256 */
+	ulint	mysql_length_bytes;	/* if mysql_type
+					== DATA_MYSQL_TRUE_VARCHAR, this tells
+					whether we should use 1 or 2 bytes to
+					store the MySQL true VARCHAR data
+					length at the start of row in the MySQL
+					format (NOTE that the MySQL key value
+					format always uses 2 bytes for the data
+					len) */ 
 	ulint	charset;		/* MySQL charset-collation code
 					of the column, or zero */
 	ulint	mbminlen;		/* minimum length of a char, in bytes,
