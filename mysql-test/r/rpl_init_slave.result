@@ -4,20 +4,21 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+show variables like 'init_slave';
+Variable_name	Value
+init_slave	set global max_connections=500
+show variables like 'max_connections';
+Variable_name	Value
+max_connections	500
 reset master;
-create table t1(n int);
-insert into t1 values (@a), (@b);
-select * from t1;
-n
-NULL
-NULL
-select * from t1;
-n
-1
-2
+show variables like 'init_slave';
+Variable_name	Value
+init_slave	
+show variables like 'max_connections';
+Variable_name	Value
+max_connections	100
 set global init_connect="set @c=1";
 show variables like 'init_connect';
 Variable_name	Value
 init_connect	set @c=1
-drop table t1;
 stop slave;
