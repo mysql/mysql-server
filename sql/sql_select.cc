@@ -3104,7 +3104,13 @@ return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
   if (!(result->send_fields(fields,1)))
   {
     if (send_row)
+    {
+      List_iterator_fast<Item> it(fields);
+      Item *item;
+      while ((item= it++))
+	item->no_rows_in_result();
       result->send_data(fields);
+    }
     if (tables)				// Not from do_select()
     {
       /* Close open cursors */

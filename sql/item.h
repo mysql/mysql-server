@@ -89,6 +89,7 @@ public:
   virtual void set_result_field(Field *field) {}
   virtual bool is_result_field() { return 0; }
   virtual void save_in_result_field(bool no_conversions) {}
+  virtual void no_rows_in_result() {}
 };
 
 
