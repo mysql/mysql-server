@@ -396,6 +396,7 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
   HANDLE event_server_read = NULL;
   HANDLE event_client_wrote = NULL;
   HANDLE event_client_read = NULL;
+  HANDLE event_conn_closed = NULL;
   HANDLE handle_file_map = NULL;
   ulong connect_number;
   char connect_number_char[22], *p;
@@ -508,6 +509,13 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
     error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
     goto err2;
   }
+
+  strmov(suffix_pos, "CONNECTION_CLOSED");
+  if ((event_conn_closed = OpenEvent(EVENT_ALL_ACCESS,FALSE,tmp)) == NULL)
+  {
+    error_allow = CR_SHARED_MEMORY_EVENT_ERROR;
+    goto err2;
+  }
   /*
     Set event that server should send data
   */
@@ -519,7 +527,7 @@ err2:
     net->vio= vio_new_win32shared_memory(net,handle_file_map,handle_map,
 					 event_server_wrote,
                                          event_server_read,event_client_wrote,
-					 event_client_read);
+					 event_client_read,event_conn_closed);
   }
   else
   {
@@ -532,6 +540,8 @@ err2:
       CloseHandle(event_client_read);
     if (event_client_wrote)
       CloseHandle(event_client_wrote);
+    if (event_conn_closed)
+      CloseHandle(event_conn_closed);
     if (handle_map)
       UnmapViewOfFile(handle_map);
     if (handle_file_map)
