@@ -26,8 +26,8 @@
 
 /*
   Test functions
-  These returns 0LL if false and 1LL if true and null if some arg is null
-  'AND' and 'OR' never return null
+  Most of these  returns 0LL if false and 1LL if true and
+  NULL if some arg is NULL.
 */
 
 longlong Item_func_not::val_int()
@@ -1121,6 +1121,8 @@ Item_cond::fix_fields(THD *thd,TABLE_LIST *tables)
 #endif
       item= *li.ref();				// new current item
     }
+    if (abort_on_null)
+      item->top_level_item();
     if (item->fix_fields(thd,tables))
       return 1; /* purecov: inspected */
     used_tables_cache|=item->used_tables();
@@ -1196,27 +1198,40 @@ void Item_cond::print(String *str)
   str->append(')');
 }
 
+/*
+  Evalution of AND(expr, expr, expr ...)
+
+  NOTES:
+    abort_if_null is set for AND expressions for which we don't care if the
+    result is NULL or 0. This is set for:
+    - WHERE clause
+    - HAVING clause
+    - IF(expression)
+
+  RETURN VALUES
+    1  If all expressions are true
+    0  If all expressions are false or if we find a NULL expression and
+       'abort_on_null' is set.
+    NULL if all expression are either 1 or NULL
+*/
+
 
 longlong Item_cond_and::val_int()
 {
   List_iterator_fast<Item> li(list);
   Item *item;
+  null_value= 0;
   while ((item=li++))
   {
     if (item->val_int() == 0)
     {
-      /*
-	TODO: In case of NULL, ANSI would require us to continue evaluation
-	until we get a FALSE value or run out of values; This would
-	require a lot of unnecessary evaluation, which we skip for now
-      */
-      null_value=item->null_value;
-      return 0;
+      if (abort_on_null || !(null_value= item->null_value))
+	return 0;				// return FALSE
     }
   }
-  null_value=0;
-  return 1;
+  return null_value ? 0 : 1;
 }
+
 
 longlong Item_cond_or::val_int()
 {
@@ -1260,15 +1275,15 @@ longlong Item_cond_or::val_int()
 Item *and_expressions(Item *a, Item *b, Item **org_item)
 {
   if (!a)
-    return (*org_item= (Item*) b);
+    return (*org_item= b);
   if (a == *org_item)
   {
     Item_cond *res;
-    if ((res= new Item_cond_and(a, (Item*) b)))
+    if ((res= new Item_cond_and(a, b)))
       res->used_tables_cache= a->used_tables() | b->used_tables();
     return res;
   }
-  if (((Item_cond_and*) a)->add((Item*) b))
+  if (((Item_cond_and*) a)->add(b))
     return 0;
   ((Item_cond_and*) a)->used_tables_cache|= b->used_tables();
   return a;
