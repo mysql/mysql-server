@@ -45,6 +45,7 @@ TYPELIB sql_updatable_view_key_typelib=
     -1	Error
      1	Error and error message given
 */
+
 int mysql_create_view(THD *thd,
 		      enum_view_create_mode mode)
 {
@@ -356,6 +357,7 @@ static LEX_STRING view_file_type[]= {{(char*)"VIEW", 4}};
     -1	Error
      1	Error and error message given
 */
+
 static int mysql_register_view(THD *thd, TABLE_LIST *view,
 			       enum_view_create_mode mode)
 {
@@ -423,7 +425,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
 
       /*
         read revision number
-        
+
         TODO: read dependense list, too, to process cascade/restrict
         TODO: special cascade/restrict procedure for alter?
       */
@@ -501,7 +503,6 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
 my_bool
 mysql_make_view(File_parser *parser, TABLE_LIST *table)
 {
-  bool include_proc_table= 0;
   DBUG_ENTER("mysql_make_view");
 
   if (table->view)
@@ -512,7 +513,6 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     DBUG_RETURN(0);
   }
 
-  TABLE_LIST *old_next, *tbl_end, *tbl_next;
   SELECT_LEX *end;
   THD *thd= current_thd;
   LEX *old_lex= thd->lex, *lex;
@@ -599,11 +599,14 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     TABLE_LIST *top_view= (table->belong_to_view ?
                            table->belong_to_view :
                            table);
+    TABLE_LIST *view_tables= lex->query_tables;
+    TABLE_LIST *view_tables_tail= 0;
 
     if (lex->spfuns.records)
     {
       /* move SP to main LEX */
       sp_merge_funs(old_lex, lex);
+      /* open mysq.proc for functions which are not in cache */
       if (old_lex->proc_table == 0 &&
           (old_lex->proc_table=
            (TABLE_LIST*)thd->calloc(sizeof(TABLE_LIST))) != 0)
@@ -614,18 +617,20 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
         table->real_name= table->alias= (char*)"proc";
         table->real_name_length= 4;
         table->cacheable_table= 1;
-        include_proc_table= 1;
+        old_lex->add_to_query_tables(table);
       }
     }
+    /* cleanup LEX */
     if (lex->spfuns.array.buffer)
       hash_free(&lex->spfuns);
 
-    old_next= table->old_next= table->next_global;
-    if ((table->next_global= lex->query_tables))
-      table->next_global->prev_global= &table->next_global;
-
-    /* mark to avoid temporary table using and put view reference*/
-    for (TABLE_LIST *tbl= table->next_global; tbl; tbl= tbl->next_global)
+    /*
+      mark to avoid temporary table using and put view reference and find
+      last view table
+    */
+    for (TABLE_LIST *tbl= view_tables;
+         tbl;
+         tbl= (view_tables_tail= tbl)->next_global)
     {
       tbl->skip_temporary= 1;
       tbl->belong_to_view= top_view;
@@ -638,8 +643,8 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     if ((old_lex->sql_command == SQLCOM_SELECT && old_lex->describe) ||
         old_lex->sql_command == SQLCOM_SHOW_CREATE)
     {
-      if (check_table_access(thd, SELECT_ACL, table->next_global, 1) &&
-          check_table_access(thd, SHOW_VIEW_ACL, table->next_global, 1))
+      if (check_table_access(thd, SELECT_ACL, view_tables, 1) &&
+          check_table_access(thd, SHOW_VIEW_ACL, view_tables, 1))
       {
         my_error(ER_VIEW_NO_EXPLAIN, MYF(0));
         goto err;
@@ -652,6 +657,29 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     /* move SQL_CACHE to whole query */
     if (lex->select_lex.options & OPTION_TO_QUERY_CACHE)
       old_lex->select_lex.options|= OPTION_TO_QUERY_CACHE;
+
+    /*
+      Put tables of VIEW after VIEW TABLE_LIST
+
+      NOTE: It is important for UPDATE/INSERT/DELETE checks to have this
+      tables just after VIEW instead of tail of list, to be able check that
+      table is unique. Also we store old next table for the same purpose.
+    */
+    table->old_next= table->next_global;
+    if (view_tables)
+    {
+      if (table->next_global)
+      {
+        table->next_global->prev_global= &view_tables_tail->next_global;
+        view_tables_tail->next_global= table->old_next;
+      }
+      else
+      {
+        lex->query_tables_last= &view_tables_tail->next_global;
+      }
+      view_tables->prev_global= &table->next_global;
+      table->next_global= view_tables;
+    }
 
     /*
       check MERGE algorithm ability
@@ -667,31 +695,26 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     {
       /*
         TODO: support multi tables substitutions
-
-        table->next_global should be the same as
-        (TABLE_LIST *)lex->select_lex.table_list.first;
       */
-      TABLE_LIST *view_table= table->next_global;
       /* lex should contain at least one table */
-      DBUG_ASSERT(view_table != 0);
+      DBUG_ASSERT(view_tables != 0);
 
       table->effective_algorithm= VIEW_ALGORITHM_MERGE;
       DBUG_PRINT("info", ("algorithm: MERGE"));
       table->updatable= (table->updatable_view != 0);
 
-      if (old_next)
-      {
-	if ((view_table->next_global= old_next))
-          old_next->prev_global= &view_table->next_global;
-      }
-      table->ancestor= view_table;
-      // next table should include SELECT_LEX under this table SELECT_LEX
+      table->ancestor= view_tables;
+      /*
+        next table should include SELECT_LEX under this table SELECT_LEX
+
+        TODO: ehere should be loop for multi tables substitution
+      */
       table->ancestor->select_lex= table->select_lex;
       /*
         move lock type (TODO: should we issue error in case of TMPTABLE
         algorithm and non-read locking)?
       */
-      view_table->lock_type= table->lock_type;
+      view_tables->lock_type= table->lock_type;
 
       /* Store WHERE clause for postprocessing in setup_ancestor */
       table->where= lex->select_lex.where;
@@ -714,22 +737,6 @@ mysql_make_view(File_parser *parser, TABLE_LIST *table)
     lex->unit.include_down(table->select_lex);
     lex->unit.slave= &lex->select_lex; // fix include_down initialisation
 
-    if (old_next)
-    {
-      if ((tbl_end= table->next_global))
-      {
-	for (; (tbl_next= tbl_end->next_global); tbl_end= tbl_next)
-          ;
-	if ((tbl_end->next_global= old_next))
-          tbl_end->next_global->prev_global= &tbl_end->next_global;
-      }
-      else
-      {
-        /* VIEW do not contain tables */
-        table->next_global= old_next;
-      }
-    }
-
     table->derived= &lex->unit;
   }
   else
@@ -745,17 +752,6 @@ ok:
   old_lex->all_selects_list= lex->all_selects_list;
   lex->all_selects_list->link_prev=
     (st_select_lex_node**)&old_lex->all_selects_list;
-
-  if (include_proc_table)
-  {
-    TABLE_LIST *proc= old_lex->proc_table;
-    if((proc->next_global= table->next_global))
-    {
-      table->next_global->prev_global= &proc->next_global;
-    }
-    proc->prev_global= &table->next_global;
-    table->next_global= proc;
-  }
 
   thd->lex= old_lex;
   DBUG_RETURN(0);

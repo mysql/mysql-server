@@ -643,7 +643,11 @@ typedef struct st_lex
   THD *thd;
   CHARSET_INFO *charset;
   TABLE_LIST *query_tables;	/* global list of all tables in this query */
-  /* last element next_global of previous list */
+  /*
+    last element next_global of previous list (used only for list building
+    during parsing and VIEW processing. This pointer is not valid in
+    mysql_execute_command
+  */
   TABLE_LIST **query_tables_last;
   TABLE_LIST *proc_table; /* refer to mysql.proc if it was opened by VIEW */
 
@@ -765,6 +769,11 @@ typedef struct st_lex
   TABLE_LIST *unlink_first_table(bool *link_to_local);
   void link_first_table_back(TABLE_LIST *first, bool link_to_local);
   void first_lists_tables_same();
+  inline void add_to_query_tables(TABLE_LIST *table)
+  {
+    *(table->prev_global= query_tables_last)= table;
+    query_tables_last= &table->next_global;
+  }
 
   bool can_be_merged();
   bool can_use_merged();
