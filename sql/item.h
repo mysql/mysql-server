@@ -322,7 +322,7 @@ public:
   bool long_data_supplied;
   uint pos_in_query;
 
-  Item_param::Item_param(uint position)
+  Item_param(uint position)
   { 
     name= (char*) "?";
     pos_in_query= position;
