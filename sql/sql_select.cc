@@ -2641,9 +2641,6 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	       join->thd->select_limit < join->best_positions[i].records_read &&
 	       !(join->select_options & OPTION_FOUND_ROWS)))
 	  {
-	    /* Join with outer join condition */
-	    COND *orig_cond=sel->cond;
-	    sel->cond=and_conds(sel->cond,tab->on_expr);
 	    if (sel->test_quick_select(tab->keys,
 				       used_tables & ~ current_map,
 				       (join->select_options &
@@ -2651,7 +2648,6 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 					HA_POS_ERROR :
 					join->thd->select_limit)) < 0)
 	      DBUG_RETURN(1);				// Impossible range
-	    sel->cond=orig_cond;
 	    /* Fix for EXPLAIN */
 	    if (sel->quick)
 	      join->best_positions[i].records_read= sel->quick->records;
