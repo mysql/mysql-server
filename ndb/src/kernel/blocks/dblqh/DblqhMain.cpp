@@ -107,6 +107,7 @@ operator<<(NdbOut& out, Dblqh::ScanRecord::ScanType state){
 #endif
 
 //#define MARKER_TRACE 1
+//#define TRACE_SCAN_TAKEOVER 1
 
 const Uint32 NR_ScanNo = 0;
 
@@ -1001,7 +1002,7 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
   } else {
     fragptr.p->tableFragptr = fragptr.i;
   }
-  
+
   if (tempTable) {
 //--------------------------------------------
 // reqinfo bit 3-4 = 2 means temporary table
@@ -3574,6 +3575,10 @@ void Dblqh::prepareContinueAfterBlockedLab(Signal* signal)
       key.scanNumber = KeyInfo20::getScanNo(regTcPtr->tcScanInfo);
       key.fragPtrI = fragptr.i;
       c_scanTakeOverHash.find(scanptr, key);
+#ifdef TRACE_SCAN_TAKEOVER
+      if(scanptr.i == RNIL)
+	ndbout_c("not finding (%d %d)", key.scanNumber, key.fragPtrI);
+#endif
     }
     if (scanptr.i == RNIL) {
       jam();
@@ -8273,7 +8278,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
   scanptr.p->scanLocalref[1] = 0;
   scanptr.p->scanLocalFragid = 0;
   scanptr.p->scanTcWaiting = ZTRUE;
-  scanptr.p->scanNumber = ZNIL;
+  scanptr.p->scanNumber = ~0;
 
   for (Uint32 i = 0; i < scanConcurrentOperations; i++) {
     jam();
@@ -8328,6 +8333,11 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq)
 #ifdef VM_TRACE
     ScanRecordPtr tmp;
     ndbrequire(!c_scanTakeOverHash.find(tmp, * scanptr.p));
+#endif
+#ifdef TRACE_SCAN_TAKEOVER
+    ndbout_c("adding (%d %d) table: %d fragId: %d frag.i: %d tableFragptr: %d",
+	     scanptr.p->scanNumber, scanptr.p->fragPtrI,
+	     tabptr.i, scanFragReq->fragmentNo, fragptr.i, fragptr.p->tableFragptr);
 #endif
     c_scanTakeOverHash.add(scanptr);
   }
@@ -8419,6 +8429,9 @@ void Dblqh::finishScanrec(Signal* signal)
   if(scanptr.p->scanKeyinfoFlag){
     jam();
     ScanRecordPtr tmp;
+#ifdef TRACE_SCAN_TAKEOVER
+    ndbout_c("removing (%d %d)", scanptr.p->scanNumber, scanptr.p->fragPtrI);
+#endif
     c_scanTakeOverHash.remove(tmp, * scanptr.p);
     ndbrequire(tmp.p == scanptr.p);
   }
@@ -8462,6 +8475,9 @@ void Dblqh::finishScanrec(Signal* signal)
     ndbrequire(!c_scanTakeOverHash.find(tmp, * restart.p));
 #endif
     c_scanTakeOverHash.add(restart);
+#ifdef TRACE_SCAN_TAKEOVER
+    ndbout_c("adding-r (%d %d)", restart.p->scanNumber, restart.p->fragPtrI);
+#endif
   }
   
   scanptr = restart;
@@ -12036,18 +12052,18 @@ void Dblqh::writeLogfileLab(Signal* signal)
 /* WRITE.                                                                    */
 /*---------------------------------------------------------------------------*/
   switch (logFilePtr.p->fileChangeState) {
-#if 0
-  case LogFileRecord::BOTH_WRITES_ONGOING:
-    jam();
-    ndbout_c("not crashing!!");
-    // Fall-through
-#endif
   case LogFileRecord::NOT_ONGOING:
     jam();
     checkGcpCompleted(signal,
                       ((lfoPtr.p->lfoPageNo + lfoPtr.p->noPagesRw) - 1),
                       lfoPtr.p->lfoWordWritten);
     break;
+#if 0
+  case LogFileRecord::BOTH_WRITES_ONGOING:
+    jam();
+    ndbout_c("not crashing!!");
+    // Fall-through
+#endif
   case LogFileRecord::WRITE_PAGE_ZERO_ONGOING:
   case LogFileRecord::LAST_WRITE_ONGOING:
     jam();
@@ -13135,20 +13151,11 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
 
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
   if (!getFragmentrec(signal, fragId)) {
-    jam();
-    /* ----------------------------------------------------------------------
-     *  FRAGMENT WAS NOT DEFINED YET. PUT IT IN. IF NO LOCAL CHECKPOINT EXISTED
-     *  THEN THE FRAGMENT HAS ALREADY BEEN ADDED.
-     * ---------------------------------------------------------------------- */
-    if (!insertFragrec(signal, fragId)) {
-      jam();
-      startFragRefLab(signal);
-      return;
-    }//if
+    startFragRefLab(signal);
+    return;
   }//if
   tabptr.p->tableStatus = Tablerec::TABLE_DEFINED;
   
-  initFragrec(signal, tabptr.i, fragId, ZPRIMARY_NODE);
   initFragrecSr(signal);
   if (startFragReq->lcpNo == ZNIL) {
     jam();
@@ -16418,6 +16425,7 @@ void Dblqh::initFragrec(Signal* signal,
   fragptr.p->execSrNoReplicas = 0;
   fragptr.p->fragDistributionKey = 0;
   fragptr.p->activeTcCounter = 0;
+  fragptr.p->tableFragptr = RNIL;
 }//Dblqh::initFragrec()
 
 /* ========================================================================== 

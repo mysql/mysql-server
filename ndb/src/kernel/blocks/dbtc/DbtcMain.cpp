@@ -5280,8 +5280,9 @@ void Dbtc::execTCROLLBACKREQ(Signal* signal)
     signal->theData[1] = apiConnectptr.p->transid[0];
     signal->theData[2] = apiConnectptr.p->transid[1];
     signal->theData[3] = ZROLLBACKNOTALLOWED;
+    signal->theData[4] = apiConnectptr.p->apiConnectstate;
     sendSignal(apiConnectptr.p->ndbapiBlockref, GSN_TCROLLBACKREF, 
-	       signal, 4, JBB);
+	       signal, 5, JBB);
     break;
                                                  /* SEND A REFUSAL SIGNAL*/
   case CS_ABORTING:
