@@ -32,7 +32,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   List<Item> item_list;
   TABLE *table;
   int describe=(lex->select_lex.options & SELECT_DESCRIBE) ? 1 : 0;
-  int res;
+  int res, add_rows=0;
   bool found_rows_for_union= lex->select_lex.options & OPTION_FOUND_ROWS;
   TABLE_LIST result_table_list;
   TABLE_LIST *first_table=(TABLE_LIST *)lex->select_lex.table_list.first;
@@ -135,6 +135,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   union_result->tmp_table_param=&tmp_table_param;
   for (sl= &lex->select_lex; sl; sl=sl->next)
   {
+    unsigned int rows;
     lex->select=sl;
     thd->offset_limit=sl->offset_limit;
     thd->select_limit=sl->select_limit+sl->offset_limit;
@@ -142,6 +143,11 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
       thd->select_limit= HA_POS_ERROR;		// no limit
     if (thd->select_limit == HA_POS_ERROR || sl->braces)
       sl->options&= ~OPTION_FOUND_ROWS;
+    else if (found_rows_for_union)
+    {
+      rows= thd->select_limit;
+      sl->options|= OPTION_FOUND_ROWS;
+    }
 
     res=mysql_select(thd, (describe && sl->linkage==NOT_A_SELECT) ?
 		     first_table :  (TABLE_LIST*) sl->table_list.first,
@@ -155,6 +161,8 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
 		     sl->options | thd->options | SELECT_NO_UNLOCK |
 		     ((describe) ? SELECT_DESCRIBE : 0),
 		     union_result);
+    if (found_rows_for_union  && !sl->braces && sl->options & OPTION_FOUND_ROWS)
+      add_rows+= (thd->limit_found_rows > rows) ?  thd->limit_found_rows - rows : 0;
     if (res)
       goto exit;
   }
@@ -210,7 +218,11 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
 		       (ORDER*) NULL, NULL, (ORDER*) NULL,
 		       thd->options, result);
       if (found_rows_for_union && !res)
-	thd->limit_found_rows = (ulonglong)table->file->records;
+      {
+	thd->limit_found_rows= table->file->records;
+	if (!last_sl->braces)
+	  thd->limit_found_rows+= add_rows;
+      }
     }
   }
 
