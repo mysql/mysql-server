@@ -236,7 +236,7 @@ character-set=koi8u
 "Option '%s' used twice in statement",
 "User '%-.64s' has exceeded the '%s' resource (current value: %ld)",
 "Access denied. You need the %-.128s privilege for this operation",
-"Variable '%-.64s' is a LOCAL variable and can't be used with SET GLOBAL",
+"Variable '%-.64s' is a SESSION variable and can't be used with SET GLOBAL",
 "Variable '%-.64s' is a GLOBAL variable and should be set with SET GLOBAL",
 "Variable '%-.64s' doesn't have a default value",
 "Variable '%-.64s' can't be set to the value of '%-.64s'",

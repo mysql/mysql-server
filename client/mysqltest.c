@@ -128,6 +128,8 @@ static CHARSET_INFO *charset_info= &my_charset_latin1;
 static int embedded_server_arg_count=0;
 static char *embedded_server_args[MAX_SERVER_ARGS];
 
+static my_bool display_result_vertically= FALSE;
+
 static const char *embedded_server_groups[] = {
   "server",
   "embedded",
@@ -213,6 +215,8 @@ Q_REQUIRE_VERSION,
 Q_ENABLE_WARNINGS, Q_DISABLE_WARNINGS,
 Q_ENABLE_INFO, Q_DISABLE_INFO,
 Q_EXEC, Q_DELIMITER,
+Q_DISPLAY_VERTICAL_RESULTS, Q_DISPLAY_HORIZONTAL_RESULTS,
+Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL,
 
 Q_UNKNOWN,			       /* Unknown command.   */
 Q_COMMENT,			       /* Comments, ignored. */
@@ -286,6 +290,10 @@ const char *command_names[]=
   "disable_info",
   "exec",
   "delimiter",
+  "vertical_results",
+  "horizontal_results",
+  "query_vertical",
+  "query_horizontal",
   0
 };
 
@@ -2110,6 +2118,7 @@ static void append_result(DYNAMIC_STRING *ds, MYSQL_RES *res)
 {
   MYSQL_ROW row;
   uint num_fields= mysql_num_fields(res);
+  MYSQL_FIELD *fields= !display_result_vertically ? 0 : mysql_fetch_fields(res);
   unsigned long *lengths;
   while ((row = mysql_fetch_row(res)))
   {
@@ -2130,11 +2139,22 @@ static void append_result(DYNAMIC_STRING *ds, MYSQL_RES *res)
 	val= "NULL";
 	len= 4;
       }
-      if (i)
+      if (!display_result_vertically)
+      {
+	if (i)
+	  dynstr_append_mem(ds, "\t", 1);
+	replace_dynstr_append_mem(ds, val, len);
+      }
+      else
+      {
+	dynstr_append(ds, fields[i].name);
 	dynstr_append_mem(ds, "\t", 1);
-      replace_dynstr_append_mem(ds, val, len);
+	replace_dynstr_append_mem(ds, val, len);
+	dynstr_append_mem(ds, "\n", 1);
+      }
     }
-    dynstr_append_mem(ds, "\n", 1);
+    if (!display_result_vertically)
+      dynstr_append_mem(ds, "\n", 1);
   }
   free_replace_column();
 }
@@ -2276,16 +2296,19 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
     {
       if (res)
       {
-	int num_fields= mysql_num_fields(res);
-	MYSQL_FIELD *fields= mysql_fetch_fields(res);
 
-	for (i = 0; i < num_fields; i++)
+	if (!display_result_vertically)
 	{
-	  if (i)
-	    dynstr_append_mem(ds, "\t", 1);
-	  dynstr_append(ds, fields[i].name);
+	  int num_fields= mysql_num_fields(res);
+	  MYSQL_FIELD *fields= mysql_fetch_fields(res);
+	  for (i = 0; i < num_fields; i++)
+	  {
+	    if (i)
+	      dynstr_append_mem(ds, "\t", 1);
+	    dynstr_append(ds, fields[i].name);
+	  }
+	  dynstr_append_mem(ds, "\n", 1);
 	}
-	dynstr_append_mem(ds, "\n", 1);
 	append_result(ds, res);
       }
 
@@ -2557,12 +2580,37 @@ int main(int argc, char **argv)
 	strmake(delimiter, q->first_argument, sizeof(delimiter) - 1);
 	delimiter_length= strlen(delimiter);
 	break;
+      case Q_DISPLAY_VERTICAL_RESULTS: display_result_vertically= TRUE; break;
+      case Q_DISPLAY_HORIZONTAL_RESULTS: 
+	display_result_vertically= FALSE; break;
       case Q_LET: do_let(q); break;
       case Q_EVAL_RESULT: eval_result = 1; break;
       case Q_EVAL:
 	if (q->query == q->query_buf)
 	  q->query= q->first_argument;
 	/* fall through */
+      case Q_QUERY_VERTICAL:
+      case Q_QUERY_HORIZONTAL:
+      {
+	my_bool old_display_result_vertically= display_result_vertically;
+	if (!q->query[q->first_word_len])
+	{
+	  /* This happens when we use 'query_..' on it's own line */
+	  q_send_flag=1;
+	  break;
+	}
+	/* fix up query pointer if this is * first iteration for this line */
+	if (q->query == q->query_buf)
+	  q->query += q->first_word_len + 1;
+	switch(q->type)
+	{
+	case Q_QUERY_VERTICAL: display_result_vertically= TRUE; break;
+	case Q_QUERY_HORIZONTAL: display_result_vertically= FALSE; break;
+	}
+	error |= run_query(&cur_con->mysql, q, QUERY_REAP|QUERY_SEND);
+	display_result_vertically= old_display_result_vertically;
+	break;
+      }
       case Q_QUERY:
       case Q_REAP:
       {

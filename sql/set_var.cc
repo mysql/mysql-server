@@ -1401,7 +1401,7 @@ Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
     if (var_type != OPT_DEFAULT)
     {
       net_printf(thd, ER_INCORRECT_GLOBAL_LOCAL_VAR,
-		 name, var_type == OPT_GLOBAL ? "LOCAL" : "GLOBAL");
+		 name, var_type == OPT_GLOBAL ? "SESSION" : "GLOBAL");
       return 0;
     }
     /* As there was no local variable, return the global value */
