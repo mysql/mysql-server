@@ -227,6 +227,11 @@ SHOW_COMP_OPTION have_query_cache=SHOW_OPTION_NO;
 #endif
 
 bool opt_skip_slave_start = 0; // If set, slave is not autostarted
+
+/* if set, some standard measures to enforce
+   slave data intergity will not be performed
+ */
+bool opt_reckless_slave = 0; 
 static bool opt_do_pstack = 0;
 static ulong opt_specialflag=SPECIAL_ENGLISH;
 static ulong back_log,connect_timeout,concurrency;
@@ -2740,6 +2745,7 @@ enum options {
 	       OPT_RPL_RECOVERY_RANK,OPT_INIT_RPL_ROLE,
 	       OPT_RELAY_LOG, OPT_RELAY_LOG_INDEX, OPT_RELAY_LOG_INFO_FILE,
                OPT_SLAVE_SKIP_ERRORS, OPT_DES_KEY_FILE, OPT_LOCAL_INFILE,
+	       OPT_RECKLESS_SLAVE,
 	       OPT_SSL_SSL, OPT_SSL_KEY, OPT_SSL_CERT, OPT_SSL_CA,
 	       OPT_SSL_CAPATH, OPT_SSL_CIPHER
 };
@@ -2850,6 +2856,7 @@ static struct option long_options[] = {
 #endif
   {"pid-file",              required_argument, 0, (int) OPT_PID_FILE},
   {"port",                  required_argument, 0, 'P'},
+  {"reckless-slave",        no_argument,       0, (int) OPT_RECKLESS_SLAVE},
   {"replicate-do-db",       required_argument, 0, (int) OPT_REPLICATE_DO_DB},
   {"replicate-do-table",       required_argument, 0,
    (int) OPT_REPLICATE_DO_TABLE},
@@ -3937,6 +3944,10 @@ static void get_options(int argc,char **argv)
     case (int) OPT_SLOW_QUERY_LOG:
       opt_slow_log=1;
       opt_slow_logname=optarg;
+      break;
+    case (int)OPT_RECKLESS_SLAVE:
+      opt_reckless_slave = 1;
+      init_slave_skip_errors("all");
       break;
     case (int)OPT_SKIP_SLAVE_START:
       opt_skip_slave_start = 1;
