@@ -29,7 +29,14 @@
 #include <io.h>
 #endif
 
-const char *primary_key_name= "PRIMARY";
+#define tmp_disable_binlog(A)       \
+  ulong save_options= (A)->options; \
+  (A)->options&= ~OPTION_BIN_LOG;
+
+#define reenable_binlog(A)          (A)->options= save_options;
+
+//extern HASH open_cache; // leftover from the merge. to be deleted
+static const char *primary_key_name="PRIMARY";
 
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);
 static char *make_unique_key_name(const char *field_name,KEY *start,KEY *end);
@@ -1348,10 +1355,9 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 			       MYSQL_LOCK **lock)
 {
   TABLE tmp_table;		// Used during 'create_field()'
-  TABLE *table;
+  TABLE *table= 0;
   tmp_table.table_name=0;
   uint select_field_count= items->elements;
-  Disable_binlog disable_binlog(thd);
   DBUG_ENTER("create_table_from_items");
 
   /* Add selected items to field list */
@@ -1381,23 +1387,26 @@ TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     extra_fields->push_back(cr_field);
   }
   /* create and lock table */
-  /* QQ: This should be done atomic ! */
-  /* We don't log the statement, it will be logged later */
-  if (mysql_create_table(thd,db,name,create_info,*extra_fields,
-			 *keys,0,select_field_count))
-    DBUG_RETURN(0);
+  /* QQ: create and open should be done atomic ! */
   /*
+    We don't log the statement, it will be logged later.
     If this is a HEAP table, the automatic DELETE FROM which is written to the
     binlog when a HEAP table is opened for the first time since startup, must
     not be written: 1) it would be wrong (imagine we're in CREATE SELECT: we
     don't want to delete from it) 2) it would be written before the CREATE
-    TABLE, which is a wrong order. So we keep binary logging disabled.
+    TABLE, which is a wrong order. So we keep binary logging disabled when we
+    open_table().
   */
-  if (!(table=open_table(thd,db,name,name,(bool*) 0)))
+  tmp_disable_binlog(thd);
+  if (mysql_create_table(thd,db,name,create_info,*extra_fields,
+			 *keys,0,select_field_count))
   {
-    quick_rm_table(create_info->db_type,db,table_case_name(create_info,name));
-    DBUG_RETURN(0);
+    if (!(table=open_table(thd,db,name,name,(bool*) 0)))
+      quick_rm_table(create_info->db_type,db,table_case_name(create_info,name));
   }
+  reenable_binlog(thd);
+  if (!table)
+    DBUG_RETURN(0);
   table->reginfo.lock_type=TL_WRITE;
   if (!((*lock)=mysql_lock_tables(thd,&table,1)))
   {
@@ -3018,11 +3027,12 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   else
     create_info->data_file_name=create_info->index_file_name=0;
   {
-    /* We don't log the statement, it will be logged later */
-    Disable_binlog disable_binlog(thd);
-    if ((error=mysql_create_table(thd, new_db, tmp_name,
-                                  create_info,
-                                  create_list,key_list,1,0)))
+    /* We don't log the statement, it will be logged later. */
+    tmp_disable_binlog(thd);
+    error= mysql_create_table(thd, new_db, tmp_name,
+                              create_info,create_list,key_list,1,0);
+    reenable_binlog(thd);
+    if (error)
       DBUG_RETURN(error);
   }
   if (table->tmp_table)
