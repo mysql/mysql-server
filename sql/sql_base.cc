@@ -554,7 +554,7 @@ TABLE **find_temporary_table(THD *thd, const char *db, const char *table_name)
   uint	key_length= (uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
   TABLE *table,**prev;
 
-  int4store(key+key_length,thd->slave_proxy_id);
+  int4store(key+key_length,thd->variables.pseudo_thread_id);
   key_length += 4;
 
   prev= &thd->temporary_tables;
@@ -594,7 +594,7 @@ bool rename_temporary_table(THD* thd, TABLE *table, const char *db,
     (strmov((table->real_name=strmov(table->table_cache_key=key,
 				     db)+1),
 	    table_name) - table->table_cache_key)+1;
-  int4store(key+table->key_length,thd->slave_proxy_id);
+  int4store(key+table->key_length,thd->variables.pseudo_thread_id);
   table->key_length += 4;
   return 0;
 }
@@ -748,7 +748,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
   if (thd->killed)
     DBUG_RETURN(0);
   key_length= (uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
-  int4store(key + key_length, thd->slave_proxy_id);
+  int4store(key + key_length, thd->variables.pseudo_thread_id);
 
   for (table=thd->temporary_tables; table ; table=table->next)
   {
@@ -762,6 +762,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
 	DBUG_RETURN(0);
       }
       table->query_id=thd->query_id;
+      thd->lex.tmp_table_used= 1;
       goto reset;
     }
   }
@@ -1562,7 +1563,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 					 +1), table_name)
 				 - tmp_table->table_cache_key)+1;
   int4store(tmp_table->table_cache_key + tmp_table->key_length,
-	    thd->slave_proxy_id);
+	    thd->variables.pseudo_thread_id);
   tmp_table->key_length += 4;
 
   if (link_in_list)

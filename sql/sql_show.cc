@@ -841,7 +841,6 @@ int
 mysqld_show_keys(THD *thd, TABLE_LIST *table_list)
 {
   TABLE *table;
-  char buff[256];
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_show_keys");
   DBUG_PRINT("enter",("db: %s  table: %s",table_list->db,
@@ -1329,7 +1328,6 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   time_t now= time(0);
   while ((thd_info=thread_infos.get()))
   {
-    char buff[20],*end;
     protocol->prepare_for_resend();
     protocol->store((ulonglong) thd_info->thread_id);
     protocol->store(thd_info->user);

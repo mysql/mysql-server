@@ -370,6 +370,12 @@ struct system_variables
   ulong tmp_table_size;
   ulong tx_isolation;
 
+  /*
+    In slave thread we need to know in behalf of which
+    thread the query is being run to replicate temp tables properly
+  */
+  ulong pseudo_thread_id;
+
   my_bool log_warnings;
   my_bool low_priority_updates; 
 
@@ -525,11 +531,6 @@ public:
     each thread that is using LOG_INFO needs to adjust the pointer to it
   */
   LOG_INFO*  current_linfo;
-  /*
-    In slave thread we need to know in behalf of which
-    thread the query is being run to replicate temp tables properly
-  */
-  ulong	     slave_proxy_id;
   NET*       slave_net;			// network connection from slave -> m.
   my_off_t   log_pos;
   /* Used by the sys_var class to store temporary values */
