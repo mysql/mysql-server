@@ -230,23 +230,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       wrong_tables.append(String(table->real_name));
     }
   }
-  if (some_tables_deleted || tmp_table_deleted)
-  {
-    query_cache_invalidate3(thd, tables, 0);
-    if (!dont_log_query)
-    {
-      mysql_update_log.write(thd, thd->query,thd->query_length);
-      if (mysql_bin_log.is_open())
-      {
-        thd->clear_error();
-	Query_log_event qinfo(thd, thd->query, thd->query_length,
-			      tmp_table_deleted && !some_tables_deleted);
-	mysql_bin_log.write(&qinfo);
-      }
-    }
-  }
 
-  unlock_table_names(thd, tables);
   error= 0;
   if (wrong_tables.length())
   {
@@ -256,6 +240,25 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       my_error(ER_ROW_IS_REFERENCED,MYF(0));
     error= 1;
   }
+
+  if (some_tables_deleted || tmp_table_deleted)
+  {
+    query_cache_invalidate3(thd, tables, 0);
+    if (!dont_log_query)
+    {
+      mysql_update_log.write(thd, thd->query,thd->query_length);
+      if (mysql_bin_log.is_open())
+      {
+        if (!error)
+          thd->clear_error();
+	Query_log_event qinfo(thd, thd->query, thd->query_length,
+			      tmp_table_deleted && !some_tables_deleted);
+	mysql_bin_log.write(&qinfo);
+      }
+    }
+  }
+
+  unlock_table_names(thd, tables);
   DBUG_RETURN(error);
 }
 
