@@ -5590,6 +5590,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
   int error;
   bool found=0;
   COND *on_expr=join_tab->on_expr, *select_cond=join_tab->select_cond;
+  my_bool *report_error= &(join->thd->net.report_error);
 
   if (!(error=(*join_tab->read_first_record)(join_tab)))
   {
@@ -5628,9 +5629,9 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 	else
 	  info->file->unlock_row();
       }
-    } while (!(error=info->read_record(info)));
+    } while (!(error=info->read_record(info)) && !(*report_error));
   }
-  if (error > 0)				// Fatal error
+  if (error > 0 || (*report_error))				// Fatal error
     return -1;
 
   if (!found && on_expr)

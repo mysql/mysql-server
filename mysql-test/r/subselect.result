@@ -1569,3 +1569,32 @@ INSERT INTO t2 VALUES (100, 200, 'C');
 SELECT DISTINCT COLC FROM t1 WHERE COLA = (SELECT COLA FROM t2 WHERE COLB = 200 AND COLC ='C' LIMIT 1);
 COLC
 DROP TABLE t1, t2;
+create table t11 (a int NOT NULL, b int, primary key (a));
+create table t12 (a int NOT NULL, b int, primary key (a));
+create table t2 (a int NOT NULL, b int, primary key (a));
+insert into t11 values (0, 10),(1, 11),(2, 12);
+insert into t12 values (33, 10),(22, 11),(2, 12);
+insert into t2 values (1, 21),(2, 12),(3, 23);
+select * from t11;
+a	b
+0	10
+1	11
+2	12
+select * from t12;
+a	b
+33	10
+22	11
+2	12
+select * from t2;
+a	b
+1	21
+2	12
+3	23
+delete t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b > (select b from t2);
+ERROR 21000: Subquery returns more than 1 row
+select * from t2;
+a	b
+1	21
+2	12
+3	23
+drop table t11, t12, t2;
