@@ -53,7 +53,11 @@ SHLIBEXT := so
 endif
 
 ifeq ($(NDB_SCI), Y)
-CCFLAGS_TOP += -DHAVE_SCI
+CCFLAGS_TOP += -DHAVE_NDB_SCI
+endif
+
+ifeq ($(NDB_SHM), Y)
+CCFLAGS_TOP += -DHAVE_NDB_SHM
 endif
 
 ifneq ($(findstring OSE, $(NDB_OS)),)

@@ -257,8 +257,10 @@ handler(int sig){
   case SIGINT:   /*  2 - Interrupt  */
   case SIGQUIT:  /*  3 - Quit       */
   case SIGTERM:  /* 15 - Terminate  */
-#ifndef NDB_MACOSX
+#ifdef SIGPWR
   case SIGPWR:   /* 19 - Power fail */
+#endif
+#ifdef SIGPOLL
   case SIGPOLL:  /* 22              */
 #endif
   case SIGSTOP:  /* 23              */
