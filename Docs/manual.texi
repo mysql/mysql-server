@@ -49680,7 +49680,7 @@ not yet 100% confident in this code.
 @node News-3.23.51, News-3.23.50, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.51
 @itemize @bullet
-Fixed the result from @code{IF()} to be case insensitive if the second and
+Fixed the result from @code{IF()} to be case-insensitive if the second and
 third arguments are case-sensitive.
 @end itemize
 

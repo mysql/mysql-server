@@ -261,3 +261,5 @@ It's "unstable", not "instable". ;-)
 
 It's "full-text", not "fulltext".
 
+Logical NOT/OR/AND are operators, not functions, so they take operands, not arguments.
+
