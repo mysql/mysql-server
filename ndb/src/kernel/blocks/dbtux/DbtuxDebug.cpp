@@ -264,9 +264,9 @@ NdbOut&
 operator<<(NdbOut& out, const Dbtux::DescAttr& descAttr)
 {
   out << "[DescAttr " << hex << &descAttr;
+  out << " [attrDesc " << hex << descAttr.m_attrDesc;
   out << " [primaryAttrId " << dec << descAttr.m_primaryAttrId << "]";
   out << " [typeId " << dec << descAttr.m_typeId << "]";
-  out << " [nullable " << dec << descAttr.m_nullable << "]";
   out << "]";
   return out;
 }
