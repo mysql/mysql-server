@@ -132,3 +132,9 @@ insert into t1 VALUES(1,1,1), (2,2,1);
 select count(*) from t1 INNER JOIN (SELECT A.E1, A.E2, A.E3 FROM t1 AS A WHERE A.E3 = (SELECT MAX(B.E3) FROM t1 AS B WHERE A.E2 = B.E2)) AS THEMAX ON t1.E1 = THEMAX.E2 AND t1.E1 = t1.E2;
 explain select count(*) from t1 INNER JOIN (SELECT A.E1, A.E2, A.E3 FROM t1 AS A WHERE A.E3 = (SELECT MAX(B.E3) FROM t1 AS B WHERE A.E2 = B.E2)) AS THEMAX ON t1.E1 = THEMAX.E2 AND t1.E1 = t1.E2;
 drop table t1;
+
+create table t1 (a int);
+insert into t1 values (1),(2);
+select * from ( select * from t1 union select * from t1) a,(select * from t1 union select * from t1) b;
+explain select * from ( select * from t1 union select * from t1) a,(select * from t1 union select * from t1) b;
+drop table t1;
