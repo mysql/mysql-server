@@ -4191,14 +4191,18 @@ For a list of sites from which you can obtain @strong{MySQL}, see
 @ref{Getting MySQL, , Getting @strong{MySQL}}.
 
 @item
-To see which platforms are supported, see @ref{Which OS}.
+To see which platforms are supported, see @ref{Which OS}. Please note that
+not all supported system are equally good for running @strong{MySQL} on them.
+On some it is much more robust and efficient than others - see  @ref{Which OS}
+for details.
 
 @item
 Several versions of @strong{MySQL} are available in both binary and
 source distributions.  We also provide public access to our current
 source tree for those who want to see our most recent developments and
 help us test new code.  To determine which version and type of
-distribution you should use, see @ref{Many versions}.
+distribution you should use, see @ref{Which version}. When in doubt,
+use the binary distribution.
 
 @item
 Installation instructions for binary and source distributions are described
@@ -4981,7 +4985,7 @@ We use GNU Autoconf, so it is possible to port @strong{MySQL} to all modern
 systems with working Posix threads and a C++ compiler.  (To compile only the
 client code, a C++ compiler is required but not threads.)  We use and develop
 the software ourselves primarily on Sun Solaris (Versions 2.5 - 2.7) and
-RedHat Linux Version 6.x.
+SuSE Linux Version 7.x.
 
 Note that for many operating systems, the native thread support works only
 in the latest versions. @strong{MySQL} has been reported to compile
@@ -5030,6 +5034,73 @@ Tru64 Unix
 @item
 Win95, Win98, NT, and Win2000.  @xref{Windows}.
 @end itemize
+
+Note that not all platforms are suited equally well for running
+@strong{MySQL}. How well a certain platform is suited for a high-load
+mission critical @strong{MySQL} server is determined by the following
+factors:
+
+@itemize
+@item
+General stability of the thread library. A platform may have excellent
+reputation otherwise, but if the thread library is unstable in the code
+that is called by @strong{MySQL}, even if
+everything else is perfect, @strong{MySQL} will be only as stable as the
+thread library.
+@item
+The ability of the kernel and/or thread library to take advantage of
+@strong{SMP} on
+multi-processor systems. In other words, when a process creates a thread, it
+should be possible for that thread to run on a different CPU than the original
+process.
+@item
+The ability of the kernel and/or the thread library to run many threads which
+acquire/release a mutex over a short critical region frequently without
+excessive context switches. In other words, if the implementation of
+@code{pthread_mutex_lock()} is too anxious to yield CPU, this will hurt
+@strong{MySQL} tremendously. If this issue
+is not taken care of, adding extra CPUs will actually make @strong{MySQL}
+slower.
+@item
+General file system stability/performance.
+@item
+Ability of the file system to deal with large files at all and deal with them
+efficiently, if your tables are big.
+@item
+Our level of expertise here at @strong{MySQL AB} with the platform. If we know
+a platform well, we introduce platform-specific optimizations/fixes enabled at
+compile time. We can also provide advice on configuring your system optimally
+for @strong{MySQL}.
+@item
+The amount of testing of similar configurations we have done internally.
+@item
+The number of users that have successfully run @strong{MySQL} on that
+platform in similar configurations. If this number is high, the chances of
+hitting some platform-specific surprise are much smaller.
+@end itemize
+
+Based on the above criterea, the best platforms for running @strong{MySQL}
+at this point are x86 with SuSE Linux 7.1, 2.4 kernel and ReiserFS,
+and Sparc with Solaris 2.7 or 2.8. FreeBSD comes third, but we really hope it
+will join the top club once the thread library is improved. We also hope that
+at some point we will be able to include all  other platforms on which
+@strong{MySQL} compiles, runs ok, but not quite with the same level of
+stability and performance, into the top category. This will require some
+effort on our part in cooperation with the developers of the OS/library
+components @strong{MySQL} depends upon. If you are interested in making
+one of those components better, are in a position to influence their
+development, and need more detailed instructions on what @strong{MySQL} needs
+to run better, send an e-mail to @email{internals@@lists.mysql.com}.
+
+Please note that the comparison above is not to say that one OS is better or
+worse than the other in general. We are talking about choosing a particular OS
+for a dedicated purpose - running @strong{MySQL}, and compare platforms in that
+regard only. With this in mind, the result of this comparison
+would be different if we included more issues into it. And in some cases,
+the reason one OS is better than the other could simply be that we have put
+forth more effort into testing on and optimizing for that particular platform.
+We are just stating our observations to help you make a
+decision on which platform to use @strong{MySQL} on in your setup.
 
 @cindex MySQL binary distribution
 @cindex MySQL source distribution
@@ -5815,6 +5886,11 @@ To install the HP-UX tar.gz distribution, you must have a copy of GNU
 @node Installing source, Installing source tree, Installing binary, Installing
 @section Installing a MySQL Source Distribution
 
+Before you proceed with the source installation, check first to see if our
+binary is available for your platform and if it will work for you. We 
+put in a lot of effort into making sure that our binaries are built with the
+best possible options.
+
 You need the following tools to build and install @strong{MySQL} from source:
 
 @itemize @bullet
@@ -5841,6 +5917,20 @@ A good @code{make} program.  GNU @code{make} is always recommended and is
 sometimes required.  If you have problems, we recommend trying GNU
 @code{make} 3.75 or newer.
 @end itemize
+
+If you are using a recent version of @strong{gcc}, recent enough to understand
+@code{-fno-exceptions} option, it is @strong{VERY IMPORTANT} that you use
+it. Otherwise, you may compile a binary that crashes randomly. We also
+recommend that you use @code{-felide-contructors} and @code{-fno-rtti} along
+with @code{-fno-exceptions}. When in doubt, do the following:
+
+@example
+
+CFLAGS="-O3" CXX=gcc CXXFLAGS="-O3 -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static
+
+@end example
+
+On most systems this will give you a fast and stable binary.
 
 @c texi2html fails to split chapters if I use strong for all of this.
 If you run into problems, @strong{PLEASE ALWAYS USE @code{mysqlbug}} when
