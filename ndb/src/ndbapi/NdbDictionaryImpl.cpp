@@ -1546,6 +1546,11 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
       m_error.code = 743;
       return -1;
     }
+    // distribution key not supported for Char attribute
+    if (col->m_distributionKey && col->m_cs != NULL) {
+      m_error.code = 745;
+      return -1;
+    }
     // charset in upper half of precision
     if (col->getCharType()) {
       tmpAttr.AttributeExtPrecision |= (col->m_cs->number << 16);

@@ -34,7 +34,9 @@ public:
   enum ErrorCode {
     InvalidAttrInfo = 4110,
     InvalidBounds = 4259,
-    OutOfBuffers = 873
+    OutOfBuffers = 873,
+    InvalidCharFormat = 744,
+    TooMuchAttrInfo = 823
   };
   STATIC_CONST( SignalLength = 3 );
 private:
