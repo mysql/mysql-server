@@ -76,5 +76,4 @@ can to add this directory to your PATH environment
 variable in your login script. For the default shell
 "tcsh", you can do this by running this command once:
 
-echo 'setenv PATH $PATH:/usr/local/mysql/bin' >> ~/.tcshrc
-
+echo 'setenv PATH ${PATH}:/usr/local/mysql/bin' >> ~/.tcshrc
