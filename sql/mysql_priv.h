@@ -397,7 +397,7 @@ void close_temporary_tables(THD *thd);
 TABLE **find_temporary_table(THD *thd, const char *db, const char *table_name);
 bool close_temporary_table(THD *thd, const char *db, const char *table_name);
 void close_temporary(TABLE *table, bool delete_table=1);
-bool rename_temporary_table(TABLE *table, const char *new_db,
+bool rename_temporary_table(THD* thd, TABLE *table, const char *new_db,
 			    const char *table_name);
 void remove_db_from_cache(const my_string db);
 void flush_tables();
@@ -451,7 +451,8 @@ extern ulong refresh_version,flush_version, thread_id,query_id,opened_tables,
 extern ulong filesort_rows, filesort_range_count, filesort_scan_count;
 extern ulong filesort_merge_passes;
 extern ulong select_range_check_count, select_range_count, select_scan_count;
-extern ulong select_full_range_join_count,select_full_join_count;
+extern ulong select_full_range_join_count,select_full_join_count,
+			 slave_open_temp_tables;
 extern uint test_flags,select_errors,mysql_port,ha_open_options;
 extern ulong thd_startup_options, slow_launch_threads, slow_launch_time;
 extern time_t start_time;

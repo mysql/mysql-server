@@ -200,7 +200,7 @@ ulong keybuff_size,sortbuff_size,max_item_sort_length,table_cache_size,
       thread_stack_min,net_wait_timeout,what_to_log= ~ (1L << (uint) COM_TIME),
       query_buff_size, lower_case_table_names, mysqld_net_retry_count,
       net_interactive_timeout, slow_launch_time = 2L,
-      net_read_timeout,net_write_timeout;
+      net_read_timeout,net_write_timeout,slave_open_temp_tables=0;
 ulong thread_cache_size=0;
 volatile ulong cached_thread_count=0;
 
@@ -2556,6 +2556,7 @@ struct show_var_st status_vars[]= {
   {"Select_range_check",       (char*) &select_range_check_count, SHOW_LONG},
   {"Select_scan",	       (char*) &select_scan_count,	SHOW_LONG},
   {"Slave_running",            (char*) &slave_running,          SHOW_BOOL},
+  {"Slave_open_temp_tables",   (char*) &slave_open_temp_tables, SHOW_LONG},
   {"Slow_launch_threads",      (char*) &slow_launch_threads,    SHOW_LONG},
   {"Slow_queries",             (char*) &long_query_count,       SHOW_LONG},
   {"Sort_merge_passes",	       (char*) &filesort_merge_passes,  SHOW_LONG},

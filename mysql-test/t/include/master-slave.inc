@@ -1,5 +1,7 @@
 connect (master,localhost,root,,test,0,var/tmp/mysql.sock);
+connect (master1,localhost,root,,test,0,var/tmp/mysql.sock);
 connect (slave,localhost,root,,test,0,var/tmp/mysql-slave.sock);
+connect (slave1,localhost,root,,test,0,var/tmp/mysql-slave.sock);
 connection slave;
 !slave stop;
 connection master;

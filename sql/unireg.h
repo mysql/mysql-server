@@ -41,7 +41,8 @@
 
 #define ERRMAPP 1				/* Errormap f|r my_error */
 #define LIBLEN FN_REFLEN-FN_LEN			/* Max l{ngd p} dev */
-#define MAX_DBKEY_LENGTH (FN_LEN*2+2)
+#define MAX_DBKEY_LENGTH (FN_LEN*2+6)           /* extra 4 bytes for slave tmp
+						 * tables */
 #define MAX_FIELD_NAME 34			/* Max colum name length +2 */
 #define MAX_KEY 32				/* Max used keys */
 #define MAX_REF_PARTS 16			/* Max parts used as ref */

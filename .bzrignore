@@ -280,3 +280,5 @@ mysql-test/rpl000011.test
 mysql-test/var/lib/mysql-bin.007
 sql/share/norwegian/errmsg.sys
 sql/share/norwegian-ny/errmsg.sys
+mysql-test/r/3.23/rpl000001.b.result.reject
+mysql-test/r/3.23/rpl000012.result.reject

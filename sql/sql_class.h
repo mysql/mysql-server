@@ -274,6 +274,10 @@ public:
   // if we do a purge of binary logs, log index info of the threads
   // that are currently reading it needs to be adjusted. To do that
   // each thread that is using LOG_INFO needs to adjust the pointer to it
+
+  ulong slave_proxy_id; // in slave thread we need to know in behalf of which
+  // thread the query is being run to replicate temp tables properly 
+  
   THD();
   ~THD();
   bool store_globals();
