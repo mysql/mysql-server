@@ -428,7 +428,6 @@ int emb_load_querycache_result(THD *thd, Querycache_stream *src)
     *prev_row= row;
     row->data= columns;
     MYSQL_ROW col_end= columns + mysql->field_count;
-    uint len;
     for (; columns < col_end; columns++)
       src->load_column(&data->alloc, columns);
 

@@ -134,7 +134,6 @@ static mysql_byte* innobase_get_key(INNOBASE_SHARE *share,uint *length,
 			      my_bool not_used __attribute__((unused)));
 static INNOBASE_SHARE *get_share(const char *table_name);
 static void free_share(INNOBASE_SHARE *share);
-static void innobase_print_error(const char* db_errpfx, char* buffer);
 
 /* General functions */
 
@@ -1290,18 +1289,6 @@ innobase_close_connection(
 	}
 
 	return(0);
-}
-
-/**********************************************************************
-Prints an error message. */
-static
-void
-innobase_print_error(
-/*=================*/
-	const char*	db_errpfx,	/* in: error prefix text */
-	char*		buffer)		/* in: error text */
-{
-  	sql_print_error("%s:  %s", db_errpfx, buffer);
 }
 
 

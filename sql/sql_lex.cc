@@ -1389,7 +1389,7 @@ create_total_list_n_last_return(THD *thd_arg,
       }
     }
   }
-end:
+
   if (slave_list_first)
   {
     *new_table_list= slave_list_first;
