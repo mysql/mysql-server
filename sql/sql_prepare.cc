@@ -753,14 +753,21 @@ static bool mysql_test_select_fields(Prepared_statement *stmt,
       DBUG_RETURN(1);
     }
 
-    JOIN *join= new JOIN(thd, fields, select_options, result);
     thd->used_tables= 0;	// Updated by setup_fields  
-
-    if (join->prepare(&select_lex->ref_pointer_array,
-		      (TABLE_LIST*)select_lex->get_table_list(),
-                      wild_num, conds, og_num, order, group, having, proc, 
-                      select_lex, unit))
+    Statement backup;
+    /*
+      we do not want to have in statement memory all that junk,
+      which will be created by preparation => substitute memory
+      from original thread pool
+    */
+    thd->set_n_backup_item_arena(&thd->stmt_backup, &backup);
+    if ((unit->prepare(thd, result, 0)))
+    {
+      thd->restore_backup_item_arena(&backup);
       DBUG_RETURN(1);
+    }
+    thd->restore_backup_item_arena(&backup);
+   
     if (send_prep_stmt(stmt, fields.elements) ||
         thd->protocol_simple.send_fields(&fields, 0)
 #ifndef EMBEDDED_LIBRARY
@@ -768,7 +775,7 @@ static bool mysql_test_select_fields(Prepared_statement *stmt,
 #endif
        )
       DBUG_RETURN(1);
-    join->cleanup();
+    unit->cleanup();
   }
   DBUG_RETURN(0);  
 }
@@ -899,6 +906,7 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
 
   thd->stmt_backup.set_statement(thd);
   thd->set_statement(stmt);
+  thd->current_statement= stmt;
 
   if (alloc_query(thd, packet, packet_length))
     goto alloc_query_err;
@@ -929,6 +937,7 @@ bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length)
   cleanup_items(thd->free_list);
   stmt->set_statement(thd);
   thd->set_statement(&thd->stmt_backup);
+  thd->current_statement= 0;
 
   if (init_param_items(stmt))
     goto init_param_err;
@@ -947,6 +956,7 @@ alloc_query_err:
   thd->stmt_map.erase(stmt);
   DBUG_RETURN(1);
 insert_stmt_err:
+  thd->current_statement= 0;
   delete stmt;
   DBUG_RETURN(1);
 }
@@ -980,6 +990,7 @@ void mysql_stmt_execute(THD *thd, char *packet)
   stmt->query_id= thd->query_id;
   thd->stmt_backup.set_statement(thd);
   thd->set_statement(stmt);
+  thd->current_statement= stmt;
   thd->free_list= 0;
 
   /*
@@ -1009,17 +1020,21 @@ void mysql_stmt_execute(THD *thd, char *packet)
       order->item= (Item **)(order+1);
     for (order=(ORDER *)sl->order_list.first ; order ; order=order->next)
       order->item= (Item **)(order+1);
+
+    /*
+      TODO: When the new table structure is ready, then have a status bit 
+      to indicate the table is altered, and re-do the setup_* 
+      and open the tables back.
+    */
+    for (TABLE_LIST *tables= (TABLE_LIST*) sl->table_list.first;
+	 tables;
+	 tables= tables->next)
+    {
+      tables->table= 0; // safety - nasty init
+      tables->table_list= 0;
+    }
   }
 
-  /*
-    TODO: When the new table structure is ready, then have a status bit 
-    to indicate the table is altered, and re-do the setup_* 
-    and open the tables back.
-  */
-  for (TABLE_LIST *tables= (TABLE_LIST*) stmt->lex->select_lex.table_list.first;
-       tables;
-       tables= tables->next)
-    tables->table= 0; // safety - nasty init
 
 #ifndef EMBEDDED_LIBRARY
   if (stmt->param_count && setup_params_data(stmt))
@@ -1049,6 +1064,7 @@ void mysql_stmt_execute(THD *thd, char *packet)
   cleanup_items(stmt->free_list);
   free_root(&thd->mem_root, MYF(0));
   thd->set_statement(&thd->stmt_backup);
+  thd->current_statement= 0;
   DBUG_VOID_RETURN;
 }
 
