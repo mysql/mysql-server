@@ -4104,7 +4104,7 @@ Dbdict::execADD_FRAGREQ(Signal* signal) {
     req->noOfPagesToPreAllocate = 0;
     req->schemaVersion = tabPtr.p->tableVersion;
     Uint32 keyLen = tabPtr.p->tupKeyLength;
-    req->keyLength = keyLen > 8 ? 0 : keyLen; // Put this into ACC instead
+    req->keyLength = keyLen; // wl-2066 no more "long keys"
     req->nextLCP = lcpNo;
 
     req->noOfKeyAttr = tabPtr.p->noOfPrimkey;
