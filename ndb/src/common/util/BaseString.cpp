@@ -18,6 +18,10 @@
 #include <ndb_global.h>
 #include <BaseString.hpp>
 
+extern "C"
+int
+basestring_vsnprintf(char *str, size_t size, const char *format, va_list ap);
+
 BaseString::BaseString()
 {
     m_chr = new char[1];
@@ -127,14 +131,14 @@ BaseString::assfmt(const char *fmt, ...)
      * when called as vsnprintf(NULL, 0, ...).
      */
     va_start(ap, fmt);
-    l = vsnprintf(buf, sizeof(buf), fmt, ap) + 1;
+    l = basestring_vsnprintf(buf, sizeof(buf), fmt, ap) + 1;
     va_end(ap);
     if(l > (int)m_len) {
 	delete[] m_chr;
 	m_chr = new char[l];
     }
     va_start(ap, fmt);
-    vsnprintf(m_chr, l, fmt, ap);
+    basestring_vsnprintf(m_chr, l, fmt, ap);
     va_end(ap);
     m_len = strlen(m_chr);
     return *this;
@@ -152,11 +156,11 @@ BaseString::appfmt(const char *fmt, ...)
      * when called as vsnprintf(NULL, 0, ...).
      */
     va_start(ap, fmt);
-    l = vsnprintf(buf, sizeof(buf), fmt, ap) + 1;
+    l = basestring_vsnprintf(buf, sizeof(buf), fmt, ap) + 1;
     va_end(ap);
     char *tmp = new char[l];
     va_start(ap, fmt);
-    vsnprintf(tmp, l, fmt, ap);
+    basestring_vsnprintf(tmp, l, fmt, ap);
     va_end(ap);
     append(tmp);
     delete[] tmp;
@@ -333,6 +337,22 @@ BaseString::trim(char * str, const char * delim){
     }
     
     return str;
+}
+
+int
+BaseString::vsnprintf(char *str, size_t size, const char *format, va_list ap)
+{
+  return(basestring_vsnprintf(str, size, format, ap));
+}
+
+int
+BaseString::snprintf(char *str, size_t size, const char *format, ...)
+{
+  va_list ap;
+  va_start(ap, format);
+  int ret= basestring_vsnprintf(str, size, format, ap);
+  va_end(ap);
+  return(ret);
 }
 
 
