@@ -385,6 +385,7 @@ struct system_variables
   ulong table_type;
   ulong tmp_table_size;
   ulong tx_isolation;
+  /* Determines if which non-standard SQL behaviour should be enabled */
   ulong sql_mode;
   ulong default_week_format;
   ulong max_seeks_for_key;
@@ -459,7 +460,6 @@ public:
   const char *host_or_ip;
 
   ulong client_capabilities;		/* What the client supports */
-  /* Determines if which non-standard SQL behaviour should be enabled */
   ulong max_client_packet_length;
   ulong master_access;			/* Global privileges from mysql.user */
   ulong db_access;			/* Privileges for current db */
