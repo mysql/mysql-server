@@ -1029,19 +1029,18 @@ uint check_ulonglong(const char *str, uint length)
 } /* check_ulonlong */
 
 
-
 /*
-  FUNCTION: append_escaped()
- 
+  Quote special characters in a string.
+
+  SYNOPSIS
+   append_escaped(to_str, from_str)
+   to_str (in) A pointer to a String.
+   from_str (to) A pointer to an allocated string
+
   DESCRIPTION
     append_escaped() takes a String type variable, where it appends
     escaped the second argument. Only characters that require escaping
     will be escaped.
-
-  ARGUMENTS
-    A pointer to a String variable, where results will be appended
-    A pointer to a String variable, which is appended to the result
-    String, escaping those characters that require it.
 
   RETURN VALUES
     0 Success
