@@ -1197,18 +1197,18 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
   
   while (!slave_killed(thd))
   {
-      thd->proc_info = "requesting binlog dump";
+      thd->proc_info = "Requesting binlog dump";
       if(request_dump(mysql, &glob_mi))
 	{
 	  sql_print_error("Failed on request_dump()");
 	  if(slave_killed(thd))
-           goto err;
+	    {
 	      sql_print_error("Slave thread killed while requesting master \
 dump");
               goto err;
 	    }
 	  
-	  thd->proc_info = "waiting to reconnect after a failed dump request";
+	  thd->proc_info = "Waiiting to reconnect after a failed dump request";
 	  if(mysql->net.vio)
 	    vio_close(mysql->net.vio);
 	  // first time retry immediately, assuming that we can recover
@@ -1266,7 +1266,7 @@ try again, log '%s' at postion %ld", RPL_LOG_NAME,
 reconnect after a failed read");
 	        goto err;
 	      }
-	    thd->proc_info = "reconnecting after a failed read";
+	    thd->proc_info = "Reconnecting after a failed read";
 	    sql_print_error("Slave: Failed reading log event, \
 reconnecting to retry, log '%s' position %ld", RPL_LOG_NAME,
 			    last_failed_pos = glob_mi.pos);
