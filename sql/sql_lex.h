@@ -295,7 +295,6 @@ class JOIN;
 class select_union;
 class st_select_lex_unit: public st_select_lex_node {
 protected:
-  List<Item> item_list; 
   TABLE_LIST result_table_list;
   select_union *union_result;
   TABLE *table; /* temporary table using for appending UNION results */
@@ -305,9 +304,13 @@ protected:
   ulong found_rows_for_union;
   bool  prepared, // prepare phase already performed for UNION (unit)
     optimized, // optimize phase already performed for UNION (unit)
-    executed, // already executed
-    t_and_f;  // used for transferring tables_and_fields_initied UNIT:: methods 
+    executed; // already executed
+
 public:
+  // list of fields which points to temporary table for union
+  List<Item> item_list;
+  // list of types of items inside union (used for union & derived tables)
+  List<Item> types;
   /*
     Pointer to 'last' select or pointer to unit where stored
     global parameters for union
@@ -342,7 +345,7 @@ public:
   void exclude_tree();
 
   /* UNION methods */
-  int prepare(THD *thd, select_result *result, bool tables_and_fields_initied);
+  int prepare(THD *thd, select_result *result);
   int exec();
   int cleanup();
 
