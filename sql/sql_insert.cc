@@ -486,6 +486,7 @@ int write_record(TABLE *table,COPY_INFO *info)
 {
   int error;
   char *key=0;
+  DBUG_ENTER("write_record");
 
   info->records++;
   if (info->handle_duplicates == DUP_REPLACE ||
@@ -593,14 +594,14 @@ int write_record(TABLE *table,COPY_INFO *info)
     info->copied++;
   if (key)
     my_safe_afree(key,table->max_unique_length,MAX_KEY_LENGTH);
-  return 0;
+  DBUG_RETURN(0);
 
 err:
   if (key)
     my_afree(key);
   info->last_errno= error;
   table->file->print_error(error,MYF(0));
-  return 1;
+  DBUG_RETURN(1);
 }
 
 
@@ -1468,24 +1469,25 @@ select_insert::~select_insert()
 
 bool select_insert::send_data(List<Item> &values)
 {
+  DBUG_ENTER("select_insert::send_data");
   if (unit->offset_limit_cnt)
   {						// using limit offset,count
     unit->offset_limit_cnt--;
-    return 0;
+    DBUG_RETURN(0);
   }
   if (fields->elements)
     fill_record(*fields, values, 1);
   else
     fill_record(table->field, values, 1);
   if (thd->net.report_error || write_record(table,&info))
-    return 1;
+    DBUG_RETURN(1);
   if (table->next_number_field)		// Clear for next record
   {
     table->next_number_field->reset();
     if (! last_insert_id && thd->insert_id_used)
       last_insert_id=thd->insert_id();
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 

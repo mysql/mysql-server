@@ -1112,6 +1112,7 @@ NetWare. */
 	}
 
 	mutex_create(&srv_monitor_file_mutex);
+	mutex_set_level(&srv_monitor_file_mutex, SYNC_NO_ORDER_CHECK);
 	srv_monitor_file_name = mem_alloc(
 			strlen(fil_path_to_mysql_datadir) +
 			20 + sizeof "/innodb_status.");

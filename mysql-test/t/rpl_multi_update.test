@@ -2,7 +2,7 @@ source include/master-slave.inc;
 
 CREATE TABLE t1 (
  a int unsigned not null auto_increment primary key,
- b int unsigned,
+ b int unsigned
 ) ENGINE=MyISAM;
 
 CREATE TABLE t2 (

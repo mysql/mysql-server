@@ -603,7 +603,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %type <simple_string>
 	remember_name remember_end opt_ident opt_db text_or_password
-	opt_escape opt_constraint
+	opt_escape opt_constraint constraint
 
 %type <string>
 	text_string opt_gconcat_separator
@@ -1176,7 +1176,7 @@ field_list_item:
          ;
 
 column_def:
-	  field_spec check_constraint
+	  field_spec opt_check_constraint
 	| field_spec references
 	  {
 	    Lex->col_list.empty();		/* Alloced by sql_alloc */
@@ -1208,20 +1208,33 @@ key_def:
 				    lex->fk_match_option));
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
+	| constraint opt_check_constraint
+	  {
+	    Lex->col_list.empty();		/* Alloced by sql_alloc */
+	  }
 	| opt_constraint check_constraint
 	  {
 	    Lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
 	;
 
-check_constraint:
+opt_check_constraint:
 	/* empty */
-	| CHECK_SYM expr
+	| check_constraint
+	;
+
+check_constraint:
+	CHECK_SYM expr
 	;
 
 opt_constraint:
 	/* empty */		{ $$=(char*) 0; }
-	| CONSTRAINT opt_ident	{ $$=$2; };
+	| constraint		{ $$= $1; }
+	;
+
+constraint:
+	CONSTRAINT opt_ident	{ $$=$2; }
+	;
 
 field_spec:
 	field_ident

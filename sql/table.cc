@@ -1140,6 +1140,11 @@ File create_frm(register my_string name, uint reclength, uchar *fileinfo,
   if (create_info->min_rows > ~(ulong) 0)
     create_info->min_rows= ~(ulong) 0;
 #endif
+  /*
+    Ensure that raid_chunks can't be larger than 255, as this would cause
+    problems with drop database
+  */
+  set_if_smaller(create_info->raid_chunks, 255);
 
   if ((file=my_create(name,CREATE_MODE,O_RDWR | O_TRUNC,MYF(MY_WME))) >= 0)
   {

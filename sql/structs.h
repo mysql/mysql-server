@@ -150,7 +150,8 @@ typedef struct st_time {
 
 
 typedef struct {
-  long year,month,day,hour,minute,second,second_part;
+  ulong year,month,day,hour;
+  ulonglong minute,second,second_part;
   bool neg;
 } INTERVAL;
 
