@@ -297,8 +297,8 @@ srv_conc_slot_t* srv_conc_slots;			/* array of wait
 
 /* Number of times a thread is allowed to enter InnoDB within the same
 SQL query after it has once got the ticket at srv_conc_enter_innodb */
-#define SRV_FREE_TICKETS_TO_ENTER	500
-
+#define SRV_FREE_TICKETS_TO_ENTER srv_n_free_tickets_to_enter
+#define SRV_THREAD_SLEEP_DELAY srv_thread_sleep_delay
 /*-----------------------*/
 /* If the following is set TRUE then we do not run purge and insert buffer
 merge to completion before shutdown */
@@ -328,6 +328,8 @@ ulint	srv_max_purge_lag		= 0;
 
 /*-------------------------------------------*/
 ulint	srv_n_spin_wait_rounds	= 20;
+ulint srv_n_free_tickets_to_enter = 500;
+ulint srv_thread_sleep_delay = 10000;
 ulint	srv_spin_wait_delay	= 5;
 ibool	srv_priority_boost	= TRUE;
 
@@ -1025,8 +1027,8 @@ retry:
 		return;
 	}
 
-	/* If the transaction is not holding resources, let it sleep for 50
-	milliseconds, and try again then */
+	/* If the transaction is not holding resources, 
+  let it sleep for SRV_THREAD_SLEEP_DELAY microseconds, and try again then */
  
 	if (!has_slept && !trx->has_search_latch
 	    && NULL == UT_LIST_GET_FIRST(trx->trx_locks)) {
@@ -1045,8 +1047,10 @@ retry:
 		situations of lots of thread switches. Simply put some
 		threads aside for a while to reduce the number of thread
 		switches. */
-
-		os_thread_sleep(10000);
+    if (SRV_THREAD_SLEEP_DELAY > 0)
+    {
+      os_thread_sleep(SRV_THREAD_SLEEP_DELAY);
+    }
 
 		trx->op_info = "";
 
