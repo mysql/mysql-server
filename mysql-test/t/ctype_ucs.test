@@ -327,6 +327,7 @@ execute stmt1 using @ivar;
 #
 # Check correct binlogging of UCS2 user variables (BUG#3875)
 #
+SET TIMESTAMP=10000;
 create table t2 (c char(30)) charset=ucs2;
 set @v=convert('abc' using ucs2);
 reset master;
