@@ -199,7 +199,7 @@ int load_defaults(const char *conf_file, const char **groups,
       }
       else if (defaults_extra_file)
       {
-        for (ext= (char**) f_extensions; ext; ext++)
+        for (ext= (char**) f_extensions; *ext; *ext++)
 	  if (search_default_file(&args, &alloc, NullS, defaults_extra_file,
 				  *ext, &group) < 0)
 	    goto err;				/* Fatal error */
