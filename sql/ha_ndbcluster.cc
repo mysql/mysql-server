@@ -403,7 +403,7 @@ int ha_ndbcluster::build_index_list()
   DBUG_ENTER("build_index_list");
   
   // Save information about all known indexes
-  for (uint i= 0; i < table->keys; i++)
+  for (i= 0; i < table->keys; i++)
   {
     NDB_INDEX_TYPE idx_type= get_index_type_from_table(i);
     m_indextype[i]= idx_type;
