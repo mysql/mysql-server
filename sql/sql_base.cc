@@ -160,7 +160,7 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *wild)
     if (table)
       continue;
     if (!(*start_list = (OPEN_TABLE_LIST *)
-	  sql_alloc(sizeof(*start_list)+entry->key_length)))
+	  sql_alloc(sizeof(**start_list)+entry->key_length)))
     {
       open_list=0;				// Out of memory
       break;
@@ -587,7 +587,7 @@ bool close_temporary_table(THD *thd, const char *db, const char *table_name)
   table= *prev;
   *prev= table->next;
   close_temporary(table);
-  if(thd->slave_thread)
+  if (thd->slave_thread)
     --slave_open_temp_tables;
   return 0;
 }

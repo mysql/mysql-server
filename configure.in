@@ -2254,7 +2254,8 @@ AC_SUBST(server_scripts)
 # Some usefull subst
 AC_SUBST(CC)
 AC_SUBST(GXX)
-AC_SUBST(TOOLS_LIBS)
+#Remove TOOLS_LIBS, because this is included in LIBRARIES
+#AC_SUBST(TOOLS_LIBS)
 
 # Output results
 AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile \
