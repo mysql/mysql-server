@@ -143,3 +143,39 @@ drop table t1;
 create table t1 (f float(54));
 ERROR 42000: Incorrect column specifier for column 'f'
 drop table if exists t1;
+create table t1 (f float(4,3));
+insert into t1 values (-11.0),(-11),("-11"),(11.0),(11),("11");
+Warnings:
+Warning	1264	Data truncated; out of range for column 'f' at row 1
+Warning	1264	Data truncated; out of range for column 'f' at row 2
+Warning	1264	Data truncated; out of range for column 'f' at row 3
+Warning	1264	Data truncated; out of range for column 'f' at row 4
+Warning	1264	Data truncated; out of range for column 'f' at row 5
+Warning	1264	Data truncated; out of range for column 'f' at row 6
+select * from t1;
+f
+-9.999
+-9.999
+-9.999
+9.999
+9.999
+9.999
+drop table if exists t1;
+create table t1 (f double(4,3));
+insert into t1 values (-11.0),(-11),("-11"),(11.0),(11),("11");
+Warnings:
+Warning	1264	Data truncated; out of range for column 'f' at row 1
+Warning	1264	Data truncated; out of range for column 'f' at row 2
+Warning	1264	Data truncated; out of range for column 'f' at row 3
+Warning	1264	Data truncated; out of range for column 'f' at row 4
+Warning	1264	Data truncated; out of range for column 'f' at row 5
+Warning	1264	Data truncated; out of range for column 'f' at row 6
+select * from t1;
+f
+-9.999
+-9.999
+-9.999
+9.999
+9.999
+9.999
+drop table if exists t1;
