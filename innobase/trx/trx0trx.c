@@ -24,6 +24,12 @@ Created 3/26/1996 Heikki Tuuri
 #include "thr0loc.h"
 #include "btr0sea.h"
 
+
+/* Copy of the prototype for innobase_mysql_print_thd: this
+   copy must be equal to the one in mysql/sql/ha_innobase.cc ! */
+void innobase_mysql_print_thd(void* thd);
+
+
 /* Dummy session used currently in MySQL interface */
 sess_t*		trx_dummy_sess = NULL;
 
@@ -58,10 +64,14 @@ trx_create(
 
 	trx = mem_alloc(sizeof(trx_t));
 
+	trx->op_info = "";
+	
 	trx->type = TRX_USER;
 	trx->conc_state = TRX_NOT_STARTED;
 
 	trx->dict_operation = FALSE;
+
+	trx->mysql_thd = NULL;
 
 	trx->n_mysql_tables_in_use = 0;
 	trx->mysql_n_tables_locked = 0;
@@ -129,6 +139,8 @@ trx_allocate_for_mysql(void)
 
 	trx_n_mysql_transactions++;
 	
+	UT_LIST_ADD_FIRST(mysql_trx_list, trx_sys->mysql_trx_list, trx);
+	
 	mutex_exit(&kernel_mutex);
 
 	trx->mysql_thread_id = os_thread_get_curr_id();
@@ -144,11 +156,11 @@ trx_search_latch_release_if_reserved(
 /*=================================*/
         trx_t*     trx) /* in: transaction */
 {
-  if (trx->has_search_latch) {
-    rw_lock_s_unlock(&btr_search_latch);
+  	if (trx->has_search_latch) {
+    		rw_lock_s_unlock(&btr_search_latch);
 
-    trx->has_search_latch = FALSE;
-  }
+    		trx->has_search_latch = FALSE;
+  	}
 }
 
 /************************************************************************
@@ -209,6 +221,8 @@ trx_free_for_mysql(
 
 	mutex_enter(&kernel_mutex);
 	
+	UT_LIST_REMOVE(mysql_trx_list, trx_sys->mysql_trx_list, trx);
+
 	trx_free(trx);
 
 	ut_a(trx_n_mysql_transactions > 0);
@@ -641,7 +655,7 @@ shortcut:
 	ut_ad(UT_LIST_GET_LEN(trx->wait_thrs) == 0);
 	ut_ad(UT_LIST_GET_LEN(trx->trx_locks) == 0);
 
-	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);	
+	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
 }
 
 /************************************************************************
@@ -1268,6 +1282,8 @@ trx_commit_for_mysql(
 	sig to the transaction, we must here make sure that trx has been
 	started. */
 
+	trx->op_info = "committing";
+	
 	trx_start_if_not_started(trx);
 
 	mutex_enter(&kernel_mutex);
@@ -1276,6 +1292,8 @@ trx_commit_for_mysql(
 
 	mutex_exit(&kernel_mutex);
 
+	trx->op_info = "";
+	
 	return(0);
 }
 
@@ -1294,4 +1312,79 @@ trx_mark_sql_stat_end(
 	trx->last_sql_stat_start.least_undo_no = trx->undo_no;
 
 	mutex_exit(&kernel_mutex);
+}
+
+/**************************************************************************
+Marks the latest SQL statement ended but does not start a new transaction
+if the trx is not started. */
+
+void
+trx_mark_sql_stat_end_do_not_start_new(
+/*===================================*/
+	trx_t*	trx)	/* in: trx handle */
+{
+	mutex_enter(&kernel_mutex);
+
+	trx->last_sql_stat_start.least_undo_no = trx->undo_no;
+
+	mutex_exit(&kernel_mutex);
+}
+
+/**************************************************************************
+Prints info about a transaction to the standard output. The caller must
+own the kernel mutex. */
+
+void
+trx_print(
+/*======*/
+	trx_t*	trx)	/* in: transaction */
+{
+  	printf("TRANSACTION %lu %lu, OS thread id %lu",
+		ut_dulint_get_high(trx->id),
+	 	ut_dulint_get_low(trx->id),
+	 	(ulint)trx->mysql_thread_id);
+
+	if (ut_strlen(trx->op_info) > 0) {
+		printf(" %s", trx->op_info);
+	}
+	
+  	if (trx->type != TRX_USER) {
+    		printf(" purge trx");
+  	}
+  	
+  	switch (trx->conc_state) {
+  		case TRX_NOT_STARTED:         printf(", not started"); break;
+  		case TRX_ACTIVE:              printf(", active"); break;
+  		case TRX_COMMITTED_IN_MEMORY: printf(", committed in memory");
+									break;
+  		default: printf(" state %lu", trx->conc_state);
+  	}
+
+  	switch (trx->que_state) {
+  		case TRX_QUE_RUNNING:         printf(", runs or sleeps"); break;
+  		case TRX_QUE_LOCK_WAIT:       printf(", lock wait"); break;
+  		case TRX_QUE_ROLLING_BACK:    printf(", rolling back"); break;
+  		case TRX_QUE_COMMITTING:      printf(", committing"); break;
+  		default: printf(" que state %lu", trx->que_state);
+  	}
+
+  	if (0 < UT_LIST_GET_LEN(trx->trx_locks)) {
+  		printf(", has %lu lock struct(s)",
+				UT_LIST_GET_LEN(trx->trx_locks));
+	}
+
+  	if (trx->has_search_latch) {
+  		printf(", holds adaptive hash latch");
+  	}
+
+	if (ut_dulint_cmp(trx->undo_no, ut_dulint_zero) != 0) {
+		printf(", undo log entries %lu",
+			ut_dulint_get_low(trx->undo_no));
+	}
+	
+  	printf("\n");
+
+  	if (trx->mysql_thd != NULL) {
+    		innobase_mysql_print_thd(trx->mysql_thd);
+  	}  
 }

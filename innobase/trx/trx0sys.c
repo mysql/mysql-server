@@ -510,7 +510,8 @@ trx_sys_init_at_db_start(void)
 						MLOG_8BYTES, &mtr),
 					TRX_SYS_TRX_ID_WRITE_MARGIN),
 				2 * TRX_SYS_TRX_ID_WRITE_MARGIN);
-				
+
+	UT_LIST_INIT(trx_sys->mysql_trx_list);				
 	trx_lists_init_at_db_start();
 
 	if (UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {

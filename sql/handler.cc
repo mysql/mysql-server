@@ -286,6 +286,7 @@ int ha_commit_trans(THD *thd, THD_TRANS* trans)
 	my_error(ER_ERROR_DURING_COMMIT, MYF(0), error);
 	error=1;
       }
+      trans->innodb_active_trans=0;
     }
 #endif
 #ifdef HAVE_GEMINI_DB 
@@ -337,6 +338,7 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
 	my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), error);
 	error=1;
       }
+      trans->innodb_active_trans=0;
     }
 #endif
 #ifdef HAVE_GEMINI_DB

@@ -1,0 +1,23 @@
+
+2001/06/12
+	- fixed support for > 2GB file size, needs also DosOpenL
+	- mixed 64bit/32bit file size support, dinamic loading of
+	  64bit API.
+
+2001/06/03
+	- added support for > 2GB file size
+
+2001/06/02
+	- fixed file locking code
+
+2001/05/29
+	- 3.23.38 build
+
+2001/05/20
+	- rint fix
+	- isam O_RDONLY table handled fix
+
+2001/05/19
+	- new TLS code, fixed parser crashes and many other problems.
+	- fixed pthread_cond_timedwait, now handle manager expires
+

@@ -840,32 +840,31 @@ row_upd_sec_index_entry(
 	rec = btr_cur_get_rec(btr_cur);
 
 	if (!found) {
+	  	err_buf = mem_alloc(1000);
+	  	dtuple_sprintf(err_buf, 900, entry);
 
-	  err_buf = mem_alloc(1000);
-	  dtuple_sprintf(err_buf, 900, entry);
+	  	fprintf(stderr, "InnoDB: error in sec index entry update in\n"
+		  	"InnoDB: index %s table %s\n", index->name,
+		  	index->table->name);
+	  	fprintf(stderr, "InnoDB: tuple %s\n", err_buf);
 
-	  fprintf(stderr, "InnoDB: error in sec index entry update in\n"
-		  "InnoDB: index %s table %s\n", index->name,
-		  index->table->name);
-	  fprintf(stderr, "InnoDB: tuple %s\n", err_buf);
+	  	rec_sprintf(err_buf, 900, rec);
+	  	fprintf(stderr, "InnoDB: record %s\n", err_buf);
 
-	  rec_sprintf(err_buf, 900, rec);
-	  fprintf(stderr, "InnoDB: record %s\n", err_buf);
+	  	fprintf(stderr,
+			"InnoDB: Make a detailed bug report and send it\n");
+	  	fprintf(stderr, "InnoDB: to mysql@lists.mysql.com\n");
 
-	  fprintf(stderr, "InnoDB: Make a detailed bug report and send it\n");
-	  fprintf(stderr, "InnoDB: to mysql@lists.mysql.com\n");
-
-	  mem_free(err_buf);
+	  	mem_free(err_buf);
 	} else {
+ 	  	/* Delete mark the old index record; it can already be
+          	delete marked if we return after a lock wait in
+          	row_ins_index_entry below */
 
- 	  /* Delete mark the old index record; it can already be
-          delete marked if we return after a lock wait in
-          row_ins_index_entry below */
-
-	  if (!rec_get_deleted_flag(rec)) {
-		err = btr_cur_del_mark_set_sec_rec(0, btr_cur, TRUE, thr,
-									&mtr);
-	  }
+	  	if (!rec_get_deleted_flag(rec)) {
+			err = btr_cur_del_mark_set_sec_rec(0, btr_cur, TRUE,
+								thr, &mtr);
+	  	}
 	}
 
 	btr_pcur_close(&pcur);
@@ -907,7 +906,7 @@ row_upd_sec_step(
 				|| (node->state == UPD_NODE_UPDATE_SOME_SEC));
 	ut_ad(!(node->index->type & DICT_CLUSTERED));
 	
-	if ((node->state == UPD_NODE_UPDATE_ALL_SEC)
+	if (node->state == UPD_NODE_UPDATE_ALL_SEC
 			|| row_upd_changes_ord_field(node->row, node->index,
 							node->update)) {
 		err = row_upd_sec_index_entry(node, thr);
@@ -933,15 +932,13 @@ row_upd_clust_rec_by_insert(
 	dict_index_t*	index,	/* in: clustered index of the record */
 	que_thr_t*	thr,	/* in: query thread */
 	mtr_t*		mtr)	/* in: mtr; gets committed here */
-{	
+{
+	mem_heap_t*	heap;
 	btr_pcur_t*	pcur;
 	btr_cur_t*	btr_cur;
 	trx_t*		trx;
 	dict_table_t*	table;
-	mem_heap_t*	heap;
 	dtuple_t*	entry;
-	ulint*		ext_vec;
-	ulint		n_ext_vec;
 	ulint		err;
 	
 	ut_ad(node);
@@ -961,17 +958,20 @@ row_upd_clust_rec_by_insert(
 
 			return(err);
 		}
+		/* Mark as not-owned the externally stored fields which the new
+		row inherits from the delete marked record: purge should not
+		free those externally stored fields even if the delete marked
+		record is removed from the index tree, or updated. */
+
+		btr_cur_mark_extern_inherited_fields(btr_cur_get_rec(btr_cur),
+							node->update, mtr);
 	} 
 
 	mtr_commit(mtr);
 
 	node->state = UPD_NODE_INSERT_CLUSTERED;
 
-	heap = mem_heap_create(1024);
-
-	ext_vec = mem_heap_alloc(heap,
-			sizeof(ulint) * dtuple_get_n_fields(node->row));
-	n_ext_vec = 0;
+	heap = mem_heap_create(500);
 	
 	entry = row_build_index_entry(node->row, index, heap);
 
@@ -979,10 +979,23 @@ row_upd_clust_rec_by_insert(
 	
 	row_upd_index_entry_sys_field(entry, index, DATA_TRX_ID, trx->id);
 	
+	/* If we return from a lock wait, for example, we may have
+	extern fields marked as not-owned in entry (marked if the
+	if-branch above). We must unmark them. */
+	
+	btr_cur_unmark_dtuple_extern_fields(entry, node->ext_vec,
+							node->n_ext_vec);
+	/* We must mark non-updated extern fields in entry as inherited,
+	so that a possible rollback will not free them */
+	
+	btr_cur_mark_dtuple_inherited_extern(entry, node->ext_vec,
+						node->n_ext_vec,
+						node->update);
+	
 	err = row_ins_index_entry(index, entry, node->ext_vec,
 						node->n_ext_vec, thr);
-	mem_heap_free(heap);	
-
+	mem_heap_free(heap);
+	
 	return(err);
 }
 

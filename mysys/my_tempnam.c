@@ -26,7 +26,7 @@
 #endif
 
 #ifdef HAVE_TEMPNAM
-#ifndef MSDOS
+#if !defined( MSDOS) && !defined(OS2)
 extern char **environ;
 #endif
 #endif
@@ -91,14 +91,23 @@ my_string my_tempnam(const char *dir, const char *pfx,
     temp[1]= 0;
     dir=temp;
   }
-  old_env=environ;
+#ifdef OS2
+  // changing environ variable doesn't work with VACPP
+  char  buffer[256];
+  sprintf( buffer, "TMP=%s", dir);
+  putenv( buffer);
+#else
+  old_env=(char**)environ;
   if (dir)
   {				/* Don't use TMPDIR if dir is given */
-    environ=temp_env;
+    environ=(const char**)temp_env;
     temp_env[0]=0;
   }
+#endif
   res=tempnam((char*) dir,(my_string) pfx); /* Use stand. dir with prefix */
-  environ=old_env;
+#ifndef OS2
+  environ=(const char**)old_env;
+#endif
   if (!res)
     DBUG_PRINT("error",("Got error: %d from tempnam",errno));
   return res;

@@ -19,6 +19,46 @@
 #include "mysys_err.h"
 #include <errno.h>
 
+#ifdef OS2
+
+int      _write64( int fd, const void *buffer, unsigned int count)
+{
+   APIRET   rc;
+   ULONG    actual;
+
+   rc = DosWrite( fd, (PVOID) buffer, count, &actual);
+
+   switch (rc) {
+   case 0:  /* NO_ERROR */
+      errno = 0;
+      return( actual);
+      break;
+   case ERROR_INVALID_FUNCTION:
+      errno = EPERM;
+      break;
+   case ERROR_ACCESS_DENIED:
+      errno = EACCESS;
+      break;
+   case ERROR_INVALID_HANDLE:
+      errno = EBADF;
+      break;
+   case ERROR_DISK_FULL:
+      errno = ENOSPC;
+      break;
+   default:
+      errno = EINVAL;
+      break;
+   }
+   // write failed
+   return(-1);
+}
+
+// redirect call
+#define write _write64
+
+#endif // OS2
+
+
 	/* Write a chunk of bytes to a file */
 
 uint my_write(int Filedes, const byte *Buffer, uint Count, myf MyFlags)

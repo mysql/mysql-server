@@ -291,6 +291,8 @@ int mysql_update(THD *thd,
 	}
       }
     }
+    else
+      table->file->unlock_row();
   }
   end_read_record(&info);
   thd->proc_info="end";

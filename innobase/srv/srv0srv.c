@@ -111,7 +111,14 @@ ibool	srv_print_buf_io		= FALSE;
 ibool	srv_print_log_io		= FALSE;
 ibool	srv_print_latch_waits		= FALSE;
 
+ulint	srv_n_rows_inserted		= 0;
+ulint	srv_n_rows_updated		= 0;
+ulint	srv_n_rows_deleted		= 0;
+ulint	srv_n_rows_read			= 0;
+
 ibool	srv_print_innodb_monitor	= FALSE;
+ibool   srv_print_innodb_lock_monitor   = FALSE;
+ibool   srv_print_innodb_tablespace_monitor = FALSE;
 
 /* The parameters below are obsolete: */
 
@@ -136,6 +143,11 @@ ulint	srv_test_n_free_rnds	= ULINT_MAX;
 ulint	srv_test_n_reserved_rnds = ULINT_MAX;
 ulint	srv_test_array_size	= ULINT_MAX;
 ulint	srv_test_n_mutexes	= ULINT_MAX;
+
+/* Array of English strings describing the current state of an
+i/o handler thread */
+
+char* srv_io_thread_op_info[SRV_MAX_N_IO_THREADS];
 
 /*
 	IMPLEMENTATION OF THE SERVER MAIN PROGRAM
@@ -1926,23 +1938,25 @@ loop:
 	}
 
 background_loop:
-	/* In this loop we run background operations while the server
+	/* In this loop we run background operations when the server
 	is quiet */
 
 	current_time = time(NULL);
 	
-	if (srv_print_innodb_monitor
-	    && difftime(current_time, last_monitor_time) > 8) {
+	if (difftime(current_time, last_monitor_time) > 15) {
+
+	    last_monitor_time = time(NULL);
+
+	    if (srv_print_innodb_monitor) {
 	
-	        printf("================================\n");
-		last_monitor_time = time(NULL);
+	        printf("=====================================\n");
 		ut_print_timestamp(stdout);
 	
 		printf(" INNODB MONITOR OUTPUT\n"
-	       	       "================================\n");
-		printf("--------------------------\n"
-		       "LOCKS HELD BY TRANSACTIONS\n"
-		       "--------------------------\n");
+	       	       "=====================================\n");
+		printf("------------\n"
+		       "TRANSACTIONS\n"
+		       "------------\n");
 		lock_print_info();
 		printf("-----------------------------------------------\n"
 		       "CURRENT SEMAPHORES RESERVED AND SEMAPHORE WAITS\n"
@@ -1955,11 +1969,40 @@ background_loop:
 		       "BUFFER POOL\n"
 		       "-----------\n");
 		buf_print_io();
+		printf("--------------\n"
+		       "ROW OPERATIONS\n"
+		       "--------------\n");
+		printf(
+	"Number of rows inserted %lu, updated %lu, deleted %lu, read %lu\n",
+			srv_n_rows_inserted, 
+			srv_n_rows_updated, 
+			srv_n_rows_deleted, 
+			srv_n_rows_read);
+		printf("Server activity counter %lu\n", srv_activity_count);
 		printf("----------------------------\n"
 		       "END OF INNODB MONITOR OUTPUT\n"
 		       "============================\n");
-	}
+            }
+
+            if (srv_print_innodb_tablespace_monitor) {
 	
+		printf("================================================\n");
+
+		ut_print_timestamp(stdout);
+
+		printf(" INNODB TABLESPACE MONITOR OUTPUT\n"
+		       "================================================\n");
+	       
+		fsp_print(0);
+		fprintf(stderr, "Validating tablespace\n");
+		fsp_validate(0);
+		fprintf(stderr, "Validation ok\n");
+		printf("---------------------------------------\n"
+	       		"END OF INNODB TABLESPACE MONITOR OUTPUT\n"
+	       		"=======================================\n");
+	    }
+	}
+
 	mutex_enter(&kernel_mutex);
 	if (srv_activity_count != old_activity_count) {
 		mutex_exit(&kernel_mutex);
@@ -2009,7 +2052,17 @@ background_loop:
 	}
 	mutex_exit(&kernel_mutex);
 	
+	if (srv_print_innodb_monitor) {
+		ut_print_timestamp(stdout);
+		printf(" InnoDB (main thread) starts buffer pool flush\n");
+	}
+
 	n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 100, ut_dulint_max);
+
+	if (srv_print_innodb_monitor) {
+		ut_print_timestamp(stdout);
+		printf(" InnoDB flushed %lu pages\n", n_pages_flushed);
+	}
 
 	mutex_enter(&kernel_mutex);
 	if (srv_activity_count != old_activity_count) {
@@ -2038,12 +2091,7 @@ background_loop:
 		
 /*	mem_print_new_info();
  */
-/*
-	fsp_print(0);
-	fprintf(stderr, "Validating tablespace\n");
-	fsp_validate(0);
-	fprintf(stderr, "Validation ok\n");
-*/
+
 #ifdef UNIV_SEARCH_PERF_STAT
 /*	btr_search_print_info(); */
 #endif

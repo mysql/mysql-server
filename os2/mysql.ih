@@ -1,0 +1,7 @@
+#define WARPIN_VERSION "0.9.12" 
+#define MySQL.Major 3 
+#define MySQL.Minor 23 
+#define MySQL.Rev 40 
+#define MySQL\VER 3\23\40 
+#define MySQL.VER 3.23.40 
+#define MySQL-VER 3-23-40 

@@ -76,7 +76,7 @@ int _mi_read_cache(IO_CACHE *info, byte *buff, my_off_t pos, uint length,
       DBUG_PRINT("error",
 		 ("Error %d reading next-multi-part block (Got %d bytes)",
 		  my_errno, info->error));
-      if (!my_errno)
+      if (!my_errno || my_errno == -1)
 	my_errno=HA_ERR_WRONG_IN_RECORD;
       DBUG_RETURN(1);
     }
@@ -93,7 +93,7 @@ int _mi_read_cache(IO_CACHE *info, byte *buff, my_off_t pos, uint length,
     DBUG_PRINT("error",
 	       ("Error %d reading new block (Got %d bytes)",
 		my_errno, (int) read_length));
-    if (!my_errno)
+    if (!my_errno || my_errno == -1)
       my_errno=HA_ERR_WRONG_IN_RECORD;
     DBUG_RETURN(1);
   }

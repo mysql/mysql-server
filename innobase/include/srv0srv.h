@@ -62,7 +62,15 @@ extern int      srv_query_thread_priority;
 
 /*-------------------------------------------*/
 
+extern ulint	srv_n_rows_inserted;
+extern ulint	srv_n_rows_updated;
+extern ulint	srv_n_rows_deleted;
+extern ulint	srv_n_rows_read;
+
 extern ibool	srv_print_innodb_monitor;
+extern ibool    srv_print_innodb_lock_monitor;
+extern ibool    srv_print_innodb_tablespace_monitor;
+
 extern ulint	srv_n_spin_wait_rounds;
 extern ulint	srv_spin_wait_delay;
 extern ibool	srv_priority_boost;
@@ -105,13 +113,19 @@ extern mutex_t*	kernel_mutex_temp;/* mutex protecting the server, trx structs,
 				it from dynamic memory to get it to the
 				same DRAM page as other hotspot semaphores */
 #define kernel_mutex (*kernel_mutex_temp)
+
+#define SRV_MAX_N_IO_THREADS	100
 				
+/* Array of English strings describing the current state of an
+i/o handler thread */
+extern char* srv_io_thread_op_info[];
+
 typedef struct srv_sys_struct	srv_sys_t;
 
 /* The server system */
 extern srv_sys_t*	srv_sys;
 
-/* Alternatives for fiel flush option in Unix; see the InnoDB manual about
+/* Alternatives for the field flush option in Unix; see the InnoDB manual about
 what these mean */
 #define SRV_UNIX_FDATASYNC   1
 #define SRV_UNIX_O_DSYNC     2

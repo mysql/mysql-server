@@ -9,7 +9,7 @@ optimize table t1;
 check table t1,t2;
 repair table t1,t2;
 check table t2,t1;
-lock tables t1 read;
+lock tables t1 write;
 check table t2,t1;
 show columns from t1;
 show full columns from t1;

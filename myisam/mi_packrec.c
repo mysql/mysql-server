@@ -962,7 +962,7 @@ int _mi_read_rnd_pack_record(MI_INFO *info, byte *buf,
     b_type=_mi_pack_get_block_info(info,&block_info,info->dfile,filepos,
 				   info->rec_buff);
   if (b_type)
-    goto err;
+    goto err;					/* Error code is already set */
 #ifndef DBUG_OFF
   if (block_info.rec_len > share->max_pack_length)
   {

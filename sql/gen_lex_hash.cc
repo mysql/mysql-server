@@ -472,7 +472,7 @@ int main(int argc,char **argv)
   int error;
 
   MY_INIT(argv[0]);
-  start_value=2663113L;  best_t1=1175350L;  best_t2=7404531L;  best_type=4; /* mode=4327  add=3  type: 0 */
+  start_value=6130115L; best_t1=3632784L;  best_t2=86437L;  best_type=3; /* mode=4229  add=2  type: 0 */
   if (get_options(argc,(char **) argv))
     exit(1);
 

@@ -1008,8 +1008,8 @@ String *Item_func_encrypt::val_str(String *str)
   if (arg_count == 1)
   {					// generate random salt
     time_t timestamp=current_thd->query_start();
-    salt[0] = bin_to_ascii(timestamp & 0x3f);
-    salt[1] = bin_to_ascii((timestamp >> 5) & 0x3f);
+    salt[0] = bin_to_ascii( (ulong) timestamp & 0x3f);
+    salt[1] = bin_to_ascii(( (ulong) timestamp >> 5) & 0x3f);
     salt[2] = 0;
     salt_ptr=salt;
   }
@@ -1102,7 +1102,7 @@ void Item_func_soundex::fix_length_and_dec()
     */
 
 extern "C" {
-extern char *soundex_map;		// In mysys/static.c
+extern const char *soundex_map;		// In mysys/static.c
 }
 
 static char get_scode(char *ptr)

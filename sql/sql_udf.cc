@@ -53,7 +53,7 @@ extern "C"
     FreeLibrary((HMODULE)lib);
   }
   
-#else
+#elif !defined(OS2)
 #include <dlfcn.h>
 #endif
   

@@ -17,10 +17,10 @@
 #include "mrgdef.h"
 
 
-int mrg_rsame(info,record,inx)
-MRG_INFO *info;
-byte *record;
-int inx;				/* not used, should be 0 */
+int mrg_rsame(
+MRG_INFO *info,
+byte *record,
+int inx)				/* not used, should be 0 */
 {
   if (inx)
   {

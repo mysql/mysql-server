@@ -33,7 +33,7 @@ gptr my_malloc(unsigned int Size, myf MyFlags)
 
   if (!Size)
     Size=1;					/* Safety */
-  if ((point = malloc(Size)) == NULL)
+  if ((point = (char*)malloc(Size)) == NULL)
   {
     my_errno=errno;
     if (MyFlags & MY_FAE)

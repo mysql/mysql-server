@@ -492,12 +492,10 @@ impossible position";
 	log.error=0;
 
 	// tell the kill thread how to wake us up
-	pthread_mutex_lock(&thd->mysys_var->mutex);
 	thd->mysys_var->current_mutex = log_lock;
 	thd->mysys_var->current_cond = &COND_binlog_update;
 	const char* proc_info = thd->proc_info;
 	thd->proc_info = "Slave connection: waiting for binlog update";
-	pthread_mutex_unlock(&thd->mysys_var->mutex);
 
 	bool read_packet = 0, fatal_error = 0;
 
@@ -522,7 +520,8 @@ impossible position";
 	  break;
 	case LOG_READ_EOF:
 	  DBUG_PRINT("wait",("waiting for data on binary log"));
-	  pthread_cond_wait(&COND_binlog_update, log_lock);
+	  if (!thd->killed)
+	    pthread_cond_wait(&COND_binlog_update, log_lock);
 	  break;
 
 	default:
@@ -700,6 +699,9 @@ int stop_slave(THD* thd, bool net_report )
 #ifdef HAVE_TIMESPEC_TS_SEC
       abstime.ts_sec=time(NULL)+2;		
       abstime.ts_nsec=0;
+#elif defined(__WIN__)
+      abstime.tv_sec=time((time_t*) 0)+2;
+      abstime.tv_nsec=0;
 #else
       struct timeval tv;
       gettimeofday(&tv,0);
@@ -765,17 +767,19 @@ void kill_zombie_dump_threads(uint32 slave_server_id)
     if (tmp->command == COM_BINLOG_DUMP &&
        tmp->server_id == slave_server_id)
     {
-      // here we do not call kill_one_thread()
-      // it will be slow because it will iterate through the list
-      // again. Plus it double-locks LOCK_thread_count, which
-      // make safe_mutex complain and abort
-      // so we just to our own thread murder
+      /*
+	Here we do not call kill_one_thread() as
+	it will be slow because it will iterate through the list
+	again. Plus it double-locks LOCK_tread_count, which
+	make safe_mutex complain and abort.
+	We just to do kill the thread ourselves.
+      */
 
       thr_alarm_kill(tmp->real_id);
       tmp->killed = 1;
-      pthread_mutex_lock(&tmp->mysys_var->mutex);
       tmp->mysys_var->abort = 1;
-      if (tmp->mysys_var->current_mutex)
+      pthread_mutex_lock(&tmp->mysys_var->mutex);
+      if (tmp->mysys_var->current_cond)
       {
 	pthread_mutex_lock(tmp->mysys_var->current_mutex);
 	pthread_cond_broadcast(tmp->mysys_var->current_cond);
@@ -784,7 +788,7 @@ void kill_zombie_dump_threads(uint32 slave_server_id)
       pthread_mutex_unlock(&tmp->mysys_var->mutex);
     }
   }
-    pthread_mutex_unlock(&LOCK_thread_count);
+  pthread_mutex_unlock(&LOCK_thread_count);
 }
 
 

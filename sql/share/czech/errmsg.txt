@@ -14,198 +14,198 @@
 "isamchk",
 "NE",
 "ANO",
-"Nemohu vytvo-Bøit soubor '%-.64s' (chybový kód: %d)",-A
-"Nemohu vytvo-Bøit tabulku '%-.64s' (chybový kód: %d)",-A
-"Nemohu vytvo-Bøit databázi '%-.64s', chyba %d",-A
-"Nemohu vytvo-Bøit databázi '%-.64s', databáze ji¾ existuje",-A
-"Nemohu zru-B¹it databázi '%-.64s', databáze neexistuje",-A
-"Chyba p-Bøi ru¹ení databáze (nemohu vymazat '%-.64s', chyba %d)",-A
-"Chyba p-Bøi ru¹ení databáze (nemohu vymazat adresáø '%-.64s', chyba %d)",-A
-"Chyba p-Bøi výmazu '%-.64s' (chybový kód: %d)",-A
-"Nemohu -Bèíst záznam v systémové tabulce",-A
-"Nemohu z-Bískat stav '%-.64s' (chybový kód: %d)",-A
-"Chyba p-Bøi zji¹»ování pracovní adresáø (chybový kód: %d)",-A
-"Nemohu uzamknout soubor (chybov-Bý kód: %d)",-A
-"Nemohu otev-Bøít soubor '%-.64s' (chybový kód: %d)",-A
-"Nemohu naj-Bít soubor '%-.64s' (chybový kód: %d)",-A
-"Nemohu -Bèíst adresáø '%-.64s' (chybový kód: %d)",-A
-"Nemohu zm-Bìnit adresáø na '%-.64s' (chybový kód: %d)",-A
-"Z-Báznam byl zmìnìn od posledního ètení v tabulce '%-.64s'",-A
-"Disk je pln-Bý (%s), èekám na uvolnìní nìjakého místa ...",-A
-"Nemohu zapsat, zdvojen-Bý klíè v tabulce '%-.64s'",-A
-"Chyba p-Bøi zavírání '%-.64s' (chybový kód: %d)",-A
-"Chyba p-Bøi ètení souboru '%-.64s' (chybový kód: %d)",-A
-"Chyba p-Bøi pøejmenování '%-.64s' na '%-.64s' (chybový kód: %d)",-A
-"Chyba p-Bøi zápisu do souboru '%-.64s' (chybový kód: %d)",-A
-"'%-.64s' je zam-Bèen proti zmìnám",-A
-"T-Bøídìní pøeru¹eno",-A
+"Nemohu vytvo-Bøit soubor '%-.64s' (chybový kód: %d)",
+"Nemohu vytvo-Bøit tabulku '%-.64s' (chybový kód: %d)",
+"Nemohu vytvo-Bøit databázi '%-.64s', chyba %d",
+"Nemohu vytvo-Bøit databázi '%-.64s', databáze ji¾ existuje",
+"Nemohu zru-B¹it databázi '%-.64s', databáze neexistuje",
+"Chyba p-Bøi ru¹ení databáze (nemohu vymazat '%-.64s', chyba %d)",
+"Chyba p-Bøi ru¹ení databáze (nemohu vymazat adresáø '%-.64s', chyba %d)",
+"Chyba p-Bøi výmazu '%-.64s' (chybový kód: %d)",
+"Nemohu -Bèíst záznam v systémové tabulce",
+"Nemohu z-Bískat stav '%-.64s' (chybový kód: %d)",
+"Chyba p-Bøi zji¹»ování pracovní adresáø (chybový kód: %d)",
+"Nemohu uzamknout soubor (chybov-Bý kód: %d)",
+"Nemohu otev-Bøít soubor '%-.64s' (chybový kód: %d)",
+"Nemohu naj-Bít soubor '%-.64s' (chybový kód: %d)",
+"Nemohu -Bèíst adresáø '%-.64s' (chybový kód: %d)",
+"Nemohu zm-Bìnit adresáø na '%-.64s' (chybový kód: %d)",
+"Z-Báznam byl zmìnìn od posledního ètení v tabulce '%-.64s'",
+"Disk je pln-Bý (%s), èekám na uvolnìní nìjakého místa ...",
+"Nemohu zapsat, zdvojen-Bý klíè v tabulce '%-.64s'",
+"Chyba p-Bøi zavírání '%-.64s' (chybový kód: %d)",
+"Chyba p-Bøi ètení souboru '%-.64s' (chybový kód: %d)",
+"Chyba p-Bøi pøejmenování '%-.64s' na '%-.64s' (chybový kód: %d)",
+"Chyba p-Bøi zápisu do souboru '%-.64s' (chybový kód: %d)",
+"'%-.64s' je zam-Bèen proti zmìnám",
+"T-Bøídìní pøeru¹eno",
 "Pohled '%-.64s' pro '%-.64s' neexistuje",
-"Obsluha tabulky vr-Bátila chybu %d",-A
-"Obsluha tabulky '%-.64s' nem-Bá tento parametr",-A
-"Nemohu naj-Bít záznam v '%-.64s'",-A
-"Nespr-Bávná informace v souboru '%-.64s'",-A
-"Nespr-Bávný klíè pro tabulku '%-.64s'. Pokuste se ho opravit",-A
-"Star-Bý klíèový soubor pro '%-.64s'. Opravte ho.",-A
-"'%-.64s' je jen pro -Bètení",-A
-"M-Bálo pamìti. Pøestartujte daemona a zkuste znovu (je potøeba %d bytù)",-A
-"M-Bálo pamìti pro tøídìní. Zvy¹te velikost tøídícího bufferu",-A
-"Neo-Bèekávaný konec souboru pøi ètení '%-.64s' (chybový kód: %d)",-A
-"P-Bøíli¹ mnoho spojení",-A
-"M-Bálo prostoru/pamìti pro thread",-A
-"Nemohu zjistit jm-Béno stroje pro Va¹i adresu",-A
-"Chyba p-Bøi ustavování spojení",-A
-"P-Bøístup pro u¾ivatele '%-.32s@%-.64s' k databázi '%-.64s' není povolen",-A
-"P-Bøístup pro u¾ivatele '%-.32s@%-.64s' (s heslem %s)",-A
-"Nebyla vybr-Bána ¾ádná databáze",-A
-"Nezn-Bámý pøíkaz",-A
-"Sloupec '%-.64s' nem-Bù¾e být null",-A
-"Nezn-Bámá databáze '%-.64s'",-A
-"Tabulka '%-.64s' ji-B¾ existuje",-A
-"Nezn-Bámá tabulka '%-.64s'",-A
-"Sloupec '%-.64s' v %s nen-Bí zcela jasný",-A
-"Prob-Bíhá ukonèování práce serveru",-A
-"Nezn-Bámý sloupec '%-.64s' v %s",-A
-"Pou-B¾ité '%-.64s' nebylo v group by",-A
-"Nemohu pou-B¾ít group na '%-.64s'",-A
-"P-Bøíkaz obsahuje zároveò funkci sum a sloupce",-A
-"Po-Bèet sloupcù neodpovídá zadané hodnotì",-A
-"Jm-Béno identifikátoru '%-.64s' je pøíli¹ dlouhé",-A
-"Zdvojen-Bé jméno sloupce '%-.64s'",-A
-"Zdvojen-Bé jméno klíèe '%-.64s'",-A
-"Zvojen-Bý klíè '%-.64s' (èíslo klíèe %d)",-A
-"Chybn-Bá specifikace sloupce '%-.64s'",-A
-"%s bl-Bízko '%-.64s' na øádku %d",-A
-"V-Býsledek dotazu je prázdný",-A
-"Nejednozna-Bèná tabulka/alias: '%-.64s'",-A
-"Chybn-Bá defaultní hodnota pro '%-.64s'",-A
-"Definov-Báno více primárních klíèù",-A
-"Zad-Báno pøíli¹ mnoho klíèù, je povoleno nejvíce %d klíèù",-A
-"Zad-Báno pøíli¹ mnoho èást klíèù, je povoleno nejvíce %d èástí",-A
-"Zadan-Bý klíè byl pøíli¹ dlouhý, nejvìt¹í délka klíèe je %d",-A
-"Kl-Bíèový sloupec '%-.64s' v tabulce neexistuje",-A
-"Blob sloupec '%-.64s' nem-Bù¾e být pou¾it jako klíè",-A
-"P-Bøíli¹ velká délka sloupce '%-.64s' (nejvíce %d). Pou¾ijte BLOB",-A
-"M-Bù¾ete mít pouze jedno AUTO pole a to musí být definováno jako klíè",-A
-"%s: p-Bøipraven na spojení\n",-A
-"%s: norm-Bální ukonèení\n",-A
-"%s: p-Bøijat signal %d, konèím\n",-A
-"%s: ukon-Bèení práce hotovo\n",-A
-"%s: n-Básilné uzavøení threadu %ld u¾ivatele '%-.64s'\n",-A
-"Nemohu vytvo-Bøit IP socket",-A
-"Tabulka '%-.64s' nem-Bá index odpovídající CREATE INDEX. Vytvoøte tabulku znovu",-A
-"Argument separ-Bátoru polo¾ek nebyl oèekáván. Pøeètìte si manuál",-A
-"Nen-Bí mo¾né pou¾ít pevný rowlength s BLOBem. Pou¾ijte 'fields terminated by'.",-A
-"Soubor '%-.64s' mus-Bí být v adresáøi databáze nebo èitelný pro v¹echny",-A
-"Soubor '%-.64s' ji-B¾ existuje",-A
-"Z-Báznamù: %ld  Vymazáno: %ld  Pøeskoèeno: %ld  Varování: %ld",-A
-"Z-Báznamù: %ld  Zdvojených: %ld",-A
-"Chybn-Bá podèást klíèe -- není to øetìzec nebo je del¹í ne¾ délka èásti klíèe",-A
-"Nen-Bí mo¾né vymazat v¹echny polo¾ky s ALTER TABLE. Pou¾ijte DROP TABLE",-A
-"Nemohu zru-B¹it '%-.64s' (provést DROP). Zkontrolujte, zda neexistují záznamy/klíèe",-A
-"Z-Báznamù: %ld  Zdvojených: %ld  Varování: %ld",-A
-"INSERT TABLE '%-.64s' nen-Bí dovoleno v seznamu tabulek FROM",-A
-"Nezn-Bámá identifikace threadu: %lu",-A
-"Nejste vlastn-Bíkem threadu %lu",-A
-"Nejsou pou-B¾ity ¾ádné tabulky",-A
-"P-Bøíli¹ mnoho øetìzcù pro sloupec %s a SET",-A
-"Nemohu vytvo-Bøit jednoznaèné jméno logovacího souboru %s.(1-999)\n",-A
-"Tabulka '%-.64s' byla zam-Bèena s READ a nemù¾e být zmìnìna",-A
-"Tabulka '%-.64s' nebyla zam-Bèena s LOCK TABLES",-A
-"Blob polo-B¾ka '%-.64s' nemù¾e mít defaultní hodnotu",-A
-"Nep-Bøípustné jméno databáze '%-.64s'",-A
-"Nep-Bøípustné jméno tabulky '%-.64s'",-A
-"Zadan-Bý SELECT by procházel pøíli¹ mnoho záznamù a trval velmi dlouho. Zkontrolujte tvar WHERE a je-li SELECT v poøádku, pou¾ijte SET OPTION SQL_BIG_SELECTS=1",-A
-"Nezn-Bámá chyba",-A
-"Nezn-Bámá procedura %s",-A
-"Chybn-Bý poèet parametrù procedury %s",-A
-"Chybn-Bé parametry procedury %s",-A
-"Nezn-Bámá tabulka '%-.64s' v %s",-A
-"Polo-B¾ka '%-.64s' je zadána dvakrát",-A
-"Nespr-Bávné pou¾ití funkce group",-A
-"Tabulka '%-.64s' pou-B¾ívá roz¹íøení, které v této verzi MySQL není",-A
-"Tabulka mus-Bí mít alespoò jeden sloupec",-A
-"Tabulka '%-.64s' je pln-Bá",-A
-"Nezn-Bámá znaková sada: '%-.64s'",-A
-"P-Bøíli¹ mnoho tabulek, MySQL jich mù¾e mít v joinu jen %d",-A
-"P-Bøíli¹ mnoho polo¾ek",-A
-"-BØádek je pøíli¹ velký. Maximální velikost øádku, nepoèítaje polo¾ky blob, je %d. Musíte zmìnit nìkteré polo¾ky na blob",-A
-"P-Bøeteèení zásobníku threadu: pou¾ito %ld z %ld. Pou¾ijte 'mysqld -O thread_stack=#' k zadání vìt¹ího zásobníku",-A
-"V OUTER JOIN byl nalezen k-Bøí¾ový odkaz. Provìøte ON podmínky",-A
-"Sloupec '%-.32s' je pou-B¾it s UNIQUE nebo INDEX, ale není definován jako NOT NULL",-A
-"Nemohu na-Bèíst funkci '%-.64s'",-A
+"Obsluha tabulky vr-Bátila chybu %d",
+"Obsluha tabulky '%-.64s' nem-Bá tento parametr",
+"Nemohu naj-Bít záznam v '%-.64s'",
+"Nespr-Bávná informace v souboru '%-.64s'",
+"Nespr-Bávný klíè pro tabulku '%-.64s'. Pokuste se ho opravit",
+"Star-Bý klíèový soubor pro '%-.64s'. Opravte ho.",
+"'%-.64s' je jen pro -Bètení",
+"M-Bálo pamìti. Pøestartujte daemona a zkuste znovu (je potøeba %d bytù)",
+"M-Bálo pamìti pro tøídìní. Zvy¹te velikost tøídícího bufferu",
+"Neo-Bèekávaný konec souboru pøi ètení '%-.64s' (chybový kód: %d)",
+"P-Bøíli¹ mnoho spojení",
+"M-Bálo prostoru/pamìti pro thread",
+"Nemohu zjistit jm-Béno stroje pro Va¹i adresu",
+"Chyba p-Bøi ustavování spojení",
+"P-Bøístup pro u¾ivatele '%-.32s@%-.64s' k databázi '%-.64s' není povolen",
+"P-Bøístup pro u¾ivatele '%-.32s@%-.64s' (s heslem %s)",
+"Nebyla vybr-Bána ¾ádná databáze",
+"Nezn-Bámý pøíkaz",
+"Sloupec '%-.64s' nem-Bù¾e být null",
+"Nezn-Bámá databáze '%-.64s'",
+"Tabulka '%-.64s' ji-B¾ existuje",
+"Nezn-Bámá tabulka '%-.64s'",
+"Sloupec '%-.64s' v %s nen-Bí zcela jasný",
+"Prob-Bíhá ukonèování práce serveru",
+"Nezn-Bámý sloupec '%-.64s' v %s",
+"Pou-B¾ité '%-.64s' nebylo v group by",
+"Nemohu pou-B¾ít group na '%-.64s'",
+"P-Bøíkaz obsahuje zároveò funkci sum a sloupce",
+"Po-Bèet sloupcù neodpovídá zadané hodnotì",
+"Jm-Béno identifikátoru '%-.64s' je pøíli¹ dlouhé",
+"Zdvojen-Bé jméno sloupce '%-.64s'",
+"Zdvojen-Bé jméno klíèe '%-.64s'",
+"Zvojen-Bý klíè '%-.64s' (èíslo klíèe %d)",
+"Chybn-Bá specifikace sloupce '%-.64s'",
+"%s bl-Bízko '%-.64s' na øádku %d",
+"V-Býsledek dotazu je prázdný",
+"Nejednozna-Bèná tabulka/alias: '%-.64s'",
+"Chybn-Bá defaultní hodnota pro '%-.64s'",
+"Definov-Báno více primárních klíèù",
+"Zad-Báno pøíli¹ mnoho klíèù, je povoleno nejvíce %d klíèù",
+"Zad-Báno pøíli¹ mnoho èást klíèù, je povoleno nejvíce %d èástí",
+"Zadan-Bý klíè byl pøíli¹ dlouhý, nejvìt¹í délka klíèe je %d",
+"Kl-Bíèový sloupec '%-.64s' v tabulce neexistuje",
+"Blob sloupec '%-.64s' nem-Bù¾e být pou¾it jako klíè",
+"P-Bøíli¹ velká délka sloupce '%-.64s' (nejvíce %d). Pou¾ijte BLOB",
+"M-Bù¾ete mít pouze jedno AUTO pole a to musí být definováno jako klíè",
+"%s: p-Bøipraven na spojení\n",
+"%s: norm-Bální ukonèení\n",
+"%s: p-Bøijat signal %d, konèím\n",
+"%s: ukon-Bèení práce hotovo\n",
+"%s: n-Básilné uzavøení threadu %ld u¾ivatele '%-.64s'\n",
+"Nemohu vytvo-Bøit IP socket",
+"Tabulka '%-.64s' nem-Bá index odpovídající CREATE INDEX. Vytvoøte tabulku znovu",
+"Argument separ-Bátoru polo¾ek nebyl oèekáván. Pøeètìte si manuál",
+"Nen-Bí mo¾né pou¾ít pevný rowlength s BLOBem. Pou¾ijte 'fields terminated by'.",
+"Soubor '%-.64s' mus-Bí být v adresáøi databáze nebo èitelný pro v¹echny",
+"Soubor '%-.64s' ji-B¾ existuje",
+"Z-Báznamù: %ld  Vymazáno: %ld  Pøeskoèeno: %ld  Varování: %ld",
+"Z-Báznamù: %ld  Zdvojených: %ld",
+"Chybn-Bá podèást klíèe -- není to øetìzec nebo je del¹í ne¾ délka èásti klíèe",
+"Nen-Bí mo¾né vymazat v¹echny polo¾ky s ALTER TABLE. Pou¾ijte DROP TABLE",
+"Nemohu zru-B¹it '%-.64s' (provést DROP). Zkontrolujte, zda neexistují záznamy/klíèe",
+"Z-Báznamù: %ld  Zdvojených: %ld  Varování: %ld",
+"INSERT TABLE '%-.64s' nen-Bí dovoleno v seznamu tabulek FROM",
+"Nezn-Bámá identifikace threadu: %lu",
+"Nejste vlastn-Bíkem threadu %lu",
+"Nejsou pou-B¾ity ¾ádné tabulky",
+"P-Bøíli¹ mnoho øetìzcù pro sloupec %s a SET",
+"Nemohu vytvo-Bøit jednoznaèné jméno logovacího souboru %s.(1-999)\n",
+"Tabulka '%-.64s' byla zam-Bèena s READ a nemù¾e být zmìnìna",
+"Tabulka '%-.64s' nebyla zam-Bèena s LOCK TABLES",
+"Blob polo-B¾ka '%-.64s' nemù¾e mít defaultní hodnotu",
+"Nep-Bøípustné jméno databáze '%-.64s'",
+"Nep-Bøípustné jméno tabulky '%-.64s'",
+"Zadan-Bý SELECT by procházel pøíli¹ mnoho záznamù a trval velmi dlouho. Zkontrolujte tvar WHERE a je-li SELECT v poøádku, pou¾ijte SET OPTION SQL_BIG_SELECTS=1",
+"Nezn-Bámá chyba",
+"Nezn-Bámá procedura %s",
+"Chybn-Bý poèet parametrù procedury %s",
+"Chybn-Bé parametry procedury %s",
+"Nezn-Bámá tabulka '%-.64s' v %s",
+"Polo-B¾ka '%-.64s' je zadána dvakrát",
+"Nespr-Bávné pou¾ití funkce group",
+"Tabulka '%-.64s' pou-B¾ívá roz¹íøení, které v této verzi MySQL není",
+"Tabulka mus-Bí mít alespoò jeden sloupec",
+"Tabulka '%-.64s' je pln-Bá",
+"Nezn-Bámá znaková sada: '%-.64s'",
+"P-Bøíli¹ mnoho tabulek, MySQL jich mù¾e mít v joinu jen %d",
+"P-Bøíli¹ mnoho polo¾ek",
+"-BØádek je pøíli¹ velký. Maximální velikost øádku, nepoèítaje polo¾ky blob, je %d. Musíte zmìnit nìkteré polo¾ky na blob",
+"P-Bøeteèení zásobníku threadu: pou¾ito %ld z %ld. Pou¾ijte 'mysqld -O thread_stack=#' k zadání vìt¹ího zásobníku",
+"V OUTER JOIN byl nalezen k-Bøí¾ový odkaz. Provìøte ON podmínky",
+"Sloupec '%-.32s' je pou-B¾it s UNIQUE nebo INDEX, ale není definován jako NOT NULL",
+"Nemohu na-Bèíst funkci '%-.64s'",
 "Nemohu inicializovat funkci '%-.64s'; %-.80s",
-"Pro sd-Bílenou knihovnu nejsou povoleny cesty",-A
-"Funkce '%-.64s' ji-B¾ existuje",-A
-"Nemohu otev-Bøít sdílenou knihovnu '%-.64s' (errno: %d %s)",-A
-"Nemohu naj-Bít funkci '%-.64s' v knihovnì'",-A
-"Funkce '%-.64s' nen-Bí definována",-A
-"Stroj '%-.64s' je zablokov-Bán kvùli mnoha chybám pøi pøipojování. Odblokujete pou¾itím 'mysqladmin flush-hosts'",-A
-"Stroj '%-.64s' nem-Bá povoleno se k tomuto MySQL serveru pøipojit",-A
-"Pou-B¾íváte MySQL jako anonymní u¾ivatel a anonymní u¾ivatelé nemají povoleno mìnit hesla",-A
-"Na zm-Bìnu hesel ostatním musíte mít právo provést update tabulek v databázi mysql",-A
-"V tabulce user nen-Bí ¾ádný odpovídající øádek",-A
-"Nalezen-Bých øádkù: %ld  Zmìnìno: %ld  Varování: %ld",-A
-"Nemohu vytvo-Bøit nový thread (errno %d). Pokud je je¹tì nìjaká volná pamì», podívejte se do manuálu na èást o chybách specifických pro jednotlivé operaèní systémy",-A
-"Po-Bèet sloupcù neodpovídá poètu hodnot na øádku %ld",-A
-"Nemohu znovuotev-Bøít tabulku: '%-.64s',-A
-"Neplatn-Bé u¾ití hodnoty NULL",-A
-"Regul-Bární výraz vrátil chybu '%-.64s'",-A
-"Pokud nen-Bí ¾ádná GROUP BY klauzule, není dovoleno souèasné pou¾ití GROUP polo¾ek (MIN(),MAX(),COUNT()...) s ne GROUP polo¾kami",-A
-"Neexistuje odpov-Bídající grant pro u¾ivatele '%-.32s' na stroji '%-.64s'",-A
-"%-.16s p-Bøíkaz nepøístupný pro u¾ivatele: '%-.32s@%-.64s' pro tabulku '%-.64s'",-A
-"%-.16s p-Bøíkaz nepøístupný pro u¾ivatele: '%-.32s@%-.64s' pro sloupec '%-.64s' v tabulce '%-.64s'",-A
-"Neplatn-Bý pøíkaz GRANT/REVOKE. Prosím, pøeètìte si v manuálu, jaká privilegia je mo¾né pou¾ít.",-A
-"Argument p-Bøíkazu GRANT u¾ivatel nebo stroj je pøíli¹ dlouhý",-A
+"Pro sd-Bílenou knihovnu nejsou povoleny cesty",
+"Funkce '%-.64s' ji-B¾ existuje",
+"Nemohu otev-Bøít sdílenou knihovnu '%-.64s' (errno: %d %s)",
+"Nemohu naj-Bít funkci '%-.64s' v knihovnì'",
+"Funkce '%-.64s' nen-Bí definována",
+"Stroj '%-.64s' je zablokov-Bán kvùli mnoha chybám pøi pøipojování. Odblokujete pou¾itím 'mysqladmin flush-hosts'",
+"Stroj '%-.64s' nem-Bá povoleno se k tomuto MySQL serveru pøipojit",
+"Pou-B¾íváte MySQL jako anonymní u¾ivatel a anonymní u¾ivatelé nemají povoleno mìnit hesla",
+"Na zm-Bìnu hesel ostatním musíte mít právo provést update tabulek v databázi mysql",
+"V tabulce user nen-Bí ¾ádný odpovídající øádek",
+"Nalezen-Bých øádkù: %ld  Zmìnìno: %ld  Varování: %ld",
+"Nemohu vytvo-Bøit nový thread (errno %d). Pokud je je¹tì nìjaká volná pamì», podívejte se do manuálu na èást o chybách specifických pro jednotlivé operaèní systémy",
+"Po-Bèet sloupcù neodpovídá poètu hodnot na øádku %ld",
+"Nemohu znovuotev-Bøít tabulku: '%-.64s',
+"Neplatn-Bé u¾ití hodnoty NULL",
+"Regul-Bární výraz vrátil chybu '%-.64s'",
+"Pokud nen-Bí ¾ádná GROUP BY klauzule, není dovoleno souèasné pou¾ití GROUP polo¾ek (MIN(),MAX(),COUNT()...) s ne GROUP polo¾kami",
+"Neexistuje odpov-Bídající grant pro u¾ivatele '%-.32s' na stroji '%-.64s'",
+"%-.16s p-Bøíkaz nepøístupný pro u¾ivatele: '%-.32s@%-.64s' pro tabulku '%-.64s'",
+"%-.16s p-Bøíkaz nepøístupný pro u¾ivatele: '%-.32s@%-.64s' pro sloupec '%-.64s' v tabulce '%-.64s'",
+"Neplatn-Bý pøíkaz GRANT/REVOKE. Prosím, pøeètìte si v manuálu, jaká privilegia je mo¾né pou¾ít.",
+"Argument p-Bøíkazu GRANT u¾ivatel nebo stroj je pøíli¹ dlouhý",
 "Tabulka '%-64s.%s' neexistuje",
-"Neexistuje odpov-Bídající grant pro u¾ivatele '%-.32s' na stroji '%-.64s' pro tabulku '%-.64s'",-A
-"Pou-B¾itý pøíkaz není v této verzi MySQL povolen",-A
-"Va-B¹e syntaxe je nìjaká divná",-A
-"Zpo-B¾dìný insert threadu nebyl schopen získat po¾adovaný zámek pro tabulku %-.64s",-A
-"P-Bøíli¹ mnoho zpo¾dìných threadù",-A
-"Zru-B¹eno spojení %ld do databáze: '%-.64s' u¾ivatel: '%-.64s' (%s)",-A
-"Zji-B¹tìn pøíchozí packet del¹í ne¾ 'max_allowed_packet'",-A
-"Zji-B¹tìna chyba pøi ètení z roury spojení",-A
-"Zji-B¹tìna chyba fcntl()",-A
-"P-Bøíchozí packety v chybném poøadí",-A
-"Nemohu rozkomprimovat komunika-Bèní packet",-A
-"Zji-B¹tìna chyba pøi ètení komunikaèního packetu",-A
-"Zji-B¹tìn timeout pøi ètení komunikaèního packetu",-A
-"Zji-B¹tìna chyba pøi zápisu komunikaèního packetu",-A
-"Zji-B¹tìn timeout pøi zápisu komunikaèního packetu",-A
-"V-Býsledný øetìzec je del¹í ne¾ max_allowed_packet",-A
-"Typ pou-B¾ité tabulky nepodporuje BLOB/TEXT sloupce",-A
-"Typ pou-B¾ité tabulky nepodporuje AUTO_INCREMENT sloupce",-A
-"INSERT DELAYED nen-Bí mo¾no s tabulkou '%-.64s' pou¾ít, proto¾e je zamèená pomocí LOCK TABLES",-A
-"Nespr-Bávné jméno sloupce '%-.100s'",-A
-"Handler pou-B¾ité tabulky neumí indexovat sloupce '%-.64s'",-A
-"V-B¹echny tabulky v MERGE tabulce nejsou definovány stejnì",-A
-"Kv-Bùli unique constraintu nemozu zapsat do tabulky '%-.64s'",-A
-"BLOB sloupec '%-.64s' je pou-B¾it ve specifikaci klíèe bez délky",-A
-"V-B¹echny èásti primárního klíèe musejí být NOT NULL; pokud potøebujete NULL, pou¾ijte UNIQUE",-A
-"V-Býsledek obsahuje více ne¾ jeden øádek",-A
-"Tento typ tabulky vy-B¾aduje primární klíè",-A
-"Tato verze MySQL nen-Bí zkompilována s podporou RAID",-A
-"Update tabulky bez WHERE s kl-Bíèem není v módu bezpeèných update dovoleno",-A
-"Kl-Bíè '%-.64s' v tabulce '%-.64s' neexistuje",-A
-"Nemohu otev-Bøít tabulku",-A
+"Neexistuje odpov-Bídající grant pro u¾ivatele '%-.32s' na stroji '%-.64s' pro tabulku '%-.64s'",
+"Pou-B¾itý pøíkaz není v této verzi MySQL povolen",
+"Va-B¹e syntaxe je nìjaká divná",
+"Zpo-B¾dìný insert threadu nebyl schopen získat po¾adovaný zámek pro tabulku %-.64s",
+"P-Bøíli¹ mnoho zpo¾dìných threadù",
+"Zru-B¹eno spojení %ld do databáze: '%-.64s' u¾ivatel: '%-.64s' (%s)",
+"Zji-B¹tìn pøíchozí packet del¹í ne¾ 'max_allowed_packet'",
+"Zji-B¹tìna chyba pøi ètení z roury spojení",
+"Zji-B¹tìna chyba fcntl()",
+"P-Bøíchozí packety v chybném poøadí",
+"Nemohu rozkomprimovat komunika-Bèní packet",
+"Zji-B¹tìna chyba pøi ètení komunikaèního packetu",
+"Zji-B¹tìn timeout pøi ètení komunikaèního packetu",
+"Zji-B¹tìna chyba pøi zápisu komunikaèního packetu",
+"Zji-B¹tìn timeout pøi zápisu komunikaèního packetu",
+"V-Býsledný øetìzec je del¹í ne¾ max_allowed_packet",
+"Typ pou-B¾ité tabulky nepodporuje BLOB/TEXT sloupce",
+"Typ pou-B¾ité tabulky nepodporuje AUTO_INCREMENT sloupce",
+"INSERT DELAYED nen-Bí mo¾no s tabulkou '%-.64s' pou¾ít, proto¾e je zamèená pomocí LOCK TABLES",
+"Nespr-Bávné jméno sloupce '%-.100s'",
+"Handler pou-B¾ité tabulky neumí indexovat sloupce '%-.64s'",
+"V-B¹echny tabulky v MERGE tabulce nejsou definovány stejnì",
+"Kv-Bùli unique constraintu nemozu zapsat do tabulky '%-.64s'",
+"BLOB sloupec '%-.64s' je pou-B¾it ve specifikaci klíèe bez délky",
+"V-B¹echny èásti primárního klíèe musejí být NOT NULL; pokud potøebujete NULL, pou¾ijte UNIQUE",
+"V-Býsledek obsahuje více ne¾ jeden øádek",
+"Tento typ tabulky vy-B¾aduje primární klíè",
+"Tato verze MySQL nen-Bí zkompilována s podporou RAID",
+"Update tabulky bez WHERE s kl-Bíèem není v módu bezpeèných update dovoleno",
+"Kl-Bíè '%-.64s' v tabulce '%-.64s' neexistuje",
+"Nemohu otev-Bøít tabulku",
 "Handler tabulky nepodporuje check/repair",
-"Proveden-Bí tohoto pøíkazu není v transakci dovoleno",-A
-"Chyba %d p-Bøi COMMIT",-A
-"Chyba %d p-Bøi ROLLBACK",-A
-"Chyba %d p-Bøi FLUSH_LOGS",-A
-"Chyba %d p-Bøi CHECKPOINT",-A
-"Spojen-Bí %ld do databáze: '%-.64s' u¾ivatel: '%-.32s' stroj: `%-.64s' (%-.64s) bylo pøeru¹eno",-A
-"Handler tabulky nepodporuje bin-Bární dump",-A
-"Binlog uzav-Bøen pøi pokusu o FLUSH MASTER",-A
-"P-Bøebudování indexu dumpnuté tabulky '%-.64s' nebylo úspì¹né",-A
+"Proveden-Bí tohoto pøíkazu není v transakci dovoleno",
+"Chyba %d p-Bøi COMMIT",
+"Chyba %d p-Bøi ROLLBACK",
+"Chyba %d p-Bøi FLUSH_LOGS",
+"Chyba %d p-Bøi CHECKPOINT",
+"Spojen-Bí %ld do databáze: '%-.64s' u¾ivatel: '%-.32s' stroj: `%-.64s' (%-.64s) bylo pøeru¹eno",
+"Handler tabulky nepodporuje bin-Bární dump",
+"Binlog uzav-Bøen pøi pokusu o FLUSH MASTER",
+"P-Bøebudování indexu dumpnuté tabulky '%-.64s' nebylo úspì¹né",
 "Chyba masteru: '%-.64s'",
-"S-Bí»ová chyba pøi ètení z masteru",-A
-"S-Bí»ová chyba pøi zápisu na master",-A
-"-B®ádný sloupec nemá vytvoøen fulltextový index",-A
-"Nemohu prov-Bést zadaný pøíkaz, proto¾e existují aktivní zamèené tabulky nebo aktivní transakce",-A
-"Nezn-Bámá systémová promìnná '%-.64'",-A
-"Tabulka '%-.64s' je ozna-Bèena jako poru¹ená a mìla by být opravena",-A
-"Tabulka '%-.64s' je ozna-Bèena jako poru¹ená a poslední (automatická?) oprava se nezdaøila",-A
+"S-Bí»ová chyba pøi ètení z masteru",
+"S-Bí»ová chyba pøi zápisu na master",
+"-B®ádný sloupec nemá vytvoøen fulltextový index",
+"Nemohu prov-Bést zadaný pøíkaz, proto¾e existují aktivní zamèené tabulky nebo aktivní transakce",
+"Nezn-Bámá systémová promìnná '%-.64'",
+"Tabulka '%-.64s' je ozna-Bèena jako poru¹ená a mìla by být opravena",
+"Tabulka '%-.64s' je ozna-Bèena jako poru¹ená a poslední (automatická?) oprava se nezdaøila",
 "Warning:  Some non-transactional changed tables couldn't be rolled back",
 "Multi-statement transaction required more than 'max_binlog_cache_size' bytes of storage. Increase this mysqld variable and try again',
 "This operation cannot be performed with a running slave, run SLAVE STOP first",
@@ -222,6 +222,7 @@
 "CREATE DATABASE not allowed while thread is holding global read lock",
 "Wrong arguments to %s",
 "%-.32s@%-.64s is not allowed to create new users",
+"Incorrect table definition; All MERGE tables must be in the same database",
 "Error connecting to master: %-.128s",
 "Error running query on master: %-.128s",
 "Error when executing command %s: %-.128s",

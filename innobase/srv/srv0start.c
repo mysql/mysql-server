@@ -67,8 +67,6 @@ os_file_t	files[1000];
 mutex_t		ios_mutex;
 ulint		ios;
 
-#define SRV_MAX_N_IO_THREADS		1000
-
 ulint		n[SRV_MAX_N_IO_THREADS + 5];
 os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 5];
 
@@ -589,6 +587,11 @@ innobase_start_or_create_for_mysql(void)
 	if (err != DB_SUCCESS) {
 
 		return((int) err);
+	}
+
+	/* Restrict the maximum number of file i/o threads */
+	if (srv_n_file_io_threads > SRV_MAX_N_IO_THREADS) {
+		srv_n_file_io_threads = SRV_MAX_N_IO_THREADS;
 	}
 
 #if !(defined(WIN_ASYNC_IO) || defined(POSIX_ASYNC_IO))

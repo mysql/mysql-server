@@ -86,7 +86,6 @@ int ha_myisammrg::delete_row(const byte * buf)
 int ha_myisammrg::index_read(byte * buf, const byte * key,
 			  uint key_len, enum ha_rkey_function find_flag)
 {
-//  return (my_errno=HA_ERR_WRONG_COMMAND);
   statistic_increment(ha_read_key_count,&LOCK_status);
   int error=myrg_rkey(file,buf,active_index, key, key_len, find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
@@ -96,7 +95,6 @@ int ha_myisammrg::index_read(byte * buf, const byte * key,
 int ha_myisammrg::index_read_idx(byte * buf, uint index, const byte * key,
 				 uint key_len, enum ha_rkey_function find_flag)
 {
-//  return (my_errno=HA_ERR_WRONG_COMMAND);
   statistic_increment(ha_read_key_count,&LOCK_status);
   int error=myrg_rkey(file,buf,index, key, key_len, find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
@@ -105,7 +103,6 @@ int ha_myisammrg::index_read_idx(byte * buf, uint index, const byte * key,
 
 int ha_myisammrg::index_next(byte * buf)
 {
-//  return (my_errno=HA_ERR_WRONG_COMMAND);
   statistic_increment(ha_read_next_count,&LOCK_status);
   int error=myrg_rnext(file,buf,active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
@@ -114,7 +111,6 @@ int ha_myisammrg::index_next(byte * buf)
 
 int ha_myisammrg::index_prev(byte * buf)
 {
-// return (my_errno=HA_ERR_WRONG_COMMAND);
   statistic_increment(ha_read_prev_count,&LOCK_status);
   int error=myrg_rprev(file,buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
@@ -123,7 +119,6 @@ int ha_myisammrg::index_prev(byte * buf)
 
 int ha_myisammrg::index_first(byte * buf)
 {
-//  return (my_errno=HA_ERR_WRONG_COMMAND);
   statistic_increment(ha_read_first_count,&LOCK_status);
   int error=myrg_rfirst(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
@@ -132,7 +127,6 @@ int ha_myisammrg::index_first(byte * buf)
 
 int ha_myisammrg::index_last(byte * buf)
 {
-//  return (my_errno=HA_ERR_WRONG_COMMAND);
   statistic_increment(ha_read_last_count,&LOCK_status);
   int error=myrg_rlast(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;

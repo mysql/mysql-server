@@ -1,0 +1,19 @@
+#! /bin/sh
+
+gmake -k clean || true
+/bin/rm -f */.deps/*.P config.cache
+ 
+aclocal && autoheader && aclocal && automake && autoconf
+(cd bdb/dist && sh s_all)
+(cd innobase && aclocal && autoheader && aclocal && automake && autoconf)
+if [ -d gemini ]
+then
+   (cd gemini && aclocal && autoheader && aclocal && automake && autoconf)
+fi
+
+PATH=/opt/SUNWspro/bin/:$PATH
+CC=cc CFLAGS="-Xa -fast -xO4 -native -xstrconst -mt -D_FORTREC_" \
+CXX=CC CXXFLAGS="-noex -xO4 -mt"  \
+./configure --prefix=/usr/local/mysql --enable-assembler --with-extra-charsets=complex --enable-thread-safe-client
+
+gmake -j 4
