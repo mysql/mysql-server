@@ -1988,6 +1988,7 @@ CHARSET_INFO my_charset_utf8 =
     to_upper_utf8,	/* sort_order   */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    "","",
     1,			/* strxfrm_multiply */
     my_strnncoll_utf8,	/* strnncoll    */
     my_strnncollsp_utf8,
@@ -3095,6 +3096,7 @@ CHARSET_INFO my_charset_ucs2 =
     to_upper_ucs2,	/* sort_order   */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    "","",
     1,			/* strxfrm_multiply */
     my_strnncoll_ucs2,	/* strnncoll    */
     my_strnncoll_ucs2,
