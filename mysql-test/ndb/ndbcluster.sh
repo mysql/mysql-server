@@ -5,7 +5,7 @@
 # This scripts starts the table handler ndbcluster
 
 # configurable parameters, make sure to change in mysqlcluterd as well
-port_base="22"  # using ports port_base{"00","01", etc}
+port_base="2200"
 fsdir=`pwd`
 # end configurable parameters
 
@@ -85,8 +85,8 @@ fs_ndb=$fsdir/ndbcluster
 fs_mgm_1=$fs_ndb/1.ndb_mgm
 fs_ndb_2=$fs_ndb/2.ndb_db
 fs_ndb_3=$fs_ndb/3.ndb_db
-fs_name_2=$fs_ndb/node-2-fs
-fs_name_3=$fs_ndb/node-3-fs
+fs_name_2=$fs_ndb/node-2-fs-$port_base
+fs_name_3=$fs_ndb/node-3-fs-$port_base
 
 NDB_HOME=
 export NDB_CONNECTSTRING
@@ -125,8 +125,9 @@ fi
 # set som help variables
 
 ndb_host="localhost"
-ndb_port=$port_base"00"
-NDB_CONNECTSTRING_BASE="host=$ndb_host:$ndb_port;nodeid="
+ndb_mgmd_port=$port_base
+port_transporter=`expr $ndb_mgmd_port + 2`
+NDB_CONNECTSTRING_BASE="host=$ndb_host:$ndb_mgmd_port;nodeid="
 
 
 # Start management server as deamon
@@ -145,7 +146,8 @@ sed \
     -e s,"CHOOSE_HOSTNAME_".*,"$ndb_host",g \
     -e s,"CHOOSE_FILESYSTEM_NODE_2","$fs_name_2",g \
     -e s,"CHOOSE_FILESYSTEM_NODE_3","$fs_name_3",g \
-    -e s,"CHOOSE_PORT_BASE",$port_base,g \
+    -e s,"CHOOSE_PORT_MGM",$ndb_mgmd_port,g \
+    -e s,"CHOOSE_PORT_TRANSPORTER",$port_transporter,g \
     < ndb/ndb_config_2_node.ini \
     > "$fs_mgm_1/config.ini"
 fi
@@ -195,7 +197,7 @@ status_ndbcluster
 status_ndbcluster() {
 # Start management client
 
-echo "show" | $exec_mgmtclient $ndb_host $ndb_port
+echo "show" | $exec_mgmtclient $ndb_host $ndb_mgmd_port
 }
 
 stop_default_ndbcluster() {
@@ -210,11 +212,11 @@ if [ ! -f $cfgfile ] ; then
 fi
 
 ndb_host=`cat $cfgfile | sed -e "s,.*host=\(.*\)\:.*,\1,1"`
-ndb_port=`cat $cfgfile | sed -e "s,.*host=$ndb_host\:\([0-9]*\).*,\1,1"`
+ndb_mgmd_port=`cat $cfgfile | sed -e "s,.*host=$ndb_host\:\([0-9]*\).*,\1,1"`
 
 # Start management client
 
-exec_mgmtclient="$exec_mgmtclient --try-reconnect=1 $ndb_host $ndb_port"
+exec_mgmtclient="$exec_mgmtclient --try-reconnect=1 $ndb_host $ndb_mgmd_port"
 
 echo "$exec_mgmtclient"
 echo "all stop" | $exec_mgmtclient
