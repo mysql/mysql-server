@@ -30,7 +30,7 @@ which ()
   do
     for dir in $PATH
     do
-      if test -e $dir/$file
+      if test -f $dir/$file
       then
         echo "$dir/$file"
         continue 2
@@ -49,7 +49,7 @@ sleep_until_file_deleted ()
   loop=$SLEEP_TIME_FOR_DELETE
   while (test $loop -gt 0)
   do
-    if [ ! -e $file ]
+    if [ ! -r $file ]
     then
       sleep $SLEEP_TIME_AFTER_RESTART
       return
@@ -65,7 +65,7 @@ sleep_until_file_exists ()
   org_time=$2
   while (test $loop -gt 0)
   do
-    if [ -e $file ]
+    if [ -r $file ]
     then
       return
     fi
@@ -241,7 +241,7 @@ while test $# -gt 0; do
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1" ;;
     --sleep=*)
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1"
-      SLEEP_TIME_AFTER_RESTART="$1"
+      SLEEP_TIME_AFTER_RESTART=`$ECHO "$1" | $SED -e "s;--sleep=;;"`
       ;;
     --mysqld=*)
        TMP=`$ECHO "$1" | $SED -e "s;--mysqld=;;"`
@@ -317,15 +317,15 @@ MANAGER_PID_FILE="$MYRUN_DIR/manager.pid"
 
 MASTER_MYDDIR="$MYSQL_TEST_DIR/var/master-data"
 MASTER_MYSOCK="$MYSQL_TMP_DIR/master.sock"
-MASTER_MYPID="$MYRUN_DIR/mysqld.pid"
-MASTER_MYLOG="$MYSQL_TEST_DIR/var/log/mysqld.log"
-MASTER_MYERR="$MYSQL_TEST_DIR/var/log/mysqld.err"
+MASTER_MYPID="$MYRUN_DIR/master.pid"
+MASTER_MYLOG="$MYSQL_TEST_DIR/var/log/master.log"
+MASTER_MYERR="$MYSQL_TEST_DIR/var/log/master.err"
 
 SLAVE_MYDDIR="$MYSQL_TEST_DIR/var/slave-data"
 SLAVE_MYSOCK="$MYSQL_TMP_DIR/slave.sock"
-SLAVE_MYPID="$MYRUN_DIR/mysqld-slave.pid"
-SLAVE_MYLOG="$MYSQL_TEST_DIR/var/log/mysqld-slave.log"
-SLAVE_MYERR="$MYSQL_TEST_DIR/var/log/mysqld-slave.err"
+SLAVE_MYPID="$MYRUN_DIR/slave.pid"
+SLAVE_MYLOG="$MYSQL_TEST_DIR/var/log/slave.log"
+SLAVE_MYERR="$MYSQL_TEST_DIR/var/log/slave.err"
 
 SMALL_SERVER="-O key_buffer_size=1M -O sort_buffer=256K -O max_heap_table_size=1M"
 

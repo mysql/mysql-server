@@ -44,6 +44,8 @@ $opt_server="mysql"; $opt_dir="output";
 $opt_host="localhost";$opt_database="test";
 $opt_machine=""; $opt_suffix="";
 $opt_create_options=undef;
+$opt_optimization="None";
+$opt_hw="";
 $opt_threads=5;
 
 $opt_time_limit=10*60;		# Don't wait more than 10 min for some tests
@@ -51,9 +53,9 @@ $opt_time_limit=10*60;		# Don't wait more than 10 min for some tests
 $log_prog_args=join(" ", skip_arguments(\@ARGV,"comments","cmp","server",
 					"user", "host", "database", "password",
 					"use-old-results","skip-test",
+					"optimization","hw",
 					"machine", "dir", "suffix", "log"));
-GetOptions("skip-test=s","comments=s","cmp=s","server=s","user=s","host=s","database=s","password=s","loop-count=i","row-count=i","skip-create","skip-delete","verbose","fast-insert","lock-tables","debug","fast","force","field-count=i","regions=i","groups=i","time-limit=i","log","use-old-results","machine=s","dir=s","suffix=s","help","odbc","small-test","small-tables","small-key-tables","stage=i","threads=i","random","old-headers","die-on-errors","create-options=s","hires","tcpip","silent",
-"socket=s") || usage();
+GetOptions("skip-test=s","comments=s","cmp=s","server=s","user=s","host=s","database=s","password=s","loop-count=i","row-count=i","skip-create","skip-delete","verbose","fast-insert","lock-tables","debug","fast","force","field-count=i","regions=i","groups=i","time-limit=i","log","use-old-results","machine=s","dir=s","suffix=s","help","odbc","small-test","small-tables","small-key-tables","stage=i","threads=i","random","old-headers","die-on-errors","create-options=s","hires","tcpip","silent","optimization=s","hw=s","socket=s") || usage();
 
 usage() if ($opt_help);
 $server=get_server($opt_server,$opt_host,$opt_database,$opt_odbc,
@@ -585,6 +587,13 @@ All benchmarks takes the following options:
 --verbose
   This is a test specific option that is only used when debugging a test.
   Print more information about what is going on.
+
+--optimization='some comments'
+ Add coments about optimization of DBMS, which was done before the test.
+ 
+--hw='some comments'
+ Add coments about hardware used for this test.
+ 
 EOF
   exit(0);
 }

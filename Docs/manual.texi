@@ -19100,7 +19100,8 @@ queries that require MySQL to scan whole tables or you have
 joins that don't use keys properly.
 @item
 If @code{Threads_created} is big, you may want to increase the
-@code{thread_cache_size} variable.
+@code{thread_cache_size} variable.  The cache hit rate can be calculated
+with @code{Threads_created}/@code{Connections}.
 @item
 If @code{Created_tmp_disk_tables} is big, you may want to increase the
 @code{tmp_table_size} variable to get the temporary tables memory based
@@ -34021,8 +34022,8 @@ or      ROW_FORMAT= @{ default | dynamic | fixed | compressed @}
 or	RAID_TYPE= @{1 | STRIPED | RAID0 @} RAID_CHUNKS=#  RAID_CHUNKSIZE=#
 or	UNION = (table_name,[table_name...])
 or	INSERT_METHOD= @{NO | FIRST | LAST @}
-or      DATA DIRECTORY="directory"
-or      INDEX DIRECTORY="directory"
+or      DATA DIRECTORY="absolute path to directory"
+or      INDEX DIRECTORY="absolute path to directory"
 
 select_statement:
 	[IGNORE | REPLACE] SELECT ...  (Some legal select statement)
@@ -47811,6 +47812,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @appendixsubsec Changes in release 4.0.1
 
 @itemize @bullet
+@item
+Fixed stack overrun problem @code{LOAD DATA FROM MASTER} on OSF1.
 @item
 Fixed shutdown problem on HPUX.
 @item

@@ -752,7 +752,7 @@ void clean_up(bool print_message)
     bitmap_free(&slave_error_mask);
   acl_free(1);
   grant_free();
-  query_cache.resize(0);
+  query_cache.destroy();
   table_cache_free();
   hostname_cache_free();
   item_user_lock_free();
