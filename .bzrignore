@@ -284,3 +284,5 @@ support-files/mysql.spec
 tags
 tmp/*
 sql-bench/gif/*
+sql-bench/compare-results-all
+sql-bench/template.html
