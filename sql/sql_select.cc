@@ -4469,9 +4469,16 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     error=0;
     if (!table)					// If sending data to client
     {
-      join_free(join);				// Unlock all cursors
+      //note that the call below may trigger binlog writing for some commands...
       if (join->result->send_eof())
 	error= 1;				// Don't send error
+      /*
+        ...which must be done before unlocking the read tables (otherwise
+        another thread may, quickly between unlock and binlog-write,
+        update the read table and write to the binlog, which will
+        result in badly ordered binlog events (and replication breaks).
+      */
+      join_free(join);				// Unlock all cursors
     }
     DBUG_PRINT("info",("%ld records output",join->send_records));
   }
