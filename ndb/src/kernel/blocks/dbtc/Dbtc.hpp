@@ -1155,7 +1155,6 @@ public:
     union { Uint32 m_queued_count; Uint32 scanReceivedOperations; };
     DLList<ScanFragRec>::Head m_queued_scan_frags;   // In TC !sent to API
     DLList<ScanFragRec>::Head m_delivered_scan_frags;// Delivered to API
-    DLList<ScanFragRec>::Head m_completed_scan_frags;// Completed
     
     // Id of the next fragment to be scanned. Used by scan fragment 
     // processes when they are ready for the next fragment
@@ -1433,7 +1432,7 @@ private:
   void releaseScanResources(ScanRecordPtr);
   ScanRecordPtr seizeScanrec(Signal* signal);
   void sendScanFragReq(Signal*, ScanRecord*, ScanFragRec*);
-  void sendScanTabConf(Signal* signal, ScanRecord*);
+  void sendScanTabConf(Signal* signal, ScanRecordPtr);
   void close_scan_req(Signal*, ScanRecordPtr, bool received_req);
   void close_scan_req_send_conf(Signal*, ScanRecordPtr);
   
