@@ -79,11 +79,11 @@ connection slave;
 slave start;
 sync_with_master;
 show master logs;
---replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT $VERSION VERSION
+--replace_result $MASTER_MYPORT MASTER_PORT $VERSION VERSION
 show binlog events in 'slave-bin.001' from 4;
---replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT $VERSION VERSION
+--replace_result $MASTER_MYPORT MASTER_PORT $VERSION VERSION
 show binlog events in 'slave-bin.002' from 4;
---replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
+--replace_result $MASTER_MYPORT MASTER_PORT
 show slave status;
 
 # Need to recode the following
