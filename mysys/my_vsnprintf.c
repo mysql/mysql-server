@@ -80,15 +80,22 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
 }
 
 #ifdef MAIN
+#define OVERRUN_SENTRY  250
 static void my_printf(const char * fmt, ...)
 {
-  char buf[32];
+  char buf[33];
   int n;
   va_list ar;
   va_start(ar, fmt);
-  n = my_vsnprintf(buf, sizeof(buf),fmt, ar);
+  buf[sizeof(buf)-1]=OVERRUN_SENTRY;
+  n = my_vsnprintf(buf, sizeof(buf)-1,fmt, ar);
   printf(buf);
   printf("n=%d, strlen=%d\n", n, strlen(buf));
+  if (buf[sizeof(buf)-1] != OVERRUN_SENTRY)
+  {
+    fprintf(stderr, "Buffer overrun\n");
+    abort();
+  }
   va_end(ar);
 }
 
