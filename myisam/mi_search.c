@@ -107,8 +107,9 @@ int _mi_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   }
   else
   {
-    if (nextflag & SEARCH_FIND && (!(keyinfo->flag & HA_NOSAME)
-				   || key_len) && nod_flag)
+    if ((nextflag & SEARCH_FIND) && nod_flag &&
+	((keyinfo->flag & (HA_NOSAME | HA_NULL_PART)) != HA_NOSAME ||
+	 key_len))
     {
       if ((error=_mi_search(info,keyinfo,key,key_len,SEARCH_FIND,
 			    _mi_kpos(nod_flag,keypos))) >= 0 ||

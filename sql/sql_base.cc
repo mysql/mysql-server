@@ -2222,18 +2222,18 @@ int setup_ftfuncs(THD *thd)
   return 0;
 }
 
+
 int init_ftfuncs(THD *thd, bool no_order)
 {
-  List_iterator<Item_func_match> li(thd->lex.ftfunc_list);
-  Item_func_match *ifm;
-  DBUG_PRINT("info",("Performing FULLTEXT search"));
-  thd->proc_info="FULLTEXT initialization";
-
-  while ((ifm=li++))
+  if (thd->lex.ftfunc_list.elements)
   {
-    ifm->init_search(no_order);
-  }
+    List_iterator<Item_func_match> li(thd->lex.ftfunc_list);
+    Item_func_match *ifm;
+    DBUG_PRINT("info",("Performing FULLTEXT search"));
+    thd->proc_info="FULLTEXT initialization";
 
+    while ((ifm=li++))
+      ifm->init_search(no_order);
+  }
   return 0;
 }
-

@@ -110,6 +110,9 @@ typedef struct st_vio Vio;
 #endif
 #endif
 
+#define MAX_CHAR_WIDTH		255	/* Max length for a CHAR colum */
+#define MAX_BLOB_WIDTH		8192	/* Default width for blob */
+
 typedef struct st_net {
   Vio* vio;
   my_socket fd;					/* For Perl DBI/dbd */
