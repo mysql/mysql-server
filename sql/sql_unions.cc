@@ -1,3 +1,25 @@
+/* Copyright (C) 2000 MySQL AB
+   
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+   
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+   
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
+
+/* UNION  of select's */
+
+/* UNION's  were introduced by Monty and Sinisa <sinisa@mysql.com> */
+
+
 #include "mysql_priv.h"
 
 
@@ -6,8 +28,8 @@
 
 int mysql_union(THD *thd,LEX *lex,uint no_of_selects) 
 {
-  SELECT_LEX *sl, *for_order=&lex->select_lex; uint no=0; int res;
-  List<Item> fields;     TABLE *table;
+  SELECT_LEX *sl, *for_order=&lex->select_lex; uint no=0; int res=0;
+  List<Item> fields;     TABLE *table=(TABLE *)NULL; TABLE_LIST *resulting=(TABLE_LIST *)NULL;
   for (;for_order->next;for_order=for_order->next);
   ORDER *some_order = (ORDER *)for_order->order_list.first;
   for (sl=&lex->select_lex;sl;sl=sl->next, no++)
@@ -38,16 +60,19 @@ int mysql_union(THD *thd,LEX *lex,uint no_of_selects)
 	  delete result;
 	  return res;
 	}
-	else
-	{
-	  table=result->table;
-	  List_iterator<Item> it(*(result->fields));
-	  Item *item;
-	  while ((item= it++))
-	    fields.push_back(item);
-	}
+	table=result->table;
+	List_iterator<Item> it(*(result->fields));
+	Item *item;
+	while ((item= it++))
+	  fields.push_back(item);
 	delete result;
-	if (reopen_table(table)) return 1;
+	if (!reopen_table(table)) return 1;
+	if (!(resulting = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
+	  return 1;
+	resulting->db=tables->db ? tables->db : thd->db;
+	resulting->real_name=table->real_name;
+	resulting->name=table->table_name;
+	resulting->table=table;
       }
       else
 	return -1;
@@ -73,29 +98,41 @@ int mysql_union(THD *thd,LEX *lex,uint no_of_selects)
 	return -1;
     }
   }
-  if (1) // Meaning if not SELECT ... INTO .... which will be done later
+  select_result *result;
+  List<Item> item_list;
+  List<Item_func_match> ftfunc_list;
+  ftfunc_list.empty();
+  if (item_list.push_back(new Item_field(NULL,NULL,"*")))
+    return -1;
+  if (lex->exchange)
   {
-    READ_RECORD	info;
-    int error=0;
-    if (send_fields(thd,fields,1)) return 1;
-    SQL_SELECT	*select= new SQL_SELECT;
-    select->head=table;
-    select->file=*(table->io_cache);
-    init_read_record(&info,thd,table,select,1,1);
-    while (!(error=info.read_record(&info)) && !thd->killed)
+    if (lex->exchange->dumpfile)
     {
-      
-      if (error)
-      {
-	table->file->print_error(error,MYF(0));
-	break;
-      }
+      if (!(result=new select_dump(lex->exchange)))
+	return -1;
     }
-    end_read_record(&info);
-    delete select;
+    else
+    {
+      if (!(result=new select_export(lex->exchange)))
+	return -1;
+    }
   }
+  else if (!(result=new select_send()))
+    return -1;
   else
   {
+    res=mysql_select(thd,resulting,item_list,
+		     NULL,
+		     ftfunc_list,
+		     (ORDER*) NULL,
+		     (ORDER*) NULL,
+		     NULL,
+		     (ORDER*) NULL,
+		     thd->options,
+		     result);
+    if (res)
+      result->abort();
   }
-  return 0;
+  delete result;
+  return res;
 }
