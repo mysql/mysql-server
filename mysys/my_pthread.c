@@ -410,9 +410,23 @@ int my_pthread_cond_init(pthread_cond_t *mp, const pthread_condattr_t *attr)
 
 #endif
 
+/* Change functions on HP to work according to POSIX */
+
+#ifdef HAVE_DEC_THREADS
+#undef pthread_cond_timedwait
+
+int my_pthread_cond_timedwait(pthread_cond_t *cond,
+			      pthread_mutex_t *mutex,
+			      struct timespec *abstime)
+{
+  int error=pthread_cond_timedwait(cond,mutex,abstime);
+  return error == EAGAIN ? ETIMEDOUT : error;
+}
+#endif /* HAVE_DEC_THREADS */
+
 /*
-** Emulate SOLARIS style calls, not because it's better, but just to make the
-** usage of getbostbyname_r simpler.
+  Emulate SOLARIS style calls, not because it's better, but just to make the
+  usage of getbostbyname_r simpler.
 */
 
 #if !defined(my_gethostbyname_r) && defined(HAVE_GETHOSTBYNAME_R)

@@ -1514,7 +1514,7 @@ longlong Item_func_get_lock::val_int()
 
   while (!thd->killed &&
 	 (error=pthread_cond_timedwait(&ull->cond,&LOCK_user_locks,&abstime))
-	 != ETIME && error != ETIMEDOUT && ull->locked) ;
+	 != ETIME && error != ETIMEDOUT && error != EINVAL && ull->locked) ;
   if (thd->killed)
     error=EINTR;				// Return NULL
   if (ull->locked)

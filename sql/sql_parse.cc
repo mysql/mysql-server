@@ -530,7 +530,7 @@ pthread_handler_decl(handle_one_connection,arg)
     if ((error=check_connections(thd)))
     {						// Wrong permissions
       if (error > 0)
-	net_printf(net,error,thd->host ? thd->host : thd->ip);
+	net_printf(net,error,thd->host ? thd->host : (thd->ip ? thd->ip : ""));
 #ifdef __NT__
       if (vio_type(net->vio) == VIO_TYPE_NAMEDPIPE)
 	sleep(1);				/* must wait after eof() */
