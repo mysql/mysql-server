@@ -260,3 +260,4 @@
 "Für jede abgeleitete Tabelle muss ein eigener Alias angegeben werden.",
 "Select %u wurde während der Optimierung reduziert.",
 "Tabelle '%-.64s', die in einem der SELECT-Befehle verwendet wurde kann nicht in %-.32s verwendet werden."
+"Client does not support authentication protocol requested by server. Consider upgrading MySQL client"
