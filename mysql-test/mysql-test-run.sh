@@ -99,8 +99,9 @@ export MYSQL_TEST_DIR
 STD_DATA=$MYSQL_TEST_DIR/std_data
 hostname=`hostname`		# Installed in the mysql privilege table
   
-TESTDIR="$MYSQL_TEST_DIR/t/"
+TESTDIR="$MYSQL_TEST_DIR/t"
 TESTSUFFIX=test
+TOT_SKIP=0
 TOT_PASS=0
 TOT_FAIL=0
 TOT_TEST=0
@@ -108,6 +109,7 @@ USERT=0
 SYST=0
 REALT=0
 MYSQL_TMP_DIR=$MYSQL_TEST_DIR/var/tmp
+SLAVE_LOAD_TMPDIR=../../var/tmp #needs to be same length to test logging
 RES_SPACE="      "
 MYSQLD_SRC_DIRS="strings mysys include extra regex isam merge myisam \
  myisammrg heap sql"
@@ -124,6 +126,7 @@ USE_RUNNING_SERVER=1
 DO_GCOV=""
 DO_GDB=""
 DO_DDD=""
+DO_CLIENT_GDB=""
 SLEEP_TIME=2
 DBUSER=""
 
@@ -135,9 +138,32 @@ while test $# -gt 0; do
     --tmpdir=*) MYSQL_TMP_DIR=`$ECHO "$1" | $SED -e "s;--tmpdir=;;"` ;;
     --master_port=*) MASTER_MYPORT=`$ECHO "$1" | $SED -e "s;--master_port=;;"` ;;
     --slave_port=*) SLAVE_MYPORT=`$ECHO "$1" | $SED -e "s;--slave_port=;;"` ;;
+    --with-openssl)
+     EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT \
+     --ssl-ca=$BASEDIR/SSL/cacert.pem \
+     --ssl-cert=$BASEDIR/SSL/server-cert.pem \
+     --ssl-key=$BASEDIR/SSL/server-key.pem"
+     EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT \
+     --ssl-ca=$BASEDIR/SSL/cacert.pem \
+     --ssl-cert=$BASEDIR/SSL/server-cert.pem \
+     --ssl-key=$BASEDIR/SSL/server-key.pem" ;;
+    --skip-innobase)
+     EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-innobase"
+     EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-innobase" ;;
+    --skip-bdb)
+     EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-bdb"
+     EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-bdb" ;;
     --skip-rpl) NO_SLAVE=1 ;;
+    --skip-test=*) SKIP_TEST=`$ECHO "$1" | $SED -e "s;--skip-test=;;"`;;
+    --do-test=*) DO_TEST=`$ECHO "$1" | $SED -e "s;--do-test=;;"`;;
     --record)
       RECORD=1;
+      EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1" ;;
+    --bench)
+      DO_BENCH=1
+      NO_SLAVE=1
+      ;;  
+    --big*)			# Actually --big-test
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1" ;;
     --sleep=*)
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1"
@@ -160,18 +186,22 @@ while test $# -gt 0; do
       ;;  
     --gdb )
       if [ x$BINARY_DIST = x1 ] ; then
-	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with -gdb option"
+	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with --gdb option"
       fi
       DO_GDB=1
       USE_RUNNING_SERVER=""
-      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-stack"
+      ;;
+    --client-gdb )
+      if [ x$BINARY_DIST = x1 ] ; then
+	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with --client-gdb option"
+      fi
+      DO_CLIENT_GDB=1
       ;;
     --ddd )
       if [ x$BINARY_DIST = x1 ] ; then
-	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with -gdb option"
+	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with --ddd option"
       fi
       DO_DDD=1
-      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-stack"
       USE_RUNNING_SERVER=""
       ;;
     --skip-*)
@@ -180,9 +210,9 @@ while test $# -gt 0; do
       ;;
     --debug)
       EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT \
-       --debug=d:t:O,$MYSQL_TMP_DIR/master.trace"
+       --debug=d:t:O,$MYSQL_TEST_DIR/var/log/master.trace"
       EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT \
-       --debug=d:t:O,$MYSQL_TMP_DIR/slave.trace"
+       --debug=d:t:O,$MYSQL_TEST_DIR/var/log/slave.trace"
       EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT --debug"
       ;;
     -- )  shift; break ;;
@@ -231,16 +261,23 @@ fi
 
 [ -z "$COLUMNS" ] && COLUMNS=80
 E=`$EXPR $COLUMNS - 8`
-#DASH72=`expr substr '------------------------------------------------------------------------' 1 $E`
+#DASH72=`$EXPR substr '------------------------------------------------------------------------' 1 $E`
 DASH72=`$ECHO '------------------------------------------------------------------------'|$CUT -c 1-$E`
 
 # on source dist, we pick up freshly build executables
 # on binary, use what is installed
 if [ x$SOURCE_DIST = x1 ] ; then
  MYSQLD="$BASEDIR/sql/mysqld"
- MYSQL_TEST="$BASEDIR/client/mysqltest"
+ if [ -e "$BASEDIR/client/.libs/mysqltest" ] ; then
+   [ -e "$BASEDIR/client/.libs/lt-mysqltest" ] || $BASEDIR/client/mysqltest -V
+   MYSQL_TEST="$BASEDIR/client/.libs/lt-mysqltest"
+ else
+   MYSQL_TEST="$BASEDIR/client/mysqltest"
+ fi
  MYSQLADMIN="$BASEDIR/client/mysqladmin"
  MYSQL="$BASEDIR/client/mysql"
+ LANGUAGE="$BASEDIR/sql/share/english/"
+ CHARSETSDIR="$BASEDIR/sql/share/charsets"
  INSTALL_DB="./install_test_db"
 else
  MYSQLD="$BASEDIR/bin/mysqld"
@@ -248,6 +285,14 @@ else
  MYSQLADMIN="$BASEDIR/bin/mysqladmin"
  MYSQL="$BASEDIR/bin/mysql"
  INSTALL_DB="./install_test_db -bin"
+ if test -d "$BASEDIR/share/mysql/english" 
+ then
+   LANGUAGE="$BASEDIR/share/mysql/english/"
+   CHARSETSDIR="$BASEDIR/share/mysql/charsets"
+ else
+   LANGUAGE="$BASEDIR/share/english/"
+   CHARSETSDIR="$BASEDIR/share/charsets"
+  fi
 fi
 
 # If we should run all tests cases, we will use a local server for that
@@ -272,7 +317,10 @@ then
 fi
 
 
-MYSQL_TEST="$MYSQL_TEST --no-defaults --socket=$MASTER_MYSOCK --database=$DB --user=$DBUSER --password=$DBPASSWD --silent -v --tmpdir=$MYSQL_TMP_DIR"
+MYSQL_TEST_ARGS="--no-defaults --socket=$MASTER_MYSOCK --database=$DB --user=$DBUSER --password=$DBPASSWD --silent -v --tmpdir=$MYSQL_TMP_DIR"
+MYSQL_TEST_BIN=$MYSQL_TEST
+MYSQL_TEST="$MYSQL_TEST $MYSQL_TEST_ARGS"
+GDB_CLIENT_INIT=$MYSQL_TMP_DIR/gdbinit.client
 GDB_MASTER_INIT=$MYSQL_TMP_DIR/gdbinit.master
 GDB_SLAVE_INIT=$MYSQL_TMP_DIR/gdbinit.slave
 GCOV_MSG=$MYSQL_TMP_DIR/mysqld-gcov.out
@@ -303,16 +351,32 @@ show_failed_diff ()
 {
   reject_file=r/$1.reject
   result_file=r/$1.result
+  eval_file=r/$1.eval
+  
+  if [ -f $eval_file ]
+  then
+    result_file=$eval_file
+  fi
+    
   if [ -x "$DIFF" ] && [ -f $reject_file ]
   then
     echo "Below are the diffs between actual and expected results:"
     echo "-------------------------------------------------------"
-    $DIFF -c $result_file $reject_file
+    $DIFF -c -a $result_file $reject_file
     echo "-------------------------------------------------------"
     echo "Please follow the instructions outlined at"
     echo "http://www.mysql.com/doc/R/e/Reporting_mysqltest_bugs.html"
     echo "to find the reason to this problem and how to report this."
   fi  
+}
+
+do_gdb_test ()
+{
+  mysql_test_args="$MYSQL_TEST_ARGS $1"
+  $ECHO "set args $mysql_test_args < $2" > $GDB_CLIENT_INIT
+  echo "Set breakpoints ( if needed) and type 'run' in gdb window"
+  #this xterm should not be backgrounded
+  xterm -title "Client" -e gdb -x $GDB_CLIENT_INIT $MYSQL_TEST_BIN
 }
 
 error () {
@@ -435,19 +499,38 @@ start_master()
     # Remove old berkeley db log files that can confuse the server
     $RM -f $MASTER_MYDDIR/log.*	
     #start master
-    master_args="--no-defaults --log-bin=master-bin \
+    if [ -z "$DO_BENCH" ]
+    then
+      master_args="--no-defaults --log-bin=master-bin \
     	    --server-id=1 \
+            --basedir=$MY_BASEDIR \
+	    --port=$MASTER_MYPORT \
+	    --exit-info=256 \
+            --datadir=$MASTER_MYDDIR \
+	    --pid-file=$MASTER_MYPID \
+	    --socket=$MASTER_MYSOCK \
+            --log=$MASTER_MYLOG \
+	    --character-sets-dir=$CHARSETSDIR \
+	    --tmpdir=$MYSQL_TMP_DIR \
+	    --language=$LANGUAGE \
+            --innodb_data_file_path=ibdata1:50M \
+	     $SMALL_SERVER \
+	     $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
+    else
+      master_args="--no-defaults --log-bin=master-bin --server-id=1 \
             --basedir=$MY_BASEDIR \
 	    --port=$MASTER_MYPORT \
             --datadir=$MASTER_MYDDIR \
 	    --pid-file=$MASTER_MYPID \
 	    --socket=$MASTER_MYSOCK \
-            --log=$MASTER_MYLOG --default-character-set=latin1 \
+            --default-character-set=$CHARACTER_SET \
+	    --core \
 	    --tmpdir=$MYSQL_TMP_DIR \
-	    --language=english \
+	    --language=$LANGUAGE \
             --innodb_data_file_path=ibdata1:50M \
 	     $SMALL_SERVER \
 	     $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
+    fi	     
     if [ x$DO_DDD = x1 ]
     then
       $ECHO "set args $master_args" > $GDB_MASTER_INIT
@@ -496,10 +579,11 @@ start_slave()
 	    --pid-file=$SLAVE_MYPID \
 	    --port=$SLAVE_MYPORT \
 	    --socket=$SLAVE_MYSOCK \
-            --log=$SLAVE_MYLOG --default-character-set=latin1 \
+            --log=$SLAVE_MYLOG \
+	    --character-sets-dir=$CHARSETSDIR \
 	    --core \
 	    --tmpdir=$MYSQL_TMP_DIR \
-            --language=english \
+            --language=$LANGUAGE \
 	    --skip-innodb --skip-slave-start \
 	     $SMALL_SERVER \
              $EXTRA_SLAVE_OPT $EXTRA_SLAVE_MYSQLD_OPT"
@@ -507,7 +591,7 @@ start_slave()
     then
       $ECHO "set args $master_args" > $GDB_SLAVE_INIT
       ddd --debugger "gdb -x $GDB_SLAVE_INIT" $SLAVE_MYSQLD &
-      prompt_user "Hit enter to continue after you've started the master"
+      prompt_user "Hit enter to continue after you've started the slave"
     elif [ x$DO_GDB = x1 ]
     then
       $ECHO "set args $slave_args" > $GDB_SLAVE_INIT
@@ -609,6 +693,22 @@ run_testcase ()
  slave_init_script=$TESTDIR/$tname-slave.sh
  slave_master_info_file=$TESTDIR/$tname-slave-master-info.opt
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
+ if [ -n "$SKIP_TEST" ] ; then 
+   SKIP_THIS_TEST=`$EXPR \( $tname : "$SKIP_TEST" \) != 0`
+   if [ x$SKIP_THIS_TEST = x1 ] ;
+   then
+    return;
+   fi
+  fi
+
+ if [ -n "$DO_TEST" ] ; then 
+   DO_THIS_TEST=`$EXPR \( $tname : "$DO_TEST" \) != 0`
+   if [ x$DO_THIS_TEST = x0 ] ;
+   then
+    return;
+   fi
+  fi
+
 
  if [ x${NO_SLAVE}x$SKIP_SLAVE = x1x0 ] ;
  then
@@ -616,9 +716,9 @@ run_testcase ()
    SYST="    ...."
    REALT="    ...."
    timestr="$USERT $SYST $REALT"
-   pname=`$ECHO "$tname                 "|$CUT -c 1-16`
-   RES="$pname          $timestr"
-   pass_inc
+   pname=`$ECHO "$tname                        "|$CUT -c 1-24`
+   RES="$pname  $timestr"
+   skip_inc
    $ECHO "$RES$RES_SPACE [ skipped ]"
    return
  fi
@@ -672,8 +772,13 @@ run_testcase ()
   
  if [ -f $tf ] ; then
     $RM -f r/$tname.*reject
-    mytime=`$TIME -p $MYSQL_TEST -R r/$tname.result $EXTRA_MYSQL_TEST_OPT \
-     < $tf 2> $TIMEFILE`
+    mysql_test_args="-R r/$tname.result $EXTRA_MYSQL_TEST_OPT"
+     if [ -z "$DO_CLIENT_GDB" ] ; then
+     mytime=`$TIME -p $MYSQL_TEST  $mysql_test_args < $tf 2> $TIMEFILE`
+    else
+     do_gdb_test "$mysql_test_args" "$tf"
+    fi
+     
     res=$?
 
     if [ $res = 0 ]; then
@@ -692,15 +797,19 @@ run_testcase ()
     fi
 
     timestr="$USERT $SYST $REALT"
-    pname=`$ECHO "$tname                 "|$CUT -c 1-16`
-    RES="$pname          $timestr"
+    pname=`$ECHO "$tname                        "|$CUT -c 1-24`
+    RES="$pname  $timestr"
 
     if [ $res = 0 ]; then
       total_inc
       pass_inc
       $ECHO "$RES$RES_SPACE [ pass ]"
     else
-      if [ $res = 1 ]; then
+      # why the following ``if'' ? That is why res==1 is special ?
+      if [ $res = 2 ]; then
+        skip_inc
+	$ECHO "$RES$RES_SPACE [ skipped ]"
+      else
 	total_inc
         fail_inc
 	$ECHO "$RES$RES_SPACE [ fail ]"
@@ -724,9 +833,6 @@ run_testcase ()
 	fi
 	$ECHO "Resuming Tests"
 	$ECHO ""
-      else
-        pass_inc
-	$ECHO "$RES$RES_SPACE [ skipped ]"
       fi
     fi
   fi
@@ -762,6 +868,28 @@ fi
 
 
 $ECHO  "Starting Tests"
+
+if [ "$DO_BENCH" = 1 ]
+then
+ BENCHDIR=$BASEDIR/sql-bench/
+ savedir=`pwd`
+ cd $BENCHDIR
+ if [ -z "$1" ]
+ then
+  ./run-all-tests --socket=$MASTER_MYSOCK --user=root
+ else
+ if [ -x "./$1" ]
+  then
+   ./$1 --socket=$MASTER_MYSOCK --user=root
+  else
+   echo "benchmark $1 not found" 
+  fi
+ fi  
+ cd $savedir
+ mysql_stop
+ exit
+fi
+
 
 $ECHO
 $ECHO " TEST                         USER   SYSTEM  ELAPSED        RESULT"

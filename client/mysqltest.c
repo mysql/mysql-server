@@ -1359,6 +1359,10 @@ int read_line(char* buf, int size)
 	*p = 0;
 	return 0;
       }
+      else if (c == '\'')
+	state = R_Q1;
+      else if (c == '"')
+	state = R_Q2;
       else
 	state = R_NORMAL;
       break;
