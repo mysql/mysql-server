@@ -565,7 +565,7 @@ static my_bool my_net_skip_rest(NET *net, uint32 remain, thr_alarm_t *alarmed,
   if (!thr_alarm_in_use(alarmed))
   {
     my_bool old_mode;
-    if (!thr_alarm(alarmed,net->read_timeout, alarm_buff) ||
+    if (thr_alarm(alarmed,net->read_timeout, alarm_buff) ||
 	vio_blocking(net->vio, TRUE, &old_mode) < 0)
       DBUG_RETURN(1);				/* Can't setup, abort */
   }
