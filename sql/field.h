@@ -864,7 +864,8 @@ public:
   uint max_packed_col_length(uint max_length);
   uint size_of() const { return sizeof(*this); }
   enum_field_types real_type() const { return FIELD_TYPE_STRING; }
-  bool has_charset(void) const { return TRUE; }
+  bool has_charset(void) const
+  { return charset() == &my_charset_bin ? FALSE : TRUE; }
   field_cast_enum field_cast_type() { return FIELD_CAST_STRING; }
 };
 
@@ -911,7 +912,8 @@ public:
   uint max_packed_col_length(uint max_length);
   uint size_of() const { return sizeof(*this); }
   enum_field_types real_type() const { return FIELD_TYPE_VAR_STRING; }
-  bool has_charset(void) const { return TRUE; }
+  bool has_charset(void) const
+  { return charset() == &my_charset_bin ? FALSE : TRUE; }
   field_cast_enum field_cast_type() { return FIELD_CAST_VARSTRING; }
 };
 

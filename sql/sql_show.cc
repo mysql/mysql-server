@@ -1247,26 +1247,21 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     field->sql_type(type);
     packet->append(type.ptr(),type.length());
 
-    if (field->has_charset())
+    if (field->has_charset() && !limited_mysql_mode && !foreign_db_mode)
     {
-      if (field->charset() == &my_charset_bin)
-        packet->append(" binary", 7);
-      else if (!limited_mysql_mode && !foreign_db_mode)
+      if (field->charset() != table->table_charset)
       {
-	if (field->charset() != table->table_charset)
-	{
-	  packet->append(" character set ", 15);
-	  packet->append(field->charset()->csname);
-	}
-	/* 
-	  For string types dump collation name only if 
-	  collation is not primary for the given charset
-	*/
-	if (!(field->charset()->state & MY_CS_PRIMARY))
-	{
-	  packet->append(" collate ", 9);
-	  packet->append(field->charset()->name);
-	}
+	packet->append(" character set ", 15);
+	packet->append(field->charset()->csname);
+      }
+      /* 
+	For string types dump collation name only if 
+	collation is not primary for the given charset
+      */
+      if (!(field->charset()->state & MY_CS_PRIMARY))
+      {
+	packet->append(" collate ", 9);
+	packet->append(field->charset()->name);
       }
     }
 

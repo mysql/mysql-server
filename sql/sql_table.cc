@@ -476,6 +476,18 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     */
     if (create_info->table_charset && sql_field->charset != &my_charset_bin)
       sql_field->charset= create_info->table_charset;
+
+    CHARSET_INFO *savecs= sql_field->charset;
+    if ((sql_field->flags & BINCMP_FLAG) &&
+	!(sql_field->charset= get_charset_by_csname(sql_field->charset->csname,
+						    MY_CS_BINSORT,MYF(0))))
+    {
+      char tmp[64];
+      strmake(strmake(tmp, savecs->csname, sizeof(tmp)-4), "_bin", 4);
+      my_error(ER_UNKNOWN_COLLATION, MYF(0), tmp);
+      DBUG_RETURN(-1);
+    }
+    
     sql_field->create_length_to_internal_length();
 
     /* Don't pack keys in old tables if the user has requested this */

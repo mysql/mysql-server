@@ -78,6 +78,7 @@ enum enum_server_command
 #define PART_KEY_FLAG	16384		/* Intern; Part of some key */
 #define GROUP_FLAG	32768		/* Intern: Group field */
 #define UNIQUE_FLAG	65536		/* Intern: Used by sql_yacc */
+#define BINCMP_FLAG	131072		/* Intern: Used by sql_yacc */
 
 #define REFRESH_GRANT		1	/* Refresh grant tables */
 #define REFRESH_LOG		2	/* Start on new log file */
