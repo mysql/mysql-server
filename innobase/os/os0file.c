@@ -752,7 +752,12 @@ os_file_set_size(
 
 	offset = 0;
 	low = (ib_longlong)size + (((ib_longlong)size_high) << 32);
+
+	if (low >= (ib_longlong)(100 * 1024 * 1024)) {
 				
+		fprintf(stderr, "InnoDB: Progress in MB:");
+	}
+
 	while (offset < low) {
 	        if (low - offset < UNIV_PAGE_SIZE * 512) {
 	        	n_bytes = (ulint)(low - offset);
@@ -768,7 +773,22 @@ os_file_set_size(
 			ut_free(buf2);
 	         	goto error_handling;
 	        }
+				
+		/* Print about progress for each 100 MB written */
+		if ((offset + n_bytes) / (ib_longlong)(100 * 1024 * 1024)
+		    != offset / (ib_longlong)(100 * 1024 * 1024)) {
+
+		        fprintf(stderr, " %lu00",
+				(ulint)((offset + n_bytes)
+					/ (ib_longlong)(100 * 1024 * 1024)));
+		}
+		
 	        offset += n_bytes;
+	}
+
+	if (low >= (ib_longlong)(100 * 1024 * 1024)) {
+				
+		fprintf(stderr, "\n");
 	}
 
 	ut_free(buf2);
