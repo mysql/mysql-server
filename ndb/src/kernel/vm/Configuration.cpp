@@ -108,7 +108,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 bool
 Configuration::init(int argc, char** argv)
 {  
-  const char *load_default_groups[]= { "ndbd",0 };
+  const char *load_default_groups[]= { "mysql_cluster","ndbd",0 };
   load_defaults("my",load_default_groups,&argc,&argv);
 
   int ho_error;
