@@ -2535,6 +2535,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
       my_free(mysql->options.shared_memory_base_name,MYF(MY_ALLOW_ZERO_PTR));
     mysql->options.shared_memory_base_name=my_strdup(arg,MYF(MY_WME));
 #endif
+    break;
   case MYSQL_OPT_USE_REMOTE_CONNECTION:
   case MYSQL_OPT_USE_EMBEDDED_CONNECTION:
   case MYSQL_OPT_GUESS_CONNECTION:
@@ -2542,6 +2543,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
     break;
   case MYSQL_SET_CLIENT_IP:
     mysql->options.client_ip= my_strdup(arg, MYF(MY_WME));
+    break;
   default:
     DBUG_RETURN(1);
   }
