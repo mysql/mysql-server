@@ -385,6 +385,7 @@ select 1;
 1
 1
 select @@session.key_buffer_size;
+ERROR HY000: Variable 'key_buffer_size' is a GLOBAL variable
 set ft_boolean_syntax = @@init_connect;
 ERROR HY000: Variable 'ft_boolean_syntax' is a GLOBAL variable and should be set with SET GLOBAL
 set global ft_boolean_syntax = @@init_connect;

@@ -225,7 +225,7 @@ extern long strtol(const char *str, char **ptr, int base);
 extern ulong strtoul(const char *str, char **ptr, int base);
 #endif
 
-extern char *int2str(long val, char *dst, int radix, char upcase);
+extern char *int2str(long val, char *dst, int radix, int upcase);
 extern char *int10_to_str(long val,char *dst,int radix);
 extern char *str2int(const char *src,int radix,long lower,long upper,
 			 long *val);
