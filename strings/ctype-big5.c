@@ -377,7 +377,7 @@ static my_bool my_like_range_big5(CHARSET_INFO *cs __attribute__((unused)),
       *min_length= (uint) (min_str-min_org);
       *max_length= res_length;
       do {
-	*min_str++ = '\0';		/* Because if key compression */
+	*min_str++ = ' ';		/* Because if key compression */
 	*max_str++ = max_sort_char;
       } while (min_str != min_end);
       return 0;

@@ -834,6 +834,7 @@ static int check_connection(THD *thd)
   char *passwd= strend(user)+1;
   char *db= passwd;
   char db_buff[NAME_LEN+1];                     // buffer to store db in utf8 
+  char user_buff[USERNAME_LENGTH+1];		// buffer to store user in utf8
   /* 
     Old clients send null-terminated string as password; new clients send
     the size (1 byte) + string (not null-terminated). Hence in case of empty
@@ -852,6 +853,14 @@ static int check_connection(THD *thd)
                              db, strlen(db),
                              thd->charset())]= 0;
     db= db_buff;
+  }
+
+  if (user)
+  {
+    user_buff[copy_and_convert(user_buff, sizeof(user_buff)-1,
+			       system_charset_info, user, strlen(user),
+			       thd->charset())]= '\0';
+    user= user_buff;
   }
 
   if (thd->user)
