@@ -257,7 +257,7 @@ As the @code{MySQL Database Software} is under continuous development,
 the manual is also updated frequently.
 The most recent version of this manual is available at
 @uref{http://www.mysql.com/documentation/} in many different formats,
-currently there are Texinfo, plain text, Info, HTML, PostScript, PDF
+currently there are Texinfo, plain text, Info, HTML, PostScript, PDF,
 and Windows HLP versions.
 
 The primary document is the Texinfo file.
@@ -368,11 +368,12 @@ your own database, table, and column names, perhaps like this:
 mysql> SELECT author_name FROM biblio_db.author_list;
 @end example
 
-Keywords in SQL statements may be written in uppercase or lowercase.  This
-manual uses uppercase.
+SQL keywords are not case sensitive and may be written in uppercase or
+lowercase.  This manual uses uppercase.
 
 In syntax descriptions, square brackets (@samp{[} and @samp{]}) are used
-to indicate optional words or clauses:
+to indicate optional words or clauses.  For example, in the following
+statement, @code{IF EXISTS} is optional:
 
 @example
 DROP TABLE [IF EXISTS] tbl_name
@@ -24868,7 +24869,7 @@ always time this in the MySQL client:
 @example
 mysql> SELECT BENCHMARK(1000000,1+1);
 +------------------------+
-| benchmark(1000000,1+1) |
+| BENCHMARK(1000000,1+1) |
 +------------------------+
 |                      0 |
 +------------------------+
@@ -24879,7 +24880,7 @@ The above shows that MySQL can execute 1,000,000 @code{+}
 expressions in 0.32 seconds on a @code{PentiumII 400MHz}.
 
 All MySQL functions should be very optimised, but there may be
-some exceptions, and the @code{benchmark(loop_count,expression)} is a
+some exceptions, and the @code{BENCHMARK(loop_count,expression)} is a
 great tool to find out if this is a problem with your query.
 
 @menu
@@ -44343,8 +44344,8 @@ language = /path/to/source/of/mysql/sql/share/english
   one = db_connect("test");
   two = db_connect(NULL);
 
-  db_do_query(one, "show table status");
-  db_do_query(two, "show databases");
+  db_do_query(one, "SHOW TABLE STATUS");
+  db_do_query(two, "SHOW DATABASES");
 
   mysql_close(two);
   mysql_close(one);
@@ -47334,8 +47335,8 @@ can see on the screen usually is not the exact value of the number.
 Field types @code{FLOAT}, @code{DOUBLE} and @code{DECIMAL} are such.
 
 @example
-CREATE TABLE t1 (i int, d1 decimal(9,2), d2 decimal(9,2));
-INSERT INTO t1 values (1, 101.40, 21.40), (1, -80.00, 0.00),
+CREATE TABLE t1 (i INT, d1 DECIMAL(9,2), d2 DECIMAL(9,2));
+INSERT INTO t1 VALUES (1, 101.40, 21.40), (1, -80.00, 0.00),
 (2, 0.00, 0.00), (2, -13.20, 0.00), (2, 59.60, 46.40),
 (2, 30.40, 30.40), (3, 37.00, 7.40), (3, -29.60, 0.00),
 (4, 60.00, 15.40), (4, -10.60, 0.00), (4, -34.00, 0.00),
@@ -52483,7 +52484,7 @@ another thread.
 @item
 Fixed bug in @code{LEFT JOIN} involving empty tables.
 @item
-Changed the @code{mysql.db} column from @code{char(32)} to @code{char(60)}.
+Changed the @code{mysql.db} column from @code{CHAR(32)} to @code{CHAR(60)}.
 @item
 @code{MODIFY} and @code{DELAYED} are not reserved words anymore.
 @item
@@ -55026,8 +55027,8 @@ compiler.
 @item
 SQL functions must now have a @code{'('} immediately after the function name
 (no intervening space).
-For example, @code{'user('} is regarded as beginning a function call, and
-@code{'user ('} is regarded as an identifier @code{user} followed by a
+For example, @code{'USER('} is regarded as beginning a function call, and
+@code{'USER ('} is regarded as an identifier @code{USER} followed by a
 @code{'('}, not as a function call.
 @end itemize
 
