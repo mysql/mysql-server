@@ -1296,6 +1296,10 @@ NdbConnection::receiveTC_COMMITCONF(const TcCommitConf * commitConf)
     theCommitStatus = Committed;
     theCompletionStatus = CompletedSuccess;
     return 0;
+  } else {
+#ifdef NDB_NO_DROPPED_SIGNAL
+    abort();
+#endif
   }
   return -1;
 }//NdbConnection::receiveTC_COMMITCONF()
@@ -1317,7 +1321,12 @@ NdbConnection::receiveTC_COMMITREF(NdbApiSignal* aSignal)
     theCommitStatus = Aborted;
     theCompletionStatus = CompletedFailure;
     return 0;
+  } else {
+#ifdef NDB_NO_DROPPED_SIGNAL
+    abort();
+#endif
   }
+
   return -1;
 }//NdbConnection::receiveTC_COMMITREF()
 
@@ -1336,7 +1345,12 @@ NdbConnection::receiveTCROLLBACKCONF(NdbApiSignal* aSignal)
     theCommitStatus = Aborted;
     theCompletionStatus = CompletedSuccess;
     return 0;
+  } else {
+#ifdef NDB_NO_DROPPED_SIGNAL
+    abort();
+#endif
   }
+
   return -1;
 }//NdbConnection::receiveTCROLLBACKCONF()
 
@@ -1356,7 +1370,12 @@ NdbConnection::receiveTCROLLBACKREF(NdbApiSignal* aSignal)
     theCommitStatus = Aborted;
     theCompletionStatus = CompletedFailure;
     return 0;
+  } else {
+#ifdef NDB_NO_DROPPED_SIGNAL
+    abort();
+#endif
   }
+
   return -1;
 }//NdbConnection::receiveTCROLLBACKREF()
 
@@ -1390,7 +1409,12 @@ transactions.
     theCompletionStatus = CompletedFailure;
     theCommitStatus = Aborted;
     return 0;
+  } else {
+#ifdef NDB_NO_DROPPED_SIGNAL
+    abort();
+#endif
   }
+
   return -1;
 }//NdbConnection::receiveTCROLLBACKREP()
 
@@ -1451,7 +1475,12 @@ from other transactions.
       return 0;	// No more operations to wait for
     }//if
      // Not completed the reception yet.
-  }//if
+  } else {
+#ifdef NDB_NO_DROPPED_SIGNAL
+    abort();
+#endif
+  }
+  
   return -1;
 }//NdbConnection::receiveTCKEYCONF()
 
@@ -1505,6 +1534,10 @@ NdbConnection::receiveTCKEY_FAILCONF(const TcKeyFailConf * failConf)
     }//while   
     theReleaseOnClose = true;
     return 0;
+  } else {
+#ifdef VM_TRACE
+    ndbout_c("Recevied TCKEY_FAILCONF wo/ operation");
+#endif
   }
   return -1;
 }//NdbConnection::receiveTCKEY_FAILCONF()
@@ -1544,6 +1577,10 @@ NdbConnection::receiveTCKEY_FAILREF(NdbApiSignal* aSignal)
     theReleaseOnClose = true;
     theCommitStatus = NdbConnection::Aborted;
     return 0;
+  } else {
+#ifdef VM_TRACE
+    ndbout_c("Recevied TCKEY_FAILREF wo/ operation");
+#endif
   }
   return -1;
 }//NdbConnection::receiveTCKEY_FAILREF()
@@ -1599,7 +1636,12 @@ NdbConnection::receiveTCINDXCONF(const TcIndxConf * indxConf,
       return 0;	// No more operations to wait for
     }//if
      // Not completed the reception yet.
-  }//if
+  } else {
+#ifdef NDB_NO_DROPPED_SIGNAL
+    abort();
+#endif
+  }
+
   return -1;
 }//NdbConnection::receiveTCINDXCONF()
 
@@ -1628,7 +1670,12 @@ NdbConnection::receiveTCINDXREF( NdbApiSignal* aSignal)
     theCompletionStatus = NdbConnection::CompletedFailure;
     theCommitStatus = NdbConnection::Aborted;
     return 0;
+  } else {
+#ifdef NDB_NO_DROPPED_SIGNAL
+    abort();
+#endif
   }
+
   return -1;
 }//NdbConnection::receiveTCINDXREF()
 

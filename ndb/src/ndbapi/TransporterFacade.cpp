@@ -161,6 +161,11 @@ setSignalLog(){
   }
   return false;
 }
+#ifdef TRACE_APIREGREQ
+#define TRACE_GSN(gsn) true
+#else
+#define TRACE_GSN(gsn) (gsn != GSN_API_REGREQ && gsn != GSN_API_REGCONF)
+#endif
 #endif
 
 // These symbols are needed, but not used in the API
@@ -168,7 +173,7 @@ int g_sectionSegmentPool;
 struct ErrorReporter {
   void handleAssert(const char*, const char*, int);
 };
-void ErrorReporter::handleAssert(const char* message, const char* file, int line) {}
+void ErrorReporter::handleAssert(const char*, const char*, int) {}
 
 /**
  * The execute function : Handle received signal
@@ -183,9 +188,7 @@ execute(void * callbackObj, SignalHeader * const header,
   Uint32 tRecBlockNo = header->theReceiversBlockNumber;
   
 #ifdef API_TRACE
-  if(setSignalLog()){
-    // header->theVerId_signalNumber != GSN_API_REGREQ &&
-    // header->theVerId_signalNumber != GSN_API_REGCONF){
+  if(setSignalLog() && TRACE_GSN(header->theVerId_signalNumber)){
     signalLogger.executeSignal(* header, 
 			       prio,
                                theData,
@@ -765,8 +768,7 @@ TransporterFacade::checkForceSend(Uint32 block_number) {
 
 /******************************************************************************
  * SEND SIGNAL METHODS
- ******************************************************************************/
-
+ *****************************************************************************/
 int
 TransporterFacade::sendSignal(NdbApiSignal * aSignal, NodeId aNode){
   Uint32* tDataPtr = aSignal->getDataPtrSend();
@@ -774,9 +776,7 @@ TransporterFacade::sendSignal(NdbApiSignal * aSignal, NodeId aNode){
   Uint32 TBno = aSignal->theReceiversBlockNumber;
   if(getIsNodeSendable(aNode) == true){
 #ifdef API_TRACE
-    if(setSignalLog()){
-      //       aSignal->theVerId_signalNumber != GSN_API_REGREQ &&
-      // aSignal->theVerId_signalNumber != GSN_API_REGCONF){
+    if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
       Uint32 tmp = aSignal->theSendersBlockRef;
       aSignal->theSendersBlockRef = numberToRef(tmp, theOwnId);
       LinearSectionPtr ptr[3];
@@ -810,9 +810,7 @@ TransporterFacade::sendSignal(NdbApiSignal * aSignal, NodeId aNode){
 int
 TransporterFacade::sendSignalUnCond(NdbApiSignal * aSignal, NodeId aNode){
 #ifdef API_TRACE
-  if(setSignalLog()){
-    //aSignal->theVerId_signalNumber != GSN_API_REGREQ &&
-    //aSignal->theVerId_signalNumber != GSN_API_REGCONF
+  if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
     Uint32 tmp = aSignal->theSendersBlockRef;
     aSignal->theSendersBlockRef = numberToRef(tmp, theOwnId);
     LinearSectionPtr ptr[3];
@@ -842,7 +840,7 @@ TransporterFacade::sendFragmentedSignal(NdbApiSignal* aSignal, NodeId aNode,
   aSignal->m_noOfSections = secs;
   if(getIsNodeSendable(aNode) == true){
 #ifdef API_TRACE
-    if(setSignalLog()){
+    if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
       Uint32 tmp = aSignal->theSendersBlockRef;
       aSignal->theSendersBlockRef = numberToRef(tmp, theOwnId);
       signalLogger.sendSignal(* aSignal,
@@ -878,7 +876,7 @@ TransporterFacade::sendFragmentedSignalUnCond(NdbApiSignal* aSignal,
   aSignal->m_noOfSections = secs;
   
 #ifdef API_TRACE
-  if(setSignalLog()){
+  if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
     Uint32 tmp = aSignal->theSendersBlockRef;
     aSignal->theSendersBlockRef = numberToRef(tmp, theOwnId);
     signalLogger.sendSignal(* aSignal,
