@@ -424,6 +424,15 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     key_info->key_parts=(uint8) key->columns.elements;
     key_info->key_part=key_part_info;
 
+    if (key->type == Key::FULLTEXT)
+    {
+      if (file->option_flag() & HA_NO_FULLTEXT_KEY)
+      {
+        my_error(ER_TABLE_CANT_HANDLE_FULLTEXT, MYF(0));
+        DBUG_RETURN(-1);
+      }
+    }
+
     List_iterator<key_part_spec> cols(key->columns);
     for (uint column_nr=0 ; (column=cols++) ; column_nr++)
     {
@@ -439,13 +448,8 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 			column->field_name);
 	DBUG_RETURN(-1);
       }
-      if (key->type == Key::FULLTEXT &&
-          (file->option_flag() & HA_NO_FULLTEXT_KEY))
-      {
-        my_printf_error(ER_WRONG_KEY_COLUMN, ER(ER_WRONG_KEY_COLUMN), MYF(0),
-                        column->field_name);
-        DBUG_RETURN(-1);
-      }
+      if (key->type == Key::FULLTEXT)
+        column->length=1; /* ft-code ignores it anyway :-) */
       if (f_is_blob(sql_field->pack_flag))
       {
 	if (!(file->option_flag() & HA_BLOB_KEY))
@@ -456,15 +460,10 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 	}
 	if (!column->length)
 	{
-          if (key->type == Key::FULLTEXT)
-            column->length=1; /* ft-code ignores it anyway :-) */
-          else
-          {
-	    my_printf_error(ER_BLOB_KEY_WITHOUT_LENGTH,
-			    ER(ER_BLOB_KEY_WITHOUT_LENGTH),MYF(0),
-			    column->field_name);
-	    DBUG_RETURN(-1);
-          }
+          my_printf_error(ER_BLOB_KEY_WITHOUT_LENGTH,
+                          ER(ER_BLOB_KEY_WITHOUT_LENGTH),MYF(0),
+                          column->field_name);
+          DBUG_RETURN(-1);
 	}
       }
       if (!(sql_field->flags & NOT_NULL_FLAG))
