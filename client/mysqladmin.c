@@ -28,7 +28,7 @@
 #include <my_pthread.h>				/* because of signal()	*/
 #endif
 
-#define ADMIN_VERSION "8.11"
+#define ADMIN_VERSION "8.12"
 #define MAX_MYSQL_VAR 64
 #define MAX_TIME_TO_WAIT 3600			/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3

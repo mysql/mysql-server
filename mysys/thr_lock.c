@@ -653,7 +653,7 @@ void thr_unlock(THR_LOCK_DATA *data)
   data->type=TL_UNLOCK;				/* Mark unlocked */
   check_locks(lock,"after releasing lock",1);
 
-  if (!lock->write.data)			/* If no active read locks */
+  if (!lock->write.data)			/* If no active write locks */
   {
     data=lock->write_wait.data;
     if (!lock->read.data)			/* If no more locks in use */
@@ -742,7 +742,7 @@ void thr_unlock(THR_LOCK_DATA *data)
 	  data->next->prev= data->prev;
 	else
 	  lock->write_wait.last=data->prev;
-	(*lock->write.last)=data;			/* Put in execute list */
+	(*lock->write.last)=data;		/* Put in execute list */
 	data->prev=lock->write.last;
 	lock->write.last= &data->next;
 	data->next=0;				/* Only one write lock */
@@ -756,7 +756,7 @@ void thr_unlock(THR_LOCK_DATA *data)
 			    (lock_type == TL_WRITE_CONCURRENT_INSERT ||
 			     lock_type == TL_WRITE_ALLOW_WRITE));
     }
-    else if (lock->read_wait.data)
+    else if (!data && lock->read_wait.data)
       free_all_read_locks(lock,0);
   }
 end:

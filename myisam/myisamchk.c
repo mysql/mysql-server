@@ -196,7 +196,7 @@ static struct option long_options[] =
 
 static void print_version(void)
 {
-  printf("%s  Ver 1.36 for %s at %s\n",my_progname,SYSTEM_TYPE,
+  printf("%s  Ver 1.37 for %s at %s\n",my_progname,SYSTEM_TYPE,
 	 MACHINE_TYPE);
 }
 
@@ -502,7 +502,14 @@ static int myisamchk(MI_CHECK *param, my_string filename)
     param->error_printed=1;
     switch (my_errno) {
     case HA_ERR_CRASHED:
+    case HA_ERR_WRONG_TABLE_DEF:
       mi_check_print_error(param,"'%s' is not a MyISAM-table",filename);
+      break;
+    case HA_ERR_CRASHED_ON_USAGE:
+      mi_check_print_error(param,"'%s' is marked as crashed",filename);
+      break;
+    case HA_ERR_CRASHED_ON_REPAIR:
+      mi_check_print_error(param,"'%s' is marked as crashed after last repair",filename);
       break;
     case HA_ERR_OLD_FILE:
       mi_check_print_error(param,"'%s' is a old type of MyISAM-table", filename);

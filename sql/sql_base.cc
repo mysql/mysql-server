@@ -1162,25 +1162,26 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
 			 HA_TRY_READ_ONLY),
 		READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
 		ha_open_options | HA_OPEN_FOR_REPAIR,
-		entry) ||
+		entry) || ! entry->file || 
 	(entry->file->is_crashed() && entry->file->check_and_repair(thd)))
     {
       /* Give right error message */
       thd->net.last_error[0]=0;
       thd->net.last_errno=0;
-      entry->file->print_error(HA_ERR_CRASHED,MYF(0));
+      my_error(ER_NOT_KEYFILE, MYF(0), name, my_errno);
       sql_print_error("Error: Couldn't repair table: %s.%s",db,name);
-      closefrm(entry);
+      if (entry->file)
+	closefrm(entry);
       error=1;
     }
     else
     {
-      thd->net.last_error[0]=0;				// Clear error message
+      thd->net.last_error[0]=0;			// Clear error message
       thd->net.last_errno=0;
     }
-    unlock_table_name(thd,&table_list);
     if (locked)
       pthread_mutex_lock(&LOCK_open);      // Get back original lock
+    unlock_table_name(thd,&table_list);
     if (error)
       goto err;
   }
