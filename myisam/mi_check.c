@@ -1274,11 +1274,12 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
     I think mi_repair and mi_repair_by_sort should do the same
     (according, e.g. to ha_myisam::repair), but as mi_repair doesn't
     touch key_map it cannot be used to T_CREATE_MISSING_KEYS.
-    That is what the next line is for... (serg)
+    That is what the next line is for
   */
 
-  share->state.key_map= ((((ulonglong) 1L << share->base.keys)-1) &
-			 param->keys_in_use);
+  if (param->testflag & T_CREATE_MISSING_KEYS)
+    share->state.key_map= ((((ulonglong) 1L << share->base.keys)-1) &
+			   param->keys_in_use);
 
   info->state->key_file_length=share->base.keystart;
 
