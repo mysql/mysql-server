@@ -240,6 +240,9 @@ typedef struct st_master_info
   int events_till_abort;
 #endif
   volatile bool abort_slave, slave_running;
+  
+  bool ignore_stop_event;
+  
   THD* io_thd;
   
   st_master_info():fd(-1),inited(0),

@@ -1057,6 +1057,7 @@ int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
   if (init_relay_log_info(&mi->rli, slave_info_fname))
     return 1;
   mi->rli.mi = mi;
+  mi->ignore_stop_event=0;
   int fd,length,error;
   MY_STAT stat_area;
   char fname[FN_REFLEN+128];
@@ -1275,10 +1276,6 @@ int flush_master_info(MASTER_INFO* mi)
   return 0;
 }
 
-/* TODO: the code below needs to be re-written almost from scratch
-   Main issue is how to find out if we have reached a certain position
-   in the master log my knowing the offset in the relay log.
- */  
 int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
 				    ulonglong log_pos)
 {
@@ -1921,6 +1918,7 @@ the slave SQL thread with \"mysqladmin start-slave\". We stopped at log \
   DBUG_RETURN(0);				// Can't return anything here
 }
 
+// We assume we already locked mi->data_lock
 static int process_io_rotate(MASTER_INFO* mi, Rotate_log_event* rev)
 {
   if (!rev->is_valid())
@@ -1941,77 +1939,112 @@ static int process_io_rotate(MASTER_INFO* mi, Rotate_log_event* rev)
     return 0;
 }
 
+// TODO: verify the issue with stop events, see if we need them at all
+// in the relay log
+// TODO: test this code before release - it has to be tested on a separte
+// setup with 3.23 master 
 static int queue_old_event(MASTER_INFO* mi, const char* buf,
 			   uint event_len)
 {
   const char* errmsg = 0;
   bool inc_pos = 1;
+  bool processed_stop_event = 0;
   Log_event* ev = Log_event::read_log_event(buf,event_len, &errmsg,
 					    1/*old format*/);
-  if (!ev)
+  if (unlikely(!ev))
   {
     sql_print_error("Read invalid event from master: '%s',\
  master could be corrupt  but a more likely cause of this is a bug",
 		    errmsg);
     return 1;
   }
+  pthread_mutex_lock(&mi->data_lock);
   ev->log_pos = mi->master_log_pos;
   switch (ev->get_type_code())
   {
   case ROTATE_EVENT:
-    if (process_io_rotate(mi,(Rotate_log_event*)ev))
+    if (unlikely(process_io_rotate(mi,(Rotate_log_event*)ev)))
     {
       delete ev;
+      pthread_mutex_unlock(&mi->data_lock);
       return 1;
     }
+    mi->ignore_stop_event=1;
     inc_pos = 0;
+    break;
+  case STOP_EVENT:
+    processed_stop_event=1;
     break;
   case LOAD_EVENT:
     // TODO: actually process it
     mi->master_log_pos += event_len;
+    delete ev;
+    pthread_mutex_unlock(&mi->data_lock);
     return 0;
-    break;
   default:
+    mi->ignore_stop_event=0;
     break;
   }
-  if (mi->rli.relay_log.append(ev))
+  if (likely(!processed_stop_event || !mi->ignore_stop_event))
   {
-    delete ev;
-    return 1;
+    if (unlikely(mi->rli.relay_log.append(ev)))
+    {
+      delete ev;
+      pthread_mutex_unlock(&mi->data_lock);
+      return 1;
+    }
   }
   delete ev;
-  if (inc_pos)
+  if (likely(inc_pos))
     mi->master_log_pos += event_len;
+  if (unlikely(processed_stop_event))
+    mi->ignore_stop_event=1;
+  pthread_mutex_lock(&mi->data_lock);
   return 0;
 }
 
+// TODO: verify the issue with stop events, see if we need them at all
+// in the relay log
 int queue_event(MASTER_INFO* mi,const char* buf,uint event_len)
 {
-  int error;
+  int error=0;
   bool inc_pos = 1;
+  bool processed_stop_event = 0;
   if (mi->old_format)
     return queue_old_event(mi,buf,event_len);
+
+  pthread_mutex_lock(&mi->data_lock);
+  
   // TODO: figure out if other events in addition to Rotate
   // require special processing
   switch (buf[EVENT_TYPE_OFFSET])
   {
+  case STOP_EVENT:
+    processed_stop_event=1;
+    break;
   case ROTATE_EVENT:
   {
     Rotate_log_event rev(buf,event_len,0);
-    if (process_io_rotate(mi,&rev))
+    if (unlikely(process_io_rotate(mi,&rev)))
       return 1;
     inc_pos=0;
+    mi->ignore_stop_event=1;
     break;
   }
   default:
+    mi->ignore_stop_event=0;
     break;
   }
   
-  if (!(error = mi->rli.relay_log.appendv(buf,event_len,0)))
+  if (likely((!processed_stop_event || !mi->ignore_stop_event) &&
+	     !(error = mi->rli.relay_log.appendv(buf,event_len,0))))
   {
-    if (inc_pos)
+    if (likely(inc_pos))
       mi->master_log_pos += event_len;
   }
+  if (unlikely(processed_stop_event))
+    mi->ignore_stop_event=1;
+  pthread_mutex_unlock(&mi->data_lock);
   return error;
 }
 

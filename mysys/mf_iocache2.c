@@ -23,10 +23,30 @@
 #include <m_string.h>
 #include <stdarg.h>
 #include <m_ctype.h>
+#include <assert.h>
+
+my_off_t my_b_append_tell(IO_CACHE* info)
+{
+  my_off_t res; 
+/* we need to lock the append buffer mutex to keep flush_io_cache()
+   from messing with the variables that we need in order to provide the
+   answer to the question.
+*/
+#ifdef THREAD
+  pthread_mutex_lock(&info->append_buffer_lock);
+#endif
+  DBUG_ASSERT(info->end_of_file - (info->append_read_pos-info->write_buffer)
+	      == my_tell(info->file,MYF(0)));
+  res = info->end_of_file + (info->write_pos-info->append_read_pos);
+#ifdef THREAD
+  pthread_mutex_unlock(&info->append_buffer_lock);
+#endif
+  return res;
+}
 
 /*
-  Fix that next read will be made at certain position
-  For write cache, make next write happen at a certain position
+  Make next read happen at the given position
+  For write cache, make next write happen at the given position
 */
 
 void my_b_seek(IO_CACHE *info,my_off_t pos)
