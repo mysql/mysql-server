@@ -301,3 +301,26 @@ drop table t1;
 
 --error 1391
 create table t1 (c char(10), index (c(0)));
+
+#
+# Bug #6126: Duplicate columns in keys should fail
+# Bug #6252: (dup)
+#
+--error 1060
+create table t1 (c char(10), index (c,c));
+--error 1060
+create table t1 (c1 char(10), c2 char(10), index (c1,c2,c1));
+--error 1060
+create table t1 (c1 char(10), c2 char(10), index (c1,c1,c2));
+--error 1060
+create table t1 (c1 char(10), c2 char(10), index (c2,c1,c1));
+create table t1 (c1 char(10), c2 char(10));
+--error 1060
+alter table t1 add key (c1,c1);
+--error 1060
+alter table t1 add key (c2,c1,c1);
+--error 1060
+alter table t1 add key (c1,c2,c1);
+--error 1060
+alter table t1 add key (c1,c1,c2);
+drop table t1;
