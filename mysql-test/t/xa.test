@@ -1,0 +1,57 @@
+#
+# WL#1756
+#
+-- source include/have_innodb.inc
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+create table t1 (a int) engine=innodb;
+xa start 'test1';
+insert t1 values (10);
+xa end 'test1';
+xa prepare 'test1';
+xa rollback 'test1';
+select * from t1;
+
+xa start 'test2';
+--error 1399
+xa start 'test-bad';
+insert t1 values (20);
+--error 1399
+xa prepare 'test2';
+xa end 'test2';
+xa prepare 'test2';
+xa commit 'test2';
+select * from t1;
+
+xa start 'testa','testb';
+insert t1 values (30);
+xa end 'testa','testb';
+
+connect (con1,localhost,,,);
+connection con1;
+
+xa start 0x7465737462, 0x2030405060, 0xb;
+insert t1 values (40);
+xa end 'testb',' 0@P`',11;
+xa prepare 'testb',0x2030405060,11;
+
+xa recover;
+
+# uncomment the line below when binlog will be able to prepare
+#disconnect con1;
+connection default;
+
+xa prepare 'testa','testb';
+
+xa recover;
+
+xa commit 'testb',0x2030405060,11;
+xa rollback 'testa','testb';
+
+--error 1064
+xa start 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz';
+
+select * from t1;
+drop table t1;
+
