@@ -18,3 +18,7 @@
     
         # See if the XML output is well-formed
         xmlwf mysql.xml
+
+        # If all is well, keep processing
+        cat mysql.xml | Support/colspec-fix.pl | Support/docbook-split;
+

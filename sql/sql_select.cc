@@ -6964,13 +6964,16 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 {
   List<Item> field_list;
   Item *item;
+  List<Item> item_list;
   THD *thd=join->thd;
+  MYSQL_LOCK *save_lock;
   SELECT_LEX *select_lex = &(join->thd->lex.select_lex);
+  select_result *result=join->result;
   DBUG_ENTER("select_describe");
 
   /* Don't log this into the slow query log */
   select_lex->options&= ~(QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED);
-  if (join->thd->lex.select == select_lex)
+  if (thd->lex.select == select_lex)
   {
     field_list.push_back(new Item_empty_string("table",NAME_LEN));
     field_list.push_back(new Item_empty_string("type",10));
@@ -6986,24 +6989,22 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
     item->maybe_null=1;
     field_list.push_back(new Item_real("rows",0.0,0,10));
     field_list.push_back(new Item_empty_string("Extra",255));
-    if (send_fields(thd,field_list,1))
+    if (result->send_fields(field_list,1))
       return;
   }
-  char buff[512],*buff_ptr;
-  String tmp(buff,sizeof(buff)),*packet= &thd->packet;
+
   if (message)
   {
-    packet->length(0);
-    net_store_null(packet);
-    net_store_null(packet);
-    net_store_null(packet);
-    net_store_null(packet);
-    net_store_null(packet);
-    net_store_null(packet);
-    net_store_null(packet);
-    net_store_data(packet,message,strlen(message));
-    if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
-      DBUG_VOID_RETURN;
+    item_list.push_back(new Item_empty_string("",0));
+    item_list.push_back(new Item_empty_string("",0));
+    item_list.push_back(new Item_empty_string("",0));
+    item_list.push_back(new Item_empty_string("",0));
+    item_list.push_back(new Item_empty_string("",0));
+    item_list.push_back(new Item_empty_string("",0));
+    item_list.push_back(new Item_empty_string("",0));
+    item_list.push_back(new Item_string(message,strlen(message)));
+    if (result->send_data(item_list))
+      result->send_error(0,NullS);
   }
   else
   {
@@ -7012,69 +7013,70 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
     {
       JOIN_TAB *tab=join->join_tab+i;
       TABLE *table=tab->table;
-      
+      char buff[512],*buff_ptr=buff;
+      char buff1[512], buff2[512], bufff[512];
+      String tmp1(buff1,sizeof(buff1));
+      String tmp2(buff2,sizeof(buff2));
+      item_list.empty();
       if (tab->type == JT_ALL && tab->select && tab->select->quick)
 	tab->type= JT_RANGE;
-      packet->length(0);
-      net_store_data(packet,table->table_name);
-      net_store_data(packet,join_type_str[tab->type]);
-      tmp.length(0);
+      item_list.push_back(new Item_string(table->table_name,strlen(table->table_name)));
+      item_list.push_back(new Item_string(join_type_str[tab->type],strlen(join_type_str[tab->type])));
+      tmp1.length(0); tmp2.length(0);
       key_map bits;
       uint j;
       for (j=0,bits=tab->keys ; bits ; j++,bits>>=1)
       {
 	if (bits & 1)
 	{
-	  if (tmp.length())
-	    tmp.append(',');
-	  tmp.append(table->key_info[j].name);
+	  if (tmp1.length())
+	    tmp1.append(',');
+	  tmp1.append(table->key_info[j].name);
 	}
       }
-      if (tmp.length())
-	net_store_data(packet,tmp.ptr(),tmp.length());
+      if (tmp1.length())
+	item_list.push_back(new Item_string(tmp1.ptr(),tmp1.length()));
       else
-	net_store_null(packet);
+	item_list.push_back(new Item_null());
       if (tab->ref.key_parts)
       {
-	net_store_data(packet,table->key_info[tab->ref.key].name);
-	net_store_data(packet,(uint32) tab->ref.key_length);
-	tmp.length(0);
+	item_list.push_back(new Item_string(table->key_info[tab->ref.key].name,strlen(table->key_info[tab->ref.key].name)));
+	item_list.push_back(new Item_int((int) tab->ref.key_length));
 	for (store_key **ref=tab->ref.key_copy ; *ref ; ref++)
 	{
-	  if (tmp.length())
-	    tmp.append(',');
-	  tmp.append((*ref)->name());
+	  if (tmp2.length())
+	    tmp2.append(',');
+	  tmp2.append((*ref)->name());
 	}
-	net_store_data(packet,tmp.ptr(),tmp.length());
+	item_list.push_back(new Item_string(tmp2.ptr(),tmp2.length()));
       }
       else if (tab->type == JT_NEXT)
       {
-	net_store_data(packet,table->key_info[tab->index].name);
-	net_store_data(packet,(uint32) table->key_info[tab->index].key_length);
-	net_store_null(packet);
+	item_list.push_back(new Item_string(table->key_info[tab->index].name,strlen(table->key_info[tab->index].name)));
+	item_list.push_back(new Item_int((int) table->key_info[tab->index].key_length));
+	item_list.push_back(new Item_null());
       }
       else if (tab->select && tab->select->quick)
       {
-	net_store_data(packet,table->key_info[tab->select->quick->index].name);;
-	net_store_data(packet,(uint32) tab->select->quick->max_used_key_length);
-	net_store_null(packet);
+	item_list.push_back(new Item_string(table->key_info[tab->select->quick->index].name,strlen(table->key_info[tab->select->quick->index].name)));
+	item_list.push_back(new Item_int((int) tab->select->quick->max_used_key_length));
+	item_list.push_back(new Item_null());
       }
       else
       {
-	net_store_null(packet);
-	net_store_null(packet);
-	net_store_null(packet);
+	item_list.push_back(new Item_null());
+	item_list.push_back(new Item_null());
+	item_list.push_back(new Item_null());
       }
-      sprintf(buff,"%.0f",join->best_positions[i].records_read);
-      net_store_data(packet,buff);
+      sprintf(bufff,"%.0f",join->best_positions[i].records_read);
+      item_list.push_back(new Item_string(bufff,strlen(bufff)));
       my_bool key_read=table->key_read;
       if (tab->type == JT_NEXT &&
 	  ((table->used_keys & ((key_map) 1 << tab->index))))
 	key_read=1;
       
-      buff_ptr=buff;
       if (tab->info)
-	net_store_data(packet,tab->info);
+	item_list.push_back(new Item_string(tab->info,strlen(tab->info)));
       else if (tab->select)
       {
 	if (tab->use_quick == 2)
@@ -7128,16 +7130,20 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	}
 	buff_ptr=strmov(buff_ptr,"Distinct");
       }
-      net_store_data(packet,buff,(uint) (buff_ptr - buff));
-      if (my_net_write(&thd->net,(char*) packet->ptr(),packet->length()))
-	DBUG_VOID_RETURN;				/* Purecov: Inspected */
-
+      item_list.push_back(new Item_string(buff,(uint) (buff_ptr - buff)));
       // For next iteration
       used_tables|=table->map;
+      if (result->send_data(item_list))
+	result->send_error(0,NullS);
     }
   }
   if (!join->thd->lex.select->next)
-    send_eof(&thd->net);
+  {
+    save_lock=thd->lock;
+    thd->lock=(MYSQL_LOCK *)0;
+    result->send_eof();
+    thd->lock=save_lock;
+  }
   DBUG_VOID_RETURN;
 }
 
