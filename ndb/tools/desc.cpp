@@ -50,7 +50,6 @@ int main(int argc, const char** argv){
 
   Ndb* pMyNdb;
   pMyNdb = new Ndb(_dbname);  
-  pMyNdb->useFullyQualifiedNames(!_unqualified);
   pMyNdb->init();
   
   ndbout << "Waiting...";
