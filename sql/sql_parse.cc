@@ -4805,6 +4805,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       if (lock_global_read_lock(thd))
 	return 1;
     }
+    my_dbopt_free();
     result=close_cached_tables(thd,(options & REFRESH_FAST) ? 0 : 1, tables);
   }
   if (options & REFRESH_HOSTS)

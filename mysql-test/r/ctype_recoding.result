@@ -111,3 +111,34 @@ SET character_set_connection=cp1251;
 SELECT hex('����');
 hex('����')
 F2E5F1F2
+USE test;
+SET NAMES binary;
+CREATE TABLE `тест` (`тест` int);
+SHOW CREATE TABLE `тест`;
+Table	Create Table
+тест	CREATE TABLE `тест` (
+  `тест` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SET NAMES utf8;
+SHOW CREATE TABLE `тест`;
+Table	Create Table
+тест	CREATE TABLE `тест` (
+  `тест` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE `тест`;
+SET NAMES binary;
+SET character_set_connection=utf8;
+SELECT 'тест' as s;
+s
+тест
+SET NAMES utf8;
+SET character_set_connection=binary;
+SELECT 'тест' as s;
+s
+тест
+SET NAMES binary;
+CREATE TABLE `good�����` (a int);
+ERROR HY000: Invalid utf8 character string: '�����'
+SET NAMES utf8;
+CREATE TABLE `good�����` (a int);
+ERROR HY000: Invalid utf8 character string: '�����` (a int)'

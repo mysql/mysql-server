@@ -795,8 +795,8 @@ inline
 void 
 UnsafeArrayPool<T>::getPtrForce(Ptr<T> & ptr){
   Uint32 i = ptr.i;
-  if(i < size){
-    ptr.p = &theArray[i];
+  if(i < this->size){
+    ptr.p = &this->theArray[i];
   } else {
     ErrorReporter::handleAssert("UnsafeArrayPool<T>::getPtr", 
 				__FILE__, __LINE__);
@@ -808,8 +808,8 @@ inline
 void 
 UnsafeArrayPool<T>::getPtrForce(ConstPtr<T> & ptr) const{
   Uint32 i = ptr.i;
-  if(i < size){
-    ptr.p = &theArray[i];
+  if(i < this->size){
+    ptr.p = &this->theArray[i];
   } else {
     ErrorReporter::handleAssert("UnsafeArrayPool<T>::getPtr", 
 				__FILE__, __LINE__);
@@ -820,8 +820,8 @@ template <class T>
 inline
 T * 
 UnsafeArrayPool<T>::getPtrForce(Uint32 i){
-  if(i < size){
-    return &theArray[i];
+  if(i < this->size){
+    return &this->theArray[i];
   } else {
     ErrorReporter::handleAssert("UnsafeArrayPool<T>::getPtr", 
 				__FILE__, __LINE__);
@@ -833,8 +833,8 @@ template <class T>
 inline
 const T * 
 UnsafeArrayPool<T>::getConstPtrForce(Uint32 i) const {
-  if(i < size){
-    return &theArray[i];
+  if(i < this->size){
+    return &this->theArray[i];
   } else {
     ErrorReporter::handleAssert("UnsafeArrayPool<T>::getPtr",
 				__FILE__, __LINE__);
@@ -847,8 +847,8 @@ inline
 void 
 UnsafeArrayPool<T>::getPtrForce(Ptr<T> & ptr, Uint32 i){
   ptr.i = i;
-  if(i < size){
-    ptr.p = &theArray[i];
+  if(i < this->size){
+    ptr.p = &this->theArray[i];
     return ;
   } else {
     ErrorReporter::handleAssert("UnsafeArrayPool<T>::getPtr", 
@@ -861,8 +861,8 @@ inline
 void 
 UnsafeArrayPool<T>::getPtrForce(ConstPtr<T> & ptr, Uint32 i) const{
   ptr.i = i;
-  if(i < size){
-    ptr.p = &theArray[i];
+  if(i < this->size){
+    ptr.p = &this->theArray[i];
     return ;
   } else {
     ErrorReporter::handleAssert("UnsafeArrayPool<T>::getPtr", 
