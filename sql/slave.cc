@@ -1349,6 +1349,8 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
     goto err;
   }
 
+connected:
+
   // register ourselves with the master
   // if fails, this is not fatal - we just print the error message and go
   // on with life
@@ -1397,7 +1399,7 @@ try again, log '%s' at postion %s", RPL_LOG_NAME,
 	      goto err;
 	    }
 
-	  continue;
+	  goto connected;
 	}
 
 
@@ -1448,8 +1450,9 @@ reconnecting to retry, log '%s' position %s", RPL_LOG_NAME,
 reconnect done to recover from failed read");
 	        goto err;
 	      }
-	    break;
-	  }
+	    
+	    goto connected;
+	  } // if(event_len == packet_error)
 	  
 	  thd->proc_info = "Processing master log event"; 
 	  if(exec_event(thd, &mysql->net, &glob_mi, event_len))
@@ -1492,9 +1495,8 @@ the slave thread with \"mysqladmin start-slave\". We stopped at log \
 	        events_till_disconnect++;
 	    }
 #endif	  
-
-	}
-    }
+	} // while(!slave_killed(thd)) - read/exec loop
+  } // while(!slave_killed(thd)) - slave loop
 
   // error = 0;
  err:
