@@ -686,3 +686,38 @@ max(a)
 2
 deallocate prepare stmt1;
 drop table t1;
+CREATE TABLE t1 (a int primary key);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+SELECT MAX(a) FROM t1 WHERE a > 5;
+MAX(a)
+NULL
+SELECT MIN(a) FROM t1 WHERE a < 0;
+MIN(a)
+NULL
+DROP TABLE t1;
+CREATE TABLE t1 (
+id int(10) unsigned NOT NULL auto_increment,
+val enum('one','two','three') NOT NULL default 'one',
+PRIMARY KEY  (id)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+INSERT INTO t1 VALUES
+(1,'one'),(2,'two'),(3,'three'),(4,'one'),(5,'two');
+select val, count(*) from t1 group by val;
+val	count(*)
+one	2
+two	2
+three	1
+drop table t1;
+CREATE TABLE t1 (
+id int(10) unsigned NOT NULL auto_increment,
+val set('one','two','three') NOT NULL default 'one',
+PRIMARY KEY  (id)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+INSERT INTO t1 VALUES
+(1,'one'),(2,'two'),(3,'three'),(4,'one'),(5,'two');
+select val, count(*) from t1 group by val;
+val	count(*)
+one	2
+two	2
+three	1
+drop table t1;

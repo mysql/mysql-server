@@ -38,13 +38,6 @@
  */
 SectionSegmentPool g_sectionSegmentPool;
 
-static int f(int v){
-  g_sectionSegmentPool.setSize(v);
-  return v;
-}
-
-static int v = f(2048);
-
 bool
 import(Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
   /**

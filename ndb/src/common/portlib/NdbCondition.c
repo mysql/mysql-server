@@ -20,6 +20,7 @@
 #include <NdbCondition.h>
 #include <NdbThread.h>
 #include <NdbMutex.h>
+#include <NdbMem.h>
 
 struct NdbCondition
 {
@@ -34,7 +35,7 @@ NdbCondition_Create(void)
   struct NdbCondition* tmpCond;
   int result;
   
-  tmpCond = (struct NdbCondition*)malloc(sizeof(struct NdbCondition));
+  tmpCond = (struct NdbCondition*)NdbMem_Allocate(sizeof(struct NdbCondition));
   
   if (tmpCond == NULL)
     return NULL;

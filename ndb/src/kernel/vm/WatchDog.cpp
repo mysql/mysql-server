@@ -15,6 +15,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include <ndb_global.h>
+#include <my_pthread.h>
+
 #include "WatchDog.hpp"
 #include "GlobalData.hpp"
 #include <NdbOut.hpp>
@@ -24,7 +27,9 @@
 extern "C" 
 void* 
 runWatchDog(void* w){
+  my_thread_init();
   ((WatchDog*)w)->run();
+  my_thread_end();
   NdbThread_Exit(0);
   return NULL;
 }

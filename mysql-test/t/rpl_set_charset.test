@@ -1,0 +1,33 @@
+source include/master-slave.inc;
+--disable_warnings
+drop database if exists mysqltest1;
+# 4.1 bases its conversion on the db's charset,
+# while 4.0 uses the part of "SET CHARACTER SET" after "_".
+# So for 4.1 we add a clause to CREATE DATABASE.
+create database mysqltest1 /*!40100 character set latin2 */;
+use mysqltest1;
+drop table if exists t1;
+--enable_warnings
+create table t1 (a varchar(255) character set latin2, b varchar(4));
+SET CHARACTER SET cp1250_latin2;
+INSERT INTO t1 VALUES ('ŠŒ','80');
+INSERT INTO t1 VALUES ('šœŸ','90');
+INSERT INTO t1 VALUES ('£¥ª¯','A0');
+INSERT INTO t1 VALUES ('³¹º¼¾¿','B0');
+INSERT INTO t1 VALUES ('ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ','C0');
+INSERT INTO t1 VALUES ('ĞÑÒÓÔÕÖ×ØÙÚÛÜİŞß','D0');
+INSERT INTO t1 VALUES ('àáâãäåæçèéêëìíîï','E0');
+INSERT INTO t1 VALUES ('ğñòóôõö÷øùúûüışÿ','F0');
+select "--- on master ---";
+select hex(a),b from t1 order by b;
+save_master_pos;
+connection slave;
+sync_with_master;
+use mysqltest1;
+select "--- on slave ---";
+select hex(a),b from t1 order by b;
+connection master;
+drop database mysqltest1;
+save_master_pos;
+connection slave;
+sync_with_master;

@@ -140,7 +140,7 @@ CPCD::Process::readPid() {
 
   memset(buf, 0, sizeof(buf));
   
-  snprintf(filename, sizeof(filename), "%d", m_id);
+  BaseString::snprintf(filename, sizeof(filename), "%d", m_id);
   
   f = fopen(filename, "r");
   
@@ -167,8 +167,8 @@ CPCD::Process::writePid(int pid) {
   char filename[PATH_MAX*2+1];
   FILE *f;
 
-  snprintf(tmpfilename, sizeof(tmpfilename), "tmp.XXXXXX");
-  snprintf(filename, sizeof(filename), "%d", m_id);
+  BaseString::snprintf(tmpfilename, sizeof(tmpfilename), "tmp.XXXXXX");
+  BaseString::snprintf(filename, sizeof(filename), "%d", m_id);
   
   int fd = mkstemp(tmpfilename);
   if(fd < 0) {
@@ -237,6 +237,7 @@ set_ulimit(const BaseString & pair){
   } else if(list[0] == "t"){
     _RLIMIT_FIX(RLIMIT_CPU);
   } else {
+    res= -11;
     errno = EINVAL;
   }
   if(res){
@@ -313,7 +314,7 @@ CPCD::Process::do_exec() {
   }
 
   /* Close all filedescriptors */
-  for(i = STDERR_FILENO+1; i < getdtablesize(); i++)
+  for(i = STDERR_FILENO+1; (int)i < getdtablesize(); i++)
     close(i);
 
   execv(m_path.c_str(), argv);
@@ -353,6 +354,7 @@ CPCD::Process::start() {
       setsid();
       writePid(getpgrp());
       if(runas(m_runas.c_str()) == 0){
+        signal(SIGCHLD, SIG_DFL);
 	do_exec();
       }
       _exit(1);
@@ -383,6 +385,7 @@ CPCD::Process::start() {
 	if(runas(m_runas.c_str()) != 0){
 	  _exit(1);
 	}
+        signal(SIGCHLD, SIG_DFL);
 	do_exec();
 	_exit(1);
 	/* NOTREACHED */
@@ -437,7 +440,7 @@ void
 CPCD::Process::stop() {
 
   char filename[PATH_MAX*2+1];
-  snprintf(filename, sizeof(filename), "%d", m_id);
+  BaseString::snprintf(filename, sizeof(filename), "%d", m_id);
   unlink(filename);
   
   if(m_pid <= 1){

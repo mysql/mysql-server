@@ -129,6 +129,7 @@ int rtree_key_cmp(HA_KEYSEG *keyseg, uchar *b, uchar *a, uint key_length,
       break;
 #endif
     case HA_KEYTYPE_FLOAT:
+      /* The following should be safe, even if we compare doubles */
       RT_CMP_GET(float, mi_float4get, 4, nextflag);
       break;
     case HA_KEYTYPE_DOUBLE:
@@ -505,7 +506,7 @@ double rtree_overlapping_area(HA_KEYSEG *keyseg, uchar* a, uchar* b,
    amax = korr_func(a+len); \
    bmax = korr_func(b+len); \
    a_area *= (((double)amax) - ((double)amin)); \
-   *ab_area *= ((double)max(amax, bmax) - (double)min(amin, bmin)); \
+   loc_ab_area *= ((double)max(amax, bmax) - (double)min(amin, bmin)); \
 }
 
 #define RT_AREA_INC_GET(type, get_func, len)\
@@ -516,7 +517,7 @@ double rtree_overlapping_area(HA_KEYSEG *keyseg, uchar* a, uchar* b,
    get_func(amax, a+len); \
    get_func(bmax, b+len); \
    a_area *= (((double)amax) - ((double)amin)); \
-   *ab_area *= ((double)max(amax, bmax) - (double)min(amin, bmin)); \
+   loc_ab_area *= ((double)max(amax, bmax) - (double)min(amin, bmin)); \
 }
 
 /*
@@ -526,6 +527,7 @@ double rtree_area_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b,
                           uint key_length, double *ab_area)
 {
   double a_area= 1.0;
+  double loc_ab_area= 1.0;
   
   *ab_area= 1.0;
   for (; (int)key_length > 0; keyseg += 2)
@@ -575,7 +577,7 @@ double rtree_area_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b,
       RT_AREA_INC_GET(double, mi_float8get, 8);
       break;
     case HA_KEYTYPE_END:
-      return *ab_area - a_area;
+      goto safe_end;
     default:
       return -1;
     }
@@ -584,7 +586,9 @@ double rtree_area_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b,
     a+= keyseg_length;
     b+= keyseg_length;
   }
-  return *ab_area - a_area;
+safe_end:
+  *ab_area= loc_ab_area;
+  return loc_ab_area - a_area;
 }
 
 #define RT_PERIM_INC_KORR(type, korr_func, len) \

@@ -149,6 +149,28 @@ INSERT INTO t1 (c1, c2) VALUES ('Ну, за рыбалку','Ну, за рыбалку');
 select hex(c1), hex(c2) from t1;
 sync_slave_with_master;
 select hex(c1), hex(c2) from t1;
+
+# Now test for BUG##5705: SET CHARACTER_SET_SERVER etc will be lost if
+# STOP SLAVE before following query
+
+stop slave;
+delete from t1;
+
+# Note that the following positions may change between MySQL versions!
+
+# This position should be position for the SET
+change master to master_log_pos=6763;
+
+# This position should be position of the INSERT command
+start slave until master_log_file='master-bin.000001', master_log_pos=6921;
+
+# Slave is supposed to stop _after_ the INSERT, even though 'master_log_pos' is
+# the position of the beginning of the INSERT; after SET slave is not
+# supposed to increment position.
+wait_for_slave_to_stop;
+start slave;
+sync_with_master;
+select hex(c1), hex(c2) from t1;
 connection master;
 drop table t1;
 sync_slave_with_master;

@@ -1,0 +1,191 @@
+drop table if exists t1;
+create table t1 (
+a char(3) character set latin1 collate latin1_bin primary key
+) engine=ndb;
+insert into t1 values('aAa');
+insert into t1 values('aaa');
+insert into t1 values('AAA');
+select * from t1 order by a;
+a
+AAA
+aAa
+aaa
+select * from t1 where a = 'aAa';
+a
+aAa
+select * from t1 where a = 'aaa';
+a
+aaa
+select * from t1 where a = 'AaA';
+a
+select * from t1 where a = 'AAA';
+a
+AAA
+drop table t1;
+create table t1 (
+a char(3) character set latin1 collate latin1_swedish_ci primary key
+) engine=ndb;
+insert into t1 values('aAa');
+insert into t1 values('aaa');
+ERROR 23000: Duplicate entry 'aaa' for key 1
+insert into t1 values('AAA');
+ERROR 23000: Duplicate entry 'AAA' for key 1
+select * from t1 order by a;
+a
+aAa
+select * from t1 where a = 'aAa';
+a
+aAa
+select * from t1 where a = 'aaa';
+a
+aAa
+select * from t1 where a = 'AaA';
+a
+aAa
+select * from t1 where a = 'AAA';
+a
+aAa
+drop table t1;
+create table t1 (
+p int primary key,
+a char(3) character set latin1 collate latin1_bin not null,
+unique key(a)
+) engine=ndb;
+insert into t1 values(1, 'aAa');
+insert into t1 values(2, 'aaa');
+insert into t1 values(3, 'AAA');
+select * from t1 order by p;
+p	a
+1	aAa
+2	aaa
+3	AAA
+select * from t1 where a = 'aAa';
+p	a
+1	aAa
+select * from t1 where a = 'aaa';
+p	a
+2	aaa
+select * from t1 where a = 'AaA';
+p	a
+select * from t1 where a = 'AAA';
+p	a
+3	AAA
+drop table t1;
+create table t1 (
+p int primary key,
+a char(3) character set latin1 collate latin1_swedish_ci not null,
+unique key(a)
+) engine=ndb;
+insert into t1 values(1, 'aAa');
+insert into t1 values(2, 'aaa');
+ERROR 23000: Can't write, because of unique constraint, to table 't1'
+insert into t1 values(3, 'AAA');
+ERROR 23000: Can't write, because of unique constraint, to table 't1'
+select * from t1 order by p;
+p	a
+1	aAa
+select * from t1 where a = 'aAa';
+p	a
+1	aAa
+select * from t1 where a = 'aaa';
+p	a
+1	aAa
+select * from t1 where a = 'AaA';
+p	a
+1	aAa
+select * from t1 where a = 'AAA';
+p	a
+1	aAa
+drop table t1;
+create table t1 (
+p int primary key,
+a char(3) character set latin1 collate latin1_bin not null,
+index(a)
+) engine=ndb;
+insert into t1 values(1, 'aAa');
+insert into t1 values(2, 'aaa');
+insert into t1 values(3, 'AAA');
+insert into t1 values(4, 'aAa');
+insert into t1 values(5, 'aaa');
+insert into t1 values(6, 'AAA');
+select * from t1 order by p;
+p	a
+1	aAa
+2	aaa
+3	AAA
+4	aAa
+5	aaa
+6	AAA
+explain select * from t1 where a = 'zZz' order by p;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	a	a	3	const	10	Using where; Using filesort
+select * from t1 where a = 'aAa' order by p;
+p	a
+1	aAa
+4	aAa
+select * from t1 where a = 'aaa' order by p;
+p	a
+2	aaa
+5	aaa
+select * from t1 where a = 'AaA' order by p;
+p	a
+select * from t1 where a = 'AAA' order by p;
+p	a
+3	AAA
+6	AAA
+drop table t1;
+create table t1 (
+p int primary key,
+a char(3) character set latin1 collate latin1_swedish_ci not null,
+index(a)
+) engine=ndb;
+insert into t1 values(1, 'aAa');
+insert into t1 values(2, 'aaa');
+insert into t1 values(3, 'AAA');
+insert into t1 values(4, 'aAa');
+insert into t1 values(5, 'aaa');
+insert into t1 values(6, 'AAA');
+select * from t1 order by p;
+p	a
+1	aAa
+2	aaa
+3	AAA
+4	aAa
+5	aaa
+6	AAA
+explain select * from t1 where a = 'zZz' order by p;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	a	a	3	const	10	Using where; Using filesort
+select * from t1 where a = 'aAa' order by p;
+p	a
+1	aAa
+2	aaa
+3	AAA
+4	aAa
+5	aaa
+6	AAA
+select * from t1 where a = 'aaa' order by p;
+p	a
+1	aAa
+2	aaa
+3	AAA
+4	aAa
+5	aaa
+6	AAA
+select * from t1 where a = 'AaA' order by p;
+p	a
+1	aAa
+2	aaa
+3	AAA
+4	aAa
+5	aaa
+6	AAA
+select * from t1 where a = 'AAA' order by p;
+p	a
+1	aAa
+2	aaa
+3	AAA
+4	aAa
+5	aaa
+6	AAA
+drop table t1;

@@ -263,8 +263,8 @@ int ha_example::write_row(byte * buf)
   clause was used. Consecutive ordering is not guarenteed.
   Currently new_data will not have an updated auto_increament record, or
   and updated timestamp field. You can do these for example by doing these:
-  if (table->timestamp_on_update_now)
-    update_timestamp(new_row+table->timestamp_on_update_now-1);
+  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
+    table->timestamp_field->set_time();
   if (table->next_number_field && record == table->record[0])
     update_auto_increment();
 

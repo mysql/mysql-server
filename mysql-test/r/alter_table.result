@@ -349,6 +349,7 @@ alter table t1 change a a char(10) character set koi8r;
 select a,hex(a) from t1;
 a	hex(a)
 тест	D4C5D3D4
+delete from t1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

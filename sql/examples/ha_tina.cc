@@ -428,8 +428,8 @@ int ha_tina::write_row(byte * buf)
 
   statistic_increment(ha_write_count,&LOCK_status);
 
-  if (table->timestamp_default_now)
-    update_timestamp(buf+table->timestamp_default_now-1);
+  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
+    table->timestamp_field->set_time();
 
   size= encode_quote(buf);
 
@@ -464,8 +464,8 @@ int ha_tina::update_row(const byte * old_data, byte * new_data)
 
   statistic_increment(ha_update_count,&LOCK_status);
 
-  if (table->timestamp_default_now)
-    update_timestamp(new_data+table->timestamp_default_now-1);
+  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
+    table->timestamp_field->set_time();
 
   size= encode_quote(new_data);
 

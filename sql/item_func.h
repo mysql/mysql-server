@@ -125,7 +125,7 @@ public:
   void set_arguments(List<Item> &list);
   inline uint argument_count() const { return arg_count; }
   inline void remove_arguments() { arg_count=0; }
-  virtual void split_sum_func(Item **ref_pointer_array, List<Item> &fields);
+  void split_sum_func(THD *thd, Item **ref_pointer_array, List<Item> &fields);
   void print(String *str);
   void print_op(String *str);
   void print_args(String *str, uint from);
@@ -220,6 +220,7 @@ class Item_func_signed :public Item_int_func
 {
 public:
   Item_func_signed(Item *a) :Item_int_func(a) {}
+  const char *func_name() const { return "cast_as_signed"; }
   double val()
   {
     double tmp= args[0]->val();
@@ -242,6 +243,7 @@ class Item_func_unsigned :public Item_func_signed
 {
 public:
   Item_func_unsigned(Item *a) :Item_func_signed(a) {}
+  const char *func_name() const { return "cast_as_unsigned"; }
   void fix_length_and_dec()
   { max_length=args[0]->max_length; unsigned_flag=1; }
   void print(String *str);
@@ -352,6 +354,7 @@ class Item_dec_func :public Item_real_func
 #ifndef HAVE_FINITE
     return value;
 #else
+    /* The following should be safe, even if we compare doubles */
     if (finite(value) && value != POSTFIX_ERROR)
       return value;
     null_value=1;
@@ -516,13 +519,13 @@ class Item_func_rand :public Item_real_func
 {
   struct rand_struct *rand;
 public:
-  Item_func_rand(Item *a) :Item_real_func(a) {}
-  Item_func_rand()	  :Item_real_func()  {}
+  Item_func_rand(Item *a) :Item_real_func(a), rand(0) {}
+  Item_func_rand()	  :Item_real_func() {}
   double val();
   const char *func_name() const { return "rand"; }
   bool const_item() const { return 0; }
   void update_used_tables();
-  void fix_length_and_dec();
+  bool fix_fields(THD *thd, struct st_table_list *tables, Item **ref);
 };
 
 
@@ -1039,6 +1042,7 @@ public:
   table_map not_null_tables() const { return 0; }
   bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
   bool eq(const Item *, bool binary_cmp) const;
+  /* The following should be safe, even if we compare doubles */
   longlong val_int() { DBUG_ASSERT(fixed == 1); return val()!=0.0; }
   double val();
   void print(String *str);

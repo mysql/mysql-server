@@ -19,13 +19,14 @@
 
 #include <NdbThread.h>
 #include <NdbMutex.h>
+#include <NdbMem.h>
 
 NdbMutex* NdbMutex_Create(void)
 {
   NdbMutex* pNdbMutex;
   int result;
   
-  pNdbMutex = (NdbMutex*)malloc(sizeof(NdbMutex));
+  pNdbMutex = (NdbMutex*)NdbMem_Allocate(sizeof(NdbMutex));
   
   if (pNdbMutex == NULL)
     return NULL;

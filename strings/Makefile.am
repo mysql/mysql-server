@@ -57,7 +57,7 @@ EXTRA_DIST =		ctype-big5.c ctype-czech.c ctype-euc_kr.c ctype-win1250ch.c \
 			t_ctype.h
 
 libmystrings_a_LIBADD=
-conf_to_src_SOURCES = conf_to_src.c xml.c ctype.c
+conf_to_src_SOURCES = conf_to_src.c xml.c ctype.c bcmp.c
 conf_to_src_LDADD=
 #force static linking of conf_to_src - essential when linking against
 #custom installation of libc

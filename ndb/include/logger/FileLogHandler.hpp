@@ -37,11 +37,11 @@ class FileLogHandler : public LogHandler
 {
 public:
   /** Max number of log files to archive. */
-  static const int MAX_NO_FILES = 6;	
+  STATIC_CONST( MAX_NO_FILES = 6 );	
   /** Max file size of the log before archiving.  */
-  static const long MAX_FILE_SIZE = 1024000;
+  STATIC_CONST( MAX_FILE_SIZE = 1024000 );
   /** Max number of log entries before archiving. */
-  static const unsigned int MAX_LOG_ENTRIES = 10000;
+  STATIC_CONST( MAX_LOG_ENTRIES = 10000 );
 
   /**
    * Default constructor.

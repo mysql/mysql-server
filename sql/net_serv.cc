@@ -193,9 +193,7 @@ my_bool net_realloc(NET *net, ulong length)
   {
     net->error= 1;
     net->report_error= 1;
-#ifdef MYSQL_SERVER
     net->last_errno= ER_OUT_OF_RESOURCES;
-#endif
     DBUG_RETURN(1);
   }
   net->buff=net->write_pos=buff;

@@ -213,7 +213,7 @@ then
 fi
 mysqld_install_cmd_line="$mysqld $defaults $mysqld_opt --bootstrap \
 --skip-grant-tables --basedir=$basedir --datadir=$ldata --skip-innodb \
---skip-bdb $args --max_allowed_packet=8M"
+--skip-bdb --skip-ndbcluster $args --max_allowed_packet=8M"
 if $scriptdir/mysql_create_system_tables $create_option $mdata $hostname $windows \
    | eval "$mysqld_install_cmd_line" 
 then

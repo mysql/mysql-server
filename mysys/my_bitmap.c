@@ -41,7 +41,7 @@
 #include <m_string.h>
 
 
-inline void bitmap_lock(MY_BITMAP *map)
+static inline void bitmap_lock(MY_BITMAP *map)
 {
 #ifdef THREAD
   if (map->mutex)
@@ -50,7 +50,7 @@ inline void bitmap_lock(MY_BITMAP *map)
 }
 
 
-inline void bitmap_unlock(MY_BITMAP *map)
+static inline void bitmap_unlock(MY_BITMAP *map)
 {
 #ifdef THREAD
   if (map->mutex)

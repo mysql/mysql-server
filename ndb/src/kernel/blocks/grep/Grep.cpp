@@ -619,6 +619,12 @@ Grep::PSCoord::execCREATE_SUBID_REF(Signal* signal) {
   {
     jam();
     err = GrepError::SUBSCRIPTION_ID_SUMA_FAILED_CREATE;
+  } else {
+    jam();
+    ndbrequire(false); /* Added since errorcode err unhandled
+			* TODO: fix correct errorcode
+			*/
+    err= GrepError::NO_ERROR; // remove compiler warning
   }
 
   SubCoordinatorPtr subPtr;
@@ -1819,6 +1825,7 @@ Grep::PSCoord::sendRefToSS(Signal * signal,
     break;
   default:
     ndbrequire(false);
+    event= GrepEvent::Rep_Disconnect; // remove compiler warning
   }  
   /**
    * Finally, send an event.
@@ -1906,6 +1913,7 @@ Grep::PSPart::sendRefToPSCoord(Signal * signal,
     break;
   default:
     ndbrequire(false);
+    event= GrepEvent::Rep_Disconnect; // remove compiler warning
   }
   
   /**

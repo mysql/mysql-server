@@ -548,8 +548,8 @@ drop table t1, t2;
 
 CREATE TABLE `t1` (`i` int(11) NOT NULL default '0',PRIMARY KEY  (`i`)) ENGINE=MyISAM CHARSET=latin1;
 INSERT INTO t1 VALUES (1);
--- error 1111
 UPDATE t1 SET i=i+1 WHERE i=(SELECT MAX(i));
+select * from t1;
 drop table t1;
 
 #test of uncacheable subqueries
@@ -694,12 +694,11 @@ CREATE TABLE `t1` (
 ) ENGINE=MyISAM CHARSET=latin1;
 
 INSERT INTO t1 VALUES (1);
--- error 1111
 UPDATE t1 SET i=i+(SELECT MAX(i) FROM (SELECT 1) t) WHERE i=(SELECT MAX(i));
--- error 1111
 UPDATE t1 SET i=i+1 WHERE i=(SELECT MAX(i));
 -- error 1109
 UPDATE t1 SET t.i=i+(SELECT MAX(i) FROM (SELECT 1) t);
+select * from t1;
 drop table t1;
 
 #
@@ -1269,6 +1268,22 @@ SELECT a.howmanyvalues, (SELECT count(*) from t1 b where b.howmanyvalues = a.how
 CREATE INDEX t1_howmanyvalues_idx ON t1 (howmanyvalues);
 SELECT a.howmanyvalues, (SELECT count(*) from t1 b where b.howmanyvalues+1 = a.howmanyvalues+1) as mycount from t1 a group by a.howmanyvalues;
 SELECT a.howmanyvalues, (SELECT count(*) from t1 b where b.howmanyvalues = a.howmanyvalues) as mycount from t1 a group by a.howmanyvalues;
--- error 1054
 SELECT a.howmanyvalues, (SELECT count(*) from t1 b where b.howmanyvalues = a.avalue) as mycount from t1 a group by a.howmanyvalues;
 drop table t1;
+
+create table t1 (x int);
+select  (select b.x from t1 as b where b.x=a.x) from t1 as a where a.x=2 group by a.x;
+drop table t1;
+
+#
+# Test of correct maybe_null flag returning by subquwery for temporary table
+# creation
+#
+CREATE TABLE `t1` ( `master` int(10) unsigned NOT NULL default '0', `map` smallint(6) unsigned NOT NULL default '0', `slave` int(10) unsigned NOT NULL default '0', `access` int(10) unsigned NOT NULL default '0', UNIQUE KEY `access_u` (`master`,`map`,`slave`));
+INSERT INTO `t1` VALUES (1,0,0,700),(1,1,1,400),(1,5,5,400),(1,12,12,400),(1,12,32,400),(4,12,32,400);
+CREATE TABLE `t2` ( `id` int(10) unsigned NOT NULL default '0', `pid` int(10) unsigned NOT NULL default '0', `map` smallint(6) unsigned NOT NULL default '0', `level` tinyint(4) unsigned NOT NULL default '0', `title` varchar(255) default NULL, PRIMARY KEY  (`id`,`pid`,`map`), KEY `level` (`level`), KEY `id` (`id`,`map`)) ;
+INSERT INTO `t2` VALUES (6,5,12,7,'a'),(12,0,0,7,'a'),(12,1,0,7,'a'),(12,5,5,7,'a'),(12,5,12,7,'a');
+-- error 1054
+SELECT b.sc FROM (SELECT (SELECT a.access FROM t1 a WHERE a.map = op.map AND a.slave = op.pid AND a.master = 1) ac FROM t2 op WHERE op.id = 12 AND op.map = 0) b;
+SELECT b.ac FROM (SELECT (SELECT a.access FROM t1 a WHERE a.map = op.map AND a.slave = op.pid AND a.master = 1) ac FROM t2 op WHERE op.id = 12 AND op.map = 0) b;
+drop tables t1,t2;

@@ -199,3 +199,31 @@ insert into t1 (ts) values (now());
 select convert_tz(ts, @@time_zone, 'Japan') from t1;
 drop table t1;
 
+#
+# Test for bug #6116 "SET time_zone := ... requires access to mysql.time_zone
+# tables". We should allow implicit access to time zone description tables
+# even for unprivileged users.
+#
+
+delete from mysql.user where user like 'mysqltest\_%';
+delete from mysql.db where user like 'mysqltest\_%';
+delete from mysql.tables_priv where user like 'mysqltest\_%';
+delete from mysql.columns_priv where user like 'mysqltest\_%';
+flush privileges;
+
+grant usage on mysqltest.* to mysqltest_1@localhost;
+connect (tzuser, localhost, mysqltest_1,,);
+connection tzuser;
+show grants for current_user();
+set time_zone= '+00:00';
+set time_zone= 'Europe/Moscow';
+select convert_tz('2004-10-21 19:00:00', 'Europe/Moscow', 'UTC');
+# But still these two statements should not work:
+--error 1044
+select * from mysql.time_zone_name;
+--error 1044
+select Name, convert_tz('2004-10-21 19:00:00', Name, 'UTC') from mysql.time_zone_name;
+
+connection default;
+delete from mysql.user where user like 'mysqltest\_%';
+flush privileges;

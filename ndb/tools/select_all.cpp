@@ -26,6 +26,9 @@
 #include <getarg.h>
 #include <NdbScanFilter.hpp>
  
+#ifndef DBUG_OFF
+const char *debug_option= 0;
+#endif
 
 int scanReadRecords(Ndb*, 
 		    const NdbDictionary::Table*, 
@@ -38,6 +41,7 @@ int scanReadRecords(Ndb*,
 		    bool orderby);
 
 int main(int argc, const char** argv){
+  ndb_init();
   int _parallelism = 240;
   const char* _delimiter = "\t";
   int _header = true;
@@ -58,6 +62,10 @@ int main(int argc, const char** argv){
       "Output numbers in hexadecimal format", "useHexFormat" },
     { "delimiter", 'd', arg_string, &_delimiter, "Column delimiter", 
       "delimiter" },
+#ifndef DBUG_OFF
+    { "debug", 0, arg_string, &debug_option,
+      "Specify debug options e.g. d:t:i:o,out.trace", "options" },
+#endif
     { "usage", '?', arg_flag, &_help, "Print help", "" },
     { "lock", 'l', arg_integer, &_lock, 
       "Read(0), Read-hold(1), Exclusive(2)", "lock"},
@@ -80,6 +88,11 @@ int main(int argc, const char** argv){
   }
   _tabname = argv[optind];
 
+#ifndef DBUG_OFF
+  if (debug_option)
+    DBUG_PUSH(debug_option);
+#endif
+
   // Connect to Ndb
   Ndb MyNdb(_dbname);
 
@@ -101,6 +114,11 @@ int main(int argc, const char** argv){
 
   if(pTab == NULL){
     ndbout << " Table " << _tabname << " does not exist!" << endl;
+    return NDBT_ProgramExit(NDBT_WRONGARGS);
+  }
+  
+  if(_order && pIdx == NULL){
+    ndbout << " Order flag given without an index" << endl;
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
@@ -133,7 +151,7 @@ int scanReadRecords(Ndb* pNdb,
   int                  check;
   NdbConnection	       *pTrans;
   NdbScanOperation	       *pOp;
-  NdbIndexScanOperation * pIOp;
+  NdbIndexScanOperation * pIOp= 0;
 
   NDBT_ResultRow * row = new NDBT_ResultRow(*pTab, delimiter);
 

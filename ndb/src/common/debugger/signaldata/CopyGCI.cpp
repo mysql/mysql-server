@@ -21,22 +21,22 @@ void
 print(char * buf, size_t buf_len, CopyGCIReq::CopyReason r){
   switch(r){
   case CopyGCIReq::IDLE:
-    snprintf(buf, buf_len, "IDLE");
+    BaseString::snprintf(buf, buf_len, "IDLE");
     break;
   case CopyGCIReq::LOCAL_CHECKPOINT:
-    snprintf(buf, buf_len, "LOCAL_CHECKPOINT");
+    BaseString::snprintf(buf, buf_len, "LOCAL_CHECKPOINT");
     break;
   case CopyGCIReq::RESTART:
-    snprintf(buf, buf_len, "RESTART");
+    BaseString::snprintf(buf, buf_len, "RESTART");
     break;
   case CopyGCIReq::GLOBAL_CHECKPOINT:
-    snprintf(buf, buf_len, "GLOBAL_CHECKPOINT");
+    BaseString::snprintf(buf, buf_len, "GLOBAL_CHECKPOINT");
     break;
   case CopyGCIReq::INITIAL_START_COMPLETED:
-    snprintf(buf, buf_len, "INITIAL_START_COMPLETED");
+    BaseString::snprintf(buf, buf_len, "INITIAL_START_COMPLETED");
     break;
   default:
-    snprintf(buf, buf_len, "<Unknown>");
+    BaseString::snprintf(buf, buf_len, "<Unknown>");
   }
 }
 

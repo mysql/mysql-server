@@ -1393,4 +1393,1212 @@ auto	fld1	companynr	fld3	fld4	fld5	fld6
 2	011401	37	breaking	dreaded	Steinberg	W
 3	011402	37	Romans	scholastics	jarring	
 4	011403	37	intercepted	audiology	tinily	
+OPTIMIZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	optimize	status	OK
+SELECT * FROM t2;
+auto	fld1	companynr	fld3	fld4	fld5	fld6
+1	000001	00	Omaha	teethe	neat	
+2	011401	37	breaking	dreaded	Steinberg	W
+3	011402	37	Romans	scholastics	jarring	
+4	011403	37	intercepted	audiology	tinily	
+5	011501	37	bewilderingly	wallet	balled	
+6	011701	37	astound	parters	persist	W
+7	011702	37	admonishing	eschew	attainments	
+8	011703	37	sumac	quitter	fanatic	
+9	012001	37	flanking	neat	measures	FAS
+10	012003	37	combed	Steinberg	rightfulness	
+11	012004	37	subjective	jarring	capably	
+12	012005	37	scatterbrain	tinily	impulsive	
+13	012301	37	Eulerian	balled	starlet	
+14	012302	36	dubbed	persist	terminators	
+15	012303	37	Kane	attainments	untying	
+16	012304	37	overlay	fanatic	announces	FAS
+17	012305	37	perturb	measures	featherweight	FAS
+18	012306	37	goblins	rightfulness	pessimist	FAS
+19	012501	37	annihilates	capably	daughter	
+20	012602	37	Wotan	impulsive	decliner	FAS
+21	012603	37	snatching	starlet	lawgiver	
+22	012604	37	concludes	terminators	stated	
+23	012605	37	laterally	untying	readable	
+24	012606	37	yelped	announces	attrition	
+25	012701	37	grazing	featherweight	cascade	FAS
+26	012702	37	Baird	pessimist	motors	FAS
+27	012703	37	celery	daughter	interrogate	
+28	012704	37	misunderstander	decliner	pests	W
+29	013601	37	handgun	lawgiver	stairway	
+30	013602	37	foldout	stated	dopers	FAS
+31	013603	37	mystic	readable	testicle	W
+32	013604	37	succumbed	attrition	Parsifal	W
+33	013605	37	Nabisco	cascade	leavings	
+34	013606	37	fingerings	motors	postulation	W
+35	013607	37	aging	interrogate	squeaking	
+36	013608	37	afield	pests	contrasted	
+37	013609	37	ammonium	stairway	leftover	
+38	013610	37	boat	dopers	whiteners	
+39	013801	37	intelligibility	testicle	erases	W
+40	013802	37	Augustine	Parsifal	Punjab	W
+41	013803	37	teethe	leavings	Merritt	
+42	013804	37	dreaded	postulation	Quixotism	
+43	013901	37	scholastics	squeaking	sweetish	FAS
+44	016001	37	audiology	contrasted	dogging	FAS
+45	016201	37	wallet	leftover	scornfully	FAS
+46	016202	37	parters	whiteners	bellow	
+47	016301	37	eschew	erases	bills	
+48	016302	37	quitter	Punjab	cupboard	FAS
+49	016303	37	neat	Merritt	sureties	FAS
+50	016304	37	Steinberg	Quixotism	puddings	
+51	018001	37	jarring	sweetish	tapestry	
+52	018002	37	tinily	dogging	fetters	
+53	018003	37	balled	scornfully	bivalves	
+54	018004	37	persist	bellow	incurring	
+55	018005	37	attainments	bills	Adolph	
+56	018007	37	fanatic	cupboard	pithed	
+57	018008	37	measures	sureties	emergency	
+58	018009	37	rightfulness	puddings	Miles	
+59	018010	37	capably	tapestry	trimmings	
+60	018012	37	impulsive	fetters	tragedies	W
+61	018013	37	starlet	bivalves	skulking	W
+62	018014	37	terminators	incurring	flint	
+63	018015	37	untying	Adolph	flopping	W
+64	018016	37	announces	pithed	relaxing	FAS
+65	018017	37	featherweight	emergency	offload	FAS
+66	018018	37	pessimist	Miles	suites	W
+67	018019	37	daughter	trimmings	lists	FAS
+68	018020	37	decliner	tragedies	animized	FAS
+69	018021	37	lawgiver	skulking	multilayer	W
+70	018022	37	stated	flint	standardizes	FAS
+71	018023	37	readable	flopping	Judas	
+72	018024	37	attrition	relaxing	vacuuming	W
+73	018025	37	cascade	offload	dentally	W
+74	018026	37	motors	suites	humanness	W
+75	018027	37	interrogate	lists	inch	W
+76	018028	37	pests	animized	Weissmuller	W
+77	018029	37	stairway	multilayer	irresponsibly	W
+78	018030	37	dopers	standardizes	luckily	FAS
+79	018032	37	testicle	Judas	culled	W
+80	018033	37	Parsifal	vacuuming	medical	FAS
+81	018034	37	leavings	dentally	bloodbath	FAS
+82	018035	37	postulation	humanness	subschema	W
+83	018036	37	squeaking	inch	animals	W
+84	018037	37	contrasted	Weissmuller	Micronesia	
+85	018038	37	leftover	irresponsibly	repetitions	
+86	018039	37	whiteners	luckily	Antares	
+87	018040	37	erases	culled	ventilate	W
+88	018041	37	Punjab	medical	pityingly	
+89	018042	37	Merritt	bloodbath	interdependent	
+90	018043	37	Quixotism	subschema	Graves	FAS
+91	018044	37	sweetish	animals	neonatal	
+92	018045	37	dogging	Micronesia	scribbled	FAS
+93	018046	37	scornfully	repetitions	chafe	W
+94	018048	37	bellow	Antares	honoring	
+95	018049	37	bills	ventilate	realtor	
+96	018050	37	cupboard	pityingly	elite	
+97	018051	37	sureties	interdependent	funereal	
+98	018052	37	puddings	Graves	abrogating	
+99	018053	50	tapestry	neonatal	sorters	
+100	018054	37	fetters	scribbled	Conley	
+101	018055	37	bivalves	chafe	lectured	
+102	018056	37	incurring	honoring	Abraham	
+103	018057	37	Adolph	realtor	Hawaii	W
+104	018058	37	pithed	elite	cage	
+105	018059	36	emergency	funereal	hushes	
+106	018060	37	Miles	abrogating	Simla	
+107	018061	37	trimmings	sorters	reporters	
+108	018101	37	tragedies	Conley	Dutchman	FAS
+109	018102	37	skulking	lectured	descendants	FAS
+110	018103	37	flint	Abraham	groupings	FAS
+111	018104	37	flopping	Hawaii	dissociate	
+112	018201	37	relaxing	cage	coexist	W
+113	018202	37	offload	hushes	Beebe	
+114	018402	37	suites	Simla	Taoism	
+115	018403	37	lists	reporters	Connally	
+116	018404	37	animized	Dutchman	fetched	FAS
+117	018405	37	multilayer	descendants	checkpoints	FAS
+118	018406	37	standardizes	groupings	rusting	
+119	018409	37	Judas	dissociate	galling	
+120	018601	37	vacuuming	coexist	obliterates	
+121	018602	37	dentally	Beebe	traitor	
+122	018603	37	humanness	Taoism	resumes	FAS
+123	018801	37	inch	Connally	analyzable	FAS
+124	018802	37	Weissmuller	fetched	terminator	FAS
+125	018803	37	irresponsibly	checkpoints	gritty	FAS
+126	018804	37	luckily	rusting	firearm	W
+127	018805	37	culled	galling	minima	
+128	018806	37	medical	obliterates	Selfridge	
+129	018807	37	bloodbath	traitor	disable	
+130	018808	37	subschema	resumes	witchcraft	W
+131	018809	37	animals	analyzable	betroth	W
+132	018810	37	Micronesia	terminator	Manhattanize	
+133	018811	37	repetitions	gritty	imprint	
+134	018812	37	Antares	firearm	peeked	
+135	019101	37	ventilate	minima	swelling	
+136	019102	37	pityingly	Selfridge	interrelationships	W
+137	019103	37	interdependent	disable	riser	
+138	019201	37	Graves	witchcraft	Gandhian	W
+139	030501	37	neonatal	betroth	peacock	A
+140	030502	50	scribbled	Manhattanize	bee	A
+141	030503	37	chafe	imprint	kanji	
+142	030504	37	honoring	peeked	dental	
+143	031901	37	realtor	swelling	scarf	FAS
+144	036001	37	elite	interrelationships	chasm	A
+145	036002	37	funereal	riser	insolence	A
+146	036004	37	abrogating	Gandhian	syndicate	
+147	036005	37	sorters	peacock	alike	
+148	038001	37	Conley	bee	imperial	A
+149	038002	37	lectured	kanji	convulsion	A
+150	038003	37	Abraham	dental	railway	A
+151	038004	37	Hawaii	scarf	validate	A
+152	038005	37	cage	chasm	normalizes	A
+153	038006	37	hushes	insolence	comprehensive	
+154	038007	37	Simla	syndicate	chewing	
+155	038008	37	reporters	alike	denizen	
+156	038009	37	Dutchman	imperial	schemer	
+157	038010	37	descendants	convulsion	chronicle	
+158	038011	37	groupings	railway	Kline	
+159	038012	37	dissociate	validate	Anatole	
+160	038013	37	coexist	normalizes	partridges	
+161	038014	37	Beebe	comprehensive	brunch	
+162	038015	37	Taoism	chewing	recruited	
+163	038016	37	Connally	denizen	dimensions	W
+164	038017	37	fetched	schemer	Chicana	W
+165	038018	37	checkpoints	chronicle	announced	
+166	038101	37	rusting	Kline	praised	FAS
+167	038102	37	galling	Anatole	employing	
+168	038103	37	obliterates	partridges	linear	
+169	038104	37	traitor	brunch	quagmire	
+170	038201	37	resumes	recruited	western	A
+171	038202	37	analyzable	dimensions	relishing	
+172	038203	37	terminator	Chicana	serving	A
+173	038204	37	gritty	announced	scheduling	
+174	038205	37	firearm	praised	lore	
+175	038206	37	minima	employing	eventful	
+176	038208	37	Selfridge	linear	arteriole	A
+177	042801	37	disable	quagmire	disentangle	
+178	042802	37	witchcraft	western	cured	A
+179	046101	37	betroth	relishing	Fenton	W
+180	048001	37	Manhattanize	serving	avoidable	A
+181	048002	37	imprint	scheduling	drains	A
+182	048003	37	peeked	lore	detectably	FAS
+183	048004	37	swelling	eventful	husky	
+184	048005	37	interrelationships	arteriole	impelling	
+185	048006	37	riser	disentangle	undoes	
+186	048007	37	Gandhian	cured	evened	
+187	048008	37	peacock	Fenton	squeezes	
+188	048101	37	bee	avoidable	destroyer	FAS
+189	048102	37	kanji	drains	rudeness	
+190	048201	37	dental	detectably	beaner	FAS
+191	048202	37	scarf	husky	boorish	
+192	048203	37	chasm	impelling	Everhart	
+193	048204	37	insolence	undoes	encompass	A
+194	048205	37	syndicate	evened	mushrooms	
+195	048301	37	alike	squeezes	Alison	A
+196	048302	37	imperial	destroyer	externally	FAS
+197	048303	37	convulsion	rudeness	pellagra	
+198	048304	37	railway	beaner	cult	
+199	048305	37	validate	boorish	creek	A
+200	048401	37	normalizes	Everhart	Huffman	
+201	048402	37	comprehensive	encompass	Majorca	FAS
+202	048403	37	chewing	mushrooms	governing	A
+203	048404	37	denizen	Alison	gadfly	FAS
+204	048405	37	schemer	externally	reassigned	FAS
+205	048406	37	chronicle	pellagra	intentness	W
+206	048407	37	Kline	cult	craziness	
+207	048408	37	Anatole	creek	psychic	
+208	048409	37	partridges	Huffman	squabbled	
+209	048410	37	brunch	Majorca	burlesque	
+210	048411	37	recruited	governing	capped	
+211	048412	37	dimensions	gadfly	extracted	A
+212	048413	37	Chicana	reassigned	DiMaggio	
+213	048601	37	announced	intentness	exclamation	FAS
+214	048602	37	praised	craziness	subdirectory	
+215	048603	37	employing	psychic	fangs	
+216	048604	37	linear	squabbled	buyer	A
+217	048801	37	quagmire	burlesque	pithing	A
+218	050901	37	western	capped	transistorizing	A
+219	051201	37	relishing	extracted	nonbiodegradable	
+220	056002	37	serving	DiMaggio	dislocate	
+221	056003	37	scheduling	exclamation	monochromatic	FAS
+222	056004	37	lore	subdirectory	batting	
+223	056102	37	eventful	fangs	postcondition	A
+224	056203	37	arteriole	buyer	catalog	FAS
+225	056204	37	disentangle	pithing	Remus	
+226	058003	37	cured	transistorizing	devices	A
+227	058004	37	Fenton	nonbiodegradable	bike	A
+228	058005	37	avoidable	dislocate	qualify	
+229	058006	37	drains	monochromatic	detained	
+230	058007	37	detectably	batting	commended	
+231	058101	37	husky	postcondition	civilize	
+232	058102	37	impelling	catalog	Elmhurst	
+233	058103	37	undoes	Remus	anesthetizing	
+234	058105	37	evened	devices	deaf	
+235	058111	37	squeezes	bike	Brigham	
+236	058112	37	destroyer	qualify	title	
+237	058113	37	rudeness	detained	coarse	
+238	058114	37	beaner	commended	combinations	
+239	058115	37	boorish	civilize	grayness	
+240	058116	37	Everhart	Elmhurst	innumerable	FAS
+241	058117	37	encompass	anesthetizing	Caroline	A
+242	058118	37	mushrooms	deaf	fatty	FAS
+243	058119	37	Alison	Brigham	eastbound	
+244	058120	37	externally	title	inexperienced	
+245	058121	37	pellagra	coarse	hoarder	A
+246	058122	37	cult	combinations	scotch	W
+247	058123	37	creek	grayness	passport	A
+248	058124	37	Huffman	innumerable	strategic	FAS
+249	058125	37	Majorca	Caroline	gated	
+250	058126	37	governing	fatty	flog	
+251	058127	37	gadfly	eastbound	Pipestone	
+252	058128	37	reassigned	inexperienced	Dar	
+253	058201	37	intentness	hoarder	Corcoran	
+254	058202	37	craziness	scotch	flyers	A
+255	058303	37	psychic	passport	competitions	W
+256	058304	37	squabbled	strategic	suppliers	FAS
+257	058602	37	burlesque	gated	skips	
+258	058603	37	capped	flog	institutes	
+259	058604	37	extracted	Pipestone	troop	A
+260	058605	37	DiMaggio	Dar	connective	W
+261	058606	37	exclamation	Corcoran	denies	
+262	058607	37	subdirectory	flyers	polka	
+263	060401	36	fangs	competitions	observations	FAS
+264	061701	36	buyer	suppliers	askers	
+265	066201	36	pithing	skips	homeless	FAS
+266	066501	36	transistorizing	institutes	Anna	
+267	068001	36	nonbiodegradable	troop	subdirectories	W
+268	068002	36	dislocate	connective	decaying	FAS
+269	068005	36	monochromatic	denies	outwitting	W
+270	068006	36	batting	polka	Harpy	W
+271	068007	36	postcondition	observations	crazed	
+272	068008	36	catalog	askers	suffocate	
+273	068009	36	Remus	homeless	provers	FAS
+274	068010	36	devices	Anna	technically	
+275	068011	36	bike	subdirectories	Franklinizations	
+276	068202	36	qualify	decaying	considered	
+277	068302	36	detained	outwitting	tinnily	
+278	068303	36	commended	Harpy	uninterruptedly	
+279	068401	36	civilize	crazed	whistled	A
+280	068501	36	Elmhurst	suffocate	automate	
+281	068502	36	anesthetizing	provers	gutting	W
+282	068503	36	deaf	technically	surreptitious	
+283	068602	36	Brigham	Franklinizations	Choctaw	
+284	068603	36	title	considered	cooks	
+285	068701	36	coarse	tinnily	millivolt	FAS
+286	068702	36	combinations	uninterruptedly	counterpoise	
+287	068703	36	grayness	whistled	Gothicism	
+288	076001	36	innumerable	automate	feminine	
+289	076002	36	Caroline	gutting	metaphysically	W
+290	076101	36	fatty	surreptitious	sanding	A
+291	076102	36	eastbound	Choctaw	contributorily	
+292	076103	36	inexperienced	cooks	receivers	FAS
+293	076302	36	hoarder	millivolt	adjourn	
+294	076303	36	scotch	counterpoise	straggled	A
+295	076304	36	passport	Gothicism	druggists	
+296	076305	36	strategic	feminine	thanking	FAS
+297	076306	36	gated	metaphysically	ostrich	
+298	076307	36	flog	sanding	hopelessness	FAS
+299	076402	36	Pipestone	contributorily	Eurydice	
+300	076501	36	Dar	receivers	excitation	W
+301	076502	36	Corcoran	adjourn	presumes	FAS
+302	076701	36	flyers	straggled	imaginable	FAS
+303	078001	36	competitions	druggists	concoct	W
+304	078002	36	suppliers	thanking	peering	W
+305	078003	36	skips	ostrich	Phelps	FAS
+306	078004	36	institutes	hopelessness	ferociousness	FAS
+307	078005	36	troop	Eurydice	sentences	
+308	078006	36	connective	excitation	unlocks	
+309	078007	36	denies	presumes	engrossing	W
+310	078008	36	polka	imaginable	Ruth	
+311	078101	36	observations	concoct	tying	
+312	078103	36	askers	peering	exclaimers	
+313	078104	36	homeless	Phelps	synergy	
+314	078105	36	Anna	ferociousness	Huey	W
+315	082101	36	subdirectories	sentences	merging	
+316	083401	36	decaying	unlocks	judges	A
+317	084001	36	outwitting	engrossing	Shylock	W
+318	084002	36	Harpy	Ruth	Miltonism	
+319	086001	36	crazed	tying	hen	W
+320	086102	36	suffocate	exclaimers	honeybee	FAS
+321	086201	36	provers	synergy	towers	
+322	088001	36	technically	Huey	dilutes	W
+323	088002	36	Franklinizations	merging	numerals	FAS
+324	088003	36	considered	judges	democracy	FAS
+325	088004	36	tinnily	Shylock	Ibero-	
+326	088101	36	uninterruptedly	Miltonism	invalids	
+327	088102	36	whistled	hen	behavior	
+328	088103	36	automate	honeybee	accruing	
+329	088104	36	gutting	towers	relics	A
+330	088105	36	surreptitious	dilutes	rackets	
+331	088106	36	Choctaw	numerals	Fischbein	W
+332	088201	36	cooks	democracy	phony	W
+333	088203	36	millivolt	Ibero-	cross	FAS
+334	088204	36	counterpoise	invalids	cleanup	
+335	088302	37	Gothicism	behavior	conspirator	
+336	088303	37	feminine	accruing	label	FAS
+337	088305	37	metaphysically	relics	university	
+338	088402	37	sanding	rackets	cleansed	FAS
+339	088501	36	contributorily	Fischbein	ballgown	
+340	088502	36	receivers	phony	starlet	
+341	088503	36	adjourn	cross	aqueous	
+342	098001	58	straggled	cleanup	portrayal	A
+343	098002	58	druggists	conspirator	despising	W
+344	098003	58	thanking	label	distort	W
+345	098004	58	ostrich	university	palmed	
+346	098005	58	hopelessness	cleansed	faced	
+347	098006	58	Eurydice	ballgown	silverware	
+348	141903	29	excitation	starlet	assessor	
+349	098008	58	presumes	aqueous	spiders	
+350	098009	58	imaginable	portrayal	artificially	
+351	098010	58	concoct	despising	reminiscence	
+352	098011	58	peering	distort	Mexican	
+353	098012	58	Phelps	palmed	obnoxious	
+354	098013	58	ferociousness	faced	fragile	
+355	098014	58	sentences	silverware	apprehensible	
+356	098015	58	unlocks	assessor	births	
+357	098016	58	engrossing	spiders	garages	
+358	098017	58	Ruth	artificially	panty	
+359	098018	58	tying	reminiscence	anteater	
+360	098019	58	exclaimers	Mexican	displacement	A
+361	098020	58	synergy	obnoxious	drovers	A
+362	098021	58	Huey	fragile	patenting	A
+363	098022	58	merging	apprehensible	far	A
+364	098023	58	judges	births	shrieks	
+365	098024	58	Shylock	garages	aligning	W
+366	098025	37	Miltonism	panty	pragmatism	
+367	106001	36	hen	anteater	fevers	W
+368	108001	36	honeybee	displacement	reexamines	A
+369	108002	36	towers	drovers	occupancies	
+370	108003	36	dilutes	patenting	sweats	FAS
+371	108004	36	numerals	far	modulators	
+372	108005	36	democracy	shrieks	demand	W
+373	108007	36	Ibero-	aligning	Madeira	
+374	108008	36	invalids	pragmatism	Viennese	W
+375	108009	36	behavior	fevers	chillier	W
+376	108010	36	accruing	reexamines	wildcats	FAS
+377	108011	36	relics	occupancies	gentle	
+378	108012	36	rackets	sweats	Angles	W
+379	108101	36	Fischbein	modulators	accuracies	
+380	108102	36	phony	demand	toggle	
+381	108103	36	cross	Madeira	Mendelssohn	W
+382	108111	50	cleanup	Viennese	behaviorally	
+383	108105	36	conspirator	chillier	Rochford	
+384	108106	36	label	wildcats	mirror	W
+385	108107	36	university	gentle	Modula	
+386	108108	50	cleansed	Angles	clobbering	
+387	108109	36	ballgown	accuracies	chronography	
+388	108110	36	starlet	toggle	Eskimoizeds	
+389	108201	36	aqueous	Mendelssohn	British	W
+390	108202	36	portrayal	behaviorally	pitfalls	
+391	108203	36	despising	Rochford	verify	W
+392	108204	36	distort	mirror	scatter	FAS
+393	108205	36	palmed	Modula	Aztecan	
+394	108301	36	faced	clobbering	acuity	W
+395	108302	36	silverware	chronography	sinking	W
+396	112101	36	assessor	Eskimoizeds	beasts	FAS
+397	112102	36	spiders	British	Witt	W
+398	113701	36	artificially	pitfalls	physicists	FAS
+399	116001	36	reminiscence	verify	folksong	A
+400	116201	36	Mexican	scatter	strokes	FAS
+401	116301	36	obnoxious	Aztecan	crowder	
+402	116302	36	fragile	acuity	merry	
+403	116601	36	apprehensible	sinking	cadenced	
+404	116602	36	births	beasts	alimony	A
+405	116603	36	garages	Witt	principled	A
+406	116701	36	panty	physicists	golfing	
+407	116702	36	anteater	folksong	undiscovered	
+408	118001	36	displacement	strokes	irritates	
+409	118002	36	drovers	crowder	patriots	A
+410	118003	36	patenting	merry	rooms	FAS
+411	118004	36	far	cadenced	towering	W
+412	118005	36	shrieks	alimony	displease	
+413	118006	36	aligning	principled	photosensitive	
+414	118007	36	pragmatism	golfing	inking	
+415	118008	36	fevers	undiscovered	gainers	
+416	118101	36	reexamines	irritates	leaning	A
+417	118102	36	occupancies	patriots	hydrant	A
+418	118103	36	sweats	rooms	preserve	
+419	118202	36	modulators	towering	blinded	A
+420	118203	36	demand	displease	interactions	A
+421	118204	36	Madeira	photosensitive	Barry	
+422	118302	36	Viennese	inking	whiteness	A
+423	118304	36	chillier	gainers	pastimes	W
+424	118305	36	wildcats	leaning	Edenization	
+425	118306	36	gentle	hydrant	Muscat	
+426	118307	36	Angles	preserve	assassinated	
+427	123101	36	accuracies	blinded	labeled	
+428	123102	36	toggle	interactions	glacial	A
+429	123301	36	Mendelssohn	Barry	implied	W
+430	126001	36	behaviorally	whiteness	bibliographies	W
+431	126002	36	Rochford	pastimes	Buchanan	
+432	126003	36	mirror	Edenization	forgivably	FAS
+433	126101	36	Modula	Muscat	innuendo	A
+434	126301	36	clobbering	assassinated	den	FAS
+435	126302	36	chronography	labeled	submarines	W
+436	126402	36	Eskimoizeds	glacial	mouthful	A
+437	126601	36	British	implied	expiring	
+438	126602	36	pitfalls	bibliographies	unfulfilled	FAS
+439	126702	36	verify	Buchanan	precession	
+440	128001	36	scatter	forgivably	nullified	
+441	128002	36	Aztecan	innuendo	affects	
+442	128003	36	acuity	den	Cynthia	
+443	128004	36	sinking	submarines	Chablis	A
+444	128005	36	beasts	mouthful	betterments	FAS
+445	128007	36	Witt	expiring	advertising	
+446	128008	36	physicists	unfulfilled	rubies	A
+447	128009	36	folksong	precession	southwest	FAS
+448	128010	36	strokes	nullified	superstitious	A
+449	128011	36	crowder	affects	tabernacle	W
+450	128012	36	merry	Cynthia	silk	A
+451	128013	36	cadenced	Chablis	handsomest	A
+452	128014	36	alimony	betterments	Persian	A
+453	128015	36	principled	advertising	analog	W
+454	128016	36	golfing	rubies	complex	W
+455	128017	36	undiscovered	southwest	Taoist	
+456	128018	36	irritates	superstitious	suspend	
+457	128019	36	patriots	tabernacle	relegated	
+458	128020	36	rooms	silk	awesome	W
+459	128021	36	towering	handsomest	Bruxelles	
+460	128022	36	displease	Persian	imprecisely	A
+461	128023	36	photosensitive	analog	televise	
+462	128101	36	inking	complex	braking	
+463	128102	36	gainers	Taoist	true	FAS
+464	128103	36	leaning	suspend	disappointing	FAS
+465	128104	36	hydrant	relegated	navally	W
+466	128106	36	preserve	awesome	circus	
+467	128107	36	blinded	Bruxelles	beetles	
+468	128108	36	interactions	imprecisely	trumps	
+469	128202	36	Barry	televise	fourscore	W
+470	128203	36	whiteness	braking	Blackfoots	
+471	128301	36	pastimes	true	Grady	
+472	128302	36	Edenization	disappointing	quiets	FAS
+473	128303	36	Muscat	navally	floundered	FAS
+474	128304	36	assassinated	circus	profundity	W
+475	128305	36	labeled	beetles	Garrisonian	W
+476	128307	36	glacial	trumps	Strauss	
+477	128401	36	implied	fourscore	cemented	FAS
+478	128502	36	bibliographies	Blackfoots	contrition	A
+479	128503	36	Buchanan	Grady	mutations	
+480	128504	36	forgivably	quiets	exhibits	W
+481	128505	36	innuendo	floundered	tits	
+482	128601	36	den	profundity	mate	A
+483	128603	36	submarines	Garrisonian	arches	
+484	128604	36	mouthful	Strauss	Moll	
+485	128702	36	expiring	cemented	ropers	
+486	128703	36	unfulfilled	contrition	bombast	
+487	128704	36	precession	mutations	difficultly	A
+488	138001	36	nullified	exhibits	adsorption	
+489	138002	36	affects	tits	definiteness	FAS
+490	138003	36	Cynthia	mate	cultivation	A
+491	138004	36	Chablis	arches	heals	A
+492	138005	36	betterments	Moll	Heusen	W
+493	138006	36	advertising	ropers	target	FAS
+494	138007	36	rubies	bombast	cited	A
+495	138008	36	southwest	difficultly	congresswoman	W
+496	138009	36	superstitious	adsorption	Katherine	
+497	138102	36	tabernacle	definiteness	titter	A
+498	138103	36	silk	cultivation	aspire	A
+499	138104	36	handsomest	heals	Mardis	
+500	138105	36	Persian	Heusen	Nadia	W
+501	138201	36	analog	target	estimating	FAS
+502	138302	36	complex	cited	stuck	A
+503	138303	36	Taoist	congresswoman	fifteenth	A
+504	138304	36	suspend	Katherine	Colombo	
+505	138401	29	relegated	titter	survey	A
+506	140102	29	awesome	aspire	staffing	
+507	140103	29	Bruxelles	Mardis	obtain	
+508	140104	29	imprecisely	Nadia	loaded	
+509	140105	29	televise	estimating	slaughtered	
+510	140201	29	braking	stuck	lights	A
+511	140701	29	true	fifteenth	circumference	
+512	141501	29	disappointing	Colombo	dull	A
+513	141502	29	navally	survey	weekly	A
+514	141901	29	circus	staffing	wetness	
+515	141902	29	beetles	obtain	visualized	
+516	142101	29	trumps	loaded	Tannenbaum	
+517	142102	29	fourscore	slaughtered	moribund	
+518	142103	29	Blackfoots	lights	demultiplex	
+519	142701	29	Grady	circumference	lockings	
+520	143001	29	quiets	dull	thugs	FAS
+521	143501	29	floundered	weekly	unnerves	
+522	143502	29	profundity	wetness	abut	
+523	148001	29	Garrisonian	visualized	Chippewa	A
+524	148002	29	Strauss	Tannenbaum	stratifications	A
+525	148003	29	cemented	moribund	signaled	
+526	148004	29	contrition	demultiplex	Italianizes	A
+527	148005	29	mutations	lockings	algorithmic	A
+528	148006	29	exhibits	thugs	paranoid	FAS
+529	148007	29	tits	unnerves	camping	A
+530	148009	29	mate	abut	signifying	A
+531	148010	29	arches	Chippewa	Patrice	W
+532	148011	29	Moll	stratifications	search	A
+533	148012	29	ropers	signaled	Angeles	A
+534	148013	29	bombast	Italianizes	semblance	
+535	148023	36	difficultly	algorithmic	taxed	
+536	148015	29	adsorption	paranoid	Beatrice	
+537	148016	29	definiteness	camping	retrace	
+538	148017	29	cultivation	signifying	lockout	
+539	148018	29	heals	Patrice	grammatic	
+540	148019	29	Heusen	search	helmsman	
+541	148020	29	target	Angeles	uniform	W
+542	148021	29	cited	semblance	hamming	
+543	148022	29	congresswoman	taxed	disobedience	
+544	148101	29	Katherine	Beatrice	captivated	A
+545	148102	29	titter	retrace	transferals	A
+546	148201	29	aspire	lockout	cartographer	A
+547	148401	29	Mardis	grammatic	aims	FAS
+548	148402	29	Nadia	helmsman	Pakistani	
+549	148501	29	estimating	uniform	burglarized	FAS
+550	148502	29	stuck	hamming	saucepans	A
+551	148503	29	fifteenth	disobedience	lacerating	A
+552	148504	29	Colombo	captivated	corny	
+553	148601	29	survey	transferals	megabytes	FAS
+554	148602	29	staffing	cartographer	chancellor	
+555	150701	29	obtain	aims	bulk	A
+556	152101	29	loaded	Pakistani	commits	A
+557	152102	29	slaughtered	burglarized	meson	W
+558	155202	36	lights	saucepans	deputies	
+559	155203	29	circumference	lacerating	northeaster	A
+560	155204	29	dull	corny	dipole	
+561	155205	29	weekly	megabytes	machining	0
+562	156001	29	wetness	chancellor	therefore	
+563	156002	29	visualized	bulk	Telefunken	
+564	156102	29	Tannenbaum	commits	salvaging	
+565	156301	29	moribund	meson	Corinthianizes	A
+566	156302	29	demultiplex	deputies	restlessly	A
+567	156303	29	lockings	northeaster	bromides	
+568	156304	29	thugs	dipole	generalized	A
+569	156305	29	unnerves	machining	mishaps	
+570	156306	29	abut	therefore	quelling	
+571	156501	29	Chippewa	Telefunken	spiritual	A
+572	158001	29	stratifications	salvaging	beguiles	FAS
+573	158002	29	signaled	Corinthianizes	Trobriand	FAS
+574	158101	29	Italianizes	restlessly	fleeing	A
+575	158102	29	algorithmic	bromides	Armour	A
+576	158103	29	paranoid	generalized	chin	A
+577	158201	29	camping	mishaps	provers	A
+578	158202	29	signifying	quelling	aeronautic	A
+579	158203	29	Patrice	spiritual	voltage	W
+580	158204	29	search	beguiles	sash	
+581	158301	29	Angeles	Trobriand	anaerobic	A
+582	158302	29	semblance	fleeing	simultaneous	A
+583	158303	29	taxed	Armour	accumulating	A
+584	158304	29	Beatrice	chin	Medusan	A
+585	158305	29	retrace	provers	shouted	A
+586	158306	29	lockout	aeronautic	freakish	
+587	158501	29	grammatic	voltage	index	FAS
+588	160301	29	helmsman	sash	commercially	
+589	166101	50	uniform	anaerobic	mistiness	A
+590	166102	50	hamming	simultaneous	endpoint	
+591	168001	29	disobedience	accumulating	straight	A
+592	168002	29	captivated	Medusan	flurried	
+593	168003	29	transferals	shouted	denotative	A
+594	168101	29	cartographer	freakish	coming	FAS
+595	168102	29	aims	index	commencements	FAS
+596	168103	29	Pakistani	commercially	gentleman	
+597	168104	29	burglarized	mistiness	gifted	
+598	168202	29	saucepans	endpoint	Shanghais	
+599	168301	29	lacerating	straight	sportswriting	A
+600	168502	29	corny	flurried	sloping	A
+601	168503	29	megabytes	denotative	navies	
+602	168601	29	chancellor	coming	leaflet	A
+603	173001	40	bulk	commencements	shooter	
+604	173701	40	commits	gentleman	Joplin	FAS
+605	173702	40	meson	gifted	babies	
+606	176001	40	deputies	Shanghais	subdivision	FAS
+607	176101	40	northeaster	sportswriting	burstiness	W
+608	176201	40	dipole	sloping	belted	FAS
+609	176401	40	machining	navies	assails	FAS
+610	176501	40	therefore	leaflet	admiring	W
+611	176601	40	Telefunken	shooter	swaying	0
+612	176602	40	salvaging	Joplin	Goldstine	FAS
+613	176603	40	Corinthianizes	babies	fitting	
+614	178001	40	restlessly	subdivision	Norwalk	W
+615	178002	40	bromides	burstiness	weakening	W
+616	178003	40	generalized	belted	analogy	FAS
+617	178004	40	mishaps	assails	deludes	
+618	178005	40	quelling	admiring	cokes	
+619	178006	40	spiritual	swaying	Clayton	
+620	178007	40	beguiles	Goldstine	exhausts	
+621	178008	40	Trobriand	fitting	causality	
+622	178101	40	fleeing	Norwalk	sating	FAS
+623	178102	40	Armour	weakening	icon	
+624	178103	40	chin	analogy	throttles	
+625	178201	40	provers	deludes	communicants	FAS
+626	178202	40	aeronautic	cokes	dehydrate	FAS
+627	178301	40	voltage	Clayton	priceless	FAS
+628	178302	40	sash	exhausts	publicly	
+629	178401	40	anaerobic	causality	incidentals	FAS
+630	178402	40	simultaneous	sating	commonplace	
+631	178403	40	accumulating	icon	mumbles	
+632	178404	40	Medusan	throttles	furthermore	W
+633	178501	40	shouted	communicants	cautioned	W
+634	186002	37	freakish	dehydrate	parametrized	A
+635	186102	37	index	priceless	registration	A
+636	186201	40	commercially	publicly	sadly	FAS
+637	186202	40	mistiness	incidentals	positioning	
+638	186203	40	endpoint	commonplace	babysitting	
+639	186302	37	straight	mumbles	eternal	A
+640	188007	37	flurried	furthermore	hoarder	
+641	188008	37	denotative	cautioned	congregates	
+642	188009	37	coming	parametrized	rains	
+643	188010	37	commencements	registration	workers	W
+644	188011	37	gentleman	sadly	sags	A
+645	188012	37	gifted	positioning	unplug	W
+646	188013	37	Shanghais	babysitting	garage	A
+647	188014	37	sportswriting	eternal	boulder	A
+648	188015	37	sloping	hoarder	hollowly	A
+649	188016	37	navies	congregates	specifics	
+650	188017	37	leaflet	rains	Teresa	
+651	188102	37	shooter	workers	Winsett	
+652	188103	37	Joplin	sags	convenient	A
+653	188202	37	babies	unplug	buckboards	FAS
+654	188301	40	subdivision	garage	amenities	
+655	188302	40	burstiness	boulder	resplendent	FAS
+656	188303	40	belted	hollowly	priding	FAS
+657	188401	37	assails	specifics	configurations	
+658	188402	37	admiring	Teresa	untidiness	A
+659	188503	37	swaying	Winsett	Brice	W
+660	188504	37	Goldstine	convenient	sews	FAS
+661	188505	37	fitting	buckboards	participated	
+662	190701	37	Norwalk	amenities	Simon	FAS
+663	190703	50	weakening	resplendent	certificates	
+664	191701	37	analogy	priding	Fitzpatrick	
+665	191702	37	deludes	configurations	Evanston	A
+666	191703	37	cokes	untidiness	misted	
+667	196001	37	Clayton	Brice	textures	A
+668	196002	37	exhausts	sews	save	
+669	196003	37	causality	participated	count	
+670	196101	37	sating	Simon	rightful	A
+671	196103	37	icon	certificates	chaperone	
+672	196104	37	throttles	Fitzpatrick	Lizzy	A
+673	196201	37	communicants	Evanston	clenched	A
+674	196202	37	dehydrate	misted	effortlessly	
+675	196203	37	priceless	textures	accessed	
+676	198001	37	publicly	save	beaters	A
+677	198003	37	incidentals	count	Hornblower	FAS
+678	198004	37	commonplace	rightful	vests	A
+679	198005	37	mumbles	chaperone	indulgences	FAS
+680	198006	37	furthermore	Lizzy	infallibly	A
+681	198007	37	cautioned	clenched	unwilling	FAS
+682	198008	37	parametrized	effortlessly	excrete	FAS
+683	198009	37	registration	accessed	spools	A
+684	198010	37	sadly	beaters	crunches	FAS
+685	198011	37	positioning	Hornblower	overestimating	FAS
+686	198012	37	babysitting	vests	ineffective	
+687	198013	37	eternal	indulgences	humiliation	A
+688	198014	37	hoarder	infallibly	sophomore	
+689	198015	37	congregates	unwilling	star	
+690	198017	37	rains	excrete	rifles	
+691	198018	37	workers	spools	dialysis	
+692	198019	37	sags	crunches	arriving	
+693	198020	37	unplug	overestimating	indulge	
+694	198021	37	garage	ineffective	clockers	
+695	198022	37	boulder	humiliation	languages	
+696	198023	50	hollowly	sophomore	Antarctica	A
+697	198024	37	specifics	star	percentage	
+698	198101	37	Teresa	rifles	ceiling	A
+699	198103	37	Winsett	dialysis	specification	
+700	198105	37	convenient	arriving	regimented	A
+701	198106	37	buckboards	indulge	ciphers	
+702	198201	37	amenities	clockers	pictures	A
+703	198204	37	resplendent	languages	serpents	A
+704	198301	53	priding	Antarctica	allot	A
+705	198302	53	configurations	percentage	realized	A
+706	198303	53	untidiness	ceiling	mayoral	A
+707	198304	53	Brice	specification	opaquely	A
+708	198401	37	sews	regimented	hostess	FAS
+709	198402	37	participated	ciphers	fiftieth	
+710	198403	37	Simon	pictures	incorrectly	
+711	202101	37	certificates	serpents	decomposition	FAS
+712	202301	37	Fitzpatrick	allot	stranglings	
+713	202302	37	Evanston	realized	mixture	FAS
+714	202303	37	misted	mayoral	electroencephalography	FAS
+715	202304	37	textures	opaquely	similarities	FAS
+716	202305	37	save	hostess	charges	W
+717	202601	37	count	fiftieth	freest	FAS
+718	202602	37	rightful	incorrectly	Greenberg	FAS
+719	202605	37	chaperone	decomposition	tinting	
+720	202606	37	Lizzy	stranglings	expelled	W
+721	202607	37	clenched	mixture	warm	
+722	202901	37	effortlessly	electroencephalography	smoothed	
+723	202902	37	accessed	similarities	deductions	FAS
+724	202903	37	beaters	charges	Romano	W
+725	202904	37	Hornblower	freest	bitterroot	
+726	202907	37	vests	Greenberg	corset	
+727	202908	37	indulgences	tinting	securing	
+728	203101	37	infallibly	expelled	environing	FAS
+729	203103	37	unwilling	warm	cute	
+730	203104	37	excrete	smoothed	Crays	
+731	203105	37	spools	deductions	heiress	FAS
+732	203401	37	crunches	Romano	inform	FAS
+733	203402	37	overestimating	bitterroot	avenge	
+734	203404	37	ineffective	corset	universals	
+735	203901	37	humiliation	securing	Kinsey	W
+736	203902	37	sophomore	environing	ravines	FAS
+737	203903	37	star	cute	bestseller	
+738	203906	37	rifles	Crays	equilibrium	
+739	203907	37	dialysis	heiress	extents	0
+740	203908	37	arriving	inform	relatively	
+741	203909	37	indulge	avenge	pressure	FAS
+742	206101	37	clockers	universals	critiques	FAS
+743	206201	37	languages	Kinsey	befouled	
+744	206202	37	Antarctica	ravines	rightfully	FAS
+745	206203	37	percentage	bestseller	mechanizing	FAS
+746	206206	37	ceiling	equilibrium	Latinizes	
+747	206207	37	specification	extents	timesharing	
+748	206208	37	regimented	relatively	Aden	
+749	208001	37	ciphers	pressure	embassies	
+750	208002	37	pictures	critiques	males	FAS
+751	208003	37	serpents	befouled	shapelessly	FAS
+752	208004	37	allot	rightfully	genres	FAS
+753	208008	37	realized	mechanizing	mastering	
+754	208009	37	mayoral	Latinizes	Newtonian	
+755	208010	37	opaquely	timesharing	finishers	FAS
+756	208011	37	hostess	Aden	abates	
+757	208101	37	fiftieth	embassies	teem	
+758	208102	37	incorrectly	males	kiting	FAS
+759	208103	37	decomposition	shapelessly	stodgy	FAS
+760	208104	37	stranglings	genres	scalps	FAS
+761	208105	37	mixture	mastering	feed	FAS
+762	208110	37	electroencephalography	Newtonian	guitars	
+763	208111	37	similarities	finishers	airships	
+764	208112	37	charges	abates	store	
+765	208113	37	freest	teem	denounces	
+766	208201	37	Greenberg	kiting	Pyle	FAS
+767	208203	37	tinting	stodgy	Saxony	
+768	208301	37	expelled	scalps	serializations	FAS
+769	208302	37	warm	feed	Peruvian	FAS
+770	208305	37	smoothed	guitars	taxonomically	FAS
+771	208401	37	deductions	airships	kingdom	A
+772	208402	37	Romano	store	stint	A
+773	208403	37	bitterroot	denounces	Sault	A
+774	208404	37	corset	Pyle	faithful	
+775	208501	37	securing	Saxony	Ganymede	FAS
+776	208502	37	environing	serializations	tidiness	FAS
+777	208503	37	cute	Peruvian	gainful	FAS
+778	208504	37	Crays	taxonomically	contrary	FAS
+779	208505	37	heiress	kingdom	Tipperary	FAS
+780	210101	37	inform	stint	tropics	W
+781	210102	37	avenge	Sault	theorizers	
+782	210103	37	universals	faithful	renew	0
+783	210104	37	Kinsey	Ganymede	already	
+784	210105	37	ravines	tidiness	terminal	
+785	210106	37	bestseller	gainful	Hegelian	
+786	210107	37	equilibrium	contrary	hypothesizer	
+787	210401	37	extents	Tipperary	warningly	FAS
+788	213201	37	relatively	tropics	journalizing	FAS
+789	213203	37	pressure	theorizers	nested	
+790	213204	37	critiques	renew	Lars	
+791	213205	37	befouled	already	saplings	
+792	213206	37	rightfully	terminal	foothill	
+793	213207	37	mechanizing	Hegelian	labeled	
+794	216101	37	Latinizes	hypothesizer	imperiously	FAS
+795	216103	37	timesharing	warningly	reporters	FAS
+796	218001	37	Aden	journalizing	furnishings	FAS
+797	218002	37	embassies	nested	precipitable	FAS
+798	218003	37	males	Lars	discounts	FAS
+799	218004	37	shapelessly	saplings	excises	FAS
+800	143503	50	genres	foothill	Stalin	
+801	218006	37	mastering	labeled	despot	FAS
+802	218007	37	Newtonian	imperiously	ripeness	FAS
+803	218008	37	finishers	reporters	Arabia	
+804	218009	37	abates	furnishings	unruly	
+805	218010	37	teem	precipitable	mournfulness	
+806	218011	37	kiting	discounts	boom	FAS
+807	218020	37	stodgy	excises	slaughter	A
+808	218021	50	scalps	Stalin	Sabine	
+809	218022	37	feed	despot	handy	FAS
+810	218023	37	guitars	ripeness	rural	
+811	218024	37	airships	Arabia	organizer	
+812	218101	37	store	unruly	shipyard	FAS
+813	218102	37	denounces	mournfulness	civics	FAS
+814	218103	37	Pyle	boom	inaccuracy	FAS
+815	218201	37	Saxony	slaughter	rules	FAS
+816	218202	37	serializations	Sabine	juveniles	FAS
+817	218203	37	Peruvian	handy	comprised	W
+818	218204	37	taxonomically	rural	investigations	
+819	218205	37	kingdom	organizer	stabilizes	A
+820	218301	37	stint	shipyard	seminaries	FAS
+821	218302	37	Sault	civics	Hunter	A
+822	218401	37	faithful	inaccuracy	sporty	FAS
+823	218402	37	Ganymede	rules	test	FAS
+824	218403	37	tidiness	juveniles	weasels	
+825	218404	37	gainful	comprised	CERN	
+826	218407	37	contrary	investigations	tempering	
+827	218408	37	Tipperary	stabilizes	afore	FAS
+828	218409	37	tropics	seminaries	Galatean	
+829	218410	37	theorizers	Hunter	techniques	W
+830	226001	37	renew	sporty	error	
+831	226002	37	already	test	veranda	
+832	226003	37	terminal	weasels	severely	
+833	226004	37	Hegelian	CERN	Cassites	FAS
+834	226005	37	hypothesizer	tempering	forthcoming	
+835	226006	37	warningly	afore	guides	
+836	226007	37	journalizing	Galatean	vanish	FAS
+837	226008	37	nested	techniques	lied	A
+838	226203	37	Lars	error	sawtooth	FAS
+839	226204	37	saplings	veranda	fated	FAS
+840	226205	37	foothill	severely	gradually	
+841	226206	37	labeled	Cassites	widens	
+842	226207	37	imperiously	forthcoming	preclude	
+843	226208	37	reporters	guides	Jobrel	
+844	226209	37	furnishings	vanish	hooker	
+845	226210	37	precipitable	lied	rainstorm	
+846	226211	37	discounts	sawtooth	disconnects	
+847	228001	37	excises	fated	cruelty	
+848	228004	37	Stalin	gradually	exponentials	A
+849	228005	37	despot	widens	affective	A
+850	228006	37	ripeness	preclude	arteries	
+851	228007	37	Arabia	Jobrel	Crosby	FAS
+852	228008	37	unruly	hooker	acquaint	
+853	228009	37	mournfulness	rainstorm	evenhandedly	
+854	228101	37	boom	disconnects	percentage	
+855	228108	37	slaughter	cruelty	disobedience	
+856	228109	37	Sabine	exponentials	humility	
+857	228110	37	handy	affective	gleaning	A
+858	228111	37	rural	arteries	petted	A
+859	228112	37	organizer	Crosby	bloater	A
+860	228113	37	shipyard	acquaint	minion	A
+861	228114	37	civics	evenhandedly	marginal	A
+862	228115	37	inaccuracy	percentage	apiary	A
+863	228116	37	rules	disobedience	measures	
+864	228117	37	juveniles	humility	precaution	
+865	228118	37	comprised	gleaning	repelled	
+866	228119	37	investigations	petted	primary	FAS
+867	228120	37	stabilizes	bloater	coverings	
+868	228121	37	seminaries	minion	Artemia	A
+869	228122	37	Hunter	marginal	navigate	
+870	228201	37	sporty	apiary	spatial	
+871	228206	37	test	measures	Gurkha	
+872	228207	37	weasels	precaution	meanwhile	A
+873	228208	37	CERN	repelled	Melinda	A
+874	228209	37	tempering	primary	Butterfield	
+875	228210	37	afore	coverings	Aldrich	A
+876	228211	37	Galatean	Artemia	previewing	A
+877	228212	37	techniques	navigate	glut	A
+878	228213	37	error	spatial	unaffected	
+879	228214	37	veranda	Gurkha	inmate	
+880	228301	37	severely	meanwhile	mineral	
+881	228305	37	Cassites	Melinda	impending	A
+882	228306	37	forthcoming	Butterfield	meditation	A
+883	228307	37	guides	Aldrich	ideas	
+884	228308	37	vanish	previewing	miniaturizes	W
+885	228309	37	lied	glut	lewdly	
+886	228310	37	sawtooth	unaffected	title	
+887	228311	37	fated	inmate	youthfulness	
+888	228312	37	gradually	mineral	creak	FAS
+889	228313	37	widens	impending	Chippewa	
+890	228314	37	preclude	meditation	clamored	
+891	228401	65	Jobrel	ideas	freezes	
+892	228402	65	hooker	miniaturizes	forgivably	FAS
+893	228403	65	rainstorm	lewdly	reduce	FAS
+894	228404	65	disconnects	title	McGovern	W
+895	228405	65	cruelty	youthfulness	Nazis	W
+896	228406	65	exponentials	creak	epistle	W
+897	228407	65	affective	Chippewa	socializes	W
+898	228408	65	arteries	clamored	conceptions	
+899	228409	65	Crosby	freezes	Kevin	
+900	228410	65	acquaint	forgivably	uncovering	
+901	230301	37	evenhandedly	reduce	chews	FAS
+902	230302	37	percentage	McGovern	appendixes	FAS
+903	230303	37	disobedience	Nazis	raining	
+904	018062	37	humility	epistle	infest	
+905	230501	37	gleaning	socializes	compartment	
+906	230502	37	petted	conceptions	minting	
+907	230503	37	bloater	Kevin	ducks	
+908	230504	37	minion	uncovering	roped	A
+909	230505	37	marginal	chews	waltz	
+910	230506	37	apiary	appendixes	Lillian	
+911	230507	37	measures	raining	repressions	A
+912	230508	37	precaution	infest	chillingly	
+913	230509	37	repelled	compartment	noncritical	
+914	230901	37	primary	minting	lithograph	
+915	230902	37	coverings	ducks	spongers	
+916	230903	37	Artemia	roped	parenthood	
+917	230904	37	navigate	waltz	posed	
+918	230905	37	spatial	Lillian	instruments	
+919	230906	37	Gurkha	repressions	filial	
+920	230907	37	meanwhile	chillingly	fixedly	
+921	230908	37	Melinda	noncritical	relives	
+922	230909	37	Butterfield	lithograph	Pandora	
+923	230910	37	Aldrich	spongers	watering	A
+924	230911	37	previewing	parenthood	ungrateful	
+925	230912	37	glut	posed	secures	
+926	230913	37	unaffected	instruments	chastisers	
+927	230914	37	inmate	filial	icon	
+928	231304	37	mineral	fixedly	reuniting	A
+929	231305	37	impending	relives	imagining	A
+930	231306	37	meditation	Pandora	abiding	A
+931	231307	37	ideas	watering	omnisciently	
+932	231308	37	miniaturizes	ungrateful	Britannic	
+933	231309	37	lewdly	secures	scholastics	A
+934	231310	37	title	chastisers	mechanics	A
+935	231311	37	youthfulness	icon	humidly	A
+936	231312	37	creak	reuniting	masterpiece	
+937	231313	37	Chippewa	imagining	however	
+938	231314	37	clamored	abiding	Mendelian	
+939	231315	37	freezes	omnisciently	jarred	
+940	232102	37	forgivably	Britannic	scolds	
+941	232103	37	reduce	scholastics	infatuate	
+942	232104	37	McGovern	mechanics	willed	A
+943	232105	37	Nazis	humidly	joyfully	
+944	232106	37	epistle	masterpiece	Microsoft	
+945	232107	37	socializes	however	fibrosities	
+946	232108	37	conceptions	Mendelian	Baltimorean	
+947	232601	37	Kevin	jarred	equestrian	
+948	232602	37	uncovering	scolds	Goodrich	
+949	232603	37	chews	infatuate	apish	A
+950	232605	37	appendixes	willed	Adlerian	
+5950	1232605	37	appendixes	willed	Adlerian	
+5951	1232606	37	appendixes	willed	Adlerian	
+5952	1232607	37	appendixes	willed	Adlerian	
+5953	1232608	37	appendixes	willed	Adlerian	
+5954	1232609	37	appendixes	willed	Adlerian	
+951	232606	37	raining	joyfully	Tropez	
+952	232607	37	infest	Microsoft	nouns	
+953	232608	37	compartment	fibrosities	distracting	
+954	232609	37	minting	Baltimorean	mutton	
+955	236104	37	ducks	equestrian	bridgeable	A
+956	236105	37	roped	Goodrich	stickers	A
+957	236106	37	waltz	apish	transcontinental	A
+958	236107	37	Lillian	Adlerian	amateurish	
+959	236108	37	repressions	Tropez	Gandhian	
+960	236109	37	chillingly	nouns	stratified	
+961	236110	37	noncritical	distracting	chamberlains	
+962	236111	37	lithograph	mutton	creditably	
+963	236112	37	spongers	bridgeable	philosophic	
+964	236113	37	parenthood	stickers	ores	
+965	238005	37	posed	transcontinental	Carleton	
+966	238006	37	instruments	amateurish	tape	A
+967	238007	37	filial	Gandhian	afloat	A
+968	238008	37	fixedly	stratified	goodness	A
+969	238009	37	relives	chamberlains	welcoming	
+970	238010	37	Pandora	creditably	Pinsky	FAS
+971	238011	37	watering	philosophic	halting	
+972	238012	37	ungrateful	ores	bibliography	
+973	238013	37	secures	Carleton	decoding	
+974	240401	41	chastisers	tape	variance	A
+975	240402	41	icon	afloat	allowed	A
+976	240901	41	reuniting	goodness	dire	A
+977	240902	41	imagining	welcoming	dub	A
+978	241801	41	abiding	Pinsky	poisoning	
+979	242101	41	omnisciently	halting	Iraqis	A
+980	242102	41	Britannic	bibliography	heaving	
+981	242201	41	scholastics	decoding	population	A
+982	242202	41	mechanics	variance	bomb	A
+983	242501	41	humidly	allowed	Majorca	A
+984	242502	41	masterpiece	dire	Gershwins	
+985	246201	41	however	dub	explorers	
+986	246202	41	Mendelian	poisoning	libretto	A
+987	246203	41	jarred	Iraqis	occurred	
+988	246204	41	scolds	heaving	Lagos	
+989	246205	41	infatuate	population	rats	
+990	246301	41	willed	bomb	bankruptcies	A
+991	246302	41	joyfully	Majorca	crying	
+992	248001	41	Microsoft	Gershwins	unexpected	
+993	248002	41	fibrosities	explorers	accessed	A
+994	248003	41	Baltimorean	libretto	colorful	A
+995	248004	41	equestrian	occurred	versatility	A
+996	248005	41	Goodrich	Lagos	cosy	
+997	248006	41	apish	rats	Darius	A
+998	248007	41	Adlerian	bankruptcies	mastering	A
+999	248008	41	Tropez	crying	Asiaticizations	A
+1000	248009	41	nouns	unexpected	offerers	A
+1001	248010	41	distracting	accessed	uncles	A
+1002	248011	41	mutton	colorful	sleepwalk	
+1003	248012	41	bridgeable	versatility	Ernestine	
+1004	248013	41	stickers	cosy	checksumming	
+1005	248014	41	transcontinental	Darius	stopped	
+1006	248015	41	amateurish	mastering	sicker	
+1007	248016	41	Gandhian	Asiaticizations	Italianization	
+1008	248017	41	stratified	offerers	alphabetic	
+1009	248018	41	chamberlains	uncles	pharmaceutic	
+1010	248019	41	creditably	sleepwalk	creator	
+1011	248020	41	philosophic	Ernestine	chess	
+1012	248021	41	ores	checksumming	charcoal	
+1013	248101	41	Carleton	stopped	Epiphany	A
+1014	248102	41	tape	sicker	bulldozes	A
+1015	248201	41	afloat	Italianization	Pygmalion	A
+1016	248202	41	goodness	alphabetic	caressing	A
+1017	248203	41	welcoming	pharmaceutic	Palestine	A
+1018	248204	41	Pinsky	creator	regimented	A
+1019	248205	41	halting	chess	scars	A
+1020	248206	41	bibliography	charcoal	realest	A
+1021	248207	41	decoding	Epiphany	diffusing	A
+1022	248208	41	variance	bulldozes	clubroom	A
+1023	248209	41	allowed	Pygmalion	Blythe	A
+1024	248210	41	dire	caressing	ahead	
+1025	248211	50	dub	Palestine	reviver	
+1026	250501	34	poisoning	regimented	retransmitting	A
+1027	250502	34	Iraqis	scars	landslide	
+1028	250503	34	heaving	realest	Eiffel	
+1029	250504	34	population	diffusing	absentee	
+1030	250505	34	bomb	clubroom	aye	
+1031	250601	34	Majorca	Blythe	forked	A
+1032	250602	34	Gershwins	ahead	Peruvianizes	
+1033	250603	34	explorers	reviver	clerked	
+1034	250604	34	libretto	retransmitting	tutor	
+1035	250605	34	occurred	landslide	boulevard	
+1036	251001	34	Lagos	Eiffel	shuttered	
+1037	251002	34	rats	absentee	quotes	A
+1038	251003	34	bankruptcies	aye	Caltech	
+1039	251004	34	crying	forked	Mossberg	
+1040	251005	34	unexpected	Peruvianizes	kept	
+1041	251301	34	accessed	clerked	roundly	
+1042	251302	34	colorful	tutor	features	A
+1043	251303	34	versatility	boulevard	imaginable	A
+1044	251304	34	cosy	shuttered	controller	
+1045	251305	34	Darius	quotes	racial	
+1046	251401	34	mastering	Caltech	uprisings	A
+1047	251402	34	Asiaticizations	Mossberg	narrowed	A
+1048	251403	34	offerers	kept	cannot	A
+1049	251404	34	uncles	roundly	vest	
+1050	251405	34	sleepwalk	features	famine	
+1051	251406	34	Ernestine	imaginable	sugars	
+1052	251801	34	checksumming	controller	exterminated	A
+1053	251802	34	stopped	racial	belays	
+1054	252101	34	sicker	uprisings	Hodges	A
+1055	252102	34	Italianization	narrowed	translatable	
+1056	252301	34	alphabetic	cannot	duality	A
+1057	252302	34	pharmaceutic	vest	recording	A
+1058	252303	34	creator	famine	rouses	A
+1059	252304	34	chess	sugars	poison	
+1060	252305	34	charcoal	exterminated	attitude	
+1061	252306	34	Epiphany	belays	dusted	
+1062	252307	34	bulldozes	Hodges	encompasses	
+1063	252308	34	Pygmalion	translatable	presentation	
+1064	252309	34	caressing	duality	Kantian	
+1065	256001	34	Palestine	recording	imprecision	A
+1066	256002	34	regimented	rouses	saving	
+1067	256003	34	scars	poison	maternal	
+1068	256004	34	realest	attitude	hewed	
+1069	256005	34	diffusing	dusted	kerosene	
+1070	258001	34	clubroom	encompasses	Cubans	
+1071	258002	34	Blythe	presentation	photographers	
+1072	258003	34	ahead	Kantian	nymph	A
+1073	258004	34	reviver	imprecision	bedlam	A
+1074	258005	34	retransmitting	saving	north	A
+1075	258006	34	landslide	maternal	Schoenberg	A
+1076	258007	34	Eiffel	hewed	botany	A
+1077	258008	34	absentee	kerosene	curs	
+1078	258009	34	aye	Cubans	solidification	
+1079	258010	34	forked	photographers	inheritresses	
+1080	258011	34	Peruvianizes	nymph	stiller	
+1081	258101	68	clerked	bedlam	t1	A
+1082	258102	68	tutor	north	suite	A
+1083	258103	34	boulevard	Schoenberg	ransomer	
+1084	258104	68	shuttered	botany	Willy	
+1085	258105	68	quotes	curs	Rena	A
+1086	258106	68	Caltech	solidification	Seattle	A
+1087	258107	68	Mossberg	inheritresses	relaxes	A
+1088	258108	68	kept	stiller	exclaim	
+1089	258109	68	roundly	t1	implicated	A
+1090	258110	68	features	suite	distinguish	
+1091	258111	68	imaginable	ransomer	assayed	
+1092	258112	68	controller	Willy	homeowner	
+1093	258113	68	racial	Rena	and	
+1094	258201	34	uprisings	Seattle	stealth	
+1095	258202	34	narrowed	relaxes	coinciding	A
+1096	258203	34	cannot	exclaim	founder	A
+1097	258204	34	vest	implicated	environing	
+1098	258205	34	famine	distinguish	jewelry	
+1099	258301	34	sugars	assayed	lemons	A
+1100	258401	34	exterminated	homeowner	brokenness	A
+1101	258402	34	belays	and	bedpost	A
+1102	258403	34	Hodges	stealth	assurers	A
+1103	258404	34	translatable	coinciding	annoyers	
+1104	258405	34	duality	founder	affixed	
+1105	258406	34	recording	environing	warbling	
+1106	258407	34	rouses	jewelry	seriously	
+1107	228123	37	poison	lemons	boasted	
+1108	250606	34	attitude	brokenness	Chantilly	
+1109	208405	37	dusted	bedpost	Iranizes	
+1110	212101	37	encompasses	assurers	violinist	
+1111	218206	37	presentation	annoyers	extramarital	
+1112	150401	37	Kantian	affixed	spates	
+1113	248212	41	imprecision	warbling	cloakroom	
+1114	128026	00	saving	seriously	gazer	
+1115	128024	00	maternal	boasted	hand	
+1116	128027	00	hewed	Chantilly	tucked	
+1117	128025	00	kerosene	Iranizes	gems	
+1118	128109	00	Cubans	violinist	clinker	
+1119	128705	00	photographers	extramarital	refiner	
+1120	126303	00	nymph	spates	callus	
+1121	128308	00	bedlam	cloakroom	leopards	
+1122	128204	00	north	gazer	comfortingly	
+1123	128205	00	Schoenberg	hand	generically	
+1124	128206	00	botany	tucked	getters	
+1125	128207	00	curs	gems	sexually	
+1126	118205	00	solidification	clinker	spear	
+1127	116801	00	inheritresses	refiner	serums	
+1128	116803	00	stiller	callus	Italianization	
+1129	116804	00	t1	leopards	attendants	
+1130	116802	00	suite	comfortingly	spies	
+1131	128605	00	ransomer	generically	Anthony	
+1132	118308	00	Willy	getters	planar	
+1133	113702	00	Rena	sexually	cupped	
+1134	113703	00	Seattle	spear	cleanser	
+1135	112103	00	relaxes	serums	commuters	
+1136	118009	00	exclaim	Italianization	honeysuckle	
+5136	1118009	00	exclaim	Italianization	honeysuckle	
+1137	138011	00	implicated	attendants	orphanage	
+1138	138010	00	distinguish	spies	skies	
+1139	138012	00	assayed	Anthony	crushers	
+1140	068304	00	homeowner	planar	Puritan	
+1141	078009	00	and	cupped	squeezer	
+1142	108013	00	stealth	cleanser	bruises	
+1143	084004	00	coinciding	commuters	bonfire	
+1144	083402	00	founder	honeysuckle	Colombo	
+1145	084003	00	environing	orphanage	nondecreasing	
+1146	088504	00	jewelry	skies	innocents	
+1147	088005	00	lemons	crushers	masked	
+1148	088007	00	brokenness	Puritan	file	
+1149	088006	00	bedpost	squeezer	brush	
+1150	148025	00	assurers	bruises	mutilate	
+1151	148024	00	annoyers	bonfire	mommy	
+1152	138305	00	affixed	Colombo	bulkheads	
+1153	138306	00	warbling	nondecreasing	undeclared	
+1154	152701	00	seriously	innocents	displacements	
+1155	148505	00	boasted	masked	nieces	
+1156	158003	00	Chantilly	file	coeducation	
+1157	156201	00	Iranizes	brush	brassy	
+1158	156202	00	violinist	mutilate	authenticator	
+1159	158307	00	extramarital	mommy	Washoe	
+1160	158402	00	spates	bulkheads	penny	
+1161	158401	00	cloakroom	undeclared	Flagler	
+1162	068013	00	gazer	displacements	stoned	
+1163	068012	00	hand	nieces	cranes	
+1164	068203	00	tucked	coeducation	masterful	
+1165	088205	00	gems	brassy	biracial	
+1166	068704	00	clinker	authenticator	steamships	
+1167	068604	00	refiner	Washoe	windmills	
+1168	158502	00	callus	penny	exploit	
+1169	123103	00	leopards	Flagler	riverfront	
+1170	148026	00	comfortingly	stoned	sisterly	
+1171	123302	00	generically	cranes	sharpshoot	
+1172	076503	00	getters	masterful	mittens	
+1173	126304	00	sexually	biracial	interdependency	
+1174	068306	00	spear	steamships	policy	
+1175	143504	00	serums	windmills	unleashing	
+1176	160201	00	Italianization	exploit	pretenders	
+1177	148028	00	attendants	riverfront	overstatements	
+1178	148027	00	spies	sisterly	birthed	
+1179	143505	00	Anthony	sharpshoot	opportunism	
+1180	108014	00	planar	mittens	showroom	
+1181	076104	00	cupped	interdependency	compromisingly	
+1182	078106	00	cleanser	policy	Medicare	
+1183	126102	00	commuters	unleashing	corresponds	
+1184	128029	00	honeysuckle	pretenders	hardware	
+1185	128028	00	orphanage	overstatements	implant	
+1186	018410	00	skies	birthed	Alicia	
+1187	128110	00	crushers	opportunism	requesting	
+1188	148506	00	Puritan	showroom	produced	
+1189	123303	00	squeezer	compromisingly	criticizes	
+1190	123304	00	bruises	Medicare	backer	
+1191	068504	00	bonfire	corresponds	positively	
+1192	068305	00	Colombo	hardware	colicky	
+1193	000000	00	nondecreasing	implant	thrillingly	
+1	000001	00	Omaha	teethe	neat	
+2	011401	37	breaking	dreaded	Steinberg	W
+3	011402	37	Romans	scholastics	jarring	
+4	011403	37	intercepted	audiology	tinily	
 drop table t1, t2;

@@ -200,9 +200,9 @@ drop table t1;
 #
 create table t1 ( a int primary key, b varchar(30)) engine = MYISAM ;
 prepare stmt1 from ' show table status from test like ''t1%'' ';
---replace_column 12 # 13 # 14 #
+--replace_column 8 4294967295 12 # 13 # 14 #
 execute stmt1;
---replace_column 12 # 13 # 14 #
+--replace_column 8 4294967295 12 # 13 # 14 #
 show table status from test like 't1%' ;
 deallocate prepare stmt1 ;
 drop table t1;
@@ -277,4 +277,188 @@ execute stmt using @var;
 execute stmt using @var;
 deallocate prepare stmt;
 drop table t1;
+
+# 
+# BUG#5510 "inserting Null in AutoIncrement primary key Column Fails" 
+# (prepared statements) 
+# The cause: misuse of internal MySQL 'Field' API.
+# 
+
+create table t1 (a bigint(20) not null primary key auto_increment);
+insert into t1 (a) values (null);
+select * from t1;
+prepare stmt from "insert into t1 (a) values (?)";
+set @var=null;
+execute stmt using @var;
+select * from t1;
+drop table t1;
+#
+# check the same for timestamps
+#
+create table t1 (a timestamp not null);
+prepare stmt from "insert into t1 (a) values (?)";
+execute stmt using @var;
+--disable_result_log
+select * from t1;
+--enable_result_log
+deallocate prepare stmt;
+drop table t1;
+
+# 
+# BUG#5688 "Upgraded 4.1.5 Server seg faults" # (prepared statements)
+# The test case speaks for itself.
+# Just another place where we used wrong memory root for Items created
+# during statement prepare.
+# 
+prepare stmt from "select 'abc' like convert('abc' using utf8)";
+execute stmt;
+execute stmt;
+deallocate prepare stmt;
+
+# 
+# BUG#5748 "Prepared statement with BETWEEN and bigint values crashes
+# mysqld". Just another place where an item tree modification must be 
+# rolled back.
+# 
+create table t1 ( a bigint );
+prepare stmt from 'select a from t1 where a between ? and ?';
+set @a=1;
+execute stmt using @a, @a;
+execute stmt using @a, @a;
+execute stmt using @a, @a;
+drop table t1;
+deallocate prepare stmt;
+
+#
+# Bug #5987 subselect in bool function crashes server (prepared statements):
+# don't overwrite transformed subselects with old arguments of a bool
+# function.
+#
+create table t1 (a int);
+prepare stmt from "select * from t1 where 1 > (1 in (SELECT * FROM t1))";
+execute stmt;
+execute stmt;
+execute stmt;
+drop table t1;
+deallocate prepare stmt;
+
+#
+# Test case for Bug#6042 "constants propogation works only once (prepared
+# statements): check that the query plan changes whenever we change
+# placeholder value.
+#
+create table t1 (a int, b int);
+insert into t1 (a, b) values (1,1), (1,2), (2,1), (2,2);
+prepare stmt from
+"explain select * from t1 where t1.a=2 and t1.a=t1.b and t1.b > 1 + ?";
+--replace_column 1 - 2 - 3 - 4 - 5 - 6 - 7 - 8 -
+set @v=5;
+execute stmt using @v;
+--replace_column 1 - 2 - 3 - 4 - 5 - 6 - 7 - 8 -
+set @v=0;
+execute stmt using @v;
+--replace_column 1 - 2 - 3 - 4 - 5 - 6 - 7 - 8 -
+set @v=5;
+execute stmt using @v;
+drop table t1;
+deallocate prepare stmt;
+
+#
+# A test case for Bug#5985 prepare stmt from "select rand(?)" crashes
+# server. Check that Item_func_rand is prepared-statements friendly.
+#
+create table t1 (a int);
+insert into t1 (a) values (1), (2), (3), (4);
+set @precision=10000000000;
+--replace_column 1 - 3 -
+select rand(), 
+       cast(rand(10)*@precision as unsigned integer),
+       cast(rand(a)*@precision as unsigned integer) from t1;
+prepare stmt from
+"select rand(), 
+        cast(rand(10)*@precision as unsigned integer),
+        cast(rand(a)*@precision as unsigned integer),
+        cast(rand(?)*@precision as unsigned integer) from t1";
+set @var=1;
+--replace_column 1 - 3 -
+execute stmt using @var;
+set @var=2;
+--replace_column 1 -
+execute stmt using @var;
+set @var=3;
+--replace_column 1 -
+execute stmt using @var;
+drop table t1;
+deallocate prepare stmt;
+
+#
+# A test case for Bug#6050 "EXECUTE stmt reports ambiguous fieldnames with
+# identical tables from different schemata"
+# Check that field name resolving in prepared statements works OK.
+#
+create database mysqltest1;
+create table t1 (a int);
+create table mysqltest1.t1 (a int);
+select * from t1, mysqltest1.t1;
+prepare stmt from "select * from t1, mysqltest1.t1";
+execute stmt;
+execute stmt;
+execute stmt;
+drop table t1;
+drop table mysqltest1.t1;
+drop database mysqltest1;
+deallocate prepare stmt; 
+select '1.1' as a, '1.2' as a UNION SELECT '2.1', '2.2';
+prepare stmt from
+"select '1.1' as a, '1.2' as a UNION SELECT '2.1', '2.2'";
+execute stmt;
+execute stmt;
+execute stmt;
+deallocate prepare stmt;
+
+#
+# Test CREATE TABLE ... SELECT (Bug #6094)
+#
+create table t1 (a int); 
+insert into t1 values (1),(2),(3);
+create table t2 select * from t1;
+prepare stmt FROM 'create table t2 select * from t1';
+drop table t2;
+execute stmt;
+drop table t2;
+execute stmt;
+--error 1050
+execute stmt;
+drop table t2;
+execute stmt;
+drop table t1,t2;
+deallocate prepare stmt;
+
+#
+# Bug#6088 "FOUND_ROWS returns wrong values for prepared statements when
+# LIMIT is used"
+# 
+create table t1 (a int);
+insert into t1 (a) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+prepare stmt from "select sql_calc_found_rows * from t1 limit 2";
+execute stmt;
+select found_rows();
+execute stmt;
+select found_rows();
+execute stmt;
+select found_rows();
+deallocate prepare stmt;
+drop table t1;
+
+#
+# Bug#6047 "permission problem when executing mysql_stmt_execute with derived
+# table"
+#
+
+CREATE TABLE t1 (N int, M tinyint); 
+INSERT INTO t1 VALUES (1,0),(1,0),(2,0),(2,0),(3,0);
+PREPARE stmt FROM 'UPDATE t1 AS P1 INNER JOIN (SELECT N FROM t1 GROUP BY N HAVING COUNT(M) > 1) AS P2 ON P1.N = P2.N SET P1.M = 2';
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
 

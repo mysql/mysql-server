@@ -53,14 +53,14 @@ struct LocalConfig {
   void printUsage() const;
 
   void setError(int lineNumber, const char * _msg);
-  bool readConnectString(const char *);  
+  bool readConnectString(const char *, const char *info);
   bool readFile(const char * file, bool &fopenError);
   bool parseLine(char * line, int lineNumber);
   
   bool parseNodeId(const char *buf);
   bool parseHostName(const char *buf);
   bool parseFileName(const char *buf);
-  bool parseString(const char *buf, char *line);
+  bool parseString(const char *buf, BaseString &err);
 };
 
 #endif // LocalConfig_H

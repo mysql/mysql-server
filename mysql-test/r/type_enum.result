@@ -1661,3 +1661,35 @@ t1	CREATE TABLE `t1` (
   `a` enum('ไ','1','2') NOT NULL default 'ไ'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+set names latin1;
+CREATE TABLE t1 (
+a INT  default 1,
+b ENUM('value','๖ไü_value','สรี') character set latin1 NOT NULL
+);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) default '1',
+  `b` enum('value','๖ไü_value','สรี') NOT NULL default 'value'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+show columns from t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		1	
+b	enum('value','๖ไü_value','สรี')			value	
+drop table t1;
+CREATE TABLE t1 (c enum('a', 'A') BINARY);
+INSERT INTO t1 VALUES ('a'),('A');
+SELECT * FROM t1;
+c
+a
+A
+DROP TABLE t1;
+CREATE TABLE t1 (c enum('ae','oe','ue','ss') collate latin1_german2_ci);
+INSERT INTO t1 VALUES ('ไ'),('๖'),('ü'),('฿');
+SELECT * FROM t1;
+c
+ae
+oe
+ue
+ss
+DROP TABLE t1;

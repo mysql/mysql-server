@@ -167,7 +167,7 @@ NdbSqlUtil::m_typeList[] = {
 };
 
 const NdbSqlUtil::Type&
-NdbSqlUtil::type(Uint32 typeId)
+NdbSqlUtil::getType(Uint32 typeId)
 {
   if (typeId < sizeof(m_typeList) / sizeof(m_typeList[0]) &&
       m_typeList[typeId].m_typeId != Type::Undefined) {
@@ -176,132 +176,470 @@ NdbSqlUtil::type(Uint32 typeId)
   return m_typeList[Type::Undefined];
 }
 
+const NdbSqlUtil::Type&
+NdbSqlUtil::getTypeBinary(Uint32 typeId)
+{
+  switch (typeId) {
+  case Type::Char:
+    typeId = Type::Binary;
+    break;
+  case Type::Varchar:
+    typeId = Type::Varbinary; 
+    break;
+  case Type::Text:
+    typeId = Type::Blob;
+    break;
+  default:
+    break;
+  }
+  return getType(typeId);
+}
+
 // compare
 
 int
-NdbSqlUtil::cmpTinyint(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+NdbSqlUtil::cmpTinyint(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
-  return cmp(Type::Tinyint, p1, p2, full, size);
+  assert(full >= size && size > 0);
+  union { Uint32 p[1]; Int8 v; } u1, u2;
+  u1.p[0] = p1[0];
+  u2.p[0] = p2[0];
+  if (u1.v < u2.v)
+    return -1;
+  if (u1.v > u2.v)
+    return +1;
+  return 0;
 }
 
 int
-NdbSqlUtil::cmpTinyunsigned(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+NdbSqlUtil::cmpTinyunsigned(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
-  return cmp(Type::Tinyunsigned, p1, p2, full, size);
+  assert(full >= size && size > 0);
+  union { Uint32 p[1]; Uint8 v; } u1, u2;
+  u1.p[0] = p1[0];
+  u2.p[0] = p2[0];
+  if (u1.v < u2.v)
+    return -1;
+  if (u1.v > u2.v)
+    return +1;
+  return 0;
 }
 
 int
-NdbSqlUtil::cmpSmallint(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+NdbSqlUtil::cmpSmallint(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
-  return cmp(Type::Smallint, p1, p2, full, size);
+  assert(full >= size && size > 0);
+  union { Uint32 p[1]; Int16 v; } u1, u2;
+  u1.p[0] = p1[0];
+  u2.p[0] = p2[0];
+  if (u1.v < u2.v)
+    return -1;
+  if (u1.v > u2.v)
+    return +1;
+  return 0;
 }
 
 int
-NdbSqlUtil::cmpSmallunsigned(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+NdbSqlUtil::cmpSmallunsigned(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
-  return cmp(Type::Smallunsigned, p1, p2, full, size);
+  assert(full >= size && size > 0);
+  union { Uint32 p[1]; Uint16 v; } u1, u2;
+  u1.p[0] = p1[0];
+  u2.p[0] = p2[0];
+  if (u1.v < u2.v)
+    return -1;
+  if (u1.v > u2.v)
+    return +1;
+  return 0;
 }
 
 int
-NdbSqlUtil::cmpMediumint(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+NdbSqlUtil::cmpMediumint(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
-  return cmp(Type::Mediumint, p1, p2, full, size);
+  assert(full >= size && size > 0);
+  union { const Uint32* p; const unsigned char* v; } u1, u2;
+  u1.p = p1;
+  u2.p = p2;
+  Int32 v1 = sint3korr(u1.v);
+  Int32 v2 = sint3korr(u2.v);
+  if (v1 < v2)
+    return -1;
+  if (v1 > v2)
+    return +1;
+  return 0;
 }
 
 int
-NdbSqlUtil::cmpMediumunsigned(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+NdbSqlUtil::cmpMediumunsigned(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
-  return cmp(Type::Mediumunsigned, p1, p2, full, size);
+  assert(full >= size && size > 0);
+  union { const Uint32* p; const unsigned char* v; } u1, u2;
+  u1.p = p1;
+  u2.p = p2;
+  Uint32 v1 = uint3korr(u1.v);
+  Uint32 v2 = uint3korr(u2.v);
+  if (v1 < v2)
+    return -1;
+  if (v1 > v2)
+    return +1;
+  return 0;
 }
 
 int
-NdbSqlUtil::cmpInt(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+NdbSqlUtil::cmpInt(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
-  return cmp(Type::Int, p1, p2, full, size);
+  assert(full >= size && size > 0);
+  union { Uint32 p[1]; Int32 v; } u1, u2;
+  u1.p[0] = p1[0];
+  u2.p[0] = p2[0];
+  if (u1.v < u2.v)
+    return -1;
+  if (u1.v > u2.v)
+    return +1;
+  return 0;
 }
 
 int
-NdbSqlUtil::cmpUnsigned(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+NdbSqlUtil::cmpUnsigned(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
-  return cmp(Type::Unsigned, p1, p2, full, size);
+  assert(full >= size && size > 0);
+  union { Uint32 p[1]; Uint32 v; } u1, u2;
+  u1.v = p1[0];
+  u2.v = p2[0];
+  if (u1.v < u2.v)
+    return -1;
+  if (u1.v > u2.v)
+    return +1;
+  return 0;
 }
 
 int
-NdbSqlUtil::cmpBigint(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+NdbSqlUtil::cmpBigint(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
-  return cmp(Type::Bigint, p1, p2, full, size);
+  assert(full >= size && size > 0);
+  if (size >= 2) {
+    union { Uint32 p[2]; Int64 v; } u1, u2;
+    u1.p[0] = p1[0];
+    u1.p[1] = p1[1];
+    u2.p[0] = p2[0];
+    u2.p[1] = p2[1];
+    if (u1.v < u2.v)
+      return -1;
+    if (u1.v > u2.v)
+      return +1;
+    return 0;
+  }
+  return CmpUnknown;
 }
 
 int
-NdbSqlUtil::cmpBigunsigned(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+NdbSqlUtil::cmpBigunsigned(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
-  return cmp(Type::Bigunsigned, p1, p2, full, size);
+  assert(full >= size && size > 0);
+  if (size >= 2) {
+    union { Uint32 p[2]; Uint64 v; } u1, u2;
+    u1.p[0] = p1[0];
+    u1.p[1] = p1[1];
+    u2.p[0] = p2[0];
+    u2.p[1] = p2[1];
+    if (u1.v < u2.v)
+      return -1;
+    if (u1.v > u2.v)
+      return +1;
+    return 0;
+  }
+  return CmpUnknown;
 }
 
 int
-NdbSqlUtil::cmpFloat(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+NdbSqlUtil::cmpFloat(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
-  return cmp(Type::Float, p1, p2, full, size);
+  assert(full >= size && size > 0);
+  union { Uint32 p[1]; float v; } u1, u2;
+  u1.p[0] = p1[0];
+  u2.p[0] = p2[0];
+  // no format check
+  if (u1.v < u2.v)
+    return -1;
+  if (u1.v > u2.v)
+    return +1;
+  return 0;
 }
 
 int
-NdbSqlUtil::cmpDouble(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+NdbSqlUtil::cmpDouble(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
-  return cmp(Type::Double, p1, p2, full, size);
+  assert(full >= size && size > 0);
+  if (size >= 2) {
+    union { Uint32 p[2]; double v; } u1, u2;
+    u1.p[0] = p1[0];
+    u1.p[1] = p1[1];
+    u2.p[0] = p2[0];
+    u2.p[1] = p2[1];
+    // no format check
+    if (u1.v < u2.v)
+      return -1;
+    if (u1.v > u2.v)
+      return +1;
+    return 0;
+  }
+  return CmpUnknown;
 }
 
 int
-NdbSqlUtil::cmpDecimal(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+NdbSqlUtil::cmpDecimal(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
-  return cmp(Type::Decimal, p1, p2, full, size);
+  assert(full >= size && size > 0);
+  // not used by MySQL or NDB
+  assert(false);
+  return 0;
 }
 
 int
-NdbSqlUtil::cmpChar(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+NdbSqlUtil::cmpChar(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
-  return cmp(Type::Char, p1, p2, full, size);
+  // collation does not work on prefix for some charsets
+  assert(full == size && size > 0);
+  /*
+   * Char is blank-padded to length and null-padded to word size.
+   */
+  union { const Uint32* p; const uchar* v; } u1, u2;
+  u1.p = p1;
+  u2.p = p2;
+  // not const in MySQL
+  CHARSET_INFO* cs = (CHARSET_INFO*)(info);
+  // length in bytes including null padding to Uint32
+  uint l1 = (full << 2);
+  int k = (*cs->coll->strnncollsp)(cs, u1.v, l1, u2.v, l1);
+  return k < 0 ? -1 : k > 0 ? +1 : 0;
 }
 
 int
-NdbSqlUtil::cmpVarchar(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+NdbSqlUtil::cmpVarchar(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
-  return cmp(Type::Varchar, p1, p2, full, size);
+  assert(full >= size && size > 0);
+  /*
+   * Varchar is not allowed to contain a null byte and the value is
+   * null-padded.  Therefore comparison does not need to use the length.
+   *
+   * Not used before MySQL 5.0.  Format is likely to change.  Handle
+   * only binary collation for now.
+   */
+  union { const Uint32* p; const char* v; } u1, u2;
+  u1.p = p1;
+  u2.p = p2;
+  // skip length in first 2 bytes
+  int k = strncmp(u1.v + 2, u2.v + 2, (size << 2) - 2);
+  return k < 0 ? -1 : k > 0 ? +1 : full == size ? 0 : CmpUnknown;
 }
 
 int
-NdbSqlUtil::cmpBinary(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+NdbSqlUtil::cmpBinary(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
-  return cmp(Type::Binary, p1, p2, full, size);
+  assert(full >= size && size > 0);
+  /*
+   * Binary data of full length.  Compare bytewise.
+   */
+  union { const Uint32* p; const unsigned char* v; } u1, u2;
+  u1.p = p1;
+  u2.p = p2;
+  int k = memcmp(u1.v, u2.v, size << 2);
+  return k < 0 ? -1 : k > 0 ? +1 : full == size ? 0 : CmpUnknown;
 }
 
 int
-NdbSqlUtil::cmpVarbinary(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+NdbSqlUtil::cmpVarbinary(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
-  return cmp(Type::Varbinary, p1, p2, full, size);
+  assert(full >= size && size > 0);
+  /*
+   * Binary data of variable length padded with nulls.  The comparison
+   * does not need to use the length.
+   *
+   * Not used before MySQL 5.0.  Format is likely to change.
+   */
+  union { const Uint32* p; const unsigned char* v; } u1, u2;
+  u1.p = p1;
+  u2.p = p2;
+  // skip length in first 2 bytes
+  int k = memcmp(u1.v + 2, u2.v + 2, (size << 2) - 2);
+  return k < 0 ? -1 : k > 0 ? +1 : full == size ? 0 : CmpUnknown;
 }
 
 int
-NdbSqlUtil::cmpDatetime(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+NdbSqlUtil::cmpDatetime(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
-  return cmp(Type::Datetime, p1, p2, full, size);
+  assert(full >= size && size > 0);
+  /*
+   * Datetime is CC YY MM DD hh mm ss \0
+   *
+   * Not used via MySQL.
+   */
+  union { const Uint32* p; const unsigned char* v; } u1, u2;
+  u1.p = p1;
+  u2.p = p2;
+  // no format check
+  int k = memcmp(u1.v, u2.v, 4);
+  if (k != 0)
+    return k < 0 ? -1 : +1;
+  if (size >= 2) {
+    k = memcmp(u1.v + 4, u2.v + 4, 4);
+    return k < 0 ? -1 : k > 0 ? +1 : 0;
+  }
+  return CmpUnknown;
 }
 
 int
-NdbSqlUtil::cmpTimespec(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+NdbSqlUtil::cmpTimespec(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
-  return cmp(Type::Timespec, p1, p2, full, size);
+  assert(full >= size && size > 0);
+  /*
+   * Timespec is CC YY MM DD hh mm ss \0 NN NN NN NN
+   *
+   * Not used via MySQL.
+   */
+  union { const Uint32* p; const unsigned char* v; } u1, u2;
+  u1.p = p1;
+  u2.p = p2;
+  // no format check
+  int k = memcmp(u1.v, u2.v, 4);
+  if (k != 0)
+    return k < 0 ? -1 : +1;
+  if (size >= 2) {
+    k = memcmp(u1.v + 4, u2.v + 4, 4);
+    if (k != 0)
+      return k < 0 ? -1 : +1;
+    if (size >= 3) {
+      Uint32 n1 = *(const Uint32*)(u1.v + 8);
+      Uint32 n2 = *(const Uint32*)(u2.v + 8);
+      if (n1 < n2)
+        return -1;
+      if (n2 > n1)
+        return +1;
+      return 0;
+    }
+  }
+  return CmpUnknown;
 }
 
 int
-NdbSqlUtil::cmpBlob(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+NdbSqlUtil::cmpBlob(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
-  return cmp(Type::Blob, p1, p2, full, size);
+  assert(full >= size && size > 0);
+  /*
+   * Blob comparison is on the inline bytes (null padded).
+   */
+  const unsigned head = NDB_BLOB_HEAD_SIZE;
+  // skip blob head
+  if (size >= head + 1) {
+    union { const Uint32* p; const unsigned char* v; } u1, u2;
+    u1.p = p1 + head;
+    u2.p = p2 + head;
+    int k = memcmp(u1.v, u2.v, (size - head) << 2);
+    return k < 0 ? -1 : k > 0 ? +1 : full == size ? 0 : CmpUnknown;
+  }
+  return CmpUnknown;
 }
 
 int
-NdbSqlUtil::cmpText(const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+NdbSqlUtil::cmpText(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
-  return cmp(Type::Text, p1, p2, full, size);
+  // collation does not work on prefix for some charsets
+  assert(full == size && size > 0);
+  /*
+   * Text comparison is on the inline bytes (blank padded).  Currently
+   * not supported for multi-byte charsets.
+   */
+  const unsigned head = NDB_BLOB_HEAD_SIZE;
+  // skip blob head
+  if (size >= head + 1) {
+    union { const Uint32* p; const uchar* v; } u1, u2;
+    u1.p = p1 + head;
+    u2.p = p2 + head;
+    // not const in MySQL
+    CHARSET_INFO* cs = (CHARSET_INFO*)(info);
+    // length in bytes including null padding to Uint32
+    uint l1 = (full << 2);
+    int k = (*cs->coll->strnncollsp)(cs, u1.v, l1, u2.v, l1);
+    return k < 0 ? -1 : k > 0 ? +1 : 0;
+  }
+  return CmpUnknown;
+}
+
+// check charset
+
+bool
+NdbSqlUtil::usable_in_pk(Uint32 typeId, const void* info)
+{
+  const Type& type = getType(typeId);
+  switch (type.m_typeId) {
+  case Type::Undefined:
+    break;
+  case Type::Char:
+    {
+      const CHARSET_INFO *cs = (const CHARSET_INFO*)info;
+      return
+        cs != 0 &&
+        cs->cset != 0 &&
+        cs->coll != 0 &&
+        cs->coll->strnxfrm != 0 &&
+        cs->strxfrm_multiply == 1; // current limitation
+    }
+    break;
+  case Type::Varchar:
+    return true; // Varchar not used via MySQL
+  case Type::Blob:
+  case Type::Text:
+    break;
+  default:
+    return true;
+  }
+  return false;
+}
+
+bool
+NdbSqlUtil::usable_in_hash_index(Uint32 typeId, const void* info)
+{
+  return usable_in_pk(typeId, info);
+}
+
+bool
+NdbSqlUtil::usable_in_ordered_index(Uint32 typeId, const void* info)
+{
+  const Type& type = getType(typeId);
+  switch (type.m_typeId) {
+  case Type::Undefined:
+    break;
+  case Type::Char:
+    {
+      const CHARSET_INFO *cs = (const CHARSET_INFO*)info;
+      return
+        cs != 0 &&
+        cs->cset != 0 &&
+        cs->coll != 0 &&
+        cs->coll->strnxfrm != 0 &&
+        cs->coll->strnncollsp != 0 &&
+        cs->strxfrm_multiply == 1; // current limitation
+    }
+    break;
+  case Type::Varchar:
+    return true; // Varchar not used via MySQL
+  case Type::Text:
+    {
+      const CHARSET_INFO *cs = (const CHARSET_INFO*)info;
+      return
+        cs != 0 &&
+        cs->mbmaxlen == 1 && // extra limitation
+        cs->cset != 0 &&
+        cs->coll != 0 &&
+        cs->coll->strnxfrm != 0 &&
+        cs->coll->strnncollsp != 0 &&
+        cs->strxfrm_multiply == 1; // current limitation
+    }
+    break;
+  default:
+    return true;
+  }
+  return false;
 }
 
 #ifdef NDB_SQL_UTIL_TEST
@@ -331,6 +669,7 @@ const Testcase testcase[] = {
 int
 main(int argc, char** argv)
 {
+  ndb_init(); // for charsets
   unsigned count = argc > 1 ? atoi(argv[1]) : 1000000;
   ndbout_c("count = %u", count);
   assert(count != 0);
