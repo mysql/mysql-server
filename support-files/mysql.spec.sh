@@ -220,7 +220,8 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
             --includedir=%{_includedir} \
             --mandir=%{_mandir} \
 	    --enable-thread-safe-client \
-	    --with-comment=\"Official MySQL RPM\";
+	    --with-comment=\"Official MySQL RPM\" \
+	    --with-readline ;
 	    # Add this for more debugging support
 	    # --with-debug
 	    # Add this for MyISAM RAID support:
@@ -574,6 +575,10 @@ fi
 # The spec file changelog only includes changes made to the spec file
 # itself
 %changelog 
+* Tue Jan 13 2004 Lenz Grimmer <lenz@mysql.com>
+
+- link the mysql client against libreadline instead of libedit (BUG 2289)
+
 * Fri Dec 13 2003 Lenz Grimmer <lenz@mysql.com>
 
 - fixed file permissions (BUG 1672)
