@@ -53,6 +53,7 @@ public:
   // Cluster configuration
   const char * programName() const;
   const char * fileSystemPath() const;
+  const char * backupFilePath() const;
   char * getConnectStringCopy() const;
 
   /**
@@ -89,6 +90,7 @@ private:
    */
   char * _programName;
   char * _fsPath;
+  char * _backupPath;
   bool _initialStart;
   char * _connectString;
   bool _daemonMode;
@@ -106,6 +108,12 @@ inline
 const char *
 Configuration::fileSystemPath() const {
   return _fsPath;
+}
+
+inline
+const char *
+Configuration::backupFilePath() const {
+  return _backupPath;
 }
 
 inline

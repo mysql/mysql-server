@@ -80,6 +80,7 @@ private:
   Vector<AsyncFile*> theIdleFiles; // List of idle AsyncFiles
   OpenFiles theOpenFiles;          // List of open AsyncFiles
   const char * theFileSystemPath;
+  const char * theBackupFilePath;
 
   // Statistics variables
   Uint32 m_maxOpenedFiles;

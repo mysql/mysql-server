@@ -144,6 +144,7 @@ Configuration::Configuration()
   _programName = 0;
   _connectString = 0;
   _fsPath = 0;
+  _backupPath = 0;
   _initialStart = false;
   _daemonMode = false;
   m_config_retriever= 0;
@@ -155,6 +156,9 @@ Configuration::~Configuration(){
 
   if(_fsPath != NULL)
     free(_fsPath);
+
+  if(_backupPath != NULL)
+    free(_backupPath);
 
   if (m_config_retriever) {
     delete m_config_retriever;
@@ -237,8 +241,48 @@ Configuration::fetch_configuration(){
   }
 }
 
+static char * get_and_validate_path(ndb_mgm_configuration_iterator &iter,
+				    Uint32 param, const char *param_string)
+{ 
+  const char* path = NULL;
+  if(iter.get(param, &path)){
+    ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched missing ", 
+	      param_string);
+  } 
+  
+  if(path == 0 || strlen(path) == 0){
+    ERROR_SET(fatal, ERR_INVALID_CONFIG,
+	      "Invalid configuration fetched. Configuration does not contain valid ",
+	      param_string);
+  }
+  
+  // check that it is pointing on a valid directory
+  // 
+  char buf2[PATH_MAX];
+  memset(buf2, 0,sizeof(buf2));
+#ifdef NDB_WIN32
+  char* szFilePart;
+  if(!GetFullPathName(path, sizeof(buf2), buf2, &szFilePart)
+     || (::GetFileAttributes(alloc_path)&FILE_ATTRIBUTE_READONLY)) 
+#else
+    if((::realpath(path, buf2) == NULL)||
+       (::access(buf2, W_OK) != 0))
+#endif
+      {
+	ERROR_SET(fatal, AFS_ERROR_INVALIDPATH, path, " Filename::init()");
+      }
+
+  if (strcmp(&buf2[strlen(buf2) - 1], DIR_SEPARATOR))
+    strcat(buf2, DIR_SEPARATOR);
+
+  return strdup(buf2);
+}
+
 void
 Configuration::setupConfiguration(){
+
+  DBUG_ENTER("Configuration::setupConfiguration");
+
   ndb_mgm_configuration * p = m_clusterConfig;
 
   /**
@@ -284,29 +328,15 @@ Configuration::setupConfiguration(){
   }
 
   /**
-   * Get filesystem path
+   * Get paths
    */  
-  { 
-    const char* pFileSystemPath = NULL;
-    if(iter.get(CFG_DB_FILESYSTEM_PATH, &pFileSystemPath)){
-      ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", 
-		"FileSystemPath missing");
-    } 
-    
-    if(pFileSystemPath == 0 || strlen(pFileSystemPath) == 0){
-      ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", 
-		"Configuration does not contain valid filesystem path");
-    }
-    
-    if(pFileSystemPath[strlen(pFileSystemPath) - 1] == '/')
-      _fsPath = strdup(pFileSystemPath);
-    else {
-      _fsPath = (char *)NdbMem_Allocate(strlen(pFileSystemPath) + 2);
-      strcpy(_fsPath, pFileSystemPath);
-      strcat(_fsPath, "/");
-    }
-  }
-  
+  if (_fsPath)
+    free(_fsPath);
+  _fsPath= get_and_validate_path(iter, CFG_DB_FILESYSTEM_PATH, "FileSystemPath");
+  if (_backupPath)
+    free(_backupPath);
+  _backupPath= get_and_validate_path(iter, CFG_DB_BACKUP_DATADIR, "BackupDataDir");
+
   if(iter.get(CFG_DB_STOP_ON_ERROR_INSERT, &m_restartOnErrorInsert)){
     ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", 
 	      "RestartOnErrorInsert missing");
@@ -327,6 +357,8 @@ Configuration::setupConfiguration(){
     (p, CFG_SECTION_NODE);
 
   calcSizeAlt(cf);
+
+  DBUG_VOID_RETURN;
 }
 
 bool 
