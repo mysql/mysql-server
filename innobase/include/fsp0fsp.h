@@ -46,6 +46,17 @@ void
 fsp_init(void);
 /*==========*/
 /**************************************************************************
+Gets the current free limit of a tablespace. The free limit means the
+place of the first page which has never been put to the the free list
+for allocation. The space above that address is initialized to zero.
+Sets also the global variable log_fsp_current_free_limit. */
+
+ulint
+fsp_header_get_free_limit(
+/*======================*/
+			/* out: free limit in megabytes */
+	ulint	space);	/* in: space id */
+/**************************************************************************
 Initializes the space header of a new created space. */
 
 void

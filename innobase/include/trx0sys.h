@@ -44,6 +44,15 @@ half-written pages in the data files. */
 void
 trx_sys_doublewrite_restore_corrupt_pages(void);
 /*===========================================*/
+/********************************************************************
+Determines if a page number is located inside the doublewrite buffer. */
+
+ibool
+trx_doublewrite_page_inside(
+/*========================*/
+				/* out: TRUE if the location is inside
+				the two blocks of the doublewrite buffer */
+	ulint	page_no);	/* in: page number */
 /*******************************************************************
 Checks if a page address is the trx sys header page. */
 UNIV_INLINE

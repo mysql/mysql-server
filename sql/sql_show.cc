@@ -908,9 +908,21 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     }
     packet->append(')');
   }
-  packet->append("\n)", 2);
 
   handler *file = table->file;
+
+  /* Get possible foreign key definitions stored in InnoDB and append them
+  to the CREATE TABLE statement */
+
+  char* for_str = file->get_foreign_key_create_info();
+
+  if (for_str) {
+  	packet->append(for_str, strlen(for_str));
+
+  	file->free_foreign_key_create_info(for_str);
+  }
+
+  packet->append("\n)", 2);
   packet->append(" TYPE=", 6);
   packet->append(file->table_type());
   char buff[128];
