@@ -36797,7 +36797,7 @@ the configuration file @file{my.cnf}. @xref{Option files}.
 The only required parameter to use InnoDB is @code{innodb_data_file_path},
 but you should set others if you want to get a better performance.
 
-The default value for @code{innodb_data_home_dir} is the @code<datadir}
+The default value for @code{innodb_data_home_dir} is the @code{datadir}
 of MySQL. If you do not specify @code{innodb_data_home_dir}, then
 you cannot use absolute paths in @code{innodb_data_file_path}.
 
