@@ -11033,7 +11033,7 @@ void Dbtc::execTCINDXREQ(Signal* signal)
   indexOp->indexOpId = indexOpPtr.i;
 
   // Save original signal
-  *indexOp->tcIndxReq = *tcIndxReq;
+  indexOp->tcIndxReq = *tcIndxReq;
   indexOp->connectionIndex = TapiIndex;
   regApiPtr->accumulatingIndexOp = indexOp->indexOpId;
 
@@ -11342,7 +11342,7 @@ void Dbtc::execTCKEYCONF(Signal* signal)
     // Should never happen, abort
     TcIndxRef * const tcIndxRef = (TcIndxRef *)signal->getDataPtrSend();
 
-    tcIndxRef->connectPtr = indexOp->tcIndxReq->senderData;
+    tcIndxRef->connectPtr = indexOp->tcIndxReq.senderData;
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = 4349;    
@@ -11361,7 +11361,7 @@ void Dbtc::execTCKEYCONF(Signal* signal)
     // Double TCKEYCONF, should never happen, abort
     TcIndxRef * const tcIndxRef = (TcIndxRef *)signal->getDataPtrSend();
 
-    tcIndxRef->connectPtr = indexOp->tcIndxReq->senderData;
+    tcIndxRef->connectPtr = indexOp->tcIndxReq.senderData;
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = 4349;    
@@ -11382,7 +11382,7 @@ void Dbtc::execTCKEYCONF(Signal* signal)
     // Copy reply from TcKeyConf
 
     regApiPtr->noIndexOp--; // Decrease count
-    regApiPtr->tcIndxSendArray[Ttcindxrec] = indexOp->tcIndxReq->senderData;
+    regApiPtr->tcIndxSendArray[Ttcindxrec] = indexOp->tcIndxReq.senderData;
     regApiPtr->tcIndxSendArray[Ttcindxrec + 1] = 
       tcKeyConf->operations[0].attrInfoLen;
     regApiPtr->tcindxrec = Ttcindxrec + 2;
@@ -11415,7 +11415,7 @@ void Dbtc::execTCKEYREF(Signal* signal)
   }
   const UintR TconnectIndex = indexOp->connectionIndex;
   ApiConnectRecord * const regApiPtr = &apiConnectRecord[TconnectIndex];
-  Uint32 tcKeyRequestInfo  = indexOp->tcIndxReq->requestInfo;
+  Uint32 tcKeyRequestInfo  = indexOp->tcIndxReq.requestInfo;
   Uint32 commitFlg = TcKeyReq::getCommitFlag(tcKeyRequestInfo);
 
   switch(indexOp->indexOpState) {
@@ -11445,7 +11445,7 @@ void Dbtc::execTCKEYREF(Signal* signal)
     // Send TCINDXREF 
     
     jam();
-    TcIndxReq * const tcIndxReq = indexOp->tcIndxReq;
+    TcIndxReq * const tcIndxReq = &indexOp->tcIndxReq;
     TcIndxRef * const tcIndxRef = (TcIndxRef *)signal->getDataPtrSend();
     
     regApiPtr->noIndexOp--; // Decrease count
@@ -11523,7 +11523,7 @@ void Dbtc::execTRANSID_AI(Signal* signal)
     // Failed to allocate space for TransIdAI
     TcIndxRef * const tcIndxRef = (TcIndxRef *)signal->getDataPtrSend();
     
-    tcIndxRef->connectPtr = indexOp->tcIndxReq->senderData;
+    tcIndxRef->connectPtr = indexOp->tcIndxReq.senderData;
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = 4000;
@@ -11538,7 +11538,7 @@ void Dbtc::execTRANSID_AI(Signal* signal)
     // Should never happen, abort
     TcIndxRef * const tcIndxRef = (TcIndxRef *)signal->getDataPtrSend();
     
-    tcIndxRef->connectPtr = indexOp->tcIndxReq->senderData;
+    tcIndxRef->connectPtr = indexOp->tcIndxReq.senderData;
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = 4349;
@@ -11566,7 +11566,7 @@ void Dbtc::execTRANSID_AI(Signal* signal)
     // Too many TRANSID_AI
     TcIndxRef * const tcIndxRef = (TcIndxRef *)signal->getDataPtrSend();
     
-    tcIndexRef->connectPtr = indexOp->tcIndxReq->senderData;
+    tcIndexRef->connectPtr = indexOp->tcIndxReq.senderData;
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = 4349;
@@ -11591,7 +11591,7 @@ void Dbtc::execTRANSID_AI(Signal* signal)
     jam();    
     TcIndxRef * const tcIndxRef = (TcIndxRef *)signal->getDataPtrSend();
 
-    tcIndxRef->connectPtr = indexOp->tcIndxReq->senderData;
+    tcIndxRef->connectPtr = indexOp->tcIndxReq.senderData;
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = 4349;
@@ -11611,7 +11611,7 @@ void Dbtc::execTCROLLBACKREP(Signal* signal)
   TcIndexOperation* indexOp = c_theIndexOperations.getPtr(indexOpPtr.i);
   indexOpPtr.p = indexOp;
   tcRollbackRep =  (TcRollbackRep *)signal->getDataPtrSend();
-  tcRollbackRep->connectPtr = indexOp->tcIndxReq->senderData;
+  tcRollbackRep->connectPtr = indexOp->tcIndxReq.senderData;
   sendSignal(apiConnectptr.p->ndbapiBlockref, 
 	     GSN_TCROLLBACKREP, signal, TcRollbackRep::SignalLength, JBB);
 }
@@ -11628,23 +11628,23 @@ void Dbtc::readIndexTable(Signal* signal,
   TcKeyReq * const tcKeyReq = (TcKeyReq *)signal->getDataPtrSend();
   Uint32 * dataPtr = &tcKeyReq->scanInfo;
   Uint32 tcKeyLength = TcKeyReq::StaticLength;
-  Uint32 tcKeyRequestInfo = indexOp->tcIndxReq->requestInfo; 
+  Uint32 tcKeyRequestInfo = indexOp->tcIndxReq.requestInfo; 
   AttributeBuffer::DataBufferIterator keyIter;
   Uint32 keyLength = TcKeyReq::getKeyLength(tcKeyRequestInfo);
   TcIndexData* indexData;
-  Uint32 transId1 = indexOp->tcIndxReq->transId1;
-  Uint32 transId2 = indexOp->tcIndxReq->transId2;
+  Uint32 transId1 = indexOp->tcIndxReq.transId1;
+  Uint32 transId2 = indexOp->tcIndxReq.transId2;
 
   const Operation_t opType = 
     (Operation_t)TcKeyReq::getOperationType(tcKeyRequestInfo);
 
   // Find index table
-  if ((indexData = c_theIndexes.getPtr(indexOp->tcIndxReq->indexId)) == NULL) {
+  if ((indexData = c_theIndexes.getPtr(indexOp->tcIndxReq.indexId)) == NULL) {
     jam();
     // Failed to find index record
     TcIndxRef * const tcIndxRef = (TcIndxRef *)signal->getDataPtrSend();
 
-    tcIndxRef->connectPtr = indexOp->tcIndxReq->senderData;
+    tcIndxRef->connectPtr = indexOp->tcIndxReq.senderData;
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = 4000;    
@@ -11656,7 +11656,7 @@ void Dbtc::readIndexTable(Signal* signal,
   tcKeyReq->transId2 = transId2;
   tcKeyReq->tableId = indexData->indexId;
   tcKeyLength += MIN(keyLength, keyBufSize);
-  tcKeyReq->tableSchemaVersion = indexOp->tcIndxReq->indexSchemaVersion;
+  tcKeyReq->tableSchemaVersion = indexOp->tcIndxReq.indexSchemaVersion;
   TcKeyReq::setOperationType(tcKeyRequestInfo, 
 			     opType == ZREAD ? opType : ZREAD_EX);
   TcKeyReq::setAIInTcKeyReq(tcKeyRequestInfo, 1); // Allways send one AttrInfo
@@ -11705,7 +11705,7 @@ void Dbtc::readIndexTable(Signal* signal,
     // Send KEYINFO sequence
     KeyInfo * const keyInfo =  (KeyInfo *)signal->getDataPtrSend();
     
-    keyInfo->connectPtr = indexOp->tcIndxReq->apiConnectPtr;
+    keyInfo->connectPtr = indexOp->tcIndxReq.apiConnectPtr;
     keyInfo->transId[0] = transId1;
     keyInfo->transId[1] = transId2;
     dataPtr = (Uint32 *) &keyInfo->keyData;
@@ -11745,7 +11745,7 @@ void Dbtc::executeIndexOperation(Signal* signal,
   Uint32 keyBufSize = 8; // Maximum for key in TCKEYREQ
   Uint32 attrBufSize = 5;
   Uint32 dataPos = 0;
-  TcIndxReq * const tcIndxReq = indexOp->tcIndxReq;
+  TcIndxReq * const tcIndxReq = &indexOp->tcIndxReq;
   TcKeyReq * const tcKeyReq = (TcKeyReq *)signal->getDataPtrSend();
   Uint32 * dataPtr = &tcKeyReq->scanInfo;
   Uint32 tcKeyLength = TcKeyReq::StaticLength;
@@ -11761,7 +11761,7 @@ void Dbtc::executeIndexOperation(Signal* signal,
     // Failed to find index record 
     TcIndxRef * const tcIndxRef = (TcIndxRef *)signal->getDataPtrSend();
 
-    tcIndxRef->connectPtr = indexOp->tcIndxReq->senderData;
+    tcIndxRef->connectPtr = indexOp->tcIndxReq.senderData;
     tcIndxRef->transId[0] = regApiPtr->transid[0];
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = 4349;    
@@ -11861,7 +11861,7 @@ void Dbtc::executeIndexOperation(Signal* signal,
     // Send KEYINFO sequence
     KeyInfo * const keyInfo =  (KeyInfo *)signal->getDataPtrSend();
     
-    keyInfo->connectPtr = indexOp->tcIndxReq->apiConnectPtr;
+    keyInfo->connectPtr = indexOp->tcIndxReq.apiConnectPtr;
     keyInfo->transId[0] = regApiPtr->transid[0];
     keyInfo->transId[1] = regApiPtr->transid[1];
     dataPtr = (Uint32 *) &keyInfo->keyData;
@@ -11897,7 +11897,7 @@ void Dbtc::executeIndexOperation(Signal* signal,
     AttrInfo * const attrInfo =  (AttrInfo *)signal->getDataPtrSend();
     Uint32 attrInfoPos = 0;
     
-    attrInfo->connectPtr = indexOp->tcIndxReq->apiConnectPtr;
+    attrInfo->connectPtr = indexOp->tcIndxReq.apiConnectPtr;
     attrInfo->transId[0] = regApiPtr->transid[0];
     attrInfo->transId[1] = regApiPtr->transid[1];
     dataPtr = (Uint32 *) &attrInfo->attrData;
