@@ -679,7 +679,7 @@ ha_innobase::bas_ext() const
 				/* out: file extension strings, currently not
 				used */
 {
-	static const char* ext[] = {".InnoDB_table_inside_tablespace", NullS};
+	static const char* ext[] = {".InnoDB", NullS};
 
 	return(ext);
 }
@@ -779,12 +779,11 @@ ha_innobase::open(
 
  	if (NULL == (ib_table = dict_table_get(norm_name, NULL))) {
 
-	  fprintf(stderr, "InnoDB: Cannot find table %s from the internal\n"
-		  "InnoDB: data dictionary of InnoDB though the .frm file\n"
-		  "InnoDB: for the table exists. Maybe you have deleted\n"
-		  "InnoDB: and created again an InnoDB database but\n"
-                  "InnoDB: forgotten to delete the corresponding\n"
-		  "InnoDB: .frm files of old InnoDB tables?\n",
+	  fprintf(stderr, "\
+Cannot find table %s from the internal data dictionary\n\
+of InnoDB though the .frm file for the table exists. Maybe you have deleted\n\
+and created again an InnoDB database but forgotten to delete the\n\
+corresponding .frm files of old InnoDB tables?\n",
 		  norm_name);
 
 	        free_share(share);
