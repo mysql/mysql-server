@@ -156,6 +156,10 @@ SOURCE=".\ctype-tis620.c"
 # End Source File
 # Begin Source File
 
+SOURCE=".\ctype-ucs2.c"
+# End Source File
+# Begin Source File
+
 SOURCE=".\ctype-ujis.c"
 # End Source File
 # Begin Source File
