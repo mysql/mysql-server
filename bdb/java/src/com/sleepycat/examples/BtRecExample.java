@@ -1,10 +1,10 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997, 1998, 1999, 2000
+ * Copyright (c) 1997-2002
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id: BtRecExample.java,v 11.6 2000/02/19 20:58:02 bostic Exp $
+ * $Id: BtRecExample.java,v 11.11 2002/02/05 22:27:13 mjc Exp $
  */
 
 package com.sleepycat.examples;
@@ -41,7 +41,7 @@ public class BtRecExample
         dbp.set_pagesize(1024);			// 1K page sizes.
 
         dbp.set_flags(Db.DB_RECNUM);			// Record numbers.
-        dbp.open(database, null, Db.DB_BTREE, Db.DB_CREATE, 0664);
+        dbp.open(null, database, null, Db.DB_BTREE, Db.DB_CREATE, 0664);
 
         //
         // Insert records into the database, where the key is the word
@@ -177,36 +177,26 @@ public class BtRecExample
             // Open the word database.
             FileReader freader = new FileReader(wordlist);
 
-	    BtRecExample app = new BtRecExample(new BufferedReader(freader));
+            BtRecExample app = new BtRecExample(new BufferedReader(freader));
 
-	    // Close the word database.
+            // Close the word database.
             freader.close();
             freader = null;
 
             app.stats();
             app.run();
-        }
-        catch (FileNotFoundException fnfe) {
+        } catch (FileNotFoundException fnfe) {
             System.err.println(progname + ": unexpected open error " + fnfe);
             System.exit (1);
-        }
-        catch (IOException ioe) {
+        } catch (IOException ioe) {
             System.err.println(progname + ": open " + wordlist + ": " + ioe);
             System.exit (1);
+        } catch (DbException dbe) {
+            System.err.println("Exception: " + dbe);
+            System.exit(dbe.get_errno());
         }
-	catch (DbException dbe) {
-	    System.err.println("Exception: " + dbe);
-	    System.exit(dbe.get_errno());
-	}
 
-	System.exit(0);
-    }
-
-    void
-    usage()
-    {
-	System.err.println("usage: " + progname);
-	System.exit(1);
+        System.exit(0);
     }
 
     // Prompts for a line, and keeps prompting until a non blank
@@ -279,10 +269,11 @@ public class BtRecExample
 
         void setString(String value)
         {
-            set_data(value.getBytes());
-            set_size(value.length());
+            byte[] data = value.getBytes();
+            set_data(data);
+            set_size(data.length);
             // must set ulen because sometimes a string is returned
-            set_ulen(value.length());
+            set_ulen(data.length);
         }
 
         String getString()
@@ -329,8 +320,9 @@ public class BtRecExample
 
         void setString(String value)
         {
-            set_data(value.getBytes());
-            set_size(value.length());
+            byte[] data = value.getBytes();
+            set_data(data);
+            set_size(data.length);
         }
 
         int getRecno()

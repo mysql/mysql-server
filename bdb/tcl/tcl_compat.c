@@ -1,15 +1,17 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999, 2000
+ * Copyright (c) 1999-2001
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: tcl_compat.c,v 11.22 2001/01/11 18:19:55 bostic Exp $";
+static const char revid[] = "$Id: tcl_compat.c,v 11.39 2002/08/15 14:05:38 bostic Exp $";
 #endif /* not lint */
+
+#if CONFIG_TEST
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
@@ -23,12 +25,7 @@ static const char revid[] = "$Id: tcl_compat.c,v 11.22 2001/01/11 18:19:55 bosti
 #define	DB_DBM_HSEARCH 1
 
 #include "db_int.h"
-#include "tcl_db.h"
-
-/*
- * Prototypes for procedures defined later in this file:
- */
-static int mutex_Cmd __P((ClientData, Tcl_Interp *, int, Tcl_Obj * CONST*));
+#include "dbinc/tcl_db.h"
 
 /*
  * bdb_HCommand --
@@ -91,7 +88,7 @@ bdb_HCommand(interp, objc, objv)
 		if (result == TCL_OK) {
 			_debug_check();
 			ret = hcreate(nelem) == 0 ? 1: 0;
-			_ReturnSetup(interp, ret, "hcreate");
+			_ReturnSetup(interp, ret, DB_RETOK_STD(ret), "hcreate");
 		}
 		break;
 	case HHSEARCH:
@@ -104,16 +101,16 @@ bdb_HCommand(interp, objc, objv)
 		}
 		item.key = Tcl_GetStringFromObj(objv[2], NULL);
 		item.data = Tcl_GetStringFromObj(objv[3], NULL);
-		action = 0;
 		if (Tcl_GetIndexFromObj(interp, objv[4], srchacts,
 		    "action", TCL_EXACT, &actindex) != TCL_OK)
 			return (IS_HELP(objv[4]));
 		switch ((enum srchacts)actindex) {
-		case ACT_FIND:
-			action = FIND;
-			break;
 		case ACT_ENTER:
 			action = ENTER;
+			break;
+		default:
+		case ACT_FIND:
+			action = FIND;
 			break;
 		}
 		_debug_check();
@@ -182,7 +179,7 @@ bdb_NdbmOpen(interp, objc, objv, dbpp)
 	};
 
 	u_int32_t open_flags;
-	int endarg, i, mode, optindex, read_only, result;
+	int endarg, i, mode, optindex, read_only, result, ret;
 	char *arg, *db;
 
 	result = TCL_OK;
@@ -281,7 +278,9 @@ bdb_NdbmOpen(interp, objc, objv, dbpp)
 		open_flags |= O_RDWR;
 	_debug_check();
 	if ((*dbpp = dbm_open(db, open_flags, mode)) == NULL) {
-		result = _ReturnSetup(interp, Tcl_GetErrno(), "db open");
+		ret = Tcl_GetErrno();
+		result = _ReturnSetup(interp, ret, DB_RETOK_STD(ret),
+		    "db open");
 		goto error;
 	}
 	return (TCL_OK);
@@ -335,10 +334,13 @@ bdb_DbmCommand(interp, objc, objv, flag, dbm)
 		STINSERT,	STREPLACE
 	};
 	datum key, data;
-	int cmdindex, stindex, result, ret;
+	void *dtmp, *ktmp;
+	u_int32_t size;
+	int cmdindex, freedata, freekey, stindex, result, ret;
 	char *name, *t;
 
 	result = TCL_OK;
+	freekey = freedata = 0;
 	/*
 	 * Get the command name index from the object based on the cmds
 	 * defined above.  This SHOULD NOT fail because we already checked
@@ -365,7 +367,7 @@ bdb_DbmCommand(interp, objc, objv, flag, dbm)
 			    "Bad interface flag for command", TCL_STATIC);
 			return (TCL_ERROR);
 		}
-		_ReturnSetup(interp, ret, "dbmclose");
+		_ReturnSetup(interp, ret, DB_RETOK_STD(ret), "dbmclose");
 		break;
 	case DBMINIT:
 		/*
@@ -383,7 +385,7 @@ bdb_DbmCommand(interp, objc, objv, flag, dbm)
 			    TCL_STATIC);
 			return (TCL_ERROR);
 		}
-		_ReturnSetup(interp, ret, "dbminit");
+		_ReturnSetup(interp, ret, DB_RETOK_STD(ret), "dbminit");
 		break;
 	case DBMFETCH:
 		/*
@@ -393,7 +395,14 @@ bdb_DbmCommand(interp, objc, objv, flag, dbm)
 			Tcl_WrongNumArgs(interp, 2, objv, "key");
 			return (TCL_ERROR);
 		}
-		key.dptr = (char *)Tcl_GetByteArrayFromObj(objv[2], &key.dsize);
+		if ((ret = _CopyObjBytes(
+		    interp, objv[2], &ktmp, &size, &freekey)) != 0) {
+			result = _ReturnSetup(interp, ret,
+			    DB_RETOK_STD(ret), "dbm fetch");
+			goto out;
+		}
+		key.dsize = size;
+		key.dptr = (char *)ktmp;
 		_debug_check();
 		if (flag == DBTCL_DBM)
 			data = fetch(key);
@@ -402,16 +411,17 @@ bdb_DbmCommand(interp, objc, objv, flag, dbm)
 		else {
 			Tcl_SetResult(interp,
 			    "Bad interface flag for command", TCL_STATIC);
-			return (TCL_ERROR);
+			result = TCL_ERROR;
+			goto out;
 		}
 		if (data.dptr == NULL ||
-		    (ret = __os_malloc(NULL, data.dsize + 1, NULL, &t)) != 0)
+		    (ret = __os_malloc(NULL, data.dsize + 1, &t)) != 0)
 			Tcl_SetResult(interp, "-1", TCL_STATIC);
 		else {
 			memcpy(t, data.dptr, data.dsize);
 			t[data.dsize] = '\0';
 			Tcl_SetResult(interp, t, TCL_VOLATILE);
-			__os_free(t, data.dsize + 1);
+			__os_free(NULL, t);
 		}
 		break;
 	case DBMSTORE:
@@ -426,9 +436,22 @@ bdb_DbmCommand(interp, objc, objv, flag, dbm)
 			Tcl_WrongNumArgs(interp, 2, objv, "key data action");
 			return (TCL_ERROR);
 		}
-		key.dptr = (char *)Tcl_GetByteArrayFromObj(objv[2], &key.dsize);
-		data.dptr =
-		    (char *)Tcl_GetByteArrayFromObj(objv[3], &data.dsize);
+		if ((ret = _CopyObjBytes(
+		    interp, objv[2], &ktmp, &size, &freekey)) != 0) {
+			result = _ReturnSetup(interp, ret,
+			    DB_RETOK_STD(ret), "dbm fetch");
+			goto out;
+		}
+		key.dsize = size;
+		key.dptr = (char *)ktmp;
+		if ((ret = _CopyObjBytes(
+		    interp, objv[3], &dtmp, &size, &freedata)) != 0) {
+			result = _ReturnSetup(interp, ret,
+			    DB_RETOK_STD(ret), "dbm fetch");
+			goto out;
+		}
+		data.dsize = size;
+		data.dptr = (char *)dtmp;
 		_debug_check();
 		if (flag == DBTCL_DBM)
 			ret = store(key, data);
@@ -450,7 +473,7 @@ bdb_DbmCommand(interp, objc, objv, flag, dbm)
 			    "Bad interface flag for command", TCL_STATIC);
 			return (TCL_ERROR);
 		}
-		_ReturnSetup(interp, ret, "store");
+		_ReturnSetup(interp, ret, DB_RETOK_STD(ret), "store");
 		break;
 	case DBMDELETE:
 		/*
@@ -460,7 +483,14 @@ bdb_DbmCommand(interp, objc, objv, flag, dbm)
 			Tcl_WrongNumArgs(interp, 2, objv, "key");
 			return (TCL_ERROR);
 		}
-		key.dptr = (char *)Tcl_GetByteArrayFromObj(objv[2], &key.dsize);
+		if ((ret = _CopyObjBytes(
+		    interp, objv[2], &ktmp, &size, &freekey)) != 0) {
+			result = _ReturnSetup(interp, ret,
+			    DB_RETOK_STD(ret), "dbm fetch");
+			goto out;
+		}
+		key.dsize = size;
+		key.dptr = (char *)ktmp;
 		_debug_check();
 		if (flag == DBTCL_DBM)
 			ret = delete(key);
@@ -471,7 +501,7 @@ bdb_DbmCommand(interp, objc, objv, flag, dbm)
 			    "Bad interface flag for command", TCL_STATIC);
 			return (TCL_ERROR);
 		}
-		_ReturnSetup(interp, ret, "delete");
+		_ReturnSetup(interp, ret, DB_RETOK_STD(ret), "delete");
 		break;
 	case DBMFIRST:
 		/*
@@ -492,13 +522,13 @@ bdb_DbmCommand(interp, objc, objv, flag, dbm)
 			return (TCL_ERROR);
 		}
 		if (key.dptr == NULL ||
-		    (ret = __os_malloc(NULL, key.dsize + 1, NULL, &t)) != 0)
+		    (ret = __os_malloc(NULL, key.dsize + 1, &t)) != 0)
 			Tcl_SetResult(interp, "-1", TCL_STATIC);
 		else {
 			memcpy(t, key.dptr, key.dsize);
 			t[key.dsize] = '\0';
 			Tcl_SetResult(interp, t, TCL_VOLATILE);
-			__os_free(t, key.dsize + 1);
+			__os_free(NULL, t);
 		}
 		break;
 	case DBMNEXT:
@@ -511,8 +541,14 @@ bdb_DbmCommand(interp, objc, objv, flag, dbm)
 				Tcl_WrongNumArgs(interp, 2, objv, NULL);
 				return (TCL_ERROR);
 			}
-			key.dptr = (char *)
-			    Tcl_GetByteArrayFromObj(objv[2], &key.dsize);
+			if ((ret = _CopyObjBytes(
+			    interp, objv[2], &ktmp, &size, &freekey)) != 0) {
+				result = _ReturnSetup(interp, ret,
+				    DB_RETOK_STD(ret), "dbm fetch");
+				goto out;
+			}
+			key.dsize = size;
+			key.dptr = (char *)ktmp;
 			data = nextkey(key);
 		} else if (flag == DBTCL_NDBM) {
 			if (objc != 2) {
@@ -526,16 +562,21 @@ bdb_DbmCommand(interp, objc, objv, flag, dbm)
 			return (TCL_ERROR);
 		}
 		if (data.dptr == NULL ||
-		    (ret = __os_malloc(NULL, data.dsize + 1, NULL, &t)) != 0)
+		    (ret = __os_malloc(NULL, data.dsize + 1, &t)) != 0)
 			Tcl_SetResult(interp, "-1", TCL_STATIC);
 		else {
 			memcpy(t, data.dptr, data.dsize);
 			t[data.dsize] = '\0';
 			Tcl_SetResult(interp, t, TCL_VOLATILE);
-			__os_free(t, data.dsize + 1);
+			__os_free(NULL, t);
 		}
 		break;
 	}
+out:
+	if (freedata)
+		(void)__os_free(NULL, dtmp);
+	if (freekey)
+		(void)__os_free(NULL, ktmp);
 	return (result);
 }
 
@@ -636,7 +677,8 @@ ndbm_Cmd(clientData, interp, objc, objv)
 		_debug_check();
 		ret = dbm_clearerr(dbp);
 		if (ret)
-			_ReturnSetup(interp, ret, "clearerr");
+			_ReturnSetup(interp, ret, DB_RETOK_STD(ret),
+			    "clearerr");
 		else
 			res = Tcl_NewIntObj(ret);
 		break;
@@ -688,7 +730,7 @@ ndbm_Cmd(clientData, interp, objc, objv)
 		_debug_check();
 		ret = dbm_rdonly(dbp);
 		if (ret)
-			_ReturnSetup(interp, ret, "rdonly");
+			_ReturnSetup(interp, ret, DB_RETOK_STD(ret), "rdonly");
 		else
 			res = Tcl_NewIntObj(ret);
 		break;
@@ -701,355 +743,4 @@ ndbm_Cmd(clientData, interp, objc, objv)
 		Tcl_SetObjResult(interp, res);
 	return (result);
 }
-
-/*
- * bdb_RandCommand --
- *	Implements rand* functions.
- *
- * PUBLIC: int bdb_RandCommand __P((Tcl_Interp *, int, Tcl_Obj * CONST*));
- */
-int
-bdb_RandCommand(interp, objc, objv)
-	Tcl_Interp *interp;		/* Interpreter */
-	int objc;			/* How many arguments? */
-	Tcl_Obj *CONST objv[];		/* The argument objects */
-{
-	static char *rcmds[] = {
-		"rand",	"random_int",	"srand",
-		NULL
-	};
-	enum rcmds {
-		RRAND, RRAND_INT, RSRAND
-	};
-	long t;
-	int cmdindex, hi, lo, result, ret;
-	Tcl_Obj *res;
-	char msg[MSG_SIZE];
-
-	result = TCL_OK;
-	/*
-	 * Get the command name index from the object based on the cmds
-	 * defined above.  This SHOULD NOT fail because we already checked
-	 * in the 'berkdb' command.
-	 */
-	if (Tcl_GetIndexFromObj(interp,
-	    objv[1], rcmds, "command", TCL_EXACT, &cmdindex) != TCL_OK)
-		return (IS_HELP(objv[1]));
-
-	res = NULL;
-	switch ((enum rcmds)cmdindex) {
-	case RRAND:
-		/*
-		 * Must be 0 args.  Error if different.
-		 */
-		if (objc != 2) {
-			Tcl_WrongNumArgs(interp, 2, objv, NULL);
-			return (TCL_ERROR);
-		}
-		ret = rand();
-		res = Tcl_NewIntObj(ret);
-		break;
-	case RRAND_INT:
-		/*
-		 * Must be 4 args.  Error if different.
-		 */
-		if (objc != 4) {
-			Tcl_WrongNumArgs(interp, 2, objv, "lo hi");
-			return (TCL_ERROR);
-		}
-		result = Tcl_GetIntFromObj(interp, objv[2], &lo);
-		if (result != TCL_OK)
-			break;
-		result = Tcl_GetIntFromObj(interp, objv[3], &hi);
-		if (result == TCL_OK) {
-#ifndef RAND_MAX
-#define	RAND_MAX	0x7fffffff
-#endif
-			t = rand();
-			if (t > RAND_MAX) {
-				snprintf(msg, MSG_SIZE,
-				    "Max random is higher than %ld\n",
-				    (long)RAND_MAX);
-				Tcl_SetResult(interp, msg, TCL_VOLATILE);
-				result = TCL_ERROR;
-				break;
-			}
-			_debug_check();
-			ret = (int)(((double)t / ((double)(RAND_MAX) + 1)) *
-			    (hi - lo + 1));
-			ret += lo;
-			res = Tcl_NewIntObj(ret);
-		}
-		break;
-	case RSRAND:
-		/*
-		 * Must be 1 arg.  Error if different.
-		 */
-		if (objc != 3) {
-			Tcl_WrongNumArgs(interp, 2, objv, "seed");
-			return (TCL_ERROR);
-		}
-		result = Tcl_GetIntFromObj(interp, objv[2], &lo);
-		if (result == TCL_OK) {
-			srand((u_int)lo);
-			res = Tcl_NewIntObj(0);
-		}
-		break;
-	}
-	/*
-	 * Only set result if we have a res.  Otherwise, lower
-	 * functions have already done so.
-	 */
-	if (result == TCL_OK && res)
-		Tcl_SetObjResult(interp, res);
-	return (result);
-}
-
-/*
- *
- * tcl_Mutex --
- *	Opens an env mutex.
- *
- * PUBLIC: int tcl_Mutex __P((Tcl_Interp *, int, Tcl_Obj * CONST*, DB_ENV *,
- * PUBLIC:    DBTCL_INFO *));
- */
-int
-tcl_Mutex(interp, objc, objv, envp, envip)
-	Tcl_Interp *interp;             /* Interpreter */
-	int objc;                       /* How many arguments? */
-	Tcl_Obj *CONST objv[];          /* The argument objects */
-	DB_ENV *envp;			/* Environment pointer */
-	DBTCL_INFO *envip;		/* Info pointer */
-{
-	DBTCL_INFO *ip;
-	Tcl_Obj *res;
-	_MUTEX_DATA *md;
-	int i, mode, nitems, result, ret;
-	char newname[MSG_SIZE];
-
-	md = NULL;
-	result = TCL_OK;
-	mode = nitems = ret = 0;
-	memset(newname, 0, MSG_SIZE);
-
-	if (objc != 4) {
-		Tcl_WrongNumArgs(interp, 2, objv, "mode nitems");
-		return (TCL_ERROR);
-	}
-	result = Tcl_GetIntFromObj(interp, objv[2], &mode);
-	if (result != TCL_OK)
-		return (TCL_ERROR);
-	result = Tcl_GetIntFromObj(interp, objv[3], &nitems);
-	if (result != TCL_OK)
-		return (TCL_ERROR);
-
-	snprintf(newname, sizeof(newname),
-	    "%s.mutex%d", envip->i_name, envip->i_envmutexid);
-	ip = _NewInfo(interp, NULL, newname, I_MUTEX);
-	if (ip == NULL) {
-		Tcl_SetResult(interp, "Could not set up info",
-		    TCL_STATIC);
-		return (TCL_ERROR);
-	}
-	/*
-	 * Set up mutex.
-	 */
-	/*
-	 * Map in the region.
-	 *
-	 * XXX
-	 * We don't bother doing this "right", i.e., using the shalloc
-	 * functions, just grab some memory knowing that it's correctly
-	 * aligned.
-	 */
-	_debug_check();
-	if (__os_calloc(NULL, 1, sizeof(_MUTEX_DATA), &md) != 0)
-		goto posixout;
-	md->env = envp;
-	md->n_mutex = nitems;
-	md->size = sizeof(_MUTEX_ENTRY) * nitems;
-
-	md->reginfo.type = REGION_TYPE_MUTEX;
-	md->reginfo.id = INVALID_REGION_TYPE;
-	md->reginfo.mode = mode;
-	md->reginfo.flags = REGION_CREATE_OK | REGION_JOIN_OK;
-	if ((ret = __db_r_attach(envp, &md->reginfo, md->size)) != 0)
-		goto posixout;
-	md->marray = md->reginfo.addr;
-
-	/* Initialize a created region. */
-	if (F_ISSET(&md->reginfo, REGION_CREATE))
-		for (i = 0; i < nitems; i++) {
-			md->marray[i].val = 0;
-			if ((ret =
-			    __db_mutex_init(envp, &md->marray[i].m, i, 0)) != 0)
-				goto posixout;
-		}
-	R_UNLOCK(envp, &md->reginfo);
-
-	/*
-	 * Success.  Set up return.  Set up new info
-	 * and command widget for this mutex.
-	 */
-	envip->i_envmutexid++;
-	ip->i_parent = envip;
-	_SetInfoData(ip, md);
-	Tcl_CreateObjCommand(interp, newname,
-	    (Tcl_ObjCmdProc *)mutex_Cmd, (ClientData)md, NULL);
-	res = Tcl_NewStringObj(newname, strlen(newname));
-	Tcl_SetObjResult(interp, res);
-
-	return (TCL_OK);
-
-posixout:
-	if (ret > 0)
-		Tcl_PosixError(interp);
-	result = _ReturnSetup(interp, ret, "mutex");
-	_DeleteInfo(ip);
-
-	if (md != NULL) {
-		if (md->reginfo.addr != NULL)
-			(void)__db_r_detach(md->env,
-			    &md->reginfo, F_ISSET(&md->reginfo, REGION_CREATE));
-		__os_free(md, sizeof(*md));
-	}
-	return (result);
-}
-
-/*
- * mutex_Cmd --
- *	Implements the "mutex" widget.
- */
-static int
-mutex_Cmd(clientData, interp, objc, objv)
-	ClientData clientData;          /* Mutex handle */
-	Tcl_Interp *interp;             /* Interpreter */
-	int objc;                       /* How many arguments? */
-	Tcl_Obj *CONST objv[];          /* The argument objects */
-{
-	static char *mxcmds[] = {
-		"close",
-		"get",
-		"getval",
-		"release",
-		"setval",
-		NULL
-	};
-	enum mxcmds {
-		MXCLOSE,
-		MXGET,
-		MXGETVAL,
-		MXRELE,
-		MXSETVAL
-	};
-	DB_ENV *dbenv;
-	DBTCL_INFO *envip, *mpip;
-	_MUTEX_DATA *mp;
-	Tcl_Obj *res;
-	int cmdindex, id, result, newval;
-
-	Tcl_ResetResult(interp);
-	mp = (_MUTEX_DATA *)clientData;
-	mpip = _PtrToInfo((void *)mp);
-	envip = mpip->i_parent;
-	dbenv = envip->i_envp;
-	result = TCL_OK;
-
-	if (mp == NULL) {
-		Tcl_SetResult(interp, "NULL mp pointer", TCL_STATIC);
-		return (TCL_ERROR);
-	}
-	if (mpip == NULL) {
-		Tcl_SetResult(interp, "NULL mp info pointer", TCL_STATIC);
-		return (TCL_ERROR);
-	}
-
-	/*
-	 * Get the command name index from the object based on the dbcmds
-	 * defined above.
-	 */
-	if (Tcl_GetIndexFromObj(interp,
-	    objv[1], mxcmds, "command", TCL_EXACT, &cmdindex) != TCL_OK)
-		return (IS_HELP(objv[1]));
-
-	res = NULL;
-	switch ((enum mxcmds)cmdindex) {
-	case MXCLOSE:
-		if (objc != 2) {
-			Tcl_WrongNumArgs(interp, 1, objv, NULL);
-			return (TCL_ERROR);
-		}
-		_debug_check();
-		(void)__db_r_detach(mp->env, &mp->reginfo, 0);
-		res = Tcl_NewIntObj(0);
-		(void)Tcl_DeleteCommand(interp, mpip->i_name);
-		_DeleteInfo(mpip);
-		__os_free(mp, sizeof(*mp));
-		break;
-	case MXRELE:
-		/*
-		 * Check for 1 arg.  Error if different.
-		 */
-		if (objc != 3) {
-			Tcl_WrongNumArgs(interp, 2, objv, "id");
-			return (TCL_ERROR);
-		}
-		result = Tcl_GetIntFromObj(interp, objv[2], &id);
-		if (result != TCL_OK)
-			break;
-		MUTEX_UNLOCK(dbenv, &mp->marray[id].m);
-		res = Tcl_NewIntObj(0);
-		break;
-	case MXGET:
-		/*
-		 * Check for 1 arg.  Error if different.
-		 */
-		if (objc != 3) {
-			Tcl_WrongNumArgs(interp, 2, objv, "id");
-			return (TCL_ERROR);
-		}
-		result = Tcl_GetIntFromObj(interp, objv[2], &id);
-		if (result != TCL_OK)
-			break;
-		MUTEX_LOCK(dbenv, &mp->marray[id].m, mp->env->lockfhp);
-		res = Tcl_NewIntObj(0);
-		break;
-	case MXGETVAL:
-		/*
-		 * Check for 1 arg.  Error if different.
-		 */
-		if (objc != 3) {
-			Tcl_WrongNumArgs(interp, 2, objv, "id");
-			return (TCL_ERROR);
-		}
-		result = Tcl_GetIntFromObj(interp, objv[2], &id);
-		if (result != TCL_OK)
-			break;
-		res = Tcl_NewIntObj(mp->marray[id].val);
-		break;
-	case MXSETVAL:
-		/*
-		 * Check for 2 args.  Error if different.
-		 */
-		if (objc != 4) {
-			Tcl_WrongNumArgs(interp, 2, objv, "id val");
-			return (TCL_ERROR);
-		}
-		result = Tcl_GetIntFromObj(interp, objv[2], &id);
-		if (result != TCL_OK)
-			break;
-		result = Tcl_GetIntFromObj(interp, objv[3], &newval);
-		if (result != TCL_OK)
-			break;
-		mp->marray[id].val = newval;
-		res = Tcl_NewIntObj(0);
-		break;
-	}
-	/*
-	 * Only set result if we have a res.  Otherwise, lower
-	 * functions have already done so.
-	 */
-	if (result == TCL_OK && res)
-		Tcl_SetObjResult(interp, res);
-	return (result);
-}
+#endif /* CONFIG_TEST */

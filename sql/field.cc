@@ -4316,17 +4316,15 @@ int Field_blob::store(const char *from,uint len,CHARSET_INFO *cs)
 
 int Field_blob::store(double nr)
 {
-  value.set(nr);
-  return Field_blob::store(value.ptr(),(uint) value.length(),
-			   default_charset_info);
+  value.set(nr,2,my_thd_charset);
+  return Field_blob::store(value.ptr(),(uint) value.length(), value.charset());
 }
 
 
 int Field_blob::store(longlong nr)
 {
-  value.set(nr);
-  return Field_blob::store(value.ptr(), (uint) value.length(),
-			   default_charset_info);
+  value.set(nr,my_thd_charset);
+  return Field_blob::store(value.ptr(), (uint) value.length(), value.charset());
 }
 
 
@@ -5285,19 +5283,19 @@ Field *make_field(char *ptr, uint32 field_length,
 			  unireg_check, field_name, table);
   case FIELD_TYPE_DATE:
     return new Field_date(ptr,null_pos,null_bit,
-			  unireg_check, field_name, table);
+			  unireg_check, field_name, table, field_charset);
   case FIELD_TYPE_NEWDATE:
     return new Field_newdate(ptr,null_pos,null_bit,
-			     unireg_check, field_name, table);
+			     unireg_check, field_name, table, field_charset);
   case FIELD_TYPE_TIME:
     return new Field_time(ptr,null_pos,null_bit,
-			  unireg_check, field_name, table);
+			  unireg_check, field_name, table, field_charset);
   case FIELD_TYPE_DATETIME:
     return new Field_datetime(ptr,null_pos,null_bit,
-			      unireg_check, field_name, table);
+			      unireg_check, field_name, table, field_charset);
   case FIELD_TYPE_NULL:
     default:					// Impossible (Wrong version)
-    return new Field_null(ptr,field_length,unireg_check,field_name,table);
+    return new Field_null(ptr,field_length,unireg_check,field_name,table, field_charset);
   }
   return 0;					// Impossible (Wrong version)
 }

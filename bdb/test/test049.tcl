@@ -1,11 +1,12 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999, 2000
+# Copyright (c) 1999-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test049.tcl,v 11.15 2000/08/25 14:21:56 sue Exp $
+# $Id: test049.tcl,v 11.21 2002/05/22 15:42:53 sue Exp $
 #
-# Test 049: Test of each cursor routine with unitialized cursors
+# TEST	test049
+# TEST	Cursor operations on uninitialized cursors.
 proc test049 { method args } {
 	global errorInfo
 	global errorCode
@@ -17,7 +18,7 @@ proc test049 { method args } {
 	set args [convert_args $method $args]
 	set omethod [convert_method $method]
 
-	puts "\tTest$tstn: Test of cursor routines with unitialized cursors."
+	puts "\tTest$tstn: Test of cursor routines with uninitialized cursors."
 
 	set key	"key"
 	set data	"data"
@@ -30,6 +31,7 @@ proc test049 { method args } {
 	}
 
 	puts "\tTest$tstn.a: Create $method database."
+	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
 	#
 	# If we are using an env, then testfile should just be the db name.
@@ -41,34 +43,53 @@ proc test049 { method args } {
 		set testfile test0$tstn.db
 		incr eindex
 		set env [lindex $args $eindex]
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+		}
+		set testdir [get_home $env]
 	}
 	set t1 $testdir/t1
 	cleanup $testdir $env
 
-	set oflags "-create -truncate -mode 0644 $rflags $omethod $args"
+	set oflags "-create -mode 0644 $rflags $omethod $args"
 	if { [is_record_based $method] == 0 && [is_rbtree $method] != 1 } {
 		append oflags " -dup"
 	}
 	set db [eval {berkdb_open_noerr} $oflags $testfile]
 	error_check_good dbopen [is_valid_db $db] TRUE
 
-	set dbc_u [$db cursor]
-	error_check_good db:cursor [is_substr $dbc_u $db] 1
-
 	set nkeys 10
 	puts "\tTest$tstn.b: Fill page with $nkeys small key/data pairs."
 	for { set i 1 } { $i <= $nkeys } { incr i } {
-		set ret [$db put $key$i $data$i]
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
+		set ret [eval {$db put} $txn {$key$i $data$i}]
 		error_check_good dbput:$i $ret 0
 		if { $i == 1 } {
 			for {set j 0} { $j < [expr $nkeys / 2]} {incr j} {
-				set ret [$db put $key$i DUPLICATE$j]
+				set ret [eval {$db put} $txn \
+				    {$key$i DUPLICATE$j}]
 				error_check_good dbput:dup:$j $ret 0
 			}
+		}
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
 		}
 	}
 
 	# DBC GET
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
+	set dbc_u [eval {$db cursor} $txn]
+	error_check_good db:cursor [is_valid_cursor $dbc_u $db] TRUE
+
 	puts "\tTest$tstn.c: Test dbc->get interfaces..."
 	set i 0
 	foreach flag { current first last next prev nextdup} {
@@ -112,7 +133,7 @@ proc test049 { method args } {
 
 				# now uninitialize cursor
 				error_check_good dbc_close [$dbc_u close] 0
-				set dbc_u [$db cursor]
+				set dbc_u [eval {$db cursor} $txn]
 				error_check_good \
 				    db_cursor [is_substr $dbc_u $db] 1
 			}
@@ -154,6 +175,9 @@ proc test049 { method args } {
 	error_check_good dbc_del [is_substr $errorCode EINVAL] 1
 
 	error_check_good dbc_close [$dbc_u close] 0
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 	error_check_good db_close [$db close] 0
 
 	puts "\tTest$tstn complete."

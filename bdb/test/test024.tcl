@@ -1,12 +1,13 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test024.tcl,v 11.14 2000/08/25 14:21:55 sue Exp $
+# $Id: test024.tcl,v 11.19 2002/05/22 15:42:48 sue Exp $
 #
-# DB Test 24 {method nentries}
-# Test the Btree and Record number get-by-number functionality.
+# TEST	test024
+# TEST	Record number retrieval test.
+# TEST	Test the Btree and Record number get-by-number functionality.
 proc test024 { method {nentries 10000} args} {
 	source ./include.tcl
 	global rand_init
@@ -25,6 +26,7 @@ proc test024 { method {nentries 10000} args} {
 	berkdb srand $rand_init
 
 	# Create the database and open the dictionary
+	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
 	#
 	# If we are using an env, then testfile should just be the db name.
@@ -36,6 +38,18 @@ proc test024 { method {nentries 10000} args} {
 		set testfile test024.db
 		incr eindex
 		set env [lindex $args $eindex]
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+			#
+			# If we are using txns and running with the
+			# default, set the default down a bit.
+			#
+			if { $nentries == 10000 } {
+				set nentries 100
+			}
+		}
+		set testdir [get_home $env]
 	}
 	set t1 $testdir/t1
 	set t2 $testdir/t2
@@ -59,11 +73,11 @@ proc test024 { method {nentries 10000} args} {
 	set sorted_keys [lsort $keys]
 	# Create the database
 	if { [string compare $omethod "-btree"] == 0 } {
-		set db [eval {berkdb_open -create -truncate \
+		set db [eval {berkdb_open -create \
 			-mode 0644 -recnum} $args {$omethod $testfile}]
 		error_check_good dbopen [is_valid_db $db] TRUE
 	} else  {
-		set db [eval {berkdb_open -create -truncate \
+		set db [eval {berkdb_open -create \
 			-mode 0644} $args {$omethod $testfile}]
 		error_check_good dbopen [is_valid_db $db] TRUE
 	}
@@ -84,12 +98,20 @@ proc test024 { method {nentries 10000} args} {
 		} else {
 			set key $k
 		}
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
 		set ret [eval {$db put} \
 		    $txn $pflags {$key [chop_data $method $k]}]
 		error_check_good put $ret 0
 		set ret [eval {$db get} $txn $gflags {$key}]
 		error_check_good \
 		    get $ret [list [list $key [pad_data $method $k]]]
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
+		}
 	}
 
 	# Now we will get each key from the DB and compare the results
@@ -111,13 +133,21 @@ proc test024 { method {nentries 10000} args} {
 
 	set gflags " -recno"
 
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
 	for { set k 1 } { $k <= $count } { incr k } {
-	set ret [eval {$db get} $txn $gflags {$k}]
+		set ret [eval {$db get} $txn $gflags {$k}]
 		puts $oid [lindex [lindex $ret 0] 1]
 		error_check_good recnum_get [lindex [lindex $ret 0] 1] \
 		    [pad_data $method [lindex $sorted_keys [expr $k - 1]]]
 	}
 	close $oid
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 	error_check_good db_close [$db close] 0
 
 	error_check_good Test024.c:diff($t1,$t2) \
@@ -128,11 +158,19 @@ proc test024 { method {nentries 10000} args} {
 	set db [eval {berkdb_open -rdonly} $args $testfile]
 	error_check_good dbopen [is_valid_db $db] TRUE
 	set oid [open $t2 w]
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
 	for { set k 1 } { $k <= $count } { incr k } {
-	set ret [eval {$db get} $txn $gflags {$k}]
+		set ret [eval {$db get} $txn $gflags {$k}]
 		puts $oid [lindex [lindex $ret 0] 1]
 		error_check_good recnum_get [lindex [lindex $ret 0] 1] \
 		    [pad_data $method [lindex $sorted_keys [expr $k - 1]]]
+	}
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
 	}
 	close $oid
 	error_check_good db_close [$db close] 0
@@ -155,11 +193,19 @@ proc test024 { method {nentries 10000} args} {
 	close $oid
 
 	set oid [open $t2 w]
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
 	for { set k $count } { $k > 0 } { incr k -1 } {
-	set ret [eval {$db get} $txn $gflags {$k}]
+		set ret [eval {$db get} $txn $gflags {$k}]
 		puts $oid [lindex [lindex $ret 0] 1]
 		error_check_good recnum_get [lindex [lindex $ret 0] 1] \
 		    [pad_data $method [lindex $sorted_keys [expr $k - 1]]]
+	}
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
 	}
 	close $oid
 	error_check_good db_close [$db close] 0
@@ -175,12 +221,20 @@ proc test024 { method {nentries 10000} args} {
 		set kval [lindex $keys [expr $kndx - 1]]
 		set recno [expr [lsearch $sorted_keys $kval] + 1]
 
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
 		if { [is_record_based $method] == 1 } {
 			set ret [eval {$db del} $txn {$recno}]
 		} else {
 			set ret [eval {$db del} $txn {$kval}]
 		}
 		error_check_good delete $ret 0
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
+		}
 
 		# Remove the key from the key list
 		set ndx [expr $kndx - 1]
@@ -192,11 +246,19 @@ proc test024 { method {nentries 10000} args} {
 		}
 
 		# Check that the keys after it have been renumbered
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
 		if { $do_renumber == 1 && $recno != $count } {
 			set r [expr $recno - 1]
 			set ret [eval {$db get} $txn $gflags {$recno}]
 			error_check_good get_after_del \
 			    [lindex [lindex $ret 0] 1] [lindex $sorted_keys $r]
+		}
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
 		}
 
 		# Decrement count

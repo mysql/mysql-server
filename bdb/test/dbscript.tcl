@@ -1,12 +1,13 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: dbscript.tcl,v 11.10 2000/04/21 18:36:21 krinsky Exp $
+# $Id: dbscript.tcl,v 11.14 2002/04/01 16:28:16 bostic Exp $
 #
 # Random db tester.
 # Usage: dbscript file numops min_del max_add key_avg data_avgdups
+# method: method (we pass this in so that fixed-length records work)
 # file: db file on which to operate
 # numops: number of operations to do
 # ncurs: number of cursors
@@ -22,26 +23,25 @@ source ./include.tcl
 source $test_path/test.tcl
 source $test_path/testutils.tcl
 
-set alphabet "abcdefghijklmnopqrstuvwxyz"
-
 set usage "dbscript file numops ncurs min_del max_add key_avg data_avg dups errpcnt"
 
 # Verify usage
-if { $argc != 9 } {
+if { $argc != 10 } {
 	puts stderr "FAIL:[timestamp] Usage: $usage"
 	exit
 }
 
 # Initialize arguments
-set file [lindex $argv 0]
-set numops [ lindex $argv 1 ]
-set ncurs [ lindex $argv 2 ]
-set min_del [ lindex $argv 3 ]
-set max_add [ lindex $argv 4 ]
-set key_avg [ lindex $argv 5 ]
-set data_avg [ lindex $argv 6 ]
-set dups [ lindex $argv 7 ]
-set errpct [ lindex $argv 8 ]
+set method [lindex $argv 0]
+set file [lindex $argv 1]
+set numops [ lindex $argv 2 ]
+set ncurs [ lindex $argv 3 ]
+set min_del [ lindex $argv 4 ]
+set max_add [ lindex $argv 5 ]
+set key_avg [ lindex $argv 6 ]
+set data_avg [ lindex $argv 7 ]
+set dups [ lindex $argv 8 ]
+set errpct [ lindex $argv 9 ]
 
 berkdb srand $rand_init
 
@@ -68,7 +68,7 @@ if {$cerr != 0} {
 	puts $cret
 	return
 }
-set method [$db get_type]
+# set method [$db get_type]
 set record_based [is_record_based $method]
 
 # Initialize globals including data

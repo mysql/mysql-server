@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: mpoolscript.tcl,v 11.12 2000/05/05 15:23:47 sue Exp $
+# $Id: mpoolscript.tcl,v 11.16 2002/04/29 14:47:16 sandstro Exp $
 #
 # Random multiple process mpool tester.
 # Usage: mpoolscript dir id numiters numfiles numpages sleepint
@@ -61,7 +61,7 @@ foreach i $pgsizes {
 }
 
 set cache [list 0 [expr $maxprocs * ([lindex $pgsizes 0] + $max)] 1]
-set env_cmd {berkdb env -lock -cachesize $cache -home $dir}
+set env_cmd {berkdb_env -lock -cachesize $cache -home $dir}
 set e [eval $env_cmd $flags]
 error_check_good env_open [is_valid_env $e] TRUE
 
@@ -78,7 +78,8 @@ foreach psize $pgsizes {
 puts "Establishing long-term pin on file 0 page $id for process $id"
 
 # Set up the long-pin page
-set lock [$e lock_get write $id 0:$id]
+set locker [$e lock_id]
+set lock [$e lock_get write $locker 0:$id]
 error_check_good lock_get [is_valid_lock $lock $e] TRUE
 
 set mp [lindex $mpools 0]
@@ -109,7 +110,7 @@ for { set iter 0 } { $iter < $numiters } { incr iter } {
 
 		set mpf [lindex $mpools $fnum]
 		for { set p 0 } { $p < $numpages } { incr p } {
-			set lock [$e lock_get write $id $fnum:$p]
+			set lock [$e lock_get write $locker $fnum:$p]
 			error_check_good lock_get:$fnum:$p \
 			    [is_valid_lock $lock $e] TRUE
 

@@ -3624,9 +3624,9 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       case STRING_RESULT:
 	if (item_sum->max_length > 255)
 	  return  new Field_blob(item_sum->max_length,maybe_null,
-				 item->name,table,item->str_value.charset());
+				 item->name,table,item->charset());
 	return	new Field_string(item_sum->max_length,maybe_null,
-				 item->name,table,item->str_value.charset());
+				 item->name,table,item->charset());
       }
     }
     thd->fatal_error=1;

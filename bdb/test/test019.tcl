@@ -1,12 +1,12 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test019.tcl,v 11.14 2000/08/25 14:21:54 sue Exp $
+# $Id: test019.tcl,v 11.21 2002/05/22 15:42:47 sue Exp $
 #
-# Test019 { access_method nentries }
-# Test the partial get functionality.
+# TEST	test019
+# TEST	Partial get test.
 proc test019 { method {nentries 10000} args } {
 	global fixed_len
 	global rand_init
@@ -14,9 +14,8 @@ proc test019 { method {nentries 10000} args } {
 
 	set args [convert_args $method $args]
 	set omethod [convert_method $method]
-	puts "Test019: $method ($args) $nentries partial get test"
-
 	# Create the database and open the dictionary
+	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
 	#
 	# If we are using an env, then testfile should just be the db name.
@@ -28,11 +27,25 @@ proc test019 { method {nentries 10000} args } {
 		set testfile test019.db
 		incr eindex
 		set env [lindex $args $eindex]
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+			#
+			# If we are using txns and running with the
+			# default, set the default down a bit.
+			#
+			if { $nentries == 10000 } {
+				set nentries 100
+			}
+		}
+		set testdir [get_home $env]
 	}
+	puts "Test019: $method ($args) $nentries partial get test"
+
 	cleanup $testdir $env
 
 	set db [eval {berkdb_open \
-	     -create -truncate -mode 0644} $args {$omethod $testfile}]
+	     -create -mode 0644} $args {$omethod $testfile}]
 	error_check_good dbopen [is_valid_db $db] TRUE
 	set did [open $dict]
 	berkdb srand $rand_init
@@ -57,6 +70,11 @@ proc test019 { method {nentries 10000} args } {
 		}
 		set repl [berkdb random_int $fixed_len 100]
 		set data [chop_data $method [replicate $str $repl]]
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
 		set ret [eval {$db put} $txn {-nooverwrite $key $data}]
 		error_check_good dbput:$key $ret 0
 
@@ -64,6 +82,9 @@ proc test019 { method {nentries 10000} args } {
 		error_check_good \
 		    dbget:$key $ret [list [list $key [pad_data $method $data]]]
 		set kvals($key) $repl
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
+		}
 	}
 	close $did
 
@@ -76,18 +97,23 @@ proc test019 { method {nentries 10000} args } {
 		} else {
 			set key $str
 		}
-		set data [replicate $str $kvals($key)]
+		set data [pad_data $method [replicate $str $kvals($key)]]
 
-		if { [is_fixed_length $method] == 1 } {
-			set maxndx $fixed_len
-		} else {
-			set maxndx [expr [string length $data] - 1]
-		}
+		set maxndx [expr [string length $data] - 1]
+
 		set beg [berkdb random_int 0 [expr $maxndx - 1]]
-		set len [berkdb random_int 1 [expr $maxndx - $beg]]
+		set len [berkdb random_int 0 [expr $maxndx * 2]]
 
+		if { $txnenv == 1 } {
+			set t [$env txn]
+			error_check_good txn [is_valid_txn $t $env] TRUE
+			set txn "-txn $t"
+		}
 		set ret [eval {$db get} \
 		    $txn {-partial [list $beg $len]} $gflags {$key}]
+		if { $txnenv == 1 } {
+			error_check_good txn [$t commit] 0
+		}
 
 		# In order for tcl to handle this, we have to overwrite the
 		# last character with a NULL.  That makes the length one less
@@ -95,12 +121,10 @@ proc test019 { method {nentries 10000} args } {
 		set k [lindex [lindex $ret 0] 0]
 		set d [lindex [lindex $ret 0] 1]
 		error_check_good dbget_key $k $key
-		# If $d contains some of the padding, we want to get rid of it.
-		set firstnull [string first "\0" $d]
-		if { $firstnull == -1 } { set firstnull [string length $d] }
-		error_check_good dbget_data \
-		    [string range $d 0 [expr $firstnull - 1]] \
+
+		error_check_good dbget_data $d \
 		    [string range $data $beg [expr $beg + $len - 1]]
+
 	}
 	error_check_good db_close [$db close] 0
 	close $did

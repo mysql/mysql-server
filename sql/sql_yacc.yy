@@ -712,7 +712,7 @@ help:
        LEX *lex= Lex;
        lex->sql_command= SQLCOM_HELP;
        lex->help_arg= $2.str;
-       }
+       };
 
 /* change master */
 

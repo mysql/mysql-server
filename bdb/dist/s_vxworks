@@ -1,5 +1,5 @@
 #!/bin/sh -
-#	$Id: s_vxworks,v 1.3 2000/07/13 18:38:46 bostic Exp $
+#	$Id: s_vxworks,v 1.37 2002/08/19 21:27:06 bostic Exp $
 #
 # Build the VxWorks files.
 
@@ -7,15 +7,26 @@ msgc="/* DO NOT EDIT: automatically built by dist/s_vxworks. */"
 
 . RELEASE
 
-t=/tmp/__db_$$
-rm -f $t
+s=/tmp/__db_a
+t=/tmp/__db_b
+vxfilelist=/tmp/__db_c
 
-trap 'rm -f $t ; exit 1' 1 2 3 13 15
+trap 'rm -f $s $t $vxfilelist ; exit 0' 0
+trap 'rm -f $s $t $vxfilelist ; exit 1' 1 2 3 13 15
 
+# Build the VxWorks automatically generated files.
 f=../build_vxworks/db.h
-echo "Building $f"
-rm -f $f
-cat <<ENDOFSEDTEXT > $t
+cat <<ENDOFSEDTEXT > $s
+/extern "C" {/{
+n
+n
+i\\
+\\
+/* Tornado 2 does not provide a standard C pre-processor #define. */\\
+#ifndef __vxworks\\
+#define	__vxworks\\
+#endif
+}
 s/@u_int8_decl@/typedef unsigned char u_int8_t;/
 s/@u_int16_decl@/typedef unsigned short u_int16_t;/
 s/@u_int32_decl@/typedef unsigned int u_int32_t;/
@@ -30,19 +41,284 @@ s/@DB_VERSION_MAJOR@/$DB_VERSION_MAJOR/
 s/@DB_VERSION_MINOR@/$DB_VERSION_MINOR/
 s/@DB_VERSION_PATCH@/$DB_VERSION_PATCH/
 s/@DB_VERSION_STRING@/"$DB_VERSION_STRING"/
+s/@DB_VERSION_UNIQUE_NAME@//
 ENDOFSEDTEXT
-(echo "$msgc" && sed -f $t ../include/db.src) > $f
-chmod 444 $f
+(echo "$msgc" &&
+    sed -f $s ../dbinc/db.in &&
+    cat ../dbinc_auto/rpc_defs.in &&
+    cat ../dbinc_auto/ext_prot.in) > $t
+cmp $t $f > /dev/null 2>&1 ||
+    (echo "Building $f" && rm -f $f && cp $t $f && chmod 444 $f)
 
 f=../build_vxworks/db_int.h
-echo "Building $f"
-rm -f $f
-cat <<ENDOFSEDTEXT > $t
+cat <<ENDOFSEDTEXT > $s
 s/\(PATH_SEPARATOR[^"]*"\)\/"/\1\/\\\\\\\\\\"/
 s/@db_align_t_decl@/typedef unsigned long db_align_t;/
 s/@db_alignp_t_decl@/typedef unsigned long db_alignp_t;/
+s/@db_int_def@//
 ENDOFSEDTEXT
-(echo "$msgc" && sed -f $t ../include/db_int.src) > $f
-chmod 444 $f
+(echo "$msgc" && sed -f $s ../dbinc/db_int.in) > $t
+cmp $t $f > /dev/null 2>&1 ||
+    (echo "Building $f" && rm -f $f && cp $t $f && chmod 444 $f)
 
-rm -f $t
+f=../build_vxworks/db_config.h
+(echo "$msgc" && sed "s/__EDIT_DB_VERSION__/$DB_VERSION/" vx_config.in) > $t
+cmp $t $f > /dev/null 2>&1 ||
+    (echo "Building $f" && rm -f $f && cp $t $f && chmod 444 $f)
+
+# Build a sed script that will change a "standard" DB utility into
+# VxWorks-compatible code.
+transform()
+{
+	# Build a sed script that will add argument parsing support and
+	# rename all of the functions to be private to this file.
+cat <<ENDOFSEDTEXT
+/^main(argc, argv)$/{
+i\\
+$1(args)\\
+\\	char *args;\\
+{\\
+\\	int argc;\\
+\\	char **argv;\\
+\\
+\\	__db_util_arg("$1", args, &argc, &argv);\\
+\\	return ($1_main(argc, argv) ? EXIT_FAILURE : EXIT_SUCCESS);\\
+}\\
+\\
+#include <stdio.h>\\
+#define	ERROR_RETURN	ERROR\\
+\\
+int\\
+$1_main(argc, argv)
+d
+}
+/^	while ((ch = getopt/i\\
+\\	__db_getopt_reset = 1;
+/^[	]*extern int optind;/s/;/, __db_getopt_reset;/
+ENDOFSEDTEXT
+
+	# Replace all function names with VxWorks safe names.
+	# Function names are:
+	#	Tokens starting at the beginning of the line, immediately
+	#	followed by an opening parenthesis.
+	# Replace:
+	#	Matches preceded by a non-C-token character and immediately
+	#	followed by an opening parenthesis.
+	#	Matches preceded by a non-C-token character and immediately
+	#	followed by " __P".
+	#	Matches starting at the beginning of the line, immediately
+	#	followed by an opening parenthesis.
+	for k in `sed -e 's/^\([a-zA-Z_][a-zA-Z0-9_]*\)(.*$/\1/p' -e d $2`; do
+		echo "s/\([^a-zA-Z0-9_]\)\($k(\)/\1$1_\2/g"
+		echo "s/\([^a-zA-Z0-9_]\)\($k[	 ]__P\)/\1$1_\2/g"
+		echo "s/^\($k(\)/$1_\1/g"
+	done
+
+	# There is a special case the rules above don't catch:
+	#	a txn_compare function used as an argument to qsort(3).
+	#	a print_app_record function used as argument to
+	#	    dbenv->set_app_dispatch).
+	echo "s/, txn_compare);/, db_stat_txn_compare);/"
+	echo "s/, print_app_record)) /, db_printlog_print_app_record)) /"
+
+	# We convert the ex_access sample into dbdemo for VxWorks.
+	echo 's/progname = "ex_access";/progname = "dbdemo";/'
+
+	# The example programs have to load db_int.h, not db.h -- else
+	# they won't have the right Berkeley DB prototypes for getopt
+	# and friends.
+	echo '/#include.*db.h/c\'
+	echo '#include <db_config.h>\'
+	echo '#include <db_int.h>'
+}
+
+PROGRAM_LIST="db_archive db_checkpoint db_deadlock db_dump db_load \
+    db_printlog db_recover db_stat db_upgrade db_verify ex_access"
+
+# Build VxWorks versions of the utilities.
+for i in $PROGRAM_LIST; do
+	if [ $i = "ex_access" ]; then
+		target=dbdemo
+		dir=../examples_c
+	else
+		target=$i
+		dir=../$i
+	fi
+
+	transform $target $dir/$i.c > $s
+	sed -f $s < $dir/$i.c > $t
+
+	f=../build_vxworks/$target/$target.c
+	cmp $t $f > /dev/null 2>&1 ||
+	    (echo "Building $f" && rm -f $f && cp $t $f && chmod 444 $f)
+done
+
+# Build VxWorks Tornado 2.0 project files for the utilities.
+for i in $PROGRAM_LIST; do
+	if [ $i = "ex_access" ]; then
+		target=dbdemo
+		dir=../examples_c
+	else
+		target=$i
+		dir=../$i
+	fi
+
+	sed "s/__DB_APPLICATION_NAME__/$target/g" < vx_2.0/wpj.in > $t
+	f=../build_vxworks/$target/$target.wpj
+	cmp $t $f > /dev/null 2>&1 ||
+	    (echo "Building $f" && rm -f $f && cp $t $f && chmod 444 $f)
+done
+
+# Build the list of files VxWorks knows about.
+sed -e '/^$/d' -e '/^[	 #]/d' srcfiles.in |
+    egrep -w vx |
+    sed 's/[	 ].*//' > $vxfilelist
+
+# Build VxWorks Tornado 2.0 project files for the library itself.
+(cat vx_2.0/BerkeleyDB.wpj
+for i in `cat $vxfilelist`; do
+	o="<BEGIN> FILE_\$(PRJ_DIR)/../$i"
+	echo "${o}_dependDone"
+	echo "TRUE"
+	echo "<END>"
+	echo
+	echo "${o}_dependencies"
+	echo "\$(PRJ_DIR)/db_config.h \\"
+	echo "	\$(PRJ_DIR)/db_int.h \\"
+	echo "	\$(PRJ_DIR)/db.h"
+	echo "<END>"
+	echo
+	echo "${o}_objects"
+	echo "`basename $i .c`.o"
+	echo "<END>"
+	echo
+	echo "${o}_tool"
+	echo "C/C++ compiler"
+	echo "<END>"
+	echo
+done
+echo "<BEGIN> PROJECT_FILES"
+sed -e '$!s/$/ \\/' \
+    -e 's/^/$(PRJ_DIR)\/..\//' \
+    -e '1!s/^/	/' < $vxfilelist
+echo "<END>"
+echo
+echo "<BEGIN> userComments"
+echo "BerkeleyDB"
+echo "<END>") > $t
+f=../build_vxworks/BerkeleyDB.wpj
+cmp $t $f > /dev/null 2>&1 ||
+    (echo "Building $f" && rm -f $f && cp $t $f && chmod 444 $f)
+
+# Build VxWorks Tornado 3.1 project files for the utilities.
+for i in $PROGRAM_LIST; do
+	if [ $i = "ex_access" ]; then
+		target=dbdemo
+		dir=../examples_c
+	else
+		target=$i
+		dir=../$i
+	fi
+
+	cp vx_3.1/Makefile.custom $t
+	f=../build_vxworks/$target/$target/Makefile.custom
+	cmp $t $f > /dev/null 2>&1 ||
+	    (echo "Building $f" && rm -f $f && cp $t $f && chmod 444 $f)
+
+	for j in component.cdf component.wpj; do
+		#
+		# Some parts of the component files needs to have the
+		# name in all capitals.  Sigh.
+		#
+		z=`echo $target | tr "a-z" "A-Z"`
+		sed -e "s/__DB_APPLICATION_NAME__/$target/g" \
+		    -e "s/__DB_CAPAPPL_NAME__/$z/g" < vx_3.1/$j > $t
+		f=../build_vxworks/$target/$target/$j
+		cmp $t $f > /dev/null 2>&1 ||
+		    (echo "Building $f" && rm -f $f && cp $t $f && chmod 444 $f)
+	done
+done
+
+# Build VxWorks Tornado 3.1 project files for the library itself.
+cp vx_3.1/Makefile.custom $t
+f=../build_vxworks/BerkeleyDB/Makefile.custom
+cmp $t $f > /dev/null 2>&1 ||
+    (echo "Building $f" && rm -f $f && cp $t $f && chmod 444 $f)
+
+(cat vx_3.1/cdf.1
+echo -n "	MODULES"
+for i in `cat $vxfilelist`; do
+	echo "			`basename $i .c`.o"
+done | sort | sed -e '$!s/$/ \\/'
+cat vx_3.1/cdf.2
+for i in `cat $vxfilelist`; do
+	b="`basename $i .c`.o"
+	echo "Module $b {"
+	echo
+	echo "	NAME		$b"
+	echo "	SRC_PATH_NAME	\$(PRJ_DIR)/../../$i"
+	echo "}"
+	echo
+done
+cat vx_3.1/cdf.3)> $t
+f=../build_vxworks/BerkeleyDB/component.cdf
+cmp $t $f > /dev/null 2>&1 ||
+    (echo "Building $f" && rm -f $f && cp $t $f && chmod 444 $f)
+
+(cat vx_3.1/wpj.1
+for i in `cat $vxfilelist`; do
+	o="<BEGIN> BUILD_PENTIUM2gnu.debug_FILE_\$(PRJ_DIR)/../../$i"
+	echo "${o}_infoTags"
+	echo "toolMacro objects"
+	echo "<END>"
+	echo
+	echo "${o}_objects"
+	echo "`basename $i .c`.o"
+	echo "<END>"
+	echo
+	echo "${o}_toolMacro"
+	echo "CC"
+	echo "<END>"
+	echo
+done
+cat vx_3.1/wpj.2
+for i in `cat $vxfilelist`; do
+	o="<BEGIN> BUILD_PENTIUM2gnu.release_FILE_\$(PRJ_DIR)/../../$i"
+	echo "${o}_infoTags"
+	echo "toolMacro objects"
+	echo "<END>"
+	echo
+	echo "${o}_objects"
+	echo "`basename $i .c`.o"
+	echo "<END>"
+	echo
+	echo "${o}_toolMacro"
+	echo "CC"
+	echo "<END>"
+	echo
+done
+cat vx_3.1/wpj.3
+for i in `cat $vxfilelist`; do
+	o="<BEGIN> BUILD_PENTIUMgnu.debug_FILE_\$(PRJ_DIR)/../../$i"
+	echo "${o}_infoTags"
+	echo "toolMacro objects"
+	echo "<END>"
+	echo
+	echo "${o}_objects"
+	echo "`basename $i .c`.o"
+	echo "<END>"
+	echo
+	echo "${o}_toolMacro"
+	echo "CC"
+	echo "<END>"
+	echo
+done
+cat vx_3.1/wpj.4
+sort $vxfilelist |
+sed -e 's/^/$(PRJ_DIR)\/..\/..\//' \
+    -e '1!s/^/	/' \
+    -e '$!s/$/ \\/'
+cat vx_3.1/wpj.5) > $t
+f=../build_vxworks/BerkeleyDB/component.wpj
+cmp $t $f > /dev/null 2>&1 ||
+    (echo "Building $f" && rm -f $f && cp $t $f && chmod 444 $f)
