@@ -6,12 +6,12 @@ begin;
 insert into t1 values(1);
 insert into t2 select * from t1;
 commit;
-show binlog events from 96;
+show binlog events from 98;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	96	Query	1	#	use `test`; BEGIN
-master-bin.000001	165	Query	1	#	use `test`; insert into t1 values(1)
-master-bin.000001	253	Query	1	#	use `test`; insert into t2 select * from t1
-master-bin.000001	348	Xid	1	#	COMMIT /* xid=7 */
+master-bin.000001	98	Query	1	#	use `test`; BEGIN
+master-bin.000001	167	Query	1	#	use `test`; insert into t1 values(1)
+master-bin.000001	255	Query	1	#	use `test`; insert into t2 select * from t1
+master-bin.000001	350	Xid	1	#	COMMIT /* xid=7 */
 delete from t1;
 delete from t2;
 reset master;
@@ -21,12 +21,12 @@ insert into t2 select * from t1;
 rollback;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
-show binlog events from 96;
+show binlog events from 98;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	96	Query	1	#	use `test`; BEGIN
-master-bin.000001	165	Query	1	#	use `test`; insert into t1 values(2)
-master-bin.000001	253	Query	1	#	use `test`; insert into t2 select * from t1
-master-bin.000001	348	Query	1	#	use `test`; ROLLBACK
+master-bin.000001	98	Query	1	#	use `test`; BEGIN
+master-bin.000001	167	Query	1	#	use `test`; insert into t1 values(2)
+master-bin.000001	255	Query	1	#	use `test`; insert into t2 select * from t1
+master-bin.000001	350	Query	1	#	use `test`; ROLLBACK
 delete from t1;
 delete from t2;
 reset master;
@@ -39,15 +39,15 @@ rollback to savepoint my_savepoint;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 commit;
-show binlog events from 96;
+show binlog events from 98;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	96	Query	1	#	use `test`; BEGIN
-master-bin.000001	165	Query	1	#	use `test`; insert into t1 values(3)
-master-bin.000001	253	Query	1	#	use `test`; savepoint my_savepoint
-master-bin.000001	339	Query	1	#	use `test`; insert into t1 values(4)
-master-bin.000001	427	Query	1	#	use `test`; insert into t2 select * from t1
-master-bin.000001	522	Query	1	#	use `test`; rollback to savepoint my_savepoint
-master-bin.000001	620	Xid	1	#	COMMIT /* xid=24 */
+master-bin.000001	98	Query	1	#	use `test`; BEGIN
+master-bin.000001	167	Query	1	#	use `test`; insert into t1 values(3)
+master-bin.000001	255	Query	1	#	use `test`; savepoint my_savepoint
+master-bin.000001	341	Query	1	#	use `test`; insert into t1 values(4)
+master-bin.000001	429	Query	1	#	use `test`; insert into t2 select * from t1
+master-bin.000001	524	Query	1	#	use `test`; rollback to savepoint my_savepoint
+master-bin.000001	622	Xid	1	#	COMMIT /* xid=24 */
 delete from t1;
 delete from t2;
 reset master;
@@ -65,16 +65,16 @@ select a from t1 order by a;
 a
 5
 7
-show binlog events from 96;
+show binlog events from 98;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	96	Query	1	#	use `test`; BEGIN
-master-bin.000001	165	Query	1	#	use `test`; insert into t1 values(5)
-master-bin.000001	253	Query	1	#	use `test`; savepoint my_savepoint
-master-bin.000001	339	Query	1	#	use `test`; insert into t1 values(6)
-master-bin.000001	427	Query	1	#	use `test`; insert into t2 select * from t1
-master-bin.000001	522	Query	1	#	use `test`; rollback to savepoint my_savepoint
-master-bin.000001	620	Query	1	#	use `test`; insert into t1 values(7)
-master-bin.000001	708	Xid	1	#	COMMIT /* xid=36 */
+master-bin.000001	98	Query	1	#	use `test`; BEGIN
+master-bin.000001	167	Query	1	#	use `test`; insert into t1 values(5)
+master-bin.000001	255	Query	1	#	use `test`; savepoint my_savepoint
+master-bin.000001	341	Query	1	#	use `test`; insert into t1 values(6)
+master-bin.000001	429	Query	1	#	use `test`; insert into t2 select * from t1
+master-bin.000001	524	Query	1	#	use `test`; rollback to savepoint my_savepoint
+master-bin.000001	622	Query	1	#	use `test`; insert into t1 values(7)
+master-bin.000001	710	Xid	1	#	COMMIT /* xid=36 */
 delete from t1;
 delete from t2;
 reset master;
@@ -87,43 +87,43 @@ insert into t2 select * from t1;
 select get_lock("a",10);
 get_lock("a",10)
 1
-show binlog events from 96;
+show binlog events from 98;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	96	Query	1	#	use `test`; BEGIN
-master-bin.000001	165	Query	1	#	use `test`; insert into t1 values(8)
-master-bin.000001	253	Query	1	#	use `test`; insert into t2 select * from t1
-master-bin.000001	348	Query	1	#	use `test`; ROLLBACK
+master-bin.000001	98	Query	1	#	use `test`; BEGIN
+master-bin.000001	167	Query	1	#	use `test`; insert into t1 values(8)
+master-bin.000001	255	Query	1	#	use `test`; insert into t2 select * from t1
+master-bin.000001	350	Query	1	#	use `test`; ROLLBACK
 delete from t1;
 delete from t2;
 reset master;
 insert into t1 values(9);
 insert into t2 select * from t1;
-show binlog events from 96;
+show binlog events from 98;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	96	Query	1	#	use `test`; insert into t1 values(9)
-master-bin.000001	184	Xid	1	#	COMMIT /* xid=59 */
-master-bin.000001	211	Query	1	#	use `test`; insert into t2 select * from t1
+master-bin.000001	98	Query	1	#	use `test`; insert into t1 values(9)
+master-bin.000001	186	Xid	1	#	COMMIT /* xid=59 */
+master-bin.000001	213	Query	1	#	use `test`; insert into t2 select * from t1
 delete from t1;
 delete from t2;
 reset master;
 insert into t1 values(10);
 begin;
 insert into t2 select * from t1;
-show binlog events from 96;
+show binlog events from 98;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	96	Query	1	#	use `test`; insert into t1 values(10)
-master-bin.000001	185	Xid	1	#	COMMIT /* xid=65 */
-master-bin.000001	212	Query	1	#	use `test`; insert into t2 select * from t1
+master-bin.000001	98	Query	1	#	use `test`; insert into t1 values(10)
+master-bin.000001	187	Xid	1	#	COMMIT /* xid=65 */
+master-bin.000001	214	Query	1	#	use `test`; insert into t2 select * from t1
 insert into t1 values(11);
 commit;
-show binlog events from 96;
+show binlog events from 98;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	96	Query	1	#	use `test`; insert into t1 values(10)
-master-bin.000001	185	Xid	1	#	COMMIT /* xid=65 */
-master-bin.000001	212	Query	1	#	use `test`; insert into t2 select * from t1
-master-bin.000001	307	Query	1	#	use `test`; BEGIN
-master-bin.000001	376	Query	1	#	use `test`; insert into t1 values(11)
-master-bin.000001	465	Xid	1	#	COMMIT /* xid=67 */
+master-bin.000001	98	Query	1	#	use `test`; insert into t1 values(10)
+master-bin.000001	187	Xid	1	#	COMMIT /* xid=65 */
+master-bin.000001	214	Query	1	#	use `test`; insert into t2 select * from t1
+master-bin.000001	309	Query	1	#	use `test`; BEGIN
+master-bin.000001	378	Query	1	#	use `test`; insert into t1 values(11)
+master-bin.000001	467	Xid	1	#	COMMIT /* xid=67 */
 alter table t2 engine=INNODB;
 delete from t1;
 delete from t2;
@@ -132,12 +132,12 @@ begin;
 insert into t1 values(12);
 insert into t2 select * from t1;
 commit;
-show binlog events from 96;
+show binlog events from 98;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	96	Query	1	#	use `test`; BEGIN
-master-bin.000001	165	Query	1	#	use `test`; insert into t1 values(12)
-master-bin.000001	254	Query	1	#	use `test`; insert into t2 select * from t1
-master-bin.000001	349	Xid	1	#	COMMIT /* xid=77 */
+master-bin.000001	98	Query	1	#	use `test`; BEGIN
+master-bin.000001	167	Query	1	#	use `test`; insert into t1 values(12)
+master-bin.000001	256	Query	1	#	use `test`; insert into t2 select * from t1
+master-bin.000001	351	Xid	1	#	COMMIT /* xid=77 */
 delete from t1;
 delete from t2;
 reset master;
@@ -145,7 +145,7 @@ begin;
 insert into t1 values(13);
 insert into t2 select * from t1;
 rollback;
-show binlog events from 96;
+show binlog events from 98;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 delete from t1;
 delete from t2;
@@ -157,11 +157,11 @@ insert into t1 values(15);
 insert into t2 select * from t1;
 rollback to savepoint my_savepoint;
 commit;
-show binlog events from 96;
+show binlog events from 98;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	96	Query	1	#	use `test`; BEGIN
-master-bin.000001	165	Query	1	#	use `test`; insert into t1 values(14)
-master-bin.000001	254	Xid	1	#	COMMIT /* xid=93 */
+master-bin.000001	98	Query	1	#	use `test`; BEGIN
+master-bin.000001	167	Query	1	#	use `test`; insert into t1 values(14)
+master-bin.000001	256	Xid	1	#	COMMIT /* xid=93 */
 delete from t1;
 delete from t2;
 reset master;
@@ -177,12 +177,12 @@ select a from t1 order by a;
 a
 16
 18
-show binlog events from 96;
+show binlog events from 98;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	96	Query	1	#	use `test`; BEGIN
-master-bin.000001	165	Query	1	#	use `test`; insert into t1 values(16)
-master-bin.000001	254	Query	1	#	use `test`; insert into t1 values(18)
-master-bin.000001	343	Xid	1	#	COMMIT /* xid=104 */
+master-bin.000001	98	Query	1	#	use `test`; BEGIN
+master-bin.000001	167	Query	1	#	use `test`; insert into t1 values(16)
+master-bin.000001	256	Query	1	#	use `test`; insert into t1 values(18)
+master-bin.000001	345	Xid	1	#	COMMIT /* xid=104 */
 delete from t1;
 delete from t2;
 alter table t2 type=MyISAM;
