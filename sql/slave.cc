@@ -210,8 +210,6 @@ int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,
   DBUG_ENTER("init_relay_log_pos");
 
   *errmsg=0;
-  if (rli->log_pos_current)			// TODO: When can this happen ?
-    DBUG_RETURN(0);
   pthread_mutex_t *log_lock=rli->relay_log.get_log_lock();
   pthread_mutex_lock(log_lock);
   if (need_data_lock)
@@ -273,7 +271,6 @@ int init_relay_log_pos(RELAY_LOG_INFO* rli,const char* log,
   }
   if (pos > BIN_LOG_HEADER_SIZE)
     my_b_seek(rli->cur_log,(off_t)pos);
-  rli->log_pos_current=1;
 
 err:
   pthread_cond_broadcast(&rli->data_cond);
@@ -349,7 +346,6 @@ int purge_relay_logs(RELAY_LOG_INFO* rli, THD *thd, bool just_reset,
   rli->log_space_total= BIN_LOG_HEADER_SIZE;
   rli->relay_log_pos=   BIN_LOG_HEADER_SIZE;
   rli->relay_log.reset_bytes_written();
-  rli->log_pos_current=0;
   if (!just_reset)
     error= init_relay_log_pos(rli, rli->relay_log_name, rli->relay_log_pos,
 			      0 /* do not need data lock */, errmsg);
@@ -1153,7 +1149,6 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
   rli->pending = 0;
   rli->cur_log_fd = -1;
   rli->slave_skip_counter=0;
-  rli->log_pos_current=0;
   rli->abort_pos_wait=0;
   rli->skip_log_purge=0;
   rli->log_space_limit = relay_log_space_limit;
@@ -1581,7 +1576,7 @@ st_relay_log_info::st_relay_log_info()
    cur_log_old_open_count(0), log_space_total(0), 
    slave_skip_counter(0), abort_pos_wait(0), slave_run_id(0),
    sql_thd(0), last_slave_errno(0), inited(0), abort_slave(0),
-   slave_running(0), log_pos_current(0), skip_log_purge(0),
+   slave_running(0), skip_log_purge(0),
    inside_transaction(0) /* the default is autocommit=1 */
 {
   relay_log_name[0] = master_log_name[0] = 0;
@@ -2459,7 +2454,6 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
     TODO: see if we can do this conditionally in next_event() instead
     to avoid unneeded position re-init
   */
-  rli->log_pos_current=0; 
   thd->temporary_tables = 0; // remove tempation from destructor to close them
   DBUG_ASSERT(thd->net.buff != 0);
   net_end(&thd->net); // destructor will not free it, because we are weird
@@ -2795,7 +2789,6 @@ void end_relay_log_info(RELAY_LOG_INFO* rli)
     rli->cur_log_fd = -1;
   }
   rli->inited = 0;
-  rli->log_pos_current=0;
   rli->relay_log.close(1);
   DBUG_VOID_RETURN;
 }
