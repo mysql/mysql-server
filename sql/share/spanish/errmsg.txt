@@ -85,7 +85,7 @@
 "%s: Forzando a cerrar el thread %ld  usuario: '%-.64s'\n",
 "No puedo crear IP socket",
 "La tabla '%-.64s' no tiene indice como el usado en CREATE INDEX. Crea de nuevo la table",
-"Los separadores de argumentos del campo no son los especificados. Comprueba el manual","
+"Los separadores de argumentos del campo no son los especificados. Comprueba el manual",
 "No puedes usar longitudes de filas fijos con BLOBs. Por favor usa 'campos terminados por '.",
 "El archivo '%-.64s' debe estar en el directorio de la base de datos o ser de lectura por todos",
 "El archivo '%-.64s' ya existe",

@@ -41,6 +41,9 @@
 
 const char *VER="11.12";
 
+/* Don't try to make a nice table if the data is too big */
+#define MAX_COLUMN_LENGTH	     1024
+
 gptr sql_alloc(unsigned size);	     // Don't use mysqld alloc for these
 void sql_element_free(void *ptr);
 #include "sql_string.h"
@@ -1546,7 +1549,8 @@ print_table_data(MYSQL_RES *result)
     (void) tee_fputs("|", PAGER);
     for (uint off=0; (field = mysql_fetch_field(result)) ; off++)
     {
-      tee_fprintf(PAGER, " %-*s|",field->max_length,field->name);
+      tee_fprintf(PAGER, " %-*s|",min(field->max_length,MAX_COLUMN_LENGTH),
+		  field->name);
       num_flag[off]= IS_NUM(field->type);
     }
     (void) tee_fputs("\n", PAGER);
@@ -1559,10 +1563,16 @@ print_table_data(MYSQL_RES *result)
     mysql_field_seek(result,0);
     for (uint off=0 ; off < mysql_num_fields(result); off++)
     {
+      const char *str=cur[off] ? cur[off] : "NULL";
       field = mysql_fetch_field(result);
       uint length=field->max_length;
+      if (length > MAX_COLUMN_LENGTH)
+      {
+	tee_fputs(str,PAGER); tee_fputs(" |",PAGER);
+      }
+      else
       tee_fprintf(PAGER, num_flag[off] ? "%*s |" : " %-*s|",
-		  length,cur[off] ? (char*) cur[off] : "NULL");
+		  length, str);
     }
     (void) tee_fputs("\n", PAGER);
   }

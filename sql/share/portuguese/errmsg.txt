@@ -84,7 +84,7 @@
 "%s: Forcando a finalizacao da tarefa %ld  usuario: '%-.64s'\n",
 "Nao foi possivel criar o socket IP",
 "Tabela '%-.64s' nao possui um indice criado por CREATE INDEX. Recrie a tabela",
-"O separador de campos nao esta conforme esperado. Confira no manual","
+"O separador de campos nao esta conforme esperado. Confira no manual",
 "Nao e possivel utilizar comprimento de linha fixo com campos binarios. Favor usar 'fields terminated by'.",
 "O arquivo '%-.64s' precisa estar no diretorio do banco de dados, e sua leitura permitida a todos",
 "Arquivo '%-.64s' ja existe",

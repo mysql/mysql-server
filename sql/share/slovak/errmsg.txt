@@ -92,7 +92,7 @@
 "%s: násilné ukonèenie vlákna %ld u¾ívateµa '%-.64s'\n",
 "Nemô¾em vytvori» IP socket",
 "Tabuµka '%-.64s' nemá index zodpovedajúci CREATE INDEX. Vytvorte tabulku znova",
-"Argument oddeµovaè polí nezodpovedá po¾iadavkám. Skontrolujte v manuáli","
+"Argument oddeµovaè polí nezodpovedá po¾iadavkám. Skontrolujte v manuáli",
 "Nie je mo¾né pou¾i» fixnú då¾ku s BLOBom. Pou¾ite 'fields terminated by'.",
 "Súbor '%-.64s' musí by» v adresári databázy, alebo èitateµný pre v¹etkých",
 "Súbor '%-.64s' u¾ existuje",

@@ -86,7 +86,7 @@
 "%s: A(z) %ld thread kenyszeritett zarasa. Felhasznalo: '%-.64s'\n",
 "Az IP socket nem hozhato letre",
 "A(z) '%-.64s' tablahoz nincs meg a CREATE INDEX altal hasznalt index. Alakitsa at a tablat",
-"A mezoelvalaszto argumentumok nem egyeznek meg a varttal. Nezze meg a kezikonyvben!","
+"A mezoelvalaszto argumentumok nem egyeznek meg a varttal. Nezze meg a kezikonyvben!",
 "Fix hosszusagu BLOB-ok nem hasznalhatok. Hasznalja a 'mezoelvalaszto jelet' .",
 "A(z) '%-.64s'-nak az adatbazis konyvtarban kell lennie, vagy mindenki szamara olvashatonak",
 "A '%-.64s' file mar letezik.",

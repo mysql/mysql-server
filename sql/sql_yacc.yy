@@ -2138,9 +2138,13 @@ opt_delete_option:
 	| LOW_PRIORITY	{ Lex->lock_option= TL_WRITE_LOW_PRIORITY; }
 
 truncate:
-	TRUNCATE_SYM table
+	TRUNCATE_SYM opt_table_sym table
 	{ Lex->sql_command= SQLCOM_TRUNCATE; Lex->options=0;
 	  Lex->lock_option= current_thd->update_lock_default; }
+
+opt_table_sym:
+	/* empty */
+	| TABLE_SYM
 
 /* Show things */
 
