@@ -24,8 +24,8 @@ int
 Dbtux::allocNode(Signal* signal, NodeHandle& node)
 {
   Frag& frag = node.m_frag;
-  Uint32 pageId = NullTupLoc.m_pageId;
-  Uint32 pageOffset = NullTupLoc.m_pageOffset;
+  Uint32 pageId = NullTupLoc.getPageId();
+  Uint32 pageOffset = NullTupLoc.getPageOffset();
   Uint32* node32 = 0;
   int errorCode = c_tup->tuxAllocNode(signal, frag.m_tupIndexFragPtrI, pageId, pageOffset, node32);
   jamEntry();
@@ -60,8 +60,8 @@ Dbtux::selectNode(Signal* signal, NodeHandle& node, TupLoc loc, AccSize acc)
 {
   Frag& frag = node.m_frag;
   ndbrequire(loc != NullTupLoc);
-  Uint32 pageId = loc.m_pageId;
-  Uint32 pageOffset = loc.m_pageOffset;
+  Uint32 pageId = loc.getPageId();
+  Uint32 pageOffset = loc.getPageOffset();
   Uint32* node32 = 0;
   c_tup->tuxGetNode(frag.m_tupIndexFragPtrI, pageId, pageOffset, node32);
   jamEntry();
@@ -100,8 +100,8 @@ Dbtux::deleteNode(Signal* signal, NodeHandle& node)
   Frag& frag = node.m_frag;
   ndbrequire(node.getOccup() == 0);
   TupLoc loc = node.m_loc;
-  Uint32 pageId = loc.m_pageId;
-  Uint32 pageOffset = loc.m_pageOffset;
+  Uint32 pageId = loc.getPageId();
+  Uint32 pageOffset = loc.getPageOffset();
   Uint32* node32 = reinterpret_cast<Uint32*>(node.m_node);
   c_tup->tuxFreeNode(signal, frag.m_tupIndexFragPtrI, pageId, pageOffset, node32);
   jamEntry();
