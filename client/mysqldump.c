@@ -36,7 +36,7 @@
 ** Added --single-transaction option 06/06/2002 by Peter Zaitsev
 */
 
-#define DUMP_VERSION "9.07"
+#define DUMP_VERSION "10.0"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -69,21 +69,25 @@
 
 static char *add_load_option(char *ptr, const char *object,
 			     const char *statement);
+static ulong find_set(TYPELIB *lib, const char *x, uint length,
+		      char **err_pos, uint *err_len);
 
 static char *field_escape(char *to,const char *from,uint length);
-static my_bool  verbose=0,tFlag=0,cFlag=0,dFlag=0,quick=0, extended_insert = 0,
-		lock_tables=0,ignore_errors=0,flush_logs=0,replace=0,
-		ignore=0,opt_drop=0,opt_keywords=0,opt_lock=0,opt_compress=0,
-                opt_delayed=0,create_options=0,opt_quoted=0,opt_databases=0,
+static my_bool  verbose=0,tFlag=0,cFlag=0,dFlag=0,quick= 1, extended_insert= 1,
+		lock_tables=1,ignore_errors=0,flush_logs=0,replace=0,
+		ignore=0,opt_drop=1,opt_keywords=0,opt_lock=1,opt_compress=0,
+                opt_delayed=0,create_options=1,opt_quoted=0,opt_databases=0,
 	        opt_alldbs=0,opt_create_db=0,opt_first_slave=0,
-                opt_autocommit=0,opt_master_data,opt_disable_keys=0,opt_xml=0,
+                opt_autocommit=0,opt_master_data,opt_disable_keys=1,opt_xml=0,
                 tty_password=0,opt_single_transaction=0;
 static MYSQL  mysql_connection,*sock=0;
 static char  insert_pat[12 * 1024],*opt_password=0,*current_user=0,
              *current_host=0,*path=0,*fields_terminated=0,
              *lines_terminated=0, *enclosed=0, *opt_enclosed=0, *escaped=0,
-             *where=0, *default_charset;
-static uint     opt_mysql_port=0;
+             *where=0, *default_charset, *opt_compatible_mode_str= 0,
+             *err_ptr= 0;
+static ulong opt_compatible_mode= 0;
+static uint     opt_mysql_port= 0, err_len= 0;
 static my_string opt_mysql_unix_port=0;
 static int   first_error=0;
 extern ulong net_buffer_length;
@@ -93,7 +97,17 @@ FILE  *md_result_file;
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name=0;
 #endif
-static uint opt_protocol=0;
+static uint opt_protocol= 0;
+
+const char *compatible_mode_names[]=
+{
+  "MYSQL323", "MYSQL40", "POSTGRESQL", "ORACLE", "MSSQL", "DB2",
+  "SAPDB", "NO_KEY_OPTIONS", "NO_TABLE_OPTIONS", "NO_FIELD_OPTIONS",
+  NullS
+};
+TYPELIB compatible_mode_typelib= {array_elements(compatible_mode_names) - 1,
+				  "", compatible_mode_names};
+
 
 static struct my_option my_long_options[] =
 {
@@ -102,13 +116,13 @@ static struct my_option my_long_options[] =
    (gptr*) &opt_alldbs, (gptr*) &opt_alldbs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"all", 'a', "Include all MySQL specific create options.",
-   (gptr*) &create_options, (gptr*) &create_options, 0, GET_BOOL, NO_ARG, 0,
+   (gptr*) &create_options, (gptr*) &create_options, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
   {"add-drop-table", OPT_DROP, "Add a 'drop table' before each create.",
-   (gptr*) &opt_drop, (gptr*) &opt_drop, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
+   (gptr*) &opt_drop, (gptr*) &opt_drop, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0,
    0},
   {"add-locks", OPT_LOCKS, "Add locks around insert statements.",
-   (gptr*) &opt_lock, (gptr*) &opt_lock, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
+   (gptr*) &opt_lock, (gptr*) &opt_lock, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0,
    0},
   {"allow-keywords", OPT_KEYWORDS,
    "Allow creation of column names that are keywords.", (gptr*) &opt_keywords,
@@ -116,6 +130,10 @@ static struct my_option my_long_options[] =
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory where character sets are", (gptr*) &charsets_dir,
    (gptr*) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"compatible", OPT_COMPATIBLE,
+   "Change the dump to be compatible with a given mode. By default tables are dumped without any restrictions. Legal modes are: mysql323, mysql40, postgresql, oracle, mssql, db2, sapdb, no_key_options, no_table_options, no_field_options. One can use several modes separated by commas. Note: Requires MySQL server version 4.1.0 or higher. This option does a no operation on earlier server versions.",
+   (gptr*) &opt_compatible_mode_str, (gptr*) &opt_compatible_mode_str, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"complete-insert", 'c', "Use complete insert statements.", (gptr*) &cFlag,
    (gptr*) &cFlag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", 'C', "Use compression in server/client protocol.",
@@ -135,11 +153,11 @@ static struct my_option my_long_options[] =
    0, 0},
   {"disable-keys", 'K',
    "'/*!40000 ALTER TABLE tb_name DISABLE KEYS */; and '/*!40000 ALTER TABLE tb_name ENABLE KEYS */; will be put in the output.", (gptr*) &opt_disable_keys,
-   (gptr*) &opt_disable_keys, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &opt_disable_keys, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"extended-insert", 'e',
    "Allows utilization of the new, much faster INSERT syntax.",
    (gptr*) &extended_insert, (gptr*) &extended_insert, 0, GET_BOOL, NO_ARG,
-   0, 0, 0, 0, 0, 0},
+   1, 0, 0, 0, 0, 0},
   {"fields-terminated-by", OPT_FTB,
    "Fields in the textfile are terminated by ...", (gptr*) &fields_terminated,
    (gptr*) &fields_terminated, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -168,7 +186,7 @@ static struct my_option my_long_options[] =
    (gptr*) &lines_terminated, (gptr*) &lines_terminated, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"lock-tables", 'l', "Lock all tables for read.", (gptr*) &lock_tables,
-   (gptr*) &lock_tables, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &lock_tables, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"master-data", OPT_MASTER_DATA,
    "This will cause the master position and filename to be appended to your output. This will automagically enable --first-slave.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -178,8 +196,8 @@ static struct my_option my_long_options[] =
    0, 0, 0, 0, 0, 0},
   {"single-transaction", OPT_TRANSACTION,
    "Dump all tables in single transaction to get consistent snapshot. Mutually exclusive with --lock-tables.",
-   (gptr*) &opt_single_transaction, (gptr*) &opt_single_transaction, 0, GET_BOOL, NO_ARG,
-   0, 0, 0, 0, 0, 0},   
+   (gptr*) &opt_single_transaction, (gptr*) &opt_single_transaction, 0,
+   GET_BOOL, NO_ARG,  0, 0, 0, 0, 0, 0},   
   {"no-create-db", 'n',
    "'CREATE DATABASE /*!32312 IF NOT EXISTS*/ db_name;' will not be put in the output. The above line will be added otherwise, if --databases or --all-databases option was given.}",
    (gptr*) &opt_create_db, (gptr*) &opt_create_db, 0, GET_BOOL, NO_ARG, 0, 0,
@@ -192,7 +210,7 @@ static struct my_option my_long_options[] =
    "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"opt", OPT_OPTIMIZE,
-   "Same as --add-drop-table --add-locks --all --quick --extended-insert --lock-tables --disable-keys",
+   "Same as --add-drop-table --add-locks --all --quick --extended-insert --lock-tables --disable-keys. Enabled by default, disable with --skip-opt.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's solicited on the tty.",
@@ -207,7 +225,7 @@ static struct my_option my_long_options[] =
   {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory)",
    0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"quick", 'q', "Don't buffer query, dump directly to stdout.",
-   (gptr*) &quick, (gptr*) &quick, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &quick, (gptr*) &quick, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"quote-names",'Q', "Quote table and column names with a `",
    (gptr*) &opt_quoted, (gptr*) &opt_quoted, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
@@ -219,6 +237,9 @@ static struct my_option my_long_options[] =
    "Base name of shared memory", (gptr*) &shared_memory_base_name, (gptr*) &shared_memory_base_name, 
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"skip-opt", OPT_SKIP_OPTIMIZATION,
+   "Disable --opt. Disables --add-locks, --all, --quick, --extended-insert, --lock-tables and --disable-keys.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"socket", 'S', "Socket file to use for connection.",
    (gptr*) &opt_mysql_unix_port, (gptr*) &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -322,12 +343,14 @@ static void write_header(FILE *sql_file, char *db_name)
   return;
 } /* write_header */
 
+
 static void write_footer(FILE *sql_file)
 {
   if (opt_xml)
     fprintf(sql_file,"</mysqldump>");
   fputs("\n", sql_file);
 } /* write_footer */
+
 
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
@@ -378,26 +401,47 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     usage();
     exit(0);
   case (int) OPT_OPTIMIZE:
-    extended_insert=opt_drop=opt_lock=quick=create_options=opt_disable_keys=
-    lock_tables=1;
+    extended_insert= opt_drop= opt_lock= quick= create_options=
+      opt_disable_keys= lock_tables= 1;
     if (opt_single_transaction) lock_tables=0;
+    break;
+  case (int) OPT_SKIP_OPTIMIZATION:
+    extended_insert= opt_drop= opt_lock= quick= create_options=
+      opt_disable_keys= lock_tables= 0;
     break;
   case (int) OPT_TABLES:
     opt_databases=0;
     break;
-  case OPT_MYSQL_PROTOCOL:
-  {
-    if ((opt_protocol = find_type(argument, &sql_protocol_typelib,0)) == ~(ulong) 0)
-    {
-      fprintf(stderr, "Unknown option to protocol: %s\n", argument);
-      exit(1);
+  case (int) OPT_COMPATIBLE:
+    {  
+      char buff[255];
+
+      opt_quoted= 1;
+      opt_compatible_mode_str= argument;
+      opt_compatible_mode= find_set(&compatible_mode_typelib,
+				    argument, strlen(argument),
+				    &err_ptr, &err_len);
+      if (err_len)
+      {
+	strmake(buff, err_ptr, min(sizeof(buff), err_len));
+	fprintf(stderr, "Invalid mode to --compatible: %s\n", buff);
+	exit(1);
+      }
+      break;
     }
-   break;
-  }
+  case (int) OPT_MYSQL_PROTOCOL:
+    {
+      if ((opt_protocol= find_type(argument, &sql_protocol_typelib, 0))
+	  == ~(ulong) 0)
+      {
+	fprintf(stderr, "Unknown option to protocol: %s\n", argument);
+	exit(1);
+      }
+      break;
+    }
   }
   return 0;
 }
-
 
 static int get_options(int *argc, char ***argv)
 {
@@ -418,13 +462,8 @@ static int get_options(int *argc, char ***argv)
 	    "%s: You must use option --tab with --fields-...\n", my_progname);
     return(1);
   }
-  
-  if (opt_single_transaction && lock_tables) 
-  {
-    fprintf(stderr, "%s: You can't use --lock-tables and --single-transaction at the same time.\n", my_progname);
-    return(1);    
-  }
-
+  if (opt_single_transaction)
+    lock_tables= 0;
   if (enclosed && opt_enclosed)
   {
     fprintf(stderr, "%s: You can't use ..enclosed.. and ..optionally-enclosed.. at the same time.\n", my_progname);
@@ -603,6 +642,31 @@ static uint getTableStructure(char *table, char* db)
     {
       /* Make an sql-file, if path was given iow. option -T was given */
       char buff[20+FN_REFLEN];
+
+      if (opt_compatible_mode)
+      {
+	char *end;
+	uint i;
+
+	sprintf(buff, "/*!41000 SET @@sql_mode=\"");
+	end= strend(buff);
+	for (i= 0; opt_compatible_mode; opt_compatible_mode>>= 1, i++)
+	{
+	  if (opt_compatible_mode & 1)
+	  {
+	    end= strmov(end, compatible_mode_names[i]);
+	    end= strmov(end, ",");
+	  }
+	}
+	end= strmov(--end, "\" */");
+	if (mysql_query(sock, buff))
+	{
+	  fprintf(stderr, "%s: Can't set the compatible mode '%s' (%s)\n",
+		  my_progname, table, mysql_error(sock));
+	  safe_exit(EX_MYSQLERR);
+        DBUG_RETURN(0);
+	}
+      }
 
       sprintf(buff,"show create table `%s`",table);
       if (mysql_query(sock, buff))
@@ -1397,6 +1461,48 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     mysql_query(sock,"UNLOCK_TABLES");
   return 0;
 } /* dump_selected_tables */
+
+
+
+static ulong find_set(TYPELIB *lib, const char *x, uint length,
+		      char **err_pos, uint *err_len)
+{
+  const char *end= x + length;
+  ulong found= 0;
+  uint find;
+  char buff[255];
+
+  *err_pos= 0;                  // No error yet
+  while (end > x && my_isspace(system_charset_info, end[-1]))
+    end--;
+
+  *err_len= 0;
+  if (x != end)
+  {
+    const char *start= x;
+    for (;;)
+    {
+      const char *pos= start;
+      uint var_len;
+
+      for (; pos != end && *pos != ','; pos++) ;
+      var_len= (uint) (pos - start);
+      strmake(buff, start, min(sizeof(buff), var_len));
+      find= find_type(buff, lib, var_len);
+      if (!find)
+      {
+        *err_pos= (char*) start;
+        *err_len= var_len;
+      }
+      else
+        found|= ((longlong) 1 << (find - 1));
+      if (pos == end)
+        break;
+      start= pos + 1;
+    }
+  }
+  return found;
+}
 
 
 /* Print a value with a prefix on file */

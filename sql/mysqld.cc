@@ -424,12 +424,12 @@ double log_10[32];			/* 10 potences */
 I_List<THD> threads,thread_cache;
 time_t start_time;
 
-ulong opt_sql_mode = 0L;
 const char *sql_mode_names[] =
 {
   "REAL_AS_FLOAT", "PIPES_AS_CONCAT", "ANSI_QUOTES", "IGNORE_SPACE",
   "SERIALIZE", "ONLY_FULL_GROUP_BY", "NO_UNSIGNED_SUBTRACTION",
-  "POSTGRESQL", "ORACLE", "MSSQL", "SAPDB",
+  "POSTGRESQL", "ORACLE", "MSSQL", "DB2", "SAPDB", "NO_KEY_OPTIONS",
+  "NO_TABLE_OPTIONS", "NO_FIELD_OPTIONS", "MYSQL323", "MYSQL40",
   NullS
 };
 TYPELIB sql_mode_typelib= {array_elements(sql_mode_names)-1,"",
@@ -4301,9 +4301,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_endinfo=1;				/* unireg: memory allocation */
     break;
   case 'a':
-    opt_sql_mode = (MODE_REAL_AS_FLOAT | MODE_PIPES_AS_CONCAT |
-		    MODE_ANSI_QUOTES | MODE_IGNORE_SPACE | MODE_SERIALIZABLE |
-		    MODE_ONLY_FULL_GROUP_BY);
+    global_system_variables.sql_mode=
+      (MODE_REAL_AS_FLOAT | MODE_PIPES_AS_CONCAT |
+       MODE_ANSI_QUOTES | MODE_IGNORE_SPACE | MODE_SERIALIZABLE |
+       MODE_ONLY_FULL_GROUP_BY);
     global_system_variables.tx_isolation= ISO_SERIALIZABLE;
     break;
   case 'b':
@@ -4665,9 +4666,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       berkeley_lock_type=berkeley_lock_types[type-1];
     else
     {
+      int err;
       char *end;
       uint length= strlen(argument);
-      long value= my_strntol(my_charset_latin1, argument, length, &end, 10);
+      long value= my_strntol(my_charset_latin1, argument, length, 10, &end, &err);
       if (test_if_int(argument,(uint) length, end, my_charset_latin1))
 	berkeley_lock_scan_time= value;
       else
@@ -4730,16 +4732,17 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   }
   case OPT_SQL_MODE:
   {
-    sql_mode_str = argument;
-    if ((opt_sql_mode =
-	 find_bit_type(argument, &sql_mode_typelib)) == ~(ulong) 0)
+    sql_mode_str= argument;
+    if ((global_system_variables.sql_mode=
+         find_bit_type(argument, &sql_mode_typelib)) == ~(ulong) 0)
     {
       fprintf(stderr, "Unknown option to sql-mode: %s\n", argument);
       exit(1);
     }
-    global_system_variables.tx_isolation= ((opt_sql_mode & MODE_SERIALIZABLE) ?
-					   ISO_SERIALIZABLE :
-					   ISO_REPEATABLE_READ);
+    global_system_variables.tx_isolation=
+      ((global_system_variables.sql_mode & MODE_SERIALIZABLE) ?
+       ISO_SERIALIZABLE :
+       ISO_REPEATABLE_READ);
     break;
   }
   case OPT_MASTER_PASSWORD:
