@@ -782,7 +782,7 @@ static char *add_load_option(char *ptr,const char *object,
   if (object)
   {
     ptr= strxmov(ptr," ",statement," '",NullS);
-    ptr= field_escape(ptr,object,strlen(object));
+    ptr= field_escape(ptr,object,(uint) strlen(object));
     *ptr++= '\'';
   }
   return ptr;
@@ -910,7 +910,7 @@ static void dumpTable(uint numFields, char *table)
     total_length=net_buffer_length;		/* Force row break */
     row_break=0;
     rownr=0;
-    init_length=strlen(insert_pat)+4;
+    init_length=(uint) strlen(insert_pat)+4;
 
     while ((row=mysql_fetch_row(res)))
     {
@@ -1215,7 +1215,7 @@ static void print_value(FILE *file, MYSQL_RES  *result, MYSQL_ROW row,
 	fputc(' ',file);
 	fputs(prefix, file);
 	if (string_value)
-	  unescape(file,row[0],strlen(row[0]));
+	  unescape(file,row[0],(uint) strlen(row[0]));
 	else
 	  fputs(row[0], file);
 	return;

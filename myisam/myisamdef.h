@@ -619,6 +619,8 @@ void mi_update_status(void* param);
 void mi_copy_status(void* to,void *from);
 my_bool mi_check_status(void* param);
 void mi_dectivate_non_unique_index(MI_INFO *info, ha_rows rows);
+int _mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
+	     enum ha_rkey_function search_flag, bool raw_key);
 
 /* Functions needed by mi_check */
 #ifdef	__cplusplus

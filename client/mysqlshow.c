@@ -290,7 +290,7 @@ list_dbs(MYSQL *mysql,const char *wild)
     printf("Wildcard: %s\n",wild);
 
   header="Databases";
-  length=strlen(header);
+  length=(uint) strlen(header);
   field=mysql_fetch_field(result);
   if (length < field->max_length)
     length=field->max_length;
@@ -331,7 +331,7 @@ list_tables(MYSQL *mysql,const char *db,const char *table)
   putchar('\n');
 
   header="Tables";
-  head_length=strlen(header);
+  head_length=(uint) strlen(header);
   field=mysql_fetch_field(result);
   if (head_length < field->max_length)
     head_length=field->max_length;
@@ -470,7 +470,7 @@ print_header(const char *header,uint head_length,...)
   putchar('|');
   for (;;)
   {
-    str_length=strlen(field);
+    str_length=(uint) strlen(field);
     if (str_length > length)
       str_length=length+1;
     pre_space=(uint) (((int) length-(int) str_length)/2)+1;
@@ -520,7 +520,7 @@ print_row(const char *header,uint head_length,...)
     putchar('|');
     putchar(' ');
     fputs(field,stdout);
-    field_length=strlen(field);
+    field_length=(uint) strlen(field);
     for (i=field_length ; i <= length ; i++)
       putchar(' ');
     if (!(field=va_arg(args,my_string)))
@@ -580,7 +580,7 @@ static void print_res_top(MYSQL_RES *result)
   mysql_field_seek(result,0);
   while((field = mysql_fetch_field(result)))
   {
-    if ((length=strlen(field->name)) > field->max_length)
+    if ((length=(uint) strlen(field->name)) > field->max_length)
       field->max_length=length;
     else
       length=field->max_length;

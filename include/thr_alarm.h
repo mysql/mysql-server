@@ -70,7 +70,7 @@ typedef struct st_win_timer
 #ifdef __WIN__
 typedef struct st_win_timer
 {
-  uint crono;
+  rf_SetTimer crono;
 } thr_alarm_t;
 
 bool thr_got_alarm(thr_alarm_t *alrm);
