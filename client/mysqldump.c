@@ -228,16 +228,12 @@ static struct my_option my_long_options[] =
     MALLOC_OVERHEAD, 1024, 0},
   { "net_buffer_length", OPT_NET_BUFFER_LENGTH, "",
     (gptr*) &net_buffer_length, (gptr*) &net_buffer_length, 0,
-    GET_LONG, REQUIRED_ARG, 1024*1024L-1025, 4096, 512*1024L*1024L,
-    MALLOC_OVERHEAD, 1024, 0},
+    GET_LONG, REQUIRED_ARG, 1024*1024L-1025, 4096, 16*1024L*1024L,
+    MALLOC_OVERHEAD-1024, 1024, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
 static const char *load_default_groups[]= { "mysqldump","client",0 };
-
-CHANGEABLE_VAR md_changeable_vars[] = {
-  { 0, 0, 0, 0, 0, 0, 0}
-};
 
 static void safe_exit(int error);
 static void write_header(FILE *sql_file, char *db_name);
@@ -601,7 +597,7 @@ static uint getTableStructure(char *table, char* db)
       /* Make an sql-file, if path was given iow. option -T was given */
       char buff[20+FN_REFLEN];
 
-      sprintf(buff,"show create table %s",table_name);
+      sprintf(buff,"show create table `%s`",table);
       if (mysql_query(sock, buff))
       {
         fprintf(stderr, "%s: Can't get CREATE TABLE for table '%s' (%s)\n",
@@ -734,7 +730,7 @@ static uint getTableStructure(char *table, char* db)
       {
         if (opt_keywords)
 	  fprintf(sql_file, "  %s.%s %s", table_name,
-		  quote_name(row[SHOW_FIELDNAME],name_buff), row[SHOW_TYPE]);
+	  quote_name(row[SHOW_FIELDNAME],name_buff), row[SHOW_TYPE]);
         else
 	  fprintf(sql_file, "  %s %s", quote_name(row[SHOW_FIELDNAME],
 						  name_buff), row[SHOW_TYPE]);
@@ -847,8 +843,6 @@ static uint getTableStructure(char *table, char* db)
       fputs(";\n", sql_file);
     }
   }
-  if (opt_disable_keys)
-    fprintf(sql_file,"\n/*!40000 ALTER TABLE %s DISABLE KEYS */;\n",table_name);
   if (cFlag)
   {
     strpos=strmov(strpos,") VALUES ");
@@ -973,7 +967,7 @@ static void dumpTable(uint numFields, char *table)
       strxmov(strend(query), " WHERE ",where,NullS);
     }
     if (!opt_xml)
-      fputs("\n\n", md_result_file);
+      fputs("\n", md_result_file);
     if (mysql_query(sock, query))
     {
       DBerror(sock, "when retrieving data from server");
@@ -998,6 +992,9 @@ static void dumpTable(uint numFields, char *table)
       return;
     }
 
+    if (opt_disable_keys)
+      fprintf(md_result_file,"/*!40000 ALTER TABLE %s DISABLE KEYS */;\n",
+	      quote_name(table, table_buff));
     if (opt_lock)
       fprintf(md_result_file,"LOCK TABLES %s WRITE;\n",
 	      quote_name(table,table_buff));
@@ -1020,6 +1017,9 @@ static void dumpTable(uint numFields, char *table)
       if (!extended_insert && !opt_xml)
 	fputs(insert_pat,md_result_file);
       mysql_field_seek(res,0);
+
+      if (opt_xml)
+        fprintf(md_result_file, "\t<row>\n");
 
       for (i = 0; i < mysql_num_fields(res); i++)
       {
@@ -1110,6 +1110,9 @@ static void dumpTable(uint numFields, char *table)
 	}
       }
 
+      if (opt_xml)
+        fprintf(md_result_file, "\t</row>\n");
+
       if (extended_insert)
       {
 	ulong row_length;
@@ -1157,11 +1160,11 @@ static void dumpTable(uint numFields, char *table)
       safe_exit(EX_CONSCHECK);
       return;
     }
-    if (opt_disable_keys)
-      fprintf(md_result_file,"\n/*!40000 ALTER TABLE %s ENABLE KEYS */;\n",
-                                            quote_name(table,table_buff));
     if (opt_lock)
       fputs("UNLOCK TABLES;\n", md_result_file);
+    if (opt_disable_keys)
+      fprintf(md_result_file,"/*!40000 ALTER TABLE %s ENABLE KEYS */;\n",
+	      quote_name(table,table_buff));
     if (opt_autocommit)
       fprintf(md_result_file, "commit;\n");
     mysql_free_result(res);
@@ -1187,7 +1190,7 @@ static void print_quoted_xml(FILE *output, char *fname, char *str, uint len)
     else
       fputc(*str, output);
   }
-  fprintf(output, "<%s>\n", fname);
+  fprintf(output, "</%s>\n", fname);
 }
 
 static char *getTableName(int reset)

@@ -196,10 +196,11 @@ static struct my_option my_long_options[] =
   {"keys-used", 'k',
    "Tell MyISAM to update only some specific keys. # is a bit mask of which keys to use. This can be used to get faster inserts!",
    (gptr*) &check_param.keys_in_use, (gptr*) &check_param.keys_in_use, 0,
-   GET_LONG, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   GET_LL, REQUIRED_ARG, -1, 0, 0, 0, 0, 0},
   {"medium-check", 'm',
-   "Faster than extended-check, but only finds 99.99% of all errors. Should be good enough for most cases.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0,
-   0},
+   "Faster than extended-check, but only finds 99.99% of all errors. Should be good enough for most cases.",
+    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+ 0},
   {"quick", 'q', "Faster repair by not modifying the data file.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"read-only", 'T', "Don't mark table as checked.", 0, 0, 0, GET_NO_ARG,
@@ -392,8 +393,6 @@ get_one_option(int optid,
 	       const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
-  uint old_testflag;
-
   switch (optid) {
   case 'a':
     if (argument && *argument == '0')
@@ -425,10 +424,7 @@ get_one_option(int optid,
     break;
   case 'C':
     if (argument && *argument == '0')
-    {
-      check_param.testflag&= ~T_CHECK;
-      check_param.testflag&= ~T_CHECK_ONLY_CHANGED;
-    }
+      check_param.testflag&= ~(T_CHECK | T_CHECK_ONLY_CHANGED);
     else
       check_param.testflag|= T_CHECK | T_CHECK_ONLY_CHANGED;
     break;
@@ -437,11 +433,7 @@ get_one_option(int optid,
     break;
   case 's':				/* silent */
     if (argument && *argument == '0')
-    {
-      if (check_param.testflag & T_VERY_SILENT)
-	check_param.testflag&= ~T_VERY_SILENT;
-      check_param.testflag&= ~T_SILENT;
-    }
+      check_param.testflag&= ~(T_SILENT | T_VERY_SILENT);
     else
     {
       if (check_param.testflag & T_SILENT)
@@ -475,8 +467,16 @@ get_one_option(int optid,
       check_param.testflag|= T_INFO;
     break;
   case 'f':
-    check_param.tmpfile_createflag= O_RDWR | O_TRUNC;
-    check_param.testflag|= T_FORCE_CREATE | T_UPDATE_STATE;
+    if (argument && *argument == '0')
+    {
+      check_param.tmpfile_createflag= O_RDWR | O_TRUNC | O_EXCL;
+      check_param.testflag&= ~(T_FORCE_CREATE | T_UPDATE_STATE);
+    }
+    else
+    {
+      check_param.tmpfile_createflag= O_RDWR | O_TRUNC;
+      check_param.testflag|= T_FORCE_CREATE | T_UPDATE_STATE;
+    }
     break;
   case 'F':
     if (argument && *argument == '0')
@@ -494,60 +494,82 @@ get_one_option(int optid,
       check_param.testflag|= T_MEDIUM;		/* Medium check */
     break;
   case 'r':				/* Repair table */
-    check_param.testflag= (check_param.testflag & ~T_REP) | T_REP_BY_SORT;
+    if (argument && *argument == '0')
+      check_param.testflag&= ~(T_REP | T_REP_BY_SORT);
+    else
+      check_param.testflag= (check_param.testflag & ~T_REP) | T_REP_BY_SORT;
     break;
   case 'o':
-    check_param.testflag= (check_param.testflag & ~T_REP_BY_SORT) | T_REP;
-    check_param.force_sort=0;
-    my_disable_async_io=1;		/* More safety */
+    if (argument && *argument == '0')
+    {
+      check_param.testflag&= ~(T_REP | T_REP_BY_SORT);
+      check_param.force_sort= 0;
+    }
+    else
+    {
+      check_param.testflag= (check_param.testflag & ~T_REP_BY_SORT) | T_REP;
+      check_param.force_sort= 0;
+      my_disable_async_io= 1;		/* More safety */
+    }
     break;
   case 'n':
-    check_param.testflag= (check_param.testflag & ~T_REP) | T_REP_BY_SORT;
-    check_param.force_sort= 1;
+    if (argument && *argument == '0')
+    {
+      check_param.testflag&= ~(T_REP | T_REP_BY_SORT);
+      check_param.force_sort= 0;
+    }
+    else
+    {
+      check_param.testflag= (check_param.testflag & ~T_REP) | T_REP_BY_SORT;
+      check_param.force_sort= 1;
+    }
     break;
   case 'q':
     if (argument && *argument == '0')
-      check_param.opt_rep_quick--;      
+      check_param.testflag&= ~(T_QUICK | T_FORCE_UNIQUENESS);
     else
-      check_param.opt_rep_quick++;
+      check_param.testflag|=
+        (check_param.testflag & T_QUICK) ? T_FORCE_UNIQUENESS : T_QUICK;
     break;
   case 'u':
     if (argument == disabled_my_option)
-    {
-      check_param.testflag&= ~T_UNPACK;
-      check_param.testflag&= ~T_REP_BY_SORT;
-    }
+      check_param.testflag&= ~(T_UNPACK | T_REP_BY_SORT);
     else
       check_param.testflag|= T_UNPACK | T_REP_BY_SORT;
     break;
   case 'v':				/* Verbose */
     if (argument && *argument == '0')
+    {
       check_param.testflag&= ~T_VERBOSE;
+      check_param.verbose=0;
+    }
     else
+    {
       check_param.testflag|= T_VERBOSE;
-    check_param.verbose++;
+      check_param.verbose++;
+    }
     break;
   case 'R':				/* Sort records */
-    old_testflag= check_param.testflag;
-    check_param.testflag|= T_SORT_RECORDS;
-    check_param.opt_sort_key= (uint) atoi(argument) - 1;
-    if (check_param.opt_sort_key >= MI_MAX_KEY)
+    if (argument && *argument == '0')
+      check_param.testflag&= ~T_SORT_RECORDS;
+    else
     {
-      fprintf(stderr,
-	      "The value of the sort key is bigger than max key: %d.\n",
-	      MI_MAX_KEY);
-      exit(1);
+      check_param.testflag|= T_SORT_RECORDS;
+      check_param.opt_sort_key= (uint) atoi(argument) - 1;
+      if (check_param.opt_sort_key >= MI_MAX_KEY)
+      {
+	fprintf(stderr,
+		"The value of the sort key is bigger than max key: %d.\n",
+		MI_MAX_KEY);
+	exit(1);
+      }
     }
     break;
   case 'S':			      /* Sort index */
-    old_testflag= check_param.testflag;
     if (argument && *argument == '0')
       check_param.testflag&= ~T_SORT_INDEX;
     else
       check_param.testflag|= T_SORT_INDEX;
-    break;
-  case 't':
-    check_param.tmpdir= argument;
     break;
   case 'T':
     if (argument && *argument == '0')
@@ -562,7 +584,14 @@ get_one_option(int optid,
       check_param.testflag|= T_UPDATE_STATE;
     break;
   case '#':
-    DBUG_PUSH(argument ? argument : "d:t:o,/tmp/myisamchk.trace");
+    if (argument && *argument == '0')
+    {
+      DBUG_POP();
+    }
+    else
+    {
+      DBUG_PUSH(argument ? argument : "d:t:o,/tmp/myisamchk.trace");
+    }
     break;
   case 'V':
     print_version();
@@ -608,7 +637,7 @@ static void get_options(register int *argc,register char ***argv)
   }
 
   if ((check_param.testflag & T_UNPACK) &&
-      (check_param.opt_rep_quick || (check_param.testflag & T_SORT_RECORDS)))
+      (check_param.testflag & (T_QUICK | T_SORT_RECORDS)))
   {
     VOID(fprintf(stderr,
 		 "%s: --unpack can't be used with --quick or --sort-records\n",
@@ -640,7 +669,7 @@ static void get_options(register int *argc,register char ***argv)
 static int myisamchk(MI_CHECK *param, my_string filename)
 {
   int error,lock_type,recreate;
-  int rep_quick= param->opt_rep_quick;
+  int rep_quick= param->testflag & (T_QUICK | T_FORCE_UNIQUENESS);
   uint raid_chunks;
   MI_INFO *info;
   File datafile;
@@ -775,8 +804,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
       param->testflag|=T_REP_BY_SORT;		/* if only STATISTICS */
       if (!(param->testflag & T_SILENT))
 	printf("- '%s' has old table-format. Recreating index\n",filename);
-      if (!rep_quick)
-	rep_quick=1;
+      rep_quick|=T_QUICK;
     }
     share=info->s;
     share->r_locks=0;

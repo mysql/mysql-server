@@ -19,12 +19,13 @@
  *
  * Written by:
  *   Michael 'Monty' Widenius
- *   Andi Gutmans <andi@zend.com>
- *   Zeev Suraski <zeev@zend.com>
- *   Jani Tolonen <jani@mysql.com>
- *   Matt Wagner  <matt@mysql.com>
- *   Jeremy Cole  <jcole@mysql.com>
- *   Tonu Samuel  <tonu@mysql.com>
+ *   Andi Gutmans  <andi@zend.com>
+ *   Zeev Suraski  <zeev@zend.com>
+ *   Jani Tolonen  <jani@mysql.com>
+ *   Matt Wagner   <matt@mysql.com>
+ *   Jeremy Cole   <jcole@mysql.com>
+ *   Tonu Samuel   <tonu@mysql.com>
+ *   Harrison Fisk <hcfisk@buffalo.edu>
  *
  **/
 
@@ -40,7 +41,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER= "12.0";
+const char *VER= "12.1";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -99,6 +100,8 @@ extern "C" {
 
 #include "completion_hash.h"
 
+#define PROMPT_CHAR '\\'
+
 typedef struct st_status
 {
   int exit_status;
@@ -118,17 +121,19 @@ static MYSQL mysql;			/* The connection */
 static my_bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
                connected=0,opt_raw_data=0,unbuffered=0,output_tables=0,
 	       no_rehash=0,skip_updates=0,safe_updates=0,one_database=0,
-	       opt_compress=0,
+	       opt_compress=0, using_opt_local_infile=0,
 	       vertical=0, line_numbers=1, column_names=1,opt_html=0,
                opt_xml=0,opt_nopager=1, opt_outfile=0, named_cmds= 0,
-               tty_password= 0;
-static uint verbose=0, opt_silent=0, opt_mysql_port=0;
+               tty_password= 0. opt_nobeep=0;
+static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
 static my_string opt_mysql_unix_port=0;
 static int connect_flag=CLIENT_INTERACTIVE;
 static char *current_host,*current_db,*current_user=0,*opt_password=0,
-            *default_charset;
+            *current_prompt=0, *default_charset;
 static char *histfile;
 static String glob_buffer,old_buffer;
+static String processed_prompt;
+static char *full_username=0,*part_username=0,*default_prompt=0;
 static int wait_time = 5;
 static STATUS status;
 static ulong select_limit,max_join_size,opt_connect_timeout=0;
@@ -138,10 +143,14 @@ static const char *xmlmeta[] = {
   "<", "&lt;",
   0, 0
 };
-char default_pager[FN_REFLEN];
-char pager[FN_REFLEN], outfile[FN_REFLEN];
-FILE *PAGER, *OUTFILE;
-MEM_ROOT hash_mem_root;
+static const char *day_names[]={"Sun","Mon","Tue","Wed","Thu","Fri","Sat"};
+static const char *month_names[]={"Jan","Feb","Mar","Apr","May","Jun","Jul",
+			    "Aug","Sep","Oct","Nov","Dec"};
+static char default_pager[FN_REFLEN];
+static char pager[FN_REFLEN], outfile[FN_REFLEN];
+static FILE *PAGER, *OUTFILE;
+static MEM_ROOT hash_mem_root;
+static uint prompt_counter;
 
 #include "sslopt-vars.h"
 
@@ -162,7 +171,8 @@ static int com_quit(String *str,char*),
 	   com_connect(String *str,char*), com_status(String *str,char*),
 	   com_use(String *str,char*), com_source(String *str, char*),
 	   com_rehash(String *str, char*), com_tee(String *str, char*),
-           com_notee(String *str, char*), com_shell(String *str, char *);
+           com_notee(String *str, char*), com_shell(String *str, char *),
+           com_prompt(String *str, char*);
 
 #ifndef __WIN__
 static int com_nopager(String *str, char*), com_pager(String *str, char*),
@@ -179,6 +189,9 @@ static void init_pager();
 static void end_pager();
 static void init_tee();
 static void end_tee();
+static const char* construct_prompt();
+static void init_username();
+static void add_int_to_prompt(int toadd);
 
 /* A structure which contains information on the commands this program
    can understand. */
@@ -213,6 +226,7 @@ static COMMANDS commands[] = {
     "Set PAGER [to_pager]. Print the query results via PAGER." },
 #endif
   { "print",  'p', com_print,  0, "Print current command." },
+  { "prompt", 'R', com_prompt, 1, "Change your mysql prompt."},
   { "quit",   'q', com_quit,   0, "Quit mysql." },
   { "rehash", '#', com_rehash, 0, "Rebuild completion hash." },
   { "source", '.', com_source, 1,
@@ -282,6 +296,12 @@ int main(int argc,char *argv[])
   DBUG_ENTER("main");
   DBUG_PROCESS(argv[0]);
 
+  default_prompt = my_strdup(getenv("MYSQL_PS1") ? 
+			     getenv("MYSQL_PS1") : 
+			     "mysql> ",MYF(MY_WME));
+  current_prompt = my_strdup(default_prompt,MYF(MY_WME));
+  prompt_counter=0;
+
   strmov(outfile, "\0");   // no (default) outfile, unless given at least once
   strmov(pager, "stdout"); // the default, if --pager wasn't given
   {
@@ -322,6 +342,7 @@ int main(int argc,char *argv[])
   if (!status.batch)
     ignore_errors=1;				// Don't abort monitor
   signal(SIGINT, mysql_end);			// Catch SIGINT to clean up
+  signal(SIGQUIT, mysql_end);			// Catch SIGQUIT to clean up
 
   /*
   **  Run in interactive mode like the ingres/postgres monitor
@@ -408,12 +429,17 @@ sig_handler mysql_end(int sig)
     put_info(sig ? "Aborted" : "Bye", INFO_RESULT);
   glob_buffer.free();
   old_buffer.free();
+  processed_prompt.free();
   my_free(opt_password,MYF(MY_ALLOW_ZERO_PTR));
   my_free(opt_mysql_unix_port,MYF(MY_ALLOW_ZERO_PTR));
   my_free(histfile,MYF(MY_ALLOW_ZERO_PTR));
   my_free(current_db,MYF(MY_ALLOW_ZERO_PTR));
   my_free(current_host,MYF(MY_ALLOW_ZERO_PTR));
   my_free(current_user,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(full_username,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(part_username,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(default_prompt,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(current_prompt,MYF(MY_ALLOW_ZERO_PTR));
   mysql_server_end();
   my_end(info_flag ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   exit(status.exit_status);
@@ -461,7 +487,11 @@ static struct my_option my_long_options[] =
    0, 0},
   {"ignore-space", 'i', "Ignore space after function names.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"host", 'h', "Connect to host.", (gptr*) &current_host,
+  {"local-infile", OPT_LOCAL_INFILE, "Enable/disable LOAD DATA LOCAL INFILE.",
+   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"no-beep", 'b', "Turn off beep on error.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
+   0, 0, 0, 0, 0}, 
+ {"host", 'h', "Connect to host.", (gptr*) &current_host,
    (gptr*) &current_host, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"html", 'H', "Produce HTML output.", (gptr*) &opt_html, (gptr*) &opt_html,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -507,6 +537,8 @@ static struct my_option my_long_options[] =
 #endif
   {"port", 'P', "Port number to use for connection.", 0, 0, 0, 
    GET_LONG, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"prompt", OPT_PROMPT, "Set the mysql prompt to this value.", 0, 0, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"quick", 'q',
    "Don't cache result, print it row by row. This may slow down the server if the output is suspended. Doesn't use history file. ",
    (gptr*) &quick, (gptr*) &quick, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -565,8 +597,10 @@ static void usage(int version)
 	 my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
   if (version)
     return;
-  puts("Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
+  printf("\
+Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB\n\
+This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
+and you are welcome to modify and redistribute it under the GPL license\n");
   printf("Usage: %s [OPTIONS] [database]\n", my_progname);
   print_defaults("my", load_default_groups);
   my_print_help(my_long_options);
@@ -584,6 +618,13 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     case OPT_CHARSETS_DIR:
       strmov(mysql_charsets_dir, argument);
       charsets_dir = mysql_charsets_dir;
+      break;
+    case OPT_DEFAULT_CHARSET:
+      default_charset= optarg;
+      break;
+    case OPT_LOCAL_INFILE:
+      using_opt_local_infile=1;
+      opt_local_infile= test(!optarg || atoi(optarg)>0);
       break;
     case OPT_TEE:
       if (argument == disabled_my_option)
@@ -617,6 +658,13 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     case OPT_NOPAGER:
       printf("WARNING: option depricated; use --disable-pager instead.\n");
       opt_nopager= 1;
+      break;
+    case OPT_PROMPT:
+      my_free(current_prompt,MYF(MY_ALLOW_ZERO_PTR));
+      current_prompt=my_strdup(optarg,MYF(MY_FAE));
+      break;
+    case 'b':
+      opt_nobeep = 1;
       break;
     case 'D':
       my_free(current_db, MYF(MY_ALLOW_ZERO_PTR));      
@@ -663,11 +711,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	else
 	  tty_password= 1;
       }
-      break;
     case '#':
       DBUG_PUSH(argument ? argument : default_dbug_option);
       info_flag= 1;
-      break;
     case 's':
       if (argument == disabled_my_option)
 	opt_silent= 0;
@@ -679,27 +725,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	verbose= 0;
       else
 	verbose++;
-      break;
-    case 'w':
-      if (argument == disabled_my_option)
-	wait_flag= 0;
-      else
-      {
-	wait_flag= 1;
-	if (argument)
-	  wait_time= atoi(argument);
-      }
-      break;
-    case 'A': 
-      printf("WARNING: option depricated; use --disable-auto-rehash instead.\n");
-      no_rehash= 1;
-      break;
-    case 'g': 
-      printf("WARNING: option depricated; use --disable-named-commands instead.\n");
-      named_cmds= 0;
-      break;
-    case 'i':
-      connect_flag|= CLIENT_IGNORE_SPACE;
       break;
     case 'B':
       if (!status.batch)
@@ -728,6 +753,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     case '?':
       usage(0);
       exit(0);
+    case '#':
+      DBUG_PUSH(optarg ? optarg : default_dbug_option);
+      info_flag=1;
+      break;
 #include "sslopt-case.h"
   }
   return 0;
@@ -787,17 +816,6 @@ static int get_options(int argc, char **argv)
   return(0);
 }
 
-#if  defined(OS2)
-static char* readline( char* prompt)
-{
-#if defined(OS2)
-   static char linebuffer[254];
-#endif
-   puts( prompt);
-   return gets( linebuffer);
-}
-#endif
-
 static int read_lines(bool execute_commands)
 {
 #if defined( __WIN__) || defined(OS2)
@@ -823,7 +841,7 @@ static int read_lines(bool execute_commands)
 #if defined( __WIN__) || defined(OS2)
       if (opt_outfile && glob_buffer.is_empty())
 	fflush(OUTFILE);
-      tee_fputs(glob_buffer.is_empty() ? "mysql> " :
+      tee_fputs(glob_buffer.is_empty() ? construct_prompt() :
 		!in_string ? "    -> " :
 		in_string == '\'' ?
 		"    '> " : "    \"> ",stdout);
@@ -834,12 +852,12 @@ static int read_lines(bool execute_commands)
       {
 	if (glob_buffer.is_empty())
 	  fflush(OUTFILE);
-	fputs(glob_buffer.is_empty() ? "mysql> " :
+	fputs(glob_buffer.is_empty() ? construct_prompt() :
 	      !in_string ? "    -> " :
 	      in_string == '\'' ?
 	      "    '> " : "    \"> ", OUTFILE);
       }
-      line=readline((char*) (glob_buffer.is_empty() ? "mysql> " :
+      line=readline((char*) (glob_buffer.is_empty() ? construct_prompt() :
 			     !in_string ? "    -> " :
 			     in_string == '\'' ?
 			     "    '> " : "    \"> "));
@@ -1691,7 +1709,7 @@ print_table_data_xml(MYSQL_RES *result)
   mysql_field_seek(result,0);
 
   tee_fputs("<?xml version=\"1.0\"?>\n\n<resultset statement=\"", PAGER);
-  xmlencode_print(glob_buffer.ptr(), strlen(glob_buffer.ptr()) - 1);
+  xmlencode_print(glob_buffer.ptr(), strlen(glob_buffer.ptr()));
   tee_fputs("\">", PAGER);
 
   fields = mysql_fetch_fields(result);
@@ -2219,6 +2237,8 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   }
   if (opt_compress)
     mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);
+  if (using_opt_local_infile)
+    mysql_options(&mysql,MYSQL_OPT_LOCAL_INFILE, (char*) &opt_local_infile);
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
     mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
@@ -2294,7 +2314,7 @@ static int
 com_status(String *buffer __attribute__((unused)),
 	   char *line __attribute__((unused)))
 {
-  char *status;
+  const char *status;
   tee_puts("--------------", stdout);
   usage(1);					/* Print version */
   if (connected)
@@ -2418,7 +2438,8 @@ put_info(const char *str,INFO_TYPE info_type,uint error)
     }
     if (info_type == INFO_ERROR)
     {
-      putchar('\007');				/* This should make a bell */
+      if(!opt_nobeep)
+	putchar('\007');		      	/* This should make a bell */
       vidattr(A_STANDOUT);
       if (error)
         (void) tee_fprintf(stderr, "ERROR %d: ", error);
@@ -2559,6 +2580,175 @@ static void mysql_end_timer(ulong start_time,char *buff)
   buff[1]='(';
   end_timer(start_time,buff+2);
   strmov(strend(buff),")");
+}
+
+static const char* construct_prompt() {
+  //erase the old prompt
+  processed_prompt.free();
+  //get the date struct
+  time_t  lclock = time(NULL);
+  struct tm *t = localtime(&lclock);
+  //parse thru the settings for the prompt
+  for (char *c = current_prompt;*c;*c++) {
+    if (*c != PROMPT_CHAR) {
+	processed_prompt.append(*c);
+    }
+    else {
+      switch (*++c) {
+      case '\0':
+	//stop it from going beyond if ends with %
+	c--;
+	break;
+      case 'c':
+	add_int_to_prompt(++prompt_counter);
+	break;
+      case 'v':
+	processed_prompt.append(mysql_get_server_info(&mysql));
+	break;
+      case 'd':
+	processed_prompt.append(current_db ? current_db : "(none)");
+	break;
+      case 'h':
+      {
+	const char *prompt=mysql_get_host_info(&mysql);
+	if (strstr(prompt, "Localhost"))
+	  processed_prompt.append("localhost");
+	else
+	{
+	  const char *end=strcend(prompt,' ');
+	  processed_prompt.append(prompt, (uint) (end-prompt));
+	}
+	break;
+      }
+      case 'p':
+	if (strstr(mysql_get_host_info(&mysql),"TCP/IP") ||
+	    ! mysql.unix_socket)
+	  add_int_to_prompt(mysql.port);
+	else
+	  processed_prompt.append(strrchr(mysql.unix_socket,'/')+1);
+	break;
+      case 'U':
+	if (!full_username)
+	  init_username();
+	processed_prompt.append(full_username);
+	break;
+      case 'u':
+	if (!full_username)
+	  init_username();
+	processed_prompt.append(part_username);
+	break;
+      case PROMPT_CHAR:
+	processed_prompt.append(PROMPT_CHAR);
+	break;
+      case 'n':
+	processed_prompt.append('\n');
+	break;
+      case ' ':
+      case '_':
+	processed_prompt.append(' ');
+	break;
+      case 'R':
+	add_int_to_prompt(t->tm_hour);
+	break;
+      case 'r':
+	int getHour;
+	getHour = t->tm_hour % 12;
+	if (getHour == 0)
+	  getHour=12;
+	add_int_to_prompt(getHour);
+	break;
+      case 'm':
+	if (t->tm_min < 10)
+	  processed_prompt.append('0');
+	add_int_to_prompt(t->tm_min);
+	break;
+      case 'y':
+	int getYear;
+	getYear = t->tm_year % 100;
+	if (getYear < 10)
+	  processed_prompt.append('0');
+	add_int_to_prompt(getYear);
+	break;
+      case 'Y':
+	add_int_to_prompt(t->tm_year+1900);
+	break;
+      case 'D':
+	char* dateTime;
+	time_t lclock;
+	lclock = time(NULL);
+	dateTime = ctime(&lclock);
+	processed_prompt.append(strtok(dateTime,"\n"));
+	break;
+      case 's':
+	add_int_to_prompt(t->tm_sec);
+	break;
+      case 'w':
+	processed_prompt.append(day_names[t->tm_wday]);
+	break;
+      case 'P':
+	processed_prompt.append(t->tm_hour < 12 ? "am" : "pm");
+	break;
+      case 'o':
+	add_int_to_prompt(t->tm_mon+1);
+	break;
+      case 'O':
+	processed_prompt.append(month_names[t->tm_mon]);
+	break;
+      case '\'':
+	processed_prompt.append("'");
+	break;
+      case '"':
+	processed_prompt.append('"');
+	break;
+      case 'S':
+	processed_prompt.append(';');
+	break;
+      case 't':
+	processed_prompt.append('\t');
+	break;
+      default:
+	processed_prompt.append(c);
+      }
+    }
+  }
+  processed_prompt.append('\0');
+  return processed_prompt.ptr();
+}
+
+static void add_int_to_prompt(int toadd) {
+  char buffer[16];
+  int10_to_str(toadd,buffer,10);
+  processed_prompt.append(buffer);
+}
+
+static void init_username() {
+  my_free(full_username,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(part_username,MYF(MY_ALLOW_ZERO_PTR));
+
+  MYSQL_RES *result;
+  LINT_INIT(result);
+  if (!mysql_query(&mysql,"select USER()") &&
+      (result=mysql_use_result(&mysql)))
+    {
+      MYSQL_ROW cur=mysql_fetch_row(result);
+      full_username=my_strdup(cur[0],MYF(MY_WME));
+      part_username=my_strdup(strtok(cur[0],"@"),MYF(MY_WME));
+      (void) mysql_fetch_row(result);		// Read eof
+    }
+}
+
+static int
+com_prompt(String *buffer, char *line __attribute__((unused))) {
+  prompt_counter = 0;
+  my_free(current_prompt,MYF(MY_ALLOW_ZERO_PTR));
+  current_prompt=my_strdup(strchr(line, ' ') ? 
+			   strchr(line, ' ')+1 : 
+			   default_prompt,MYF(MY_WME));
+  if (!strchr(line, ' '))
+    tee_fprintf(stdout, "Returning to default PROMPT of %s\n", default_prompt);
+  else
+    tee_fprintf(stdout, "PROMPT set to '%s'\n", current_prompt);
+  return 0;
 }
 
 #ifndef EMBEDDED_LIBRARY
