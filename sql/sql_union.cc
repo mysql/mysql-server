@@ -340,6 +340,25 @@ int st_select_lex_unit::exec()
       fake_select_lex->table_list.link_in_list((byte *)&result_table_list,
 					       (byte **)
 					       &result_table_list.next);
+      JOIN *join= fake_select_lex->join;
+      if (!join)
+      {
+	/*
+	  allocate JOIN for fake select only once (privent
+	  mysql_select automatic allocation)
+	*/
+	fake_select_lex->join= new JOIN(thd, item_list, thd->options, result);
+      }
+      else
+      {
+	JOIN_TAB *tab,*end;
+	for (tab=join->join_tab,end=tab+join->tables ; tab != end ; tab++)
+	{
+	  delete tab->select;
+	  delete tab->quick;
+	}
+	join->init(thd, item_list, thd->options, result);
+      }
       res= mysql_select(thd, &fake_select_lex->ref_pointer_array,
 			&result_table_list,
 			0, item_list, NULL,
@@ -378,14 +397,21 @@ int st_select_lex_unit::cleanup()
       free_tmp_table(thd, table);
     table= 0; // Safety
   }
+  JOIN *join;
   for (SELECT_LEX *sl= first_select_in_union(); sl; sl= sl->next_select())
   {
-    JOIN *join;
     if ((join= sl->join))
     {
       error|= sl->join->cleanup();
       delete join;
     }
+  }
+  if (fake_select_lex && (join= fake_select_lex->join))
+  {
+    join->tables_list= 0;
+    join->tables= 0;
+    error|= join->cleanup();
+    delete join;
   }
   DBUG_RETURN(error);
 }
