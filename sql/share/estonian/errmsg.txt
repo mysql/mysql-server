@@ -232,4 +232,6 @@
 "Ei suuda t‰ita p‰ringut konfliktse luku tıttu",
 "Transaktsioone toetavate ning mittetoetavate tabelite kooskasutamine ei ole lubatud",
 "M‰‰rangut '%s' on lauses kasutatud topelt",
-"User '%-64s' has exceeded the '%s' resource (current value: %ld)",
+"User '%-.64s' has exceeded the '%s' resource (current value: %ld)",
+"Wrong foreign key definition for '%-.64s': %s",
+"Key reference and table reference doesn't match",

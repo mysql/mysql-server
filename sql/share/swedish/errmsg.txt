@@ -61,7 +61,7 @@
 "Kommandot har både sum functions och enkla funktioner",
 "Antalet kolumner motsvarar inte antalet värden",
 "Kolumn namn '%-.64s' är för långt",
-"Kolumn namn '%-64s finns flera gånger",
+"Kolumn namn '%-.64s finns flera gånger",
 "Nyckel namn '%-.64s' finns flera gånger",
 "Dubbel nyckel '%-.64s' för nyckel: %d",
 "Felaktigt kolumn typ för kolumn: '%-.64s'",
@@ -147,7 +147,7 @@
 "%-.16s ej tillåtet för '%-.32s@%-.64s'\n för kolumn '%-.64s' i tabell '%-.64s'",
 "Felaktigt GRANT privilegium använt",
 "Felaktigt maskinnamn eller användarnamn använt med GRANT",
-"Det finns ingen tabell som heter '%-64s.%s'"
+"Det finns ingen tabell som heter '%-.64s.%s'"
 "Det finns inget privilegium definierat för användare '%-.32s' på '%-.64s' för tabell '%-.64s'",
 "Du kan inte använda detta kommando med denna MySQL version",
 "Du har något fel i din syntax",
@@ -227,4 +227,6 @@
 "Kan inte utföra kommandot emedan du har ett READ lås",
 "Blandning av transaktionella och icke-transaktionella tabeller är inaktiverat",
 "Option '%s' användes två gånger",
-"Användare '%-64s' har överskridit '%s' (nuvarande värde: %ld)",
+"Användare '%-.64s' har överskridit '%s' (nuvarande värde: %ld)",
+"Wrong foreign key definition for '%-.64s': %s",
+"Key reference and table reference doesn't match",
