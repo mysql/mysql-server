@@ -23,6 +23,9 @@ select * from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN
 select * from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
 select *, MATCH(a,b) AGAINST("support  collections" IN BOOLEAN MODE) as x from t1;
 delete from t1 where a like "MySQL%";
+update t1 set a='some test foobar' where MATCH a,b AGAINST ('model');
+delete from t1 where MATCH(a,b) AGAINST ("indexes");
+select * from t1;
 drop table t1;
 
 #

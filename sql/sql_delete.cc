@@ -1,27 +1,23 @@
 /* Copyright (C) 2000 MySQL AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-
 /*
   Delete of records and truncate of tables.
-
   Multi-table deletes were introduced by Monty and Sinisa
 */
-
-
 
 #include "mysql_priv.h"
 #include "ha_innobase.h"
@@ -52,7 +48,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   thd->proc_info="init";
   table->map=1;
-  if (setup_conds(thd,table_list,&conds))
+  if (setup_conds(thd,table_list,&conds) || setup_ftfuncs(thd))
     DBUG_RETURN(-1);
 
   /* Test if the user wants to delete all rows */
@@ -79,7 +75,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
   if (error)
     DBUG_RETURN(-1);
   if ((select && select->check_quick(test(thd->options & SQL_SAFE_UPDATES),
-				     limit)) || 
+				     limit)) ||
       !limit)
   {
     delete select;
@@ -129,6 +125,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, ORDER *order,
   }
 
   init_read_record(&info,thd,table,select,1,1);
+  init_ftfuncs(thd,1);
   deleted=0L;
   thd->proc_info="updating";
   while (!(error=info.read_record(&info)) && !thd->killed)
