@@ -36,7 +36,8 @@ inline Item * and_items(Item* cond, Item *item)
 
 Item_subselect::Item_subselect():
   Item_result_field(), engine_owner(1), value_assigned(0), substitution(0),
-  engine(0), have_to_be_excluded(0), engine_changed(0)
+  engine(0), used_tables_cache(0), have_to_be_excluded(0),
+  const_item_cache(1), engine_changed(0)
 {
   reset();
   /*
@@ -111,6 +112,11 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
     }
     fix_length_and_dec();
   }
+  if (engine->uncacheable())
+  {
+    const_item_cache= 0;
+    used_tables_cache|= RAND_TABLE_BIT;
+  }
   fixed= 1;
   thd->where= save_where;
   return res;
@@ -146,10 +152,24 @@ void Item_subselect::fix_length_and_dec()
   engine->fix_length_and_dec(0);
 }
 
-inline table_map Item_subselect::used_tables() const
+table_map Item_subselect::used_tables() const
 {
-  return (table_map) (engine->dependent() ? 1L :
-		      (engine->uncacheable() ? RAND_TABLE_BIT : 0L));
+  return (table_map) (engine->dependent() ? used_tables_cache : 0L);
+}
+
+bool Item_subselect::const_item() const
+{
+  return const_item_cache;
+}
+
+void Item_subselect::update_used_tables()
+{
+  if (!engine->uncacheable())
+  {
+    // did all used tables become ststic?
+    if ((used_tables_cache & ~engine->upper_select_const_tables()))
+      const_item_cache= 1;
+  }
 }
 
 Item_singlerow_subselect::Item_singlerow_subselect(st_select_lex *select_lex)
@@ -494,6 +514,12 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   THD *thd= join->thd;
   thd->where= "scalar IN/ALL/ANY subquery";
 
+  if (select_lex->item_list.elements > 1)
+  {
+    my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
+    DBUG_RETURN(RES_ERROR);
+  }
+
   if ((abort_on_null || (upper_not && upper_not->top_level())) &&
       !select_lex->master_unit()->dependent &&
       (func == &Item_bool_func2::gt_creator ||
@@ -586,11 +612,6 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 
   select_lex->dependent= 1;
   Item *item;
-  if (select_lex->item_list.elements > 1)
-  {
-    my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
-    DBUG_RETURN(RES_ERROR);
-  }
 
   item= (Item*) select_lex->item_list.head();
 
@@ -689,6 +710,12 @@ Item_in_subselect::row_value_transformer(JOIN *join,
   thd->where= "row IN/ALL/ANY subquery";
 
   SELECT_LEX *select_lex= join->select_lex;
+
+  if (select_lex->item_list.elements != left_expr->cols())
+  {
+    my_error(ER_OPERAND_COLUMNS, MYF(0), left_expr->cols());
+    DBUG_RETURN(RES_ERROR);
+  }
 
   if (!substitution)
   {
@@ -1137,4 +1164,30 @@ void subselect_uniquesubquery_engine::exclude()
 {
   //this never should be called
   DBUG_ASSERT(0);
+}
+
+
+table_map subselect_engine::calc_const_tables(TABLE_LIST *table)
+{
+  table_map map= 0;
+  for(; table; table= table->next)
+  {
+    TABLE *tbl= table->table;
+    if (tbl && tbl->const_table)
+      map|= tbl->map;
+  }
+  return map;
+}
+
+
+table_map subselect_single_select_engine::upper_select_const_tables()
+{
+  return calc_const_tables((TABLE_LIST *) select_lex->outer_select()->
+			   table_list.first);
+}
+
+table_map subselect_union_engine::upper_select_const_tables()
+{
+  return calc_const_tables((TABLE_LIST *) unit->outer_select()->
+			   table_list.first);
 }
