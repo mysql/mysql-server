@@ -347,7 +347,7 @@ parse_args(int argc, const char** argv){
     return false;
   }
   
-  g_default_user = strdup(getenv("USER"));
+  g_default_user = strdup(getenv("LOGNAME"));
 
   return true;
 }
