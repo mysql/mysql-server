@@ -1502,7 +1502,75 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
 			       order_group_num)* 5)) == 0;
 }
 
+void st_select_lex_unit::print(String *str)
+{
+  for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+  {
+    if (sl != first_select())
+    {
+      str->append(" union ", 7);
+      if (union_option & UNION_ALL)
+	str->append("all ", 4);
+    }
+    if (sl->braces)
+      str->append('(');
+    sl->print(thd, str);
+    if (sl->braces)
+      str->append(')');
+  }
+  if (fake_select_lex == global_parameters)
+  {
+    if (fake_select_lex->order_list.elements)
+    {
+      str->append(" order by ", 10);
+      fake_select_lex->print_order(str,
+				   (ORDER *) fake_select_lex->
+				   order_list.first);
+    }
+    fake_select_lex->print_limit(thd, str);
+  }
+}
+
+
+void st_select_lex::print_order(String *str, ORDER *order)
+{
+  for (; order; order= order->next)
+  {
+    (*order->item)->print(str);
+    if (!order->asc)
+      str->append(" desc", 5);
+    if (order->next)
+      str->append(',');
+  }
+}
+ 
+void st_select_lex::print_limit(THD *thd, String *str)
+{
+  if (!thd)
+    thd= current_thd;
+
+  if (select_limit != thd->variables.select_limit ||
+      select_limit != HA_POS_ERROR ||
+      offset_limit != 0L)
+  {
+    str->append(" limit ", 7);
+    char buff[20];
+    // latin1 is good enough for numbers
+    String st(buff, sizeof(buff),  &my_charset_latin1);
+    st.set((ulonglong)select_limit, &my_charset_latin1);
+    str->append(st);
+    if (offset_limit)
+    {
+      str->append(',');
+      st.set((ulonglong)select_limit, &my_charset_latin1);
+      str->append(st);
+    }
+  }
+}
+
 /*
   There are st_select_lex::add_table_to_list & 
   st_select_lex::set_lock_for_tables in sql_parse.cc
+
+  st_select_lex::print is in sql_select.h
 */

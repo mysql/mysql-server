@@ -227,7 +227,7 @@ void key_unpack(String *to,TABLE *table,uint idx)
     {
       if (table->record[0][key_part->null_offset] & key_part->null_bit)
       {
-	to->append("NULL");
+	to->append("NULL", 4);
 	continue;
       }
     }
@@ -239,7 +239,7 @@ void key_unpack(String *to,TABLE *table,uint idx)
       to->append(tmp);
     }
     else
-      to->append("???");
+      to->append("???", 3);
   }
   DBUG_VOID_RETURN;
 }

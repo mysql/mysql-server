@@ -182,6 +182,7 @@ public:
   { return decimals != NOT_FIXED_DEC ? (DBL_DIG+2+decimals_par) : DBL_DIG+8;}
   virtual bool const_item() const { return used_tables() == 0; }
   virtual void print(String *str_arg) { str_arg->append(full_name()); }
+  void print_item_w_name(String *);
   virtual void update_used_tables() {}
   virtual void split_sum_func(Item **ref_pointer_array, List<Item> &fields) {}
   virtual bool get_date(TIME *ltime,bool fuzzydate);
@@ -318,6 +319,7 @@ public:
   bool basic_const_item() const { return 1; }
   Item *new_item() { return new Item_null(name); }
   bool is_null() { return 1; }
+  void print(String *str) { str->append("NULL", 4); }
 };
 
 class Item_param :public Item
@@ -368,6 +370,7 @@ public:
   String *query_val_str(String *str);
   enum_field_types field_type() const { return MYSQL_TYPE_STRING; }
   Item *new_item() { return new Item_param(pos_in_query); }
+  void print(String *str) { str->append('?'); }
 };
 
 class Item_int :public Item
@@ -640,6 +643,7 @@ public:
     (*ref)->save_in_field(result_field, no_conversions);
   }
   Item *real_item() { return *ref; }
+  void print(String *str);
 };
 
 class Item_in_subselect;
@@ -655,15 +659,7 @@ public:
   longlong val_int();
   String* val_str(String* s);
   bool get_date(TIME *ltime, bool fuzzydate);
-  void print(String *str)
-  {
-    str->append("ref_null_helper(");
-    if (ref && *ref)
-      (*ref)->print(str);
-    else
-      str->append('?');
-    str->append(')');
-  }
+  void print(String *str);
 };
 
 class Item_null_helper :public Item_ref_null_helper
@@ -675,6 +671,7 @@ public:
     :Item_ref_null_helper(master, &store, table_name_par, field_name_par),
      store(item)
     {}
+  void print(String *str);
 };
 
 /*
@@ -856,14 +853,16 @@ public:
 
 class Item_cache: public Item
 {
+protected:
+  Item *example;
   table_map used_table_map;
 public:
-  Item_cache(): used_table_map(0) {fixed= 1; null_value= 1;}
+  Item_cache(): example(0), used_table_map(0) {fixed= 1; null_value= 1;}
 
   void set_used_tables(table_map map) { used_table_map= map; }
 
   virtual bool allocate(uint i) { return 0; };
-  virtual bool setup(Item *) { return 0; };
+  virtual bool setup(Item *item) { example= item;  return 0; };
   virtual void store(Item *)= 0;
   void set_len_n_dec(uint32 max_len, uint8 dec)
   {
@@ -873,6 +872,7 @@ public:
   enum Type type() const { return CACHE_ITEM; }
   static Item_cache* get_cache(Item_result type);
   table_map used_tables() const { return used_table_map; }
+  void print(String *str);
 };
 
 class Item_cache_int: public Item_cache
@@ -881,12 +881,7 @@ class Item_cache_int: public Item_cache
 public:
   Item_cache_int(): Item_cache() {}
   
-  void store(Item *item)
-  {
-    value= item->val_int_result();
-    null_value= item->null_value;
-    collation.set(item->collation);
-  }
+  void store(Item *item);
   double val() { return (double) value; }
   longlong val_int() { return value; }
   String* val_str(String *str) { str->set(value, default_charset()); return str; }
@@ -899,12 +894,7 @@ class Item_cache_real: public Item_cache
 public:
   Item_cache_real(): Item_cache() {}
   
-  void store(Item *item)
-  {
-    value= item->val_result();
-    null_value= item->null_value;
-    collation.set(item->collation);
-  }
+  void store(Item *item);
   double val() { return value; }
   longlong val_int() { return (longlong) (value+(value > 0 ? 0.5 : -0.5)); }
   String* val_str(String *str)

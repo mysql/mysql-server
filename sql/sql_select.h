@@ -151,7 +151,8 @@ class JOIN :public Sql_alloc
   Item_sum  **sum_funcs2, ***sum_funcs_end2;
   Procedure *procedure;
   Item	    *having;
-  Item      *tmp_having; // To store Having when processed temporary table
+  Item      *tmp_having; // To store having when processed temporary table
+  Item      *having_history; // Store having for explain
   uint	    select_options;
   select_result *result;
   TMP_TABLE_PARAM tmp_table_param;
@@ -181,6 +182,7 @@ class JOIN :public Sql_alloc
 
   ORDER *order, *group_list, *proc_param; //hold parameters of mysql_select
   COND *conds;                            // ---"---
+  Item *conds_history;                    // store WHERE for explain
   TABLE_LIST *tables_list;           //hold 'tables' parameter of mysql_selec
   SQL_SELECT *select;                //created in optimisation phase
   Item **ref_pointer_array; //used pointer reference for this select
@@ -217,8 +219,7 @@ class JOIN :public Sql_alloc
     thd= thd_arg;
     sum_funcs= sum_funcs2= 0;
     procedure= 0;
-    having= 0;
-    tmp_having= 0;
+    having= tmp_having= having_history= 0;
     select_options= select_options_arg;
     result= result_arg;
     lock= thd_arg->lock;

@@ -331,6 +331,20 @@ JOIN::prepare(Item ***rref_pointer_array,
       having->split_sum_func(ref_pointer_array, all_fields);
   }
 
+#ifndef DEBUG_OFF
+  {
+    char buff[256];
+    String str(buff,(uint32) sizeof(buff), system_charset_info);
+    str.length(0);
+    if (select_lex->master_unit()->item)
+      select_lex->master_unit()->item->print(&str);
+    else
+      unit->print(&str);
+    str.append('\0');
+    DBUG_PRINT("info", ("(SUB)SELECT: %s", str.ptr()));
+  }
+#endif
+
   // Is it subselect
   {
     Item_subselect *subselect;
@@ -883,12 +897,12 @@ JOIN::optimize()
     need_tmp=1; simple_order=simple_group=0;	// Force tmp table without sort
   }
 
+  tmp_having= having;
   if (select_options & SELECT_DESCRIBE)
   {
     error= 0;
     DBUG_RETURN(0);
   }
-  tmp_having= having;
   having= 0;
 
   /* Perform FULLTEXT search before all regular searches */
@@ -1550,10 +1564,22 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
     goto err;					// 1
   }
 
+  if (thd->lex.describe & DESCRIBE_EXTENDED)
+  {
+    join->conds_history= join->conds;
+    join->having_history= (join->having?join->having:join->tmp_having);
+  }
+
   if (thd->net.report_error)
     goto err;
 
   join->exec();
+
+  if (thd->lex.describe & DESCRIBE_EXTENDED)
+  {
+    select_lex->where= join->conds_history;
+    select_lex->having= join->having_history;
+  }
 
 err:
   if (free_join)
@@ -9000,4 +9026,160 @@ int mysql_explain_select(THD *thd, SELECT_LEX *select_lex, char const *type,
 			select_lex->options | thd->options | SELECT_DESCRIBE,
 			result, unit, select_lex, 0);
   DBUG_RETURN(res);
+}
+
+
+void st_select_lex::print(THD *thd, String *str)
+{
+  if (!thd)
+    thd= current_thd;
+
+  str->append("select ", 7);
+  
+  //options
+  if (options & SELECT_STRAIGHT_JOIN)
+    str->append("straight_join ", 14);
+  if ((thd->lex.lock_option & TL_READ_HIGH_PRIORITY) &&
+      (this == &thd->lex.select_lex))
+    str->append("high_priority ", 14);
+  if (options & SELECT_DISTINCT)
+    str->append("distinct ", 9);
+  if (options & SELECT_SMALL_RESULT)
+    str->append("small_result ", 13);
+  if (options & SELECT_BIG_RESULT)
+    str->append("big_result ", 11);
+  if (options & OPTION_BUFFER_RESULT)
+    str->append("buffer_result ", 14);
+  if (options & OPTION_FOUND_ROWS)
+    str->append("calc_found_rows ", 16);
+  if (!thd->lex.safe_to_cache_query)
+    str->append("no_cache ", 9);
+  if (options & OPTION_TO_QUERY_CACHE)
+    str->append("cache ", 6);
+
+  //Item List
+  bool first= 1;
+  List_iterator_fast<Item> it(item_list);
+  Item *item;
+  while ((item= it++))
+  {
+    if (first)
+      first= 0;
+    else
+      str->append(',');
+    item->print_item_w_name(str);
+  }
+
+  /*
+    from clause
+    TODO: support USING/FORCE/IGNORE index
+  */
+  if (table_list.elements)
+  {
+    str->append(" from ", 6);
+    Item *next_on= 0;
+    for (TABLE_LIST *table= (TABLE_LIST *) table_list.first;
+	 table;
+	 table= table->next)
+    {
+      if (table->derived)
+      {
+	str->append('(');
+	table->derived->print(str);
+	str->append(") ");
+	str->append(table->alias);
+      }
+      else
+      {
+	str->append(table->db);
+	str->append('.');
+	str->append(table->real_name);
+	if (strcmp(table->real_name, table->alias))
+	{
+	  str->append(' ');
+	  str->append(table->alias);
+	}
+      }
+
+      if (table->on_expr && ((table->outer_join & JOIN_TYPE_LEFT) ||
+			     !(table->outer_join & JOIN_TYPE_RIGHT)))
+	next_on= table->on_expr;
+
+      if (next_on)
+      {
+	str->append(" on(", 4);
+	next_on->print(str);
+	str->append(')');
+	next_on= 0;
+      }
+
+      TABLE_LIST *next;
+      if ((next= table->next))
+      {
+	if (table->outer_join & JOIN_TYPE_RIGHT)
+	{
+	  str->append(" right join ", 12);
+	  if (!(table->outer_join & JOIN_TYPE_LEFT) &&
+	      table->on_expr)
+	    next_on= table->on_expr;	    
+	}
+	else if (next->straight)
+	  str->append(" straight_join ", 15);
+	else if (next->outer_join & JOIN_TYPE_LEFT)
+	  str->append(" left join ", 11);
+	else
+	  str->append(" join ", 6);
+      }
+    }
+  }
+
+  //where
+  Item *where= this->where;
+  if (join)
+    where= join->conds;
+  if (where)
+  {
+    str->append(" where ", 7);
+    where->print(str);
+  }
+
+  //group by & olap
+  if (group_list.elements)
+  {
+    str->append(" group by ", 10);
+    print_order(str, (ORDER *) group_list.first);
+    switch (olap)
+    {
+      case CUBE_TYPE:
+	str->append(" with cube", 10);
+	break;
+      case ROLLUP_TYPE:
+	str->append(" with rollup", 12);
+	break;
+      default:
+	;  //satisfy compiler
+    }
+  }
+
+  //having
+  Item *having= this->having;
+  if (join)
+    having= join->having;
+
+  if (having)
+  {
+    str->append(" having ", 8);
+    having->print(str);
+  }
+
+  if (order_list.elements)
+  {
+    str->append(" order by ", 10);
+    print_order(str, (ORDER *) order_list.first);
+  }
+
+  // limit
+  print_limit(thd, str);
+
+  // PROCEDURE unsupported here
 }
