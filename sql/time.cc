@@ -63,6 +63,9 @@ long my_gmt_sec(TIME *t, long *my_timezone)
   struct tm *l_time,tm_tmp;
   long diff, current_timezone;
 
+  if (t->year > TIMESTAMP_MAX_YEAR || t->year < TIMESTAMP_MIN_YEAR)
+    return 0;
+    
   if (t->hour >= 24)
   {					/* Fix for time-loop */
     t->day+=t->hour/24;
@@ -125,8 +128,10 @@ long my_gmt_sec(TIME *t, long *my_timezone)
       tmp-=t->minute*60 + t->second;		// Move to previous hour
   }
   *my_timezone= current_timezone;
-  if (tmp < 0 && t->year <= 1900+YY_PART_YEAR)
+  
+  if (tmp < TIMESTAMP_MIN_VALUE || tmp > TIMESTAMP_MAX_VALUE)
     tmp= 0;
+  
   return (long) tmp;
 } /* my_gmt_sec */
 
@@ -444,15 +449,13 @@ time_t str_to_timestamp(const char *str,uint length)
 {
   TIME l_time;
   long not_used;
+  time_t timestamp= 0;
 
-  if (str_to_TIME(str,length,&l_time,0) == TIMESTAMP_NONE)
-    return(0);
-  if (l_time.year >= TIMESTAMP_MAX_YEAR || l_time.year < 1900+YY_PART_YEAR-1)
-  {
+  if (str_to_TIME(str,length,&l_time,0) != TIMESTAMP_NONE &&
+      !(timestamp= my_gmt_sec(&l_time, &not_used)))
     current_thd->cuted_fields++;
-    return(0);
-  }
-  return(my_gmt_sec(&l_time, &not_used));
+  
+  return timestamp;
 }
 
 
