@@ -231,7 +231,7 @@ public:
     result of this query can't be cached, bit field, can be :
       UNCACHEABLE_DEPENDENT
       UNCACHEABLE_RAND
-      UNCACHEABLE_UNCACHEABLE
+      UNCACHEABLE_SIDEEFFECT
   */
   uint8 uncacheable;
   enum sub_select_type linkage;
