@@ -107,7 +107,7 @@ version number and exit.
 Wait and retry if the database server connection is down.
 .SH FILES
 .TP 2.2i
-.I @sysconfdir@/my.cnf
+.I /etc/my.cnf
 MySQL configuration file
 .TP
 .I @bindir@/mysql
