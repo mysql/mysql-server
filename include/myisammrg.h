@@ -51,6 +51,7 @@ typedef struct st_mymerge_info		/* Struct from h_info */
   uint	reclength;			/* Recordlength */
   int	errkey;				/* With key was dupplicated on err */
   uint	options;			/* HA_OPTION_... used */
+  ulong *rec_per_key;			/* for sql optimizing */
 } MYMERGE_INFO;
 
 typedef struct st_myrg_table_info
@@ -71,6 +72,7 @@ typedef struct st_myrg_info
   my_bool cache_in_use;
   LIST	 open_list;
   QUEUE  by_key;
+  ulong *rec_per_key_part;			/* for sql optimizing */
 } MYRG_INFO;
 
 
