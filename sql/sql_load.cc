@@ -89,14 +89,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     *enclosed=ex->enclosed;
   bool is_fifo=0;
   LOAD_FILE_INFO lf_info;
-  char * db = table_list->db ? table_list->db : thd->db;
-  char * tdb= thd->db ? thd->db : db;
-/*
-  'tdb' can be NULL only if both table_list->db and thd->db are NULL
-  'db' itself can be NULL.  but in that  case it   will generate 
-  an error earlier open_ltable()).
-*/
-
+  char *db = table_list->db;			// This is never null
+  /* If no current database, use database where table is located */
+  char *tdb= thd->db ? thd->db : db;
   bool transactional_table, log_delayed;
   DBUG_ENTER("mysql_load");
 
