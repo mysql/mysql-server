@@ -63,7 +63,7 @@ int Show_instances::do_command(struct st_net *net)
     Instance_map::Iterator iterator(instance_map);
 
     instance_map->lock();
-    while (instance= iterator.next())
+    while ((instance= iterator.next()))
     {
       position= 0;
       store_to_string(&send_buff, instance->options.instance_name, &position);
@@ -117,7 +117,7 @@ Show_instance_status::Show_instance_status(Instance_map *instance_map_arg,
   Instance *instance;
 
   /* we make a search here, since we don't want t store the name */
-  if (instance= instance_map->find(name, len))
+  if ((instance= instance_map->find(name, len)))
   {
     instance_name= instance->options.instance_name;
   }
@@ -222,7 +222,7 @@ Show_instance_options::Show_instance_options(Instance_map *instance_map_arg,
   Instance *instance;
 
   /* we make a search here, since we don't want t store the name */
-  if (instance= instance_map->find(name, len))
+  if ((instance= instance_map->find(name, len)))
   {
     instance_name= instance->options.instance_name;
   }
@@ -306,7 +306,7 @@ int Show_instance_options::do_command(struct st_net *net,
     }
 
     /* loop through the options stored in DYNAMIC_ARRAY */
-    for (int i= 0; i < instance->options.options_array.elements; i++)
+    for (uint i= 0; i < instance->options.options_array.elements; i++)
     {
       char *tmp_option, *option_value;
       get_dynamic(&(instance->options.options_array), (gptr) &tmp_option, i);
@@ -355,7 +355,7 @@ Start_instance::Start_instance(Instance_map *instance_map_arg,
   :Command(instance_map_arg)
 {
   /* we make a search here, since we don't want t store the name */
-  if (instance= instance_map->find(name, len))
+  if ((instance= instance_map->find(name, len)))
     instance_name= instance->options.instance_name;
 }
 
@@ -388,7 +388,7 @@ Stop_instance::Stop_instance(Instance_map *instance_map_arg,
   :Command(instance_map_arg)
 {
   /* we make a search here, since we don't want t store the name */
-  if (instance= instance_map->find(name, len))
+  if ((instance= instance_map->find(name, len)))
     instance_name= instance->options.instance_name;
 }
 
@@ -406,7 +406,7 @@ int Stop_instance::execute(struct st_net *net, ulong connection_id)
     if (instance->options.is_guarded != NULL)
         instance_map->guardian->
                stop_guard(instance);
-    if (err_code= instance->stop())
+    if ((err_code= instance->stop()))
       return err_code;
     printf("instance was stopped\n");
     net_send_ok(net, connection_id);
