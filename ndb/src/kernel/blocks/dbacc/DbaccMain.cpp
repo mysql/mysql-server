@@ -4685,7 +4685,7 @@ void Dbacc::getElement(Signal* signal)
 	    /* --------------------------------------------------------------------------------- */
 	    tslcPageIndex = gePageptr.p->word32[tgeKeyptr] & 0x3ff;
             tslcPagedir = gePageptr.p->word32[tgeKeyptr] >> 10;
-	    searchLongKey(signal);
+	    searchLongKey(signal, true);
             if (tslcResult == ZTRUE) {
               register Uint32 TlocData1, TlocData2;
               jam();
@@ -4728,6 +4728,14 @@ void Dbacc::getElement(Signal* signal)
             Uint32 TgeIndex = TdataIndex + tgeForward;
             operationRecPtr.p->localdata[0] = gePageptr.p->word32[TdataIndex];
             operationRecPtr.p->localdata[1] = gePageptr.p->word32[TgeIndex];
+
+            if (fragrecptr.p->keyLength == 0) {
+              // set up long key variables in operation record
+              tslcPageIndex = gePageptr.p->word32[tgeKeyptr] & 0x3ff;
+              tslcPagedir = gePageptr.p->word32[tgeKeyptr] >> 10;
+              // no verification since we have no key data
+              searchLongKey(signal, false);
+            }
             return;
           }//if
           if (tgeRemLen <= ZCON_HEAD_SIZE) {
@@ -4775,7 +4783,7 @@ void Dbacc::getElement(Signal* signal)
 /*               TSLC_RESULT                                                         */
 /*          DESCRIPTION: SEARCH FOR AN ELEMENT IN A LONG_KEY_PAGE.                   */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::searchLongKey(Signal* signal) 
+void Dbacc::searchLongKey(Signal* signal, bool verify) 
 {
   DirRangePtr slcOverflowrangeptr;
   DirectoryarrayPtr slcOverflowDirptr;
@@ -4801,23 +4809,27 @@ void Dbacc::searchLongKey(Signal* signal)
   dbgWord32(slcPageptr, ZWORDS_IN_PAGE - tslcPageIndex, (int)slcPageptr.p->word32[ZWORDS_IN_PAGE - tslcPageIndex] & 0xffff);
   dbgWord32(slcPageptr, ZWORDS_IN_PAGE - tslcPageIndex, slcPageptr.p->word32[ZWORDS_IN_PAGE - tslcPageIndex] >> 16);
   tslcIndexValue = slcPageptr.p->word32[ZWORDS_IN_PAGE - tslcPageIndex];
-  if ((tslcIndexValue >> 16) != operationRecPtr.p->tupkeylen) {
-    jam();
-    tslcResult = ZFALSE;
-    return;
-  }//if
-  tslcStartIndex = tslcIndexValue & 0xffff;
-  guard30 = operationRecPtr.p->tupkeylen - 1;
-  arrGuard(guard30, 2048);
-  arrGuard(guard30 + tslcStartIndex, 2048);
-  for (tslcIndex = 0; tslcIndex <= guard30; tslcIndex++) {
-    dbgWord32(slcPageptr, tslcIndex + tslcStartIndex, slcPageptr.p->word32[tslcIndex + tslcStartIndex]);
-    if (slcPageptr.p->word32[tslcIndex + tslcStartIndex] != Tkeydata[tslcIndex]) {
+  if (verify) {
+    if ((tslcIndexValue >> 16) != operationRecPtr.p->tupkeylen) {
       jam();
       tslcResult = ZFALSE;
       return;
     }//if
-  }//for
+  }
+  tslcStartIndex = tslcIndexValue & 0xffff;
+  guard30 = operationRecPtr.p->tupkeylen - 1;
+  arrGuard(guard30, 2048);
+  arrGuard(guard30 + tslcStartIndex, 2048);
+  if (verify) {
+    for (tslcIndex = 0; tslcIndex <= guard30; tslcIndex++) {
+      dbgWord32(slcPageptr, tslcIndex + tslcStartIndex, slcPageptr.p->word32[tslcIndex + tslcStartIndex]);
+      if (slcPageptr.p->word32[tslcIndex + tslcStartIndex] != Tkeydata[tslcIndex]) {
+        jam();
+        tslcResult = ZFALSE;
+        return;
+      }//if
+    }//for
+  }
   jam();
   tslcResult = ZTRUE;
   operationRecPtr.p->longPagePtr = slcPageptr.i;
