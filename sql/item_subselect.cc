@@ -51,7 +51,7 @@ void Item_subselect::init(THD *thd, st_select_lex *select_lex,
   DBUG_ENTER("Item_subselect::init");
   DBUG_PRINT("subs", ("select_lex 0x%xl", (ulong) select_lex));
 
-  select_transformer(select_lex);
+  select_transformer(select_lex->master_unit());
   if (select_lex->next_select())
     engine= new subselect_union_engine(thd, select_lex->master_unit(), result,
 				       this);
@@ -67,7 +67,7 @@ Item_subselect::~Item_subselect()
     delete engine;
 }
 
-void Item_subselect::select_transformer(st_select_lex *select_lex) 
+void Item_subselect::select_transformer(st_select_lex_unit *unit) 
 {
   DBUG_ENTER("Item_subselect::select_transformer");
   DBUG_VOID_RETURN;
@@ -394,13 +394,12 @@ Item_allany_subselect::Item_allany_subselect(Item_allany_subselect *item):
   func= item->func;
 }
 
-void Item_in_subselect::single_value_transformer(st_select_lex *select_lex,
+void Item_in_subselect::single_value_transformer(st_select_lex_unit *unit,
 						 Item *left_expr,
 						 compare_func_creator func)
 {
   DBUG_ENTER("Item_in_subselect::single_value_transformer");
-  if (select_lex->master_unit()->global_parameters->select_limit != 
-      HA_POS_ERROR)
+  if (unit->global_parameters->select_limit != HA_POS_ERROR)
   {
     my_error(ER_NOT_SUPPORTED_YET, MYF(0),
 	     "LIMIT & IN/ALL/ANY/SOME subquery");
@@ -420,17 +419,17 @@ void Item_in_subselect::single_value_transformer(st_select_lex *select_lex,
   Item *expr= new Item_ref((Item**)optimizer->get_cache(), 
 			   (char *)"<no matter>",
 			   (char*)"<left expr>");
-  select_lex->master_unit()->dependent= 1;
-  for (SELECT_LEX * sl= select_lex; sl; sl= sl->next_select())
+  unit->dependent= 1;
+  for (SELECT_LEX * sl= unit->first_select(); sl; sl= sl->next_select())
   {
-    if (select_lex->select_limit != HA_POS_ERROR)
+    if (sl->select_limit != HA_POS_ERROR)
     {
       my_error(ER_NOT_SUPPORTED_YET, MYF(0),
 	       "LIMIT & IN/ALL/ANY/SOME subquery");
       DBUG_VOID_RETURN;
     }
 
-    select_lex->dependent= 1;
+    sl->dependent= 1;
     Item *item;
     if (sl->item_list.elements > 1)
     {
@@ -481,7 +480,7 @@ void Item_in_subselect::single_value_transformer(st_select_lex *select_lex,
 	  my_error(ER_NO_TABLES_USED, MYF(0));
 	  DBUG_VOID_RETURN;
 	}
-	if (select_lex->next_select())
+	if (unit->first_select()->next_select())
 	{
 	  /* 
 	     It is in union => we should perform it.
@@ -513,11 +512,11 @@ void Item_in_subselect::single_value_transformer(st_select_lex *select_lex,
   DBUG_VOID_RETURN;
 }
 
-void Item_in_subselect::row_value_transformer(st_select_lex *select_lex,
+void Item_in_subselect::row_value_transformer(st_select_lex_unit *unit,
 					      Item *left_expr)
 {
   DBUG_ENTER("Item_in_subselect::row_value_transformer");
-  if (select_lex->master_unit()->global_parameters->select_limit != 
+  if (unit->global_parameters->select_limit != 
       HA_POS_ERROR)
   {
     my_error(ER_NOT_SUPPORTED_YET, MYF(0),
@@ -531,20 +530,20 @@ void Item_in_subselect::row_value_transformer(st_select_lex *select_lex,
     current_thd->fatal_error= 1;
     DBUG_VOID_RETURN;
   }
-  select_lex->master_unit()->dependent= 1;
+  unit->dependent= 1;
   uint n= left_expr->cols();
   if (optimizer->preallocate_row() || (*optimizer->get_cache())->allocate(n))
     DBUG_VOID_RETURN;
-  for (SELECT_LEX * sl= select_lex; sl; sl= sl->next_select())
+  for (SELECT_LEX * sl= unit->first_select(); sl; sl= sl->next_select())
   {
-    if (select_lex->select_limit != HA_POS_ERROR)
+    if (sl->select_limit != HA_POS_ERROR)
     {
       my_error(ER_NOT_SUPPORTED_YET, MYF(0),
 	       "LIMIT & IN/ALL/ANY/SOME subquery");
       DBUG_VOID_RETURN;
     }
 
-    select_lex->dependent= 1;
+    sl->dependent= 1;
 
     Item *item= 0;
     List_iterator_fast<Item> li(sl->item_list);
@@ -582,18 +581,18 @@ void Item_in_subselect::row_value_transformer(st_select_lex *select_lex,
 }
 
 
-void Item_in_subselect::select_transformer(st_select_lex *select_lex)
+void Item_in_subselect::select_transformer(st_select_lex_unit *unit)
 {
   if (left_expr->cols() == 1)
-    single_value_transformer(select_lex, left_expr,
+    single_value_transformer(unit, left_expr,
 			     &Item_bool_func2::eq_creator);
   else
-    row_value_transformer(select_lex, left_expr);
+    row_value_transformer(unit, left_expr);
 }
 
-void Item_allany_subselect::select_transformer(st_select_lex *select_lex)
+void Item_allany_subselect::select_transformer(st_select_lex_unit *unit)
 {
-  single_value_transformer(select_lex, left_expr, func);
+  single_value_transformer(unit, left_expr, func);
 }
 
 subselect_single_select_engine::subselect_single_select_engine(THD *thd, 
