@@ -297,10 +297,9 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
   if ((file=open_binlog(&log, log_file_name, &errmsg)) < 0)
     goto err;
 
-  if(pos < 4)
+  if (pos < 4)
   {
-    errmsg = "Congratulations! You have hit the magic number and can win \
-sweepstakes if you report the bug";
+    errmsg = "Client requested master to start repliction from impossible position.\n";
     goto err;
   }
  
