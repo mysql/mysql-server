@@ -26,14 +26,14 @@ SocketClient::SocketClient(const char *server_name, unsigned short port, SocketA
   m_auth= sa;
   m_port= port;
   m_server_name= strdup(server_name);
-  m_sockfd= -1;
+  m_sockfd= NDB_INVALID_SOCKET;
 }
 
 SocketClient::~SocketClient()
 {
   if (m_server_name)
     free(m_server_name);
-  if (m_sockfd >= 0)
+  if (m_sockfd != NDB_INVALID_SOCKET)
     NDB_CLOSE_SOCKET(m_sockfd);
   if (m_auth)
     delete m_auth;
@@ -42,7 +42,7 @@ SocketClient::~SocketClient()
 bool
 SocketClient::init()
 {
-  if (m_sockfd >= 0)
+  if (m_sockfd != NDB_INVALID_SOCKET)
     NDB_CLOSE_SOCKET(m_sockfd);
 
   memset(&m_servaddr, 0, sizeof(m_servaddr));
@@ -63,32 +63,32 @@ SocketClient::init()
 NDB_SOCKET_TYPE
 SocketClient::connect()
 {
-  if (m_sockfd < 0)
+  if (m_sockfd == NDB_INVALID_SOCKET)
   {
     if (!init()) {
 #ifdef VM_TRACE
       ndbout << "SocketClient::connect() failed " << m_server_name << " " << m_port << endl;
 #endif
-      return -1;
+      return NDB_INVALID_SOCKET;
     }
   }
   const int r = ::connect(m_sockfd, (struct sockaddr*) &m_servaddr, sizeof(m_servaddr));
   if (r == -1) {
     NDB_CLOSE_SOCKET(m_sockfd);
-    m_sockfd= -1;
-    return -1;
+    m_sockfd= NDB_INVALID_SOCKET;
+    return NDB_INVALID_SOCKET;
   }
 
   if (m_auth) {
     if (!m_auth->client_authenticate(m_sockfd))
     {
       NDB_CLOSE_SOCKET(m_sockfd);
-      m_sockfd= -1;
-      return -1;
+      m_sockfd= NDB_INVALID_SOCKET;
+      return NDB_INVALID_SOCKET;
     }
   }
   NDB_SOCKET_TYPE sockfd= m_sockfd;
-  m_sockfd= -1;
+  m_sockfd= NDB_INVALID_SOCKET;
 
   return sockfd;
 }

@@ -19,8 +19,6 @@ CFG=@name@ - Win32 Debug
 !MESSAGE
 !MESSAGE "@name@ - Win32 Release" (based on "Win32 (x86) Static Library")
 !MESSAGE "@name@ - Win32 Debug" (based on "Win32 (x86) Static Library")
-!MESSAGE "@name@ - Win32 TLS_DEBUG" (based on "Win32 (x86) Static Library")
-!MESSAGE "@name@ - Win32 TLS" (based on "Win32 (x86) Static Library")
 !MESSAGE
 
 # Begin Project
@@ -54,7 +52,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo
-# ADD LIB32 /nologo /out:"..\lib_release\@name@.lib"
+# ADD LIB32 /nologo /out:".\lib_release\@name@.lib"
 @release_libs@
 
 !ELSEIF  "$(CFG)" == "@name@ - Win32 Debug"
@@ -81,63 +79,8 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo
-# ADD LIB32 /nologo /out:"..\lib_debug\@name@.lib"
+# ADD LIB32 /nologo /out:".\lib_debug\@name@.lib"
 @debug_libs@
-
-!ELSEIF  "$(CFG)" == "@name@ - Win32 TLS_DEBUG"
-
-# PROP BASE Use_MFC 0
-# PROP BASE Use_Debug_Libraries 1
-# PROP BASE Output_Dir "@name@___Win32_TLS_DEBUG"
-# PROP BASE Intermediate_Dir "@name@___Win32_TLS_DEBUG"
-# PROP BASE Target_Dir ""
-# PROP Use_MFC 0
-# PROP Use_Debug_Libraries 1
-# PROP Output_Dir "@name@___Win32_TLS_DEBUG"
-# PROP Intermediate_Dir "@name@___Win32_TLS_DEBUG"
-# PROP Target_Dir ""
-# ADD BASE CPP /nologo /G6 /MTd /W3 /Z7 /Od /Gf /D "WIN32" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /FD /c
-# SUBTRACT BASE CPP /YX
-# ADD CPP /nologo /G6 /MTd /W3 /Z7 /Od /Gf /D "WIN32" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /D "USE_TLS" /FD /c
-# ADD BASE CPP @includes@
-# ADD CPP @includes@
-# ADD BASE RSC /l 0x409
-# ADD RSC /l 0x409
-BSC32=bscmake.exe
-# ADD BASE BSC32 /nologo
-# ADD BSC32 /nologo
-LIB32=link.exe -lib
-# ADD BASE LIB32 /nologo /out:"..\lib_debug\@name@_tls.lib"
-# ADD LIB32 /nologo /out:"..\lib_debug\@name@_tls.lib"
-@tls_debug_libs@
-
-!ELSEIF  "$(CFG)" == "@name@ - Win32 TLS"
-
-# PROP BASE Use_MFC 0
-# PROP BASE Use_Debug_Libraries 0
-# PROP BASE Output_Dir "@name@___Win32_TLS"
-# PROP BASE Intermediate_Dir "@name@___Win32_TLS"
-# PROP BASE Target_Dir ""
-# PROP Use_MFC 0
-# PROP Use_Debug_Libraries 0
-# PROP Output_Dir "@name@___Win32_TLS"
-# PROP Intermediate_Dir "@name@___Win32_TLS"
-# PROP Target_Dir ""
-# ADD BASE CPP /nologo /G6 /MT /W3 /O2 /D "WIN32" /D "DBUG_OFF" /D "_WINDOWS" /D "NDEBUG" /FD /c
-# SUBTRACT BASE CPP /YX
-# ADD CPP /nologo /G6 /MT /W3 /O2 /D "WIN32" /D "DBUG_OFF" /D "_WINDOWS" /D "NDEBUG" /D "USE_TLS" /FD /c
-# ADD BASE CPP @includes@
-# ADD CPP @includes@
-# SUBTRACT CPP /YX
-# ADD BASE RSC /l 0x409
-# ADD RSC /l 0x409
-BSC32=bscmake.exe
-# ADD BASE BSC32 /nologo
-# ADD BSC32 /nologo
-LIB32=link.exe -lib
-# ADD BASE LIB32 /nologo /out:"..\lib_release\@name@_tls.lib"
-# ADD LIB32 /nologo /out:"..\lib_release\@name@_tls.lib"
-@tls_release_libs@
 
 !ENDIF
 
@@ -145,8 +88,6 @@ LIB32=link.exe -lib
 
 # Name "@name@ - Win32 Release"
 # Name "@name@ - Win32 Debug"
-# Name "@name@ - Win32 TLS_DEBUG"
-# Name "@name@ - Win32 TLS"
 
 # Begin Group "Source Files"
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"

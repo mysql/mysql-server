@@ -1598,7 +1598,7 @@ SimulatedBlock::sendFragmentedSignal(NodeReceiverGroup rg,
   }
 }
 
-Callback SimulatedBlock::TheEmptyCallback = {0, 0};
+SimulatedBlock::Callback SimulatedBlock::TheEmptyCallback = {0, 0};
 
 void
 SimulatedBlock::sendFragmentedSignal(BlockReference ref, 
