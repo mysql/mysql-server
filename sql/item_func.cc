@@ -3270,8 +3270,21 @@ Item_func_sp::Item_func_sp(sp_name *name, List<Item> &list)
 const char *
 Item_func_sp::func_name() const
 {
-  return m_name->m_name.str;
+  THD * thd= current_thd;
+  uint len= ((m_name->m_db.length +
+              m_name->m_name.length)*2 + //characters*quoting
+             2 +                         // ` and `
+             1 +                         // .
+             1);                         // end of string
+  String qname(alloc_root(&thd->mem_root, len), len,
+               system_charset_info);
+  qname.length(0);
+  append_identifier(thd, &qname, m_name->m_db.str, m_name->m_db.length);
+  qname.append('.');
+  append_identifier(thd, &qname, m_name->m_name.str, m_name->m_name.length);
+  return qname.ptr();
 }
+
 
 int
 Item_func_sp::execute(Item **itp)
