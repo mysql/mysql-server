@@ -38967,6 +38967,9 @@ applications.  By Miguel Angel Solórzano.
 @item @uref{http://www.mysql.com/Downloads/Contrib/MySQL-ADA95_API.zip, MySQL-ADA95_API.zip}
 An ADA95 interface to the MySQL API. By Francois Fabien.
 
+@item @uref{http://www.mysql.com/Downloads/Contrib/MyTool-DLL_for_VB_and_MySQL.zip, MyTool-DLL_for_VB_and_MySQL.zip}
+A DLL with MySQL C API for Visual Basic. By Ken Menzel @email{kenm@@icarz.com}.
+
 @end itemize
 
 @appendixsec  Clients
