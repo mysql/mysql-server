@@ -46934,6 +46934,7 @@ Fixed problem with @code{UNSIGNED BIGINT} on AIX (again).
 Multithreaded stress tests for InnoDB.
 @end itemize
 
+@node News-3.23.52, News-3.23.51, News-3.23.53, News-3.23.x
 @appendixsubsec Changes in release 3.23.52
 @itemize @bullet
 @item
