@@ -20,6 +20,11 @@ SELECT * FROM (SELECT 1 as id) b WHERE id IN (SELECT * FROM (SELECT 1 as id) c O
 SELECT * FROM (SELECT 1) a  WHERE 1 IN (SELECT 1,1);
 SELECT 1 IN (SELECT 1);
 SELECT 1 FROM (SELECT 1 as a) b WHERE 1 IN (SELECT (SELECT a));
+-- error 1221
+select (SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE(1));
+-- error 1108
+SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE((SELECT 1));
+
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8;
 create table t1 (a int);
 create table t2 (a int, b int);

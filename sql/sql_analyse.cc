@@ -89,21 +89,21 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
     if ((*param->item)->type() != Item::INT_ITEM ||
 	(*param->item)->val() < 0)
     {
-      net_printf(thd, ER_WRONG_PARAMETERS_TO_PROCEDURE, proc_name);
+      my_error(ER_WRONG_PARAMETERS_TO_PROCEDURE, MYF(0), proc_name);
       DBUG_RETURN(0);
     }
     pc->max_tree_elements = (uint) (*param->item)->val_int();
     param = param->next;
     if (param->next)  // no third parameter possible
     {
-      net_printf(thd, ER_WRONG_PARAMCOUNT_TO_PROCEDURE, proc_name);
+      my_error(ER_WRONG_PARAMCOUNT_TO_PROCEDURE, MYF(0), proc_name);
       DBUG_RETURN(0);
     }
     // second parameter
     if ((*param->item)->type() != Item::INT_ITEM ||
 	(*param->item)->val() < 0)
     {
-      net_printf(thd, ER_WRONG_PARAMETERS_TO_PROCEDURE, proc_name);
+      my_error(ER_WRONG_PARAMETERS_TO_PROCEDURE, MYF(0), proc_name);
       DBUG_RETURN(0);
     }
     pc->max_treemem = (uint) (*param->item)->val_int();
@@ -111,7 +111,7 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
   else if ((*param->item)->type() != Item::INT_ITEM ||
 	   (*param->item)->val() < 0)
   {
-    net_printf(thd, ER_WRONG_PARAMETERS_TO_PROCEDURE, proc_name);
+    my_error(ER_WRONG_PARAMETERS_TO_PROCEDURE, MYF(0), proc_name);
     DBUG_RETURN(0);
   }
   // if only one parameter was given, it will be the value of max_tree_elements

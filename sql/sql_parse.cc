@@ -3054,9 +3054,12 @@ mysql_init_select(LEX *lex)
   select_lex->init_select();
   select_lex->master_unit()->select_limit= select_lex->select_limit=
     lex->thd->variables.select_limit;
-  lex->exchange= 0;
-  lex->result= 0;
-  lex->proc_list.first= 0;
+  if (select_lex == &lex->select_lex)
+  {
+    lex->exchange= 0;
+    lex->result= 0;
+    lex->proc_list.first= 0;
+  }
 }
 
 
