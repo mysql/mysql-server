@@ -9899,6 +9899,7 @@ CHARSET_INFO my_charset_gbk =
     sort_order_gbk,
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
+    "","",
     1,			/* strxfrm_multiply */
     my_strnncoll_gbk,
     my_strnncollsp_gbk,

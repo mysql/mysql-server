@@ -732,7 +732,7 @@ void field_str::get_opt_type(String *answer, ha_rows total_rows)
   {
     if (must_be_blob)
     {
-      if (item->binary())
+      if (item->charset() == &my_charset_bin)
 	answer->append("TINYBLOB", 8);
       else
 	answer->append("TINYTEXT", 8);
@@ -750,21 +750,21 @@ void field_str::get_opt_type(String *answer, ha_rows total_rows)
   }
   else if (max_length < (1L << 16))
   {
-    if (item->binary())
+    if (item->charset() == &my_charset_bin)
       answer->append("BLOB", 4);
     else
       answer->append("TEXT", 4);
   }
   else if (max_length < (1L << 24))
   {
-    if (item->binary())
+    if (item->charset() == &my_charset_bin)
       answer->append("MEDIUMBLOB", 10);
     else
       answer->append("MEDIUMTEXT", 10);
   }
   else
   {
-    if (item->binary())
+    if (item->charset() == &my_charset_bin)
       answer->append("LONGBLOB", 8);
     else
       answer->append("LONGTEXT", 8);

@@ -1744,7 +1744,16 @@ mysql_execute_command(THD *thd)
   {
     if (check_global_access(thd, SUPER_ACL))
       goto error;
+    // PURGE MASTER LOGS TO 'file'
     res = purge_master_logs(thd, lex->to_log);
+    break;
+  }
+  case SQLCOM_PURGE_BEFORE:
+  {
+    if (check_global_access(thd, SUPER_ACL))
+      goto error;
+    // PURGE MASTER LOGS BEFORE 'data'
+    res = purge_master_logs_before_date(thd, lex->purge_time);
     break;
   }
 #endif
@@ -2866,7 +2875,7 @@ mysql_execute_command(THD *thd)
     if (check_global_access(thd,RELOAD_ACL) || check_db_used(thd, tables))
       goto error;
     /* error sending is deferred to reload_acl_and_cache */
-    reload_acl_and_cache(thd, lex->type, tables) ;
+    reload_acl_and_cache(thd, lex->type, tables);
     break;
   case SQLCOM_KILL:
     kill_one_thread(thd,lex->thread_id);
@@ -3931,6 +3940,14 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
     mysql_log.new_file(1);
     mysql_update_log.new_file(1);
     mysql_bin_log.new_file(1);
+#ifdef HAVE_REPLICATION
+    if (expire_logs_days)
+    {
+      long purge_time= time(0) - expire_logs_days*24*60*60;
+      if (purge_time >= 0)
+	mysql_bin_log.purge_logs_before_date(thd, purge_time);
+    }
+#endif
     mysql_slow_log.new_file(1);
     if (ha_flush_logs())
       result=1;

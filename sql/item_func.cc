@@ -1024,7 +1024,7 @@ longlong Item_func_char_length::val_int()
     return 0; /* purecov: inspected */
   }
   null_value=0;
-  return (longlong) (!args[0]->binary()) ? res->numchars() : res->length();
+  return (longlong) res->numchars();
 }
 
 longlong Item_func_coercibility::val_int()
@@ -1156,7 +1156,7 @@ longlong Item_func_ord::val_int()
   null_value=0;
   if (!res->length()) return 0;
 #ifdef USE_MB
-  if (use_mb(res->charset()) && !args[0]->binary())
+  if (use_mb(res->charset()))
   {
     register const char *str=res->ptr();
     register uint32 n=0, l=my_ismbchar(res->charset(),str,str+res->length());

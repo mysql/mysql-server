@@ -413,6 +413,7 @@ ulong max_connections,max_insert_delayed_threads,max_used_connections,
       max_connect_errors, max_user_connections = 0;
 ulong thread_id=1L,current_pid;
 ulong slow_launch_threads = 0;
+ulong expire_logs_days = 0;
 
 char mysql_real_data_home[FN_REFLEN],
      language[LIBLEN],reg_ext[FN_EXTLEN],
@@ -2189,6 +2190,14 @@ static int init_server_components()
     open_log(&mysql_bin_log, glob_hostname, opt_bin_logname, "-bin",
 	     opt_binlog_index_name,LOG_BIN);
     using_update_log=1;
+#ifdef HAVE_REPLICATION
+    if (expire_logs_days)
+    {
+      long purge_time= time(0) - expire_logs_days*24*60*60;
+      if (purge_time >= 0)
+	mysql_bin_log.purge_logs_before_date(current_thd, purge_time);
+    }
+#endif
   }
 
   if (opt_error_log)
@@ -3470,6 +3479,7 @@ enum options
   OPT_ENABLE_SHARED_MEMORY,
   OPT_SHARED_MEMORY_BASE_NAME,
   OPT_OLD_PASSWORDS,
+  OPT_EXPIRE_LOGS_DAYS,
   OPT_DEFAULT_WEEK_FORMAT
 };
 
@@ -4287,6 +4297,11 @@ struct my_option my_long_options[] =
    (gptr*) &global_system_variables.net_wait_timeout,
    (gptr*) &max_system_variables.net_wait_timeout, 0, GET_ULONG,
    REQUIRED_ARG, NET_WAIT_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0},
+  {"expire_logs_days", OPT_EXPIRE_LOGS_DAYS,
+   "Logs will be rotated after expire-log-days days. ",
+   (gptr*) &expire_logs_days,
+   (gptr*) &expire_logs_days, 0, GET_ULONG,
+   REQUIRED_ARG, 0, 0, 99, 0, 1, 0},
   { "default-week-format", OPT_DEFAULT_WEEK_FORMAT,
     "The default week format used by WEEK() functions.",
     (gptr*) &global_system_variables.default_week_format, 
@@ -4337,6 +4352,7 @@ struct show_var_st status_vars[]= {
   {"Com_lock_tables",	       (char*) (com_stat+(uint) SQLCOM_LOCK_TABLES),SHOW_LONG},
   {"Com_optimize",	       (char*) (com_stat+(uint) SQLCOM_OPTIMIZE),SHOW_LONG},
   {"Com_purge",		       (char*) (com_stat+(uint) SQLCOM_PURGE),SHOW_LONG},
+  {"Com_purge_before_date",    (char*) (com_stat+(uint) SQLCOM_PURGE_BEFORE),SHOW_LONG},
   {"Com_rename_table",	       (char*) (com_stat+(uint) SQLCOM_RENAME_TABLE),SHOW_LONG},
   {"Com_repair",	       (char*) (com_stat+(uint) SQLCOM_REPAIR),SHOW_LONG},
   {"Com_replace",	       (char*) (com_stat+(uint) SQLCOM_REPLACE),SHOW_LONG},
