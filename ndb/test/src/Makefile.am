@@ -10,9 +10,10 @@ libNDBT_a_SOURCES = \
 	NdbRestarter.cpp NdbRestarts.cpp NDBT_Output.cpp \
 	NdbBackup.cpp  NdbConfig.cpp NdbGrep.cpp NDBT_Table.cpp
 
+INCLUDES_LOC = -I$(top_srcdir)/ndb/src/common/mgmcommon -I$(top_srcdir)/ndb/include/mgmcommon -I$(top_srcdir)/ndb/include/kernel -I$(top_srcdir)/ndb/src/mgmapi
+
 include $(top_srcdir)/ndb/config/common.mk.am
 include $(top_srcdir)/ndb/config/type_ndbapitest.mk.am
-INCLUDES += -I$(top_srcdir)/ndb/src/common/mgmcommon -I$(top_srcdir)/ndb/include/mgmcommon -I$(top_srcdir)/ndb/include/kernel
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
