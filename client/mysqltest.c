@@ -109,7 +109,7 @@ MYSQL_MANAGER* manager=0;
 
 static char **default_argv;
 static const char *load_default_groups[]= { "mysqltest","client",0 };
-static char line_buffer[MAX_DELIMITER], *line_buffer_pos= line_buffer;;
+static char line_buffer[MAX_DELIMITER], *line_buffer_pos= line_buffer;
 
 static FILE* file_stack[MAX_INCLUDE_DEPTH];
 static FILE** cur_file;
