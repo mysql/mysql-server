@@ -218,7 +218,7 @@ ibuf_update_free_bits_if_full(
 	}
 
 	if (after == 0) {
-		/* We move the page to front of the buffer pool LRU list:
+		/* We move the page to the front of the buffer pool LRU list:
 		the purpose of this is to prevent those pages to which we
 		cannot make inserts using the insert buffer from slipping
 		out of the buffer pool */

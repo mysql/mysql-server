@@ -49,7 +49,6 @@ ha_node_t*
 ha_chain_get_next(
 /*==============*/
 				/* out: next node, NULL if none */
-	hash_table_t*	table __attribute__((unused)),	/* in: hash table */
 	ha_node_t*	node)	/* in: hash chain node */
 {
 	ut_ad(table);
@@ -94,7 +93,7 @@ ha_search(
 			return(node);
 		}
 
-		node = ha_chain_get_next(table, node);
+		node = ha_chain_get_next(node);
 	}
 
 	return(NULL);
@@ -124,7 +123,7 @@ ha_search_and_get_data(
 			return(node->data);
 		}
 
-		node = ha_chain_get_next(table, node);
+		node = ha_chain_get_next(node);
 	}
 
 	return(NULL);
@@ -139,7 +138,6 @@ ha_next(
 				/* out: pointer to the next hash table node
 				in chain with the fold value, NULL if not
 				found */
-	hash_table_t*	table,	/* in: hash table */
 	ha_node_t*	node)	/* in: hash table node */
 {
 	ulint	fold;
@@ -148,7 +146,7 @@ ha_next(
 
 	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
 
-	node = ha_chain_get_next(table, node);
+	node = ha_chain_get_next(node);
 
 	while (node) {
 		if (node->fold == fold) {
@@ -156,7 +154,7 @@ ha_next(
 			return(node);
 		}
 
-		node = ha_chain_get_next(table, node);
+		node = ha_chain_get_next(node);
 	}
 
 	return(NULL);
@@ -186,33 +184,10 @@ ha_search_with_data(
 			return(node);
 		}
 
-		node = ha_chain_get_next(table, node);
+		node = ha_chain_get_next(node);
 	}
 
 	return(NULL);
-}
-
-/*************************************************************
-Looks for an element when we know the pointer to the data, and updates
-the pointer to data, if found. */
-UNIV_INLINE
-void
-ha_search_and_update_if_found(
-/*==========================*/
-	hash_table_t*	table,	/* in: hash table */
-	ulint		fold,	/* in: folded value of the searched data */
-	void*		data,	/* in: pointer to the data */
-	void*		new_data)/* in: new pointer to the data */
-{
-	ha_node_t*	node;
-
-	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
-
-	node = ha_search_with_data(table, fold, data);
-
-	if (node) {
-		node->data = new_data;
-	}
 }
 
 /*************************************************************

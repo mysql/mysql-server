@@ -78,6 +78,7 @@ inline Item *or_or_concat(THD *thd, Item* A, Item* B)
   CHARSET_INFO *charset;
   thr_lock_type lock_type;
   interval_type interval;
+  datetime_format_types datetime_format_type;
   st_select_lex *select_lex;
   chooser_compare_func_creator boolfunc2creator;
 }
@@ -211,6 +212,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	DESCRIBE
 %token	DES_KEY_FILE
 %token	DISABLE_SYM
+%token	DISCARD
 %token	DISTINCT
 %token  DUPLICATE_SYM
 %token	DYNAMIC_SYM
@@ -244,6 +246,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	HOSTS_SYM
 %token	IDENT
 %token	IGNORE_SYM
+%token	IMPORT
 %token	INDEX
 %token	INDEXES
 %token	INFILE
@@ -360,6 +363,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	SUBJECT_SYM
 %token	TABLES
 %token	TABLE_SYM
+%token	TABLESPACE
 %token	TEMPORARY
 %token	TERMINATED
 %token	TEXT_STRING
@@ -446,6 +450,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	BETWEEN_SYM
 %token	BIT_AND
 %token	BIT_OR
+%token  BIT_XOR
 %token	CASE_SYM
 %token	CONCAT
 %token	CONCAT_WS
@@ -478,6 +483,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  GEOMETRYCOLLECTION
 %token  GROUP_CONCAT_SYM
 %token	GROUP_UNIQUE_USERS
+%token  GET_FORMAT
 %token	HOUR_MICROSECOND_SYM
 %token	HOUR_MINUTE_SYM
 %token	HOUR_SECOND_SYM
@@ -640,6 +646,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	UDF_CHAR_FUNC UDF_FLOAT_FUNC UDF_INT_FUNC
 	UDA_CHAR_SUM UDA_FLOAT_SUM UDA_INT_SUM
 
+%type <datetime_format_type> datetime_format_type;
 %type <interval> interval
 
 %type <db_type> table_types
@@ -1250,7 +1257,7 @@ type:
 	| TIME_SYM			{ $$=FIELD_TYPE_TIME; }
 	| TIMESTAMP
 	  {
-	    if (YYTHD->variables.sql_mode & MODE_SAPDB)
+	    if (YYTHD->variables.sql_mode & MODE_MAXDB)
 	      $$=FIELD_TYPE_DATETIME;
 	    else
 	      $$=FIELD_TYPE_TIMESTAMP;
@@ -1635,6 +1642,7 @@ alter:
 	  lex->create_info.table_charset= thd->variables.collation_database;
 	  lex->create_info.row_type= ROW_TYPE_NOT_USED;
           lex->alter_keys_onoff=LEAVE_AS_IS;
+	  lex->tablespace_op=NO_TABLESPACE_OP;
           lex->simple_alter=1;
 	}
 	alter_list
@@ -1648,6 +1656,8 @@ alter:
 
 
 alter_list:
+	| DISCARD TABLESPACE { Lex->tablespace_op=DISCARD_TABLESPACE; }
+	| IMPORT TABLESPACE { Lex->tablespace_op=IMPORT_TABLESPACE; }
         | alter_list_item
 	| alter_list ',' alter_list_item;
 
@@ -2559,6 +2569,8 @@ simple_expr:
 	  { $$= new Item_func_spatial_collection(* $3,
                        Geometry::wkbGeometryCollection,
                        Geometry::wkbPoint); }
+	| GET_FORMAT '(' datetime_format_type  ',' expr ')'
+	  { $$= new Item_func_get_format($3, $5); }
 	| HOUR_SYM '(' expr ')'
 	  { $$= new Item_func_hour($3); }
 	| IF '(' expr ',' expr ',' expr ')'
@@ -2825,6 +2837,8 @@ sum_expr:
 	  { $$=new Item_sum_and($3); }
 	| BIT_OR  '(' in_sum_expr ')'
 	  { $$=new Item_sum_or($3); }
+	| BIT_XOR  '(' in_sum_expr ')'
+	  { $$=new Item_sum_xor($3); }
 	| COUNT_SYM '(' opt_all '*' ')'
 	  { $$=new Item_sum_count(new Item_int((int32) 0L,1)); }
 	| COUNT_SYM '(' in_sum_expr ')'
@@ -3169,6 +3183,11 @@ interval:
 	| SECOND_SYM		{ $$=INTERVAL_SECOND; }
 	| YEAR_MONTH_SYM	{ $$=INTERVAL_YEAR_MONTH; }
 	| YEAR_SYM		{ $$=INTERVAL_YEAR; };
+
+datetime_format_type:
+	DATE_SYM		{$$=DATE_FORMAT_TYPE;}
+	| TIME_SYM		{$$=TIME_FORMAT_TYPE;}
+	| DATETIME		{$$=DATETIME_FORMAT_TYPE;};
 
 table_alias:
 	/* empty */
@@ -4494,6 +4513,7 @@ keyword:
 	| DELAY_KEY_WRITE_SYM	{}
 	| DES_KEY_FILE		{}
 	| DIRECTORY_SYM		{}
+	| DISCARD		{}
 	| DO_SYM		{}
 	| DUAL_SYM		{}
 	| DUMPFILE		{}
@@ -4516,6 +4536,7 @@ keyword:
 	| FLUSH_SYM		{}
 	| GEOMETRY_SYM		{}
 	| GEOMETRYCOLLECTION	{}
+	| GET_FORMAT		{}
 	| GRANTS		{}
 	| GLOBAL_SYM		{}
 	| HANDLER_SYM		{}
@@ -4525,6 +4546,7 @@ keyword:
 	| HOSTS_SYM		{}
 	| HOUR_SYM		{}
 	| IDENTIFIED_SYM	{}
+	| IMPORT		{}
 	| INDEXES		{}
 	| ISOLATION		{}
 	| ISAM_SYM		{}
@@ -4633,6 +4655,7 @@ keyword:
 	| SUBDATE_SYM		{}
 	| SUBJECT_SYM		{}
 	| SUPER_SYM		{}
+	| TABLESPACE		{}
 	| TEMPORARY		{}
 	| TEXT_SYM		{}
 	| TRANSACTION_SYM	{}

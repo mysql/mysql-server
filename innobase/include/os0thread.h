@@ -15,14 +15,9 @@ Created 9/8/1995 Heikki Tuuri
 /* Maximum number of threads which can be created in the program;
 this is also the size of the wait slot array for MySQL threads which
 can wait inside InnoDB */
-#if defined(__WIN__) || defined(__NETWARE__)
-/* Create less event semaphores because Win 98/ME had difficult creating
-40000 event semaphores */
-/* TODO: these just take a lot of memory on NetWare.  should netware move up? */
-#define	OS_THREAD_MAX_N		1000
-#else
-#define	OS_THREAD_MAX_N		10000
-#endif
+
+#define	OS_THREAD_MAX_N		srv_max_n_threads
+
 
 /* Possible fixed priorities for threads */
 #define OS_THREAD_PRIORITY_NONE		100

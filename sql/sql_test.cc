@@ -22,6 +22,7 @@
 #include "sql_select.h"
 #include <hash.h>
 #include <thr_alarm.h>
+#include <malloc.h>
 
 /* Intern key cache variables */
 extern "C" pthread_mutex_t THR_LOCK_keycache;
@@ -300,6 +301,8 @@ void mysql_print_status(THD *thd)
   printf("\nStatus information:\n\n");
   my_getwd(current_dir, sizeof(current_dir),MYF(0));
   printf("Current dir: %s\n", current_dir);
+  printf("Running threads: %d  Stack size: %ld\n", thread_count,
+	 (long) thread_stack);
   if (thd)
     thd->proc_info="locks";
   thr_print_locks();				// Write some debug info
@@ -365,6 +368,34 @@ Next alarm time: %lu\n",
     thd->proc_info="malloc";
   my_checkmalloc();
   TERMINATE(stdout);				// Write malloc information
+
+#ifdef HAVE_MALLINFO
+  struct mallinfo info= mallinfo();
+  printf("\nMemory status:\n\
+Non-mmapped space allocated from system: %d\n\
+Number of free chunks:			 %d\n\
+Number of fastbin blocks:		 %d\n\
+Number of mmapped regions:		 %d\n\
+Space in mmapped regions:		 %d\n\
+Maximum total allocated space:		 %d\n\
+Space available in freed fastbin blocks: %d\n\
+Total allocated space:			 %d\n\
+Total free space:			 %d\n\
+Top-most, releasable space:		 %d\n\
+Estimated memory (with thread stack):    %ld\n",
+	 (int) info.arena	,
+	 (int) info.ordblks,
+	 (int) info.smblks,
+	 (int) info.hblks,
+	 (int) info.hblkhd,
+	 (int) info.usmblks,
+	 (int) info.fsmblks,
+	 (int) info.uordblks,
+	 (int) info.fordblks,
+	 (int) info.keepcost,
+	 (long) (thread_count * thread_stack + info.hblkhd + info.arena));
+#endif
+  puts("");
   if (thd)
     thd->proc_info=0;
 }

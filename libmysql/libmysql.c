@@ -65,8 +65,8 @@
 
 ulong 		net_buffer_length=8192;
 ulong		max_allowed_packet= 1024L*1024L*1024L;
-ulong		net_read_timeout=  NET_READ_TIMEOUT;
-ulong		net_write_timeout= NET_WRITE_TIMEOUT;
+ulong		net_read_timeout=  CLIENT_NET_READ_TIMEOUT;
+ulong		net_write_timeout= CLIENT_NET_WRITE_TIMEOUT;
 
 
 #ifdef EMBEDDED_LIBRARY
@@ -3098,7 +3098,7 @@ no_data:
   Read all rows of data from server  (binary format)
 */
 
-MYSQL_DATA *cli_read_binary_rows(MYSQL_STMT *stmt)
+MYSQL_DATA * STDCALL cli_read_binary_rows(MYSQL_STMT *stmt)
 {
   ulong      pkt_len;
   uchar      *cp;

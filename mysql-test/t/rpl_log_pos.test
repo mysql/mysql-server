@@ -5,7 +5,7 @@ source include/master-slave.inc;
 show master status;
 sync_slave_with_master;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
---replace_column 33 #
+--replace_column 1 # 33 #
 show slave status;
 stop slave;
 change master to master_log_pos=73;
@@ -15,12 +15,12 @@ stop slave;
 
 change master to master_log_pos=73;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
---replace_column 33 #
+--replace_column 1 # 33 #
 show slave status;
 start slave;
 sleep 5;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
---replace_column 33 #
+--replace_column 1 # 33 #
 show slave status;
 stop slave;
 change master to master_log_pos=173;
@@ -28,7 +28,7 @@ change master to master_log_pos=173;
 start slave;
 sleep 2;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
---replace_column 33 #
+--replace_column 1 # 33 #
 show slave status;
 connection master;
 show master status;

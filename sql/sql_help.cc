@@ -599,7 +599,7 @@ SQL_SELECT *prepare_simple_select(THD *thd, Item *cond, TABLE_LIST *tables,
 {
   cond->fix_fields(thd, tables, &cond);	// can never fail
   SQL_SELECT *res= make_select(table,0,0,cond,error);
-  return (*error || (res && res->check_quick(0, HA_POS_ERROR))) ? 0 : res;
+  return (*error || (res && res->check_quick(thd, 0, HA_POS_ERROR))) ? 0 : res;
 }
 
 /*
@@ -627,6 +627,8 @@ SQL_SELECT *prepare_select_for_name(THD *thd, const char *mask, uint mlen,
   Item *cond= new Item_func_like(new Item_field(pfname),
 				 new Item_string(mask,mlen,pfname->charset()),
 				 (char*) "\\");
+  if (thd->is_fatal_error)
+    return 0;					// OOM
   return prepare_simple_select(thd,cond,tables,table,error);
 }
 

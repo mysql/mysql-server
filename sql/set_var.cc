@@ -51,6 +51,7 @@
 #include "slave.h"
 #include "sql_acl.h"
 #include <my_getopt.h>
+#include <thr_alarm.h>
 #include <myisam.h>
 #ifdef HAVE_BERKELEY_DB
 #include "ha_berkeley.h"
@@ -90,6 +91,7 @@ static void fix_myisam_max_extra_sort_file_size(THD *thd, enum_var_type type);
 static void fix_myisam_max_sort_file_size(THD *thd, enum_var_type type);
 static void fix_max_binlog_size(THD *thd, enum_var_type type);
 static void fix_max_relay_log_size(THD *thd, enum_var_type type);
+static void fix_max_connections(THD *thd, enum_var_type type);
 static KEY_CACHE *create_key_cache(const char *name, uint length);
 void fix_sql_mode_var(THD *thd, enum_var_type type);
 static byte *get_error_count(THD *thd);
@@ -162,11 +164,13 @@ sys_var_long_ptr	sys_max_binlog_size("max_binlog_size",
 					    &max_binlog_size,
                                             fix_max_binlog_size);
 sys_var_long_ptr	sys_max_connections("max_connections",
-					    &max_connections);
+					    &max_connections,
+                                            fix_max_connections);
 sys_var_long_ptr	sys_max_connect_errors("max_connect_errors",
 					       &max_connect_errors);
 sys_var_long_ptr	sys_max_delayed_threads("max_delayed_threads",
-						&max_insert_delayed_threads);
+						&max_insert_delayed_threads,
+						fix_max_connections);
 sys_var_thd_ulong	sys_max_error_count("max_error_count",
 					    &SV::max_error_count);
 sys_var_thd_ulong	sys_max_heap_table_size("max_heap_table_size",
@@ -235,6 +239,18 @@ sys_var_long_ptr	sys_rpl_recovery_rank("rpl_recovery_rank",
 sys_var_long_ptr	sys_query_cache_size("query_cache_size",
 					     &query_cache_size,
 					     fix_query_cache_size);
+
+sys_var_thd_ulong	sys_range_alloc_block_size("range_alloc_block_size",
+						   &SV::range_alloc_block_size);
+sys_var_thd_ulong	sys_query_alloc_block_size("query_alloc_block_size",
+						   &SV::query_alloc_block_size);
+sys_var_thd_ulong	sys_query_prealloc_size("query_prealloc_size",
+						&SV::query_prealloc_size);
+sys_var_thd_ulong	sys_trans_alloc_block_size("transaction_alloc_block_size",
+						   &SV::trans_alloc_block_size);
+sys_var_thd_ulong	sys_trans_prealloc_size("transaction_prealloc_size",
+						&SV::trans_prealloc_size);
+
 #ifdef HAVE_QUERY_CACHE
 sys_var_long_ptr	sys_query_cache_limit("query_cache_limit",
 					      &query_cache.query_cache_limit);
@@ -387,6 +403,9 @@ sys_var *sys_variables[]=
   &sys_collation_server,
   &sys_concurrent_insert,
   &sys_connect_timeout,
+  &g_datetime_frm(DATE_FORMAT_TYPE),
+  &g_datetime_frm(DATETIME_FORMAT_TYPE),
+  &g_datetime_frm(TIME_FORMAT_TYPE),
   &sys_default_week_format,
   &sys_delay_key_write,
   &sys_delayed_insert_limit,
@@ -441,7 +460,9 @@ sys_var *sys_variables[]=
   &sys_old_passwords,
   &sys_preload_buff_size,
   &sys_pseudo_thread_id,
+  &sys_query_alloc_block_size,
   &sys_query_cache_size,
+  &sys_query_prealloc_size,
 #ifdef HAVE_QUERY_CACHE
   &sys_query_cache_limit,
   &sys_query_cache_min_res_unit,
@@ -450,6 +471,7 @@ sys_var *sys_variables[]=
   &sys_quote_show_create,
   &sys_rand_seed1,
   &sys_rand_seed2,
+  &sys_range_alloc_block_size,
   &sys_read_buff_size,
   &sys_read_rnd_buff_size,
 #ifdef HAVE_REPLICATION
@@ -478,6 +500,8 @@ sys_var *sys_variables[]=
   &sys_thread_cache_size,
   &sys_timestamp,
   &sys_tmp_table_size,
+  &sys_trans_alloc_block_size,
+  &sys_trans_prealloc_size,
   &sys_tx_isolation,
 #ifdef HAVE_INNOBASE_DB
   &sys_innodb_max_dirty_pages_pct,
@@ -519,6 +543,8 @@ struct show_var_st init_vars[]= {
   {sys_concurrent_insert.name,(char*) &sys_concurrent_insert,       SHOW_SYS},
   {sys_connect_timeout.name,  (char*) &sys_connect_timeout,         SHOW_SYS},
   {"datadir",                 mysql_real_data_home,                 SHOW_CHAR},
+  {"date_format",             (char*) &g_datetime_frm(DATE_FORMAT_TYPE), SHOW_SYS},
+  {"datetime_format",         (char*) &g_datetime_frm(DATETIME_FORMAT_TYPE), SHOW_SYS},
   {"default_week_format",     (char*) &sys_default_week_format,     SHOW_SYS},
   {sys_delay_key_write.name,  (char*) &sys_delay_key_write,         SHOW_SYS},
   {sys_delayed_insert_limit.name, (char*) &sys_delayed_insert_limit,SHOW_SYS},
@@ -629,6 +655,8 @@ struct show_var_st init_vars[]= {
   {"protocol_version",        (char*) &protocol_version,            SHOW_INT},
   {sys_preload_buff_size.name, (char*) &sys_preload_buff_size,      SHOW_SYS},
   {sys_pseudo_thread_id.name, (char*) &sys_pseudo_thread_id,        SHOW_SYS},
+  {sys_query_alloc_block_size.name, (char*) &sys_query_alloc_block_size,
+   SHOW_SYS},
 #ifdef HAVE_QUERY_CACHE
   {sys_query_cache_limit.name,(char*) &sys_query_cache_limit,	    SHOW_SYS},
   {sys_query_cache_min_res_unit.name, (char*) &sys_query_cache_min_res_unit,
@@ -637,6 +665,9 @@ struct show_var_st init_vars[]= {
   {sys_query_cache_type.name, (char*) &sys_query_cache_type,        SHOW_SYS},
   {"secure_auth",             (char*) &sys_secure_auth,             SHOW_SYS},
 #endif /* HAVE_QUERY_CACHE */
+  {sys_query_prealloc_size.name, (char*) &sys_query_prealloc_size,  SHOW_SYS},
+  {sys_range_alloc_block_size.name, (char*) &sys_range_alloc_block_size,
+   SHOW_SYS},
   {sys_read_buff_size.name,   (char*) &sys_read_buff_size,	    SHOW_SYS},
   {sys_readonly.name,         (char*) &sys_readonly,                SHOW_SYS},
   {sys_read_rnd_buff_size.name,(char*) &sys_read_rnd_buff_size,	    SHOW_SYS},
@@ -670,19 +701,89 @@ struct show_var_st init_vars[]= {
 #endif
   {"thread_stack",            (char*) &thread_stack,                SHOW_LONG},
   {sys_tx_isolation.name,     (char*) &sys_tx_isolation,	    SHOW_SYS},
+  {"time_format",             (char*) &g_datetime_frm(TIME_FORMAT_TYPE), SHOW_SYS},
 #ifdef HAVE_TZNAME
   {"timezone",                time_zone,                            SHOW_CHAR},
 #endif
   {sys_tmp_table_size.name,   (char*) &sys_tmp_table_size,	    SHOW_SYS},
   {"tmpdir",                  (char*) &opt_mysql_tmpdir,            SHOW_CHAR_PTR},
+  {sys_trans_alloc_block_size.name, (char*) &sys_trans_alloc_block_size,
+   SHOW_SYS},
+  {sys_trans_prealloc_size.name, (char*) &sys_trans_prealloc_size,  SHOW_SYS},
   {"version",                 server_version,                       SHOW_CHAR},
   {sys_net_wait_timeout.name, (char*) &sys_net_wait_timeout,	    SHOW_SYS},
   {NullS, NullS, SHOW_LONG}
 };
 
+
 /*
   Functions to check and update variables
 */
+char *update_datetime_format(THD *thd, enum enum_var_type type,
+			     enum datetime_format_types format_type,
+			     DATETIME_FORMAT *tmp_format)
+{
+  char *old_value;
+  if (type == OPT_GLOBAL)
+  {
+    pthread_mutex_lock(&LOCK_global_system_variables);    
+    old_value= g_datetime_frm(format_type).datetime_format.format;
+    g_datetime_frm(format_type).datetime_format= *tmp_format;
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+  }
+  else
+  {
+    old_value= t_datetime_frm(thd,format_type).datetime_format.format;
+    t_datetime_frm(thd, format_type).datetime_format= *tmp_format;
+  }
+  return old_value;
+}
+
+
+bool sys_var_datetime_format::update(THD *thd, set_var *var)
+{
+  DATETIME_FORMAT tmp_format;
+  char *old_value;
+  uint new_length;
+
+  if ((new_length= var->value->str_value.length()))
+  {
+    if (!make_format(&tmp_format, format_type,
+		     var->value->str_value.ptr(),
+		     new_length, 1))
+    return 1;
+  }
+
+  old_value= update_datetime_format(thd, var->type, format_type, &tmp_format);
+  my_free(old_value, MYF(MY_ALLOW_ZERO_PTR));
+  return 0;
+}
+
+byte *sys_var_datetime_format::value_ptr(THD *thd, enum_var_type type,
+				       LEX_STRING *base)
+{
+ if (type == OPT_GLOBAL)
+   return (byte*) g_datetime_frm(format_type).datetime_format.format;
+ return (byte*) t_datetime_frm(thd, format_type).datetime_format.format;
+}
+
+void sys_var_datetime_format::set_default(THD *thd, enum_var_type type)
+{
+  DATETIME_FORMAT tmp_format;
+  char *old_value;
+  uint new_length;
+
+  if ((new_length= strlen(opt_datetime_formats[format_type])))
+  {
+    if (!make_format(&tmp_format, format_type,
+		     opt_datetime_formats[format_type],
+		     new_length, 1))
+    return;
+  }
+
+  old_value= update_datetime_format(thd, type, format_type, &tmp_format);
+  my_free(old_value, MYF(MY_ALLOW_ZERO_PTR));
+}
 
 /*
   The following 3 functions need to be changed in 4.1 when we allow
@@ -748,7 +849,7 @@ static void fix_max_join_size(THD *thd, enum_var_type type)
       thd->options&= ~OPTION_BIG_SELECTS;
   }
 }
-  
+
 
 /*
   If one doesn't use the SESSION modifier, the isolation level
@@ -816,7 +917,7 @@ static void fix_query_cache_min_res_unit(THD *thd, enum_var_type type)
 #endif
 
 
-void fix_delay_key_write(THD *thd, enum_var_type type)
+extern void fix_delay_key_write(THD *thd, enum_var_type type)
 {
   switch ((enum_delay_key_write) delay_key_write_options) {
   case DELAY_KEY_WRITE_NONE:
@@ -832,7 +933,7 @@ void fix_delay_key_write(THD *thd, enum_var_type type)
   }
 }
 
-void fix_max_binlog_size(THD *thd, enum_var_type type)
+static void fix_max_binlog_size(THD *thd, enum_var_type type)
 {
   DBUG_ENTER("fix_max_binlog_size");
   DBUG_PRINT("info",("max_binlog_size=%lu max_relay_log_size=%lu",
@@ -845,7 +946,7 @@ void fix_max_binlog_size(THD *thd, enum_var_type type)
   DBUG_VOID_RETURN;
 }
 
-void fix_max_relay_log_size(THD *thd, enum_var_type type)
+static void fix_max_relay_log_size(THD *thd, enum_var_type type)
 {
   DBUG_ENTER("fix_max_relay_log_size");
   DBUG_PRINT("info",("max_binlog_size=%lu max_relay_log_size=%lu",
@@ -856,6 +957,13 @@ void fix_max_relay_log_size(THD *thd, enum_var_type type)
 #endif
   DBUG_VOID_RETURN;
 }
+
+
+static void fix_max_connections(THD *thd, enum_var_type type)
+{
+  resize_thr_alarm(max_connections + max_insert_delayed_threads + 10);
+}
+
 
 bool sys_var_long_ptr::update(THD *thd, set_var *var)
 {
@@ -1092,7 +1200,8 @@ byte *sys_var_thd_bool::value_ptr(THD *thd, enum_var_type type,
 
 bool sys_var::check_enum(THD *thd, set_var *var, TYPELIB *enum_names)
 {
-  char buff[80], *value;
+  char buff[80];
+  const char *value;
   String str(buff, sizeof(buff), system_charset_info), *res;
 
   if (var->value->result_type() == STRING_RESULT)
@@ -1102,7 +1211,7 @@ bool sys_var::check_enum(THD *thd, set_var *var, TYPELIB *enum_names)
 		 (ulong) find_type(res->c_ptr(), enum_names, 3)-1))
 	< 0)
     {
-      value=res->c_ptr();
+      value= res ? res->c_ptr() : "NULL";
       goto err;
     }
   }
@@ -2083,7 +2192,7 @@ int set_var::check(THD *thd)
   {
     my_error(ER_WRONG_TYPE_FOR_VAR, MYF(0), var->name);
     return -1;
-  }    
+  }
   return var->check(thd, this) ? -1 : 0;
 }
 
@@ -2238,7 +2347,7 @@ ulong fix_sql_mode(ulong sql_mode)
 		MODE_IGNORE_SPACE |
 		MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |
 		MODE_NO_FIELD_OPTIONS);
-  if (sql_mode & MODE_SAPDB)
+  if (sql_mode & MODE_MAXDB)
     sql_mode|= (MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
 		MODE_IGNORE_SPACE |
 		MODE_NO_KEY_OPTIONS | MODE_NO_TABLE_OPTIONS |

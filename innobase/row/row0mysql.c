@@ -1871,6 +1871,16 @@ row_discard_tablespace_for_mysql(
 		goto funct_exit;
 	}
 
+	if (table->space == 0) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+"  InnoDB: Error: table %s\n"
+"InnoDB: is in the system tablespace 0 which cannot be discarded\n", name);
+		err = DB_ERROR;
+
+		goto funct_exit;
+	}
+
 	new_id = dict_hdr_get_new_id(DICT_HDR_TABLE_ID);
 
 	sprintf(buf, 
@@ -1967,6 +1977,7 @@ row_import_tablespace_for_mysql(
 {
 	dict_table_t*	table;
 	ibool		success;
+	dulint		current_lsn;
 	ulint		err		= DB_SUCCESS;
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
@@ -1974,6 +1985,30 @@ row_import_tablespace_for_mysql(
 	trx_start_if_not_started(trx);
 
 	trx->op_info = (char*) "importing tablespace";
+
+	current_lsn = log_get_lsn();
+	
+	/* It is possible, though very improbable, that the lsn's in the
+	tablespace to be imported have risen above the current system lsn, if
+	a lengthy purge, ibuf merge, or rollback was performed on a backup
+	taken with ibbackup. If that is the case, reset page lsn's in the
+	file. We assume that mysqld was shut down after it performed these
+	cleanup operations on the .ibd file, so that it stamped the latest lsn
+	to the FIL_PAGE_FILE_FLUSH_LSN in the first page of the .ibd file.
+
+	TODO: reset also the trx id's in clustered index records and write
+	a new space id to each data page. That would allow us to import clean
+	.ibd files from another MySQL installation. */
+
+	success = fil_reset_too_high_lsns(name, current_lsn);
+
+	if (!success) {
+		err = DB_ERROR;
+
+		row_mysql_lock_data_dictionary(trx);
+
+		goto funct_exit;
+	}
 
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
@@ -1984,6 +2019,16 @@ row_import_tablespace_for_mysql(
 
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
+
+		goto funct_exit;
+	}
+
+	if (table->space == 0) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+"  InnoDB: Error: table %s\n"
+"InnoDB: is in the system tablespace 0 which cannot be imported\n", name);
+		err = DB_ERROR;
 
 		goto funct_exit;
 	}
@@ -2006,9 +2051,6 @@ row_import_tablespace_for_mysql(
 	ibuf_delete_for_discarded_space(table->space);
 
 	success = fil_open_single_table_tablespace(table->space, table->name);
-
-	printf(
-"Remember to stop purge + undo if table->ibd_file_is_missing!!!\n");
 
 	if (success) {
 		table->ibd_file_missing = FALSE;

@@ -119,7 +119,7 @@ set_field_to_null(Field *field)
     return 0;
   }
   field->reset();
-  if (current_thd->count_cuted_fields)
+  if (current_thd->count_cuted_fields == CHECK_FIELD_WARN)
   {
     field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,ER_WARN_DATA_TRUNCATED);
     return 0;
@@ -176,7 +176,7 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     field->table->auto_increment_field_not_null= false;
     return 0;					// field is set in handler.cc
   }
-  if (current_thd->count_cuted_fields)
+  if (current_thd->count_cuted_fields == CHECK_FIELD_WARN)
   {
     field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,ER_WARN_NULL_TO_NOTNULL);
     return 0;

@@ -240,9 +240,14 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   info.handle_duplicates=duplic;
   info.update_fields=&update_fields;
   info.update_values=&update_values;
-  // Don't count warnings for simple inserts
-  if (values_list.elements > 1 || (thd->options & OPTION_WARNINGS))
-    thd->count_cuted_fields = 1;
+  /*
+    Count warnings for all inserts.
+    For single line insert, generate an error if try to set a NOT NULL field
+    to NULL
+  */
+  thd->count_cuted_fields= ((values_list.elements == 1) ?
+			    CHECK_FIELD_ERROR_FOR_NULL :
+			    CHECK_FIELD_WARN);
   thd->cuted_fields = 0L;
   table->next_number_field=table->found_next_number_field;
 
@@ -394,7 +399,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   }
   thd->proc_info="end";
   table->next_number_field=0;
-  thd->count_cuted_fields=0;
+  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   thd->next_insert_id=0;			// Reset this if wrongly used
   if (duplic != DUP_ERROR)
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
@@ -1391,7 +1396,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   restore_record(table,default_values);			// Get empty record
   table->next_number_field=table->found_next_number_field;
-  thd->count_cuted_fields=1;			// calc cuted fields
+  thd->count_cuted_fields= CHECK_FIELD_WARN;		// calc cuted fields
   thd->cuted_fields=0;
   if (info.handle_duplicates != DUP_REPLACE)
     table->file->extra(HA_EXTRA_WRITE_CACHE);
@@ -1409,7 +1414,7 @@ select_insert::~select_insert()
     table->next_number_field=0;
     table->file->extra(HA_EXTRA_RESET);
   }
-  thd->count_cuted_fields=0;
+  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
 }
 
 
@@ -1548,6 +1553,14 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   if (!table)
     DBUG_RETURN(-1);				// abort() deletes table
 
+  if (table->fields < values.elements)
+  {
+    my_printf_error(ER_WRONG_VALUE_COUNT_ON_ROW,
+                    ER(ER_WRONG_VALUE_COUNT_ON_ROW),
+		    MYF(0),1);
+    DBUG_RETURN(-1);
+  }
+
   /* First field to copy */
   field=table->field+table->fields - values.elements;
 
@@ -1559,7 +1572,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   table->next_number_field=table->found_next_number_field;
 
   restore_record(table,default_values);			// Get empty record
-  thd->count_cuted_fields=1;			// count warnings
+  thd->count_cuted_fields= CHECK_FIELD_WARN;		// count warnings
   thd->cuted_fields=0;
   if (info.handle_duplicates == DUP_IGNORE ||
       info.handle_duplicates == DUP_REPLACE)
@@ -1606,7 +1619,7 @@ bool select_create::send_eof()
     */
     if (!table->tmp_table)
       hash_delete(&open_cache,(byte*) table);
-    lock=0; 
+    lock=0;
     table=0;
     VOID(pthread_mutex_unlock(&LOCK_open));
   }
@@ -1627,7 +1640,8 @@ void select_create::abort()
     enum db_type table_type=table->db_type;
     if (!table->tmp_table)
       hash_delete(&open_cache,(byte*) table);
-    quick_rm_table(table_type,db,name);
+    if (!create_info->table_existed)
+      quick_rm_table(table_type,db,name);
     table=0;
   }
   VOID(pthread_mutex_unlock(&LOCK_open));

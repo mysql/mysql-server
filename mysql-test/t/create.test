@@ -17,25 +17,35 @@ insert into t1 values (""),(null);
 select * from t1;
 drop table t1;
 
+create table t1 (a int not null auto_increment,primary key (a)) type=heap;
+drop table t1;
+
 #
 # Test of some CREATE TABLE'S that should fail
 #
 
-!$1146 create table t2 type=heap select * from t1;
-!$1146 create table t2 select auto+1 from t1;
+--error 1146
+create table t2 type=heap select * from t1;
+--error 1146
+create table t2 select auto+1 from t1;
 drop table if exists t1,t2;
-!$1167 create table t1 (b char(0) not null, index(b));
-create table t1 (a int not null auto_increment,primary key (a)) type=heap;
-!$1163 create table t1 (a int not null,b text) type=heap;
+--error 1167
+create table t1 (b char(0) not null, index(b));
+--error 1163
+create table t1 (a int not null,b text) type=heap;
 drop table if exists t1;
 
-!$1075 create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) type=heap;
+--error 1075
+create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) type=heap;
 
 -- error 1044,1
 create table not_existing_database.test (a int);
-!$1103 create table `a/a` (a int);
-!$1103 create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa int);
-!$1059 create table a (`aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` int);
+--error 1103
+create table `a/a` (a int);
+--error 1103
+create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa int);
+--error 1059
+create table a (`aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` int);
 
 #
 # test of dummy table names
@@ -62,7 +72,8 @@ create table `` (a int);
 drop table if exists ``;
 --error 1166
 create table t1 (`` int);
-drop table if exists t1;
+--error 1279
+create table t1 (i int, index `` (i)); 
 
 #
 # Test of CREATE ... SELECT with indexes
@@ -167,6 +178,46 @@ insert into t1 values (NULL, NULL);
 drop table t1;
 
 #
+# Bug # 801
+#
+
+create table t1 select x'4132';
+drop table t1;
+
+#
+# bug #1434
+#
+
+create table t1 select 1,2,3;
+create table if not exists t1 select 1,2;
+--error 1136
+create table if not exists t1 select 1,2,3,4;
+create table if not exists t1 select 1;
+select * from t1;
+drop table t1;
+create table t1 select 1,2,3;
+create table if not exists t1 select 1,2;
+--error 1136
+create table if not exists t1 select 1,2,3,4;
+create table if not exists t1 select 1;
+select * from t1;
+drop table t1;
+
+#
+# Test create table if not exists with duplicate key error
+#
+
+create table t1 (a int not null, b int, primary key (a));
+insert into t1 values (1,1);
+create table if not exists t1 select 2;
+select * from t1;
+create table if not exists t1 select 3 as 'a',4 as 'b';
+--error 1062
+create table if not exists t1 select 3 as 'a',3 as 'b';
+select * from t1;
+drop table t1;
+
+#
 # Test create with foreign keys
 #
 
@@ -227,12 +278,6 @@ SELECT @@table_type;
 CREATE TABLE t1 (a int not null);
 show create table t1;
 SET SESSION table_type=default;
-drop table t1;
-
-#
-# Bug # 801
-#
-create table t1 select x'4132';
 drop table t1;
 
 #

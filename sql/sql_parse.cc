@@ -2207,7 +2207,9 @@ mysql_execute_command(THD *thd)
 			       select_lex->order_list.elements,
                                (ORDER *) select_lex->order_list.first,
 			       lex->drop_primary, lex->duplicates,
-			       lex->alter_keys_onoff, lex->simple_alter);
+			       lex->alter_keys_onoff,
+                               lex->tablespace_op,
+			       lex->simple_alter);
       }
       break;
     }
@@ -3405,7 +3407,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   /* grant_option is set if there exists a single table or column grant */
   if (db_access == want_access ||
       ((grant_option && !dont_check_global_grants) &&
-       !(want_access & ~TABLE_ACLS)))
+       !(want_access & ~(db_access | TABLE_ACLS))))
     DBUG_RETURN(FALSE);				/* Ok */
   if (!no_errors)
     net_printf(thd,ER_DBACCESS_DENIED_ERROR,

@@ -34,6 +34,12 @@ ha_create(
 
 	table = hash_create(n);
 
+	if (in_btr_search) {
+		table->adaptive = TRUE;
+	} else {
+		table->adaptive = FALSE;
+	}
+
 	if (n_mutexes == 0) {
 		if (in_btr_search) {
 			table->heap = mem_heap_create_in_btr_search(4096);
@@ -106,6 +112,7 @@ ha_insert_for_fold(
 	hash_cell_t*	cell;
 	ha_node_t*	node;
 	ha_node_t*	prev_node;
+	buf_block_t*	prev_block;
 	ulint		hash;
 
 	ut_ad(table && data);
@@ -119,6 +126,12 @@ ha_insert_for_fold(
 
 	while (prev_node != NULL) {
 		if (prev_node->fold == fold) {
+			if (table->adaptive) {
+				prev_block = buf_block_align(prev_node->data);
+				ut_a(prev_block->n_pointers > 0);
+				prev_block->n_pointers--;
+				buf_block_align(data)->n_pointers++;
+			}
 
 			prev_node->data = data;
 
@@ -142,6 +155,11 @@ ha_insert_for_fold(
 	}
 	
 	ha_node_set_data(node, data);
+
+	if (table->adaptive) {
+		buf_block_align(data)->n_pointers++;
+	}
+
 	node->fold = fold;
 
 	node->next = NULL;
@@ -174,6 +192,11 @@ ha_delete_hash_node(
 	hash_table_t*	table,		/* in: hash table */
 	ha_node_t*	del_node)	/* in: node to be deleted */
 {
+	if (table->adaptive) {
+		ut_a(buf_block_align(del_node->data)->n_pointers > 0);
+		buf_block_align(del_node->data)->n_pointers--;
+	}
+
 	HASH_DELETE_AND_COMPACT(ha_node_t, next, table, del_node);
 }
 
@@ -198,6 +221,35 @@ ha_delete(
 
 	ha_delete_hash_node(table, node);
 }	
+
+/*************************************************************
+Looks for an element when we know the pointer to the data, and updates
+the pointer to data, if found. */
+
+void
+ha_search_and_update_if_found(
+/*==========================*/
+	hash_table_t*	table,	/* in: hash table */
+	ulint		fold,	/* in: folded value of the searched data */
+	void*		data,	/* in: pointer to the data */
+	void*		new_data)/* in: new pointer to the data */
+{
+	ha_node_t*	node;
+
+	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
+
+	node = ha_search_with_data(table, fold, data);
+
+	if (node) {
+		if (table->adaptive) {
+			ut_a(buf_block_align(node->data)->n_pointers > 0);
+			buf_block_align(node->data)->n_pointers--;
+			buf_block_align(new_data)->n_pointers++;
+		}
+
+		node->data = new_data;
+	}
+}
 
 /*********************************************************************
 Removes from the chain determined by fold all nodes whose data pointer
@@ -229,10 +281,10 @@ ha_remove_all_nodes_to_page(
 
 			node = ha_chain_get_first(table, fold);
 		} else {
-			node = ha_chain_get_next(table, node);
+			node = ha_chain_get_next(node);
 		}
 	}
-
+#ifdef UNIV_DEBUG
 	/* Check that all nodes really got deleted */
 	
 	node = ha_chain_get_first(table, fold);
@@ -240,8 +292,9 @@ ha_remove_all_nodes_to_page(
 	while (node) {
 		ut_a(buf_frame_align(ha_node_get_data(node)) != page);
 
-		node = ha_chain_get_next(table, node);
+		node = ha_chain_get_next(node);
 	}
+#endif
 }
 
 /*****************************************************************
@@ -293,12 +346,10 @@ ha_print_info(
 	hash_table_t*	table)	/* in: hash table */
 {
 	hash_cell_t*	cell;
-/*
-        ha_node_t*      node;
-        ulint           len     = 0;
-        ulint           max_len = 0;
-        ulint           nodes   = 0;
-*/
+/*	ha_node_t*	node;
+	ulint		nodes	= 0;
+	ulint		len	= 0;
+	ulint		max_len	= 0; */
 	ulint		cells	= 0;
 	ulint		n_bufs;
 	ulint		i;

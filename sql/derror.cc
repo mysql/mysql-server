@@ -20,27 +20,28 @@
 #include "mysql_priv.h"
 #include "mysys_err.h"
 
-static void read_texts(const char *file_name,const char ***point,
+static bool read_texts(const char *file_name,const char ***point,
 		       uint error_messages);
 static void init_myfunc_errs(void);
 
 	/* Read messages from errorfile */
 
-void init_errmessage(void)
+bool init_errmessage(void)
 {
   DBUG_ENTER("init_errmessage");
 
-  read_texts(ERRMSG_FILE,&my_errmsg[ERRMAPP],ER_ERROR_MESSAGES);
+  if (read_texts(ERRMSG_FILE,&my_errmsg[ERRMAPP],ER_ERROR_MESSAGES))
+    DBUG_RETURN(TRUE);
   errmesg=my_errmsg[ERRMAPP];		/* Init global variabel */
   init_myfunc_errs();			/* Init myfunc messages */
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(FALSE);
 }
 
 
 	/* Read text from packed textfile in language-directory */
 	/* If we can't read messagefile then it's panic- we can't continue */
 
-static void read_texts(const char *file_name,const char ***point,
+static bool read_texts(const char *file_name,const char ***point,
 		       uint error_messages)
 {
   register uint i;
@@ -116,7 +117,7 @@ Check that the above file is the right version for this program!",
     point[i]= *point +uint2korr(head+10+i+i);
   }
   VOID(my_close(file,MYF(0)));
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(FALSE);
 
 err:
   switch (funktpos) {

@@ -113,6 +113,14 @@ public:
   my_bool with_sum_func;
   my_bool fixed;                        /* If item fixed with fix_fields */
   DTCollation collation;
+
+
+  /*
+    thd is current_thd value. Like some other Item's fields it
+    will be a problem for using one Item in different threads
+    (as stored procedures may want to do in the future)
+  */
+  THD *thd;
   
   // alloc & destruct is done as start of select using sql_alloc
   Item();
@@ -124,7 +132,7 @@ public:
      top AND/OR ctructure of WHERE clause to protect it of
      optimisation changes in prepared statements
   */
-  Item(THD *thd, Item &item);
+  Item(THD *c_thd, Item &item);
   virtual ~Item() { name=0; }		/*lint -e1509 */
   void set_name(const char *str,uint length, CHARSET_INFO *cs);
   void init_make_field(Send_field *tmp_field,enum enum_field_types type);
@@ -322,7 +330,7 @@ public:
   bool long_data_supplied;
   uint pos_in_query;
 
-  Item_param::Item_param(uint position)
+  Item_param(uint position)
   { 
     name= (char*) "?";
     pos_in_query= position;

@@ -24,7 +24,7 @@ show create table t1;
 set @@sql_mode="no_field_options,mysql323,mysql40";
 show variables like 'sql_mode';
 show create table t1;
-set sql_mode="postgresql,oracle,mssql,db2,sapdb";
+set sql_mode="postgresql,oracle,mssql,db2,maxdb";
 select @@sql_mode;
 show create table t1;
 drop table t1;

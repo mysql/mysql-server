@@ -46,7 +46,7 @@ Item::Item():
   collation.set(default_charset(), DERIVATION_COERCIBLE);
   name= 0;
   decimals= 0; max_length= 0;
-  THD *thd= current_thd;
+  thd= current_thd;
   next= thd->free_list;			// Put in free list
   thd->free_list= this;
   /*
@@ -69,7 +69,7 @@ Item::Item():
   Used for duplicating lists in processing queries with temporary
   tables
 */
-Item::Item(THD *thd, Item &item):
+Item::Item(THD *c_thd, Item &item):
   str_value(item.str_value),
   name(item.name),
   max_length(item.max_length),
@@ -82,7 +82,8 @@ Item::Item(THD *thd, Item &item):
   fixed(item.fixed),
   collation(item.collation)
 {
-  next=thd->free_list;			// Put in free list
+  next=c_thd->free_list;			// Put in free list
+  thd= c_thd;
   thd->free_list= this;
 }
 
@@ -174,7 +175,8 @@ bool Item::get_date(TIME *ltime,bool fuzzydate)
   char buff[40];
   String tmp(buff,sizeof(buff), &my_charset_bin),*res;
   if (!(res=val_str(&tmp)) ||
-      str_to_TIME(res->ptr(),res->length(),ltime,fuzzydate) == TIMESTAMP_NONE)
+      str_to_TIME(res->ptr(),res->length(),ltime,fuzzydate, thd) <= 
+      WRONG_TIMESTAMP_FULL)
   {
     bzero((char*) ltime,sizeof(*ltime));
     return 1;
@@ -192,7 +194,7 @@ bool Item::get_time(TIME *ltime)
   char buff[40];
   String tmp(buff,sizeof(buff),&my_charset_bin),*res;
   if (!(res=val_str(&tmp)) ||
-      str_to_time(res->ptr(),res->length(),ltime))
+      str_to_time(res->ptr(),res->length(),ltime, thd))
   {
     bzero((char*) ltime,sizeof(*ltime));
     return 1;
@@ -272,11 +274,13 @@ Item_field::Item_field(Field *f) :Item_ident(NullS,f->table_name,f->field_name)
 }
 
 // Constructor need to process subselect with temporary tables (see Item)
-Item_field::Item_field(THD *thd, Item_field &item):
-  Item_ident(thd, item),
-  field(item.field),
-  result_field(item.result_field)
-{ collation.set(DERIVATION_IMPLICIT); }
+Item_field::Item_field(THD *thd, Item_field &item)
+  :Item_ident(thd, item),
+   field(item.field),
+   result_field(item.result_field)
+{
+  collation.set(DERIVATION_IMPLICIT);
+}
 
 void Item_field::set_field(Field *field_par)
 {
@@ -673,30 +677,28 @@ String *Item_param::query_val_str(String* str)
     }
     else
     {
-      char buff[25];
+      DATETIME_FORMAT *tmp_format= 0;
+      bool is_time_only= 0;
       
       switch (ltime.time_type)  {
         case TIMESTAMP_NONE:
+        case WRONG_TIMESTAMP_FULL:
           break;
         case TIMESTAMP_DATE:
-          sprintf(buff, "%04d-%02d-%02d", 
-                        ltime.year,ltime.month,ltime.day);
-          str->append(buff, 10);
+	  tmp_format= &t_datetime_frm(thd, DATE_FORMAT_TYPE).datetime_format;
           break;
         case TIMESTAMP_FULL:
-          sprintf(buff, "%04d-%02d-%02d %02d:%02d:%02d",
- 	                ltime.year,ltime.month,ltime.day,
-	                ltime.hour,ltime.minute,ltime.second);
-          str->append(buff, 19);
+	  tmp_format= &t_datetime_frm(thd, DATETIME_FORMAT_TYPE).datetime_format;
           break;
         case TIMESTAMP_TIME:
         {
-          sprintf(buff, "%02d:%02d:%02d",
-	  	            ltime.hour,ltime.minute,ltime.second);
-          str->append(buff, 8);
+	  tmp_format= &t_datetime_frm(thd, TIME_FORMAT_TYPE).datetime_format;
+	  is_time_only= 1;
           break;
-        }
+        }	
       }
+      make_datetime(str, &ltime, is_time_only, 0,
+		    tmp_format->format, tmp_format->format_length, 0);
     }
     str->append("'");
   }
@@ -1294,6 +1296,14 @@ bool Item::send(Protocol *protocol, String *buffer)
     nr= val_int();
     if (!null_value)
       result= protocol->store_longlong(nr, unsigned_flag);
+    break;
+  }
+  case MYSQL_TYPE_FLOAT:
+  {
+    float nr;
+    nr= val();
+    if (!null_value)
+      result= protocol->store(nr, decimals, buffer);
     break;
   }
   case MYSQL_TYPE_DOUBLE:

@@ -326,6 +326,25 @@ fil_open_single_table_tablespace(
 	char*	name);	/* in: table name in the databasename/tablename
 			format */
 /************************************************************************
+It is possible, though very improbable, that the lsn's in the tablespace to be
+imported have risen above the current system lsn, if a lengthy purge, ibuf
+merge, or rollback was performed on a backup taken with ibbackup. If that is
+the case, reset page lsn's in the file. We assume that mysqld was shut down
+after it performed these cleanup operations on the .ibd file, so that it at
+the shutdown stamped the latest lsn to the FIL_PAGE_FILE_FLUSH_LSN in the
+first page of the .ibd file, and we can determine whether we need to reset the
+lsn's just by looking at that flush lsn. */
+
+ibool
+fil_reset_too_high_lsns(
+/*====================*/
+				/* out: TRUE if success */
+	char*	name,		/* in: table name in the databasename/tablename
+				format */
+	dulint	current_lsn);	/* in: reset lsn's if the lsn stamped to
+				FIL_PAGE_FILE_FLUSH_LSN in the first page is
+				too high */
+/************************************************************************
 At the server startup, if we need crash recovery, scans the database
 directories under the MySQL datadir, looking for .ibd files. Those files are
 single-table tablespaces. We need to know the space id in each of them so that

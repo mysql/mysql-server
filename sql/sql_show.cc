@@ -1073,7 +1073,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
 							  MODE_ORACLE |
 							  MODE_MSSQL |
 							  MODE_DB2 |
-							  MODE_SAPDB |
+							  MODE_MAXDB |
 							  MODE_ANSI)) != 0;
   my_bool limited_mysql_mode= (thd->variables.sql_mode &
 			       (MODE_NO_FIELD_OPTIONS | MODE_MYSQL323 |

@@ -861,6 +861,11 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
 	key_info->name=(char*) key_name;
       }
     }
+    if (!key_info->name || check_column_name(key_info->name))
+    {
+      my_error(ER_WRONG_INDEX_NAME, MYF(0), key_info->name);
+      DBUG_RETURN(-1);
+    }
     if (!(key_info->flags & HA_NULL_PART_KEY))
       unique_key=1;
     key_info->key_length=(uint16) key_length;
@@ -901,7 +906,10 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
       && find_temporary_table(thd,db,table_name))
   {
     if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
+    {
+      create_info->table_existed= 1;		// Mark that table existed
       DBUG_RETURN(0);
+    }
     my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
     DBUG_RETURN(-1);
   }
@@ -913,14 +921,18 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
     if (!access(path,F_OK))
     {
       if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
+      {
+	create_info->table_existed= 1;		// Mark that table existed
 	error= 0;
+      }  
       else
-	my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
+        my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
       goto end;
     }
   }
 
   thd->proc_info="creating table";
+  create_info->table_existed= 0;		// Mark that table is created
 
   if (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE)
     create_info->data_file_name= create_info->index_file_name= 0;
@@ -1748,6 +1760,69 @@ int mysql_check_table(THD* thd, TABLE_LIST* tables,HA_CHECK_OPT* check_opt)
 				&handler::check));
 }
 
+/* table_list should contain just one table */
+int mysql_discard_or_import_tablespace(THD *thd,
+		      TABLE_LIST *table_list,
+		      enum tablespace_op_type tablespace_op)
+{
+  TABLE *table;
+  my_bool discard;
+  int error;
+  DBUG_ENTER("mysql_discard_or_import_tablespace");
+
+  /* Note that DISCARD/IMPORT TABLESPACE always is the only operation in an
+  ALTER TABLE */
+
+  thd->proc_info="discard_or_import_tablespace";
+
+  if (tablespace_op == DISCARD_TABLESPACE)
+    discard = TRUE;
+  else
+    discard = FALSE;
+
+  thd->tablespace_op=TRUE; /* we set this flag so that ha_innobase::open
+			   and ::external_lock() do not complain when we
+			   lock the table */
+  mysql_ha_closeall(thd, table_list);
+
+  if (!(table=open_ltable(thd,table_list,TL_WRITE)))
+  {
+    thd->tablespace_op=FALSE;
+    DBUG_RETURN(-1);
+  }
+  
+  error=table->file->discard_or_import_tablespace(discard);
+
+  thd->proc_info="end";
+
+  if (error)
+    goto err;
+
+  /* The 0 in the call below means 'not in a transaction', which means
+  immediate invalidation; that is probably what we wish here */
+  query_cache_invalidate3(thd, table_list, 0);
+
+  /* The ALTER TABLE is always in its own transaction */
+  error = ha_commit_stmt(thd);
+  if (ha_commit(thd))
+    error=1;
+  if (error)
+    goto err;
+  mysql_update_log.write(thd, thd->query,thd->query_length);
+  if (mysql_bin_log.is_open())
+  {
+    Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+    mysql_bin_log.write(&qinfo);
+  }
+err:
+  close_thread_tables(thd);
+  thd->tablespace_op=FALSE;
+  if (error == 0) {
+    send_ok(thd);
+   DBUG_RETURN(0);
+  }
+  DBUG_RETURN(error);
+}
 
 int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 		      HA_CREATE_INFO *create_info,
@@ -1759,6 +1834,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 		      bool drop_primary,
 		      enum enum_duplicates handle_duplicates,
 	              enum enum_enable_or_disable keys_onoff,
+		      enum tablespace_op_type tablespace_op,
                       bool simple_alter)
 {
   TABLE *table,*new_table;
@@ -1771,6 +1847,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   ulonglong next_insert_id;
   uint save_time_stamp,db_create_options, used_fields;
   enum db_type old_db_type,new_db_type;
+  thr_lock_type lock_type;
   DBUG_ENTER("mysql_alter_table");
 
   thd->proc_info="init";
@@ -1781,6 +1858,11 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   used_fields=create_info->used_fields;
 
   mysql_ha_closeall(thd, table_list);
+
+  /* DISCARD/IMPORT TABLESPACE is always alone in an ALTER TABLE */
+  if (tablespace_op != NO_TABLESPACE_OP)
+    DBUG_RETURN(mysql_discard_or_import_tablespace(thd,table_list,
+							tablespace_op));
   if (!(table=open_ltable(thd,table_list,TL_WRITE_ALLOW_READ)))
     DBUG_RETURN(-1);
 
@@ -1834,8 +1916,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (create_info->row_type == ROW_TYPE_NOT_USED)
     create_info->row_type=table->row_type;
 
-  /* In some simple cases we need not to recreate the table */
-
   thd->proc_info="setup";
   if (simple_alter && !table->tmp_table)
   {
@@ -1860,6 +1940,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       }
       VOID(pthread_mutex_unlock(&LOCK_open));
     }
+
     if (!error)
     {
       switch (keys_onoff) {
@@ -2236,7 +2317,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (use_timestamp)
     new_table->time_stamp=0;
   new_table->next_number_field=new_table->found_next_number_field;
-  thd->count_cuted_fields=1;			// calc cuted fields
+  thd->count_cuted_fields= CHECK_FIELD_WARN;	// calc cuted fields
   thd->cuted_fields=0L;
   thd->proc_info="copy to tmp table";
   next_insert_id=thd->next_insert_id;		// Remember for loggin
@@ -2246,7 +2327,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
 				   handle_duplicates,
 				   order_num, order, &copied, &deleted);
   thd->last_insert_id=next_insert_id;		// Needed for correct log
-  thd->count_cuted_fields=0;			// Don`t calc cuted fields
+  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   new_table->time_stamp=save_time_stamp;
 
   if (table->tmp_table)
@@ -2395,8 +2476,7 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
       goto err;
     }
   }
-
-  /* The ALTER TABLE is always in it's own transaction */
+  /* The ALTER TABLE is always in its own transaction */
   error = ha_commit_stmt(thd);
   if (ha_commit(thd))
     error=1;
@@ -2656,9 +2736,9 @@ int mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
           while (!t->file->rnd_next(t->record[0]))
           {
             ha_checksum row_crc= 0;
-            if (t->record[0] != t->field[0]->ptr)
+            if (t->record[0] != (byte*) t->field[0]->ptr)
               row_crc= my_checksum(row_crc, t->record[0],
-				   t->field[0]->ptr - t->record[0]);
+				   ((byte*) t->field[0]->ptr) - t->record[0]);
 
             for (uint i= 0; i < t->fields; i++ )
             {
@@ -2667,10 +2747,11 @@ int mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
               {
                 String tmp;
                 f->val_str(&tmp,&tmp);
-                row_crc= my_checksum(row_crc, tmp.ptr(), tmp.length());
+                row_crc= my_checksum(row_crc, (byte*) tmp.ptr(), tmp.length());
               }
               else
-                row_crc= my_checksum(row_crc, f->ptr, f->pack_length());
+                row_crc= my_checksum(row_crc, (byte*) f->ptr,
+				     f->pack_length());
             }
 
             crc+= row_crc;
@@ -2695,4 +2776,3 @@ int mysql_checksum_table(THD *thd, TABLE_LIST *tables, HA_CHECK_OPT *check_opt)
     table->table=0;
   DBUG_RETURN(-1);
 }
-

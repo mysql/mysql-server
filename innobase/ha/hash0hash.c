@@ -91,6 +91,7 @@ hash_create(
 
 	array = ut_malloc(sizeof(hash_cell_t) * prime);
 	
+	table->adaptive = FALSE;
 	table->array = array;
 	table->n_cells = prime;
 	table->n_mutexes = 0;

@@ -129,6 +129,8 @@ buf_read_page_low(
 							   offset, sync);
 	}
 
+	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+
 	*err = fil_io(OS_FILE_READ | wake_later,
 			sync, space,
 			offset, 0, UNIV_PAGE_SIZE,
@@ -604,7 +606,6 @@ buf_read_ibuf_merge_pages(
 	}	
 
 	for (i = 0; i < n_stored; i++) {
-
 		if ((i + 1 == n_stored) && sync) {
 			buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE,
 				space_ids[i], space_versions[i], page_nos[i]);

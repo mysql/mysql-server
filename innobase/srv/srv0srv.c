@@ -180,6 +180,12 @@ the user from forgetting the innodb_force_recovery keyword to my.cnf */
 
 ulint	srv_force_recovery	= 0;
 /*-----------------------*/
+/* We are prepared for a situation that we have this many threads waiting for
+a semaphore inside InnoDB. innobase_start_or_create_for_mysql() sets the
+value. */
+
+ulint   srv_max_n_threads       = 0;
+
 /* The following controls how many threads we let inside InnoDB concurrently:
 threads waiting for locks are not counted into the number because otherwise
 we could get a deadlock. MySQL creates a thread for each user session, and
@@ -219,7 +225,7 @@ struct srv_conc_slot_struct{
 
 UT_LIST_BASE_NODE_T(srv_conc_slot_t)	srv_conc_queue;	/* queue of threads
 							waiting to get in */
-srv_conc_slot_t	srv_conc_slots[OS_THREAD_MAX_N];	/* array of wait
+srv_conc_slot_t* srv_conc_slots;			/* array of wait
 							slots */
 
 /* Number of times a thread is allowed to enter InnoDB within the same
@@ -1712,6 +1718,8 @@ srv_init(void)
 	
 	UT_LIST_INIT(srv_conc_queue);
 	
+	srv_conc_slots = mem_alloc(OS_THREAD_MAX_N * sizeof(srv_conc_slot_t));
+
 	for (i = 0; i < OS_THREAD_MAX_N; i++) {
 		conc_slot = srv_conc_slots + i;
 		conc_slot->reserved = FALSE;
@@ -1758,7 +1766,7 @@ srv_conc_enter_innodb(
 			thread */
 {
 	ibool			has_slept = FALSE;
-	srv_conc_slot_t*	slot;
+	srv_conc_slot_t*	slot	  = NULL;
 	ulint			i;
 	char                    err_buf[1000];
 
@@ -1835,6 +1843,7 @@ retry:
 		slot = srv_conc_slots + i;
 
 		if (!slot->reserved) {
+
 			break;
 		}
 	}

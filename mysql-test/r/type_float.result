@@ -70,6 +70,12 @@ select min(a) from t1;
 min(a)
 -0.010
 drop table t1;
+create table t1 (a float);
+insert into t1 values (1);
+select max(a),min(a),avg(a) from t1;
+max(a)	min(a)	avg(a)
+1	1	1
+drop table t1;
 create table t1 (f float, f2 float(24), f3 float(6,2), d double, d2 float(53), d3 double(10,3), de decimal, de2 decimal(6), de3 decimal(5,2), n numeric, n2 numeric(8), n3 numeric(5,6));
 show full columns from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment

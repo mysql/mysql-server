@@ -19,12 +19,12 @@ select * from t1;
 t
 1
 show slave status;
-Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Replicate_do_table	Replicate_ignore_table	Replicate_wild_do_table	Replicate_wild_ignore_table	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space	Until_condition	Until_Log_File	Until_Log_pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key
-127.0.0.1	replssl	MASTER_MYPORT	1	master-bin.000001	289	slave-relay-bin.000001	108	master-bin.000001	Yes	Yes							0		0	289	108	None		0	Yes	MYSQL_TEST_DIR/std_data/cacert.pem		MYSQL_TEST_DIR/std_data/client-cert.pem		MYSQL_TEST_DIR/std_data/client-key.pem
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Replicate_do_table	Replicate_ignore_table	Replicate_wild_do_table	Replicate_wild_ignore_table	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space	Until_condition	Until_Log_File	Until_Log_pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_behind_master
+#	127.0.0.1	replssl	MASTER_MYPORT	1	master-bin.000001	289	slave-relay-bin.000001	108	master-bin.000001	Yes	Yes							0		0	289	108	None		0	Yes	MYSQL_TEST_DIR/std_data/cacert.pem		MYSQL_TEST_DIR/std_data/client-cert.pem		MYSQL_TEST_DIR/std_data/client-key.pem	#
 stop slave;
 change master to master_user='root',master_password='', master_ssl=0;
 start slave;
 drop table t1;
 show slave status;
-Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Replicate_do_table	Replicate_ignore_table	Replicate_wild_do_table	Replicate_wild_ignore_table	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space	Until_condition	Until_Log_File	Until_Log_pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key
-127.0.0.1	root	MASTER_MYPORT	1	master-bin.000001	337	slave-relay-bin.000001	96	master-bin.000001	Yes	Yes							0		0	337	96	None		0	No	MYSQL_TEST_DIR/std_data/cacert.pem		MYSQL_TEST_DIR/std_data/client-cert.pem		MYSQL_TEST_DIR/std_data/client-key.pem
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_do_db	Replicate_ignore_db	Replicate_do_table	Replicate_ignore_table	Replicate_wild_do_table	Replicate_wild_ignore_table	Last_errno	Last_error	Skip_counter	Exec_master_log_pos	Relay_log_space	Until_condition	Until_Log_File	Until_Log_pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_behind_master
+#	127.0.0.1	root	MASTER_MYPORT	1	master-bin.000001	337	slave-relay-bin.000001	96	master-bin.000001	Yes	Yes							0		0	337	96	None		0	No	MYSQL_TEST_DIR/std_data/cacert.pem		MYSQL_TEST_DIR/std_data/client-cert.pem		MYSQL_TEST_DIR/std_data/client-key.pem	#
