@@ -1,0 +1,19 @@
+# Embedded server does not support binlogging
+--source include/not_embedded.inc
+
+# Check that user variables are binlogged correctly (BUG#3875)
+create table t1 (a varchar(50));
+reset master;
+SET TIMESTAMP=10000;
+SET @`a b`='hello';
+INSERT INTO t1 VALUES(@`a b`);
+set @var1= "';aaa";
+SET @var2=char(ascii('a'));
+insert into t1 values (@var1),(@var2);
+show binlog events from 79;
+# more important than SHOW BINLOG EVENTS, mysqlbinlog (where we
+# absolutely need variables names to be quoted and strings to be
+# escaped).
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--exec $MYSQL_BINLOG --short-form $MYSQL_TEST_DIR/var/log/master-bin.000001 
+drop table t1;

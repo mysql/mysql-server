@@ -1,3 +1,6 @@
+# Grant tests not performed with embedded server
+-- source include/not_embedded.inc
+
 SET NAMES binary;
 
 #
