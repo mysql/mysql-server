@@ -540,7 +540,20 @@ void Item_sum_hybrid::cleanup()
   DBUG_ENTER("Item_sum_hybrid::cleanup");
   Item_sum::cleanup();
   used_table_cache= ~(table_map) 0;
+  /*
+    by default is is TRUE to avoid TRUE reporting by
+    Item_func_not_all/Item_func_nop_all if this item was never called.
+
+    no_rows_in_result() set it to FALSE if was not results found.
+  */
+  was_values= TRUE;
   DBUG_VOID_RETURN;
+}
+
+void Item_sum_hybrid::no_rows_in_result()
+{
+  Item_sum::no_rows_in_result();
+  was_values= FALSE;
 }
 
 
