@@ -122,10 +122,14 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   server_id = ::server_id;
   slave_net = 0;
   log_pos = 0;
-  server_status=SERVER_STATUS_AUTOCOMMIT;
+  server_status= SERVER_STATUS_AUTOCOMMIT;
   update_lock_default= low_priority_updates ? TL_WRITE_LOW_PRIORITY : TL_WRITE;
-  options=thd_startup_options;
-  query_cache_type = (byte) query_cache_startup_type;
+  options= thd_startup_options;
+#ifdef HAVE_QUERY_CACHE
+  query_cache_type= (byte) query_cache_startup_type;
+#else
+  query_cache_type= 0; //Safety
+#endif
   sql_mode=(uint) opt_sql_mode;
   inactive_timeout=net_wait_timeout;
   open_options=ha_open_options;

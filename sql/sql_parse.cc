@@ -1310,7 +1310,7 @@ mysql_execute_command(void)
 
     if (!(res=open_and_lock_tables(thd,tables)))
     {
-      query_cache.store_query(thd, tables);
+      query_cache_store_query(thd, tables);
       res=handle_select(thd, lex, result);
     }
     else
@@ -1630,7 +1630,7 @@ mysql_execute_command(void)
 	  goto error;
       }
     }
-    query_cache.invalidate(thd, tables, 0);
+    query_cache_invalidate3(thd, tables, 0);
     if (end_active_trans(thd))
       res= -1;
     else if (mysql_rename_tables(thd,tables))
@@ -1669,7 +1669,7 @@ mysql_execute_command(void)
 	check_table_access(thd,SELECT_ACL | INSERT_ACL, tables))
       goto error; /* purecov: inspected */
     res = mysql_repair_table(thd, tables, &lex->check_opt);
-    query_cache.invalidate(thd, tables, 0);
+    query_cache_invalidate3(thd, tables, 0);
     break;
   }
   case SQLCOM_CHECK:
@@ -1678,7 +1678,7 @@ mysql_execute_command(void)
 	check_table_access(thd, SELECT_ACL | EXTRA_ACL , tables))
       goto error; /* purecov: inspected */
     res = mysql_check_table(thd, tables, &lex->check_opt);
-    query_cache.invalidate(thd, tables, 0);
+    query_cache_invalidate3(thd, tables, 0);
     break;
   }
   case SQLCOM_ANALYZE:
@@ -2722,7 +2722,7 @@ mysql_parse(THD *thd,char *inBuf,uint length)
 
   mysql_init_query(thd);
   thd->query_length = length;
-  if (query_cache.send_result_to_client(thd, inBuf, length) <= 0)
+  if (query_cache_send_result_to_client(thd, inBuf, length) <= 0)
   {
     LEX *lex=lex_start(thd, (uchar*) inBuf, length);
     if (!yyparse() && ! thd->fatal_error)
@@ -3282,6 +3282,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
     if (ha_flush_logs())
       result=1;
   }
+#ifdef HAVE_QUERY_CACHE
   if (options & REFRESH_QUERY_CACHE_FREE)
   {
     query_cache.pack();				// FLUSH QUERY CACHE
@@ -3291,6 +3292,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
   {
     query_cache.flush();			// RESET QUERY CACHE
   }
+#endif /*HAVE_QUERY_CACHE*/
   if (options & (REFRESH_TABLES | REFRESH_READ_LOCK))
   {
     if ((options & REFRESH_READ_LOCK) && thd)

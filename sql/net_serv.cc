@@ -329,9 +329,11 @@ net_real_write(NET *net,const char *packet,ulong len)
   my_bool net_blocking = vio_is_blocking(net->vio);
   DBUG_ENTER("net_real_write");
 
-#ifdef MYSQL_SERVER
+#ifdef MYSQL_SERVER 
+#ifdef HAVE_QUERY_CACHE
   if (net->query_cache_query != 0)
     query_cache_insert(net, packet, len);
+#endif
 #endif
 
   if (net->error == 2)
