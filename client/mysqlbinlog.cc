@@ -779,6 +779,7 @@ could be out of memory");
 					      len - 1, &error,
                                               description_event);
     if (!ev)
+    {
       fprintf(stderr, "Could not construct log event object\n");
       DBUG_RETURN(1);
     }   
@@ -819,6 +820,29 @@ could be out of memory");
       }
       if (process_event(&rec_count,&last_event_info,ev,old_off))
  	DBUG_RETURN(1);
+    }
+    else
+    {
+      Load_log_event *le= (Load_log_event*)ev;
+      const char *old_fname= le->fname;
+      uint old_len= le->fname_len;
+      File file;
+      
+      if ((file= load_processor.prepare_new_file_for_old_format(le,fname)) < 0)
+ 	DBUG_RETURN(1);
+      
+      if (process_event(&rec_count,&last_event_info,ev,old_off))
+      {
+ 	my_close(file,MYF(MY_WME));
+ 	DBUG_RETURN(1);
+      }
+      if (load_processor.load_old_format_file(net,old_fname,old_len,file))
+      {
+ 	my_close(file,MYF(MY_WME));
+ 	DBUG_RETURN(1);
+      }
+      my_close(file,MYF(MY_WME));
+    }
     /*
       Let's adjust offset for remote log as for local log to produce 
       similar text. As we don't print the fake Rotate event, all events are
