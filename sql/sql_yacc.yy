@@ -726,7 +726,7 @@ opt_table_options:
 
 table_options:
 	table_option	{ $$=$1; }
-	| table_option table_options { $$= $1 | $2 }
+	| table_option table_options { $$= $1 | $2; }
 
 table_option:
 	TEMPORARY	{ $$=HA_LEX_CREATE_TMP_TABLE; }
@@ -1469,7 +1469,7 @@ simple_expr:
                    (Item_func_match *)($$=new Item_func_match(*$2,$5))); }
 	| BINARY expr %prec NEG	{ $$= new Item_func_binary($2); }
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
-	  { $$= new Item_func_case(* $4, $2, $5 ) }
+	  { $$= new Item_func_case(* $4, $2, $5 ); }
 	| FUNC_ARG0 '(' ')'
 	  { $$= ((Item*(*)(void))($1.symbol->create_func))();}
 	| FUNC_ARG1 '(' expr ')'
@@ -1696,7 +1696,7 @@ sum_expr:
 	  { $$=new Item_sum_sum($3); }
 
 in_sum_expr:
-	{ Lex->in_sum_expr++ }
+	{ Lex->in_sum_expr++; }
 	expr
 	{
 	  Lex->in_sum_expr--;
@@ -1730,7 +1730,7 @@ opt_else:
 	| ELSE expr    { $$= $2; }
 
 when_list:
-        { Lex->when_list.push_front(new List<Item>) }
+        { Lex->when_list.push_front(new List<Item>); }
 	when_list2
 	{ $$= Lex->when_list.pop(); }
 
@@ -1753,7 +1753,7 @@ opt_pad:
 join_table_list:
 	'(' join_table_list ')'	{ $$=$2; }
 	| join_table		{ $$=$1; }
-	| join_table_list normal_join join_table { $$=$3 }
+	| join_table_list normal_join join_table { $$=$3; }
 	| join_table_list STRAIGHT_JOIN join_table { $$=$3 ; $$->straight=1; }
 	| join_table_list INNER_SYM JOIN_SYM join_table ON expr
 	  { add_join_on($4,$6); $$=$4; }
@@ -1808,7 +1808,7 @@ opt_key_definition:
 	  { Lex->ignore_index= *$2; Lex->ignore_index_ptr= &Lex->ignore_index;}
 
 key_usage_list:
-	key_or_index { Lex->interval_list.empty() } '(' key_usage_list2 ')'
+	key_or_index { Lex->interval_list.empty(); } '(' key_usage_list2 ')'
         { $$= &Lex->interval_list; }
 
 key_usage_list2:
@@ -2287,7 +2287,7 @@ describe:
 	    YYABORT;
 	}
 	opt_describe_column
-	| describe_command select { Lex->options|= SELECT_DESCRIBE };
+	| describe_command select { Lex->options|= SELECT_DESCRIBE; };
 
 
 describe_command:
@@ -2456,7 +2456,7 @@ literal:
 	| FLOAT_NUM	{ $$ =	new Item_float($1.str, $1.length); }
 	| NULL_SYM	{ $$ =	new Item_null();
 			  Lex->next_state=STATE_OPERATOR_OR_IDENT;}
-	| HEX_NUM	{ $$ =	new Item_varbinary($1.str,$1.length)};
+	| HEX_NUM	{ $$ =	new Item_varbinary($1.str,$1.length); }
 	| DATE_SYM text_literal { $$ = $2; }
 	| TIME_SYM text_literal { $$ = $2; }
 	| TIMESTAMP text_literal { $$ = $2; }
