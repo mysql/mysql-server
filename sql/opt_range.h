@@ -127,7 +127,8 @@ public:
     reset() should be called when it is certain that row retrieval will be
     necessary. This call may do heavyweight initialization like buffering first
     N records etc. If reset() call fails get_next() must not be called.
-
+    Note that reset() may be called several times if this quick select 
+    executes in a subselect.
     RETURN
       0      OK
       other  Error code
@@ -274,6 +275,10 @@ public:
     next=0;
     range= NULL;
     cur_range= NULL;
+    /*
+      Note: in opt_range.cc there are places where it is assumed that this
+      function always succeeds 
+    */
     return 0;
   }
   int init();
@@ -388,21 +393,15 @@ public:
   /* range quick selects this index_merge read consists of */
   List<QUICK_RANGE_SELECT> quick_selects;
 
-  /* quick select which is currently used for rows retrieval */
-  List_iterator_fast<QUICK_RANGE_SELECT> cur_quick_it;
-  QUICK_RANGE_SELECT* cur_quick_select;
-
   /* quick select that uses clustered primary key (NULL if none) */
   QUICK_RANGE_SELECT* pk_quick_select;
 
   /* true if this select is currently doing a clustered PK scan */
   bool  doing_pk_scan;
 
-  Unique  *unique;
   MEM_ROOT alloc;
-
   THD *thd;
-  int prepare_unique();
+  int read_keys_and_merge();
 
   /* used to get rows collected in Unique */
   READ_RECORD read_record;
@@ -465,6 +464,8 @@ public:
   MEM_ROOT alloc; /* Memory pool for this and merged quick selects data. */
   THD *thd;       /* current thread */
   bool need_to_fetch_row; /* if true, do retrieve full table records. */
+  /* in top-level quick select, true if merged scans where initialized */
+  bool scans_inited; 
 };
 
 
@@ -514,6 +515,7 @@ public:
   uint rowid_length;    /* table rowid length */
 private:
   static int queue_cmp(void *arg, byte *val1, byte *val2);
+  bool scans_inited; 
 };
 
 
