@@ -98,7 +98,7 @@ long innobase_mirrored_log_groups, innobase_log_files_in_group,
      innobase_buffer_pool_size, innobase_additional_mem_pool_size,
      innobase_file_io_threads, innobase_lock_wait_timeout,
      innobase_thread_concurrency, innobase_force_recovery,
-     innobase_open_files, innobase_auto_extend_increment;
+     innobase_open_files;
 
 /* The default values for the following char* start-up parameters
 are determined in innobase_init below: */
@@ -737,15 +737,35 @@ innobase_invalidate_query_cache(
 }
 
 /*********************************************************************
-Get the quote character to be used in SQL identifiers. */
+Get the quote character to be used in SQL identifiers.
+This definition must match the one in innobase/ut/ut0ut.c! */
 extern "C"
-char
-mysql_get_identifier_quote_char(void)
-/*=================================*/
+int
+mysql_get_identifier_quote_char(
+/*============================*/
 				/* out: quote character to be
-				used in SQL identifiers */
+				used in SQL identifiers; EOF if none */
+	trx_t*		trx,	/* in: transaction */
+	const char*	name,	/* in: name to print */
+	ulint		namelen)/* in: length of name */
 {
-	return '`';
+	if (!trx || !trx->mysql_thd) {
+		return(EOF);
+	}
+	return(get_quote_char_for_identifier((THD*) trx->mysql_thd,
+						name, namelen));
+}
+
+/**************************************************************************
+Obtain a pointer to the MySQL THD object, as in current_thd().  This
+definition must match the one in sql/ha_innodb.cc! */
+extern "C"
+void*
+innobase_current_thd(void)
+/*======================*/
+			/* out: MySQL THD object */
+{
+	return(current_thd);
 }
 
 /*********************************************************************
@@ -964,7 +984,6 @@ innobase_init(void)
         srv_locks_unsafe_for_binlog = (ibool) innobase_locks_unsafe_for_binlog;
 
 	srv_max_n_open_files = (ulint) innobase_open_files;
-	srv_auto_extend_increment = (ulint) innobase_auto_extend_increment;
 	srv_innodb_status = (ibool) innobase_create_status_file;
 
 	srv_print_verbose_log = mysql_embedded ? 0 : 1;
@@ -1485,12 +1504,14 @@ ha_innobase::open(
 {
 	dict_table_t*	ib_table;
   	char		norm_name[1000];
+	THD*		thd;
 
 	DBUG_ENTER("ha_innobase::open");
 
 	UT_NOT_USED(mode);
 	UT_NOT_USED(test_if_locked);
 
+	thd = current_thd;
 	normalize_table_name(norm_name, name);
 
 	user_thd = NULL;
@@ -1540,7 +1561,7 @@ ha_innobase::open(
     		DBUG_RETURN(1);
   	}
 
- 	if (ib_table->ibd_file_missing && !current_thd->tablespace_op) {
+ 	if (ib_table->ibd_file_missing && !thd->tablespace_op) {
 	        ut_print_timestamp(stderr);
 	        fprintf(stderr, "  InnoDB error:\n"
 "MySQL is trying to open a table handle but the .ibd file for\n"
@@ -2864,7 +2885,7 @@ ha_innobase::index_read(
 					(ulint)upd_and_key_val_buff_len,
 					index,
 					(byte*) key_ptr,
-					(ulint) key_len);
+					(ulint) key_len, prebuilt->trx);
 	} else {
 		/* We position the cursor to the last or the first entry
 		in the index */
@@ -4076,14 +4097,16 @@ ha_innobase::records_in_range(
 				index,
 				(byte*) (min_key ? min_key->key :
                                          (const mysql_byte*) 0),
-				(ulint) (min_key ? min_key->length : 0));
+				(ulint) (min_key ? min_key->length : 0),
+				prebuilt->trx);
 
 	row_sel_convert_mysql_key_to_innobase(
 				range_end, (byte*) key_val_buff2,
 				buff2_len, index,
 				(byte*) (max_key ? max_key->key :
                                          (const mysql_byte*) 0),
-				(ulint) (max_key ? max_key->length : 0));
+				(ulint) (max_key ? max_key->length : 0),
+				prebuilt->trx);
 
 	mode1 = convert_search_mode_to_innobase(min_key ? min_key->flag :
                                                 HA_READ_KEY_EXACT);
@@ -4470,7 +4493,8 @@ ha_innobase::update_table_comment(
       		   (ulong) fsp_get_available_space_in_free_extents(
       					prebuilt->table->space));
 
-		dict_print_info_on_foreign_keys(FALSE, file, prebuilt->table);
+		dict_print_info_on_foreign_keys(FALSE, file,
+				prebuilt->trx, prebuilt->table);
 		flen = ftell(file);
 		if(length + flen + 3 > 64000) {
 			flen = 64000 - 3 - length;
@@ -4536,7 +4560,8 @@ ha_innobase::get_foreign_key_create_info(void)
 		trx_search_latch_release_if_reserved(prebuilt->trx);
 
 		/* output the data to a temporary file */
-		dict_print_info_on_foreign_keys(TRUE, file, prebuilt->table);
+		dict_print_info_on_foreign_keys(TRUE, file,
+				prebuilt->trx, prebuilt->table);
 		prebuilt->trx->op_info = (char*)"";
 
 		flen = ftell(file);

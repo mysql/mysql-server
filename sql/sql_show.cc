@@ -1143,40 +1143,18 @@ static const char *require_quotes(const char *name, uint name_length)
 }
 
 
-static void append_quoted_simple_identifier(String *packet, char quote_char,
-					    const char *name, uint length)
-{
-  packet->append(&quote_char, 1, system_charset_info);
-  packet->append(name, length, system_charset_info);
-  packet->append(&quote_char, 1, system_charset_info);
-}  
-
-
 void
 append_identifier(THD *thd, String *packet, const char *name, uint length)
 {
   const char *name_end;
-  char quote_char;
+  int q= get_quote_char_for_identifier(thd, name, length);
 
-  if (thd->variables.sql_mode & MODE_ANSI_QUOTES)
-    quote_char= '\"';
-  else
-    quote_char= '`';
-
-  if (is_keyword(name,length))
-  {
-    append_quoted_simple_identifier(packet, quote_char, name, length);
+  if (q == EOF) {
+    packet->append(name, length, system_charset_info);
     return;
   }
 
-  if (!require_quotes(name, length))
-  {
-    if (!(thd->options & OPTION_QUOTE_SHOW_CREATE))
-      packet->append(name, length, system_charset_info);
-    else
-      append_quoted_simple_identifier(packet, quote_char, name, length);
-    return;
-  }
+  char quote_char= q;
 
   /* The identifier must be quoted as it includes a quote character */
 
@@ -1192,6 +1170,22 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
     packet->append(name, length, packet->charset());
   }
   packet->append(&quote_char, 1, system_charset_info);
+}
+
+
+/* Get the quote character for displaying an identifier.
+   If no quote character is needed, return EOF. */
+
+int get_quote_char_for_identifier(THD *thd, const char *name, uint length)
+{
+  if (!is_keyword(name,length) &&
+      !require_quotes(name, length) &&
+      !(thd->options & OPTION_QUOTE_SHOW_CREATE))
+    return EOF;
+  else if (thd->variables.sql_mode & MODE_ANSI_QUOTES)
+    return '"';
+  else
+    return '`';
 }
 
 
