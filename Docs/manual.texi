@@ -17998,8 +17998,7 @@ If you have lots of memory, you should increase the size of
 @code{key_buffer_size}!
 @item -n or --sort-recover
 Force @code{myisamchk} to use sorting to resolve the keys even if the
-temporary files should be very big.  This will not have any effect if you have
-fulltext keys in the table.
+temporary files should be very big.
 
 @item --character-sets-dir=...
 Directory where character sets are stored.
