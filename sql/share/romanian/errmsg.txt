@@ -169,7 +169,7 @@ character-set=latin2
 "Timeout obtinut citind pachetele de comunicatie (communication packets)",
 "Eroare in scrierea pachetelor de comunicatie (communication packets)",
 "Timeout obtinut scriind pachetele de comunicatie (communication packets)",
-"Sirul rezultat este mai lung decit max_allowed_packet",
+"Sirul rezultat este mai lung decit 'max_allowed_packet'",
 "Tipul de tabela folosit nu suporta coloane de tip BLOB/TEXT",
 "Tipul de tabela folosit nu suporta coloane de tip AUTO_INCREMENT",
 "INSERT DELAYED nu poate fi folosit cu tabela '%-.64s', deoarece este locked folosing LOCK TABLES",

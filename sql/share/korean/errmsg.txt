@@ -165,7 +165,7 @@ character-set=euckr
 "통신 패킷을 읽는 중 timeout이 발생하였습니다.",
 "통신 패킷을 기록하는 중 오류가 발생하였습니다.",
 "통신 패팃을 기록하는 중 timeout이 발생하였습니다.",
-"Result string is longer than max_allowed_packet",
+"Result string is longer than 'max_allowed_packet' bytes",
 "The used table type doesn't support BLOB/TEXT columns",
 "The used table type doesn't support AUTO_INCREMENT columns",
 "INSERT DELAYED can't be used with table '%-.64s', because it is locked with LOCK TABLES",

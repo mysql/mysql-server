@@ -165,7 +165,7 @@ character-set=latin1
 "Timeout en lecture des paquets reçus",
 "Erreur d'écriture des paquets envoyés",
 "Timeout d'écriture des paquets envoyés",
-"La chaîne résultat est plus grande que max_allowed_packet",
+"La chaîne résultat est plus grande que 'max_allowed_packet'",
 "Ce type de table ne supporte pas les colonnes BLOB/TEXT",
 "Ce type de table ne supporte pas les colonnes AUTO_INCREMENT",
 "INSERT DELAYED ne peut être utilisé avec la table '%-.64s', car elle est verrouée avec LOCK TABLES",

@@ -176,7 +176,7 @@ character-set=latin1
 "Timeout bij het lezen van communicatiepakketten",
 "Fout bij het schrijven van communicatiepakketten",
 "Timeout bij het schrijven van communicatiepakketten",
-"Resultaat string is langer dan max_allowed_packet",
+"Resultaat string is langer dan 'max_allowed_packet'",
 "Het gebruikte tabel type ondersteunt geen BLOB/TEXT kolommen",
 "Het gebruikte tabel type ondersteunt geen AUTO_INCREMENT kolommen",
 "INSERT DELAYED kan niet worden gebruikt bij table '%-.64s', vanwege een 'lock met LOCK TABLES",
