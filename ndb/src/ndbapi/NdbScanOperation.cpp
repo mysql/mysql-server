@@ -850,6 +850,14 @@ NdbScanOperation::doSendScan(int aProcessorId)
     tSignal = tSignal->next();
   }    
   theStatus = WaitResponse;  
+
+  m_sent_receivers_count = theParallelism;
+  if(m_ordered)
+  {
+    m_current_api_receiver = theParallelism;
+    m_api_receivers_count = theParallelism;
+  }
+  
   return tSignalCount;
 }//NdbOperation::doSendScan()
 
@@ -1507,13 +1515,8 @@ NdbScanOperation::reset_receivers(Uint32 parallell, Uint32 ordered){
   
   m_api_receivers_count = 0;
   m_current_api_receiver = 0;
-  m_sent_receivers_count = parallell;
+  m_sent_receivers_count = 0;
   m_conf_receivers_count = 0;
-  
-  if(ordered){
-    m_current_api_receiver = parallell;
-    m_api_receivers_count = parallell;
-  }
 }
 
 int
