@@ -114,7 +114,6 @@ commit ;
 --error 1141
 show grants for second_user@localhost ;
 
-drop table t1,t9 ;
 drop database mysqltest;
 
 
