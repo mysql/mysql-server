@@ -444,7 +444,7 @@ if $PS p $$ 2> /dev/null | grep $0 > /dev/null
 then
   FIND_PROC="$PS p \$\$PID | grep mysqld > /dev/null"
 # Solaris
-elif $PS -p $$ 2> /dev/null | grep $0 > /dev/null
+elif $PS -fp $$ 2> /dev/null | grep $0 > /dev/null
 then
   FIND_PROC="$PS -p \$\$PID | grep mysqld > /dev/null"
 # BSD style
