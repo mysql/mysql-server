@@ -1798,3 +1798,5 @@ Variable_name	Value
 innodb_thread_sleep_delay	10000
 create table t1 (v varchar(16384)) engine=innodb;
 ERROR 42000: Column length too big for column 'v' (max = 255); use BLOB instead
+create table t1 (a bit, key(a)) engine=innodb;
+ERROR 42000: The storage engine for the table doesn't support BIT FIELD
