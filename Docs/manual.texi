@@ -3021,8 +3021,8 @@ arrangements:
 The formal terms of the GPL license can be found at @ref{GPL license}.
 Basically, our licensing policy and intepretation of the GPL is as follows:
 
-Note that older versions of @strong{MySQL} are still using a more strict
-license. See the documentation for that version for more information.
+Note that older versions of @strong{MySQL} are still using a more
+@uref{http://www.mysql.com/support/arrangements/mypl.html, strict license}. See the documentation for that version for more information.
 If you need a commercial @strong{MySQL} license, because the GPL license
 doesn't suit your application, you can buy one at
 @uref{https://order.mysql.com/license.htmy}.
