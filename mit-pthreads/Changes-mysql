@@ -1,5 +1,9 @@
 Changes done to this distrubtion (pthreads-1_60_beta6) by Monty (monty@mysql.com)
 
+02.05.07
+- Hacked some files to get it to compile (not work) with glibc 2.2
+  This is needed so that we can do 'make dist' in the MySQL distribution
+
 02.04.26
 - removed the following files because of copyright problems
 
