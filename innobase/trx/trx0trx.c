@@ -102,8 +102,6 @@ trx_create(
 	trx->mysql_master_log_file_name = (char*) "";
 	trx->mysql_master_log_pos = 0;
 	
-	trx->ignore_duplicates_in_insert = FALSE;
-
 	mutex_create(&(trx->undo_mutex));
 	mutex_set_level(&(trx->undo_mutex), SYNC_TRX_UNDO);
 

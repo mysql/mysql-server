@@ -418,10 +418,6 @@ struct trx_struct{
 	lock_t*		auto_inc_lock;	/* possible auto-inc lock reserved by
 					the transaction; note that it is also
 					in the lock list trx_locks */
-        ibool           ignore_duplicates_in_insert;
-                                        /* in an insert roll back only insert
-                                        of the latest row in case
-                                        of a duplicate key error */
 	UT_LIST_NODE_T(trx_t)
 			trx_list;	/* list of transactions */
 	UT_LIST_NODE_T(trx_t)
