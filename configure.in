@@ -1577,15 +1577,6 @@ do
     See the Installation chapter in the Reference Manual.]);
   fi
 done
-
-default_charset_has_source=0
-for cs in $COMPILED_CHARSETS
-do
-  if test $cs = $default_charset
-  then
-    default_charset_has_source=1
-  fi
-done
   
 CHARSET_SRCS=""
 CHARSETS_NEED_SOURCE=""
@@ -1600,8 +1591,10 @@ index_file="$srcdir/sql/share/charsets/Index"
 for c in $CHARSETS
 do
   # get the charset number from $index_file
-  subpat='^'"${c}"'[[\t ]]*#'
-  number=`$AWK 'sub("'"$subpat"'", "") { print }' $index_file`
+changequote(,)dnl
+  subpat='^'"${c}"'[ 	][ 	]*\([0-9][0-9]*\)[^0-9]*$'
+  number=`sed -e "/$subpat/!d" -e 's//\1/' $index_file`
+changequote([,])dnl
   # some sanity checking....
   if test X"$number" = X
   then
