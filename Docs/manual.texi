@@ -16690,6 +16690,16 @@ mysql> select 'David_' LIKE 'David|_' ESCAPE '|';
         -> 1
 @end example
 
+The following two statements illustrate that string comparisons are
+case insensitive unless one of the operands is a binary string:
+
+@example
+mysql> select 'abc' LIKE 'ABC';
+        -> 1
+mysql> SELECT 'abc' LIKE BINARY 'ABC';
+        -> 0
+@end example
+
 @code{LIKE} is allowed on numeric expressions! (This is a @strong{MySQL}
 extension to the ANSI SQL @code{LIKE}.)
 
