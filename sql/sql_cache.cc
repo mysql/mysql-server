@@ -704,17 +704,17 @@ Query_cache::Query_cache(ulong query_cache_limit,
    query_cache_limit(query_cache_limit),
    queries_in_cache(0), hits(0), inserts(0), refused(0),
    total_blocks(0),
-   min_allocation_unit(min_allocation_unit),
-   min_result_data_size(min_result_data_size),
-   def_query_hash_size(def_query_hash_size),
-   def_table_hash_size(def_table_hash_size),
+   min_allocation_unit(ALIGN_SIZE(min_allocation_unit)),
+   min_result_data_size(ALIGN_SIZE(min_result_data_size)),
+   def_query_hash_size(ALIGN_SIZE(def_query_hash_size)),
+   def_table_hash_size(ALIGN_SIZE(def_table_hash_size)),
    initialized(0)
 {
   ulong min_needed=(ALIGN_SIZE(sizeof(Query_cache_block)) +
 		    ALIGN_SIZE(sizeof(Query_cache_block_table)) +
 		    ALIGN_SIZE(sizeof(Query_cache_query)) + 3);
   set_if_bigger(min_allocation_unit,min_needed);
-  this->min_allocation_unit = min_allocation_unit;
+  this->min_allocation_unit = ALIGN_SIZE(min_allocation_unit);
   set_if_bigger(this->min_result_data_size,min_allocation_unit);
 }
 
@@ -1229,6 +1229,12 @@ ulong Query_cache::init_cache()
     goto err;
 
   query_cache_size -= approx_additional_data_size;
+  int align= query_cache_size % ALIGN_SIZE(1);
+  if (align)
+  {
+    query_cache_size-= align;
+    approx_additional_data_size+= align;
+  }
 
   /*
     Count memory bins number.
@@ -1542,10 +1548,12 @@ Query_cache::write_block_data(ulong data_len, gptr data,
 			   ALIGN_SIZE(ntab*sizeof(Query_cache_block_table)) +
 			   header_len);
   ulong len = data_len + all_headers_len;
+  ulong align_len= ALIGN_SIZE(len);
   DBUG_ENTER("Query_cache::write_block_data");
   DBUG_PRINT("qcache", ("data: %ld, header: %ld, all header: %ld",
 		      data_len, header_len, all_headers_len));
-  Query_cache_block *block = allocate_block(max(len, min_allocation_unit),
+  Query_cache_block *block = allocate_block(max(align_len, 
+						min_allocation_unit),
 					    1, 0, under_guard);
   if (block != 0)
   {
@@ -1740,7 +1748,8 @@ my_bool Query_cache::allocate_data_chain(Query_cache_block **result_block,
 {
   ulong all_headers_len = (ALIGN_SIZE(sizeof(Query_cache_block)) +
 			   ALIGN_SIZE(sizeof(Query_cache_result)));
-  ulong len = data_len + all_headers_len;
+  ulong len= data_len + all_headers_len;
+  ulong align_len= ALIGN_SIZE(len);
   DBUG_ENTER("Query_cache::allocate_data_chain");
   DBUG_PRINT("qcache", ("data_len %lu, all_headers_len %lu",
 		      data_len, all_headers_len));
@@ -1748,7 +1757,7 @@ my_bool Query_cache::allocate_data_chain(Query_cache_block **result_block,
   ulong min_size = (first_block ?
 		    get_min_first_result_data_size():
 		    get_min_append_result_data_size());
-  *result_block = allocate_block(max(min_size,len),
+  *result_block = allocate_block(max(min_size, align_len),
 				 min_result_data_size == 0,
 				 all_headers_len + min_result_data_size,
 				 1);
@@ -3046,6 +3055,14 @@ my_bool Query_cache::check_integrity(bool not_locked)
   {
     DBUG_PRINT("qcache", ("block 0x%lx, type %u...", 
 			  (ulong) block, (uint) block->type));  
+    // Check allignment
+    if ((ulonglong)block % ALIGN_SIZE(1))
+    {
+      DBUG_PRINT("error",
+		 ("block 0x%lx do not aligned by %d", (ulong) block,
+		  ALIGN_SIZE(1)));
+      result = 1;
+    }
     // Check memory allocation
     if (block->pnext == first_block) // Is it last block?
     {
