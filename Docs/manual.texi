@@ -14145,11 +14145,18 @@ Lettercase is irrelevant when you assign values to an @code{ENUM} column.
 However, values retrieved from the column later have lettercase matching the
 values that were used to specify the allowable values at table creation time.
 
-If you retrieve an @code{ENUM} in a numeric context, the column value's index
-is returned.  If you store a number into an @code{ENUM}, the number is
-treated as an index, and the value stored is the enumeration member with
-that index.  (However, this will not work with @code{LOAD DATA}, which treats
-all input as strings.)
+If you retrieve an @code{ENUM} in a numeric context, the column value's
+index is returned.  For example, you can retrieve numeric values from
+an @code{ENUM} column like this:
+
+@example
+mysql> SELECT enum_col+0 FROM tbl_name;
+@end example
+
+If you store a number into an @code{ENUM}, the number is treated as an
+index, and the value stored is the enumeration member with that index.
+(However, this will not work with @code{LOAD DATA}, which treats all
+input as strings.)
 
 @code{ENUM} values are sorted according to the order in which the enumeration
 members were listed in the column specification.  (In other words,
@@ -14189,11 +14196,18 @@ A @code{SET} can have a maximum of 64 different members.
 @strong{MySQL} stores @code{SET} values numerically, with the low-order bit
 of the stored value corresponding to the first set member.  If you retrieve a
 @code{SET} value in a numeric context, the value retrieved has bits set
-corresponding to the set members that make up the column value.  If a number
-is stored into a @code{SET} column, the bits that are set in the binary
-representation of the number determine the set members in the column value.
-Suppose a column is specified as @code{SET("a","b","c","d")}.  Then the
-members have the following bit values:
+corresponding to the set members that make up the column value.  For example,
+you can retrieve numeric values from a @code{SET} column like this:
+
+@example
+mysql> SELECT set_col+0 FROM tbl_name;
+@end example
+
+If a number is stored into a @code{SET} column, the bits that
+are set in the binary representation of the number determine the
+set members in the column value.  Suppose a column is specified as
+@code{SET("a","b","c","d")}.  Then the members have the following bit
+values:
 
 @multitable @columnfractions .2 .2 .6
 @item @code{SET} @strong{member} @tab @strong{Decimal value} @tab @strong{Binary value}
