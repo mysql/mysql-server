@@ -189,6 +189,8 @@ static void run_launcher_loop();
 int to_launcher_pipe[2],from_launcher_pipe[2];
 pid_t launcher_pid;
 int in_segfault=0;
+const char* pid_file = "/var/run/mysqlmanager.pid";
+int created_pid_file = 0;
 
 struct manager_cmd
 {
@@ -283,6 +285,7 @@ struct option long_options[] =
   {"one-thread",no_argument,0,'d'},
   {"connect-retries",required_argument,0,'C'},
   {"password-file",required_argument,0,'p'},
+  {"pid-file",required_argument,0,'f'},
   {"version", no_argument, 0, 'V'},
   {0, 0, 0, 0}
 };
@@ -327,6 +330,17 @@ LOG_MSG_FUNC(log_debug,LOG_DEBUG)
 void log_debug(const char* __attribute__((unused)) fmt,...) {}
 #endif
 
+static void handle_sigterm(int sig)
+{
+  log_info("Got SIGTERM"); 
+  if (!one_thread)
+  {
+    kill(launcher_pid,SIGTERM);
+    pthread_kill(loop_th,SIGTERM);
+  }
+  clean_up();
+  exit(0);
+}
 
 static void handle_segfault(int sig)
 {
@@ -1250,6 +1264,8 @@ static void clean_up()
   if (errfp != stderr)
     fclose(errfp);
   hash_free(&exec_hash);
+  if (created_pid_file)
+    my_delete(pid_file, MYF(0));
 }
 
 static void print_version(void)
@@ -1287,7 +1303,7 @@ static void usage()
 static int parse_args(int argc, char **argv)
 {
   int c, option_index = 0;
-  while ((c=getopt_long(argc,argv,"P:?#:Vl:b:B:g:m:dC:p:",
+  while ((c=getopt_long(argc,argv,"P:?#:Vl:b:B:g:m:dC:p:f:",
 			long_options,&option_index)) != EOF)
   {
     switch (c)
@@ -1300,6 +1316,9 @@ static int parse_args(int argc, char **argv)
 	break;
       case 'p':
 	manager_pw_file=optarg;
+	break;
+      case 'f':
+	pid_file=optarg;
 	break;
       case 'C':
         manager_connect_retries=atoi(optarg);
@@ -1662,6 +1681,16 @@ static void init_user_hash()
   fclose(f);
 }
 
+static void init_pid_file()
+{
+  FILE* fp = fopen(pid_file, "w");
+  if (!fp)
+    die("Could not open pid file %s", pid_file);
+  created_pid_file=1;
+  fprintf(fp, "%d\n", getpid());
+  fclose(fp);
+}
+
 static void init_globals()
 {
   pthread_attr_t thr_attr;
@@ -1680,8 +1709,10 @@ static void init_globals()
     /* (void) pthread_attr_destroy(&thr_attr); */
   }
   init_user_hash();
+  init_pid_file();
   loop_th=pthread_self();
   signal(SIGPIPE,handle_sigpipe);
+  signal(SIGTERM,handle_sigterm);
 }
 
 static int open_and_dup(int fd,char* path)
