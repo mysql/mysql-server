@@ -416,8 +416,15 @@ int my_pthread_cond_timedwait(pthread_cond_t *cond,
 			      pthread_mutex_t *mutex,
 			      struct timespec *abstime)
 {
-  int error=pthread_cond_timedwait(cond,mutex,abstime);
-  return (error == EAGAIN || error == -1) ? ETIMEDOUT : error;
+  int error=pthread_cond_timedwait(cond, mutex, abstime);
+  if (error == -1)			/* Safety if the lib is fixed */
+  {
+    if (!(error=errno))
+      error= ETIMEDOUT;			/* Can happen on HPUX */
+  }
+  if (error == EAGAIN)			/* Correct errno to Posix */
+    error= ETIMEDOUT;
+  return error;
 }
 #endif /* HAVE_BROKEN_PTHREAD_COND_TIMEDWAIT */
 
