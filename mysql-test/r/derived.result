@@ -256,7 +256,7 @@ KEY t1_SortIndex (SORTORDER),
 KEY t1_IdIndex (OBJECTID)
 ) TYPE=MyISAM DEFAULT CHARSET=latin1;
 Warnings:
-Warning	1286	'TYPE=database_engine' is deprecated. Use 'ENGINE=database_engine' instead.
+Warning	1286	'TYPE=storage_engine' is deprecated. Use 'ENGINE=storage_engine' instead.
 CREATE TABLE t2 (
 ID int(11) default NULL,
 PARID int(11) default NULL,
