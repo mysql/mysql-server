@@ -6,8 +6,8 @@ now()-now()	weekday(curdate())-weekday(now())	unix_timestamp()-unix_timestamp(no
 0	0	0
 from_unixtime(unix_timestamp("1994-03-02 10:11:12"))	from_unixtime(unix_timestamp("1994-03-02 10:11:12"),"%Y-%m-%d %h:%i:%s")	from_unixtime(unix_timestamp("1994-03-02 10:11:12"))+0
 1994-03-02 10:11:12	1994-03-02 10:11:12	19940302101112
-sec_to_time(9001)	sec_to_time(9001)+0	time_to_sec("15:12:22")
-02:30:01	23001	54742
+sec_to_time(9001)	sec_to_time(9001)+0	time_to_sec("15:12:22")	sec_to_time(time_to_sec("0:30:47")/6.21)
+02:30:01	23001	54742	00:04:57
 now()-curdate()*1000000-curtime()
 0
 strcmp(current_timestamp(),concat(current_date()," ",current_time()))

@@ -610,8 +610,26 @@ int stop_slave(THD* thd, bool net_report )
     // do not abort the slave in the middle of a query, so we do not set
     // thd->killed for the slave thread
     thd->proc_info = "waiting for slave to die";
-    while(slave_running) 
-      pthread_cond_wait(&COND_slave_stopped, &LOCK_slave);
+    while(slave_running)
+    {
+      /* there is a small change that slave thread might miss the first
+	 alarm. To protect againts it, resend the signal until it reacts
+      */
+	 
+      struct timespec abstime;
+#ifdef HAVE_TIMESPEC_TS_SEC
+      abstime.ts_sec=time(NULL)+2;		
+      abstime.ts_nsec=0;
+#else
+      struct timeval tv;
+      gettimeofday(&tv,0);
+      abstime.tv_sec=tv.tv_sec+2;
+      abstime.tv_nsec=tv.tv_usec*1000;
+#endif
+      pthread_cond_timedwait(&COND_slave_stopped, &LOCK_slave, &abstime);
+      if (slave_running)
+        thr_alarm_kill(slave_real_id);
+    }
   }
   else
     slave_errno = ER_SLAVE_NOT_RUNNING;

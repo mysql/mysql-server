@@ -309,11 +309,14 @@ double Item_func_div::val()
 
 longlong Item_func_div::val_int()
 {
-  longlong value=args[0]->val_int();
-  longlong val2=args[1]->val_int();
-  if ((null_value= val2 == 0 || args[0]->null_value || args[1]->null_value))
-    return 0;
-  return value/val2;
+  // the integer result of division of two arguments needs to be computed
+  // as a type-cast division of val(), not as diviion of val_int() of each
+  // argument. For example, val_int(41.5/3.4) = val_int(12.206) = 12, but
+  // if you do val_int(41.5)/val_int(3.4), as in the old code, we get 42/3=
+  // 14, which is wrong. This would break sec_to_time(a/b),
+  // from_unixtime(a/b), and
+  // all functions that do val_int() on their arguments
+  return (longlong)val();
 }
 
 void Item_func_div::fix_length_and_dec()
