@@ -1921,7 +1921,8 @@ com_go(String *buffer,char *line __attribute__((unused)))
   if (err >= 1)
     error= put_error(&mysql);
 
-  if (!status.batch && (mysql.server_status & SERVER_STATUS_DB_DROPPED))
+  if (!error && !status.batch && 
+      (mysql.server_status & SERVER_STATUS_DB_DROPPED))
     get_current_db();
 
   return error;				/* New command follows */
