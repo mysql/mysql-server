@@ -846,7 +846,7 @@ void subselect_union_engine::fix_length_and_dec(Item_cache **row)
     SELECT_LEX *sl= unit->first_select();
     bool fake= 0;
     res_type= set_row(sl, item, row, &fake);
-    for (sl= sl->next_select(); sl; sl->next_select())
+    for (sl= sl->next_select(); sl; sl= sl->next_select())
     {
       List_iterator_fast<Item> li(sl->item_list);
       Item *sel_item;
