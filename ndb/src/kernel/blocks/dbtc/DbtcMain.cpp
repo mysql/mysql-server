@@ -5942,7 +5942,7 @@ int Dbtc::releaseAndAbort(Signal* signal)
       signal->theData[0] = tcConnectptr.i;
       signal->theData[1] = apiConnectptr.p->transid[0];
       signal->theData[2] = apiConnectptr.p->transid[1];
-      signal->theData[3] = hostptr.i;
+      signal->theData[3] = localHostptr.i;
       signal->theData[4] = ZFALSE;
       sendSignal(cownref, GSN_ABORTED, signal, 5, JBB);
     }//if
