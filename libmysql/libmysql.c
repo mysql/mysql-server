@@ -1983,7 +1983,7 @@ mysql_data_seek(MYSQL_RES *result, my_ulonglong row)
 
 /*************************************************************************
 ** put the row or field cursor one a position one got from mysql_row_tell()
-** This dosen't restore any data. The next mysql_fetch_row or
+** This doesn't restore any data. The next mysql_fetch_row or
 ** mysql_fetch_field will return the next row or field after the last used
 *************************************************************************/
 

@@ -8962,7 +8962,7 @@ and @file{.frm} files to which the table corresponds.
 In SQL statements, you can access tables from different databases
 with the @code{db_name.tbl_name} syntax.  Some SQL servers provide
 the same functionality but call this @code{User space}.
-@strong{MySQL} dosen't support tablespaces like in:
+@strong{MySQL} doesn't support tablespaces like in:
 @code{create table ralph.my_table...IN my_tablespace}.
 
 @item
