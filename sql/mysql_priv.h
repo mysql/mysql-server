@@ -419,6 +419,17 @@ int mysql_load(THD *thd,sql_exchange *ex, TABLE_LIST *table_list,
 	       List<Item> &fields, enum enum_duplicates handle_duplicates,
 	       bool local_file,thr_lock_type lock_type);
 int write_record(TABLE *table,COPY_INFO *info);
+
+/* sql_manager.cc */
+/* bits set in manager_status */
+#define MANAGER_BERKELEY_LOG_CLEANUP    (1L << 0)
+extern ulong manager_status;
+extern bool volatile manager_thread_in_use;
+extern pthread_t manager_thread;
+extern pthread_mutex_t LOCK_manager;
+extern pthread_cond_t COND_manager;
+pthread_handler_decl(handle_manager, arg);
+
 /* sql_test.cc */
 #ifndef DBUG_OFF
 void print_where(COND *cond,const char *info);

@@ -154,7 +154,6 @@ static my_string opt_logname=0,opt_update_logname=0,
        opt_binlog_index_name = 0,opt_slow_logname=0;
 static char mysql_home[FN_REFLEN],pidfile_name[FN_REFLEN];
 static pthread_t select_thread;
-static pthread_t flush_thread;			// Used when debugging
 static bool opt_log,opt_update_log,opt_bin_log,opt_slow_log,opt_noacl,
             opt_disable_networking=0, opt_bootstrap=0,opt_skip_show_db=0,
 	    opt_ansi_mode=0,opt_myisam_log=0, opt_large_files=sizeof(my_off_t) > 4;
@@ -213,7 +212,7 @@ ulong max_tmp_tables,max_heap_table_size;
 ulong bytes_sent = 0L, bytes_received = 0L;
 
 bool opt_endinfo,using_udf_functions,low_priority_updates, locked_in_memory;
-bool volatile abort_loop,select_thread_in_use,flush_thread_in_use,grant_option;
+bool volatile abort_loop,select_thread_in_use,grant_option;
 bool volatile ready_to_exit,shutdown_in_progress;
 ulong refresh_version=1L,flush_version=1L;	/* Increments on each reload */
 ulong query_id=1L,long_query_count,long_query_time,aborted_threads,
@@ -256,10 +255,10 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_mapped_file, LOCK_status, LOCK_grant,
 		LOCK_error_log,
 		LOCK_delayed_insert, LOCK_delayed_status, LOCK_delayed_create,
-		LOCK_flush, LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
+		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
                 LOCK_binlog_update, LOCK_slave, LOCK_server_id;
 
-pthread_cond_t COND_refresh,COND_thread_count,COND_flush, COND_binlog_update,
+pthread_cond_t COND_refresh,COND_thread_count,COND_binlog_update,
   COND_slave_stopped;
 pthread_cond_t COND_thread_cache,COND_flush_thread_cache;
 pthread_t signal_thread;
@@ -288,7 +287,6 @@ static pthread_handler_decl(handle_connections_namedpipes,arg);
 #ifdef __WIN__
 static int get_service_parameters();
 #endif
-static pthread_handler_decl(handle_flush,arg);
 extern pthread_handler_decl(handle_slave,arg);
 #ifdef SET_RLIMIT_NOFILE
 static uint set_maximum_open_files(uint max_file_limit);
@@ -312,13 +310,13 @@ static void close_connections(void)
   flush_thread_cache();
 
   /* kill flush thread */
-  (void) pthread_mutex_lock(&LOCK_flush);
-  if (flush_thread_in_use)
+  (void) pthread_mutex_lock(&LOCK_manager);
+  if (manager_thread_in_use)
   {
-    DBUG_PRINT("quit",("killing flush thread: %lx",flush_thread));
-   (void) pthread_cond_signal(&COND_flush);
+    DBUG_PRINT("quit",("killing manager thread: %lx",manager_thread));
+   (void) pthread_cond_signal(&COND_manager);
   }
-  (void) pthread_mutex_unlock(&LOCK_flush);
+  (void) pthread_mutex_unlock(&LOCK_manager);
 
   /* kill connection thread */
 #if !defined(__WIN__) && !defined(__EMX__)
@@ -1396,8 +1394,8 @@ int main(int argc, char **argv)
   (void) pthread_cond_init(&COND_refresh,NULL);
   (void) pthread_cond_init(&COND_thread_cache,NULL);
   (void) pthread_cond_init(&COND_flush_thread_cache,NULL);
-  (void) pthread_cond_init(&COND_flush,NULL);
-  (void) pthread_mutex_init(&LOCK_flush,NULL);
+  (void) pthread_cond_init(&COND_manager,NULL);
+  (void) pthread_mutex_init(&LOCK_manager,NULL);
   (void) pthread_mutex_init(&LOCK_crypt,NULL);
   (void) pthread_mutex_init(&LOCK_bytes_sent,NULL);
   (void) pthread_mutex_init(&LOCK_bytes_received,NULL);
@@ -1604,11 +1602,15 @@ int main(int argc, char **argv)
   }
 #endif
 
-  if (flush_time && flush_time != ~(ulong) 0L)
+  if ((flush_time && flush_time != ~(ulong) 0L)
+#ifdef HAVE_BERKELEY_DB
+      || !berkeley_skip
+#endif
+      )
   {
     pthread_t hThread;
-    if (pthread_create(&hThread,&connection_attrib,handle_flush,0))
-      sql_print_error("Warning: Can't create thread to handle flush");
+    if (pthread_create(&hThread,&connection_attrib,handle_manager,0))
+      sql_print_error("Warning: Can't create thread to manage maintenance");
   }
 
   // slave thread
@@ -2158,41 +2160,6 @@ pthread_handler_decl(handle_connections_namedpipes,arg)
   DBUG_RETURN(0);
 }
 #endif /* __NT__ */
-
-/****************************************************************************
-**  Create thread that automaticly flush all tables after a given time
-****************************************************************************/
-
-pthread_handler_decl(handle_flush,arg __attribute__((unused)))
-{
-  my_thread_init();
-  DBUG_ENTER("handle_flush");
-
-  pthread_detach_this_thread();
-  flush_thread=pthread_self();
-  flush_thread_in_use=1;
-
-  pthread_mutex_lock(&LOCK_flush);
-  while (flush_time)
-  {
-    struct timespec abstime;
-#ifdef HAVE_TIMESPEC_TS_SEC
-    abstime.ts_sec=time(NULL)+flush_time;	// Bsd 2.1
-    abstime.ts_nsec=0;
-#else
-    abstime.tv_sec=time(NULL)+flush_time;	// Linux or Solairs
-    abstime.tv_nsec=0;
-#endif
-    (void) pthread_cond_timedwait(&COND_flush,&LOCK_flush, &abstime);
-    if (abort_loop)
-      break;
-    flush_tables();
-  }
-  flush_thread_in_use=0;
-  pthread_mutex_unlock(&LOCK_flush);
-  my_thread_end();
-  DBUG_RETURN(0);
-}
 
 
 /******************************************************************************
