@@ -825,9 +825,11 @@ class Item_func_get_user_var :public Item_func
 {
   LEX_STRING name;
   user_var_entry *entry;
+  bool const_var_flag;
 
 public:
-  Item_func_get_user_var(LEX_STRING a): Item_func(), name(a) {}
+  Item_func_get_user_var(LEX_STRING a):
+    Item_func(), name(a), const_var_flag(1) {}
   user_var_entry *get_entry();
   double val();
   longlong val_int();
@@ -835,8 +837,9 @@ public:
   void fix_length_and_dec();
   enum Item_result result_type() const;
   const char *func_name() const { return "get_user_var"; }
-  bool const_item() const { return 0; }
-  table_map used_tables() const { return RAND_TABLE_BIT; }
+  bool const_item() const { return const_var_flag; }
+  table_map used_tables() const
+  { return const_var_flag ? 0 : RAND_TABLE_BIT; }
 };
 
 class Item_func_inet_aton : public Item_int_func

@@ -597,7 +597,7 @@ Replication in MySQL
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
-* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.
+* Replication Problems::        Troubleshooting Replication.
 
 Getting Maximum Performance from MySQL
 
@@ -20816,6 +20816,9 @@ only partly indexed. @code{NULL} if the entire key is indexed.
 For now, it tells whether index is FULLTEXT or not.
 @end multitable
 
+Note that as the @code{Cardinality} is counted based on statistics
+stored as integers, it's not necessarily accurate for small tables.
+
 @cindex displaying, table status
 @cindex tables, displaying status
 @cindex status, tables
@@ -23669,9 +23672,24 @@ Change to not use page locks at all when we are scanning tables.
 @node BDB errors,  , BDB TODO, BDB
 @subsection Errors You May Get When Using BDB Tables
 
+@itemize @bullet
+@item
+If you get the following error in the @code{hostname.err log} when
+starting @code{mysqld}:
+
+@example
+bdb:  Ignoring log file: .../log.XXXXXXXXXX: unsupported log version #
+@end example
+it means that the new @code{BDB} version doesn't support the old log
+file format.  In this case you have to delete all @code{BDB} log BDB
+from your database directory (the files that has the format
+@code{log.XXXXXXXXXX} ) and restart @code{mysqld}.  We would also
+recommend you to do a @code{mysqldump --opt} of your old @code{BDB}
+tables, delete the old table and restore the dump.
+@item
 If you are running in not @code{auto_commit} mode and delete a table you
-are using you may get the following error messages in the @strong{MySQL}
-error file:
+are using by another thread you may get the following error messages in
+the @strong{MySQL} error file:
 
 @example
 001119 23:43:56  bdb:  Missing log fileid entry
@@ -23681,6 +23699,7 @@ error file:
 This is not fatal but we don't recommend that you delete tables if you are
 not in @code{auto_commit} mode, until this problem is fixed (the fix is
 not trivial).
+@end itemize
 
 @cindex tables, @code{GEMINI}
 @node GEMINI, INNOBASE, BDB, Table types
@@ -26729,7 +26748,7 @@ tables}.
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
-* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.
+* Replication Problems::	Troubleshooting Replication.
 @end menu
 
 @node Replication Intro, Replication Implementation, Replication, Replication
@@ -26937,7 +26956,7 @@ Replication will be done correctly with @code{AUTO_INCREMENT},
 @code{LAST_INSERT_ID}, and @code{TIMESTAMP} values.
 @item
 @code{RAND()} in updates does not replicate properly. Use
- @code{RAND(some_non_rand_expr)} if you are replcating updates with
+@code{RAND(some_non_rand_expr)} if you are replcating updates with
 @code{RAND()}. You can, for example, use @code{UNIX_TIMESTAMP()} for the
 argument to @code{RAND()}.
 @item
@@ -26946,6 +26965,14 @@ still resides on the master server at the time of update
 propagation. @code{LOAD LOCAL DATA INFILE} will be skipped.
 @item
 Update queries that use user variables are not replication-safe (yet).
+@item
+@code{FLUSH} commands are not stored in the binary log and are because
+of this not replicated to the slaves. This is not normally a problem as
+@code{FLUSH} doesn't change anything. This does however mean that if you
+update the @code{MySQL} privilege tables directly without using
+@code{GRANT} statement and you replicate the @code{MySQL} privilege
+database, you must do a @code{FLUSH PRIVILEGES} on your slaves to put
+the new privileges into effect.
 @item
 Temporary tables starting in 3.23.29 are replicated properly with the
 exception of the case when you shut down slave server ( not just slave thread),
@@ -27293,7 +27320,7 @@ last log on the list), backup all the logs you are about to delete
 
 @end multitable
 
-@node Replication FAQ, Troubleshooting Replication, Replication SQL, Replication
+@node Replication FAQ, Replication Problems, Replication SQL, Replication
 @section Replication FAQ
 
 @cindex @code{Binlog_Dump}
@@ -27546,7 +27573,7 @@ We are currently working on intergrating an automatic master election
 system into @strong{MySQL}, but until it is ready, you will have to
 create your own monitoring tools.
 
-@node Troubleshooting Replication,  , Replication FAQ, Replication
+@node Replication Problems,  , Replication FAQ, Replication
 @section Troubleshooting Replication
 
 If you have followed the instructions, and your replication setup is not
@@ -42210,6 +42237,10 @@ Fixed wrong define @code{CLIENT_TRANSACTIONS}.
 Fixed bug in @code{SHOW VARIABLES} when using INNOBASE tables.
 @item
 Setting and using user variables in @code{SELECT DISTINCT} didn't work.
+@item
+Tuned @code{SHOW ANALYZE} for small tables.
+@item
+Fixed handling of arguments in the benchmark script @code{run-all-tests}.
 @end itemize
 
 @node News-3.23.34a, News-3.23.34, News-3.23.35, News-3.23.x
