@@ -2109,6 +2109,32 @@ end|
 select bug6022(5)|
 drop function bug6022|
 
+#
+# BUG#6029: Stored procedure specific handlers should have priority
+#
+--disable_warnings
+drop procedure if exists bug6029|
+--enable_warnings
+
+create procedure bug6029()
+begin
+  declare exit handler for 1136  select '1136';
+  declare exit handler for sqlstate '23000'  select 'sqlstate 23000';
+  declare continue handler for sqlexception  select 'sqlexception';
+
+  insert into t3 values (1);
+  insert into t3 values (1,2);
+end|
+ 
+create table t3 (s1 int, primary key (s1))|
+insert into t3 values (1)|
+call bug6029()|
+delete from t3|
+call bug6029()|
+
+drop procedure bug6029|
+drop table t3|
+
 
 #
 # Some "real" examples
