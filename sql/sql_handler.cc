@@ -109,6 +109,10 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   if (cond && (cond->check_cols(1) || cond->fix_fields(thd, tables, &cond)))
     return -1;
 
+  /* InnoDB needs to know that this table handle is used in the HANDLER */
+
+  table->file->init_table_handle_for_HANDLER();
+
   if (keyname)
   {
     if ((keyno=find_type(keyname, &table->keynames, 1+2)-1)<0)
@@ -131,8 +135,6 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
 
   insert_fields(thd,tables,tables->db,tables->alias,&it);
 
-  table->file->init_table_handle_for_HANDLER(); // Only InnoDB requires it
-
   select_limit+=offset_limit;
   protocol->send_fields(&list,1);
 
@@ -141,6 +143,12 @@ int mysql_ha_read(THD *thd, TABLE_LIST *tables,
   HANDLER_TABLES_HACK(thd);
   if (!lock)
      goto err0; // mysql_lock_tables() printed error message already
+
+  /* In ::external_lock InnoDB resets the fields which tell it that
+     the handle is used in the HANDLER interface. Tell it again that
+     we are using it for HANDLER. */
+
+  table->file->init_table_handle_for_HANDLER();
 
   for (num_rows=0; num_rows < select_limit; )
   {
