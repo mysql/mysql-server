@@ -133,6 +133,11 @@ static void mysql_close_free(MYSQL *mysql);
 static int wait_for_data(my_socket fd, uint timeout);
 #endif
 
+#if defined(__WIN__) && defined(HAVE_REPLICATION) && defined(MYSQL_SERVER)
+void clear_slave_vio( MYSQL* mysql );
+#endif
+
+
 /****************************************************************************
   A modified version of connect().  my_connect() allows you to specify
   a timeout value, in seconds, that we should wait until we
@@ -818,6 +823,12 @@ void end_server(MYSQL *mysql)
     init_sigpipe_variables
     DBUG_PRINT("info",("Net: %s", vio_description(mysql->net.vio)));
     set_sigpipe(mysql);
+
+#if defined(__WIN__) && defined(HAVE_REPLICATION) && defined(MYSQL_SERVER)
+	/* if this mysql is one of our connections to the master, then clear it */
+	clear_slave_vio( mysql );
+#endif
+
     vio_delete(mysql->net.vio);
     reset_sigpipe(mysql);
     mysql->net.vio= 0;          /* Marker */
