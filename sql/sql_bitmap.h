@@ -29,7 +29,7 @@ template <uint default_width> class Bitmap
 public:
   Bitmap() { init(); }
   Bitmap(Bitmap& from) { *this=from; }
-  Bitmap(uint prefix_to_set) { init(prefix_to_set); }
+  explicit Bitmap(uint prefix_to_set) { init(prefix_to_set); }
   void init() { bitmap_init(&map, buffer, default_width, 0); }
   void init(uint prefix_to_set) { init(); set_prefix(prefix_to_set); }
   uint length() const { return default_width; }
@@ -91,7 +91,7 @@ template <> class Bitmap<64>
   ulonglong map;
 public:
   Bitmap<64>() { }
-  Bitmap<64>(uint prefix_to_set) { set_prefix(prefix_to_set); }
+  explicit Bitmap<64>(uint prefix_to_set) { set_prefix(prefix_to_set); }
   void init() { }
   void init(uint prefix_to_set) { set_prefix(prefix_to_set); }
   uint length() const { return 64; }
