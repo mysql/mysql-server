@@ -191,17 +191,21 @@ Item_sum_num::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 bool
 Item_sum_hybrid::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
-  Item *item=args[0];
+  Item *item= args[0];
   if (!thd->allow_sum_func)
   {
     my_error(ER_INVALID_GROUP_FUNC_USE,MYF(0));
     return 1;
   }
   thd->allow_sum_func=0;			// No included group funcs
+
+  // 'item' can be changed during fix_fields
   if (!item->fixed &&
-      item->fix_fields(thd, tables, args) || item->check_cols(1))
+      item->fix_fields(thd, tables, args) ||
+      (item= args[0])->check_cols(1))
     return 1;
-  hybrid_type=item->result_type();
+
+  hybrid_type= item->result_type();
   if (hybrid_type == INT_RESULT)
   {
     cmp_charset= &my_charset_bin;

@@ -1469,8 +1469,11 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
 	 arg != arg_end ;
 	 arg++,i++)
     {
+      if ((*arg)->fix_fields(thd, tables, arg))
+	return 1;
+      // we can't assign 'item' before, because fix_fields() can change arg
       Item *item= *arg;
-      if (item->fix_fields(thd, tables, arg) || item->check_cols(1))
+      if (item->check_cols(1))
 	return 1;
       /*
 	TODO: We should think about this. It is not always

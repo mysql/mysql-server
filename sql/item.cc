@@ -928,6 +928,10 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 			       (char *)field_name);
 	if (!rf)
 	  return 1;
+	/*
+	  rf is Item_ref => never substitute other items (in this case)
+	  during fix_fields() => we can use rf after fix_fields()
+	*/
 	if (rf->fix_fields(thd, tables, ref) || rf->check_cols(1))
 	  return 1;
 
@@ -946,6 +950,10 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 				 (char *)field_name);
 	  if (!rf)
 	    return 1;
+	  /*
+	    rf is Item_ref => never substitute other items (in this case)
+	    during fix_fields() => we can use rf after fix_fields()
+	  */
 	  return rf->fix_fields(thd, tables, ref) ||  rf->check_cols(1);
 	}
       }
@@ -1658,16 +1666,15 @@ bool Item_default_value::eq(const Item *item, bool binary_cmp) const
 }
 
 
-bool Item_default_value::fix_fields(THD *thd, struct st_table_list *table_list, Item **items)
+bool Item_default_value::fix_fields(THD *thd,
+				    struct st_table_list *table_list,
+				    Item **items)
 {
   if (!arg)
-    return false;
-  bool res= arg->fix_fields(thd, table_list, items);
-  if (res)
-    return res;
-  /* arg->type() can be only REF_ITEM or FIELD_ITEM for it defined as
-   simple_ident in sql_yacc.yy
-  */
+    return 0;
+  if (arg->fix_fields(thd, table_list, &arg))
+    return 1;
+  
   if (arg->type() == REF_ITEM)
   {
     Item_ref *ref= (Item_ref *)arg;
@@ -1711,13 +1718,9 @@ bool Item_insert_value::fix_fields(THD *thd,
 				   struct st_table_list *table_list,
 				   Item **items)
 {
-  bool res= arg->fix_fields(thd, table_list, items);
-  if (res)
-    return res;
-  /*
-    arg->type() can be only REF_ITEM or FIELD_ITEM as arg is
-    a simple_ident in sql_yacc.yy
-  */
+  if (arg->fix_fields(thd, table_list, &arg))
+    return 1;
+
   if (arg->type() == REF_ITEM)
   {
     Item_ref *ref= (Item_ref *)arg;
