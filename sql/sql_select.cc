@@ -8601,8 +8601,7 @@ copy_fields(TMP_TABLE_PARAM *param)
   for (; ptr != end; ptr++)
     (*ptr->do_copy)(ptr);
 
-  List_iterator_fast<Item> &it=param->copy_funcs_it;
-  it.rewind();
+  List_iterator_fast<Item> it(param->copy_funcs);
   Item_copy_string *item;
   while ((item = (Item_copy_string*) it++))
     item->copy();
