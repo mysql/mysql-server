@@ -19,6 +19,8 @@ CFG=heap - Win32 Debug
 !MESSAGE
 !MESSAGE "heap - Win32 Release" (based on "Win32 (x86) Static Library")
 !MESSAGE "heap - Win32 Debug" (based on "Win32 (x86) Static Library")
+!MESSAGE "heap - Win32 TLS_DEBUG" (based on "Win32 (x86) Static Library")
+!MESSAGE "heap - Win32 TLS" (based on "Win32 (x86) Static Library")
 !MESSAGE
 
 # Begin Project
@@ -76,12 +78,64 @@ LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo /out:"..\lib_debug\heap.lib"
 
+!ELSEIF  "$(CFG)" == "heap - Win32 TLS_DEBUG"
+
+# PROP BASE Use_MFC 0
+# PROP BASE Use_Debug_Libraries 1
+# PROP BASE Output_Dir "heap___Win32_TLS_DEBUG"
+# PROP BASE Intermediate_Dir "heap___Win32_TLS_DEBUG"
+# PROP BASE Target_Dir ""
+# PROP Use_MFC 0
+# PROP Use_Debug_Libraries 1
+# PROP Output_Dir "heap___Win32_TLS_DEBUG"
+# PROP Intermediate_Dir "heap___Win32_TLS_DEBUG"
+# PROP Target_Dir ""
+# ADD BASE CPP /nologo /G6 /MTd /W3 /Z7 /Od /Gf /I "../include" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /FD /c
+# SUBTRACT BASE CPP /YX
+# ADD CPP /nologo /G6 /MTd /W3 /Z7 /Od /Gf /I "../include" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /D "USE_TLS" /FD /c
+# SUBTRACT CPP /YX
+# ADD BASE RSC /l 0x409
+# ADD RSC /l 0x409
+BSC32=bscmake.exe
+# ADD BASE BSC32 /nologo
+# ADD BSC32 /nologo
+LIB32=link.exe -lib
+# ADD BASE LIB32 /nologo /out:"..\lib_debug\heap_tls.lib"
+# ADD LIB32 /nologo /out:"..\lib_debug\heap_tls.lib"
+
+!ELSEIF  "$(CFG)" == "heap - Win32 TLS"
+
+# PROP BASE Use_MFC 0
+# PROP BASE Use_Debug_Libraries 0
+# PROP BASE Output_Dir "heap___Win32_TLS"
+# PROP BASE Intermediate_Dir "heap___Win32_TLS"
+# PROP BASE Target_Dir ""
+# PROP Use_MFC 0
+# PROP Use_Debug_Libraries 0
+# PROP Output_Dir "heap___Win32_TLS"
+# PROP Intermediate_Dir "heap___Win32_TLS"
+# PROP Target_Dir ""
+# ADD BASE CPP /nologo /G6 /MT /W3 /O2 /I "../include" /D "DBUG_OFF" /D "_WINDOWS" /D "NDEBUG" /FD /c
+# SUBTRACT BASE CPP /YX
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /D "DBUG_OFF" /D "_WINDOWS" /D "NDEBUG" /D "USE_TLS" /FD /c
+# SUBTRACT CPP /YX
+# ADD BASE RSC /l 0x409
+# ADD RSC /l 0x409
+BSC32=bscmake.exe
+# ADD BASE BSC32 /nologo
+# ADD BSC32 /nologo
+LIB32=link.exe -lib
+# ADD BASE LIB32 /nologo /out:"..\lib_release\heap_tls.lib"
+# ADD LIB32 /nologo /out:"..\lib_release\heap_tls.lib"
+
 !ENDIF
 
 # Begin Target
 
 # Name "heap - Win32 Release"
 # Name "heap - Win32 Debug"
+# Name "heap - Win32 TLS_DEBUG"
+# Name "heap - Win32 TLS"
 # Begin Source File
 
 SOURCE=.\_check.c
@@ -127,6 +181,13 @@ SOURCE=.\hp_hash.c
 !ELSEIF  "$(CFG)" == "heap - Win32 Debug"
 
 # SUBTRACT CPP /YX
+
+!ELSEIF  "$(CFG)" == "heap - Win32 TLS_DEBUG"
+
+# SUBTRACT BASE CPP /YX
+# SUBTRACT CPP /YX
+
+!ELSEIF  "$(CFG)" == "heap - Win32 TLS"
 
 !ENDIF
 

@@ -16,7 +16,7 @@
 
 /* Return error-text for system error messages and nisam messages */
 
-#define PERROR_VERSION "2.9"
+#define PERROR_VERSION "2.10"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -207,8 +207,16 @@ int main(int argc,char *argv[])
   else
 #endif
   {
+    /*
+      On some system, like NETWARE, strerror(unknown_error) returns a
+      string 'Unknown Error'.  To avoid printing it we try to find the
+      error string by asking for an impossible big error message.
+    */
+    const char *unknown_error= strerror(10000);
+
     for ( ; argc-- > 0 ; argv++)
     {
+
       found=0;
       code=atoi(*argv);
 #ifdef HAVE_NDBCLUSTER_DB
@@ -222,7 +230,14 @@ int main(int argc,char *argv[])
       else 
 #endif
 	msg = strerror(code);
-      if (msg)
+
+      /*
+        Don't print message for not existing error messages or for
+        unknown errors.  We test for 'Uknown Errors' just as an
+        extra safety for Netware
+      */
+      if (msg && strcmp(msg, "Unknown Error") &&
+          (!unknown_error || strcmp(msg, unknown_error)))
       {
 	found=1;
 	if (verbose)
@@ -241,7 +256,7 @@ int main(int argc,char *argv[])
       else
       {
 	if (verbose)
-	  printf("%3d = %s\n",code,msg);
+	  printf("MySql error:  %3d = %s\n",code,msg);
 	else
 	  puts(msg);
       }

@@ -19,6 +19,6 @@ include ../include/Makefile.i
 
 noinst_LIBRARIES =	libsrv.a
 
-libsrv_a_SOURCES =	srv0srv.c srv0que.c srv0start.c
+libsrv_a_SOURCES =	srv0srv.c srv0start.c
 
 EXTRA_PROGRAMS =	
