@@ -37,10 +37,13 @@ int main(int argc, char **argv)
   const char *filename;
   HP_KEYDEF keyinfo[10];
   HA_KEYSEG keyseg[4];
+  HP_CREATE_INFO hp_create_info;
   MY_INIT(argv[0]);
 
   filename= "test1";
   get_options(argc,argv);
+
+  bzero(&hp_create_info, sizeof(hp_create_info));
 
   keyinfo[0].keysegs=1;
   keyinfo[0].seg=keyseg;
@@ -55,7 +58,8 @@ int main(int argc, char **argv)
   bzero((gptr) flags,sizeof(flags));
 
   printf("- Creating heap-file\n");
-  if (heap_create(filename,1,keyinfo,30,(ulong) flag*100000l,10l) ||
+  if (heap_create(filename,1,keyinfo,30,(ulong) flag*100000l,10l,
+		  &hp_create_info) ||
       !(file= heap_open(filename, 2)))
     goto err;
   printf("- Writing records:s\n");

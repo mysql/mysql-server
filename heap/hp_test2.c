@@ -63,6 +63,7 @@ int main(int argc, char *argv[])
   HP_KEYDEF keyinfo[MAX_KEYS];
   HA_KEYSEG keyseg[MAX_KEYS*5];
   HEAP_PTR position;
+  HP_CREATE_INFO hp_create_info;
   MY_INIT(argv[0]);		/* init my_sys library & pthreads */
   LINT_INIT(position);
 
@@ -70,6 +71,8 @@ int main(int argc, char *argv[])
   filename2= "test2_2";
   file=file2=0;
   get_options(argc,argv);
+  
+  bzero(&hp_create_info, sizeof(hp_create_info));
 
   write_count=update=opt_delete=0;
   key_check=0;
@@ -122,7 +125,7 @@ int main(int argc, char *argv[])
 
   printf("- Creating heap-file\n");
   if (heap_create(filename,keys,keyinfo,reclength,(ulong) flag*100000L, 
-		(ulong) recant/2) ||
+		(ulong) recant/2, &hp_create_info) ||
       !(file= heap_open(filename, 2)))
     goto err;
   signal(SIGINT,endprog);
@@ -557,7 +560,7 @@ int main(int argc, char *argv[])
   heap_close(file2);
 
   printf("- Creating output heap-file 2\n");
-  if (heap_create(filename2,1,keyinfo,reclength,0L,0L) ||
+  if (heap_create(filename2,1,keyinfo,reclength,0L,0L,&hp_create_info) ||
       !(file2= heap_open(filename2, 2)))
     goto err;
 

@@ -40,8 +40,7 @@ class ha_heap: public handler
   ulong table_flags() const
   {
     return (HA_READ_RND_SAME | HA_NO_INDEX | HA_KEYPOS_TO_RNDPOS |
-	    HA_NO_BLOBS | HA_NULL_KEY | HA_REC_NOT_IN_SEQ |
-	    HA_NO_AUTO_INCREMENT);
+	    HA_NO_BLOBS | HA_NULL_KEY | HA_REC_NOT_IN_SEQ);
   }
   ulong index_flags(uint inx) const
   {
@@ -63,6 +62,7 @@ class ha_heap: public handler
   int write_row(byte * buf);
   int update_row(const byte * old_data, byte * new_data);
   int delete_row(const byte * buf);
+  longlong get_auto_increment();
   int index_read(byte * buf, const byte * key,
 		 uint key_len, enum ha_rkey_function find_flag);
   int index_read_idx(byte * buf, uint idx, const byte * key,
@@ -87,6 +87,7 @@ class ha_heap: public handler
   int delete_table(const char *from);
   int rename_table(const char * from, const char * to);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
+  void update_create_info(HA_CREATE_INFO *create_info);
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     enum thr_lock_type lock_type);
