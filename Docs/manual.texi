@@ -50153,6 +50153,8 @@ Fixed bug in multi-table @code{UPDATE}: when updating a table,
 Fixed bug in multi-table @code{UPDATE} when several fields were referenced
 from a single table
 @item
+Fixed bug in truncating nonexisting table.
+@item
 Fixed bug in @code{REVOKE} that caused user resources to be randomly set.
 @item
 Fixed bug in @code{GRANT} for the new @code{CREATE TEMPORARY TABLE} privilege.
