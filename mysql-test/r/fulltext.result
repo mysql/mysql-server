@@ -203,3 +203,12 @@ select 8 from t1;
 8
 8
 drop table t1;
+drop table if exists t1;
+create table t1 (a text, fulltext key (a));
+insert into t1 values ('aaaa');
+repair table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+select * from t1 where match (a) against ('aaaa');
+a
+drop table t1;
