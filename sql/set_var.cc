@@ -674,14 +674,23 @@ struct show_var_st init_vars[]= {
 */
 
 
-static bool sys_update_init_connect(THD *thd, set_var *var)
+/*
+  Update variables 'init_connect, init_slave'.
+
+  In case of 'DEFAULT' value
+  (for example: 'set GLOBAL init_connect=DEFAULT')
+  'var' parameter is NULL pointer.
+*/
+
+bool update_sys_var_str(sys_var_str *var_str, rw_lock_t *var_mutex,
+			set_var *var)
 {
   char *res= 0, *old_value;
-  uint new_length;
+  uint new_length= 0;
   /* If the string is "", delete old init command */
-  if ((new_length= var->value->str_value.length()))
+  if (var && (new_length= var->value->str_value.length()))
   {
-    if (!(res= my_strdup_with_length(var->value->str_value.c_ptr(),
+    if (!(res= my_strdup_with_length(var->value->str_value.ptr(),
 		     new_length,
 		     MYF(0))))
       return 1;
@@ -690,63 +699,37 @@ static bool sys_update_init_connect(THD *thd, set_var *var)
     Replace the old value in such a way that the any thread using
     the value will work.
   */
-  rw_wrlock(&LOCK_sys_init_connect);
-  old_value= sys_init_connect.value;
-  sys_init_connect.value= res;
-  sys_init_connect.value_length= new_length;
-  rw_unlock(&LOCK_sys_init_connect);
+  rw_wrlock(var_mutex);
+  old_value= var_str->value;
+  var_str->value= res;
+  var_str->value_length= new_length;
+  rw_unlock(var_mutex);
   my_free(old_value, MYF(MY_ALLOW_ZERO_PTR));
   return 0;
+}
+
+
+static bool sys_update_init_connect(THD *thd, set_var *var)
+{
+  return update_sys_var_str(&sys_init_connect, &LOCK_sys_init_connect, var);
 }
 
 
 static void sys_default_init_connect(THD* thd, enum_var_type type)
 {
-  char *old_value;
-  rw_wrlock(&LOCK_sys_init_connect);
-  old_value= sys_init_connect.value;
-  sys_init_connect.value= 0;
-  sys_init_connect.value_length= 0;
-  rw_unlock(&LOCK_sys_init_connect);
-  my_free(old_value, MYF(MY_ALLOW_ZERO_PTR));
+  update_sys_var_str(&sys_init_connect, &LOCK_sys_init_connect, 0);
 }
 
 
 static bool sys_update_init_slave(THD *thd, set_var *var)
 {
-  char *res= 0, *old_value;
-  uint new_length;
-  /* If the string is "", delete old init command */
-  if ((new_length= var->value->str_value.length()))
-  {
-    if (!(res= my_strdup_with_length(var->value->str_value.c_ptr(),
-		     new_length,
-		     MYF(0))))
-      return 1;
-  }
-  /*
-    Replace the old value in such a way that the any thread using
-    the value will work.
-  */
-  rw_wrlock(&LOCK_sys_init_slave);
-  old_value= sys_init_slave.value;
-  sys_init_slave.value= res;
-  sys_init_slave.value_length= new_length;
-  rw_unlock(&LOCK_sys_init_slave);
-  my_free(old_value, MYF(MY_ALLOW_ZERO_PTR));
-  return 0;
+  return update_sys_var_str(&sys_init_slave, &LOCK_sys_init_slave, var);
 }
 
 
 static void sys_default_init_slave(THD* thd, enum_var_type type)
 {
-  char *old_value;
-  rw_wrlock(&LOCK_sys_init_slave);
-  old_value= sys_init_slave.value;
-  sys_init_slave.value= 0;
-  sys_init_slave.value_length= 0;
-  rw_unlock(&LOCK_sys_init_slave);
-  my_free(old_value, MYF(MY_ALLOW_ZERO_PTR));
+  update_sys_var_str(&sys_init_slave, &LOCK_sys_init_slave, 0);
 }
 
 

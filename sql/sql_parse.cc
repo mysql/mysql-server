@@ -794,19 +794,31 @@ check_connections(THD *thd)
 }
 
 
-void init_connect_execute(THD *thd, sys_var_str *init_connect_var)
+void execute_init_command(THD *thd, sys_var_str *init_command_var,
+			  rw_lock_t *var_mutex)
 {
   Vio* save_vio;
   ulong save_client_capabilities;
 
-  thd->proc_info= "Execution of init_connect";
-  thd->query= init_connect_var->value;
-  thd->query_length= init_connect_var->value_length;
+  thd->proc_info= "Execution of init_command";
+  /*
+    We need to lock init_command_var because
+    during execution of init_command_var query
+    values of init_command_var can't be changed
+  */
+  rw_rdlock(var_mutex);
+  thd->query= init_command_var->value;
+  thd->query_length= init_command_var->value_length;
   save_client_capabilities= thd->client_capabilities;
   thd->client_capabilities|= CLIENT_MULTI_QUERIES;
+  /*
+    We don't need return result of execution to client side.
+    To forbid this we should set thd->net.vio to 0.
+  */
   save_vio= thd->net.vio;
   thd->net.vio= 0;
   dispatch_command(COM_QUERY, thd, thd->query, thd->query_length+1);
+  rw_unlock(var_mutex);
   thd->client_capabilities= save_client_capabilities;
   thd->net.vio= save_vio;
 }
@@ -887,29 +899,9 @@ pthread_handler_decl(handle_one_connection,arg)
     thd->version= refresh_version;
     if (sys_init_connect.value && !(thd->master_access & SUPER_ACL))
     {
-      rw_wrlock(&LOCK_sys_init_connect);
-      init_connect_execute(thd, &sys_init_connect);
-      rw_unlock(&LOCK_sys_init_connect);
-      if (thd->init_connect_error)
-      {
-        if (thd->user_connect)
-          decrease_user_connections(thd->user_connect);
-        free_root(&thd->mem_root,MYF(0));
-        if (!thd->killed && thd->variables.log_warnings)
-        {
-          sql_print_error(ER(ER_NEW_ABORTING_CONNECTION),
-	          thd->thread_id,(thd->db ? thd->db : "unconnected"),
-	          thd->user ? thd->user : "unauthenticated",
-	          thd->host_or_ip,
-	          "Can't execute init_connect query");
-          statistic_increment(aborted_threads,&LOCK_status);
-        }
-        else if (thd->killed)
-        {
-          statistic_increment(aborted_threads,&LOCK_status);
-        }
-        goto end_thread;
-      }
+      execute_init_command(thd, &sys_init_connect, &LOCK_sys_init_connect);
+      if (thd->query_error)
+	thd->killed= 1;
     }
 
     thd->proc_info=0;

@@ -121,7 +121,6 @@ THD::THD():user_time(0), is_fatal_error(0),
   system_thread=cleanup_done=0;
   peer_port= 0;					// For SHOW PROCESSLIST
   transaction.changed_tables = 0;
-  init_connect_error= 0;
 #ifdef	__WIN__
   real_id = 0;
 #endif

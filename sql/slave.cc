@@ -2448,24 +2448,6 @@ err:
 }
 
 
-void init_slave_execute(THD *thd, sys_var_str *init_slave_var)
-{
-  Vio* save_vio;
-  ulong save_client_capabilities;
-
-  thd->proc_info= "Execution of init_slave";
-  thd->query= init_slave_var->value;
-  thd->query_length= init_slave_var->value_length;
-  save_client_capabilities= thd->client_capabilities;
-  thd->client_capabilities|= CLIENT_MULTI_QUERIES;
-  save_vio= thd->net.vio;
-  thd->net.vio= 0;
-  dispatch_command(COM_QUERY, thd, thd->query, thd->query_length+1);
-  thd->client_capabilities= save_client_capabilities;
-  thd->net.vio= save_vio;
-}
-
-
 /* Slave SQL Thread entry point */
 
 extern "C" pthread_handler_decl(handle_slave_sql,arg)
@@ -2551,9 +2533,7 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
   /* execute init_slave variable */
   if (sys_init_slave.value)
   {
-    rw_wrlock(&LOCK_sys_init_slave);
-    init_slave_execute(thd, &sys_init_slave);
-    rw_unlock(&LOCK_sys_init_slave);
+    execute_init_command(thd, &sys_init_slave, &LOCK_sys_init_slave);
     if (thd->query_error)
     {
       sql_print_error("\

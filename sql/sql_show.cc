@@ -1618,10 +1618,10 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
         break;
       case SHOW_CHAR_PTR:
       {
-	if (!(pos= *(char**) value))
-	  pos= "";
-	end= strend(pos);
-	break;
+        if (!(pos= *(char**) value))
+          pos= "";
+        end= strend(pos);
+        break;
       }
 #ifdef HAVE_OPENSSL
 	/* First group - functions relying on CTX */
