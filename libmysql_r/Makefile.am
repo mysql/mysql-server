@@ -18,7 +18,7 @@
 
 
 target = libmysqlclient_r.la
-target_defs =
+target_defs = -DDONT_USE_RAID
 ## LIBS = @LIBS@
 
 INCLUDES =	@MT_INCLUDES@ -I$(srcdir)/../include -I../include \
