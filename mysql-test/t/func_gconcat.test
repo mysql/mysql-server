@@ -277,3 +277,10 @@ select group_concat(b order by b) from t1 group by a;
 select group_concat(distinct b order by b) from t1 group by a;
 
 drop table t1;
+
+#
+# bug #7769: group_concat returning null is checked in having
+#
+CREATE TABLE t1 (id int);
+SELECT GROUP_CONCAT(id) AS gc FROM t1 HAVING gc IS NULL;
+DROP TABLE t1;
