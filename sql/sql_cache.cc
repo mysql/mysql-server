@@ -1123,7 +1123,7 @@ void Query_cache::invalidate(THD *thd, TABLE_LIST *tables_used,
 
       using_transactions = using_transactions &&
 	(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
-      for (; tables_used; tables_used=tables_used->next)
+      for (; tables_used; tables_used= tables_used->next_local)
       {
 	DBUG_ASSERT(!using_transactions || tables_used->table!=0);
 	if (tables_used->derived)
@@ -1155,7 +1155,7 @@ void Query_cache::invalidate(CHANGED_TABLE_LIST *tables_used)
     if (query_cache_size > 0)
     {
       DUMP(this);
-      for (; tables_used; tables_used=tables_used->next)
+      for (; tables_used; tables_used= tables_used->next)
       {
 	invalidate_table((byte*) tables_used->key, tables_used->key_length);
 	DBUG_PRINT("qcache", (" db %s, table %s", tables_used->key,
@@ -1188,7 +1188,7 @@ void Query_cache::invalidate_locked_for_write(TABLE_LIST *tables_used)
     if (query_cache_size > 0)
     {
       DUMP(this);
-      for (; tables_used; tables_used= tables_used->next)
+      for (; tables_used; tables_used= tables_used->next_local)
       {
 	if (tables_used->lock_type & (TL_WRITE_LOW_PRIORITY | TL_WRITE))
 	  invalidate_table(tables_used->table);
@@ -2075,7 +2075,9 @@ my_bool Query_cache::register_all_tables(Query_cache_block *block,
 
   Query_cache_block_table *block_table = block->table(0);
 
-  for (n=0; tables_used; tables_used=tables_used->next, n++, block_table++)
+  for (n= 0;
+       tables_used;
+       tables_used= tables_used->next_global, n++, block_table++)
   {
     DBUG_PRINT("qcache",
 	       ("table %s, db %s, openinfo at 0x%lx, keylen %u, key at 0x%lx",
@@ -2622,7 +2624,7 @@ TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
 			lex->select_lex.options,
 			(int) thd->variables.query_cache_type));
 
-    for (; tables_used; tables_used= tables_used->next)
+    for (; tables_used; tables_used= tables_used->next_global)
     {
       table_count++;
       DBUG_PRINT("qcache", ("table %s, db %s, type %u",
@@ -2689,7 +2691,7 @@ my_bool Query_cache::ask_handler_allowance(THD *thd,
 {
   DBUG_ENTER("Query_cache::ask_handler_allowance");
 
-  for (; tables_used; tables_used= tables_used->next)
+  for (; tables_used; tables_used= tables_used->next_global)
   {
     TABLE *table= tables_used->table;
     if (!ha_caching_allowed(thd, table->table_cache_key,

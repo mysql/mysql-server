@@ -225,7 +225,7 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
 		     thd->net.report_error));
   if (thd->net.report_error)
     res= 1;
-  if (res)
+  if (res > 0)
   {
     if (result)
     {
@@ -236,42 +236,17 @@ int handle_select(THD *thd, LEX *lex, select_result *result)
       send_error(thd, 0, NullS);
     res= 1;					// Error sent to client
   }
+  if (res < 0)
+  {
+    if (result)
+    {
+      result->abort();
+    }
+    res= 1;
+  }
   if (result != lex->result)
     delete result;
   DBUG_RETURN(res);
-}
-
-
-void relink_tables(SELECT_LEX *select_lex)
-{
-  for (TABLE_LIST *cursor= (TABLE_LIST *) select_lex->table_list.first;
-       cursor;
-       cursor=cursor->next)
-    if (cursor->table_list)
-      cursor->table= cursor->table_list->table;
-}
-
-
-void fix_tables_pointers(SELECT_LEX *select_lex)
-{
-  if (select_lex->next_select_in_list())
-  {
-    /* Fix tables 'to-be-unioned-from' list to point at opened tables */
-    for (SELECT_LEX *sl= select_lex;
-	 sl;
-	 sl= sl->next_select_in_list())
-      relink_tables(sl);
-  }
-}
-
-void fix_tables_pointers(SELECT_LEX_UNIT *unit)
-{
-  for (SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
-  {
-    relink_tables(sl);
-    for (SELECT_LEX_UNIT *un= sl->first_inner_unit(); un; un= un->next_unit())
-      fix_tables_pointers(un);
-  }
 }
 
 
@@ -339,7 +314,7 @@ JOIN::prepare(Item ***rref_pointer_array,
 
   /* Check that all tables, fields, conds and order are ok */
 
-  if (setup_tables(tables_list) ||
+  if (setup_tables(thd, tables_list, &conds) ||
       setup_wild(thd, tables_list, fields_list, &all_fields, wild_num) ||
       select_lex->setup_ref_array(thd, og_num) ||
       setup_fields(thd, (*rref_pointer_array), tables_list, fields_list, 1,
@@ -366,20 +341,19 @@ JOIN::prepare(Item ***rref_pointer_array,
       having->split_sum_func(ref_pointer_array, all_fields);
   }
 
-  // Is it subselect
+  if (!thd->lex->view_prepare_mode)
   {
     Item_subselect *subselect;
+    /* Is it subselect? */
     if ((subselect= select_lex->master_unit()->item))
     {
       Item_subselect::trans_res res;
-      if ((res= subselect->select_transformer(this)) !=
+      if ((res= ((!thd->lex->view_prepare_mode) ?
+		 subselect->select_transformer(this) :
+		 subselect->no_select_transform())) !=
 	  Item_subselect::RES_OK)
       {
-        if (thd->current_arena && select_lex->first_execution)
-        {
-          select_lex->prep_where= select_lex->where;
-          select_lex->first_execution= 0;
-        }
+        select_lex->fix_prepare_information(thd, &conds);
 	DBUG_RETURN((res == Item_subselect::RES_ERROR));
       }
     }
@@ -415,7 +389,7 @@ JOIN::prepare(Item ***rref_pointer_array,
       }
     }
     TABLE_LIST *table_ptr;
-    for (table_ptr= tables_list ; table_ptr ; table_ptr= table_ptr->next)
+    for (table_ptr= tables_list; table_ptr; table_ptr= table_ptr->next_local)
       tables++;
   }
   {
@@ -484,11 +458,7 @@ JOIN::prepare(Item ***rref_pointer_array,
   if (alloc_func_list())
     goto err;
 
-  if (thd->current_arena && select_lex->first_execution)
-  {
-    select_lex->prep_where= select_lex->where;
-    select_lex->first_execution= 0;
-  }
+  select_lex->fix_prepare_information(thd, &conds);
   DBUG_RETURN(0); // All OK
 
 err:
@@ -1049,10 +1019,15 @@ JOIN::reinit()
   DBUG_ENTER("JOIN::reinit");
   /* TODO move to unit reinit */
   unit->set_limit(select_lex, select_lex);
-  
-  if (setup_tables(tables_list))
-    DBUG_RETURN(1);
-  
+
+  /* conds should not be used here, it is added just for safety */
+  if (tables_list)
+  {
+    tables_list->setup_is_done= 0;
+    if (setup_tables(thd, tables_list, &conds))
+      DBUG_RETURN(1);
+  }
+
   /* Reset of sum functions */
   first_record= 0;
 
@@ -1747,7 +1722,9 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
   found_const_table_map= all_table_map=0;
   const_count=0;
 
-  for (s=stat,i=0 ; tables ; s++,tables=tables->next,i++)
+  for (s= stat, i= 0;
+       tables;
+       s++, tables= tables->next_local, i++)
   {
     table_map dep_tables;
     TABLE_LIST *embedding= tables->embedding;
@@ -5329,7 +5306,7 @@ return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
 
   if (send_row)
   {
-    for (TABLE_LIST *table=tables; table ; table=table->next)
+    for (TABLE_LIST *table= tables; table; table= table->next_local)
       mark_as_null_row(table->table);		// All fields are NULL
     if (having && having->val_int() == 0)
       send_row=0;
@@ -10019,7 +9996,7 @@ get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables)
   if (!map || (map & (RAND_TABLE_BIT | OUTER_REF_TABLE_BIT)))
     DBUG_RETURN(0);
 
-  for (; !(map & tables->table->map) ; tables=tables->next) ;
+  for (; !(map & tables->table->map); tables= tables->next_local);
   if (map != tables->table->map)
     DBUG_RETURN(0);				// More than one table
   DBUG_PRINT("exit",("sort by table: %d",tables->table->tablenr));
@@ -11270,6 +11247,17 @@ void st_table_list::print(THD *thd, String *str)
     str->append('(');
     print_join(thd, str, &nested_join->join_list);
     str->append(')');
+  }
+  else if (view_name.str)
+  {
+    str->append(view_db.str, view_db.length);
+    str->append('.');
+    str->append(view_name.str, view_name.length);
+    if (my_strcasecmp(table_alias_charset, view_name.str, alias))
+    {
+      str->append(' ');
+      str->append(alias);
+    }
   }
   else if (derived)
   {

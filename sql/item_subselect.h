@@ -84,6 +84,7 @@ public:
     null_value= 1;
   }
   virtual trans_res select_transformer(JOIN *join);
+  virtual trans_res no_select_transform() { return RES_OK; }
   bool assigned() { return value_assigned; }
   void assigned(bool a) { value_assigned= a; }
   enum Type type() const;
@@ -209,7 +210,6 @@ public:
   Item_in_subselect(Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect()
     :Item_exists_subselect(), abort_on_null(0), transformed(0), upper_not(0)
-     
   {}
 
   subs_type substype() { return IN_SUBS; }
@@ -220,6 +220,7 @@ public:
     was_null= 0;
   }
   trans_res select_transformer(JOIN *join);
+  trans_res no_select_transform();
   trans_res single_value_transformer(JOIN *join,
 				     Comp_creator *func);
   trans_res row_value_transformer(JOIN * join);

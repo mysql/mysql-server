@@ -28,11 +28,11 @@ int mysql_union(THD *thd, LEX *lex, select_result *result,
 		SELECT_LEX_UNIT *unit)
 {
   DBUG_ENTER("mysql_union");
-  int res= 0;
+  int res, res_cln;
   if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK)))
     res= unit->exec();
-  res|= unit->cleanup();
-  DBUG_RETURN(res);
+  res_cln= unit->cleanup();
+  DBUG_RETURN(res?res:res_cln);
 }
 
 
@@ -136,7 +136,7 @@ st_select_lex_unit::init_prepare_fake_select_lex(THD *thd)
   fake_select_lex->ftfunc_list= &fake_select_lex->ftfunc_list_alloc;
   fake_select_lex->table_list.link_in_list((byte *)&result_table_list,
 					   (byte **)
-					   &result_table_list.next);
+					   &result_table_list.next_local);
   return options_tmp;
 }
 
@@ -522,6 +522,7 @@ int st_select_lex_unit::exec()
 int st_select_lex_unit::cleanup()
 {
   int error= 0;
+  JOIN *join;
   DBUG_ENTER("st_select_lex_unit::cleanup");
 
   if (cleaned)
@@ -538,9 +539,8 @@ int st_select_lex_unit::cleanup()
       free_tmp_table(thd, table);
     table= 0; // Safety
   }
-  JOIN *join;
-  SELECT_LEX *sl= first_select_in_union();
-  for (; sl; sl= sl->next_select())
+
+  for (SELECT_LEX *sl= first_select_in_union(); sl; sl= sl->next_select())
   {
     if ((join= sl->join))
     {
@@ -565,6 +565,7 @@ int st_select_lex_unit::cleanup()
     error|= join->cleanup();
     delete join;
   }
+
   DBUG_RETURN(error);
 }
 

@@ -570,17 +570,20 @@ db_show_routine_status(THD *thd, int type, const char *wild)
       goto err_case;
     }
 
-    /* Init fields */
-    setup_tables(&tables);
+    /*
+      Init fields
+
+      tables is not VIEW for sure => we can pass 0 as condition
+    */
+    setup_tables(thd, &tables, 0);
     for (used_field= &used_fields[0];
 	 used_field->field_name;
 	 used_field++)
     {
-      TABLE_LIST *not_used;
       Item_field *field= new Item_field("mysql", "proc",
 					used_field->field_name);
       if (!(used_field->field= find_field_in_tables(thd, field, &tables, 
-						    &not_used, TRUE)))
+						    0, TRUE, 1)))
       {
 	res= SP_INTERNAL_ERROR;
 	goto err_case1;

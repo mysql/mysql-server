@@ -746,7 +746,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       table_list->alias= table_list->real_name;	// If lower_case_table_names=2
       /* Link into list */
       (*tot_list_next)= table_list;
-      tot_list_next= &table_list->next;
+      tot_list_next= &table_list->next_local;
       deleted++;
     }
     else

@@ -61,7 +61,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			spatial.h gstream.h client_settings.h tzfile.h \
                         tztime.h examples/ha_example.h examples/ha_archive.h \
 			sp_head.h sp_pcontext.h sp_rcontext.h sp.h sp_cache.h \
-			parse_file.h			
+			parse_file.h sql_view.h
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
 			item_cmpfunc.cc item_strfunc.cc item_timefunc.cc \
@@ -90,6 +90,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			slave.cc sql_repl.cc sql_union.cc sql_derived.cc \
 			client.c sql_client.cc mini_client_errors.c pack.c\
 			stacktrace.c repl_failsafe.h repl_failsafe.cc \
+			sql_olap.cc sql_view.cc \
 			gstream.cc spatial.cc sql_help.cc protocol_cursor.cc \
 			tztime.cc my_time.c \
 			examples/ha_example.cc examples/ha_archive.cc \
