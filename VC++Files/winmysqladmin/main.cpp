@@ -1337,6 +1337,7 @@ void __fastcall TForm1::IsMySQLInit(void)
           }
 
         }
+       MySQL->reconnect= 1;
 
       }
 
@@ -1348,6 +1349,7 @@ void __fastcall TForm1::IsMySQLInit(void)
       MySQL = mysql_init(MySQL);
       if(mysql_real_connect(MySQL,host,user,password , 0, 0, NULL, 0))
       IsConnect = true;
+      MySQL->reconnect= 1;
     }
   }
 }
