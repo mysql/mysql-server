@@ -56,7 +56,6 @@ void Item_subselect::init(THD *thd, st_select_lex *select_lex,
   DBUG_ENTER("Item_subselect::init");
   DBUG_PRINT("subs", ("select_lex 0x%xl", (ulong) select_lex));
 
-  select_transformer(thd, select_lex->master_unit());
   if (select_lex->next_select())
     engine= new subselect_union_engine(thd, select_lex->master_unit(), result,
 				       this);
@@ -72,10 +71,12 @@ Item_subselect::~Item_subselect()
     delete engine;
 }
 
-void Item_subselect::select_transformer(THD *thd, st_select_lex_unit *unit) 
+Item_subselect::trans_res
+Item_subselect::select_transformer(THD *thd,
+				   JOIN *join) 
 {
   DBUG_ENTER("Item_subselect::select_transformer");
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(OK);
 }
 
 
@@ -83,27 +84,28 @@ bool Item_subselect::fix_fields(THD *thd_param, TABLE_LIST *tables, Item **ref)
 {
   thd= thd_param;
 
-  if (substitution)
-  {
-    (*ref)= substitution;
-    substitution->name= name;
-    if (have_to_be_excluded)
-      engine->exclude();
-    substitution= 0;
-    int ret= (*ref)->fix_fields(thd, tables, ref);
-    // We can't substitute aggregate functions (like (SELECT (max(i)))
-    if ((*ref)->with_sum_func)
-    {
-      my_error(ER_INVALID_GROUP_FUNC_USE, MYF(0));
-      return 1;
-    }
-    return ret;
-  }
-
   char const *save_where= thd->where;
   int res= engine->prepare();
   if (!res)
   {
+    if (substitution)
+    {
+      (*ref)= substitution;
+      substitution->name= name;
+      if (have_to_be_excluded)
+	engine->exclude();
+      substitution= 0;
+      fixed= 1;
+      thd->where= "checking transformed subquery";
+      int ret= (*ref)->fix_fields(thd, tables, ref);
+      // We can't substitute aggregate functions (like (SELECT (max(i)))
+      if ((*ref)->with_sum_func)
+      {
+	my_error(ER_INVALID_GROUP_FUNC_USE, MYF(0));
+	return 1;
+      }
+      return ret;
+    }
     // Is it one field subselect?
     if (engine->cols() > max_columns)
     {  
@@ -166,12 +168,14 @@ void Item_singlerow_subselect::reset()
     value->null_value= 1;
 }
 
-void Item_singlerow_subselect::select_transformer(THD *thd,
-						  st_select_lex_unit *unit)
+Item_subselect::trans_res
+Item_singlerow_subselect::select_transformer(THD *thd,
+						    JOIN *join)
 {
-  SELECT_LEX *select_lex= unit->first_select();
+  SELECT_LEX *select_lex= join->select_lex;
   
-  if (!select_lex->next_select() && !select_lex->table_list.elements &&
+  if (!select_lex->master_unit()->first_select()->next_select() &&
+      !select_lex->table_list.elements &&
       select_lex->item_list.elements == 1 &&
       /*
 	We cant change name of Item_field or Item_ref, because it will
@@ -199,18 +203,20 @@ void Item_singlerow_subselect::select_transformer(THD *thd,
     if (select_lex->where || select_lex->having)
     {
       Item *cond;
-      if (!select_lex->having)
-	cond= select_lex->where;
-      else if (!select_lex->where)
-	cond= select_lex->having;
+      if (!join->having)
+	cond= join->conds;
+      else if (!join->conds)
+	cond= join->having;
       else
-	if (!(cond= new Item_cond_and(select_lex->having, select_lex->where)))
-	  return;
+	if (!(cond= new Item_cond_and(join->conds, join->having)))
+	  return ERROR;
       if (!(substitution= new Item_func_if(cond, substitution,
 					   new Item_null())))
-	return;
+	return ERROR;
     }
+    return REDUCE;
   }
+  return OK;
 }
 
 void Item_singlerow_subselect::store(uint i, Item *item)
@@ -329,6 +335,37 @@ Item_exists_subselect::Item_exists_subselect(THD *thd,
   DBUG_VOID_RETURN;
 }
 
+bool Item_in_subselect::test_limit(SELECT_LEX_UNIT *unit)
+{
+  SELECT_LEX_NODE *global= unit->global_parameters;
+  if (global->select_limit != HA_POS_ERROR)
+  {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+	     "LIMIT & IN/ALL/ANY/SOME subquery");
+    return(1);
+  }
+  SELECT_LEX *sl= unit->first_select();
+  for (; sl; sl= sl->next_select())
+  {
+    if (sl->select_limit != HA_POS_ERROR)
+    {
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+	       "LIMIT & IN/ALL/ANY/SOME subquery");
+      return(1);
+    }
+    // We need only 1 row to determinate existence
+    sl->select_limit= 1;
+    // no sense in ORDER BY without LIMIT
+    sl->order_list.empty();
+  }
+  // no sense in ORDER BY without LIMIT
+  global->order_list.empty();
+  // We need only 1 row to determinate existence
+  global->select_limit= 1;
+
+  return(0);
+}
+
 Item_in_subselect::Item_in_subselect(THD *thd, Item * left_exp,
 				     st_select_lex *select_lex):
   Item_exists_subselect()
@@ -338,25 +375,25 @@ Item_in_subselect::Item_in_subselect(THD *thd, Item * left_exp,
   init(thd, select_lex, new select_exists_subselect(this));
   max_columns= UINT_MAX;
   maybe_null= 1;
+  abort_on_null= 0;
   reset();
-  // We need only 1 row to determinate existence
-  select_lex->master_unit()->global_parameters->select_limit= 1;
+  test_limit(select_lex->master_unit());
   DBUG_VOID_RETURN;
 }
 
 Item_allany_subselect::Item_allany_subselect(THD *thd, Item * left_exp,
-					     compare_func_creator f,
+					     compare_func_creator fn,
 					     st_select_lex *select_lex):
   Item_in_subselect()
 {
   DBUG_ENTER("Item_in_subselect::Item_in_subselect");
   left_expr= left_exp;
-  func= f;
+  func= fn;
   init(thd, select_lex, new select_exists_subselect(this));
   max_columns= 1;
+  abort_on_null= 0;
   reset();
-  // We need only 1 row to determinate existence
-  select_lex->master_unit()->global_parameters->select_limit= 1;
+  test_limit(select_lex->master_unit());
   DBUG_VOID_RETURN;
 }
 
@@ -446,6 +483,7 @@ Item_in_subselect::Item_in_subselect(Item_in_subselect *item):
   Item_exists_subselect(item)
 {
   left_expr= item->left_expr;
+  abort_on_null= item->abort_on_null;
 }
 
 Item_allany_subselect::Item_allany_subselect(Item_allany_subselect *item):
@@ -454,227 +492,258 @@ Item_allany_subselect::Item_allany_subselect(Item_allany_subselect *item):
   func= item->func;
 }
 
-void Item_in_subselect::single_value_transformer(THD *thd,
-						 st_select_lex_unit *unit,
-						 Item *left_expr,
-						 compare_func_creator func)
+Item_subselect::trans_res
+Item_in_subselect::single_value_transformer(THD *thd,
+					    JOIN *join,
+					    Item *left_expr,
+					    compare_func_creator func)
 {
   DBUG_ENTER("Item_in_subselect::single_value_transformer");
 
-  if (unit->global_parameters->select_limit != HA_POS_ERROR)
+  SELECT_LEX *select_lex= join->select_lex;
+
+  thd->where= "scalar IN/ALL/ANY subquery";
+
+  if (!substitution)
   {
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-	     "LIMIT & IN/ALL/ANY/SOME subquery");
-    DBUG_VOID_RETURN;
+    //first call for this unit
+    SELECT_LEX_UNIT *unit= select_lex->master_unit();
+    substitution= optimizer= new Item_in_optimizer(left_expr, this);
+
+    SELECT_LEX_NODE *current= thd->lex.current_select, *up;
+    thd->lex.current_select= up= current->return_after_parsing();
+    //optimizer never use Item **ref => we can pass 0 as parameter
+    if (!optimizer || optimizer->fix_left(thd, up->get_table_list(), 0))
+    {
+      thd->lex.current_select= current;
+      DBUG_RETURN(ERROR);
+    }
+    thd->lex.current_select= current;
+
+    /*
+      As far as  Item_ref_in_optimizer do not substitude itself on fix_fields
+      we can use same item for all selects.
+    */
+    expr= new Item_ref((Item**)optimizer->get_cache(), 
+		       (char *)"<no matter>",
+		       (char *)"<left expr>");
+
+    unit->dependent= 1;
   }
-  // no sense in ORDER BY without LIMIT
-  unit->global_parameters->order_list.empty();
 
-  Item_in_optimizer *optimizer;
-  substitution= optimizer= new Item_in_optimizer(left_expr, this);
-  if (!optimizer)
-    DBUG_VOID_RETURN;
-
-  /*
-    As far as  Item_ref_in_optimizer do not substitude itself on fix_fields
-    we can use same item for all selects.
-  */
-  Item *expr= new Item_ref((Item**)optimizer->get_cache(), 
-			   (char *)"<no matter>",
-			   (char*)"<left expr>");
-  unit->dependent= 1;
-  for (SELECT_LEX * sl= unit->first_select(); sl; sl= sl->next_select())
+  select_lex->dependent= 1;
+  Item *item;
+  if (select_lex->item_list.elements > 1)
   {
-    if (sl->select_limit != HA_POS_ERROR)
-    {
-      my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-	       "LIMIT & IN/ALL/ANY/SOME subquery");
-      DBUG_VOID_RETURN;
-    }
+    my_error(ER_CARDINALITY_COL, MYF(0), 1);
+    DBUG_RETURN(ERROR);
+  }
+  else
+    item= (Item*) select_lex->item_list.head();
 
-    sl->dependent= 1;
-    Item *item;
-    if (sl->item_list.elements > 1)
+  if (join->having || select_lex->with_sum_func ||
+      select_lex->group_list.elements)
+  {
+    item= (*func)(expr,
+		  new Item_ref_null_helper(this,
+					   select_lex->ref_pointer_array,
+					   (char *)"<ref>",
+					   this->full_name()));
+    join->having= and_items(join->having, item);
+    select_lex->having_fix_field= 1;
+    if (join->having->fix_fields(thd, join->tables_list, &join->having))
     {
-      my_error(ER_CARDINALITY_COL, MYF(0), 1);
-      DBUG_VOID_RETURN;
+      select_lex->having_fix_field= 0;
+      DBUG_RETURN(ERROR);
     }
-    else
-      item= (Item*) sl->item_list.pop();
-
-    sl->order_list.empty(); // no sense in ORDER BY without LIMIT
-
-    if (sl->having || sl->with_sum_func || sl->group_list.elements)
+    select_lex->having_fix_field= 0;
+  }
+  else
+  {
+    select_lex->item_list.empty();
+    select_lex->item_list.push_back(new Item_int("Not_used",
+						 (longlong) 1, 21));
+    select_lex->ref_pointer_array[0]= select_lex->item_list.head();
+    if (select_lex->table_list.elements)
     {
-      sl->item_list.push_back(item);
-      setup_ref_array(thd, &sl->ref_pointer_array,
-		      1 + sl->select_items +
-		      sl->order_list.elements + sl->group_list.elements);
-      // To prevent crash on Item_ref_null_helper destruction in case of error
-      sl->ref_pointer_array[0]= 0;
-      item= (*func)(expr, new Item_ref_null_helper(this,
-						   sl->ref_pointer_array,
-						   (char *)"<ref>",
-						   this->full_name()));
-      sl->having= and_items(sl->having, item);
-    }
-    else
-    {
-      sl->item_list.empty();
-      sl->item_list.push_back(new Item_int("Not_used", (longlong) 1, 21));
-      if (sl->table_list.elements)
+      Item *having= item, *isnull= item;
+      if (item->type() == Item::FIELD_ITEM &&
+	  ((Item_field*) item)->field_name[0] == '*')
       {
-	Item *having= item, *isnull= item;
-	if (item->type() == Item::FIELD_ITEM &&
-	    ((Item_field*) item)->field_name[0] == '*')
+	Item_asterisk_remover *remover;
+	item= remover= new Item_asterisk_remover(this, item,
+						 (char *)"<no matter>",
+						 (char *)"<result>");
+	if (!abort_on_null)
 	{
-	  Item_asterisk_remover *remover;
-	  item= remover= new Item_asterisk_remover(this, item,
-						   (char*)"<no matter>",
-						   (char*)"<result>");
 	  having= 
 	    new Item_is_not_null_test(this,
 				      new Item_ref(remover->storage(),
-						   (char*)"<no matter>",
-						   (char*)"<null test>"));
+						   (char *)"<no matter>",
+						   (char *)"<null test>"));
 	  isnull=
 	    new Item_is_not_null_test(this,
 				      new Item_ref(remover->storage(),
-						   (char*)"<no matter>",
-						   (char*)"<null test>"));
+						   (char *)"<no matter>",
+						   (char *)"<null test>"));
 	}
+      }
+      item= (*func)(expr, item);
+      if (!abort_on_null)
+      {
 	having= new Item_is_not_null_test(this, having);
-	sl->having= (sl->having ?
-		     new Item_cond_and(having, sl->having) :
-		     having);
-	item= new Item_cond_or((*func)(expr, item),
+	join->having= (join->having ?
+		       new Item_cond_and(having, join->having) :
+		       having);
+	select_lex->having_fix_field= 1;
+	if (join->having->fix_fields(thd, join->tables_list, &join->having))
+	{
+	  select_lex->having_fix_field= 0;
+	  DBUG_RETURN(ERROR);
+	}
+	select_lex->having_fix_field= 0;
+	item= new Item_cond_or(item,
 			       new Item_func_isnull(isnull));
-	sl->where= and_items(sl->where, item);
+      }
+      join->conds= and_items(join->conds, item);
+      if (join->conds->fix_fields(thd, join->tables_list, &join->conds))
+	DBUG_RETURN(ERROR);
+    }
+    else
+    {
+      if (item->type() == Item::FIELD_ITEM &&
+	  ((Item_field*) item)->field_name[0] == '*')
+      {
+	my_error(ER_NO_TABLES_USED, MYF(0));
+	DBUG_RETURN(ERROR);
+      }
+      if (select_lex->master_unit()->first_select()->next_select())
+      {
+	/* 
+	   It is in union => we should perform it.
+	   Item_asterisk_remover used only as wrapper to receine NULL value
+	*/
+	join->having= (*func)(expr, 
+			      new Item_asterisk_remover(this, item,
+							(char *)"<no matter>",
+							(char *)"<result>"));
+	select_lex->having_fix_field= 1;
+	if (join->having->fix_fields(thd, join->tables_list, &join->having))
+	{
+	  select_lex->having_fix_field= 0;
+	  DBUG_RETURN(ERROR);
+	}
+	select_lex->having_fix_field= 0;
       }
       else
       {
-	if (item->type() == Item::FIELD_ITEM &&
-	    ((Item_field*) item)->field_name[0] == '*')
+	// it is single select without tables => possible optimization
+	item= (*func)(left_expr, item);
+	// fix_field of item will be done in time of substituting 
+	substitution= item;
+	have_to_be_excluded= 1;
+	if (thd->lex.describe)
 	{
-	  my_error(ER_NO_TABLES_USED, MYF(0));
-	  DBUG_VOID_RETURN;
+	  char warn_buff[MYSQL_ERRMSG_SIZE];
+	  sprintf(warn_buff, ER(ER_SELECT_REDUCED), select_lex->select_number);
+	  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+		       ER_SELECT_REDUCED, warn_buff);
 	}
-	if (unit->first_select()->next_select())
-	{
-	  /* 
-	     It is in union => we should perform it.
-	     Item_asterisk_remover used only as wrapper to receine NULL value
-	  */
-	  sl->having= (*func)(expr, 
-			      new Item_asterisk_remover(this, item,
-							(char *)"<no matter>",
-							(char*)"<result>"));
-	}
-	else
-	{
-	  // it is single select without tables => possible optimization
-	  item= (*func)(left_expr, item);
-	  substitution= item;
-	  have_to_be_excluded= 1;
-	  if (thd->lex.describe)
-	  {
-	    char warn_buff[MYSQL_ERRMSG_SIZE];
-	    sprintf(warn_buff, ER(ER_SELECT_REDUCED), sl->select_number);
-	    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-			 ER_SELECT_REDUCED, warn_buff);
-	  }
-	}
+	DBUG_RETURN(REDUCE);
       }
     }
   }
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(OK);
 }
 
-void Item_in_subselect::row_value_transformer(THD *thd,
-					      st_select_lex_unit *unit,
+Item_subselect::trans_res
+Item_in_subselect::row_value_transformer(THD *thd,
+					      JOIN *join,
 					      Item *left_expr)
 {
   DBUG_ENTER("Item_in_subselect::row_value_transformer");
-  if (unit->global_parameters->select_limit != 
-      HA_POS_ERROR)
+
+  thd->where= "row IN/ALL/ANY subquery";
+
+  SELECT_LEX *select_lex= join->select_lex;
+
+  if (!substitution)
   {
-    /*
-      Because we do the following (not exactly, following is just explenation) 
-      transformation
-      SELECT * from t1 WHERE t1.a IN (SELECT t2.a FROM t2)
-        ->
-      SELECT * from t1 WHERE EXISTS(SELECT 1 FROM t2 t1.a = t2.a LIMIT 1)
+    //first call for this unit
+    SELECT_LEX_UNIT *unit= select_lex->master_unit();
+    substitution= optimizer= new Item_in_optimizer(left_expr, this);
 
-      it's impossible to support limit in the sub select.
-    */
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-	     "LIMIT & IN/ALL/ANY/SOME subquery");
-    DBUG_VOID_RETURN;
+    SELECT_LEX_NODE *current= thd->lex.current_select, *up;
+    thd->lex.current_select= up= current->return_after_parsing();
+    //optimizer never use Item **ref => we can pass 0 as parameter
+    if (!optimizer || optimizer->fix_left(thd, up->get_table_list(), 0))
+    {
+      thd->lex.current_select= current;
+      DBUG_RETURN(ERROR);
+    }
+    thd->lex.current_select= current;
+
+    unit->dependent= 1;
   }
-  // no sense in ORDER BY without LIMIT
-  unit->global_parameters->order_list.empty();
 
-  Item_in_optimizer *optimizer;
-  substitution= optimizer= new Item_in_optimizer(left_expr, this);
-  if (!optimizer)
-    DBUG_VOID_RETURN;
-
-  unit->dependent= 1;
   uint n= left_expr->cols();
-  if (optimizer->preallocate_row() || (*optimizer->get_cache())->allocate(n))
-    DBUG_VOID_RETURN;
-  for (SELECT_LEX * sl= unit->first_select(); sl; sl= sl->next_select())
+
+  select_lex->dependent= 1;
+
+  Item *item= 0;
+  List_iterator_fast<Item> li(select_lex->item_list);
+  for (uint i= 0; i < n; i++)
   {
-    if (sl->select_limit != HA_POS_ERROR)
-    {
-      my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-	       "LIMIT & IN/ALL/ANY/SOME subquery");
-      DBUG_VOID_RETURN;
-    }
-    sl->order_list.empty(); // no sense in ORDER BY without LIMIT
-
-    sl->dependent= 1;
-
-    Item *item= 0;
-    List_iterator_fast<Item> li(sl->item_list);
-    for (uint i= 0; i < n; i++)
-    {
-      Item *func=
-	new Item_ref_on_list_position(this, sl, i,
-				      (char *) "<no matter>",
-				      (char *) "<list ref>");
-      func=
-	Item_bool_func2::eq_creator(new Item_ref((*optimizer->get_cache())->
-						 addr(i), 
-						 (char *)"<no matter>",
-						 (char *)"<left expr>"),
-				    func);
-      item= and_items(item, func);
-    }
-
-    if (sl->having || sl->with_sum_func || sl->group_list.first ||
-	!sl->table_list.elements)
-      sl->having= and_items(sl->having, item);
-    else
-      sl->where= and_items(sl->where, item);
+    Item *func=
+      new Item_ref_on_list_position(this, select_lex, i,
+				    (char *) "<no matter>",
+				    (char *) "<list ref>");
+    func=
+      Item_bool_func2::eq_creator(new Item_ref((*optimizer->get_cache())->
+					       addr(i), 
+					       (char *)"<no matter>",
+					       (char *)"<left expr>"),
+				  func);
+    item= and_items(item, func);
   }
-  DBUG_VOID_RETURN;
+
+  if (join->having || select_lex->with_sum_func ||
+      select_lex->group_list.first ||
+      !select_lex->table_list.elements)
+  {
+    join->having= and_items(join->having, item);
+    select_lex->having_fix_field= 1;
+    if (join->having->fix_fields(thd, join->tables_list, &join->having))
+    {
+      select_lex->having_fix_field= 0;
+      DBUG_RETURN(ERROR);
+    }
+    select_lex->having_fix_field= 0;
+  }
+  else
+  {
+    join->conds= and_items(join->conds, item);
+    if (join->conds->fix_fields(thd, join->tables_list, &join->having))
+      DBUG_RETURN(ERROR);
+  }
+  DBUG_RETURN(OK);
 }
 
-
-void Item_in_subselect::select_transformer(THD *thd, st_select_lex_unit *unit)
+Item_subselect::trans_res
+Item_in_subselect::select_transformer(THD *thd, JOIN *join)
 {
   if (left_expr->cols() == 1)
-    single_value_transformer(thd, unit, left_expr,
-			     &Item_bool_func2::eq_creator);
+    return single_value_transformer(thd, join, left_expr,
+				    &Item_bool_func2::eq_creator);
   else
-    row_value_transformer(thd, unit, left_expr);
+    return row_value_transformer(thd, join, left_expr);
 }
 
-void Item_allany_subselect::select_transformer(THD *thd,
-					       st_select_lex_unit *unit)
+Item_subselect::trans_res
+Item_allany_subselect::select_transformer(THD *thd,
+					  JOIN *join)
 {
-  single_value_transformer(thd, unit, left_expr, func);
+  return single_value_transformer(thd, join, left_expr, func);
 }
 
 subselect_single_select_engine::subselect_single_select_engine(THD *thd, 
