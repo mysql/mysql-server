@@ -169,7 +169,7 @@ select REQ_ID, Group_Concat(URL) as URL from T_URL, T_REQUEST where
 T_REQUEST.URL_ID = T_URL.URL_ID group by REQ_ID;
 REQ_ID	URL
 1	www.host.com
-5	www.host.com,www.google.com,www.help.com
+5	www.google.com,www.help.com,www.host.com
 drop table T_URL;
 drop table T_REQUEST;
 select group_concat(sum(a)) from t1 group by grp;
