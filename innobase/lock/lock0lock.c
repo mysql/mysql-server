@@ -3202,7 +3202,7 @@ lock_table_create(
 	lock->type_mode = type_mode | LOCK_TABLE;
 	lock->trx = trx;
 
-	if ((lock->type_mode & LOCK_TABLE_EXP) == LOCK_TABLE_EXP) {
+	if (lock_get_type(lock) == LOCK_TABLE_EXP) {
 		lock->trx->n_lock_table_exp++;
 	}
 
@@ -3241,7 +3241,11 @@ lock_table_remove_low(
 	if (lock == trx->auto_inc_lock) {
 		trx->auto_inc_lock = NULL;
 	}
-	
+
+	if (lock_get_type(lock) == LOCK_TABLE_EXP) {
+		lock->trx->n_lock_table_exp--;
+	}
+
 	UT_LIST_REMOVE(trx_locks, trx->trx_locks, lock);
 	UT_LIST_REMOVE(un_member.tab_lock.locks, table->locks, lock);
 }	
@@ -3509,10 +3513,6 @@ lock_table_dequeue(
 
 	lock_table_remove_low(in_lock);
 
-	if (lock_get_type(in_lock) == LOCK_TABLE_EXP) {
-		in_lock->trx->n_lock_table_exp--;
-	}
-	
 	/* Check if waiting locks in the queue can now be granted: grant
 	locks if there are no conflicting locks ahead. */
 
@@ -3697,8 +3697,6 @@ lock_release_tables_off_kernel(
 
 		lock = UT_LIST_GET_PREV(trx_locks, lock);
 	}
-
-	mem_heap_empty(trx->lock_heap);
 
 	ut_a(trx->n_lock_table_exp == 0);
 }
