@@ -4320,6 +4320,12 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @uref{http://mysql.silverpoint.nl/, WWW}
 
 @item
+@c EMAIL: mysql@widexs.nl (Wouter de Jong)
+@image{Flags/netherlands} Netherlands [Widexs BV] @
+@uref{http://mysql.widexs.nl/, WWW}
+@uref{ftp://mysql.widexs.nl/pub/mysql/, FTP}
+
+@item
 @c EMAIL: W.Sylwestrzak@icm.edu.pl (Wojtek Sylwestrzak)
 @c mirroring nightly at 05:25
 @image{Flags/poland} Poland [Sunsite] @
@@ -4435,11 +4441,11 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @uref{http://ftp.plig.org/pub/mysql/, WWW}
 @uref{ftp://ftp.plig.org/pub/mysql/, FTP}
 
-@item
+@c @item
 @c lance@uklinux.net (Lance)
-@image{Flags/great-britain} UK [uklinux.net] @
-@uref{http://mirror.uklinux.net/mysql/, WWW}
-@uref{ftp://mirror.uklinux.net/pub/mysql/, FTP}
+@c @image{Flags/great-britain} UK [uklinux.net] @
+@c @uref{http://mirror.uklinux.net/mysql/, WWW}
+@c @uref{ftp://mirror.uklinux.net/pub/mysql/, FTP}
 
 @c @item
 @c unknown
