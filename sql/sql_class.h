@@ -461,6 +461,7 @@ public:
   */
   bool allow_sum_func;
 
+  LEX_STRING name; /* name for named prepared statements */
   LEX *lex;                                     // parse tree descriptor
   /*
     Points to the query associated with this statement. It's const, but
@@ -527,8 +528,14 @@ public:
 
 
 /*
-  Used to seek all existing statements in the connection
-  Deletes all statements in destructor.
+  Container for all statements created/used in a connection.
+  Statements in Statement_map have unique Statement::id (guaranteed by id
+  assignment in Statement::Statement)
+  Non-empty statement names are unique too: attempt to insert a new statement
+  with duplicate name causes older statement to be deleted
+  
+  Statements are auto-deleted when they are removed from the map and when the
+  map is deleted.
 */
 
 class Statement_map
@@ -536,34 +543,47 @@ class Statement_map
 public:
   Statement_map();
   
-  int insert(Statement *statement)
+  int insert(Statement *statement);
+
+  Statement *find_by_name(LEX_STRING *name)
   {
-    int rc= my_hash_insert(&st_hash, (byte *) statement);
-    if (rc == 0)
-      last_found_statement= statement;
-    return rc;
+    Statement *stmt;
+    stmt= (Statement*)hash_search(&names_hash, (byte*)name->str,
+                                  name->length);
+    return stmt;
   }
 
   Statement *find(ulong id)
   {
     if (last_found_statement == 0 || id != last_found_statement->id)
-      last_found_statement= (Statement *) hash_search(&st_hash, (byte *) &id,
-                                                      sizeof(id));
+    {
+      Statement *stmt;
+      stmt= (Statement *) hash_search(&st_hash, (byte *) &id, sizeof(id));
+      if (stmt->name.str)
+        return NULL;
+      last_found_statement= stmt;
+    }
     return last_found_statement;
   }
   void erase(Statement *statement)
   {
     if (statement == last_found_statement)
       last_found_statement= 0;
+    if (statement->name.str)
+    {
+      hash_delete(&names_hash, (byte *) statement);  
+    }
     hash_delete(&st_hash, (byte *) statement);
   }
 
   ~Statement_map()
   {
     hash_free(&st_hash);
+    hash_free(&names_hash);
   }
 private:
   HASH st_hash;
+  HASH names_hash;
   Statement *last_found_statement;
 };
 

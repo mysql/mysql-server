@@ -253,7 +253,7 @@ bool Item::get_time(TIME *ltime)
   return 0;
 }
 
-CHARSET_INFO * Item::default_charset() const
+CHARSET_INFO * Item::default_charset() 
 {
   return current_thd->variables.collation_connection;
 }
@@ -676,10 +676,10 @@ void Item_param::set_double(double value)
 }
 
 
-void Item_param::set_value(const char *str, uint length)
+void Item_param::set_value(const char *str, uint length, CHARSET_INFO *ci)
 {
   DBUG_ENTER("Item_param::set_value");
-  str_value.copy(str,length,default_charset());
+  str_value.copy(str,length,ci);
   item_type= STRING_ITEM;
   value_is_set= 1;
   maybe_null= 0;
@@ -1582,7 +1582,7 @@ bool Item::send(Protocol *protocol, String *buffer)
   }
   case MYSQL_TYPE_TINY:
   {
-    longlong nr;
+    longlong nr;  
     nr= val_int();
     if (!null_value)
       result= protocol->store_tiny(nr);
