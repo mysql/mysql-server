@@ -566,7 +566,7 @@ int mysqld_extend_show_tables(THD *thd,const char *db,const char *wild)
         thd->clear_error();
       }
       else
-        DBUG_RETURN(1)
+        DBUG_RETURN(1);
     }
     else if (table_list.view)
     {
