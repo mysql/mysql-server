@@ -597,7 +597,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	table_to_table_list table_to_table opt_table_list opt_as
 	handler_rkey_function handler_read_or_scan
 	single_multi table_wild_list table_wild_one opt_wild opt_union union_list
-	precision union_option
+	precision union_option opt_and
 END_OF_INPUT
 
 %type <NONE>
@@ -2640,9 +2640,7 @@ insert_field_spec:
 		lex->many_values.push_back(lex->insert_list))
 	      YYABORT;
 	   }
-	   ident_eq_list
-	| select_for_insert {}
-	 ;
+	   ident_eq_list;
 
 opt_field_spec:
 	/* empty */	  { }
@@ -2651,8 +2649,7 @@ opt_field_spec:
 
 fields:
 	fields ',' insert_ident { Lex->field_list.push_back($3); }
-	| insert_ident		{ Lex->field_list.push_back($1); }
-        ;
+	| insert_ident		{ Lex->field_list.push_back($1); };
 
 insert_values:
 	VALUES	values_list  {}
