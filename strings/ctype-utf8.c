@@ -1955,9 +1955,9 @@ static int my_mbcharlen_utf8(CHARSET_INFO *cs  __attribute__((unused)) , uint c)
 CHARSET_INFO my_charset_utf8 =
 {
     33,			/* number       */
-    MY_CS_COMPILED,	/* state      */
+    MY_CS_COMPILED,	/* state        */
     "utf8",		/* name         */
-    "",			/* comment    */
+    "",			/* comment      */
     ctype_utf8,		/* ctype        */
     to_lower_utf8,	/* to_lower     */
     to_upper_utf8,	/* to_upper     */
@@ -1968,6 +1968,7 @@ CHARSET_INFO my_charset_utf8 =
     my_strnncoll_utf8,	/* strnncoll    */
     my_strnxfrm_utf8,	/* strnxfrm     */
     NULL,		/* like_range   */
+    my_wildcmp_mb,	/* wildcmp      */
     3,			/* mbmaxlen     */
     my_ismbchar_utf8,	/* ismbchar     */
     my_ismbhead_utf8,	/* ismbhead     */
@@ -1978,11 +1979,11 @@ CHARSET_INFO my_charset_utf8 =
     my_casedn_str_utf8,
     my_caseup_utf8,
     my_casedn_utf8,
-    NULL,		/* tosort      */
+    NULL,		/* tosort       */
     my_strcasecmp_utf8,
     my_strncasecmp_utf8,
-    my_hash_caseup_utf8,/* hash_caseup */
-    my_hash_sort_utf8,	/* hash_sort   */
+    my_hash_caseup_utf8,/* hash_caseup  */
+    my_hash_sort_utf8,	/* hash_sort    */
     0,
     my_snprintf_8bit,
     my_strtol_8bit,
@@ -2372,7 +2373,7 @@ static int my_vsnprintf_ucs2(char *dst, uint n, const char* fmt, va_list ap)
     fmt++;
     
     /* Skip if max size is used (to be compatible with printf) */
-    while (my_isdigit(system_charset_info,*fmt) || *fmt == '.' || *fmt == '-')
+    while ( (*fmt>='0' && *fmt<='9') || *fmt == '.' || *fmt == '-')
       fmt++;
     
     if (*fmt == 'l')
@@ -2472,9 +2473,9 @@ double my_strtod_ucs2(CHARSET_INFO *cs __attribute__((unused)),
 CHARSET_INFO my_charset_ucs2 =
 {
     35,			/* number       */
-    MY_CS_COMPILED,	/* state      */
+    MY_CS_COMPILED,	/* state        */
     "ucs2",		/* name         */
-    "",			/* comment    */
+    "",			/* comment      */
     ctype_ucs2,		/* ctype        */
     to_lower_ucs2,	/* to_lower     */
     to_upper_ucs2,	/* to_upper     */
@@ -2485,6 +2486,7 @@ CHARSET_INFO my_charset_ucs2 =
     my_strnncoll_ucs2,	/* strnncoll    */
     my_strnxfrm_ucs2,	/* strnxfrm     */
     NULL,		/* like_range   */
+    my_wildcmp_mb,	/* wildcmp      */
     2,			/* mbmaxlen     */
     my_ismbchar_ucs2,	/* ismbchar     */
     my_ismbhead_ucs2,	/* ismbhead     */
@@ -2495,11 +2497,11 @@ CHARSET_INFO my_charset_ucs2 =
     my_casedn_str_ucs2,
     my_caseup_ucs2,
     my_casedn_ucs2,
-    NULL,		/* tosort      */
+    NULL,		/* tosort       */
     my_strcasecmp_ucs2,
     my_strncasecmp_ucs2,
-    my_hash_caseup_ucs2,/* hash_caseup */
-    my_hash_sort_ucs2,	/* hash_sort   */
+    my_hash_caseup_ucs2,/* hash_caseup  */
+    my_hash_sort_ucs2,	/* hash_sort    */
     0,
     my_snprintf_ucs2,
     my_strtol_ucs2,

@@ -8430,9 +8430,9 @@ my_wc_mb_euc_jp(CHARSET_INFO *c,my_wc_t wc, unsigned char *s, unsigned char *e)
 CHARSET_INFO my_charset_ujis =
 {
     12,			/* number       */
-    MY_CS_COMPILED,	/* state      */
+    MY_CS_COMPILED,	/* state        */
     "ujis",		/* name         */
-    "",			/* comment    */
+    "",			/* comment      */
     ctype_ujis,
     to_lower_ujis,
     to_upper_ujis,
@@ -8443,6 +8443,7 @@ CHARSET_INFO my_charset_ujis =
     NULL,		/* strnncoll    */
     NULL,		/* strnxfrm     */
     NULL,		/* like_range   */
+    my_wildcmp_mb,	/* wildcmp      */
     3,			/* mbmaxlen     */
     ismbchar_ujis,
     ismbhead_ujis,
