@@ -544,7 +544,7 @@ int String::reserve(uint32 space_needed, uint32 grow_by)
 
 void String::qs_append(const char *str)
 {
-  int len = strlen(str);
+  int len = (int)strlen(str);
   memcpy(Ptr + str_length, str, len + 1);
   str_length += len;
 }
@@ -553,7 +553,7 @@ void String::qs_append(double d)
 {
   char *buff = Ptr + str_length;
   sprintf(buff,"%.14g", d);
-  str_length += strlen(buff);
+  str_length += (int)strlen(buff);
 }
 
 void String::qs_append(double *d)
