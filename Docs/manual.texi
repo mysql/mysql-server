@@ -227,7 +227,7 @@ System-specific issues
 * IBM-AIX::                     IBM-AIX notes
 * HP-UX 10.20::                 HP-UX 10.20 notes
 * HP-UX 11.x::                  HP-UX 11.x notes
-* MacOSX::                      MacOSX notes
+* Mac OS X::                    Mac OS X notes
 * BEOS::                        
 
 Linux notes (all Linux versions)
@@ -605,7 +605,7 @@ MySQL ODBC Support
 * ODBC and last_insert_id::     How to get the value of an @code{AUTO_INCREMENT} column in ODBC
 * MyODBC bug report::           Reporting problems with MyODBC
 
-Using @code{MySQL} with some common programs
+Using @strong{MySQL} with some common programs
 
 * Apache::                      Using @strong{MySQL} with Apache
 
@@ -1861,9 +1861,9 @@ Setting Up a @strong{MySQL}-Based Website}
 
 @subheading Porting MySQL / Using MySQL on different systems
 @itemize @bullet
-@item @uref{http://xclave.macnn.com/MySQL/,The MacOS Xclave}.
-Running @strong{MySQL} on MacOSX
-@item @uref{http://www.prnet.de/RegEx/mysql.html, MySQL for MacOSX Server}
+@item @uref{http://xclave.macnn.com/MySQL/,The Mac OS Xclave}.
+Running @strong{MySQL} on Mac OS X
+@item @uref{http://www.prnet.de/RegEx/mysql.html, MySQL for Mac OS X Server}
 @item @uref{http://www.lilback.com/macsql/, Client libraries for the Macintosh}
 @end itemize
 
@@ -2068,7 +2068,7 @@ authentication module}
 Sendmail and Procmail}
 @end itemize
 
-@subheading Using @code{MySQL} with other programs
+@subheading Using @strong{MySQL} with other programs
 
 @itemize @bullet
 @item
@@ -2819,7 +2819,7 @@ and ships the application with the @strong{MySQL} server. This is
 because we view this a linking even if it is done over the network.
 
 @item
-You have a distribution of @code{MySQL} and you don't provide the
+You have a distribution of @strong{MySQL} and you don't provide the
 source code for your copy of the @strong{MySQL} server, as defined in
 the GPL license.
 @end itemize
@@ -2987,11 +2987,11 @@ from the @strong{MySQL} development team).
 
 All ISPs that wants to keep themself up to date should subscribe
 to our announce mailing list so that they can be aware of fatal issues
-that may be relevant for their @code{MySQL} installations.
+that may be relevant for their @strong{MySQL} installations.
 
-Note that if the ISP doesn't have a license for @code{MySQL},
+Note that if the ISP doesn't have a license for @strong{MySQL},
 they should give their customers at least read access to the source of
-the @code{MySQL} installation so that their customer can verify that
+the @strong{MySQL} installation so that their customer can verify that
 it's patched correctly.
 
 @node Web server,  , ISP, Licensing examples
@@ -3996,7 +3996,7 @@ HP-UX 11.x with the native threads. @xref{HP-UX 11.x}.
 @item
 Linux 2.0+ with LinuxThreads 0.7.1+ or @code{glibc} 2.0.7+ . @xref{Linux}.
 @item
-MacOS X Server. @xref{MacOSX}.
+Mac OS X Server. @xref{Mac OS X}.
 @item
 NetBSD 1.3/1.4 Intel and NetBSD 1.3 Alpha (Requires GNU make). @xref{NetBSD}.
 @item
@@ -4101,7 +4101,7 @@ should be documented in the News section.  @xref{News}.  There are also new
 commands and extensions in most alpha releases.  Active development that
 may involve major code changes can occur on an alpha release, but everything
 will be tested before doing a release.  There should be no known bugs in any
-@code{MySQL} release.
+@strong{MySQL} release.
 
 @item
 @code{beta} means that all new code has been tested. No major new
@@ -5610,7 +5610,7 @@ distribution.
 * IBM-AIX::                     IBM-AIX notes
 * HP-UX 10.20::                 HP-UX 10.20 notes
 * HP-UX 11.x::                  HP-UX 11.x notes
-* MacOSX::                      MacOSX notes
+* Mac OS X::                    Mac OS X notes
 * BEOS::                        
 @end menu
 
@@ -5774,7 +5774,7 @@ Configure with @code{--with-named-z-libs=no}
 @end itemize
 
 If you are using gcc and have problems with loading @code{UDF} functions
-into @code{MySQL}, try adding @code{-lgcc} to the link line for the
+into @strong{MySQL}, try adding @code{-lgcc} to the link line for the
 @code{UDF} function.
 
 If you would like @strong{MySQL} to start automatically, you can copy
@@ -6277,7 +6277,7 @@ work). You must also use the @code{egcs} C++ compiler
 @node Linux-Ia64,  , Qube2, Linux
 @subsubsection Linux Ia64 notes
 
-To get @code{MySQL} to compile on Linux Ia64, we had to do the following
+To get @strong{MySQL} to compile on Linux Ia64, we had to do the following
 (we assume that this will be easier when next gcc version for ia64 is
 released).
 
@@ -6712,7 +6712,7 @@ The current port is tested only on a ``sco3.2v5.0.4'' and
 port to ``sco 3.2v4.2''.
 
 For the moment the recommended compiler on OpenServer is gcc 2.95.2. With this
-you should be able to compile @code{MySQL} with just:
+you should be able to compile @strong{MySQL} with just:
 
 @example
 CC=gcc CXX=gcc ./configure ... (options)
@@ -6957,7 +6957,7 @@ the DCE libraries (@code{libdce.a} or @code{libcma.a}) if you want to compile
 packages you will get a @code{mysqld} to which you cannot connect.  Remove
 the DCE libraries while you compile @code{gcc} 2.95!
 
-@node HP-UX 11.x, MacOSX, HP-UX 10.20, Source install system issues
+@node HP-UX 11.x, Mac OS X, HP-UX 10.20, Source install system issues
 @subsection HP-UX 11.x notes
 
 For HPUX 11.x we recommend @strong{MySQL} 3.23.15 or later.
@@ -7055,14 +7055,14 @@ The optimization flags used by @strong{MySQL} (-O3) are not recognized
 by HP's compilers. I did not change the flags.
 @end itemize
 
-@node MacOSX, BEOS, HP-UX 11.x, Source install system issues
-@subsection MacOS X notes
+@node Mac OS X, BEOS, HP-UX 11.x, Source install system issues
+@subsection Mac OS X notes
 
-You can get @strong{MySQL} to work on MacOS X by following the links to
-the MacOS X ports. @xref{Useful Links}.
+You can get @strong{MySQL} to work on Mac OS X by following the links to
+the Mac OS X ports. @xref{Useful Links}.
 
 @strong{MySQL} 3.23.7 should include all patches necessary to configure
-it on MacOSX. You must however first install the pthread package from
+it on Mac OS X. You must however first install the pthread package from
 @uref{http://www.prnet.de/RegEx/mysql.html,MySql for MacOSX Server}
 before configuring @strong{MySQL}.
 
@@ -7074,7 +7074,7 @@ alias mysql '/usr/local/mysql/bin/mysql'
 alias mysqladmin '/usr/local/mysql/libexec/mysqladmin'
 @end example
 
-@node BEOS,  , MacOSX, Source install system issues
+@node BEOS,  , Mac OS X, Source install system issues
 @subsection BeOS notes
 
 We are really interested in getting @strong{MySQL} to work on BeOS, but
@@ -8779,7 +8779,7 @@ it returns a pointer to a @code{MYSQL_FIELD} instead of a
 now a function that takes @code{MYSQL_RES*} as an argument. You should now
 use @code{mysql_field_count()} instead.
 @item
-In @code{MySQL} 3.22, the output of @code{SELECT DISTINCT ...} was
+In @strong{MySQL} 3.22, the output of @code{SELECT DISTINCT ...} was
 almost always sorted.  In 3.23, you must use @code{GROUP BY} or
 @code{ORDER BY} to obtain sorted output.
 @item
@@ -9660,7 +9660,7 @@ Entry level SQL92. ODBC level 0-2.
 The following mostly apply only for @code{ISAM}, @code{MyISAM} and
 @code{HEAP} tables; If you only use transaction safe tables (@code{BDB}
 tables) in an a update you can do @code{COMMIT} and @code{ROLLBACK} also
-with @code{MySQL}.  @xref{COMMIT}.
+with @strong{MySQL}.  @xref{COMMIT}.
 
 The problem with handling @code{COMMIT}-@code{ROLLBACK} efficiently with
 the above table types would require a completely different table layout
@@ -11577,7 +11577,7 @@ are:
 @item
 Try to find out what is wrong with your DNS server and fix this.
 @item
-Specify IPs instead of hostnames in the @code{MySQL} privilege tables.
+Specify IPs instead of hostnames in the @strong{MySQL} privilege tables.
 @item
 Start mysqld with @code{--skip-name-resolve}.
 @item
@@ -12376,7 +12376,7 @@ default character set unless the @code{BINARY} keyword is given.
 
 @code{NATIONAL CHAR} (short form @code{NCHAR}) is the ANSI SQL way to
 define that a CHAR column should use the default CHARACTER set.  This is
-default in @code{MySQL}.
+default in @strong{MySQL}.
 
 @code{CHAR} is a shorthand for @code{CHARACTER}.
 
@@ -14203,7 +14203,7 @@ Performs a pattern match of a string expression @code{expr} against a pattern
 returns @code{0}.  @code{RLIKE} is a synonym for @code{REGEXP}, provided for
 @code{mSQL} compatibility. Note: Because @strong{MySQL} uses the C escape
 syntax in strings (e.g., @samp{\n}), you must double any @samp{\} that you
-use in your @code{REGEXP} strings.  In @code{MySQL} 3.23.4
+use in your @code{REGEXP} strings.  In @strong{MySQL} 3.23.4,
 @code{REGEXP} is case insensitive for normal (not binary) strings.
 
 @example
@@ -14250,7 +14250,7 @@ relevance - similarity measure between the text in columns
 positive floating point number. Zero relevance means no similarity.
 For @code{MATCH ... AGAINST()} to work, a @strong{FULLTEXT} index
 must be created first. @xref{CREATE TABLE, , @code{CREATE TABLE}}.
-@code{MATCH ... AGAINST()} is available in @code{MySQL} 3.23.23 or later.
+@code{MATCH ... AGAINST()} is available in @strong{MySQL} 3.23.23 or later.
 For details and usage examples see @xref{MySQL full-text search}.
 @end table
 
@@ -16192,7 +16192,7 @@ mysql> SELECT id,FLOOR(value/100) AS val FROM tbl_name
            GROUP BY id,val ORDER BY val;
 @end example
 
-In @code{MySQL} 3.23 you can do:
+In @strong{MySQL} 3.23 you can do:
 
 @example
 mysql> SELECT id,FLOOR(value/100) FROM tbl_name ORDER BY RAND();
@@ -17006,7 +17006,7 @@ table. The last row will be of @code{Msg_type status} and should
 normally be @code{OK}.  If you don't get @code{OK}, or @code{Not
 checked} you should normally run a repair of the table. @xref{Table
 maintenance}. @code{Not checked} means that the table the given @code{TYPE}
-told @code{MySQL} that there wasn't any need to check the table.
+told @strong{MySQL} that there wasn't any need to check the table.
 
 The different check types stand for the following:
 
@@ -18739,7 +18739,7 @@ If you don't use @code{BDB} tables, you should set this to 0 or
 start @code{mysqld} with @code{--skip-bdb} o not waste memory for this cache.
 
 @item @code{concurrent_inserts}
-If @code{ON} (the default), @code{MySQL} will allow you to use @code{INSERT}
+If @code{ON} (the default), @strong{MySQL} will allow you to use @code{INSERT}
 on @code{MyISAM} tables at the same time as you run @code{SELECT} queries
 on them.  You can turn this option off by starting mysqld with @code{--safe}
 or @code{--skip-new}.
@@ -20151,7 +20151,7 @@ Advantages of transaction safe tables (TST)
 
 @itemize @bullet
 @item
-Safer; Even if @code{MySQL} crashes or you get hardware problems, you
+Safer; Even if @strong{MySQL} crashes or you get hardware problems, you
 can get your data back;  Either by automatic recovery or from a backup
 + the transaction log.
 @item
@@ -23735,7 +23735,7 @@ inode and by this will avoid some disk seeks.
 @item
 On Linux, you can get much more performance (up to 100 % under load is
 not uncommon) by using hdpram to configure your disks interface!  The
-following should be quite good hdparm options for @code{MySQL} (and
+following should be quite good hdparm options for @strong{MySQL} (and
 probably many other applications):
 @example
 hdparm -m 16 -d 1
@@ -24491,7 +24491,7 @@ These @code{WHERE} clauses do @strong{NOT} use indexes:
 ... WHERE index_part1=1 OR index_part2=10  /* No index spans all rows */
 @end example
 
-Note that in some cases @code{MySQL} will not use an index, even if one
+Note that in some cases @strong{MySQL} will not use an index, even if one
 would be available.  Some of the cases where this happens are:
 
 @itemize @bullet
@@ -24766,7 +24766,7 @@ then an extra @code{B} row is generated with all columns set to @code{NULL}.
 If you use @code{LEFT JOIN} to find rows that doesn't exist in some
 table and you have the following test: @code{column_name IS NULL} in the
 @code{WHERE} part, where column_name is a column that is declared as
-@code{NOT NULL}, then @code{MySQL} will stop searching after more rows
+@code{NOT NULL}, then @strong{MySQL} will stop searching after more rows
 (for a particular key combination) after it has found one row that
 matches the @code{LEFT JOIN} condition.
 @end itemize
@@ -25808,8 +25808,8 @@ The @code{mysqladmin status} command result has the following columns:
 
 If you do @code{myslqadmin shutdown} on a socket (in other words, on a
 the computer where @code{mysqld} is running), @code{mysqladmin} will
-wait until the @code{MySQL} @code{pid-file} is removed to ensure that
-the @code{mysqld server} has stopped properly.
+wait until the @strong{MySQL} @code{pid-file} is removed to ensure that
+the @code{mysqld} server has stopped properly.
 
 @node mysqldump, mysqlimport, mysqladmin, Tools
 @section Dumping the structure and data from MySQL databases and tables
@@ -25836,7 +25836,7 @@ memory before dumping the result.  This will probably be a problem if
 you are dumping a big database.
 
 Note that if you are using a new copy of the @code{mysqldump} program
-and you are going to do a dump that will be read into a very old @code{MySQL}
+and you are going to do a dump that will be read into a very old @strong{MySQL}
 server, you should not use the @code{--opt} or @code{-e} options.
 
 @code{mysqldump} supports the following options:
@@ -28558,7 +28558,7 @@ Remember that the more information you can supply to us, the more
 likely it is that we can fix the problem!
 
 @node Common programs, Problems, ODBC, Top
-@chapter Using @code{MySQL} with some common programs
+@chapter Using MySQL with some common programs
 
 @menu
 * Apache::                      Using @strong{MySQL} with Apache
@@ -28572,7 +28572,7 @@ users from a @strong{MySQL} database and also let you log your log files
 into a @strong{MySQL} table. @xref{Contrib}.
 
 You can change the Apache logging format to be easily readable by
-@code{MySQL} by putting the following into the Apache configuration file:
+@strong{MySQL} by putting the following into the Apache configuration file:
 
 @example
 LogFormat \
@@ -29061,7 +29061,7 @@ hostname @code{localhost}.
 
 On Windows you can connect only with TCP/IP if the @code{mysqld} server
 is running on Win95/Win98. If it's running on NT, you can also connect
-with named pipes.  The name of the named pipe is @code{MySQL}.  If you
+with named pipes.  The name of the named pipe is @strong{MySQL}.  If you
 don't give a hostname when connecting to @code{mysqld}, a @strong{MySQL} client
 will first try to connect to the named pipe and if this doesn't work it
 will connect to the TCP/IP port.  You can force the use of named pipes
@@ -33690,14 +33690,14 @@ It is also not a bad idea to double the ram allowed per script to 16 instead of
 @item Error: "Fatal error: Call to unsupported or undefined function mysql_connect() in .."
 This means that your PHP version isn't compiled with @strong{MySQL} support.
 You can either compile a dynamic @strong{MySQL} module and load it into PHP or
-recompile PHP with built-in @code{MySQL} support.  This is described in
+recompile PHP with built-in @strong{MySQL} support.  This is described in
 detail in the PHP manual.
 @end itemize
 
 @node Cplusplus, Python, PHP, Clients
 @section MySQL C++ APIs
 
-Two API's are available in the @strong{MySQL}
+Two APIs are available in the @strong{MySQL}
 @uref{http://www.mysql.com/Contrib/,Contrib directory}.
 
 @node Python, Tcl, Cplusplus, Clients
@@ -34201,7 +34201,7 @@ of the extra features that @code{PostgreSQL} can offer you should use
 
 @code{PostgreSQL} has some more advanced features like user-defined
 types, triggers, rules and some transaction support (currently it's
-has about same symantic as @code{MySQL}'s transactions in that the
+has about same symantic as @strong{MySQL}'s transactions in that the
 transaction is not 100 % atomic) . However, PostgreSQL lacks
 many of the standard types and functions from ANSI SQL and ODBC. See the
 @uref{http://www.mysql.com/information/crash-me.php, @code{crash-me} web page}
@@ -34855,7 +34855,7 @@ interface, you should fetch the @code{Data-Dumper}, @code{DBI}, and
 @uref{http://www.mysql.com/Downloads/Contrib/00-README, 00-README}
 This listing.
 
-@appendixsec API's
+@appendixsec APIs
 
 @itemize @bullet
 @item Perl modules
@@ -35808,7 +35808,7 @@ though, so 3.23 is not released as a stable version yet.
 Added mysqld variable @code{created_tmp_disk_tables}.
 @item
 To make it possibly to reliable dump and restore tables with
-@code{TIMESTAMP(X)} columns, @code{MySQL} now reports columns with X
+@code{TIMESTAMP(X)} columns, @strong{MySQL} now reports columns with X
 other than 14 or 8 to be strings.
 @item
 Changed sort order for latin1 as it was before 3.23.22.  Any table with
@@ -35932,7 +35932,7 @@ Full text search via the @code{MATCH} function and @code{FULLTEXT} index type.
 @appendixsubsec Changes in release 3.23.22
 @itemize @bullet
 @item
-Fixed that @code{lex_hash.h} is created properly for each @code{MySQL}
+Fixed that @code{lex_hash.h} is created properly for each @strong{MySQL}
 distribution.
 @item
 Fixed that @code{MASTER} and @code{COLLECTION} are not reserved words.
@@ -36323,7 +36323,7 @@ type @code{SELECT DISTINCT ... GROUP BY ..}.  This fixes a problem where
 not all duplicates were removed in queries of the above type.  In
 addition, the new code is MUCH faster.
 @item
-Added patches to make @code{MySQL} compile on MacOS X.
+Added patches to make @strong{MySQL} compile on Mac OS X.
 @item
 Added option @code{IF NOT EXISTS} to @code{CREATE DATABASE}.
 @item
@@ -39923,7 +39923,7 @@ If you try to store a string, that doesn't start with a number, into a
 numerical column @strong{MySQL} will store 0 into it.
 @item
 If you try to to store @code{NULL} into a column that doesn't take
-@code{NULL} values, @code{MySQL} will store 0 or @code{''} (empty
+@code{NULL} values, @strong{MySQL} will store 0 or @code{''} (empty
 string) in it instead. (This behavour can however be changed with the
 -DDONT_USE_DEFAULT_FIELDS compile option).
 @item
