@@ -850,3 +850,14 @@ insert into t2 (a, b)
   select a, b from t1 where (a, b) in (select a, b from t1);
 select * from t2;
 drop table t1, t2;
+
+#
+# Bug #4304: TRUNCATE <table of type BDB> , wrong result
+#
+
+create table t1 (a int, b varchar(30), primary key(a)) engine = bdb;
+insert into t1 values (1,'one');
+commit;
+truncate t1;
+select * from t1;
+drop table t1;
