@@ -1975,31 +1975,42 @@ bool Item_func_match::fix_index()
     }
   }
 
-  uint max_cnt=0, max_key=0;
+  uint max_cnt=0, mkeys=0;
   for (key=0 ; key<fts ; key++)
   {
     if (ft_cnt[key] > max_cnt)
     {
-      max_cnt=ft_cnt[key];
-      max_key=ft_to_key[key];
+      mkeys=0;
+      max_cnt=ft_cnt[mkeys]=ft_cnt[key];
+      ft_to_key[mkeys]=ft_to_key[key];
+      continue;
+    }
+    if (ft_cnt[key] == max_cnt)
+    {
+      mkeys++;
+      ft_cnt[mkeys]=ft_cnt[key];
+      ft_to_key[mkeys]=ft_to_key[key];
+      continue;
     }
   }
 
-  // for now, partial keys won't work. SerG
-
-  if (max_cnt < fields.elements ||
-      max_cnt < table->key_info[max_key].key_parts)
+  for (key=0 ; key<=mkeys ; key++)
   {
-    my_printf_error(ER_FT_MATCHING_KEY_NOT_FOUND,
-                 ER(ER_FT_MATCHING_KEY_NOT_FOUND),MYF(0));
-    return 1;
+    // for now, partial keys won't work. SerG
+    if (max_cnt < fields.elements ||
+        max_cnt < table->key_info[ft_to_key[key]].key_parts)
+      continue;
+
+    this->key=ft_to_key[key];
+    maybe_null=1;
+    join_key=0;
+
+    return 0;
   }
 
-  this->key=max_key;
-  maybe_null=1;
-  join_key=0;
-
-  return 0;
+  my_printf_error(ER_FT_MATCHING_KEY_NOT_FOUND,
+               ER(ER_FT_MATCHING_KEY_NOT_FOUND),MYF(0));
+  return 1;
 }
 
 bool Item_func_match::eq(const Item *item) const
