@@ -11404,8 +11404,8 @@ find_order_in_list(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
            in is field of view table => check that references on translation
            table are same
          */
-         ((*select_item)->type() == Item::Item::REF_ITEM &&
-          view_ref->type() == Item::Item::REF_ITEM &&
+         ((*select_item)->type() == Item::REF_ITEM &&
+          view_ref->type() == Item::REF_ITEM &&
           ((Item_ref *) (*select_item))->ref ==
           ((Item_ref *) view_ref)->ref)))
       /*
