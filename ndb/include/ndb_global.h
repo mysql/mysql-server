@@ -82,17 +82,10 @@ extern "C" {
 /* call in main() - does not return on error */
 extern int ndb_init(void);
 extern void ndb_end(int);
+#define NDB_INIT(prog_name) {my_progname=(prog_name); ndb_init();}
 
 #ifndef HAVE_STRDUP
 extern char * strdup(const char *s);
-#endif
-
-#ifndef HAVE_STRLCPY
-extern size_t strlcpy (char *dst, const char *src, size_t dst_sz);
-#endif
-
-#ifndef HAVE_STRLCAT
-extern size_t strlcat (char *dst, const char *src, size_t dst_sz);
 #endif
 
 #ifndef HAVE_STRCASECMP

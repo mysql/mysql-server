@@ -70,6 +70,7 @@ struct NdbUpGradeCompatible {
 #ifndef TEST_VERSION
 struct NdbUpGradeCompatible ndbCompatibleTable_full[] = {
   { MAKE_VERSION(3,5,2), MAKE_VERSION(3,5,1), UG_Exact },
+  { MAKE_VERSION(4,1,8), MAKE_VERSION(3,5,4), UG_Exact }, /* Aligned version with MySQL */
   { 0, 0, UG_Null }
 };
 

@@ -36,15 +36,33 @@
 
 #include "getarg.h"
 
-#define ISFLAG(X) ((X).type == arg_flag || (X).type == arg_negative_flag)
-
 #ifndef HAVE_STRLCPY
-extern size_t strlcpy (char *dst, const char *src, size_t dst_sz);
-#endif /* !HAVE_STRLCPY */
-
+static size_t
+strlcpy (char *dst, const char *src, size_t dst_sz)
+{
+    size_t n;
+    char *p;
+    for (p = dst, n = 0;
+	 n + 1 < dst_sz && *src != '\0';
+	 ++p, ++src, ++n)
+	*p = *src;
+    *p = '\0';
+    if (*src == '\0')
+	return n;
+    else
+	return n + strlen (src);
+}
+#endif
 #ifndef HAVE_STRLCAT
-extern size_t strlcat (char *dst, const char *src, size_t dst_sz);
-#endif /* !HAVE_STRLCAT */
+static size_t
+strlcat (char *dst, const char *src, size_t dst_sz)
+{
+    size_t len = strlen(dst);
+    return len + strlcpy (dst + len, src, dst_sz - len);
+}
+#endif
+
+#define ISFLAG(X) ((X).type == arg_flag || (X).type == arg_negative_flag)
 
 #ifndef max
 #define max(a, b) (a) > (b) ? (a) : (b)

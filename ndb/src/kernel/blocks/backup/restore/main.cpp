@@ -14,7 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <getarg.h>
+#include <ndb_global.h>
+#include <ndb_opts.h>
 #include <Vector.hpp>
 #include <ndb_limits.h>
 #include <NdbTCP.h>
@@ -35,80 +36,107 @@ static Vector<class BackupConsumer *> g_consumers;
 
 static const char* ga_backupPath = "." DIR_SEPARATOR;
 
-static const char* ga_connect_NDB = NULL;
+static const char* opt_connect_str= NULL;
 
 /**
  * print and restore flags
  */
 static bool ga_restore = false;
 static bool ga_print = false;
-bool
-readArguments(const int argc, const char** argv) 
+static int _print = 0;
+static int _print_meta = 0;
+static int _print_data = 0;
+static int _print_log = 0;
+static int _restore_data = 0;
+static int _restore_meta = 0;
+  
+static struct my_option my_long_options[] =
 {
+  NDB_STD_OPTS("ndb_restore"),
+  { "connect", 'c', "same as --connect-string",
+    (gptr*) &opt_connect_str, (gptr*) &opt_connect_str, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "nodeid", 'n', "Backup files from node with id",
+    (gptr*) &ga_nodeId, (gptr*) &ga_nodeId, 0,
+    GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "backupid", 'b', "Backup id",
+    (gptr*) &ga_backupId, (gptr*) &ga_backupId, 0,
+    GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "restore_data", 'r', 
+    "Restore table data/logs into NDB Cluster using NDBAPI", 
+    (gptr*) &_restore_data, (gptr*) &_restore_data,  0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "restore_meta", 'm',
+    "Restore meta data into NDB Cluster using NDBAPI",
+    (gptr*) &_restore_meta, (gptr*) &_restore_meta,  0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "parallelism", 'p',
+    "No of parallel transactions during restore of data."
+    "(parallelism can be 1 to 1024)", 
+    (gptr*) &ga_nParallelism, (gptr*) &ga_nParallelism, 0,
+    GET_INT, REQUIRED_ARG, 128, 0, 0, 0, 0, 0 },
+  { "print", 256, "Print data and log to stdout",
+    (gptr*) &_print, (gptr*) &_print, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "print_data", 257, "Print data to stdout", 
+    (gptr*) &_print_data, (gptr*) &_print_data, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "print_meta", 258, "Print meta data to stdout",
+    (gptr*) &_print_meta, (gptr*) &_print_meta,  0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "print_log", 259, "Print log to stdout",
+    (gptr*) &_print_log, (gptr*) &_print_log,  0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "dont_ignore_systab_0", 'f',
+    "Experimental. Do not ignore system table during restore.", 
+    (gptr*) &ga_dont_ignore_systab_0, (gptr*) &ga_dont_ignore_systab_0, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
 
-  int _print = 0;
-  int _print_meta = 0;
-  int _print_data = 0;
-  int _print_log = 0;
-  int _restore_data = 0;
-  int _restore_meta = 0;
-  
-  
-  struct getargs args[] = 
-  {
-    { "connect", 'c', arg_string, &ga_connect_NDB, 
-      "NDB Cluster connection", "\"nodeid=<api id>;host=<hostname:port>\""},
-    { "nodeid", 'n', arg_integer, &ga_nodeId, 
-      "Backup files from node", "db node id"},
-    { "backupid", 'b',arg_integer, &ga_backupId, "Backup id", "backup id"},
-    { "print", '\0', arg_flag, &_print, 
-      "Print data and log to stdout", "print data and log"},
-    { "print_data", '\0', arg_flag, &_print_data, 
-      "Print data to stdout", "print data"},
-    { "print_meta", '\0', arg_flag, &_print_meta, 
-      "Print meta data to stdout", "print meta data"},
-    { "print_log", '\0', arg_flag, &_print_log, 
-      "Print log to stdout", "print log"},
-    { "restore_data", 'r', arg_flag, &_restore_data, 
-      "Restore table data/logs into NDB Cluster using NDBAPI", 
-      "Restore table data/log"},
-    { "restore_meta", 'm', arg_flag, &_restore_meta, 
-      "Restore meta data into NDB Cluster using NDBAPI", "Restore meta data"},
-    { "parallelism", 'p', arg_integer, &ga_nParallelism, 
-      "No of parallel transactions during restore of data."
-      "(parallelism can be 1 to 1024)", 
-      "Parallelism"},
-#ifdef USE_MYSQL
-    { "use_mysql", '\0', arg_flag, &use_mysql,
-      "Restore meta data via mysql. Systab will be ignored. Data is restored "
-      "using NDBAPI.", "use mysql"},
-    {  "user", '\0', arg_string, &ga_user, "MySQL user", "Default: root"},
-    {  "password", '\0', arg_string, &ga_password, "MySQL user's password", 
-       "Default: \"\" "},
-    {  "host", '\0', arg_string, &ga_host, "Hostname of MySQL server", 
-       "Default: localhost"},
-    {  "socket", '\0', arg_string, &ga_socket, "Path to  MySQL server socket file", 
-       "Default: /tmp/mysql.sock"},
-    {  "port", '\0', arg_integer, &ga_port, "Port number of MySQL server", 
-       "Default: 3306"},
-#endif
-    { "dont_ignore_systab_0", 'f', arg_flag, &ga_dont_ignore_systab_0, 
-      "Experimental. Do not ignore system table during restore.", 
-      "dont_ignore_systab_0"}
-    
-  };
-  
-  int num_args = sizeof(args) / sizeof(args[0]);
-  int optind = 0;
-
-  if (getarg(args, num_args, argc, argv, &optind) || 
+static void short_usage_sub(void)
+{
+  printf("Usage: %s [OPTIONS] [<path to backup files>]\n", my_progname);
+}
+static void print_version()
+{
+  printf("MySQL distrib %s, for %s (%s)\n",MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
+}
+static void usage()
+{
+  short_usage_sub();
+  print_version();
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
+}
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument)
+{
+  switch (optid) {
+  case '#':
+    DBUG_PUSH(argument ? argument : "d:t:O,/tmp/ndb_restore.trace");
+    break;
+  case 'V':
+    print_version();
+    exit(0);
+  case '?':
+    usage();
+    exit(0);
+  }
+  return 0;
+}
+bool
+readArguments(int *pargc, char*** pargv) 
+{
+  const char *load_default_groups[]= { "ndb_tools","ndb_restore",0 };
+  load_defaults("my",load_default_groups,pargc,pargv);
+  if (handle_options(pargc, pargv, my_long_options, get_one_option) || 
       ga_nodeId == 0  ||
       ga_backupId == 0 ||
       ga_nParallelism  < 1 ||
-      ga_nParallelism >1024) 
-  {
-    arg_printusage(args, num_args, argv[0], "<path to backup files>\n");
-    return false;
+      ga_nParallelism >1024) {
+    exit(1);
   }
 
   BackupPrinter* printer = new BackupPrinter();
@@ -122,10 +150,6 @@ readArguments(const int argc, const char** argv)
     return false;
   }
 
-  /**
-   * Got segmentation fault when using the printer's attributes directly
-   * in getargs... Do not have the time to found out why... this is faster...
-   */
   if (_print) 
   {
     ga_print = true;
@@ -169,14 +193,13 @@ readArguments(const int argc, const char** argv)
     g_consumers.push_back(c);
   }
   // Set backup file path
-  if (argv[optind] != NULL) 
+  if (*pargv[0] != NULL) 
   {
-    ga_backupPath = argv[optind];
+    ga_backupPath = *pargv[0];
   }
 
   return true;
 }
-
 
 void
 clearConsumers()
@@ -204,19 +227,16 @@ free_data_callback()
 }
 
 int
-main(int argc, const char** argv)
+main(int argc, char** argv)
 {
-  ndb_init();
-  if (!readArguments(argc, argv))
+  NDB_INIT(argv[0]);
+
+  if (!readArguments(&argc, &argv))
   {
     return -1;
   }
 
-  if (ga_connect_NDB != NULL) 
-  {
-    // Use connection string
-    Ndb::setConnectString(ga_connect_NDB);
-  }
+  Ndb::setConnectString(opt_connect_str);
 
   /**
    * we must always load meta data, even if we will only print it to stdout
