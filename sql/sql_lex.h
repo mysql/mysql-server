@@ -41,10 +41,12 @@ enum enum_sql_command {
   SQLCOM_SHOW_DATABASES, SQLCOM_SHOW_TABLES, SQLCOM_SHOW_FIELDS,
   SQLCOM_SHOW_KEYS, SQLCOM_SHOW_VARIABLES, SQLCOM_SHOW_LOGS, SQLCOM_SHOW_STATUS,
   SQLCOM_SHOW_PROCESSLIST, SQLCOM_SHOW_MASTER_STAT, SQLCOM_SHOW_SLAVE_STAT,
-  SQLCOM_SHOW_GRANTS, SQLCOM_SHOW_CREATE,
+  SQLCOM_SHOW_GRANTS, SQLCOM_SHOW_CREATE, SQLCOM_SHOW_CHARSETS,
+  SQLCOM_SHOW_CREATE_DB,
 
   SQLCOM_LOAD,SQLCOM_SET_OPTION,SQLCOM_LOCK_TABLES,SQLCOM_UNLOCK_TABLES,
-  SQLCOM_GRANT, SQLCOM_CHANGE_DB, SQLCOM_CREATE_DB, SQLCOM_DROP_DB,
+  SQLCOM_GRANT, 
+  SQLCOM_CHANGE_DB, SQLCOM_CREATE_DB, SQLCOM_DROP_DB, SQLCOM_ALTER_DB,
   SQLCOM_REPAIR, SQLCOM_REPLACE, SQLCOM_REPLACE_SELECT, 
   SQLCOM_CREATE_FUNCTION, SQLCOM_DROP_FUNCTION,
   SQLCOM_REVOKE,SQLCOM_OPTIMIZE, SQLCOM_CHECK,
@@ -57,8 +59,10 @@ enum enum_sql_command {
   SQLCOM_HA_OPEN, SQLCOM_HA_CLOSE, SQLCOM_HA_READ,
   SQLCOM_SHOW_SLAVE_HOSTS, SQLCOM_DELETE_MULTI, SQLCOM_MULTI_UPDATE,
   SQLCOM_SHOW_BINLOG_EVENTS, SQLCOM_SHOW_NEW_MASTER, SQLCOM_DO,
-  SQLCOM_EMPTY_QUERY,
-  SQLCOM_END
+  SQLCOM_END, SQLCOM_SHOW_WARNS, SQLCOM_SHOW_WARNS_COUNT, 
+  SQLCOM_EMPTY_QUERY, SQLCOM_SHOW_ERRORS, 
+  SQLCOM_SHOW_ERRORS_COUNT, SQLCOM_SHOW_COLUMN_TYPES,
+  SQLCOM_SHOW_TABLE_TYPES, SQLCOM_SHOW_PRIVILEGES
 };
 
 enum lex_states { STATE_START, STATE_CHAR, STATE_IDENT,
@@ -232,11 +236,12 @@ private:
   bool create_total_list_n_last_return(THD *thd, st_lex *lex,
 				       TABLE_LIST ***result);
 };
-typedef struct st_select_lex_unit SELECT_LEX_UNIT;
+typedef class st_select_lex_unit SELECT_LEX_UNIT;
 
 /*
   SELECT_LEX - store information of parsed SELECT_LEX statment
 */
+class JOIN;
 class st_select_lex: public st_select_lex_node {
 public:
   char *db, *db1, *table1, *db2, *table2;      	/* For outer join using .. */
@@ -248,10 +253,14 @@ public:
   List<String>        interval_list, use_index, *use_index_ptr,
 		      ignore_index, *ignore_index_ptr;
   List<Item_func_match> ftfunc_list;
+  JOIN *join; /* after JOIN::prepare it is pointer to corresponding JOIN */
   uint in_sum_expr;
   bool	create_refs, 
     braces,   /* SELECT ... UNION (SELECT ... ) <- this braces */
-    depended; /* depended from outer select subselect */
+    depended, /* depended from outer select subselect */
+    /* TRUE when having fix field called in processing of this SELECT */
+    having_fix_field;
+
   void init_query();
   void init_select();
   st_select_lex_unit* master_unit() { return (st_select_lex_unit*) master; }
@@ -275,7 +284,7 @@ public:
 
   friend void mysql_init_query(THD *thd);
 };
-typedef struct st_select_lex SELECT_LEX;
+typedef class st_select_lex SELECT_LEX;
 
 class Set_option :public Sql_alloc {
 public:
@@ -318,6 +327,7 @@ typedef struct st_lex {
   List<Item>	      *insert_list,field_list,value_list;
   List<List_item>     many_values;
   List<Set_option>    option_list;
+  List<Item>          param_list;
   SQL_LIST	      proc_list, auxilliary_table_list;
   TYPELIB	      *interval;
   create_field	      *last_field;

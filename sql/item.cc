@@ -133,6 +133,9 @@ void Item_field::set_field(Field *field_par)
   field_name=field_par->field_name;
   binary=field_par->binary();
   unsigned_flag=test(field_par->flags & UNSIGNED_FLAG);
+  /* For string fields copy character set from original field */
+  if (!field_par->binary())
+    str_value.set_charset(((Field_str*)field_par)->charset());
 }
 
 const char *Item_ident::full_name() const
@@ -287,6 +290,140 @@ String *Item_null::val_str(String *str)
 { null_value=1; return 0;}
 
 
+/* Item_param related */
+void Item_param::set_null()
+{ 
+  maybe_null=null_value=1;    
+}
+
+void Item_param::set_int(longlong i)
+{  
+  int_value=(longlong)i; 
+  item_result_type = INT_RESULT;
+  item_type = INT_ITEM;
+}
+
+void Item_param::set_double(double i)
+{  
+  double value = (double)i;
+  real_value=value;
+  item_result_type = REAL_RESULT;
+  item_type = REAL_ITEM;
+}
+
+void Item_param::set_double(float i)
+{  
+  float value = (float)i;
+  real_value=(double)value;
+  item_result_type = REAL_RESULT;
+  item_type = REAL_ITEM;
+}
+
+void Item_param::set_value(const char *str, uint length)
+{  
+  str_value.set(str,length,default_charset_info);  
+  item_result_type = STRING_RESULT;
+  item_type = STRING_ITEM;
+}
+
+void Item_param::set_longdata(const char *str, ulong length)
+{
+  /* TODO: Fix this for binary handling by making use of 
+     buffer_type.. 
+  */  
+  str_value.append(str,length);    
+}
+
+void Item_param::set_long_end() 
+{ 
+  long_data_supplied = true; 
+  item_result_type = STRING_RESULT;
+};
+
+bool Item_param::save_in_field(Field *field)
+{
+  if (null_value)
+    return set_field_to_null(field);   
+    
+  field->set_notnull();
+  if (item_result_type == INT_RESULT)
+  {
+    longlong nr=val_int();
+    field->store(nr);
+    return 0;
+  }
+  if (item_result_type == REAL_RESULT)
+  {
+    double nr=val();    
+    field->store(nr);   
+    return 0;
+  }
+  String *result;
+  CHARSET_INFO *cs=default_charset_info;//fix this
+  result=val_str(&str_value);
+  field->store(result->ptr(),result->length(),cs);
+  return 0;
+}
+
+void Item_param::make_field(Send_field *tmp_field)
+{
+  init_make_field(tmp_field,FIELD_TYPE_STRING);
+}
+
+double Item_param::val() 
+{
+  /* Cross check whether we need need this conversions ? or direct 
+     return(real_value) is enough ?
+  */
+
+  switch(item_result_type) {
+  
+  case STRING_RESULT:
+    return (double)atof(str_value.ptr()); 
+  case INT_RESULT:
+    return (double)int_value;
+  default:
+    return real_value;
+  }
+} 
+
+longlong Item_param::val_int() 
+{ 
+  /* Cross check whether we need need this conversions ? or direct 
+     return(int_value) is enough ?
+  */
+  
+ switch(item_result_type) {
+
+  case STRING_RESULT:
+    return (longlong)strtoll(str_value.ptr(),(char**) 0,10);
+  case REAL_RESULT:
+    return (longlong) (real_value+(real_value > 0 ? 0.5 : -0.5));
+  default:
+    return int_value;
+  }
+}
+
+String *Item_param::val_str(String* str) 
+{ 
+  /* Cross check whether we need need this conversions ? or direct 
+     return(&str_value) is enough ?
+  */
+  
+  switch(item_result_type) {
+  
+  case INT_RESULT:
+    str->set(int_value);
+    return str;
+  case REAL_RESULT:
+    str->set(real_value);
+    return str;
+  default:
+    return (String*) &str_value;
+  }
+}
+/* End of Item_param related */
+
 void Item_copy_string::copy()
 {
   String *res=item->val_str(&str_value);
@@ -309,12 +446,13 @@ String *Item_copy_string::val_str(String *str)
 
 /* ARGSUSED */
 bool Item::fix_fields(THD *thd,
-		      struct st_table_list *list)
+		      struct st_table_list *list,
+		      Item ** ref)
 {
   return 0;
 }
 
-bool Item_field::fix_fields(THD *thd,TABLE_LIST *tables)
+bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
   if (!field)					// If field is not checked
   {
@@ -330,7 +468,7 @@ bool Item_field::fix_fields(THD *thd,TABLE_LIST *tables)
 	mention of table name, but if we join tables in one list it will
 	cause error ER_NON_UNIQ_ERROR in find_field_in_tables.
       */
-      SELECT_LEX *last;
+      SELECT_LEX *last= 0;
       for (SELECT_LEX *sl= thd->lex.select->outer_select();
 	   sl && !tmp;
 	   sl= sl->outer_select())
@@ -339,6 +477,8 @@ bool Item_field::fix_fields(THD *thd,TABLE_LIST *tables)
       if (!tmp)
 	return 1;
       else
+      {
+	depended_from= last;
 	/*
 	  Mark all selects from resolved to 1 before select where was 
 	  found table as depended (of select where was found table)
@@ -356,6 +496,7 @@ bool Item_field::fix_fields(THD *thd,TABLE_LIST *tables)
 		 tbl= tbl->next)
 	      tbl->shared= 1;
 	  }
+      }
     }
     set_field(tmp);
   }
@@ -367,13 +508,24 @@ bool Item_field::fix_fields(THD *thd,TABLE_LIST *tables)
     table->used_fields++;
     table->used_keys&=field->part_of_key;
   }
+  if (depended_from != 0 && depended_from->having_fix_field)
+  {
+    *ref= new Item_ref((char *)db_name, (char *)table_name,
+		       (char *)field_name);
+    if (!*ref)
+      return 1;
+    return (*ref)->fix_fields(thd, tables, ref);
+  }
   return 0;
 }
 
 
 void Item::init_make_field(Send_field *tmp_field,
 			   enum enum_field_types field_type)
-{
+{  
+  tmp_field->db_name=(char*) "";
+  tmp_field->org_table_name=(char*) "";
+  tmp_field->org_col_name=(char*) "";
   tmp_field->table_name=(char*) "";
   tmp_field->col_name=name;
   tmp_field->flags=maybe_null ? 0 : NOT_NULL_FLAG;
@@ -647,12 +799,50 @@ bool Item_null::send(THD *thd, String *packet)
   Find field in select list having the same name
  */
 
-bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables)
+bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 {
   if (!ref)
   {
-    if (!(ref=find_item_in_list(this,thd->lex.select->item_list)))
-      return 1;
+        if (!(ref= find_item_in_list(this,thd->lex.select->item_list)))
+    {
+      /*
+	We can't find table field in table list of current select, 
+	consequently we have to find it in outer subselect(s).
+	We can't join lists of outer & current select, because of scope 
+	of view rules. For example if both tables (outer & current) have 
+	field 'field' it is not mistake to refer to this field without 
+	mention of table name, but if we join tables in one list it will
+	cause error ER_NON_UNIQ_ERROR in find_field_in_tables.
+      */
+      SELECT_LEX *last=0;
+      for (SELECT_LEX *sl= thd->lex.select->outer_select();
+	   sl && !ref;
+	   sl= sl->outer_select())
+	ref= find_item_in_list(this, (last= sl)->item_list);
+      if (!ref)
+	return 1;
+      else
+      {
+	depended_from= last;
+	/*
+	  Mark all selects from resolved to 1 before select where was 
+	  found table as depended (of select where was found table)
+	*/
+	for (SELECT_LEX *s= thd->lex.select;
+	     s &&s != last;
+	     s= s->outer_select())
+	  if( !s->depended )
+	  {
+	    s->depended= 1; //Select is depended of outer select
+	    //Tables will be reopened many times
+	    for (TABLE_LIST *tbl= 
+		   (TABLE_LIST*)s->table_list.first;
+		 tbl;
+		 tbl= tbl->next)
+	      tbl->shared= 1;
+	  }
+      }
+    }
     max_length= (*ref)->max_length;
     maybe_null= (*ref)->maybe_null;
     decimals=	(*ref)->decimals;

@@ -842,11 +842,11 @@ public:
   Field_blob(char *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 	     enum utype unireg_check_arg, const char *field_name_arg,
 	     struct st_table *table_arg,uint blob_pack_length,
-	     bool binary_arg);
+	     bool binary_arg, CHARSET_INFO *cs);
   Field_blob(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
-	     struct st_table *table_arg, bool binary_arg)
+	     struct st_table *table_arg, bool binary_arg, CHARSET_INFO *cs)
     :Field_str((char*) 0,len_arg, maybe_null_arg ? (uchar*) "": 0,0,
-	       NONE, field_name_arg, table_arg, default_charset_info),
+	       NONE, field_name_arg, table_arg, cs),
     packlength(3),binary_flag(binary_arg), geom_flag(true)
     {
       flags|= BLOB_FLAG;
@@ -930,11 +930,12 @@ public:
 	     struct st_table *table_arg,uint blob_pack_length,
              bool binary_arg)
      :Field_blob(ptr_arg, null_ptr_arg, null_bit_arg, unireg_check_arg, 
-                 field_name_arg, table_arg, blob_pack_length,binary_arg) {}
+                 field_name_arg, table_arg, blob_pack_length,binary_arg,
+                 default_charset_info) {}
   Field_geom(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
 	     struct st_table *table_arg, bool binary_arg)
      :Field_blob(len_arg, maybe_null_arg, field_name_arg,
-                 table_arg, binary_arg) {}
+                 table_arg, binary_arg, default_charset_info) {}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_VARBINARY; }
 
   void get_key_image(char *buff,uint length, imagetype type);
@@ -1038,7 +1039,9 @@ public:
 
 class Send_field {
  public:
-  const char *table_name,*col_name;
+  const char *db_name;
+  const char *table_name,*org_table_name;
+  const char *col_name,*org_col_name;
   uint length,flags,decimals;
   enum_field_types type;
   Send_field() {}

@@ -65,6 +65,21 @@ a
 select b,(select avg(t2.a+(select min(t3.a) from t3 where t3.a >= t4.a)) from t2) from t4;
 b	(select avg(t2.a+(select min(t3.a) from t3 where t3.a >= t4.a)) from t2)
 8	7.5000
-8	6.0000
-9	5.5000
+8	4.5000
+9	7.5000
+select * from t3 where exists (select * from t2 where t2.b=t3.a);
+a
+7
+select * from t3 where not exists (select * from t2 where t2.b=t3.a);
+a
+6
+3
+insert into t4 values (12,7),(1,7),(10,9),(9,6),(7,6),(3,9);
+select b,max(a) as ma from t4 group by b having b < (select max(t2.a)
+from t2 where t2.b=t4.b);
+b	ma
+select b,max(a) as ma from t4 group by b having b >= (select max(t2.a)
+from t2 where t2.b=t4.b);
+b	ma
+7	12
 drop table t1,t2,t3,t4;

@@ -52,7 +52,7 @@ public:
   virtual ~Item() { name=0; }		/*lint -e1509 */
   void set_name(char* str,uint length=0);
   void init_make_field(Send_field *tmp_field,enum enum_field_types type);
-  virtual bool fix_fields(THD *,struct st_table_list *);
+  virtual bool fix_fields(THD *, struct st_table_list *, Item **);
   virtual bool save_in_field(Field *field);
   virtual void save_org_in_field(Field *field)
     { (void) save_in_field(field); }
@@ -85,15 +85,18 @@ public:
 };
 
 
+class st_select_lex;
 class Item_ident :public Item
 {
 public:
   const char *db_name;
   const char *table_name;
   const char *field_name;
+  st_select_lex *depended_from;
   Item_ident(const char *db_name_par,const char *table_name_par,
 	     const char *field_name_par)
-    :db_name(db_name_par),table_name(table_name_par),field_name(field_name_par)
+    :db_name(db_name_par),table_name(table_name_par),
+    field_name(field_name_par), depended_from(0)
     { name = (char*) field_name_par; }
   const char *full_name() const;
 };
@@ -120,7 +123,7 @@ public:
   String *str_result(String* tmp);
   bool send(THD *thd, String *str_arg) { return result_field->send(thd,str_arg); }
   void make_field(Send_field *field);
-  bool fix_fields(THD *,struct st_table_list *);
+  bool fix_fields(THD *, struct st_table_list *, Item **);
   bool save_in_field(Field *field);
   void save_org_in_field(Field *field);
   table_map used_tables() const;
@@ -155,6 +158,40 @@ public:
   bool is_null() { return 1; }
 };
 
+class Item_param :public Item
+{
+public:    
+  longlong int_value;
+  double   real_value;
+  enum Item_result item_result_type;
+  enum Type item_type;
+  enum enum_field_types buffer_type;
+  my_bool long_data_supplied;
+
+  Item_param(char *name_par=0){ 
+    name= name_par ? name_par : (char*) "?";
+    long_data_supplied = false;
+    item_type = STRING_ITEM; item_result_type = STRING_RESULT;
+  }
+  enum Type type() const { return item_type; }
+  double val();
+  longlong val_int();
+  String *val_str(String*);
+  void make_field(Send_field *field);
+  bool save_in_field(Field *field);
+  void set_null();
+  void set_int(longlong i);
+  void set_double(float i);
+  void set_double(double i);
+  void set_value(const char *str, uint length);  
+  void set_long_str(const char *str, ulong length);
+  void set_long_binary(const char *str, ulong length);
+  void set_longdata(const char *str, ulong length);
+  void set_long_end(); 
+  enum Item_result result_type () const
+  { return item_result_type; }  
+  Item *new_item() { return new Item_param(name); }
+};
 
 class Item_int :public Item
 {
@@ -356,7 +393,7 @@ public:
   }
   bool send(THD *thd, String *tmp)	{ return (*ref)->send(thd, tmp); }
   void make_field(Send_field *field)	{ (*ref)->make_field(field); }
-  bool fix_fields(THD *,struct st_table_list *);
+  bool fix_fields(THD *, struct st_table_list *, Item **);
   bool save_in_field(Field *field)	{ return (*ref)->save_in_field(field); }
   void save_org_in_field(Field *field)	{ (*ref)->save_org_in_field(field); }
   enum Item_result result_type () const { return (*ref)->result_type(); }
