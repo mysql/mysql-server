@@ -424,14 +424,12 @@ static sys_var_thd_ulong        sys_default_week_format("default_week_format",
 sys_var_thd_ulong               sys_group_concat_max_len("group_concat_max_len",
                                                          &SV::group_concat_max_len);
 
-static const char license[]= "GPL";
 
 /* Read only variables */
 
 sys_var_const_str		sys_os("version_compile_os", SYSTEM_TYPE);
-sys_var_const_str		sys_license("license", license);
-
 /* Global read-only variable describing server license */
+sys_var_const_str		sys_license("license", LICENSE);
 
 
 
