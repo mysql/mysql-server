@@ -501,11 +501,13 @@ typedef struct st_lex
       but we should merk all subselects as uncacheable from current till
       most upper
     */
-    for (SELECT_LEX_NODE *sl= current_select;
-	 sl != &select_lex;
-	 sl= sl->outer_select())
+    SELECT_LEX_NODE *sl;
+    SELECT_LEX_UNIT *un;
+    for (sl= current_select, un= sl->master_unit();
+	 un != &unit;
+	 sl= sl->outer_select(), un= sl->master_unit())
     {
-      sl->uncacheable = sl->master_unit()->uncacheable= 1;
+      sl->uncacheable = un->uncacheable= 1;
     }
   }
 } LEX;

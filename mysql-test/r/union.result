@@ -269,3 +269,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 drop table t1,t2;
 (select 1) union (select 2) order by 0;
 Unknown column '0' in 'order clause'
+SELECT @a:=1 UNION SELECT @a:=@a+1;
+@a:=1
+1
+2
