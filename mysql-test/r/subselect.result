@@ -961,7 +961,13 @@ PRIMARY KEY  (`numeropost`),
 UNIQUE KEY `maxnumrep` (`maxnumrep`)
 ) TYPE=MyISAM CHARSET=latin1;
 INSERT INTO t1 VALUES ('joce','1','','joce'),('test','2','','test');
+Warnings:
+Warning	1263	Data truncated for column 'date' at row 1
+Warning	1263	Data truncated for column 'date' at row 2
 INSERT INTO t2 VALUES ('joce','1','','joce'),('test','2','','test');
+Warnings:
+Warning	1263	Data truncated for column 'date' at row 1
+Warning	1263	Data truncated for column 'date' at row 2
 INSERT INTO t3 VALUES (1,1);
 SELECT DISTINCT topic FROM t2 WHERE NOT EXISTS(SELECT * FROM t3 WHERE
 numeropost=topic);
