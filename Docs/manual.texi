@@ -5364,6 +5364,12 @@ into it.
 Obtain a distribution file from one of the sites listed in
 @ref{Getting MySQL, , Getting @strong{MySQL}}.
 
+@item
+If you are interested in using Berkeley DB tables with MySQL, you
+will need to obtain a patched version of the Berkeley DB source
+code.  Please read the chapter on Berkeley DB tables before
+proceeding. @xref{BDB}.
+
 @strong{MySQL} source distributions are provided as compressed @code{tar}
 archives and have names like @file{mysql-VERSION.tar.gz}, where
 @code{VERSION} is a number like @value{mysql_version}.
@@ -5708,32 +5714,31 @@ source tree:
 
 @itemize
 @item
-Download @strong{BitKeeper} from @uref{http://www.bitmover.com/cgi-bin/download.cgi}
+Download @strong{BitKeeper} from @uref{http://www.bitmover.com/cgi-bin/download.cgi}.
 @item
-Follow the instructions to install it
+Follow the instructions to install it.
 @item
 Once @strong{BitKeeper} is installed, 
 @code{bk clone bk://work.mysql.com:7000 mysql} - the initial download
-may take a while, depending on the speed of your connection
+may take a while, depending on the speed of your connection.
 @item 
 @code{cd mysql; bk -r edit; aclocal; autoheader; autoconf; 
  automake; ./configure} with your favorite options, and then 
-@code{ make}  
- - you will need GNU autoconf/automake, libtool, and m4 to do this.
-. We have a
+@code{ make}.
+You will need GNU autoconf/automake, libtool, and m4 to do this.
+We have a
 collection of our standard configure scripts in the @code{BUILD/} 
 subdirectory - if you are lazy, you can do 
 @code{BUILD/compile-pentium-debug} . It will actually work on a lot of
-none-x86 machines despite its name.
+non-x86 machines despite its name.
 @item
 Once the build is done, @code{make install}. Be careful with this on
 a production machine - this may overwrite your live release binary. We
 recommend that if you have another installation of @strong{MySQL} that
-you @code{./configure} with different values for @code{basedir}, 
-@code{datadir}, @code{bindir}, @code{sbindir},  @code{libexecdir}, 
-@code{tcp-port}, and @code{unix-socket-path}
+you @code{./configure} with different values for @code{prefix}, 
+@code{tcp-port}, and @code{unix-socket-path}.
 @item
-Play hard with your new installation and try to make the new feature
+Play hard with your new installation and try to make the new features
 crash. Report bugs to @email{bugs@@lists.mysql.com}. As always, make
 sure you have a full test case for the bug that we can run.
 @item
@@ -5745,18 +5750,18 @@ if you execute @code{aclocal} and get @code{command not found}, or a
 similar problem, do not report it - make sure all the needed tools are
 installed and your @code{PATH} variable is set correctly.  
 @item
-After the initial @code{bk clone}, do @code{bk pull} to get the updates
+After the initial @code{bk clone}, do @code{bk pull} to get the updates.
 @item
-You can examine change history to the tree with all the cool diffs with
+You can examine change history of the tree with all the diffs with
 @code{bk sccstool}. If you see some funny diffs or code that you have a 
 question about, do not hesitate and e-mail 
 @email{internals@@lists.mysql.com}. Also if you think you have a 
 better idea on how to do something, send an email to the same place 
-with a patch - @code{bk diffs} with produce a patch for you after you
+with a patch - @code{bk diffs} will produce a patch for you after you
 have made changes to the source. If you do not have the time to code
 your idea, just send a description.
 @item
-@strong{BitKeeper} has a nice help utility - @code{bk helptool}
+@strong{BitKeeper} has a nice help utility - @code{bk helptool}.
 
 @end itemize  
 
@@ -5989,7 +5994,7 @@ Note that on Linux you should NOT use MIT-pthreads but install LinuxThreads!
 
 If your system does not provide native thread support, you will need to
 build @strong{MySQL} using the MIT-pthreads package.  This includes
-most FreeBSD systems, SunOS 4.x, Solaris 2.4 and earlier, and some others.
+older FreeBSD systems, SunOS 4.x, Solaris 2.4 and earlier, and some others.
 @xref{Which OS}.
 
 @itemize @bullet
@@ -22230,40 +22235,49 @@ Berkeley DB (@uref{http://www.sleepycat.com}) has provided
 crashes and also provides @code{COMMIT} and @code{ROLLBACK} on
 transactions. In order to build MySQL Version 3.23.x (BDB support first
 appeared in Version 3.23.15) with support for @code{BDB} tables, you
-will need Berkeley DB Version 3.1.14 or newer which can be downloaded from
-@uref{http://www.mysql.com/downloads/mysql-3.23.html}; or also from
-Sleepycat's download page at
-@uref{http://www.sleepycat.com/download.html}.
+will need Berkeley DB Version 3.2.3d or newer which can be downloaded from
+@uref{http://www.mysql.com/downloads/mysql-3.23.html}.  This is a patched
+version of Berkeley DB that is only available from @strong{MySQL}; the
+standard Berkeley DB @strong{will not work with MySQL}.
 
 @node BDB install, BDB start, BDB overview, BDB
 @subsection Installing BDB
 
-To install Berkeley DB, first uncompress the @code{BDB} distribution
-and follow the instructions in the README file provided in the distribution
-directory. Basically what you need to do is:
+If you have downloaded a binary version of @strong{MySQL} that includes
+support for Berkeley DB, simply follow the instructions for
+installing a binary version of @strong{MySQL}. @xref{Installing binary}.
+
+To compile MySQL with Berkeley DB support, first uncompress the
+@code{BDB} distribution into the @strong{MySQL} top-level source
+directory, and follow the instructions for building MySQL from
+source. Configure will automatically detect and use the Berkeley
+DB source you just uncompressed. @xref{Installing source}.
 
 @example
-cd build_[your_os]
-../dist/configure
-make
-make install
+cd /path/to/source/of/mysql-3.23.29-gamma
+gzip -cd /tmp/db-3.2.3d.tar.gz | tar xf -
+./configure             # this will use Berkeley DB automatically
 @end example
 
-Please refer to the manual provided by @code{BDB} distribution for
-more/updated information.
-
-After this you need to configure your @strong{MySQL} with
-@code{--with-berkeley-db=DIR}. The directory is the one where you installed
-@code{BDB} binaries with @code{make install}. (Usually it is
-/usr/local/BerkeleyDB.3.1/.) You can give additional options to
+If you would like to install Berkeley DB separately, to use with
+other applications and MySQL, this is possible.  Follow the directions
+for installing Berkeley DB in the Berkeley DB README file.  Then, pass
+the @code{--with-berkeley-db=DIR} option to @code{MySQL}'s @code{configure},
+where @code{DIR} refers to the installation prefix used when installing
+Berkeley DB (by default it is
+/usr/local/BerkeleyDB.3.2). You can give additional options to
 @strong{MySQL} configure, @code{--with-berkeley-db-includes=DIR} and
 @code{--with-berkeley-db-libs=DIR}, if the @code{BDB} includes and/or libs
 directory is not under the first directory (by default they are).
 Then complete the @strong{MySQL} installation as normal.
 
-Even if Berkeley DB is in itself very tested and reliable, the
-@strong{MySQL} interface is still very alpha, but we are actively
-improving and optimizing it to get it this stable real soon.
+Please refer to the manual provided by @code{BDB} distribution for
+more/updated information.
+
+Even though Berkeley DB is in itself very tested and reliable,
+the @strong{MySQL} interface is still considered beta quality.
+We are actively improving and optimizing it to get it stable very
+soon.
 
 @node BDB start, BDB characteristic, BDB install, BDB
 @subsection BDB startup options
@@ -22271,6 +22285,12 @@ improving and optimizing it to get it this stable real soon.
 If you are running with @code{AUTOCOMMIT=0} then your changes in @code{BDB}
 tables will not be updated until you execute @code{COMMIT}.  Instead of commit
 you can execute @code{ROLLBACK} to forget your changes. @xref{COMMIT}.
+
+If you are running with @code{AUTOCOMMIT=1} (the default), your changes
+will be committed immediately.  You can start an extended transaction with
+the @code{BEGIN WORK} SQL command, after which your changes will not be
+committed until you execute @code{COMMIT} (or decide to @code{ROLLBACK}
+the changes).
 
 The following options to @code{mysqld} can be used to change the behavior of
 BDB tables:
@@ -22284,6 +22304,7 @@ BDB tables:
 @item @code{--bdb-recover} @tab Start Berkeley DB in recover mode.
 @item @code{--bdb-tmpdir=directory} @tab Berkeley DB tempfile name.
 @item @code{--skip-bdb} @tab Don't use berkeley db.
+@item @code{-O bdb_lock_max=1000} @tab Set the maximum number of locks possible. @xref{SHOW VARIABLES}.
 @end multitable
 
 If you use @code{--skip-bdb}, @strong{MySQL} will not initialize the
@@ -22336,15 +22357,16 @@ read may fail with a deadlock error.
 @item
 Keys are not compressed to previous keys as with ISAM or MyISAM
 tables. In other words, the key information will take a little more
-space in @code{BDB} tables compared to MyISAM tables with don't use
+space in @code{BDB} tables compared to MyISAM tables which don't use
 @code{PACK_KEYS=0}.
 @item
-One must do a @code{FLUSH LOGS} from time to time to sync to get checkpoints
-for the @code{BDB} tables.
-@item
-As transaction logs take up more space than ordinary logs, it's more important
-to rotate and remove old logs when using @code{BDB} tables than when using other table
-types.
+@strong{MySQL} performs a checkpoint each time a new Berkeley DB log
+file is started, and removes any log files that are not needed for
+current transactions.  One can also run @code{FLUSH LOGS} at any time
+to checkpoint the Berkeley DB tables.
+
+For disaster recovery, one should use table backups plus MySQL's binary
+log. @xref{Backup}.
 @end itemize
 
 @node BDB TODO, BDB errors, BDB characteristic, BDB
@@ -22370,8 +22392,9 @@ error file:
 001119 23:43:56  bdb:  txn_abort: Log undo failed for LSN: 1 3644744: Invalid 
 @end example
 
-This is not fatal but we don't recommend you to delete tables you are
-using in not @code{auto_commit} mode.
+This is not fatal but we don't recommend that you delete tables if you are
+not in @code{auto_commit} mode, until this problem is fixed (the fix is
+not trivial).
 
 @cindex tutorial
 @cindex terminal monitor, defined
@@ -38905,6 +38928,9 @@ though, so Version 3.23 is not released as a stable version yet.
 @node News-3.23.29, News-3.23.28, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.29
 @itemize @bullet
+@item
+Automatically remove Berkeley DB transaction logs that are no longer in
+use.
 @item
 Applied patches for OS2 by @code{Yuri Dario}.
 @item

@@ -57,6 +57,7 @@
 #include <assert.h>
 #include <hash.h>
 #include "ha_berkeley.h"
+#include "sql_manager.h"
 
 #define HA_BERKELEY_ROWS_IN_TABLE 10000 /* to get optimization right */
 #define HA_BERKELEY_RANGE_COUNT	  100
@@ -87,6 +88,7 @@ static byte* bdb_get_key(BDB_SHARE *share,uint *length,
 			 my_bool not_used __attribute__((unused)));
 static BDB_SHARE *get_share(const char *table_name);
 static void free_share(BDB_SHARE *share);
+static void berkeley_noticecall(DB_ENV *db_env, db_notices notice);
 
 
 /* General functions */
@@ -106,6 +108,7 @@ bool berkeley_init(void)
     DBUG_RETURN(1);
   db_env->set_errcall(db_env,berkeley_print_error);
   db_env->set_errpfx(db_env,"bdb");
+  db_env->set_noticecall(db_env, berkeley_noticecall);
   db_env->set_tmp_dir(db_env, berkeley_tmpdir);
   db_env->set_data_dir(db_env, mysql_data_home);
   if (berkeley_logdir)
@@ -120,6 +123,7 @@ bool berkeley_init(void)
   db_env->set_lk_detect(db_env, berkeley_lock_type);
   if (berkeley_lock_max)
     db_env->set_lk_max(db_env, berkeley_lock_max);
+
   if (db_env->open(db_env,
 		   berkeley_home,
 		   berkeley_init_flags |  DB_INIT_LOCK | 
@@ -129,6 +133,7 @@ bool berkeley_init(void)
     db_env->close(db_env,0);
     db_env=0;
   }
+
   (void) hash_init(&bdb_open_tables,32,0,0,
 		   (hash_get_key) bdb_get_key,0,0);
   pthread_mutex_init(&bdb_mutex,NULL);
@@ -196,6 +201,48 @@ static void berkeley_print_error(const char *db_errpfx, char *buffer)
   sql_print_error("%s:  %s",db_errpfx,buffer);
 }
 
+static void berkeley_noticecall(DB_ENV *db_env, db_notices notice)
+{
+  switch (notice)
+  {
+  case DB_NOTICE_LOGFILE_CHANGED:
+    pthread_mutex_lock(&LOCK_manager);
+    manager_status |= MANAGER_BERKELEY_LOG_CLEANUP;
+    pthread_mutex_unlock(&LOCK_manager);
+    pthread_cond_signal(&COND_manager);
+    break;
+  }
+}
+
+void berkeley_cleanup_log_files(void)
+{
+  DBUG_ENTER("berkeley_cleanup_log_files");
+  char **names;
+  int error;
+
+  /* XXX: Probably this should be done somewhere else, and
+   * should be tunable by the user. */
+  if ((error = txn_checkpoint(db_env, 0, 0, 0)))
+    my_error(ER_ERROR_DURING_CHECKPOINT, MYF(0), error);
+
+  if ((error = log_archive(db_env, &names, DB_ARCH_ABS, NULL)) != 0)
+  {
+    DBUG_PRINT("error", ("log_archive failed (error %d)", error));
+    db_env->err(db_env, error, "log_archive: DB_ARCH_ABS");
+    DBUG_VOID_RETURN;
+  }
+
+  if (names)
+  {
+    char **np;
+    for (np = names; *np; ++np)
+      my_delete(*np, MYF(MY_WME));
+
+    free(names);
+  }
+
+  DBUG_VOID_RETURN;
+}
 
 
 /*****************************************************************************

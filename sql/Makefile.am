@@ -42,7 +42,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			item_strfunc.h item_timefunc.h item_uniq.h \
 			item_create.h mysql_priv.h \
 			procedure.h sql_class.h sql_lex.h sql_list.h \
-			sql_map.h sql_string.h unireg.h \
+			sql_manager.h sql_map.h sql_string.h unireg.h \
 			field.h handler.h ha_isammrg.h ha_isam.h ha_myisammrg.h\
 			ha_heap.h ha_myisam.h ha_berkeley.h\
 			opt_range.h opt_ft.h \
@@ -55,7 +55,7 @@ mysqld_SOURCES =	sql_lex.cc \
 			thr_malloc.cc item_create.cc \
 			field.cc key.cc sql_class.cc sql_list.cc \
 			net_serv.cc violite.c net_pkg.cc lock.cc my_lock.c \
-			sql_string.cc sql_map.cc \
+			sql_string.cc sql_manager.cc sql_map.cc \
 			mysqld.cc password.c hash_filo.cc hostname.cc \
 			convert.cc sql_parse.cc sql_yacc.yy \
 			sql_base.cc table.cc sql_select.cc sql_insert.cc \
