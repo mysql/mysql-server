@@ -178,17 +178,7 @@ rm -r -f "$BASE/share/Makefile"
 rm -r -f "$BASE/share/Makefile.in"
 rm -r -f "$BASE/share/Makefile.am"
 
-#
-# Clean up if we did this from a bk tree
-#
-
-if [ -d $BASE/SCCS ]
-then
-  find $BASE/ -type d -name SCCS -printf " \"%p\"" | xargs rm -r -f
-fi
-
 mkdir $BASE/Docs $BASE/extra $BASE/include
-
 
 #
 # Copy directory files
@@ -287,7 +277,7 @@ for i in COPYING ChangeLog README \
          INSTALL-WIN-SOURCE \
          Docs/manual_toc.html  Docs/manual.html \
          Docs/manual.txt Docs/mysqld_error.txt \
-         Docs/INSTALL-BINARY
+         Docs/INSTALL-BINARY Docs/internals.texi
 
 do
   print_debug "Copying file '$i'"
@@ -296,6 +286,12 @@ do
     $CP $i $BASE/$i
   fi
 done
+
+#
+# support files
+#
+mkdir $BASE/support-files
+cp support-files/*.cnf $BASE/support-files
 
 #
 # Raw dirs from source tree
@@ -312,13 +308,22 @@ do
 done
 
 #
-# Fix some windows files
+# Fix some windows files to avoid compiler warnings
 #
 
 ./extra/replace std:: "" -- $BASE/sql/sql_yacc.cpp
 
 unix_to_dos $BASE/README
 mv $BASE/README $BASE/README.txt
+
+#
+# Clean up if we did this from a bk tree
+#
+
+if [ -d $BASE/SSL/SCCS ]
+then
+  find $BASE/ -type d -name SCCS -printf " \"%p\"" | xargs rm -r -f
+fi
 
 #
 # Initialize the initial data directory
