@@ -294,7 +294,9 @@ typedef struct st_relay_log_info
     UNTIL_LOG_NAMES_CMP_UNKNOWN= -2, UNTIL_LOG_NAMES_CMP_LESS= -1,
     UNTIL_LOG_NAMES_CMP_EQUAL= 0, UNTIL_LOG_NAMES_CMP_GREATER= 1
   } until_log_names_cmp_result;
-  
+
+  ulong trans_retries;
+
   st_relay_log_info();
   ~st_relay_log_info();
 

@@ -890,7 +890,7 @@ extern ulong ha_read_first_count, ha_read_last_count;
 extern ulong ha_read_rnd_count, ha_read_rnd_next_count, ha_discover_count;
 extern ulong ha_commit_count, ha_rollback_count,table_cache_size;
 extern ulong max_connections,max_connect_errors, connect_timeout;
-extern ulong slave_net_timeout;
+extern ulong slave_net_timeout, slave_trans_retries;
 extern ulong max_user_connections;
 extern ulong long_query_count, what_to_log,flush_time;
 extern ulong query_buff_size, thread_stack,thread_stack_min;
