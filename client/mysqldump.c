@@ -35,7 +35,7 @@
 ** and adapted to mysqldump 05/11/01 by Jani Tolonen
 */
 
-#define DUMP_VERSION "8.18"
+#define DUMP_VERSION "8.19"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -163,6 +163,7 @@ static int init_dumping(char *);
 static int dump_databases(char **);
 static int dump_all_databases();
 static char *quote_name(char *name, char *buff);
+static void print_quoted_xml(FILE *output, char *fname, char *str, uint len);
 
 static void print_version(void)
 {
@@ -1113,21 +1114,21 @@ static void dumpTable(uint numFields, char *table)
 	  {
 	    if (!IS_NUM_FIELD(field))
 	    {   
-		if (opt_xml)
-		  fprintf(md_result_file, "\t\t<%s>%s</%s>\n",
-			  field->name, row[i], field->name);
-		else
-		   unescape(md_result_file, row[i], lengths[i]);
+	      if (opt_xml)
+		print_quoted_xml(md_result_file, field->name, row[i],
+				 lengths[i]);
+	      else
+		unescape(md_result_file, row[i], lengths[i]);
 	    }
 	    else
 	    {
 	      /* change any strings ("inf","nan",..) into NULL */
 	      char *ptr = row[i];
-		if (opt_xml)
-		  fprintf(md_result_file, "\t\t<%s>%s</%s>\n",
-			  field->name,!isalpha(*ptr) ?ptr: "NULL",field->name);
-		else
-	          fputs((!isalpha(*ptr)) ? ptr : "NULL", md_result_file);
+	      if (opt_xml)
+		fprintf(md_result_file, "\t\t<%s>%s</%s>\n",
+			field->name,!isalpha(*ptr) ?ptr: "NULL",field->name);
+	      else
+		fputs((!isalpha(*ptr)) ? ptr : "NULL", md_result_file);
 	    }
 	  }
 	  else
@@ -1196,6 +1197,27 @@ static void dumpTable(uint numFields, char *table)
   }
 } /* dumpTable */
 
+
+static void print_quoted_xml(FILE *output, char *fname, char *str, uint len)
+{
+  const char *end;
+ 
+  fprintf(output, "\t\t<%s>", fname);
+  for (end = str + len; str != end; str++)
+  {
+    if (*str == '<')
+      fputs("&lt;", output);
+    else if (*str == '>')
+      fputs("&gt;", output);
+    else if (*str == '&')
+      fputs("&amp;", output);
+    else if (*str == '\"')
+      fputs("&quot;", output);
+    else
+      fputc(*str, output);
+  }
+  fprintf(output, "<%s>\n", fname);
+}
 
 static char *getTableName(int reset)
 {
