@@ -161,7 +161,7 @@ my_string my_tempnam(const char *dir, const char *pfx,
 
   for (length=0 ; length < 8 && uniq ; length++)
   {
-    *end_pos++= _dig_vec[(int) (uniq & 31)];
+    *end_pos++= _dig_vec_upper[(int) (uniq & 31)];
     uniq >>= 5;
   }
   VOID(strmov(end_pos,TMP_EXT));

@@ -198,13 +198,14 @@ dict_tables_have_same_db(
 /************************************************************************
 Return the end of table name where we have removed dbname and '/'. */
 static
-char*
+const char*
 dict_remove_db_name(
 /*================*/
-			/* out: table name */
-	char*	name)	/* in: table name in the form dbname '/' tablename */
+				/* out: table name */
+	const char*	name)	/* in: table name in the form
+				dbname '/' tablename */
 {
-	char*	s;
+	const char*	s;
 	s = strchr(name, '/');
 	ut_a(s);
 	if (s) s++;
@@ -783,23 +784,33 @@ dict_table_add_to_cache(
 	The clustered index will not always physically contain all
 	system columns. */
 
-	dict_mem_table_add_col(table, (char *) "DB_ROW_ID", DATA_SYS,
+	dict_mem_table_add_col(table, "DB_ROW_ID", DATA_SYS,
 			       DATA_ROW_ID, 0, 0);
-	ut_ad(DATA_ROW_ID == 0);
-	dict_mem_table_add_col(table, (char *) "DB_TRX_ID", DATA_SYS,
+#if DATA_ROW_ID != 0
+#error "DATA_ROW_ID != 0"
+#endif
+	dict_mem_table_add_col(table, "DB_TRX_ID", DATA_SYS,
 			       DATA_TRX_ID, 0, 0);
-	ut_ad(DATA_TRX_ID == 1);
-	dict_mem_table_add_col(table, (char *) "DB_ROLL_PTR", DATA_SYS,
-			       DATA_ROLL_PTR,
-									0, 0);
-	ut_ad(DATA_ROLL_PTR == 2);
+#if DATA_TRX_ID != 1
+#error "DATA_TRX_ID != 1"
+#endif
+	dict_mem_table_add_col(table, "DB_ROLL_PTR", DATA_SYS,
+			       DATA_ROLL_PTR, 0, 0);
+#if DATA_ROLL_PTR != 2
+#error "DATA_ROLL_PTR != 2"
+#endif
 
-	dict_mem_table_add_col(table, (char *) "DB_MIX_ID", DATA_SYS,
+	dict_mem_table_add_col(table, "DB_MIX_ID", DATA_SYS,
 			       DATA_MIX_ID, 0, 0);
-	ut_ad(DATA_MIX_ID == 3);
-	ut_ad(DATA_N_SYS_COLS == 4); /* This assert reminds that if a new
-					system column is added to the program,
-					it should be dealt with here */ 
+#if DATA_MIX_ID != 3
+#error "DATA_MIX_ID != 3"
+#endif
+
+	/* This check reminds that if a new system column is added to
+	the program, it should be dealt with here */ 
+#if DATA_N_SYS_COLS != 4
+#error "DATA_N_SYS_COLS != 4"
+#endif
 
 	/* Look for a table with the same name: error if such exists */
 	{
@@ -1107,7 +1118,9 @@ dict_table_change_id_in_cache(
 	dulint		new_id)	/* in: new id to set */
 {
 	ut_ad(table);
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	/* Remove the table from the hash table of id's */
@@ -1973,7 +1986,7 @@ dict_foreign_find(
 /*==============*/
 				/* out: foreign constraint */
 	dict_table_t*	table,	/* in: table object */
-	char*		id)	/* in: foreign constraint id */
+	const char*	id)	/* in: foreign constraint id */
 {
 	dict_foreign_t*	foreign;
 
@@ -2367,7 +2380,7 @@ dict_scan_id(
 		*id = mem_heap_strdupl(heap, s, len);
 	} else {
 		/* no heap given: id will point to source string */
-		*id = (char*) s;
+		*id = s;
 	}
 
 	return(ptr);
@@ -2750,7 +2763,7 @@ dict_create_foreign_constraints_low(
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 
-	table = dict_table_get_low((char*) name);
+	table = dict_table_get_low(name);
 
 	if (table == NULL) {
 		mutex_enter(&dict_foreign_err_mutex);
@@ -3936,7 +3949,7 @@ Prints a table data when we know the table name. */
 void
 dict_table_print_by_name(
 /*=====================*/
-	char*	name)
+	const char*	name)
 {
 	dict_table_t*	table;
 

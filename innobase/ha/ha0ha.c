@@ -211,7 +211,9 @@ ha_search_and_update_if_found(
 {
 	ha_node_t*	node;
 
+#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!table->mutexes || mutex_own(hash_get_mutex(table, fold)));
+#endif /* UNIV_SYNC_DEBUG */
 
 	node = ha_search_with_data(table, fold, data);
 
