@@ -917,11 +917,7 @@ create:
 	  THD *thd= YYTHD;
 	  LEX *lex=Lex;
 	  lex->sql_command= SQLCOM_CREATE_TABLE;
-	  if (!lex->select_lex.add_table_to_list(thd,$5,
-						 ($2 &
-						  HA_LEX_CREATE_TMP_TABLE ?
-						  &tmp_table_alias :
-						  (LEX_STRING*) 0),
+	  if (!lex->select_lex.add_table_to_list(thd, $5, NULL,
 						 TL_OPTION_UPDATING,
 						 (using_update_log ?
 						  TL_READ_NO_INSERT:

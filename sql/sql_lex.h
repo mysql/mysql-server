@@ -642,6 +642,4 @@ void lex_end(LEX *lex);
 
 extern pthread_key(LEX*,THR_LEX);
 
-extern LEX_STRING tmp_table_alias;
-
 #define current_lex (current_thd->lex)
