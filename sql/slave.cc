@@ -2303,9 +2303,10 @@ server_errno=%d)",
     return packet_error;
   }
 
-  if (len == 1)
+  /* Check if eof packet */
+  if (len < 8 && mysql->net.read_pos[0] == 254)
   {
-     sql_print_error("Slave: received 0 length packet from server, apparent\
+     sql_print_error("Slave: received end packet from server, apparent\
  master shutdown: %s",
 		     mysql_error(mysql));
      return packet_error;
