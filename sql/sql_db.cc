@@ -62,7 +62,7 @@ static bool write_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
     ulong length;
     CHARSET_INFO *cs= (create && create->default_table_charset) ? 
 		     create->default_table_charset :
-		     thd->variables.collation_database;
+		     thd->variables.collation_server;
     length= my_sprintf(buf,(buf,
 			    "default-character-set=%s\ndefault-collation=%s\n",
 			    cs->csname,cs->name));
@@ -101,7 +101,7 @@ static bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
   uint nbytes;
 
   bzero((char*) create,sizeof(*create));
-  create->default_table_charset= global_system_variables.collation_database;
+  create->default_table_charset= thd->variables.collation_server;
   if ((file=my_open(path, O_RDONLY | O_SHARE, MYF(0))) >= 0)
   {
     IO_CACHE cache;
@@ -290,7 +290,7 @@ int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   {
     thd->db_charset= (create_info && create_info->default_table_charset) ?
 		     create_info->default_table_charset : 
-		     global_system_variables.collation_database;
+		     thd->variables.collation_server;
     thd->variables.collation_database= thd->db_charset;
   }
 
@@ -665,7 +665,7 @@ bool mysql_change_db(THD *thd, const char *name)
   load_db_opt(thd, path, &create);
   thd->db_charset= create.default_table_charset ?
 		   create.default_table_charset :
-		   global_system_variables.collation_database;
+		   thd->variables.collation_server;
   thd->variables.collation_database= thd->db_charset;
   DBUG_RETURN(0);
 }
