@@ -213,7 +213,7 @@ CHARSET_INFO my_charset_latin1=
     latin1_uni,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
     "","",
-    0,			/* strxfrm_multiply */
+    1,			/* strxfrm_multiply */
     1,			/* mbmaxlen  */
     0,
     &my_charset_handler,
@@ -477,7 +477,7 @@ CHARSET_INFO my_charset_latin1_bin=
     NULL,				/* tab_from_uni */
     "",
     "",
-    0,					/* strxfrm_multiply */
+    1,					/* strxfrm_multiply */
     1,					/* mbmaxlen  */
     0,
     &my_charset_handler,
