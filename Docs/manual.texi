@@ -25512,6 +25512,39 @@ If the total length of the fields in a record is < 128 bytes, then
 the pointer is 1 byte, else 2 bytes.
 @end itemize
 
+@subsubsection How an auto-increment column works in InnoDB
+
+After a database startup, when a user first does an insert to a
+table @code{T}
+where an auto-increment column has been defined, and the user does not provide
+an explicit value for the column, then InnoDB executes @code{SELECT
+MAX(auto-inc-column) FROM T}, and assigns that value incremented
+by one to the the column and the auto-increment counter of the table.
+We say that
+the auto-increment counter for table @code{T} has been initialized.
+
+InnoDB follows the same procedure in initializing the auto-increment counter
+for a freshly created table.
+
+Note that if the user specifies in an insert the value 0 to the auto-increment
+column, then InnoDB treats the row like the value would not have been
+specified.
+
+After the auto-increment counter has been initialized, if a user inserts
+a row where he explicitly specifies the column value, and the value is bigger
+than the current counter value, then the counter is set to the specified
+column value. If the user does not explicitly specify a value, then InnoDB
+increments the counter by one and assigns its new value to the column.
+
+The auto-increment mechanism, when assigning values from the counter,
+bypasses locking and transaction handling. Therefore you may also get
+gaps in the number sequence if you roll back transactions which have
+got numbers from the counter.
+
+The behavior of auto-increment is not defined if a user gives a negative
+value to the column or if the value becomes bigger than the maximum
+integer that can be stored in the specified integer type.
+
 @node File space management, Error handling, Table and index, InnoDB
 @subsection File space management and disk i/o
 
