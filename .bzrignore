@@ -401,3 +401,5 @@ mysql-test/var/lib/test/test2.MYI
 mysql-test/var/run/mysqld.pid
 mysql-test/var/tmp/mysql.sock
 mysql-test/var/lib/mysql-bin.008
+libmysql_r/hash.c
+scripts/mysql-3.23.29-gamma-pc-linux-gnu-i686.tar.gz

@@ -1887,6 +1887,7 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile \
  merge/Makefile dbug/Makefile scripts/Makefile \
  include/Makefile sql-bench/Makefile \
  tests/Makefile Docs/Makefile support-files/Makefile \
+ mysql-test/Makefile \
  include/mysql_version.h
  , , [test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h])
 

@@ -13,4 +13,4 @@
 DROP TABLE IF EXISTS t;
 CREATE TABLE t (n INT);
 INSERT INTO t VALUES (1), (2), (3);
-@r/3.23/sel000002.result SELECT * FROM t;
+@r/sel000002.result SELECT * FROM t;

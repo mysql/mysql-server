@@ -1,4 +1,6 @@
 #! /bin/sh
+# mysql-test-run - originally written by Matt Wagner <matt@mysql.com>
+# modified by Sasha Pachev <sasha@mysql.com>
 
 #++
 # Access Definitions
@@ -7,17 +9,42 @@ DB=test
 DBUSER=test
 DBPASSWD=
 
+# Are we on source or binary distribution?
+
+if [ $0 = scripts/mysql-test-run ] ;
+then
+ BINARY_DIST=1
+ cd mysql-test
+else
+ if [ -d mysql-test ] ; then
+  cd mysql-test
+ fi
+  
+ if [ -f ./mysql-test-run ] && [ -d ../sql ] ; then
+ SOURCE_DIST=1
+ else
+  echo "If you are using binary distirubution, run me from install root as \
+   scripts/mysql-test-run. On source distribution run me from source root as \
+   mysql-test/mysql-test-run or from mysql-test as ./mysql-test-run"
+  exit 1  
+ fi
+ 
+fi
+  
+
 
 #++
 # Misc. Definitions
 #--
+
+#BASEDIR is always one above mysql-test directory 
 CWD=`pwd`
 cd ..
 BASEDIR=`pwd`
 cd $CWD
-MYBIN="$CWD/mybin"
-TESTVER=3.23
-TESTDIR="$CWD/t/$TESTVER"
+MYSQL_TEST_DIR=$BASEDIR/mysql-test
+  
+TESTDIR="$MYSQL_TEST_DIR/t/"
 TESTSUFFIX=test
 TOT_PASS=0
 TOT_FAIL=0
@@ -25,8 +52,8 @@ TOT_TEST=0
 USERT=0
 SYST=0
 REALT=0
-MY_TMP_DIR=$CWD/var/tmp
-TIMEFILE="$CWD/var/tmp/mysqltest-time"
+MY_TMP_DIR=$MYSQL_TEST_DIR/var/tmp
+TIMEFILE="$MYSQL_TEST_DIR/var/tmp/mysqltest-time"
 DASHBLANK="----	----	-------"
 MYSQLD_SRC_DIRS="strings mysys include extra regex isam merge myisam \
  myisammrg heap sql"
@@ -53,18 +80,25 @@ done
 #--
 MYRUN_DIR=var/run
 MASTER_MYPORT=9306
-MASTER_MYDDIR="$CWD/var/lib"
-MASTER_MYSOCK="$CWD/var/tmp/mysql.sock"
-MASTER_MYPID="$CWD/var/run/mysqld.pid"
-MASTER_MYLOG="$CWD/var/log/mysqld.log"
-MASTER_MYERR="$CWD/var/log/mysqld.err"
+MASTER_MYDDIR="$MYSQL_TEST_DIR/var/lib"
+MASTER_MYSOCK="$MYSQL_TEST_DIR/var/tmp/mysql.sock"
+MASTER_MYPID="$MYSQL_TEST_DIR/var/run/mysqld.pid"
+MASTER_MYLOG="$MYSQL_TEST_DIR/var/log/mysqld.log"
+MASTER_MYERR="$MYSQL_TEST_DIR/var/log/mysqld.err"
+
 
 SLAVE_MYPORT=9307
-SLAVE_MYDDIR="$CWD/var/slave-data"
-SLAVE_MYSOCK="$CWD/var/tmp/mysql-slave.sock"
-SLAVE_MYPID="$CWD/var/run/mysqld-slave.pid"
-SLAVE_MYLOG="$CWD/var/log/mysqld-slave.log"
-SLAVE_MYERR="$CWD/var/log/mysqld-slave.err"
+SLAVE_MYDDIR="$MYSQL_TEST_DIR/var/slave-data"
+SLAVE_MYSOCK="$MYSQL_TEST_DIR/var/tmp/mysql-slave.sock"
+SLAVE_MYPID="$MYSQL_TEST_DIR/var/run/mysqld-slave.pid"
+SLAVE_MYLOG="$MYSQL_TEST_DIR/var/log/mysqld-slave.log"
+SLAVE_MYERR="$MYSQL_TEST_DIR/var/log/mysqld-slave.err"
+
+if [ x$SOURCE_DIST = x1 ] ; then
+ MY_BASEDIR=$MYSQL_TEST_DIR
+else
+ MY_BASEDIR=$BASEDIR
+fi  
 
 #++
 # Program Definitions
@@ -81,22 +115,50 @@ RM=/bin/rm
 TIME=/usr/bin/time
 TR=/usr/bin/tr
 XARGS=`which xargs`
-MYSQLD="$BASEDIR/sql/mysqld"
-MYSQL_TEST="$BASEDIR/client/mysqltest"
-MYSQLADMIN="$BASEDIR/client/mysqladmin"
+
+# on source dist, we pick up freshly build executables
+# on binary, use what is installed
+if [ x$SOURCE_DIST = x1 ] ; then
+ MYSQLD="$BASEDIR/sql/mysqld"
+ MYSQL_TEST="$BASEDIR/client/mysqltest"
+ MYSQLADMIN="$BASEDIR/client/mysqladmin"
+ INSTALL_DB="./install_test_db"
+else
+ MYSQLD="$BASEDIR/bin/mysqld"
+ MYSQL_TEST="$BASEDIR/bin/mysqltest"
+ MYSQLADMIN="$BASEDIR/bin/mysqladmin"
+ INSTALL_DB="../scripts/install_test_db -bin"
+fi
+
+
+
 MYSQL_TEST="$MYSQL_TEST --socket=$MASTER_MYSOCK --database=$DB --user=$DBUSER --password=$DBPASSWD --silent"
-INSTALL_DB="$MYBIN/mysql-test_install_db"
 GDB_MASTER_INIT=/tmp/gdbinit.master
 GDB_SLAVE_INIT=/tmp/gdbinit.slave
 
+if [ "$1" = "-force" ] ; then
+ FORCE=1
+ shift 1
+fi
+
 if [ "$1" = "-gcov" ];
 then
+  if [ x$BINARY_DIST = x1 ] ; then
+   echo "Cannot do coverage test without the source - please us source dist"
+   exit 1
+  fi
   DO_GCOV=1
   shift 1
 fi  
 
 if [ "$1" = "-gdb" ];
 then
+# if the user really wanted to run binary dist in a debugger, he can
+# but we should warn him
+  if [ x$BINARY_DIST = x1 ] ; then
+   echo "Note: you will get more meaningful output on a source distribution \
+   compiled with debugging option when running tests with -gdb option"
+  fi
   DO_GDB=1
   shift 1
 fi  
@@ -147,7 +209,7 @@ echo_pass () {
 prompt_user ()
 {
  echo $1
- read
+ read unused
 }
 
 echo_fail () {
@@ -224,7 +286,7 @@ gcov_prepare () {
 	for f in *.h *.cc *.c; do
 	  cp $f $GCOV_SLAVE_SRC/$d
 	done
-	cd $CWD
+	cd $MYSQL_TEST_DIR
    done    
 }
 
@@ -239,12 +301,12 @@ gcov_collect () {
 	for f in *.h *.cc *.c; do
 	    $GCOV $f 2>>$GCOV_MASTER_ERR  >>$GCOV_MASTER_MSG
 	done
-	cd $CWD
+	cd $MYSQL_TEST_DIR
 	cd $GCOV_SLAVE_SRC/$d
 	for f in *.h *.cc *.c; do
 	    $GCOV $f 2>>$GCOV_SLAVE_ERR  >>$GCOV_SLAVE_MSG
 	done
-	cd $CWD
+	cd $MYSQL_TEST_DIR
     done
 
     $ECHO "gcov master info in $GCOV_MASTER_MSG, errors in $GCOV_MASTER_ERR"
@@ -257,7 +319,7 @@ start_master()
     #start master
     master_args="--no-defaults --log-bin \
     	    --server-id=1 \
-            --basedir=$CWD \
+            --basedir=$MY_BASEDIR \
 	    --port=$MASTER_MYPORT \
 	    --core-file \
             --datadir=$MASTER_MYDDIR \
@@ -286,7 +348,7 @@ start_slave()
 	    --master-host=127.0.0.1 \
 	    --master-port=$MASTER_MYPORT \
 	    --core-file \
-            --basedir=$CWD \
+            --basedir=$MY_BASEDIR \
             --datadir=$SLAVE_MYDDIR \
 	    --pid-file=$SLAVE_MYPID \
 	    --port=$SLAVE_MYPORT \
@@ -307,7 +369,7 @@ start_slave()
 mysql_start () {
     start_master
     start_slave
-    cd $CWD
+    cd $MYSQL_TEST_DIR
     return 1
 }
 
@@ -394,7 +456,7 @@ run_testcase ()
   fi  
  fi
 
- cd $CWD
+ cd $MYSQL_TEST_DIR
   
  if [ -f $tf ] ; then
     mytime=`$TIME -p $MYSQL_TEST < $tf 2> $TIMEFILE`
@@ -425,6 +487,13 @@ run_testcase ()
 	$CAT $TIMEFILE
 	$ECHO
 	$ECHO
+	if [ x$FORCE != x1 ] ; then
+	 $SETCOLOR_NORMAL
+	 echo "Aborting, if you want to continue, re-run with -force"
+	 mysql_stop
+	 exit 1
+	fi
+	 
 	$SETCOLOR_NORMAL && $ECHO -n "Restarting mysqld	$DASHBLANK"
 	mysql_restart
 	$SETCOLOR_SUCCESS && echo_ok

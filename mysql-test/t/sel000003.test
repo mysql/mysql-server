@@ -14,4 +14,4 @@
 DROP TABLE IF EXISTS t;
 CREATE TABLE t (name CHAR(20) NOT NULL PRIMARY KEY, score SMALLINT NOT NULL, KEY(score));
 INSERT INTO t VALUES ('Sasha', 20), ('Matt', 20), ('Monty', 10), ('David', 10), ('Tim', 10), ('Jeremy', 10);
-@r/3.23/sel000003.result SELECT COUNT(*) as n, score FROM t GROUP BY score;
+@r/sel000003.result SELECT COUNT(*) as n, score FROM t GROUP BY score;
