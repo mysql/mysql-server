@@ -344,7 +344,16 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     else if (table->next_number_field)
       id=table->next_number_field->val_int();	// Return auto_increment value
 
+    /*
+      Invalidate the table in the query cache if something changed.
+      For the transactional algorithm to work the invalidation must be
+      before binlog writing and ha_autocommit_...
+    */
+    if (info.copied || info.deleted)
+      query_cache_invalidate3(thd, table_list, 1);
+
     transactional_table= table->file->has_transactions();
+
     log_delayed= (transactional_table || table->tmp_table);
     if ((info.copied || info.deleted) && (error <= 0 || !transactional_table))
     {
@@ -362,14 +371,6 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     if (transactional_table)
       error=ha_autocommit_or_rollback(thd,error);
 
-    /*
-      Store table for future invalidation  or invalidate it in
-      the query cache if something changed
-    */
-    if (info.copied || info.deleted)
-    {
-      query_cache_invalidate3(thd, table_list, 1);
-    }
     if (thd->lock)
     {
       mysql_unlock_tables(thd, thd->lock);
@@ -1420,11 +1421,9 @@ void select_insert::send_error(uint errcode,const char *err)
   ::send_error(thd,errcode,err);
   table->file->extra(HA_EXTRA_NO_CACHE);
   table->file->activate_all_index(thd);
-  ha_rollback_stmt(thd);
   if (info.copied || info.deleted)
-  {
     query_cache_invalidate3(thd, table, 1);
-  }
+  ha_rollback_stmt(thd);
 }
 
 
@@ -1435,6 +1434,14 @@ bool select_insert::send_eof()
     error=table->file->activate_all_index(thd);
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
 
+  /*
+    We must invalidate the table in the query cache before binlog writing
+    and ha_autocommit_...
+  */
+
+  if (info.copied || info.deleted)
+    query_cache_invalidate3(thd, table, 1);
+
   /* Write to binlog before commiting transaction */
   if (mysql_bin_log.is_open())
   {
@@ -1444,10 +1451,6 @@ bool select_insert::send_eof()
   }
   if ((error2=ha_autocommit_or_rollback(thd,error)) && ! error)
     error=error2;
-  if (info.copied || info.deleted)
-  {
-    query_cache_invalidate3(thd, table, 1);
-  }
   if (error)
   {
     table->file->print_error(error,MYF(0));

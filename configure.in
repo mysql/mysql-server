@@ -2226,28 +2226,35 @@ AC_SUBST(readline_h_ln_cmd)
 
 
 dnl In order to add new charset, you must add charset name to
-dnl this CHARSETS_AVAILABLE list and sql/share/charsets/Index.
+dnl this CHARSETS_AVAILABLE list and sql/share/charsets/Index.xml.
 dnl If the character set uses strcoll or other special handling,
 dnl you must also create strings/ctype-$charset_name.c
 
 AC_DIVERT_PUSH(0)
-CHARSETS_AVAILABLE="armscii8 big5 cp1251 cp1257
-                    croat czech danish dec8 dos estonia euc_kr gb2312 gbk
-                    german1 greek hebrew hp8 hungarian koi8_ru koi8_ukr
-                    latin1 latin1_de latin2 latin5 sjis swe7 tis620 ucs2 ujis
-                    usa7 utf8 win1250 win1250ch win1251ukr"
-CHARSETS_DEPRECATED="win1251"
-CHARSETS_COMPLEX="big5 czech euc_kr gb2312 gbk latin1_de sjis tis620 ucs2 ujis utf8 win1250ch"
+
+define(CHARSETS_AVAILABLE1,ascii armscii8 ascii big5 cp1250 cp1251 cp1256 cp1257)
+define(CHARSETS_AVAILABLE2,cp850 cp852 cp866 dec8 euckr gb2312 gbk)
+define(CHARSETS_AVAILABLE3,greek hebrew hp8 keybcs2 koi8r koi8u)
+define(CHARSETS_AVAILABLE4,latin1 latin2 latin5 latin7 macce macroman)
+define(CHARSETS_AVAILABLE5,sjis swe7 tis620 ucs2 ujis utf8)
+
 DEFAULT_CHARSET=latin1
+CHARSETS_AVAILABLE="CHARSETS_AVAILABLE1 CHARSETS_AVAILABLE2 CHARSETS_AVAILABLE3 CHARSETS_AVAILABLE4 CHARSETS_AVAILABLE5"
+CHARSETS_COMPLEX="big5 cp1250 euckr gb2312 gbk latin1 latin2 sjis tis620 ucs2 ujis utf8"
+
 AC_DIVERT_POP
 
-dnl fix this later..
-dnl  [  --with-charset=CHARSET  Use CHARSET by default (one of: $CHARSETS_AVAILABLE; Default is $DEFAULT_CHARSET)],
-
 AC_ARG_WITH(charset,
-  [  --with-charset=CHARSET  Use CHARSET by default (Default is latin1)],
-  [default_charset="$withval"],
-  [default_charset="$DEFAULT_CHARSET"])
+   [  --with-charset=CHARSET
+                          Default character set, use one of:
+                          CHARSETS_AVAILABLE1
+                          CHARSETS_AVAILABLE2
+                          CHARSETS_AVAILABLE3
+                          CHARSETS_AVAILABLE4
+                          CHARSETS_AVAILABLE5],
+   [default_charset="$withval"],
+   [default_charset="$DEFAULT_CHARSET"])
+
 
 AC_ARG_WITH(extra-charsets,
   [  --with-extra-charsets=CHARSET[,CHARSET,...]
@@ -2256,73 +2263,77 @@ AC_ARG_WITH(extra-charsets,
   [extra_charsets="$withval"],
   [extra_charsets="none"])
 
+
 AC_MSG_CHECKING("character sets")
 
+CHARSETS="$default_charset latin1 utf8"
+
 if test "$extra_charsets" = no; then
-  CHARSETS=""
+  CHARSETS="$CHARSETS"
 elif test "$extra_charsets" = none; then
-  CHARSETS=""
+  CHARSETS="$CHARSETS"
 elif test "$extra_charsets" = complex; then
-  CHARSETS="$CHARSETS_COMPLEX"
+  CHARSETS="$CHARSETS $CHARSETS_COMPLEX"
 elif test "$extra_charsets" = all; then
-  CHARSETS="$CHARSETS_AVAILABLE $CHARSETS_DEPRECATED"
+  CHARSETS="$CHARSETS $CHARSETS_AVAILABLE"
 else
-  CHARSETS=`echo $extra_charsets | sed -e 's/,/ /g'`
+  EXTRA_CHARSETS=`echo $extra_charsets | sed -e 's/,/ /g'`
+  CHARSETS="$CHARSETS $EXTRA_CHARSETS"
 fi
 
-CHARSETS="$default_charset $CHARSETS"
-
-use_mb="no"
 
 for cs in $CHARSETS
 do
   case $cs in 
     armscii8)
       AC_DEFINE(HAVE_CHARSET_armscii8)
-      use_mb="yes"
+      ;;
+    ascii)
+      AC_DEFINE(HAVE_CHARSET_ascii)
       ;;
     big5)
       AC_DEFINE(HAVE_CHARSET_big5)
-      use_mb="yes"
+      AC_DEFINE(USE_MB)
+      AC_DEFINE(USE_MB_IDENT)
+      ;;
+    cp1250)
+      AC_DEFINE(HAVE_CHARSET_cp1250)
       ;;
     cp1251)
       AC_DEFINE(HAVE_CHARSET_cp1251)
       ;;
+    cp1256)
+      AC_DEFINE(HAVE_CHARSET_cp1256)
+      ;;
     cp1257)
       AC_DEFINE(HAVE_CHARSET_cp1257)
       ;;
-    croat)
-      AC_DEFINE(HAVE_CHARSET_croat)
+    cp850)
+      AC_DEFINE(HAVE_CHARSET_cp850)
       ;;
-    czech)
-      AC_DEFINE(HAVE_CHARSET_czech)
+    cp852)
+      AC_DEFINE(HAVE_CHARSET_cp852)
       ;;
-    danish)
-      AC_DEFINE(HAVE_CHARSET_danish)
+    cp866)
+      AC_DEFINE(HAVE_CHARSET_cp866)
       ;;
     dec8)
       AC_DEFINE(HAVE_CHARSET_dec8)
       ;;
-    dos)
-      AC_DEFINE(HAVE_CHARSET_dos)
-      ;;
-    estonia)
-      AC_DEFINE(HAVE_CHARSET_estonia)
-      ;;
-    euc_kr)
-      AC_DEFINE(HAVE_CHARSET_euc_kr)
-      use_mb="yes"
+    euckr)
+      AC_DEFINE(HAVE_CHARSET_euckr)
+      AC_DEFINE(USE_MB)
+      AC_DEFINE(USE_MB_IDENT)
       ;;
     gb2312)
       AC_DEFINE(HAVE_CHARSET_gb2312)
-      use_mb="yes"
+      AC_DEFINE(USE_MB)
+      AC_DEFINE(USE_MB_IDENT)
       ;;
     gbk)
       AC_DEFINE(HAVE_CHARSET_gbk)
-      use_mb="yes"
-      ;;
-    german1)
-      AC_DEFINE(HAVE_CHARSET_german1)
+      AC_DEFINE(USE_MB)
+      AC_DEFINE(USE_MB_IDENT)
       ;;
     greek)
       AC_DEFINE(HAVE_CHARSET_greek)
@@ -2333,20 +2344,17 @@ do
     hp8)
       AC_DEFINE(HAVE_CHARSET_hp8)
       ;;
-    hungarian)
-      AC_DEFINE(HAVE_CHARSET_hungarian)
+    keybcs2)
+      AC_DEFINE(HAVE_CHARSET_keybcs2)
       ;;
-    koi8_ru)
-      AC_DEFINE(HAVE_CHARSET_koi8_ru)
+    koi8r)
+      AC_DEFINE(HAVE_CHARSET_koi8r)
       ;;
-    koi8_ukr)
-      AC_DEFINE(HAVE_CHARSET_koi8_ukr)
+    koi8u)
+      AC_DEFINE(HAVE_CHARSET_koi8u)
       ;;
     latin1)
       AC_DEFINE(HAVE_CHARSET_latin1)
-      ;;
-    latin1_de)
-      AC_DEFINE(HAVE_CHARSET_latin1_de)
       ;;
     latin2)
       AC_DEFINE(HAVE_CHARSET_latin2)
@@ -2354,9 +2362,19 @@ do
     latin5)
       AC_DEFINE(HAVE_CHARSET_latin5)
       ;;
+    latin7)
+      AC_DEFINE(HAVE_CHARSET_latin7)
+      ;;
+    macce)
+      AC_DEFINE(HAVE_CHARSET_macce)
+      ;;
+    macroman)
+      AC_DEFINE(HAVE_CHARSET_macroman)
+      ;;
     sjis)
       AC_DEFINE(HAVE_CHARSET_sjis)
-      use_mb="yes"
+      AC_DEFINE(USE_MB)
+      AC_DEFINE(USE_MB_IDENT)
       ;;
     swe7)
       AC_DEFINE(HAVE_CHARSET_swe7)
@@ -2366,49 +2384,25 @@ do
       ;;
     ucs2)
       AC_DEFINE(HAVE_CHARSET_ucs2)
-      use_mb="yes"
+      AC_DEFINE(USE_MB)
+      AC_DEFINE(USE_MB_IDENT)
       ;;
     ujis)
       AC_DEFINE(HAVE_CHARSET_ujis)
-      use_mb="yes"
-      ;;
-    usa7)
-      AC_DEFINE(HAVE_CHARSET_usa7)
+      AC_DEFINE(USE_MB)
+      AC_DEFINE(USE_MB_IDENT)
       ;;
     utf8)
       AC_DEFINE(HAVE_CHARSET_utf8)
-      use_mb="yes"
-      ;;
-    win1250)
-      AC_DEFINE(HAVE_CHARSET_win1250)
-      ;;
-    win1250ch)
-      AC_DEFINE(HAVE_CHARSET_win1250ch)
-      ;;
-    win1251)
-      AC_DEFINE(HAVE_CHARSET_win1251)
-      ;;
-    win1251ukr)
-      AC_DEFINE(HAVE_CHARSET_win1251ukr)
+      AC_DEFINE(USE_MB)
+      AC_DEFINE(USE_MB_IDENT)
       ;;
     *)
-      AC_MSG_ERROR([Charset $cs not available. (Available $CHARSETS_AVAILABLE).
+      AC_MSG_ERROR([Charset $cs not available. (Available are: $CHARSETS_AVAILABLE).
       See the Installation chapter in the Reference Manual.]);
   esac
 done
 
-dnl Always compile latin1
-AC_DEFINE(HAVE_CHARSET_latin1)
-
-dnl Always compile utf8
-AC_DEFINE(HAVE_CHARSET_utf8)
-use_mb=yes
-
-if test "$use_mb" = "yes"
-then
-  AC_DEFINE(USE_MB)
-  AC_DEFINE(USE_MB_IDENT)
-fi
 
 AC_SUBST(default_charset)
 AC_DEFINE_UNQUOTED(DEFAULT_CHARSET_NAME,"$default_charset")

@@ -1766,7 +1766,10 @@ following connection establishment sequence is followed:
 +--------------------------------------------------------------------+
 | Header        | CLIENT_xxx options supported | max_allowed_packet  |
 |               | by client                    | for client          |
-|               | 2 Bytes                      | 3 bytes             |
+|               | 4 Bytes                      | 4 bytes             |
+|--------------------------------------------------------------------|
+| Character set | Reserved for the future			     |
+| 1 Bytes       | 23 bytes                                           |
 |--------------------------------------------------------------------|
 | User Name | 0x00   | Crypted Password | 0x00   | Database Name     |
 | n Bytes   | 1 Byte | 8 Bytes          | 1 Byte | n Bytes           |
@@ -2326,7 +2329,7 @@ Warnings
 @item
 Prepared statements
 @item
-Binary protocol (will be faster than the current protocol that
+Binary protocol (is be faster than the current protocol that
 converts everything to strings)
 @end itemize
 
@@ -2335,7 +2338,7 @@ What has changed in 4.1 are:
 
 @itemize @bullet
 @item
-A lot of new field information (database, real table name etc)
+A lot of new field information (catalog, database, real table name etc)
 @item
 The 'ok' packet has more status fields
 @item
@@ -2374,15 +2377,16 @@ The field description result set contains the meta info for a result set.
 
 @multitable @columnfractions .20 .80
 @item Type   @tab Comment
+@item string @tab Catalog name (for 5.x)
 @item string @tab Database name
 @item string @tab Table name alias (or table name if no alias)
 @item string @tab Real table name
 @item string @tab Alias for column name (or column name if not used)
 
-@item 11 byte @tab Fixed length fields in one field part:
+@item 12 byte @tab Fixed length fields in one field part:
 @itemize
 @item 2 byte int @tab Character set number
-@item 3 byte int @tab Length of column definition
+@item 4 byte int @tab Length of column definition
 @item 1 byte int @tab Enum value for field type
 @item 3 byte int @tab 2 byte column flags (NOT_NULL_FLAG etc..) + 1 byte number of decimals.
 @item 2 byte int @tab zero (reserved for future use)
@@ -2457,7 +2461,9 @@ The error packet has the following structure:
 @item Size  @tab Comment
 @item 1	    @tab 255  Error packet marker
 @item 2	    @tab Error code
-@item 1-255 @tab Null terminated error message
+@item 1	    @tab '#' marker that SQLSTATE follows
+@item 6     @tab SQLSTATE code (000000 for many messages)
+@item 1-512 @tab Null terminated error message
 @end multitable
 
 The client/server protocol is designed in such a way that a packet

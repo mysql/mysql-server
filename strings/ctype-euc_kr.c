@@ -30,7 +30,7 @@
 #include "m_string.h"
 #include "m_ctype.h"
 
-#ifdef HAVE_CHARSET_euc_kr
+#ifdef HAVE_CHARSET_euckr
 
 
 static uchar NEAR ctype_euc_kr[257] =

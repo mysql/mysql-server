@@ -560,12 +560,12 @@ innobase_query_caching_of_table_permitted(
 #endif
 	if (row_search_check_if_query_cache_permitted(trx, norm_name)) {
 
-		printf("Query cache for %s permitted\n", norm_name);
+		/* printf("Query cache for %s permitted\n", norm_name); */
 
 		return((my_bool)TRUE);
 	}
 
-	printf("Query cache for %s NOT permitted\n", norm_name);
+	/* printf("Query cache for %s NOT permitted\n", norm_name); */
 
 	return((my_bool)FALSE);
 }
