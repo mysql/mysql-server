@@ -36,9 +36,9 @@ INCLUDES =		-I$(top_srcdir)/include $(openssl_includes)
 LIBS =			@CLIENT_LIBS@
 LDADD =			@CLIENT_EXTRA_LDFLAGS@ \
                         $(top_builddir)/libmysql/libmysqlclient.la
-client_test_LDADD=      $(LDADD) $(CXXLDFLAGS) \
+mysql_client_test_LDADD= $(LDADD) $(CXXLDFLAGS) \
                         $(top_builddir)/mysys/libmysys.a
-client_test_SOURCES=    mysql_client_test.c
+mysql_client_test_SOURCES= mysql_client_test.c
 insert_test_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 select_test_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
 
