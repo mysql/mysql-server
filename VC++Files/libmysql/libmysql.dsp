@@ -487,6 +487,10 @@ SOURCE=..\strings\strnmov.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\strings\strtod.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\strings\strtoll.c
 # End Source File
 # Begin Source File

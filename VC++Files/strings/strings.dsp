@@ -84,10 +84,6 @@ LIB32=xilink6.exe -lib
 # Name "strings - Win32 Debug"
 # Begin Source File
 
-SOURCE=.\atof.c
-# End Source File
-# Begin Source File
-
 SOURCE=.\bchange.c
 # End Source File
 # Begin Source File
@@ -229,6 +225,10 @@ SOURCE=.\strmov.c
 # Begin Source File
 
 SOURCE=.\strnmov.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\strtod.c
 # End Source File
 # Begin Source File
 
