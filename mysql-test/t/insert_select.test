@@ -68,3 +68,22 @@ WHERE numeropost=9 ORDER BY numreponse ASC;
 
 DROP TABLE IF EXISTS crash1,crash2;
 
+
+# Addendum by Guilhem:
+# Check if a partly-completed INSERT SELECT in a MyISAM table goes
+# into the binlog
+drop table if exists t1;
+drop table if exists t2;
+create table t1(a int, unique(a));
+insert into t1 values(2);
+create table t2(a int);
+insert into t2 values(1),(2);
+reset master;
+--error 1062
+insert into t1 select * from t2;
+# The above should produce an error, but still be in the binlog;
+# verify the binlog :
+let $VERSION=`select version()`;
+--replace_result $VERSION VERSION
+show binlog events;
+drop table t1, t2;

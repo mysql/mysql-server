@@ -2,7 +2,7 @@
 .SH NAME
 mysql_fix_privilege_tables \- Fixes MySQL privilege tables.
 .SH SYNOPSIS
-mysql_fix_privilege_tables [options]
+mysql_fix_privilege_tables [mysql_root_password]
 .SH DESCRIPTION
 This scripts updates the mysql.user, mysql.db, mysql.host and the
 mysql.func tables to MySQL 3.22.14 and above.
@@ -10,10 +10,9 @@ mysql.func tables to MySQL 3.22.14 and above.
 This is needed if you want to use the new GRANT functions,
 CREATE AGGREGATE FUNCTION or want to use the more secure passwords in 3.23
 
-If you get 'Access denied' errors, you should run this script again
-and give the MySQL root user password as an argument!
+If you get 'Access denied' errors, run the script again
+and give the MySQL root user password as an argument.
 
-For more information start the program with '--help'.
 .SH "SEE ALSO"
 mysql (1), mysqld (1)
 .SH AUTHOR

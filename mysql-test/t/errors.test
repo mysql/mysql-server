@@ -1,0 +1,32 @@
+#
+# Test some error conditions
+#
+
+drop table if exists t1;
+--error 1146
+insert into t1 values(1);
+--error 1146
+delete from t1;
+--error 1146
+update t1 set a=1;
+
+#
+
+create table t1 (a int);
+--error 1054
+select count(test.t1.b) from t1;
+--error 1109
+select count(not_existing_database.t1) from t1;
+--error 1109
+ select count(not_existing_database.t1.a) from t1;
+--error 1044,1146
+select count(not_existing_database.t1.a) from not_existing_database.t1;
+--error 1054
+select 1 from t1 order by 2;
+--error 1054
+select 1 from t1 group by 2;
+--error 1054
+select 1 from t1 order by t1.b;
+--error 1054
+select count(*),b from t1;
+drop table t1;
