@@ -422,3 +422,13 @@ max(t)
 2004-01-01 01:00:00
 2004-02-01 00:00:00
 drop table t1;
+set sql_mode='maxdb';
+create table t1 (a timestamp, b timestamp(19));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE "t1" (
+  "a" datetime default NULL,
+  "b" datetime default NULL
+)
+set sql_mode='';
+drop table t1;
