@@ -128,6 +128,7 @@ public:
   bool is_null() { (void) val_int(); return null_value; }
   friend class udf_handler;
   Field *tmp_table_field(TABLE *t_arg);
+  bool check_loop(uint id);
 };
 
 
@@ -606,6 +607,13 @@ public:
     const_item_cache&=  item->const_item();
     with_sum_func= with_sum_func || item->with_sum_func;
   }
+  bool check_loop(uint id)
+  {
+    DBUG_ENTER("Item_func_field::check_loop");
+    if (Item_int_func::check_loop(id))
+      DBUG_RETURN(1);
+    DBUG_RETURN(item->check_loop(id));
+  }
 };
 
 
@@ -971,6 +979,7 @@ public:
 
   bool fix_index();
   void init_search(bool no_order);
+  bool check_loop(uint id);
 };
 
 

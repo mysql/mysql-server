@@ -1,6 +1,8 @@
 select (select 2);
 SELECT (SELECT 1) UNION SELECT (SELECT 2);
 SELECT (SELECT (SELECT 0 UNION SELECT 0));
+-- error 1243
+SELECT (SELECT 1 FROM (SELECT 1) HAVING a=1) as a;
 drop table if exists t1,t2,t3,t4,t5,attend,clinic,inscrit;
 create table t1 (a int);
 create table t2 (a int, b int);
@@ -18,7 +20,7 @@ insert into t3 values (6),(7),(3);
 select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1);
 select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1) 
 union (select * from t4 order by a limit 2) limit 3;
-select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1) 
+select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1)
 union (select * from t4 where t4.b=(select max(t2.a)*4 from t2) order by a);
 explain select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1) 
 union (select * from t4 where t4.b=(select max(t2.a)*4 from t2) order by a);

@@ -244,7 +244,8 @@ class JOIN :public Sql_alloc
   int global_optimize();
   int reinit();
   void exec();
-  int cleanup(THD *thd);  
+  int cleanup(THD *thd);
+  bool check_loop(uint id);
 };
 
 

@@ -70,6 +70,7 @@ public:
   bool fix_fields(THD *thd, TABLE_LIST *tables, Item **ref);
   virtual void fix_length_and_dec();
   table_map used_tables() const;
+  bool check_loop(uint id);
 
   friend class select_subselect;
 };
@@ -176,6 +177,7 @@ public:
   virtual uint cols()= 0; /* return number of columnss in select */
   virtual bool depended()= 0; /* depended from outer select */
   enum Item_result type() { return res_type; }
+  virtual bool check_loop(uint id)= 0;
 };
 
 class subselect_single_select_engine: public subselect_engine
@@ -189,11 +191,12 @@ public:
   subselect_single_select_engine(THD *thd, st_select_lex *select,
 				 select_subselect *result,
 				 Item_subselect *item);
-  virtual int prepare();
-  virtual void fix_length_and_dec();
-  virtual int exec();
-  virtual uint cols();
-  virtual bool depended();
+  int prepare();
+  void fix_length_and_dec();
+  int exec();
+  uint cols();
+  bool depended();
+  bool check_loop(uint id);
 };
 
 class subselect_union_engine: public subselect_engine
@@ -204,9 +207,10 @@ public:
 			 st_select_lex_unit *u,
 			 select_subselect *result,
 			 Item_subselect *item);
-  virtual int prepare();
-  virtual void fix_length_and_dec();
-  virtual int exec();
-  virtual uint cols();
-  virtual bool depended();
+  int prepare();
+  void fix_length_and_dec();
+  int exec();
+  uint cols();
+  bool depended();
+  bool check_loop(uint id);
 };
