@@ -38242,23 +38242,23 @@ Also the small archived InnoDB log file
 [mysqld]
 # You can write your other MySQL server options here
 # ...
-#                                        Data file(s) must be able to
-#                                        hold your data and indexes.
-#                                        Make sure you have enough
-#                                        free disk space.
+#                                  Data file(s) must be able to
+#                                  hold your data and indexes.
+#                                  Make sure you have enough
+#                                  free disk space.
 innodb_data_file_path = ibdata1:10M:autoextend
-#                                        Set buffer pool size to
-#                                        50 - 80 % of your computer's
-#                                        memory
+#                                  Set buffer pool size to
+#                                  50 - 80 % of your computer's
+#                                  memory
 set-variable = innodb_buffer_pool_size=70M
 set-variable = innodb_additional_mem_pool_size=10M
-#                                        Set the log file size to about
-#                                        25 % of the buffer pool size
+#                                  Set the log file size to about
+#                                  25 % of the buffer pool size
 set-variable = innodb_log_file_size=20M
 set-variable = innodb_log_buffer_size=8M
-#                                        Set ..flush_log_at_trx_commit
-#                                        to 0 if you can afford losing
-#                                        some last transactions 
+#                                  Set ..flush_log_at_trx_commit
+#                                  to 0 if you can afford losing
+#                                  some last transactions 
 innodb_flush_log_at_trx_commit=1
 @end example
 
@@ -38336,28 +38336,28 @@ have to create them yourself.} Use the Unix or MS-DOS
 # You can write your other MySQL server options here
 # ...
 innodb_data_home_dir =
-#                                        Data files must be able to
-#                                        hold your data and indexes
+#                                  Data files must be able to
+#                                  hold your data and indexes
 innodb_data_file_path = /ibdata/ibdata1:2000M;/dr2/ibdata/ibdata2:2000M:autoextend
-#                                        Set buffer pool size to
-#                                        50 - 80 % of your computer's
-#                                        memory, but make sure on Linux
-#                                        x86 total memory usage is
-#                                        < 2 GB
+#                                  Set buffer pool size to
+#                                  50 - 80 % of your computer's
+#                                  memory, but make sure on Linux
+#                                  x86 total memory usage is
+#                                  < 2 GB
 set-variable = innodb_buffer_pool_size=1G
 set-variable = innodb_additional_mem_pool_size=20M
 innodb_log_group_home_dir = /dr3/iblogs
-#                                        .._log_arch_dir must be the same
-#                                        as .._log_group_home_dir
+#                                  .._log_arch_dir must be the same
+#                                  as .._log_group_home_dir
 innodb_log_arch_dir = /dr3/iblogs
 set-variable = innodb_log_files_in_group=3
-#                                        Set the log file size to about
-#                                        15 % of the buffer pool size
+#                                  Set the log file size to about
+#                                  15 % of the buffer pool size
 set-variable = innodb_log_file_size=150M
 set-variable = innodb_log_buffer_size=8M
-#                                        Set ..flush_log_at_trx_commit to
-#                                        0 if you can afford losing
-#                                        some last transactions 
+#                                  Set ..flush_log_at_trx_commit to
+#                                  0 if you can afford losing
+#                                  some last transactions 
 innodb_flush_log_at_trx_commit=1
 set-variable = innodb_lock_wait_timeout=50
 #innodb_flush_method=fdatasync
