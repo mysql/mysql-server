@@ -5493,6 +5493,6 @@ void Field::set_warning(const uint level, const uint code)
 {
   THD *thd= current_thd;
   thd->cuted_fields++;
-  push_warning_printf(thd, (MYSQL_ERROR::enum_warning_level)level, 
+  push_warning_printf(thd, (MYSQL_ERROR::enum_warning_level) level, 
                       code, ER(code), field_name, thd->row_count);
 }
