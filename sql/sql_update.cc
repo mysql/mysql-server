@@ -478,7 +478,14 @@ int multi_update::prepare(List<Item> &not_used_values)
       table->used_keys=0;
       table->pos_in_table_list= tl;
     }
+    else
+    {
+      table_ref->lock_type=TL_READ;
+      mysql_unlock_some_tables(thd,&table,1);
+    }
   }
+
+
   table_count=  update.elements;
   update_tables= (TABLE_LIST*) update.first;
 
