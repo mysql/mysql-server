@@ -1473,7 +1473,7 @@ void mysql_cb_init()
 }
 
 
-/ *To get the name of the NetWare volume having MySQL data folder */
+/* To get the name of the NetWare volume having MySQL data folder */
 
 void getvolumename()
 {
