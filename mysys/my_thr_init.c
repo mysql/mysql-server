@@ -105,19 +105,33 @@ static long thread_id=0;
 my_bool my_thread_init(void)
 {
   struct st_my_thread_var *tmp;
+#ifdef EXTRA_DEBUG
+  fprintf(stderr,"my_thread_init(): thread_id=%ld\n",pthread_self());
+#endif  
 #if !defined(__WIN__) || defined(USE_TLS) || ! defined(SAFE_MUTEX)
   pthread_mutex_lock(&THR_LOCK_lock);
 #endif
 #if !defined(__WIN__) || defined(USE_TLS)
   if (my_pthread_getspecific(struct st_my_thread_var *,THR_KEY_mysys))
   {
+#ifdef EXTRA_DEBUG
+    fprintf(stderr,"my_thread_init() called more than once in thread %ld\n",
+	    pthread_self());
+#endif    
     pthread_mutex_unlock(&THR_LOCK_lock);
     return 0;						/* Safequard */
   }
     /* We must have many calloc() here because these are freed on
        pthread_exit */
+    /*
+      Sasha: the above comment does not make sense. I have changed calloc() to
+      equivalent my_malloc() but it was calloc() before. It seems like the
+      comment is out of date - we always call my_thread_end() before
+      pthread_exit() to clean up. Note that I have also fixed up DBUG
+      code to be able to call it from my_thread_init()
+     */
   if (!(tmp=(struct st_my_thread_var *)
-	calloc(1,sizeof(struct st_my_thread_var))))
+	my_malloc(sizeof(struct st_my_thread_var),MYF(MY_WME|MY_ZEROFILL))))
   {
     pthread_mutex_unlock(&THR_LOCK_lock);
     return 1;
@@ -125,6 +139,9 @@ my_bool my_thread_init(void)
   pthread_setspecific(THR_KEY_mysys,tmp);
 
 #else
+  /* Sasha: TODO - explain what exactly we are doing on Windows
+     At first glance, I have a hard time following the code
+   */
   if (THR_KEY_mysys.id)   /* Already initialized */
   {
 #if !defined(__WIN__) || defined(USE_TLS) || ! defined(SAFE_MUTEX)
@@ -146,9 +163,18 @@ my_bool my_thread_init(void)
 void my_thread_end(void)
 {
   struct st_my_thread_var *tmp=my_thread_var;
+#ifdef EXTRA_DEBUG
+  fprintf(stderr,"my_thread_end(): tmp=%p,thread_id=%ld\n",
+	  tmp,pthread_self());
+#endif  
   if (tmp)
   {
 #if !defined(DBUG_OFF)
+    /* Sasha:  tmp->dbug is allocated inside DBUG library
+       so for now we will not mess with trying to use my_malloc()/
+       my_free(), but in the future it would be nice to figure out a
+       way to do it
+    */
     if (tmp->dbug)
     {
       free(tmp->dbug);
@@ -160,12 +186,15 @@ void my_thread_end(void)
 #endif
     pthread_mutex_destroy(&tmp->mutex);
 #if (!defined(__WIN__) && !defined(OS2)) || defined(USE_TLS)
-    free(tmp);
+    /* we need to setspecific to 0 BEFORE we call my_free, as my_free
+       uses some DBUG_ macros that will use the follow the specific
+       pointer after the block it is pointing to has been freed if
+       specific does not get reset first
+    */
+    pthread_setspecific(THR_KEY_mysys,0);
+    my_free((gptr)tmp,MYF(MY_WME));
 #endif
   }
-#if (!defined(__WIN__) && !defined(OS2)) || defined(USE_TLS)
-  pthread_setspecific(THR_KEY_mysys,0);
-#endif
 }
 
 struct st_my_thread_var *_my_thread_var(void)
