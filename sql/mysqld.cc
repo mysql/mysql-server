@@ -3000,7 +3000,7 @@ struct my_option my_long_options[] =
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   {"default-table-type", OPT_TABLE_TYPE,
    "Set the default table type for tables", 0, 0,
-   0, GET_NO_ARG, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"delay-key-write", OPT_DELAY_KEY_WRITE, "Type of DELAY_KEY_WRITE",
    0,0,0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"delay-key-write-for-all-tables", OPT_DELAY_KEY_WRITE_ALL,
