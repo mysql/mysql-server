@@ -76,34 +76,34 @@ abcn1n2
 NULL
 NULL
 NULL
-show binlog events from 141;
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
-slave-bin.000001	141	User var	2	141	@i1=12345678901234
-slave-bin.000001	184	User var	2	184	@i2=-12345678901234
-slave-bin.000001	227	User var	2	227	@i3=0
-slave-bin.000001	270	User var	2	270	@i4=-1
-slave-bin.000001	313	Query	1	313	use `test`; insert into t1 values (@i1), (@i2), (@i3), (@i4)
-slave-bin.000001	396	User var	2	396	@r1=12.5
-slave-bin.000001	439	User var	2	439	@r2=-12.5
-slave-bin.000001	482	Query	1	482	use `test`; insert into t1 values (@r1), (@r2)
-slave-bin.000001	551	User var	2	551	@s1='This is a test'
-slave-bin.000001	600	User var	2	600	@s2=''
-slave-bin.000001	635	User var	2	635	@s3='abc'def'
-slave-bin.000001	677	User var	2	677	@s4='abc\def'
-slave-bin.000001	719	User var	2	719	@s5='abc'def'
-slave-bin.000001	761	Query	1	761	use `test`; insert into t1 values (@s1), (@s2), (@s3), (@s4), (@s5)
-slave-bin.000001	851	User var	2	851	@n1=NULL
-slave-bin.000001	877	Query	1	877	use `test`; insert into t1 values (@n1)
-slave-bin.000001	939	User var	2	939	@n2=NULL
-slave-bin.000001	965	Query	1	965	use `test`; insert into t1 values (@n2)
-slave-bin.000001	1027	Query	1	1027	use `test`; insert into t1 values (@a:=0), (@a:=@a+1), (@a:=@a+1)
-slave-bin.000001	1115	User var	2	1115	@a=2
-slave-bin.000001	1157	Query	1	1157	use `test`; insert into t1 values (@a+(@b:=@a+1))
-slave-bin.000001	1229	User var	2	1229	@q='abc'
-slave-bin.000001	1266	Query	1	1266	use `test`; insert t1 values (@q), (@q:=concat(@q, 'n1')), (@q:=concat(@q, 'n2'))
-slave-bin.000001	1370	User var	2	1370	@a=5
-slave-bin.000001	1412	Query	1	1412	use `test`; insert into t1 values (@a),(@a)
-slave-bin.000001	1478	User var	2	1478	@a=NULL
-slave-bin.000001	1503	Query	1	1503	use `test`; insert into t1 values (@a),(@a),(@a*5)
+show binlog events from 179;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000001	179	User var	2	222	@i1=12345678901234
+slave-bin.000001	222	User var	2	265	@i2=-12345678901234
+slave-bin.000001	265	User var	2	308	@i3=0
+slave-bin.000001	308	User var	2	351	@i4=-1
+slave-bin.000001	351	Query	1	456	use `test`; insert into t1 values (@i1), (@i2), (@i3), (@i4)
+slave-bin.000001	456	User var	2	499	@r1=12.5
+slave-bin.000001	499	User var	2	542	@r2=-12.5
+slave-bin.000001	542	Query	1	633	use `test`; insert into t1 values (@r1), (@r2)
+slave-bin.000001	633	User var	2	682	@s1='This is a test'
+slave-bin.000001	682	User var	2	717	@s2=''
+slave-bin.000001	717	User var	2	759	@s3='abc'def'
+slave-bin.000001	759	User var	2	801	@s4='abc\def'
+slave-bin.000001	801	User var	2	843	@s5='abc'def'
+slave-bin.000001	843	Query	1	955	use `test`; insert into t1 values (@s1), (@s2), (@s3), (@s4), (@s5)
+slave-bin.000001	955	User var	2	981	@n1=NULL
+slave-bin.000001	981	Query	1	1065	use `test`; insert into t1 values (@n1)
+slave-bin.000001	1065	User var	2	1091	@n2=NULL
+slave-bin.000001	1091	Query	1	1175	use `test`; insert into t1 values (@n2)
+slave-bin.000001	1175	Query	1	1285	use `test`; insert into t1 values (@a:=0), (@a:=@a+1), (@a:=@a+1)
+slave-bin.000001	1285	User var	2	1327	@a=2
+slave-bin.000001	1327	Query	1	1421	use `test`; insert into t1 values (@a+(@b:=@a+1))
+slave-bin.000001	1421	User var	2	1458	@q='abc'
+slave-bin.000001	1458	Query	1	1584	use `test`; insert t1 values (@q), (@q:=concat(@q, 'n1')), (@q:=concat(@q, 'n2'))
+slave-bin.000001	1584	User var	2	1626	@a=5
+slave-bin.000001	1626	Query	1	1714	use `test`; insert into t1 values (@a),(@a)
+slave-bin.000001	1714	User var	2	1739	@a=NULL
+slave-bin.000001	1739	Query	1	1834	use `test`; insert into t1 values (@a),(@a),(@a*5)
 drop table t1;
 stop slave;

@@ -339,6 +339,15 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
         but not the data written to the relay log (*conversion*), which is in
         format 4 (slave's).
       */
+      /*
+        Set 'created' to 0, so that in next relay logs this event does not trigger
+        cleaning actions on the slave in
+        Format_description_log_event::exec_event().
+        Set 'log_pos' to 0 to show that it's an artificial event.
+      */
+      description_event_for_queue->created= 0;
+      description_event_for_queue->log_pos= 0;
+      
       if (description_event_for_queue->write(&log_file))
         goto err;
       bytes_written+= description_event_for_queue->get_event_len();

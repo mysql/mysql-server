@@ -328,30 +328,30 @@ int purge_master_logs_before_date(THD* thd, time_t purge_time)
   return purge_error_message(thd ,res);
 }
 
-int test_for_non_eof_log_read_errors(int error, const char *errmsg)
+int test_for_non_eof_log_read_errors(int error, const char **errmsg)
 {
   if (error == LOG_READ_EOF) 
     return 0;
   my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
   switch (error) {
   case LOG_READ_BOGUS:
-    errmsg = "bogus data in log event";
+    *errmsg = "bogus data in log event";
     break;
   case LOG_READ_TOO_LARGE:
-    errmsg = "log event entry exceeded max_allowed_packet; \
+    *errmsg = "log event entry exceeded max_allowed_packet; \
 Increase max_allowed_packet on master";
     break;
   case LOG_READ_IO:
-    errmsg = "I/O error reading log event";
+    *errmsg = "I/O error reading log event";
     break;
   case LOG_READ_MEM:
-    errmsg = "memory allocation failed reading log event";
+    *errmsg = "memory allocation failed reading log event";
     break;
   case LOG_READ_TRUNC:
-    errmsg = "binlog truncated in the middle of event";
+    *errmsg = "binlog truncated in the middle of event";
     break;
   default:
-    errmsg = "unknown error reading log event on the master";
+    *errmsg = "unknown error reading log event on the master";
     break;
   }
   return error;
@@ -519,7 +519,7 @@ impossible position";
        }
      }
      else
-       if (test_for_non_eof_log_read_errors(error, errmsg))
+       if (test_for_non_eof_log_read_errors(error, &errmsg))
          goto err;
      /* 
         else: it's EOF, nothing to do, go on reading next events, the
@@ -573,7 +573,7 @@ impossible position";
       in the-master-of-this-master's binlog.
     */
 
-    if (test_for_non_eof_log_read_errors(error, errmsg))
+    if (test_for_non_eof_log_read_errors(error, &errmsg))
       goto err;
 
     if (!(flags & BINLOG_DUMP_NON_BLOCK) &&
@@ -1349,7 +1349,10 @@ int show_binlog_events(THD* thd)
     if (ev)
     {
       if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
+      {
+        delete description_event;
         description_event= (Format_description_log_event*) ev;
+      }
       else
         delete ev;
     }

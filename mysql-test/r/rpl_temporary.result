@@ -24,19 +24,19 @@ f
 5
 7
 show binlog events;
-Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
-master-bin.000001	4	Start	1	4	Server ver: VERSION, Binlog ver: 3
-master-bin.000001	79	Query	1	79	use `test`; create table t1(f int)
-master-bin.000001	136	Query	1	136	use `test`; create table t2(f int)
-master-bin.000001	193	Query	1	193	use `test`; insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10)
-master-bin.000001	290	Query	1	290	use `test`; create temporary table t3(f int)
-master-bin.000001	357	Query	1	357	use `test`; insert into t3 select * from t1 where f<6
-master-bin.000001	433	Query	1	433	use `test`; create temporary table t3(f int)
-master-bin.000001	500	Query	1	500	use `test`; insert into t2 select count(*) from t3
-master-bin.000001	573	Query	1	573	use `test`; insert into t3 select * from t1 where f>=4
-master-bin.000001	650	Query	1	650	use `test`; drop temporary table t3
-master-bin.000001	708	Query	1	708	use `test`; insert into t2 select count(*) from t3
-master-bin.000001	781	Query	1	781	use `test`; drop temporary table t3
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	4	Format_desc	1	95	Server ver: VERSION, Binlog ver: 4
+master-bin.000001	95	Query	1	174	use `test`; create table t1(f int)
+master-bin.000001	174	Query	1	253	use `test`; create table t2(f int)
+master-bin.000001	253	Query	1	372	use `test`; insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10)
+master-bin.000001	372	Query	1	461	use `test`; create temporary table t3(f int)
+master-bin.000001	461	Query	1	559	use `test`; insert into t3 select * from t1 where f<6
+master-bin.000001	559	Query	1	648	use `test`; create temporary table t3(f int)
+master-bin.000001	648	Query	1	743	use `test`; insert into t2 select count(*) from t3
+master-bin.000001	743	Query	1	842	use `test`; insert into t3 select * from t1 where f>=4
+master-bin.000001	842	Query	1	922	use `test`; drop temporary table t3
+master-bin.000001	922	Query	1	1017	use `test`; insert into t2 select count(*) from t3
+master-bin.000001	1017	Query	1	1097	use `test`; drop temporary table t3
 drop table t1, t2;
 use test;
 SET TIMESTAMP=1040323920;

@@ -613,6 +613,13 @@ public:
     db - currently selected database
     catalog - currently selected catalog
     ip - client IP
+    WARNING: some members of THD (currently 'db', 'catalog' and 'query')  are
+    set and alloced by the slave SQL thread (for the THD of that thread); that
+    thread is (and must remain, for now) the only responsible for freeing these
+    3 members. If you add members here, and you add code to set them in
+    replication, don't forget to free_them_and_set_them_to_0 in replication
+    properly. For details see the 'err:' label of the pthread_handler_decl of
+    the slave SQL thread, in sql/slave.cc.
    */
   char	  *host,*user,*priv_user,*db,*catalog,*ip;
   char	  priv_host[MAX_HOSTNAME];

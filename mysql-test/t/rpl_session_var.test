@@ -3,7 +3,7 @@
 
 source include/master-slave.inc;
 drop table if exists t1;
-create table t1(a varchar(10),b int);
+create table t1(a varchar(100),b int);
 set @@session.sql_mode=pipes_as_concat;
 insert into t1 values('My'||'SQL', 1);
 set @@session.sql_mode=default;
