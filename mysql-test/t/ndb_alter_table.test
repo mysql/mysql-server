@@ -31,6 +31,7 @@ col4 varchar(4) not null,
 col5 enum('PENDING', 'ACTIVE', 'DISABLED') not null,
 col6 int not null, to_be_deleted int)  ENGINE=ndbcluster;
 show table status;
+SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
 insert into t1 values
 (0,4,3,5,"PENDING",1,7),(NULL,4,3,5,"PENDING",1,7),(31,4,3,5,"PENDING",1,7), (7,4,3,5,"PENDING",1,7), (NULL,4,3,5,"PENDING",1,7), (100,4,3,5,"PENDING",1,7), (99,4,3,5,"PENDING",1,7), (8,4,3,5,"PENDING",1,7), (NULL,4,3,5,"PENDING",1,7);
 show table status;
