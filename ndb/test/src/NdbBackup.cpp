@@ -69,7 +69,11 @@ NdbBackup::getBackupDataDirForNode(int _node_id){
   /**
    * Fetch configuration from management server
    */
-  ConfigRetriever cr(0, NODE_TYPE_API);
+  LocalConfig lc;
+  if (!lc.init(0,0)) {
+    abort();
+  }
+  ConfigRetriever cr(lc, 0, NODE_TYPE_API);
   ndb_mgm_configuration * p = 0;
 
   BaseString tmp; tmp.assfmt("%s:%d", host.c_str(), port);
