@@ -38,6 +38,13 @@ bool opt_sporadic_binlog_dump_fail = 0;
 static int binlog_dump_count = 0;
 #endif
 
+#ifdef SIGNAL_WITH_VIO_CLOSE
+#define KICK_SLAVE { slave_thd->close_active_vio(); \
+  thr_alarm_kill(slave_real_id); }
+#else
+#define KICK_SLAVE thr_alarm_kill(slave_real_id);
+#endif
+
 static Slave_log_event* find_slave_event(IO_CACHE* log,
 					 const char* log_file_name,
 					 char* errmsg);
@@ -700,10 +707,7 @@ int stop_slave(THD* thd, bool net_report )
   if (slave_running)
   {
     abort_slave = 1;
-    thr_alarm_kill(slave_real_id);
-#ifdef SIGNAL_WITH_VIO_CLOSE
-    slave_thd->close_active_vio();
-#endif
+    KICK_SLAVE;
     // do not abort the slave in the middle of a query, so we do not set
     // thd->killed for the slave thread
     thd->proc_info = "waiting for slave to die";
@@ -728,7 +732,7 @@ int stop_slave(THD* thd, bool net_report )
 #endif
       pthread_cond_timedwait(&COND_slave_stopped, &LOCK_slave, &abstime);
       if (slave_running)
-        thr_alarm_kill(slave_real_id);
+        KICK_SLAVE;
     }
   }
   else
@@ -818,7 +822,7 @@ int change_master(THD* thd)
   if ((slave_was_running = slave_running))
   {
     abort_slave = 1;
-    thr_alarm_kill(slave_real_id);
+    KICK_SLAVE;
     thd->proc_info = "waiting for slave to die";
     while (slave_running)
       pthread_cond_wait(&COND_slave_stopped, &LOCK_slave); // wait until done
@@ -1470,7 +1474,7 @@ int load_master_data(THD* thd)
   if ((slave_was_running = slave_running))
   {
     abort_slave = 1;
-    thr_alarm_kill(slave_real_id);
+    KICK_SLAVE;
     thd->proc_info = "waiting for slave to die";
     while (slave_running)
       pthread_cond_wait(&COND_slave_stopped, &LOCK_slave); // wait until done
