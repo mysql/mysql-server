@@ -454,7 +454,7 @@ int             STDCALL mysql_add_slave(MYSQL* mysql, const char* host,
 					const char* passwd);
 
 int		STDCALL mysql_shutdown(MYSQL *mysql,
-                                       enum enum_shutdown_level
+                                       enum mysql_enum_shutdown_level
                                        shutdown_level);
 int		STDCALL mysql_dump_debug_info(MYSQL *mysql);
 int		STDCALL mysql_refresh(MYSQL *mysql,
