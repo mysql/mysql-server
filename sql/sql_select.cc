@@ -1898,7 +1898,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
       best=best_time=records=DBL_MAX;
       KEYUSE *best_key=0;
       uint best_max_key_part=0;
-      my_bool found_constrain= 0;
+      my_bool found_constraint= 0;
 
       if (s->keyuse)
       {						/* Use key if possible */
@@ -1979,7 +1979,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
           }
           else
           {
-	  found_constrain= 1;
+	  found_constraint= 1;
 	  /*
 	    Check if we found full key
 	  */
@@ -2133,12 +2133,28 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
 	    s->table->used_keys && best_key) &&
 	  !(s->table->force_index && best_key))
       {						// Check full join
+        ha_rows rnd_records= s->found_records;
         /* Estimate cost of reading table. */
-        tmp= (double) s->read_time;
+        tmp= s->table->file->scan_time();
+        /*
+          If there is a restriction on the table, assume that 25% of the
+          rows can be skipped on next part.
+          This is to force tables that this table depends on before this
+          table
+        */
+        if (found_constraint)
+          rnd_records-= rnd_records/4;
+
         if (s->on_expr)                         // Can't use join cache
         {
-          /* We have to read the whole table for each record */
-          tmp*= record_count;
+          tmp= record_count *
+               /* We have to read the whole table for each record */
+               (tmp +     
+               /*
+                 And we have to skip rows which does not satisfy join
+                 condition for each record.
+               */
+               (s->records - rnd_records)/(double) TIME_FOR_COMPARE);
         }
         else
         {
@@ -2146,30 +2162,25 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
           tmp*= (1.0 + floor((double) cache_record_length(join,idx) *
                              record_count /
                              (double) thd->variables.join_buff_size));
+          /* 
+            We don't make full cartesian product between rows in the scanned
+            table and existing records because we skip all rows from the
+            scanned table, which does not satisfy join condition when 
+            we read the table (see flush_cached_records for details). Here we
+            take into account cost to read and skip these records.
+          */
+          tmp+= (s->records - rnd_records)/(double) TIME_FOR_COMPARE;
         }
 
         /*
-          We estimate the cost of making full cortesian product between
-          rows in the scanned table and generated records as
-          record_count*s->records/TIME_FOR_COMPARE. Taking into account
-          cost of evaluating WHERE clause for s->found_records is not
-          necessary because it costs much less than the cost mentioned
-          above.
+          We estimate the cost of evaluating WHERE clause for found records
+          as record_count * rnd_records + TIME_FOR_COMPARE. This cost plus
+          tmp give us total cost of using TABLE SCAN
         */
 	if (best == DBL_MAX ||
-	    (tmp  + record_count/(double) TIME_FOR_COMPARE*s->records <
+	    (tmp  + record_count/(double) TIME_FOR_COMPARE*rnd_records <
 	     best + record_count/(double) TIME_FOR_COMPARE*records))
 	{
-          /*
-            If there is a restriction on the table, assume that 25% of the
-            rows can be skipped on next part.
-            This is to force tables that this table depends on before this
-            table
-          */
-          ha_rows rnd_records= s->found_records;
-          if (found_constrain)
-            rnd_records-= rnd_records/4;
-          
 	  /*
 	    If the table has a range (s->quick is set) make_join_select()
 	    will ensure that this will be used

@@ -173,9 +173,9 @@ INSERT INTO t2 values (1),(2),(3);
 INSERT INTO t3 VALUES (1,'1'),(2,'2'),(1,'1'),(2,'2');
 explain SELECT distinct t3.a FROM t3,t2,t1 WHERE t3.a=t1.b AND t1.a=t2.a;
 table	type	possible_keys	key	key_len	ref	rows	Extra
-t2	index	a	a	4	NULL	5	Using index; Using temporary
-t1	eq_ref	PRIMARY	PRIMARY	4	t2.a	1	
-t3	index	a	a	5	NULL	5	Using where; Using index
+t3	index	a	a	5	NULL	6	Using index; Using temporary
+t2	index	a	a	4	NULL	5	Using index; Distinct
+t1	eq_ref	PRIMARY	PRIMARY	4	t2.a	1	Using where; Distinct
 SELECT distinct t3.a FROM t3,t2,t1 WHERE t3.a=t1.b AND t1.a=t2.a;
 a
 1
@@ -303,9 +303,9 @@ t1	index	id	id	4	NULL	2	Using index; Using temporary
 t2	index	id	id	8	NULL	1	Using index; Distinct
 t3	index	id	id	8	NULL	1	Using index; Distinct
 j_lj_t2	index	id	id	4	NULL	2	Using where; Using index; Distinct
-t2_lj	index	id	id	8	NULL	1	Using where; Using index; Distinct
+t2_lj	ref	id	id	4	j_lj_t2.id	1	Using where; Using index; Distinct
 j_lj_t3	index	id	id	4	NULL	2	Using where; Using index; Distinct
-t3_lj	index	id	id	8	NULL	1	Using where; Using index; Distinct
+t3_lj	ref	id	id	4	j_lj_t3.id	1	Using where; Using index; Distinct
 SELECT DISTINCT
 t1.id
 from
