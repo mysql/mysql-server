@@ -363,6 +363,15 @@ row_get_background_drop_list_len_low(void);
 /*======================================*/
 					/* out: how many tables in list */
 /*************************************************************************
+Truncates a table for MySQL. */
+
+int
+row_truncate_table_for_mysql(
+/*=========================*/
+				/* out: error code or DB_SUCCESS */
+	dict_table_t*	table,	/* in: table handle */
+	trx_t*		trx);	/* in: transaction handle */
+/*************************************************************************
 Drops a table for MySQL. If the name of the dropped table ends to
 characters INNODB_MONITOR, then this also stops printing of monitor
 output by the master thread. */
