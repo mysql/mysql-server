@@ -40941,8 +40941,6 @@ Fixed bug when using @code{DISTINCT} on results from functions that refered to
 a group function, like
 @code{SELECT a,DISTINCT SEC_TO_TIME(sum(a)) from table_name GROUP BY a,b}.
 @item
-Changed clients to use TCP/IP when -P or --port option is specified.
-@item
 Fixed bug in handling @code{STOP} event after @code{ROTATE} event in
 replication
 @item
