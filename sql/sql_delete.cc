@@ -227,7 +227,7 @@ multi_delete::multi_delete(THD *thd_arg, TABLE_LIST *dt,
     table->used_keys=0;
     tempfiles[counter] = new Unique (refposcmp2,
 				     (void *) &table->file->ref_length,
-				     table->file->ref_length + 1,
+				     table->file->ref_length,
 				     MEM_STRIP_BUF_SIZE);
   }
 }
