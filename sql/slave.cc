@@ -928,7 +928,10 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
   
     thd->server_id = ev->server_id; // use the original server id for logging
     thd->set_time();				// time the query
-    if(!ev->when)
+    if(!thd->log_seq)
+      thd->log_seq = ev->log_seq;
+    
+    if (!ev->when)
       ev->when = time(NULL);
     
     switch(type_code) {
@@ -1009,6 +1012,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       }
       free_root(&thd->mem_root,0);
       delete ev;
+      thd->log_seq = 0;
 
       mi->inc_pos(event_len);
       flush_master_info(mi);
@@ -1024,6 +1028,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       }
 
       delete ev;
+      thd->log_seq = 0;
       break;
     }
 	  
@@ -1135,6 +1140,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       }
       
       delete ev;
+      thd->log_seq = 0;
       free_root(&thd->mem_root,0);
 	    
       if(thd->fatal_error)
@@ -1154,6 +1160,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       mi->inc_pos(event_len);
       flush_master_info(mi);
       delete ev;
+      thd->log_seq = 0;
       break;
                   
     case STOP_EVENT:
@@ -1164,30 +1171,49 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
           flush_master_info(mi);
 	}
       delete ev;
+      thd->log_seq = 0;
       break;
     case ROTATE_EVENT:
     {
       Rotate_log_event* rev = (Rotate_log_event*)ev;
       int ident_len = rev->ident_len;
+      bool rotate_binlog = 0, write_slave_event = 0;
+      char* log_name = mi->log_file_name;
       pthread_mutex_lock(&mi->lock);
-      memcpy(mi->log_file_name, rev->new_log_ident,ident_len );
-      mi->log_file_name[ident_len] = 0;
+      
+      // rotate local binlog only if the name of remote has changed
+      if (!*log_name || !(log_name[ident_len] == 0 &&
+	   !memcmp(log_name, rev->new_log_ident, ident_len)))
+      {
+	write_slave_event = mysql_bin_log.is_open();
+	rotate_binlog = (*log_name && write_slave_event );
+        memcpy(log_name, rev->new_log_ident,ident_len );
+        log_name[ident_len] = 0;
+      }
       mi->pos = 4; // skip magic number
       pthread_cond_broadcast(&mi->cond);
       pthread_mutex_unlock(&mi->lock);
       flush_master_info(mi);
 #ifndef DBUG_OFF
-      if(abort_slave_event_count)
+      if (abort_slave_event_count)
 	++events_till_abort;
 #endif
-      if(mysql_bin_log.is_open())
-      {
+      if (rotate_binlog)
 	mysql_bin_log.new_file();
-	Slave_log_event sev(slave_thd, mi);
-	if(sev.master_host)
-	  mysql_bin_log.write(&sev);
+      
+      if (write_slave_event)
+      {
+	Slave_log_event s(thd, mi);
+	if (s.master_host)
+	{
+	  s.set_log_seq(0, &mysql_bin_log);
+	  s.server_id = ::server_id;
+	  mysql_bin_log.write(&s);
+	}
       }
+      
       delete ev;
+      thd->log_seq = 0;
       break;
     }
 
@@ -1207,6 +1233,7 @@ static int exec_event(THD* thd, NET* net, MASTER_INFO* mi, int event_len)
       }
       mi->inc_pending(event_len);
       delete ev;
+      // do not reset log_seq
       break;
     }
     }

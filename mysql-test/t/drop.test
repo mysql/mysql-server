@@ -24,3 +24,18 @@ select * from foo.foo;
 drop database if exists foo;
 create database foo;
 drop database foo;
+
+# test drop/create database and FLUSH TABLES WITH READ LOCK
+drop database if exists foo;
+flush tables with read lock;
+--error 1209
+create database foo;
+unlock tables;
+create database foo;
+show databases;
+flush tables with read lock;
+--error 1208
+drop database foo;
+unlock tables;
+drop database foo;
+show databases;
