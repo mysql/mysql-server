@@ -413,4 +413,8 @@ call bug2653_2(2, @b)|
 ERROR 42S22: Unknown column 'aa' in 'order clause'
 drop procedure bug2653_1|
 drop procedure bug2653_2|
+create procedure bug4344() drop procedure bug4344|
+ERROR HY000: Can't drop a PROCEDURE from within another stored routine
+create procedure bug4344() drop function bug4344|
+ERROR HY000: Can't drop a FUNCTION from within another stored routine
 drop table t1|

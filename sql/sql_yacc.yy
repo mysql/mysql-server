@@ -5187,6 +5187,11 @@ drop:
 	| DROP FUNCTION_SYM if_exists sp_name opt_restrict
 	  {
 	    LEX *lex=Lex;
+	    if (lex->sphead)
+	    {
+	      net_printf(YYTHD, ER_SP_NO_DROP_SP, "FUNCTION");
+	      YYABORT;
+	    }
 	    lex->sql_command = SQLCOM_DROP_FUNCTION;
 	    lex->drop_if_exists= $3;
 	    lex->spname= $4;
@@ -5194,6 +5199,11 @@ drop:
 	| DROP PROCEDURE if_exists sp_name opt_restrict
 	  {
 	    LEX *lex=Lex;
+	    if (lex->sphead)
+	    {
+	      net_printf(YYTHD, ER_SP_NO_DROP_SP, "PROCEDURE");
+	      YYABORT;
+	    }
 	    lex->sql_command = SQLCOM_DROP_PROCEDURE;
 	    lex->drop_if_exists= $3;
 	    lex->spname= $4;
