@@ -5948,9 +5948,6 @@ Change sort to allocate memory in ``hunks'' to get better memory utilization.
 @code{Field_decimal::store(const char *from,uint len)} must be recoded
 to fix this.
 @item
-Fix @code{mysql.cc} to do fewer @code{malloc()} calls when hashing field
-names.
-@item
 Functions:
 ADD_TO_SET(value,set) and REMOVE_FROM_SET(value,set)
 @item
@@ -5984,8 +5981,6 @@ Fix that @code{ON} and @code{USING} works with the @code{JOIN}
 join type.
 @item
 Oracle like @code{CONNECT BY PRIOR ...} to search hierarchy structures.
-@item
-@code{RENAME DATABASE}
 @item
 @code{mysqladmin copy database new-database}. -- Requires COPY command to be
 added to @code{mysqld}
@@ -46845,6 +46840,13 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.44
 @itemize @bullet
 @item
+Fixed problem with sjis character strings used within quoted table names.
+@item
+Fixed coredump when using @code{CREATE ... FULLTEXT} keys with other table
+handlers than MyISAM.
+@item
+Add missing @code{InnoDB} variables to @code{SHOW VARIABLES}.
+@item
 Don't use @code{signal()} on windows because this appears to not be
 100 % reliable.
 @item
@@ -46854,7 +46856,7 @@ that had @code{NULL} values.
 Fixed bug when doing @code{LEFT JOIN ...  ON (column_name = constant) WHERE column_name = constant}.
 @item
 When using replications, aborted queries that contained @code{%} could cause
-a core dum.
+a core dump.
 @item
 TCP_NODELAY was not used on some systems. (Speed problem).
 @end itemize
