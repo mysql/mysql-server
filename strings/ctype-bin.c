@@ -395,9 +395,10 @@ CHARSET_INFO my_charset_bin =
     bin_char_array,		/* to_lower      */
     bin_char_array,		/* to_upper      */
     bin_char_array,		/* sort_order    */
+    NULL,			/* contractions */
+    NULL,			/* sort_order_big*/
     NULL,			/* tab_to_uni    */
     NULL,			/* tab_from_uni  */
-    NULL,			/* sort_order_big*/
     NULL,			/* state_map    */
     NULL,			/* ident_map    */
     1,				/* strxfrm_multiply */
