@@ -26,16 +26,40 @@
 ******************************************************************************/
 
 #include <stdlib.h>
+#ifndef __WIN__
 #include <unistd.h>
+#endif
 
 /******************************************************************************
 
 	macros
 	
 ******************************************************************************/
+#ifdef __WIN__
+#define PATH_MAX _MAX_PATH
+#define NAME_MAX _MAX_FNAME
+#define kill(A,B) TerminateProcess((HANDLE)A,0)
+#define NOT_NEED_PID 0
+#define MASTER_PID   1
+#define SLAVE_PID    2
+#define mysqld_timeout 60000
+
+intptr_t master_server;
+intptr_t slave_server;
+int pid_mode;
+bool run_server;
+char win_args[1024];
+bool skip_first_param;
+#endif
+
 
 #define ARG_BUF			10
 #define TRY_MAX			5
+
+#ifdef __NETWARE__
+#define strstr(A,B) strindex(A,B)
+#endif
+
 
 /******************************************************************************
 
@@ -53,6 +77,8 @@ typedef struct
 
 } arg_list_t;
 
+
+typedef int pid_t;
 /******************************************************************************
 
 	global variables
@@ -66,7 +92,7 @@ typedef struct
 ******************************************************************************/
 
 void init_args(arg_list_t *);
-void add_arg(arg_list_t *, char *, ...);
+void add_arg(arg_list_t *, const char *, ...);
 void free_args(arg_list_t *);
 
 int sleep_until_file_exists(char *);
@@ -80,8 +106,12 @@ pid_t get_server_pid(char *);
 void kill_server(pid_t pid);
 
 void del_tree(char *);
-int removef(char *, ...);
+int removef(const char *, ...);
 
 void get_basedir(char *, char *);
 
+char mysqladmin_file[PATH_MAX]; 
+
 #endif /* _MY_MANAGE */
+
+
