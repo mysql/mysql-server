@@ -2038,7 +2038,7 @@ Try also with PIPE or TCP/IP
     }
     sock_addr.sin_port = (ushort) htons((ushort) port);
     if (my_connect(sock,(struct sockaddr *) &sock_addr, sizeof(sock_addr),
-		 mysql->options.connect_timeout) <0)
+		 mysql->options.connect_timeout))
     {
       DBUG_PRINT("error",("Got error %d on connect to '%s'",socket_errno,host));
       net->last_errno= CR_CONN_HOST_ERROR;
@@ -4727,13 +4727,13 @@ static void send_data_double(MYSQL_BIND *param, double value)
     *buffer= (uchar)value;
     break;
   case MYSQL_TYPE_SHORT:
-    int2store(buffer, value);
+    int2store(buffer, (short)value);
     break;
   case MYSQL_TYPE_LONG:
-    int4store(buffer, value);
+    int4store(buffer, (long)value);
     break;
   case MYSQL_TYPE_LONGLONG:
-    int8store(buffer, value);
+    int8store(buffer, (longlong)value);
     break;
   case MYSQL_TYPE_FLOAT:
     {
