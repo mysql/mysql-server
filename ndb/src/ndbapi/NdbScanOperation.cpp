@@ -470,6 +470,11 @@ int NdbScanOperation::nextResult(bool fetchAllowed)
   if(DEBUG_NEXT_RESULT)
     ndbout_c("nextResult(%d) idx=%d last=%d", fetchAllowed, idx, last);
   
+  if(DEBUG_NEXT_RESULT) 
+    ndbout_c("nextResult(%d) idx=%d last=%d",
+	     fetchAllowed, 
+	     idx, last);
+
   /**
    * Check next buckets
    */
@@ -1394,4 +1399,89 @@ NdbIndexScanOperation::send_next_scan_ordered(Uint32 idx){
   TransporterFacade * tp = TransporterFacade::instance();
   tSignal.setLength(4+1);
   return tp->sendSignal(&tSignal, nodeId);
+}
+
+int
+NdbScanOperation::restart(){
+  TransporterFacade* tp = TransporterFacade::instance();
+  Guard guard(tp->theMutexPtr);
+  
+  Uint32 seq = theNdbCon->theNodeSequence;
+  Uint32 nodeId = theNdbCon->theDBnode;
+  
+  if(seq != tp->getNodeSequence(nodeId)){
+    theNdbCon->theReleaseOnClose = true;
+    return -1;
+  }
+
+  while(m_sent_receivers_count){
+    theNdb->theWaiter.m_node = nodeId;
+    theNdb->theWaiter.m_state = WAIT_SCAN;
+    int return_code = theNdb->receiveResponse(WAITFOR_SCAN_TIMEOUT);
+    switch(return_code){
+    case 0:
+      break;
+    case -1:
+      setErrorCode(4008);
+    case -2:
+      m_api_receivers_count = 0;
+      m_conf_receivers_count = 0;
+      m_sent_receivers_count = 0;
+      return -1;
+    }
+  }
+
+  if(m_api_receivers_count+m_conf_receivers_count){
+    // Send close scan
+    if(send_next_scan(0, true) == -1) // Close scan
+      return -1;
+  }
+  
+  /**
+   * wait for close scan conf
+   */
+  while(m_sent_receivers_count+m_api_receivers_count+m_conf_receivers_count){
+    theNdb->theWaiter.m_node = nodeId;
+    theNdb->theWaiter.m_state = WAIT_SCAN;
+    int return_code = theNdb->receiveResponse(WAITFOR_SCAN_TIMEOUT);
+    switch(return_code){
+    case 0:
+      break;
+    case -1:
+      setErrorCode(4008);
+    case -2:
+      m_api_receivers_count = 0;
+      m_conf_receivers_count = 0;
+      m_sent_receivers_count = 0;
+      return -1;
+    }
+  }
+
+  /**
+   * Reset receivers
+   */
+  const Uint32 parallell = theParallelism;
+  
+  for(Uint32 i = 0; i<parallell; i++){
+    m_receivers[i]->m_list_index = i;
+    m_prepared_receivers[i] = m_receivers[i]->getId();
+    m_sent_receivers[i] = m_receivers[i];
+    m_conf_receivers[i] = 0;
+    m_api_receivers[i] = 0;
+    m_receivers[i]->prepareSend();
+  }
+  
+  m_api_receivers_count = 0;
+  m_current_api_receiver = 0;
+  m_sent_receivers_count = parallell;
+  m_conf_receivers_count = 0;
+  
+  if(m_ordered){
+    m_current_api_receiver = parallell;
+  }
+
+  if (doSendScan(nodeId) == -1)
+    return -1;
+  
+  return 0;
 }
