@@ -21,7 +21,6 @@ insert into t1 (b) select b from t2;
 insert into t2 (b) select b from t1;
 insert into t1 (b) select b from t2;
 drop table t2;
- create table t9 (a int not null auto_increment, b char(16) not null, primary key (a)) type=myisam data directory="/home/sasha/bk/mysql-4.0/mysql-test/var/tmp" index directory="/home/sasha/bk/mysql-4.0/mysql-test/var/run";
 insert into t9 select * from t1;
 check table t9;
 Table	Op	Msg_type	Msg_text
@@ -45,18 +44,11 @@ alter table t9 rename t8, add column d int not null;
 alter table t8 rename t7;
 rename table t7 to t9;
 drop table t1;
-create table t1 (a int not null auto_increment, b char(16) not null, primary key (a)) type=myisam data directory="tmp";
-Incorrect table name 'tmp'
-drop database if exists test_mysqltest;
-create database test_mysqltest;
-create table test_mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) type=myisam index directory="/this-dir-does-not-exist";
-Can't create/write to file '/this-dir-does-not-exist/t9.MYI' (Errcode: 2)
-create table test_mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) type=myisam index directory="not-hard-path";
-Incorrect table name 'not-hard-path'
- create table test_mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) type=myisam index directory="/home/sasha/bk/mysql-4.0/mysql-test/var/run";
-Can't create/write to file '/home/sasha/bk/mysql-4.0/mysql-test/var/run/t9.MYI' (Errcode: 17)
- create table test_mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) type=myisam data directory="/home/sasha/bk/mysql-4.0/mysql-test/var/tmp";
-Can't create/write to file '/home/sasha/bk/mysql-4.0/mysql-test/var/tmp/t9.MYD' (Errcode: 17)
+Got one of the listed errors
+Got one of the listed errors
+Got one of the listed errors
+Got one of the listed errors
+Got one of the listed errors
 alter table t9 rename test_mysqltest.t9;
 select count(*) from test_mysqltest.t9;
 count(*)

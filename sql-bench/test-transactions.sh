@@ -1,5 +1,4 @@
 #!@PERL@
-#
 # Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
 #
 # This library is free software; you can redistribute it and/or
@@ -28,7 +27,7 @@ use warnings;
 
 $opt_groups=27;		    # Characters are 'A' -> Z
 
-$opt_loop_count=100000;	    # Change this to make test harder/easier
+$opt_loop_count=10000;	    # Change this to make test harder/easier
 $opt_medium_loop_count=100; # Change this to make test harder/easier
 
 chomp($pwd = `pwd`); $pwd = "." if ($pwd eq '');
@@ -114,6 +113,128 @@ sub test_insert
 }
 
 ###
+### Test rollback performance
+###
+
+print "Test transactions rollback performance\n" if($opt_debug);
+
+##
+## Insert rollback test
+##
+
+#
+# Test is done by inserting 100 rows in a table with lots of rows and
+# then doing a rollback on these
+#
+
+{
+  my ($id,$rev_id,$grp,$region,$end,$loop_time,$end_time,$commit_loop,$count);
+
+  $dbh->{AutoCommit} = 0;
+  $loop_time=new Benchmark;
+  $end=$opt_loop_count*2;
+  $count=0;
+
+  for ($commit_loop=1, $id=$opt_loop_count ; $id < $end ;
+       $id++, $commit_loop++)
+  {
+    $rev_id=$end-$id;
+    $grp=$id/$opt_groups;
+    $region=chr(65+$id%$opt_groups);
+    do_query($dbh,"insert into bench1 values ($id,$rev_id,'$region',$grp,0)");
+    if ($commit_loop >= $opt_medium_loop_count)
+    {
+      $dbh->rollback;
+      $commit_loop=0;
+      $count++;
+    }
+  }
+  if ($commit_loop > 1)
+  {
+    $dbh->rollback;
+    $count++;
+  }
+  $end_time=new Benchmark;
+  print "Time for insert_rollback ($count:$opt_loop_count): " .
+    timestr(timediff($end_time, $loop_time),"all") . "\n\n";
+}
+
+##
+## Update rollback test
+##
+
+#
+# Test is done by updating 100 rows in a table with lots of rows and
+# then doing a rollback on these
+#
+
+{
+  my ($id,$loop_time,$end_time,$commit_loop,$count);
+
+  $dbh->{AutoCommit} = 0;
+  $loop_time=new Benchmark;
+  $end=$opt_loop_count*2;
+  $count=0;
+
+  for ($commit_loop=1, $id=0 ; $id < $opt_loop_count ; $id++, $commit_loop++)
+  {
+    do_query($dbh,"update bench1 set updated=2 where idn=$id");
+    if ($commit_loop >= $opt_medium_loop_count)
+    {
+      $dbh->rollback;
+      $commit_loop=0;
+      $count++;
+    }
+  }
+  if ($commit_loop > 1)
+  {
+    $dbh->rollback;
+    $count++;
+  }
+  $end_time=new Benchmark;
+  print "Time for update_rollback ($count:$opt_loop_count): " .
+    timestr(timediff($end_time, $loop_time),"all") . "\n\n";
+}
+
+##
+## Delete rollback test
+##
+
+#
+# Test is done by deleting 100 rows in a table with lots of rows and
+# then doing a rollback on these
+#
+
+{
+  my ($id,$loop_time,$end_time,$commit_loop,$count);
+
+  $dbh->{AutoCommit} = 0;
+  $loop_time=new Benchmark;
+  $end=$opt_loop_count*2;
+  $count=0;
+
+  for ($commit_loop=1, $id=0 ; $id < $opt_loop_count ; $id++, $commit_loop++)
+  {
+    do_query($dbh,"delete from bench1 where idn=$id");
+    if ($commit_loop >= $opt_medium_loop_count)
+    {
+      $dbh->rollback;
+      $commit_loop=0;
+      $count++;
+    }
+  }
+  if ($commit_loop > 1)
+  {
+    $dbh->rollback;
+    $count++;
+  }
+  $end_time=new Benchmark;
+  print "Time for delete_rollback ($count:$opt_loop_count): " .
+    timestr(timediff($end_time, $loop_time),"all") . "\n\n";
+}
+
+
+###
 ### Test update perfomance
 ###
 
@@ -163,99 +284,6 @@ sub test_delete
   print "Time for $test_name  ($opt_loop_count): " .
    timestr(timediff($end_time, $loop_time),"all") . "\n\n";
 }
-
-###
-### Test rollback performance
-###
-
-print "Test transactions rollback performance\n" if($opt_debug);
-
-##
-## Insert rollback test
-##
-
-#
-# Test is done by inserting 10 rows in a table with lots of rows and
-# then doing a rollback on these
-#
-
-{
-  my ($id,$rev_id,$grp,$region,$end,$loop_time,$end_time,$commit_loop,$count);
-
-  $dbh->{AutoCommit} = 0;
-  $loop_time=new Benchmark;
-  $end=$opt_loop_count*2;
-  $count=0;
-
-  for ($commit_loop=1, $id=$opt_loop_count ; $id < $end ;
-       $id++, $commit_loop++)
-  {
-    $rev_id=$end-$id;
-    $grp=$id/$opt_groups;
-    $region=chr(65+$id%$opt_groups);
-    do_query($dbh,"insert into bench1 values ($id,$rev_id,'$region',$grp,0)");
-    if ($commit_loop >= $opt_medium_loop_count)
-    {
-      $dbh->rollback;
-      $commit_loop=0;
-      $count++;
-    }
-  }
-  if ($commit_loop > 1)
-  {
-    $dbh->rollback;
-    $count++;
-  }
-  $end_time=new Benchmark;
-  print "Time for insert_rollback ($count:$opt_loop_count): " .
-    timestr(timediff($end_time, $loop_time),"all") . "\n\n";
-}
-
-###
-### Update rollback test
-###
-
-if (0)
-{
-
-  $dbh->{AutoCommit} = 0;
-
-  $loop_time=new Benchmark;
-
-  for ($id=0,$rev_id=$opt_medium_loop_count ; $id < $opt_medium_loop_count; $id++,$rev_id--)
-  {
-    $grp=$id/$opt_groups;
-    $region=chr(65+$id%$opt_groups);
-    do_query($dbh,"update bench1 set region='$region',grp=$grp where idn=$id");
-  }
-
-  $dbh->rollback;
-
-  $end_time=new Benchmark;
-  print "Time for update rollback (" . ($opt_medium_loop_count) . "): " .
-    timestr(timediff($end_time, $loop_time),"all") . "\n\n";
-
-### Delete rollback test
-  $dbh->{AutoCommit} = 0;
-
-  $loop_time=new Benchmark;
-
-  for ($id=0,$rev_id=$opt_medium_loop_count; $id < $opt_medium_loop_count; $id++,$rev_id--)
-  {
-    $grp=$id/$opt_groups;
-    $region=chr(65+$id%$opt_groups);
-    do_query($dbh,"delete from bench1 where idn=$id");
-  }
-
-  $dbh->rollback;
-
-  $end_time=new Benchmark;
-  print "Time for delete rollback (" . ($opt_medium_loop_count) . "): " .
-    timestr(timediff($end_time, $loop_time),"all") . "\n\n";
-
-  $dbh->{AutoCommit} = 1;
-}
-
 
 ####
 #### End of benchmark

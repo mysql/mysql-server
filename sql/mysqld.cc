@@ -686,6 +686,11 @@ pthread_handler_decl(kill_server_thread,arg __attribute__((unused)))
 }
 #endif
 
+#if defined(__amiga__)
+#undef sigset
+#define sigset signal
+#endif
+
 static sig_handler print_signal_warning(int sig)
 {
   sql_print_error("Warning: Got signal %d from thread %d",
@@ -1310,7 +1315,11 @@ static void init_signals(void)
     sigprocmask(SIG_SETMASK,&sa.sa_mask,NULL);
 
     init_stacktrace();
+#if defined(__amiga__)
+    sa.sa_handler=(void(*)())handle_segfault;
+#else
     sa.sa_handler=handle_segfault;
+#endif
     sigaction(SIGSEGV, &sa, NULL);
 #ifdef SIGBUS
     sigaction(SIGBUS, &sa, NULL);
