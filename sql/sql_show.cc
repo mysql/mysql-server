@@ -1006,7 +1006,11 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         if (pthread_kill(tmp->real_id,0))
           tmp->proc_info="*** DEAD ***";        // This shouldn't happen
 #endif
+#ifdef EXTRA_DEBUG
+        thd_info->start_time= tmp->time_after_lock;
+#else
         thd_info->start_time= tmp->start_time;
+#endif
         thd_info->query=0;
         if (tmp->query)
         {

@@ -63,7 +63,9 @@ int myrg_rkey(MYRG_INFO *info,byte *record,int inx, const byte *key,
     }
     else
     {
-      err=_mi_rkey(mi,buf,inx,key_buff,pack_key_length,search_flag,FALSE);
+      mi->use_packed_key=1;
+      err=mi_rkey(mi,buf,inx,key_buff,pack_key_length,search_flag);
+      mi->use_packed_key=0;
     }
     info->last_used_table=table+1;
 

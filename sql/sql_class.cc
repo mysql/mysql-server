@@ -136,9 +136,9 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
 	    (hash_get_key) get_var_key,
 	    (void (*)(void*)) free_var,0);
 #ifdef USING_TRANSACTIONS
+  bzero((char*) &transaction,sizeof(transaction));
   if (opt_using_transactions)
   {
-    bzero((char*) &transaction,sizeof(transaction));
     if (open_cached_file(&transaction.trans_log,
 			 mysql_tmpdir, LOG_PREFIX, binlog_cache_size,
 			 MYF(MY_WME)))

@@ -68,8 +68,10 @@ int _myrg_finish_scan(MYRG_INFO *info, int inx, enum ha_rkey_function type)
     for (; table < info->end_table ; table++)
     {
       mi=table->table;
-      if ((err=_mi_rkey(mi,NULL,inx,key_buff,pack_key_length,
-			type,FALSE)))
+      mi->use_packed_key=1;
+      err=mi_rkey(mi,NULL,inx,key_buff,pack_key_length,type);
+      mi->use_packed_key=0;
+      if (err)
       {
 	if (err == HA_ERR_KEY_NOT_FOUND)	/* If end of file */
 	  continue;
