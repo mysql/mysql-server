@@ -395,13 +395,7 @@ JOIN::optimize()
 	zero_result_cause= "No matching min/max row";
 	DBUG_RETURN(0);
       }
-      if (select_options & SELECT_DESCRIBE)
-      {
-	select_describe(this, false, false, false,
-			"Select tables optimized away");
-	delete procedure;
-	DBUG_RETURN(1);
-      }
+      zero_result_cause= "Select tables optimized away";
       tables_list= 0;					// All tables resolved
     }
   }
@@ -663,7 +657,8 @@ JOIN::exec()
   {                                           // Only test of functions
     error=0;
     if (select_options & SELECT_DESCRIBE)
-      select_describe(this, false, false, false, "No tables used");
+      select_describe(this, false, false, false,
+		      (zero_result_cause?zero_result_cause:"No tables used"));
     else
     {
       result->send_fields(fields_list,1);
