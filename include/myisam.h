@@ -366,14 +366,18 @@ typedef struct st_sort_info
   SORT_KEY_BLOCKS *key_block,*key_block_end;
   /* sync things*/
   uint got_error, threads_running;
+#ifdef THREAD
   pthread_mutex_t mutex;
   pthread_cond_t  cond;
+#endif
 } SORT_INFO;
 
 
 typedef struct st_mi_sort_param
 {
+#ifdef THREAD
   pthread_t  thr;
+#endif
   IO_CACHE read_cache, tempfile, tempfile_for_exceptions;
   DYNAMIC_ARRAY buffpek;
   ulonglong unique[MI_MAX_KEY_SEG+1];
