@@ -2712,7 +2712,7 @@ mysql_execute_command(THD *thd)
       for (walk= (TABLE_LIST*) tables; walk; walk= walk->next)
       {
 	if (!my_strcasecmp(table_alias_charset, auxi->alias, walk->alias) &&
-	    !my_strcasecmp(table_alias_charset, walk->db, auxi->db))
+	    !strcmp(walk->db, auxi->db))
 	  break;
       }
       if (!walk)
@@ -4495,7 +4495,8 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 	 tables ;
 	 tables=tables->next)
     {
-      if (!strcmp(alias_str,tables->alias) && !strcmp(ptr->db, tables->db))
+      if (!my_strcasecmp(table_alias_charset, alias_str, tables->alias) &&
+	  !strcmp(ptr->db, tables->db))
       {
 	net_printf(thd,ER_NONUNIQ_TABLE,alias_str); /* purecov: tested */
 	DBUG_RETURN(0);				/* purecov: tested */
