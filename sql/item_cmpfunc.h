@@ -432,9 +432,6 @@ class Item_func_in :public Item_int_func
   {
     bool res=  (item->fix_fields(thd,tlist) || Item_func::fix_fields(thd,tlist));
     with_sum_func= with_sum_func || item->with_sum_func;
-    used_tables_cache|=     item->used_tables();
-    not_null_tables_cache|= item->not_null_tables();
-    const_item_cache&=      item->const_item();
     return res; 
   }
   void fix_length_and_dec();

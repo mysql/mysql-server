@@ -1887,7 +1887,7 @@ explain select * from t1 left join t2 on a=c where d in (4);
 select * from t1 left join t2 on a=c where d in (4);
 explain select * from t1 left join t2 on a=c where d = 4;
 select * from t1 left join t2 on a=c where d = 4;
-drop table t1, t2;R
+drop table t1, t2;
 
 #
 # Covering index is mentioned in EXPLAIN output for const tables (bug #5333)

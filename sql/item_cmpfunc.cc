@@ -293,9 +293,9 @@ void Item_func_interval::fix_length_and_dec()
   }
   maybe_null=0; max_length=2;
   used_tables_cache|=     item->used_tables();
-  not_null_tables_cache&= item->not_null_tables();
+  not_null_tables_cache=  item->not_null_tables();
   with_sum_func= with_sum_func || item->with_sum_func;
-  const_item_cache&=item->const_item();
+  const_item_cache&=	  item->const_item();
 }
 
 
@@ -1087,7 +1087,8 @@ void Item_func_in::fix_length_and_dec()
   maybe_null= item->maybe_null;
   max_length=2;
   used_tables_cache|=     item->used_tables();
-  not_null_tables_cache&= item->not_null_tables();
+  /* not_null_tables_cache is only dependent on the argument to in */
+  not_null_tables_cache=  item->not_null_tables();
   const_item_cache&=      item->const_item();
 }
 

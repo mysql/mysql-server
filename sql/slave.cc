@@ -1637,7 +1637,8 @@ int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
       position is at the beginning of the file, and will read the
       "signature" and then fast-forward to the last position read.
     */
-    if (thread_mask & SLAVE_SQL) {
+    if (thread_mask & SLAVE_SQL)
+    {
       my_b_seek(mi->rli.cur_log, (my_off_t) 0);
     }
     DBUG_RETURN(0);
