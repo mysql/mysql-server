@@ -1,4 +1,4 @@
-#! /bin/sh
+#!/bin/sh
 #
 # A simple startup script for mysqld_multi by Tim Smith and Jani Tolonen.
 # This script assumes that my.cnf file exists either in /etc/my.cnf or
@@ -7,30 +7,33 @@
 #
 # This script can be used as /etc/init.d/mysql.server
 #
+# Version 1.0
+#
 
 basedir=/usr/local/mysql
 bindir=/usr/local/mysql/bin
 
 if test -x $bindir/mysqld_multi
 then
-  mysqld_multi= "$bindir/mysqld_multi";
+  mysqld_multi="$bindir/mysqld_multi";
 else
-  echo "Can't execute $bindir/mysqld_multi from dir $basedir"
+  echo "Can't execute $bindir/mysqld_multi from dir $basedir";
+  exit;
 fi
 
 case "$1" in
-    start )
-        "$mysqld_multi" start
+    'start' )
+        "$mysqld_multi" start $2
         ;;
-    stop )
-        "$mysqld_multi" stop
+    'stop' )
+        "$mysqld_multi" stop $2
         ;;
-    report )
-        "$mysqld_multi" report
+    'report' )
+        "$mysqld_multi" report $2
         ;;
-    restart )
-        "$mysqld_multi" stop
-        "$mysqld_multi" start
+    'restart' )
+        "$mysqld_multi" stop $2
+        "$mysqld_multi" start $2
         ;;
     *)
         echo "Usage: $0 {start|stop|report|restart}" >&2
