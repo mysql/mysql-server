@@ -22,10 +22,12 @@
 #define OPT_SSL_CERT	202
 #define OPT_SSL_CA	203
 #define OPT_SSL_CAPATH  204
+#define OPT_SSL_CIPHER  205
   {"ssl",           no_argument,           0, OPT_SSL_SSL},
   {"ssl-key",       required_argument,     0, OPT_SSL_KEY},
   {"ssl-cert",      required_argument,     0, OPT_SSL_CERT},
   {"ssl-ca",        required_argument,     0, OPT_SSL_CA},
   {"ssl-capath",    required_argument,     0, OPT_SSL_CAPATH},
+  {"ssl-cipher",    required_argument,     0, OPT_SSL_CIPHER},
 
 #endif /* HAVE_OPENSSL */
