@@ -530,7 +530,11 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define FN_LEN		256	/* Max file name len */
 #define FN_HEADLEN	253	/* Max length of filepart of file name */
 #define FN_EXTLEN	20	/* Max length of extension (part of FN_LEN) */
+#ifdef PATH_MAX
+#define FN_REFLEN       PATH_MAX/* Max length of full path-name */
+#else
 #define FN_REFLEN	512	/* Max length of full path-name */
+#endif
 #define FN_EXTCHAR	'.'
 #define FN_HOMELIB	'~'	/* ~/ is used as abbrev for home dir */
 #define FN_CURLIB	'.'	/* ./ is used as abbrev for current dir */
