@@ -1240,8 +1240,9 @@ Slave_log_event::Slave_log_event(THD* thd_arg,
 				 struct st_relay_log_info* rli):
   Log_event(thd_arg),mem_pool(0),master_host(0)
 {
+  DBUG_ENTER("Slave_log_event");
   if (!rli->inited)
-    return;
+    DBUG_VOID_RETURN;
   
   MASTER_INFO* mi = rli->mi;
   // TODO: re-write this better without holding both locks at the same time
@@ -1259,11 +1260,14 @@ Slave_log_event::Slave_log_event(THD* thd_arg,
     memcpy(master_log, rli->master_log_name, master_log_len + 1);
     master_port = mi->port;
     master_pos = rli->master_log_pos;
+    DBUG_PRINT("info", ("master_log: %s  pos: %d", master_log,
+			(ulong) master_pos));
   }
   else
     sql_print_error("Out of memory while recording slave event");
   pthread_mutex_unlock(&rli->data_lock);
   pthread_mutex_unlock(&mi->data_lock);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1284,8 +1288,8 @@ void Slave_log_event::print(FILE* file, bool short_form, char* last_db)
     return;
   print_header(file);
   fputc('\n', file);
-  fprintf(file, "Slave: master_host='%s' master_port=%d \
- master_log=%s master_pos=%s\n",
+  fprintf(file, "Slave: master_host: '%s'  master_port: %d  \
+master_log: '%s'  master_pos: %s\n",
 	  master_host, master_port, master_log, llstr(master_pos, llbuff));
 }
 
@@ -1791,9 +1795,13 @@ int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
 {
   bool rotate_binlog = 0, write_slave_event = 0;
   char* log_name = rli->master_log_name;
+  DBUG_ENTER("Rotate_log_event::exec_event");
+
   pthread_mutex_lock(&rli->data_lock);
-  // TODO: probably needs re-write    
-  // rotate local binlog only if the name of remote has changed
+  /*
+    TODO: probably needs re-write    
+    rotate local binlog only if the name of remote has changed
+  */
   if (!*log_name || !(log_name[ident_len] == 0 &&
 		      !memcmp(log_name, new_log_ident, ident_len)))
   {
@@ -1801,7 +1809,7 @@ int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
 			 && mysql_bin_log.is_open());
     rotate_binlog = (*log_name && write_slave_event);
     if (ident_len >= sizeof(rli->master_log_name))
-	return 1;
+      DBUG_RETURN(1);
     memcpy(log_name, new_log_ident,ident_len);
     log_name[ident_len] = 0;
   }
@@ -1812,6 +1820,7 @@ int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
     mysql_bin_log.new_file();
     rli->master_log_pos = 4;
   }
+  DBUG_PRINT("info", ("master_log_pos: %d", (ulong) rli->master_log_pos));
   pthread_cond_broadcast(&rli->data_cond);
   pthread_mutex_unlock(&rli->data_lock);
   flush_relay_log_info(rli);
@@ -1826,13 +1835,12 @@ int Rotate_log_event::exec_event(struct st_relay_log_info* rli)
       mysql_bin_log.write(&s);
     }
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 int Intvar_log_event::exec_event(struct st_relay_log_info* rli)
 {
-  switch (type)
-  {
+  switch (type) {
   case LAST_INSERT_ID_EVENT:
     thd->last_insert_id_used = 1;
     thd->last_insert_id = val;

@@ -1,17 +1,30 @@
 #! /bin/sh
+
+while test $# -gt 0
+do
+  case "$1" in
+   --debug) EXTRA_CONFIG_FLAGS=--with-debug; shift ;;
+  -h | --help ) cat <<EOF; exit 0 ;;
+Usage: $0 [-h|-n] [configure-options]
+  --debug		Compile with DBUG enabled
+EOF
+   *)  echo "No such option '$1'" ; exit ;;
+  esac
+done
+
 gmake -k clean || true 
 /bin/rm -f */.deps/*.P config.cache
-
 aclocal && autoheader && aclocal && automake && autoconf
 (cd bdb/dist && sh s_all)
 (cd innobase && aclocal && autoheader && aclocal && automake && autoconf)
 
-CFLAGS="-g -Wimplicit -Wreturn-type -Wswitch -Wtrigraphs -Wcomment -W -Wchar-subscripts -Wformat -Wimplicit-function-dec -Wimplicit-int -Wparentheses -Wsign-compare -Wwrite-strings -Wunused  -DHAVE_purify -DEXTRA_DEBUG -O2" CXX=gcc CXXLD=g++ CXXFLAGS="-g -Wimplicit -Wreturn-type -Wswitch -Wtrigraphs -Wcomment -W -Wchar-subscripts -Wformat -Wparentheses -Wsign-compare -Wwrite-strings -Woverloaded-virtual -Wsign-promo -Wreorder -Wctor-dtor-privacy -Wnon-virtual-dtor -felide-constructors -fno-exceptions -fno-rtti  -DHAVE_purify -DEXTRA_DEBUG -O2" ./configure --prefix=/usr/local/mysql --enable-assembler --with-extra-charsets=complex --enable-thread-safe-client --with-berkeley-db --with-innodb
+CFLAGS="-g -Wimplicit -Wreturn-type -Wswitch -Wtrigraphs -Wcomment -W -Wchar-subscripts -Wformat -Wimplicit-function-dec -Wimplicit-int -Wparentheses -Wsign-compare -Wwrite-strings -Wunused  -DHAVE_purify -DEXTRA_DEBUG -O2" CXX=gcc CXXLD=g++ CXXFLAGS="-g -Wimplicit -Wreturn-type -Wswitch -Wtrigraphs -Wcomment -W -Wchar-subscripts -Wformat -Wparentheses -Wsign-compare -Wwrite-strings -Woverloaded-virtual -Wsign-promo -Wreorder -Wctor-dtor-privacy -Wnon-virtual-dtor -felide-constructors -fno-exceptions -fno-rtti  -DHAVE_purify -DEXTRA_DEBUG -O2" ./configure --prefix=/usr/local/mysql --enable-assembler --with-extra-charsets=complex --enable-thread-safe-client --with-berkeley-db --with-innodb $EXTRA_CONFIG_FLAGS
 
 gmake -j 4
 
-cd sql ; rm mysqld ;
+cd sql ; mv mysqld mysqld-org ;
 make CXXLD="purify -best-effort g++"  mysqld ; mv mysqld mysqld-purify
 make CXXLD="quantify -best-effort g++"  mysqld ; mv mysqld mysqld-quantify
 make CXXLD="purecov -best-effort g++"  mysqld ; mv mysqld mysqld-purecov
+mv mysqld-org mysqld
 

@@ -119,6 +119,7 @@ void unlock_slave_threads(MASTER_INFO* mi)
 
 int init_slave()
 {
+  DBUG_ENTER("init_slave");
   // TODO (multi-master): replace this with list initialization
   active_mi = &main_mi;
 
@@ -129,8 +130,10 @@ int init_slave()
   */
   if (server_id && !master_host)
   {
-    // TODO: re-write this to interate through the list of files
-    // for multi-master
+    /*
+      TODO: re-write this to interate through the list of files
+      for multi-master
+    */
     char fname[FN_REFLEN+128];
     MY_STAT stat_area;
     fn_format(fname, master_info_file, mysql_data_home, "", 4+16+32);
@@ -141,20 +144,23 @@ int init_slave()
   // slave thread
   if (master_host)
   {
-    if (!opt_skip_slave_start && start_slave_threads(1 /* need mutex */,
-						     0 /* no wait for start*/,
-						     active_mi,
-						     master_info_file,
-						     relay_log_info_file,
-						     SLAVE_IO|SLAVE_SQL
-						     ))
-      sql_print_error("Warning: Can't create threads to handle slave");
-    else if (opt_skip_slave_start)
-      if (init_master_info(active_mi, master_info_file, relay_log_info_file))
-	sql_print_error("Warning: failed to initialized master info");
+    if (!opt_skip_slave_start)
+    {
+      if (start_slave_threads(1 /* need mutex */,
+			      0 /* no wait for start*/,
+			      active_mi,
+			      master_info_file,
+			      relay_log_info_file,
+			      SLAVE_IO | SLAVE_SQL))
+	sql_print_error("Warning: Can't create threads to handle slave");
+    }
+    else if (init_master_info(active_mi, master_info_file,
+			      relay_log_info_file))
+      sql_print_error("Warning: failed to initialized master info");
   }
-  return 0;
+  DBUG_RETURN(0);
 }
+
 
 static void free_table_ent(TABLE_RULE_ENT* e)
 {
@@ -495,6 +501,7 @@ int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
   pthread_mutex_t *lock_io=0,*lock_sql=0,*lock_cond_io=0,*lock_cond_sql=0;
   pthread_cond_t* cond_io=0,*cond_sql=0;
   int error=0;
+  DBUG_ENTER("start_slave_threads");
   
   if (need_slave_mutex)
   {
@@ -509,20 +516,19 @@ int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
     lock_cond_sql = &mi->rli.run_lock;
   }
   if (init_master_info(mi,master_info_fname,slave_info_fname))
-    return ER_MASTER_INFO;
+    DBUG_RETURN(ER_MASTER_INFO);
 
-  if ((thread_mask & SLAVE_IO) &&
-    (error=start_slave_thread(handle_slave_io,lock_io,lock_cond_io,
-		       cond_io,&mi->slave_running,
-			      mi)))
-    return error;
-  if ((thread_mask & SLAVE_SQL) &&
-     (error=start_slave_thread(handle_slave_sql,lock_sql,lock_cond_sql,
-			  cond_sql,
-			  &mi->rli.slave_running,mi)))
-    return error;
-  return 0;
+  if (thread_mask & SLAVE_IO)
+    error=start_slave_thread(handle_slave_io,lock_io,lock_cond_io,
+			     cond_io,&mi->slave_running,
+			     mi);
+  if (!error && (thread_mask & SLAVE_SQL))
+    error=start_slave_thread(handle_slave_sql,lock_sql,lock_cond_sql,
+			     cond_sql,
+			     &mi->rli.slave_running,mi);
+  DBUG_RETURN(error);
 }
+
 
 void init_table_rule_hash(HASH* h, bool* h_inited)
 {
@@ -1083,20 +1089,23 @@ int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname)
     }
       
     rli->info_fd = info_fd;
+    int relay_log_pos, master_log_pos;
     if (init_strvar_from_file(rli->relay_log_name,
 			      sizeof(rli->relay_log_name), &rli->info_file,
 			      "") ||
-       init_intvar_from_file((int*)&rli->relay_log_pos,
+       init_intvar_from_file(&relay_log_pos,
 			     &rli->info_file, BIN_LOG_HEADER_SIZE) ||
        init_strvar_from_file(rli->master_log_name,
 			     sizeof(rli->master_log_name), &rli->info_file,
 			     "") ||
-       init_intvar_from_file((int*)&rli->master_log_pos,
-			     &rli->info_file, 0))
+       init_intvar_from_file(&master_log_pos, &rli->info_file, 0))
     {
       msg="Error reading slave log configuration";
       goto err;
     }
+    rli->relay_log_pos=  relay_log_pos;
+    rli->master_log_pos= master_log_pos;
+
     if (init_relay_log_pos(rli,0 /* log already inited */,
 			   0 /* pos already inited */,
 			   0 /* no data lock*/,
@@ -1252,25 +1261,36 @@ int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
       goto err;
 
     mi->fd = fd;
+    int port, connect_retry, master_log_pos;
+
     if (init_strvar_from_file(mi->master_log_name,
 			      sizeof(mi->master_log_name), &mi->file,
 			      "") ||
-	init_intvar_from_file((int*)&mi->master_log_pos, &mi->file, 4) ||
+	init_intvar_from_file(&master_log_pos, &mi->file, 4) ||
 	init_strvar_from_file(mi->host, sizeof(mi->host), &mi->file,
 			      master_host) ||
 	init_strvar_from_file(mi->user, sizeof(mi->user), &mi->file,
 			      master_user) || 
 	init_strvar_from_file(mi->password, HASH_PASSWORD_LENGTH+1, &mi->file,
 			      master_password) ||
-	init_intvar_from_file((int*)&mi->port, &mi->file, master_port) ||
-	init_intvar_from_file((int*)&mi->connect_retry, &mi->file,
+	init_intvar_from_file(&port, &mi->file, master_port) ||
+	init_intvar_from_file(&connect_retry, &mi->file,
 			      master_connect_retry))
     {
       sql_print_error("Error reading master configuration");
       goto err;
     }
+    /*
+      This has to be handled here as init_intvar_from_file can't handle
+      my_off_t types
+    */
+    mi->master_log_pos= (my_off_t) master_log_pos;
+    mi->port= (uint) port;
+    mi->connect_retry= (uint) connect_retry;
   }
-  
+  DBUG_PRINT("master_info",("log_file_name: %s  position: %ld",
+			    mi->master_log_name,
+			    (ulong) mi->master_log_pos));
   mi->inited = 1;
   // now change cache READ -> WRITE - must do this before flush_master_info
   reinit_io_cache(&mi->file, WRITE_CACHE,0L,0,1);
@@ -1399,7 +1419,9 @@ int flush_master_info(MASTER_INFO* mi)
 {
   IO_CACHE* file = &mi->file;
   char lbuf[22];
-  
+  DBUG_ENTER("flush_master_info");
+  DBUG_PRINT("enter",("master_pos: %ld", (long) mi->master_log_pos));
+
   my_b_seek(file, 0L);
   my_b_printf(file, "%s\n%s\n%s\n%s\n%s\n%d\n%d\n%d\n",
 	      mi->master_log_name, llstr(mi->master_log_pos, lbuf),
@@ -1407,7 +1429,7 @@ int flush_master_info(MASTER_INFO* mi)
 	      mi->password, mi->port, mi->connect_retry
 	      );
   flush_io_cache(file);
-  return 0;
+  DBUG_RETURN(0);
 }
 
 int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
@@ -1496,13 +1518,9 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
     thd->options |= OPTION_BIG_SELECTS;
 
   if (thd_type == SLAVE_THD_SQL)
-  {
-    thd->proc_info = "Waiting for the next event in slave queue";
-  }
+    thd->proc_info= "Waiting for the next event in slave queue";
   else
-  {
-    thd->proc_info="Waiting for master update";
-  }
+    thd->proc_info= "Waiting for master update";
   thd->version=refresh_version;
   thd->set_time();
   DBUG_RETURN(0);
@@ -1751,8 +1769,9 @@ slave_begin:
   pthread_cond_broadcast(&mi->start_cond);
   pthread_mutex_unlock(&mi->run_lock);
   
-  DBUG_PRINT("info",("master info: log_file_name='%s', position=%s",
-		     mi->master_log_name, llstr(mi->master_log_pos,llbuff)));
+  DBUG_PRINT("master_info",("log_file_name: '%s'  position: %s",
+			    mi->master_log_name,
+			    llstr(mi->master_log_pos,llbuff)));
   
   if (!(mi->mysql = mysql = mc_mysql_init(NULL)))
   {
@@ -2013,10 +2032,12 @@ slave_begin:
   }
   DBUG_ASSERT(rli->relay_log_pos >= BIN_LOG_HEADER_SIZE);
   DBUG_ASSERT(my_b_tell(rli->cur_log) == rli->relay_log_pos);
-
-  DBUG_PRINT("info",("master info: log_file_name: %s, position: %s",
-		     rli->master_log_name, llstr(rli->master_log_pos,llbuff)));
   DBUG_ASSERT(rli->sql_thd == thd);
+
+  DBUG_PRINT("master_info",("log_file_name: %s  position: %s",
+			    rli->master_log_name,
+			    llstr(rli->master_log_pos,llbuff)));
+
   sql_print_error("Slave SQL thread initialized, starting replication in \
 log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
 		  llstr(rli->master_log_pos,llbuff),rli->relay_log_name,
@@ -2180,13 +2201,16 @@ err:
 
 static int process_io_rotate(MASTER_INFO* mi, Rotate_log_event* rev)
 {
+  DBUG_ENTER("process_io_rotate");
+
   if (unlikely(!rev->is_valid()))
-    return 1;
-  DBUG_ASSERT(rev->ident_len<sizeof(mi->master_log_name));
+    DBUG_RETURN(1);
+  DBUG_ASSERT(rev->ident_len < sizeof(mi->master_log_name));
   memcpy(mi->master_log_name,rev->new_log_ident,
 	 rev->ident_len);
   mi->master_log_name[rev->ident_len] = 0;
   mi->master_log_pos = rev->pos;
+  DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
 #ifndef DBUG_OFF
   /*
     If we do not do this, we will be getting the first
@@ -2195,7 +2219,7 @@ static int process_io_rotate(MASTER_INFO* mi, Rotate_log_event* rev)
   if (disconnect_slave_event_count)
     events_till_disconnect++;
 #endif
-  return 0;
+  DBUG_RETURN(0);
 }
 
 /*
@@ -2260,6 +2284,7 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
     int error = process_io_create_file(mi,(Create_file_log_event*)ev);
     delete ev;
     mi->master_log_pos += event_len;
+    DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
     pthread_mutex_unlock(&mi->data_lock);
     DBUG_ASSERT(tmp_buf);
     my_free((char*)tmp_buf, MYF(0));
@@ -2283,6 +2308,7 @@ static int queue_old_event(MASTER_INFO *mi, const char *buf,
   delete ev;
   if (likely(inc_pos))
     mi->master_log_pos += event_len;
+  DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
   if (unlikely(processed_stop_event))
     mi->ignore_stop_event=1;
   pthread_mutex_unlock(&mi->data_lock);
@@ -2334,6 +2360,7 @@ int queue_event(MASTER_INFO* mi,const char* buf, ulong event_len)
   {
     if (likely(inc_pos))
       mi->master_log_pos += event_len;
+    DBUG_PRINT("info", ("master_log_pos: %d", (ulong) mi->master_log_pos));
     mi->rli.relay_log.harvest_bytes_written(&mi->rli.log_space_total);
   }
   if (unlikely(processed_stop_event))
