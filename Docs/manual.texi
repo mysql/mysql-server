@@ -50400,7 +50400,7 @@ each individual 4.0.x release.
 @item
 @code{GRANT ... REQUIRE NONE} can now be used to remove SSL information.
 @item
-@code{AND} is not optional between @code{REQUIRE} options.
+@code{AND} is now optional between @code{REQUIRE} options.
 @item
 @code{REQUIRE} options was not properly saved, which could cause strange
 output in @code{SHOW GRANTS}.
