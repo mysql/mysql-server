@@ -26,21 +26,21 @@ extern "C" {
 struct NdbCondition;
 
 
-/*
-// Create a condition
-//
-// * returnvalue: pointer to the condition structure
-*/
+/**
+ * Create a condition
+ *
+ * returnvalue: pointer to the condition structure
+ */
 struct NdbCondition* NdbCondition_Create(void);
 
-/*
-// Wait for a condition, allows a thread to wait for
-// a condition and atomically releases the associated mutex.
-//
-// * p_cond: pointer to the condition structure
-// * p_mutex: pointer to the mutex structure
-// * returnvalue: 0 = succeeded, 1 = failed
-*/
+/**
+ * Wait for a condition, allows a thread to wait for
+ * a condition and atomically releases the associated mutex.
+ *
+ * p_cond: pointer to the condition structure
+ * p_mutex: pointer to the mutex structure
+ * returnvalue: 0 = succeeded, 1 = failed
+ */
 int NdbCondition_Wait(struct NdbCondition* p_cond,
 		      NdbMutex* p_mutex);
 
@@ -60,29 +60,29 @@ NdbCondition_WaitTimeout(struct NdbCondition* p_cond,
 			 int msec);
   
 
-/*
-// Signal a condition
-//
-// * p_cond: pointer to the condition structure
-// * returnvalue: 0 = succeeded, 1 = failed
-*/
+/**
+ * Signal a condition
+ *
+ * p_cond: pointer to the condition structure
+ * returnvalue: 0 = succeeded, 1 = failed
+ */
 int NdbCondition_Signal(struct NdbCondition* p_cond);
 
 
-/*
-// Broadcast a condition
-//
-// * p_cond: pointer to the condition structure
-// * returnvalue: 0 = succeeded, 1 = failed
-*/
+/**
+ * Broadcast a condition
+ *
+ * p_cond: pointer to the condition structure
+ * returnvalue: 0 = succeeded, 1 = failed
+ */
 int NdbCondition_Broadcast(struct NdbCondition* p_cond);
 
-/*
-// Destroy a condition
-//
-// * p_cond: pointer to the condition structure
-// * returnvalue: 0 = succeeded, 1 = failed
-*/
+/**
+ * Destroy a condition
+ *
+ * p_cond: pointer to the condition structure
+ * returnvalue: 0 = succeeded, 1 = failed
+ */
 int NdbCondition_Destroy(struct NdbCondition* p_cond);
 
 #ifdef	__cplusplus

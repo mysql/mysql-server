@@ -20,12 +20,12 @@
 # several test cases.
 #
 # Please do not modify the structure (DROP/ALTER..) of the tables
-#     't1' and 't_many_col_types'. 
+#     't1' and 't9'. 
 #
 # But you are encouraged to use these two tables within your statements
 # (DELETE/UPDATE/...) whenever possible. 
-#     t1               - very simple table
-#     t_many_col_types - table with nearly all available column types
+#     t1   - very simple table
+#     t9   - table with nearly all available column types
 #
 # The structure and the content of these tables can be found in
 #     include/ps_create.inc  CREATE TABLE ...
@@ -41,23 +41,28 @@
 
 #-------- Please be very carefull when editing behind this line  ----------#
 
+--source include/ps_renew.inc
+#
+# add a NULL row to t1: this row is used only in this test
+insert into t1 values(0,NULL) ;
+
 ## big insert select statements
 set @duplicate='duplicate ' ;
 set @1000=1000 ;
 set @5=5 ;
-select a,b from t1 where a < 5 ;
+select a,b from t1 where a < 5 order by a ;
 --enable_info
 insert into t1 select a + @1000, concat(@duplicate,b) from t1
 where a < @5 ;
 --disable_info
-select a,b from t1 where a >= 1000 ;
+select a,b from t1 where a >= 1000 order by a ;
 delete from t1 where a >= 1000 ;
 prepare stmt1 from ' insert into t1 select a + ?, concat(?,b) from t1
 where a < ? ' ;
 --enable_info
 execute stmt1 using @1000, @duplicate, @5;
 --disable_info
-select a,b from t1 where a >= 1000 ;
+select a,b from t1 where a >= 1000 order by a ;
 delete from t1 where a >= 1000 ;
 
 set @float=1.00;
@@ -78,7 +83,7 @@ select b, a + @100 from t1
   where (a,b) in ( select sqrt(a+@1)+CAST(@float AS signed),b 
                  from t1);
 --disable_info
-select a,b from t2;
+select a,b from t2 order by a ;
 delete from t2 ;
 prepare stmt1 from ' insert into t2 (b,a) 
 select ?, sum(first.a)
@@ -93,5 +98,5 @@ select b, a + ? from t1
 --enable_info
 execute stmt1 using @duplicate, @5, @five, @2, @100, @1, @float ;
 --disable_info
-select a,b from t2;
+select a,b from t2 order by a ;
 drop table t2;

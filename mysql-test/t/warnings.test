@@ -26,8 +26,11 @@ show warnings limit 1;
 drop database if exists not_exists_db;
 show count(*) warnings;
 create table t1(id int);
+# PS doesn't give warnings on prepare
+--disable_ps_protocol
 create table if not exists t1(id int);
 select @@warning_count;
+--enable_ps_protocol
 drop table t1;
 
 #
@@ -36,7 +39,10 @@ drop table t1;
 
 create table t1(a tinyint, b int not null, c date, d char(5));
 load data infile '../../std_data/warnings_loaddata.dat' into table t1 fields terminated by ',';
+# PS doesn't work good with @@warning_count
+--disable_ps_protocol
 select @@warning_count;
+--enable_ps_protocol
 drop table t1;
 
 #
@@ -74,7 +80,9 @@ enable_query_log;
 alter table t1 add b char;
 set max_error_count=10;
 update t1 set b=a;
+--disable_ps_protocol
 select @@warning_count;
+--enable_ps_protocol
 
 #
 # Test for handler type
@@ -87,12 +95,15 @@ drop table t1;
 #
 # Test for deprecated TYPE= syntax
 #
+
+# PS doesn't give warnings on prepare
+--disable_ps_protocol
 create table t1 (id int) type=heap;
 alter table t1 type=myisam;
 drop table t1;
+--enable_ps_protocol
 
 #
 # Test for deprecated table_type variable
 #
 set table_type=MYISAM;
-

@@ -42,7 +42,7 @@
 
 **********************************************************************/
 
-#define MTEST_VERSION "2.1"
+#define MTEST_VERSION "2.3"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -53,12 +53,13 @@
 #include <mysqld_error.h>
 #include <m_ctype.h>
 #include <my_dir.h>
+#include <errmsg.h>                       /* Error codes */
 #include <hash.h>
 #include <my_getopt.h>
 #include <stdarg.h>
 #include <sys/stat.h>
 #include <violite.h>
-
+#include <regex.h>                        /* Our own version of lib */
 #define MAX_QUERY     131072
 #define MAX_VAR_NAME	256
 #define MAX_COLUMNS	256
@@ -75,7 +76,7 @@
 #ifndef MYSQL_MANAGER_PORT
 #define MYSQL_MANAGER_PORT 23546
 #endif
-#define MAX_SERVER_ARGS 20
+#define MAX_SERVER_ARGS 64
 
 /*
   Sometimes in a test the client starts before
@@ -93,14 +94,46 @@
 enum {OPT_MANAGER_USER=256,OPT_MANAGER_HOST,OPT_MANAGER_PASSWD,
       OPT_MANAGER_PORT,OPT_MANAGER_WAIT_TIMEOUT, OPT_SKIP_SAFEMALLOC,
       OPT_SSL_SSL, OPT_SSL_KEY, OPT_SSL_CERT, OPT_SSL_CA, OPT_SSL_CAPATH,
-      OPT_SSL_CIPHER};
+      OPT_SSL_CIPHER,OPT_PS_PROTOCOL};
+
+/* ************************************************************************ */
+/*
+  A line that starts with !$ or $S, and the list of error codes to
+  --error are stored in an internal array of structs. This struct can
+  hold numeric SQL error codes or SQLSTATE codes as strings. The
+  element next to the last active element in the list is set to type
+  ERR_EMPTY. When an SQL statement return an error we use this list to
+  check if this  is an expected error.
+*/
+ 
+enum match_err_type
+{
+  ERR_EMPTY= 0,
+  ERR_ERRNO,
+  ERR_SQLSTATE
+};
+
+typedef struct
+{
+  enum match_err_type type;
+  union
+  {
+    uint errnum;
+    char sqlstate[SQLSTATE_LENGTH+1];  /* \0 terminated string */
+  } code;
+} match_err;
+
+static match_err global_expected_errno[MAX_EXPECTED_ERRORS];
+static uint global_expected_errors;
+
+/* ************************************************************************ */
 
 static int record = 0, opt_sleep=0;
 static char *db = 0, *pass=0;
 const char* user = 0, *host = 0, *unix_sock = 0, *opt_basedir="./";
 static int port = 0;
-static my_bool opt_big_test= 0, opt_compress= 0, silent= 0, verbose = 0,
-	       tty_password= 0;
+static my_bool opt_big_test= 0, opt_compress= 0, silent= 0, verbose = 0;
+static my_bool tty_password= 0, ps_protocol= 0, ps_protocol_enabled= 0;
 static uint start_lineno, *lineno;
 const char* manager_user="root",*manager_host=0;
 char *manager_pass=0;
@@ -124,13 +157,26 @@ static int *cur_block, *block_stack_end;
 static int block_stack[BLOCK_STACK_DEPTH];
 
 static int block_ok_stack[BLOCK_STACK_DEPTH];
-static uint global_expected_errno[MAX_EXPECTED_ERRORS], global_expected_errors;
-static CHARSET_INFO *charset_info= &my_charset_latin1;
+static CHARSET_INFO *charset_info= &my_charset_latin1; /* Default charset */
+static const char *charset_name= "latin1"; /* Default character set name */
 
 static int embedded_server_arg_count=0;
 static char *embedded_server_args[MAX_SERVER_ARGS];
 
 static my_bool display_result_vertically= FALSE, display_metadata= FALSE;
+
+/* See the timer_output() definition for details */
+static char *timer_file = NULL;
+static ulonglong timer_start;
+static int got_end_timer= FALSE;
+static void timer_output(void);
+static ulonglong timer_now(void);
+
+static regex_t ps_re; /* Holds precompiled re for valid PS statements */
+static void ps_init_re(void);
+static int ps_match_re(char *);
+static char *ps_eprint(int);
+static void ps_free_reg(void);
 
 static const char *embedded_server_groups[] = {
   "server",
@@ -229,7 +275,10 @@ Q_ENABLE_INFO, Q_DISABLE_INFO,
 Q_ENABLE_METADATA, Q_DISABLE_METADATA,
 Q_EXEC, Q_DELIMITER,
 Q_DISPLAY_VERTICAL_RESULTS, Q_DISPLAY_HORIZONTAL_RESULTS,
-Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL, Q_EXIT,
+Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL,
+Q_START_TIMER, Q_END_TIMER,
+Q_CHARACTER_SET, Q_DISABLE_PS_PROTOCOL, Q_ENABLE_PS_PROTOCOL,
+Q_EXIT,
 
 Q_UNKNOWN,			       /* Unknown command.   */
 Q_COMMENT,			       /* Comments, ignored. */
@@ -242,7 +291,7 @@ struct st_query
   char *query, *query_buf,*first_argument,*end;
   int first_word_len;
   my_bool abort_on_error, require_file;
-  uint expected_errno[MAX_EXPECTED_ERRORS];
+  match_err expected_errno[MAX_EXPECTED_ERRORS];
   uint expected_errors;
   char record_file[FN_REFLEN];
   enum enum_commands type;
@@ -308,19 +357,23 @@ const char *command_names[]=
   "horizontal_results",
   "query_vertical",
   "query_horizontal",
+  "start_timer",
+  "end_timer",
+  "character_set",
+  "disable_ps_protocol",
+  "enable_ps_protocol",
   "exit",
   0
 };
 
 TYPELIB command_typelib= {array_elements(command_names),"",
-			  command_names};
+			  command_names, 0};
 
 DYNAMIC_STRING ds_res;
 static void die(const char *fmt, ...);
 static void init_var_hash();
 static VAR* var_from_env(const char *, const char *);
-static byte* get_var_key(const byte* rec, uint* len,
-			 my_bool __attribute__((unused)) t);
+static byte* get_var_key(const byte* rec, uint* len, my_bool t);
 static VAR* var_init(VAR* v, const char *name, int name_len, const char *val,
 		     int val_len);
 
@@ -330,6 +383,7 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname);
 void reject_dump(const char *record_file, char *buf, int size);
 
 int close_connection(struct st_query* q);
+static void set_charset(struct st_query*);
 VAR* var_get(const char *var_name, const char** var_name_end, my_bool raw,
 	     my_bool ignore_not_existing);
 int eval_expr(VAR* v, const char *p, const char** p_end);
@@ -480,6 +534,8 @@ static void free_used_memory()
   my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
   free_defaults(default_argv);
   mysql_server_end();
+  if (ps_protocol)
+    ps_free_reg();
   my_end(MY_CHECK_ERROR);
   DBUG_VOID_RETURN;
 }
@@ -845,10 +901,10 @@ int do_source(struct st_query* q)
     1	error
 */
 
-int do_exec(struct st_query* q)
+static void do_exec(struct st_query* q)
 {
-  int error= 0;
-  DYNAMIC_STRING *ds;
+  int error;
+  DYNAMIC_STRING *ds= NULL;			/* Assign just to avoid warning */
   DYNAMIC_STRING ds_tmp;
   char buf[1024];
   FILE *res_file;
@@ -885,7 +941,15 @@ int do_exec(struct st_query* q)
 
     while (fgets(buf, sizeof(buf), res_file))
       replace_dynstr_append_mem(ds, buf, strlen(buf));
+  }
 
+  error= pclose(res_file);
+
+  if (error != 0)
+    die("command \"%s\" failed", cmd);
+
+  if (!disable_result_log)
+  {
     if (glob_replace)
       free_replace();
 
@@ -903,9 +967,6 @@ int do_exec(struct st_query* q)
     if (ds == &ds_tmp)
       dynstr_free(&ds_tmp);
   }
-  pclose(res_file);
-  
-  DBUG_RETURN(error);
 }
 
 
@@ -1225,25 +1286,58 @@ static void get_file_name(char *filename, struct st_query* q)
   p[0]=0;
 }
 
-
-static uint get_ints(uint *to,struct st_query* q)
+static void set_charset(struct st_query* q)
 {
-  char* p=q->first_argument;
-  long val;
-  uint count=0;
-  DBUG_ENTER("get_ints");
+  char* charset_name= q->first_argument;
+  char* tmp;
+
+  if (!charset_name || !*charset_name)
+    die("Missing charset name in 'character_set'\n");
+  /* Remove end space */
+  tmp= charset_name;
+  while (*tmp && !my_isspace(charset_info,*tmp))
+    tmp++;
+  *tmp= 0;
+
+  charset_info= get_charset_by_csname(charset_name,MY_CS_PRIMARY,MYF(MY_WME));
+  if (!charset_info)
+    abort_not_supported_test();
+}
+
+static uint get_errcodes(match_err *to,struct st_query* q)
+{
+  char* p= q->first_argument;
+  uint count= 0;
+  DBUG_ENTER("get_errcodes");
 
   if (!*p)
     die("Missing argument in %s\n", q->query);
 
-  for (; (p=str2int(p,10,(long) INT_MIN, (long) INT_MAX, &val)) ; p++)
+  do
   {
+    if (*p == 'S')
+    {
+      /* SQLSTATE string */
+      int i;
+      p++;
+      for (i = 0; my_isalnum(charset_info, *p) && i < SQLSTATE_LENGTH; p++, i++)
+        to[count].code.sqlstate[i]= *p;
+      to[count].code.sqlstate[i]= '\0';
+      to[count].type= ERR_SQLSTATE;
+    }
+    else
+    {
+      long val;
+      p=str2int(p,10,(long) INT_MIN, (long) INT_MAX, &val);
+      if (p == NULL)
+        die("Invalid argument in %s\n", q->query);
+      to[count].code.errnum= (uint) val;
+      to[count].type= ERR_ERRNO;
+    }
     count++;
-    *to++= (uint) val;
-    if (*p != ',')
-      break;
-  }
-  *to++=0;					/* End of data */
+  } while (*(p++) == ',');
+
+  to[count].type= ERR_EMPTY;                        /* End of data */
   DBUG_RETURN(count);
 }
 
@@ -1569,7 +1663,7 @@ int do_connect(struct st_query* q)
   if (opt_compress)
     mysql_options(&next_con->mysql,MYSQL_OPT_COMPRESS,NullS);
   mysql_options(&next_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
-  mysql_options(&next_con->mysql, MYSQL_SET_CHARSET_NAME, "latin1");
+  mysql_options(&next_con->mysql, MYSQL_SET_CHARSET_NAME, charset_name);
 
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
@@ -1715,6 +1809,7 @@ int read_line(char* buf, int size)
     c= my_getc(*cur_file);
     if (feof(*cur_file))
     {
+  found_eof:
       if ((*cur_file) != stdin)
 	my_fclose(*cur_file, MYF(0));
       cur_file--;
@@ -1723,6 +1818,10 @@ int read_line(char* buf, int size)
 	DBUG_RETURN(1);
       continue;
     }
+
+    /* Line counting is independent of state */
+    if (c == '\n')
+      (*lineno)++;
 
     switch(state) {
     case R_NORMAL:
@@ -1739,14 +1838,12 @@ int read_line(char* buf, int size)
       else if (c == '\n')
       {
 	state = R_LINE_START;
-	(*lineno)++;
       }
       break;
     case R_COMMENT:
       if (c == '\n')
       {
 	*p= 0;
-	(*lineno)++;
 	DBUG_RETURN(0);
       }
       break;
@@ -1758,7 +1855,7 @@ int read_line(char* buf, int size)
       else if (my_isspace(charset_info, c))
       {
 	if (c == '\n')
-	  start_lineno= ++*lineno;		/* Query hasn't started yet */
+	  start_lineno= *lineno;		/* Query hasn't started yet */
 	no_save= 1;
       }
       else if (c == '}')
@@ -1824,7 +1921,39 @@ int read_line(char* buf, int size)
     }
 
     if (!no_save)
-      *p++= c;
+    {
+      /* Could be a multibyte character */
+      /* This code is based on the code in "sql_load.cc" */
+#ifdef USE_MB
+      int charlen = my_mbcharlen(charset_info, c);
+      /* We give up if multibyte character is started but not */
+      /* completed before we pass buf_end */
+      if ((charlen > 1) && (p + charlen) <= buf_end)
+      {
+	int i;
+	char* mb_start = p;
+
+	*p++ = c;
+
+	for (i= 1; i < charlen; i++)
+	{
+	  if (feof(*cur_file))
+	    goto found_eof;	/* FIXME: could we just break here?! */
+	  c= my_getc(*cur_file);
+	  *p++ = c;
+	}
+	if (! my_ismbchar(charset_info, mb_start, p))
+	{
+	  /* It was not a multiline char, push back the characters */
+	  /* We leave first 'c', i.e. pretend it was a normal char */
+	  while (p > mb_start)
+	    my_ungetc(*--p);
+	}
+      }
+      else
+#endif
+	*p++= c;
+    }
   }
   *p= 0;					/* Always end with \0 */
   DBUG_RETURN(feof(*cur_file));
@@ -1836,7 +1965,6 @@ static char read_query_buf[MAX_QUERY];
 int read_query(struct st_query** q_ptr)
 {
   char *p = read_query_buf, * p1 ;
-  int expected_errno;
   struct st_query* q;
   DBUG_ENTER("read_query");
 
@@ -1886,13 +2014,25 @@ int read_query(struct st_query** q_ptr)
       p++;
       if (*p == '$')
       {
-	expected_errno= 0;
-	p++;
-	for (; my_isdigit(charset_info, *p); p++)
-	  expected_errno = expected_errno * 10 + *p - '0';
-	q->expected_errno[0] = expected_errno;
-	q->expected_errno[1] = 0;
-	q->expected_errors=1;
+        int expected_errno= 0;
+        p++;
+        for (; my_isdigit(charset_info, *p); p++)
+          expected_errno = expected_errno * 10 + *p - '0';
+        q->expected_errno[0].code.errnum = expected_errno;
+        q->expected_errno[0].type= ERR_ERRNO;
+        q->expected_errno[1].type= ERR_EMPTY;
+        q->expected_errors=1;
+      }
+      else if (*p == 'S')                            /* SQLSTATE */
+      {
+        int i;
+        p++;
+        for (i = 0; my_isalnum(charset_info, *p) && i < SQLSTATE_LENGTH; p++, i++)
+          q->expected_errno[0].code.sqlstate[i]= *p;
+        q->expected_errno[0].code.sqlstate[i]= '\0';
+        q->expected_errno[0].type= ERR_SQLSTATE;
+        q->expected_errno[1].type= ERR_EMPTY;
+        q->expected_errors=1;
       }
     }
 
@@ -1962,6 +2102,9 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection.", (gptr*) &port,
    (gptr*) &port, 0, GET_INT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0, 0},
+  {"ps-protocol", OPT_PS_PROTOCOL, "Use prepared statements protocol for communication",
+   (gptr*) &ps_protocol, (gptr*) &ps_protocol, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"quiet", 's', "Suppress all normal output.", (gptr*) &silent,
    (gptr*) &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"record", 'r', "Record output of test_file into result file.",
@@ -1986,6 +2129,8 @@ static struct my_option my_long_options[] =
    0, 0, 0},
 #include "sslopt-longopts.h"
   {"test-file", 'x', "Read test from/in this file (default stdin).",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"timer-file", 'm', "File where the timing in micro seconds is stored.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"tmpdir", 't', "Temporary directory where sockets are put.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -2048,12 +2193,26 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	die("Could not open %s: errno = %d", argument, errno);
       break;
     }
+  case 'm':
+    {
+      static char buff[FN_REFLEN];
+      if (!test_if_hard_path(argument))
+      {
+	strxmov(buff, opt_basedir, argument, NullS);
+	argument= buff;
+      }
+      fn_format(buff, argument, "", "", 4);
+      timer_file= buff;
+      unlink(timer_file);	     /* Ignore error, may not exist */
+      break;
+    }
   case 'p':
     if (argument)
     {
       my_free(pass, MYF(MY_ALLOW_ZERO_PTR));
       pass= my_strdup(argument, MYF(MY_FAE));
       while (*argument) *argument++= 'x';		/* Destroy argument */
+      tty_password= 0;
     }
     else
       tty_password= 1;
@@ -2068,10 +2227,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       embedded_server_arg_count=1;
       embedded_server_args[0]= (char*) "";
     }
-    embedded_server_args[embedded_server_arg_count++]=
-      my_strdup(argument, MYF(MY_FAE));
-    if (embedded_server_arg_count == MAX_SERVER_ARGS ||
-	!embedded_server_args[embedded_server_arg_count-1])
+    if (embedded_server_arg_count == MAX_SERVER_ARGS-1 ||
+        !(embedded_server_args[embedded_server_arg_count++]=
+          my_strdup(argument, MYF(MY_FAE))))
     {
       die("Can't use server argument");
     }
@@ -2225,7 +2383,36 @@ static void append_result(DYNAMIC_STRING *ds, MYSQL_RES *res)
 * the result will be read - for regular query, both bits must be on
 */
 
-int run_query(MYSQL* mysql, struct st_query* q, int flags)
+static int run_query_normal(MYSQL *mysql, struct st_query *q, int flags);
+static int run_query_stmt  (MYSQL *mysql, struct st_query *q, int flags);
+static void run_query_stmt_handle_warnings(MYSQL *mysql, DYNAMIC_STRING *ds);
+static int run_query_stmt_handle_error(char *query, struct st_query *q,
+                                       MYSQL_STMT *stmt, DYNAMIC_STRING *ds);
+static void run_query_display_metadata(MYSQL_FIELD *field, uint num_fields,
+                                       DYNAMIC_STRING *ds);
+
+static int run_query(MYSQL *mysql, struct st_query *q, int flags)
+{
+
+  /*
+    Try to find out if we can run this statement using the prepared
+    statement protocol.
+
+    We don't have a mysql_stmt_send_execute() so we only handle
+    complete SEND+REAP.
+
+    If it is a '?' in the query it may be a SQL level prepared
+     statement already and we can't do it twice
+  */
+
+  if (ps_protocol_enabled && disable_info &&
+      (flags & QUERY_SEND) && (flags & QUERY_REAP) && ps_match_re(q->query))
+    return run_query_stmt  (mysql, q, flags);
+  return run_query_normal(mysql, q, flags);
+}
+
+
+static int run_query_normal(MYSQL* mysql, struct st_query* q, int flags)
 {
   MYSQL_RES* res= 0;
   uint i;
@@ -2235,7 +2422,7 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
   DYNAMIC_STRING eval_query;
   char* query;
   int query_len, got_error_on_send= 0;
-  DBUG_ENTER("run_query");
+  DBUG_ENTER("run_query_normal");
   DBUG_PRINT("enter",("flags: %d", flags));
   
   if (q->type != Q_EVAL)
@@ -2263,7 +2450,7 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
   if (flags & QUERY_SEND)
   {
     got_error_on_send= mysql_send_query(mysql, query, query_len);
-    if (got_error_on_send && !q->expected_errno[0])
+    if (got_error_on_send && q->expected_errno[0].type == ERR_EMPTY)
       die("At line %u: unable to send query '%s' (mysql_errno=%d , errno=%d)",
 	  start_lineno, query, mysql_errno(mysql), errno);
   }
@@ -2295,7 +2482,10 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
       {
 	for (i=0 ; (uint) i < q->expected_errors ; i++)
 	{
-	  if ((q->expected_errno[i] == mysql_errno(mysql)))
+          if (((q->expected_errno[i].type == ERR_ERRNO) &&
+               (q->expected_errno[i].code.errnum == mysql_errno(mysql))) ||
+              ((q->expected_errno[i].type == ERR_SQLSTATE) &&
+               (strcmp(q->expected_errno[i].code.sqlstate,mysql_sqlstate(mysql)) == 0)))
 	  {
 	    if (i == 0 && q->expected_errors == 1)
 	    {
@@ -2309,7 +2499,9 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
 	      dynstr_append_mem(ds,"\n",1);
 	    }
 	    /* Don't log error if we may not get an error */
-	    else if (q->expected_errno[0] != 0)
+            else if (q->expected_errno[0].type == ERR_SQLSTATE ||
+                     (q->expected_errno[0].type == ERR_ERRNO &&
+                      q->expected_errno[0].code.errnum != 0))
 	      dynstr_append(ds,"Got one of the listed errors\n");
 	    goto end;				/* Ok */
 	  }
@@ -2325,8 +2517,12 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
 	dynstr_append_mem(ds,"\n",1);
 	if (i)
 	{
-	  verbose_msg("query '%s' failed with wrong errno %d instead of %d...",
-		      q->query, mysql_errno(mysql), q->expected_errno[0]);
+          if (q->expected_errno[0].type == ERR_ERRNO)
+            verbose_msg("query '%s' failed with wrong errno %d instead of %d...",
+                        q->query, mysql_errno(mysql), q->expected_errno[0].code.errnum);
+          else
+            verbose_msg("query '%s' failed with wrong sqlstate %s instead of %s...",
+                        q->query, mysql_sqlstate(mysql), q->expected_errno[0].code.sqlstate);
 	  error= 1;
 	  goto end;
 	}
@@ -2346,11 +2542,22 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
 	}*/
     }
 
-    if (q->expected_errno[0])
+    if (q->expected_errno[0].type == ERR_ERRNO &&
+        q->expected_errno[0].code.errnum != 0)
     {
-      error = 1;
+      /* Error code we wanted was != 0, i.e. not an expected success */
       verbose_msg("query '%s' succeeded - should have failed with errno %d...",
-		  q->query, q->expected_errno[0]);
+                  q->query, q->expected_errno[0].code.errnum);
+      error = 1;
+      goto end;
+    }
+    else if (q->expected_errno[0].type == ERR_SQLSTATE &&
+             strcmp(q->expected_errno[0].code.sqlstate,"00000") != 0)
+    {
+      /* SQLSTATE we wanted was != "00000", i.e. not an expected success */
+      verbose_msg("query '%s' succeeded - should have failed with sqlstate %s...",
+                  q->query, q->expected_errno[0].code.sqlstate);
+      error = 1;
       goto end;
     }
 
@@ -2358,56 +2565,14 @@ int run_query(MYSQL* mysql, struct st_query* q, int flags)
     {
       if (res)
       {
-	MYSQL_FIELD *field, *field_end;
+	MYSQL_FIELD *field= mysql_fetch_fields(res);
 	uint num_fields= mysql_num_fields(res);
 
 	if (display_metadata)
-	{
-	  dynstr_append(ds,"Catalog\tDatabase\tTable\tTable_alias\tColumn\tColumn_alias\tName\tType\tLength\tMax length\tIs_null\tFlags\tDecimals\tCharsetnr\n");
-	  for (field= mysql_fetch_fields(res), field_end= field+num_fields ;
-	       field < field_end ;
-	       field++)
-	  {
-	    char buff[22];
-	    dynstr_append_mem(ds, field->catalog, field->catalog_length);
-	    dynstr_append_mem(ds, "\t", 1);
-	    dynstr_append_mem(ds, field->db, field->db_length);
-	    dynstr_append_mem(ds, "\t", 1);
-	    dynstr_append_mem(ds, field->org_table, field->org_table_length);
-	    dynstr_append_mem(ds, "\t", 1);
-	    dynstr_append_mem(ds, field->table, field->table_length);
-	    dynstr_append_mem(ds, "\t", 1);
-	    dynstr_append_mem(ds, field->org_name, field->org_name_length);
-	    dynstr_append_mem(ds, "\t", 1);
-	    dynstr_append_mem(ds, field->name, field->name_length);
-	    dynstr_append_mem(ds, "\t", 1);
-	    int10_to_str((int) field->type, buff, 10);
-	    dynstr_append(ds, buff);
-	    dynstr_append_mem(ds, "\t", 1);
-	    int10_to_str((int) field->length, buff, 10);
-	    dynstr_append(ds, buff);
-	    dynstr_append_mem(ds, "\t", 1);
-	    int10_to_str((int) field->max_length, buff, 10);
-	    dynstr_append(ds, buff);
-	    dynstr_append_mem(ds, "\t", 1);
-	    dynstr_append_mem(ds, (char*) (IS_NOT_NULL(field->flags) ?
-					   "N" : "Y"), 1);
-	    dynstr_append_mem(ds, "\t", 1);
+          run_query_display_metadata(field, num_fields, ds);
 
-	    int10_to_str((int) field->flags, buff, 10);
-	    dynstr_append(ds, buff);
-	    dynstr_append_mem(ds, "\t", 1);
-	    int10_to_str((int) field->decimals, buff, 10);
-	    dynstr_append(ds, buff);
-	    dynstr_append_mem(ds, "\t", 1);
-	    int10_to_str((int) field->charsetnr, buff, 10);
-	    dynstr_append(ds, buff);
-	    dynstr_append_mem(ds, "\n", 1);
-	  }
-	}
 	if (!display_result_vertically)
 	{
-	  field= mysql_fetch_fields(res);
 	  for (i = 0; i < num_fields; i++)
 	  {
 	    if (i)
@@ -2482,6 +2647,576 @@ end:
   DBUG_RETURN(error);
 }
 
+
+/****************************************************************************\
+ *  If --ps-protocol run ordinary statements using prepared statemnt C API
+\****************************************************************************/
+
+/*
+  We don't have a mysql_stmt_send_execute() so we only handle
+  complete SEND+REAP
+*/
+
+static int run_query_stmt(MYSQL *mysql, struct st_query *q, int flags)
+{
+  int error= 0;             /* Function return code if "goto end;" */
+  int err;                  /* Temporary storage of return code from calls */
+  int query_len, got_error_on_execute;
+  uint num_rows;
+  char *query;
+  MYSQL_RES *res= NULL;     /* Note that here 'res' is meta data result set */
+  DYNAMIC_STRING *ds;
+  DYNAMIC_STRING ds_tmp;
+  DYNAMIC_STRING eval_query;
+  MYSQL_STMT *stmt;
+  DBUG_ENTER("run_query_stmt");
+
+  /*
+    We must allocate a new stmt for each query in this program becasue this
+    may be a new connection.
+  */
+  if (!(stmt= mysql_stmt_init(mysql)))
+    die("At line %u: unable init stmt structure");
+  
+  if (q->type != Q_EVAL)
+  {
+    query= q->query;
+    query_len= strlen(query);
+  }
+  else
+  {
+    init_dynamic_string(&eval_query, "", 16384, 65536);
+    do_eval(&eval_query, q->query);
+    query= eval_query.str;
+    query_len= eval_query.length;
+  }
+  DBUG_PRINT("query", ("'%-.60s'", query));
+
+  if (q->record_file[0])
+  {
+    init_dynamic_string(&ds_tmp, "", 16384, 65536);
+    ds= &ds_tmp;
+  }
+  else
+    ds= &ds_res;
+
+  /* Store the query into the output buffer if not disabled */
+  if (!disable_query_log)
+  {
+    replace_dynstr_append_mem(ds,query, query_len);
+    dynstr_append_mem(ds, delimiter, delimiter_length);
+    dynstr_append_mem(ds, "\n", 1);
+  }
+
+  /*
+    We use the prepared statement interface but there is actually no
+    '?' in the query. If unpreparable we fall back to use normal
+    C API.
+  */
+  if ((err= mysql_stmt_prepare(stmt, query, query_len)) == CR_NO_PREPARE_STMT)
+    return run_query_normal(mysql, q, flags);
+
+  if (err != 0)
+  {
+    if (q->abort_on_error)
+    {
+      die("At line %u: unable to prepare statement '%s': "
+          "%s (mysql_stmt_errno=%d returned=%d)",
+          start_lineno, query,
+          mysql_stmt_error(stmt), mysql_stmt_errno(stmt), err);
+    }
+    else
+    {
+      /*
+        Preparing is part of normal execution and some errors may be expected
+      */
+      error= run_query_stmt_handle_error(query, q, stmt, ds);
+      goto end;
+    }
+  }
+
+  /* We may have got warnings already, collect them if any */
+  /* FIXME we only want this if the statement succeeds I think */ 
+  run_query_stmt_handle_warnings(mysql, ds);
+
+  /*
+    No need to call mysql_stmt_bind_param() because we have no 
+    parameter markers.
+
+    To optimize performance we use a global 'stmt' that is initiated
+    once. A new prepare will implicitely close the old one. When we
+    terminate we will lose the connection, this also closes the last
+    prepared statement.
+  */
+
+  if ((got_error_on_execute= mysql_stmt_execute(stmt)) != 0) /* 0 == Success */
+  {
+    if (q->abort_on_error)
+    {
+      /* We got an error, unexpected */
+      die("At line %u: unable to execute statement '%s': "
+          "%s (mysql_stmt_errno=%d returned=%d)",
+          start_lineno, query, mysql_stmt_error(stmt),
+          mysql_stmt_errno(stmt), got_error_on_execute);
+    }
+    else
+    {
+      /* We got an error, maybe expected */
+      error= run_query_stmt_handle_error(query, q, stmt, ds);
+      goto end;
+    }
+  }
+
+  /*
+    We instruct that we want to update the "max_length" field in
+     mysql_stmt_store_result(), this is our only way to know how much
+     buffer to allocate for result data
+  */
+  {
+    my_bool one= 1;
+    if (mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH,
+                            (void*) &one) != 0)
+      die("At line %u: unable to set stmt attribute "
+          "'STMT_ATTR_UPDATE_MAX_LENGTH': %s (returned=%d)",
+          start_lineno, query, err);
+  }
+
+  /*
+    If we got here the statement succeeded and was expected to do so,
+    get data. Note that this can still give errors found during execution!
+  */
+  if ((err= mysql_stmt_store_result(stmt)) != 0)
+  {
+    if (q->abort_on_error)
+    {
+      /* We got an error, unexpected */
+      die("At line %u: unable to execute statement '%s': "
+          "%s (mysql_stmt_errno=%d returned=%d)",
+          start_lineno, query, mysql_stmt_error(stmt),
+          mysql_stmt_errno(stmt), got_error_on_execute);
+    }
+    else
+    {
+      /* We got an error, maybe expected */
+      error= run_query_stmt_handle_error(query, q, stmt, ds);
+      goto end;
+    }
+  }
+
+  /* If we got here the statement was both executed and read succeesfully */
+
+  if (q->expected_errno[0].type == ERR_ERRNO &&
+      q->expected_errno[0].code.errnum != 0)
+  {
+    verbose_msg("query '%s' succeeded - should have failed with errno %d...",
+                q->query, q->expected_errno[0].code.errnum);
+    error= 1;
+    goto end;
+  }
+
+  num_rows= mysql_stmt_num_rows(stmt);
+
+  /*
+    Not all statements creates a result set. If there is one we can
+    now create another normal result set that contains the meta
+    data. This set can be handled almost like any other non prepared
+    statement result set.
+  */
+  if (!disable_result_log && ((res= mysql_stmt_result_metadata(stmt)) != NULL))
+  {
+    /* Take the column count from meta info */
+    MYSQL_FIELD *field= mysql_fetch_fields(res);
+    uint num_fields= mysql_num_fields(res);
+
+    /* FIXME check error from the above? */
+
+    if (display_metadata)
+      run_query_display_metadata(field, num_fields, ds);
+
+    if (!display_result_vertically)
+    {
+      /* Display the table heading with the names tab separated */
+      uint col_idx;
+      for (col_idx= 0; col_idx < num_fields; col_idx++)
+      {
+        if (col_idx)
+          dynstr_append_mem(ds, "\t", 1);
+        replace_dynstr_append_mem(ds, field[col_idx].name,
+                                  strlen(field[col_idx].name));
+      }
+      dynstr_append_mem(ds, "\n", 1);
+    }
+
+    /* Now we are to put the real result into the output buffer */
+    /* FIXME when it works, create function append_stmt_result() */
+    {
+      MYSQL_BIND *bind;
+      my_bool *is_null;
+      unsigned long *length;
+      /* FIXME we don't handle vertical display ..... */
+      uint col_idx, row_idx;
+
+      /* Allocate array with bind structs, lengths and NULL flags */
+      bind= (MYSQL_BIND*)      my_malloc(num_fields * sizeof(MYSQL_BIND),
+                                         MYF(MY_WME | MY_FAE));
+      length= (unsigned long*) my_malloc(num_fields * sizeof(unsigned long),
+                                         MYF(MY_WME | MY_FAE));
+      is_null= (my_bool*)      my_malloc(num_fields * sizeof(my_bool),
+                                         MYF(MY_WME | MY_FAE));
+
+      for (col_idx= 0; col_idx < num_fields; col_idx++)
+      {
+        /* Allocate data for output */
+        /*
+          FIXME it may be a bug that for non string/blob types
+          'max_length' is 0, should try out 'length' in that case
+        */
+        uint max_length= max(field[col_idx].max_length + 1, 1024);
+        char *str_data= (char *) my_malloc(max_length, MYF(MY_WME | MY_FAE));
+
+        bind[col_idx].buffer_type= MYSQL_TYPE_STRING;
+        bind[col_idx].buffer= (char *)str_data;
+        bind[col_idx].buffer_length= max_length;
+        bind[col_idx].is_null= &is_null[col_idx];
+        bind[col_idx].length= &length[col_idx];
+      }
+
+      /* Fill in the data into the structures created above */
+      if ((err= mysql_stmt_bind_result(stmt, bind)) != 0)
+        die("At line %u: unable to bind result to statement '%s': "
+            "%s (mysql_stmt_errno=%d returned=%d)",
+            start_lineno, query,
+            mysql_stmt_error(stmt), mysql_stmt_errno(stmt), err);
+
+      /* Read result from each row */
+      for (row_idx= 0; row_idx < num_rows; row_idx++)
+      {
+        if ((err= mysql_stmt_fetch(stmt)) != 0)
+          die("At line %u: unable to fetch all rows from statement '%s': "
+              "%s (mysql_stmt_errno=%d returned=%d)",
+              start_lineno, query,
+              mysql_stmt_error(stmt), mysql_stmt_errno(stmt), err);
+
+        /* Read result from each column */
+        for (col_idx= 0; col_idx < num_fields; col_idx++)
+        {
+          /* FIXME is string terminated? */
+          const char *val= (const char *)bind[col_idx].buffer;
+          ulonglong len= *bind[col_idx].length;
+          if (col_idx < max_replace_column && replace_column[col_idx])
+          {
+            val= replace_column[col_idx];
+            len= strlen(val);
+          }
+          if (*bind[col_idx].is_null)
+          {
+            val= "NULL";
+            len= 4;
+          }
+          if (!display_result_vertically)
+          {
+            if (col_idx)                      /* No tab before first col */
+              dynstr_append_mem(ds, "\t", 1);
+            replace_dynstr_append_mem(ds, val, len);
+          }
+          else
+          {
+            dynstr_append(ds, field[col_idx].name);
+            dynstr_append_mem(ds, "\t", 1);
+            replace_dynstr_append_mem(ds, val, len);
+            dynstr_append_mem(ds, "\n", 1);
+          }
+        }
+        if (!display_result_vertically)
+          dynstr_append_mem(ds, "\n", 1);
+      }
+
+      if ((err= mysql_stmt_fetch(stmt)) != MYSQL_NO_DATA)
+        die("At line %u: fetch didn't end with MYSQL_NO_DATA from statement "
+            "'%s': %s (mysql_stmt_errno=%d returned=%d)",
+            start_lineno, query,
+            mysql_stmt_error(stmt), mysql_stmt_errno(stmt), err);
+
+      free_replace_column();
+
+      for (col_idx= 0; col_idx < num_fields; col_idx++)
+      {
+        /* Free data for output */
+        my_free((gptr)bind[col_idx].buffer, MYF(MY_WME | MY_FAE));
+      }
+      /* Free array with bind structs, lengths and NULL flags */
+      my_free((gptr)bind    , MYF(MY_WME | MY_FAE));
+      my_free((gptr)length  , MYF(MY_WME | MY_FAE));
+      my_free((gptr)is_null , MYF(MY_WME | MY_FAE));
+    }
+
+    /* Add all warnings to the result */
+    run_query_stmt_handle_warnings(mysql, ds);
+
+    if (!disable_info)
+    {
+      char buf[40];
+      sprintf(buf,"affected rows: %lu\n",(ulong) mysql_affected_rows(mysql));
+      dynstr_append(ds, buf);
+      if (mysql_info(mysql))
+      {
+        dynstr_append(ds, "info: ");
+        dynstr_append(ds, mysql_info(mysql));
+        dynstr_append_mem(ds, "\n", 1);
+      }
+    }
+  }
+  run_query_stmt_handle_warnings(mysql, ds);
+
+  if (record)
+  {
+    if (!q->record_file[0] && !result_file)
+      die("At line %u: Missing result file", start_lineno);
+    if (!result_file)
+      str_to_file(q->record_file, ds->str, ds->length);
+  }
+  else if (q->record_file[0])
+  {
+    error= check_result(ds, q->record_file, q->require_file);
+  }
+  if (res)
+    mysql_free_result(res);     /* Free normal result set with meta data */
+  last_result= 0;               /* FIXME have no idea what this is about... */
+
+  if (err >= 1)
+    mysql_error(mysql);         /* FIXME strange, has no effect... */
+
+end:
+  free_replace();
+  last_result=0;
+  if (ds == &ds_tmp)
+    dynstr_free(&ds_tmp);
+  if (q->type == Q_EVAL)
+    dynstr_free(&eval_query);
+  mysql_stmt_close(stmt);
+  DBUG_RETURN(error);
+}
+
+
+/****************************************************************************\
+ *  Broken out sub functions to run_query_stmt()
+\****************************************************************************/
+
+static void run_query_display_metadata(MYSQL_FIELD *field, uint num_fields,
+                                       DYNAMIC_STRING *ds)
+{
+  MYSQL_FIELD *field_end;
+  dynstr_append(ds,"Catalog\tDatabase\tTable\tTable_alias\tColumn\t"
+                "Column_alias\tName\tType\tLength\tMax length\tIs_null\t"
+                "Flags\tDecimals\tCharsetnr\n");
+
+  for (field_end= field+num_fields ;
+       field < field_end ;
+       field++)
+  {
+    char buff[22];
+    dynstr_append_mem(ds, field->catalog,
+                          field->catalog_length);
+    dynstr_append_mem(ds, "\t", 1);
+    dynstr_append_mem(ds, field->db, field->db_length);
+    dynstr_append_mem(ds, "\t", 1);
+    dynstr_append_mem(ds, field->org_table,
+                          field->org_table_length);
+    dynstr_append_mem(ds, "\t", 1);
+    dynstr_append_mem(ds, field->table,
+                          field->table_length);
+    dynstr_append_mem(ds, "\t", 1);
+    dynstr_append_mem(ds, field->org_name,
+                          field->org_name_length);
+    dynstr_append_mem(ds, "\t", 1);
+    dynstr_append_mem(ds, field->name, field->name_length);
+    dynstr_append_mem(ds, "\t", 1);
+    int10_to_str((int) field->type, buff, 10);
+    dynstr_append(ds, buff);
+    dynstr_append_mem(ds, "\t", 1);
+    int10_to_str((int) field->length, buff, 10);
+    dynstr_append(ds, buff);
+    dynstr_append_mem(ds, "\t", 1);
+    int10_to_str((int) field->max_length, buff, 10);
+    dynstr_append(ds, buff);
+    dynstr_append_mem(ds, "\t", 1);
+    dynstr_append_mem(ds, (char*) (IS_NOT_NULL(field->flags) ?
+                                   "N" : "Y"), 1);
+    dynstr_append_mem(ds, "\t", 1);
+
+    int10_to_str((int) field->flags, buff, 10);
+    dynstr_append(ds, buff);
+    dynstr_append_mem(ds, "\t", 1);
+    int10_to_str((int) field->decimals, buff, 10);
+    dynstr_append(ds, buff);
+    dynstr_append_mem(ds, "\t", 1);
+    int10_to_str((int) field->charsetnr, buff, 10);
+    dynstr_append(ds, buff);
+    dynstr_append_mem(ds, "\n", 1);
+  }
+}
+
+
+static void run_query_stmt_handle_warnings(MYSQL *mysql, DYNAMIC_STRING *ds)
+{
+  uint count;
+  DBUG_ENTER("run_query_stmt_handle_warnings");
+
+  if (!disable_warnings && (count= mysql_warning_count(mysql)))
+  {
+    if (mysql_real_query(mysql, "SHOW WARNINGS", 13) == 0)
+    {
+      MYSQL_RES *warn_res= mysql_store_result(mysql);
+      if (!warn_res)
+        verbose_msg("Warning count is %u but didn't get any warnings\n",
+                    count);
+      else
+      {
+        dynstr_append_mem(ds, "Warnings:\n", 10);
+        append_result(ds, warn_res);
+        mysql_free_result(warn_res);
+      }
+    }
+  }
+  DBUG_VOID_RETURN;
+}
+
+
+static int run_query_stmt_handle_error(char *query, struct st_query *q,
+                                       MYSQL_STMT *stmt, DYNAMIC_STRING *ds)
+{
+  if (q->require_file)              /* FIXME don't understand this one */
+  {
+    abort_not_supported_test();
+  }
+
+  if (q->abort_on_error)
+    die("At line %u: query '%s' failed: %d: %s", start_lineno, query,
+        mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
+  else
+  {
+    int i;
+
+    for (i=0 ; (uint) i < q->expected_errors ; i++)
+    {
+      if (((q->expected_errno[i].type == ERR_ERRNO) &&
+           (q->expected_errno[i].code.errnum == mysql_stmt_errno(stmt))) ||
+          ((q->expected_errno[i].type == ERR_SQLSTATE) &&
+           (strcmp(q->expected_errno[i].code.sqlstate,
+                   mysql_stmt_sqlstate(stmt)) == 0)))
+      {
+        if (i == 0 && q->expected_errors == 1)
+        {
+          /* Only log error if there is one possible error */
+          dynstr_append_mem(ds,"ERROR ",6);
+          replace_dynstr_append_mem(ds, mysql_stmt_sqlstate(stmt),
+                                    strlen(mysql_stmt_sqlstate(stmt)));
+          dynstr_append_mem(ds, ": ", 2);
+          replace_dynstr_append_mem(ds,mysql_stmt_error(stmt),
+                                    strlen(mysql_stmt_error(stmt)));
+          dynstr_append_mem(ds,"\n",1);
+        }
+        /* Don't log error if we may not get an error */
+        else if (q->expected_errno[0].type == ERR_SQLSTATE ||
+                 (q->expected_errno[0].type == ERR_ERRNO &&
+                  q->expected_errno[0].code.errnum != 0))
+          dynstr_append(ds,"Got one of the listed errors\n");
+        return 0; /* Ok */
+      }
+    }
+    DBUG_PRINT("info",("i: %d  expected_errors: %d", i,
+                       q->expected_errors));
+    dynstr_append_mem(ds, "ERROR ",6);
+    replace_dynstr_append_mem(ds, mysql_stmt_sqlstate(stmt),
+                              strlen(mysql_stmt_sqlstate(stmt)));
+    dynstr_append_mem(ds,": ",2);
+    replace_dynstr_append_mem(ds, mysql_stmt_error(stmt),
+                              strlen(mysql_stmt_error(stmt)));
+    dynstr_append_mem(ds,"\n",1);
+    if (i)
+    {
+      verbose_msg("query '%s' failed with wrong errno %d instead of %d...",
+                  q->query, mysql_stmt_errno(stmt), q->expected_errno[0]);
+      return 1; /* Error */
+    }
+    verbose_msg("query '%s' failed: %d: %s", q->query, mysql_stmt_errno(stmt),
+                mysql_stmt_error(stmt));
+    /*
+      if we do not abort on error, failure to run the query does
+      not fail the whole test case
+    */
+    return 0;
+  }
+
+  return 0;
+}
+
+/****************************************************************************\
+ *  Functions to match SQL statements that can be prepared
+\****************************************************************************/
+
+static void ps_init_re(void)
+{
+  const char *ps_re_str =
+    "^("
+    "[[:space:]]*REPLACE[[:space:]]|"
+    "[[:space:]]*INSERT[[:space:]]|"
+    "[[:space:]]*UPDATE[[:space:]]|"
+    "[[:space:]]*DELETE[[:space:]]|"
+    "[[:space:]]*SELECT[[:space:]]|"
+    "[[:space:]]*CREATE[[:space:]]+TABLE[[:space:]]|"
+    "[[:space:]]*DO[[:space:]]|"
+    "[[:space:]]*SET[[:space:]]+OPTION[[:space:]]|"
+    "[[:space:]]*DELETE[[:space:]]+MULTI[[:space:]]|"
+    "[[:space:]]*UPDATE[[:space:]]+MULTI[[:space:]]|"
+    "[[:space:]]*INSERT[[:space:]]+SELECT[[:space:]])";
+
+  int err= regcomp(&ps_re, ps_re_str, (REG_EXTENDED | REG_ICASE | REG_NOSUB),
+                   &my_charset_latin1);
+  if (err)
+  {
+    char erbuf[100];
+    int len= regerror(err, &ps_re, erbuf, sizeof(erbuf));
+    fprintf(stderr, "error %s, %d/%d `%s'\n",
+            ps_eprint(err), len, (int)sizeof(erbuf), erbuf);
+    exit(1);
+  }
+}
+
+
+static int ps_match_re(char *stmt_str)
+{
+  int err= regexec(&ps_re, stmt_str, (size_t)0, NULL, 0);
+
+  if (err == 0)
+    return 1;
+  else if (err == REG_NOMATCH)
+    return 0;
+  else
+  {
+    char erbuf[100];
+    int len= regerror(err, &ps_re, erbuf, sizeof(erbuf));
+    fprintf(stderr, "error %s, %d/%d `%s'\n",
+            ps_eprint(err), len, (int)sizeof(erbuf), erbuf);
+    exit(1);
+  }
+}
+
+static char *ps_eprint(int err)
+{
+  static char epbuf[100];
+  size_t len= regerror(REG_ITOA|err, (regex_t *)NULL, epbuf, sizeof(epbuf));
+  assert(len <= sizeof(epbuf));
+  return(epbuf);
+}
+
+
+static void ps_free_reg(void)
+{
+  regfree(&ps_re);
+}
+
+/****************************************************************************/
 
 void get_query_type(struct st_query* q)
 {
@@ -2599,6 +3334,9 @@ int main(int argc, char **argv)
   {
   DBUG_ENTER("main");
 
+  /* Use all time until exit if no explicit 'start_timer' */
+  timer_start= timer_now();
+
   save_file[0]=0;
   TMPDIR[0]=0;
   memset(cons, 0, sizeof(cons));
@@ -2632,12 +3370,17 @@ int main(int argc, char **argv)
   if (manager_host)
     init_manager();
 #endif
+  if (ps_protocol)
+  {
+    ps_protocol_enabled= 1;
+    ps_init_re();
+  }
   if (!( mysql_init(&cur_con->mysql)))
     die("Failed in mysql_init()");
   if (opt_compress)
     mysql_options(&cur_con->mysql,MYSQL_OPT_COMPRESS,NullS);
   mysql_options(&cur_con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
-  mysql_options(&cur_con->mysql, MYSQL_SET_CHARSET_NAME, "latin1");
+  mysql_options(&cur_con->mysql, MYSQL_SET_CHARSET_NAME, charset_name);
 
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
@@ -2777,7 +3520,7 @@ int main(int argc, char **argv)
 	require_file=0;
 	break;
       case Q_ERROR:
-	global_expected_errors=get_ints(global_expected_errno,q);
+        global_expected_errors=get_errcodes(global_expected_errno,q);
 	break;
       case Q_REQUIRE:
 	get_file_name(save_file,q);
@@ -2811,8 +3554,27 @@ int main(int argc, char **argv)
 	(void) mysql_ping(&cur_con->mysql);
 	break;
       case Q_EXEC: 
-	(void) do_exec(q);
+	do_exec(q);
 	break;
+      case Q_START_TIMER:
+	/* Overwrite possible earlier start of timer */
+	timer_start= timer_now();
+	break;
+      case Q_END_TIMER:
+	/* End timer before ending mysqltest */
+	timer_output();
+	got_end_timer= TRUE;
+	break;
+      case Q_CHARACTER_SET: 
+	set_charset(q);
+	break;
+      case Q_DISABLE_PS_PROTOCOL:
+        ps_protocol_enabled= 0;
+        break;
+      case Q_ENABLE_PS_PROTOCOL:
+        ps_protocol_enabled= ps_protocol;
+        break;
+
       case Q_EXIT:
         abort_flag= 1;
         break;
@@ -2850,6 +3612,8 @@ int main(int argc, char **argv)
       printf("ok\n");
   }
 
+  if (!got_end_timer)
+    timer_output();				/* No end_timer cmd, end it */
   free_used_memory();
   exit(error ? 1 : 0);
   return error ? 1 : 0;				/* Keep compiler happy */
@@ -2901,6 +3665,45 @@ static int read_server_arguments(const char *name)
     return 1;
   }
   return 0;
+}
+
+/****************************************************************************\
+ *
+ *  A primitive timer that give results in milliseconds if the
+ *  --timer-file=<filename> is given. The timer result is written
+ *  to that file when the result is available. To not confuse
+ *  mysql-test-run with an old obsolete result, we remove the file
+ *  before executing any commands. The time we measure is
+ *
+ *    - If no explicit 'start_timer' or 'end_timer' is given in the
+ *      test case, the timer measure how long we execute in mysqltest.
+ *
+ *    - If only 'start_timer' is given we measure how long we execute
+ *      from that point until we terminate mysqltest.
+ *
+ *    - If only 'end_timer' is given we measure how long we execute
+ *      from that we enter mysqltest to the 'end_timer' is command is
+ *      executed.
+ *
+ *    - If both 'start_timer' and 'end_timer' are given we measure
+ *      the time between executing the two commands.
+ *
+\****************************************************************************/
+
+static void timer_output(void)
+{
+  if (timer_file)
+  {
+    char buf[32], *end;
+    ulonglong timer= timer_now() - timer_start;
+    end= longlong2str(timer, buf, 10);
+    str_to_file(timer_file,buf, (int) (end-buf));
+  }
+}
+
+static ulonglong timer_now(void)
+{
+  return my_getsystime() / 10000;
 }
 
 /****************************************************************************

@@ -179,7 +179,13 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   else
 #endif
   {
-    records=table->file->estimate_number_of_rows();
+    records= table->file->estimate_rows_upper_bound();
+    /*
+      If number of records is not known, use as much of sort buffer 
+      as possible. 
+    */
+    if (records == HA_POS_ERROR)
+      records--;  // we use 'records+1' below.
     selected_records_file= 0;
   }
 
@@ -327,7 +333,7 @@ static char **make_char_array(register uint fields, uint length, myf my_flag)
 } /* make_char_array */
 
 
-	/* Read all buffer pointers into memory */
+/* Read 'count' number of buffer pointers into memory */
 
 static BUFFPEK *read_buffpek_from_file(IO_CACHE *buffpek_pointers, uint count)
 {
@@ -348,8 +354,40 @@ static BUFFPEK *read_buffpek_from_file(IO_CACHE *buffpek_pointers, uint count)
 }
 
 
-
-	/* Search after sort_keys and place them in a temp. file */
+/* 
+  Search after sort_keys and write them into tempfile.
+  SYNOPSIS
+    find_all_keys()
+      param             Sorting parameter
+      select            Use this to get source data
+      sort_keys         Array of pointers to sort key + addon buffers.
+      buffpek_pointers  File to write BUFFPEKs describing sorted segments
+                        in tempfile.
+      tempfile          File to write sorted sequences of sortkeys to.
+      indexfile         If !NULL, use it for source data (contains rowids)
+  
+  NOTE
+    Basic idea:
+      while (get_next_sortkey())
+      {
+        if (no free space in sort_keys buffers) 
+        {
+          sort sort_keys buffer;
+          dump sorted sequence to 'tempfile';
+          dump BUFFPEK describing sequence location into 'buffpek_pointers';
+        }
+        put sort key into 'sort_keys';
+      }
+      if (sort_keys has some elements && dumped at least once)
+        sort-dump-dump as above;
+      else
+        don't sort, leave sort_keys array to be sorted by caller.
+    
+     All produced sequences are guaranteed to be non-empty.
+  RETURN
+    Number of records written on success.
+    HA_POS_ERROR on error.
+*/
 
 static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
 			     uchar **sort_keys,
@@ -489,7 +527,25 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
 } /* find_all_keys */
 
 
-	/* Skriver en buffert med nycklar till filen */
+/*
+  Sort the buffer and write:
+    1) the sorted sequence to tempfile
+    2) a BUFFPEK describing the sorted sequence position to buffpek_pointers
+  (was: Skriver en buffert med nycklar till filen)
+  SYNOPSIS
+    write_keys()
+      param             Sort parameters
+      sort_keys         Array of pointers to keys to sort
+      count             Number of elements in sort_keys array 
+      buffpek_pointers  One 'BUFFPEK' struct will be written into this file.
+                        The BUFFPEK::{file_pos, count} will indicate where 
+                        the sorted data was stored.
+      tempfile          The sorted sequence will be written into this file.
+    
+  RETURN
+    0 OK
+    1 Error
+*/
 
 static int
 write_keys(SORTPARAM *param, register uchar **sort_keys, uint count,
@@ -854,7 +910,21 @@ void reuse_freed_buff(QUEUE *queue, BUFFPEK *reuse, uint key_length)
 
 
 /* 
-   Merge buffers to one buffer 
+  Merge buffers to one buffer
+  SYNOPSIS
+    merge_buffers()
+      param        Sort parameter
+      from_file    File with source data (BUFFPEKs point to this file)
+      to_file      File to write the sorted result data.
+      sort_buffer  Buffer for data to store up to MERGEBUFF2 sort keys.
+      lastbuff     OUT Store here BUFFPEK describing data written to to_file                   
+      Fb           First element in source BUFFPEKs array
+      Tb           Last element in source BUFFPEKs array
+      flag
+
+  RETURN
+    0     - OK
+    other - error
 */
 
 int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
@@ -893,6 +963,9 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   strpos= (uchar*) sort_buffer;
   org_max_rows=max_rows= param->max_rows;
 
+  /* The following will fire if there is not enough space in sort_buffer */
+  DBUG_ASSERT(maxcount!=0);
+  
   if (init_queue(&queue, (uint) (Tb-Fb)+1, offsetof(BUFFPEK,key), 0,
                  (queue_compare) (cmp= get_ptr_compare(sort_length)),
                  (void*) &sort_length))

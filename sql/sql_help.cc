@@ -747,7 +747,7 @@ int mysqld_help(THD *thd, const char *mask)
 				 select,&subcategories_list);
       delete select;
       String *cat= categories_list.head();
-      if (send_header_2(protocol, true) ||
+      if (send_header_2(protocol, TRUE) ||
 	  send_variant_2_list(mem_root,protocol,&topics_list,       "N",cat) ||
 	  send_variant_2_list(mem_root,protocol,&subcategories_list,"Y",cat))
 	goto end;

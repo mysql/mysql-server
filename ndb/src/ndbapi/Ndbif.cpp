@@ -15,6 +15,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include <ndb_global.h>
+
 #include "NdbApiSignal.hpp"
 #include "NdbImpl.hpp"
 #include "NdbOperation.hpp"
@@ -53,6 +55,8 @@
 int
 Ndb::init(int aMaxNoOfTransactions)
 {
+  DBUG_ENTER("Ndb::init");
+
   int i;
   int aNrOfCon;
   int aNrOfOp;
@@ -67,7 +71,7 @@ Ndb::init(int aMaxNoOfTransactions)
       theError.code = 4104;
       break;
     }
-    return -1;
+    DBUG_RETURN(-1);
   }//if
   theInitState = StartingInit;
   TransporterFacade * theFacade =  TransporterFacade::instance();
@@ -75,37 +79,17 @@ Ndb::init(int aMaxNoOfTransactions)
   
   const int tBlockNo = theFacade->open(this,
                                        executeMessage, 
-                                       statusMessage);
-  
-  
+                                       statusMessage);  
   if ( tBlockNo == -1 ) {
     theError.code = 4105;
     theFacade->unlock_mutex();
-    return -1; // no more free blocknumbers
+    DBUG_RETURN(-1); // no more free blocknumbers
   }//if
   
   theNdbBlockNumber = tBlockNo;
-  
-  theNode = theFacade->ownId();
-  theMyRef = numberToRef(theNdbBlockNumber, theNode);
-  
-  for (i = 1; i < MAX_NDB_NODES; i++){
-    if (theFacade->getIsDbNode(i)){
-      theDBnodes[theNoOfDBnodes] = i;
-      theNoOfDBnodes++;
-    }
-  }
 
-  theFirstTransId = ((Uint64)theNdbBlockNumber << 52)+((Uint64)theNode << 40);
-  theFirstTransId += theFacade->m_open_count;
   theFacade->unlock_mutex();
-
   
-  theDictionary = new NdbDictionaryImpl(*this);
-  if (theDictionary == NULL) {
-    theError.code = 4000;
-    return -1;
-  }
   theDictionary->setTransporter(this, theFacade);
   
   aNrOfCon = theNoOfDBnodes;
@@ -144,9 +128,6 @@ Ndb::init(int aMaxNoOfTransactions)
     theSentTransactionsArray[i] = NULL;
     theCompletedTransactionsArray[i] = NULL;
   }//for     
-  
-  startTransactionNodeSelectionData.init(theNoOfDBnodes, theDBnodes);
-  
   for (i = 0; i < 16; i++){
     tSignal[i] = getSignal();
     if(tSignal[i] == NULL) {
@@ -156,11 +137,8 @@ Ndb::init(int aMaxNoOfTransactions)
   }
   for (i = 0; i < 16; i++)
     releaseSignal(tSignal[i]);
-  
   theInitState = Initialised; 
-
-  theCommitAckSignal = new NdbApiSignal(theMyRef);
-  return 0;
+  DBUG_RETURN(0);
   
 error_handler:
   ndbout << "error_handler" << endl;
@@ -175,13 +153,14 @@ error_handler:
     freeOperation();
   
   delete theDictionary;
-  TransporterFacade::instance()->close(theNdbBlockNumber);
-  return -1;
+  TransporterFacade::instance()->close(theNdbBlockNumber, 0);
+  DBUG_RETURN(-1);
 }
 
 void
 Ndb::releaseTransactionArrays()
 {
+  DBUG_ENTER("Ndb::releaseTransactionArrays");
   if (thePreparedTransactionsArray != NULL) {
     delete [] thePreparedTransactionsArray;
   }//if
@@ -191,6 +170,7 @@ Ndb::releaseTransactionArrays()
   if (theCompletedTransactionsArray != NULL) {
     delete [] theCompletedTransactionsArray;
   }//if
+  DBUG_VOID_RETURN;
 }//Ndb::releaseTransactionArrays()
 
 void
@@ -202,13 +182,49 @@ Ndb::executeMessage(void* NdbObject,
   tNdb->handleReceivedSignal(aSignal, ptr);
 }
 
-void
-Ndb::statusMessage(void* NdbObject, NodeId a_node, bool alive, bool nfComplete)
+void Ndb::connected(Uint32 ref)
 {
+  theMyRef= ref;
+  Uint32 tmpTheNode= refToNode(ref);
+  Uint64 tBlockNo= refToBlock(ref);
+  if (theNdbBlockNumber >= 0){
+    assert(theMyRef == numberToRef(theNdbBlockNumber, tmpTheNode));
+  }
+  
+  TransporterFacade * theFacade =  TransporterFacade::instance();
+  int i;
+  theNoOfDBnodes= 0;
+  for (i = 1; i < MAX_NDB_NODES; i++){
+    if (theFacade->getIsDbNode(i)){
+      theDBnodes[theNoOfDBnodes] = i;
+      theNoOfDBnodes++;
+    }
+  }
+  theFirstTransId = ((Uint64)tBlockNo << 52)+
+    ((Uint64)tmpTheNode << 40);
+  theFirstTransId += theFacade->m_max_trans_id;
+  //      assert(0);
+  DBUG_PRINT("info",("connected with ref=%x, id=%d, no_db_nodes=%d, first_trans_id=%lx",
+		     theMyRef,
+		     tmpTheNode,
+		     theNoOfDBnodes,
+		     theFirstTransId));
+  startTransactionNodeSelectionData.init(theNoOfDBnodes, theDBnodes);
+  theCommitAckSignal = new NdbApiSignal(theMyRef);
+
+  theDictionary->m_receiver.m_reference= theMyRef;
+  theNode= tmpTheNode; // flag that Ndb object is initialized
+}
+
+void
+Ndb::statusMessage(void* NdbObject, Uint32 a_node, bool alive, bool nfComplete)
+{
+  DBUG_ENTER("Ndb::statusMessage");
   Ndb* tNdb = (Ndb*)NdbObject;
   if (alive) {
     if (nfComplete) {
-      assert(0);
+      tNdb->connected(a_node);
+      DBUG_VOID_RETURN;
     }//if
   } else {
     if (nfComplete) {
@@ -219,6 +235,7 @@ Ndb::statusMessage(void* NdbObject, NodeId a_node, bool alive, bool nfComplete)
   }//if
   NdbDictInterface::execNodeStatus(&tNdb->theDictionary->m_receiver,
 				   a_node, alive, nfComplete);
+  DBUG_VOID_RETURN;
 }
 
 void
@@ -232,6 +249,7 @@ Ndb::report_node_failure(Uint32 node_id)
    */
   the_release_ind[node_id] = 1;
   theWaiter.nodeFail(node_id);
+  return;
 }//Ndb::report_node_failure()
 
 
@@ -254,9 +272,10 @@ Ndb::abortTransactionsAfterNodeFailure(Uint16 aNodeId)
   Uint32 tNoSentTransactions = theNoOfSentTransactions;
   for (int i = tNoSentTransactions - 1; i >= 0; i--) {
     NdbConnection* localCon = theSentTransactionsArray[i];
-    if (localCon->getConnectedNodeId() == aNodeId ) {
+    if (localCon->getConnectedNodeId() == aNodeId) {
       const NdbConnection::SendStatusType sendStatus = localCon->theSendStatus;
-      if (sendStatus == NdbConnection::sendTC_OP || sendStatus == NdbConnection::sendTC_COMMIT) {
+      if (sendStatus == NdbConnection::sendTC_OP || 
+	  sendStatus == NdbConnection::sendTC_COMMIT) {
         /*
         A transaction was interrupted in the prepare phase by a node
         failure. Since the transaction was not found in the phase
@@ -276,7 +295,7 @@ Ndb::abortTransactionsAfterNodeFailure(Uint16 aNodeId)
         printState("abortTransactionsAfterNodeFailure %x", this);
         abort();
 #endif
-      }//
+      }
       /*
       All transactions arriving here have no connection to the kernel
       intact since the node was failing and they were aborted. Thus we
@@ -285,7 +304,11 @@ Ndb::abortTransactionsAfterNodeFailure(Uint16 aNodeId)
       localCon->theCommitStatus = NdbConnection::Aborted;
       localCon->theReleaseOnClose = true;
       completedTransaction(localCon);
-    }//if
+    }
+    else if(localCon->report_node_failure(aNodeId))
+    {
+      completedTransaction(localCon);
+    }
   }//for
   return;
 }//Ndb::abortTransactionsAfterNodeFailure()
@@ -375,7 +398,8 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 	  break;
 	case NdbReceiver::NDB_SCANRECEIVER:
 	  tCon->theScanningOp->receiver_delivered(tRec);
-	  theWaiter.m_state = (tWaitState == WAIT_SCAN ? NO_WAIT : tWaitState);
+	  theWaiter.m_state = (((WaitSignalType) tWaitState) == WAIT_SCAN ? 
+			       (Uint32) NO_WAIT : tWaitState);
 	  break;
 	default:
 	  goto InvalidSignal;
@@ -747,7 +771,8 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       switch(com){
       case 1:
 	tCon->theScanningOp->receiver_delivered(tRec);
-	theWaiter.m_state = (tWaitState == WAIT_SCAN ? NO_WAIT : tWaitState);
+	theWaiter.m_state = (((WaitSignalType) tWaitState) == WAIT_SCAN ? 
+			      (Uint32) NO_WAIT : tWaitState);
 	break;
       case 0:
 	break;
@@ -871,8 +896,8 @@ Ndb::completedTransaction(NdbConnection* aCon)
       return;
     }//if
   } else {
-    ndbout << "theNoOfSentTransactions = " << theNoOfSentTransactions;
-    ndbout << " theListState = " << aCon->theListState;
+    ndbout << "theNoOfSentTransactions = " << (int) theNoOfSentTransactions;
+    ndbout << " theListState = " << (int) aCon->theListState;
     ndbout << " theTransArrayIndex = " << aCon->theTransArrayIndex;
     ndbout << endl << flush;
 #ifdef VM_TRACE
@@ -923,7 +948,7 @@ Ndb::pollCompleted(NdbConnection** aCopyArray)
       aCopyArray[i] = theCompletedTransactionsArray[i];
       if (aCopyArray[i]->theListState != NdbConnection::InCompletedList) {
         ndbout << "pollCompleted error ";
-        ndbout << aCopyArray[i]->theListState << endl;
+        ndbout << (int) aCopyArray[i]->theListState << endl;
 	abort();
       }//if
       theCompletedTransactionsArray[i] = NULL;

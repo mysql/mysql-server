@@ -9,7 +9,7 @@ libgeneral_la_SOURCES = \
 	    NdbSqlUtil.cpp new.cpp \
             uucode.c random.c getarg.c version.c \
             strdup.c strlcat.c strlcpy.c \
-            ConfigValues.cpp
+            ConfigValues.cpp ndb_init.c basestring_vsnprintf.c
 
 include $(top_srcdir)/ndb/config/common.mk.am
 include $(top_srcdir)/ndb/config/type_util.mk.am

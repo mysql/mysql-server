@@ -166,7 +166,7 @@ hash_get_n_cells(
 /***********************************************************************
 Deletes a struct which is stored in the heap of the hash table, and compacts
 the heap. The fold value must be stored in the struct NODE in a field named
-'fold'. */
+'fold'. This macro is only used for the adaptive hash index. */
 
 #define HASH_DELETE_AND_COMPACT(TYPE, NAME, TABLE, NODE)\
 do {\
@@ -192,10 +192,22 @@ do {\
 \
 		*(NODE) = *top_node111;\
 \
+		/* Update the adaptive hash list of the buffer block that\
+		corresponds to the top node */\
+		if (top_node111->next_for_block != NULL) {\
+			(top_node111->next_for_block)->prev_for_block = NODE;\
+		}\
+\
+		if (top_node111->prev_for_block != NULL) {\
+			(top_node111->prev_for_block)->next_for_block = NODE;\
+		} else {\
+			buf_block_align(top_node111->data)->hash_nodes = NODE;\
+		}\
+\
+		/* Look for the hash pointer to the top node, to update it */\
+\
 		cell111 = hash_get_nth_cell(TABLE,\
 				hash_calc_hash(top_node111->fold, TABLE));\
-\
-		/* Look for the pointer to the top node, to update it */\
 \
 		if (cell111->node == top_node111) {\
 			/* The top node is the first in the chain */\

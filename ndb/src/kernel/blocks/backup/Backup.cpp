@@ -40,6 +40,7 @@
 #include <signaldata/BackupImpl.hpp>
 #include <signaldata/BackupSignalData.hpp>
 #include <signaldata/BackupContinueB.hpp>
+#include <signaldata/EventReport.hpp>
 
 #include <signaldata/UtilSequence.hpp>
 
@@ -885,7 +886,7 @@ Backup::execBACKUP_REQ(Signal* signal)
   }//if
 
   ndbrequire(ptr.p->pages.empty());
-  ndbrequire(ptr.p->tables.empty());
+  ndbrequire(ptr.p->tables.isEmpty());
   
   ptr.p->masterData.state.forceState(INITIAL);
   ptr.p->masterData.state.setState(DEFINING);
@@ -944,6 +945,13 @@ Backup::sendBackupRef(BlockReference senderRef, Signal *signal,
   ref->errorCode = errorCode;
   ref->masterRef = numberToRef(BACKUP, getMasterNodeId());
   sendSignal(senderRef, GSN_BACKUP_REF, signal, BackupRef::SignalLength, JBB);
+
+  if(errorCode != BackupRef::IAmNotMaster){
+    signal->theData[0] = EventReport::BackupFailedToStart;
+    signal->theData[1] = senderRef;
+    signal->theData[2] = errorCode;
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
+  }
 }
 
 void
@@ -1226,7 +1234,13 @@ Backup::defineBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
   conf->nodes = ptr.p->nodes;
   sendSignal(ptr.p->clientRef, GSN_BACKUP_CONF, signal, 
 	     BackupConf::SignalLength, JBB);
-
+  
+  signal->theData[0] = EventReport::BackupStarted;
+  signal->theData[1] = ptr.p->clientRef;
+  signal->theData[2] = ptr.p->backupId;
+  ptr.p->nodes.copyto(NdbNodeBitmask::Size, signal->theData+3);
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3+NdbNodeBitmask::Size, JBB);
+  
   ptr.p->masterData.state.setState(DEFINED);
   /**
    * Prepare Trig
@@ -1293,7 +1307,7 @@ Backup::sendCreateTrig(Signal* signal,
   
   for (int i=0; i < 3; i++) {
     req->setTriggerEvent(triggerEventValues[i]);
-    snprintf(triggerName, sizeof(triggerName), triggerNameFormat[i],
+    BaseString::snprintf(triggerName, sizeof(triggerName), triggerNameFormat[i],
 	     ptr.p->backupId, tabPtr.p->tableId);
     w.reset();
     w.add(CreateTrigReq::TriggerNameKey, triggerName);
@@ -1931,7 +1945,7 @@ Backup::sendDropTrig(Signal* signal, BackupRecordPtr ptr, TablePtr tabPtr)
       sendSignal(DBDICT_REF, GSN_DROP_TRIG_REQ, 
 		 signal, DropTrigReq::SignalLength, JBB);
     } else {
-      snprintf(triggerName, sizeof(triggerName), triggerNameFormat[i],
+      BaseString::snprintf(triggerName, sizeof(triggerName), triggerNameFormat[i],
 	       ptr.p->backupId, tabPtr.p->tableId);
       w.reset();
       w.add(CreateTrigReq::TriggerNameKey, triggerName);
@@ -2069,6 +2083,18 @@ Backup::stopBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
   rep->nodes = ptr.p->nodes;
   sendSignal(ptr.p->clientRef, GSN_BACKUP_COMPLETE_REP, signal,
 	     BackupCompleteRep::SignalLength, JBB);
+
+  signal->theData[0] = EventReport::BackupCompleted;
+  signal->theData[1] = ptr.p->clientRef;
+  signal->theData[2] = ptr.p->backupId;
+  signal->theData[3] = ptr.p->startGCP;
+  signal->theData[4] = ptr.p->stopGCP;
+  signal->theData[5] = ptr.p->noOfBytes;
+  signal->theData[6] = ptr.p->noOfRecords;
+  signal->theData[7] = ptr.p->noOfLogBytes;
+  signal->theData[8] = ptr.p->noOfLogRecords;
+  ptr.p->nodes.copyto(NdbNodeBitmask::Size, signal->theData+9);
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 9+NdbNodeBitmask::Size, JBB);
 }
 
 /*****************************************************************************
@@ -2259,6 +2285,12 @@ Backup::masterSendAbortBackup(Signal* signal, BackupRecordPtr ptr)
     rep->reason = ptr.p->errorCode;
     sendSignal(ptr.p->clientRef, GSN_BACKUP_ABORT_REP, signal, 
 	       BackupAbortRep::SignalLength, JBB);
+
+    signal->theData[0] = EventReport::BackupAborted;
+    signal->theData[1] = ptr.p->clientRef;
+    signal->theData[2] = ptr.p->backupId;
+    signal->theData[3] = ptr.p->errorCode;
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 4, JBB);
   }//if
   
   //  ptr.p->masterData.state.setState(INITIAL);
@@ -2484,8 +2516,7 @@ Backup::execLIST_TABLES_CONF(Signal* signal)
     jam();
     Uint32 tableId = ListTablesConf::getTableId(conf->tableData[i]);
     Uint32 tableType = ListTablesConf::getTableType(conf->tableData[i]);
-    if (tableType != DictTabInfo::SystemTable &&
-        tableType != DictTabInfo::UserTable) {
+    if (!DictTabInfo::isTable(tableType) && !DictTabInfo::isIndex(tableType)){
       jam();
       continue;
     }//if
@@ -2864,7 +2895,12 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
     return;
   }//if
 
+  TablePtr tmp = tabPtr;
   ptr.p->tables.next(tabPtr);
+  if(DictTabInfo::isIndex(tmp.p->tableType)){
+    ptr.p->tables.release(tmp);
+  }
+  
   if(tabPtr.i == RNIL) {
     jam();
     
@@ -2906,7 +2942,11 @@ Backup::parseTableDescription(Signal* signal, BackupRecordPtr ptr, Uint32 len)
   
   TablePtr tabPtr;
   ndbrequire(findTable(ptr, tabPtr, tmpTab.TableId));
-
+  if(DictTabInfo::isIndex(tabPtr.p->tableType)){
+    jam();
+    return tabPtr;
+  }
+  
   /**
    * Initialize table object
    */
@@ -3320,24 +3360,21 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
     req->senderData = filePtr.i;
     req->resultRef = reference();
     req->schemaVersion = table.schemaVersion;
-    req->fragmentNo = fragNo;
+    req->fragmentNoKeyLen = fragNo;
     req->requestInfo = 0;
     req->savePointId = 0;
     req->tableId = table.tableId;
-    ScanFragReq::setConcurrency(req->requestInfo, parallelism);
     ScanFragReq::setLockMode(req->requestInfo, 0);
     ScanFragReq::setHoldLockFlag(req->requestInfo, 0);
     ScanFragReq::setKeyinfoFlag(req->requestInfo, 1);
     ScanFragReq::setAttrLen(req->requestInfo,attrLen); 
     req->transId1 = 0;
     req->transId2 = (BACKUP << 20) + (getOwnNodeId() << 8);
-
-    Uint32 i;
-    for(i = 0; i<parallelism; i++) {
-      jam();
-      req->clientOpPtr[i] = filePtr.i;
-    }//for
-    sendSignal(DBLQH_REF, GSN_SCAN_FRAGREQ, signal, 25, JBB);
+    req->clientOpPtr= filePtr.i;
+    req->batch_size_rows= 16;
+    req->batch_size_bytes= 0;
+    sendSignal(DBLQH_REF, GSN_SCAN_FRAGREQ, signal,
+               ScanFragReq::SignalLength, JBB);
     
     signal->theData[0] = filePtr.i;
     signal->theData[1] = 0;
@@ -3351,6 +3388,7 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
     signal->theData[7] = 0;
     
     Uint32 dataPos = 8;
+    Uint32 i;
     for(i = 0; i<table.noOfAttributes; i++) {
       jam();
       AttributePtr attr;
@@ -3552,8 +3590,7 @@ Backup::OperationRecord::newFragment(Uint32 tableId, Uint32 fragNo)
     head->FragmentNo    = htonl(fragNo);
     head->ChecksumType  = htonl(0);
 
-    opNoDone = opNoConf = 0;
-    memset(attrLen, 0, sizeof(attrLen));
+    opNoDone = opNoConf = opLen = 0;
     newRecord(tmp + headSz);
     scanStart = tmp;
     scanStop  = (tmp + headSz);
@@ -3596,8 +3633,7 @@ Backup::OperationRecord::newScan()
   ndbrequire(16 * maxRecordSize < dataBuffer.getMaxWrite());
   if(dataBuffer.getWritePtr(&tmp, 16 * maxRecordSize)) {
     jam();
-    opNoDone = opNoConf = 0;
-    memset(attrLen, 0, sizeof(attrLen));
+    opNoDone = opNoConf = opLen = 0;
     newRecord(tmp);
     scanStart = tmp;
     scanStop = tmp;
@@ -3607,14 +3643,14 @@ Backup::OperationRecord::newScan()
 }
 
 bool 
-Backup::OperationRecord::scanConf(Uint32 noOfOps, Uint32 opLen[])
+Backup::OperationRecord::scanConf(Uint32 noOfOps, Uint32 total_len)
 {
   const Uint32 done = opNoDone-opNoConf;
   
   ndbrequire(noOfOps == done);
-  ndbrequire(memcmp(&attrLen[opNoConf], opLen, done << 2) == 0);
+  ndbrequire(opLen == total_len);
   opNoConf = opNoDone;
-
+  
   const Uint32 len = (scanStop - scanStart);
   ndbrequire(len < dataBuffer.getMaxWrite());
   dataBuffer.updateWritePtr(len);
@@ -3655,8 +3691,8 @@ Backup::execSCAN_FRAGCONF(Signal* signal)
   c_backupFilePool.getPtr(filePtr, filePtrI);
 
   OperationRecord & op = filePtr.p->operation;
-  op.scanConf(conf->completedOps, conf->opReturnDataLen);
-
+  
+  op.scanConf(conf->completedOps, conf->total_len);
   const Uint32 completed = conf->fragmentCompleted;
   if(completed != 2) {
     jam();
@@ -3725,6 +3761,8 @@ Backup::checkScan(Signal* signal, BackupFilePtr filePtr)
     req->closeFlag = 0;
     req->transId1 = 0;
     req->transId2 = (BACKUP << 20) + (getOwnNodeId() << 8);
+    req->batch_size_rows= 16;
+    req->batch_size_bytes= 0;
     sendSignal(DBLQH_REF, GSN_SCAN_NEXTREQ, signal, 
 	       ScanFragNextReq::SignalLength, JBB);
     return;

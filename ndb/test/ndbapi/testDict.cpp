@@ -55,7 +55,7 @@ int runCreateInvalidTables(NDBT_Context* ctx, NDBT_Step* step){
   char failTabName[256];
 
   for (int i = 0; i < 10; i++){
-    snprintf(failTabName, 256, "F%d", i);
+    BaseString::snprintf(failTabName, 256, "F%d", i);
   
     const NdbDictionary::Table* pFailTab = NDBT_Tables::getTable(failTabName);
     if (pFailTab != NULL){
@@ -425,7 +425,7 @@ int runCreateMaxTables(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);
 
   for (int i = 0; i < numTables && failures < 5; i++){
-    snprintf(tabName, 256, "MAXTAB%d", i);
+    BaseString::snprintf(tabName, 256, "MAXTAB%d", i);
 
     if (pNdb->waitUntilReady(30) != 0){
       // Db is not ready, return with failure
@@ -491,7 +491,7 @@ int runDropMaxTables(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);
 
   for (int i = 0; i < numTables; i++){
-    snprintf(tabName, 256, "MAXTAB%d", i);
+    BaseString::snprintf(tabName, 256, "MAXTAB%d", i);
 
     if (pNdb->waitUntilReady(30) != 0){
       // Db is not ready, return with failure
@@ -707,7 +707,7 @@ int runPkSizes(NDBT_Context* ctx, NDBT_Step* step){
   int numRecords = ctx->getNumRecords();
 
   for (int i = minPkSize; i < maxPkSize; i++){
-    snprintf(tabName, 256, "TPK_%d", i);
+    BaseString::snprintf(tabName, 256, "TPK_%d", i);
 
     int records = numRecords;
     int max = ~0;
@@ -1002,11 +1002,13 @@ int runGetPrimaryKey(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
-int
+struct ErrorCodes { int error_id; bool crash;};
+ErrorCodes
 NF_codes[] = {
-  6003
-  ,6004
-  //,6005
+  {6003, true},
+  {6004, true},
+  //,6005, true,
+  {7173, false}
 };
 
 int
@@ -1042,7 +1044,9 @@ runNF1(NDBT_Context* ctx, NDBT_Step* step){
     for(int i = 0; i<sz; i++){
       int rand = myRandom48(restarter.getNumDbNodes());
       int nodeId = restarter.getRandomNotMasterNodeId(rand);
-      int error = NF_codes[i];
+      struct ErrorCodes err_struct = NF_codes[i];
+      int error = err_struct.error_id;
+      bool crash = err_struct.crash;
       
       g_info << "NF1: node = " << nodeId << " error code = " << error << endl;
       
@@ -1057,31 +1061,33 @@ runNF1(NDBT_Context* ctx, NDBT_Step* step){
       CHECK2(dict->createTable(* pTab) == 0,
 	     "failed to create table");
 
-      CHECK2(restarter.waitNodesNoStart(&nodeId, 1) == 0,
+      if (crash) {
+        CHECK2(restarter.waitNodesNoStart(&nodeId, 1) == 0,
 	    "waitNodesNoStart failed");
 
-      if(myRandom48(100) > 50){
-	CHECK2(restarter.startNodes(&nodeId, 1) == 0,
+        if(myRandom48(100) > 50){
+  	  CHECK2(restarter.startNodes(&nodeId, 1) == 0,
 	       "failed to start node");
           
-	CHECK2(restarter.waitClusterStarted() == 0,
+	  CHECK2(restarter.waitClusterStarted() == 0,
 	       "waitClusterStarted failed");
 
-	CHECK2(dict->dropTable(pTab->getName()) == 0,
+  	  CHECK2(dict->dropTable(pTab->getName()) == 0,
 	       "drop table failed");
-      } else {
-	CHECK2(dict->dropTable(pTab->getName()) == 0,
+        } else {
+	  CHECK2(dict->dropTable(pTab->getName()) == 0,
 	       "drop table failed");
 	
-	CHECK2(restarter.startNodes(&nodeId, 1) == 0,
+	  CHECK2(restarter.startNodes(&nodeId, 1) == 0,
 	       "failed to start node");
           
-	CHECK2(restarter.waitClusterStarted() == 0,
+	  CHECK2(restarter.waitClusterStarted() == 0,
 	       "waitClusterStarted failed");
-      }
+        }
       
-      CHECK2(restarter.dumpStateOneNode(nodeId, &val, 1) == 0,
+        CHECK2(restarter.dumpStateOneNode(nodeId, &val, 1) == 0,
 	     "Failed to set LCP to min value");
+      }
     }
   }
  end:  
@@ -1122,9 +1128,9 @@ runCreateAutoincrementTable(NDBT_Context* ctx, NDBT_Step* step){
     myTable.setName(tabname);
 
     myColumn.setName("ATTR1");
-    myColumn.setPrimaryKey(true);
     myColumn.setType(NdbDictionary::Column::Unsigned);
     myColumn.setLength(1);
+    myColumn.setPrimaryKey(true);
     myColumn.setNullable(false);
     myColumn.setAutoIncrement(true);
     if (startvalue != ~0) // check that default value starts with 1
@@ -1299,7 +1305,7 @@ runTableRenameNF(NDBT_Context* ctx, NDBT_Step* step){
     const int numNodes = restarter.getNumDbNodes();
     for(int i = 0; i<numNodes; i++){
       int nodeId = restarter.getDbNodeId(i);
-      int error = NF_codes[i];
+      int error = NF_codes[i].error_id;
 
       g_info << "NF1: node = " << nodeId << " error code = " << error << endl;
 
@@ -1570,6 +1576,7 @@ TESTCASE("DictionaryPerf",
 NDBT_TESTSUITE_END(testDict);
 
 int main(int argc, const char** argv){
+  ndb_init();
   // Tables should not be auto created
   testDict.setCreateTable(false);
   myRandom48Init(NdbTick_CurrentMillisecond());

@@ -90,7 +90,7 @@ int runCreateResultTable(NDBT_Context* ctx, NDBT_Step* step){
 
   const NdbDictionary::Table* pTab = ctx->getTab();
   char newTabName[256];
-  snprintf(newTabName, 256, "%s_RES", pTab->getName());
+  BaseString::snprintf(newTabName, 256, "%s_RES", pTab->getName());
   ctx->setProperty("ResultTabName", newTabName);
 
   NdbDictionary::Table resTab(* pTab);
@@ -273,6 +273,7 @@ TESTCASE("ScanLessThanLoop",
 NDBT_TESTSUITE_END(testScanInterpreter);
 
 int main(int argc, const char** argv){
+  ndb_init();
   return testScanInterpreter.execute(argc, argv);
 }
 

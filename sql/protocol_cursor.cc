@@ -26,22 +26,21 @@
 #include "mysql_priv.h"
 #include <mysql.h>
 
-bool Protocol_cursor::send_fields(List<Item> *list, int flags)
+bool Protocol_cursor::send_fields(List<Item> *list, uint flags)
 {
   List_iterator_fast<Item> it(*list);
   Item                     *item;
   MYSQL_FIELD              *client_field;
-  
-  DBUG_ENTER("send_fields");
+  DBUG_ENTER("Protocol_cursor::send_fields");
+
   if (prepare_for_send(list))
-      return FALSE;
+    return FALSE;
 
   fields= (MYSQL_FIELD *)alloc_root(alloc, sizeof(MYSQL_FIELD) * field_count);
   if (!fields)
     goto err;
 
-  client_field= fields;
-  while ((item= it++))
+  for (client_field= fields; (item= it++) ; client_field++)
   {
     Send_field server_field;
     item->make_field(&server_field);
@@ -67,7 +66,7 @@ bool Protocol_cursor::send_fields(List<Item> *list, int flags)
     if (INTERNAL_NUM_FIELD(client_field))
       client_field->flags|= NUM_FLAG;
 
-    if (flags & (int) Protocol::SEND_DEFAULTS)
+    if (flags & (uint) Protocol::SEND_DEFAULTS)
     {
       char buff[80];
       String tmp(buff, sizeof(buff), default_charset_info), *res;
@@ -80,16 +79,18 @@ bool Protocol_cursor::send_fields(List<Item> *list, int flags)
     else
       client_field->def=0;
     client_field->max_length= 0;
-    ++client_field;
   }
 
   DBUG_RETURN(FALSE);
- err:
+
+err:
   send_error(thd, ER_OUT_OF_RESOURCES);	/* purecov: inspected */
   DBUG_RETURN(TRUE);				/* purecov: inspected */
 }
 
+
 /* Get the length of next field. Change parameter to point at fieldstart */
+
 bool Protocol_cursor::write()
 {
   byte *cp= (byte *)packet->ptr();
@@ -121,7 +122,7 @@ bool Protocol_cursor::write()
     {
       if ((long)len > (end_pos - cp))
       {
-// TODO error signal      send_error(thd, CR_MALFORMED_PACKET);
+        // TODO error signal      send_error(thd, CR_MALFORMED_PACKET);
 	return TRUE;
       }
       *data_tmp= to;
@@ -141,6 +142,6 @@ bool Protocol_cursor::write()
   row_count++;
   return FALSE;
  err:
-// TODO error signal      send_error(thd, ER_OUT_OF_RESOURCES);
+  // TODO error signal      send_error(thd, ER_OUT_OF_RESOURCES);
   return TRUE;
 }

@@ -62,9 +62,10 @@ protected:
   void execLIST_TABLES_CONF(Signal* signal);
   void execGET_TABINFOREF(Signal* signal);
   void execGET_TABINFO_CONF(Signal* signal);
+#if 0
   void execGET_TABLEID_CONF(Signal* signal);
   void execGET_TABLEID_REF(Signal* signal);
-
+#endif
   /**
    * Scan interface
    */
@@ -275,7 +276,9 @@ public:
      */
     // TODO we've got to fix this, this is to inefficient. Tomas
     char m_tables[MAX_TABLES];
+#if 0
     char m_tableNames[MAX_TABLES][MAX_TAB_NAME_SIZE];
+#endif
     /**
      * "Iterator" used to iterate through m_tableNames
      */

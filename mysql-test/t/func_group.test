@@ -30,7 +30,11 @@ select grp, sum(a)+count(a)+avg(a)+std(a)+variance(a)+bit_or(a)+bit_and(a)+min(a
 
 create table t2 (grp int, a bigint unsigned, c char(10));
 insert into t2 select grp,max(a)+max(grp),max(c) from t1 group by grp;
+
+# REPLACE ... SELECT doesn't yet work with PS
+--disable_ps_protocol
 replace into t2 select grp, a, c from t1 limit 2,1;
+--enable_ps_protocol
 select * from t2;
 
 drop table t1,t2;
@@ -418,4 +422,44 @@ execute stmt1;
 execute stmt1;
 execute stmt1;
 deallocate prepare stmt1;
+drop table t1;
+
+#
+# Bug #5406 min/max optimization for empty set
+#
+
+CREATE TABLE t1 (a int primary key);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+
+SELECT MAX(a) FROM t1 WHERE a > 5;
+SELECT MIN(a) FROM t1 WHERE a < 0;
+
+DROP TABLE t1;
+
+#
+# Bug #5555 GROUP BY enum_field" returns incorrect results
+#
+ 
+CREATE TABLE t1 (
+  id int(10) unsigned NOT NULL auto_increment,
+  val enum('one','two','three') NOT NULL default 'one',
+  PRIMARY KEY  (id)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+ 
+INSERT INTO t1 VALUES
+(1,'one'),(2,'two'),(3,'three'),(4,'one'),(5,'two');
+ 
+select val, count(*) from t1 group by val;
+drop table t1;
+
+CREATE TABLE t1 (
+  id int(10) unsigned NOT NULL auto_increment,
+  val set('one','two','three') NOT NULL default 'one',
+  PRIMARY KEY  (id)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+INSERT INTO t1 VALUES
+(1,'one'),(2,'two'),(3,'three'),(4,'one'),(5,'two');
+
+select val, count(*) from t1 group by val;
 drop table t1;

@@ -279,7 +279,7 @@ private:
   Logger operator = (const Logger&);
   bool operator == (const Logger&);
 
-  static const int MAX_LOG_LEVELS = 8;
+  STATIC_CONST( MAX_LOG_LEVELS = 8 );
 
   bool m_logLevels[MAX_LOG_LEVELS];
   

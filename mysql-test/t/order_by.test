@@ -472,13 +472,14 @@ select t1.col as c1, t2.col as c2 from t1, t2 where t1.col1=t2.col2
   order by col;
 --error 1052
 select col1 from t1, t2 where t1.col1=t2.col2 order by col;
+--error 1052
+select t1.col as t1_col, t2.col2 from t1, t2 where t1.col1=t2.col2
+  order by col;
 
 select t1.col as t1_col, t2.col from t1, t2 where t1.col1=t2.col2
   order by col;
 select col2 as c, col as c from t2 order by col;
 select col2 as col, col as col2 from t2 order by col; 
-select t1.col as t1_col, t2.col2 from t1, t2 where t1.col1=t2.col2
-  order by col;
 select t2.col2, t2.col, t2.col from t2 order by col;
 
 select t2.col2 as col from t2 order by t2.col;
@@ -486,3 +487,16 @@ select t2.col2 as col, t2.col from t2 order by t2.col;
 select t2.col2, t2.col, t2.col from t2 order by t2.col;
 
 drop table t1, t2;
+
+#
+# Bug #5428: a problem with small max_sort_length value
+#
+
+create table t1 (a char(25));
+insert into t1 set a = repeat('x', 20);
+insert into t1 set a = concat(repeat('x', 19), 'z');
+insert into t1 set a = concat(repeat('x', 19), 'ab');
+insert into t1 set a = concat(repeat('x', 19), 'aa');
+set max_sort_length=20;
+select a from t1 order by a;
+drop table t1;

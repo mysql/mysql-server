@@ -64,6 +64,35 @@ extern Time_zone * my_tz_find(const String *name, TABLE_LIST *tz_tables);
 extern my_bool     my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap);
 extern void        my_tz_free();
 
+
+/*
+  Check if we have pointer to the beggining of list of implictly used
+  time zone tables and fast-forward to its end.
+
+  SYNOPSIS
+    my_tz_check_n_skip_implicit_tables()
+      table     - (in/out) pointer to element of table list to check
+      tz_tables - list of implicitly used time zone tables received
+                  from my_tz_get_table_list() function.
+
+  NOTE
+    This function relies on my_tz_get_table_list() implementation.
+
+  RETURN VALUE
+    TRUE  - if table points to the beggining of tz_tables list
+    FALSE - otherwise.
+*/
+inline bool my_tz_check_n_skip_implicit_tables(TABLE_LIST **table,
+                                               TABLE_LIST *tz_tables)
+{
+  if (*table == tz_tables)
+  {
+    (*table)+= 3;
+    return TRUE;
+  }
+  return FALSE;
+}
+
 /* 
   Maximum length of time zone name that we support 
   (Time zone name is char(64) in db)

@@ -1183,6 +1183,7 @@ register cset *cs;
 	return(n);
 }
 
+#ifdef USE_ORIG_REGEX_CODE
 /*
  - mcadd - add a collating element to a cset
  == static void mcadd(register struct parse *p, register cset *cs, \
@@ -1209,6 +1210,7 @@ register char *cp;
 	(void) strcpy(cs->multis + oldend - 1, cp);
 	cs->multis[cs->smultis - 1] = '\0';
 }
+#endif
 
 #ifdef NOT_USED
 /*

@@ -714,6 +714,7 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
                                        bool no_alloc, MEM_ROOT *parent_alloc)
   :dont_free(0),error(0),free_file(0),cur_range(NULL),range(0)
 {
+  sorted= 0;
   index= key_nr;
   head=  table;
   key_part_info= head->key_info[index].key_part;
@@ -1725,9 +1726,10 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     }
 
     if (tree)
-    {/*
-        It is possible to use a range-based quick select (but it might be slower
-        than 'all' table scan).
+    {
+      /*
+        It is possible to use a range-based quick select (but it might be
+        slower than 'all' table scan).
       */
       if (tree->merges.is_empty())
       {
@@ -4839,7 +4841,7 @@ void SEL_ARG::test_use_count(SEL_ARG *root)
   uint e_count=0;
   if (this == root && use_count != 1)
   {
-    sql_print_error("Note: Use_count: Wrong count %lu for root",use_count);
+    sql_print_information("Use_count: Wrong count %lu for root",use_count);
     return;
   }
   if (this->type != SEL_ARG::KEY_RANGE)
@@ -4852,7 +4854,7 @@ void SEL_ARG::test_use_count(SEL_ARG *root)
       ulong count=count_key_part_usage(root,pos->next_key_part);
       if (count > pos->next_key_part->use_count)
       {
-	sql_print_error("Note: Use_count: Wrong count for key at 0x%lx, %lu should be %lu",
+	sql_print_information("Use_count: Wrong count for key at 0x%lx, %lu should be %lu",
 			pos,pos->next_key_part->use_count,count);
 	return;
       }
@@ -4860,7 +4862,7 @@ void SEL_ARG::test_use_count(SEL_ARG *root)
     }
   }
   if (e_count != elements)
-    sql_print_error("Warning: Wrong use count: %u (should be %u) for tree at 0x%lx",
+    sql_print_warning("Wrong use count: %u (should be %u) for tree at 0x%lx",
 		    e_count, elements, (gptr) this);
 }
 
@@ -5233,8 +5235,6 @@ get_quick_select(PARAM *param,uint idx,SEL_ARG *key_tree,
   QUICK_RANGE_SELECT *quick;
   DBUG_ENTER("get_quick_select");
 
-
-
   if (param->table->key_info[param->real_keynr[idx]].flags & HA_SPATIAL)
     quick=new QUICK_RANGE_SELECT_GEOM(param->thd, param->table,
                                       param->real_keynr[idx],
@@ -5243,7 +5243,7 @@ get_quick_select(PARAM *param,uint idx,SEL_ARG *key_tree,
   else
     quick=new QUICK_RANGE_SELECT(param->thd, param->table,
                                  param->real_keynr[idx],
-                                 test(parent_alloc), parent_alloc);
+                                 test(parent_alloc));
 
   if (quick)
   {
@@ -5370,7 +5370,6 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
   if (insert_dynamic(&quick->ranges, (gptr)&range))
     return 1;
 
-
  end:
   if (key_tree->right != &null_element)
     return get_quick_keys(param,quick,key,key_tree->right,
@@ -5455,14 +5454,18 @@ bool QUICK_ROR_UNION_SELECT::check_if_keys_used(List<Item> *fields)
   return 0;
 }
 
+
 /****************************************************************************
   Create a QUICK RANGE based on a key
+  This allocates things in a new memory root, as this may be called many times
+  during a query.
 ****************************************************************************/
 
 QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
                                              TABLE_REF *ref)
 {
-  QUICK_RANGE_SELECT *quick=new QUICK_RANGE_SELECT(thd, table, ref->key, 1);
+  MEM_ROOT *old_root= my_pthread_getspecific_ptr(MEM_ROOT*, THR_MALLOC);
+  QUICK_RANGE_SELECT *quick= new QUICK_RANGE_SELECT(thd, table, ref->key, 0);
   KEY *key_info = &table->key_info[ref->key];
   KEY_PART *key_part;
   QUICK_RANGE *range;
@@ -5473,17 +5476,12 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
   if (quick->init())
   {
     delete quick;
-    return 0;
+    goto err;
   }
 
-  if (cp_buffer_from_ref(ref))
-  {
-    if (thd->is_fatal_error)
-      goto err;					// out of memory
-  }
-
-  if (!(range= new QUICK_RANGE()))
-    goto err;			// out of memory
+  if (cp_buffer_from_ref(ref) && thd->is_fatal_error ||
+      !(range= new QUICK_RANGE()))
+    goto err;                                   // out of memory
 
   range->min_key=range->max_key=(char*) ref->key_buff;
   range->min_length=range->max_length=ref->key_length;
@@ -5526,9 +5524,12 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
       goto err;
   }
 
+ok:
+  my_pthread_setspecific_ptr(THR_MALLOC, old_root);
   return quick;
 
 err:
+  my_pthread_setspecific_ptr(THR_MALLOC, old_root);
   delete quick;
   return 0;
 }
@@ -6481,8 +6482,8 @@ cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
         - GA = <G_1, ..., G_k> - from the GROUP BY clause (if any)
              = SA              - if Q is a DISTINCT query (based on the
                                  equivalence of DISTINCT and GROUP queries.
-        - NGA = QA - (GA union C) = {NG_1, ..., NG_m} - the ones not in GROUP BY
-          and not referenced by MIN/MAX functions.
+        - NGA = QA - (GA union C) = {NG_1, ..., NG_m} - the ones not in
+          GROUP BY and not referenced by MIN/MAX functions.
         with the following properties specified below.
 
     SA1. There is at most one attribute in SA referenced by any number of
@@ -6860,9 +6861,9 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
   if (!index_info) /* No usable index found. */
     DBUG_RETURN(NULL);
 
-
-  /* Check (SA3,WA1) for the where clause. */
-  if (!check_group_min_max_predicates(join->conds, min_max_arg_item,
+  /* Check (SA3) for the where clause. */
+  if (join->conds && min_max_arg_item &&
+      !check_group_min_max_predicates(join->conds, min_max_arg_item,
                                       (index_info->flags & HA_SPATIAL) ?
                                       Field::itMBR : Field::itRAW))
     DBUG_RETURN(NULL);
@@ -6920,8 +6921,7 @@ check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
                                Field::imagetype image_type)
 {
   DBUG_ENTER("check_group_min_max_predicates");
-  if (!cond) /* If no WHERE clause, then all is OK. */
-    DBUG_RETURN(TRUE);
+  DBUG_ASSERT(cond && min_max_arg_item);
 
   Item::Type cond_type= cond->type();
   if (cond_type == Item::COND_ITEM) /* 'AND' or 'OR' */
@@ -6938,6 +6938,19 @@ check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
     DBUG_RETURN(TRUE);
   }
 
+  /*
+    TODO:
+    This is a very crude fix to handle sub-selects in the WHERE clause
+    (Item_subselect objects). With the test below we rule out from the
+    optimization all queries with subselects in the WHERE clause. What has to
+    be done, is that here we should analyze whether the subselect references
+    the MIN/MAX argument field, and disallow the optimization only if this is
+    so.
+  */
+  if (cond_type == Item::SUBSELECT_ITEM)
+    DBUG_RETURN(FALSE);
+  
+  /* We presume that at this point there are no other Items than functions. */
   DBUG_ASSERT(cond_type == Item::FUNC_ITEM);
 
   /* Test if cond references only group-by or non-group fields. */
@@ -6951,11 +6964,11 @@ check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
     DBUG_PRINT("info", ("cur_arg: %s", cur_arg->full_name()));
     if (cur_arg->type() == Item::FIELD_ITEM)
     {
-      if (min_max_arg_item &&            /* pred references min_max_arg_item. */
-          min_max_arg_item->eq(cur_arg, 1))
-      {/*
-         Check if pred is a range condition that compares the MIN/MAX argument
-         with a constant.
+      if (min_max_arg_item->eq(cur_arg, 1)) 
+      {
+       /*
+         If pred references the MIN/MAX argument, check whether pred is a range
+         condition that compares the MIN/MAX argument with a constant.
        */
         Item_func::Functype pred_type= pred->functype();
         if (pred_type != Item_func::EQUAL_FUNC     &&
@@ -7194,16 +7207,16 @@ SEL_ARG * get_index_range_tree(uint index, SEL_TREE* range_tree, PARAM *param,
     group_key_parts      [in] Number of index key parts in the group prefix
     range_tree           [in] Tree of ranges for all indexes
     index_tree           [in] The range tree for the current index
-    quick_prefix_records [in] Number of records retrieved by the internally used
-                              quick range select if any
+    quick_prefix_records [in] Number of records retrieved by the internally
+			      used quick range select if any
     have_min             [in] True if there is a MIN function
     have_max             [in] True if there is a MAX function
     read_cost           [out] The cost to retrieve rows via this quick select
     records             [out] The number of rows retrieved
 
   DESCRIPTION
-    This method computes the access cost of a TRP_GROUP_MIN_MAX instance and the
-    number of rows returned. It updates this->read_cost and this->records.
+    This method computes the access cost of a TRP_GROUP_MIN_MAX instance and
+    the number of rows returned. It updates this->read_cost and this->records.
 
   NOTES
     The cost computation distinguishes several cases:
@@ -7260,8 +7273,8 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
   double quick_prefix_selectivity;
   double io_cost;
   double cpu_cost= 0; /* TODO: CPU cost of index_read calls? */
-
   DBUG_ENTER("TRP_GROUP_MIN_MAX::cost");
+
   table_records= table->file->records;
   keys_per_block= (table->file->block_size / 2 /
                    (index_info->key_length + table->file->ref_length)
@@ -7349,7 +7362,6 @@ TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool retrieve_full_rows,
                               MEM_ROOT *parent_alloc)
 {
   QUICK_GROUP_MIN_MAX_SELECT *quick;
-
   DBUG_ENTER("TRP_GROUP_MIN_MAX::make_quick");
 
   quick= new QUICK_GROUP_MIN_MAX_SELECT(param->table,
@@ -7357,7 +7369,8 @@ TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool retrieve_full_rows,
                                         have_min, have_max, min_max_arg_part,
                                         group_prefix_len, used_key_parts,
                                         index_info, index, read_cost, records,
-                                        key_infix_len, key_infix, parent_alloc);
+                                        key_infix_len, key_infix,
+                                        parent_alloc);
   if (!quick)
     DBUG_RETURN(NULL);
 
@@ -7440,17 +7453,20 @@ TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool retrieve_full_rows,
     None
 */
 
-QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
-  TABLE *table, JOIN *join_arg, bool have_min_arg, bool have_max_arg,
-  KEY_PART_INFO *min_max_arg_part_arg, uint group_prefix_len_arg,
-  uint used_key_parts_arg, KEY *index_info_arg, uint use_index,
-  double read_cost_arg, ha_rows records_arg, uint key_infix_len_arg,
-  byte *key_infix_arg, MEM_ROOT *parent_alloc)
-: join(join_arg), index_info(index_info_arg),
-  group_prefix_len(group_prefix_len_arg), have_min(have_min_arg),
-  have_max(have_max_arg), seen_first_key(FALSE),
-  min_max_arg_part(min_max_arg_part_arg), key_infix(key_infix_arg),
-  key_infix_len(key_infix_len_arg)
+QUICK_GROUP_MIN_MAX_SELECT::
+QUICK_GROUP_MIN_MAX_SELECT(TABLE *table, JOIN *join_arg, bool have_min_arg,
+                           bool have_max_arg,
+                           KEY_PART_INFO *min_max_arg_part_arg,
+                           uint group_prefix_len_arg,
+                           uint used_key_parts_arg, KEY *index_info_arg,
+                           uint use_index, double read_cost_arg,
+                           ha_rows records_arg, uint key_infix_len_arg,
+                           byte *key_infix_arg, MEM_ROOT *parent_alloc)
+  :join(join_arg), index_info(index_info_arg),
+   group_prefix_len(group_prefix_len_arg), have_min(have_min_arg),
+   have_max(have_max_arg), seen_first_key(FALSE),
+   min_max_arg_part(min_max_arg_part_arg), key_infix(key_infix_arg),
+   key_infix_len(key_infix_len_arg)
 {
   head=       table;
   file=       head->file;
@@ -7463,6 +7479,12 @@ QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
   real_prefix_len= group_prefix_len + key_infix_len;
   group_prefix= NULL;
   min_max_arg_len= min_max_arg_part ? min_max_arg_part->store_length : 0;
+
+  /*
+    We can't have parent_alloc set as the init function can't handle this case
+    yet.
+  */
+  DBUG_ASSERT(!parent_alloc);
   if (!parent_alloc)
   {
     init_sql_alloc(&alloc, join->thd->variables.range_alloc_block_size, 0);
@@ -8571,7 +8593,7 @@ void QUICK_GROUP_MIN_MAX_SELECT::dbug_dump(int indent, bool verbose)
 }
 
 
-#endif
+#endif /* NOT_USED */
 
 /*****************************************************************************
 ** Instantiate templates

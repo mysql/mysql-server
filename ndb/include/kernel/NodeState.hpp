@@ -100,7 +100,7 @@ public:
   /**
    * Length in 32-bit words
    */
-  static const Uint32 DataLength = 8 + NdbNodeBitmask::Size;
+  STATIC_CONST( DataLength = 8 + NdbNodeBitmask::Size );
   
   /**
    * Constructor(s)

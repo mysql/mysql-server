@@ -1006,3 +1006,18 @@ max-time: 1500
 cmd: testSystemRestart
 args: -n SR2 T7 
 
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_UNDO T1 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_UNDO T6 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_UNDO T7 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_UNDO T8 
