@@ -4026,7 +4026,6 @@ ha_ndbcluster::ha_ndbcluster(TABLE *table_arg):
   m_force_send(TRUE),
   m_autoincrement_prefetch(32),
   m_transaction_on(TRUE),
-  m_use_local_query_cache(FALSE),
   m_multi_cursor(NULL)
 { 
   int i;
@@ -4820,31 +4819,48 @@ uint ndb_get_commitcount(THD* thd, char* dbname, char* tabname,
     DBUG_RETURN(1);
   ndb->setDatabaseName(dbname);
   
-  if (ndb_get_table_statistics(ndb, tabname, 0, commit_count))
+  struct Ndb_statistics stat;
+  if (ndb_get_table_statistics(ndb, tabname, &stat))
     DBUG_RETURN(1);
+  *commit_count= stat.commit_count;
   DBUG_RETURN(0);
 }
 
 
-static
-my_bool
-ndbcluster_cache_retrieval_allowed(
-/*======================================*/
-				/* out: TRUE if permitted, FALSE if not;
-				note that the value FALSE means invalidation
-				of query cache if *engine_data is changed */
-	THD*	thd,		/* in: thd of the user who is trying to
-				store a result to the query cache or
-				retrieve it */
-	char*	full_name,	/* in: concatenation of database name,
-				the null character '\0', and the table
-				name */
-	uint	full_name_len,	/* in: length of the full name, i.e.
-				len(dbname) + len(tablename) + 1 */
-        ulonglong *engine_data) /* in: value set in call to 
-				ha_ndbcluster::cached_table_registration
-				   out: if return FALSE this is used to invalidate 
-				all cached queries with this table*/
+/*
+  Check if a cached query can be used.
+  This is done by comparing the supplied engine_data to commit_count of 
+  the table.
+  The commit_count is either retrieved from the share for the table, where 
+  it has been cached by the util thread. If the util thread is not started, 
+  NDB has to be contacetd to retrieve the commit_count, this will introduce
+  a small delay while waiting for NDB to answer.
+  
+  
+  SYNOPSIS
+  ndbcluster_cache_retrieval_allowed
+    thd            thread handle
+    full_name      concatenation of database name,
+                   the null character '\0', and the table
+                   name 
+    full_name_len  length of the full name, 
+                   i.e. len(dbname) + len(tablename) + 1
+
+    engine_data    parameter retrieved when query was first inserted into 
+                   the cache. If the value of engine_data is changed, 
+                   all queries for this table should be invalidated.
+
+  RETURN VALUE
+    TRUE  Yes, use the query from cache
+    FALSE No, don't use the cached query, and if engine_data
+          has changed, all queries for this table should be invalidated
+
+*/
+
+static my_bool 
+ndbcluster_cache_retrieval_allowed(THD*	thd, 
+				   char* full_name, uint full_name_len, 
+				   ulonglong *engine_data)
 {
   DBUG_ENTER("ndbcluster_cache_retrieval_allowed");
 
@@ -4861,7 +4877,7 @@ ndbcluster_cache_retrieval_allowed(
 
   if (ndb_get_commitcount(thd, dbname, tabname, &commit_count))
   {
-    *engine_data= *engine_data+1; // invalidate
+    *engine_data+= 1; // invalidate
     DBUG_RETURN(FALSE);
   }
   DBUG_PRINT("info", ("*engine_data=%llu, commit_count=%llu", 
@@ -4877,27 +4893,36 @@ ndbcluster_cache_retrieval_allowed(
   DBUG_RETURN(TRUE);
 }
 
+
+/**
+   Register a table for use in the query cache. Fetch the commit_count
+   for the table and return it in engine_data, this will later be used 
+   to check if the table has changed, before the cached query is reused.
+
+   SYNOPSIS
+   ha_ndbcluster::can_query_cache_table
+    thd            thread handle
+    full_name      concatenation of database name,
+                   the null character '\0', and the table
+                   name 
+    full_name_len  length of the full name, 
+                   i.e. len(dbname) + len(tablename) + 1
+    qc_engine_callback  function to be called before using cache on this table 
+    engine_data    out, commit_count for this table
+
+  RETURN VALUE
+    TRUE  Yes, it's ok to cahce this query
+    FALSE No, don't cach the query
+
+*/
+
 my_bool
-ha_ndbcluster::cached_table_registration(
-/*======================================*/
-				/* out: TRUE if permitted, FALSE if not;
-				note that the value FALSE means invalidation
-				of query cache if *engine_data is changed */
-	THD*	thd,		/* in: thd of the user who is trying to
-				store a result to the query cache or
-				retrieve it */
-	char*	full_name,	/* in: concatenation of database name,
-				the null character '\0', and the table
-				name */
-	uint	full_name_len,	/* in: length of the full name, i.e.
-				len(dbname) + len(tablename) + 1 */
-	qc_engine_callback 
-	*engine_callback,       /* out: function to be called before using
-				   cache on this table */
-        ulonglong *engine_data) /* out: if return FALSE this is used to 
-				   invalidate all cached queries with this table*/
+ha_ndbcluster::register_query_cache_table(THD* thd, 
+					  char* full_name, uint full_name_len,
+					  qc_engine_callback *engine_callback,
+					  ulonglong *engine_data) 
 {
-  DBUG_ENTER("ha_ndbcluster::cached_table_registration");
+  DBUG_ENTER("ha_ndbcluster::register_query_cache_table");
 
   bool is_autocommit= !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
   DBUG_PRINT("enter",("dbname=%s, tabname=%s, is_autocommit=%d",
@@ -5139,10 +5164,6 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
     pOp->close(TRUE);
 
     ndb->closeTransaction(pTrans);
-    if(row_count)
-      *row_count= sum_rows;
-    if(commit_count)
-      *commit_count= sum_commits;
 
     ndbstat->row_count= sum_rows;
     ndbstat->commit_count= sum_commits;
@@ -5662,13 +5683,12 @@ extern "C" pthread_handler_decl(ndb_util_thread_func,arg __attribute__((unused))
       
       // Contact NDB to get commit count for table
       g_ndb->setDatabaseName(db);
-      Uint64 rows, commit_count;
-      if(ndb_get_table_statistics(g_ndb, tabname, 
-				  &rows, &commit_count) == 0){
+      struct Ndb_statistics stat;;
+      if(ndb_get_table_statistics(g_ndb, tabname, &stat) == 0){
 	DBUG_PRINT("ndb_util_thread", 
 		   ("Table: %s, rows: %llu, commit_count: %llu", 
-		    share->table_name, rows, commit_count));
-	share->commit_count= commit_count;
+		    share->table_name, stat.row_count, stat.commit_count));
+	share->commit_count= stat.commit_count;
       }
       else
       {
