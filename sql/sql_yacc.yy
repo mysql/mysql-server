@@ -138,7 +138,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	FLUSH_SYM
 %token  HELP_SYM
 %token	INSERT
-%token	IO_THREAD
+%token	RELAY_THREAD
 %token	KILL_SYM
 %token	LOAD
 %token	LOCKS_SYM
@@ -1688,7 +1688,7 @@ slave_thread_opt_list:
 slave_thread_opt:
 	/*empty*/	{}
 	| SQL_THREAD	{ Lex->slave_thd_opt|=SLAVE_SQL; }
-	| IO_THREAD   	{ Lex->slave_thd_opt|=SLAVE_IO; }
+	| RELAY_THREAD 	{ Lex->slave_thd_opt|=SLAVE_IO; }
 	;
 
 restore:
@@ -4230,7 +4230,7 @@ keyword:
 	| ISSUER_SYM		{}
 	| INNOBASE_SYM		{}
 	| INSERT_METHOD		{}
-	| IO_THREAD		{}
+	| RELAY_THREAD		{}
 	| LAST_SYM		{}
 	| LEVEL_SYM		{}
 	| LINESTRING		{}
