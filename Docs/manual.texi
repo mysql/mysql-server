@@ -1829,7 +1829,7 @@ possible to know how many rows a query would have returned without a
 @node Nutshell Future features, Nutshell 4.1 development release, Nutshell Other features, MySQL 4.0 In A Nutshell
 @subsection Future MySQL 4.0 Features
 
-For the upcoming MySQL Server 4.0 releases (4.0.1, 4.0.2, and onward),
+For the upcoming MySQL Server 4.x releases,
 expect the following features now still under development:
 
 @itemize @bullet
@@ -2876,7 +2876,7 @@ extra conditions in this case.
 @end itemize
 
 @menu
-* ANSI diff Sub-selects::       Sub-@code{SELECT}s
+* ANSI diff Sub-selects::       Sub@code{SELECT}s
 * ANSI diff SELECT INTO TABLE::  @code{SELECT INTO TABLE}
 * ANSI diff Transactions::      Transactions and Atomic Operations
 * ANSI diff Triggers::          Stored Procedures and Triggers
@@ -2892,16 +2892,16 @@ That is the latest version of the TODO list in this manual. @xref{TODO}.
 
 
 @node ANSI diff Sub-selects, ANSI diff SELECT INTO TABLE, Differences from ANSI, Differences from ANSI
-@subsubsection Sub-@code{SELECT}s
+@subsubsection Sub@code{SELECT}s
 
-@cindex sub-selects
+@cindex sub@code{SELECT}s
 
 MySQL Server currently only supports nested queries of the form
 @code{INSERT ... SELECT ...} and @code{REPLACE ... SELECT ...}.
 You can, however, use the function @code{IN()} in other contexts.
-Sub-selects are scheduled for implementation in Version 4.x.
+Subselects are currently being implemented in the 4.1 development tree.
 
-Meanwhile, you can often rewrite the query without a sub-select:
+Meanwhile, you can often rewrite the query without a subselect:
 
 @example
 SELECT * FROM table1 WHERE id IN (SELECT id FROM table2);
@@ -2931,7 +2931,7 @@ For more complicated subqueries you can often create temporary tables
 to hold the subquery.  In some cases, however, this option will not
 work. The most frequently encountered of these cases arises with
 @code{DELETE} statements, for which standard SQL does not support joins
-(except in sub-selects).  For this situation there are two options
+(except in subselects).  For this situation there are two options
 available until subqueries are supported by MySQL Server.
 
 The first option is to use a procedural programming language (such as
@@ -3202,7 +3202,7 @@ transactions are deleted.
 
 The planned update language will be able to handle stored procedures.
 Our aim is to have stored procedures implemented in MySQL Server around
-version 4.1. We are also looking at triggers.
+version 5.0. We are also looking at triggers.
 
 
 @node ANSI diff Foreign Keys, ANSI diff Views, ANSI diff Triggers, Differences from ANSI
@@ -3296,7 +3296,7 @@ to back up or restore individual tables.
 
 @cindex views
 
-It is planned to implement views in MySQL Server around version 4.1.
+It is planned to implement views in MySQL Server around version 5.0.
 
 Views are mostly useful for letting users access a set of relations as one
 table (in read-only mode).  Many SQL databases don't allow one to update
@@ -3673,7 +3673,7 @@ For platform-specific bugs, see the sections about compiling and porting.
 * TODO unplanned::              Things We Don't Plan To Do
 @end menu
 
-This appendix lists the features that we plan to implement in MySQL Server.
+This section lists the features that we plan to implement in MySQL Server.
 
 Everything in this list is approximately in the order it will be done.  If you
 want to affect the priority order, please register a license or support us and
@@ -3681,7 +3681,7 @@ tell us what you want to have done more quickly. @xref{Licensing and Support}.
 
 The plan is that we in the future will support the full ANSI SQL99
 standard, but with a lot of useful extensions. The challenge is to do
-this without sacrifying the speed or compromising the code.
+this without sacrificing the speed or compromising the code.
 
 
 @node TODO MySQL 4.0, TODO MySQL 4.1, TODO, TODO
@@ -3737,9 +3737,11 @@ Some of the work on MySQL 4.1 is already in progress.
 @itemize @bullet
 @item
 Subqueries.
-@code{SELECT id FROM t WHERE grp IN (SELECT grp FROM g WHERE u > 100)}
+@example
+SELECT id FROM t WHERE grp IN (SELECT grp FROM g WHERE u > 100);
+@end example
 @item
-Foreign keys, including cascading delete.
+Foreign keys for @code{MyISAM} tables, including cascading delete.
 @item
 Fail-safe replication.
 @item
@@ -3773,13 +3775,13 @@ able to choose the right index when there are many to choose from. We should
 also extend the info interface to get the key distribution for each index,
 if @code{analyze} is run on all subtables.
 @item
-@code{RENAME TABLE} on a table used in an active @code{MERGE} table may
-corrupt the table.
+Resolving the issue of @code{RENAME TABLE} on a table used in an active
+@code{MERGE} table possibly corrupting the table.
 @item
-A faster, smaller embedded MySQL library. (Compatible with the old one.)
+A faster, smaller embedded MySQL library (compatible with the old one).
 @item
-Stable openssl support.  (MySQL 4.0 supports rudimentary, not 100% tested,
-support for openssl).
+Stable OpenSSL support (MySQL 4.0 supports rudimentary, not 100% tested,
+support for OpenSSL).
 @item
 Add support for sorting on @code{UNICODE}.
 @item
@@ -3835,8 +3837,11 @@ Faster row handling (less copying)
 
 @itemize @bullet
 @item
-Atomic multi-table updates@-e.g., @code{update items,month set
-items.price=month.price where items.id=month.id;};
+Atomic multi-table updates:
+@example
+UPDATE items,month SET items.price=month.price
+WHERE items.id=month.id;
+@end example
 @item
 Don't allow more than a defined number of threads to run MyISAM recover
 at the same time.
@@ -3850,9 +3855,6 @@ Multiple result sets.
 @item
 Make it possible to specify @code{long_query_time} with a granularity
 in microseconds.
-@item
-Add a configurable prompt to the @code{mysql} command-line client, with
-options like database in use, time and date...
 @item
 Link the @code{myisampack} code into the server.
 @item
@@ -4061,8 +4063,8 @@ log with @code{SET TIMESTAMP=#;}.
 @item
 Use read/write mutex in some places to get more speed.
 @item
-Full foreign key support. One probably wants to implement a procedural
-language first.
+Full foreign key support in for @code{MyISAM} tables, probably after
+the implementation of stored procedures with triggers.
 @item
 Simple views (first on one table, later on any expression).
 @item
@@ -4092,9 +4094,9 @@ Use of full calculation names in the order part (for ACCESS97).
 @item
 @code{SQL_OPTION MAX_SELECT_TIME=#} to put a time limit on a query.
 @item
-Make the update log to a database.
+Make the update log write to a database.
 @item
-Negative @code{LIMIT} to retrieve data from the end.
+Add to @code{LIMIT} to allow retrieval of data from the end of a result set.
 @item
 Alarm around client connect/read/write functions.
 @item
@@ -13360,7 +13362,7 @@ SELECT MAX(article) AS article FROM shop
 
 ``Find number, dealer, and price of the most expensive article.''
 
-In ANSI SQL this is easily done with a sub-query:
+In ANSI SQL this is easily done with a subquery:
 
 @example
 SELECT article, dealer, price
@@ -13368,7 +13370,7 @@ FROM   shop
 WHERE  price=(SELECT MAX(price) FROM shop)
 @end example
 
-In MySQL (which does not yet have sub-selects), just do it in
+In MySQL (which does not yet have subselects), just do it in
 two steps:
 
 @enumerate
@@ -13423,7 +13425,7 @@ GROUP BY article
 
 ``For each article, find the dealer(s) with the most expensive price.''
 
-In ANSI SQL, I'd do it with a sub-query like this:
+In ANSI SQL, I'd do it with a subquery like this:
 
 @example
 SELECT article, dealer, price
@@ -15035,7 +15037,7 @@ to make things much harder.  To make things even more secure you should use
 @uref{http://www.ssh.com/}.  With this, you can get an encrypted TCP/IP
 connection between a MySQL server and a MySQL client.
 
-If you are using MySQL 4.0, you can also use internal openssl support.
+If you are using MySQL 4.0, you can also use internal OpenSSL support.
 @xref{Secure connections}.
 
 To make a MySQL system secure, you should strongly consider the
@@ -17366,7 +17368,7 @@ file.
 @node Secure connections,  , Password security, User Account Management
 @subsection Using Secure Connections
 
-@cindex openssl
+@cindex OpenSSL
 @cindex SSL and X509 Basics
 
 @menu
@@ -17431,7 +17433,7 @@ To get secure connections to work with MySQL you must do the following:
 
 @enumerate
 @item
-Install the openssl library. We have tested MySQL with openssl 0.9.6.
+Install the OpenSSL library. We have tested MySQL with OpenSSL 0.9.6.
 @uref{http://www.openssl.org/}.
 @item
 Configure MySQL with @code{--with-vio --with-openssl}.
@@ -17440,7 +17442,7 @@ If you are using an old MySQL installation, you have to update your
 @code{mysql.user} table with some new columns. You can do this by
 running the @code{mysql_fix_privilege_tables.sh} script.
 @item
-You can check if a running mysqld server supports @code{openssl} by
+You can check if a running mysqld server supports OpenSSL by
 examining if @code{SHOW VARIABLES LIKE 'have_openssl'} returns @code{YES}.
 @end enumerate
 
@@ -34158,7 +34160,7 @@ The target table of the @code{INSERT} statement cannot appear in the
 forbidden in ANSI SQL to @code{SELECT} from the same table into which you are
 inserting.  (The problem is that the @code{SELECT} possibly would
 find records that were inserted earlier during the same run.  When using
-sub-select clauses, the situation could easily be very confusing!)
+subselect clauses, the situation could easily be very confusing!)
 
 @item
 @code{AUTO_INCREMENT} columns work as usual.
@@ -47757,7 +47759,7 @@ decide which rows from the result set should be used.
 @cindex rows, deleting
 @cindex tables, deleting rows
 
-As MySQL doesn't yet support sub-selects, nor the use of more than one
+As MySQL doesn't yet support subselects, nor the use of more than one
 table in the @code{DELETE} statement (prior to Version 4.0), you should
 use the following approach to delete rows from 2 related tables:
 
