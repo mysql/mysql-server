@@ -31,3 +31,6 @@ COUNT(t1.Title)
 1
 COUNT(t1.Title)
 1
+t1_id	t2_id	type	cost_unit	min_value	max_value	t3_id	item_id	id	name
+22	1	Percent	Cost	100	-1	6	291	1	s1
+23	1	Percent	Cost	100	-1	21	291	1	s1
