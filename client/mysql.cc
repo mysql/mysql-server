@@ -40,7 +40,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER= "12.9";
+const char *VER= "12.10";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -604,112 +604,115 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
   switch(optid) {
-    case OPT_CHARSETS_DIR:
-      strmov(mysql_charsets_dir, argument);
-      charsets_dir = mysql_charsets_dir;
-      break;
-    case OPT_LOCAL_INFILE:
-      using_opt_local_infile=1;
-      opt_local_infile= test(!argument || atoi(argument)>0);
-      break;
-    case OPT_TEE:
-      if (argument == disabled_my_option)
-      {
-	if (opt_outfile)
-	  end_tee();
-      }
-      else
-	if (!opt_outfile)
-	{
-	  strmov(outfile, argument);
-	  init_tee();
-	}
-      break;
-    case OPT_NOTEE:
-      printf("WARNING: option depricated; use --disable-tee instead.\n");
+  case OPT_CHARSETS_DIR:
+    strmov(mysql_charsets_dir, argument);
+    charsets_dir = mysql_charsets_dir;
+    break;
+  case OPT_LOCAL_INFILE:
+    using_opt_local_infile=1;
+    opt_local_infile= test(!argument || atoi(argument)>0);
+    break;
+  case OPT_TEE:
+    if (argument == disabled_my_option)
+    {
       if (opt_outfile)
 	end_tee();
-      break;
-    case OPT_PAGER:
-      opt_nopager= 0;
-      if (argument)
-	strmov(pager, argument);
-      else
-	strmov(pager, default_pager);
-      strmov(default_pager, pager);
-      break;
-    case OPT_NOPAGER:
-      printf("WARNING: option depricated; use --disable-pager instead.\n");
-      opt_nopager= 1;
-      break;
-    case 'A':
-      rehash= 0;
-      break;
-    case 'e':
+    }
+    else
+      if (!opt_outfile)
+      {
+	strmov(outfile, argument);
+	init_tee();
+      }
+    break;
+  case OPT_NOTEE:
+    printf("WARNING: option depricated; use --disable-tee instead.\n");
+    if (opt_outfile)
+      end_tee();
+    break;
+  case OPT_PAGER:
+    opt_nopager= 0;
+    if (argument)
+      strmov(pager, argument);
+    else
+      strmov(pager, default_pager);
+    strmov(default_pager, pager);
+    break;
+  case OPT_NOPAGER:
+    printf("WARNING: option depricated; use --disable-pager instead.\n");
+    opt_nopager= 1;
+    break;
+  case 'A':
+    rehash= 0;
+    break;
+  case 'N':
+    column_names= 0;
+    break;
+  case 'e':
+    status.batch= 1;
+    status.add_to_history= 0;
+    batch_readline_end(status.line_buff);	// If multiple -e
+    if (!(status.line_buff= batch_readline_command(argument)))
+      return 1;
+    ignore_errors= 0;
+    break;
+  case 'o':
+    if (argument == disabled_my_option)
+      one_database= 0;
+    else
+      one_database= skip_updates= 1;
+    break;
+  case 'p':
+    if (argument == disabled_my_option)
+      argument= (char*) "";			// Don't require password
+    if (argument)
+    {
+      char *start= argument;
+      my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
+      opt_password= my_strdup(argument, MYF(MY_FAE));
+      while (*argument) *argument++= 'x';		// Destroy argument
+      if (*start)
+	start[1]=0 ;
+    }
+    else
+      tty_password= 1;
+    break;
+  case '#':
+    DBUG_PUSH(argument ? argument : default_dbug_option);
+    info_flag= 1;
+    break;
+  case 's':
+    if (argument == disabled_my_option)
+      opt_silent= 0;
+    else
+      opt_silent++;
+    break;
+  case 'v':
+    if (argument == disabled_my_option)
+      verbose= 0;
+    else
+      verbose++;
+    break;
+  case 'B':
+    if (!status.batch)
+    {
       status.batch= 1;
       status.add_to_history= 0;
-      batch_readline_end(status.line_buff);	// If multiple -e
-      if (!(status.line_buff= batch_readline_command(argument)))
-	return 1;
-      ignore_errors= 0;
-      break;
-    case 'o':
-      if (argument == disabled_my_option)
-	one_database= 0;
-      else
-	one_database= skip_updates= 1;
-      break;
-    case 'p':
-      if (argument == disabled_my_option)
-	argument= (char*) "";			// Don't require password
-      if (argument)
-      {
-	char *start= argument;
-	my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
-	opt_password= my_strdup(argument, MYF(MY_FAE));
-	while (*argument) *argument++= 'x';		// Destroy argument
-	if (*start)
-	  start[1]=0 ;
-      }
-      else
-	tty_password= 1;
-      break;
-    case '#':
-      DBUG_PUSH(argument ? argument : default_dbug_option);
-      info_flag= 1;
-      break;
-    case 's':
-      if (argument == disabled_my_option)
-	opt_silent= 0;
-      else
-	opt_silent++;
-      break;
-    case 'v':
-      if (argument == disabled_my_option)
-	verbose= 0;
-      else
-	verbose++;
-      break;
-    case 'B':
-      if (!status.batch)
-      {
-	status.batch= 1;
-	status.add_to_history= 0;
-	opt_silent++;				// more silent
-      }
-      break;
-    case 'W':
+      opt_silent++;				// more silent
+    }
+    break;
+  case 'W':
 #ifdef __WIN__
-      opt_mysql_unix_port= my_strdup(MYSQL_NAMEDPIPE, MYF(0));
+    opt_mysql_unix_port= my_strdup(MYSQL_NAMEDPIPE, MYF(0));
 #endif
-      break;
-    case 'V':
-      usage(1);
-      exit(0);
-    case 'I':
-    case '?':
-      usage(0);
-      exit(0);
+    break;
+  case 'V':
+    usage(1);
+    exit(0);
+  case 'I':
+  case '?':
+    usage(0);
+    exit(0);
 #include "sslopt-case.h"
   }
   return 0;
@@ -1597,18 +1600,19 @@ print_table_data(MYSQL_RES *result)
     tee_puts(separator.c_ptr(), PAGER);
   }
 
-  while ((cur = mysql_fetch_row(result)))
+  while ((cur= mysql_fetch_row(result)))
   {
     (void) tee_fputs("|", PAGER);
-    mysql_field_seek(result,0);
-    for (uint off=0 ; off < mysql_num_fields(result); off++)
+    mysql_field_seek(result, 0);
+    for (uint off= 0; off < mysql_num_fields(result); off++)
     {
-      const char *str=cur[off] ? cur[off] : "NULL";
-      field = mysql_fetch_field(result);
-      uint length=field->max_length;
+      const char *str= cur[off] ? cur[off] : "NULL";
+      field= mysql_fetch_field(result);
+      uint length= field->max_length;
       if (length > MAX_COLUMN_LENGTH)
       {
-	tee_fputs(str,PAGER); tee_fputs(" |",PAGER);
+	tee_fputs(str, PAGER);
+	tee_fputs(" |", PAGER);
       }
       else
       tee_fprintf(PAGER, num_flag[off] ? "%*s |" : " %-*s|",
