@@ -301,6 +301,15 @@ struct sql_ex_info
 #define LOG_EVENT_TIME_F            0x1
 #define LOG_EVENT_FORCED_ROTATE_F   0x2
 #endif
+
+/*
+   This flag only makes sense for Format_description_log_event.
+   It is set not when the event is written, but when a binlog file
+   is closed.
+*/
+
+#define LOG_EVENT_BINLOG_CLOSED_F   0x1
+
 /*
    If the query depends on the thread (for example: TEMPORARY TABLE).
    Currently this is used by mysqlbinlog to know it must print
@@ -308,6 +317,19 @@ struct sql_ex_info
    for every query but this would be slow).
 */
 #define LOG_EVENT_THREAD_SPECIFIC_F 0x4
+
+/*
+  Suppress the generation of 'USE' statements before the actual
+  statement. This flag should be set for any events that does not need
+  the current database set to function correctly. Most notable cases
+  are 'CREATE DATABASE' and 'DROP DATABASE'.
+
+  This flags should only be used in exceptional circumstances, since
+  it introduce a significant change in behaviour regarding the
+  replication logic together with the flags --binlog-do-db and
+  --replicated-do-db.
+ */
+#define LOG_EVENT_SUPPRESS_USE_F    0x8
 
 /*
    OPTIONS_WRITTEN_TO_BIN_LOG are the bits of thd->options which must be written
@@ -329,19 +351,6 @@ struct sql_ex_info
 #define OPTIONS_WRITTEN_TO_BIN_LOG (OPTION_AUTO_IS_NULL | \
 OPTION_NO_FOREIGN_KEY_CHECKS | OPTION_RELAXED_UNIQUE_CHECKS)
 
-/*
-  Suppress the generation of 'USE' statements before the actual
-  statement. This flag should be set for any events that does not need
-  the current database set to function correctly. Most notable cases
-  are 'CREATE DATABASE' and 'DROP DATABASE'.
-
-  This flags should only be used in exceptional circumstances, since
-  it introduce a significant change in behaviour regarding the
-  replication logic together with the flags --binlog-do-db and
-  --replicated-do-db.
- */
-#define LOG_EVENT_SUPPRESS_USE_F    0x8
-
 enum Log_event_type
 {
   /*
@@ -357,7 +366,7 @@ enum Log_event_type
     allowing multibyte TERMINATED BY etc; both types share the same class
     (Load_log_event)
   */
-  NEW_LOAD_EVENT,
+  NEW_LOAD_EVENT, XID_EVENT,
   RAND_EVENT, USER_VAR_EVENT,
   FORMAT_DESCRIPTION_EVENT,
   ENUM_END_EVENT /* end marker */
@@ -458,10 +467,8 @@ public:
   uint32 server_id;
 
   /*
-    Some 16 flags. Only one is really used now; look above for
-    LOG_EVENT_TIME_F, LOG_EVENT_FORCED_ROTATE_F,
-    LOG_EVENT_THREAD_SPECIFIC_F, and LOG_EVENT_SUPPRESS_USE_F for
-    notes.
+    Some 16 flags. Look above for LOG_EVENT_TIME_F, LOG_EVENT_FORCED_ROTATE_F,
+    LOG_EVENT_THREAD_SPECIFIC_F, and LOG_EVENT_SUPPRESS_USE_F for notes.
   */
   uint16 flags;
 
@@ -557,11 +564,11 @@ public:
       temp_buf = 0;
     }
   }
-  virtual int get_data_size() { return 0;}
   /*
     Get event length for simple events. For complicated events the length
     is calculated during write()
   */
+  virtual int get_data_size() { return 0;}
   static Log_event* read_log_event(const char* buf, uint event_len,
 				   const char **error,
                                    const Format_description_log_event
@@ -1026,6 +1033,40 @@ class Rand_log_event: public Log_event
   bool is_valid() const { return 1; }
 };
 
+/*****************************************************************************
+
+  Xid Log Event class
+
+  Logs xid of the transaction-to-be-committed in the 2pc protocol.
+  Has no meaning in replication, slaves ignore it.
+
+ ****************************************************************************/
+#ifdef MYSQL_CLIENT
+typedef ulong my_xid;
+#endif
+
+class Xid_log_event: public Log_event
+{
+ public:
+   my_xid xid;
+
+#ifndef MYSQL_CLIENT
+  Xid_log_event(THD* thd_arg, my_xid x): Log_event(thd_arg,0,0), xid(x) {}
+#ifdef HAVE_REPLICATION
+  void pack_info(Protocol* protocol);
+  int exec_event(struct st_relay_log_info* rli);
+#endif /* HAVE_REPLICATION */
+#else
+  void print(FILE* file, bool short_form = 0, LAST_EVENT_INFO* last_event_info= 0);
+#endif
+
+  Xid_log_event(const char* buf, const Format_description_log_event* description_event);
+  ~Xid_log_event() {}
+  Log_event_type get_type_code() { return XID_EVENT;}
+  int get_data_size() { return sizeof(xid); }
+  bool write(IO_CACHE* file);
+  bool is_valid() const { return 1; }
+};
 
 /*****************************************************************************
 
@@ -1075,8 +1116,6 @@ public:
   Stop Log Event class
 
  ****************************************************************************/
-#ifdef HAVE_REPLICATION
-
 class Stop_log_event: public Log_event
 {
 public:
@@ -1096,14 +1135,11 @@ public:
   bool is_valid() const { return 1; }
 };
 
-#endif /* HAVE_REPLICATION */
-
-
 /*****************************************************************************
 
   Rotate Log Event class
 
-  This will be depricated when we move to using sequence ids.
+  This will be deprecated when we move to using sequence ids.
 
  ****************************************************************************/
 

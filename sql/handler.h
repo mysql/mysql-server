@@ -92,6 +92,11 @@
 #define HA_KEY_SWITCH_NONUNIQ_SAVE 2
 #define HA_KEY_SWITCH_ALL_SAVE     3
 
+/*
+  Note: the following includes binlog and closing 0.
+  so: innodb+bdb+ndb+binlog+0
+*/
+#define MAX_HA 5
 
 /*
   Bits in index_ddl_flags(KEY *wanted_index)
@@ -190,16 +195,12 @@ enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 #define HA_CREATE_USED_COMMENT          (1L << 16)
 #define HA_CREATE_USED_PASSWORD         (1L << 17)
 
-typedef struct st_thd_trans {
-  void *bdb_tid;
-  void *innobase_tid;
-  bool innodb_active_trans;
-  void *ndb_tid;
-} THD_TRANS;
+typedef ulong my_xid;
+#define MYSQL_XID_PREFIX "MySQLXid"
+#define MYSQL_XID_PREFIX_LEN 8 // must be a multiple of 8
+#define MYSQL_XID_OFFSET (MYSQL_XID_PREFIX_LEN+sizeof(server_id))
+#define MYSQL_XID_GTRID_LEN (MYSQL_XID_OFFSET+sizeof(my_xid))
 
-#ifndef XIDDATASIZE  /* no xa.h included */
-
-/* XXX - may be we should disable xa completely in this case ? */
 #define XIDDATASIZE 128
 #define MAXGTRIDSIZE 64
 #define MAXBQUALSIZE 64
@@ -208,17 +209,49 @@ struct xid_t {
   long formatID;
   long gtrid_length;
   long bqual_length;
-  char data[XIDDATASIZE];
-};
+  char data[XIDDATASIZE];  // not \0-terminated !
 
+  bool eq(LEX_STRING *l) { return eq(l->length, 0, l->str); }
+  bool eq(long g, long b, const char *d)
+  { return g == gtrid_length && b == bqual_length && !memcmp(d, data, g+b); }
+  void set(LEX_STRING *l) { set(l->length, 0, l->str); }
+  void set(ulong l)
+  {
+    set(MYSQL_XID_PREFIX_LEN, 0, MYSQL_XID_PREFIX);
+    *(ulong*)(data+MYSQL_XID_PREFIX_LEN)=server_id;
+    *(ulong*)(data+MYSQL_XID_OFFSET)=l;
+    gtrid_length=MYSQL_XID_GTRID_LEN;
+  }
+  void set(long g, long b, const char *d)
+  {
+    formatID=1;
+    gtrid_length= g;
+    bqual_length= b;
+    memcpy(data, d, g+b);
+  }
+  bool is_null() { return formatID == -1; }
+  void null() { formatID= -1; }
+  my_xid quick_get_my_xid()
+  {
+    return *(ulong*)(data+MYSQL_XID_OFFSET);
+  }
+  my_xid get_my_xid()
+  {
+    return gtrid_length == MYSQL_XID_GTRID_LEN && bqual_length == 0 &&
+           *(ulong*)(data+MYSQL_XID_PREFIX_LEN) == server_id &&
+           !memcmp(data, MYSQL_XID_PREFIX, MYSQL_XID_PREFIX_LEN) ?
+           quick_get_my_xid() : 0;
+  }
+};
 typedef struct xid_t XID;
 
-
-#endif
+/* for recover() handlerton call */
+#define MIN_XID_LIST_SIZE  128
+#define MAX_XID_LIST_SIZE  (1024*128)
 
 typedef struct
 {
-   byte slot;
+   uint slot;
    uint savepoint_offset;
    int  (*close_connection)(THD *thd);
    int  (*savepoint_set)(THD *thd, void *sv);
@@ -231,6 +264,13 @@ typedef struct
    int  (*commit_by_xid)(XID *xid);
    int  (*rollback_by_xid)(XID *xid);
 } handlerton;
+
+typedef struct st_thd_trans
+{
+  uint        nht;
+  bool        no_2pc;
+  handlerton *ht[MAX_HA];
+} THD_TRANS;
 
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
@@ -265,6 +305,9 @@ struct st_table;
 typedef struct st_table TABLE;
 struct st_foreign_key_info;
 typedef struct st_foreign_key_info FOREIGN_KEY_INFO;
+
+typedef struct st_savepoint SAVEPOINT;
+extern ulong savepoint_alloc_size;
 
 typedef struct st_ha_check_opt
 {
@@ -584,58 +627,76 @@ public:
 extern struct show_table_type_st sys_table_types[];
 extern const char *ha_row_type[];
 extern TYPELIB tx_isolation_typelib;
+extern handlerton *handlertons[MAX_HA];
+extern ulong total_ha, total_ha_2pc;
 
 	/* Wrapper functions */
-#define ha_commit_stmt(thd) (ha_commit_trans((thd), &((thd)->transaction.stmt)))
-#define ha_rollback_stmt(thd) (ha_rollback_trans((thd), &((thd)->transaction.stmt)))
-#define ha_commit(thd) (ha_commit_trans((thd), &((thd)->transaction.all)))
-#define ha_rollback(thd) (ha_rollback_trans((thd), &((thd)->transaction.all)))
+#define ha_commit_stmt(thd) (ha_commit_trans((thd), FALSE))
+#define ha_rollback_stmt(thd) (ha_rollback_trans((thd), FALSE))
+#define ha_commit(thd) (ha_commit_trans((thd), TRUE))
+#define ha_rollback(thd) (ha_rollback_trans((thd), TRUE))
 
 #define ha_supports_generate(T) (T != DB_TYPE_INNODB && \
                                  T != DB_TYPE_BERKELEY_DB && \
                                  T != DB_TYPE_NDBCLUSTER)
 
+/* query cache */
 bool ha_caching_allowed(THD* thd, char* table_key,
                         uint key_length, uint8 cache_type);
+
+/* lookups */
 enum db_type ha_resolve_by_name(const char *name, uint namelen);
 const char *ha_get_storage_engine(enum db_type db_type);
 handler *get_new_handler(TABLE *table, enum db_type db_type);
-my_off_t ha_get_ptr(byte *ptr, uint pack_length);
-void ha_store_ptr(byte *buff, uint pack_length, my_off_t pos);
-int ha_init(void);
-int ha_panic(enum ha_panic_function flag);
-void ha_close_connection(THD* thd);
 enum db_type ha_checktype(enum db_type database_type);
+
+/* basic stuff */
+int ha_init(void);
+TYPELIB *ha_known_exts(void);
+int ha_panic(enum ha_panic_function flag);
+int ha_update_statistics();
+void ha_close_connection(THD* thd);
+bool ha_flush_logs(void);
+void ha_drop_database(char* path);
 int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
 		    bool update_create_info);
+int ha_delete_table(enum db_type db_type, const char *path);
+
+/* discovery */
 int ha_create_table_from_engine(THD* thd, const char *db, const char *name,
 				bool create_if_found);
-int ha_delete_table(enum db_type db_type, const char *path);
-void ha_drop_database(char* path);
+int ha_discover(THD* thd, const char* dbname, const char* name,
+                const void** frmblob, uint* frmlen);
+int ha_find_files(THD *thd,const char *db,const char *path,
+                  const char *wild, bool dir,List<char>* files);
+int ha_table_exists(THD* thd, const char* db, const char* name);
+
+/* key cache */
 int ha_init_key_cache(const char *name, KEY_CACHE *key_cache);
 int ha_resize_key_cache(KEY_CACHE *key_cache);
 int ha_change_key_cache_param(KEY_CACHE *key_cache);
+int ha_change_key_cache(KEY_CACHE *old_key_cache, KEY_CACHE *new_key_cache);
 int ha_end_key_cache(KEY_CACHE *key_cache);
-int ha_start_stmt(THD *thd);
-int ha_report_binlog_offset_and_commit(THD *thd, char *log_file_name,
-				       my_off_t end_offset);
-int ha_commit_complete(THD *thd);
+
+/* weird stuff */
 int ha_release_temporary_latches(THD *thd);
-int ha_update_statistics();
-int ha_commit_trans(THD *thd, THD_TRANS *trans);
-int ha_rollback_trans(THD *thd, THD_TRANS *trans);
-int ha_rollback_to_savepoint(THD *thd, char *savepoint_name);
-int ha_savepoint(THD *thd, char *savepoint_name);
-int ha_autocommit_or_rollback(THD *thd, int error);
-void ha_set_spin_retries(uint retries);
-bool ha_flush_logs(void);
-int ha_enable_transaction(THD *thd, bool on);
-int ha_change_key_cache(KEY_CACHE *old_key_cache,
-			KEY_CACHE *new_key_cache);
-int ha_discover(THD* thd, const char* dbname, const char* name,
-		const void** frmblob, uint* frmlen);
-int ha_find_files(THD *thd,const char *db,const char *path,
-		  const char *wild, bool dir,List<char>* files);
-int ha_table_exists(THD* thd, const char* db, const char* name);
-TYPELIB *ha_known_exts(void);
+
+/* transactions: interface to handlerton functions */
 int ha_start_consistent_snapshot(THD *thd);
+int ha_commit_or_rollback_by_xid(LEX_STRING *ident, bool commit);
+int ha_commit_one_phase(THD *thd, bool all);
+int ha_rollback_trans(THD *thd, bool all);
+int ha_prepare(THD *thd);
+int ha_recover(HASH *commit_list);
+
+/* transactions: these functions never call handlerton functions directly */
+int ha_commit_trans(THD *thd, bool all);
+int ha_autocommit_or_rollback(THD *thd, int error);
+int ha_enable_transaction(THD *thd, bool on);
+void trans_register_ha(THD *thd, bool all, handlerton *ht);
+
+/* savepoints */
+int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv);
+int ha_savepoint(THD *thd, SAVEPOINT *sv);
+int ha_release_savepoint(THD *thd, SAVEPOINT *sv);
+

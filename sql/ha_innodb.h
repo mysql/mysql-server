@@ -216,36 +216,32 @@ extern ulong srv_max_purge_lag;
 
 extern TYPELIB innobase_lock_typelib;
 
-bool innobase_init(void);
+handlerton *innobase_init(void);
 bool innobase_end(void);
 bool innobase_flush_logs(void);
 uint innobase_get_free_space(void);
 
-int innobase_commit(THD *thd, void* trx_handle);
+/*
+  don't delete it - it may be re-enabled later
+  as an optimization for the most common case InnoDB+binlog
+*/
+#if 0
 int innobase_report_binlog_offset_and_commit(
         THD*    thd,
 	void*	trx_handle,
         char*   log_file_name,
         my_off_t end_offset);
-int innobase_commit_complete(
-        void*   trx_handle);
-int innobase_rollback(THD *thd, void* trx_handle);
-int innobase_rollback_to_savepoint(
-	THD*	thd,
-	char*	savepoint_name,
-	my_off_t* binlog_cache_pos);
-int innobase_savepoint(
-	THD*	thd,
-	char*	savepoint_name,
-	my_off_t binlog_cache_pos);
-int innobase_close_connection(THD *thd);
+void innobase_store_binlog_offset_and_flush_log(char *binlog_name,longlong offset);
+int innobase_commit_complete(void* trx_handle);
+#endif
+
 int innobase_drop_database(char *path);
 bool innodb_show_status(THD* thd);
 void innodb_export_status(void);
 
 my_bool innobase_query_caching_of_table_permitted(THD* thd, char* full_name,
 						uint full_name_len);
-void innobase_release_temporary_latches(void* innobase_tid);
+void innobase_release_temporary_latches(THD *thd);
 
 void innobase_store_binlog_offset_and_flush_log(char *binlog_name,longlong offset);
 

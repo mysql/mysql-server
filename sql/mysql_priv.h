@@ -399,6 +399,11 @@ inline THD *_current_thd(void)
 }
 #define current_thd _current_thd()
 
+/*
+  External variables
+*/
+extern ulong server_id, concurrency;
+
 #include "sql_string.h"
 #include "sql_list.h"
 #include "sql_map.h"
@@ -553,6 +558,8 @@ bool mysql_assign_to_keycache(THD* thd, TABLE_LIST* table_list,
 bool mysql_preload_keys(THD* thd, TABLE_LIST* table_list);
 int reassign_keycache_tables(THD* thd, KEY_CACHE *src_cache,
                              KEY_CACHE *dst_cache);
+
+bool mysql_xa_recover(THD *thd);
 
 bool check_simple_select();
 
@@ -928,6 +935,9 @@ bool open_log(MYSQL_LOG *log, const char *hostname,
 	      const char *index_file_name,
 	      enum_log_type type, bool read_append,
 	      bool no_auto_events, ulong max_size);
+File open_binlog(IO_CACHE *log, const char *log_file_name,
+                 const char **errmsg);
+handlerton *binlog_init();
 
 /* mysqld.cc */
 extern void yyerror(const char*);
@@ -981,7 +991,7 @@ extern double last_query_cost;
 extern double log_10[32];
 extern ulonglong log_10_int[20];
 extern ulonglong keybuff_size;
-extern ulong refresh_version,flush_version, thread_id,query_id;
+extern ulong refresh_version,flush_version, thread_id;
 extern ulong binlog_cache_use, binlog_cache_disk_use;
 extern ulong aborted_threads,aborted_connects;
 extern ulong delayed_insert_timeout;
@@ -991,8 +1001,6 @@ extern ulong delayed_rows_in_use,delayed_insert_errors;
 extern ulong slave_open_temp_tables;
 extern ulong query_cache_size, query_cache_min_res_unit;
 extern ulong thd_startup_options, slow_launch_threads, slow_launch_time;
-extern ulong server_id, concurrency;
-extern ulong ha_read_count, ha_discover_count;
 extern ulong table_cache_size;
 extern ulong max_connections,max_connect_errors, connect_timeout;
 extern ulong slave_net_timeout;
@@ -1032,6 +1040,7 @@ extern uint opt_large_page_size;
 
 extern MYSQL_LOG mysql_log,mysql_slow_log,mysql_bin_log;
 extern FILE *bootstrap_file;
+extern int bootstrap_error;
 extern pthread_key(MEM_ROOT**,THR_MALLOC);
 extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,
        LOCK_thread_count,LOCK_mapped_file,LOCK_user_locks, LOCK_status,
@@ -1235,6 +1244,29 @@ SQL_CRYPT *get_crypt_for_frm(void);
 #endif
 
 #include "sql_view.h"
+
+/* query_id */
+
+typedef ulong query_id_t;
+extern query_id_t query_id;
+
+/*
+  increment query_id and return it.
+  but be sure it's never a 0
+  (2^32 at 1000 q/s rate will means an overflow every ~50 days.
+*/
+inline query_id_t next_query_id()
+{
+  if (sizeof(query_id_t) <= 5) // assuming the compiler optimizes dead code away
+  {
+    query_id_t old_query_id=query_id;
+    if (unlikely(++query_id == 0))
+      query_id=1;
+    return old_query_id;
+  }
+  else
+    return query_id++;
+}
 
 /* Some inline functions for more speed */
 

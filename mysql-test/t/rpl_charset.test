@@ -107,7 +107,7 @@ connection master;
 drop database mysqltest2;
 drop database mysqltest3;
 --replace_column 2 # 5 #
-show binlog events from 95;
+show binlog events from 96;
 sync_slave_with_master;
 
 # Check that we can't change global.collation_server
@@ -163,14 +163,14 @@ delete from t1;
 # command just before the INSERT.
 # You can find it by doing:
 # ../client/mysqlbinlog var/log/master-bin.000001 | grep -3 CHARACTER_SET | tail -7
-change master to master_log_pos=6809;
+change master to master_log_pos=6810;
 
 # This position should be position of the INSERT command.
 # You can find it by doing:
 #
 # ../client/mysqlbinlog var/log/master-bin.000001 | grep -3 INSERT | tail -4
 
-start slave until master_log_file='master-bin.000001', master_log_pos=6967;
+start slave until master_log_file='master-bin.000001', master_log_pos=6968;
 
 # Slave is supposed to stop _after_ the INSERT, even though 'master_log_pos' is
 # the position of the beginning of the INSERT; after SET slave is not

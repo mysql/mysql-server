@@ -535,23 +535,23 @@ void init_update_queries(void)
   uc_update_queries[SQLCOM_CREATE_TABLE]=1;
   uc_update_queries[SQLCOM_CREATE_INDEX]=1;
   uc_update_queries[SQLCOM_ALTER_TABLE]=1;
-  uc_update_queries[SQLCOM_UPDATE]=1;
-  uc_update_queries[SQLCOM_INSERT]=1;
-  uc_update_queries[SQLCOM_INSERT_SELECT]=1;
-  uc_update_queries[SQLCOM_DELETE]=1;
+  uc_update_queries[SQLCOM_UPDATE]=2;
+  uc_update_queries[SQLCOM_UPDATE_MULTI]=2;
+  uc_update_queries[SQLCOM_INSERT]=2;
+  uc_update_queries[SQLCOM_INSERT_SELECT]=2;
+  uc_update_queries[SQLCOM_DELETE]=2;
+  uc_update_queries[SQLCOM_DELETE_MULTI]=2;
   uc_update_queries[SQLCOM_TRUNCATE]=1;
   uc_update_queries[SQLCOM_DROP_TABLE]=1;
   uc_update_queries[SQLCOM_LOAD]=1;
   uc_update_queries[SQLCOM_CREATE_DB]=1;
   uc_update_queries[SQLCOM_DROP_DB]=1;
-  uc_update_queries[SQLCOM_REPLACE]=1;
-  uc_update_queries[SQLCOM_REPLACE_SELECT]=1;
+  uc_update_queries[SQLCOM_REPLACE]=2;
+  uc_update_queries[SQLCOM_REPLACE_SELECT]=2;
   uc_update_queries[SQLCOM_RENAME_TABLE]=1;
   uc_update_queries[SQLCOM_BACKUP_TABLE]=1;
   uc_update_queries[SQLCOM_RESTORE_TABLE]=1;
-  uc_update_queries[SQLCOM_DELETE_MULTI]=1;
   uc_update_queries[SQLCOM_DROP_INDEX]=1;
-  uc_update_queries[SQLCOM_UPDATE_MULTI]=1;
   uc_update_queries[SQLCOM_CREATE_VIEW]=1;
   uc_update_queries[SQLCOM_DROP_VIEW]=1;
 }
@@ -559,7 +559,7 @@ void init_update_queries(void)
 bool is_update_query(enum enum_sql_command command)
 {
   DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
-  return uc_update_queries[command];
+  return uc_update_queries[command] > 0;
 }
 
 /*
@@ -1147,24 +1147,25 @@ extern "C" pthread_handler_decl(handle_bootstrap,arg)
       We don't need to obtain LOCK_thread_count here because in bootstrap
       mode we have only one thread.
     */
-    thd->query_id=query_id++;
-    if (mqh_used && thd->user_connect && check_mqh(thd, SQLCOM_END))
-    {
-      thd->net.error = 0;
-      close_thread_tables(thd);			// Free tables
-      free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
-      break;
-    }
+    thd->query_id=next_query_id();
     mysql_parse(thd,thd->query,length);
     close_thread_tables(thd);			// Free tables
     if (thd->is_fatal_error)
       break;
     free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
+#ifdef USING_TRANSACTIONS
     free_root(&thd->transaction.mem_root,MYF(MY_KEEP_PREALLOC));
+#endif
   }
 
   /* thd->fatal_error should be set in case something went wrong */
 end:
+  bootstrap_error= thd->is_fatal_error;
+
+  net_end(&thd->net);
+  thd->cleanup();
+  delete thd;
+
 #ifndef EMBEDDED_LIBRARY
   (void) pthread_mutex_lock(&LOCK_thread_count);
   thread_count--;
@@ -1173,7 +1174,7 @@ end:
   my_thread_end();
   pthread_exit(0);
 #endif
-  DBUG_RETURN(0);				// Never reached
+  DBUG_RETURN(0);
 }
 
     /* This works because items are allocated with sql_alloc() */
@@ -1239,7 +1240,6 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name, int fd)
     my_error(ER_GET_ERRNO, MYF(0), error);
 
 err:
-  close_thread_tables(thd);
   DBUG_RETURN(error);
 }
 
@@ -1355,7 +1355,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query_id=query_id;
   if (command != COM_STATISTICS && command != COM_PING)
-    query_id++;
+    next_query_id();
   thread_running++;
   /* TODO: set thd->lex->sql_command to SQLCOM_END here */
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
@@ -1511,9 +1511,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     DBUG_PRINT("query",("%-.4096s",thd->query));
     mysql_parse(thd,thd->query, thd->query_length);
 
-    while (!thd->killed && thd->lex->found_colon && !thd->net.report_error)
+    while (!thd->killed && thd->lex->found_semicolon && !thd->net.report_error)
     {
-      char *packet= thd->lex->found_colon;
+      char *packet= thd->lex->found_semicolon;
       /*
         Multiple queries exits, execute them individually
 	in embedded server - just store them to be executed later 
@@ -1533,7 +1533,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       VOID(pthread_mutex_lock(&LOCK_thread_count));
       thd->query_length= length;
       thd->query= packet;
-      thd->query_id= query_id++;
+      thd->query_id= next_query_id();
       /* TODO: set thd->lex->sql_command to SQLCOM_END here */
       VOID(pthread_mutex_unlock(&LOCK_thread_count));
 #ifndef EMBEDDED_LIBRARY
@@ -1845,6 +1845,17 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->proc_info="closing tables";
     close_thread_tables(thd);			/* Free tables */
   }
+  /*
+    assume handlers auto-commit (if some doesn't - transaction handling
+    in MySQL should be redesigned to support it; it's a big change,
+    and it's not worth it - better to commit explicitly only writing
+    transactions, read-only ones should better take care of themselves.
+    saves some work in 2pc too)
+    see also sql_base.cc - close_thread_tables()
+  */
+  bzero(&thd->transaction.stmt, sizeof(thd->transaction.stmt));
+  if (!thd->active_transaction())
+    thd->transaction.xid.null();
 
   /* report error issued during command execution */
   if (thd->killed_errno() && !thd->net.report_error)
@@ -2407,7 +2418,7 @@ mysql_execute_command(THD *thd)
   {
     if (check_global_access(thd, REPL_SLAVE_ACL))
       goto error;
-    res = show_binlog_events(thd);
+    res = mysql_show_binlog_events(thd);
     break;
   }
 #endif
@@ -2442,7 +2453,7 @@ mysql_execute_command(THD *thd)
         check_access(thd, INDEX_ACL, first_table->db,
                      &first_table->grant.privilege, 0, 0))
       goto error;
-    res= mysql_assign_to_keycache(thd, first_table, &lex->name_and_length);
+    res= mysql_assign_to_keycache(thd, first_table, &lex->ident);
     break;
   }
   case SQLCOM_PRELOAD_KEYS:
@@ -3056,7 +3067,7 @@ create_error:
                   first_table->ancestor && first_table->ancestor->next_local);
       my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
                first_table->view_db.str, first_table->view_name.str);
-      res= -1;
+      res= FALSE;
       break;
     }
 
@@ -3080,7 +3091,6 @@ create_error:
     }
     else
       res= TRUE;
-    close_thread_tables(thd);
     break;
   }
   case SQLCOM_DROP_TABLE:
@@ -3375,12 +3385,6 @@ create_error:
     }
     if (check_access(thd,SELECT_ACL,lex->name,0,1,0))
       break;
-    if (thd->locked_tables || thd->active_transaction())
-    {
-      my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
-                 ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
-      goto error;
-    }
     res=mysqld_show_create_db(thd,lex->name,&lex->create_info);
     break;
   }
@@ -3611,18 +3615,12 @@ create_error:
     */
     if (check_db_used(thd, all_tables))
       goto error;
-    res= mysql_ha_read(thd, first_table, lex->ha_read_mode, lex->backup_dir,
+    res= mysql_ha_read(thd, first_table, lex->ha_read_mode, lex->ident.str,
                        lex->insert_list, lex->ha_rkey_mode, select_lex->where,
                        select_lex->select_limit, select_lex->offset_limit);
     break;
 
   case SQLCOM_BEGIN:
-    if (thd->locked_tables)
-    {
-      thd->lock=thd->locked_tables;
-      thd->locked_tables=0;			// Will be automatically closed
-      close_thread_tables(thd);			// Free tables
-    }
     if (end_active_trans(thd))
       goto error;
     else
@@ -3634,6 +3632,7 @@ create_error:
           !(res= ha_start_consistent_snapshot(thd)))
         send_ok(thd);
     }
+    unlock_locked_tables(thd);  // imply UNLOCK TABLES
     break;
   case SQLCOM_COMMIT:
     /*
@@ -3654,29 +3653,27 @@ create_error:
   }
   case SQLCOM_ROLLBACK:
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
-    if (!ha_rollback(thd))
-    {
-      /*
-        If a non-transactional table was updated, warn; don't warn if this is a
-        slave thread (because when a slave thread executes a ROLLBACK, it has
-        been read from the binary log, so it's 100% sure and normal to produce
-        error ER_WARNING_NOT_COMPLETE_ROLLBACK. If we sent the warning to the
-        slave SQL thread, it would not stop the thread but just be printed in
-        the error log; but we don't want users to wonder why they have this
-        message in the error log, so we don't send it.
-      */
-      if ((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) && !thd->slave_thread)
-        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                     ER_WARNING_NOT_COMPLETE_ROLLBACK,
-                     ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
-      send_ok(thd);
-    }
-    else
+    if (ha_rollback(thd))
       res= TRUE;
+    else
+      send_ok(thd);
     thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
     break;
   case SQLCOM_ROLLBACK_TO_SAVEPOINT:
-    if (!ha_rollback_to_savepoint(thd, lex->savepoint_name))
+  {
+    SAVEPOINT **sv;
+    for (sv=&thd->transaction.savepoints; *sv; sv=&(*sv)->prev)
+    {
+      if (my_strnncoll(system_charset_info,
+                       (uchar *)lex->ident.str, lex->ident.length,
+                       (uchar *)(*sv)->name, (*sv)->length) == 0)
+        break;
+    }
+    if (*sv)
+    {
+      if (ha_rollback_to_savepoint(thd, *sv))
+        res= TRUE; // cannot happen
+      else
     {
       if ((thd->options & OPTION_STATUS_NO_TRANS_UPDATE) && !thd->slave_thread)
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
@@ -3684,14 +3681,59 @@ create_error:
                      ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
       send_ok(thd);
     }
+      *sv= 0;
+    }
     else
-      goto error;
+    {
+      my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "SAVEPOINT", lex->ident.str);
+      res= TRUE;
+    }
     break;
+  }
   case SQLCOM_SAVEPOINT:
-    if (!ha_savepoint(thd, lex->savepoint_name))
+    if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) ||
+        !opt_using_transactions)
       send_ok(thd);
     else
-      goto error;
+    {
+      SAVEPOINT **sv, *newsv;
+      for (sv=&thd->transaction.savepoints; *sv; sv=&(*sv)->prev)
+      {
+        if (my_strnncoll(system_charset_info,
+                         (uchar *)lex->ident.str, lex->ident.length,
+                         (uchar *)(*sv)->name, (*sv)->length) == 0)
+          break;
+      }
+      if (*sv) /* old savepoint of the same name exists */
+      {
+        newsv=*sv;
+        ha_release_savepoint(thd, *sv); // it cannot fail
+        *sv=(*sv)->prev;
+      }
+      else if ((newsv=(SAVEPOINT *) alloc_root(&thd->transaction.mem_root,
+                                               savepoint_alloc_size)) == 0)
+      {
+        my_error(ER_OUT_OF_RESOURCES, MYF(0));
+        res= TRUE;
+        break;
+      }
+      newsv->name=strmake_root(&thd->transaction.mem_root,
+                               lex->ident.str, lex->ident.length);
+      newsv->length=lex->ident.length;
+      /*
+        if we'll get an error here, don't add new savepoint to the list.
+        we'll lose a little bit of memory in transaction mem_root, but it'll
+        be free'd when transaction ends anyway
+      */
+      if (ha_savepoint(thd, newsv))
+        res= TRUE;
+      else
+      {
+        newsv->prev=thd->transaction.savepoints;
+        thd->transaction.savepoints=newsv;
+        send_ok(thd);
+      }
+    }
     break;
   case SQLCOM_CREATE_PROCEDURE:
   case SQLCOM_CREATE_SPFUNCTION:
@@ -4013,7 +4055,156 @@ create_error:
     res= mysql_create_or_drop_trigger(thd, all_tables, 0);
     break;
   }
-  default:					/* Impossible */
+  case SQLCOM_XA_START:
+    res= FALSE;
+    if (thd->transaction.xa_state == XA_IDLE && thd->lex->xa_opt == XA_RESUME)
+    {
+      if (! thd->transaction.xid.eq(&thd->lex->ident))
+      {
+        my_error(ER_XAER_NOTA, MYF(0));
+        break;
+      }
+      thd->transaction.xa_state=XA_ACTIVE;
+      send_ok(thd);
+      res=0;
+      break;
+    }
+    if (thd->lex->ident.length > MAXGTRIDSIZE || thd->lex->xa_opt != XA_NONE)
+    { // JOIN is not supported yet. TODO
+      my_error(ER_XAER_INVAL, MYF(0));
+      break;
+    }
+    if (thd->transaction.xa_state != XA_NOTR)
+    {
+      my_error(ER_XAER_RMFAIL, MYF(0));
+      break;
+    }
+    if (thd->active_transaction() || thd->locked_tables)
+    {
+      my_error(ER_XAER_OUTSIDE, MYF(0));
+      break;
+    }
+    DBUG_ASSERT(thd->transaction.xid.is_null());
+    thd->transaction.xa_state=XA_ACTIVE;
+    thd->transaction.xid.set(&thd->lex->ident);
+    thd->options= ((thd->options & (ulong) ~(OPTION_STATUS_NO_TRANS_UPDATE)) |
+                   OPTION_BEGIN);
+    thd->server_status|= SERVER_STATUS_IN_TRANS;
+    send_ok(thd);
+    res=0;
+    break;
+  case SQLCOM_XA_END:
+    /* fake it */
+    res= FALSE;
+    if (thd->lex->xa_opt != XA_NONE)
+    { // SUSPEND and FOR MIGRATE are not supported yet. TODO
+      my_error(ER_XAER_INVAL, MYF(0));
+      break;
+    }
+    if (thd->transaction.xa_state != XA_ACTIVE)
+    {
+      my_error(ER_XAER_RMFAIL, MYF(0));
+      break;
+    }
+    if (!thd->transaction.xid.eq(&thd->lex->ident))
+    {
+      my_error(ER_XAER_NOTA, MYF(0));
+      break;
+    }
+    thd->transaction.xa_state=XA_IDLE;
+    send_ok(thd);
+    res=0;
+    break;
+  case SQLCOM_XA_PREPARE:
+    res= FALSE;
+    if (thd->transaction.xa_state != XA_IDLE)
+    {
+      my_error(ER_XAER_RMFAIL, MYF(0));
+      break;
+    }
+    if (!thd->transaction.xid.eq(&thd->lex->ident))
+    {
+      my_error(ER_XAER_NOTA, MYF(0));
+      break;
+    }
+    if (ha_prepare(thd))
+    {
+      my_error(ER_XA_RBROLLBACK, MYF(0));
+      thd->transaction.xa_state=XA_NOTR;
+      break;
+    }
+    res=0;
+    thd->transaction.xa_state=XA_PREPARED;
+    send_ok(thd);
+    break;
+  case SQLCOM_XA_COMMIT:
+    if (!thd->transaction.xid.eq(&thd->lex->ident))
+    {
+      if (!(res= !ha_commit_or_rollback_by_xid(&thd->lex->ident, 1)))
+        my_error(ER_XAER_NOTA, MYF(0));
+      break;
+    }
+    if (thd->transaction.xa_state == XA_IDLE && thd->lex->xa_opt == XA_ONE_PHASE)
+    {
+      if (res=ha_commit(thd))
+      {
+        my_error(res==1 ? ER_XA_RBROLLBACK : ER_XAER_RMERR, MYF(0));
+        res= FALSE;
+      }
+      else
+        send_ok(thd);
+    }
+    else
+    if (thd->transaction.xa_state == XA_PREPARED && thd->lex->xa_opt == XA_NONE)
+    {
+      if (ha_commit_one_phase(thd, 1))
+      {
+        my_error(ER_XAER_RMERR, MYF(0));
+        res= FALSE;
+      }
+      else
+        send_ok(thd);
+    }
+    else
+    {
+      res= FALSE;
+      my_error(ER_XAER_RMFAIL, MYF(0));
+      break;
+    }
+    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
+    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+    thd->transaction.xa_state=XA_NOTR;
+    break;
+  case SQLCOM_XA_ROLLBACK:
+    if (!thd->transaction.xid.eq(&thd->lex->ident))
+    {
+      if (!(res= !ha_commit_or_rollback_by_xid(&thd->lex->ident, 0)))
+        my_error(ER_XAER_NOTA, MYF(0));
+      break;
+    }
+    if (thd->transaction.xa_state != XA_IDLE &&
+        thd->transaction.xa_state != XA_PREPARED)
+    {
+      res= FALSE;
+      my_error(ER_XAER_RMFAIL, MYF(0));
+      break;
+    }
+    if (ha_rollback(thd))
+    {
+      my_error(ER_XAER_RMERR, MYF(0));
+      res= FALSE;
+    }
+    else
+      send_ok(thd);
+    thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_STATUS_NO_TRANS_UPDATE);
+    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+    thd->transaction.xa_state=XA_NOTR;
+    break;
+  case SQLCOM_XA_RECOVER:
+    res= mysql_xa_recover(thd);
+    break;
+  default:
+    DBUG_ASSERT(0);                             /* Impossible */
     send_ok(thd);
     break;
   }
@@ -4048,20 +4239,8 @@ create_error:
     the statement is not DELETE, INSERT or UPDATE (or a CALL executing
     such a statement), but -1 is what JDBC and ODBC wants.
    */
-  switch (lex->sql_command) {
-  case SQLCOM_UPDATE:
-  case SQLCOM_UPDATE_MULTI:
-  case SQLCOM_REPLACE:
-  case SQLCOM_INSERT:
-  case SQLCOM_REPLACE_SELECT:
-  case SQLCOM_INSERT_SELECT:
-  case SQLCOM_DELETE:
-  case SQLCOM_DELETE_MULTI:
-  case SQLCOM_CALL:
-    break;
-  default:
+  if (lex->sql_command != SQLCOM_CALL && uc_update_queries[lex->sql_command]<2)
     thd->row_count_func= -1;
-  }
 
   DBUG_RETURN(res || thd->net.report_error);
 
@@ -4830,17 +5009,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
   new_field->charset=cs;
   new_field->geom_type= (Field::geometry_type) uint_geom_type;
 
-  if (!comment)
-  {
-    new_field->comment.str=0;
-    new_field->comment.length=0;
-  }
-  else
-  {
-    /* In this case comment is always of type Item_string */
-    new_field->comment.str=   (char*) comment->str;
-    new_field->comment.length=comment->length;
-  }
+  new_field->comment=*comment;
   /*
     Set flag if this field doesn't have a default value
     Enum values has always the first value as a default (set in

@@ -438,7 +438,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     /*
       Invalidate the table in the query cache if something changed.
       For the transactional algorithm to work the invalidation must be
-      before binlog writing and ha_autocommit_...
+      before binlog writing and ha_autocommit_or_rollback
     */
     if (info.copied || info.deleted || info.updated)
     {
@@ -1930,7 +1930,7 @@ bool select_insert::send_eof()
 
   /*
     We must invalidate the table in the query cache before binlog writing
-    and ha_autocommit_...
+    and ha_autocommit_or_rollback
   */
 
   if (info.copied || info.deleted || info.updated)
