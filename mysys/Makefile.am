@@ -95,6 +95,10 @@ test_vsnprintf: my_vsnprintf.c $(LIBRARIES)
 	$(CP) $(srcdir)/my_vsnprintf.c test_vsnprintf.c
 	$(LINK) $(FLAGS) -DMAIN ./test_vsnprintf.c $(LDADD) $(LIBS)
 	$(RM) -f test_vsnprintf.*
+test_io_cache: mf_iocache.c $(LIBRARIES)
+	$(CP) $(srcdir)/mf_iocache.c test_io_cache.c
+	$(LINK) $(FLAGS) -DMAIN ./test_io_cache.c $(LDADD) $(LIBS)
+	$(RM) -f test_io_cache.*
 
 test_dir: test_dir.c $(LIBRARIES)
 	$(LINK) $(FLAGS) -DMAIN $(srcdir)/test_dir.c $(LDADD) $(LIBS)
