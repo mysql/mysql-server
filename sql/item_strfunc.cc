@@ -2436,7 +2436,8 @@ General functions for spatial objects
 String *Item_func_geometry_from_text::val_str(String *str)
 {
   Geometry geom;
-  String *wkt = args[0]->val_str(str);
+  String arg_val;
+  String *wkt = args[0]->val_str(&arg_val);
   GTextReadStream trs(wkt->ptr(), wkt->length());
 
   str->length(0);
@@ -2454,7 +2455,8 @@ void Item_func_geometry_from_text::fix_length_and_dec()
 
 String *Item_func_as_text::val_str(String *str)
 {
-  String *wkt = args[0]->val_str(str);
+  String arg_val;
+  String *wkt = args[0]->val_str(&arg_val);
   Geometry geom;
 
   if ((null_value=(args[0]->null_value ||
@@ -2491,7 +2493,8 @@ String *Item_func_geometry_type::val_str(String *str)
 
 String *Item_func_envelope::val_str(String *str)
 {
-  String *wkb = args[0]->val_str(str);
+  String arg_val;
+  String *wkb = args[0]->val_str(&arg_val);
   Geometry geom;
 
   null_value = args[0]->null_value ||
@@ -2504,7 +2507,8 @@ String *Item_func_envelope::val_str(String *str)
 
 String *Item_func_centroid::val_str(String *str)
 {
-  String *wkb = args[0]->val_str(str);
+  String arg_val;
+  String *wkb = args[0]->val_str(&arg_val);
   Geometry geom;
 
   null_value = args[0]->null_value ||
@@ -2522,7 +2526,8 @@ String *Item_func_centroid::val_str(String *str)
 
 String *Item_func_spatial_decomp::val_str(String *str)
 {
-  String *wkb = args[0]->val_str(str);
+  String arg_val;
+  String *wkb = args[0]->val_str(&arg_val);
   Geometry geom;
 
   if ((null_value = (args[0]->null_value ||
@@ -2530,6 +2535,7 @@ String *Item_func_spatial_decomp::val_str(String *str)
     return 0;
 
   null_value=1;
+  str->length(0);
   switch(decomp_func)
   {
     case SP_STARTPOINT:
@@ -2559,7 +2565,8 @@ ret:
 
 String *Item_func_spatial_decomp_n::val_str(String *str)
 {
-  String *wkb  =        args[0]->val_str(str);
+  String arg_val;
+  String *wkb  =        args[0]->val_str(&arg_val);
   long n       = (long) args[1]->val_int();
   Geometry geom;
 
@@ -2639,6 +2646,7 @@ String *Item_func_point::val_str(String *str)
 
 String *Item_func_spatial_collection::val_str(String *str)
 {
+  String arg_value;
   uint i;
 
   null_value=1;
@@ -2656,7 +2664,7 @@ String *Item_func_spatial_collection::val_str(String *str)
     if (args[i]->null_value)
       goto ret;
 
-    String *res = args[i]->val_str(str);
+    String *res = args[i]->val_str(&arg_value);
 
     if ( coll_type == Geometry::wkbGeometryCollection )
     {
