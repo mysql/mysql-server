@@ -12,6 +12,7 @@
 #define CFG_NODE_BYTE_ORDER           4
 #define CFG_NODE_HOST                 5
 #define CFG_NODE_SYSTEM               6
+#define CFG_NODE_DATADIR              7
 
 /**
  * DB config parameters
@@ -88,6 +89,8 @@
 #define CFG_DB_REDO_BUFFER            156
 
 #define CFG_DB_LONG_SIGNAL_BUFFER     157
+
+#define CFG_DB_BACKUP_DATADIR         158
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201

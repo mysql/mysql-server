@@ -480,10 +480,6 @@ InitConfigFileParser::parseSectionHeader(const char* line) const {
   tmp[0] = ' ';
   trim(tmp);
 
-  // Convert section header to upper
-  for(int i= strlen(tmp)-1; i >= 0; i--)
-    tmp[i]= toupper(tmp[i]);
-
   // Get the correct header name if an alias
   {
     const char *tmp_alias= m_info->getAlias(tmp);

@@ -699,7 +699,7 @@ NdbDictInterface::~NdbDictInterface()
 {
   if (m_transporter != NULL){
     if (m_blockNumber != -1)
-      m_transporter->close(m_blockNumber);
+      m_transporter->close(m_blockNumber, 0);
   }
 }
 

@@ -19,7 +19,6 @@
 #include <string.h>
 #include "MgmtErrorReporter.hpp"
 #include <Properties.hpp>
-#include "ConfigInfo.hpp"
 
 //*****************************************************************************
 //  Ctor / Dtor

@@ -19,6 +19,7 @@
 
 #include "MgmtSrvr.hpp"
 #include "MgmtErrorReporter.hpp"
+#include <ConfigRetriever.hpp>
 
 #include <NdbOut.hpp>
 #include <NdbApiSignal.hpp>
@@ -512,6 +513,8 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
   theConfCount(0),
   m_allocated_resources(*this) {
 
+  DBUG_ENTER("MgmtSrvr::MgmtSrvr");
+
   _config     = NULL;
   _isStatPortActive = false;
   _isClusterLogStatActive = false;
@@ -543,37 +546,39 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
   for(Uint32 i = 0; i<MAX_NODES; i++)
     nodeTypes[i] = (enum ndb_mgm_node_type)-1;
 
-  ndb_mgm_configuration_iterator * iter = ndb_mgm_create_configuration_iterator
-    (config->m_configValues, CFG_SECTION_NODE);
-  for(ndb_mgm_first(iter); ndb_mgm_valid(iter); ndb_mgm_next(iter)){
-    unsigned type, id;
-    if(ndb_mgm_get_int_parameter(iter, CFG_TYPE_OF_SECTION, &type) != 0)
-      continue;
-
-    if(ndb_mgm_get_int_parameter(iter, CFG_NODE_ID, &id) != 0)
-      continue;
-
-    MGM_REQUIRE(id < MAX_NODES);
+  {
+    ndb_mgm_configuration_iterator * iter = ndb_mgm_create_configuration_iterator
+      (config->m_configValues, CFG_SECTION_NODE);
+    for(ndb_mgm_first(iter); ndb_mgm_valid(iter); ndb_mgm_next(iter)){
+      unsigned type, id;
+      if(ndb_mgm_get_int_parameter(iter, CFG_TYPE_OF_SECTION, &type) != 0)
+	continue;
       
-    switch(type){
-    case NODE_TYPE_DB:
-      nodeTypes[id] = NDB_MGM_NODE_TYPE_NDB;
-      break;
-    case NODE_TYPE_API:
-      nodeTypes[id] = NDB_MGM_NODE_TYPE_API;
-      break;
-    case NODE_TYPE_MGM:
-      nodeTypes[id] = NDB_MGM_NODE_TYPE_MGM;
-      break;
-    case NODE_TYPE_REP:
-      nodeTypes[id] = NDB_MGM_NODE_TYPE_REP;
-      break;
-    case NODE_TYPE_EXT_REP:
-    default:
-      break;
+      if(ndb_mgm_get_int_parameter(iter, CFG_NODE_ID, &id) != 0)
+	continue;
+      
+      MGM_REQUIRE(id < MAX_NODES);
+      
+      switch(type){
+      case NODE_TYPE_DB:
+	nodeTypes[id] = NDB_MGM_NODE_TYPE_NDB;
+	break;
+      case NODE_TYPE_API:
+	nodeTypes[id] = NDB_MGM_NODE_TYPE_API;
+	break;
+      case NODE_TYPE_MGM:
+	nodeTypes[id] = NDB_MGM_NODE_TYPE_MGM;
+	break;
+      case NODE_TYPE_REP:
+	nodeTypes[id] = NDB_MGM_NODE_TYPE_REP;
+	break;
+      case NODE_TYPE_EXT_REP:
+      default:
+	break;
+      }
     }
+    ndb_mgm_destroy_iterator(iter);
   }
-  ndb_mgm_destroy_iterator(iter);
 
   m_statisticsListner = NULL;
   
@@ -589,6 +594,18 @@ MgmtSrvr::MgmtSrvr(NodeId nodeId,
     exit(-1);
   }
   _ownNodeId = tmp;
+
+
+  {
+    DBUG_PRINT("info", ("verifyConfig"));
+    ConfigRetriever cr(NDB_VERSION, NDB_MGM_NODE_TYPE_MGM);
+    if (!cr.verifyConfig(config->m_configValues, _ownNodeId)) {
+      ndbout << cr.getErrorString() << endl;
+      exit(-1);
+    }
+  }
+
+  DBUG_VOID_RETURN;
 }
 
 

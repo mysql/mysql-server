@@ -67,7 +67,7 @@ public:
   int open(void* objRef, ExecuteFunction, NodeStatusFunction);
   
   // Close this block number
-  int close(BlockNumber blockNumber);
+  int close(BlockNumber blockNumber, Uint64 trans_id);
 
   // Only sends to nodes which are alive
   int sendSignal(NdbApiSignal * signal, NodeId nodeId);
@@ -220,9 +220,9 @@ private:
       return (m_statusNext[index] & (1 << 16)) != 0;
     }
   } m_threads;
-
-  Uint32 m_open_count;
-
+  
+  Uint32 m_max_trans_id;
+  
   /**
    * execute function
    */

@@ -6174,7 +6174,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal){
       break;
     case DictTabInfo::AllNodesLargeTable:
       jam();
-      noOfFragments = csystemnodes;
+      noOfFragments = 4 * csystemnodes;
       break;
     case DictTabInfo::SingleFragment:
       jam();
@@ -6425,6 +6425,10 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
   tabPtr.p->totalfragments = noFragments;
   ndbrequire(noReplicas == cnoReplicas); // Only allowed
 
+  if (ERROR_INSERTED(7173)) {
+    addtabrefuseLab(signal, connectPtr, ZREPLERROR1);
+    return;
+  }
   if ((noReplicas * noFragments) > cnoFreeReplicaRec) {
     jam();
     addtabrefuseLab(signal, connectPtr, ZREPLERROR1);
@@ -6736,13 +6740,15 @@ void Dbdih::tableDeleteLab(Signal* signal, FileRecordPtr filePtr)
 void Dbdih::releaseTable(TabRecordPtr tabPtr)
 {
   FragmentstorePtr fragPtr;
-  for (Uint32 fragId = 0; fragId < tabPtr.p->totalfragments; fragId++) {
-    jam();
-    getFragstore(tabPtr.p, fragId, fragPtr);
-    releaseReplicas(fragPtr.p->storedReplicas);
-    releaseReplicas(fragPtr.p->oldStoredReplicas);
-  }//for
-  releaseFragments(tabPtr);
+  if (tabPtr.p->noOfFragChunks > 0) {
+    for (Uint32 fragId = 0; fragId < tabPtr.p->totalfragments; fragId++) {
+      jam();
+      getFragstore(tabPtr.p, fragId, fragPtr);
+      releaseReplicas(fragPtr.p->storedReplicas);
+      releaseReplicas(fragPtr.p->oldStoredReplicas);
+    }//for
+    releaseFragments(tabPtr);
+  }
   if (tabPtr.p->tabFile[0] != RNIL) {
     jam();
     releaseFile(tabPtr.p->tabFile[0]);
@@ -6874,9 +6880,6 @@ Uint32 Dbdih::extractNodeInfo(const Fragmentstore * fragPtr, Uint32 nodes[])
   ndbrequire(nodeCount > 0);
   return nodeCount;
 }//Dbdih::extractNodeInfo()
-
-#define NO_OF_FRAGS_PER_CHUNK 16
-#define LOG_NO_OF_FRAGS_PER_CHUNK 4
 
 void 
 Dbdih::getFragstore(TabRecord * tab,        //In parameter
@@ -11051,6 +11054,7 @@ void Dbdih::initRestorableGciFiles()
 
 void Dbdih::initTable(TabRecordPtr tabPtr)
 {
+  tabPtr.p->noOfFragChunks = 0;
   tabPtr.p->method = TabRecord::NOTDEFINED;
   tabPtr.p->tabStatus = TabRecord::TS_IDLE;
   tabPtr.p->noOfWords = 0;

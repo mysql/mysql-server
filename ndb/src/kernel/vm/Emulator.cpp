@@ -61,6 +61,7 @@ Uint32 theEmulatedJamBlockNumber = 0;
 
 EmulatorData globalEmulatorData;
 NdbMutex * theShutdownMutex = 0;
+int simulate_error_during_shutdown= 0;
 
 EmulatorData::EmulatorData(){
   theConfiguration = 0;
@@ -117,7 +118,8 @@ NdbShutdown(NdbShutdownType type,
     }
   }
   
-  if(NdbMutex_Trylock(theShutdownMutex) == 0){
+  if((type == NST_ErrorHandlerSignal) || // Signal handler has already locked mutex
+     (NdbMutex_Trylock(theShutdownMutex) == 0)){
     globalData.theRestartFlag = perform_stop;
 
     bool restart = false;
@@ -144,6 +146,9 @@ NdbShutdown(NdbShutdownType type,
       break;
     case NST_ErrorHandler:
       ndbout << "Error handler " << shutting << " system" << endl;
+      break;
+    case NST_ErrorHandlerSignal:
+      ndbout << "Error handler signal " << shutting << " system" << endl;
       break;
     case NST_Restart:
       ndbout << "Restarting system" << endl;
@@ -175,6 +180,12 @@ NdbShutdown(NdbShutdownType type,
 #endif
     }
     
+    if (simulate_error_during_shutdown) {
+      kill(getpid(), simulate_error_during_shutdown);
+      while(true)
+	NdbSleep_MilliSleep(10);
+    }
+
     globalEmulatorData.theWatchDog->doStop();
     
 #ifdef VM_TRACE

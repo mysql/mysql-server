@@ -33,11 +33,15 @@
  * Section names
  ****************************************************************************/
 
+#define DB_TOKEN "DB"
+#define MGM_TOKEN "MGM"
+#define API_TOKEN "API"
+
 const ConfigInfo::AliasPair
 ConfigInfo::m_sectionNameAliases[]={
-  {"API", "MYSQLD"},
-  {"DB", "NDBD"},
-  {"MGM", "NDB_MGMD"},
+  {API_TOKEN, "MYSQLD"},
+  {DB_TOKEN,  "NDBD"},
+  {MGM_TOKEN, "NDB_MGMD"},
   {0, 0}
 };
 
@@ -47,9 +51,9 @@ ConfigInfo::m_sectionNames[]={
   "EXTERNAL SYSTEM",
   "COMPUTER",
 
-  "DB",
-  "MGM",
-  "API",
+  DB_TOKEN,
+  MGM_TOKEN,
+  API_TOKEN,
   "REP",
   "EXTERNAL REP",
 
@@ -84,6 +88,8 @@ static bool fixNodeId(InitConfigFileParser::Context & ctx, const char * data);
 static bool fixExtConnection(InitConfigFileParser::Context & ctx, const char * data);
 static bool fixDepricated(InitConfigFileParser::Context & ctx, const char *);
 static bool saveInConfigValues(InitConfigFileParser::Context & ctx, const char *);
+static bool fixFileSystemPath(InitConfigFileParser::Context & ctx, const char * data);
+static bool fixBackupDataDir(InitConfigFileParser::Context & ctx, const char * data);
 
 const ConfigInfo::SectionRule 
 ConfigInfo::m_SectionRules[] = {
@@ -91,9 +97,9 @@ ConfigInfo::m_SectionRules[] = {
   { "EXTERNAL SYSTEM", transformExternalSystem, 0 },
   { "COMPUTER", transformComputer, 0 },
 
-  { "DB",   transformNode, 0 },
-  { "API",  transformNode, 0 },
-  { "MGM",  transformNode, 0 },
+  { DB_TOKEN,   transformNode, 0 },
+  { API_TOKEN,  transformNode, 0 },
+  { MGM_TOKEN,  transformNode, 0 },
   { "REP",  transformNode, 0 },
   { "EXTERNAL REP",  transformExtNode, 0 },
 
@@ -102,9 +108,9 @@ ConfigInfo::m_SectionRules[] = {
   { "SCI",  transformConnection, 0 },
   { "OSE",  transformConnection, 0 },
 
-  { "DB",   fixNodeHostname, 0 },
-  { "API",  fixNodeHostname, 0 },
-  { "MGM",  fixNodeHostname, 0 },
+  { DB_TOKEN,   fixNodeHostname, 0 },
+  { API_TOKEN,  fixNodeHostname, 0 },
+  { MGM_TOKEN,  fixNodeHostname, 0 },
   { "REP",  fixNodeHostname, 0 },
   //{ "EXTERNAL REP",  fixNodeHostname, 0 },
 
@@ -138,7 +144,10 @@ ConfigInfo::m_SectionRules[] = {
   { "*",    fixDepricated, 0 },
   { "*",    applyDefaultValues, "system" },
 
-  { "DB",   checkDbConstraints, 0 },
+  { DB_TOKEN,   fixFileSystemPath, 0 },
+  { DB_TOKEN,   fixBackupDataDir, 0 },
+
+  { DB_TOKEN,   checkDbConstraints, 0 },
 
   /**
    * checkConnectionConstraints must be after fixExtConnection
@@ -153,9 +162,9 @@ ConfigInfo::m_SectionRules[] = {
   
   { "*",    checkMandatory, 0 },
   
-  { "DB",   saveInConfigValues, 0 },
-  { "API",  saveInConfigValues, 0 },
-  { "MGM",  saveInConfigValues, 0 },
+  { DB_TOKEN,   saveInConfigValues, 0 },
+  { API_TOKEN,  saveInConfigValues, 0 },
+  { MGM_TOKEN,  saveInConfigValues, 0 },
   { "REP",  saveInConfigValues, 0 },
 
   { "TCP",  saveInConfigValues, 0 },
@@ -196,7 +205,7 @@ struct DepricationTransform {
 
 static
 const DepricationTransform f_deprication[] = {
-  { "DB", "Discless", "Diskless", 0, 1 },
+  { DB_TOKEN, "Discless", "Diskless", 0, 1 },
   { 0, 0, 0, 0, 0}
 };
 
@@ -302,7 +311,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_SYS_PRIMARY_MGM_NODE,
     "PrimaryMGMNode",
     "SYSTEM",
-    "Node id of Primary MGM node",
+    "Node id of Primary "MGM_TOKEN" node",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
@@ -327,8 +336,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
    ***************************************************************************/
   {
     CFG_SECTION_NODE,
-    "DB",
-    "DB",
+    DB_TOKEN,
+    DB_TOKEN,
     "Node section",
     ConfigInfo::USED,
     false,
@@ -340,7 +349,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_NODE_HOST,
     "HostName",
-    "DB",
+    DB_TOKEN,
     "Name of computer for this node",
     ConfigInfo::INTERNAL,
     false,
@@ -351,7 +360,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_NODE_SYSTEM,
     "System",
-    "DB",
+    DB_TOKEN,
     "Name of system for this node",
     ConfigInfo::INTERNAL,
     false,
@@ -362,8 +371,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_NODE_ID,
     "Id",
-    "DB",
-    "Number identifying the database node (DB)",
+    DB_TOKEN,
+    "Number identifying the database node ("DB_TOKEN")",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
@@ -374,7 +383,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     KEY_INTERNAL,
     "ServerPort",
-    "DB",
+    DB_TOKEN,
     "Port used to setup transporter",
     ConfigInfo::USED,
     false,
@@ -386,7 +395,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_NO_REPLICAS,
     "NoOfReplicas",
-    "DB",
+    DB_TOKEN,
     "Number of copies of all data in the database (1-4)",
     ConfigInfo::USED,
     false,
@@ -398,7 +407,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_NO_ATTRIBUTES,
     "MaxNoOfAttributes",
-    "DB",
+    DB_TOKEN,
     "Total number of attributes stored in database. I.e. sum over all tables",
     ConfigInfo::USED,
     false,
@@ -410,7 +419,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_NO_TABLES,
     "MaxNoOfTables",
-    "DB",
+    DB_TOKEN,
     "Total number of tables stored in the database",
     ConfigInfo::USED,
     false,
@@ -422,7 +431,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_NO_ORDERED_INDEXES,
     "MaxNoOfOrderedIndexes",
-    "DB",
+    DB_TOKEN,
     "Total number of ordered indexes that can be defined in the system",
     ConfigInfo::USED,
     false,
@@ -434,7 +443,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_NO_UNIQUE_HASH_INDEXES,
     "MaxNoOfUniqueHashIndexes",
-    "DB",
+    DB_TOKEN,
     "Total number of unique hash indexes that can be defined in the system",
     ConfigInfo::USED,
     false,
@@ -446,7 +455,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_NO_INDEXES,
     "MaxNoOfIndexes",
-    "DB",
+    DB_TOKEN,
     "Total number of indexes that can be defined in the system",
     ConfigInfo::DEPRICATED,
     false,
@@ -458,8 +467,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_NO_INDEX_OPS,
     "MaxNoOfConcurrentIndexOperations",
-    "DB",
-    "Total number of index operations that can execute simultaneously on one DB node",
+    DB_TOKEN,
+    "Total number of index operations that can execute simultaneously on one "DB_TOKEN" node",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
@@ -471,7 +480,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_NO_TRIGGERS,
     "MaxNoOfTriggers",
-    "DB",
+    DB_TOKEN,
     "Total number of triggers that can be defined in the system",
     ConfigInfo::USED,
     false,
@@ -483,8 +492,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_NO_TRIGGER_OPS,
     "MaxNoOfFiredTriggers",
-    "DB",
-    "Total number of triggers that can fire simultaneously in one DB node",
+    DB_TOKEN,
+    "Total number of triggers that can fire simultaneously in one "DB_TOKEN" node",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
@@ -495,7 +504,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     KEY_INTERNAL,
     "ExecuteOnComputer",
-    "DB",
+    DB_TOKEN,
     "String referencing an earlier defined COMPUTER",
     ConfigInfo::USED,
     false,
@@ -506,7 +515,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_NO_SAVE_MSGS,
     "MaxNoOfSavedMessages",
-    "DB",
+    DB_TOKEN,
     "Max number of error messages in error log and max number of trace files",
     ConfigInfo::USED,
     true,
@@ -518,7 +527,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_MEMLOCK,
     "LockPagesInMainMemory",
-    "DB",
+    DB_TOKEN,
     "If set to yes, then NDB Cluster data will not be swapped out to disk",
     ConfigInfo::USED,
     true,
@@ -530,7 +539,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_WATCHDOG_INTERVAL,
     "TimeBetweenWatchDogCheck",
-    "DB",
+    DB_TOKEN,
     "Time between execution checks inside a database node",
     ConfigInfo::USED,
     true,
@@ -542,8 +551,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_STOP_ON_ERROR,
     "StopOnError",
-    "DB",
-    "If set to N, the DB automatically restarts/recovers in case of node failure",
+    DB_TOKEN,
+    "If set to N, "DB_TOKEN" automatically restarts/recovers in case of node failure",
     ConfigInfo::USED,
     true,
     ConfigInfo::BOOL,
@@ -554,7 +563,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   { 
     CFG_DB_STOP_ON_ERROR_INSERT,
     "RestartOnErrorInsert",
-    "DB",
+    DB_TOKEN,
     "See src/kernel/vm/Emulator.hpp NdbRestartType for details",
     ConfigInfo::INTERNAL,
     true,
@@ -566,7 +575,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_NO_OPS,
     "MaxNoOfConcurrentOperations",
-    "DB",
+    DB_TOKEN,
     "Max number of operation records in transaction coordinator",
     ConfigInfo::USED,
     false,
@@ -578,7 +587,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_NO_LOCAL_OPS,
     "MaxNoOfLocalOperations",
-    "DB",
+    DB_TOKEN,
     "Max number of operation records defined in the local storage node",
     ConfigInfo::USED,
     false,
@@ -590,7 +599,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_NO_LOCAL_SCANS,
     "MaxNoOfLocalScans",
-    "DB",
+    DB_TOKEN,
     "Max number of fragment scans in parallel in the local storage node",
     ConfigInfo::USED,
     false,
@@ -602,7 +611,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_BATCH_SIZE,
     "BatchSizePerLocalScan",
-    "DB",
+    DB_TOKEN,
     "Used to calculate the number of lock records for scan with hold lock",
     ConfigInfo::USED,
     false,
@@ -614,8 +623,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_NO_TRANSACTIONS,
     "MaxNoOfConcurrentTransactions",
-    "DB",
-    "Max number of transaction executing concurrently on the DB node",
+    DB_TOKEN,
+    "Max number of transaction executing concurrently on the "DB_TOKEN" node",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
@@ -626,8 +635,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_NO_SCANS,
     "MaxNoOfConcurrentScans",
-    "DB",
-    "Max number of scans executing concurrently on the DB node",
+    DB_TOKEN,
+    "Max number of scans executing concurrently on the "DB_TOKEN" node",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
@@ -638,8 +647,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_TRANS_BUFFER_MEM,
     "TransactionBufferMemory",
-    "DB",
-    "Dynamic buffer space (in bytes) for key and attribute data allocated for each DB node",
+    DB_TOKEN,
+    "Dynamic buffer space (in bytes) for key and attribute data allocated for each "DB_TOKEN" node",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
@@ -650,8 +659,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_INDEX_MEM,
     "IndexMemory",
-    "DB",
-    "Number bytes on each DB node allocated for storing indexes",
+    DB_TOKEN,
+    "Number bytes on each "DB_TOKEN" node allocated for storing indexes",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT64,
@@ -662,8 +671,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_DATA_MEM,
     "DataMemory",
-    "DB",
-    "Number bytes on each DB node allocated for storing data",
+    DB_TOKEN,
+    "Number bytes on each "DB_TOKEN" node allocated for storing data",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT64,
@@ -674,8 +683,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_UNDO_INDEX_BUFFER,
     "UndoIndexBuffer",
-    "DB",
-    "Number bytes on each DB node allocated for writing UNDO logs for index part",
+    DB_TOKEN,
+    "Number bytes on each "DB_TOKEN" node allocated for writing UNDO logs for index part",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
@@ -686,8 +695,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_UNDO_DATA_BUFFER,
     "UndoDataBuffer",
-    "DB",
-    "Number bytes on each DB node allocated for writing UNDO logs for data part",
+    DB_TOKEN,
+    "Number bytes on each "DB_TOKEN" node allocated for writing UNDO logs for data part",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
@@ -698,8 +707,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_REDO_BUFFER,
     "RedoBuffer",
-    "DB",
-    "Number bytes on each DB node allocated for writing REDO logs",
+    DB_TOKEN,
+    "Number bytes on each "DB_TOKEN" node allocated for writing REDO logs",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
@@ -710,8 +719,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_LONG_SIGNAL_BUFFER,
     "LongMessageBuffer",
-    "DB",
-    "Number bytes on each DB node allocated for internal long messages",
+    DB_TOKEN,
+    "Number bytes on each "DB_TOKEN" node allocated for internal long messages",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
@@ -722,7 +731,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_START_PARTIAL_TIMEOUT,
     "StartPartialTimeout",
-    "DB",
+    DB_TOKEN,
     "Time to wait before trying to start wo/ all nodes. 0=Wait forever",
     ConfigInfo::USED,
     true,
@@ -734,7 +743,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_START_PARTITION_TIMEOUT,
     "StartPartitionedTimeout",
-    "DB",
+    DB_TOKEN,
     "Time to wait before trying to start partitioned. 0=Wait forever",
     ConfigInfo::USED,
     true,
@@ -746,7 +755,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_START_FAILURE_TIMEOUT,
     "StartFailureTimeout",
-    "DB",
+    DB_TOKEN,
     "Time to wait before terminating. 0=Wait forever",
     ConfigInfo::USED,
     true,
@@ -758,8 +767,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_HEARTBEAT_INTERVAL,
     "HeartbeatIntervalDbDb",
-    "DB",
-    "Time between DB-DB heartbeats. DB considered dead after 3 missed HBs",
+    DB_TOKEN,
+    "Time between "DB_TOKEN"-"DB_TOKEN" heartbeats. "DB_TOKEN" considered dead after 3 missed HBs",
     ConfigInfo::USED,
     true,
     ConfigInfo::INT,
@@ -770,8 +779,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_API_HEARTBEAT_INTERVAL,
     "HeartbeatIntervalDbApi",
-    "DB",
-    "Time between API-DB heartbeats. API connection closed after 3 missed HBs",
+    DB_TOKEN,
+    "Time between "API_TOKEN"-"DB_TOKEN" heartbeats. "API_TOKEN" connection closed after 3 missed HBs",
     ConfigInfo::USED,
     true,
     ConfigInfo::INT,
@@ -782,7 +791,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_LCP_INTERVAL,
     "TimeBetweenLocalCheckpoints",
-    "DB",
+    DB_TOKEN,
     "Time between taking snapshots of the database (expressed in 2log of bytes)",
     ConfigInfo::USED,
     true,
@@ -794,7 +803,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_GCP_INTERVAL,
     "TimeBetweenGlobalCheckpoints",
-    "DB",
+    DB_TOKEN,
     "Time between doing group commit of transactions to disk",
     ConfigInfo::USED,
     true,
@@ -806,8 +815,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_NO_REDOLOG_FILES,
     "NoOfFragmentLogFiles",
-    "DB",
-    "No of 16 Mbyte Redo log files in each of 4 file sets belonging to DB node",
+    DB_TOKEN,
+    "No of 16 Mbyte Redo log files in each of 4 file sets belonging to "DB_TOKEN" node",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
@@ -818,8 +827,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     KEY_INTERNAL,
     "MaxNoOfOpenFiles",
-    "DB",
-    "Max number of files open per DB node.(One thread is created per file)",
+    DB_TOKEN,
+    "Max number of files open per "DB_TOKEN" node.(One thread is created per file)",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
@@ -831,7 +840,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_TRANSACTION_CHECK_INTERVAL,
     "TimeBetweenInactiveTransactionAbortCheck",
-    "DB",
+    DB_TOKEN,
     "Time between inactive transaction checks",
     ConfigInfo::USED,
     true,
@@ -843,7 +852,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_TRANSACTION_INACTIVE_TIMEOUT,
     "TransactionInactiveTimeout",
-    "DB",
+    DB_TOKEN,
     "Time application can wait before executing another transaction part (ms).\n"
     "This is the time the transaction coordinator waits for the application\n"
     "to execute or send another part (query, statement) of the transaction.\n"
@@ -859,7 +868,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_TRANSACTION_DEADLOCK_TIMEOUT,
     "TransactionDeadlockDetectionTimeout",
-    "DB",
+    DB_TOKEN,
     "Time transaction can be executing in a DB node (ms).\n"
     "This is the time the transaction coordinator waits for each database node\n"
     "of the transaction to execute a request. If the database node takes too\n"
@@ -874,7 +883,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     KEY_INTERNAL,
     "NoOfDiskPagesToDiskDuringRestartTUP",
-    "DB",
+    DB_TOKEN,
     "?",
     ConfigInfo::USED,
     true,
@@ -886,7 +895,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     KEY_INTERNAL,
     "NoOfDiskPagesToDiskAfterRestartTUP",
-    "DB",
+    DB_TOKEN,
     "?",
     ConfigInfo::USED,
     true,
@@ -898,7 +907,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     KEY_INTERNAL,
     "NoOfDiskPagesToDiskDuringRestartACC",
-    "DB",
+    DB_TOKEN,
     "?",
     ConfigInfo::USED,
     true,
@@ -910,7 +919,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     KEY_INTERNAL,
     "NoOfDiskPagesToDiskAfterRestartACC",
-    "DB",
+    DB_TOKEN,
     "?",
     ConfigInfo::USED,
     true,
@@ -923,7 +932,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_DISCLESS,
     "Diskless",
-    "DB",
+    DB_TOKEN,
     "Run wo/ disk",
     ConfigInfo::USED,
     true,
@@ -935,7 +944,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     KEY_INTERNAL,
     "Discless",
-    "DB",
+    DB_TOKEN,
     "Diskless",
     ConfigInfo::DEPRICATED,
     true,
@@ -949,7 +958,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_DB_ARBIT_TIMEOUT,
     "ArbitrationTimeout",
-    "DB",
+    DB_TOKEN,
     "Max time (milliseconds) database partion waits for arbitration signal",
     ConfigInfo::USED,
     false,
@@ -959,20 +968,31 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   {
-    CFG_DB_FILESYSTEM_PATH,
-    "FileSystemPath",
-    "DB",
-    "Path to directory where the DB node stores its data (directory must exist)",
+    CFG_NODE_DATADIR,
+    "DataDir",
+    DB_TOKEN,
+    "Data directory for this node",
     ConfigInfo::USED,
     false,
     ConfigInfo::STRING,
-    DATADIR,
+    MYSQLCLUSTERDIR,
+    0, 0 },
+
+  {
+    CFG_DB_FILESYSTEM_PATH,
+    "FileSystemPath",
+    DB_TOKEN,
+    "Path to directory where the "DB_TOKEN" node stores its data (directory must exist)",
+    ConfigInfo::USED,
+    false,
+    ConfigInfo::STRING,
+    UNDEFINED,
     0, 0 },
 
   {
     CFG_LOGLEVEL_STARTUP,
     "LogLevelStartup",
-    "DB",
+    DB_TOKEN,
     "Node startup info printed on stdout",
     ConfigInfo::USED,
     false,
@@ -984,7 +1004,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_LOGLEVEL_SHUTDOWN,
     "LogLevelShutdown",
-    "DB",
+    DB_TOKEN,
     "Node shutdown info printed on stdout",
     ConfigInfo::USED,
     false,
@@ -996,7 +1016,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_LOGLEVEL_STATISTICS,
     "LogLevelStatistic",
-    "DB",
+    DB_TOKEN,
     "Transaction, operation, transporter info printed on stdout",
     ConfigInfo::USED,
     false,
@@ -1008,7 +1028,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_LOGLEVEL_CHECKPOINT,
     "LogLevelCheckpoint",
-    "DB",
+    DB_TOKEN,
     "Local and Global checkpoint info printed on stdout",
     ConfigInfo::USED,
     false,
@@ -1020,7 +1040,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_LOGLEVEL_NODERESTART,
     "LogLevelNodeRestart",
-    "DB",
+    DB_TOKEN,
     "Node restart, node failure info printed on stdout",
     ConfigInfo::USED,
     false,
@@ -1032,7 +1052,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_LOGLEVEL_CONNECTION,
     "LogLevelConnection",
-    "DB",
+    DB_TOKEN,
     "Node connect/disconnect info printed on stdout",
     ConfigInfo::USED,
     false,
@@ -1044,7 +1064,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_LOGLEVEL_ERROR,
     "LogLevelError",
-    "DB",
+    DB_TOKEN,
     "Transporter, heartbeat errors printed on stdout",
     ConfigInfo::USED,
     false,
@@ -1056,7 +1076,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_LOGLEVEL_INFO,
     "LogLevelInfo",
-    "DB",
+    DB_TOKEN,
     "Heartbeat and log info printed on stdout",
     ConfigInfo::USED,
     false,
@@ -1071,7 +1091,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   { 
     CFG_DB_PARALLEL_BACKUPS,
     "ParallelBackups",
-    "DB",
+    DB_TOKEN,
     "Maximum number of parallel backups",
     ConfigInfo::NOTIMPLEMENTED,
     false,
@@ -1081,9 +1101,20 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "1" },
   
   { 
+    CFG_DB_BACKUP_DATADIR,
+    "BackupDataDir",
+    DB_TOKEN,
+    "Path to where to store backups",
+    ConfigInfo::USED,
+    false,
+    ConfigInfo::STRING,
+    UNDEFINED,
+    0, 0 },
+  
+  { 
     CFG_DB_BACKUP_MEM,
     "BackupMemory",
-    "DB",
+    DB_TOKEN,
     "Total memory allocated for backups per node (in bytes)",
     ConfigInfo::USED,
     false,
@@ -1095,7 +1126,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   { 
     CFG_DB_BACKUP_DATA_BUFFER_MEM,
     "BackupDataBufferSize",
-    "DB",
+    DB_TOKEN,
     "Default size of databuffer for a backup (in bytes)",
     ConfigInfo::USED,
     false,
@@ -1107,7 +1138,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   { 
     CFG_DB_BACKUP_LOG_BUFFER_MEM,
     "BackupLogBufferSize",
-    "DB",
+    DB_TOKEN,
     "Default size of logbuffer for a backup (in bytes)",
     ConfigInfo::USED,
     false,
@@ -1119,7 +1150,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   { 
     CFG_DB_BACKUP_WRITE_SIZE,
     "BackupWriteSize",
-    "DB",
+    DB_TOKEN,
     "Default size of filesystem writes made by backup (in bytes)",
     ConfigInfo::USED,
     false,
@@ -1205,8 +1236,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
    ***************************************************************************/
   {
     CFG_SECTION_NODE,
-    "API",
-    "API",
+    API_TOKEN,
+    API_TOKEN,
     "Node section",
     ConfigInfo::USED,
     false,
@@ -1218,7 +1249,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_NODE_HOST,
     "HostName",
-    "API",
+    API_TOKEN,
     "Name of computer for this node",
     ConfigInfo::INTERNAL,
     false,
@@ -1229,7 +1260,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_NODE_SYSTEM,
     "System",
-    "API",
+    API_TOKEN,
     "Name of system for this node",
     ConfigInfo::INTERNAL,
     false,
@@ -1240,8 +1271,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_NODE_ID,
     "Id",
-    "API",
-    "Number identifying application node (API)",
+    API_TOKEN,
+    "Number identifying application node ("API_TOKEN")",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
@@ -1252,7 +1283,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     KEY_INTERNAL,
     "ExecuteOnComputer",
-    "API",
+    API_TOKEN,
     "String referencing an earlier defined COMPUTER",
     ConfigInfo::USED,
     false,
@@ -1263,8 +1294,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_NODE_ARBIT_RANK,
     "ArbitrationRank",
-    "API",
-    "If 0, then API is not arbitrator. Kernel selects arbitrators in order 1, 2",
+    API_TOKEN,
+    "If 0, then "API_TOKEN" is not arbitrator. Kernel selects arbitrators in order 1, 2",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
@@ -1275,7 +1306,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_NODE_ARBIT_DELAY,
     "ArbitrationDelay",
-    "API",
+    API_TOKEN,
     "When asked to arbitrate, arbitrator waits this long before voting (msec)",
     ConfigInfo::USED,
     false,
@@ -1325,8 +1356,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
    ***************************************************************************/
   {
     CFG_SECTION_NODE,
-    "MGM",
-    "MGM",
+    MGM_TOKEN,
+    MGM_TOKEN,
     "Node section",
     ConfigInfo::USED,
     false,
@@ -1338,7 +1369,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_NODE_HOST,
     "HostName",
-    "MGM",
+    MGM_TOKEN,
     "Name of computer for this node",
     ConfigInfo::INTERNAL,
     false,
@@ -1347,9 +1378,20 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0, 0 },
 
   {
+    CFG_NODE_DATADIR,
+    "DataDir",
+    MGM_TOKEN,
+    "Data directory for this node",
+    ConfigInfo::USED,
+    false,
+    ConfigInfo::STRING,
+    MYSQLCLUSTERDIR,
+    0, 0 },
+
+  {
     CFG_NODE_SYSTEM,
     "System",
-    "MGM",
+    MGM_TOKEN,
     "Name of system for this node",
     ConfigInfo::INTERNAL,
     false,
@@ -1360,8 +1402,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_NODE_ID,
     "Id",
-    "MGM",
-    "Number identifying the management server node (MGM)",
+    MGM_TOKEN,
+    "Number identifying the management server node ("MGM_TOKEN")",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
@@ -1372,7 +1414,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_LOG_DESTINATION,
     "LogDestination",
-    "MGM",
+    MGM_TOKEN,
     "String describing where logmessages are sent",
     ConfigInfo::USED,
     false,
@@ -1383,7 +1425,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     KEY_INTERNAL,
     "ExecuteOnComputer",
-    "MGM",
+    MGM_TOKEN,
     "String referencing an earlier defined COMPUTER",
     ConfigInfo::USED,
     false,
@@ -1394,7 +1436,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     KEY_INTERNAL,
     "MaxNoOfSavedEvents",
-    "MGM",
+    MGM_TOKEN,
     "",
     ConfigInfo::USED,
     false,
@@ -1406,7 +1448,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_MGM_PORT,
     "PortNumber",
-    "MGM",
+    MGM_TOKEN,
     "Port number to give commands to/fetch configurations from management server",
     ConfigInfo::USED,
     false,
@@ -1418,7 +1460,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     KEY_INTERNAL,
     "PortNumberStats",
-    "MGM",
+    MGM_TOKEN,
     "Port number used to get statistical information from a management server",
     ConfigInfo::USED,
     false,
@@ -1430,8 +1472,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_NODE_ARBIT_RANK,
     "ArbitrationRank",
-    "MGM",
-    "If 0, then MGM is not arbitrator. Kernel selects arbitrators in order 1, 2",
+    MGM_TOKEN,
+    "If 0, then "MGM_TOKEN" is not arbitrator. Kernel selects arbitrators in order 1, 2",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
@@ -1442,7 +1484,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   {
     CFG_NODE_ARBIT_DELAY,
     "ArbitrationDelay",
-    "MGM",
+    MGM_TOKEN,
     "",
     ConfigInfo::USED,
     false,
@@ -1492,7 +1534,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_CONNECTION_NODE_1,
     "NodeId1",
     "TCP",
-    "Id of node (DB, API or MGM) on one side of the connection",
+    "Id of node ("DB_TOKEN", "API_TOKEN" or "MGM_TOKEN") on one side of the connection",
     ConfigInfo::USED,
     false,
     ConfigInfo::STRING,
@@ -1503,7 +1545,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_CONNECTION_NODE_2,
     "NodeId2",
     "TCP",
-    "Id of node (DB, API or MGM) on one side of the connection",
+    "Id of node ("DB_TOKEN", "API_TOKEN" or "MGM_TOKEN") on one side of the connection",
     ConfigInfo::USED,
     false,
     ConfigInfo::STRING,
@@ -1623,7 +1665,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_CONNECTION_NODE_1,
     "NodeId1",
     "SHM",
-    "Id of node (DB, API or MGM) on one side of the connection",
+    "Id of node ("DB_TOKEN", "API_TOKEN" or "MGM_TOKEN") on one side of the connection",
     ConfigInfo::USED,
     false,
     ConfigInfo::STRING,
@@ -1646,7 +1688,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_CONNECTION_NODE_2,
     "NodeId2",
     "SHM",
-    "Id of node (DB, API or MGM) on one side of the connection",
+    "Id of node ("DB_TOKEN", "API_TOKEN" or "MGM_TOKEN") on one side of the connection",
     ConfigInfo::USED,
     false,
     ConfigInfo::STRING,
@@ -1743,7 +1785,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_CONNECTION_NODE_1,
     "NodeId1",
     "SCI",
-    "Id of node (DB, API or MGM) on one side of the connection",
+    "Id of node ("DB_TOKEN", "API_TOKEN" or "MGM_TOKEN") on one side of the connection",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
@@ -1755,7 +1797,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_CONNECTION_NODE_2,
     "NodeId2",
     "SCI",
-    "Id of node (DB, API or MGM) on one side of the connection",
+    "Id of node ("DB_TOKEN", "API_TOKEN" or "MGM_TOKEN") on one side of the connection",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
@@ -1898,7 +1940,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_CONNECTION_NODE_1,
     "NodeId1",
     "OSE",
-    "Id of node (DB, API or MGM) on one side of the connection",
+    "Id of node ("DB_TOKEN", "API_TOKEN" or "MGM_TOKEN") on one side of the connection",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
@@ -1910,7 +1952,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_CONNECTION_NODE_2,
     "NodeId2",
     "OSE",
-    "Id of node (DB, API or MGM) on one side of the connection",
+    "Id of node ("DB_TOKEN", "API_TOKEN" or "MGM_TOKEN") on one side of the connection",
     ConfigInfo::USED,
     false,
     ConfigInfo::INT,
@@ -2232,7 +2274,7 @@ ConfigInfo::getDescription(const Properties * section,
 bool
 ConfigInfo::isSection(const char * section) const {
   for (int i = 0; i<m_noOfSectionNames; i++) {
-    if(!strcmp(section, m_sectionNames[i])) return true;
+    if(!strcasecmp(section, m_sectionNames[i])) return true;
   }
   return false;
 }
@@ -2435,7 +2477,7 @@ fixNodeHostname(InitConfigFileParser::Context & ctx, const char * data){
   const char * compId;
   if(!ctx.m_currentSection->get("ExecuteOnComputer", &compId)){
     const char * type;
-    if(ctx.m_currentSection->get("Type", &type) && strcmp(type,"DB") == 0)
+    if(ctx.m_currentSection->get("Type", &type) && strcmp(type,DB_TOKEN) == 0)
       require(ctx.m_currentSection->put("HostName", "localhost"));
     else
       require(ctx.m_currentSection->put("HostName", ""));
@@ -2461,6 +2503,39 @@ fixNodeHostname(InitConfigFileParser::Context & ctx, const char * data){
   
   require(ctx.m_currentSection->put("HostName", hostname));
   return checkLocalhostHostnameMix(ctx);
+}
+
+bool
+fixFileSystemPath(InitConfigFileParser::Context & ctx, const char * data){
+  DBUG_ENTER("fixFileSystemPath");
+
+  const char * path;
+  if (ctx.m_currentSection->get("FileSystemPath", &path))
+    DBUG_RETURN(true);
+
+  if (ctx.m_currentSection->get("DataDir", &path)) {
+    require(ctx.m_currentSection->put("FileSystemPath", path));
+    DBUG_RETURN(true);
+  }
+
+  require(false);
+  DBUG_RETURN(false);
+}
+
+bool
+fixBackupDataDir(InitConfigFileParser::Context & ctx, const char * data){
+  
+  const char * path;
+  if (ctx.m_currentSection->get("BackupDataDir", &path))
+    return true;
+
+  if (ctx.m_currentSection->get("FileSystemPath", &path)) {
+    require(ctx.m_currentSection->put("BackupDataDir", path));
+    return true;
+  }
+
+  require(false);
+  return false;
 }
 
 bool
@@ -2804,10 +2879,16 @@ fixHostname(InitConfigFileParser::Context & ctx, const char * data){
 static bool
 fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
 
+  DBUG_ENTER("fixPortNumber");
+
   Uint32 id1= 0, id2= 0;
   require(ctx.m_currentSection->get("NodeId1", &id1));
   require(ctx.m_currentSection->get("NodeId2", &id2));
-  id1 = id1 < id2 ? id1 : id2;
+  if (id1 > id2) {
+    Uint32 tmp= id1;
+    id1= id2;
+    id2= tmp;
+  }
 
   const Properties * node;
   require(ctx.m_config->get("Node", id1, &node));
@@ -2816,7 +2897,7 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
   
   if (hostname.c_str()[0] == 0) {
     ctx.reportError("Hostname required on nodeid %d since it will act as server.", id1);
-    return false;
+    DBUG_RETURN(false);
   }
 
   Uint32 port= 0;
@@ -2849,7 +2930,9 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
   } else
     ctx.m_currentSection->put("PortNumber", port);
 
-  return true;
+  DBUG_PRINT("info", ("connection %d-%d port %d host %s", id1, id2, port, hostname.c_str()));
+
+  DBUG_RETURN(true);
 }
 
 /**
@@ -2934,8 +3017,8 @@ checkConnectionConstraints(InitConfigFileParser::Context & ctx, const char *){
    * -# Not both of them are MGMs
    * -# None of them contain a "SystemX" name
    */
-  if((strcmp(type1, "DB") != 0 && strcmp(type2, "DB") != 0) &&
-     !(strcmp(type1, "MGM") == 0 && strcmp(type2, "MGM") == 0) &&
+  if((strcmp(type1, DB_TOKEN) != 0 && strcmp(type2, DB_TOKEN) != 0) &&
+     !(strcmp(type1, MGM_TOKEN) == 0 && strcmp(type2, MGM_TOKEN) == 0) &&
      !ctx.m_currentSection->contains("System1") &&
      !ctx.m_currentSection->contains("System2")){
     ctx.reportError("Invalid connection between node %d (%s) and node %d (%s)"
@@ -3183,10 +3266,10 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
     const char * type;
     if(!tmp->get("Type", &type)) continue;
 
-    if (strcmp(type,"DB") == 0)
+    if (strcmp(type,DB_TOKEN) == 0)
       p_db_nodes.put("", i_db++, i);
-    else if (strcmp(type,"API") == 0 ||
-	     strcmp(type,"MGM") == 0)
+    else if (strcmp(type,API_TOKEN) == 0 ||
+	     strcmp(type,MGM_TOKEN) == 0)
       p_api_mgm_nodes.put("", i_api_mgm++, i);
   }
 
@@ -3259,7 +3342,7 @@ static bool add_server_ports(Vector<ConfigInfo::ConfigRuleSection>&sections,
     Uint32 adder= 0;
     computers.get("",computer, &adder);
 
-    if (strcmp(type,"DB") == 0) {
+    if (strcmp(type,DB_TOKEN) == 0) {
       adder++;
       tmp->put("ServerPort", port_base+adder);
       computers.put("",computer, adder);
@@ -3276,7 +3359,7 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
 {
   Uint32 db_nodes = 0;
   Uint32 replicas = 0;
-  ctx.m_userProperties.get("DB", &db_nodes);
+  ctx.m_userProperties.get(DB_TOKEN, &db_nodes);
   ctx.m_userProperties.get("NoOfReplicas", &replicas);
   if((db_nodes % replicas) != 0){
     ctx.reportError("Invalid no of db nodes wrt no of replicas.\n"
