@@ -51,12 +51,7 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
     tempfile= &select->file;
   else
     tempfile= table->io_cache;
-  if (select && select->quick && (! tempfile || !tempfile->buffer))
-  {
-    DBUG_PRINT("info",("using rr_quick"));
-    info->read_record=rr_quick;
-  }
-  else if (tempfile && my_b_inited(tempfile)) // Test if ref-records was used
+  if (tempfile && my_b_inited(tempfile)) // Test if ref-records was used
   {
     DBUG_PRINT("info",("using rr_from_tempfile"));
     info->read_record=rr_from_tempfile;
@@ -83,6 +78,11 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
 	info->read_record=rr_from_cache;
       }
     }
+  }
+  else if (select && select->quick)
+  {
+    DBUG_PRINT("info",("using rr_quick"));
+    info->read_record=rr_quick;
   }
   else if (table->record_pointers)
   {
