@@ -219,7 +219,10 @@ const char *sql_mode_names[] =
   "NO_DIR_IN_CREATE",
   "POSTGRESQL", "ORACLE", "MSSQL", "DB2", "MAXDB", "NO_KEY_OPTIONS",
   "NO_TABLE_OPTIONS", "NO_FIELD_OPTIONS", "MYSQL323", "MYSQL40", "ANSI",
-  "NO_AUTO_VALUE_ON_ZERO", "NO_BACKSLASH_ESCAPES", NullS
+  "NO_AUTO_VALUE_ON_ZERO", "NO_BACKSLASH_ESCAPES", "STRICT_TRANS_TABLES", "STRICT_ALL_TABLES",
+  "NO_ZERO_IN_DATE", "NO_ZERO_DATE", "ALLOW_INVALID_DATES", "ERROR_FOR_DIVISION_BY_ZERO",
+  "TRADITIONAL",
+  NullS
 };
 TYPELIB sql_mode_typelib= { array_elements(sql_mode_names)-1,"",
 			    sql_mode_names };
@@ -2090,7 +2093,8 @@ extern "C" int my_message_sql(uint error, const char *str,
   DBUG_PRINT("error", ("Message: '%s'", str));
   if ((thd= current_thd))
   {
-    if (thd->spcont && thd->spcont->find_handler(error))
+    if (thd->spcont &&
+        thd->spcont->find_handler(error, MYSQL_ERROR::WARN_LEVEL_ERROR))
     {
       DBUG_RETURN(0);
     }
@@ -6112,7 +6116,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       char *end;
       uint length= strlen(argument);
       long value= my_strntol(&my_charset_latin1, argument, length, 10, &end, &err);
-      if (test_if_int(argument,(uint) length, end, &my_charset_latin1))
+      if (end == argument+length)
 	berkeley_lock_scan_time= value;
       else
       {

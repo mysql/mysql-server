@@ -459,7 +459,7 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
       if (!my_isspace(&my_charset_latin1,*val))
       {
 	make_truncated_value_warning(current_thd, val_begin, length,
-				     cached_timestamp_type);
+				     cached_timestamp_type, NullS);
 	break;
       }
     } while (++val != val_end);
@@ -790,7 +790,7 @@ longlong Item_func_to_days::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   TIME ltime;
-  if (get_arg0_date(&ltime,0))
+  if (get_arg0_date(&ltime, TIME_NO_ZERO_DATE))
     return 0;
   return (longlong) calc_daynr(ltime.year,ltime.month,ltime.day);
 }
@@ -799,7 +799,7 @@ longlong Item_func_dayofyear::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   TIME ltime;
-  if (get_arg0_date(&ltime,0))
+  if (get_arg0_date(&ltime,TIME_NO_ZERO_DATE))
     return 0;
   return (longlong) calc_daynr(ltime.year,ltime.month,ltime.day) -
     calc_daynr(ltime.year,1,1) + 1;
@@ -809,7 +809,7 @@ longlong Item_func_dayofmonth::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   TIME ltime;
-  (void) get_arg0_date(&ltime,1);
+  (void) get_arg0_date(&ltime, TIME_FUZZY_DATE);
   return (longlong) ltime.day;
 }
 
@@ -817,7 +817,7 @@ longlong Item_func_month::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   TIME ltime;
-  (void) get_arg0_date(&ltime,1);
+  (void) get_arg0_date(&ltime, TIME_FUZZY_DATE);
   return (longlong) ltime.month;
 }
 
@@ -846,7 +846,7 @@ longlong Item_func_quarter::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   TIME ltime;
-  (void) get_arg0_date(&ltime,1);
+  (void) get_arg0_date(&ltime, TIME_FUZZY_DATE);
   return (longlong) ((ltime.month+2)/3);
 }
 
@@ -918,7 +918,7 @@ longlong Item_func_week::val_int()
   DBUG_ASSERT(fixed == 1);
   uint year;
   TIME ltime;
-  if (get_arg0_date(&ltime,0))
+  if (get_arg0_date(&ltime, TIME_NO_ZERO_DATE))
     return 0;
   return (longlong) calc_week(&ltime,
 			      week_mode((uint) args[1]->val_int()),
@@ -931,7 +931,7 @@ longlong Item_func_yearweek::val_int()
   DBUG_ASSERT(fixed == 1);
   uint year,week;
   TIME ltime;
-  if (get_arg0_date(&ltime,0))
+  if (get_arg0_date(&ltime, TIME_NO_ZERO_DATE))
     return 0;
   week= calc_week(&ltime, 
 		  (week_mode((uint) args[1]->val_int()) | WEEK_YEAR),
@@ -972,7 +972,7 @@ longlong Item_func_year::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   TIME ltime;
-  (void) get_arg0_date(&ltime,1);
+  (void) get_arg0_date(&ltime, TIME_FUZZY_DATE);
   return (longlong) ltime.year;
 }
 
@@ -1553,7 +1553,7 @@ String *Item_func_date_format::val_str(String *str)
 
   if (!is_time_format)
   {
-    if (get_arg0_date(&l_time,1))
+    if (get_arg0_date(&l_time, TIME_FUZZY_DATE))
       return 0;
   }
   else
@@ -1715,7 +1715,7 @@ longlong Item_func_convert_tz::val_int()
 
 
 bool Item_func_convert_tz::get_date(TIME *ltime,
-				       uint fuzzy_date __attribute__((unused)))
+                                    uint fuzzy_date __attribute__((unused)))
 {
   my_time_t my_time_tmp;
   bool not_used;
@@ -1727,7 +1727,7 @@ bool Item_func_convert_tz::get_date(TIME *ltime,
   if (!args[2]->const_item())
     to_tz= my_tz_find(args[2]->val_str(&str), tz_tables);
   
-  if (from_tz==0 || to_tz==0 || get_arg0_date(ltime, 0))
+  if (from_tz==0 || to_tz==0 || get_arg0_date(ltime, TIME_NO_ZERO_DATE))
   {
     null_value= 1;
     return 1;
@@ -1791,7 +1791,7 @@ bool Item_date_add_interval::get_date(TIME *ltime, uint fuzzy_date)
   INTERVAL interval;
 
   ltime->neg= 0;
-  if (args[0]->get_date(ltime,0) ||
+  if (args[0]->get_date(ltime, TIME_NO_ZERO_DATE) ||
       get_interval_value(args[1],int_type,&value,&interval))
     goto null_date;
   sign= (interval.neg ? -1 : 1);
@@ -1900,7 +1900,7 @@ String *Item_date_add_interval::val_str(String *str)
   TIME ltime;
   enum date_time_format_types format;
 
-  if (Item_date_add_interval::get_date(&ltime,0))
+  if (Item_date_add_interval::get_date(&ltime, TIME_NO_ZERO_DATE))
     return 0;
 
   if (ltime.time_type == MYSQL_TIMESTAMP_DATE)
@@ -1923,7 +1923,7 @@ longlong Item_date_add_interval::val_int()
   DBUG_ASSERT(fixed == 1);
   TIME ltime;
   longlong date;
-  if (Item_date_add_interval::get_date(&ltime,0))
+  if (Item_date_add_interval::get_date(&ltime, TIME_NO_ZERO_DATE))
     return (longlong) 0;
   date = (ltime.year*100L + ltime.month)*100L + ltime.day;
   return ltime.time_type == MYSQL_TIMESTAMP_DATE ? date :
@@ -2000,7 +2000,7 @@ longlong Item_extract::val_int()
   long neg;
   if (date_value)
   {
-    if (get_arg0_date(&ltime,1))
+    if (get_arg0_date(&ltime, TIME_FUZZY_DATE))
       return 0;
     neg=1;
   }
@@ -2172,7 +2172,7 @@ String *Item_datetime_typecast::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   TIME ltime;
-  if (!get_arg0_date(&ltime,1) &&
+  if (!get_arg0_date(&ltime, TIME_FUZZY_DATE) &&
       !make_datetime(ltime.second_part ? DATE_TIME_MICROSECOND : DATE_TIME, 
 		     &ltime, str))
     return str;
@@ -2207,7 +2207,7 @@ String *Item_time_typecast::val_str(String *str)
 
 bool Item_date_typecast::get_date(TIME *ltime, uint fuzzy_date)
 {
-  bool res= get_arg0_date(ltime,1);
+  bool res= get_arg0_date(ltime, TIME_FUZZY_DATE);
   ltime->time_type= MYSQL_TIMESTAMP_DATE;
   return res;
 }
@@ -2218,7 +2218,7 @@ String *Item_date_typecast::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   TIME ltime;
 
-  if (!get_arg0_date(&ltime,1) && !str->alloc(11))
+  if (!get_arg0_date(&ltime, TIME_FUZZY_DATE) && !str->alloc(11))
   {
     make_date((DATE_TIME_FORMAT *) 0, &ltime, str);
     return str;
@@ -2312,7 +2312,7 @@ String *Item_func_add_time::val_str(String *str)
   l_time3.neg= 0;
   if (is_date)                        // TIMESTAMP function
   {
-    if (get_arg0_date(&l_time1,1) || 
+    if (get_arg0_date(&l_time1, TIME_FUZZY_DATE) || 
         args[1]->get_time(&l_time2) ||
         l_time1.time_type == MYSQL_TIMESTAMP_TIME || 
         l_time2.time_type != MYSQL_TIMESTAMP_TIME)
@@ -2599,8 +2599,8 @@ longlong Item_func_timestamp_diff::val_int()
   int neg= 1;
 
   null_value= 0;  
-  if (args[0]->get_date(&ltime1, 0) ||
-      args[1]->get_date(&ltime2, 0))
+  if (args[0]->get_date(&ltime1, TIME_NO_ZERO_DATE) ||
+      args[1]->get_date(&ltime2, TIME_NO_ZERO_DATE))
     goto null_date;
 
   if (calc_time_diff(&ltime2,&ltime1, 1,

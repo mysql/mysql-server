@@ -266,13 +266,20 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define MODE_DB2			2048
 #define MODE_MAXDB			4096
 #define MODE_NO_KEY_OPTIONS             8192
-#define MODE_NO_TABLE_OPTIONS          16384 
-#define MODE_NO_FIELD_OPTIONS          32768
-#define MODE_MYSQL323                  65536
-#define MODE_MYSQL40                   (MODE_MYSQL323*2)
-#define MODE_ANSI	               (MODE_MYSQL40*2)
-#define MODE_NO_AUTO_VALUE_ON_ZERO     (MODE_ANSI*2)
-#define MODE_NO_BACKSLASH_ESCAPES      (MODE_NO_AUTO_VALUE_ON_ZERO*2)
+#define MODE_NO_TABLE_OPTIONS           16384 
+#define MODE_NO_FIELD_OPTIONS           32768
+#define MODE_MYSQL323                   65536
+#define MODE_MYSQL40                    (MODE_MYSQL323*2)
+#define MODE_ANSI	                (MODE_MYSQL40*2)
+#define MODE_NO_AUTO_VALUE_ON_ZERO      (MODE_ANSI*2)
+#define MODE_NO_BACKSLASH_ESCAPES       (MODE_NO_AUTO_VALUE_ON_ZERO*2)
+#define MODE_STRICT_TRANS_TABLES	(MODE_NO_BACKSLASH_ESCAPES*2)
+#define MODE_STRICT_ALL_TABLES		(MODE_STRICT_TRANS_TABLES*2)
+#define MODE_NO_ZERO_IN_DATE		(MODE_STRICT_ALL_TABLES*2)
+#define MODE_NO_ZERO_DATE		(MODE_NO_ZERO_IN_DATE*2)
+#define MODE_INVALID_DATES		(MODE_NO_ZERO_DATE*2)
+#define MODE_ERROR_FOR_DIVISION_BY_ZERO (MODE_INVALID_DATES*2)
+#define MODE_TRADITIONAL		(MODE_ERROR_FOR_DIVISION_BY_ZERO*2)
 
 #define RAID_BLOCK_SIZE 1024
 
@@ -619,6 +626,7 @@ int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list, TABLE *table,
 int mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
 		 List<List_item> &values, List<Item> &update_fields,
 		 List<Item> &update_values, enum_duplicates flag);
+int check_that_all_fields_are_given_values(THD *thd, TABLE *entry);
 int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds);
 int mysql_delete(THD *thd, TABLE_LIST *table, COND *conds, SQL_LIST *order,
                  ha_rows rows, ulong options);
@@ -831,7 +839,7 @@ bool eval_const_cond(COND *cond);
 int mysql_load(THD *thd,sql_exchange *ex, TABLE_LIST *table_list,
 	       List<Item> &fields, enum enum_duplicates handle_duplicates,
 	       bool local_file,thr_lock_type lock_type);
-int write_record(TABLE *table,COPY_INFO *info);
+int write_record(THD *thd, TABLE *table, COPY_INFO *info);
 
 /* sql_manager.cc */
 /* bits set in manager_status */
@@ -1082,7 +1090,6 @@ void free_blobs(TABLE *table);
 int set_zone(int nr,int min_zone,int max_zone);
 ulong convert_period_to_month(ulong period);
 ulong convert_month_to_period(ulong month);
-uint calc_days_in_year(uint year);
 void get_date_from_daynr(long daynr,uint *year, uint *month,
 			 uint *day);
 my_time_t TIME_to_timestamp(THD *thd, const TIME *t, bool *not_exist);
@@ -1095,7 +1102,8 @@ void localtime_to_TIME(TIME *to, struct tm *from);
 void calc_time_from_sec(TIME *to, long seconds, long microseconds);
 
 void make_truncated_value_warning(THD *thd, const char *str_val,
-				  uint str_length, timestamp_type time_type);
+				  uint str_length, timestamp_type time_type,
+                                  const char *field_name);
 extern DATE_TIME_FORMAT *date_time_format_make(timestamp_type format_type,
 					       const char *format_str,
 					       uint format_length);

@@ -3101,6 +3101,13 @@ ulong fix_sql_mode(ulong sql_mode)
     sql_mode|= MODE_NO_FIELD_OPTIONS;
   if (sql_mode & MODE_MYSQL323)
     sql_mode|= MODE_NO_FIELD_OPTIONS;
+  if (sql_mode & MODE_TRADITIONAL)
+  {
+    sql_mode|= (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES |
+                MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
+                MODE_ERROR_FOR_DIVISION_BY_ZERO);
+    sql_mode&= ~MODE_INVALID_DATES;
+  }
   return sql_mode;
 }
 
