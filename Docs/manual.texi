@@ -1946,7 +1946,7 @@ checklist of very demanding buyers.
 The @code{MySQL Portals} (@uref{http://www.mysql.com/portal/})
 represent the ultimate resource to find @code{MySQL AB Partners},
 as well as books, or other @code{MySQL} related solutions that you
-may be looking for. Items are categorized and rated in order to
+may be looking for. Items are categorised and rated in order to
 make it easy for you to locate information.
 
 By registering as a user, you will have the ability to comment and
@@ -23053,7 +23053,7 @@ To the binary log filename @code{mysqld} will append an extension that
 is a number that is incremented each time you execute @code{mysqladmin
 refresh}, execute @code{mysqladmin flush-logs}, execute the @code{FLUSH
 LOGS} statement or restart the server. A new binary log will also
-automaticly be created when it reaches @code{max_bin_log_size}. You can
+automatically be created when it reaches @code{max_bin_log_size}. You can
 delete all not active binary log files with the @code{RESET MASTER}
 command. @xref{RESET}.
 
@@ -32572,10 +32572,10 @@ key_number des_key_string
 @end example
 
 Each @code{key_number} must be a number in the range from 0 to 9.  Lines in
-the file may be in any order.  @code{des_key_string} is string that will be
-used to encrypt the message. Between the number and the key there should be at
-least one space.  The first key is the default key that will be used
-if you don't specify any key argument to @code{DES_ENCRYPT()}
+the file may be in any order.  @code{des_key_string} is the string that
+will be used to encrypt the message.  Between the number and the key there
+should be at least one space.  The first key is the default key that will
+be used if you don't specify any key argument to @code{DES_ENCRYPT()}
 
 You can tell MySQL to read new key values from the key file with the
 @code{FLUSH DES_KEY_FILE} command.  This requires the @code{Reload_priv}
@@ -32604,7 +32604,7 @@ that was used to encrypt the original string, then reads the key
 from the @code{des-key-file} to decrypt the message.  For this to work
 the user must have the @code{Process_priv} privilege.
 
-If one calls this function with a @code{key_string} argument, that string
+If you pass this function a @code{key_string} argument, that string
 is used as the key for decrypting the message.
 
 If the @code{string_to_decrypt} doesn't look like an encrypted string, MySQL
@@ -32820,7 +32820,7 @@ first @code{SELECT} would have returned had it been written without the
 
 Note that if you are using @code{SELECT SQL_CALC_FOUND_ROWS ...} MySQL has
 to calculate all rows in the result set.  However, this is faster than
-if you would not use @code{LIMIT}, as the result set doesn't have to be sent
+if you would not use @code{LIMIT}, as the result set need not be sent
 to the client.
 @end table
 
@@ -39091,7 +39091,7 @@ an explicit value for the column, then InnoDB executes @code{SELECT
 MAX(auto-inc-column) FROM T}, and assigns that value incremented
 by one to the the column and the auto-increment counter of the table.
 We say that
-the auto-increment counter for table @code{T} has been initialized.
+the auto-increment counter for table @code{T} has been initialised.
 
 InnoDB follows the same procedure in initializing the auto-increment counter
 for a freshly created table.
@@ -39100,7 +39100,7 @@ Note that if the user specifies in an insert the value 0 to the auto-increment
 column, then InnoDB treats the row like the value would not have been
 specified.
 
-After the auto-increment counter has been initialized, if a user inserts
+After the auto-increment counter has been initialised, if a user inserts
 a row where he explicitly specifies the column value, and the value is bigger
 than the current counter value, then the counter is set to the specified
 column value. If the user does not explicitly specify a value, then InnoDB
@@ -54801,7 +54801,7 @@ New files @file{NEW} and @file{BUGS}.
 Changed @file{select_test.c} and @file{insert_test.c} to include
 @file{config.h}.
 @item
-Added command @code{status} to @code{mysqladmin} for short logging.
+Added @code{status} command to @code{mysqladmin} for short logging.
 @item
 Increased maximum number of keys to 16 and maximum number of key parts to 15.
 @item
