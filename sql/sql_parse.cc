@@ -3575,15 +3575,20 @@ mysql_new_select(LEX *lex, bool move_down)
 
 void create_select_for_variable(const char *var_name)
 {
+  THD *thd;
   LEX *lex;
-  LEX_STRING tmp;
+  LEX_STRING tmp, null_lex_string;
   DBUG_ENTER("create_select_for_variable");
-  lex= current_lex;
+
+  thd= current_thd;
+  lex= &thd->lex;
   mysql_init_select(lex);
   lex->sql_command= SQLCOM_SELECT;
   tmp.str= (char*) var_name;
   tmp.length=strlen(var_name);
-  add_item_to_list(lex->thd, get_system_var(OPT_SESSION, tmp));
+  bzero((char*) &null_lex_string.str, sizeof(null_lex_string));
+  add_item_to_list(thd, get_system_var(thd, OPT_SESSION, tmp,
+				       null_lex_string));
   DBUG_VOID_RETURN;
 }
 

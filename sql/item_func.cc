@@ -2694,21 +2694,61 @@ longlong Item_func_bit_xor::val_int()
   System variables
 ****************************************************************************/
 
-Item *get_system_var(enum_var_type var_type, LEX_STRING name)
+/*
+  Return value of an system variable base[.name] as a constant item
+
+  SYNOPSIS
+    get_system_var()
+    thd			Thread handler
+    var_type		global / session
+    name		Name of base or system variable
+    component		Component.
+
+  NOTES
+    If component.str = 0 then the variable name is in 'name'
+
+  RETURN
+    0	error
+    #	constant item
+*/
+  
+
+Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
+		     LEX_STRING component)
 {
-  if (!my_strcasecmp(system_charset_info, name.str, "VERSION"))
+  if (component.str == 0 &&
+      !my_strcasecmp(system_charset_info, name.str, "VERSION"))
     return new Item_string("@@VERSION", server_version,
 			   (uint) strlen(server_version),
 			   system_charset_info);
 
-  THD *thd=current_thd;
   Item *item;
   sys_var *var;
-  char buff[MAX_SYS_VAR_LENGTH+3+8], *pos;
+  char buff[MAX_SYS_VAR_LENGTH*2+4+8], *pos;
+  LEX_STRING *base_name, *component_name;
 
-  if (!(var= find_sys_var(name.str, name.length)))
+  if (component.str)
+  {
+    base_name= &component;
+    component_name= &name;
+  }
+  else
+  {
+    base_name= &name;
+    component_name= &component;			// Empty string
+  }
+
+  if (!(var= find_sys_var(base_name->str, base_name->length)))
     return 0;
-  if (!(item=var->item(thd, var_type)))
+  if (component.str)
+  {
+    if (!var->is_struct())
+    {
+      net_printf(thd, ER_VARIABLE_IS_NOT_STRUCT, base_name->str);
+      return 0;
+    }
+  }
+  if (!(item=var->item(thd, var_type, component_name)))
     return 0;					// Impossible
   thd->lex.uncacheable();
   buff[0]='@';
@@ -2718,23 +2758,37 @@ Item *get_system_var(enum_var_type var_type, LEX_STRING name)
     pos=strmov(pos,"session.");
   else if (var_type == OPT_GLOBAL)
     pos=strmov(pos,"global.");
-  memcpy(pos, var->name, var->name_length+1);
+  
+  set_if_smaller(component_name->length, MAX_SYS_VAR_LENGTH);
+  set_if_smaller(base_name->length, MAX_SYS_VAR_LENGTH);
+
+  if (component_name->str)
+  {
+    memcpy(pos, component_name->str, component_name->length);
+    pos+= component_name->length;
+    *pos++= '.';
+  }
+  memcpy(pos, base_name->str, base_name->length);
+  pos+= base_name->length;
+
   // set_name() will allocate the name
-  item->set_name(buff,(uint) (pos-buff)+var->name_length, system_charset_info);
+  item->set_name(buff,(uint) (pos-buff), system_charset_info);
   return item;
 }
 
 
-Item *get_system_var(enum_var_type var_type, const char *var_name, uint length,
-		     const char *item_name)
+Item *get_system_var(THD *thd, enum_var_type var_type, const char *var_name,
+		     uint length, const char *item_name)
 {
-  THD *thd=current_thd;
   Item *item;
   sys_var *var;
+  LEX_STRING null_lex_string;
+
+  null_lex_string.str= 0;
 
   var= find_sys_var(var_name, length);
   DBUG_ASSERT(var != 0);
-  if (!(item=var->item(thd, var_type)))
+  if (!(item=var->item(thd, var_type, &null_lex_string)))
     return 0;						// Impossible
   thd->lex.uncacheable();
   item->set_name(item_name, 0, system_charset_info);	// Will use original name

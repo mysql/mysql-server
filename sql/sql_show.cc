@@ -1527,12 +1527,14 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
   char buff[1024];
   List<Item> field_list;
   Protocol *protocol= thd->protocol;
+  LEX_STRING null_lex_str;
   DBUG_ENTER("mysqld_show");
 
   field_list.push_back(new Item_empty_string("Variable_name",30));
   field_list.push_back(new Item_empty_string("Value",256));
   if (protocol->send_fields(&field_list,1))
     DBUG_RETURN(1); /* purecov: inspected */
+  null_lex_str.str= 0;				// For sys_var->value_ptr()
 
   /* pthread_mutex_lock(&THR_LOCK_keycache); */
   pthread_mutex_lock(&LOCK_status);
@@ -1551,7 +1553,8 @@ int mysqld_show(THD *thd, const char *wild, show_var_st *variables,
       if (show_type == SHOW_SYS)
       {
 	show_type= ((sys_var*) value)->type();
-	value=     (char*) ((sys_var*) value)->value_ptr(thd, value_type);
+	value=     (char*) ((sys_var*) value)->value_ptr(thd, value_type,
+							 &null_lex_str);
       }
 
       pos= end= buff;

@@ -569,7 +569,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	IDENT TEXT_STRING REAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM LEX_HOSTNAME
 	ULONGLONG_NUM field_ident select_alias ident ident_or_text
         UNDERSCORE_CHARSET IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
-	NCHAR_STRING
+	NCHAR_STRING opt_component
 
 %type <lex_str_ptr>
 	opt_table_alias
@@ -1540,6 +1540,10 @@ opt_ident:
 	/* empty */	{ $$=(char*) 0; }	/* Defaultlength */
 	| field_ident	{ $$=$1.str; };
 
+opt_component:
+	/* empty */	 { $$.str= 0; $$.length= 0; }
+	| '.' ident	 { $$=$2; };
+	
 string_list:
 	text_string			{ Lex->interval_list.push_back($1); }
 	| string_list ',' text_string	{ Lex->interval_list.push_back($3); };
@@ -2284,9 +2288,9 @@ simple_expr:
 	    $$= new Item_func_get_user_var($2);
 	    Lex->uncacheable();
 	  }
-	| '@' '@' opt_var_ident_type ident_or_text
+	| '@' '@' opt_var_ident_type ident_or_text opt_component
 	  {
-	    if (!($$= get_system_var((enum_var_type) $3, $4)))
+	    if (!($$= get_system_var(YYTHD, (enum_var_type) $3, $4, $5)))
 	      YYABORT;
 	  }
 	| sum_expr
@@ -2456,7 +2460,7 @@ simple_expr:
           }
 	| LAST_INSERT_ID '(' ')'
 	  {
-	    $$= get_system_var(OPT_SESSION, "last_insert_id", 14,
+	    $$= get_system_var(YYTHD, OPT_SESSION, "last_insert_id", 14,
 			      "last_insert_id()");
 	    Lex->safe_to_cache_query= 0;
 	  }
@@ -4626,6 +4630,27 @@ internal_variable_name:
 	    YYABORT;
 	  $$=tmp;
 	}
+	| ident '.' ident
+	  {
+	    sys_var *tmp=find_sys_var($3.str, $3.length);
+	    if (!tmp)
+	      YYABORT;
+	    if (!tmp->is_struct())
+	      net_printf(YYTHD, ER_VARIABLE_IS_NOT_STRUCT, $3.str);
+	    tmp->base_name= $1;
+	    $$=tmp;
+	  }
+	| DEFAULT '.' ident
+	  {
+	    sys_var *tmp=find_sys_var($3.str, $3.length);
+	    if (!tmp)
+	      YYABORT;
+	    if (!tmp->is_struct())
+	      net_printf(YYTHD, ER_VARIABLE_IS_NOT_STRUCT, $3.str);
+	    tmp->base_name.str= (char*) "default";
+	    tmp->base_name.length= 7;
+	    $$=tmp;
+	  }
         ;
 
 isolation_types:
