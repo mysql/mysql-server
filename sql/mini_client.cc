@@ -414,10 +414,8 @@ my_bool mc_mysql_reconnect(MYSQL *mysql)
 			mysql->db, mysql->port, mysql->unix_socket,
 			mysql->client_flag, mysql->net.read_timeout))
   {
-#ifdef NOT_USED
-    mysql->net.last_errno=CR_RECONNECT_FAILED;
-    strmov(mysql->net.last_error, ER(mysql->net.last_errno));
-#endif
+    mysql->net.last_errno= tmp_mysql.net.last_errno;
+    strmov(mysql->net.last_error, tmp_mysql.net.last_error);
     DBUG_RETURN(1);
   }
   tmp_mysql.free_me=mysql->free_me;
@@ -888,7 +886,6 @@ mc_mysql_close(MYSQL *mysql)
     /* Clear pointers for better safety */
     mysql->host_info=mysql->user=mysql->passwd=mysql->db=0;
     bzero((char*) &mysql->options,sizeof(mysql->options));
-    mysql->net.vio = 0;
 #ifdef HAVE_OPENSSL
     mysql_ssl_clear(mysql);
 #endif /* HAVE_OPENSSL */
@@ -976,13 +973,13 @@ mc_unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
   DBUG_RETURN(result);
 }
 
-int 
-mc_mysql_send_query(MYSQL* mysql, const char* query, uint length)
+int mc_mysql_send_query(MYSQL* mysql, const char* query, uint length)
 {
   return mc_simple_command(mysql, COM_QUERY, query, length, 1);
 }
 
-int  mc_mysql_read_query_result(MYSQL *mysql)
+
+int mc_mysql_read_query_result(MYSQL *mysql)
 {
   uchar *pos;
   ulong field_count;

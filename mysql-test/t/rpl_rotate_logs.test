@@ -14,9 +14,11 @@ connect (slave,localhost,root,,test,0,slave.sock);
 system cat /dev/null > var/slave-data/master.info;
 system chmod 000 var/slave-data/master.info;
 connection slave;
-!slave start;
+--error 1201
+slave start;
 system chmod 600 var/slave-data/master.info;
-!slave start;
+--error 1201
+slave start;
 --replace_result 3306 MASTER_PORT 9306 MASTER_PORT 3334 MASTER_PORT 3336 MASTER_PORT
 !eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT,
  master_user='root'; 
