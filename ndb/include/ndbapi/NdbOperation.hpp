@@ -237,10 +237,13 @@ public:
    * use several equals (then all of them must be satisfied for the
    * tuple to be selected).
    *
-   * @note There are 10 versions of NdbOperation::equal with
+   * @note For insertTuple() it is also allowed to define the
+   *       search key by using setValue().
+   *
+   * @note There are 10 versions of equal() with
    *       slightly different parameters.
    *
-   * @note When using NdbOperation::equal with a string (char *) as
+   * @note When using equal() with a string (char *) as
    *       second argument, the string needs to be padded with 
    *       zeros in the following sense:
    *       @code
@@ -248,6 +251,8 @@ public:
    *       strncpy(buf, str, sizeof(buf));
    *       NdbOperation->equal("Attr1", buf);
    *       @endcode
+   *
+   * 
    * 
    * @param   anAttrName   Attribute name 
    * @param   aValue       Attribute value.
@@ -327,6 +332,12 @@ public:
    * If length is not provided or set to zero, 
    * then the API will assume that the pointer
    * is correct and not bother with checking it.
+   *
+   * @note For insertTuple() the NDB API will automatically detect that 
+   *       it is supposed to use equal() instead. 
+   *
+   * @note For insertTuple() it is not necessary to use
+   *       setValue() on key attributes before other attributes.
    *
    * @note There are 14 versions of NdbOperation::setValue with
    *       slightly different parameters.
@@ -720,7 +731,7 @@ public:
   void setAbortOption(Int8 ao) { m_abortOption = ao; }
   
   /**
-   * Set/get distribution/partition key
+   * Set/get partition key
    */
   void setPartitionId(Uint32 id);
   void setPartitionHash(Uint32 key);

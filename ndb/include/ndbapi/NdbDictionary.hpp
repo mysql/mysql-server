@@ -56,7 +56,7 @@ typedef struct charset_info_st CHARSET_INFO;
  * -# NdbDictionary::Column for creating table columns
  * -# NdbDictionary::Index for creating secondary indexes
  *
- * See @ref ndbapi_example4.cpp for details of usage.
+ * See @ref ndbapi_simple_index.cpp for details of usage.
  */
 class NdbDictionary {
 public:
@@ -286,14 +286,14 @@ public:
     int getSize() const;
 
     /** 
-     * Check if column is part of distribution key
+     * Check if column is part of partition key
      *
-     * A <em>distribution key</em> is a set of attributes which are used
+     * A <em>partition key</em> is a set of attributes which are used
      * to distribute the tuples onto the NDB nodes.
-     * The distribution key uses the NDB Cluster hashing function.
+     * The partition key uses the NDB Cluster hashing function.
      *
      * An example where this is useful is TPC-C where it might be
-     * good to use the warehouse id and district id as the distribution key. 
+     * good to use the warehouse id and district id as the partition key. 
      * This would place all data for a specific district and warehouse 
      * in the same database node.
      *
@@ -301,9 +301,12 @@ public:
      * will still be used with the hashing algorithm.
      *
      * @return  true then the column is part of 
-     *                 the distribution key.
+     *                 the partition key.
      */
-    bool getDistributionKey() const;
+    bool getPartitionKey() const;
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
+    inline bool getDistributionKey() const { return getPartitionKey(); };
+#endif
 
     /** @} *******************************************************************/
 
@@ -401,13 +404,17 @@ public:
     void setStripeSize(int size);
 
     /** 
-     * Set distribution key
-     * @see getDistributionKey
+     * Set partition key
+     * @see getPartitionKey
      *
      * @param  enable  If set to true, then the column will be part of 
-     *                 the distribution key.
+     *                 the partition key.
      */
-    void setDistributionKey(bool enable);
+    void setPartitionKey(bool enable);
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
+    inline void setDistributionKey(bool enable)
+    { setPartitionKey(enable); };
+#endif
 
     /** @} *******************************************************************/
 

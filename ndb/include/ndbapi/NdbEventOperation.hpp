@@ -46,7 +46,7 @@ class NdbEventOperationImpl;
  * The instance is removed by Ndb::dropEventOperation
  *
  * For more info see:
- * @ref ndbapi_example5.cpp
+ * @ref ndbapi_event.cpp
  *
  * Known limitations:
  *

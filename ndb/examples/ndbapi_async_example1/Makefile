@@ -1,6 +1,6 @@
-TARGET = ndbapi_example2
-SRCS = ndbapi_example2.cpp
-OBJS = ndbapi_example2.o
+TARGET = ndbapi_async1
+SRCS = ndbapi_async1.cpp
+OBJS = ndbapi_async1.o
 CXX = g++
 CFLAGS = -c -Wall -fno-rtti -fno-exceptions
 DEBUG = 
