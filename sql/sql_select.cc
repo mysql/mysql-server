@@ -3507,8 +3507,17 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	    /* Join with outer join condition */
 	    COND *orig_cond=sel->cond;
 	    sel->cond= and_conds(sel->cond, tab->on_expr);
+
+	    /*
+              We can't call sel->cond->fix_fields,
+              as it will break tab->on_expr if it's AND condition
+              (fix_fields currently removes extra AND/OR levels).
+              Yet attributes of the just built condition are not needed.
+              Thus we call sel->cond->quick_fix_field for safety.
+	    */
 	    if (sel->cond && !sel->cond->fixed)
-	      sel->cond->fix_fields(join->thd, 0, &sel->cond);
+	      sel->cond->quick_fix_field();
+
 	    if (sel->test_quick_select(join->thd, tab->keys,
 				       used_tables & ~ current_map,
 				       (join->select_options &

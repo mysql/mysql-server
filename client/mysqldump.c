@@ -124,7 +124,7 @@ const char *compatible_mode_names[]=
  (1<<10)   /* ANSI       */\
 )
 TYPELIB compatible_mode_typelib= {array_elements(compatible_mode_names) - 1,
-				  "", compatible_mode_names};
+				  "", compatible_mode_names, NULL};
 
 
 static struct my_option my_long_options[] =
@@ -317,7 +317,7 @@ static struct my_option my_long_options[] =
   {"comments", 'i', "Write additional information.",
    (gptr*) &opt_comments, (gptr*) &opt_comments, 0, GET_BOOL, NO_ARG,
    1, 0, 0, 0, 0, 0},
-  {"hex-blob", OPT_HEXBLOB, "Dump BLOBs in HEX. this mode does not work with extended-insert",
+  {"hex-blob", OPT_HEXBLOB, "Dump BLOBs in HEX.",
    (gptr*) &opt_hex_blob, (gptr*) &opt_hex_blob, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -1523,10 +1523,12 @@ static void dumpTable(uint numFields, char *table)
 	/*
 	   63 is my_charset_bin. If charsetnr is not 63,
 	   we have not a BLOB but a TEXT column. 
-	   we'll dump it in hex only BLOB columns.
+	   we'll dump in hex only BLOB columns.
 	*/
         is_blob= (opt_hex_blob && field->charsetnr == 63 &&
-                  (field->type == FIELD_TYPE_BLOB ||
+                  (field->type == FIELD_TYPE_STRING ||
+                   field->type == FIELD_TYPE_VAR_STRING ||
+                   field->type == FIELD_TYPE_BLOB ||
                    field->type == FIELD_TYPE_LONG_BLOB ||
                    field->type == FIELD_TYPE_MEDIUM_BLOB ||
                    field->type == FIELD_TYPE_TINY_BLOB)) ? 1 : 0;
@@ -1544,6 +1546,13 @@ static void dumpTable(uint numFields, char *table)
 	    {
 	      if (!IS_NUM_FIELD(field))
 	      {
+	        /*
+	          "length * 2 + 2" is OK for both HEX and non-HEX modes:
+	          - In HEX mode we need exactly 2 bytes per character
+	          plus 2 bytes for '0x' prefix.
+	          - In non-HEX mode we need up to 2 bytes per character,
+	          plus 2 bytes for leading and trailing '\'' characters.
+	        */
 		if (dynstr_realloc(&extended_row,length * 2+2))
 		{
 		  fputs("Aborting dump (out of memory)",stderr);
@@ -1552,15 +1561,11 @@ static void dumpTable(uint numFields, char *table)
 		}
                 if (opt_hex_blob && is_blob)
                 {
-                  ulong counter;
-                  unsigned char *ptr= row[i];
                   dynstr_append(&extended_row, "0x");
-                  for (counter = 0; counter < lengths[i]; counter++)
-                  {
-                    char xx[3];
-                    sprintf(xx, "%02X", ptr[counter]);
-                    dynstr_append(&extended_row, xx);
-                  }
+                  extended_row.length+= mysql_hex_string(extended_row.str + 
+                                                         extended_row.length,
+                                                         row[i], length);
+                  extended_row.str[extended_row.length]= '\0';
                 }
                 else
                 {
