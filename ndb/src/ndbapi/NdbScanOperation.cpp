@@ -47,6 +47,7 @@ NdbScanOperation::NdbScanOperation(Ndb* aNdb) :
   m_sent_receivers = 0;
   m_receivers = 0;
   m_array = new Uint32[1]; // skip if on delete in fix_receivers
+  theSCAN_TABREQ = 0;
 }
 
 NdbScanOperation::~NdbScanOperation()
