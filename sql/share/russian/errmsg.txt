@@ -247,3 +247,4 @@
 "Подзапрос возвращает более одной записи",
 "Unknown prepared statement handler (%ld) given to %s",
 "Help database is corrupt or does not exist",
+"Циклическая ссылка на подзапрос",

@@ -42,6 +42,20 @@ Item::Item()
   decimals=0; max_length=0;
   next=current_thd->free_list;			// Put in free list
   current_thd->free_list=this;
+  loop_id= 0;
+}
+
+bool Item::check_loop(uint id)
+{
+  DBUG_ENTER("Item::check_loop");
+  DBUG_PRINT("info", ("id %u, name %s", id, name));
+  if (loop_id == id)
+  {
+    DBUG_PRINT("info", ("id match"));
+    DBUG_RETURN(1);
+  }
+  loop_id= id;
+  DBUG_RETURN(0);
 }
 
 void Item::set_name(const char *str,uint length)
@@ -862,6 +876,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
       {
 	depended_from= last;
 	thd->lex.current_select->mark_as_dependent(last);
+	thd->add_possible_loop(this);
       }
     }
     else if (!ref)
@@ -871,6 +886,14 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
     decimals=	(*ref)->decimals;
   }
   return 0;
+}
+
+bool Item_ref::check_loop(uint id)
+{
+  DBUG_ENTER("Item_ref::check_loop");
+  if (Item_ident::check_loop(id))
+    DBUG_RETURN(1);
+  DBUG_RETURN((*ref)->check_loop(id));
 }
 
 /*

@@ -1984,7 +1984,12 @@ CHARSET_INFO my_charset_utf8 =
     my_hash_caseup_utf8,/* hash_caseup */
     my_hash_sort_utf8,	/* hash_sort   */
     0,
-    my_snprintf_8bit
+    my_snprintf_8bit,
+    my_strtol_8bit,
+    my_strtoul_8bit,
+    my_strtoll_8bit,
+    my_strtoull_8bit,
+    my_strtod_8bit
 };
 
 
@@ -2433,6 +2438,36 @@ static int my_snprintf_ucs2(CHARSET_INFO *cs __attribute__((unused))
 }
 
 
+static long my_strtol_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, char **e, int base)
+{
+  return strtol(s,e,base);
+}
+
+static ulong my_strtoul_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, char **e, int base)
+{
+  return strtoul(s,e,base);
+}
+
+static longlong my_strtoll_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, char **e, int base)
+{
+  return strtoll(s,e,base);
+}
+
+static ulonglong my_strtoull_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, char **e, int base)
+{
+  return strtoul(s,e,base);
+}
+
+double my_strtod_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+			   const char *s, char **e)
+{
+  return strtod(s,e);
+}
+
 
 CHARSET_INFO my_charset_ucs2 =
 {
@@ -2466,7 +2501,12 @@ CHARSET_INFO my_charset_ucs2 =
     my_hash_caseup_ucs2,/* hash_caseup */
     my_hash_sort_ucs2,	/* hash_sort   */
     0,
-    my_snprintf_ucs2
+    my_snprintf_ucs2,
+    my_strtol_ucs2,
+    my_strtoul_ucs2,
+    my_strtoll_ucs2,
+    my_strtoull_ucs2,
+    my_strtod_ucs2
 };
 
 

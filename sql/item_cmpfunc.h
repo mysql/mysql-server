@@ -186,6 +186,7 @@ public:
   ~Item_func_interval() { delete item; }
   const char *func_name() const { return "interval"; }
   void update_used_tables();
+  bool check_loop(uint id);
 };
 
 
@@ -262,6 +263,7 @@ public:
   void print(String *str);
   bool fix_fields(THD *thd, struct st_table_list *tlist, Item **ref);
   Item *find_item(String *str);
+  bool check_loop(uint id);
 };
 
 
@@ -424,6 +426,13 @@ class Item_func_in :public Item_int_func
   enum Functype functype() const { return IN_FUNC; }
   const char *func_name() const { return " IN "; }
   void update_used_tables();
+  bool check_loop(uint id)
+  {
+    DBUG_ENTER("Item_func_in::check_loop");
+    if (Item_func::check_loop(id))
+      DBUG_RETURN(1);
+    DBUG_RETURN(item->check_loop(id));
+  }
 };
 
 
@@ -563,6 +572,7 @@ public:
   void print(String *str);
   void split_sum_func(List<Item> &fields);
   friend int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);
+  bool check_loop(uint id);
 };
 
 
