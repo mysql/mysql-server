@@ -434,9 +434,21 @@ trx_lists_init_at_db_start(void)
 				commit or abort decision from MySQL */
 
 				if (undo->state == TRX_UNDO_PREPARED) {
-					trx->conc_state = TRX_PREPARED;
+
+					fprintf(stderr,
+"InnoDB: Transaction %lu %lu was in the XA prepared state. We change it to\n"
+"InnoDB: the 'active' state, so that InnoDB's true-and-tested crash\n"
+"InnoDB: recovery will roll it back. If mysqld refuses to start after\n"
+"InnoDB: this, you may be able to resolve the problem by moving the binlog\n"
+"InnoDB: files to a safe place, and deleting all binlog files and the binlog\n"
+"InnoDB: .index file from the datadir.\n", ut_dulint_get_high(trx->id),
+					   ut_dulint_get_low(trx->id));
+
+					/* trx->conc_state = TRX_PREPARED; */
+					trx->conc_state =
+						TRX_ACTIVE;
 				} else {
-					trx->conc_state = 
+					trx->conc_state =
 						TRX_COMMITTED_IN_MEMORY;
 				}
 
@@ -490,11 +502,23 @@ trx_lists_init_at_db_start(void)
 					commit or abort decision from MySQL */
 
 					if (undo->state == TRX_UNDO_PREPARED) {
-						trx->conc_state =
-							TRX_PREPARED;
+
+					fprintf(stderr,
+"InnoDB: Transaction %lu %lu was in the XA prepared state. We change it to\n"
+"InnoDB: the 'active' state, so that InnoDB's true-and-tested crash\n"
+"InnoDB: recovery will roll it back. If mysqld refuses to start after\n"
+"InnoDB: this, you may be able to resolve the problem by moving the binlog\n"
+"InnoDB: files to a safe place, and deleting all binlog files and the binlog\n"
+"InnoDB: .index file from the datadir.\n", ut_dulint_get_high(trx->id),
+					   ut_dulint_get_low(trx->id));
+
+					/* trx->conc_state = TRX_PREPARED; */
+					trx->conc_state =
+						TRX_ACTIVE;
+
 					} else {
 						trx->conc_state =
-							TRX_COMMITTED_IN_MEMORY;
+						  TRX_COMMITTED_IN_MEMORY;
 					}
 
 					/* We give a dummy value for the trx
@@ -1848,13 +1872,14 @@ trx_recover_for_mysql(
 	ulint	len)		/* in: number of slots in xid_list */
 {
 	trx_t*	trx;
-	int	num_of_transactions = 0;
+	int	count = 0;
 
 	ut_ad(xid_list);
 	ut_ad(len);
 
+	ut_print_timestamp(stderr);
 	fprintf(stderr,
-		"InnoDB: Starting recovery for XA transactions...\n");
+		"  InnoDB: Starting recovery for XA transactions...\n");
 
 
 	/* We should set those transactions which are in
@@ -1866,20 +1891,29 @@ trx_recover_for_mysql(
 
 	while (trx) {
 		if (trx->conc_state == TRX_PREPARED) {
-			xid_list[num_of_transactions] = trx->xid;
+			xid_list[count].formatID = trx->xid.formatID;
+			xid_list[count].gtrid_length = trx->xid.gtrid_length;
+			xid_list[count].bqual_length = trx->xid.bqual_length;
 
+			memcpy(xid_list[count].data,
+					trx->xid.data,
+					trx->xid.gtrid_length + 
+					trx->xid.bqual_length);
+
+			ut_print_timestamp(stderr);
 			fprintf(stderr,
-"InnoDB: Transaction %lu %lu in prepared state after recovery\n",
+"  InnoDB: Transaction %lu %lu in prepared state after recovery\n",
 				(ulong) ut_dulint_get_high(trx->id),
 				(ulong) ut_dulint_get_low(trx->id));
 
+			ut_print_timestamp(stderr);
 			fprintf(stderr,
-"InnoDB: Transaction contains changes to %lu rows\n",
+"  InnoDB: Transaction contains changes to %lu rows\n",
 			(ulong)ut_conv_dulint_to_longlong(trx->undo_no));
 
-			num_of_transactions++;
+			count++;
 		
-			if ((uint)num_of_transactions == len ) {
+			if ((uint)count == len ) {
 				break;
 			}
 		}
@@ -1889,11 +1923,12 @@ trx_recover_for_mysql(
 
 	mutex_exit(&kernel_mutex);
 
+	ut_print_timestamp(stderr);
 	fprintf(stderr,
-		"InnoDB: %d transactions in prepare state after recovery\n",
-		num_of_transactions);
+"  InnoDB: %d transactions in prepare state after recovery\n",
+		count);
 
-	return (num_of_transactions);			
+	return (count);			
 }
 
 /***********************************************************************

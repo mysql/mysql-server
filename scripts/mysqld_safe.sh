@@ -128,15 +128,28 @@ then
 else
   MY_BASEDIR_VERSION=@prefix@
   DATADIR=@localstatedir@
-  if test -z "$MYSQL_HOME"
-  then 
-    MYSQL_HOME=$DATADIR                 # Installation in a not common path
-  fi
   ledir=@libexecdir@
 fi
+
 if test -z "$MYSQL_HOME"
 then 
-  MYSQL_HOME=$MY_BASEDIR_VERSION
+  if test -r "$MY_BASEDIR_VERSION/my.cnf" && test -r "$DATADIR/my.cnf"
+  then
+    echo "WARNING: Found two instances of my.cnf -"
+    echo "$MY_BASEDIR_VERSION/my.cnf and"
+    echo "$DATADIR/my.cnf"
+    echo "IGNORING $DATADIR/my.cnf"
+    echo
+    MYSQL_HOME=$MY_BASEDIR_VERSION
+  elif test -r "$DATADIR/my.cnf"
+  then
+    echo "WARNING: Found $DATADIR/my.cnf"
+    echo "Datadir is deprecated place for my.cnf, please move it to $MY_BASEDIR_VERSION"
+    echo
+    MYSQL_HOME=$DATADIR
+  else
+    MYSQL_HOME=$MY_BASEDIR_VERSION
+  fi
 fi
 export MYSQL_HOME
 

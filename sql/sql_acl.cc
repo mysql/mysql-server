@@ -204,20 +204,17 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     if (lower_case_table_names)
     {
       /*
-       We make a temporary copy of the database, force it to lower case,
-       and then copy it back over the original name. We can't just update
-       the host.db pointer, because tmp_name is allocated on the stack.
+        convert db to lower case and give a warning if the db wasn't
+        already in lower case
       */
-      (void)strmov(tmp_name, host.db);
-      my_casedn_str(files_charset_info, tmp_name);
+      (void) strmov(tmp_name, host.db);
+      my_casedn_str(files_charset_info, host.db);
       if (strcmp(host.db, tmp_name) != 0)
-      {
         sql_print_warning("'host' entry '%s|%s' had database in mixed "
                           "case that has been forced to lowercase because "
-                          "lower_case_table_names is set.",
+                          "lower_case_table_names is set. It will not be "
+                          "possible to remove this privilege using REVOKE.",
                           host.host.hostname, host.db);
-        (void)strmov(host.db, tmp_name);
-      }
     }
     host.access= get_access(table,2);
     host.access= fix_rights_for_db(host.access);
@@ -432,19 +429,18 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
     if (lower_case_table_names)
     {
       /*
-       We make a temporary copy of the database, force it to lower case,
-       and then copy it back over the original name. We can't just update
-       the db.db pointer, because tmp_name is allocated on the stack.
+        convert db to lower case and give a warning if the db wasn't
+        already in lower case
       */
       (void)strmov(tmp_name, db.db);
-      my_casedn_str(files_charset_info, tmp_name);
+      my_casedn_str(files_charset_info, db.db);
       if (strcmp(db.db, tmp_name) != 0)
       {
         sql_print_warning("'db' entry '%s %s@%s' had database in mixed "
                           "case that has been forced to lowercase because "
-                          "lower_case_table_names is set.",
+                          "lower_case_table_names is set. It will not be "
+                          "possible to remove this privilege using REVOKE.",
 		          db.db, db.user, db.host.hostname, db.host.hostname);
-        (void)strmov(db.db, tmp_name);
       }
     }
     db.sort=get_sort(3,db.host.hostname,db.db,db.user);

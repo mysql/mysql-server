@@ -1778,6 +1778,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   LEX *lex= thd->lex;
   TABLE *table= tables->table;
   SELECT_LEX *select_lex= &lex->select_lex;
+  SELECT_LEX *old_all_select_lex= lex->all_selects_list;
   SELECT_LEX *lsel= tables->schema_select_lex;
   ST_SCHEMA_TABLE *schema_table= tables->schema_table;
   SELECT_LEX sel;
@@ -1790,6 +1791,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   List<char> bases;
   List_iterator_fast<char> it(bases);
   COND *partial_cond; 
+  uint derived_tables= lex->derived_tables; 
   int error= 1;
   DBUG_ENTER("get_all_tables");
 
@@ -1814,7 +1816,6 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
     goto err;
   }
 
-  lex->all_selects_list= &sel;
   schema_table_idx= get_schema_table_idx(schema_table);
   lock_type= TL_UNLOCK;
 
@@ -1911,6 +1912,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
               goto err;
             TABLE_LIST *show_table_list= (TABLE_LIST*) sel.table_list.first;
             show_table_list->lock_type= lock_type;
+            lex->all_selects_list= &sel;
+            lex->derived_tables= 0;
             res= open_and_lock_tables(thd, show_table_list);
             if (schema_table->process_table(thd, show_table_list, table,
                                             res, base_name,
@@ -1930,7 +1933,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
 
   error= 0;
 err:
-  lex->all_selects_list= select_lex;
+  lex->derived_tables= derived_tables;
+  lex->all_selects_list= old_all_select_lex;
   DBUG_RETURN(error);
 }
 
@@ -3013,6 +3017,7 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
   tmp_table_param->init();
   tmp_table_param->table_charset= cs;
   tmp_table_param->field_count= field_count;
+  tmp_table_param->schema_table= 1;
   SELECT_LEX *select_lex= thd->lex->current_select;
   if (!(table= create_tmp_table(thd, tmp_table_param,
                                 field_list, (ORDER*) 0, 0, 0, 
