@@ -19197,7 +19197,7 @@ memory.  This command will not remove any queries from the cache, unlike
 
 @item @code{[TABLE | TABLES] tbl_name [,tbl_name...]} @tab Flushes only the given tables.
 
-@item @code{TABLES WITH READ LOCK} @tab Closes all open tables and locks all tables for all databases with a read until one executes @code{UNLOCK TABLES}. This is very convenient way to get backups if you have a filesystem, like Veritas,that can take snapshots in time.
+@item @code{TABLES WITH READ LOCK} @tab Closes all open tables and locks all tables for all databases with a read lock until you execute @code{UNLOCK TABLES}. This is very convenient way to get backups if you have a filesystem, like Veritas, that can take snapshots in time.
 
 @item @code{STATUS} @tab Resets most status variables to zero. This is something one should only use when debugging a query.
 
