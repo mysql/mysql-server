@@ -2368,7 +2368,7 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile \
  os2/Makefile os2/include/Makefile os2/include/sys/Makefile \
  man/Makefile BUILD/Makefile readline/Makefile vio/Makefile \
  libmysql_r/Makefile libmysqld/Makefile libmysqld/examples/Makefile \
- libmysql/Makefile client/Makefile os2/Makefile \
+ libmysql/Makefile client/Makefile \
  pstack/Makefile pstack/aout/Makefile sql/Makefile sql/share/Makefile \
  merge/Makefile dbug/Makefile scripts/Makefile \
  include/Makefile sql-bench/Makefile tools/Makefile \
