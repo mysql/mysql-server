@@ -3772,7 +3772,7 @@ CHARSET_INFO compiled_charsets[] = {
     my_strnncoll_utf8,	/* strnncoll    */
     my_strnxfrm_utf8,	/* strnxfrm     */
     NULL,		/* like_range   */
-    6,			/* mbmaxlen     */
+    3,			/* mbmaxlen     */
     my_ismbchar_utf8,	/* ismbchar     */
     my_ismbhead_utf8,	/* ismbhead     */
     my_mbcharlen_utf8,	/* mbcharlen    */

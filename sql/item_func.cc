@@ -1895,7 +1895,8 @@ Item_func_set_user_var::fix_length_and_dec()
 }
 
 void Item_func_set_user_var::update_hash(void *ptr, uint length,
-					 Item_result type)
+					 Item_result type,
+					 CHARSET_INFO *cs)
 {
   if ((null_value=args[0]->null_value))
   {
@@ -1904,6 +1905,7 @@ void Item_func_set_user_var::update_hash(void *ptr, uint length,
       my_free(entry->value,MYF(0));
     entry->value=0;
     entry->length=0;
+    entry->var_charset=cs;
   }
   else
   {
@@ -1934,6 +1936,7 @@ void Item_func_set_user_var::update_hash(void *ptr, uint length,
     memcpy(entry->value,ptr,length);
     entry->length= length;
     entry->type=type;
+    entry->var_charset=cs;
   }
   return;
 
@@ -1968,7 +1971,7 @@ double
 Item_func_set_user_var::val()
 {
   double value=args[0]->val();
-  update_hash((void*) &value,sizeof(value), REAL_RESULT);
+  update_hash((void*) &value,sizeof(value), REAL_RESULT, default_charset_info);
   return value;
 }
 
@@ -1976,7 +1979,7 @@ longlong
 Item_func_set_user_var::val_int()
 {
   longlong value=args[0]->val_int();
-  update_hash((void*) &value,sizeof(longlong),INT_RESULT);
+  update_hash((void*) &value,sizeof(longlong),INT_RESULT, default_charset_info);
   return value;
 }
 
@@ -1985,9 +1988,9 @@ Item_func_set_user_var::val_str(String *str)
 {
   String *res=args[0]->val_str(str);
   if (!res)					// Null value
-    update_hash((void*) 0,0,STRING_RESULT);
+    update_hash((void*) 0,0,STRING_RESULT, default_charset_info);
   else
-    update_hash(res->c_ptr(),res->length()+1,STRING_RESULT);
+    update_hash(res->c_ptr(),res->length()+1,STRING_RESULT,res->charset());
   return res;
 }
 
@@ -2033,6 +2036,7 @@ Item_func_get_user_var::val_str(String *str)
       null_value=1;
       return NULL;
     }
+    str->set_charset(entry->var_charset);
     break;
   }
   return str;

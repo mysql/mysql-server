@@ -330,7 +330,8 @@ static void bprint_record(char * record,
   i=(unsigned char)record[0];
   printf("%02X ",i);
   
-  for( pos=record+1, i=0; i<32; i++,pos++){
+  for( pos=record+1, i=0; i<32; i++,pos++)
+  {
     int b=(unsigned char)*pos;
     printf("%02X",b);
   }
