@@ -47,13 +47,6 @@
   can't normally do this the client should have a bigger max_allowed_packet.
 */
 
-#ifdef MYSQL_SERVER
-#define USE_QUERY_CACHE
-extern uint test_flags;
-extern void query_cache_insert(NET *net, const char *packet, ulong length);
-#else
-#endif
-
 #if defined(__WIN__) || !defined(MYSQL_SERVER)
   /* The following is because alarms doesn't work on windows. */
 #define NO_ALARM
@@ -62,15 +55,22 @@ extern void query_cache_insert(NET *net, const char *packet, ulong length);
 #ifndef NO_ALARM
 #include "my_pthread.h"
 void sql_print_error(const char *format,...);
+#else
+#define DONT_USE_THR_ALARM
+#endif /* NO_ALARM */
+
+#include "thr_alarm.h"
+
+#ifdef MYSQL_SERVER
+#define USE_QUERY_CACHE
+extern uint test_flags;
+extern void query_cache_insert(NET *net, const char *packet, ulong length);
 extern ulong bytes_sent, bytes_received;
 extern pthread_mutex_t LOCK_bytes_sent , LOCK_bytes_received;
 #else
 #undef statistic_add
 #define statistic_add(A,B,C)
-#define DONT_USE_THR_ALARM
-#endif /* NO_ALARM */
-
-#include "thr_alarm.h"
+#endif
 
 #define TEST_BLOCKING		8
 #define MAX_PACKET_LENGTH (256L*256L*256L-1)

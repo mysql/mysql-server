@@ -106,7 +106,7 @@ buf_flush_ready_for_replace(
 				BUF_BLOCK_FILE_PAGE and in the LRU list*/
 {
 	ut_ad(mutex_own(&(buf_pool->mutex)));
-	ut_ad(block->state == BUF_BLOCK_FILE_PAGE);
+	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
 	if ((ut_dulint_cmp(block->oldest_modification, ut_dulint_zero) > 0)
 	    || (block->buf_fix_count != 0)
@@ -227,7 +227,9 @@ buf_flush_buffered_writes(void)
 	}
 
 	for (i = 0; i < trx_doublewrite->first_free; i++) {
+
 		block = trx_doublewrite->buf_block_arr[i];
+	        ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
 		if (block->check_index_page_at_flush
 				&& !page_simple_validate(block->frame)) {
@@ -236,10 +238,12 @@ buf_flush_buffered_writes(void)
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-	"  InnoDB: Apparent corruption of an index page\n"
+	"  InnoDB: Apparent corruption of an index page n:o %lu in space %lu\n"
 	"InnoDB: to be written to data file. We intentionally crash server\n"
 	"InnoDB: to prevent corrupt data from ending up in data\n"
-	"InnoDB: files.\n");
+	"InnoDB: files.\n",
+			block->offset, block->space);
+
 			ut_a(0);
 		}
 	}
@@ -431,6 +435,8 @@ buf_flush_try_page(
 	mutex_enter(&(buf_pool->mutex));
 
 	block = buf_page_hash_get(space, offset);
+
+	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
 	if (flush_type == BUF_FLUSH_LIST
 	    && block && buf_flush_ready_for_flush(block, flush_type)) {

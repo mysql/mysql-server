@@ -1173,6 +1173,7 @@ dict_create_add_foreigns_to_dictionary(
 	if (NULL == dict_table_get_low((char *) "SYS_FOREIGN")) {
 		fprintf(stderr,
      "InnoDB: table SYS_FOREIGN not found from internal data dictionary\n");
+
 		return(DB_ERROR);
 	}
 
@@ -1258,6 +1259,13 @@ loop:
 	"InnoDB: See section 15.1 Troubleshooting data dictionary operations\n"
 	"InnoDB: at http://www.innodb.com/ibman.html\n");
 		}
+
+		mutex_enter(&dict_foreign_err_mutex);
+		ut_sprintf_timestamp(buf);
+		sprintf(buf + strlen(buf),
+" Internal error in foreign key constraint creation for table %.500s.\n"
+"See the MySQL .err log in the datadir for more information.\n", table->name);
+		mutex_exit(&dict_foreign_err_mutex);
 
 		return(error);
 	}

@@ -1869,11 +1869,11 @@ retry:
 	/* Go to wait for the event; when a thread leaves InnoDB it will
 	release this thread */
 
-	trx->op_info = "waiting in InnoDB queue";
+	trx->op_info = (char*)"waiting in InnoDB queue";
 
 	os_event_wait(slot->event);
 
-	trx->op_info = "";
+	trx->op_info = (char*)"";
 
 	os_fast_mutex_lock(&srv_conc_mutex);
 
@@ -2346,12 +2346,22 @@ srv_sprintf_innodb_monitor(
 	buf = buf + strlen(buf);
 	ut_a(buf < buf_end + 1500);
 
-	buf += sprintf(buf, "------------\n"
-		       "TRANSACTIONS\n"
-		       "------------\n");
+	if (*dict_foreign_err_buf != '\0') {
+		buf += sprintf(buf,
+			"------------------------\n"
+		       	"LATEST FOREIGN KEY ERROR\n"
+		       	"------------------------\n");
+
+		if (buf_end - buf > 6000) {
+			buf+= sprintf(buf, "%.4000s", dict_foreign_err_buf);
+		}
+	}	
+
+	ut_a(buf < buf_end + 1500);
+
 	lock_print_info(buf, buf_end);
 	buf = buf + strlen(buf);
-
+	
 	buf += sprintf(buf, "--------\n"
 		       "FILE I/O\n"
 		       "--------\n");
