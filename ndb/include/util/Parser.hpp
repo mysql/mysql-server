@@ -23,7 +23,7 @@
 #include "NdbOut.hpp"
 
 class ParserImpl;
-template<class T> class ParserRow;
+template<class T> struct ParserRow;
 
 //#define PARSER_DEBUG
 #ifdef PARSER_DEBUG
@@ -130,11 +130,11 @@ public:
  * The void* equivalent implementation
  */
 class ParserImpl {
+public:
   class Dummy {};
   typedef ParserRow<Dummy> DummyRow;
   typedef Parser<Dummy>::Context Context;
-  template<class T> friend class Parser;
-private:
+
   
   ParserImpl(const DummyRow rows[], class InputStream & in,
 	     bool b_cmd, bool b_empty, bool b_iarg);

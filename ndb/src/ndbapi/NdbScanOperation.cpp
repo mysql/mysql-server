@@ -116,7 +116,7 @@ NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
 			     Uint32 batch, 
 			     Uint32 parallel)
 {
-  m_ordered = 0;
+  m_ordered = m_descending = false;
   Uint32 fragCount = m_currentTable->m_fragmentCount;
 
   if (parallel > fragCount || parallel == 0) {
@@ -1191,9 +1191,10 @@ NdbIndexScanOperation::readTuples(LockMode lm,
 				  Uint32 batch,
 				  Uint32 parallel,
 				  bool order_by,
+                                  bool order_desc,
 				  bool read_range_no){
   int res = NdbScanOperation::readTuples(lm, batch, 0);
-  if(read_range_no)
+  if(!res && read_range_no)
   {
     m_read_range_no = 1;
     Uint32 word = 0;
@@ -1202,7 +1203,12 @@ NdbIndexScanOperation::readTuples(LockMode lm,
       res = -1;
   }
   if(!res && order_by){
-    m_ordered = 1;
+    m_ordered = true;
+    if (order_desc) {
+      m_descending = true;
+      ScanTabReq * req = CAST_PTR(ScanTabReq, theSCAN_TABREQ->getDataPtrSend());
+      ScanTabReq::setDescendingFlag(req->requestInfo, true);
+    }
     Uint32 cnt = m_accessTable->getNoOfColumns() - 1;
     m_sort_columns = cnt; // -1 for NDB$NODE
     m_current_api_receiver = m_sent_receivers_count;
@@ -1266,12 +1272,14 @@ NdbIndexScanOperation::compare(Uint32 skip, Uint32 cols,
 
   r1 = (skip ? r1->next() : r1);
   r2 = (skip ? r2->next() : r2);
+  const int jdir = 1 - 2 * (int)m_descending;
+  assert(jdir == 1 || jdir == -1);
   while(cols > 0){
     Uint32 * d1 = (Uint32*)r1->aRef();
     Uint32 * d2 = (Uint32*)r2->aRef();
     unsigned r1_null = r1->isNULL();
     if((r1_null ^ (unsigned)r2->isNULL())){
-      return (r1_null ? -1 : 1);
+      return (r1_null ? -1 : 1) * jdir;
     }
     const NdbColumnImpl & col = NdbColumnImpl::getImpl(* r1->m_column);
     Uint32 len = r1->theAttrSize * r1->theArraySize;
@@ -1280,7 +1288,7 @@ NdbIndexScanOperation::compare(Uint32 skip, Uint32 cols,
       int r = (*sqlType.m_cmp)(col.m_cs, d1, len, d2, len, true);
       if(r){
 	assert(r != NdbSqlUtil::CmpUnknown);
-	return r;
+	return r * jdir;
       }
     }
     cols--;

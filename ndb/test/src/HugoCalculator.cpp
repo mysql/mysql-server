@@ -40,7 +40,8 @@ HugoCalculator::HugoCalculator(const NdbDictionary::Table& tab) : m_tab(tab) {
   // The "number of updates" column for this table is found in the last column
   for (i=m_tab.getNoOfColumns()-1; i>=0; i--){
     const NdbDictionary::Column* attr = m_tab.getColumn(i);
-    if (attr->getType() == NdbDictionary::Column::Unsigned){
+    if (attr->getType() == NdbDictionary::Column::Unsigned && 
+	!attr->getPrimaryKey()){
       m_updatesCol = i;
       break;
     }

@@ -15,9 +15,26 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 INCLUDES =		@MT_INCLUDES@ -I$(top_srcdir)/include \
-			@ndbcluster_includes@ -I$(top_srcdir)/sql
+			@ndbcluster_includes@ -I$(top_srcdir)/sql \
+			-I$(top_srcdir)/extra
 LDADD =			@CLIENT_EXTRA_LDFLAGS@ ../mysys/libmysys.a \
 			../dbug/libdbug.a ../strings/libmystrings.a
+BUILT_SOURCES=		mysqld_error.h sql_state.h
+pkginclude_HEADERS=	$(BUILT_SOURCES)
+created_sources = 	created_include_files
+CLEANFILES =		$(created_sources)
+SUPERCLEANFILES =	$(BUILT_SOURCES)
+
+all: $(created_sources)
+
+# This will build mysqld_error.h and sql_state.h
+mysqld_error.h: created_include_files
+sql_state.h:	created_include_files
+
+created_include_files: comp_err
+	$(top_builddir)/extra/comp_err --charset=$(srcdir)/../sql/share/charsets --out-dir=$(top_builddir)/sql/share/ --header_file=$(top_builddir)/extra/mysqld_error.h --state_file=$(top_builddir)/extra/sql_state.h --in_file=$(srcdir)/../sql/share/errmsg.txt
+	touch created_include_files
+
 bin_PROGRAMS =		replace comp_err perror resolveip my_print_defaults \
 			resolve_stack_dump mysql_waitpid
 noinst_PROGRAMS =	charset2html

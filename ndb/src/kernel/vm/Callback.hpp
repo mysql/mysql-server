@@ -20,12 +20,5 @@
 /**
  * Block callbacks
  */
-typedef void (SimulatedBlock::* CallbackFunction)(class Signal*, 
-						  Uint32 callbackData,
-						  Uint32 returnCode);
-struct Callback {
-  CallbackFunction m_callbackFunction;
-  Uint32 m_callbackData;
-};
 
 #endif

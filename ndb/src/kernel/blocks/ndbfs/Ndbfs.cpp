@@ -730,7 +730,7 @@ Ndbfs::scanIPC(Signal* signal)
       jam();
       report(request, signal);
       theRequestPool->put(request);
-      return &request;
+      return true;
    }
    return false;
 }

@@ -96,7 +96,7 @@ public:
   virtual int  store(const char *to,uint length,CHARSET_INFO *cs)=0;
   virtual int  store(double nr)=0;
   virtual int  store(longlong nr)=0;
-  virtual void store_time(TIME *ltime,timestamp_type t_type);
+  virtual int store_time(TIME *ltime, timestamp_type t_type);
   virtual double val_real(void)=0;
   virtual longlong val_int(void)=0;
   inline String *val_str(String *str) { return val_str(str, str); }
@@ -782,7 +782,7 @@ public:
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr);
-  void store_time(TIME *ltime,timestamp_type type);
+  int store_time(TIME *ltime, timestamp_type type);
   void reset(void) { ptr[0]=ptr[1]=ptr[2]=0; }
   double val_real(void);
   longlong val_int(void);
@@ -815,6 +815,7 @@ public:
   enum_field_types type() const { return FIELD_TYPE_TIME;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_INT24; }
   enum Item_result cmp_type () const { return INT_RESULT; }
+  int store_time(TIME *ltime, timestamp_type type);
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr);
@@ -855,7 +856,7 @@ public:
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr);
-  void store_time(TIME *ltime,timestamp_type type);
+  int store_time(TIME *ltime, timestamp_type type);
   void reset(void) { ptr[0]=ptr[1]=ptr[2]=ptr[3]=ptr[4]=ptr[5]=ptr[6]=ptr[7]=0; }
   double val_real(void);
   longlong val_int(void);

@@ -661,6 +661,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define UINT_MAX16      0xFFFF
 #define INT_MIN8        (~0x7F)
 #define INT_MAX8        0x7F
+#define UINT_MAX8       0xFF
 
 /* From limits.h instead */
 #ifndef DBL_MIN
