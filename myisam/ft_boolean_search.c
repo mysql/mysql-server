@@ -239,10 +239,12 @@ void _ftb_climb_the_tree(FTB_WORD *ftbw, my_off_t curdoc)
       ftbe->cur_weight=ftbe->yesses=ftbe->nos=0;
       ftbe->docid=curdoc;
     }
+    if (ftbe->nos)
+      break;
     if (yn>0)
     {
       ftbe->cur_weight+=weight;
-      if (++ftbe->yesses >= ftbe->ythresh && !ftbe->nos)
+      if (++ftbe->yesses == ftbe->ythresh)
       {
         yn=ftbe->yesno;
         weight=ftbe->cur_weight*ftbe->weight;
@@ -265,15 +267,10 @@ void _ftb_climb_the_tree(FTB_WORD *ftbw, my_off_t curdoc)
  /* if (yn==0) */
     {
       ftbe->cur_weight+=weight;
-      if (ftbe->yesses >= ftbe->ythresh && !ftbe->nos)
-      {
-        yn=ftbe->yesno;
-        weight*=ftbe->weight;
-      }
-      else
-      {
+      if (ftbe->yesses < ftbe->ythresh)
         break;
-      }
+      yn= (ftbe->yesses++ == ftbe->ythresh) * ftbe->yesno;
+      weight*=ftbe->weight;
     }
   }
 }

@@ -23,16 +23,17 @@ static void get_options(int argc,char *argv[]);
 static void usage(char *argv[]);
 static void complain(int val);
 
-static int count=0, stats=0, dump=0, verbose=0;
+static int count=0, stats=0, dump=0, verbose=0, lstats=0;
 static char *query=NULL;
+static uint lengths[256];
 
 #define MAX (HA_FT_MAXLEN+10)
-#define HOW_OFTEN_TO_WRITE 1000
+#define HOW_OFTEN_TO_WRITE 10000
 
 int main(int argc,char *argv[])
 {
   int error=0;
-  uint keylen, inx, doc_cnt=0;
+  uint keylen, keylen2, inx, doc_cnt=0;
   float weight;
   double gws, min_gws=0, avg_gws=0;
   MI_INFO *info;
@@ -44,7 +45,7 @@ int main(int argc,char *argv[])
   get_options(argc,argv);
   if (count || dump)
     verbose=0;
-  else
+  if (!count && !dump && !lstats && !query)
     stats=1;
 
   if (verbose)
@@ -65,7 +66,7 @@ int main(int argc,char *argv[])
     printf("Key %d in table %s is not a FULLTEXT key\n", inx, info->filename);
     goto err;
   }
-
+  
   if (query)
   {
 #if 0
@@ -107,6 +108,7 @@ int main(int argc,char *argv[])
       snprintf(buf,MAX,"%.*s",(int) keylen,info->lastkey+1);
       casedn_str(buf);
       total++;
+      lengths[keylen]++;
 
       if (count || stats)
       {
@@ -119,9 +121,9 @@ int main(int argc,char *argv[])
             avg_gws+=gws=GWS_IN_USE;
             if (count)
               printf("%9u %20.7f %s\n",doc_cnt,gws,buf2);
-            if (maxlen<keylen)
+            if (maxlen<keylen2)
             {
-              maxlen=keylen;
+              maxlen=keylen2;
               strcpy(buf_maxlen, buf2);
             }
             if (max_doc_cnt < doc_cnt)
@@ -132,6 +134,7 @@ int main(int argc,char *argv[])
             }
           }
           strcpy(buf2, buf);
+          keylen2=keylen;
           doc_cnt=0;
         }
       }
@@ -143,12 +146,33 @@ int main(int argc,char *argv[])
     }
 
     if (stats)
+    {
+      count=0;
+      for (inx=0;inx<256;inx++)
+      {
+        count+=lengths[inx];
+        if (count >= total/2)
+          break;
+      }
       printf("Total rows: %qu\nTotal words: %lu\n"
              "Unique words: %lu\nLongest word: %lu chars (%s)\n"
+             "Median length: %u\n"
              "Average global weight: %f\n"
              "Most common word: %lu times, weight: %f (%s)\n",
              (ulonglong)info->state->records, total, uniq, maxlen, buf_maxlen,
-             avg_gws/uniq, max_doc_cnt, min_gws, buf_min_gws);
+             inx, avg_gws/uniq, max_doc_cnt, min_gws, buf_min_gws);
+    }
+    if (lstats)
+    {
+      count=0;
+      for (inx=0; inx<256; inx++)
+      {
+        count+=lengths[inx];
+        if (count && lengths[inx])
+          printf("%3u: %10lu %5.2f%% %20lu %4.1f%%\n", inx,
+              lengths[inx],100.0*lengths[inx]/total,count, 100.0*count/total);
+      }
+    }
   }
 
 err:
@@ -159,7 +183,7 @@ err:
   return 0;
 }
 
-const char *options="dscvh";
+const char *options="dslcvh";
 
 static void get_options(int argc, char *argv[])
 {
@@ -172,6 +196,7 @@ static void get_options(int argc, char *argv[])
     case 's': stats=1; complain(query!=0); break;
     case 'v': verbose=1; break;
     case 'c': count=1; complain(dump || query); break;
+    case 'l': lstats=1; complain(query!=0); break;
     case 'e': query=my_strdup(optarg,MYF(MY_FAE)); complain(dump || count || stats); break;
     case '?':
     case 'h':
@@ -189,6 +214,7 @@ Use: %s [-%s] <table_name> <index_no>
 
 -d      dump index (incl. data offsets and word weights)
 -s      report global stats
+-l      report length distribution
 -c      calculate per-word stats (counts and global weights)
 -v      be verbose
 -h      this text\n
