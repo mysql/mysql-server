@@ -482,7 +482,7 @@ check_connections(THD *thd)
   {
     char ip[30];
 
-    if (vio_peer_addr(net->vio,ip))
+    if (vio_peer_addr(net->vio, ip, &thd->peer_port))
       return (ER_BAD_HOST_ERROR);
     if (!(thd->ip = my_strdup(ip,MYF(0))))
       return (ER_OUT_OF_RESOURCES);
@@ -512,8 +512,9 @@ check_connections(THD *thd)
   else /* Hostname given means that the connection was on a socket */
   {
     DBUG_PRINT("info",("Host: %s",thd->host));
-    thd->host_or_ip=thd->host;
-    thd->ip=0;
+    thd->host_or_ip= thd->host;
+    thd->ip= 0;
+    thd->peer_port= 0;
     bzero((char*) &thd->remote,sizeof(struct sockaddr));
   }
   /* Ensure that wrong hostnames doesn't cause buffer overflows */
