@@ -672,7 +672,7 @@ String *Item_func_date_format::val_str(String *str)
   else
     size=format_length(format);
   if (format == str)
-    str=&str_value;				// Save result here
+    str= &str_value;				// Save result here
   if (str->alloc(size))
   {
     null_value=1;

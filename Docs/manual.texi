@@ -233,6 +233,7 @@ security bug in MySQL, you should send an e-mail to
 * MySQL Information Sources::   MySQL Information Sources
 * Compatibility::               How Standards-compatible Is MySQL?
 * TODO::                        MySQL and the future (The TODO)
+* Comparisons::                 How MySQL Compares to Other Open Source Databases
 @end menu
 
 
@@ -3634,7 +3635,7 @@ decimals.
 For platform-specific bugs, see the sections about compiling and porting.
 
 
-@node TODO,  , Compatibility, Introduction
+@node TODO, Comparisons, Compatibility, Introduction
 @section MySQL and The Future (The TODO)
 
 @cindex ToDo list for MySQL
@@ -4109,6 +4110,364 @@ Time is given according to amount of work, not real time.
 @item
 Nothing;  We aim towards full ANSI 92 / ANSI 99 compliancy.
 @end itemize
+
+
+@node Comparisons,  , TODO, Introduction
+@section How MySQL Compares to Other Open Source Databases
+
+@cindex databases, MySQL vs. others
+@cindex comparisons, MySQL vs. others
+
+Our users have successfully run their own benchmarks against a number
+of @code{Open Source} and traditional database servers. We are aware of
+tests against @code{Oracle}, @code{DB/2}, @code{Microsoft SQL Server}
+and other commercial products. Due to legal reasons we are restricted
+from publishing some of those benchmarks in our reference manual.
+
+This section includes a comparison with @code{PostgreSQL} as it is
+also an Open Source database. If you have benchmark results that we
+can publish, please contact us at @email{benchmarks@@mysql.com}.
+
+For comparative lists of all supported functions and types as well
+as measured operational limits of many different database systems,
+see the @code{crash-me} web page at
+@uref{http://www.mysql.com/information/crash-me.php}.
+
+@menu
+* Compare PostgreSQL::          How MySQL Compares to PostgreSQL
+@end menu
+
+
+@node Compare PostgreSQL,  , Comparisons, Comparisons
+@subsection How MySQL Compares to PostgreSQL
+
+@cindex PostgreSQL vs. MySQL, overview
+
+When reading the following, please note that both products are continually
+evolving.  We at MySQL AB and the PostgreSQL developers are both working
+on making our respective database as good as possible, so we are both a 
+serious alternative to any commercial database.
+
+The following comparison is made by us at MySQL AB.  We have tried to be
+as accurate and fair as possible, but because while we know MySQL througly
+we don't have a full knowledge of all PostgreSQL features, so we may have
+got some things wrong.  We will however correct these when they come to our
+attention.
+
+We would first like to note that PostgreSQL and MySQL are both widely used
+products, but with different design goals, even if we are both striving
+towards ANSI SQL compliancy.  This means that for some applications MySQL
+is more suited, while for others PostgreSQL is more suited.  When choosing 
+which database to use, you should first check if the database's feature set
+satisfies your application.  If you need raw speed, MySQL is probably your
+best choice.  If you need some of the extra features that only PostgreSQL
+can offer, you should use @code{PostgreSQL}.
+
+@menu
+* MySQL-PostgreSQL goals::      MySQL and PostgreSQL development strategies
+* MySQL-PostgreSQL features::   Featurewise Comparison of MySQL and PostgreSQL
+@end menu
+
+
+@node MySQL-PostgreSQL goals, MySQL-PostgreSQL features, Compare PostgreSQL, Compare PostgreSQL
+@subsubsection MySQL and PostgreSQL development strategies
+
+@cindex PostgreSQL vs. MySQL, strategies
+When adding things to MySQL we take pride to do an optimal, definite
+solution.  The code should be so good that we shouldn't have any need to
+change it in the foreseeable future.  We also do not like to sacrifice
+speed for features but instead will do our utmost to find a solution
+that will give maximal throughput.  This means that development will take
+a little longer, but the end result will be well worth this.  This kind
+of development is only possible because all server code are checked by
+one of a few (currently two) persons before it's included in the
+MySQL server.
+
+We at MySQL AB believe in frequent releases to be able to push out new
+features quickly to our users.  Because of this we do a new small release
+about every three weeks, and a major branch every year.  All releases are
+throughly tested with our testing tools on a lot of different platforms.
+
+PostgreSQL is based on a kernel with lots of contributors. In this setup
+it makes sense to prioritise adding a lot of new features, instead of
+implementing them optimally, because one can always optimise things
+later if there arises a need for this.
+
+Another big difference between MySQL and PostgreSQL is that
+nearly all of the code in the MySQL server are coded by developers that
+are employed by MySQL AB and are still working on the server code. The
+exceptions are the transaction engines, and the regexp library.
+
+This is in sharp contrast to the PostgreSQL code where the majority of
+the code is coded by a big group of people with different backgrounds.
+It was only recently that the PostgreSQL developers announced that their
+current developer group had finally had time to take a look at all
+the code in the current PostgreSQL release.
+
+Both of the above development methods have their own merits and drawbacks.
+We here at MySQL AB think of course that our model is better because our
+model gives better code consistency, more optimal and reusable code, and
+in our opinion, fewer bugs.  Because we are the authors of the MySQL server
+code, we are better able to coordinate new features and releases.
+
+
+@node MySQL-PostgreSQL features,  , MySQL-PostgreSQL goals, Compare PostgreSQL
+@subsubsection Featurewise Comparison of MySQL and PostgreSQL
+
+@cindex PostgreSQL vs. MySQL, features
+
+On the crash-me page
+(@uref{http://www.mysql.com/information/crash-me.php})
+you can find a list of those database constructs and limits that
+one can detect automatically with a program.  Note however that a lot of
+the numerical limits may be changed with startup options for respective
+database.  The above web page is however extremely useful when you want to
+ensure that your applications works with many different databases or
+when you want to convert your application from one database to another.
+
+MySQL offers the following advantages over PostgreSQL:
+
+@itemize @bullet
+@item
+@code{MySQL} is generally much faster than PostgreSQL.
+
+@item
+MySQL has a much larger user base than PostgreSQL, therefore the
+code is more tested and has historically proven more stable than
+PostgreSQL.  MySQL is the much more used in production
+environments than PostgreSQL, mostly thanks to that MySQL AB,
+formerly TCX DataKonsult AB, has provided top quality commercial support
+for MySQL from the day it was released, whereas until recently
+PostgreSQL was unsupported.
+
+@item
+MySQL works better on Windows than PostgreSQL does.  MySQL runs as a
+native Windows application (a service on NT/Win2000/WinXP), while
+PostgreSQL is run under the @code{Cygwin} emulation.  We have heard
+that PostgreSQL is not yet that stable on Windows but we haven't
+been able to verify this ourselves.
+
+@item
+MySQL has more APIs to other languages and is supported by more
+existing programs than PostgreSQL.  @xref{Contrib}.
+
+@item
+MySQL works on 24/7 heavy duty systems.  In most circumstances
+you never have to run any cleanups on MySQL.  PostgreSQL doesn't
+yet support 24/7 systems because you have to run @code{VACUUM()}
+once in a while to reclaim space from @code{UPDATE} and @code{DELETE}
+commands and to perform statistics analyses that are critical to get
+good performance with PostgreSQL.  @code{VACUUM()} is also needed after
+adding a lot of new rows to a table.  On a busy system with lots of changes,
+@code{VACUUM()} must be run very frequently, in the worst cases even 
+many times a day.  During the @code{VACUUM()} run, which may take hours 
+if the database is big, the database is from a production standpoint,
+practically dead.  The PostgreSQL team has fixing this on their TODO,
+but we assume that this is not an easy thing to fix permanently.
+
+@item
+MySQL replication has been thoroughly tested, and is used by sites like:
+@itemize @minus
+@item Yahoo Finance (@uref{http://finance.yahoo.com/})
+@item Mobile.de (@uref{http://www.mobile.de/})
+@item Slashdot (@uref{http://www.slashdot.org/})
+@end itemize
+
+@item
+Included in the MySQL distribution are two different testing suites, 
+@file{mysql-test-run} and crash-me
+(@uref{http://www.mysql.com/information/crash-me.php}), as well
+as a benchmark suite.  The test system is actively updated with code to
+test each new feature and almost all reproduceable bugs that have come to
+our attention.  We test MySQL with these on a lot of platforms before
+every release.  These tests are more sophisticated than anything we have 
+seen from PostgreSQL, and they ensures that the MySQL is kept to a high
+standard.
+
+@item
+There are far more books in print about MySQL than about PostgreSQL.
+O'Reilly, SAMS, Que, and New Riders are all major publishers with books
+about MySQL.  All MySQL features are also documented in the MySQL on-line
+manual, because when a new feature is implemented, the MySQL developers 
+are required to document it before it's included in the source.
+
+@item
+MySQL supports more of the standard ODBC functions than @code{PostgreSQL}.
+
+@item
+MySQL has a much more sophisticated @code{ALTER TABLE}.
+
+@item
+MySQL has support for tables without transactions for applications that 
+need all speed they can get. The tables may be memory based, @code{HEAP}
+tables or disk based @code{MyISAM}.  @xref{Table types}.
+
+@item
+MySQL has support for two different table handlers that support
+transactions, @code{InnoDB} and @code{BerkeleyDB}.  Because every 
+transaction engine performs differently under different conditions, this 
+gives the application writer more options to find an optimal solution for
+his or her setup, if need be per individual table.  @xref{Table types}.
+
+@item
+@code{MERGE} tables gives you a unique way to instantly make a view over
+a set of identical tables and use these as one.  This is perfect for
+systems where you have log files that you order for example by month.
+@xref{MERGE}.
+
+@item
+The option to compress read-only tables, but still have direct access to
+the rows in the table, gives you better performance by minimising disk
+reads.  This is very useful when you are archiving things.
+@xref{myisampack}.
+
+@item
+MySQL has internal support for fulltext search. @xref{Fulltext Search}.
+
+@item
+You can access many databases from the same connection (depending of course
+on your privileges).
+
+@item
+MySQL is coded from the start to be multi-threaded while PostgreSQL uses
+processes.  Context switching and access to common storage areas is much 
+faster between threads than between separate processes, this gives MySQL
+a big speed advantage in multi-user applications and also makes it easier
+for MySQL to take full advantage of symmetric multiprocessor (SMP) systems.
+
+@item
+MySQL has a much more sophisticated privilege system than PostgreSQL.  
+While PostgreSQL only supports @code{INSERT}, @code{SELECT}, and
+@code{UPDATE/DELETE} grants per user on a database or a table, MySQL allows
+you to define a full set of different privileges on database, table and 
+column level.  MySQL also allows you to specify the privilege on host and 
+user combinations.  @xref{GRANT}.
+
+@item
+MySQL supports a compressed client/server protocol which improves 
+performance over slow links.
+
+@item
+MySQL employs a ``table handler'' concept, and is the only relational 
+database we know of built around this concept.  This allows different 
+low-level table types to be called from the SQL engine, and each table 
+type can be optimised for different performance characteristics.
+
+@item
+All MySQL table types (except @strong{InnoDB}) are implemented as files
+(one table per file), which makes it really easy to backup, move, delete
+and even symlink databases and tables, even when the server is down.
+
+@item
+Tools to repair and optimise @strong{MyISAM} tables (the most common
+MySQL table type).  A repair tool is only needed when a physical corruption
+of a data file happens, usually from a hardware failure.  It allows a 
+majority of the data to be recovered.
+
+@item
+Upgrading MySQL is painless.  When you are upgrading MySQL, you don't need
+to dump/restore your data, as you have to do with most PostgreSQL upgrades.
+@end itemize
+
+Drawbacks with MySQL compared to PostgreSQL:
+
+@itemize @bullet
+@item
+The transaction support in MySQL is not yet as well tested as PostgreSQL's
+system.
+
+@item
+Because MySQL uses threads, which are not yet flawless on many OSes, one
+must either use binaries from @uref{http://www.mysql.com/downloads/}, or
+carefully follow our instructions on
+@uref{http://www.mysql.com/doc/I/n/Installing_source.html} to get an
+optimal binary that works in all cases.
+
+@item
+Table locking, as used by the non-transactional @code{MyISAM} tables, is
+in many cases faster than page locks, row locks or versioning.  The
+drawback however is that if one doesn't take into account how table
+locks work, a single long-running query can block a table for updates
+for a long time. This can usually be avoided when designing the
+application.  If not, one can always switch the trouble table to use one
+of the transactional table types. @xref{Table locking}.
+
+@item
+With UDF (user defined functions) one can extend MySQL with both normal 
+SQL functions and aggregates, but this is not yet as easy or as flexible
+as in PostgreSQL.  @xref{Adding functions}.
+
+@item
+Updates that run over multiple tables is harder to do in MySQL.
+This will, however, be fixed in MySQL 4.0 with multi-table @code{UPDATE}
+and in MySQL 4.1 with subselects.
+In MySQL 4.0 one can use multi-table deletes to delete from many tables
+at the same time. @xref{DELETE}.
+@end itemize
+
+PostgreSQL currently offers the following advantages over MySQL:
+
+Note that because we know the MySQL road map, we have included in the
+following table the version when MySQL should support this feature.
+Unfortunately we couldn't do this for previous comparison, because we 
+don't know the PostgreSQL roadmap.
+
+@multitable @columnfractions .70 .30
+@item @strong{Feature}                     @tab @strong{MySQL version}
+@item Subselects                           @tab 4.1
+@item Foreign keys                         @tab 4.0 and 4.1
+@item Views                                @tab 4.2
+@item Stored procedures                    @tab 4.1
+@item Extensible type system               @tab Not planned
+@item Unions                               @tab 4.0
+@item Full join                            @tab 4.0 or 4.1
+@item Triggers                             @tab 4.1
+@item Constraints                          @tab 4.1
+@item Cursors                              @tab 4.1 or 4.2
+@item Extensible index types like R-trees  @tab R-trees are planned for 4.2
+@item Inherited tables                     @tab Not planned
+@end multitable
+
+Other reasons someone may consider for using PostgreSQL:
+
+@itemize @bullet
+@item
+Standard usage in PostgreSQL is closer to ANSI SQL in some cases.
+
+@item
+One can speed up PostgreSQL by coding things as stored procedures.
+
+@item
+For geographical data, R-TREES makes PostgreSQL better than MySQL.
+
+@item
+The PostgreSQL optimiser can do some optimisation that the current MySQL
+optimiser can't do.  Most notable is doing joins when you don't have the
+proper keys in place and doing a join where you are using different keys
+combined with OR.  The MySQL benchmark suite at
+@uref{http://www.mysql.com/information/benchmarks.html} shows you what
+kind of constructs you should watch out for when using different
+databases.
+
+@item
+PostgreSQL has a bigger team of developers that contribute to the server.
+@end itemize
+
+Drawbacks with PostgreSQL compared to MySQL:
+
+@itemize @bullet
+@item
+@code{VACUUM()} makes PostgreSQL hard to use in a 24/7 environment.
+
+@item
+Only transactional tables.
+
+@item
+Much slower @code{INSERT}, @code{DELETE}, and @code{UPDATE}.
+@end itemize
+
+For a complete list of drawbacks, you should also examine the first table
+in this section.
 
 
 @node Installing, Tutorial, Introduction, Top
@@ -6945,8 +7304,11 @@ version 4.0;
 @code{LOCATE()} and @code{INSTR()} are case sensitive if neither
 argument is a binary string.
 @item
-In 3.23,
-@code{INSERT INTO ... SELECT} always had @code{IGNORE} enabled.
+@code{HEX(string)} now returns the characters in string converted to
+hexadecimal.  If you want to convert a number to hexadecimal, you should
+ensure that you call @code{HEX()} with a numeric argument.
+@item
+In 3.23, @code{INSERT INTO ... SELECT} always had @code{IGNORE} enabled.
 In 4.0.1, MySQL will stop (and possibly roll back) in case of an error if you
 don't specify @code{IGNORE}.
 @item
@@ -8724,14 +9086,15 @@ it with a trace file or under @code{gdb}.  @xref{Using gdb on mysqld}.
 @node BSD Notes, Mac OS X, Solaris, Operating System Specific Notes
 @subsection BSD Notes
 
+This section provides information for the various BSD flavours,
+as well as specific versions within those.
+
 @menu
 * FreeBSD::                     FreeBSD Notes
 * NetBSD::                      NetBSD notes
-* OpenBSD::                     OpenBSD Notes
-* OpenBSD 2.5::                 OpenBSD 2.5 Notes
+* OpenBSD::                     OpenBSD 2.5 Notes
 * OpenBSD 2.8::                 OpenBSD 2.8 Notes
-* BSDI::                        BSD/OS Notes
-* BSDI2::                       BSD/OS Version 2.x Notes
+* BSDI::                        BSD/OS Version 2.x Notes
 * BSDI3::                       BSD/OS Version 3.x Notes
 * BSDI4::                       BSD/OS Version 4.x Notes
 @end menu
@@ -8831,17 +9194,7 @@ To compile on NetBSD you need GNU @code{make}.  Otherwise the compile will
 crash when @code{make} tries to run @code{lint} on C++ files.
 
 
-@node OpenBSD, OpenBSD 2.5, NetBSD, BSD Notes
-@subsubsection OpenBSD Notes
-
-@menu
-* OpenBSD 2.5::                 OpenBSD 2.5 Notes
-* OpenBSD 2.8::                 OpenBSD 2.8 Notes
-@end menu
-
-This section contains notes on OpenBSD.
-
-@node OpenBSD 2.5, OpenBSD 2.8, OpenBSD, BSD Notes
+@node OpenBSD, OpenBSD 2.8, NetBSD, BSD Notes
 @subsubsection OpenBSD 2.5 Notes
 
 On OpenBSD Version 2.5, you can compile MySQL with native threads
@@ -8852,7 +9205,7 @@ CFLAGS=-pthread CXXFLAGS=-pthread ./configure --with-mit-threads=no
 @end example
 
 
-@node OpenBSD 2.8, BSDI, OpenBSD 2.5, BSD Notes
+@node OpenBSD 2.8, BSDI, OpenBSD, BSD Notes
 @subsubsection OpenBSD 2.8 Notes
 
 Our users have reported that OpenBSD 2.8 has a threading bug which causes
@@ -8862,18 +9215,7 @@ The symptoms of this threading bug are: slow response, high load, high CPU
 usage, and crashes.
 
 
-@node BSDI, BSDI2, OpenBSD 2.8, BSD Notes
-@subsubsection BSD/OS Notes
-
-@menu
-* BSDI2::                       BSD/OS 2.x notes
-* BSDI3::                       BSD/OS 3.x notes
-* BSDI4::                       BSD/OS 4.x notes
-@end menu
-
-This section contains notes on BSD/OS.
-
-@node BSDI2, BSDI3, BSDI, BSD Notes
+@node BSDI, BSDI3, OpenBSD 2.8, BSD Notes
 @subsubsection BSD/OS Version 2.x Notes
 
 If you get the following error when compiling MySQL, your
@@ -8898,7 +9240,7 @@ If you get problems with the current date in MySQL, setting the
 @code{TZ} variable will probably help.  @xref{Environment variables}.
 
 
-@node BSDI3, BSDI4, BSDI2, BSD Notes
+@node BSDI3, BSDI4, BSDI, BSD Notes
 @subsubsection BSD/OS Version 3.x Notes
 
 Upgrade to BSD/OS Version 3.1.  If that is not possible, install
@@ -12795,20 +13137,24 @@ specify @code{--core-file-size} to @code{safe_mysqld}. @xref{safe_mysqld, ,
 @item -h, --datadir=path
 Path to the database root.
 
+@item --debug[...]=
+If MySQL is configured with @code{--with-debug}, you can use this 
+option to get a trace file of what @code{mysqld} is doing. 
+@xref{Making trace files}.
+
 @item --default-character-set=charset
 Set the default character set.  @xref{Character sets}.
 
 @item --default-table-type=type
 Set the default table type for tables.  @xref{Table types}.
 
-@item --debug[...]=
-If MySQL is configured with @code{--with-debug}, you can use this 
-option to get a trace file of what @code{mysqld} is doing. 
-@xref{Making trace files}.
-
 @item --delay-key-write-for-all-tables
 Don't flush key buffers between writes for any @code{MyISAM} table.
 @xref{Server parameters}.
+
+@item --des-key-file=filename
+Read the default keys used by @code{des_encrypt()} and @code{des_decrypt()}
+from this file.
 
 @item --enable-locking
 Enable system locking.  Note that if you use this option on a system
@@ -17571,6 +17917,8 @@ something is wrong and blocks the host from further connection requests.
 Flushing the host tables allows the host to attempt to connect
 again. @xref{Blocked host}. You can start @code{mysqld} with
 @code{-O max_connection_errors=999999999} to avoid this error message.
+
+@item @code{DES_KEY_FILE} @tab Reloads the des keys from the file specified with @code{--des-key-file}.
 
 @item @code{LOGS} @tab Closes and reopens all log files.
 If you have specified the update log file or a binary log file without
@@ -26305,7 +26653,8 @@ mysql> select 0x5061756c;
 The x'hexstring' syntax (new in 4.0) is based on ANSI SQL and the 0x
 syntax is based on ODBC.
 Hexadecimal strings are often used by ODBC to give values for BLOB columns.
-
+You can convert a string or a number to hexadecimal with the @code{HEX()}
+function.
 
 @node NULL values,  , Hexadecimal values, Literals
 @subsubsection @code{NULL} Values
@@ -28834,14 +29183,23 @@ mysql> select OCT(12);
 @end example
 
 @findex HEX()
-@item HEX(N)
-Returns a string representation of the hexadecimal value of @code{N}, where
-@code{N} is a longlong (@code{BIGINT}) number.  This is equivalent to
-@code{CONV(N,10,16)}.  Returns @code{NULL} if @code{N} is @code{NULL}:
+@item HEX(N_or_S)
+
+If N_OR_S is a number, returns a string representation of the hexadecimal
+value of @code{N}, where @code{N} is a longlong (@code{BIGINT}) number.
+This is equivalent to @code{CONV(N,10,16)}.
+
+If N_OR_S is a string, returns a hexadecimal string of N_OR_S where each
+character in N_OR_S is converted to 2 hexadecimal digits. This is the
+invers of the @code{0xff} strings.
 
 @example
 mysql> select HEX(255);
         -> 'FF'
+mysql> select HEX("abc");
+        -> 616263
+mysql> select 0x616263;
+        -> "abc"
 @end example
 
 @findex CHAR()
@@ -30701,6 +31059,83 @@ mysql> select MD5("testing");
 @end example
 
 This is an "RSA Data Security, Inc. MD5 Message-Digest Algorithm".
+
+@findex des_encrypt()
+@item des_encrypt(string_to_encrypt, flag, [, (key_number | key_string) ] )
+
+Encrypts the string with the given key using the DES algorithm, which
+provides strong encryption.
+
+Note that this function only works if you have configured MySQL with
+SLL support. @xref{Secure connections}.
+
+The encryption key to use is chosen the following way:
+
+@multitable @columnfractions .2 .8
+@item @strong{Argument} @tab @strong{Description}
+@item Only one argument @tab
+The first key from @code{des-key-file} is used.
+@item key number @tab
+The given key (0-9) from the @code{des-key-file} is used.
+@item string @tab
+The given @code{key_string} will be used to crypt @code{string_to_encrypt}.
+@end multitable
+
+The return string will be a binary string where the first character
+will be @code{CHAR(128 | key-number)}.
+
+The 128 is added to make it easier to recognize a crypted key.
+If one uses a string key, @code{key-number} will be 127.
+
+On error, this function returns NULL.
+
+The string length for the result will be
+@code{new_length= org_length + (8-(org_length % 8))+1}.
+
+The @code{des-key-file} has the following format:
+
+@example
+key-number key-string
+key-number key-string
+@end example
+
+The @code{key-number} must be a number between 0-9. The numbers may be
+in any order.  @code{des-key-string} is string that will be used to
+crypt the message. Between the number and the key there should be at
+least one space.  The first key is the default key that will be used
+if one doesn't specify a key to @code{des_encrypt()}
+
+You can tell MySQL to read new key values from the key file with the
+@code{FLUSH DES_KEY_FILE} command.
+
+One benefit with having a set of default keys on can use is that it
+gives applications a way to check for existence of crypted column,
+without giving the end user the right to uncrypt the data.
+
+@example
+SELECT customer_address FROM customer_table WHERE
+crypted_credit_card = DES_ENCRYPT("credit_card_number");
+@end example
+
+@findex des_decrypt()
+@item des_decrypt(string_to_decrypt [, key_string])
+
+Decrypts a string crypted with @code{des_encrypt()}.
+
+Note that this function only works if you have configured MySQL with
+SLL support. @xref{Secure connections}.
+
+If one only gives this a string argument, then it will use the right key
+from the @code{des-key-file} to decrypt the message.  For this to work
+the user must have the @code{PROCESS_PRIV} privilege.
+
+If one calls this function with 2 arguments, the second argument is 
+used to decrypt the message.
+
+If the @code{string_to_decrypt} doesn't look like a crypted string MySQL will
+return the given @code{string_to_decrypt}.
+
+On error, this function returns NULL.
 
 @findex LAST_INSERT_ID([expr])
 @item LAST_INSERT_ID([expr])
@@ -34356,17 +34791,17 @@ transaction cause the corresponding cache entries to be invalidated.
 A query cannot be cached if it contains one of the functions:
 @multitable @columnfractions .25 .25 .25 .25
 @item @strong{Function} @tab @strong{Function}
-@tab @strong{Function} @tab @strong{Function}
+ @tab @strong{Function} @tab @strong{Function}
 @item @code{User Defined Functions} @tab @code{CONNECTION_ID}
-@tab @code{FOUND_ROWS} @tab @code{GET_LOCK}
+ @tab @code{FOUND_ROWS} @tab @code{GET_LOCK}
 @item @code{RELEASE_LOCK} @tab @code{LOAD_FILE}
-@tab @code{MASTER_POS_WAIT} @tab @code{NOW}
+ @tab @code{MASTER_POS_WAIT} @tab @code{NOW}
 @item @code{SYSDATE} @tab @code{CURRENT_TIMESTAMP}
-@tab @code{CURDATE} @tab @code{CURRENT_DATE}
+ @tab @code{CURDATE} @tab @code{CURRENT_DATE}
 @item @code{CURTIME} @tab @code{CURRENT_TIME}
-@tab @code{DATABASE} @tab @code{ENCRYPT} (with one parameter)
+ @tab @code{DATABASE} @tab @code{ENCRYPT} (with one parameter)
 @item @code{LAST_INSERT_ID} @tab @code{RAND}
-@tab @code{UNIX_TIMESTAMP} (without parameters) @tab @code{USER}
+ @tab @code{UNIX_TIMESTAMP} (without parameters) @tab @code{USER}
 @item @code{BENCHMARK}
 @end multitable
 
@@ -34399,6 +34834,7 @@ If this is 0, the query cache is disabled (default).
 @item @code{query_cache_startup_type}
 This may be set (only numeric) to
 @multitable @columnfractions .3 .7
+@item @strong{Option} @tab @strong{Description}
 @item 0 @tab (OFF, don't cache or retrieve results)
 @item 1 @tab (ON, cache all results except @code{SELECT SQL_NO_CACHE ...} queries)
 @item 2 @tab (DEMAND, cache only @code{SELECT SQL_CACHE ...} queries)
@@ -34432,16 +34868,15 @@ specified in a @code{SELECT} query:
 @findex SQL_CACHE
 @findex SQL_NO_CACHE
 
-@itemize
+@multitable @columnfractions .3 .7
+@item @strong{Option} @tab @strong{Description}
 @item @code{SQL_CACHE}
-If @code{SQL_QUERY_CACHE_TYPE} is @code{DEMAND},
-allow the query to be cached.
-If @code{SQL_QUERY_CACHE_TYPE} is @code{ON}, this is the default.
-If @code{SQL_QUERY_CACHE_TYPE} is @code{OFF}, do nothing.
+ @tab If @code{SQL_QUERY_CACHE_TYPE} is @code{DEMAND}, allow the query to be cached.
+ If @code{SQL_QUERY_CACHE_TYPE} is @code{ON}, this is the default.
+ If @code{SQL_QUERY_CACHE_TYPE} is @code{OFF}, do nothing.
 @item @code{SQL_NO_CACHE}
-Make this query non-cachable, don't allow this query to be stored
-in the cache.
-@end itemize
+ @tab Make this query non-cachable, don't allow this query to be stored in the cache.
+@end multitable
 
 
 @node Query Cache Status and Maintenance,  , Query Cache in SELECT, Query Cache
@@ -34457,19 +34892,20 @@ query cache.
 
 You can monitor query cache performance in @code{SHOW STATUS}:
 
-@itemize
+@multitable @columnfractions .3 .7
+@item @strong{Variable} @tab @strong{Description}
 @item @code{Qcache_queries_in_cache}
-Number of queries registered in the cache.
+ @tab Number of queries registered in the cache.
 @item @code{Qcache_inserts}
-Number of queries added to the cache.
+ @tab Number of queries added to the cache.
 @item @code{Qcache_hits}
-Number of cache hits
+ @tab Number of cache hits
 @item @code{Qcache_not_cached}
-Number of non-cached queries
-(not cachable, or due to SQL_QUERY_CACHE_TYPE)
+ @tab Number of non-cached queries
+ (not cachable, or due to SQL_QUERY_CACHE_TYPE)
 @item @code{Qcache_free_memory}
-Amount of free memory for query cache.
-@end itemize
+ @tab Amount of free memory for query cache.
+@end multitable
 
 Please note:
 Total number of queries =
@@ -46495,6 +46931,15 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 @appendixsubsec Changes in release 4.0.1
 
 @itemize @bullet
+@item
+Added functions @code{des_encrypt()} and @code{des_decrypt()}.
+@item
+Added statement FLUSH DES_KEY_FILE.
+@item
+Added mysqld option @code{--des-key-file}.
+@item
+@code{HEX(string)} now returns the characters in string converted to
+hexadecimal.
 @item
 Fixed problem with @code{GRANT} when using @code{lower_case_table_names == 1}.
 @item

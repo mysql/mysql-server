@@ -76,7 +76,6 @@ sleep_until_file_exists ()
   exit 1;
 }
 
-
 # No paths below as we can't be sure where the program is!
 
 BASENAME=`which basename | head -1`
@@ -993,7 +992,7 @@ run_testcase ()
  then
    if [ -f $master_opt_file ] ;
    then
-     EXTRA_MASTER_OPT=`$CAT $master_opt_file`
+     EXTRA_MASTER_OPT=`$CAT $master_opt_file | $SED -e "s;\\$MYSQL_TEST_DIR;$MYSQL_TEST_DIR;"`
      stop_master
      start_master
    else
@@ -1008,7 +1007,7 @@ run_testcase ()
 
    if [ -f $slave_opt_file ] ;
    then
-     EXTRA_SLAVE_OPT=`$CAT $slave_opt_file`
+     EXTRA_SLAVE_OPT=`$CAT $slave_opt_file | $SED -e "s;\\$MYSQL_TEST_DIR;$MYSQL_TEST_DIR;"`
      do_slave_restart=1
    else
     if [ ! -z "$EXTRA_SLAVE_OPT" ] || [ x$SLAVE_RUNNING != x1 ] ;

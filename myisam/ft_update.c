@@ -75,7 +75,8 @@ uint _mi_ft_segiterator(register FT_SEG_ITERATOR *ftsi)
   if (ftsi->seg->flag & HA_BLOB_PART)
   {
     ftsi->len=_mi_calc_blob_length(ftsi->seg->bit_start,ftsi->pos);
-    memcpy_fixed(&ftsi->pos,ftsi->pos+ftsi->seg->bit_start,sizeof(char*));
+    memcpy_fixed((char*) &ftsi->pos, ftsi->pos+ftsi->seg->bit_start,
+		 sizeof(char*));
     set_if_smaller(ftsi->len,ftsi->seg->length);
     return 1;
   }
@@ -107,11 +108,11 @@ FT_WORD * _mi_ft_parserecord(MI_INFO *info, uint keynr,
 {
   TREE ptree;
 
-  bzero(&ptree, sizeof(ptree));
-  if (_mi_ft_parse(& ptree, info, keynr, record))
+  bzero((char*) &ptree, sizeof(ptree));
+  if (_mi_ft_parse(&ptree, info, keynr, record))
     return NULL;
 
-  return ft_linearize(/*info, keynr, keybuf, */ & ptree);
+  return ft_linearize(/*info, keynr, keybuf, */ &ptree);
 }
 
 static int _mi_ft_store(MI_INFO *info, uint keynr, byte *keybuf,

@@ -297,6 +297,7 @@ public:
 
 class Item_func_soundex :public Item_str_func
 {
+  String tmp_value;
 public:
   Item_func_soundex(Item *a) :Item_str_func(a) {}
   String *val_str(String *);
@@ -411,6 +412,18 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() { decimals=0; max_length=64; }
 };
+
+
+class Item_func_hex :public Item_str_func
+{
+  String tmp_value;
+public:
+  Item_func_hex(Item *a) :Item_str_func(a) {}
+  const char *func_name() const { return "hex"; }
+  String *val_str(String *);
+  void fix_length_and_dec() { decimals=0; max_length=args[0]->max_length*2; }
+};
+
 
 class Item_func_binary :public Item_str_func
 {
