@@ -1146,9 +1146,9 @@ Load_log_event::Load_log_event(THD* thd_arg, sql_exchange* ex,
   sql_ex.cached_new_format = -1;
     
   if (ex->dumpfile)
-    sql_ex.opt_flags |= DUMPFILE_FLAG;
+    sql_ex.opt_flags|= DUMPFILE_FLAG;
   if (ex->opt_enclosed)
-    sql_ex.opt_flags |= OPT_ENCLOSED_FLAG;
+    sql_ex.opt_flags|= OPT_ENCLOSED_FLAG;
 
   sql_ex.empty_flags = 0;
 
@@ -1159,15 +1159,15 @@ Load_log_event::Load_log_event(THD* thd_arg, sql_exchange* ex,
   }
 
   if (!ex->field_term->length())
-    sql_ex.empty_flags |= FIELD_TERM_EMPTY;
+    sql_ex.empty_flags|= FIELD_TERM_EMPTY;
   if (!ex->enclosed->length())
-    sql_ex.empty_flags |= ENCLOSED_EMPTY;
+    sql_ex.empty_flags|= ENCLOSED_EMPTY;
   if (!ex->line_term->length())
-    sql_ex.empty_flags |= LINE_TERM_EMPTY;
+    sql_ex.empty_flags|= LINE_TERM_EMPTY;
   if (!ex->line_start->length())
-    sql_ex.empty_flags |= LINE_START_EMPTY;
+    sql_ex.empty_flags|= LINE_START_EMPTY;
   if (!ex->escaped->length())
-    sql_ex.empty_flags |= ESCAPED_EMPTY;
+    sql_ex.empty_flags|= ESCAPED_EMPTY;
     
   skip_lines = ex->skip_lines;
 
@@ -1860,9 +1860,8 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
       char llbuff[22];
       enum enum_duplicates handle_dup = DUP_IGNORE;
       if (sql_ex.opt_flags & REPLACE_FLAG)
-	handle_dup = DUP_REPLACE;
-      sql_exchange ex((char*)fname, sql_ex.opt_flags &&
-		      DUMPFILE_FLAG );
+	handle_dup= DUP_REPLACE;
+      sql_exchange ex((char*)fname, sql_ex.opt_flags & DUMPFILE_FLAG);
       String field_term(sql_ex.field_term,sql_ex.field_term_len);
       String enclosed(sql_ex.enclosed,sql_ex.enclosed_len);
       String line_term(sql_ex.line_term,sql_ex.line_term_len);
