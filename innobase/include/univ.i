@@ -155,6 +155,12 @@ typedef unsigned long int	ulint;
 
 typedef long int		lint;
 
+#ifdef __WIN__
+typedef __int64       ib_longlong;
+#else
+typedef longlong ib_longlong;
+#endif
+
 /* The following type should be at least a 64-bit floating point number */
 typedef double		utfloat;
 

@@ -13,11 +13,9 @@ Created 10/21/1995 Heikki Tuuri
 
 #ifdef __WIN__
 
-#if (defined(__NT__) || defined(__WIN2000__))
-
+/* We define always WIN_ASYNC_IO, and check at run-time whether
+   the OS actually supports it: Win 95 does not, NT does. */
 #define WIN_ASYNC_IO
-
-#endif
 
 #define UNIV_NON_BUFFERED_IO
 
@@ -100,7 +98,17 @@ log. */
 				requests in a batch, and only after that
  				wake the i/o-handler thread; this has
 				effect only in simulated aio */ 
-				
+#define OS_WIN31     1
+#define OS_WIN95     2	
+#define OS_WINNT     3
+
+/***************************************************************************
+Gets the operating system version. Currently works only on Windows. */
+
+ulint
+os_get_os_version(void);
+/*===================*/
+                  /* out: OS_WIN95, OS_WIN31, OS_WINNT (2000 == NT) */
 /********************************************************************
 Opens an existing file or creates a new. */
 

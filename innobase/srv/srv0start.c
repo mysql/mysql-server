@@ -549,11 +549,19 @@ innobase_start_or_create_for_mysql(void)
 	srv_n_file_io_threads = 4;
 #endif
 
-#ifdef WIN_ASYNC_IO
-	/* On NT always use aio */
-	os_aio_use_native_aio = TRUE;
-#endif
+#ifdef __WIN__
+	if (os_get_os_version() == OS_WIN95
+	    || os_get_os_version() == OS_WIN31) {
+	  /* On Win 95, 98, ME, and Win32 subsystem for Windows 3.1 use
+	     simulated aio */
 
+	  os_aio_use_native_aio = FALSE;
+	  srv_n_file_io_threads = 4;
+	} else {
+	  /* On NT and Win 2000 always use aio */
+	  os_aio_use_native_aio = TRUE;
+	}
+#endif
 	if (!os_aio_use_native_aio) {
 		os_aio_init(4 * SRV_N_PENDING_IOS_PER_THREAD
 						* srv_n_file_io_threads,
@@ -598,6 +606,19 @@ innobase_start_or_create_for_mysql(void)
 	"InnoDB: same as log arch dir.\n");
 
 		return(DB_ERROR);
+	}
+
+	sum_of_new_sizes = 0;
+
+	for (i = 0; i < srv_n_data_files; i++) {
+	  sum_of_new_sizes += srv_data_file_sizes[i];
+	}
+
+	if (sum_of_new_sizes < 640) {
+	  fprintf(stderr,
+		  "InnoDB: Error: tablespace size must be at least 10 MB\n");
+
+	  return(DB_ERROR);
 	}
 
 	err = open_or_create_data_files(&create_new_db,
