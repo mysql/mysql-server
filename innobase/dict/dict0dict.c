@@ -455,7 +455,7 @@ dict_table_get(
 	mutex_exit(&(dict_sys->mutex));
 
 	if (table != NULL) {
-		if (table->stat_last_estimate_counter == (ulint)(-1)) {
+	        if (!table->stat_initialized) {
 			dict_update_statistics(table);
 		}
 	}
@@ -2578,6 +2578,8 @@ dict_update_statistics_low(
 	ulint		size;
 	ulint		sum_of_index_sizes	= 0;
 
+	printf("Updating statistics for table %s\n", table->name);
+
 	/* Find out the sizes of the indexes and how many different values
 	for the key they approximately have */
 
@@ -2612,9 +2614,11 @@ dict_update_statistics_low(
 	table->stat_clustered_index_size = index->stat_index_size;
 
 	table->stat_sum_of_other_index_sizes = sum_of_index_sizes
-						- index->stat_index_size;	
+						- index->stat_index_size;
 
-	table->stat_last_estimate_counter = table->stat_modif_counter;
+	table->stat_initialized = TRUE;
+
+        table->stat_modified_counter = 0;
 }
 
 /*************************************************************************
