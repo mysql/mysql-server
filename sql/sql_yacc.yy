@@ -1231,7 +1231,8 @@ attribute:
 	| opt_primary KEY_SYM { Lex->type|= PRI_KEY_FLAG | NOT_NULL_FLAG; }
 	| UNIQUE_SYM	  { Lex->type|= UNIQUE_FLAG; }
 	| UNIQUE_SYM KEY_SYM { Lex->type|= UNIQUE_KEY_FLAG; }
-	| COMMENT_SYM text_literal { Lex->comment= $2; };
+	| COMMENT_SYM text_literal { Lex->comment= $2; }
+	| COLLATE_SYM charset_name { Lex->charset=$2; };
 
 
 charset_name:
@@ -1278,7 +1279,6 @@ opt_binary:
 	    YYABORT;
 	  }
 	}
-	| COLLATE_SYM charset_name	{ Lex->charset=$2; }
 	| CHAR_SYM SET charset_name	{ Lex->charset=$3; } ;
 
 opt_primary:
