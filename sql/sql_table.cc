@@ -1561,6 +1561,27 @@ int mysql_optimize_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 
 
 /*
+  Assigned specified indexes for a table into key cache
+
+  SYNOPSIS
+    mysql_assign_to_keycache()
+    thd	        Thread object
+    tables      Table list (one table only)
+
+  RETURN VALUES
+    0	  ok
+   -1	  error
+*/
+
+int mysql_assign_to_keycache(THD* thd, TABLE_LIST* tables)
+{
+  DBUG_ENTER("mysql_assign_to_keycache");
+  DBUG_RETURN(mysql_admin_table(thd, tables, 0,
+				"assign_to_keycache", TL_WRITE, 0, 0, 0,
+				&handler::assign_to_keycache));
+}
+
+/*
   Preload specified indexes for a table into key cache
 
   SYNOPSIS

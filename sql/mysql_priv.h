@@ -403,6 +403,7 @@ int mysql_analyze_table(THD* thd, TABLE_LIST* table_list,
 			HA_CHECK_OPT* check_opt);
 int mysql_optimize_table(THD* thd, TABLE_LIST* table_list,
 			 HA_CHECK_OPT* check_opt);
+int mysql_assign_to_keycache(THD* thd, TABLE_LIST* table_list);
 int mysql_preload_keys(THD* thd, TABLE_LIST* table_list);
 
 bool check_simple_select();

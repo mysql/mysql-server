@@ -689,6 +689,64 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
 
 
 /*
+  Assign table indexes to a key cache.
+*/
+
+int ha_myisam::assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt)
+{
+  int error;
+  const char *errmsg;
+  ulonglong map= ~(ulonglong) 0;
+  TABLE_LIST *table_list= table->pos_in_table_list;
+  char *keycache_name= table_list->option;
+
+  DBUG_ENTER("ha_myisam::assign_to_keycache");
+
+  /* Check validity of the index references */ 
+  if (table_list->use_index)
+  {
+    key_map kmap= get_key_map_from_key_list(table, table_list->use_index);
+    if (kmap == ~(key_map) 0)
+    {
+      errmsg= thd->net.last_error;
+      error= HA_ADMIN_FAILED;
+      goto err;
+    }
+    if (kmap)
+      map= kmap;
+  }
+  
+  if ((error= mi_assign_to_keycache(file, map, keycache_name)))
+  {
+    switch (error) {
+    default: 
+      char buf[ERRMSGSIZE+20];
+      my_snprintf(buf, ERRMSGSIZE, 
+                  "Failed to read from index file (errno: %d)", my_errno);
+      errmsg= buf;
+    }
+    error= HA_ADMIN_FAILED;
+    goto err;
+  }
+  
+  DBUG_RETURN(HA_ADMIN_OK);
+
+ err:
+  {
+    MI_CHECK param;
+    myisamchk_init(&param);
+    param.thd= thd;
+    param.op_name= (char*)"assign_to_keycache";
+    param.db_name= table->table_cache_key;
+    param.table_name= table->table_name;
+    param.testflag= 0;
+    mi_check_print_error(&param, errmsg);
+    DBUG_RETURN(error);
+  }
+}
+
+
+/*
   Preload pages of the index file for a table into the key cache.
 */
 
