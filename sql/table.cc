@@ -167,9 +167,9 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
     outparam->keys=      keys=      disk_buff[0];
     outparam->key_parts= key_parts= disk_buff[1];
   }
-  outparam->keys_for_keyread.init(keys);
+  outparam->keys_for_keyread.init(0);
   outparam->keys_in_use.init(keys);
-  outparam->read_only_keys.init(0);
+  outparam->read_only_keys.init(keys);
   outparam->quick_keys.init();
   outparam->used_keys.init();
   outparam->keys_in_use_for_query.init();
@@ -500,13 +500,6 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
       if (outparam->key_info[key].flags & HA_FULLTEXT)
 	outparam->key_info[key].algorithm= HA_KEY_ALG_FULLTEXT;
 
-      /* This has to be done after the above fulltext correction */
-      if (!(outparam->file->index_flags(key) & HA_KEYREAD_ONLY))
-      {
-	outparam->read_only_keys.set_bit(key);
-	outparam->keys_for_keyread.clear_bit(key);
-      }
-
       if (primary_key >= MAX_KEY && (keyinfo->flags & HA_NOSAME))
       {
 	/*
@@ -577,7 +570,11 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	      !(field->flags & BLOB_FLAG))
 	  {
             if (outparam->file->index_flags(key, i) & HA_KEYREAD_ONLY)
+            {
+              outparam->read_only_keys.clear_bit(key);
+              outparam->keys_for_keyread.set_bit(key);
 	      field->part_of_key.set_bit(key);
+            }
 	    if (outparam->file->index_flags(key, i) & HA_READ_ORDER)
 	      field->part_of_sortkey.set_bit(key);
 	  }
