@@ -55,6 +55,7 @@
 #define LOAD_HEADER_LEN      (4 + 4 + 4 + 1 +1 + 4)
 #define START_HEADER_LEN     (2 + ST_SERVER_VER_LEN + 4)
 #define ROTATE_HEADER_LEN    8
+#define CREATE_FILE_HEADER_LEN 6
 
 /* event header offsets */
 
@@ -108,6 +109,7 @@
 #define QUERY_DATA_OFFSET (LOG_EVENT_HEADER_LEN+QUERY_HEADER_LEN)
 #define ROTATE_EVENT_OVERHEAD (LOG_EVENT_HEADER_LEN+ROTATE_HEADER_LEN)
 #define LOAD_EVENT_OVERHEAD   (LOG_EVENT_HEADER_LEN+LOAD_HEADER_LEN+sizeof(sql_ex_info))
+#define CREATE_FILE_EVENT_OVERHEAD (LOG_EVENT_HEADER_LEN+CREATE_FILE_HEADER_LEN)
 
 #define BINLOG_MAGIC        "\xfe\x62\x69\x6e"
 
@@ -116,7 +118,8 @@
 
 enum Log_event_type { START_EVENT = 1, QUERY_EVENT =2,
 		      STOP_EVENT=3, ROTATE_EVENT = 4, INTVAR_EVENT=5,
-                      LOAD_EVENT=6, SLAVE_EVENT=7, FILE_EVENT=8};
+                      LOAD_EVENT=6, SLAVE_EVENT=7, CREATE_FILE_EVENT=8,
+ APPEND_TO_FILE_EVENT=9, EXEC_LOAD_EVENT=10, DELETE_FILE_EVENT=11};
 enum Int_event_type { INVALID_INT_EVENT = 0, LAST_INSERT_ID_EVENT = 1, INSERT_ID_EVENT = 2
  };
 
@@ -175,10 +178,11 @@ public:
   virtual ~Log_event() {}
 
   virtual int get_data_size() { return 0;}
+#ifdef MYSQL_CLIENT  
   virtual void print(FILE* file, bool short_form = 0, char* last_db = 0) = 0;
-
   void print_timestamp(FILE* file, time_t *ts = 0);
   void print_header(FILE* file);
+#endif
 
   // if mutex is 0, the read will proceed without mutex
   static Log_event* read_log_event(IO_CACHE* file, pthread_mutex_t* log_lock);
@@ -250,8 +254,9 @@ public:
       + 2	// error_code
       ;
   }
-
+#ifdef MYSQL_CLIENT
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
+#endif  
 };
 
 class Slave_log_event: public Log_event
@@ -276,7 +281,9 @@ public:
   ~Slave_log_event();
   int get_data_size();
   Log_event_type get_type_code() { return SLAVE_EVENT; }
+#ifdef MYSQL_CLIENT  
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
+#endif  
   int write_data(IO_CACHE* file );
 
 };
@@ -419,8 +426,9 @@ public:
       + sizeof(sql_ex) + field_block_len + num_fields*sizeof(uchar) ;
       ;
   }
-
+#ifdef MYSQL_CLIENT
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
+#endif  
 };
 
 extern char server_version[SERVER_VERSION_LENGTH];
@@ -448,8 +456,10 @@ public:
   }
 #ifndef MYSQL_CLIENT
   void pack_info(String* packet);
-#endif  
+#endif
+#ifdef MYSQL_CLIENT  
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
+#endif  
 };
 
 class Intvar_log_event: public Log_event
@@ -470,8 +480,9 @@ public:
   void pack_info(String* packet);
 #endif  
   
-  
+#ifdef MYSQL_CLIENT  
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
+#endif  
 };
 
 class Stop_log_event: public Log_event
@@ -484,7 +495,9 @@ public:
   }
   ~Stop_log_event() {}
   Log_event_type get_type_code() { return STOP_EVENT;}
+#ifdef MYSQL_CLIENT  
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
+#endif  
 };
 
 class Rotate_log_event: public Log_event
@@ -513,12 +526,49 @@ public:
   Log_event_type get_type_code() { return ROTATE_EVENT;}
   int get_data_size() { return  ident_len + ROTATE_HEADER_LEN;}
   int write_data(IO_CACHE* file);
-  
+#ifdef MYSQL_CLIENT  
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
+#endif  
 #ifndef MYSQL_CLIENT
   void pack_info(String* packet);
 #endif  
 };
+
+/* the classes below are for the new LOAD DATA INFILE logging */
+
+class Create_file_log_event: public Log_event
+{
+public:
+  char* db;
+  char* tbl_name;
+  uint db_len;
+  uint tbl_name_len;
+  char* block;
+  uint block_len;
+  uint file_id;
+  
+#ifndef MYSQL_CLIENT  
+ Create_file_log_event(THD* thd, TABLE_LIST * table, char* block_arg,
+		       uint block_len_arg);
+#endif  
+  
+  Create_file_log_event(const char* buf, int event_len);
+  ~Create_file_log_event()
+  {
+  }
+  Log_event_type get_type_code() { return CREATE_FILE_EVENT;}
+  int get_data_size() { return  tbl_name_len + block_len +
+			  CREATE_FILE_HEADER_LEN ;}
+  int write_data(IO_CACHE* file);
+
+#ifdef MYSQL_CLIENT  
+  void print(FILE* file, bool short_form = 0, char* last_db = 0);
+#endif  
+#ifndef MYSQL_CLIENT
+  void pack_info(String* packet);
+#endif  
+};
+
 
 #endif
 

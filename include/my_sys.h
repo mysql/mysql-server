@@ -270,12 +270,17 @@ typedef struct st_dynamic_string {
   uint length,max_length,alloc_increment;
 } DYNAMIC_STRING;
 
+struct st_io_cache;
+typedef int (*IO_CACHE_CALLBACK)(struct st_io_cache*);
 
 typedef struct st_io_cache		/* Used when cacheing files */
 {
   my_off_t pos_in_file,end_of_file;
   byte	*rc_pos,*rc_end,*buffer,*rc_request_pos;
   int (*read_function)(struct st_io_cache *,byte *,uint);
+  /* callbacks when the actual read I/O happens */
+  IO_CACHE_CALLBACK pre_read;
+  IO_CACHE_CALLBACK post_read;
   char *file_name;			/* if used with 'open_cached_file' */
   char *dir,*prefix;
   File file;

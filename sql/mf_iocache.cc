@@ -57,6 +57,7 @@ int init_io_cache(IO_CACHE *info, File file, uint cachesize,
 
   /* There is no file in net_reading */
   info->file= file;
+  info->pre_read = info->post_read = 0;
   if (!cachesize)
     if (! (cachesize= my_default_record_cache_size))
       DBUG_RETURN(1);				/* No cache requested */
@@ -535,8 +536,13 @@ int _my_b_async_read(register IO_CACHE *info, byte *Buffer, uint Count)
 int _my_b_get(IO_CACHE *info)
 {
   byte buff;
+  IO_CACHE_CALLBACK pre_read,post_read;
+  if ((pre_read = info->pre_read))
+    (*pre_read)(info);
   if ((*(info)->read_function)(info,&buff,1))
     return my_b_EOF;
+  if ((post_read = info->post_read))
+    (*post_read)(info);
   return (int) (uchar) buff;
 }
 

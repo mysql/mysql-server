@@ -248,6 +248,7 @@ public:
   enum enum_server_command command;
   uint32 server_id;
   uint32 log_seq;
+  uint32 file_id; // for LOAD DATA INFILE
   const char *where;
   time_t  start_time,time_after_lock,user_time;
   time_t  connect_time,thr_create_time; // track down slow pthread_create
