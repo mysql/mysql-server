@@ -74,7 +74,7 @@ static struct my_option my_long_options[] =
     "No of parallel transactions during restore of data."
     "(parallelism can be 1 to 1024)", 
     (gptr*) &ga_nParallelism, (gptr*) &ga_nParallelism, 0,
-    GET_INT, REQUIRED_ARG, 128, 0, 0, 0, 0, 0 },
+    GET_INT, REQUIRED_ARG, 128, 1, 1024, 0, 1, 0 },
   { "print", 256, "Print data and log to stdout",
     (gptr*) &_print, (gptr*) &_print, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
@@ -120,6 +120,18 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'V':
     print_version();
     exit(0);
+  case 'n':
+    if (ga_nodeId == 0)
+    {
+      printf("Error in --nodeid|-n setting, see --help\n");
+      exit(1);
+    }
+  case 'b':
+    if (ga_backupId == 0)
+    {
+      printf("Error in --backupid|-b setting, see --help\n");
+      exit(1);
+    }
   case '?':
     usage();
     exit(0);
@@ -131,11 +143,8 @@ readArguments(int *pargc, char*** pargv)
 {
   const char *load_default_groups[]= { "ndb_tools","ndb_restore",0 };
   load_defaults("my",load_default_groups,pargc,pargv);
-  if (handle_options(pargc, pargv, my_long_options, get_one_option) || 
-      ga_nodeId == 0  ||
-      ga_backupId == 0 ||
-      ga_nParallelism  < 1 ||
-      ga_nParallelism >1024) {
+  if (handle_options(pargc, pargv, my_long_options, get_one_option))
+  {
     exit(1);
   }
 
@@ -343,7 +352,8 @@ main(int argc, char** argv)
       
       if (res < 0)
       {
-	err << "Restore: An error occured while restoring data. Exiting... res=" << res << endl;
+	err << "Restore: An error occured while restoring data. Exiting... "
+	    << "res=" << res << endl;
 	return -1;
       }
       
@@ -369,7 +379,8 @@ main(int argc, char** argv)
       }
       if (res < 0)
       {
-	err << "Restore: An restoring the data log. Exiting... res=" << res << endl;
+	err << "Restore: An restoring the data log. Exiting... res=" 
+	    << res << endl;
 	return -1;
       }
       logIter.validateFooter(); //not implemented
