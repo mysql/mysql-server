@@ -7200,6 +7200,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   table->sort.found_records=filesort(thd, table,sortorder, length,
                                      select, filesort_limit, &examined_rows);
   tab->records=table->sort.found_records;		// For SQL_CALC_ROWS
+  delete select;
   tab->select=0;
   tab->select_cond=0;
   tab->type=JT_ALL;				// Read with normal read_record
