@@ -385,11 +385,6 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
 
   if (gethostname(glob_hostname,sizeof(glob_hostname)-4) < 0)
     strmov(glob_hostname,"mysql");
-#ifndef DBUG_OFF
-  strxmov(strend(server_version),MYSQL_SERVER_SUFFIX,"-debug",NullS);
-#else
-  strmov(strend(server_version),MYSQL_SERVER_SUFFIX);
-#endif
   load_defaults("my", (const char **) groups, argcp, argvp);
   defaults_argv=*argvp;
 
@@ -406,9 +401,8 @@ int STDCALL mysql_server_init(int argc, char **argv, char **groups)
 
   set_options();
   get_options(*argcp, *argvp);
+  set_server_version();
 
-  if (opt_log || opt_update_log || opt_slow_log || opt_bin_log)
-    strcat(server_version,"-log");
   DBUG_PRINT("info",("%s  Ver %s for %s on %s\n",my_progname,
 		     server_version, SYSTEM_TYPE,MACHINE_TYPE));
 

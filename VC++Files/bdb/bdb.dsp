@@ -25,7 +25,7 @@ CFG=bdb - Win32 Max
 # PROP AllowPerConfigDependencies 0
 # PROP Scc_ProjName ""
 # PROP Scc_LocalPath ""
-CPP=cl.exe
+CPP=xicl6.exe
 RSC=rc.exe
 
 !IF  "$(CFG)" == "bdb - Win32 Debug"
@@ -48,7 +48,7 @@ RSC=rc.exe
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LIB32=link.exe -lib
+LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo /out:"..\lib_debug\bdb.lib"
 
@@ -56,8 +56,8 @@ LIB32=link.exe -lib
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 1
-# PROP BASE Output_Dir "bdb___Win32_Max"
-# PROP BASE Intermediate_Dir "bdb___Win32_Max"
+# PROP BASE Output_Dir "max"
+# PROP BASE Intermediate_Dir "max"
 # PROP BASE Target_Dir ""
 # PROP Use_MFC 0
 # PROP Use_Debug_Libraries 1
@@ -66,13 +66,13 @@ LIB32=link.exe -lib
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /G6 /MTd /W3 /Z7 /Od /Gf /I "../bdb/build_win32" /I "../bdb/include" /D "__WIN32__" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "_WINDOWS" /FD /c
 # SUBTRACT BASE CPP /Fr
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../bdb/build_win32" /I "../bdb/include" /D "NDEBUG" /D "DBUG_OFF" /D "_WINDOWS" /Fo"mysys___Win32_Max/" /Fd"mysys___Win32_Max/" /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../bdb/build_win32" /I "../bdb/include" /D "NDEBUG" /D "DBUG_OFF" /D "_WINDOWS" /D MYSQL_SERVER_SUFFIX_MAX /Fo"max/" /Fd"max/" /FD /c
 # ADD BASE RSC /l 0x409 /d "_DEBUG"
 # ADD RSC /l 0x409 /d "_DEBUG"
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LIB32=link.exe -lib
+LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo /out:"..\lib_debug\bdb.lib"
 # ADD LIB32 /nologo /out:"..\lib_release\bdb.lib"
 
