@@ -462,6 +462,7 @@ struct btr_pcur_struct{
 					contains an initial segment of the
 					latest record cursor was positioned
 					either on, before, or after */
+	ulint		old_n_fields;	/* number of fields in old_rec */
 	ulint		rel_pos;	/* BTR_PCUR_ON, BTR_PCUR_BEFORE, or
 					BTR_PCUR_AFTER, depending on whether
 					cursor was on, before, or after the

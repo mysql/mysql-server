@@ -41,10 +41,12 @@ row_vers_impl_x_locked_off_kernel(
 				transaction; NOTE that the kernel mutex is
 				temporarily released! */
 	rec_t*		rec,	/* in: record in a secondary index */
-	dict_index_t*	index)	/* in: the secondary index */
+	dict_index_t*	index,	/* in: the secondary index */
+	const ulint*	offsets)/* in: rec_get_offsets(rec, index) */
 {
 	dict_index_t*	clust_index;
 	rec_t*		clust_rec;
+	ulint*		clust_offsets;
 	rec_t*		version;
 	rec_t*		prev_version;
 	dulint		trx_id;
@@ -59,6 +61,7 @@ row_vers_impl_x_locked_off_kernel(
 	ibool		rec_del;
 	ulint		err;
 	mtr_t		mtr;
+	ibool		comp;
 	
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
@@ -96,7 +99,10 @@ row_vers_impl_x_locked_off_kernel(
 	        return(NULL);
 	}
 
-	trx_id = row_get_rec_trx_id(clust_rec, clust_index);
+	heap = mem_heap_create(1024);
+	clust_offsets = rec_get_offsets(clust_rec, clust_index,
+					ULINT_UNDEFINED, heap);
+	trx_id = row_get_rec_trx_id(clust_rec, clust_index, clust_offsets);
 
 	mtr_s_lock(&(purge_sys->latch), &mtr);
 
@@ -106,18 +112,26 @@ row_vers_impl_x_locked_off_kernel(
 		/* The transaction that modified or inserted clust_rec is no
 		longer active: no implicit lock on rec */
 		
+		mem_heap_free(heap);
 		mtr_commit(&mtr);
 
 		return(NULL);
 	}
 
-	if (!lock_check_trx_id_sanity(trx_id, clust_rec, clust_index, TRUE)) {
+	if (!lock_check_trx_id_sanity(trx_id, clust_rec, clust_index,
+					clust_offsets, TRUE)) {
 		/* Corruption noticed: try to avoid a crash by returning */
 		
+		mem_heap_free(heap);
 		mtr_commit(&mtr);
 
 		return(NULL);
 	}
+
+	comp = index->table->comp;
+	ut_ad(index->table == clust_index->table);
+	ut_ad(comp == page_is_comp(buf_frame_align(rec)));
+	ut_ad(comp == page_is_comp(buf_frame_align(clust_rec)));
 
 	/* We look up if some earlier version, which was modified by the trx_id
 	transaction, of the clustered index record would require rec to be in
@@ -128,11 +142,10 @@ row_vers_impl_x_locked_off_kernel(
 	different state, then the trx_id transaction has not yet had time to
 	modify rec, and does not necessarily have an implicit x-lock on rec. */
 
-	rec_del = rec_get_deleted_flag(rec);
+	rec_del = rec_get_deleted_flag(rec, comp);
 	trx = NULL;
 
 	version = clust_rec;
-	heap = NULL;
 
 	for (;;) {
 		mutex_exit(&kernel_mutex);
@@ -146,18 +159,16 @@ row_vers_impl_x_locked_off_kernel(
 
 		heap2 = heap;
 		heap = mem_heap_create(1024);
-
 		err = trx_undo_prev_version_build(clust_rec, &mtr, version,
-						clust_index, heap,
-						&prev_version);
-		if (heap2) {
-			mem_heap_free(heap2); /* version was stored in heap2,
-						if heap2 != NULL */
-		}
+					clust_index, clust_offsets, heap,
+					&prev_version);
+		mem_heap_free(heap2); /* free version and clust_offsets */
 
 		if (prev_version) {
+			clust_offsets = rec_get_offsets(prev_version,
+					clust_index, ULINT_UNDEFINED, heap);
 			row = row_build(ROW_COPY_POINTERS, clust_index,
-							prev_version, heap);
+					prev_version, clust_offsets, heap);
 			entry = row_build_index_entry(row, index, heap);
 		}
 
@@ -189,11 +200,11 @@ row_vers_impl_x_locked_off_kernel(
 		if prev_version would require rec to be in a different
 		state. */
 
-		vers_del = rec_get_deleted_flag(prev_version);
+		vers_del = rec_get_deleted_flag(prev_version, comp);
 
 		/* We check if entry and rec are identified in the alphabetical
 		ordering */
-		if (0 == cmp_dtuple_rec(entry, rec)) {
+		if (0 == cmp_dtuple_rec(entry, rec, offsets)) {
 			/* The delete marks of rec and prev_version should be
 			equal for rec to be in the state required by
 			prev_version */
@@ -211,7 +222,7 @@ row_vers_impl_x_locked_off_kernel(
 
 			dtuple_set_types_binary(entry,
 						dtuple_get_n_fields(entry));
-			if (0 != cmp_dtuple_rec(entry, rec)) {
+			if (0 != cmp_dtuple_rec(entry, rec, offsets)) {
 
 				trx = trx_get_on_id(trx_id);
 
@@ -226,7 +237,8 @@ row_vers_impl_x_locked_off_kernel(
 			break;
 		}
 
-		prev_trx_id = row_get_rec_trx_id(prev_version, clust_index);
+		prev_trx_id = row_get_rec_trx_id(prev_version, clust_index,
+								clust_offsets);
 
 		if (0 != ut_dulint_cmp(trx_id, prev_trx_id)) {
 			/* The versions modified by the trx_id transaction end
@@ -297,12 +309,14 @@ row_vers_old_has_index_entry(
 	rec_t*		version;
 	rec_t*		prev_version;
 	dict_index_t*	clust_index;
+	ulint*		clust_offsets;
 	mem_heap_t*	heap;
 	mem_heap_t*	heap2;
 	dtuple_t*	row;
 	dtuple_t*	entry;
 	ulint		err;
-	
+	ibool		comp;
+
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(rec), MTR_MEMO_PAGE_X_FIX)
 	   	|| mtr_memo_contains(mtr, buf_block_align(rec),
 						MTR_MEMO_PAGE_S_FIX));
@@ -313,10 +327,15 @@ row_vers_old_has_index_entry(
 
 	clust_index = dict_table_get_first_index(index->table);
 
-	if (also_curr && !rec_get_deleted_flag(rec)) {
+	comp = index->table->comp;
+	ut_ad(comp == page_is_comp(buf_frame_align(rec)));
+	heap = mem_heap_create(1024);
+	clust_offsets = rec_get_offsets(rec, clust_index,
+					ULINT_UNDEFINED, heap);
 
-		heap = mem_heap_create(1024);
-		row = row_build(ROW_COPY_POINTERS, clust_index, rec, heap);
+	if (also_curr && !rec_get_deleted_flag(rec, comp)) {
+		row = row_build(ROW_COPY_POINTERS, clust_index,
+						rec, clust_offsets, heap);
 		entry = row_build_index_entry(row, index, heap);
 
  		/* NOTE that we cannot do the comparison as binary
@@ -331,24 +350,17 @@ row_vers_old_has_index_entry(
 
 			return(TRUE);
 		}
-
-		mem_heap_free(heap);
 	}
 
 	version = rec;
-	heap = NULL;
 
 	for (;;) {
 		heap2 = heap;
 		heap = mem_heap_create(1024);
-
 		err = trx_undo_prev_version_build(rec, mtr, version,
-						clust_index, heap,
-						&prev_version);	
-		if (heap2) {
-			mem_heap_free(heap2); /* version was stored in heap2,
-						if heap2 != NULL */
-		}
+					clust_index, clust_offsets, heap,
+					&prev_version);
+		mem_heap_free(heap2); /* free version and clust_offsets */
 
 		if (err != DB_SUCCESS || !prev_version) {
 			/* Versions end here */
@@ -358,9 +370,12 @@ row_vers_old_has_index_entry(
 			return(FALSE);
 		}
 
-		if (!rec_get_deleted_flag(prev_version)) {
+		clust_offsets = rec_get_offsets(prev_version, clust_index,
+						ULINT_UNDEFINED, heap);
+
+		if (!rec_get_deleted_flag(prev_version, comp)) {
 			row = row_build(ROW_COPY_POINTERS, clust_index,
-							prev_version, heap);
+					prev_version, clust_offsets, heap);
 			entry = row_build_index_entry(row, index, heap);
 
  			/* NOTE that we cannot do the comparison as binary
@@ -412,6 +427,7 @@ row_vers_build_for_consistent_read(
 	mem_heap_t*	heap2;
 	byte*		buf;
 	ulint		err;
+	ulint*		offsets;
 
 	ut_ad(index->type & DICT_CLUSTERED);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(rec), MTR_MEMO_PAGE_X_FIX)
@@ -420,22 +436,23 @@ row_vers_build_for_consistent_read(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_ad(!read_view_sees_trx_id(view, row_get_rec_trx_id(rec, index)));
+
+	heap = mem_heap_create(1024);
+	offsets = rec_get_offsets(rec, index, ULINT_UNDEFINED, heap);
+
+	ut_ad(!read_view_sees_trx_id(view,
+				row_get_rec_trx_id(rec, index, offsets)));
 
 	rw_lock_s_lock(&(purge_sys->latch));
 	version = rec;
-	heap = NULL;
 
 	for (;;) {
 		heap2 = heap;
 		heap = mem_heap_create(1024);
 
 		err = trx_undo_prev_version_build(rec, mtr, version, index,
-							heap, &prev_version);
-		if (heap2) {
-			mem_heap_free(heap2); /* version was stored in heap2,
-						if heap2 != NULL */
-		}
+						offsets, heap, &prev_version);
+		mem_heap_free(heap2); /* free version and offsets */
 
 		if (err != DB_SUCCESS) {
 			break;
@@ -449,16 +466,17 @@ row_vers_build_for_consistent_read(
 			break;
 		}
 
-		prev_trx_id = row_get_rec_trx_id(prev_version, index);
+		offsets = rec_get_offsets(prev_version, index,
+					ULINT_UNDEFINED, heap);
+		prev_trx_id = row_get_rec_trx_id(prev_version, index, offsets);
 
 		if (read_view_sees_trx_id(view, prev_trx_id)) {
 
 			/* The view already sees this version: we can copy
 			it to in_heap and return */
 
-			buf = mem_heap_alloc(in_heap, rec_get_size(
-								prev_version));
-			*old_vers = rec_copy(buf, prev_version);
+			buf = mem_heap_alloc(in_heap, rec_offs_size(offsets));
+			*old_vers = rec_copy(buf, prev_version, offsets);
 			err = DB_SUCCESS;
 
 			break;

@@ -11,6 +11,7 @@ Created 12/7/1995 Heikki Tuuri
 
 #include "univ.i"
 #include "mtr0mtr.h"
+#include "dict0types.h"
 
 /************************************************************
 Writes 1 - 4 bytes to a file page buffered in the buffer pool.
@@ -172,6 +173,38 @@ mlog_parse_string(
 	byte*	end_ptr,/* in: buffer end */
 	byte*	page);	/* in: page where to apply the log record, or NULL */
 
+
+/************************************************************
+Opens a buffer for mlog, writes the initial log record and,
+if needed, the field lengths of an index.  Reserves space
+for further log entries.  The log entry must be closed with
+mtr_close(). */
+
+byte*
+mlog_open_and_write_index(
+/*======================*/
+				/* out: buffer, NULL if log mode
+				MTR_LOG_NONE */
+	mtr_t*		mtr,	/* in: mtr */
+	byte*		rec,	/* in: index record or page */
+	dict_index_t*	index,	/* in: record descriptor */
+	byte		type,	/* in: log item type */
+	ulint		size);	/* in: requested buffer size in bytes
+				(if 0, calls mlog_close() and returns NULL) */
+
+/************************************************************
+Parses a log record written by mlog_open_and_write_index. */
+
+byte*
+mlog_parse_index(
+/*=============*/
+				/* out: parsed record end,
+				NULL if not a complete record */
+	byte*		ptr,	/* in: buffer */
+	byte*		end_ptr,/* in: buffer end */
+				/* out: new value of log_ptr */
+	ibool		comp,	/* in: TRUE=compact record format */
+	dict_index_t**	index);	/* out, own: dummy index */
 
 /* Insert, update, and maybe other functions may use this value to define an
 extra mlog buffer size for variable size data */

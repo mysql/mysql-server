@@ -44,6 +44,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "buf0flu.h"
 #include "btr0sea.h"
 #include "dict0load.h"
+#include "dict0boot.h"
 #include "srv0start.h"
 #include "row0mysql.h"
 
@@ -845,6 +846,7 @@ srv_init(void)
 {
 	srv_conc_slot_t* 	conc_slot;
 	srv_slot_t*		slot;
+	dict_table_t*		table;
 	ulint			i;
 
 	srv_sys = mem_alloc(sizeof(srv_sys_t));
@@ -893,6 +895,31 @@ srv_init(void)
 	ut_a(srv_sys->operational);
 
 	UT_LIST_INIT(srv_sys->tasks);
+
+	/* create dummy table and index for old-style infimum and supremum */
+	table = dict_mem_table_create("SYS_DUMMY1",
+						DICT_HDR_SPACE, 1, FALSE);
+	dict_mem_table_add_col(table, "DUMMY", DATA_CHAR,
+					DATA_ENGLISH | DATA_NOT_NULL, 8, 0);
+
+	srv_sys->dummy_ind1 = dict_mem_index_create("SYS_DUMMY1",
+					"SYS_DUMMY1", DICT_HDR_SPACE, 0, 1);
+	dict_index_add_col(srv_sys->dummy_ind1,
+			dict_table_get_nth_col(table, 0), 0, 0);
+	srv_sys->dummy_ind1->table = table;
+	/* create dummy table and index for new-style infimum and supremum */
+	table = dict_mem_table_create("SYS_DUMMY2",
+						DICT_HDR_SPACE, 1, TRUE);
+	dict_mem_table_add_col(table, "DUMMY", DATA_CHAR,
+					DATA_ENGLISH | DATA_NOT_NULL, 8, 0);
+	srv_sys->dummy_ind2 = dict_mem_index_create("SYS_DUMMY2",
+					"SYS_DUMMY2", DICT_HDR_SPACE, 0, 1);
+	dict_index_add_col(srv_sys->dummy_ind2,
+			dict_table_get_nth_col(table, 0), 0, 0);
+	srv_sys->dummy_ind2->table = table;
+
+	/* avoid ut_ad(index->cached) in dict_index_get_n_unique_in_tree */
+	srv_sys->dummy_ind1->cached = srv_sys->dummy_ind2->cached = TRUE;
 
 	/* Init the server concurrency restriction data structures */
 

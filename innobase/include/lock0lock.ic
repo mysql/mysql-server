@@ -60,7 +60,8 @@ lock_clust_rec_some_has_impl(
 				/* out: transaction which has the x-lock, or
 				NULL */
 	rec_t*		rec,	/* in: user record */
-	dict_index_t*	index)	/* in: clustered index */
+	dict_index_t*	index,	/* in: clustered index */
+	const ulint*	offsets)/* in: rec_get_offsets(rec, index) */
 {
 	dulint	trx_id;
 
@@ -70,7 +71,7 @@ lock_clust_rec_some_has_impl(
 	ut_ad(index->type & DICT_CLUSTERED);
 	ut_ad(page_rec_is_user_rec(rec));
 
-	trx_id = row_get_rec_trx_id(rec, index);
+	trx_id = row_get_rec_trx_id(rec, index, offsets);
 
 	if (trx_is_active(trx_id)) {
 		/* The modifying or inserting transaction is active */

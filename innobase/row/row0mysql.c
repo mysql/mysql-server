@@ -782,10 +782,11 @@ row_lock_table_for_mysql(
 					/* out: error code or DB_SUCCESS */
 	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct in the MySQL
 					table handle */
-	dict_table_t*	table)		/* in: table to LOCK_IX, or NULL
+	dict_table_t*	table,		/* in: table to lock, or NULL
 					if prebuilt->table should be
 					locked as LOCK_TABLE_EXP |
 					prebuilt->select_lock_type */
+	ulint		mode)		/* in: lock mode of table */
 {
 	trx_t*		trx 		= prebuilt->trx;
 	que_thr_t*	thr;
@@ -819,7 +820,7 @@ run_again:
 	trx_start_if_not_started(trx);
 
 	if (table) {
-		err = lock_table(0, table, LOCK_IX, thr);
+		err = lock_table(0, table, mode, thr);
 	} else {
 		err = lock_table(LOCK_TABLE_EXP, prebuilt->table,
 			prebuilt->select_lock_type, thr);
@@ -3225,7 +3226,8 @@ row_scan_and_check_index(
 	int		cmp;
 	ibool		contains_null;
 	ulint		i;
-	
+	ulint*		offsets	= NULL;
+
 	*n_rows = 0;
 	
 	buf = mem_alloc(UNIV_PAGE_SIZE);
@@ -3265,8 +3267,10 @@ loop:
 	if (prev_entry != NULL) {
 		matched_fields = 0;
 		matched_bytes = 0;
-	
-		cmp = cmp_dtuple_rec_with_match(prev_entry, rec,
+
+		offsets = rec_reget_offsets(rec, index,
+					offsets, ULINT_UNDEFINED, heap);
+		cmp = cmp_dtuple_rec_with_match(prev_entry, rec, offsets,
 						&matched_fields,
 						&matched_bytes);
 		contains_null = FALSE;
@@ -3295,7 +3299,7 @@ loop:
 			dtuple_print(stderr, prev_entry);
 			fputs("\n"
 				"InnoDB: record ", stderr);
-			rec_print(stderr, rec);
+			rec_print(stderr, rec, offsets);
 			putc('\n', stderr);
 			is_ok = FALSE;
 		} else if ((index->type & DICT_UNIQUE)
@@ -3309,6 +3313,7 @@ loop:
 	}
 
 	mem_heap_empty(heap);
+	offsets = NULL;
 	
 	prev_entry = row_rec_to_index_entry(ROW_COPY_DATA, index, rec, heap);
 
@@ -3393,7 +3398,7 @@ row_check_table_for_mysql(
 	/* We validate also the whole adaptive hash index for all tables
 	at every CHECK TABLE */
 
-	if (!btr_search_validate()) {
+	if (!btr_search_validate(index)) {
 
 		ret = DB_ERROR;
 	}

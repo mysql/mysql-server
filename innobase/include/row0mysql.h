@@ -177,10 +177,12 @@ row_lock_table_for_mysql(
 					/* out: error code or DB_SUCCESS */
 	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct in the MySQL
 					table handle */
-	dict_table_t*	table);		/* in: table to LOCK_IX, or NULL
+	dict_table_t*	table,		/* in: table to lock, or NULL
 					if prebuilt->table should be
 					locked as LOCK_TABLE_EXP |
 					prebuilt->select_lock_type */
+	ulint		mode);		/* in: lock mode of table */
+					   
 /*************************************************************************
 Does an insert for MySQL. */
 
@@ -547,7 +549,10 @@ struct row_prebuilt_struct {
 					format */
 	ulint		hint_need_to_fetch_extra_cols;
 					/* normally this is set to 0; if this
-					is set to ROW_RETRIEVE_PRIMARY_KEY,
+					is set to ROW_RETRIEVE_PRIMARY_KEY
+					(that value is obsolete starting from
+					5.0.2, because we always fetch the
+					primary key cols),
 					then we should at least retrieve all
 					columns in the primary key; if this
 					is set to ROW_RETRIEVE_ALL_COLS, then
@@ -620,6 +625,9 @@ struct row_prebuilt_struct {
 
 /* Values for hint_need_to_fetch_extra_cols */
 #define ROW_RETRIEVE_PRIMARY_KEY	1
+					/* value 1 is obsolete starting from
+					5.0.2, because we always fetch the
+					primary key cols */
 #define ROW_RETRIEVE_ALL_COLS		2
 
 

@@ -208,7 +208,20 @@ ut_align_down(
 /*==========*/
 				/* out: aligned pointer */
 	void*   ptr,            /* in: pointer */
-	ulint   align_no);      /* in: align by this number */
+	ulint   align_no)      /* in: align by this number */
+		__attribute__((const));
+/*************************************************************
+The following function computes the offset of a pointer from the nearest
+aligned address. */
+UNIV_INLINE
+ulint
+ut_align_offset(
+/*==========*/
+					/* out: distance from aligned
+					pointer */
+	const void*	ptr,		/* in: pointer */
+	ulint		align_no)	/* in: align by this number */
+			__attribute__((const));
 /*********************************************************************
 Gets the nth bit of a ulint. */
 UNIV_INLINE

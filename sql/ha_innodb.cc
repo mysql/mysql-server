@@ -80,6 +80,7 @@ extern "C" {
 #include "../innobase/include/fsp0fsp.h"
 #include "../innobase/include/sync0sync.h"
 #include "../innobase/include/fil0fil.h"
+#include "../innobase/include/trx0xa.h"
 }
 
 #define HA_INNOBASE_ROWS_IN_TABLE 10000 /* to get optimization right */
@@ -148,6 +149,14 @@ static mysql_byte* innobase_get_key(INNOBASE_SHARE *share,uint *length,
 			      my_bool not_used __attribute__((unused)));
 static INNOBASE_SHARE *get_share(const char *table_name);
 static void free_share(INNOBASE_SHARE *share);
+
+/*********************************************************************
+Commits a transaction in an InnoDB database. */
+
+void
+innobase_commit_low(
+/*================*/
+	trx_t*	trx);	/* in: transaction handle */
 
 struct show_var_st innodb_status_variables[]= {
   {"buffer_pool_pages_data",
@@ -509,6 +518,25 @@ innobase_mysql_print_thd(
 	}
 
 	putc('\n', f);
+}
+
+/**********************************************************************
+Determines whether the given character set is of variable length.
+
+NOTE that the exact prototype of this function has to be in
+/innobase/data/data0type.ic! */
+extern "C"
+ibool
+innobase_is_mb_cset(
+/*================*/
+	ulint	cset)	/* in: MySQL charset-collation code */
+{
+	CHARSET_INFO*	cs;
+	ut_ad(cset < 256);
+
+	cs = all_charsets[cset];
+
+	return(cs && cs->mbminlen != cs->mbmaxlen);
 }
 
 /**********************************************************************
@@ -1336,7 +1364,7 @@ innobase_commit(
 	if (trx_handle != (void*)&innodb_dummy_stmt_trx_handle
 	    || (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))) {
 	        
-		/* We were instructed to commit the whole transaction, or
+ 		/* We were instructed to commit the whole transaction, or
 		this is an SQL statement end and autocommit is on */
 
 		innobase_commit_low(trx);
@@ -1473,6 +1501,39 @@ innobase_rollback(
 	} else {
 		error = trx_rollback_last_sql_stat_for_mysql(trx);
 	}
+
+	DBUG_RETURN(convert_error_code_to_mysql(error, NULL));
+}
+
+/*********************************************************************
+Rolls back a transaction */
+
+int
+innobase_rollback_trx(
+/*==================*/
+			/* out: 0 or error number */
+	trx_t*	trx)	/*  in: transaction */
+{
+	int	error = 0;
+
+	DBUG_ENTER("innobase_rollback_trx");
+	DBUG_PRINT("trans", ("aborting transaction"));
+
+	/* Release a possible FIFO ticket and search latch. Since we will
+	reserve the kernel mutex, we have to release the search system latch
+	first to obey the latching order. */
+
+	innobase_release_stat_resources(trx);
+
+        if (trx->auto_inc_lock) {
+		/* If we had reserved the auto-inc lock for some table (if
+		we come here to roll back the latest SQL statement) we
+		release it now before a possibly lengthy rollback */
+		
+		row_unlock_table_autoinc_for_mysql(trx);
+	}
+
+	error = trx_rollback_for_mysql(trx);
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, NULL));
 }
@@ -2208,7 +2269,13 @@ build_template(
 	ulint		n_fields;
 	ulint		n_requested_fields	= 0;
 	ibool		fetch_all_in_key	= FALSE;
-	ibool		fetch_primary_key_cols	= FALSE;
+	ibool		fetch_primary_key_cols	= TRUE; /* The ROR code in
+						opt_range.cc assumes that the
+						primary key cols are always
+						retrieved. Starting from
+						MySQL-5.0.2, let us always
+						fetch them, even though it
+						wastes some CPU. */ 
 	ulint		i;
 
 	if (prebuilt->select_lock_type == LOCK_X) {
@@ -2408,20 +2475,58 @@ ha_innobase::write_row(
 		position in the source table need not be adjusted after the
 		intermediate COMMIT, since writes by other transactions are
 		being blocked by a MySQL table lock TL_WRITE_ALLOW_READ. */
-		ut_a(prebuilt->trx->mysql_n_tables_locked == 2);
-		ut_a(UT_LIST_GET_LEN(prebuilt->trx->trx_locks) >= 2);
-		dict_table_t* table = lock_get_ix_table(
-				UT_LIST_GET_FIRST(prebuilt->trx->trx_locks));
+
+		dict_table_t*	src_table;
+		ibool		mode;
+
 		num_write_row = 0;
+
 		/* Commit the transaction.  This will release the table
 		locks, so they have to be acquired again. */
-		innobase_commit(user_thd, prebuilt->trx);
-		/* Note that this transaction is still active. */
-		user_thd->transaction.all.innodb_active_trans = 1;
-		/* Re-acquire the IX table lock on the source table. */
-		row_lock_table_for_mysql(prebuilt, table);
-		/* We will need an IX lock on the destination table. */
-	        prebuilt->sql_stat_start = TRUE;
+
+		/* Altering an InnoDB table */
+		/* Get the source table. */
+		src_table = lock_get_src_table(
+				prebuilt->trx, prebuilt->table, &mode);
+		if (!src_table) {
+		no_commit:
+			/* Unknown situation: do not commit */
+			/*
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB error: ALTER TABLE is holding lock"
+				" on %lu tables!\n",
+				prebuilt->trx->mysql_n_tables_locked);
+			*/
+			;
+		} else if (src_table == prebuilt->table) {
+			/* Source table is not in InnoDB format:
+			no need to re-acquire locks on it. */
+
+			/* Altering to InnoDB format */
+			innobase_commit(user_thd, prebuilt->trx);
+			/* Note that this transaction is still active. */
+			user_thd->transaction.all.innodb_active_trans = 1;
+			/* We will need an IX lock on the destination table. */
+		        prebuilt->sql_stat_start = TRUE;
+		} else {
+			/* Ensure that there are no other table locks than
+			LOCK_IX and LOCK_AUTO_INC on the destination table. */
+			if (!lock_is_table_exclusive(prebuilt->table,
+							prebuilt->trx)) {
+				goto no_commit;
+			}
+
+			/* Commit the transaction.  This will release the table
+			locks, so they have to be acquired again. */
+			innobase_commit(user_thd, prebuilt->trx);
+			/* Note that this transaction is still active. */
+			user_thd->transaction.all.innodb_active_trans = 1;
+			/* Re-acquire the table lock on the source table. */
+			row_lock_table_for_mysql(prebuilt, src_table, mode);
+			/* We will need an IX lock on the destination table. */
+		        prebuilt->sql_stat_start = TRUE;
+		}
 	}
 
 	num_write_row++;
@@ -3490,7 +3595,7 @@ create_table_def(
 	TABLE*		form,		/* in: information on table
 					columns and indexes */
 	const char*	table_name,	/* in: table name */
-	const char*	path_of_temp_table)/* in: if this is a table explicitly
+	const char*	path_of_temp_table,/* in: if this is a table explicitly
 					created by the user with the
 					TEMPORARY keyword, then this
 					parameter is the dir path where the
@@ -3498,6 +3603,7 @@ create_table_def(
 					an .ibd file for it (no .ibd extension
 					in the path, though); otherwise this
 					is NULL */
+	ibool		comp)		/* in: TRUE=compact record format */
 {
 	Field*		field;
 	dict_table_t*	table;
@@ -3518,7 +3624,7 @@ create_table_def(
 	/* We pass 0 as the space id, and determine at a lower level the space
 	id where to store the table */
 
-	table = dict_mem_table_create((char*) table_name, 0, n_cols);
+	table = dict_mem_table_create(table_name, 0, n_cols, comp);
 
 	if (path_of_temp_table) {
 		table->dir_path_of_temp_table =
@@ -3782,12 +3888,9 @@ ha_innobase::create(
 
 	/* Create the table definition in InnoDB */
 
-	if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
-
-  		error = create_table_def(trx, form, norm_name, name2);
-	} else {
-		error = create_table_def(trx, form, norm_name, NULL);
-	}
+	error = create_table_def(trx, form, norm_name,
+		create_info->options & HA_LEX_CREATE_TMP_TABLE ? name2 : NULL,
+		!(form->db_options_in_use & HA_OPTION_PACK_RECORD));
 
   	if (error) {
 		innobase_commit_low(trx);
@@ -5145,7 +5248,8 @@ ha_innobase::external_lock(
 			if (thd->in_lock_tables &&
 			    thd->variables.innodb_table_locks) {
 				ulint	error;
-				error = row_lock_table_for_mysql(prebuilt, 0);
+				error = row_lock_table_for_mysql(prebuilt,
+							NULL, LOCK_TABLE_EXP);
 
 				if (error != DB_SUCCESS) {
 					error = convert_error_code_to_mysql(
@@ -5756,4 +5860,158 @@ innobase_query_is_replace(void)
 }
 }
 
+/***********************************************************************
+This function is used to prepare X/Open XA distributed transaction   */
+
+int innobase_xa_prepare(
+/*====================*/
+			/* out: 0 or error number */
+	THD*	thd,	/* in: handle to the MySQL thread of the user
+			whose XA transaction should be prepared */
+	bool	all)	/* in: TRUE - commit transaction
+			FALSE - the current SQL statement ended */
+{
+	int error = 0;
+        trx_t* trx;
+
+        trx = check_trx_exists(thd);
+
+	/* TODO: Get X/Open XA Transaction Identification from MySQL*/
+	memset(&trx->xid, 0, sizeof(trx->xid));
+	trx->xid.formatID = -1;
+
+	/* Release a possible FIFO ticket and search latch. Since we will
+	reserve the kernel mutex, we have to release the search system latch
+	first to obey the latching order. */
+
+	innobase_release_stat_resources(trx);
+
+	if (trx->active_trans == 0 && trx->conc_state != TRX_NOT_STARTED) {
+
+		fprintf(stderr,
+"InnoDB: Error: thd->transaction.all.innodb_active_trans == 0\n"
+"InnoDB: but trx->conc_state != TRX_NOT_STARTED\n");
+	}
+
+	if (all || (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))) {
+	        
+ 		/* We were instructed to prepare the whole transaction, or
+		this is an SQL statement end and autocommit is on */
+
+		error = trx_prepare_for_mysql(trx);
+	} else {
+	        /* We just mark the SQL statement ended and do not do a
+		transaction prepare */
+
+		if (trx->auto_inc_lock) {
+			/* If we had reserved the auto-inc lock for some
+			table in this SQL statement we release it now */
+		  	
+			row_unlock_table_autoinc_for_mysql(trx);
+		}
+		/* Store the current undo_no of the transaction so that we
+		know where to roll back if we have to roll back the next
+		SQL statement */
+
+		trx_mark_sql_stat_end(trx);
+	}
+
+	/* Tell the InnoDB server that there might be work for utility
+	threads: */
+
+	srv_active_wake_master_thread();
+
+        return error;
+}
+
+/***********************************************************************
+This function is used to recover X/Open XA distributed transactions   */
+
+int innobase_xa_recover(
+				/* out: number of prepared transactions 
+				stored in xid_list */
+	XID*    xid_list, 	/* in/out: prepared transactions */
+	uint	len)		/* in: number of slots in xid_list */
+/*====================*/
+{
+	if (len == 0 || xid_list == NULL) {
+		return 0;
+	}
+
+	return (trx_recover_for_mysql(xid_list, len));
+}
+
+/***********************************************************************
+This function is used to commit one X/Open XA distributed transaction
+which is in the prepared state */
+
+int innobase_commit_by_xid(
+/*=======================*/
+			/* out: 0 or error number */
+	XID*	xid)	/*  in: X/Open XA Transaction Identification */
+{
+	trx_t*	trx;
+
+	trx = trx_get_trx_by_xid(xid);
+
+	if (trx) {
+		innobase_commit_low(trx);
+		
+		return(XA_OK);
+	} else {
+		return(XAER_NOTA);
+	}
+}
+
+/***********************************************************************
+This function is used to rollback one X/Open XA distributed transaction
+which is in the prepared state */
+
+int innobase_rollback_by_xid(
+			/* out: 0 or error number */
+	XID	*xid)	/* in : X/Open XA Transaction Idenfification */
+{
+	trx_t*	trx;
+
+	trx = trx_get_trx_by_xid(xid);
+
+	if (trx) {
+		return(innobase_rollback_trx(trx));
+	} else {
+		return(XAER_NOTA);
+	}
+}
+
+/***********************************************************************
+This function is used to test commit/rollback of XA transactions */
+
+int innobase_xa_end(
+/*================*/
+	THD*	thd)	/* in: MySQL thread handle of the user for whom
+			transactions should be recovered */
+{
+        DBUG_ENTER("innobase_xa_end");
+
+	XID trx_list[100];
+	int trx_num, trx_num_max = 100;
+	int i;
+	XID xid;
+
+	while((trx_num = innobase_xa_recover(trx_list, trx_num_max))) {
+
+		for(i=0;i < trx_num; i++) {
+			xid = trx_list[i];
+
+			if ( i % 2) {
+				innobase_commit_by_xid(&xid);
+			} else {
+				innobase_rollback_by_xid(&xid);
+			}
+		}
+	}
+
+	free(trx_list);
+
+	DBUG_RETURN(0);
+}
 #endif /* HAVE_INNOBASE_DB */

@@ -46,7 +46,7 @@ Note that contary to what we planned in the 1990's, there will only be one
 insert buffer tree, and that is in the system tablespace of InnoDB.
 
 1. The first field is the space id.
-2. The second field is a one-byte marker which differentiates records from
+2. The second field is a one-byte marker (0) which differentiates records from
    the < 4.1.x storage format.
 3. The third field is the page number.
 4. The fourth field contains the type info, where we have also added 2 bytes to
@@ -55,7 +55,14 @@ insert buffer tree, and that is in the system tablespace of InnoDB.
    can use in the binary search on the index page in the ibuf merge phase.
 5. The rest of the fields contain the fields of the actual index record.
 
-*/
+In versions >= 5.0.3:
+
+The first byte of the fourth field is an additional marker (0) if the record
+is in the compact format.  The presence of this marker can be detected by
+looking at the length of the field modulo DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE.
+
+The high-order bit of the character set field in the type info is the
+"nullable" flag for the field. */
 
 
 /*	PREVENTING DEADLOCKS IN THE INSERT BUFFER SYSTEM
@@ -525,8 +532,8 @@ ibuf_data_init_for_space(
 	ibuf_exit();
 
 	sprintf(buf, "SYS_IBUF_TABLE_%lu", (ulong) space);
-	
-	table = dict_mem_table_create(buf, space, 2);
+	/* use old-style record format for the insert buffer */
+	table = dict_mem_table_create(buf, space, 2, FALSE);
 
 	dict_mem_table_add_col(table, "PAGE_NO", DATA_BINARY, 0, 0, 0);
 	dict_mem_table_add_col(table, "TYPES", DATA_BINARY, 0, 0, 0);
@@ -1049,20 +1056,20 @@ ibuf_rec_get_page_no(
 	ulint	len;
 
 	ut_ad(ibuf_inside());
-	ut_ad(rec_get_n_fields(rec) > 2);
+	ut_ad(rec_get_n_fields_old(rec) > 2);
 
-	field = rec_get_nth_field(rec, 1, &len);
+	field = rec_get_nth_field_old(rec, 1, &len);
 
 	if (len == 1) {
 		/* This is of the >= 4.1.x record format */
 		ut_a(trx_sys_multiple_tablespace_format);
 
-		field = rec_get_nth_field(rec, 2, &len);
+		field = rec_get_nth_field_old(rec, 2, &len);
 	} else {
 		ut_a(trx_doublewrite_must_reset_space_ids);
 		ut_a(!trx_sys_multiple_tablespace_format);
 
-	        field = rec_get_nth_field(rec, 0, &len);
+		field = rec_get_nth_field_old(rec, 0, &len);
 	}
 
 	ut_a(len == 4);
@@ -1084,15 +1091,15 @@ ibuf_rec_get_space(
 	ulint	len;
 
 	ut_ad(ibuf_inside());
-	ut_ad(rec_get_n_fields(rec) > 2);
+	ut_ad(rec_get_n_fields_old(rec) > 2);
 
-	field = rec_get_nth_field(rec, 1, &len);
+	field = rec_get_nth_field_old(rec, 1, &len);
 
 	if (len == 1) {
 		/* This is of the >= 4.1.x record format */
 
 		ut_a(trx_sys_multiple_tablespace_format);
-		field = rec_get_nth_field(rec, 0, &len);
+		field = rec_get_nth_field_old(rec, 0, &len);
 		ut_a(len == 4);
 
 		return(mach_read_from_4(field));
@@ -1102,6 +1109,161 @@ ibuf_rec_get_space(
 	ut_a(!trx_sys_multiple_tablespace_format);
 
 	return(0);
+}
+
+/************************************************************************
+Creates a dummy index for inserting a record to a non-clustered index.
+*/
+static
+dict_index_t*
+ibuf_dummy_index_create(
+/*====================*/
+				/* out: dummy index */
+	ulint		n,	/* in: number of fields */
+	ibool		comp)	/* in: TRUE=use compact record format */
+{
+	dict_table_t*	table;
+	dict_index_t*	index;
+	table = dict_mem_table_create("IBUF_DUMMY",
+			DICT_HDR_SPACE, n, comp);
+	index = dict_mem_index_create("IBUF_DUMMY", "IBUF_DUMMY",
+			DICT_HDR_SPACE, 0, n);
+	index->table = table;
+	/* avoid ut_ad(index->cached) in dict_index_get_n_unique_in_tree */
+	index->cached = TRUE;
+	return(index);
+}
+/************************************************************************
+Add a column to the dummy index */
+static
+void
+ibuf_dummy_index_add_col(
+/*====================*/
+	dict_index_t*	index,	/* in: dummy index */
+	dtype_t*	type)	/* in: the data type of the column */
+{
+	ulint	i	= index->table->n_def;
+	dict_mem_table_add_col(index->table, "DUMMY",
+		dtype_get_mtype(type),
+		dtype_get_prtype(type),
+		dtype_get_len(type),
+		dtype_get_prec(type));
+	dict_index_add_col(index,
+		dict_table_get_nth_col(index->table, i), 0, 0);
+}
+/************************************************************************
+Deallocates a dummy index for inserting a record to a non-clustered index.
+*/
+static
+void
+ibuf_dummy_index_free(
+/*====================*/
+	dict_index_t*	index)	/* in: dummy index */
+{
+	dict_table_t*	table = index->table;
+	mem_heap_free(index->heap);
+	mutex_free(&(table->autoinc_mutex));
+	mem_heap_free(table->heap);
+}
+
+/*************************************************************************
+Builds the entry to insert into a non-clustered index when we have the
+corresponding record in an ibuf index. */
+static
+dtuple_t*
+ibuf_build_entry_from_ibuf_rec(
+/*===========================*/
+					/* out, own: entry to insert to
+					a non-clustered index; NOTE that
+					as we copy pointers to fields in
+					ibuf_rec, the caller must hold a
+					latch to the ibuf_rec page as long
+					as the entry is used! */
+	rec_t*		ibuf_rec,	/* in: record in an insert buffer */
+	mem_heap_t*	heap,		/* in: heap where built */
+	dict_index_t**	pindex)		/* out, own: dummy index that
+					describes the entry */
+{
+	dtuple_t*	tuple;
+	dfield_t*	field;
+	ulint		n_fields;
+	byte*		types;
+	const byte*	data;
+	ulint		len;
+	ulint		i;
+	dict_index_t*	index;
+
+	data = rec_get_nth_field_old(ibuf_rec, 1, &len);
+
+	if (len > 1) {
+		/* This a < 4.1.x format record */
+
+		ut_a(trx_doublewrite_must_reset_space_ids);
+		ut_a(!trx_sys_multiple_tablespace_format);
+
+		n_fields = rec_get_n_fields_old(ibuf_rec) - 2;
+		tuple = dtuple_create(heap, n_fields);
+		types = rec_get_nth_field_old(ibuf_rec, 1, &len);
+
+		ut_a(len == n_fields * DATA_ORDER_NULL_TYPE_BUF_SIZE);
+
+		for (i = 0; i < n_fields; i++) {
+			field = dtuple_get_nth_field(tuple, i);
+
+			data = rec_get_nth_field_old(ibuf_rec, i + 2, &len);
+
+			dfield_set_data(field, data, len);
+
+			dtype_read_for_order_and_null_size(
+				dfield_get_type(field),
+				types + i * DATA_ORDER_NULL_TYPE_BUF_SIZE);
+		}
+
+		*pindex = ibuf_dummy_index_create(n_fields, FALSE);
+		return(tuple);
+	}
+
+	/* This a >= 4.1.x format record */
+
+	ut_a(trx_sys_multiple_tablespace_format);
+	ut_a(*data == 0);
+	ut_a(rec_get_n_fields_old(ibuf_rec) > 4);
+
+	n_fields = rec_get_n_fields_old(ibuf_rec) - 4;
+
+	tuple = dtuple_create(heap, n_fields);
+
+	types = rec_get_nth_field_old(ibuf_rec, 3, &len);
+
+	ut_a(len % DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE <= 1);
+	index = ibuf_dummy_index_create(n_fields,
+				len % DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE);
+
+	if (len % DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE) {
+		/* compact record format */
+		len--;
+		ut_a(*types == 0);
+		types++;
+	}
+
+	ut_a(len == n_fields * DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE);
+
+	for (i = 0; i < n_fields; i++) {
+		field = dtuple_get_nth_field(tuple, i);
+
+		data = rec_get_nth_field_old(ibuf_rec, i + 4, &len);
+
+		dfield_set_data(field, data, len);
+
+		dtype_new_read_for_order_and_null_size(
+			dfield_get_type(field),
+			types + i * DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE);
+
+		ibuf_dummy_index_add_col(index, dfield_get_type(field));
+	}
+
+	*pindex = index;
+	return(tuple);
 }
 
 /************************************************************************
@@ -1125,43 +1287,60 @@ ibuf_rec_get_volume(
 	ulint	i;
 
 	ut_ad(ibuf_inside());
-	ut_ad(rec_get_n_fields(ibuf_rec) > 2);
-	
-	data = rec_get_nth_field(ibuf_rec, 1, &len);
+	ut_ad(rec_get_n_fields_old(ibuf_rec) > 2);
+
+	data = rec_get_nth_field_old(ibuf_rec, 1, &len);
 
 	if (len > 1) {
-	        /* < 4.1.x format record */
+		/* < 4.1.x format record */
 
 		ut_a(trx_doublewrite_must_reset_space_ids);
 		ut_a(!trx_sys_multiple_tablespace_format);
 
-		n_fields = rec_get_n_fields(ibuf_rec) - 2;
+		n_fields = rec_get_n_fields_old(ibuf_rec) - 2;
 
-		types = rec_get_nth_field(ibuf_rec, 1, &len);
+		types = rec_get_nth_field_old(ibuf_rec, 1, &len);
 
 		ut_ad(len == n_fields * DATA_ORDER_NULL_TYPE_BUF_SIZE);
 	} else {
-	        /* >= 4.1.x format record */
+		/* >= 4.1.x format record */
 
 		ut_a(trx_sys_multiple_tablespace_format);
+		ut_a(*data == 0);
+
+		types = rec_get_nth_field_old(ibuf_rec, 3, &len);
+
+		ut_a(len % DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE <= 1);
+		if (len % DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE) {
+			/* compact record format */
+			ulint		volume;
+			dict_index_t*	dummy_index;
+			mem_heap_t*	heap = mem_heap_create(500);
+			dtuple_t*	entry =
+				ibuf_build_entry_from_ibuf_rec(
+					ibuf_rec, heap, &dummy_index);
+			volume = rec_get_converted_size(dummy_index, entry);
+			ibuf_dummy_index_free(dummy_index);
+			mem_heap_free(heap);
+			return(volume + page_dir_calc_reserved_space(1));
+		}
+
+		n_fields = rec_get_n_fields_old(ibuf_rec) - 4;
+
 		new_format = TRUE;
-
-		n_fields = rec_get_n_fields(ibuf_rec) - 4;
-
-		types = rec_get_nth_field(ibuf_rec, 3, &len);
 	}
 
 	for (i = 0; i < n_fields; i++) {
 		if (new_format) {
-		        data = rec_get_nth_field(ibuf_rec, i + 4, &len);
+			data = rec_get_nth_field_old(ibuf_rec, i + 4, &len);
 
 			dtype_new_read_for_order_and_null_size(&dtype,
-			       types + i * DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE);
+				types + i * DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE);
 		} else {
-		        data = rec_get_nth_field(ibuf_rec, i + 2, &len);
+			data = rec_get_nth_field_old(ibuf_rec, i + 2, &len);
 
 			dtype_read_for_order_and_null_size(&dtype,
-				   types + i * DATA_ORDER_NULL_TYPE_BUF_SIZE);
+				types + i * DATA_ORDER_NULL_TYPE_BUF_SIZE);
 		}
 
 		if (len == UNIV_SQL_NULL) {
@@ -1187,6 +1366,7 @@ ibuf_entry_build(
 				must be kept because we copy pointers to its
 				fields */
 	dtuple_t*	entry,	/* in: entry for a non-clustered index */
+	ibool		comp,	/* in: flag: TRUE=compact record format */
 	ulint		space,	/* in: space id */
 	ulint		page_no,/* in: index page number where entry should
 				be inserted */
@@ -1202,11 +1382,14 @@ ibuf_entry_build(
 	
 	/* Starting from 4.1.x, we have to build a tuple whose
 	(1) first field is the space id,
-	(2) the second field a single marker byte to tell that this
+	(2) the second field a single marker byte (0) to tell that this
 	is a new format record,
 	(3) the third contains the page number, and
 	(4) the fourth contains the relevent type information of each data
-	field,
+	field; the length of this field % DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE is
+	 (a) 0 for b-trees in the old format, and
+	 (b) 1 for b-trees in the compact format, the first byte of the field
+	 being the marker (0);
 	(5) and the rest of the fields are copied from entry. All fields
 	in the tuple are ordered like the type binary in our insert buffer
 	tree. */
@@ -1247,10 +1430,15 @@ ibuf_entry_build(
 
 	dfield_set_data(field, buf, 4);
 
+	ut_ad(comp == 0 || comp == 1);
 	/* Store the type info in buf2, and add the fields from entry to
 	tuple */
 	buf2 = mem_heap_alloc(heap, n_fields
-					* DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE);
+					* DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE
+					+ comp);
+	if (comp) {
+		*buf2++ = 0; /* write the compact format indicator */
+	}
 	for (i = 0; i < n_fields; i++) {
 		/* We add 4 below because we have the 4 extra fields at the
 		start of an ibuf record */
@@ -1268,96 +1456,19 @@ ibuf_entry_build(
 
 	field = dtuple_get_nth_field(tuple, 3);
 
+	if (comp) {
+		buf2--;
+	}
+
 	dfield_set_data(field, buf2, n_fields
-					* DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE);
+					* DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE
+					+ comp);
 	/* Set all the types in the new tuple binary */
 
 	dtuple_set_types_binary(tuple, n_fields + 4);
 
 	return(tuple);
 }	
-
-/*************************************************************************
-Builds the entry to insert into a non-clustered index when we have the
-corresponding record in an ibuf index. */
-static
-dtuple_t*
-ibuf_build_entry_from_ibuf_rec(
-/*===========================*/
-					/* out, own: entry to insert to
-					a non-clustered index; NOTE that
-					as we copy pointers to fields in
-					ibuf_rec, the caller must hold a
-					latch to the ibuf_rec page as long
-					as the entry is used! */
-	rec_t*		ibuf_rec,	/* in: record in an insert buffer */
-	mem_heap_t*	heap)		/* in: heap where built */
-{
-	dtuple_t*	tuple;
-	dfield_t*	field;
-	ulint		n_fields;
-	byte*		types;
-	byte*		data;
-	ulint		len;
-	ulint		i;
-	
-	data = rec_get_nth_field(ibuf_rec, 1, &len);
-
-	if (len > 1) {
-	        /* This a < 4.1.x format record */
-
-		ut_a(trx_doublewrite_must_reset_space_ids);
-		ut_a(!trx_sys_multiple_tablespace_format);
-
-		n_fields = rec_get_n_fields(ibuf_rec) - 2;
-		tuple = dtuple_create(heap, n_fields);
-		types = rec_get_nth_field(ibuf_rec, 1, &len);
-
-		ut_a(len == n_fields * DATA_ORDER_NULL_TYPE_BUF_SIZE);
-
-		for (i = 0; i < n_fields; i++) {
-		        field = dtuple_get_nth_field(tuple, i);
-
-			data = rec_get_nth_field(ibuf_rec, i + 2, &len);
-
-			dfield_set_data(field, data, len);
-
-			dtype_read_for_order_and_null_size(
-				   dfield_get_type(field),
-				   types + i * DATA_ORDER_NULL_TYPE_BUF_SIZE);
-		}
-
-		return(tuple);
-	}
-
-	/* This a >= 4.1.x format record */
-
-	ut_a(trx_sys_multiple_tablespace_format);
-
-	ut_a(rec_get_n_fields(ibuf_rec) > 4);
-
-	n_fields = rec_get_n_fields(ibuf_rec) - 4;
-
-	tuple = dtuple_create(heap, n_fields);
-
-	types = rec_get_nth_field(ibuf_rec, 3, &len);
-
-	ut_a(len == n_fields * DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE);
-
-	for (i = 0; i < n_fields; i++) {
-	        field = dtuple_get_nth_field(tuple, i);
-
-		data = rec_get_nth_field(ibuf_rec, i + 4, &len);
-
-		dfield_set_data(field, data, len);
-
-		dtype_new_read_for_order_and_null_size(
-			dfield_get_type(field),
-			types + i * DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE);
-	}
-
-	return(tuple);
-}
 
 /*************************************************************************
 Builds a search tuple used to search buffered inserts for an index page.
@@ -2047,8 +2158,7 @@ loop:
 	mutex_exit(&ibuf_mutex);
 
 	sum_sizes = ibuf_get_merge_page_nos(TRUE, btr_pcur_get_rec(&pcur),
-					space_ids, space_versions, page_nos,
-					&n_stored);
+			space_ids, space_versions, page_nos, &n_stored);
 #ifdef UNIV_IBUF_DEBUG
 	/* fprintf(stderr, "Ibuf contract sync %lu pages %lu volume %lu\n",
 		sync, n_stored, sum_sizes); */
@@ -2344,6 +2454,7 @@ ibuf_update_max_tablespace_id(void)
 	ibuf_data = fil_space_get_ibuf_data(0);
 
 	ibuf_index = ibuf_data->index;
+	ut_a(!ibuf_index->table->comp);
 
 	ibuf_enter();
 
@@ -2360,7 +2471,7 @@ ibuf_update_max_tablespace_id(void)
 	} else {
 		rec = btr_pcur_get_rec(&pcur);
 
-		field = rec_get_nth_field(rec, 0, &len);
+		field = rec_get_nth_field_old(rec, 0, &len);
 
 		ut_a(len == 4);
 		
@@ -2479,7 +2590,7 @@ ibuf_insert_low(
 		ibuf_enter();
 	}
 
-	entry_size = rec_get_converted_size(entry);
+	entry_size = rec_get_converted_size(index, entry);
 
 	heap = mem_heap_create(512);
 
@@ -2487,7 +2598,8 @@ ibuf_insert_low(
 	the first fields and the type information for other fields, and which
 	will be inserted to the insert buffer. */
 
-	ibuf_entry = ibuf_entry_build(entry, space, page_no, heap);
+	ibuf_entry = ibuf_entry_build(entry, index->table->comp,
+						space, page_no, heap);
 
 	/* Open a cursor to the insert buffer tree to calculate if we can add
 	the new entry to it without exceeding the free space limit for the
@@ -2532,8 +2644,8 @@ ibuf_insert_low(
 		do_merge = TRUE; 
 
 		ibuf_get_merge_page_nos(FALSE, btr_pcur_get_rec(&pcur),
-					space_ids, space_versions, page_nos,
-					&n_stored);
+					space_ids, space_versions,
+					page_nos, &n_stored);
 		goto function_exit;
  	}
 
@@ -2656,8 +2768,8 @@ ibuf_insert(
 
 	ut_a(!(index->type & DICT_CLUSTERED));
 	
-	if (rec_get_converted_size(entry)
-				>= page_get_free_space_of_empty() / 2) {
+	if (rec_get_converted_size(index, entry)
+		>= page_get_free_space_of_empty(index->table->comp) / 2) {
 		return(FALSE);
 	}
 	
@@ -2692,6 +2804,7 @@ ibuf_insert_to_index_page(
 	dtuple_t*	entry,	/* in: buffered entry to insert */
 	page_t*		page,	/* in: index page where the buffered entry
 				should be placed */
+	dict_index_t*	index,	/* in: record descriptor */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	page_cur_t	page_cur;
@@ -2699,17 +2812,28 @@ ibuf_insert_to_index_page(
 	rec_t*		rec;
 	page_t*		bitmap_page;
 	ulint		old_bits;
+	mem_heap_t*	heap;
 
 	ut_ad(ibuf_inside());
 	ut_ad(dtuple_check_typed(entry));
 
-	if (rec_get_n_fields(page_rec_get_next(page_get_infimum_rec(page)))
-	    != dtuple_get_n_fields(entry)) {
-
-		fprintf(stderr,
+	if (index->table->comp != page_is_comp(page)) {
+		fputs(
 "InnoDB: Trying to insert a record from the insert buffer to an index page\n"
-"InnoDB: but the number of fields does not match!\n");
+"InnoDB: but the 'compact' flag does not match!\n", stderr);
+		goto dump;
+	}
 
+	heap = mem_heap_create(100);
+	rec = page_rec_get_next(page_get_infimum_rec(page));
+
+	if (rec_offs_n_fields(rec_get_offsets(rec, index, ULINT_UNDEFINED,
+			heap)) != dtuple_get_n_fields(entry)) {
+		mem_heap_free(heap);
+		fputs(
+"InnoDB: Trying to insert a record from the insert buffer to an index page\n"
+"InnoDB: but the number of fields does not match!\n", stderr);
+	dump:
 		buf_page_print(page);
 
 	        dtuple_print(stderr, entry);
@@ -2723,31 +2847,35 @@ ibuf_insert_to_index_page(
 		return;
 	}
 
-	low_match = page_cur_search(page, entry, PAGE_CUR_LE, &page_cur);
+	mem_heap_free(heap);
+	low_match = page_cur_search(page, index, entry,
+						PAGE_CUR_LE, &page_cur);
 	
 	if (low_match == dtuple_get_n_fields(entry)) {
 		rec = page_cur_get_rec(&page_cur);
 		
-		btr_cur_del_unmark_for_ibuf(rec, mtr);
+		btr_cur_del_unmark_for_ibuf(rec, index, mtr);
 	} else {
-		rec = page_cur_tuple_insert(&page_cur, entry, mtr);
+		rec = page_cur_tuple_insert(&page_cur, entry, index, mtr);
 		
 		if (rec == NULL) {
 			/* If the record did not fit, reorganize */
 
-			btr_page_reorganize(page, mtr);
+			btr_page_reorganize(page, index, mtr);
 
-			page_cur_search(page, entry, PAGE_CUR_LE, &page_cur);
+			page_cur_search(page, index, entry,
+						PAGE_CUR_LE, &page_cur);
 
 			/* This time the record must fit */
-			if (!page_cur_tuple_insert(&page_cur, entry, mtr)) {
+			if (!page_cur_tuple_insert(&page_cur, entry,
+								index, mtr)) {
 
 				ut_print_timestamp(stderr);
 
 				fprintf(stderr,
 "InnoDB: Error: Insert buffer insert fails; page free %lu, dtuple size %lu\n",
 				(ulong) page_get_max_insert_size(page, 1),
-				(ulong) rec_get_converted_size(entry));
+				(ulong) rec_get_converted_size(index, entry));
 				fputs("InnoDB: Cannot insert index record ",
 					stderr);
 				dtuple_print(stderr, entry);
@@ -2836,11 +2964,12 @@ ibuf_delete_rec(
 		"InnoDB: ibuf record inserted to page %lu\n", (ulong) page_no);
 		fflush(stderr);
 
-		rec_print(stderr, btr_pcur_get_rec(pcur));
-		rec_print(stderr, pcur->old_rec);
+		rec_print_old(stderr, btr_pcur_get_rec(pcur));
+		rec_print_old(stderr, pcur->old_rec);
 		dtuple_print(stderr, search_tuple);
 
-		rec_print(stderr, page_rec_get_next(btr_pcur_get_rec(pcur)));
+		rec_print_old(stderr,
+				page_rec_get_next(btr_pcur_get_rec(pcur)));
 		fflush(stderr);
 
 		btr_pcur_commit_specify_mtr(pcur, mtr);
@@ -3075,7 +3204,7 @@ loop:
 
 		if (corruption_noticed) {
 			fputs("InnoDB: Discarding record\n ", stderr);
-			rec_print(stderr, ibuf_rec);
+			rec_print_old(stderr, ibuf_rec);
 			fputs("\n from the insert buffer!\n\n", stderr);
 	   	} else if (page) {
 			/* Now we have at pcur a record which should be
@@ -3083,19 +3212,22 @@ loop:
 			copies pointers to fields in ibuf_rec, and we must
 			keep the latch to the ibuf_rec page until the
 			insertion is finished! */
-
-			dulint	max_trx_id = page_get_max_trx_id(
+			dict_index_t*	dummy_index;
+			dulint		max_trx_id = page_get_max_trx_id(
 						buf_frame_align(ibuf_rec));
 			page_update_max_trx_id(page, max_trx_id);
 			
-			entry = ibuf_build_entry_from_ibuf_rec(ibuf_rec, heap);
+			entry = ibuf_build_entry_from_ibuf_rec(ibuf_rec,
+							heap, &dummy_index);
 #ifdef UNIV_IBUF_DEBUG
-			volume += rec_get_converted_size(entry)
+			volume += rec_get_converted_size(dummy_index, entry)
  					+ page_dir_calc_reserved_space(1);
 			ut_a(volume <= 4 * UNIV_PAGE_SIZE
 					/ IBUF_PAGE_SIZE_PER_FREE_SPACE);
 #endif
-			ibuf_insert_to_index_page(entry, page, &mtr);
+			ibuf_insert_to_index_page(entry, page,
+						dummy_index, &mtr);
+			ibuf_dummy_index_free(dummy_index);
 		}
 
 		n_inserts++;
