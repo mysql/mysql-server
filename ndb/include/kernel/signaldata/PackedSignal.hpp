@@ -38,6 +38,6 @@ class PackedSignal {
 };
 
 inline
-Uint32 PackedSignal::getSignalType(Uint32 data) { return data >> 28; };
+Uint32 PackedSignal::getSignalType(Uint32 data) { return data >> 28; }
 
 #endif
