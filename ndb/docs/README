@@ -1,0 +1,30 @@
+Create MySQL Cluster user documentation from source code
+--------------------------------------------------------
+(All these require Doxygen.) 
+
+* make clean
+  Remove all generated documentation and tmp files
+
+* make ndbapidoc
+  Makes the NDB API Programmer's Guide (in HTML)
+
+* make ndbapipdf
+  Makes the NDB API Programmer Guide (in PDF)
+
+* make mgmapidoc
+  Makes the MGM API Reference Manual (in HTML)
+
+* make mgmapipdf
+  Makes the MGM API Reference Manual (in PDF)
+
+* make ndbdoc
+  Makes source code browser for NDB Cluster (in HTML)
+  (Requires Graphviz.)
+
+Doxygen and Graphviz can be found at:
+  http://www.doxygen.org
+or at (for Red Hat 9.0 RPMs):
+  http://dentrassi.de/download/doxygen/
+
+--
+lars@mysql.com

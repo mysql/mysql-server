@@ -1,0 +1,21 @@
+Microsoft Visual Studio Solution File, Format Version 7.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NDB_CPC", "NDB_CPC.csproj", "{B78F6720-D36C-43DD-B442-F583718D0286}"
+EndProject
+Global
+	GlobalSection(SolutionConfiguration) = preSolution
+		ConfigName.0 = Debug
+		ConfigName.1 = Release
+	EndGlobalSection
+	GlobalSection(ProjectDependencies) = postSolution
+	EndGlobalSection
+	GlobalSection(ProjectConfiguration) = postSolution
+		{B78F6720-D36C-43DD-B442-F583718D0286}.Debug.ActiveCfg = Debug|.NET
+		{B78F6720-D36C-43DD-B442-F583718D0286}.Debug.Build.0 = Debug|.NET
+		{B78F6720-D36C-43DD-B442-F583718D0286}.Release.ActiveCfg = Release|.NET
+		{B78F6720-D36C-43DD-B442-F583718D0286}.Release.Build.0 = Release|.NET
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+	EndGlobalSection
+	GlobalSection(ExtensibilityAddIns) = postSolution
+	EndGlobalSection
+EndGlobal
