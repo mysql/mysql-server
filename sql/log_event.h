@@ -152,6 +152,11 @@ struct sql_ex_info
 #define I_TYPE_OFFSET        0
 #define I_VAL_OFFSET         1
 
+/* Rand event post-header */
+
+#define RAND_SEED1_OFFSET 0
+#define RAND_SEED2_OFFSET 8
+
 /* Load event post-header */
 
 #define L_THREAD_ID_OFFSET   0
@@ -199,7 +204,7 @@ enum Log_event_type
   START_EVENT = 1, QUERY_EVENT =2, STOP_EVENT=3, ROTATE_EVENT = 4,
   INTVAR_EVENT=5, LOAD_EVENT=6, SLAVE_EVENT=7, CREATE_FILE_EVENT=8,
   APPEND_BLOCK_EVENT=9, EXEC_LOAD_EVENT=10, DELETE_FILE_EVENT=11,
-  NEW_LOAD_EVENT=12
+  NEW_LOAD_EVENT=12, RAND_EVENT=13
 };
 
 enum Int_event_type
@@ -497,6 +502,34 @@ public:
   bool is_valid() { return 1; }
 };
 
+/*****************************************************************************
+ *
+ *  Rand log event class
+ *
+ ****************************************************************************/
+class Rand_log_event: public Log_event
+{
+ public:
+  ulonglong seed1;
+  ulonglong seed2;
+
+#ifndef MYSQL_CLIENT
+  Rand_log_event(THD* thd_arg, ulonglong seed1_arg, ulonglong seed2_arg)
+    :Log_event(thd_arg),seed1(seed1_arg),seed2(seed2_arg)
+    {}
+  void pack_info(String* packet);
+  int exec_event(struct st_relay_log_info* rli);
+#else
+  void print(FILE* file, bool short_form = 0, char* last_db = 0);
+#endif
+
+  Rand_log_event(const char* buf, bool old_format);
+  ~Rand_log_event() {}
+  Log_event_type get_type_code() { return RAND_EVENT;}
+  int get_data_size() { return sizeof(ulonglong) * 2; }
+  int write_data(IO_CACHE* file);
+  bool is_valid() { return 1; }
+};
 
 class Stop_log_event: public Log_event
 {
