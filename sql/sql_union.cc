@@ -355,15 +355,18 @@ int st_select_lex_unit::exec()
   
   if (uncacheable || !item || !item->assigned() || describe)
   {
-    if (optimized && item && item->assigned())
+    if (optimized && item)
     {
-      item->assigned(0); // We will reinit & rexecute unit
-      item->reset();
-      table->file->delete_all_rows();
+      if (item->assigned())
+      {
+        item->assigned(0); // We will reinit & rexecute unit
+        item->reset();
+        table->file->delete_all_rows();
+      }
+      /* re-enabling indexes for next subselect iteration */
+      if (union_distinct && table->file->enable_indexes(HA_KEY_SWITCH_ALL))
+        DBUG_ASSERT(1);
     }
-    if (union_distinct && table->file->enable_indexes(HA_KEY_SWITCH_ALL) &&
-        !describe)
-      DBUG_RETURN(1);  // For sub-selects
     for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
     {
       ha_rows records_at_start= 0;
