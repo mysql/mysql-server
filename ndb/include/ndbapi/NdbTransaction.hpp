@@ -110,23 +110,6 @@ enum ExecType {
  * -# AbortOption::IgnoreError
  *    Continue execution of transaction even if operation fails
  *
- * NdbTransaction::execute can sometimes indicate an error 
- * (return with -1) while the error code on the NdbTransaction is 0. 
- * This is an indication that one of the operations found a record 
- * problem. The transaction is still ok and can continue as usual.
- * The NdbTransaction::execute returns -1 together with error code 
- * on NdbTransaction object equal to 0 always means that an 
- * operation was not successful but that the total transaction was OK. 
- * By checking error codes on the individual operations it is possible 
- * to find out which operation was not successful. 
- *
- * NdbTransaction::executeScan is used to setup a scan in the NDB kernel
- * after it has been defined.
- * NdbTransaction::nextScanResult is used to iterate through the 
- * scanned tuples. 
- * After each call to NdbTransaction::nextScanResult, the pointers
- * of NdbRecAttr objects defined in the NdbOperation::getValue 
- * operations are updated with the values of the new the scanned tuple. 
  */
 
 /* FUTURE IMPLEMENTATION:
@@ -376,6 +359,7 @@ public:
 #endif
   void close();
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
    * Restart transaction
    *
@@ -385,6 +369,7 @@ public:
    *   Note this method also releases completed operations
    */
   int restart();
+#endif
 
   /** @} *********************************************************************/
 
@@ -494,7 +479,7 @@ public:
    */
   const NdbOperation * getNextCompletedOperation(const NdbOperation * op)const;
 
-  
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   const NdbOperation* getFirstDefinedOperation()const{return theFirstOpInList;}
   const NdbOperation* getLastDefinedOperation()const{return theLastOpInList;}
 
@@ -508,6 +493,7 @@ public:
    * ops are used (read, insert, update, delete).
    */
   int executePendingBlobOps(Uint8 flags = 0xFF);
+#endif
 
 private:						
   /**
