@@ -184,7 +184,7 @@ loop:
 
 		if (table == NULL) {
 			fputs("InnoDB: Failed to load table ", stderr);
-			ut_print_namel(stderr, NULL, field, len);
+			ut_print_namel(stderr, NULL, (char*) field, len);
 			putc('\n', stderr);
 		} else {
 			/* The table definition was corrupt if there

@@ -256,7 +256,7 @@ sopno stopst;
 	register char *ssp;	/* start of string matched by subsubRE */
 	register char *sep;	/* end of string matched by subsubRE */
 	register char *oldssp;	/* previous ssp */
-	register char *dp;
+	register char *dp;      /* used in debug mode to check asserts */
 
 	AT("diss", start, stop, startst, stopst);
 	sp = start;

@@ -4356,7 +4356,8 @@ Dbdict::execTAB_COMMITCONF(Signal* signal){
     lsPtr[0].p = buf;
     lsPtr[0].sz = sz;
     // note: ACC does not reply
-    sendSignal(DBACC_REF, GSN_TC_SCHVERREQ, signal, 7, JBB, lsPtr, 1);
+    if (tabPtr.p->isTable() || tabPtr.p->isHashIndex())
+      sendSignal(DBACC_REF, GSN_TC_SCHVERREQ, signal, 7, JBB, lsPtr, 1);
     sendSignal(DBTC_REF, GSN_TC_SCHVERREQ, signal, 7, JBB, lsPtr, 1);
     return;
   }
@@ -10309,6 +10310,7 @@ Dbdict::buildIndex_sendReply(Signal* signal, OpBuildIndexPtr opPtr,
   rep->setIndexId(opPtr.p->m_request.getIndexId());
   if (sendRef) {
     rep->setErrorCode(opPtr.p->m_errorCode);
+    rep->masterNodeId = opPtr.p->m_errorNode;
     gsn = GSN_BUILDINDXREF;
     length = BuildIndxRef::SignalLength;
   }

@@ -100,9 +100,11 @@ trx_undo_mem_create(
 				is created */	
 	XID*		xid,    /* in: X/Open XA transaction identification*/
 	ulint		page_no,/* in: undo log header page number */
-	ulint		offset);	/* in: undo log header byte offset on page */
+	ulint		offset);/* in: undo log header byte offset on page */
 /*******************************************************************
-Initializes a cached insert undo log header page for new use. */
+Initializes a cached insert undo log header page for new use. NOTE that this
+function has its own log record type MLOG_UNDO_HDR_REUSE. You must NOT change
+the operation of this function! */
 static
 ulint
 trx_undo_insert_header_reuse(
@@ -111,7 +113,6 @@ trx_undo_insert_header_reuse(
 	page_t*	undo_page,	/* in: insert undo log segment header page,
 				x-latched */
 	dulint	trx_id,		/* in: transaction id */
-	XID*	xid,		/* in: X/Open XA transaction identification*/
 	mtr_t*	mtr);		/* in: mtr */
 /**************************************************************************
 If an update undo log can be discarded immediately, this function frees the
@@ -184,7 +185,8 @@ trx_undo_get_prev_rec(
 	/* We have to go to the previous undo log page to look for the
 	previous record */
 
-	return(trx_undo_get_prev_rec_from_prev_page(rec, page_no, offset, mtr));
+	return(trx_undo_get_prev_rec_from_prev_page(rec, page_no, offset,
+									mtr));
 }
 
 /***************************************************************************
@@ -476,18 +478,19 @@ trx_undo_header_create_log(
 }	
 
 /*******************************************************************
-Creates a new undo log header in file. */
+Creates a new undo log header in file. NOTE that this function has its own
+log record type MLOG_UNDO_HDR_CREATE. You must NOT change the operation of
+this function! */
 static
 ulint
 trx_undo_header_create(
 /*===================*/
 				/* out: header byte offset on page */
 	page_t*	undo_page,	/* in: undo log segment header page,
-				x-latched; it is assumed that there is
-				TRX_UNDO_LOG_HDR_SIZE bytes free space
+				x-latched; it is assumed that there are
+				TRX_UNDO_LOG_XA_HDR_SIZE bytes free space
 				on it */
 	dulint	trx_id,		/* in: transaction id */
-	XID*	xid,		/* in: X/Open XA XID */
 	mtr_t*	mtr)		/* in: mtr */
 {
 	trx_upagef_t*	page_hdr;
@@ -507,9 +510,9 @@ trx_undo_header_create(
 
 	log_hdr = undo_page + free;
 	
-	new_free = free + TRX_UNDO_LOG_HDR_SIZE;
+	new_free = free + TRX_UNDO_LOG_OLD_HDR_SIZE;
 
-	ut_ad(new_free <= UNIV_PAGE_SIZE);
+	ut_a(free + TRX_UNDO_LOG_XA_HDR_SIZE < UNIV_PAGE_SIZE - 100);
 	
 	mach_write_to_2(page_hdr + TRX_UNDO_PAGE_START, new_free);
 
@@ -534,28 +537,102 @@ trx_undo_header_create(
 	mach_write_to_8(log_hdr + TRX_UNDO_TRX_ID, trx_id);
 	mach_write_to_2(log_hdr + TRX_UNDO_LOG_START, new_free);
 
-	/* If X/Open XID exits in the log header we store a
-	flag of it in upper byte of dict operation flag. */
-
-	if (xid != NULL && xid->formatID != -1) {
-		mach_write_to_1(log_hdr + TRX_UNDO_XID_EXISTS, TRUE);
-	} else {
-		mach_write_to_1(log_hdr + TRX_UNDO_XID_EXISTS, FALSE);
-	}
-
+	mach_write_to_1(log_hdr + TRX_UNDO_XID_EXISTS, FALSE);
 	mach_write_to_1(log_hdr + TRX_UNDO_DICT_TRANS, FALSE);
+
 	mach_write_to_2(log_hdr + TRX_UNDO_NEXT_LOG, 0);
 	mach_write_to_2(log_hdr + TRX_UNDO_PREV_LOG, prev_log);
 
-	/* Write X/Open XA transaction identification if exists */
-
-	if (xid && xid->formatID != -1) {
-		trx_undo_write_xid(log_hdr, xid);
-	}
-
+	/* Write the log record about the header creation */
 	trx_undo_header_create_log(undo_page, trx_id, mtr);
 	
 	return(free);
+}
+
+/************************************************************************
+Write X/Open XA Transaction Identification (XID) to undo log header */
+static
+void
+trx_undo_write_xid(
+/*===============*/
+	trx_ulogf_t*	log_hdr,/* in: undo log header */
+	XID*		xid,	/* in: X/Open XA Transaction Identification */
+	mtr_t*		mtr)	/* in: mtr */
+{
+	mlog_write_ulint(log_hdr + TRX_UNDO_XA_FORMAT, xid->formatID,
+							MLOG_4BYTES, mtr);
+
+	mlog_write_ulint(log_hdr + TRX_UNDO_XA_TRID_LEN, xid->gtrid_length,
+							MLOG_4BYTES, mtr);
+
+	mlog_write_ulint(log_hdr + TRX_UNDO_XA_BQUAL_LEN, xid->bqual_length,
+							MLOG_4BYTES, mtr);
+
+	mlog_write_string(log_hdr + TRX_UNDO_XA_XID, xid->data,
+							XIDDATASIZE, mtr);
+}
+
+/************************************************************************
+Read X/Open XA Transaction Identification (XID) from undo log header */
+static
+void
+trx_undo_read_xid(
+/*==============*/
+	trx_ulogf_t*	log_hdr,/* in: undo log header */
+	XID*		xid)	/* out: X/Open XA Transaction Identification */
+{
+	ulint i;
+
+	xid->formatID = mach_read_from_4(log_hdr + TRX_UNDO_XA_FORMAT);
+	
+	xid->gtrid_length = mach_read_from_4(log_hdr + TRX_UNDO_XA_TRID_LEN);
+
+	xid->bqual_length = mach_read_from_4(log_hdr + TRX_UNDO_XA_BQUAL_LEN);
+
+	for (i = 0; i < XIDDATASIZE; i++) {
+		xid->data[i] = (char)mach_read_from_1(log_hdr + 
+							TRX_UNDO_XA_XID + i);
+	}
+}
+
+/*******************************************************************
+Adds the XA XID after an undo log old-style header. */
+static
+void
+trx_undo_header_add_xid(
+/*====================*/
+	page_t*		undo_page,/* in: undo log segment header page */
+	trx_ulogf_t*	log_hdr,/* in: undo log header */
+	XID*		xid,	/* in: X/Open XA transaction identification */
+	mtr_t*		mtr)	/* in: mtr */
+{
+	trx_upagef_t*	page_hdr;
+	ulint		free;
+	ulint		new_free;
+
+	page_hdr = undo_page + TRX_UNDO_PAGE_HDR;
+
+	free = mach_read_from_2(page_hdr + TRX_UNDO_PAGE_FREE);
+
+	/* free is now the end offset of the old style undo log header */
+
+	ut_a(free == (ulint)(log_hdr - undo_page) + TRX_UNDO_LOG_OLD_HDR_SIZE);
+
+	new_free = free + (TRX_UNDO_LOG_XA_HDR_SIZE
+						- TRX_UNDO_LOG_OLD_HDR_SIZE);
+	trx_undo_write_xid(log_hdr, xid, mtr);
+
+	/* Now that we added the XID after the header, update the free offset
+	fields on the undo log page and in the undo log header */
+
+	mlog_write_ulint(page_hdr + TRX_UNDO_PAGE_START, new_free,
+							MLOG_2BYTES, mtr);
+
+	mlog_write_ulint(page_hdr + TRX_UNDO_PAGE_FREE, new_free,
+							MLOG_2BYTES, mtr);
+
+	mlog_write_ulint(log_hdr + TRX_UNDO_LOG_START, new_free,
+							MLOG_2BYTES, mtr);
 }
 
 /**************************************************************************
@@ -587,11 +664,6 @@ trx_undo_parse_page_header(
 	mtr_t*	mtr)	/* in: mtr or NULL */
 {
 	dulint	trx_id;
-	XID	xid;
-
-	/* Set X/Open XA transaction identification to NULL */
-	memset(&xid, 0, sizeof(xid));
-	xid.formatID = -1;
 	
 	ptr = mach_dulint_parse_compressed(ptr, end_ptr, &trx_id);
 
@@ -602,10 +674,10 @@ trx_undo_parse_page_header(
 
 	if (page) {
 		if (type == MLOG_UNDO_HDR_CREATE) {
-			trx_undo_header_create(page, trx_id, &xid, mtr);
+			trx_undo_header_create(page, trx_id, mtr);
 		} else {
 			ut_ad(type == MLOG_UNDO_HDR_REUSE);
-			trx_undo_insert_header_reuse(page, trx_id, &xid, mtr);
+			trx_undo_insert_header_reuse(page, trx_id, mtr);
 		}
 	}
 
@@ -613,7 +685,9 @@ trx_undo_parse_page_header(
 }	
 
 /*******************************************************************
-Initializes a cached insert undo log header page for new use. */
+Initializes a cached insert undo log header page for new use. NOTE that this
+function has its own log record type MLOG_UNDO_HDR_REUSE. You must NOT change
+the operation of this function! */
 static
 ulint
 trx_undo_insert_header_reuse(
@@ -622,7 +696,6 @@ trx_undo_insert_header_reuse(
 	page_t*	undo_page,	/* in: insert undo log segment header page,
 				x-latched */
 	dulint	trx_id,		/* in: transaction id */
-	XID*	xid,		/* in: X/Open XA transaction identification */
 	mtr_t*	mtr)		/* in: mtr */
 {
 	trx_upagef_t*	page_hdr;
@@ -638,9 +711,11 @@ trx_undo_insert_header_reuse(
 
 	free = TRX_UNDO_SEG_HDR + TRX_UNDO_SEG_HDR_SIZE;
 
+	ut_a(free + TRX_UNDO_LOG_XA_HDR_SIZE < UNIV_PAGE_SIZE - 100);
+
 	log_hdr = undo_page + free;
 	
-	new_free = free + TRX_UNDO_LOG_HDR_SIZE;
+	new_free = free + TRX_UNDO_LOG_OLD_HDR_SIZE;
 
 	/* Insert undo data is not needed after commit: we may free all
 	the space on the page */
@@ -660,18 +735,10 @@ trx_undo_insert_header_reuse(
 	mach_write_to_8(log_hdr + TRX_UNDO_TRX_ID, trx_id);
 	mach_write_to_2(log_hdr + TRX_UNDO_LOG_START, new_free);
 
-	/* If X/Open XID exits in the log header we store it
-	to log header. */
-
-	if (xid && xid->formatID != -1) {
-		mach_write_to_1(log_hdr + TRX_UNDO_XID_EXISTS, TRUE); 
-
-		trx_undo_write_xid(log_hdr, xid);
-	} else {
-		mach_write_to_1(log_hdr + TRX_UNDO_XID_EXISTS, FALSE);
-	}
-
+	mach_write_to_1(log_hdr + TRX_UNDO_XID_EXISTS, FALSE);
 	mach_write_to_1(log_hdr + TRX_UNDO_DICT_TRANS, FALSE);
+
+	/* Write the log record MLOG_UNDO_HDR_REUSE */
 	trx_undo_insert_header_reuse_log(undo_page, trx_id, mtr);
 	
 	return(free);
@@ -749,52 +816,6 @@ trx_undo_discard_latest_update_undo(
 	mach_write_to_2(seg_hdr + TRX_UNDO_LAST_LOG, prev_hdr_offset);
 
 	trx_undo_discard_latest_log(undo_page, mtr);
-}
-
-/************************************************************************
-Write X/Open XA Transaction Identification (XID) to undo log header */
-
-void
-trx_undo_write_xid(
-/*===============*/
-	trx_ulogf_t*	log_hdr,/* in: undo log header */
-	XID*		xid)	/* in: X/Open XA Transaction Identification */
-{
-	ulint i;
-
-	mach_write_to_4(log_hdr + TRX_UNDO_XA_FORMAT, xid->formatID);
-
-	mach_write_to_4(log_hdr + TRX_UNDO_XA_TRID_LEN, xid->gtrid_length);
-
-	mach_write_to_4(log_hdr + TRX_UNDO_XA_BQUAL_LEN, xid->bqual_length);
-
-	for(i=0; i < XIDDATASIZE; i++) {
-		mach_write_to_1(log_hdr + TRX_UNDO_XA_XID + i,
-					(ulint)(xid->data[i]));
-	}
-}
-
-/************************************************************************
-Read X/Open XA Transaction Identification (XID) from undo log header */
-
-void
-trx_undo_read_xid(
-/*==============*/
-	trx_ulogf_t*	log_hdr,/* in: undo log header */
-	XID*		xid)	/* out: X/Open XA Transaction Identification */
-{
-	ulint i;
-
-	xid->formatID = mach_read_from_4(log_hdr + TRX_UNDO_XA_FORMAT);
-	
-	xid->gtrid_length = mach_read_from_4(log_hdr + TRX_UNDO_XA_TRID_LEN);
-
-	xid->bqual_length = mach_read_from_4(log_hdr + TRX_UNDO_XA_BQUAL_LEN);
-
-	for(i=0; i < XIDDATASIZE; i++) {
-		xid->data[i] = (char)mach_read_from_1(log_hdr + 
-							TRX_UNDO_XA_XID +i);
-	}
 }
 
 /************************************************************************
@@ -1228,7 +1249,7 @@ trx_undo_mem_create_at_db_start(
 	xid_exists = mtr_read_ulint(undo_header + TRX_UNDO_XID_EXISTS, 
 						MLOG_1BYTE, mtr);
 
-	/* Read X/Open XA transaction identification if exists or
+	/* Read X/Open XA transaction identification if it exists, or
 	set it to NULL. */
 
 	memset(&xid, 0, sizeof(xid));
@@ -1242,7 +1263,6 @@ trx_undo_mem_create_at_db_start(
 
 	undo = trx_undo_mem_create(rseg, id, type, trx_id, &xid, 
 						page_no, offset);
-	
 	mutex_exit(&(rseg->mutex));
 
 	undo->dict_operation = 	mtr_read_ulint(
@@ -1510,11 +1530,12 @@ trx_undo_create(
 
 	page_no = buf_frame_get_page_no(undo_page);
 	
-	offset = trx_undo_header_create(undo_page, trx_id, xid, mtr);	
+	offset = trx_undo_header_create(undo_page, trx_id, mtr);
 
-	undo = trx_undo_mem_create(rseg, id, type, trx_id, xid ,
+	trx_undo_header_add_xid(undo_page, undo_page + offset, xid, mtr);
+
+	undo = trx_undo_mem_create(rseg, id, type, trx_id, xid,
 							page_no, offset);
-	
 	return(undo);
 }
 
@@ -1533,7 +1554,7 @@ trx_undo_reuse_cached(
 				TRX_UNDO_UPDATE */
 	dulint		trx_id,	/* in: id of the trx for which the undo log
 				is used */	
-	XID*		xid,	/* in: X/Open XA transaction identification*/
+	XID*		xid,	/* in: X/Open XA transaction identification */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	trx_undo_t*	undo;
@@ -1577,14 +1598,17 @@ trx_undo_reuse_cached(
 	undo_page = trx_undo_page_get(undo->space, undo->hdr_page_no, mtr);
 
 	if (type == TRX_UNDO_INSERT) {
-		offset = trx_undo_insert_header_reuse(undo_page, trx_id, 
-								xid, mtr);
+		offset = trx_undo_insert_header_reuse(undo_page, trx_id, mtr);
+		trx_undo_header_add_xid(undo_page, undo_page + offset, xid,
+									mtr);
 	} else {
 		ut_a(mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
 					+ TRX_UNDO_PAGE_TYPE)
 						== TRX_UNDO_UPDATE);
 
-		offset = trx_undo_header_create(undo_page, trx_id, xid, mtr);
+		offset = trx_undo_header_create(undo_page, trx_id, mtr);
+		trx_undo_header_add_xid(undo_page, undo_page + offset, xid,
+									mtr);
 	}
 	
 	trx_undo_mem_init_for_reuse(undo, trx_id, xid, offset);
@@ -1782,7 +1806,8 @@ trx_undo_set_state_at_prepare(
 	mlog_write_ulint(undo_header + TRX_UNDO_XID_EXISTS,
 					TRUE, MLOG_1BYTE, mtr);
 
-	trx_undo_write_xid(undo_header, &undo->xid);	
+	trx_undo_write_xid(undo_header, &undo->xid, mtr);	
+
 	return(undo_page);
 }
 

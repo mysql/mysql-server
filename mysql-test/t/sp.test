@@ -2645,6 +2645,74 @@ call bug8116(42)|
 drop procedure bug8116|
 drop table t3|
 
+#
+# BUG#6857: current_time() in STORED PROCEDURES
+#
+--disable_warnings
+drop procedure if exists bug6857|
+--enable_warnings
+create procedure bug6857(counter int)
+begin
+  declare t0, t1 int;
+  declare plus bool default 0;
+
+  set t0 = current_time();
+  while counter > 0 do
+    set counter = counter - 1;
+  end while;
+  set t1 = current_time();
+  if t1 > t0 then
+    set plus = 1;
+  end if;
+  select plus;
+end|
+
+# QQ: This is currently disabled. Not only does it slow down a normal test
+#     run, it makes running with valgrind (or similar tools) extremely
+#     painful.
+# Make sure this takes at least one second on all machines in all builds.
+# 30000 makes it about 3 seconds on an old 1.1GHz linux.
+#call bug6857(300000)|
+
+drop procedure bug6857|
+
+#
+# BUG#8757: Stored Procedures: Scope of Begin and End Statements do not
+#           work properly.
+--disable_warnings
+drop procedure if exists bug8757|
+--enable_warnings
+create procedure bug8757()
+begin
+  declare x int;
+  declare c1 cursor for select data from t1 limit 1;
+
+  begin
+    declare y int;
+    declare c2 cursor for select i from t2 limit 1;
+
+    open c2;
+    fetch c2 into y;
+    close c2;
+    select 2,y;
+  end;
+  open c1;
+  fetch c1 into x;
+  close c1;
+  select 1,x;
+end|
+
+delete from t1|
+delete from t2|
+insert into t1 values ("x", 1)|
+insert into t2 values ("y", 2, 0.0)|
+
+call bug8757()|
+
+delete from t1|
+delete from t2|
+drop procedure bug8757|
+
 
 #
 # Some "real" examples
