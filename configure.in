@@ -341,13 +341,13 @@ AC_PATH_PROG(KILL, kill, kill)
 AC_MSG_CHECKING("for kill switches")
 if $ac_cv_path_KILL -0 $$
 then
-  CHECK_PID="$ac_cv_path_KILL -0 \$\$PID > /dev/null 2>&1"
+  CHECK_PID="$ac_cv_path_KILL -0 \$\$PID > /dev/null 2> /dev/null"
 elif kill -s 0 $$
 then
-  CHECK_PID="$ac_cv_path_KILL -s 0 \$\$PID > /dev/null 2>&1"
+  CHECK_PID="$ac_cv_path_KILL -s 0 \$\$PID > /dev/null 2> /dev/null"
 else
   AC_MSG_WARN([kill -0 to check for pid seems to fail])
-    CHECK_PID="$ac_cv_path_KILL -s SIGCONT \$\$PID > /dev/null 2>&1"
+    CHECK_PID="$ac_cv_path_KILL -s SIGCONT \$\$PID > /dev/null 2> /dev/null"
 fi
 AC_SUBST(CHECK_PID)
 AC_MSG_RESULT("$CHECK_PID")
