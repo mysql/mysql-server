@@ -58,6 +58,7 @@ EXTRA_DIST=	comp_err.def init_db.sql install_test_db.ncf \
 		mysqld_safe.c mysqld_safe.def mysqldump.def mysqlimport.def \
 		mysqlshow.def mysqltest.def pack_isam.def perror.def \
 		replace.def resolve_stack_dump.def resolveip.def test_db.sql \
+		static_init_db.sql \
 		BUILD/apply-patch BUILD/compile-AUTOTOOLS \
 		BUILD/compile-linux-tools BUILD/compile-netware-END \
 		BUILD/compile-netware-START BUILD/compile-netware-all\
