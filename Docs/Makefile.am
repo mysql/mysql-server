@@ -69,12 +69,17 @@ manual.pdf: manual.texi
 	touch $@
 
 # Target to produce NuSphere Manual
-print-manual.pdf: manual.texi
-	cat manual.texi | sed -e 's|@image{[^}]*} *||g' > manual-tmp.texi; \
+nusphere.pdf: manual.texi
+	cat manual.texi \
+	| sed -e 's/@example/@smallexample/g' \
+	      -e 's/@end example/@end smallexample/g' \
+	      -e 's/@c ifnusphere //g' \
+	      -e 's|@image{[^}]*} *||g' \
+	> manual-tmp.texi; \
 	pdftex --interaction=nonstopmode '\input manual-tmp.texi'; \
 	pdftex --interaction=nonstopmode '\pdfcompresslevel=9' \
 					 '\input manual-tmp.texi'; \
-	mv manual-tmp.pdf $@; \
+	mv manual-tmp.pdf nusphere.pdf; \
 	rm -f manual-tmp.* ; \
 	touch $@
 
