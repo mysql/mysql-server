@@ -412,6 +412,9 @@ buf_flush_write_block_low(
 /*======================*/
 	buf_block_t*	block)	/* in: buffer block to write */
 {
+#ifdef UNIV_LOG_DEBUG
+	static ibool univ_log_debug_warned;
+#endif /* UNIV_LOG_DEBUG */
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
 #ifdef UNIV_IBUF_DEBUG
@@ -420,8 +423,13 @@ buf_flush_write_block_low(
 	ut_ad(!ut_dulint_is_zero(block->newest_modification));
 
 #ifdef UNIV_LOG_DEBUG
-	fputs("Warning: cannot force log to disk in the log debug version!\n",
-		stderr);
+	if (!univ_log_debug_warned) {
+		univ_log_debug_warned = TRUE;
+		fputs(
+	"Warning: cannot force log to disk if UNIV_LOG_DEBUG is defined!\n"
+	"Crash recovery will not work!\n",
+			stderr);
+	}
 #else
 	/* Force the log to the disk before writing the modified block */
 	log_write_up_to(block->newest_modification, LOG_WAIT_ALL_GROUPS, TRUE);
