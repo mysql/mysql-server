@@ -1636,11 +1636,12 @@ longlong Item_func_from_unixtime::val_int()
 bool Item_func_from_unixtime::get_date(TIME *ltime,
 				       uint fuzzy_date __attribute__((unused)))
 {
-  longlong tmp= args[0]->val_int();
-
-  if ((null_value= (args[0]->null_value ||
-                    tmp < TIMESTAMP_MIN_VALUE ||
-                    tmp > TIMESTAMP_MAX_VALUE)))
+  ulonglong tmp= (ulonglong)(args[0]->val_int());
+  /*
+    "tmp > TIMESTAMP_MAX_VALUE" check also covers case of negative
+    from_unixtime() argument since tmp is unsigned.
+  */
+  if ((null_value= (args[0]->null_value || tmp > TIMESTAMP_MAX_VALUE)))
     return 1;
 
   thd->variables.time_zone->gmt_sec_to_TIME(ltime, (my_time_t)tmp);
