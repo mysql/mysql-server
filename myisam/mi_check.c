@@ -41,7 +41,8 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
 		     ha_checksum *key_checksum, uint level);
 static uint isam_key_length(MI_INFO *info,MI_KEYDEF *keyinfo);
 static ha_checksum calc_checksum(ha_rows count);
-static int writekeys(MI_INFO *info,byte *buff,my_off_t filepos);
+static int writekeys(MI_CHECK *param, MI_INFO *info,byte *buff,
+		     my_off_t filepos);
 static int sort_one_index(MI_CHECK *param, MI_INFO *info,MI_KEYDEF *keyinfo,
 			  my_off_t pagepos, File new_file);
 static int sort_key_read(SORT_INFO *sort_info,void *key);
@@ -61,7 +62,8 @@ static void update_key_parts(MI_KEYDEF *keyinfo,
 			     ulonglong *unique,
 			     ulonglong records);
 static ha_checksum mi_byte_checksum(const byte *buf, uint length);
-
+static void set_data_file_type(MI_CHECK *param, SORT_INFO *info,
+			       MYISAM_SHARE *share);
 
 #ifdef __WIN__
 static double ulonglong2double(ulonglong value)
@@ -1179,15 +1181,8 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
   sort_info->dupp=0;
   sort_info->fix_datafile= (my_bool) (! rep_quick);
   sort_info->max_records= ~(ha_rows) 0;
-  if ((sort_info->new_data_file_type=share->data_file_type) ==
-      COMPRESSED_RECORD && param->testflag & T_UNPACK)
-  {
-    if (share->options & HA_OPTION_PACK_RECORD)
-      sort_info->new_data_file_type = DYNAMIC_RECORD;
-    else
-      sort_info->new_data_file_type = STATIC_RECORD;
-  }
 
+  set_data_file_type(param, sort_info, share);
   del=info->state->del;
   info->state->records=info->state->del=share->state.split=0;
   info->state->empty=0;
@@ -1215,9 +1210,10 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
   lock_memory(param);			/* Everything is alloced */
   while (!(error=sort_get_next_record(sort_info)))
   {
-    if (writekeys(info,(byte*) sort_info->record,sort_info->filepos))
+    if (writekeys(param, info,(byte*) sort_info->record,sort_info->filepos))
     {
-      if (my_errno != HA_ERR_FOUND_DUPP_KEY) goto err;
+      if (my_errno != HA_ERR_FOUND_DUPP_KEY)
+	goto err;
       DBUG_DUMP("record",(byte*) sort_info->record,share->base.pack_reclength);
       mi_check_print_info(param,"Duplicate key %2d for record at %10s against new record at %10s",
 			  info->errkey+1,
@@ -1356,7 +1352,8 @@ err:
 
 /* Uppate keyfile when doing repair */
 
-static int writekeys(register MI_INFO *info,byte *buff,my_off_t filepos)
+static int writekeys(MI_CHECK *param, register MI_INFO *info, byte *buff,
+		     my_off_t filepos)
 {
   register uint i;
   uchar *key;
@@ -1369,12 +1366,14 @@ static int writekeys(register MI_INFO *info,byte *buff,my_off_t filepos)
     {
       if (info->s->keyinfo[i].flag & HA_FULLTEXT )
       {
-        if (_mi_ft_add(info,i,(char*) key,buff,filepos))  goto err;
+        if (_mi_ft_add(info,i,(char*) key,buff,filepos))
+	  goto err;
       }
       else
       {
 	uint key_length=_mi_make_key(info,i,key,buff,filepos);
-	if (_mi_ck_write(info,i,key,key_length)) goto err;
+	if (_mi_ck_write(info,i,key,key_length))
+	  goto err;
       }
     }
   }
@@ -1390,16 +1389,21 @@ static int writekeys(register MI_INFO *info,byte *buff,my_off_t filepos)
       {
 	if (info->s->keyinfo[i].flag & HA_FULLTEXT)
         {
-          if (_mi_ft_del(info,i,(char*) key,buff,filepos)) break;
+          if (_mi_ft_del(info,i,(char*) key,buff,filepos))
+	    break;
         }
         else
 	{
 	  uint key_length=_mi_make_key(info,i,key,buff,filepos);
-	  if (_mi_ck_delete(info,i,key,key_length)) break;
+	  if (_mi_ck_delete(info,i,key,key_length))
+	    break;
 	}
       }
     }
   }
+  /* Remove checksum that was added to glob_crc in sort_get_next_record */
+  if (param->calc_checksum)
+    param->glob_crc-= info->checksum;
   DBUG_PRINT("error",("errno: %d",my_errno));
   DBUG_RETURN(-1);
 } /* writekeys */
@@ -1840,15 +1844,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   sort_info->info=info;
   sort_info->param = param;
 
-  if ((sort_info->new_data_file_type=share->data_file_type) ==
-      COMPRESSED_RECORD && param->testflag & T_UNPACK)
-  {
-    if (share->options & HA_OPTION_PACK_RECORD)
-      sort_info->new_data_file_type = DYNAMIC_RECORD;
-    else
-      sort_info->new_data_file_type = STATIC_RECORD;
-  }
-
+  set_data_file_type(param, sort_info, share);
   sort_info->filepos=new_header_length;
   sort_info->dupp=0;
   sort_info->buff=0;
@@ -2129,7 +2125,8 @@ static int sort_get_next_record(SORT_INFO *sort_info)
       if (*sort_info->record)
       {
 	if (param->calc_checksum)
-	  param->glob_crc+= mi_static_checksum(info,sort_info->record);
+	  param->glob_crc+= (info->checksum=
+			     mi_static_checksum(info,sort_info->record));
 	DBUG_RETURN(0);
       }
       if (!sort_info->fix_datafile)
@@ -2582,7 +2579,7 @@ static int sort_key_write(SORT_INFO *sort_info, const void *a)
 						    sort_info->key_block->
 						    lastkey),
 				 llbuff2));
-    param->error_printed=param->retry_without_quick=1;
+    param->retry_without_quick=1;
     if (sort_info->param->testflag & T_VERBOSE)
       _mi_print_key(stdout,sort_info->keyseg,(uchar*) a, USE_WHOLE_KEY);
     return (sort_delete_record(param));
@@ -3234,4 +3231,26 @@ my_bool mi_test_if_sort_rep(MI_INFO *info, ha_rows rows,
       return FALSE;
   }
   return TRUE;
+}
+
+
+static void
+set_data_file_type(MI_CHECK *param, SORT_INFO *sort_info, MYISAM_SHARE *share)
+{
+  if ((sort_info->new_data_file_type=share->data_file_type) ==
+      COMPRESSED_RECORD && param->testflag & T_UNPACK)
+  {
+    MYISAM_SHARE tmp;
+
+    if (share->options & HA_OPTION_PACK_RECORD)
+      sort_info->new_data_file_type = DYNAMIC_RECORD;
+    else
+      sort_info->new_data_file_type = STATIC_RECORD;
+
+    /* Set delete_function for sort_delete_record() */
+    memcpy((char*) &tmp, share, sizeof(*share));
+    tmp.options= ~HA_OPTION_COMPRESS_RECORD;
+    mi_setup_functions(&tmp);
+    share->delete_record=tmp.delete_record;
+  }
 }

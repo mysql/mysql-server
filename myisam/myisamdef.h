@@ -635,6 +635,7 @@ void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows);
 my_bool check_table_is_closed(const char *name, const char *where);
 int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share);
 int mi_open_keyfile(MYISAM_SHARE *share);
+void mi_setup_functions(register MYISAM_SHARE *share);
 
 /* Functions needed by mi_check */
 void mi_check_print_error _VARARGS((MI_CHECK *param, const char *fmt,...));
