@@ -993,8 +993,26 @@ ulong next_io_size(register ulong pos)
 
 void append_unescaped(String *res,const char *pos)
 {
-  for (; *pos ; pos++)
+#ifdef USE_MB
+  const char *end= pos + strlen(pos);
+#endif
+
+  for (; *pos ; )
   {
+#ifdef USE_MB
+    /*
+      Note, there is no needs to propagate this code into 4.1.
+    */
+    uint mblen;
+    if (use_mb(default_charset_info) &&
+        (mblen= my_ismbchar(default_charset_info, pos, end)))
+    {
+      res->append(pos, mblen);
+      pos+= mblen;
+      continue;
+    }
+#endif
+
     switch (*pos) {
     case 0:				/* Must be escaped for 'mysql' */
       res->append('\\');
@@ -1020,6 +1038,7 @@ void append_unescaped(String *res,const char *pos)
       res->append(*pos);
       break;
     }
+    pos++;
   }
 }
 
