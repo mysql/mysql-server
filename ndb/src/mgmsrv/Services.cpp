@@ -31,6 +31,8 @@
 
 #include "Services.hpp"
 
+extern bool g_StopServer;
+
 static const unsigned int MAX_READ_TIMEOUT = 1000 ;
 static const unsigned int MAX_WRITE_TIMEOUT = 100 ;
 
@@ -1012,12 +1014,29 @@ MgmApiSession::stop(Parser<MgmApiSession>::Context &,
     nodes.push_back(atoi(p));
   }
 
+  int stop_self= 0;
+
+  for(size_t i=0; i < nodes.size(); i++) {
+    if (nodes[i] == m_mgmsrv.getOwnNodeId()) {
+      stop_self= 1;
+      if (i != nodes.size()-1) {
+	m_output->println("stop reply");
+	m_output->println("result: server must be stopped last");
+	m_output->println("");
+	return;
+      }
+    }
+  }
+
   int stopped = 0, result = 0;
   
   for(size_t i=0; i < nodes.size(); i++)
-    if((result = m_mgmsrv.stopNode(nodes[i], abort != 0)) == 0)
+    if (nodes[i] != m_mgmsrv.getOwnNodeId()) {
+      if((result = m_mgmsrv.stopNode(nodes[i], abort != 0)) == 0)
+	stopped++;
+    } else
       stopped++;
-  
+
   m_output->println("stop reply");
   if(result != 0)
     m_output->println("result: %s", m_mgmsrv.getErrorText(result));
@@ -1025,6 +1044,9 @@ MgmApiSession::stop(Parser<MgmApiSession>::Context &,
     m_output->println("result: Ok");
   m_output->println("stopped: %d", stopped);
   m_output->println("");
+
+  if (stop_self)
+    g_StopServer= true;
 }
 
 
