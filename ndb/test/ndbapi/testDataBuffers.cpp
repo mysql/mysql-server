@@ -545,6 +545,7 @@ testcase(int flag)
 
 NDB_COMMAND(testDataBuffers, "testDataBuffers", "testDataBuffers", "testDataBuffers", 65535)
 {
+    ndb_init();
     while (++argv, --argc > 0) {
 	char const* p = argv[0];
 	if (*p++ != '-' || strlen(p) != 1)
