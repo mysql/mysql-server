@@ -76,7 +76,7 @@ extern void regfree(regex_t *);
 
 /* === reginit.c === */
 
-extern void regex_init(void);	/* Should be called for multithread progs */
+extern void regex_init(CHARSET_INFO *cs);	/* Should be called for multithread progs */
 extern void regex_end(void);	/* If one wants a clean end */
 
 #ifdef __cplusplus
