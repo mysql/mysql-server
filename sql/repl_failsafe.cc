@@ -892,7 +892,8 @@ int load_master_data(THD* thd)
           setting active_mi, because init_master_info() sets active_mi with
           defaults.
         */
-        if (init_master_info(active_mi, master_info_file, relay_log_info_file, 0))
+        if (init_master_info(active_mi, master_info_file, relay_log_info_file, 
+			     0, (SLAVE_IO | SLAVE_SQL)))
           send_error(&thd->net, ER_MASTER_INFO);
 	strmake(active_mi->master_log_name, row[0],
 		sizeof(active_mi->master_log_name));
