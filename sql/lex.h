@@ -35,7 +35,7 @@ SYM_GROUP sym_group_rtree= {"RTree keys", "HAVE_RTREE_KEYS"};
 
 #define CREATE_FUNC(A) (void *)(SYM_OR_NULL(A)), &sym_group_common
 
-#ifdef HAVE_GEOM
+#ifdef HAVE_SPATIAL
 #define CREATE_FUNC_GEOM(A) (void *)(SYM_OR_NULL(A)), &sym_group_geom
 #else
 #define CREATE_FUNC_GEOM(A) 0, &sym_group_geom
