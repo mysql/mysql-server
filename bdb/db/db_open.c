@@ -536,11 +536,9 @@ swap_retry:
 	 * and even a checksum error isn't a reason to panic the environment.
 	 */
 	if ((ret = __db_chk_meta(dbenv, dbp, meta, do_metachk)) != 0) {
-		if (ret == -1) {
+		if (ret == -1)
 			__db_err(dbenv,
 			    "%s: metadata page checksum error", name);
-			ret = EINVAL;
-		}
 		goto bad_format;
 	}
 
@@ -577,7 +575,7 @@ swap_retry:
 
 bad_format:
 	__db_err(dbenv, "%s: unexpected file type or format", name);
-	return (ret);
+	return (ret == 0 ? EINVAL : ret);
 }
 
 /*
