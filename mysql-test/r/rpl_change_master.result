@@ -8,7 +8,7 @@ select get_lock("a",5);
 get_lock("a",5)
 1
 create table t1(n int);
-insert into t1 values(1+get_lock("a",10)*0);
+insert into t1 values(1+get_lock("a",15)*0);
 insert into t1 values(2);
 stop slave;
 select * from t1;
