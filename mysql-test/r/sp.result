@@ -2059,6 +2059,16 @@ call bug6029()|
 1136
 drop procedure bug6029|
 drop table t3|
+drop procedure if exists bug8540|
+create procedure bug8540()
+begin
+declare x int default 1;
+select x as y, x+0 as z;
+end|
+call bug8540()|
+y	z
+1	1
+drop procedure bug8540|
 drop table if exists fac|
 create table fac (n int unsigned not null primary key, f bigint unsigned)|
 drop procedure if exists ifac|

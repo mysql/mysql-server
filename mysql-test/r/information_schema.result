@@ -604,3 +604,9 @@ Variable_name	Value
 show global status like "Threads_running";
 Variable_name	Value
 Threads_running	1
+create table t1(f1 int);
+create table t2(f2 int);
+create view v1 as select * from t1, t2;
+set @got_val= (select count(*) from information_schema.columns);
+drop view v1;
+drop table t1, t2;
