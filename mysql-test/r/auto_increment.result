@@ -55,3 +55,8 @@ ordid	ord
 2	sdj
 3	sdj
 1	zzz
+a
+0
+Table	Op	Msg_type	Msg_text
+test.t1	check	warning	Found row where the auto_increment column has the value 0
+test.t1	check	status	OK

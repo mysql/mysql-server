@@ -19854,6 +19854,28 @@ still get strange errors from a table when @strong{MySQL} tries to
 update a row or find a row by key (this is VERY unlikely to happen if a
 normal check has succeeded!).
 
+Some things reported by check table, can't be corrected automaticly:
+
+@itemize @bullet
+@item
+@code{Found row where the auto_increment column has the value 0}.
+
+This means that you have in the table a row where the
+@code{auto_increment} index column contains the value 0.
+(It's possible to create a row where the auto_increment column is 0 by
+explicitely setting the column to 0 with an @code{UPDATE} statement)
+
+This isn't an error in itself, but could cause trouble if you decide to
+dump the table and restore it or do an @code{ALTER TABLE} on the
+table. In this case the auto_increment column will change value,
+according to the rules of auto_increment columns, which could cause
+problems like a duplicate key error.
+
+To get rid of the warning, just execute an @code{UPDATE} statement
+to set the column to some other value than 0.
+@end itemize
+
+
 @findex BACKUP TABLE
 @node BACKUP TABLE, RESTORE TABLE, CHECK TABLE, Reference
 @section @code{BACKUP TABLE} Syntax
@@ -21453,7 +21475,8 @@ If you have specified the update log file or a binary log file without
 an extension, the extension number of the log file will be incremented
 by one relative to the previous file.  If you have used an extension in
 the file name, @strong{MySQL} will close and reopen the update log file.
-@xref{Update log}.
+@xref{Update log}. This is the same thing as sending the @code{SIGHUP}
+signal to the @code{mysqld} server.
 
 @item @code{PRIVILEGES} @tab Reloads the privileges from the grant tables in
 the @code{mysql} database.
@@ -21464,12 +21487,15 @@ the @code{mysql} database.
 
 @item @code{TABLES WITH READ LOCK} @tab Closes all open tables and locks all tables for all databases with a read until one executes @code{UNLOCK TABLES}. This is very convenient way to get backups if you have a file system, like Veritas,that can take snapshots in time.
 
-@item @code{STATUS} @tab Resets most status variables to zero.
+@item @code{STATUS} @tab Resets most status variables to zero. This is something one should only use when debugging a query.
 @end multitable
 
 You can also access each of the commands shown above with the @code{mysqladmin}
 utility, using the @code{flush-hosts}, @code{flush-logs}, @code{reload},
 or @code{flush-tables} commands.
+
+Take also a look at the @code{RESET} command used with
+replication. @xref{Replication SQL}.
 
 @cindex @code{mysqladmin}
 @findex KILL
@@ -29252,14 +29278,14 @@ The following table has the options you can use for the @strong{MASTER}:
 @item @strong{Option} @tab @strong{Description}
 @item @code{log-bin=filename} @tab
 Write to a binary update log to the specified location. Note that if you
-give it a parameter with an extension
-(for example, @code{log-bin=/mysql/logs/replication.log} ) versions up to 3.23.24
-will not work right during replication if you do @code{FLUSH LOGS} . The
-problem is fixed in Version 3.23.25. If you are using this kind of log name,
-@code{FLUSH LOGS} will be ignored on binlog. To clear the log, run
+give it a parameter with an extension (for example,
+@code{log-bin=/mysql/logs/replication.log} ) versions up to 3.23.24 will
+not work right during replication if you do @code{FLUSH LOGS} . The
+problem is fixed in Version 3.23.25. If you are using this kind of log
+name, @code{FLUSH LOGS} will be ignored on binlog. To clear the log, run
 @code{FLUSH MASTER}, and do not forget to run @code{FLUSH SLAVE} on all
-slaves. In Version 3.23.26 and in later versions you should use @code{RESET MASTER}
-and @code{RESET SLAVE}
+slaves. In Version 3.23.26 and in later versions you should use
+@code{RESET MASTER} and @code{RESET SLAVE}
 
 @item @code{log-bin-index=filename} @tab
 Because the user could issue the @code{FLUSH LOGS} command, we need to
@@ -45688,6 +45714,14 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.40
 @itemize @bullet
 @item
+Fixed that @code{DELETE FROM table_name ... LIMIT 0} and
+@code{UPDATE FROM table_name ... LIMIT 0} doesn't delete/update anything.
+@item
+@code{CHECK TABLE} now checks if an auto_increment column contains the value 0.
+@item
+Sending a @code{SIGHUP} to @code{mysqld} will now only flush the logs,
+not reset the replication.
+@item
 Fixed parser to allow floats of type @code{1.0e1} (no sign after @code{e}).
 @item
 Option @code{--force} to @code{myisamchk} now also updates states.
@@ -51130,6 +51164,9 @@ efficiently, we need to add an API to allow binding of variables.
 @item
 Make it possible to specify @code{long_query_time} with a granularity
 in microseconds.
+@item
+Add a configurable prompt to the @code{mysql} command line client, with
+options like database in use, time and date...
 @item
 Add range checking to @code{MERGE} tables.
 @item

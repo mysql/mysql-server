@@ -629,7 +629,10 @@ struct request_info *req;
         AC_MSG_RESULT(yes)
         AC_DEFINE(LIBWRAP)
         AC_DEFINE(HAVE_LIBWRAP)
-        WRAPLIBS="-L$with_libwrap/lib -lwrap",
+	if test "$with_libwrap" != "yes"; then
+	    WRAPLIBS="-L${with_libwrap}/lib"
+	fi
+	WRAPLIBS="${WRAPLIBS} -lwrap",
         AC_MSG_RESULT(no)
         CPPFLAGS=${_cppflags} LDFLAGS=${_ldflags}),
       CPPFLAGS=${_cppflags} LDFLAGS=${_ldflags})
@@ -797,6 +800,11 @@ case $SYSTEM_TYPE in
   *freebsd*)
     echo "Adding fix for interrupted reads"
     CXXFLAGS="$CXXFLAGS -DMYSQLD_NET_RETRY_COUNT=1000000"
+    ;;
+  *netbsd*)
+    echo "Adding flag -Dunix"
+    CFLAGS="$CFLAGS -Dunix"
+    CXXFLAGS="$CXXFLAGS -Dunix"
     ;;
   *bsdi*)
     echo "Adding fix for BSDI"
@@ -2043,15 +2051,15 @@ EOF
     AC_DEFINE(HAVE_mit_thread)
     MT_INCLUDES="-I\$(top_srcdir)/mit-pthreads/include"
     AC_SUBST(MT_INCLUDES)
-    MT_LD_ADD="-L \$(top_srcdir)/mit-pthreads/obj/ -lpthread"
+    MT_LD_ADD="\$(top_srcdir)/mit-pthreads/obj/libpthread.a"
     AC_SUBST(MT_LD_ADD)
-    LIBS="$MT_LD_ADD $LIBS"
     echo ""
     echo "Configuring MIT Pthreads"
     # We will never install so installation paths are not needed.
     (cd mit-pthreads; sh ./configure)
     echo "End of MIT Pthreads configuration"
     echo ""
+    LIBS="$MT_LD_ADD $LIBS"
   fi
 fi
 AC_SUBST(sql_server_dirs)
