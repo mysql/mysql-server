@@ -172,6 +172,7 @@ THD::THD()
   query_error= tmp_table_used= 0;
   next_insert_id=last_insert_id=0;
   open_tables= temporary_tables= handler_tables= derived_tables= 0;
+  hash_clear(&handler_tables_hash);
   tmp_table=0;
   lock=locked_tables=0;
   used_tables=0;
@@ -346,11 +347,9 @@ void THD::cleanup(void)
     lock=locked_tables; locked_tables=0;
     close_thread_tables(this);
   }
-  if (handler_tables)
-  {
-    open_tables=handler_tables; handler_tables=0;
-    close_thread_tables(this);
-  }
+  mysql_ha_flush(this, (TABLE_LIST*) 0,
+                 MYSQL_HA_CLOSE_FINAL | MYSQL_HA_FLUSH_ALL);
+  hash_free(&handler_tables_hash);
   close_temporary_tables(this);
   my_free((char*) variables.time_format, MYF(MY_ALLOW_ZERO_PTR));
   my_free((char*) variables.date_format, MYF(MY_ALLOW_ZERO_PTR));

@@ -300,7 +300,7 @@ bool close_cached_tables(THD *thd, bool if_wait_for_refresh,
     thd->proc_info="Flushing tables";
 
     close_old_data_files(thd,thd->open_tables,1,1);
-    mysql_ha_close_list(thd, tables);
+    mysql_ha_flush(thd, tables, MYSQL_HA_REOPEN_ON_USAGE | MYSQL_HA_FLUSH_ALL);
     bool found=1;
     /* Wait until all threads has closed all the tables we had locked */
     DBUG_PRINT("info",
@@ -852,7 +852,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
   }
 
   /* close handler tables which are marked for flush */
-  mysql_ha_close_list(thd, (TABLE_LIST*) NULL, /*flushed*/ 1);
+  mysql_ha_flush(thd, (TABLE_LIST*) NULL, MYSQL_HA_REOPEN_ON_USAGE);
 
   for (table=(TABLE*) hash_search(&open_cache,(byte*) key,key_length) ;
        table && table->in_use ;
@@ -936,6 +936,31 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
     for (uint i=0 ; i < table->fields ; i++)
       table->field[i]->table_name=table->table_name;
   }
+#if MYSQL_VERSION_ID < 40100
+  /*
+    If per-connection "new" variable (represented by variables.new_mode)
+    is set then we should pretend that the length of TIMESTAMP field is 19.
+    The cheapest (from perfomance viewpoint) way to achieve that is to set
+    field_length of all Field_timestamp objects in a table after opening
+    it (to 19 if new_mode is true or to original field length otherwise).
+    We save value of new_mode variable in TABLE::timestamp_mode to
+    not perform this setup if new_mode value is the same between sequential
+    table opens.
+  */
+  my_bool new_mode= thd->variables.new_mode;
+  if (table->timestamp_mode != new_mode)
+  {
+    for (uint i=0 ; i < table->fields ; i++)
+    {
+      Field *field= table->field[i];
+
+      if (field->type() == FIELD_TYPE_TIMESTAMP)
+        field->field_length= new_mode ? 19 :
+                             ((Field_timestamp *)(field))->orig_field_length;
+    }
+    table->timestamp_mode= new_mode;
+  }
+#endif
   /* These variables are also set in reopen_table() */
   table->tablenr=thd->current_tablenr++;
   table->used_fields=0;
@@ -1224,7 +1249,7 @@ bool wait_for_tables(THD *thd)
   {
     thd->some_tables_deleted=0;
     close_old_data_files(thd,thd->open_tables,0,dropping_tables != 0);
-    mysql_ha_close_list(thd, (TABLE_LIST*) NULL, /*flushed*/ 1);
+    mysql_ha_flush(thd, (TABLE_LIST*) NULL, MYSQL_HA_REOPEN_ON_USAGE);
     if (!table_is_used(thd->open_tables,1))
       break;
     (void) pthread_cond_wait(&COND_refresh,&LOCK_open);
@@ -1670,10 +1695,18 @@ int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
   uint counter;
   if (open_tables(thd, tables, &counter) || lock_tables(thd, tables, counter))
     DBUG_RETURN(-1);				/* purecov: inspected */
-  /*
-    Let us propagate pointers to open tables from global table list
-    to table lists in particular selects if needed.
-  */
+  relink_tables_for_derived(thd);
+  DBUG_RETURN(mysql_handle_derived(thd->lex));
+}
+
+
+/*
+  Let us propagate pointers to open tables from global table list
+  to table lists in particular selects if needed.
+*/
+
+void relink_tables_for_derived(THD *thd)
+{
   if (thd->lex->all_selects_list->next_select_in_list() ||
       thd->lex->time_zone_tables_used)
   {
@@ -1686,7 +1719,6 @@ int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
         if (cursor->table_list)
           cursor->table= cursor->table_list->table;
   }
-  DBUG_RETURN(mysql_handle_derived(thd->lex));
 }
 
 
@@ -1726,7 +1758,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count)
       if (!table->derived)
 	*(ptr++)= table->table;
     }
-    if (!(thd->lock=mysql_lock_tables(thd,start,count)))
+    if (!(thd->lock=mysql_lock_tables(thd,start, (uint) (ptr - start))))
       return -1;				/* purecov: inspected */
   }
   else

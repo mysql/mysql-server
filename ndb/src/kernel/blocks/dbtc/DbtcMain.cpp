@@ -1249,7 +1249,8 @@ void Dbtc::execTCRELEASEREQ(Signal* signal)
     jam();
     signal->theData[0] = tuserpointer;
     signal->theData[1] = ZINVALID_CONNECTION;
-    sendSignal(tapiBlockref, GSN_TCRELEASEREF, signal, 2, JBB);
+    signal->theData[2] = __LINE__;
+    sendSignal(tapiBlockref, GSN_TCRELEASEREF, signal, 3, JBB);
     return;
   } else {
     jam();
@@ -1262,7 +1263,9 @@ void Dbtc::execTCRELEASEREQ(Signal* signal)
     sendSignal(tapiBlockref, GSN_TCRELEASECONF, signal, 1, JBB);
   } else {
     if (tapiBlockref == apiConnectptr.p->ndbapiBlockref) {
-      if (apiConnectptr.p->apiConnectstate == CS_CONNECTED) {
+      if (apiConnectptr.p->apiConnectstate == CS_CONNECTED ||
+	  (apiConnectptr.p->apiConnectstate == CS_ABORTING &&
+	   apiConnectptr.p->abortState == AS_IDLE)){
         jam();                                   /* JUST REPLY OK */
         releaseApiCon(signal, apiConnectptr.i);
         signal->theData[0] = tuserpointer;
@@ -1272,14 +1275,19 @@ void Dbtc::execTCRELEASEREQ(Signal* signal)
         jam();
         signal->theData[0] = tuserpointer;
         signal->theData[1] = ZINVALID_CONNECTION;
+	signal->theData[2] = __LINE__;
+	signal->theData[3] = apiConnectptr.p->apiConnectstate;
         sendSignal(tapiBlockref,
-                   GSN_TCRELEASEREF, signal, 2, JBB);
+                   GSN_TCRELEASEREF, signal, 4, JBB);
       }
     } else {
       jam();
       signal->theData[0] = tuserpointer;
       signal->theData[1] = ZINVALID_CONNECTION;
-      sendSignal(tapiBlockref, GSN_TCRELEASEREF, signal, 2, JBB);
+      signal->theData[2] = __LINE__;
+      signal->theData[3] = tapiBlockref;      
+      signal->theData[4] = apiConnectptr.p->ndbapiBlockref;      
+      sendSignal(tapiBlockref, GSN_TCRELEASEREF, signal, 5, JBB);
     }//if
   }//if
 }//Dbtc::execTCRELEASEREQ()
@@ -11359,6 +11367,7 @@ void Dbtc::execTCKEYCONF(Signal* signal)
     Uint32 Ttcindxrec = regApiPtr->tcindxrec;
     // Copy reply from TcKeyConf
 
+    ndbassert(regApiPtr->noIndexOp);
     regApiPtr->noIndexOp--; // Decrease count
     regApiPtr->tcIndxSendArray[Ttcindxrec] = indexOp->tcIndxReq.senderData;
     regApiPtr->tcIndxSendArray[Ttcindxrec + 1] = 
@@ -11417,6 +11426,12 @@ void Dbtc::execTCKEYREF(Signal* signal)
       abortErrorLab(signal);
       break;
     }
+    /**
+     * Increase count as it will be decreased below...
+     *   (and the code is written to handle failing lookup on "real" table
+     *    not lookup on index table)
+     */
+    regApiPtr->noIndexOp++;
     // else continue
   }
   case(IOS_INDEX_OPERATION): {
@@ -11426,6 +11441,7 @@ void Dbtc::execTCKEYREF(Signal* signal)
     TcIndxReq * const tcIndxReq = &indexOp->tcIndxReq;
     TcIndxRef * const tcIndxRef = (TcIndxRef *)signal->getDataPtrSend();
     
+    ndbassert(regApiPtr->noIndexOp);
     regApiPtr->noIndexOp--; // Decrease count
     tcIndxRef->connectPtr = tcIndxReq->senderData;
     tcIndxRef->transId[0] = tcKeyRef->transId[0];

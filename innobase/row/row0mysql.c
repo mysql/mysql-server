@@ -339,8 +339,9 @@ handle_new_error:
 	    "InnoDB: a case of widespread corruption, dump all InnoDB\n"
 	    "InnoDB: tables and recreate the whole InnoDB tablespace.\n"
 	    "InnoDB: If the mysqld server crashes after the startup or when\n"
-	    "InnoDB: you dump the tables, look at section 6.1 of\n"
-	    "InnoDB: http://www.innodb.com/ibman.html for help.\n", stderr);
+	    "InnoDB: you dump the tables, look at\n"
+	    "InnoDB: http://dev.mysql.com/doc/mysql/en/Forcing_recovery.html"
+	    " for help.\n", stderr);
 
 	} else {
 		fprintf(stderr, "InnoDB: unknown error code %lu\n",
@@ -1587,8 +1588,9 @@ row_create_table_for_mysql(
      "InnoDB: database and moving the .frm file to the current database.\n"
      "InnoDB: Then MySQL thinks the table exists, and DROP TABLE will\n"
      "InnoDB: succeed.\n"
-     "InnoDB: You can look for further help from section 15.1 of\n"
-     "InnoDB: http://www.innodb.com/ibman.php\n", stderr);
+     "InnoDB: You can look for further help from\n"
+     "InnoDB: http://dev.mysql.com/doc/mysql/en/"
+     "InnoDB_troubleshooting_datadict.html\n", stderr);
 		}
 		
 		/* We may also get err == DB_ERROR if the .ibd file for the
@@ -1630,6 +1632,8 @@ row_create_index_for_mysql(
 	
 	trx->op_info = "creating index";
 
+	trx_start_if_not_started(trx);
+
 	/* Check that the same column does not appear twice in the index.
 	Starting from 4.0.14, InnoDB should be able to cope with that, but
 	safer not to allow them. */
@@ -1656,9 +1660,16 @@ row_create_index_for_mysql(
 				goto error_handling;
 			}
 		}
-	}
+		
+		/* Check also that prefix_len < DICT_MAX_COL_PREFIX_LEN */
 
-	trx_start_if_not_started(trx);
+		if (dict_index_get_nth_field(index, i)->prefix_len
+						>= DICT_MAX_COL_PREFIX_LEN) {
+			err = DB_TOO_BIG_RECORD;
+
+			goto error_handling;
+		}
+	}
 
 	if (row_mysql_is_recovered_tmp_table(index->table_name)) {
 
@@ -2360,6 +2371,7 @@ row_drop_table_for_mysql(
 	memcpy(sql, str1, (sizeof str1) - 1);
 	memcpy(sql + (sizeof str1) - 1, quoted_name, namelen);
 	memcpy(sql + (sizeof str1) - 1 + namelen, str2, sizeof str2);
+	mem_free(quoted_name);
 
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
@@ -2400,8 +2412,9 @@ row_drop_table_for_mysql(
      	"InnoDB: data dictionary though MySQL is trying to drop it.\n"
      	"InnoDB: Have you copied the .frm file of the table to the\n"
 	"InnoDB: MySQL database directory from another database?\n"
-	"InnoDB: You can look for further help from section 15.1 of\n"
-	"InnoDB: http://www.innodb.com/ibman.php\n", stderr);
+	"InnoDB: You can look for further help from\n"
+	"InnoDB: http://dev.mysql.com/doc/mysql/en/"
+	"InnoDB_troubleshooting_datadict.html\n", stderr);
 		goto funct_exit;
 	}
 
@@ -2946,11 +2959,13 @@ row_rename_table_for_mysql(
                 ut_print_name(stderr, trx, old_name);
 		fputs(" to it.\n"
      "InnoDB: Have you deleted the .frm file and not used DROP TABLE?\n"
-     "InnoDB: You can look for further help from section 15.1 of\n"
-	      "InnoDB: http://www.innodb.com/ibman.php\n"
+     "InnoDB: You can look for further help from\n"
+     "InnoDB: http://dev.mysql.com/doc/mysql/en/"
+     "InnoDB_troubleshooting_datadict.html\n"
      "InnoDB: If table ", stderr);
-		ut_print_name(stderr, trx, new_name);
-		fputs(" is a temporary table #sql..., then it can be that\n"
+			ut_print_name(stderr, trx, new_name);
+			fputs(
+		" is a temporary table #sql..., then it can be that\n"
      "InnoDB: there are still queries running on the table, and it will be\n"
      "InnoDB: dropped automatically when the queries end.\n"
      "InnoDB: You can drop the orphaned table inside InnoDB by\n"
