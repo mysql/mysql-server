@@ -1724,7 +1724,7 @@ NdbDictionaryImpl::dropTable(const char * name)
   DBUG_PRINT("enter",("name: %s", name));
   NdbTableImpl * tab = getTable(name);
   if(tab == 0){
-    return -1;
+    DBUG_RETURN(-1);
   }
   int ret = dropTable(* tab);
   // If table stored in cache is incompatible with the one in the kernel

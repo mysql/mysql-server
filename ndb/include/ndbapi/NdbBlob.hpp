@@ -202,7 +202,7 @@ public:
   // "Error in blob head update forced rollback of transaction"
   STATIC_CONST( ErrAbort = 4268 );
   // "Unknown blob error"
-  STATIC_CONST( ErrUnknown = 4269 );
+  STATIC_CONST( ErrUnknown = 4270 );
   /**
    * Return info about all blobs in this operation.
    */
