@@ -572,11 +572,13 @@ MgmApiSession::getConfig_common(Parser_t::Context &,
     }
   }  
   
+  NdbMutex_Lock(m_mgmsrv.m_configMutex);
   const ConfigValues * cfg = &conf->m_configValues->m_config;
   const Uint32 size = cfg->getPackedSize();
   
   UtilBuffer src;
   cfg->pack(src);
+  NdbMutex_Unlock(m_mgmsrv.m_configMutex);
   
   BaseString str;
   int res = base64_encode(src, str);
