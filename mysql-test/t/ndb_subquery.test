@@ -1,4 +1,4 @@
-#-- source include/have_ndb.inc
+-- source include/have_ndb.inc
 
 --disable_warnings
 drop table if exists t1;
