@@ -161,7 +161,7 @@ sub mtr_report_stats ($) {
   {
     my $ratio=  $tot_passed * 100 / $tot_tests;
     printf "Failed $tot_failed/$tot_tests tests, " .
-      "%.2f\% successful.\n\n", $ratio;
+      "%.2f\% were successful.\n\n", $ratio;
     print
       "The log files in var/log may give you some hint\n",
       "of what when wrong.\n",
