@@ -155,7 +155,8 @@ ulint
 btr_node_ptr_get_child_page_no(
 /*===========================*/
 			   	/* out: child node address */
-	rec_t*	rec);		/* in: node pointer record */
+	rec_t*		rec,	/* in: node pointer record */
+	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /****************************************************************
 Creates the root node for a new index tree. */
 
@@ -167,6 +168,7 @@ btr_create(
 	ulint	type,	/* in: type of the index */
 	ulint	space,	/* in: space where created */
 	dulint	index_id,/* in: index id */
+	ibool	comp,	/* in: TRUE=compact page format */
 	mtr_t*	mtr);	/* in: mini-transaction handle */
 /****************************************************************
 Frees a B-tree except the root page, which MUST be freed after this
@@ -210,8 +212,9 @@ Reorganizes an index page. */
 void
 btr_page_reorganize(
 /*================*/
-	page_t*	page,	/* in: page to be reorganized */
-	mtr_t*	mtr);	/* in: mtr */
+	page_t*		page,	/* in: page to be reorganized */
+	dict_index_t*	index,	/* in: record descriptor */
+	mtr_t*		mtr);	/* in: mtr */
 /*****************************************************************
 Decides if the page should be split at the convergence point of
 inserts converging to left. */
@@ -273,6 +276,7 @@ void
 btr_set_min_rec_mark(
 /*=================*/
 	rec_t*	rec,	/* in: record */
+	ibool	comp,	/* in: TRUE=compact page format */
 	mtr_t*	mtr);	/* in: mtr */
 /*****************************************************************
 Deletes on the upper level the node pointer to a page. */
@@ -332,6 +336,7 @@ btr_parse_set_min_rec_mark(
 			/* out: end of log record or NULL */
 	byte*	ptr,	/* in: buffer */
 	byte*	end_ptr,/* in: buffer end */
+	ibool	comp,	/* in: TRUE=compact page format */
 	page_t*	page,	/* in: page or NULL */
 	mtr_t*	mtr);	/* in: mtr or NULL */
 /***************************************************************
@@ -340,11 +345,12 @@ Parses a redo log record of reorganizing a page. */
 byte*
 btr_parse_page_reorganize(
 /*======================*/
-			/* out: end of log record or NULL */
-	byte*	ptr,	/* in: buffer */
-	byte*	end_ptr,/* in: buffer end */
-	page_t*	page,	/* in: page or NULL */
-	mtr_t*	mtr);	/* in: mtr or NULL */
+				/* out: end of log record or NULL */
+	byte*		ptr,	/* in: buffer */
+	byte*		end_ptr,/* in: buffer end */
+	dict_index_t*	index,	/* in: record descriptor */
+	page_t*		page,	/* in: page or NULL */
+	mtr_t*		mtr);	/* in: mtr or NULL */
 /******************************************************************
 Gets the number of pages in a B-tree. */
 

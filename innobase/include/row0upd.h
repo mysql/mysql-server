@@ -80,6 +80,7 @@ row_upd_rec_sys_fields(
 /*===================*/
 	rec_t*		rec,	/* in: record */
 	dict_index_t*	index,	/* in: clustered index */
+	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	trx_t*		trx,	/* in: transaction */
 	dulint		roll_ptr);/* in: roll ptr of the undo log record */
 /*************************************************************************
@@ -124,8 +125,8 @@ row_upd_changes_field_size_or_external(
 				/* out: TRUE if the update changes the size of
 				some field in index or the field is external
 				in rec or update */
-	rec_t*		rec,	/* in: record in index */
 	dict_index_t*	index,	/* in: index */
+	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	upd_t*		update);/* in: update vector */
 /***************************************************************
 Replaces the new column values stored in the update vector to the record
@@ -135,8 +136,9 @@ a clustered index */
 void
 row_upd_rec_in_place(
 /*=================*/
-	rec_t*	rec,	/* in/out: record where replaced */
-	upd_t*	update);/* in: update vector */
+	rec_t*		rec,	/* in/out: record where replaced */
+	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
+	upd_t*		update);/* in: update vector */
 /*******************************************************************
 Builds an update vector from those fields which in a secondary index entry
 differ from a record that has the equal ordering fields. NOTE: we compare
@@ -274,10 +276,11 @@ recovery. */
 void
 row_upd_rec_sys_fields_in_recovery(
 /*===============================*/
-	rec_t*	rec,	/* in: record */
-	ulint	pos,	/* in: TRX_ID position in rec */
-	dulint	trx_id,	/* in: transaction id */
-	dulint	roll_ptr);/* in: roll ptr of the undo log record */
+	rec_t*		rec,	/* in: record */
+	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
+	ulint		pos,	/* in: TRX_ID position in rec */
+	dulint		trx_id,	/* in: transaction id */
+	dulint		roll_ptr);/* in: roll ptr of the undo log record */
 /*************************************************************************
 Parses the log data written by row_upd_index_write_log. */
 

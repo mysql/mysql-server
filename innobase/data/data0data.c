@@ -500,7 +500,7 @@ dtuple_convert_big_rec(
 	
 	ut_a(dtuple_check_typed_no_assert(entry));
 
-	size = rec_get_converted_size(entry);
+	size = rec_get_converted_size(index, entry);
 
 	if (size > 1000000000) {
 		fprintf(stderr,
@@ -524,9 +524,10 @@ dtuple_convert_big_rec(
 
 	n_fields = 0;
 
-	while ((rec_get_converted_size(entry)
-					>= page_get_free_space_of_empty() / 2)
-	       || rec_get_converted_size(entry) >= REC_MAX_DATA_SIZE) {
+	while (rec_get_converted_size(index, entry)
+			>= ut_min(page_get_free_space_of_empty(
+					index->table->comp) / 2,
+					REC_MAX_DATA_SIZE)) {
 
 		longest = 0;
 		for (i = dict_index_get_n_unique_in_tree(index);

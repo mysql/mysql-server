@@ -1514,8 +1514,11 @@ pars_create_table(
 
 	n_cols = que_node_list_get_len(column_defs);
 
-	table = dict_mem_table_create(table_sym->name, 0, n_cols);
-	
+	/* As the InnoDB SQL parser is for internal use only,
+	for creating some system tables, this function will only
+	create tables in the old (not compact) record format. */
+	table = dict_mem_table_create(table_sym->name, 0, n_cols, FALSE);
+
 	if (not_fit_in_memory != NULL) {
 		table->does_not_fit_in_memory = TRUE;
 	}

@@ -134,16 +134,14 @@ btr_cur_can_delete_without_compress(
 				/* out: TRUE if can be deleted without
 				recommended compression */
 	btr_cur_t*	cursor,	/* in: btr cursor */
+	ulint		rec_size,/* in: rec_get_size(btr_cur_get_rec(cursor))*/
 	mtr_t*		mtr)	/* in: mtr */
 {
-	ulint		rec_size;
 	page_t*		page;
 	
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(
 					btr_cur_get_page(cursor)),
 				MTR_MEMO_PAGE_X_FIX));
-
-	rec_size = rec_get_size(btr_cur_get_rec(cursor));
 
 	page = btr_cur_get_page(cursor);
 

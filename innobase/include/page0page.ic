@@ -73,7 +73,8 @@ page_header_set_field(
 {
 	ut_ad(page);
 	ut_ad(field <= PAGE_N_RECS);
-	ut_ad(val < UNIV_PAGE_SIZE);
+	ut_ad(field == PAGE_N_HEAP || val < UNIV_PAGE_SIZE);
+	ut_ad(field != PAGE_N_HEAP || (val & 0x7fff) < UNIV_PAGE_SIZE);
 
 	mach_write_to_2(page + PAGE_HEADER + field, val);
 }
@@ -162,7 +163,11 @@ page_get_infimum_rec(
 {
 	ut_ad(page);
 
-	return(page + PAGE_INFIMUM);
+	if (page_is_comp(page)) {
+		return(page + PAGE_NEW_INFIMUM);
+	} else {
+		return(page + PAGE_OLD_INFIMUM);
+	}
 }
 
 /****************************************************************
@@ -176,7 +181,11 @@ page_get_supremum_rec(
 {
 	ut_ad(page);
 
-	return(page + PAGE_SUPREMUM);
+	if (page_is_comp(page)) {
+		return(page + PAGE_NEW_SUPREMUM);
+	} else {
+		return(page + PAGE_OLD_SUPREMUM);
+	}
 }
 
 /****************************************************************
@@ -309,6 +318,7 @@ page_cmp_dtuple_rec_with_match(
 				be page infimum or supremum, in which case 
 				matched-parameter values below are not 
 				affected */
+	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	ulint*	 	matched_fields, /* in/out: number of already completely 
 				matched fields; when function returns
 				contains the value for current comparison */
@@ -320,6 +330,7 @@ page_cmp_dtuple_rec_with_match(
 	page_t*	page;
 
 	ut_ad(dtuple_check_typed(dtuple));
+	ut_ad(rec_offs_validate(rec, NULL, offsets));
 
 	page = buf_frame_align(rec);	
 
@@ -328,7 +339,7 @@ page_cmp_dtuple_rec_with_match(
 	} else if (rec == page_get_supremum_rec(page)) {
 		return(-1);
 	} else {
-		return(cmp_dtuple_rec_with_match(dtuple, rec,
+		return(cmp_dtuple_rec_with_match(dtuple, rec, offsets,
 						matched_fields,
 						matched_bytes));
 	}
@@ -358,6 +369,45 @@ page_dir_get_n_slots(
 {
 	return(page_header_get_field(page, PAGE_N_DIR_SLOTS));
 }
+/*****************************************************************
+Sets the number of dir slots in directory. */
+UNIV_INLINE
+void
+page_dir_set_n_slots(
+/*=================*/
+			/* out: number of slots */
+	page_t*	page,	/* in: index page */
+	ulint	n_slots)/* in: number of slots */
+{
+	page_header_set_field(page, PAGE_N_DIR_SLOTS, n_slots);
+}
+
+/*****************************************************************
+Gets the number of records in the heap. */
+UNIV_INLINE
+ulint
+page_dir_get_n_heap(
+/*================*/
+			/* out: number of user records */
+	page_t*	page)	/* in: index page */
+{
+	return(page_header_get_field(page, PAGE_N_HEAP) & 0x7fff);
+}
+
+/*****************************************************************
+Sets the number of records in the heap. */
+UNIV_INLINE
+void
+page_dir_set_n_heap(
+/*================*/
+	page_t*	page,	/* in: index page */
+	ulint	n_heap)	/* in: number of records */
+{
+	ut_ad(n_heap < 0x8000);
+
+	page_header_set_field(page, PAGE_N_HEAP, n_heap | (0x8000 &
+		page_header_get_field(page, PAGE_N_HEAP)));
+}
 
 /*****************************************************************
 Gets pointer to nth directory slot. */
@@ -369,7 +419,7 @@ page_dir_get_nth_slot(
 	page_t*	page,	/* in: index page */
 	ulint	n)	/* in: position */
 {
-	ut_ad(page_header_get_field(page, PAGE_N_DIR_SLOTS) > n);
+	ut_ad(page_dir_get_n_slots(page) > n);
 
 	return(page + UNIV_PAGE_SIZE - PAGE_DIR
 					- (n + 1) * PAGE_DIR_SLOT_SIZE);
@@ -431,7 +481,8 @@ page_dir_slot_get_n_owned(
 					/* out: number of records */
 	page_dir_slot_t* 	slot)	/* in: page directory slot */
 {
-	return(rec_get_n_owned(page_dir_slot_get_rec(slot)));
+	return(rec_get_n_owned(page_dir_slot_get_rec(slot),
+		page_is_comp(buf_frame_align(slot))));
 }
 
 /*******************************************************************
@@ -444,7 +495,8 @@ page_dir_slot_set_n_owned(
 	ulint			n)	/* in: number of records owned 
 					by the slot */
 {
-	rec_set_n_owned(page_dir_slot_get_rec(slot), n);
+	rec_set_n_owned(page_dir_slot_get_rec(slot),
+		page_is_comp(buf_frame_align(slot)), n);
 }
 
 /****************************************************************
@@ -462,6 +514,19 @@ page_dir_calc_reserved_space(
 } 
 
 /****************************************************************
+Determine whether the page is in new-style compact format. */
+UNIV_INLINE
+ibool
+page_is_comp(
+/*=========*/
+			/* out: TRUE if the page is in compact format
+			FALSE if it is in old-style format */
+	page_t* page)	/* in: index page */
+{
+	return(!!(page_header_get_field(page, PAGE_N_HEAP) & 0x8000));
+}
+
+/****************************************************************
 Gets the pointer to the next record on the page. */
 UNIV_INLINE
 rec_t*
@@ -477,7 +542,7 @@ page_rec_get_next(
 
 	page = buf_frame_align(rec);
 
-	offs = rec_get_next_offs(rec);
+	offs = rec_get_next_offs(rec, page_is_comp(page));
 
 	if (offs >= UNIV_PAGE_SIZE) {
 		fprintf(stderr,
@@ -513,6 +578,7 @@ page_rec_set_next(
 			infimum */
 {
 	page_t*	page;
+	ulint	offs;
 
 	ut_ad(page_rec_check(rec));	
 	ut_a((next == NULL)
@@ -523,11 +589,13 @@ page_rec_set_next(
 	ut_ad(rec != page_get_supremum_rec(page));
 	ut_ad(next != page_get_infimum_rec(page));
 
-	if (next == NULL) {
-		rec_set_next_offs(rec, 0);
+	if (next) {
+		offs = (ulint) (next - page);
 	} else {
-		rec_set_next_offs(rec, (ulint)(next - page));
+		offs = 0;
 	}
+
+	rec_set_next_offs(rec, page_is_comp(page), offs);
 }
 
 /****************************************************************
@@ -545,6 +613,7 @@ page_rec_get_prev(
 	rec_t*			rec2;
 	rec_t*			prev_rec = NULL;
 	page_t*			page;
+	ibool			comp;
 
 	ut_ad(page_rec_check(rec));	
 
@@ -559,6 +628,7 @@ page_rec_get_prev(
 	slot = page_dir_get_nth_slot(page, slot_no - 1);
 	
 	rec2 = page_dir_slot_get_rec(slot);
+	comp = page_is_comp(page);
 	
 	while (rec != rec2) {
 		prev_rec = rec2;
@@ -579,9 +649,12 @@ page_rec_find_owner_rec(
 			/* out: the owner record */
 	rec_t*	rec)	/* in: the physical record */
 {
-	ut_ad(page_rec_check(rec));
+	ibool	comp;
 
-	while (rec_get_n_owned(rec) == 0) {
+	ut_ad(page_rec_check(rec));
+	comp = page_is_comp(buf_frame_align(rec));
+
+	while (rec_get_n_owned(rec, comp) == 0) {
 		rec = page_rec_get_next(rec);
 	}
 
@@ -601,7 +674,9 @@ page_get_data_size(
 	ulint	ret;
 
 	ret = (ulint)(page_header_get_field(page, PAGE_HEAP_TOP)
-		      - PAGE_SUPREMUM_END
+		      - (page_is_comp(page)
+				? PAGE_NEW_SUPREMUM_END
+				: PAGE_OLD_SUPREMUM_END)
 		      - page_header_get_field(page, PAGE_GARBAGE));
 
 	ut_ad(ret < UNIV_PAGE_SIZE);
@@ -613,12 +688,13 @@ page_get_data_size(
 Calculates free space if a page is emptied. */
 UNIV_INLINE
 ulint
-page_get_free_space_of_empty(void)
-/*==============================*/
+page_get_free_space_of_empty(
+/*=========================*/
 				/* out: free space */
+	ibool comp)		/* in: TRUE=compact page layout */
 {
 	return((ulint)(UNIV_PAGE_SIZE
-		- PAGE_SUPREMUM_END
+		- (comp ? PAGE_NEW_SUPREMUM_END : PAGE_OLD_SUPREMUM_END)
 		- PAGE_DIR
 		- 2 * PAGE_DIR_SLOT_SIZE));
 }
@@ -640,13 +716,16 @@ page_get_max_insert_size(
 {
 	ulint	occupied;
 	ulint	free_space;
+	ibool	comp;
+
+	comp = page_is_comp(page);
 
 	occupied = page_header_get_field(page, PAGE_HEAP_TOP)
-		- PAGE_SUPREMUM_END
+		- (comp ? PAGE_NEW_SUPREMUM_END : PAGE_OLD_SUPREMUM_END)
 		+ page_dir_calc_reserved_space(
-		     n_recs + (page_header_get_field(page, PAGE_N_HEAP) - 2));
+			n_recs + page_dir_get_n_heap(page) - 2);
 
-	free_space = page_get_free_space_of_empty();
+	free_space = page_get_free_space_of_empty(comp);
 		     
 	/* Above the 'n_recs +' part reserves directory space for the new
 	inserted records; the '- 2' excludes page infimum and supremum
@@ -673,11 +752,14 @@ page_get_max_insert_size_after_reorganize(
 {
 	ulint	occupied;
 	ulint	free_space;
+	ibool	comp;
+
+	comp = page_is_comp(page);
 	
 	occupied = page_get_data_size(page)
 		+ page_dir_calc_reserved_space(n_recs + page_get_n_recs(page));
 
-	free_space = page_get_free_space_of_empty();
+	free_space = page_get_free_space_of_empty(comp);
 
 	if (occupied > free_space) {
 
@@ -693,11 +775,12 @@ UNIV_INLINE
 void
 page_mem_free(
 /*==========*/
-	page_t*	page,	/* in: index page */
-	rec_t*	rec)	/* in: pointer to the (origin of) record */
+	page_t*		page,	/* in: index page */
+	rec_t*		rec,	/* in: pointer to the (origin of) record */
+	dict_index_t*	index)	/* in: record descriptor */
 {
-	rec_t*	free;
-	ulint	garbage;
+	rec_t*		free;
+	ulint		garbage;
 
 	free = page_header_get_ptr(page, PAGE_FREE);
 
@@ -707,7 +790,7 @@ page_mem_free(
 	garbage = page_header_get_field(page, PAGE_GARBAGE);
 
 	page_header_set_field(page, PAGE_GARBAGE,
-						garbage + rec_get_size(rec));
+				garbage + rec_get_size(rec, index));
 }
 
 #ifdef UNIV_MATERIALIZE

@@ -3576,7 +3576,7 @@ create_table_def(
 	TABLE*		form,		/* in: information on table
 					columns and indexes */
 	const char*	table_name,	/* in: table name */
-	const char*	path_of_temp_table)/* in: if this is a table explicitly
+	const char*	path_of_temp_table,/* in: if this is a table explicitly
 					created by the user with the
 					TEMPORARY keyword, then this
 					parameter is the dir path where the
@@ -3584,6 +3584,7 @@ create_table_def(
 					an .ibd file for it (no .ibd extension
 					in the path, though); otherwise this
 					is NULL */
+	ibool		comp)		/* in: TRUE=compact record format */
 {
 	Field*		field;
 	dict_table_t*	table;
@@ -3604,7 +3605,7 @@ create_table_def(
 	/* We pass 0 as the space id, and determine at a lower level the space
 	id where to store the table */
 
-	table = dict_mem_table_create((char*) table_name, 0, n_cols);
+	table = dict_mem_table_create(table_name, 0, n_cols, comp);
 
 	if (path_of_temp_table) {
 		table->dir_path_of_temp_table =
@@ -3868,12 +3869,9 @@ ha_innobase::create(
 
 	/* Create the table definition in InnoDB */
 
-	if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
-
-  		error = create_table_def(trx, form, norm_name, name2);
-	} else {
-		error = create_table_def(trx, form, norm_name, NULL);
-	}
+	error = create_table_def(trx, form, norm_name,
+		create_info->options & HA_LEX_CREATE_TMP_TABLE ? name2 : NULL,
+		!(form->db_options_in_use & HA_OPTION_PACK_RECORD));
 
   	if (error) {
 		innobase_commit_low(trx);

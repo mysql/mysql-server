@@ -149,8 +149,10 @@ dtype_new_store_for_order_and_null_size(
 				bytes where we store the info */
 	dtype_t*	type)	/* in: type struct */
 {
-	ut_ad(6 == DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE);
-	
+#if 6 != DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE
+#error "6 != DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE"
+#endif
+
 	buf[0] = (byte)(type->mtype & 0xFFUL);
 
 	if (type->prtype & DATA_BINARY_TYPE) {
@@ -166,10 +168,12 @@ dtype_new_store_for_order_and_null_size(
 
 	mach_write_to_2(buf + 2, type->len & 0xFFFFUL);
 
+	ut_ad(dtype_get_charset_coll(type->prtype) < 256);
 	mach_write_to_2(buf + 4, dtype_get_charset_coll(type->prtype));
 
-	/* Note that the second last byte is left unused, because the
-	charset-collation code is always < 256 */
+	if (type->prtype & DATA_NOT_NULL) {
+		buf[4] |= 128;
+	}
 }
 
 /**************************************************************************
@@ -211,20 +215,26 @@ dtype_new_read_for_order_and_null_size(
 {
 	ulint	charset_coll;
 
-	ut_ad(6 == DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE);
+#if 6 != DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE
+#error "6 != DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE"
+#endif
 	
 	type->mtype = buf[0] & 63;
 	type->prtype = buf[1];
 
 	if (buf[0] & 128) {
-	        type->prtype = type->prtype | DATA_BINARY_TYPE;
+		type->prtype |= DATA_BINARY_TYPE;
+	}
+
+	if (buf[4] & 128) {
+		type->prtype |= DATA_NOT_NULL;
 	}
 
 	type->len = mach_read_from_2(buf + 2);
 
 	mach_read_from_2(buf + 4);
 
-	charset_coll = mach_read_from_2(buf + 4);
+	charset_coll = mach_read_from_2(buf + 4) & 0x7fff;
 
 	if (dtype_is_string_type(type->mtype)) {
 		ut_a(charset_coll < 256);
@@ -257,6 +267,26 @@ dtype_get_fixed_size(
 	mtype = dtype_get_mtype(type);
 
 	switch (mtype) {
+	case DATA_SYS:
+#ifdef UNIV_DEBUG
+			switch (type->prtype & DATA_MYSQL_TYPE_MASK) {
+			default:
+				ut_ad(0);
+				return(0);
+			case DATA_ROW_ID:
+				ut_ad(type->len == DATA_ROW_ID_LEN);
+				break;
+			case DATA_TRX_ID:
+				ut_ad(type->len == DATA_TRX_ID_LEN);
+				break;
+			case DATA_ROLL_PTR:
+				ut_ad(type->len == DATA_ROLL_PTR_LEN);
+				break;
+			case DATA_MIX_ID:
+				ut_ad(type->len == DATA_MIX_ID_LEN);
+				break;
+			}
+#endif /* UNIV_DEBUG */
 	case DATA_CHAR:
 	case DATA_FIXBINARY:
 	case DATA_INT:
@@ -264,16 +294,6 @@ dtype_get_fixed_size(
 	case DATA_DOUBLE:
 	case DATA_MYSQL:
 			return(dtype_get_len(type));
-
-	case DATA_SYS: 	if (type->prtype == DATA_ROW_ID) {
-				return(DATA_ROW_ID_LEN);
-			} else if (type->prtype == DATA_TRX_ID) {
-				return(DATA_TRX_ID_LEN);
-			} else if (type->prtype == DATA_ROLL_PTR) {
-				return(DATA_ROLL_PTR_LEN);
-			} else {
-				return(0);
-			}
 	case DATA_VARCHAR:
 	case DATA_BINARY:
 	case DATA_DECIMAL:

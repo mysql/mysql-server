@@ -84,7 +84,8 @@ dict_create_sys_tables_tuple(
 	dfield = dtuple_get_nth_field(entry, 5);
 
 	ptr = mem_heap_alloc(heap, 4);
-	mach_write_to_4(ptr, table->mix_len);
+	mach_write_to_4(ptr, (table->mix_len & 0x7fffffff) |
+			((ulint) table->comp << 31));
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 8: CLUSTER_NAME ---------------------*/
@@ -624,7 +625,7 @@ dict_create_index_tree_step(
 	btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 
 	index->page_no = btr_create(index->type, index->space, index->id,
-									&mtr);
+							table->comp, &mtr);
 	/* printf("Created a new index tree in space %lu root page %lu\n",
 					index->space, index->page_no); */
 
@@ -660,8 +661,9 @@ dict_drop_index_tree(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
-	
-	ptr = rec_get_nth_field(rec, DICT_SYS_INDEXES_PAGE_NO_FIELD, &len);
+
+	ut_a(!dict_sys->sys_indexes->comp);
+	ptr = rec_get_nth_field_old(rec, DICT_SYS_INDEXES_PAGE_NO_FIELD, &len);
 
 	ut_ad(len == 4);
 	
@@ -673,8 +675,9 @@ dict_drop_index_tree(
 		return;
 	}
 
-	ptr = rec_get_nth_field(rec, DICT_SYS_INDEXES_SPACE_NO_FIELD, &len);
-	
+	ptr = rec_get_nth_field_old(rec,
+				DICT_SYS_INDEXES_SPACE_NO_FIELD, &len);
+
 	ut_ad(len == 4);
 
 	space = mtr_read_ulint(ptr, MLOG_4BYTES, mtr);
@@ -699,8 +702,8 @@ dict_drop_index_tree(
 							 root_page_no); */
 	btr_free_root(space, root_page_no, mtr);
 
-	page_rec_write_index_page_no(rec, DICT_SYS_INDEXES_PAGE_NO_FIELD,
-							FIL_NULL, mtr);
+	page_rec_write_index_page_no(rec,
+				DICT_SYS_INDEXES_PAGE_NO_FIELD, FIL_NULL, mtr);
 }
 
 /*************************************************************************
