@@ -532,7 +532,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
   // No cache for MATCH
   make_join_readinfo(&join,
 		     (select_options & (SELECT_DESCRIBE |
-					SELECT_NO_JOIN_CACHE)) | 
+					SELECT_NO_JOIN_CACHE)) |
 		     (ftfuncs.elements ? SELECT_NO_JOIN_CACHE : 0));
 
   /* Need to tell Innobase that to play it safe, it should fetch all
@@ -605,7 +605,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
     List_iterator_fast<Item_func_match> li(ftfuncs);
     Item_func_match *ifm;
     DBUG_PRINT("info",("Performing FULLTEXT search"));
-    thd->proc_info="FULLTEXT searching";
+    thd->proc_info="FULLTEXT search init";
 
     while ((ifm=li++))
     {
@@ -1453,15 +1453,15 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
                 *arg1=(Item_func *)(func->arguments()[1]);
       if ((functype == Item_func::GE_FUNC ||
            functype == Item_func::GT_FUNC)  &&
-     	   arg0->type() == Item::FUNC_ITEM          &&
+           arg0->type() == Item::FUNC_ITEM          &&
            arg0->functype() == Item_func::FT_FUNC   &&
-           arg1->const_item() && arg1->val()>=0)
+           arg1->const_item() && arg1->val()>0)
         cond_func=(Item_func_match *) arg0;
       else if ((functype == Item_func::LE_FUNC ||
                 functype == Item_func::LT_FUNC)  &&
                 arg1->type() == Item::FUNC_ITEM          &&
                 arg1->functype() == Item_func::FT_FUNC   &&
-                arg0->const_item() && arg0->val()>=0)
+                arg0->const_item() && arg0->val()>0)
         cond_func=(Item_func_match *) arg1;
     }
   }
@@ -1473,7 +1473,7 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
     {
       Item *item;
       /*
-         I', (Sergei) too lazy to implement proper recursive descent here,
+         I, (Sergei) too lazy to implement proper recursive descent here,
          and anyway, nobody will use such a stupid queries
          that will require it :-)
          May be later...
@@ -3413,7 +3413,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     temp_pool_slot = bitmap_set_next(&temp_pool);
 
   if (temp_pool_slot != MY_BIT_NONE) // we got a slot
-    sprintf(path, "%s%s_%lx_%i", mysql_tmpdir, tmp_file_prefix, 
+    sprintf(path, "%s%s_%lx_%i", mysql_tmpdir, tmp_file_prefix,
 	    current_pid, temp_pool_slot);
   else // if we run out of slots or we are not using tempool
     sprintf(path,"%s%s%lx_%lx_%x",mysql_tmpdir,tmp_file_prefix,current_pid,
@@ -5063,7 +5063,7 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 
 /*****************************************************************************
 ** Remove calculation with tables that aren't yet read. Remove also tests
-** against fields that are read through key where the table is not a 
+** against fields that are read through key where the table is not a
 ** outer join table.
 ** We can't remove tests that are made against columns which are stored
 ** in sorted order.
@@ -5706,7 +5706,7 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
       if ((error=file->delete_row(record)))
 	goto err;
       continue;
-    } 
+    }
 
     /* copy fields to key buffer */
     field_length=field_lengths;
@@ -6242,7 +6242,7 @@ count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields,
   List_iterator<Item> li(fields);
   Item *field;
 
-  param->field_count=param->sum_func_count=param->func_count= 
+  param->field_count=param->sum_func_count=param->func_count=
     param->hidden_field_count=0;
   param->quick_group=1;
   while ((field=li++))

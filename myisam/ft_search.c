@@ -38,9 +38,9 @@ FT_DOCLIST *ft_init_search(void *info, uint keynr, byte *query,
     return NULL;
 /* black magic OFF */
 
-  if (is_boolean(query, query_len))
-    dlist=ft_boolean_search(info,keynr,query,query_len);
-  else
+//  if (is_boolean(query, query_len))
+//    dlist=ft_boolean_search(info,keynr,query,query_len);
+//  else
     dlist=ft_nlq_search(info,keynr,query,query_len);
 
   if(dlist && presort)
@@ -72,3 +72,4 @@ int ft_read_next(FT_DOCLIST *handler, char *record)
   }
   return my_errno;
 }
+
