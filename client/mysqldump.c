@@ -309,7 +309,7 @@ static int get_options(int *argc,char ***argv)
   load_defaults("my",load_default_groups,argc,argv);
   set_all_changeable_vars(md_changeable_vars);
   while ((c=getopt_long(*argc,*argv,
-			"#::p::h:u:O:P:r:S:T:EBaAcCdefFKlnqtvVw:?IxX",
+			"#::p::h:u:O:P:r:S:T:EBaAcCdefFKlnqQtvVw:?IxX",
 			long_options, &option_index)) != EOF)
   {
     switch(c) {
