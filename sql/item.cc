@@ -183,44 +183,61 @@ CHARSET_INFO * Item::default_charset() const
   return current_thd->variables.collation_connection;
 }
 
-bool Item::set_charset(CHARSET_INFO *cs1, Derivation co1,
-		       CHARSET_INFO *cs2, Derivation co2)
+bool DTCollation::aggregate(DTCollation &dt)
 {
-  if (cs1 == &my_charset_bin || cs2 == &my_charset_bin)
+  if (collation == &my_charset_bin || dt.collation == &my_charset_bin)
   {
-    set_charset(&my_charset_bin, DERIVATION_NONE);
+    collation= &my_charset_bin;
+    derivation= derivation > dt.derivation ? derivation : dt.derivation;
     return 0;
   }
-
-  if (!my_charset_same(cs1,cs2))
-    return 1;
-
-  if (co1 < co2)
+  
+  if (!my_charset_same(collation, dt.collation))
   {
-    set_charset(cs1, co1);
-  }
-  else if (co2 < co1)
-  {
-    set_charset(cs2, co2);
-  }
-  else  // co2 == co1
-  {
-    if (cs1 != cs2)
+    /* 
+       We do allow to use binary strings (like BLOBS)
+       together with character strings.
+       Binaries have more precedance
+    */
+    if ((derivation <= dt.derivation) && (collation == &my_charset_bin))
     {
-      if (co1 == DERIVATION_EXPLICIT)
-      {
-        return 1;
-      }
-      else
-      {
-        CHARSET_INFO *bin= get_charset_by_csname(cs1->csname, MY_CS_BINSORT,MYF(0));
-        if (!bin)
-	  return 1;
-        set_charset(bin, DERIVATION_NONE);
-      }
+      // Do nothing
+    }
+    else if ((dt.derivation <= derivation) && (dt.collation==&my_charset_bin))
+    {
+      set(dt);
     }
     else
-      set_charset(cs2, co2);
+    {
+      set(0, DERIVATION_NONE);
+      return 1; 
+    }
+  }
+  else if (derivation < dt.derivation)
+  {
+    // Do nothing
+  }
+  else if (dt.derivation < derivation)
+  {
+    set(dt);
+  }
+  else
+  { 
+    if (collation == dt.collation)
+    {
+      // Do nothing
+    }
+    else 
+    {
+      if (derivation == DERIVATION_EXPLICIT)
+      {
+	set(0, DERIVATION_NONE);
+	return 1;
+      }
+      CHARSET_INFO *bin= get_charset_by_csname(collation->csname, 
+					       MY_CS_BINSORT,MYF(0));
+      set(bin, DERIVATION_NONE);
+    }
   }
   return 0;
 }
