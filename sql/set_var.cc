@@ -371,6 +371,9 @@ sys_var_thd_bool
 sys_ndb_use_exact_count("ndb_use_exact_count",
 			&SV::ndb_use_exact_count);
 sys_var_thd_bool
+sys_ndb_use_local_query_cache("ndb_use_local_query_cache",
+			      &SV::ndb_use_local_query_cache);
+sys_var_thd_bool
 sys_ndb_use_transactions("ndb_use_transactions",
 			 &SV::ndb_use_transactions);
 // ndb server global variable settings
@@ -634,6 +637,7 @@ sys_var *sys_variables[]=
   &sys_ndb_autoincrement_prefetch_sz,
   &sys_ndb_force_send,
   &sys_ndb_use_exact_count,
+  &sys_ndb_use_local_query_cache,
   &sys_ndb_use_transactions,
 #endif
   &sys_unique_checks,
@@ -801,6 +805,8 @@ struct show_var_st init_vars[]= {
    (char*) &sys_ndb_autoincrement_prefetch_sz,                      SHOW_SYS},
   {sys_ndb_force_send.name,   (char*) &sys_ndb_force_send,          SHOW_SYS},
   {sys_ndb_use_exact_count.name,(char*) &sys_ndb_use_exact_count,   SHOW_SYS},
+  {sys_ndb_use_local_query_cache.name,
+   (char*) &sys_ndb_use_local_query_cache,                          SHOW_SYS},
   {sys_ndb_use_transactions.name,(char*) &sys_ndb_use_transactions, SHOW_SYS},
 #endif
   {sys_net_buffer_length.name,(char*) &sys_net_buffer_length,       SHOW_SYS},
