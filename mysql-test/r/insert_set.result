@@ -1,6 +1,0 @@
-drop database if exists foo;
-create database foo;
-use foo;
-create table b (c int);
-insert into foo.b set foo.b.c = '1';
-drop database foo;

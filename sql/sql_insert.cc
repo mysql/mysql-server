@@ -60,7 +60,7 @@ check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
     if (grant_option &&
 	check_grant_all_columns(thd,INSERT_ACL,table))
       return -1;
-    table->time_stamp=0;			// This should be saved
+    table->time_stamp=0;			// This is saved by caller
   }
   else
   {						// Part field list
@@ -178,7 +178,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   }
   its.rewind ();
   /*
-  ** Fill in the given fields and dump it to the table file
+    Fill in the given fields and dump it to the table file
   */
 
   info.records=info.deleted=info.copied=0;
@@ -204,7 +204,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
 			   thd->variables.bulk_insert_buff_size);
   }
 
-  while ((values = its++))
+  while ((values= its++))
   {
     if (fields.elements || !value_count)
     {
@@ -367,7 +367,7 @@ static int last_uniq_key(TABLE *table,uint keynr)
 
 
 /*
-** Write a record to table with optional deleting of conflicting records
+  Write a record to table with optional deleting of conflicting records
 */
 
 
@@ -461,9 +461,9 @@ err:
 
 
 /******************************************************************************
-	Check that all fields with arn't null_fields are used
-	if DONT_USE_DEFAULT_FIELDS isn't defined use default value for not
-	set fields.
+  Check that all fields with arn't null_fields are used
+  If DONT_USE_DEFAULT_FIELDS isn't defined use default value for not set
+  fields.
 ******************************************************************************/
 
 static int check_null_fields(THD *thd __attribute__((unused)),
@@ -486,10 +486,8 @@ static int check_null_fields(THD *thd __attribute__((unused)),
 }
 
 /*****************************************************************************
-** Handling of delayed inserts
-**
-** A thread is created for each table that one uses with the DELAYED
-** attribute.
+  Handling of delayed inserts
+  A thread is created for each table that one uses with the DELAYED attribute.
 *****************************************************************************/
 
 class delayed_row :public ilink {
@@ -1272,7 +1270,7 @@ bool delayed_insert::handle_inserts(void)
 
 
 /***************************************************************************
-** store records in INSERT ... SELECT *
+  Store records in INSERT ... SELECT *
 ***************************************************************************/
 
 int
@@ -1389,7 +1387,7 @@ bool select_insert::send_eof()
 
 
 /***************************************************************************
-** CREATE TABLE (SELECT) ...
+  CREATE TABLE (SELECT) ...
 ***************************************************************************/
 
 int
@@ -1487,7 +1485,7 @@ void select_create::abort()
 
 
 /*****************************************************************************
-** Instansiate templates
+  Instansiate templates
 *****************************************************************************/
 
 #ifdef __GNUC__
