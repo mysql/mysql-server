@@ -272,6 +272,7 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define MODE_MYSQL40                   (MODE_MYSQL323*2)
 #define MODE_ANSI	               (MODE_MYSQL40*2)
 #define MODE_NO_AUTO_VALUE_ON_ZERO     (MODE_ANSI*2)
+#define MODE_NO_BACKSLASH_ESCAPES      (MODE_NO_AUTO_VALUE_ON_ZERO*2)
 
 #define RAID_BLOCK_SIZE 1024
 
