@@ -48,7 +48,7 @@
 #define big5head(e)	((uchar)(e>>8))
 #define big5tail(e)	((uchar)(e&0xff))
 
-uchar NEAR ctype_big5[257] =
+static uchar NEAR ctype_big5[257] =
 {
   0,				/* For standard library */
   32,32,32,32,32,32,32,32,32,40,40,40,40,40,32,32,
@@ -69,7 +69,7 @@ uchar NEAR ctype_big5[257] =
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 };
 
-uchar NEAR to_lower_big5[]=
+static uchar NEAR to_lower_big5[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -105,7 +105,7 @@ uchar NEAR to_lower_big5[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-uchar NEAR to_upper_big5[]=
+static uchar NEAR to_upper_big5[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -141,7 +141,7 @@ uchar NEAR to_upper_big5[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-uchar NEAR sort_order_big5[]=
+static uchar NEAR sort_order_big5[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -218,7 +218,7 @@ static uint16 big5strokexfrm(uint16 i)
   return 0xA140;
 }
 
-int my_strnncoll_big5(CHARSET_INFO *cs __attribute__((unused)), 
+static int my_strnncoll_big5(CHARSET_INFO *cs __attribute__((unused)), 
                       const uchar * s1, uint len1, 
                       const uchar * s2, uint len2)
 {
@@ -242,7 +242,7 @@ int my_strnncoll_big5(CHARSET_INFO *cs __attribute__((unused)),
   return (int) (len1-len2);
 }
 
-int my_strnxfrm_big5(CHARSET_INFO *cs __attribute__((unused)),
+static int my_strnxfrm_big5(CHARSET_INFO *cs __attribute__((unused)),
                      uchar * dest, uint len, 
                      const uchar * src, uint srclen)
 {
@@ -264,7 +264,8 @@ int my_strnxfrm_big5(CHARSET_INFO *cs __attribute__((unused)),
   return srclen;
 }
 
-int my_strcoll_big5(const uchar * s1, const uchar * s2)
+#if 0
+static int my_strcoll_big5(const uchar * s1, const uchar * s2)
 {
 
   while (*s1 && *s2)
@@ -283,7 +284,7 @@ int my_strcoll_big5(const uchar * s1, const uchar * s2)
   return 0;
 }
 
-int my_strxfrm_big5(uchar * dest, const uchar * src, int len)
+static int my_strxfrm_big5(uchar * dest, const uchar * src, int len)
 {
   uint16 e;
   uchar *d = dest;
@@ -309,6 +310,8 @@ int my_strxfrm_big5(uchar * dest, const uchar * src, int len)
   *d = '\0';
   return (int) (d-dest);
 }
+#endif
+
 
 /*
 ** Calculate min_str and max_str that ranges a LIKE string.
@@ -331,7 +334,7 @@ int my_strxfrm_big5(uchar * dest, const uchar * src, int len)
 #define wild_one '_'
 #define wild_many '%'
 
-my_bool my_like_range_big5(CHARSET_INFO *cs __attribute__((unused)),
+static my_bool my_like_range_big5(CHARSET_INFO *cs __attribute__((unused)),
 		           const char *ptr,uint ptr_length,pchar escape,
 		           uint res_length, char *min_str,char *max_str,
 		           uint *min_length,uint *max_length)
@@ -381,18 +384,18 @@ my_bool my_like_range_big5(CHARSET_INFO *cs __attribute__((unused)),
   return 0;
 }
 
-int ismbchar_big5(CHARSET_INFO *cs __attribute__((unused)),
+static int ismbchar_big5(CHARSET_INFO *cs __attribute__((unused)),
                   const char* p, const char *e)
 {
   return (isbig5head(*(p)) && (e)-(p)>1 && isbig5tail(*((p)+1))? 2: 0);
 }
 
-my_bool ismbhead_big5(CHARSET_INFO *cs __attribute__((unused)), uint c)
+static my_bool ismbhead_big5(CHARSET_INFO *cs __attribute__((unused)), uint c)
 {
   return isbig5head(c);
 }
 
-int mbcharlen_big5(CHARSET_INFO *cs __attribute__((unused)), uint c)
+static int mbcharlen_big5(CHARSET_INFO *cs __attribute__((unused)), uint c)
 {
   return (isbig5head(c)? 2: 0);
 }
@@ -6166,7 +6169,7 @@ static int func_uni_big5_onechar(int code){
 }
 
 
-int
+static int
 my_wc_mb_big5(CHARSET_INFO *cs __attribute__((unused)),
 	      my_wc_t wc, unsigned char *s, unsigned char *e)
 {
@@ -6191,7 +6194,7 @@ my_wc_mb_big5(CHARSET_INFO *cs __attribute__((unused)),
   return 2;
 }
 
-int 
+static int 
 my_mb_wc_big5(CHARSET_INFO *cs __attribute__((unused)),
 	      my_wc_t *pwc,const uchar *s,const uchar *e)
 {
@@ -6212,6 +6215,40 @@ my_mb_wc_big5(CHARSET_INFO *cs __attribute__((unused)),
   
   return 2;
 }
+
+CHARSET_INFO my_charset_big5 =
+{
+    1,			/* number     */
+    MY_CS_COMPILED,	/* state      */
+    "big5",		/* name       */
+    "",			/* comment    */
+    ctype_big5,
+    to_lower_big5,
+    to_upper_big5,
+    sort_order_big5,
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    1,			/* strxfrm_multiply */
+    my_strnncoll_big5,
+    my_strnxfrm_big5,
+    my_like_range_big5,
+    2,			/* mbmaxlen   */
+    ismbchar_big5,
+    ismbhead_big5,
+    mbcharlen_big5,
+    my_mb_wc_big5,	/* mb_wc       */
+    my_wc_mb_big5,	/* wc_mb       */
+    my_caseup_str_mb,
+    my_casedn_str_mb,
+    my_caseup_mb,
+    my_casedn_mb,
+    NULL,		/* tosort      */
+    my_strcasecmp_mb,
+    my_strncasecmp_mb,
+    my_hash_caseup_simple,
+    my_hash_sort_simple,
+    0
+};
 
 
 #endif

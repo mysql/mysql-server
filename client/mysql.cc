@@ -1396,8 +1396,9 @@ com_go(String *buffer,char *line __attribute__((unused)))
     (void) com_print(buffer,0);
 
   if (skip_updates &&
-      (buffer->length() < 4 || my_sortcmp(system_charset_info,buffer->ptr(),
-					  "SET ",4)))
+      (buffer->length() < 4 || my_strnncoll(system_charset_info,
+					    (const uchar*)buffer->ptr(),4,
+					    (const uchar*)"SET ",4)))
   {
     (void) put_info("Ignoring query to other database",INFO_INFO);
     return 0;

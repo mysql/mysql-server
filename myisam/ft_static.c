@@ -36,7 +36,7 @@ const HA_KEYSEG ft_keysegs[FT_SEGS]={
     HA_FT_WLEN,                       /* start */
 #endif /* EVAL_RUN */
     0,                                /* null_pos */
-    NULL                              /* sort_order */
+    NULL                              /* charset  */
   },
 #ifdef EVAL_RUN
   {

@@ -685,7 +685,7 @@ static void setup_key_functions(register MI_KEYDEF *keyinfo)
     keyinfo->get_key= _mi_get_pack_key;
     if (keyinfo->seg[0].flag & HA_PACK_KEY)
     {						/* Prefix compression */
-      if (!keyinfo->seg->charset || use_strcoll(keyinfo->seg->charset) ||
+      if (!keyinfo->seg->charset || use_strnxfrm(keyinfo->seg->charset) ||
           (keyinfo->seg->flag & HA_NULL_PART))
         keyinfo->bin_search=_mi_seq_search;
       else

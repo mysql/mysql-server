@@ -39,8 +39,7 @@ protected:
   uint max_columns;
 
 public:
-  Item_subselect(THD *thd, st_select_lex *select_lex,
-		 select_subselect* result);
+  Item_subselect();
   Item_subselect(Item_subselect *item)
   {
     null_value= item->null_value;
@@ -50,6 +49,14 @@ public:
     engine_owner= 0;
     name= item->name;
   }
+
+  /* 
+     We need this method, because some compilers do not allow 'this'
+     pointer in constructor initialization list, but we need pass pointer
+     to subselect Item class to select_subselect classes constructor.
+  */
+  void init (THD *thd, st_select_lex *select_lex, select_subselect *result);
+
   ~Item_subselect();
   virtual void assign_null() 
   {
@@ -73,10 +80,16 @@ public:
 class Item_singleval_subselect :public Item_subselect
 {
 protected:
-  longlong int_value; /* here stored integer value of this item */
-  double real_value; /* here stored real value of this item */
+  longlong int_value; /* Here stored integer value of this item */
+  double real_value; /* Here stored real value of this item */
+  /* 
+     Here stored string value of this item.
+     (str_value used only as temporary buffer, because it can be changed 
+     by Item::save_field)
+  */
+  String string_value; 
   enum Item_result res_type; /* type of results */
-
+  
 public:
   Item_singleval_subselect(THD *thd, st_select_lex *select_lex);
   Item_singleval_subselect(Item_singleval_subselect *item):
@@ -84,6 +97,7 @@ public:
   {
     int_value= item->int_value;
     real_value= item->real_value;
+    string_value.set(item->string_value, 0, item->string_value.length());
     max_length= item->max_length;
     decimals= item->decimals;
     res_type= item->res_type;
@@ -165,8 +179,9 @@ public:
 
 class subselect_single_select_engine: public subselect_engine
 {
-  my_bool executed; /* simple subselect is executed */
+  my_bool prepared; /* simple subselect is prepared */
   my_bool optimized; /* simple subselect is optimized */
+  my_bool executed; /* simple subselect is executed */
   st_select_lex *select_lex; /* corresponding select_lex */
   JOIN * join; /* corresponding JOIN structure */
 public:

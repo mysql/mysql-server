@@ -214,18 +214,7 @@ ulong hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
-      if (seg->charset->hash_sort)
-        seg->charset->hash_sort(seg->charset,pos,((uchar*)key)-pos,&nr,&nr2);
-      else
-      {
-        register uchar *sort_order=seg->charset->sort_order;
-        for (; pos < (uchar*) key ; pos++)
-        {
-	  nr^=(ulong) ((((uint) nr & 63)+nr2) * 
-		     ((uint) sort_order[(uint) *pos])) + (nr << 8);
-	  nr2+=3;
-        }
-      }
+       seg->charset->hash_sort(seg->charset,pos,((uchar*)key)-pos,&nr,&nr2);
     }
     else
     {
@@ -260,19 +249,7 @@ ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
-      if (seg->charset->hash_sort)
-        seg->charset->hash_sort(seg->charset,pos,end-pos,&nr,&nr2);
-      else
-      {
-        register uchar *sort_order=seg->charset->sort_order;
-        
-        for (; pos < end ; pos++)
-        {
-	  nr^=(ulong) ((((uint) nr & 63)+nr2)*
-		     ((uint) sort_order[(uint) *pos]))+ (nr << 8);
-	  nr2+=3;
-        }
-      }
+      seg->charset->hash_sort(seg->charset,pos,end-pos,&nr,&nr2);
     }
     else
     {
@@ -324,11 +301,7 @@ ulong hp_hashnr(register HP_KEYDEF *keydef, register const byte *key)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
-      for (; pos < (uchar*) key ; pos++)
-      {
-	nr *=16777619; 
-	nr ^=((uint) my_sort_order[(uint) *pos]);
-      }
+      seg->charset->hash_sort(seg->charset,pos,((uchar*)key)-pos,&nr,NULL);
     }
     else
     {
@@ -362,11 +335,7 @@ ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const byte *rec)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
-      for ( ; pos < end ; pos++)
-      {
-	nr *=16777619; 
-	nr ^=(uint) my_sort_order[(uint) *pos];
-      }
+      seg->charset->hash_sort(seg->charset,pos,((uchar*)key)-pos,&nr,NULL);
     }
     else
     {
@@ -401,7 +370,7 @@ int hp_rec_key_cmp(HP_KEYDEF *keydef, const byte *rec1, const byte *rec2)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
-      if (my_sortcmp(seg->charset,rec1+seg->start,rec2+seg->start,seg->length))
+      if (my_strnncoll(seg->charset,rec1+seg->start,seg->length,rec2+seg->start,seg->length))
 	return 1;
     }
     else
@@ -433,7 +402,7 @@ int hp_key_cmp(HP_KEYDEF *keydef, const byte *rec, const byte *key)
     }
     if (seg->type == HA_KEYTYPE_TEXT)
     {
-      if (my_sortcmp(seg->charset,rec+seg->start,key,seg->length))
+      if (my_strnncoll(seg->charset,rec+seg->start,seg->length,key,seg->length))
 	return 1;
     }
     else

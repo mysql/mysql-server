@@ -30,7 +30,7 @@
 
 #ifdef HAVE_CHARSET_gb2312
 
-uchar NEAR ctype_gb2312[257] =
+static uchar NEAR ctype_gb2312[257] =
 {
   0,				/* For standard library */
   32,32,32,32,32,32,32,32,32,40,40,40,40,40,32,32,
@@ -51,7 +51,7 @@ uchar NEAR ctype_gb2312[257] =
   3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,0,
 };
 
-uchar NEAR to_lower_gb2312[]=
+static uchar NEAR to_lower_gb2312[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -87,7 +87,7 @@ uchar NEAR to_lower_gb2312[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-uchar NEAR to_upper_gb2312[]=
+static uchar NEAR to_upper_gb2312[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -123,7 +123,7 @@ uchar NEAR to_upper_gb2312[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-uchar NEAR sort_order_gb2312[]=
+static uchar NEAR sort_order_gb2312[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -166,18 +166,18 @@ uchar NEAR sort_order_gb2312[]=
 #define isgb2312tail(c) (0xa1<=(uchar)(c) && (uchar)(c)<=0xfe)
 
 
-int ismbchar_gb2312(CHARSET_INFO *cs __attribute__((unused)),
+static int ismbchar_gb2312(CHARSET_INFO *cs __attribute__((unused)),
 		    const char* p, const char *e)
 {
   return (isgb2312head(*(p)) && (e)-(p)>1 && isgb2312tail(*((p)+1))? 2: 0);
 }
 
-my_bool ismbhead_gb2312(CHARSET_INFO *cs __attribute__((unused)),uint c)
+static my_bool ismbhead_gb2312(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return isgb2312head(c);
 }
 
-int mbcharlen_gb2312(CHARSET_INFO *cs __attribute__((unused)),uint c)
+static int mbcharlen_gb2312(CHARSET_INFO *cs __attribute__((unused)),uint c)
 {
   return (isgb2312head(c)? 2:0);
 }
@@ -5637,7 +5637,7 @@ static int func_uni_gb2312_onechar(int code){
 }
 
 
-int
+static int
 my_wc_mb_gb2312(CHARSET_INFO *cs  __attribute__((unused)),
 		my_wc_t wc, uchar *s, uchar *e)
 {
@@ -5661,7 +5661,7 @@ my_wc_mb_gb2312(CHARSET_INFO *cs  __attribute__((unused)),
   return 2;
 }
 
-int 
+static int 
 my_mb_wc_gb2312(CHARSET_INFO *cs  __attribute__((unused)),
 		my_wc_t *pwc, const uchar *s, const uchar *e){
   int hi;
@@ -5683,5 +5683,38 @@ my_mb_wc_gb2312(CHARSET_INFO *cs  __attribute__((unused)),
   return 2;
 }
 
+CHARSET_INFO my_charset_gb2312 =
+{
+    24,			/* number */
+    MY_CS_COMPILED,	/* state      */
+    "gb2312",		/* name */
+    "",			/* comment    */
+    ctype_gb2312,
+    to_lower_gb2312,
+    to_upper_gb2312,
+    sort_order_gb2312,
+    NULL,		/* tab_to_uni   */
+    NULL,		/* tab_from_uni */
+    0,			/* strxfrm_multiply */
+    my_strnncoll_simple,/* strnncoll  */
+    NULL,		/* strnxfrm   */
+    NULL,		/* like_range */
+    2,			/* mbmaxlen */
+    ismbchar_gb2312,
+    ismbhead_gb2312,
+    mbcharlen_gb2312,
+    my_mb_wc_gb2312,	/* mb_wc      */
+    my_wc_mb_gb2312,	/* wc_mb      */
+    my_caseup_str_mb,
+    my_casedn_str_mb,
+    my_caseup_mb,
+    my_casedn_mb,
+    my_tosort_8bit,
+    my_strcasecmp_mb,
+    my_strncasecmp_mb,
+    my_hash_caseup_simple,
+    my_hash_sort_simple,
+    0
+};
 
 #endif

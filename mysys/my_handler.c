@@ -20,28 +20,9 @@
 int mi_compare_text(CHARSET_INFO *charset_info, uchar *a, uint a_length,
 		    uchar *b, uint b_length, my_bool part_key)
 {
-  int flag;
-
-#ifdef USE_STRCOLL
-  if (use_strcoll(charset_info))
-  {
-    if (part_key && b_length < a_length)
-      a_length=b_length;
-    return my_strnncoll(charset_info, a, a_length, b, b_length);
-  }
-  else
-#endif
-  {
-    uint length= min(a_length,b_length);
-    uchar *end= a+ length;
-    uchar *sort_order=charset_info->sort_order;
-    while (a < end)
-      if ((flag= (int) sort_order[*a++] - (int) sort_order[*b++]))
-        return flag;
-  }
   if (part_key && b_length < a_length)
-    return 0;
-  return (int) (a_length-b_length);
+    a_length=b_length;
+  return my_strnncoll(charset_info, a, a_length, b, b_length);
 }
 
 static int compare_bin(uchar *a, uint a_length, uchar *b, uint b_length,

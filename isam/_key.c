@@ -54,11 +54,11 @@ uint _nisam_make_key(register N_INFO *info, uint keynr, uchar *key, const char *
       *key++= (uchar) (length=(uint) (end-pos));
       memcpy((byte*) key,(byte*) pos,(size_t) length);
 #ifdef USE_STRCOLL
-      if (!use_strcoll(default_charset_info))
+      if (!use_strnxfrm(default_charset_info))
 #endif
       {
 	if (type == HA_KEYTYPE_TEXT)
-	  case_sort(default_charset_info,(byte*) key,length);
+	  my_tosort(default_charset_info,(byte*) key,length);
       }
       key+=length;
     }
@@ -67,11 +67,11 @@ uint _nisam_make_key(register N_INFO *info, uint keynr, uchar *key, const char *
       memcpy((byte*) key,(byte*) record+keyseg->base.start,
 	     (size_t) keyseg->base.length);
 #ifdef USE_STRCOLL
-      if (!use_strcoll(default_charset_info))
+      if (!use_strnxfrm(default_charset_info))
 #endif
       {
 	if (type == HA_KEYTYPE_TEXT)
-	  case_sort(default_charset_info,(byte*) key,(uint) keyseg->base.length);
+	  my_tosort(default_charset_info,(byte*) key,(uint) keyseg->base.length);
       }
 #ifdef NAN_TEST
       else if (type == HA_KEYTYPE_FLOAT)
@@ -150,11 +150,11 @@ uint _nisam_pack_key(register N_INFO *info, uint keynr, uchar *key, uchar *old, 
     else
       memcpy((byte*) key,old,(size_t) length);
 #ifdef USE_STRCOLL
-      if (!use_strcoll(default_charset_info))
+      if (!use_strnxfrm(default_charset_info))
 #endif
       {
 	if (type == HA_KEYTYPE_TEXT)
-	  case_sort(default_charset_info,(byte*) key,length);
+	  my_tosort(default_charset_info,(byte*) key,length);
       }
       key+= length;
   }
