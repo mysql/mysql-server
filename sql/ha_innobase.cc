@@ -1222,7 +1222,21 @@ ha_innobase::write_row(
     	}
 
   	if (table->next_number_field && record == table->record[0]) {
+	        /* Set the 'in_update_remember_pos' flag to FALSE to
+	        make sure all columns are fetched in the select done by
+	        update_auto_increment */
+
+	        prebuilt->in_update_remember_pos = FALSE;
+
     		update_auto_increment();
+
+		/* We have to set sql_stat_start to TRUE because
+		update_auto_increment has called a select, and
+		has reset that flag; row_insert_for_mysql has to
+		know to set the IX intention lock on the table, something
+		it only does at the start of each statement */
+
+		prebuilt->sql_stat_start = TRUE;
     	}
 
 	if (prebuilt->mysql_template == NULL
