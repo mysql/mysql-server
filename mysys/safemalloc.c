@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -69,7 +69,7 @@
 #include "my_static.h"
 #include "mysys_err.h"
 
-ulonglong safemalloc_mem_limit = ~(ulonglong)0;
+ulonglong safemalloc_mem_limit= ~(ulonglong)0;
 
 #define pNext		tInt._pNext
 #define pPrev		tInt._pPrev
@@ -84,7 +84,7 @@ ulonglong safemalloc_mem_limit = ~(ulonglong)0;
   the linked list of blocks so that _sanity() will not fuss when it
   is not supposed to
 */
-static int sf_malloc_tampered = 0;
+static int sf_malloc_tampered= 0;
 #endif
 				   
 
@@ -92,11 +92,11 @@ static int sf_malloc_tampered = 0;
 
 static int check_ptr(const char *where, byte *ptr, const char *sFile,
 		     uint uLine);
-static int _checkchunk(struct remember *pRec, const char *sFile, uint uLine);
+static int _checkchunk(struct irem *pRec, const char *sFile, uint uLine);
 
 /*
-  Note: both these refer to the NEW'ed data only.  They do not include
-  malloc() roundoff or the extra space required by the remember
+  Note: We only fill up the allocated block. This do not include
+  malloc() roundoff or the extra space required by the irem
   structures.
 */
 
@@ -127,90 +127,85 @@ static int _checkchunk(struct remember *pRec, const char *sFile, uint uLine);
 
 /* Allocate some memory. */
 
-gptr _mymalloc (uint uSize, const char *sFile, uint uLine, myf MyFlags)
+gptr _mymalloc(uint uSize, const char *sFile, uint uLine, myf MyFlags)
 {
-    struct remember *pTmp;
-    DBUG_ENTER("_mymalloc");
-    DBUG_PRINT("enter",("Size: %u",uSize));
+  struct remember *pTmp;
+  DBUG_ENTER("_mymalloc");
+  DBUG_PRINT("enter",("Size: %u",uSize));
 
+  if (!sf_malloc_quick)
+    (void) _sanity (sFile, uLine);
 
-    if (!sf_malloc_quick)
-      (void) _sanity (sFile, uLine);
-
-    if (uSize + lCurMemory > safemalloc_mem_limit)
-      pTmp = 0;
-    else
+  if (uSize + lCurMemory > safemalloc_mem_limit)
+    pTmp= 0;
+  else
+  {
+    /* Allocate the physical memory */
+    pTmp= (struct remember *) malloc (ALIGN_SIZE(sizeof(struct irem)) +
+				       sf_malloc_prehunc +
+				       uSize +	/* size requested */
+				       4 +	/* overrun mark */
+				       sf_malloc_endhunc
+				       );
+  }
+  /* Check if there isn't anymore memory avaiable */
+  if (pTmp == NULL)
+  {
+    if (MyFlags & MY_FAE)
+      error_handler_hook=fatal_error_handler_hook;
+    if (MyFlags & (MY_FAE+MY_WME))
     {
-       /* Allocate the physical memory */
-       pTmp = (struct remember *) malloc (
-		ALIGN_SIZE(sizeof(struct irem))		/* remember data  */
-		+ sf_malloc_prehunc
-		+ uSize					/* size requested */
-		+ 4					/* overrun mark   */
-		+ sf_malloc_endhunc
-		);
+      char buff[SC_MAXWIDTH];
+      my_errno=errno;
+      sprintf(buff,"Out of memory at line %d, '%s'", uLine, sFile);
+      my_message(EE_OUTOFMEMORY,buff,MYF(ME_BELL+ME_WAITTANG));
+      sprintf(buff,"needed %d byte (%ldk), memory in use: %ld bytes (%ldk)",
+	      uSize, (uSize + 1023L) / 1024L,
+	      lMaxMemory, (lMaxMemory + 1023L) / 1024L);
+      my_message(EE_OUTOFMEMORY,buff,MYF(ME_BELL+ME_WAITTANG));
     }
-    /* Check if there isn't anymore memory avaiable */
-    if (pTmp == NULL)
-    {
-      if (MyFlags & MY_FAE)
-	error_handler_hook=fatal_error_handler_hook;
-      if (MyFlags & (MY_FAE+MY_WME))
-      {
-	char buff[SC_MAXWIDTH];
-	my_errno=errno;
-	sprintf(buff,"Out of memory at line %d, '%s'", uLine, sFile);
-	my_message(EE_OUTOFMEMORY,buff,MYF(ME_BELL+ME_WAITTANG));
-	sprintf(buff,"needed %d byte (%ldk), memory in use: %ld bytes (%ldk)",
-		uSize, (uSize + 1023L) / 1024L,
-		lMaxMemory, (lMaxMemory + 1023L) / 1024L);
-	my_message(EE_OUTOFMEMORY,buff,MYF(ME_BELL+ME_WAITTANG));
-      }
-      DBUG_PRINT("error",("Out of memory, in use: %ld at line %d, '%s'",
-			  lMaxMemory,uLine, sFile));
-      if (MyFlags & MY_FAE)
-	exit(1);
-      DBUG_RETURN ((gptr) NULL);
-    }
+    DBUG_PRINT("error",("Out of memory, in use: %ld at line %d, '%s'",
+			lMaxMemory,uLine, sFile));
+    if (MyFlags & MY_FAE)
+      exit(1);
+    DBUG_RETURN ((gptr) NULL);
+  }
 
-    /* Fill up the structure */
-    *((long*) ((char*) &pTmp -> lSpecialValue+sf_malloc_prehunc)) = MAGICKEY;
-    pTmp -> aData[uSize + sf_malloc_prehunc+0] = MAGICEND0;
-    pTmp -> aData[uSize + sf_malloc_prehunc+1] = MAGICEND1;
-    pTmp -> aData[uSize + sf_malloc_prehunc+2] = MAGICEND2;
-    pTmp -> aData[uSize + sf_malloc_prehunc+3] = MAGICEND3;
-    pTmp -> sFileName = (my_string) sFile;
-    pTmp -> uLineNum = uLine;
-    pTmp -> uDataSize = uSize;
-    pTmp -> pPrev = NULL;
+  /* Fill up the structure */
+  *((uint32*) ((char*) &pTmp->lSpecialValue+sf_malloc_prehunc))= MAGICKEY;
+  pTmp->aData[uSize + sf_malloc_prehunc+0]= MAGICEND0;
+  pTmp->aData[uSize + sf_malloc_prehunc+1]= MAGICEND1;
+  pTmp->aData[uSize + sf_malloc_prehunc+2]= MAGICEND2;
+  pTmp->aData[uSize + sf_malloc_prehunc+3]= MAGICEND3;
+  pTmp->sFileName= (my_string) sFile;
+  pTmp->uLineNum= uLine;
+  pTmp->uDataSize= uSize;
+  pTmp->pPrev= NULL;
 
-    /* Add this remember structure to the linked list */
-    pthread_mutex_lock(&THR_LOCK_malloc);
-    if ((pTmp->pNext=pRememberRoot))
-    {
-      pRememberRoot -> pPrev = pTmp;
-    }
-    pRememberRoot = pTmp;
+  /* Add this remember structure to the linked list */
+  pthread_mutex_lock(&THR_LOCK_malloc);
+  if ((pTmp->pNext= pRememberRoot))
+    pRememberRoot->pPrev= pTmp;
+  pRememberRoot= pTmp;
 
-    /* Keep the statistics */
-    lCurMemory += uSize;
-    if (lCurMemory > lMaxMemory) {
-	lMaxMemory = lCurMemory;
-    }
-    cNewCount++;
-    pthread_mutex_unlock(&THR_LOCK_malloc);
+  /* Keep the statistics */
+  lCurMemory+= uSize;
+  if (lCurMemory > lMaxMemory)
+    lMaxMemory= lCurMemory;
+  cNewCount++;
+  pthread_mutex_unlock(&THR_LOCK_malloc);
 
-    /* Set the memory to the aribtrary wierd value */
-    if ((MyFlags & MY_ZEROFILL) || !sf_malloc_quick)
-      bfill(&pTmp -> aData[sf_malloc_prehunc],uSize,
-	    (char) (MyFlags & MY_ZEROFILL ? 0 : ALLOC_VAL));
-    /* Return a pointer to the real data */
-    DBUG_PRINT("exit",("ptr: %lx",&(pTmp -> aData[sf_malloc_prehunc])));
-    if (sf_min_adress > &(pTmp -> aData[sf_malloc_prehunc]))
-      sf_min_adress = &(pTmp -> aData[sf_malloc_prehunc]);
-    if (sf_max_adress < &(pTmp -> aData[sf_malloc_prehunc]))
-      sf_max_adress = &(pTmp -> aData[sf_malloc_prehunc]);
-    DBUG_RETURN ((gptr) &(pTmp -> aData[sf_malloc_prehunc]));
+  /* Set the memory to the aribtrary wierd value */
+  if ((MyFlags & MY_ZEROFILL) || !sf_malloc_quick)
+    bfill(&pTmp->aData[sf_malloc_prehunc],uSize,
+	  (char) (MyFlags & MY_ZEROFILL ? 0 : ALLOC_VAL));
+  /* Return a pointer to the real data */
+  DBUG_PRINT("exit",("ptr: %lx",&(pTmp->aData[sf_malloc_prehunc])));
+  if (sf_min_adress > &(pTmp->aData[sf_malloc_prehunc]))
+    sf_min_adress= &(pTmp->aData[sf_malloc_prehunc]);
+  if (sf_max_adress < &(pTmp->aData[sf_malloc_prehunc]))
+    sf_max_adress= &(pTmp->aData[sf_malloc_prehunc]);
+  DBUG_RETURN ((gptr) &(pTmp->aData[sf_malloc_prehunc]));
 }
 
 /*
@@ -218,8 +213,8 @@ gptr _mymalloc (uint uSize, const char *sFile, uint uLine, myf MyFlags)
   Free then old memoryblock
 */
 
-gptr _myrealloc (register gptr pPtr, register uint uSize,
-		 const char *sFile, uint uLine, myf MyFlags)
+gptr _myrealloc(register gptr pPtr, register uint uSize,
+		const char *sFile, uint uLine, myf MyFlags)
 {
   struct remember *pRec;
   gptr ptr;
@@ -234,9 +229,9 @@ gptr _myrealloc (register gptr pPtr, register uint uSize,
   if (check_ptr("Reallocating",(byte*) pPtr,sFile,uLine))
     DBUG_RETURN((gptr) NULL);
 
-  pRec = (struct remember *) ((char*) pPtr - ALIGN_SIZE(sizeof(struct irem))-
+  pRec= (struct remember *) ((char*) pPtr - ALIGN_SIZE(sizeof(struct irem))-
 			      sf_malloc_prehunc);
-  if (*((long*) ((char*) &pRec -> lSpecialValue+sf_malloc_prehunc))
+  if (*((uint32*) ((char*) &pRec->lSpecialValue+sf_malloc_prehunc))
       != MAGICKEY)
   {
     fprintf(stderr, "Error: Reallocating unallocated data at line %d, '%s'\n",
@@ -266,7 +261,7 @@ gptr _myrealloc (register gptr pPtr, register uint uSize,
 
 /* Deallocate some memory. */
 
-void _myfree (gptr pPtr, const char *sFile, uint uLine, myf myflags)
+void _myfree(gptr pPtr, const char *sFile, uint uLine, myf myflags)
 {
   struct remember *pRec;
   DBUG_ENTER("_myfree");
@@ -280,19 +275,19 @@ void _myfree (gptr pPtr, const char *sFile, uint uLine, myf myflags)
     DBUG_VOID_RETURN;
 
   /* Calculate the address of the remember structure */
-  pRec = (struct remember *) ((byte*) pPtr- ALIGN_SIZE(sizeof(struct irem))-
+  pRec= (struct remember *) ((byte*) pPtr- ALIGN_SIZE(sizeof(struct irem))-
 			      sf_malloc_prehunc);
 
   /*
     Check to make sure that we have a real remember structure.
     Note: this test could fail for four reasons:
-    	(1) The memory was already free'ed
-	(2) The memory was never new'ed
-	(3) There was an underrun
-	(4) A stray pointer hit this location
+    (1) The memory was already free'ed
+    (2) The memory was never new'ed
+    (3) There was an underrun
+    (4) A stray pointer hit this location
   */
 
-  if (*((long*) ((char*) &pRec -> lSpecialValue+sf_malloc_prehunc))
+  if (*((uint32*) ((char*) &pRec->lSpecialValue+sf_malloc_prehunc))
       != MAGICKEY)
   {
     fprintf(stderr, "Error: Freeing unallocated data at line %d, '%s'\n",
@@ -304,16 +299,15 @@ void _myfree (gptr pPtr, const char *sFile, uint uLine, myf myflags)
 
   /* Remove this structure from the linked list */
   pthread_mutex_lock(&THR_LOCK_malloc);
-  if (pRec -> pPrev) {
-    pRec -> pPrev -> pNext = pRec -> pNext;
-  } else {
-    pRememberRoot = pRec -> pNext;
-  }
-  if (pRec -> pNext) {
-    pRec -> pNext -> pPrev = pRec -> pPrev;
-  }
+  if (pRec->pPrev)
+    pRec->pPrev->pNext= pRec->pNext;
+   else
+    pRememberRoot= pRec->pNext;
+
+  if (pRec->pNext)
+    pRec->pNext->pPrev= pRec->pPrev;
   /* Handle the statistics */
-  lCurMemory -= pRec -> uDataSize;
+  lCurMemory -= pRec->uDataSize;
   cNewCount--;
   pthread_mutex_unlock(&THR_LOCK_malloc);
 
@@ -322,7 +316,7 @@ void _myfree (gptr pPtr, const char *sFile, uint uLine, myf myflags)
   if (!sf_malloc_quick)
     bfill(&pRec->aData[sf_malloc_prehunc],pRec->uDataSize,(pchar) FREE_VAL);
 #endif
-  *((long*) ((char*) &pRec -> lSpecialValue+sf_malloc_prehunc)) = ~MAGICKEY;
+  *((uint32*) ((char*) &pRec->lSpecialValue+sf_malloc_prehunc))= ~MAGICKEY;
 
   /* Actually free the memory */
   free ((my_string ) pRec);
@@ -372,7 +366,7 @@ static int check_ptr(const char *where, byte *ptr, const char *sFile,
     free'ed as well as the statistics.
  */
 
-void TERMINATE (FILE *file)
+void TERMINATE(FILE *file)
 {
   struct remember *pPtr;
   DBUG_ENTER("TERMINATE");
@@ -403,7 +397,8 @@ void TERMINATE (FILE *file)
   {
     if (file)
     {
-      fprintf(file, "Warning: Memory that was not free'ed (%ld bytes):\n",lCurMemory);
+      fprintf(file, "Warning: Memory that was not free'ed (%ld bytes):\n",
+	      lCurMemory);
       (void) fflush(file);
     }
     DBUG_PRINT("safe",("Memory that was not free'ed (%ld bytes):",lCurMemory));
@@ -413,17 +408,17 @@ void TERMINATE (FILE *file)
       {
 	fprintf(file,
 		"\t%6u bytes at 0x%09lx, allocated at line %4u in '%s'",
-		pPtr -> uDataSize,
-		(ulong) &(pPtr -> aData[sf_malloc_prehunc]),
-		pPtr -> uLineNum, pPtr -> sFileName);
+		pPtr->uDataSize,
+		(ulong) &(pPtr->aData[sf_malloc_prehunc]),
+		pPtr->uLineNum, pPtr->sFileName);
 	fprintf(file, "\n");
 	(void) fflush(file);
       }
       DBUG_PRINT("safe",
 		 ("%6u bytes at 0x%09lx, allocated at line %4d in '%s'",
-		  pPtr -> uDataSize, &(pPtr -> aData[sf_malloc_prehunc]),
-		  pPtr -> uLineNum, pPtr -> sFileName));
-      pPtr = pPtr -> pNext;
+		  pPtr->uDataSize, &(pPtr->aData[sf_malloc_prehunc]),
+		  pPtr->uLineNum, pPtr->sFileName));
+      pPtr= pPtr->pNext;
     }
   }
   /* Report the memory usage statistics */
@@ -442,44 +437,44 @@ void TERMINATE (FILE *file)
 
 	/* Returns 0 if chunk is ok */
 
-static int _checkchunk (register struct remember *pRec, const char *sFile,
-			uint uLine)
+static int _checkchunk(register struct remember *pRec, const char *sFile,
+		       uint uLine)
 {
   reg1 uint uSize;
   reg2 my_string magicp;
   reg3 int flag=0;
 
   /* Check for a possible underrun */
-  if (*((long*) ((char*) &pRec -> lSpecialValue+sf_malloc_prehunc))
+  if (*((uint32*) ((char*) &pRec->lSpecialValue+sf_malloc_prehunc))
       != MAGICKEY)
   {
     fprintf(stderr, "Error: Memory allocated at %s:%d was underrun,",
-	    pRec -> sFileName, pRec -> uLineNum);
+	    pRec->sFileName, pRec->uLineNum);
     fprintf(stderr, " discovered at %s:%d\n", sFile, uLine);
     (void) fflush(stderr);
     DBUG_PRINT("safe",("Underrun at %lx, allocated at %s:%d",
-		       &(pRec -> aData[sf_malloc_prehunc]),
-		       pRec -> sFileName,
-		       pRec -> uLineNum));
+		       &(pRec->aData[sf_malloc_prehunc]),
+		       pRec->sFileName,
+		       pRec->uLineNum));
     flag=1;
   }
 
   /* Check for a possible overrun */
-  uSize = pRec -> uDataSize;
-  magicp = &(pRec -> aData[uSize+sf_malloc_prehunc]);
+  uSize= pRec->uDataSize;
+  magicp= &(pRec->aData[uSize+sf_malloc_prehunc]);
   if (*magicp++ != MAGICEND0 ||
       *magicp++ != MAGICEND1 ||
       *magicp++ != MAGICEND2 ||
       *magicp++ != MAGICEND3)
   {
     fprintf(stderr, "Error: Memory allocated at %s:%d was overrun,",
-	    pRec -> sFileName, pRec -> uLineNum);
+	    pRec->sFileName, pRec->uLineNum);
     fprintf(stderr, " discovered at '%s:%d'\n", sFile, uLine);
     (void) fflush(stderr);
     DBUG_PRINT("safe",("Overrun at %lx, allocated at %s:%d",
-		       &(pRec -> aData[sf_malloc_prehunc]),
-		       pRec -> sFileName,
-		       pRec -> uLineNum));
+		       &(pRec->aData[sf_malloc_prehunc]),
+		       pRec->sFileName,
+		       pRec->uLineNum));
     flag=1;
   }
   return(flag);
@@ -488,7 +483,7 @@ static int _checkchunk (register struct remember *pRec, const char *sFile,
 
 	/* Returns how many wrong chunks */
 
-int _sanity (const char *sFile, uint uLine)
+int _sanity(const char *sFile, uint uLine)
 {
   reg1 struct remember *pTmp;
   reg2 int flag=0;
@@ -500,8 +495,8 @@ int _sanity (const char *sFile, uint uLine)
     cNewCount=0;
 #endif  
   count=cNewCount;
-  for (pTmp = pRememberRoot; pTmp != NULL && count-- ; pTmp = pTmp -> pNext)
-    flag+=_checkchunk (pTmp, sFile, uLine);
+  for (pTmp= pRememberRoot; pTmp != NULL && count-- ; pTmp= pTmp->pNext)
+    flag+= _checkchunk (pTmp, sFile, uLine);
   pthread_mutex_unlock(&THR_LOCK_malloc);
   if (count || pTmp)
   {
