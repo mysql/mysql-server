@@ -514,6 +514,22 @@ id	data
 hndlr3	13
 delete from t1;
 drop procedure hndlr3;
+create procedure hndlr4()
+begin
+declare x int default 0;
+declare val int;	                           # No default
+declare continue handler for sqlexception set x=1;
+select data into val from test.t1 where id='z' limit 1;  # No hits
+if val < 10 then
+insert into test.t1 values ('z', 10);
+end if;
+end;
+call hndlr4();
+select * from t1;
+id	data
+z	10
+delete from t1;
+drop procedure hndlr4;
 create procedure cur1()
 begin
 declare done int default 0;

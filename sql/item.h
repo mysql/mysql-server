@@ -229,7 +229,9 @@ public:
 
   Item_splocal(uint offset)
     : m_offset(offset)
-  {}
+  {
+    Item::maybe_null= TRUE;
+  }
 
   Item *this_item();
   Item *this_const_item() const;

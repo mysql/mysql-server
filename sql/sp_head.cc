@@ -401,11 +401,17 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     close_thread_tables(thd);
 
     // The rest of the frame are local variables which are all IN.
-    // QQ We haven't found any hint of what the value is when unassigned,
-    //    so we set it to NULL for now. It's an error to refer to an
-    //    unassigned variable anyway (which should be detected by the parser).
-    for (; i < csize ; i++)
-      nctx->push_item(NULL);
+    // Default all variables to null (those with default clauses will
+    // be set by an set instruction).
+    {
+      Item_null *nit= NULL;	// Re-use this, and only create if needed
+      for (; i < csize ; i++)
+      {
+	if (! nit)
+	  nit= new Item_null();
+	nctx->push_item(nit);
+      }
+    }
     thd->spcont= nctx;
   }
 
