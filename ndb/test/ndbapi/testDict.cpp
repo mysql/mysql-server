@@ -1431,11 +1431,12 @@ int
 runTestDictionaryPerf(NDBT_Context* ctx, NDBT_Step* step){
   Vector<char*> cols;
   Vector<const NdbDictionary::Table*> tabs;
+  int i;
 
   Ndb* pNdb = GETNDB(step);  
 
   const Uint32 count = NDBT_Tables::getNumTables();
-  for (int i=0; i < count; i++){
+  for (i=0; i < count; i++){
     const NdbDictionary::Table * tab = NDBT_Tables::getTable(i);
     pNdb->getDictionary()->createTable(* tab);
     
@@ -1458,7 +1459,7 @@ runTestDictionaryPerf(NDBT_Context* ctx, NDBT_Step* step){
   Uint32 size = cols.size() / 2;
   char ** columns = &cols[0];
   Uint64 start = NdbTick_CurrentMillisecond();
-  for(int i = 0; i<times; i++){
+  for(i = 0; i<times; i++){
     int j = 2 * (rand() % size);
     const NdbDictionary::Table* tab = (const NdbDictionary::Table*)tcols[j];
     const char * col = tcols[j+1];

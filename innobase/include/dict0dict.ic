@@ -342,13 +342,16 @@ dict_index_rec_get_sys_col(
 		ut_ad(len == 7);
 	
 		return(trx_read_roll_ptr(field));
-	} else if ((type == DATA_ROW_ID) || (type == DATA_MIX_ID)) {
+	} else if (type == DATA_TRX_ID) {
+
+		return(trx_read_trx_id(field));
+	} else if (type == DATA_MIX_ID) {
 
 		return(mach_dulint_read_compressed(field));
 	} else {
-		ut_ad(type == DATA_TRX_ID);
+		ut_a(type == DATA_ROW_ID);
 
-		return(trx_read_trx_id(field));
+		return(mach_read_from_6(field));
 	}
 }
 

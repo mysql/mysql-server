@@ -12,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 59 Temple Placeo Suite 330, Boston, MA  02111-1307  USA */
 
 /* Definefile for error messagenumbers */
 
@@ -387,4 +387,25 @@
 #define ER_VIEW_NONUPD_CHECK 1368
 #define ER_VIEW_CHECK_FAILED 1369
 #define ER_SP_ACCESS_DENIED_ERROR 1370
-#define ER_ERROR_MESSAGES 371
+#define ER_RELAY_LOG_FAIL 1371
+#define ER_PASSWD_LENGTH 1372
+#define ER_UNKNOWN_TARGET_BINLOG 1373
+#define ER_IO_ERR_LOG_INDEX_READ 1374
+#define ER_BINLOG_PURGE_PROHIBITED 1375
+#define ER_FSEEK_FAIL 1376
+#define ER_BINLOG_PURGE_FATAL_ERR 1377
+#define ER_LOG_IN_USE 1378
+#define ER_LOG_PURGE_UNKNOWN_ERR 1379
+#define ER_RELAY_LOG_INIT 1380
+#define ER_NO_BINARY_LOGGING 1381
+#define ER_RESERVED_SYNTAX 1382
+#define ER_WSAS_FAILED 1383
+#define ER_DIFF_GROUPS_PROC 1384
+#define ER_NO_GROUP_FOR_PROC 1385
+#define ER_ORDER_WITH_PROC 1386
+#define ER_LOGING_PROHIBIT_CHANGING_OF 1387
+#define ER_NO_FILE_MAPPING 1388
+#define ER_WRONG_MAGIC 1389
+#define ER_PS_MANY_PARAM 1390
+#define ER_KEY_PART_0 1391
+#define ER_ERROR_MESSAGES 392

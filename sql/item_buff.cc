@@ -70,7 +70,7 @@ Item_str_buff::~Item_str_buff()
 
 bool Item_real_buff::cmp(void)
 {
-  double nr=item->val();
+  double nr= item->val_real();
   if (null_value != item->null_value || nr != value)
   {
     null_value= item->null_value;

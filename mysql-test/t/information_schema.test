@@ -1,0 +1,224 @@
+
+# Test for information_schema.schemata &
+# show databases
+
+grant all privileges on test.* to mysqltest_1@localhost;
+
+select * from information_schema.SCHEMATA where schema_name > 'm';
+select schema_name from information_schema.schemata;
+show databases *;
+show databases like 't%';
+show databases;
+show databases * where schema_name like 't%';
+show databases * where schema_name = 't%';
+
+# Test for information_schema.tables &
+# show tables
+
+create database testtets;
+create table testtets.t1(a int, b VARCHAR(30), KEY string_data (b));
+create table test.t2(a int);
+create table t3(a int, KEY a_data (a));
+create table testtets.t4(a int);
+create view v1 (c) as select table_name from information_schema.TABLES;
+select * from v1;
+select c,table_name from v1 
+left join information_schema.TABLES v2 on (v1.c=v2.table_name)
+where v1.c like "t%";
+
+select c, v2.table_name from v1
+right join information_schema.TABLES v2 on (v1.c=v2.table_name)
+where v1.c like "t%";
+
+select table_name from information_schema.TABLES
+where table_schema = "testtets" and table_name like "t%";
+
+select * from information_schema.STATISTICS where TABLE_SCHEMA = "testtets";
+show keys * where TABLE_SCHEMA Like "test%";
+show keys where INDEX_NAME = "a_data";
+
+show tables like 't%';
+--replace_column 15 # 16 #
+show tables * from test where table_name like 't%';
+--replace_column 12 # 13 #
+show table status;
+show full columns from t3 like "a%";
+show full columns from mysql.db like "Insert%";
+show full columns from v1;
+select * from information_schema.COLUMNS where table_name="t1"
+and column_name= "a";
+show columns * where table_name = "t1";
+
+drop view v1;
+drop tables testtets.t4, testtets.t1, t2, t3;
+drop database testtets;
+
+# Test for information_schema.CHARACTER_SETS &
+# SHOW CHARACTER SET
+
+select * from information_schema.CHARACTER_SETS
+where CHARACTER_SET_NAME like 'latin1%';
+SHOW CHARACTER SET LIKE 'latin1%';
+SHOW CHARACTER SET * LIKE 'latin1%';
+SHOW CHARACTER SET WHERE CHARACTER_SET_NAME like 'latin1%';
+SHOW CHARACTER SET CHARACTER_SET_NAME WHERE CHARACTER_SET_NAME like 'latin1%';
+SHOW CHARACTER SET *  WHERE CHARACTER_SET_NAME like 'latin1%';
+
+# Test for information_schema.COLLATIONS &
+# SHOW COLLATION
+
+select * from information_schema.COLLATIONS
+where COLLATION_NAME like 'latin1%';
+SHOW COLLATION LIKE 'latin1%';
+SHOW COLLATION * LIKE 'latin1%';
+SHOW COLLATION WHERE COLLATION_NAME like 'latin1%';
+SHOW COLLATION COLLATION_NAME WHERE COLLATION_NAME like 'latin1%';
+SHOW COLLATION *  WHERE COLLATION_NAME like 'latin1%';
+
+select * from information_schema.COLLATION_CHARACTER_SET_APPLICABILITY
+where COLLATION_NAME like 'latin1%';
+
+# Test for information_schema.ROUTINES &
+#
+
+create function sub1(i int) returns int
+  return i+1;
+delimiter |;
+create procedure sel2()
+begin
+  select * from t1;
+  select * from t2;
+end|
+delimiter ;|
+
+--replace_column 5 # 6 #
+show procedure status;
+--replace_column 5 # 6 #
+show function status;
+select a.ROUTINE_NAME from information_schema.ROUTINES a,
+information_schema.SCHEMATA b where
+a.ROUTINE_SCHEMA = b.SCHEMA_NAME;
+--replace_column 3 #
+explain select a.ROUTINE_NAME from information_schema.ROUTINES a,
+information_schema.SCHEMATA b where
+a.ROUTINE_SCHEMA = b.SCHEMA_NAME;
+
+select a.ROUTINE_NAME, b.name from information_schema.ROUTINES a,
+mysql.proc b where a.ROUTINE_NAME = b.name;
+select count(*) from information_schema.ROUTINES;
+
+#
+# Test for views
+#
+create view v0 (c) as select schema_name from information_schema.SCHEMATA;
+select * from v0;
+--replace_column 3 #
+explain select * from v0;
+create view v1 (c) as select table_name from information_schema.TABLES
+where table_name="v1";
+select * from v1;
+create view v2 (c) as select column_name from information_schema.COLUMNS
+where table_name="v2";
+select * from v2;
+create view v3 (c) as select CHARACTER_SET_NAME from information_schema.CHARACTER_SETS
+where CHARACTER_SET_NAME like "latin1%";
+select * from v3;
+create view v4 (c) as select COLLATION_NAME from information_schema.COLLATIONS
+where COLLATION_NAME like "latin1%";
+select * from v4;
+show keys from v4;
+select * from information_schema.VIEWS where TABLE_NAME like "v%";
+drop view v0, v1, v2, v3, v4;
+
+#
+# Test for privileges tables
+#
+create table t1 (a int);
+grant select,update,insert on t1 to mysqltest_1@localhost;
+grant select (a), update (a),insert(a), references(a) on t1 to mysqltest_1@localhost;
+grant all on test.* to mysqltest_1@localhost with grant option;
+select * from information_schema.USER_PRIVILEGES where grantee like '%mysqltest_1%';
+select * from information_schema.SCHEMA_PRIVILEGES where grantee like '%mysqltest_1%';
+select * from information_schema.TABLE_PRIVILEGES where grantee like '%mysqltest_1%';
+select * from information_schema.COLUMN_PRIVILEGES where grantee like '%mysqltest_1%';
+delete from mysql.user where user='mysqltest_1';
+delete from mysql.db where user='mysqltest_1';
+delete from mysql.tables_priv where user='mysqltest_1';
+delete from mysql.columns_priv where user='mysqltest_1';
+flush privileges;
+drop table t1;
+
+
+#
+# Test for KEY_COLUMN_USAGE & TABLE_CONSTRAINTS tables
+#
+
+create table t1 (a int null, primary key(a));
+alter table t1 add constraint constraint_1 unique (a);
+alter table t1 add constraint unique key_1(a);
+alter table t1 add constraint constraint_2 unique key_2(a);
+show create table t1;
+select * from information_schema.TABLE_CONSTRAINTS where
+TABLE_SCHEMA= "test";
+select * from information_schema.KEY_COLUMN_USAGE where
+TABLE_SCHEMA= "test";
+drop table t1;
+
+CREATE TABLE t1 (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=INNODB;
+CREATE TABLE t2 (id INT PRIMARY KEY, t1_id INT, INDEX par_ind (t1_id),
+FOREIGN KEY (t1_id) REFERENCES t1(id)  ON DELETE CASCADE,
+FOREIGN KEY (t1_id) REFERENCES t1(id)  ON UPDATE CASCADE) ENGINE=INNODB;
+select * from information_schema.TABLE_CONSTRAINTS where
+TABLE_SCHEMA= "test";
+select * from information_schema.KEY_COLUMN_USAGE where
+TABLE_SCHEMA= "test";
+
+connect (user1,localhost,mysqltest_1,,);
+connection user1;
+select table_name from information_schema.TABLES where table_schema like "test%";
+select table_name,column_name from information_schema.COLUMNS where table_schema like "test%";
+select ROUTINE_NAME from information_schema.ROUTINES;
+disconnect user1;
+connection default;
+delete from mysql.user where user='mysqltest_1';
+drop table t2;
+drop table t1;
+drop procedure sel2;
+drop function sub1;
+
+create table t1(a int);
+create view v1 (c) as select a from t1 with check option;
+create view v2 (c) as select a from t1 WITH LOCAL CHECK OPTION;
+create view v3 (c) as select a from t1 WITH CASCADED CHECK OPTION;
+select * from information_schema.views;
+grant select (a) on test.t1 to joe@localhost with grant option;
+select * from INFORMATION_SCHEMA.COLUMN_PRIVILEGES;
+select * from INFORMATION_SCHEMA.TABLE_PRIVILEGES;
+drop view v1, v2, v3;
+drop table t1;
+delete from mysql.user where user='joe';
+delete from mysql.db where user='joe';
+delete from mysql.tables_priv where user='joe';
+delete from mysql.columns_priv where user='joe';
+flush privileges;
+
+delimiter //;
+create procedure px5 ()
+begin
+declare v int;
+declare c cursor for select version from
+information_schema.tables;
+open c;
+fetch c into v;
+select v;
+close c;
+end;//
+
+call px5()//
+call px5()//
+delimiter ;//
+
+
+
+
+ 

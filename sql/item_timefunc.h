@@ -88,7 +88,7 @@ class Item_func_month :public Item_func
 public:
   Item_func_month(Item *a) :Item_func(a) {}
   longlong val_int();
-  double val()
+  double val_real()
   { DBUG_ASSERT(fixed == 1); return (double) Item_func_month::val_int(); }
   String *val_str(String *str) 
   {
@@ -250,7 +250,7 @@ public:
   Item_func_weekday(Item *a,bool type_arg)
     :Item_func(a), odbc_type(type_arg) {}
   longlong val_int();
-  double val() { DBUG_ASSERT(fixed == 1); return (double) val_int(); }
+  double val_real() { DBUG_ASSERT(fixed == 1); return (double) val_int(); }
   String *val_str(String *str)
   {
     DBUG_ASSERT(fixed == 1);
@@ -326,7 +326,7 @@ public:
   enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
   String *val_str(String *str);
   longlong val_int();
-  double val() { DBUG_ASSERT(fixed == 1); return (double) val_int(); }
+  double val_real() { DBUG_ASSERT(fixed == 1); return (double) val_int(); }
   const char *func_name() const { return "date"; }
   void fix_length_and_dec()
   { 
@@ -369,7 +369,7 @@ public:
   Item_func_curtime(Item *a) :Item_func(a) {}
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_TIME; }
-  double val() { DBUG_ASSERT(fixed == 1); return (double) value; }
+  double val_real() { DBUG_ASSERT(fixed == 1); return (double) value; }
   longlong val_int() { DBUG_ASSERT(fixed == 1); return value; }
   String *val_str(String *str);
   void fix_length_and_dec();
@@ -452,7 +452,7 @@ public:
   Item_func_now() :Item_date_func() {}
   Item_func_now(Item *a) :Item_date_func(a) {}
   enum Item_result result_type () const { return STRING_RESULT; }
-  double val()	     { DBUG_ASSERT(fixed == 1); return (double) value; }
+  double val_real() { DBUG_ASSERT(fixed == 1); return (double) value; }
   longlong val_int() { DBUG_ASSERT(fixed == 1); return value; }
   int save_in_field(Field *to, bool no_conversions);
   String *val_str(String *str);
@@ -512,7 +512,7 @@ class Item_func_from_unixtime :public Item_date_func
   THD *thd;
  public:
   Item_func_from_unixtime(Item *a) :Item_date_func(a) {}
-  double val()
+  double val_real()
   {
     DBUG_ASSERT(fixed == 1);
     return (double) Item_func_from_unixtime::val_int();
@@ -552,7 +552,7 @@ class Item_func_convert_tz :public Item_date_func
   Item_func_convert_tz(Item *a, Item *b, Item *c):
     Item_date_func(a, b, c) {}
   longlong val_int();
-  double val() { return (double) val_int(); }
+  double val_real() { return (double) val_int(); }
   String *val_str(String *str);
   const char *func_name() const { return "convert_tz"; }
   bool fix_fields(THD *, struct st_table_list *, Item **);
@@ -565,7 +565,7 @@ class Item_func_sec_to_time :public Item_str_func
 {
 public:
   Item_func_sec_to_time(Item *item) :Item_str_func(item) {}
-  double val()
+  double val_real()
   {
     DBUG_ASSERT(fixed == 1);
     return (double) Item_func_sec_to_time::val_int();
@@ -615,7 +615,7 @@ public:
   const char *func_name() const { return "date_add_interval"; }
   void fix_length_and_dec();
   enum_field_types field_type() const { return cached_field_type; }
-  double val() { DBUG_ASSERT(fixed == 1); return (double) val_int(); }
+  double val_real() { DBUG_ASSERT(fixed == 1); return (double) val_int(); }
   longlong val_int();
   bool get_date(TIME *res, uint fuzzy_date);
   void print(String *str);

@@ -78,7 +78,7 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
   {
     // first parameter
     if ((*param->item)->type() != Item::INT_ITEM ||
-	(*param->item)->val() < 0)
+	(*param->item)->val_real() < 0)
     {
       delete pc;
       my_error(ER_WRONG_PARAMETERS_TO_PROCEDURE, MYF(0), proc_name);
@@ -93,7 +93,7 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
     }
     // second parameter
     if ((*param->item)->type() != Item::INT_ITEM ||
-	(*param->item)->val() < 0)
+	(*param->item)->val_real() < 0)
     {
       delete pc;
       my_error(ER_WRONG_PARAMETERS_TO_PROCEDURE, MYF(0), proc_name);
@@ -102,7 +102,7 @@ proc_analyse_init(THD *thd, ORDER *param, select_result *result,
     pc->max_treemem = (uint) (*param->item)->val_int();
   }
   else if ((*param->item)->type() != Item::INT_ITEM ||
-	   (*param->item)->val() < 0)
+	   (*param->item)->val_real() < 0)
   {
     delete pc;
     my_error(ER_WRONG_PARAMETERS_TO_PROCEDURE, MYF(0), proc_name);
@@ -364,7 +364,7 @@ void field_str::add()
 void field_real::add()
 {
   char buff[MAX_FIELD_WIDTH], *ptr, *end;
-  double num = item->val();
+  double num= item->val_real();
   uint length, zero_count, decs;
   TREE_ELEMENT *element;
 

@@ -112,10 +112,10 @@ sync_slave_with_master;
 
 # Check that we can't change global.collation_server
 
-error 1105;
+error 1387;
 set global character_set_server=latin2;
 connection master;
-error 1105;
+error 1387;
 set global character_set_server=latin2;
 
 # Check that SET ONE_SHOT is really one shot
@@ -129,7 +129,7 @@ select @@character_set_server;
 select @@character_set_server;
 
 # ONE_SHOT on not charset/collation stuff is not allowed
-error 1105;
+error 1382;
 set one_shot max_join_size=10;
 
 # Test of wrong character set numbers;

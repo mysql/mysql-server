@@ -226,14 +226,15 @@ static my_bool init_done = FALSE; /* Set to TRUE when initialization done */
 static struct state *stack=0;
 
 typedef struct st_code_state {
-  int lineno;			/* Current debugger output line number */
-  int level;			/* Current function nesting level */
   const char *func;		/* Name of current user function */
   const char *file;		/* Name of current user file */
   char **framep;		/* Pointer to current frame */
-  int jmplevel;			/* Remember nesting level at setjmp () */
   const char *jmpfunc;		/* Remember current function for setjmp */
   const char *jmpfile;		/* Remember current file for setjmp */
+  int lineno;			/* Current debugger output line number */
+  int level;			/* Current function nesting level */
+  int disable_output;		/* Set to it if output is disabled */
+  int jmplevel;			/* Remember nesting level at setjmp () */
 
 /*
  *	The following variables are used to hold the state information
@@ -246,8 +247,8 @@ typedef struct st_code_state {
  */
 
   uint u_line;			/* User source code line number */
-  const char *u_keyword;	/* Keyword for current macro */
   int  locked;			/* If locked with _db_lock_file */
+  const char *u_keyword;	/* Keyword for current macro */
 } CODE_STATE;
 
 	/* Parse a debug command string */
@@ -369,8 +370,10 @@ static CODE_STATE *code_state(void)
 #define code_state() (&static_code_state)
 #define pthread_mutex_lock(A) {}
 #define pthread_mutex_unlock(A) {}
-static CODE_STATE  static_code_state = { 0,0,"?func","?file",NULL,0,NULL,
-					 NULL,0,"?",0};
+static CODE_STATE static_code_state=
+{
+  "?func", "?file", NULL, NullS, NullS, 0,0,0,0,0,0, NullS
+};
 #endif
 
 
@@ -727,9 +730,12 @@ char ***_sframep_ __attribute__((unused)))
     if (DoProfile ())
     {
       long stackused;
-      if (*state->framep == NULL) {
+      if (*state->framep == NULL)
+      {
 	stackused = 0;
-      } else {
+      }
+      else
+      {
 	stackused = ((long)(*state->framep)) - ((long)(state->framep));
 	stackused = stackused > 0 ? stackused : -stackused;
       }
@@ -743,7 +749,7 @@ char ***_sframep_ __attribute__((unused)))
       (void) fflush (_db_pfp_);
     }
 #endif
-    if (DoTrace (state))
+    if (DoTrace(state))
     {
       if (!state->locked)
 	pthread_mutex_lock(&THR_LOCK_dbug);
@@ -753,7 +759,7 @@ char ***_sframep_ __attribute__((unused)))
       dbug_flush (state);			/* This does a unlock */
     }
 #ifdef SAFEMALLOC
-    if (stack -> flags & SANITY_CHECK_ON)
+    if (stack->flags & SANITY_CHECK_ON && !state->disable_output)
       if (_sanity(_file_,_line_))		/* Check of safemalloc */
 	stack -> flags &= ~SANITY_CHECK_ON;
 #endif
@@ -808,9 +814,11 @@ uint *_slevel_)
       else
       {
 #ifdef SAFEMALLOC
-	if (stack -> flags & SANITY_CHECK_ON)
+	if (stack->flags & SANITY_CHECK_ON && !state->disable_output)
+        {
 	  if (_sanity(*_sfile_,_line_))
 	    stack->flags &= ~SANITY_CHECK_ON;
+        }
 #endif
 #ifndef THREAD
 	if (DoProfile ())
@@ -953,7 +961,6 @@ uint length)
   int pos;
   char dbuff[90];
   CODE_STATE *state;
-  /* Sasha: pre-my_thread_init() safety */
   if (!(state=code_state()))
     return;
 
@@ -992,6 +999,25 @@ uint length)
     dbug_flush(state);
   }
 }
+
+
+/*
+  Enable/Disable output for this thread
+
+  SYNOPSIS
+    _db_output_()
+    flag		1 = enable output, 0 = disable_output
+
+*/
+
+void _db_output_(uint flag)
+{
+  CODE_STATE *state;
+  if (!(state=code_state()))
+    return;
+  state->disable_output= !flag;
+}
+
 
 /*
  *  FUNCTION
@@ -1158,7 +1184,7 @@ static BOOLEAN DoTrace (CODE_STATE *state)
 {
   reg2 BOOLEAN trace=FALSE;
 
-  if (TRACING &&
+  if (TRACING && !state->disable_output &&
       state->level <= stack -> maxdepth &&
       InList (stack -> functions, state->func) &&
       InList (stack -> processes, _db_process_))
@@ -1194,7 +1220,7 @@ static BOOLEAN DoProfile ()
   state=code_state();
 
   profile = FALSE;
-  if (PROFILING &&
+  if (PROFILING && !state->disable_output &&
       state->level <= stack -> maxdepth &&
       InList (stack -> p_functions, state->func) &&
       InList (stack -> processes, _db_process_))
@@ -1268,7 +1294,7 @@ const char *keyword)
   if (!(state=code_state()))
     return FALSE;
   result = FALSE;
-  if (DEBUGGING &&
+  if (DEBUGGING && !state->disable_output &&
       state->level <= stack -> maxdepth &&
       InList (stack -> functions, state->func) &&
       InList (stack -> keywords, keyword) &&

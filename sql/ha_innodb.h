@@ -162,6 +162,7 @@ class ha_innobase: public handler
 	int check(THD* thd, HA_CHECK_OPT* check_opt);
         char* update_table_comment(const char* comment);
 	char* get_foreign_key_create_info();
+        int get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list);
   	uint referenced_by_foreign_key();
 	void free_foreign_key_create_info(char* str);	
   	THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
@@ -233,7 +234,7 @@ int innobase_savepoint(
 	my_off_t binlog_cache_pos);
 int innobase_close_connection(THD *thd);
 int innobase_drop_database(char *path);
-int innodb_show_status(THD* thd);
+bool innodb_show_status(THD* thd);
 
 my_bool innobase_query_caching_of_table_permitted(THD* thd, char* full_name,
 						uint full_name_len);

@@ -320,8 +320,8 @@ err:
 String *Item_func_point::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  double x= args[0]->val();
-  double y= args[1]->val();
+  double x= args[0]->val_real();
+  double y= args[1]->val_real();
 
   if ((null_value= (args[0]->null_value ||
 		    args[1]->null_value ||
@@ -628,7 +628,7 @@ longlong Item_func_numpoints::val_int()
 }
 
 
-double Item_func_x::val()
+double Item_func_x::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   double res= 0.0;				// In case of errors
@@ -645,7 +645,7 @@ double Item_func_x::val()
 }
 
 
-double Item_func_y::val()
+double Item_func_y::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   double res= 0;				// In case of errors
@@ -662,7 +662,7 @@ double Item_func_y::val()
 }
 
 
-double Item_func_area::val()
+double Item_func_area::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   double res= 0;				// In case of errors
@@ -679,7 +679,7 @@ double Item_func_area::val()
   return res;
 }
 
-double Item_func_glength::val()
+double Item_func_glength::val_real()
 {
   DBUG_ASSERT(fixed == 1);
   double res= 0;				// In case of errors
