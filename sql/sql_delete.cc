@@ -216,6 +216,7 @@ multi_delete::multi_delete(THD *thd_arg, TABLE_LIST *dt,
     do_delete(false)
 {
   uint counter=0;
+  not_trans_safe=false;
   tempfiles = (Unique **) sql_calloc(sizeof(Unique *) * (num_of_tables-1));
 
   (void) dt->table->file->extra(HA_EXTRA_NO_READCHECK);
@@ -225,8 +226,9 @@ multi_delete::multi_delete(THD *thd_arg, TABLE_LIST *dt,
   for (dt=dt->next ; dt ; dt=dt->next,counter++)
   {
     TABLE *table=dt->table;
-    (void) dt->table->file->extra(HA_EXTRA_NO_READCHECK);
-    (void) dt->table->file->extra(HA_EXTRA_NO_KEYREAD);
+    (void) table->file->extra(HA_EXTRA_NO_READCHECK);
+    (void) table->file->extra(HA_EXTRA_NO_KEYREAD);
+    table->used_keys=0;
     tempfiles[counter] = new Unique (refposcmp2,
 				     (void *) &table->file->ref_length,
 				     table->file->ref_length,
@@ -279,8 +281,11 @@ multi_delete::initialize_tables(JOIN *join)
       walk=walk->next;
       if (tab == join->join_tab)
 	tab->table->no_keyread=1;
+      if (!not_trans_safe && !tab->table->file->has_transactions())
+	not_trans_safe=true;
     }
   }
+  init_ftfuncs(thd,1);
 }
 
 
@@ -290,7 +295,11 @@ multi_delete::~multi_delete()
   for (table_being_deleted=delete_tables ;
        table_being_deleted ;
        table_being_deleted=table_being_deleted->next)
-    (void) table_being_deleted->table->file->extra(HA_EXTRA_READCHECK);
+  {
+    TABLE *t=table_being_deleted->table;
+    (void) t->file->extra(HA_EXTRA_READCHECK);
+    t->no_keyread=0;
+  }
 
   for (uint counter = 0; counter < num_of_tables-1; counter++)
   {
@@ -339,28 +348,13 @@ bool multi_delete::send_data(List<Item> &values)
   return 0;
 }
 
-
-
-/* Return true if some table is not transaction safe */
-
-static bool some_table_is_not_transaction_safe (TABLE_LIST *tl)
-{
-  for (; tl ; tl=tl->next)
-  { 
-    if (!(tl->table->file->has_transactions()))
-      return true;
-  }
-  return false;
-}
-
-
 void multi_delete::send_error(uint errcode,const char *err)
 {
   /* First send error what ever it is ... */
   ::send_error(&thd->net,errcode,err);
 
   /* reset used flags */
-  delete_tables->table->no_keyread=0;
+//  delete_tables->table->no_keyread=0;
 
   /* If nothing deleted return */
   if (!deleted)
@@ -376,8 +370,7 @@ void multi_delete::send_error(uint errcode,const char *err)
     In all other cases do attempt deletes ...
   */
   if ((table_being_deleted->table->file->has_transactions() &&
-       table_being_deleted == delete_tables) ||
-      !some_table_is_not_transaction_safe(delete_tables->next))
+       table_being_deleted == delete_tables) || !not_trans_safe)
     ha_rollback_stmt(thd);
   else if (do_delete)
     VOID(do_deletes(true));
@@ -441,7 +434,6 @@ int multi_delete::do_deletes (bool from_send_error)
 
     READ_RECORD	info;
     init_read_record(&info,thd,table,NULL,0,0);
-    bool not_trans_safe = some_table_is_not_transaction_safe(delete_tables);
     while (!(error=info.read_record(&info)) &&
 	   (!thd->killed ||  from_send_error || not_trans_safe))
     {
@@ -468,7 +460,7 @@ bool multi_delete::send_eof()
   int error = do_deletes(false);   /* do_deletes returns 0 if success */
 
   /* reset used flags */
-  delete_tables->table->no_keyread=0;
+//  delete_tables->table->no_keyread=0; // Will stay in comment until Monty approves changes
   thd->proc_info="end";
   if (error)
   {
@@ -481,20 +473,21 @@ bool multi_delete::send_eof()
    was a non-transaction-safe table involved, since
    modifications in it cannot be rolled back. */
 
-  if (deleted || some_table_is_not_transaction_safe(delete_tables))
+  if (deleted || not_trans_safe)
   {
     mysql_update_log.write(thd,thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
     {
       Query_log_event qinfo(thd, thd->query);
       if (mysql_bin_log.write(&qinfo) &&
-	  !some_table_is_not_transaction_safe(delete_tables))
+	  !not_trans_safe)
 	error=1;  // Log write failed: roll back the SQL statement
     }
     /* Commit or rollback the current SQL statement */ 
     VOID(ha_autocommit_or_rollback(thd,error > 0));
   }
-
+  if (deleted)
+    query_cache.invalidate(delete_tables);
   ::send_ok(&thd->net,deleted);
   return 0;
 }

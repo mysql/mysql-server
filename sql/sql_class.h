@@ -656,7 +656,7 @@ public:
    uint num_of_tables;
    int error;
    thr_lock_type lock_option;
-   bool do_delete;
+   bool do_delete, not_trans_safe;
  public:
    multi_delete(THD *thd, TABLE_LIST *dt, thr_lock_type lock_option_arg,
 		uint num_of_tables);

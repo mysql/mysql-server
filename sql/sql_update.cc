@@ -792,6 +792,8 @@ bool multi_update::send_eof()
     char buff[80];
     sprintf(buff,ER(ER_UPDATE_INFO), (long) found, (long) updated,
 	    (long) thd->cuted_fields);
+    if (updated)
+      query_cache.invalidate(update_tables);
     ::send_ok(&thd->net,
 	    (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
 	    thd->insert_id_used ? thd->insert_id() : 0L,buff);
