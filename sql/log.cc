@@ -514,17 +514,19 @@ bool MYSQL_LOG::is_active(const char* log_file_name)
   return inited && !strcmp(log_file_name, this->log_file_name);
 }
 
-void MYSQL_LOG::new_file()
+void MYSQL_LOG::new_file(bool inside_mutex)
 {
   // only rotate open logs that are marked non-rotatable
   // (binlog with constant name are non-rotatable)
   if (is_open() && ! no_rotate)
   {
     char new_name[FN_REFLEN], *old_name=name;
-    VOID(pthread_mutex_lock(&LOCK_log));
+    if (!inside_mutex)
+      VOID(pthread_mutex_lock(&LOCK_log));
     if (generate_new_name(new_name, name))
     {
-      VOID(pthread_mutex_unlock(&LOCK_log));
+      if (!inside_mutex)
+        VOID(pthread_mutex_unlock(&LOCK_log));
       return;					// Something went wrong
     }
     if (log_type == LOG_BIN)
@@ -551,7 +553,8 @@ void MYSQL_LOG::new_file()
     my_free(old_name,MYF(0));
     last_time=query_start=0;
     write_error=0;
-    VOID(pthread_mutex_unlock(&LOCK_log));
+    if (!inside_mutex)
+      VOID(pthread_mutex_unlock(&LOCK_log));
   }
 }
 
@@ -729,9 +732,9 @@ err:
     if (file == &log_file)
       VOID(pthread_cond_broadcast(&COND_binlog_update));
   }
-  VOID(pthread_mutex_unlock(&LOCK_log));
   if(should_rotate)
-    new_file();
+    new_file(1); // inside mutex
+  VOID(pthread_mutex_unlock(&LOCK_log));
   return error;
 }
 
@@ -817,12 +820,10 @@ bool MYSQL_LOG::write(Load_log_event* event_info)
 	VOID(pthread_cond_broadcast(&COND_binlog_update));
       }
     }
+    if(should_rotate)
+      new_file(1); // inside mutex
     VOID(pthread_mutex_unlock(&LOCK_log));
   }
-
-  if(should_rotate)
-    new_file();
-  
   return error;
 }
 
