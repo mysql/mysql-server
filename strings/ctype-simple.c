@@ -118,3 +118,56 @@ int my_wc_mb_8bit(CHARSET_INFO *cs,my_wc_t wc,
   }
   return MY_CS_ILUNI;
 }
+
+
+
+#ifndef NEW_HASH_FUNCTION
+
+	/* Calc hashvalue for a key, case indepenently */
+
+uint my_hash_caseup_simple(CHARSET_INFO *cs, const byte *key, uint length)
+{
+  register uint nr=1, nr2=4;
+  register uchar *map=cs->to_upper;
+  
+  while (length--)
+  {
+    nr^= (((nr & 63)+nr2)*
+         ((uint) (uchar) map[(uchar)*key++])) + (nr << 8);
+    nr2+=3;
+  }
+  return((uint) nr);
+}
+
+#else
+
+uint my_hash_caseup_simple(CHARSET_INFO *cs, const byte *key, uint len)
+{
+  const byte *end=key+len;
+  uint hash;
+  for (hash = 0; key < end; key++)
+  {
+    hash *= 16777619;
+    hash ^= (uint) (uchar) my_toupper(cs,*key);
+  }
+  return (hash);
+}
+
+#endif
+				  
+void my_hash_sort_simple(CHARSET_INFO *cs,
+				const uchar *key, uint len,
+				ulong *nr1, ulong *nr2)
+{
+  register uchar *sort_order=cs->sort_order;
+  const uchar *pos = key;
+  
+  key+= len;
+  
+  for (; pos < (uchar*) key ; pos++)
+  {
+    nr1[0]^=(ulong) ((((uint) nr1[0] & 63)+nr2[0]) * 
+	     ((uint) sort_order[(uint) *pos])) + (nr1[0] << 8);
+    nr2[0]+=3;
+  }
+}
