@@ -45,7 +45,7 @@ select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a)
 insert into t5 values (2);
 select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a), a from t2;
 explain select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a), a from t2;
--- error 1230
+-- error 1240
 select (select a from t1 where t1.a=t2.a union all select a from t5 where t5.a=t2.a), a from t2;
 create table attend (patient_uq int, clinic_uq int, index i1 (clinic_uq));
 create table clinic( uq int primary key, name char(25));
