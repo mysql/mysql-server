@@ -242,9 +242,8 @@ public:
     AllocationFailure = 4252,
     InternalError = 4346
   };
-  STATIC_CONST( SignalLength = BuildIndxConf::SignalLength + 1 );
+  STATIC_CONST( SignalLength = BuildIndxConf::SignalLength + 2 );
 
-private:
   //Uint32 m_userRef;
   //Uint32 m_connectionPtr;
   //Uint32 m_requestInfo;
@@ -253,6 +252,7 @@ private:
   //Uint32 m_indexId;
   BuildIndxConf m_conf;
   Uint32 m_errorCode;
+  Uint32 masterNodeId;
 
 public:
   BuildIndxConf* getConf() {
