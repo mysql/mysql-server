@@ -698,6 +698,54 @@ void THD::close_active_vio()
 #endif
 
 
+struct Item_change_record: public ilink
+{
+  Item **place;
+  Item *old_value;
+  /* Placement new was hidden by `new' in ilink (TODO: check): */
+  static void *operator new(unsigned int size, void *mem) { return mem; }
+};
+
+
+/*
+  Register an item tree tree transformation, performed by the query
+  optimizer. We need a pointer to runtime_memroot because it may be !=
+  thd->mem_root (due to possible set_n_backup_item_arena called for thd).
+*/
+
+void THD::nocheck_register_item_tree_change(Item **place, Item *old_value,
+                                            MEM_ROOT *runtime_memroot)
+{
+  Item_change_record *change;
+  /*
+    Now we use one node per change, which adds some memory overhead,
+    but still is rather fast as we use alloc_root for allocations.
+    A list of item tree changes of an average query should be short.
+  */
+  void *change_mem= alloc_root(runtime_memroot, sizeof(*change));
+  if (change_mem == 0)
+  {
+    fatal_error();
+    return;
+  }
+  change= new (change_mem) Item_change_record;
+  change->place= place;
+  change->old_value= old_value;
+  change_list.push_back(change);
+}
+
+
+void THD::rollback_item_tree_changes()
+{
+  I_List_iterator<Item_change_record> it(change_list);
+  Item_change_record *change;
+  while ((change= it++))
+    *change->place= change->old_value;
+  /* We can forget about changes memory: it's allocated in runtime memroot */
+  change_list.empty();
+}
+
+
 /*****************************************************************************
 ** Functions to provide a interface to select results
 *****************************************************************************/

@@ -317,7 +317,6 @@ class Item_ident :public Item
   const char *orig_db_name;
   const char *orig_table_name;
   const char *orig_field_name;
-  Item **changed_during_fix_field;
 public:
   const char *db_name;
   const char *table_name;
@@ -340,8 +339,6 @@ public:
   Item_ident(THD *thd, Item_ident *item);
   const char *full_name() const;
   void cleanup();
-  void register_item_tree_changing(Item **ref)
-    { changed_during_fix_field= ref; }
   bool remove_dependence_processor(byte * arg);
 };
 
