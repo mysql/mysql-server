@@ -1795,6 +1795,7 @@ Item_func_group_concat::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   */
   for (i= 0 ; i < arg_count_order ; i++)
   {
+    // order_item->item can be changed by fix_fields() call
     ORDER *order_item= order[i];
     if ((*order_item->item)->fix_fields(thd, tables, order_item->item) ||
 	(*order_item->item)->check_cols(1))

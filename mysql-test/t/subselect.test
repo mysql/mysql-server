@@ -990,6 +990,17 @@ SELECT dbid, name FROM t3 a, t2 b, t4 WHERE dbid = - 1 AND primary_uid = '1' AND
 drop table t1,t2,t3,t4;
 
 #
+# cardinality check
+#
+CREATE TABLE t1 (id int(11) default NULL) TYPE=MyISAM CHARSET=latin1;
+INSERT INTO t1 VALUES (1),(5);
+CREATE TABLE t2 (id int(11) default NULL) TYPE=MyISAM CHARSET=latin1;
+INSERT INTO t2 VALUES (2),(6);
+-- error 1240
+select * from t1 where (1,2,6) in (select * from t2);
+DROP TABLE t1,t2;
+
+#
 # DO and SET with errors
 #
 create table t1 (s1 int);
