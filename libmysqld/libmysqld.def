@@ -1,6 +1,6 @@
 LIBRARY		LIBMYSQLD
-DESCRIPTION	'MySQL 4.1 Embedded Server Library'
-VERSION		4.1
+DESCRIPTION	'MySQL 5.0 Embedded Server Library'
+VERSION		5.0
 EXPORTS
 	_dig_vec_upper
 	_dig_vec_lower
@@ -158,3 +158,5 @@ EXPORTS
 	mysql_stmt_attr_set
 	mysql_stmt_field_count
 	get_defaults_files
+	my_charset_bin
+	my_charset_same

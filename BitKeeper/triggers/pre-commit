@@ -1,5 +1,16 @@
 #!/bin/sh
 
+if [ "$BK_USER" = "Administrator" -o "$BK_USER" = "mysqldev" ]
+then
+ echo "Error: you cannot commit as 'Administrator' or 'mysqldev' user."
+ echo "as a workaround set BK_USER to your nickname"
+ echo "e.g.: export BK_USER='bar'"
+ echo ""
+ echo "Checkin FAILED!"
+ echo "Set BK_USER and retry."
+ exit 1
+fi
+
 if [ "$REAL_EMAIL" = "" ]
 then
  echo "Error: you must set REAL_EMAIL in your profile"

@@ -7,6 +7,8 @@
 # (Guilhem) have seen the test manage to provoke lock wait timeout
 # error but not deadlock error; that is ok as code deals with the two
 # errors in exactly the same way.
+# We don't 'show status like 'slave_retried_transactions'' because this
+# is not repeatable (depends on sleeps).
 
 source include/have_innodb.inc;
 source include/master-slave.inc;
@@ -16,10 +18,12 @@ create table t1 (a int not null, key(a)) engine=innodb;
 create table t2 (a int not null, key(a)) engine=innodb;
 create table t3 (a int) engine=innodb;
 create table t4 (a int) engine=innodb;
+show variables like 'slave_transaction_retries';
 sync_slave_with_master;
 
 show create table t1;
 show create table t2;
+show variables like 'slave_transaction_retries';
 stop slave;
 
 # 1) Test deadlock
@@ -68,7 +72,7 @@ show slave status;
 # 2) Test lock wait timeout
 
 stop slave;
-change master to master_log_pos=536; # the BEGIN log event
+change master to master_log_pos=532; # the BEGIN log event
 begin;
 select * from t2 for update; # hold lock
 start slave;
@@ -89,7 +93,7 @@ set global max_relay_log_size=0;
 
 # This is really copy-paste of 2) of above
 stop slave;
-change master to master_log_pos=536;
+change master to master_log_pos=532;
 begin;
 select * from t2 for update;
 start slave;

@@ -65,6 +65,22 @@ SET @@session.time_zone='Europe/Moscow';
 insert into t1 values ('20040101000000'), ('20040611093902');
 ROLLBACK;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+delete from t1;
+set time_zone='UTC';
+load data infile '../../std_data/rpl_timezone.dat' into table t1;
+select * from t1;
+t
+2004-01-01 00:00:00
+2004-06-11 09:39:02
+set time_zone='UTC';
+select * from t1;
+t
+2004-01-01 00:00:00
+2004-06-11 09:39:02
+set time_zone='Europe/Moscow';
+set time_zone='Europe/Moscow';
+delete from t1;
+insert into t1 values ('20040101000000'), ('20040611093902');
 set time_zone='MET';
 insert into t2 (select t from t1);
 select * from t1;
