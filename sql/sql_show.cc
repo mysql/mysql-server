@@ -1615,10 +1615,11 @@ typedef struct st_index_field_values
   SYNOPSIS
     schema_table_store_record()
     thd                   thread handler
-    table                 I_S table
+    table                 Information schema table to be updated
+
   RETURN
-    1	                  error
     0	                  success
+    1	                  error
 */
 
 static bool schema_table_store_record(THD *thd, TABLE *table)
@@ -1959,7 +1960,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
               }
             }
             if (schema_table_store_record(thd, table))
-              DBUG_RETURN(error);
+              goto err;
           }
           else
           {
