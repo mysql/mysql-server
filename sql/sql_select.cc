@@ -1381,12 +1381,24 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
   JOIN *join;
   if (select_lex->join != 0)
   {
-    //here is EXPLAIN of subselect or derived table
     join= select_lex->join;
-    join->result= result;
-    if (!join->procedure && result->prepare(join->fields_list, unit))
+    if (select_lex->linkage != GLOBAL_OPTIONS_TYPE)
     {
-      DBUG_RETURN(-1);
+      //here is EXPLAIN of subselect or derived table
+      join->result= result;
+      if (!join->procedure && result->prepare(join->fields_list, unit))
+      {
+	DBUG_RETURN(-1);
+      }
+    }
+    else
+    {
+      if (join->prepare(rref_pointer_array, tables, wild_num,
+			conds, og_num, order, group, having, proc_param,
+			select_lex, unit, tables_and_fields_initied))
+      {
+	DBUG_RETURN(-1);
+      }
     }
     join->select_options= select_options;
     free_join= 0;
@@ -1396,7 +1408,6 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
     join= new JOIN(thd, fields, select_options, result);
     thd->proc_info="init";
     thd->used_tables=0;                         // Updated by setup_fields
-
     if (join->prepare(rref_pointer_array, tables, wild_num,
 		      conds, og_num, order, group, having, proc_param,
 		      select_lex, unit, tables_and_fields_initied))
@@ -4300,6 +4311,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     default: 
       // This case should never be choosen
       DBUG_ASSERT(0);
+      new_field= 0; // to satisfy compiler (uninitialized variable)
       break;
     }
     if (copy_func && item->is_result_field())

@@ -190,45 +190,62 @@ class JOIN :public Sql_alloc
   bool optimized; // flag to avoid double optimization in EXPLAIN
 
   JOIN(THD *thd_arg, List<Item> &fields, ulong select_options_arg,
-       select_result *result_arg):
-    join_tab(0),
-    table(0),
-    tables(0), const_tables(0),
-    sort_and_group(0), first_record(0),
-    do_send_rows(1),
-    send_records(0), found_records(0), examined_rows(0),
-    exec_tmp_table1(0), exec_tmp_table2(0),
-    thd(thd_arg),
-    sum_funcs(0),
-    procedure(0),
-    having(0), tmp_having(0),
-    select_options(select_options_arg),
-    result(result_arg),
-    lock(thd_arg->lock),
-    select_lex(0), //for safety
-    tmp_join(0),
-    select_distinct(test(select_options & SELECT_DISTINCT)),
-    no_order(0), simple_order(0), simple_group(0), skip_sort_order(0),
-    need_tmp(0),
-    hidden_group_fields (0), /*safety*/
-    buffer_result(test(select_options & OPTION_BUFFER_RESULT) &&
-		  !test(select_options & OPTION_FOUND_ROWS)),
-    all_fields(fields),
-    fields_list(fields),
-    error(0),
-    select(0),
-    ref_pointer_array(0), items0(0), items1(0), items2(0), items3(0),
-    ref_pointer_array_size(0),
-    zero_result_cause(0),
-    optimized(0)
+       select_result *result_arg)
+    :fields_list(fields)
   {
+    init(thd_arg, fields, select_options_arg, result_arg);
+  }
+  
+  void init(THD *thd_arg, List<Item> &fields, ulong select_options_arg,
+       select_result *result_arg)
+  {
+    join_tab= 0;
+    table= 0;
+    tables= 0;
+    const_tables= 0;
+    sort_and_group= 0;
+    first_record= 0;
+    do_send_rows= 1;
+    send_records= 0;
+    found_records= 0;
+    examined_rows= 0;
+    exec_tmp_table1= 0;
+    exec_tmp_table2= 0;
+    thd= thd_arg;
+    sum_funcs= 0;
+    procedure= 0;
+    having= 0;
+    tmp_having= 0;
+    select_options= select_options_arg;
+    result= result_arg;
+    lock= thd_arg->lock;
+    select_lex= 0; //for safety
+    tmp_join= 0;
+    select_distinct= test(select_options & SELECT_DISTINCT);
+    no_order= 0;
+    simple_order= 0;
+    simple_group= 0;
+    skip_sort_order= 0;
+    need_tmp= 0;
+    hidden_group_fields= 0; /*safety*/
+    buffer_result= test(select_options & OPTION_BUFFER_RESULT) &&
+      !test(select_options & OPTION_FOUND_ROWS);
+    all_fields= fields;
+    fields_list= fields;
+    error= 0;
+    select= 0;
+    ref_pointer_array= items0= items1= items2= items3= 0;
+    ref_pointer_array_size= 0;
+    zero_result_cause= 0;
+    optimized= 0;
+
     fields_list = fields;
     bzero((char*) &keyuse,sizeof(keyuse));
     tmp_table_param.copy_field=0;
     tmp_table_param.end_write_records= HA_POS_ERROR;
     rollup.state= ROLLUP::STATE_NONE;
   }
-  
+
   int prepare(Item ***rref_pointer_array, TABLE_LIST *tables, uint wind_num,
 	      COND *conds, uint og_num, ORDER *order, ORDER *group,
 	      Item *having, ORDER *proc_param, SELECT_LEX *select,
