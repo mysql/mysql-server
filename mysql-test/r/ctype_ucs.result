@@ -324,3 +324,59 @@ HEX(_ucs2 0x0123456789ABCDE)
 SELECT HEX(_ucs2 0x0123456789ABCDEF);
 HEX(_ucs2 0x0123456789ABCDEF)
 0123456789ABCDEF
+SELECT hex(cast(0xAA as char character set ucs2));
+hex(cast(0xAA as char character set ucs2))
+00AA
+SELECT hex(convert(0xAA using ucs2));
+hex(convert(0xAA using ucs2))
+00AA
+CREATE TABLE t1 (a char(10) character set ucs2);
+INSERT INTO t1 VALUES (0xA),(0xAA),(0xAAA),(0xAAAA),(0xAAAAA);
+SELECT HEX(a) FROM t1;
+HEX(a)
+000A
+00AA
+0AAA
+AAAA
+000AAAAA
+DROP TABLE t1;
+CREATE TABLE t1 (a varchar(10) character set ucs2);
+INSERT INTO t1 VALUES (0xA),(0xAA),(0xAAA),(0xAAAA),(0xAAAAA);
+SELECT HEX(a) FROM t1;
+HEX(a)
+000A
+00AA
+0AAA
+AAAA
+000AAAAA
+DROP TABLE t1;
+CREATE TABLE t1 (a text character set ucs2);
+INSERT INTO t1 VALUES (0xA),(0xAA),(0xAAA),(0xAAAA),(0xAAAAA);
+SELECT HEX(a) FROM t1;
+HEX(a)
+000A
+00AA
+0AAA
+AAAA
+000AAAAA
+DROP TABLE t1;
+CREATE TABLE t1 (a mediumtext character set ucs2);
+INSERT INTO t1 VALUES (0xA),(0xAA),(0xAAA),(0xAAAA),(0xAAAAA);
+SELECT HEX(a) FROM t1;
+HEX(a)
+000A
+00AA
+0AAA
+AAAA
+000AAAAA
+DROP TABLE t1;
+CREATE TABLE t1 (a longtext character set ucs2);
+INSERT INTO t1 VALUES (0xA),(0xAA),(0xAAA),(0xAAAA),(0xAAAAA);
+SELECT HEX(a) FROM t1;
+HEX(a)
+000A
+00AA
+0AAA
+AAAA
+000AAAAA
+DROP TABLE t1;

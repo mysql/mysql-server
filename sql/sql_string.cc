@@ -228,6 +228,27 @@ bool String::copy(const char *str,uint32 arg_length, CHARSET_INFO *cs)
   return FALSE;
 }
 
+
+/*
+  Checks that the source string can be just copied
+  to the destination string without conversion.
+  If either character set conversion or adding leading
+  zeros (e.g. for UCS-2) must be done then return 
+  value is TRUE else FALSE.
+*/
+bool String::needs_conversion(const char *str, uint32 arg_length,
+				     CHARSET_INFO *from_cs,
+				     CHARSET_INFO *to_cs)
+{
+  if ((to_cs == &my_charset_bin) || 
+      (to_cs == from_cs) ||
+      my_charset_same(from_cs, to_cs) ||
+      ((from_cs == &my_charset_bin) && (!(arg_length % to_cs->mbminlen))))
+    return FALSE;
+  
+  return TRUE;
+}
+
 /*
 ** For real multi-byte, ascii incompatible charactser sets,
 ** like UCS-2, add leading zeros if we have an incomplete character.
@@ -237,15 +258,15 @@ bool String::copy(const char *str,uint32 arg_length, CHARSET_INFO *cs)
 **   SELECT _ucs2 0x00AA
 */
 
-bool String::set_or_copy_aligned(const char *str,uint32 arg_length,
-				 CHARSET_INFO *cs)
+bool String::copy_aligned(const char *str,uint32 arg_length,
+			  CHARSET_INFO *cs)
 {
   /* How many bytes are in incomplete character */
   uint32 offs= (arg_length % cs->mbminlen); 
 
   if (!offs) /* All characters are complete, just copy */
   {
-    set(str, arg_length, cs);
+    copy(str, arg_length, cs);
     return FALSE;
   }
   
@@ -274,15 +295,35 @@ bool String::set_or_copy_aligned(const char *str,uint32 arg_length,
   return FALSE;
 }
 
+
+bool String::set_or_copy_aligned(const char *str,uint32 arg_length,
+				 CHARSET_INFO *cs)
+{
+  /* How many bytes are in incomplete character */
+  uint32 offs= (arg_length % cs->mbminlen); 
+  
+  if (!offs) /* All characters are complete, just copy */
+  {
+    set(str, arg_length, cs);
+    return FALSE;
+  }
+  return copy_aligned(str, arg_length, cs);
+}
+
 	/* Copy with charset convertion */
 
 bool String::copy(const char *str, uint32 arg_length,
 		  CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
 {
-  if ((from_cs == &my_charset_bin) || (to_cs == &my_charset_bin))
+  if (!needs_conversion(str, arg_length, from_cs, to_cs))
   {
     return copy(str, arg_length, to_cs);
   }
+  if ((from_cs == &my_charset_bin) && (arg_length % to_cs->mbminlen))
+  {
+    return copy_aligned(str, arg_length, to_cs);
+  }
+  
   uint32 new_length= to_cs->mbmaxlen*arg_length;
   if (alloc(new_length))
     return TRUE;
