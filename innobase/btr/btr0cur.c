@@ -399,7 +399,7 @@ btr_cur_search_to_nth_level(
 retry_page_get:		
 		page = buf_page_get_gen(space, page_no, rw_latch, guess,
 					buf_mode,
-					IB__FILE__, __LINE__,
+					__FILE__, __LINE__,
 					mtr);
 		if (page == NULL) {
 			/* This must be a search to perform an insert;
@@ -580,7 +580,7 @@ btr_cur_open_at_index_side(
 	for (;;) {
 		page = buf_page_get_gen(space, page_no, RW_NO_LATCH, NULL,
 					BUF_GET,
-					IB__FILE__, __LINE__,
+					__FILE__, __LINE__,
 					mtr);
 		ut_ad(0 == ut_dulint_cmp(tree->id,
 						btr_page_get_index_id(page)));
@@ -689,7 +689,7 @@ btr_cur_open_at_rnd_pos(
 	for (;;) {
 		page = buf_page_get_gen(space, page_no, RW_NO_LATCH, NULL,
 					BUF_GET,
-					IB__FILE__, __LINE__,
+					__FILE__, __LINE__,
 					mtr);
 		ut_ad(0 == ut_dulint_cmp(tree->id,
 						btr_page_get_index_id(page)));
