@@ -47,6 +47,23 @@
  * Error conditions can be identified by using the appropriate
  * error-reporting functions ndb_mgm_get_latest_error() and 
  * @ref ndb_mgm_error.
+ *
+ * Below is an example of usage (without error handling for brevity).
+ * @code
+ *   NdbMgmHandle handle= ndb_mgm_create_handle();
+ *   ndb_mgm_connect(handle,0,0,0);
+ *   struct ndb_mgm_cluster_state *state= ndb_mgm_get_status(handle);
+ *   for(int i=0; i < state->no_of_nodes; i++) 
+ *   {
+ *     printf("node with id=%d ", state->node_states[i].node_id);
+ *     if(state->node_states[i].version != 0)
+ *       printf("connected\n");
+ *     else
+ *       printf("not connected\n");
+ *   }
+ *   free((void*)state);
+ *   ndb_mgm_destroy_handle(&handle);
+ * @endcode
  */
 
 /** @addtogroup MGM_C_API
@@ -215,6 +232,9 @@ extern "C" {
    *
    *   Sub-structure in enum ndb_mgm_cluster_state
    *   returned by ndb_mgm_get_status()
+   *
+   *   @note @ref node_status, @ref start_phase, @ref dynamic_id 
+   *         and @ref node_group are only relevant for database nodes
    */
   struct ndb_mgm_node_state {
     /** NDB Cluster node id*/
@@ -873,6 +893,7 @@ extern "C" {
   int ndb_mgm_exit_single_user(NdbMgmHandle handle,
 			       struct ndb_mgm_reply* reply);
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /** @} *********************************************************************/
   /**
    * @name Configuration handling
@@ -893,7 +914,6 @@ extern "C" {
 							   unsigned version);
   void ndb_mgm_destroy_configuration(struct ndb_mgm_configuration *);
 
-#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   int ndb_mgm_alloc_nodeid(NdbMgmHandle handle,
 			   unsigned version, int nodetype);
   /**
