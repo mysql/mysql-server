@@ -329,7 +329,7 @@ $command= "make dist";
 if ($opt_win_dist)
 {
 	&logger ("Creating Windows source package");
-	$command= "$target_dir/scripts/make_win_src_distribution";
+	$command= "./scripts/make_win_src_distribution";
 	&run_command($command, "make_win_src_distribution failed!");
 }
 
