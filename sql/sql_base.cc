@@ -1637,6 +1637,8 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 bool rm_temporary_table(enum db_type base, char *path)
 {
   bool error=0;
+  DBUG_ENTER("rm_temporary_table");
+
   fn_format(path, path,"",reg_ext,4);
   unpack_filename(path,path);
   if (my_delete(path,MYF(0)))
@@ -1646,7 +1648,7 @@ bool rm_temporary_table(enum db_type base, char *path)
   if (file && file->delete_table(path))
     error=1;
   delete file;
-  return error;
+  DBUG_RETURN(error);
 }
 
 

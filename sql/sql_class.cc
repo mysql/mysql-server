@@ -215,6 +215,21 @@ void THD::init(void)
   total_warn_count= 0;
 }
 
+
+/*
+  Init THD for query processing
+
+  This has to be called once before we call mysql_parse()
+*/
+
+void THD::init_for_queries()
+{
+  init_sql_alloc(&mem_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
+  init_sql_alloc(&transaction.mem_root,
+		 TRANS_MEM_ROOT_BLOCK_SIZE, TRANS_MEM_ROOT_PREALLOC);
+}
+
+
 /*
   Do what's needed when one invokes change user
 

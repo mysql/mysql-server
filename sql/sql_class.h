@@ -573,6 +573,7 @@ public:
 
   void init(void);
   void change_user(void);
+  void init_for_queries();
   void cleanup(void);
   bool store_globals();
 #ifdef SIGNAL_WITH_VIO_CLOSE

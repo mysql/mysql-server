@@ -60,6 +60,7 @@ This file contains the implementation of error and warnings related
 
 void mysql_reset_errors(THD *thd)
 {
+  DBUG_ENTER("mysql_reset_errors");
   if (thd->query_id != thd->warn_id)
   {
     thd->warn_id= thd->query_id;
@@ -67,6 +68,7 @@ void mysql_reset_errors(THD *thd)
     bzero((char*) thd->warn_count, sizeof(thd->warn_count));
     thd->warn_list.empty();
   }
+  DBUG_VOID_RETURN;
 }
 
 

@@ -63,6 +63,13 @@
 
 #define MAX_SORT_MEMORY (2048*1024-MALLOC_OVERHEAD)
 #define MIN_SORT_MEMORY (32*1024-MALLOC_OVERHEAD)
+
+/* Memory allocated when parsing a statement / saving a statement */
+#define MEM_ROOT_BLOCK_SIZE       8192
+#define MEM_ROOT_PREALLOC         8192
+#define TRANS_MEM_ROOT_BLOCK_SIZE 4096
+#define TRANS_MEM_ROOT_PREALLOC   4096
+
 #define DEFAULT_ERROR_COUNT	64
 #define DEFAULT_PREP_STMT_COUNT	64
 #define EXTRA_RECORDS	10			/* Extra records in sort */

@@ -2099,7 +2099,6 @@ point. If you are sure that your master is ok, run this query manually on the\
 
 static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
 {
-  DBUG_ASSERT(rli->sql_thd==thd);
   Log_event * ev = next_event(rli);
   DBUG_ASSERT(rli->sql_thd==thd);
   if (sql_slave_killed(thd,rli))
@@ -2463,7 +2462,8 @@ slave_begin:
 #endif  
 
   thd = new THD; // note that contructor of THD uses DBUG_ !
-  THD_CHECK_SENTRY(thd);
+  thd->thread_stack = (char*)&thd; // remember where our stack is
+  
   /* Inform waiting threads that slave has started */
   rli->slave_run_id++;
 
@@ -2479,9 +2479,9 @@ slave_begin:
     sql_print_error("Failed during slave thread initialization");
     goto err;
   }
+  thd->init_for_queries();
   rli->sql_thd= thd;
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
-  thd->thread_stack = (char*)&thd; // remember where our stack is
   pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
   pthread_mutex_unlock(&LOCK_thread_count);
