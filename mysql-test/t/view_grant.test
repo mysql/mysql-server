@@ -1,3 +1,5 @@
+# Can't test with embedded server
+-- source include/not_embedded.inc
 
 # simple test of grants
 grant create view on test.* to test@localhost;
