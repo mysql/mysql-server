@@ -86,12 +86,13 @@ public:
       Binary = NDB_TYPE_BINARY,
       Varbinary = NDB_TYPE_VARBINARY,
       Datetime = NDB_TYPE_DATETIME,
-      Timespec = NDB_TYPE_TIMESPEC,
+      Date = NDB_TYPE_DATE,
       Blob = NDB_TYPE_BLOB,
       Text = NDB_TYPE_TEXT,
-      Bit = NDB_TYPE_BIT,
+      Bit = NDB_TYPE_BIT
       Longvarchar = NDB_TYPE_LONG_VARCHAR,
-      Longvarbinary = NDB_TYPE_LONG_VARBINARY
+      Longvarbinary = NDB_TYPE_LONG_VARBINARY,
+      Time = NDB_TYPE_TIME
     };
     Enum m_typeId;      // redundant
     Cmp* m_cmp;         // comparison method
@@ -153,12 +154,13 @@ private:
   static Cmp cmpBinary;
   static Cmp cmpVarbinary;
   static Cmp cmpDatetime;
-  static Cmp cmpTimespec;
+  static Cmp cmpDate;
   static Cmp cmpBlob;
   static Cmp cmpText;
   static Cmp cmpBit;
   static Cmp cmpLongvarchar;
   static Cmp cmpLongvarbinary;
+  static Cmp cmpTime;
 };
 
 #endif
