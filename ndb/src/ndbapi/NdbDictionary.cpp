@@ -229,7 +229,8 @@ NdbDictionary::Table::Table(const char * name)
 }
 
 NdbDictionary::Table::Table(const NdbDictionary::Table & org)
-  : m_impl(* new NdbTableImpl(* this))
+  : NdbDictionary::Object(),
+    m_impl(* new NdbTableImpl(* this))
 {
   m_impl.assign(org.m_impl);
 }

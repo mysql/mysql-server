@@ -2085,8 +2085,8 @@ int ha_ndbcluster::index_end()
 
 
 int ha_ndbcluster::index_read(byte *buf,
-			  const byte *key, uint key_len, 
-			  enum ha_rkey_function find_flag)
+			      const byte *key, uint key_len, 
+			      enum ha_rkey_function find_flag)
 {
   DBUG_ENTER("index_read");
   DBUG_PRINT("enter", ("active_index: %u, key_len: %u, find_flag: %d", 
@@ -2096,7 +2096,7 @@ int ha_ndbcluster::index_read(byte *buf,
   start_key.key=    key;
   start_key.length= key_len;
   start_key.flag=   find_flag;
-  DBUG_RETURN(read_range_first(&start_key, NULL, false, true));
+  DBUG_RETURN(read_range_first_to_buf(&start_key, NULL, false, true, buf));
 }
 
 
@@ -2163,10 +2163,25 @@ int ha_ndbcluster::read_range_first(const key_range *start_key,
 				    const key_range *end_key,
 				    bool eq_range, bool sorted)
 {
-  KEY* key_info;
-  int error= 1; 
   byte* buf= table->record[0];
   DBUG_ENTER("ha_ndbcluster::read_range_first");
+  
+  DBUG_RETURN(read_range_first_to_buf(start_key,
+				      end_key,
+				      eq_range, 
+				      sorted,
+				      buf));
+}
+
+inline
+int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
+					   const key_range *end_key,
+					   bool eq_range, bool sorted,
+					   byte* buf)
+{
+  KEY* key_info;
+  int error= 1; 
+  DBUG_ENTER("ha_ndbcluster::read_range_first_to_buf");
   DBUG_PRINT("info", ("eq_range: %d, sorted: %d", eq_range, sorted));
 
   if (m_active_cursor)
