@@ -8,8 +8,30 @@
 use test;
 
 --disable_warnings
-drop table if exists t1;
-drop table if exists t2;
+drop table if exists t1,t2,t3,t4;
+drop procedure if exists goto1;
+drop procedure if exists goto2;
+drop procedure if exists goto3;
+drop procedure if exists goto4;
+drop procedure if exists goto5;
+drop procedure if exists goto6;
+drop procedure if exists into_outfile;
+drop procedure if exists into_dumpfile;
+drop procedure if exists create_select;
+drop procedure if exists bar;
+drop procedure if exists hndlr1;
+drop procedure if exists hndlr2;
+drop procedure if exists hndlr3;
+drop procedure if exists hndlr4;
+drop procedure if exists cur1;
+drop procedure if exists cur2;
+drop procedure if exists chistics;
+drop procedure if exists chistics2;
+drop procedure if exists modes;
+drop procedure if exists dummy;
+drop procedure if exists bug;
+drop procedure if exists bug2;
+drop function if exists fac;
 --enable_warnings
 
 create table t1 (
@@ -114,9 +136,6 @@ drop procedure setcontext|
 
 
 # Set things to null
---disable_warnings
-drop table if exists t3|
---enable_warnings
 create table t3 ( d date, i int, f double, s varchar(32) )|
 
 create procedure nullset()
@@ -1076,7 +1095,7 @@ drop procedure rc|
 #
 # BUG#822
 #
-create procedure bug822(a_id char(16), a_data int)
+create procedure bug(a_id char(16), a_data int)
 begin
   declare n int;
   select count(*) into n from t1 where id = a_id and data = a_data;
@@ -1085,17 +1104,17 @@ begin
   end if;
 end|
 
-call bug822('foo', 42)|
-call bug822('foo', 42)|
-call bug822('bar', 666)|
+call bug('foo', 42)|
+call bug('foo', 42)|
+call bug('bar', 666)|
 select * from t1|
 delete from t1|
-drop procedure bug822|
+drop procedure bug|
 
 #
 # BUG#1495
 #
-create procedure bug1495()
+create procedure bug()
 begin
   declare x int;
 
@@ -1108,19 +1127,19 @@ begin
 end|
 
 insert into t1 values ('foo', 12)|
-call bug1495()|
+call bug()|
 delete from t1 where id='foo'|
 insert into t1 values ('bar', 7)|
-call bug1495()|
+call bug()|
 delete from t1 where id='bar'|
 select * from t1|
 delete from t1|
-drop procedure bug1495|
+drop procedure bug|
 
 #
 # BUG#1547
 #
-create procedure bug1547(s char(16))
+create procedure bug(s char(16))
 begin
   declare x int;
 
@@ -1133,11 +1152,11 @@ begin
 end|
 
 insert into t1 values ("foo", 12), ("bar", 7)|
-call bug1547("foo")|
-call bug1547("bar")|
+call bug("foo")|
+call bug("bar")|
 select * from t1|
 delete from t1|
-drop procedure bug1547|
+drop procedure bug|
 
 #
 # BUG#1656
@@ -1148,13 +1167,13 @@ drop table if exists t70|
 create table t70 (s1 int,s2 int)|
 insert into t70 values (1,2)|
 
-create procedure bug1656(out p1 int, out p2 int)
+create procedure bug(out p1 int, out p2 int)
   select * into p1, p1 from t70|
 
-call bug1656(@1, @2)|
+call bug(@1, @2)|
 select @1, @2|
 drop table t70|
-drop procedure bug1656|
+drop procedure bug|
 
 #
 # BUG#1862
@@ -1164,23 +1183,23 @@ drop table if exists t3|
 --enable_warnings
 create table t3(a int)|
 
-create procedure bug1862()
+create procedure bug()
 begin
   insert into t3 values(2);    
   flush tables;
 end|
 
-call bug1862()|
+call bug()|
 # the second call caused a segmentation
-call bug1862()|
+call bug()|
 select * from t3|
 drop table t3|
-drop procedure bug1862|
+drop procedure bug|
 
 #
 # BUG#1874
 #
-create procedure bug1874()
+create procedure bug()
 begin
   declare x int;
   declare y double;
@@ -1195,16 +1214,16 @@ begin
 end|
 
 insert into t1 (data) values (3), (1), (5), (9), (4)|
-call bug1874()|
+call bug()|
 select * from t2|
 delete from t1|
 delete from t2|
-drop procedure bug1874|
+drop procedure bug|
 
 #
 # BUG#2260
 #
-create procedure bug2260()
+create procedure bug()
 begin
   declare v1 int;
   declare c1 cursor for select data from t1;
@@ -1216,9 +1235,9 @@ begin
   close c1;
 end|
 
-call bug2260()|
+call bug()|
 select @x2|
-drop procedure bug2260|
+drop procedure bug|
 
 #
 # BUG#2267
@@ -1258,7 +1277,7 @@ drop procedure bug2267_4|
 #
 # BUG#2227
 #
-create procedure bug2227(x int)
+create procedure bug(x int)
 begin
   declare y float default 2.6;
   declare z char(16) default "zzz";
@@ -1266,13 +1285,13 @@ begin
   select 1.3, x, y, 42, z;
 end|
 
-call bug2227(9)|
-drop procedure bug2227|
+call bug(9)|
+drop procedure bug|
 
 #
 # BUG#2614
 #
-create procedure bug2614()
+create procedure bug()
 begin
   drop table if exists t3;
   create table t3 (id int default '0' not null);
@@ -1281,22 +1300,22 @@ begin
 end|
 
 --disable_warnings
-call bug2614()|
+call bug()|
 --enable_warnings
-call bug2614()|
+call bug()|
 drop table t3|
-drop procedure bug2614|
+drop procedure bug|
 
 #
 # BUG#2674
 #
-create function bug2674 () returns int
+create function bug () returns int
   return @@sort_buffer_size|
 
 set @osbs = @@sort_buffer_size|
 set @@sort_buffer_size = 262000|
-select bug2674()|
-drop function bug2674|
+select bug()|
+drop function bug|
 set @@sort_buffer_size = @osbs|
 
 #
@@ -1320,16 +1339,16 @@ drop procedure BUG3259_3|
 #
 # BUG##2772
 #
-create function bug2772() returns char(10) character set latin2
+create function bug() returns char(10) character set latin2
   return 'a'|
 
-select bug2772()|
-drop function bug2772|
+select bug()|
+drop function bug|
 
 #
 # BUG#2776
 #
-create procedure bug2776_1(out x int)
+create procedure bug(out x int)
 begin
   declare v int;
 
@@ -1337,7 +1356,7 @@ begin
   set x = v;
 end|
 
-create procedure bug2776_2(out x int)
+create procedure bug2(out x int)
 begin
   declare v int default 42;
 
@@ -1346,12 +1365,12 @@ begin
 end|
 
 set @x = 1|
-call bug2776_1(@x)|
+call bug(@x)|
 select @x|
-call bug2776_2(@x)|
+call bug2(@x)|
 select @x|
-drop procedure bug2776_1|
-drop procedure bug2776_2|
+drop procedure bug|
+drop procedure bug2|
 
 #
 # BUG#2780
@@ -1363,7 +1382,7 @@ create table t3 (s1 smallint)|
 
 insert into t3 values (123456789012)|
 
-create procedure bug2780()
+create procedure bug()
 begin
   declare exit handler for sqlwarning set @x = 1; 
 
@@ -1372,26 +1391,19 @@ begin
   insert into t3 values (0);
 end|
 
-call bug2780()|
+call bug()|
 select @x|
 select * from t3|
 
-drop procedure bug2780|
+drop procedure bug|
 drop table t3|
 
 #
 # BUG#1863
 #
---disable_warnings
-drop table if exists t3|
---enable_warnings
 create table t3 (content varchar(10) )|
 insert into t3 values ("test1")|
 insert into t3 values ("test2")|
-
---disable_warnings
-drop table if exists t4|
---enable_warnings
 create table t4 (f1 int, rc int, t3 int)|
 
 create procedure bug1863(in1 int)
@@ -1591,9 +1603,7 @@ drop procedure bug3863|
 #
 # BUG#2460
 #
---disable_warnings
-drop table if exists t3|
---enable_warnings
+
 create table t3 (
   id int(10) unsigned not null default 0,
   rid int(10) unsigned not null default 0,
@@ -1952,6 +1962,30 @@ end; set @x = 3|
 call bug5307()|
 select @x|
 drop procedure bug5307|
+
+#
+# BUG#5258: Stored procedure modified date is 0000-00-00
+# (This was a design flaw)
+create procedure bug5258()
+begin
+end|
+
+create procedure bug5258_aux()
+begin
+  declare c, m char(19);
+
+  select created,modified into c,m from mysql.proc where name = 'bug5258';
+  if c = m then
+    select 'Ok';
+  else
+    select c, m;
+  end if;
+end|
+
+call bug5258_aux()|
+
+drop procedure bug5258|
+drop procedure bug5258_aux|
 
 
 #

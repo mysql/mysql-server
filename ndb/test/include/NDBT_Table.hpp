@@ -23,10 +23,9 @@
 #include <NdbOut.hpp>
 
 class NDBT_Attribute : public NdbDictionary::Column {
-  friend class NdbOut& operator <<(class NdbOut&, const NDBT_Attribute &);
 public:
   NDBT_Attribute(const char* _name,
-		 Column::Type _type,
+		 NdbDictionary::Column::Type _type,
 		 int _length = 1,
 		 bool _pk = false, 
 		 bool _nullable = false):
@@ -51,13 +50,12 @@ public:
   
   NDBT_Table(const char* name, 
 	     int noOfAttributes,
-	     const NdbDictionary::Column attributes[],
-	     bool stored = true)
+	     const NdbDictionary::Column attributes[])
     : NdbDictionary::Table(name)
   {
     assert(name != 0);
     
-    setStoredTable(stored);
+    //setStoredTable(stored);
     for(int i = 0; i<noOfAttributes; i++)
       addColumn(attributes[i]);
   }

@@ -174,6 +174,14 @@ NdbDictionary::Column::getIndexOnlyStorage() const {
   return m_impl.m_indexOnly;
 }
 
+const NdbDictionary::Table * 
+NdbDictionary::Column::getBlobTable() const {
+  NdbTableImpl * t = m_impl.m_blobTable;
+  if (t)
+    return t->m_facade;
+  return 0;
+}
+
 void 
 NdbDictionary::Column::setAutoIncrement(bool val){
   m_impl.m_autoIncrement = val;
@@ -806,73 +814,90 @@ NdbDictionary::Dictionary::getNdbError() const {
   return m_impl.getNdbError();
 }
 
-NdbOut& operator <<(NdbOut& ndbout, const NdbDictionary::Column::Type type)
+// printers
+
+NdbOut&
+operator<<(NdbOut& out, const NdbDictionary::Column& col)
 {
-  switch(type){
-  case NdbDictionary::Column::Bigunsigned:
-    ndbout << "Bigunsigned";
-    break;
-  case NdbDictionary::Column::Unsigned:
-    ndbout << "Unsigned";
-    break;
-  case NdbDictionary::Column::Smallunsigned:
-    ndbout << "Smallunsigned";
+  out << col.getName() << " ";
+  switch (col.getType()) {
+  case NdbDictionary::Column::Tinyint:
+    out << "Tinyint";
     break;
   case NdbDictionary::Column::Tinyunsigned:
-    ndbout << "Tinyunsigned";
-    break;
-  case NdbDictionary::Column::Bigint:
-    ndbout << "Bigint";
-    break;
-  case NdbDictionary::Column::Int:
-    ndbout << "Int";
+    out << "Tinyunsigned";
     break;
   case NdbDictionary::Column::Smallint:
-    ndbout << "Smallint";
+    out << "Smallint";
     break;
-  case NdbDictionary::Column::Tinyint:
-    ndbout << "Tinyint";
-    break;
-  case NdbDictionary::Column::Char:
-    ndbout << "Char";
-    break;
-  case NdbDictionary::Column::Varchar:
-    ndbout << "Varchar";
-    break;
-  case NdbDictionary::Column::Float:
-    ndbout << "Float";
-    break;
-  case NdbDictionary::Column::Double:
-    ndbout << "Double";
+  case NdbDictionary::Column::Smallunsigned:
+    out << "Smallunsigned";
     break;
   case NdbDictionary::Column::Mediumint:
-    ndbout << "Mediumint";
+    out << "Mediumint";
     break;
   case NdbDictionary::Column::Mediumunsigned:
-    ndbout << "Mediumunsigend";
+    out << "Mediumunsigned";
     break;
-  case NdbDictionary::Column::Binary:
-    ndbout << "Binary";
+  case NdbDictionary::Column::Int:
+    out << "Int";
     break;
-  case NdbDictionary::Column::Varbinary:
-    ndbout << "Varbinary";
+  case NdbDictionary::Column::Unsigned:
+    out << "Unsigned";
+    break;
+  case NdbDictionary::Column::Bigint:
+    out << "Bigint";
+    break;
+  case NdbDictionary::Column::Bigunsigned:
+    out << "Bigunsigned";
+    break;
+  case NdbDictionary::Column::Float:
+    out << "Float";
+    break;
+  case NdbDictionary::Column::Double:
+    out << "Double";
     break;
   case NdbDictionary::Column::Decimal:
-    ndbout << "Decimal";
+    out << "Decimal(" << col.getScale() << "," << col.getPrecision() << ")";
+    break;
+  case NdbDictionary::Column::Char:
+    out << "Char(" << col.getLength() << ")";
+    break;
+  case NdbDictionary::Column::Varchar:
+    out << "Varchar(" << col.getLength() << ")";
+    break;
+  case NdbDictionary::Column::Binary:
+    out << "Binary(" << col.getLength() << ")";
+    break;
+  case NdbDictionary::Column::Varbinary:
+    out << "Varbinary(" << col.getLength() << ")";
+    break;
+  case NdbDictionary::Column::Datetime:
+    out << "Datetime";
     break;
   case NdbDictionary::Column::Timespec:
-    ndbout << "Timespec";
+    out << "Timespec";
     break;
   case NdbDictionary::Column::Blob:
-    ndbout << "Blob";
+    out << "Blob(" << col.getInlineSize() << "," << col.getPartSize()
+        << ";" << col.getStripeSize() << ")";
+    break;
+  case NdbDictionary::Column::Text:
+    out << "Text(" << col.getInlineSize() << "," << col.getPartSize()
+        << ";" << col.getStripeSize() << ")";
     break;
   case NdbDictionary::Column::Undefined:
-    ndbout << "Undefined";
+    out << "Undefined";
     break;
   default:
-    ndbout << "Unknown type=" << (Uint32)type;
+    out << "Type" << (Uint32)col.getType();
     break;
   }
-
-  return ndbout;
+  if (col.getPrimaryKey())
+    out << " PRIMARY KEY";
+  else if (! col.getNullable())
+    out << " NOT NULL";
+  else
+    out << " NULL";
+  return out;
 }

@@ -1,15 +1,15 @@
 /* Copyright (C) 2000-2003 MySQL AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -31,11 +31,54 @@
 #include <stdarg.h>
 #include <m_ctype.h>				// For test_if_number
 
+#ifdef __NT__
+#include "message.h"
+#endif
+
 MYSQL_LOG mysql_log, mysql_slow_log, mysql_bin_log;
 ulong sync_binlog_counter= 0;
 
 static bool test_if_number(const char *str,
 			   long *res, bool allow_wildcards);
+
+#ifdef __NT__
+static int eventSource = 0;
+
+void setup_windows_event_source() 
+{
+  HKEY    hRegKey= NULL; 
+  DWORD   dwError= 0;
+  TCHAR   szPath[MAX_PATH];
+  DWORD dwTypes;
+    
+  if (eventSource)               // Ensure that we are only called once
+    return;
+  eventSource= 1;
+
+  // Create the event source registry key
+  dwError= RegCreateKey(HKEY_LOCAL_MACHINE, 
+                          "SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\MySQL", 
+                          &hRegKey);
+
+  /* Name of the PE module that contains the message resource */
+  GetModuleFileName(NULL, szPath, MAX_PATH);
+
+  /* Register EventMessageFile */
+  dwError = RegSetValueEx(hRegKey, "EventMessageFile", 0, REG_EXPAND_SZ, 
+                          (PBYTE) szPath, strlen(szPath)+1);
+    
+
+  /* Register supported event types */
+  dwTypes= (EVENTLOG_ERROR_TYPE | EVENTLOG_WARNING_TYPE |
+            EVENTLOG_INFORMATION_TYPE);
+  dwError= RegSetValueEx(hRegKey, "TypesSupported", 0, REG_DWORD,
+                         (LPBYTE) &dwTypes, sizeof dwTypes);
+
+  RegCloseKey(hRegKey);
+}
+
+#endif /* __NT__ */
+
 
 /****************************************************************************
 ** Find a uniq filename for 'filename.#'.
@@ -234,7 +277,7 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
 			"started with:\nTcp port: %d  Unix socket: %s\n",
 			my_progname,server_version,mysqld_port,mysqld_unix_port
 #endif
-                        );
+                       );
     end=strnmov(buff+len,"Time                 Id Command    Argument\n",
                 sizeof(buff)-len);
     if (my_b_write(&log_file, (byte*) buff,(uint) (end-buff)) ||
@@ -1405,29 +1448,6 @@ COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
 	  goto err;
       }
 #endif
-
-#if MYSQL_VERSION_ID < 50000
-      /*
-        In 5.0 this is not needed anymore as we store the value of
-        FOREIGN_KEY_CHECKS in a binary way in the Query event's header.
-        The code below was enabled in 4.0 and 4.1.
-      */
-      /*
-	If the user has set FOREIGN_KEY_CHECKS=0 we wrap every SQL
-	command in the binlog inside:
-	SET FOREIGN_KEY_CHECKS=0;
-	<command>;
-	SET FOREIGN_KEY_CHECKS=1;
-      */
-
-      if (thd->options & OPTION_NO_FOREIGN_KEY_CHECKS)
-      {
-	Query_log_event e(thd, "SET FOREIGN_KEY_CHECKS=0", 24, 0);
-	e.set_log_pos(this);
-	if (e.write(file))
-	  goto err;
-      }
-#endif
     }
 
     /* Write the SQL command */
@@ -1435,18 +1455,6 @@ COLLATION_CONNECTION=%u,COLLATION_DATABASE=%u,COLLATION_SERVER=%u",
     event_info->set_log_pos(this);
     if (event_info->write(file))
       goto err;
-
-    /* Write log events to reset the 'run environment' of the SQL command */
-
-#if MYSQL_VERSION_ID < 50000
-    if (thd && thd->options & OPTION_NO_FOREIGN_KEY_CHECKS)
-    {
-      Query_log_event e(thd, "SET FOREIGN_KEY_CHECKS=1", 24, 0);
-      e.set_log_pos(this);
-      if (e.write(file))
-	goto err;
-    }
-#endif
 
     /*
       Tell for transactional table handlers up to which position in the
@@ -1842,17 +1850,12 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
 
   NOTES
     One must have a lock on LOCK_log before calling this function.
-    This lock will be freed before return!
-
-    The reason for the above is that for enter_cond() / exit_cond() to
-    work the mutex must be got before enter_cond() but releases before
-    exit_cond().
-    If you don't do it this way, you will get a deadlock in THD::awake()
+    This lock will be freed before return! That's required by
+    THD::enter_cond() (see NOTES in sql_class.h).
 */
 
 void MYSQL_LOG:: wait_for_update(THD* thd, bool master_or_slave)
 {
-  safe_mutex_assert_owner(&LOCK_log);
   const char* old_msg = thd->enter_cond(&update_cond, &LOCK_log,
                                         master_or_slave ?
                                         "Has read all relay log; waiting for \
@@ -1860,7 +1863,6 @@ the slave I/O thread to update it" :
                                         "Has sent all binlog to slave; \
 waiting for binlog to be updated"); 
   pthread_cond_wait(&update_cond, &LOCK_log);
-  pthread_mutex_unlock(&LOCK_log);		// See NOTES
   thd->exit_cond(old_msg);
 }
 
@@ -1944,6 +1946,19 @@ void MYSQL_LOG::set_max_size(ulong max_size_arg)
 }
 
 
+Disable_binlog::Disable_binlog(THD *thd_arg) : 
+  thd(thd_arg), save_options(thd_arg->options)
+{
+  thd_arg->options&= ~OPTION_BIN_LOG;
+}
+
+
+Disable_binlog::~Disable_binlog()
+{
+  thd->options= save_options;
+}
+
+
 /*
   Check if a string is a valid number
 
@@ -1994,39 +2009,31 @@ static bool test_if_number(register const char *str,
 } /* test_if_number */
 
 
-void sql_print_error(const char *format,...)
+void print_buffer_to_file(enum loglevel level, const char *buffer)
 {
-  va_list args;
   time_t skr;
   struct tm tm_tmp;
   struct tm *start;
-  va_start(args,format);
-  DBUG_ENTER("sql_print_error");
+  DBUG_ENTER("print_buffer_to_file");
+  DBUG_PRINT("enter",("buffer: %s", buffer));
 
   VOID(pthread_mutex_lock(&LOCK_error_log));
-#ifndef DBUG_OFF
-  {
-    char buff[1024];
-    my_vsnprintf(buff,sizeof(buff)-1,format,args);
-    DBUG_PRINT("error",("%s",buff));
-    va_end(args);
-    va_start(args,format);
-  }
-#endif
+
   skr=time(NULL);
-  localtime_r(&skr,&tm_tmp);
+  localtime_r(&skr, &tm_tmp);
   start=&tm_tmp;
-  fprintf(stderr,"%02d%02d%02d %2d:%02d:%02d  ",
-	  start->tm_year % 100,
-	  start->tm_mon+1,
+  fprintf(stderr, "%02d%02d%02d %2d:%02d:%02d  [%s] %s\n",
+    	  start->tm_year % 100,
+  	  start->tm_mon+1,
 	  start->tm_mday,
 	  start->tm_hour,
 	  start->tm_min,
-	  start->tm_sec);
-  (void) vfprintf(stderr,format,args);
-  (void) fputc('\n',stderr);
+	  start->tm_sec,
+          (level == ERROR_LEVEL ? "ERROR" : level == WARNING_LEVEL ?
+           "WARNING" : "INFORMATION"),
+          buffer);
+
   fflush(stderr);
-  va_end(args);
 
   VOID(pthread_mutex_unlock(&LOCK_error_log));
   DBUG_VOID_RETURN;
@@ -2041,6 +2048,7 @@ void sql_perror(const char *message)
   perror(message);
 #endif
 }
+
 
 bool flush_error_log()
 {
@@ -2223,5 +2231,128 @@ void MYSQL_LOG::report_pos_in_innodb()
                                                my_b_tell(&log_file));
   }
 #endif
+  DBUG_VOID_RETURN;
+}
+
+#ifdef __NT__
+void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
+                                 uint length, int buffLen)
+{
+  HANDLE event;
+  char   *buffptr;
+  LPCSTR *buffmsgptr;
+  DBUG_ENTER("print_buffer_to_nt_eventlog");
+
+  buffptr= buff;
+  if (length > (uint)(buffLen-4))
+  {
+    char *newBuff= new char[length + 4];
+    strcpy(newBuff, buff);
+    buffptr= newBuff;
+  }
+  strmov(buffptr+length, "\r\n\r\n");
+  buffmsgptr= (LPCSTR*) &buffptr;               // Keep windows happy
+
+  setup_windows_event_source();
+  if ((event= RegisterEventSource(NULL,"MySQL")))
+  {
+    switch (level) {
+      case ERROR_LEVEL:
+        ReportEvent(event, EVENTLOG_ERROR_TYPE, 0, MSG_DEFAULT, NULL, 1, 0,
+                    buffmsgptr, NULL);
+        break;
+      case WARNING_LEVEL:
+        ReportEvent(event, EVENTLOG_WARNING_TYPE, 0, MSG_DEFAULT, NULL, 1, 0,
+                    buffmsgptr, NULL);
+        break;
+      case INFORMATION_LEVEL:
+        ReportEvent(event, EVENTLOG_INFORMATION_TYPE, 0, MSG_DEFAULT, NULL, 1,
+                    0, buffmsgptr, NULL);
+        break;
+    }
+    DeregisterEventSource(event);
+  }
+
+  /* if we created a string buffer, then delete it */
+  if (buffptr != buff)
+    delete[] buffptr;
+
+  DBUG_VOID_RETURN;
+}
+#endif /* __NT__ */
+
+
+/*
+  Prints a printf style message to the error log and, under NT, to the
+  Windows event log.
+
+  SYNOPSIS
+    vprint_msg_to_log()
+    event_type             Type of event to write (Error, Warning, or Info)
+    format                 Printf style format of message
+    args                   va_list list of arguments for the message    
+
+  NOTE
+
+  IMPLEMENTATION
+    This function prints the message into a buffer and then sends that buffer
+    to other functions to write that message to other logging sources.
+
+  RETURN VALUES
+    void
+*/
+
+void vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
+{
+  char   buff[1024];
+  uint length;
+  DBUG_ENTER("vprint_msg_to_log");
+
+  length= my_vsnprintf(buff, sizeof(buff)-5, format, args);
+  print_buffer_to_file(level, buff);
+
+#ifdef __NT__
+  print_buffer_to_nt_eventlog(level, buff, length, sizeof(buff));
+#endif
+
+  DBUG_VOID_RETURN;
+}
+
+
+void sql_print_error(const char *format, ...) 
+{
+  va_list args;
+  DBUG_ENTER("sql_print_error");
+
+  va_start(args, format);
+  vprint_msg_to_log(ERROR_LEVEL, format, args);
+  va_end(args);
+
+  DBUG_VOID_RETURN;
+}
+
+
+void sql_print_warning(const char *format, ...) 
+{
+  va_list args;
+  DBUG_ENTER("sql_print_warning");
+
+  va_start(args, format);
+  vprint_msg_to_log(WARNING_LEVEL, format, args);
+  va_end(args);
+
+  DBUG_VOID_RETURN;
+}
+
+
+void sql_print_information(const char *format, ...) 
+{
+  va_list args;
+  DBUG_ENTER("sql_print_information");
+
+  va_start(args, format);
+  vprint_msg_to_log(INFORMATION_LEVEL, format, args);
+  va_end(args);
+
   DBUG_VOID_RETURN;
 }

@@ -94,6 +94,7 @@ public:
     TcDumpOneApiConnectRec = 2505,
     TcDumpAllApiConnectRec = 2506,
     TcSetTransactionTimeout = 2507,
+    TcSetApplTransactionTimeout = 2508,
     CmvmiDumpConnections = 2600,
     CmvmiDumpLongSignalMemory = 2601,
     CmvmiSetRestartOnErrorInsert = 2602,

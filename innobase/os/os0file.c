@@ -478,22 +478,72 @@ os_io_init_simple(void)
 	}
 }
 
+#ifndef UNIV_HOTBACKUP
+/*************************************************************************
+Creates a temporary file. This function is defined in ha_innodb.cc. */
+
+int
+innobase_mysql_tmpfile(void);
+/*========================*/
+			/* out: temporary file descriptor, or < 0 on error */
+#endif /* !UNIV_HOTBACKUP */
+
 /***************************************************************************
-Creates a temporary file. In case of error, causes abnormal termination. */
+Creates a temporary file. */
 
 FILE*
 os_file_create_tmpfile(void)
 /*========================*/
-				/* out: temporary file handle (never NULL) */
+			/* out: temporary file handle, or NULL on error */
 {
-	FILE*	file	= tmpfile();
-	if (file == NULL) {
+	FILE*	file	= NULL;
+	int	fd	= -1;
+#ifdef UNIV_HOTBACKUP
+	int	tries;
+	for (tries = 10; tries--; ) {
+		char*	name = tempnam(fil_path_to_mysql_datadir, "ib");
+		if (!name) {
+			break;
+		}
+
+		fd = open(name,
+# ifdef __WIN__
+			O_SEQUENTIAL | O_SHORT_LIVED | O_TEMPORARY |
+# endif /* __WIN__ */
+			O_CREAT | O_EXCL | O_RDWR,
+			S_IREAD | S_IWRITE);
+		if (fd >= 0) {
+# ifndef __WIN__
+			unlink(name);
+# endif /* !__WIN__ */
+			free(name);
+			break;
+		}
+
 		ut_print_timestamp(stderr);
-		fputs("  InnoDB: Error: unable to create temporary file\n",
-			stderr);
-		os_file_handle_error(NULL, "tmpfile");
-		ut_error;
+		fprintf(stderr, "  InnoDB: Warning: "
+			"unable to create temporary file %s, retrying\n",
+			name);
+		free(name);
 	}
+#else /* UNIV_HOTBACKUP */
+	fd = innobase_mysql_tmpfile();
+#endif /* UNIV_HOTBACKUP */
+
+	if (fd >= 0) {
+		file = fdopen(fd, "w+b");
+	}
+
+	if (!file) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: Error: unable to create temporary file;"
+			" errno: %d\n", errno);
+		if (fd >= 0) {
+			close(fd);
+		}
+	}
+
 	return(file);
 }
 
@@ -3623,6 +3673,9 @@ consecutive_loop:
 				    	ut_print_timestamp(stderr);
 				    	fprintf(stderr,
 "  InnoDB: ERROR: The page to be written seems corrupt!\n");
+				    	fprintf(stderr,
+"InnoDB: Writing a block of %lu bytes, currently writing at offset %lu\n",
+					(ulong)total_len, (ulong)len2);
 					buf_page_print(combined_buf + len2);
 				    	fprintf(stderr,
 "InnoDB: ERROR: The page to be written seems corrupt!\n");

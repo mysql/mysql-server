@@ -38,6 +38,7 @@ select concat("-",a,"-",b,"-") from t1 where b="hello ";
 select concat("-",a,"-",b,"-") from t1 ignore index (b) where b="hello ";
 # blob test
 alter table t1 modify b tinytext not null, drop key b, add key (b(100));
+select concat("-",a,"-",b,"-") from t1;
 select concat("-",a,"-",b,"-") from t1 where b="hello ";
 select concat("-",a,"-",b,"-") from t1 ignore index (b) where b="hello ";
 drop table t1;
@@ -65,4 +66,17 @@ select * from t1 where upper(b)='BBB';
 select * from t1 where lower(b)='bbb';
 select charset(a), charset(b), charset(binary 'ccc') from t1 limit 1;
 select collation(a), collation(b), collation(binary 'ccc') from t1 limit 1;
+drop table t1;
+
+#
+# Bug5134: WHERE x = 'bar' AND x LIKE BINARY 'bar' returns wrong results
+#
+
+create table t1( firstname char(20), lastname char(20));
+insert into t1 values ("john","doe"),("John","Doe");
+select * from t1 where firstname='john' and firstname like binary 'john';
+select * from t1 where firstname='john' and binary 'john' = firstname;
+select * from t1 where firstname='john' and firstname = binary 'john';
+select * from t1 where firstname='John' and firstname like binary 'john';
+select * from t1 where firstname='john' and firstname like binary 'John';
 drop table t1;

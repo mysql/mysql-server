@@ -553,7 +553,7 @@ static SYMBOL sql_functions[] = {
   { "CONNECTION_ID",	F_SYM(FUNC_ARG0),0,CREATE_FUNC(create_func_connection_id)},
   { "CONTAINS",		F_SYM(FUNC_ARG2),0,CREATE_FUNC_GEOM(create_func_contains)},
   { "CONV",		F_SYM(FUNC_ARG3),0,CREATE_FUNC(create_func_conv)},
-  { "CONVERT_TZ",	F_SYM(FUNC_ARG3),0,CREATE_FUNC(create_func_convert_tz)},
+  { "CONVERT_TZ",	SYM(CONVERT_TZ_SYM)},
   { "COUNT",		SYM(COUNT_SYM)},
   { "COS",		F_SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_cos)},
   { "COT",		F_SYM(FUNC_ARG1),0,CREATE_FUNC(create_func_cot)},

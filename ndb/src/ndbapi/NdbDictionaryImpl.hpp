@@ -71,6 +71,7 @@ public:
   bool m_autoIncrement;
   Uint64 m_autoIncrementInitialValue;
   BaseString m_defaultValue;
+  NdbTableImpl * m_blobTable;
 
   /**
    * Internal types and sizes, and aggregates
@@ -124,7 +125,9 @@ public:
   int m_kvalue;
   int m_minLoadFactor;
   int m_maxLoadFactor;
-  
+  int m_keyLenInWords;
+  int m_fragmentCount;
+
   NdbDictionaryImpl * m_dictionary;
   NdbIndexImpl * m_index;
   NdbColumnImpl * getColumn(unsigned attrId);
@@ -168,12 +171,14 @@ public:
   const char * getName() const;
   void setTable(const char * table);
   const char * getTable() const;
+  const NdbTableImpl * getIndexTable() const;
 
   Uint32 m_indexId;
   BaseString m_internalName;
   BaseString m_externalName;
   BaseString m_tableName;
   Vector<NdbColumnImpl *> m_columns;
+  Vector<int> m_key_ids;
   NdbDictionary::Index::Type m_type;
 
   bool m_logging;
@@ -358,6 +363,7 @@ public:
   
   int createTable(NdbTableImpl &t);
   int createBlobTables(NdbTableImpl &);
+  int addBlobTables(NdbTableImpl &);
   int alterTable(NdbTableImpl &t);
   int dropTable(const char * name);
   int dropTable(NdbTableImpl &);
@@ -438,7 +444,7 @@ inline
 bool 
 NdbColumnImpl::getBlobType() const {
   return (m_type == NdbDictionary::Column::Blob ||
-	  m_type == NdbDictionary::Column::Clob);
+	  m_type == NdbDictionary::Column::Text);
 }
 
 inline
@@ -612,7 +618,6 @@ NdbDictionaryImpl::getTableImpl(const char * internalTableName)
 
   if (ret == 0){
     ret = m_receiver.getTable(internalTableName, m_ndb.usingFullyQualifiedNames());
-    
     m_globalHash->lock();
     m_globalHash->put(internalTableName, ret);
     m_globalHash->unlock();
@@ -625,6 +630,8 @@ NdbDictionaryImpl::getTableImpl(const char * internalTableName)
 
   m_ndb.theFirstTupleId[ret->getTableId()] = ~0;
   m_ndb.theLastTupleId[ret->getTableId()]  = ~0;
+  
+  addBlobTables(*ret);
 
   return ret;
 }

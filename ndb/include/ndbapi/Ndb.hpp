@@ -867,6 +867,7 @@ class NdbObjectIdMap;
 class NdbOperation;
 class NdbEventOperationImpl;
 class NdbScanOperation;
+class NdbIndexScanOperation;
 class NdbIndexOperation;
 class NdbConnection;
 class NdbApiSignal;
@@ -875,7 +876,6 @@ class NdbLabel;
 class NdbBranch;
 class NdbSubroutine;
 class NdbCall;
-class NdbScanReceiver;
 class Table;
 class BaseString;
 class NdbEventOperation;
@@ -961,8 +961,9 @@ class Ndb
   friend class NdbConnection;
   friend class Table;
   friend class NdbApiSignal;
-  friend class NdbScanReceiver;
   friend class NdbIndexOperation;
+  friend class NdbScanOperation;
+  friend class NdbIndexScanOperation;
   friend class NdbDictionaryImpl;
   friend class NdbDictInterface;
   friend class NdbBlob;
@@ -1413,12 +1414,24 @@ public:
    *
    * @return tuple id or 0 on error
    */
-  Uint64 getAutoIncrementValue(const char* aTableName, Uint32 cacheSize = 1);
-  bool setAutoIncrementValue(const char* aTableName, Uint64 val);
-  Uint64 getTupleIdFromNdb(const char* aTableName, Uint32 cacheSize = 1000 );
-  Uint64 getTupleIdFromNdb(Uint32 aTableId, Uint32 cacheSize = 1000 );
-  bool setTupleIdInNdb(const char* aTableName, Uint64 val);
-  bool setTupleIdInNdb(Uint32 aTableId, Uint64 val);
+  Uint64 getAutoIncrementValue(const char* aTableName, 
+			       Uint32 cacheSize = 1);
+  Uint64 getAutoIncrementValue(NdbDictionary::Table * aTable, 
+			       Uint32 cacheSize = 1);
+  Uint64 readAutoIncrementValue(const char* aTableName);
+  Uint64 readAutoIncrementValue(NdbDictionary::Table * aTable);
+  bool setAutoIncrementValue(const char* aTableName, Uint64 val, 
+			     bool increase = false);
+  bool setAutoIncrementValue(NdbDictionary::Table * aTable, Uint64 val, 
+			     bool increase = false);
+  Uint64 getTupleIdFromNdb(const char* aTableName, 
+			   Uint32 cacheSize = 1000);
+  Uint64 getTupleIdFromNdb(Uint32 aTableId, 
+			   Uint32 cacheSize = 1000);
+  Uint64 readTupleIdFromNdb(Uint32 aTableId);
+  bool setTupleIdInNdb(const char* aTableName, Uint64 val, 
+		       bool increase);
+  bool setTupleIdInNdb(Uint32 aTableId, Uint64 val, bool increase);
   Uint64 opTupleIdOnNdb(Uint32 aTableId, Uint64 opValue, Uint32 op);
 #endif
 
@@ -1441,7 +1454,7 @@ private:
   NdbConnection* doConnect(Uint32 nodeId); 
   void    doDisconnect();	 
   
-  NdbScanReceiver*	getNdbScanRec();// Get a NdbScanReceiver from idle list
+  NdbReceiver*	        getNdbScanRec();// Get a NdbScanReceiver from idle list
   NdbLabel*		getNdbLabel();	// Get a NdbLabel from idle list
   NdbBranch*            getNdbBranch();	// Get a NdbBranch from idle list
   NdbSubroutine*	getNdbSubroutine();// Get a NdbSubroutine from idle
@@ -1450,7 +1463,7 @@ private:
   NdbRecAttr*	        getRecAttr();	// Get a receeive attribute object from
 					// idle list of the Ndb object.
   NdbOperation* 	getOperation();	// Get an operation from idle list
-  NdbScanOperation* 	getScanOperation(); // Get a scan operation from idle
+  NdbIndexScanOperation* getScanOperation(); // Get a scan operation from idle
   NdbIndexOperation* 	getIndexOperation();// Get an index operation from idle
 
   class NdbGlobalEventBufferHandle* getGlobalEventBufferHandle();
@@ -1458,14 +1471,14 @@ private:
 
   void			releaseSignal(NdbApiSignal* anApiSignal);
   void                  releaseSignalsInList(NdbApiSignal** pList);
-  void			releaseNdbScanRec(NdbScanReceiver* aNdbScanRec);
+  void			releaseNdbScanRec(NdbReceiver* aNdbScanRec);
   void			releaseNdbLabel(NdbLabel* anNdbLabel);
   void			releaseNdbBranch(NdbBranch* anNdbBranch);
   void			releaseNdbSubroutine(NdbSubroutine* anNdbSubroutine);
   void			releaseNdbCall(NdbCall* anNdbCall);
   void			releaseRecAttr (NdbRecAttr* aRecAttr);	
   void		 	releaseOperation(NdbOperation* anOperation);	
-  void		 	releaseScanOperation(NdbScanOperation* aScanOperation);
+  void		 	releaseScanOperation(NdbIndexScanOperation*);
   void                  releaseNdbBlob(NdbBlob* aBlob);
 
   void                  check_send_timeout();
@@ -1565,7 +1578,6 @@ private:
   void*              int2void     (Uint32 val);
   NdbReceiver*       void2rec     (void* val);
   NdbConnection*     void2con     (void* val);
-  NdbScanReceiver*   void2rec_srec(void* val);
   NdbOperation*      void2rec_op  (void* val);
   NdbIndexOperation* void2rec_iop (void* val);
 
@@ -1607,7 +1619,7 @@ private:
 
   NdbOperation*		theOpIdleList;	// First operation in the idle list. 
 
-  NdbScanOperation*	theScanOpIdleList;	// First scan operation in the idle list. 
+  NdbIndexScanOperation* theScanOpIdleList;	// First scan operation in the idle list. 
   NdbIndexOperation*	theIndexOpIdleList;	// First index operation in the idle list. 
   NdbConnection*	theTransactionList;
   NdbConnection**       theConnectionArray;
@@ -1617,7 +1629,7 @@ private:
   NdbBranch*		theBranchList;	     // First branch descriptor in list
   NdbSubroutine*	theSubroutineList;   // First subroutine descriptor in
   NdbCall*		theCallList;	     // First call descriptor in list
-  NdbScanReceiver*      theScanList;
+  NdbReceiver*      theScanList;
   NdbBlob*              theNdbBlobIdleList;
 
   Uint32   theMyRef;        // My block reference  

@@ -930,6 +930,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
     my_charpos_8bit,
     my_well_formed_len_8bit,
     my_lengthsp_8bit,
+    my_numcells_8bit,
     my_mb_wc_tis620,	/* mb_wc     */
     my_wc_mb_tis620,	/* wc_mb     */
     my_caseup_str_8bit,
@@ -988,7 +989,7 @@ CHARSET_INFO my_charset_tis620_bin=
     ctype_tis620,
     to_lower_tis620,
     to_upper_tis620,
-    sort_order_tis620,
+    NULL,		/* sort_order   */
     NULL,		/* contractions */
     NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */

@@ -42,6 +42,9 @@ show tables;
 Tables_in_test	table_type
 update mysql.user set password=old_password("gambling2") where user=_binary"test";
 flush privileges;
+set password="";
+set password='gambling3';
+ERROR HY000: Password hash should be a 41-digit hexadecimal number
 set password=old_password('gambling3');
 show tables;
 Tables_in_mysql	table_type
