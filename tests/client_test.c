@@ -815,7 +815,6 @@ end:
 
 static void test_debug_example()
 {
-  DBUG_ENTER("fill_tables");
   int rc;
   MYSQL_RES *result;
 
