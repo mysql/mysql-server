@@ -273,6 +273,9 @@ cust	20
 SELECT emp.rate_code, lr.base_rate FROM t1 AS emp LEFT JOIN t2 AS lr USING (siteid, rate_code) WHERE lr.siteid = 'rivercats' AND emp.emp_id = 'psmith';
 rate_code	base_rate
 cust	20
+ID	Value1	ID	Value2
+ID	Value1	ID	Value2
+ID	Value1	ID	Value2
 drop table t1,t2;
 create table t1 (i int);
 create table t2 (i int);
