@@ -92,6 +92,9 @@ ulint	srv_last_file_size_max	= 0;		 /* if != 0, this tells
 						 the max size auto-extending
 						 may increase the last data
 						 file size */
+ulint	srv_auto_extend_increment = 8;		 /* If the last data file is
+						 auto-extended, we add this
+						 many pages to it at a time */
 ulint*  srv_data_file_is_raw_partition = NULL;
 
 /* If the following is TRUE we do not allow inserts etc. This protects
