@@ -491,6 +491,7 @@ int check_embedded_connection(MYSQL *mysql)
   thd->host= (char*)my_localhost;
   thd->host_or_ip= thd->host;
   thd->user= my_strdup(mysql->user, MYF(0));
+  check_user(thd, COM_CONNECT, NULL, 0, thd->db, true);
   return 0;
 }
 
