@@ -1507,8 +1507,6 @@ ha_innobase::close(void)
 /*====================*/
 				/* out: error number */
 {
-	trx_t*	trx;
-
   	DBUG_ENTER("ha_innobase::close");
 
 	row_prebuilt_free((row_prebuilt_t*) innobase_prebuilt);
