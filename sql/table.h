@@ -274,7 +274,7 @@ typedef struct st_schema_table
 #define VIEW_CHECK_SKIP       2
 
 struct st_lex;
-struct select_union;
+class select_union;
 
 typedef struct st_table_list
 {
