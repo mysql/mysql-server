@@ -1632,8 +1632,10 @@ public:
   bool locked;
   pthread_cond_t cond;
   pthread_t thread;
+  ulong thread_id;
 
-  ULL(const char *key_arg,uint length) :key_length(length),count(1),locked(1)
+  ULL(const char *key_arg,uint length, ulong id) 
+    :key_length(length),count(1),locked(1), thread_id(id)
   {
     key=(char*) my_memdup((byte*) key_arg,length,MYF(0));
     pthread_cond_init(&cond,NULL);
@@ -1837,7 +1839,7 @@ longlong Item_func_get_lock::val_int()
   if (!(ull= ((ULL*) hash_search(&hash_user_locks,(byte*) res->ptr(),
 				 res->length()))))
   {
-    ull=new ULL(res->ptr(),res->length());
+    ull=new ULL(res->ptr(),res->length(), thd->thread_id);
     if (!ull || !ull->initialized())
     {
       delete ull;
@@ -2697,6 +2699,28 @@ longlong Item_func_is_free_lock::val_int()
     return 1;
   return 0;
 }
+
+longlong Item_func_is_used_lock::val_int()
+{
+  String *res=args[0]->val_str(&value);
+  THD *thd=current_thd;
+  ULL *ull;
+
+  null_value=1;
+  if (!res || !res->length())
+    return 0;
+  
+  pthread_mutex_lock(&LOCK_user_locks);
+  ull= (ULL*) hash_search(&hash_user_locks,(byte*) res->ptr(),
+			  res->length());
+  pthread_mutex_unlock(&LOCK_user_locks);
+  if (!ull || !ull->locked)
+    return 0;
+
+  null_value=0;
+  return ull->thread_id;
+}
+
 
 
 /**************************************************************************
