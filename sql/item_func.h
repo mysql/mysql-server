@@ -46,7 +46,8 @@ public:
 		  SP_TOUCHES_FUNC,SP_CROSSES_FUNC,SP_WITHIN_FUNC,
 		  SP_CONTAINS_FUNC,SP_OVERLAPS_FUNC,
 		  SP_STARTPOINT,SP_ENDPOINT,SP_EXTERIORRING,
-		  SP_POINTN,SP_GEOMETRYN,SP_INTERIORRINGN};
+		  SP_POINTN,SP_GEOMETRYN,SP_INTERIORRINGN,
+                  GUSERVAR_FUNC};
   enum optimize_type { OPTIMIZE_NONE,OPTIMIZE_KEY,OPTIMIZE_OP, OPTIMIZE_NULL };
   enum Type type() const { return FUNC_ITEM; }
   virtual enum Functype functype() const   { return UNKNOWN_FUNC; }
@@ -926,6 +927,8 @@ public:
   Item_func_get_user_var(LEX_STRING a):
     Item_func(), name(a) {}
   user_var_entry *get_entry();
+  enum Functype functype() const { return GUSERVAR_FUNC; }
+  LEX_STRING get_name() { return name; }
   double val();
   longlong val_int();
   String *val_str(String* str);

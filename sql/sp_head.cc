@@ -389,7 +389,8 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 	else
 	  nctx->push_item(sp_eval_func_item(thd, it,pvar->type)); // IN or INOUT
 	// Note: If it's OUT or INOUT, it must be a variable.
-	// QQ: Need to handle "global" user/host variables too!!!
+	// QQ: We can check for global variables here, or should we do it
+	//     while parsing?
 	if (pvar->mode == sp_param_in)
 	  nctx->set_oindex(i, -1); // IN
 	else			// OUT or INOUT
@@ -427,22 +428,27 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 	if (! tmp_octx)
 	  octx->set_item(nctx->get_oindex(i), nctx->get_item(i));
 	else
-	{			// A global user variable
-#if NOT_USED_NOW
-	  // QQ This works if the parameter really is a user variable, but
-	  // for the moment we can't assure that, so it will crash if it's
-	  // something else. So for now, we just do nothing, to avoid a crash.
-	  // Note: This also assumes we have a get_name() method in
-	  //       the Item_func_get_user_var class.
-	  Item *item= nctx->get_item(i);
-	  Item_func_set_user_var *suv;
-	  Item_func_get_user_var *guv= static_cast<Item_func_get_user_var*>(it);
+	{
+	  // QQ Currently we just silently ignore non-user-variable arguments.
+	  //    We should check this during parsing, when setting up the call
+	  //    above
+	  if (it->type() == Item::FUNC_ITEM)
+	  {
+	    Item_func *fi= static_cast<Item_func*>(it);
 
-	  suv= new Item_func_set_user_var(guv->get_name(), item);
-	  suv->fix_fields(thd, NULL, &item);
-	  suv->fix_length_and_dec();
-	  suv->update();
-#endif
+	    if (fi->functype() == Item_func::GUSERVAR_FUNC)
+	    {			// A global user variable
+	      Item *item= nctx->get_item(i);
+	      Item_func_set_user_var *suv;
+	      Item_func_get_user_var *guv=
+		static_cast<Item_func_get_user_var*>(fi);
+
+	      suv= new Item_func_set_user_var(guv->get_name(), item);
+	      suv->fix_fields(thd, NULL, &item);
+	      suv->fix_length_and_dec();
+	      suv->update();
+	    }
+	  }
 	}
       }
     }

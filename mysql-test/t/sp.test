@@ -122,8 +122,13 @@ call zip("zip", 99)|
 select * from t1|
 delete from t1|
 drop procedure zip|
-drop procedure zap|
 drop procedure bar|
+
+# Top-level OUT parameter
+call zap(7, @zap)|
+select @zap|
+
+drop procedure zap|
 
 
 # "Deep" calls...
@@ -165,8 +170,19 @@ select * from t1|
 delete from t1|
 drop procedure iotest|
 drop procedure inc2|
-drop procedure inc|
 
+# Propagating top-level @-vars
+create procedure incr(inout x int)
+  call inc(x)|
+
+# Before
+select @zap|
+call incr(@zap)|
+# After
+select @zap|
+
+drop procedure inc|
+drop procedure incr|
 
 # Call-by-value test
 #  The expected result is:
