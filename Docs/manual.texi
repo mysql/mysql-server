@@ -28020,6 +28020,7 @@ How big a @code{VARCHAR} column can be
 @menu
 * Programs::                    What do the executables do?
 * safe_mysqld::
+* mysql_multi_mysqld::          Program for managing multiple @strong{MySQL} servers
 * mysql::                       The command line tool
 * mysqladmin::                  Administering a @strong{MySQL} server
 * mysqldump::                   Dumping the structure and data from @strong{MySQL} databases and tables
@@ -28157,7 +28158,7 @@ shell> replace a b b a -- file1 file2 ...
 @cindex tools, safe_mysqld
 @cindex scripts
 @cindex @code{safe_mysqld}
-@node safe_mysqld, mysql, Programs, Tools
+@node safe_mysqld, mysql_multi_mysqld, Programs, Tools
 @section safe_mysqld, the wrapper around mysqld
 
 @code{safe_mysqld} is the recommended way to start a @code{mysqld}
@@ -28247,11 +28248,204 @@ upgrade @strong{MySQL} in the future, your modified version of
 @code{safe_mysqld} will be overwritten, so you should make a copy of your
 edited version that you can reinstall.
 
+@cindex tools, mysql_multi_mysqld
+@cindex scripts
+@cindex @code{mysql_multi_mysqld}
+@node  mysql_multi_mysqld, mysql, safe_mysqld, Tools
+@section mysql_multi_mysqld, program for managing multiple @code{MySQL} servers
+
+@code{mysql_multi_mysqld} is meant for managing several @code{mysqld}
+processes running in different UNIX sockets and TCP/IP ports.
+
+The program will search for group(s) named [mysqld#] from my.cnf (or
+the given --config-file=...), where # can be any positive number
+starting from 1. These groups should be the same as the usual [mysqld]
+group (e.g. options to mysqld, see MySQL manual for detailed
+information about this group), but with those port, socket
+etc. options that are wanted for each separate mysqld processes. The
+number in the group name has another function; it can be used for
+starting, stopping, or reporting some specific mysqld servers with
+this program. See the usage and options below for more information.
+
+@example
+Usage: mysql_multi_mysqld [OPTIONS] @{start|stop|report@} [GNR,GNR,GNR...]
+or     mysql_multi_mysqld [OPTIONS] @{start|stop|report@} [GNR-GNR,GNR,GNR-GNR,...]
+@end example
+
+The GNR above means the group number. You can start, stop or report
+any GNR, or several of them at the same time. (See --example) The GNRs
+list can be comma separated, or a dash combined, of which the latter
+means that all the GNRs between GNR1-GNR2 will be affected. Without
+GNR argument all the found groups will be either started, stopped, or
+reported. Note that you must not have any white spaces in the GNR
+list. Anything after a white space are ignored.
+
+@code{mysql_multi_mysqld} supports the following options:
+
+@table @code
+@cindex config-file option
+@item --config-file=...  
+Alternative config file. NOTE: This will not affect this program's own
+options (group [mysql_multi_mysqld]), but only groups [mysqld#]. Without
+this option everything will be searched from the ordinary my.cnf file.
+@cindex example option
+@item --example
+Give an example of a config file.
+@cindex help option
+@item --help
+Print this help and exit.
+@cindex log option
+@item --log=...
+Log file. Full path to and the name for the log file. NOTE: If the file
+exists, everything will be appended.
+@cindex mysqladmin option
+@item --mysqladmin=...
+mysqladmin binary to be used for a server shutdown.
+@cindex mysqld option
+@item --mysqld=...
+mysqld binary to be used. Note that you can give safe_mysqld to this
+option also. The options are passed to mysqld. Just make sure you have
+mysqld in your PATH or fix safe_mysqld.
+@cindex no-log option
+@item --no-log
+Print to stdout instead of the log file. By default the log file is
+turned on.
+@cindex password option
+@item --password=...
+Password for user for mysqladmin.
+@cindex tcp-ip option
+@item --tcp-ip
+Connect to the MySQL server(s) via the TCP/IP port instead of the UNIX
+socket. This affects stopping and reporting.  If a socket file is
+missing, the server may still be running, but can be accessed only via
+the TCP/IP port.  By default connecting is done via the UNIX socket.
+@cindex user option
+@item --user=...
+MySQL user for mysqladmin.
+@cindex version option
+@item --version
+Print the version number and exit.
+@end table
+
+Some notes about @code{mysql_multi_mysqld}:
+
+@itemize @bullet
+@item
+Make sure that the @strong{MySQL} user, who is stopping the
+@code{mysqld} services (e.g using the @code{mysqladmin}) have the same
+password and username for all the data directories accessed (to the
+'mysql' database) And make sure that the user has the 'Shutdown_priv'
+privilege! If you have many data- directories and many different 'mysql'
+databases with different passwords for the @strong{MySQL} 'root' user,
+you may want to create a common 'multi_admin' user for each using the
+same password (see below). Example how to do it:
+@example
+shell> mysql -u root -S /tmp/mysql.sock -proot_password -e
+"GRANT SHUTDOWN ON *.* TO multi_admin@@localhost IDENTIFIED BY 'multipass'"
+@end example
+You will have to do the above for each @code{mysqld} running in each
+data directory, that you have (just change the socket, -S=...)
+@item
+@code{pid-file} is very important, if you are using @code{safe_mysqld}
+to start @code{mysqld} (e.g. --mysqld=safe_mysqld) Every @code{mysqld}
+should have it's own @code{pid-file}. The advantage using
+@code{safe_mysqld} instead of @code{mysqld} directly here is, that
+@code{safe_mysqld} 'guards' every @code{mysqld} process and will restart
+it, if a @code{mysqld} process fails due to signal kill -9, or
+similar. (Like segmentation fault, which @strong{MySQL} should never do,
+of course ;) Please note that @code{safe_mysqld} script may require that
+you start it from a certain place. If you have problems starting, please
+see the script. Check especially the lines:
+@example
+--------------------------------------------------------------------------
+MY_PWD=`pwd` Check if we are starting this relative (for the binary
+release) if test -d /data/mysql -a -f ./share/mysql/english/errmsg.sys
+-a -x ./bin/mysqld
+--------------------------------------------------------------------------
+@end example
+The above test should be successful, or you may encounter problems.
+@item
+Beware of the dangers starting multiple @code{mysqlds} in the same data
+directory.  Use separate data directories, unless you @strong{KNOW} what
+you are doing!
+@item
+The socket file and the TCP/IP port must be different for every @code{mysqld}.
+@item
+The first and fifth @code{mysqld} group were intentionally left out from
+the example.  You may have 'gaps' in the config file. This gives you
+more flexibility.  The order in which the @code{mysqlds} are started or
+stopped depends on the order in which they appear in the config file.
+@item
+When you want to refer to a certain group with GNR with this program,
+just use the number in the end of the group name ( [mysqld# <== )
+@item
+You may want to use option '--user' for @code{mysqld}, but in order to
+do this you need to be root when you start this script. Having the
+option in the config file doesn't matter; you will just get a warning,
+if you are no the superuser and the @code{mysqlds} are started under
+@strong{YOUR} UNIX account. @strong{IMPORTANT}: Make sure that the
+@code{pid-file} and the data directory is read+write(+execute for the
+latter one) accessible for @strong{THAT} UNIX user, who the specific
+@code{mysqld} process is started as. @strong{DON'T} use the UNIX root
+account for this, unless you @strong{KNOW} what you are doing!
+@item
+@strong{MOST IMPORTANT}: Make sure that you understand the meanings of
+the options that are passed to the @code{mysqlds} and why @strong{WOULD
+YOU WANT} to have separate @code{mysqld} processes. Starting multiple
+@code{mysqlds} in one data directory @strong{WILL NOT} give you extra
+performance in a threaded system!
+@end itemize
+
+This is an example of the config file on behalf of @code{mysql_multi_mysqld}. 
+
+@example
+# This file should probably be in your home dir (~/.my.cnf) or /etc/my.cnf
+# Version 2.1 by Jani Tolonen
+
+[mysql_multi_mysqld]
+mysqld     = /usr/local/bin/safe_mysqld
+mysqladmin = /usr/local/bin/mysqladmin
+user       = multi_admin
+password   = multipass
+
+[mysqld2]
+socket     = /tmp/mysql.sock2
+port       = 3307
+pid-file   = /usr/local/mysql/var2/hostname.pid2
+datadir    = /usr/local/mysql/var2
+language   = /usr/local/share/mysql/english
+user       = john
+
+[mysqld3]
+socket     = /tmp/mysql.sock3
+port       = 3308
+pid-file   = /usr/local/mysql/var3/hostname.pid3
+datadir    = /usr/local/mysql/var3
+language   = /usr/local/share/mysql/swedish
+user       = monty
+
+[mysqld4]
+socket     = /tmp/mysql.sock4
+port       = 3309
+pid-file   = /usr/local/mysql/var4/hostname.pid4
+datadir    = /usr/local/mysql/var4
+language   = /usr/local/share/mysql/estonia
+user       = tonu
+
+[mysqld6]
+socket     = /tmp/mysql.sock6
+port       = 3311
+pid-file   = /usr/local/mysql/var6/hostname.pid6
+datadir    = /usr/local/mysql/var6
+language   = /usr/local/share/mysql/japanese
+user       = jani
+@end example
+
 @cindex command line tool
 @cindex tools, command line
 @cindex scripts
 @cindex @code{mysql}
-@node mysql, mysqladmin, safe_mysqld, Tools
+@node mysql, mysqladmin, mysql_multi_mysqld, Tools
 @section The Command-line Tool
 
 @code{mysql} is a simple SQL shell (with GNU @code{readline} capabilities).
@@ -37608,7 +37802,7 @@ particular dataset}.
 * Fine-tuning::
 @end menu
 
-@node Fine-tuning, , , MySQL full-text search
+@node Fine-tuning, Environment variables, MySQL internals, Top
 
 Unfortunately, full-text search has no user-tunable parameters yet
 (but adding some is very high in our TODO). But if one has @strong{MySQL}
@@ -39273,6 +39467,8 @@ though, so Version 3.23 is not released as a stable version yet.
 @node News-3.23.29, News-3.23.28, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.29
 @itemize @bullet
+@item
+New client, @code{mysql_multi_mysqld}. @xref{mysql_multi_mysqld}.
 @item
 Fixed @code{DROP DATABASE} to work on OS/2.
 @item
