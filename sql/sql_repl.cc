@@ -149,7 +149,7 @@ int purge_master_logs(THD* thd, const char* to_log)
   char search_file_name[FN_REFLEN];
   mysql_bin_log.make_log_name(search_file_name, to_log);
   int res = mysql_bin_log.purge_logs(thd, search_file_name);
-  char* errmsg = 0;
+  const char* errmsg = 0;
   switch(res)
     {
     case 0: break;
@@ -169,9 +169,14 @@ binlog purge"; break;
     }
   
   if(errmsg)
-   send_error(&thd->net, 0, errmsg);
+    {
+     send_error(&thd->net, 0, errmsg);
+     return 1;
+    }
   else
     send_ok(&thd->net);
+  
+  return 0;
 }
 
 void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)

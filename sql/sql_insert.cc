@@ -1089,12 +1089,14 @@ bool delayed_insert::handle_inserts(void)
       pthread_mutex_lock(&LOCK_delayed_status);
       delayed_insert_errors++;
       pthread_mutex_unlock(&LOCK_delayed_status);
+      row->log_query = 0;
     }
     if (row->query && row->log_query)
     {
       mysql_update_log.write(&thd,row->query, row->query_length);
       if (mysql_bin_log.is_open())
       {
+	thd.query_length = row->query_length;
 	Query_log_event qinfo(&thd, row->query);
 	mysql_bin_log.write(&qinfo);
       }

@@ -93,7 +93,7 @@ public:
 
   // if mutex is 0, the read will proceed without mutex
   static Log_event* read_log_event(FILE* file, pthread_mutex_t* log_lock);
-  static Log_event* read_log_event(const char* buf, int max_buf);
+  static Log_event* read_log_event(const char* buf, int event_len);
 
 #ifndef MYSQL_CLIENT
   static int read_log_event(FILE* file, String* packet,
@@ -133,7 +133,7 @@ public:
 #endif
 
   Query_log_event(FILE* file, time_t when, uint32 server_id);
-  Query_log_event(const char* buf, int max_buf);
+  Query_log_event(const char* buf, int event_len);
   ~Query_log_event()
   {
     if (data_buf)
@@ -273,7 +273,7 @@ public:
 #endif
 
   Load_log_event(FILE* file, time_t when, uint32 server_id);
-  Load_log_event(const char* buf, int max_buf);
+  Load_log_event(const char* buf, int event_len);
   ~Load_log_event()
   {
     if (data_buf)
@@ -398,7 +398,7 @@ public:
   {}
   
   Rotate_log_event(FILE* file, time_t when, uint32 server_id) ;
-  Rotate_log_event(const char* buf, int max_buf);
+  Rotate_log_event(const char* buf, int event_len);
   ~Rotate_log_event()
   {
     if (alloced)
