@@ -907,3 +907,47 @@ bool select_exists_subselect::send_data(List<Item> &items)
   DBUG_RETURN(0);
 }
 
+
+/***************************************************************************
+** Dump  of select to variables
+***************************************************************************/
+
+
+bool select_dumpvar::send_data(List<Item> &items)
+{
+  List_iterator_fast<Item> li(items);
+  List_iterator_fast<LEX_STRING> gl(current_thd->lex.select_into_var_list);
+  Item *item;
+  LEX_STRING *ls;
+  DBUG_ENTER("send_data");
+
+  if (row_count++ > 1) 
+  {
+    my_error(ER_TOO_MANY_ROWS, MYF(0));
+    goto err;
+  }
+  while ((item=li++) && (ls=gl++))
+  {
+    Item_func_set_user_var *xx = new Item_func_set_user_var(*ls,item);
+    xx->fix_fields(current_thd,(TABLE_LIST*) current_thd->lex.select_lex.table_list.first,&item);
+    xx->fix_length_and_dec();
+    xx->update();
+  }
+  DBUG_RETURN(0);
+err:
+  DBUG_RETURN(1);
+}
+
+bool select_dumpvar::send_eof()
+{
+  if (row_count)
+  {
+    ::send_ok(thd,row_count);
+    return 0;
+  }
+  else
+  {
+    my_error(ER_EMPTY_QUERY,MYF(0));
+    return 1;
+  }
+}
