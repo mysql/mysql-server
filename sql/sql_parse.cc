@@ -585,7 +585,7 @@ pthread_handler_decl(handle_one_connection,arg)
   if (!(test_flags & TEST_NO_THREADS) & my_thread_init())
   {
     close_connection(&thd->net,ER_OUT_OF_RESOURCES);
-    statistic_increment(aborted_connects,&LOCK_thread_count);
+    statistic_increment(aborted_connects,&LOCK_status);
     end_thread(thd,0);
     return 0;
   }
@@ -612,7 +612,7 @@ pthread_handler_decl(handle_one_connection,arg)
   if (thd->store_globals())
   {
     close_connection(&thd->net,ER_OUT_OF_RESOURCES);
-    statistic_increment(aborted_connects,&LOCK_thread_count);
+    statistic_increment(aborted_connects,&LOCK_status);
     end_thread(thd,0);
     return 0;
   }
@@ -634,7 +634,7 @@ pthread_handler_decl(handle_one_connection,arg)
       if (vio_type(net->vio) == VIO_TYPE_NAMEDPIPE)
 	sleep(1);				/* must wait after eof() */
 #endif
-      statistic_increment(aborted_connects,&LOCK_thread_count);
+      statistic_increment(aborted_connects,&LOCK_status);
       goto end_thread;
     }
 
@@ -668,7 +668,7 @@ pthread_handler_decl(handle_one_connection,arg)
 			(net->last_errno ? ER(net->last_errno) :
 			 ER(ER_UNKNOWN_ERROR)));
       send_error(net,net->last_errno,NullS);
-      thread_safe_increment(aborted_threads,&LOCK_thread_count);
+      thread_safe_increment(aborted_threads,&LOCK_status);
     }
     
 end_thread:
@@ -757,8 +757,8 @@ pthread_handler_decl(handle_bootstrap,arg)
 end:
   (void) pthread_mutex_lock(&LOCK_thread_count);
   thread_count--;
-  (void) pthread_cond_broadcast(&COND_thread_count);
   (void) pthread_mutex_unlock(&LOCK_thread_count);
+  (void) pthread_cond_broadcast(&COND_thread_count);
   my_thread_end();
   pthread_exit(0);
   DBUG_RETURN(0);				// Never reached
@@ -883,7 +883,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->lex.select_lex.options=0;		// We store status here
   switch (command) {
   case COM_INIT_DB:
-    thread_safe_increment(com_stat[SQLCOM_CHANGE_DB],&LOCK_thread_count);
+    thread_safe_increment(com_stat[SQLCOM_CHANGE_DB],&LOCK_status);
     if (!mysql_change_db(thd,packet))
       mysql_log.write(thd,command,"%s",thd->db);
     break;
@@ -895,7 +895,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_TABLE_DUMP:
     {
-      thread_safe_increment(com_other,&LOCK_thread_count);
+      thread_safe_increment(com_other, &LOCK_status);
       slow_command = TRUE;
       uint db_len = *(uchar*)packet;
       uint tbl_len = *(uchar*)(packet + db_len + 1);
@@ -912,7 +912,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
   case COM_CHANGE_USER:
   {
-    thread_safe_increment(com_other,&LOCK_thread_count);
+    thread_safe_increment(com_other,&LOCK_status);
     char *user=   (char*) packet;
     char *passwd= strend(user)+1;
     char *db=     strend(passwd)+1;
@@ -992,7 +992,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     char *fields;
     TABLE_LIST table_list;
-    thread_safe_increment(com_stat[SQLCOM_SHOW_FIELDS],&LOCK_thread_count);
+    thread_safe_increment(com_stat[SQLCOM_SHOW_FIELDS],&LOCK_status);
     bzero((char*) &table_list,sizeof(table_list));
     if (!(table_list.db=thd->db))
     {
@@ -1027,7 +1027,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   case COM_CREATE_DB:				// QQ: To be removed
     {
-      thread_safe_increment(com_stat[SQLCOM_CREATE_DB],&LOCK_thread_count);
+      thread_safe_increment(com_stat[SQLCOM_CREATE_DB],&LOCK_status);
       char *db=thd->strdup(packet);
       // null test to handle EOM
       if (!db || !strip_sp(db) || check_db_name(db))
@@ -1045,7 +1045,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
   case COM_DROP_DB:				// QQ: To be removed
     {
-      thread_safe_increment(com_stat[SQLCOM_DROP_DB],&LOCK_thread_count);
+      thread_safe_increment(com_stat[SQLCOM_DROP_DB],&LOCK_status);
       char *db=thd->strdup(packet);
       // null test to handle EOM
       if (!db || !strip_sp(db) || check_db_name(db))
@@ -1066,7 +1066,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
   case COM_BINLOG_DUMP:
     {
-      thread_safe_increment(com_other,&LOCK_thread_count);
+      thread_safe_increment(com_other,&LOCK_status);
       slow_command = TRUE;
       if (check_global_access(thd, REPL_SLAVE_ACL))
 	break;
@@ -1078,11 +1078,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       /* TODO: The following has to be changed to an 8 byte integer */
       pos = uint4korr(packet);
       flags = uint2korr(packet + 4);
-      pthread_mutex_lock(&LOCK_server_id);
       thd->server_id=0; /* avoid suicide */
       kill_zombie_dump_threads(slave_server_id = uint4korr(packet+6));
       thd->server_id = slave_server_id;
-      pthread_mutex_unlock(&LOCK_server_id);
       mysql_binlog_send(thd, thd->strdup(packet + 10), (my_off_t) pos, flags);
       unregister_slave(thd,1,1);
       // fake COM_QUIT -- if we get here, the thread needs to terminate
@@ -1092,7 +1090,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
   case COM_REFRESH:
     {
-      thread_safe_increment(com_stat[SQLCOM_FLUSH],&LOCK_thread_count);
+      thread_safe_increment(com_stat[SQLCOM_FLUSH],&LOCK_status);
       ulong options= (ulong) (uchar) packet[0];
       if (check_global_access(thd,RELOAD_ACL))
 	break;
@@ -1104,7 +1102,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;
     }
   case COM_SHUTDOWN:
-    thread_safe_increment(com_other,&LOCK_thread_count);
+    thread_safe_increment(com_other,&LOCK_status);
     if (check_global_access(thd,SHUTDOWN_ACL))
       break; /* purecov: inspected */
     DBUG_PRINT("quit",("Got shutdown command"));
@@ -1127,7 +1125,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_STATISTICS:
   {
     mysql_log.write(thd,command,NullS);
-    thread_safe_increment(com_stat[SQLCOM_SHOW_STATUS],&LOCK_thread_count);
+    thread_safe_increment(com_stat[SQLCOM_SHOW_STATUS],&LOCK_status);
     char buff[200];
     ulong uptime = (ulong) (thd->start_time - start_time);
     sprintf((char*) buff,
@@ -1146,11 +1144,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   }
   case COM_PING:
-    thread_safe_increment(com_other,&LOCK_thread_count);
+    thread_safe_increment(com_other,&LOCK_status);
     send_ok(net);				// Tell client we are alive
     break;
   case COM_PROCESS_INFO:
-    thread_safe_increment(com_stat[SQLCOM_SHOW_PROCESSLIST],&LOCK_thread_count);
+    thread_safe_increment(com_stat[SQLCOM_SHOW_PROCESSLIST],&LOCK_status);
     if (!thd->priv_user[0] && check_global_access(thd,PROCESS_ACL))
       break;
     mysql_log.write(thd,command,NullS);
@@ -1159,13 +1157,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   case COM_PROCESS_KILL:
   {
-    thread_safe_increment(com_stat[SQLCOM_KILL],&LOCK_thread_count);
+    thread_safe_increment(com_stat[SQLCOM_KILL],&LOCK_status);
     ulong id=(ulong) uint4korr(packet);
     kill_one_thread(thd,id);
     break;
   }
   case COM_DEBUG:
-    thread_safe_increment(com_other,&LOCK_thread_count);
+    thread_safe_increment(com_other,&LOCK_status);
     if (check_global_access(thd, SUPER_ACL))
       break;					/* purecov: inspected */
     mysql_print_status(thd);
@@ -1265,7 +1263,7 @@ mysql_execute_command(void)
        !tables_ok(thd,tables)))
     DBUG_VOID_RETURN;
 
-  thread_safe_increment(com_stat[lex->sql_command],&LOCK_thread_count);
+  thread_safe_increment(com_stat[lex->sql_command],&LOCK_status);
   switch (lex->sql_command) {
   case SQLCOM_SELECT:
   {
@@ -3393,28 +3391,46 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables)
 }
 
 
+/*
+  kill on thread
+
+  SYNOPSIS
+    kill_one_thread()
+    thd			Thread class
+    id			Thread id
+
+  NOTES
+    This is written such that we have a short lock on LOCK_thread_count
+*/
+
 void kill_one_thread(THD *thd, ulong id)
 {
-  VOID(pthread_mutex_lock(&LOCK_thread_count)); // For unlink from list
-  I_List_iterator<THD> it(threads);
   THD *tmp;
   uint error=ER_NO_SUCH_THREAD;
+  VOID(pthread_mutex_lock(&LOCK_thread_count)); // For unlink from list
+  I_List_iterator<THD> it(threads);
   while ((tmp=it++))
   {
     if (tmp->thread_id == id)
     {
-      if ((thd->master_access & SUPER_ACL) ||
-	  !strcmp(thd->user,tmp->user))
-      {
-	tmp->awake(1 /*prepare to die*/);
-	error=0;
-      }
-      else
-	error=ER_KILL_DENIED_ERROR;
-      break;					// Found thread
+      pthread_mutex_lock(&tmp->LOCK_delete);	// Lock from delete
+      break;
     }
   }
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
+  if (tmp)
+  {
+    if ((thd->master_access & SUPER_ACL) ||
+	!strcmp(thd->user,tmp->user))
+    {
+      tmp->awake(1 /*prepare to die*/);
+      error=0;
+    }
+    else
+      error=ER_KILL_DENIED_ERROR;
+    pthread_mutex_unlock(&tmp->LOCK_delete);
+  }
+
   if (!error)
     send_ok(&thd->net);
   else

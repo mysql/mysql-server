@@ -276,9 +276,7 @@ int translate_master(THD* thd, LEX_MASTER_INFO* mi, char* errmsg)
     return 1;
   }
 
-  linfo.index_file_offset = 0;
-
-  if (mysql_bin_log.find_log_pos(&linfo, NullS))
+  if (mysql_bin_log.find_log_pos(&linfo, NullS, 1))
   {
     strmov(errmsg,"Could not find first log");
     return 1;
@@ -332,7 +330,7 @@ int translate_master(THD* thd, LEX_MASTER_INFO* mi, char* errmsg)
     strmov(last_log_name, linfo.log_file_name);
     last_pos = my_b_tell(&log);
 
-    switch (mysql_bin_log.find_next_log(&linfo)) {
+    switch (mysql_bin_log.find_next_log(&linfo, 1)) {
     case LOG_INFO_EOF:
       if (last_file >= 0)
        (void)my_close(last_file, MYF(MY_WME));

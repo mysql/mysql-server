@@ -637,15 +637,16 @@ extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version,dropping_tables;
 extern uint delay_key_write_options;
 extern bool opt_endinfo, using_udf_functions, locked_in_memory;
-extern bool opt_using_transactions, use_temp_pool, mysql_embedded;
+extern bool opt_using_transactions, mysql_embedded;
 extern bool using_update_log, opt_large_files;
 extern bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
-extern bool opt_sql_bin_update, opt_safe_user_create, opt_no_mix_types;
-extern bool opt_disable_networking, opt_skip_show_db, opt_enable_named_pipe;
+extern bool opt_disable_networking, opt_skip_show_db;
 extern bool volatile abort_loop, shutdown_in_progress, grant_option;
 extern uint volatile thread_count, thread_running, global_read_lock;
+extern my_bool opt_sql_bin_update, opt_safe_user_create, opt_no_mix_types;
 extern my_bool opt_safe_show_db, opt_local_infile, lower_case_table_names;
-extern my_bool opt_slave_compressed_protocol;
+extern my_bool opt_slave_compressed_protocol, use_temp_pool;
+extern my_bool opt_enable_named_pipe;
 extern char f_fyllchar;
 
 extern MYSQL_LOG mysql_log,mysql_update_log,mysql_slow_log,mysql_bin_log;
@@ -656,7 +657,7 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open,
        LOCK_thread_count,LOCK_mapped_file,LOCK_user_locks, LOCK_status,
        LOCK_grant, LOCK_error_log, LOCK_delayed_insert,
        LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
-       LOCK_server_id, LOCK_slave_list, LOCK_active_mi, LOCK_manager,
+       LOCK_slave_list, LOCK_active_mi, LOCK_manager,
        LOCK_global_system_variables;
 extern pthread_cond_t COND_refresh, COND_thread_count, COND_manager;
 extern pthread_attr_t connection_attrib;

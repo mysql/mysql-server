@@ -141,8 +141,8 @@ public:
 
   // iterating through the log index file
   int find_log_pos(LOG_INFO* linfo, const char* log_name,
-		   bool need_mutex=1);
-  int find_next_log(LOG_INFO* linfo, bool need_mutex=1);
+		   bool need_mutex);
+  int find_next_log(LOG_INFO* linfo, bool need_mutex);
   int get_current_log(LOG_INFO* linfo);
   uint next_file_id();
 
@@ -330,7 +330,8 @@ public:
   struct  sockaddr_in remote;		// client socket address
   struct  rand_struct rand;		// used for authentication
   struct  system_variables variables;	// Changeable local variables
-  
+  pthread_mutex_t LOCK_delete;		// Locked before thd is deleted
+
   char	  *query;			// Points to the current query,
   /*
     A pointer to the stack frame of handle_one_connection(),
@@ -410,7 +411,6 @@ public:
 #endif
 #ifdef SIGNAL_WITH_VIO_CLOSE
   Vio* active_vio;
-  pthread_mutex_t active_vio_lock;
 #endif  
   ulonglong  next_insert_id,last_insert_id,current_insert_id,
              limit_found_rows;
@@ -465,25 +465,25 @@ public:
 #ifdef SIGNAL_WITH_VIO_CLOSE
   inline void set_active_vio(Vio* vio)
   {
-    pthread_mutex_lock(&active_vio_lock);
+    pthread_mutex_lock(&LOCK_delete);
     active_vio = vio;
-    pthread_mutex_unlock(&active_vio_lock);
+    pthread_mutex_unlock(&LOCK_delete);
   }
   inline void clear_active_vio()
   {
-    pthread_mutex_lock(&active_vio_lock);
+    pthread_mutex_lock(&LOCK_delete);
     active_vio = 0;
-    pthread_mutex_unlock(&active_vio_lock);
+    pthread_mutex_unlock(&LOCK_delete);
   }
   inline void close_active_vio()
   {
-    pthread_mutex_lock(&active_vio_lock);
+    pthread_mutex_lock(&LOCK_delete);
     if (active_vio)
     {
       vio_close(active_vio);
       active_vio = 0;
     }
-    pthread_mutex_unlock(&active_vio_lock);
+    pthread_mutex_unlock(&LOCK_delete);
   }
 #endif  
   void awake(bool prepare_to_die);
