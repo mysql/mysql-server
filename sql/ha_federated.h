@@ -71,10 +71,8 @@ private:
       return 0 on success
       return errorcode otherwise
   */
-  //FIX
   uint convert_row_to_internal_format(byte *buf, MYSQL_ROW row);
-  uint type_quote(int type); 
-  void quote_data(String *string1, Field *field);
+  bool ha_federated::create_where_from_key(String *to, KEY *key_info, const byte *key, uint key_length); 
 
 public:
   ha_federated(TABLE *table): handler(table),
@@ -104,7 +102,7 @@ public:
   {
     return (HA_TABLE_SCAN_ON_INDEX | HA_NOT_EXACT_COUNT | 
             HA_PRIMARY_KEY_IN_READ_INDEX | HA_FILE_BASED | HA_AUTO_PART_KEY | 
-            HA_TABLE_SCAN_ON_INDEX);
+            HA_TABLE_SCAN_ON_INDEX | HA_CAN_INDEX_BLOBS);
   }
   /*
     This is a bitmap of flags that says how the storage engine
