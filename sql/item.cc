@@ -23,6 +23,7 @@
 #include <m_ctype.h>
 #include "my_dir.h"
 #include <assert.h>
+#include "sp_rcontext.h"
 
 /*****************************************************************************
 ** Item functions
@@ -148,6 +149,24 @@ CHARSET_INFO * Item::thd_charset() const
 {
   return current_thd->variables.thd_charset;
 }
+
+
+Item *
+Item_splocal::this_item()
+{
+  THD *thd= current_thd;
+
+  return thd->spcont->get_item(m_offset);
+}
+
+Item *
+Item_splocal::this_const_item() const
+{
+  THD *thd= current_thd;
+
+  return thd->spcont->get_item(m_offset);
+}
+
 
 Item_field::Item_field(Field *f) :Item_ident(NullS,f->table_name,f->field_name)
 {

@@ -26,6 +26,7 @@
 class Query_log_event;
 class Load_log_event;
 class Slave_log_event;
+class sp_rcontext;
 
 enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY };
@@ -524,6 +525,7 @@ public:
   bool       query_error, bootstrap, cleanup_done;
   bool	     volatile killed;
   bool       prepare_command;
+  sp_rcontext *spcont;		// SP runtime context
 
   /*
     If we do a purge of binary logs, log index info of the threads
