@@ -611,10 +611,12 @@ CommandInterpreter::executeHelp(char* parameters)
 	   << endl;
 
     ndbout << "<category> = ";
-    for(int i = 0; i<CFG_MIN_LOGLEVEL; i++){
-      ndbout << ndb_mgm_get_event_category_string((ndb_mgm_event_category)i);
-      if (i < CFG_MIN_LOGLEVEL - 1) {
-	ndbout << " | ";
+    for(int i = CFG_MIN_LOGLEVEL; i <= CFG_MAX_LOGLEVEL; i++){
+      const char *str= ndb_mgm_get_event_category_string((ndb_mgm_event_category)i);
+      if (str) {
+	if (i != CFG_MIN_LOGLEVEL)
+	  ndbout << " | ";
+	ndbout << str;
       }
     }
     ndbout << endl;

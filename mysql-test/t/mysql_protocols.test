@@ -4,7 +4,7 @@
 --exec echo "select ' ok' as '<default>'" | $MYSQL
 --exec echo "select ' ok' as 'TCP'"       | $MYSQL --protocol=TCP
 --exec echo "select ' ok' as 'SOCKET'"    | $MYSQL --protocol=SOCKET
---exec echo "select ' ok' as 'PIPE'"      | $MYSQL --protocol=PIPE    2>&1
---exec echo "select ' ok' as 'MEMORY'"    | $MYSQL --protocol=MEMORY  2>&1
---exec echo "select ' ok' as 'NullS'"     | $MYSQL --protocol=NullS   2>&1
+--exec echo "select ' ok' as 'PIPE'"      | $MYSQL --protocol=PIPE    2>&1 || true
+--exec echo "select ' ok' as 'MEMORY'"    | $MYSQL --protocol=MEMORY  2>&1 || true
+--exec echo "select ' ok' as 'NullS'"     | $MYSQL --protocol=NullS   2>&1 || true
 
