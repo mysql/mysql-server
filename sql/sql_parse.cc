@@ -1426,6 +1426,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       mysql_slow_log.write(thd, thd->query, thd->query_length, start_of_query);
     }
   }
+  if (command == COM_QUERY && thd->lex.found_colon)
+  {
+    /* 
+      Multiple queries exits, execute them individually
+    */
+    uint length= thd->query_length-(uint)(thd->lex.found_colon-thd->query)+1;
+    dispatch_command(command, thd, thd->lex.found_colon, length);
+  }  
   thd->proc_info="cleaning up";
   VOID(pthread_mutex_lock(&LOCK_thread_count)); // For process list
   thd->proc_info=0;
@@ -3082,6 +3090,7 @@ mysql_init_query(THD *thd)
   lex->olap=lex->describe=0;
   lex->derived_tables= false;
   lex->lock_option=TL_READ;
+  lex->found_colon=0;
   thd->check_loops_counter= thd->select_number=
     lex->select_lex.select_number= 1;
   thd->free_list= 0;
@@ -3090,6 +3099,7 @@ mysql_init_query(THD *thd)
   thd->sent_row_count= thd->examined_row_count= 0;
   thd->fatal_error= thd->rand_used= 0;
   thd->possible_loops= 0;
+  thd->server_status &= ~SERVER_MORE_RESULTS_EXISTS;
   DBUG_VOID_RETURN;
 }
 

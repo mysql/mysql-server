@@ -414,6 +414,7 @@ typedef struct st_lex
   char *backup_dir;				/* For RESTORE/BACKUP */
   char* to_log;                                 /* For PURGE MASTER LOGS TO */
   char* x509_subject,*x509_issuer,*ssl_cipher;
+  char* found_colon;                            /* For multi queries - next query */
   enum SSL_type ssl_type;			/* defined in violite.h */
   String *wild;
   sql_exchange *exchange;
