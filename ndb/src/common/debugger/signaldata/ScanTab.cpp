@@ -74,17 +74,28 @@ printSCANTABCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 recei
   fprintf(output, " transId(1, 2): (H\'%.8x, H\'%.8x)\n",
 	  sig->transId1, sig->transId2);
 
-  fprintf(output, " requestInfo: H\'%.8x(EndOfData: %d)\n", 
-	  requestInfo, (requestInfo & ScanTabConf::EndOfData != 0));
-#if 0
-  fprintf(output, " Operation(s):\n");
-  for(int i = 0; i<16; i++){
-    fprintf(output, " [%.2u]ix=%d l=%.2d,", 
-	    i, sig->getIdx(sig->operLenAndIdx[i]), sig->getLen(sig->operLenAndIdx[i]));
-    if (((i+1) % 4) == 0)
-      fprintf(output, "\n");
+  fprintf(output, " requestInfo: Eod: %d OpCount: %d\n", 
+	  (requestInfo & ScanTabConf::EndOfData == ScanTabConf::EndOfData),
+	  (requestInfo & (~ScanTabConf::EndOfData)));
+  size_t op_count= requestInfo & (~ScanTabConf::EndOfData);
+  if(op_count){
+    fprintf(output, " Operation(s) [api tc rows len]:\n");
+    ScanTabConf::OpData * op = (ScanTabConf::OpData*)
+      (theData + ScanTabConf::SignalLength);
+    for(int i = 0; i<op_count; i++){
+      if(op->info != ScanTabConf::EndOfData)
+	fprintf(output, " [0x%x 0x%x %d %d]",
+		op->apiPtrI, op->tcPtrI,
+		ScanTabConf::getRows(op->info),
+		ScanTabConf::getLength(op->info));
+      else
+	fprintf(output, " [0x%x 0x%x eod]",
+		op->apiPtrI, op->tcPtrI);
+      
+      op++;
+    }
+    fprintf(output, "\n");
   }
-#endif
   return false;
 }
 
@@ -146,13 +157,21 @@ printSCANNEXTREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 recei
   if(receiverBlockNo == DBTC){
     const ScanNextReq * const sig = (ScanNextReq *) theData;
     
-    fprintf(output, " aipConnectPtr: H\'%.8x\n", 
+    fprintf(output, " apiConnectPtr: H\'%.8x\n", 
 	    sig->apiConnectPtr);
     
-    fprintf(output, " transId(1, 2): (H\'%.8x, H\'%.8x)\n",
+    fprintf(output, " transId(1, 2): (H\'%.8x, H\'%.8x) ",
 	    sig->transId1, sig->transId2);
     
     fprintf(output, " Stop this scan: %u\n", sig->stopScan);
+
+    const Uint32 * ops = theData + ScanNextReq::SignalLength;
+    if(len > ScanNextReq::SignalLength){
+      fprintf(output, " tcFragPtr(s): ");
+      for(size_t i = ScanNextReq::SignalLength; i<len; i++)
+	fprintf(output, " 0x%x", * ops++);
+      fprintf(output, "\n");
+    }
   }
   if (receiverBlockNo == DBLQH){
     return printSCANFRAGNEXTREQ(output, theData, len, receiverBlockNo);
