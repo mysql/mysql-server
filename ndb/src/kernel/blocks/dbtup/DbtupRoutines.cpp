@@ -40,7 +40,11 @@ Dbtup::setUpQueryRoutines(Tablerec* const regTabPtr)
       if ((AttributeDescriptor::getArrayType(attrDescriptor) == ZNON_ARRAY) ||
           (AttributeDescriptor::getArrayType(attrDescriptor) == ZFIXED_ARRAY)) {
         if (!AttributeDescriptor::getNullable(attrDescriptor)) {
-          if (AttributeDescriptor::getSizeInWords(attrDescriptor) == 1) {
+	  if (AttributeDescriptor::getSize(attrDescriptor) == 0){
+	    ljam();
+            regTabPtr->readFunctionArray[i] = &Dbtup::readBitsNotNULL;
+            regTabPtr->updateFunctionArray[i] = &Dbtup::updateBitsNotNULL;
+	  } else if (AttributeDescriptor::getSizeInWords(attrDescriptor) == 1){
             ljam();
             regTabPtr->readFunctionArray[i] = &Dbtup::readFixedSizeTHOneWordNotNULL;
             regTabPtr->updateFunctionArray[i] = &Dbtup::updateFixedSizeTHOneWordNotNULL;
@@ -61,7 +65,11 @@ Dbtup::setUpQueryRoutines(Tablerec* const regTabPtr)
             regTabPtr->readFunctionArray[i] = &Dbtup::readCharNotNULL;
           }
         } else {
-          if (AttributeDescriptor::getSizeInWords(attrDescriptor) == 1) {
+	  if (AttributeDescriptor::getSize(attrDescriptor) == 0){
+            ljam();
+            regTabPtr->readFunctionArray[i] = &Dbtup::readBitsNULLable;
+            regTabPtr->updateFunctionArray[i] = &Dbtup::updateBitsNULLable;
+	  } else if (AttributeDescriptor::getSizeInWords(attrDescriptor) == 1){
             ljam();
             regTabPtr->readFunctionArray[i] = &Dbtup::readFixedSizeTHOneWordNULLable;
             regTabPtr->updateFunctionArray[i] = &Dbtup::updateFixedSizeTHManyWordNULLable;
@@ -1004,4 +1012,206 @@ Dbtup::read_psuedo(Uint32 attrId, Uint32* outBuffer){
   default:
     return 0;
   }
+}
+
+bool
+Dbtup::readBitsNotNULL(Uint32* outBuffer,
+		       AttributeHeader* ahOut,
+		       Uint32  attrDescriptor,
+		       Uint32  attrDes2)
+{
+  Tablerec* const regTabPtr = tabptr.p;
+  Uint32 bitCount = AttributeDescriptor::getArraySize(attrDescriptor);
+  Uint32 offsetInTuple = AttributeOffset::getNullFlagOffset(attrDes2);
+  Uint32 offsetInWord = AttributeOffset::getNullFlagBitOffset(attrDes2);
+  ndbrequire(offsetInTuple < regTabPtr->tupNullWords);
+  offsetInTuple += regTabPtr->tupNullIndex;
+  ndbrequire(offsetInTuple < tCheckOffset);
+
+  Uint32 indexBuf = tOutBufIndex;
+  Uint32 newIndexBuf = indexBuf + ((bitCount + 31) >> 5);
+  Uint32 maxRead = tMaxRead;
+
+  outBuffer[indexBuf] = 
+    (tTupleHeader[offsetInTuple] >> offsetInWord) & ((1 << bitCount) - 1);
+
+  if(offsetInWord + bitCount > 32)
+  {
+    ndbrequire(false);
+  }
+
+  if (newIndexBuf <= maxRead) {
+    ljam();
+    ahOut->setDataSize((bitCount + 31) >> 5);
+    tOutBufIndex = newIndexBuf;
+    return true;
+  } else {
+    ljam();
+    terrorCode = ZTRY_TO_READ_TOO_MUCH_ERROR;
+    return false;
+  }//if
+}
+
+bool
+Dbtup::readBitsNULLable(Uint32* outBuffer,
+			AttributeHeader* ahOut,
+			Uint32  attrDescriptor,
+			Uint32  attrDes2)
+{
+  Tablerec* const regTabPtr = tabptr.p;
+  Uint32 bitCount = AttributeDescriptor::getArraySize(attrDescriptor);
+  Uint32 offsetInTuple = AttributeOffset::getNullFlagOffset(attrDes2);
+  Uint32 offsetInWord = AttributeOffset::getNullFlagBitOffset(attrDes2);
+  ndbrequire(offsetInTuple < regTabPtr->tupNullWords);
+  offsetInTuple += regTabPtr->tupNullIndex;
+  ndbrequire(offsetInTuple < tCheckOffset);
+
+  Uint32 indexBuf = tOutBufIndex;
+  Uint32 newIndexBuf = indexBuf + (bitCount + 31) >> 5;
+  Uint32 maxRead = tMaxRead;
+
+  if((tTupleHeader[offsetInTuple] >> offsetInWord) & 1)
+  {
+    ljam();
+    ahOut->setNULL();
+    return true;
+  }
+
+  offsetInWord ++;
+  if(offsetInWord == 32)
+  {
+    ljam();
+    offsetInWord = 0;
+    offsetInTuple++;
+  }
+
+  outBuffer[indexBuf] = 
+    (tTupleHeader[offsetInTuple] >> offsetInWord) & ((1 << bitCount) - 1);
+  
+  if(offsetInWord + bitCount > 32)
+  {
+    ndbrequire(false);
+  }
+
+  if (newIndexBuf <= maxRead) {
+    ljam();
+    ahOut->setDataSize((bitCount + 31) >> 5);
+    tOutBufIndex = newIndexBuf;
+    return true;
+  } else {
+    ljam();
+    terrorCode = ZTRY_TO_READ_TOO_MUCH_ERROR;
+    return false;
+  }//if
+}
+
+bool
+Dbtup::updateBitsNotNULL(Uint32* inBuffer,
+			 Uint32  attrDescriptor,
+			 Uint32  attrDes2)
+{
+  Tablerec* const regTabPtr =  tabptr.p;
+  Uint32 indexBuf = tInBufIndex;
+  Uint32 inBufLen = tInBufLen;
+  AttributeHeader ahIn(inBuffer[indexBuf]);
+  Uint32 nullIndicator = ahIn.isNULL();
+  Uint32 bitCount = AttributeDescriptor::getArraySize(attrDescriptor);
+  Uint32 newIndex = indexBuf + 1 + ((bitCount + 31) >> 5);
+  Uint32 nullFlagOffset = AttributeOffset::getNullFlagOffset(attrDes2);
+  Uint32 nullFlagBitOffset = AttributeOffset::getNullFlagBitOffset(attrDes2);
+  Uint32 nullWordOffset = nullFlagOffset + regTabPtr->tupNullIndex;
+  ndbrequire((nullFlagOffset < regTabPtr->tupNullWords) &&
+             (nullWordOffset < tCheckOffset));
+  Uint32 nullBits = tTupleHeader[nullWordOffset];
+
+  if (newIndex <= inBufLen) {
+    Uint32 updateWord = inBuffer[indexBuf + 1];
+    if (!nullIndicator) {
+      tInBufIndex = newIndex;
+      Uint32 mask = ((1 << bitCount) - 1) << nullFlagBitOffset;
+      if(nullFlagBitOffset + bitCount <= 32)
+      {
+	ljam();
+	tTupleHeader[nullWordOffset] = 
+	  (nullBits & ~mask) | 
+	  ((updateWord << nullFlagBitOffset) & mask);
+	return true;
+      }
+      else
+      {
+	abort();
+      }
+      return true;
+    } else {
+      ljam();
+      terrorCode = ZNOT_NULL_ATTR;
+      return false;
+    }//if
+  } else {
+    ljam();
+    terrorCode = ZAI_INCONSISTENCY_ERROR;
+    return false;
+  }//if
+  return true;
+}
+
+bool
+Dbtup::updateBitsNULLable(Uint32* inBuffer,
+			  Uint32  attrDescriptor,
+			  Uint32  attrDes2)
+{
+  Tablerec* const regTabPtr =  tabptr.p;
+  AttributeHeader ahIn(inBuffer[tInBufIndex]);
+  Uint32 indexBuf = tInBufIndex;
+  Uint32 nullIndicator = ahIn.isNULL();
+  Uint32 nullFlagOffset = AttributeOffset::getNullFlagOffset(attrDes2);
+  Uint32 nullFlagBitOffset = AttributeOffset::getNullFlagBitOffset(attrDes2);
+  Uint32 nullWordOffset = nullFlagOffset + regTabPtr->tupNullIndex;
+  ndbrequire((nullFlagOffset < regTabPtr->tupNullWords) &&
+             (nullWordOffset < tCheckOffset));
+  Uint32 nullBits = tTupleHeader[nullWordOffset];
+  Uint32 bitCount = AttributeDescriptor::getArraySize(attrDescriptor);  
+
+  if (!nullIndicator) {
+    Uint32 newIndex = indexBuf + 1 + ((bitCount + 31) >> 5);
+    nullBits &= (~(1 << nullFlagBitOffset));
+    ljam();
+    tTupleHeader[nullWordOffset] = nullBits;
+
+    nullFlagBitOffset++;
+    if(nullFlagBitOffset == 32)
+    {
+      ljam();
+      nullFlagBitOffset = 0;
+      nullWordOffset++;
+      nullBits = tTupleHeader[nullWordOffset];
+    }
+
+    Uint32 updateWord = inBuffer[indexBuf + 1];
+    Uint32 mask = ((1 << bitCount) - 1) << nullFlagBitOffset;
+    tInBufLen = newIndex;
+    if(nullFlagBitOffset + bitCount <= 32)
+      {
+	ljam();
+      tTupleHeader[nullWordOffset] = 
+	(nullBits & ~mask) | 
+	((updateWord << nullFlagBitOffset) & mask);
+      return true;
+    }  
+    
+    abort();
+  } else {
+    Uint32 newIndex = tInBufIndex + 1;
+    if (newIndex <= tInBufLen) {
+      nullBits |= (1 << nullFlagBitOffset);
+      ljam();
+      tTupleHeader[nullWordOffset] = nullBits;
+      tInBufIndex = newIndex;
+      return true;
+    } else {
+      ljam();
+      terrorCode = ZAI_INCONSISTENCY_ERROR;
+      return false;
+    }//if
+  }//if
 }
