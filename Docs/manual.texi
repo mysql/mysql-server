@@ -4741,7 +4741,7 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @c Added 20000925
 @image{Flags/usa} USA [ValueClick, Los Angeles CA] @
 @uref{http://mysql.valueclick.com/, WWW}
-@uref{ftp://mysql.valueclick.com/mysql/, FTP}
+@uref{ftp://mysql.valueclick.com/pub/mysql/Downloads/, FTP}
 
 @c @item
 @c Not ok 20000919; Non-existent (Matt)
@@ -10531,6 +10531,9 @@ Run @code{mysqld} daemon as user @code{user_name}.  This option is
 @item -V, --version
 Output version information and exit.
 
+@item -W, --warnings
+Print out warnings like @code{Aborted connection...} to the @code{.err} file.
+@xref{Communication errors}.
 @end table
 
 @cindex default options
@@ -25795,8 +25798,8 @@ in its own lock table and rolls back the transaction. If you use
 than InnoDB in the same transaction, then a deadlock may arise which
 InnoDB cannot notice. In cases like this the timeout is useful to
 resolve the situation.
-@item @code{innodb_unix_file_flush_method} @tab
-(Available from 3.23.39 up.)
+@item @code{innodb_flush_method} @tab
+(Available from 3.23.40 up.)
 The default value for this is @code{fdatasync}.
 Another option is @code{O_DSYNC}.
 Options @code{littlesync} and @code{nosync} have the
@@ -26406,7 +26409,7 @@ In some versions of Linux and Unix, flushing files to disk with the Unix
 @code{fdatasync} and other similar methods is surprisingly slow.
 The default method InnoDB uses is the @code{fdatasync} function.
 If you are not satisfied with the database write performance, you may
-try setting @code{innodb_unix_file_flush_method} in @file{my.cnf}
+try setting @code{innodb_flush_method} in @file{my.cnf}
 to @code{O_DSYNC}, though O_DSYNC seems to be slower on most systems.
 You can also try setting it to @code{littlesync}, which means that
 InnoDB does not call the file flush for every write it does to a
@@ -38212,6 +38215,9 @@ option.
 @node Communication errors, Full table, Packet too large, Common errors
 @subsection Communication Errors / Aborted Connection
 
+Starting with @code{MySQL 3.23.40} you only get the @code{Aborted
+connection} error of you start @code{mysqld} with @code{--warnings}.
+
 If you find errors like the following in your error log.
 
 @example
@@ -46298,6 +46304,16 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 Added support for symbolic links to @code{MyISAM} tables. Symlink handling is
 now enabled by default for Windows.
 @item
+@code{LOAD DATA FROM MASTER} "auto-magically" sets up a slave.
+@item
+A new @code{HANDLER} interface to @code{MyISAM} tables.
+@item
+@code{COUNT(DISTINCT)} is about 30% faster.
+@item
+Creating full text indexes are now much faster.
+@item
+Searching on packed (@code{CHAR}/@code{VARCHAR}) keys are now much faster.
+@item
 Added @code{SQL_CALC_FOUND_ROWS} and @code{FOUND_ROWS()}. This makes it
 possible to know how many rows a query would have returned
 without a @code{LIMIT} clause.
@@ -46405,6 +46421,15 @@ not yet 100% confident in this code.
 @node News-3.23.40, News-3.23.39, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.40
 @itemize @bullet
+@item
+Added option @code{--warnings} to @code{mysqld}. Now @code{mysqld}
+only prints the error @code{Aborted connection} if this option is used.
+@item
+Fixed problem with @code{SHOW CREATE TABLE} when you didn't have a
+@code{PRIMARY KEY}.
+@item
+Fixed properly the rename of @code{innodb_unix_file_flush_method} to
+@code{innodb_flush_method}.
 @item
 Fixed bug when converting @code{UNSIGNED BIGINT} to @code{DOUBLE}. This caused
 a problem when doing comparisons with @code{BIGINT}'s outside of the

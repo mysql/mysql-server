@@ -1367,7 +1367,7 @@ the slave thread with \"mysqladmin start-slave\". We stopped at log \
 	    {
 	      // show a little mercy, allow slave to read one more event
 	      // before cutting him off - otherwise he gets stuck
-	      // on Invar events, since they do not advance the offset
+	      // on Intvar events, since they do not advance the offset
 	      // immediately
 	      if (++stuck_count > 2)
 	        events_till_disconnect++;
