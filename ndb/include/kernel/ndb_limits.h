@@ -64,11 +64,15 @@
 
 #define MIN_ATTRBUF ((MAX_ATTRIBUTES_IN_TABLE/24) + 1)
 /*
- * Number of Records to fetch per SCAN_NEXTREQ in a scan in LQH. The
+ * Max Number of Records to fetch per SCAN_NEXTREQ in a scan in LQH. The
  * API can order a multiple of this number of records at a time since
  * fragments can be scanned in parallel.
  */
 #define MAX_PARALLEL_OP_PER_SCAN 992
+/*
+* The default batch size. Configurable parameter.
+*/
+#define DEF_BATCH_SIZE 64
 /*
 * When calculating the number of records sent from LQH in each batch
 * one uses SCAN_BATCH_SIZE divided by the expected size of signals
@@ -76,12 +80,14 @@
 * will receive one batch from each node at a time so there has to be
 * some care taken also so that the NDB API is not overloaded with
 * signals.
+* This parameter is configurable, this is the default value.
 */
 #define SCAN_BATCH_SIZE 32768
 /*
 * To protect the NDB API from overload we also define a maximum total
 * batch size from all nodes. This parameter should most likely be
 * configurable, or dependent on sendBufferSize.
+* This parameter is configurable, this is the default value.
 */
 #define MAX_SCAN_BATCH_SIZE 262144
 /*

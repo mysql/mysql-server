@@ -113,6 +113,11 @@ public:
   // Close this block number
   int close_local(BlockNumber blockNumber);
 
+  // Scan batch configuration parameters
+  Uint32 get_scan_batch_size();
+  Uint32 get_batch_byte_size();
+  Uint32 get_batch_size();
+
 private:
   /**
    * Send a signal unconditional of node status (used by ClusterMgr)
@@ -145,6 +150,11 @@ private:
   Uint32 currentSendLimit;
   
   void calculateSendLimit();
+
+  // Scan batch configuration parameters
+  Uint32 m_scan_batch_size;
+  Uint32 m_batch_byte_size;
+  Uint32 m_batch_size;
 
   // Declarations for the receive and send thread
   int  theStopReceive;
@@ -324,5 +334,25 @@ Uint32
 TransporterFacade::getNodeSequence(NodeId n) const {
   return theClusterMgr->getNodeInfo(n).m_info.m_connectCount;
 }
+
+inline
+Uint32
+TransporterFacade::get_scan_batch_size() {
+  return m_scan_batch_size;
+}
+
+inline
+Uint32
+TransporterFacade::get_batch_byte_size() {
+  return m_batch_byte_size;
+}
+
+inline
+Uint32
+TransporterFacade::get_batch_size() {
+  return m_batch_size;
+}
+
+
 
 #endif // TransporterFacade_H

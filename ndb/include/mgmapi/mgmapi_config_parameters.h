@@ -122,6 +122,14 @@
 #define CFG_REP_HEARTBEAT_INTERVAL    700
 
 /**
+ * API Config variables
+ *
+ */
+#define CFG_MAX_SCAN_BATCH_SIZE       800
+#define CFG_BATCH_BYTE_SIZE           801
+#define CFG_BATCH_SIZE                802
+
+/**
  * Internal
  */
 #define CFG_DB_STOP_ON_ERROR_INSERT   1
