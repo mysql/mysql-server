@@ -183,7 +183,7 @@ void ha_ndbcluster::records_update()
   DBUG_PRINT("info", ("id=%d, no_uncommitted_rows_count=%d",
 		      ((const NDBTAB *)m_table)->getTableId(),
 		      info->no_uncommitted_rows_count));
-  if (info->records == ~(ha_rows)0)
+  //  if (info->records == ~(ha_rows)0)
   {
     Uint64 rows;
     if(ndb_get_table_statistics(m_ndb, m_tabname, &rows, 0) == 0){
@@ -614,7 +614,7 @@ int ha_ndbcluster::get_metadata(const char *path)
   DBUG_ENTER("get_metadata");
   DBUG_PRINT("enter", ("m_tabname: %s, path: %s", m_tabname, path));
 
-  if (!(tab= dict->getTable(m_tabname, &m_table_info)))
+  if (!(tab= dict->getTable(m_tabname)))
     ERR_RETURN(dict->getNdbError());
   DBUG_PRINT("info", ("Table schema version: %d", tab->getObjectVersion()));
   
@@ -663,7 +663,9 @@ int ha_ndbcluster::get_metadata(const char *path)
     DBUG_RETURN(error);
 
   // All checks OK, lets use the table
-  m_table= (void*)tab;
+  //  m_table= (void*)tab;
+  m_table= 0;
+  m_table_info= 0;
   
   DBUG_RETURN(build_index_list(table, ILBP_OPEN));  
 }
@@ -2396,7 +2398,17 @@ void ha_ndbcluster::info(uint flag)
   if (flag & HA_STATUS_VARIABLE)
   {
     DBUG_PRINT("info", ("HA_STATUS_VARIABLE"));
-    records_update();
+    if (m_table_info)
+    {
+      records_update();
+    }
+    else
+    {
+      Uint64 rows;
+      if(ndb_get_table_statistics(m_ndb, m_tabname, &rows, 0) == 0){
+	records= rows;
+      }
+    }
   }
   if (flag & HA_STATUS_ERRKEY)
   {
@@ -2777,6 +2789,16 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     // Start of transaction
     retrieve_all_fields= FALSE;
     ops_pending= 0;    
+    {
+      NDBDICT *dict= m_ndb->getDictionary();
+      const NDBTAB *tab;
+      void *tab_info;
+      if (!(tab= dict->getTable(m_tabname, &tab_info)))
+	ERR_RETURN(dict->getNdbError());
+      DBUG_PRINT("info", ("Table schema version: %d", tab->getObjectVersion()));
+      m_table= (void *)tab;
+      m_table_info= tab_info;
+    }
     no_uncommitted_rows_init(thd);
   } 
   else 
@@ -2799,6 +2821,8 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
         thd->transaction.stmt.ndb_tid= 0;
       }
     }
+    m_table= (void *)0;
+    m_table_info= 0;
     if (m_active_trans)
       DBUG_PRINT("warning", ("m_active_trans != NULL"));
     if (m_active_cursor)
