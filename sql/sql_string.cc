@@ -254,7 +254,7 @@ bool String::copy(const char *str,uint32 arg_length, CHARSET_INFO *from, CHARSET
       break;
 
 outp:
-    if((cnvres=to->wc_mb(to,wc,d,de)) >0 )
+    if ((cnvres=to->wc_mb(to,wc,d,de)) >0 )
     {
       d+=cnvres;
     }

@@ -33,7 +33,7 @@ public:
 
   ~Item_row()
   {
-    if(array_holder && items)
+    if (array_holder && items)
       sql_element_free(items);
   }
 

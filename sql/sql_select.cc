@@ -1160,7 +1160,7 @@ mysql_select(THD *thd, TABLE_LIST *tables, List<Item> &fields, COND *conds,
     if (thd->possible_loops)
     {
       Item *item;
-      while(thd->possible_loops->elements)
+      while (thd->possible_loops->elements)
       {
 	item= thd->possible_loops->pop();
     	if (item->check_loop(thd->check_loops_counter++))

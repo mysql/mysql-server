@@ -731,9 +731,9 @@ public:
 class Item_cache_row: public Item_cache
 {
   Item_cache  **values;
-  uint n;
+  uint item_count;
 public:
-  Item_cache_row(): values(0), n(2) { fixed= 1; null_value= 1; }
+  Item_cache_row(): values(0), item_count(2) { fixed= 1; null_value= 1; }
   
   /*
     'allocate' used only in row transformer, to preallocate space for row 
@@ -768,7 +768,7 @@ public:
   };
   enum Item_result result_type() const { return ROW_RESULT; }
   
-  uint cols() { return n; }
+  uint cols() { return item_count; }
   Item* el(uint i) { return values[i]; }
   Item** addr(uint i) { return (Item **) (values + i); }
   bool check_cols(uint c);

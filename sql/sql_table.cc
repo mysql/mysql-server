@@ -398,7 +398,7 @@ int mysql_create_table(THD *thd,const char *db, const char *table_name,
   it.rewind();
   while ((sql_field=it++))
   {
-    if(!sql_field->charset)
+    if (!sql_field->charset)
       sql_field->charset = create_info->table_charset ?
 			   create_info->table_charset : 
 			   thd->db_charset? thd->db_charset :
