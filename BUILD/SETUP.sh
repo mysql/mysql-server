@@ -6,6 +6,7 @@ fi
 
 just_print=
 just_configure=
+full_debug=
 while test $# -gt 0
 do
   case "$1" in
@@ -21,6 +22,7 @@ Any other options will be passed directly to configure.
 
 Note:  this script is intended for internal use by MySQL developers.
 EOF
+  --with-debug=full ) full_debug="=full"; shift ;;
   * ) break ;;
   esac
 done
@@ -48,7 +50,8 @@ fast_cflags="-O3 -fno-omit-frame-pointer"
 # this is one is for someone who thinks 1% speedup is worth not being
 # able to backtrace
 reckless_cflags="-O3 -fomit-frame-pointer "
-debug_cflags="-DUNIV_MUST_NOT_INLINE -DEXTRA_DEBUG -DFORCE_INIT_OF_VARS -DSAFEMALLOC -DPEDANTIC_SAFEMALLOC -DSAFE_MUTEX -O1 -Wuninitialized"
+
+debug_cflags="-DUNIV_MUST_NOT_INLINE -DEXTRA_DEBUG -DFORCE_INIT_OF_VARS -DSAFEMALLOC -DPEDANTIC_SAFEMALLOC -DSAFE_MUTEX"
 
 base_cxxflags="-felide-constructors -fno-exceptions -fno-rtti"
 
@@ -62,7 +65,11 @@ sparc_configs=""
 # and unset local_infile_configs
 local_infile_configs="--enable-local-infile"
 
-debug_configs="--with-debug"
+debug_configs="--with-debug$full_debug"
+if [ -z "$full_debug" ]
+then
+	debug_cflags="$debug_cflags -O1 -Wuninitialized"
+fi
 
 if gmake --version > /dev/null 2>&1
 then
