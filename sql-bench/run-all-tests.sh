@@ -195,6 +195,10 @@ while (<test-*>)
       print "Summary for $prog: ", join(" ",@prog_sum), "\n";
     }
   }
+  elsif ($last_line =~ /^Test skipped/i)
+  {
+    print "$last_line\n";
+  }
   else
   {
     $errors++;

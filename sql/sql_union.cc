@@ -68,7 +68,6 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
       res=mysql_select(thd, (TABLE_LIST*) sl->table_list.first,
 		       sl->item_list,
 		       sl->where,
-		       sl->ftfunc_list,
 		       (sl->braces) ? (ORDER *) sl->order_list.first : (ORDER *) 0,
 		       (ORDER*) sl->group_list.first,
 		       sl->having,
@@ -127,7 +126,6 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
     res=mysql_select(thd, (TABLE_LIST*) sl->table_list.first,
 		     sl->item_list,
 		     sl->where,
-		     sl->ftfunc_list,
 		     (sl->braces) ? (ORDER *)sl->order_list.first : (ORDER *) 0,
 		     (ORDER*) sl->group_list.first,
 		     sl->having,
@@ -150,8 +148,12 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
     /* Create a list of fields in the temporary table */
     List_iterator<Item> it(item_list);
     Field **field;
+#if 0
     List<Item_func_match> ftfunc_list;
     ftfunc_list.empty();
+#else
+    thd->lex.select_lex.ftfunc_list.empty();
+#endif
 
     for (field=table->field ; *field ; field++)
     {
@@ -170,7 +172,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
 	  thd->options&= ~OPTION_FOUND_ROWS;
       }
       res=mysql_select(thd,&result_table_list,
-		       item_list, NULL, ftfunc_list, order,
+		       item_list, NULL, /*ftfunc_list,*/ order,
 		       (ORDER*) NULL, NULL, (ORDER*) NULL,
 		       thd->options, result);
     }

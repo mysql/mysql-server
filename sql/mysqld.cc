@@ -47,7 +47,6 @@ char pstack_file_name[80];
 
 #if defined(HAVE_DEC_3_2_THREADS) || defined(SIGNALS_DONT_BREAK_READ)
 #define HAVE_CLOSE_SERVER_SOCK 1
-void close_server_sock();
 #endif  
 
 extern "C" {					// Because of SCO 3.2V4.2
@@ -207,7 +206,7 @@ SHOW_COMP_OPTION have_openssl=SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_symlink=SHOW_OPTION_YES;
 
 
-static bool opt_skip_slave_start = 0; // if set, slave is not autostarted
+static bool opt_skip_slave_start = 0; // If set, slave is not autostarted
 static bool opt_do_pstack = 0;
 static ulong opt_specialflag=SPECIAL_ENGLISH;
 static ulong back_log,connect_timeout,concurrency;
@@ -229,8 +228,10 @@ int segfaulted = 0; // ensure we do not enter SIGSEGV handler twice
 extern MASTER_INFO glob_mi;
 extern int init_master_info(MASTER_INFO* mi);
 
-// if sql_bin_update is true, SQL_LOG_UPDATE and SQL_LOG_BIN are kept in sync,
-// and are treated as aliases for each other
+/*
+  If sql_bin_update is true, SQL_LOG_UPDATE and SQL_LOG_BIN are kept in sync,
+  and are treated as aliases for each other
+*/
 
 static bool kill_in_progress=FALSE;
 static struct rand_struct sql_rand;
@@ -385,6 +386,7 @@ static char *get_relative_path(const char *path);
 static void fix_paths(void);
 static pthread_handler_decl(handle_connections_sockets,arg);
 static int bootstrap(FILE *file);
+static void close_server_sock();
 static bool read_init_file(char *file_name);
 #ifdef __NT__
 static pthread_handler_decl(handle_connections_namedpipes,arg);
@@ -454,9 +456,7 @@ static void close_connections(void)
     if (error != 0 && !count++)
       sql_print_error("Got error %d from pthread_cond_timedwait",error);
 #endif
-#if defined(HAVE_DEC_3_2_THREADS) || defined(SIGNALS_DONT_BREAK_READ)
     close_server_sock();
-#endif
   }
   (void) pthread_mutex_unlock(&LOCK_thread_count);
 #endif /* __WIN__ */
@@ -570,28 +570,31 @@ static void close_connections(void)
   DBUG_VOID_RETURN;
 }
 
-#ifdef HAVE_CLOSE_SERVER_SOCK
-void close_server_sock()
+static void close_server_sock()
 {
+#ifdef HAVE_CLOSE_SERVER_SOCK
   DBUG_ENTER("close_server_sock");
-  if (ip_sock != INVALID_SOCKET)
+  my_socket tmp_sock;
+  tmp_sock=ip_sock;
+  if (tmp_sock != INVALID_SOCKET)
   {
-    DBUG_PRINT("info",("closing TCP/IP socket"));
-    VOID(shutdown(ip_sock,2));
-    VOID(closesocket(ip_sock));
     ip_sock=INVALID_SOCKET;
+    DBUG_PRINT("info",("closing TCP/IP socket"));
+    VOID(shutdown(tmp_sock,2));
+    VOID(closesocket(tmp_sock));
   }
-  if (unix_sock != INVALID_SOCKET)
+  tmp_sock=unix_sock;
+  if (tmp_sock != INVALID_SOCKET)
   {
-    DBUG_PRINT("info",("closing Unix socket"));
-    VOID(shutdown(unix_sock,2));
-    VOID(closesocket(unix_sock));
-    VOID(unlink(mysql_unix_port));
     unix_sock=INVALID_SOCKET;
+    DBUG_PRINT("info",("closing Unix socket"));
+    VOID(shutdown(tmp_sock,2));
+    VOID(closesocket(tmp_sock));
+    VOID(unlink(mysql_unix_port));
   }
   DBUG_VOID_RETURN;
-}
 #endif
+}
 
 void kill_mysql(void)
 {
@@ -607,10 +610,12 @@ void kill_mysql(void)
     {
       DBUG_PRINT("error",("Got error: %ld from SetEvent",GetLastError()));
     }
-    // or:
-    // HANDLE hEvent=OpenEvent(0, FALSE, "MySqlShutdown");
-    // SetEvent(hEventShutdown);
-    // CloseHandle(hEvent);
+    /*
+      or:
+      HANDLE hEvent=OpenEvent(0, FALSE, "MySqlShutdown");
+      SetEvent(hEventShutdown);
+      CloseHandle(hEvent);
+    */
   }
 #elif defined(OS2)
   pthread_cond_signal( &eventShutdown);		// post semaphore
@@ -647,8 +652,7 @@ static void __cdecl kill_server(int sig_ptr)
   int sig=(int) (long) sig_ptr;			// This is passed a int
   DBUG_ENTER("kill_server");
 
-  // if there is a signal during the kill in progress, we do not need
-  // another one
+  // if there is a signal during the kill in progress, ignore the other
   if (kill_in_progress)				// Safety
     RETURN_FROM_KILL_SERVER;
   kill_in_progress=TRUE;
@@ -1207,10 +1211,12 @@ static void start_signal_handler(void)
 static sig_handler handle_segfault(int sig)
 {
   THD *thd=current_thd;
-  // strictly speaking, one needs a mutex here
-  // but since we have got SIGSEGV already, things are a mess
-  // so not having the mutex is not as bad as possibly using a buggy
-  // mutex - so we keep things simple
+  /*
+    Strictly speaking, one needs a mutex here
+    but since we have got SIGSEGV already, things are a mess
+    so not having the mutex is not as bad as possibly using a buggy
+    mutex - so we keep things simple
+  */
   if (segfaulted)
   {
     fprintf(stderr, "Fatal signal %d while backtracing\n", sig);
@@ -1559,8 +1565,10 @@ pthread_handler_decl(handle_shutdown,arg)
   // close semaphore and kill server
   pthread_cond_destroy( &eventShutdown);
 
-  // exit main loop on main thread, so kill will be done from
-  // main thread (this is thread 2)
+  /*
+    Exit main loop on main thread, so kill will be done from
+    main thread (this is thread 2)
+  */
   abort_loop = 1;
 
   // unblock select()
@@ -1584,8 +1592,9 @@ static void open_log(MYSQL_LOG *log, const char *hostname,
   char tmp[FN_REFLEN];
   if (!opt_name || !opt_name[0])
   {
-    /* TODO: The following should be using fn_format();  We just need to
-     first change fn_format() to cut the file name if it's too long.
+    /*
+      TODO: The following should be using fn_format();  We just need to
+      first change fn_format() to cut the file name if it's too long.
     */
     strmake(tmp,hostname,FN_REFLEN-5);
     strmov(strcend(tmp,'.'),extension);
@@ -2136,9 +2145,11 @@ int main(int argc, char **argv)
     }
   }
 
-  // This is a WIN95 machine or a start of mysqld as a standalone program
-  // we have to pass the arguments, in case of NT-service this will be done
-  // by ServiceMain()
+  /*
+    This is a WIN95 machine or a start of mysqld as a standalone program
+    we have to pass the arguments, in case of NT-service this will be done
+    by ServiceMain()
+  */
 
   Service.my_argc=argc;
   Service.my_argv=argv;
@@ -2726,8 +2737,10 @@ static struct option long_options[] = {
   {"master-ssl-cert",       optional_argument, 0, (int) OPT_MASTER_SSL_CERT},
   {"myisam-recover",	    optional_argument, 0, (int) OPT_MYISAM_RECOVER},
   {"memlock",		    no_argument,       0, (int) OPT_MEMLOCK},
-    // needs to be available for the test case to pass in non-debugging mode
-    // is a no-op
+  /*
+    Option needs to be available for the test case to pass in non-debugging
+    mode. is a no-op.
+  */
   {"disconnect-slave-event-count",      required_argument, 0,
      (int) OPT_DISCONNECT_SLAVE_EVENT_COUNT},
   {"abort-slave-event-count",      required_argument, 0,
@@ -2762,8 +2775,7 @@ static struct option long_options[] = {
    (int) OPT_REPLICATE_WILD_IGNORE_TABLE},
   {"replicate-rewrite-db",     required_argument, 0,
      (int) OPT_REPLICATE_REWRITE_DB},
-    // In replication, we may need to tell the other servers how to connect
-    // to us
+  // In replication, we may need to tell the other servers how to connect
   {"report-host",           required_argument, 0, (int) OPT_REPORT_HOST},
   {"report-user",           required_argument, 0, (int) OPT_REPORT_USER},
   {"report-password",       required_argument, 0, (int) OPT_REPORT_PASSWORD},
