@@ -212,8 +212,8 @@ class Item_func_signed :public Item_int_func
 {
 public:
   Item_func_signed(Item *a) :Item_int_func(a) {}
-  double val() { return args[0]->val(); }
-  longlong val_int() { return args[0]->val_int(); }
+  double val() {  null_value=args[0]->null_value; return args[0]->val(); }
+  longlong val_int() {  null_value=args[0]->null_value; return args[0]->val_int(); }
   void fix_length_and_dec()
   { max_length=args[0]->max_length; unsigned_flag=0; }
   void print(String *str);
@@ -224,8 +224,8 @@ class Item_func_unsigned :public Item_int_func
 {
 public:
   Item_func_unsigned(Item *a) :Item_int_func(a) {}
-  double val() { return args[0]->val(); }
-  longlong val_int() { return args[0]->val_int(); }
+  double val() { null_value=args[0]->null_value; return args[0]->val(); }
+  longlong val_int() { null_value=args[0]->null_value; return args[0]->val_int(); }
   void fix_length_and_dec()
   { max_length=args[0]->max_length; unsigned_flag=1; }
   void print(String *str);
