@@ -82,6 +82,7 @@ CREATE TABLE `inscrit` (
 INSERT INTO inscrit (pseudo,email) VALUES ('joce','test');
 INSERT INTO inscrit (pseudo,email) VALUES ('joce1','test1');
 INSERT INTO inscrit (pseudo,email) VALUES ('2joce1','2test1');
+SELECT pseudo FROM inscrit WHERE pseudo=(SELECT pseudo FROM inscrit WHERE pseudo='joce');
 -- error 1240
 SELECT pseudo FROM inscrit WHERE pseudo=(SELECT pseudo FROM inscrit WHERE pseudo LIKE '%joce%');
 

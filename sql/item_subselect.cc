@@ -150,6 +150,8 @@ String *Item_singleval_subselect::val_str (String *str)
     assign_null();
     return 0;
   }
+  // Assign temporary buffer with stored value
+  str_value.set(string_value, 0, string_value.length());
   return &str_value;
 }
 
