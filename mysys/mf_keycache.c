@@ -42,6 +42,17 @@
 #define CHANGED_BLOCKS_MASK	(CHANGED_BLOCKS_HASH-1)
 #define FLUSH_CACHE 		2000	/* Sort this many blocks at once */
 
+typedef struct sec_link {
+  struct sec_link *next_hash,**prev_hash;/* Blocks linked acc. to hash-value */
+  struct sec_link *next_used,*prev_used;
+  struct sec_link *next_changed,**prev_changed;
+  File file;
+  my_off_t diskpos;
+  byte *buffer;
+  my_bool changed;
+} SEC_LINK;
+
+
 static uint find_next_bigger_power(uint value);
 static SEC_LINK *find_key_block(int file,my_off_t filepos,int *error);
 
@@ -287,7 +298,6 @@ byte *key_cache_read(File file, my_off_t filepos, byte *buff, uint length,
     } while ((length-= read_length));
     pthread_mutex_unlock(&THR_LOCK_keycache);
     return(start);
-    pthread_mutex_unlock(&THR_LOCK_keycache);
   }
   _my_cache_r_requests++;
   _my_cache_read++;
@@ -457,6 +467,7 @@ static SEC_LINK *find_key_block(int file, my_off_t filepos, int *error)
 static void free_block(SEC_LINK *used)
 {
   used->file= -1;
+  used->changed=0;
   if (used != _my_used_first)			/* Relink used-chain */
   {
     if (used == _my_used_last)
@@ -568,7 +579,6 @@ int flush_key_blocks(File file, enum flush_type type)
 	if (type != FLUSH_KEEP && type != FLUSH_FORCE_WRITE)
 	{
 	  /* This will not destroy position or data */
-	  used->changed=0;
 	  _my_blocks_changed--;
 	  free_block(used);
 	}

@@ -1,0 +1,44 @@
+#!/bin/sh
+
+update-rc.d mysql defaults 50 >/dev/null
+
+#--------
+update-alternatives --install /usr/sbin/mysqld mysqld /usr/sbin/mysqld-static 10
+
+#--------
+
+DOFIX=0
+if [ ! -e /var/mysql/data/mysql/tables_priv.frm -a -d /var/mysql/data/mysql ]; then
+  DOFIX=1
+fi
+
+#--------
+i=`grep '^mysql:' /etc/group`
+if [ "x${i}" == "x" ]; then
+  groupadd mysql || true
+fi
+
+i=`grep '^mysql:' /etc/passwd`
+if [ "x${i}" == "x" ]; then
+  useradd -g mysql -d /var/mysql/data -s /noexists mysql || true
+fi
+
+#--------
+
+if [ ! -d /var/mysql/data/mysql ]; then
+ install -d /var/mysql/data || true
+ /usr/sbin/mysql_install_db || true
+ chown -R mysql.mysql /var/mysql
+fi
+
+#--------
+/etc/init.d/mysql start || true
+
+if [ $DOFIX -eq 1 ]; then
+  echo "***************************************"
+  echo "  Now, fix tables for MySQL 3.22.11...."
+  echo "   if you set root passwd, please in..."
+  echo -n " ? MySQL root passwd ? : "
+  read pass dumy
+  /usr/sbin/mysql_fix_privilege_tables $pass
+fi

@@ -2302,7 +2302,8 @@ CHANGEABLE_VAR changeable_vars[] = {
   { "thread_cache_size", (long*) &thread_cache_size, 0,1,16384,0,1},
   { "tmp_table_size",  (long*) &tmp_table_size,1024*1024L,1024,~0L,
     MALLOC_OVERHEAD,1},
-  { "thread_stack", (long*) &thread_stack,1024*64,1024*32,~0L,0,1024},
+  { "thread_stack", (long*) &thread_stack,DEFAULT_THREAD_STACK,1024*32,
+      ~0L,0,1024},
   { "wait_timeout", (long*) &net_wait_timeout,NET_WAIT_TIMEOUT,1,~0L,0,1},
   { NullS,(long*) 0,0,0,0,0,0,} };
 

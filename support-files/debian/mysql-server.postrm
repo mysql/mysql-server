@@ -1,0 +1,13 @@
+#!/bin/sh
+
+update-alternatives --auto mysqld 
+
+if [ "$1" = "purge" ]
+then
+	update-rc.d mysql remove >/dev/null
+
+	echo -n "  Shall I also remove all of the databases (y/N)?"; read ans
+	if [ "$ans" = "y" -o "$ans" = "Y" ]; then
+		rm -rf /var/mysql
+	fi
+fi
