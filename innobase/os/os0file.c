@@ -1586,6 +1586,7 @@ os_aio_init(
 	os_io_init_simple();
 
 	for (i = 0; i < n_segments; i++) {
+		ut_a(i < SRV_MAX_N_IO_THREADS);
 	        srv_io_thread_op_info[i] = (char*)"not started yet";
 	}
 
@@ -1606,12 +1607,14 @@ os_aio_init(
 	os_aio_read_array = os_aio_array_create(n_read_segs * n_per_seg,
 							n_read_segs);
 	for (i = 2; i < 2 + n_read_segs; i++) {
+		ut_a(i < SRV_MAX_N_IO_THREADS);
 	        srv_io_thread_function[i] = (char*)"read thread";
 	}
 
 	os_aio_write_array = os_aio_array_create(n_write_segs * n_per_seg,
 							n_write_segs);
 	for (i = 2 + n_read_segs; i < n_segments; i++) {
+		ut_a(i < SRV_MAX_N_IO_THREADS);
 	        srv_io_thread_function[i] = (char*)"write thread";
 	}
 
@@ -2324,11 +2327,10 @@ os_aio_windows_handle(
 	n = array->n_slots / array->n_segments;
 
 	if (array == os_aio_sync_array) {
-		srv_io_thread_op_info[orig_seg] =
-						"wait Windows aio for 1 page";
 		os_event_wait(os_aio_array_get_nth_slot(array, pos)->event);
 		i = pos;
 	} else {
+		ut_a(orig_seg < SRV_MAX_N_IO_THREADS);
 		srv_io_thread_op_info[orig_seg] =
 						"wait Windows aio";
 		i = os_event_wait_multiple(n,
@@ -2341,7 +2343,12 @@ os_aio_windows_handle(
 
 	ut_a(slot->reserved);
 
-	srv_io_thread_op_info[orig_seg] = "get windows aio return value";
+	if (orig_seg != ULINT_UNDEFINED) {
+		ut_a(orig_seg < SRV_MAX_N_IO_THREADS);
+		srv_io_thread_op_info[orig_seg] =
+					"get windows aio return value";
+	}
+
 	ret = GetOverlappedResult(slot->file, &(slot->control), &len, TRUE);
 
 	*message1 = slot->message1;
@@ -2663,7 +2670,8 @@ consecutive_loop:
 			offs += consecutive_ios[i]->len;
 		}
 	}
-
+	
+	ut_a(global_segment < SRV_MAX_N_IO_THREADS);
 	srv_io_thread_op_info[global_segment] = (char*) "doing file i/o";
 
 	if (os_aio_print_debug) {
@@ -2714,6 +2722,7 @@ consecutive_loop:
 	}
 
 	ut_a(ret);
+	ut_a(global_segment < SRV_MAX_N_IO_THREADS);
 	srv_io_thread_op_info[global_segment] = (char*) "file i/o done";
 
 /* printf("aio: %lu consecutive %lu:th segment, first offs %lu blocks\n",
@@ -2772,6 +2781,7 @@ wait_for_io:
 	os_mutex_exit(array->mutex);
 
 recommended_sleep:
+	ut_a(global_segment < SRV_MAX_N_IO_THREADS);
 	srv_io_thread_op_info[global_segment] =
 				(char*)"waiting for i/o request";
 
