@@ -21,6 +21,6 @@ sleep 1;
 #
 # Clean up
 #
-connect (master2,localhost,root,,test,0,var/tmp/mysql.sock);
+connect (master2,localhost,root,,test,0,mysql-master.sock);
 connection master2;
 drop table if exists t1,t2;

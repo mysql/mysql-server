@@ -15430,6 +15430,8 @@ mysql> select 'new*\n*line' REGEXP 'new\\*.\\*line';
         -> 1
 mysql> select "a" REGEXP "A", "a" REGEXP BINARY "A";
         -> 1  0
+mysql> select "a" REGEXP "^[a-d]";
+        -> 1
 @end example
 
 @item
@@ -15494,6 +15496,16 @@ mysql> select BINARY "a" = "A";
 Note that in some context @strong{MySQL} will not be able to use the
 index efficiently when you cast an indexed column to @code{BINARY}.
 @end table
+
+If you want to compare a blob case-insensitively you can always convert
+the blob to upper case before doing the comparison:
+
+@example
+SELECT 'A' LIKE UPPER(blob_col) FROM table_name;
+@end example
+
+We plan to soon introduce casting between different character sets to
+make string comparison even more flexible.
 
 @findex control flow functions
 @findex functions, control flow
@@ -18720,6 +18732,10 @@ The default is ascending order; this may be specified explicitly using
 the @code{ASC} keyword.
 
 @item
+You can in the @code{WHERE} clause use any of the functions that
+@strong{MySQL} support. @xref{Functions}.
+
+@item
 The @code{HAVING} clause can refer to any column or alias named in the
 @code{select_expression}. It is applied last, just before items are sent to
 the client, with no optimization. Don't use @code{HAVING} for items that
@@ -18815,6 +18831,13 @@ cannot already exist (among other things, this prevents database tables and
 files such as @file{/etc/passwd} from being destroyed).  You must have the
 @strong{file} privilege on the server host to use this form of @code{SELECT}.
 
+@code{SELECT ... INTO OUTFILE} is mainly intended to let you very
+quickly dump a table on the server machine. If you want to create the
+resulting file on some other host than the server host you can't use
+@code{SELECT ... INTO OUTFILE}. In this case you should instead use some
+client program like @code{mysqldump --tab} or @code{mysql -e "SELECT
+..." > outfile} to generate the file.
+
 @code{SELECT ...  INTO OUTFILE} is the complement of @code{LOAD DATA
 INFILE}; the syntax for the @code{export_options} part of the statement
 consists of the same @code{FIELDS} and @code{LINES} clauses that are used
@@ -18835,19 +18858,29 @@ Additionally, @code{ASCII 0} is converted to @code{ESCAPED BY} followed by 0
 
 The reason for the above is that you MUST escape any @code{FIELDS
 TERMINATED BY}, @code{ESCAPED BY}, or @code{LINES TERMINATED BY}
-characters to reliably be able to read the file
-back. @code{ASCII 0} is escaped to make it easier to view with some
-pagers.
+characters to reliably be able to read the file back. @code{ASCII 0} is
+escaped to make it easier to view with some pagers.
 
 As the resulting file doesn't have to conform to the SQL syntax, nothing
 else need be escaped.
-@end itemize
 
+Here follows an example of getting a file in the format used by many
+old programs.
+
+@example
+SELECT a,b,a+b INTO OUTFILE "/tmp/result.text"
+FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
+LINES TERMINATED BY "\n"
+FROM test_table;
+@end example
+
+@item
 @findex DUMPFILE
 If you use @code{INTO DUMPFILE} instead of @code{INTO OUTFILE}, @strong{MySQL}
 will only write one row into the file, without any column or line
 terminations and without any escaping.  This is useful if you want to
 store a blob in a file.
+@end itemize
 
 @findex JOIN
 @findex INNER JOIN

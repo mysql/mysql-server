@@ -18,6 +18,10 @@ You can create your own test cases. To create a test case:
 
  We would appreciate if the test tables were called t1, t2, t3 ... (to not
  conflict too much with existing tables).
+
+ Your test should begin by dropping the tables you are going to create and
+ end by dropping them again.  This will ensure that one can run the test
+ over and over again.
  
  If you are using mysqltest commands (like result file names) in your
  test case you should do create the result file as follows:

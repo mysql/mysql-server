@@ -19,7 +19,7 @@ TZ=GMT-3; export TZ # for UNIX_TIMESTAMP tests to work
 # Program Definitions
 #--
 
-PATH=/bin:/usr/bin:/usr/local/bin
+PATH=/bin:/usr/bin:/usr/local/bin:/usr/bsd
 
 # No paths below as we can't be sure where the program is!
 
@@ -65,6 +65,7 @@ if [ -d ../sql ] ; then
 else
    BINARY_DIST=1
 fi
+
 #BASEDIR is always one above mysql-test directory 
 CWD=`pwd`
 cd ..
@@ -83,28 +84,77 @@ USERT=0
 SYST=0
 REALT=0
 MYSQL_TMP_DIR=$MYSQL_TEST_DIR/var/tmp
-TIMEFILE="$MYSQL_TMP_DIR/mysqltest-time"
 RES_SPACE="      "
 MYSQLD_SRC_DIRS="strings mysys include extra regex isam merge myisam \
  myisammrg heap sql"
-GCOV_MSG=$MYSQL_TMP_DIR/mysqld-gcov.out
-GCOV_ERR=$MYSQL_TMP_DIR/mysqld-gcov.err  
 
 MASTER_RUNNING=0
+MASTER_MYPORT=9306
 SLAVE_RUNNING=0
+SLAVE_MYPORT=9307
+
+EXTRA_MYSQL_TEST_OPT=""
+USE_RUNNING_SERVER=1
+DO_GCOV=""
+DO_GDB=""
+DO_DDD=""
+SLEEP_TIME=2
+
+while test $# -gt 0; do
+  case "$1" in
+    --force )  FORCE=1 ;;
+    --local)   USE_RUNNING_SERVER="" ;;
+    --tmpdir=*) MYSQL_TMP_DIR=`$ECHO "$1" | $SED -e "s;--tmpdir=;;"` ;;
+    --master_port=*) MASTER_MYPORT=`$ECHO "$1" | $SED -e "s;--master_port=;;"` ;;
+    --slave_port=*) SLAVE_MYPORT=`$ECHO "$1" | $SED -e "s;--slave_port=;;"` ;;
+    --record)
+      RECORD=1;
+      EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1" ;;
+    --sleep=*)
+      EXTRA_MYSQL_TEST_OPT="$EXTRA_MYSQL_TEST_OPT $1"
+      SLEEP_TIME=`$ECHO "$1" | $SED -e "s;--sleep=;;"`
+      ;;
+    --gcov )
+      if [ x$BINARY_DIST = x1 ] ; then
+	$ECHO "Cannot do coverage test without the source - please use source dist"
+	exit 1
+      fi
+      DO_GCOV=1
+      ;;
+    --gdb )
+      if [ x$BINARY_DIST = x1 ] ; then
+	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with -gdb option"
+      fi
+      DO_GDB=1
+      ;;
+    --ddd )
+      if [ x$BINARY_DIST = x1 ] ; then
+	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with -gdb option"
+      fi
+      DO_DDD=1
+      ;;
+    --debug)
+      EXTRA_MASTER_MYSQLD_OPT=--debug=d:t:O,$MYSQL_TMP_DIR/master.trace
+      EXTRA_SLAVE_MYSQLD_OPT=--debug=d:t:O,$MYSQL_TMP_DIR/slave.trace
+      ;;
+    -- )  shift; break ;;
+    --* ) $ECHO "Unrecognized option: $1"; exit 1 ;;
+    * ) break ;;
+  esac
+  shift
+done
 
 #++
 # mysqld Environment Parameters
 #--
+
 MYRUN_DIR=$MYSQL_TEST_DIR/var/run
-MASTER_MYPORT=9306
 MASTER_MYDDIR="$MYSQL_TEST_DIR/var/lib"
-MASTER_MYSOCK="$MYSQL_TMP_DIR/mysql.sock"
+MASTER_MYSOCK="$MYSQL_TMP_DIR/mysql-master.sock"
 MASTER_MYPID="$MYRUN_DIR/mysqld.pid"
 MASTER_MYLOG="$MYSQL_TEST_DIR/var/log/mysqld.log"
 MASTER_MYERR="$MYSQL_TEST_DIR/var/log/mysqld.err"
 
-SLAVE_MYPORT=9307
 SLAVE_MYDDIR="$MYSQL_TEST_DIR/var/slave-data"
 SLAVE_MYSOCK="$MYSQL_TMP_DIR/mysql-slave.sock"
 SLAVE_MYPID="$MYRUN_DIR/mysqld-slave.pid"
@@ -145,58 +195,15 @@ else
  INSTALL_DB="./install_test_db -bin"
 fi
 
-
-SLAVE_MYSQLD=$MYSQLD #this will be changed later if we are doing gcov
-
-MYSQL_TEST="$MYSQL_TEST --no-defaults --socket=$MASTER_MYSOCK --database=$DB --user=$DBUSER --password=$DBPASSWD --silent -v"
-GDB_MASTER_INIT=$MYSQL_TMP_DIR/gdbinit.master
-GDB_SLAVE_INIT=$MYSQL_TMP_DIR/gdbinit.slave
-
-USE_RUNNING_SERVER=1
-DO_GCOV=""
-DO_GDB=""
-DO_DDD=""
-
-while test $# -gt 0; do
-  case "$1" in
-    --force )  FORCE=1 ;;
-    --record ) RECORD=1 ;;
-    --local)   USE_RUNNING_SERVER="" ;;
-    --gcov )
-      if [ x$BINARY_DIST = x1 ] ; then
-	$ECHO "Cannot do coverage test without the source - please use source dist"
-	exit 1
-      fi
-      DO_GCOV=1
-      ;;
-    --gdb )
-      if [ x$BINARY_DIST = x1 ] ; then
-	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with -gdb option"
-      fi
-      DO_GDB=1
-      ;;
-    --ddd )
-      if [ x$BINARY_DIST = x1 ] ; then
-	$ECHO "Note: you will get more meaningful output on a source distribution compiled with debugging option when running tests with -gdb option"
-      fi
-      DO_DDD=1
-      ;;
-    --debug)
-      EXTRA_MASTER_MYSQLD_OPT=--debug=d:t:O,$MYSQL_TMP_DIR/master.trace
-      EXTRA_SLAVE_MYSQLD_OPT=--debug=d:t:O,$MYSQL_TMP_DIR/slave.trace
-      ;;
-    -- )  shift; break ;;
-    --* ) $ECHO "Unrecognized option: $1"; exit 1 ;;
-    * ) break ;;
-  esac
-  shift
-done
-
 # If we should run all tests cases, we will use a local server for that
 
 if [ -z "$1" ]
 then
    USE_RUNNING_SERVER=""
+fi
+if [ -n "$USE_RUNNING_SERVER" ]
+then
+   MASTER_MYSOCK="/tmp/mysql.sock"
 fi
 
 if [ -w / ]
@@ -205,6 +212,15 @@ then
     EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --user=root"
     EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --user=root"
 fi
+
+
+MYSQL_TEST="$MYSQL_TEST --no-defaults --socket=$MASTER_MYSOCK --database=$DB --user=$DBUSER --password=$DBPASSWD --silent -v --tmpdir=$MYSQL_TMP_DIR"
+GDB_MASTER_INIT=$MYSQL_TMP_DIR/gdbinit.master
+GDB_SLAVE_INIT=$MYSQL_TMP_DIR/gdbinit.slave
+GCOV_MSG=$MYSQL_TMP_DIR/mysqld-gcov.out
+GCOV_ERR=$MYSQL_TMP_DIR/mysqld-gcov.err  
+TIMEFILE="$MYSQL_TMP_DIR/mysqltest-time"
+SLAVE_MYSQLD=$MYSQLD #this can be changed later if we are doing gcov
 
 #++
 # Function Definitions
@@ -223,7 +239,7 @@ error () {
 }
 
 error_is () {
-    $ECHO `$CAT $TIMEFILE` | $SED -e 's/.* At line \(.*\)\: \(.*\)Command .*$/   \>\> Error at line \1: \2<\</'
+    $TR "\n" " " < $TIMEFILE | $SED -e 's/.* At line \(.*\)\: \(.*\)Command .*$/   \>\> Error at line \1: \2<\</'
 }
 
 prefix_to_8() {
@@ -316,6 +332,7 @@ start_master()
 	    --socket=$MASTER_MYSOCK \
             --log=$MASTER_MYLOG --default-character-set=latin1 \
 	    --core \
+	    --tmpdir=$MYSQL_TMP_DIR \
 	    --language=english $EXTRA_MASTER_OPT $EXTRA_MASTER_MYSQLD_OPT"
     if [ x$DO_DDD = x1 ]
     then
@@ -358,11 +375,12 @@ start_slave()
 	    --socket=$SLAVE_MYSOCK \
             --log=$SLAVE_MYLOG --default-character-set=latin1 \
 	    --core \
+	    --tmpdir=$MYSQL_TMP_DIR \
             --language=english $EXTRA_SLAVE_OPT $EXTRA_SLAVE_MYSQLD_OPT"
     if [ x$DO_DDD = x1 ]
     then
       $ECHO "set args $master_args" > $GDB_SLAVE_INIT
-      ddd --debugger "gdb -x $GDB_SLAVE_INIT" $MYSQLD &
+      ddd --debugger "gdb -x $GDB_SLAVE_INIT" $SLAVE_MYSQLD &
       prompt_user "Hit enter to continue after you've started the master"
     elif [ x$DO_GDB = x1 ]
     then
@@ -380,6 +398,7 @@ mysql_start () {
     start_master
     start_slave
     cd $MYSQL_TEST_DIR
+    sleep $SLEEP_TIME    # Give mysqld time to start properly
     return 1
 }
 
@@ -392,7 +411,7 @@ stop_slave ()
     then # try harder!
      $ECHO "slave not cooperating with mysqladmin, will try manual kill"
      kill `$CAT $SLAVE_MYPID`
-     sleep 2
+     sleep $SLEEP_TIME
      if [ -f $SLAVE_MYPID ] ; then
        $ECHO "slave refused to die, resorting to SIGKILL murder"
        kill -9 `$CAT $SLAVE_MYPID`
@@ -402,7 +421,7 @@ stop_slave ()
      fi
     fi
     SLAVE_RUNNING=0
-    sleep 2	# Give mysqld time to go down properly
+    sleep $SLEEP_TIME	# Give mysqld time to go down properly
   fi  
 }
 
@@ -415,7 +434,7 @@ stop_master ()
     then # try harder!
      $ECHO "master not cooperating with mysqladmin, will try manual kill"
      kill `$CAT $MASTER_MYPID`
-     sleep 2
+     sleep $SLEEP_TIME
      if [ -f $MASTER_MYPID ] ; then
        $ECHO "master refused to die, resorting to SIGKILL murder"
        kill -9 `$CAT $MASTER_MYPID`
@@ -425,7 +444,7 @@ stop_master ()
      fi
     fi
     MASTER_RUNNING=0
-    sleep 2	# Give mysqld time to go down properly
+    sleep $SLEEP_TIME	# Give mysqld time to go down properly
   fi
 }
 
@@ -461,11 +480,6 @@ run_testcase ()
  slave_opt_file=$TESTDIR/$tname-slave.opt
  slave_master_info_file=$TESTDIR/$tname-slave-master-info.opt
  SKIP_SLAVE=`$EXPR \( $tname : rpl \) = 0`
- if [ x$RECORD = x1 ]; then
-  extra_flags="-r"
- else
-  extra_flags=""
- fi
   
  if [ -f $master_opt_file ] ;
  then
@@ -514,18 +528,18 @@ run_testcase ()
   
  if [ -f $tf ] ; then
     $RM -f r/$tname.*reject
-    mytime=`$TIME -p $MYSQL_TEST -R r/$tname.result $extra_flags \
+    mytime=`$TIME -p $MYSQL_TEST -R r/$tname.result $EXTRA_MYSQL_TEST_OPT \
      < $tf 2> $TIMEFILE`
     res=$?
 
     if [ $res = 0 ]; then
-	mytime=`$CAT $TIMEFILE | $TAIL -3 | $TR '\n' '-'`
+	mytime=`$CAT $TIMEFILE | $TAIL -3 | $TR '\n' ':'`
 
-	USERT=`$ECHO $mytime | $CUT -d - -f 2 | $CUT -d ' ' -f 2`
+	USERT=`$ECHO $mytime | $CUT -d : -f 2 | $CUT -d ' ' -f 2`
         USERT=`prefix_to_8 $USERT`
-	SYST=`$ECHO $mytime | $CUT -d - -f 3 | $CUT -d ' ' -f 2`
+	SYST=`$ECHO $mytime | $CUT -d : -f 3 | $CUT -d ' ' -f 2`
         SYST=`prefix_to_8 $SYST`
-	REALT=`$ECHO $mytime | $CUT -d - -f 1 | $CUT -d ' ' -f 2`
+	REALT=`$ECHO $mytime | $CUT -d : -f 1 | $CUT -d ' ' -f 2`
         REALT=`prefix_to_8 $REALT`
     else
 	USERT="    ...."
@@ -533,21 +547,19 @@ run_testcase ()
 	REALT="    ...."
     fi
 
-	timestr="$USERT $SYST $REALT"
-	pname=`$ECHO "$tname                 "|$CUT -c 1-16`
-	$ECHO -n "$pname          $timestr"
-
-
+    timestr="$USERT $SYST $REALT"
+    pname=`$ECHO "$tname                 "|$CUT -c 1-16`
+    RES="$pname          $timestr"
 
     if [ $res = 0 ]; then
       total_inc
       pass_inc
-      $ECHO "$RES_SPACE [ pass ]"
+      $ECHO "$RES$RES_SPACE [ pass ]"
     else
       if [ $res = 1 ]; then
 	total_inc
         fail_inc
-	$ECHO "$RES_SPACE [ fail ]"
+	$ECHO "$RES$RES_SPACE [ fail ]"
         $ECHO
 	error_is
 	$ECHO
@@ -563,7 +575,7 @@ run_testcase ()
 	$ECHO ""
       else
         pass_inc
-	$ECHO "$RES_SPACE [ skipped ]"
+	$ECHO "$RES$RES_SPACE [ skipped ]"
       fi
     fi
   fi
