@@ -1,7 +1,7 @@
 noinst_PROGRAMS =	mysql
 bin_PROGRAMS =	mysqltest_embedded mysql_client_test_embedded
 client_sources =	$(mysqltest_embedded_SOURCES) $(mysql_SOURCES)
-tests_sources= $(mysql_client_test_SOURCES)
+tests_sources= $(mysql_client_test_embedded_SOURCES)
 
 link_sources:
 	for f in $(client_sources); do \
