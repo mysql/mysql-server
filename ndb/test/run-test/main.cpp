@@ -458,7 +458,7 @@ setup_config(atrt_config& config){
 	proc.m_type = atrt_process::NDB_MGM;
 	proc.m_proc.m_name.assfmt("%d-%s", index, "ndb_mgmd");
 	proc.m_proc.m_path.assign(dir).append("/libexec/ndb_mgmd");
-	proc.m_proc.m_args = "-n -c initconfig.txt";
+	proc.m_proc.m_args = "--nodaemon -c initconfig.txt";
 	proc.m_proc.m_cwd.appfmt("%d.ndb_mgmd", index);
 	connect_string.appfmt("host=%s:%d;", 
 			      proc.m_hostname.c_str(), proc.m_ndb_mgm_port);
