@@ -1803,7 +1803,7 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli)
       */
       if (!strcmp(thd->query,"BEGIN"))
 	rli->inside_transaction= opt_using_transactions;
-      else if (!strcmp(thd->query,"COMMIT"))
+      else if (!(strcmp(thd->query,"COMMIT") && strcmp(thd->query,"ROLLBACK")))
 	rli->inside_transaction=0;
 
       /*
