@@ -55,3 +55,6 @@ set-variable	= sort_buffer=8M
 [myisamchk]
 set-variable	= key_buffer=8M
 set-variable	= sort_buffer=8M
+
+[mysqlhotcopy]
+interactive-timeout

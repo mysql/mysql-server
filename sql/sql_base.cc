@@ -1783,6 +1783,8 @@ int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds)
 	      DBUG_RETURN(1);
 	    tmp->fix_length_and_dec();	// Update cmp_type
 	    tmp->const_item_cache=0;
+	    /* Mark field used for table cache */
+	    t1->field[i]->query_id=t2->field[j]->query_id=thd->query_id;
 	    cond_and->list.push_back(tmp);
 	    if ((tmp_map=t1->field[i]->part_of_key))
 	    {

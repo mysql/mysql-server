@@ -292,7 +292,7 @@ $dbh->do("drop table crash_q");
 report("truncate","truncate_table",
        "create table crash_q (a integer, b integer,c CHAR(10))",
        "truncate crash_q",
-       "drop table crash_q1");
+       "drop table crash_q");
 
 if ($dbh->do("create table crash_q (a integer, b integer,c CHAR(10))") &&
     $dbh->do("create table crash_q1 (a integer, b integer,c CHAR(10) not null)"))
