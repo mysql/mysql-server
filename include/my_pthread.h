@@ -639,7 +639,7 @@ extern int pthread_dummy(int);
 */
 #define DEFAULT_THREAD_STACK	(192*1024L)
 #else
-#define DEFAULT_THREAD_STACK	(192*1024L)
+#define DEFAULT_THREAD_STACK	(192*1024)
 #endif
 #endif
 
