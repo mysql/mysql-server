@@ -114,7 +114,7 @@ THD::THD()
   ull=0;
   system_thread=0;
   bzero((char*) &mem_root,sizeof(mem_root));
-#if defined(HAVE_BDB) || defined(HAVE_INNOBASE) || defined(HAVE_GEMENI)
+#if defined(HAVE_BERKELEY_DB) || defined(HAVE_INNOBASE_DB) || defined(HAVE_GEMENI_DB)
   if (open_cached_file(&transactions.trans_log,
 		       mysql_tempdir,LOG_PREFIX,0,MYF(MY_WME)))
     killed=1;
@@ -143,7 +143,7 @@ THD::~THD()
     close_thread_tables(this);
   }
   close_temporary_tables(this);
-#if defined(HAVE_BDB) || defined(HAVE_INNOBASE) || defined(HAVE_GEMENI)
+#if defined(HAVE_BERKELEY_DB) || defined(HAVE_INNOBASE_DB) || defined(HAVE_GEMENI_DB)
   close_cached_file(transactions.trans_log);
 #endif
   if (global_read_lock)

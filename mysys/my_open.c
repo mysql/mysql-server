@@ -40,7 +40,7 @@ File my_open(const char *FileName, int Flags, myf MyFlags)
   else
     fd = open((my_string) FileName, Flags | O_BINARY);
 #elif !defined(NO_OPEN_3)
-  fd = open(FileName, Flags, 0);	/* Normal unix */
+  fd = open(FileName, Flags, my_umask);	/* Normal unix */
 #else
   fd = open((my_string) FileName, Flags);
 #endif
