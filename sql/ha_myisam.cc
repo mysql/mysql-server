@@ -777,6 +777,14 @@ int ha_myisam::index_read_idx(byte * buf, uint index, const byte * key,
   return error;
 }
 
+int ha_myisam::index_read_last(byte * buf, const byte * key, uint key_len)
+{
+  statistic_increment(ha_read_key_count,&LOCK_status);
+  int error=mi_rkey(file,buf,active_index, key, key_len, HA_READ_PREFIX_LAST);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
 int ha_myisam::index_next(byte * buf)
 {
   statistic_increment(ha_read_next_count,&LOCK_status);
@@ -973,7 +981,7 @@ void ha_myisam::update_create_info(HA_CREATE_INFO *create_info)
 }
 
 
-int ha_myisam::create(const char *name, register TABLE *form,
+int ha_myisam::create(const char *name, register TABLE *table,
 		      HA_CREATE_INFO *info)
 {
   int error;
@@ -985,20 +993,20 @@ int ha_myisam::create(const char *name, register TABLE *form,
   MI_KEYDEF *keydef;
   MI_COLUMNDEF *recinfo,*recinfo_pos;
   MI_KEYSEG *keyseg;
-  uint options=form->db_options_in_use;
+  uint options=table->db_options_in_use;
   DBUG_ENTER("ha_myisam::create");
 
   type=HA_KEYTYPE_BINARY;				// Keep compiler happy
   if (!(my_multi_malloc(MYF(MY_WME),
-			&recinfo,(form->fields*2+2)*sizeof(MI_COLUMNDEF),
-			&keydef, form->keys*sizeof(MI_KEYDEF),
+			&recinfo,(table->fields*2+2)*sizeof(MI_COLUMNDEF),
+			&keydef, table->keys*sizeof(MI_KEYDEF),
 			&keyseg,
-			((form->key_parts + form->keys) * sizeof(MI_KEYSEG)),
+			((table->key_parts + table->keys) * sizeof(MI_KEYSEG)),
 			0)))
     DBUG_RETURN(1);
 
-  pos=form->key_info;
-  for (i=0; i < form->keys ; i++, pos++)
+  pos=table->key_info;
+  for (i=0; i < table->keys ; i++, pos++)
   {
     keydef[i].flag= (pos->flags & (HA_NOSAME | HA_FULLTEXT));
     keydef[i].seg=keyseg;
@@ -1041,7 +1049,7 @@ int ha_myisam::create(const char *name, register TABLE *form,
       {
 	keydef[i].seg[j].null_bit=field->null_bit;
 	keydef[i].seg[j].null_pos= (uint) (field->null_ptr-
-					   (uchar*) form->record[0]);
+					   (uchar*) table->record[0]);
       }
       else
       {
@@ -1059,19 +1067,19 @@ int ha_myisam::create(const char *name, register TABLE *form,
 	keydef[i].seg[j].flag|=HA_BLOB_PART;
 	/* save number of bytes used to pack length */
 	keydef[i].seg[j].bit_start= (uint) (field->pack_length() -
-					    form->blob_ptr_size);
+					    table->blob_ptr_size);
       }
     }
     keyseg+=pos->key_parts;
   }
 
   recpos=0; recinfo_pos=recinfo;
-  while (recpos < (uint) form->reclength)
+  while (recpos < (uint) table->reclength)
   {
     Field **field,*found=0;
-    minpos=form->reclength; length=0;
+    minpos=table->reclength; length=0;
 
-    for (field=form->field ; *field ; field++)
+    for (field=table->field ; *field ; field++)
     {
       if ((fieldpos=(*field)->offset()) >= recpos &&
 	  fieldpos <= minpos)
@@ -1117,7 +1125,7 @@ int ha_myisam::create(const char *name, register TABLE *form,
     {
       recinfo_pos->null_bit=found->null_bit;
       recinfo_pos->null_pos= (uint) (found->null_ptr-
-				  (uchar*) form->record[0]);
+				  (uchar*) table->record[0]);
     }
     else
     {
@@ -1132,20 +1140,23 @@ int ha_myisam::create(const char *name, register TABLE *form,
   }
   MI_CREATE_INFO create_info;
   bzero((char*) &create_info,sizeof(create_info));
-  create_info.max_rows=form->max_rows;
-  create_info.reloc_rows=form->min_rows;
+  create_info.max_rows=table->max_rows;
+  create_info.reloc_rows=table->min_rows;
   create_info.auto_increment=(info->auto_increment_value ?
 			      info->auto_increment_value -1 :
 			      (ulonglong) 0);
-  create_info.data_file_length=(ulonglong) form->max_rows*form->avg_row_length;
+  create_info.data_file_length= ((ulonglong) table->max_rows *
+				 table->avg_row_length);
   create_info.raid_type=info->raid_type;
-  create_info.raid_chunks=info->raid_chunks ? info->raid_chunks : RAID_DEFAULT_CHUNKS;
-  create_info.raid_chunksize=info->raid_chunksize ? info->raid_chunksize : RAID_DEFAULT_CHUNKSIZE;
+  create_info.raid_chunks= (info->raid_chunks ? info->raid_chunks :
+			    RAID_DEFAULT_CHUNKS);
+  create_info.raid_chunksize=(info->raid_chunksize ? info->raid_chunksize :
+			      RAID_DEFAULT_CHUNKSIZE);
   create_info.data_file_name= info->data_file_name;
   create_info.index_file_name=info->index_file_name;
 
   error=mi_create(fn_format(buff,name,"","",2+4),
-		  form->keys,keydef,
+		  table->keys,keydef,
 		  (uint) (recinfo_pos-recinfo), recinfo,
 		  0, (MI_UNIQUEDEF*) 0,
 		  &create_info,

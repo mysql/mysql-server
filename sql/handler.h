@@ -55,12 +55,11 @@
 #define HA_REC_NOT_IN_SEQ	64	/* ha_info don't return recnumber;
 					   It returns a position to ha_r_rnd */
 #define HA_ONLY_WHOLE_INDEX	128	/* Can't use part key searches */
-#define HA_RSAME_NO_INDEX	256	/* RSAME can't restore index */
+#define HA_NOT_READ_PREFIX_LAST	256	/* RSAME can't restore index */
 #define HA_WRONG_ASCII_ORDER	512	/* Can't use sorting through key */
 #define HA_HAVE_KEY_READ_ONLY	1024	/* Can read only keys (no record) */
 #define HA_READ_NOT_EXACT_KEY	2048	/* Can read record after/before key */
 #define HA_NO_INDEX		4096	/* No index needed for next/prev */
-#define HA_LONGLONG_KEYS	8192	/* Can have longlong as key */
 #define HA_KEY_READ_WRONG_STR	16384	/* keyread returns converted strings */
 #define HA_NULL_KEY		32768	/* One can have keys with NULL */
 #define HA_DUPP_POS		65536	/* ha_position() gives dupp row */
@@ -256,6 +255,10 @@ public:
   virtual int index_first(byte * buf)=0;
   virtual int index_last(byte * buf)=0;
   virtual int index_next_same(byte *buf, const byte *key, uint keylen);
+  virtual int index_read_last(byte * buf, const byte * key, uint key_len)
+  {
+    return (my_errno=HA_ERR_WRONG_COMMAND);
+  }
   virtual int ft_init()
     { return -1; }
   virtual FT_INFO *ft_init_ext(uint mode,uint inx,const byte *key, uint keylen,

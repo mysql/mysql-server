@@ -263,3 +263,84 @@ score	count(*)
 2	1
 1	2
 drop table t1;
+CREATE TABLE t1 (a char(1));
+INSERT INTO t1 VALUES ('A'),('B'),('A'),('B'),('A'),('B'),(NULL),('a'),('b'),(NULL),('A'),('B'),(NULL);
+SELECT a FROM t1 GROUP BY a;
+a
+NULL
+A
+B
+SELECT a,count(*) FROM t1 GROUP BY a;
+a	count(*)
+NULL	3
+A	5
+B	5
+SELECT a FROM t1 GROUP BY binary a;
+a
+NULL
+A
+B
+a
+b
+SELECT a,count(*) FROM t1 GROUP BY binary a;
+a	count(*)
+NULL	3
+A	4
+B	4
+a	1
+b	1
+SELECT binary a FROM t1 GROUP BY 1;
+binary a
+NULL
+A
+B
+a
+b
+SELECT binary a,count(*) FROM t1 GROUP BY 1;
+binary a	count(*)
+NULL	3
+A	4
+B	4
+a	1
+b	1
+SET SQL_BIG_TABLES=1;
+SELECT a FROM t1 GROUP BY a;
+a
+NULL
+A
+B
+SELECT a,count(*) FROM t1 GROUP BY a;
+a	count(*)
+NULL	3
+A	5
+B	5
+SELECT a FROM t1 GROUP BY binary a;
+a
+NULL
+A
+B
+a
+b
+SELECT a,count(*) FROM t1 GROUP BY binary a;
+a	count(*)
+NULL	3
+A	4
+B	4
+a	1
+b	1
+SELECT binary a FROM t1 GROUP BY 1;
+binary a
+NULL
+A
+B
+a
+b
+SELECT binary a,count(*) FROM t1 GROUP BY 1;
+binary a	count(*)
+NULL	3
+A	4
+B	4
+a	1
+b	1
+SET SQL_BIG_TABLES=0;
+drop table t1;

@@ -35,7 +35,7 @@ InnoDB */
 
 #define MAX_ULONG_BIT ((ulong) 1 << (sizeof(ulong)*8-1))
 
-#include "ha_innobase.h"
+#include "ha_innodb.h"
 
 /* We must declare this here because we undef SAFE_MUTEX below */
 pthread_mutex_t innobase_mutex;
@@ -2007,6 +2007,24 @@ ha_innobase::index_read(
 
 	DBUG_RETURN(error);
 }
+
+
+/*
+  The following functions works like index_read, but it find the last
+  row with the current index prefix.
+  This code is disabled until Heikki has verified that InnoDB support the
+  HA_READ_PREFIX_LAST flag and removed the HA_NOT_READ_PREFIX_LAST
+  flag from ha_innodb.h
+*/
+
+int
+ha_innobase::index_read_last(mysql_byte *buf,
+			     const mysql_byte *key_ptr,
+			     uint key_len)
+{
+  return index_read(buf, key_ptr, key_len, HA_READ_PREFIX_LAST);
+}
+
 
 /************************************************************************
 Changes the active index of a handle. */

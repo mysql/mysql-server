@@ -27,7 +27,7 @@
 #include "ha_berkeley.h"
 #endif
 #ifdef HAVE_INNOBASE_DB
-#include "ha_innobase.h"
+#include "ha_innodb.h"
 #endif
 #include "ha_myisam.h"
 #include <nisam.h>

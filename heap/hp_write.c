@@ -238,8 +238,10 @@ int _hp_write_key(register HP_SHARE *info, HP_KEYDEF *keyinfo,
       _hp_movelink(pos,gpos,empty);
     }
 
-    /* Check if dupplicated keys */
-    if ((keyinfo->flag & HA_NOSAME) && pos == gpos)
+    /* Check if duplicated keys */
+    if ((keyinfo->flag & HA_NOSAME) && pos == gpos &&
+	(!(keyinfo->flag & HA_NULL_PART_KEY) ||
+	 !hp_if_null_in_key(keyinfo, record)))
     {
       pos=empty;
       do
