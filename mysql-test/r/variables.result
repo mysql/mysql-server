@@ -219,7 +219,21 @@ set convert_character_set=cp1251_koi8;
 set convert_character_set=default;
 set @@global.concurrent_insert=1;
 set global connect_timeout=100;
+select @@delay_key_write;
+@@delay_key_write
+ON
+set global delay_key_write="OFF";
+select @@delay_key_write;
+@@delay_key_write
+OFF
+set global delay_key_write=ALL;
+select @@delay_key_write;
+@@delay_key_write
+ALL
 set global delay_key_write=1;
+select @@delay_key_write;
+@@delay_key_write
+ON
 set global delayed_insert_limit=100;
 set global delayed_insert_timeout=100;
 set global delayed_queue_size=100;

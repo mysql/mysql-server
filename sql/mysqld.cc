@@ -47,6 +47,12 @@
 #define SIGNAL_THD
 #endif
 
+#ifdef PURIFY
+#define IF_PURIFY(A,B) (A)
+#else
+#define IF_PURIFY(A,B) (B)
+#endif
+
 /* stack traces are only supported on linux intel */
 #if defined(__linux__)  && defined(__i386__) && defined(USE_PSTACK)
 #define	HAVE_STACK_TRACE_ON_SEGV
@@ -259,6 +265,7 @@ bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
 bool opt_disable_networking=0, opt_skip_show_db=0;
 bool opt_enable_named_pipe= 0;
 my_bool opt_local_infile, opt_external_locking, opt_slave_compressed_protocol;
+uint delay_key_write_options= (uint) DELAY_KEY_WRITE_ON;
 
 static bool opt_do_pstack = 0;
 static ulong opt_specialflag=SPECIAL_ENGLISH;
@@ -2816,8 +2823,8 @@ enum options {
   OPT_FLUSH,                   OPT_SAFE, 
   OPT_BOOTSTRAP,               OPT_SKIP_SHOW_DB,
   OPT_TABLE_TYPE,              OPT_INIT_FILE,   
-  OPT_DELAY_KEY_WRITE,         OPT_SLOW_QUERY_LOG, 
-  OPT_USE_DELAY_KEY_WRITE,     OPT_CHARSETS_DIR,
+  OPT_DELAY_KEY_WRITE_ALL,     OPT_SLOW_QUERY_LOG, 
+  OPT_DELAY_KEY_WRITE,	       OPT_CHARSETS_DIR,
   OPT_BDB_HOME,                OPT_BDB_LOG,  
   OPT_BDB_TMP,                 OPT_BDB_NOSYNC,
   OPT_BDB_LOCK,                OPT_BDB_SKIP, 
@@ -2994,9 +3001,11 @@ struct my_option my_long_options[] =
   {"default-table-type", OPT_TABLE_TYPE,
    "Set the default table type for tables", 0, 0,
    0, GET_NO_ARG, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"delay-key-write-for-all-tables", OPT_DELAY_KEY_WRITE, 
-   "Don't flush key buffers between writes for any MyISAM table", 0, 0, 0,
-   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"delay-key-write", OPT_DELAY_KEY_WRITE, "Type of DELAY_KEY_WRITE",
+   0,0,0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"delay-key-write-for-all-tables", OPT_DELAY_KEY_WRITE_ALL,
+   "Don't flush key buffers between writes for any MyISAM table (Depricated option, use --delay-key-write=all instead)",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"enable-locking", OPT_ENABLE_LOCK,
    "Depricated option, use --external-locking instead",
    (gptr*) &opt_external_locking, (gptr*) &opt_external_locking,
@@ -3260,10 +3269,6 @@ struct my_option my_long_options[] =
    "Use concurrent insert with MyISAM. Disable with prefix --skip-",
    (gptr*) &myisam_concurrent_insert, (gptr*) &myisam_concurrent_insert,
    0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-  {"delay-key-write", OPT_USE_DELAY_KEY_WRITE,
-   "Use delay_key_write option for all tables. Disable with prefix --skip-",
-   (gptr*) &myisam_delay_key_write, (gptr*) &myisam_delay_key_write, 0,
-   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-grant-tables", OPT_SKIP_GRANT,
    "Start without grant tables. This gives all users FULL ACCESS to all tables!",
    (gptr*) &opt_noacl, (gptr*) &opt_noacl, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
@@ -3335,8 +3340,8 @@ struct my_option my_long_options[] =
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef USE_SYMDIR
   {"use-symbolic-links", 's', "Enable symbolic link support",
-   (gptr*) &my_use_symdir, (gptr*) &my_use_symdir, 0, GET_BOOL, NO_ARG, 0, 0,
-   0, 0, 0, 0},
+   (gptr*) &my_use_symdir, (gptr*) &my_use_symdir, 0, GET_BOOL, NO_ARG,
+   USE_PURIFY(0,1), 0, 0, 0, 0, 0},
 #endif
   {"user", 'u', "Run mysqld daemon as user", (gptr*) &mysqld_user,
    (gptr*) &mysqld_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -3382,7 +3387,7 @@ struct my_option my_long_options[] =
     (gptr*) &connect_timeout, (gptr*) &connect_timeout,
    0, GET_ULONG, REQUIRED_ARG, CONNECT_TIMEOUT, 2, LONG_TIMEOUT, 0, 1, 0 },
   {"delayed_insert_timeout", OPT_DELAYED_INSERT_TIMEOUT,
-   "How long a INSERT DELAYED thread should wait for INSERT statements before terminating.",
+   "Ho wlong a INSERT DELAYED thread should wait for INSERT statements before terminating.",
    (gptr*) &delayed_insert_timeout, (gptr*) &delayed_insert_timeout, 0,
    GET_ULONG, REQUIRED_ARG, DELAYED_WAIT_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0},
   {"delayed_insert_limit", OPT_DELAYED_INSERT_LIMIT,
@@ -4119,22 +4124,22 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case (int) OPT_SKIP_NEW:
     opt_specialflag|= SPECIAL_NO_NEW_FUNC;
-    myisam_delay_key_write=0;
+    delay_key_write_options= (uint) DELAY_KEY_WRITE_NONE;
     myisam_concurrent_insert=0;
     myisam_recover_options= HA_RECOVER_NONE;
     my_disable_symlinks=1;
     my_use_symdir=0;
     have_symlink=SHOW_OPTION_DISABLED;
-    ha_open_options&= ~HA_OPEN_ABORT_IF_CRASHED;
+    ha_open_options&= ~(HA_OPEN_ABORT_IF_CRASHED | HA_OPEN_DELAY_KEY_WRITE);
 #ifdef HAVE_QUERY_CACHE
     query_cache_size=0;
 #endif
     break;
   case (int) OPT_SAFE:
     opt_specialflag|= SPECIAL_SAFE_MODE;
-    myisam_delay_key_write=0;
+    delay_key_write_options= (uint) DELAY_KEY_WRITE_NONE;
     myisam_recover_options= HA_RECOVER_NONE;	// To be changed
-    ha_open_options&= ~HA_OPEN_ABORT_IF_CRASHED;
+    ha_open_options&= ~(HA_OPEN_ABORT_IF_CRASHED | HA_OPEN_DELAY_KEY_WRITE);
     break;
   case (int) OPT_SKIP_PRIOR:
     opt_specialflag|= SPECIAL_NO_PRIOR;
@@ -4239,9 +4244,25 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_SERVER_ID:
     server_id_supplied = 1;
     break;
+  case OPT_DELAY_KEY_WRITE_ALL:
+    if (argument != disabled_my_option)
+      argument= (char*) "ALL";
+    /* Fall through */
   case OPT_DELAY_KEY_WRITE:
-    ha_open_options|=HA_OPEN_DELAY_KEY_WRITE;
-    myisam_delay_key_write=1;
+    if (argument == disabled_my_option)
+      delay_key_write_options= (uint) DELAY_KEY_WRITE_NONE;
+    else if (! argument)
+      delay_key_write_options= (uint) DELAY_KEY_WRITE_ON;
+    else
+    {
+      int type;
+      if ((type=find_type(argument, &delay_key_write_typelib, 2)) <= 0)
+      {
+	fprintf(stderr,"Unknown delay_key_write type: %s\n",argument);
+	exit(1);
+      }
+      delay_key_write_options= (uint) type-1;
+    }
     break;
   case OPT_CHARSETS_DIR:
     strmake(mysql_charsets_dir, argument, sizeof(mysql_charsets_dir)-1);
@@ -4364,18 +4385,22 @@ static void get_options(int argc,char **argv)
 {
   int ho_error;
 
-  myisam_delay_key_write=1;			// Allow use of this
-#ifndef HAVE_purify
-  my_use_symdir=1;				// Use internal symbolic links
-#else
-  /* Symlinks gives too many warnings with purify */
-  my_disable_symlinks=1;
-  my_use_symdir=0;
-  have_symlink=SHOW_OPTION_DISABLED;
-#endif
-
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(ho_error);
+
+#ifdef HAVE_BROKEN_REALPATH
+  my_use_symdir=0;
+  my_disable_symlinks=1;
+  have_symlink=SHOW_OPTION_NO;
+#else
+  if (!my_use_symdir)
+  {
+    my_disable_symlinks=1;
+    have_symlink=SHOW_OPTION_DISABLED;
+  }
+#endif
+  /* Set global MyISAM variables from delay_key_write_options */
+  fix_delay_key_write((THD*) 0, OPT_GLOBAL);
 
   if (mysqld_chroot)
     set_root(mysqld_chroot);
