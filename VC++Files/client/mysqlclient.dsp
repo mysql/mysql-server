@@ -266,6 +266,7 @@ SOURCE=..\mysys\my_alloc.c
 # Begin Source File
 
 SOURCE=..\mysys\my_compress.c
+# ADD CPP /I "../zlib"
 # End Source File
 # Begin Source File
 

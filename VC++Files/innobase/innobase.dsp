@@ -37,8 +37,8 @@ RSC=rc.exe
 # PROP BASE Target_Dir ""
 # PROP Use_MFC 0
 # PROP Use_Debug_Libraries 0
-# PROP Output_Dir "innobase___Win32_Debug"
-# PROP Intermediate_Dir "innobase___Win32_Debug"
+# PROP Output_Dir "debug"
+# PROP Intermediate_Dir "debug"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /D "NDEBUG" /D "_LIB" /D "_WIN32" /D "__NT__" /D "WIN32" /D "_MBCS" /YX /FD /c
 # ADD CPP /nologo /G6 /MTd /W3 /GX /Z7 /O2 /I "../innobase/include" /I "../include" /D "NDEBUG" /D "_LIB" /D "_WIN32" /D "__NT__" /D "WIN32" /D "_MBCS" /D "MYSQL_SERVER" /YX /FD /c
@@ -60,8 +60,8 @@ LIB32=link.exe -lib
 # PROP BASE Target_Dir ""
 # PROP Use_MFC 0
 # PROP Use_Debug_Libraries 0
-# PROP Output_Dir "innobase___Win32_Release0"
-# PROP Intermediate_Dir "innobase___Win32_Release0"
+# PROP Output_Dir "release"
+# PROP Intermediate_Dir "release"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../include" /D "NDEBUG" /D "_LIB" /D "_WIN32" /D "WIN32" /D "_MBCS" /D "MYSQL_SERVER" /YX /FD /c
 # ADD CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../include" /D "NDEBUG" /D "_LIB" /D "_WIN32" /D "WIN32" /D "_MBCS" /D "MYSQL_SERVER" /YX /FD /c

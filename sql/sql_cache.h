@@ -170,16 +170,16 @@ struct Query_cache_result
 };
 
 
-extern "C" {
+extern "C"
+{
   byte *query_cache_query_get_key(const byte *record, uint *length,
 				  my_bool not_used);
   byte *query_cache_table_get_key(const byte *record, uint *length,
 				  my_bool not_used);
-  void query_cache_insert(THD *thd, const char *packet, ulong length);
-  void query_cache_end_of_result(THD *thd);
-  void query_cache_abort(THD *thd);
-  void query_cache_invalidate_by_MyISAM_filename(const char* filename);
 }
+void query_cache_insert(NET *thd, const char *packet, ulong length);
+void query_cache_invalidate_by_MyISAM_filename(const char* filename);
+
 
 struct Query_cache_memory_bin
 {
@@ -401,7 +401,6 @@ protected:
 
 extern Query_cache query_cache;
 extern TYPELIB query_cache_type_typelib;
-void query_cache_insert(NET *net, const char *packet, ulong length);
 void query_cache_end_of_result(NET *net);
 void query_cache_abort(NET *net);
 
