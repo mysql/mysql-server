@@ -903,6 +903,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
 
   key_info= table->key_info;
   file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK | HA_STATUS_TIME);
+  bzero((char*) &create_info, sizeof(create_info));
   file->update_create_info(&create_info);
   primary_key= table->primary_key;
 
@@ -1005,10 +1006,12 @@ store_create_info(THD *thd, TABLE *table, String *packet)
   }
   if (file->raid_type)
   {
-    sprintf(buff," RAID_TYPE=%s RAID_CHUNKS=%d RAID_CHUNKSIZE=%ld",
-            my_raid_type(file->raid_type), file->raid_chunks,
-	    file->raid_chunksize/RAID_BLOCK_SIZE);
-    packet->append(buff);
+    uint length;
+    length= my_snprintf(buff,sizeof(buff),
+			" RAID_TYPE=%s RAID_CHUNKS=%d RAID_CHUNKSIZE=%ld",
+			my_raid_type(file->raid_type), file->raid_chunks,
+			file->raid_chunksize/RAID_BLOCK_SIZE);
+    packet->append(buff, length);
   }
   append_directory(thd, packet, "DATA",  create_info.data_file_name);
   append_directory(thd, packet, "INDEX", create_info.index_file_name);

@@ -57,10 +57,8 @@ int mi_lock_database(MI_INFO *info, int lock_type)
       DBUG_PRINT("info", ("old lock: %d", info->lock_type));
       if (info->lock_type == F_RDLCK)
 	count= --share->r_locks;
-      else if (info->lock_type == F_WRLCK)
-	count= --share->w_locks;
       else
-	count= 1;				/* F_EXTRA_LCK */
+	count= --share->w_locks;
       --share->tot_locks;
       if (info->lock_type == F_WRLCK && !share->w_locks &&
 	  !share->delay_key_write && flush_key_blocks(share->kfile,FLUSH_KEEP))
@@ -110,19 +108,22 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	  if (error)
 	    mi_mark_crashed(info);
 	}
-	if (share->r_locks)
-	{					/* Only read locks left */
-	  flag=1;
-	  if (my_lock(share->kfile,F_RDLCK,0L,F_TO_EOF,
-		      MYF(MY_WME | MY_SEEK_NOT_DONE)) && !error)
-	    error=my_errno;
-	}
-	else if (!share->w_locks)
-	{					/* No more locks */
-	  flag=1;
-	  if (my_lock(share->kfile,F_UNLCK,0L,F_TO_EOF,
-		      MYF(MY_WME | MY_SEEK_NOT_DONE)) && !error)
-	    error=my_errno;
+	if (info->lock_type != F_EXTRA_LCK)
+	{
+	  if (share->r_locks)
+	  {					/* Only read locks left */
+	    flag=1;
+	    if (my_lock(share->kfile,F_RDLCK,0L,F_TO_EOF,
+			MYF(MY_WME | MY_SEEK_NOT_DONE)) && !error)
+	      error=my_errno;
+	  }
+	  else if (!share->w_locks)
+	  {					/* No more locks */
+	    flag=1;
+	    if (my_lock(share->kfile,F_UNLCK,0L,F_TO_EOF,
+			MYF(MY_WME | MY_SEEK_NOT_DONE)) && !error)
+	      error=my_errno;
+	  }
 	}
       }
       info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
