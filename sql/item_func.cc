@@ -264,7 +264,7 @@ Item_func::Item_func(THD *thd, Item_func *item)
     Sets as a side effect the following class variables:
       maybe_null	Set if any argument may return NULL
       with_sum_func	Set if any of the arguments contains a sum function
-      used_table_cache  Set to union of the arguments used table
+      used_tables_cache Set to union of the tables used by arguments
 
       str_value.charset If this is a string function, set this to the
 			character set for the first argument.
