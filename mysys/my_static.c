@@ -61,7 +61,7 @@ USED_MEM* my_once_root_block=0;			/* pointer to first block */
 uint	  my_once_extra=ONCE_ALLOC_INIT;	/* Memory to alloc / block */
 
 	/* from my_tempnam */
-#ifndef HAVE_TEMPNAM
+#if !defined(HAVE_TEMPNAM) || defined(HPUX11)
 int _my_tempnam_used=0;
 #endif
 

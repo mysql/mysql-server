@@ -641,7 +641,7 @@ bool analyse::end_of_records()
       case FIELD_TYPE_DECIMAL:
 	ans.append("DECIMAL", 7);
 	// if item is FIELD_ITEM, it _must_be_ Field_num in this case
-	if (((Field_num*) (*f)->item)->zerofill)
+	if (((Field_num*) ((Item_field*) (*f)->item)->field)->zerofill)
 	  ans.append(" ZEROFILL");
 	break;
       default:
