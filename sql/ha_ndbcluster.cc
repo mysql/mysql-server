@@ -328,7 +328,7 @@ void ha_ndbcluster::no_uncommitted_rows_reset(THD *thd)
     #   The mapped error code
 */
 
-void ha_ndbcluster::invalidateCache()
+void ha_ndbcluster::invalidateDictionaryCache()
 {
   NDBDICT *dict= get_ndb()->getDictionary();
   DBUG_PRINT("info", ("invalidating %s", m_tabname));
@@ -341,8 +341,7 @@ void ha_ndbcluster::invalidateCache()
     NDBINDEX *unique_index = (NDBINDEX *) m_index[i].unique_index;
     NDB_INDEX_TYPE idx_type= m_index[i].type;
 
-    
-    switch(m_index[i].type) {
+    switch(idx_type) {
     case(PRIMARY_KEY_ORDERED_INDEX):
     case(ORDERED_INDEX):
       dict->invalidateIndex(index->getName(), m_tabname);
@@ -369,7 +368,7 @@ int ha_ndbcluster::ndb_err(NdbConnection *trans)
   switch (err.classification) {
   case NdbError::SchemaError:
   {
-    invalidateCache();
+    invalidateDictionaryCache();
     break;
   }
   default:
@@ -759,7 +758,7 @@ int ha_ndbcluster::get_metadata(const char *path)
       if (!invalidating_ndb_table)
       {
 	DBUG_PRINT("info", ("Invalidating table"));
-        invalidateCache();
+        invalidateDictionaryCache();
 	invalidating_ndb_table= TRUE;
       }
       else
