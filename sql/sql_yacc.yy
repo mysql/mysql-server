@@ -1797,8 +1797,12 @@ alter_list_item:
 			 $5->name,$4->csname);
 	      YYABORT;
 	    }
-	    Lex->create_info.table_charset= $5;
-	    Lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;  
+	    LEX *lex= Lex;
+	    lex->create_info.table_charset= $5;
+	    lex->create_info.used_fields|= HA_CREATE_USED_CHARSET;  
+	    lex->create_info.default_table_charset= $5;
+	    lex->create_info.used_fields|= HA_CREATE_USED_DEFAULT_CHARSET;
+	    lex->simple_alter= 0;
 	  }
         | create_table_options_space_separated { Lex->simple_alter=0; }
 	| order_clause         { Lex->simple_alter=0; };

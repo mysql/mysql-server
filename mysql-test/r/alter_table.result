@@ -360,7 +360,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(10) character set koi8r default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-alter table t1 CONVERT TO CHARACTER SET latin1, DEFAULT CHARACTER SET latin1;
+alter table t1 CONVERT TO CHARACTER SET latin1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
