@@ -831,7 +831,8 @@ my_bool handle_local_infile(MYSQL *mysql, const char *net_filename)
   }
 
   /* initialize local infile (open file, usually) */
-  if ((*options->local_infile_init)(&li_ptr, net_filename))
+  if ((*options->local_infile_init)(&li_ptr, net_filename,
+    options->local_infile_userdata))
   {
     my_net_write(net,"",0);		/* Server needs one packet */
     net_flush(net);
@@ -915,7 +916,8 @@ typedef struct st_default_local_infile
     1	error
 */
 
-static int default_local_infile_init(void **ptr, const char *filename)
+static int default_local_infile_init(void **ptr, const char *filename,
+             void *userdata __attribute__ ((unused)))
 {
   default_local_infile_data *data;
   char tmp_name[FN_REFLEN];
@@ -1025,15 +1027,18 @@ default_local_infile_error(void *ptr, char *error_msg, uint error_msg_len)
 
 void
 mysql_set_local_infile_handler(MYSQL *mysql,
-                               int (*local_infile_init)(void **, const char *),
+                               int (*local_infile_init)(void **, const char *,
+                               void *),
                                int (*local_infile_read)(void *, char *, uint),
                                void (*local_infile_end)(void *),
-                               int (*local_infile_error)(void *, char *, uint))
+                               int (*local_infile_error)(void *, char *, uint),
+                               void *userdata)
 {
   mysql->options.local_infile_init=  local_infile_init;
   mysql->options.local_infile_read=  local_infile_read;
   mysql->options.local_infile_end=   local_infile_end;
   mysql->options.local_infile_error= local_infile_error;
+  mysql->options.local_infile_userdata = userdata;
 }
 
 
