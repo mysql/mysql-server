@@ -500,6 +500,9 @@ count(*)
 select count(*) from t1 where x > -16;
 count(*)
 2
+select count(*) from t1 where x = 18446744073709551601;
+count(*)
+1
 create table t2 (x bigint not null);
 insert into t2(x) values (0xfffffffffffffff0);
 insert into t2(x) values (0xfffffffffffffff1);
@@ -525,6 +528,9 @@ count(*)
 select count(*) from t2 where x > -16;
 count(*)
 1
+select count(*) from t2 where x = 18446744073709551601;
+count(*)
+0
 drop table t1;
 create table t1 (x bigint unsigned not null primary key) engine=innodb;
 insert into t1(x) values (0xfffffffffffffff0);
@@ -549,6 +555,9 @@ select count(*) from t1 where x = -16;
 count(*)
 0
 select count(*) from t1 where x > -16;
+count(*)
+1
+select count(*) from t1 where x = 18446744073709551601;
 count(*)
 1
 drop table t1;
