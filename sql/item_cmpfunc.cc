@@ -687,6 +687,8 @@ String *Item_func_case::val_str(String *str)
   }
   if (!(res=item->val_str(str)))
     null_value=1;
+  else
+    null_value=item->null_value;
   return res;
 }
 
