@@ -1888,6 +1888,7 @@ b1:        str->append((char)(num>>8));
 #endif
       str->append((char)num);
   }
+  str->set_charset(collation.collation);
   str->realloc(str->length());			// Add end 0 (for Purify)
   return str;
 }
