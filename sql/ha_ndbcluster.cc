@@ -183,6 +183,14 @@ void ha_ndbcluster::records_update()
   DBUG_VOID_RETURN;
 }
 
+void ha_ndbcluster::no_uncommitted_rows_execute_failure()
+{
+  DBUG_ENTER("ha_ndbcluster::no_uncommitted_rows_execute_failure");
+  struct Ndb_table_local_info *info= (struct Ndb_table_local_info *)m_table_info;
+  info->no_uncommitted_rows_count= 0;
+  DBUG_VOID_RETURN;
+}
+
 void ha_ndbcluster::no_uncommitted_rows_init(THD *thd)
 {
   DBUG_ENTER("ha_ndbcluster::no_uncommitted_rows_init");
@@ -1576,6 +1584,7 @@ int ha_ndbcluster::write_row(byte *record)
       if (trans->execute(NoCommit) != 0)
       {
 	skip_auto_increment= true;
+	no_uncommitted_rows_execute_failure();
 	DBUG_RETURN(ndb_err(trans));
       }
     }
@@ -1584,6 +1593,7 @@ int ha_ndbcluster::write_row(byte *record)
       if (trans->execute(Commit) != 0)
       {
 	skip_auto_increment= true;
+	no_uncommitted_rows_execute_failure();
 	DBUG_RETURN(ndb_err(trans));
       }
       trans->restart();
@@ -1746,8 +1756,10 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
   }
 
   // Execute update operation
-  if (!cursor && trans->execute(NoCommit) != 0)
+  if (!cursor && trans->execute(NoCommit) != 0) {
+    no_uncommitted_rows_execute_failure();
     DBUG_RETURN(ndb_err(trans));
+  }
   
   DBUG_RETURN(0);
 }
@@ -1814,8 +1826,10 @@ int ha_ndbcluster::delete_row(const byte *record)
   }
   
   // Execute delete operation
-  if (trans->execute(NoCommit) != 0)
+  if (trans->execute(NoCommit) != 0) {
+    no_uncommitted_rows_execute_failure();
     DBUG_RETURN(ndb_err(trans));
+  }
   DBUG_RETURN(0);
 }
   
@@ -2227,8 +2241,10 @@ int ha_ndbcluster::close_scan()
       deleteing/updating transaction before closing the scan    
     */
     DBUG_PRINT("info", ("ops_pending: %d", ops_pending));    
-    if (trans->execute(NoCommit) != 0)
+    if (trans->execute(NoCommit) != 0) {
+      no_uncommitted_rows_execute_failure();
       DBUG_RETURN(ndb_err(trans));
+    }
     ops_pending= 0;
   }
   
@@ -2532,8 +2548,10 @@ int ha_ndbcluster::end_bulk_insert()
                         "rows_inserted:%d, bulk_insert_rows: %d", 
                         rows_inserted, bulk_insert_rows)); 
     bulk_insert_not_flushed= false;
-    if (trans->execute(NoCommit) != 0)
+    if (trans->execute(NoCommit) != 0) {
+      no_uncommitted_rows_execute_failure();
       my_errno= error= ndb_err(trans);
+    }
   }
 
   rows_inserted= 0;
