@@ -533,7 +533,7 @@ drop procedure hndlr4;
 create procedure cur1()
 begin
 declare done int default 0;
-declare continue handler for 1305 set done = 1;
+declare continue handler for 1306 set done = 1;
 declare c cursor for select * from test.t2;
 declare a char(16);
 declare b int;
@@ -560,7 +560,7 @@ create table t3 ( s char(16), i int );
 create procedure cur2()
 begin
 declare done int default 0;
-declare continue handler for 1305 set done = 1;
+declare continue handler for 1306 set done = 1;
 declare c1 cursor for select id,data from test.t1;
 declare c2 cursor for select i from test.t2;
 open c1;

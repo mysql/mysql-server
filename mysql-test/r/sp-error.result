@@ -35,7 +35,7 @@ call foo();
 ERROR HY000: PROCEDURE foo does not exist
 drop procedure if exists foo;
 Warnings:
-Warning	1281	PROCEDURE foo does not exist
+Warning	1282	PROCEDURE foo does not exist
 create procedure foo()
 foo: loop
 leave bar;

@@ -3024,6 +3024,8 @@ mysql_execute_command(THD *thd)
       if (!(res = mysql_create_function(thd,&lex->udf)))
 	send_ok(thd);
 #else
+      res= -1;
+#endif
     break;
     }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -3344,7 +3346,7 @@ mysql_execute_command(THD *thd)
 	LINT_INIT(smrx);
 
 	// In case the arguments are subselects...
-	if (tables && ((res= check_table_access(thd, SELECT_ACL, tables)) ||
+	if (tables && ((res= check_table_access(thd, SELECT_ACL, tables, 0)) ||
 		       (res= open_and_lock_tables(thd, tables))))
 	{
 	  break;
@@ -3425,7 +3427,7 @@ mysql_execute_command(THD *thd)
 	  udf_func *udf = find_udf(lex->udf.name.str, lex->udf.name.length);
 	  if (udf)
 	  {
-	    if (check_access(thd, DELETE_ACL, "mysql", 0, 1))
+	    if (check_access(thd, DELETE_ACL, "mysql", 0, 1, 0))
 	      goto error;
 	    if (!(res = mysql_drop_function(thd,&lex->udf.name)))
 	    {
