@@ -17,7 +17,7 @@
 
 include ../include/Makefile.i
 
-libs_LIBRARIES =	libfil.a
+noinst_LIBRARIES =	libfil.a
 
 libfil_a_SOURCES =	fil0fil.c
 

@@ -17,7 +17,7 @@
 
 include ../include/Makefile.i
 
-libs_LIBRARIES =	libut.a
+noinst_LIBRARIES =	libut.a
 
 libut_a_SOURCES =	ut0byte.c ut0dbg.c ut0mem.c ut0rnd.c ut0ut.c
 

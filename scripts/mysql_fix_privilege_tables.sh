@@ -1,14 +1,5 @@
 #!/bin/sh
 
-echo "This scripts updates the mysql.user, mysql.db, mysql.host and the"
-echo "mysql.func tables to MySQL 3.22.14 and above."
-echo ""
-echo "This is needed if you want to use the new GRANT functions,"
-echo "CREATE AGGREGATE FUNCTION or want to use the more secure passwords in 3.23"
-echo ""
-echo "If you get 'Access denied' errors, you should run this script again"
-echo "and give the MySQL root user password as an argument!"
-
 root_password="$1"
 host="localhost"
 user="root"
@@ -19,6 +10,21 @@ else
   root_password="$1"
   cmd="@bindir@/mysql -f --user=$user --password=$root_password --host=$host mysql"
 fi
+
+# Debian addition
+if [ "$1" = "--sql-only" ]; then
+  root_password=""
+  cmd="/usr/share/mysql/echo_stderr"
+fi
+
+echo "This scripts updates the mysql.user, mysql.db, mysql.host and the"
+echo "mysql.func tables to MySQL 3.22.14 and above."
+echo ""
+echo "This is needed if you want to use the new GRANT functions,"
+echo "CREATE AGGREGATE FUNCTION or want to use the more secure passwords in 3.23"
+echo ""
+echo "If you get 'Access denied' errors, you should run this script again"
+echo "and give the MySQL root user password as an argument!"
 
 echo "Converting all privilege tables to MyISAM format"
 $cmd <<END_OF_DATA
