@@ -117,6 +117,7 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds, SQL_LIST *order,
 
     bzero((char*) &tables,sizeof(tables));
     tables.table = table;
+    tables.alias = table_list->alias;
 
     table->sort.io_cache = (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
                                              MYF(MY_FAE | MY_ZEROFILL));
