@@ -10,6 +10,7 @@
 .gdb_history
 .libs
 .o
+db-*.*.*
 BitKeeper/etc/config
 BitKeeper/etc/csets
 BitKeeper/etc/csets-in
