@@ -2454,7 +2454,7 @@ QUICK_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table, TABLE_REF *ref)
   if (cp_buffer_from_ref(ref))
   {
     if (thd->fatal_error)
-      return 0;					// out of memory
+      goto err;					// out of memory
     return quick;				// empty range
   }
 

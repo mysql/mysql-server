@@ -941,7 +941,8 @@ static void mysql_read_default_options(struct st_mysql_options *options,
 	  options->rpl_parse= 1;
 	  break;
 	case 27:
-	  options->max_allowed_packet= atoi(opt_arg);
+          if (opt_arg)
+            options->max_allowed_packet= atoi(opt_arg);
 	  break;
 	default:
 	  DBUG_PRINT("warning",("unknown option: %s",option[0]));
