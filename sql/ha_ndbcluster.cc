@@ -144,10 +144,17 @@ static int ndb_to_mysql_error(const NdbError *err)
       // Push the NDB error message as warning
       push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
 			  ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
-			  err->code, err->message, "NDB");      
+			  err->code, err->message, "NDB");
       return err->code;
     }
   }
+  // Push the NDB error message as warning
+  // this since e.g. HA_ERR_RECORD_FILE_FULL maps to
+  // several error codes in NDB, and the uses needs
+  // to know which one it is
+  push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+		      ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
+		      err->code, err->message, "NDB");
   return err_map[i].my_err;
 }
 
