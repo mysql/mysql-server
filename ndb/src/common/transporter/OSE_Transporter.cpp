@@ -51,10 +51,10 @@ OSE_Transporter::OSE_Transporter(int _prioASignalSize,
   prioBSignalSize = _prioBSignalSize;
   
   if (strcmp(lHostName, rHostName) == 0){    
-    snprintf(remoteNodeName, sizeof(remoteNodeName), 
+    BaseString::snprintf(remoteNodeName, sizeof(remoteNodeName), 
              "ndb_node%d", remoteNodeId);
   } else {
-    snprintf(remoteNodeName, sizeof(remoteNodeName), 
+    BaseString::snprintf(remoteNodeName, sizeof(remoteNodeName), 
              "%s/ndb_node%d", rHostName, remoteNodeId); 
   }
   

@@ -221,6 +221,7 @@ int insertFile(Ndb* pNdb,
 
 
 int main(int argc, const char** argv){
+  ndb_init();
 
   const char* _tabname = NULL;
   int _help = 0;
@@ -262,7 +263,7 @@ int main(int argc, const char** argv){
   }
   
   char buf[255];
-  snprintf(buf, sizeof(buf), "%s.data", (const char*)_tabname);
+  BaseString::snprintf(buf, sizeof(buf), "%s.data", (const char*)_tabname);
   if (insertFile(&MyNdb, pTab, buf) != 0){
     return NDBT_ProgramExit(NDBT_FAILED);
   }

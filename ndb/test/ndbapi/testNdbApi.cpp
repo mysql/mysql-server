@@ -229,7 +229,7 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
     int i = 0;
     while (errors < maxErrors){
       
-      if(hugoOps.pkReadRecord(pNdb,1, false, 1) != NDBT_OK){
+      if(hugoOps.pkReadRecord(pNdb,1, 1) != NDBT_OK){
 	errors++;
 	continue;
       }
@@ -1006,6 +1006,7 @@ TESTCASE("NdbErrorOperation",
 NDBT_TESTSUITE_END(testNdbApi);
 
 int main(int argc, const char** argv){
+  ndb_init();
   //  TABLE("T1");
   return testNdbApi.execute(argc, argv);
 }

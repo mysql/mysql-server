@@ -82,6 +82,12 @@ public:
    */
   int getNoOfRunningSteps() const ;
   int getNoOfCompletedSteps() const ;
+
+  /**
+   * Thread sync
+   */
+  void sync_down(const char * key);
+  void sync_up_and_wait(const char * key, Uint32 count = 0);
 private:
   friend class NDBT_Step;
   friend class NDBT_TestSuite;
@@ -245,7 +251,7 @@ public:
       // Convert to Uint32 in order to be able to print it to screen
     Uint32 lapTime = (Uint32)m_ticks;
     Uint32 secTime = lapTime/1000;
-    snprintf(buf, 255, "%d secs (%d ms)", secTime, lapTime);
+    BaseString::snprintf(buf, 255, "%d secs (%d ms)", secTime, lapTime);
     return buf;
   }
 private:

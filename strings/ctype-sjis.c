@@ -4534,6 +4534,70 @@ my_mb_wc_sjis(CHARSET_INFO *cs  __attribute__((unused)),
   return 2;
 }
 
+static
+uint my_numcells_sjis(CHARSET_INFO *cs __attribute__((unused)),
+                      const char *str, const char *strend)
+{
+  uint clen= 0;
+  const unsigned char *b= (const unsigned char *) str;
+  const unsigned char *e= (const unsigned char *) strend;
+  
+  for (clen= 0; b < e; )
+  {
+    if (*b >= 0xA1 && *b <= 0xDF)
+    {
+      clen++;
+      b++;
+    }
+    else if (*b > 0x7F)
+    {
+      clen+= 2;
+      b+= 2;
+    }
+    else
+    {
+      clen++;
+      b++;
+    }
+  }
+  return clen;
+}
+
+/*
+  Returns a well formed length of a SJIS string.
+  CP932 additional characters are also accepted.
+*/
+static
+uint my_well_formed_len_sjis(CHARSET_INFO *cs __attribute__((unused)),
+                             const char *b, const char *e, uint pos)
+{
+  const char *b0= b;
+  while (pos && b < e)
+  {
+    /*
+      Cast to int8 for extra safety.
+      "char" can be unsigned by default
+      on some platforms.
+    */
+    if (((int8)b[0]) >= 0)
+    {
+      /* Single byte character */
+      b+= 1;
+    }
+    else  if (issjishead((uchar)*b) && (e-b)>1 && issjistail((uchar)b[1]))
+    {
+      /* Double byte character */
+      b+= 2;
+    }
+    else
+    {
+      /* Wrong byte sequence */
+      break;
+    }
+  }
+  return b - b0;
+}
+
 
 static MY_COLLATION_HANDLER my_collation_ci_handler =
 {
@@ -4556,9 +4620,9 @@ static MY_CHARSET_HANDLER my_charset_handler=
   mbcharlen_sjis,
   my_numchars_mb,
   my_charpos_mb,
-  my_well_formed_len_mb,
+  my_well_formed_len_sjis,
   my_lengthsp_8bit,
-  my_numcells_mb,
+  my_numcells_sjis,
   my_mb_wc_sjis,	/* mb_wc */
   my_wc_mb_sjis,	/* wc_mb */
   my_caseup_str_8bit,
@@ -4574,6 +4638,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
   my_strntoll_8bit,
   my_strntoull_8bit,
   my_strntod_8bit,
+  my_strtoll10_8bit,
   my_scan_8bit
 };
 

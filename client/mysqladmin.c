@@ -25,7 +25,7 @@
 #include <sys/stat.h>
 #include <mysql.h>
 
-#define ADMIN_VERSION "8.40"
+#define ADMIN_VERSION "8.41"
 #define MAX_MYSQL_VAR 256
 #define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
@@ -209,6 +209,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       while (*argument) *argument++= 'x';		/* Destroy argument */
       if (*start)
 	start[1]=0;				/* Cut length of argument */
+      tty_password= 0;
     }
     else
       tty_password=1;
@@ -268,7 +269,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 
 int main(int argc,char *argv[])
 {
-  int error, ho_error;
+  int error= 0, ho_error;
   MYSQL mysql;
   char **commands, **save_argv;
 
@@ -313,10 +314,25 @@ int main(int argc,char *argv[])
     mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
   if (sql_connect(&mysql, option_wait))
-    error = 1;
+  {
+    unsigned int err= mysql_errno(&mysql);
+    if (err >= CR_MIN_ERROR && err <= CR_MAX_ERROR)
+      error= 1;
+    else
+    {
+      /* Return 0 if all commands are PING */
+      for (; argc > 0; argv++, argc--)
+      {
+        if (find_type(argv[0], &command_typelib, 2) != ADMIN_PING)
+        {
+          error= 1;
+          break;
+        }
+      }
+    }
+  }
   else
   {
-    error = 0;
     while (!interrupted && (!opt_count_iterations || nr_iterations))
     {
       new_line = 0;

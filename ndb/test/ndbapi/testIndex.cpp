@@ -150,7 +150,7 @@ int create_index(NDBT_Context* ctx, int indxNum,
   }
 
   // Create index    
-  snprintf(idxName, 255, "IDC%d", indxNum);
+  BaseString::snprintf(idxName, 255, "IDC%d", indxNum);
   if (orderedIndex)
     ndbout << "Creating " << ((logged)?"logged ": "temporary ") << "ordered index "<<idxName << " (";
   else
@@ -194,7 +194,7 @@ int drop_index(int indxNum, Ndb* pNdb,
   if (attr->indexCreated == false)
     return NDBT_OK;	
 
-  snprintf(idxName, 255, "IDC%d", indxNum);
+  BaseString::snprintf(idxName, 255, "IDC%d", indxNum);
   
   // Drop index
   ndbout << "Dropping index "<<idxName<<"(" << pTab->getName() << ") ";
@@ -284,7 +284,7 @@ int createRandomIndex_Drop(NDBT_Context* ctx, NDBT_Step* step){
 
   Uint32 i = ctx->getProperty("createRandomIndex");
   
-  snprintf(idxName, 255, "IDC%d", i);
+  BaseString::snprintf(idxName, 255, "IDC%d", i);
   
   // Drop index
   ndbout << "Dropping index " << idxName << " ";
@@ -309,7 +309,7 @@ int createPkIndex(NDBT_Context* ctx, NDBT_Step* step){
   bool logged = ctx->getProperty("LoggedIndexes", 1);
 
   // Create index    
-  snprintf(pkIdxName, 255, "IDC_PK_%s", pTab->getName());
+  BaseString::snprintf(pkIdxName, 255, "IDC_PK_%s", pTab->getName());
   if (orderedIndex)
     ndbout << "Creating " << ((logged)?"logged ": "temporary ") << "ordered index "
 	   << pkIdxName << " (";
@@ -381,27 +381,6 @@ runVerifyIndex(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int
-sync_down(NDBT_Context* ctx){
-  Uint32 threads = ctx->getProperty("PauseThreads", (unsigned)0);
-  if(threads){
-    ctx->decProperty("PauseThreads");
-  }
-  return 0;
-}
-
-int
-sync_up_and_wait(NDBT_Context* ctx){
-  Uint32 threads = ctx->getProperty("Threads", (unsigned)0);
-  ndbout_c("Setting PauseThreads to %d", threads);
-  ctx->setProperty("PauseThreads", threads);
-  ctx->getPropertyWait("PauseThreads", (unsigned)0);
-  if(threads){
-    ndbout_c("wait completed");
-  }
-  return 0;
-}
-
-int
 runTransactions1(NDBT_Context* ctx, NDBT_Step* step){
   // Verify that data in index match 
   // table data
@@ -416,7 +395,7 @@ runTransactions1(NDBT_Context* ctx, NDBT_Step* step){
       return NDBT_FAILED;
     }    
 
-    sync_down(ctx);
+    ctx->sync_down("PauseThreads");
     if(ctx->isTestStopped())
       break;
     
@@ -425,7 +404,7 @@ runTransactions1(NDBT_Context* ctx, NDBT_Step* step){
       return NDBT_FAILED;
     }    
     
-    sync_down(ctx);
+    ctx->sync_down("PauseThreads");
   }
   return NDBT_OK;
 }
@@ -446,7 +425,7 @@ runTransactions2(NDBT_Context* ctx, NDBT_Step* step){
       return NDBT_FAILED;
     }
 #endif
-    sync_down(ctx);
+    ctx->sync_down("PauseThreads");
     if(ctx->isTestStopped())
       break;
 #if 1
@@ -455,7 +434,7 @@ runTransactions2(NDBT_Context* ctx, NDBT_Step* step){
       return NDBT_FAILED;
     }
 #endif
-    sync_down(ctx);
+    ctx->sync_down("PauseThreads");
   }
   return NDBT_OK;
 }
@@ -476,7 +455,7 @@ runTransactions3(NDBT_Context* ctx, NDBT_Step* step){
       g_err << "Load table failed" << endl;
       return NDBT_FAILED;
     }
-    sync_down(ctx);
+    ctx->sync_down("PauseThreads");
     if(ctx->isTestStopped())
       break;
 
@@ -485,7 +464,7 @@ runTransactions3(NDBT_Context* ctx, NDBT_Step* step){
       return NDBT_FAILED;
     }    
 
-    sync_down(ctx);
+    ctx->sync_down("PauseThreads");
     if(ctx->isTestStopped())
       break;
     
@@ -494,7 +473,7 @@ runTransactions3(NDBT_Context* ctx, NDBT_Step* step){
       return NDBT_FAILED;
     }
     
-    sync_down(ctx);
+    ctx->sync_down("PauseThreads");
     if(ctx->isTestStopped())
       break;
     
@@ -503,7 +482,7 @@ runTransactions3(NDBT_Context* ctx, NDBT_Step* step){
       return NDBT_FAILED;
     }
     
-    sync_down(ctx);
+    ctx->sync_down("PauseThreads");
     if(ctx->isTestStopped())
       break;
 
@@ -512,7 +491,7 @@ runTransactions3(NDBT_Context* ctx, NDBT_Step* step){
       return NDBT_FAILED;
     }
 
-    sync_down(ctx);
+    ctx->sync_down("PauseThreads");
     if(ctx->isTestStopped())
       break;
 
@@ -521,14 +500,14 @@ runTransactions3(NDBT_Context* ctx, NDBT_Step* step){
       return NDBT_FAILED;
     }
 
-    sync_down(ctx);
+    ctx->sync_down("PauseThreads");
     if(ctx->isTestStopped())
       break;
     
     int count = -1;
     if(utilTrans.selectCount(pNdb, 64, &count) != 0 || count != 0)
       return NDBT_FAILED;
-    sync_down(ctx);
+    ctx->sync_down("PauseThreads");
   }
   return NDBT_OK;
 }
@@ -540,6 +519,7 @@ int runRestarts(NDBT_Context* ctx, NDBT_Step* step){
   NdbRestarts restarts;
   int i = 0;
   int timeout = 240;
+  int sync_threads = ctx->getProperty("Threads", (unsigned)0);
 
   while(i<loops && result != NDBT_FAILED && !ctx->isTestStopped()){
     if(restarts.executeRestart("RestartRandomNodeAbort", timeout) != 0){
@@ -547,7 +527,7 @@ int runRestarts(NDBT_Context* ctx, NDBT_Step* step){
       result = NDBT_FAILED;
       break;
     }    
-    sync_up_and_wait(ctx);
+    ctx->sync_up_and_wait("PauseThreads", sync_threads);
     i++;
   }
   ctx->stopTest();
@@ -1088,7 +1068,7 @@ runUniqueNullTransactions(NDBT_Context* ctx, NDBT_Step* step){
   const NdbDictionary::Table* pTab = ctx->getTab();
   // Create index    
   char nullIndex[255];
-  snprintf(nullIndex, 255, "IDC_PK_%s_NULL", pTab->getName());
+  BaseString::snprintf(nullIndex, 255, "IDC_PK_%s_NULL", pTab->getName());
   if (orderedIndex)
     ndbout << "Creating " << ((logged)?"logged ": "temporary ") << "ordered index "
 	   << pkIdxName << " (";
@@ -1528,6 +1508,7 @@ TESTCASE("UniqueNull",
 NDBT_TESTSUITE_END(testIndex);
 
 int main(int argc, const char** argv){
+  ndb_init();
   return testIndex.execute(argc, argv);
 }
 

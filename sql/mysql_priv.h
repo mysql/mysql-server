@@ -280,6 +280,7 @@ extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 #define MODE_INVALID_DATES		(MODE_NO_ZERO_DATE*2)
 #define MODE_ERROR_FOR_DIVISION_BY_ZERO (MODE_INVALID_DATES*2)
 #define MODE_TRADITIONAL		(MODE_ERROR_FOR_DIVISION_BY_ZERO*2)
+#define MODE_NO_AUTO_CREATE_USER	(MODE_TRADITIONAL*2)
 
 #define RAID_BLOCK_SIZE 1024
 
@@ -331,14 +332,6 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 #define WEEK_MONDAY_FIRST    1
 #define WEEK_YEAR            2
 #define WEEK_FIRST_WEEKDAY   4
-/*
-  Required buffer length for make_date, make_time, make_datetime
-  and TIME_to_string functions. Note, that the caller is still
-  responsible to check that given TIME structure has values
-  in valid ranges, otherwise size of the buffer could be not 
-  enough.
-*/
-#define MAX_DATE_REP_LENGTH 30
 
 enum enum_parsing_place
 {
@@ -426,7 +419,7 @@ int mysql_insert_select_prepare(THD *thd);
 int insert_select_precheck(THD *thd, TABLE_LIST *tables);
 int update_precheck(THD *thd, TABLE_LIST *tables);
 int delete_precheck(THD *thd, TABLE_LIST *tables);
-int insert_precheck(THD *thd, TABLE_LIST *tables, bool update);
+int insert_precheck(THD *thd, TABLE_LIST *tables);
 int create_table_precheck(THD *thd, TABLE_LIST *tables,
 			  TABLE_LIST *create_table);
 Item *negate_expression(THD *thd, Item *expr);
@@ -442,6 +435,9 @@ struct Query_cache_query_flags
   uint collation_connection_num;
   ha_rows limit;
   Time_zone *time_zone;
+  ulong sql_mode;
+  ulong max_sort_length;
+  ulong group_concat_max_len;
 };
 #define QUERY_CACHE_FLAGS_SIZE sizeof(Query_cache_query_flags)
 #include "sql_cache.h"
@@ -496,7 +492,8 @@ bool mysql_test_parse_for_slave(THD *thd,char *inBuf,uint length);
 bool is_update_query(enum enum_sql_command command);
 bool alloc_query(THD *thd, char *packet, ulong packet_length);
 void mysql_init_select(LEX *lex);
-void mysql_init_query(THD *thd, uchar *buf, uint length, bool lexonly=0);
+void mysql_reset_thd_for_next_command(THD *thd);
+void mysql_init_query(THD *thd, uchar *buf, uint length);
 bool mysql_new_select(LEX *lex, bool move_down);
 void create_select_for_variable(const char *var_name);
 void mysql_init_multi_delete(LEX *lex);
@@ -571,7 +568,7 @@ int mysql_union(THD *thd, LEX *lex, select_result *result,
 int mysql_handle_derived(LEX *lex);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item ***copy_func, Field **from_field,
-			bool group,bool modify_item);
+			bool group, bool modify_item, uint convert_blob_length);
 int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 		       List<create_field> &fields,
 		       List<Key> &keys, uint &db_options, 
@@ -697,6 +694,7 @@ int mysqld_show_keys(THD *thd, TABLE_LIST *table);
 int mysqld_show_logs(THD *thd);
 void append_identifier(THD *thd, String *packet, const char *name,
 		       uint length);
+int get_quote_char_for_identifier(THD *thd, const char *name, uint length);
 void mysqld_list_fields(THD *thd,TABLE_LIST *table, const char *wild);
 int mysqld_dump_create_info(THD *thd, TABLE *table, int fd = -1);
 int mysqld_show_create(THD *thd, TABLE_LIST *table_list);
@@ -739,14 +737,18 @@ void mysql_reset_errors(THD *thd);
 my_bool mysqld_show_warnings(THD *thd, ulong levels_to_show);
 
 /* sql_handler.cc */
-int mysql_ha_open(THD *thd, TABLE_LIST *tables);
-int mysql_ha_close(THD *thd, TABLE_LIST *tables,
-                   bool dont_send_ok=0, bool dont_lock=0, bool no_alias=0);
-int mysql_ha_close_list(THD *thd, TABLE_LIST *tables, bool flushed=0);
+int mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen= 0);
+int mysql_ha_close(THD *thd, TABLE_LIST *tables);
 int mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,char *,
                List<Item> *,enum ha_rkey_function,Item *,ha_rows,ha_rows);
+int mysql_ha_flush(THD *thd, TABLE_LIST *tables, uint mode_flags);
+/* mysql_ha_flush mode_flags bits */
+#define MYSQL_HA_CLOSE_FINAL        0x00
+#define MYSQL_HA_REOPEN_ON_USAGE    0x01
+#define MYSQL_HA_FLUSH_ALL          0x02
 
 /* sql_base.cc */
+#define TMP_TABLE_KEY_EXTRA 8
 void set_item_name(Item *item,char *pos,uint length);
 bool add_field_to_list(THD *thd, char *field_name, enum enum_field_types type,
 		       char *length, char *decimal,
@@ -769,7 +771,8 @@ enum find_item_error_report_type {REPORT_ALL_ERRORS, REPORT_EXCEPT_NOT_FOUND,
 				  IGNORE_ERRORS};
 extern const Item **not_found_item;
 Item ** find_item_in_list(Item *item, List<Item> &items, uint *counter,
-			  find_item_error_report_type report_error);
+                          find_item_error_report_type report_error,
+                          bool *unaliased);
 bool get_key_map_from_key_list(key_map *map, TABLE *table,
                                List<String> *index_list);
 bool insert_fields(THD *thd,TABLE_LIST *tables,
@@ -789,6 +792,7 @@ void wait_for_refresh(THD *thd);
 int open_tables(THD *thd, TABLE_LIST *tables, uint *counter);
 int simple_open_n_lock_tables(THD *thd,TABLE_LIST *tables);
 int open_and_lock_tables(THD *thd,TABLE_LIST *tables);
+void relink_tables_for_derived(THD *thd);
 int lock_tables(THD *thd, TABLE_LIST *tables, uint counter);
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 			    const char *table_name, bool link_in_list);
@@ -896,9 +900,10 @@ extern void yyerror(const char*);
 extern bool check_reserved_words(LEX_STRING *name);
 
 /* strfunc.cc */
-ulonglong find_set(TYPELIB *typelib,const char *x, uint length,
+ulonglong find_set(TYPELIB *lib, const char *x, uint length, CHARSET_INFO *cs,
 		   char **err_pos, uint *err_len, bool *set_warning);
 uint find_type(TYPELIB *lib, const char *find, uint length, bool part_match);
+uint find_type2(TYPELIB *lib, const char *find, uint length, CHARSET_INFO *cs);
 uint check_word(TYPELIB *lib, const char *val, const char *end,
 		const char **end_of_word);
 
@@ -969,7 +974,7 @@ extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
 extern uint delay_key_write_options, lower_case_table_names;
 extern bool opt_endinfo, using_udf_functions, locked_in_memory;
-extern bool opt_using_transactions, mysql_embedded;
+extern bool opt_using_transactions, mysqld_embedded;
 extern bool using_update_log, opt_large_files, server_id_supplied;
 extern bool opt_log, opt_update_log, opt_bin_log, opt_slow_log, opt_error_log;
 extern bool opt_disable_networking, opt_skip_show_db;
@@ -1085,8 +1090,6 @@ int openfrm(THD *thd, const char *name,const char *alias,uint filestat,
             uint prgflag, uint ha_open_flags, TABLE *outparam);
 int readfrm(const char *name, const void** data, uint* length);
 int writefrm(const char* name, const void* data, uint len);
-int create_table_from_handler(const char *db, const char *name,
-			      bool create_if_found);
 int closefrm(TABLE *table);
 db_type get_table_type(const char *name);
 int read_string(File file, gptr *to, uint length);
@@ -1123,7 +1126,6 @@ void make_date(const DATE_TIME_FORMAT *format, const TIME *l_time,
                String *str);
 void make_time(const DATE_TIME_FORMAT *format, const TIME *l_time,
                String *str);
-void TIME_to_string(const TIME *time, String *str);
 ulonglong TIME_to_ulonglong_datetime(const TIME *time);
 ulonglong TIME_to_ulonglong_date(const TIME *time);
 ulonglong TIME_to_ulonglong_time(const TIME *time);

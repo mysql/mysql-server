@@ -107,6 +107,9 @@ public:
     /* Number of primary key attributes (should be computed) */
     Uint16 noOfPrimkey;
 
+    /* Number of distinct character sets (computed) */
+    Uint16 noOfCharsets;
+
     /* Length of primary key in words (should be computed) */
     /* For ordered index this is tree node size in words */
     Uint16 tupKeyLength;

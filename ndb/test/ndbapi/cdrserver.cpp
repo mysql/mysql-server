@@ -113,6 +113,7 @@ using namespace std;
 
 int main(int argc, const char** argv)
 {
+  ndb_init();
         /******** NDB ***********/
 	/*
         Ndb                   MyNdb( "TEST_DB" );
@@ -500,11 +501,11 @@ server(long int servernum)
         /* that this program could easily be ported to a host   */
         /* that does require it.                                */
 
-        snprintf(msg,sizeof(msg),"Startup from %s port %u",hostname,ntohs(peeraddr_in.sin_port));
+        BaseString::snprintf(msg,sizeof(msg),"Startup from %s port %u",hostname,ntohs(peeraddr_in.sin_port));
 	if ((checkchangelog(fi,temp))==0)
           c2log(fi,msg);
         n2log(log,msg);
-        snprintf(msg,sizeof(msg),"For further information, see log(%s)",lognamn);
+        BaseString::snprintf(msg,sizeof(msg),"For further information, see log(%s)",lognamn);
 	if ((checkchangelog(fi,temp))==0)
           c2log(fi,msg);
 
@@ -515,7 +516,7 @@ server(long int servernum)
         linger.l_onoff  =1;
         linger.l_linger =0;
         if (setsockopt(s, SOL_SOCKET, SO_LINGER,(const char*)&linger,sizeof(linger)) == -1) {
-                snprintf(msg,sizeof(msg),"Setting SO_LINGER, l_onoff=%d, l_linger=%d",linger.l_onoff,linger.l_linger);
+                BaseString::snprintf(msg,sizeof(msg),"Setting SO_LINGER, l_onoff=%d, l_linger=%d",linger.l_onoff,linger.l_linger);
 		if ((checkchangelog(log,lognamn))==0)
           		n2log(log,msg);
                 goto errout;
@@ -528,7 +529,7 @@ server(long int servernum)
         rcvbuf_size=64*1024;
 
         if (setsockopt(s, SOL_SOCKET, SO_RCVBUF,(const char*) &rcvbuf_size,sizeof(rcvbuf_size)) == -1) {
-                snprintf(msg,sizeof(msg),"Setting SO_RCVBUF = %d",rcvbuf_size);
+                BaseString::snprintf(msg,sizeof(msg),"Setting SO_RCVBUF = %d",rcvbuf_size);
 		if ((checkchangelog(log,lognamn))==0)
           		n2log(log,msg);
                 goto errout;
@@ -912,7 +913,7 @@ server(long int servernum)
                                                         tmpcdrptr->USED_FIELDS |= B_ReroutingIndicator;
                                                 break;
                                                 default :
-                                                        snprintf(msg,sizeof(msg),"ERROR: Redirection information has wrong length %d\n",parmlen);
+                                                        BaseString::snprintf(msg,sizeof(msg),"ERROR: Redirection information has wrong length %d\n",parmlen);
 	  						if ((checkchangelog(log,lognamn))==0)
                                                           n2log(log,msg);
                                                 break;
@@ -1059,7 +1060,7 @@ server(long int servernum)
                                                         tmpcdrptr->USED_FIELDS |= B_RINParameter;
                                                 break;
                                                 default :
-                                                        snprintf(msg,sizeof(msg),"ERROR: Rin parameter has wrong length %d\n",parmlen);
+                                                        BaseString::snprintf(msg,sizeof(msg),"ERROR: Rin parameter has wrong length %d\n",parmlen);
 	  						if ((checkchangelog(log,lognamn))==0)
                                                           n2log(log,msg);
                                                 break;
@@ -1087,7 +1088,7 @@ server(long int servernum)
                                                         tmpcdrptr->USED_FIELDS |= B_OriginatingPointCode;
                                                 break;
                                                 default :
-                                                        snprintf(msg,sizeof(msg),"ERROR: OriginatingPointCode parameter has wrong length %d\n",parmlen);
+                                                        BaseString::snprintf(msg,sizeof(msg),"ERROR: OriginatingPointCode parameter has wrong length %d\n",parmlen);
 	  						if ((checkchangelog(log,lognamn))==0)
                                                           n2log(log,msg);
                                                 break;
@@ -1118,7 +1119,7 @@ server(long int servernum)
                                                         tmpcdrptr->USED_FIELDS |= B_DestinationPointCode;
                                                 break;
                                                 default :
-                                                        snprintf(msg,sizeof(msg),"ERROR: DestinationPointCode parameter has wrong length %d\n",parmlen);
+                                                        BaseString::snprintf(msg,sizeof(msg),"ERROR: DestinationPointCode parameter has wrong length %d\n",parmlen);
 	  						if ((checkchangelog(log,lognamn))==0)
                                                           n2log(log,msg);
                                                 break;
@@ -1145,7 +1146,7 @@ server(long int servernum)
                                 break;
                                 default:
                                         printf("ERROR: Undefined parmtype %d , previous %d, length %d\n",parmtype,parmtype_prev,parmlen);
-                                        snprintf(msg,sizeof(msg),"ERROR: Undefined parmtype %d , previous %d, length %d\n",parmtype,parmtype_prev,parmlen);
+                                        BaseString::snprintf(msg,sizeof(msg),"ERROR: Undefined parmtype %d , previous %d, length %d\n",parmtype,parmtype_prev,parmlen);
 	  				if ((checkchangelog(log,lognamn))==0)
                                           n2log(log,msg);
                                         if (parmlen == 0) {
@@ -1288,17 +1289,17 @@ server(long int servernum)
         /* that this program could easily be ported to a host           */
         /* that does require it.                                        */
 
-        snprintf(msg,sizeof(msg),"Completed %s port %u, %d requests",hostname,ntohs(peeraddr_in.sin_port), reqcnt);
+        BaseString::snprintf(msg,sizeof(msg),"Completed %s port %u, %d requests",hostname,ntohs(peeraddr_in.sin_port), reqcnt);
 	if ((checkchangelog(fi,temp))==0)
           c2log(fi,msg);
 	error_from_client = 1;
-        snprintf(msg,sizeof(msg),"Communicate with threads");
+        BaseString::snprintf(msg,sizeof(msg),"Communicate with threads");
 	if ((checkchangelog(log,lognamn))==0)
           n2log(log,msg);
-        snprintf(msg,sizeof(msg),"Waiting for threads to return from work");
+        BaseString::snprintf(msg,sizeof(msg),"Waiting for threads to return from work");
 	if ((checkchangelog(log,lognamn))==0)
           n2log(log,msg);
-        snprintf(msg,sizeof(msg),"Closing down");
+        BaseString::snprintf(msg,sizeof(msg),"Closing down");
 	if ((checkchangelog(log,lognamn))==0)
           n2log(log,msg);
         close(s);
@@ -1306,19 +1307,19 @@ server(long int servernum)
         return EXIT_SUCCESS;
 
 errout:
-        snprintf(msg,sizeof(msg),"Connection with %s aborted on error\n", hostname);
+        BaseString::snprintf(msg,sizeof(msg),"Connection with %s aborted on error\n", hostname);
 	if ((checkchangelog(log,lognamn))==0)
           n2log(log,msg);
 	if ((checkchangelog(fi,temp))==0)
           c2log(fi,msg);
 	error_from_client = 1;
-        snprintf(msg,sizeof(msg),"Communicate with threads");
+        BaseString::snprintf(msg,sizeof(msg),"Communicate with threads");
 	if ((checkchangelog(log,lognamn))==0)
           n2log(log,msg);
-        snprintf(msg,sizeof(msg),"Waiting for threads to return from work");
+        BaseString::snprintf(msg,sizeof(msg),"Waiting for threads to return from work");
 	if ((checkchangelog(log,lognamn))==0)
           n2log(log,msg);
-        snprintf(msg,sizeof(msg),"Closing down");
+        BaseString::snprintf(msg,sizeof(msg),"Closing down");
 	if ((checkchangelog(log,lognamn))==0)
           n2log(log,msg);
         close(s);

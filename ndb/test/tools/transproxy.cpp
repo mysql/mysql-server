@@ -32,7 +32,7 @@ fatal(char const* fmt, ...)
     va_list ap;
     char buf[200];
     va_start(ap, fmt);
-    vsnprintf(buf, sizeof(buf), fmt, ap);
+    BaseString::vsnprintf(buf, sizeof(buf), fmt, ap);
     va_end(ap);
     ndbout << "FATAL: " << buf << endl;
     sleep(1);
@@ -45,7 +45,7 @@ debug(char const* fmt, ...)
     va_list ap;
     char buf[200];
     va_start(ap, fmt);
-    vsnprintf(buf, sizeof(buf), fmt, ap);
+    BaseString::vsnprintf(buf, sizeof(buf), fmt, ap);
     va_end(ap);
     ndbout << buf << endl;
 }
@@ -346,6 +346,7 @@ start()
 int
 main(int av, char** ac)
 {
+    ndb_init();
     debug("start");
     hostname = "ndb-srv7";
     if (Ndb_getInAddr(&hostaddr.sin_addr, hostname) != 0) {

@@ -143,7 +143,7 @@ private:
    */
   static Uint8  getTakeOverScanFlag(const UintR & scanInfo);
   static Uint16 getTakeOverScanNode(const UintR & scanInfo);
-  static Uint16 getTakeOverScanInfo(const UintR & scanInfo);
+  static Uint32 getTakeOverScanInfo(const UintR & scanInfo);
 
 
   /**
@@ -172,7 +172,7 @@ private:
    */
   static void setTakeOverScanFlag(UintR & scanInfo, Uint8 flag);
   static void setTakeOverScanNode(UintR & scanInfo, Uint16 node);
-  static void setTakeOverScanInfo(UintR & scanInfo, Uint16 aScanInfo);
+  static void setTakeOverScanInfo(UintR & scanInfo, Uint32 aScanInfo);
 };
 
 /**
@@ -228,21 +228,21 @@ private:
  * Scan Info
  *
  t = Scan take over indicator -  1 Bit
- n = Take over node           - 16 Bits -> max 65535
- p = Scan Info                - 12 Bits -> max 4095
+ n = Take over node           - 12 Bits -> max 65535
+ p = Scan Info                - 18 Bits -> max 4095
 
            1111111111222222222233
  01234567890123456789012345678901
- tpppppppppppp   nnnnnnnnnnnnnnnn
+ tpppppppppppppppppp nnnnnnnnnnnn
 */
 
 #define TAKE_OVER_SHIFT      (0)
 
-#define TAKE_OVER_NODE_SHIFT (16)
-#define TAKE_OVER_NODE_MASK  (65535)
+#define TAKE_OVER_NODE_SHIFT (20)
+#define TAKE_OVER_NODE_MASK  (4095)
 
 #define SCAN_INFO_SHIFT      (1)
-#define SCAN_INFO_MASK       (4095)
+#define SCAN_INFO_MASK       (262143)
 
 /**
  * Attr Len
@@ -490,9 +490,9 @@ TcKeyReq::getTakeOverScanNode(const UintR & scanInfo){
 }
 
 inline
-Uint16 
+Uint32 
 TcKeyReq::getTakeOverScanInfo(const UintR & scanInfo){
-  return (Uint16)((scanInfo >> SCAN_INFO_SHIFT) & SCAN_INFO_MASK);
+  return (Uint32)((scanInfo >> SCAN_INFO_SHIFT) & SCAN_INFO_MASK);
 }
 
 
@@ -512,7 +512,7 @@ TcKeyReq::setTakeOverScanNode(UintR & scanInfo, Uint16 node){
 
 inline
 void
-TcKeyReq::setTakeOverScanInfo(UintR & scanInfo, Uint16 aScanInfo){
+TcKeyReq::setTakeOverScanInfo(UintR & scanInfo, Uint32 aScanInfo){
 //  ASSERT_MAX(aScanInfo, SCAN_INFO_MASK, "TcKeyReq::setTakeOverScanInfo");
   scanInfo |= (aScanInfo << SCAN_INFO_SHIFT);
 }

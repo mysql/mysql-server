@@ -31,8 +31,9 @@ const char*	ut_dbg_msg_trap =
 "InnoDB: Submit a detailed bug report to http://bugs.mysql.com.\n"
 "InnoDB: If you get repeated assertion failures or crashes, even\n"
 "InnoDB: immediately after the mysqld startup, there may be\n"
-"InnoDB: corruption in the InnoDB tablespace. See section 6.1 of\n"
-"InnoDB: http://www.innodb.com/ibman.php about forcing recovery.\n";
+"InnoDB: corruption in the InnoDB tablespace. Please refer to\n"
+"InnoDB: http://dev.mysql.com/doc/mysql/en/Forcing_recovery.html\n"
+"InnoDB: about forcing recovery.\n";
 
 const char*	ut_dbg_msg_stop =
 "InnoDB: Thread %lu stopped in file %s line %lu\n";

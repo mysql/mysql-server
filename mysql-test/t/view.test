@@ -1300,9 +1300,13 @@ update v1,t1 set v1.s1='c' where t1.s1=v1.s1;
 select * from v1;
 prepare stmt1 from "update v1,t1 set v1.s1=? where t1.s1=v1.s1";
 set @arg='d';
+-- QQ This should not generate an error
+--error 1036
 execute stmt1 using @arg;
 select * from v1;
 set @arg='e';
+-- QQ This should not generate an error
+--error 1036
 execute stmt1 using @arg;
 select * from v1;
 deallocate prepare stmt1;

@@ -66,6 +66,20 @@ my_system_gmt_sec(const MYSQL_TIME *t, long *my_timezone, bool *in_dst_time_gap)
 
 void set_zero_time(MYSQL_TIME *tm);
 
+/*
+  Required buffer length for my_time_to_str, my_date_to_str,
+  my_datetime_to_str and TIME_to_string functions. Note, that the
+  caller is still responsible to check that given TIME structure
+  has values in valid ranges, otherwise size of the buffer could
+  be not enough.
+*/
+#define MAX_DATE_STRING_REP_LENGTH 30
+
+int my_time_to_str(const MYSQL_TIME *l_time, char *to);
+int my_date_to_str(const MYSQL_TIME *l_time, char *to);
+int my_datetime_to_str(const MYSQL_TIME *l_time, char *to);
+int my_TIME_to_str(const MYSQL_TIME *l_time, char *to);
+
 C_MODE_END
 
 #endif /* _my_time_h_ */

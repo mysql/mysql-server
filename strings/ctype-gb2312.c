@@ -5708,7 +5708,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
   my_charpos_mb,
   my_well_formed_len_mb,
   my_lengthsp_8bit,
-  my_numcells_mb,
+  my_numcells_8bit,
   my_mb_wc_gb2312,	/* mb_wc      */
   my_wc_mb_gb2312,	/* wc_mb      */
   my_caseup_str_mb,
@@ -5724,6 +5724,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
   my_strntoll_8bit,
   my_strntoull_8bit,
   my_strntod_8bit,
+  my_strtoll10_8bit,
   my_scan_8bit
 };
 

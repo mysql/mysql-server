@@ -363,7 +363,7 @@ TODO list:
 const char *query_cache_type_names[]= { "OFF", "ON", "DEMAND",NullS };
 TYPELIB query_cache_type_typelib=
 {
-  array_elements(query_cache_type_names)-1,"", query_cache_type_names
+  array_elements(query_cache_type_names)-1,"", query_cache_type_names, NULL
 };
 
 /*****************************************************************************
@@ -788,6 +788,9 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
       thd->variables.collation_connection->number;
     flags.limit= thd->variables.select_limit;
     flags.time_zone= thd->variables.time_zone;
+    flags.sql_mode= thd->variables.sql_mode;
+    flags.max_sort_length= thd->variables.max_sort_length;
+    flags.group_concat_max_len= thd->variables.group_concat_max_len;
     STRUCT_LOCK(&structure_guard_mutex);
 
     if (query_cache_size == 0)
@@ -980,8 +983,11 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   flags.collation_connection_num= thd->variables.collation_connection->number;
   flags.limit= thd->variables.select_limit;
   flags.time_zone= thd->variables.time_zone;
+  flags.sql_mode= thd->variables.sql_mode;
+  flags.max_sort_length= thd->variables.max_sort_length;
+  flags.group_concat_max_len= thd->variables.group_concat_max_len;
   memcpy((void *)(sql + (tot_length - QUERY_CACHE_FLAGS_SIZE)),
- 	 &flags, QUERY_CACHE_FLAGS_SIZE);
+	 &flags, QUERY_CACHE_FLAGS_SIZE);
   query_block = (Query_cache_block *)  hash_search(&queries, (byte*) sql,
 						   tot_length);
   /* Quick abort on unlocked data */
@@ -1025,9 +1031,38 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   for (; block_table != block_table_end; block_table++)
   {
     TABLE_LIST table_list;
-    bzero((char*) &table_list,sizeof(table_list));
+    TABLE *tmptable;
 
     Query_cache_table *table = block_table->parent;
+
+    /*
+      Check that we have not temporary tables with same names of tables
+      of this query. If we have such tables, we will not send data from
+      query cache, because temporary tables hide real tables by which
+      query in query cache was made.
+    */
+    for (tmptable= thd->temporary_tables; tmptable ; tmptable= tmptable->next)
+    {
+      if (tmptable->key_length - TMP_TABLE_KEY_EXTRA == table->key_length() &&
+          !memcmp(tmptable->table_cache_key, table->data(),
+                  table->key_length()))
+      {
+        DBUG_PRINT("qcache",
+                   ("Temporary table detected: '%s.%s'",
+                    table_list.db, table_list.alias));
+        STRUCT_UNLOCK(&structure_guard_mutex);
+        /*
+          We should not store result of this query because it contain
+          temporary tables => assign following variable to make check
+          faster.
+        */
+        thd->lex->safe_to_cache_query=0;
+        BLOCK_UNLOCK_RD(query_block);
+        DBUG_RETURN(-1);
+      }
+    }
+
+    bzero((char*) &table_list,sizeof(table_list));
     table_list.db = table->db();
     table_list.alias= table_list.real_name= table->table();
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -1533,11 +1568,11 @@ ulong Query_cache::init_cache()
 		 query_cache_table_get_key, 0, 0));
 #else
   /*
-    On windows, OS/2, MacOS X with HFS+ or any other case insensitive 
-    file system if lower_case_table_names!=0 we have same situation as 
-    in previous case, but if lower_case_table_names==0 then we should 
-    not distinguish cases (to be compatible in behavior with underlaying 
-    file system) and so should use case insensitive collation for 
+    On windows, OS/2, MacOS X with HFS+ or any other case insensitive
+    file system if lower_case_table_names!=0 we have same situation as
+    in previous case, but if lower_case_table_names==0 then we should
+    not distinguish cases (to be compatible in behavior with underlying
+    file system) and so should use case insensitive collation for
     comparison.
   */
   VOID(hash_init(&tables,
@@ -1946,7 +1981,6 @@ inline ulong Query_cache::get_min_append_result_data_size()
 /*
   Allocate one or more blocks to hold data
 */
-
 my_bool Query_cache::allocate_data_chain(Query_cache_block **result_block,
 					 ulong data_len,
 					 Query_cache_block *query_block,
@@ -1954,55 +1988,55 @@ my_bool Query_cache::allocate_data_chain(Query_cache_block **result_block,
 {
   ulong all_headers_len = (ALIGN_SIZE(sizeof(Query_cache_block)) +
 			   ALIGN_SIZE(sizeof(Query_cache_result)));
-  ulong len= data_len + all_headers_len;
-  ulong align_len= ALIGN_SIZE(len);
-  DBUG_ENTER("Query_cache::allocate_data_chain");
-  DBUG_PRINT("qcache", ("data_len %lu, all_headers_len %lu",
-		      data_len, all_headers_len));
-
   ulong min_size = (first_block_arg ?
 		    get_min_first_result_data_size():
 		    get_min_append_result_data_size());
-  *result_block = allocate_block(max(min_size, align_len),
-				 min_result_data_size == 0,
-				 all_headers_len + min_result_data_size,
-				 1);
-  my_bool success = (*result_block != 0);
-  if (success)
+  Query_cache_block *prev_block= NULL;
+  Query_cache_block *new_block;
+  DBUG_ENTER("Query_cache::allocate_data_chain");
+  DBUG_PRINT("qcache", ("data_len %lu, all_headers_len %lu",
+			data_len, all_headers_len));
+
+  do
   {
-    Query_cache_block *new_block= *result_block;
+    ulong len= data_len + all_headers_len;
+    ulong align_len= ALIGN_SIZE(len);
+
+    if (!(new_block= allocate_block(max(min_size, align_len),
+				    min_result_data_size == 0,
+				    all_headers_len + min_result_data_size,
+				    1)))
+    {
+      DBUG_PRINT("warning", ("Can't allocate block for results"));
+      DBUG_RETURN(FALSE);
+    }
+
     new_block->n_tables = 0;
-    new_block->used = 0;
+    new_block->used = min(len, new_block->length);
     new_block->type = Query_cache_block::RES_INCOMPLETE;
     new_block->next = new_block->prev = new_block;
     Query_cache_result *header = new_block->result();
     header->parent(query_block);
 
-    if (new_block->length < len)
-    {
-      /*
-	We got less memory then we need (no big memory blocks) =>
-	Continue to allocated more blocks until we got everything we need.
-      */
-      Query_cache_block *next_block;
-      if ((success = allocate_data_chain(&next_block,
-					 len - new_block->length,
-					 query_block, first_block_arg)))
-	double_linked_list_join(new_block, next_block);
-    }
-    if (success)
-    {
-      new_block->used = min(len, new_block->length);
-
-      DBUG_PRINT("qcache", ("Block len %lu used %lu",
+    DBUG_PRINT("qcache", ("Block len %lu used %lu",
 			  new_block->length, new_block->used));
-    }
+
+    if (prev_block)
+      double_linked_list_join(prev_block, new_block);
     else
-      DBUG_PRINT("warning", ("Can't allocate block for continue"));
-  }
-  else
-    DBUG_PRINT("warning", ("Can't allocate block for results"));
-  DBUG_RETURN(success);
+      *result_block= new_block;
+    if (new_block->length >= len)
+      break;
+
+    /*
+      We got less memory then we need (no big memory blocks) =>
+      Continue to allocated more blocks until we got everything we need.
+    */
+    data_len= len - new_block->length;
+    prev_block= new_block;
+  } while(1);
+
+  DBUG_RETURN(TRUE);
 }
 
 /*****************************************************************************

@@ -19,7 +19,7 @@
 
 #include <my_global.h>
 
-typedef enum {TRUNCATE=0, EVEN} dec_round_mode;
+typedef enum {TRUNCATE=0, HALF_EVEN, HALF_UP, CEILING, FLOOR} decimal_round_mode;
 typedef int32 decimal_digit;
 
 typedef struct st_decimal {
@@ -30,6 +30,7 @@ typedef struct st_decimal {
 
 int decimal2string(decimal *from, char *to, int *to_len);
 int string2decimal(char *from, decimal *to, char **end);
+int string2decimal_fixed(char *from, decimal *to, char **end);
 int decimal2ulonglong(decimal *from, ulonglong *to);
 int ulonglong2decimal(ulonglong from, decimal *to);
 int decimal2longlong(decimal *from, longlong *to);
@@ -49,13 +50,33 @@ int decimal_cmp(decimal *from1, decimal *from2);
 int decimal_mul(decimal *from1, decimal *from2, decimal *to);
 int decimal_div(decimal *from1, decimal *from2, decimal *to, int scale_incr);
 int decimal_mod(decimal *from1, decimal *from2, decimal *to);
-int decimal_round(decimal *dec, int new_scale, dec_round_mode mode);
+int decimal_round(decimal *from, decimal *to, int new_scale, decimal_round_mode mode);
 
 /*
   the following works only on special "zero" decimal, not on any
   decimal that happen to evaluate to zero
 */
+
 #define decimal_is_zero(dec) ((dec)->intg1==1 && (dec)->frac1==0 && (dec)->buf[0]==0)
+
+/* set a decimal to zero */
+
+#define decimal_make_zero(dec)        do {                \
+                                        (dec)->buf[0]=0;    \
+                                        (dec)->intg=1;      \
+                                        (dec)->frac=0;      \
+                                        (dec)->sign=0;      \
+                                      } while(0)
+
+/*
+  returns the length of the buffer to hold string representation
+  of the decimal (including decimal dot, possible sign and \0)
+*/
+
+#define decimal_string_size(dec) ((dec)->intg + (dec)->frac + ((dec)->frac > 0) + 2)
+
+/* negate a decimal */
+#define decimal_neg(dec) do { (dec)->sign^=1; } while(0)
 
 /*
   conventions:
@@ -70,9 +91,12 @@ int decimal_round(decimal *dec, int new_scale, dec_round_mode mode);
 #define E_DEC_OK                0
 #define E_DEC_TRUNCATED         1
 #define E_DEC_OVERFLOW          2
-#define E_DEC_DIV_ZERO          3
-#define E_DEC_BAD_NUM           4
-#define E_DEC_OOM               5
+#define E_DEC_DIV_ZERO          4
+#define E_DEC_BAD_NUM           8
+#define E_DEC_OOM              16
+
+#define E_DEC_ERROR            31
+#define E_DEC_FATAL_ERROR      30
 
 #endif
 

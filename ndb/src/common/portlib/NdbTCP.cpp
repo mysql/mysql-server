@@ -15,34 +15,43 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#include <NdbMutex.h>
+#include <ndb_global.h>
+#include <my_net.h>
 #include <NdbTCP.h>
-
-#if defined NDB_WIN32 || defined SCO
-static NdbMutex & LOCK_gethostbyname = * NdbMutex_Create();
-#else
-static NdbMutex LOCK_gethostbyname = NDB_MUTEX_INITIALIZER;
-#endif
 
 extern "C"
 int 
 Ndb_getInAddr(struct in_addr * dst, const char *address) {
-  struct hostent * hostPtr;
-  NdbMutex_Lock(&LOCK_gethostbyname);
-  hostPtr = gethostbyname(address);
-  if (hostPtr != NULL) {
-    dst->s_addr = ((struct in_addr *) *hostPtr->h_addr_list)->s_addr;
-    NdbMutex_Unlock(&LOCK_gethostbyname);
-    return 0;
+  DBUG_ENTER("Ndb_getInAddr");
+  {
+    int tmp_errno;
+    struct hostent tmp_hostent, *hp;
+    char buff[GETHOSTBYNAME_BUFF_SIZE];
+    hp = my_gethostbyname_r(address,&tmp_hostent,buff,sizeof(buff),
+			    &tmp_errno);
+    if (hp)
+    {
+      memcpy(dst, hp->h_addr, min(sizeof(*dst), (size_t) hp->h_length));
+      my_gethostbyname_r_free();
+      DBUG_RETURN(0);
+    }
+    my_gethostbyname_r_free();
   }
-  NdbMutex_Unlock(&LOCK_gethostbyname);
-  
   /* Try it as aaa.bbb.ccc.ddd. */
   dst->s_addr = inet_addr(address);
-  if (dst->s_addr != -1) {
-    return 0;
+  if (dst->s_addr != 
+#ifdef INADDR_NONE
+      INADDR_NONE
+#else
+      -1
+#endif
+      )
+  {
+    DBUG_RETURN(0);
   }
-  return -1;
+  DBUG_PRINT("error",("inet_addr(%s) - %d - %s",
+		      address, errno, strerror(errno)));
+  DBUG_RETURN(-1);
 }
 
 #if 0

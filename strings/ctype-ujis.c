@@ -8252,6 +8252,40 @@ my_jisx0212_uni_onechar(int code){
   [xA1-xFE][xA1-xFE]		# JIS X 0208:1997 (two bytes/char)
 */
 
+static
+uint my_numcells_eucjp(CHARSET_INFO *cs __attribute__((unused)),
+                       const char *str, const char *strend)
+{
+  uint clen= 0;
+  const unsigned char *b= (const unsigned char *) str;
+  const unsigned char *e= (const unsigned char *) strend;
+  
+  for (clen= 0; b < e; )
+  {
+    if (*b == 0x8E)
+    {
+      clen++;
+      b+= 2;
+    }
+    else if (*b == 0x8F)
+    {
+      clen+= 2;
+      b+= 3;
+    }
+    else if (*b & 0x80)
+    {
+      clen+= 2;
+      b+= 2;
+    }
+    else
+    {
+      clen++;
+      b++;
+    }
+  }
+  return clen;
+}
+
 static int
 my_mb_wc_euc_jp(CHARSET_INFO *cs,my_wc_t *pwc, const uchar *s, const uchar *e)
 {
@@ -8443,7 +8477,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
     my_charpos_mb,
     my_well_formed_len_mb,
     my_lengthsp_8bit,
-    my_numcells_mb,
+    my_numcells_eucjp,
     my_mb_wc_euc_jp,	/* mb_wc       */
     my_wc_mb_euc_jp,	/* wc_mb       */
     my_caseup_str_mb,
@@ -8459,6 +8493,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
     my_strntoll_8bit,
     my_strntoull_8bit,
     my_strntod_8bit,
+    my_strtoll10_8bit,
     my_scan_8bit
 };
 
