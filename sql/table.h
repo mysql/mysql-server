@@ -34,7 +34,7 @@ typedef struct st_order {
   bool	 asc;				/* true if ascending */
   bool	 free_me;			/* true if item isn't shared  */
   bool	 in_field_list;			/* true if in select field list */
-  bool   counter_used;                  /* parapeter was counter of columns */
+  bool   counter_used;                  /* parameter was counter of columns */
   Field  *field;			/* If tmp-table group */
   char	 *buff;				/* If tmp-table group */
   table_map used,depend_map;
@@ -116,7 +116,7 @@ struct st_table {
     These two members hold offset in record + 1 for TIMESTAMP field
     with NOW() as default value or/and with ON UPDATE NOW() option. 
     If 0 then such field is absent in this table or auto-set for default
-    or/and on update should be temporaly disabled for some reason.
+    or/and on update should be temporally disabled for some reason.
     These values is setup to offset value for each statement in open_table()
     and turned off in statement processing code (see mysql_update as example).
   */
@@ -235,10 +235,10 @@ typedef struct st_table_list
   Item          *where;                 /* VIEW WHERE clause condition */
   Item          *check_option;          /* WITH CHECK OPTION condition */
   LEX_STRING	query;			/* text of (CRETE/SELECT) statement */
-  LEX_STRING	md5;			/* md5 of query tesxt */
+  LEX_STRING	md5;			/* md5 of query text */
   LEX_STRING	source;			/* source of CREATE VIEW */
-  LEX_STRING	view_db;		/* save view database */
-  LEX_STRING	view_name;		/* save view name */
+  LEX_STRING	view_db;		/* saved view database */
+  LEX_STRING	view_name;		/* saved view name */
   LEX_STRING	timestamp;		/* GMT time stamp of last operation */
   ulonglong	file_version;		/* version of file's field set */
   ulonglong     updatable_view;         /* VIEW can be updated */
@@ -263,11 +263,11 @@ typedef struct st_table_list
   st_table_list *embedding;             /* nested join containing the table */
   List<struct st_table_list> *join_list;/* join list the table belongs to   */
   bool		cacheable_table;	/* stop PS caching */
-  /* used in multi-upd/views privelege check */
+  /* used in multi-upd/views privilege check */
   bool		table_in_first_from_clause;
   bool		skip_temporary;		/* this table shouldn't be temporary */
   bool          setup_is_done;          /* setup_tables() is done */
-  /* do view contain auto_increment field */
+  /* TRUE if this merged view contain auto_increment field */
   bool          contain_auto_increment;
   /* FRMTYPE_ERROR if any type is acceptable */
   enum frm_type_enum required_type;
