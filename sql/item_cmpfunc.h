@@ -28,7 +28,7 @@ public:
   Item_bool_func(Item *a) :Item_int_func(a) {}
   Item_bool_func(Item *a,Item *b) :Item_int_func(a,b) {}
   void fix_length_and_dec() { decimals=0; max_length=1; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_bool_func2 :public Item_int_func
@@ -48,7 +48,7 @@ public:
   bool have_rev_func() const { return rev_functype() != UNKNOWN_FUNC; }
   void print(String *str) { Item_func::print_op(str); }
   bool is_null() { return test(args[0]->is_null() || args[1]->is_null()); }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -82,7 +82,7 @@ public:
   enum Functype rev_functype() const { return EQUAL_FUNC; }
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return "<=>"; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -188,7 +188,7 @@ public:
   ~Item_func_interval() { delete item; }
   const char *func_name() const { return "interval"; }
   void update_used_tables();
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -203,7 +203,7 @@ public:
   enum Item_result result_type () const { return cached_result_type; }
   void fix_length_and_dec();
   const char *func_name() const { return "ifnull"; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -218,7 +218,7 @@ public:
   enum Item_result result_type () const { return cached_result_type; }
   void fix_length_and_dec();
   const char *func_name() const { return "if"; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -233,7 +233,7 @@ public:
   enum Item_result result_type () const { return cached_result_type; }
   void fix_length_and_dec();
   const char *func_name() const { return "nullif"; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -248,7 +248,7 @@ public:
   void fix_length_and_dec();
   enum Item_result result_type () const { return cached_result_type; }
   const char *func_name() const { return "coalesce"; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_func_case :public Item_func
@@ -269,7 +269,7 @@ public:
   void print(String *str);
   bool fix_fields(THD *thd,struct st_table_list *tlist);
   Item *find_item(String *str);
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -431,7 +431,7 @@ class Item_func_in :public Item_int_func
   enum Functype functype() const { return IN_FUNC; }
   const char *func_name() const { return " IN "; }
   void update_used_tables();
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -469,7 +469,7 @@ public:
     }
   }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_func_isnotnull :public Item_bool_func
@@ -484,7 +484,7 @@ public:
   }
   const char *func_name() const { return "isnotnull"; }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_func_like :public Item_bool_func2
@@ -518,7 +518,7 @@ public:
   const char *func_name() const { return "like"; }
   void fix_length_and_dec();
   bool fix_fields(THD *thd,struct st_table_list *tlist);
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 #ifdef USE_REGEX
@@ -538,7 +538,7 @@ public:
   longlong val_int();
   bool fix_fields(THD *thd,struct st_table_list *tlist);
   const char *func_name() const { return "regex"; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 #else
@@ -575,7 +575,7 @@ public:
   void print(String *str);
   void split_sum_func(List<Item> &fields);
   friend int setup_conds(THD *thd,TABLE_LIST *tables,COND **conds);
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 

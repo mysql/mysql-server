@@ -73,6 +73,7 @@ check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
     }
     TABLE_LIST table_list;
     bzero((char*) &table_list,sizeof(table_list));
+    table_list.db=  table->table_cache_key;
     table_list.name=table->table_name;
     table_list.table=table;
     table_list.grant=table->grant;

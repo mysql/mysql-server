@@ -256,7 +256,7 @@ ulong back_log, connect_timeout;
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], time_zone[30];
 bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
 bool opt_disable_networking=0, opt_skip_show_db=0;
-my_bool opt_local_infile;
+my_bool opt_local_infile, opt_external_locking;
 
 static bool opt_do_pstack = 0;
 static ulong opt_specialflag=SPECIAL_ENGLISH;
@@ -2928,8 +2928,10 @@ struct my_option my_long_options[] =
   {"delay-key-write-for-all-tables", OPT_DELAY_KEY_WRITE, 
    "Don't flush key buffers between writes for any MyISAM table", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"enable-locking", OPT_ENABLE_LOCK, "Enable system locking", 0, 0, 0,
-   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"enable-locking", OPT_ENABLE_LOCK,
+   "Depricated option, use --external-locking instead",
+   (gptr*) &opt_external_locking, (gptr*) &opt_external_locking,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __NT__
   {"enable-named-pipe", OPT_HAVE_NAMED_PIPE, "Enable the named pipe (NT)",
    (gptr*) &opt_enable_named_pipe, (gptr*) &opt_enable_named_pipe, 0, GET_BOOL,
@@ -3198,7 +3200,7 @@ struct my_option my_long_options[] =
   {"skip-innodb", OPT_INNODB_SKIP, "Don't use Innodb (will save memory)",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-locking", OPT_SKIP_LOCK,
-   "Don't use system locking. To use isamchk one has to shut down the server.",
+   "Depricated option, use --skip-external-locking instead",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-host-cache", OPT_SKIP_HOST_CACHE, "Don't cache host names", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -3257,8 +3259,9 @@ struct my_option my_long_options[] =
    "Default transaction isolation level", 0, 0, 0, GET_NO_ARG, REQUIRED_ARG, 0,
    0, 0, 0,
    0, 0},
-  {"use-locking", OPT_USE_LOCKING, "Use system (external) locking",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"external-locking", OPT_USE_LOCKING, "Use system (external) locking.  With this option enabled you can run myisamchk to test (not repair) tables while the MySQL server is running",
+   (gptr*) &opt_external_locking, (gptr*) &opt_external_locking,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef USE_SYMDIR
   {"use-symbolic-links", 's', "Enable symbolic link support",
    (gptr*) &my_use_symdir, (gptr*) &my_use_symdir, 0, GET_BOOL, NO_ARG, 0, 0,
@@ -3835,9 +3838,8 @@ static void set_options(void)
   (void) strmake(mysql_home, tmpenv, sizeof(mysql_home)-1);
 #endif
 
-#if defined( HAVE_mit_thread ) || defined( __WIN__ ) || defined( HAVE_LINUXTHREADS )
   my_disable_locking=myisam_single_user= 1;
-#endif
+  opt_external_locking=0;
   my_bind_addr = htonl( INADDR_ANY );
 }
 
@@ -4060,16 +4062,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_specialflag|= SPECIAL_NO_PRIOR;
     break;
   case (int) OPT_SKIP_LOCK:
-    my_disable_locking=myisam_single_user= 1;
+    opt_external_locking=0;
     break;
   case (int) OPT_SKIP_HOST_CACHE:
     opt_specialflag|= SPECIAL_NO_HOST_CACHE;
-    break;
-  case (int) OPT_ENABLE_LOCK:
-    my_disable_locking=myisam_single_user=0;
-    break;
-  case (int) OPT_USE_LOCKING:
-    my_disable_locking=0;
     break;
   case (int) OPT_SKIP_RESOLVE:
     opt_specialflag|=SPECIAL_NO_RESOLVE;
@@ -4323,6 +4319,7 @@ static void get_options(int argc,char **argv)
     Set some global variables from the global_system_variables
     In most cases the global variables will not be used
   */
+  my_disable_locking= myisam_single_user= test(opt_external_locking == 0);
   my_default_record_cache_size=global_system_variables.read_buff_size;
   myisam_max_temp_length=
     (my_off_t) min(global_system_variables.myisam_max_sort_file_size,

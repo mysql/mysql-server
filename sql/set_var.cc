@@ -475,7 +475,7 @@ struct show_var_st init_vars[]= {
   {sys_safe_show_db.name,     (char*) &sys_safe_show_db,            SHOW_SYS},
   {sys_server_id.name,	      (char*) &sys_server_id,		    SHOW_SYS},
   {sys_slave_net_timeout.name,(char*) &sys_slave_net_timeout,	    SHOW_SYS},
-  {"skip_locking",            (char*) &my_disable_locking,          SHOW_MY_BOOL},
+  {"skip_external_locking",   (char*) &my_disable_locking,          SHOW_MY_BOOL},
   {"skip_networking",         (char*) &opt_disable_networking,      SHOW_BOOL},
   {"skip_show_database",      (char*) &opt_skip_show_db,            SHOW_BOOL},
   {sys_slow_launch_time.name, (char*) &sys_slow_launch_time,        SHOW_SYS},

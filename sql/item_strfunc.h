@@ -40,7 +40,7 @@ public:
     if (!t_arg) return result_field;
     return (max_length > 255) ? (Field *)new Field_blob(max_length,maybe_null, name,t_arg, binary) : (Field *) new Field_string(max_length,maybe_null, name,t_arg, binary);
   }  
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_func_md5 :public Item_str_func
@@ -51,7 +51,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "md5"; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_func_sha :public Item_str_func
@@ -91,7 +91,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "concat"; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_func_concat_ws :public Item_str_func
@@ -112,7 +112,7 @@ public:
 	    || Item_func::fix_fields(thd,tlist));
   }
  const char *func_name() const { return "concat_ws"; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_func_reverse :public Item_str_func
@@ -133,7 +133,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "replace"; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -146,7 +146,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "insert"; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -193,7 +193,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "right"; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -206,7 +206,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "substr"; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -218,7 +218,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() { max_length= args[0]->max_length; }
   const char *func_name() const { return "substr_index"; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -230,7 +230,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() { max_length= args[0]->max_length; }
   const char *func_name() const { return "ltrim"; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -242,7 +242,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() { max_length= args[0]->max_length; }
   const char *func_name() const { return "rtrim"; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_func_trim :public Item_str_func
@@ -253,7 +253,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() { max_length= args[0]->max_length; }
   const char *func_name() const { return "trim"; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -265,7 +265,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() { max_length = 16; }
   const char *func_name() const { return "password"; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_func_des_encrypt :public Item_str_func
@@ -278,7 +278,7 @@ public:
   void fix_length_and_dec()
   { maybe_null=1; max_length = args[0]->max_length+8; }
   const char *func_name() const { return "des_encrypt"; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_func_des_decrypt :public Item_str_func
@@ -290,7 +290,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() { maybe_null=1; max_length = args[0]->max_length; }
   const char *func_name() const { return "des_decrypt"; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_func_encrypt :public Item_str_func
@@ -301,7 +301,7 @@ public:
   Item_func_encrypt(Item *a, Item *b): Item_str_func(a,b) {}
   String *val_str(String *);
   void fix_length_and_dec() { maybe_null=1; max_length = 13; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 #include "sql_crypt.h"
@@ -315,7 +315,7 @@ public:
     Item_str_func(a),sql_crypt(seed) {}
   String *val_str(String *);
   void fix_length_and_dec();
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 class Item_func_decode :public Item_func_encode
@@ -353,7 +353,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "soundex"; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -374,7 +374,7 @@ public:
   void fix_length_and_dec();
   void update_used_tables();
   const char *func_name() const { return "elt"; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -394,7 +394,7 @@ public:
   void fix_length_and_dec();
   void update_used_tables();
   const char *func_name() const { return "make_set"; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -409,7 +409,7 @@ public:
     max_length=args[0]->max_length+(args[0]->max_length-args[0]->decimals)/3;
   }
   const char *func_name() const { return "format"; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -431,7 +431,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "repeat"; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -444,7 +444,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "rpad"; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -457,7 +457,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "lpad"; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -479,7 +479,7 @@ public:
   const char *func_name() const { return "hex"; }
   String *val_str(String *);
   void fix_length_and_dec() { decimals=0; max_length=args[0]->max_length*2; }
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 
@@ -504,7 +504,7 @@ public:
   const char *func_name() const { return "load_file"; }
   void fix_length_and_dec()
   { binary=1; maybe_null=1; max_length=MAX_BLOB_WIDTH;}
-  virtual unsigned int size_of () { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}  
 };
 
 

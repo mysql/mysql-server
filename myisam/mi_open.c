@@ -507,7 +507,8 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   /* Allocate buffer for one record */
 
   /* prerequisites: bzero(info) && info->s=share; are met. */
-  if (!mi_fix_rec_buff_for_blob(&info, -1))
+  if (!mi_alloc_rec_buff(&info, -1, &info.rec_buff,
+			 &info.alloced_rec_buff_length))
     goto err;
   bzero(info.rec_buff, info.alloced_rec_buff_length);
 
@@ -559,6 +560,7 @@ err:
   DBUG_RETURN (NULL);
 } /* mi_open */
 
+
 gptr mi_get_rec_buff_ptr(MI_INFO *info, byte *buf)
 {
   if (info->s->options & HA_OPTION_PACK_RECORD && buf)
@@ -566,6 +568,7 @@ gptr mi_get_rec_buff_ptr(MI_INFO *info, byte *buf)
   else
     return buf;
 }
+
 
 byte *mi_alloc_rec_buff(MI_INFO *info, ulong length, byte **buf, uint *buf_len)
 {
@@ -576,22 +579,23 @@ byte *mi_alloc_rec_buff(MI_INFO *info, ulong length, byte **buf, uint *buf_len)
     byte *newptr = *buf;
 
     /* to simplify initial init of info->rec_buf in mi_open and mi_extra */
-    if (length == (ulong)-1)
-        length=max(info->s->base.pack_reclength,info->s->base.max_key_length);
+    if (length == (ulong) -1)
+      length= max(info->s->base.pack_reclength,info->s->base.max_key_length);
 
     extra= ((info->s->options & HA_OPTION_PACK_RECORD) ?
-             ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER)+MI_SPLIT_LENGTH+
-             MI_REC_BUFF_OFFSET : 0);
+	    ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER)+MI_SPLIT_LENGTH+
+	    MI_REC_BUFF_OFFSET : 0);
     if (extra && newptr)
       newptr-=MI_REC_BUFF_OFFSET;
     if (!(newptr=(byte*) my_realloc((gptr)newptr, length+extra+8,
 				    MYF(MY_ALLOW_ZERO_PTR))))
       return 0;
-    *buf=newptr+(extra ?  MI_REC_BUFF_OFFSET : 0);
-    *buf_len=length;
+    *buf= newptr+(extra ?  MI_REC_BUFF_OFFSET : 0);
+    *buf_len= length;
   }
   return *buf;
 }
+
 
 ulonglong mi_safe_mul(ulonglong a, ulonglong b)
 {
