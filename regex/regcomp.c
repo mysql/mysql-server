@@ -884,7 +884,7 @@ int ch;
 	register char *oldend = p->end;
 	char bracket[3];
 
-	assert(othercase(ch) != ch);	/* p_bracket() would recurse */
+	assert(othercase(p->charset, ch) != ch); /* p_bracket() would recurse */
 	p->next = bracket;
 	p->end = bracket+2;
 	bracket[0] = ch;
