@@ -887,4 +887,3 @@ void mi_end_bulk_insert(MI_INFO *info)
     info->bulk_insert=0;
   }
 }
-

@@ -28,7 +28,6 @@ InnoDB */
 
 #include "mysql_priv.h"
 #include "slave.h"
-#include "sql_cache.h"
 
 #ifdef HAVE_INNOBASE_DB
 #include <m_ctype.h>

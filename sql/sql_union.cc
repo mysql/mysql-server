@@ -31,9 +31,10 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   ORDER *order;
   List<Item> item_list;
   TABLE *table;
-  int describe=(lex->select_lex.options & SELECT_DESCRIBE) ? 1 : 0;
   int res;
-  bool found_rows_for_union= lex->select_lex.options & OPTION_FOUND_ROWS;
+  ulonglong add_rows= 0;
+  ulong found_rows_for_union= lex->select_lex.options & OPTION_FOUND_ROWS;
+  ulong describe= lex->select_lex.options & SELECT_DESCRIBE;
   TABLE_LIST result_table_list;
   TABLE_LIST *first_table=(TABLE_LIST *)lex->select_lex.table_list.first;
   TMP_TABLE_PARAM tmp_table_param;
@@ -135,14 +136,44 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   union_result->tmp_table_param=&tmp_table_param;
   for (sl= &lex->select_lex; sl; sl=sl->next)
   {
+    ha_rows records_at_start;
     lex->select=sl;
-    thd->offset_limit=sl->offset_limit;
-    thd->select_limit=sl->select_limit+sl->offset_limit;
+    /* Don't use offset for the last union if there is no braces */
+    if (sl != lex_sl)
+    {
+      thd->offset_limit= sl->offset_limit;
+      thd->select_limit=sl->select_limit+sl->offset_limit;
+    }
+    else
+    {
+      thd->offset_limit= 0;
+      /*
+	We can't use LIMIT at this stage if we are using ORDER BY for the
+	whole query
+      */
+      thd->select_limit= HA_POS_ERROR;
+      if (! sl->order_list.first)
+	thd->select_limit= sl->select_limit+sl->offset_limit;
+    }
     if (thd->select_limit < sl->select_limit)
       thd->select_limit= HA_POS_ERROR;		// no limit
+
+    /*
+      When using braces, SQL_CALC_FOUND_ROWS affects the whole query.
+      We don't calculate found_rows() per union part
+    */
     if (thd->select_limit == HA_POS_ERROR || sl->braces)
       sl->options&= ~OPTION_FOUND_ROWS;
+    else 
+    {
+      /*
+	We are doing an union without braces.  In this case
+	SQL_CALC_FOUND_ROWS should be done on all sub parts
+      */
+      sl->options|= found_rows_for_union;
+    }
 
+    records_at_start= table->file->records;
     res=mysql_select(thd, (describe && sl->linkage==NOT_A_SELECT) ?
 		     first_table :  (TABLE_LIST*) sl->table_list.first,
 		     sl->item_list,
@@ -153,10 +184,23 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
 		     sl->having,
 		     (ORDER*) NULL,
 		     sl->options | thd->options | SELECT_NO_UNLOCK |
-		     ((describe) ? SELECT_DESCRIBE : 0),
+		     describe,
 		     union_result);
     if (res)
       goto exit;
+    /* Needed for the following test and for records_at_start in next loop */
+    table->file->info(HA_STATUS_VARIABLE);
+    if (found_rows_for_union & sl->options)
+    {
+      /*
+	This is a union without braces. Remember the number of rows that could
+	also have been part of the result set.
+	We get this from the difference of between total number of possible
+	rows and actual rows added to the temporary table.
+      */
+      add_rows+= (ulonglong) (thd->limit_found_rows - (table->file->records -
+						       records_at_start));
+    }
   }
   if (union_result->flush())
   {
@@ -172,19 +216,14 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
     /* Create a list of fields in the temporary table */
     List_iterator<Item> it(item_list);
     Field **field;
-#if 0
-    List<Item_func_match> ftfunc_list;
-    ftfunc_list.empty();
-#else
     thd->lex.select_lex.ftfunc_list.empty();
-#endif
 
     for (field=table->field ; *field ; field++)
     {
       (void) it++;
       (void) it.replace(new Item_field(*field));
     }
-    if (!thd->fatal_error)			// Check if EOM
+    if (!thd->fatal_error)				// Check if EOM
     {
       if (lex_sl)
       {
@@ -209,8 +248,8 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
 		       item_list, NULL, (describe) ? 0 : order,
 		       (ORDER*) NULL, NULL, (ORDER*) NULL,
 		       thd->options, result);
-      if (found_rows_for_union && !res)
-	thd->limit_found_rows = (ulonglong)table->file->records;
+      if (!res)
+	thd->limit_found_rows = (ulonglong)table->file->records + add_rows;
     }
   }
 
