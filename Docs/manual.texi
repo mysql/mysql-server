@@ -46898,6 +46898,9 @@ Fixed binary builds to use @code{--enable-local-infile}.
 Update source to work with new @code{bison} version.
 @item
 Updated shell scripts to new agree with new POSIX standard.
+@item
+Fixed bug where @code{DATE_FORMAT()} returned empty string when used
+with @code{GROUP BY}.
 @end itemize
 
 @node News-3.23.49, News-3.23.48, News-3.23.50, News-3.23.x

@@ -601,7 +601,7 @@ int closefrm(register TABLE *table)
   }
   delete table->file;
   table->file=0;				/* For easyer errorchecking */
-  hash_free(&outparam->name_hash);
+  hash_free(&table->name_hash);
   free_root(&table->mem_root,MYF(0));
   DBUG_RETURN(error);
 }
