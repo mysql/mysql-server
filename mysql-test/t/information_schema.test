@@ -218,6 +218,7 @@ call px5()//
 call px5()//
 delimiter ;//
 select sql_mode from information_schema.ROUTINES;
+drop procedure px5;
 
 create table t1 (a int not null auto_increment,b int, primary key (a));
 insert into t1 values (1,1),(NULL,3),(NULL,4);
@@ -252,3 +253,20 @@ select COLUMN_NAME,COLUMN_TYPE, CHARACTER_MAXIMUM_LENGTH,
  CHARACTER_OCTET_LENGTH, NUMERIC_PRECISION, NUMERIC_SCALE
 from information_schema.columns where table_name= 't1';
 drop table t1;
+
+create table t115 as select table_name, column_name, column_type
+from information_schema.columns where table_name = 'proc';
+select * from t115;
+drop table t115;
+
+create view vk as select count(*) from information_schema.tables a;
+select * from vk;
+drop view vk;
+
+delimiter //;
+create procedure p108 () begin declare c cursor for select data_type
+from information_schema.columns;  open c; open c; end;//
+--error 1325
+call p108()//
+delimiter ;//
+drop procedure p108;

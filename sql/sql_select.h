@@ -277,8 +277,6 @@ class JOIN :public Sql_alloc
     hidden_group_fields= 0; /*safety*/
     buffer_result= test(select_options & OPTION_BUFFER_RESULT) &&
       !test(select_options & OPTION_FOUND_ROWS);
-    all_fields= fields_arg;
-    fields_list= fields_arg;
     error= 0;
     select= 0;
     return_tab= 0;
@@ -288,6 +286,7 @@ class JOIN :public Sql_alloc
     optimized= 0;
     cond_equal= 0;
 
+    all_fields= fields_arg;
     fields_list= fields_arg;
     bzero((char*) &keyuse,sizeof(keyuse));
     tmp_table_param.copy_field=0;
