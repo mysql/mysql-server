@@ -154,7 +154,6 @@ Configuration::Configuration()
   m_config_retriever= 0;
   m_clusterConfig= 0;
   m_clusterConfigIter= 0;
-  m_mgmd_host= NULL;
 }
 
 Configuration::~Configuration(){
@@ -166,9 +165,6 @@ Configuration::~Configuration(){
 
   if(_backupPath != NULL)
     free(_backupPath);
-
-  if(m_mgmd_host)
-    free(m_mgmd_host);
 
   if (m_config_retriever) {
     delete m_config_retriever;
@@ -193,7 +189,6 @@ Configuration::fetch_configuration(){
   }
 
   m_mgmd_port= 0;
-  m_mgmd_host= 0;
   m_config_retriever= new ConfigRetriever(getConnectString(),
 					  NDB_VERSION, NODE_TYPE_DB);
 
@@ -214,16 +209,8 @@ Configuration::fetch_configuration(){
     ERROR_SET(fatal, ERR_INVALID_CONFIG, "Could not connect to ndb_mgmd", s);
   }
   
-  {
-    m_mgmd_port= m_config_retriever->get_mgmd_port();
-    /**
-     * We copy the mgmd host as the handle is later
-     * destroyed, so a pointer won't work
-     */
-    int len= strlen(m_config_retriever->get_mgmd_host());
-    m_mgmd_host= (char*)malloc(sizeof(char)*len);
-    strcpy(m_mgmd_host,m_config_retriever->get_mgmd_host());
-  }
+  m_mgmd_port= m_config_retriever->get_mgmd_port();
+  m_mgmd_host.assign(m_config_retriever->get_mgmd_host());
 
   ConfigRetriever &cr= *m_config_retriever;
   
@@ -325,10 +312,6 @@ Configuration::setupConfiguration(){
       ERROR_SET(fatal, ERR_INVALID_CONFIG, "Invalid configuration fetched", 
 		"No transporters configured");
     }
-    if(!globalTransporterRegistry.connect_client(
-				  m_config_retriever->get_mgmHandlePtr()))
-      ERROR_SET(fatal, ERR_INVALID_CONFIG, "Connection to mgmd terminated before setup was complete", 
-		"StopOnError missing");
   }
 
   /**
