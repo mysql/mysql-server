@@ -2449,8 +2449,8 @@ insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
   if (db_name && lower_case_table_names)
   {
     /* convert database to lower case for comparison */
-    strmake( name_buff, db_name, sizeof(name_buff)-1 );
-    casedn_str( name_buff );
+    strmake(name_buff, db_name, sizeof(name_buff)-1);
+    my_casedn_str(system_charset_info,name_buff);
     db_name = name_buff;
   }
 
