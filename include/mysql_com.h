@@ -125,7 +125,7 @@ typedef struct st_vio Vio;
 #define MAX_BLOB_WIDTH		8192	/* Default width for blob */
 
 typedef struct st_net {
-#ifndef EMBEDDED_LIBRARY
+#if !defined(CHECK_EMBEDDED_DIFFERENCES) || !defined(EMBEDDED_LIBRARY)
   Vio* vio;
   unsigned char *buff,*buff_end,*write_pos,*read_pos;
   my_socket fd;					/* For Perl DBI/dbd */
