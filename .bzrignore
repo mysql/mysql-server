@@ -175,3 +175,5 @@ support-files/mysql.server
 support-files/mysql.spec
 tags
 libmysql_r/conf_to_src
+mysql-test/install_test_db
+mysql-test/mysql-test-run
