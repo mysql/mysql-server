@@ -28453,8 +28453,8 @@ like an integer (64-bit precision). In string context these act like a binary
 string where each pair of hex digits is converted to a character:
 
 @example
-mysql> SELECT x'FF'
-         -> 255
+mysql> SELECT x'4D7953514C';
+         -> MySQL
 mysql> SELECT 0xa+0;
          -> 10
 mysql> SELECT 0x5061756c;
