@@ -400,3 +400,4 @@ mysql-test/var/lib/test/test2.MYD
 mysql-test/var/lib/test/test2.MYI
 mysql-test/var/run/mysqld.pid
 mysql-test/var/tmp/mysql.sock
+mysql-test/var/lib/mysql-bin.008
