@@ -59,7 +59,7 @@ client_settings.h: Makefile
 	rm -f $(srcdir)/client_settings.h
 	@LN_CP_F@ $(top_srcdir)/sql/client_settings.h $(srcdir)/client_settings.h
 
-EXTRA_PROGRAMS= mysqlmanager
+bin_PROGRAMS= mysqlmanager
 
 mysqlmanager_SOURCES=	command.cc command.h mysqlmanager.cc \
 			manager.h manager.cc log.h log.cc \

@@ -22,6 +22,7 @@
 
 #ifdef HAVE_ARCHIVE_DB
 #include "ha_archive.h"
+#include <my_dir.h>
 
 /*
   First, if you want to understand storage engines you should look at 
@@ -227,8 +228,7 @@ int ha_archive::read_meta_file(File meta_file, ulonglong *rows)
 /*
   This method writes out the header of a meta file and returns whether or not it was successful.
   By setting dirty you say whether or not the file represents the actual state of the data file.
-  Upon ::open() we set to dirty, and upon ::close() we set to clean. If we determine during
-  a read that the file was dirty we will force a rebuild of this file.
+  Upon ::open() we set to dirty, and upon ::close() we set to clean.
 */
 int ha_archive::write_meta_file(File meta_file, ulonglong rows, bool dirty)
 {
@@ -305,6 +305,7 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, TABLE *table)
     share->use_count= 0;
     share->table_name_length= length;
     share->table_name= tmp_name;
+    share->crashed= FALSE;
     fn_format(share->data_file_name,table_name,"",ARZ,MY_REPLACE_EXT|MY_UNPACK_FILENAME);
     fn_format(meta_file_name,table_name,"",ARM,MY_REPLACE_EXT|MY_UNPACK_FILENAME);
     strmov(share->table_name,table_name);
@@ -315,24 +316,15 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, TABLE *table)
     if ((share->meta_file= my_open(meta_file_name, O_RDWR, MYF(0))) == -1)
       goto error;
     
-    if (read_meta_file(share->meta_file, &share->rows_recorded))
-    {
-      /*
-        The problem here is that for some reason, probably a crash, the meta
-        file has been corrupted. So what do we do? Well we try to rebuild it
-        ourself. Once that happens, we reread it, but if that fails we just
-        call it quits and return an error.
-      */
-      if (rebuild_meta_file(share->table_name, share->meta_file))
-        goto error;
-      if (read_meta_file(share->meta_file, &share->rows_recorded))
-        goto error;
-    }
     /*
       After we read, we set the file to dirty. When we close, we will do the 
-      opposite.
+      opposite. If the meta file will not open we assume it is crashed and
+      leave it up to the user to fix.
     */
-    (void)write_meta_file(share->meta_file, share->rows_recorded, TRUE);
+    if (read_meta_file(share->meta_file, &share->rows_recorded))
+      share->crashed= TRUE;
+    else
+      (void)write_meta_file(share->meta_file, share->rows_recorded, TRUE);
     /* 
       It is expensive to open and close the data files and since you can't have
       a gzip file that can be both read and written we keep a writer open
@@ -408,7 +400,7 @@ int ha_archive::open(const char *name, int mode, uint test_if_locked)
   DBUG_ENTER("ha_archive::open");
 
   if (!(share= get_share(name, table)))
-    DBUG_RETURN(1);
+    DBUG_RETURN(-1);
   thr_lock_data_init(&share->lock,&lock,NULL);
 
   if ((archive= gzopen(share->data_file_name, "rb")) == NULL)
@@ -530,6 +522,9 @@ int ha_archive::write_row(byte * buf)
   z_off_t written;
   DBUG_ENTER("ha_archive::write_row");
 
+  if (share->crashed)
+      DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+
   statistic_increment(table->in_use->status_var.ha_write_count, &LOCK_status);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
@@ -578,6 +573,9 @@ int ha_archive::rnd_init(bool scan)
 {
   DBUG_ENTER("ha_archive::rnd_init");
   int read; // gzread() returns int, and we use this to check the header
+  
+  if (share->crashed)
+      DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
   /* We rewind the file so that we can read from the beginning if scan */
   if (scan)
@@ -672,6 +670,9 @@ int ha_archive::rnd_next(byte *buf)
   int rc;
   DBUG_ENTER("ha_archive::rnd_next");
 
+  if (share->crashed)
+      DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
+
   if (!scan_rows)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   scan_rows--;
@@ -722,22 +723,23 @@ int ha_archive::rnd_pos(byte * buf, byte *pos)
 }
 
 /*
-  This method rebuilds the meta file. It does this by walking the datafile and 
+  This method repairs the meta file. It does this by walking the datafile and 
   rewriting the meta file.
 */
-int ha_archive::rebuild_meta_file(char *table_name, File meta_file)
+int ha_archive::repair(THD* thd, HA_CHECK_OPT* check_opt)
 {
   int rc;
   byte *buf; 
   ulonglong rows_recorded= 0;
-  gzFile rebuild_file;            /* Archive file we are working with */
+  gzFile rebuild_file; // Archive file we are working with 
+  File meta_file; // Meta file we use 
   char data_file_name[FN_REFLEN];
-  DBUG_ENTER("ha_archive::rebuild_meta_file");
+  DBUG_ENTER("ha_archive::repair");
 
   /*
     Open up the meta file to recreate it.
   */
-  fn_format(data_file_name, table_name, "", ARZ,
+  fn_format(data_file_name, share->table_name, "", ARZ,
             MY_REPLACE_EXT|MY_UNPACK_FILENAME);
   if ((rebuild_file= gzopen(data_file_name, "rb")) == NULL)
     DBUG_RETURN(errno ? errno : -1);
@@ -767,11 +769,18 @@ int ha_archive::rebuild_meta_file(char *table_name, File meta_file)
   */
   if (rc == HA_ERR_END_OF_FILE)
   {
-    (void)write_meta_file(meta_file, rows_recorded, FALSE);
+    fn_format(data_file_name,share->table_name,"",ARM,MY_REPLACE_EXT|MY_UNPACK_FILENAME);
+    if ((meta_file= my_open(data_file_name, O_RDWR, MYF(0))) == -1)
+    {
+      rc= HA_ERR_CRASHED_ON_USAGE;
+      goto error;
+    }
+    (void)write_meta_file(meta_file, rows_recorded, TRUE);
     rc= 0;
   }
 
   my_free((gptr) buf, MYF(0));
+  share->crashed= FALSE;
 error:
   gzclose(rebuild_file);
 
@@ -790,12 +799,13 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   char block[IO_SIZE];
   char writer_filename[FN_REFLEN];
 
+  /* Closing will cause all data waiting to be flushed */
+  gzclose(share->archive_write);
+  share->archive_write= NULL; 
+
   /* Lets create a file to contain the new data */
   fn_format(writer_filename, share->table_name, "", ARN, 
             MY_REPLACE_EXT|MY_UNPACK_FILENAME);
-
-  /* Closing will cause all data waiting to be flushed, to be flushed */
-  gzclose(share->archive_write);
 
   if ((reader= gzopen(share->data_file_name, "rb")) == NULL)
     DBUG_RETURN(-1); 
@@ -813,16 +823,6 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   gzclose(writer);
 
   my_rename(writer_filename,share->data_file_name,MYF(0));
-
-  /* 
-    We reopen the file in case some IO is waiting to go through.
-    In theory the table is closed right after this operation,
-    but it is possible for IO to still happen.
-    I may be being a bit too paranoid right here.
-  */
-  if ((share->archive_write= gzopen(share->data_file_name, "ab")) == NULL)
-    DBUG_RETURN(errno ? errno : -1);
-  share->dirty= FALSE;
 
   DBUG_RETURN(0); 
 }
@@ -880,13 +880,27 @@ THR_LOCK_DATA **ha_archive::store_lock(THD *thd,
 void ha_archive::info(uint flag)
 {
   DBUG_ENTER("ha_archive::info");
-
   /* 
     This should be an accurate number now, though bulk and delayed inserts can
     cause the number to be inaccurate.
   */
   records= share->rows_recorded;
   deleted= 0;
+  /* Costs quite a bit more to get all information */
+  if (flag & HA_STATUS_TIME)
+  {
+    MY_STAT file_stat;  // Stat information for the data file
+
+    VOID(my_stat(share->data_file_name, &file_stat, MYF(MY_WME)));
+
+    mean_rec_length= table->reclength + buffer.alloced_length();
+    data_file_length= file_stat.st_size;
+    create_time= file_stat.st_ctime;
+    update_time= file_stat.st_mtime;
+    max_data_file_length= share->rows_recorded * mean_rec_length;
+  }
+  delete_length= 0;
+  index_file_length=0;
 
   DBUG_VOID_RETURN;
 }
@@ -900,7 +914,7 @@ void ha_archive::info(uint flag)
 */
 void ha_archive::start_bulk_insert(ha_rows rows)
 {
-  DBUG_ENTER("ha_archive::info");
+  DBUG_ENTER("ha_archive::start_bulk_insert");
   bulk_insert= TRUE;
   DBUG_VOID_RETURN;
 }
@@ -912,6 +926,7 @@ void ha_archive::start_bulk_insert(ha_rows rows)
 */
 int ha_archive::end_bulk_insert()
 {
+  DBUG_ENTER("ha_archive::end_bulk_insert");
   bulk_insert= FALSE;
   share->dirty= TRUE;
   DBUG_RETURN(0);

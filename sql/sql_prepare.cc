@@ -2041,10 +2041,7 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
   thd->cleanup_after_query();
 
   if (stmt->state == Item_arena::PREPARED)
-  {
-    thd->current_arena= thd;
     stmt->state= Item_arena::EXECUTED;
-  }
   DBUG_VOID_RETURN;
 }
 

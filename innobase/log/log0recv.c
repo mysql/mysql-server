@@ -2937,7 +2937,6 @@ recv_recovery_from_checkpoint_finish(void)
 #ifndef UNIV_LOG_DEBUG
 	recv_sys_free();
 #endif
-
 	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO) {
 		os_thread_create(trx_rollback_or_clean_all_without_sess,
 				(void *)&i, &recovery_thread_id);

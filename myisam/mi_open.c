@@ -314,7 +314,9 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	{
 	  disk_pos=mi_keyseg_read(disk_pos, pos);
 
-	  if (pos->type == HA_KEYTYPE_TEXT || pos->type == HA_KEYTYPE_VARTEXT)
+	  if (pos->type == HA_KEYTYPE_TEXT ||
+              pos->type == HA_KEYTYPE_VARTEXT1 ||
+              pos->type == HA_KEYTYPE_VARTEXT2)
 	  {
 	    if (!pos->language)
 	      pos->charset=default_charset_info;
@@ -389,7 +391,9 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	for (j=0 ; j < share->uniqueinfo[i].keysegs; j++,pos++)
 	{
 	  disk_pos=mi_keyseg_read(disk_pos, pos);
-	  if (pos->type == HA_KEYTYPE_TEXT || pos->type == HA_KEYTYPE_VARTEXT)
+	  if (pos->type == HA_KEYTYPE_TEXT ||
+              pos->type == HA_KEYTYPE_VARTEXT1 ||
+              pos->type == HA_KEYTYPE_VARTEXT2)
 	  {
 	    if (!pos->language)
 	      pos->charset=default_charset_info;
@@ -1049,12 +1053,13 @@ int mi_keyseg_write(File file, const HA_KEYSEG *keyseg)
   *ptr++ =keyseg->null_bit;
   *ptr++ =keyseg->bit_start;
   *ptr++ =keyseg->bit_end;
-  *ptr++ =0;					/* Not used */
+  *ptr++= keyseg->bit_length;
   mi_int2store(ptr,keyseg->flag);	ptr+=2;
   mi_int2store(ptr,keyseg->length);	ptr+=2;
   mi_int4store(ptr,keyseg->start);	ptr+=4;
-  mi_int4store(ptr,keyseg->null_pos);	ptr+=4;
-
+  mi_int4store(ptr, keyseg->null_bit ? keyseg->null_pos : keyseg->bit_pos);
+  ptr+=4;
+  
   return my_write(file,(char*) buff, (uint) (ptr-buff), MYF(MY_NABP));
 }
 
@@ -1066,12 +1071,19 @@ char *mi_keyseg_read(char *ptr, HA_KEYSEG *keyseg)
    keyseg->null_bit	= *ptr++;
    keyseg->bit_start	= *ptr++;
    keyseg->bit_end	= *ptr++;
-   ptr++;
+   keyseg->bit_length   = *ptr++;
    keyseg->flag		= mi_uint2korr(ptr);  ptr +=2;
    keyseg->length	= mi_uint2korr(ptr);  ptr +=2;
    keyseg->start	= mi_uint4korr(ptr);  ptr +=4;
    keyseg->null_pos	= mi_uint4korr(ptr);  ptr +=4;
    keyseg->charset=0;				/* Will be filled in later */
+   if (keyseg->null_bit)
+     keyseg->bit_pos= keyseg->null_pos + (keyseg->null_bit == 7);
+   else
+   {
+     keyseg->bit_pos= keyseg->null_pos;
+     keyseg->null_pos= 0;
+   }
    return ptr;
 }
 

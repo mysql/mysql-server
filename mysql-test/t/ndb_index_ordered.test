@@ -148,6 +148,37 @@ select * from t1 use index (bc) where b IS NOT NULL order by a;
 drop table t1;
 
 #
+# Order by again, including descending.
+#
+
+create table t1 (
+  a int unsigned primary key,
+  b int unsigned,
+  c char(10),
+  key bc (b, c)
+) engine=ndb;
+
+insert into t1 values(1,1,'a'),(2,2,'b'),(3,3,'c'),(4,4,'d'),(5,5,'e');
+insert into t1 select a*7,10*b,'f' from t1;
+insert into t1 select a*13,10*b,'g' from t1;
+insert into t1 select a*17,10*b,'h' from t1;
+insert into t1 select a*19,10*b,'i' from t1;
+insert into t1 select a*23,10*b,'j' from t1;
+insert into t1 select a*29,10*b,'k' from t1;
+#
+select b, c from t1 where b <= 10 and c <'f' order by b, c;
+select b, c from t1 where b <= 10 and c <'f' order by b desc, c desc;
+#
+select b, c from t1 where b=4000 and c<'k' order by b, c;
+select b, c from t1 where b=4000 and c<'k' order by b desc, c desc;
+select b, c from t1 where 1000<=b and b<=100000 and c<'j' order by b, c;
+select b, c from t1 where 1000<=b and b<=100000 and c<'j' order by b desc, c desc;
+#
+select min(b), max(b) from t1;
+#
+drop table t1;
+
+#
 # Bug #6435
 CREATE TABLE test1 (
 SubscrID int(11) NOT NULL auto_increment,
