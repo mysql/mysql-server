@@ -188,9 +188,9 @@ static int free_share(ARCHIVE_SHARE *share)
     hash_delete(&archive_open_tables, (byte*) share);
     thr_lock_delete(&share->lock);
     pthread_mutex_destroy(&share->mutex);
-    my_free((gptr) share, MYF(0));
     if (gzclose(share->archive_write) == Z_ERRNO)
       rc= -1;
+    my_free((gptr) share, MYF(0));
   }
   pthread_mutex_unlock(&archive_mutex);
 
