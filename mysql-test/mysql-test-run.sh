@@ -79,8 +79,10 @@ sleep_until_file_created ()
 
 # No paths below as we can't be sure where the program is!
 
-BASENAME=`which basename | head -1`
-DIFF=`which diff | head -1`
+SED=sed
+
+BASENAME=`which basename | $SED q`
+DIFF=`which diff | $SED q`
 CAT=cat
 CUT=cut
 HEAD=head
@@ -88,13 +90,12 @@ TAIL=tail
 ECHO=echo # use internal echo if possible
 EXPR=expr # use internal if possible
 FIND=find
-GCOV=`which gcov | head -1`
+GCOV=`which gcov | $SED q`
 PRINTF=printf
 RM=rm
 TIME=time
 TR=tr
-XARGS=`which xargs | head -1`
-SED=sed
+XARGS=`which xargs | $SED q`
 
 # Are we using a source or a binary distribution?
 

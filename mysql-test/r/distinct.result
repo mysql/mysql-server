@@ -77,6 +77,7 @@ NULL	NULL
 10	VMT
 select id+0 as a,max(id),concat(facility) as b from t1 group by a order by b desc,a;
 a	max(id)	b
+NULL	NULL	NULL
 10	10	VMT
 9	9	SRV
 8	8	RV
@@ -89,7 +90,6 @@ a	max(id)	b
 1	1	/L
 -1	-1	
 0	0	
-NULL	NULL	NULL
 select id >= 0 and id <= 5 as grp,count(*) from t1 group by grp;
 grp	count(*)
 0	7
@@ -335,4 +335,17 @@ select distinct a,c from t1 group by b,c,a having a > 2 order by a desc;
 a	c
 4	NULL
 3	NULL
+drop table t1;
+create table t1 (a char(1), key(a)) type=myisam;
+insert into t1 values('1'),('1');
+select * from t1 where a >= '1';
+a
+1
+1
+select distinct a from t1 order by a desc;
+a
+1
+select distinct a from t1 where a >= '1' order by a desc;
+a
+1
 drop table t1;

@@ -48,3 +48,15 @@ GROUP BY e.id
 HAVING chr_strand= -1 and end >= 0 
   AND start <= 999660;
 drop table t1,t2;
+
+#
+# Test problem with having and MAX() IS NOT NULL
+#
+
+CREATE TABLE t1 (Fld1 int(11) default NULL,Fld2 int(11) default NULL);
+INSERT INTO t1 VALUES (1,10),(1,20),(2,NULL),(2,NULL),(3,50);
+select Fld1, max(Fld2) as q from t1 group by Fld1 having q is not null;
+select Fld1, max(Fld2) from t1 group by Fld1 having max(Fld2) is not null;
+select Fld1, max(Fld2) from t1 group by Fld1 having avg(Fld2) is not null;
+select Fld1, max(Fld2) from t1 group by Fld1 having std(Fld2) is not null;
+drop table t1;

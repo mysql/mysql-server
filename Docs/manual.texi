@@ -566,7 +566,8 @@ a commercial memory leakage detector.
 @item
 Works on many different platforms.  @xref{Which OS}.
 @item
-Uses GNU Automake, Autoconf (Ver 2.52 or newer), and Libtool for portability.
+Uses GNU Automake (1.4), Autoconf (Ver 2.52 or newer), and Libtool for
+portability.
 @item
 APIs for C, C++, Eiffel, Java, Perl, PHP, Python and Tcl.  @xref{Clients}.
 @item
@@ -6254,11 +6255,14 @@ shell> gunzip < /path/to/mysql-VERSION-OS.tar.gz | tar xvf -
 shell> ln -s mysql-VERSION-OS mysql
 shell> cd mysql
 shell> scripts/mysql_install_db
-shell> chown -R root  /usr/local/mysql
-shell> chown -R mysql /usr/local/mysql/data
-shell> chgrp -R mysql /usr/local/mysql
-shell> chown -R root /usr/local/mysql/bin
+shell> chown -R root  .
+shell> chown -R mysql ./data
+shell> chgrp -R mysql .
+shell> chown -R root ./bin
 shell> bin/safe_mysqld --user=mysql &
+or
+shell> bin/mysqld_safe --user=mysql &
+if you are running MySQL 4.x
 @end example
 
 @cindex adding, new users
@@ -6522,6 +6526,9 @@ shell> chown -R mysql /usr/local/mysql/var
 shell> chgrp -R mysql /usr/local/mysql
 shell> cp support-files/my-medium.cnf /etc/my.cnf
 shell> /usr/local/mysql/bin/safe_mysqld --user=mysql &
+or
+shell> /usr/local/mysql/bin/mysqld_safe --user=mysql &
+if you are running MySQL 4.x.
 @end example
 
 If you want have support for InnoDB tables, you should edit the
@@ -7009,11 +7016,10 @@ The initial download of the source tree may take a while, depending on the
 speed of your connection; be patient.
 
 @item
-You will need GNU @code{autoconf 2.13}, @code{automake 1.4},
+You will need GNU @code{autoconf 2.52}, @code{automake 1.4},
 @code{libtool}, and @code{m4} to run the next set of commands.
 
-If you are using the 3.23 tree the new versions of @code{autoconf}
-(2.52) and @code{automake} (1.5) will not work.
+@code{automake} (1.5) doesn't yet work.
 
 If you get some strange error during this stage, check that you really
 have @code{libtool} installed!
@@ -8140,6 +8146,9 @@ The following lists tell what you have to watch out for when upgrading to
 version 4.0;
 
 @itemize @bullet
+@item
+Use @code{ORDER BY column DESC} now always sorts @code{NULL} values
+first; In 3.23 this was not always consistent.
 @item
 @code{SHOW INDEX} has 2 columns more (@code{Null} and @code{Index_type})
 than it had in 3.23.
@@ -12676,8 +12685,14 @@ mysql> SELECT 1 IS NULL, 1 IS NOT NULL;
 +-----------+---------------+
 @end example
 
+Note that two @code{NULL} are compared as equal is when you do an
+@code{GROUP BY}.
+
 In MySQL, 0 or @code{NULL} means false and anything else means true.
 The default truth value from a boolean operation is 1.
+
+When doing an @code{ORDER BY}, @code{NULL} values are always sorted first,
+even if you are using @code{DESC}.
 
 This special treatment of @code{NULL} is why, in the previous section, it
 was necessary to determine which animals are no longer alive using
@@ -13206,7 +13221,7 @@ mysql> DESCRIBE pet;
 @end example
 
 @code{Field} indicates the column name, @code{Type} is the data type for
-the column, @code{Null} indicates whether or not the column can contain
+the column, @code{NULL} indicates whether or not the column can contain
 @code{NULL} values, @code{Key} indicates whether or not the column is
 indexed, and @code{Default} specifies the column's default value.
 
@@ -13692,6 +13707,13 @@ tell @code{mysql} to read its input from the file:
 shell> mysql < batch-file
 @end example
 
+If you are running @code{mysql} under windows and have some special
+characters in the file that causes problems, you can do:
+
+@example
+dos> mysql -e "source batch-file"
+@end example
+
 If you need to specify connection parameters on the command line, the
 command might look like this:
 
@@ -13702,6 +13724,9 @@ Enter password: ********
 
 When you use @code{mysql} this way, you are creating a script file, then
 executing the script.
+
+If you want the script to continue even if you have errors, you should
+use the @code{--force} command line option.
 
 Why use a script?  Here are a few reasons:
 
@@ -13776,6 +13801,12 @@ If you want to get the interactive output format in batch mode, use
 @code{mysql -t}.  To echo to the output the commands that are executed, use
 @code{mysql -vvv}.
 
+You can also use scripts in the @code{mysql} command line prompt by
+using the @code{source} command:
+
+@example
+mysql> source filename
+@end example
 
 @node Twin, Apache, Batch mode, Tutorial
 @section Queries from Twin Project
@@ -16496,8 +16527,10 @@ password will be set to the password specified by the @code{IDENTIFIED BY}
 clause, if one is given.  If the user already had a password, it is replaced
 by the new one.
 
-Optional @code{PASSWORD} changes behaviour of @code{IDENTIFIED BY} from
-accepting plain password to accept encrypted password as argument.
+If you don't want to send the password in clear text you can use the
+@code{PASSWORD} option followed by a scrambled password from SQL
+function @code{PASSWORD()} or the C API function
+@code{make_scrambled_password(char *to, const char *password)}.
 
 @strong{Warning:} If you create a new user but do not specify an
 @code{IDENTIFIED BY} clause, the user has no password.  This is insecure.
@@ -25574,7 +25607,13 @@ You have different @code{ORDER BY} and @code{GROUP BY} expressions.
 
 @item
 The used table index is an index type that doesn't store rows in order.
-(Like index in @code{HEAP} tables).
+(Like the @code{HASH} index in @code{HEAP} tables).
+
+@item
+The index colum may contain @code{NULL} values and one is using
+@code{ORDER BY ... DESC}.  This is because in SQL @code{NULL} values is
+always sorted before normal values, independent of you are using
+@code{DESC} or not.
 @end itemize
 
 
@@ -26509,6 +26548,9 @@ probably much faster, as this will require us to do much fewer seeks.)
 Note that if such a query uses @code{LIMIT} to only retrieve
 part of the rows, MySQL will use an index anyway, as it can
 much more quickly find the few rows to return in the result.
+@item
+If the index range may contain @code{NULL} values and you are using
+@code{ORDER BY ... DESC}
 @end itemize
 
 @node Indexes, Multiple-column indexes, MySQL indexes, Optimising Database Structure
@@ -30018,7 +30060,7 @@ mysql> select 2 > 2;
 @cindex @code{NULL}, testing for null
 @findex <=> (Equal to)
 @item <=>
-Null safe equal:
+NULL safe equal:
 @example
 mysql> select 1 <=> 1, NULL <=> NULL, 1 <=> NULL;
         -> 1 1 0
@@ -48665,6 +48707,12 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Use @code{ORDER BY column DESC} now sorts @code{NULL} values first.
+@item
+Fixed bug in @code{SELECT DISTINCT ... ORDER BY DESC} optimization.
+@item
+Fixed bug in @code{... HAVING 'GROUP_FUNCTION'(xxx) IS [NOT] NULL}.
+@item
 Fixed bug in truncation operator for boolean fulltext search.
 @item
 Allow numeric user id to @code{mysqld --user=#}.
@@ -49037,8 +49085,19 @@ not yet 100% confident in this code.
 @node News-3.23.50, News-3.23.49, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.50
 @itemize @bullet
+Fixed core-dump bug when reading client groups from option files using
+@code{mysql_options()}.
 @item
 Memory leak (16 bytes per every @strong{corrupted} table) closed.
+@item
+Fixed binary builds to use @code{--enable-local-infile}.
+@item
+Update source to work with new @code{bison} version.
+@item
+Updated shell scripts to new agree with new POSIX standard.
+@item
+Fixed bug where @code{DATE_FORMAT()} returned empty string when used
+with @code{GROUP BY}.
 @end itemize
 
 @node News-3.23.49, News-3.23.48, News-3.23.50, News-3.23.x
@@ -49056,6 +49115,8 @@ Added options to make @code{LOAD DATA LOCAL INFILE} more secure.
 MySQL binary release 3.23.48 for Linux contained a new glibc library, which
 has serious problems under high load and RedHat 7.2.  The 3.23.49 binary
 release doesn't have this problem.
+@item
+Fixed shutdown problem on NT.
 @end itemize
 
 @node News-3.23.48, News-3.23.47, News-3.23.49, News-3.23.x

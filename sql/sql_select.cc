@@ -612,8 +612,7 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
 				  HA_POS_ERROR : thd->select_limit,0))))
       order=0;
     select_describe(&join,need_tmp,
-		    (order != 0 &&
-		     (!need_tmp || order != group || simple_group)),
+		    order != 0 && !skip_sort_order,
 		    select_distinct);
     error=0;
     goto err;
@@ -5451,7 +5450,16 @@ static uint find_shortest_key(TABLE *table, key_map usable_keys)
 }
 
 
-/* Return 1 if we don't have to do file sorting */
+/*
+  Test if we can skip the ORDER BY by using an index.
+
+  If we can use an index, the JOIN_TAB / tab->select struct
+  is changed to use the index.
+
+  Return:
+     0 We have to use filesort to do the sorting
+     1 We can use an index.
+*/
 
 static bool
 test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
@@ -5497,15 +5505,22 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       {
 	if (select && select->quick)
 	{
-	  // ORDER BY range_key DESC
-	  QUICK_SELECT_DESC *tmp=new QUICK_SELECT_DESC(select->quick,
-						       used_key_parts);
-	  if (!tmp || tmp->error)
+	  /*
+	    Don't reverse the sort order, if it's already done.
+	    (In some cases test_if_order_by_key() can be called multiple times
+	  */
+	  if (!select->quick->reverse_sorted())
 	  {
-	    delete tmp;
-	    DBUG_RETURN(0);		// Reverse sort not supported
+	    // ORDER BY range_key DESC
+	    QUICK_SELECT_DESC *tmp=new QUICK_SELECT_DESC(select->quick,
+							 used_key_parts);
+	    if (!tmp || tmp->error)
+	    {
+	      delete tmp;
+	      DBUG_RETURN(0);		// Reverse sort not supported
+	    }
+	    select->quick=tmp;
 	  }
-	  select->quick=tmp;
 	  DBUG_RETURN(1);
 	}
 	if (tab->ref.key_parts < used_key_parts)
