@@ -5107,27 +5107,15 @@ void Dbtc::execLQHKEYREF(Signal* signal)
        *---------------------------------------------------------------------*/
       regApiPtr->lqhkeyreqrec--;
       if (regApiPtr->lqhkeyconfrec == regApiPtr->lqhkeyreqrec) {
-	if ((regApiPtr->lqhkeyconfrec == 0) &&
-	    (regApiPtr->apiConnectstate == CS_START_COMMITTING)) {
-	  
-	  if(abort == TcKeyReq::IgnoreError){
-	    jam();
-	    regApiPtr->returnsignal = RS_NO_RETURN;
-	    abort010Lab(signal);
-	    return;
-	  }
-	  
-	  /*----------------------------------------------------------------
-	   * Not a single operation was successful. 
-	   * This we report as an aborted transaction 
-	   * to avoid performing a commit of zero operations.
-	   *----------------------------------------------------------------*/
-	  TCKEY_abort(signal, 54);
-	  return;
-	}//if
 	if (regApiPtr->apiConnectstate == CS_START_COMMITTING) {
-	  jam();
-	  diverify010Lab(signal);
+	  if(regApiPtr->lqhkeyconfrec) {
+	    jam();
+	    diverify010Lab(signal);
+	  } else {
+	    jam();
+	    sendtckeyconf(signal, 1);
+	    regApiPtr->apiConnectstate = CS_CONNECTED;
+	  }
 	  return;
 	} else if (regApiPtr->tckeyrec > 0 || regApiPtr->m_exec_flag) {
 	  jam();
