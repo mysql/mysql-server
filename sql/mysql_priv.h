@@ -1015,6 +1015,11 @@ compare_func_creator comp_le_creator(bool invert);
 compare_func_creator comp_lt_creator(bool invert);
 compare_func_creator comp_ne_creator(bool invert);
 
+Item * all_any_subquery_creator(Item *left_expr,
+				chooser_compare_func_creator cmp,
+				bool all,
+				SELECT_LEX *select_lex);
+
 /*
   clean/setup table fields and map
 

@@ -2262,12 +2262,7 @@ expr_expr:
 	| expr comp_op expr %prec EQ	{ $$= (*((*$2)(0)))($1,$3); }
 	| expr comp_op all_or_any in_subselect %prec EQ
 	{
-	  Item_allany_subselect *it=
-	    new Item_allany_subselect($1, (*$2)($3), $4);
-	  if ($3)
-	    $$ = it->upper_not= new Item_func_not_all(it);	/* ALL */
-	  else
-	    $$ = it;			/* ANY/SOME */
+	  $$= all_any_subquery_creator($1, $2, $3, $4);
 	}
 	| expr SHIFT_LEFT expr	{ $$= new Item_func_shift_left($1,$3); }
 	| expr SHIFT_RIGHT expr { $$= new Item_func_shift_right($1,$3); }
@@ -2308,12 +2303,7 @@ no_in_expr:
 	| no_in_expr comp_op expr %prec EQ	{ $$= (*((*$2)(0)))($1,$3); }
 	| no_in_expr comp_op all_or_any in_subselect %prec EQ
 	{
-	  Item_allany_subselect *it=
-	    new Item_allany_subselect($1, (*$2)($3), $4);
-	  if ($3)
-	    $$ = it->upper_not= new Item_func_not_all(it);	/* ALL */
-	  else
-	    $$ = it;			/* ANY/SOME */
+	  all_any_subquery_creator($1, $2, $3, $4);
 	}
 	| no_in_expr SHIFT_LEFT expr  { $$= new Item_func_shift_left($1,$3); }
 	| no_in_expr SHIFT_RIGHT expr { $$= new Item_func_shift_right($1,$3); }
@@ -2363,12 +2353,7 @@ no_and_expr:
 	| no_and_expr comp_op expr %prec EQ { $$= (*((*$2)(0)))($1,$3); }
 	| no_and_expr comp_op all_or_any in_subselect %prec EQ
 	{
-	  Item_allany_subselect *it=
-	    new Item_allany_subselect($1, (*$2)($3), $4);
-	  if ($3)
-	    $$ = it->upper_not= new Item_func_not_all(it);	/* ALL */
-	  else
-	    $$ = it;			/* ANY/SOME */
+	  all_any_subquery_creator($1, $2, $3, $4);
 	}
 	| no_and_expr SHIFT_LEFT expr  { $$= new Item_func_shift_left($1,$3); }
 	| no_and_expr SHIFT_RIGHT expr { $$= new Item_func_shift_right($1,$3); }

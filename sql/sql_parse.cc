@@ -4610,32 +4610,71 @@ bool check_simple_select()
   return 0;
 }
 
+
 compare_func_creator comp_eq_creator(bool invert)
 {
   return invert?&Item_bool_func2::ne_creator:&Item_bool_func2::eq_creator;
 }
+
 
 compare_func_creator comp_ge_creator(bool invert)
 {
   return invert?&Item_bool_func2::lt_creator:&Item_bool_func2::ge_creator;
 }
 
+
 compare_func_creator comp_gt_creator(bool invert)
 {
   return invert?&Item_bool_func2::le_creator:&Item_bool_func2::gt_creator;
 }
+
 
 compare_func_creator comp_le_creator(bool invert)
 {
   return invert?&Item_bool_func2::gt_creator:&Item_bool_func2::le_creator;
 }
 
+
 compare_func_creator comp_lt_creator(bool invert)
 {
   return invert?&Item_bool_func2::ge_creator:&Item_bool_func2::lt_creator;
 }
 
+
 compare_func_creator comp_ne_creator(bool invert)
 {
   return invert?&Item_bool_func2::eq_creator:&Item_bool_func2::ne_creator;
+}
+
+
+/*
+  Construct ALL/ANY/SOME subquery Item
+
+  SYNOPSIS
+    all_any_subquery_creator()
+    left_expr - pointer to left expression
+    cmp - compare function creator
+    all - true if we create ALL subquery
+    select_lex - pointer on parsed subquery structure
+
+  RETURN VALUE
+    constructed Item (or 0 if out of memory)
+*/
+Item * all_any_subquery_creator(Item *left_expr,
+				chooser_compare_func_creator cmp,
+				bool all,
+				SELECT_LEX *select_lex)
+{
+  if ((cmp == &comp_eq_creator) and !all)       //  = ANY <=> IN
+    return new Item_in_subselect(left_expr, select_lex);
+  
+  if ((cmp == &comp_ne_creator) and all)	// <> ALL <=> NOT IN
+    return new Item_func_not(new Item_in_subselect(left_expr, select_lex));
+
+  Item_allany_subselect *it=
+    new Item_allany_subselect(left_expr, (*cmp)(all), select_lex);
+  if (all)
+    return it->upper_not= new Item_func_not_all(it);	/* ALL */
+
+  return it;						/* ANY/SOME */
 }
