@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1998, 1999, 2000
+ * Copyright (c) 1998-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: xa.c,v 11.10 2000/12/14 07:39:14 ubell Exp $";
+static const char revid[] = "$Id: xa.c,v 11.23 2002/08/29 14:22:25 margo Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -19,11 +19,7 @@ static const char revid[] = "$Id: xa.c,v 11.10 2000/12/14 07:39:14 ubell Exp $";
 #endif
 
 #include "db_int.h"
-#include "db_page.h"
-#include "log.h"
-#include "txn.h"
-#include "db_am.h"
-#include "db_dispatch.h"
+#include "dbinc/txn.h"
 
 static int  __db_xa_close __P((char *, int, long));
 static int  __db_xa_commit __P((XID *, int, long));
@@ -35,8 +31,7 @@ static int  __db_xa_prepare __P((XID *, int, long));
 static int  __db_xa_recover __P((XID *, long, int, long));
 static int  __db_xa_rollback __P((XID *, int, long));
 static int  __db_xa_start __P((XID *, int, long));
-static void __xa_txn_end __P((DB_ENV *));
-static void __xa_txn_init __P((DB_ENV *, TXN_DETAIL *, size_t));
+static void __xa_txn_end __P((DB_TXN *));
 
 /*
  * Possible flag values:
@@ -158,7 +153,7 @@ __db_xa_close(xa_info, rmid, flags)
 
 	/* Discard space held for the current transaction. */
 	if (env->xa_txn != NULL)
-		__os_free(env->xa_txn, sizeof(DB_TXN));
+		__os_free(env, env->xa_txn);
 
 	/* Close the environment. */
 	if ((t_ret = env->close(env, 0)) != 0 && ret == 0)
@@ -220,7 +215,7 @@ __db_xa_start(xid, rmid, flags)
 			return (XA_RBOTHER);
 
 		/* Now, fill in the global transaction structure. */
-		__xa_txn_init(env, td, off);
+		__txn_continue(env, env->xa_txn, td, off);
 		td->xa_status = TXN_XA_STARTED;
 	} else {
 		if (__txn_xa_begin(env, env->xa_txn) != 0)
@@ -327,15 +322,15 @@ __db_xa_prepare(xid, rmid, flags)
 		return (XAER_PROTO);
 
 	/* Now, fill in the global transaction structure. */
-	__xa_txn_init(env, td, off);
+	__txn_continue(env, env->xa_txn, td, off);
 
-	if (txn_prepare(env->xa_txn) != 0)
+	if (env->xa_txn->prepare(env->xa_txn, (u_int8_t *)xid->data) != 0)
 		return (XAER_RMERR);
 
 	td->xa_status = TXN_XA_PREPARED;
 
 	/* No fatal value that would require an XAER_RMFAIL. */
-	__xa_txn_end(env);
+	__xa_txn_end(env->xa_txn);
 	return (XA_OK);
 }
 
@@ -385,13 +380,13 @@ __db_xa_commit(xid, rmid, flags)
 		return (XAER_PROTO);
 
 	/* Now, fill in the global transaction structure. */
-	__xa_txn_init(env, td, off);
+	__txn_continue(env, env->xa_txn, td, off);
 
-	if (txn_commit(env->xa_txn, 0) != 0)
+	if (env->xa_txn->commit(env->xa_txn, 0) != 0)
 		return (XAER_RMERR);
 
 	/* No fatal value that would require an XAER_RMFAIL. */
-	__xa_txn_end(env);
+	__xa_txn_end(env->xa_txn);
 	return (XA_OK);
 }
 
@@ -409,118 +404,26 @@ __db_xa_recover(xids, count, rmid, flags)
 	long count, flags;
 	int rmid;
 {
-	__txn_xa_regop_args *argp;
-	DBT data;
 	DB_ENV *env;
-	DB_LOG *log;
-	XID *xidp;
-	int err, ret;
-	u_int32_t rectype, txnid;
-
-	ret = 0;
-	xidp = xids;
+	u_int32_t newflags;
+	long rval;
 
 	/* If the environment is closed, then we're done. */
 	if (__db_rmid_to_env(rmid, &env) != 0)
 		return (XAER_PROTO);
 
-	/*
-	 * If we are starting a scan, then we need to figure out where
-	 * to begin.  If we are not starting a scan, we'll start from
-	 * wherever the log cursor is.  Since XA apps cannot be threaded,
-	 * we don't have to worry about someone else having moved it.
-	 */
-	log = env->lg_handle;
-	if (LF_ISSET(TMSTARTRSCAN)) {
-		if ((err = __log_findckp(env, &log->xa_first)) == DB_NOTFOUND) {
-			/*
-			 * If there were no log files, then we have no
-			 * transactions to return, so we simply return 0.
-			 */
-			return (0);
-		}
-		if ((err = __db_txnlist_init(env, &log->xa_info)) != 0)
-			return (XAER_RMERR);
-	} else {
-		/*
-		 * If we are not starting a scan, the log cursor had
-		 * better be set.
-		 */
-		if (IS_ZERO_LSN(log->xa_lsn))
-			return (XAER_PROTO);
-	}
+	if (LF_ISSET(TMSTARTRSCAN))
+		newflags = DB_FIRST;
+	else if (LF_ISSET(TMENDRSCAN))
+		newflags = DB_LAST;
+	else
+		newflags = DB_NEXT;
 
-	/*
-	 * At this point log->xa_first contains the point in the log
-	 * to which we need to roll back.  If we are starting a scan,
-	 * we'll start at the last record; if we're continuing a scan,
-	 * we'll have to start at log->xa_lsn.
-	 */
-
-	memset(&data, 0, sizeof(data));
-	for (err = log_get(env, &log->xa_lsn, &data,
-	    LF_ISSET(TMSTARTRSCAN) ? DB_LAST : DB_SET);
-	    err == 0 && log_compare(&log->xa_lsn, &log->xa_first) > 0;
-	    err = log_get(env, &log->xa_lsn, &data, DB_PREV)) {
-		memcpy(&rectype, data.data, sizeof(rectype));
-
-		/*
-		 * The only record type we care about is an DB_txn_xa_regop.
-		 * If it's a commit, we have to add it to a txnlist.  If it's
-		 * a prepare, and we don't have a commit, then we return it.
-		 * We are redoing some of what's in the xa_regop_recovery
-		 * code, but we have to do it here so we can get at the xid
-		 * in the record.
-		 */
-		if (rectype != DB_txn_xa_regop && rectype != DB_txn_regop)
-			continue;
-
-		memcpy(&txnid, (u_int8_t *)data.data + sizeof(rectype),
-		    sizeof(txnid));
-		err = __db_txnlist_find(log->xa_info, txnid);
-		switch (rectype) {
-		case DB_txn_regop:
-			if (err == DB_NOTFOUND)
-				__db_txnlist_add(env, log->xa_info, txnid, 0);
-			err = 0;
-			break;
-		case DB_txn_xa_regop:
-			/*
-			 * This transaction is committed, so we needn't read
-			 * the record and do anything.
-			 */
-			if (err == 0)
-				break;
-			if ((err =
-			    __txn_xa_regop_read(env, data.data, &argp)) != 0) {
-				ret = XAER_RMERR;
-				goto out;
-			}
-
-			xidp->formatID = argp->formatID;
-			xidp->gtrid_length = argp->gtrid;
-			xidp->bqual_length = argp->bqual;
-			memcpy(xidp->data, argp->xid.data, argp->xid.size);
-			ret++;
-			xidp++;
-			__os_free(argp, sizeof(*argp));
-			if (ret == count)
-				goto done;
-			break;
-		}
-	}
-
-	if (err != 0 && err != DB_NOTFOUND)
-		goto out;
-
-done:	if (LF_ISSET(TMENDRSCAN)) {
-		ZERO_LSN(log->xa_lsn);
-		ZERO_LSN(log->xa_first);
-
-out:		__db_txnlist_end(env, log->xa_info);
-		log->xa_info = NULL;
-	}
-	return (ret);
+	rval = 0;
+	if (__txn_get_prepared(env, xids, NULL, count, &rval, newflags) != 0)
+		return (XAER_RMERR);
+	else
+		return (rval);
 }
 
 /*
@@ -560,12 +463,12 @@ __db_xa_rollback(xid, rmid, flags)
 		return (XAER_PROTO);
 
 	/* Now, fill in the global transaction structure. */
-	__xa_txn_init(env, td, off);
-	if (txn_abort(env->xa_txn) != 0)
+	__txn_continue(env, env->xa_txn, td, off);
+	if (env->xa_txn->abort(env->xa_txn) != 0)
 		return (XAER_RMERR);
 
 	/* No fatal value that would require an XAER_RMFAIL. */
-	__xa_txn_end(env);
+	__xa_txn_end(env->xa_txn);
 	return (XA_OK);
 }
 
@@ -624,38 +527,13 @@ __db_xa_complete(handle, retval, rmid, flags)
 }
 
 /*
- * __xa_txn_init --
- *	Fill in the fields of the local transaction structure given
- *	the detail transaction structure.
- */
-static void
-__xa_txn_init(env, td, off)
-	DB_ENV *env;
-	TXN_DETAIL *td;
-	size_t off;
-{
-	DB_TXN *txn;
-
-	txn = env->xa_txn;
-	txn->mgrp = env->tx_handle;
-	txn->parent = NULL;
-	txn->last_lsn = td->last_lsn;
-	txn->txnid = td->txnid;
-	txn->off = off;
-	txn->flags = 0;
-}
-
-/*
  * __xa_txn_end --
- *	Invalidate a transaction structure that was generated by xa_txn_init.
+ *	Invalidate a transaction structure that was generated by __txn_continue.
  */
 static void
-__xa_txn_end(env)
-	DB_ENV *env;
-{
+__xa_txn_end(txn)
 	DB_TXN *txn;
-
-	txn = env->xa_txn;
+{
 	if (txn != NULL)
 		txn->txnid = TXN_INVALID;
 }

@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: db_dup.c,v 11.18 2000/11/30 00:58:32 ubell Exp $";
+static const char revid[] = "$Id: db_dup.c,v 11.32 2002/08/08 03:57:47 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -18,12 +18,10 @@ static const char revid[] = "$Id: db_dup.c,v 11.18 2000/11/30 00:58:32 ubell Exp
 #endif
 
 #include "db_int.h"
-#include "db_page.h"
-#include "db_shash.h"
-#include "btree.h"
-#include "hash.h"
-#include "lock.h"
-#include "db_am.h"
+#include "dbinc/db_page.h"
+#include "dbinc/db_shash.h"
+#include "dbinc/lock.h"
+#include "dbinc/db_am.h"
 
 /*
  * __db_ditem --
@@ -39,19 +37,20 @@ __db_ditem(dbc, pagep, indx, nbytes)
 {
 	DB *dbp;
 	DBT ldbt;
-	db_indx_t cnt, offset;
+	db_indx_t cnt, *inp, offset;
 	int ret;
 	u_int8_t *from;
 
 	dbp = dbc->dbp;
-	if (DB_LOGGING(dbc)) {
-		ldbt.data = P_ENTRY(pagep, indx);
+	if (DBC_LOGGING(dbc)) {
+		ldbt.data = P_ENTRY(dbp, pagep, indx);
 		ldbt.size = nbytes;
-		if ((ret = __db_addrem_log(dbp->dbenv, dbc->txn,
-		    &LSN(pagep), 0, DB_REM_DUP, dbp->log_fileid, PGNO(pagep),
+		if ((ret = __db_addrem_log(dbp, dbc->txn,
+		    &LSN(pagep), 0, DB_REM_DUP, PGNO(pagep),
 		    (u_int32_t)indx, nbytes, &ldbt, NULL, &LSN(pagep))) != 0)
 			return (ret);
-	}
+	} else
+		LSN_NOT_LOGGED(LSN(pagep));
 
 	/*
 	 * If there's only a single item on the page, we don't have to
@@ -63,24 +62,26 @@ __db_ditem(dbc, pagep, indx, nbytes)
 		return (0);
 	}
 
+	inp = P_INP(dbp, pagep);
 	/*
 	 * Pack the remaining key/data items at the end of the page.  Use
 	 * memmove(3), the regions may overlap.
 	 */
 	from = (u_int8_t *)pagep + HOFFSET(pagep);
-	memmove(from + nbytes, from, pagep->inp[indx] - HOFFSET(pagep));
+	DB_ASSERT((int)inp[indx] - HOFFSET(pagep) >= 0);
+	memmove(from + nbytes, from, inp[indx] - HOFFSET(pagep));
 	HOFFSET(pagep) += nbytes;
 
 	/* Adjust the indices' offsets. */
-	offset = pagep->inp[indx];
+	offset = inp[indx];
 	for (cnt = 0; cnt < NUM_ENT(pagep); ++cnt)
-		if (pagep->inp[cnt] < offset)
-			pagep->inp[cnt] += nbytes;
+		if (inp[cnt] < offset)
+			inp[cnt] += nbytes;
 
 	/* Shift the indices down. */
 	--NUM_ENT(pagep);
 	if (indx != NUM_ENT(pagep))
-		memmove(&pagep->inp[indx], &pagep->inp[indx + 1],
+		memmove(&inp[indx], &inp[indx + 1],
 		    sizeof(db_indx_t) * (NUM_ENT(pagep) - indx));
 
 	return (0);
@@ -104,11 +105,13 @@ __db_pitem(dbc, pagep, indx, nbytes, hdr, data)
 	DB *dbp;
 	BKEYDATA bk;
 	DBT thdr;
+	db_indx_t *inp;
 	int ret;
 	u_int8_t *p;
 
-	if (nbytes > P_FREESPACE(pagep)) {
-		DB_ASSERT(nbytes <= P_FREESPACE(pagep));
+	dbp = dbc->dbp;
+	if (nbytes > P_FREESPACE(dbp, pagep)) {
+		DB_ASSERT(nbytes <= P_FREESPACE(dbp, pagep));
 		return (EINVAL);
 	}
 	/*
@@ -128,12 +131,13 @@ __db_pitem(dbc, pagep, indx, nbytes, hdr, data)
 	 * the passed in header sizes must be adjusted for the structure's
 	 * placeholder for the trailing variable-length data field.
 	 */
-	dbp = dbc->dbp;
-	if (DB_LOGGING(dbc))
-		if ((ret = __db_addrem_log(dbp->dbenv, dbc->txn,
-		    &LSN(pagep), 0, DB_ADD_DUP, dbp->log_fileid, PGNO(pagep),
+	if (DBC_LOGGING(dbc)) {
+		if ((ret = __db_addrem_log(dbp, dbc->txn,
+		    &LSN(pagep), 0, DB_ADD_DUP, PGNO(pagep),
 		    (u_int32_t)indx, nbytes, hdr, data, &LSN(pagep))) != 0)
 			return (ret);
+	} else
+		LSN_NOT_LOGGED(LSN(pagep));
 
 	if (hdr == NULL) {
 		B_TSET(bk.type, B_KEYDATA, 0);
@@ -143,16 +147,17 @@ __db_pitem(dbc, pagep, indx, nbytes, hdr, data)
 		thdr.size = SSZA(BKEYDATA, data);
 		hdr = &thdr;
 	}
+	inp = P_INP(dbp, pagep);
 
 	/* Adjust the index table, then put the item on the page. */
 	if (indx != NUM_ENT(pagep))
-		memmove(&pagep->inp[indx + 1], &pagep->inp[indx],
+		memmove(&inp[indx + 1], &inp[indx],
 		    sizeof(db_indx_t) * (NUM_ENT(pagep) - indx));
 	HOFFSET(pagep) -= nbytes;
-	pagep->inp[indx] = HOFFSET(pagep);
+	inp[indx] = HOFFSET(pagep);
 	++NUM_ENT(pagep);
 
-	p = P_ENTRY(pagep, indx);
+	p = P_ENTRY(dbp, pagep, indx);
 	memcpy(p, hdr->data, hdr->size);
 	if (data != NULL)
 		memcpy(p + hdr->size, data->data, data->size);
@@ -177,13 +182,16 @@ __db_relink(dbc, add_rem, pagep, new_next, needlock)
 	PAGE *np, *pp;
 	DB_LOCK npl, ppl;
 	DB_LSN *nlsnp, *plsnp, ret_lsn;
+	DB_MPOOLFILE *mpf;
 	int ret;
 
-	ret = 0;
-	np = pp = NULL;
-	npl.off = ppl.off = LOCK_INVALID;
-	nlsnp = plsnp = NULL;
 	dbp = dbc->dbp;
+	np = pp = NULL;
+	LOCK_INIT(npl);
+	LOCK_INIT(ppl);
+	nlsnp = plsnp = NULL;
+	mpf = dbp->mpf;
+	ret = 0;
 
 	/*
 	 * Retrieve and lock the one/two pages.  For a remove, we may need
@@ -194,9 +202,8 @@ __db_relink(dbc, add_rem, pagep, new_next, needlock)
 		if (needlock && (ret = __db_lget(dbc,
 		    0, pagep->next_pgno, DB_LOCK_WRITE, 0, &npl)) != 0)
 			goto err;
-		if ((ret = memp_fget(dbp->mpf,
-		    &pagep->next_pgno, 0, &np)) != 0) {
-			(void)__db_pgerr(dbp, pagep->next_pgno);
+		if ((ret = mpf->get(mpf, &pagep->next_pgno, 0, &np)) != 0) {
+			__db_pgerr(dbp, pagep->next_pgno, ret);
 			goto err;
 		}
 		nlsnp = &np->lsn;
@@ -205,28 +212,27 @@ __db_relink(dbc, add_rem, pagep, new_next, needlock)
 		if (needlock && (ret = __db_lget(dbc,
 		    0, pagep->prev_pgno, DB_LOCK_WRITE, 0, &ppl)) != 0)
 			goto err;
-		if ((ret = memp_fget(dbp->mpf,
-		    &pagep->prev_pgno, 0, &pp)) != 0) {
-			(void)__db_pgerr(dbp, pagep->next_pgno);
+		if ((ret = mpf->get(mpf, &pagep->prev_pgno, 0, &pp)) != 0) {
+			__db_pgerr(dbp, pagep->next_pgno, ret);
 			goto err;
 		}
 		plsnp = &pp->lsn;
 	}
 
 	/* Log the change. */
-	if (DB_LOGGING(dbc)) {
-		if ((ret = __db_relink_log(dbp->dbenv, dbc->txn,
-		    &ret_lsn, 0, add_rem, dbp->log_fileid,
-		    pagep->pgno, &pagep->lsn,
-		    pagep->prev_pgno, plsnp, pagep->next_pgno, nlsnp)) != 0)
+	if (DBC_LOGGING(dbc)) {
+		if ((ret = __db_relink_log(dbp, dbc->txn, &ret_lsn, 0, add_rem,
+		    pagep->pgno, &pagep->lsn, pagep->prev_pgno, plsnp,
+		    pagep->next_pgno, nlsnp)) != 0)
 			goto err;
-		if (np != NULL)
-			np->lsn = ret_lsn;
-		if (pp != NULL)
-			pp->lsn = ret_lsn;
-		if (add_rem == DB_REM_PAGE)
-			pagep->lsn = ret_lsn;
-	}
+	} else
+		LSN_NOT_LOGGED(ret_lsn);
+	if (np != NULL)
+		np->lsn = ret_lsn;
+	if (pp != NULL)
+		pp->lsn = ret_lsn;
+	if (add_rem == DB_REM_PAGE)
+		pagep->lsn = ret_lsn;
 
 	/*
 	 * Modify and release the two pages.
@@ -242,10 +248,10 @@ __db_relink(dbc, add_rem, pagep, new_next, needlock)
 		else
 			np->prev_pgno = pagep->prev_pgno;
 		if (new_next == NULL)
-			ret = memp_fput(dbp->mpf, np, DB_MPOOL_DIRTY);
+			ret = mpf->put(mpf, np, DB_MPOOL_DIRTY);
 		else {
 			*new_next = np;
-			ret = memp_fset(dbp->mpf, np, DB_MPOOL_DIRTY);
+			ret = mpf->set(mpf, np, DB_MPOOL_DIRTY);
 		}
 		if (ret != 0)
 			goto err;
@@ -256,7 +262,7 @@ __db_relink(dbc, add_rem, pagep, new_next, needlock)
 
 	if (pp != NULL) {
 		pp->next_pgno = pagep->next_pgno;
-		if ((ret = memp_fput(dbp->mpf, pp, DB_MPOOL_DIRTY)) != 0)
+		if ((ret = mpf->put(mpf, pp, DB_MPOOL_DIRTY)) != 0)
 			goto err;
 		if (needlock)
 			(void)__TLPUT(dbc, ppl);
@@ -264,12 +270,12 @@ __db_relink(dbc, add_rem, pagep, new_next, needlock)
 	return (0);
 
 err:	if (np != NULL)
-		(void)memp_fput(dbp->mpf, np, 0);
-	if (needlock && npl.off != LOCK_INVALID)
+		(void)mpf->put(mpf, np, 0);
+	if (needlock)
 		(void)__TLPUT(dbc, npl);
 	if (pp != NULL)
-		(void)memp_fput(dbp->mpf, pp, 0);
-	if (needlock && ppl.off != LOCK_INVALID)
+		(void)mpf->put(mpf, pp, 0);
+	if (needlock)
 		(void)__TLPUT(dbc, ppl);
 	return (ret);
 }

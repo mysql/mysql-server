@@ -1,14 +1,14 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: env_open.c,v 11.34 2000/12/21 19:20:00 bostic Exp $";
+static const char revid[] = "$Id: env_open.c,v 11.111 2002/09/03 01:20:51 mjc Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -21,26 +21,30 @@ static const char revid[] = "$Id: env_open.c,v 11.34 2000/12/21 19:20:00 bostic 
 #endif
 
 #include "db_int.h"
-#include "db_page.h"
-#include "db_shash.h"
-#include "btree.h"
-#include "hash.h"
-#include "qam.h"
-#include "lock.h"
-#include "log.h"
-#include "mp.h"
-#include "txn.h"
-#include "clib_ext.h"
+#include "dbinc/crypto.h"
+#include "dbinc/db_page.h"
+#include "dbinc/db_shash.h"
+#include "dbinc/btree.h"
+#include "dbinc/hash.h"
+#include "dbinc/lock.h"
+#include "dbinc/log.h"
+#include "dbinc/mp.h"
+#include "dbinc/qam.h"
+#include "dbinc/rep.h"
+#include "dbinc/txn.h"
+#include "dbinc/fop.h"
 
-static int __dbenv_config __P((DB_ENV *, const char *, u_int32_t));
-static int __dbenv_refresh __P((DB_ENV *));
-static int __db_home __P((DB_ENV *, const char *, u_int32_t));
 static int __db_parse __P((DB_ENV *, char *));
 static int __db_tmp_open __P((DB_ENV *, u_int32_t, char *, DB_FH *));
+static int __dbenv_config __P((DB_ENV *, const char *, u_int32_t));
+static int __dbenv_iremove __P((DB_ENV *, const char *, u_int32_t));
+static int __dbenv_refresh __P((DB_ENV *, u_int32_t));
 
 /*
  * db_version --
  *	Return version information.
+ *
+ * EXTERN: char *db_version __P((int *, int *, int *));
  */
 char *
 db_version(majverp, minverp, patchp)
@@ -68,9 +72,11 @@ __dbenv_open(dbenv, db_home, flags, mode)
 	u_int32_t flags;
 	int mode;
 {
-	DB_ENV *rm_dbenv;
+	DB_MPOOL *dbmp;
 	int ret;
-	u_int32_t init_flags;
+	u_int32_t init_flags, orig_flags;
+
+	orig_flags = dbenv->flags;
 
 #undef	OKFLAGS
 #define	OKFLAGS								\
@@ -86,7 +92,7 @@ __dbenv_open(dbenv, db_home, flags, mode)
 
 	/*
 	 * Flags saved in the init_flags field of the environment, representing
-	 * flags to DBENV->set_flags and DBENV->open that need to be set.
+	 * flags to DB_ENV->set_flags and DB_ENV->open that need to be set.
 	 */
 #define	DB_INITENV_CDB		0x0001	/* DB_INIT_CDB */
 #define	DB_INITENV_CDB_ALLDB	0x0002	/* DB_INIT_CDB_ALLDB */
@@ -95,18 +101,34 @@ __dbenv_open(dbenv, db_home, flags, mode)
 #define	DB_INITENV_MPOOL	0x0010	/* DB_INIT_MPOOL */
 #define	DB_INITENV_TXN		0x0020	/* DB_INIT_TXN */
 
-	if ((ret = __db_fchk(dbenv, "DBENV->open", flags, OKFLAGS)) != 0)
+	if ((ret = __db_fchk(dbenv, "DB_ENV->open", flags, OKFLAGS)) != 0)
 		return (ret);
 	if (LF_ISSET(DB_INIT_CDB) &&
-	    (ret = __db_fchk(dbenv, "DBENV->open", flags, OKFLAGS_CDB)) != 0)
+	    (ret = __db_fchk(dbenv, "DB_ENV->open", flags, OKFLAGS_CDB)) != 0)
 		return (ret);
 	if ((ret = __db_fcchk(dbenv,
-	    "DBENV->open", flags, DB_PRIVATE, DB_SYSTEM_MEM)) != 0)
+	    "DB_ENV->open", flags, DB_PRIVATE, DB_SYSTEM_MEM)) != 0)
 		return (ret);
-	if ((ret = __db_fcchk(dbenv, "DBENV->open", flags, DB_JOINENV,
+	if ((ret = __db_fcchk(dbenv,
+	    "DB_ENV->open", flags, DB_RECOVER, DB_RECOVER_FATAL)) != 0)
+		return (ret);
+	if ((ret = __db_fcchk(dbenv, "DB_ENV->open", flags, DB_JOINENV,
 	    DB_CREATE | DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL |
 	    DB_INIT_TXN | DB_PRIVATE)) != 0)
 		return (ret);
+
+	/*
+	 * Currently we support one kind of mutex that is intra-process only,
+	 * POSIX 1003.1 pthreads, because a variety of systems don't support
+	 * the full pthreads API, and our only alternative is test-and-set.
+	 */
+#ifdef HAVE_MUTEX_THREAD_ONLY
+	if (!LF_ISSET(DB_PRIVATE)) {
+		__db_err(dbenv,
+    "Berkeley DB library configured to support only DB_PRIVATE environments");
+		return (EINVAL);
+	}
+#endif
 
 	/*
 	 * If we're doing recovery, destroy the environment so that we create
@@ -126,24 +148,24 @@ __dbenv_open(dbenv, db_home, flags, mode)
 	 * not, we just want to nail any files that are left-over for whatever
 	 * reason, from whatever session.
 	 */
-	if (LF_ISSET(DB_RECOVER | DB_RECOVER_FATAL)) {
-		if ((ret = db_env_create(&rm_dbenv, 0)) != 0)
+	if (LF_ISSET(DB_RECOVER | DB_RECOVER_FATAL))
+		if ((ret = __dbenv_iremove(dbenv, db_home, DB_FORCE)) != 0 ||
+		    (ret = __dbenv_refresh(dbenv, orig_flags)) != 0)
 			return (ret);
-		if ((ret = dbenv->remove(rm_dbenv, db_home, DB_FORCE)) != 0)
-			return (ret);
-	}
 
 	/* Initialize the DB_ENV structure. */
 	if ((ret = __dbenv_config(dbenv, db_home, flags)) != 0)
 		goto err;
 
-	/* Convert the DBENV->open flags to internal flags. */
+	/* Convert the DB_ENV->open flags to internal flags. */
 	if (LF_ISSET(DB_CREATE))
 		F_SET(dbenv, DB_ENV_CREATE);
 	if (LF_ISSET(DB_LOCKDOWN))
 		F_SET(dbenv, DB_ENV_LOCKDOWN);
 	if (LF_ISSET(DB_PRIVATE))
 		F_SET(dbenv, DB_ENV_PRIVATE);
+	if (LF_ISSET(DB_RECOVER_FATAL))
+		F_SET(dbenv, DB_ENV_FATAL);
 	if (LF_ISSET(DB_SYSTEM_MEM))
 		F_SET(dbenv, DB_ENV_SYSTEM_MEM);
 	if (LF_ISSET(DB_THREAD))
@@ -194,20 +216,6 @@ __dbenv_open(dbenv, db_home, flags, mode)
 		F_SET(dbenv, DB_ENV_CDB);
 	}
 
-	/* Initialize the DB list, and its mutex if appropriate. */
-	LIST_INIT(&dbenv->dblist);
-	if (F_ISSET(dbenv, DB_ENV_THREAD)) {
-		if ((ret = __db_mutex_alloc(dbenv,
-		    dbenv->reginfo, (MUTEX **)&dbenv->dblist_mutexp)) != 0)
-			return (ret);
-		if ((ret = __db_mutex_init(dbenv,
-		    dbenv->dblist_mutexp, 0, MUTEX_THREAD)) != 0) {
-			__db_mutex_free(dbenv, dbenv->reginfo,
-			    dbenv->dblist_mutexp);
-			return (ret);
-		}
-	}
-
 	/*
 	 * Initialize the subsystems.  Transactions imply logging but do not
 	 * imply locking.  While almost all applications want both locking
@@ -215,9 +223,24 @@ __dbenv_open(dbenv, db_home, flags, mode)
 	 * process to want transactions for atomicity guarantees, but not
 	 * necessarily need concurrency.
 	 */
+
 	if (LF_ISSET(DB_INIT_MPOOL))
 		if ((ret = __memp_open(dbenv)) != 0)
 			goto err;
+
+#ifdef HAVE_CRYPTO
+	/*
+	 * Initialize the ciphering area prior to any running of recovery so
+	 * that we can initialize the keys, etc. before recovery.
+	 *
+	 * !!!
+	 * This must be after the mpool init, but before the log initialization
+	 * because log_open may attempt to run log_recover during its open.
+	 */
+	if ((ret = __crypto_region_init(dbenv)) != 0)
+		goto err;
+#endif
+
 	if (LF_ISSET(DB_INIT_LOG | DB_INIT_TXN))
 		if ((ret = __log_open(dbenv)) != 0)
 			goto err;
@@ -232,38 +255,98 @@ __dbenv_open(dbenv, db_home, flags, mode)
 		 * If the application is running with transactions, initialize
 		 * the function tables.
 		 */
-		if ((ret = __bam_init_recover(dbenv)) != 0)
+		if ((ret = __bam_init_recover(dbenv, &dbenv->recover_dtab,
+		    &dbenv->recover_dtab_size)) != 0)
 			goto err;
-		if ((ret = __crdel_init_recover(dbenv)) != 0)
+		if ((ret = __crdel_init_recover(dbenv, &dbenv->recover_dtab,
+		    &dbenv->recover_dtab_size)) != 0)
 			goto err;
-		if ((ret = __db_init_recover(dbenv)) != 0)
+		if ((ret = __db_init_recover(dbenv, &dbenv->recover_dtab,
+		    &dbenv->recover_dtab_size)) != 0)
 			goto err;
-		if ((ret = __ham_init_recover(dbenv)) != 0)
+		if ((ret = __dbreg_init_recover(dbenv, &dbenv->recover_dtab,
+		    &dbenv->recover_dtab_size)) != 0)
 			goto err;
-		if ((ret = __log_init_recover(dbenv)) != 0)
+		if ((ret = __fop_init_recover(dbenv, &dbenv->recover_dtab,
+		    &dbenv->recover_dtab_size)) != 0)
 			goto err;
-		if ((ret = __qam_init_recover(dbenv)) != 0)
+		if ((ret = __ham_init_recover(dbenv, &dbenv->recover_dtab,
+		    &dbenv->recover_dtab_size)) != 0)
 			goto err;
-		if ((ret = __txn_init_recover(dbenv)) != 0)
+		if ((ret = __qam_init_recover(dbenv, &dbenv->recover_dtab,
+		    &dbenv->recover_dtab_size)) != 0)
 			goto err;
-
-		/*
-		 * If the application specified their own recovery
-		 * initialization function, call it.
-		 */
-		if (dbenv->db_recovery_init != NULL &&
-		    (ret = dbenv->db_recovery_init(dbenv)) != 0)
+		if ((ret = __txn_init_recover(dbenv, &dbenv->recover_dtab,
+		    &dbenv->recover_dtab_size)) != 0)
 			goto err;
 
 		/* Perform recovery for any previous run. */
 		if (LF_ISSET(DB_RECOVER | DB_RECOVER_FATAL) &&
-		    (ret = __db_apprec(dbenv,
+		    (ret = __db_apprec(dbenv, NULL,
 		    LF_ISSET(DB_RECOVER | DB_RECOVER_FATAL))) != 0)
 			goto err;
 	}
+
+	/* Initialize the replication area just in case. */
+	if ((ret = __rep_region_init(dbenv)) != 0)
+		goto err;
+
+	/*
+	 * Initialize the DB list, and its mutex as necessary.  If the env
+	 * handle isn't free-threaded we don't need a mutex because there
+	 * will never be more than a single DB handle on the list.  If the
+	 * mpool wasn't initialized, then we can't ever open a DB handle.
+	 *
+	 * We also need to initialize the MT mutex as necessary, so do them
+	 * both.  If we error, __dbenv_refresh() will clean up.
+	 *
+	 * !!!
+	 * This must come after the __memp_open call above because if we are
+	 * recording mutexes for system resources, we will do it in the mpool
+	 * region for environments and db handles.  So, the mpool region must
+	 * already be initialized.
+	 */
+	LIST_INIT(&dbenv->dblist);
+	if (F_ISSET(dbenv, DB_ENV_THREAD) && LF_ISSET(DB_INIT_MPOOL)) {
+		dbmp = dbenv->mp_handle;
+		if ((ret = __db_mutex_setup(
+		    dbenv, dbmp->reginfo, &dbenv->dblist_mutexp,
+		    MUTEX_ALLOC | MUTEX_THREAD)) != 0)
+			goto err;
+		if ((ret = __db_mutex_setup(
+		    dbenv, dbmp->reginfo, &dbenv->mt_mutexp,
+		    MUTEX_ALLOC | MUTEX_THREAD)) != 0)
+			goto err;
+	}
+
+	/*
+	 * If we've created the regions, are running with transactions, and did
+	 * not just run recovery, we need to log the fact that the transaction
+	 * IDs got reset.
+	 *
+	 * If we ran recovery, there may be prepared-but-not-yet-committed
+	 * transactions that need to be resolved.  Recovery resets the minimum
+	 * transaction ID and logs the reset if that's appropriate, so we
+	 * don't need to do anything here in the recover case.
+	 */
+	if (TXN_ON(dbenv) &&
+	    F_ISSET((REGINFO *)dbenv->reginfo, REGION_CREATE) &&
+	    !LF_ISSET(DB_RECOVER | DB_RECOVER_FATAL) &&
+	    (ret = __txn_reset(dbenv)) != 0)
+		goto err;
+
 	return (0);
 
-err:	(void)__dbenv_refresh(dbenv);
+err:	/* If we fail after creating the regions, remove them. */
+	if (dbenv->reginfo != NULL &&
+	    F_ISSET((REGINFO *)dbenv->reginfo, REGION_CREATE)) {
+		ret = __db_panic(dbenv, ret);
+
+		(void)__dbenv_refresh(dbenv, orig_flags);
+		(void)__dbenv_iremove(dbenv, db_home, DB_FORCE);
+	}
+	(void)__dbenv_refresh(dbenv, orig_flags);
+
 	return (ret);
 }
 
@@ -281,40 +364,42 @@ __dbenv_remove(dbenv, db_home, flags)
 {
 	int ret, t_ret;
 
+	ret = __dbenv_iremove(dbenv, db_home, flags);
+
+	if ((t_ret = dbenv->close(dbenv, 0)) != 0 && ret == 0)
+		ret = t_ret;
+
+	return (ret);
+}
+
+/*
+ * __dbenv_iremove --
+ *	Discard an environment, internal version.
+ */
+static int
+__dbenv_iremove(dbenv, db_home, flags)
+	DB_ENV *dbenv;
+	const char *db_home;
+	u_int32_t flags;
+{
+	int ret;
+
 #undef	OKFLAGS
 #define	OKFLAGS								\
 	DB_FORCE | DB_USE_ENVIRON | DB_USE_ENVIRON_ROOT
 
 	/* Validate arguments. */
-	if ((ret = __db_fchk(dbenv, "DBENV->remove", flags, OKFLAGS)) != 0)
-		goto err;
+	if ((ret = __db_fchk(dbenv, "DB_ENV->remove", flags, OKFLAGS)) != 0)
+		return (ret);
 
-	/*
-	 * A hard-to-debug error is calling DBENV->remove after open.  That's
-	 * not legal.  You have to close the original, already opened handle
-	 * and then allocate a new DBENV handle to use for DBENV->remove.
-	 */
-	if (F_ISSET(dbenv, DB_ENV_OPEN_CALLED)) {
-		__db_err(dbenv,
-		    "DBENV handle opened, not usable for remove method.");
-		return (EINVAL);
-	}
+	ENV_ILLEGAL_AFTER_OPEN(dbenv, "DB_ENV->remove");
 
 	/* Initialize the DB_ENV structure. */
 	if ((ret = __dbenv_config(dbenv, db_home, flags)) != 0)
-		goto err;
+		return (ret);
 
 	/* Remove the environment. */
-	ret = __db_e_remove(dbenv, LF_ISSET(DB_FORCE) ? 1 : 0);
-
-	/* Discard any resources we've acquired. */
-err:	if ((t_ret = __dbenv_refresh(dbenv)) != 0 && ret == 0)
-		ret = t_ret;
-
-	memset(dbenv, CLEAR_BYTE, sizeof(DB_ENV));
-	__os_free(dbenv, sizeof(DB_ENV));
-
-	return (ret);
+	return (__db_e_remove(dbenv, flags));
 }
 
 /*
@@ -329,53 +414,48 @@ __dbenv_config(dbenv, db_home, flags)
 {
 	FILE *fp;
 	int ret;
-	char *lp, buf[MAXPATHLEN * 2];
+	char *p, buf[256];
 
-	/* Set the database home. */
+	/*
+	 * Set the database home.  Do this before calling __db_appname,
+	 * it uses the home directory.
+	 */
 	if ((ret = __db_home(dbenv, db_home, flags)) != 0)
 		return (ret);
 
-	/*
-	 * Parse the config file.
-	 *
-	 * !!!
-	 * Don't use sprintf(3)/snprintf(3) -- the former is dangerous, and
-	 * the latter isn't standard, and we're manipulating strings handed
-	 * us by the application.
-	 */
-	if (dbenv->db_home != NULL) {
-#define	CONFIG_NAME	"/DB_CONFIG"
-		if (strlen(dbenv->db_home) +
-		    strlen(CONFIG_NAME) + 1 > sizeof(buf)) {
-			ret = ENAMETOOLONG;
-			return (ret);
-		}
-		(void)strcpy(buf, dbenv->db_home);
-		(void)strcat(buf, CONFIG_NAME);
-		if ((fp = fopen(buf, "r")) != NULL) {
-			while (fgets(buf, sizeof(buf), fp) != NULL) {
-				if ((lp = strchr(buf, '\n')) == NULL) {
-					__db_err(dbenv,
-					    "%s: line too long", CONFIG_NAME);
-					(void)fclose(fp);
-					ret = EINVAL;
-					return (ret);
-				}
-				*lp = '\0';
-				if (buf[0] == '\0' ||
-				    buf[0] == '#' || isspace((int)buf[0]))
-					continue;
+	/* Parse the config file. */
+	if ((ret =
+	    __db_appname(dbenv, DB_APP_NONE, "DB_CONFIG", 0, NULL, &p)) != 0)
+		return (ret);
 
-				if ((ret = __db_parse(dbenv, buf)) != 0) {
-					(void)fclose(fp);
-					return (ret);
-				}
+	fp = fopen(p, "r");
+	__os_free(dbenv, p);
+
+	if (fp != NULL) {
+		while (fgets(buf, sizeof(buf), fp) != NULL) {
+			if ((p = strchr(buf, '\n')) != NULL)
+				*p = '\0';
+			else if (strlen(buf) + 1 == sizeof(buf)) {
+				__db_err(dbenv, "DB_CONFIG: line too long");
+				(void)fclose(fp);
+				return (EINVAL);
 			}
-			(void)fclose(fp);
+			if (buf[0] == '\0' ||
+			    buf[0] == '#' || isspace((int)buf[0]))
+				continue;
+
+			if ((ret = __db_parse(dbenv, buf)) != 0) {
+				(void)fclose(fp);
+				return (ret);
+			}
 		}
+		(void)fclose(fp);
 	}
 
-	/* Set up the tmp directory path. */
+	/*
+	 * If no temporary directory path was specified in the config file,
+	 * choose one.
+	 */
 	if (dbenv->db_tmp_dir == NULL && (ret = __os_tmpdir(dbenv, flags)) != 0)
 		return (ret);
 
@@ -383,17 +463,12 @@ __dbenv_config(dbenv, db_home, flags)
 	 * The locking file descriptor is rarely on.  Set the fd to -1, not
 	 * because it's ever tested, but to make sure we catch mistakes.
 	 */
-	if ((ret =
-	    __os_calloc(dbenv,
-		1, sizeof(*dbenv->lockfhp), &dbenv->lockfhp)) != 0)
+	if ((ret = __os_calloc(
+	    dbenv, 1, sizeof(*dbenv->lockfhp), &dbenv->lockfhp)) != 0)
 		return (ret);
 	dbenv->lockfhp->fd = -1;
 
-	/*
-	 * Flag that the DB_ENV structure has been initialized.  Note, this
-	 * must be set before calling into the subsystems as it's used during
-	 * file naming.
-	 */
+	/* Flag that the DB_ENV structure has been initialized. */
 	F_SET(dbenv, DB_ENV_OPEN_CALLED);
 
 	return (0);
@@ -410,65 +485,148 @@ __dbenv_close(dbenv, flags)
 	DB_ENV *dbenv;
 	u_int32_t flags;
 {
-	int ret;
+	char **p;
+	int ret, t_ret;
 
 	COMPQUIET(flags, 0);
 
 	PANIC_CHECK(dbenv);
+	ret = 0;
 
-	ret = __dbenv_refresh(dbenv);
+	/*
+	 * Before checking the reference count, we have to see if we
+	 * were in the middle of restoring transactions and need to
+	 * close the open files.
+	 */
+	if (TXN_ON(dbenv) && (t_ret = __txn_preclose(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
 
-	/* Discard the structure if we allocated it. */
-	if (!F_ISSET(dbenv, DB_ENV_USER_ALLOC)) {
-		memset(dbenv, CLEAR_BYTE, sizeof(DB_ENV));
-		__os_free(dbenv, sizeof(DB_ENV));
+	if (dbenv->rep_handle != NULL &&
+	    (t_ret = __rep_preclose(dbenv, 1)) != 0 && ret == 0)
+			ret = t_ret;
+
+	if (dbenv->db_ref != 0) {
+		__db_err(dbenv,
+		    "Database handles open during environment close");
+		if (ret == 0)
+			ret = EINVAL;
 	}
+
+	/*
+	 * Detach from the regions and undo the allocations done by
+	 * DB_ENV->open.
+	 */
+	if ((t_ret = __dbenv_refresh(dbenv, 0)) != 0 && ret == 0)
+		ret = t_ret;
+
+	/* Do per-subsystem destruction. */
+	__lock_dbenv_close(dbenv); /* void */
+	if ((t_ret = __rep_dbenv_close(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
+
+#ifdef HAVE_CRYPTO
+	if ((t_ret = __crypto_dbenv_close(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
+#endif
+
+	/* Release any string-based configuration parameters we've copied. */
+	if (dbenv->db_log_dir != NULL)
+		__os_free(dbenv, dbenv->db_log_dir);
+	if (dbenv->db_tmp_dir != NULL)
+		__os_free(dbenv, dbenv->db_tmp_dir);
+	if (dbenv->db_data_dir != NULL) {
+		for (p = dbenv->db_data_dir; *p != NULL; ++p)
+			__os_free(dbenv, *p);
+		__os_free(dbenv, dbenv->db_data_dir);
+	}
+
+	/* Discard the structure. */
+	memset(dbenv, CLEAR_BYTE, sizeof(DB_ENV));
+	__os_free(NULL, dbenv);
 
 	return (ret);
 }
 
 /*
  * __dbenv_refresh --
- *	Refresh the DB_ENV structure, releasing any allocated resources.
+ *	Refresh the DB_ENV structure, releasing resources allocated by
+ * DB_ENV->open, and returning it to the state it was in just before
+ * open was called.  (Note that this means that any state set by
+ * pre-open configuration functions must be preserved.)
  */
 static int
-__dbenv_refresh(dbenv)
+__dbenv_refresh(dbenv, orig_flags)
 	DB_ENV *dbenv;
+	u_int32_t orig_flags;
 {
+	DB_MPOOL *dbmp;
 	int ret, t_ret;
-	char **p;
 
 	ret = 0;
 
 	/*
 	 * Close subsystems, in the reverse order they were opened (txn
 	 * must be first, it may want to discard locks and flush the log).
+	 *
+	 * !!!
+	 * Note that these functions, like all of __dbenv_refresh, only undo
+	 * the effects of __dbenv_open.  Functions that undo work done by
+	 * db_env_create or by a configurator function should go in
+	 * __dbenv_close.
 	 */
-	if (TXN_ON(dbenv)) {
-		if ((t_ret = __txn_close(dbenv)) != 0 && ret == 0)
-			ret = t_ret;
-	}
+	if (TXN_ON(dbenv) &&
+	    (t_ret = __txn_dbenv_refresh(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
 
-	if (LOCKING_ON(dbenv)) {
-		if ((t_ret = __lock_close(dbenv)) != 0 && ret == 0)
-			ret = t_ret;
-	}
-	__lock_dbenv_close(dbenv);
+	if (LOGGING_ON(dbenv) &&
+	    (t_ret = __log_dbenv_refresh(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
 
-	if (LOGGING_ON(dbenv)) {
-		if ((t_ret = __log_close(dbenv)) != 0 && ret == 0)
-			ret = t_ret;
+	/*
+	 * Locking should come after logging, because closing log results
+	 * in files closing which may require locks being released.
+	 */
+	if (LOCKING_ON(dbenv) &&
+	    (t_ret = __lock_dbenv_refresh(dbenv)) != 0 && ret == 0)
+		ret = t_ret;
+
+	/*
+	 * Discard DB list and its mutex.
+	 * Discard the MT mutex.
+	 *
+	 * !!!
+	 * This must be done before we close the mpool region because we
+	 * may have allocated the DB handle mutex in the mpool region.
+	 * It must be done *after* we close the log region, though, because
+	 * we close databases and try to acquire the mutex when we close
+	 * log file handles.  Ick.
+	 */
+	LIST_INIT(&dbenv->dblist);
+	if (dbenv->dblist_mutexp != NULL) {
+		dbmp = dbenv->mp_handle;
+		__db_mutex_free(dbenv, dbmp->reginfo, dbenv->dblist_mutexp);
+	}
+	if (dbenv->mt_mutexp != NULL) {
+		dbmp = dbenv->mp_handle;
+		__db_mutex_free(dbenv, dbmp->reginfo, dbenv->mt_mutexp);
+	}
+	if (dbenv->mt != NULL) {
+		__os_free(dbenv, dbenv->mt);
+		dbenv->mt = NULL;
 	}
 
 	if (MPOOL_ON(dbenv)) {
-		if ((t_ret = __memp_close(dbenv)) != 0 && ret == 0)
+		/*
+		 * If it's a private environment, flush the contents to disk.
+		 * Recovery would have put everything back together, but it's
+		 * faster and cleaner to flush instead.
+		 */
+		if (F_ISSET(dbenv, DB_ENV_PRIVATE) &&
+		    (t_ret = dbenv->memp_sync(dbenv, NULL)) != 0 && ret == 0)
+			ret = t_ret;
+		if ((t_ret = __memp_dbenv_refresh(dbenv)) != 0 && ret == 0)
 			ret = t_ret;
 	}
-
-	/* Discard DB list and its mutex. */
-	LIST_INIT(&dbenv->dblist);
-	if (dbenv->dblist_mutexp != NULL)
-		__db_mutex_free(dbenv, dbenv->reginfo, dbenv->dblist_mutexp);
 
 	/* Detach from the region. */
 	if (dbenv->reginfo != NULL) {
@@ -481,51 +639,26 @@ __dbenv_refresh(dbenv)
 		 */
 	}
 
-	/* Clean up the structure. */
-	dbenv->db_panic = 0;
-
+	/* Undo changes and allocations done by __dbenv_open. */
 	if (dbenv->db_home != NULL) {
-		__os_freestr(dbenv->db_home);
+		__os_free(dbenv, dbenv->db_home);
 		dbenv->db_home = NULL;
 	}
-	if (dbenv->db_log_dir != NULL) {
-		__os_freestr(dbenv->db_log_dir);
-		dbenv->db_log_dir = NULL;
-	}
-	if (dbenv->db_tmp_dir != NULL) {
-		__os_freestr(dbenv->db_tmp_dir);
-		dbenv->db_tmp_dir = NULL;
-	}
-	if (dbenv->db_data_dir != NULL) {
-		for (p = dbenv->db_data_dir; *p != NULL; ++p)
-			__os_freestr(*p);
-		__os_free(dbenv->db_data_dir,
-		    dbenv->data_cnt * sizeof(char **));
-		dbenv->db_data_dir = NULL;
-	}
-	dbenv->data_cnt = dbenv->data_next = 0;
 
 	dbenv->db_mode = 0;
 
 	if (dbenv->lockfhp != NULL) {
-		__os_free(dbenv->lockfhp, sizeof(*dbenv->lockfhp));
+		__os_free(dbenv, dbenv->lockfhp);
 		dbenv->lockfhp = NULL;
 	}
 
-	if (dbenv->dtab != NULL) {
-		__os_free(dbenv->dtab,
-		    dbenv->dtab_size * sizeof(dbenv->dtab[0]));
-		dbenv->dtab = NULL;
-		dbenv->dtab_size = 0;
+	if (dbenv->recover_dtab != NULL) {
+		__os_free(dbenv, dbenv->recover_dtab);
+		dbenv->recover_dtab = NULL;
+		dbenv->recover_dtab_size = 0;
 	}
 
-	dbenv->mp_mmapsize = 0;
-	dbenv->links.tqe_next = NULL;
-	dbenv->links.tqe_prev = NULL;
-	dbenv->xa_rmid = 0;
-	dbenv->xa_txn = 0;
-
-	F_CLR(dbenv, ~(DB_ENV_STANDALONE | DB_ENV_USER_ALLOC));
+	dbenv->flags = orig_flags;
 
 	return (ret);
 }
@@ -550,34 +683,33 @@ __dbenv_refresh(dbenv)
 /*
  * __db_appname --
  *	Given an optional DB environment, directory and file name and type
- *	of call, build a path based on the DBENV->open rules, and return
+ *	of call, build a path based on the DB_ENV->open rules, and return
  *	it in allocated space.
  *
  * PUBLIC: int __db_appname __P((DB_ENV *, APPNAME,
- * PUBLIC:    const char *, const char *, u_int32_t, DB_FH *, char **));
+ * PUBLIC:    const char *, u_int32_t, DB_FH *, char **));
  */
 int
-__db_appname(dbenv, appname, dir, file, tmp_oflags, fhp, namep)
+__db_appname(dbenv, appname, file, tmp_oflags, fhp, namep)
 	DB_ENV *dbenv;
 	APPNAME appname;
-	const char *dir, *file;
+	const char *file;
 	u_int32_t tmp_oflags;
 	DB_FH *fhp;
 	char **namep;
 {
-	DB_ENV etmp;
 	size_t len, str_len;
-	int data_entry, ret, slash, tmp_create, tmp_free;
-	const char *a, *b, *c;
+	int data_entry, ret, slash, tmp_create;
+	const char *a, *b;
 	char *p, *str;
 
-	a = b = c = NULL;
+	a = b = NULL;
 	data_entry = -1;
-	tmp_create = tmp_free = 0;
+	tmp_create = 0;
 
 	/*
-	 * We don't return a name when creating temporary files, just a
-	 * file handle.  Default to an error now.
+	 * We don't return a name when creating temporary files, just a file
+	 * handle.  Default to an error now.
 	 */
 	if (fhp != NULL)
 		F_CLR(fhp, DB_FH_VALID);
@@ -586,118 +718,49 @@ __db_appname(dbenv, appname, dir, file, tmp_oflags, fhp, namep)
 
 	/*
 	 * Absolute path names are never modified.  If the file is an absolute
-	 * path, we're done.  If the directory is, simply append the file and
-	 * return.
+	 * path, we're done.
 	 */
 	if (file != NULL && __os_abspath(file))
 		return (__os_strdup(dbenv, file, namep));
-	if (dir != NULL && __os_abspath(dir)) {
-		a = dir;
-		goto done;
-	}
 
-	/*
-	 * DB_ENV  DIR	   APPNAME	   RESULT
-	 * -------------------------------------------
-	 * null	   null	   none		   <tmp>/file
-	 * null	   set	   none		   DIR/file
-	 * set	   null	   none		   DB_HOME/file
-	 * set	   set	   none		   DB_HOME/DIR/file
-	 *
-	 * DB_ENV  FILE	   APPNAME	   RESULT
-	 * -------------------------------------------
-	 * null	   null	   DB_APP_DATA	   <tmp>/<create>
-	 * null	   set	   DB_APP_DATA	   ./file
-	 * set	   null	   DB_APP_DATA	   <tmp>/<create>
-	 * set	   set	   DB_APP_DATA	   DB_HOME/DB_DATA_DIR/file
-	 *
-	 * DB_ENV  DIR	   APPNAME	   RESULT
-	 * -------------------------------------------
-	 * null	   null	   DB_APP_LOG	   <tmp>/file
-	 * null	   set	   DB_APP_LOG	   DIR/file
-	 * set	   null	   DB_APP_LOG	   DB_HOME/DB_LOG_DIR/file
-	 * set	   set	   DB_APP_LOG	   DB_HOME/DB_LOG_DIR/DIR/file
-	 *
-	 * DB_ENV	   APPNAME	   RESULT
-	 * -------------------------------------------
-	 * null		   DB_APP_TMP*	   <tmp>/<create>
-	 * set		   DB_APP_TMP*	   DB_HOME/DB_TMP_DIR/<create>
+	/* Everything else is relative to the environment home. */
+	if (dbenv != NULL)
+		a = dbenv->db_home;
+
+retry:	/*
+	 * DB_APP_NONE:
+	 *      DB_HOME/file
+	 * DB_APP_DATA:
+	 *      DB_HOME/DB_DATA_DIR/file
+	 * DB_APP_LOG:
+	 *      DB_HOME/DB_LOG_DIR/file
+	 * DB_APP_TMP:
+	 *      DB_HOME/DB_TMP_DIR/<create>
 	 */
-retry:	switch (appname) {
+	switch (appname) {
 	case DB_APP_NONE:
-		if (dbenv == NULL || !F_ISSET(dbenv, DB_ENV_OPEN_CALLED)) {
-			if (dir == NULL)
-				goto tmp;
-			a = dir;
-		} else {
-			a = dbenv->db_home;
-			b = dir;
-		}
 		break;
 	case DB_APP_DATA:
-		if (dir != NULL) {
-			__db_err(dbenv,
-			    "DB_APP_DATA: illegal directory specification");
-			return (EINVAL);
-		}
-
-		if (file == NULL) {
-			tmp_create = 1;
-			goto tmp;
-		}
-		if (dbenv != NULL && F_ISSET(dbenv, DB_ENV_OPEN_CALLED)) {
-			a = dbenv->db_home;
-			if (dbenv->db_data_dir != NULL &&
-			    (b = dbenv->db_data_dir[++data_entry]) == NULL) {
-				data_entry = -1;
-				b = dbenv->db_data_dir[0];
-			}
+		if (dbenv != NULL && dbenv->db_data_dir != NULL &&
+		    (b = dbenv->db_data_dir[++data_entry]) == NULL) {
+			data_entry = -1;
+			b = dbenv->db_data_dir[0];
 		}
 		break;
 	case DB_APP_LOG:
-		if (dbenv == NULL || !F_ISSET(dbenv, DB_ENV_OPEN_CALLED)) {
-			if (dir == NULL)
-				goto tmp;
-			a = dir;
-		} else {
-			a = dbenv->db_home;
+		if (dbenv != NULL)
 			b = dbenv->db_log_dir;
-			c = dir;
-		}
 		break;
 	case DB_APP_TMP:
-		if (dir != NULL || file != NULL) {
-			__db_err(dbenv,
-		    "DB_APP_TMP: illegal directory or file specification");
-			return (EINVAL);
-		}
-
-		tmp_create = 1;
-		if (dbenv == NULL || !F_ISSET(dbenv, DB_ENV_OPEN_CALLED))
-			goto tmp;
-		else {
-			a = dbenv->db_home;
+		if (dbenv != NULL)
 			b = dbenv->db_tmp_dir;
-		}
+		tmp_create = 1;
 		break;
 	}
 
-	/* Reference a file from the appropriate temporary directory. */
-	if (0) {
-tmp:		if (dbenv == NULL || !F_ISSET(dbenv, DB_ENV_OPEN_CALLED)) {
-			memset(&etmp, 0, sizeof(etmp));
-			if ((ret = __os_tmpdir(&etmp, DB_USE_ENVIRON)) != 0)
-				return (ret);
-			tmp_free = 1;
-			a = etmp.db_tmp_dir;
-		} else
-			a = dbenv->db_tmp_dir;
-	}
-
-done:	len =
+	len =
 	    (a == NULL ? 0 : strlen(a) + 1) +
 	    (b == NULL ? 0 : strlen(b) + 1) +
-	    (c == NULL ? 0 : strlen(c) + 1) +
 	    (file == NULL ? 0 : strlen(file) + 1);
 
 	/*
@@ -707,11 +770,8 @@ done:	len =
 	 */
 #define	DB_TRAIL	"BDBXXXXXX"
 	str_len = len + sizeof(DB_TRAIL) + 10;
-	if ((ret = __os_malloc(dbenv, str_len, NULL, &str)) != 0) {
-		if (tmp_free)
-			__os_freestr(etmp.db_tmp_dir);
+	if ((ret = __os_malloc(dbenv, str_len, &str)) != 0)
 		return (ret);
-	}
 
 	slash = 0;
 	p = str;
@@ -720,31 +780,25 @@ done:	len =
 	DB_ADDSTR(file);
 	*p = '\0';
 
-	/* Discard any space allocated to find the temp directory. */
-	if (tmp_free) {
-		__os_freestr(etmp.db_tmp_dir);
-		tmp_free = 0;
-	}
-
 	/*
 	 * If we're opening a data file, see if it exists.  If it does,
 	 * return it, otherwise, try and find another one to open.
 	 */
-	if (data_entry != -1 && __os_exists(str, NULL) != 0) {
-		__os_free(str, str_len);
-		a = b = c = NULL;
+	if (__os_exists(str, NULL) != 0 && data_entry != -1) {
+		__os_free(dbenv, str);
+		b = NULL;
 		goto retry;
 	}
 
 	/* Create the file if so requested. */
 	if (tmp_create &&
 	    (ret = __db_tmp_open(dbenv, tmp_oflags, str, fhp)) != 0) {
-		__os_free(str, str_len);
+		__os_free(dbenv, str);
 		return (ret);
 	}
 
 	if (namep == NULL)
-		__os_free(str, str_len);
+		__os_free(dbenv, str);
 	else
 		*namep = str;
 	return (0);
@@ -753,8 +807,10 @@ done:	len =
 /*
  * __db_home --
  *	Find the database home.
+ *
+ * PUBLIC:	int __db_home __P((DB_ENV *, const char *, u_int32_t));
  */
-static int
+int
 __db_home(dbenv, db_home, flags)
 	DB_ENV *dbenv;
 	const char *db_home;
@@ -779,6 +835,13 @@ __db_home(dbenv, db_home, flags)
 	return (p == NULL ? 0 : __os_strdup(dbenv, p, &dbenv->db_home));
 }
 
+#define	__DB_OVFL(v, max)						\
+	if (v > max) {							\
+		__v = v;						\
+		__max = max;						\
+		goto toobig;						\
+	}
+
 /*
  * __db_parse --
  *	Parse a single NAME VALUE pair.
@@ -788,7 +851,7 @@ __db_parse(dbenv, s)
 	DB_ENV *dbenv;
 	char *s;
 {
-	u_long v1, v2, v3;
+	u_long __max, __v, v1, v2, v3;
 	u_int32_t flags;
 	char *name, *p, *value, v4;
 
@@ -831,7 +894,11 @@ illegal:	__db_err(dbenv, "mis-formatted name-value pair: %s", s);
 	if (!strcasecmp(name, "set_cachesize")) {
 		if (sscanf(value, "%lu %lu %lu %c", &v1, &v2, &v3, &v4) != 3)
 			goto badarg;
-		return (dbenv->set_cachesize(dbenv, v1, v2, v3));
+		__DB_OVFL(v1, UINT32_T_MAX);
+		__DB_OVFL(v2, UINT32_T_MAX);
+		__DB_OVFL(v3, 10000);
+		return (dbenv->set_cachesize(
+		    dbenv, (u_int32_t)v1, (u_int32_t)v2, (int)v3));
 	}
 
 	if (!strcasecmp(name, "set_data_dir") ||
@@ -844,23 +911,49 @@ illegal:	__db_err(dbenv, "mis-formatted name-value pair: %s", s);
 
 		if (!strcasecmp(value, "db_cdb_alldb"))
 			return (dbenv->set_flags(dbenv, DB_CDB_ALLDB, 1));
+		if (!strcasecmp(value, "db_direct_db"))
+			return (dbenv->set_flags(dbenv, DB_DIRECT_DB, 1));
+		if (!strcasecmp(value, "db_direct_log"))
+			return (dbenv->set_flags(dbenv, DB_DIRECT_LOG, 1));
+		if (!strcasecmp(value, "db_nolocking"))
+			return (dbenv->set_flags(dbenv, DB_NOLOCKING, 1));
 		if (!strcasecmp(value, "db_nommap"))
 			return (dbenv->set_flags(dbenv, DB_NOMMAP, 1));
+		if (!strcasecmp(value, "db_overwrite"))
+			return (dbenv->set_flags(dbenv, DB_OVERWRITE, 1));
+		if (!strcasecmp(value, "db_nopanic"))
+			return (dbenv->set_flags(dbenv, DB_NOPANIC, 1));
+		if (!strcasecmp(value, "db_region_init"))
+			return (dbenv->set_flags(dbenv, DB_REGION_INIT, 1));
 		if (!strcasecmp(value, "db_txn_nosync"))
 			return (dbenv->set_flags(dbenv, DB_TXN_NOSYNC, 1));
+		if (!strcasecmp(value, "db_txn_write_nosync"))
+			return (
+			    dbenv->set_flags(dbenv, DB_TXN_WRITE_NOSYNC, 1));
+		if (!strcasecmp(value, "db_yieldcpu"))
+			return (dbenv->set_flags(dbenv, DB_YIELDCPU, 1));
 		goto badarg;
 	}
 
 	if (!strcasecmp(name, "set_lg_bsize")) {
 		if (sscanf(value, "%lu %c", &v1, &v4) != 1)
 			goto badarg;
-		return (dbenv->set_lg_bsize(dbenv, v1));
+		__DB_OVFL(v1, UINT32_T_MAX);
+		return (dbenv->set_lg_bsize(dbenv, (u_int32_t)v1));
 	}
 
 	if (!strcasecmp(name, "set_lg_max")) {
 		if (sscanf(value, "%lu %c", &v1, &v4) != 1)
 			goto badarg;
-		return (dbenv->set_lg_max(dbenv, v1));
+		__DB_OVFL(v1, UINT32_T_MAX);
+		return (dbenv->set_lg_max(dbenv, (u_int32_t)v1));
+	}
+
+	if (!strcasecmp(name, "set_lg_regionmax")) {
+		if (sscanf(value, "%lu %c", &v1, &v4) != 1)
+			goto badarg;
+		__DB_OVFL(v1, UINT32_T_MAX);
+		return (dbenv->set_lg_regionmax(dbenv, (u_int32_t)v1));
 	}
 
 	if (!strcasecmp(name, "set_lg_dir") ||
@@ -872,6 +965,14 @@ illegal:	__db_err(dbenv, "mis-formatted name-value pair: %s", s);
 			goto badarg;
 		if (!strcasecmp(value, "db_lock_default"))
 			flags = DB_LOCK_DEFAULT;
+		else if (!strcasecmp(value, "db_lock_expire"))
+			flags = DB_LOCK_EXPIRE;
+		else if (!strcasecmp(value, "db_lock_maxlocks"))
+			flags = DB_LOCK_MAXLOCKS;
+		else if (!strcasecmp(value, "db_lock_minlocks"))
+			flags = DB_LOCK_MINLOCKS;
+		else if (!strcasecmp(value, "db_lock_minwrite"))
+			flags = DB_LOCK_MINWRITE;
 		else if (!strcasecmp(value, "db_lock_oldest"))
 			flags = DB_LOCK_OLDEST;
 		else if (!strcasecmp(value, "db_lock_random"))
@@ -886,37 +987,51 @@ illegal:	__db_err(dbenv, "mis-formatted name-value pair: %s", s);
 	if (!strcasecmp(name, "set_lk_max")) {
 		if (sscanf(value, "%lu %c", &v1, &v4) != 1)
 			goto badarg;
-		return (dbenv->set_lk_max(dbenv, v1));
+		__DB_OVFL(v1, UINT32_T_MAX);
+		return (dbenv->set_lk_max(dbenv, (u_int32_t)v1));
 	}
 
 	if (!strcasecmp(name, "set_lk_max_locks")) {
 		if (sscanf(value, "%lu %c", &v1, &v4) != 1)
 			goto badarg;
-		return (dbenv->set_lk_max_locks(dbenv, v1));
+		__DB_OVFL(v1, UINT32_T_MAX);
+		return (dbenv->set_lk_max_locks(dbenv, (u_int32_t)v1));
 	}
 
 	if (!strcasecmp(name, "set_lk_max_lockers")) {
 		if (sscanf(value, "%lu %c", &v1, &v4) != 1)
 			goto badarg;
-		return (dbenv->set_lk_max_lockers(dbenv, v1));
+		__DB_OVFL(v1, UINT32_T_MAX);
+		return (dbenv->set_lk_max_lockers(dbenv, (u_int32_t)v1));
 	}
 
 	if (!strcasecmp(name, "set_lk_max_objects")) {
 		if (sscanf(value, "%lu %c", &v1, &v4) != 1)
 			goto badarg;
-		return (dbenv->set_lk_max_objects(dbenv, v1));
+		__DB_OVFL(v1, UINT32_T_MAX);
+		return (dbenv->set_lk_max_objects(dbenv, (u_int32_t)v1));
+	}
+
+	if (!strcasecmp(name, "set_lock_timeout")) {
+		if (sscanf(value, "%lu %c", &v1, &v4) != 1)
+			goto badarg;
+		__DB_OVFL(v1, UINT32_T_MAX);
+		return (dbenv->set_timeout(
+		    dbenv, (u_int32_t)v1, DB_SET_LOCK_TIMEOUT));
 	}
 
 	if (!strcasecmp(name, "set_mp_mmapsize")) {
 		if (sscanf(value, "%lu %c", &v1, &v4) != 1)
 			goto badarg;
-		return (dbenv->set_mp_mmapsize(dbenv, v1));
+		__DB_OVFL(v1, UINT32_T_MAX);
+		return (dbenv->set_mp_mmapsize(dbenv, (u_int32_t)v1));
 	}
 
 	if (!strcasecmp(name, "set_region_init")) {
 		if (sscanf(value, "%lu %c", &v1, &v4) != 1 || v1 != 1)
 			goto badarg;
-		return (db_env_set_region_init(v1));
+		return (dbenv->set_flags(
+		    dbenv, DB_REGION_INIT, v1 == 0 ? 0 : 1));
 	}
 
 	if (!strcasecmp(name, "set_shm_key")) {
@@ -928,7 +1043,8 @@ illegal:	__db_err(dbenv, "mis-formatted name-value pair: %s", s);
 	if (!strcasecmp(name, "set_tas_spins")) {
 		if (sscanf(value, "%lu %c", &v1, &v4) != 1)
 			goto badarg;
-		return (db_env_set_tas_spins(v1));
+		__DB_OVFL(v1, UINT32_T_MAX);
+		return (dbenv->set_tas_spins(dbenv, (u_int32_t)v1));
 	}
 
 	if (!strcasecmp(name, "set_tmp_dir") ||
@@ -938,7 +1054,16 @@ illegal:	__db_err(dbenv, "mis-formatted name-value pair: %s", s);
 	if (!strcasecmp(name, "set_tx_max")) {
 		if (sscanf(value, "%lu %c", &v1, &v4) != 1)
 			goto badarg;
-		return (dbenv->set_tx_max(dbenv, v1));
+		__DB_OVFL(v1, UINT32_T_MAX);
+		return (dbenv->set_tx_max(dbenv, (u_int32_t)v1));
+	}
+
+	if (!strcasecmp(name, "set_txn_timeout")) {
+		if (sscanf(value, "%lu %c", &v1, &v4) != 1)
+			goto badarg;
+		__DB_OVFL(v1, UINT32_T_MAX);
+		return (dbenv->set_timeout(
+		    dbenv, (u_int32_t)v1, DB_SET_TXN_TIMEOUT));
 	}
 
 	if (!strcasecmp(name, "set_verbose")) {
@@ -963,6 +1088,10 @@ illegal:	__db_err(dbenv, "mis-formatted name-value pair: %s", s);
 
 badarg:	__db_err(dbenv, "incorrect arguments for name-value pair: %s", s);
 	return (EINVAL);
+
+toobig:	__db_err(dbenv,
+	    "%s: %lu larger than maximum value %lu", s, __v, __max);
+	return (EINVAL);
 }
 
 /*
@@ -976,7 +1105,7 @@ __db_tmp_open(dbenv, tmp_oflags, path, fhp)
 	char *path;
 	DB_FH *fhp;
 {
-	u_long pid;
+	u_int32_t id;
 	int mode, isdir, ret;
 	const char *p;
 	char *trv;
@@ -1001,12 +1130,9 @@ __db_tmp_open(dbenv, tmp_oflags, path, fhp)
 	for (p = DB_TRAIL; (*++trv = *p) != '\0'; ++p)
 		;
 
-	/*
-	 * Replace the X's with the process ID.  Pid should be a pid_t,
-	 * but we use unsigned long for portability.
-	 */
-	for (pid = getpid(); *--trv == 'X'; pid /= 10)
-		switch (pid % 10) {
+	/* Replace the X's with the process ID. */
+	for (__os_id(&id); *--trv == 'X'; id /= 10)
+		switch (id % 10) {
 		case 0: *trv = '0'; break;
 		case 1: *trv = '1'; break;
 		case 2: *trv = '2'; break;
@@ -1026,7 +1152,8 @@ __db_tmp_open(dbenv, tmp_oflags, path, fhp)
 	/* Loop, trying to open a file. */
 	for (;;) {
 		if ((ret = __os_open(dbenv, path,
-		    tmp_oflags | DB_OSO_CREATE | DB_OSO_EXCL, mode, fhp)) == 0)
+		    tmp_oflags | DB_OSO_CREATE | DB_OSO_EXCL | DB_OSO_TEMP,
+		    mode, fhp)) == 0)
 			return (0);
 
 		/*

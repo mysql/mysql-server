@@ -1,12 +1,13 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999, 2000
+# Copyright (c) 1999-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test053.tcl,v 11.12 2000/12/11 17:24:55 sue Exp $
+# $Id: test053.tcl,v 11.18 2002/05/24 15:24:55 sue Exp $
 #
-# Test53: test of the DB_REVSPLITOFF flag in the btree and
-# Btree-w-recnum methods
+# TEST	test053
+# TEST	Test of the DB_REVSPLITOFF flag in the Btree and Btree-w-recnum
+# TEST	methods.
 proc test053 { method args } {
 	global alphabet
 	global errorCode
@@ -31,6 +32,7 @@ proc test053 { method args } {
 	set flags ""
 
 	puts "\tTest053.a: Create $omethod $args database."
+	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
 	#
 	# If we are using an env, then testfile should just be the db name.
@@ -42,12 +44,17 @@ proc test053 { method args } {
 		set testfile test053.db
 		incr eindex
 		set env [lindex $args $eindex]
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+		}
+		set testdir [get_home $env]
 	}
 	set t1 $testdir/t1
 	cleanup $testdir $env
 
 	set oflags \
-	    "-create -truncate -revsplitoff -pagesize 1024 $args $omethod"
+	    "-create -revsplitoff -pagesize 1024 $args $omethod"
 	set db [eval {berkdb_open} $oflags $testfile]
 	error_check_good dbopen [is_valid_db $db] TRUE
 
@@ -77,8 +84,16 @@ proc test053 { method args } {
 			} else {
 				set key $keyroot$j
 			}
-			set ret [$db put $key $data]
+			if { $txnenv == 1 } {
+				set t [$env txn]
+				error_check_good txn [is_valid_txn $t $env] TRUE
+				set txn "-txn $t"
+			}
+			set ret [eval {$db put} $txn {$key $data}]
 			error_check_good dbput $ret 0
+			if { $txnenv == 1 } {
+				error_check_good txn [$t commit] 0
+			}
 		}
 	}
 
@@ -89,16 +104,29 @@ proc test053 { method args } {
 	puts "\tTest053.d: Delete all but one key per page."
 	for {set i 0} { $i < $npages } {incr i } {
 		for {set j 1} { $j < $nkeys } {incr j } {
-			set ret [$db del $key_set($i)0$j]
+			if { $txnenv == 1 } {
+				set t [$env txn]
+				error_check_good txn [is_valid_txn $t $env] TRUE
+				set txn "-txn $t"
+			}
+			set ret [eval {$db del} $txn {$key_set($i)0$j}]
 			error_check_good dbdel $ret 0
+			if { $txnenv == 1 } {
+				error_check_good txn [$t commit] 0
+			}
 		}
 	}
 	puts "\tTest053.e: Check to make sure all pages are still there."
 	error_check_good page_count:check \
 	    [is_substr [$db stat] "{Leaf pages} $npages"] 1
 
-	set dbc [$db cursor]
-	error_check_good db:cursor [is_substr $dbc $db] 1
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
+	set dbc [eval {$db cursor} $txn]
+	error_check_good db:cursor [is_valid_cursor $dbc $db] TRUE
 
 	# walk cursor through tree forward, backward.
 	# delete one key, repeat
@@ -125,7 +153,7 @@ proc test053 { method args } {
 			puts "\t\tTest053.f.$i:\
 			    Walk through tree with record numbers."
 			for {set j 1} {$j <= [expr $npages - $i]} {incr j} {
-				set curr [$db get -recno $j]
+				set curr [eval {$db get} $txn {-recno $j}]
 				error_check_bad \
 				    db_get:recno:$j [llength $curr] 0
 				error_check_good db_get:recno:keys:$j \
@@ -135,10 +163,10 @@ proc test053 { method args } {
 		}
 		puts "\tTest053.g.$i:\
 		    Delete single key ([expr $npages - $i] keys left)."
-		set ret [$db del $key_set($i)00]
+		set ret [eval {$db del} $txn {$key_set($i)00}]
 		error_check_good dbdel $ret 0
 		error_check_good del:check \
-		    [llength [$db get $key_set($i)00]] 0
+		    [llength [eval {$db get} $txn {$key_set($i)00}]] 0
 	}
 
 	# end for loop, verify db_notfound
@@ -149,7 +177,7 @@ proc test053 { method args } {
 	for {set i 0} { $i < $npages} {incr i} {
 		puts "\tTest053.i.$i:\
 		    Restore single key ([expr $i + 1] keys in tree)."
-		set ret [$db put $key_set($i)00 $data]
+		set ret [eval {$db put} $txn {$key_set($i)00 $data}]
 		error_check_good dbput $ret 0
 
 		puts -nonewline \
@@ -177,7 +205,7 @@ proc test053 { method args } {
 			puts "\t\tTest053.k.$i:\
 			    Walk through tree with record numbers."
 			for {set j 1} {$j <= [expr $i + 1]} {incr j} {
-				set curr [$db get -recno $j]
+				set curr [eval {$db get} $txn {-recno $j}]
 				error_check_bad \
 				    db_get:recno:$j [llength $curr] 0
 				error_check_good db_get:recno:keys:$j \
@@ -188,6 +216,9 @@ proc test053 { method args } {
 	}
 
 	error_check_good dbc_close [$dbc close] 0
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 	error_check_good db_close [$db close] 0
 
 	puts "Test053 complete."

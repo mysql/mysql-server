@@ -1,0 +1,4 @@
+
+/* DO NOT EDIT: automatically built by dist/s_rpc. */
+#define	DB_RPC_SERVERPROG ((unsigned long)(351457))
+#define	DB_RPC_SERVERVERS ((unsigned long)(4001))

@@ -1,9 +1,9 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: mutexscript.tcl,v 11.12 2000/11/21 22:14:56 dda Exp $
+# $Id: mutexscript.tcl,v 11.16 2002/04/29 14:58:16 sandstro Exp $
 #
 # Random mutex tester.
 # Usage: mutexscript dir numiters mlocks sleepint degree
@@ -43,7 +43,7 @@ puts " $numiters $nmutex $sleepint $degree"
 flush stdout
 
 # Open the environment and the mutex
-set e [berkdb env -create -mode 0644 -lock -home $dir]
+set e [berkdb_env -create -mode 0644 -lock -home $dir]
 error_check_good evn_open [is_valid_env $e] TRUE
 
 set mutex [$e mutex 0644 $nmutex]
@@ -73,8 +73,8 @@ for { set iter 0 } { $iter < $numiters } { incr iter } {
 		}
 	}
 
-	# Pick sleep interval
-	tclsleep [ berkdb random_int 1 $sleepint ]
+	# Sleep for 10 to (100*$sleepint) ms.
+	after [berkdb random_int 10 [expr $sleepint * 100]]
 
 	# Now release locks
 	foreach i $mlist {

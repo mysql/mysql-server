@@ -1,38 +1,33 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: mp_register.c,v 11.12 2000/11/15 19:25:39 sue Exp $";
+static const char revid[] = "$Id: mp_register.c,v 11.21 2002/03/27 04:32:27 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
 #endif
 
-#ifdef  HAVE_RPC
-#include "db_server.h"
-#endif
-
 #include "db_int.h"
-#include "db_shash.h"
-#include "mp.h"
-
-#ifdef HAVE_RPC
-#include "gen_client_ext.h"
-#include "rpc_client_ext.h"
-#endif
+#include "dbinc/db_shash.h"
+#include "dbinc/mp.h"
 
 /*
  * memp_register --
  *	Register a file type's pgin, pgout routines.
+ *
+ * PUBLIC: int __memp_register __P((DB_ENV *, int,
+ * PUBLIC:     int (*)(DB_ENV *, db_pgno_t, void *, DBT *),
+ * PUBLIC:     int (*)(DB_ENV *, db_pgno_t, void *, DBT *)));
  */
 int
-memp_register(dbenv, ftype, pgin, pgout)
+__memp_register(dbenv, ftype, pgin, pgout)
 	DB_ENV *dbenv;
 	int ftype;
 	int (*pgin) __P((DB_ENV *, db_pgno_t, void *, DBT *));
@@ -42,13 +37,9 @@ memp_register(dbenv, ftype, pgin, pgout)
 	DB_MPREG *mpreg;
 	int ret;
 
-#ifdef HAVE_RPC
-	if (F_ISSET(dbenv, DB_ENV_RPCCLIENT))
-		return (__dbcl_memp_register(dbenv, ftype, pgin, pgout));
-#endif
-
 	PANIC_CHECK(dbenv);
-	ENV_REQUIRES_CONFIG(dbenv, dbenv->mp_handle, DB_INIT_MPOOL);
+	ENV_REQUIRES_CONFIG(dbenv,
+	    dbenv->mp_handle, "DB_ENV->memp_register", DB_INIT_MPOOL);
 
 	dbmp = dbenv->mp_handle;
 
@@ -70,7 +61,7 @@ memp_register(dbenv, ftype, pgin, pgout)
 		return (0);
 
 	/* New entry. */
-	if ((ret = __os_malloc(dbenv, sizeof(DB_MPREG), NULL, &mpreg)) != 0)
+	if ((ret = __os_malloc(dbenv, sizeof(DB_MPREG), &mpreg)) != 0)
 		return (ret);
 
 	mpreg->ftype = ftype;

@@ -1,24 +1,42 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1999, 2000
+# Copyright (c) 1999-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: sdb001.tcl,v 11.12 2000/08/25 14:21:52 sue Exp $
+# $Id: sdb001.tcl,v 11.18 2002/06/10 15:39:36 sue Exp $
 #
-# Sub DB Test 1 {access method}
-# Test non-subdb and subdb operations
-# Test naming (filenames begin with -)
-# Test existence (cannot create subdb of same name with -excl)
+# TEST	subdb001	Tests mixing db and subdb operations
+# TEST	Tests mixing db and subdb operations
+# TEST	Create a db, add data, try to create a subdb.
+# TEST	Test naming db and subdb with a leading - for correct parsing
+# TEST	Existence check -- test use of -excl with subdbs
+# TEST
+# TEST	Test non-subdb and subdb operations
+# TEST	Test naming (filenames begin with -)
+# TEST	Test existence (cannot create subdb of same name with -excl)
 proc subdb001 { method args } {
 	source ./include.tcl
+	global errorInfo
 
 	set args [convert_args $method $args]
 	set omethod [convert_method $method]
 
+	if { [is_queue $method] == 1 } {
+		puts "Subdb001: skipping for method $method"
+		return
+	}
 	puts "Subdb001: $method ($args) subdb and non-subdb tests"
 
-	# Create the database and open the dictionary
 	set testfile $testdir/subdb001.db
+	set eindex [lsearch -exact $args "-env"]
+	if { $eindex != -1 } {
+		set env NULL
+		incr eindex
+		set env [lindex $args $eindex]
+		puts "Subdb001 skipping for env $env"
+		return
+	}
+	# Create the database and open the dictionary
 	set subdb subdb0
 	cleanup $testdir NULL
 	puts "\tSubdb001.a: Non-subdb database and subdb operations"
@@ -27,7 +45,7 @@ proc subdb001 { method args } {
 	# open/add with a subdb.  Should fail.
 	#
 	puts "\tSubdb001.a.0: Create db, add data, close, try subdb"
-	set db [eval {berkdb_open -create -truncate -mode 0644} \
+	set db [eval {berkdb_open -create -mode 0644} \
 	    $args {$omethod $testfile}]
 	error_check_good dbopen [is_valid_db $db] TRUE
 
@@ -70,6 +88,12 @@ proc subdb001 { method args } {
 	#
 	set testfile $testdir/subdb001a.db
 	puts "\tSubdb001.a.1: Create db, close, try subdb"
+	#
+	# !!!
+	# Using -truncate is illegal when opening for subdbs, but we
+	# can use it here because we are not using subdbs for this
+	# create.
+	#
 	set db [eval {berkdb_open -create -truncate -mode 0644} $args \
 	    {$omethod $testfile}]
 	error_check_good dbopen [is_valid_db $db] TRUE
@@ -108,8 +132,17 @@ proc subdb001 { method args } {
 	# Create 1 db with 1 subdb.  Try to create another subdb of
 	# the same name.  Should fail.
 	#
-	puts "\tSubdb001.c: Existence check"
+	puts "\tSubdb001.c: Truncate check"
 	set testfile $testdir/subdb001c.db
+	set subdb subdb
+	set stat [catch {eval {berkdb_open_noerr -create -truncate -mode 0644} \
+	    $args {$omethod $testfile $subdb}} ret]
+	error_check_bad dbopen $stat 0
+	error_check_good trunc [is_substr $ret \
+	    "illegal with multiple databases"] 1
+
+	puts "\tSubdb001.d: Existence check"
+	set testfile $testdir/subdb001d.db
 	set subdb subdb
 	set ret [catch {eval {berkdb_open -create -excl -mode 0644} $args \
 	    {$omethod $testfile $subdb}} db]

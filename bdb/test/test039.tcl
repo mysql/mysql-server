@@ -1,20 +1,23 @@
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 1997, 1998, 1999, 2000
+# Copyright (c) 1996-2002
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id: test039.tcl,v 11.11 2000/08/25 14:21:56 sue Exp $
+# $Id: test039.tcl,v 11.20 2002/06/11 14:09:57 sue Exp $
 #
-# DB Test 39 {access method}
-# Use the first 10,000 entries from the dictionary.
-# Insert each with self as key and "ndups" duplicates
-# For the data field, prepend the letters of the alphabet
-# in a random order so that we force the duplicate sorting
-# code to do something.
-# By setting ndups large, we can make this an off-page test
-# After all are entered; test the DB_GET_BOTH functionality
-# first by retrieving each dup in the file explicitly.  Then
-# remove each duplicate and try DB_GET_BOTH again.
+# TEST	test039
+# TEST	DB_GET_BOTH/DB_GET_BOTH_RANGE on deleted items without comparison
+# TEST	function.
+# TEST
+# TEST	Use the first 10,000 entries from the dictionary.  Insert each with
+# TEST	self as key and "ndups" duplicates.  For the data field, prepend the
+# TEST	letters of the alphabet in a random order so we force the duplicate
+# TEST	sorting code to do something.  By setting ndups large, we can make
+# TEST	this an off-page test.
+# TEST
+# TEST	Test the DB_GET_BOTH and DB_GET_BOTH_RANGE functionality by retrieving
+# TEST	each dup in the file explicitly.  Then remove each duplicate and try
+# TEST	the retrieval again.
 proc test039 { method {nentries 10000} {ndups 5} {tnum 39} args } {
 	global alphabet
 	global rand_init
@@ -25,7 +28,13 @@ proc test039 { method {nentries 10000} {ndups 5} {tnum 39} args } {
 	set args [convert_args $method $args]
 	set omethod [convert_method $method]
 
+	if { [is_record_based $method] == 1 || \
+	    [is_rbtree $method] == 1 } {
+		puts "Test0$tnum skipping for method $method"
+		return
+	}
 	# Create the database and open the dictionary
+	set txnenv 0
 	set eindex [lsearch -exact $args "-env"]
 	#
 	# If we are using an env, then testfile should just be the db name.
@@ -39,26 +48,35 @@ proc test039 { method {nentries 10000} {ndups 5} {tnum 39} args } {
 		set checkdb checkdb.db
 		incr eindex
 		set env [lindex $args $eindex]
+		set txnenv [is_txnenv $env]
+		if { $txnenv == 1 } {
+			append args " -auto_commit "
+			#
+			# If we are using txns and running with the
+			# default, set the default down a bit.
+			#
+			if { $nentries == 10000 } {
+				set nentries 100
+			}
+			reduce_dups nentries ndups
+		}
+		set testdir [get_home $env]
 	}
 	set t1 $testdir/t1
 	set t2 $testdir/t2
 	set t3 $testdir/t3
 	cleanup $testdir $env
 
-	puts "Test0$tnum: $method $nentries small unsorted dup key/data pairs"
-	if { [is_record_based $method] == 1 || \
-	    [is_rbtree $method] == 1 } {
-		puts "Test0$tnum skipping for method $method"
-		return
-	}
+	puts "Test0$tnum: $method $nentries \
+	    small $ndups unsorted dup key/data pairs"
 
-	set db [eval {berkdb_open -create -truncate -mode 0644 \
+	set db [eval {berkdb_open -create -mode 0644 \
 		$omethod -dup} $args {$testfile}]
 	error_check_good dbopen [is_valid_db $db] TRUE
 	set did [open $dict]
 
-	set check_db \
-	    [berkdb_open -create -truncate -mode 0644 -hash $checkdb]
+	set check_db [eval \
+	    {berkdb_open -create -mode 0644 -hash} $args {$checkdb}]
 	error_check_good dbopen:check_db [is_valid_db $check_db] TRUE
 
 	set pflags ""
@@ -68,8 +86,13 @@ proc test039 { method {nentries 10000} {ndups 5} {tnum 39} args } {
 
 	# Here is the loop where we put and get each key/data pair
 	puts "\tTest0$tnum.a: Put/get loop"
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
 	set dbc [eval {$db cursor} $txn]
-	error_check_good cursor_open [is_substr $dbc $db] 1
+	error_check_good cursor_open [is_valid_cursor $dbc $db] TRUE
 	while { [gets $did str] != -1 && $count < $nentries } {
 		set dups ""
 		for { set i 1 } { $i <= $ndups } { incr i } {
@@ -124,14 +147,22 @@ proc test039 { method {nentries 10000} {ndups 5} {tnum 39} args } {
 		incr count
 	}
 	error_check_good cursor_close [$dbc close] 0
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
 	close $did
 
 	# Now check the duplicates, then delete then recheck
 	puts "\tTest0$tnum.b: Checking and Deleting duplicates"
+	if { $txnenv == 1 } {
+		set t [$env txn]
+		error_check_good txn [is_valid_txn $t $env] TRUE
+		set txn "-txn $t"
+	}
 	set dbc [eval {$db cursor} $txn]
-	error_check_good cursor_open [is_substr $dbc $db] 1
+	error_check_good cursor_open [is_valid_cursor $dbc $db] TRUE
 	set check_c [eval {$check_db cursor} $txn]
-	error_check_good cursor_open [is_substr $check_c $check_db] 1
+	error_check_good cursor_open [is_valid_cursor $check_c $check_db] TRUE
 
 	for {set ndx 0} {$ndx < $ndups} {incr ndx} {
 		for {set ret [$check_c get -first]} \
@@ -144,8 +175,7 @@ proc test039 { method {nentries 10000} {ndups 5} {tnum 39} args } {
 			set nn [expr $ndx * 3]
 			set pref [string range $d $nn [expr $nn + 1]]
 			set data $pref:$k
-			set ret \
-			    [eval {$dbc get} $txn $gflags {-get_both $k $data}]
+			set ret [$dbc get -get_both $k $data]
 			error_check_good \
 			    get_both_key:$k [lindex [lindex $ret 0] 0] $k
 			error_check_good \
@@ -154,24 +184,28 @@ proc test039 { method {nentries 10000} {ndups 5} {tnum 39} args } {
 			set ret [$dbc del]
 			error_check_good del $ret 0
 
-			set ret \
-			    [eval {$dbc get} $txn $gflags {-get_both $k $data}]
-			error_check_good error_case:$k [llength $ret] 0
+			set ret [$dbc get -get_both $k $data]
+			error_check_good get_both:$k [llength $ret] 0
+
+			set ret [$dbc get -get_both_range $k $data]
+			error_check_good get_both_range:$k [llength $ret] 0
 
 			if {$ndx != 0} {
 				set n [expr ($ndx - 1) * 3]
 				set pref [string range $d $n [expr $n + 1]]
 				set data $pref:$k
-				set ret [eval {$dbc get} \
-				    $txn $gflags {-get_both $k $data}]
+				set ret [$dbc get -get_both $k $data]
 				error_check_good error_case:$k [llength $ret] 0
 			}
 		}
 	}
 
 	error_check_good check_c:close [$check_c close] 0
-	error_check_good check_db:close [$check_db close] 0
-
 	error_check_good dbc_close [$dbc close] 0
+	if { $txnenv == 1 } {
+		error_check_good txn [$t commit] 0
+	}
+
+	error_check_good check_db:close [$check_db close] 0
 	error_check_good db_close [$db close] 0
 }

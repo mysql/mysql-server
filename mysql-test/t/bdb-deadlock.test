@@ -30,13 +30,17 @@ select x from t1 where id = 0;
 
 connection con1;
 # This should generate a deadlock as we are trying to access a locked row
---error 1213
+--send
 select x from t2 where id = 0;
+
+connection con2;
+--error 1213
+commit;
+
+connection con1;
 commit;
 
 connection con2;
-reap;
-commit;
 select * from t1;
 select * from t2;
 commit;
@@ -45,4 +49,5 @@ connection con1;
 select * from t1;
 select * from t2;
 commit;
+
 drop table t1,t2;

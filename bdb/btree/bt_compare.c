@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 1997, 1998, 1999, 2000
+ * Copyright (c) 1996-2002
  *	Sleepycat Software.  All rights reserved.
  */
 /*
@@ -43,7 +43,7 @@
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: bt_compare.c,v 11.12 2000/10/26 19:00:28 krinsky Exp $";
+static const char revid[] = "$Id: bt_compare.c,v 11.17 2002/03/27 04:30:42 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
@@ -51,8 +51,8 @@ static const char revid[] = "$Id: bt_compare.c,v 11.12 2000/10/26 19:00:28 krins
 #endif
 
 #include "db_int.h"
-#include "db_page.h"
-#include "btree.h"
+#include "dbinc/db_page.h"
+#include "dbinc/btree.h"
 
 /*
  * __bam_cmp --
@@ -92,7 +92,7 @@ __bam_cmp(dbp, dbt, h, indx, func, cmpp)
 	case P_LBTREE:
 	case P_LDUP:
 	case P_LRECNO:
-		bk = GET_BKEYDATA(h, indx);
+		bk = GET_BKEYDATA(dbp, h, indx);
 		if (B_TYPE(bk->type) == B_OVERFLOW)
 			bo = (BOVERFLOW *)bk;
 		else {
@@ -125,7 +125,7 @@ __bam_cmp(dbp, dbt, h, indx, func, cmpp)
 			return (0);
 		}
 
-		bi = GET_BINTERNAL(h, indx);
+		bi = GET_BINTERNAL(dbp, h, indx);
 		if (B_TYPE(bi->type) == B_OVERFLOW)
 			bo = (BOVERFLOW *)(bi->data);
 		else {
@@ -136,7 +136,7 @@ __bam_cmp(dbp, dbt, h, indx, func, cmpp)
 		}
 		break;
 	default:
-		return (__db_pgfmt(dbp, PGNO(h)));
+		return (__db_pgfmt(dbp->dbenv, PGNO(h)));
 	}
 
 	/*

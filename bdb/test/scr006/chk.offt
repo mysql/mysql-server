@@ -1,0 +1,36 @@
+#!/bin/sh -
+#
+# $Id: chk.offt,v 1.9 2001/10/26 13:40:15 bostic Exp $
+#
+# Make sure that no off_t's have snuck into the release.
+
+d=../..
+
+[ -f $d/LICENSE ] || {
+	echo 'FAIL: cannot find source distribution directory.'
+	exit 1
+}
+
+t=__1
+
+egrep -w off_t $d/*/*.[ch] $d/*/*.in |
+sed -e "/#undef off_t/d" \
+    -e "/mp_fopen.c:.*can't use off_t's here/d" \
+    -e "/mp_fopen.c:.*size or type off_t's or/d" \
+    -e "/mp_fopen.c:.*where an off_t is 32-bits/d" \
+    -e "/mutex\/tm.c:/d" \
+    -e "/os_map.c:.*(off_t)0))/d" \
+    -e "/os_rw.c:.*(off_t)db_iop->pgno/d" \
+    -e "/os_seek.c:.*off_t offset;/d" \
+    -e "/os_seek.c:.*offset = /d" \
+    -e "/test_perf\/perf_misc.c:/d" \
+    -e "/test_server\/dbs.c:/d" \
+    -e "/test_vxworks\/vx_mutex.c:/d" > $t
+
+test -s $t && {
+	cat $t
+	echo "FAIL: found questionable off_t usage"
+	exit 1
+}
+
+exit 0

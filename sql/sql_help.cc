@@ -361,8 +361,8 @@ int mysqld_help (THD *thd, const char *mask)
     }
     else if (count==1)
     {
-      if (res= get_all_names_for_category(thd, file_leafs,
-				     category_id,&function_list))
+      if ((res= get_all_names_for_category(thd, file_leafs,
+				     category_id,&function_list)))
 	goto end;
       List_iterator<String> it(function_list);
       String *cur_leaf, example;
@@ -371,8 +371,8 @@ int mysqld_help (THD *thd, const char *mask)
 	example.append(*cur_leaf);
 	example.append("\n",1);
       }
-      if (res= send_answer_1(thd, categories_list.head()->ptr(),
-				       "Y","",example.ptr()))
+      if ((res= send_answer_1(thd, categories_list.head()->ptr(),
+				       "Y","",example.ptr())))
 	goto end;
     }
     else	
@@ -387,8 +387,8 @@ int mysqld_help (THD *thd, const char *mask)
   }
   else if (count==1)
   {
-    if (res= send_answer_1(thd,name->ptr(),"N",
-			   description->ptr(), example->ptr()))
+    if ((res= send_answer_1(thd,name->ptr(),"N",
+			   description->ptr(), example->ptr())))
       goto end;
   }
   else if((res= send_header_2(thd)) ||

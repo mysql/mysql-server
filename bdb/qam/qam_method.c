@@ -1,34 +1,32 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999, 2000
+ * Copyright (c) 1999-2002
  *	Sleepycat Software.  All rights reserved.
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id: qam_method.c,v 11.17 2001/01/10 04:50:54 ubell Exp $";
+static const char revid[] = "$Id: qam_method.c,v 11.55 2002/08/26 17:52:19 margo Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES
 #include <sys/types.h>
+
 #include <string.h>
 #endif
 
 #include "db_int.h"
-#include "db_page.h"
-#include "db_int.h"
-#include "db_shash.h"
-#include "db_am.h"
-#include "qam.h"
-#include "db.h"
-#include "mp.h"
-#include "lock.h"
-#include "log.h"
+#include "dbinc/db_page.h"
+#include "dbinc/db_shash.h"
+#include "dbinc/db_am.h"
+#include "dbinc/fop.h"
+#include "dbinc/lock.h"
+#include "dbinc/qam.h"
+#include "dbinc/txn.h"
 
 static int __qam_set_extentsize __P((DB *, u_int32_t));
-static int __qam_remove_callback __P((DB *, void *));
 
 struct __qam_cookie {
 	DB_LSN lsn;
@@ -77,7 +75,8 @@ __qam_db_close(dbp)
 	int ret, t_ret;
 
 	ret = 0;
-	t = dbp->q_internal;
+	if ((t = dbp->q_internal) == NULL)
+		return (0);
 
 	array = &t->array1;
 again:
@@ -88,10 +87,10 @@ again:
 			mpf = mpfp->mpf;
 			mpfp->mpf = NULL;
 			if (mpf != NULL &&
-			    (t_ret = memp_fclose(mpf)) != 0 && ret == 0)
+			    (t_ret = mpf->close(mpf, 0)) != 0 && ret == 0)
 				ret = t_ret;
 		}
-		__os_free(array->mpfarray, 0);
+		__os_free(dbp->dbenv, array->mpfarray);
 	}
 	if (t->array2.n_extent != 0) {
 		array = &t->array2;
@@ -100,8 +99,8 @@ again:
 	}
 
 	if (t->path != NULL)
-		__os_free(t->path, 0);
-	__os_free(t, sizeof(QUEUE));
+		__os_free(dbp->dbenv, t->path);
+	__os_free(dbp->dbenv, t);
 	dbp->q_internal = NULL;
 
 	return (ret);
@@ -115,7 +114,7 @@ __qam_set_extentsize(dbp, extentsize)
 	DB_ILLEGAL_AFTER_OPEN(dbp, "set_extentsize");
 
 	if (extentsize < 1) {
-		__db_err(dbp->dbenv, "Extent size must be at least 1.");
+		__db_err(dbp->dbenv, "Extent size must be at least 1");
 		return (EINVAL);
 	}
 
@@ -128,29 +127,35 @@ __qam_set_extentsize(dbp, extentsize)
  * __db_prqueue --
  *	Print out a queue
  *
- * PUBLIC: int __db_prqueue __P((DB *, u_int32_t));
+ * PUBLIC: int __db_prqueue __P((DB *, FILE *, u_int32_t));
  */
 int
-__db_prqueue(dbp, flags)
+__db_prqueue(dbp, fp, flags)
 	DB *dbp;
+	FILE *fp;
 	u_int32_t flags;
 {
+	DB_MPOOLFILE *mpf;
 	PAGE *h;
 	QMETA *meta;
 	db_pgno_t first, i, last, pg_ext, stop;
-	int ret;
+	int ret, t_ret;
+
+	mpf = dbp->mpf;
 
 	/* Find out the page number of the last page in the database. */
 	i = PGNO_BASE_MD;
-	if ((ret = memp_fget(dbp->mpf, &i, 0, &meta)) != 0)
+	if ((ret = mpf->get(mpf, &i, 0, &meta)) != 0)
 		return (ret);
 
 	first = QAM_RECNO_PAGE(dbp, meta->first_recno);
 	last = QAM_RECNO_PAGE(dbp, meta->cur_recno);
 
-	if ((ret = __db_prpage(dbp, (PAGE *)meta, flags)) != 0)
-		return (ret);
-	if ((ret = memp_fput(dbp->mpf, meta, 0)) != 0)
+	ret = __db_prpage(dbp, (PAGE *)meta, fp, flags);
+	if ((t_ret = mpf->put(mpf, meta, 0)) != 0 && ret == 0)
+		ret = t_ret;
+
+	if (ret != 0)
 		return (ret);
 
 	i = first;
@@ -162,20 +167,20 @@ __db_prqueue(dbp, flags)
 	/* Dump each page. */
 begin:
 	for (; i <= stop; ++i) {
-		if ((ret = __qam_fget(dbp, &i, DB_MPOOL_EXTENT, &h)) != 0) {
+		if ((ret = __qam_fget(dbp, &i, 0, &h)) != 0) {
 			pg_ext = ((QUEUE *)dbp->q_internal)->page_ext;
 			if (pg_ext == 0) {
-				if (ret == EINVAL && first == last)
+				if (ret == DB_PAGE_NOTFOUND && first == last)
 					return (0);
 				return (ret);
 			}
-			if (ret == ENOENT || ret == EINVAL) {
+			if (ret == ENOENT || ret == DB_PAGE_NOTFOUND) {
 				i += pg_ext - ((i - 1) % pg_ext) - 1;
 				continue;
 			}
 			return (ret);
 		}
-		(void)__db_prpage(dbp, h, flags);
+		(void)__db_prpage(dbp, h, fp, flags);
 		if ((ret = __qam_fput(dbp, i, h, 0)) != 0)
 			return (ret);
 	}
@@ -193,31 +198,31 @@ begin:
  * __qam_remove
  *	Remove method for a Queue.
  *
- * PUBLIC: int __qam_remove __P((DB *, const char *,
- * PUBLIC:      const char *, DB_LSN *, int (**)(DB *, void*), void **));
+ * PUBLIC: int __qam_remove __P((DB *,
+ * PUBLIC:     DB_TXN *, const char *, const char *, DB_LSN *));
  */
 int
-__qam_remove(dbp, name, subdb, lsnp, callbackp, cookiep)
+__qam_remove(dbp, txn, name, subdb, lsnp)
 	DB *dbp;
+	DB_TXN *txn;
 	const char *name, *subdb;
 	DB_LSN *lsnp;
-	int (**callbackp) __P((DB *, void *));
-	void **cookiep;
 {
-	DBT namedbt;
 	DB_ENV *dbenv;
-	DB_LSN lsn;
+	DB *tmpdbp;
 	MPFARRAY *ap;
 	QUEUE *qp;
-	int ret;
-	char *backup, buf[256], *real_back, *real_name;
 	QUEUE_FILELIST *filelist, *fp;
-	struct __qam_cookie *qam_cookie;
+	int ret, needclose, t_ret;
+	char buf[MAXPATHLEN];
+	u_int8_t fid[DB_FILE_ID_LEN];
+
+	COMPQUIET(lsnp, NULL);
 
 	dbenv = dbp->dbenv;
 	ret = 0;
-	backup = real_back = real_name = NULL;
 	filelist = NULL;
+	needclose = 0;
 
 	PANIC_CHECK(dbenv);
 
@@ -226,148 +231,86 @@ __qam_remove(dbp, name, subdb, lsnp, callbackp, cookiep)
 	 */
 	if (subdb != NULL) {
 		__db_err(dbenv,
-		    "Queue does not support multiple databases per file.");
+		    "Queue does not support multiple databases per file");
 		ret = EINVAL;
-		goto done;
+		goto err;
 	}
 
-	qp = (QUEUE *)dbp->q_internal;
+	/*
+	 * Since regular remove no longer opens the database, we may have
+	 * to do it here.
+	 */
+	if (F_ISSET(dbp, DB_AM_OPEN_CALLED))
+		tmpdbp = dbp;
+	else {
+		if ((ret = db_create(&tmpdbp, dbenv, 0)) != 0)
+			return (ret);
+		/*
+		 * We need to make sure we don't self-deadlock, so give
+		 * this dbp the same locker as the incoming one.
+		 */
+		tmpdbp->lid = dbp->lid;
+
+		/*
+		 * If this is a transactional dbp and the open fails, then
+		 * the transactional abort will close the dbp.  If it's not
+		 * a transactional open, then we always have to close it
+		 * even if the open fails.  Once the open has succeeded,
+		 * then we will always want to close it.
+		 */
+		if (txn == NULL)
+			needclose = 1;
+		if ((ret = tmpdbp->open(tmpdbp,
+		    txn, name, NULL, DB_QUEUE, 0, 0)) != 0)
+			goto err;
+		needclose = 1;
+	}
+
+	qp = (QUEUE *)tmpdbp->q_internal;
 
 	if (qp->page_ext != 0 &&
-	    (ret = __qam_gen_filelist(dbp, &filelist)) != 0)
-		goto done;
+	    (ret = __qam_gen_filelist(tmpdbp, &filelist)) != 0)
+		goto err;
 
 	if (filelist == NULL)
-		goto done;
+		goto err;
 
 	for (fp = filelist; fp->mpf != NULL; fp++) {
-		snprintf(buf,
-		    sizeof(buf), QUEUE_EXTENT, qp->dir, qp->name, fp->id);
-		if ((ret = __db_appname(dbenv,
-		    DB_APP_DATA, NULL, buf, 0, NULL, &real_name)) != 0)
-			goto done;
-		if (LOGGING_ON(dbenv)) {
-			memset(&namedbt, 0, sizeof(namedbt));
-			namedbt.data = (char *)buf;
-			namedbt.size = strlen(buf) + 1;
-
-			if ((ret =
-			    __qam_delete_log(dbenv, dbp->open_txn,
-			    &lsn, DB_FLUSH, &namedbt, lsnp)) != 0) {
-				__db_err(dbenv,
-				    "%s: %s", name, db_strerror(ret));
-				goto done;
-			}
-		}
-		(void)__memp_fremove(fp->mpf);
-		if ((ret = memp_fclose(fp->mpf)) != 0)
-			goto done;
+		snprintf(buf, sizeof(buf),
+		    QUEUE_EXTENT, qp->dir, PATH_SEPARATOR[0], qp->name, fp->id);
+		if ((ret = fp->mpf->close(fp->mpf, DB_MPOOL_DISCARD)) != 0)
+			goto err;
 		if (qp->array2.n_extent == 0 || qp->array2.low_extent > fp->id)
 			ap = &qp->array1;
 		else
 			ap = &qp->array2;
 		ap->mpfarray[fp->id - ap->low_extent].mpf = NULL;
 
-		/* Create name for backup file. */
-		if (TXN_ON(dbenv)) {
-			if ((ret = __db_backup_name(dbenv,
-			    buf, &backup, lsnp)) != 0)
-				goto done;
-			if ((ret = __db_appname(dbenv, DB_APP_DATA,
-			     NULL, backup, 0, NULL, &real_back)) != 0)
-				goto done;
-			if ((ret = __os_rename(dbenv,
-			     real_name, real_back)) != 0)
-				goto done;
-			__os_freestr(real_back);
-			real_back = NULL;
-		}
-		else
-			if ((ret = __os_unlink(dbenv, real_name)) != 0)
-				goto done;
-		__os_freestr(real_name);
-		real_name = NULL;
-	}
-	if ((ret= __os_malloc(dbenv,
-	    sizeof(struct __qam_cookie), NULL, &qam_cookie)) != 0)
-		goto done;
-	qam_cookie->lsn = *lsnp;
-	qam_cookie->filelist = filelist;
-	*cookiep = qam_cookie;
-	*callbackp = __qam_remove_callback;
-
-done:
-	if (ret != 0 && filelist != NULL)
-		__os_free(filelist, 0);
-	if (real_back != NULL)
-		__os_freestr(real_back);
-	if (real_name != NULL)
-		__os_freestr(real_name);
-	if (backup != NULL)
-		__os_freestr(backup);
-
-	return (ret);
-}
-
-static int
-__qam_remove_callback(dbp, cookie)
-	DB *dbp;
-	void *cookie;
-{
-	DB_ENV *dbenv;
-	DB_LSN *lsnp;
-	QUEUE *qp;
-	QUEUE_FILELIST *filelist, *fp;
-	char *backup, buf[256], *real_back;
-	int ret;
-
-	qp = (QUEUE *)dbp->q_internal;
-	if (qp->page_ext == 0)
-		return (__os_unlink(dbp->dbenv, cookie));
-
-	dbenv = dbp->dbenv;
-	lsnp = &((struct __qam_cookie *)cookie)->lsn;
-	filelist = fp = ((struct __qam_cookie *)cookie)->filelist;
-	real_back = backup = NULL;
-	if ((ret =
-	    __db_backup_name(dbenv, qp->name, &backup, lsnp)) != 0)
-		goto err;
-	if ((ret = __db_appname(dbenv,
-	    DB_APP_DATA, NULL, backup, 0, NULL, &real_back)) != 0)
-		goto err;
-	if ((ret = __os_unlink(dbp->dbenv, real_back)) != 0)
-		goto err;
-
-	__os_freestr(backup);
-	__os_freestr(real_back);
-
-	if (fp == NULL)
-		return (0);
-
-	for (; fp->mpf != NULL; fp++) {
-		snprintf(buf,
-		    sizeof(buf), QUEUE_EXTENT, qp->dir, qp->name, fp->id);
-		real_back = backup = NULL;
-		if ((ret = __db_backup_name(dbenv, buf, &backup, lsnp)) != 0)
+		/* Take care of object reclamation. */
+		__qam_exid(tmpdbp, fid, fp->id);
+		if ((ret = __fop_remove(dbenv,
+		    txn, fid, buf, DB_APP_DATA)) != 0)
 			goto err;
-		if ((ret = __db_appname(dbenv,
-		    DB_APP_DATA, NULL, backup, 0, NULL, &real_back)) != 0)
-			goto err;
-		ret = __os_unlink(dbenv, real_back);
-		__os_freestr(real_back);
-		__os_freestr(backup);
 	}
-	__os_free(filelist, 0);
-	__os_free(cookie, sizeof (struct __qam_cookie));
 
-	return (0);
+err:	if (filelist != NULL)
+		__os_free(dbenv, filelist);
+	if (needclose) {
+		/*
+		 * Since we copied the lid from the dbp, we'd better not
+		 * free it here.
+		 */
+		tmpdbp->lid = DB_LOCK_INVALIDID;
 
-err:
-	if (backup != NULL)
-		__os_freestr(backup);
+		/* We need to remove the lockevent we associated with this. */
+		if (txn != NULL)
+			__txn_remlock(dbenv,
+			    txn, &tmpdbp->handle_lock, DB_LOCK_INVALIDID);
 
-	if (real_back != NULL)
-		__os_freestr(real_back);
+		if ((t_ret =
+		    __db_close_i(tmpdbp, txn, DB_NOSYNC)) != 0 && ret == 0)
+			ret = t_ret;
+	}
 
 	return (ret);
 }
@@ -376,97 +319,95 @@ err:
  * __qam_rename
  *	Rename method for Queue.
  *
- * PUBLIC: int __qam_rename __P((DB *,
+ * PUBLIC: int __qam_rename __P((DB *, DB_TXN *,
  * PUBLIC:     const char *, const char *, const char *));
  */
 int
-__qam_rename(dbp, filename, subdb, newname)
+__qam_rename(dbp, txn, filename, subdb, newname)
 	DB *dbp;
+	DB_TXN *txn;
 	const char *filename, *subdb, *newname;
 {
-	DBT namedbt, newnamedbt;
 	DB_ENV *dbenv;
-	DB_LSN newlsn;
+	DB *tmpdbp;
 	MPFARRAY *ap;
 	QUEUE *qp;
 	QUEUE_FILELIST *fp, *filelist;
-	char buf[256], nbuf[256], *namep, *real_name, *real_newname;
-	int ret;
+	char buf[MAXPATHLEN], nbuf[MAXPATHLEN];
+	char *namep;
+	int ret, needclose, t_ret;
+	u_int8_t fid[DB_FILE_ID_LEN], *fidp;
 
 	dbenv = dbp->dbenv;
 	ret = 0;
-	real_name = real_newname = NULL;
 	filelist = NULL;
-
-	qp = (QUEUE *)dbp->q_internal;
+	needclose = 0;
 
 	if (subdb != NULL) {
 		__db_err(dbenv,
-		    "Queue does not support multiple databases per file.");
+		    "Queue does not support multiple databases per file");
 		ret = EINVAL;
 		goto err;
 	}
+
+	/*
+	 * Since regular rename no longer opens the database, we may have
+	 * to do it here.
+	 */
+	if (F_ISSET(dbp, DB_AM_OPEN_CALLED))
+		tmpdbp = dbp;
+	else {
+		if ((ret = db_create(&tmpdbp, dbenv, 0)) != 0)
+			return (ret);
+		/* Copy the incoming locker so we don't self-deadlock. */
+		tmpdbp->lid = dbp->lid;
+		needclose = 1;
+		if ((ret = tmpdbp->open(tmpdbp, txn, filename, NULL,
+		    DB_QUEUE, 0, 0)) != 0)
+			goto err;
+	}
+
+	qp = (QUEUE *)tmpdbp->q_internal;
+
 	if (qp->page_ext != 0 &&
-	    (ret = __qam_gen_filelist(dbp, &filelist)) != 0)
+	    (ret = __qam_gen_filelist(tmpdbp, &filelist)) != 0)
 		goto err;
 	if ((namep = __db_rpath(newname)) != NULL)
 		newname = namep + 1;
 
+	fidp = fid;
 	for (fp = filelist; fp != NULL && fp->mpf != NULL; fp++) {
-		if ((ret = __memp_fremove(fp->mpf)) != 0)
-			goto err;
-		if ((ret = memp_fclose(fp->mpf)) != 0)
+		fp->mpf->get_fileid(fp->mpf, fidp);
+		if ((ret = fp->mpf->close(fp->mpf, DB_MPOOL_DISCARD)) != 0)
 			goto err;
 		if (qp->array2.n_extent == 0 || qp->array2.low_extent > fp->id)
 			ap = &qp->array1;
 		else
 			ap = &qp->array2;
 		ap->mpfarray[fp->id - ap->low_extent].mpf = NULL;
-		snprintf(buf,
-		    sizeof(buf), QUEUE_EXTENT, qp->dir, qp->name, fp->id);
-		if ((ret = __db_appname(dbenv,
-		    DB_APP_DATA, NULL, buf, 0, NULL, &real_name)) != 0)
+		snprintf(buf, sizeof(buf),
+		    QUEUE_EXTENT, qp->dir, PATH_SEPARATOR[0], qp->name, fp->id);
+		snprintf(nbuf, sizeof(nbuf),
+		    QUEUE_EXTENT, qp->dir, PATH_SEPARATOR[0], newname, fp->id);
+		if ((ret = __fop_rename(dbenv,
+		    txn, buf, nbuf, fidp, DB_APP_DATA)) != 0)
 			goto err;
-		snprintf(nbuf,
-		     sizeof(nbuf), QUEUE_EXTENT, qp->dir, newname, fp->id);
-		if ((ret = __db_appname(dbenv,
-		    DB_APP_DATA, NULL, nbuf, 0, NULL, &real_newname)) != 0)
-			goto err;
-		if (LOGGING_ON(dbenv)) {
-			memset(&namedbt, 0, sizeof(namedbt));
-			namedbt.data = (char *)buf;
-			namedbt.size = strlen(buf) + 1;
-
-			memset(&newnamedbt, 0, sizeof(namedbt));
-			newnamedbt.data = (char *)nbuf;
-			newnamedbt.size = strlen(nbuf) + 1;
-
-			if ((ret =
-			    __qam_rename_log(dbenv,
-			    dbp->open_txn, &newlsn, 0,
-			    &namedbt, &newnamedbt)) != 0) {
-				__db_err(dbenv, "%s: %s", filename, db_strerror(ret));
-				goto err;
-			}
-
-			if ((ret = __log_filelist_update(dbenv, dbp,
-			    dbp->log_fileid, newname, NULL)) != 0)
-				goto err;
-		}
-		if ((ret = __os_rename(dbenv, real_name, real_newname)) != 0)
-			goto err;
-		__os_freestr(real_name);
-		__os_freestr(real_newname);
-		real_name = real_newname = NULL;
 	}
 
-err:
-	if (real_name != NULL)
-		__os_freestr(real_name);
-	if (real_newname != NULL)
-		__os_freestr(real_newname);
-	if (filelist != NULL)
-		__os_free(filelist, 0);
+err:	if (filelist != NULL)
+		__os_free(dbenv, filelist);
+	if (needclose) {
+		/* We copied this, so we mustn't free it. */
+		tmpdbp->lid = DB_LOCK_INVALIDID;
 
+		/* We need to remove the lockevent we associated with this. */
+		if (txn != NULL)
+		    __txn_remlock(dbenv,
+			txn, &tmpdbp->handle_lock, DB_LOCK_INVALIDID);
+
+		if ((t_ret =
+		    __db_close_i(tmpdbp, txn, DB_NOSYNC)) != 0 && ret == 0)
+			ret = t_ret;
+	}
 	return (ret);
 }
