@@ -255,7 +255,7 @@ bool Item::get_time(TIME *ltime)
   return 0;
 }
 
-CHARSET_INFO * Item::default_charset() const
+CHARSET_INFO * Item::default_charset() 
 {
   return current_thd->variables.collation_connection;
 }
@@ -1666,7 +1666,7 @@ bool Item::send(Protocol *protocol, String *buffer)
   }
   case MYSQL_TYPE_TINY:
   {
-    longlong nr;
+    longlong nr;  
     nr= val_int();
     if (!null_value)
       result= protocol->store_tiny(nr);

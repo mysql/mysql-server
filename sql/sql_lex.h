@@ -76,6 +76,7 @@ enum enum_sql_command {
   SQLCOM_SHOW_COLUMN_TYPES, SQLCOM_SHOW_STORAGE_ENGINES, SQLCOM_SHOW_PRIVILEGES,
   SQLCOM_HELP, SQLCOM_DROP_USER, SQLCOM_REVOKE_ALL, SQLCOM_CHECKSUM,
 
+  SQLCOM_PREPARE, SQLCOM_EXECUTE, SQLCOM_DEALLOCATE_PREPARE,
   /* This should be the last !!! */
   SQLCOM_END
 };
@@ -616,6 +617,17 @@ typedef struct st_lex
   bool derived_tables;
   bool safe_to_cache_query;
   ALTER_INFO alter_info;
+  /* Prepared statements SQL syntax:*/
+  LEX_STRING prepared_stmt_name; /* Statement name (in all queries) */
+  /* 
+    Prepared statement query text or name of variable that holds the
+    prepared statement (in PREPARE ... queries)
+  */
+  LEX_STRING prepared_stmt_code; 
+  /* If true, prepared_stmt_code is a name of variable that holds the query */
+  bool prepared_stmt_code_is_varref;
+  /* Names of user variables holding parameters (in EXECUTE) */
+  List<LEX_STRING> prepared_stmt_params; 
   st_lex() {}
   inline void uncacheable(uint8 cause)
   {
