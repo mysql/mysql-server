@@ -7433,27 +7433,6 @@ need to raise the @code{core file size} by adding @code{ulimit -c 1000000} to
 @code{safe_mysqld} or starting @code{safe_mysqld} with 
 @code{--core-file-sizes=1000000}.  @xref{safe_mysqld}.
 
-@c the stuff below is really out of date - hardly anybody uses it anymore
-
-If you are using LinuxThreads and @code{mysqladmin shutdown} doesn't work,
-you must upgrade to LinuxThreads Version 0.7.1 or newer.
-
-If you are using RedHat, you might get errors like this:
-
-@example
-/usr/bin/perl is needed...
-/usr/sh is needed...
-/usr/sh is needed...
-@end example
-
-If so, you should upgrade your version of @code{rpm} to
-@file{rpm-2.4.11-1.i386.rpm} and @file{rpm-devel-2.4.11-1.i386.rpm} (or later).
-
-You can get the upgrades of libraries to RedHat Version 4.2 from
-@uref{ftp://ftp.redhat.com/updates/4.2/i386}.  Or
-@uref{http://www.sunsite.unc.edu/pub/Linux/distributions/redhat/code/rpm/}
-for other distributions.
-
 If you are linking your own @strong{MySQL} client and get the error:
 
 @example
