@@ -867,7 +867,7 @@ int start_slave(THD* thd , MASTER_INFO* mi,  bool net_report)
   if (slave_errno)
   {
     if (net_report)
-      send_error(thd, slave_errno);
+      my_error(slave_errno, MYF(0));
     DBUG_RETURN(1);
   }
   else if (net_report)
@@ -917,7 +917,7 @@ int stop_slave(THD* thd, MASTER_INFO* mi, bool net_report )
   if (slave_errno)
   {
     if (net_report)
-      send_error(thd, slave_errno);
+      my_error(slave_errno, MYF(0));
     return 1;
   }
   else if (net_report)

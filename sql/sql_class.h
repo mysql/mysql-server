@@ -1196,8 +1196,6 @@ public:
 
 class JOIN;
 
-void send_error(THD *thd, uint sql_errno=0, const char *err=0);
-
 class select_result :public Sql_alloc {
 protected:
   THD *thd;
