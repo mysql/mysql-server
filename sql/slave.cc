@@ -135,7 +135,7 @@ int tables_ok(THD* thd, TABLE_LIST* tables)
 
 int add_table_rule(HASH* h, const char* table_spec)
 {
-  char* dot = strchr(table_spec, '.');
+  const char* dot = strchr(table_spec, '.');
   if(!dot) return 1;
   uint len = (uint)strlen(table_spec);
   if(!len) return 1;
@@ -152,7 +152,7 @@ int add_table_rule(HASH* h, const char* table_spec)
 
 int add_wild_table_rule(DYNAMIC_ARRAY* a, const char* table_spec)
 {
-  char* dot = strchr(table_spec, '.');
+  const char* dot = strchr(table_spec, '.');
   if(!dot) return 1;
   uint len = (uint)strlen(table_spec);
   if(!len) return 1;
