@@ -25629,10 +25629,11 @@ Starting in Version 3.23.15, @strong{MySQL} supports one-way replication
 internally. One server acts as the master, while the other acts as the
 slave. Note that one server could play the roles of master in one pair
 and slave in the other. The master server keeps a binary log of updates
-and an index file to binary logs to keep track of log rotation.  The
-slave upon connecting informs the master where it left off since the
-last successfully propagated update, catches up on the updates, and then
-blocks and waits for the master to notify it of the new updates.
+(@xref{Binary log}) and an index file of binary logs to keep track of
+log rotation.  The slave, upon connecting, informs the master where it
+left off since the last successfully propagated update, catches up on
+the updates, and then blocks and waits for the master to notify it of
+the new updates.
 
 Note that if you are replicating a database, all updates to this
 database should be done through the master!
@@ -25648,54 +25649,102 @@ master. @xref{Backup}.
 @node Replication Implementation, Replication HOWTO, Replication Intro, Replication
 @section Replication Implementation Overview
 
-@strong{MySQL} internal replication uses the master-slave approach. One
-server is designated as the master, while the other (or others) as
-slave(s). The master keeps a binary log of updates. @xref{Binary log}.
-The slave connects to the master, catches up on the missed updates, and
-then starts receiving updates immediately as they come to the master. If
-the connection is lost, the slave will reconnect. If the master goes
-down, the slave will keep trying to connect every
-@code{master-connect-retry} seconds until the master comes back up and
-the connection can be established. The slave keeps track of where it
-left off in the replication process, so it can use the information in case
-it goes down and gets restarted later.
+@strong{MySQL} replication is based on the server keeping track of all
+changes to your database (updates, deletes, etc) in the binary
+log (@xref{Binary log}), and the slave server(s) reading the saved
+queries from the master server's binary log so that the slave can
+execute the same queries on its copy of the data.
+
+It is @strong{very important} to realize that the binary log is simply a
+record starting from a fixed point in time (the moment you enable binary
+logging). Any slaves which you set up will need copies of all the data
+from your master as it existed the moment that you enabled binary
+logging on the master. If you start your slaves with data that doesn't
+agree with what was on the master @strong{when the binary log was
+started}, your slaves may fail.
+
+A future Version of @strong{MySQL} is planned remove the need to keep a
+(possibly large) snapshot of data for new slaves that you might wish to
+set up.
+
+Once a slave is properly configured and running, it will simply connect
+to the master and wait for updates to process. If the master goes away
+or the slave loses connectivity with your master, it will keep trying to
+connect every @code{master-connect-retry} seconds until it is able to
+reconnect and resume listening for updates.
+
+Each slave keeps track of where it left off. The master server has no
+knowledge of how many slaves there are or which ones are up-to-date at
+any given time.
+
+The next section explains the master/slave setup process in more detail.
 
 @node Replication HOWTO, Replication Features, Replication Implementation, Replication
 @section HOWTO
 
-Below is a quick HOWTO on how to set up replication on your current
-system:
+Below is a quick description of how to set up complete replication on
+your current @strong{MySQL} server. It assumes you want to replicate all
+your databases and have not configured replication before. You will need
+to shutdown your master server briefly to complete the steps outlined
+below.
 
-@itemize @bullet
+@enumerate
 @item
-Upgrade both slave and master to Version 3.23.15 or higher. We recommend
-that you always use the latest release of Version 3.23 on both the slave
-and the master. The binary log format has also changed a couple of times
-during development (before 3.23.29) so you should delete old binary logs
-when upgrading @strong{MySQL}. In addition, the newer version will fix
-some bugs and add new features. Please, do not report bugs until you
-have verified that the problem is present in the latest release.
+Make sure you have a recent version of @strong{MySQL} installed on the 
+master and slave(s).
+
+Use Version 3.23.29 or higher. Previous releases used a different binary
+log format and had bugs which have been fixed in newer releases. Please
+do not report bugs until you have verified that the problem is present
+in the latest release.
 @item
-Set up special replication user(s) on the master with the @code{FILE}
+Set up a special replication user on the master with the @code{FILE}
 privilege and permission to connect from all the slaves. If the user is
-only doing replication, you don't need to grant him other privileges.
+only doing replication (which is recommended), you don't need to grant any
+additional privileges.
+
+For example, to create a user named @code{repl} which can access your
+master from any host, you might use this command:
+
+@example
+GRANT FILE ON *.* TO repl@@"%" IDENTIFIED BY '<password>';
+@end example
+
 @item
-Take a snapshot of all the tables/databases on the master that could
-possibly be involved in the update queries before taking the next step.
-Starting in Version 3.23.21, there is a command that allows you to take
-a snapshot of a table on the master and copy it to the slave, called
-@code{LOAD TABLE FROM MASTER}. Until Version 3.23.23, though, it has a
-serious bug, and we recommend that you do not use it until you have
-upgraded.
+Shut down @strong{MySQL} on the master.
+
+@example
+mysqladmin -u root -p<password> shutdown
+@end example
+
+@item
+Snapshot all the data on your master server.
+
+The easiest way to do this (on Unix) is to simply use @strong{tar} to
+produce an archive of your entrie data directory. The exact data
+directory location depends on your installation.
+
+@example
+tar -cvf /tmp/mysql-snapshot.tar /path/to/data-dir
+@end example
+
+Windows users can use WinZip or similar software to create an archive of
+the data directory.
 
 @item
 In @code{my.cnf} on the master add @code{log-bin} and
-@code{server-id=unique number} and restart it. Make sure there are no
-important updates to the master between the time you have taken the
-snapshot and the time the master is restarted with @code{log-bin}
-option.
+@code{server-id=<some unique number>} to the @code{[mysqld]} section.
+
+
+@example
+[mysqld]
+log-bin
+server-id=1
+@end example
+
 @item
-Load the snapshot of the master to all the slaves.
+Restart @strong{MySQL} on the master.
+
 @item
 Add the following to @code{my.cnf} on the slave(s):
 
@@ -25703,32 +25752,47 @@ Add the following to @code{my.cnf} on the slave(s):
 master-host=<hostname of the master>
 master-user=<replication user name>
 master-password=<replication user password>
-server-id=<some unique number between 1 and 2^32-1>
+server-id=<some unique number between 2 and 2^32-1>
 @end example
 
 replacing the values in <> with what is relevant to your system.
 
 @code{server-id} must be different for each server participating in
-replication.  If you don't specify a server-id, it will be set to
-1 if you have not defined @code{master-host}, else it will be set to 2.
+replication.  If you don't specify a server-id, it will be set to 1 if
+you have not defined @code{master-host}, else it will be set to 2.
+
+@item
+Copy the snapshot data into your data directory on your slave(s). Make
+sure that the privileges on the files and directories are correct. The
+user which @strong{MySQL} runs as needs to be able to read and write to
+them, just as on the master.
 
 @item Restart the slave(s).
 
 @end itemize
 
-After you have done the above, the master and the slave(s) should be in
-sync.
+After you have done the above, the slave(s) should connect to the master
+and catch up on any updates which happened since the snapshot was taken.
 
-If you have forgot to set server-id for the slave you will get the following
-error in the error log file:
+If you have forgotten to set @code{server-id} for the slave you will get
+the following error in the error log file:
 
 @example
 Warning: one should set server_id to a non-0 value if master_host is set.
 The server will not act as a slave.
 @end example
 
-If you have forgot to do this for the master, the slaves will not be able to
-connect to the master.
+If you have forgot to do this for the master, the slaves will not be
+able to connect to the master.
+
+If a slave is not able to replicate for any reason, you will find error
+messages in the error log on the slave.
+
+Once a slave is replicating, you will find a file called
+@code{master.info} in the same directory as your error log.  The
+@code{master.info} file is used by the slave to keep track of how much
+of the master's binary log it has processed.  @strong{Do not} remove or
+edit this file.
 
 @cindex options, replication
 @cindex @code{my.cnf} file
