@@ -615,7 +615,6 @@ int mysqld_show_create_db(THD *thd, char *dbname,
   uint db_access;
   bool found_libchar;
   HA_CREATE_INFO create;
-  CONVERT *convert=thd->variables.convert_set;
   uint create_options = create_info ? create_info->options : 0;
   Protocol *protocol=thd->protocol;
   DBUG_ENTER("mysql_show_create_db");

@@ -338,6 +338,34 @@ bool String::append(const char *s,uint32 arg_length)
 }
 
 
+/*
+  Append a string in the given charset to the string
+  with character set recoding
+*/
+
+
+bool String::append(const char *s,uint32 arg_length, CHARSET_INFO *cs)
+{
+  if (!arg_length)				// Default argument
+    if (!(arg_length= (uint32) strlen(s)))
+      return FALSE;
+  if (str_charset->mbmaxlen > 1)
+  {
+    uint32 add_length=arg_length * str_charset->mbmaxlen;
+    if (realloc(str_length+ add_length))
+      return TRUE;
+    str_length+= copy_and_convert(Ptr+str_length, add_length, str_charset,
+				  s, arg_length, cs);
+    return FALSE;
+  }
+  if (realloc(str_length+arg_length))
+    return TRUE;
+  memcpy(Ptr+str_length,s,arg_length);
+  str_length+=arg_length;
+  return FALSE;
+}
+
+
 #ifdef TO_BE_REMOVED
 bool String::append(FILE* file, uint32 arg_length, myf my_flags)
 {
