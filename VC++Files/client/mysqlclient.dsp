@@ -128,6 +128,10 @@ SOURCE="..\strings\ctype-euc_kr.c"
 # End Source File
 # Begin Source File
 
+SOURCE="..\strings\ctype-extra.c"
+# End Source File
+# Begin Source File
+
 SOURCE="..\strings\ctype-gb2312.c"
 # End Source File
 # Begin Source File
@@ -136,7 +140,15 @@ SOURCE="..\strings\ctype-gbk.c"
 # End Source File
 # Begin Source File
 
+SOURCE="..\strings\ctype-latin1.c"
+# End Source File
+# Begin Source File
+
 SOURCE="..\strings\ctype-latin1_de.c"
+# End Source File
+# Begin Source File
+
+SOURCE="..\strings\ctype-mb.c"
 # End Source File
 # Begin Source File
 
