@@ -730,17 +730,19 @@ verb_clause:
 	| describe
 	| do
 	| drop
-	| grant
-	| insert
 	| flush
+	| grant
+	| handler
+	| help
+	| insert
+	| kill
 	| load
 	| lock
-	| kill
 	| optimize
 	| preload
 	| purge
 	| rename
-        | repair
+	| repair
 	| replace
 	| reset
 	| restore
@@ -748,15 +750,14 @@ verb_clause:
 	| rollback
 	| select
 	| set
+	| show
 	| slave
 	| start
-	| show
 	| truncate
-	| handler
 	| unlock
 	| update
 	| use
-	| help;
+        ;
 
 /* help */
 
@@ -1817,7 +1818,7 @@ optimize:
 	{
 	   LEX *lex=Lex;
 	   lex->sql_command = SQLCOM_OPTIMIZE;
-           lex->no_write_to_binlog= $2;        
+           lex->no_write_to_binlog= $2;
 	   lex->check_opt.init();
 	}
 	table_list opt_mi_check_type
@@ -3332,7 +3333,7 @@ do:	DO_SYM
 */
 
 drop:
-	DROP opt_temporary TABLE_SYM if_exists table_list opt_restrict
+	DROP opt_temporary table_or_tables if_exists table_list opt_restrict
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command = SQLCOM_DROP_TABLE;
@@ -3368,7 +3369,7 @@ drop:
 	    LEX *lex=Lex;
 	    lex->sql_command = SQLCOM_DROP_USER;
 	    lex->users_list.empty();
-	  } 
+	  }
 	  user_list
 	  {}
 	  ;
@@ -4856,7 +4857,7 @@ grant_privilege_list:
 	| grant_privilege_list ',' grant_privilege;
 
 grant_privilege:
-	SELECT_SYM 	{ Lex->which_columns = SELECT_ACL;} opt_column_list {}
+	SELECT_SYM	{ Lex->which_columns = SELECT_ACL;} opt_column_list {}
 	| INSERT	{ Lex->which_columns = INSERT_ACL;} opt_column_list {}
 	| UPDATE_SYM	{ Lex->which_columns = UPDATE_ACL; } opt_column_list {}
 	| REFERENCES	{ Lex->which_columns = REFERENCES_ACL;} opt_column_list {}
@@ -5233,3 +5234,4 @@ subselect_end:
 	  LEX *lex=Lex;
 	  lex->current_select = lex->current_select->return_after_parsing();
 	};
+

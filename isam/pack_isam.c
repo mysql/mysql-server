@@ -738,7 +738,7 @@ static int get_statistic(MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
   {
     if (! error)
     {
-      crc^=checksum(record,reclength);
+      crc^=_nisam_checksum(record,reclength);
       for (pos=record,count=huff_counts ;
 	   count < end_count ;
 	   count++,

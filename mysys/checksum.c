@@ -19,19 +19,20 @@
 #include "my_sys.h"
 
 /*
-  Calculate a long checksum for a memoryblock. Used to verify pack_isam 
-   
+  Calculate a long checksum for a memoryblock.
+
   SYNOPSIS
-    checksum()
-      mem	Pointer to memory block
-      count	Count of bytes 
+    my_checksum()
+      crc       start value for crc
+      pos       pointer to memory block
+      length    length of the block
 */
 
-ulong checksum(const byte *mem, uint count)
+ha_checksum my_checksum(ha_checksum crc, const byte *pos, uint length)
 {
-  ulong crc;
-  for (crc= 0; count-- ; mem++)
-    crc= ((crc << 1) + *((uchar*) mem)) +
-      test(crc & ((ulong) 1L << (8*sizeof(ulong)-1)));
+  const byte *end=pos+length;
+  for ( ; pos != end ; pos++)
+    crc=((crc << 8) + *((uchar*) pos)) + (crc >> (8*sizeof(ha_checksum)-8));
   return crc;
 }
+

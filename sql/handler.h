@@ -42,38 +42,39 @@
 #define HA_ADMIN_INVALID         -5
 
 /* Bits in table_flags() to show what database can do */
-#define HA_READ_RND_SAME	1	/* Read RND-record to KEY-record
-					   (To update with RND-read)	   */
-#define HA_KEYPOS_TO_RNDPOS	2	/* ha_info gives pos to record */
-#define HA_TABLE_SCAN_ON_INDEX  4	/* No separate data/index file */
-#define HA_REC_NOT_IN_SEQ	8	/* ha_info don't return recnumber;
-					   It returns a position to ha_r_rnd */
-#define HA_HAS_GEOMETRY 	16
-#define HA_NO_INDEX		32	/* No index needed for next/prev */
-#define HA_KEY_READ_WRONG_STR	64	/* keyread returns converted strings */
-#define HA_NULL_KEY		128	/* One can have keys with NULL */
-#define HA_DUPP_POS		256	/* ha_position() gives dupp row */
-#define HA_NO_BLOBS		512	/* Doesn't support blobs */
-#define HA_BLOB_KEY		(HA_NO_BLOBS*2) /* key on blob */
-#define HA_AUTO_PART_KEY	(HA_BLOB_KEY*2)
-#define HA_REQUIRE_PRIMARY_KEY	(HA_AUTO_PART_KEY*2)
-#define HA_NOT_EXACT_COUNT	(HA_REQUIRE_PRIMARY_KEY*2)
-#define HA_NO_WRITE_DELAYED	(HA_NOT_EXACT_COUNT*2)
-#define HA_PRIMARY_KEY_IN_READ_INDEX (HA_NO_WRITE_DELAYED*2)
-#define HA_DROP_BEFORE_CREATE	(HA_PRIMARY_KEY_IN_READ_INDEX*2)
-#define HA_NOT_READ_AFTER_KEY	(HA_DROP_BEFORE_CREATE*2)
-#define HA_NOT_DELETE_WITH_CACHE (HA_NOT_READ_AFTER_KEY*2)
-#define HA_NO_TEMP_TABLES       (HA_NOT_DELETE_WITH_CACHE*2)
-#define HA_NO_PREFIX_CHAR_KEYS	(HA_NO_TEMP_TABLES*2) 
-#define HA_CAN_FULLTEXT         (HA_NO_PREFIX_CHAR_KEYS*2)
-#define HA_CAN_SQL_HANDLER      (HA_CAN_FULLTEXT*2)
-#define HA_NO_AUTO_INCREMENT	(HA_CAN_SQL_HANDLER*2)
+#define HA_READ_RND_SAME        1       /* Read RND-record to KEY-record
+                                           (To update with RND-read)       */
+#define HA_KEYPOS_TO_RNDPOS     2       /* ha_info gives pos to record */
+#define HA_TABLE_SCAN_ON_INDEX  4       /* No separate data/index file */
+#define HA_REC_NOT_IN_SEQ       8       /* ha_info don't return recnumber;
+                                           It returns a position to ha_r_rnd */
+#define HA_HAS_GEOMETRY        (1 << 4)
+#define HA_NO_INDEX            (1 << 5) /* No index needed for next/prev */
+#define HA_KEY_READ_WRONG_STR  (1 << 6) /* keyread returns converted strings */
+#define HA_NULL_KEY            (1 << 7) /* One can have keys with NULL */
+#define HA_DUPP_POS            (1 << 8) /* ha_position() gives dupp row */
+#define HA_NO_BLOBS            (1 << 9) /* Doesn't support blobs */
+#define HA_BLOB_KEY            (1 << 10) /* key on blob */
+#define HA_AUTO_PART_KEY       (1 << 11)
+#define HA_REQUIRE_PRIMARY_KEY (1 << 12)
+#define HA_NOT_EXACT_COUNT     (1 << 13)
+#define HA_NO_WRITE_DELAYED    (1 << 14)
+#define HA_PRIMARY_KEY_IN_READ_INDEX (1 << 15)
+#define HA_DROP_BEFORE_CREATE  (1 << 16)
+#define HA_NOT_READ_AFTER_KEY  (1 << 17)
+#define HA_NOT_DELETE_WITH_CACHE (1 << 18)
+#define HA_NO_TEMP_TABLES      (1 << 19)
+#define HA_NO_PREFIX_CHAR_KEYS (1 << 20)
+#define HA_CAN_FULLTEXT        (1 << 21)
+#define HA_CAN_SQL_HANDLER     (1 << 22)
+#define HA_NO_AUTO_INCREMENT   (1 << 23)
+#define HA_HAS_CHECKSUM        (1 << 24)
 
 /*
   Next record gives next record according last record read (even
   if database is updated after read).  Not used at this point.
 */
-#define HA_LASTKEY_ORDER	(HA_NO_AUTO_INCREMENT*2)
+#define HA_LASTKEY_ORDER	(1 << 25)
 
 
 /* bits in index_flags(index_number) for what you can do with index */
@@ -304,8 +305,8 @@ public:
   virtual bool check_and_repair(THD *thd) {return 1;}
   virtual int optimize(THD* thd,HA_CHECK_OPT* check_opt);
   virtual int analyze(THD* thd, HA_CHECK_OPT* check_opt);
-  virtual int backup(THD* thd, HA_CHECK_OPT* check_opt);
   virtual int preload_keys(THD* thd, HA_CHECK_OPT* check_opt);
+  virtual int backup(THD* thd, HA_CHECK_OPT* check_opt);
   /*
     restore assumes .frm file must exist, and that generate_table() has been
     called; It will just copy the data file and run repair.
@@ -323,8 +324,8 @@ public:
   virtual char* get_foreign_key_create_info()
   { return(NULL);}  /* gets foreign key create string from InnoDB */
   virtual void init_table_handle_for_HANDLER()
-  { return; }       /* prepare InnoDB for HANDLER */  
-  virtual void free_foreign_key_create_info(char* str) {} 
+  { return; }       /* prepare InnoDB for HANDLER */
+  virtual void free_foreign_key_create_info(char* str) {}
   /* The following can be called without an open handler */
   virtual const char *table_type() const =0;
   virtual const char **bas_ext() const =0;
@@ -340,6 +341,7 @@ public:
   virtual uint max_key_part_length() { return 255; }
   virtual uint min_record_length(uint options) const { return 1; }
   virtual bool low_byte_first() const { return 1; }
+  virtual uint checksum() const { return 0; }
   virtual bool is_crashed() const  { return 0; }
   virtual bool auto_repair() const { return 0; }
 
@@ -353,13 +355,12 @@ public:
 
   /* Type of table for caching query */
   virtual uint8 table_cache_type() { return HA_CACHE_TBL_NONTRANSACT; }
-  /* 
-    Is query with this cable cachable (have sense only for ASKTRANSACT 
+  /*
+    Is query with this table cachable (have sense only for ASKTRANSACT
     tables)
   */
-  static bool caching_allowed(THD* thd, char* table_key, 
+  static bool caching_allowed(THD* thd, char* table_key,
 			      uint key_length, uint8 cahe_type);
-
 };
 
 	/* Some extern variables used with handlers */
@@ -388,7 +389,7 @@ int ha_delete_table(enum db_type db_type, const char *path);
 void ha_drop_database(char* path);
 void ha_key_cache(void);
 void ha_resize_key_cache(void);
-int ha_start_stmt(THD *thd); 
+int ha_start_stmt(THD *thd);
 int ha_report_binlog_offset_and_commit(THD *thd, char *log_file_name,
 				       my_off_t end_offset);
 int ha_commit_complete(THD *thd);
