@@ -41,7 +41,8 @@ mystringsobjects =	strmov.lo strxmov.lo strnmov.lo strmake.lo strend.lo \
 			bchange.lo bmove.lo bmove_upp.lo longlong2str.lo \
 			strtoull.lo strtoll.lo llstr.lo \
 			ctype.lo $(LTCHARSET_OBJS)
-mystringsextra= 	strto.c ctype_autoconf.c
+mystringsextra= 	strto.c
+mystringsgen=	 	ctype_autoconf.c
 dbugobjects =		dbug.lo # IT IS IN SAFEMALLOC.C sanity.lo
 mysysheaders =		mysys_priv.h my_static.h
 mysysobjects1 =		my_init.lo my_static.lo my_malloc.lo my_realloc.lo \
@@ -76,8 +77,8 @@ clean-local:
 	rm -f `echo $(mystringsobjects) | sed "s;\.lo;.c;g"` \
 	      `echo $(dbugobjects) | sed "s;\.lo;.c;g"` \
 	      `echo $(mysysobjects) | sed "s;\.lo;.c;g"` \
-	       $(mystringsextra) $(mysysheaders) ctype_extra_sources.c \
-	       ../linked_client_sources
+	       $(mystringsextra) $(mystringsgen) $(mysysheaders) \
+	       ctype_extra_sources.c ../linked_client_sources
 
 ctype_extra_sources.c: conf_to_src
 	./conf_to_src $(top_srcdir) @CHARSETS_NEED_SOURCE@ > \

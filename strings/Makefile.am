@@ -44,7 +44,6 @@ noinst_PROGRAMS = conf_to_src
 EXTRA_DIST =		ctype-big5.c ctype-czech.c ctype-euc_kr.c \
                         ctype-gb2312.c ctype-gbk.c ctype-sjis.c \
                         ctype-tis620.c ctype-ujis.c \
-                        ctype_autoconf.c \
                         strto.c strings-x86.s \
 			longlong2str.c longlong2str-x86.s \
 			strxmov.c bmove_upp.c strappend.c strcont.c strend.c \
@@ -80,7 +79,7 @@ conf_to_src_LDFLAGS= @NOINST_LDFLAGS@
 strtoull.o:		@CHARSET_OBJS@
 
 clean-local:
-	rm -f ctype_extra_sources.c
+	rm -f ctype_extra_sources.c ctype_autoconf.c
 
 if ASSEMBLER
 # On Linux gcc can compile the assembly files

@@ -33,7 +33,7 @@ TABLE *unused_tables;				/* Used by mysql_test */
 HASH open_cache;				/* Used by mysql_test */
 
 static int open_unireg_entry(THD *thd,TABLE *entry,const char *db,
-			     const char *name, const char *alias, bool locked);
+			     const char *name, const char *alias);
 static bool insert_fields(THD *thd,TABLE_LIST *tables, const char *db_name,
 			  const char *table_name, List_iterator<Item> *it);
 static void free_cache_entry(TABLE *entry);
@@ -711,7 +711,7 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
 
   pthread_mutex_lock(&LOCK_open);
-  if (open_unireg_entry(thd, table, db, table_name, table_name, 1) ||
+  if (open_unireg_entry(thd, table, db, table_name, table_name) ||
       !(table->table_cache_key =memdup_root(&table->mem_root,(char*) key,
 					    key_length)))
     {
@@ -847,7 +847,7 @@ TABLE *open_table(THD *thd,const char *db,const char *table_name,
       VOID(pthread_mutex_unlock(&LOCK_open));
       DBUG_RETURN(NULL);
     }
-    if (open_unireg_entry(thd, table,db,table_name,alias,1) ||
+    if (open_unireg_entry(thd, table,db,table_name,alias) ||
 	!(table->table_cache_key=memdup_root(&table->mem_root,(char*) key,
 					     key_length)))
     {
@@ -955,8 +955,7 @@ bool reopen_table(TABLE *table,bool locked)
   if (!locked)
     VOID(pthread_mutex_lock(&LOCK_open));
 
-  if (open_unireg_entry(current_thd,&tmp,db,table_name,table->table_name,
-			locked))
+  if (open_unireg_entry(current_thd,&tmp,db,table_name,table->table_name))
     goto end;
   free_io_cache(table);
 
@@ -1258,7 +1257,7 @@ void abort_locked_tables(THD *thd,const char *db, const char *table_name)
 */
 
 static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
-			     const char *name, const char *alias, bool locked)
+			     const char *name, const char *alias)
 {
   char path[FN_REFLEN];
   int error;
@@ -1278,21 +1277,15 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
     table_list.db=(char*) db;
     table_list.name=(char*) name;
     table_list.next=0;
-    if (!locked)
-      pthread_mutex_lock(&LOCK_open);
     if ((error=lock_table_name(thd,&table_list)))
     {
       if (error < 0)
       {
-	if (!locked)
-	  pthread_mutex_unlock(&LOCK_open);
 	goto err;
       }
       if (wait_for_locked_table_names(thd,&table_list))
       {
 	unlock_table_name(thd,&table_list);
-	if (!locked)
-	  pthread_mutex_unlock(&LOCK_open);
 	goto err;
       }
     }
@@ -1322,9 +1315,9 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
       thd->net.last_error[0]=0;			// Clear error message
       thd->net.last_errno=0;
     }
-    if (locked)
-      pthread_mutex_lock(&LOCK_open);      // Get back original lock
+    pthread_mutex_lock(&LOCK_open);
     unlock_table_name(thd,&table_list);
+
     if (error)
       goto err;
   }

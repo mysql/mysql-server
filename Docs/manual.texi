@@ -46935,7 +46935,8 @@ Fixed problem with @code{GROUP BY} on result with expression that created a
 @item
 Fixed problem with privilege tables when downgrading from 4.0.2 to 3.23.
 @item
-Fixed thread bug in @code{SLAVE START} and @code{SLAVE STOP}.
+Fixed thread bug in @code{SLAVE START}, @code{SLAVE STOP} and automatic repair
+of MyISAM tables that could cause table cache to be corrupted.
 @item
 Fixed possible thread related key-cache-corruption problem with
 @code{OPTIMIZE TABLE} and @code{REPAIR TABLE}.
