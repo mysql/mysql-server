@@ -23,12 +23,12 @@
 #include <ndb_version.h>
 #include <LocalConfig.hpp>
 
-#include "CommandInterpreter.hpp"
+#include "ndb_mgmclient.hpp"
 
 const char *progname = "ndb_mgm";
 
 
-static CommandInterpreter* com;
+static Ndb_mgmclient* com;
 
 extern "C"
 void 
@@ -127,8 +127,8 @@ int main(int argc, char** argv){
 
   signal(SIGPIPE, handler);
 
-  com = new CommandInterpreter(buf);
-  while(com->readAndExecute(_try_reconnect));
+  com = new Ndb_mgmclient(buf);
+  while(com->read_and_execute(_try_reconnect));
   delete com;
   
   return 0;
