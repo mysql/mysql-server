@@ -38,7 +38,7 @@ typedef struct st_order {
   bool   counter_used;                  /* parameter was counter of columns */
   Field  *field;			/* If tmp-table group */
   char	 *buff;				/* If tmp-table group */
-  table_map used,depend_map;
+  table_map used, depend_map;
 } ORDER;
 
 typedef struct st_grant_info
@@ -80,48 +80,118 @@ enum timestamp_auto_set_type
   TIMESTAMP_AUTO_SET_ON_UPDATE= 2, TIMESTAMP_AUTO_SET_ON_BOTH= 3
 };
 
-/* Table cache entry struct */
-
 class Field_timestamp;
 class Field_blob;
 class Table_triggers_list;
 
-struct st_table {
-  handler *file;
-  Field **field;			/* Pointer to fields */
-  Field_blob **blob_field;		/* Pointer to blob fields */
+/* This structure is shared between different table objects */
+
+typedef struct st_table_share
+{
   /* hash of field names (contains pointers to elements of field array) */
-  HASH	name_hash;
-  byte *record[2];			/* Pointer to records */
-  byte *default_values;         	/* Default values for INSERT */
-  byte *insert_values;                  /* used by INSERT ... UPDATE */
-  uint fields;				/* field count */
-  uint reclength;			/* Recordlength */
-  uint rec_buff_length;
-  uint keys,key_parts,primary_key,max_key_length,max_unique_length;
-  uint total_key_length;
-  uint uniques;
-  uint null_fields;			/* number of null fields */
-  uint blob_fields;			/* number of blob fields */
-  key_map keys_in_use, keys_for_keyread, read_only_keys;
-  key_map quick_keys, used_keys, keys_in_use_for_query;
-  KEY  *key_info;			/* data of keys in database */
+  HASH	name_hash;			/* hash of field names */
+  MEM_ROOT mem_root;
   TYPELIB keynames;			/* Pointers to keynames */
-  ha_rows max_rows;			/* create information */
-  ha_rows min_rows;			/* create information */
-  ulong   avg_row_length;		/* create information */
-  ulong   raid_chunksize;
   TYPELIB fieldnames;			/* Pointer to fieldnames */
   TYPELIB *intervals;			/* pointer to interval info */
+#ifdef NOT_YET
+  pthread_mutex_t mutex;                /* For locking the share  */
+  pthread_cond_t cond;			/* To signal that share is ready */
+  struct st_table *open_tables;		/* link to open tables */
+  struct st_table *used_next,		/* Link to used tables */
+		 **used_prev;
+  /* The following is copied to each TABLE on OPEN */
+  Field **field;
+  KEY  *key_info;			/* data of keys in database */
+#endif
+  uint	*blob_field;			/* Index to blobs in Field arrray*/
+  byte	*default_values;		/* row with default values */
+  char	*comment;			/* Comment about table */
+  CHARSET_INFO *table_charset;		/* Default charset of string fields */
+
+  /* A pair "database_name\0table_name\0", widely used as simply a db name */
+  char	*table_cache_key;
+  const char *db;                       /* Pointer to db */
+  const char *table_name;               /* Table name (for open) */
+  const char *path;                     /* Path to .frm file (from datadir) */
+  key_map keys_in_use;                  /* Keys in use for table */
+  key_map keys_for_keyread;
+  ulong   avg_row_length;		/* create information */
+  ulong   raid_chunksize;
+  ulong   version, flush_version;
+  ulong   timestamp_offset;		/* Set to offset+1 of record */
+  ulong   reclength;			/* Recordlength */
+
+  ha_rows min_rows, max_rows;		/* create information */
   enum db_type db_type;			/* table_type for handler */
   enum row_type row_type;		/* How rows are stored */
+  enum tmp_table_type tmp_table;
+
+  uint blob_ptr_size;			/* 4 or 8 */
+  uint null_bytes;
+  uint key_length;			/* Length of table_cache_key */
+  uint fields;				/* Number of fields */
+  uint rec_buff_length;                 /* Size of table->record[] buffer */
+  uint keys, key_parts;
+  uint max_key_length, max_unique_length, total_key_length;
+  uint uniques;                         /* Number of UNIQUE index */
+  uint null_fields;			/* number of null fields */
+  uint blob_fields;			/* number of blob fields */
   uint db_create_options;		/* Create options from database */
   uint db_options_in_use;		/* Options in use */
   uint db_record_offset;		/* if HA_REC_IN_SEQ */
-  uint db_stat;				/* mode of file as in handler.h */
-  uint raid_type,raid_chunks;
-  uint status;				/* Used by postfix.. */
-  uint system;				/* Set if system record */
+  uint raid_type, raid_chunks;
+  uint open_count;			/* Number of tables in open list */
+  /* Index of auto-updated TIMESTAMP field in field array */
+  uint primary_key;
+  uint timestamp_field_offset;
+  uint next_number_index;
+  uint next_number_key_offset;
+  uchar	  frm_version;
+  my_bool system;			/* Set if system record */
+  my_bool crypted;                      /* If .frm file is crypted */
+  my_bool db_low_byte_first;		/* Portable row format */
+  my_bool crashed;
+  my_bool is_view;
+  my_bool name_lock, replace_with_name_lock;
+} TABLE_SHARE;
+
+
+/* Information for one open table */
+
+struct st_table {
+  TABLE_SHARE	*s;
+  handler	*file;
+#ifdef NOT_YET
+  struct st_table *used_next, **used_prev;	/* Link to used tables */
+  struct st_table *open_next, **open_prev;	/* Link to open tables */
+#endif
+  struct st_table *next, *prev;
+
+  THD	*in_use;                        /* Which thread uses this */
+  Field **field;			/* Pointer to fields */
+
+  byte *record[2];			/* Pointer to records */
+  byte *insert_values;                  /* used by INSERT ... UPDATE */
+  key_map quick_keys, used_keys, keys_in_use_for_query;
+  KEY  *key_info;			/* data of keys in database */
+
+  Field *next_number_field,		/* Set if next_number is activated */
+	*found_next_number_field,	/* Set on open */
+        *rowid_field;
+  Field_timestamp *timestamp_field;
+
+  /* Table's triggers, 0 if there are no of them */
+  Table_triggers_list *triggers;
+  struct st_table_list *pos_in_table_list;/* Element referring to this table */
+  ORDER		*group;
+  const char	*alias;            	  /* alias or table name */
+  uchar		*null_flags;
+  ulong		query_id;
+
+  ha_rows	quick_rows[MAX_KEY];
+  key_part_map  const_key_parts[MAX_KEY];
+  uint		quick_key_parts[MAX_KEY];
 
   /*
     If this table has TIMESTAMP field with auto-set property (pointed by
@@ -136,14 +206,15 @@ struct st_table {
     as example).
   */
   timestamp_auto_set_type timestamp_field_type;
-  /* Index of auto-updated TIMESTAMP field in field array */
-  uint timestamp_field_offset;
+  table_map	map;                    /* ID bit of table (1,2,4,8,16...) */
   
-  uint next_number_index;
-  uint blob_ptr_size;			/* 4 or 8 */
-  uint next_number_key_offset;
-  int current_lock;			/* Type of lock on table */
-  enum tmp_table_type tmp_table;
+  uint		tablenr,used_fields;
+  uint          temp_pool_slot;		/* Used by intern temp tables */
+  uint		status;                 /* What's in record[0] */
+  uint		db_stat;		/* mode of file as in handler.h */
+  /* number of select if it is derived table */
+  uint          derived_select_number;
+  int		current_lock;           /* Type of lock on table */
   my_bool copy_blobs;			/* copy_blobs when storing */
   /*
     Used in outer joins: if true, all columns are considered to have NULL
@@ -155,60 +226,22 @@ struct st_table {
   my_bool maybe_null;                   /* true if (outer_join != 0) */
   my_bool force_index;
   my_bool distinct,const_table,no_rows;
-  my_bool key_read;
-  my_bool crypted;
-  my_bool db_low_byte_first;		/* Portable row format */
+  my_bool key_read, no_keyread;
   my_bool locked_by_flush;
   my_bool locked_by_name;
   my_bool fulltext_searched;
-  my_bool crashed;
-  my_bool is_view;
-  my_bool no_keyread, no_cache;
-  my_bool clear_query_id;               /* To reset query_id for tables and cols */
+  my_bool no_cache;
+  /* To signal that we should reset query_id for tables and cols */
+  my_bool clear_query_id;
   my_bool auto_increment_field_not_null;
   my_bool insert_or_update;             /* Can be used by the handler */
   my_bool alias_name_used;		/* true if table_name is alias */
-  Field *next_number_field,		/* Set if next_number is activated */
-	*found_next_number_field,	/* Set on open */
-        *rowid_field;
-  Field_timestamp *timestamp_field;
-#if MYSQL_VERSION_ID < 40100
-  /*
-    Indicates whenever we have to set field_length members of all TIMESTAMP
-    fields to 19 (to honour 'new_mode' variable) or to original
-    field_length values.
-  */
-  my_bool timestamp_mode;
-#endif
-  my_string comment;			/* Comment about table */
-  CHARSET_INFO *table_charset;		/* Default charset of string fields */
+
   REGINFO reginfo;			/* field connections */
   MEM_ROOT mem_root;
   GRANT_INFO grant;
-  /* Table's triggers, 0 if there are no of them */
-  Table_triggers_list *triggers;
-
-  /* A pair "database_name\0table_name\0", widely used as simply a db name */
-  char		*table_cache_key;
-  char		*table_name,*real_name,*path;
-  uint		key_length;		/* Length of key */
-  uint		tablenr,used_fields,null_bytes;
-  table_map	map;                    /* ID bit of table (1,2,4,8,16...) */
-  ulong		version,flush_version;
-  uchar		*null_flags;
   FILESORT_INFO sort;
-  ORDER		*group;
-  ha_rows	quick_rows[MAX_KEY];
-  uint		quick_key_parts[MAX_KEY];
-  key_part_map  const_key_parts[MAX_KEY];
-  ulong		query_id;
-  uchar		frm_version;
-  uint          temp_pool_slot;		/* Used by intern temp tables */
-  struct st_table_list *pos_in_table_list;/* Element referring to this table */
-  /* number of select if it is derived table */
-  uint          derived_select_number;
-  THD		*in_use;		/* Which thread uses this */
-  struct st_table *next,*prev;
+  TABLE_SHARE share_not_to_be_used;     /* To be deleted when true shares */
 };
 
 
@@ -242,6 +275,7 @@ typedef struct st_field_info
   bool maybe_null;
   const char* old_name;
 } ST_FIELD_INFO;
+
 
 struct st_table_list;
 typedef class Item COND;
@@ -283,11 +317,13 @@ typedef struct st_schema_table
 
 struct st_lex;
 class select_union;
+
 struct Field_translator
 {
   Item *item;
   const char *name;
 };
+
 
 typedef struct st_table_list
 {
@@ -295,7 +331,7 @@ typedef struct st_table_list
   struct st_table_list *next_local;
   /* link in a global list of all queries tables */
   struct st_table_list *next_global, **prev_global;
-  char		*db, *alias, *real_name, *schema_table_name;
+  char		*db, *alias, *table_name, *schema_table_name;
   char          *option;                /* Used by cache index  */
   Item		*on_expr;		/* Used with outer join */
   COND_EQUAL    *cond_equal;            /* Used with outer join */
@@ -353,7 +389,7 @@ typedef struct st_table_list
   thr_lock_type lock_type;
   uint		outer_join;		/* Which join type */
   uint		shared;			/* Used in multi-upd */
-  uint32        db_length, real_name_length;
+  uint32        db_length, table_name_length;
   bool          updatable;		/* VIEW/TABLE can be updated now */
   bool		straight;		/* optimize with prev table */
   bool          updating;               /* for replicate-do/ignore table */
@@ -432,6 +468,7 @@ public:
   Field *field() { return 0; }
 };
 
+
 typedef struct st_nested_join
 {
   List<TABLE_LIST>  join_list;       /* list of elements in the nested join */
@@ -441,12 +478,14 @@ typedef struct st_nested_join
   uint              counter;         /* to count tables in the nested join  */
 } NESTED_JOIN;
 
+
 typedef struct st_changed_table_list
 {
   struct	st_changed_table_list *next;
   char		*key;
   uint32        key_length;
 } CHANGED_TABLE_LIST;
+
 
 typedef struct st_open_table_list{
   struct st_open_table_list *next;

@@ -834,10 +834,10 @@ sp_head::restore_lex(THD *thd)
       char **tb;
 
       while ((tb= li++))
-	if (my_strcasecmp(system_charset_info, tables->real_name, *tb) == 0)
+	if (my_strcasecmp(system_charset_info, tables->table_name, *tb) == 0)
 	  break;
       if (! tb)
-	m_tables.push_back(&tables->real_name);
+	m_tables.push_back(&tables->table_name);
     }
   }
 #endif

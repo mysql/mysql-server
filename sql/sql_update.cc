@@ -31,18 +31,18 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields);
 
 static bool compare_record(TABLE *table, ulong query_id)
 {
-  if (!table->blob_fields)
+  if (!table->s->blob_fields)
     return cmp_record(table,record[1]);
   /* Compare null bits */
   if (memcmp(table->null_flags,
-	     table->null_flags+table->rec_buff_length,
-	     table->null_bytes))
+	     table->null_flags+table->s->rec_buff_length,
+	     table->s->null_bytes))
     return TRUE;				// Diff in NULL value
   /* Compare updated fields */
   for (Field **ptr=table->field ; *ptr ; ptr++)
   {
     if ((*ptr)->query_id == query_id &&
-	(*ptr)->cmp_binary_offset(table->rec_buff_length))
+	(*ptr)->cmp_binary_offset(table->s->rec_buff_length))
       return TRUE;
   }
   return FALSE;
@@ -166,7 +166,7 @@ int mysql_update(THD *thd,
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
   /* Calculate "table->used_keys" based on the WHERE */
-  table->used_keys=table->keys_in_use;
+  table->used_keys= table->s->keys_in_use;
   table->quick_keys.clear_all();
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -469,7 +469,7 @@ int mysql_update(THD *thd,
     query_cache_invalidate3(thd, table_list, 1);
   }
 
-  log_delayed= (transactional_table || table->tmp_table);
+  log_delayed= (transactional_table || table->s->tmp_table);
   if ((updated || (error < 0)) && (error <= 0 || !transactional_table))
   {
     if (mysql_bin_log.is_open())
@@ -570,7 +570,7 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
   /* Check that we are not using table that we are updating in a sub select */
   if (unique_table(table_list, table_list->next_global))
   {
-    my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->real_name);
+    my_error(ER_UPDATE_TABLE_USED, MYF(0), table_list->table_name);
     DBUG_RETURN(TRUE);
   }
   select_lex->fix_prepare_information(thd, conds);
@@ -696,9 +696,9 @@ bool mysql_multi_update_prepare(THD *thd)
         single SELECT on top and have to check underlying SELECTs of it
       */
       if (lex->select_lex.check_updateable_in_subqueries(tl->db,
-                                                         tl->real_name))
+                                                         tl->table_name))
       {
-        my_error(ER_UPDATE_TABLE_USED, MYF(0), tl->real_name);
+        my_error(ER_UPDATE_TABLE_USED, MYF(0), tl->table_name);
         DBUG_RETURN(TRUE);
       }
       DBUG_PRINT("info",("setting table `%s` for update", tl->alias));
@@ -922,7 +922,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   table_count=  update.elements;
   update_tables= (TABLE_LIST*) update.first;
 
-  tmp_tables = (TABLE **) thd->calloc(sizeof(TABLE *) * table_count);
+  tmp_tables = (TABLE**) thd->calloc(sizeof(TABLE *) * table_count);
   tmp_table_param = (TMP_TABLE_PARAM*) thd->calloc(sizeof(TMP_TABLE_PARAM) *
 						   table_count);
   fields_for_table= (List_item **) thd->alloc(sizeof(List_item *) *
@@ -974,7 +974,7 @@ int multi_update::prepare(List<Item> &not_used_values,
     TABLE *table=table_ref->table;
     if (!(tables_to_update & table->map) &&
 	find_table_in_local_list(update_tables, table_ref->db,
-				table_ref->real_name))
+				table_ref->table_name))
       table->no_cache= 1;			// Disable row cache
   }
   DBUG_RETURN(thd->is_fatal_error != 0);
@@ -1000,7 +1000,7 @@ multi_update::initialize_tables(JOIN *join)
     DBUG_RETURN(1);
   main_table=join->join_tab->table;
   trans_safe= transactional_tables= main_table->file->has_transactions();
-  log_delayed= trans_safe || main_table->tmp_table != NO_TMP_TABLE;
+  log_delayed= trans_safe || main_table->s->tmp_table != NO_TMP_TABLE;
   table_to_update= 0;
 
   /* Create a temporary table for keys to all tables, except main table */
@@ -1103,8 +1103,8 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields)
       return !join_tab->quick->check_if_keys_used(fields);
     /* If scanning in clustered key */
     if ((table->file->table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
-	table->primary_key < MAX_KEY)
-      return !check_if_key_used(table, table->primary_key, *fields);
+	table->s->primary_key < MAX_KEY)
+      return !check_if_key_used(table, table->s->primary_key, *fields);
     return TRUE;
   default:
     break;					// Avoid compler warning
@@ -1335,14 +1335,14 @@ int multi_update::do_updates(bool from_send_error)
 	    goto err;
 	}
 	updated++;
-	if (table->tmp_table != NO_TMP_TABLE)
+	if (table->s->tmp_table != NO_TMP_TABLE)
 	  log_delayed= 1;
       }
     }
 
     if (updated != org_updated)
     {
-      if (table->tmp_table != NO_TMP_TABLE)
+      if (table->s->tmp_table != NO_TMP_TABLE)
 	log_delayed= 1;				// Tmp tables forces delay log
       if (table->file->has_transactions())
 	log_delayed= transactional_tables= 1;
@@ -1366,7 +1366,7 @@ err:
 
   if (updated != org_updated)
   {
-    if (table->tmp_table != NO_TMP_TABLE)
+    if (table->s->tmp_table != NO_TMP_TABLE)
       log_delayed= 1;
     if (table->file->has_transactions())
       log_delayed= transactional_tables= 1;

@@ -1864,12 +1864,13 @@ void set_stmt_errmsg(MYSQL_STMT * stmt, const char *err, int errcode,
 my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
 {
   uchar *pos;
-  uint field_count, param_count, packet_length;
+  uint field_count, param_count;
+  ulong packet_length;
   MYSQL_DATA *fields_data;
-  DBUG_ENTER("read_prepare_result");
+  DBUG_ENTER("cli_read_prepare_result");
 
   mysql= mysql->last_used_con;
-  if ((packet_length=net_safe_read(mysql)) == packet_error)
+  if ((packet_length= net_safe_read(mysql)) == packet_error)
     DBUG_RETURN(1);
   mysql->warning_count= 0;
 
