@@ -178,6 +178,9 @@ enable_result_log;
 show status like "Qcache_hits";
 show status like "Qcache_queries_in_cache";
 reset query cache;
-show variables like "query_cache_size";
-show status like "Qcache_free_memory";
 drop table t1;
+
+# The following tests can't be done as the values differen on 32 and 64 bit
+#  machines :(
+#show variables like "query_cache_size";
+#show status like "Qcache_free_memory";

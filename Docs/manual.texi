@@ -13637,7 +13637,6 @@ connection between a MySQL server and a MySQL client.
 If you are using MySQL 4.0, you can also use internal openssl support.
 @xref{Secure connections}.
 
-
 To make a MySQL system secure, you should strongly consider the
 following suggestions:
 
@@ -13653,8 +13652,7 @@ this:
 
 @example
 shell> mysql -u root mysql
-mysql> UPDATE user SET Password=PASSWORD('new_password')
-           WHERE user='root';
+mysql> UPDATE user SET Password=PASSWORD('new_password') WHERE user='root';
 mysql> FLUSH PRIVILEGES;
 @end example
 
@@ -15396,17 +15394,17 @@ password using the @code{PASSWORD()} function):
 
 @example
 shell> mysql -u root mysql
-mysql> UPDATE user SET Password=PASSWORD('new_password')
-           WHERE user='root';
-mysql> FLUSH PRIVILEGES;
+mysql> SET PASSWORD FOR root@@localhost=PASSWORD('new_password');
 @end example
 
-You can, in MySQL Version 3.22 and above, use the @code{SET PASSWORD}
-statement:
+If you know what you are doing, you can also directly manipulate the
+privilege tables:
 
 @example
 shell> mysql -u root mysql
-mysql> SET PASSWORD FOR root=PASSWORD('new_password');
+mysql> UPDATE user SET Password=PASSWORD('new_password')
+           WHERE user='root';
+mysql> FLUSH PRIVILEGES;
 @end example
 
 Another way to set the password is by using the @code{mysqladmin} command:
@@ -46287,6 +46285,9 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Changed @code{SELECT ... IN SHARE MODE} to
+@code{SELECT .. LOCK IN SHARE MODE} (as in MySQL 3.23).
+@item
 A new query cache to cache results from identical @code{SELECT} queries.
 @item
 Fixed core dump bug on 64 bit machines when it got a wrong communication
@@ -46539,6 +46540,8 @@ not yet 100% confident in this code.
 @node News-3.23.47, News-3.23.46, News-3.23.x, News-3.23.x
 @appendixsubsec Changes in release 3.23.47
 @itemize @bullet
+@item
+Fixed that @code{GROUP BY expr DESC} works.
 @item
 Fixed bug when using @code{t1 LEFT JOIN t2 ON t2.key=constant}.
 @item

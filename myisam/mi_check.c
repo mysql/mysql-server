@@ -1288,8 +1288,6 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
     my_close(info->dfile,MYF(0));
     info->dfile=new_file;
     info->state->data_file_length=sort_info->filepos;
-    /* Only whole records */
-    share->state.split=info->state->records+info->state->del;
     share->state.version=(ulong) time((time_t*) 0);	/* Force reopen */
   }
   else
@@ -1962,7 +1960,6 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
       share->state.state.data_file_length = info->state->data_file_length
 	= sort_info->filepos;
       /* Only whole records */
-      share->state.split=info->state->records+info->state->del;
       share->state.version=(ulong) time((time_t*) 0);
       my_close(info->dfile,MYF(0));
       info->dfile=new_file;
@@ -2183,9 +2180,11 @@ static int sort_get_next_record(SORT_INFO *sort_info)
       }
       sort_info->start_recpos=sort_info->pos;
       if (!sort_info->fix_datafile)
+      {
 	sort_info->filepos=sort_info->pos;
+	share->state.split++;
+      }
       sort_info->max_pos=(sort_info->pos+=share->base.pack_reclength);
-      share->state.split++;
       if (*sort_info->record)
       {
 	if (param->calc_checksum)
@@ -2356,7 +2355,8 @@ static int sort_get_next_record(SORT_INFO *sort_info)
 	  continue;
 	}
 
-	share->state.split++;
+	if (!sort_info->fix_datafile && (b_type & BLOCK_DELETED))
+	  share->state.split++;
 	if (! found_record++)
 	{
 	  sort_info->find_length=left_length=block_info.rec_len;
@@ -2494,10 +2494,12 @@ static int sort_get_next_record(SORT_INFO *sort_info)
       }
       info->checksum=mi_checksum(info,sort_info->record);
       if (!sort_info->fix_datafile)
+      {
 	sort_info->filepos=sort_info->pos;
+	share->state.split++;
+      }
       sort_info->max_pos=(sort_info->pos=block_info.filepos+
 			 block_info.rec_len);
-      share->state.split++;
       info->packed_length=block_info.rec_len;
       if (param->calc_checksum)
 	param->glob_crc+= info->checksum;
@@ -2535,6 +2537,7 @@ int sort_write_record(SORT_INFO *sort_info)
 	DBUG_RETURN(1);
       }
       sort_info->filepos+=share->base.pack_reclength;
+      info->s->state.split++;
       /* sort_info->param->glob_crc+=mi_static_checksum(info, sort_info->record); */
       break;
     case DYNAMIC_RECORD:
@@ -2559,20 +2562,28 @@ int sort_write_record(SORT_INFO *sort_info)
       }
       info->checksum=mi_checksum(info,sort_info->record);
       reclength=_mi_rec_pack(info,from,sort_info->record);
-      /* sort_info->param->glob_crc+=info->checksum; */
-      block_length=reclength+ 3 + test(reclength >= (65520-3));
-      if (block_length < share->base.min_block_length)
-	block_length=share->base.min_block_length;
       flag=0;
-      info->update|=HA_STATE_WRITE_AT_END;
-      block_length=MY_ALIGN(block_length,MI_DYN_ALIGN_SIZE);
-      if (_mi_write_part_record(info,0L,block_length,HA_OFFSET_ERROR,
-				&from,&reclength,&flag))
+      /* sort_info->param->glob_crc+=info->checksum; */
+
+      do
       {
-	mi_check_print_error(param,"%d when writing to datafile",my_errno);
-	DBUG_RETURN(1);
-      }
-      sort_info->filepos+=block_length;
+	block_length=reclength+ 3 + test(reclength >= (65520-3));
+	if (block_length < share->base.min_block_length)
+	  block_length=share->base.min_block_length;
+	info->update|=HA_STATE_WRITE_AT_END;
+	block_length=MY_ALIGN(block_length,MI_DYN_ALIGN_SIZE);
+	if (block_length > MI_MAX_BLOCK_LENGTH)
+	  block_length=MI_MAX_BLOCK_LENGTH;
+	if (_mi_write_part_record(info,0L,block_length,
+				  sort_info->filepos+block_length,
+				  &from,&reclength,&flag))
+	{
+	  mi_check_print_error(param,"%d when writing to datafile",my_errno);
+	  DBUG_RETURN(1);
+	}
+	sort_info->filepos+=block_length;
+	info->s->state.split++;
+      } while (reclength);
       /* sort_info->param->glob_crc+=info->checksum; */
       break;
     case COMPRESSED_RECORD:
@@ -2588,6 +2599,7 @@ int sort_write_record(SORT_INFO *sort_info)
       }
       /* sort_info->param->glob_crc+=info->checksum; */
       sort_info->filepos+=reclength+length;
+      info->s->state.split++;
       break;
     }
   }
