@@ -1681,7 +1681,12 @@ fil_op_log_parse_or_replay(
 			ut_a(fil_delete_tablespace(space_id));
 		}
 	} else if (type == MLOG_FILE_RENAME) {
-		if (fil_get_space_id_for_table(name) == space_id) {
+		/* We do the rename based on space id, not old file name;
+		this should guarantee that after the log replay each .ibd file
+		has the correct name for the latest log sequence number; the
+		proof is left as an exercise :) */
+
+		if (fil_tablespace_exists_in_mem(space_id)) {
 			/* Create the database directory for the new name, if
 			it does not exist yet */
 			fil_create_directory_for_tablename(new_name);
@@ -1693,11 +1698,6 @@ fil_op_log_parse_or_replay(
 			    == ULINT_UNDEFINED) {
 				ut_a(fil_rename_tablespace(name, space_id,
 								new_name));
-			} else {
-				fprintf(stderr,
-"InnoDB: Warning: in log replay cannot rename tablespace\n"
-"InnoDB: %s with id %lu to %s, because it exists already.\n",
-					name, space_id, new_name);
 			}
 		}
 	} else {
