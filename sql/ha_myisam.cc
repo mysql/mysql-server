@@ -336,7 +336,7 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
 	   HA_STATUS_CONST);
     }
   }
-  else if (!mi_is_crashed(file))
+  else if (!mi_is_crashed(file) && !thd->killed)
   {
     mi_mark_crashed(file);
     file->update |= HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
@@ -378,7 +378,7 @@ int ha_myisam::analyze(THD *thd, HA_CHECK_OPT* check_opt)
     error=update_state_info(&param,file,UPDATE_STAT);
     pthread_mutex_unlock(&share->intern_lock);
   }
-  else if (!mi_is_crashed(file))
+  else if (!mi_is_crashed(file) && !thd->killed)
     mi_mark_crashed(file);
   return error ? HA_ADMIN_CORRUPT : HA_ADMIN_OK;
 }
