@@ -36,7 +36,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp,
     Currently databse default charset is only stored there.
 */
 
-static int write_db_opt(THD *thd, char *db, HA_CREATE_INFO *create, char *fn)
+static int write_db_opt(THD *thd,const char *db,HA_CREATE_INFO *create,char *fn)
 {
   register File file;
     char buf[256]; // Should be enough
@@ -72,7 +72,7 @@ exit:
   /* 
     Load database options file:
   */
-static int load_db_opt(THD *thd,char *fn)
+static int load_db_opt(THD *thd,const char *db,HA_CREATE_INFO *create,char *fn)
 {
   register File file;
   char buf[256]="";
@@ -217,8 +217,6 @@ int mysql_alter_db(THD *thd, char *db, HA_CREATE_INFO *create_info, bool silent)
   register File file;
   uint create_options = create_info ? create_info->options : 0;
 
-  printf("alter database\n");
-
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
   // do not alter database if another thread is holding read lock
@@ -235,6 +233,15 @@ int mysql_alter_db(THD *thd, char *db, HA_CREATE_INFO *create_info, bool silent)
   strcat(path,MY_DB_OPT_FILE);
   if ((error=write_db_opt(thd,db,create_info,path)))
     goto exit;
+
+  /* 
+     Change options if current
+     database is being altered
+  */
+  if (thd->db && !strcmp(thd->db,db))
+  {
+    thd->db_charset= create_info ? create_info->table_charset : NULL;
+  }
 
   if (!silent)
   {
@@ -499,6 +506,8 @@ bool mysql_change_db(THD *thd,const char *name)
   char *dbname=my_strdup((char*) name,MYF(MY_WME));
   char	path[FN_REFLEN];
   uint db_access;
+  HA_CREATE_INFO create;
+  
   DBUG_ENTER("mysql_change_db");
 
   if (!dbname || !(db_length=strip_sp(dbname)))
@@ -553,8 +562,9 @@ bool mysql_change_db(THD *thd,const char *name)
   strcat(path,"/");
   unpack_dirname(path,path);
   strcat(path,MY_DB_OPT_FILE);
-  load_db_opt(thd,path);
-
+  bzero(&create,sizeof(create));
+  load_db_opt(thd,name,&create,path);
+  thd->db_charset=create.table_charset;
 
   DBUG_RETURN(0);
 }
