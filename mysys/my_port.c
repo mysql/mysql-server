@@ -15,18 +15,26 @@
    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA 02111-1307, USA */
 
-#include <global.h>
-#include <my_sys.h>
+/* 
+   Small functions to make code portable
+*/
 
-#ifdef USE_SYSTEM_WRAPPERS
-#include "system_wrappers.h"
-#endif
+#include "mysys_priv.h"
 
-#ifdef THREAD
-#include <my_pthread.h>
-extern pthread_mutex_t THR_LOCK_malloc,THR_LOCK_open,THR_LOCK_keycache,
-  THR_LOCK_lock,THR_LOCK_isam,THR_LOCK_net,THR_LOCK_charset;
-extern pthread_mutex_t LOCK_bitmap;
-#else
-#include <my_no_pthread.h>
-#endif
+#ifdef _AIX
+
+/*
+  On AIX, at least with gcc 3.1, the expression
+  '(double) (ulonglong) var' doesn't always work for big unsigned
+  integers like '18446744073709551615'.  The end result is that the
+  high bit is simply dropped. (probably bug in gcc optimizations)
+  Handling the conversion in a sub function seems to work.
+*/
+
+
+
+double my_longlong2double(unsigned long long nr)
+{
+  return (double) nr;
+}
+#endif /* _AIX */

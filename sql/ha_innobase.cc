@@ -264,35 +264,46 @@ innobase_mysql_print_thd(
         void* input_thd)/* in: pointer to a MySQL THD object */
 {
   	THD*  thd;
-	char* old_buf = buf;
 
         thd = (THD*) input_thd;
 
-        buf += ut_sprintf(buf, "MySQL thread id %lu, query id %lu",
-                       thd->thread_id, thd->query_id);
-        if (thd->host) {
-                buf += ut_sprintf(buf, " %.30s", thd->host);
-        }
+	/*  We can't use value of sprintf() as this is not portable */
+  	buf+= my_sprintf(buf,
+			 (buf, "MySQL thread id %lu",
+			  thd->thread_id));
+    	if (thd->host)
+	{
+	  *buf++=' ';
+	  buf=strnmov(buf, thd->host, 30);
+  	}
 
-        if (thd->ip) {
-                buf += ut_sprintf(buf, " %.20s", thd->ip);
-        }
+  	if (thd->ip)
+	{
+	  *buf++=' ';
+	  buf=strnmov(buf, thd->ip, 20);
+  	}
 
-        if (thd->user) {
-                buf += ut_sprintf(buf, " %.20s", thd->user);
-        }
+  	if (thd->user)
+	{
+	  *buf++=' ';
+	  buf=strnmov(buf, thd->user, 20);
+  	}
 
-        if (thd->proc_info) {
-                buf += ut_sprintf(buf, " %.50s", thd->proc_info);
-        }
+  	if (thd->proc_info)
+	{
+	  *buf++=' ';
+	  buf=strnmov(buf, thd->proc_info, 50);
+  	}
 
-        if (thd->query) {
-                buf += ut_sprintf(buf, "\n%.150s", thd->query);
-        }
+  	if (thd->query)
+	{
+	  *buf++='\n';
+	  buf=strnmov(buf, thd->query, 150);
+  	}  
+	buf[0]='\n';
+	buf[1]=0;
 
-        buf += ut_sprintf(buf, "\n");
-
-	ut_a(strlen(old_buf) < 400);
+ 	ut_a(strlen(old_buf) < 400);
 }
 }
 
