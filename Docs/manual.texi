@@ -50226,6 +50226,7 @@ each individual 4.0.x release.
 
 @itemize @bullet
 @item
+Fixed security bug in database hash
 Made @code{safe_mysqld} a symlink to @code{mysqld_safe} in binary distribution.
 @item
 Fixed security bug when having an empty databasename in the user.db table.
