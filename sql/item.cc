@@ -1564,7 +1564,8 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
   {
     if (select_ref != not_found_item && !ambiguous_fields)
     {
-      if (*select_ref && !(*select_ref)->fixed)
+      DBUG_ASSERT(*select_ref);
+      if (! (*select_ref)->fixed)
       {
         my_error(ER_ILLEGAL_REFERENCE, MYF(0), ref->name,
                  "forward reference in item list");
@@ -1581,6 +1582,58 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
     return (Item**) not_found_item;
 }
 
+
+/*
+  Resolve the name of a column reference.
+
+  SYNOPSIS
+    Item_field::fix_fields()
+    thd       [in]      current thread
+    tables    [in]      the tables in a FROM clause
+    reference [in/out]  view column if this item was resolved to a view column
+
+  DESCRIPTION
+    The method resolves the column reference represented by 'this' as a column
+    present in one of: FROM clause, SELECT clause, GROUP BY clause of a query
+    Q, or in outer queries that contain Q.
+
+  NOTES
+    The name resolution algorithm used is (where [T_j] is an optional table
+    name that qualifies the column name):
+
+      resolve_column_reference([T_j].col_ref_i)
+      {
+        search for a column or derived column named col_ref_i
+        [in table T_j] in the FROM clause of Q;
+
+        if such a column is NOT found AND    // Lookup in outer queries.
+           there are outer queries
+        {
+          for each outer query Q_k beginning from the inner-most one
+          {
+            if - Q_k is not a group query AND
+               - Q_k is not inside an aggregate function
+               OR
+               - Q_(k-1) is not in a HAVING or SELECT clause of Q_k
+            {
+              search for a column or derived column named col_ref_i
+              [in table T_j] in the FROM clause of Q_k;
+            }
+
+            if such a column is not found
+              Search for a column or derived column named col_ref_i
+              [in table T_j] in the SELECT and GROUP clauses of Q_k.
+          }
+        }
+      }
+
+    Notice that compared to Item_ref::fix_fields, here we first search the FROM
+    clause, and then we search the SELECT and GROUP BY clauses.
+
+  RETURN
+    TRUE  if error
+    FALSE on success
+*/
 
 bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
 {
@@ -1672,10 +1725,6 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
             if (ref != not_found_item)
             {
               DBUG_ASSERT(*ref && (*ref)->fixed);
-              /*
-                Avoid crash in case of error.
-                TODO: what does this comment mean?
-              */
               prev_subselect_item->used_tables_cache|= (*ref)->used_tables();
 	      prev_subselect_item->const_item_cache&= (*ref)->const_item();
               break;
@@ -1699,7 +1748,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
       {
 	if (upward_lookup)
 	{
-	  // We can't say exactly what absend table or field
+	  // We can't say exactly what absent table or field
 	  my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR), MYF(0),
 			  full_name(), thd->where);
 	}
@@ -2460,12 +2509,12 @@ bool Item_field::send(Protocol *protocol, String *buffer)
 
 
 /*
-  Resolve the name of a column reference.
+  Resolve the name of a reference to a column reference.
 
   SYNOPSIS
     Item_ref::fix_fields()
     thd       [in]      current thread
-    tables    [in]      the tables in the FROM clause
+    tables    [in]      the tables in a FROM clause
     reference [in/out]  view column if this item was resolved to a view column
 
   DESCRIPTION
@@ -2475,7 +2524,8 @@ bool Item_field::send(Protocol *protocol, String *buffer)
     aggregate functions.
 
   NOTES
-    The name resolution algorithm used is:
+    The name resolution algorithm used is (where [T_j] is an optional table
+    name that qualifies the column name):
 
       resolve_extended([T_j].col_ref_i)
       {
@@ -2504,7 +2554,9 @@ bool Item_field::send(Protocol *protocol, String *buffer)
       }
 
     This procedure treats GROUP BY and SELECT clauses as one namespace for
-    column references in HAVING.
+    column references in HAVING. Notice that compared to
+    Item_field::fix_fields, here we first search the SELECT and GROUP BY
+    clauses, and then we search the FROM clause.
 
   RETURN
     TRUE  if error
@@ -2559,10 +2611,6 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
             if (ref != not_found_item)
             {
               DBUG_ASSERT(*ref && (*ref)->fixed);
-              /*
-                Avoid crash in case of error.
-                TODO: what does this comment mean?
-              */
               prev_subselect_item->used_tables_cache|= (*ref)->used_tables();
               prev_subselect_item->const_item_cache&= (*ref)->const_item();
               break;
@@ -2675,13 +2723,9 @@ bool Item_ref::fix_fields(THD *thd, TABLE_LIST *tables, Item **reference)
   }
 
   /*
-    The following conditional is changed as to correctly identify 
-    incorrect references in group functions or forward references 
-    with sub-select's / derived tables, while it prevents this 
-    check when Item_ref is created in an expression involving 
-    summing function, which is to be placed in the user variable.
-
-    TODO: this comment is impossible to understand.
+    Check if this is an incorrect reference in a group function or forward
+    reference. Do not issue an error if this is an unnamed reference inside an
+    aggregate function.
   */
   if (((*ref)->with_sum_func && name &&
        (depended_from ||
