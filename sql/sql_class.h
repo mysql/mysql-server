@@ -21,6 +21,8 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+// TODO: create log.h and move all the log header stuff there
+
 class Query_log_event;
 class Load_log_event;
 class Slave_log_event;
@@ -39,6 +41,8 @@ enum enum_log_type { LOG_CLOSED, LOG_NORMAL, LOG_NEW, LOG_BIN };
 #define LOG_INFO_MEM -6
 #define LOG_INFO_FATAL -7
 #define LOG_INFO_IN_USE -8
+
+struct st_relay_log_info;
 
 typedef struct st_log_info
 {
@@ -64,8 +68,6 @@ class MYSQL_LOG {
   char time_buff[20],db[NAME_LEN+1];
   char log_file_name[FN_REFLEN],index_file_name[FN_REFLEN];
   bool write_error,inited;
-  uint32 log_seq; // current event sequence number
-  // needed this for binlog
   uint file_id; // current file sequence number for load data infile
   // binary logging
   bool no_rotate; // for binlog - if log name can never change
@@ -74,36 +76,52 @@ class MYSQL_LOG {
   // purging
   enum cache_type io_cache_type;
   bool need_start_event;
+  pthread_cond_t update_cond;
+  bool no_auto_events; // for relay binlog
   friend class Log_event;
 
 public:
   MYSQL_LOG();
   ~MYSQL_LOG();
   pthread_mutex_t* get_log_lock() { return &LOCK_log; }
+  IO_CACHE* get_log_file() { return &log_file; }
+  void signal_update() { pthread_cond_broadcast(&update_cond);}
+  void wait_for_update(THD* thd);
   void set_need_start_event() { need_start_event = 1; }
   void set_index_file_name(const char* index_file_name = 0);
   void init(enum_log_type log_type_arg,
-	    enum cache_type io_cache_type_arg = WRITE_CACHE);
+	    enum cache_type io_cache_type_arg = WRITE_CACHE,
+	    bool no_auto_events_arg = 0);
   void open(const char *log_name,enum_log_type log_type,
-	    const char *new_name=0);
+	    const char *new_name, enum cache_type io_cache_type_arg,
+	    bool no_auto_events_arg);
   void new_file(bool inside_mutex = 0);
   bool open_index(int options);
   void close_index();
-  bool write(THD *thd, enum enum_server_command command,const char *format,...);
+  bool write(THD *thd, enum enum_server_command command,
+	     const char *format,...);
   bool write(THD *thd, const char *query, uint query_length,
 	     time_t query_start=0);
   bool write(Log_event* event_info); // binary log write
   bool write(IO_CACHE *cache);
+
+  //v stands for vector
+  //invoked as appendv(buf1,len1,buf2,len2,...,bufn,lenn,0)
+  bool appendv(const char* buf,uint len,...);
+  
   int generate_new_name(char *new_name,const char *old_name);
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);
   int purge_logs(THD* thd, const char* to_log);
+  int purge_first_log(struct st_relay_log_info* rli); 
+  int reset_logs(THD* thd);
   void close(bool exiting = 0); // if we are exiting, we also want to close the
   // index file
 
   // iterating through the log index file
-  int find_first_log(LOG_INFO* linfo, const char* log_name);
-  int find_next_log(LOG_INFO* linfo);
+  int find_first_log(LOG_INFO* linfo, const char* log_name,
+		     bool need_mutex=1);
+  int find_next_log(LOG_INFO* linfo, bool need_mutex=1);
   int get_current_log(LOG_INFO* linfo);
   uint next_file_id();
 
@@ -226,33 +244,72 @@ public:
 };
 
 
-/****************************************************************************
-** every connection is handled by a thread with a THD
-****************************************************************************/
-
 class delayed_insert;
+
+/* For each client connection we create a separate thread with THD serving as
+   a thread/connection descriptor */
 
 class THD :public ilink {
 public:
-  NET	  net;
-  LEX	  lex;
-  MEM_ROOT mem_root;
-  HASH     user_vars;
-  String  packet;				/* Room for 1 row */
-  struct  sockaddr_in remote;
-  struct  rand_struct rand;
+  NET	  net; // client connection descriptor
+  LEX	  lex; // parse tree descriptor
+  MEM_ROOT mem_root; // memory allocation pool
+  HASH     user_vars; // hash for user variables
+  String  packet; // dynamic string buffer used for network I/O		
+  struct  sockaddr_in remote; // client socket address
+  struct  rand_struct rand; // used for authentication
+  
+  /* query points to the current query,
+     thread_stack is a pointer to the stack frame of handle_one_connection(),
+     which is called first in the thread for handling a client 
+   */
   char	  *query,*thread_stack;
+  /*
+    host - host of the client
+    user - user of the client, set to NULL until the user has been read from
+     the connection
+    priv_user - not sure why we have it, but it is set to "boot" when we run
+     with --bootstrap
+    db - currently selected database
+    ip - client IP
+   */
+  
   char	  *host,*user,*priv_user,*db,*ip;
+  /* proc_info points to a string that will show in the Info column of
+     SHOW PROCESSLIST output
+     host_or_ip points to host if host is available, otherwise points to ip   
+   */
   const   char *proc_info, *host_or_ip;
+  
+  /*
+    client_capabilities has flags describing what the client can do
+    sql_mode determines if certain non-standard SQL behaviour should be
+     enabled
+    max_packet_length - supposed to be maximum packet length the client
+     can handle, but it currently appears to be assigned but never used
+     except for one debugging statement
+   */
   uint	  client_capabilities,sql_mode,max_packet_length;
+
+  /*
+    master_access - privillege descriptor mask for system threads
+    db_access - privillege descriptor mask for regular threads
+  */
   uint	  master_access,db_access;
+  
+  /*
+    open_tables - list of regular tables in use by this thread
+    temporary_tables - list of temp tables in use by this thread
+    handler_tables - list of tables that were opened with HANDLER OPEN
+     and are still in use by this thread
+   */
   TABLE   *open_tables,*temporary_tables, *handler_tables;
+  // TODO: document the variables below
   MYSQL_LOCK *lock,*locked_tables;
   ULL	  *ull;
   struct st_my_thread_var *mysys_var;
   enum enum_server_command command;
   uint32 server_id;
-  uint32 log_seq;
   uint32 file_id; // for LOAD DATA INFILE
   const char *where;
   time_t  start_time,time_after_lock,user_time;
@@ -293,15 +350,18 @@ public:
   bool	     system_thread,in_lock_tables,global_read_lock;
   bool       query_error, bootstrap, cleanup_done;
   bool	     volatile killed;
-  LOG_INFO*  current_linfo;
+  
   // if we do a purge of binary logs, log index info of the threads
   // that are currently reading it needs to be adjusted. To do that
   // each thread that is using LOG_INFO needs to adjust the pointer to it
-
-  ulong slave_proxy_id; // in slave thread we need to know in behalf of which
+  LOG_INFO*  current_linfo;
+  
+  // in slave thread we need to know in behalf of which
   // thread the query is being run to replicate temp tables properly
-
+  ulong slave_proxy_id;
+  
   NET* slave_net; // network connection from slave to master
+  uint32 log_pos;
 
   THD();
   ~THD();
@@ -331,7 +391,7 @@ public:
     pthread_mutex_unlock(&active_vio_lock);
   }
 #endif  
-  void prepare_to_die();
+  void awake(bool prepare_to_die);
   inline const char* enter_cond(pthread_cond_t *cond, pthread_mutex_t* mutex,
 			  const char* msg)
   {

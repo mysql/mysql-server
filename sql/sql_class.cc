@@ -98,7 +98,6 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   current_linfo =  0;
   slave_thread = 0;
   slave_proxy_id = 0;
-  log_seq = 0;
   file_id = 0;
   cond_count=0;
   convert_set=0;
@@ -119,6 +118,7 @@ THD::THD():user_time(0),fatal_error(0),last_insert_id_used(0),
   where="field list";
   server_id = ::server_id;
   slave_net = 0;
+  log_pos = 0;
   server_status=SERVER_STATUS_AUTOCOMMIT;
   update_lock_default= low_priority_updates ? TL_WRITE_LOW_PRIORITY : TL_WRITE;
   options=thd_startup_options;
@@ -216,10 +216,11 @@ THD::~THD()
   DBUG_VOID_RETURN;
 }
 
-void THD::prepare_to_die()
+void THD::awake(bool prepare_to_die)
 {
+  if (prepare_to_die)
+    killed = 1;
   thr_alarm_kill(real_id);
-  killed = 1;
 #ifdef SIGNAL_WITH_VIO_CLOSE
   close_active_vio();
 #endif    
@@ -228,6 +229,10 @@ void THD::prepare_to_die()
       pthread_mutex_lock(&mysys_var->mutex);
       if (!system_thread)		// Don't abort locks
 	mysys_var->abort=1;
+      // this broadcast could be up in the air if the victim thread
+      // exits the cond in the time between read and broadcast, but that is
+      // ok since all we want to do is to make the victim thread get out
+      // of waiting on  current_cond
       if (mysys_var->current_cond)
       {
 	pthread_mutex_lock(mysys_var->current_mutex);

@@ -1220,14 +1220,18 @@ mysql_execute_command(void)
   {
     if (check_access(thd, PROCESS_ACL, any_db))
       goto error;
-    res = change_master(thd);
+    LOCK_ACTIVE_MI;
+    res = change_master(thd,active_mi);
+    UNLOCK_ACTIVE_MI;
     break;
   }
   case SQLCOM_SHOW_SLAVE_STAT:
   {
     if (check_process_priv(thd))
       goto error;
-    res = show_master_info(thd);
+    LOCK_ACTIVE_MI;
+    res = show_master_info(thd,active_mi);
+    UNLOCK_ACTIVE_MI;
     break;
   }
   case SQLCOM_SHOW_MASTER_STAT:
@@ -1245,7 +1249,7 @@ mysql_execute_command(void)
     break;
     
   case SQLCOM_LOAD_MASTER_TABLE:
-
+  {
     if (!tables->db)
       tables->db=thd->db;
     if (check_access(thd,CREATE_ACL,tables->db,&tables->grant.privilege))
@@ -1265,12 +1269,16 @@ mysql_execute_command(void)
       net_printf(&thd->net,ER_WRONG_TABLE_NAME,tables->name);
       break;
     }
-
-    if (fetch_nx_table(thd, tables->db, tables->real_name, &glob_mi, 0))
-      break;      // fetch_nx_table did send the error to the client
-    send_ok(&thd->net);
+    LOCK_ACTIVE_MI;
+    // fetch_master_table will send the error to the client on failure
+    if (!fetch_master_table(thd, tables->db, tables->real_name,
+			    active_mi, 0))
+    {
+      send_ok(&thd->net);
+    }
+    UNLOCK_ACTIVE_MI;
     break;
-
+  }
   case SQLCOM_CREATE_TABLE:
     if (!tables->db)
       tables->db=thd->db;
@@ -1368,12 +1376,19 @@ mysql_execute_command(void)
     break;
 
   case SQLCOM_SLAVE_START:
-    start_slave(thd);
+  {
+    LOCK_ACTIVE_MI;
+    start_slave(thd,active_mi,1 /* net report*/);
+    UNLOCK_ACTIVE_MI;
     break;
+  }
   case SQLCOM_SLAVE_STOP:
-    stop_slave(thd);
+  {
+    LOCK_ACTIVE_MI;
+    stop_slave(thd,active_mi,1/* net report*/);
+    UNLOCK_ACTIVE_MI;
     break;
-
+  }
   case SQLCOM_ALTER_TABLE:
 #if defined(DONT_ALLOW_SHOW_COMMANDS)
     send_error(&thd->net,ER_NOT_ALLOWED_COMMAND); /* purecov: inspected */
@@ -2967,6 +2982,7 @@ bool reload_acl_and_cache(THD *thd, uint options, TABLE_LIST *tables)
   bool result=0;
 
   select_errors=0;				/* Write if more errors */
+  // TODO: figure out what's up with the commented out line below
   // mysql_log.flush();				// Flush log
   if (options & REFRESH_GRANT)
   {
@@ -2998,10 +3014,15 @@ bool reload_acl_and_cache(THD *thd, uint options, TABLE_LIST *tables)
   if (options & REFRESH_THREADS)
     flush_thread_cache();
   if (options & REFRESH_MASTER)
-    reset_master();
+    if (reset_master(thd))
+      result=1;
   if (options & REFRESH_SLAVE)
-    reset_slave();
-
+  {
+    LOCK_ACTIVE_MI;
+    if (reset_slave(active_mi))
+      result=1;
+    UNLOCK_ACTIVE_MI;
+  }
   return result;
 }
 
@@ -3019,7 +3040,7 @@ void kill_one_thread(THD *thd, ulong id)
       if ((thd->master_access & PROCESS_ACL) ||
 	  !strcmp(thd->user,tmp->user))
       {
-	tmp->prepare_to_die();
+	tmp->awake(1 /*prepare to die*/);
 	error=0;
       }
       else

@@ -26,30 +26,26 @@ extern int max_binlog_dump_events;
 extern bool opt_sporadic_binlog_dump_fail;
 #endif
 
-#ifdef SIGNAL_WITH_VIO_CLOSE
-#define KICK_SLAVE { slave_thd->close_active_vio(); \
-  thr_alarm_kill(slave_real_id); }
-#else
-#define KICK_SLAVE thr_alarm_kill(slave_real_id);
-#endif
+#define KICK_SLAVE(thd) thd->awake(0 /* do not prepare to die*/);
 
 File open_binlog(IO_CACHE *log, const char *log_file_name,
 	      const char **errmsg);
 
-int start_slave(THD* thd = 0, bool net_report = 1);
-int stop_slave(THD* thd = 0, bool net_report = 1);
-int change_master(THD* thd);
+int start_slave(THD* thd, MASTER_INFO* mi, bool net_report);
+int stop_slave(THD* thd, MASTER_INFO* mi, bool net_report);
+int change_master(THD* thd, MASTER_INFO* mi);
 int show_binlog_events(THD* thd);
 int cmp_master_pos(const char* log_file_name1, ulonglong log_pos1,
 		   const char* log_file_name2, ulonglong log_pos2);
-void reset_slave();
-void reset_master();
+int reset_slave(MASTER_INFO* mi);
+int reset_master(THD* thd);
 int purge_master_logs(THD* thd, const char* to_log);
 bool log_in_use(const char* log_name);
 void adjust_linfo_offsets(my_off_t purge_offset);
 int show_binlogs(THD* thd);
 extern int init_master_info(MASTER_INFO* mi);
 void kill_zombie_dump_threads(uint32 slave_server_id);
+int check_binlog_magic(IO_CACHE* log, const char** errmsg);
 
 typedef struct st_load_file_info
 {

@@ -199,7 +199,7 @@ void end_slave_list()
 
 static int find_target_pos(LEX_MASTER_INFO* mi, IO_CACHE* log, char* errmsg)
 {
-  uint32 log_seq = mi->last_log_seq;
+  uint32 log_pos = mi->pos;
   uint32 target_server_id = mi->server_id;
 
   for (;;)
@@ -217,7 +217,7 @@ static int find_target_pos(LEX_MASTER_INFO* mi, IO_CACHE* log, char* errmsg)
       return 1;
     }
 
-    if (ev->log_seq == log_seq && ev->server_id == target_server_id)
+    if (ev->log_pos == log_pos && ev->server_id == target_server_id)
     {
       delete ev;
       mi->pos = my_b_tell(log);
@@ -527,7 +527,7 @@ pthread_handler_decl(handle_failsafe_rpl,arg)
     const char* msg = thd->enter_cond(&COND_rpl_status,
 				      &LOCK_rpl_status, "Waiting for request");
     pthread_cond_wait(&COND_rpl_status, &LOCK_rpl_status);
-    thd->proc_info="Processling request";
+    thd->proc_info="Processing request";
     while (!break_req_chain)
     {
       switch (rpl_status)
@@ -630,10 +630,9 @@ static inline void cleanup_mysql_results(MYSQL_RES* db_res,
 
 
 static inline int fetch_db_tables(THD* thd, MYSQL* mysql, const char* db,
-				  MYSQL_RES* table_res)
+				  MYSQL_RES* table_res, MASTER_INFO* mi)
 {
   MYSQL_ROW row;
-
   for( row = mc_mysql_fetch_row(table_res); row;
        row = mc_mysql_fetch_row(table_res))
   {
@@ -649,11 +648,9 @@ static inline int fetch_db_tables(THD* thd, MYSQL* mysql, const char* db,
       if (!tables_ok(thd, &table))
 	continue;
     }
-
-    if ((error = fetch_nx_table(thd, db, table_name, &glob_mi, mysql)))
+    if ((error = fetch_master_table(thd, db, table_name, mi, mysql)))
       return error;
   }
-
   return 0;
 }
 
@@ -664,25 +661,26 @@ int load_master_data(THD* thd)
   MYSQL_RES* master_status_res = 0;
   bool slave_was_running = 0;
   int error = 0;
-
+  const char* errmsg=0;
+  int restart_thread_mask;
   mc_mysql_init(&mysql);
 
   // we do not want anyone messing with the slave at all for the entire
   // duration of the data load;
-  pthread_mutex_lock(&LOCK_slave);
-
-  // first, kill the slave
-  if ((slave_was_running = slave_running))
+  LOCK_ACTIVE_MI;
+  lock_slave_threads(active_mi);
+  init_thread_mask(&restart_thread_mask,active_mi,0 /*not inverse*/);
+  if (restart_thread_mask &&
+      (error=terminate_slave_threads(active_mi,restart_thread_mask,
+				     1 /*skip lock*/)))
   {
-    abort_slave = 1;
-    KICK_SLAVE;
-    thd->proc_info = "waiting for slave to die";
-    while (slave_running)
-      pthread_cond_wait(&COND_slave_stopped, &LOCK_slave); // wait until done
+    send_error(&thd->net,error);
+    unlock_slave_threads(active_mi);
+    UNLOCK_ACTIVE_MI;
+    return 1;
   }
-
-
-  if (connect_to_master(thd, &mysql, &glob_mi))
+  
+  if (connect_to_master(thd, &mysql, active_mi))
   {
     net_printf(&thd->net, error = ER_CONNECT_TO_MASTER,
 		 mc_mysql_error(&mysql));
@@ -744,7 +742,7 @@ int load_master_data(THD* thd)
 	mess up and not exclude mysql database with the rules when
 	he actually means to - in this case, he is up for a surprise if
 	his priv tables get dropped and downloaded from master
-	TO DO - add special option, not enabled
+	TODO - add special option, not enabled
 	by default, to allow inclusion of mysql database into load
 	data from master
       */
@@ -774,7 +772,7 @@ int load_master_data(THD* thd)
 	goto err;
       }
 
-      if ((error = fetch_db_tables(thd, &mysql, db, *cur_table_res)))
+      if ((error = fetch_db_tables(thd,&mysql,db,*cur_table_res,active_mi)))
       {
 	// we do not report the error - fetch_db_tables handles it
 	cleanup_mysql_results(db_res, cur_table_res, table_res);
@@ -797,14 +795,15 @@ int load_master_data(THD* thd)
       */
       if (row[0] && row[1])
       {
-	strmake(glob_mi.log_file_name, row[0], sizeof(glob_mi.log_file_name));
-	glob_mi.pos = atoi(row[1]); // atoi() is ok, since offset is <= 1GB
-	if (glob_mi.pos < 4)
-	  glob_mi.pos = 4;			// don't hit the magic number
-	glob_mi.pending = 0;
-	flush_master_info(&glob_mi);
+	strmake(active_mi->master_log_name, row[0],
+		sizeof(active_mi->master_log_name));
+       // atoi() is ok, since offset is <= 1GB
+	active_mi->master_log_pos = atoi(row[1]);
+	if (active_mi->master_log_pos < 4)
+	  active_mi->master_log_pos = 4;	// don't hit the magic number
+	active_mi->rli.pending = 0;
+	flush_master_info(active_mi);
       }
-
       mc_mysql_free_result(master_status_res);
     }
 
@@ -815,11 +814,35 @@ int load_master_data(THD* thd)
       goto err;
     }
   }
+  thd->proc_info="purging old relay logs";
+  if (purge_relay_logs(&active_mi->rli,0 /* not only reset, but also reinit*/,
+		       &errmsg))
+  {
+    send_error(&thd->net, 0, "Failed purging old relay logs");
+    unlock_slave_threads(active_mi);
+    UNLOCK_ACTIVE_MI;
+    return 1;
+  }
+  pthread_mutex_lock(&active_mi->rli.data_lock);
+  active_mi->rli.master_log_pos = active_mi->master_log_pos;
+  strnmov(active_mi->rli.master_log_name,active_mi->master_log_name,
+	  sizeof(active_mi->rli.master_log_name));
+  pthread_cond_broadcast(&active_mi->rli.data_cond);
+  pthread_mutex_unlock(&active_mi->rli.data_lock);
+  thd->proc_info = "starting slave";
+  if (restart_thread_mask)
+  {
+      error=start_slave_threads(0 /* mutex not needed*/,
+			        1 /* wait for start*/,
+			        active_mi,master_info_file,relay_log_info_file,
+				restart_thread_mask);
+  }
 
 err:
-  pthread_mutex_unlock(&LOCK_slave);
-  if (slave_was_running)
-    start_slave(0, 0);
+  unlock_slave_threads(active_mi);
+  UNLOCK_ACTIVE_MI;
+  thd->proc_info = 0;
+
   mc_mysql_close(&mysql); // safe to call since we always do mc_mysql_init()
   if (!error)
     send_ok(&thd->net);

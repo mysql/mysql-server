@@ -296,35 +296,105 @@ typedef int (*IO_CACHE_CALLBACK)(struct st_io_cache*);
 
 typedef struct st_io_cache		/* Used when cacheing files */
 {
+  /* pos_in_file is offset in file corresponding to the first byte of
+     byte* buffer. end_of_file is the offset of end of file for READ_CACHE
+     and WRITE_CACHE. For SEQ_READ_APPEND it the maximum of the actual
+     end of file and the position represented by read_end.
+  */
   my_off_t pos_in_file,end_of_file;
+  /* read_pos points to current read position in the buffer
+     read_end is the non-inclusive boundary in the buffer for the currently
+     valid read area
+     buffer is the read buffer
+     not sure about request_pos except that it is used in async_io
+  */
   byte	*read_pos,*read_end,*buffer,*request_pos;
+  /* write_buffer is used only in WRITE caches and in SEQ_READ_APPEND to
+     buffer writes
+     append_read_pos is only used in SEQ_READ_APPEND, and points to the
+     current read position in the write buffer. Note that reads in
+     SEQ_READ_APPEND caches can happen from both read buffer (byte* buffer),
+     and write buffer (byte* write_buffer).
+     write_pos points to current write position in the write buffer and
+     write_end is the non-inclusive boundary of the valid write area
+  */
   byte  *write_buffer, *append_read_pos, *write_pos, *write_end;
+  /* current_pos and current_end are convenience variables used by
+     my_b_tell() and other routines that need to know the current offset
+     current_pos points to &write_pos, and current_end to &write_end in a
+     WRITE_CACHE, and &read_pos and &read_end respectively otherwise
+  */
   byte  **current_pos, **current_end;
-/* The lock is for append buffer used in READ_APPEND cache */
+/* The lock is for append buffer used in SEQ_READ_APPEND cache */
 #ifdef THREAD
   pthread_mutex_t append_buffer_lock;
   /* need mutex copying from append buffer to read buffer */
-#endif  
+#endif
+  /* a caller will use my_b_read() macro to read from the cache
+     if the data is already in cache, it will be simply copied with
+     memcpy() and internal variables will be accordinging updated with
+     no functions invoked. However, if the data is not fully in the cache,
+     my_b_read() will call read_function to fetch the data. read_function
+     must never be invoked directly
+  */
   int (*read_function)(struct st_io_cache *,byte *,uint);
+  /* same idea as in the case of read_function, except my_b_write() needs to
+     be replaced with my_b_append() for a SEQ_READ_APPEND cache
+  */
   int (*write_function)(struct st_io_cache *,const byte *,uint);
+  /* specifies the type of the cache. Depending on the type of the cache
+     certain operations might not be available and yield unpredicatable
+     results. Details to be documented later
+  */
   enum cache_type type;
-  /* callbacks when the actual read I/O happens */
+  /* callbacks when the actual read I/O happens. These were added and
+   are currently used for binary logging of LOAD DATA INFILE - when a
+   block is read from the file, we create a block create/append event, and
+   when IO_CACHE is closed, we create an end event. These functions could,
+   of course be used for other things
+  */
   IO_CACHE_CALLBACK pre_read;
   IO_CACHE_CALLBACK post_read;
   IO_CACHE_CALLBACK pre_close;
   void* arg; /* for use by pre/post_read */
   char *file_name;			/* if used with 'open_cached_file' */
   char *dir,*prefix;
-  File file;
+  File file; /* file descriptor */
+  /* seek_not_done is set by my_b_seek() to inform the upcoming read/write
+     operation that a seek needs to be preformed prior to the actual I/O
+     error is 0 if the cache operation was successful, -1 if there was a
+     "hard" error, and the actual number of I/O-ed bytes if the read/write was
+     partial
+  */
   int	seek_not_done,error;
+  /* buffer_length is the size of memory allocated for buffer or write_buffer
+     read_length is the same as buffer_length except when we use async io
+     not sure why we need it
+   */
   uint	buffer_length,read_length;
   myf	myflags;			/* Flags used to my_read/my_write */
  /*
+   alloced_buffer is 1 if the buffer was allocated by init_io_cache() and
+   0 if it was supplied by the user
    Currently READ_NET is the only one that will use a buffer allocated
    somewhere else
  */
   my_bool alloced_buffer;
+  /* init_count is incremented every time we call init_io_cache()
+     It is not reset in end_io_cache(). This variable
+     was introduced for slave relay logs - RELAY_LOG_INFO stores a pointer
+     to IO_CACHE that could in some cases refer to the IO_CACHE of the
+     currently active relay log. The IO_CACHE then could be closed,
+     re-opened and start pointing to a different log file. In that case,
+     we could not know reliably if this happened without init_count
+     one must be careful with bzero() prior to the subsequent init_io_cache()
+     call
+  */
+  int init_count;
 #ifdef HAVE_AIOWAIT
+  /* as inidicated by ifdef, this is for async I/O, we will have
+     Sinisa comment this some time
+  */
   uint inited;
   my_off_t aio_read_pos;
   my_aio_result aio_result;
@@ -369,6 +439,8 @@ typedef int (*qsort2_cmp)(const void *, const void *, const void *);
 
 #define my_b_tell(info) ((info)->pos_in_file + \
 			 (uint) (*(info)->current_pos - (info)->request_pos))
+#define my_b_append_tell(info) ((info)->end_of_file + \
+			 (uint) ((info)->write_pos - (info)->write_buffer))
 
 #define my_b_bytes_in_cache(info) (uint) (*(info)->current_end - \
 					  *(info)->current_pos)

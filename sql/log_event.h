@@ -34,7 +34,7 @@
 #define LOG_READ_TOO_LARGE -7
 
 #define LOG_EVENT_OFFSET 4
-#define BINLOG_VERSION    2
+#define BINLOG_VERSION    3
 
 /* we could have used SERVER_VERSION_LENGTH, but this introduces an
    obscure dependency - if somebody decided to change SERVER_VERSION_LENGTH
@@ -120,7 +120,7 @@ struct sql_ex_info
 #define EVENT_TYPE_OFFSET    4
 #define SERVER_ID_OFFSET     5
 #define EVENT_LEN_OFFSET     9
-#define LOG_SEQ_OFFSET       13
+#define LOG_POS_OFFSET       13
 #define FLAGS_OFFSET         17
 
 /* start event post-header */
@@ -206,7 +206,7 @@ class THD;
 
 extern uint32 server_id;
 
-struct st_master_info;
+struct st_relay_log_info;
 
 class Log_event
 {
@@ -214,7 +214,7 @@ public:
   time_t when;
   ulong exec_time;
   uint32 server_id;
-  uint32 log_seq;
+  uint32 log_pos;
   uint16 flags;
   int cached_event_len;
   char* temp_buf;
@@ -282,11 +282,11 @@ public:
 #ifndef MYSQL_CLIENT
   static int read_log_event(IO_CACHE* file, String* packet,
 			    pthread_mutex_t* log_lock);
-  void set_log_seq(THD* thd, MYSQL_LOG* log);
+  void set_log_pos(MYSQL_LOG* log);
   virtual void pack_info(String* packet);
   int net_send(THD* thd, const char* log_name, my_off_t pos);
   static void init_show_field_list(List<Item>* field_list);
-  virtual int exec_event(struct st_master_info* mi);
+  virtual int exec_event(struct st_relay_log_info* rli);
   virtual const char* get_db()
     {
       return thd ? thd->db : 0;
@@ -316,7 +316,7 @@ public:
 		 bool using_trans=0);
   const char* get_db() { return db; }
   void pack_info(String* packet);
-  int exec_event(struct st_master_info* mi);
+  int exec_event(struct st_relay_log_info* rli);
   bool get_cache_stmt() { return cache_stmt; }
 #endif
 
@@ -359,9 +359,9 @@ public:
   ulonglong master_pos;
 
 #ifndef MYSQL_CLIENT  
-  Slave_log_event(THD* thd_arg, struct st_master_info* mi);
+  Slave_log_event(THD* thd_arg, struct st_relay_log_info* rli);
   void pack_info(String* packet);
-  int exec_event(struct st_master_info* mi);
+  int exec_event(struct st_relay_log_info* rli);
 #endif
   
   Slave_log_event(const char* buf, int event_len);
@@ -407,11 +407,11 @@ public:
   void set_fields(List<Item> &fields_arg);
   void pack_info(String* packet);
   const char* get_db() { return db; }
-  int exec_event(struct st_master_info* mi)
+  int exec_event(struct st_relay_log_info* rli)
     {
-      return exec_event(thd->slave_net,mi);
+      return exec_event(thd->slave_net,rli);
     }
-  int exec_event(NET* net, struct st_master_info* mi);
+  int exec_event(NET* net, struct st_relay_log_info* rli);
 #endif
 
   Load_log_event(const char* buf, int event_len, bool old_format);
@@ -465,7 +465,7 @@ public:
   }
 #ifndef MYSQL_CLIENT
   void pack_info(String* packet);
-  int exec_event(struct st_master_info* mi);
+  int exec_event(struct st_relay_log_info* rli);
 #endif
 #ifdef MYSQL_CLIENT  
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
@@ -491,7 +491,7 @@ public:
   bool is_valid() { return 1; }
 #ifndef MYSQL_CLIENT
   void pack_info(String* packet);
-  int exec_event(struct st_master_info* mi);
+  int exec_event(struct st_relay_log_info* rli);
 #endif  
   
 #ifdef MYSQL_CLIENT  
@@ -517,7 +517,7 @@ public:
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
 #endif
 #ifndef MYSQL_CLIENT
-  int exec_event(struct st_master_info* mi);
+  int exec_event(struct st_relay_log_info* rli);
 #endif  
 };
 
@@ -553,7 +553,7 @@ public:
 #endif  
 #ifndef MYSQL_CLIENT
   void pack_info(String* packet);
-  int exec_event(struct st_master_info* mi);
+  int exec_event(struct st_relay_log_info* rli);
 #endif  
 };
 
@@ -602,7 +602,7 @@ public:
 #endif  
 #ifndef MYSQL_CLIENT
   void pack_info(String* packet);
-  int exec_event(struct st_master_info* mi);
+  int exec_event(struct st_relay_log_info* rli);
 #endif  
 };
 
@@ -616,7 +616,7 @@ public:
 #ifndef MYSQL_CLIENT
   Append_block_log_event(THD* thd, char* block_arg,
 		       uint block_len_arg);
-  int exec_event(struct st_master_info* mi);
+  int exec_event(struct st_relay_log_info* rli);
 #endif  
   
   Append_block_log_event(const char* buf, int event_len);
@@ -659,7 +659,7 @@ public:
 #endif  
 #ifndef MYSQL_CLIENT
   void pack_info(String* packet);
-  int exec_event(struct st_master_info* mi);
+  int exec_event(struct st_relay_log_info* rli);
 #endif  
 };
 
@@ -686,7 +686,7 @@ public:
 #endif  
 #ifndef MYSQL_CLIENT
   void pack_info(String* packet);
-  int exec_event(struct st_master_info* mi);
+  int exec_event(struct st_relay_log_info* rli);
 #endif  
 };
 

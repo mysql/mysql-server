@@ -101,7 +101,7 @@ static MYSQL_FIELD *unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
 		  	          my_bool default_value,
 				  my_bool long_flag_protocol);
 
-static void mc_end_server(MYSQL *mysql);
+void mc_end_server(MYSQL *mysql);
 static int mc_sock_connect(File s, const struct sockaddr *name, uint namelen, uint to);
 static void mc_free_old_query(MYSQL *mysql);
 static int mc_send_file_to_server(MYSQL *mysql, const char *filename);
@@ -206,8 +206,7 @@ HANDLE create_named_pipe(NET *net, uint connect_timeout, char **arg_host,
 ** Init MySQL structure or allocate one
 ****************************************************************************/
 
-MYSQL * STDCALL
-mc_mysql_init(MYSQL *mysql)
+MYSQL *mc_mysql_init(MYSQL *mysql)
 {
   init_client_errs();
   if (!mysql)
@@ -229,7 +228,7 @@ mc_mysql_init(MYSQL *mysql)
 ** Shut down connection
 **************************************************************************/
 
-static void
+void
 mc_end_server(MYSQL *mysql)
 {
   DBUG_ENTER("mc_end_server");
@@ -351,7 +350,7 @@ static int mc_sock_connect(my_socket s, const struct sockaddr *name,
 ** or packet is an error message
 *****************************************************************************/
 
-ulong STDCALL
+ulong 
 mc_net_safe_read(MYSQL *mysql)
 {
   NET *net= &mysql->net;
@@ -412,17 +411,17 @@ max_allowed_packet on this server");
 }
 
 
-char * STDCALL mc_mysql_error(MYSQL *mysql)
+char *  mc_mysql_error(MYSQL *mysql)
 {
   return (mysql)->net.last_error;
 }
 
-int STDCALL mc_mysql_errno(MYSQL *mysql)
+int  mc_mysql_errno(MYSQL *mysql)
 {
   return (mysql)->net.last_errno;
 }
 
-my_bool STDCALL mc_mysql_reconnect(MYSQL *mysql)
+my_bool  mc_mysql_reconnect(MYSQL *mysql)
 {
   MYSQL tmp_mysql;
   DBUG_ENTER("mc_mysql_reconnect");
@@ -452,7 +451,7 @@ my_bool STDCALL mc_mysql_reconnect(MYSQL *mysql)
 
 
 
-int STDCALL
+int 
 mc_simple_command(MYSQL *mysql,enum enum_server_command command,
 		  const char *arg, uint length, my_bool skipp_check)
 {
@@ -505,7 +504,7 @@ mc_simple_command(MYSQL *mysql,enum enum_server_command command,
 }
 
 
-MYSQL * STDCALL
+MYSQL * 
 mc_mysql_connect(MYSQL *mysql,const char *host, const char *user,
 		   const char *passwd, const char *db,
 		   uint port, const char *unix_socket,uint client_flag)
@@ -856,7 +855,7 @@ error:
 ** NB! Errors are not reported until you do mysql_real_connect.
 **************************************************************************
 */
-int STDCALL
+int 
 mysql_ssl_clear(MYSQL *mysql)
 {
   my_free(mysql->options.ssl_key, MYF(MY_ALLOW_ZERO_PTR));
@@ -879,7 +878,7 @@ mysql_ssl_clear(MYSQL *mysql)
 ** If handle is alloced by mysql connect free it.
 *************************************************************************/
 
-void STDCALL
+void 
 mc_mysql_close(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_close");
@@ -910,7 +909,7 @@ mc_mysql_close(MYSQL *mysql)
   DBUG_VOID_RETURN;
 }
 
-void STDCALL mc_mysql_free_result(MYSQL_RES *result)
+void  mc_mysql_free_result(MYSQL_RES *result)
 {
   DBUG_ENTER("mc_mysql_free_result");
   DBUG_PRINT("enter",("mysql_res: %lx",result));
@@ -988,13 +987,13 @@ mc_unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
   DBUG_RETURN(result);
 }
 
-int STDCALL
+int 
 mc_mysql_send_query(MYSQL* mysql, const char* query, uint length)
 {
   return mc_simple_command(mysql, COM_QUERY, query, length, 1);
 }
 
-int STDCALL mc_mysql_read_query_result(MYSQL *mysql)
+int  mc_mysql_read_query_result(MYSQL *mysql)
 {
   uchar *pos;
   ulong field_count;
@@ -1042,7 +1041,7 @@ get_info:
   DBUG_RETURN(0);
 }
 
-int STDCALL mc_mysql_query(MYSQL *mysql, const char *query, uint length)
+int  mc_mysql_query(MYSQL *mysql, const char *query, uint length)
 {
   DBUG_ENTER("mysql_real_query");
   DBUG_PRINT("enter",("handle: %lx",mysql));
@@ -1289,17 +1288,17 @@ static int mc_read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row,
   return 0;
 }
 
-my_ulonglong STDCALL mc_mysql_num_rows(MYSQL_RES *res)
+my_ulonglong  mc_mysql_num_rows(MYSQL_RES *res)
 {
   return res->row_count;
 }
 
-unsigned int STDCALL mc_mysql_num_fields(MYSQL_RES *res)
+unsigned int  mc_mysql_num_fields(MYSQL_RES *res)
 {
   return res->field_count;
 }
 
-void STDCALL mc_mysql_data_seek(MYSQL_RES *result, my_ulonglong row)
+void  mc_mysql_data_seek(MYSQL_RES *result, my_ulonglong row)
 {
   MYSQL_ROWS	*tmp=0;
   DBUG_PRINT("info",("mysql_data_seek(%ld)",(long) row));
@@ -1309,7 +1308,7 @@ void STDCALL mc_mysql_data_seek(MYSQL_RES *result, my_ulonglong row)
   result->data_cursor = tmp;
 }
 
-MYSQL_ROW STDCALL mc_mysql_fetch_row(MYSQL_RES *res)
+MYSQL_ROW  mc_mysql_fetch_row(MYSQL_RES *res)
 {
   DBUG_ENTER("mc_mysql_fetch_row");
   if (!res->data)
@@ -1344,7 +1343,7 @@ MYSQL_ROW STDCALL mc_mysql_fetch_row(MYSQL_RES *res)
   }
 }
 
-int STDCALL mc_mysql_select_db(MYSQL *mysql, const char *db)
+int  mc_mysql_select_db(MYSQL *mysql, const char *db)
 {
   int error;
   DBUG_ENTER("mysql_select_db");
@@ -1358,7 +1357,7 @@ int STDCALL mc_mysql_select_db(MYSQL *mysql, const char *db)
 }
 
 
-MYSQL_RES * STDCALL mc_mysql_store_result(MYSQL *mysql)
+MYSQL_RES *mc_mysql_store_result(MYSQL *mysql)
 {
   MYSQL_RES *result;
   DBUG_ENTER("mysql_store_result");
