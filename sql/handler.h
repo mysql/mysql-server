@@ -532,6 +532,8 @@ void ha_close_connection(THD* thd);
 enum db_type ha_checktype(enum db_type database_type);
 int ha_create_table(const char *name, HA_CREATE_INFO *create_info,
 		    bool update_create_info);
+int ha_create_table_from_engine(THD* thd, const char *db, const char *name,
+				bool create_if_found);
 int ha_delete_table(enum db_type db_type, const char *path);
 void ha_drop_database(char* path);
 int ha_init_key_cache(const char *name, KEY_CACHE *key_cache);
@@ -553,5 +555,9 @@ bool ha_flush_logs(void);
 int ha_enable_transaction(THD *thd, bool on);
 int ha_change_key_cache(KEY_CACHE *old_key_cache,
 			KEY_CACHE *new_key_cache);
-int ha_discover(const char* dbname, const char* name,
+int ha_discover(THD* thd, const char* dbname, const char* name,
 		const void** frmblob, uint* frmlen);
+int ha_list_tables(THD* thd, HASH *tables, const char* db);
+int ha_table_exists(THD* thd, const char* db, const char* name);
+int ha_can_discover(THD* thd, const char* name);
+
