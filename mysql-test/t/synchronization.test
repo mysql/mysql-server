@@ -1,0 +1,44 @@
+-- source include/have_crypt.inc
+
+#
+# Test for Bug #2385 CREATE TABLE LIKE lacks locking on source and destination table
+#
+
+connect (con_to_sleep,localhost,lock_controller,,);
+connect (con_to_harm_sleeper,localhost,root,,);
+
+# locking of source:
+connection con_to_sleep;
+CREATE TABLE t1 (a int);
+send CREATE TABLE t2 LIKE t1;
+
+connection con_to_harm_sleeper;
+ALTER TABLE t1 add key(a);
+
+connection con_to_sleep;
+sleep 4;
+SHOW CREATE TABLE t2;
+drop table t1, t2;
+
+# locking of destination:
+connection con_to_sleep;
+CREATE TABLE t1 (a int);
+send CREATE TABLE t2 LIKE t1;
+
+connection con_to_harm_sleeper;
+sleep 1;
+CREATE TABLE t2 (b int);
+disable_query_log;
+select "-----------" as "let's take a look at result of create .. like : ";
+enable_query_log;
+
+connection con_to_sleep;
+sleep 1;
+--error 1
+reap;
+disable_query_log;
+select "" as "-----------";
+enable_query_log;
+SHOW CREATE TABLE t2;
+
+drop table t1, t2;
