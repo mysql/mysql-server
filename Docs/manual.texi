@@ -49402,6 +49402,8 @@ if the first @code{SELECT} has this option and if there is global @code{LIMIT}
 for the entire statement. For the moment, this requires using parentheses for
 individual @code{SELECT} queries within the statement.
 @item
+Fixed bug in @code{SQL_CALC_FOUND_ROWS} and LIMIT.
+@item
 Don't give an error for @code{CREATE TABLE ...(... VARCHAR(0))}.
 @item
 Fixed @code{SIGINT} and @code{SIGQUIT} problems in @file{mysql.cc} on Linux
