@@ -990,7 +990,7 @@ mysql_list_fields(MYSQL *mysql, const char *table, const char *wild)
   end=strmake(strmake(buff, table,128)+1,wild ? wild : "",128);
   if (simple_command(mysql,COM_FIELD_LIST,buff,(ulong) (end-buff),1) ||
       !(query = read_rows(mysql,(MYSQL_FIELD*) 0, 
-			  protocol_41(mysql) ? 7 : 6)))
+			  protocol_41(mysql) ? 8 : 6)))
     DBUG_RETURN(NULL);
 
   free_old_query(mysql);
@@ -1027,7 +1027,7 @@ mysql_list_processes(MYSQL *mysql)
   pos=(uchar*) mysql->net.read_pos;
   field_count=(uint) net_field_length(&pos);
   if (!(fields = read_rows(mysql,(MYSQL_FIELD*) 0,
-			   protocol_41(mysql) ? 6 : 5)))
+			   protocol_41(mysql) ? 7 : 5)))
     DBUG_RETURN(NULL);
   if (!(mysql->fields=unpack_fields(fields,&mysql->field_alloc,field_count,0,
 				    mysql->server_capabilities)))
@@ -3055,7 +3055,8 @@ int STDCALL mysql_fetch_column(MYSQL_STMT *stmt, MYSQL_BIND *bind,
 #ifdef CHECK_EXTRA_ARGUMENTS  
   if (!bind || icol >= stmt->field_count)
   {
-    DBUG_PRINT("error",("Invalid column position"));
+    set_stmt_errmsg(stmt, "Invalid column descriptor or offset",1, 
+                    unknown_sqlstate);
     DBUG_RETURN(1);
   }
 #endif
@@ -3377,6 +3378,9 @@ my_bool STDCALL mysql_stmt_free_result(MYSQL_STMT *stmt)
     mysql->status= MYSQL_STATUS_READY;
   }
   mysql_free_result(stmt->result);
+  stmt->result= 0;
+  stmt->result_buffered= 0;
+  stmt->current_row= 0;
   DBUG_RETURN(0);
 }
 
