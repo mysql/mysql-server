@@ -173,7 +173,8 @@ my_bool acl_init(THD *org_thd, bool dont_read_acl_tables)
   tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_READ;
   tables[0].db=tables[1].db=tables[2].db=thd->db;
 
-  if (open_tables(thd,tables))
+  uint counter;
+  if (open_tables(thd, tables, &counter))
   {
     sql_print_error("Fatal error: Can't open privilege tables: %s",
 		    thd->net.last_error);
@@ -2524,7 +2525,8 @@ my_bool grant_init(THD *org_thd)
   tables[0].lock_type=tables[1].lock_type=TL_READ;
   tables[0].db=tables[1].db=thd->db;
 
-  if (open_tables(thd,tables))
+  uint counter;
+  if (open_tables(thd, tables, &counter))
     goto end;
 
   TABLE *ptr[2];				// Lock tables for quick update

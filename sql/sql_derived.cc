@@ -25,7 +25,8 @@
 #include "sql_select.h"
 #include "sql_acl.h"
 
-int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *s, TABLE_LIST *t);
+static int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *s,
+			 TABLE_LIST *t);
 
 /*
   Resolve derived tables in all queries
@@ -39,10 +40,10 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *s, TABLE_LIST *t);
     -1	Error
     1	Error and error message given
 */
+
 int
 mysql_handle_derived(LEX *lex)
 {
-  int res= 0;
   if (lex->derived_tables)
   {
     for (SELECT_LEX *sl= lex->all_selects_list;
@@ -53,13 +54,12 @@ mysql_handle_derived(LEX *lex)
 	   cursor;
 	   cursor= cursor->next)
       {
+	int res;
 	if (cursor->derived && (res=mysql_derived(lex->thd, lex,
 						  cursor->derived,
 						  cursor)))
 	{
-	  if (res < 0 || lex->thd->net.report_error)
-	    send_error(lex->thd, lex->thd->killed ? ER_SERVER_SHUTDOWN : 0);
-	  return 1;
+	  return res;
 	}
       }
       if (lex->describe)
@@ -108,8 +108,8 @@ mysql_handle_derived(LEX *lex)
 */  
 
 
-int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
-		  TABLE_LIST *org_table_list)
+static int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
+			 TABLE_LIST *org_table_list)
 {
   SELECT_LEX *first_select= unit->first_select();
   TABLE *table;
@@ -197,7 +197,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
       table->derived_select_number= first_select->select_number;
       table->tmp_table= TMP_TABLE;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-      org_table_list->grant.privilege= SELECT_ACL;
+      table->grant.privilege= SELECT_ACL;
 #endif
       org_table_list->db= (char *)"";
       // Force read of table stats in the optimizer

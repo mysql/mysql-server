@@ -267,12 +267,16 @@ N	M
 3	0
 UPDATE `t1` AS P1 INNER JOIN (SELECT N FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N SET P1.M = 2, P2.N = 2;
 ERROR HY000: The target table P2 of the UPDATE is not updatable.
+UPDATE `t1` AS P1 INNER JOIN (SELECT aaaa FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N SET P1.M = 2;
+ERROR 42S22: Unknown column 'aaaa' in 'field list'
 delete P1.* from `t1` AS P1 INNER JOIN (SELECT N FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N;
 select * from t1;
 N	M
 3	0
 delete P1.*,P2.* from `t1` AS P1 INNER JOIN (SELECT N FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N;
 ERROR HY000: The target table P2 of the DELETE is not updatable.
+delete P1.* from `t1` AS P1 INNER JOIN (SELECT aaa FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N;
+ERROR 42S22: Unknown column 'aaa' in 'field list'
 drop table t1;
 CREATE TABLE t1 (
 OBJECTID int(11) NOT NULL default '0',
