@@ -3009,10 +3009,29 @@ background_loop:
  
 	srv_main_thread_op_info = (char*)"purging";
 
-	if (srv_fast_shutdown && srv_shutdown_state > 0) {
-	        n_pages_purged = 0;
-	} else {
-	        n_pages_purged = trx_purge();
+	/* Run a full purge */
+	
+	n_pages_purged = 1;
+
+	last_flush_time = time(NULL);
+
+	while (n_pages_purged) {
+		if (srv_fast_shutdown && srv_shutdown_state > 0) {
+
+			break;
+		}
+
+		srv_main_thread_op_info = (char*)"purging";
+		n_pages_purged = trx_purge();
+
+		current_time = time(NULL);
+
+		if (difftime(current_time, last_flush_time) > 1) {
+			srv_main_thread_op_info = (char*) "flushing log";
+
+		        log_buffer_flush_to_disk();
+			last_flush_time = current_time;
+		}
 	}
 
 	srv_main_thread_op_info = (char*)"reserving kernel mutex";
