@@ -19,6 +19,8 @@ CFG=INNOBASE - WIN32 RELEASE
 !MESSAGE 
 !MESSAGE "innobase - Win32 Debug" (based on "Win32 (x86) Static Library")
 !MESSAGE "innobase - Win32 Release" (based on "Win32 (x86) Static Library")
+!MESSAGE "innobase - Win32 nt" (based on "Win32 (x86) Static Library")
+!MESSAGE "innobase - Win32 Max nt" (based on "Win32 (x86) Static Library")
 !MESSAGE 
 
 # Begin Project
@@ -74,12 +76,60 @@ LIB32=link.exe -lib
 # ADD BASE LIB32 /nologo /out:"..\lib_release\innodb.lib"
 # ADD LIB32 /nologo /out:"..\lib_release\innodb.lib"
 
+!ELSEIF  "$(CFG)" == "innobase - Win32 nt"
+
+# PROP BASE Use_MFC 0
+# PROP BASE Use_Debug_Libraries 0
+# PROP BASE Output_Dir "innobase___Win32_nt"
+# PROP BASE Intermediate_Dir "innobase___Win32_nt"
+# PROP BASE Target_Dir ""
+# PROP Use_MFC 0
+# PROP Use_Debug_Libraries 0
+# PROP Output_Dir "innobase___Win32_nt"
+# PROP Intermediate_Dir "innobase___Win32_nt"
+# PROP Target_Dir ""
+# ADD BASE CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../include" /D "NDEBUG" /D "_LIB" /D "_WIN32" /D "WIN32" /D "_MBCS" /D "MYSQL_SERVER" /YX /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../include" /D "NDEBUG" /D "_LIB" /D "_WIN32" /D "WIN32" /D "_MBCS" /D "MYSQL_SERVER" /YX /FD /c
+# ADD BASE RSC /l 0x416 /d "NDEBUG"
+# ADD RSC /l 0x416 /d "NDEBUG"
+BSC32=bscmake.exe
+# ADD BASE BSC32 /nologo
+# ADD BSC32 /nologo
+LIB32=link.exe -lib
+# ADD BASE LIB32 /nologo /out:"..\lib_release\innodb.lib"
+# ADD LIB32 /nologo /out:"..\lib_release\innodb.lib"
+
+!ELSEIF  "$(CFG)" == "innobase - Win32 Max nt"
+
+# PROP BASE Use_MFC 0
+# PROP BASE Use_Debug_Libraries 0
+# PROP BASE Output_Dir "innobase___Win32_Max_nt"
+# PROP BASE Intermediate_Dir "innobase___Win32_Max_nt"
+# PROP BASE Target_Dir ""
+# PROP Use_MFC 0
+# PROP Use_Debug_Libraries 0
+# PROP Output_Dir "innobase___Win32_Max_nt"
+# PROP Intermediate_Dir "innobase___Win32_Max_nt"
+# PROP Target_Dir ""
+# ADD BASE CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../include" /D "NDEBUG" /D "_LIB" /D "_WIN32" /D "WIN32" /D "_MBCS" /D "MYSQL_SERVER" /YX /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /GX /O2 /I "../innobase/include" /I "../include" /D "NDEBUG" /D "_LIB" /D "_WIN32" /D "WIN32" /D "_MBCS" /D "MYSQL_SERVER" /YX /FD /c
+# ADD BASE RSC /l 0x416 /d "NDEBUG"
+# ADD RSC /l 0x416 /d "NDEBUG"
+BSC32=bscmake.exe
+# ADD BASE BSC32 /nologo
+# ADD BSC32 /nologo
+LIB32=link.exe -lib
+# ADD BASE LIB32 /nologo /out:"..\lib_release\innodb.lib"
+# ADD LIB32 /nologo /out:"..\lib_release\innodb.lib"
+
 !ENDIF 
 
 # Begin Target
 
 # Name "innobase - Win32 Debug"
 # Name "innobase - Win32 Release"
+# Name "innobase - Win32 nt"
+# Name "innobase - Win32 Max nt"
 # Begin Source File
 
 SOURCE=.\btr\btr0btr.c
