@@ -47,7 +47,8 @@ set-variable	= max_allowed_packet=16M
 
 [mysql]
 no-auto-rehash
-#safe-updates	# Remove the comment character if you are not familiar with SQL
+# Remove the next comment character if you are not familiar with SQL
+#safe-updates
 
 [isamchk]
 set-variable	= key_buffer=8M

@@ -442,6 +442,7 @@ Query_log_event::Query_log_event(const char* buf, int event_len):
 
 void Query_log_event::print(FILE* file, bool short_form)
 {
+  char buff[40],*end;				// Enough for SET TIMESTAMP
   if (!short_form)
   {
     print_header(file);
@@ -449,8 +450,12 @@ void Query_log_event::print(FILE* file, bool short_form)
 	    (ulong) thread_id, (ulong) exec_time, error_code);
   }
 
-  if(db && db[0])
+  if (db && db[0])
     fprintf(file, "use %s;\n", db);
+  end=int10_to_str((long) when, strmov(buff,"SET TIMESTAMP="),10);
+  *end++=';';
+  *end++='\n';
+  my_fwrite(file, (byte*) buff, (uint) (end-buff),MYF(MY_NABP | MY_WME));
   my_fwrite(file, (byte*) query, q_len, MYF(MY_NABP | MY_WME));
   fprintf(file, ";\n");
 }

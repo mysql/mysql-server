@@ -477,3 +477,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Comment
 t1	0	PRIMARY	1	a	A	2	NULL	NULL	
+i	j
+1	2
+i	j
+1	2

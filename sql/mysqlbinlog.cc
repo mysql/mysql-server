@@ -106,7 +106,7 @@ static void die(const char* fmt, ...)
 
 static void print_version()
 {
-  printf("%s  Ver 1.1 for %s at %s\n",my_progname,SYSTEM_TYPE, MACHINE_TYPE);
+  printf("%s  Ver 1.2 for %s at %s\n",my_progname,SYSTEM_TYPE, MACHINE_TYPE);
 }
 
 
@@ -377,7 +377,7 @@ static void dump_local_log_entries(const char* logname)
       die("Bad magic number;  The file is probably not a MySQL binary log");
   }
  
-  while(1)
+  for (;;)
   {
     char llbuff[21];
     my_off_t old_off = my_b_tell(file);

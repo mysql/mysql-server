@@ -419,3 +419,13 @@ select * from t1 order by b desc;
 optimize table t1;
 show keys from t1;
 drop table t1;
+
+#
+# Test of bug in create index with NULL columns
+#
+create table t1 (i int, j int )TYPE=BDB;
+insert into t1 values (1,2);
+select * from t1 where i=1 and j=2;
+create index ax1 on t1 (i,j);
+select * from t1 where i=1 and j=2;
+drop table t1;

@@ -157,7 +157,7 @@ struct st_query
 const char *command_names[] = {
 "connection", "query","connect","sleep","inc","dec","source","disconnect",
 "let","echo","while","end","system","result", "require", "save_master_pos",
- "sync_with_master", "error", "send", "reap", "dirty_close", "replace", 0
+ "sync_with_master", "error", "send", "reap", "dirty_close", "replace_result", 0
 };
 
 TYPELIB command_typelib= {array_elements(command_names),"",
@@ -723,22 +723,22 @@ static void get_replace(struct st_query *q)
 {
   uint i;
   char *from=q->first_argument;
-  char *buff=my_malloc(strlen(from),MYF(MY_WME | MY_FAE));
+  char *buff,*start;
   char word_end_chars[256],*pos;
   POINTER_ARRAY to_array,from_array;
   DBUG_ENTER("get_replace");
 
   bzero((char*) &to_array,sizeof(to_array));
   bzero((char*) &from_array,sizeof(from_array));
-
   if (!*from)
     die("Missing argument in %s\n", q->query);
+  start=buff=my_malloc(strlen(from)+1,MYF(MY_WME | MY_FAE));
   while (*from)
   {
     char *to=buff;
     get_string(&buff, &from, q);
     if (!*from)
-      die("Wrong number of arguments in %s\n", q->query);
+      die("Wrong number of arguments to replace in %s\n", q->query);
     insert_pointer_name(&from_array,to);
     to=buff;
     get_string(&buff, &from, q);
@@ -747,6 +747,7 @@ static void get_replace(struct st_query *q)
   for (i=1,pos=word_end_chars ; i < 256 ; i++)
     if (isspace(i))
       *pos++=i;
+  *pos=0;					/* End pointer */
   if (!(glob_replace=init_replace((char**) from_array.typelib.type_names,
 				  (char**) to_array.typelib.type_names,
 				  (uint) from_array.typelib.count,
@@ -755,13 +756,16 @@ static void get_replace(struct st_query *q)
     die("Can't initialize replace from %s\n", q->query);
   free_pointer_array(&from_array);
   free_pointer_array(&to_array);
-  my_free(buff, MYF(0));
+  my_free(start, MYF(0));
 }
 
 void free_replace()
 {
+  DBUG_ENTER("free_replace");
   my_free((char*) glob_replace,MYF(0));
+  glob_replace=0;
   free_replace_buffer();
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1270,7 +1274,7 @@ int parse_args(int argc, char **argv)
     {
       switch(c)	{
       case '#':
-	DBUG_PUSH(optarg ? optarg : "d:t:o,/tmp/mysqltest.trace");
+	DBUG_PUSH(optarg ? optarg : "d:t:O,/tmp/mysqltest.trace");
 	break;
       case 'v':
 	verbose = 1;
@@ -1530,7 +1534,7 @@ void get_query_type(struct st_query* q)
 
   save=q->query[q->first_word_len];
   q->query[q->first_word_len]=0;
-  type=find_type(q->query, &command_typelib, 1);
+  type=find_type(q->query, &command_typelib, 1+2);
   q->query[q->first_word_len]=save;
   if (type > 0)
     q->type=type;				/* Found command */
@@ -1541,7 +1545,7 @@ int main(int argc, char** argv)
 {
   int error = 0;
   struct st_query* q;
-  my_bool require_file=0;
+  my_bool require_file=0,q_send_flag=0;
   char save_file[FN_REFLEN];
   MY_INIT(argv[0]);
 
@@ -1579,7 +1583,7 @@ int main(int argc, char** argv)
      0))
     die("Failed in mysql_real_connect(): %s", mysql_error(&cur_con->mysql));
 
-  for(;!read_query(&q);)
+  while (!read_query(&q))
   {
     int current_line_inc = 1, processed = 0;
     if (q->type == Q_UNKNOWN || q->type == Q_COMMENT_WITH_COMMAND)
@@ -1604,9 +1608,13 @@ int main(int argc, char** argv)
       case Q_REAP:	
       {
 	int flags = QUERY_REAP;
-	if(q->type == Q_QUERY)
+	if (q->type == Q_QUERY)
 	  flags |= QUERY_SEND;
-	
+	if (q_send_flag)
+	{
+	  flags=QUERY_SEND;
+	  q_send_flag=0;
+	}
 	if (save_file[0])
 	{
 	  strmov(q->record_file,save_file);
@@ -1617,8 +1625,7 @@ int main(int argc, char** argv)
 	break;
       }
       case Q_SEND:
-	q->query += q->first_word_len;
-	error |= run_query(&cur_con->mysql, q, QUERY_SEND);
+	q_send_flag=1;
 	break;
       case Q_RESULT:
 	get_file_name(save_file,q);
@@ -1673,8 +1680,8 @@ int main(int argc, char** argv)
   }
 
   free_used_memory();
-  exit(error);
-  return error;
+  exit(error ? 1 : 0);
+  return error ? 1 : 0;				/* Keep compiler happy */
 }
 
 
@@ -1789,7 +1796,6 @@ void free_pointer_array(POINTER_ARRAY *pa)
     pa->typelib.type_names=0;
     my_free((gptr) pa->str,MYF(0));
   }
-  return;
 } /* free_pointer_array */
 
 

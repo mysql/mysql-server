@@ -290,6 +290,10 @@ struct st_myisam_info {
 #define STATE_NOT_OPTIMIZED_KEYS 16
 #define STATE_NOT_SORTED_PAGES	32
 
+	/* options to mi_read_cache */
+
+#define READING_NEXT	1
+#define READING_HEADER	2
 
 #define mi_getint(x)	((uint) mi_uint2korr(x) & 32767)
 #define mi_putint(x,y,nod) { uint16 boh=(nod ? (uint16) 32768 : 0) + (uint16) (y);\

@@ -642,7 +642,7 @@ void clean_up(void)
 #ifdef USE_RAID
   end_raid();
 #endif
-  x_free((gptr) errmsg[ERRMAPP]);	/* Free messages */
+  x_free((gptr) my_errmsg[ERRMAPP]);	/* Free messages */
   free_defaults(defaults_argv);
   my_free(mysql_tmpdir,MYF(0));
   x_free(opt_bin_logname);
@@ -1677,7 +1677,7 @@ int main(int argc, char **argv)
     case 1:
       sql_print_error("\
 Warning: one should set server-id to a non-0 value if log-bin is enabled.\n\
-Will log updates to binary log, but will not accept connections from slaves.");
+mysqld log updates to binary log, but will not accept connections from slaves.");
       break;
 #endif
     case 2:
@@ -2409,7 +2409,7 @@ enum options {
 	       OPT_INNOBASE_LOG_GROUP_HOME_DIR,
 	       OPT_INNOBASE_LOG_ARCH_DIR, OPT_INNOBASE_LOG_ARCHIVE,
 	       OPT_INNOBASE_FLUSH_LOG_AT_TRX_COMMIT, OPT_SAFE_SHOW_DB,
-	       OPT_GEMINI_SKIP,
+	       OPT_GEMINI_SKIP, OPT_INNOBASE_SKIP,
                OPT_TEMP_POOL
 };
 
@@ -2516,15 +2516,9 @@ static struct option long_options[] = {
   {"socket",                required_argument, 0, (int) OPT_SOCKET},
   {"server-id",		    required_argument, 0, (int) OPT_SERVER_ID},
   {"set-variable",          required_argument, 0, 'O'},
-#ifdef HAVE_BERKELEY_DB
   {"skip-bdb",              no_argument,       0, (int) OPT_BDB_SKIP},
-#endif
-#ifdef HAVE_INNOBASE_DB
   {"skip-innobase",         no_argument,       0, (int) OPT_INNOBASE_SKIP},
-#endif
-#ifdef HAVE_GEMINI_DB
   {"skip-gemini",           no_argument,       0, (int) OPT_GEMINI_SKIP},
-#endif
   {"skip-concurrent-insert", no_argument,      0, (int) OPT_SKIP_CONCURRENT_INSERT},
   {"skip-delay-key-write",  no_argument,       0, (int) OPT_SKIP_DELAY_KEY_WRITE},
   {"skip-grant-tables",     no_argument,       0, (int) OPT_SKIP_GRANT},
@@ -3459,22 +3453,26 @@ static void get_options(int argc,char **argv)
       berkeley_init_flags&= ~(DB_PRIVATE);
       berkeley_shared_data=1;
       break;
+#endif /* HAVE_BERKELEY_DB */
     case OPT_BDB_SKIP:
+#ifdef HAVE_BERKELEY_DB
       berkeley_skip=1;
       have_berkeley_db=SHOW_OPTION_DISABLED;
-      break;
 #endif
-#ifdef HAVE_GEMINI_DB
+      break;
     case OPT_GEMINI_SKIP:
+#ifdef HAVE_GEMINI_DB
       gemini_skip=1;
       have_gemini_db=SHOW_OPTION_DISABLED;  
-      break;
 #endif
-#ifdef HAVE_INNOBASE_DB
+      break;
     case OPT_INNOBASE_SKIP:
+#ifdef HAVE_INNOBASE_DB
       innobase_skip=1;
       have_innobase_db=SHOW_HAVE_DISABLED;
+#endif
       break;
+#ifdef HAVE_INNOBASE_DB
     case OPT_INNOBASE_DATA_HOME_DIR:
       innobase_data_home_dir=optarg;
       break;
@@ -3493,7 +3491,7 @@ static void get_options(int argc,char **argv)
     case OPT_INNOBASE_FLUSH_LOG_AT_TRX_COMMIT:
       innobase_flush_log_at_trx_commit= optarg ? test(atoi(optarg)) : 1;
       break;
-#endif
+#endif /* HAVE_INNOBASE_DB */
     case OPT_MYISAM_RECOVER:
     {
       if (!optarg || !optarg[0])
