@@ -782,6 +782,7 @@ SELECT pseudo as a, pseudo as b FROM t1 GROUP BY (SELECT a) ORDER BY (SELECT id*
 drop table if exists t1;
 
 (SELECT 1 as a) UNION (SELECT 1) ORDER BY (SELECT a+0);
+
 #
 # key field overflow test
 #
@@ -854,6 +855,7 @@ select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30 and t1.b <> 31);
 explain select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 drop table t1, t2, t3;
+
 #
 # alloc_group_fields() working
 #
@@ -875,6 +877,7 @@ insert into t1 values (1);
 insert into t2 values (1);
 select * from t1 where exists (select s1 from t2 having max(t2.s1)=t1.s1);
 drop table t1,t2;
+
 #
 # update subquery with wrong field (to force name resolving
 # in UPDATE name space)
