@@ -6752,23 +6752,25 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 
   /* Don't log this into the slow query log */
   join->thd->lex.select_lex.options&= ~(QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED);
-  field_list.push_back(new Item_empty_string("table",NAME_LEN));
-  field_list.push_back(new Item_empty_string("type",10));
-  field_list.push_back(item=new Item_empty_string("possible_keys",
+  if (join->thd->lex.select == &join->thd->lex.select_lex)
+  {
+    field_list.push_back(new Item_empty_string("table",NAME_LEN));
+    field_list.push_back(new Item_empty_string("type",10));
+    field_list.push_back(item=new Item_empty_string("possible_keys",
 						  NAME_LEN*MAX_KEY));
-  item->maybe_null=1;
-  field_list.push_back(item=new Item_empty_string("key",NAME_LEN));
-  item->maybe_null=1;
-  field_list.push_back(item=new Item_int("key_len",0,3));
-  item->maybe_null=1;
-  field_list.push_back(item=new Item_empty_string("ref",
-						  NAME_LEN*MAX_REF_PARTS));
-  item->maybe_null=1;
-  field_list.push_back(new Item_real("rows",0.0,0,10));
-  field_list.push_back(new Item_empty_string("Extra",255));
-  if (send_fields(thd,field_list,1))
-    return; /* purecov: inspected */
-
+    item->maybe_null=1;
+    field_list.push_back(item=new Item_empty_string("key",NAME_LEN));
+    item->maybe_null=1;
+    field_list.push_back(item=new Item_int("key_len",0,3));
+    item->maybe_null=1;
+    field_list.push_back(item=new Item_empty_string("ref",
+						    NAME_LEN*MAX_REF_PARTS));
+    item->maybe_null=1;
+    field_list.push_back(new Item_real("rows",0.0,0,10));
+    field_list.push_back(new Item_empty_string("Extra",255));
+    if (send_fields(thd,field_list,1))
+      return;
+  }
   char buff[512],*buff_ptr;
   String tmp(buff,sizeof(buff)),*packet= &thd->packet;
   table_map used_tables=0;
@@ -6899,7 +6901,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
     // For next iteration
     used_tables|=table->map;
   }
-  send_eof(&thd->net);
+  if (!join->thd->lex.select->next)
+    send_eof(&thd->net);
   DBUG_VOID_RETURN;
 }
 

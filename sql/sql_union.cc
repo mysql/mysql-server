@@ -38,12 +38,6 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   uint elements;
   DBUG_ENTER("mysql_union");
 
-  if (lex->select_lex.options & SELECT_DESCRIBE)
-  {
-    my_error(ER_WRONG_USAGE,MYF(0),"DESCRIBE","UNION");
-    return -1;
-  } 
-
   /* Fix tables--to-be-unioned-from list to point at opened tables */
   for (sl=&lex->select_lex; sl; sl=sl->next)
   {
@@ -65,6 +59,25 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
       return -1;
     }
   }
+
+  if (lex->select_lex.options & SELECT_DESCRIBE)
+  {
+    for (sl= &lex->select_lex; sl; sl=sl->next)
+    {
+      lex->select=sl;
+      res=mysql_select(thd, (TABLE_LIST*) sl->table_list.first,
+		       sl->item_list,
+		       sl->where,
+		       sl->ftfunc_list,
+		       (ORDER*) 0,
+		       (ORDER*) sl->group_list.first,
+		       sl->having,
+		       (ORDER*) NULL,
+		       sl->options | thd->options | SELECT_NO_UNLOCK | SELECT_DESCRIBE,
+		       result);
+    }
+    return 0;
+  } 
 
   order = (ORDER *) last_sl->order_list.first;
   {
