@@ -37,20 +37,32 @@ which ()
   IFS="$save_ifs"
 }
 
+#
+# If we can find the given directory relatively to where mysql_config is
+# we should use this instead of the incompiled one.
+# This is to ensure that this script also works with the binary MySQL
+# version
+
 fix_path ()
 {
-  eval path=\$"$1"
-  if [ ! -f "$path" ] ;
-  then
-   eval "$1"=$basedir/$2
-  fi
+  var=$1
+  shift
+  for filename
+  do
+    path=$basedir/$filename
+    if [ -d "$path" ] ;
+    then
+      eval "$var"=$path
+      return
+    fi
+  done
 }
 
 abs_path=`expr \( substr $0 1 1 \) = '/'`
 if [ "x$abs_path" = "x1" ] ; then
  me=$0
 else 
- me=`which mysql_config`
+ me=`which $0`
 fi
 
 basedir=`echo $me | sed -e 's;/bin/mysql_config;;'`
@@ -59,9 +71,9 @@ ldata='@localstatedir@'
 execdir='@libexecdir@'
 bindir='@bindir@'
 pkglibdir='@pkglibdir@'
-fix_path pkglibdir lib/mysql
+fix_path pkglibdir lib/mysql lib
 pkgincludedir='@pkgincludedir@'
-fix_path pkgincludedir include/mysql
+fix_path pkgincludedir include/mysql include
 version='@VERSION@'
 socket='@MYSQL_UNIX_ADDR@'
 port='@MYSQL_TCP_PORT@'
