@@ -48,12 +48,13 @@ int heap_info(reg1 HP_INFO *info,reg2 HEAPINFO *x,
 	      int flag __attribute__((unused)))
 {
   DBUG_ENTER("heap_info");
-  x->records	 = info->s->records;
-  x->deleted	 = info->s->deleted;
-  x->reclength	 = info->s->reclength;
-  x->data_length = info->s->data_length;
-  x->index_length= info->s->index_length;
-  x->max_records = info->s->max_records;
-  x->errkey	 = info->errkey;
+  x->records         = info->s->records;
+  x->deleted         = info->s->deleted;
+  x->reclength       = info->s->reclength;
+  x->data_length     = info->s->data_length;
+  x->index_length    = info->s->index_length;
+  x->max_records     = info->s->max_records;
+  x->errkey          = info->errkey;
+  x->implicit_emptied= info->implicit_emptied;
   DBUG_RETURN(0);
 } /* heap_info */
