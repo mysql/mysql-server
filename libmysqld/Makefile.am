@@ -26,7 +26,7 @@ DEFS =			-DEMBEDDED_LIBRARY -DMYSQL_SERVER \
 			-DDATADIR="\"$(MYSQLDATAdir)\"" \
 			-DSHAREDIR="\"$(MYSQLSHAREdir)\""
 INCLUDES=		@MT_INCLUDES@ @bdb_includes@ -I$(top_srcdir)/include \
-			-I$(top_srcdir)/sql -I$(top_srcdir)/regex \
+			-I$(top_srcdir)/sql -I$(top_srcdir)/sql/examples -I$(top_srcdir)/regex \
 			$(openssl_includes) @ZLIB_INCLUDES@
 
 noinst_LIBRARIES =	libmysqld_int.a
@@ -35,6 +35,7 @@ SUBDIRS =		. examples
 libmysqld_sources=	libmysqld.c lib_sql.cc emb_qcache.cc
 libmysqlsources =	errmsg.c get_password.c libmysql.c client.c pack.c \
                         my_time.c
+sqlexamplessources =	ha_example.cc ha_archive.cc ha_tina.cc
 
 noinst_HEADERS =	embedded_priv.h emb_qcache.h
 
@@ -59,7 +60,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	unireg.cc uniques.cc stacktrace.c sql_union.cc hash_filo.cc \
 	spatial.cc gstream.cc sql_help.cc tztime.cc
 
-libmysqld_int_a_SOURCES= $(libmysqld_sources) $(libmysqlsources) $(sqlsources)
+libmysqld_int_a_SOURCES= $(libmysqld_sources) $(libmysqlsources) $(sqlsources) $(sqlexamplessources)
 libmysqld_a_SOURCES=
 
 # automake misses these
@@ -123,12 +124,16 @@ link_sources:
 	    rm -f $(srcdir)/$$f; \
 	    @LN_CP_F@ $(srcdir)/../libmysql/$$f $(srcdir)/$$f; \
 	  done; \
+	  for f in $(sqlexamplessources); do \
+	    rm -f $(srcdir)/$$f; \
+	    @LN_CP_F@ $(srcdir)/../sql/examples/$$f $(srcdir)/$$f; \
+	  done; \
 	  rm -f $(srcdir)/client_settings.h; \
 	  @LN_CP_F@ $(srcdir)/../libmysql/client_settings.h $(srcdir)/client_settings.h;
 
 
 clean-local:
-	rm -f `echo $(sqlsources) $(libmysqlsources) | sed "s;\.lo;.c;g"` \
+	rm -f `echo $(sqlsources) $(libmysqlsources) $(sqlexamplessources) | sed "s;\.lo;.c;g"` \
 	       $(top_srcdir)/linked_libmysqld_sources; \
 	rm -f client_settings.h
 
