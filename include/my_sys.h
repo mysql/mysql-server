@@ -796,7 +796,7 @@ void my_free_open_file_info(void);
 ulonglong my_getsystime(void);
 my_bool my_gethwaddr(uchar *to);
 
-#ifdef HAVE_MMAP
+#ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 
 #ifndef MAP_NOSYNC
@@ -811,9 +811,11 @@ my_bool my_gethwaddr(uchar *to);
 /* not a complete set of mmap() flags, but only those that nesessary */
 #define PROT_READ        1
 #define PROT_WRITE       2
-#define MAP_NOSYNC       0x800
+#define MAP_SHARED       0x0001
+#define MAP_NOSYNC       0x0800
 #define MAP_FAILED       ((void *)-1)
 #define MS_SYNC          0x0000
+#define HAVE_MMAP
 
 int my_getpagesize(void);
 void *my_mmap(void *, size_t, int, int, int, my_off_t);
