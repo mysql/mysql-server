@@ -46,7 +46,7 @@ static int make_new_olap_select(LEX *lex, SELECT_LEX *select_lex, List<Item> new
 {
   THD	*thd=current_thd;
   Item *item, *new_item;
-  Item_string *constant= new Item_string("ALL",3);
+  Item_null *constant= new Item_null("ALL");
 
   SELECT_LEX *new_select = (SELECT_LEX *) thd->memdup((char*) select_lex, sizeof(*select_lex));
   if (!new_select)
