@@ -561,6 +561,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
   }
 
   if (!optimize ||
+      memcmp(file->state, & share->state.state, sizeof(MI_STATUS_INFO)) ||
       ((file->state->del || share->state.split != file->state->records) &&
        (!param.opt_rep_quick ||
 	!(share->state.changed & STATE_NOT_OPTIMIZED_KEYS))))
