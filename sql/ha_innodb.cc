@@ -66,6 +66,7 @@ extern "C" {
 #include "../innobase/include/trx0roll.h"
 #include "../innobase/include/trx0trx.h"
 #include "../innobase/include/trx0sys.h"
+#include "../innobase/include/mtr0mtr.h"
 #include "../innobase/include/row0ins.h"
 #include "../innobase/include/row0mysql.h"
 #include "../innobase/include/row0sel.h"
@@ -5180,6 +5181,38 @@ ha_innobase::get_auto_increment()
 	}
 
 	return(nr);
+}
+
+/***********************************************************************
+This function stores binlog offset and flushes logs */
+
+void 
+innobase_store_binlog_offset_and_flush_log(
+/*=============================*/
+    char *binlog_name,          /* in: binlog name   */
+    longlong offset             /* in: binlog offset */
+)
+{
+	mtr_t mtr;
+	
+	assert(binlog_name != NULL);
+
+	/* Start a mini-transaction */
+        mtr_start_noninline(&mtr); 
+
+	/* Update the latest MySQL binlog name and offset info
+           in trx sys header */
+
+        trx_sys_update_mysql_binlog_offset(
+            binlog_name,
+            offset,
+            TRX_SYS_MYSQL_LOG_INFO, &mtr);
+
+        /* Commits the mini-transaction */
+        mtr_commit(&mtr);
+        
+	/* Syncronous flush of the log buffer to disk */
+	log_buffer_flush_to_disk();
 }
 
 #endif /* HAVE_INNOBASE_DB */
