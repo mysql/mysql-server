@@ -91,7 +91,7 @@ class TupleS {
 private:
   friend class RestoreDataIterator;
   
-  TableS *m_currentTable;
+  class TableS *m_currentTable;
   AttributeData *allAttrData;
   bool prepareRecord(TableS &);
   

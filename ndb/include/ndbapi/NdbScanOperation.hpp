@@ -32,6 +32,7 @@
 #include <NdbOperation.hpp>
 
 class NdbBlob;
+class NdbResultSet;
 
 /**
  * @class NdbScanOperation
