@@ -111,6 +111,7 @@ int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit, TABLE_LIST *t)
 	  t->real_name=table->real_name;
 	  t->table=table;
 	  table->derived_select_number= sl->select_number;
+	  table->tmp_table=TMP_TABLE;
 	  if (!lex->describe)
 	    sl->exclude();
 	  t->db= (tables && tables->db && tables->db[0]) ? t->db : thd->db;
