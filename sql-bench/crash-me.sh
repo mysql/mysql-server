@@ -38,7 +38,7 @@
 # as such, and clarify ones such as "mediumint" with comments such as
 # "3-byte int" or "same as xxx".
 
-$version="1.54";
+$version="1.55";
 
 use DBI;
 use Getopt::Long;
@@ -1315,7 +1315,7 @@ report("default value for column",'create_default',
        "drop table crash_q $drop_attr");
 
 report("default value function for column",'create_default_func',
-       "create table crash_q (q integer not null,q1 integer default (1+1)",
+       "create table crash_q (q integer not null,q1 integer default (1+1))",
        "drop table crash_q $drop_attr");
 
 report("temporary tables",'temporary_table',
@@ -1696,7 +1696,7 @@ if (!report("drop table with cascade/restrict","drop_restrict",
 
 report("-- as comment (ANSI)","comment_--",
        "select * from crash_me -- Testing of comments");
-report("// as comment (ANSI)","comment_//",
+report("// as comment","comment_//",
        "select * from crash_me // Testing of comments");
 report("# as comment","comment_#",
        "select * from crash_me # Testing of comments");

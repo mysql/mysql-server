@@ -555,6 +555,7 @@ What Languages Are Supported by MySQL?
 
 * Character sets::              The character set used for data and sorting
 * Adding character set::        Adding a new character set
+* Character arrays::            
 * String collating::            String collating support
 * Multi-byte characters::       Multi-byte character support
 
@@ -567,7 +568,7 @@ Replication in MySQL
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
-* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication
+* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication
 
 Getting Maximum Performance from MySQL
 
@@ -863,6 +864,7 @@ Changes in release 4.0.x (Development; Alpha)
 
 Changes in release 3.23.x  (Stable)
 
+* News-3.23.33::                Changes in release 3.23.33
 * News-3.23.32::                Changes in release 3.23.32
 * News-3.23.31::                Changes in release 3.23.31
 * News-3.23.30::                Changes in release 3.23.30
@@ -2214,7 +2216,6 @@ Apart from the following links, you can find and download a lot of
 @uref{http://www.mysql.com/Downloads/Contrib/, Contrib directory}.
 @cindex @code{Contrib} directory
 
-
 @cindex URLs to MySQL information
 @cindex related information URLs
 @strong{MySQL}
@@ -2265,8 +2266,10 @@ The Mac OS Xclave. Running @strong{MySQL} on Mac OS X
 MySQL for Mac OS X Server.
 @item @uref{http://www.latencyzero.com/macosx/mysql.html}@*
 Bulding MySQL for Mac OS X
+@item @uref{http://www.essencesw.com/Software/mysqllib.html}@*
+New Client libraries for the Mac OS Classic (Macintosh).
 @item @uref{http://www.lilback.com/macsql/}@*
-Client libraries for the Macintosh.
+Client libraries for Mac OS Classic (Macintosh).
 @end itemize
 
 @subheading Perl-related Links
@@ -2355,6 +2358,9 @@ MySQL-Databases, creating of new DBs and tables, editing etc.
 
 @item @uref{http://www.scibit.com/Products/Software/Utils/Mascon.asp}@*
 Mascon is a powerful Win32 GUI for the administering MySQL server databases.
+
+@item @uref{http://www.rtlabs.com/}@*
+MacSQL Monitor.  GUI for MySQL, ODBC, and JDBC databases for the Mac OS.
 @end itemize
 
 @subheading Distributions that Include MySQL
@@ -2555,8 +2561,20 @@ any MTA to deliver to users in a @strong{MySQL} database.
 @item @uref{http://www.pbc.ottawa.on.ca}@*
 Visual Basic class generator for Active X.
 
+@item @uref{http://www.essencesw.com/Software/mysqllib.html}@*
+New Client libraries for the Mac OS Classic (Macintosh).
+
 @item @uref{http://www.lilback.com/macsql/}@*
 Client libraries for the Macintosh.
+
+@item @uref{http://www.essencesw.com/Plugins/mysqlplug.html}@*
+Plugin for REALbasic (for Machintosh)
+
+@item @uref{http://www.iis.ee.ethz.ch/~neeri/macintosh/gusi-qa.html}@*
+A library that emulates BSD sockets and pthreads on Macintosh. This can
+be used if you want to compile the @strong{MySQL} client library on Mac. It
+could probably even be sued to port @strong{MySQL} to Macintosh, but we
+don't know of anyone that has tried that.
 
 @c 404 not found
 @c @item @uref{http://tfdec1.fys.kuleuven.ac.be/~michael/fpc-linux/mysql}@*
@@ -8550,6 +8568,13 @@ While you are doing an @code{ALTER TABLE} the table is locked from usage
 by other threads. This has to do with the fact that you on Windows can't
 delete a file that is in use by another threads. (We may in the future
 find some way to go around this problem).
+
+@item @code{DROP TABLE} on a table that is in use by a @code{MERGE} table will not work.
+The @code{MERGE} handler does it table mapping hidden from @strong{MySQL}.
+Because windows doesn't allow one to drop files that are open, you have
+to first flush all @code{MERGE} tables (with @code{FLUSH TABLES}) or drop the
+@code{MERGE} table before drooping the table.  We will fix this at
+the same time we introduce @code{VIEW}'s.
 @end table
 
 Here are some open issues for anyone who might want to help us with the Windows
@@ -22713,6 +22738,7 @@ the outside of the @code{MySQL} server:
 @example
 shell> cd /mysql-data-directory/current-database
 shell> ls -1 t1.MYI t2.MYI > total.MRG
+shell> mysqladmin flush-tables
 @end example
 
 Now you can do things like:
@@ -22731,10 +22757,18 @@ mysql> select * from total;
 +---+---------+
 @end example
 
-To remap a @code{MERGE} table you must either @code{DROP} it and
-re-create it or change the @code{.MRG} file and issue a @code{FLUSH
-TABLE} on the @code{MERGE} table and all underlying tables to force the
-handler to read the new definition file.
+To remap a @code{MERGE} table you can do one of the following:
+
+@itemize @bullet
+@item
+@code{DROP} the table and re-create it
+@item
+Use @code{ALTER TABLE table_name UNION(...)}
+@item
+Change the @code{.MRG} file and issue a @code{FLUSH TABLE} on the
+@code{MERGE} table and all underlying tables to force the handler to
+read the new definition file.
+@end itemize
 
 @cindex tables, ISAM
 @node ISAM, HEAP, MERGE, Table types
@@ -25456,6 +25490,7 @@ your changes with the new @file{errmsg.txt} file.
 @menu
 * Character sets::              The character set used for data and sorting
 * Adding character set::        Adding a new character set
+* Character arrays::            
 * String collating::            String collating support
 * Multi-byte characters::       Multi-byte character support
 @end menu
@@ -25514,28 +25549,52 @@ default-character-set=character-set-name
 
 but normally this is never needed.
 
-To add another character set to @strong{MySQL}, use the following procedure.
-
 @cindex character sets, adding
 @cindex adding, character sets
-@node Adding character set, String collating, Character sets, Languages
+@node Adding character set, Character arrays, Character sets, Languages
 @subsection Adding a New Character Set
+
+To add another character set to @strong{MySQL}, use the following procedure.
+
+Decide if the set is simple or complex.  If the character set
+does not need to use special string collating routines for
+sorting and does not need multi-byte character support, it is
+simple.  If it needs either of those features, it is complex.
+
+For example, @code{latin1} and @code{danish} are simple charactersets while
+@code{big5} or @code{czech} are complex character sets.
+
+In the following section, we have assumed that you name your character
+set @code{MYSET}.
+
+For a simple character set do the following:
 
 @enumerate
 @item
-Choose a name for the character set, denoted @code{MYSET} below.
+Add MYSET to the end of the @file{sql/share/charsets/Index} file
+Assign an unique number to it.
 
 @item
-Decide if the set is simple or complex.  If the character set
-does not need to use special string collating routines for
-sorting and does not need mulit-byte character support, it is
-simple.  If it needs either of those features, it is complex.
+Create the file @file{sql/share/charsets/MYSET.conf}.
+(You can use @file{sql/share/charsets/latin1.conf} as a base for this).
 
+The syntax for the file very simple:
+
+@itemize @bullet
 @item
-If the character set is simple, then create the file
-@file{sql/share/charsets/MYSET.conf}, and add MYSET the
-@file{sql/share/charsets/Index} file.  Read the
-@file{sql/share/charsets/README} for more instructions.
+Comments start with a '#' character and proceed to the end of the line.
+@item
+Words are separated by arbitrary amounts of whitespace.
+@item
+When defining the character set, every word must be a number in hexadecimal
+format
+@item
+The @code{ctype} array takes up the first 257 words. The
+@code{to_lower}, @code{to_upper} and @code{sort_order} arrays take up
+256 words each after that.
+@end itemize
+
+@xref{Character arrays}.
 
 @item
 Add the character set name to the @code{CHARSETS_AVAILABLE} and
@@ -25544,20 +25603,28 @@ Add the character set name to the @code{CHARSETS_AVAILABLE} and
 @item
 Reconfigure, recompile, and test.
 
+@end enumerate
+
+For a complex character set do the following:
+
+@enumerate
 @item
-If the character set is complex, create the file
-@file{strings/ctype-MYSET.c} in the @strong{MySQL} source distribution.
+Create the file @file{strings/ctype-MYSET.c} in the @strong{MySQL} source
+distribution.
 
 @item
-Add MYSET to the end of the @file{sql/share/charsets/Index} file.  Take
-note of its position in the file - this is its character set number,
-denoted @code{MYNUMBER} below.
+Add MYSET to the end of the @file{sql/share/charsets/Index} file.
+Assign an unique number to it.
 
 @item
-Look at one of the existing @file{ctype-*.c} files to see what needs to be
-defined. Note that the arrays in your file must have names like
-@code{ctype_MYSET}, @code{to_lower_MYSET}, and so on.
+Look at one of the existing @file{ctype-*.c} files to see what needs to
+be defined, for example @file{strings/ctype-big5.c}. Note that the
+arrays in your file must have names like @code{ctype_MYSET},
+@code{to_lower_MYSET}, and so on.  This corresponds to the arrays
+in the simple character set. @xref{Character arrays}.  For a complex
+character set
 
+@item
 Near the top of the file, place a special comment like this:
 
 @example
@@ -25579,6 +25646,34 @@ the following sections.  Only include them if you the string
 collating functions or the multi-byte character set functions,
 respectively.
 
+@item
+You should then create some of the following functions:
+
+@itemize @bullet
+@item @code{my_strncoll_MYSET()}
+@item @code{my_strcoll_MYSET()}
+@item @code{my_strxfrm_MYSET()}
+@item @code{my_like_range_MYSET()}
+@end itemize
+
+@xref{String collating}.
+
+@item
+Add the character set name to the @code{CHARSETS_AVAILABLE} and
+@code{COMPILED_CHARSETS} lists in @code{configure.in}.
+
+@item
+Reconfigure, recompile, and test.
+@end enumerate
+
+The file @file{sql/share/charsets/README} includes some more instructions.
+
+If you want to have the character set included in the @strong{MySQL}
+distribution, mail a patch to @email{internals@@lists.mysql.com}.
+
+@node Character arrays, String collating, Adding character set, Languages
+@subsection The character definition arrays
+
 @code{to_lower[]} and @code{to_upper[]} are simple arrays that hold the
 lowercase and uppercase characters corresponding to each member of the
 character set.  For example:
@@ -25593,12 +25688,13 @@ comparison and sorting purposes.  For many character sets, this is the same as
 @code{to_upper[]} (which means sorting will be case insensitive).
 @strong{MySQL} will sort characters based on the value of
 @code{sort_order[character]}.  For more complicated sorting rules, see
-the discussion of string collating below.
+the discussion of string collating below. @xref{String collating}.
 
 @code{ctype[]} is an array of bit values, with one element for one character.
 (Note that @code{to_lower[]}, @code{to_upper[]}, and @code{sort_order[]}
 are indexed by character value, but @code{ctype[]} is indexed by character
 value + 1.  This is an old legacy to be able to handle EOF.)
+
 You can find the following bitmask definitions in @file{m_ctype.h}:
 
 @example
@@ -25613,28 +25709,18 @@ You can find the following bitmask definitions in @file{m_ctype.h}:
 @end example
 
 The @code{ctype[]} entry for each character should be the union of the
-applicable bitmask values that describe the character.
-For example, @code{'A'} is an uppercase character (@code{_U}) as well as a
-hexadecimal digit (@code{_X}), so @code{ctype['A'+1]} should contain the value:
+applicable bitmask values that describe the character.  For example,
+@code{'A'} is an uppercase character (@code{_U}) as well as a
+hexadecimal digit (@code{_X}), so @code{ctype['A'+1]} should contain the
+value:
+
 @example
 _U + _X = 01 + 0200 = 0201
 @end example
 
-@item
-Add support for the string collating or multi-byte features needed, as
-described in the following sections.
-
-@item
-Add the character set name to the @code{CHARSETS_AVAILABLE} and
-@code{COMPILED_CHARSETS} lists in @code{configure.in}.
-
-@item
-Reconfigure, recompile, and test.
-@end enumerate
-
 @cindex collating, strings
 @cindex string collating
-@node String collating, Multi-byte characters, Adding character set, Languages
+@node String collating, Multi-byte characters, Character arrays, Languages
 @subsection String Collating Support
 
 If the sorting rules for your language are too complex to be handled
@@ -25647,7 +25733,7 @@ character sets for examples.
 
 You must specify the @code{strxfrm_multiply_MYSET=N} value in the
 special comment at the top of the file.  @code{N} should be set to
-the maximum ratio the strings may grow during my_strxfrm_MYSET (it
+the maximum ratio the strings may grow during @code{my_strxfrm_MYSET} (it
 must be a positive integer).
 
 @cindex characters, multi-byte
@@ -25737,7 +25823,7 @@ tables}.
 * Replication Options::         Replication Options in my.cnf
 * Replication SQL::             SQL Commands related to replication
 * Replication FAQ::             Frequently Asked Questions about replication
-* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication
+* Troubleshooting Replication:: Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication.  Troubleshooting Replication
 @end menu
 
 @node Replication Intro, Replication Implementation, Replication, Replication
@@ -33108,8 +33194,9 @@ symbols that start with @code{mysql_}, like the following:
 you should be able to solve this by adding @code{-Lpath-to-the-mysql-library
 -lmysqlclient} @strong{LAST} on your link line.
 
-If you get @code{undefined reference} errors for the @code{compress} function,
-add @code{-lgz} @strong{LAST} on your link line and try again!
+If you get @code{undefined reference} errors for the @code{uncompress}
+or @code{compress} function, add @code{-lgz} @strong{LAST} on your link
+line and try again!
 
 If you get @code{undefined reference} errors for functions that should
 exist on your system, like @code{connect}, check the man page for the
@@ -38174,6 +38261,10 @@ This means that your PHP version isn't compiled with @strong{MySQL} support.
 You can either compile a dynamic @strong{MySQL} module and load it into PHP or
 recompile PHP with built-in @strong{MySQL} support.  This is described in
 detail in the PHP manual.
+@item Error: "undefined reference to `uncompress'"
+This means that the client library is compiled with support for a compressed
+client/server protocol. The fix is to add @code{-lz} last when linking
+with @code{-lmysqlclient}.
 @end itemize
 
 @cindex C++ APIs
@@ -39875,6 +39966,8 @@ colour coding, dump functionality and much more.
 @uref{http://www.scibit.com/Products/Software/Utils/Mascon.asp,Mascon home page}.
 @item @uref{http://www.virtualbeer.net/dbui/,DBUI}
 DBUI is a Gtk graphical database editor.
+@item @uref{http://www.rtlabs.com/, MacSQL}
+GUI for MySQL, ODBC, and JDBC databases for the Mac OS.
 @end itemize
 
 @cindex Web clients
@@ -40816,6 +40909,12 @@ not yet 100 % confident in this code.
 @appendixsubsec Changes in release 3.23.33
 @itemize bullet
 @item
+@code{myisamchk -S} and @code{OPTIMIZE TABLE} now works on Windows.
+@item
+Fixed bug when using @code{DISTINCT} on results from functions that refered to
+a group function, like
+@code{SELECT a,DISTINCT SEC_TO_TIME(sum(a)) from table_name GROUP BY a,b}.
+@item
 Fixed bug in replication that broke slave server start with existing
 @code{master.info} - bug introduced in 3.23.32
 @item
@@ -40840,6 +40939,13 @@ Fixed several timing bugs in the test suite
 @item
 Extended @code{mysqltest} to take care of the timing issues in the test
 suite.
+@item
+@code{ALTER TABLE} can now be used to change the definition for a
+@code{MERGE} table.
+@item
+Fixed creation of @code{MERGE} tables on Windows.
+@item
+Portability fixes for OpenBSD and OS2.
 @end itemize
 
 
@@ -45513,10 +45619,6 @@ cache.
 The following problems are known and will be fixed in due time:
 
 @itemize @bullet
-@item
-@code{ALTER TABLE} can't be used to change the @code{UNION} of a @code{MERGE}
-table.  For the moment, you should drop the MERGE table and create it again
-if you need to change the @code{UNION}.
 @item
 @code{mysqldump} on a @code{MERGE} table doesn't include the current
 mapped tables.

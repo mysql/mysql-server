@@ -93,6 +93,7 @@ struct st_table {
   my_bool locked_by_flush;
   my_bool locked_by_name;
   my_bool crashed;
+  my_bool is_view;
   Field *next_number_field,		/* Set if next_number is activated */
 	*found_next_number_field,	/* Set on open */
         *rowid_field;

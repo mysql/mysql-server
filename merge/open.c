@@ -62,7 +62,7 @@ int handle_locking;
   {
     if ((end=buff+length)[-1] == '\n')
       end[-1]='\0';
-    if (buff[0])		/* Skipp empty lines */
+    if (buff[0] && buff[0] != '#')	/* Skipp empty lines and comments */
     {
       last_isam=isam;
       if (!test_if_hard_path(buff))

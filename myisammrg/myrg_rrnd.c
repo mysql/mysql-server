@@ -36,7 +36,7 @@ int myrg_rrnd(MYRG_INFO *info,byte *buf,ulonglong filepos)
   int error;
   MI_INFO *isam_info;
   DBUG_ENTER("myrg_rrnd");
-  DBUG_PRINT("info",("offset: 0x%016qx", (ulonglong)filepos));
+  DBUG_PRINT("info",("offset: %lu", (ulong) filepos));
 
   if (filepos == HA_OFFSET_ERROR)
   {
@@ -109,7 +109,7 @@ static MYRG_TABLE *find_table(MYRG_TABLE *start, MYRG_TABLE *end,
     else
       start=mid;
   }
-  DBUG_PRINT("info",("offset: 0x%016qx, table: %s",
-                    (ulonglong)pos, start->table->filename));
+  DBUG_PRINT("info",("offset: %lu, table: %s",
+		     (ulong) pos, start->table->filename));
   DBUG_RETURN(start);
 }
