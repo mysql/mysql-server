@@ -35283,6 +35283,12 @@ your job again, rather than wait for millions of disk i/os to complete.
 InnoDB version 3.23.44 features foreign key constraints. InnoDB is the
 first MySQL table type which allows you to define foreign key
 constraints to guard the integrity of your data.
+
+The syntax of a foreign key constraint definition in InnoDB:
+@example
+FOREIGN KEY (index_col_name, ...) REFERENCES table_name (index_col_name, ...)
+@end example
+
 An example:
 
 @example
@@ -35303,6 +35309,8 @@ The size and the signedness of integer types has to be same.
 
 When doing foreign key checks InnoDB sets shared row
 level locks on child or parent records it has to look at.
+InnoDB checks foreign key constraints immediately: the check
+is not deferred to transaction commit.
 
 InnoDB allows you to drop any table even though that
 would break the foreign key constraints which reference
