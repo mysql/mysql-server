@@ -429,8 +429,9 @@ os_file_create_tmpfile(void)
 
 	if (!file) {
 		ut_print_timestamp(stderr);
-		fputs("  InnoDB: Error: unable to create temporary file\n",
-			stderr);
+		fprintf(stderr,
+			"  InnoDB: Error: unable to create temporary file;"
+			" errno: %d\n", errno);
 		if (fd >= 0) {
 			close(fd);
 		}
