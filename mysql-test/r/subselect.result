@@ -1990,3 +1990,4 @@ ac
 700
 NULL
 drop tables t1,t2;
+set @got_val= (SELECT 1 FROM (SELECT 'A' as my_col) as T1 ) ;
