@@ -88,6 +88,9 @@ dulint	srv_archive_recovery_limit_lsn;
 
 ulint	srv_lock_wait_timeout	= 1024 * 1024 * 1024;
 
+char*   srv_unix_file_flush_method_str = NULL;
+ulint   srv_unix_file_flush_method = 0;
+
 ibool   srv_set_thread_priorities = TRUE;
 int     srv_query_thread_priority = 0;
 /*-------------------------------------------*/

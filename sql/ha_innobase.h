@@ -161,6 +161,7 @@ extern long innobase_buffer_pool_size, innobase_additional_mem_pool_size;
 extern long innobase_file_io_threads, innobase_lock_wait_timeout;
 extern char *innobase_data_home_dir, *innobase_data_file_path;
 extern char *innobase_log_group_home_dir, *innobase_log_arch_dir;
+extern char *innobase_unix_file_flush_method;
 extern bool innobase_flush_log_at_trx_commit, innobase_log_archive,
 		innobase_use_native_aio;
 
