@@ -17,6 +17,17 @@
 
 ## Process this file with automake to create Makefile.in
 
+if HAVE_NDBCLUSTER_DB
+SUBDIRS = ndb
+DIST_SUBDIRS=ndb
+else
+# If one uses automake conditionals, automake will automatically
+# include all possible branches to DIST_SUBDIRS goal.
+# Reset DIST_SUBDIRS if we don't use NDB
+SUBDIRS=
+DIST_SUBDIRS=
+endif
+
 benchdir_root=		$(prefix)
 testdir =	        $(benchdir_root)/mysql-test
 EXTRA_SCRIPTS = 	mysql-test-run.sh install_test_db.sh
@@ -72,8 +83,10 @@ SUFFIXES = .sh
 	  -e 's!@''libexecdir''@!$(libexecdir)!g' \
 	  -e 's!@''PERL''@!@PERL@!' \
 	  -e 's!@''VERSION''@!@VERSION@!' \
+	  -e 's!@''MYSQL_TCP_PORT''@!@MYSQL_TCP_PORT@!' \
 	  -e 's!@''MYSQL_BASE_VERSION''@!@MYSQL_BASE_VERSION@!' \
 	  -e 's!@''MYSQL_UNIX_ADDR''@!@MYSQL_UNIX_ADDR@!' \
+	  -e 's!@''MYSQL_TCP_PORT''@!@MYSQL_TCP_PORT@!' \
 	  -e 's!@''MYSQL_NO_DASH_VERSION''@!@MYSQL_NO_DASH_VERSION@!' \
 	  -e 's!@''MYSQL_SERVER_SUFFIX''@!@MYSQL_SERVER_SUFFIX@!' \
 	  $< > $@-t

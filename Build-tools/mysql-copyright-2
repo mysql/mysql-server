@@ -89,6 +89,7 @@ sub add_copyright
   elsif ($ARGV =~ /\.c$/ ||
 	 $ARGV =~ /\.cc$/ ||
 	 $ARGV =~ /\.h$/ ||
+	 $ARGV =~ /\.cpp$/ ||
 	 $ARGV =~ /\.yy$/)
   {
     $start_copyright="/* ";

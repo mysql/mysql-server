@@ -39,6 +39,7 @@ print_help(){
   ndbout << "11 - Sending of CONTINUEB fragmented signals w/ linear sections" 
 	 << endl;
   ndbout << "12 - As but using receiver group" << endl;
+  ndbout << "13 - Send 100 * 1000 25 len signals wo/ sections" << endl;
   ndbout << "r - Recive signal from anyone" << endl;
   ndbout << "a - Run tests 1 - 12 with variable sizes - 10 loops" << endl;
   ndbout << "b - Run tests 1 - 12 with variable sizes - 100 loops" << endl;
@@ -103,7 +104,7 @@ main(void){
   data[5] = 70;
   data[6] = 123;
   data[7] = 10;
-  const Uint32 theDataLen = 8;
+  const Uint32 theDataLen = 18;
 
   for(Uint32 i = 0; i<70; i++)
     sec0[i] = i;
@@ -198,6 +199,38 @@ main(void){
 	delete ret1;
 	count--;
       }
+    } else if (data[1] == 13) {
+      const Uint32 count = 3500;
+      const Uint32 loop = 1000;
+
+      signal1.set(ss, 0, CMVMI, GSN_TESTSIG, 25);
+      signal1.header.m_fragmentInfo = 0;
+      signal1.header.m_noOfSections = 0;
+      signal1.theData[1] = 14; 
+      signal1.theData[3] = 0;   // Print
+      signal1.theData[8] = count;
+      signal1.theData[9] = loop;
+      Uint32 nodeId = ss.getAliveNode();
+      ndbout_c("Sending 25 len signal to node %d", nodeId);
+      ss.sendSignal(nodeId, &signal1);
+
+      Uint32 total;
+      {
+	SimpleSignal * ret1 = ss.waitFor((Uint16)nodeId);
+	ndbout_c("received from node %d", 
+		 refToNode(ret1->header.theSendersBlockRef));
+	total = ret1->theData[10] - 1;
+	delete ret1;
+      }
+
+      do {
+	ndbout << "Waiting for " << total << " signals... " << flush;
+	SimpleSignal * ret1 = ss.waitFor((Uint16)nodeId);
+	ndbout_c("received from node %d", 
+		 refToNode(ret1->header.theSendersBlockRef));
+	delete ret1;
+	total --;
+      } while(total > 0);
     } else {
       print_help();
     }
@@ -218,7 +251,6 @@ runTest(SignalSender & ss, Uint32 count, bool verbose){
     sec2[i] = i * i;
   }
 
-  sig.set(ss, 0, CMVMI, GSN_TESTSIG, 8);
   sig.theData[0] = ss.getOwnRef();
   sig.theData[1] = 1;   // TestType
   sig.theData[2] = 128; // FragSize
@@ -236,6 +268,8 @@ runTest(SignalSender & ss, Uint32 count, bool verbose){
     sig.ptr[1].sz = randRange(1, 256);
     sig.ptr[2].sz = randRange(1, 256);
     sig.header.m_noOfSections = secs;
+    const Uint32 len = 5 + (secs > 0 ? 1 : 0) * (25 - 5 - 7);
+    sig.set(ss, 0, CMVMI, GSN_TESTSIG, len);
     ndbout << "Loop " << loop << " #secs = " << secs << " sizes = [ ";
     unsigned min = 256;
     unsigned max = 0;
@@ -248,7 +282,7 @@ runTest(SignalSender & ss, Uint32 count, bool verbose){
       sum += sz;
       sig.theData[5+i] = sz;
     }
-    ndbout_c("]");
+    ndbout_c("] len = %d", len);
     for(int test = 1; test <= 12; test++){
       sig.theData[1] = test;
       Uint32 nodeId = ss.getAliveNode();

@@ -98,7 +98,8 @@ public:
 	     COPY_STR_ITEM, FIELD_AVG_ITEM, DEFAULT_VALUE_ITEM,
 	     PROC_ITEM,COND_ITEM, REF_ITEM, FIELD_STD_ITEM,
 	     FIELD_VARIANCE_ITEM, INSERT_VALUE_ITEM,
-             SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM, TYPE_HOLDER};
+             SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM, TYPE_HOLDER,
+             PARAM_ITEM};
 
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
   
@@ -161,6 +162,31 @@ public:
   /* valXXX methods must return NULL or 0 or 0.0 if null_value is set. */
   virtual double val()=0;
   virtual longlong val_int()=0;
+  /*
+    Return string representation of this item object.
+
+    The argument to val_str() is an allocated buffer this or any
+    nested Item object can use to store return value of this method.
+    This buffer should only be used if the item itself doesn't have an
+    own String buffer. In case when the item maintains it's own string
+    buffer, it's preferrable to return it instead to minimize number of
+    mallocs/memcpys.
+    The caller of this method can modify returned string, but only in
+    case when it was allocated on heap, (is_alloced() is true).  This
+    allows the caller to efficiently use a buffer allocated by a child
+    without having to allocate a buffer of it's own. The buffer, given
+    to val_str() as agrument, belongs to the caller and is later used
+    by the caller at it's own choosing.
+    A few implications from the above:
+    - unless you return a string object which only points to your buffer
+      but doesn't manages it you should be ready that it will be
+      modified.
+    - even for not allocated strings (is_alloced() == false) the caller
+      can change charset (see Item_func_{typecast/binary}. XXX: is this
+      a bug?
+    - still you should try to minimize data copying and return internal
+      object whenever possible.
+  */
   virtual String *val_str(String*)=0;
   virtual Field *get_tmp_table_field() { return 0; }
   virtual Field *tmp_table_field(TABLE *t_arg) { return 0; }
@@ -221,7 +247,7 @@ public:
   virtual Item *real_item() { return this; }
   virtual Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
 
-  CHARSET_INFO *default_charset() const;
+  static CHARSET_INFO *default_charset();
   virtual CHARSET_INFO *compare_collation() { return NULL; }
 
   virtual bool walk(Item_processor processor, byte *arg)
@@ -409,17 +435,11 @@ class Item_field :public Item_ident
   void set_field(Field *field);
 public:
   Field *field,*result_field;
-#ifndef DBUG_OFF
-  bool double_fix;
-#endif
 
   Item_field(const char *db_par,const char *table_name_par,
 	     const char *field_name_par)
     :Item_ident(db_par,table_name_par,field_name_par),
      field(0), result_field(0)
-#ifndef DBUG_OFF
-    ,double_fix(0)
-#endif
   { collation.set(DERIVATION_IMPLICIT); }
   // Constructor need to process subselect with temporary tables (see Item)
   Item_field(THD *thd, Item_field *item);
@@ -459,6 +479,7 @@ public:
   bool is_null() { return field->is_null(); }
   Item *get_tmp_table_item(THD *thd);
   void cleanup();
+  inline uint32 max_disp_length() { return field->max_length(); }
   friend class Item_default_value;
   friend class Item_insert_value;
   friend class st_select_lex_unit;
@@ -492,19 +513,33 @@ public:
   void print(String *str) { str->append("NULL", 4); }
 };
 
+
+/* Item represents one placeholder ('?') of prepared statement */
+
 class Item_param :public Item
 {
-public:    
+public:
   enum enum_item_param_state
   {
     NO_VALUE, NULL_VALUE, INT_VALUE, REAL_VALUE,
     STRING_VALUE, TIME_VALUE, LONG_DATA_VALUE
   } state;
 
+  /*
+    A buffer for string and long data values. Historically all allocated
+    values returned from val_str() were treated as eligible to
+    modification. I. e. in some cases Item_func_concat can append it's
+    second argument to return value of the first one. Because of that we
+    can't return the original buffer holding string data from val_str(),
+    and have to have one buffer for data and another just pointing to
+    the data. This is the latter one and it's returned from val_str().
+    Can not be declared inside the union as it's not a POD type.
+  */
+  String str_value_ptr;
   union
   {
-    longlong integer;                           
-    double   real;                              
+    longlong integer;
+    double   real;
     /*
       Character sets conversion info for string values.
       Character sets of client and connection defined at bind time are used
@@ -517,7 +552,7 @@ public:
       /*
         This points at character set of connection if conversion
         to it is required (i. e. if placeholder typecode is not BLOB).
-        Otherwise it's equal to character_set_client (to simplify 
+        Otherwise it's equal to character_set_client (to simplify
         check in convert_str_value()).
       */
       CHARSET_INFO *final_character_set_of_str_value;
@@ -528,22 +563,33 @@ public:
   /* Cached values for virtual methods to save us one switch.  */
   enum Item_result item_result_type;
   enum Type item_type;
-  /*         
+
+  /*
+    Used when this item is used in a temporary table.
+    This is NOT placeholder metadata sent to client, as this value
+    is assigned after sending metadata (in setup_one_conversion_function).
+    For example in case of 'SELECT ?' you'll get MYSQL_TYPE_STRING both
+    in result set and placeholders metadata, no matter what type you will
+    supply for this placeholder in mysql_stmt_execute.
+  */
+  enum enum_field_types param_type;
+  /*
     Offset of placeholder inside statement text. Used to create
     no-placeholders version of this statement for the binary log.
-  */         
+  */
   uint pos_in_query;
 
   Item_param(uint pos_in_query_arg);
 
   enum Item_result result_type () const { return item_result_type; }
   enum Type type() const { return item_type; }
-  enum_field_types field_type() const { return MYSQL_TYPE_STRING; }
+  enum_field_types field_type() const { return param_type; }
 
   double val();
   longlong val_int();
   String *val_str(String*);
   bool get_time(TIME *tm);
+  bool get_date(TIME *tm, uint fuzzydate);
   int  save_in_field(Field *field, bool no_conversions);
 
   void set_null();
@@ -552,6 +598,7 @@ public:
   bool set_str(const char *str, ulong length);
   bool set_longdata(const char *str, ulong length);
   void set_time(TIME *tm, timestamp_type type, uint32 max_length_arg);
+  bool set_from_user_var(THD *thd, const user_var_entry *entry);
   void reset();
   /*
     Assign placeholder value from bind data.
@@ -564,16 +611,18 @@ public:
   const String *query_val_str(String *str) const;
 
   bool convert_str_value(THD *thd);
-  
+
   Item *new_item() { return new Item_param(pos_in_query); }
-  /* 
-    If value for parameter was not set we treat it as non-const 
-    so noone will use parameters value in fix_fields still 
+  /*
+    If value for parameter was not set we treat it as non-const
+    so noone will use parameters value in fix_fields still
     parameter is constant during execution.
   */
   virtual table_map used_tables() const
   { return state != NO_VALUE ? (table_map)0 : PARAM_TABLE_BIT; }
   void print(String *str) { str->append('?'); }
+  /* parameter never equal to other parameter of other item */
+  bool eq(const Item *item, bool binary_cmp) const { return 0; }
 };
 
 class Item_int :public Item_num
@@ -871,7 +920,10 @@ public:
   void save_org_in_field(Field *field)	{ (*ref)->save_org_in_field(field); }
   enum Item_result result_type () const { return (*ref)->result_type(); }
   enum_field_types field_type() const   { return (*ref)->field_type(); }
-  table_map used_tables() const		{ return (*ref)->used_tables(); }
+  table_map used_tables() const		
+  { 
+    return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->used_tables(); 
+  }
   void set_result_field(Field *field)	{ result_field= field; }
   bool is_result_field() { return 1; }
   void save_in_result_field(bool no_conversions)
@@ -1250,6 +1302,7 @@ public:
   String *val_str(String*);
   bool join_types(THD *thd, Item *);
   Field *example() { return field_example; }
+  static uint32 real_length(Item *item);
   void cleanup()
   {
     DBUG_ENTER("Item_type_holder::cleanup");

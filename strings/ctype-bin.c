@@ -91,10 +91,20 @@ static uchar bin_char_array[] =
 
 static int my_strnncoll_binary(CHARSET_INFO * cs __attribute__((unused)),
 				const uchar *s, uint slen,
-				const uchar *t, uint tlen)
+				const uchar *t, uint tlen,
+                                my_bool t_is_prefix)
 {
-  int cmp= memcmp(s,t,min(slen,tlen));
-  return cmp ? cmp : (int) (slen - tlen);
+  uint len=min(slen,tlen);
+  int cmp= memcmp(s,t,len);
+  return cmp ? cmp : (int)((t_is_prefix ? len : slen) - tlen);
+}
+
+
+static int my_strnncollsp_binary(CHARSET_INFO * cs __attribute__((unused)),
+                                const uchar *s, uint slen,
+                                const uchar *t, uint tlen)
+{
+  return my_strnncoll_binary(cs,s,slen,t,tlen,0);
 }
 
 
@@ -333,8 +343,9 @@ skip:
 
 MY_COLLATION_HANDLER my_collation_8bit_bin_handler =
 {
+    NULL,			/* init */
     my_strnncoll_binary,
-    my_strnncoll_binary,
+    my_strnncollsp_binary,
     my_strnxfrm_bin,
     my_like_range_simple,
     my_wildcmp_bin,
@@ -346,6 +357,7 @@ MY_COLLATION_HANDLER my_collation_8bit_bin_handler =
 
 static MY_CHARSET_HANDLER my_charset_handler=
 {
+    NULL,			/* init */
     NULL,			/* ismbchar      */
     my_mbcharlen_8bit,		/* mbcharlen     */
     my_numchars_8bit,
@@ -378,15 +390,17 @@ CHARSET_INFO my_charset_bin =
     "binary",			/* cs name    */
     "binary",			/* name          */
     "",				/* comment       */
+    NULL,			/* tailoring     */
     ctype_bin,			/* ctype         */
     bin_char_array,		/* to_lower      */
     bin_char_array,		/* to_upper      */
     bin_char_array,		/* sort_order    */
+    NULL,			/* contractions */
+    NULL,			/* sort_order_big*/
     NULL,			/* tab_to_uni    */
     NULL,			/* tab_from_uni  */
-    NULL,			/* sort_order_big*/
-    "",
-    "",
+    NULL,			/* state_map    */
+    NULL,			/* ident_map    */
     1,				/* strxfrm_multiply */
     1,				/* mbminlen      */
     1,				/* mbmaxlen      */

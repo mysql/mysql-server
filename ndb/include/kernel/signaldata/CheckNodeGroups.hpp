@@ -37,13 +37,11 @@ public:
     Uint32 requestType;           // direct flag, output code
     Uint32 output;
   };
-  union {
-    Uint32 nodeId;             // nodeId input for GetNodeGroupMembers
-    NodeBitmask mask;             /* set of NDB nodes, input for ArbitCheck,
-				   * output for GetNodeGroupMembers
-				   */
-  };
 
+  Uint32 nodeId;             // nodeId input for GetNodeGroupMembers
+  NodeBitmask mask;             /* set of NDB nodes, input for ArbitCheck,
+        			   * output for GetNodeGroupMembers
+				   */
   enum RequestType {
     Direct              = 0x1,
     ArbitCheck          = 0x2,
@@ -57,7 +55,7 @@ public:
     Partitioning = 3            // possible network partitioning
   };
 
-  STATIC_CONST( SignalLength = 2 + NodeBitmask::Size );
+  STATIC_CONST( SignalLength = 3 + NodeBitmask::Size );
 };
 
 #endif

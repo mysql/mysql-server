@@ -84,6 +84,7 @@ enum enum_sql_command {
   SQLCOM_SHOW_CREATE_PROC, SQLCOM_SHOW_CREATE_FUNC,
   SQLCOM_SHOW_STATUS_PROC, SQLCOM_SHOW_STATUS_FUNC,
 
+  SQLCOM_PREPARE, SQLCOM_EXECUTE, SQLCOM_DEALLOCATE_PREPARE,
   /* This should be the last !!! */
   SQLCOM_END
 };
@@ -186,8 +187,8 @@ enum tablespace_op_type
     e||+-------------------------+             ||
      V|            neighbor      |             V|
      unit1.1<+==================>unit1.2       unit2.1
-     fake1.1                                   fake2.1
-     select1.1.1 select 1.1.2    select1.2.1   select2.1.1 select2.1.2
+     fake1.1
+     select1.1.1 select 1.1.2    select1.2.1   select2.1.1
                                                |^
                                                ||
                                                V|
@@ -453,6 +454,11 @@ public:
   bool having_fix_field;
   /* explicit LIMIT clause was used */
   bool explicit_limit;
+  /*
+    there are subquery in HAVING clause => we can't close tables before
+    query processing end even if we use temporary table
+  */
+  bool subquery_in_having;
   bool first_execution; /* first execution in SP or PS */
   bool first_cond_optimization;
 
@@ -648,11 +654,22 @@ typedef struct st_lex
   uint fk_delete_opt, fk_update_opt, fk_match_option;
   uint slave_thd_opt;
   uint8 describe;
-  bool drop_if_exists, drop_temporary, local_file;
+  bool drop_if_exists, drop_temporary, local_file, one_shot_set;
   bool in_comment, ignore_space, verbose, no_write_to_binlog;
   bool derived_tables;
   bool safe_to_cache_query;
   ALTER_INFO alter_info;
+  /* Prepared statements SQL syntax:*/
+  LEX_STRING prepared_stmt_name; /* Statement name (in all queries) */
+  /* 
+    Prepared statement query text or name of variable that holds the
+    prepared statement (in PREPARE ... queries)
+  */
+  LEX_STRING prepared_stmt_code; 
+  /* If true, prepared_stmt_code is a name of variable that holds the query */
+  bool prepared_stmt_code_is_varref;
+  /* Names of user variables holding parameters (in EXECUTE) */
+  List<LEX_STRING> prepared_stmt_params; 
   sp_head *sphead;
   sp_name *spname;
   bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */

@@ -53,10 +53,11 @@ static double _nwghts[11]=
  -3.796875000000000};
 static double *nwghts=_nwghts+5; /* nwghts[i] = -0.5*1.5**i */
 
-#define FTB_FLAG_TRUNC 1                  /* MUST be 1                  */
-#define FTB_FLAG_YES   2                  /*  no two from these three   */
-#define FTB_FLAG_NO    4                  /*   YES, NO, WONLY           */
-#define FTB_FLAG_WONLY 8                  /*  should be ever set both   */
+#define FTB_FLAG_TRUNC 1
+/* At most one of the following flags can be set */
+#define FTB_FLAG_YES   2
+#define FTB_FLAG_NO    4
+#define FTB_FLAG_WONLY 8
 
 typedef struct st_ftb_expr FTB_EXPR;
 struct st_ftb_expr
@@ -157,6 +158,7 @@ static void _ftb_parse_query(FTB *ftb, byte **start, byte *end,
                                      w.len+extra));
         ftbw->len=w.len+1;
         ftbw->flags=0;
+        ftbw->off=0;
         if (param.yesno>0) ftbw->flags|=FTB_FLAG_YES;
         if (param.yesno<0) ftbw->flags|=FTB_FLAG_NO;
         if (param.trunc)   ftbw->flags|=FTB_FLAG_TRUNC;
@@ -203,23 +205,26 @@ static int _ftb_no_dupes_cmp(void* not_used __attribute__((unused)),
 static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
 {
   int r;
-  uint off;
   int subkeys=1;
   my_bool can_go_down;
   MI_INFO *info=ftb->info;
+  uint off, extra=HA_FT_WLEN+info->s->base.rec_reflength;
+  byte *lastkey_buf=ftbw->word+ftbw->off;
+
+  if (ftbw->flags & FTB_FLAG_TRUNC)
+    lastkey_buf+=ftbw->len;
 
   if (init_search)
   {
     ftbw->key_root=info->s->state.key_root[ftb->keynr];
     ftbw->keyinfo=info->s->keyinfo+ftb->keynr;
-    ftbw->off=0;
 
     r=_mi_search(info, ftbw->keyinfo, (uchar*) ftbw->word, ftbw->len,
                  SEARCH_FIND | SEARCH_BIGGER, ftbw->key_root);
   }
   else
   {
-    r=_mi_search(info, ftbw->keyinfo, (uchar*) ftbw->word+ftbw->off,
+    r=_mi_search(info, ftbw->keyinfo, (uchar*) lastkey_buf,
                    USE_WHOLE_KEY, SEARCH_BIGGER, ftbw->key_root);
   }
 
@@ -230,7 +235,7 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
     if (can_go_down)
     {
       /* going down ? */
-      off=info->lastkey_length-HA_FT_WLEN-info->s->base.rec_reflength;
+      off=info->lastkey_length-extra;
       subkeys=ft_sintXkorr(info->lastkey+off);
     }
     if (subkeys<0 || info->lastpos < info->state->data_file_length)
@@ -243,11 +248,11 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
   if (!r && !ftbw->off)
   {
     r= mi_compare_text(ftb->charset,
-                       info->lastkey + (ftbw->flags & FTB_FLAG_TRUNC),
-                       ftbw->len     - (ftbw->flags & FTB_FLAG_TRUNC),
-              (uchar*) ftbw->word    + (ftbw->flags & FTB_FLAG_TRUNC),
-                       ftbw->len     - (ftbw->flags & FTB_FLAG_TRUNC),
-                       0,0);
+                       info->lastkey+1,
+                       info->lastkey_length-extra-1,
+              (uchar*) ftbw->word+1,
+                       ftbw->len-1,
+             (my_bool) (ftbw->flags & FTB_FLAG_TRUNC),0);
   }
 
   if (r) /* not found */
@@ -269,8 +274,7 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
     }
 
     /* going up to the first-level tree to continue search there */
-    _mi_dpointer(info, (uchar*) (ftbw->word+ftbw->off+HA_FT_WLEN),
-                 ftbw->key_root);
+    _mi_dpointer(info, (uchar*) (lastkey_buf+HA_FT_WLEN), ftbw->key_root);
     ftbw->key_root=info->s->state.key_root[ftb->keynr];
     ftbw->keyinfo=info->s->keyinfo+ftb->keynr;
     ftbw->off=0;
@@ -278,7 +282,10 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
   }
 
   /* matching key found */
-  memcpy(ftbw->word+ftbw->off, info->lastkey, info->lastkey_length);
+  memcpy(lastkey_buf, info->lastkey, info->lastkey_length);
+  if (lastkey_buf == ftbw->word)
+    ftbw->len=info->lastkey_length-extra;
+
   /* going down ? */
   if (subkeys<0)
   {
@@ -291,7 +298,7 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
     ftbw->keyinfo=& info->s->ft2_keyinfo;
     r=_mi_search_first(info, ftbw->keyinfo, ftbw->key_root);
     DBUG_ASSERT(r==0);  /* found something */
-    memcpy(ftbw->word+off, info->lastkey, info->lastkey_length);
+    memcpy(lastkey_buf+off, info->lastkey, info->lastkey_length);
   }
   ftbw->docid[0]=info->lastpos;
   return 0;
@@ -356,7 +363,7 @@ static void _ftb_init_index_search(FT_INFO *ftb)
       else
         reset_tree(& ftb->no_dupes);
     }
-
+     
     if (_ft2_search(ftb, ftbw, 1))
       return;
   }
@@ -421,7 +428,7 @@ err:
 }
 
 
-/* returns 1 if str0 ~= /\<str1\>/ */
+/* returns 1 if str0 ~= /\bstr1\b/ */
 static int _ftb_strstr(const byte *s0, const byte *e0,
                 const byte *s1, const byte *e1,
                 CHARSET_INFO *cs)

@@ -102,7 +102,7 @@ then
 fi
 
 cmd="$bindir/mysql -f --user=$user --host=$host"
-if test -z "$password" ; then
+if test ! -z "$password" ; then
   cmd="$cmd --password=$password"
 fi
 if test ! -z "$port"; then
@@ -118,13 +118,14 @@ then
   cmd="cat"
 fi
 
-# Find where mysql_fix_privilege_tables.sql is located
+# Find where first mysql_fix_privilege_tables.sql is located
 for i in $basedir/support-files $basedir/share $basedir/share/mysql \
         $basedir/scripts @pkgdatadir@ . ./scripts
 do
   if test -f $i/$file
   then
     pkgdatadir=$i
+    break
   fi
 done
 
@@ -154,7 +155,7 @@ s_echo ""
 if test $verbose = 1
 then
   s_echo "You can safely ignore all 'Duplicate column' and 'Unknown column' errors"
-  s_echo "as this just means that your tables where already up to date."
+  s_echo "because these just mean that your tables are already up to date."
   s_echo "This script is safe to run even if your tables are already up to date!"
   s_echo ""
 fi

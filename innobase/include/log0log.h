@@ -18,9 +18,7 @@ typedef struct log_struct	log_t;
 typedef struct log_group_struct	log_group_t;
 
 extern	ibool	log_do_write;
-#ifdef UNIV_LOG_DEBUG
 extern 	ibool	log_debug_writes;
-#endif /* UNIV_LOG_DEBUG */
 
 /* Wait modes for log_write_up_to */
 #define LOG_NO_WAIT		91
@@ -114,20 +112,6 @@ dulint
 log_get_lsn(void);
 /*=============*/
 			/* out: current lsn */
-/****************************************************************************
-Gets the online backup lsn. */
-UNIV_INLINE
-dulint
-log_get_online_backup_lsn_low(void);
-/*===============================*/
-/****************************************************************************
-Gets the online backup state. */
-UNIV_INLINE
-ibool
-log_get_online_backup_state_low(void);
-/*=================================*/
-				/* out: online backup state, the caller must
-				own the log_sys mutex */
 /**********************************************************
 Initializes the log. */
 
@@ -326,20 +310,6 @@ log_archived_file_name_gen(
 	char*	buf,	/* in: buffer where to write */
 	ulint	id,	/* in: group id */
 	ulint	file_no);/* in: file number */
-/**********************************************************
-Switches the database to the online backup state. */
-
-ulint
-log_switch_backup_state_on(void);
-/*============================*/
-			/* out: DB_SUCCESS or DB_ERROR */
-/**********************************************************
-Switches the online backup state off. */
-
-ulint
-log_switch_backup_state_off(void);
-/*=============================*/
-			/* out: DB_SUCCESS or DB_ERROR */
 /************************************************************************
 Checks that there is enough free space in the log to start a new query step.
 Flushes the log buffer or makes a new checkpoint if necessary. NOTE: this
@@ -719,13 +689,11 @@ struct log_struct{
 	ulint		max_buf_free;	/* recommended maximum value of
 					buf_free, after which the buffer is
 					flushed */
-#ifdef UNIV_LOG_DEBUG
 	ulint		old_buf_free;	/* value of buf free when log was
 					last time opened; only in the debug
 					version */
 	dulint		old_lsn;	/* value of lsn when log was last time
 					opened; only in the debug version */
-#endif /* UNIV_LOG_DEBUG */
 	ibool		check_flush_or_checkpoint;
 					/* this is set to TRUE when there may
 					be need to flush the log buffer, or
@@ -878,13 +846,6 @@ struct log_struct{
 	os_event_t	archiving_on;	/* if archiving has been stopped,
 					a thread can wait for this event to
 					become signaled */
-	/* Fields involved in online backups */
-	ibool		online_backup_state;
-					/* TRUE if the database is in the
-					online backup state */
-	dulint		online_backup_lsn;
-					/* lsn when the state was changed to
-					the online backup state */
 };
 
 #define LOG_ARCH_ON		71

@@ -950,17 +950,10 @@ String *Item_func_left::val_str(String *str)
     return 0;
   if (length <= 0)
     return &my_empty_string;
-  length= res->charpos(length);
-  if (res->length() > (ulong) length)
-  {						// Safe even if const arg
-    if (!res->alloced_length())
-    {						// Don't change const str
-      str_value= *res;				// Not malloced string
-      res= &str_value;
-    }
-    res->length((uint) length);
-  }
-  return res;
+  if (res->length() <= (uint) length)
+    return res;
+  str_value.set(*res, 0, res->charpos(length));
+  return &str_value;
 }
 
 
@@ -1461,6 +1454,7 @@ void Item_func_encode::fix_length_and_dec()
 {
   max_length=args[0]->max_length;
   maybe_null=args[0]->maybe_null;
+  collation.set(&my_charset_bin);
 }
 
 String *Item_func_encode::val_str(String *str)
@@ -1476,6 +1470,7 @@ String *Item_func_encode::val_str(String *str)
   res=copy_if_not_alloced(str,res,res->length());
   sql_crypt.init();
   sql_crypt.encode((char*) res->ptr(),res->length());
+  res->set_charset(&my_charset_bin);
   return res;
 }
 
@@ -2097,10 +2092,8 @@ String *Item_func_lpad::val_str(String *str)
     count-= pad_char_length;
   }
   if (count > 0)
-  {
-    pad->length(pad->charpos(count));
-    str->append(*pad);
-  }
+    str->append(pad->ptr(), pad->charpos(count), collation.collation);
+
   str->append(*res);
   null_value= 0;
   return str;
@@ -2285,8 +2278,8 @@ String *Item_func_hex::val_str(String *str)
        from++, to+=2)
   {
     uint tmp=(uint) (uchar) *from;
-    to[0]=_dig_vec[tmp >> 4];
-    to[1]=_dig_vec[tmp & 15];
+    to[0]=_dig_vec_upper[tmp >> 4];
+    to[1]=_dig_vec_upper[tmp & 15];
   }
   return &tmp_value;
 }
@@ -2746,9 +2739,6 @@ static uint nanoseq;
 static ulonglong uuid_time=0;
 static char clock_seq_and_node_str[]="-0000-000000000000";
 
-/* we cannot use _dig_vec[] as letters should be lowercase */
-static const char hex[] = "0123456789abcdef";
-
 /* number of 100-nanosecond intervals between
    1582-10-15 00:00:00.00 and 1970-01-01 00:00:00.00 */
 #define UUID_TIME_OFFSET ((ulonglong) 141427 * 24 * 60 * 60 * 1000 * 10 )
@@ -2761,7 +2751,7 @@ static void tohex(char *to, uint from, uint len)
   to+= len;
   while (len--)
   {
-    *--to= hex[from & 15];
+    *--to= _dig_vec_lower[from & 15];
     from >>= 4;
   }
 }
@@ -2798,8 +2788,8 @@ String *Item_func_uuid::val_str(String *str)
     s=clock_seq_and_node_str+sizeof(clock_seq_and_node_str)-1;
     for (i=sizeof(mac)-1 ; i>=0 ; i--)
     {
-      *--s=hex[mac[i] & 15];
-      *--s=hex[mac[i] >> 4];
+      *--s=_dig_vec_lower[mac[i] & 15];
+      *--s=_dig_vec_lower[mac[i] >> 4];
     }
     randominit(&uuid_rand, tmp + (ulong)start_time, tmp + bytes_sent);
     set_clock_seq_str();

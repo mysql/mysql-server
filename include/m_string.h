@@ -95,7 +95,9 @@ extern char *stpcpy(char *, const char *);	/* For AIX with gcc 2.95.3 */
 #endif
 #endif
 
-extern char NEAR _dig_vec[];		/* Declared in int2str() */
+/* Declared in int2str() */
+extern char NEAR _dig_vec_upper[];
+extern char NEAR _dig_vec_lower[];
 
 #ifdef BAD_STRING_COMPILER
 #define strmov(A,B)  (memccpy(A,B,0,INT_MAX)-1)
@@ -113,8 +115,6 @@ extern char NEAR _dig_vec[];		/* Declared in int2str() */
 #ifdef MSDOS
 #undef bmove_align
 #define bmove512(A,B,C) bmove_align(A,B,C)
-#define my_itoa(A,B,C) itoa(A,B,C)
-#define my_ltoa(A,B,C) ltoa(A,B,C)
 extern	void bmove_align(gptr dst,const gptr src,uint len);
 #endif
 
@@ -123,7 +123,6 @@ extern	void bmove_align(gptr dst,const gptr src,uint len);
 #endif
 
 #ifdef HAVE_purify
-#include <assert.h>
 #define memcpy_overlap(A,B,C) \
 DBUG_ASSERT((A) <= (B) || ((B)+(C)) <= (A)); \
 bmove((byte*) (A),(byte*) (B),(size_t) (C));
@@ -219,24 +218,19 @@ extern int is_prefix(const char *, const char *);
 double my_strtod(const char *str, char **end);
 double my_atof(const char *nptr);
 
-#ifdef USE_MY_ITOA
-extern char *my_itoa(int val,char *dst,int radix);
-extern char *my_ltoa(long val,char *dst,int radix);
-#endif
-
 extern char *llstr(longlong value,char *buff);
 #ifndef HAVE_STRTOUL
 extern long strtol(const char *str, char **ptr, int base);
 extern ulong strtoul(const char *str, char **ptr, int base);
 #endif
 
-extern char *int2str(long val,char *dst,int radix);
+extern char *int2str(long val, char *dst, int radix, int upcase);
 extern char *int10_to_str(long val,char *dst,int radix);
 extern char *str2int(const char *src,int radix,long lower,long upper,
 			 long *val);
 longlong my_strtoll10(const char *nptr, char **endptr, int *error);
 #if SIZEOF_LONG == SIZEOF_LONG_LONG
-#define longlong2str(A,B,C) int2str((A),(B),(C))
+#define longlong2str(A,B,C) int2str((A),(B),(C),1)
 #define longlong10_to_str(A,B,C) int10_to_str((A),(B),(C))
 #undef strtoll
 #define strtoll(A,B,C) strtol((A),(B),(C))

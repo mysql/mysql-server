@@ -136,6 +136,7 @@ static my_bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
 	       tty_password= 0, opt_nobeep=0, opt_reconnect=1,
 	       default_charset_used= 0, opt_secure_auth= 0,
                default_pager_set= 0;
+static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
 static my_string opt_mysql_unix_port=0;
 static int connect_flag=CLIENT_INTERACTIVE;
@@ -368,7 +369,7 @@ int main(int argc,char *argv[])
     exit(1);
   }
   if (status.batch && !status.line_buff &&
-      !(status.line_buff=batch_readline_init(max_allowed_packet+512,stdin)))
+      !(status.line_buff=batch_readline_init(opt_max_allowed_packet+512,stdin)))
   {
     free_defaults(defaults_argv);
     my_end(0);
@@ -644,12 +645,12 @@ static struct my_option my_long_options[] =
    0, 1},
   {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET,
    "Max packet length to send to, or receive from server",
-   (gptr*) &max_allowed_packet, (gptr*) &max_allowed_packet, 0, GET_ULONG,
+   (gptr*) &opt_max_allowed_packet, (gptr*) &opt_max_allowed_packet, 0, GET_ULONG,
    REQUIRED_ARG, 16 *1024L*1024L, 4096, (longlong) 2*1024L*1024L*1024L,
    MALLOC_OVERHEAD, 1024, 0},
   {"net_buffer_length", OPT_NET_BUFFER_LENGTH,
    "Buffer for TCP/IP and socket communication",
-   (gptr*) &net_buffer_length, (gptr*) &net_buffer_length, 0, GET_ULONG,
+   (gptr*) &opt_net_buffer_length, (gptr*) &opt_net_buffer_length, 0, GET_ULONG,
    REQUIRED_ARG, 16384, 1024, 512*1024*1024L, MALLOC_OVERHEAD, 1024, 0},
   {"select_limit", OPT_SELECT_LIMIT,
    "Automatic limit for SELECT when using --safe-updates",
@@ -839,6 +840,7 @@ static int get_options(int argc, char **argv)
 {
   char *tmp, *pagpoint;
   int ho_error;
+  MYSQL_PARAMETERS *mysql_params= mysql_get_parameters();
 
   tmp= (char *) getenv("MYSQL_HOST");
   if (tmp)
@@ -854,8 +856,14 @@ static int get_options(int argc, char **argv)
     strmov(pager, pagpoint);
   strmov(default_pager, pager);
 
+  opt_max_allowed_packet= *mysql_params->p_max_allowed_packet;
+  opt_net_buffer_length= *mysql_params->p_net_buffer_length;
+
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
     exit(ho_error);
+
+  *mysql_params->p_max_allowed_packet= opt_max_allowed_packet;
+  *mysql_params->p_net_buffer_length= opt_net_buffer_length;
 
   if (status.batch) /* disable pager and outfile in this case */
   {
@@ -1864,7 +1872,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
     {
       *pos++= ',';
       *pos++= ' ';
-      pos=int2str(warnings, pos, 10);
+      pos=int10_to_str(warnings, pos, 10);
       pos=strmov(pos, " warning");
       if (warnings != 1)
 	*pos++= 's';
@@ -2529,7 +2537,7 @@ static int com_source(String *buffer, char *line)
     return put_info(buff, INFO_ERROR, 0);
   }
 
-  if (!(line_buff=batch_readline_init(max_allowed_packet+512,sql_file)))
+  if (!(line_buff=batch_readline_init(opt_max_allowed_packet+512,sql_file)))
   {
     my_fclose(sql_file,MYF(0));
     return put_info("Can't initialize batch_readline", INFO_ERROR, 0);
@@ -3082,21 +3090,21 @@ static void nice_time(double sec,char *buff,bool part_second)
   {
     tmp=(ulong) floor(sec/(3600.0*24));
     sec-=3600.0*24*tmp;
-    buff=int2str((long) tmp,buff,10);
+    buff=int10_to_str((long) tmp, buff, 10);
     buff=strmov(buff,tmp > 1 ? " days " : " day ");
   }
   if (sec >= 3600.0)
   {
     tmp=(ulong) floor(sec/3600.0);
     sec-=3600.0*tmp;
-    buff=int2str((long) tmp,buff,10);
+    buff=int10_to_str((long) tmp, buff, 10);
     buff=strmov(buff,tmp > 1 ? " hours " : " hour ");
   }
   if (sec >= 60.0)
   {
     tmp=(ulong) floor(sec/60.0);
     sec-=60.0*tmp;
-    buff=int2str((long) tmp,buff,10);
+    buff=int10_to_str((long) tmp, buff, 10);
     buff=strmov(buff," min ");
   }
   if (part_second)

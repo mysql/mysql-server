@@ -201,15 +201,13 @@ because ibuf merge is done to a page when it is read in, and it is
 still physically like the index page even if the index would have been
 dropped! So, there seems to be no problem. */
 
-#ifdef UNIV_DEBUG
 /**********************************************************************
 Validates the ibuf data structures when the caller owns ibuf_mutex. */
-static
+
 ibool
 ibuf_validate_low(void);
 /*===================*/
 			/* out: TRUE if ok */
-#endif /* UNIV_DEBUG */
 
 /**********************************************************************
 Sets the flag in the current OS thread local storage denoting that it is
@@ -530,18 +528,18 @@ ibuf_data_init_for_space(
 	
 	table = dict_mem_table_create(buf, space, 2);
 
-	dict_mem_table_add_col(table,(char *) "PAGE_NO", DATA_BINARY, 0, 0, 0);
-	dict_mem_table_add_col(table,(char *) "TYPES", DATA_BINARY, 0, 0, 0);
+	dict_mem_table_add_col(table, "PAGE_NO", DATA_BINARY, 0, 0, 0);
+	dict_mem_table_add_col(table, "TYPES", DATA_BINARY, 0, 0, 0);
 
 	table->id = ut_dulint_add(DICT_IBUF_ID_MIN, space);
 
 	dict_table_add_to_cache(table);
 
-	index = dict_mem_index_create(buf, (char *) "CLUST_IND", space,
+	index = dict_mem_index_create(buf, "CLUST_IND", space,
 				DICT_CLUSTERED | DICT_UNIVERSAL | DICT_IBUF,2);
 
-	dict_mem_index_add_field(index, (char *) "PAGE_NO", 0, 0);
-	dict_mem_index_add_field(index, (char *) "TYPES", 0, 0);
+	dict_mem_index_add_field(index, "PAGE_NO", 0, 0);
+	dict_mem_index_add_field(index, "TYPES", 0, 0);
 
 	index->page_no = FSP_IBUF_TREE_ROOT_PAGE_NO;
 	
@@ -3278,10 +3276,10 @@ leave_loop:
 	mem_heap_free(heap);
 }
 
-#ifdef UNIV_DEBUG
+
 /**********************************************************************
 Validates the ibuf data structures when the caller owns ibuf_mutex. */
-static
+
 ibool
 ibuf_validate_low(void)
 /*===================*/
@@ -3308,7 +3306,6 @@ ibuf_validate_low(void)
 
 	return(TRUE);
 }
-#endif /* UNIV_DEBUG */
 
 /**********************************************************************
 Looks if the insert buffer is empty. */

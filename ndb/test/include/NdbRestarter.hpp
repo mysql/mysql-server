@@ -89,7 +89,9 @@ protected:
   const char* host;
   int port;
   NdbMgmHandle handle;
-  
+  ndb_mgm_configuration * m_config;
+protected:
+  ndb_mgm_configuration * getConfig();
 };
 
 #endif

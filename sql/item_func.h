@@ -1151,3 +1151,13 @@ public:
   void fix_length_and_dec();
 
 };
+
+
+class Item_func_found_rows :public Item_int_func
+{
+public:
+  Item_func_found_rows() :Item_int_func() {}
+  longlong val_int();
+  const char *func_name() const { return "found_rows"; }
+  void fix_length_and_dec() { decimals= 0; maybe_null=0; }
+};

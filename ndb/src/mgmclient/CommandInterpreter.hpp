@@ -17,7 +17,7 @@
 #ifndef CommandInterpreter_H
 #define CommandInterpreter_H
 
-#define HAVE_GLOBAL_REPLICATION
+//#define HAVE_GLOBAL_REPLICATION
 //*****************************************************************************
 // Author: Peter Lind
 //*****************************************************************************

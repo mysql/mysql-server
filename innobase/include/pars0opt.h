@@ -43,7 +43,6 @@ opt_find_all_cols(
 					to add new found columns */
 	plan_t*		plan,		/* in: plan or NULL */
 	que_node_t*	exp);		/* in: expression or condition */
-#ifdef UNIV_SQL_DEBUG
 /************************************************************************
 Prints info of a query plan. */
 
@@ -51,7 +50,6 @@ void
 opt_print_query_plan(
 /*=================*/
 	sel_node_t*	sel_node);	/* in: select node */
-#endif /* UNIV_SQL_DEBUG */
 
 #ifndef UNIV_NONINL
 #include "pars0opt.ic"

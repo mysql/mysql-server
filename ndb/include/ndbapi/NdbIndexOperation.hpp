@@ -184,7 +184,7 @@ private:
 
   // Private attributes
   NdbIndexImpl* m_theIndex;
-  Uint32 m_theIndexDefined[MAXNROFTUPLEKEY][3];
+  Uint32 m_theIndexDefined[NDB_MAX_ATTRIBUTES_IN_INDEX][3];
   Uint32 m_theIndexLen;	  	 // Length of the index in words
   Uint32 m_theNoOfIndexDefined;  // The number of index attributes
 };

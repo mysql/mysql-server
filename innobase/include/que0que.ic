@@ -238,3 +238,21 @@ que_thr_peek_stop(
 
 	return(FALSE);
 }
+
+/***************************************************************************
+Returns TRUE if the query graph is for a SELECT statement. */
+UNIV_INLINE
+ibool
+que_graph_is_select(
+/*================*/
+					/* out: TRUE if a select */
+	que_t*		graph)		/* in: graph */
+{
+	if (graph->fork_type == QUE_FORK_SELECT_SCROLL
+			|| graph->fork_type == QUE_FORK_SELECT_NON_SCROLL) {
+
+	    	return(TRUE);
+	}
+
+	return(FALSE);
+}

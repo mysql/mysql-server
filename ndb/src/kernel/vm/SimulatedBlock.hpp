@@ -45,6 +45,16 @@
 #include "SafeCounter.hpp"
 #include "MetaData.hpp"
 
+#include <mgmapi.h>
+#include <mgmapi_config_parameters.h>
+#include <mgmapi_config_parameters_debug.h>
+#include <kernel_config_parameters.h>
+#include <Configuration.hpp>
+
+#include <signaldata/ReadConfig.hpp>
+#include <signaldata/UpgradeStartup.hpp>
+
+
 /**
  * Something for filesystem access
  */
@@ -70,6 +80,7 @@ class SimulatedBlock {
   friend class MutexManager;
   friend class SafeCounter;
   friend class SafeCounterManager;
+  friend struct UpgradeStartup;
 public:
   friend class BlockComponent;
   virtual ~SimulatedBlock();
@@ -378,7 +389,7 @@ private:
 
   void execSIGNAL_DROPPED_REP(Signal* signal);
   void execCONTINUE_FRAGMENTED(Signal* signal);
-  
+
   Uint32 c_fragmentIdCounter;
   ArrayPool<FragmentInfo> c_fragmentInfoPool;
   DLHashTable<FragmentInfo> c_fragmentInfoHash;
@@ -404,7 +415,9 @@ private:
   void execUTIL_UNLOCK_REF(Signal* signal);
   void execUTIL_UNLOCK_CONF(Signal* signal);
 
+  void execREAD_CONFIG_REQ(Signal* signal);
 protected:
+  void execUPGRADE(Signal* signal);
 
   // Variable for storing inserted errors, see pc.H
   ERROR_INSERT_VARIABLE;

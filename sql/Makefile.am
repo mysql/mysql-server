@@ -27,6 +27,7 @@ WRAPLIBS=		@WRAPLIBS@
 SUBDIRS =		share
 libexec_PROGRAMS =	mysqld
 noinst_PROGRAMS =	gen_lex_hash
+bin_PROGRAMS =		mysql_tzinfo_to_sql
 gen_lex_hash_LDFLAGS =  @NOINST_LDFLAGS@
 LDADD =			@isam_libs@ \
 			../myisam/libmyisam.a \
@@ -57,8 +58,8 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			lex.h lex_symbol.h sql_acl.h sql_crypt.h  \
 			log_event.h sql_repl.h slave.h \
 			stacktrace.h sql_sort.h sql_cache.h set_var.h \
-			spatial.h gstream.h client_settings.h \
-			examples/ha_example.h \
+			spatial.h gstream.h client_settings.h tzfile.h \
+                        tztime.h examples/ha_example.h examples/ha_archive.h \
 			sp_head.h sp_pcontext.h sp_rcontext.h sp.h sp_cache.h \
 			parse_file.h			
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
@@ -90,11 +91,14 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			client.c sql_client.cc mini_client_errors.c pack.c\
 			stacktrace.c repl_failsafe.h repl_failsafe.cc \
 			gstream.cc spatial.cc sql_help.cc protocol_cursor.cc \
-			examples/ha_example.cc \
+			tztime.cc my_time.c \
+			examples/ha_example.cc examples/ha_archive.cc \
 			sp_head.cc sp_pcontext.cc  sp_rcontext.cc sp.cc \
 			sp_cache.cc parse_file.cc
 gen_lex_hash_SOURCES =	gen_lex_hash.cc
 gen_lex_hash_LDADD =	$(LDADD) $(CXXLDFLAGS)
+mysql_tzinfo_to_sql_SOURCES =   mysql_tzinfo_to_sql.cc
+mysql_tzinfo_to_sql_LDADD =     $(LDADD) $(CXXLDFLAGS)
 
 DEFS =			-DMYSQL_SERVER \
 			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
@@ -106,16 +110,25 @@ BUILT_SOURCES =		sql_yacc.cc sql_yacc.h
 EXTRA_DIST =		udf_example.cc $(BUILT_SOURCES)
 AM_YFLAGS =		-d
 
-link_sources:
+mysql_tzinfo_to_sql.cc:
+	rm -f mysql_tzinfo_to_sql.cc
+	@LN_CP_F@ tztime.cc mysql_tzinfo_to_sql.cc
+
+link_sources: mysql_tzinfo_to_sql.cc
 	rm -f mini_client_errors.c
 	@LN_CP_F@ ../libmysql/errmsg.c mini_client_errors.c
 	rm -f pack.c
 	@LN_CP_F@ ../sql-common/pack.c pack.c
 	rm -f client.c
 	@LN_CP_F@ ../sql-common/client.c client.c
+	rm -f my_time.c
+	@LN_CP_F@ ../sql-common/my_time.c my_time.c
 
 gen_lex_hash.o:		gen_lex_hash.cc lex.h
 			$(CXXCOMPILE) -c $(INCLUDES) $<
+
+mysql_tzinfo_to_sql.o:	$(mysql_tzinfo_to_sql_SOURCES)
+			$(CXXCOMPILE) -c $(INCLUDES) -DTZINFO2SQL $<
 
 # Try to get better dependencies for the grammar. Othervise really bad
 # things like different grammars for different pars of MySQL can

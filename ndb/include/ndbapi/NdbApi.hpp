@@ -17,17 +17,16 @@
 #ifndef NdbApi_H
 #define NdbApi_H
 
+#include "ndbapi_limits.h"
 #include "Ndb.hpp"
-#include "AttrType.hpp"
 #include "NdbConnection.hpp"
 #include "NdbOperation.hpp"
 #include "NdbScanOperation.hpp"
 #include "NdbIndexOperation.hpp"
-#include "NdbSchemaCon.hpp"
-#include "NdbSchemaOp.hpp"
 #include "NdbRecAttr.hpp"
 #include "NdbResultSet.hpp"
 #include "NdbDictionary.hpp"
 #include "NdbEventOperation.hpp"
 #include "NdbPool.hpp"
+#include "NdbBlob.hpp"
 #endif

@@ -322,7 +322,7 @@ uint my_instr_mb(CHARSET_INFO *cs,
       int mblen;
       
       if (!cs->coll->strnncoll(cs, (unsigned char*) b,   s_length, 
-      				   (unsigned char*) s, s_length))
+      				   (unsigned char*) s, s_length, 0))
       {
         if (nmatch)
         {
@@ -352,10 +352,19 @@ uint my_instr_mb(CHARSET_INFO *cs,
 
 static int my_strnncoll_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
 				const uchar *s, uint slen,
-				const uchar *t, uint tlen)
+				const uchar *t, uint tlen,
+                                my_bool t_is_prefix)
 {
-  int cmp= memcmp(s,t,min(slen,tlen));
-  return cmp ? cmp : (int) (slen - tlen);
+  uint len=min(slen,tlen);
+  int cmp= memcmp(s,t,len);
+  return cmp ? cmp : (int) ((t_is_prefix ? len : slen) - tlen);
+}
+
+static int my_strnncollsp_mb_bin(CHARSET_INFO * cs __attribute__((unused)),
+                                 const uchar *s, uint slen,
+                                 const uchar *t, uint tlen)
+{
+  return my_strnncoll_mb_bin(cs,s,slen,t,tlen,0);
 }
 
 
@@ -512,8 +521,9 @@ static int my_wildcmp_mb_bin(CHARSET_INFO *cs,
 
 MY_COLLATION_HANDLER my_collation_mb_bin_handler =
 {
+    NULL,		/* init */
     my_strnncoll_mb_bin,
-    my_strnncoll_mb_bin,
+    my_strnncollsp_mb_bin,
     my_strnxfrm_mb_bin,
     my_like_range_simple,
     my_wildcmp_mb_bin,

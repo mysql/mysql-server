@@ -17,7 +17,6 @@
 #include "NdbDictionaryImpl.hpp"
 #include "API.hpp"
 #include <NdbOut.hpp>
-#include <AttrType.hpp>
 #include "NdbApiSignal.hpp"
 #include "TransporterFacade.hpp"
 #include <signaldata/GetTabInfo.hpp>
@@ -35,6 +34,7 @@
 #include <AttributeList.hpp>
 #include <NdbEventOperation.hpp>
 #include "NdbEventOperationImpl.hpp"
+#include "NdbBlob.hpp"
 
 #define DEBUG_PRINT 0
 #define INCOMPATIBLE_VERSION -2
@@ -56,8 +56,8 @@ NdbColumnImpl::NdbColumnImpl(NdbDictionary::Column & f)
   init();
 }
 
-NdbColumnImpl::NdbColumnImpl& 
-NdbColumnImpl::operator=(const NdbColumnImpl::NdbColumnImpl& col)
+NdbColumnImpl&
+NdbColumnImpl::operator=(const NdbColumnImpl& col)
 {
   m_attrId = col.m_attrId;
   m_name = col.m_name;
@@ -179,7 +179,14 @@ NdbColumnImpl::equal(const NdbColumnImpl& col) const
   case NdbDictionary::Column::Double:
   case NdbDictionary::Column::Datetime:
   case NdbDictionary::Column::Timespec:
+    break;
   case NdbDictionary::Column::Blob:
+  case NdbDictionary::Column::Clob:
+    if (m_precision != col.m_precision ||
+        m_scale != col.m_scale ||
+        m_length != col.m_length) {
+      return false;
+    }
     break;
   }
   if (m_autoIncrement != col.m_autoIncrement){
@@ -224,6 +231,8 @@ NdbTableImpl::NdbTableImpl()
   : NdbDictionary::Table(* this), m_facade(this)
 {
   m_noOfKeys = 0;
+  m_sizeOfKeysInWords = 0;
+  m_noOfBlobs = 0;
   m_index = 0;
   init();
 }
@@ -258,6 +267,8 @@ NdbTableImpl::init(){
   m_indexType = NdbDictionary::Index::Undefined;
   
   m_noOfKeys = 0;
+  m_sizeOfKeysInWords = 0;
+  m_noOfBlobs = 0;
 }
 
 bool
@@ -337,6 +348,8 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_index = org.m_index;
   
   m_noOfKeys = org.m_noOfKeys;
+  m_sizeOfKeysInWords = org.m_sizeOfKeysInWords;
+  m_noOfBlobs = org.m_noOfBlobs;
 
   m_version = org.m_version;
   m_status = org.m_status;
@@ -622,7 +635,7 @@ NdbDictionaryImpl::getIndexTable(NdbIndexImpl * index,
   const char * internalName = 
     m_ndb.internalizeIndexName(table, index->getName());
   
-  return getTable(Ndb::externalizeTableName(internalName));
+  return getTable(m_ndb.externalizeTableName(internalName));
 }
 
 bool
@@ -863,7 +876,7 @@ NdbDictInterface::dictSignal(NdbApiSignal* signal,
  * get tab info
  */
 NdbTableImpl * 
-NdbDictInterface::getTable(int tableId)
+NdbDictInterface::getTable(int tableId, bool fullyQualifiedNames)
 {
   NdbApiSignal tSignal(m_reference);
   GetTabInfoReq * const req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
@@ -877,11 +890,11 @@ NdbDictInterface::getTable(int tableId)
   tSignal.theVerId_signalNumber   = GSN_GET_TABINFOREQ;
   tSignal.theLength = GetTabInfoReq::SignalLength;
   
-  return getTable(&tSignal, 0, 0);
+  return getTable(&tSignal, 0, 0, fullyQualifiedNames);
 }
 
 NdbTableImpl * 
-NdbDictInterface::getTable(const char * name)
+NdbDictInterface::getTable(const char * name, bool fullyQualifiedNames)
 {
   NdbApiSignal tSignal(m_reference);
   GetTabInfoReq * const req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
@@ -905,13 +918,13 @@ NdbDictInterface::getTable(const char * name)
   ptr[0].p  = (Uint32*)name;
   ptr[0].sz = strLen;
   
-  return getTable(&tSignal, ptr, 1);
+  return getTable(&tSignal, ptr, 1, fullyQualifiedNames);
 }
 
 NdbTableImpl *
 NdbDictInterface::getTable(class NdbApiSignal * signal, 
 			   LinearSectionPtr ptr[3],
-			   Uint32 noOfSections)
+			   Uint32 noOfSections, bool fullyQualifiedNames)
 {
   //GetTabInfoReq * const req = CAST_PTR(GetTabInfoReq, signal->getDataPtrSend());
   int r = dictSignal(signal,ptr,noOfSections,
@@ -925,7 +938,7 @@ NdbDictInterface::getTable(class NdbApiSignal * signal,
   NdbTableImpl * rt = 0;
   m_error.code = parseTableInfo(&rt, 
   				(Uint32*)m_buffer.get_data(), 
-  				m_buffer.length() / 4);
+  				m_buffer.length() / 4, fullyQualifiedNames);
   rt->buildColumnHash();
   return rt;
 }
@@ -1077,12 +1090,15 @@ columnTypeMapping[] = {
   { DictTabInfo::ExtVarbinary,       NdbDictionary::Column::Varbinary },
   { DictTabInfo::ExtDatetime,        NdbDictionary::Column::Datetime },
   { DictTabInfo::ExtTimespec,        NdbDictionary::Column::Timespec },
+  { DictTabInfo::ExtBlob,            NdbDictionary::Column::Blob },
+  { DictTabInfo::ExtClob,            NdbDictionary::Column::Clob },
   { -1, -1 }
 };
 
 int
 NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
-				 const Uint32 * data, Uint32 len)
+				 const Uint32 * data, Uint32 len,
+				 bool fullyQualifiedNames)
 {
   SimplePropertiesLinearReader it(data, len);
   DictTabInfo::Table tableDesc; tableDesc.init();
@@ -1096,7 +1112,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     return 703;
   }
   const char * internalName = tableDesc.TableName;
-  const char * externalName = Ndb::externalizeTableName(internalName);
+  const char * externalName = Ndb::externalizeTableName(internalName, fullyQualifiedNames);
 
   NdbTableImpl * impl = new NdbTableImpl();
   impl->m_tableId = tableDesc.TableId;
@@ -1125,12 +1141,13 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   if(impl->m_indexType == NdbDictionary::Index::Undefined){
   } else {
     const char * externalPrimary = 
-      Ndb::externalizeTableName(tableDesc.PrimaryTable);
+      Ndb::externalizeTableName(tableDesc.PrimaryTable, fullyQualifiedNames);
     impl->m_primaryTable.assign(externalPrimary);
   }
   
   Uint32 keyInfoPos = 0;
   Uint32 keyCount = 0;
+  Uint32 blobCount;
   
   for(Uint32 i = 0; i < tableDesc.NoOfAttributes; i++) {
     DictTabInfo::Attribute attrDesc; attrDesc.init();
@@ -1187,6 +1204,8 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     } else {
       col->m_keyInfoPos = 0;
     }
+    if (col->getBlobType())
+      blobCount++;
     
     NdbColumnImpl * null = 0;
     impl->m_columns.fill(attrDesc.AttributeId, null);
@@ -1199,6 +1218,8 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     it.next();
   }
   impl->m_noOfKeys = keyCount;
+  impl->m_sizeOfKeysInWords = keyInfoPos;
+  impl->m_noOfBlobs = blobCount;
   * ret = impl;
   return 0;
 }
@@ -1206,6 +1227,43 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 /*****************************************************************
  * Create table and alter table
  */
+int
+NdbDictionaryImpl::createTable(NdbTableImpl &t)
+{ 
+  if (m_receiver.createTable(m_ndb, t) != 0)
+    return -1;
+  if (t.m_noOfBlobs == 0)
+    return 0;
+  // update table def from DICT
+  NdbTableImpl * tp = getTable(t.m_externalName.c_str());
+  if (tp == NULL) {
+    m_error.code = 709;
+    return -1;
+  }
+  if (createBlobTables(* tp) != 0) {
+    int save_code = m_error.code;
+    (void)dropTable(t);
+    m_error.code = save_code;
+    return -1;
+  }
+  return 0;
+}
+
+int
+NdbDictionaryImpl::createBlobTables(NdbTableImpl &t)
+{
+  for (unsigned i = 0; i < t.m_columns.size(); i++) {
+    NdbColumnImpl & c = *t.m_columns[i];
+    if (! c.getBlobType())
+      continue;
+    NdbTableImpl bt;
+    NdbBlob::getBlobTable(bt, &t, &c);
+    if (createTable(bt) != 0)
+      return -1;
+  }
+  return 0;
+}
+
 int 
 NdbDictInterface::createTable(Ndb & ndb,
 			      NdbTableImpl & impl)
@@ -1257,7 +1315,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
 				     NdbTableImpl & impl,
 				     bool alter)
 {
-  if((unsigned)impl.getNoOfPrimaryKeys() > MAXNROFTUPLEKEY){
+  if((unsigned)impl.getNoOfPrimaryKeys() > NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY){
     m_error.code = 4317;
     return -1;
   }
@@ -1540,6 +1598,12 @@ NdbDictionaryImpl::dropTable(NdbTableImpl & impl)
     if (dropIndex(element.name, name) == -1)
       return -1;
   }
+
+  if (impl.m_noOfBlobs != 0) {
+    if (dropBlobTables(impl) != 0)
+      return -1;
+  }
+
   int ret = m_receiver.dropTable(impl);  
   if(ret == 0){
     const char * internalTableName = impl.m_internalName.c_str();
@@ -1552,6 +1616,23 @@ NdbDictionaryImpl::dropTable(NdbTableImpl & impl)
   }
   
   return ret;
+}
+
+int
+NdbDictionaryImpl::dropBlobTables(NdbTableImpl & t)
+{
+  for (unsigned i = 0; i < t.m_columns.size(); i++) {
+    NdbColumnImpl & c = *t.m_columns[i];
+    if (! c.getBlobType())
+      continue;
+    char btname[NdbBlob::BlobTableNameSize];
+    NdbBlob::getBlobTableName(btname, &t, &c);
+    if (dropTable(btname) != 0) {
+      if (m_error.code != 709)
+        return -1;
+    }
+  }
+  return 0;
 }
 
 int
@@ -1867,7 +1948,7 @@ int
 NdbDictionaryImpl::dropIndex(NdbIndexImpl & impl, const char * tableName)
 {
   const char * indexName = impl.getName();
-  if (tableName || Ndb::usingFullyQualifiedNames()) {
+  if (tableName || m_ndb.usingFullyQualifiedNames()) {
     NdbTableImpl * timpl = impl.m_table;
     
     if (timpl == 0) {
@@ -2572,14 +2653,13 @@ NdbDictionaryImpl::listObjects(List& list, NdbDictionary::Object::Type type)
   req.requestData = 0;
   req.setTableType(getKernelConstant(type, objectTypeMapping, 0));
   req.setListNames(true);
-  return m_receiver.listObjects(list, req.requestData);
+  return m_receiver.listObjects(list, req.requestData, m_ndb.usingFullyQualifiedNames());
 }
 
 int
 NdbDictionaryImpl::listIndexes(List& list, const char * tableName)
 {
-  ListTablesReq
- req;
+  ListTablesReq req;
   NdbTableImpl* impl = getTable(tableName);
   if (impl == 0)
     return -1;
@@ -2587,12 +2667,12 @@ NdbDictionaryImpl::listIndexes(List& list, const char * tableName)
   req.setTableId(impl->m_tableId);
   req.setListNames(true);
   req.setListIndexes(true);
-  return m_receiver.listObjects(list, req.requestData);
+  return m_receiver.listObjects(list, req.requestData, m_ndb.usingFullyQualifiedNames());
 }
 
 int
 NdbDictInterface::listObjects(NdbDictionary::Dictionary::List& list,
-			      Uint32 requestData)
+			      Uint32 requestData, bool fullyQualifiedNames)
 {
   NdbApiSignal tSignal(m_reference);
   ListTablesReq* const req = CAST_PTR(ListTablesReq, tSignal.getDataPtrSend());
@@ -2657,7 +2737,7 @@ NdbDictInterface::listObjects(NdbDictionary::Dictionary::List& list,
       memcpy(indexName, &data[pos], n << 2);
       databaseName = Ndb::getDatabaseFromInternalName(indexName);
       schemaName = Ndb::getSchemaFromInternalName(indexName);
-      objectName = BaseString(Ndb::externalizeIndexName(indexName));
+      objectName = BaseString(Ndb::externalizeIndexName(indexName, fullyQualifiedNames));
       delete [] indexName;
     } else if ((element.type == NdbDictionary::Object::SystemTable) || 
 	       (element.type == NdbDictionary::Object::UserTable)) {
@@ -2665,7 +2745,7 @@ NdbDictInterface::listObjects(NdbDictionary::Dictionary::List& list,
       memcpy(tableName, &data[pos], n << 2);
       databaseName = Ndb::getDatabaseFromInternalName(tableName);
       schemaName = Ndb::getSchemaFromInternalName(tableName);
-      objectName = BaseString(Ndb::externalizeTableName(tableName));
+      objectName = BaseString(Ndb::externalizeTableName(tableName, fullyQualifiedNames));
       delete [] tableName;
     }
     else {

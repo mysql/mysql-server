@@ -22,7 +22,7 @@
 #include <NdbOut.hpp>
 #include "ConfigInfo.hpp"
 
-const int MAX_LINE_LENGTH = 120;  // Max length of line of text in config file
+const int MAX_LINE_LENGTH = 1024;  // Max length of line of text in config file
 static void trim(char *);
 
 static void require(bool v) { if(!v) abort();}
@@ -30,51 +30,66 @@ static void require(bool v) { if(!v) abort();}
 //****************************************************************************
 //  Ctor / Dtor
 //****************************************************************************
-InitConfigFileParser::InitConfigFileParser(const char* initialConfigFileName){
-  
-  m_initConfigStream = fopen(initialConfigFileName, "r");
+InitConfigFileParser::InitConfigFileParser(){
   
   m_info = new ConfigInfo();
-  m_config = new Config();
-  m_defaults = new Properties();
-  m_defaults->setCaseInsensitiveNames(true);
 }
 
 InitConfigFileParser::~InitConfigFileParser() {
-  if (m_initConfigStream != NULL) fclose(m_initConfigStream);
-
   delete m_info;
-  delete m_config;
-  delete m_defaults;
 }
 
 //****************************************************************************
 //  Read Config File
 //****************************************************************************
-bool InitConfigFileParser::readConfigFile() {
+InitConfigFileParser::Context::Context(const ConfigInfo * info)
+  : m_configValues(1000, 20) {
+
+  m_config = new Properties();
+  m_defaults = new Properties();
+}
+
+InitConfigFileParser::Context::~Context(){
+  if(m_config != 0)
+    delete m_config;
+
+  if(m_defaults != 0)
+    delete m_defaults;
+}
+
+Config *
+InitConfigFileParser::parseConfig(const char * filename) {
+  FILE * file = fopen(filename, "r");
+  if(file == 0){
+    ndbout << "Error opening file: " << filename << endl;
+    return 0;
+  }
+
+  Config * ret = parseConfig(file);
+  fclose(file);
+  return ret;
+}
+
+Config *
+InitConfigFileParser::parseConfig(FILE * file) {
 
   char line[MAX_LINE_LENGTH];
 
-  Context ctx; 
+  Context ctx(m_info); 
   ctx.m_lineno = 0;
   ctx.m_currentSection = 0;
-
-  ctx.m_info = m_info;
-  ctx.m_config = m_config;
-  ctx.m_defaults = m_defaults;
 
   /*************
    * Open file *
    *************/
-  if (m_initConfigStream == NULL) {
-    ctx.reportError("Could not open file.");
-    return false;
+  if (file == NULL) {
+    return 0;
   }
 
   /***********************
    * While lines to read *
    ***********************/
-  while (fgets(line, MAX_LINE_LENGTH, m_initConfigStream)) {
+  while (fgets(line, MAX_LINE_LENGTH, file)) {
     ctx.m_lineno++;
 
     trim(line);
@@ -94,7 +109,7 @@ bool InitConfigFileParser::readConfigFile() {
 	free(section);
 	ctx.reportError("Could not store previous default section "
 			"of configuration file.");
-	return false;
+	return 0;
       }
       
       snprintf(ctx.fname, sizeof(ctx.fname), section); free(section);
@@ -115,7 +130,7 @@ bool InitConfigFileParser::readConfigFile() {
 	free(section);
 	ctx.reportError("Could not store previous section "
 			"of configuration file.");
-	return false;
+	return 0;
       }
 
       snprintf(ctx.fname, sizeof(ctx.fname), section);
@@ -123,7 +138,7 @@ bool InitConfigFileParser::readConfigFile() {
       ctx.type             = InitConfigFileParser::Section;
       ctx.m_sectionLineno  = ctx.m_lineno;      
       ctx.m_currentSection = new Properties();
-      ctx.m_userDefaults   = getSection(ctx.fname, m_defaults);
+      ctx.m_userDefaults   = getSection(ctx.fname, ctx.m_defaults);
       ctx.m_currentInfo    = m_info->getInfo(ctx.fname);
       ctx.m_systemDefaults = m_info->getDefaults(ctx.fname);
       continue;
@@ -134,15 +149,44 @@ bool InitConfigFileParser::readConfigFile() {
      ****************************/
     if (!parseNameValuePair(ctx, line)) {
       ctx.reportError("Could not parse name-value pair in config file.");
-      return false;
+      return 0;
     }
   }
   
+  if (ferror(file)){
+    ctx.reportError("Failure in reading");
+    return 0;
+  } 
+
   if(!storeSection(ctx)) {
     ctx.reportError("Could not store section of configuration file.");
-    return false;
+    return 0;
   }
   
+  for(size_t i = 0; ConfigInfo::m_ConfigRules[i].m_configRule != 0; i++){
+    ctx.type             = InitConfigFileParser::Undefined;
+    ctx.m_currentSection = 0;
+    ctx.m_userDefaults   = 0;
+    ctx.m_currentInfo    = 0;
+    ctx.m_systemDefaults = 0;
+    
+    Vector<ConfigInfo::ConfigRuleSection> tmp;
+    if(!(* ConfigInfo::m_ConfigRules[i].m_configRule)(tmp, ctx,
+						      ConfigInfo::m_ConfigRules[i].m_ruleData))
+      return 0;
+
+    for(size_t j = 0; j<tmp.size(); j++){
+      snprintf(ctx.fname, sizeof(ctx.fname), tmp[j].m_sectionType.c_str());
+      ctx.type             = InitConfigFileParser::Section;
+      ctx.m_currentSection = tmp[j].m_sectionData;
+      ctx.m_userDefaults   = getSection(ctx.fname, ctx.m_defaults);
+      ctx.m_currentInfo    = m_info->getInfo(ctx.fname);
+      ctx.m_systemDefaults = m_info->getDefaults(ctx.fname);
+      if(!storeSection(ctx))
+	return 0;
+    }
+  }
+
   Uint32 nConnections = 0;
   Uint32 nComputers = 0;
   Uint32 nNodes = 0;
@@ -153,21 +197,20 @@ bool InitConfigFileParser::readConfigFile() {
   ctx.m_userProperties.get("NoOfNodes", &nNodes);
   ctx.m_userProperties.get("ExtNoOfConnections", &nExtConnections);
   ctx.m_userProperties.get("ExtSystem", &system);
-  m_config->put("NoOfConnections", nConnections);
-  m_config->put("NoOfComputers", nComputers);
-  m_config->put("NoOfNodes", nNodes);
+  ctx.m_config->put("NoOfConnections", nConnections);
+  ctx.m_config->put("NoOfComputers", nComputers);
+  ctx.m_config->put("NoOfNodes", nNodes);
 
   char tmpLine[MAX_LINE_LENGTH];
   snprintf(tmpLine, MAX_LINE_LENGTH, "EXTERNAL SYSTEM_");
   strncat(tmpLine, system, MAX_LINE_LENGTH);
   strncat(tmpLine, ":NoOfConnections", MAX_LINE_LENGTH);
-  m_config->put(tmpLine, nExtConnections);
+  ctx.m_config->put(tmpLine, nExtConnections);
   
-  if (ferror(m_initConfigStream)) {
-    ctx.reportError("Failure in reading");
-    return false;
-  } 
-  return true;
+  Config * ret = new Config();
+  ret->m_configValues = (struct ndb_mgm_configuration*)ctx.m_configValues.getConfigValues();
+  ret->m_oldConfig = ctx.m_config; ctx.m_config = 0;
+  return ret;
 }
 
 //****************************************************************************
@@ -216,7 +259,13 @@ bool InitConfigFileParser::parseNameValuePair(Context& ctx, const char* line) {
     ctx.reportWarning("[%s] %s not yet implemented", ctx.fname, fname);
   }
   if (status == ConfigInfo::DEPRICATED) {
-    ctx.reportWarning("[%s] %s is depricated", ctx.fname, fname);
+    const char * desc = m_info->getDescription(ctx.m_currentInfo, fname);
+    if(desc){
+      ctx.reportWarning("[%s] %s is depricated, use %s instead", 
+			ctx.fname, fname, desc);
+    } else {
+      ctx.reportWarning("[%s] %s is depricated", ctx.fname, fname);
+    } 
   }
 
   // ******************************************
@@ -249,7 +298,7 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
 					 const char* fname, 
 					 const char* value) {
   
-  const char * pname = m_info->getPName(ctx.m_currentInfo, fname);
+  const char * pname = fname;
 
   if (ctx.m_currentSection->contains(pname)) {
     ctx.reportError("[%s] Parameter %s specified twice", ctx.fname, fname);
@@ -260,7 +309,8 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
   //  Store name-value pair
   // ***********************
 
-  switch(m_info->getType(ctx.m_currentInfo, fname)){
+  const ConfigInfo::Type type = m_info->getType(ctx.m_currentInfo, fname);
+  switch(type){
   case ConfigInfo::BOOL: {
     bool value_bool;
     if (!convertStringToBool(value, value_bool)) {
@@ -270,20 +320,25 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
     MGM_REQUIRE(ctx.m_currentSection->put(pname, value_bool));
     break;
   }
-  case ConfigInfo::INT:{
-    Uint32 value_int;
-    if (!convertStringToUint32(value, value_int)) {
+  case ConfigInfo::INT:
+  case ConfigInfo::INT64:{
+    Uint64 value_int;
+    if (!convertStringToUint64(value, value_int)) {
       ctx.reportError("Illegal integer value for parameter %s", fname);
       return false;
     }
     if (!m_info->verify(ctx.m_currentInfo, fname, value_int)) {
       ctx.reportError("Illegal value %s for parameter %s.\n"
-		      "Legal values are between %d and %d", value, fname,
+		      "Legal values are between %Lu and %Lu", value, fname,
 		      m_info->getMin(ctx.m_currentInfo, fname), 
 		      m_info->getMax(ctx.m_currentInfo, fname));
       return false;
     }
-    MGM_REQUIRE(ctx.m_currentSection->put(pname, value_int));
+    if(type == ConfigInfo::INT){
+      MGM_REQUIRE(ctx.m_currentSection->put(pname, (Uint32)value_int));
+    } else {
+      MGM_REQUIRE(ctx.m_currentSection->put64(pname, value_int));
+    }
     break;
   }
   case ConfigInfo::STRING:
@@ -313,8 +368,8 @@ bool InitConfigFileParser::isEmptyLine(const char* line) const {
 //****************************************************************************
 //  Convert String to Int
 //****************************************************************************
-bool InitConfigFileParser::convertStringToUint32(const char* s, 
-						 Uint32& val,
+bool InitConfigFileParser::convertStringToUint64(const char* s, 
+						 Uint64& val,
 						 Uint32 log10base) {
   if (s == NULL)
     return false;
@@ -323,7 +378,7 @@ bool InitConfigFileParser::convertStringToUint32(const char* s,
 
   errno = 0;
   char* p;
-  long v = strtol(s, &p, 10);
+  long long v = strtoll(s, &p, 10);
   if (errno != 0)
     return false;
   
@@ -359,35 +414,22 @@ bool InitConfigFileParser::convertStringToBool(const char* s, bool& val) {
 
   if (!strcmp(s, "Y") || !strcmp(s, "y") || 
       !strcmp(s, "Yes") || !strcmp(s, "YES") || !strcmp(s, "yes") || 
-      !strcmp(s, "True") || !strcmp(s, "TRUE") || !strcmp(s, "true")) {
+      !strcmp(s, "True") || !strcmp(s, "TRUE") || !strcmp(s, "true") ||
+      !strcmp(s, "1")) {
     val = true;
     return true;
   }
 
   if (!strcmp(s, "N") || !strcmp(s, "n") || 
       !strcmp(s, "No") || !strcmp(s, "NO") || !strcmp(s, "no") || 
-      !strcmp(s, "False") || !strcmp(s, "FALSE") || !strcmp(s, "false")) {
+      !strcmp(s, "False") || !strcmp(s, "FALSE") || !strcmp(s, "false") ||
+      !strcmp(s, "0")) {
     val = false;
     return true;
   }
   
   return false;  // Failure to convert
 }
-
-//****************************************************************************
-//  Get Config 
-//****************************************************************************
-const Config* InitConfigFileParser::getConfig() {
-  Uint32 nConnections = 0;
-  Uint32 nComputers = 0;
-  Uint32 nNodes = 0;
-  m_config->get("NoOfConnections", &nConnections);
-  m_config->get("NoOfComputers", &nComputers);
-  m_config->get("NoOfNodes", &nNodes);
-
-  return m_config;
-}
-
 
 //****************************************************************************
 //  Parse Section Header
@@ -481,33 +523,30 @@ bool
 InitConfigFileParser::storeSection(Context& ctx){
   if(ctx.m_currentSection == NULL)
     return true;
-
   for(int i = strlen(ctx.fname) - 1; i>=0; i--){
     ctx.fname[i] = toupper(ctx.fname[i]);
   }
-
   snprintf(ctx.pname, sizeof(ctx.pname), ctx.fname);
-  
   char buf[255];
   if(ctx.type == InitConfigFileParser::Section)
     snprintf(buf, sizeof(buf), "%s", ctx.fname);
   if(ctx.type == InitConfigFileParser::DefaultSection)
     snprintf(buf, sizeof(buf), "%s DEFAULT", ctx.fname);
-  
   snprintf(ctx.fname, sizeof(ctx.fname), buf);
-  for(int i = 0; i<m_info->m_NoOfRules; i++){
-    const ConfigInfo::SectionRule & rule = m_info->m_SectionRules[i];
-    if(strcmp(rule.m_section, ctx.fname) == 0)
-      if(!(* rule.m_sectionRule)(ctx, rule.m_ruleData)){
-	return false;
-      }
+  if(ctx.type == InitConfigFileParser::Section){
+    for(int i = 0; i<m_info->m_NoOfRules; i++){
+      const ConfigInfo::SectionRule & rule = m_info->m_SectionRules[i];
+      if(!strcmp(rule.m_section, "*") || !strcmp(rule.m_section, ctx.fname))
+	if(!(* rule.m_sectionRule)(ctx, rule.m_ruleData))
+	  return false;
+    }
   }
-
+  
   if(ctx.type == InitConfigFileParser::DefaultSection)
-    require(m_defaults->put(ctx.pname, ctx.m_currentSection));
+    require(ctx.m_defaults->put(ctx.pname, ctx.m_currentSection));
   
   if(ctx.type == InitConfigFileParser::Section)
-    require(m_config->put(ctx.pname, ctx.m_currentSection));
+    require(ctx.m_config->put(ctx.pname, ctx.m_currentSection));
   
   delete ctx.m_currentSection; ctx.m_currentSection = NULL;
   

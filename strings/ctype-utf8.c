@@ -1524,8 +1524,12 @@ MY_UNICASE_INFO *uni_plane[256]={
 
 #ifdef HAVE_CHARSET_utf8
 
-/* These arrays are taken from usa7 implementation */
-
+/* 
+  We consider bytes with code more than 127 as a letter.
+  This garantees that word boundaries work fine with regular
+  expressions. Note, there is no need to mark byte 255  as a
+  letter, it is illegal byte in UTF8.
+*/
 static uchar ctype_utf8[] = {
     0,
    32, 32, 32, 32, 32, 32, 32, 32, 32, 40, 40, 40, 40, 40, 32, 32,
@@ -1536,15 +1540,17 @@ static uchar ctype_utf8[] = {
     1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1, 16, 16, 16, 16, 16,
    16,130,130,130,130,130,130,  2,  2,  2,  2,  2,  2,  2,  2,  2,
     2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2, 16, 16, 16, 16, 32,
-    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-    0,  0,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
+    3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
+    3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
+    3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
+    3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
+    3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
     3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
     3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
     3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  0
 };
+
+/* The below are taken from usa7 implementation */
 
 static uchar to_lower_utf8[] = {
     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
@@ -1802,7 +1808,8 @@ static void my_casedn_str_utf8(CHARSET_INFO *cs, char * s)
 
 static int my_strnncoll_utf8(CHARSET_INFO *cs, 
 			     const uchar *s, uint slen,
-			     const uchar *t, uint tlen)
+                             const uchar *t, uint tlen,
+                             my_bool t_is_prefix)
 {
   int s_res,t_res;
   my_wc_t s_wc,t_wc;
@@ -1833,7 +1840,7 @@ static int my_strnncoll_utf8(CHARSET_INFO *cs,
     s+=s_res;
     t+=t_res;
   }
-  return ( (se-s) - (te-t) );
+  return t_is_prefix ? t-te : ((se-s) - (te-t));
 }
 
 
@@ -2039,6 +2046,7 @@ static int my_mbcharlen_utf8(CHARSET_INFO *cs  __attribute__((unused)) , uint c)
 
 static MY_COLLATION_HANDLER my_collation_ci_handler =
 {
+    NULL,		/* init */
     my_strnncoll_utf8,
     my_strnncollsp_utf8,
     my_strnxfrm_utf8,
@@ -2049,8 +2057,9 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
     my_hash_sort_utf8
 };
 
-static MY_CHARSET_HANDLER my_charset_handler=
+MY_CHARSET_HANDLER my_charset_utf8_handler=
 {
+    NULL,		/* init */
     my_ismbchar_utf8,
     my_mbcharlen_utf8,
     my_numchars_mb,
@@ -2084,21 +2093,23 @@ CHARSET_INFO my_charset_utf8_general_ci=
     "utf8",		/* cs name      */
     "utf8_general_ci",	/* name         */
     "",			/* comment      */
+    NULL,		/* tailoring    */
     ctype_utf8,		/* ctype        */
     to_lower_utf8,	/* to_lower     */
     to_upper_utf8,	/* to_upper     */
     to_upper_utf8,	/* sort_order   */
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    NULL,		/* sort_order_big*/
-    "",
-    "",
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
     0,			/* min_sort_char */
-    0,			/* max_sort_char */
-    &my_charset_handler,
+    255,		/* max_sort_char */
+    &my_charset_utf8_handler,
     &my_collation_ci_handler
 };
 
@@ -2110,27 +2121,28 @@ CHARSET_INFO my_charset_utf8_bin=
     "utf8",		/* cs name      */
     "utf8_bin",		/* name         */
     "",			/* comment      */
+    NULL,		/* tailoring    */
     ctype_utf8,		/* ctype        */
     to_lower_utf8,	/* to_lower     */
     to_upper_utf8,	/* to_upper     */
     to_upper_utf8,	/* sort_order   */
+    NULL,		/* contractions */
+    NULL,		/* sort_order_big*/
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    NULL,		/* sort_order_big*/
-    "",
-    "",
+    NULL,		/* state_map    */
+    NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
     0,			/* min_sort_char */
-    0,			/* max_sort_char */
-    &my_charset_handler,
+    255,		/* max_sort_char */
+    &my_charset_utf8_handler,
     &my_collation_mb_bin_handler
 };
 
 
 #ifdef MY_TEST_UTF8
-
 #include <stdio.h>
 
 static void test_mb(CHARSET_INFO *cs, uchar *s)
@@ -2162,7 +2174,7 @@ int main()
   
   test_mb(cs,(uchar*)str);
   
-  pr1;2cintf("orig      :'%s'\n",str);
+  printf("orig      :'%s'\n",str);
   
   my_caseup_utf8(cs,str,15);
   printf("caseup    :'%s'\n",str);
