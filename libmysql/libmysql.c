@@ -1640,70 +1640,46 @@ myodbc_remove_escape(MYSQL *mysql,char *name)
 }
 
 /********************************************************************
+ Implementation of new client API for 4.1 version.
 
- Implementation of new client-server prototypes for 4.1 version
- starts from here ..
+ mysql_stmt_* are real prototypes used by applications.
 
- mysql_* are real prototypes used by applications
-
+ To make API work in embedded library all functions performing
+ real I/O are prefixed with 'cli_' (abbreviated from 'Call Level
+ Interface'). This functions are invoked via pointers set in
+ MYSQL::methods structure. Embedded counterparts, prefixed with
+ 'emb_' reside in libmysqld/lib_sql.cc.
 *********************************************************************/
 
-/********************************************************************
- Misc Utility functions
-********************************************************************/
-
-/*
-  Set the internal stmt error messages
-*/
-
-static void set_stmt_error(MYSQL_STMT * stmt, int errcode,
-			   const char *sqlstate)
-{
-  DBUG_ENTER("set_stmt_error");
-  DBUG_PRINT("enter", ("error: %d '%s'", errcode, ER(errcode)));
-  DBUG_ASSERT(stmt != 0);
-
-  stmt->last_errno= errcode;
-  strmov(stmt->last_error, ER(errcode));
-  strmov(stmt->sqlstate, sqlstate);
-
-  DBUG_VOID_RETURN;
-}
+/******************* Declarations ***********************************/
 
 
 /*
-  Copy error message to statement handler
+  These functions are called by function pointer MYSQL_STMT::read_row_func.
+  Each function corresponds to one of the read methods:
+  - mysql_stmt_fetch without prior mysql_stmt_store_result,
+  - mysql_stmt_fetch when result is stored,
+  - mysql_stmt_fetch when there are no rows (always returns MYSQL_NO_DATA)
 */
 
-void set_stmt_errmsg(MYSQL_STMT * stmt, const char *err, int errcode,
-		     const char *sqlstate)
-{
-  DBUG_ENTER("set_stmt_error_msg");
-  DBUG_PRINT("enter", ("error: %d/%s '%s'", errcode, sqlstate, err));
-  DBUG_ASSERT(stmt != 0);
-
-  stmt->last_errno= errcode;
-  if (err && err[0])
-    strmov(stmt->last_error, err);
-  strmov(stmt->sqlstate, sqlstate);
-
-  DBUG_VOID_RETURN;
-}
+static int stmt_read_row_unbuffered(MYSQL_STMT *stmt, unsigned char **row);
+static int stmt_read_row_buffered(MYSQL_STMT *stmt, unsigned char **row);
+static int stmt_read_row_no_data(MYSQL_STMT *stmt, unsigned char **row);
 
 
+/**************** Misc utility functions ****************************/
 
 /*
   Reallocate the NET package to be at least of 'length' bytes
 
   SYNPOSIS
    my_realloc_str()
-   net			The NET structure to modify
-   int length		Ensure that net->buff is at least this big
+   net                 The NET structure to modify
+   length              Ensure that net->buff is at least this big
 
   RETURN VALUES
   0	ok
   1	Error
-
 */
 
 static my_bool my_realloc_str(NET *net, ulong length)
@@ -1719,20 +1695,54 @@ static my_bool my_realloc_str(NET *net, ulong length)
   DBUG_RETURN(res);
 }
 
-/********************************************************************
-  Prepare related implementations
-********************************************************************/
-
-static int stmt_read_row_unbuffered(MYSQL_STMT *stmt, unsigned char **row);
-static int stmt_read_row_buffered(MYSQL_STMT *stmt, unsigned char **row);
-static int stmt_read_row_no_data(MYSQL_STMT *stmt, unsigned char **row);
 
 /*
-  Read the prepared statement results ..
+  Set statement error code, sqlstate, and error message
+  from given errcode and sqlstate.
+*/
 
-  NOTE
-    This is only called for connection to servers that supports
-    prepared statements (and thus the 4.1 protocol)
+static void set_stmt_error(MYSQL_STMT * stmt, int errcode,
+                           const char *sqlstate)
+{
+  DBUG_ENTER("set_stmt_error");
+  DBUG_PRINT("enter", ("error: %d '%s'", errcode, ER(errcode)));
+  DBUG_ASSERT(stmt != 0);
+
+  stmt->last_errno= errcode;
+  strmov(stmt->last_error, ER(errcode));
+  strmov(stmt->sqlstate, sqlstate);
+
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Set statement error code, sqlstate, and error message.
+*/
+
+void set_stmt_errmsg(MYSQL_STMT * stmt, const char *err, int errcode,
+                     const char *sqlstate)
+{
+  DBUG_ENTER("set_stmt_errmsg");
+  DBUG_PRINT("enter", ("error: %d/%s '%s'", errcode, sqlstate, err));
+  DBUG_ASSERT(stmt != 0);
+
+  stmt->last_errno= errcode;
+  if (err && err[0])
+    strmov(stmt->last_error, err);
+  strmov(stmt->sqlstate, sqlstate);
+
+  DBUG_VOID_RETURN;
+}
+
+/*
+  Read and unpack server reply to COM_PREPARE command (sent from
+  mysql_stmt_prepare).
+
+  SYNOPSIS
+    cli_read_prepare_result()
+    mysql   connection handle
+    stmt    statement handle
 
   RETURN VALUES
     0	ok
@@ -1752,7 +1762,9 @@ my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
 
   pos= (uchar*) mysql->net.read_pos;
   stmt->stmt_id= uint4korr(pos+1); pos+= 5;
+  /* Number of columns in result set */
   field_count=   uint2korr(pos);   pos+= 2;
+  /* Number of placeholders in the statement */
   param_count=   uint2korr(pos);   pos+= 2;
 
   if (param_count != 0)
@@ -1802,10 +1814,30 @@ MYSQL_STMT * STDCALL mysql_prepare(MYSQL *mysql, const char *query,
 #endif
 
 /*
-  Allocate memory and init prepared statement structure
+  Allocate memory and init prepared statement structure.
+
   SYNOPSIS
     mysql_stmt_init()
-    mysql connection handle
+    mysql   connection handle
+
+  DESCRIPTION
+    This is an entry point of the new API. Returned handle stands for
+    a server-side prepared statement. Memory for this structure (~700
+    bytes) is allocated using 'malloc'. Once created, the handle can be
+    reused many times. Created statement handle is bound to connection
+    handle provided to this call: it's lifetime is limited by lifetime
+    of connection.
+    'mysql_stmt_init()' is a pure local call, server side structure is
+    created only in mysql_stmt_prepare.
+    Next steps you may want to make:
+    - set a statement attribute (mysql_stmt_attr_set()),
+    - prepare statement handle with a query (mysql_stmt_prepare()),
+    - close statement handle and free it's memory (mysql_stmt_close()),
+    - reset statement with mysql_stmt_reset() (a no-op which will
+      just return).
+    Behaviour of the rest of API calls on this statement is not defined yet
+    (though we're working on making each wrong call sequence return
+    error).
 
   RETURN VALUE
     statement structure upon success and NULL if out of
@@ -1838,26 +1870,40 @@ mysql_stmt_init(MYSQL *mysql)
   DBUG_RETURN(stmt);
 }
 
+
 /*
-  Prepare server side statement with query:
+  Prepare server side statement with query.
+
   SYNOPSIS
     mysql_stmt_prepare()
-    query  statement to prepare
-    length statement length
+    stmt    statement handle
+    query   statement to prepare
+    length  statement length
 
   DESCRIPTION
-  - if this is a re-prepare of the statement, first close previous data 
+    Associate statement with statement handle. This is done both on
+    client and server sides. At this point the server parses given query
+    and creates an internal structure to represent it.
+    Next steps you may want to make:
+    - find out if this statement returns a result set by
+      calling mysql_stmt_field_count(), and get result set metadata
+      with mysql_stmt_result_metadata(),
+    - if query contains placeholders, bind input parameters to placeholders
+      using mysql_stmt_bind_param(),
+    - otherwise proceed directly to mysql_stmt_execute().
+
+  IMPLEMENTATION NOTES
+  - if this is a re-prepare of the statement, first close previous data
     structure on the server and free old statement data
-  - send the query to server and get back number of placeholders,
+  - then send the query to server and get back number of placeholders,
     number of columns in result set (if any), and result set metadata.
-    At the same time allocate memory for input and output parameters 
+    At the same time allocate memory for input and output parameters
     to have less checks in mysql_stmt_bind_{param, result}.
 
   RETURN VALUES
     0  success
-   !0  error 
+   !0  error
 */
-
 
 int STDCALL
 mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query, ulong length)
@@ -1938,8 +1984,10 @@ mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query, ulong length)
 }
 
 /*
-  Get the execute query meta information for non-select 
-  statements.
+  Get result set metadata from reply to mysql_stmt_execute.
+  This is used mainly for SHOW commands, as metadata for these
+  commands is sent only with result set.
+  To be removed when all commands will fully support prepared mode.
 */
 
 static unsigned int alloc_stmt_fields(MYSQL_STMT *stmt)
@@ -1983,8 +2031,31 @@ static unsigned int alloc_stmt_fields(MYSQL_STMT *stmt)
 }
 
 /*
-  Returns prepared meta information in the form of resultset
-  to client.
+  Returns prepared statement metadata in the form of a result set.
+
+  SYNOPSIS
+    mysql_stmt_result_metadata()
+    stmt  statement handle
+
+  RETURN
+    NULL  statement contains no result set or out of memory.
+          In the latter case you can retreive error message
+          with mysql_stmt_error.
+   MYSQL_RES  a result set with no rows
+
+  DESCRIPTION
+    This function should be used after mysql_stmt_execute().
+    You can safely check that prepared statement has a result set by calling
+    mysql_stmt_num_fields(): if number of fields is not zero, you can call
+    this function to get fields metadata.
+    Next steps you may want to make:
+    - find out number of columns in result set by calling
+      mysql_num_fields(res) (the same value is returned by
+      mysql_stmt_num_fields)
+    - fetch metadata for any column with mysql_fetch_field,
+      mysql_fetch_field_direct, mysql_fetch_fields, mysql_field_seek.
+    - free returned MYSQL_RES structure with mysql_free_result.
+    - proceed to binding of output parameters.
 */
 
 MYSQL_RES * STDCALL
@@ -2016,8 +2087,9 @@ mysql_stmt_result_metadata(MYSQL_STMT *stmt)
 }
 
 /*
-  Returns parameter columns meta information in the form of 
-  resultset.
+  Returns parameter columns meta information in the form of
+  result set.
+  XXX: not implemented yet.
 */
 
 MYSQL_RES * STDCALL
@@ -2036,12 +2108,8 @@ mysql_stmt_param_metadata(MYSQL_STMT *stmt)
 }
 
 
-/********************************************************************
- Prepare-execute, and param handling
-*********************************************************************/
-
-/****************************************************************************
-  Functions to store parameter data from a prepared statement.
+/*
+  Functions to store parameter data in network packet.
 
   All functions have the following characteristics:
 
@@ -2053,7 +2121,7 @@ mysql_stmt_param_metadata(MYSQL_STMT *stmt)
   RETURN VALUES
     0	ok
     1	Error	(Can't alloc net->buffer)
-****************************************************************************/
+*/
 
 static void store_param_tinyint(NET *net, MYSQL_BIND *param)
 {
@@ -2162,7 +2230,8 @@ static void store_param_datetime(NET *net, MYSQL_BIND *param)
     
 static void store_param_str(NET *net, MYSQL_BIND *param)
 {
-  ulong length= param->length ? *param->length : param->buffer_length;
+  /* param->length is always set in mysql_stmt_bind_param */
+  ulong length= *param->length;
   char *to= (char *) net_store_length((char *) net->write_pos, length);
   memcpy(to, param->buffer, length);
   net->write_pos= (uchar*) to+length;
@@ -2538,6 +2607,7 @@ my_ulonglong STDCALL mysql_stmt_insert_id(MYSQL_STMT *stmt)
   return stmt->insert_id;
 }
 
+
 static my_bool int_is_null_true= 1;		/* Used for MYSQL_TYPE_NULL */
 static my_bool int_is_null_false= 0;
 
@@ -2630,6 +2700,11 @@ my_bool STDCALL mysql_stmt_bind_param(MYSQL_STMT *stmt, MYSQL_BIND * bind)
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_STRING:
       param->store_param_func= store_param_str;
+      /*
+        For variable length types we expect user to set
+        length or buffer_length. Otherwise mysql_stmt_execute
+        will just fail.
+      */
       break;
     default:
       strmov(stmt->sqlstate, unknown_sqlstate);
@@ -2670,7 +2745,6 @@ my_bool STDCALL mysql_stmt_bind_param(MYSQL_STMT *stmt, MYSQL_BIND * bind)
     0	ok
     1	error
 */
-
 
 my_bool STDCALL
 mysql_stmt_send_long_data(MYSQL_STMT *stmt, uint param_number,
@@ -2769,6 +2843,7 @@ static uint read_binary_time(MYSQL_TIME *tm, uchar **pos)
   uchar *to;
   uint  length;
  
+  /* net_field_length will set pos to the first byte of data */
   if (!(length= net_field_length(pos)))
   {
     set_zero_time(tm);
