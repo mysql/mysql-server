@@ -21,27 +21,25 @@
  **/
 
 #include <my_global.h>
-#include <my_sys.h>
-#include <m_string.h>
+#include <my_pthread.h>
 #include <mysql.h>
 #include <mysql_version.h>
-#include <m_ctype.h>
-#include <my_config.h>
-#include <my_dir.h>
-#include <hash.h>
 #include <mysqld_error.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <my_sys.h>
+#include <my_dir.h>
+#include <m_string.h>
+#include <m_ctype.h>
+#include <hash.h>
 #include <getopt.h>
 #include <stdarg.h>
 #include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
 #include <errno.h>
 #include <violite.h>
-#include <my_pthread.h>
 #include <md5.h>
+#include <signal.h>
+#ifdef HAVE_SYS_WAIT_H
+#include <sys/wait.h>
+#endif
 
 #define MANAGER_VERSION "1.0"
 #define MANAGER_GREETING "MySQL Server Management Daemon v. 1.0" 
@@ -1040,7 +1038,7 @@ LOG_MSG_FUNC(log_info,LOG_INFO)
 #ifndef DBUG_OFF
 LOG_MSG_FUNC(log_debug,LOG_DEBUG)
 #else
-inline void log_debug(char* __attribute__((unused)) fmt,...) {}
+inline void log_debug(const char* __attribute__((unused)) fmt,...) {}
 #endif
 
 static pthread_handler_decl(process_launcher_messages,
@@ -1065,7 +1063,7 @@ static pthread_handler_decl(process_launcher_messages,
       char* ident=buf+1;
       int ident_len=strlen(ident);
       memcpy(&pid,ident+ident_len+1,sizeof(pid));
-      log_debug("process message - ident=%s,ident_len=%d,pid=%d",ident,
+      log_debug("process message - ident=%s  ident_len=%d  pid=%d",ident,
 		ident_len,pid);
       pthread_mutex_lock(&lock_exec_hash);
       log_debug("hash has %d records",exec_hash.records);

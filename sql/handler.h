@@ -27,7 +27,7 @@
 #define NO_HASH				/* Not yet implemented */
 #endif
 
-#if defined(HAVE_BERKELEY_DB) || defined(HAVE_INNOBASE_DB) || defined(HAVE_GEMINI_DB)
+#if defined(HAVE_BERKELEY_DB) || defined(HAVE_INNOBASE_DB)
 #define USING_TRANSACTIONS
 #endif
 
@@ -134,7 +134,6 @@ enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 typedef struct st_thd_trans {
   void *bdb_tid;
   void *innobase_tid;
-  void *gemini_tid;
   bool innodb_active_trans;
 } THD_TRANS;
 
@@ -325,17 +324,6 @@ public:
 				     enum thr_lock_type lock_type)=0;
 };
 
-#ifdef HAVE_GEMINI_DB
-struct st_gemini
-{
-  void           *context;
-  unsigned long   savepoint;
-  bool            needSavepoint;
-  uint            tx_isolation;
-  uint            lock_count;
-};
-#endif
-
 	/* Some extern variables used with handlers */
 
 extern const char *ha_row_type[];
@@ -366,5 +354,4 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans);
 int ha_autocommit_or_rollback(THD *thd, int error);
 void ha_set_spin_retries(uint retries);
 bool ha_flush_logs(void);
-int ha_commit_rename(THD *thd);
 int ha_recovery_logging(THD *thd, bool on);

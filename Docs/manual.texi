@@ -7606,6 +7606,10 @@ warnings about @file{mysql.cc}.  (If @code{make} stops, try @code{make -k}
 to tell it to continue with the rest of the build even if errors occur.)
 
 @item
+If you want to get a embedded MySQL library (@code{libmysqld.a}) you should
+use the @code{--with-embedded-server} option.
+
+@item
 If you don't want your log files and database directories located under
 @file{/usr/local/var}, use a @code{configure} command, something like one
 of these:
@@ -7621,7 +7625,8 @@ installed under @file{/usr/local/mysql} rather than the default of
 @file{/usr/local}.  The second command preserves the default installation
 prefix, but overrides the default location for database directories
 (normally @file{/usr/local/var}) and changes it to
-@code{/usr/local/mysql/data}.
+@code{/usr/local/mysql/data}.  After you have compiled MySQL, you can
+change these options with option files. @xref{Option files}.
 
 @cindex changing socket location
 @cindex socket location, changing
@@ -24201,17 +24206,11 @@ for most systems, but one should be aware of it.
 @cindex design, limitations
 @cindex limitations, design
 
-Because MySQL uses extremely fast table locking (multiple readers /
-single writers) the biggest remaining problem is a mix of a steady stream of
-inserts and slow selects on the same table.
-
-We believe that for a huge number of systems the extremely fast
-performance in other cases make this choice a win. This case is usually
-also possible to solve by having multiple copies of the table, but it
-takes more effort and hardware.
-
-We are also working on some extensions to solve this problem for some
-common application niches.
+When using the MyISAM table handler, MySQL uses extremely fast table
+locking (multiple readers / single writers). The biggest problem with
+this table type is a if you have a mix of a steady stream of updates and
+slow selects on the same table.  If this is a problem with some tables,
+you can use another table type for these. @xref{Table types}.
 
 MySQL can work with both transactional and not transactional tables.  To
 be able to work smoothly with not transactional tables (which can't
@@ -42350,6 +42349,9 @@ library. @xref{mysql_server_init}.
 @node libmysqld compiling, libmysqld restrictions, libmysqld overview, libmysqld
 @subsubsection Compiling Programs with @code{libmysqld}
 
+To get a @code{libmysqld} library you should configure MySQL with the
+@code{--with-embedded-server} option.
+
 When you link your program with @code{libmysqld}, you must also include
 the system specific @code{pthread} libraries and some libraries that
 @code{mysqld} uses.  You can get the full list of libraries by executing
@@ -47360,6 +47362,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 Added documentation for @code{libmysqld}, the embedded MySQL server
 library.  Also added example programs (a @code{mysql} client and
 @code{mysqltest} test program) which use @code{libmysqld}.
+@item
+Removed all Gemini hooks from MySQL.
 @item
 Removed @code{my_thread_init()} and @code{my_thread_end()}
 from mysql_com.h, and added @code{mysql_thread_init()} and
