@@ -14169,7 +14169,7 @@ Don't flush key buffers between writes for any @code{MyISAM} table.
 @xref{Server parameters}.
 
 @item --des-key-file=filename
-Read the default keys used by @code{des_encrypt()} and @code{des_decrypt()}
+Read the default keys used by @code{DES_ENCRYPT()} and @code{DES_DECRYPT()}
 from this file.
 
 @item --enable-locking
@@ -32531,8 +32531,8 @@ mysql> select MD5("testing");
 
 This is an "RSA Data Security, Inc. MD5 Message-Digest Algorithm".
 
-@findex des_encrypt()
-@item des_encrypt(string_to_encrypt, flag, [, (key_number | key_string) ] )
+@findex DES_ENCRYPT()
+@item DES_ENCRYPT(string_to_encrypt, flag, [, (key_number | key_string) ] )
 
 Encrypts the string with the given key using the DES algorithm, which
 provides strong encryption.
@@ -32555,7 +32555,7 @@ The given @code{key_string} will be used to crypt @code{string_to_encrypt}.
 The return string will be a binary string where the first character
 will be @code{CHAR(128 | key-number)}.
 
-The 128 is added to make it easier to recognize a crypted key.
+The 128 is added to make it easier to recognize an encrypted key.
 If one uses a string key, @code{key-number} will be 127.
 
 On error, this function returns NULL.
@@ -32572,26 +32572,26 @@ key-number key-string
 
 The @code{key-number} must be a number between 0-9. The numbers may be
 in any order.  @code{des-key-string} is string that will be used to
-crypt the message. Between the number and the key there should be at
+encrypt the message. Between the number and the key there should be at
 least one space.  The first key is the default key that will be used
-if one doesn't specify a key to @code{des_encrypt()}
+if you don't specify a key to @code{DES_ENCRYPT()}
 
 You can tell MySQL to read new key values from the key file with the
 @code{FLUSH DES_KEY_FILE} command.
 
 One benefit with having a set of default keys on can use is that it
-gives applications a way to check for existence of crypted column,
-without giving the end user the right to uncrypt the data.
+gives applications a way to check for existence of encrypted column,
+without giving the end user the right to decrypt the data.
 
 @example
 SELECT customer_address FROM customer_table WHERE
 crypted_credit_card = DES_ENCRYPT("credit_card_number");
 @end example
 
-@findex des_decrypt()
-@item des_decrypt(string_to_decrypt [, key_string])
+@findex DES_DECRYPT()
+@item DES_DECRYPT(string_to_decrypt [, key_string])
 
-Decrypts a string crypted with @code{des_encrypt()}.
+Decrypts a string encrypted with @code{DES_ENCRYPT()}.
 
 Note that this function only works if you have configured MySQL with
 SSL support. @xref{Secure connections}.
@@ -32603,8 +32603,8 @@ the user must have the @code{PROCESS_PRIV} privilege.
 If one calls this function with 2 arguments, the second argument is
 used to decrypt the message.
 
-If the @code{string_to_decrypt} doesn't look like a crypted string MySQL will
-return the given @code{string_to_decrypt}.
+If the @code{string_to_decrypt} doesn't look like an encrypted string, MySQL
+will return the given @code{string_to_decrypt}.
 
 On error, this function returns NULL.
 
