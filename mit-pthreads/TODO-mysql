@@ -1,4 +1,0 @@
-This what should be done to get more functionally for mysqld.
-
-- open should be interruptable.
-- fcntl lock should be interruptable.
