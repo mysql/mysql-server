@@ -371,39 +371,71 @@ os_io_init_simple(void)
 	}
 }
 
+#ifndef UNIV_HOTBACKUP
+/*************************************************************************
+Creates a temporary file. This function is defined in ha_innodb.cc. */
+
+int
+innobase_mysql_tmpfile(void);
+/*========================*/
+			/* out: temporary file descriptor, or < 0 on error */
+#endif /* !UNIV_HOTBACKUP */
+
 /***************************************************************************
-Creates a temporary file. In case of error, causes abnormal termination. */
+Creates a temporary file. */
 
 FILE*
 os_file_create_tmpfile(void)
 /*========================*/
-				/* out: temporary file handle, or NULL */
+			/* out: temporary file handle, or NULL on error */
 {
-	FILE*	file;
-#ifdef __WIN__
+	FILE*	file	= NULL;
 	int	fd	= -1;
-	char*	name;
-	file = NULL;
-	if (NULL == (name = tempnam(fil_path_to_mysql_datadir, "ib"))
-		|| -1 == (fd = _open(name, _O_CREAT | _O_EXCL | _O_RDWR
-			| _O_SEQUENTIAL | _O_SHORT_LIVED | _O_TEMPORARY))
-		|| NULL == (file = fdopen(fd, "w+b"))) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Error: unable to create"
-			" temporary file %s\n", name ? name : "name");
-		if (fd != -1) {
-			_close(fd);
+#ifdef UNIV_HOTBACKUP
+	int	tries;
+	for (tries = 10; tries--; ) {
+		char*	name = tempnam(fil_path_to_mysql_datadir, "ib");
+		if (!name) {
+			break;
 		}
+
+		fd = open(name,
+# ifdef __WIN__
+			O_SEQUENTIAL | O_SHORT_LIVED | O_TEMPORARY |
+# endif /* __WIN__ */
+			O_CREAT | O_EXCL | O_RDWR,
+			S_IREAD | S_IWRITE);
+		if (fd >= 0) {
+# ifndef __WIN__
+			unlink(name);
+# endif /* !__WIN__ */
+			free(name);
+			break;
+		}
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr, "  InnoDB: Warning: "
+			"unable to create temporary file %s, retrying\n",
+			name);
+		free(name);
 	}
-	free(name);
-#else /* __WIN__ */
-	file = tmpfile();
-	if (file == NULL) {
+#else /* UNIV_HOTBACKUP */
+	fd = innobase_mysql_tmpfile();
+#endif /* UNIV_HOTBACKUP */
+
+	if (fd >= 0) {
+		file = fdopen(fd, "w+b");
+	}
+
+	if (!file) {
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Error: unable to create temporary file\n",
 			stderr);
+		if (fd >= 0) {
+			close(fd);
+		}
 	}
-#endif /* __WIN__ */
+
 	return(file);
 }
 
