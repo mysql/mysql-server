@@ -97,14 +97,7 @@ bool String::set(longlong num, CHARSET_INFO *cs)
 
   if (alloc(l))
     return TRUE;
-  if (cs->snprintf == my_snprintf_8bit)
-  {
-    str_length=(uint32) (longlong10_to_str(num,Ptr,-10)-Ptr);
-  }
-  else
-  {
-    str_length=cs->snprintf(cs,Ptr,l,"%d",num);
-  }
+  str_length=(uint32) cs->ll10tostr(cs,Ptr,l,-10,num);
   str_charset=cs;
   return FALSE;
 }
@@ -115,14 +108,7 @@ bool String::set(ulonglong num, CHARSET_INFO *cs)
 
   if (alloc(l))
     return TRUE;
-  if (cs->snprintf == my_snprintf_8bit)
-  {
-    str_length=(uint32) (longlong10_to_str(num,Ptr,10)-Ptr);
-  }
-  else
-  {
-    str_length=cs->snprintf(cs,Ptr,l,"%d",num);
-  }
+  str_length=(uint32) cs->ll10tostr(cs,Ptr,l,10,num);
   str_charset=cs;
   return FALSE;
 }

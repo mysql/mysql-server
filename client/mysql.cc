@@ -40,7 +40,7 @@
 #include <signal.h>
 #include <violite.h>
 
-const char *VER= "13.0";
+const char *VER= "13.1";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -195,6 +195,7 @@ static void end_pager();
 static int init_tee(char *);
 static void end_tee();
 static const char* construct_prompt();
+static char *get_arg(char *line);
 static void init_username();
 static void add_int_to_prompt(int toadd);
 
@@ -2313,18 +2314,14 @@ com_use(String *buffer __attribute__((unused)), char *line)
   char *tmp;
   char buff[256];
 
-  while (my_isspace(system_charset_info,*line))
-    line++;
-  strnmov(buff,line,sizeof(buff)-1);		// Don't destroy history
-  if (buff[0] == '\\')				// Short command
-    buff[1]=' ';
-  tmp=(char *) strtok(buff," \t;");		// Skip connect command
-  if (!tmp || !(tmp=(char *) strtok(NullS," \t;")))
+  strmov(buff, line);
+  tmp= get_arg(buff);
+  if (!tmp || !*tmp)
   {
-    put_info("USE must be followed by a database name",INFO_ERROR);
+    put_info("USE must be followed by a database name", INFO_ERROR);
     return 0;
   }
-  if (!current_db || cmp_database(current_db,tmp))
+  if (!current_db || cmp_database(current_db, tmp))
   {
     if (one_database)
       skip_updates= 1;
@@ -2357,6 +2354,62 @@ com_use(String *buffer __attribute__((unused)), char *line)
     skip_updates= 0;
   put_info("Database changed",INFO_INFO);
   return 0;
+}
+
+
+enum quote_type { NO_QUOTE, SQUOTE, DQUOTE, BTICK };
+
+char *get_arg(char *line)
+{
+  char *ptr;
+  my_bool quoted= 0, valid_arg= 0;
+  uint count= 0;
+  enum quote_type qtype= NO_QUOTE;
+
+  ptr= line;
+  /* skip leading white spaces */
+  while (my_isspace(system_charset_info, *ptr))
+    ptr++;
+  if (*ptr == '\\') // short command was used
+    ptr+= 2;
+  while (!my_isspace(system_charset_info, *ptr)) // skip command
+    ptr++;
+  while (my_isspace(system_charset_info, *ptr))
+    ptr++;
+  if ((*ptr == '\'' && (qtype= SQUOTE)) ||
+      (*ptr == '\"' && (qtype= DQUOTE)) ||
+      (*ptr == '`' && (qtype= BTICK)))
+  {
+    quoted= 1;
+    ptr++;
+  }
+  for (; ptr && *ptr; ptr++, count++)
+  {
+    if (*ptr == '\\') // escaped character
+    {
+      // jump over the backslash
+      char *tmp_ptr, tmp_buff[256];
+      tmp_ptr= strmov(tmp_buff, (ptr - count));
+      tmp_ptr-= (strlen(tmp_buff) - count);
+      strmov(tmp_ptr, (ptr + 1));
+      strmov(line, tmp_buff);
+      ptr= line;
+      ptr+= count;
+    }
+    else if (!quoted && *ptr == ' ')
+      *(ptr + 1) = 0;
+    else if ((*ptr == '\'' && qtype == SQUOTE) ||
+	     (*ptr == '\"' && qtype == DQUOTE) ||
+	     (*ptr == '`' && qtype == BTICK))
+    {
+      *ptr= 0;
+      break;
+    }
+  }
+  for (ptr-= count; ptr && *ptr; ptr++)
+    if (!my_isspace(system_charset_info, *ptr))
+      valid_arg= 1;
+  return valid_arg ? ptr - count : '\0';
 }
 
 
