@@ -3286,17 +3286,11 @@ server.
 The C program files in the directory are:
 @itemize @bullet
 @item
-connect_test.c  --  test that a connect is possible
-@item
 get_password.c  --  ask for a password from the console
-@item
-insert_test.c  --  test that an insert is possible
-@item
-list_test.c  --  test that a select is possible
 @item
 mysql.cc  --  "The MySQL command tool"
 @item
-mysqladmin.c  --  maintenance of MYSQL databases
+mysqladmin.c  --  maintenance of MySQL databases
 @item
 mysqlcheck.c  --  check all databases, check connect, etc.
 @item
@@ -3313,14 +3307,6 @@ mysqlshow.c  --  show databases, tables or columns
 mysqltest.c  --  test program used by the mysql-test suite, mysql-test-run
 @item
 password.c  --  password checking routines (version 4.1 and up)
-@item
-select_test.c  --  test that a select is possible 
-@item
-showdb_test.c  --  test that a show-databases is possible 
-@item
-ssl_test.c  --  test that SSL is possible 
-@item
-thread_test.c  --  test that threading is possible 
 @end itemize
 @*@*
 
@@ -4440,7 +4426,7 @@ lock.cc  --  Locks
 @item
 log.cc  --  Logs
 @item
-log_event.cc  --  Log event
+log_event.cc  --  Log event (a binary log consists of a stream of log events)
 @item
 matherr.c  --  Handling overflow, underflow, etc.
 @item
@@ -4482,7 +4468,7 @@ sql_acl.cc  --  Functions related to ACL security; checks, stores, retrieves, an
 @item
 sql_analyse.cc  --  Implements the PROCEDURE analyse, which analyses a query result and returns the 'optimal' data type for each result column
 @item
-sql_base.cc  --  Basic functions needed by many modules
+sql_base.cc  --  Basic functions needed by many modules, like opening and closing tables with table cache management
 @item
 sql_cache.cc  --  SQL query cache, with long comments about how caching works
 @item
@@ -4515,7 +4501,7 @@ sql_load.cc  --  The LOAD DATA statement
 @item
 sql_map.cc  --  Memory-mapped files (not yet in use)
 @item
-sql_manager.cc  --  Maintenance tasks, e.g. flushing the buffers periodically
+sql_manager.cc  --  Maintenance tasks, e.g. flushing the buffers periodically; used with BDB table logs
 @item
 sql_olap.cc  --  ROLLUP
 @item
@@ -4753,8 +4739,26 @@ MySQL.
 Tests in Perl and in C.
 @*@*
 
-These are tests that were run once to check for bugs in various
-scenarios: forks, locks, big records, exporting, truncating, etc.
+The files in this directory are test programs that can be used 
+as a base to write a program to simulate problems in MySQL in various
+scenarios: forks, locks, big records, exporting, truncating, and so on. 
+Some examples are:
+@itemize @bullet
+@item
+connect_test.c  --  test that a connect is possible
+@item
+insert_test.c  --  test that an insert is possible
+@item
+list_test.c  --  test that a select is possible
+@item
+select_test.c  --  test that a select is possible
+@item
+showdb_test.c  --  test that a show-databases is possible
+@item
+ssl_test.c  --  test that SSL is possible
+@item
+thread_test.c  --  test that threading is possible
+@end itemize
 @*@*
 
 @subsection tools
@@ -4765,8 +4769,9 @@ Tools -- well, actually, one tool.
 The only file is:
 @itemize @bullet
 @item
-mysqlmanager.c  --  A "server management daemon" by Sasha Pachev. This 
-is a tool under development and is not yet useful.
+mysqlmanager.c  --  A "server management daemon" by Sasha Pachev. This
+is a tool under development and is not yet useful. Related to fail-safe 
+replication.
 @end itemize
 @*@*
 
@@ -4784,10 +4789,10 @@ script uses these files to create a Windows source installation.
 @*@*
 
 This directory has subdirectories which are copies of the main directories.
-For example there is a subdirectory \VC++Files\heap, which has the
-same files as \heap. So for a description of the files in
-\VC++Files\heap, see the description of the files in \heap. The same
-applies for almost all of VC++Files's subdirectories (bdb, client,
+For example, there is a subdirectory \VC++Files\heap, which has the Microsoft
+developer studio project file to compile \heap with VC++. So for a description 
+of the files in \VC++Files\heap, see the description of the files in \heap. The 
+same applies for almost all of VC++Files's subdirectories (bdb, client,
 isam, libmysql, etc.). The difference is that the \VC++Files variants
 are specifically for compilation with Microsoft Visual C++ in 32-bit
 Windows environments.
@@ -4842,7 +4847,7 @@ thr_insert_test  --  (nearly empty)
 @item
 thr_test  --  one short program used to test for memory-allocation bug
 @item
-winmysqladmin  --  the winmysqladmin.exe source. machine-generated?
+winmysqladmin  --  the winmysqladmin.exe source
 @end itemize
 @*@*
 
