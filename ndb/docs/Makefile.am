@@ -48,7 +48,7 @@ ndbapi.html: $(noinst_HEADERS)
 	@RM@ -rf $(DOXYTMP) $(DOXYOUT); \
 	mkdir -p $(DOXYTMP) $(DOXYOUT); \
 	@CP@ $(top_srcdir)/ndb/include/ndbapi/*  $(DOXYTMP); \
-	@CP@ $(top_srcdir)/ndb/examples/*/*.[ch]pp $(DOXYTMP); \
+	@CP@ $(top_srcdir)/ndb/ndbapi-examples/*/*.[ch]pp $(DOXYTMP); \
 	@PERL@ $(DOXYDIR)/predoxy.pl; \
 	mv footer.html $(DOXYTMP); \
 	(cd $(DOXYTMP) ; @DOXYGEN@ ../$(DOXYDIR)/Doxyfile.ndbapi); \
