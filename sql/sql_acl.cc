@@ -1494,12 +1494,12 @@ static bool update_user_table(THD *thd, const char *host, const char *user,
     DBUG_RETURN(1); /* purecov: deadcode */
   table->field[0]->store(host,(uint) strlen(host), system_charset_info);
   table->field[1]->store(user,(uint) strlen(user), system_charset_info);
-  key_copy(user_key, table->record[0], table->key_info,
+  key_copy((byte *) user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
   table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
   if (table->file->index_read_idx(table->record[0], 0,
-				  user_key, table->key_info->key_length,
+				  (byte *) user_key, table->key_info->key_length,
 				  HA_READ_KEY_EXACT))
   {
     my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH),
