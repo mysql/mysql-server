@@ -6710,8 +6710,7 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
 		       NullS))
     DBUG_RETURN(1);
 
-  // BAR TODO: this must be fixed to use charset from "table" argument
-  if (hash_init(&hash, default_charset_info, (uint) file->records, 0, 
+  if (hash_init(&hash, &my_charset_bin, (uint) file->records, 0, 
 		key_length,(hash_get_key) 0, 0, 0))
   {
     my_free((char*) key_buffer,MYF(0));
