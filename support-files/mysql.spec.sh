@@ -71,7 +71,7 @@ Este pacote contém os clientes padrão para o MySQL.
 
 %package bench
 Release: %{release}
-Requires: %{name}-client MySQL-DBI-perl-bin perl
+Requires: %{name}-client perl-DBI perl
 Summary: MySQL - Benchmarks and test system
 Group: Applications/Databases
 Summary(pt_BR): MySQL - Medições de desempenho
@@ -269,7 +269,7 @@ RBR=$RPM_BUILD_ROOT
 MBD=$RPM_BUILD_DIR/mysql-%{mysql_version}
 
 # Ensure that needed directories exists
-install -d $RBR/etc/{logrotate.d,rc.d/init.d}
+install -d $RBR/etc/{logrotate.d,init.d}
 install -d $RBR/var/lib/mysql/mysql
 install -d $RBR/usr/share/{sql-bench,mysql-test}
 install -d $RBR%{_mandir}
@@ -290,14 +290,20 @@ install -m644 $MBD/sql/mysqld.sym $RBR/usr/lib/mysql/mysqld.sym
 
 # Install logrotate and autostart
 install -m644 $MBD/support-files/mysql-log-rotate $RBR/etc/logrotate.d/mysql
-install -m755 $MBD/support-files/mysql.server $RBR/etc/rc.d/init.d/mysql
+install -m755 $MBD/support-files/mysql.server $RBR/etc/init.d/mysql
 
 # Create symbolic compatibility link safe_mysqld -> mysqld_safe
 # (safe_mysqld will be gone in MySQL 4.1)
 ln -sf ./mysqld_safe $RBR/usr/bin/safe_mysqld
 
 %pre
-if test -x /etc/rc.d/init.d/mysql
+# Shut down a previously installed server first
+if test -x /etc/init.d/mysql
+then
+  /etc/init.d/mysql stop > /dev/null 2>&1
+  echo "Giving mysqld a couple of seconds to exit nicely"
+  sleep 5
+elif test -x /etc/rc.d/init.d/mysql
 then
   /etc/rc.d/init.d/mysql stop > /dev/null 2>&1
   echo "Giving mysqld a couple of seconds to exit nicely"
@@ -313,7 +319,15 @@ if test ! -d $mysql_datadir/mysql;	then mkdir $mysql_datadir/mysql; fi
 if test ! -d $mysql_datadir/test;	then mkdir $mysql_datadir/test; fi
 
 # Make MySQL start/shutdown automatically when the machine does it.
-/sbin/chkconfig --add mysql
+# use insserv for older SuSE Linux versions
+if test -x /sbin/insserv
+then
+	/sbin/insserv /etc/init.d/mysql
+# use chkconfig on Red Hat and newer SuSE releases
+elif test -x /sbin/chkconfig
+then
+	/sbin/chkconfig --add mysql
+fi
 
 # Create a MySQL user. Do not report any problems if it already
 # exists. This is redhat specific and should be handled more portable
@@ -334,31 +348,37 @@ chown -R mysql $mysql_datadir
 chmod -R og-rw $mysql_datadir/mysql
 
 # Restart in the same way that mysqld will be started normally.
-/etc/rc.d/init.d/mysql start
+/etc/init.d/mysql start
 
 # Allow safe_mysqld to start mysqld and print a message before we exit
 sleep 2
 
 %post Max
 # Restart mysqld, to use the new binary.
-# There may be a better way to handle this.
-/etc/rc.d/init.d/mysql stop > /dev/null 2>&1
-echo "Giving mysqld a couple of seconds to restart"
-sleep 5
-/etc/rc.d/init.d/mysql start
-sleep 2
+echo "Restarting mysqld."
+/etc/init.d/mysql restart > /dev/null 2>&1
 
 %preun
 if test $1 = 0
 then
-  if test -x /etc/rc.d/init.d/mysql
+	# Stop MySQL before uninstalling it
+  if test -x /etc/init.d/mysql
   then
-    /etc/rc.d/init.d/mysql stop > /dev/null
+    /etc/init.d/mysql stop > /dev/null
   fi
 
   # Remove autostart of mysql
-  /sbin/chkconfig --del mysql
+	# for older SuSE Linux versions
+	if test -x /sbin/insserv
+	then
+		/sbin/insserv -r /etc/init.d/mysql
+	# use chkconfig on Red Hat and newer SuSE releases
+	elif test -x /sbin/chkconfig
+	then
+		/sbin/chkconfig --del mysql
+	fi
 fi
+
 # We do not remove the mysql user since it may still own a lot of
 # database files.
 
@@ -412,7 +432,7 @@ fi
 %attr(644, root, root) /usr/lib/mysql/mysqld.sym
 
 %attr(644, root, root) /etc/logrotate.d/mysql
-%attr(755, root, root) /etc/rc.d/init.d/mysql
+%attr(755, root, root) /etc/init.d/mysql
 
 %attr(755, root, root) /usr/share/mysql/
 
@@ -481,6 +501,17 @@ fi
 %attr(644, root, root) /usr/lib/mysql/libmysqld.a
 
 %changelog 
+
+* Wed Nov 27 2002 Lenz Grimmer <lenz@mysql.com>
+
+- moved init script from /etc/rc.d/init.d to /etc/init.d (the majority of 
+  Linux distributions now support this scheme as proposed by the LSB either
+  directly or via a compatibility symlink)
+- Use new "restart" init script action instead of starting and stopping
+  separately
+- Be more flexible in activating the automatic bootup - use insserv (on
+  older SuSE versions) or chkconfig (Red Hat, newer SuSE versions and
+  others) to create the respective symlinks
 
 * Wed Sep 25 2002 Lenz Grimmer <lenz@mysql.com>
 
