@@ -1,0 +1,35 @@
+Testing server 'MySQL 4.0.2 alpha' at 2002-05-20 15:35:53
+
+Testing the speed of connecting to the server and sending of data
+Connect tests are done 10000 times and other tests 100000 times
+
+Testing connection/disconnect
+Time to connect (10000):  7 wallclock secs ( 4.50 usr  1.62 sys +  0.00 cusr  0.00 csys =  6.12 CPU)
+
+Test connect/simple select/disconnect
+Time for connect+select_simple (10000):  9 wallclock secs ( 5.19 usr  2.02 sys +  0.00 cusr  0.00 csys =  7.21 CPU)
+
+Test simple select
+Time for select_simple (100000): 15 wallclock secs ( 8.15 usr  2.84 sys +  0.00 cusr  0.00 csys = 10.99 CPU)
+
+Test simple select
+Time for select_simple_cache (100000): 14 wallclock secs ( 8.03 usr  3.18 sys +  0.00 cusr  0.00 csys = 11.21 CPU)
+
+Testing connect/select 1 row from table/disconnect
+Time to connect+select_1_row (10000): 10 wallclock secs ( 5.09 usr  2.31 sys +  0.00 cusr  0.00 csys =  7.40 CPU)
+
+Testing select 1 row from table
+Time to select_1_row (100000): 22 wallclock secs ( 9.63 usr  4.42 sys +  0.00 cusr  0.00 csys = 14.05 CPU)
+
+Time to select_1_row_cache (100000): 19 wallclock secs ( 6.75 usr  3.55 sys +  0.00 cusr  0.00 csys = 10.30 CPU)
+
+Testing select 2 rows from table
+Time to select_2_rows (100000): 24 wallclock secs ( 9.99 usr  4.11 sys +  0.00 cusr  0.00 csys = 14.10 CPU)
+
+Test select with aritmetic (+)
+Time for select_column+column (100000): 23 wallclock secs ( 8.62 usr  3.65 sys +  0.00 cusr  0.00 csys = 12.27 CPU)
+
+Testing retrieval of big records (65000 bytes)
+Time to select_big_str (10000): 13 wallclock secs ( 5.10 usr  3.32 sys +  0.00 cusr  0.00 csys =  8.42 CPU)
+
+Total time: 156 wallclock secs (71.06 usr 31.02 sys +  0.00 cusr  0.00 csys = 102.08 CPU)

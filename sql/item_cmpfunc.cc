@@ -1280,6 +1280,9 @@ bool Item_func_like::fix_fields(THD *thd,struct st_table_list *tlist)
   if (args[1]->const_item() && !(specialflag & SPECIAL_NO_NEW_FUNC))
   {
     String* res2 = args[1]->val_str(&tmp_value2);
+    if (!res2)
+      return 0;					// Null argument
+
     const size_t len   = res2->length();
     const char*  first = res2->ptr();
     const char*  last  = first + len - 1;

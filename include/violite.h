@@ -153,27 +153,27 @@ my_bool vio_ssl_peer_addr(Vio* vio, char *buf);
 void vio_ssl_in_addr(Vio *vio, struct in_addr *in);
 
 /* Single copy for server */
+enum vio_ssl_acceptorfd_state
+{
+  state_connect       = 1,
+  state_accept        = 2
+};
+
 struct st_VioSSLAcceptorFd 
 {
   SSL_CTX* ssl_context_;
   SSL_METHOD* ssl_method_;
   struct st_VioSSLAcceptorFd* session_id_context_;
-  enum {
-    state_connect       = 1,
-    state_accept        = 2
-  };
-
-  /* function pointers which are only once for SSL server 
-  Vio*(*sslaccept)(struct st_VioSSLAcceptorFd*,Vio*); */
 };
 
 /* One copy for client */
 struct st_VioSSLConnectorFd
 {
   SSL_CTX* ssl_context_;
-  SSL_METHOD* ssl_method_;
   /* function pointers which are only once for SSL client */ 
+  SSL_METHOD* ssl_method_;
 };
+
 void sslaccept(struct st_VioSSLAcceptorFd*, Vio*, long timeout);
 void sslconnect(struct st_VioSSLConnectorFd*, Vio*, long timeout);
 
