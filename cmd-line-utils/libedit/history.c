@@ -37,13 +37,6 @@
  */
 
 #include "compat.h"
-#if !defined(lint) && !defined(SCCSID)
-#if 0
-static char sccsid[] = "@(#)history.c	8.1 (Berkeley) 6/4/93";
-#else
-__RCSID("$NetBSD: history.c,v 1.17 2001/03/20 00:08:31 christos Exp $");
-#endif
-#endif /* not lint && not SCCSID */
 
 /*
  * hist.c: History access functions

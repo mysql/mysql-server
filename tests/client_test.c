@@ -164,7 +164,7 @@ static void client_connect()
   char buff[255];
   myheader("client_connect");  
 
-  if(!(mysql = mysql_init(NULL)))
+  if (!(mysql = mysql_init(NULL)))
   { 
 	  myerror("mysql_init() failed");
     exit(0);

@@ -37,13 +37,6 @@
  */
 
 #include "compat.h"
-#if !defined(lint) && !defined(SCCSID)
-#if 0
-static char sccsid[] = "@(#)tokenizer.c	8.1 (Berkeley) 6/4/93";
-#else
-__RCSID("$NetBSD: tokenizer.c,v 1.7 2001/01/04 15:56:32 christos Exp $");
-#endif
-#endif /* not lint && not SCCSID */
 
 /*
  * tokenize.c: Bourne shell like tokenizer

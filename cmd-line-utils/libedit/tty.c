@@ -37,13 +37,6 @@
  */
 
 #include "compat.h"
-#if !defined(lint) && !defined(SCCSID)
-#if 0
-static char sccsid[] = "@(#)tty.c	8.1 (Berkeley) 6/4/93";
-#else
-__RCSID("$NetBSD: tty.c,v 1.15 2001/05/17 01:02:17 christos Exp $");
-#endif
-#endif /* not lint && not SCCSID */
 
 /*
  * tty.c: tty interface stuff
