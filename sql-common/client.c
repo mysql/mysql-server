@@ -1410,7 +1410,8 @@ static MYSQL_METHODS client_methods=
   cli_stmt_execute,
   cli_read_binary_rows,
   cli_unbuffered_fetch,
-  NULL
+  NULL,
+  cli_read_statistic
 #endif
 };
 

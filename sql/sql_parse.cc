@@ -1473,12 +1473,15 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     error=TRUE;
     break;
 #endif
-#ifndef EMBEDDED_LIBRARY
   case COM_STATISTICS:
   {
     mysql_log.write(thd,command,NullS);
     statistic_increment(com_stat[SQLCOM_SHOW_STATUS],&LOCK_status);
+#ifndef EMBEDDED_LIBRARY
     char buff[200];
+#else
+    char *buff= thd->net.last_error;
+#endif
     ulong uptime = (ulong) (thd->start_time - start_time);
     sprintf((char*) buff,
 	    "Uptime: %ld  Threads: %d  Questions: %lu  Slow queries: %ld  Opens: %ld  Flush tables: %ld  Open tables: %u  Queries per second avg: %.3f",
@@ -1491,12 +1494,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       sprintf(strend(buff), "  Memory in use: %ldK  Max memory used: %ldK",
 	      (sf_malloc_cur_memory+1023L)/1024L,
 	      (sf_malloc_max_memory+1023L)/1024L);
- #endif
+#endif
+#ifndef EMBEDDED_LIBRARY
     VOID(my_net_write(net, buff,(uint) strlen(buff)));
     VOID(net_flush(net));
+#endif
     break;
   }
-#endif
   case COM_PING:
     statistic_increment(com_other,&LOCK_status);
     send_ok(thd);				// Tell client we are alive

@@ -217,7 +217,14 @@ static void STDCALL emb_free_embedded_thd(MYSQL *mysql)
   THD *thd= (THD*)mysql->thd;
   if (thd->data)
     free_rows(thd->data);
+  thread_count--;
   delete thd;
+}
+
+static const char * STDCALL emb_read_statistic(MYSQL *mysql)
+{
+  THD *thd= (THD*)mysql->thd;
+  return thd->net.last_error;
 }
 
 MYSQL_METHODS embedded_methods= 
@@ -232,7 +239,8 @@ MYSQL_METHODS embedded_methods=
   emb_stmt_execute,
   emb_read_binary_rows,
   emb_unbuffered_fetch,
-  emb_free_embedded_thd
+  emb_free_embedded_thd,
+  emb_read_statistic
 };
 
 C_MODE_END
@@ -431,6 +439,7 @@ void init_embedded_mysql(MYSQL *mysql, int client_flag, char *db)
 {
   THD *thd = (THD *)mysql->thd;
   thd->mysql= mysql;
+  mysql->server_version= server_version;
 }
 
 void *create_embedded_thd(int client_flag, char *db)
@@ -465,6 +474,7 @@ void *create_embedded_thd(int client_flag, char *db)
 
   thd->data= 0;
 
+  thread_count++;
   return thd;
 }
 
