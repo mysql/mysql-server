@@ -53,6 +53,10 @@ class sp_pcontext : public Sql_alloc
 
   sp_pcontext();
 
+  // Free memory
+  void
+  destroy();
+
   inline uint
   max_framesize()
   {
@@ -62,7 +66,7 @@ class sp_pcontext : public Sql_alloc
   inline uint
   current_framesize()
   {
-    return m_i;
+    return m_pvar.elements;
   }
 
   inline uint
@@ -75,21 +79,25 @@ class sp_pcontext : public Sql_alloc
   inline void
   set_params()
   {
-    m_params= m_i;
+    m_params= m_pvar.elements;
   }
 
   inline void
   set_type(uint i, enum enum_field_types type)
   {
-    if (i < m_i)
-      m_pvar[i].type= type;
+    sp_pvar_t *p= find_pvar(i);
+
+    if (p)
+      p->type= type;
   }
 
   inline void
   set_isset(uint i, my_bool val)
   {
-    if (i < m_i)
-      m_pvar[i].isset= val;
+    sp_pvar_t *p= find_pvar(i);
+
+    if (p)
+      p->isset= val;
   }
 
   void
@@ -99,8 +107,8 @@ class sp_pcontext : public Sql_alloc
   inline void
   pop(uint num = 1)
   {
-    if (num < m_i)
-      m_i -= num;
+    while (num--)
+      pop_dynamic(&m_pvar);
   }
 
   // Find by name
@@ -111,9 +119,13 @@ class sp_pcontext : public Sql_alloc
   sp_pvar_t *
   find_pvar(uint i)
   {
-    if (i >= m_i)
-      return NULL;
-    return m_pvar+i;
+    sp_pvar_t *p;
+
+    if (i < m_pvar.elements)
+      get_dynamic(&m_pvar, (gptr)&p, i);
+    else
+      p= NULL;
+    return p;
   }
 
   sp_label_t *
@@ -138,13 +150,8 @@ private:
 
   uint m_params;		// The number of parameters
   uint m_framesize;		// The maximum framesize
-  uint m_i;			// The current index (during parsing)
 
-  sp_pvar_t *m_pvar;
-  uint m_pvar_size;		// Current size of m_pvar.
-
-  void
-  grow();
+  DYNAMIC_ARRAY m_pvar;
 
   List<sp_label_t> m_label;	// The label list
   uint m_genlab;		// Gen. label counter
