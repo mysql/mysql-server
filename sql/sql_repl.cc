@@ -228,7 +228,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
 
   if(pos < 4)
     {
-      errmsg = "Contratulations! You have hit the magic number and can win \
+      errmsg = "Congratulations! You have hit the magic number and can win \
 sweepstakes if you report the bug";
       goto err;
     }
@@ -616,7 +616,7 @@ int change_master(THD* thd)
     {
       // if we change host or port, we must reset the postion
       glob_mi.log_file_name[0] = 0;
-      glob_mi.pos = 0;
+      glob_mi.pos = 4; // skip magic number
     }
 
   if(lex_mi->log_file_name)
