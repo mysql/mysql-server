@@ -468,7 +468,7 @@ static bool check_view_insertability(TABLE_LIST *view, ulong query_id)
     /* simple SELECT list entry (field without expression) */
     if (trans[i]->type() != Item::FIELD_ITEM)
       DBUG_RETURN(TRUE);
-    if (((Item_field *)trans[i])->field->type() == Field::NEXT_NUMBER)
+    if (((Item_field *)trans[i])->field->unireg_check == Field::NEXT_NUMBER)
       view->contain_auto_increment= 1;
     /* prepare unique test */
     ((Item_field *)trans[i])->field->query_id= other_query_id;
