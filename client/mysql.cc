@@ -114,7 +114,7 @@ static bool info_flag=0,ignore_errors=0,wait_flag=0,quick=0,
 	    no_rehash=0,skip_updates=0,safe_updates=0,one_database=0,
 	    opt_compress=0,
 	    vertical=0,skip_line_numbers=0,skip_column_names=0,opt_html=0,
-	    no_named_cmds=0;
+            no_named_cmds=1; // we want this to be the default
 static uint verbose=0,opt_silent=0,opt_mysql_port=0;
 static my_string opt_mysql_unix_port=0;
 static int connect_flag=CLIENT_INTERACTIVE;
@@ -160,7 +160,7 @@ typedef struct {
 
 static COMMANDS commands[] = {
   { "help",   'h', com_help,   0, "Display this text" },
-  { "?",      'h', com_help,   0, "Synonym for `help'" },
+  { "?",      '?', com_help,   0, "Synonym for `help'" },
   { "clear",  'c', com_clear,  0, "Clear command"},
   { "connect",'r', com_connect,1,
     "Reconnect to the server. Optional arguments are db and host" },
@@ -300,7 +300,7 @@ int main(int argc,char *argv[])
     }
   }
 #endif
-  sprintf(buff, "Type '%s' for help.\n", no_named_cmds ? "\\h" : "help");
+  sprintf(buff, "Type 'help;' or '\\h' for help.\n");
   put_info(buff,INFO_INFO);
   status.exit_status=read_lines(1);		// read lines and execute them
   mysql_end(0);
@@ -352,6 +352,7 @@ static struct option long_options[] =
   {"database",	    required_argument,     0, 'D'},
   {"debug-info",    no_argument,	   0, 'T'},
   {"default-character-set", required_argument,  0, OPT_DEFAULT_CHARSET},
+  {"enable-named-commands", no_argument,   0, 'G'},
   {"execute",	    required_argument,	   0, 'e'},
   {"force",	    no_argument,	   0, 'f'},
   {"help",	    no_argument,	   0, '?'},
@@ -401,7 +402,7 @@ CHANGEABLE_VAR changeable_vars[] = {
 
 static void usage(int version)
 {
-  printf("%s  Ver 10.8 Distrib %s, for %s (%s)\n",
+  printf("%s  Ver 10.10 Distrib %s, for %s (%s)\n",
 	 my_progname, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
   if (version)
     return;
@@ -426,11 +427,17 @@ static void usage(int version)
   -D, --database=..	Database to use.\n\
   --default-character-set=...\n\
                         Set the default character set.\n\
+  -G, --enable-named-commands\n\
+                        Named commands are enabled. Opposite to -g.\n\
   -e, --execute=...     Execute command and quit. (Output like with --batch)\n\
   -E, --vertical        Print the output of a query (rows) vertically.\n\
   -f, --force           Continue even if we get an sql error.\n\
   -g, --no-named-commands\n\
-			Named commands are disabled. Use \\* form only.\n\
+			Named commands are disabled. Use \\* form only, or\n\
+                        use named commands only in the beginning of a line\n\
+                        ending with a semicolon (;)\n\
+                        Since version 10.9 the client now starts with this\n\
+                        option ENABLED by default! Disable with '-G'\n\
   -i, --ignore-space	Ignore space after function names.\n\
   -h, --host=...	Connect to host.\n\
   -H, --html		Produce HTML output.\n\
@@ -486,7 +493,7 @@ static int get_options(int argc, char **argv)
   bool tty_password=0;
 
   set_all_changeable_vars(changeable_vars);
-  while ((c=getopt_long(argc,argv,"?ABCD:LfgHinNoqrstTUvVwWEe:h:O:P:S:u:#::p::",
+  while ((c=getopt_long(argc,argv,"?ABCD:LfgGHinNoqrstTUvVwWEe:h:O:P:S:u:#::p::",
 			long_options, &option_index)) != EOF)
   {
     switch(c) {
@@ -565,6 +572,7 @@ static int get_options(int argc, char **argv)
     case 'E': vertical=1; break;
     case 'w': wait_flag=1; break;
     case 'A': no_rehash=1; break;
+    case 'G': no_named_cmds=0; break;
     case 'g': no_named_cmds=1; break;
     case 'H': opt_html=1; break;
     case 'i': connect_flag|= CLIENT_IGNORE_SPACE; break;
@@ -1171,11 +1179,13 @@ com_help (String *buffer __attribute__((unused)),
   reg1 int i;
 
   put_info("\nMySQL commands:",INFO_INFO);
+  if (no_named_cmds)
+    put_info("Note that all text commands must be first on line and end with ';'",INFO_INFO);
   for (i = 0; commands[i].name; i++)
   {
     if (commands[i].func)
-      printf("%s\t(\\%c)\t%s\n", commands[i].name,commands[i].cmd_char,
-	     commands[i].doc);
+      printf("%s\t(\\%c)\t%s\n", commands[i].name,
+	     commands[i].cmd_char, commands[i].doc);
   }
   if (connected)
     printf("\nConnection id: %ld  (Can be used with mysqladmin kill)\n\n",

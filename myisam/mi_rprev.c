@@ -58,7 +58,7 @@ int mi_rprev(MI_INFO *info, byte *buf, int inx)
       /* Skip rows that are inserted by other threads since we got a lock */
       if  ((error=_mi_search_next(info,share->keyinfo+inx,info->lastkey,
 				  info->lastkey_length,
-				  flag,
+				  SEARCH_SMALLER,
 				  share->state.key_root[inx])))
 	break;
     }

@@ -2407,6 +2407,12 @@ static void print_version(void)
 	 server_version,SYSTEM_TYPE,MACHINE_TYPE);
 }
 
+static void use_help(void)
+{
+  print_version();
+  printf("Use %s --help for a list of available options\n",my_progname);
+}  
+
 static void usage(void)
 {
   print_version();
@@ -2621,7 +2627,7 @@ static void get_options(int argc,char **argv)
     case 'O':
       if (set_changeable_var(optarg, changeable_vars))
       {
-	usage();
+	use_help();
 	exit(1);
       }
       break;
@@ -2666,7 +2672,8 @@ static void get_options(int argc,char **argv)
 	opt_noacl=1;
       else
       {
-	usage();
+	fprintf(stderr,"%s: Unrecognized option: %s\n",my_progname,optarg);
+	use_help();
 	exit(1);
       }
       break;
@@ -2910,7 +2917,7 @@ static void get_options(int argc,char **argv)
 
     default:
       fprintf(stderr,"%s: Unrecognized option: %c\n",my_progname,c);
-      usage();
+      use_help();
       exit(1);
     }
   }
@@ -2920,7 +2927,7 @@ static void get_options(int argc,char **argv)
   if (argc != optind)
   {
     fprintf(stderr,"%s: Too many parameters\n",my_progname);
-    usage();
+    use_help();
     exit(1);
   }
   fix_paths();

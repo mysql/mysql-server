@@ -200,7 +200,7 @@ public:
     create_time(0), check_time(0), update_time(0), mean_rec_length(0),
     ft_handler(0)
     {}
-  virtual ~handler(void) { my_free((char*) ref,MYF(MY_ALLOW_ZERO_PTR)); }
+  virtual ~handler(void) {}
   int ha_open(const char *name, int mode, int test_if_locked);
   void update_timestamp(byte *record);
   void update_auto_increment();
