@@ -2683,6 +2683,7 @@ fputs("	 InnoDB: Unable to assign a new identifier to table ", stderr);
 		dict_table_change_id_in_cache(table, new_id);
 	}
 
+	dict_table_autoinc_initialize(table, 0);
 	dict_update_statistics(table);
 
   	trx_commit_for_mysql(trx);
