@@ -1056,6 +1056,13 @@ uint my_numchars_8bit(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
+uint my_numcells_8bit(CHARSET_INFO *cs __attribute__((unused)),
+		      const char *b, const char *e)
+{
+  return e-b;
+}
+
+
 uint my_charpos_8bit(CHARSET_INFO *cs __attribute__((unused)),
 		     const char *b  __attribute__((unused)),
 		     const char *e  __attribute__((unused)),
@@ -1287,6 +1294,7 @@ MY_CHARSET_HANDLER my_charset_8bit_handler=
     my_charpos_8bit,
     my_well_formed_len_8bit,
     my_lengthsp_8bit,
+    my_numcells_8bit,
     my_mb_wc_8bit,
     my_wc_mb_8bit,
     my_caseup_str_8bit,

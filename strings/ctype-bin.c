@@ -448,6 +448,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
     my_charpos_8bit,
     my_well_formed_len_8bit,
     my_lengthsp_8bit,
+    my_numcells_8bit,
     my_mb_wc_bin,
     my_wc_mb_bin,
     my_case_str_bin,
@@ -478,7 +479,7 @@ CHARSET_INFO my_charset_bin =
     ctype_bin,			/* ctype         */
     bin_char_array,		/* to_lower      */
     bin_char_array,		/* to_upper      */
-    bin_char_array,		/* sort_order    */
+    NULL,			/* sort_order    */
     NULL,			/* contractions */
     NULL,			/* sort_order_big*/
     NULL,			/* tab_to_uni    */
