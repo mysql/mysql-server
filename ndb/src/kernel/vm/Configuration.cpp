@@ -403,19 +403,19 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   unsigned int noBatchSize = 0;
   m_logLevel = new LogLevel();
   
-  struct AttribStorage { int paramId; Uint32 * storage; };
+  struct AttribStorage { int paramId; Uint32 * storage; bool computable };
   AttribStorage tmp[] = {
-    { CFG_DB_NO_SCANS, &noOfScanRecords },
-    { CFG_DB_NO_LOCAL_SCANS, &noOfLocalScanRecords },
-    { CFG_DB_BATCH_SIZE, &noBatchSize },
-    { CFG_DB_NO_TABLES, &noOfTables },
-    { CFG_DB_NO_ORDERED_INDEXES, &noOfOrderedIndexes },
-    { CFG_DB_NO_UNIQUE_HASH_INDEXES, &noOfUniqueHashIndexes },
-    { CFG_DB_NO_REPLICAS, &noOfReplicas },
-    { CFG_DB_NO_ATTRIBUTES, &noOfAttributes },
-    { CFG_DB_NO_OPS, &noOfOperations },
-    { CFG_DB_NO_LOCAL_OPS, &noOfLocalOperations },
-    { CFG_DB_NO_TRANSACTIONS, &noOfTransactions }
+    { CFG_DB_NO_SCANS, &noOfScanRecords, false },
+    { CFG_DB_NO_LOCAL_SCANS, &noOfLocalScanRecords, true },
+    { CFG_DB_BATCH_SIZE, &noBatchSize, false },
+    { CFG_DB_NO_TABLES, &noOfTables, false },
+    { CFG_DB_NO_ORDERED_INDEXES, &noOfOrderedIndexes, false },
+    { CFG_DB_NO_UNIQUE_HASH_INDEXES, &noOfUniqueHashIndexes, false },
+    { CFG_DB_NO_REPLICAS, &noOfReplicas, false },
+    { CFG_DB_NO_ATTRIBUTES, &noOfAttributes, false },
+    { CFG_DB_NO_OPS, &noOfOperations, false },
+    { CFG_DB_NO_LOCAL_OPS, &noOfLocalOperations, true },
+    { CFG_DB_NO_TRANSACTIONS, &noOfTransactions, false }
   };
 
   ndb_mgm_configuration_iterator db(*(ndb_mgm_configuration*)ownConfig, 0);
@@ -423,10 +423,8 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   const int sz = sizeof(tmp)/sizeof(AttribStorage);
   for(int i = 0; i<sz; i++){
     if(ndb_mgm_get_int_parameter(&db, tmp[i].paramId, tmp[i].storage)){
-      if (tmp[i].paramId == CFG_DB_NO_LOCAL_SCANS) {
-        noOfLocalScanRecords = 0;
-      } else if (tmp[i].paramId == CFG_DB_NO_LOCAL_OPS) {
-        noOfLocalOperations = 0;
+      if (tmp[i].computable) {
+        *tmp[i].storage = 0;
       } else {
         snprintf(buf, sizeof(buf),"ConfigParam: %d not found", tmp[i].paramId);
         ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
