@@ -1809,5 +1809,6 @@ show variables like "innodb_thread_sleep_delay";
 Variable_name	Value
 innodb_thread_sleep_delay	10000
 create table t1 (v varchar(16384)) engine=innodb;
+drop table t1;
 create table t1 (a bit, key(a)) engine=innodb;
 ERROR 42000: The storage engine for the table doesn't support BIT FIELD
