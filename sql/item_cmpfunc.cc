@@ -87,6 +87,35 @@ static bool convert_constant_item(Field *field, Item **item)
   return 0;
 }
 
+bool Item_bool_func2::set_cmp_charset(CHARSET_INFO *cs1, enum coercion co1,
+				      CHARSET_INFO *cs2, enum coercion co2)
+{
+  if((cs1 == &my_charset_bin) || (cs2 == &my_charset_bin))
+  {
+    cmp_charset= &my_charset_bin;
+    return 0;
+  }
+
+  if ((co1 == COER_NOCOLL) || (co2 == COER_NOCOLL))
+    return 1;
+
+  if (!my_charset_same(cs1,cs2))
+    return 1;
+
+  if (co1 < co2)
+    cmp_charset= cs1;
+  else if (co2 < co1)
+    cmp_charset= cs2;
+  else // co1==co2
+  {
+    if (cs1 == cs2)
+      cmp_charset= cs1;
+    else
+      return 1;
+  }
+  return 0;
+}
+
 void Item_bool_func2::fix_length_and_dec()
 {
   max_length= 1;				     // Function returns 0 or 1
@@ -124,9 +153,12 @@ void Item_bool_func2::fix_length_and_dec()
       }
     }
   }
-  /* QQ: COERCIBILITY */
-  cmp_charset= (args[0]->binary() || args[1]->binary()) ?
-                &my_charset_bin : args[0]->charset();
+  if (set_cmp_charset(args[0]->charset(), args[0]->coercibility,
+		      args[1]->charset(), args[1]->coercibility))
+  {
+    my_error(ER_WRONG_ARGUMENTS,MYF(0),func_name());
+    return;
+  }
   set_cmp_func();
 }
 
