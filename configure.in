@@ -2757,6 +2757,7 @@ EOF
     no) flag="-R" ;;
     *)  flag="-D" ;;
     esac
+    flag="$flag --VERSION=$VERSION --PACKAGE=$PACKAGE"
     (cd ndb && ./configure $flag) \
     || AC_MSG_ERROR([could not configure NDB Cluster])
     echo "END OF NDB CLUSTER CONFIGURATION"
