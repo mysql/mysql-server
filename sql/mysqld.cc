@@ -147,6 +147,10 @@ int deny_severity = LOG_WARNING;
 #include <sys/mman.h>
 #endif
 
+#define zVOLSTATE_ACTIVE 6
+#define zVOLSTATE_DEACTIVE 2
+#define zVOLSTATE_MAINTENANCE 3
+
 #ifdef __NETWARE__
 #include <nks/vm.h>
 #include <library.h>
@@ -1667,7 +1671,9 @@ ulong neb_event_callback(struct EventBlock *eblock)
   voldata= (EventChangeVolStateEnter_s *)eblock->EBEventData;
 
   /* Deactivation of a volume */
-  if ((voldata->oldState == 6 && voldata->newState == 2))
+  if ((voldata->oldState == zVOLSTATE_ACTIVE &&
+       voldata->newState == zVOLSTATE_DEACTIVE ||
+       voldata->newState == zVOLSTATE_MAINTENANCE))
   {
     /*
       Ensure that we bring down MySQL server only for MySQL data
