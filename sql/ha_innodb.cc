@@ -987,7 +987,10 @@ ha_innobase::open(
 
 	/* Get pointer to a table object in InnoDB dictionary cache */
 
- 	if (NULL == (ib_table = dict_table_get(norm_name, NULL))) {
+	ib_table = dict_table_get_and_increment_handle_count(
+				      		     norm_name, NULL);
+
+ 	if (NULL == ib_table) {
 
 	  sql_print_error("InnoDB error:\n\
 Cannot find table %s from the internal data dictionary\n\
@@ -2831,7 +2834,9 @@ innobase_drop_database(
 	memcpy(namebuf, ptr, len);
 	namebuf[len] = '/';
 	namebuf[len + 1] = '\0';
-
+#ifdef __WIN__
+	casedn_str(namebuf);
+#endif
 	trx = trx_allocate_for_mysql();
 
   	error = row_drop_database_for_mysql(namebuf, trx);

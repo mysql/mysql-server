@@ -48779,8 +48779,17 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.49
 @itemize @bullet
 @item
+Don't give warning for statement that is only a comment;  This is needed for
+@code{mysqldump --disable-keys} to work.
+@item
 Fixed unlikely caching bug when doing a join without keys. In this case
 the last used field for a table always returned @code{NULL}.
+@item
+Added options to make @code{LOAD DATA LOCAL INFILE} more secure.
+@item
+MySQL binary release 3.23.48 for Linux contained a new glibc library, which
+has serious problems under high load and RedHat 7.2.  The 3.23.49 binary
+release doesn't have this problem.
 @end itemize
 
 @node News-3.23.48, News-3.23.47, News-3.23.49, News-3.23.x

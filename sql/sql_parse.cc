@@ -1312,6 +1312,10 @@ mysql_execute_command(void)
     res=mysql_do(thd, *lex->insert_list);
     break;
 
+  case SQLCOM_EMPTY_QUERY:
+    send_ok(&thd->net);
+    break;
+
   case SQLCOM_PURGE:
   {
     if (check_process_priv(thd))
@@ -2094,13 +2098,20 @@ mysql_execute_command(void)
   {
     uint privilege= (lex->duplicates == DUP_REPLACE ?
 		     INSERT_ACL | UPDATE_ACL | DELETE_ACL : INSERT_ACL);
-    if (!(lex->local_file && (thd->client_capabilities & CLIENT_LOCAL_FILES)))
+
+    if (!lex->local_file)
     {
       if (check_access(thd,privilege | FILE_ACL,tables->db))
 	goto error;
     }
     else
     {
+      if (!(thd->client_capabilities & CLIENT_LOCAL_FILES) ||
+	  ! opt_local_infile)
+      {
+	send_error(&thd->net,ER_NOT_ALLOWED_COMMAND);
+	goto error;
+      }
       if (check_access(thd,privilege,tables->db,&tables->grant.privilege) ||
 	  grant_option && check_grant(thd,privilege,tables))
 	goto error;

@@ -21,6 +21,9 @@
 /* Version of .frm files */
 #undef DOT_FRM_VERSION
 
+/* If LOAD DATA LOCAL INFILE should be enabled by default */
+#undef ENABLED_LOCAL_INFILE
+
 /* READLINE: */
 #undef FIONREAD_IN_SYS_IOCTL
 
