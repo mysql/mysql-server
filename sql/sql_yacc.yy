@@ -2981,7 +2981,7 @@ kill:
 	KILL_SYM expr
 	{
 	  LEX *lex=Lex;
-	  if ($2->fix_fields(lex->thd,0))
+	  if ($2->fix_fields(lex->thd, 0, &$2))
 	  { 
 	    send_error(&lex->thd->net, ER_SET_CONSTANTS_ONLY);
 	    YYABORT;
@@ -3477,7 +3477,8 @@ option_value:
 	| '@' ident_or_text equal expr
 	  {
 	     Item_func_set_user_var *item = new Item_func_set_user_var($2,$4);
-	     if (item->fix_fields(current_thd,0) || item->update())
+	     if (item->fix_fields(current_thd, 0, (Item**) &item) ||
+                 item->update())
 	     { 
 		send_error(&current_thd->net, ER_SET_CONSTANTS_ONLY);
 	        YYABORT;
@@ -3509,7 +3510,7 @@ option_value:
 	  {
 	     THD *thd=current_thd;
 	     Item *item= $3;
-	     if (item->fix_fields(current_thd,0))
+	     if (item->fix_fields(current_thd, 0, &item))
 	     {
 		send_error(&thd->net, ER_SET_CONSTANTS_ONLY);
 	        YYABORT;

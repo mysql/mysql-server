@@ -28,4 +28,9 @@ select * from t1 where t1.a=(select t2.a from t2 where t2.b=(select max(a) from 
 select b,(select avg(t2.a+(select min(t3.a) from t3 where t3.a >= t4.a)) from t2) from t4;
 select * from t3 where exists (select * from t2 where t2.b=t3.a);
 select * from t3 where not exists (select * from t2 where t2.b=t3.a);
+insert into t4 values (12,7),(1,7),(10,9),(9,6),(7,6),(3,9);
+select b,max(a) as ma from t4 group by b having b < (select max(t2.a)
+from t2 where t2.b=t4.b);
+select b,max(a) as ma from t4 group by b having b >= (select max(t2.a)
+from t2 where t2.b=t4.b);
 drop table t1,t2,t3,t4;

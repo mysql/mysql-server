@@ -80,10 +80,10 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   void update_used_tables();
-  bool fix_fields(THD *thd,struct st_table_list *tlist)
+  bool fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   {
-    return (separator->fix_fields(thd,tlist)
-	    || Item_func::fix_fields(thd,tlist));
+    return (separator->fix_fields(thd, tlist, &separator)
+	    || Item_func::fix_fields(thd, tlist, ref));
   }
  const char *func_name() const { return "concat_ws"; }
 };
@@ -326,9 +326,10 @@ public:
   double val();
   longlong val_int();
   String *val_str(String *str);
-  bool fix_fields(THD *thd,struct st_table_list *tlist)
+  bool fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   {
-    return (item->fix_fields(thd,tlist) || Item_func::fix_fields(thd,tlist));
+    return (item->fix_fields(thd, tlist, &item) ||
+	    Item_func::fix_fields(thd, tlist, ref));
   }
   void fix_length_and_dec();
   void update_used_tables();
@@ -345,9 +346,10 @@ public:
   Item_func_make_set(Item *a,List<Item> &list) :Item_str_func(list),item(a) {}
   ~Item_func_make_set() { delete item; }
   String *val_str(String *str);
-  bool fix_fields(THD *thd,struct st_table_list *tlist)
+  bool fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   {
-    return (item->fix_fields(thd,tlist) || Item_func::fix_fields(thd,tlist));
+    return (item->fix_fields(thd, tlist, &item) ||
+	    Item_func::fix_fields(thd, tlist, ref));
   }
   void fix_length_and_dec();
   void update_used_tables();
