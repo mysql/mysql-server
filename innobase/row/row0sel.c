@@ -2072,7 +2072,7 @@ row_sel_store_row_id_to_prebuilt(
 		      len, index->table_name, index->name,
 		      dict_index_get_sys_col_pos(index, DATA_ROW_ID),
 		      err_buf);
-		ut_a(0);
+		ut_error;
 	}
 
 	ut_memcpy(prebuilt->row_id, data, len);
@@ -2716,7 +2716,7 @@ row_search_for_mysql(
 
 		mem_analyze_corruption((byte*)prebuilt);
 
-		ut_a(0);
+		ut_error;
 	}
 
 /*	printf("Match mode %lu\n search tuple ", match_mode);
@@ -2765,7 +2765,7 @@ row_search_for_mysql(
 
 		if (direction != prebuilt->fetch_direction) {
 			if (prebuilt->n_fetch_cached > 0) {
-				ut_a(0);
+				ut_error;
 				/* TODO: scrollable cursor: restore cursor to
 				the place of the latest returned row,
 				or better: prevent caching for a scroll

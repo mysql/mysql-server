@@ -940,7 +940,7 @@ sync_array_print_long_waits(void)
 "InnoDB: We intentionally crash the server, because it appears to be hung.\n"
 		    	);
 
-		    	ut_a(0);
+		    	ut_error;
                 }
        	}
 

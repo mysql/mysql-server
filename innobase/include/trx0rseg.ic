@@ -68,7 +68,7 @@ trx_rsegf_get_nth_undo(
 	if (n >= TRX_RSEG_N_SLOTS) {
 		fprintf(stderr,
 		"InnoDB: Error: trying to get slot %lu of rseg\n", n);
-		ut_a(0);
+		ut_error;
 	}
 
 	return(mtr_read_ulint(rsegf + TRX_RSEG_UNDO_SLOTS +
@@ -89,7 +89,7 @@ trx_rsegf_set_nth_undo(
 	if (n >= TRX_RSEG_N_SLOTS) {
 		fprintf(stderr,
 		"InnoDB: Error: trying to set slot %lu of rseg\n", n);
-		ut_a(0);
+		ut_error;
 	}
 
 	mlog_write_ulint(rsegf + TRX_RSEG_UNDO_SLOTS + n * TRX_RSEG_SLOT_SIZE,

@@ -1275,7 +1275,7 @@ fsp_alloc_free_page(
 
 		ut_print_buf(((byte*)descr) - 500, 1000);
 
-		ut_a(0);
+		ut_error;
 	}
 
 	xdes_set_bit(descr, XDES_FREE_BIT, free, FALSE, mtr);
@@ -1359,7 +1359,7 @@ fsp_free_page(
 			return;
 		}
 
-		ut_a(0);
+		ut_error;
 	}
 
 	if (xdes_get_bit(descr, XDES_FREE_BIT, page % FSP_EXTENT_SIZE, mtr)
@@ -1429,7 +1429,7 @@ fsp_free_extent(
 
 		ut_print_buf(((byte*)descr) - 500, 1000);
 
-		ut_a(0);
+		ut_error;
 	}
 
 	xdes_init(descr, mtr);
@@ -2708,7 +2708,7 @@ fseg_free_page_low(
 		fprintf(stderr,
 "InnoDB: If the InnoDB recovery crashes here, see section 6.1\n"
 "InnoDB: of http://www.innodb.com/ibman.html about forcing recovery.\n");
-		ut_a(0);
+		ut_error;
 	}
 		
 	state = xdes_get_state(descr, mtr);
@@ -2798,7 +2798,7 @@ fseg_free_page_low(
 		fprintf(stderr,
 "InnoDB: If the InnoDB recovery crashes here, see section 6.1\n"
 "InnoDB: of http://www.innodb.com/ibman.html about forcing recovery.\n");
-		   ut_a(0);
+		   ut_error;
 	}
 
 	not_full_n_used = mtr_read_ulint(seg_inode + FSEG_NOT_FULL_N_USED,

@@ -485,7 +485,7 @@ que_graph_free_recursive(
 		"que_thr struct appears corrupt; magic n %lu\n",
 								thr->magic_n);
 			mem_analyze_corruption((byte*)thr);
-			ut_a(0);
+			ut_error;
 		}
 
 		thr->magic_n = QUE_THR_MAGIC_FREED;
@@ -597,7 +597,7 @@ que_graph_free_recursive(
 		"que_node struct appears corrupt; type %lu\n",
 						que_node_get_type(node));
 		mem_analyze_corruption((byte*)node);
-		ut_a(0);
+		ut_error;
 	}
 }
 
@@ -987,7 +987,7 @@ que_thr_move_to_run_state_for_mysql(
 
 		mem_analyze_corruption((byte*)thr);
 
-		ut_a(0);
+		ut_error;
 	}
 
 	if (!thr->is_active) {
@@ -1023,7 +1023,7 @@ que_thr_stop_for_mysql_no_error(
 
 		mem_analyze_corruption((byte*)thr);
 
-		ut_a(0);
+		ut_error;
 	}
 
 	thr->state = QUE_THR_COMPLETED;

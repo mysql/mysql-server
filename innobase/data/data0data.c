@@ -261,7 +261,7 @@ dfield_check_typed(
 "InnoDB: Error: data field type %lu, len %lu\n",
 			dfield_get_type(field)->mtype, dfield_get_len(field));
 
-		ut_a(0);
+		ut_error;
 	}
 
 	return(TRUE);

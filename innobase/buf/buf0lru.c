@@ -235,7 +235,7 @@ loop:
 "InnoDB: on Linux!\n",
 		(ulong)(buf_pool->curr_size / (1024 * 1024 / UNIV_PAGE_SIZE)));
 
-		ut_a(0);
+		ut_error;
 	   
 	} else if (!recv_recovery_on && UT_LIST_GET_LEN(buf_pool->free)
 	   + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->max_size / 5) {

@@ -673,7 +673,7 @@ dict_load_table(
 	table->type = mach_read_from_4(field);
 
 	if (table->type == DICT_TABLE_CLUSTER_MEMBER) {
-		ut_a(0);
+		ut_error;
 	
 		field = rec_get_nth_field(rec, 6, &len);
 		table->mix_id = mach_read_from_8(field);

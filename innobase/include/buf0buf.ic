@@ -220,7 +220,7 @@ buf_block_align(
 "InnoDB: Error: trying to access a stray pointer %lx\n"
 "InnoDB: buf pool start is at %lx, number of pages %lu\n", (ulint)ptr,
 			(ulint)frame_zero, buf_pool->max_size);
-		ut_a(0);
+		ut_error;
 	}
 
 	return(block);
@@ -254,7 +254,7 @@ buf_block_align_low(
 "InnoDB: Error: trying to access a stray pointer %lx\n"
 "InnoDB: buf pool start is at %lx, number of pages %lu\n", (ulint)ptr,
 			(ulint)frame_zero, buf_pool->max_size);
-		ut_a(0);
+		ut_error;
 	}
 
 	return(block);
@@ -283,7 +283,7 @@ buf_frame_align(
 "InnoDB: Error: trying to access a stray pointer %lx\n"
 "InnoDB: buf pool start is at %lx, number of pages %lu\n", (ulint)ptr,
 			(ulint)(buf_pool->frame_zero), buf_pool->max_size);
-		ut_a(0);
+		ut_error;
 	}
 
 	return(frame);

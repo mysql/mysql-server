@@ -208,7 +208,7 @@ dict_tables_have_same_db(
 		}
 	}
 
-	ut_a(0);
+	ut_error;
 
 	return(FALSE);
 }
@@ -231,7 +231,7 @@ dict_remove_db_name(
 		}
 	}
 
-	ut_a(0);
+	ut_error;
 
 	return(NULL);
 }
@@ -254,7 +254,7 @@ dict_get_db_name_len(
 		}
 	}
 
-	ut_a(0);
+	ut_error;
 
 	return(0);
 }
@@ -1172,7 +1172,7 @@ dict_table_LRU_trim(void)
 	dict_table_t*	table;
 	dict_table_t*	prev_table;
 
-	ut_a(0);
+	ut_error;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
