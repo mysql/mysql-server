@@ -18552,9 +18552,9 @@ file.
 @node Secure basics, Secure requirements, Secure connections, Secure connections
 @subsubsection Basics
 
-MySQL has support for SSL encrypted connetions. To understand how MySQL
-uses SSL we need to explain some basics about SSL and X509. People who
-are already aware of it can skip this chapter.
+MySQL has support for SSL encrypted connections. To understand how MySQL
+uses SSL, we need to explain some basics about SSL and X509. People who
+are already aware of it can skip this part.
 
 By default, MySQL uses unencrypted connections between client and
 server. This means that someone could watch all your traffic and look at
@@ -18615,7 +18615,7 @@ If you are using an old MySQL installation, you have to update your
 running the @code{mysql_fix_privilege_tables.sh} script.
 @item
 You can check if a running mysqld server supports @code{openssl} by
-examining if @code{show variables like 'have_openssl'} returns @code{YES}.
+examining if @code{SHOW VARIABLES LIKE 'have_openssl'} returns @code{YES}.
 @end enumerate
 
 
@@ -18626,73 +18626,85 @@ examining if @code{show variables like 'have_openssl'} returns @code{YES}.
 @findex REQUIRE GRANT option
 @findex GRANT statemenet
 
-MySQL can check x509 certificate attributes additionally to most used
-username/password scheme. All the usual options are still required
-(username, password, IP address mask, database/table name).
+MySQL can check X509 certificate attributes in addition to the
+normal username/password scheme. All the usual options are still
+required (username, password, IP address mask, database/table name).
 
 There are different possibilities to limit connections:
 
 @itemize @bullet
 @item
-Without any SSL/X509 options all kind of encrypted/unencrypted
+Without any SSL/X509 options, all kind of encrypted/unencrypted
 connections are allowed if username and password are valid.
 
 @item
-@code{REQUIRE SSL} option makes SSL encrypted connection must. Note that
-this requirement can be omitted of there are any other ACL record which
-allows non-SSL connection.
+@code{REQUIRE SSL} option limits the server to allow only SSL
+encrypted connections. Note that this option can be omitted
+if there are any ACL records which allow non-SSL connections.
 
 @example
-GRANT ALL PRIVILEGES ON test.* TO root@@localhost IDENTIFIED BY
-"goodsecret" REQUIRE SSL
+GRANT ALL PRIVILEGES ON test.* TO root@@localhost
+IDENTIFIED BY "goodsecret" REQUIRE SSL
 @end example
 
 @item
-@code{REQUIRE X509} Requiring X509 certificate means that client
-should have valid certificate but we do not care about exact
-certificate, issuer or subject. Only restriction is it should be
-possible to verify its signature with some of our CA certificates.
+@code{REQUIRE X509} means that client should have valid certificate
+but we do not care about the exact certificate, issuer or subject.
+The only restriction is that it should be possible to verify its
+signature with one of the CA certificates.
 
 @example
-GRANT ALL PRIVILEGES ON test.* TO root@@localhost IDENTIFIED BY "goodsecret" REQUIRE X509
+GRANT ALL PRIVILEGES ON test.* TO root@@localhost
+IDENTIFIED BY "goodsecret" REQUIRE X509
 @end example
 
 @item
 @code{REQUIRE ISSUER issuer} makes connection more restrictive: now
-client must present valid x509 certificate issued by CA "issuer". Using
-x509 certificates always implies encryption, so option "SSL" is not
-neccessary anymore.
+client must present a valid X509 certificate issued by CA "issuer".
+Using X509 certificates always implies encryption, so the option "SSL"
+is not neccessary anymore.
 
 @example
-GRANT ALL PRIVILEGES ON test.* TO root@@localhost IDENTIFIED BY "goodsecret" REQUIRE ISSUER "C=FI, ST=Some-State, L=Helsinki, O=MySQL Finland AB, CN=Tonu Samuel/Email=tonu@@mysql.com"
+GRANT ALL PRIVILEGES ON test.* TO root@@localhost
+IDENTIFIED BY "goodsecret"
+REQUIRE ISSUER "C=FI, ST=Some-State, L=Helsinki,
+O=MySQL Finland AB, CN=Tonu Samuel/Email=tonu@@mysql.com"
 @end example
 
 @item
-@code{REQUIRE SUBJECT subject} requires clients to have valid x509
+@code{REQUIRE SUBJECT subject} requires clients to have valid X509
 certificate with subject "subject" on it. If client have valid
-certificate but having different "subject" then connection is still not
-allowed.
+certificate but having different "subject" then the connection is
+still not allowed.
 
 @example
-GRANT ALL PRIVILEGES ON test.* TO root@@localhost IDENTIFIED BY "goodsecret" REQUIRE SUBJECT "C=EE, ST=Some-State, L=Tallinn, O=MySQL demo client certificate, CN=Tonu Samuel/Email=tonu@@mysql.com"
+GRANT ALL PRIVILEGES ON test.* TO root@@localhost
+IDENTIFIED BY "goodsecret"
+REQUIRE SUBJECT "C=EE, ST=Some-State, L=Tallinn,
+O=MySQL demo client certificate, CN=Tonu Samuel/Email=tonu@@mysql.com"
 @end example
 
 @item
 @code{REQUIRE CIPHER cipher} is needed to assure enough strong ciphers
-and keylengths to be used. SSL himself can be weak if old algorithms
-with short encryption keys are used. Using this option we can ask for
-some exact cipher to allow connection.
+and keylengths will be used. SSL itself can be weak if old algorithms
+with short encryption keys are used. Using this option, we can ask for
+some exact cipher method to allow a connection.
 
 @example
-GRANT ALL PRIVILEGES ON test.* TO root@@localhost IDENTIFIED BY "goodsecret" REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA"
+GRANT ALL PRIVILEGES ON test.* TO root@@localhost
+IDENTIFIED BY "goodsecret"
+REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA"
 @end example
 
-Also it is allowed to combine those options with each other like this:
+Also it is allowed to combine these options with each other like this:
 
 @example
-GRANT ALL PRIVILEGES ON test.* TO root@@localhost IDENTIFIED BY "goodsecret" 
-REQUIRE SUBJECT "C=EE, ST=Some-State, L=Tallinn, O=MySQL demo client certificate, CN=Tonu Samuel/Email=tonu@@mysql.com" 
-AND ISSUER "C=FI, ST=Some-State, L=Helsinki, O=MySQL Finland AB, CN=Tonu Samuel/Email=tonu@@mysql.com" 
+GRANT ALL PRIVILEGES ON test.* TO root@@localhost
+IDENTIFIED BY "goodsecret" 
+REQUIRE SUBJECT "C=EE, ST=Some-State, L=Tallinn,
+O=MySQL demo client certificate, CN=Tonu Samuel/Email=tonu@@mysql.com"
+AND ISSUER "C=FI, ST=Some-State, L=Helsinki,
+O=MySQL Finland AB, CN=Tonu Samuel/Email=tonu@@mysql.com"
 AND CIPHER "EDH-RSA-DES-CBC3-SHA"
 @end example
 
