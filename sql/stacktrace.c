@@ -145,7 +145,7 @@ terribly wrong...\n");
   fprintf(stderr, "Warning: Alpha stacks are difficult -\
  will be taking some wild guesses, stack trace may be incorrect or \
  terminate abruptly\n");
-  // On Alpha, we need to get pc
+  /* On Alpha, we need to get pc */
   __asm __volatile__ ("bsr %0, do_next; do_next: "
 		      :"=r"(pc)
 		      :"r"(pc));
@@ -210,8 +210,8 @@ resolve it\n");
 void write_core(int sig)
 {
   signal(sig, SIG_DFL);
-  if (fork() != 0) exit(1);			// Abort main program
-  // Core will be written at exit
+  if (fork() != 0) exit(1);			/* Abort main program */
+  /* Core will be written at exit */
 }
 #else
 void write_core(int sig)
