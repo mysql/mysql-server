@@ -859,8 +859,7 @@ static int create_table_from_dump(THD* thd, NET* net, const char* db,
   }
 
   check_opt.init();
-  check_opt.flags|= T_VERY_SILENT | T_CALC_CHECKSUM;
-  check_opt.quick = 1;
+  check_opt.flags|= T_VERY_SILENT | T_CALC_CHECKSUM | T_QUICK;
   thd->proc_info = "Rebuilding the index on master dump table";
   // we do not want repair() to spam us with messages
   // just send them to the error log, and report the failure in case of

@@ -174,14 +174,11 @@ extern ulong myisam_sort_buffer_size;
 typedef struct st_ha_check_opt
 {
   ulong sort_buffer_size;
-  uint flags;
-  bool quick;
-  bool changed_files;
-  bool optimize;
-  bool retry_without_quick;
+  uint flags;       /* isam layer flags (e.g. for myisamchk) */
+  uint sql_flags;   /* sql layer flags - for something myisamchk cannot do */
   inline void init()
   {
-    flags= 0; quick= optimize= retry_without_quick=0;
+    flags= sql_flags= 0;
     sort_buffer_size = myisam_sort_buffer_size;
   }
 } HA_CHECK_OPT;

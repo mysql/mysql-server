@@ -12,7 +12,7 @@ while ($1)
  dec $1;
 }
 enable_query_log;
-send check table t1 type=extended;
+send check table t1 extended;
 connection con2;
 insert into t1 values (200000);
 connection con1;

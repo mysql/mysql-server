@@ -517,9 +517,10 @@ get_one_option(int optid,
     break;
   case 'q':
     if (argument && *argument == '0')
-      check_param.opt_rep_quick=0;
+      check_param.testflag&= ~(T_QUICK | T_FORCE_UNIQUENESS);
     else
-      check_param.opt_rep_quick++;
+      check_param.testflag|=
+        (check_param.testflag & T_QUICK) ? T_FORCE_UNIQUENESS : T_QUICK;
     break;
   case 'u':
     if (argument && *argument == '0')
@@ -627,7 +628,7 @@ static void get_options(register int *argc,register char ***argv)
   }
 
   if ((check_param.testflag & T_UNPACK) &&
-      (check_param.opt_rep_quick || (check_param.testflag & T_SORT_RECORDS)))
+      (check_param.testflag & (T_QUICK | T_SORT_RECORDS)))
   {
     VOID(fprintf(stderr,
 		 "%s: --unpack can't be used with --quick or --sort-records\n",
@@ -659,7 +660,7 @@ static void get_options(register int *argc,register char ***argv)
 static int myisamchk(MI_CHECK *param, my_string filename)
 {
   int error,lock_type,recreate;
-  int rep_quick= param->opt_rep_quick;
+  int rep_quick= param->testflag & (T_QUICK | T_FORCE_UNIQUENESS);
   uint raid_chunks;
   MI_INFO *info;
   File datafile;
@@ -794,8 +795,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
       param->testflag|=T_REP_BY_SORT;		/* if only STATISTICS */
       if (!(param->testflag & T_SILENT))
 	printf("- '%s' has old table-format. Recreating index\n",filename);
-      if (!rep_quick)
-	rep_quick=1;
+      rep_quick|=T_QUICK;
     }
     share=info->s;
     share->r_locks=0;

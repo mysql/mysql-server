@@ -322,6 +322,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token	UNION_SYM
 %token	UNIQUE_SYM
 %token	USAGE
+%token	USE_FRM
 %token	USE_SYM
 %token	USING
 %token	VALUES
@@ -1289,7 +1290,6 @@ backup:
 	  Lex->backup_dir = $6.str;
         }
 
-
 repair:
 	REPAIR table_or_tables
 	{
@@ -1297,24 +1297,20 @@ repair:
 	   lex->sql_command = SQLCOM_REPAIR;
 	   lex->check_opt.init();
 	}
-	table_list opt_mi_check_type
+	table_list opt_mi_repair_type
 
-
-opt_mi_check_type:
+opt_mi_repair_type:
 	/* empty */ { Lex->check_opt.flags = T_MEDIUM; }
-	| TYPE_SYM EQ mi_check_types {}
-	| mi_check_types {}
+	| mi_repair_types {}
 
-mi_check_types:
-	mi_check_type {}
-	| mi_check_type mi_check_types {}
+mi_repair_types:
+	mi_repair_type {}
+	| mi_repair_type mi_repair_types {}
 
-mi_check_type:
-	QUICK      { Lex->check_opt.quick = 1; }
-	| FAST_SYM { Lex->check_opt.flags|= T_FAST; }
-	| MEDIUM_SYM { Lex->check_opt.flags|= T_MEDIUM; }
+mi_repair_type:
+	QUICK      { Lex->check_opt.flags|= T_QUICK; }
 	| EXTENDED_SYM { Lex->check_opt.flags|= T_EXTEND; }
-	| CHANGED  { Lex->check_opt.flags|= T_CHECK_ONLY_CHANGED; }
+        | USE_FRM      { /*Lex->check_opt.flags|= T_USEFRM;*/ }
 
 analyze:
 	ANALYZE_SYM table_or_tables
@@ -1333,6 +1329,21 @@ check:
 	   lex->check_opt.init();
 	}
 	table_list opt_mi_check_type
+
+opt_mi_check_type:
+	/* empty */ { Lex->check_opt.flags = T_MEDIUM; }
+	| mi_check_types {}
+
+mi_check_types:
+	mi_check_type {}
+	| mi_check_type mi_check_types {}
+
+mi_check_type:
+	QUICK      { Lex->check_opt.flags|= T_QUICK; }
+	| FAST_SYM { Lex->check_opt.flags|= T_FAST; }
+	| MEDIUM_SYM { Lex->check_opt.flags|= T_MEDIUM; }
+	| EXTENDED_SYM { Lex->check_opt.flags|= T_EXTEND; }
+	| CHANGED  { Lex->check_opt.flags|= T_CHECK_ONLY_CHANGED; }
 
 optimize:
 	OPTIMIZE table_or_tables
@@ -3061,10 +3072,10 @@ keyword:
 	| TYPE_SYM		{}
 	| UDF_SYM		{}
 	| UNCOMMITTED_SYM	{}
+	| USE_FRM		{}
 	| VARIABLES		{}
 	| WORK_SYM		{}
 	| YEAR_SYM		{}
-        | SLAVE                 {}
 
 /* Option functions */
 
