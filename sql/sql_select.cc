@@ -330,20 +330,6 @@ JOIN::prepare(Item ***rref_pointer_array,
       having->split_sum_func(ref_pointer_array, all_fields);
   }
 
-#ifndef DEBUG_OFF
-  {
-    char buff[256];
-    String str(buff,(uint32) sizeof(buff), system_charset_info);
-    str.length(0);
-    if (select_lex->master_unit()->item)
-      select_lex->master_unit()->item->print(&str);
-    else
-      unit->print(&str);
-    str.append('\0');
-    DBUG_PRINT("info", ("(SUB)SELECT: %s", str.ptr()));
-  }
-#endif
-
   // Is it subselect
   {
     Item_subselect *subselect;
