@@ -140,6 +140,9 @@ select * from t1 where MATCH a,b AGAINST ('"text i"' IN BOOLEAN MODE);
 a	b
 select * from t1 where MATCH a,b AGAINST ('"xt indexes"' IN BOOLEAN MODE);
 a	b
+select * from t1 where MATCH a,b AGAINST('"space model' IN BOOLEAN MODE);
+a	b
+Full-text search in MySQL	implements vector space model
 select * from t1 where MATCH a AGAINST ("search" IN BOOLEAN MODE);
 a	b
 Full-text search in MySQL	implements vector space model
