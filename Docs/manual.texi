@@ -6986,10 +6986,8 @@ The initial download of the source tree may take a while, depending on the
 speed of your connection; be patient.
 
 @item
-You will need GNU @code{autoconf 2.52}, @code{automake 1.4},
-@code{libtool}, and @code{m4} to run the next set of commands.
-
-@code{automake} (1.5) doesn't yet work.
+You will need GNU @code{autoconf 2.52}, @code{automake 1.5},
+@code{libtool 1.4}, and @code{m4} to run the next set of commands.
 
 @example
 shell> cd mysql-4.0
@@ -50799,6 +50797,9 @@ each individual 4.0.x release.
 @node News-4.0.5, News-4.0.4, News-4.0.x, News-4.0.x
 @appendixsubsec Changes in release 4.0.5
 @itemize
+@item
+Updated source tree to be built using @code{automake 1.5} and 
+@code{libtool 1.4}.
 @item
 Fixed bug with caching system database ('mysql'). Now query to system 
 database is not cached by query cache.
