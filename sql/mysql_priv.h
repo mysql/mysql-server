@@ -458,6 +458,7 @@ Field *find_field_in_tables(THD *thd,Item_field *item,TABLE_LIST *tables);
 Field *find_field_in_table(THD *thd,TABLE *table,const char *name,uint length,
 			   bool check_grant,bool allow_rowid);
 #ifdef HAVE_OPENSSL
+#include <openssl/des.h>
 struct st_des_keyblock 
 { 
   des_cblock key1, key2, key3; 
