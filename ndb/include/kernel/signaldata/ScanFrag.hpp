@@ -321,7 +321,7 @@ KeyInfo20::getScanNo(Uint32 scanInfo){
 inline
 Uint32
 KeyInfo20::getScanOp(Uint32 scanInfo){
-  return (scanInfo >> 8) & 0x1023;
+  return (scanInfo >> 8) & 0x3FF;
 }
 
 #endif

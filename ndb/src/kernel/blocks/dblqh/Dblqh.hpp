@@ -532,7 +532,8 @@ public:
       SCAN = 1,
       COPY = 2
     };
-    UintR scanAccOpPtr[MAX_PARALLEL_OP_PER_SCAN];
+    UintR scan_acc_op_ptr[MAX_PARALLEL_OP_PER_SCAN];
+    Uint32 scan_acc_index;
     UintR scanApiOpPtr;
     UintR scanLocalref[2];
     Uint32 scan_batch_len;
@@ -2219,6 +2220,13 @@ private:
   void execTUX_ADD_ATTRREF(Signal* signal);
 
   // Statement blocks
+
+  void init_acc_ptr_list(ScanRecord*);
+  bool seize_acc_ptr_list(ScanRecord*, Uint32);
+  void release_acc_ptr_list(ScanRecord*);
+  Uint32 get_acc_ptr_from_scan_record(ScanRecord*, Uint32);
+  void set_acc_ptr_in_scan_record(ScanRecord*, Uint32, Uint32);
+  
   void removeTable(Uint32 tableId);
   void sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId);
   void sendEMPTY_LCP_CONF(Signal* signal, bool idle);
@@ -2248,7 +2256,6 @@ private:
   void sendAttrinfoSignal(Signal* signal);
   void sendLqhAttrinfoSignal(Signal* signal);
   void sendKeyinfoAcc(Signal* signal);
-  void initScanAccOp(Signal* signal);
   Uint32 initScanrec(const class ScanFragReq *);
   void initScanTc(Signal* signal,
                   Uint32 transid1,
