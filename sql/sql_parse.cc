@@ -562,6 +562,9 @@ bool do_command(THD *thd)
   bool	error=0;
   NET *net;
   enum enum_server_command command;
+  // commands which will always take a long time should be marked with
+  // this so that they will not get logged to the slow query log
+  bool slow_command=FALSE;
   DBUG_ENTER("do_command");
 
   net= &thd->net;
@@ -605,6 +608,7 @@ bool do_command(THD *thd)
     break;
   case COM_TABLE_DUMP:
     {
+      slow_command = TRUE;
       char* data = packet + 1;
       uint db_len = *data;
       uint tbl_len = *(data + db_len + 1);
@@ -745,6 +749,7 @@ bool do_command(THD *thd)
     }
   case COM_BINLOG_DUMP:
     {
+      slow_command = TRUE;
       if(check_access(thd, FILE_ACL, any_db))
 	break;
       mysql_log.write(thd,command, 0);
@@ -849,16 +854,18 @@ bool do_command(THD *thd)
     thd->proc_info="closing tables";
     close_thread_tables(thd);			/* Free tables */
   }
-  thd->proc_info="cleaning up";
 
   if (thd->fatal_error)
     send_error(net,0);				// End of memory ?
 
   time_t start_of_query=thd->start_time;
   thd->end_time();				// Set start time
+
   /* If not reading from backup and if the query took too long */
-  if (!thd->user_time)
+  if (!slow_command && !thd->user_time) // do not log 'slow_command' queries
   {
+    thd->proc_info="logging slow query";
+
     if ((ulong) (thd->start_time - thd->time_after_lock) > long_query_time ||
 	((thd->lex.options &
 	  (QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED)) &&
@@ -868,7 +875,7 @@ bool do_command(THD *thd)
       mysql_slow_log.write(thd, thd->query, thd->query_length, start_of_query);
     }
   }
-  thd->proc_info="cleaning up2";
+  thd->proc_info="cleaning up";
   VOID(pthread_mutex_lock(&LOCK_thread_count)); // For process list
   thd->proc_info=0;
   thd->command=COM_SLEEP;
