@@ -168,13 +168,18 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
       }
       continue;
     }
-#ifdef NOT_YET_FIXED_LENGTH_KEY
     if (char_length && length > char_length)
     {
       char_length= my_charpos(cs, pos, pos+length, char_length);
-      set_if_smaller(length, char_length);
+      if (char_length < length)
+      {
+        uint diff= length - char_length;
+        memcpy((byte*) key, pos, char_length);
+        cs->cset->fill(cs, key + char_length, diff, ' ');
+        key+= length;
+        continue;
+      }
     }
-#endif
     memcpy((byte*) key, pos, length);
     key+= length;
   }
