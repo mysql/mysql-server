@@ -1,2 +1,4 @@
-FLOOR(5.5)	FLOOR(-5.5)	CEILING(5.5)	CEILING(-5.5)	ROUND(5.5)	ROUND(-5.5)	
-5	-6	6	-5	6	-6	
+id	elt(two.val,'one','two')	
+1	one	
+2	one	
+4	two	

@@ -1190,6 +1190,7 @@ void Item_func_elt::fix_length_and_dec()
   }
   maybe_null=1;					// NULL if wrong first arg
   used_tables_cache|=item->used_tables();
+  const_item_cache&=item->const_item();
 }
 
 
@@ -1245,6 +1246,7 @@ void Item_func_make_set::fix_length_and_dec()
   for (uint i=1 ; i < arg_count ; i++)
     max_length+=args[i]->max_length;
   used_tables_cache|=item->used_tables();
+  const_item_cache&=item->const_item();
 }
 
 
