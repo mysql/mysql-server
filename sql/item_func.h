@@ -875,7 +875,7 @@ public:
   double val();
   longlong val_int();
   String *val_str(String *str);
-  void update_hash(void *ptr, uint length, enum Item_result type);
+  void update_hash(void *ptr, uint length, enum Item_result type, CHARSET_INFO *cs);
   bool update();
   enum Item_result result_type () const { return cached_result_type; }
   bool fix_fields(THD *thd, struct st_table_list *tables, Item **ref);
