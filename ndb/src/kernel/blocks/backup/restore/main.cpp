@@ -31,7 +31,7 @@ static int ga_nodeId = 0;
 static int ga_nParallelism = 128;
 static int ga_backupId = 0;
 static bool ga_dont_ignore_systab_0 = false;
-static myVector<class BackupConsumer *> g_consumers;
+static Vector<class BackupConsumer *> g_consumers;
 
 static const char* ga_backupPath = "." DIR_SEPARATOR;
 
@@ -181,7 +181,7 @@ readArguments(const int argc, const char** argv)
 void
 clearConsumers()
 {
-  for(int i = 0; i<g_consumers.size(); i++)
+  for(Uint32 i= 0; i<g_consumers.size(); i++)
     delete g_consumers[i];
   g_consumers.clear();
 }
@@ -199,7 +199,7 @@ checkSysTable(const char *tableName)
 static void
 free_data_callback()
 {
-  for(int i = 0; i < g_consumers.size(); i++) 
+  for(Uint32 i= 0; i < g_consumers.size(); i++) 
     g_consumers[i]->tuple_free();
 }
 
@@ -251,7 +251,7 @@ main(int argc, const char** argv)
   }
 
 
-  for(int i = 0; i<g_consumers.size(); i++)
+  for(Uint32 i= 0; i < g_consumers.size(); i++)
   {
     if (!g_consumers[i]->init())
     {
@@ -265,7 +265,7 @@ main(int argc, const char** argv)
   {
     if (checkSysTable(metaData[i]->getTableName()))
     {
-      for(int j = 0; j<g_consumers.size(); j++)
+      for(Uint32 j= 0; j < g_consumers.size(); j++)
 	if (!g_consumers[j]->table(* metaData[i]))
 	{
 	  ndbout_c("Restore: Failed to restore table: %s. "
@@ -296,7 +296,7 @@ main(int argc, const char** argv)
 	  while ((tuple = dataIter.getNextTuple(res= 1)) != 0)
 	  {
 	    if (checkSysTable(tuple->getTable()->getTableName()))
-	      for(int i = 0; i < g_consumers.size(); i++) 
+	      for(Uint32 i= 0; i < g_consumers.size(); i++) 
 		g_consumers[i]->tuple(* tuple);
 	  } // while (tuple != NULL);
 	   
@@ -322,7 +322,7 @@ main(int argc, const char** argv)
 	
 	dataIter.validateFooter(); //not implemented
 
-	for (int i = 0; i<g_consumers.size(); i++)
+	for (Uint32 i= 0; i < g_consumers.size(); i++)
 	  g_consumers[i]->endOfTuples();
 	
 	RestoreLogIterator logIter(metaData);
@@ -336,7 +336,7 @@ main(int argc, const char** argv)
 	while ((logEntry = logIter.getNextLogEntry(res= 0)) != 0)
 	{
 	  if (checkSysTable(logEntry->m_table->getTableName()))
-	    for(int i = 0; i<g_consumers.size(); i++)
+	    for(Uint32 i= 0; i < g_consumers.size(); i++)
 	      g_consumers[i]->logEntry(* logEntry);
 	}
 	if (res < 0)
@@ -345,7 +345,7 @@ main(int argc, const char** argv)
 	  return -1;
 	}
 	logIter.validateFooter(); //not implemented
-	for (int i = 0; i<g_consumers.size(); i++)
+	for (Uint32 i= 0; i < g_consumers.size(); i++)
 	  g_consumers[i]->endOfLogEntrys();
       }
   }
