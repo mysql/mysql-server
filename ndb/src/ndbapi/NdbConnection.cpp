@@ -1646,7 +1646,7 @@ NdbConnection::receiveTCKEY_FAILCONF(const TcKeyFailConf * failConf)
 	break;
       case NdbOperation::NotDefined:
       case NdbOperation::NotDefined2:
-	assert();
+	assert(false);
 	break;
       }//if
     }//while   
