@@ -28,7 +28,7 @@
 #include <my_pthread.h>				/* because of signal()	*/
 #endif
 
-#define ADMIN_VERSION "8.8"
+#define ADMIN_VERSION "8.9"
 #define MAX_MYSQL_VAR 64
 #define MAX_TIME_TO_WAIT 3600			/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
@@ -1077,9 +1077,11 @@ static my_bool get_pidfile(MYSQL *mysql, char *pidfile)
   result = mysql_store_result(mysql);
   if (result)
   {
-    strmov(pidfile, mysql_fetch_row(result)[1]);
+    MYSQL_ROW row=mysql_fetch_row(result);
+    if (row)
+      strmov(pidfile, row[1]);
     mysql_free_result(result);
-    return 0;
+    return row == 0;				/* Error if row = 0 */
   }
   return 1;					/* Error */
 }

@@ -45,6 +45,7 @@ const char * NEAR globerrs[GLOBERRS]=
   "Disk is full writing '%s'. Waiting for someone to free space...",
   "Can't create directory '%s' (Errcode: %d)",
   "Character set '%s' is not a compiled character set and is not specified in the '%s' file"
+  "Out of resources when opening file '%s' (Errcode: %d)",
 };
 
 void init_glob_errs(void)
@@ -80,5 +81,6 @@ void init_glob_errs()
   EE(EE_DISK_FULL)	= "Disk is full writing '%s'. Waiting for someone to free space...";
   EE(EE_CANT_MKDIR)	="Can't create directory '%s' (Errcode: %d)";
   EE(EE_UNKNOWN_CHARSET)= "Character set is not a compiled character set and is not specified in the %s file";
+  EE(EE_OUT_OF_FILERESOURCES)="Out of resources when opening file '%s' (Errcode: %d)",
 }
 #endif

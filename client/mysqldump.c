@@ -37,7 +37,7 @@
 **   Tõnu Samuel  <tonu@please.do.not.remove.this.spam.ee>
 **/
 
-#define DUMP_VERSION "8.9"
+#define DUMP_VERSION "8.10"
 
 #include <global.h>
 #include <my_sys.h>

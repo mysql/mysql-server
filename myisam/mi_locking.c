@@ -25,9 +25,6 @@
 #ifdef	__WIN__
 #include <errno.h>
 #endif
-#if !defined(HAVE_PREAD) && defined(THREAD)
-pthread_mutex_t THR_LOCK_keycache;
-#endif
 
 	/* lock table by F_UNLCK, F_RDLCK or F_WRLCK */
 
@@ -73,14 +70,8 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	{
 	  share->state.process= share->last_process=share->this_process;
 	  share->state.unique=   info->last_unique=  info->this_unique;
-#ifndef HAVE_PREAD
-	  pthread_mutex_lock(&THR_LOCK_keycache); /* QQ; Has to be removed! */
-#endif
 	  if (mi_state_info_write(share->kfile, &share->state, 1))
 	    error=my_errno;
-#ifndef HAVE_PREAD
-	  pthread_mutex_unlock(&THR_LOCK_keycache);/* QQ; Has to be removed! */
-#endif
 	  share->changed=0;
 	  if (myisam_flush)
 	  {

@@ -405,7 +405,7 @@ static void free_rows(MYSQL_DATA *cur)
 {
   if (cur)
   {
-    free_root(&cur->alloc);
+    free_root(&cur->alloc,MYF(0));
     my_free((gptr) cur,MYF(0));
   }
 }
@@ -472,8 +472,8 @@ static void free_old_query(MYSQL *mysql)
 {
   DBUG_ENTER("free_old_query");
   if (mysql->fields)
-    free_root(&mysql->field_alloc);
-  init_alloc_root(&mysql->field_alloc,8192);	/* Assume rowlength < 8192 */
+    free_root(&mysql->field_alloc,MYF(0));
+  init_alloc_root(&mysql->field_alloc,8192,0);	/* Assume rowlength < 8192 */
   mysql->fields=0;
   mysql->field_count=0;				/* For API */
   DBUG_VOID_RETURN;
@@ -662,7 +662,7 @@ mysql_free_result(MYSQL_RES *result)
     }
     free_rows(result->data);
     if (result->fields)
-      free_root(&result->field_alloc);
+      free_root(&result->field_alloc,MYF(0));
     if (result->row)
       my_free((gptr) result->row,MYF(0));
     my_free((gptr) result,MYF(0));
@@ -888,7 +888,7 @@ static MYSQL_DATA *read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
     strmov(net->last_error,ER(net->last_errno));
     DBUG_RETURN(0);
   }
-  init_alloc_root(&result->alloc,8192);		/* Assume rowlength < 8192 */
+  init_alloc_root(&result->alloc,8192,0);	/* Assume rowlength < 8192 */
   result->alloc.min_malloc=sizeof(MYSQL_ROWS);
   prev_ptr= &result->data;
   result->rows=0;

@@ -1104,11 +1104,12 @@ mi_check_types:
 	| CHANGED  { Lex->check_opt.flags|= T_CHECK_ONLY_CHANGED; }
 
 analyze:
-	ANALYZE_SYM table_or_tables table_list
+	ANALYZE_SYM table_or_tables
 	{
 	   Lex->sql_command = SQLCOM_ANALYZE;
 	   Lex->check_opt.init();
 	}
+	table_list opt_mi_check_type
 
 check:
 	CHECK_SYM table_or_tables
@@ -1119,12 +1120,12 @@ check:
 	table_list opt_mi_check_type
 
 optimize:
-	OPTIMIZE table_or_tables table_ident
+	OPTIMIZE table_or_tables
 	{
 	   Lex->sql_command = SQLCOM_OPTIMIZE;
-	   if (!add_table_to_list($3, NULL))
-	     YYABORT;
+	   Lex->check_opt.init();
 	}
+	table_list opt_mi_check_type
 
 rename:
 	RENAME table_or_tables

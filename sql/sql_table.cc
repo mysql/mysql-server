@@ -718,14 +718,19 @@ bool close_cached_table(THD *thd,TABLE *table)
 }
 
 
-int mysql_repair_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
+static int mysql_admin_table(THD* thd, TABLE_LIST* tables,
+			     HA_CHECK_OPT* check_opt,
+			     thr_lock_type lock_type,
+			     bool open_for_modify,
+			     const char *operator_name, 
+			     int (handler::*operator_func)
+			     (THD *, HA_CHECK_OPT *))
 {
   TABLE_LIST *table;
   List<Item> field_list;
   Item* item;
   String* packet = &thd->packet;
-
-  DBUG_ENTER("mysql_repair_table");
+  DBUG_ENTER("mysql_admin_table");
 
   field_list.push_back(item = new Item_empty_string("Table", NAME_LEN*2));
   item->maybe_null = 1;
@@ -738,21 +743,20 @@ int mysql_repair_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
   if (send_fields(thd, field_list, 1))
     DBUG_RETURN(-1);
 
-
   for (table = tables; table; table = table->next)
   {
     char table_name[NAME_LEN*2+2];
     char* db = (table->db) ? table->db : thd->db;
     strxmov(table_name,db ? db : "",".",table->name,NullS);
 
-    table->table = open_ltable(thd, table, TL_WRITE);
+    table->table = open_ltable(thd, table, lock_type);
     packet->length(0);
 
     if (!table->table)
     {
       const char *err_msg;
       net_store_data(packet, table_name);
-      net_store_data(packet, "repair");
+      net_store_data(packet, operator_name);
       net_store_data(packet, "error");
       if (!(err_msg=thd->net.last_error))
 	err_msg=ER(ER_CHECK_NO_SUCH_TABLE);
@@ -763,217 +767,53 @@ int mysql_repair_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
 	goto err;
       continue;
     }
-
-    int repair_code = table->table->file->repair(thd, check_opt);
-    packet->length(0);
-    net_store_data(packet, table_name);
-    net_store_data(packet, "repair");
-
-    switch(repair_code) {
-    case HA_REPAIR_NOT_IMPLEMENTED:
-      net_store_data(packet, "error");
-      net_store_data(packet, ER(ER_CHECK_NOT_IMPLEMENTED));
-      break;
-
-    case HA_REPAIR_OK:
-      net_store_data(packet, "status");
-      net_store_data(packet, "OK");
-      break;
-
-    case HA_REPAIR_FAILED:
-      net_store_data(packet, "status");
-      net_store_data(packet, "Not repaired");
-      break;
-
-    default:
-      net_store_data(packet, "Unknown - internal error during repair");
-      break;
-    }
-    close_thread_tables(thd);
-    if (my_net_write(&thd->net, (char*) packet->ptr(),
-		     packet->length()))
-      goto err;
-  }
-
-  close_thread_tables(thd);
-  send_eof(&thd->net);
-  DBUG_RETURN(0);
- err:
-  close_thread_tables(thd);
-  DBUG_RETURN(-1);
-}
-
-int mysql_optimize_table(THD* thd, TABLE_LIST* tables)
-{
-  net_printf(&thd->net, ER_PARSE_ERROR, "Sorry; This doesn't work yet", "",
-             0);
-  return 1;
-}
-
-int mysql_analyze_table(THD* thd, TABLE_LIST* tables)
-{
-  TABLE_LIST *table;
-  List<Item> field_list;
-  Item* item;
-  String* packet = &thd->packet;
-  DBUG_ENTER("mysql_analyze_table");
-
-  field_list.push_back(item = new Item_empty_string("Table", NAME_LEN*2));
-  item->maybe_null = 1;
-  field_list.push_back(item = new Item_empty_string("Op", 10));
-  item->maybe_null = 1;
-  field_list.push_back(item = new Item_empty_string("Msg_type", 10));
-  item->maybe_null = 1;
-  field_list.push_back(item = new Item_empty_string("Msg_text", 255));
-  item->maybe_null = 1;
-  if (send_fields(thd, field_list, 1))
-    DBUG_RETURN(-1);
-
-
-  for (table = tables; table; table = table->next)
-  {
-    char table_name[NAME_LEN*2+2];
-    char* db = (table->db) ? table->db : thd->db;
-    strxmov(table_name,db ? db : "",".",table->name,NullS);
-
-    table->table = open_ltable(thd, table, TL_READ_NO_INSERT);
-    packet->length(0);
-
-    if (!table->table)
-    {
-      const char *err_msg;
-      net_store_data(packet, table_name);
-      net_store_data(packet, "analyze");
-      net_store_data(packet, "error");
-      if (!(err_msg=thd->net.last_error))
-	err_msg=ER(ER_CHECK_NO_SUCH_TABLE);
-      net_store_data(packet, err_msg);
-      thd->net.last_error[0]=0;
-      if (my_net_write(&thd->net, (char*) thd->packet.ptr(),
-		       packet->length()))
-	goto err;
-      continue;
-    }
-    if (table->table->db_stat & HA_READ_ONLY)
+    if ((table->table->db_stat & HA_READ_ONLY) && open_for_modify)
     {
       net_store_data(packet, table_name);
-      net_store_data(packet, "analyze");
+      net_store_data(packet, operator_name);
       net_store_data(packet, "error");
       net_store_data(packet, ER(ER_OPEN_AS_READONLY));
+      close_thread_tables(thd);
       if (my_net_write(&thd->net, (char*) thd->packet.ptr(),
 		       packet->length()))
 	goto err;
       continue;
     }
 
-    int analyze_code = table->table->file->analyze(thd);
+    int result_code = (table->table->file->*operator_func)(thd, check_opt);
     packet->length(0);
     net_store_data(packet, table_name);
-    net_store_data(packet, "analyze");
+    net_store_data(packet, operator_name);
 
-    switch(analyze_code) {
-    case HA_ANALYZE_NOT_IMPLEMENTED:
+    switch (result_code) {
+    case HA_ADMIN_NOT_IMPLEMENTED:
       net_store_data(packet, "error");
       net_store_data(packet, ER(ER_CHECK_NOT_IMPLEMENTED));
       break;
 
-    case HA_ANALYZE_OK:
+    case HA_ADMIN_OK:
       net_store_data(packet, "status");
       net_store_data(packet, "OK");
       break;
 
-    default:
-      net_store_data(packet, "Unknown - internal error during analyze");
+    case HA_ADMIN_FAILED:
+      net_store_data(packet, "status");
+      net_store_data(packet, "Operation failed");
       break;
-    }
-    close_thread_tables(thd);
-    if (my_net_write(&thd->net, (char*) packet->ptr(),
-		     packet->length()))
-      goto err;
-  }
 
-  close_thread_tables(thd);
-  send_eof(&thd->net);
-  DBUG_RETURN(0);
- err:
-  close_thread_tables(thd);
-  DBUG_RETURN(-1);
-}
+    case HA_ADMIN_ALREADY_DONE:
+      net_store_data(packet, "status");
+      net_store_data(packet, "Table is already up to date");
+      break;
 
-int mysql_check_table(THD* thd, TABLE_LIST* tables,HA_CHECK_OPT* check_opt)
-{
-  TABLE_LIST *table;
-  List<Item> field_list;
-  Item* item;
-  String* packet = &thd->packet;
-
-  DBUG_ENTER("mysql_check_table");
-
-  field_list.push_back(item = new Item_empty_string("Table", NAME_LEN*2));
-  item->maybe_null = 1;
-  field_list.push_back(item = new Item_empty_string("Op", 10));
-  item->maybe_null = 1;
-  field_list.push_back(item = new Item_empty_string("Msg_type", 10));
-  item->maybe_null = 1;
-  field_list.push_back(item = new Item_empty_string("Msg_text", 255));
-  item->maybe_null = 1;
-  if (send_fields(thd, field_list, 1))
-    DBUG_RETURN(-1);
-
-
-  for (table = tables; table; table = table->next)
-  {
-    char table_name[NAME_LEN*2+2];
-    char* db = (table->db) ? table->db : thd->db;
-    strxmov(table_name,db ? db : "",".",table->name,NullS);
-
-    table->table = open_ltable(thd, table, TL_READ_NO_INSERT);
-    packet->length(0);
-
-    if (!table->table)
-    {
-      const char *err_msg;
-      net_store_data(packet, table_name);
-      net_store_data(packet, "check");
+    case HA_ADMIN_CORRUPT:
       net_store_data(packet, "error");
-      if (!(err_msg=thd->net.last_error))
-	err_msg=ER(ER_CHECK_NO_SUCH_TABLE);
-      net_store_data(packet, err_msg);
-      thd->net.last_error[0]=0;
-      if (my_net_write(&thd->net, (char*) thd->packet.ptr(),
-		       packet->length()))
-	goto err;
-      continue;
-    }
-
-    int check_code = table->table->file->check(thd, check_opt);
-    packet->length(0);
-    net_store_data(packet, table_name);
-    net_store_data(packet, "check");
-
-    switch(check_code) {
-    case HA_CHECK_NOT_IMPLEMENTED:
-      net_store_data(packet, "error");
-      net_store_data(packet, ER(ER_CHECK_NOT_IMPLEMENTED));
-      break;
-
-    case HA_CHECK_OK:
-      net_store_data(packet, "status");
-      net_store_data(packet, "OK");
-      break;
-
-    case HA_CHECK_ALREADY_CHECKED:
-      net_store_data(packet, "status");
-      net_store_data(packet, "Not checked");
-      break;
-
-    case HA_CHECK_CORRUPT:
-      net_store_data(packet, "status");
       net_store_data(packet, "Corrupt");
       break;
 
-    default:
-      net_store_data(packet, "Unknown - internal error during check");
+    default:				// Probably HA_ADMIN_INTERNAL_ERROR
+      net_store_data(packet, "error");
+      net_store_data(packet, "Unknown - internal error during operation");
       break;
     }
     close_thread_tables(thd);
@@ -982,14 +822,51 @@ int mysql_check_table(THD* thd, TABLE_LIST* tables,HA_CHECK_OPT* check_opt)
       goto err;
   }
 
-  close_thread_tables(thd);
   send_eof(&thd->net);
   DBUG_RETURN(0);
  err:
-  close_thread_tables(thd);
+  close_thread_tables(thd);			// Shouldn't be needed
   DBUG_RETURN(-1);
 }
 
+
+int mysql_repair_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
+{
+  DBUG_ENTER("mysql_repair_table");
+  DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
+				TL_WRITE, 1,
+				"repair",
+				&handler::repair));
+}
+
+int mysql_optimize_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
+{
+  DBUG_ENTER("mysql_optimize_table");
+  DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
+				TL_WRITE, 1,
+				"optimize",
+				&handler::optimize));
+}
+
+
+int mysql_analyze_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
+{
+  DBUG_ENTER("mysql_analyze_table");
+  DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
+				TL_READ_NO_INSERT, 1,
+				"analyze",
+				&handler::analyze));
+}
+
+
+int mysql_check_table(THD* thd, TABLE_LIST* tables,HA_CHECK_OPT* check_opt)
+{
+  DBUG_ENTER("mysql_check_table");
+  DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
+				TL_READ_NO_INSERT, 0,
+				"check",
+				&handler::check));
+}
 
 
 int mysql_alter_table(THD *thd,char *new_db, char *new_name,

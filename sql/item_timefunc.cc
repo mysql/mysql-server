@@ -134,7 +134,7 @@ longlong Item_func_month::val_int()
 String* Item_func_monthname::val_str(String* str)
 {
   uint month=(uint) Item_func_month::val_int();
-  if (null_value)
+  if (!month)					// This is also true for NULL
     return (String*) 0;
   return &month_names[month-1];
 }
