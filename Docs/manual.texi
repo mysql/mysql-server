@@ -1376,8 +1376,9 @@ of @strong{MySQL} so that we could accelerate the development pace.  If you
 are interested in doing this, you can email @email{partner@@mysql.com} about 
 this!
 
-@strong{MySQL AB} has currently 20+ people on its payroll and is growing 
-rapidly.  @uref{http://www.mysql.com/development/team.html}.
+@strong{MySQL AB} has currently 20+ people
+(@uref{http://www.mysql.com/development/team.html}) on its payroll and is growing rapidly.
+
 
 Our main sources of income are:
 
@@ -4425,6 +4426,12 @@ Please report bad or out-of-date mirrors to @email{webmaster@@mysql.com}.
 @image{Flags/france} France [mtesa.net] @
 @uref{http://mysql.mtesa.net/, WWW}
 
+@item
+@c EMAIL: mrjack@fastorama.com (MrJacK)
+@image{Flags/france} France [fastorama.com, Chatenois] @
+@uref{http://mysql.fastorama.com/, WWW}
+@uref{ftp://ftp.fastorama.com/unix/mysql/, FTP}
+
 @c @item
 @c Not ok 20000919; Old site (Matt)
 @c EMAIL: Jaakko.Hyvatti@eunet.fi
@@ -5567,7 +5574,7 @@ shell> scripts/mysql_install_db
 shell> chown -R root  /usr/local/mysql
 shell> chown -R mysql /usr/local/mysql/data
 shell> chgrp -R mysql /usr/local/mysql
-shell> chown -R root /usr/local/mysql/bin/
+shell> chown -R root /usr/local/mysql/bin
 shell> bin/safe_mysqld --user=mysql &
 @end example
 
@@ -5698,7 +5705,7 @@ directory to the user that you will run @code{mysqld} as:
 
 @example
 shell> chown -R root  /usr/local/mysql
-shell> chown -R mysql /usr/local/mysql/var
+shell> chown -R mysql /usr/local/mysql/data
 shell> chgrp -R mysql /usr/local/mysql
 @end example
 
