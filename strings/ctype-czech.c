@@ -296,16 +296,18 @@ static int my_strnxfrm_czech(CHARSET_INFO *cs __attribute__((unused)),
   int value;
   const uchar * p, * store;
   int pass = 0;
-  int totlen = 0;
+  uint totlen = 0;
   p = src;	store = src;
 
   do
   {
     NEXT_CMP_VALUE(src, p, store, pass, value, (int)srclen);
-    ADD_TO_RESULT(dest, (int)len, totlen, value);
+    ADD_TO_RESULT(dest, len, totlen, value);
   }
   while (value);
-  return totlen;
+  if (len > totlen)
+    bfill(dest + totlen, len - totlen, ' ');
+  return len;
 }
 
 #undef IS_END

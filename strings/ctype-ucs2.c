@@ -347,7 +347,6 @@ static int my_strnxfrm_ucs2(CHARSET_INFO *cs,
   int plane;
   uchar *de = dst + dstlen;
   const uchar *se = src + srclen;
-  const uchar *dst_orig = dst;
 
   while( src < se && dst < de )
   {
@@ -367,7 +366,9 @@ static int my_strnxfrm_ucs2(CHARSET_INFO *cs,
     }
     dst+=res;
   }
-  return dst - dst_orig;
+  if (dst < de)
+    cs->cset->fill(cs, dst, de - dst, ' ');
+  return dstlen;
 }
 
 
@@ -1377,7 +1378,9 @@ int my_strnxfrm_ucs2_bin(CHARSET_INFO *cs __attribute__((unused)),
 {
   if (dst != src)
     memcpy(dst,src,srclen= min(dstlen,srclen));
-  return srclen;
+  if (dstlen > srclen)
+    cs->cset->fill(cs, dst + srclen, dstlen - srclen, ' ');
+  return dstlen;
 }
 
 
