@@ -2040,6 +2040,20 @@ static int init_common_variables(const char *conf_file_name, int argc,
   DBUG_PRINT("info",("%s  Ver %s for %s on %s\n",my_progname,
 		     server_version, SYSTEM_TYPE,MACHINE_TYPE));
 
+#ifdef HAVE_PTHREAD_ATTR_GETSTACKSIZE
+  {
+    /* Retrieve used stack size;  Needed for checking stack overflows */
+    size_t stack_size;
+    pthread_attr_getstacksize(&connection_attrib, &stack_size);
+    if (global_system_variables.log_warnings && stack_size != thread_stack)
+    {
+      sql_print_error("Warning: Asked for %ld thread stack, but got %ld",
+		      thread_stack, stack_size);
+      thread_stack= stack_size;
+    }
+  }
+#endif
+
 #if defined( SET_RLIMIT_NOFILE) || defined( OS2)
   /* connections and databases needs lots of files */
   {
@@ -2359,19 +2373,6 @@ int main(int argc, char **argv)
   if (!(opt_specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),CONNECT_PRIOR);
   pthread_attr_setstacksize(&connection_attrib,thread_stack);
-#ifdef HAVE_PTHREAD_ATTR_GETSTACKSIZE
-  {
-    /* Retrieve used stack size;  Needed for checking stack overflows */
-    size_t stack_size;
-    pthread_attr_getstacksize(&connection_attrib, &stack_size);
-    if (global_system_variables.log_warnings && stack_size != thread_stack)
-    {
-      sql_print_error("Warning: Asked for %ld thread stack, but got %ld",
-		      thread_stack, stack_size);
-      thread_stack= stack_size;
-    }
-  }
-#endif
   (void) thr_setconcurrency(concurrency);	// 10 by default
 
   select_thread=pthread_self();
