@@ -102,7 +102,7 @@ LINK32=xilink6.exe
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /G6 /MT /W3 /O2 /I "../include" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "NDEBUG" /FD /c
 # SUBTRACT BASE CPP /YX
-# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /D "WIN32" /D "_WINDOWS" /D LICENSE=Commerical /D "DBUG_OFF" /D "_MBCS" /D "NDEBUG" /FD /c
+# ADD CPP /nologo /G6 /MT /W3 /O2 /I "../include" /D "WIN32" /D "_WINDOWS" /D LICENSE=Commercial /D "DBUG_OFF" /D "_MBCS" /D "NDEBUG" /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
