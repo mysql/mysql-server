@@ -973,6 +973,7 @@ inline uint field_in_record_is_null (
 int ha_federated::write_row(byte * buf)
 {
   int x= 0, num_fields= 0;
+  Field **field;
   ulong current_query_id= 1;
   ulong tmp_query_id;
   int all_fields_have_same_query_id= 1;
@@ -1021,7 +1022,7 @@ int ha_federated::write_row(byte * buf)
     0 if it remains 0, then that means no fields were specified in the query
     such as in the case of INSERT INTO table VALUES (val1, val2, valN)
   */
-  for (Field **field= table->field; *field ; field++, x++)
+  for (field= table->field; *field ; field++, x++)
   {
     if (x > 0 && tmp_query_id != (*field)->query_id)
       all_fields_have_same_query_id= 0;
@@ -1032,7 +1033,7 @@ int ha_federated::write_row(byte * buf)
     loop through the field pointer array, add any fields to both the values
     list and the fields list that match the current query id
   */
-  for (Field **field= table->field; *field ; field++, x++)
+  for (field= table->field; *field ; field++, x++)
   {
     DBUG_PRINT("ha_federated::write_row", ("field type %d", (*field)->type()));
     // if there is a query id and if it's equal to the current query id
