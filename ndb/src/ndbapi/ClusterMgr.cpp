@@ -295,11 +295,14 @@ ClusterMgr::execAPI_REGREQ(const Uint32 * theData){
 }
 
 int global_mgmt_server_check = 0; // set to one in mgmtsrvr main;
+
 void
 ClusterMgr::execAPI_REGCONF(const Uint32 * theData){
   const ApiRegConf * const apiRegConf = (ApiRegConf *)&theData[0];
   const NodeId nodeId = refToNode(apiRegConf->qmgrRef);
   
+  m_connected_nodes.assign(apiRegConf->connected_nodes);
+
 #if 0 
   ndbout_c("ClusterMgr: Recd API_REGCONF from node %d", nodeId);
 #endif
@@ -309,6 +312,7 @@ ClusterMgr::execAPI_REGCONF(const Uint32 * theData){
   Node & node = theNodes[nodeId];
   assert(node.defined == true);
   assert(node.connected == true);
+
   if(node.m_info.m_version != apiRegConf->version){
     node.m_info.m_version = apiRegConf->version;
     if (global_mgmt_server_check == 1)
@@ -421,6 +425,8 @@ ClusterMgr::reportDisconnected(NodeId nodeId){
 
 void
 ClusterMgr::reportNodeFailed(NodeId nodeId){
+
+  m_connected_nodes.clear(nodeId);
 
   Node & theNode = theNodes[nodeId];
  

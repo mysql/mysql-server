@@ -17,7 +17,7 @@
 
 #include <ndb_global.h>
 
-#include "SocketServer.hpp"
+#include <SocketServer.hpp>
 
 #include <NdbTCP.h>
 #include <NdbOut.hpp>

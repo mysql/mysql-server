@@ -121,6 +121,14 @@ ParserRow<MgmApiSession> commands[] = {
     MGM_ARG("version", Int, Mandatory, "Configuration version number"),
     MGM_ARG("node", Int, Optional, "Node ID"),
 
+  MGM_CMD("get nodeid", &MgmApiSession::get_nodeid, ""),
+    MGM_ARG("version", Int, Mandatory, "Configuration version number"),
+    MGM_ARG("nodetype", Int, Mandatory, "Node type"),
+    MGM_ARG("nodeid", Int, Optional, "Node ID"),
+    MGM_ARG("user", String, Mandatory, "Password"),
+    MGM_ARG("password", String, Mandatory, "Password"),
+    MGM_ARG("public key", String, Mandatory, "Public key"),
+
   MGM_CMD("get version", &MgmApiSession::getVersion, ""),
 
   MGM_CMD("get status", &MgmApiSession::getStatus, ""),
@@ -333,6 +341,82 @@ backward(const char * base, const Properties* reply){
 }
 
 void
+MgmApiSession::get_nodeid(Parser_t::Context &,
+			  const class Properties &args)
+{
+  const char *cmd= "get nodeid reply";
+  Uint32 version, nodeid= 0, nodetype= 0xff;
+  const char * user;
+  const char * password;
+  const char * public_key;
+
+  args.get("version", &version);
+  args.get("nodetype", &nodetype);
+  args.get("nodeid", &nodeid);
+  args.get("user", &user);
+  args.get("password", &password);
+  args.get("public key", &public_key);
+  
+  NodeId free_id= 0;
+  NodeId tmp= nodeid > 0 ? nodeid-1 : 0;
+  bool compatible;
+  switch (nodetype) {
+  case NODE_TYPE_MGM:
+    compatible = ndbCompatible_mgmt_api(NDB_VERSION, version);
+    if (m_mgmsrv.getNextFreeNodeId(&tmp, NDB_MGM_NODE_TYPE_MGM))
+      free_id= tmp;
+    break;
+  case NODE_TYPE_API:
+    compatible = ndbCompatible_mgmt_api(NDB_VERSION, version);
+    if (m_mgmsrv.getNextFreeNodeId(&tmp, NDB_MGM_NODE_TYPE_API))
+      free_id= tmp;
+    break;
+  case NODE_TYPE_DB:
+    compatible = ndbCompatible_mgmt_ndb(NDB_VERSION, version);
+    if (m_mgmsrv.getNextFreeNodeId(&tmp, NDB_MGM_NODE_TYPE_NDB))
+      free_id= tmp;
+    break;
+  default:
+    m_output->println(cmd);
+    m_output->println("result: unknown nodetype %d", nodetype);
+    m_output->println("");
+    return;
+  }
+  
+  if (nodeid != 0 && free_id != nodeid){
+    m_output->println(cmd);
+    m_output->println("result: no free nodeid %d for nodetype %d",
+		      nodeid, nodetype);
+    m_output->println("");
+    return;
+  }
+  
+  if (free_id == 0){
+    m_output->println(cmd);
+    m_output->println("result: no free nodeid for nodetype %d", nodetype);
+    m_output->println("");
+    return;
+  }
+
+#if 0
+  if (!compatible){
+    m_output->println(cmd);
+    m_output->println("result: incompatible version mgmt 0x%x and node 0x%x",
+		      NDB_VERSION, version);
+    m_output->println("");
+    return;
+  }
+#endif
+
+  m_output->println(cmd);
+  m_output->println("nodeid: %u", free_id);
+  m_output->println("result: Ok");
+  m_output->println("");
+
+  return;
+}
+
+void
 MgmApiSession::getConfig_common(Parser_t::Context &,
 				const class Properties &args,
 				bool compat) {
@@ -432,7 +516,6 @@ MgmApiSession::getConfig_common(Parser_t::Context &,
   m_output->println("Content-Transfer-Encoding: base64");
   m_output->println("");
   m_output->println(str.c_str());
-  m_output->println("");
 
   return;
 }

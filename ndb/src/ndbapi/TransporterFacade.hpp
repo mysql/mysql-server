@@ -110,7 +110,6 @@ public:
 
   // Close this block number
   int close_local(BlockNumber blockNumber);
-  void setState(Uint32 aNodeId, PerformState aState);
 
 private:
   /**
