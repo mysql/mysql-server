@@ -941,7 +941,7 @@ NdbDictInterface::dictSignal(NdbApiSignal* signal,
       for (int j=0; j < noerrcodes; j++)
 	if(m_error.code == errcodes[j]) {
 	  doContinue = 1;
-	  continue;
+	  break;
 	}
       if (doContinue)
 	continue;
@@ -1007,12 +1007,14 @@ NdbDictInterface::getTable(class NdbApiSignal * signal,
 			   Uint32 noOfSections, bool fullyQualifiedNames)
 {
   //GetTabInfoReq * const req = CAST_PTR(GetTabInfoReq, signal->getDataPtrSend());
+  int errCodes[] = {GetTabInfoRef::Busy };
+
   int r = dictSignal(signal,ptr,noOfSections,
 		     0/*do not use masternode id*/,
 		     100,
 		     WAIT_GET_TAB_INFO_REQ,
 		     WAITFOR_RESPONSE_TIMEOUT,
-		     NULL,0);
+		     errCodes, 1);
   if (r) return 0;
 
   NdbTableImpl * rt = 0;
