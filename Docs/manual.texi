@@ -42348,6 +42348,16 @@ All new development is concentrated to @strong{MySQL}.
 
 @page
 @c This node name is special
+
+@ifset nusphere
+@node GPL license, LGPL license, Unireg, Top
+@appendix GNU General Public License
+
+The GPL License can be found at ...
+
+@end ifset
+
+@ifclear nusphere
 @node GPL license, LGPL license, Unireg, Top
 @appendix GNU General Public License
 
@@ -42693,8 +42703,19 @@ library.  If this is what you want to do, use the GNU Library General
 Public License instead of this License.
 
 @end example
+@end ifclear
 
 @page
+
+@ifset nusphere
+@node LGPL license, Function Index, GPL license, Top
+@appendix GNU Library General Public License
+
+The LGPL License can be found at ...
+
+@end ifset
+
+@ifclear nusphere
 @node LGPL license, Function Index, GPL license, Top
 @appendix GNU Library General Public License
 
@@ -43181,6 +43202,7 @@ necessary.  Here is a sample; alter the names:
 
 That's all there is to it!
 @end example
+@end ifclear
 
 @node Function Index, Concept Index, LGPL license, Top
 @unnumbered SQL command, type and function index
