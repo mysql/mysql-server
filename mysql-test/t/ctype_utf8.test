@@ -349,27 +349,25 @@ drop table t1;
 # Bug 4531: unique key prefix interacts poorly with utf8
 # Check HEAP+HASH, binary collation
 #
-# This doesn't work correctly yet.
-#
-#create table t1 (
-#c char(10) character set utf8 collate utf8_bin,
-#unique key a using hash (c(1))
-#) engine=heap;
-#show create table t1;
-#insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
-#--error 1062
-#insert into t1 values ('aa');
-#--error 1062
-#insert into t1 values ('aaa');
-#insert into t1 values ('б');
-#--error 1062
-#insert into t1 values ('бб');
-#--error 1062
-#insert into t1 values ('ббб');
-#select c as c_all from t1 order by c;
-#select c as c_a from t1 where c='a';
-#select c as c_a from t1 where c='б';
-#drop table t1;
+create table t1 (
+c char(10) character set utf8 collate utf8_bin,
+unique key a using hash (c(1))
+) engine=heap;
+show create table t1;
+insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
+--error 1062
+insert into t1 values ('aa');
+--error 1062
+insert into t1 values ('aaa');
+insert into t1 values ('б');
+--error 1062
+insert into t1 values ('бб');
+--error 1062
+insert into t1 values ('ббб');
+select c as c_all from t1 order by c;
+select c as c_a from t1 where c='a';
+select c as c_a from t1 where c='б';
+drop table t1;
 
 #
 # Bug 4531: unique key prefix interacts poorly with utf8
