@@ -13,8 +13,6 @@ the InnoDB parser.
 %{
 /* The value of the semantic attribute is a pointer to a query tree node
 que_node_t */
-#define YYSTYPE que_node_t*
-#define alloca	mem_alloc
 
 #include <math.h>
 
@@ -24,6 +22,8 @@ que_node_t */
 #include "que0types.h"
 #include "que0que.h"
 #include "row0sel.h"
+
+#define YYSTYPE que_node_t*
 
 /* #define __STDC__ */
 

@@ -1665,11 +1665,6 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
     VOID(pthread_cond_broadcast(&COND_refresh));
     goto err;
   }
-#ifdef HAVE_BERKELEY_DB
-  extern bool berkeley_flush_logs(void);
-  if (old_db_type == DB_TYPE_BERKELEY_DB &&  berkeley_flush_logs())
-    goto err;
-#endif
   thd->proc_info="end";
   mysql_update_log.write(thd, thd->query,thd->query_length);
   if (mysql_bin_log.is_open())
@@ -1679,6 +1674,14 @@ int mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
   VOID(pthread_cond_broadcast(&COND_refresh));
   VOID(pthread_mutex_unlock(&LOCK_open));
+#ifdef HAVE_BERKELEY_DB
+  extern bool berkeley_flush_logs(void);
+  if (old_db_type == DB_TYPE_BERKELEY_DB)
+  {
+    (void)berkeley_flush_logs();
+    table=open_ltable(thd,table_list,TL_READ);
+  }
+#endif
 
 end_temporary:
   sprintf(tmp_name,ER(ER_INSERT_INFO),(ulong) (copied+deleted),

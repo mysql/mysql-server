@@ -128,7 +128,27 @@ os_thread_create(
 
         pthread_attr_init(&attr);
 
+#ifdef UNIV_AIX
+	/* We must make sure a thread stack is at least 32 kB, otherwise
+	InnoDB might crash; we do not know if the default stack size on
+	AIX is always big enough. An empirical test on AIX-4.3 suggested
+	the size was 96 kB, though. */
+
+	ret = pthread_attr_setstacksize(&attr,
+			      (size_t)(PTHREAD_STACK_MIN + 32 * 1024));
+        if (ret) {
+	         fprintf(stderr,
+          "InnoDB: Error: pthread_attr_setstacksize returned %d\n", ret);
+		 exit(1);
+	}
+#endif
 	ret = pthread_create(&pthread, &attr, start_f, arg);
+
+        if (ret) {
+	         fprintf(stderr,
+          "InnoDB: Error: pthread_create returned %d\n", ret);
+		 exit(1);
+	}
 
 	pthread_attr_destroy(&attr);
 

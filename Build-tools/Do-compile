@@ -2,12 +2,12 @@
 
 use Getopt::Long;
 $opt_distribution=$opt_user=$opt_result=$opt_config_options=$opt_config_env="";
-$opt_dbd_options=$opt_perl_options=$opt_suffix="";
+$opt_dbd_options=$opt_perl_options=$opt_make_options=$opt_suffix="";
 $opt_tmp=$opt_version_suffix="";
 $opt_help=$opt_Information=$opt_delete=$opt_debug=$opt_stage=$opt_rsh_mail=$opt_no_test=$opt_no_perl=$opt_with_low_memory=$opt_fast_benchmark=$opt_static_client=$opt_static_server=$opt_static_perl=$opt_sur=$opt_with_small_disk=$opt_local_perl=$opt_tcpip=$opt_build_thread=$opt_no_mysqltest=$opt_use_old_distribution=$opt_enable_shared=$opt_no_crash_me=$opt_no_strip=0;
-$opt_innodb=$opt_bdb=0;
+$opt_innodb=$opt_bdb=$opt_raid=$opt_libwrap=0;
 
-GetOptions("Information","help","distribution=s","user=s","result=s","delete","no-test","no-mysqltest","perl-files=s","debug","config-options=s","config-env=s","stage=i","rsh-mail","with-low-memory","fast-benchmark","tmp=s","static-client","static-server","static-perl","no-perl","local-perl","perl-options=s","sur","with-small-disk","dbd-options=s","tcpip","suffix=s","build-thread=i","innodb","bdb","use-old-distribution","enable-shared","no-crash-me","no-strip","version-suffix=s", "with-other-libc=s") || usage();
+GetOptions("Information","help","distribution=s","user=s","result=s","delete","no-test","no-mysqltest","perl-files=s","debug","config-options=s","config-env=s","stage=i","rsh-mail","with-low-memory","fast-benchmark","tmp=s","static-client","static-server","static-perl","no-perl","local-perl","perl-options=s","make-options=s","sur","with-small-disk","dbd-options=s","tcpip","suffix=s","build-thread=i","innodb","bdb","raid","libwrap","use-old-distribution","enable-shared","no-crash-me","no-strip","version-suffix=s", "with-other-libc=s") || usage();
 
 usage() if ($opt_help || $opt_Information);
 usage() if (!$opt_distribution);
@@ -75,6 +75,19 @@ $ENV{"PERL5LIB"}="$pwd/$host/perl5:$pwd/$host/perl5/site_perl";
 $slave_port=$mysql_tcp_port+16;
 $manager_port=$mysql_tcp_port+1;
 
+if ($opt_stage == 0)
+{
+  system("mkdir Logs") if (! -d "Logs");
+  system("mv $log ${log}-old") if (-f $log);
+  unlink($log);
+}
+
+open(LOG,">>$log") || abort("Can't open log file, error $?");
+select LOG;
+$|=1;
+select STDOUT;
+$|=1;
+
 if (-x "$host/bin/mysqladmin")
 {
   log_system("$host/bin/mysqladmin --no-defaults -u root -S $mysql_unix_port -s shutdown");
@@ -97,16 +110,7 @@ if ($opt_stage == 0)
   }
   rm_all("$host/test");
   system("mkdir $host/test") if (! -d "$host/test");
-  system("mkdir Logs") if (! -d "Logs");
-  system("mv $log ${log}-old") if (-f $log);
-  unlink($log);
 }
-
-open(LOG,">>$log") || abort("Can't open log file, error $?");
-select LOG;
-$|=1;
-select STDOUT;
-$|=1;
 
 safe_cd($host);
 if ($opt_stage == 0 && ! $opt_use_old_distribution)
@@ -114,8 +118,14 @@ if ($opt_stage == 0 && ! $opt_use_old_distribution)
   safe_system("gunzip < $opt_distribution | $tar xf -");
 
   # Fix file times; This is needed because the time for files may be
-  # in the future
-  system("touch timestamp; find . -newer timestamp -print | xargs touch; rm -f timestamp");
+  # in the future.  The following is done this way to ensure that
+  # we don't get any errors from xargs touch
+  system("touch timestamp");
+  sleep(2);
+  system("touch timestamp2");
+  system("find . -newer timestamp -print | xargs touch");
+  unlink("timestamp");
+  unlink("timestamp2");
   sleep(2);
   # Ensure that files we don't want to rebuild are newer than other files
   safe_cd($ver);
@@ -149,7 +159,8 @@ if ($opt_stage <= 1)
   }
   if ($opt_with_other_libc)
   {
-    $opt_with_other_libc = "--with-other-libc=$opt_with_other_libc";    
+    $opt_with_other_libc= "--with-other-libc=$opt_with_other_libc";
+    $opt_config_options.= " $opt_with_other_libc";
   }
   if (!$opt_enable_shared)
   {
@@ -159,11 +170,19 @@ if ($opt_stage <= 1)
   {
     $opt_config_options.= " --with-berkeley-db"
   }
+  if ($opt_raid)
+  {
+    $opt_config_options.= " --with-raid"
+  }
   if ($opt_innodb)
   {
     $opt_config_options.= " --with-innodb"
   }
-  check_system("$opt_config_env ./configure --prefix=/usr/local/mysql \"--with-comment=Official MySQL$opt_version_suffix binary\" --with-extra-charsets=complex \"--with-server-suffix=$opt_version_suffix\" --enable-thread-safe-client --enable-local-infile $opt_config_options","Thank you for choosing MySQL");
+  if ($opt_libwrap)
+  {
+    $opt_config_options.= " --with-libwrap"
+  }
+  check_system("$opt_config_env ./configure --prefix=/usr/local/mysql --with-comment=\"Official MySQL$opt_version_suffix binary\" --with-extra-charsets=complex --with-server-suffix=\"$opt_version_suffix\" --enable-thread-safe-client --enable-local-infile $opt_config_options","Thank you for choosing MySQL");
   if (-d "$pwd/$host/include-mysql")
   {
     safe_system("cp -r $pwd/$host/include-mysql/* $pwd/$host/$ver/include");
@@ -172,8 +191,11 @@ if ($opt_stage <= 1)
 
 if ($opt_stage <= 2)
 {
+  my ($command);
   unlink($opt_distribution) if ($opt_delete && !$opt_use_old_distribution);
-  safe_system("$make");
+  $command=$make;
+  $command.= " $opt_make_options" if (defined($opt_make_options) && $opt_make_options ne "");
+  safe_system($command);
 }
 
 #
@@ -368,6 +390,9 @@ To set up the environment, like 'CC=cc CXX=gcc CXXFLAGS=-O3'
 --dbd-options 'options'
 Options for Makefile.PL when configuring msql-mysql-modules.
 
+--make-options 'options'
+Options to make after configure. (Like 'CXXLD=gcc')
+
 --version-suffix suffix
 Can be used to set a suffix (normally 'com' or '-max') for a distribution
 
@@ -547,13 +572,17 @@ sub rm_all
 sub kill_all
 {
   my ($pattern) = @_;
-  my ($USER,$BSD,$LINUX,$pscmd, $user, $pid);
+  my ($USER,$BSD,$LINUX, $pscmd, $user, $pid);
   $user=$ENV{'USER'};
-  $BSD = -f '/vmunix' || $ENV{"OS"} eq "SunOS4";
+  $BSD = -f '/vmunix' || $ENV{"OS"} eq "SunOS4" || $^O eq 'darwin';
   $LINUX = $^O eq 'linux';
   $pscmd = $BSD ? "/bin/ps -auxww" : $LINUX ? "/bin/ps axuw" : "/bin/ps -ef";
 
-  open(PS, "$pscmd|") || die "can't run $pscmd: $!";
+  if (!open(PS, "$pscmd|"))
+  {
+    print "Warning: Can't run $pscmd: $!\n";
+    exit;
+  }
 
   # Catch any errors with eval.  A bad pattern, for instance.
  process:
