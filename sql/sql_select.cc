@@ -860,8 +860,10 @@ JOIN::optimize()
     as in other cases the join is done before the sort.
   */
   if (const_tables != tables &&
-      (order || group_list) && join_tab[const_tables].type != JT_ALL &&
+      (order || group_list) && 
+      join_tab[const_tables].type != JT_ALL &&
       join_tab[const_tables].type != JT_FT &&
+      join_tab[const_tables].type != JT_REF_OR_NULL &&
       (order && simple_order || group_list && simple_group))
   {
     if (add_ref_to_table_cond(thd,&join_tab[const_tables]))
@@ -3257,7 +3259,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
   {
     /* Must read with repeat */
     j->type= null_ref_key ? JT_REF_OR_NULL : JT_REF;
-    j->null_ref_key= null_ref_key;
+    j->ref.null_ref_key= null_ref_key;
   }
   else if (ref_key == j->ref.key_copy)
   {
@@ -6208,12 +6210,12 @@ join_read_always_key_or_null(JOIN_TAB *tab)
   int res;
 
   /* First read according to key which is NOT NULL */
-  *tab->null_ref_key=0;
+  *tab->ref.null_ref_key= 0;			// Clear null byte
   if ((res= join_read_always_key(tab)) >= 0)
     return res;
 
   /* Then read key with null value */
-  *tab->null_ref_key= 1;
+  *tab->ref.null_ref_key= 1;			// Set null byte
   return safe_index_read(tab);
 }
 
@@ -6227,10 +6229,10 @@ join_read_next_same_or_null(READ_RECORD *info)
   JOIN_TAB *tab= info->table->reginfo.join_tab;
 
   /* Test if we have already done a read after null key */
-  if (*tab->null_ref_key)
+  if (*tab->ref.null_ref_key)
     return -1;					// All keys read
-  *tab->null_ref_key= 1;			// Read null key
-  return safe_index_read(tab);
+  *tab->ref.null_ref_key= 1;			// Set null byte
+  return safe_index_read(tab);			// then read null keys
 }
 
 

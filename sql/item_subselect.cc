@@ -1110,7 +1110,7 @@ int subselect_indexsubquery_engine::exec()
   if (check_null)
   {
     /* We need to check for NULL if there wasn't a matching value */
-    *tab->null_ref_key= 0;			// Search first for not null
+    *tab->ref.null_ref_key= 0;			// Search first for not null
     ((Item_in_subselect *) item)->was_null= 0;
   }
 
@@ -1155,7 +1155,7 @@ int subselect_indexsubquery_engine::exec()
 	{
 	  if (!check_null || null_finding)
 	    break;			/* We don't need to check nulls */
-	  *tab->null_ref_key= 1;
+	  *tab->ref.null_ref_key= 1;
 	  null_finding= 1;
 	  /* Check if there exists a row with a null value in the index */
 	  if ((error= (safe_index_read(tab) == 1)))
