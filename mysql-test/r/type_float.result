@@ -179,6 +179,13 @@ f
 9.999
 9.999
 drop table if exists t1;
+create table t1 (d1 double, d2 double unsigned);
+insert into t1 set d1 = -1.0;
+update t1 set d2 = d1;
+select * from t1;
+d1	d2
+-1	0
+drop table t1;
 create table t1 (c char(20));
 insert into t1 values (5e-28);
 select * from t1;
