@@ -86,7 +86,8 @@ int mysql_update(THD *thd,
   table->grant.want_privilege=(SELECT_ACL & ~table->grant.privilege);
 
   bzero((char*) &tables,sizeof(tables));	// For ORDER BY
-  tables.table = table;
+  tables.table= table;
+  tables.alias= table_list->alias;
 
   if (setup_tables(table_list) || setup_conds(thd,table_list,&conds) ||
       setup_order(thd, &tables, all_fields, all_fields, order) ||
