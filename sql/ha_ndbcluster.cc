@@ -1476,10 +1476,7 @@ int ha_ndbcluster::set_bounds(NdbIndexScanOperation *op,
         // Set bound if not cancelled via type -1
         if (p.bound_type != -1)
 	{
-	  char truncated_field_name[NDB_MAX_ATTR_NAME_SIZE];
-	  strnmov(truncated_field_name,field->field_name,sizeof(truncated_field_name));
-	  truncated_field_name[sizeof(truncated_field_name)-1]= '\0';
-          if (op->setBound(truncated_field_name, p.bound_type, p.bound_ptr))
+          if (op->setBound(i, p.bound_type, p.bound_ptr))
             ERR_RETURN(op->getNdbError());
 	}
       }
