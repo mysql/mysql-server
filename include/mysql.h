@@ -323,7 +323,7 @@ typedef struct st_mysql_parameters
   unsigned long *p_net_buffer_length;
 } MYSQL_PARAMETERS;
 
-#if !defined(MYSQL_CLIENT) && !defined(MYSQL_SERVER) && !defined(EMBEDDED_LIBRARY)
+#if !defined(MYSQL_SERVER) && !defined(EMBEDDED_LIBRARY)
 #define max_allowed_packet (*mysql_get_parameters()->p_max_allowed_packet)
 #define net_buffer_length (*mysql_get_parameters()->p_net_buffer_length)
 #endif

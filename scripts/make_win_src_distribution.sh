@@ -288,6 +288,12 @@ do
 done
 
 #
+# support files
+#
+mkdir $BASE/support-files
+cp support-files/*.cnf $BASE/support-files
+
+#
 # Raw dirs from source tree
 #
 
