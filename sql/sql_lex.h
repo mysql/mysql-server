@@ -425,7 +425,7 @@ public:
 
   ulong table_join_options;
   uint in_sum_expr;
-  int select_number; /* number of select (used for EXPLAIN) */
+  uint select_number; /* number of select (used for EXPLAIN) */
   uint with_wild; /* item list contain '*' */
   bool  braces;   	/* SELECT ... UNION (SELECT ... ) <- this braces */
   /* TRUE when having fix field called in processing of this SELECT */
