@@ -27,3 +27,6 @@ extern LIST *myrg_open_list;
 #ifdef THREAD
 extern pthread_mutex_t THR_LOCK_open;
 #endif
+
+int _myrg_init_queue(MYRG_INFO *info,int inx,enum ha_rkey_function search_flag);
+

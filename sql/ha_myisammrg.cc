@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -86,33 +86,57 @@ int ha_myisammrg::delete_row(const byte * buf)
 int ha_myisammrg::index_read(byte * buf, const byte * key,
 			  uint key_len, enum ha_rkey_function find_flag)
 {
-  return (my_errno=HA_ERR_WRONG_COMMAND);
+//  return (my_errno=HA_ERR_WRONG_COMMAND);
+  statistic_increment(ha_read_key_count,&LOCK_status);
+  int error=myrg_rkey(file,buf,active_index, key, key_len, find_flag);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
 }
 
 int ha_myisammrg::index_read_idx(byte * buf, uint index, const byte * key,
 				 uint key_len, enum ha_rkey_function find_flag)
 {
-  return (my_errno=HA_ERR_WRONG_COMMAND);
+//  return (my_errno=HA_ERR_WRONG_COMMAND);
+  statistic_increment(ha_read_key_count,&LOCK_status);
+  int error=myrg_rkey(file,buf,index, key, key_len, find_flag);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
 }
 
 int ha_myisammrg::index_next(byte * buf)
 {
-  return (my_errno=HA_ERR_WRONG_COMMAND);
+//  return (my_errno=HA_ERR_WRONG_COMMAND);
+  statistic_increment(ha_read_next_count,&LOCK_status);
+  int error=myrg_rnext(file,buf,active_index);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
 }
 
 int ha_myisammrg::index_prev(byte * buf)
 {
-  return (my_errno=HA_ERR_WRONG_COMMAND);
+// return (my_errno=HA_ERR_WRONG_COMMAND);
+  statistic_increment(ha_read_prev_count,&LOCK_status);
+  int error=myrg_rprev(file,buf, active_index);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
 }
-  
+
 int ha_myisammrg::index_first(byte * buf)
 {
-  return (my_errno=HA_ERR_WRONG_COMMAND);
+//  return (my_errno=HA_ERR_WRONG_COMMAND);
+  statistic_increment(ha_read_first_count,&LOCK_status);
+  int error=myrg_rfirst(file, buf, active_index);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
 }
 
 int ha_myisammrg::index_last(byte * buf)
 {
-  return (my_errno=HA_ERR_WRONG_COMMAND);
+//  return (my_errno=HA_ERR_WRONG_COMMAND);
+  statistic_increment(ha_read_last_count,&LOCK_status);
+  int error=myrg_rlast(file, buf, active_index);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
 }
 
 int ha_myisammrg::rnd_init(bool scan)
@@ -151,7 +175,7 @@ void ha_myisammrg::info(uint flag)
   deleted = (ha_rows) info.deleted;
   data_file_length=info.data_file_length;
   errkey  = info.errkey;
-  table->keys_in_use=0;				// No keys yet
+  table->keys_in_use=(((key_map) 1) << table->keys)- (key_map) 1;
   table->db_options_in_use    = info.options;
   mean_rec_length=info.reclength;
   block_size=0;
@@ -177,7 +201,7 @@ int ha_myisammrg::reset(void)
 int ha_myisammrg::external_lock(THD *thd, int lock_type)
 {
   return myrg_lock_database(file,lock_type);
-}  
+}
 
 uint ha_myisammrg::lock_count(void) const
 {

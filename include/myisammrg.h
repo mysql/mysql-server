@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
    License as published by the Free Software Foundation; either
    version 2 of the License, or (at your option) any later version.
-   
+
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
    Library General Public License for more details.
-   
+
    You should have received a copy of the GNU Library General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
@@ -29,6 +29,8 @@ extern "C" {
 #ifndef _myisam_h
 #include <myisam.h>
 #endif
+
+#include <queues.h>
 
 #define MYRG_NAME_EXT	".MRG"
 
@@ -60,6 +62,7 @@ typedef struct st_myrg_info
   uint	 tables,options,reclength;
   my_bool cache_in_use;
   LIST	open_list;
+  QUEUE     by_key;
 } MYRG_INFO;
 
 
@@ -70,6 +73,9 @@ extern int myrg_delete(MYRG_INFO *file,const byte *buff);
 extern MYRG_INFO *myrg_open(const char *name,int mode,int wait_if_locked);
 extern int myrg_panic(enum ha_panic_function function);
 extern int myrg_rfirst(MYRG_INFO *file,byte *buf,int inx);
+extern int myrg_rlast(MYRG_INFO *file,byte *buf,int inx);
+extern int myrg_rnext(MYRG_INFO *file,byte *buf,int inx);
+extern int myrg_rprev(MYRG_INFO *file,byte *buf,int inx);
 extern int myrg_rkey(MYRG_INFO *file,byte *buf,int inx,const byte *key,
 		       uint key_len, enum ha_rkey_function search_flag);
 extern int myrg_rrnd(MYRG_INFO *file,byte *buf,ulonglong pos);

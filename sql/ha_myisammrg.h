@@ -1,15 +1,15 @@
 /* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
@@ -32,11 +32,15 @@ class ha_myisammrg: public handler
   ~ha_myisammrg() {}
   const char *table_type() const { return "MRG_MyISAM"; }
   const char **bas_ext() const;
-  ulong option_flag() const { return HA_READ_RND_SAME+HA_KEYPOS_TO_RNDPOS+HA_REC_NOT_IN_SEQ;}
+  ulong option_flag() const { return HA_REC_NOT_IN_SEQ+HA_READ_NEXT+
+                                     HA_READ_PREV+HA_READ_RND_SAME+HA_HAVE_KEY_READ_ONLY+
+		                     HA_KEYPOS_TO_RNDPOS+HA_READ_ORDER+
+		                     HA_LASTKEY_ORDER+HA_READ_NOT_EXACT_KEY+
+		                     HA_LONGLONG_KEYS+HA_NULL_KEY+HA_BLOB_KEY; }
   uint max_record_length() const { return HA_MAX_REC_LENGTH; }
-  uint max_keys()          const { return 0; }
-  uint max_key_parts()     const { return 0; }
-  uint max_key_length()    const { return 0; }
+  uint max_keys()          const { return 1; }
+  uint max_key_parts()     const { return MAX_REF_PARTS; }
+  uint max_key_length()    const { return MAX_KEY_LENGTH; }
 
   int open(const char *name, int mode, int test_if_locked);
   int close(void);
