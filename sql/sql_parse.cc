@@ -2921,8 +2921,10 @@ static bool create_total_list(THD *thd, LEX *lex, TABLE_LIST **result)
 	  }
 	  *new_table_list= cursor;
 	  new_table_list= &cursor->next;
-	  *new_table_list=0;				// end result list
+	  *new_table_list=0;			// end result list
 	}
+	else
+	  aux->shared=1;			// Mark that it's used twice
 	aux->table=(TABLE *) cursor;
       }
     }

@@ -37,7 +37,7 @@ int mysql_union(THD *thd, LEX *lex,select_result *result)
   int res;
   DBUG_ENTER("mysql_union");
 
-  /* Fix tables--to-be-unioned-from list to point at opened tables */
+  /* Fix tables 'to-be-unioned-from' list to point at opened tables */
   for (sl=&lex->select_lex; sl; sl=sl->next)
   {
     for (TABLE_LIST *cursor= (TABLE_LIST *)sl->table_list.first;
