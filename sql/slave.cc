@@ -2252,7 +2252,7 @@ static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev)
      in the loop
   */
   {
-    Append_block_log_event aev(thd,0,0);
+    Append_block_log_event aev(thd,0,0,0);
   
     for (;;)
     {
@@ -2265,7 +2265,7 @@ static int process_io_create_file(MASTER_INFO* mi, Create_file_log_event* cev)
       if (unlikely(!num_bytes)) /* eof */
       {
 	send_ok(net); /* 3.23 master wants it */
-	Execute_load_log_event xev(thd);
+	Execute_load_log_event xev(thd,0);
 	xev.log_pos = mi->master_log_pos;
 	if (unlikely(mi->rli.relay_log.append(&xev)))
 	{

@@ -93,6 +93,10 @@ set global character set default, session character set default;
 show variables like "convert_character_set";
 select @@timestamp>0;
 
+set @@rand_seed1=10000000,@@rand_seed2=1000000;
+select ROUND(RAND(),5);
+
+
 # The following should give errors
 
 --error 1231

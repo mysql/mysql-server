@@ -1132,7 +1132,8 @@ int log_loaded_block(IO_CACHE* file)
   lf_info->last_pos_in_file = file->pos_in_file;
   if (lf_info->wrote_create_file)
   {
-    Append_block_log_event a(lf_info->thd, buffer, block_len);
+    Append_block_log_event a(lf_info->thd, buffer, block_len,
+			     lf_info->log_delayed);
     mysql_bin_log.write(&a);
   }
   else
@@ -1140,7 +1141,7 @@ int log_loaded_block(IO_CACHE* file)
     Create_file_log_event c(lf_info->thd,lf_info->ex,lf_info->db,
 			    lf_info->table_name, *lf_info->fields,
 			    lf_info->handle_dup, buffer,
-			    block_len);
+			    block_len, lf_info->log_delayed);
     mysql_bin_log.write(&c);
     lf_info->wrote_create_file = 1;
     DBUG_SYNC_POINT("debug_lock.created_file_event",10);

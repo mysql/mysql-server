@@ -224,18 +224,19 @@ struct st_relay_log_info;
 class Log_event
 {
 public:
+  my_off_t log_pos;
+  char *temp_buf;
   time_t when;
   ulong exec_time;
   uint32 server_id;
-  my_off_t log_pos;
+  uint cached_event_len;
   uint16 flags;
-  int cached_event_len;
-  char* temp_buf;
-
+  bool cache_stmt;
 #ifndef MYSQL_CLIENT
   THD* thd;
 
-  Log_event(THD* thd_arg, uint16 flags_arg = 0);
+  Log_event(THD* thd_arg, uint16 flags_arg, bool cache_stmt);
+  Log_event();
   // if mutex is 0, the read will proceed without mutex
   static Log_event* read_log_event(IO_CACHE* file,
 				   pthread_mutex_t* log_lock,
@@ -278,7 +279,7 @@ public:
   { return 0; }
   virtual Log_event_type get_type_code() = 0;
   virtual bool is_valid() = 0;
-  virtual bool get_cache_stmt() { return 0; }
+  inline bool get_cache_stmt() { return cache_stmt; }
   Log_event(const char* buf, bool old_format);
   virtual ~Log_event() { free_temp_buf();}
   void register_temp_buf(char* buf) { temp_buf = buf; }
@@ -320,14 +321,12 @@ public:
   uint16 error_code;
   ulong thread_id;
 #ifndef MYSQL_CLIENT
-  bool cache_stmt;
 
   Query_log_event(THD* thd_arg, const char* query_arg, ulong query_length,
-		  bool using_trans=0);
+		  bool using_trans);
   const char* get_db() { return db; }
   void pack_info(String* packet);
   int exec_event(struct st_relay_log_info* rli);
-  bool get_cache_stmt() { return cache_stmt; }
 #else
   void print(FILE* file, bool short_form = 0, char* last_db = 0);
 #endif
@@ -404,14 +403,15 @@ public:
   const char* fname;
   uint32 skip_lines;
   sql_ex_info sql_ex;
-  
+
 #ifndef MYSQL_CLIENT
   String field_lens_buf;
   String fields_buf;
   
   Load_log_event(THD* thd, sql_exchange* ex, const char* db_arg,
 		 const char* table_name_arg,
-		 List<Item>& fields_arg, enum enum_duplicates handle_dup);
+		 List<Item>& fields_arg, enum enum_duplicates handle_dup,
+		 bool using_trans);
   void set_fields(List<Item> &fields_arg);
   void pack_info(String* packet);
   const char* get_db() { return db; }
@@ -427,8 +427,10 @@ public:
   Load_log_event(const char* buf, int event_len, bool old_format);
   ~Load_log_event()
   {}
-  Log_event_type get_type_code() { return sql_ex.new_format() ?
-				     NEW_LOAD_EVENT: LOAD_EVENT; }
+  Log_event_type get_type_code()
+  {
+    return sql_ex.new_format() ? NEW_LOAD_EVENT: LOAD_EVENT;
+  }
   int write_data_header(IO_CACHE* file); 
   int write_data_body(IO_CACHE* file); 
   bool is_valid() { return table_name != 0; }
@@ -454,7 +456,7 @@ public:
   char server_version[ST_SERVER_VER_LEN];
 
 #ifndef MYSQL_CLIENT
-  Start_log_event() :Log_event((THD*)0),binlog_version(BINLOG_VERSION)
+  Start_log_event() :Log_event(), binlog_version(BINLOG_VERSION)
   {
     created = (uint32) when;
     memcpy(server_version, ::server_version, ST_SERVER_VER_LEN);
@@ -485,7 +487,7 @@ public:
 
 #ifndef MYSQL_CLIENT  
   Intvar_log_event(THD* thd_arg,uchar type_arg, ulonglong val_arg)
-    :Log_event(thd_arg),val(val_arg),type(type_arg)
+    :Log_event(),val(val_arg),type(type_arg)
   {}
   void pack_info(String* packet);
   int exec_event(struct st_relay_log_info* rli);
@@ -515,7 +517,7 @@ class Rand_log_event: public Log_event
 
 #ifndef MYSQL_CLIENT
   Rand_log_event(THD* thd_arg, ulonglong seed1_arg, ulonglong seed2_arg)
-    :Log_event(thd_arg),seed1(seed1_arg),seed2(seed2_arg)
+    :Log_event(thd_arg,0,0),seed1(seed1_arg),seed2(seed2_arg)
   {}
   void pack_info(String* packet);
   int exec_event(struct st_relay_log_info* rli);
@@ -536,7 +538,7 @@ class Stop_log_event: public Log_event
 {
 public:
 #ifndef MYSQL_CLIENT  
-  Stop_log_event() :Log_event((THD*)0)
+  Stop_log_event() :Log_event()
   {}
   int exec_event(struct st_relay_log_info* rli);
 #else
@@ -561,8 +563,9 @@ public:
   bool alloced;
 #ifndef MYSQL_CLIENT  
   Rotate_log_event(THD* thd_arg, const char* new_log_ident_arg,
-		   uint ident_len_arg = 0,ulonglong pos_arg = 4)
-    : Log_event(thd_arg), new_log_ident(new_log_ident_arg),
+		   uint ident_len_arg = 0,
+		   ulonglong pos_arg = LOG_EVENT_OFFSET)
+    :Log_event(thd_arg,0,0), new_log_ident(new_log_ident_arg),
     pos(pos_arg),ident_len(ident_len_arg ? ident_len_arg :
 			   (uint) strlen(new_log_ident_arg)), alloced(0)
   {}
@@ -606,7 +609,8 @@ public:
 			const char* table_name_arg,
 			List<Item>& fields_arg,
 			enum enum_duplicates handle_dup,
-			char* block_arg, uint block_len_arg);
+			char* block_arg, uint block_len_arg,
+			bool using_trans);
   void pack_info(String* packet);
   int exec_event(struct st_relay_log_info* rli);
 #else
@@ -651,7 +655,7 @@ public:
   
 #ifndef MYSQL_CLIENT
   Append_block_log_event(THD* thd, char* block_arg,
-			 uint block_len_arg);
+			 uint block_len_arg, bool using_trans);
   int exec_event(struct st_relay_log_info* rli);
   void pack_info(String* packet);
 #else
@@ -673,7 +677,7 @@ public:
   uint file_id;
   
 #ifndef MYSQL_CLIENT
-  Delete_file_log_event(THD* thd);
+  Delete_file_log_event(THD* thd, bool using_trans);
   void pack_info(String* packet);
   int exec_event(struct st_relay_log_info* rli);
 #else
@@ -694,7 +698,7 @@ public:
   uint file_id;
   
 #ifndef MYSQL_CLIENT
-  Execute_load_log_event(THD* thd);
+  Execute_load_log_event(THD* thd, bool using_trans);
   void pack_info(String* packet);
   int exec_event(struct st_relay_log_info* rli);
 #else

@@ -4864,6 +4864,7 @@ uint pack_length_to_packflag(uint type)
 Field *make_field(char *ptr, uint32 field_length,
 		  uchar *null_pos, uchar null_bit,
 		  uint pack_flag,
+		  enum_field_types field_type,
 		  Field::utype unireg_check,
 		  TYPELIB *interval,
 		  const char *field_name,
@@ -4889,6 +4890,9 @@ Field *make_field(char *ptr, uint32 field_length,
       return new Field_blob(ptr,null_pos,null_bit,
 			    unireg_check, field_name, table,
 			    pack_length,f_is_binary(pack_flag) != 0);
+    if (f_is_geom(pack_flag))
+      return 0;
+
     if (interval)
     {
       if (f_is_enum(pack_flag))
@@ -4902,7 +4906,7 @@ Field *make_field(char *ptr, uint32 field_length,
     }
   }
 
-  switch ((enum enum_field_types) f_packtype(pack_flag)) {
+  switch (field_type) {
   case FIELD_TYPE_DECIMAL:
     return new Field_decimal(ptr,field_length,null_pos,null_bit,
 			     unireg_check, field_name, table,
@@ -4965,10 +4969,11 @@ Field *make_field(char *ptr, uint32 field_length,
     return new Field_datetime(ptr,null_pos,null_bit,
 			      unireg_check, field_name, table);
   case FIELD_TYPE_NULL:
-    default:					// Impossible (Wrong version)
     return new Field_null(ptr,field_length,unireg_check,field_name,table);
+  default:					// Impossible (Wrong version)
+    break;
   }
-  return 0;					// Impossible (Wrong version)
+  return 0;					// Impossible
 }
 
 

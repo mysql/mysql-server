@@ -104,7 +104,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   int error;
   bool log_on= ((thd->options & OPTION_UPDATE_LOG) ||
 		!(thd->master_access & SUPER_ACL));
-  bool using_transactions, bulk_insert=0;
+  bool transactional_table, log_delayed, bulk_insert=0;
   uint value_count;
   uint save_time_stamp;
   ulong counter = 1;
@@ -297,21 +297,23 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
       thd->insert_id(id);			// For update log
     else if (table->next_number_field)
       id=table->next_number_field->val_int();	// Return auto_increment value
-    using_transactions=table->file->has_transactions();
-    if ((info.copied || info.deleted) && (error <= 0 || !using_transactions))
+    
+    transactional_table= table->file->has_transactions();
+    log_delayed= (transactional_table || table->tmp_table);
+    if ((info.copied || info.deleted) && (error <= 0 || !transactional_table))
     {
       mysql_update_log.write(thd, thd->query, thd->query_length);
       if (mysql_bin_log.is_open())
       {
 	Query_log_event qinfo(thd, thd->query, thd->query_length,
-			      using_transactions);
-	if (mysql_bin_log.write(&qinfo) && using_transactions)
+			      log_delayed);
+	if (mysql_bin_log.write(&qinfo) && transactional_table)
 	  error=1;
       }
-      if (!using_transactions)
+      if (!log_delayed)
 	thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
     }
-    if (using_transactions)
+    if (transactional_table)
       error=ha_autocommit_or_rollback(thd,error);
     if (info.copied || info.deleted)
     {
@@ -1197,7 +1199,7 @@ bool delayed_insert::handle_inserts(void)
       mysql_update_log.write(&thd,row->query, row->query_length);
       if (using_bin_log)
       {
-	Query_log_event qinfo(&thd, row->query, row->query_length);
+	Query_log_event qinfo(&thd, row->query, row->query_length,0);
 	mysql_bin_log.write(&qinfo);
       }
     }
