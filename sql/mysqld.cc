@@ -4176,8 +4176,8 @@ struct my_option my_long_options[] =
   {"ansi", 'a', "Use ANSI SQL syntax instead of MySQL syntax. This mode will also set transaction isolation level 'serializable'.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"allow-suspicious-udfs", OPT_ALLOW_SUSPICIOUS_UDFS,
-   "Allows to use UDF's consisting of only one symbol xxx() "
-   "without corresponing xxx_init() or xxx_deinit(). That also means "
+   "Allows use of UDFs consisting of only one symbol xxx() "
+   "without corresponding xxx_init() or xxx_deinit(). That also means "
    "that one can load any function from any library, for example exit() "
    "from libc.so",
    (gptr*) &opt_allow_suspicious_udfs, (gptr*) &opt_allow_suspicious_udfs,
