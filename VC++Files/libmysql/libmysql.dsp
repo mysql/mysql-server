@@ -383,6 +383,10 @@ SOURCE=..\mysys\my_static.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\strings\my_strtoll10.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\mysys\my_symlink.c
 # End Source File
 # Begin Source File
