@@ -384,7 +384,7 @@ impossible position";
     We need to start a packet with something other than 255
     to distiquish it from error
   */
-  packet->set("\0", 1, system_charset_info);
+  packet->set("\0", 1, &my_charset_bin);
 
   // if we are at the start of the log
   if (pos == BIN_LOG_HEADER_SIZE)
@@ -395,7 +395,7 @@ impossible position";
       my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
       goto err;
     }
-    packet->set("\0", 1, system_charset_info);
+    packet->set("\0", 1, &my_charset_bin);
   }
 
   while (!net->error && net->vio != 0 && !thd->killed)
@@ -430,7 +430,7 @@ impossible position";
 	  goto err;
 	}
       }
-      packet->set("\0", 1, system_charset_info);
+      packet->set("\0", 1, &my_charset_bin);
     }
     /*
       TODO: now that we are logging the offset, check to make sure
@@ -550,7 +550,7 @@ Increase max_allowed_packet on master";
 	      goto err;
 	    }
 	  }
-	  packet->set("\0", 1, system_charset_info);
+	  packet->set("\0", 1, &my_charset_bin);
 	  /*
 	    No need to net_flush because we will get to flush later when
 	    we hit EOF pretty quick
@@ -1103,7 +1103,7 @@ int show_binlog_info(THD* thd)
     LOG_INFO li;
     mysql_bin_log.get_current_log(&li);
     int dir_len = dirname_length(li.log_file_name);
-    protocol->store(li.log_file_name + dir_len, system_charset_info);
+    protocol->store(li.log_file_name + dir_len, &my_charset_bin);
     protocol->store((ulonglong) li.pos);
     protocol->store(&binlog_do_db);
     protocol->store(&binlog_ignore_db);
@@ -1160,7 +1160,7 @@ int show_binlogs(THD* thd)
     protocol->prepare_for_resend();
     int dir_len = dirname_length(fname);
     /* The -1 is for removing newline from fname */
-    protocol->store(fname + dir_len, length-1-dir_len, system_charset_info);
+    protocol->store(fname + dir_len, length-1-dir_len, &my_charset_bin);
     if (protocol->write())
       goto err;
   }

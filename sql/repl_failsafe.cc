@@ -440,7 +440,7 @@ int show_new_master(THD* thd)
     if (protocol->send_fields(&field_list, 1))
       DBUG_RETURN(-1);
     protocol->prepare_for_resend();
-    protocol->store(lex_mi->log_file_name, system_charset_info);
+    protocol->store(lex_mi->log_file_name, &my_charset_bin);
     protocol->store((ulonglong) lex_mi->pos);
     if (protocol->write())
       DBUG_RETURN(-1);
@@ -610,11 +610,11 @@ int show_slave_hosts(THD* thd)
     SLAVE_INFO* si = (SLAVE_INFO*) hash_element(&slave_list, i);
     protocol->prepare_for_resend();
     protocol->store((uint32) si->server_id);
-    protocol->store(si->host, system_charset_info);
+    protocol->store(si->host, &my_charset_bin);
     if (opt_show_slave_auth_info)
     {
-      protocol->store(si->user, system_charset_info);
-      protocol->store(si->password, system_charset_info);
+      protocol->store(si->user, &my_charset_bin);
+      protocol->store(si->password, &my_charset_bin);
     }
     protocol->store((uint32) si->port);
     protocol->store((uint32) si->rpl_recovery_rank);

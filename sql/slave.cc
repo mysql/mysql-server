@@ -1608,22 +1608,22 @@ int show_master_info(THD* thd, MASTER_INFO* mi)
   
     pthread_mutex_lock(&mi->data_lock);
     pthread_mutex_lock(&mi->rli.data_lock);
-    protocol->store(mi->host, system_charset_info);
-    protocol->store(mi->user, system_charset_info);
+    protocol->store(mi->host, &my_charset_bin);
+    protocol->store(mi->user, &my_charset_bin);
     protocol->store((uint32) mi->port);
     protocol->store((uint32) mi->connect_retry);
-    protocol->store(mi->master_log_name, system_charset_info);
+    protocol->store(mi->master_log_name, &my_charset_bin);
     protocol->store((ulonglong) mi->master_log_pos);
     protocol->store(mi->rli.relay_log_name +
-		   dirname_length(mi->rli.relay_log_name), system_charset_info);
+		   dirname_length(mi->rli.relay_log_name), &my_charset_bin);
     protocol->store((ulonglong) mi->rli.relay_log_pos);
-    protocol->store(mi->rli.master_log_name, system_charset_info);
-    protocol->store(mi->slave_running ? "Yes":"No", system_charset_info);
-    protocol->store(mi->rli.slave_running ? "Yes":"No", system_charset_info);
+    protocol->store(mi->rli.master_log_name, &my_charset_bin);
+    protocol->store(mi->slave_running ? "Yes":"No", &my_charset_bin);
+    protocol->store(mi->rli.slave_running ? "Yes":"No", &my_charset_bin);
     protocol->store(&replicate_do_db);
     protocol->store(&replicate_ignore_db);
     protocol->store((uint32) mi->rli.last_slave_errno);
-    protocol->store(mi->rli.last_slave_error, system_charset_info);
+    protocol->store(mi->rli.last_slave_error, &my_charset_bin);
     protocol->store((uint32) mi->rli.slave_skip_counter);
     protocol->store((ulonglong) mi->rli.master_log_pos);
     protocol->store((ulonglong) mi->rli.log_space_total);
