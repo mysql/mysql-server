@@ -1316,7 +1316,9 @@ recv_parse_log_rec(
 
 	new_ptr = mlog_parse_initial_log_record(ptr, end_ptr, type, space,
 								page_no);
-	if (!new_ptr) {
+	/* Check that space id and page_no are sensible */
+
+	if (!new_ptr || *space != 0 || *page_no > 0x8FFFFFFF) {
 
 		return(0);
 	}
