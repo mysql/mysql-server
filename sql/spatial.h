@@ -97,12 +97,14 @@ struct MBR
 
   int equals(const MBR *mbr)
   {
+    /* The following should be safe, even if we compare doubles */
     return ((mbr->xmin == xmin) && (mbr->ymin == ymin) &&
 	    (mbr->xmax == xmax) && (mbr->ymax == ymax));
   }
 
   int disjoint(const MBR *mbr)
   {
+    /* The following should be safe, even if we compare doubles */
     return ((mbr->xmin > xmax) || (mbr->ymin > ymax) ||
 	    (mbr->xmax < xmin) || (mbr->ymax < ymin));
   }
@@ -114,6 +116,7 @@ struct MBR
 
   int touches(const MBR *mbr)
   {
+    /* The following should be safe, even if we compare doubles */
     return ((((mbr->xmin == xmax) || (mbr->xmax == xmin)) && 
 	     ((mbr->ymin >= ymin) && (mbr->ymin <= ymax) || 
 	      (mbr->ymax >= ymin) && (mbr->ymax <= ymax))) ||
@@ -124,18 +127,21 @@ struct MBR
 
   int within(const MBR *mbr)
   {
+    /* The following should be safe, even if we compare doubles */
     return ((mbr->xmin <= xmin) && (mbr->ymin <= ymin) &&
 	    (mbr->xmax >= xmax) && (mbr->ymax >= ymax));
   }
 
   int contains(const MBR *mbr)
   {
+    /* The following should be safe, even if we compare doubles */
     return ((mbr->xmin >= xmin) && (mbr->ymin >= ymin) &&
 	    (mbr->xmax <= xmax) && (mbr->ymax <= ymax));
   }
 
   bool inner_point(double x, double y) const
   {
+    /* The following should be safe, even if we compare doubles */
     return (xmin<x) && (xmax>x) && (ymin<y) && (ymax>x);
   }
 
@@ -163,6 +169,9 @@ public:
   {
     return buffer;
   }
+
+  static void operator delete(void *ptr, void *buffer)
+  {}
 
   enum wkbType
   {
