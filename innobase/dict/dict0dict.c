@@ -2272,6 +2272,24 @@ dict_scan_table_name(
 			return(ptr);	/* Syntax error */
 		}
 	} else {
+		/* To be able to read table dumps made with InnoDB-4.0.17 or
+		earlier, we must allow the dot separator between the database
+		name and the table name also to appear within a quoted
+		identifier! InnoDB used to print a constraint as:
+			... REFERENCES `databasename.tablename` ...
+		starting from 4.0.18 it is
+			... REFERENCES `databasename`.`tablename` ... */
+
+		for (i = 0; i < scanned_id_len; i++) {
+			if (scanned_id[i] == '.') {
+				database_name = scanned_id;
+				database_name_len = i;
+				
+				scanned_id = scanned_id + i + 1;
+				scanned_id_len -= i + 1;
+			}
+		}
+
 		table_name = scanned_id;
 		table_name_len = scanned_id_len;
 	}
@@ -3878,6 +3896,7 @@ dict_print_info_on_foreign_key_in_create_format(
 	char*		buf)	/* in: buffer of at least 5000 bytes */
 {
 	char*	buf2	= buf;
+	ulint	cpy_len;
 	ulint	i;
 	
 	buf2 += sprintf(buf2, ",\n  CONSTRAINT `%s` FOREIGN KEY (",
@@ -3897,24 +3916,31 @@ dict_print_info_on_foreign_key_in_create_format(
 
 	if (dict_tables_have_same_db(foreign->foreign_table_name,
 					foreign->referenced_table_name)) {
-		/* Do not print the database name of the referenced
-		table */
+		/* Do not print the database name of the referenced table */
 		buf2 += sprintf(buf2, ") REFERENCES `%.500s` (",
 					dict_remove_db_name(
 					foreign->referenced_table_name));
 	} else {
-		buf2 += sprintf(buf2, ") REFERENCES `%.500s` (",
-					foreign->referenced_table_name);
-		/* Change the '/' in the table name to '.' */
+		buf2 += sprintf(buf2, ") REFERENCES `");
+	
+		/* Look for the '/' in the table name */
 
-		for (i = ut_strlen(buf); i > 0; i--) {
-			if (buf[i] == '/') {
-
-				buf[i] = '.';
-
-				break;
-			}
+		i = 0;
+		while (foreign->referenced_table_name[i] != '/') {
+			i++;
 		}
+		
+		cpy_len = i;
+
+		if (cpy_len > 500) {
+			cpy_len = 500;
+		}
+
+		memcpy(buf2, foreign->referenced_table_name, cpy_len);
+		buf2 += cpy_len;
+
+		buf2 += sprintf(buf2, "`.`%.500s` (",
+				foreign->referenced_table_name + i + 1);
 	}
 	
 	for (i = 0; i < foreign->n_fields; i++) {
