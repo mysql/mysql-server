@@ -25,7 +25,7 @@
 */
 
 struct st_des_keyschedule des_keyschedule[10];
-uint  default_des_key;
+uint   des_default_key;
 
 void
 load_des_key_file(const char *file_name)
@@ -43,7 +43,7 @@ load_des_key_file(const char *file_name)
     goto error;
 
   bzero((char*) des_keyschedule,sizeof(struct st_des_keyschedule) * 10);
-  default_des_key=15;				// Impossible key
+  des_default_key=15;				// Impossible key
   for (;;)
   {
     char *start, *end;
@@ -72,8 +72,8 @@ load_des_key_file(const char *file_name)
 	des_set_key_unchecked(&keyblock.key1,des_keyschedule[(int)offset].ks1);
 	des_set_key_unchecked(&keyblock.key2,des_keyschedule[(int)offset].ks2);
 	des_set_key_unchecked(&keyblock.key3,des_keyschedule[(int)offset].ks3);
-	if (default_des_key == 15)
-	  default_des_key= (uint) offset;		// use first as def.
+	if (des_default_key == 15)
+	  des_default_key= (uint) offset;		// use first as def.
       }
     }
     else
