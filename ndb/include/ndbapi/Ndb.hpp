@@ -17,30 +17,37 @@
 /**
    @mainpage                            NDB API Programmers' Guide
 
-   This guide assumes a basic familiarity with NDB Cluster concepts.
+   This guide assumes a basic familiarity with MySQL Cluster concepts.
    Some of the fundamental ones are described in section @ref secConcepts.
    
-   The <em>NDB API</em> is an NDB Cluster application interface 
-   that implements both synchronous and asynchronous transactions.
+   The <em>NDB API</em> is an MySQL Cluster application interface 
+   that implements transactions.
    The NDB API consists of the following fundamental classes:
+   - Ndb_cluster_connection class representing a connection to a cluster, 
    - Ndb is the main class representing the database, 
    - NdbConnection represents a transaction, 
-   - NdbOperation represents a transaction operation using primary key,
-   - NdbIndexOperation represents a transaction operation using a secondary
-     index,
+   - NdbOperation represents a operation using primary key,
+   - NdbScanOperation represents a operation performing a full table scan.
+   - NdbIndexOperation represents a operation using a unique hash index,
+   - NdbIndexScanOperation represents a operation performing a scan using
+     an ordered index,
    - NdbRecAttr represents the value of an attribute, and
    - NdbDictionary represents meta information about tables and attributes.
-   - NdbError represents an error condition
+   - NdbError contains a specification of an error.
    There are also some auxiliary classes.
      
    The main structure of an application program is as follows:
+   -# Construct and connect to a cluster using the Ndb_cluster_connection
+      object.
    -# Construct and initialize Ndb object(s).
-   -# Define and execute (synchronous or asynchronous) transactions.
+   -# Define and execute transactions using NdbConnection and Ndb*Operation.
    -# Delete Ndb objects
+   -# Delete connection to cluster
 
    The main structure of a transaction is as follows:
-   -# Start transaction
-   -# Add and define operations (associated with the transaction)
+   -# Start transaction, a NdbConnection
+   -# Add and define operations (associated with the transaction),
+      Ndb*Operation
    -# Execute transaction
 
    The execute can be of two different types, 
@@ -71,8 +78,8 @@
        At this step the transaction is being defined.
        It is not yet sent to the NDB kernel.
     -# Add and define operations to the transaction 
-       (using NdbConnection::getNdbOperation and
-       methods from class NdbOperation).
+       (using NdbConnection::getNdb*Operation and
+       methods from class Ndb*Operation).
        The transaction is still not sent to the NDB kernel.
     -# Execute the transaction (using NdbConnection::execute).
     -# Close the transaction (using Ndb::closeTransaction).
@@ -82,20 +89,21 @@
    To execute several parallel synchronous transactions, one can either 
    use multiple Ndb objects in several threads or start multiple 
    applications programs.  
+
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
    Another way to execute several parallel transactions is to use
    asynchronous transactions.
-  
+#endif  
   
    @section secNdbOperations            Operations
 
    Each transaction (NdbConnection object) consist of a list of 
-   operations (NdbOperation or NdbIndexOperation objects.  
-   NdbIndexOperation is used for accessing tables through secondary indexes).   
+   operations (Ndb*Operation objects).   
    Operations are of two different kinds:
    -# standard operations, and
    -# interpreted program operations.
 
-   <h3>Standard Operations</h3>
+   <h3>Single row operations</h3>
    After the operation is created using NdbConnection::getNdbOperation
    (or NdbConnection::getNdbIndexOperation),
    it is defined in the following three steps:
@@ -106,36 +114,42 @@
    -# Specify attribute actions 
       (e.g. using NdbOperation::getValue)
 
-   Example code (using an NdbOperation):
+   Example code (using an NdbOperation and excluding error handling):
    @code
-     MyOperation = MyConnection->getNdbOperation("MYTABLENAME"); // 1. Create
-     if (MyOperation == NULL) APIERROR(MyConnection->getNdbError());
+     // 1. Create
+     MyOperation= MyConnection->getNdbOperation("MYTABLENAME");
     
-     MyOperation->readTuple();                  // 2. Define type of operation
-     MyOperation->equal("ATTR1", i);            // 3. Specify Search Conditions
+     // 2. Define type of operation and lock mode
+     MyOperation->readTuple(NdbOperation::LM_Read);
+
+     // 3. Specify Search Conditions
+     MyOperation->equal("ATTR1", i);
     
-     MyRecAttr = MyOperation->getValue("ATTR2", NULL);   // 4. Attribute Actions
-     if (MyRecAttr == NULL) APIERROR(MyConnection->getNdbError());
+     // 4. Attribute Actions
+     MyRecAttr= MyOperation->getValue("ATTR2", NULL);
    @endcode
-   For more examples, see @ref ndbapi_example1.cpp and @ref ndbapi_example2.cpp.
+   For more examples, see @ref ndbapi_example1.cpp and 
+   @ref ndbapi_example2.cpp.
 
-   Example code using an NdbIndexOperation:
+   Example code (using an NdbIndexOperation and excluding error handling):
    @code
-     MyOperation =                              // 1. Create
-     	MyConnection->getNdbIndexOperation("MYINDEX", "MYTABLENAME");
-     if (MyOperation == NULL) APIERROR(MyConnection->getNdbError());
+     // 1. Create
+     MyOperation= MyConnection->getNdbIndexOperation("MYINDEX", "MYTABLENAME");
 
-     MyOperation->readTuple();                  // 2. Define type of operation
-     MyOperation->equal("ATTR1", i);            // 3. Specify Search Conditions
+     // 2. Define type of operation and lock mode
+     MyOperation->readTuple(NdbOperation::LM_Read);
 
-     MyRecAttr = MyOperation->getValue("ATTR2", NULL); // 4. Attribute Actions 
-     if (MyRecAttr == NULL) APIERROR(MyConnection->getNdbError());
+     // 3. Specify Search Conditions
+     MyOperation->equal("ATTR1", i);
+
+     // 4. Attribute Actions 
+     MyRecAttr = MyOperation->getValue("ATTR2", NULL);
    @endcode
    For more examples, see @ref ndbapi_example4.cpp.
 
 
-   <h4>Step 1: Define Standard Operation Type</h4>
-   The following types of standard operations exist:
+   <h4>Step 1: Define single row operation type</h4>
+   The following types of operations exist:
     -# NdbOperation::insertTuple : 
        inserts a non-existing tuple
     -# NdbOperation::writeTuple : 
@@ -146,78 +160,25 @@
     -# NdbOperation::deleteTuple : 
        deletes an existing tuple
     -# NdbOperation::readTuple : 
-       reads an existing tuple
-    -# NdbOperation::readTupleExclusive : 
-       reads an existing tuple using an exclusive lock
-    -# NdbOperation::simpleRead : 
-       reads an existing tuple (using shared read lock),
-       but releases lock immediately after read
-    -# NdbOperation::committedRead : 
-       reads committed tuple
-    -# NdbOperation::dirtyUpdate : 
-       updates an existing tuple, but releases lock immediately
-       after read (uses dirty lock)
-    -# NdbOperation::dirtyWrite : 
-       updates or writes a tuple, but releases lock immediately
-       after read (uses dirty lock)
+       reads an existing tuple with specified lock mode
 
    All of these operations operate on the unique tuple key.
    (When NdbIndexOperation is used then all of these operations 
-   operate on a defined secondary index.)
-
-
-   Some comments:
-   - NdbOperation::simpleRead and 
-     NdbOperation::committedRead can execute on the same transaction
-     as the above operations but will release its locks immediately
-     after reading the tuple. 
-     NdbOperation::simpleRead will always read the latest version 
-     of the tuple. 
-     Thus it will wait until it can acquire a shared read lock on 
-     the tuple. 
-     NdbOperation::committedRead will read the latest committed 
-     version of the tuple. 
-     <br>
-     Both NdbOperation::simpleRead and NdbOperation::committedRead 
-     are examples of consistent reads which are not repeatable.
-     All reads read the latest version if updates were made by the same
-     transaction.
-     Errors on simple read are only reported by the NdbOperation object.
-     These error codes are not transferred to the NdbConnection object.
-   - NdbOperation::dirtyUpdate and NdbOperation::dirtyWrite 
-     will execute in the same transaction
-     but will release the lock immediately after updating the
-     tuple.
-     It will wait on the lock until it can acquire an exclusive
-     write lock.
-     In a replicated version of NDB Cluster NdbOperation::dirtyUpdate 
-     can lead to inconsistency between the replicas.
-     Examples of when it could be used is
-     to update statistical counters on tuples which are "hot-spots".
+   operate on a defined unique hash index.)
 
    @note If you want to define multiple operations within the same transaction,
-         then you need to call NdbConnection::getNdbOperation 
-	 (or NdbConnection::getNdbIndexOperation) for each
+         then you need to call NdbConnection::getNdb*Operation for each
          operation.
-
 
    <h4>Step 2: Specify Search Conditions</h4>
    The search condition is used to select tuples.
-   (In the current NdbIndexOperation implementation 
-   this means setting the value of
-   the secondary index attributes of the wanted tuple.)
 
-   If a tuple identity is used, then NdbOperation::setTupleId 
-   is used to define the search key when inserting new tuples.
-   Otherwise, NdbOperation::equal is used.
-   
-   For NdbOperation::insertTuple it is also allowed to define the 
+   For NdbOperation::insertTuple it is also allowed to define the
    search key by using NdbOperation::setValue.
    The NDB API will automatically detect that it is
    supposed to use NdbOperation::equal instead. 
    For NdbOperation::insertTuple it is not necessary to use
    NdbOperation::setValue on key attributes before other attributes.
-
 
    <h4>Step 3: Specify Attribute Actions</h4>
    Now it is time to define which attributes should be read or updated.
@@ -495,7 +456,7 @@
 	 should match the automatic numbering to make it easier to 
 	 debug the interpreted program.
 
-
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
    @section secAsync                    Asynchronous Transactions
    The asynchronous interface is used to increase the speed of
    transaction executing by better utilizing the connection
@@ -583,7 +544,7 @@
   
    The poll method returns the number of transactions that 
    have finished processing and executed their callback methods.
-  
+
    @note When an asynchronous transaction has been started and sent to
          the NDB kernel, it is not allowed to execute any methods on
          objects belonging to this transaction until the transaction
@@ -595,7 +556,7 @@
 
    More about how transactions are send the NDB Kernel is 
    available in section @ref secAdapt.
-
+#endif
 
    @section secError                    Error Handling
 
@@ -671,6 +632,7 @@
  * @include ndbapi_example4.cpp 
  */
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
 /**
  * @page select_all.cpp select_all.cpp
  * @include select_all.cpp 
@@ -680,6 +642,7 @@
  * @page ndbapi_async.cpp ndbapi_async.cpp
  * @include ndbapi_async.cpp
  */
+#endif
 
 /**
  * @page ndbapi_scan.cpp ndbapi_scan.cpp
@@ -691,8 +654,7 @@
    @page secAdapt  Adaptive Send Algorithm
 
    At the time of "sending" the transaction 
-   (using NdbConnection::execute, NdbConnection::executeAsynch, 
-   Ndb::sendPreparedTransactions, or Ndb::sendPollNdb), the transactions 
+   (using NdbConnection::execute), the transactions 
    are in reality <em>not</em> immediately transfered to the NDB Kernel.  
    Instead, the "sent" transactions are only kept in a 
    special send list (buffer) in the Ndb object to which they belong.
@@ -847,12 +809,56 @@
    then a timeout error occurs.
 
    Concurrent transactions (parallel application programs, thread-based 
-   applications, or applications with asynchronous transactions)
+   applications)
    sometimes deadlock when they try to access the same information.
    Applications need to be programmed so that timeout errors
    occurring due to deadlocks are handled.  This generally
    means that the transaction encountering timeout
    should be rolled back and restarted.
+
+   @section secHint                 Hints and performance
+
+   NDB API can be hinted to select a particular transaction coordinator.
+   The default method is round robin where each set of new transactions 
+   is placed on the next NDB kernel node. 
+   By providing a distribution key (usually the primary key
+   of the mostly used table of the transaction) for a record
+   the transaction will be placed on the node where the primary replica
+   of that record resides. 
+   Note that this is only a hint, the system can
+   be under reconfiguration and then the NDB API 
+   will use select the transaction coordinator without using 
+   this hint.
+
+   Placing the transaction coordinator close
+   to the actual data used in the transaction can in many cases
+   improve performance significantly. This is particularly true for
+   systems using TCP/IP. A system using Solaris and a 500 MHz processor
+   has a cost model for TCP/IP communication which is:
+
+     30 microseconds + (100 nanoseconds * no of Bytes)
+
+   This means that if we can ensure that we use "popular" links we increase
+   buffering and thus drastically reduce the communication cost.
+   Systems using SCI has a different cost model which is:
+
+     5 microseconds + (10 nanoseconds *  no of Bytes)
+
+   Thus SCI systems are much less dependent on selection of 
+   transaction coordinators. 
+   Typically TCP/IP systems spend 30-60% of the time during communication,
+   whereas SCI systems typically spend 5-10% of the time during
+   communication. 
+   Thus SCI means that less care from the NDB API programmer is
+   needed and great scalability can be achieved even for applications using
+   data from many parts of the database.
+
+   A simple example is an application that uses many simple updates where
+   a transaction needs to update one record. 
+   This record has a 32 bit primary key, 
+   which is also the distribution key. 
+   Then the keyData will be the address of the integer 
+   of the primary key and keyLen will be 4.
 */
 
 #ifndef Ndb_H
@@ -928,6 +934,11 @@ typedef void (* NdbEventCallback)(NdbEventOperation*, Ndb*, void*);
  *       Semaphores, mutexes and so forth are easy ways of issuing memory 
  *       barriers without having to bother about the memory barrier concept.
  *
+ */
+
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+// to be documented later
+/*
  * If one Ndb object is used to handle parallel transactions through the 
  * asynchronous programming interface, please read the notes regarding
  * asynchronous transactions (Section @ref secAsync).
@@ -938,6 +949,8 @@ typedef void (* NdbEventCallback)(NdbEventOperation*, Ndb*, void*);
  *       asynchronous transaction or the methods for 
  *       synchronous transactions but not both.
  */
+#endif
+
 class Ndb
 {
   friend class NdbReceiver;
@@ -959,29 +972,30 @@ public:
    * @{
    */
   /**
-   * The starting point of your application code is to create an 
-   * Ndb object.  
-   * This object represents the NDB kernel and is the main
-   * object used in interaction with the NDB kernel.
+   * The Ndb object represents a connection to a database.
    *
+   * @note the init() method must be called before it may be used
+   *
+   * @param ndb_cluster_connection is a connection to a cluster containing
+   *        the database to be used
    * @param aCatalogName is the name of the catalog you want to use.
    * @note The catalog name provides a name space for the tables and
    *       indexes created in any connection from the Ndb object.
    * @param aSchemaName is the name of the schema you 
-   *        want to use. It is optional and defaults to the "def" schema.
+   *        want to use.
    * @note The schema name provides an additional name space 
    *       for the tables and indexes created in a given catalog.
-   * @note The methods get/setDatabaseName and get/setDatabaseSchemaName
-   *       are equivalent to get/setCatalogName and get/setSchemaName.
-   *       The get/setDatabaseName and get/setDatabaseSchemaName are
-   *       deprecated.
    */
-  Ndb(const char* aCatalogName = "", const char* aSchemaName = "def");
   Ndb(Ndb_cluster_connection *ndb_cluster_connection,
       const char* aCatalogName = "", const char* aSchemaName = "def");
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  // depricated
+  Ndb(const char* aCatalogName = "", const char* aSchemaName = "def");
+#endif
   ~Ndb();
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
    * The current catalog name can be fetched by getCatalogName.
    *
@@ -1009,7 +1023,7 @@ public:
    * @param aSchemaName is the new name of the current schema
    */
   void setSchemaName(const char * aSchemaName);
-
+#endif
 
   /**
    * The current database name can be fetched by getDatabaseName.
@@ -1040,22 +1054,22 @@ public:
   void setDatabaseSchemaName(const char * aDatabaseSchemaName);
 
   /**
-   * Before anything else it is necessary to initialize (start)
-   * the Ndb object.
+   * Initializes the Ndb object
    *
    * @param  maxNoOfTransactions 
    *         Maximum number of parallel 
-   *         NdbConnection objects that should be handled by the Ndb object.
-   *         A value larger than 1024 will be downgraded to 1024. 
-   *         This means that one Ndb object can handle at most 1024 parallel
-   *         transactions. 
-   * @return 0 if successful, -1 otherwise.
+   *         NdbConnection objects that can be handled by the Ndb object.
+   *         Maximum value is 1024.
    *
-   * @note   The internal implementation multiplies this value 
-   *         with 3.
+   * @note each scan or index scan operation uses one extra
+   *       NdbConnection object
+   *
+   * @return 0 if successful, -1 otherwise.
    */
   int init(int maxNoOfTransactions = 4);
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  // depricated
   /**
    * Wait for Ndb object to successfully set-up connections to 
    * the NDB kernel. 
@@ -1068,8 +1082,8 @@ public:
    * @return  0: Ndb is ready and timeout has not occurred.<br>
    *          -1: Timeout has expired
    */
-
   int waitUntilReady(int timeout = 60);
+#endif
 
   /** @} *********************************************************************/
 
@@ -1079,30 +1093,55 @@ public:
    */
 
   /**
-   * Query the database for schema information 
-   * (without performing any transaction).
+   * Get an object for retrieving or manipulating database schema information 
+   *
+   * @note this object operates outside any transaction
    *
    * @return Object containing meta information about all tables 
    *         in NDB Cluster.
    */
   class NdbDictionary::Dictionary* getDictionary() const;
   
-  NdbEventOperation* createEventOperation(const char* eventName,
-					  const int bufferLength);
-  int dropEventOperation(NdbEventOperation*);
-  void monitorEvent(NdbEventOperation *, NdbEventCallback, void*);
-  int pollEvents(int aMillisecondNumber);
+
+  /** @} *********************************************************************/
+
+  /** 
+   * @name Event subscriptions
+   * @{
+   */
 
   /**
-   * Get the application node identity.  
+   * Create a subcription to an event defined in the database
    *
-   * Each node (DB nodes, Applications, and Management Servers) 
-   * has its own node identity in the NDB Cluster.
-   * See documentation for the management server configuration file.
+   * @param eventName
+   *        unique identifier of the event
+   * @param bufferLength
+   *        buffer size for storing event data
    *
-   * @return Node id of this application.
+   * @return Object representing an event, NULL on failure
    */
-  int getNodeId();
+  NdbEventOperation* createEventOperation(const char* eventName,
+					  const int bufferLength);
+  /**
+   * Drop a subscription to an event
+   *
+   * @param eventName
+   *        unique identifier of the event
+   *
+   * @return 0 on success
+   */
+  int dropEventOperation(NdbEventOperation* eventName);
+
+  /**
+   * Wait for an event to occur. Will return as soon as an event
+   * is detected on any of the created events.
+   *
+   * @param aMillisecondNumber
+   *        maximum time to wait
+   *
+   * @return the number of events that has occured, -1 on failure
+   */
+  int pollEvents(int aMillisecondNumber);
 
   /** @} *********************************************************************/
 
@@ -1112,78 +1151,29 @@ public:
    */
 
   /**
-   * This method returns an NdbConnection which caters for the transaction. 
-   * When the transaction is completed it must be closed. 
-   * The Ndb::closeTransaction also return the NdbConnection object 
-   * and all other memory related to the transaction. 
-   * Failure to close the transaction will lead to memory leakage. 
-   * The transaction must be closed independent of its outcome, i.e.
-   * even if there is an error.
+   * Start a transaction
+   *
+   * @note When the transaction is completed it must be closed using
+   *       Ndb::closeTransaction or NdbConnection::close. 
+   *       The transaction must be closed independent of its outcome, i.e.
+   *       even if there is an error.
+   *
+   * @param  prio     Not implemented
+   * @param  keyData  Pointer to partition key to be used for deciding
+   *                  which node to run the Transaction Coordinator on
+   * @param  keyLen   Length of partition key expressed in bytes
    * 
-   * NDB API can be hinted to select a particular transaction coordinator.
-   * The default method is round robin where each set of new transactions 
-   * is placed on the next NDB kernel node. 
-   * By providing a distribution key (usually the primary key
-   * of the mostly used table of the transaction) for a record
-   * the transaction will be placed on the node where the primary replica
-   * of that record resides. 
-   * Note that this is only a hint, the system can
-   * be under reconfiguration and then the NDB API 
-   * will use select the transaction coordinator without using 
-   * this hint.
-   *
-   * Placing the transaction coordinator close
-   * to the actual data used in the transaction can in many cases
-   * improve performance significantly. This is particularly true for
-   * systems using TCP/IP. A system using Solaris and a 500 MHz processor
-   * has a cost model for TCP/IP communication which is:
-   *
-   *   30 microseconds + (100 nanoseconds * no of Bytes)
-   *
-   * This means that if we can ensure that we use "popular" links we increase
-   * buffering and thus drastically reduce the communication cost.
-   * Systems using SCI has a different cost model which is:
-   *
-   *   5 microseconds + (10 nanoseconds *  no of Bytes)
-   *
-   * Thus SCI systems are much less dependent on selection of 
-   * transaction coordinators. 
-   * Typically TCP/IP systems spend 30-60% of the time during communication,
-   * whereas SCI systems typically spend 5-10% of the time during
-   * communication. 
-   * Thus SCI means that less care from the NDB API programmer is
-   * needed and great scalability can be achieved even for applications using
-   * data from many parts of the database.
-   *
-   * A simple example is an application that uses many simple updates where
-   * a transaction needs to update one record. 
-   * This record has a 32 bit primary key, 
-   * which is also the distribution key. 
-   * Then the keyData will be the address of the integer 
-   * of the primary key and keyLen will be 4.
-   *
-   * @note Transaction priorities are not yet supported.
-   *
-   * @param  prio     The priority of the transaction.<br>
-   *                  Priority 0 is the highest priority and is used
-   *                  for short transactions with requirements on low delay.<br>
-   *                  Priority 1 is a medium priority for short transactions.
-   *                  <br>
-   *                  Priority 2 is a medium priority for long transactions.<br>
-   *                  Priority 3 is a low priority for long transactions.<br>
-   *                  <em>This parameter is not currently used,
-   *                      and can be set to any value</em>
-   * @param  keyData  Pointer to distribution key
-   * @param  keyLen   Length of distribution key expressed in bytes
-   * 
-   * @return NdbConnection object, or NULL if method failed.
+   * @return NdbConnection object, or NULL on failure.
    */
   NdbConnection* startTransaction(Uint32        prio = 0, 
 				  const char *  keyData = 0, 
 				  Uint32        keyLen = 0);
 
   /**
-   * When a transactions is completed, the transaction has to be closed.
+   * Close a transaction.
+   *
+   * @note should be called after the transaction has completed, irrespective
+   *       of success or failure
    *
    * @note It is not allowed to call Ndb::closeTransaction after sending the
    *       transaction asynchronously with either 
@@ -1195,10 +1185,11 @@ public:
    *       If the transaction is not committed it will be aborted.
    */
   void closeTransaction(NdbConnection* aConnection);
-  
 
   /** @} *********************************************************************/
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  // to be documented later
   /** 
    * @name Asynchronous Transactions
    * @{
@@ -1209,11 +1200,10 @@ public:
    * Will return as soon as at least 'minNoOfEventsToWakeUp' 
    * of them have completed, or the maximum time given as timeout has passed.
    *
-   * @param aMillisecondNumber Maximum time to wait for transactions
-   *                           to complete.
-   *                           Polling without wait is achieved by setting the 
-   *                           timer to zero.
-   *                           Time is expressed in milliseconds.
+   * @param aMillisecondNumber 
+   *        Maximum time to wait for transactions to complete. Polling 
+   *        without wait is achieved by setting the timer to zero.
+   *        Time is expressed in milliseconds.
    * @param minNoOfEventsToWakeup Minimum number of transactions 
    *            which has to wake up before the poll-call will return.
    *            If minNoOfEventsToWakeup is
@@ -1275,6 +1265,7 @@ public:
   int  sendPollNdb(int aMillisecondNumber = WAITFOR_RESPONSE_TIMEOUT,
 		   int minNoOfEventsToWakeup = 1,
 		   int forceSend = 0);
+#endif
   
   /** @} *********************************************************************/
 
@@ -1286,7 +1277,7 @@ public:
   /**
    * Get the NdbError object
    *
-   * The NdbError object is valid until you call a new NDB API method.
+   * @note The NdbError object is valid until a new NDB API method is called.
    */
   const NdbError & getNdbError() const;
   
@@ -1298,37 +1289,36 @@ public:
   const NdbError & getNdbError(int errorCode);
 
 
+  /** @} *********************************************************************/
+
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  /**
+   * Get the application node identity.  
+   *
+   * @return Node id of this application.
+   */
+  int getNodeId();
+
   /**
    * setConnectString
-   * @param connectString - the connectString has the following format:
-   * @code
-   * "nodeid=<ID>;host=host://<HOSTNAME>:<PORT>;
-   *  host=host://<HOSTNAME2>:<PORT>;..."
-   * @endcode
-   * or
-   * @code
-   * "nodeid=<ID>;host=<HOSTNAME>:<PORT>;host=<HOSTNAME2>:<PORT>;..."
-   * @endcode
+   *
+   * @param connectString - see MySQL ref manual for format
    */
   static void setConnectString(const char * connectString);
 
   bool usingFullyQualifiedNames();
-
-  /** @} *********************************************************************/
-
-#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
 
   /**
    * Different types of tampering with the NDB Cluster.
    * <b>Only for debugging purposes only.</b>
    */
   enum TamperType	{ 
-    LockGlbChp = 1,               ///< Lock GCP
-    UnlockGlbChp,                 ///< Unlock GCP
-    CrashNode,                    ///< Crash an NDB node
-    ReadRestartGCI,               ///< Request the restart GCI id from NDB Cluster
-    InsertError                   ///< Execute an error in NDB Cluster 
-                                  ///< (may crash system)
+    LockGlbChp = 1,           ///< Lock GCP
+    UnlockGlbChp,             ///< Unlock GCP
+    CrashNode,                ///< Crash an NDB node
+    ReadRestartGCI,           ///< Request the restart GCI id from NDB Cluster
+    InsertError               ///< Execute an error in NDB Cluster 
+                              ///< (may crash system)
   };
 
   /**
@@ -1347,9 +1337,7 @@ public:
    *          on type of tampering.
    */
   int NdbTamper(TamperType aAction, int aNode);  
-#endif
 
-#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
    * Return a unique tuple id for a table.  The id sequence is
    * ascending but may contain gaps.
@@ -1379,9 +1367,7 @@ public:
 		       bool increase);
   bool setTupleIdInNdb(Uint32 aTableId, Uint64 val, bool increase);
   Uint64 opTupleIdOnNdb(Uint32 aTableId, Uint64 opValue, Uint32 op);
-#endif
 
-#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
    */
   NdbConnection* hupp( NdbConnection* );

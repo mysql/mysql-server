@@ -31,6 +31,8 @@ class Ndb;
 class NdbBlob;
 
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+// to be documented later
 /**
  * NdbAsynchCallback functions are used when executing asynchronous 
  * transactions (using NdbConnection::executeAsynchPrepare, or 
@@ -39,6 +41,7 @@ class NdbBlob;
  * See @ref secAsync for more information.
  */
 typedef void (* NdbAsynchCallback)(int, NdbConnection*, void*);
+#endif
 
 /**
  * Commit type of transaction
@@ -184,7 +187,8 @@ public:
    * @note All operations within the same transaction need to 
    *       be initialized with this method.
    * 
-   * @param  aTable  A table object (fetched by NdbDictionary::Dictionary::getTable)
+   * @param  aTable  
+   *         A table object (fetched by NdbDictionary::Dictionary::getTable)
    * @return  Pointer to an NdbOperation object if successful, otherwise NULL.
    */
   NdbOperation* getNdbOperation(const NdbDictionary::Table * aTable);
@@ -204,7 +208,8 @@ public:
    * get the NdbConnection object which
    * was fetched by startTransaction pointing to this operation.
    *
-   * @param  aTable  A table object (fetched by NdbDictionary::Dictionary::getTable)
+   * @param  aTable  
+   *         A table object (fetched by NdbDictionary::Dictionary::getTable)
    * @return pointer to an NdbOperation object if successful, otherwise NULL
    */
   NdbScanOperation* getNdbScanOperation(const NdbDictionary::Table * aTable);
@@ -226,12 +231,15 @@ public:
    * get the NdbConnection object which
    * was fetched by startTransaction pointing to this operation.
    *
-   * @param  anIndex  An index object (fetched by NdbDictionary::Dictionary::getIndex).
-   * @param  aTable A table object (fetched by NdbDictionary::Dictionary::getTable).
+   * @param  anIndex  
+             An index object (fetched by NdbDictionary::Dictionary::getIndex).
+   * @param  aTable 
+             A table object (fetched by NdbDictionary::Dictionary::getTable).
    * @return pointer to an NdbOperation object if successful, otherwise NULL
    */
-  NdbIndexScanOperation* getNdbIndexScanOperation(const NdbDictionary::Index * anIndex,
-						  const NdbDictionary::Table * aTable);
+  NdbIndexScanOperation* getNdbIndexScanOperation
+  (const NdbDictionary::Index * anIndex,
+   const NdbDictionary::Table * aTable);
   
   /**
    * Get an operation from NdbIndexOperation idlelist and 
@@ -251,8 +259,10 @@ public:
    * get the NdbConnection object that
    * was fetched by startTransaction pointing to this operation.
    *
-   * @param   anIndex   An index object (fetched by NdbDictionary::Dictionary::getIndex).
-   * @param   aTable    A table object (fetched by NdbDictionary::Dictionary::getTable).
+   * @param   anIndex   
+   *          An index object (fetched by NdbDictionary::Dictionary::getIndex).
+   * @param   aTable    
+   *          A table object (fetched by NdbDictionary::Dictionary::getTable).
    * @return              Pointer to an NdbIndexOperation object if 
    *                      successful, otherwise NULL
    */
@@ -289,6 +299,8 @@ public:
 	      AbortOption abortOption = AbortOnError,
 	      int force = 0 );
 
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  // to be documented later
   /**
    * Prepare an asynchronous transaction.
    *
@@ -334,7 +346,7 @@ public:
 		     NdbAsynchCallback   aCallback,
 		     void*               anyObject,
 		     AbortOption abortOption = AbortOnError);
-
+#endif
   /**
    * Refresh
    * Update timeout counter of this transaction 
@@ -397,14 +409,14 @@ public:
    *         (Note that there has to be an NdbConnection::execute call 
    *         with Ndb::Commit for the GCI to be available.)
    */
-  int		getGCI();	
+  int		getGCI();
 			
   /**
    * Get transaction identity.
    *
    * @return  Transaction id.
    */
-  Uint64	getTransactionId();			
+  Uint64	getTransactionId();
 
   /**
    * Returns the commit status of the transaction.
