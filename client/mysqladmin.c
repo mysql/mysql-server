@@ -185,10 +185,6 @@ int main(int argc,char *argv[])
       interval=atoi(optarg);
       break;
     case 'P':
-      if(!host) {
-        my_free(host, MYF(MY_ALLOW_ZERO_PTR));
-        host=my_strdup("127.0.0.1", MYF(MY_WME));
-      };
       tcp_port= (unsigned int) atoi(optarg);
       break;
     case 'r':
