@@ -1,0 +1,183 @@
+drop table if exists t1, t2;
+create table t1 (a int) type=innodb;
+create table t2 (a int) type=myisam;
+reset master;
+begin;
+insert into t1 values(1);
+insert into t2 select * from t1;
+commit;
+show binlog events from 79;
+Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+master-bin.000001	79	Query	1	79	use `test`; BEGIN
+master-bin.000001	119	Query	1	79	use `test`; insert into t1 values(1)
+master-bin.000001	178	Query	1	79	use `test`; insert into t2 select * from t1
+master-bin.000001	244	Query	1	244	use `test`; COMMIT
+delete from t1;
+delete from t2;
+reset master;
+begin;
+insert into t1 values(2);
+insert into t2 select * from t1;
+rollback;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+show binlog events from 79;
+Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+master-bin.000001	79	Query	1	79	use `test`; BEGIN
+master-bin.000001	119	Query	1	79	use `test`; insert into t1 values(2)
+master-bin.000001	178	Query	1	79	use `test`; insert into t2 select * from t1
+master-bin.000001	244	Query	1	244	use `test`; ROLLBACK
+delete from t1;
+delete from t2;
+reset master;
+begin;
+insert into t1 values(3);
+savepoint my_savepoint;
+insert into t1 values(4);
+insert into t2 select * from t1;
+rollback to savepoint my_savepoint;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+commit;
+show binlog events from 79;
+Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+master-bin.000001	79	Query	1	79	use `test`; BEGIN
+master-bin.000001	119	Query	1	79	use `test`; insert into t1 values(3)
+master-bin.000001	178	Query	1	79	use `test`; savepoint my_savepoint
+master-bin.000001	235	Query	1	79	use `test`; insert into t1 values(4)
+master-bin.000001	294	Query	1	79	use `test`; insert into t2 select * from t1
+master-bin.000001	360	Query	1	79	use `test`; rollback to savepoint my_savepoint
+master-bin.000001	429	Query	1	429	use `test`; COMMIT
+delete from t1;
+delete from t2;
+reset master;
+begin;
+insert into t1 values(5);
+savepoint my_savepoint;
+insert into t1 values(6);
+insert into t2 select * from t1;
+rollback to savepoint my_savepoint;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+insert into t1 values(7);
+commit;
+select a from t1 order by a;
+a
+5
+7
+show binlog events from 79;
+Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+master-bin.000001	79	Query	1	79	use `test`; BEGIN
+master-bin.000001	119	Query	1	79	use `test`; insert into t1 values(5)
+master-bin.000001	178	Query	1	79	use `test`; savepoint my_savepoint
+master-bin.000001	235	Query	1	79	use `test`; insert into t1 values(6)
+master-bin.000001	294	Query	1	79	use `test`; insert into t2 select * from t1
+master-bin.000001	360	Query	1	79	use `test`; rollback to savepoint my_savepoint
+master-bin.000001	429	Query	1	79	use `test`; insert into t1 values(7)
+master-bin.000001	488	Query	1	488	use `test`; COMMIT
+delete from t1;
+delete from t2;
+reset master;
+select get_lock("a",10);
+get_lock("a",10)
+1
+begin;
+insert into t1 values(8);
+insert into t2 select * from t1;
+select get_lock("a",10);
+get_lock("a",10)
+1
+show binlog events from 79;
+Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+master-bin.000001	79	Query	1	79	use `test`; BEGIN
+master-bin.000001	119	Query	1	79	use `test`; insert into t1 values(8)
+master-bin.000001	178	Query	1	79	use `test`; insert into t2 select * from t1
+master-bin.000001	244	Query	1	244	use `test`; ROLLBACK
+delete from t1;
+delete from t2;
+reset master;
+insert into t1 values(9);
+insert into t2 select * from t1;
+show binlog events from 79;
+Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+master-bin.000001	79	Query	1	79	use `test`; insert into t1 values(9)
+master-bin.000001	138	Query	1	138	use `test`; insert into t2 select * from t1
+delete from t1;
+delete from t2;
+reset master;
+insert into t1 values(10);
+begin;
+insert into t2 select * from t1;
+show binlog events from 79;
+Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+master-bin.000001	79	Query	1	79	use `test`; insert into t1 values(10)
+master-bin.000001	139	Query	1	139	use `test`; insert into t2 select * from t1
+insert into t1 values(11);
+commit;
+show binlog events from 79;
+Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+master-bin.000001	79	Query	1	79	use `test`; insert into t1 values(10)
+master-bin.000001	139	Query	1	139	use `test`; insert into t2 select * from t1
+master-bin.000001	205	Query	1	205	use `test`; BEGIN
+master-bin.000001	245	Query	1	205	use `test`; insert into t1 values(11)
+master-bin.000001	305	Query	1	305	use `test`; COMMIT
+alter table t2 type=INNODB;
+delete from t1;
+delete from t2;
+reset master;
+begin;
+insert into t1 values(12);
+insert into t2 select * from t1;
+commit;
+show binlog events from 79;
+Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+master-bin.000001	79	Query	1	79	use `test`; BEGIN
+master-bin.000001	119	Query	1	79	use `test`; insert into t1 values(12)
+master-bin.000001	179	Query	1	79	use `test`; insert into t2 select * from t1
+master-bin.000001	245	Query	1	245	use `test`; COMMIT
+delete from t1;
+delete from t2;
+reset master;
+begin;
+insert into t1 values(13);
+insert into t2 select * from t1;
+rollback;
+show binlog events from 79;
+Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+delete from t1;
+delete from t2;
+reset master;
+begin;
+insert into t1 values(14);
+savepoint my_savepoint;
+insert into t1 values(15);
+insert into t2 select * from t1;
+rollback to savepoint my_savepoint;
+commit;
+show binlog events from 79;
+Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+master-bin.000001	79	Query	1	79	use `test`; BEGIN
+master-bin.000001	119	Query	1	79	use `test`; insert into t1 values(14)
+master-bin.000001	179	Query	1	179	use `test`; COMMIT
+delete from t1;
+delete from t2;
+reset master;
+begin;
+insert into t1 values(16);
+savepoint my_savepoint;
+insert into t1 values(17);
+insert into t2 select * from t1;
+rollback to savepoint my_savepoint;
+insert into t1 values(18);
+commit;
+select a from t1 order by a;
+a
+16
+18
+show binlog events from 79;
+Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
+master-bin.000001	79	Query	1	79	use `test`; BEGIN
+master-bin.000001	119	Query	1	79	use `test`; insert into t1 values(16)
+master-bin.000001	179	Query	1	79	use `test`; insert into t1 values(18)
+master-bin.000001	239	Query	1	239	use `test`; COMMIT
+drop table t1,t2;

@@ -91,19 +91,39 @@ show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
 GRANT SELECT, INSERT, INSERT (a), REFERENCES (a) ON `test`.`t1` TO 'mysqltest_1'@'localhost'
-REVOKE insert,insert (a) on t1 from mysqltest_1@localhost;
-GRANT references on t1 to mysqltest_1@localhost;
+REVOKE select,update,insert,insert (a) on t1 from mysqltest_1@localhost;
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
-GRANT SELECT, REFERENCES, REFERENCES (a) ON `test`.`t1` TO 'mysqltest_1'@'localhost'
+GRANT REFERENCES (a) ON `test`.`t1` TO 'mysqltest_1'@'localhost'
+GRANT select,references on t1 to mysqltest_1@localhost;
 select table_priv,column_priv from mysql.tables_priv where user="mysqltest_1";
 table_priv	column_priv
 Select,References	References
-delete from mysql.user where user='mysqltest_1';
-delete from mysql.db where user='mysqltest_1';
-delete from mysql.tables_priv where user='mysqltest_1';
-delete from mysql.columns_priv where user='mysqltest_1';
+grant all on test.* to mysqltest_3@localhost with grant option;
+revoke all on test.* from mysqltest_3@localhost;
+show grants for mysqltest_3@localhost;
+Grants for mysqltest_3@localhost
+GRANT USAGE ON *.* TO 'mysqltest_3'@'localhost'
+GRANT USAGE ON `test`.* TO 'mysqltest_3'@'localhost' WITH GRANT OPTION
+revoke grant option on test.* from mysqltest_3@localhost;
+show grants for mysqltest_3@localhost;
+Grants for mysqltest_3@localhost
+GRANT USAGE ON *.* TO 'mysqltest_3'@'localhost'
+grant all on test.t1 to mysqltest_2@localhost with grant option;
+revoke all on test.t1 from mysqltest_2@localhost;
+show grants for mysqltest_2@localhost;
+Grants for mysqltest_2@localhost
+GRANT USAGE ON *.* TO 'mysqltest_2'@'localhost'
+GRANT USAGE ON `test`.`t1` TO 'mysqltest_2'@'localhost' WITH GRANT OPTION
+revoke grant option on test.t1 from mysqltest_2@localhost;
+show grants for mysqltest_2@localhost;
+Grants for mysqltest_2@localhost
+GRANT USAGE ON *.* TO 'mysqltest_2'@'localhost'
+delete from mysql.user where user='mysqltest_1' or user="mysqltest_2" or user="mysqltest_3";
+delete from mysql.db where user='mysqltest_1' or user="mysqltest_2" or user="mysqltest_3";
+delete from mysql.tables_priv where user='mysqltest_1' or user="mysqltest_2" or user="mysqltest_3";
+delete from mysql.columns_priv where user='mysqltest_1' or user="mysqltest_2" or user="mysqltest_3";
 flush privileges;
 drop table t1;
 GRANT FILE on mysqltest.*  to mysqltest_1@localhost;

@@ -148,7 +148,7 @@ else
 fi
 
 args=
-parse_arguments `$print_defaults $defaults mysqld server mysqld_safe safe_mysqld`
+parse_arguments `$print_defaults --loose-verbose $defaults mysqld server mysqld_safe safe_mysqld`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
 if test ! -x $ledir/$MYSQLD

@@ -93,7 +93,7 @@ foreach (@ARGV)
       }
       elsif (/Comments:\s+(.+)/i) {
 	$tot{$prog}{'comments'} = $1;
-      } elsif (/^(\S+):\s*(estimated\s|)total\stime:\s+([\d.]+)\s+(wallclock\s|)secs/i)
+      } elsif (/^(\S+):.*(estimated\s|)total\stime:\s+([\d.]+)\s+(wallclock\s|)secs/i)
       {
 	$tmp = $1; $tmp =~ s/://;
 	$tot{$prog}{$tmp} = [ $3, (length($2) ? "+" : "")];

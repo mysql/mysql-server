@@ -47,6 +47,7 @@ mystringsobjects =	strmov.lo strxmov.lo strxnmov.lo strnmov.lo \
 mystringsextra= 	strto.c
 dbugobjects =		dbug.lo # IT IS IN SAFEMALLOC.C sanity.lo
 mysysheaders =		mysys_priv.h my_static.h
+vioheaders =		vio_priv.h
 mysysobjects1 =		my_init.lo my_static.lo my_malloc.lo my_realloc.lo \
 			my_create.lo my_delete.lo mf_tempfile.lo my_open.lo \
 			my_read.lo my_write.lo errors.lo \
@@ -88,7 +89,7 @@ clean-local:
 	      `echo $(vio_objects) | sed "s;\.lo;.c;g"` \
 	      `echo $(sql_cmn_objects) | sed "s;\.lo;.c;g"` \
 	       $(CHARSET_SRCS) $(CHARSET_OBJS) \
-	       $(mystringsextra) $(mysysheaders) \
+	       $(mystringsextra) $(mysysheaders) $(vioheaders)\
 	       ../linked_client_sources net.c
 
 conf_to_src_SOURCES = conf_to_src.c

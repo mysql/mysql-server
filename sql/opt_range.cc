@@ -341,8 +341,8 @@ SQL_SELECT *make_select(TABLE *head, table_map const_tables,
     DBUG_RETURN(0);
   if (!(select= new SQL_SELECT))
   {
-    *error= 1;
-    DBUG_RETURN(0);				/* purecov: inspected */
+    *error= 1;			// out of memory
+    DBUG_RETURN(0);		/* purecov: inspected */
   }
   select->read_tables=read_tables;
   select->const_tables=const_tables;
@@ -456,15 +456,17 @@ SEL_ARG *SEL_ARG::clone(SEL_ARG *new_parent,SEL_ARG **next_arg)
   SEL_ARG *tmp;
   if (type != KEY_RANGE)
   {
-    tmp=new SEL_ARG(type);
+    if(!(tmp=new SEL_ARG(type)))
+      return 0;			// out of memory
     tmp->prev= *next_arg;			// Link into next/prev chain
     (*next_arg)->next=tmp;
     (*next_arg)= tmp;
   }
   else
   {
-    tmp=new SEL_ARG(field,part, min_value,max_value,
-		    min_flag, max_flag, maybe_flag);
+    if(!(tmp=new SEL_ARG(field,part, min_value,max_value,
+			 min_flag, max_flag, maybe_flag)))
+      return 0;			// out of memory
     tmp->parent=new_parent;
     tmp->next_key_part=next_key_part;
     if (left != &null_element)
@@ -616,6 +618,7 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
     SEL_TREE *tree;
     KEY_PART *key_parts;
     PARAM param;
+    THD *thd= current_thd;
 
     /* set up parameter that is passed to all functions */
     param.baseflag=basflag;
@@ -626,13 +629,13 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
     param.keys=0;
     param.mem_root= &alloc;
 
-    current_thd->no_errors=1;			// Don't warn about NULL
+    thd->no_errors=1;				// Don't warn about NULL
     init_sql_alloc(&alloc,2048,0);
     if (!(param.key_parts = (KEY_PART*) alloc_root(&alloc,
 						   sizeof(KEY_PART)*
 						   head->key_parts)))
     {
-      current_thd->no_errors=0;
+      thd->no_errors=0;
       free_root(&alloc,MYF(0));			// Return memory & allocator
       DBUG_RETURN(0);				// Can't use range
     }
@@ -689,7 +692,7 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
 	    uint keynr= param.real_keynr[idx];
 	    if ((*key)->type == SEL_ARG::MAYBE_KEY ||
 		(*key)->maybe_flag)
-	      needed_reg|= (key_map) 1 << keynr;
+	        needed_reg|= (key_map) 1 << keynr;
 
 	    found_records=check_quick_select(&param, idx, *key);
 	    if (found_records != HA_POS_ERROR && found_records > 2 &&
@@ -713,7 +716,7 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
 						      param.range_count,
 						      found_records)+
 				(double) found_records / TIME_FOR_COMPARE);
-	    if (read_time > found_read_time)
+	    if (read_time > found_read_time && found_records != HA_POS_ERROR)
 	    {
 	      read_time=found_read_time;
 	      records=found_records;
@@ -734,7 +737,7 @@ int SQL_SELECT::test_quick_select(key_map keys_to_use, table_map prev_tables,
     }
     free_root(&alloc,MYF(0));			// Return memory & allocator
     my_pthread_setspecific_ptr(THR_MALLOC,old_root);
-    current_thd->no_errors=0;
+    thd->no_errors=0;
   }
   DBUG_EXECUTE("info",print_quick(quick,needed_reg););
   /*
@@ -762,6 +765,8 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
       while ((item=li++))
       {
 	SEL_TREE *new_tree=get_mm_tree(param,item);
+	if (current_thd->is_fatal_error)
+	  DBUG_RETURN(0);	// out of memory
 	tree=tree_and(param,tree,new_tree);
 	if (tree && tree->type == SEL_TREE::IMPOSSIBLE)
 	  break;
@@ -777,7 +782,7 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
 	{
 	  SEL_TREE *new_tree=get_mm_tree(param,item);
 	  if (!new_tree)
-	    DBUG_RETURN(0);
+	    DBUG_RETURN(0);	// out of memory
 	  tree=tree_or(param,tree,new_tree);
 	  if (!tree || tree->type == SEL_TREE::ALWAYS)
 	    break;
@@ -793,18 +798,16 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
       DBUG_RETURN(new SEL_TREE(SEL_TREE::ALWAYS));
     DBUG_RETURN(new SEL_TREE(SEL_TREE::IMPOSSIBLE));
   }
+
   table_map ref_tables=cond->used_tables();
-  if (ref_tables & ~(param->prev_tables | param->read_tables |
-		     param->current_table))
-    DBUG_RETURN(0);				// Can't be calculated yet
   if (cond->type() != Item::FUNC_ITEM)
   {						// Should be a field
-    if (ref_tables & param->current_table)
+    if ((ref_tables & param->current_table) ||
+	(ref_tables & ~(param->prev_tables | param->read_tables)))
       DBUG_RETURN(0);
     DBUG_RETURN(new SEL_TREE(SEL_TREE::MAYBE));
   }
-  if (!(ref_tables & param->current_table))
-    DBUG_RETURN(new SEL_TREE(SEL_TREE::MAYBE)); // This may be false or true
+
   Item_func *cond_func= (Item_func*) cond;
   if (cond_func->select_optimize() == Item_func::OPTIMIZE_NONE)
     DBUG_RETURN(0);				// Can't be calculated
@@ -815,12 +818,13 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
     {
       Field *field=((Item_field*) (cond_func->arguments()[0]))->field;
       Item_result cmp_type=field->cmp_type();
-      tree= get_mm_parts(param,field,Item_func::GE_FUNC,
-			 cond_func->arguments()[1],cmp_type);
-      DBUG_RETURN(tree_and(param,tree,
+      DBUG_RETURN(tree_and(param,
+			   get_mm_parts(param, field,
+					Item_func::GE_FUNC,
+					cond_func->arguments()[1], cmp_type),
 			   get_mm_parts(param, field,
 					Item_func::LE_FUNC,
-					cond_func->arguments()[2],cmp_type)));
+					cond_func->arguments()[2], cmp_type)));
     }
     DBUG_RETURN(0);
   }
@@ -845,6 +849,12 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
     }
     DBUG_RETURN(0);				// Can't optimize this IN
   }
+
+  if (ref_tables & ~(param->prev_tables | param->read_tables |
+		     param->current_table))
+    DBUG_RETURN(0);				// Can't be calculated yet
+  if (!(ref_tables & param->current_table))
+    DBUG_RETURN(new SEL_TREE(SEL_TREE::MAYBE)); // This may be false or true
 
   /* check field op const */
   /* btw, ft_func's arguments()[0] isn't FIELD_ITEM.  SerG*/
@@ -877,14 +887,15 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
 
 
 static SEL_TREE *
-get_mm_parts(PARAM *param,Field *field, Item_func::Functype type,Item *value,
-	     Item_result cmp_type)
+get_mm_parts(PARAM *param, Field *field, Item_func::Functype type, 
+	     Item *value, Item_result cmp_type)
 {
   DBUG_ENTER("get_mm_parts");
   if (field->table != param->table)
     DBUG_RETURN(0);
 
-  KEY_PART *key_part = param->key_parts,*end=param->key_parts_end;
+  KEY_PART *key_part = param->key_parts;
+  KEY_PART *end = param->key_parts_end;
   SEL_TREE *tree=0;
   if (value &&
       value->used_tables() & ~(param->prev_tables | param->read_tables))
@@ -894,8 +905,8 @@ get_mm_parts(PARAM *param,Field *field, Item_func::Functype type,Item *value,
     if (field->eq(key_part->field))
     {
       SEL_ARG *sel_arg=0;
-      if (!tree)
-	tree=new SEL_TREE();
+      if (!tree && !(tree=new SEL_TREE()))
+	DBUG_RETURN(0);		// out of memory
       if (!value || !(value->used_tables() & ~param->read_tables))
       {
 	sel_arg=get_mm_leaf(param,key_part->field,key_part,type,value);
@@ -907,8 +918,11 @@ get_mm_parts(PARAM *param,Field *field, Item_func::Functype type,Item *value,
 	  DBUG_RETURN(tree);
 	}
       }
-      else
-	sel_arg=new SEL_ARG(SEL_ARG::MAYBE_KEY);// This key may be used later
+      else {
+	// This key may be used later
+	if(!(sel_arg=new SEL_ARG(SEL_ARG::MAYBE_KEY))) 
+	  DBUG_RETURN(0);	// out of memory
+      }
       sel_arg->part=(uchar) key_part->part;
       tree->keys[key_part->key]=sel_add(tree->keys[key_part->key],sel_arg);
     }
@@ -995,9 +1009,8 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
       DBUG_RETURN(0);
     if (!maybe_null)				// Not null field
       DBUG_RETURN(type == Item_func::ISNULL_FUNC ? &null_element : 0);
-    tree=new SEL_ARG(field,is_null_string,is_null_string);
-    if (!tree)
-      DBUG_RETURN(0);
+    if (!(tree=new SEL_ARG(field,is_null_string,is_null_string)))
+      DBUG_RETURN(0);		// out of memory
     if (type == Item_func::ISNOTNULL_FUNC)
     {
       tree->min_flag=NEAR_MIN;		    /* IS NOT NULL ->  X > NULL */
@@ -1035,7 +1048,7 @@ get_mm_leaf(PARAM *param, Field *field, KEY_PART *key_part,
   field->get_key_image(str+maybe_null,key_part->part_length,
 		       field->charset(),key_part->image_type);
   if (!(tree=new SEL_ARG(field,str,str)))
-    DBUG_RETURN(0);
+    DBUG_RETURN(0);		// out of memory
 
   switch (type) {
   case Item_func::LT_FUNC:
@@ -1475,7 +1488,8 @@ key_or(SEL_ARG *key1,SEL_ARG *key2)
 	SEL_ARG *key2_next=key2->next;
 	if (key2_shared)
 	{
-	  key2=new SEL_ARG(*key2);
+	  if(!(key2=new SEL_ARG(*key2)))
+	    return 0;		// out of memory
 	  key2->increment_use_count(key1->use_count+1);
 	  key2->next=key2_next;			// New copy of key2
 	}
@@ -2319,16 +2333,16 @@ get_quick_keys(PARAM *param,QUICK_SELECT *quick,KEY_PART *key,
   }
 
   /* Get range for retrieving rows in QUICK_SELECT::get_next */
-  range= new QUICK_RANGE(param->min_key,
-			 (uint) (tmp_min_key - param->min_key),
-			 param->max_key,
-			 (uint) (tmp_max_key - param->max_key),
-			 flag);
+  if(!(range= new QUICK_RANGE(param->min_key,
+			      (uint) (tmp_min_key - param->min_key),
+			      param->max_key,
+			      (uint) (tmp_max_key - param->max_key),
+			      flag)))
+    return 1;			// out of memory
+
   set_if_bigger(quick->max_used_key_length,range->min_length);
   set_if_bigger(quick->max_used_key_length,range->max_length);
   set_if_bigger(quick->used_key_parts, (uint) key_tree->part+1);
-  if (!range)					// Not enough memory
-    return 1;
   quick->ranges.push_back(range);
 
  end:
@@ -2389,17 +2403,17 @@ QUICK_SELECT *get_quick_select_for_ref(TABLE *table, TABLE_REF *ref)
   uint part;
 
   if (!quick)
-    return 0;
+    return 0;			/* no ranges found */
   if (cp_buffer_from_ref(ref))
   {
     if (current_thd->is_fatal_error)
-      return 0;					// End of memory
+      return 0;					// out of memory
     return quick;				// empty range
   }
 
   QUICK_RANGE *range= new QUICK_RANGE();
   if (!range)
-    goto err;
+    goto err;			// out of memory
 
   range->min_key=range->max_key=(char*) ref->key_buff;
   range->min_length=range->max_length=ref->key_length;

@@ -68,6 +68,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
   uint	       keylen, r, doc_cnt;
   FT_SUPERDOC  sdoc, *sptr;
   TREE_ELEMENT *selem;
+  double       gweight=1;
   MI_INFO      *info=aio->info;
   uchar        *keybuff=aio->keybuff;
   MI_KEYDEF    *keyinfo=info->s->keyinfo+aio->keynr;
@@ -89,7 +90,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
   r=_mi_search(info, keyinfo, keybuff, keylen, SEARCH_FIND, key_root);
   info->update|= HA_STATE_AKTIV;              /* for _mi_test_if_changed() */
 
-  while (!r)
+  while (!r && gweight)
   {
 
     if (keylen &&
@@ -138,6 +139,10 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 
     doc_cnt++;
 
+    gweight=word->weight*GWS_IN_USE;
+    if (gweight < 0 || doc_cnt > 2000000)
+      gweight=0;
+
     if (_mi_test_if_changed(info) == 0)
 	r=_mi_search_next(info, keyinfo, info->lastkey, info->lastkey_length,
                           SEARCH_BIGGER, key_root);
@@ -145,13 +150,8 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 	r=_mi_search(info, keyinfo, info->lastkey, info->lastkey_length,
                      SEARCH_BIGGER, key_root);
   }
-  if (doc_cnt)
-  {
-    word->weight*=GWS_IN_USE;
-    if (word->weight < 0)
-      word->weight=0;
+  word->weight=gweight;
 
-  }
   DBUG_RETURN(0);
 }
 

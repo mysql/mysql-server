@@ -1,7 +1,9 @@
 #!/usr/bin/perl -w
 #
 # Do-pkg - convert a binary distribution into a Mac OS X PKG and put it
-# inside a Disk Image (.dmg)
+# inside a Disk Image (.dmg). Additionally, add a separate package,
+# including the required Startup Item to automatically start MySQL on
+# bootup.
 #
 # The script currently assumes the following environment (which should exist
 # like that, if the Do-compile script was used to build the binary
@@ -17,14 +19,19 @@
 # written by Lenz Grimmer <lenz@mysql.com>
 #
 
+use Cwd;
+use File::Basename;
+use File::Copy;
 use Getopt::Long;
 Getopt::Long::Configure ("bundling");
+use Sys::Hostname;
 
 $opt_dry_run= undef;
 $opt_help= undef;
 $opt_log= undef;
 $opt_mail= "";
 $opt_skip_dmg= undef;
+$opt_skip_si= undef;
 $opt_suffix= undef;
 $opt_verbose= undef;
 $opt_version= undef;
@@ -35,13 +42,14 @@ GetOptions(
 	"log|l:s",
 	"mail|m=s",
 	"skip-dmg|skip-disk-image|s",
+	"skip-si|skip-startup-item",
 	"suffix=s",
 	"verbose|v",
 	"version=s",
 ) || &print_help;
 
 # Include helper functions
-chomp($PWD= `pwd`);
+$PWD= cwd();
 $LOGGER= "$PWD/logger.pm";
 if (-f "$LOGGER")
 {
@@ -54,7 +62,7 @@ else
 
 $PM= "/Developer/Applications/PackageMaker.app/Contents/MacOS/PackageMaker";
 $TMP= $ENV{TMPDIR};
-$TMP eq "" ?  $TMP= $TMP . "/PKGBUILD": $TMP= "/tmp/PKGBUILD";
+$TMP eq "" ?  $TMP= $TMP . "/PKGBUILD.$$": $TMP= "/tmp/PKGBUILD.$$";
 $PKGROOT= "$TMP/PMROOT";
 $PKGDEST= "$TMP/PKG";
 $RESOURCE_DIR= "$TMP/Resources";
@@ -62,8 +70,8 @@ $SUFFIX= $opt_suffix;
 $VERSION= $opt_version;
 ($MAJOR, $MINOR, $RELEASE)= split(/\./, $VERSION);
 $NAME= "mysql$SUFFIX-$VERSION";
-chomp($HOST= `hostname`);
-chomp($ID= `whoami`);
+$HOST= hostname();
+$ID= getpwuid($>);
 $HOST=~ /^([^.-]*)/;
 $HOST= $1;
 $LOGFILE= "$PWD/Logs/$HOST-$MAJOR.$MINOR$SUFFIX.log";
@@ -73,6 +81,12 @@ $SUPFILEDIR= <$SRCBASEDIR/support-files/MacOSX>;
 $TAR= <$BUILDDIR/$NAME-apple-darwin*-powerpc.tar.gz>;
 $INFO= <$SUPFILEDIR/Info.plist>;
 $DESC= <$SUPFILEDIR/Description.plist>;
+$SI_INFO= <$SUPFILEDIR/StartupItem.Info.plist>;
+$SI_DESC= <$SUPFILEDIR/StartupItem.Description.plist>;
+$SI_PARAMS= <$SUPFILEDIR/StartupParameters.plist>;
+$SI_POST= <$SUPFILEDIR/StartupItem.postinstall>;
+$SI_NAME= "MySQLStartupItem";
+$SI_SCRIPT= <$SUPFILEDIR/MySQL>;
 @RESOURCES= qw/ ReadMe.txt postinstall preinstall /;
 @LICENSES= ("$SRCBASEDIR/COPYING","$SRCBASEDIR/MySQLEULA.txt");
 
@@ -99,7 +113,9 @@ if (defined $opt_log)
 # Creating the UFS disk image requires root privileges
 die("You must be root to run this script!") if ($ID ne "root" && !$opt_dry_run);
 
-foreach $file ($TAR, $INFO, $DESC)
+@files= ($TAR, $INFO, $DESC);
+@files= (@files, $SI_INFO, $SI_DESC, $SI_POST, $SI_SCRIPT) unless $opt_skip_si;
+foreach $file (@files)
 {
 	&abort("Unable to find $file!") unless (-f "$file");
 }
@@ -112,14 +128,22 @@ foreach $dir ($TMP, $PKGROOT, $PKGDEST, $RESOURCE_DIR)
 {
 	if (!-d $dir)
 	{
-		&run_command("mkdir $dir", "Could not make directory $dir!");
+		&logger("Creating directory $dir!");
+		unless($opt_dry_run)
+		{
+			mkdir($dir) or &abort("Could not make directory $dir!");
+		}
 	}
 }
 
 foreach $resfile (@RESOURCES)
 {
-	$command= "cp $SUPFILEDIR/$resfile $RESOURCE_DIR";
-	&run_command($command, "Error while copying $SUPFILEDIR/$resfile to $RESOURCE_DIR");
+	&logger("Copying $SUPFILEDIR/$resfile to $RESOURCE_DIR");
+	unless($opt_dry_run)
+	{
+		copy("$SUPFILEDIR/$resfile", "$RESOURCE_DIR") or
+		&abort("Error while copying $SUPFILEDIR/$resfile to $RESOURCE_DIR");
+	}
 }
 
 # Search for license file
@@ -127,12 +151,17 @@ foreach $license (@LICENSES)
 {
 	if (-f "$license")
 	{
-		$command= "cp $license $RESOURCE_DIR/License.txt";
-		&run_command($command, "Error while copying $license to $RESOURCE_DIR");
+		&logger("Copy $license to $RESOURCE_DIR/License.txt");
+		unless($opt_dry_run)
+		{
+			copy("$license", "$RESOURCE_DIR/License.txt") or
+			&abort("Error while copying $license to $RESOURCE_DIR");
+		}
 	}
 }
 
-&abort("Could not find a license file!") unless (-f "$RESOURCE_DIR/License.txt");
+&abort("Could not find a license file!")
+unless (-f "$RESOURCE_DIR/License.txt");
 
 # Extract the binary tarball and create the "mysql" symlink
 &logger("Extracting $TAR to $PKGROOT");
@@ -145,10 +174,38 @@ foreach $license (@LICENSES)
 # returning a non-zero value, even though the package was created correctly
 &logger("Running PackageMaker");
 $command= "$PM -build -p $PKGDEST/$NAME.pkg -f $PKGROOT -r $RESOURCE_DIR -i $INFO -d $DESC || true";
-&run_command($command, "Error while building package!");
+&run_command($command, "Error while building package $NAME.pkg!");
 
-&logger("Removing $PKGROOT");
-&run_command("rm -rf $PKGROOT", "Unable to remove $PKGROOT!");
+#
+# Build the Startup Item PKG
+#
+unless ($opt_skip_si)
+{
+	&logger("Cleaning up $PKGROOT");
+	&run_command("rm -rf $PKGROOT/*", "Unable to clean up $PKGROOT!");
+	&logger("Cleaning up $RESOURCE_DIR");
+	&run_command("rm -rf $RESOURCE_DIR/*", "Unable to clean up $RESOURCE_DIR!");
+
+	&logger("Installing MySQL StartupItem files into $PKGROOT/MySQL");
+	unless($opt_dry_run)
+	{
+		mkdir("$PKGROOT/MySQL") or &abort("Error creating $PKGROOT/MySQL");
+		copy("$SI_SCRIPT", "$PKGROOT/MySQL/")
+			or &abort("Error copying $SI_SCRIPT!");
+		chmod(0755, "$PKGROOT/MySQL/" . basename("$SI_SCRIPT"));
+		copy("$SI_PARAMS", "$PKGROOT/MySQL/")
+			or &abort("Error copying $SI_PARAMS!");
+		chmod(0644, "$PKGROOT/MySQL/" . basename("$SI_PARAMS"));
+		&run_command("chown -R root.wheel $PKGROOT/*", "Cannot chown $PKGROOT!");
+		copy("$SI_POST", "$RESOURCE_DIR/postinstall")
+			or &abort("Error copying $SI_POST!");
+		chmod(0644, "$RESOURCE_DIR/postinstall");
+	}
+
+	&logger("Building $SI_NAME.pkg using PackageMaker");
+	$command= "$PM -build -p $PKGDEST/$SI_NAME.pkg -f $PKGROOT -r $RESOURCE_DIR -i $SI_INFO -d $SI_DESC || true";
+	&run_command($command, "Error while building package $SI_NAME.pkg!");
+}
 
 if ($opt_skip_dmg)
 {
@@ -159,7 +216,7 @@ if ($opt_skip_dmg)
 # Determine the size of the Disk image to be created and add a 5% safety
 # margin for filesystem overhead
 &logger("Determining required disk image size for $PKGDEST");
-if (! $opt_dry_run)
+unless($opt_dry_run)
 {
 	chomp($_= `du -sk $PKGDEST`);
 	@size= split();
@@ -167,7 +224,10 @@ if (! $opt_dry_run)
 	&logger("Disk image size: $size KB");
 }
 
-&abort("Zero bytes? Something is wrong here!") if ($size == 0);
+unless($opt_dry_run)
+{
+	&abort("Zero bytes? Something is wrong here!") if ($size == 0);
+}
 
 # Now create and mount the disk image
 $TMPNAME= $NAME . ".tmp";
@@ -181,7 +241,7 @@ $command= "hdiutil create $TMPNAME -size ${size}k -ov -fs UFS -volname $NAME";
 chomp($mountpoint=`mount | grep "\/Volumes\/$NAME" | cut -f3 -d" "`) if (!$opt_dry_run);
 &logger("Copying $PKGDEST/$NAME.pkg to Disk image /Volumes/$NAME");
 &run_command("ditto $PKGDEST /Volumes/$NAME", "Could not copy $PKGDEST to /Volumes/$NAME!");
-&run_command("ditto $RESOURCE_DIR/ReadMe.txt /Volumes/$NAME", "Could not copy $RESOURCE_DIR/ReadMe.txt to /Volumes/$NAME!");
+&run_command("ditto $SUPFILEDIR/ReadMe.txt /Volumes/$NAME", "Could not copy $SPFILEDIR/ReadMe.txt to /Volumes/$NAME!");
 chomp($mountpoint=`mount | grep "\/Volumes\/$NAME" | cut -f1 -d" "`) if (!$opt_dry_run);
 &abort("/Volumes/$NAME not attached!") if (!$mountpoint && !$opt_dry_run);
 &logger("Unmounting $mountpoint");
@@ -221,20 +281,23 @@ NOTE: You need to run this script with root privileges (required
 
 Options:
 
-    --dry-run                 Dry run without executing
--h, --help                    Print this help
--l, --log[=<filename>]        Write a log file [to <filename>]
-                              (default is "$LOGFILE")
--m, --mail=<address>          Mail a failure report to the given address
-                              (and include a log file snippet, if logging
-                              is enabled)
-                              Note that the \@-Sign needs to be quoted!
-                              Example: --mail=user\\\@domain.com
--s, --skip-disk-image         Just build the PKG, don't put it into a
-                              disk image afterwards
-    --suffix=<suffix>         The package suffix (e.g. "-standard" or "-pro)
-    --version=<version>       The MySQL version number (e.g. 4.0.11-gamma)
--v, --verbose                 Verbose execution
+    --dry-run                        Dry run without executing
+-h, --help                           Print this help
+-l, --log[=<filename>]               Write a log file [to <filename>]
+                                     (default is "$LOGFILE")
+-m, --mail=<address>                 Mail a failure report to the given
+                                     address (and include a log file snippet,
+                                     if logging is enabled)
+                                     Note that the \@-Sign needs to be quoted!
+                                     Example: --mail=user\\\@domain.com
+-s, --skip-disk-image, --skip-dmg    Just build the PKGs, don't put it into a
+                                     disk image afterwards
+    --skip-startup-item, --skip-si   Skip the creation of the StartupItem PKG
+    --suffix=<suffix>                The package suffix
+                                     (e.g. "-standard" or "-pro)
+    --version=<version>              The MySQL version number
+                                     (e.g. 4.0.11-gamma)
+-v, --verbose                        Verbose execution
 
 EOF
 	exit 1;

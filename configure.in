@@ -1337,7 +1337,12 @@ then
     if test -f /usr/lib/libthread.so -o -f /usr/lib/libthreadT.so
     then
       MYSQL_REMOVE_SOCKET_FROM_LIBS_HACK
-      with_named_thread="-Kthread -lsocket -lnsl"
+      if expr "$CC" : ".*gcc.*"
+        then
+          with_named_thread="-pthread -lsocket -lnsl"
+      else
+        with_named_thread="-Kthread -lsocket -lnsl"
+      fi
       if expr "$SYSTEM_TYPE" : ".*unixware7.0.0" > /dev/null
       then
         AC_DEFINE(HAVE_UNIXWARE7_THREADS)
@@ -1373,7 +1378,12 @@ then
     if test -f /usr/lib/libthread.so -o -f /usr/lib/libthreadT.so
     then
       MYSQL_REMOVE_SOCKET_FROM_LIBS_HACK
-      with_named_thread="-Kthread -lsocket -lnsl"
+      if expr "$CC" : ".*gcc.*"
+      then
+          with_named_thread="-pthread -lsocket -lnsl"
+      else
+        with_named_thread="-Kthread -lsocket -lnsl"
+      fi
       if expr "$SYSTEM_TYPE" : ".*unixware7.0.0" > /dev/null
       then
         AC_DEFINE(HAVE_UNIXWARE7_THREADS)
@@ -1719,8 +1729,10 @@ MYSQL_CHECK_ULONG
 MYSQL_CHECK_UCHAR
 # Do the system files define uint
 MYSQL_CHECK_UINT
-#Check for fp_except in ieeefp.h
+# Check for fp_except in ieeefp.h
 MYSQL_CHECK_FP_EXCEPT
+# Check for IN_ADDR_T
+MYSQL_CHECK_IN_ADDR_T
 # Do the c++ compiler have a bool type
 MYSQL_CXX_BOOL
 # Check some common bugs with gcc 2.8.# on sparc

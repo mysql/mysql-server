@@ -32,7 +32,7 @@
 
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "MAYBE_REF","ALL","range","index","fulltext",
-			      "ref_or_null","simple_in","index_in"
+			      "ref_or_null","unique_subquery","index_subquery"
 };
 
 static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array);
@@ -158,7 +158,7 @@ static void copy_sum_funcs(Item_sum **func_ptr);
 static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab);
 static bool init_sum_functions(Item_sum **func, Item_sum **end);
 static bool update_sum_func(Item_sum **func);
-static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
+static void select_describe(JOIN *join, bool need_tmp_table,bool need_order,
 			    bool distinct, const char *message=NullS);
 static Item *remove_additional_cond(Item* conds);
 
@@ -478,8 +478,7 @@ bool JOIN::test_in_subselect(Item **where)
 /*
   global select optimisation.
   return 0 - success
-         1 - go out
-        -1 - go out with cleaning
+         1 - error
   error code saved in field 'error'
 */
 int
@@ -516,11 +515,9 @@ JOIN::optimize()
   conds= optimize_cond(conds,&cond_value);
   if (thd->net.report_error)
   {
-    // quick abort
-    delete procedure;
-    error= thd->is_fatal_error ? -1 : 1; 
+    error= 1; 
     DBUG_PRINT("error",("Error from optimize_cond"));
-    DBUG_RETURN(error);
+    DBUG_RETURN(1);
   }
 
   if (cond_value == Item::COND_FALSE ||
@@ -543,8 +540,7 @@ JOIN::optimize()
     {
       if (res > 1)
       {
-	delete procedure;
-	DBUG_RETURN(-1);
+	DBUG_RETURN(1);
       }
       if (res < 0)
       {
@@ -777,13 +773,14 @@ JOIN::optimize()
       {
 	if (test_in_subselect(&where))
 	{
-	  join_tab[0].type= JT_SIMPLE_IN;
+	  join_tab[0].type= JT_UNIQUE_SUBQUERY;
 	  error= 0;
 	  DBUG_RETURN(unit->item->
-		      change_engine(new subselect_simplein_engine(thd,
-								  join_tab,
-								  unit->item,
-								  where)));
+		      change_engine(new
+				    subselect_uniquesubquery_engine(thd,
+								    join_tab,
+								    unit->item,
+								    where)));
 	}
       }
       else if (join_tab[0].type == JT_REF &&
@@ -791,14 +788,15 @@ JOIN::optimize()
       {
 	if (test_in_subselect(&where))
 	{
-	  join_tab[0].type= JT_INDEX_IN;
+	  join_tab[0].type= JT_INDEX_SUBQUERY;
 	  error= 0;
 	  DBUG_RETURN(unit->item->
-		      change_engine(new subselect_indexin_engine(thd,
-								 join_tab,
-								 unit->item,
-								 where,
-								 0)));
+		      change_engine(new
+				    subselect_indexsubquery_engine(thd,
+								   join_tab,
+								   unit->item,
+								   where,
+								   0)));
 	}
       }
     } else if (join_tab[0].type == JT_REF_OR_NULL &&
@@ -807,7 +805,7 @@ JOIN::optimize()
 	       ((Item_func *) having)->functype() ==
 	       Item_func::ISNOTNULLTEST_FUNC)
     {
-      join_tab[0].type= JT_INDEX_IN;
+      join_tab[0].type= JT_INDEX_SUBQUERY;
       error= 0;
 
       if ((conds= remove_additional_cond(conds)))
@@ -816,11 +814,11 @@ JOIN::optimize()
 	join_tab->info= "Using index";
  
       DBUG_RETURN(unit->item->
-		  change_engine(new subselect_indexin_engine(thd,
-							     join_tab,
-							     unit->item,
-							     conds,
-							     1)));
+		  change_engine(new subselect_indexsubquery_engine(thd,
+								   join_tab,
+								   unit->item,
+								   conds,
+								   1)));
     }
 	       
   }
@@ -1514,7 +1512,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 			conds, og_num, order, group, having, proc_param,
 			select_lex, unit, tables_and_fields_initied))
       {
-	DBUG_RETURN(-1);
+	goto err;
       }
     }
     join->select_options= select_options;
@@ -1529,15 +1527,12 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 		      conds, og_num, order, group, having, proc_param,
 		      select_lex, unit, tables_and_fields_initied))
     {
-      DBUG_RETURN(-1);
+      goto err;
     }
   }
 
   if ((err= join->optimize()))
   {
-    if (err == -1)
-      DBUG_RETURN(join->error);
-    DBUG_ASSERT(err == 1);
     goto err;					// 1
   }
 
@@ -2055,28 +2050,34 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 
 static void
 add_key_field(KEY_FIELD **key_fields,uint and_level,
-	      Field *field,bool eq_func,Item *value,
+	      Field *field,bool eq_func,Item **value, uint num_values,
 	      table_map usable_tables)
 {
   uint exists_optimize= 0;
   if (!(field->flags & PART_KEY_FLAG))
   {
     // Don't remove column IS NULL on a LEFT JOIN table
-    if (!eq_func || !value || value->type() != Item::NULL_ITEM ||
-	!field->table->maybe_null || field->null_ptr)
+    if (!eq_func || (*value)->type() != Item::NULL_ITEM ||
+        !field->table->maybe_null || field->null_ptr)
       return;					// Not a key. Skip it
     exists_optimize= KEY_OPTIMIZE_EXISTS;
   }
   else
   {
     table_map used_tables=0;
-    if (value && ((used_tables=value->used_tables()) &
-		  (field->table->map | RAND_TABLE_BIT)))
+    bool optimizable=0;
+    for (uint i=0; i<num_values; i++)
+    {
+      used_tables|=(*value)->used_tables();
+      if (!((*value)->used_tables() & (field->table->map | RAND_TABLE_BIT)))
+        optimizable=1;
+    }
+    if (!optimizable)
       return;
     if (!(usable_tables & field->table->map))
     {
-      if (!eq_func || !value || value->type() != Item::NULL_ITEM ||
-	  !field->table->maybe_null || field->null_ptr)
+      if (!eq_func || (*value)->type() != Item::NULL_ITEM ||
+          !field->table->maybe_null || field->null_ptr)
 	return;					// Can't use left join optimize
       exists_optimize= KEY_OPTIMIZE_EXISTS;
     }
@@ -2087,12 +2088,6 @@ add_key_field(KEY_FIELD **key_fields,uint and_level,
 			      field->table->keys_in_use_for_query);
       stat[0].keys|= possible_keys;		// Add possible keys
 
-      if (!value)
-      {						// Probably BETWEEN or IN
-	stat[0].const_keys |= possible_keys;
-	return;					// Can't be used as eq key
-      }
-
       /*
 	Save the following cases:
 	Field op constant
@@ -2101,26 +2096,38 @@ add_key_field(KEY_FIELD **key_fields,uint and_level,
 	Field op formula
 	Field IS NULL
 	Field IS NOT NULL
+         Field BETWEEN ...
+         Field IN ...
       */
       stat[0].key_dependent|=used_tables;
-      if (value->const_item())
-	stat[0].const_keys |= possible_keys;
 
+      bool is_const=1;
+      for (uint i=0; i<num_values; i++)
+        is_const&= (*value)->const_item();
+      if (is_const)
+        stat[0].const_keys |= possible_keys;
       /*
 	We can't always use indexes when comparing a string index to a
-	number. cmp_type() is checked to allow compare of dates to numbers
-      */
+	number. cmp_type() is checked to allow compare of dates to numbers.
+        eq_func is NEVER true when num_values > 1
+       */
       if (!eq_func ||
 	  field->result_type() == STRING_RESULT &&
-	  value->result_type() != STRING_RESULT &&
-	  field->cmp_type() != value->result_type())
+	  (*value)->result_type() != STRING_RESULT &&
+	  field->cmp_type() != (*value)->result_type())
 	return;
     }
   }
+  DBUG_ASSERT(num_values == 1);
+  /*
+    For the moment eq_func is always true. This slot is reserved for future
+    extensions where we want to remembers other things than just eq comparisons
+  */
+  DBUG_ASSERT(eq_func);
   /* Store possible eq field */
   (*key_fields)->field=		field;
   (*key_fields)->eq_func=	eq_func;
-  (*key_fields)->val=		value;
+  (*key_fields)->val=		*value;
   (*key_fields)->level=		and_level;
   (*key_fields)->optimize=	exists_optimize;
   (*key_fields)++;
@@ -2169,12 +2176,14 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
   case Item_func::OPTIMIZE_NONE:
     break;
   case Item_func::OPTIMIZE_KEY:
+    // BETWEEN or IN
     if (cond_func->key_item()->real_item()->type() == Item::FIELD_ITEM &&
 	!(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
       add_key_field(key_fields,*and_level,
-		    ((Item_field*) (cond_func->key_item()->real_item()))
-		    ->field,
-		    0,(Item*) 0,usable_tables);
+		    ((Item_field*) (cond_func->key_item()->real_item()))->
+		    field, 0,
+                    cond_func->arguments()+1, cond_func->argument_count()-1,
+                    usable_tables);
     break;
   case Item_func::OPTIMIZE_OP:
   {
@@ -2188,7 +2197,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
 		    ((Item_field*) (cond_func->arguments()[0])->real_item())
 		    ->field,
 		    equal_func,
-		    (cond_func->arguments()[1]),usable_tables);
+                    cond_func->arguments()+1, 1, usable_tables);
     }
     if (cond_func->arguments()[1]->real_item()->type() == Item::FIELD_ITEM &&
 	cond_func->functype() != Item_func::LIKE_FUNC &&
@@ -2198,7 +2207,7 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
 		    ((Item_field*) (cond_func->arguments()[1])->real_item())
 		    ->field,
 		    equal_func,
-		    (cond_func->arguments()[0]),usable_tables);
+		    cond_func->arguments(),1,usable_tables);
     }
     break;
   }
@@ -2207,11 +2216,14 @@ add_key_fields(JOIN_TAB *stat,KEY_FIELD **key_fields,uint *and_level,
     if (cond_func->arguments()[0]->real_item()->type() == Item::FIELD_ITEM &&
 	!(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
     {
+      Item *tmp=new Item_null;
+      if (!tmp)					// Should never be true
+	return;
       add_key_field(key_fields,*and_level,
 		    ((Item_field*) (cond_func->arguments()[0])->real_item())
 		    ->field,
 		    cond_func->functype() == Item_func::ISNULL_FUNC,
-		    new Item_null, usable_tables);
+		    &tmp, 1, usable_tables);
     }
     break;
   }
@@ -3330,13 +3342,33 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	       join->best_positions[i].records_read &&
 	       !(join->select_options & OPTION_FOUND_ROWS)))
 	  {
+	    /* Join with outer join condition */
+	    COND *orig_cond=sel->cond;
+	    sel->cond=and_conds(sel->cond,tab->on_expr);
 	    if (sel->test_quick_select(tab->keys,
 				       used_tables & ~ current_map,
 				       (join->select_options &
 					OPTION_FOUND_ROWS ?
 					HA_POS_ERROR :
 					join->unit->select_limit_cnt)) < 0)
-	      DBUG_RETURN(1);				// Impossible range
+            {
+	      /*
+		Before reporting "Impossible WHERE" for the whole query
+		we have to check isn't it only "impossible ON" instead
+	      */
+              sel->cond=orig_cond;
+              if (!tab->on_expr ||
+                  sel->test_quick_select(tab->keys,
+                                         used_tables & ~ current_map,
+                                         (join->select_options &
+                                          OPTION_FOUND_ROWS ?
+                                          HA_POS_ERROR :
+                                          join->unit->select_limit_cnt)) < 0)
+		DBUG_RETURN(1);			// Impossible WHERE
+            }
+            else
+	      sel->cond=orig_cond;
+
 	    /* Fix for EXPLAIN */
 	    if (sel->quick)
 	      join->best_positions[i].records_read= sel->quick->records;
@@ -4034,7 +4066,7 @@ static Item *remove_additional_cond(Item* conds)
 }
 
 static void
-propagate_cond_constants(I_List<COND_CMP> *save_list,COND *and_level,
+propagate_cond_constants(I_List<COND_CMP> *save_list,COND *and_father,
 			 COND *cond)
 {
   if (cond->type() == Item::COND_ITEM)
@@ -4060,7 +4092,7 @@ propagate_cond_constants(I_List<COND_CMP> *save_list,COND *and_level,
 				   cond_cmp->cmp_func->arguments()[1]);
     }
   }
-  else if (and_level != cond && !cond->marker)		// In a AND group
+  else if (and_father != cond && !cond->marker)		// In a AND group
   {
     if (cond->type() == Item::FUNC_ITEM &&
 	(((Item_func*) cond)->functype() == Item_func::EQ_FUNC ||
@@ -4078,7 +4110,7 @@ propagate_cond_constants(I_List<COND_CMP> *save_list,COND *and_level,
 	  func->arguments()[1]=resolve_const_item(func->arguments()[1],
 						  func->arguments()[0]);
 	  func->update_used_tables();
-	  change_cond_ref_to_const(save_list,and_level,and_level,
+	  change_cond_ref_to_const(save_list,and_father,and_father,
 				   func->arguments()[0],
 				   func->arguments()[1]);
 	}
@@ -4087,7 +4119,7 @@ propagate_cond_constants(I_List<COND_CMP> *save_list,COND *and_level,
 	  func->arguments()[0]=resolve_const_item(func->arguments()[0],
 						  func->arguments()[1]);
 	  func->update_used_tables();
-	  change_cond_ref_to_const(save_list,and_level,and_level,
+	  change_cond_ref_to_const(save_list,and_father,and_father,
 				   func->arguments()[1],
 				   func->arguments()[0]);
 	}
@@ -8248,7 +8280,7 @@ update_tmptable_sum_func(Item_sum **func_ptr,
 {
   Item_sum *func;
   while ((func= *(func_ptr++)))
-    func->update_field(0);
+    func->update_field();
 }
 
 

@@ -183,8 +183,8 @@ public:
   void fix_length_and_dec();
 
   friend class select_exists_subselect;
-  friend class subselect_simplein_engine;
-  friend class subselect_indexin_engine;
+  friend class subselect_uniquesubquery_engine;
+  friend class subselect_indexsubquery_engine;
 };
 
 /* IN subselect */
@@ -227,7 +227,7 @@ public:
 
   friend class Item_ref_null_helper;
   friend class Item_is_not_null_test;
-  friend class subselect_indexin_engine;
+  friend class subselect_indexsubquery_engine;
 };
 
 /* ALL/ANY/SOME subselect */
@@ -313,15 +313,15 @@ public:
 };
 
 struct st_join_table;
-class subselect_simplein_engine: public subselect_engine
+class subselect_uniquesubquery_engine: public subselect_engine
 {
 protected:
   st_join_table *tab;
   Item *cond;
 public:
 
-  subselect_simplein_engine(THD *thd, st_join_table *tab_arg,
-			    Item_subselect *subs, Item *where)
+  subselect_uniquesubquery_engine(THD *thd, st_join_table *tab_arg,
+				  Item_subselect *subs, Item *where)
     :subselect_engine(thd, subs, 0), tab(tab_arg), cond(where)
   {}
     
@@ -335,14 +335,14 @@ public:
   static int end_exec(TABLE *table);
 };
 
-class subselect_indexin_engine: public subselect_simplein_engine
+class subselect_indexsubquery_engine: public subselect_uniquesubquery_engine
 {
   bool check_null;
 public:
-  subselect_indexin_engine(THD *thd, st_join_table *tab_arg,
-			    Item_subselect *subs, Item *where,
-			   bool chk_null)
-    :subselect_simplein_engine(thd, tab_arg, subs, where),
+  subselect_indexsubquery_engine(THD *thd, st_join_table *tab_arg,
+				 Item_subselect *subs, Item *where,
+				 bool chk_null)
+    :subselect_uniquesubquery_engine(thd, tab_arg, subs, where),
      check_null(chk_null)
   {}
   int exec();

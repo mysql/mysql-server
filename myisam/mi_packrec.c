@@ -165,7 +165,9 @@ my_bool _mi_read_pack_info(MI_INFO *info, pbool fix_keys)
   diff_length=(int) rec_reflength - (int) share->base.rec_reflength;
   if (fix_keys)
     share->rec_reflength=rec_reflength;
-  share->base.min_block_length=share->min_pack_length+share->pack.ref_length;
+  share->base.min_block_length=share->min_pack_length+1;
+  if (share->min_pack_length > 254)
+    share->base.min_block_length+=2;
 
   if (!(share->decode_trees=(MI_DECODE_TREE*)
 	my_malloc((uint) (trees*sizeof(MI_DECODE_TREE)+
@@ -741,6 +743,12 @@ static void uf_blob(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
   {
     ulong length=get_bits(bit_buff,rec->space_length_bits);
     uint pack_length=(uint) (end-to)-mi_portable_sizeof_char_ptr;
+    if (bit_buff->blob_pos+length > bit_buff->end)
+    {
+      bit_buff->error=1;
+      bzero((byte*) to,(end-to));
+      return;
+    }
     decode_bytes(rec,bit_buff,bit_buff->blob_pos,bit_buff->blob_pos+length);
     _my_store_blob_length((byte*) to,pack_length,length);
     memcpy_fixed((char*) to+pack_length,(char*) &bit_buff->blob_pos,

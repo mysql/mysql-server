@@ -412,7 +412,7 @@ uint my_process_stmt_result(MYSQL_STMT *stmt)
   my_bool     is_null[MAX_RES_FIELDS];
   int         rc, i;
 
-  if (!(result= mysql_prepare_result(stmt))) /* No meta info */
+  if (!(result= mysql_get_metadata(stmt))) /* No meta info */
   {
     while (!mysql_fetch(stmt)) 
       row_count++;
@@ -1017,7 +1017,7 @@ static void test_prepare_field_result()
 
   verify_param_count(stmt,1);
 
-  result = mysql_prepare_result(stmt);
+  result = mysql_get_metadata(stmt);
   mytest(result);
   
   my_print_result_metadata(result);
@@ -1765,7 +1765,6 @@ static void test_bug1115()
   MYSQL_BIND bind[1];
   ulong length[1];
   char szData[11];
-  int nData=1;
 
   myheader("test_bug1115");
 
@@ -3807,7 +3806,7 @@ static void test_prepare_resultset()
 
   verify_param_count(stmt,0);
 
-  result = mysql_prepare_result(stmt);
+  result = mysql_get_metadata(stmt);
   mytest(result);
   my_print_result_metadata(result);
   mysql_stmt_close(stmt);
@@ -6005,7 +6004,7 @@ static void test_field_misc()
   rc = mysql_execute(stmt);
   mystmt(stmt,rc);
 
-  result = mysql_prepare_result(stmt);
+  result = mysql_get_metadata(stmt);
   mytest(result);
   
   myassert(1 == my_process_stmt_result(stmt));
@@ -6046,7 +6045,7 @@ static void test_field_misc()
   stmt = mysql_prepare(mysql, "SELECT @@table_type", 30);
   mystmt_init(stmt);
 
-  result = mysql_prepare_result(stmt);
+  result = mysql_get_metadata(stmt);
   mytest(result);
 
   rc = mysql_execute(stmt);
@@ -6066,7 +6065,7 @@ static void test_field_misc()
   stmt = mysql_prepare(mysql, "SELECT @@max_error_count", 30);
   mystmt_init(stmt);
 
-  result = mysql_prepare_result(stmt);
+  result = mysql_get_metadata(stmt);
   mytest(result);
 
   rc = mysql_execute(stmt);
@@ -6086,7 +6085,7 @@ static void test_field_misc()
   stmt = mysql_prepare(mysql, "SELECT @@max_allowed_packet", 30);
   mystmt_init(stmt);
 
-  result = mysql_prepare_result(stmt);
+  result = mysql_get_metadata(stmt);
   mytest(result);
 
   rc = mysql_execute(stmt);
@@ -6106,7 +6105,7 @@ static void test_field_misc()
   stmt = mysql_prepare(mysql, "SELECT @@sql_warnings", 30);
   mystmt_init(stmt);
   
-  result = mysql_prepare_result(stmt);
+  result = mysql_get_metadata(stmt);
   mytest(result);
 
   rc = mysql_execute(stmt);
@@ -6497,7 +6496,7 @@ static void test_explain_bug()
 
   myassert( 2 == my_process_stmt_result(stmt));  
 
-  result = mysql_prepare_result(stmt);
+  result = mysql_get_metadata(stmt);
   mytest(result);
 
   fprintf(stdout, "\n total fields in the result: %d", 
@@ -6533,7 +6532,7 @@ static void test_explain_bug()
 
   myassert( 1 == my_process_stmt_result(stmt)); 
 
-  result = mysql_prepare_result(stmt);
+  result = mysql_get_metadata(stmt);
   mytest(result);
 
   fprintf(stdout, "\n total fields in the result: %d", 
@@ -7334,7 +7333,7 @@ static void test_mem_overun()
   rc = mysql_execute(stmt);
   mystmt(stmt,rc); 
   
-  field_res = mysql_prepare_result(stmt);
+  field_res = mysql_get_metadata(stmt);
   mytest(field_res);
 
   fprintf(stdout,"\n total fields : %d", mysql_num_fields(field_res));
@@ -7690,7 +7689,7 @@ static void test_ts()
   stmt = mysql_prepare(mysql,"SELECT * FROM test_ts",50);
   mystmt_init(stmt);
 
-  prep_res = mysql_prepare_result(stmt);
+  prep_res = mysql_get_metadata(stmt);
   mytest(prep_res);
 
   rc = mysql_execute(stmt);
