@@ -50826,6 +50826,12 @@ original @code{--ignore-spaces} in @code{mysqlclient}. (Both syntaxes will
 work).
 @item
 Don't require @code{UPDATE} privilege when using @code{REPLACE}.
+@item
+Allow braces in joins in all positions. Formerly, things like
+@code{SELECT * FROM (t2 LEFT JOIN t3 USING (a)), t1} worked, but
+not @code{SELECT * FROM t1, (t2 LEFT JOIN t3 USING (a))}. Note that
+braces are simply removed, they do not change the way the join is
+executed.
 @end itemize
 
 @node News-4.0.4, News-4.0.3, News-4.0.5, News-4.0.x
