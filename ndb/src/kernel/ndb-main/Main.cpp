@@ -93,7 +93,7 @@ NDB_MAIN(ndb_kernel){
     catchsigs(true);
     int status = 0;
     while(waitpid(child, &status, 0) != child);
-    if(WIFEXITED(status) || !theConfig->stopOnError()){
+    if(WIFEXITED(status)){
       switch(WEXITSTATUS(status)){
       case NRT_Default:
 	g_eventLogger.info("Angel shutting down");
@@ -117,13 +117,13 @@ NDB_MAIN(ndb_kernel){
 	globalData.theRestartFlag = perform_start;
 	break;
       }
-      g_eventLogger.info("Ndb has terminated (pid %d) restarting", child);
-    } else {
+    } else if(theConfig->stopOnError()){
       /**
        * Error shutdown && stopOnError()
        */
       exit(0);
     }
+    g_eventLogger.info("Ndb has terminated (pid %d) restarting", child);
   }
 
   g_eventLogger.info("Angel pid: %d ndb pid: %d", getppid(), getpid());
