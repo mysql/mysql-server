@@ -35,7 +35,6 @@
 #include <nisam.h>
 #include <thr_alarm.h>
 #include <ft_global.h>
-#include "vio.h"
 
 #ifndef DBUG_OFF
 #define ONE_THREAD
@@ -245,7 +244,7 @@ static char *opt_ssl_key = 0;
 static char *opt_ssl_cert = 0;
 static char *opt_ssl_ca = 0;
 static char *opt_ssl_capath = 0;
-static struct st_VioSSLAcceptorFd * ssl_acceptor_fd = 0;
+struct st_VioSSLAcceptorFd * ssl_acceptor_fd = 0;
 #endif /* HAVE_OPENSSL */
 
 

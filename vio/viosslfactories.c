@@ -2,7 +2,8 @@
 
 #include <global.h>
 #include <my_sys.h>
-#include <vio.h>
+#include <mysql_com.h>
+#include <violite.h>
 
 #ifdef HAVE_OPENSSL
 

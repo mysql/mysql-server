@@ -24,10 +24,11 @@
 
 #define DONT_MAP_VIO
 #include <global.h>
+#include <mysql_com.h>
 
 #include <errno.h>
 #include <assert.h>
-#include <vio.h>
+#include <violite.h>
 #include <my_sys.h>
 #include <my_net.h>
 #include <m_string.h>
@@ -61,7 +62,7 @@
 #define HANDLE void *
 #endif
 
-void vio_delete(st_vio* vio)
+void vio_delete(Vio* vio)
 {
   /* It must be safe to delete null pointers. */
   /* This matches the semantics of C++'s delete operator. */
@@ -73,13 +74,13 @@ void vio_delete(st_vio* vio)
   }
 }
 
-int vio_errno(st_vio *vio __attribute__((unused)))
+int vio_errno(Vio *vio __attribute__((unused)))
 {
   return errno;			/* On Win32 this mapped to WSAGetLastError() */
 }
 
 
-int vio_read(st_vio * vio, gptr buf, int size)
+int vio_read(Vio * vio, gptr buf, int size)
 {
   int r;
   DBUG_ENTER("vio_read");
@@ -108,7 +109,7 @@ int vio_read(st_vio * vio, gptr buf, int size)
 }
 
 
-int vio_write(st_vio * vio, const gptr buf, int size)
+int vio_write(Vio * vio, const gptr buf, int size)
 {
   int r;
   DBUG_ENTER("vio_write");
@@ -136,7 +137,7 @@ int vio_write(st_vio * vio, const gptr buf, int size)
 }
 
 
-int vio_blocking(st_vio * vio, my_bool set_blocking_mode)
+int vio_blocking(Vio * vio, my_bool set_blocking_mode)
 {
   int r=0;
   DBUG_ENTER("vio_blocking");
@@ -181,7 +182,7 @@ int vio_blocking(st_vio * vio, my_bool set_blocking_mode)
 }
 
 my_bool
-vio_is_blocking(st_vio * vio)
+vio_is_blocking(Vio * vio)
 {
   my_bool r;
   DBUG_ENTER("vio_is_blocking");
@@ -191,7 +192,7 @@ vio_is_blocking(st_vio * vio)
 }
 
 
-int vio_fastsend(st_vio * vio __attribute__((unused)))
+int vio_fastsend(Vio * vio __attribute__((unused)))
 {
   int r=0;
   DBUG_ENTER("vio_fastsend");
@@ -217,7 +218,7 @@ int vio_fastsend(st_vio * vio __attribute__((unused)))
   DBUG_RETURN(r);
 }
 
-int vio_keepalive(st_vio* vio, my_bool set_keep_alive)
+int vio_keepalive(Vio* vio, my_bool set_keep_alive)
 {
   int r=0;
   uint opt = 0;
@@ -236,14 +237,14 @@ int vio_keepalive(st_vio* vio, my_bool set_keep_alive)
 
 
 my_bool
-vio_should_retry(st_vio * vio __attribute__((unused)))
+vio_should_retry(Vio * vio __attribute__((unused)))
 {
   int en = errno;
   return en == EAGAIN || en == EINTR || en == EWOULDBLOCK;
 }
 
 
-int vio_close(st_vio * vio)
+int vio_close(Vio * vio)
 {
   int r;
   DBUG_ENTER("vio_close");
@@ -276,23 +277,23 @@ int vio_close(st_vio * vio)
 }
 
 
-const char *vio_description(st_vio * vio)
+const char *vio_description(Vio * vio)
 {
   return vio->desc;
 }
 
-enum enum_vio_type vio_type(st_vio* vio)
+enum enum_vio_type vio_type(Vio* vio)
 {
   return vio->type;
 }
 
-my_socket vio_fd(st_vio* vio)
+my_socket vio_fd(Vio* vio)
 {
   return vio->sd;
 }
 
 
-my_bool vio_peer_addr(st_vio * vio, char *buf)
+my_bool vio_peer_addr(Vio * vio, char *buf)
 {
   DBUG_ENTER("vio_peer_addr");
   DBUG_PRINT("enter", ("sd=%d", vio->sd));
@@ -317,7 +318,7 @@ my_bool vio_peer_addr(st_vio * vio, char *buf)
 }
 
 
-void vio_in_addr(st_vio *vio, struct in_addr *in)
+void vio_in_addr(Vio *vio, struct in_addr *in)
 {
   DBUG_ENTER("vio_in_addr");
   if (vio->localhost)
@@ -330,7 +331,7 @@ void vio_in_addr(st_vio *vio, struct in_addr *in)
 
 /* Return 0 if there is data to be read */
 
-my_bool vio_poll_read(st_vio *vio,uint timeout)
+my_bool vio_poll_read(Vio *vio,uint timeout)
 {
 #ifndef HAVE_POLL
   return 0;
