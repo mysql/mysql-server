@@ -505,6 +505,8 @@ extern int my_setwd(const char *dir,myf MyFlags);
 extern int my_lock(File fd,int op,my_off_t start, my_off_t length,myf MyFlags);
 extern gptr my_once_alloc(uint Size,myf MyFlags);
 extern void my_once_free(void);
+extern char *my_once_strdup(const char *src,myf myflags);
+extern char *my_once_memdup(const char *src, uint len, myf myflags);
 extern my_string my_tempnam(const char *dir,const char *pfx,myf MyFlags);
 extern File my_open(const char *FileName,int Flags,myf MyFlags);
 extern File my_register_filename(File fd, const char *FileName,
