@@ -46013,10 +46013,22 @@ not yet 100% confident in this code.
 @appendixsubsec Changes in release 3.23.45
 @itemize @bullet
 @item
+@code{(UPDATE|DELETE) ...WHERE MATCH} bugfix
+@item
+shutdown should now work on Darwin (Mac OS X).
+@item
+Fixed core-dump when repairing corrupted packed MyISAM files.
+@item
+@code{--core-file} now works on Solaris.
+@item
 Fix a bug which could cause InnoDB to complain if it cannot find free blocks
 from the buffer cache during recovery.
 @item
-Fixed a bug in InnoDB insert buffer B-tree handling that could cause crashes.
+Fixed bug in InnoDB insert buffer B-tree handling that could cause crashes.
+@item
+Fixed bug in InnoDB lock timeout handling.
+@item
+Fixed core dump bug in @code{ALTER TABLE} on a @code{TEMPORARY} InnoDB table.
 @item
 Fixed bug in @code{OPTIMIZE TABLE} that reset index cardinality if it
 was up to date.
@@ -46029,8 +46041,6 @@ Fixed bug with BDB tables and keys on @code{BLOB}'s.
 Fixed bug in @code{MERGE} tables on OS with 32 bit file pointers.
 @item
 Fixed bug in @code{TIME_TO_SEC()} when using negative values.
-@item
-Fixed core dump bug in @code{ALTER TABLE} on a @code{TEMPORARY} InnoDB table.
 @end itemize
 
 @node News-3.23.44, News-3.23.43, News-3.23.45, News-3.23.x

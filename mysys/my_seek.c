@@ -20,7 +20,8 @@
 	/* Seek to position in file */
 	/*ARGSUSED*/
 
-my_off_t my_seek(File fd, my_off_t pos, int whence, myf MyFlags __attribute__((unused)))
+my_off_t my_seek(File fd, my_off_t pos, int whence,
+		 myf MyFlags __attribute__((unused)))
 {
   reg1 os_off_t newpos;
   DBUG_ENTER("my_seek");
