@@ -573,15 +573,7 @@ buf_flush_try_neighbors(
 	
 		low = offset;
 		high = offset + 1;
-	} else if (flush_type == BUF_FLUSH_LIST) {
-		/* Since semaphore waits require us to flush the
-		doublewrite buffer to disk, it is best that the
-		search area is just the page itself, to minimize
-		chances for semaphore waits */
-
-		low = offset;
-		high = offset + 1;
-	}		
+	}
 
 	/* printf("Flush area: low %lu high %lu\n", low, high); */
 	
@@ -598,13 +590,20 @@ buf_flush_try_neighbors(
 		if (block && flush_type == BUF_FLUSH_LRU && i != offset
 		    && !block->old) {
 
-		  /* We avoid flushing 'non-old' blocks in an LRU flush,
-		     because the flushed blocks are soon freed */
+		        /* We avoid flushing 'non-old' blocks in an LRU flush,
+		        because the flushed blocks are soon freed */
 
-		  continue;
+		        continue;
 		}
 
-		if (block && buf_flush_ready_for_flush(block, flush_type)) {
+		if (block && buf_flush_ready_for_flush(block, flush_type)
+		   && (i == offset || block->buf_fix_count == 0)) {
+			/* We only try to flush those neighbors != offset
+			where the buf fix count is zero, as we then know that
+			we probably can latch the page without a semaphore
+			wait. Semaphore waits are expensive because we must
+			flush the doublewrite buffer before we start
+			waiting. */
 
 			mutex_exit(&(buf_pool->mutex));
 
@@ -723,7 +722,6 @@ buf_flush_batch(
 				page_count +=
 					buf_flush_try_neighbors(space, offset,
 								flush_type);
-
 				/* printf(
 				"Flush type %lu, page no %lu, neighb %lu\n",
 				flush_type, offset,
@@ -849,11 +847,19 @@ buf_flush_free_margin(void)
 /*=======================*/
 {
 	ulint	n_to_flush;
+	ulint	n_flushed;
 
 	n_to_flush = buf_flush_LRU_recommendation();
 	
 	if (n_to_flush > 0) {
-		buf_flush_batch(BUF_FLUSH_LRU, n_to_flush, ut_dulint_zero);
+		n_flushed = buf_flush_batch(BUF_FLUSH_LRU, n_to_flush,
+							ut_dulint_zero);
+		if (n_flushed == ULINT_UNDEFINED) {
+			/* There was an LRU type flush batch already running;
+			let us wait for it to end */
+		   
+		        buf_flush_wait_batch_end(BUF_FLUSH_LRU);
+		}
 	}
 }
 

@@ -38,13 +38,11 @@ void unireg_init(ulong options)
   init_my_atof();			/* use our atof */
 #endif
   my_abort_hook=unireg_abort;		/* Abort with close of databases */
-  f_fyllchar=' ';			/* Input fill char */
 
   VOID(strmov(reg_ext,".frm"));
   for (i=0 ; i < 6 ; i++)		// YYMMDDHHMMSS
     dayord.pos[i]=i;
   specialflag=SPECIAL_SAME_DB_NAME;
-  blob_newline='^';			/* Convert newline in blobs to this */
   /* Make a tab of powers of 10 */
   for (i=0,nr=1.0; i < array_elements(log_10) ; i++)
   {					/* It's used by filesort... */

@@ -45,6 +45,7 @@ static const char *set_charset_name;
 static CHARSET_INFO *set_charset;
 static long opt_myisam_block_size;
 static const char *my_progname_short;
+static int stopwords_inited= 0;
 
 static const char *type_names[]=
 { "?","char","binary", "short", "long", "float",
@@ -861,7 +862,7 @@ static int myisamchk(MI_CHECK *param, my_string filename)
   }
   else
   {
-    if (share->fulltext_index)
+    if (share->fulltext_index && !stopwords_inited++)
       ft_init_stopwords();
 
     if (!(param->testflag & T_READONLY))

@@ -309,15 +309,19 @@ void Load_log_event::pack_info(String* packet)
     pretty_print_str(&tmp, sql_ex.escaped, sql_ex.escaped_len);
   }
      
+  bool line_lexem_added= false;
   if (sql_ex.line_term_len)
   {
     tmp.append(" LINES TERMINATED BY ");
     pretty_print_str(&tmp, sql_ex.line_term, sql_ex.line_term_len);
+    line_lexem_added= true;
   }
 
   if (sql_ex.line_start_len)
   {
-    tmp.append(" LINES STARTING BY ");
+    if (!line_lexem_added)
+      tmp.append(" LINES");
+    tmp.append(" STARTING BY ");
     pretty_print_str(&tmp, sql_ex.line_start, sql_ex.line_start_len);
   }
      
@@ -1308,15 +1312,19 @@ void Load_log_event::print(FILE* file, bool short_form, char* last_db)
     pretty_print_str(file, sql_ex.escaped, sql_ex.escaped_len);
   }
      
+  bool line_lexem_added= false;
   if (sql_ex.line_term)
   {
     fprintf(file," LINES TERMINATED BY ");
     pretty_print_str(file, sql_ex.line_term, sql_ex.line_term_len);
+    line_lexem_added= true;
   }
 
   if (sql_ex.line_start)
   {
-    fprintf(file," LINES STARTING BY ");
+    if (!line_lexem_added)
+      fprintf(file," LINES");
+    fprintf(file," STARTING BY ");
     pretty_print_str(file, sql_ex.line_start, sql_ex.line_start_len);
   }
      
@@ -1946,8 +1954,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
       sql_error= ER_UNKNOWN_ERROR;
     slave_print_error(rli,sql_error,
 		      "Error '%s' running load data infile",
-		      sql_error ? thd->net.last_error :
-		      ER_SAFE(ER_UNKNOWN_ERROR));
+		      ER_SAFE(sql_error));
     free_root(&thd->mem_root,0);
     return 1;
   }
