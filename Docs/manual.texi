@@ -48638,7 +48638,7 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
-Added derived tables 
+Added derived tables
 @item
 Fixed UNION bug with braces
 @item
