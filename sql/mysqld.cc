@@ -2049,6 +2049,7 @@ int main(int argc, char **argv)
   if (!opt_noacl)
     (void) grant_init();
   init_max_user_conn();
+  init_update_queries();
 
 #ifdef HAVE_DLOPEN
   if (!opt_noacl)
