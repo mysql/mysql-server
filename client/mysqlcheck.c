@@ -16,7 +16,7 @@
 
 /* By Jani Tolonen, 2001-04-20, MySQL Development Team */
 
-#define CHECK_VERSION "1.00"
+#define CHECK_VERSION "1.01"
 
 #include <global.h>
 #include <my_sys.h>
@@ -40,22 +40,24 @@ static MYSQL mysql_connection, *sock = 0;
 static my_bool opt_alldbs = 0, opt_check_only_changed = 0, opt_extended = 0,
                opt_compress = 0, opt_databases = 0, opt_fast = 0,
                opt_medium_check = 0, opt_quick = 0, opt_all_in_1 = 0,
-               opt_silent = 0, ignore_errors = 0;
+               opt_silent = 0, opt_auto_repair = 0, ignore_errors = 0;
 static uint verbose = 0, opt_mysql_port=0;
 static my_string opt_mysql_unix_port = 0;
 static char *opt_password = 0, *current_user = 0, *default_charset = 0,
             *current_host = 0;
 static int first_error = 0;
+DYNAMIC_ARRAY tables4repair;
 
 enum operations {DO_CHECK, DO_REPAIR, DO_ANALYZE, DO_OPTIMIZE};
 
 enum options {OPT_CHARSETS_DIR=256, OPT_COMPRESS, OPT_DEFAULT_CHARSET,
-              OPT_TABLES};
+              OPT_TABLES, OPT_AUTO_REPAIR};
 
 static struct option long_options[] =
 {
   {"all-databases",         no_argument,       0, 'A'},
   {"all-in-1",              no_argument,       0, '1'},
+  {"auto-repair",           no_argument,       0, OPT_AUTO_REPAIR},
   {"analyze",		    no_argument,       0, 'a'},
   {"character-sets-dir",    required_argument, 0, OPT_CHARSETS_DIR},
   {"check",	            no_argument,       0, 'c'},
@@ -122,13 +124,19 @@ static void usage(void)
   puts("By Jani Tolonen, 2001-04-20, MySQL Development Team\n");
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free");
   puts("software and you are welcome to modify and redistribute it");
-  puts("under the GPL license\n");
+  puts("under the GPL license.\n");
   puts("This program can be used to CHECK (-c,-m,-C), REPAIR (-r), ANALYZE (-a)");
   puts("or OPTIMIZE (-o) tables. Some of the options (like -e or -q) can be");
-  puts("used same time. It works on MyISAM and in some cases on BDB tables");
+  puts("used same time. It works on MyISAM and in some cases on BDB tables.");
   puts("Please consult the MySQL manual for latest information about the");
-  puts("above. The options above are exclusive to each other, which means");
-  puts("that the last option will be used, if several was specified.\n");
+  puts("above. The options -c,-r,-a and -o are exclusive to each other, which");
+  puts("means that the last option will be used, if several was specified.\n");
+  puts("The option -c will be used by default, if none was specified. You");
+  puts("can change the default behavior by making a symbolic link, or");
+  puts("copying this file somewhere with another name, the alternatives are:");
+  puts("mysqlrepair:   The default option will be -r");
+  puts("mysqlanalyze:  The default option will be -a");
+  puts("mysqloptimize: The default option will be -o\n");
   printf("Usage: %s [OPTIONS] database [tables]\n", my_progname);
   printf("OR     %s [OPTIONS] --databases DB1 [DB2 DB3...]\n",
 	 my_progname);
@@ -140,6 +148,9 @@ static void usage(void)
                         all queries in 1 query separately for each database.\n\
                         Table names will be in a comma separeted list.\n\
   -a, --analyze         Analyze given tables.\n\
+  --auto-repair         If a checked table is corrupted, automatically fix\n\
+                        it. Repairing will be done after all tables have\n\
+                        been checked, if corrupted ones were found.\n\
   -#, --debug=...       Output debug log. Often this is 'd:t:o,filename'\n\
   --character-sets-dir=...\n\
                         Directory where character sets are\n\
@@ -197,11 +208,17 @@ printf("\
   print_defaults("my", load_default_groups);
 } /* usage */
 
-
+ 
 static int get_options(int *argc, char ***argv)
 {
   int c, option_index;
   my_bool tty_password = 0;
+
+  if (*argc == 1)
+  {
+    usage();
+    exit(0);
+  }
 
   load_defaults("my", load_default_groups, argc, argv);
   while ((c = getopt_long(*argc, *argv, "#::p::h:u:P:S:BaAcCdeFfmqorsvVw:?I1",
@@ -216,6 +233,9 @@ static int get_options(int *argc, char ***argv)
       break;
     case 'A':
       opt_alldbs = 1;
+      break;
+    case OPT_AUTO_REPAIR:
+      opt_auto_repair = 1;
       break;
     case OPT_DEFAULT_CHARSET:
       default_charset = optarg;
@@ -315,7 +335,20 @@ static int get_options(int *argc, char ***argv)
     }
   }
   if (!what_to_do)
-    what_to_do = DO_CHECK;
+  {
+    int pnlen = strlen(my_progname);
+
+    if (pnlen < 6) // name too short
+      what_to_do = DO_CHECK;
+    else if (!strcmp("repair", my_progname + pnlen - 6))
+      what_to_do = DO_REPAIR;
+    else if (!strcmp("analyze", my_progname + pnlen - 7))
+      what_to_do = DO_ANALYZE;
+    else if  (!strcmp("optimize", my_progname + pnlen - 8))
+      what_to_do = DO_OPTIMIZE;
+    else
+      what_to_do = DO_CHECK;
+  }
   if (default_charset)
   {
     if (set_default_charset_by_name(default_charset, MYF(MY_WME)))
@@ -517,7 +550,7 @@ static void print_result()
 {
   MYSQL_RES *res;
   MYSQL_ROW row;
-  char prev[1024];
+  char prev[NAME_LEN*2+2];
   int i;
 
   res = mysql_use_result(sock);
@@ -531,7 +564,11 @@ static void print_result()
     if (status && changed)
       printf("%-50s %s", row[0], row[3]);
     else if (!status && changed)
+    {
       printf("%s\n%-9s: %s", row[0], row[2], row[3]);
+      if (what_to_do != DO_REPAIR && opt_auto_repair)
+	insert_dynamic(&tables4repair, row[0]);
+    }
     else
       printf("%-9s: %s", row[2], row[3]);
     strmov(prev, row[0]);
@@ -610,6 +647,13 @@ int main(int argc, char **argv)
   if (dbConnect(current_host, current_user, opt_password))
     exit(EX_MYSQLERR);
 
+  if (opt_auto_repair && 
+      init_dynamic_array(&tables4repair, sizeof(char)*(NAME_LEN*2+2),16,64))
+  {
+    first_error = 1;
+    goto end;
+  }
+
   if (opt_alldbs)
     process_all_databases();
   /* Only one database and selected table(s) */
@@ -618,8 +662,24 @@ int main(int argc, char **argv)
   /* One or more databases, all tables */
   else
     process_databases(argv);
+  if (opt_auto_repair)
+  {
+    uint i;
+
+    if (!opt_silent && tables4repair.elements)
+      puts("\nRepairing tables");
+    what_to_do = DO_REPAIR;
+    for (i = 0; i < tables4repair.elements ; i++)
+    {
+      char *name= (char*) dynamic_array_ptr(&tables4repair, i);
+      handle_request_for_tables(name, strlen(name));
+    }
+  }
+ end:
   dbDisconnect(current_host);
+  if (opt_auto_repair)
+    delete_dynamic(&tables4repair);
   my_free(opt_password, MYF(MY_ALLOW_ZERO_PTR));
   my_end(0);
-  return(first_error);
+  return(first_error!=0);
 } /* main */
