@@ -569,6 +569,52 @@ error:
   return 1;
 }
 
+int register_slave_on_master(MYSQL* mysql)
+{
+  String packet;
+  uint len;
+  char buf[4];
+
+  if(!report_host)
+    return 0;
+  
+  int4store(buf, server_id);
+  packet.append(buf, 4);
+
+  len = strlen(report_host);
+  packet.append((char)(uchar)len);
+  packet.append(report_host, len);
+
+  len = strlen(report_user);
+  packet.append((char)(uchar)len);
+  packet.append(report_user, len);
+
+  if(report_password)
+  {
+    len = strlen(report_password);
+    packet.append((char)(uchar)len);
+    packet.append(report_password, len);
+  }
+  else
+  {
+    packet.append((char)0);
+  }
+
+  int2store(buf, (uint16)report_port);
+  packet.append(buf, 2);
+
+  if(mc_simple_command(mysql, COM_REGISTER_SLAVE, (char*)packet.ptr(),
+		       packet.length(), 0))
+  {
+    sql_print_error("Error on COM_REGISTER_SLAVE: '%s'",
+		    mc_mysql_error(mysql));
+    return 1;
+  }
+
+  return 0;
+}
+
+
 int show_master_info(THD* thd)
 {
   DBUG_ENTER("show_master_info");
@@ -1245,6 +1291,12 @@ pthread_handler_decl(handle_slave,arg __attribute__((unused)))
     sql_print_error("Slave thread killed while connecting to master");
     goto err;
   }
+
+  // register ourselves with the master
+  // if fails, this is not fatal - we just print the error message and go
+  // on with life
+  thd->proc_info = "Registering slave on master";
+  register_slave_on_master(mysql);
   
   while (!slave_killed(thd))
   {

@@ -2246,7 +2246,11 @@ show_param:
         | MASTER_SYM LOGS_SYM
           {
 	    Lex->sql_command = SQLCOM_SHOW_BINLOGS;
-          }      
+          }
+        | SLAVE HOSTS_SYM
+          {
+	    Lex->sql_command = SQLCOM_SHOW_SLAVE_HOSTS;
+          }
 	| keys_or_index FROM table_ident opt_db
 	  {
 	    Lex->sql_command= SQLCOM_SHOW_KEYS;
