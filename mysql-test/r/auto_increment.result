@@ -124,6 +124,8 @@ select last_insert_id();
 last_insert_id()
 255
 insert into t1 set i = null;
+Warnings:
+Warning	1262	Data truncated, out of range for column 'i' at row 1
 select last_insert_id();
 last_insert_id()
 255
