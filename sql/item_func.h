@@ -39,7 +39,7 @@ public:
   enum Functype { UNKNOWN_FUNC,EQ_FUNC,EQUAL_FUNC,NE_FUNC,LT_FUNC,LE_FUNC,
 		  GE_FUNC,GT_FUNC,FT_FUNC,
 		  LIKE_FUNC,NOTLIKE_FUNC,ISNULL_FUNC,ISNOTNULL_FUNC,
-		  COND_AND_FUNC,COND_OR_FUNC,BETWEEN,IN_FUNC,INTERVAL_FUNC};
+		  COND_AND_FUNC,COND_OR_FUNC,COND_XOR_FUNC,BETWEEN,IN_FUNC,INTERVAL_FUNC};
   enum optimize_type { OPTIMIZE_NONE,OPTIMIZE_KEY,OPTIMIZE_OP, OPTIMIZE_NULL };
   enum Type type() const { return FUNC_ITEM; }
   virtual enum Functype functype() const   { return UNKNOWN_FUNC; }
@@ -989,3 +989,23 @@ enum Item_cast
 };
 
 Item *create_func_cast(Item *a, Item_cast cast_type);
+
+
+class Item_func_bit_xor : public Item_int_func
+{
+public:
+  Item_func_bit_xor(Item *a,Item *b) :Item_int_func(a,b) {}
+  longlong val_int();
+  const char *func_name() const { return "^"; }
+  void fix_length_xor_dec() { unsigned_flag=1; }
+};
+
+class Item_func_check_lock :public Item_int_func
+{
+  String value;
+public:
+  Item_func_check_lock(Item *a) :Item_int_func(a) {}
+  longlong val_int();
+  const char *func_name() const { return "check_lock"; }
+  void fix_length_and_dec() { decimals=0; max_length=1; maybe_null=1;}
+};

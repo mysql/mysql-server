@@ -49578,6 +49578,39 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Added binary XOR. 
+
+The one that with a query like :
+
+select 11 ^ 3;
+
+returns 8.
+
+Based on the code originated  by Hartmut Holzgraefe <hartmut@six.de>.
+@item
+
+Added logical XOR.
+
+The one that with a query like:
+
+select 1 XOR 1;
+
+returns 0;
+
+Based on the code originated by Hartmut Holzgraefe <hartmut@six.de>.
+@item
+Add function CHEDK_LOCK("lock_name"). 
+This function checks if the lock of the certain name is available or not. 
+This function does not attempt to take a look.
+It is used like this:
+
+   SELECT CHECK_LOCK("some_lock");
+
+it will return 1 if the lock is held by a process (including by
+itself), 0 if it is currently not held by anyone and NULL on
+errors.
+Based on the code originated  by Hartmut Holzgraefe <hartmut@six.de>.
+@item
 Removed @code{mysql_ssl_clear()}, as this was not needed.
 @item
 @code{DECIMAL} and @code{NUMERIC} types can now read exponential numbers.
