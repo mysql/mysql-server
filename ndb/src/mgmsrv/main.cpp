@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
-#include <my_pthread.h>
+#include <my_sys.h>
 
 #include "MgmtSrvr.hpp"
 #include "EventLogger.hpp"
@@ -109,7 +109,7 @@ struct getargs args[] = {
     "Specify cluster configuration file", "filename" },
 #ifndef DBUG_OFF
   { "debug", 0, arg_string, &debug_option,
-    "Specify debug option", "options" },
+    "Specify debug option e.d. d:t:i:o,out.trace", "options" },
 #endif
   { "daemon", 'd', arg_flag, &glob.daemon,
     "Run ndb_mgmd in daemon mode" },
@@ -143,7 +143,7 @@ NDB_MAIN(mgmsrv){
     exit(1);
   }
 
-  my_thread_global_init();
+  my_init();
 #ifndef DBUG_OFF
   if (debug_option)
     DBUG_PUSH(debug_option);
