@@ -328,6 +328,34 @@ try_again:
 }
 
 /************************************************************************
+Initializes a page for writing to the tablespace. */
+
+void
+buf_flush_init_for_writing(
+/*=======================*/
+	byte*	page,		/* in: page */
+	dulint	newest_lsn,	/* in: newest modification lsn to the page */
+	ulint	space,		/* in: space id */
+	ulint	page_no)	/* in: page number */
+{	
+	/* Write the newest modification lsn to the page */
+	mach_write_to_8(page + FIL_PAGE_LSN, newest_lsn);
+
+	mach_write_to_8(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN, newest_lsn);
+
+	/* Write to the page the space id and page number */
+
+	mach_write_to_4(page + FIL_PAGE_SPACE, space);
+	mach_write_to_4(page + FIL_PAGE_OFFSET, page_no);
+
+	/* We overwrite the first 4 bytes of the end lsn field to store
+	a page checksum */
+
+	mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN,
+					buf_calc_page_checksum(page));
+}
+
+/************************************************************************
 Does an asynchronous write of a buffer page. NOTE: in simulated aio and
 also when the doublewrite buffer is used, we must call
 buf_flush_buffered_writes after we have posted a batch of writes! */
@@ -349,23 +377,8 @@ buf_flush_write_block_low(
 	/* Force the log to the disk before writing the modified block */
 	log_flush_up_to(block->newest_modification, LOG_WAIT_ALL_GROUPS);
 #endif	
-	/* Write the newest modification lsn to the page */
-	mach_write_to_8(block->frame + FIL_PAGE_LSN,
-						block->newest_modification);
-	mach_write_to_8(block->frame + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN,
-						block->newest_modification);
-
-	/* Write to the page the space id and page number */
-
-	mach_write_to_4(block->frame + FIL_PAGE_SPACE, block->space);
-	mach_write_to_4(block->frame + FIL_PAGE_OFFSET, block->offset);
-
-	/* We overwrite the first 4 bytes of the end lsn field to store
-	a page checksum */
-
-	mach_write_to_4(block->frame + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN,
-			buf_calc_page_checksum(block->frame));
-
+	buf_flush_init_for_writing(block->frame, block->newest_modification,
+						block->space, block->offset);
 	if (!trx_doublewrite) {
 		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
 			FALSE, block->space, block->offset, 0, UNIV_PAGE_SIZE,

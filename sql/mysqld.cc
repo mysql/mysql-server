@@ -162,6 +162,7 @@ static SECURITY_DESCRIPTOR sdPipeDescriptor;
 static HANDLE hPipe = INVALID_HANDLE_VALUE;
 static pthread_cond_t COND_handler_count;
 static uint handler_count;
+static bool opt_enable_named_pipe = 0;
 #endif
 #ifdef __WIN__
 static bool opt_console=0,start_mode=0;
@@ -488,7 +489,7 @@ static void close_connections(void)
     }
   }
 #ifdef __NT__
-  if ( hPipe != INVALID_HANDLE_VALUE )
+  if (hPipe != INVALID_HANDLE_VALUE && opt_enable_named_pipe)
   {
     HANDLE temp;
     DBUG_PRINT( "quit", ("Closing named pipes") );
@@ -983,17 +984,14 @@ static void server_init(void)
     }
   }
 
-  /*
-    We have to first call set_user(), then set_root(), to get things to work
-    with glibc
-  */
-  set_user(mysqld_user);		// Works also with mysqld_user==NULL
   if (mysqld_chroot)
     set_root(mysqld_chroot);
+  set_user(mysqld_user);		// Works also with mysqld_user==NULL
 
 #ifdef __NT__
   /* create named pipe */
-  if (Service.IsNT() && mysql_unix_port[0] && !opt_bootstrap)
+  if (Service.IsNT() && mysql_unix_port[0] && !opt_bootstrap &&
+      opt_enable_named_pipe)
   {
     sprintf( szPipeName, "\\\\.\\pipe\\%s", mysql_unix_port );
     ZeroMemory( &saPipeSecurity, sizeof(saPipeSecurity) );
@@ -1732,7 +1730,7 @@ int main(int argc, char **argv)
 
   if (gethostname(glob_hostname,sizeof(glob_hostname)-4) < 0)
     strmov(glob_hostname,"mysql");
-  strmov(pidfile_name,glob_hostname);
+  strmake(pidfile_name, glob_hostname, sizeof(pidfile_name)-5);
   strmov(strcend(pidfile_name,'.'),".pid");	// Add extension
 #ifndef DBUG_OFF
   strxmov(strend(server_version),MYSQL_SERVER_SUFFIX,"-debug",NullS);
@@ -2053,9 +2051,11 @@ The server will not act as a slave.");
   fflush(stdout);
 
 #ifdef __NT__
-  if (hPipe == INVALID_HANDLE_VALUE && !have_tcpip)
+  if (hPipe == INVALID_HANDLE_VALUE &&
+      (!have_tcpip || opt_disable_networking)
   {
-    sql_print_error("TCP/IP or Named Pipes should be installed on NT OS");
+    sql_print_error("TCP/IP or --enable-named-pipe should be configured on NT OS");
+	unireg_abort(1);
   }
   else
   {
@@ -2064,7 +2064,7 @@ The server will not act as a slave.");
     {
       pthread_t hThread;
       handler_count=0;
-      if ( hPipe != INVALID_HANDLE_VALUE )
+      if (hPipe != INVALID_HANDLE_VALUE && opt_enable_named_pipe)
       {
 	handler_count++;
 	if (pthread_create(&hThread,&connection_attrib,
@@ -2581,9 +2581,9 @@ pthread_handler_decl(handle_connections_namedpipes,arg)
     fConnected = ConnectNamedPipe( hPipe, NULL );
     if (abort_loop)
       break;
-    if ( !fConnected )
+    if (!fConnected)
       fConnected = GetLastError() == ERROR_PIPE_CONNECTED;
-    if ( !fConnected )
+    if (!fConnected)
     {
       CloseHandle( hPipe );
       if ((hPipe = CreateNamedPipe(szPipeName,
@@ -2621,7 +2621,7 @@ pthread_handler_decl(handle_connections_namedpipes,arg)
       continue;					// We have to try again
     }
 
-    if ( !(thd = new THD))
+    if (!(thd = new THD))
     {
       DisconnectNamedPipe( hConnectedPipe );
       CloseHandle( hConnectedPipe );
@@ -2705,6 +2705,7 @@ enum options {
 	       OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
 	       OPT_MAX_BINLOG_DUMP_EVENTS, OPT_SPORADIC_BINLOG_DUMP_FAIL,
 	       OPT_SAFE_USER_CREATE, OPT_SQL_MODE,
+	       OPT_HAVE_NAMED_PIPE,
                OPT_DO_PSTACK, OPT_REPORT_HOST,
 	       OPT_REPORT_USER, OPT_REPORT_PASSWORD, OPT_REPORT_PORT,
                OPT_SHOW_SLAVE_AUTH_INFO, OPT_OLD_RPL_COMPAT,
@@ -2745,6 +2746,7 @@ static struct option long_options[] = {
   {"delay-key-write-for-all-tables",
                             no_argument,       0, (int) OPT_DELAY_KEY_WRITE},
   {"enable-locking",        no_argument,       0, (int) OPT_ENABLE_LOCK},
+  {"enable-named-pipe",     no_argument,       0, (int) OPT_HAVE_NAMED_PIPE},
   {"enable-pstack",         no_argument,       0, (int) OPT_DO_PSTACK},
   {"exit-info",             optional_argument, 0, 'T'},
   {"flush",                 no_argument,       0, (int) OPT_FLUSH},
@@ -3132,6 +3134,9 @@ struct show_var_st init_vars[]= {
   {"myisam_max_sort_file_size",(char*) &myisam_max_sort_file_size,  SHOW_LONG},
   {"myisam_recover_options",  (char*) &myisam_recover_options_str,  SHOW_CHAR_PTR},
   {"myisam_sort_buffer_size", (char*) &myisam_sort_buffer_size,     SHOW_LONG},
+#ifdef __NT__
+  {"named_pipe",	      (char*) &opt_enable_named_pipe,       SHOW_BOOL},
+#endif
   {"net_buffer_length",       (char*) &net_buffer_length,           SHOW_LONG},
   {"net_read_timeout",        (char*) &net_read_timeout,	    SHOW_LONG},
   {"net_retry_count",         (char*) &mysqld_net_retry_count,      SHOW_LONG},
@@ -3470,10 +3475,12 @@ Starts the MySQL server\n");
   -W, --warnings        Log some not critical warnings to the log file\n");
 #ifdef __WIN__
   puts("NT and Win32 specific options:\n\
-  --console		Don't remove the console window\n\
-  --install		Install mysqld as a service (NT)\n\
-  --remove		Remove mysqld from the service list (NT)\n\
-  --standalone		Dummy option to start as a standalone program (NT)\
+  --console                     Don't remove the console window\n\
+  --install                     Install the default service (NT)\n\
+  --install-manual              Install the default service started manually (NT)\n\
+  --remove                      Remove the default service from the service list (NT)\n\
+  --enable-named-pipe           Enable the named pipe (NT)\n\
+  --standalone                  Dummy option to start as a standalone program (NT)\
 ");
 #ifdef USE_SYMDIR
   puts("--use-symbolic-links	Enable symbolic link support");
@@ -3560,9 +3567,10 @@ static void set_options(void)
   opt_specialflag |= SPECIAL_NO_PRIOR;
 #endif
 
-  (void) strmov( default_charset, MYSQL_CHARSET);
-  (void) strmov( language, LANGUAGE);
-  (void) strmov( mysql_real_data_home, get_relative_path(DATADIR));
+  (void) strmake(default_charset, MYSQL_CHARSET, sizeof(default_charset)-1);
+  (void) strmake(language, LANGUAGE, sizeof(language)-1);
+  (void) strmake(mysql_real_data_home, get_relative_path(DATADIR),
+		 sizeof(mysql_real_data_home-1));
 #ifdef __WIN__
   /* Allow Win32 users to move MySQL anywhere */
   {
@@ -3573,9 +3581,9 @@ static void set_options(void)
   }
 #else
   const char *tmpenv;
-  if ( !(tmpenv = getenv("MY_BASEDIR_VERSION")))
+  if (!(tmpenv = getenv("MY_BASEDIR_VERSION")))
     tmpenv = DEFAULT_MYSQL_HOME;
-  (void) strmov( mysql_home, tmpenv );
+  (void) strmake(mysql_home, tmpenv, sizeof(mysql_home)-1);
 #endif
 
 #if defined( HAVE_mit_thread ) || defined( __WIN__ ) || defined( HAVE_LINUXTHREADS )
@@ -3621,17 +3629,17 @@ static void get_options(int argc,char **argv)
       default_tx_isolation= ISO_SERIALIZABLE;
       break;
     case 'b':
-      strmov(mysql_home,optarg);
+      strmake(mysql_home,optarg,sizeof(mysql_home)-1);
       break;
     case 'l':
       opt_log=1;
       opt_logname=optarg;			// Use hostname.log if null
       break;
     case 'h':
-      strmov(mysql_real_data_home,optarg);
+      strmake(mysql_real_data_home,optarg, sizeof(mysql_real_data_home)-1);
       break;
     case 'L':
-      strmov(language,optarg);
+      strmake(language, optarg, sizeof(language)-1);
       break;
     case 'n':
       opt_specialflag|= SPECIAL_NEW_FUNC;
@@ -3991,10 +3999,15 @@ static void get_options(int argc,char **argv)
       }
       break;
     case (int) OPT_PID_FILE:
-      strmov(pidfile_name,optarg);
+      strmake(pidfile_name, optarg, sizeof(pidfile_name)-1);
       break;
     case (int) OPT_INIT_FILE:
       opt_init_file=optarg;
+      break;
+    case (int) OPT_HAVE_NAMED_PIPE:
+#if __NT__
+      opt_enable_named_pipe=1;
+#endif
       break;
 #ifdef __WIN__
     case (int) OPT_STANDALONE:		/* Dummy option for NT */
@@ -4041,10 +4054,10 @@ static void get_options(int argc,char **argv)
       myisam_delay_key_write=0;
       break;
     case 'C':
-      strmov(default_charset,optarg);
+      strmake(default_charset, optarg, sizeof(default_charset)-1);
       break;
     case OPT_CHARSETS_DIR:
-      strmov(mysql_charsets_dir, optarg);
+      strmake(mysql_charsets_dir, optarg, sizeof(mysql_charsets_dir)-1);
       charsets_dir = mysql_charsets_dir;
       break;
 #include "sslopt-case.h"
@@ -4314,16 +4327,17 @@ static void fix_paths(void)
 
   char buff[FN_REFLEN],*sharedir=get_relative_path(SHAREDIR);
   if (test_if_hard_path(sharedir))
-    strmov(buff,sharedir);			/* purecov: tested */
+    strmake(buff,sharedir,sizeof(buff)-1);		/* purecov: tested */
   else
-    strxmov(buff,mysql_home,sharedir,NullS);
+    strxnmov(buff,sizeof(buff)-1,mysql_home,sharedir,NullS);
   convert_dirname(buff,buff,NullS);
   (void) my_load_path(language,language,buff);
 
   /* If --character-sets-dir isn't given, use shared library dir */
   if (charsets_dir != mysql_charsets_dir)
   {
-    strmov(strmov(mysql_charsets_dir,buff),CHARSET_DIR);
+    strxnmov(mysql_charsets_dir, sizeof(mysql_charsets_dir)-1, buff,
+	     CHARSET_DIR, NullS);
     charsets_dir=mysql_charsets_dir;
   }
 
