@@ -49230,6 +49230,8 @@ Our TODO section contains what we plan to have in 4.0. @xref{TODO MySQL 4.0}.
 
 @itemize @bullet
 @item
+Fixed crash in @code{REPAIR ... USE_FRM}.
+@item
 Fixed bug in @code{DROP DATABASE} with symlink.
 @item
 Fixed bug in @code{EXPLAIN} with @code{LIMIT} offset != 0.
