@@ -48,6 +48,8 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
     */
 #ifdef HAVE_SPATIAL
     return sp_make_key(info,keynr,key,record,filepos);
+#else
+    DBUG_ASSERT(0); /* mi_open should check that this never happens*/
 #endif
   }
 
