@@ -1767,7 +1767,7 @@ os_file_flush(
 #else
 	int	ret;
 
-#ifdef HAVE_DARWIN_THREADS
+#if defined(HAVE_DARWIN_THREADS) && defined(F_FULLFSYNC) 
 	/* Apple has disabled fsync() for internal disk drives in OS X. That
 	caused corruption for a user when he tested a power outage. Let us in
 	OS X use a nonstandard flush method recommended by an Apple
