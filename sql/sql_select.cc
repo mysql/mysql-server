@@ -137,6 +137,7 @@ static ORDER *create_distinct_group(THD *thd, ORDER *order,
 static bool test_if_subpart(ORDER *a,ORDER *b);
 static TABLE *get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables);
 static void calc_group_buffer(JOIN *join,ORDER *group);
+static bool make_group_fields(JOIN *main_join, JOIN *curr_join);
 static bool alloc_group_fields(JOIN *join,ORDER *group);
 static bool make_sum_func_list(JOIN *join,List<Item> &fields);
 // Create list for using with tempory table
@@ -1103,12 +1104,12 @@ JOIN::exec()
 	  DBUG_VOID_RETURN;
 	curr_join->exec_tmp_table2= exec_tmp_table2;
       }
-      if (group_list)
+      if (curr_join->group_list)
       {
 	thd->proc_info= "Creating sort index";
 	if (create_sort_index(thd, curr_join->join_tab, curr_join->group_list,
 			      HA_POS_ERROR, HA_POS_ERROR) ||
-	    alloc_group_fields(curr_join, curr_join->group_list))
+	    make_group_fields(this, curr_join))
 	{
 	  DBUG_VOID_RETURN;
 	}
@@ -1176,7 +1177,10 @@ JOIN::exec()
   if (curr_join->group || curr_join->tmp_table_param.sum_func_count ||
       (procedure && (procedure->flags & PROC_GROUP)))
   {
-    alloc_group_fields(curr_join, curr_join->group_list);
+    if (make_group_fields(this, curr_join))
+    {
+      DBUG_VOID_RETURN;
+    }
     if (!items3)
     {
       if (!items0)
@@ -7525,6 +7529,37 @@ calc_group_buffer(JOIN *join,ORDER *group)
   join->tmp_table_param.group_null_parts=null_parts;
 }
 
+/*
+  alloc group fields or take prepared (chached)
+
+  SYNOPSYS
+    make_group_fields()
+    main_join - join of current select
+    curr_join - current join (join of current select or temporary copy of it)
+
+  RETURN
+    0 - ok
+    1 - failed
+*/
+
+static bool
+make_group_fields(JOIN *main_join, JOIN *curr_join)
+{
+    if (main_join->group_fields_cache.elements)
+    {
+      curr_join->group_fields= main_join->group_fields_cache;
+      curr_join->sort_and_group= 1;
+    }
+    else
+    {
+      if (alloc_group_fields(curr_join, curr_join->group_list))
+      {
+	return (1);
+      }
+      main_join->group_fields_cache= curr_join->group_fields;
+    }
+    return (0);
+}
 
 /*
   Get a list of buffers for saveing last group
@@ -7551,6 +7586,7 @@ alloc_group_fields(JOIN *join,ORDER *group)
 static int
 test_if_group_changed(List<Item_buff> &list)
 {
+  DBUG_ENTER("test_if_group_changed");
   List_iterator<Item_buff> li(list);
   int idx= -1,i;
   Item_buff *buff;
@@ -7560,7 +7596,8 @@ test_if_group_changed(List<Item_buff> &list)
     if (buff->cmp())
       idx=i;
   }
-  return idx;
+  DBUG_PRINT("info", ("idx: %d", idx));
+  DBUG_RETURN(idx);
 }
 
 

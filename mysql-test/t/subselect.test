@@ -716,3 +716,15 @@ create table t1 (id int not null auto_increment primary key, salary int, key(sal
 insert into t1 (salary) values (100),(1000),(10000),(10),(500),(5000),(50000);
 explain SELECT id FROM t1 where salary = (SELECT MAX(salary) FROM t1);
 drop table t1;
+
+#
+# alloc_group_fields() working
+#
+create table t1 (a int, b int);
+create table t2 (a int, b int);
+create table t3 (a int, b int);
+insert into t1 values (0,100),(1,2), (1,3), (2,2), (2,7), (2,-1), (3,10);
+insert into t2 values (0,0), (1,1), (2,1), (3,1), (4,1);
+insert into t3 values (3,3), (2,2), (1,1); 
+select a,(select count(distinct t1.b) as sum from t1,t2 where t1.a=t2.a and t2.b > 0 and t1.a <= t3.b group by t1.a order by sum limit 1) from t3;
+drop table t1,t2,t3;
