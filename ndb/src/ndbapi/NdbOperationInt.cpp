@@ -1010,26 +1010,31 @@ NdbOperation::insertCall(Uint32 aCall)
 
 int
 NdbOperation::branch_col(Uint32 type, 
-			 Uint32 ColId, const char * val, Uint32 len, 
+			 Uint32 ColId, const void * val, Uint32 len, 
 			 bool nopad, Uint32 Label){
 
   if (initial_interpreterCheck() == -1)
     return -1;
 
   Interpreter::BinaryCondition c = (Interpreter::BinaryCondition)type;
-
-  const NdbDictionary::Column * col = 
+  
+  const NdbColumnImpl * col = 
     m_currentTable->getColumn(ColId);
   
   if(col == 0){
     abort();
   }
 
-  Uint32 vc = col->getType() == NdbDictionary::Column::Varchar;
-  Uint32 colLen = col->getLength() + 2 * vc;
-  Uint32 al = (4 - (colLen & 3)) & 0x3;
+  Uint32 sizeInBytes = col->m_attrSize * col->m_arraySize;
+  if(len != 0 && len != sizeInBytes)
+  {
+    setErrorCodeAbort(4209);
+    return -1;
+  }
   
-  if (insertATTRINFO(Interpreter::BranchCol(c, al, vc, nopad)) == -1)
+  len = sizeInBytes;
+
+  if (insertATTRINFO(Interpreter::BranchCol(c, 0, 0, false)) == -1)
     return -1;
   
   if (insertBranch(Label) == -1)
@@ -1047,7 +1052,7 @@ NdbOperation::branch_col(Uint32 type,
     Uint32 tmp = 0;
     for (Uint32 i = 0; i < len-len2; i++) {
       char* p = (char*)&tmp;
-      p[i] = val[len2+i];
+      p[i] = ((char*)val)[len2+i];
     }
     insertATTRINFO(tmp);
   }
@@ -1057,54 +1062,54 @@ NdbOperation::branch_col(Uint32 type,
 }
 
 int 
-NdbOperation::branch_col_eq(Uint32 ColId, const char * val, Uint32 len, 
+NdbOperation::branch_col_eq(Uint32 ColId, const void * val, Uint32 len, 
 			    bool nopad, Uint32 Label){
   INT_DEBUG(("branch_col_eq %u %.*s(%u,%d) -> %u", ColId, len, val, len, nopad, Label));
   return branch_col(Interpreter::EQ, ColId, val, len, nopad, Label);
 }
 
 int
-NdbOperation::branch_col_ne(Uint32 ColId, const char * val, Uint32 len, 
+NdbOperation::branch_col_ne(Uint32 ColId, const void * val, Uint32 len, 
 			    bool nopad, Uint32 Label){
   INT_DEBUG(("branch_col_ne %u %.*s(%u,%d) -> %u", ColId, len, val, len, nopad, Label));
   return branch_col(Interpreter::NE, ColId, val, len, nopad, Label);
 }
 int
-NdbOperation::branch_col_lt(Uint32 ColId, const char * val, Uint32 len, 
+NdbOperation::branch_col_lt(Uint32 ColId, const void * val, Uint32 len, 
 			    bool nopad, Uint32 Label){
   INT_DEBUG(("branch_col_lt %u %.*s(%u,%d) -> %u", ColId, len, val, len, nopad, Label));
   return branch_col(Interpreter::LT, ColId, val, len, nopad, Label);
 }
 int
-NdbOperation::branch_col_le(Uint32 ColId, const char * val, Uint32 len, 
+NdbOperation::branch_col_le(Uint32 ColId, const void * val, Uint32 len, 
 			    bool nopad, Uint32 Label){
   INT_DEBUG(("branch_col_le %u %.*s(%u,%d) -> %u", ColId, len, val, len, nopad, Label));
   return branch_col(Interpreter::LE, ColId, val, len, nopad, Label);
 }
 int
-NdbOperation::branch_col_gt(Uint32 ColId, const char * val, Uint32 len, 
+NdbOperation::branch_col_gt(Uint32 ColId, const void * val, Uint32 len, 
 			    bool nopad, Uint32 Label){
   INT_DEBUG(("branch_col_gt %u %.*s(%u,%d) -> %u", ColId, len, val, len, nopad, Label));
   return branch_col(Interpreter::GT, ColId, val, len, nopad, Label);
 }
 
 int
-NdbOperation::branch_col_ge(Uint32 ColId, const char * val, Uint32 len, 
+NdbOperation::branch_col_ge(Uint32 ColId, const void * val, Uint32 len, 
 			    bool nopad, Uint32 Label){
   INT_DEBUG(("branch_col_ge %u %.*s(%u,%d) -> %u", ColId, len, val, len, nopad, Label));
   return branch_col(Interpreter::GE, ColId, val, len, nopad, Label);
 }
 
 int
-NdbOperation::branch_col_like(Uint32 ColId, const char * val, Uint32 len, 
+NdbOperation::branch_col_like(Uint32 ColId, const void * val, Uint32 len, 
 			      bool nopad, Uint32 Label){
   INT_DEBUG(("branch_col_like %u %.*s(%u,%d) -> %u", ColId, len, val, len, nopad, Label));
   return branch_col(Interpreter::LIKE, ColId, val, len, nopad, Label);
 }
 
 int
-NdbOperation::branch_col_notlike(Uint32 ColId, const char * val, Uint32 len, 
-			      bool nopad, Uint32 Label){
+NdbOperation::branch_col_notlike(Uint32 ColId, const void * val, Uint32 len, 
+				 bool nopad, Uint32 Label){
   INT_DEBUG(("branch_col_notlike %u %.*s(%u,%d) -> %u", ColId,len,val,len,nopad,Label));
   return branch_col(Interpreter::NOT_LIKE, ColId, val, len, nopad, Label);
 }

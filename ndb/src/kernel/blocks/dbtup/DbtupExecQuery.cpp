@@ -1818,9 +1818,6 @@ int Dbtup::interpreterNextLab(Signal* signal,
       case Interpreter::BRANCH_ATTR_OP_ARG:{
 	jam();
 	Uint32 cond = Interpreter::getBinaryCondition(theInstruction);
-	Uint32 diff = Interpreter::getArrayLengthDiff(theInstruction);
-	Uint32 vchr = Interpreter::isVarchar(theInstruction);
-        Uint32 nopad =Interpreter::isNopad(theInstruction);
 	Uint32 ins2 = TcurrentProgram[TprogramCounter];
 	Uint32 attrId = Interpreter::getBranchCol_AttrId(ins2) << 16;
 	Uint32 argLen = Interpreter::getBranchCol_Len(ins2);
@@ -1839,84 +1836,82 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  }
 	  tmpHabitant = attrId;
 	}
-	
-	AttributeHeader ah(tmpArea[0]);
 
+	attrId >>= 16;
+	AttributeHeader ah(tmpArea[0]);
+	
         const char* s1 = (char*)&tmpArea[1];
         const char* s2 = (char*)&TcurrentProgram[TprogramCounter+1];
-	Uint32 attrLen = (4 * ah.getDataSize()) - diff;
-        if (vchr) {
-#if NDB_VERSION_MAJOR >= 3
-          bool vok = false;
-          if (attrLen >= 2) {
-            Uint32 vlen = (s1[0] << 8) | s1[1]; // big-endian
-            s1 += 2;
-            attrLen -= 2;
-            if (attrLen >= vlen) {
-              attrLen = vlen;
-              vok = true;
-            }
-          }
-          if (!vok) {
-            terrorCode = ZREGISTER_INIT_ERROR;
-            tupkeyErrorLab(signal);
-            return -1;
-          }
-#else
-          Uint32 tmp;
-          if (attrLen >= 2) {
-            unsigned char* ss = (unsigned char*)&s1[attrLen - 2];
-            tmp = (ss[0] << 8) | ss[1];
-            if (tmp <= attrLen - 2)
-              attrLen = tmp;
-          }
-          // XXX handle bad data
-#endif
-        }
-        bool res = false;
-
+	Uint32 attrLen = (4 * ah.getDataSize());
+	Uint32 TattrDescrIndex = tabptr.p->tabDescriptor +
+	  (attrId << ZAD_LOG_SIZE);
+	Uint32 TattrDesc1 = tableDescriptor[TattrDescrIndex].tabDescr;
+	Uint32 TattrDesc2 = tableDescriptor[TattrDescrIndex+1].tabDescr;
+	Uint32 typeId = AttributeDescriptor::getType(TattrDesc1);
+	void * cs = 0;
+	if(AttributeOffset::getCharsetFlag(TattrDesc2))
+	{
+	  Uint32 pos = AttributeOffset::getCharsetPos(TattrDesc2);
+	  cs = tabptr.p->charsetArray[pos];
+	}
+	const NdbSqlUtil::Type& sqlType = NdbSqlUtil::getType(typeId);
+	
+	bool r1_null = ah.isNULL();
+	bool r2_null = argLen == 0;
+	int res;
+	if(r1_null || r2_null)
+	{
+	  res = r1_null && r2_null ? 0 : r1_null ? -1 : 1;
+	}
+	else
+	{
+	  res = (*sqlType.m_cmp)(cs, s1, attrLen, s2, argLen, true);
+	}
+	
         switch ((Interpreter::BinaryCondition)cond) {
         case Interpreter::EQ:
-          res = NdbSqlUtil::char_compare(s1, attrLen, s2, argLen, !nopad) == 0;
+          res = (res == 0);
           break;
         case Interpreter::NE:
-          res = NdbSqlUtil::char_compare(s1, attrLen, s2, argLen, !nopad) != 0;
+          res = (res != 0);
           break;
         // note the condition is backwards
         case Interpreter::LT:
-          res = NdbSqlUtil::char_compare(s1, attrLen, s2, argLen, !nopad) > 0;
+          res = (res > 0);
           break;
         case Interpreter::LE:
-          res = NdbSqlUtil::char_compare(s1, attrLen, s2, argLen, !nopad) >= 0;
+          res = (res >= 0);
           break;
         case Interpreter::GT:
-          res = NdbSqlUtil::char_compare(s1, attrLen, s2, argLen, !nopad) < 0;
+          res = (res < 0);
           break;
         case Interpreter::GE:
-          res = NdbSqlUtil::char_compare(s1, attrLen, s2, argLen, !nopad) <= 0;
+          res = (res <= 0);
           break;
         case Interpreter::LIKE:
-          res = NdbSqlUtil::char_like(s1, attrLen, s2, argLen, !nopad);
+          res = NdbSqlUtil::char_like(s1, attrLen, s2, argLen, false);
           break;
         case Interpreter::NOT_LIKE:
-          res = ! NdbSqlUtil::char_like(s1, attrLen, s2, argLen, !nopad);
+          res = ! NdbSqlUtil::char_like(s1, attrLen, s2, argLen, false);
           break;
-        // XXX handle invalid value
+	  // XXX handle invalid value
         }
 #ifdef TRACE_INTERPRETER
-	  ndbout_c("cond=%u diff=%d vc=%d nopad=%d attr(%d) = >%.*s<(%d) str=>%.*s<(%d) -> res = %d",
-		   cond, diff, vchr, nopad,
-		   attrId >> 16, attrLen, s1, attrLen, argLen, s2, argLen, res);
+	ndbout_c("cond=%u diff=%d vc=%d nopad=%d attr(%d) = >%.*s<(%d) str=>%.*s<(%d) -> res = %d",
+		 cond, diff, vchr, nopad,
+		 attrId >> 16, attrLen, s1, attrLen, argLen, s2, argLen, res);
 #endif
         if (res)
           TprogramCounter = brancher(theInstruction, TprogramCounter);
-        else {
-          Uint32 tmp = (Interpreter::mod4(argLen) >> 2) + 1;
+        else 
+	{
+          Uint32 tmp = ((argLen + 3) >> 2) + 1;
+	  ndbout_c("tmp = %d", tmp);
           TprogramCounter += tmp;
         }
 	break;
       }
-
+	
       case Interpreter::BRANCH_ATTR_EQ_NULL:{
 	jam();
 	Uint32 ins2 = TcurrentProgram[TprogramCounter];
