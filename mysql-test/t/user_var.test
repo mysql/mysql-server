@@ -23,3 +23,22 @@ select @a:=10,   @b:=1,   @a > @b, @a < @b;
 select @a:="10", @b:="1", @a > @b, @a < @b;
 select @a:=10,   @b:=2,   @a > @b, @a < @b;
 select @a:="10", @b:="2", @a > @b, @a < @b;
+
+# Fixed bug #1194
+select @a:=1;
+select @a, @a:=1;
+
+create table t1 (id int);
+insert into t1 values (1);
+select @c:=0;
+update t1 SET id=(@c:=@c+1);
+select @c;
+select @c:=0;
+update t1 set id=(@c:=@c+1);
+select @c;
+select @c:=0;
+select @c:=@c+1;
+drop table t1;
+
+# just fof fun :)
+select @a:=10, @b:=2, @a>@b, @a:="10", @b:="2", @a>@b, @a:=10, @b:=2, @a>@b, @a:="10", @b:="2", @a>@b;
