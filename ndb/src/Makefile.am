@@ -11,8 +11,8 @@ libndbclient_la_LIBADD =  \
               common/transporter/libtransporter.la   \
               common/debugger/libtrace.la     \
               common/debugger/signaldata/libsignaldataprint.la \
-              common/mgmcommon/libmgmsrvcommon.la \
               mgmapi/libmgmapi.la \
+              common/mgmcommon/libmgmsrvcommon.la \
               common/logger/liblogger.la       \
               common/portlib/libportlib.la      \
               common/util/libgeneral.la 
