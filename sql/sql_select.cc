@@ -1726,7 +1726,6 @@ make_join_statistics(JOIN *join,TABLE_LIST *tables,COND *conds,
        tables;
        s++, tables= tables->next_local, i++)
   {
-    table_map dep_tables;
     TABLE_LIST *embedding= tables->embedding;
     stat_vector[i]=s;
     s->keys.init();
