@@ -17,4 +17,4 @@ CFLAGS="-DEXTRA_DEBUG -DFORCE_INIT_OF_VARS  -O2 -mpentiumpro $C_WARNINGS" CXX=gc
 CXXFLAGS="-DEXTRA_DEBUG -DFORCE_INIT_OF_VARS -O2 -mpentiumpro -felide-constructors -fno-exceptions -fno-rtti $CC_WARNINGS" \
 ./configure --prefix=/usr/local/mysql --enable-assembler --with-mysqld-ldflags=-all-static --disable-shared --with-extra-charsets=complex --with-debug=full \
 --with-berkeley-db=/usr/local/BerkeleyDB
-make
+make -j 2

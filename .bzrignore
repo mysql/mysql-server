@@ -174,3 +174,5 @@ mysql-test/var/lib/test/elt_ck2.MYD
 mysql-test/var/lib/test/elt_ck2.MYI
 repl-tests/test-repl-ts/repl-timestamp.master.reject
 client/.mysqladmin.c.swp
+repl-tests/test-repl/sum-wlen-slave.master.reje
+support-files/mysql-3.23.28-gamma.spec
