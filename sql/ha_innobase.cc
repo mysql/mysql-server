@@ -3031,7 +3031,7 @@ ha_innobase::records_in_range(
 								MYF(MY_WME));
 	dtuple_t*	range_start;
 	dtuple_t*	range_end;
-	ulint		n_rows;
+	ib_longlong	n_rows;
 	ulint		mode1;
 	ulint		mode2;
 	void*           heap1;
