@@ -495,6 +495,46 @@ dict_index_get_nth_col_pos(
 }
 
 /************************************************************************
+Returns TRUE if the index contains a column or a prefix of that column. */
+
+ibool
+dict_index_contains_col_or_prefix(
+/*==============================*/
+				/* out: TRUE if contains the column or its
+				prefix */
+	dict_index_t*	index,	/* in: index */
+	ulint		n)	/* in: column number */
+{
+	dict_field_t*	field;
+	dict_col_t*	col;
+	ulint		pos;
+	ulint		n_fields;
+	
+	ut_ad(index);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+
+	if (index->type & DICT_CLUSTERED) {
+
+		return(TRUE);
+	}
+
+	col = dict_table_get_nth_col(index->table, n);
+
+	n_fields = dict_index_get_n_fields(index);
+	
+	for (pos = 0; pos < n_fields; pos++) {
+		field = dict_index_get_nth_field(index, pos);
+
+		if (col == field->col) {
+
+			return(TRUE);
+		}
+	}
+
+	return(FALSE);
+}
+
+/************************************************************************
 Looks for a matching field in an index. The column and the prefix len have
 to be the same. */
 
