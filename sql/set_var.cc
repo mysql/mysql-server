@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+/* Copyright (C) 2000-2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -86,9 +86,9 @@ static void fix_net_retry_count(THD *thd, enum_var_type type);
 static void fix_max_join_size(THD *thd, enum_var_type type);
 static void fix_query_cache_size(THD *thd, enum_var_type type);
 static void fix_query_cache_min_res_unit(THD *thd, enum_var_type type);
-static void fix_key_buffer_size(THD *thd, enum_var_type type);
 static void fix_myisam_max_extra_sort_file_size(THD *thd, enum_var_type type);
 static void fix_myisam_max_sort_file_size(THD *thd, enum_var_type type);
+static KEY_CACHE *create_key_cache(const char *name, uint length);
 void fix_sql_mode_var(THD *thd, enum_var_type type);
 static byte *get_error_count(THD *thd);
 static byte *get_warning_count(THD *thd);
@@ -136,9 +136,7 @@ sys_var_thd_ulong	sys_interactive_timeout("interactive_timeout",
 						&SV::net_interactive_timeout);
 sys_var_thd_ulong	sys_join_buffer_size("join_buffer_size",
 					     &SV::join_buff_size);
-sys_var_ulonglong_ptr	sys_key_buffer_size("key_buffer_size",
-					    &keybuff_size,
-					    fix_key_buffer_size);
+sys_var_key_buffer_size	sys_key_buffer_size("key_buffer_size");
 sys_var_bool_ptr	sys_local_infile("local_infile",
 					 &opt_local_infile);
 sys_var_thd_bool	sys_log_warnings("log_warnings", &SV::log_warnings);
@@ -793,12 +791,6 @@ static void fix_query_cache_min_res_unit(THD *thd, enum_var_type type)
 #endif
 
 
-static void fix_key_buffer_size(THD *thd, enum_var_type type)
-{
-  ha_resize_key_cache();
-}
-
-
 void fix_delay_key_write(THD *thd, enum_var_type type)
 {
   switch ((enum_delay_key_write) delay_key_write_options) {
@@ -870,7 +862,7 @@ bool sys_var_enum::update(THD *thd, set_var *var)
 }
 
 
-byte *sys_var_enum::value_ptr(THD *thd, enum_var_type type)
+byte *sys_var_enum::value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
 {
   return (byte*) enum_names->type_names[*value];
 }
@@ -906,7 +898,8 @@ void sys_var_thd_ulong::set_default(THD *thd, enum_var_type type)
 }
 
 
-byte *sys_var_thd_ulong::value_ptr(THD *thd, enum_var_type type)
+byte *sys_var_thd_ulong::value_ptr(THD *thd, enum_var_type type,
+				   LEX_STRING *base)
 {
   if (type == OPT_GLOBAL)
     return (byte*) &(global_system_variables.*offset);
@@ -951,7 +944,8 @@ void sys_var_thd_ha_rows::set_default(THD *thd, enum_var_type type)
 }
 
 
-byte *sys_var_thd_ha_rows::value_ptr(THD *thd, enum_var_type type)
+byte *sys_var_thd_ha_rows::value_ptr(THD *thd, enum_var_type type,
+				     LEX_STRING *base)
 {
   if (type == OPT_GLOBAL)
     return (byte*) &(global_system_variables.*offset);
@@ -994,7 +988,8 @@ void sys_var_thd_ulonglong::set_default(THD *thd, enum_var_type type)
 }
 
 
-byte *sys_var_thd_ulonglong::value_ptr(THD *thd, enum_var_type type)
+byte *sys_var_thd_ulonglong::value_ptr(THD *thd, enum_var_type type,
+				       LEX_STRING *base)
 {
   if (type == OPT_GLOBAL)
     return (byte*) &(global_system_variables.*offset);
@@ -1021,7 +1016,8 @@ void sys_var_thd_bool::set_default(THD *thd,  enum_var_type type)
 }
 
 
-byte *sys_var_thd_bool::value_ptr(THD *thd, enum_var_type type)
+byte *sys_var_thd_bool::value_ptr(THD *thd, enum_var_type type,
+				  LEX_STRING *base)
 {
   if (type == OPT_GLOBAL)
     return (byte*) &(global_system_variables.*offset);
@@ -1115,7 +1111,7 @@ err:
     to create an item that gets the current value at fix_fields() stage.
 */
 
-Item *sys_var::item(THD *thd, enum_var_type var_type)
+Item *sys_var::item(THD *thd, enum_var_type var_type, LEX_STRING *base)
 {
   if (check_type(var_type))
   {
@@ -1131,16 +1127,16 @@ Item *sys_var::item(THD *thd, enum_var_type var_type)
   }
   switch (type()) {
   case SHOW_LONG:
-    return new Item_uint((int32) *(ulong*) value_ptr(thd, var_type));
+    return new Item_uint((int32) *(ulong*) value_ptr(thd, var_type, base));
   case SHOW_LONGLONG:
-    return new Item_int(*(longlong*) value_ptr(thd, var_type));
+    return new Item_int(*(longlong*) value_ptr(thd, var_type, base));
   case SHOW_HA_ROWS:
-    return new Item_int((longlong) *(ha_rows*) value_ptr(thd, var_type));
+    return new Item_int((longlong) *(ha_rows*) value_ptr(thd, var_type, base));
   case SHOW_MY_BOOL:
-    return new Item_int((int32) *(my_bool*) value_ptr(thd, var_type),1);
+    return new Item_int((int32) *(my_bool*) value_ptr(thd, var_type, base),1);
   case SHOW_CHAR:
   {
-    char *str= (char*) value_ptr(thd, var_type);
+    char *str= (char*) value_ptr(thd, var_type, base);
     return new Item_string(str, strlen(str), system_charset_info);
   }
   default:
@@ -1169,7 +1165,8 @@ void sys_var_thd_enum::set_default(THD *thd, enum_var_type type)
 }
 
 
-byte *sys_var_thd_enum::value_ptr(THD *thd, enum_var_type type)
+byte *sys_var_thd_enum::value_ptr(THD *thd, enum_var_type type,
+				  LEX_STRING *base)
 {
   ulong tmp= ((type == OPT_GLOBAL) ?
 	      global_system_variables.*offset :
@@ -1186,7 +1183,8 @@ bool sys_var_thd_bit::update(THD *thd, set_var *var)
 }
 
 
-byte *sys_var_thd_bit::value_ptr(THD *thd, enum_var_type type)
+byte *sys_var_thd_bit::value_ptr(THD *thd, enum_var_type type,
+				 LEX_STRING *base)
 {
   /*
     If reverse is 0 (default) return 1 if bit is set.
@@ -1249,6 +1247,7 @@ bool sys_var_collation::check(THD *thd, set_var *var)
   return 0;
 }
 
+
 bool sys_var_character_set::check(THD *thd, set_var *var)
 {
   CHARSET_INFO *tmp;
@@ -1274,20 +1273,24 @@ bool sys_var_character_set::check(THD *thd, set_var *var)
   return 0;
 }
 
+
 bool sys_var_character_set::update(THD *thd, set_var *var)
 {
   ci_ptr(thd,var->type)[0]= var->save_result.charset;
   return 0;
 }
 
-byte *sys_var_character_set::value_ptr(THD *thd, enum_var_type type)
+
+byte *sys_var_character_set::value_ptr(THD *thd, enum_var_type type,
+				       LEX_STRING *base)
 {
   CHARSET_INFO *cs= ci_ptr(thd,type)[0];
   return cs ? (byte*) cs->csname : (byte*) "NULL";
 }
 
 
-CHARSET_INFO ** sys_var_character_set_connection::ci_ptr(THD *thd, enum_var_type type)
+CHARSET_INFO ** sys_var_character_set_connection::ci_ptr(THD *thd,
+							 enum_var_type type)
 {
   if (type == OPT_GLOBAL)
     return &global_system_variables.collation_connection;
@@ -1295,7 +1298,9 @@ CHARSET_INFO ** sys_var_character_set_connection::ci_ptr(THD *thd, enum_var_type
     return &thd->variables.collation_connection;
 }
 
-void sys_var_character_set_connection::set_default(THD *thd, enum_var_type type)
+
+void sys_var_character_set_connection::set_default(THD *thd,
+						   enum_var_type type)
 {
  if (type == OPT_GLOBAL)
    global_system_variables.collation_connection= default_charset_info;
@@ -1304,13 +1309,15 @@ void sys_var_character_set_connection::set_default(THD *thd, enum_var_type type)
 }
 
 
-CHARSET_INFO ** sys_var_character_set_client::ci_ptr(THD *thd, enum_var_type type)
+CHARSET_INFO ** sys_var_character_set_client::ci_ptr(THD *thd,
+						     enum_var_type type)
 {
   if (type == OPT_GLOBAL)
     return &global_system_variables.character_set_client;
   else
     return &thd->variables.character_set_client;
 }
+
 
 void sys_var_character_set_client::set_default(THD *thd, enum_var_type type)
 {
@@ -1320,6 +1327,7 @@ void sys_var_character_set_client::set_default(THD *thd, enum_var_type type)
    thd->variables.character_set_client= global_system_variables.character_set_client;
 }
 
+
 CHARSET_INFO ** sys_var_character_set_results::ci_ptr(THD *thd, enum_var_type type)
 {
   if (type == OPT_GLOBAL)
@@ -1327,6 +1335,7 @@ CHARSET_INFO ** sys_var_character_set_results::ci_ptr(THD *thd, enum_var_type ty
   else
     return &thd->variables.character_set_results;
 }
+
 
 void sys_var_character_set_results::set_default(THD *thd, enum_var_type type)
 {
@@ -1336,6 +1345,7 @@ void sys_var_character_set_results::set_default(THD *thd, enum_var_type type)
    thd->variables.character_set_results= global_system_variables.character_set_results;
 }
 
+
 CHARSET_INFO ** sys_var_character_set_server::ci_ptr(THD *thd, enum_var_type type)
 {
   if (type == OPT_GLOBAL)
@@ -1343,6 +1353,7 @@ CHARSET_INFO ** sys_var_character_set_server::ci_ptr(THD *thd, enum_var_type typ
   else
     return &thd->variables.character_set_server;
 }
+
 
 void sys_var_character_set_server::set_default(THD *thd, enum_var_type type)
 {
@@ -1352,13 +1363,16 @@ void sys_var_character_set_server::set_default(THD *thd, enum_var_type type)
    thd->variables.character_set_server= global_system_variables.character_set_server;
 }
 
-CHARSET_INFO ** sys_var_character_set_database::ci_ptr(THD *thd, enum_var_type type)
+
+CHARSET_INFO ** sys_var_character_set_database::ci_ptr(THD *thd,
+						       enum_var_type type)
 {
   if (type == OPT_GLOBAL)
     return &global_system_variables.character_set_database;
   else
     return &thd->variables.character_set_database;
 }
+
 
 void sys_var_character_set_database::set_default(THD *thd, enum_var_type type)
 {
@@ -1367,6 +1381,7 @@ void sys_var_character_set_database::set_default(THD *thd, enum_var_type type)
   else
     thd->variables.character_set_database= thd->db_charset;
 }
+
 
 bool sys_var_collation_connection::update(THD *thd, set_var *var)
 {
@@ -1377,13 +1392,16 @@ bool sys_var_collation_connection::update(THD *thd, set_var *var)
   return 0;
 }
 
-byte *sys_var_collation_connection::value_ptr(THD *thd, enum_var_type type)
+
+byte *sys_var_collation_connection::value_ptr(THD *thd, enum_var_type type,
+					      LEX_STRING *base)
 {
   CHARSET_INFO *cs= ((type == OPT_GLOBAL) ?
 		  global_system_variables.collation_connection :
 		  thd->variables.collation_connection);
   return cs ? (byte*) cs->name : (byte*) "NULL";
 }
+
 
 void sys_var_collation_connection::set_default(THD *thd, enum_var_type type)
 {
@@ -1393,6 +1411,71 @@ void sys_var_collation_connection::set_default(THD *thd, enum_var_type type)
    thd->variables.collation_connection= global_system_variables.collation_connection;
 }
 
+
+bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
+{
+  ulonglong tmp= var->value->val_int();
+  if (!base_name.length)
+  {
+    base_name.str= (char*) "default";
+    base_name.length= 7;
+  }
+  KEY_CACHE *key_cache= (KEY_CACHE*) find_named(&key_caches, base_name.str,
+						base_name.length);
+  if (!key_cache)
+  {
+    if (!tmp)					// Tried to delete cache
+      return 0;					// Ok, nothing to do
+    if (!(key_cache= create_key_cache(base_name.str,
+				      base_name.length)))
+      return 1;
+  }
+  if (!tmp)
+  {
+    /* Delete not default key caches */
+    if (base_name.length != 7 || memcpy(base_name.str, "default", 7))
+    {
+      /*
+	QQ: Here we should move tables using this key cache to default
+	key cache
+      */
+      delete key_cache;
+      return 0;
+    }
+  }
+
+  key_cache->size= (ulonglong) getopt_ull_limit_value(tmp, option_limits);
+
+  /* QQ:  Needs to be updated when we have multiple key caches */
+  keybuff_size= key_cache->size;
+  ha_resize_key_cache();
+  return 0;
+}
+
+static ulonglong zero=0;
+
+byte *sys_var_key_buffer_size::value_ptr(THD *thd, enum_var_type type,
+					 LEX_STRING *base)
+{
+  const char *name;
+  uint length;
+
+  if (!base->str)
+  {
+    name= "default";
+    length= 7;
+  }
+  else
+  {
+    name=   base->str;
+    length= base->length;
+  }
+  KEY_CACHE *key_cache= (KEY_CACHE*) find_named(&key_caches, name, length);
+  if (!key_cache)
+    return (byte*) &zero;
+  return (byte*) &key_cache->size;
+}
+  
 
 
 /*****************************************************************************
@@ -1429,7 +1512,8 @@ void sys_var_timestamp::set_default(THD *thd, enum_var_type type)
 }
 
 
-byte *sys_var_timestamp::value_ptr(THD *thd, enum_var_type type)
+byte *sys_var_timestamp::value_ptr(THD *thd, enum_var_type type,
+				   LEX_STRING *base)
 {
   thd->sys_var_tmp.long_value= (long) thd->start_time;
   return (byte*) &thd->sys_var_tmp.long_value;
@@ -1443,7 +1527,8 @@ bool sys_var_last_insert_id::update(THD *thd, set_var *var)
 }
 
 
-byte *sys_var_last_insert_id::value_ptr(THD *thd, enum_var_type type)
+byte *sys_var_last_insert_id::value_ptr(THD *thd, enum_var_type type,
+					LEX_STRING *base)
 {
   thd->sys_var_tmp.long_value= (long) thd->insert_id();
   return (byte*) &thd->last_insert_id;
@@ -1457,7 +1542,8 @@ bool sys_var_insert_id::update(THD *thd, set_var *var)
 }
 
 
-byte *sys_var_insert_id::value_ptr(THD *thd, enum_var_type type)
+byte *sys_var_insert_id::value_ptr(THD *thd, enum_var_type type,
+				   LEX_STRING *base)
 {
   return (byte*) &thd->current_insert_id;
 }
@@ -1848,7 +1934,8 @@ int set_var_password::update(THD *thd)
  Functions to handle sql_mode
 ****************************************************************************/
 
-byte *sys_var_thd_sql_mode::value_ptr(THD *thd, enum_var_type type)
+byte *sys_var_thd_sql_mode::value_ptr(THD *thd, enum_var_type type,
+				      LEX_STRING *base)
 {
   ulong val;
   char buff[256];
@@ -1945,6 +2032,68 @@ ulong fix_sql_mode(ulong sql_mode)
 }
 
 
+/****************************************************************************
+  Named list handling
+****************************************************************************/
+
+gptr find_named(I_List<NAMED_LIST> *list, const char *name, uint length)
+{
+  I_List_iterator<NAMED_LIST> it(*list);
+  NAMED_LIST *element;
+  while ((element= it++))
+  {
+    if (element->cmp(name, length))
+      return element->data;
+  }
+  return 0;
+}
+
+
+void delete_elements(I_List<NAMED_LIST> *list, void (*free_element)(gptr))
+{
+  NAMED_LIST *element;
+  while ((element= list->get()))
+  {
+    (*free_element)(element->data);
+    delete element;
+  }
+}
+
+
+/* Key cache functions */
+
+static KEY_CACHE *create_key_cache(const char *name, uint length)
+{
+  KEY_CACHE *key_cache;
+  DBUG_PRINT("info",("Creating key cache: %s", name));
+  if ((key_cache= (KEY_CACHE*) my_malloc(sizeof(KEY_CACHE),
+					 MYF(MY_ZEROFILL | MY_WME))))
+  {
+    if (!new NAMED_LIST(&key_caches, name, length, (gptr) key_cache))
+    {
+      my_free((char*) key_cache, MYF(0));
+      key_cache= 0;
+    }
+  }
+  return key_cache;
+}
+
+
+KEY_CACHE *get_or_create_key_cache(const char *name, uint length)
+{
+  KEY_CACHE *key_cache= (KEY_CACHE*) find_named(&key_caches, name,
+						length);
+  if (!key_cache)
+    key_cache= create_key_cache(name, length);
+  return key_cache;
+}
+
+
+void free_key_cache(gptr key_cache)
+{
+  my_free(key_cache, MYF(0));
+}
+
 
 /****************************************************************************
   Used templates
@@ -1953,4 +2102,5 @@ ulong fix_sql_mode(ulong sql_mode)
 #ifdef __GNUC__
 template class List<set_var_base>;
 template class List_iterator_fast<set_var_base>;
+template class I_List_iterator<NAMED_LIST>;
 #endif
