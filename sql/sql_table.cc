@@ -476,7 +476,7 @@ int prepare_create_field(create_field *sql_field,
       sql_field->pack_flag|=FIELDFLAG_BINARY;
     sql_field->length=8;			// Unireg field length
     sql_field->unireg_check=Field::BLOB_FIELD;
-    blob_columns++;
+    (*blob_columns)++;
     break;
   case FIELD_TYPE_GEOMETRY:
 #ifdef HAVE_SPATIAL
@@ -493,7 +493,7 @@ int prepare_create_field(create_field *sql_field,
       sql_field->pack_flag|=FIELDFLAG_BINARY;
     sql_field->length=8;			// Unireg field length
     sql_field->unireg_check=Field::BLOB_FIELD;
-    blob_columns++;
+    (*blob_columns)++;
     break;
 #else
     my_printf_error(ER_FEATURE_DISABLED,ER(ER_FEATURE_DISABLED), MYF(0),
@@ -570,18 +570,18 @@ int prepare_create_field(create_field *sql_field,
     /* We should replace old TIMESTAMP fields with their newer analogs */
     if (sql_field->unireg_check == Field::TIMESTAMP_OLD_FIELD)
     {
-      if (!timestamps)
+      if (!*timestamps)
       {
         sql_field->unireg_check= Field::TIMESTAMP_DNUN_FIELD;
-        timestamps_with_niladic++;
+        (*timestamps_with_niladic)++;
       }
       else
         sql_field->unireg_check= Field::NONE;
     }
     else if (sql_field->unireg_check != Field::NONE)
-      timestamps_with_niladic++;
+      (*timestamps_with_niladic)++;
 
-    timestamps++;
+    (*timestamps)++;
     /* fall-through */
   default:
     sql_field->pack_flag=(FIELDFLAG_NUMBER |

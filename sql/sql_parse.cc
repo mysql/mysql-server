@@ -5845,12 +5845,14 @@ bool st_select_lex::init_nested_join(THD *thd)
 TABLE_LIST *st_select_lex::end_nested_join(THD *thd)
 {
   TABLE_LIST *ptr;
+  NESTED_JOIN *nested_join;
   DBUG_ENTER("end_nested_join");
+
   DBUG_ASSERT(embedding);
   ptr= embedding;
   join_list= ptr->join_list;
   embedding= ptr->embedding;
-  NESTED_JOIN *nested_join= ptr->nested_join;
+  nested_join= ptr->nested_join;
   if (nested_join->join_list.elements == 1)
   {
     TABLE_LIST *embedded= nested_join->join_list.head();
@@ -5860,11 +5862,10 @@ TABLE_LIST *st_select_lex::end_nested_join(THD *thd)
     join_list->push_front(embedded);
     ptr= embedded;
   }
-  else
-  if (nested_join->join_list.elements == 0)
+  else if (nested_join->join_list.elements == 0)
   {
     join_list->pop();
-    DBUG_RETURN(0);
+    ptr= 0;                                     // return value
   }
   DBUG_RETURN(ptr);
 }
