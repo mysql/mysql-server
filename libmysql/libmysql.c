@@ -2035,14 +2035,6 @@ int cli_stmt_execute(MYSQL_STMT *stmt)
     uint null_count;
     my_bool    result;
 
-#ifdef CHECK_EXTRA_ARGUMENTS
-    if (!stmt->param_buffers)
-    {
-      /* Parameters exists, but no bound buffers */
-      set_stmt_error(stmt, CR_NOT_ALL_PARAMS_BOUND, unknown_sqlstate);
-      DBUG_RETURN(1);
-    }
-#endif
     net_clear(net);				/* Sets net->write_pos */
     /* Reserve place for null-marker bytes */
     null_count= (stmt->param_count+7) /8;
@@ -2099,6 +2091,14 @@ int STDCALL mysql_execute(MYSQL_STMT *stmt)
     set_stmt_error(stmt, CR_NO_PREPARE_STMT, unknown_sqlstate);
     DBUG_RETURN(1);
   }
+#ifdef CHECK_EXTRA_ARGUMENTS
+  if (stmt->param_count && !stmt->param_buffers)
+  {
+    /* Parameters exists, but no bound buffers */
+    set_stmt_error(stmt, CR_NOT_ALL_PARAMS_BOUND, unknown_sqlstate);
+    DBUG_RETURN(1);
+  }
+#endif
   if ((*stmt->mysql->methods->stmt_execute)(stmt))
     DBUG_RETURN(1);
       
