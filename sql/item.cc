@@ -54,7 +54,7 @@ Item::Item():
   thd->free_list= this;
   /*
     Item constructor can be called during execution other then SQL_COM
-    command => we should check thd->lex.current_select on zero (thd->lex
+    command => we should check thd->lex->current_select on zero (thd->lex
     can be uninitialised)
   */
   if (thd->lex->current_select)
@@ -873,7 +873,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       Item **refer= (Item **)not_found_item;
       uint counter;
       // Prevent using outer fields in subselects, that is not supported now
-      SELECT_LEX *cursel=(SELECT_LEX *) thd->lex->current_select;
+      SELECT_LEX *cursel= (SELECT_LEX *) thd->lex->current_select;
       if (cursel->master_unit()->first_select()->linkage != DERIVED_TABLE_TYPE)
       {
 	SELECT_LEX_UNIT *prev_unit= cursel->master_unit();

@@ -1573,7 +1573,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       break;
     }
 
-    USER_RESOURCES mqh = thd->lex->mqh;
+    USER_RESOURCES mqh= thd->lex->mqh;
     if (mqh.bits & 1)
       table->field[28]->store((longlong) mqh.questions);
     if (mqh.bits & 2)

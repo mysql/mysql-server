@@ -289,7 +289,7 @@ TODO list:
 
       if (thd->temp_tables || global_merge_table_count)
 
-    - Another option would be to set thd->lex.safe_to_cache_query to 0
+    - Another option would be to set thd->lex->safe_to_cache_query to 0
       in 'get_lock_data' if any of the tables was a tmp table or a
       MRG_ISAM table.
       (This could be done with almost no speed penalty)

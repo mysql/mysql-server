@@ -2649,7 +2649,7 @@ mysql_execute_command(THD *thd)
   }
   case SQLCOM_DELETE_MULTI:
   {
-    TABLE_LIST *aux_tables=(TABLE_LIST *)thd->lex->auxilliary_table_list.first;
+    TABLE_LIST *aux_tables= (TABLE_LIST *)thd->lex->auxilliary_table_list.first;
     TABLE_LIST *auxi;
     uint table_count=0;
     multi_delete *result;
@@ -3957,7 +3957,7 @@ void
 mysql_init_query(THD *thd, bool lexonly)
 {
   DBUG_ENTER("mysql_init_query");
-  LEX *lex=thd->lex;
+  LEX *lex= thd->lex;
   lex->unit.init_query();
   lex->unit.init_select();
   lex->unit.thd= thd;

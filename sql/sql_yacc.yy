@@ -28,7 +28,7 @@
 #define MYSQL_YACC
 #define YYINITDEPTH 100
 #define YYMAXDEPTH 3200				/* Because of 64K stack */
-#define Lex ((YYTHD->lex))
+#define Lex (YYTHD->lex)
 #define Select Lex->current_select
 #include "mysql_priv.h"
 #include "slave.h"
@@ -800,7 +800,7 @@ query:
 	   }
 	   else
 	   {
-	     thd->lex->sql_command = SQLCOM_EMPTY_QUERY;
+	     thd->lex->sql_command= SQLCOM_EMPTY_QUERY;
 	   }
 	}
 	| verb_clause END_OF_INPUT {};

@@ -1237,7 +1237,7 @@ static int prepare_for_restore(THD* thd, TABLE_LIST* table,
   }
   else
   {
-    char* backup_dir = thd->lex->backup_dir;
+    char* backup_dir= thd->lex->backup_dir;
     char src_path[FN_REFLEN], dst_path[FN_REFLEN];
     char* table_name = table->real_name;
     char* db = thd->db ? thd->db : table->db;
