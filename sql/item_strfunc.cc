@@ -321,9 +321,17 @@ null:
 
 void Item_func_concat::fix_length_and_dec()
 {
+  bool first_coll= 1;
   max_length=0;
+
+  set_charset(args[0]->charset(),args[0]->coercibility);
   for (uint i=0 ; i < arg_count ; i++)
+  {
     max_length+=args[i]->max_length;
+    set_charset(charset(), coercibility,
+		args[i]->charset(), args[i]->coercibility);
+  }
+
   if (max_length > MAX_BLOB_WIDTH)
   {
     max_length=MAX_BLOB_WIDTH;
@@ -978,6 +986,7 @@ void Item_func_substr::fix_length_and_dec()
 {
   max_length=args[0]->max_length;
 
+  set_charset(args[0]->charset(), args[0]->coercibility);
   if (args[1]->const_item())
   {
     int32 start=(int32) args[1]->val_int()-1;
@@ -1791,6 +1800,7 @@ inline String* alloc_buffer(String *res,String *str,String *tmp_value,
 
 void Item_func_repeat::fix_length_and_dec()
 {
+  set_charset(args[0]->charset(), args[0]->coercibility);
   if (args[1]->const_item())
   {
     max_length=(long) (args[0]->max_length * args[1]->val_int());
@@ -2028,8 +2038,7 @@ String *Item_func_conv_charset::val_str(String *str)
 void Item_func_conv_charset::fix_length_and_dec()
 {
   max_length = args[0]->max_length*conv_charset->mbmaxlen;
-  coercibility= COER_IMPLICIT;
-  set_charset(conv_charset);
+  set_charset(conv_charset, COER_IMPLICIT);
 }
 
 
@@ -2171,9 +2180,7 @@ bool Item_func_set_collation::fix_fields(THD *thd,struct st_table_list *tables, 
       set_collation->name,args[0]->charset()->csname);
     return 1;
   }
-  set_charset(set_collation);
-  
-  coercibility= COER_EXPLICIT;
+  set_charset(set_collation, COER_EXPLICIT);
   with_sum_func= with_sum_func || args[0]->with_sum_func;
   used_tables_cache=args[0]->used_tables();
   const_item_cache=args[0]->const_item();
