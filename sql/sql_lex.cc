@@ -141,7 +141,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->view_prepare_mode= FALSE;
   lex->derived_tables= 0;
   lex->lock_option= TL_READ;
-  lex->found_colon= 0;
+  lex->found_semicolon= 0;
   lex->safe_to_cache_query= 1;
   lex->time_zone_tables_used= 0;
   lex->leaf_tables_insert= lex->proc_table= lex->query_tables= 0;
@@ -949,7 +949,7 @@ int yylex(void *arg, void *yythd)
             (thd->command != COM_PREPARE))
         {
 	  lex->safe_to_cache_query= 0;
-          lex->found_colon=    (char*) lex->ptr;
+          lex->found_semicolon=(char*) lex->ptr;
           thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
           lex->next_state=     MY_LEX_END;
           return (END_OF_INPUT);
