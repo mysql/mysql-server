@@ -49,8 +49,9 @@ check table t9;
 optimize table t9;
 repair table t9;
 alter table t9 add column c int not null;
---replace_result $MYSQL_TEST_DIR TEST_DIR
-show create table t9;
+
+#--replace_result $MYSQL_TEST_DIR TEST_DIR
+#show create table t9;
 
 # Test renames
 alter table t9 rename t8, add column d int not null;
@@ -63,6 +64,9 @@ drop table t1;
 # Test error handling
 # Note that we are using the above table t9 here!
 #
+
+--replace_result $MYSQL_TEST_DIR TEST_DIR
+SHOW CREATE TABLE t9;
 
 disable_query_log;
 --error 1103,1103
@@ -78,9 +82,11 @@ create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, p
 --error 1103,1103
 create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam index directory="not-hard-path";
 
+# Should fail becasue the file t9.MYI already exist in 'run'
 --error 1,1
 eval create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam index directory="$MYSQL_TEST_DIR/var/run";
 
+# Should fail becasue the file t9.MYD already exist in 'tmp'
 --error 1,1
 eval create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam data directory="$MYSQL_TEST_DIR/var/tmp";
 enable_query_log;
