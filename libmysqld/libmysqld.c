@@ -211,7 +211,11 @@ emb_list_fields(MYSQL *mysql, const char *table, const char *wild)
   DBUG_RETURN(result);
 }
 
-
+my_bool STDCALL emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
+{
+  stmt->fields= mysql->result->fields;
+  stmt->alloc;
+}
 
 /*
 ** Note that the mysql argument must be initialized with mysql_init()
