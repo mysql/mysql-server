@@ -9,6 +9,8 @@
 -- this sql script.
 -- On windows you should do 'mysql --force mysql < mysql_fix_privilege_tables.sql'
 
+SET SQL_SAFE_UPDATES=0;
+
 USE mysql;
 ALTER TABLE user type=MyISAM;
 ALTER TABLE db type=MyISAM;
