@@ -8120,6 +8120,10 @@ Convert your old ISAM files to MyISAM files with the command:
 be run if all tables in the given database is ISAM or MyISAM tables. If
 this is not the case you should run @code{ALTER TABLE table_name TYPE=MyISAM}
 on all ISAM tables.
+@item
+Ensure that you don't have any MySQL clients that uses shared libraries
+(like the perl Msql-Mysql-modules). If you have, you should recompile
+them as structures used in libmysqlclient.so has changed.
 @end itemize
 
 MySQL 4.0 will work even if you don't do the above, but you will not be
