@@ -26,4 +26,9 @@
 #define MYSQL_CHARSET			"@default_charset@"
 #endif /* MYSQL_CHARSET */
 #endif /* _CUSTOMCONFIG_ */
+
+#ifndef LICENSE
+#define LICENSE "GPL"
+#endif /* LICENSE */
+
 #endif /* _mysql_version_h */
