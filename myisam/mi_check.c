@@ -290,14 +290,14 @@ int chk_size(MI_CHECK *param, register MI_INFO *info)
     if (skr > size && skr != size + MEMMAP_EXTRA_MARGIN)
     {
       error=1;
-      mi_check_print_error(param,"Size of datafile is: %-8s         Should be: %s",
+      mi_check_print_error(param,"Size of datafile is: %-9s         Should be: %s",
 		    llstr(size,buff), llstr(skr,buff2));
       param->retry_without_quick=1;		/* Don't use quick repair */
     }
     else
     {
       mi_check_print_warning(param,
-			     "Size of datafile is: %-8s       Should be: %s",
+			     "Size of datafile is: %-9s       Should be: %s",
 			     llstr(size,buff), llstr(skr,buff2));
     }
   }

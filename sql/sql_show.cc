@@ -718,17 +718,16 @@ store_create_info(THD *thd, TABLE *table, String *packet)
     field->sql_type(type);
     packet->append(type.ptr(),type.length());
 
-    bool null_default_value =  (field->type() == FIELD_TYPE_TIMESTAMP ||
-                                field->unireg_check == Field::NEXT_NUMBER);
-    bool has_default = (field->type() != FIELD_TYPE_BLOB);
+    bool has_default = (field->type() != FIELD_TYPE_BLOB && 
+			field->type() != FIELD_TYPE_TIMESTAMP &&
+			field->unireg_check != Field::NEXT_NUMBER);
+    if (flags & NOT_NULL_FLAG)
+      packet->append(" NOT NULL", 9);
 
-    if((flags & NOT_NULL_FLAG) && !null_default_value)
-        packet->append(" NOT NULL", 9);
-
-    if(has_default)
+    if (has_default)
     {
       packet->append(" default ", 9);
-      if (!null_default_value && !field->is_null())
+      if (!field->is_null())
       {                                             // Not null by default
         type.set(tmp,sizeof(tmp));
         field->val_str(&type,&type);
@@ -736,7 +735,7 @@ store_create_info(THD *thd, TABLE *table, String *packet)
         packet->append(type.ptr(),type.length());
         packet->append('\'');
       }
-      else if (field->maybe_null() || null_default_value)
+      else if (field->maybe_null())
         packet->append("NULL", 4);                    // Null as default
       else
         packet->append(tmp,0);

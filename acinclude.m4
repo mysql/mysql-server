@@ -602,7 +602,7 @@ AC_MSG_RESULT($ac_cv_conv_longlong_to_float)
 dnl ---------------------------------------------------------------------------
 dnl Macro: MYSQL_CHECK_BDB
 dnl Sets HAVE_BERKELEY_DB if inst library is found
-dnl Makes sure db version is >= 3.1.11
+dnl Makes sure db version is >= 3.2.3
 dnl Looks in $srcdir for Berkeley distribution not told otherwise
 dnl ---------------------------------------------------------------------------
 
@@ -806,15 +806,15 @@ AC_DEFUN([MYSQL_CHECK_BDB_VERSION], [
   if test $db_major -gt 3
   then
     bdb_version_ok=yes
-  elif test $db_major -eq 3 && test $db_minor -gt 1
+  elif test $db_major -eq 3 && test $db_minor -gt 2
   then
     bdb_version_ok=yes
-  elif test $db_major -eq 3 && test $db_minor -eq 1 && test $db_patch -ge 11
+  elif test $db_major -eq 3 && test $db_minor -eq 2 && test $db_patch -ge 3
   then
     bdb_version_ok=yes
   else
     bdb_version_ok="invalid version $db_major.$db_minor.$db_patch"
-    bdb_version_ok="$bdb_version_ok (must be at least version 3.1.11)"
+    bdb_version_ok="$bdb_version_ok (must be at least version 3.2.3)"
   fi
 ])
 
