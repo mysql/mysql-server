@@ -1074,6 +1074,11 @@ protected:
 
 };
 
+#ifdef NDB_NO_DROPPED_SIGNAL
+#include <stdlib.h>
+#endif
+
+
 inline
 int
 NdbOperation::checkMagicNumber()

@@ -687,6 +687,10 @@ NdbConnection::set_send_size(Uint32 send_size)
   return;
 }
 
+#ifdef NDB_NO_DROPPED_SIGNAL
+#include <stdlib.h>
+#endif
+
 inline
 int
 NdbConnection::checkMagicNumber()
