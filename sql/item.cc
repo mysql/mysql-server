@@ -1733,6 +1733,13 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
   return 0;
 }
 
+Item *Item_field::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  no_const_subst= 1;
+  return Item::safe_charset_converter(tocs);
+}
+
+
 void Item_field::cleanup()
 {
   DBUG_ENTER("Item_field::cleanup");
