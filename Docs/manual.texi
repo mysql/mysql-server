@@ -1940,10 +1940,10 @@ Here you can find all MySQL Partners.
 @cindex MySQL mailing lists
 
 @menu
-* Mailing-list::                The MySQL mailing lists
-* Asking questions::            Asking questions or reporting bugs
-* Bug reports::                 How to report bugs or problems
-* Answering questions::         Guidelines for answering questions on the mailing list
+* Mailing-list::                The MySQL Mailing Lists
+* Asking questions::            Asking Questions or Reporting Bugs
+* Bug reports::                 How to Report Bugs or Problems
+* Answering questions::         Guidelines for Answering Questions on the Mailing List
 @end menu
 
 This section introduces you to the MySQL mailing lists, and gives
@@ -2445,7 +2445,7 @@ responses you received that helped you solve your problem!
 
 
 @node Answering questions,  , Bug reports, Questions
-@subsubsection Guidelines for Answering Question on the Mailing List
+@subsubsection Guidelines for Answering Questions on the Mailing List
 
 @cindex net etiquette
 @cindex questions, answering
