@@ -73,7 +73,7 @@ public:
   { return (void*) alloc_root(mem_root, (uint) size); }
   static void operator delete(void *ptr_arg,size_t size)
     {}
-  static void operator delete(void *ptr_arg,size_t size, MEM_ROOT *mem_root)
+  static void operator delete(void *ptr_arg, MEM_ROOT *mem_root)
     {}
   ~String() { free(); }
 
