@@ -538,7 +538,8 @@ start_manager()
  $MYSQL_MANAGER --log=$MYSQL_MANAGER_LOG --port=$MYSQL_MANAGER_PORT \
   --password-file=$MYSQL_MANAGER_PW_FILE
   abort_if_failed "Could not start MySQL manager"
-  mysqltest_manager_args="--manager-user=$MYSQL_MANAGER_USER \
+  mysqltest_manager_args="--manager-host=localhost \
+  --manager-user=$MYSQL_MANAGER_USER \
   --manager-password=$MYSQL_MANAGER_PW \
   --manager-port=$MYSQL_MANAGER_PORT \
   --manager-wait-timeout=$START_WAIT_TIMEOUT"
@@ -600,7 +601,7 @@ start_master()
     then
       master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin \
     	    --server-id=1 --rpl-recovery-rank=1 \
-            --basedir=$MY_BASEDIR \
+            --basedir=$MY_BASEDIR --init-rpl-role=master \
 	    --port=$MASTER_MYPORT \
 	    --exit-info=256 \
             --datadir=$MASTER_MYDDIR \
@@ -617,7 +618,7 @@ start_master()
     else
       master_args="--no-defaults --log-bin=$MYSQL_TEST_DIR/var/log/master-bin \
 	    --server-id=1 --rpl-recovery-rank=1 \
-            --basedir=$MY_BASEDIR \
+            --basedir=$MY_BASEDIR --init-rpl-role=master \
 	    --port=$MASTER_MYPORT \
             --datadir=$MASTER_MYDDIR \
 	    --pid-file=$MASTER_MYPID \
@@ -712,7 +713,7 @@ start_slave()
 	    --socket=$slave_sock \
 	    --character-sets-dir=$CHARSETSDIR \
 	    --default-character-set=$CHARACTER_SET \
-	    --core \
+	    --core --init-rpl-role=slave \
 	    --tmpdir=$MYSQL_TMP_DIR \
             --language=$LANGUAGE \
 	    --skip-innodb --skip-slave-start \

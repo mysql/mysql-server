@@ -20,6 +20,7 @@
 #include "mysql_priv.h"
 #include "sql_select.h"                         // For select_describe
 #include "sql_acl.h"
+#include "repl_failsafe.h"
 #include <my_dir.h>
 
 #ifdef HAVE_BERKELEY_DB
