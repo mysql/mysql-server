@@ -310,8 +310,9 @@ handle_new_error:
 	    "InnoDB: a case of widespread corruption, dump all InnoDB\n"
 	    "InnoDB: tables and recreate the whole InnoDB tablespace.\n"
 	    "InnoDB: If the mysqld server crashes after the startup or when\n"
-	    "InnoDB: you dump the tables, look at section 6.1 of\n"
-	    "InnoDB: http://www.innodb.com/ibman.php for help.\n", stderr);
+	    "InnoDB: you dump the tables, look at\n"
+	    "InnoDB: http://dev.mysql.com/doc/mysql/en/Forcing_recovery.html"
+	    " for help.\n", stderr);
 
 	} else {
 		fprintf(stderr, "InnoDB: unknown error code %lu\n", err);
@@ -1551,8 +1552,9 @@ row_create_table_for_mysql(
      "InnoDB: database and moving the .frm file to the current database.\n"
      "InnoDB: Then MySQL thinks the table exists, and DROP TABLE will\n"
      "InnoDB: succeed.\n"
-     "InnoDB: You can look for further help from section 15.1 of\n"
-     "InnoDB: http://www.innodb.com/ibman.php\n", stderr);
+     "InnoDB: You can look for further help from\n"
+     "InnoDB: http://dev.mysql.com/doc/mysql/en/"
+     "InnoDB_troubleshooting_datadict.html\n", stderr);
 		}
 
 		trx->error_state = DB_SUCCESS;
@@ -2089,8 +2091,9 @@ row_drop_table_for_mysql(
      	"InnoDB: data dictionary though MySQL is trying to drop it.\n"
      	"InnoDB: Have you copied the .frm file of the table to the\n"
 	"InnoDB: MySQL database directory from another database?\n"
-	"InnoDB: You can look for further help from section 15.1 of\n"
-	"InnoDB: http://www.innodb.com/ibman.php\n", stderr);
+	"InnoDB: You can look for further help from\n"
+	"InnoDB: http://dev.mysql.com/doc/mysql/en/"
+	"InnoDB_troubleshooting_datadict.html\n", stderr);
 		goto funct_exit;
 	}
 
@@ -2588,8 +2591,9 @@ row_rename_table_for_mysql(
 			ut_print_name(stderr, old_name);
 			fputs(" to it.\n"
      "InnoDB: Have you deleted the .frm file and not used DROP TABLE?\n"
-     "InnoDB: You can look for further help from section 15.1 of\n"
-     "InnoDB: http://www.innodb.com/ibman.php\n"
+     "InnoDB: You can look for further help from\n"
+     "InnoDB: http://dev.mysql.com/doc/mysql/en/"
+     "InnoDB_troubleshooting_datadict.html\n"
      "InnoDB: If table ", stderr);
 			ut_print_name(stderr, new_name);
 			fputs(
