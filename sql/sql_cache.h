@@ -53,10 +53,6 @@
    of list of free blocks */
 #define QUERY_CACHE_MEM_BIN_TRY                 5
 
-/* query flags masks */
-#define QUERY_CACHE_CLIENT_LONG_FLAG_MASK	0x80
-#define QUERY_CACHE_CHARSET_CONVERT_MASK	0x7F
-
 /* packing parameters */
 #define QUERY_CACHE_PACK_ITERATION		2
 #define QUERY_CACHE_PACK_LIMIT			(512*1024L)
