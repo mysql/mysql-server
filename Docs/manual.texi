@@ -53,7 +53,7 @@
 @end ifset
 
 @c We want the contents at the beginning, where it's supposed to be.
-@setshortcontentsaftertitlepage
+@c @setshortcontentsaftertitlepage
 
 @c %**end of header
 
@@ -74,6 +74,11 @@ END-INFO-DIR-ENTRY
 @c also makes the back of the title page blank.
 @page
 @end titlepage
+
+@c Short contents, blank page, long contents.
+@shortcontents
+@page
+@contents
 
 @c This should be added. The HTML conversion also needs a MySQL version
 @c number somewhere.
