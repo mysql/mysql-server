@@ -298,6 +298,7 @@ int mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   if (mysql_bin_log.is_open())
   {
     Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
+    thd->clear_error();
     mysql_bin_log.write(&qinfo);
   }
   send_ok(thd, result);
@@ -384,6 +385,7 @@ int mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       if (mysql_bin_log.is_open())
       {
 	Query_log_event qinfo(thd, query, query_length, 0);
+	thd->clear_error();
 	mysql_bin_log.write(&qinfo);
       }
       send_ok(thd,(ulong) deleted);

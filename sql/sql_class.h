@@ -589,7 +589,7 @@ public:
   long	     dbug_thread_id;
   pthread_t  real_id;
   uint	     current_tablenr,tmp_table;
-  uint	     server_status,open_options;
+  uint	     server_status,open_options,system_thread;
   uint32     query_length;
   uint32     db_length;
   uint       select_number;             //number of select (used for EXPLAIN)
@@ -607,7 +607,7 @@ public:
   bool       last_cuted_field;
   bool	     no_errors, allow_sum_func, password, is_fatal_error;
   bool	     query_start_used,last_insert_id_used,insert_id_used,rand_used;
-  bool	     system_thread,in_lock_tables,global_read_lock;
+  bool	     in_lock_tables,global_read_lock;
   bool       query_error, bootstrap, cleanup_done;
   bool	     volatile killed;
   bool	     tmp_table_used;
@@ -750,6 +750,11 @@ public:
   void update_charset();
 };
 
+/* Flags for the THD::system_thread (bitmap) variable */
+#define SYSTEM_THREAD_DELAYED_INSERT 1
+#define SYSTEM_THREAD_SLAVE_IO 2
+#define SYSTEM_THREAD_SLAVE_SQL 4
+
 /*
   Used to hold information about file and file structure in exchainge 
   via non-DB file (...INTO OUTFILE..., ...LOAD DATA...)
@@ -761,7 +766,7 @@ public:
   String *field_term,*enclosed,*line_term,*line_start,*escaped;
   bool opt_enclosed;
   bool dumpfile;
-  uint skip_lines;
+  ulong skip_lines;
   sql_exchange(char *name,bool dumpfile_flag);
   ~sql_exchange() {}
 };
@@ -1109,7 +1114,7 @@ class multi_delete :public select_result
   TABLE_LIST *delete_tables, *table_being_deleted;
   Unique **tempfiles;
   THD *thd;
-  ha_rows deleted;
+  ha_rows deleted, found;
   uint num_of_tables;
   int error;
   bool do_delete, transactional_tables, log_delayed, normal_tables;

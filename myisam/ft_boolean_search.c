@@ -373,10 +373,13 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
     to alloc queue with alloc_root()
   */
   res=ftb->queue.max_elements=1+query_len/(min(ft_min_word_len,2)+1);
-  ftb->queue.root=(byte **)alloc_root(&ftb->mem_root, (res+1)*sizeof(void*));
+  if (!(ftb->queue.root=
+        (byte **)alloc_root(&ftb->mem_root, (res+1)*sizeof(void*))))
+    goto err;
   reinit_queue(& ftb->queue, res, 0, 0,
                          (int (*)(void*,byte*,byte*))FTB_WORD_cmp, 0);
-  ftbe=(FTB_EXPR *)alloc_root(&ftb->mem_root, sizeof(FTB_EXPR));
+  if (!(ftbe=(FTB_EXPR *)alloc_root(&ftb->mem_root, sizeof(FTB_EXPR))))
+    goto err;
   ftbe->weight=1;
   ftbe->flags=FTB_FLAG_YES;
   ftbe->nos=1;
@@ -394,6 +397,10 @@ FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, byte *query,
   if (ftb->queue.elements<2) ftb->with_scan &= ~FTB_FLAG_TRUNC;
   ftb->state=READY;
   return ftb;
+err:
+  free_root(& ftb->mem_root, MYF(0));
+  my_free((gptr)ftb,MYF(0));
+  return 0;
 }
 
 

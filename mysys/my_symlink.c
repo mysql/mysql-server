@@ -72,6 +72,7 @@ int my_symlink(const char *content, const char *linkname, myf MyFlags)
 #else
   int result;
   DBUG_ENTER("my_symlink");
+  DBUG_PRINT("enter",("content: %s  linkname: %s", content, linkname));
 
   result= 0;
   if (symlink(content, linkname))

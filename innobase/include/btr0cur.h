@@ -188,22 +188,6 @@ btr_cur_pessimistic_insert(
 	que_thr_t*	thr,	/* in: query thread or NULL */
 	mtr_t*		mtr);	/* in: mtr */
 /*****************************************************************
-Updates a secondary index record when the update causes no size
-changes in its fields. The only case when this function is currently
-called is that in a char field characters change to others which
-are identified in the collation order. */
-
-ulint
-btr_cur_update_sec_rec_in_place(
-/*============================*/
-				/* out: DB_SUCCESS or error number */
-	btr_cur_t*	cursor,	/* in: cursor on the record to update;
-				cursor stays valid and positioned on the
-				same record */
-	upd_t*		update,	/* in: update vector */
-	que_thr_t*	thr,	/* in: query thread */
-	mtr_t*		mtr);	/* in: mtr */
-/*****************************************************************
 Updates a record when the update causes no size changes in its fields. */
 
 ulint

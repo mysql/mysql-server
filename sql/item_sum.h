@@ -65,7 +65,18 @@ public:
   inline bool reset() { clear(); return add(); };
   virtual void clear()= 0;
   virtual bool add()=0;
+  /*
+    Called when new group is started and results are being saved in
+    a temporary table. Similar to reset(), but must also store value in
+    result_field. Like reset() it is supposed to reset start value to
+    default.
+  */
   virtual void reset_field()=0;
+  /*
+    Called for each new value in the group, when temporary table is in use.
+    Similar to add(), but uses temporary table field to obtain current value,
+    Updated value is then saved in the field.
+  */
   virtual void update_field()=0;
   virtual bool keep_field_type(void) const { return 0; }
   virtual void fix_length_and_dec() { maybe_null=1; null_value=1; }
@@ -445,10 +456,10 @@ public:
 
 class Item_sum_bit :public Item_sum_int
 {
- protected:
+protected:
   ulonglong reset_bits,bits;
 
-  public:
+public:
   Item_sum_bit(Item *item_par,ulonglong reset_arg)
     :Item_sum_int(item_par),reset_bits(reset_arg),bits(reset_arg) {}
   Item_sum_bit(THD *thd, Item_sum_bit &item):
@@ -464,11 +475,10 @@ class Item_sum_bit :public Item_sum_int
 
 class Item_sum_or :public Item_sum_bit
 {
-  public:
+public:
   Item_sum_or(Item *item_par) :Item_sum_bit(item_par,LL(0)) {}
   Item_sum_or(THD *thd, Item_sum_or &item) :Item_sum_bit(thd, item) {}
   bool add();
-  void update_field();
   const char *func_name() const { return "bit_or"; }
   Item *copy_or_same(THD* thd);
 };
@@ -477,10 +487,9 @@ class Item_sum_or :public Item_sum_bit
 class Item_sum_and :public Item_sum_bit
 {
   public:
-  Item_sum_and(Item *item_par) :Item_sum_bit(item_par, ~(ulonglong) LL(0)) {}
+  Item_sum_and(Item *item_par) :Item_sum_bit(item_par, ULONGLONG_MAX) {}
   Item_sum_and(THD *thd, Item_sum_and &item) :Item_sum_bit(thd, item) {}
   bool add();
-  void update_field();
   const char *func_name() const { return "bit_and"; }
   Item *copy_or_same(THD* thd);
 };

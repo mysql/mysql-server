@@ -333,8 +333,7 @@ int check_user(THD *thd, enum enum_server_command command,
           DBUG_RETURN(-1);
         }
       }
-      else
-        send_ok(thd);
+      send_ok(thd);
       thd->password= test(passwd_len);          // remember for error messages 
       /* Ready to handle queries */
       DBUG_RETURN(0);
@@ -1815,9 +1814,18 @@ mysql_execute_command(THD *thd)
       }
     }
   }
-  if (&lex->select_lex != lex->all_selects_list &&
-      lex->unit.create_total_list(thd, lex, &tables, 0))
-    DBUG_VOID_RETURN;
+  if (&lex->select_lex != lex->all_selects_list)
+  {
+    byte *save= lex->select_lex.table_list.first;
+    if (lex->sql_command == SQLCOM_CREATE_TABLE)
+    {
+      /* Skip first table, which is the table we are creating */
+      lex->select_lex.table_list.first= (byte*) (((TABLE_LIST *) save)->next);
+    }
+    if (lex->unit.create_total_list(thd, lex, &tables, 0))
+      DBUG_VOID_RETURN;
+    lex->select_lex.table_list.first= save;
+  }
   
   /*
     When option readonly is set deny operations which change tables.
@@ -2595,7 +2603,6 @@ mysql_execute_command(THD *thd)
   case SQLCOM_REPLACE_SELECT:
   case SQLCOM_INSERT_SELECT:
   {
-
     /*
       Check that we have modify privileges for the first table and
       select privileges for the rest
@@ -2616,6 +2623,11 @@ mysql_execute_command(THD *thd)
 	goto error;
     }
 #endif
+
+    /* Fix lock for first table */
+    if (tables->lock_type == TL_WRITE_DELAYED)
+      tables->lock_type == TL_WRITE;
+
     /* Don't unlock tables until command is written to binary log */
     select_lex->options|= SELECT_NO_UNLOCK;
 
@@ -3247,6 +3259,7 @@ mysql_execute_command(THD *thd)
 	mysql_update_log.write(thd, thd->query, thd->query_length);
 	if (mysql_bin_log.is_open())
 	{
+          thd->clear_error();
 	  Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
 	  mysql_bin_log.write(&qinfo);
 	}
@@ -3267,6 +3280,7 @@ mysql_execute_command(THD *thd)
 	mysql_update_log.write(thd, thd->query, thd->query_length);
 	if (mysql_bin_log.is_open())
 	{
+          thd->clear_error();
 	  Query_log_event qinfo(thd, thd->query, thd->query_length, 0);
 	  mysql_bin_log.write(&qinfo);
 	}
@@ -3780,7 +3794,9 @@ mysql_init_query(THD *thd)
   thd->last_insert_id_used= thd->query_start_used= thd->insert_id_used=0;
   thd->sent_row_count= thd->examined_row_count= 0;
   thd->is_fatal_error= thd->rand_used= 0;
-  thd->server_status &= ~SERVER_MORE_RESULTS_EXISTS;
+  thd->server_status&= ~ (SERVER_MORE_RESULTS_EXISTS | 
+			  SERVER_QUERY_NO_INDEX_USED |
+			  SERVER_QUERY_NO_GOOD_INDEX_USED);
   thd->tmp_table_used= 0;
   if (opt_bin_log)
     reset_dynamic(&thd->user_var_events);
@@ -3987,7 +4003,12 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
 
   if (default_value)
   {
-    if (default_value->type() == Item::NULL_ITEM)
+    if (type == FIELD_TYPE_TIMESTAMP)
+    {
+      net_printf(&thd->net, ER_INVALID_DEFAULT, field_name);
+      DBUG_RETURN(1);
+    }
+    else if (default_value->type() == Item::NULL_ITEM)
     {
       default_value=0;
       if ((type_modifier & (NOT_NULL_FLAG | AUTO_INCREMENT_FLAG)) ==

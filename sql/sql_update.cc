@@ -352,6 +352,8 @@ int mysql_update(THD *thd,
     mysql_update_log.write(thd,thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
     {
+      if (error <= 0)
+        thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    log_delayed);
       if (mysql_bin_log.write(&qinfo) && transactional_table)
@@ -473,7 +475,7 @@ multi_update::multi_update(THD *thd_arg, TABLE_LIST *table_list,
   :all_tables(table_list), update_tables(0), thd(thd_arg), tmp_tables(0),
    updated(0), found(0), fields(field_list), values(value_list),
    table_count(0), copy_field(0), handle_duplicates(handle_duplicates_arg),
-   do_update(1), trans_safe(0)
+   do_update(1), trans_safe(0), transactional_tables(1)
 {}
 
 
@@ -577,6 +579,26 @@ int multi_update::prepare(List<Item> &not_used_values,
   for (i=0 ; i < table_count ; i++)
     set_if_bigger(max_fields, fields_for_table[i]->elements);
   copy_field= new Copy_field[max_fields];
+
+  /*
+    Mark all copies of tables that are updates to ensure that
+    init_read_record() will not try to enable a cache on them
+
+    The problem is that for queries like
+
+    UPDATE t1, t1 AS t2 SET t1.b=t2.c WHERE t1.a=t2.a;
+
+    the row buffer may contain things that doesn't match what is on disk
+    which will cause an error when reading a row.
+    (This issue is mostly relevent for MyISAM tables)
+  */
+  for (table_ref= all_tables;  table_ref; table_ref=table_ref->next)
+  {
+    TABLE *table=table_ref->table;
+    if (!(tables_to_update & table->map) && 
+	check_dup(table_ref->db, table_ref->real_name, update_tables))
+      table->no_cache= 1;			// Disable row cache
+  }
   DBUG_RETURN(thd->is_fatal_error != 0);
 }
 
@@ -718,7 +740,7 @@ multi_update::~multi_update()
 {
   TABLE_LIST *table;
   for (table= update_tables ; table; table= table->next)
-    table->table->no_keyread=0;
+    table->table->no_keyread= table->table->no_cache= 0;
 
   if (tmp_tables)
   {
@@ -853,8 +875,11 @@ int multi_update::do_updates(bool from_send_error)
   ha_rows org_updated;
   TABLE *table;
   DBUG_ENTER("do_updates");
+  
 
-  do_update= 0;					// Don't retry this function
+  do_update= 0;					// Don't retry this function  
+  if (!found)
+    DBUG_RETURN(0);
   for (cur_table= update_tables; cur_table ; cur_table= cur_table->next)
   {
     table = cur_table->table;
@@ -981,6 +1006,8 @@ bool multi_update::send_eof()
     mysql_update_log.write(thd,thd->query,thd->query_length);
     if (mysql_bin_log.is_open())
     {
+      if (local_error <= 0)
+        thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
 			    log_delayed);
       if (mysql_bin_log.write(&qinfo) && trans_safe)

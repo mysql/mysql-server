@@ -867,6 +867,8 @@ char *mi_state_info_read(char *ptr, MI_STATE_INFO *state)
   state->status = mi_uint4korr(ptr);		ptr +=4;
   state->update_count=mi_uint4korr(ptr);	ptr +=4;
 
+  ptr+= state->state_diff_length;
+
   for (i=0; i < keys; i++)
   {
     state->key_root[i]= mi_sizekorr(ptr);	ptr +=8;
@@ -875,7 +877,6 @@ char *mi_state_info_read(char *ptr, MI_STATE_INFO *state)
   {
     state->key_del[i] = mi_sizekorr(ptr);	ptr +=8;
   }
-  ptr+= state->state_diff_length;
   state->sec_index_changed = mi_uint4korr(ptr); ptr +=4;
   state->sec_index_used =    mi_uint4korr(ptr); ptr +=4;
   state->version     = mi_uint4korr(ptr);	ptr +=4;
