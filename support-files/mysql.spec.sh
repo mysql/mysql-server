@@ -690,7 +690,7 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
-* Mon Feb 14 2005 Tomas Ulin <tomas@mysql.com>
+* Mon Feb 14 2005 Lenz Grimmer <lenz@mysql.com>
 
 * Fixed the compilation comments and moved them into the separate build sections
   for Max and Standard
