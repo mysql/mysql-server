@@ -392,3 +392,7 @@ tags
 tmp/*
 vio/viotest-ssl
 =6
+linked_tools_sources
+tools/my_vsnprintf.c
+tools/mysqlmngd
+tools/mysys_priv.h
