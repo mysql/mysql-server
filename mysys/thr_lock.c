@@ -27,6 +27,7 @@ Locks are prioritized according to:
 The current lock types are:
 
 TL_READ	 		# Low priority read
+TL_READ_WITH_SHARED_LOCKS
 TL_READ_HIGH_PRIORITY	# High priority read
 TL_READ_NO_INSERT	# Read without concurrent inserts
 TL_WRITE_ALLOW_WRITE	# Write lock that allows other writers
@@ -667,7 +668,7 @@ void thr_unlock(THR_LOCK_DATA *data)
       /* Release write-locks with TL_WRITE or TL_WRITE_ONLY priority first */
       if (data &&
 	  (data->type != TL_WRITE_LOW_PRIORITY || !lock->read_wait.data ||
-	   lock->read_wait.data->type == TL_READ))
+	   lock->read_wait.data->type < TL_READ_HIGH_PRIORITY))
       {
 	if (lock->write_lock_count++ > max_write_lock_count)
 	{

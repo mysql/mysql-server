@@ -446,7 +446,10 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
 void unlock_table_name(THD *thd, TABLE_LIST *table_list)
 {
   if (table_list->table)
+  {
     hash_delete(&open_cache, (byte*) table_list->table);
+    (void) pthread_cond_broadcast(&COND_refresh);
+  }
 }
 
 static bool locked_named_table(THD *thd, TABLE_LIST *table_list)

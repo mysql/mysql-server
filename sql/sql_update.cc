@@ -62,7 +62,7 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
   LINT_INIT(timestamp_query_id);
 
   if (!(table = open_ltable(thd,table_list,lock_type)))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(-1); /* purecov: inspected */
   save_time_stamp=table->time_stamp;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   thd->proc_info="init";
@@ -156,8 +156,8 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
     if (open_cached_file(&tempfile, mysql_tmpdir,TEMP_PREFIX,
 			  DISK_BUFFER_SIZE, MYF(MY_WME)))
     {
-      delete select;
-      table->time_stamp=save_time_stamp;	// Restore timestamp pointer
+      delete select; /* purecov: inspected */
+      table->time_stamp=save_time_stamp;	// Restore timestamp pointer /* purecov: inspected */
       DBUG_RETURN(-1);
     }
     if (old_used_keys & ((key_map) 1 << used_index))
@@ -176,8 +176,8 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
 	if (my_b_write(&tempfile,table->file->ref,
 		       table->file->ref_length))
 	{
-	  error=1;
-	  break;
+	  error=1; /* purecov: inspected */
+	  break; /* purecov: inspected */
 	}
       }
       else
@@ -209,7 +209,7 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
       select->head=table;
     }
     if (reinit_io_cache(&tempfile,READ_CACHE,0L,0,0))
-      error=1;
+      error=1; /* purecov: inspected */
     select->file=tempfile;			// Read row ptrs from this file
     if (error >= 0)
     {
@@ -237,7 +237,7 @@ int mysql_update(THD *thd,TABLE_LIST *table_list,List<Item> &fields,
     {
       store_record(table,1);
       if (fill_record(fields,values))
-	break;
+	break; /* purecov: inspected */
       found++;
       if (compare_record(table, query_id))
       {
