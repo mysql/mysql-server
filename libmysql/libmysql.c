@@ -121,7 +121,7 @@ static int connect2(my_socket s, const struct sockaddr *name, uint namelen,
 #if defined(__WIN__) || defined(OS2)
   return connect(s, (struct sockaddr*) name, namelen);
 #else
-  int flags, res, s_err;
+  int flags, res, s_err, result=0;
   SOCKOPT_OPTLEN_TYPE s_err_size = sizeof(uint);
   fd_set sfds;
   struct timeval tv;
@@ -175,19 +175,16 @@ static int connect2(my_socket s, const struct sockaddr *name, uint namelen,
    * implementations of select that don't adjust tv upon
    * failure to reflect the time remaining
    */
-#ifdef HAVE_POLL
-  return(0);
-#endif
   start_time = time(NULL);
   for (;;)
   {
     tv.tv_sec = (long) timeout;
     tv.tv_usec = 0;
 #if defined(HPUX) && defined(THREAD)
-    if ((res = select(s+1, NULL, (int*) &sfds, NULL, &tv)) >= 0)
+    if ((result = select(s+1, NULL, (int*) &sfds, NULL, &tv)) >= 0)
       break;
 #else
-    if ((res = select(s+1, NULL, &sfds, NULL, &tv)) >= 0)
+    if ((result = select(s+1, NULL, &sfds, NULL, &tv)) >= 0)
       break;
 #endif
     now_time=time(NULL);
@@ -210,7 +207,7 @@ static int connect2(my_socket s, const struct sockaddr *name, uint namelen,
     errno = s_err;
     return(-1);					/* but return an error... */
   }
-  return(0);					/* It's all good! */
+  return((res) ? res : result);					/* It's all good! */
 #endif
 }
 
