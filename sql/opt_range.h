@@ -304,17 +304,14 @@ class SQL_SELECT :public Sql_alloc {
 };
 
 
-class FT_SELECT: public QUICK_SELECT {
+class FT_SELECT: public QUICK_RANGE_SELECT {
 public:
-  FT_SELECT(THD *thd, TABLE *table, uint key):
-    QUICK_SELECT (thd, table, key, 1) { init(); }
+  FT_SELECT(THD *thd, TABLE *table, uint key) :
+      QUICK_RANGE_SELECT (thd, table, key, 1) { init(); }
 
-  int init() { return error= file->ft_init(); }
-  int get_next() { return error= file->ft_read(record); }
+  int init() { return error=file->ft_init(); }
+  int get_next() { return error=file->ft_read(record); }
+  int get_type() { return QS_TYPE_FULLTEXT; }
 };
-
-
-QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
-				       struct st_table_ref *ref);
 
 #endif

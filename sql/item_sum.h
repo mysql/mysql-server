@@ -166,7 +166,7 @@ class Item_sum_sum_distinct :public Item_sum_num
   double sum;
   Unique *tree;
 private:
-  Item_sum_sum_distinct(THD *thd, Item_sum_sum_distinct &item);
+  Item_sum_sum_distinct(THD *thd, Item_sum_sum_distinct *item);
 public:
   Item_sum_sum_distinct(Item *item_par);
   ~Item_sum_sum_distinct();

@@ -236,6 +236,7 @@ public:
   {
     cleanup();
     delete this;
+  }
 };
 
 
