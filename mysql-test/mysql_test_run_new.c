@@ -37,7 +37,8 @@
 #include <sys/mode.h>
 #endif
 #ifdef __WIN__
-#include <Shlwapi.h>
+#include <windows.h>
+#include <shlwapi.h>
 #include <direct.h>
 #endif
 
