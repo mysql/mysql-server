@@ -334,27 +334,6 @@ RestoreDataIterator::getNextTuple(int  & res)
   Uint32 *buf_ptr = (Uint32*)_buf_ptr, *ptr = buf_ptr;
   ptr += m_currentTable->m_nullBitmaskSize;
   Uint32 i;
-  for(i= 0; i < m_currentTable->m_fixedKeys.size(); i++){
-    assert(ptr < buf_ptr + dataLength);
- 
-    const Uint32 attrId = m_currentTable->m_fixedKeys[i]->attrId;
-
-    AttributeData * attr_data = m_tuple.getData(attrId);
-    const AttributeDesc * attr_desc = m_tuple.getDesc(attrId);
-
-    const Uint32 sz = attr_desc->getSizeInWords();
-
-    attr_data->null = false;
-    attr_data->void_value = ptr;
-
-    if(!Twiddle(attr_desc, attr_data))
-      {
-	res = -1;
-	return NULL;
-      }
-    ptr += sz;
-  }
-
   for(i = 0; i < m_currentTable->m_fixedAttribs.size(); i++){
     assert(ptr < buf_ptr + dataLength);
 
@@ -698,12 +677,6 @@ void TableS::createAttr(NdbDictionary::Column *column)
 
   if (d->m_column->getAutoIncrement())
     m_auto_val_id= d->attrId;
-
-  if(d->m_column->getPrimaryKey() /* && not variable */)
-  {
-    m_fixedKeys.push_back(d);
-    return;
-  }
 
   if(!d->m_column->getNullable())
   {
