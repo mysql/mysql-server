@@ -3706,7 +3706,7 @@ this without sacrifying the speed or compromise the code.
 @node TODO MySQL 4.0, TODO MySQL 4.1, TODO, TODO
 @subsection Things That Should be in 4.0
 
-We have now in the final stages one the development of the MySQL Server
+We are in the final stages one the development of the MySQL Server
 4.0.  server. The target is to quickly implement the rest of the
 following features and then shift development to MySQL Server
 4.1. @xref{MySQL 4.0 In A Nutshell}.
@@ -3791,7 +3791,7 @@ characters in database, table and column names.
 Add @code{record_in_range()} method to @code{MERGE} tables to be
 able to choose the right index when there is many to choose from. We should
 also extend the info interface to get the key distribution for each index,
-of @code{analyze} is run on all sub tables.
+if @code{analyze} is run on all sub tables.
 @item
 @code{RENAME TABLE} on a table used in an active @code{MERGE} table may
 corrupt the table.
