@@ -51715,8 +51715,6 @@ Small fix in @code{safe_mysqld} for some shells.
 @item
 Fixed that @code{FLUSH STATUS} doesn't reset @code{Delayed_insert_threads}.
 @item
-Fixed that @code{SHOW STATUS} doesn't reset @code{Delayed_insert_threads}.
-@item
 Fixed core dump bug when using the @code{BINARY} cast on a @code{NULL} value.
 @item
 Fixed race condition when someone did a @code{GRANT} at the same time a new
