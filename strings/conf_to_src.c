@@ -55,7 +55,7 @@ print_array16(FILE *f, const char *set, const char *name, uint16 *a, int n)
 {
   int i;
 
-  fprintf(f,"uchar %s_%s[] = {\n", name, set);
+  fprintf(f,"uint16 %s_%s[] = {\n", name, set);
   
   for (i=0 ;i<n ; i++)
   {
@@ -123,7 +123,8 @@ static my_bool simple_cs_is_full(CHARSET_INFO *cs)
 {
   return ((cs->csname && cs->tab_to_uni && cs->ctype && cs->to_upper &&
 	   cs->to_lower) &&
-	  (cs->number && cs->name && cs->sort_order));
+	  (cs->number && cs->name && 
+	  (cs->sort_order || (cs->state & MY_CS_BINSORT))));
 }
 
 static int add_collation(CHARSET_INFO *cs)
@@ -177,18 +178,23 @@ static int my_read_charset_file(const char *filename)
 void dispcset(FILE *f,CHARSET_INFO *cs)
 {
   fprintf(f,"{\n");
-  fprintf(f,"  %d,\n",cs->number);
-  fprintf(f,"  MY_CS_COMPILED,\n");
+  fprintf(f,"  %d,%d,%d,\n",cs->number,0,0);
+  fprintf(f,"  MY_CS_COMPILED%s%s,\n",
+          cs->state & MY_CS_BINSORT ? "|MY_CS_BINSORT" : "",
+          cs->state & MY_CS_PRIMARY ? "|MY_CS_PRIMARY" : "");
   
   if (cs->name)
   {
-    fprintf(f,"  \"%s\",\n",cs->name);
     fprintf(f,"  \"%s\",\n",cs->csname);
+    fprintf(f,"  \"%s\",\n",cs->name);
     fprintf(f,"  \"\",\n");
     fprintf(f,"  ctype_%s,\n",cs->name);
     fprintf(f,"  to_lower_%s,\n",cs->name);
     fprintf(f,"  to_upper_%s,\n",cs->name);
-    fprintf(f,"  sort_order_%s,\n",cs->name);
+    if (cs->sort_order)
+      fprintf(f,"  sort_order_%s,\n",cs->name);
+    else
+      fprintf(f,"  NULL,\n");
     fprintf(f,"  to_uni_%s,\n",cs->name);
     fprintf(f,"  from_uni_%s,\n",cs->name);
   }
@@ -205,37 +211,16 @@ void dispcset(FILE *f,CHARSET_INFO *cs)
     fprintf(f,"  NULL,\n");
   }
   
-  fprintf(f,"  %d,\n",cs->strxfrm_multiply);
-  fprintf(f,"  my_strnncoll_simple,\n");
-  fprintf(f,"  my_strnxfrm_simple,\n");
-  fprintf(f,"  my_like_range_simple,\n");
-  fprintf(f,"  my_wild_cmp_8bit,\n");
-  fprintf(f,"  %d,\n",cs->mbmaxlen);
-  fprintf(f,"  NULL,\n");
-  fprintf(f,"  NULL,\n");
-  fprintf(f,"  NULL,\n");
-  fprintf(f,"  my_mb_wc_8bit,\n");
-  fprintf(f,"  my_wc_mb_8bit,\n");
-  fprintf(f,"  my_caseup_str_8bit,\n");
-  fprintf(f,"  my_casedn_str_8bit,\n");
-  fprintf(f,"  my_caseup_8bit,\n");
-  fprintf(f,"  my_casedn_8bit,\n");
-  fprintf(f,"  my_tosort_8bit,\n");
-  fprintf(f,"  my_strcasecmp_8bit,\n");
-  fprintf(f,"  my_strncasecmp_8bit,\n");
-  fprintf(f,"  my_hash_caseup_simple,\n");
-  fprintf(f,"  my_hash_sort_simple,\n");
+  fprintf(f,"  \"\",\n");
+  fprintf(f,"  \"\",\n");
   fprintf(f,"  0,\n");
-  fprintf(f,"  my_snprintf_8bit,\n");
-  fprintf(f,"  my_long10_to_str_8bit,\n");
-  fprintf(f,"  my_longlong10_to_str_8bit,\n");
-  fprintf(f,"  my_fill_8bit,\n");
-  fprintf(f,"  my_strntol_8bit,\n");
-  fprintf(f,"  my_strntoul_8bit,\n");
-  fprintf(f,"  my_strntoll_8bit,\n");
-  fprintf(f,"  my_strntoull_8bit,\n");
-  fprintf(f,"  my_strntod_8bit,\n");
-  fprintf(f,"  my_scan_8bit\n");
+  fprintf(f,"  0,\n");
+  fprintf(f,"  0,\n");
+  fprintf(f,"  &my_charset_8bit_handler,\n");
+  if (cs->state & MY_CS_BINSORT)
+    fprintf(f,"  &my_collation_bin_handler,\n");
+  else
+    fprintf(f,"  &my_collation_8bit_simple_ci_handler,\n");
   fprintf(f,"}\n");
 }
 
@@ -262,9 +247,9 @@ main(int argc, char **argv  __attribute__((unused)))
   
   for (cs=all_charsets; cs < all_charsets+256; cs++)
   {
-    if (cs->number)
+    if (cs->number && !(cs->state & MY_CS_COMPILED))
     {
-      if ( (!simple_cs_is_full(cs)) && (cs->csname) )
+      if ( (!simple_cs_is_full(cs)) && (cs->csname))
       {
         sprintf(filename,"%s/%s.xml",argv[1],cs->csname);
         my_read_charset_file(filename);
@@ -280,7 +265,8 @@ main(int argc, char **argv  __attribute__((unused)))
       print_array(f, cs->name, "ctype",      cs->ctype,      MY_CS_CTYPE_TABLE_SIZE);
       print_array(f, cs->name, "to_lower",   cs->to_lower,   MY_CS_TO_LOWER_TABLE_SIZE);
       print_array(f, cs->name, "to_upper",   cs->to_upper,   MY_CS_TO_UPPER_TABLE_SIZE);
-      print_array(f, cs->name, "sort_order", cs->sort_order, MY_CS_SORT_ORDER_TABLE_SIZE);
+      if (cs->sort_order)
+        print_array(f, cs->name, "sort_order", cs->sort_order, MY_CS_SORT_ORDER_TABLE_SIZE);
       print_array16(f, cs->name, "to_uni",     cs->tab_to_uni, MY_CS_TO_UNI_TABLE_SIZE);
       fprintf(f,"#endif\n");
       fprintf(f,"\n");
