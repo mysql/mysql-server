@@ -246,7 +246,8 @@ typedef struct st_record_cache	/* Used when cacheing records */
 } RECORD_CACHE;
 
 enum file_type { UNOPEN = 0, FILE_BY_OPEN, FILE_BY_CREATE,
-		   STREAM_BY_FOPEN, STREAM_BY_FDOPEN, FILE_BY_MKSTEMP };
+		 STREAM_BY_FOPEN, STREAM_BY_FDOPEN, FILE_BY_MKSTEMP,
+		 FILE_BY_DUP };
 
 extern struct my_file_info
 {
@@ -387,6 +388,7 @@ extern File my_register_filename(File fd, const char *FileName,
 extern File my_create(const char *FileName,int CreateFlags,
 		      int AccsesFlags, myf MyFlags);
 extern int my_close(File Filedes,myf MyFlags);
+extern File my_dup(File file, myf MyFlags);
 extern int my_mkdir(const char *dir, int Flags, myf MyFlags);
 extern int my_readlink(char *to, const char *filename, myf MyFlags);
 extern int my_realpath(char *to, const char *filename, myf MyFlags);
@@ -588,6 +590,7 @@ extern void my_free_lock(byte *ptr,myf flags);
 void init_alloc_root(MEM_ROOT *mem_root, uint block_size, uint pre_alloc_size);
 gptr alloc_root(MEM_ROOT *mem_root,unsigned int Size);
 void free_root(MEM_ROOT *root, myf MyFLAGS);
+void set_prealloc_root(MEM_ROOT *root, char *ptr);
 char *strdup_root(MEM_ROOT *root,const char *str);
 char *memdup_root(MEM_ROOT *root,const char *str,uint len);
 void load_defaults(const char *conf_file, const char **groups,

@@ -219,4 +219,4 @@
 "Wrong usage of %s and %s",
 "The used SELECT statements have a different number of columns",
 "Can't execute the query because you have a conflicting read lock",
-"Mixing transactional and non-transactional tables disabled by option",
+"Mixing of transactional and non-transactional tables is disabled",

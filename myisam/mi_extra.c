@@ -245,12 +245,15 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function)
     }
     break;
   case HA_EXTRA_FORCE_REOPEN:
+  case HA_EXTRA_PREPARE_FOR_DELETE:
     pthread_mutex_lock(&THR_LOCK_myisam);
     share->last_version= 0L;			/* Impossible version */
 #ifdef __WIN__
     /* Close the isam and data files as Win32 can't drop an open table */
     pthread_mutex_lock(&share->intern_lock);
-    if (flush_key_blocks(share->kfile,FLUSH_RELEASE))
+    if (flush_key_blocks(share->kfile,
+			 (function == HA_EXTRA_FORCE_REOPEN ?
+			  FLUSH_RELEASE : FLUSH_IGNORE_CHANGED)))
     {
       error=my_errno;
       share->changed=1;
