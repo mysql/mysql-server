@@ -293,6 +293,14 @@ extern struct my_file_info
 #endif
 } my_file_info[MY_NFILE];
 
+typedef struct st_my_tmpdir
+{
+  char **list;
+  uint cur, max;
+#ifdef THREAD
+  pthread_mutex_t mutex;
+#endif
+} MY_TMPDIR;
 
 typedef struct st_dynamic_array
 {
@@ -581,6 +589,10 @@ extern void allow_break(void);
 #define dont_break()
 #define allow_break()
 #endif
+
+extern my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist);
+extern char *my_tmpdir(MY_TMPDIR *tmpdir);
+extern void free_tmpdir(MY_TMPDIR *tmpdir);
 
 extern void my_remember_signal(int signal_number,sig_handler (*func)(int));
 extern uint dirname_part(my_string to,const char *name);
