@@ -556,6 +556,7 @@ typedef struct st_mysql_methods
 				MYSQL_ROW column, uint field_count);
   MYSQL_RES * (STDCALL *list_fields)(MYSQL *mysql, const char *table,
 				       const char *wild);
+  my_bool (STDCALL *read_prepare_result)(MYSQL *mysql, MYSQL_STMT *stmt);
 } MYSQL_METHODS;
 
 MYSQL_STMT * STDCALL mysql_prepare(MYSQL * mysql, const char *query,

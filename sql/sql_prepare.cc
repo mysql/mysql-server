@@ -142,6 +142,7 @@ void free_prep_stmt(PREP_STMT *stmt, TREE_FREE mode, void *not_used)
   Send prepared stmt info to client after prepare
 */
 
+#ifndef EMBEDDED_LIBRARY
 static bool send_prep_stmt(PREP_STMT *stmt, uint columns)
 {
   NET  *net=&stmt->thd->net;
@@ -150,14 +151,20 @@ static bool send_prep_stmt(PREP_STMT *stmt, uint columns)
   int4store(buff+1, stmt->stmt_id);
   int2store(buff+5, columns);
   int2store(buff+7, stmt->param_count);
-#ifndef EMBEDDED_LIBRARY
   /* This should be fixed to work with prepared statements
    */
   return (my_net_write(net, buff, sizeof(buff)) || net_flush(net));
-#else
-  return true;
-#endif
 }
+#else
+static bool send_prep_stmt(PREP_STMT *stmt, uint columns)
+{
+  MYSQL_STMT *client_stmt= stmt->thd->client_stmt;
+
+  client_stmt->stmt_id= stmt->stmt_id;
+  client_stmt->field_count= columns;
+  client_stmt->param_count= stmt->param_count;
+}
+#endif /*!EMBEDDED_LIBRAYR*/
 
 /*
   Send information about all item parameters
