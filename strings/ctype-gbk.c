@@ -2638,7 +2638,7 @@ static int my_strnncollsp_gbk(CHARSET_INFO * cs __attribute__((unused)),
   if (!res && a_length != b_length)
   {
     const uchar *end;
-    int swap= 0;
+    int swap= 1;
     if (diff_if_only_endspace_difference)
       res= 1;                                   /* Assume 'a' is bigger */
     /*
@@ -2656,7 +2656,7 @@ static int my_strnncollsp_gbk(CHARSET_INFO * cs __attribute__((unused)),
     for (end= a + a_length-length; a < end ; a++)
     {
       if (*a != ' ')
-	return ((int) *a - (int) ' ') ^ swap;
+	return (*a < ' ') ? -swap : swap;
     }
   }
   return res;

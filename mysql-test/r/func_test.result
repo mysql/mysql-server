@@ -183,3 +183,13 @@ select 5.1 mod 3, 5.1 mod -3, -5.1 mod 3, -5.1 mod -3;
 select 5 mod 3, 5 mod -3, -5 mod 3, -5 mod -3;
 5 mod 3	5 mod -3	-5 mod 3	-5 mod -3
 2	2	-2	-2
+create table t1 (a int, b int);
+insert into t1 values (1,2), (2,3), (3,4), (4,5);
+select * from t1 where a not between 1 and 2;
+a	b
+3	4
+4	5
+select * from t1 where a not between 1 and 2 and b not between 3 and 4;
+a	b
+4	5
+drop table t1;

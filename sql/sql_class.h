@@ -408,6 +408,7 @@ struct system_variables
   ulong table_type;
   ulong tmp_table_size;
   ulong tx_isolation;
+  ulong completion_type;
   /* Determines which non-standard SQL behaviour should be enabled */
   ulong sql_mode;
   /* check of key presence in updatable view */
@@ -430,6 +431,11 @@ struct system_variables
   my_bool low_priority_updates;
   my_bool new_mode;
   my_bool query_cache_wlock_invalidate;
+#ifdef HAVE_REPLICATION
+  ulong sync_replication;
+  ulong sync_replication_slave_id;
+  ulong sync_replication_timeout;
+#endif /* HAVE_REPLICATION */
 #ifdef HAVE_INNOBASE_DB
   my_bool innodb_table_locks;
 #endif /* HAVE_INNOBASE_DB */
@@ -1509,6 +1515,7 @@ public:
   select_max_min_finder_subselect(Item_subselect *item, bool mx)
     :select_subselect(item), cache(0), fmax(mx)
   {}
+  void cleanup();
   bool send_data(List<Item> &items);
   bool cmp_real();
   bool cmp_int();

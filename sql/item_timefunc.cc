@@ -1662,6 +1662,7 @@ void Item_func_convert_tz::fix_length_and_dec()
   collation.set(&my_charset_bin);
   decimals= 0;
   max_length= MAX_DATETIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+  maybe_null= 1;
 }
 
 
@@ -1673,12 +1674,6 @@ Item_func_convert_tz::fix_fields(THD *thd_arg, TABLE_LIST *tables_arg, Item **re
     return TRUE;
 
   tz_tables= thd_arg->lex->time_zone_tables_used;
-
-  if (args[1]->const_item())
-    from_tz= my_tz_find(args[1]->val_str(&str), tz_tables);
-
-  if (args[2]->const_item())
-    to_tz= my_tz_find(args[2]->val_str(&str), tz_tables);
 
   return FALSE;
 }
@@ -1719,13 +1714,19 @@ bool Item_func_convert_tz::get_date(TIME *ltime,
   my_time_t my_time_tmp;
   bool not_used;
   String str;
-  
-  if (!args[1]->const_item())
+
+  if (!from_tz_cached)
+  {
     from_tz= my_tz_find(args[1]->val_str(&str), tz_tables);
-  
-  if (!args[2]->const_item())
+    from_tz_cached= args[1]->const_item();
+  }
+
+  if (!to_tz_cached)
+  {
     to_tz= my_tz_find(args[2]->val_str(&str), tz_tables);
-  
+    to_tz_cached= args[2]->const_item();
+  }
+
   if (from_tz==0 || to_tz==0 || get_arg0_date(ltime, TIME_NO_ZERO_DATE))
   {
     null_value= 1;
@@ -1744,6 +1745,13 @@ bool Item_func_convert_tz::get_date(TIME *ltime,
   
   null_value= 0;
   return 0;
+}
+
+
+void Item_func_convert_tz::cleanup()
+{
+  from_tz_cached= to_tz_cached= 0;
+  Item_date_func::cleanup();
 }
 
 

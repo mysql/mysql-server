@@ -36,3 +36,9 @@ hex(a)	STRCMP(a,'a')	STRCMP(a,'a ')
 6109	-1	-1
 61	0	0
 DROP TABLE t1;
+SELECT CHAR(31) = '', '' = CHAR(31);
+CHAR(31) = ''	'' = CHAR(31)
+0	0
+SELECT CHAR(30) = '', '' = CHAR(30);
+CHAR(30) = ''	'' = CHAR(30)
+0	0

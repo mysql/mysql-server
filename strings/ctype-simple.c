@@ -162,7 +162,7 @@ int my_strnncollsp_simple(CHARSET_INFO * cs, const uchar *a, uint a_length,
   res= 0;
   if (a_length != b_length)
   {
-    int swap= 0;
+    int swap= 1;
     if (diff_if_only_endspace_difference)
       res= 1;                                   /* Assume 'a' is bigger */
     /*
@@ -174,13 +174,13 @@ int my_strnncollsp_simple(CHARSET_INFO * cs, const uchar *a, uint a_length,
       /* put shorter key in s */
       a_length= b_length;
       a= b;
-      swap= -1;					/* swap sign of result */
+      swap= -1;                                 /* swap sign of result */
       res= -res;
     }
     for (end= a + a_length-length; a < end ; a++)
     {
       if (*a != ' ')
-	return ((int) *a - (int) ' ') ^ swap;
+	return (*a < ' ') ? -swap : swap;
     }
   }
   return res;
