@@ -33778,6 +33778,12 @@ with a @code{USING} clause that names all columns that exist in both
 tables.
 
 @item
+@cindex hints
+@code{INNER JOIN} and @code{,} (comma) are semantically equivalent.
+Both do a full join between the tables used. Normally, you specify
+how the tables should be linked in the WHERE condition.
+
+@item
 @code{RIGHT JOIN} works analogously as @code{LEFT JOIN}.  To keep code
 portable across databases, it's recommended to use @code{LEFT JOIN}
 instead of @code{RIGHT JOIN}.
