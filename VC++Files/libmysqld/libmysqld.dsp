@@ -87,10 +87,6 @@ LINK32=link.exe
 # Name "libmysqld - Win32 Debug"
 # Begin Source File
 
-SOURCE=..\sql\convert.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=..\sql\derror.cpp
 # End Source File
 # Begin Source File
@@ -233,10 +229,6 @@ SOURCE=..\sql\log_event.cpp
 # Begin Source File
 
 SOURCE=..\sql\mf_iocache.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=..\sql\mini_client.cpp
 # End Source File
 # Begin Source File
 

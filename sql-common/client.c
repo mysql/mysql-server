@@ -1023,7 +1023,7 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
   bzero((char*) field, (uint) sizeof(MYSQL_FIELD)*fields);
 #ifdef MYSQL_SERVER
   unpack_fields_40(data->data, field, alloc, lengths, default_value ? 6 : 5,
-		   default_value, server_capabilities & CLIENT_LONG_FLAG);
+		   default_value, (my_bool)(server_capabilities & CLIENT_LONG_FLAG));
 #else
   if (server_capabilities & CLIENT_PROTOCOL_41)
   {
