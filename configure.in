@@ -454,6 +454,8 @@ fi
 NOINST_LDFLAGS=
 
 static_nss=""
+STATIC_NSS_FLAGS=""
+OTHER_LIBC_LIB=""
 AC_ARG_WITH(other-libc,
  [  --with-other-libc=DIR   Link against libc and other standard libraries 
                           installed in the specified non-standard location 
@@ -479,6 +481,7 @@ AC_ARG_WITH(other-libc,
      # we need special flags, but we will have to add those later
      STATIC_NSS_FLAGS="-Wl,--start-group -lc -lnss_files -lnss_dns -lresolv \
   -Wl,--end-group"
+     OTHER_LIBC_LIB="-L$other_libc_lib"
      static_nss=1
    else
      # this is a dirty hack. We if we detect static nss glibc in the special
