@@ -530,7 +530,7 @@ CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags)
   {
     char index_file[FN_REFLEN];
     strmov(get_charsets_dir(index_file),MY_CHARSET_INDEX);
-    my_error(EE_UNKNOWN_CHARSET, MYF(ME_BELL), cs_name, index_file);
+    my_error(EE_UNKNOWN_COLLATION, MYF(ME_BELL), cs_name, index_file);
   }
 
   return cs;
