@@ -85,7 +85,7 @@ long innobase_mirrored_log_groups, innobase_log_files_in_group,
 char *innobase_data_home_dir, *innobase_data_file_path;
 char *innobase_log_group_home_dir, *innobase_log_arch_dir;
 char *innobase_unix_file_flush_method;
-my_bool innobase_flush_log_at_trx_commit, innobase_log_archive,
+bool innobase_flush_log_at_trx_commit, innobase_log_archive,
   innobase_use_native_aio, innobase_fast_shutdown;
 
 /* innobase_data_file_path=ibdata:15,idata2:1,... */
@@ -2804,6 +2804,16 @@ innobase_drop_database(
 	namebuf[len] = '/';
 	namebuf[len + 1] = '\0';
 	
+#ifdef __WIN__
+	/* Put to lower case */
+
+	ptr = namebuf;
+
+	while (*ptr != '\0') {
+	        *ptr = tolower(*ptr);
+	        ptr++;
+	}
+#endif
 	trx = trx_allocate_for_mysql();
 
   	error = row_drop_database_for_mysql(namebuf, trx);
@@ -2954,7 +2964,6 @@ ha_innobase::records_in_range(
 
     	my_free((char*) key_val_buff2, MYF(0));
 
-   	
 	DBUG_RETURN((ha_rows) n_rows);
 }
 
