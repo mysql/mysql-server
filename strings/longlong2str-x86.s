@@ -132,7 +132,7 @@ longlong2str:
 	.size	 longlong2str,.Lfe3-longlong2str
 
 .globl	longlong10_to_str
-	.type	 longlong10_str,@function
+	.type	 longlong10_to_str,@function
 longlong10_to_str:
 	jmp longlong2str
 
