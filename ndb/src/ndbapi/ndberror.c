@@ -17,6 +17,7 @@
 
 #include <ndb_global.h>
 #include <ndberror.h>
+#include <m_string.h>
 
 typedef struct ErrorBundle {
   int code;
@@ -35,6 +36,7 @@ typedef struct ErrorBundle {
 
 #define NE ndberror_cl_none
 #define AE ndberror_cl_application
+#define CE ndberror_cl_configuration
 #define ND ndberror_cl_no_data_found
 #define CV ndberror_cl_constraint_violation
 #define SE ndberror_cl_schema_error
@@ -53,7 +55,31 @@ typedef struct ErrorBundle {
 #define NI ndberror_cl_function_not_implemented
 #define UE ndberror_cl_unknown_error_code
 
+static const char REDO_BUFFER_MSG[]=
+"REDO log buffers overloaded, consult online manual (increase RedoBuffer, and|or decrease TimeBetweenLocalCheckpoints, and|or increase NoOfFragmentLogFiles)";
+
 static const char* empty_string = "";
+
+/*
+ * Error code ranges are reserved for respective block
+ *
+ *  200 - TC
+ *  300 - DIH
+ *  400 - LQH
+ *  600 - ACC
+ *  700 - DICT
+ *  800 - TUP
+ * 1200 - LQH
+ * 1300 - BACKUP
+ * 4000 - API
+ * 4100 - ""
+ * 4200 - ""
+ * 4300 - ""
+ * 4400 - ""
+ * 4500 - ""
+ * 4600 - ""
+ * 5000 - Management server
+ */
 
 static
 const 
@@ -124,7 +150,8 @@ ErrorBundle ErrorCodes[] = {
   { 217,  TR, "217" },
   { 218,  TR, "218" },
   { 219,  TR, "219" },
-  { 233,  TR, "Out of operation records in transaction coordinator" },
+  { 233,  TR,
+    "Out of operation records in transaction coordinator (increase MaxNoOfConcurrentOperations)" },
   { 275,  TR, "275" },
   { 279,  TR, "Out of transaction markers in transaction coordinator" },
   { 414,  TR, "414" },
@@ -136,9 +163,8 @@ ErrorBundle ErrorCodes[] = {
   { 805,  TR, "Out of attrinfo records in tuple manager" },
   { 830,  TR, "Out of add fragment operation records" },
   { 873,  TR, "Out of attrinfo records for scan in tuple manager" },
-  { 1217, TR, "1217" },
-  { 1219, TR, "Out of operation records in local data manager" },
-  { 1220, TR, "1220" },
+  { 1217, TR, "Out of operation records in local data manager (increase MaxNoOfLocalOperations)" },
+  { 1220, TR, REDO_BUFFER_MSG },
   { 1222, TR, "Out of transaction markers in LQH" },
   { 4021, TR, "Out of Send Buffer space in NDB API" },
   { 4022, TR, "Out of Send Buffer space in NDB API" },
@@ -149,9 +175,10 @@ ErrorBundle ErrorCodes[] = {
    */
   { 623,  IS, "623" },
   { 624,  IS, "624" },
-  { 625,  IS, "Out of memory in Ndb Kernel, index part" },
-  { 826,  IS, "826" },
-  { 827,  IS, "Out of memory in Ndb Kernel, data part" },
+  { 625,  IS, "Out of memory in Ndb Kernel, index part (increase IndexMemory)" },
+  { 800,  IS, "Too many ordered indexes (increase MaxNoOfOrderedIndexes)" },
+  { 826,  IS, "Too many tables and attributes (increase MaxNoOfAttributes or MaxNoOfTables)" },
+  { 827,  IS, "Out of memory in Ndb Kernel, data part (increase DataMemory)" },
   { 832,  IS, "832" },
 
   /**
@@ -163,15 +190,14 @@ ErrorBundle ErrorCodes[] = {
   { 297,  TO, "Time-out in NDB, probably caused by deadlock" }, /* Scan trans timeout, temporary!! */
   { 237,  TO, "Transaction had timed out when trying to commit it" },
   
-
   /**
    * OverloadError
    */
-  { 410,  OL, "Out of log file space temporarily" },
-  { 677,  OL, "Index UNDO buffers overloaded" },
-  { 891,  OL, "Data UNDO buffers overloaded" },
-  { 1221, OL, "REDO log buffers overloaded" },
-  { 4006, OL, "Connect failure - out of connection objects" }, 
+  { 410,  OL, REDO_BUFFER_MSG },
+  { 677,  OL, "Index UNDO buffers overloaded (increase UndoIndexBuffer)" },
+  { 891,  OL, "Data UNDO buffers overloaded (increase UndoDataBuffer)" },
+  { 1221, OL, REDO_BUFFER_MSG },
+  { 4006, OL, "Connect failure - out of connection objects (increase MaxNoOfConcurrentTransactions)" }, 
 
 
   
@@ -238,12 +264,13 @@ ErrorBundle ErrorCodes[] = {
   { 877,  AE, "877" },
   { 878,  AE, "878" },
   { 879,  AE, "879" },
+  { 880,  AE, "Tried to read too much - too many getValue calls" },
   { 884,  AE, "Stack overflow in interpreter" },
   { 885,  AE, "Stack underflow in interpreter" },
   { 886,  AE, "More than 65535 instructions executed in interpreter" },
-  { 4256,  AE, "Must call Ndb::init() before this function" },
-  { 880,  AE, "Tried to read too much - too many getValue calls" },
-  { 4257,  AE, "Tried to read too much - too many getValue calls" },
+  { 897,  AE, "Update attempt of primary key via ndbcluster internal api (if this occurs via the MySQL server it is a bug, please report)" },
+  { 4256, AE, "Must call Ndb::init() before this function" },
+  { 4257, AE, "Tried to read too much - too many getValue calls" },
 
   /** 
    * Scan application errors
@@ -288,7 +315,7 @@ ErrorBundle ErrorCodes[] = {
   { 283,  SE, "Table is being dropped" },
   { 284,  SE, "Table not defined in transaction coordinator" },
   { 285,  SE, "Unknown table error in transaction coordinator" },
-  { 881,  SE, "Unable to create table, out of data pages" },
+  { 881,  SE, "Unable to create table, out of data pages (increase DataMemory) " },
   { 1225, SE, "Table not defined in local query handler" },
   { 1226, SE, "Table is being dropped" },
   { 1228, SE, "Cannot use drop table for drop index" },
@@ -298,6 +325,36 @@ ErrorBundle ErrorCodes[] = {
    * FunctionNotImplemented
    */
   { 4003, NI, "Function not implemented yet" },
+
+  /**
+   * Backup error codes
+   */ 
+
+  { 1300, IE, "Undefined error" },
+  { 1301, IE, "Backup issued to not master (reissue command to master)" },
+  { 1302, IE, "Out of backup record" },
+  { 1303, IS, "Out of resources" },
+  { 1304, IE, "Sequence failure" },
+  { 1305, IE, "Backup definition not implemented" },
+  { 1306, AE, "Backup not supported in diskless mode (change Diskless)" },
+
+  { 1321, IE, "Backup aborted by application" },
+  { 1322, IE, "Backup already completed" },
+  { 1323, IE, "1323" },
+  { 1324, IE, "Backup log buffer full" },
+  { 1325, IE, "File or scan error" },
+  { 1326, IE, "Backup abortet due to node failure" },
+  { 1327, IE, "1327" },
+
+  { 1340, IE, "Backup undefined error" },
+  { 1342, AE, "Backup failed to allocate buffers (check configuration)" },
+  { 1343, AE, "Backup failed to setup fs buffers (check configuration)" },
+  { 1344, AE, "Backup failed to allocate tables (check configuration)" },
+  { 1345, AE, "Backup failed to insert file header (check configuration)" },
+  { 1346, AE, "Backup failed to insert table list (check configuration)" },
+  { 1347, AE, "Backup failed to allocate table memory (check configuration)" },
+  { 1348, AE, "Backup failed to allocate file record (check configuration)" },
+  { 1349, AE, "Backup failed to allocate attribute record (check configuration)" },
 
   /**
    * Still uncategorized
@@ -344,17 +401,11 @@ ErrorBundle ErrorCodes[] = {
   { 4327, AE, "Distribution Group with 1 byte attribute is not allowed" },
   { 4328, AE, "Disk memory attributes not yet supported" },
   { 4329, AE, "Variable stored attributes not yet supported" },
-  { 4330, AE, "Table names limited to 127 bytes" },
-  { 4331, AE, "Attribute names limited to 31 bytes" },
-  { 4332, AE, "Maximum 2000 attributes in a table" },
-  { 4333, AE, "Maximum 4092 bytes long keys allowed" },
-  { 4334, AE, "Attribute properties length limited to 127 bytes" },
 
   { 4400, AE, "Status Error in NdbSchemaCon" },
   { 4401, AE, "Only one schema operation per schema transaction" },
   { 4402, AE, "No schema operation defined before calling execute" },
 
-  { 4500, AE, "Cannot handle more than 2048 tables in NdbApi" },
   { 4501, AE, "Insert in hash table failed when getting table information from Ndb" },
   { 4502, AE, "GetValue not allowed in Update operation" },
   { 4503, AE, "GetValue not allowed in Insert operation" },
@@ -429,7 +480,8 @@ ErrorBundle ErrorCodes[] = {
   { 4267, IE, "Corrupted blob value" },
   { 4268, IE, "Error in blob head update forced rollback of transaction" },
   { 4268, IE, "Unknown blob error" },
-  { 4269, IE, "No connection to ndb management server" }
+  { 4269, IE, "No connection to ndb management server" },
+  { 4335, AE, "Only one autoincrement column allowed per table. Having a table without primary key uses an autoincremented hidden key, i.e. a table without a primary key can not have an autoincremented column" }
 };
 
 static
@@ -468,6 +520,7 @@ const
 ErrorStatusClassification StatusClassificationMapping[] = {
   { ST_S, NE, "No error"},
   { ST_P, AE, "Application error"},
+  { ST_P, CE, "Configuration or application error"},
   { ST_P, ND, "No data found"},
   { ST_P, CV, "Constraint violation"},
   { ST_P, SE, "Schema error"},
@@ -594,10 +647,10 @@ int ndb_error_string(int err_no, char *str, unsigned int size)
   ndberror_update(&error);
 
   len =
-    snprintf(str, size-1, "%s: %s: %s", error.message,
-	     ndberror_status_message(error.status),
-	     ndberror_classification_message(error.classification));
+    my_snprintf(str, size-1, "%s: %s: %s", error.message,
+		ndberror_status_message(error.status),
+		ndberror_classification_message(error.classification));
   str[size-1]= '\0';
-
+  
   return len;
 }

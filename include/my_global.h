@@ -135,7 +135,13 @@
 #ifdef HAVE_UNIXWARE7_THREADS
 #include <thread.h>
 #else
+#if defined(HPUX10) || defined(HPUX11)
+C_MODE_START			/* HPUX needs this, signal.h bug */
+#include <pthread.h>
+C_MODE_END
+#else
 #include <pthread.h>		/* AIX must have this included first */
+#endif
 #endif /* HAVE_UNIXWARE7_THREADS */
 #endif /* HAVE_mit_thread */
 #if !defined(SCO) && !defined(_REENTRANT)
@@ -194,10 +200,10 @@ C_MODE_END
 /* Fix problem when linking c++ programs with gcc 3.x */
 #ifdef DEFINE_CXA_PURE_VIRTUAL
 #define FIX_GCC_LINKING_PROBLEM \
-extern "C" { int __cxa_pure_virtual() {\
+C_MODE_START int __cxa_pure_virtual() {\
   DBUG_ASSERT("Pure virtual method called." == "Aborted");\
   return 0;\
-} }
+} C_MODE_END
 #else
 #define FIX_GCC_LINKING_PROBLEM
 #endif
@@ -370,6 +376,12 @@ int	__void__;
 #define LINT_INIT(var)
 #endif
 
+#if defined(_lint) || defined(FORCE_INIT_OF_VARS) || defined(HAVE_purify)
+#define PURIFY_OR_LINT_INIT(var) var=0
+#else
+#define PURIFY_OR_LINT_INIT(var)
+#endif
+
 /* Define some useful general macros */
 #if defined(__cplusplus) && defined(__GNUC__)
 #define max(a, b)	((a) >? (b))
@@ -524,7 +536,11 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define FN_LEN		256	/* Max file name len */
 #define FN_HEADLEN	253	/* Max length of filepart of file name */
 #define FN_EXTLEN	20	/* Max length of extension (part of FN_LEN) */
+#ifdef PATH_MAX
+#define FN_REFLEN       PATH_MAX/* Max length of full path-name */
+#else
 #define FN_REFLEN	512	/* Max length of full path-name */
+#endif
 #define FN_EXTCHAR	'.'
 #define FN_HOMELIB	'~'	/* ~/ is used as abbrev for home dir */
 #define FN_CURLIB	'.'	/* ./ is used as abbrev for current dir */
@@ -1066,7 +1082,7 @@ do { doubleget_union _tmp; \
 #define float4store(V,M) memcpy_fixed((byte*) V,(byte*) (&M),sizeof(float))
 
 #if defined(__FLOAT_WORD_ORDER) && (__FLOAT_WORD_ORDER == __BIG_ENDIAN)
-#define doublestore(T,V) do { *(T)= ((byte *) &V)[4];\
+#define doublestore(T,V) do { *(((char*)T)+0)=(char) ((byte *) &V)[4];\
                               *(((char*)T)+1)=(char) ((byte *) &V)[5];\
                               *(((char*)T)+2)=(char) ((byte *) &V)[6];\
                               *(((char*)T)+3)=(char) ((byte *) &V)[7];\

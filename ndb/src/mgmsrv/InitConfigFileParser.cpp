@@ -21,6 +21,7 @@
 #include "MgmtErrorReporter.hpp"
 #include <NdbOut.hpp>
 #include "ConfigInfo.hpp"
+#include <m_string.h>
 
 const int MAX_LINE_LENGTH = 1024;  // Max length of line of text in config file
 static void trim(char *);
@@ -213,57 +214,58 @@ InitConfigFileParser::parseConfig(FILE * file) {
 //  Parse Name-Value Pair
 //****************************************************************************
 
-bool InitConfigFileParser::parseNameValuePair(Context& ctx, const char* line) {
-
-  char tmpLine[MAX_LINE_LENGTH];
-  char fname[MAX_LINE_LENGTH], rest[MAX_LINE_LENGTH];
-  char* t;
-  const char *separator_list[]= {":", "=", 0};
-  const char *separator= 0;
-
+bool InitConfigFileParser::parseNameValuePair(Context& ctx, const char* line)
+{
   if (ctx.m_currentSection == NULL){
     ctx.reportError("Value specified outside section");
     return false;
   }
 
-  strncpy(tmpLine, line, MAX_LINE_LENGTH);
-
   // *************************************
-  //  Check if a separator exists in line 
+  //  Split string at first occurrence of 
+  //  '=' or ':'
   // *************************************
-  for(int i= 0; separator_list[i] != 0; i++) {
-    if(strchr(tmpLine, separator_list[i][0])) {
-      separator= separator_list[i];
-      break;
-    }
-  }
 
-  if (separator == 0) {
+  Vector<BaseString> tmp_string_split;
+  if (BaseString(line).split(tmp_string_split,
+			     "=:", 2) != 2)
+  {
     ctx.reportError("Parse error");
     return false;
   }
 
-  // *******************************************
-  //  Get pointer to substring before separator
-  // *******************************************
-  t = strtok(tmpLine, separator);
+  // *************************************
+  //  Remove all after #
+  // *************************************
 
-  // *****************************************
-  //  Count number of tokens before separator
-  // *****************************************
-  if (sscanf(t, "%120s%120s", fname, rest) != 1) {
-    ctx.reportError("Multiple names before \'%c\'", separator[0]);
-    return false;
+  Vector<BaseString> tmp_string_split2;
+  tmp_string_split[1].split(tmp_string_split2,
+			    "#", 2);
+  tmp_string_split[1]=tmp_string_split2[0];
+
+  // *************************************
+  // Remove leading and trailing chars
+  // *************************************
+  {
+    for (int i = 0; i < 2; i++)
+      tmp_string_split[i].trim("\r\n \t"); 
   }
+
+  // *************************************
+  // First in split is fname
+  // *************************************
+
+  const char *fname= tmp_string_split[0].c_str();
+
   if (!ctx.m_currentInfo->contains(fname)) {
     ctx.reportError("[%s] Unknown parameter: %s", ctx.fname, fname);
     return false;
   }
   ConfigInfo::Status status = m_info->getStatus(ctx.m_currentInfo, fname);
-  if (status == ConfigInfo::NOTIMPLEMENTED) {
+  if (status == ConfigInfo::CI_NOTIMPLEMENTED) {
     ctx.reportWarning("[%s] %s not yet implemented", ctx.fname, fname);
   }
-  if (status == ConfigInfo::DEPRICATED) {
+  if (status == ConfigInfo::CI_DEPRICATED) {
     const char * desc = m_info->getDescription(ctx.m_currentInfo, fname);
     if(desc){
       ctx.reportWarning("[%s] %s is depricated, use %s instead", 
@@ -273,24 +275,11 @@ bool InitConfigFileParser::parseNameValuePair(Context& ctx, const char* line) {
     } 
   }
 
-  // ******************************************
-  //  Get pointer to substring after separator 
-  // ******************************************
-  t = strtok(NULL, "\0");
-  if (t == NULL) {
-    ctx.reportError("No value for parameter");
-    return false;
-  }
-
-  // ******************************************
-  //  Remove prefix and postfix spaces and tabs
-  // *******************************************
-  trim(t);
-
   // ***********************
   //  Store name-value pair
   // ***********************
-  return storeNameValuePair(ctx, fname, t);
+
+  return storeNameValuePair(ctx, fname, tmp_string_split[1].c_str());
 }
 
 
@@ -316,7 +305,7 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
 
   const ConfigInfo::Type type = m_info->getType(ctx.m_currentInfo, fname);
   switch(type){
-  case ConfigInfo::BOOL: {
+  case ConfigInfo::CI_BOOL: {
     bool value_bool;
     if (!convertStringToBool(value, value_bool)) {
       ctx.reportError("Illegal boolean value for parameter %s", fname);
@@ -325,8 +314,8 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
     MGM_REQUIRE(ctx.m_currentSection->put(pname, value_bool));
     break;
   }
-  case ConfigInfo::INT:
-  case ConfigInfo::INT64:{
+  case ConfigInfo::CI_INT:
+  case ConfigInfo::CI_INT64:{
     Uint64 value_int;
     if (!convertStringToUint64(value, value_int)) {
       ctx.reportError("Illegal integer value for parameter %s", fname);
@@ -339,17 +328,17 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
 		      m_info->getMax(ctx.m_currentInfo, fname));
       return false;
     }
-    if(type == ConfigInfo::INT){
+    if(type == ConfigInfo::CI_INT){
       MGM_REQUIRE(ctx.m_currentSection->put(pname, (Uint32)value_int));
     } else {
       MGM_REQUIRE(ctx.m_currentSection->put64(pname, value_int));
     }
     break;
   }
-  case ConfigInfo::STRING:
+  case ConfigInfo::CI_STRING:
     MGM_REQUIRE(ctx.m_currentSection->put(pname, value));
     break;
-  case ConfigInfo::SECTION:
+  case ConfigInfo::CI_SECTION:
     abort();
   }
   return true;
@@ -385,7 +374,7 @@ bool InitConfigFileParser::convertStringToUint64(const char* s,
 
   errno = 0;
   char* p;
-  long long v = strtoll(s, &p, log10base);
+  Int64 v = strtoll(s, &p, log10base);
   if (errno != 0)
     return false;
   

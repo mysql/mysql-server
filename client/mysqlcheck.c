@@ -81,8 +81,13 @@ static struct my_option my_long_options[] =
    "To check several databases. Note the difference in usage; In this case no tables are given. All name arguments are regarded as databasenames.",
    (gptr*) &opt_databases, (gptr*) &opt_databases, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
+#ifdef DBUG_OFF
+  {"debug", '#', "This is a non-debug version. Catch this and exit.",
+   0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#else
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"default-character-set", OPT_DEFAULT_CHARSET,
    "Set the default character set.", (gptr*) &default_charset,
    (gptr*) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -190,7 +195,7 @@ static void usage(void)
   puts("and you are welcome to modify and redistribute it under the GPL license.\n");
   puts("This program can be used to CHECK (-c,-m,-C), REPAIR (-r), ANALYZE (-a)");
   puts("or OPTIMIZE (-o) tables. Some of the options (like -e or -q) can be");
-  puts("used at the same time. It works on MyISAM and in some cases on BDB tables.");
+  puts("used at the same time. Not all options are supported by all storage engines.");
   puts("Please consult the MySQL manual for latest information about the");
   puts("above. The options -c,-r,-a and -o are exclusive to each other, which");
   puts("means that the last option will be used, if several was specified.\n");

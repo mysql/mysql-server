@@ -50,7 +50,9 @@ Ndb(const char* aDataBase);
 Parameters:    aDataBase : Name of the database.
 Remark:        Connect to the database.
 ***************************************************************************/
-Ndb::Ndb( const char* aDataBase , const char* aSchema) {
+Ndb::Ndb( const char* aDataBase , const char* aSchema)
+  : theImpl(NULL)
+{
   DBUG_ENTER("Ndb::Ndb()");
   DBUG_PRINT("enter",("(old)Ndb::Ndb this=0x%x", this));
   if (theNoOfNdbObjects < 0)
@@ -58,7 +60,7 @@ Ndb::Ndb( const char* aDataBase , const char* aSchema) {
   theNoOfNdbObjects++;
   if (global_ndb_cluster_connection == 0) {
     global_ndb_cluster_connection= new Ndb_cluster_connection(ndbConnectString);
-    global_ndb_cluster_connection->connect();
+    global_ndb_cluster_connection->connect(12,5,1);
   }
   setup(global_ndb_cluster_connection, aDataBase, aSchema);
   DBUG_VOID_RETURN;
@@ -66,6 +68,7 @@ Ndb::Ndb( const char* aDataBase , const char* aSchema) {
 
 Ndb::Ndb( Ndb_cluster_connection *ndb_cluster_connection,
 	  const char* aDataBase , const char* aSchema)
+  : theImpl(NULL)
 {
   DBUG_ENTER("Ndb::Ndb()");
   DBUG_PRINT("enter",("Ndb::Ndb this=0x%x", this));
@@ -82,8 +85,10 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
 {
   DBUG_ENTER("Ndb::setup");
 
-  theNdbObjectIdMap= 0;
-  m_ndb_cluster_connection= ndb_cluster_connection;
+  assert(theImpl == NULL);
+  theImpl= new NdbImpl(ndb_cluster_connection,*this);
+  theDictionary= &(theImpl->m_dictionary);
+
   thePreparedTransactionsArray= NULL;
   theSentTransactionsArray= NULL;
   theCompletedTransactionsArray= NULL;
@@ -94,8 +99,6 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
   theMaxNoOfTransactions= 0;
   theMinNoOfEventsToWakeUp= 0;
   prefixEnd= NULL;
-  theImpl= NULL;
-  theDictionary= NULL;
   theConIdleList= NULL;
   theOpIdleList= NULL;
   theScanOpIdleList= NULL;
@@ -110,9 +113,6 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
   theCallList= NULL;
   theScanList= NULL;
   theNdbBlobIdleList= NULL;
-  theNoOfDBnodes= 0;
-  theDBnodes= NULL;
-  the_release_ind= NULL;
   the_last_check_time= 0;
   theFirstTransId= 0;
   theRestartGCI= 0;
@@ -134,19 +134,12 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
 
   theError.code = 0;
 
-  theNdbObjectIdMap  = new NdbObjectIdMap(1024,1024);
   theConnectionArray = new NdbConnection * [MAX_NDB_NODES];
-  theDBnodes         = new Uint32[MAX_NDB_NODES];
-  the_release_ind    = new Uint8[MAX_NDB_NODES];
   theCommitAckSignal = NULL;
   
-  theCurrentConnectCounter = 1;
-  theCurrentConnectIndex = 0;
   int i;
   for (i = 0; i < MAX_NDB_NODES ; i++) {
     theConnectionArray[i] = NULL;
-    the_release_ind[i] = 0;
-    theDBnodes[i] = 0;
   }//forg
   for (i = 0; i < 2048 ; i++) {
     theFirstTupleId[i] = 0;
@@ -164,13 +157,11 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
   prefixEnd = prefixName + (len < (int) sizeof(prefixName) ? len : 
                             sizeof(prefixName) - 1);
 
-  theWaiter.m_mutex =  TransporterFacade::instance()->theMutexPtr;
+  theImpl->theWaiter.m_mutex =  TransporterFacade::instance()->theMutexPtr;
 
   // Signal that the constructor has finished OK
   if (theInitState == NotConstructed)
     theInitState = NotInitialised;
-
-  theImpl = new NdbImpl();
 
   {
     NdbGlobalEventBufferHandle *h=
@@ -182,11 +173,6 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
     theGlobalEventBufferHandle = h;
   }
 
-  theDictionary = new NdbDictionaryImpl(*this);
-  if (theDictionary == NULL) {
-    ndbout_c("Ndb cailed to allocate dictionary");
-    exit(-1);
-  }
   DBUG_VOID_RETURN;
 }
 
@@ -212,23 +198,12 @@ Ndb::~Ndb()
   DBUG_PRINT("enter",("Ndb::~Ndb this=0x%x",this));
   doDisconnect();
 
-  delete theDictionary;  
-  delete theImpl;
-
   NdbGlobalEventBuffer_drop(theGlobalEventBufferHandle);
 
   if (TransporterFacade::instance() != NULL && theNdbBlockNumber > 0){
     TransporterFacade::instance()->close(theNdbBlockNumber, theFirstTransId);
   }
   
-  if (global_ndb_cluster_connection != 0) {
-    theNoOfNdbObjects--;
-    if(theNoOfNdbObjects == 0){
-      delete global_ndb_cluster_connection;
-      global_ndb_cluster_connection= 0;
-    }
-  }//if
-
 //  if (theSchemaConToNdbList != NULL)
 //    closeSchemaTransaction(theSchemaConToNdbList);
   while ( theConIdleList != NULL )
@@ -257,18 +232,27 @@ Ndb::~Ndb()
     freeSignal();
   
   releaseTransactionArrays();
-  startTransactionNodeSelectionData.release();
 
   delete []theConnectionArray;
-  delete []theDBnodes;
-  delete []the_release_ind;
   if(theCommitAckSignal != NULL){
     delete theCommitAckSignal; 
     theCommitAckSignal = NULL;
   }
 
-  if(theNdbObjectIdMap != 0)
-    delete theNdbObjectIdMap;
+  delete theImpl;
+
+  /**
+   * This needs to be put after delete theImpl
+   *  as TransporterFacade::instance is delete by global_ndb_cluster_connection
+   *  and used by theImpl
+   */
+  if (global_ndb_cluster_connection != 0) {
+    theNoOfNdbObjects--;
+    if(theNoOfNdbObjects == 0){
+      delete global_ndb_cluster_connection;
+      global_ndb_cluster_connection= 0;
+    }
+  }//if
 
   /** 
    *  This sleep is to make sure that the transporter 
@@ -307,4 +291,23 @@ NdbWaiter::~NdbWaiter(){
   NdbCondition_Destroy(m_condition);
 }
 
+NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
+		 Ndb& ndb)
+  : m_ndb_cluster_connection(ndb_cluster_connection->m_impl),
+    m_dictionary(ndb),
+    theCurrentConnectIndex(0),
+    theNdbObjectIdMap(1024,1024),
+    theNoOfDBnodes(0)
+{
+  int i;
+  for (i = 0; i < MAX_NDB_NODES; i++) {
+    the_release_ind[i] = 0;
+  }
+  m_optimized_node_selection=
+    m_ndb_cluster_connection.m_optimized_node_selection;
+}
+
+NdbImpl::~NdbImpl()
+{
+}
 

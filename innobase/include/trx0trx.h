@@ -378,6 +378,19 @@ struct trx_struct{
 					replication slave, this is the
 					position in the log file up to which
 					replication has processed */
+	/* A MySQL variable mysql_thd->synchronous_repl tells if we have
+	to use synchronous replication. See ha_innodb.cc. */
+	char*		repl_wait_binlog_name;/* NULL, or if synchronous MySQL
+					replication is used, the binlog name
+					up to which we must communicate the
+					binlog to the slave, before returning
+					from a commit; this is the same as
+					mysql_log_file_name, but we allocate
+					and copy the name to a separate buffer
+					here */
+	ib_longlong	repl_wait_binlog_pos;/* see above at
+					repl_wait_binlog_name */
+
 	os_thread_id_t	mysql_thread_id;/* id of the MySQL thread associated
 					with this transaction object */
 	ulint		mysql_process_no;/* since in Linux, 'top' reports

@@ -554,7 +554,7 @@ aa
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(20) NOT NULL default ''
+  `a` binary(20) NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT 12 as a UNION select 12.2 as a;
@@ -872,6 +872,22 @@ count(*)
 show status like 'Slow_queries';
 Variable_name	Value
 Slow_queries	3
+flush status;
+select a from t1 where b not in (1,2,3) union select a from t1 where b not in (4,5,6);
+a
+4
+5
+3
+6
+7
+8
+9
+10
+1
+2
+show status like 'Slow_queries';
+Variable_name	Value
+Slow_queries	1
 drop table t1;
 create table t1 (   RID int(11) not null default '0',   IID int(11) not null default '0',    nada varchar(50)  not null,NAME varchar(50) not null,PHONE varchar(50) not null) engine=MyISAM;
 insert into t1 ( RID,IID,nada,NAME,PHONE) values (1, 1, 'main', 'a', '111'), (2, 1, 'main', 'b', '222'), (3, 1, 'main', 'c', '333'), (4, 1, 'main', 'd', '444'), (5, 1, 'main', 'e', '555'), (6, 2, 'main', 'c', '333'), (7, 2, 'main', 'd', '454'), (8, 2, 'main', 'e', '555'), (9, 2, 'main', 'f', '666'), (10, 2, 'main', 'g', '777');
@@ -1110,4 +1126,72 @@ t1	CREATE TABLE `t1` (
   `a` char(1) character set latin1 collate latin1_german1_ci default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+create table t1 as
+(select a from t2) union
+(select b from t2) union
+(select 'c' collate latin1_german1_ci from t2);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(1) character set latin1 collate latin1_german1_ci default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
 drop table t2;
+create table t1(a1 int, f1 char(10));
+create table t2
+select f2,a1 from (select a1, CAST('2004-12-31' AS DATE) f2 from t1) a
+union
+select f2,a1 from (select a1, CAST('2004-12-31' AS DATE) f2 from t1) a
+order by f2, a1;
+show columns from t2;
+Field	Type	Null	Key	Default	Extra
+f2	date	YES		NULL	
+a1	int(11)	YES		NULL	
+drop table t1, t2;
+create table t1 (f1 int);
+create table t2 (f1 int, f2 int ,f3 date);
+create table t3 (f1 int, f2 char(10));
+create table t4
+(
+select t2.f3 as sdate
+from t1
+left outer join t2 on (t1.f1 = t2.f1)
+inner join t3 on (t2.f2 = t3.f1)
+order by t1.f1, t3.f1, t2.f3
+)
+union
+(
+select cast('2004-12-31' as date) as sdate
+from t1
+left outer join t2 on (t1.f1 = t2.f1)
+inner join t3 on (t2.f2 = t3.f1)
+group by t1.f1
+order by t1.f1, t3.f1, t2.f3
+)
+order by sdate;
+show columns from t4;
+Field	Type	Null	Key	Default	Extra
+sdate	date	YES		NULL	
+drop table t1, t2, t3, t4;
+create table t1 (a int not null, b char (10) not null);
+insert into t1 values(1,'a'),(2,'b'),(3,'c'),(3,'c');
+select * from ((select * from t1 limit 1)) a;
+a	b
+1	a
+select * from ((select * from t1 limit 1) union (select * from t1 limit 1)) a;
+a	b
+1	a
+select * from ((select * from t1 limit 1) union (select * from t1 limit 1) union (select * from t1 limit 1)) a;
+a	b
+1	a
+select * from ((((select * from t1))) union (select * from t1) union (select * from t1)) a;
+a	b
+1	a
+2	b
+3	c
+select * from ((select * from t1) union (((select * from t1))) union (select * from t1)) a;
+a	b
+1	a
+2	b
+3	c
+drop table t1;

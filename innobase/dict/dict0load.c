@@ -19,7 +19,9 @@ Created 4/24/1996 Heikki Tuuri
 #include "mach0data.h"
 #include "dict0dict.h"
 #include "dict0boot.h"
+#include "rem0cmp.h"
 #include "srv0start.h"
+#include "srv0srv.h"
 
 /************************************************************************
 Finds the first table name in the given database. */
@@ -123,6 +125,13 @@ dict_print(void)
 	ulint		len;
 	mtr_t		mtr;
 	
+	/* Enlarge the fatal semaphore wait timeout during the InnoDB table
+	monitor printout */
+
+	mutex_enter(&kernel_mutex);
+	srv_fatal_semaphore_wait_threshold += 7200; /* 2 hours */
+	mutex_exit(&kernel_mutex);
+
 	mutex_enter(&(dict_sys->mutex));
 
 	mtr_start(&mtr);
@@ -144,6 +153,12 @@ loop:
 		mtr_commit(&mtr);
 		
 		mutex_exit(&(dict_sys->mutex));
+
+		/* Restore the fatal semaphore wait timeout */
+
+		mutex_enter(&kernel_mutex);
+		srv_fatal_semaphore_wait_threshold -= 7200; /* 2 hours */
+		mutex_exit(&kernel_mutex);
 
 		return;
 	}	
@@ -190,12 +205,14 @@ loop:
 In a crash recovery we already have all the tablespace objects created.
 This function compares the space id information in the InnoDB data dictionary
 to what we already read with fil_load_single_table_tablespaces().
-In a normal startup we just scan the biggest space id, and store it to
-fil_system. */
+
+In a normal startup, we create the tablespace objects for every table in
+InnoDB's data dictionary, if the corresponding .ibd file exists.
+We also scan the biggest space id, and store it to fil_system. */
 
 void
-dict_check_tablespaces_or_store_max_id(
-/*===================================*/
+dict_check_tablespaces_and_store_max_id(
+/*====================================*/
 	ibool	in_crash_recovery)	/* in: are we doing a crash recovery */
 {
 	dict_table_t*	sys_tables;
@@ -263,6 +280,14 @@ loop:
 			
 			fil_space_for_table_exists_in_mem(space_id, name,
 							FALSE, TRUE, TRUE);
+		}
+
+		if (space_id != 0 && !in_crash_recovery) {
+			/* It is a normal database startup: create the space
+			object and check that the .ibd file exists. */
+
+			fil_open_single_table_tablespace(FALSE, space_id,
+									name);
 		}
 
 		mem_free(name);
@@ -704,6 +729,7 @@ dict_load_table(
 	ulint		space;
 	ulint		n_cols;
 	ulint		err;
+	ulint		mix_len;
 	mtr_t		mtr;
 	
 #ifdef UNIV_SYNC_DEBUG
@@ -750,6 +776,38 @@ dict_load_table(
 		return(NULL);
 	}
 
+	/* Track a corruption bug reported on the MySQL mailing list Jan 14,
+	2005: mix_len had a value different from 0 */
+
+	field = rec_get_nth_field(rec, 7, &len);
+	ut_a(len == 4);
+
+	mix_len = mach_read_from_4(field);
+
+	if (mix_len != 0 && mix_len != 0x80000000) {
+		ut_print_timestamp(stderr);
+		
+		fprintf(stderr,
+			"  InnoDB: table %s has a nonsensical mix len %lu\n",
+			name, (ulong)mix_len);
+	}
+
+#if MYSQL_VERSION_ID < 50300
+	/* Starting from MySQL 5.0.3, the high-order bit of MIX_LEN is the
+	"compact format" flag. */
+	field = rec_get_nth_field(rec, 7, &len);
+	if (mach_read_from_1(field) & 0x80) {
+		btr_pcur_close(&pcur);
+		mtr_commit(&mtr);
+		mem_heap_free(heap);
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: table %s is in the new compact format\n"
+			"InnoDB: of MySQL 5.0.3 or later\n", name);
+		return(NULL);
+	}
+#endif /* MYSQL_VERSION_ID < 50300 */
+
 	ut_a(0 == ut_strcmp("SPACE",
 		dict_field_get_col(
 		dict_index_get_nth_field(
@@ -765,8 +823,18 @@ dict_load_table(
 			/* Ok; (if we did a crash recovery then the tablespace
 			can already be in the memory cache) */
 		} else {
+			/* In >= 4.1.9, InnoDB scans the data dictionary also
+			at a normal mysqld startup. It is an error if the
+			space object does not exist in memory. */
+
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+"  InnoDB: error: space object of table %s,\n"
+"InnoDB: space id %lu did not exist in memory. Retrying an open.\n",
+							name, (ulong)space);
 			/* Try to open the tablespace */
-			if (!fil_open_single_table_tablespace(space, name)) {
+			if (!fil_open_single_table_tablespace(TRUE,
+							space, name)) {
 				/* We failed to find a sensible tablespace
 				file */
 
@@ -1242,11 +1310,25 @@ loop:
 	rec = btr_pcur_get_rec(&pcur);
 	field = rec_get_nth_field(rec, 0, &len);
 
-	/* Check if the table name in record is the one searched for */
-	if (len != ut_strlen(table_name)
-	    || 0 != ut_memcmp(field, table_name, len)) {
+	/* Check if the table name in the record is the one searched for; the
+	following call does the comparison in the latin1_swedish_ci
+	charset-collation, in a case-insensitive way. */
 
+	if (0 != cmp_data_data(dfield_get_type(dfield),
+			dfield_get_data(dfield), dfield_get_len(dfield),
+			field, len)) {
+		
 		goto load_next_index;
+	}
+
+	/* Since table names in SYS_FOREIGN are stored in a case-insensitive
+	order, we have to check that the table name matches also in a binary
+	string comparison. On Unix, MySQL allows table names that only differ
+	in character case. */
+
+	if (0 != ut_memcmp(field, table_name, len)) {
+
+		goto next_rec;
 	}
 		
 	if (rec_get_deleted_flag(rec)) {

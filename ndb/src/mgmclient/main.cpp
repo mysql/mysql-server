@@ -15,19 +15,32 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
+#include <ndb_opts.h>
+
+// copied from mysql.cc to get readline
+extern "C" {
+#if defined( __WIN__) || defined(OS2)
+#include <conio.h>
+#elif !defined(__NETWARE__)
+#include <readline/readline.h>
+extern "C" int add_history(const char *command); /* From readline directory */
+#define HAVE_READLINE
+#endif
+}
 
 #include <NdbMain.h>
 #include <NdbHost.h>
-#include <util/getarg.h>
+#include <BaseString.hpp>
+#include <NdbOut.hpp>
 #include <mgmapi.h>
-#include <LocalConfig.hpp>
+#include <ndb_version.h>
 
-#include "CommandInterpreter.hpp"
+#include "ndb_mgmclient.hpp"
 
 const char *progname = "ndb_mgm";
 
 
-static CommandInterpreter* com;
+static Ndb_mgmclient* com;
 
 extern "C"
 void 
@@ -43,59 +56,117 @@ handler(int sig){
   }
 }
 
-int main(int argc, const char** argv){
-  ndb_init();
-  int optind = 0;
+NDB_STD_OPTS_VARS;
+
+static const char default_prompt[]= "ndb_mgm> ";
+static unsigned _try_reconnect;
+static const char *prompt= default_prompt;
+static char *opt_execute_str= 0;
+
+static struct my_option my_long_options[] =
+{
+  NDB_STD_OPTS("ndb_mgm"),
+  { "execute", 'e',
+    "execute command and exit", 
+    (gptr*) &opt_execute_str, (gptr*) &opt_execute_str, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "try-reconnect", 't',
+    "Specify number of tries for connecting to ndb_mgmd (0 = infinite)", 
+    (gptr*) &_try_reconnect, (gptr*) &_try_reconnect, 0,
+    GET_UINT, REQUIRED_ARG, 3, 0, 0, 0, 0, 0 },
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+static void short_usage_sub(void)
+{
+  printf("Usage: %s [OPTIONS] [hostname [port]]\n", my_progname);
+}
+static void usage()
+{
+  short_usage_sub();
+  ndb_std_print_version();
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
+}
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument)
+{
+  return ndb_std_get_one_option(optid, opt, argument ? argument :
+				"d:t:O,/tmp/ndb_mgm.trace");
+}
+
+static int 
+read_and_execute(int _try_reconnect) 
+{
+  static char *line_read = (char *)NULL;
+
+  /* If the buffer has already been allocated, return the memory
+     to the free pool. */
+  if (line_read)
+  {
+    free (line_read);
+    line_read = (char *)NULL;
+  }
+#ifdef HAVE_READLINE
+  /* Get a line from the user. */
+  line_read = readline (prompt);    
+  /* If the line has any text in it, save it on the history. */
+  if (line_read && *line_read)
+    add_history (line_read);
+#else
+  static char linebuffer[254];
+  fputs(prompt, stdout);
+  linebuffer[sizeof(linebuffer)-1]=0;
+  line_read = fgets(linebuffer, sizeof(linebuffer)-1, stdin);
+  if (line_read == linebuffer) {
+    char *q=linebuffer;
+    while (*q > 31) q++;
+    *q=0;
+    line_read= strdup(linebuffer);
+  }
+#endif
+  return com->execute(line_read,_try_reconnect);
+}
+
+int main(int argc, char** argv){
+  NDB_INIT(argv[0]);
   const char *_host = 0;
   int _port = 0;
-  int _help = 0;
-  int _try_reconnect = 0;
-  
-  struct getargs args[] = {
-    { "try-reconnect", 't', arg_integer, &_try_reconnect, "Specify number of retries for connecting to ndb_mgmd, default infinite", "#" },
-    { "usage", '?', arg_flag, &_help, "Print help", "" },
-  };
-  int num_args = sizeof(args) / sizeof(args[0]); /* Number of arguments */
-  
-  
-  if(getarg(args, num_args, argc, argv, &optind) || _help) {
-    arg_printusage(args, num_args, progname, "[host [port]]");
-    exit(1);
-  }
+  const char *load_default_groups[]= { "mysql_cluster","ndb_mgm",0 };
 
-  argv += optind;
-  argc -= optind;
+  load_defaults("my",load_default_groups,&argc,&argv);
+  int ho_error;
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+    exit(ho_error);
 
-  LocalConfig cfg;
-
-  if(argc >= 1) {
-    _host = argv[0];
-    if(argc >= 2) {
-      _port = atoi(argv[1]);
-    }
-  } else {
-    if(cfg.init(0, 0) && cfg.ids.size() > 0 && cfg.ids[0].type == MgmId_TCP){
-      _host = cfg.ids[0].name.c_str();
-      _port = cfg.ids[0].port;
-    } else {
-      cfg.printError();
-      cfg.printUsage();
-      return 1;
-    }
-  }
-  
   char buf[MAXHOSTNAMELEN+10];
-  BaseString::snprintf(buf, sizeof(buf), "%s:%d", _host, _port);
+  if(argc == 1) {
+    BaseString::snprintf(buf, sizeof(buf), "%s",  argv[0]);
+    opt_connect_str= buf;
+  } else if (argc >= 2) {
+    BaseString::snprintf(buf, sizeof(buf), "%s:%s",  argv[0], argv[1]);
+    opt_connect_str= buf;
+  }
 
-  ndbout << "-- NDB Cluster -- Management Client --" << endl;
-  printf("Connecting to Management Server: %s\n", buf);
+  if (!isatty(0) || opt_execute_str)
+  {
+    prompt= 0;
+  }
 
   signal(SIGPIPE, handler);
-
-  com = new CommandInterpreter(buf);
-  while(com->readAndExecute(_try_reconnect));
+  com = new Ndb_mgmclient(opt_connect_str,1);
+  int ret= 0;
+  if (!opt_execute_str)
+  {
+    ndbout << "-- NDB Cluster -- Management Client --" << endl;
+    while(read_and_execute(_try_reconnect));
+  }
+  else
+  {
+    com->execute(opt_execute_str,_try_reconnect, &ret);
+  }
   delete com;
   
-  return 0;
+  return ret;
 }
 

@@ -124,3 +124,5 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select degrees(pi()) AS `degrees(pi())`,radians(360) AS `radians(360)`
+select rand(rand);
+ERROR 42S22: Unknown column 'rand' in 'field list'

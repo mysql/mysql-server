@@ -47,8 +47,8 @@ public:
 			NodeId nodeid = 0,
 			Uint32 timeout = DEFAULT_TIMEOUT);
   template<class T> bool waitFor(Vector<T> &t,
-				 T *&handler,
-				 NdbApiSignal *&signal,
+				 T **handler,
+				 NdbApiSignal **signal,
 				 Uint32 timeout = DEFAULT_TIMEOUT);
 private:
   NdbMutex *m_mutex; /* Locks all data in SignalQueue */
@@ -75,8 +75,8 @@ private:
 
 template<class T> bool
 SignalQueue::waitFor(Vector<T> &t,
-		     T *&handler,
-		     NdbApiSignal *&signal,
+		     T **handler,
+		     NdbApiSignal **signal,
 		     Uint32 timeout) {
   Guard g(m_mutex);
 
@@ -88,8 +88,8 @@ SignalQueue::waitFor(Vector<T> &t,
 
   for(size_t i = 0; i < t.size(); i++) {
     if(t[i].check(m_signalQueueHead->signal)) {
-      handler = &t[i];
-      signal = pop();
+      * handler = &t[i];
+      * signal = pop();
       return true;
     }
   }

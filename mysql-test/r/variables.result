@@ -115,13 +115,13 @@ set global concurrent_insert=DEFAULT;
 show variables like 'concurrent_insert';
 Variable_name	Value
 concurrent_insert	ON
-set storage_engine=MYISAM, storage_engine="HEAP", global storage_engine="INNODB";
+set storage_engine=MYISAM, storage_engine="HEAP", global storage_engine="MERGE";
 show local variables like 'storage_engine';
 Variable_name	Value
 storage_engine	HEAP
 show global variables like 'storage_engine';
 Variable_name	Value
-storage_engine	InnoDB
+storage_engine	MERGE
 set GLOBAL query_cache_size=100000;
 set GLOBAL myisam_max_sort_file_size=2000000;
 show global variables like 'myisam_max_sort_file_size';
@@ -220,7 +220,7 @@ set max_join_size="hello";
 ERROR 42000: Incorrect argument type to variable 'max_join_size'
 set storage_engine=UNKNOWN_TABLE_TYPE;
 ERROR 42000: Unknown table engine 'UNKNOWN_TABLE_TYPE'
-set storage_engine=INNODB, big_tables=2;
+set storage_engine=MERGE, big_tables=2;
 ERROR 42000: Variable 'big_tables' can't be set to the value of '2'
 show local variables like 'storage_engine';
 Variable_name	Value
@@ -478,3 +478,12 @@ t1	CREATE TABLE `t1` (
   `c3` longtext
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+SET GLOBAL MYISAM_DATA_POINTER_SIZE= 8;
+SHOW VARIABLES LIKE 'MYISAM_DATA_POINTER_SIZE';
+Variable_name	Value
+myisam_data_pointer_size	8
+SET GLOBAL table_cache=-1;
+SHOW VARIABLES LIKE 'table_cache';
+Variable_name	Value
+table_cache	1
+SET GLOBAL table_cache=DEFAULT;

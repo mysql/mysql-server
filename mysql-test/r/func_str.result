@@ -201,6 +201,9 @@ hex(unhex("1"))	hex(unhex("12"))	hex(unhex("123"))	hex(unhex("1234"))	hex(unhex(
 select length(unhex(md5("abrakadabra")));
 length(unhex(md5("abrakadabra")))
 16
+select concat('a', quote(NULL));
+concat('a', quote(NULL))
+aNULL
 select reverse("");
 reverse("")
 
@@ -312,7 +315,7 @@ insert into t1 values ('one'),(NULL),('two'),('four');
 select a, quote(a), isnull(quote(a)), quote(a) is null, ifnull(quote(a), 'n') from t1;
 a	quote(a)	isnull(quote(a))	quote(a) is null	ifnull(quote(a), 'n')
 one	'one'	0	0	'one'
-NULL	NULL	1	1	n
+NULL	NULL	0	0	NULL
 two	'two'	0	0	'two'
 four	'four'	0	0	'four'
 drop table t1;
@@ -322,6 +325,19 @@ trim(trailing 'foo' from 'foo')
 select trim(leading 'foo' from 'foo');
 trim(leading 'foo' from 'foo')
 
+select quote(ltrim(concat('    ', 'a')));
+quote(ltrim(concat('    ', 'a')))
+'a'
+select quote(trim(concat('    ', 'a')));
+quote(trim(concat('    ', 'a')))
+'a'
+CREATE TABLE t1 SELECT 1 UNION SELECT 2 UNION SELECT 3;
+SELECT QUOTE('A') FROM t1;
+QUOTE('A')
+'A'
+'A'
+'A'
+DROP TABLE t1;
 select 1=_latin1'1';
 1=_latin1'1'
 1
@@ -460,7 +476,7 @@ collation(hex(130))	coercibility(hex(130))
 latin1_swedish_ci	3
 select collation(char(130)), coercibility(hex(130));
 collation(char(130))	coercibility(hex(130))
-binary	3
+latin1_swedish_ci	3
 select collation(format(130,10)), coercibility(format(130,10));
 collation(format(130,10))	coercibility(format(130,10))
 latin1_swedish_ci	3
@@ -682,3 +698,44 @@ drop table t1;
 select left(1234, 3) + 0;
 left(1234, 3) + 0
 123
+create table t1 (a int not null primary key, b varchar(40), c datetime);
+insert into t1 (a,b,c) values (1,'Tom','2004-12-10 12:13:14'),(2,'ball games','2004-12-10 12:13:14'), (3,'Basil','2004-12-10 12:13:14'), (4,'Dean','2004-12-10 12:13:14'),(5,'Ellis','2004-12-10 12:13:14'), (6,'Serg','2004-12-10 12:13:14'), (7,'Sergei','2004-12-10 12:13:14'),(8,'Georg','2004-12-10 12:13:14'),(9,'Salle','2004-12-10 12:13:14'),(10,'Sinisa','2004-12-10 12:13:14');
+select count(*) as total, left(c,10) as reg from t1 group by reg order by reg desc limit 0,12;
+total	reg
+10	2004-12-10
+drop table t1;
+select trim(null from 'kate') as "must_be_null";
+must_be_null
+NULL
+select trim('xyz' from null) as "must_be_null";
+must_be_null
+NULL
+CREATE TABLE t1 (
+id int(11) NOT NULL auto_increment,
+a bigint(20) unsigned default NULL,
+PRIMARY KEY  (id)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES
+('0','16307858876001849059');
+SELECT CONV('e251273eb74a8ee3', 16, 10);
+CONV('e251273eb74a8ee3', 16, 10)
+16307858876001849059
+EXPLAIN 
+SELECT id
+FROM t1
+WHERE a = 16307858876001849059;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	
+EXPLAIN 
+SELECT id
+FROM t1
+WHERE a = CONV('e251273eb74a8ee3', 16, 10);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	
+DROP TABLE t1;
+SELECT CHAR(NULL,121,83,81,'76') as my_column;
+my_column
+ySQL
+SELECT CHAR_LENGTH(CHAR(NULL,121,83,81,'76')) as my_column;
+my_column
+4

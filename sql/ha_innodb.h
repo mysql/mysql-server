@@ -64,6 +64,7 @@ class ha_innobase: public handler
 	uint		last_match_mode;/* match mode of the latest search:
 					ROW_SEL_EXACT, ROW_SEL_EXACT_PREFIX,
 					or undefined */
+	uint		num_write_row;	/* number of write_row() calls */
 	longlong	auto_inc_counter_for_this_stat;
 	ulong max_supported_row_length(const byte *buf);
 
@@ -85,7 +86,8 @@ class ha_innobase: public handler
 			  HA_PRIMARY_KEY_IN_READ_INDEX |
 			  HA_TABLE_SCAN_ON_INDEX),
 	  last_dup_key((uint) -1),
-	  start_of_scan(0)
+	  start_of_scan(0),
+	  num_write_row(0)
   	{
   	}
   	~ha_innobase() {}
@@ -198,6 +200,7 @@ extern my_bool innobase_very_fast_shutdown; /* set this to 1 just before
 					    is equivalent to a 'crash' */
 extern "C" {
 extern ulong srv_max_buf_pool_modified_pct;
+extern ulong srv_max_purge_lag;
 extern ulong srv_auto_extend_increment;
 extern ulong srv_max_purge_lag;
 }

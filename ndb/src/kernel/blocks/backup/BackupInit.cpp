@@ -22,7 +22,6 @@
 //===========================================================================
 #include "Backup.hpp"
 
-#include <new>
 #include <Properties.hpp>
 #include <Configuration.hpp>
 
@@ -42,8 +41,10 @@ Backup::Backup(const Configuration & conf) :
   ndbrequire(p != 0);
 
   Uint32 noBackups = 0, noTables = 0, noAttribs = 0;
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &m_diskless));
   ndb_mgm_get_int_parameter(p, CFG_DB_PARALLEL_BACKUPS, &noBackups);
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_TABLES, &noTables));
+  //  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_TABLES, &noTables));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DICT_TABLE, &noTables));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_ATTRIBUTES, &noAttribs));
 
   noAttribs++; //RT 527 bug fix
@@ -126,7 +127,6 @@ Backup::Backup(const Configuration & conf) :
   
   addRecSignal(GSN_SCAN_HBREP, &Backup::execSCAN_HBREP);
   addRecSignal(GSN_TRANSID_AI, &Backup::execTRANSID_AI);
-  addRecSignal(GSN_KEYINFO20, &Backup::execKEYINFO20);
   addRecSignal(GSN_SCAN_FRAGREF, &Backup::execSCAN_FRAGREF);
   addRecSignal(GSN_SCAN_FRAGCONF, &Backup::execSCAN_FRAGCONF);
 
@@ -204,7 +204,7 @@ Backup::~Backup()
 {
 }
 
-BLOCK_FUNCTIONS(Backup);
+BLOCK_FUNCTIONS(Backup)
 
 template class ArrayPool<Backup::Page32>;
 template class ArrayPool<Backup::Attribute>;

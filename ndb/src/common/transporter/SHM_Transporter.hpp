@@ -47,18 +47,25 @@ public:
    * SHM destructor
    */
   virtual ~SHM_Transporter();
-
+  
   /**
    * Do initialization
    */
   bool initTransporter();
-      
-  Uint32 * getWritePtr(Uint32 lenBytes, Uint32 prio){
+  
+  Uint32 * getWritePtr(Uint32 lenBytes, Uint32 prio)
+  {
     return (Uint32 *)writer->getWritePtr(lenBytes);
   }
   
-  void updateWritePtr(Uint32 lenBytes, Uint32 prio){
+  void updateWritePtr(Uint32 lenBytes, Uint32 prio)
+  {
     writer->updateWritePtr(lenBytes);
+    m_last_signal += lenBytes;
+    if(m_last_signal >= m_signal_threshold)
+    {
+      doSend();
+    }
   }
   
   void getReceivePtr(Uint32 ** ptr, Uint32 ** eod){
@@ -123,28 +130,36 @@ protected:
    */
   void setupBuffers();
 
+  /**
+   * doSend (i.e signal receiver)
+   */
+  void doSend();
+  int m_remote_pid;
+  Uint32 m_last_signal;
+  Uint32 m_signal_threshold;
+  
 private:
   bool _shmSegCreated;
   bool _attached;
   bool m_connected;
-    
+  
   key_t shmKey;
   volatile Uint32 * serverStatusFlag;
   volatile Uint32 * clientStatusFlag;  
   bool setupBuffersDone;
-
+  
 #ifdef NDB_WIN32
   HANDLE hFileMapping;
 #else
   int shmId;
 #endif
-
+  
   int shmSize;
   char * shmBuf;
-
+  
   SHM_Reader * reader;
   SHM_Writer * writer;
-
+  
   /**
    * @return - True if the reader has data to read on its segment.
    */

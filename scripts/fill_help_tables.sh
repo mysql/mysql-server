@@ -197,9 +197,13 @@ sub prepare_name
   $a =~ s/(\@node(.*?)\n)/  /g;
   $a =~ s/(\@tab)/\t/g;
   $a =~ s/\@item/  /g;
+  $a =~ s/\@minus\{\}/-/g;
+  $a =~ s/\@dots\{\}/.../g;
+  $a =~ s/\@var\{((.|\n)+?)\}/$1/go;
+  $a =~ s/\@command\{((.|\n)+?)\}/$1/go;
   $a =~ s/\@code\{((.|\n)+?)\}/$1/go;
   $a =~ s/\@strong\{(.+?)\}/$1/go;
-  $a =~ s/\@samp\{(.+?)\}/$1/go;
+  $a =~ s/\@samp\{(.+?)\}/'$1'/go;
   $a =~ s/\@emph\{((.|\n)+?)\}/\/$1\//go;
   $a =~ s/\@xref\{((.|\n)+?)\}/See also : [$1]/go;
   $a =~ s/\@ref\{((.|\n)+?)\}/[$1]/go;
@@ -244,9 +248,13 @@ sub prepare_description
   $a =~ s/(\@item)/  /g;
   $a =~ s/(\@tindex\s(.*?)\n)//g;
   $a =~ s/(\@c\s(.*?)\n)//g;
+  $a =~ s/\@minus\{\}/-/g;
+  $a =~ s/\@dots\{\}/.../g;
+  $a =~ s/\@var\{((.|\n)+?)\}/$1/go;
+  $a =~ s/\@command\{((.|\n)+?)\}/$1/go;
   $a =~ s/\@code\{((.|\n)+?)\}/$1/go;
   $a =~ s/\@strong\{(.+?)\}/$1/go;
-  $a =~ s/\@samp\{(.+?)\}/$1/go;
+  $a =~ s/\@samp\{(.+?)\}/'$1'/go;
   $a =~ s/\@emph\{((.|\n)+?)\}/\/$1\//go;
   $a =~ s/\@xref\{((.|\n)+?)\}/See also : [$1]/go;
   $a =~ s/\@ref\{((.|\n)+?)\}/[$1]/go;
@@ -273,6 +281,8 @@ sub prepare_example
 
   $a =~ s/(^\@c for_help_topic(.*?)\n)//g;
 
+  $a =~ s/\@var\{((.|\n)+?)\}/$1/go;
+  $a =~ s/\@dots\{\}/.../g;
   $a =~ s/\\/\\\\/g;
   $a =~ s/(\@{)/{/g;
   $a =~ s/(\@})/}/g;
@@ -444,10 +454,12 @@ sub print_verbose_errors
   print STDERR "number of help keywords            - ",$count_keywords,"\n";
     
   my $count_without_help= scalar(@without_help);
+  my $percent_without_help= $count_lex ?
+                            int (($count_without_help/$count_lex)*100) :
+                            "100";
   print_bad_names(\@without_help,"lexems without help (".
                             $count_without_help." ~ ".
-                            (int (($count_without_help/$count_lex)*100)).
-                            "%)");
+                            $percent_without_help."%)");
   print_bad_names(\@description_with_at,
           " topics below have symbol \'@\' in their descriptions.\n".
           "it's probably the litter from 'texi' tags (script needs fixing)");
@@ -457,10 +469,12 @@ sub print_verbose_errors
   print_bad_names(\@without_description,"topics without description");
     
   my $count_without_example= scalar(@without_example);
+  my $percent_without_example= $count_topics ?
+                            int (($count_without_example/$count_topics)*100) :
+                            "100";
   print_bad_names(\@without_example,"topics without example (".
                             $count_without_example." ~ ".
-                            (int (($count_without_example/$count_topics)*100)).
-                            "%)");
+                            $percent_without_example."%)");
 }
 
 print_verbose_errors if ($verbose_option ne 0);
@@ -479,6 +493,24 @@ sub print_insert_header
   }
 }
 
+print <<EOF;
+-- Copyright (C) 2000-2005 MySQL AB
+-- 
+-- This program is free software; you can redistribute it and/or modify
+-- it under the terms of the GNU General Public License as published by
+-- the Free Software Foundation; either version 2 of the License, or
+-- (at your option) any later version.
+-- 
+-- This program is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU General Public License for more details.
+-- 
+-- You should have received a copy of the GNU General Public License
+-- along with this program; if not, write to the Free Software
+-- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+EOF
 print "delete from help_topic;\n";
 print "delete from help_category;\n";
 print "delete from help_keyword;\n";

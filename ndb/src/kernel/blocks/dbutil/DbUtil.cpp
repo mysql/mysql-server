@@ -158,7 +158,7 @@ DbUtil::~DbUtil()
 {
 }
 
-BLOCK_FUNCTIONS(DbUtil);
+BLOCK_FUNCTIONS(DbUtil)
 
 void 
 DbUtil::releasePrepare(PreparePtr prepPtr) {

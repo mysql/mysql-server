@@ -1,0 +1,9 @@
+#! /bin/sh
+path=`dirname $0`
+. "$path/SETUP.sh"
+extra_flags="$amd64_cflags $debug_cflags $max_cflags"
+c_warnings="$c_warnings $debug_extra_warnings"
+cxx_warnings="$cxx_warnings $debug_extra_warnings"
+extra_configs="$amd64_configs $debug_configs $max_configs"
+
+. "$path/FINISH.sh"

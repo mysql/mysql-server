@@ -104,6 +104,10 @@ MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
 {
   MYSQL_ERROR *err= 0;
   DBUG_ENTER("push_warning");
+
+  if (level == MYSQL_ERROR::WARN_LEVEL_NOTE && !(thd->options & OPTION_SQL_NOTES))
+    return(0);
+
   if (thd->query_id != thd->warn_id)
     mysql_reset_errors(thd);
 
@@ -113,12 +117,12 @@ MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
       The following code is here to change the allocation to not
       use the thd->mem_root, which is freed after each query
     */
-    MEM_ROOT *old_root=my_pthread_getspecific_ptr(MEM_ROOT*,THR_MALLOC);
-    my_pthread_setspecific_ptr(THR_MALLOC, &thd->warn_root);
+    MEM_ROOT *old_root= thd->mem_root;
+    thd->mem_root= &thd->warn_root;
     err= new MYSQL_ERROR(thd, code, level, msg);
     if (err)
       thd->warn_list.push_back(err);
-    my_pthread_setspecific_ptr(THR_MALLOC, old_root);
+    thd->mem_root= old_root;
   }
   thd->warn_count[(uint) level]++;
   thd->total_warn_count++;

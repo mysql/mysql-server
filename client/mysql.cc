@@ -172,7 +172,7 @@ static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol=0;
 static CHARSET_INFO *charset_info= &my_charset_latin1;
-			   
+
 #include "sslopt-vars.h"
 
 const char *default_dbug_option="d:t:o,/tmp/mysql.trace";
@@ -330,6 +330,16 @@ static sig_handler mysql_end(int sig);
 int main(int argc,char *argv[])
 {
   char buff[80];
+  char *defaults, *extra_defaults;
+  char *emb_argv[3];
+  int emb_argc= 1;
+
+  emb_argv[0]= argv[0];
+  get_defaults_files(argc, argv, &defaults, &extra_defaults);
+  if (defaults)
+    emb_argv[emb_argc++]= defaults;
+  if (extra_defaults)
+    emb_argv[emb_argc++]= extra_defaults;
 
   MY_INIT(argv[0]);
   DBUG_ENTER("main");
@@ -375,7 +385,7 @@ int main(int argc,char *argv[])
     my_end(0);
     exit(1);
   }
-  if (mysql_server_init(0, NULL, (char**) server_default_groups))
+  if (mysql_server_init(emb_argc, emb_argv, (char**) server_default_groups))
   {
     free_defaults(defaults_argv);
     my_end(0);
@@ -1420,12 +1430,6 @@ static void build_completion_hash(bool rehash, bool write_info)
   if (status.batch || quick || !current_db)
     DBUG_VOID_RETURN;			// We don't need completion in batches
 
-  if (tables)
-  {
-    mysql_free_result(tables);
-    tables=0;
-  }
-
   /* hash SQL commands */
   while (cmd->name) {
     add_word(&ht,(char*) cmd->name);
@@ -1502,12 +1506,15 @@ You can turn off this feature to get a quicker startup with -A\n\n");
       if (!(field_names[i] = (char **) alloc_root(&hash_mem_root,
 						  sizeof(char *) *
 						  (num_fields*2+1))))
-	break;
+      {
+        mysql_free_result(fields);
+        break;
+      }
       field_names[i][num_fields*2]= '\0';
       j=0;
       while ((sql_field=mysql_fetch_field(fields)))
       {
-	sprintf(buf,"%s.%s",table_row[0],sql_field->name);
+	sprintf(buf,"%.64s.%.64s",table_row[0],sql_field->name);
 	field_names[i][j] = strdup_root(&hash_mem_root,buf);
 	add_word(&ht,field_names[i][j]);
 	field_names[i][num_fields+j] = strdup_root(&hash_mem_root,
@@ -1574,6 +1581,22 @@ static int reconnect(void)
   return 0;
 }
 
+static void get_current_db()
+{
+  MYSQL_RES *res;
+
+  my_free(current_db, MYF(MY_ALLOW_ZERO_PTR));
+  current_db= NULL;
+  /* In case of error below current_db will be NULL */
+  if (!mysql_query(&mysql, "SELECT DATABASE()") &&
+      (res= mysql_use_result(&mysql)))
+  {
+    MYSQL_ROW row= mysql_fetch_row(res);
+    if (row[0])
+      current_db= my_strdup(row[0], MYF(MY_WME));
+    mysql_free_result(res);
+  }
+}
 
 /***************************************************************************
  The different commands
@@ -1584,7 +1607,7 @@ int mysql_real_query_for_lazy(const char *buf, int length)
   for (uint retry=0;; retry++)
   {
     if (!mysql_real_query(&mysql,buf,length))
-      return 0;    
+      return 0;
     int error= put_error(&mysql);
     if (mysql_errno(&mysql) != CR_SERVER_GONE_ERROR || retry > 1 ||
       !opt_reconnect)
@@ -1609,7 +1632,7 @@ static void print_help_item(MYSQL_ROW *cur, int num_name, int num_cat, char *las
   char ccat= (*cur)[num_cat][0];
   if (*last_char != ccat)
   {
-    put_info(ccat == 'Y' ? "categories :" : "topics :", INFO_INFO);
+    put_info(ccat == 'Y' ? "categories:" : "topics:", INFO_INFO);
     *last_char= ccat;
   }
   tee_fprintf(PAGER, "   %s\n", (*cur)[num_name]);
@@ -1668,29 +1691,28 @@ static int com_server_help(String *buffer __attribute__((unused)),
     else if (num_fields >= 2 && num_rows)
     {
       init_pager();
-      char last_char;
-      
+      char last_char= 0;
+
       int num_name= 0, num_cat= 0;
       LINT_INIT(num_name);
       LINT_INIT(num_cat);
 
       if (num_fields == 2)
       {
-	put_info("Many help items for your request exist", INFO_INFO);
-	put_info("To make a more specific request, please type 'help <item>',\nwhere item is one of next", INFO_INFO);
+	put_info("Many help items for your request exist.", INFO_INFO);
+	put_info("To make a more specific request, please type 'help <item>',\nwhere <item> is one of the following", INFO_INFO);
 	num_name= 0;
 	num_cat= 1;
-	last_char= '_';
       }
       else if ((cur= mysql_fetch_row(result)))
       {
 	tee_fprintf(PAGER, "You asked for help about help category: \"%s\"\n", cur[0]);
-	put_info("For more information, type 'help <item>', where item is one of the following", INFO_INFO);
+	put_info("For more information, type 'help <item>', where <item> is one of the following", INFO_INFO);
 	num_name= 1;
 	num_cat= 2;
 	print_help_item(&cur,1,2,&last_char);
       }
-      
+
       while ((cur= mysql_fetch_row(result)))
 	print_help_item(&cur,num_name,num_cat,&last_char);
       tee_fprintf(PAGER, "\n");
@@ -1899,6 +1921,10 @@ com_go(String *buffer,char *line __attribute__((unused)))
   if (err >= 1)
     error= put_error(&mysql);
 
+  if (!error && !status.batch && 
+      (mysql.server_status & SERVER_STATUS_DB_DROPPED))
+    get_current_db();
+
   return error;				/* New command follows */
 }
 
@@ -2077,10 +2103,10 @@ print_table_data_html(MYSQL_RES *result)
   }
   while ((cur = mysql_fetch_row(result)))
   {
+    ulong *lengths=mysql_fetch_lengths(result);
     (void) tee_fputs("<TR>", PAGER);
     for (uint i=0; i < mysql_num_fields(result); i++)
     {
-      ulong *lengths=mysql_fetch_lengths(result);
       (void) tee_fputs("<TD>", PAGER);
       safe_put_field(cur[i],lengths[i]);
       (void) tee_fputs("</TD>", PAGER);
@@ -2106,10 +2132,10 @@ print_table_data_xml(MYSQL_RES *result)
   fields = mysql_fetch_fields(result);
   while ((cur = mysql_fetch_row(result)))
   {
+    ulong *lengths=mysql_fetch_lengths(result);
     (void) tee_fputs("\n  <row>\n", PAGER);
     for (uint i=0; i < mysql_num_fields(result); i++)
     {
-      ulong *lengths=mysql_fetch_lengths(result);
       tee_fprintf(PAGER, "\t<%s>", (fields[i].name ?
 				  (fields[i].name[0] ? fields[i].name :
 				   " &nbsp; ") : "NULL"));
@@ -2513,7 +2539,7 @@ com_connect(String *buffer, char *line)
   {
     sprintf(buff,"Connection id:    %lu",mysql_thread_id(&mysql));
     put_info(buff,INFO_INFO);
-    sprintf(buff,"Current database: %s\n",
+    sprintf(buff,"Current database: %.128s\n",
 	    current_db ? current_db : "*** NONE ***");
     put_info(buff,INFO_INFO);
   }
@@ -2615,24 +2641,7 @@ com_use(String *buffer __attribute__((unused)), char *line)
     under our feet, for example if DROP DATABASE or RENAME DATABASE
     (latter one not yet available by the time the comment was written)
   */
-  /*  Let's reset current_db, assume it's gone */
-  my_free(current_db, MYF(MY_ALLOW_ZERO_PTR));
-  current_db= 0;
-  /*
-    We don't care about in case of an error below because current_db
-    was just set to 0.
-  */
-  if (!mysql_query(&mysql, "SELECT DATABASE()") &&
-      (res= mysql_use_result(&mysql)))
-  {
-    row= mysql_fetch_row(res);
-    if (row[0])
-    {
-      current_db= my_strdup(row[0], MYF(MY_WME));
-    }
-    (void) mysql_fetch_row(res);               // Read eof
-    mysql_free_result(res);
-  }
+  get_current_db();
 
   if (!current_db || cmp_database(charset_info, current_db,tmp))
   {
@@ -2908,9 +2917,9 @@ com_status(String *buffer __attribute__((unused)),
     MYSQL_ROW cur=mysql_fetch_row(result);
     if (cur)
     {
-      tee_fprintf(stdout, "Server characterset:\t%s\n", cur[0] ? cur[0] : "");
+      tee_fprintf(stdout, "Server characterset:\t%s\n", cur[2] ? cur[2] : "");
       tee_fprintf(stdout, "Db     characterset:\t%s\n", cur[3] ? cur[3] : "");
-      tee_fprintf(stdout, "Client characterset:\t%s\n", cur[2] ? cur[2] : "");
+      tee_fprintf(stdout, "Client characterset:\t%s\n", cur[0] ? cur[0] : "");
       tee_fprintf(stdout, "Conn.  characterset:\t%s\n", cur[1] ? cur[1] : "");
     }
     mysql_free_result(result);
@@ -3219,13 +3228,20 @@ static const char* construct_prompt()
 	break;
       }
       case 'p':
+      {
 #ifndef EMBEDDED_LIBRARY
 	if (!connected)
 	{
 	  processed_prompt.append("not_connected");
 	  break;
 	}
-	if (strstr(mysql_get_host_info(&mysql),"TCP/IP") ||
+
+	const char *host_info = mysql_get_host_info(&mysql);
+	if (strstr(host_info, "memory")) 
+	{
+		processed_prompt.append( mysql.host );
+	}
+	else if (strstr(host_info,"TCP/IP") ||
 	    !mysql.unix_socket)
 	  add_int_to_prompt(mysql.port);
 	else
@@ -3234,6 +3250,7 @@ static const char* construct_prompt()
  	  processed_prompt.append(pos ? pos+1 : mysql.unix_socket);
 	}
 #endif
+      }
 	break;
       case 'U':
 	if (!full_username)

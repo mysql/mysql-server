@@ -219,12 +219,13 @@ static my_bool emb_mysql_read_query_result(MYSQL *mysql)
 static int emb_stmt_execute(MYSQL_STMT *stmt)
 {
   DBUG_ENTER("emb_stmt_execute");
+  char header[4];
+  int4store(header, stmt->stmt_id);
   THD *thd= (THD*)stmt->mysql->thd;
   thd->client_param_count= stmt->param_count;
   thd->client_params= stmt->params;
   if (emb_advanced_command(stmt->mysql, COM_EXECUTE,0,0,
-			   (const char*)&stmt->stmt_id,sizeof(stmt->stmt_id),
-			   1) ||
+                           header, sizeof(header), 1) ||
       emb_mysql_read_query_result(stmt->mysql))
   {
     NET *net= &stmt->mysql->net;
@@ -591,6 +592,32 @@ err:
 
 C_MODE_END
 
+static char *dup_str_aux(MEM_ROOT *root, const char *from, uint length,
+			 CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
+{
+  uint32 dummy32;
+  uint dummy_err;
+  char *result;
+
+  /* 'tocs' is set 0 when client issues SET character_set_results=NULL */
+  if (tocs && String::needs_conversion(0, fromcs, tocs, &dummy32))
+  {
+    uint new_len= (tocs->mbmaxlen * length) / fromcs->mbminlen + 1;
+    result= (char *)alloc_root(root, new_len);
+    length= copy_and_convert(result, new_len,
+                             tocs, from, length, fromcs, &dummy_err);
+  }
+  else
+  {
+    result= (char *)alloc_root(root, length + 1);
+    memcpy(result, from, length);
+  }
+
+  result[length]= 0;
+  return result;
+}
+
+
 bool Protocol::send_fields(List<Item> *list, uint flag)
 {
   List_iterator_fast<Item> it(*list);
@@ -598,6 +625,8 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
   MYSQL_FIELD              *client_field;
   MYSQL                    *mysql= thd->mysql;
   MEM_ROOT                 *field_alloc;
+  CHARSET_INFO             *thd_cs= thd->variables.character_set_results;
+  CHARSET_INFO             *cs= system_charset_info;
   
   DBUG_ENTER("send_fields");
 
@@ -616,12 +645,29 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
     Send_field server_field;
     item->make_field(&server_field);
 
-    client_field->db=	  strdup_root(field_alloc, server_field.db_name);
-    client_field->table=  strdup_root(field_alloc, server_field.table_name);
-    client_field->name=   strdup_root(field_alloc, server_field.col_name);
-    client_field->org_table= strdup_root(field_alloc, server_field.org_table_name);
-    client_field->org_name=  strdup_root(field_alloc, server_field.org_col_name);
-    client_field->length= server_field.length;
+    client_field->db= dup_str_aux(field_alloc, server_field.db_name,
+                                  strlen(server_field.db_name), cs, thd_cs);
+    client_field->table= dup_str_aux(field_alloc, server_field.table_name,
+                                     strlen(server_field.table_name), cs, thd_cs);
+    client_field->name= dup_str_aux(field_alloc, server_field.col_name,
+                                    strlen(server_field.col_name), cs, thd_cs);
+    client_field->org_table= dup_str_aux(field_alloc, server_field.org_table_name,
+                                         strlen(server_field.org_table_name), cs, thd_cs);
+    client_field->org_name= dup_str_aux(field_alloc, server_field.org_col_name,
+                                        strlen(server_field.org_col_name), cs, thd_cs);
+    if (item->collation.collation == &my_charset_bin || thd_cs == NULL)
+    {
+      /* No conversion */
+      client_field->charsetnr= server_field.charsetnr;
+      client_field->length= server_field.length;
+    }
+    else
+    {
+      /* With conversion */
+      client_field->charsetnr= thd_cs->number;
+      uint char_len= server_field.length / item->collation.collation->mbmaxlen;
+      client_field->length= char_len * thd_cs->mbmaxlen;
+    }
     client_field->type=   server_field.type;
     client_field->flags= server_field.flags;
     client_field->decimals= server_field.decimals;
@@ -630,9 +676,8 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
     client_field->name_length=		strlen(client_field->name);
     client_field->org_name_length=	strlen(client_field->org_name);
     client_field->org_table_length=	strlen(client_field->org_table);
-    client_field->charsetnr=		server_field.charsetnr;
 
-    client_field->catalog= strdup_root(field_alloc, "def");
+    client_field->catalog= dup_str_aux(field_alloc, "def", 3, cs, thd_cs);
     client_field->catalog_length= 3;
 
     if (INTERNAL_NUM_FIELD(client_field))
@@ -710,6 +755,7 @@ bool Protocol_prep::write()
   }
   cur->data= (MYSQL_ROW)(((char *)cur) + sizeof(MYSQL_ROWS));
   memcpy(cur->data, packet->ptr()+1, packet->length()-1);
+  cur->length= packet->length();       /* To allow us to do sanity checks */
 
   *data->prev_ptr= cur;
   data->prev_ptr= &cur->next;
@@ -803,22 +849,4 @@ bool Protocol::net_store_data(const char *from, uint length)
   ++next_mysql_field;
   return false;
 }
-
-#if 0
-/* The same as Protocol::net_store_data but does the converstion
-*/
-bool Protocol::convert_str(const char *from, uint length)
-{
-  if (!(*next_field=alloc_root(alloc, length + 1)))
-    return true;
-  convert->store_dest(*next_field, from, length);
-  (*next_field)[length]= 0;
-  if (next_mysql_field->max_length < length)
-    next_mysql_field->max_length=length;
-  ++next_field;
-  ++next_mysql_field;
-
-  return false;
-}
-#endif
 

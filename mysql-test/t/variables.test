@@ -8,6 +8,7 @@ drop table if exists t1,t2;
 set @`test`=1,@TEST=3,@select=2,@t5=1.23456;
 select @test,@`select`,@TEST,@not_used;
 set @test_int=10,@test_double=1e-10,@test_string="abcdeghi",@test_string2="abcdefghij",@select=NULL;
+--replace_result e-0 e- e+0 e+
 select @test_int,@test_double,@test_string,@test_string2,@select;
 set @test_int="hello",@test_double="hello",@test_string="hello",@test_string2="hello";
 select @test_int,@test_double,@test_string,@test_string2;
@@ -70,7 +71,7 @@ show variables like 'concurrent_insert';
 set global concurrent_insert=DEFAULT;
 show variables like 'concurrent_insert';
 
-set storage_engine=MYISAM, storage_engine="HEAP", global storage_engine="INNODB";
+set storage_engine=MYISAM, storage_engine="HEAP", global storage_engine="MERGE";
 show local variables like 'storage_engine';
 show global variables like 'storage_engine';
 set GLOBAL query_cache_size=100000;
@@ -127,7 +128,7 @@ set max_join_size="hello";
 --error 1286
 set storage_engine=UNKNOWN_TABLE_TYPE;
 --error 1231
-set storage_engine=INNODB, big_tables=2;
+set storage_engine=MERGE, big_tables=2;
 show local variables like 'storage_engine';
 --error 1229
 set SESSION query_cache_size=10000;
@@ -354,3 +355,18 @@ create table t1 as select @arg00 as c1, @arg01 as c2, @arg02 as c3;
 show create table t1;
 drop table t1;
 
+
+#
+# Bug #6993: myisam_data_pointer_size
+#
+
+SET GLOBAL MYISAM_DATA_POINTER_SIZE= 8;
+SHOW VARIABLES LIKE 'MYISAM_DATA_POINTER_SIZE';
+
+#
+# Bug #6958: negative arguments to integer options wrap around
+#
+
+SET GLOBAL table_cache=-1;
+SHOW VARIABLES LIKE 'table_cache';
+SET GLOBAL table_cache=DEFAULT;

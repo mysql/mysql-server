@@ -30,7 +30,7 @@ include $(srcdir)/Makefile.shared
 libmysqlclient_la_SOURCES = $(target_sources)
 libmysqlclient_la_LIBADD = $(target_libadd)
 libmysqlclient_la_LDFLAGS = $(target_ldflags)
-EXTRA_DIST = Makefile.shared
+EXTRA_DIST = Makefile.shared libmysql.def
 noinst_HEADERS = client_settings.h
 
 # This is called from the toplevel makefile

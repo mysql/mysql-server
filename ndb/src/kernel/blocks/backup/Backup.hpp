@@ -76,7 +76,6 @@ protected:
    */
   void execSCAN_HBREP(Signal* signal);
   void execTRANSID_AI(Signal* signal);
-  void execKEYINFO20(Signal* signal);
   void execSCAN_FRAGREF(Signal* signal);
   void execSCAN_FRAGCONF(Signal* signal);
 
@@ -172,8 +171,8 @@ public:
     struct Data {
       Uint8 nullable;
       Uint8 fixed;
-      Uint8 key; 
-      Uint8 unused;
+      Uint8 unused; 
+      Uint8 unused2;
       Uint32 sz32;       // No of 32 bit words
       Uint32 offset;     // Relative DataFixedAttributes/DataFixedKeys
       Uint32 offsetNull; // In NullBitmask
@@ -199,12 +198,9 @@ public:
     Uint32 frag_mask;
     Uint32 tableType;
     Uint32 noOfNull;
-    Uint32 noOfKeys;
     Uint32 noOfAttributes;
     Uint32 noOfVariable;
-    Uint32 sz_FixedKeys;
     Uint32 sz_FixedAttributes;
-    Uint32 variableKeyId;
     Uint32 triggerIds[3];
     bool   triggerAllocated[3];
     
@@ -224,7 +220,6 @@ public:
      * Once per table
      */
     void init(const TablePtr & ptr);
-    inline Uint32 getFixedKeySize() const { return sz_FixedKeys; }
     
     /**
      * Once per fragment
@@ -247,23 +242,19 @@ public:
     /**
      * Per attribute
      */
-    Uint32 * newKey();
     void     nullAttribute(Uint32 nullOffset);
     Uint32 * newNullable(Uint32 attrId, Uint32 sz);
     Uint32 * newAttrib(Uint32 offset, Uint32 sz);
     Uint32 * newVariable(Uint32 id, Uint32 sz);
-    Uint32 * newVariableKey(Uint32 sz);
     
   private:
     Uint32* base; 
     Uint32* dst_Length;
     Uint32* dst_Bitmask;
-    Uint32* dst_FixedKeys;
     Uint32* dst_FixedAttribs;
     BackupFormat::DataFile::VariableData* dst_VariableData;
     
     Uint32 noOfAttributes; // No of Attributes
-    Uint32 variableKeyId;  // Id of variable key
     Uint32 attrLeft;       // No of attributes left
 
     Uint32 opNoDone;
@@ -289,7 +280,6 @@ public:
      * sizes of part
      */
     Uint32 sz_Bitmask;
-    Uint32 sz_FixedKeys;
     Uint32 sz_FixedAttribs;
 
   public:
@@ -526,6 +516,7 @@ public:
   NdbNodeBitmask c_aliveNodes;
   DLList<BackupRecord> c_backups;
   Config c_defaults;
+  Uint32 m_diskless;
 
   STATIC_CONST(NO_OF_PAGES_META_FILE = 2);
 
@@ -628,7 +619,6 @@ Backup::OperationRecord::newRecord(Uint32 * p){
   base = p;
   dst_Length       = p; p += 1;
   dst_Bitmask      = p; p += sz_Bitmask;
-  dst_FixedKeys    = p; p += sz_FixedKeys;
   dst_FixedAttribs = p; p += sz_FixedAttribs;
   dst_VariableData = (BackupFormat::DataFile::VariableData*)p;
   BitmaskImpl::clear(sz_Bitmask, dst_Bitmask);
@@ -643,14 +633,6 @@ Backup::OperationRecord::newAttrib(Uint32 offset, Uint32 sz){
   attrSzLeft = sz;
   dst = dst_FixedAttribs + offset;
   return dst;
-}
-
-inline
-Uint32 *
-Backup::OperationRecord::newKey(){
-  attrLeft --;
-  attrSzLeft = 0;
-  return dst_FixedKeys;
 }
 
 inline
@@ -692,28 +674,13 @@ Backup::OperationRecord::newVariable(Uint32 id, Uint32 sz){
 }
 
 inline
-Uint32 *
-Backup::OperationRecord::newVariableKey(Uint32 sz){
-  attrLeft--;
-  attrSzLeft = 0;
-  attrSzTotal += sz;
-  
-  dst = &dst_VariableData->Data[0];
-  dst_VariableData->Sz = htonl(sz);
-  dst_VariableData->Id = htonl(variableKeyId);
-  
-  dst_VariableData = (BackupFormat::DataFile::VariableData *)(dst + sz);
-  return dst;
-}
-
-inline
 bool
 Backup::OperationRecord::finished(){
   if(attrLeft != 0 || attrSzLeft != 0){
     return false;
   }
   
-  opLen += attrSzTotal + sz_FixedKeys;
+  opLen += attrSzTotal;
   opNoDone++;
   
   scanStop = dst = (Uint32 *)dst_VariableData;

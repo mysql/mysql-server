@@ -18,7 +18,9 @@
 #define SYSLOGHANDLER_H
 
 #include "LogHandler.hpp"
+#ifndef NDB_WIN32
 #include <syslog.h>
+#endif
 
 /**
  * Logs messages to syslog. The default identity is 'NDB'. 
@@ -62,7 +64,7 @@ public:
    * @param pIdentity a syslog identity.
    * @param facility syslog facility, defaults to LOG_USER
    */
-  SysLogHandler(const char* pIdentity, int facility = LOG_USER);
+  SysLogHandler(const char* pIdentity, int facility);
 
   /**
    * Destructor.

@@ -1,2 +1,2 @@
 Variable_name	Value
-Ssl_cipher	EDH-RSA-DES-CBC3-SHA
+Ssl_cipher	DHE-RSA-AES256-SHA

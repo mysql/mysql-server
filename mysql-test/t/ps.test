@@ -110,10 +110,6 @@ set @fvar= 123.4567;
 --error 1064
 prepare stmt1 from @fvar;
 
-set @str1 = 'select ?';
-set @str2 = convert(@str1 using ucs2);
-prepare stmt1 from @str2;
-execute stmt1 using @ivar;
 drop table t1,t2;
 
 #
@@ -461,4 +457,31 @@ PREPARE stmt FROM 'UPDATE t1 AS P1 INNER JOIN (SELECT N FROM t1 GROUP BY N HAVIN
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
+
+# 
+# Bug#6297 "prepared statement, wrong handling of <parameter> IS NULL"
+# Test that placeholders work with IS NULL/IS NOT NULL clauses. 
+#
+prepare stmt from "select ? is null, ? is not null, ?";
+select @no_such_var is null, @no_such_var is not null, @no_such_var;
+execute stmt using @no_such_var, @no_such_var, @no_such_var;
+set @var='abc';
+select @var is null, @var is not null, @var;
+execute stmt using @var, @var, @var;
+set @var=null;
+select @var is null, @var is not null, @var;
+execute stmt using @var, @var, @var;
+
+# 
+# Bug#6873 "PS, having with subquery, crash during execute"
+# check that if we modify having subtree, we update JOIN->having pointer
+#
+create table t1 (pnum char(3));
+create table t2 (pnum char(3));
+prepare stmt from "select pnum from t2 having pnum in (select 'p1' from t1)";
+execute stmt;
+execute stmt;
+execute stmt;
+deallocate prepare stmt;
+drop table t1, t2;
 

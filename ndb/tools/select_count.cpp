@@ -16,6 +16,7 @@
 
 
 #include <ndb_global.h>
+#include <ndb_opts.h>
 
 #include <NdbOut.hpp>
 
@@ -23,7 +24,6 @@
 #include <NdbMain.h>
 #include <NDBT.hpp> 
 #include <NdbSleep.h>
-#include <getarg.h>
 #include <UtilTransactions.hpp>
  
 static int 
@@ -32,34 +32,55 @@ select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
 	     int* count_rows,
 	     UtilTransactions::ScanLock lock);
 
-int main(int argc, const char** argv){
-  ndb_init();
-  const char* _dbname = "TEST_DB";
-  int _parallelism = 240;
-  int _help = 0;
-  int _lock = 0;
+NDB_STD_OPTS_VARS;
 
-  struct getargs args[] = {
-    { "database", 'd', arg_string, &_dbname, "dbname", 
-      "Name of database table is in"},
-    { "parallelism", 's', arg_integer, &_parallelism, "parallelism", "parallelism" },
-    { "usage", '?', arg_flag, &_help, "Print help", "" },
-    { "lock", 'l', arg_integer, &_lock, 
-      "Read(0), Read-hold(1), Exclusive(2)", "lock"}
-
-  };
-  int num_args = sizeof(args) / sizeof(args[0]);
-  int optind = 0;
+static const char* _dbname = "TEST_DB";
+static int _parallelism = 240;
+static int _lock = 0;
+static struct my_option my_long_options[] =
+{
+  NDB_STD_OPTS("ndb_desc"),
+  { "database", 'd', "Name of database table is in",
+    (gptr*) &_dbname, (gptr*) &_dbname, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "parallelism", 'p', "parallelism",
+    (gptr*) &_parallelism, (gptr*) &_parallelism, 0,
+    GET_INT, REQUIRED_ARG, 240, 0, 0, 0, 0, 0 }, 
+  { "lock", 'l', "Read(0), Read-hold(1), Exclusive(2)",
+    (gptr*) &_lock, (gptr*) &_lock, 0,
+    GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }, 
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+static void usage()
+{
   char desc[] = 
     "tabname1 ... tabnameN\n"\
     "This program will count the number of records in tables\n";
-  
-  if(getarg(args, num_args, argc, argv, &optind) || 
-     argv[optind] == NULL || _help) {
-    arg_printusage(args, num_args, argv[0], desc);
+  ndb_std_print_version();
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
+}
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument)
+{
+  return ndb_std_get_one_option(optid, opt, argument ? argument :
+				"d:t:O,/tmp/ndb_select_count.trace");
+}
+
+int main(int argc, char** argv){
+  NDB_INIT(argv[0]);
+  const char *load_default_groups[]= { "mysql_cluster",0 };
+  load_defaults("my",load_default_groups,&argc,&argv);
+  int ho_error;
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+    return NDBT_ProgramExit(NDBT_WRONGARGS);
+  if (argc < 1) {
+    usage();
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
+  Ndb::setConnectString(opt_connect_str);
   // Connect to Ndb
   Ndb MyNdb(_dbname);
 
@@ -72,7 +93,7 @@ int main(int argc, const char** argv){
   while(MyNdb.waitUntilReady() != 0)
     ndbout << "Waiting for ndb to become ready..." << endl;
    
-  for(int i = optind; i<argc; i++){
+  for(int i = 0; i<argc; i++){
     // Check if table exists in db
     const NdbDictionary::Table * pTab = NDBT_Table::discoverTableFromDb(&MyNdb, argv[i]);
     if(pTab == NULL){

@@ -234,6 +234,13 @@ dtype_get_prtype(
 	dtype_t*	type);
 /*************************************************************************
 Gets the MySQL charset-collation code for MySQL string types. */
+
+ulint
+dtype_get_charset_coll_noninline(
+/*=============================*/
+	ulint	prtype);/* in: precise data type */
+/*************************************************************************
+Gets the MySQL charset-collation code for MySQL string types. */
 UNIV_INLINE
 ulint
 dtype_get_charset_coll(

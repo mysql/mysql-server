@@ -251,7 +251,7 @@ static int my_strnncollsp_sjis(CHARSET_INFO *cs __attribute__((unused)),
   int res= my_strnncoll_sjis_internal(cs, &a, a_length, &b, b_length);
   if (!res && (a != a_end || b != b_end))
   {
-    int swap= 0;
+    int swap= 1;
     /*
       Check the next not space character of the longer key. If it's < ' ',
       then it's smaller than the other key.
@@ -266,7 +266,7 @@ static int my_strnncollsp_sjis(CHARSET_INFO *cs __attribute__((unused)),
     for (; a < a_end ; a++)
     {
       if (*a != ' ')
-	return ((int) *a - (int) ' ') ^ swap;
+	return (*a < ' ') ? -swap : swap;
     }
   }
   return res;
@@ -291,7 +291,9 @@ static int my_strnxfrm_sjis(CHARSET_INFO *cs __attribute__((unused)),
     else
       *dest++ = sort_order_sjis[(uchar)*src++];
   }
-  return srclen;
+  if (len > srclen)
+    bfill(dest, len - srclen, ' ');
+  return len;
 }
 
 
@@ -4581,13 +4583,18 @@ uint my_well_formed_len_sjis(CHARSET_INFO *cs __attribute__((unused)),
     */
     if (((int8)b[0]) >= 0)
     {
-      /* Single byte character */
-      b+= 1;
+      /* Single byte ascii character */
+      b++;
     }
     else  if (issjishead((uchar)*b) && (e-b)>1 && issjistail((uchar)b[1]))
     {
       /* Double byte character */
       b+= 2;
+    }
+    else if (((uchar)*b) >= 0xA1 && ((uchar)*b) <= 0xDF)
+    {
+      /* Half width kana */
+      b++;
     }
     else
     {

@@ -75,15 +75,19 @@ public:
       Bigunsigned,      // 64 Bit
       Float,            // 32-bit float
       Double,           // 64-bit float
-      Decimal,          // Precision, Scale
+      Olddecimal,       // Precision, Scale
       Char,             // Len
       Varchar,          // Max len
       Binary,           // Len
       Varbinary,        // Max len
       Datetime,         // Precision down to 1 sec  (size 8 bytes)
-      Timespec,         // Precision down to 1 nsec (size 12 bytes)
+      Date,             // Precision down to 1 day (size 4 bytes)
       Blob,             // Blob
-      Text              // Text blob
+      Text,             // Text blob
+      Time = 25,        // Time without date
+      Year = 26,        // Year (size 1 byte)
+      Timestamp = 27,   // Unix seconds (uint32)
+      Olddecimalunsigned = 28
     };
     Enum m_typeId;
     Cmp* m_cmp;         // comparison method
@@ -106,6 +110,11 @@ public:
   static bool usable_in_hash_index(Uint32 typeId, const void* cs);
   static bool usable_in_ordered_index(Uint32 typeId, const void* cs);
 
+  /**
+   * Compare decimal numbers.
+   */
+  static int cmp_olddecimal(const uchar* s1, const uchar* s2, unsigned n);
+
 private:
   /**
    * List of all types.  Must match Type::Enum.
@@ -126,15 +135,19 @@ private:
   static Cmp cmpBigunsigned;
   static Cmp cmpFloat;
   static Cmp cmpDouble;
-  static Cmp cmpDecimal;
+  static Cmp cmpOlddecimal;
   static Cmp cmpChar;
   static Cmp cmpVarchar;
   static Cmp cmpBinary;
   static Cmp cmpVarbinary;
   static Cmp cmpDatetime;
-  static Cmp cmpTimespec;
+  static Cmp cmpDate;
   static Cmp cmpBlob;
   static Cmp cmpText;
+  static Cmp cmpTime;
+  static Cmp cmpYear;
+  static Cmp cmpTimestamp;
+  static Cmp cmpOlddecimalunsigned;
 };
 
 #endif

@@ -21,27 +21,68 @@
 
 #include "stdarg.h"
 
+/*
+  Converts a string into its sort key.
+  
+  SYNOPSIS
+     my_strnxfrm_xxx()
+     
+  IMPLEMENTATION
+     
+     The my_strxfrm_xxx() function transforms a string pointed to by
+     'src' with length 'srclen' according to the charset+collation 
+     pair 'cs' and copies the result key into 'dest'.
+     
+     Comparing two strings using memcmp() after my_strnxfrm_xxx()
+     is equal to comparing two original strings with my_strnncollsp_xxx().
+     
+     Not more than 'dstlen' bytes are written into 'dst'.
+     To garantee that the whole string is transformed, 'dstlen' must be
+     at least srclen*cs->strnxfrm_multiply bytes long. Otherwise,
+     consequent memcmp() may return a non-accurate result.
+     
+     If the source string is too short to fill whole 'dstlen' bytes,
+     then the 'dest' string is padded up to 'dstlen', ensuring that:
+     
+       "a"  == "a "
+       "a\0" < "a"
+       "a\0" < "a "
+     
+     my_strnxfrm_simple() is implemented for 8bit charsets and
+     simple collations with one-to-one string->key transformation.
+     
+     See also implementations for various charsets/collations in  
+     other ctype-xxx.c files.
+     
+  RETURN
+  
+    Target len 'dstlen'.
+  
+*/
+
 
 int my_strnxfrm_simple(CHARSET_INFO * cs, 
                        uchar *dest, uint len,
                        const uchar *src, uint srclen)
 {
   uchar *map= cs->sort_order;
+  uint dstlen= len;
   set_if_smaller(len, srclen);
   if (dest != src)
   {
     const uchar *end;
     for ( end=src+len; src < end ;  )
       *dest++= map[*src++];
-    return len;
   }
   else
   {
     const uchar *end;
     for ( end=dest+len; dest < end ; dest++)
       *dest= (char) map[(uchar) *dest];
-    return len;
   }
+  if (dstlen > len)
+    bfill(dest, dstlen - len, ' ');
+  return dstlen;
 }
 
 int my_strnncoll_simple(CHARSET_INFO * cs, const uchar *s, uint slen, 
@@ -102,7 +143,7 @@ int my_strnncollsp_simple(CHARSET_INFO * cs, const uchar *a, uint a_length,
   }
   if (a_length != b_length)
   {
-    int swap= 0;
+    int swap= 1;
     /*
       Check the next not space character of the longer key. If it's < ' ',
       then it's smaller than the other key.
@@ -112,12 +153,12 @@ int my_strnncollsp_simple(CHARSET_INFO * cs, const uchar *a, uint a_length,
       /* put shorter key in s */
       a_length= b_length;
       a= b;
-      swap= -1;					/* swap sign of result */
+      swap= -1;                                 /* swap sign of result */
     }
     for (end= a + a_length-length; a < end ; a++)
     {
       if (*a != ' ')
-	return ((int) *a - (int) ' ') ^ swap;
+	return (*a < ' ') ? -swap : swap;
     }
   }
   return 0;
@@ -477,7 +518,6 @@ longlong my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
   register unsigned int cutlim;
   register ulonglong i;
   register const char *s, *e;
-  register unsigned char c;
   const char *save;
   int overflow;
 
@@ -540,8 +580,9 @@ longlong my_strntoll_8bit(CHARSET_INFO *cs __attribute__((unused)),
 
   overflow = 0;
   i = 0;
-  for (c = *s; s != e; c = *++s)
+  for ( ; s != e; s++)
   {
+    register unsigned char c= *s;
     if (c>='0' && c<='9')
       c -= '0';
     else if (c>='A' && c<='Z')
@@ -600,7 +641,6 @@ ulonglong my_strntoull_8bit(CHARSET_INFO *cs,
   register unsigned int cutlim;
   register ulonglong i;
   register const char *s, *e;
-  register unsigned char c;
   const char *save;
   int overflow;
 
@@ -663,8 +703,10 @@ ulonglong my_strntoull_8bit(CHARSET_INFO *cs,
 
   overflow = 0;
   i = 0;
-  for (c = *s; s != e; c = *++s)
+  for ( ; s != e; s++)
   {
+    register unsigned char c= *s;
+
     if (c>='0' && c<='9')
       c -= '0';
     else if (c>='A' && c<='Z')
@@ -732,31 +774,10 @@ double my_strntod_8bit(CHARSET_INFO *cs __attribute__((unused)),
 		       char *str, uint length,
 		       char **end, int *err)
 {
-  char end_char;
-  double result;
-
-  errno= 0;					/* Safety */
-
-  /*
-    The following define is to avoid warnings from valgrind as str[length]
-    may not be defined (which is not fatal in real life)
-  */
-
-#ifdef HAVE_purify
   if (length == INT_MAX32)
-#else
-  if (length == INT_MAX32 || str[length] == 0)
-#endif
-    result= my_strtod(str, end);
-  else
-  {
-    end_char= str[length];
-    str[length]= 0;
-    result= my_strtod(str, end);
-    str[length]= end_char;			/* Restore end char */
-  }
-  *err= errno;
-  return result;
+    length= 65535;                          /* Should be big enough */
+  *end= str + length;
+  return my_strtod(str, end, err);
 }
 
 

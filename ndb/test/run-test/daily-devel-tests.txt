@@ -1,7 +1,3 @@
-max-time: 2500
-cmd: atrt-mysql-test-run
-args: --do-test=ndb --force
-
 #
 # INDEX
 #
@@ -22,10 +18,6 @@ args: -n CreateLoadDrop T1 T10
 #
 # BACKUP
 #
-max-time: 600
-cmd: atrt-testBackup
-args: -n BackupOne T1 T6 T3 I3
-
 max-time: 1000
 cmd: atrt-testBackup
 args: -n BackupBank T6 
@@ -211,4 +203,33 @@ args: -l 1 -n SR9 T1
 max-time: 2500
 cmd: test_event
 args: -n BasicEventOperation T1 T6 
+
+max-time: 300
+cmd: DbCreate
+args:
+
+max-time: 180
+cmd: DbAsyncGenerator
+args: -time 60 -p 1
+type: bench
+
+max-time: 180
+cmd: DbAsyncGenerator
+args: -time 60 -p 25
+type: bench
+
+max-time: 180
+cmd: DbAsyncGenerator
+args: -time 60 -p 100
+type: bench
+
+max-time: 180
+cmd: DbAsyncGenerator
+args: -time 60 -p 200
+type: bench
+
+max-time: 180
+cmd: DbAsyncGenerator
+args: -time 60 -p 1 -proc 25
+type: bench
 

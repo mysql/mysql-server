@@ -343,6 +343,18 @@ NdbDictionary::Table::getColumn(const int attrId) const {
   return m_impl.getColumn(attrId);
 }
 
+NdbDictionary::Column*
+NdbDictionary::Table::getColumn(const char * name) 
+{
+  return m_impl.getColumn(name);
+}
+
+NdbDictionary::Column* 
+NdbDictionary::Table::getColumn(const int attrId)
+{
+  return m_impl.getColumn(attrId);
+}
+
 void
 NdbDictionary::Table::setLogging(bool val){
   m_impl.m_logging = val;
@@ -761,14 +773,6 @@ NdbDictionary::Dictionary::removeCachedTable(const char * name){
     m_impl.removeCachedObject(* t);
 }
 
-NdbDictionary::Table
-NdbDictionary::Dictionary::getTableForAlteration(const char * name){
-  const NdbDictionary::Table * oldTable = getTable(name);
-  return (oldTable) ? 
-    NdbDictionary::Table(*oldTable) 
-    : NdbDictionary::Table();
-}
-
 int
 NdbDictionary::Dictionary::createIndex(const Index & ind)
 {
@@ -914,8 +918,11 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
   case NdbDictionary::Column::Double:
     out << "Double";
     break;
-  case NdbDictionary::Column::Decimal:
-    out << "Decimal(" << col.getScale() << "," << col.getPrecision() << ")";
+  case NdbDictionary::Column::Olddecimal:
+    out << "Olddecimal(" << col.getPrecision() << "," << col.getScale() << ")";
+    break;
+  case NdbDictionary::Column::Olddecimalunsigned:
+    out << "Olddecimalunsigned(" << col.getPrecision() << "," << col.getScale() << ")";
     break;
   case NdbDictionary::Column::Char:
     out << "Char(" << col.getLength() << ";" << csname << ")";
@@ -932,8 +939,8 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
   case NdbDictionary::Column::Datetime:
     out << "Datetime";
     break;
-  case NdbDictionary::Column::Timespec:
-    out << "Timespec";
+  case NdbDictionary::Column::Date:
+    out << "Date";
     break;
   case NdbDictionary::Column::Blob:
     out << "Blob(" << col.getInlineSize() << "," << col.getPartSize()
@@ -942,6 +949,15 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
   case NdbDictionary::Column::Text:
     out << "Text(" << col.getInlineSize() << "," << col.getPartSize()
         << ";" << col.getStripeSize() << ";" << csname << ")";
+    break;
+  case NdbDictionary::Column::Time:
+    out << "Time";
+    break;
+  case NdbDictionary::Column::Year:
+    out << "Year";
+    break;
+  case NdbDictionary::Column::Timestamp:
+    out << "Timestamp";
     break;
   case NdbDictionary::Column::Undefined:
     out << "Undefined";
@@ -956,6 +972,10 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
     out << " NOT NULL";
   else
     out << " NULL";
+
+  if (col.getDistributionKey())
+    out << " DISTRIBUTION KEY";
+  
   return out;
 }
 

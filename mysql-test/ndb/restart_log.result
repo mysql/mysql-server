@@ -1,0 +1,20 @@
+ ALERT    -- Node 2: Network partitioning - arbitration required
+ ALERT    -- Node 2: Arbitration won - positive reply from node 3
+ ALERT    -- Node 2: Node 1 has failed. The Node state at failure was 0
+ ALERT    -- Node 2: Node failure of 1 DBLQH completed
+ ALERT    -- Node 2: Node failure of 1 DBDICT completed
+ ALERT    -- Node 2: Node failure of 1 DBDIH completed
+ ALERT    -- Node 2: Node failure of 1 DBTC completed
+ ALERT    -- Node 2: Node 2 completed failure of Node 1
+ ALERT    -- Node 2: All nodes completed failure of Node 1
+ ALERT    -- Node 3: Node 1 Disconnected
+ ALERT    -- Node 2: Node 1 Disconnected
+ ALERT    -- Node 2: Network partitioning - arbitration required
+ ALERT    -- Node 2: Arbitration won - positive reply from node 3
+ ALERT    -- Node 2: Node 1 has failed. The Node state at failure was 0
+ ALERT    -- Node 2: Node failure of 1 DBLQH completed
+ ALERT    -- Node 2: Node failure of 1 DBDICT completed
+ ALERT    -- Node 2: Node failure of 1 DBDIH completed
+ ALERT    -- Node 2: Node failure of 1 DBTC completed
+ ALERT    -- Node 2: Node 2 completed failure of Node 1
+ ALERT    -- Node 2: All nodes completed failure of Node 1

@@ -4,7 +4,7 @@
 MODULE	libc.nlm
 STACKSIZE 65536
 SCREENNAME "MySQL Test Run"
-COPYRIGHT "(c) 2003 Novell, Inc. Portions (c) 2003 MySQL AB. All Rights Reserved."
+COPYRIGHT "(c) 2003-2005 Novell, Inc. Portions (c) 2003 MySQL AB. All Rights Reserved."
 DESCRIPTION "MySQL Test Run"
 VERSION 4, 0
 XDCDATA ../netware/mysql.xdc

@@ -110,6 +110,7 @@
 #define CFG_CONNECTION_SERVER_PORT    406
 #define CFG_CONNECTION_HOSTNAME_1     407
 #define CFG_CONNECTION_HOSTNAME_2     408
+#define CFG_CONNECTION_GROUP          409
 
 #define CFG_TCP_SERVER                452
 #define CFG_TCP_SEND_BUFFER_SIZE      454
@@ -120,6 +121,7 @@
 #define CFG_SHM_CHECKSUM              501
 #define CFG_SHM_KEY                   502
 #define CFG_SHM_BUFFER_MEM            503
+#define CFG_SHM_SIGNUM                504
 
 #define CFG_SCI_HOST1_ID_0            550
 #define CFG_SCI_HOST1_ID_1            551

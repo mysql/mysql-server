@@ -26,7 +26,7 @@ else
 }
 
 # Some predefined settings
-$build_command= "BUILD/compile-pentium-max";
+$build_command= "BUILD/compile-dist";
 $PWD= cwd();
 $opt_docdir= $PWD . "/mysqldoc";
 $opt_archive_log= undef;
@@ -38,7 +38,7 @@ $opt_dry_run= undef;
 $opt_export_only= undef;
 $opt_help= $opt_verbose= 0;
 $opt_log= undef;
-$opt_mail= "";
+$opt_mail= "build\@mysql.com";
 $opt_pull= undef;
 $opt_revision= undef;
 $opt_suffix= "";
@@ -70,7 +70,7 @@ GetOptions(
 	"test|t",
 	"verbose|v",
 	"win-dist|w",
-        "quiet|q",
+	"quiet|q",
 ) || print_help("");
 
 #
@@ -122,18 +122,8 @@ if (($opt_directory ne $PWD) && (!-d $opt_directory && !$opt_dry_run))
 #
 if ($opt_pull)
 {
-	&logger("Updating BK tree $REPO to latest ChangeSet first");
-  chdir ($REPO) or &abort("Could not chdir to $REPO!");
-	&run_command("bk pull", "Could not update $REPO!");
-  chdir ($PWD) or &abort("Could not chdir to $PWD!");
-
-	unless ($opt_skip_manual)
-	{
-		&logger("Updating manual tree in $opt_docdir");
-    chdir ($opt_docdir) or &abort("Could not chdir to $opt_docdir!");
-	  &run_command("bk pull", "Could not update $opt_docdir!");
-    chdir ($PWD) or &abort("Could not chdir to $PWD!");
-	}
+	&bk_pull("$REPO");
+	&bk_pull("$opt_docdir") unless ($opt_skip_manual);
 }
 
 #
@@ -220,10 +210,16 @@ if (-d $target_dir)
 	}
 	else
 	{
-		&logger("Renaming $target_dir to $target_dir.old." . $$);
+		# Get the time stamp of "configure.in"
+		@stat= stat("$target_dir/configure.in");
+		my $mtime= $stat[9];
+		my ($sec,$min,$hour,$mday,$mon,$year) = localtime($mtime);
+		my $mtime= sprintf("%04d-%02d-%02d-%02d:%02d", $year+1900, $mon+1, $mday, $hour, $min);
+
+		&logger("Renaming $target_dir to $target_dir-$mtime");
 		$command= "mv ";
 		$command.= "-v " if ($opt_verbose || defined $opt_log);
-		$command.= "$target_dir $target_dir.old." . $$;
+		$command.= "$target_dir $target_dir-$mtime";
 		&run_command($command, "Could not rename $target_dir!");
 	}
 }
@@ -262,7 +258,7 @@ if (defined $opt_changelog)
 	$msg= "Adding $target_dir/ChangeLog";
 	$msg.= " (down to revision $opt_changelog)" if $opt_changelog ne "";
 	&logger($msg);
-	$command= "bk changes -mv";
+	$command= "bk changes -v";
 	$command.= " -r" if ($opt_changelog ne "" || $opt_revision);
 	$command.= $opt_changelog if $opt_changelog ne "";
 	$command.= ".." if ($opt_changelog ne "" && !$opt_revision);
@@ -270,7 +266,7 @@ if (defined $opt_changelog)
 	$command.= " " . $REPO . " > $target_dir/ChangeLog";
 	&logger($command);
 	# We cannot use run_command here because of output redirection
-	if (!$opt_dry_run)
+	unless ($opt_dry_run)
 	{
 		system($command) == 0 or &abort("Could not create $target_dir/ChangeLog!");
 	}
@@ -281,13 +277,17 @@ if (defined $opt_changelog)
 #
 unless ($opt_skip_manual)
 {
-	$msg= "Updating manual files";
-	&logger($msg);
-	foreach $file qw/internals manual reservedwords/
+	&logger("Updating manual files");
+	foreach $file qw/internals manual reservedwords errmsg-table cl-errmsg-table/
 	{
 		system ("bk cat $opt_docdir/Docs/$file.texi > $target_dir/Docs/$file.texi") == 0
 		or &abort("Could not update $file.texi in $target_dir/Docs/!");
 	}
+
+	&run_command("rm -f $target_dir/Docs/Images/Makefile*",
+ 	  "Could not remove Makefiles in $target_dir/Docs/Images/!");
+	&run_command("cp $opt_docdir/Docs/Images/*.* $target_dir/Docs/Images",
+	  "Could not copy image files in $target_dir/Docs/Images/!");
 }
 
 #
@@ -374,6 +374,18 @@ if ($opt_archive_log)
 exit 0;
 
 #
+# Run a BK pull on the given BK tree
+#
+sub bk_pull
+{
+  my $bk_tree= $_[0];
+	&logger("Updating BK tree $bk_tree to latest ChangeSet first");
+  chdir ($bk_tree) or &abort("Could not chdir to $bk_tree!");
+	&run_command("bk pull", "Could not update $bk_tree!");
+  chdir ($PWD) or &abort("Could not chdir to $PWD!");
+}
+
+#
 # Print the help text message (with an optional message on top)
 #
 sub print_help
@@ -425,6 +437,7 @@ Options:
                            include a log file snippet, if logging is enabled)
                            Note that the \@-Sign needs to be quoted!
                            Example: --mail=user\\\@domain.com
+                           Default: build\@mysql.com
 -q, --quiet                Be quiet
 -p, --pull                 Update the source BK trees before building
 -r, --revision=<rev>       Export the tree as of revision <rev>

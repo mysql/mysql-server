@@ -1062,7 +1062,21 @@ void Dbacc::execACCFRAGREQ(Signal* signal)
 {
   const AccFragReq * const req = (AccFragReq*)&signal->theData[0];
   jamEntry();
+  if (ERROR_INSERTED(3001)) {
+    jam();
+    addFragRefuse(signal, 1);
+    CLEAR_ERROR_INSERT_VALUE;
+    return;
+  }
   tabptr.i = req->tableId;
+#ifndef VM_TRACE
+  // config mismatch - do not crash if release compiled
+  if (tabptr.i >= ctablesize) {
+    jam();
+    addFragRefuse(signal, 800);
+    return;
+  }
+#endif
   ptrCheckGuard(tabptr, ctablesize, tabrec);
   ndbrequire((req->reqInfo & 0xF) == ZADDFRAG);
   ndbrequire(!getrootfragmentrec(signal, rootfragrecptr, req->fragId));
@@ -4501,6 +4515,17 @@ void Dbacc::getdirindex(Signal* signal)
 /*                     BUCKET, AND SERCH FOR ELEMENT.THE PRIMARY KEYS WHICH IS SAVED */
 /*                     IN THE OPERATION REC ARE THE CHECK ITEMS IN THE SEARCHING.    */
 /* --------------------------------------------------------------------------------- */
+
+#if __ia64 == 1
+#if __INTEL_COMPILER == 810
+int ndb_acc_ia64_icc810_dummy_var = 0;
+void ndb_acc_ia64_icc810_dummy_func()
+{
+  ndb_acc_ia64_icc810_dummy_var++;
+}
+#endif
+#endif
+
 void Dbacc::getElement(Signal* signal) 
 {
   DirRangePtr geOverflowrangeptr;
@@ -4595,6 +4620,12 @@ void Dbacc::getElement(Signal* signal)
 	  /*       WE HAVE FOUND THE ELEMENT. GET THE LOCK INDICATOR AND RETURN FOUND.         */
 	  /* --------------------------------------------------------------------------------- */
           jam();
+#if __ia64 == 1
+#if __INTEL_COMPILER == 810
+          // prevents SIGSEGV under icc -O1
+          ndb_acc_ia64_icc810_dummy_func();
+#endif
+#endif
           tgeLocked = ElementHeader::getLocked(gePageptr.p->word32[tgeElementptr]);
           tgeResult = ZTRUE;
           TdataIndex = tgeElementptr + tgeForward;
@@ -5673,7 +5704,8 @@ void Dbacc::commitOperation(Signal* signal)
   Uint32 tmp2Olq;
 
   if ((operationRecPtr.p->commitDeleteCheckFlag == ZFALSE) &&
-      (operationRecPtr.p->operation != ZSCAN_OP)) {
+      (operationRecPtr.p->operation != ZSCAN_OP) &&
+      (operationRecPtr.p->operation != ZREAD)) {
     jam();
     /*  This method is used to check whether the end result of the transaction
         will be to delete the tuple. In this case all operation will be marked

@@ -76,93 +76,121 @@ NdbSqlUtil::char_like(const char* s1, unsigned n1,
 
 const NdbSqlUtil::Type
 NdbSqlUtil::m_typeList[] = {
-  {
+  { // 0
     Type::Undefined,
     NULL
   },
-  {
+  { // 1
     Type::Tinyint,
     cmpTinyint
   },
-  {
+  { // 2
     Type::Tinyunsigned,
     cmpTinyunsigned
   },
-  {
+  { // 3
     Type::Smallint,
     cmpSmallint
   },
-  {
+  { // 4
     Type::Smallunsigned,
     cmpSmallunsigned
   },
-  {
+  { // 5
     Type::Mediumint,
     cmpMediumint
   },
-  {
+  { // 6
     Type::Mediumunsigned,
     cmpMediumunsigned
   },
-  {
+  { // 7
     Type::Int,
     cmpInt
   },
-  {
+  { // 8
     Type::Unsigned,
     cmpUnsigned
   },
-  {
+  { // 9
     Type::Bigint,
     cmpBigint
   },
-  {
+  { // 10
     Type::Bigunsigned,
     cmpBigunsigned
   },
-  {
+  { // 11
     Type::Float,
     cmpFloat
   },
-  {
+  { // 12
     Type::Double,
     cmpDouble
   },
-  {
-    Type::Decimal,
-    NULL  // cmpDecimal
+  { // 13
+    Type::Olddecimal,
+    cmpOlddecimal
   },
-  {
+  { // 14
     Type::Char,
     cmpChar
   },
-  {
+  { // 15
     Type::Varchar,
     cmpVarchar
   },
-  {
+  { // 16
     Type::Binary,
     cmpBinary
   },
-  {
+  { // 17
     Type::Varbinary,
     cmpVarbinary
   },
-  {
+  { // 18
     Type::Datetime,
     cmpDatetime
   },
-  {
-    Type::Timespec,
-    cmpTimespec
+  { // 19
+    Type::Date,
+    cmpDate
   },
-  {
+  { // 20
     Type::Blob,
     cmpBlob
   },
-  {
+  { // 21
     Type::Text,
     cmpText
+  },
+  { // 22
+    Type::Undefined,    // 5.0 Bit
+    NULL
+  },
+  { // 23
+    Type::Undefined,    // 5.0 Longvarchar
+    NULL
+  },
+  { // 24
+    Type::Undefined,    // 5.0 Longvarbinary
+    NULL
+  },
+  { // 25
+    Type::Time,
+    cmpTime
+  },
+  { // 26
+    Type::Year,
+    cmpYear
+  },
+  { // 27
+    Type::Timestamp,
+    cmpTimestamp
+  },
+  { // 28
+    Type::Olddecimalunsigned,
+    cmpOlddecimalunsigned
   }
 };
 
@@ -387,12 +415,54 @@ NdbSqlUtil::cmpDouble(const void* info, const Uint32* p1, const Uint32* p2, Uint
 }
 
 int
-NdbSqlUtil::cmpDecimal(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+NdbSqlUtil::cmp_olddecimal(const uchar* s1, const uchar* s2, unsigned n)
+{
+  int sgn = +1;
+  unsigned i = 0;
+  while (i < n) {
+    int c1 = s1[i];
+    int c2 = s2[i];
+    if (c1 == c2) {
+      if (c1 == '-')
+        sgn = -1;
+    } else if (c1 == '-') {
+      return -1;
+    } else if (c2 == '-') {
+      return +1;
+    } else if (c1 < c2) {
+      return -1 * sgn;
+    } else {
+      return +1 * sgn;
+    }
+    i++;
+  }
+  return 0;
+}
+
+int
+NdbSqlUtil::cmpOlddecimal(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
   assert(full >= size && size > 0);
-  // not used by MySQL or NDB
-  assert(false);
-  return 0;
+  if (full == size) {
+    union { const Uint32* p; const uchar* v; } u1, u2;
+    u1.p = p1;
+    u2.p = p2;
+    return cmp_olddecimal(u1.v, u2.v, full << 2);
+  }
+  return CmpUnknown;
+}
+
+int
+NdbSqlUtil::cmpOlddecimalunsigned(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+{
+  assert(full >= size && size > 0);
+  if (full == size) {
+    union { const Uint32* p; const uchar* v; } u1, u2;
+    u1.p = p1;
+    u2.p = p2;
+    return cmp_olddecimal(u1.v, u2.v, full << 2);
+  }
+  return CmpUnknown;
 }
 
 int
@@ -469,56 +539,78 @@ int
 NdbSqlUtil::cmpDatetime(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
   assert(full >= size && size > 0);
-  /*
-   * Datetime is CC YY MM DD hh mm ss \0
-   *
-   * Not used via MySQL.
-   */
-  union { const Uint32* p; const unsigned char* v; } u1, u2;
-  u1.p = p1;
-  u2.p = p2;
-  // no format check
-  int k = memcmp(u1.v, u2.v, 4);
-  if (k != 0)
-    return k < 0 ? -1 : +1;
   if (size >= 2) {
-    k = memcmp(u1.v + 4, u2.v + 4, 4);
-    return k < 0 ? -1 : k > 0 ? +1 : 0;
+    union { Uint32 p[2]; Int64 v; } u1, u2;
+    u1.p[0] = p1[0];
+    u1.p[1] = p1[1];
+    u2.p[0] = p2[0];
+    u2.p[1] = p2[1];
+    if (u1.v < u2.v)
+      return -1;
+    if (u1.v > u2.v)
+      return +1;
+    return 0;
   }
   return CmpUnknown;
 }
 
 int
-NdbSqlUtil::cmpTimespec(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+NdbSqlUtil::cmpDate(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
 {
+#ifdef ndb_date_is_4_byte_native_int
   assert(full >= size && size > 0);
-  /*
-   * Timespec is CC YY MM DD hh mm ss \0 NN NN NN NN
-   *
-   * Not used via MySQL.
-   */
+  union { Uint32 p[2]; Int32 v; } u1, u2;
+  u1.p[0] = p1[0];
+  u2.p[0] = p2[0];
+  if (u1.v < u2.v)
+    return -1;
+  if (u1.v > u2.v)
+    return +1;
+  return 0;
+#else
+  assert(full >= size && size > 0);
   union { const Uint32* p; const unsigned char* v; } u1, u2;
   u1.p = p1;
   u2.p = p2;
-  // no format check
-  int k = memcmp(u1.v, u2.v, 4);
-  if (k != 0)
-    return k < 0 ? -1 : +1;
-  if (size >= 2) {
-    k = memcmp(u1.v + 4, u2.v + 4, 4);
-    if (k != 0)
-      return k < 0 ? -1 : +1;
-    if (size >= 3) {
-      Uint32 n1 = *(const Uint32*)(u1.v + 8);
-      Uint32 n2 = *(const Uint32*)(u2.v + 8);
-      if (n1 < n2)
-        return -1;
-      if (n2 > n1)
-        return +1;
-      return 0;
-    }
-  }
-  return CmpUnknown;
+#ifdef ndb_date_sol9x86_cc_xO3_madness
+  // from Field_newdate::val_int
+  Uint64 j1 = uint3korr(u1.v);
+  Uint64 j2 = uint3korr(u2.v);
+  j1 = (j1 % 32L)+(j1 / 32L % 16L)*100L + (j1/(16L*32L))*10000L;
+  j2 = (j2 % 32L)+(j2 / 32L % 16L)*100L + (j2/(16L*32L))*10000L;
+  if (j1 < j2)
+    return -1;
+  if (j1 > j2)
+    return +1;
+  return 0;
+#else
+  uint j1 = uint3korr(u1.v);
+  uint j2 = uint3korr(u2.v);
+  uint d1 = (j1 & 31);
+  uint d2 = (j2 & 31);
+  j1 = (j1 >> 5);
+  j2 = (j2 >> 5);
+  uint m1 = (j1 & 15);
+  uint m2 = (j2 & 15);
+  j1 = (j1 >> 4);
+  j2 = (j2 >> 4);
+  uint y1 = j1;
+  uint y2 = j2;
+  if (y1 < y2)
+    return -1;
+  if (y1 > y2)
+    return +1;
+  if (m1 < m2)
+    return -1;
+  if (m1 > m2)
+    return +1;
+  if (d1 < d2)
+    return -1;
+  if (d1 > d2)
+    return +1;
+  return 0;
+#endif
+#endif
 }
 
 int
@@ -565,6 +657,51 @@ NdbSqlUtil::cmpText(const void* info, const Uint32* p1, const Uint32* p2, Uint32
   return CmpUnknown;
 }
 
+int
+NdbSqlUtil::cmpTime(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+{
+  assert(full >= size && size > 0);
+  union { const Uint32* p; const unsigned char* v; } u1, u2;
+  u1.p = p1;
+  u2.p = p2;
+  // from Field_time::val_int
+  Int32 j1 = sint3korr(u1.v);
+  Int32 j2 = sint3korr(u2.v);
+  if (j1 < j2)
+    return -1;
+  if (j1 > j2)
+    return +1;
+  return 0;
+}
+
+int
+NdbSqlUtil::cmpYear(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+{
+  assert(full >= size && size > 0);
+  union { const Uint32* p; const unsigned char* v; } u1, u2;
+  u1.p = p1;
+  u2.p = p2;
+  if (u1.v[0] < u2.v[0])
+    return -1;
+  if (u1.v[0] > u2.v[0])
+    return +1;
+  return 0;
+}
+
+int
+NdbSqlUtil::cmpTimestamp(const void* info, const Uint32* p1, const Uint32* p2, Uint32 full, Uint32 size)
+{
+  assert(full >= size && size > 0);
+  union { Uint32 p[1]; Uint32 v; } u1, u2;
+  u1.v = p1[0];
+  u2.v = p2[0];
+  if (u1.v < u2.v)
+    return -1;
+  if (u1.v > u2.v)
+    return +1;
+  return 0;
+}
+
 // check charset
 
 bool
@@ -582,7 +719,7 @@ NdbSqlUtil::usable_in_pk(Uint32 typeId, const void* info)
         cs->cset != 0 &&
         cs->coll != 0 &&
         cs->coll->strnxfrm != 0 &&
-        cs->strxfrm_multiply == 1; // current limitation
+        cs->strxfrm_multiply <= 1; // current limitation
     }
     break;
   case Type::Varchar:
@@ -618,7 +755,7 @@ NdbSqlUtil::usable_in_ordered_index(Uint32 typeId, const void* info)
         cs->coll != 0 &&
         cs->coll->strnxfrm != 0 &&
         cs->coll->strnncollsp != 0 &&
-        cs->strxfrm_multiply == 1; // current limitation
+        cs->strxfrm_multiply <= 1; // current limitation
     }
     break;
   case Type::Varchar:
@@ -633,7 +770,7 @@ NdbSqlUtil::usable_in_ordered_index(Uint32 typeId, const void* info)
         cs->coll != 0 &&
         cs->coll->strnxfrm != 0 &&
         cs->coll->strnncollsp != 0 &&
-        cs->strxfrm_multiply == 1; // current limitation
+        cs->strxfrm_multiply <= 1; // current limitation
     }
     break;
   default:

@@ -710,7 +710,8 @@ err1:
 
 int rtree_insert(MI_INFO *info, uint keynr, uchar *key, uint key_length)
 {
-  return (rtree_insert_level(info, keynr, key, key_length, -1) == -1) ? -1 : 0;
+  return (!key_length ||
+	  (rtree_insert_level(info, keynr, key, key_length, -1) == -1)) ? -1 : 0;
 }
 
 
@@ -947,15 +948,14 @@ int rtree_delete(MI_INFO *info, uint keynr, uchar *key, uint key_length)
       /* check for redundant root (not leaf, 1 child) and eliminate */
       if ((old_root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
         goto err1;
-      if (!_mi_fetch_keypage(info, keyinfo, old_root, DFLT_INIT_HITS, 
+      if (!_mi_fetch_keypage(info, keyinfo, old_root, DFLT_INIT_HITS,
                              info->buff, 0))
         goto err1;
       nod_flag = mi_test_if_nod(info->buff);
       page_size = mi_getint(info->buff);
-      if (nod_flag && (page_size == 2 + key_length + 
-                    (nod_flag ? nod_flag : info->s->base.rec_reflength)))
+      if (nod_flag && (page_size == 2 + key_length + nod_flag))
       {
-        my_off_t new_root = _mi_kpos(nod_flag, 
+        my_off_t new_root = _mi_kpos(nod_flag,
                                      rt_PAGE_FIRST_KEY(info->buff, nod_flag));
         if (_mi_dispose(info, keyinfo, old_root, DFLT_INIT_HITS))
           goto err1;

@@ -32,6 +32,10 @@ class Item_func :public Item_result_field
 {
 protected:
   Item **args, *tmp_arg[2];
+  /*
+    Allowed numbers of columns in result (usually 1, which means scalar value)
+    0 means get this number from first argument
+  */
   uint allowed_arg_cols;
 public:
   uint arg_count;
@@ -141,11 +145,12 @@ public:
   Item *get_tmp_table_item(THD *thd);
   
   bool agg_arg_collations(DTCollation &c, Item **items, uint nitems,
-                          bool allow_superset_conversion= FALSE);
+                          uint flags= 0);
   bool agg_arg_collations_for_comparison(DTCollation &c,
                                          Item **items, uint nitems,
-                                         bool allow_superset_comversion= FALSE);
-
+                                         uint flags= 0);
+  bool agg_arg_charsets(DTCollation &c, Item **items, uint nitems,
+                        uint flags= 0);
   bool walk(Item_processor processor, byte *arg);
 };
 
@@ -823,8 +828,11 @@ public:
   double val()
   {
     int err;
-    String *res;  res=val_str(&str_value);
-    return res ? my_strntod(res->charset(),(char*) res->ptr(),res->length(),0,&err) : 0.0;
+    String *res;
+    char *end_not_used;
+    res=val_str(&str_value);
+    return res ? my_strntod(res->charset(), (char*) res->ptr(), res->length(),
+                            &end_not_used, &err) : 0.0;
   }
   longlong val_int()
   {

@@ -88,12 +88,13 @@ typedef struct st_key_cache
   ulong param_division_limit;   /* min. percentage of warm blocks           */
   ulong param_age_threshold;    /* determines when hot block is downgraded  */
 
-  /* Statistics variables */
+  /* Statistics variables. These are reset in reset_key_cache_counters(). */
   ulong global_blocks_changed;	/* number of currently dirty blocks         */
   ulong global_cache_w_requests;/* number of write requests (write hits)    */
   ulong global_cache_write;     /* number of writes from the cache to files */
   ulong global_cache_r_requests;/* number of read requests (read hits)      */
   ulong global_cache_read;      /* number of reads from files to the cache  */
+
   int blocks;                   /* max number of blocks in the cache        */
   my_bool in_init;		/* Set to 1 in MySQL during init/resize     */
 } KEY_CACHE;
@@ -132,5 +133,7 @@ extern my_bool multi_key_cache_set(const byte *key, uint length,
 				   KEY_CACHE *key_cache);
 extern void multi_key_cache_change(KEY_CACHE *old_data,
 				   KEY_CACHE *new_data);
+extern int reset_key_cache_counters(const char *name,
+                                    KEY_CACHE *key_cache);
 C_MODE_END
 #endif /* _keycache_h */

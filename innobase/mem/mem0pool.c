@@ -199,7 +199,7 @@ mem_pool_create(
 	but only when allocated at a higher level in mem0mem.c.
 	This is to avoid masking useful Purify warnings. */
 
-	pool->buf = ut_malloc_low(size, FALSE);
+	pool->buf = ut_malloc_low(size, FALSE, TRUE);
 	pool->size = size;
 
 	mutex_create(&(pool->mutex));

@@ -156,10 +156,12 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
     return out;
   }
 
-  if (r.arraySize() > 1)
+  const NdbDictionary::Column* c = r.getColumn();
+  uint length = c->getLength();
+  if (length > 1)
     out << "[";
 
-  for (Uint32 j = 0; j < r.arraySize(); j++) 
+  for (Uint32 j = 0; j < length; j++) 
   {
     if (j > 0)
       out << " ";
@@ -192,20 +194,112 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
 	break;
       case NdbDictionary::Column::Char:
 	out.print("%.*s", r.arraySize(), r.aRef());
-	j = r.arraySize();
+	j = length;
 	break;
       case NdbDictionary::Column::Varchar:
 	{
 	  short len = ntohs(r.u_short_value());
 	  out.print("%.*s", len, r.aRef()+2);
 	}
-	j = r.arraySize();
+	j = length;
       break;
       case NdbDictionary::Column::Float:
 	out << r.float_value();
 	break;
       case NdbDictionary::Column::Double:
 	out << r.double_value();
+	break;
+      case NdbDictionary::Column::Olddecimal:
+        {
+          short len = 1 + c->getPrecision() + (c->getScale() > 0);
+          out.print("%.*s", len, r.aRef());
+        }
+        break;
+      case NdbDictionary::Column::Olddecimalunsigned:
+        {
+          short len = 0 + c->getPrecision() + (c->getScale() > 0);
+          out.print("%.*s", len, r.aRef());
+        }
+	break;
+      // for dates cut-and-paste from field.cc
+      case NdbDictionary::Column::Datetime:
+        {
+          ulonglong tmp=r.u_64_value();
+          long part1,part2,part3;
+          part1=(long) (tmp/LL(1000000));
+          part2=(long) (tmp - (ulonglong) part1*LL(1000000));
+          char buf[40];
+          char* pos=(char*) buf+19;
+          *pos--=0;
+          *pos--= (char) ('0'+(char) (part2%10)); part2/=10; 
+          *pos--= (char) ('0'+(char) (part2%10)); part3= (int) (part2 / 10);
+          *pos--= ':';
+          *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
+          *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
+          *pos--= ':';
+          *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
+          *pos--= (char) ('0'+(char) part3);
+          *pos--= '/';
+          *pos--= (char) ('0'+(char) (part1%10)); part1/=10;
+          *pos--= (char) ('0'+(char) (part1%10)); part1/=10;
+          *pos--= '-';
+          *pos--= (char) ('0'+(char) (part1%10)); part1/=10;
+          *pos--= (char) ('0'+(char) (part1%10)); part3= (int) (part1/10);
+          *pos--= '-';
+          *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
+          *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
+          *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
+          *pos=(char) ('0'+(char) part3);
+          out << buf;
+        }
+	break;
+      case NdbDictionary::Column::Date:
+        {
+          uint32 tmp=(uint32) uint3korr(r.aRef());
+          int part;
+          char buf[40];
+          char *pos=(char*) buf+10;
+          *pos--=0;
+          part=(int) (tmp & 31);
+          *pos--= (char) ('0'+part%10);
+          *pos--= (char) ('0'+part/10);
+          *pos--= '-';
+          part=(int) (tmp >> 5 & 15);
+          *pos--= (char) ('0'+part%10);
+          *pos--= (char) ('0'+part/10);
+          *pos--= '-';
+          part=(int) (tmp >> 9);
+          *pos--= (char) ('0'+part%10); part/=10;
+          *pos--= (char) ('0'+part%10); part/=10;
+          *pos--= (char) ('0'+part%10); part/=10;
+          *pos=   (char) ('0'+part);
+          out << buf;
+        }
+	break;
+      case NdbDictionary::Column::Time:
+        {
+          long tmp=(long) sint3korr(r.aRef());
+          int hour=(uint) (tmp/10000);
+          int minute=(uint) (tmp/100 % 100);
+          int second=(uint) (tmp % 100);
+          char buf[40];
+          sprintf(buf, "%02d:%02d:%02d", hour, minute, second);
+          out << buf;
+        }
+	break;
+      case NdbDictionary::Column::Year:
+        {
+          uint year = 1900 + r.u_char_value();
+          char buf[40];
+          sprintf(buf, "%04d", year);
+          out << buf;
+        }
+	break;
+      case NdbDictionary::Column::Timestamp:
+        {
+          time_t time = r.u_32_value();
+          out << (uint)time;
+        }
 	break;
       case NdbDictionary::Column::Blob:
         {
@@ -215,7 +309,7 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
           unsigned n = r.arraySize() - sizeof(*h);
           for (unsigned k = 0; k < n && k < h->length; k++)
             out.print("%02X", (int)p[k]);
-          j = r.arraySize();
+          j = length;
         }
         break;
       case NdbDictionary::Column::Text:
@@ -226,22 +320,54 @@ NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)
           unsigned n = r.arraySize() - sizeof(*h);
           for (unsigned k = 0; k < n && k < h->length; k++)
             out.print("%c", (int)p[k]);
-          j = r.arraySize();
+          j = length;
         }
         break;
       default: /* no print functions for the rest, just print type */
 	out << (int) r.getType();
-	j = r.arraySize();
+	j = length;
 	if (j > 1)
 	  out << " " << j << " times";
 	break;
       }
   }
 
-  if (r.arraySize() > 1)
+  if (length > 1)
   {
     out << "]";
   }
 
   return out;
+}
+
+Int64
+NdbRecAttr::int64_value() const 
+{
+  Int64 val;
+  memcpy(&val,theRef,8);
+  return val;
+}
+
+Uint64
+NdbRecAttr::u_64_value() const
+{
+  Uint64 val;
+  memcpy(&val,theRef,8);
+  return val;
+}
+
+float
+NdbRecAttr::float_value() const
+{
+  float val;
+  memcpy(&val,theRef,sizeof(val));
+  return val;
+}
+
+double
+NdbRecAttr::double_value() const
+{
+  double val;
+  memcpy(&val,theRef,sizeof(val));
+  return val;
 }

@@ -41,7 +41,9 @@ AC_CHECK_SIZEOF(long, 4)
 AC_CHECK_SIZEOF(void*, 4)
 AC_CHECK_FUNCS(sched_yield)
 AC_CHECK_FUNCS(fdatasync)
-#AC_CHECK_FUNCS(localtime_r)	# Already checked by MySQL
+AC_CHECK_FUNCS(localtime_r)
+#AC_CHECK_FUNCS(readdir_r) MySQL checks that it has also the right args.
+# Some versions of Unix only take 2 arguments.
 #AC_C_INLINE  Already checked in MySQL
 AC_C_BIGENDIAN
 
@@ -110,6 +112,9 @@ esac
 case "$target" in
        i[[4567]]86-*-*)
 	 CFLAGS="$CFLAGS -DUNIV_INTEL_X86";;
+	 # The compiler on Linux/S390 does not seem to have inlining
+       s390-*-*)
+	 CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
 esac
 
 AC_OUTPUT(Makefile os/Makefile ut/Makefile btr/Makefile dnl

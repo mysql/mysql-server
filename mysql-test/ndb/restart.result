@@ -1,0 +1,16 @@
+-- NDB Cluster -- Management Client --
+Connected to Management Server at: localhost:1186
+ALL disabled
+Cluster logging is enabled.
+ALERT enabled
+Executing CLUSTERLOG on node 1 OK!
+Executing CLUSTERLOG on node 2 OK!
+
+Node 1 is being restarted.
+
+Executing CLUSTERLOG on node 1 OK!
+Executing CLUSTERLOG on node 2 OK!
+
+Node 1 is being restarted.
+
+ALL enabled

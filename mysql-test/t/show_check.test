@@ -21,7 +21,8 @@ check table t1 changed;
 check table t1 medium;
 check table t1 extended;
 show index from t1;
-!$1062 insert into t1 values (5,5,5);
+--error 1062
+insert into t1 values (5,5,5);
 optimize table t1;
 optimize table t1;
 drop table t1;
@@ -227,37 +228,37 @@ CREATE TABLE t3 (
 insert into t1 values (1),(2);
 insert into t2 values (1),(2);
 insert into t3 values (1,1),(2,2);
---replace_column 7 # 8 # 9 #
+--replace_column 6 # 7 # 8 # 9 #
 show table status;
 insert into t1 values (3),(4);
 insert into t2 values (3),(4);
 insert into t3 values (3,3),(4,4);
---replace_column 7 # 8 # 9 #
+--replace_column 6 # 7 # 8 # 9 #
 show table status;
 insert into t1 values (5);
 insert into t2 values (5);
 insert into t3 values (5,5);
---replace_column 7 # 8 # 9 #
+--replace_column 6 # 7 # 8 # 9 #
 show table status;
 delete from t1 where a=3;
 delete from t2 where b=3;
 delete from t3 where a=3;
---replace_column 7 # 8 # 9 #
+--replace_column 6 # 7 # 8 # 9 # 10 #
 show table status;
 delete from t1;
 delete from t2;
 delete from t3;
---replace_column 7 # 8 # 9 #
+--replace_column 6 # 7 # 8 # 9 #
 show table status;
 insert into t1 values (5);
 insert into t2 values (5);
 insert into t3 values (5,5);
---replace_column 7 # 8 # 9 #
+--replace_column 6 # 7 # 8 # 9 #
 show table status;
 delete from t1 where a=5;
 delete from t2 where b=5;
 delete from t3 where a=5;
---replace_column 7 # 8 # 9 #
+--replace_column 6 # 7 # 8 # 9 # 10 #
 show table status;
 
 drop table t1, t2, t3;
@@ -320,3 +321,35 @@ flush privileges;
 #--replace_column 7 # 8 # 9 #
 #show table status from `ä` LIKE 'ä';
 #drop database `ä`;
+
+# Test that USING <keytype> is always shown in SHOW CREATE TABLE when it was
+# specified during table creation, but not otherwise. (Bug #7235)
+CREATE TABLE t1 (i int, KEY (i)) ENGINE=MEMORY;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+CREATE TABLE t1 (i int, KEY USING HASH (i)) ENGINE=MEMORY;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+CREATE TABLE t1 (i int, KEY USING BTREE (i)) ENGINE=MEMORY;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+CREATE TABLE t1 (i int, KEY (i)) ENGINE=MyISAM;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+CREATE TABLE t1 (i int, KEY USING BTREE (i)) ENGINE=MyISAM;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+# Test that when an index is created with the default key algorithm and
+# altered to another storage engine, it gets the default key algorithm
+# for that storage engine, but when it is specified, the specified type is
+# preserved.
+CREATE TABLE t1 (i int, KEY (i)) ENGINE=MyISAM;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ENGINE=MEMORY;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+CREATE TABLE t1 (i int, KEY USING BTREE (i)) ENGINE=MyISAM;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ENGINE=MEMORY;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;

@@ -24,7 +24,6 @@
 #include "mysql_priv.h"
 
 #ifdef HAVE_SPATIAL
-#include "sql_acl.h"
 #include <m_ctype.h>
 
 void Item_geometry_func::fix_length_and_dec()
@@ -148,9 +147,9 @@ String *Item_func_geometry_type::val_str(String *str)
 					  swkb->length() - SRID_SIZE)))))
     return 0;
   /* String will not move */
-  str->set(geom->get_class_info()->m_name.str,
-	   geom->get_class_info()->m_name.length,
-	   default_charset());
+  str->copy(geom->get_class_info()->m_name.str,
+	    geom->get_class_info()->m_name.length,
+	    default_charset());
   return str;
 }
 

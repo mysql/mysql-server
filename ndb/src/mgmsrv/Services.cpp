@@ -29,7 +29,7 @@
 
 #include <ConfigValues.hpp>
 #include <mgmapi_configuration.hpp>
-
+#include <Vector.hpp>
 #include "Services.hpp"
 
 extern bool g_StopServer;
@@ -132,6 +132,7 @@ ParserRow<MgmApiSession> commands[] = {
     MGM_ARG("user", String, Mandatory, "Password"),
     MGM_ARG("password", String, Mandatory, "Password"),
     MGM_ARG("public key", String, Mandatory, "Public key"),
+    MGM_ARG("endian", String, Optional, "Endianness"),
 
   MGM_CMD("get version", &MgmApiSession::getVersion, ""),
   
@@ -175,6 +176,7 @@ ParserRow<MgmApiSession> commands[] = {
     MGM_ARG("args", String, Mandatory, "Args(space separated int's)"),
 
   MGM_CMD("start backup", &MgmApiSession::startBackup, ""),
+    MGM_ARG("completed", Int, Optional ,"Wait until completed"),
 
   MGM_CMD("abort backup", &MgmApiSession::abortBackup, ""),
     MGM_ARG("id", Int, Mandatory, "Backup id"),
@@ -207,16 +209,17 @@ ParserRow<MgmApiSession> commands[] = {
 
   MGM_CMD("set loglevel", &MgmApiSession::setLogLevel, ""),
     MGM_ARG("node", Int, Mandatory, "Node"),
-    MGM_ARG("category", String, Mandatory, "Event category"),
+    MGM_ARG("category", Int, Mandatory, "Event category"),
     MGM_ARG("level", Int, Mandatory, "Log level (0-15)"),
 
   MGM_CMD("set cluster loglevel", &MgmApiSession::setClusterLogLevel, ""),
     MGM_ARG("node", Int, Mandatory, "Node"),
-    MGM_ARG("category", String, Mandatory, "Event category"),
+    MGM_ARG("category", Int, Mandatory, "Event category"),
     MGM_ARG("level", Int, Mandatory, "Log level (0-15)"),
 
   MGM_CMD("set logfilter", &MgmApiSession::setLogFilter, ""),
     MGM_ARG("level", Int, Mandatory, "Severety level"),
+    MGM_ARG("enable", Int, Mandatory, "1=disable, 0=enable, -1=toggle"),
 
   MGM_CMD("config lock", &MgmApiSession::configLock, ""),
 
@@ -241,6 +244,10 @@ ParserRow<MgmApiSession> commands[] = {
   MGM_CMD("listen event", &MgmApiSession::listen_event, ""),
     MGM_ARG("node", Int, Optional, "Node"),  
     MGM_ARG("filter", String, Mandatory, "Event category"),
+
+  MGM_CMD("purge stale sessions", &MgmApiSession::purge_stale_sessions, ""),
+
+  MGM_CMD("check connection", &MgmApiSession::check_connection, ""),
 
   MGM_END()
 };
@@ -280,8 +287,8 @@ MgmApiSession::runSession() {
       /* Backwards compatibility for old NDBs that still use
        * the old "GET CONFIG" command.
        */
-
-      for(size_t i=0; i<strlen(ctx.m_currentToken); i++)
+	  size_t i;
+      for(i=0; i<strlen(ctx.m_currentToken); i++)
 	ctx.m_currentToken[i] = toupper(ctx.m_currentToken[i]);
 
       if(strncmp("GET CONFIG ", 
@@ -382,6 +389,8 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   const char * user;
   const char * password;
   const char * public_key;
+  const char * endian= NULL;
+  union { long l; char c[sizeof(long)]; } endian_check;
 
   args.get("version", &version);
   args.get("nodetype", &nodetype);
@@ -390,7 +399,17 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   args.get("user", &user);
   args.get("password", &password);
   args.get("public key", &public_key);
-  
+  args.get("endian", &endian);
+
+  endian_check.l = 1;
+  if(endian 
+     && strcmp(endian,(endian_check.c[sizeof(long)-1])?"big":"little")!=0) {
+    m_output->println(cmd);
+    m_output->println("result: Node does not have the same endianness as the management server.");
+    m_output->println("");
+    return;
+  }
+
   bool compatible;
   switch (nodetype) {
   case NODE_TYPE_MGM:
@@ -577,7 +596,7 @@ MgmApiSession::insertError(Parser<MgmApiSession>::Context &,
 
   m_output->println("insert error reply");
   if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
+    m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
   m_output->println("");
@@ -595,7 +614,7 @@ MgmApiSession::setTrace(Parser<MgmApiSession>::Context &,
 
   m_output->println("set trace reply");
   if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
+    m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
   m_output->println("");
@@ -611,85 +630,30 @@ MgmApiSession::getVersion(Parser<MgmApiSession>::Context &,
   m_output->println("string: %s", NDB_VERSION_STRING);
   m_output->println("");
 }
-#if 0
-
-/*****************************************************************************
- * BACKUP
- *****************************************************************************/
-
-int completed;
-MgmtSrvr::BackupEvent globalEvent;
-
-static void
-completedCallback(const MgmtSrvr::BackupEvent & event){
-
-  ndbout << "WaitCallback" << endl;
-  // Save event in the latestEvent var 
-
-  switch(event.Event){
-  case MgmtSrvr::BackupEvent::BackupCompleted:
-  case MgmtSrvr::BackupEvent::BackupFailedToStart:
-    globalEvent = event;
-    completed = 1;
-    break;
-  }
-}
 
 void
 MgmApiSession::startBackup(Parser<MgmApiSession>::Context &,
-			   Properties const &) {
+			   Properties const &args) {
+  DBUG_ENTER("MgmApiSession::startBackup");
   unsigned backupId;
+  Uint32 completed= 2;
   int result;
 
-  MgmtSrvr::BackupCallback prevCallback;
-  prevCallback = m_mgmsrv.setCallback(completedCallback);
-  completed = 0;
-  result = m_mgmsrv.startBackup(backupId);
-  if (result == 0){
+  args.get("completed", &completed);
 
-    // Wait for the callback to call our condition
-    //  waitFor();
-    while (completed == 0)
-      NdbSleep_SecSleep(0);
-  
-    if (globalEvent.Event == MgmtSrvr::BackupEvent::BackupFailedToStart)
-      result = globalEvent.FailedToStart.ErrorCode;
-    else      
-      backupId = globalEvent.Completed.BackupId;    
-  }
-
-  // restore old callback
-  m_mgmsrv.setCallback(prevCallback);
+  result = m_mgmsrv.startBackup(backupId, completed);
 
   m_output->println("start backup reply");
   if(result != 0)
-    m_output->println("result: %s(%d)", m_mgmsrv.getErrorText(result), result);
+  {
+    m_output->println("result: %s", get_error_text(result));
+  }
   else{
     m_output->println("result: Ok");
     m_output->println("id: %d", backupId);
   }
   m_output->println("");
-
-}
-#endif
-
-void
-MgmApiSession::startBackup(Parser<MgmApiSession>::Context &,
-			   Properties const &) {
-  unsigned backupId;
-  int result;
-
-  result = m_mgmsrv.startBackup(backupId, true);
-
-  m_output->println("start backup reply");
-  if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
-  else{
-    m_output->println("result: Ok");
-    m_output->println("id: %d", backupId);
-  }
-  m_output->println("");
-
+  DBUG_VOID_RETURN;
 }
 
 void
@@ -703,7 +667,7 @@ MgmApiSession::abortBackup(Parser<MgmApiSession>::Context &,
 
   m_output->println("abort backup reply");
   if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
+    m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
   m_output->println("");
@@ -725,7 +689,7 @@ MgmApiSession::repCommand(Parser<MgmApiSession>::Context &,
   
   m_output->println("global replication reply");
   if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
+    m_output->println("result: %s", get_error_text(result));
   else{
     m_output->println("result: Ok");
     m_output->println("id: %d", repReqId);
@@ -747,7 +711,7 @@ MgmApiSession::dumpState(Parser<MgmApiSession>::Context &,
   int result = m_mgmsrv.dumpState(node, args_str.c_str());
   m_output->println("dump state reply");
   if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
+    m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
   m_output->println("");
@@ -763,67 +727,83 @@ MgmApiSession::bye(Parser<MgmApiSession>::Context &,
 void
 MgmApiSession::setClusterLogLevel(Parser<MgmApiSession>::Context &,
 				  Properties const &args) {
-  Uint32 node, level, category;
+  const char *reply= "set cluster loglevel reply";
+  Uint32 node, level, cat;
   BaseString errorString;
   SetLogLevelOrd logLevel;
   int result;
+  DBUG_ENTER("MgmApiSession::setClusterLogLevel");
   args.get("node", &node);
-  args.get("category", &category);
+  args.get("category", &cat);
   args.get("level", &level);
+
+  DBUG_PRINT("enter",("node=%d, category=%d, level=%d", node, cat, level));
 
   /* XXX should use constants for this value */
   if(level > 15) {
-    errorString.assign("Invalied loglevel");
-    goto error;
+    m_output->println(reply);
+    m_output->println("result: Invalid loglevel %d", level);
+    m_output->println("");
+    DBUG_VOID_RETURN;
   }
 
-  EventSubscribeReq req;
-  req.blockRef = 0;
-  req.noOfEntries = 1;
-  req.theData[0] = (category << 16) | level;
-  m_mgmsrv.m_log_level_requests.push_back(req);
-  
-  m_output->println("set cluster loglevel reply");
+  LogLevel::EventCategory category= 
+    (LogLevel::EventCategory)(cat-(int)CFG_MIN_LOGLEVEL);
+
+  m_mgmsrv.m_event_listner.lock();
+  if (m_mgmsrv.m_event_listner[0].m_logLevel.setLogLevel(category,level))
+  {
+    m_output->println(reply);
+    m_output->println("result: Invalid category %d", category);
+    m_output->println("");
+    m_mgmsrv.m_event_listner.unlock();
+    DBUG_VOID_RETURN;
+  }
+  m_mgmsrv.m_event_listner.unlock();
+
+  {
+    LogLevel ll;
+    ll.setLogLevel(category,level);
+    m_mgmsrv.m_event_listner.update_max_log_level(ll);
+  }
+
+  m_output->println(reply);
   m_output->println("result: Ok");
   m_output->println("");
-  return;
-error:
-  m_output->println("set cluster loglevel reply");
-  m_output->println("result: %s", errorString.c_str());
-  m_output->println("");
+  DBUG_VOID_RETURN;
 }
 
 void
 MgmApiSession::setLogLevel(Parser<MgmApiSession>::Context &,
 			   Properties const &args) {
-  Uint32 node = 0, level = 0, category;
+  Uint32 node = 0, level = 0, cat;
   BaseString errorString;
   SetLogLevelOrd logLevel;
   int result;
   logLevel.clear();
   args.get("node", &node);
-  args.get("category", &category);
+  args.get("category", &cat);
   args.get("level", &level);
 
   /* XXX should use constants for this value */
   if(level > 15) {
-    errorString.assign("Invalied loglevel");
-    goto error;
+    m_output->println("set loglevel reply");
+    m_output->println("result: Invalid loglevel", errorString.c_str());
+    m_output->println("");
+    return;
   }
 
-  EventSubscribeReq req;
-  req.blockRef = node;
-  req.noOfEntries = 1;
-  req.theData[0] = (category << 16) | level;
-  m_mgmsrv.m_log_level_requests.push_back(req);
-  
+  LogLevel::EventCategory category= 
+    (LogLevel::EventCategory)(cat-(int)CFG_MIN_LOGLEVEL);
+
+  {
+    LogLevel ll;
+    ll.setLogLevel(category,level);
+    m_mgmsrv.m_event_listner.update_max_log_level(ll);
+  }
+
   m_output->println("set loglevel reply");
   m_output->println("result: Ok");
-  m_output->println("");
-  return;
- error:
-  m_output->println("set loglevel reply");
-  m_output->println("result: %s", errorString.c_str());
   m_output->println("");
 }
 
@@ -838,7 +818,7 @@ MgmApiSession::stopSignalLog(Parser<MgmApiSession>::Context &,
 
   m_output->println("stop signallog");
   if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
+    m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
   m_output->println("");
@@ -878,7 +858,7 @@ MgmApiSession::restart(Parser<MgmApiSession>::Context &,
   
   m_output->println("restart reply");
   if(result != 0){
-    m_output->println("result: %d-%s", result, m_mgmsrv.getErrorText(result));
+    m_output->println("result: %d-%s", result, get_error_text(result));
   } else
     m_output->println("result: Ok");
   m_output->println("restarted: %d", restarted);
@@ -902,7 +882,7 @@ MgmApiSession::restartAll(Parser<MgmApiSession>::Context &,
 
   m_output->println("restart reply");
   if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
+    m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
   m_output->println("restarted: %d", count);
@@ -1033,7 +1013,7 @@ MgmApiSession::stop(Parser<MgmApiSession>::Context &,
 
   m_output->println("stop reply");
   if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
+    m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
   m_output->println("stopped: %d", stopped);
@@ -1055,7 +1035,7 @@ MgmApiSession::stopAll(Parser<MgmApiSession>::Context &,
 
   m_output->println("stop reply");
   if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
+    m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
   m_output->println("stopped: %d", stopped);
@@ -1071,7 +1051,7 @@ MgmApiSession::enterSingleUser(Parser<MgmApiSession>::Context &,
   int result = m_mgmsrv.enterSingleUser(&stopped, nodeId);
   m_output->println("enter single user reply");
   if(result != 0) {
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
+    m_output->println("result: %s", get_error_text(result));
   }
   else {
     m_output->println("result: Ok");
@@ -1086,7 +1066,7 @@ MgmApiSession::exitSingleUser(Parser<MgmApiSession>::Context &,
   int result = m_mgmsrv.exitSingleUser(&stopped, false);
   m_output->println("exit single user reply");
   if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
+    m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
   m_output->println("");
@@ -1104,7 +1084,7 @@ MgmApiSession::startSignalLog(Parser<MgmApiSession>::Context &,
 
   m_output->println("start signallog reply");
   if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
+    m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
   m_output->println("");
@@ -1149,7 +1129,7 @@ MgmApiSession::logSignals(Parser<MgmApiSession>::Context &,
 
   m_output->println("log signals reply");
   if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
+    m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
   m_output->println("");
@@ -1166,7 +1146,7 @@ MgmApiSession::start(Parser<MgmApiSession>::Context &,
 
   m_output->println("start reply");
   if(result != 0)
-    m_output->println("result: %s", m_mgmsrv.getErrorText(result));
+    m_output->println("result: %s", get_error_text(result));
   else
     m_output->println("result: Ok");
   m_output->println("");
@@ -1192,10 +1172,12 @@ void
 MgmApiSession::setLogFilter(Parser_t::Context &ctx,
 			    const class Properties &args) {
   Uint32 level;
+  Uint32 enable;
 
   args.get("level", &level);
+  args.get("enable", &enable);
 
-  int result = m_mgmsrv.setEventLogFilter(level);
+  int result = m_mgmsrv.setEventLogFilter(level, enable);
 
   m_output->println("set logfilter reply");
   m_output->println("result: %d", result);
@@ -1249,21 +1231,17 @@ operator<<(NdbOut& out, const LogLevel & ll)
 }
 
 void
-MgmStatService::log(int eventType, const Uint32* theData, NodeId nodeId){
+Ndb_mgmd_event_service::log(int eventType, const Uint32* theData, NodeId nodeId){
   
-  Uint32 threshold = 0;
-  LogLevel::EventCategory cat= LogLevel::llInvalid;
+  Uint32 threshold;
+  LogLevel::EventCategory cat;
+  Logger::LoggerLevel severity;
   int i;
+  DBUG_ENTER("Ndb_mgmd_event_service::log");
+  DBUG_PRINT("enter",("eventType=%d, nodeid=%d", eventType, nodeId));
 
-  for(i = 0; (unsigned)i<EventLogger::matrixSize; i++){
-    if(EventLogger::matrix[i].eventType == eventType){
-      cat = EventLogger::matrix[i].eventCategory;
-      threshold = EventLogger::matrix[i].threshold;
-      break;
-    }
-  }
-  if (cat == LogLevel::llInvalid)
-    return;
+  if (EventLoggerBase::event_lookup(eventType,cat,threshold,severity))
+    DBUG_VOID_RETURN;
 
   char m_text[256];
   EventLogger::getText(m_text, sizeof(m_text), eventType, theData, nodeId);
@@ -1272,7 +1250,7 @@ MgmStatService::log(int eventType, const Uint32* theData, NodeId nodeId){
   m_clients.lock();
   for(i = m_clients.size() - 1; i >= 0; i--){
     if(threshold <= m_clients[i].m_logLevel.getLogLevel(cat)){
-      if(m_clients[i].m_socket >= 0 &&
+      if(m_clients[i].m_socket != NDB_INVALID_SOCKET &&
 	 println_socket(m_clients[i].m_socket, 
 			MAX_WRITE_TIMEOUT, m_text) == -1){
 	copy.push_back(m_clients[i].m_socket);
@@ -1293,23 +1271,22 @@ MgmStatService::log(int eventType, const Uint32* theData, NodeId nodeId){
       tmp.set_max(m_clients[i].m_logLevel);
     }
     m_clients.unlock();
-
-    if(!(tmp == m_logLevel)){
-      m_logLevel = tmp;
-      EventSubscribeReq req; 
-      req = tmp;
-      req.blockRef = 0;
-      m_mgmsrv->m_log_level_requests.push_back(req);
-    }
+    update_log_level(tmp);
   }
+  DBUG_VOID_RETURN;
 }
 
 void
-MgmStatService::add_listener(const StatListener& client){
-  m_clients.push_back(client);
-  LogLevel tmp = m_logLevel;
-  tmp.set_max(client.m_logLevel);
-  
+Ndb_mgmd_event_service::update_max_log_level(const LogLevel &log_level)
+{
+  LogLevel tmp= m_logLevel;
+  tmp.set_max(log_level);
+  update_log_level(tmp);
+}
+
+void
+Ndb_mgmd_event_service::update_log_level(const LogLevel &tmp)
+{
   if(!(tmp == m_logLevel)){
     m_logLevel = tmp;
     EventSubscribeReq req;
@@ -1320,13 +1297,21 @@ MgmStatService::add_listener(const StatListener& client){
 }
 
 void
-MgmStatService::stopSessions(){
+Ndb_mgmd_event_service::add_listener(const Event_listener& client){
+  m_clients.push_back(client);
+  update_max_log_level(client.m_logLevel);
+}
+
+void
+Ndb_mgmd_event_service::stop_sessions(){
+  m_clients.lock();
   for(int i = m_clients.size() - 1; i >= 0; i--){
-    if(m_clients[i].m_socket >= 0){
+    if(m_clients[i].m_socket != NDB_INVALID_SOCKET){
       NDB_CLOSE_SOCKET(m_clients[i].m_socket);
       m_clients.erase(i);
     }
   }
+  m_clients.unlock();
 }
 
 void
@@ -1360,7 +1345,7 @@ MgmApiSession::listen_event(Parser<MgmApiSession>::Context & ctx,
   int result = 0;
   BaseString msg;
 
-  MgmStatService::StatListener le;
+  Ndb_mgmd_event_service::Event_listener le;
   le.m_socket = m_socket;
 
   Vector<BaseString> list;
@@ -1405,16 +1390,65 @@ MgmApiSession::listen_event(Parser<MgmApiSession>::Context & ctx,
     goto done;
   }
   
-  m_mgmsrv.m_statisticsListner.add_listener(le);
+  m_mgmsrv.m_event_listner.add_listener(le);
   
   m_stop = true;
-  m_socket = -1;
+  m_socket = NDB_INVALID_SOCKET;
 
 done:
   m_output->println("listen event");
   m_output->println("result: %d", result);
   if(result != 0)
     m_output->println("msg: %s", msg.c_str());
+  m_output->println("");
+}
+
+struct PurgeStruct
+{
+  NodeBitmask free_nodes;/* free nodes as reported
+			  * by ndbd in apiRegReqConf
+			  */
+  BaseString *str;
+};
+
+void
+MgmApiSession::stop_session_if_not_connected(SocketServer::Session *_s, void *data)
+{
+  MgmApiSession *s= (MgmApiSession *)_s;
+  struct PurgeStruct &ps= *(struct PurgeStruct *)data;
+  if (s->m_allocated_resources->is_reserved(ps.free_nodes))
+  {
+    ps.str->appfmt(" %d", s->m_allocated_resources->get_nodeid());
+    s->stopSession();
+  }
+}
+
+void
+MgmApiSession::purge_stale_sessions(Parser_t::Context &ctx,
+				    const class Properties &args)
+{
+  struct PurgeStruct ps;
+  BaseString str;
+  ps.str = &str;
+
+  m_mgmsrv.get_connected_nodes(ps.free_nodes);
+  ps.free_nodes.bitXORC(NodeBitmask()); // invert connected_nodes to get free nodes
+
+  m_mgmsrv.get_socket_server()->foreachSession(stop_session_if_not_connected,&ps);
+
+  m_output->println("purge stale sessions reply");
+  if (str.length() > 0)
+    m_output->println("purged:%s",str.c_str());
+  m_output->println("result: Ok");
+  m_output->println("");
+}
+
+void
+MgmApiSession::check_connection(Parser_t::Context &ctx,
+				const class Properties &args)
+{
+  m_output->println("check connection reply");
+  m_output->println("result: Ok");
   m_output->println("");
 }
 

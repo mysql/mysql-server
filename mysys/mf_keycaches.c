@@ -235,7 +235,7 @@ static my_bool safe_hash_set(SAFE_HASH *hash, const byte *key, uint length,
     if (my_hash_insert(&hash->hash, (byte*) entry))
     {
       /* This can only happen if hash got out of memory */
-      my_delete((char*) entry, MYF(0));
+      my_free((char*) entry, MYF(0));
       error= 1;
       goto end;
     }
@@ -275,7 +275,11 @@ static void safe_hash_change(SAFE_HASH *hash, byte *old_data, byte *new_data)
     if (entry->data == old_data)
     {
       if (new_data == hash->default_value)
+      {
+        if ((*entry->prev= entry->next))
+          entry->next->prev= entry->prev;
 	hash_delete(&hash->hash, (byte*) entry);
+      }
       else
 	entry->data= new_data;
     }
@@ -309,7 +313,7 @@ void multi_keycache_free(void)
   Get a key cache to be used for a specific table.
 
   SYNOPSIS
-    multi_key_cache_get()
+    multi_key_cache_search()
     key				key to find (usually table path)
     uint length			Length of key.
 

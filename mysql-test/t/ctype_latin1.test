@@ -53,3 +53,25 @@ SELECT
   hex(@l:=convert(@u using latin1)),
   a=@l FROM t1;
 DROP TABLE t1;
+
+#
+# Bug #6737: REGEXP gives wrong result with case sensitive collation
+#
+select 'a' regexp 'A' collate latin1_general_ci;
+select 'a' regexp 'A' collate latin1_general_cs;
+select 'a' regexp 'A' collate latin1_bin;
+
+
+SET collation_connection='latin1_swedish_ci';
+-- source include/ctype_filesort.inc
+SET collation_connection='latin1_bin';
+-- source include/ctype_filesort.inc
+
+#
+# Bug#8041
+# An unknown character (e.g. 0x84) should result in ERROR,
+# It was treated like a space character earlier.
+# Howerver, it should still work fine as a string part.
+--error 1064
+CREATE TABLE „a (a int);
+SELECT '„a' as str;

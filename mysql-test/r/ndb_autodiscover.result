@@ -1,4 +1,4 @@
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
 flush status;
 create table t1(
 id int not null primary key,
@@ -363,3 +363,8 @@ a int NOT NULL PRIMARY KEY,
 b int
 ) engine=ndb;
 insert t9 values(1, 2), (2,3), (3, 4), (4, 5);
+create table t10 (
+a int not null primary key,
+b blob
+) engine=ndb;
+insert into t10 values (1, 'kalle');

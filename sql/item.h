@@ -31,11 +31,31 @@ void item_init(void);			/* Init item functions */
 
 enum Derivation
 {
+  DERIVATION_IGNORABLE= 4,
   DERIVATION_COERCIBLE= 3,
   DERIVATION_IMPLICIT= 2,
   DERIVATION_NONE= 1,
   DERIVATION_EXPLICIT= 0
 };
+
+/*
+  Flags for collation aggregation modes:
+  MY_COLL_ALLOW_SUPERSET_CONV  - allow conversion to a superset
+  MY_COLL_ALLOW_COERCIBLE_CONV - allow conversion of a coercible value
+                                 (i.e. constant).
+  MY_COLL_ALLOW_CONV           - allow any kind of conversion
+                                 (combintion of the above two)
+  MY_COLL_DISALLOW_NONE        - don't allow return DERIVATION_NONE
+                                 (e.g. when aggregating for comparison)
+  MY_COLL_CMP_CONV             - combination of MY_COLL_ALLOW_CONV
+                                 and MY_COLL_DISALLOW_NONE
+*/
+
+#define MY_COLL_ALLOW_SUPERSET_CONV   1
+#define MY_COLL_ALLOW_COERCIBLE_CONV  2
+#define MY_COLL_ALLOW_CONV            3
+#define MY_COLL_DISALLOW_NONE         4
+#define MY_COLL_CMP_CONV              7
 
 class DTCollation {
 public:
@@ -72,13 +92,14 @@ public:
   { collation= collation_arg; }
   void set(Derivation derivation_arg)
   { derivation= derivation_arg; }
-  bool aggregate(DTCollation &dt, bool superset_conversion= FALSE);
-  bool set(DTCollation &dt1, DTCollation &dt2, bool superset_conversion= FALSE)
-  { set(dt1); return aggregate(dt2, superset_conversion); }
+  bool aggregate(DTCollation &dt, uint flags= 0);
+  bool set(DTCollation &dt1, DTCollation &dt2, uint flags= 0)
+  { set(dt1); return aggregate(dt2, flags); }
   const char *derivation_name() const
   {
     switch(derivation)
     {
+      case DERIVATION_IGNORABLE: return "IGNORABLE";
       case DERIVATION_COERCIBLE: return "COERCIBLE";
       case DERIVATION_IMPLICIT:  return "IMPLICIT";
       case DERIVATION_EXPLICIT:  return "EXPLICIT";
@@ -98,7 +119,7 @@ public:
   static void *operator new(size_t size, MEM_ROOT *mem_root)
   { return (void*) alloc_root(mem_root, (uint) size); }
   static void operator delete(void *ptr,size_t size) {}
-  static void operator delete(void *ptr,size_t size, MEM_ROOT *mem_root) {}
+  static void operator delete(void *ptr, MEM_ROOT *mem_root) {}
 
   enum Type {FIELD_ITEM, FUNC_ITEM, SUM_FUNC_ITEM, STRING_ITEM,
 	     INT_ITEM, REAL_ITEM, NULL_ITEM, VARBIN_ITEM,
@@ -241,10 +262,21 @@ public:
   virtual void update_used_tables() {}
   virtual void split_sum_func(THD *thd, Item **ref_pointer_array,
                               List<Item> &fields) {}
+  /* Called for items that really have to be split */
+  void split_sum_func2(THD *thd, Item **ref_pointer_array, List<Item> &fields,
+                       Item **ref);
   virtual bool get_date(TIME *ltime,uint fuzzydate);
   virtual bool get_time(TIME *ltime);
   virtual bool get_date_result(TIME *ltime,uint fuzzydate)
   { return get_date(ltime,fuzzydate); }
+  /*
+    This function is used only in Item_func_isnull/Item_func_isnotnull
+    (implementations of IS NULL/IS NOT NULL clauses). Item_func_is{not}null
+    calls this method instead of one of val/result*() methods, which
+    normally will set null_value. This allows to determine nullness of
+    a complex expression without fully evaluating it.
+    Any new item which can be NULL must implement this call.
+  */
   virtual bool is_null() { return 0; }
   /*
     it is "top level" item of WHERE clause and we do not need correct NULL
@@ -292,6 +324,7 @@ public:
   Field *tmp_table_field_from_field_type(TABLE *table);
 
   virtual Item *neg_transformer(THD *thd) { return NULL; }
+  virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
   void delete_self()
   {
     cleanup();
@@ -420,6 +453,7 @@ public:
     max_length= 0;
     name= name_par ? name_par : (char*) "NULL";
     fixed= 1;
+    collation.set(&my_charset_bin, DERIVATION_IGNORABLE);
   }
   enum Type type() const { return NULL_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
@@ -437,6 +471,7 @@ public:
   Item *new_item() { return new Item_null(name); }
   bool is_null() { return 1; }
   void print(String *str) { str->append("NULL", 4); }
+  Item *safe_charset_converter(CHARSET_INFO *tocs);
 };
 
 
@@ -549,6 +584,8 @@ public:
   void print(String *str) { str->append('?'); }
   /* parameter never equal to other parameter of other item */
   bool eq(const Item *item, bool binary_cmp) const { return 0; }
+  bool is_null()
+  { DBUG_ASSERT(state != NO_VALUE); return state == NULL_VALUE; }
 };
 
 class Item_int :public Item_num
@@ -682,8 +719,9 @@ public:
   {
     DBUG_ASSERT(fixed == 1);
     int err;
+    char *end_not_used;
     return my_strntod(str_value.charset(), (char*) str_value.ptr(),
-		      str_value.length(), (char**) 0, &err);
+		      str_value.length(), &end_not_used, &err);
   }
   longlong val_int()
   {
@@ -705,8 +743,9 @@ public:
   Item *new_item() 
   {
     return new Item_string(name, str_value.ptr(), 
-    			   str_value.length(), &my_charset_bin);
+    			   str_value.length(), collation.collation);
   }
+  Item *safe_charset_converter(CHARSET_INFO *tocs);
   String *const_string() { return &str_value; }
   inline void append(char *str, uint length) { str_value.append(str, length); }
   void print(String *str);
@@ -730,7 +769,7 @@ class Item_empty_string :public Item_string
 public:
   Item_empty_string(const char *header,uint length, CHARSET_INFO *cs= NULL) :
     Item_string("",0, cs ? cs : &my_charset_bin)
-    { name=(char*) header; max_length=length;}
+    { name=(char*) header; max_length= cs ? length * cs->mbmaxlen : length; }
   void make_field(Send_field *field);
 };
 
@@ -792,14 +831,36 @@ public:
 
 class Item_ref :public Item_ident
 {
+protected:
+  void set_properties();
 public:
   Field *result_field;			 /* Save result here */
   Item **ref;
   Item_ref(const char *db_par, const char *table_name_par,
            const char *field_name_par)
     :Item_ident(db_par, table_name_par, field_name_par), ref(0) {}
+  /*
+    This constructor is used in two scenarios:
+    A) *item = NULL
+      No initialization is performed, fix_fields() call will be necessary.
+      
+    B) *item points to an Item this Item_ref will refer to. This is 
+      used for GROUP BY. fix_fields() will not be called in this case,
+      so we call set_properties to make this item "fixed". set_properties
+      performs a subset of action Item_ref::fix_fields does, and this subset
+      is enough for Item_ref's used in GROUP BY.
+    
+    TODO we probably fix a superset of problems like in BUG#6658. Check this 
+         with Bar, and if we have a more broader set of problems like this.
+  */
   Item_ref(Item **item, const char *table_name_par, const char *field_name_par)
-    :Item_ident(NullS, table_name_par, field_name_par), ref(item) {}
+    :Item_ident(NullS, table_name_par, field_name_par), ref(item)
+  {
+    DBUG_ASSERT(item);
+    if (*item)
+      set_properties();
+  }
+
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_ref(THD *thd, Item_ref *item) :Item_ident(thd, item), ref(item->ref) {}
   enum Type type() const		{ return REF_ITEM; }
@@ -807,29 +868,34 @@ public:
   { return ref && (*ref)->eq(item, binary_cmp); }
   double val()
   {
+    DBUG_ASSERT(fixed);
     double tmp=(*ref)->val_result();
     null_value=(*ref)->null_value;
     return tmp;
   }
   longlong val_int()
   {
+    DBUG_ASSERT(fixed);
     longlong tmp=(*ref)->val_int_result();
     null_value=(*ref)->null_value;
     return tmp;
   }
   String *val_str(String* tmp)
   {
+    DBUG_ASSERT(fixed);
     tmp=(*ref)->str_result(tmp);
     null_value=(*ref)->null_value;
     return tmp;
   }
   bool is_null()
   {
+    DBUG_ASSERT(fixed);
     (void) (*ref)->val_int_result();
     return (*ref)->null_value;
   }
   bool get_date(TIME *ltime,uint fuzzydate)
   {
+    DBUG_ASSERT(fixed);
     return (null_value=(*ref)->get_date_result(ltime,fuzzydate));
   }
   bool send(Protocol *prot, String *tmp){ return (*ref)->send(prot, tmp); }
@@ -854,7 +920,52 @@ public:
   void print(String *str);
 };
 
+
+/*
+  The same as Item_ref, but get value from val_* family of method to get
+  value of item on which it referred instead of result* family.
+*/
+class Item_direct_ref :public Item_ref
+{
+public:
+  Item_direct_ref(Item **item, const char *table_name_par,
+                  const char *field_name_par)
+    :Item_ref(item, table_name_par, field_name_par) {}
+  /* Constructor need to process subselect with temporary tables (see Item) */
+  Item_direct_ref(THD *thd, Item_direct_ref *item) : Item_ref(thd, item) {}
+
+  double val()
+  {
+    double tmp=(*ref)->val();
+    null_value=(*ref)->null_value;
+    return tmp;
+  }
+  longlong val_int()
+  {
+    longlong tmp=(*ref)->val_int();
+    null_value=(*ref)->null_value;
+    return tmp;
+  }
+  String *val_str(String* tmp)
+  {
+    tmp=(*ref)->val_str(tmp);
+    null_value=(*ref)->null_value;
+    return tmp;
+  }
+  bool is_null()
+  {
+    (void) (*ref)->val_int();
+    return (*ref)->null_value;
+  }
+  bool get_date(TIME *ltime,uint fuzzydate)
+  {
+    return (null_value=(*ref)->get_date(ltime,fuzzydate));
+  }
+};
+
+
 class Item_in_subselect;
+
 class Item_ref_null_helper: public Item_ref
 {
 protected:
@@ -876,9 +987,9 @@ class Item_null_helper :public Item_ref_null_helper
 public:
   Item_null_helper(Item_in_subselect* master, Item *item,
 		   const char *table_name_par, const char *field_name_par)
-    :Item_ref_null_helper(master, &store, table_name_par, field_name_par),
+    :Item_ref_null_helper(master, &item, table_name_par, field_name_par),
      store(item)
-    {}
+    { ref= &store; }
   void print(String *str);
 };
 
@@ -934,9 +1045,10 @@ public:
   double val()
   {
     int err;
+    char *end_not_used;
     return (null_value ? 0.0 :
 	    my_strntod(str_value.charset(), (char*) str_value.ptr(),
-		       str_value.length(),NULL,&err));
+		       str_value.length(), &end_not_used, &err));
   }
   longlong val_int()
   { 
@@ -1092,7 +1204,7 @@ class Item_cache_int: public Item_cache
 {
   longlong value;
 public:
-  Item_cache_int(): Item_cache() {}
+  Item_cache_int(): Item_cache(), value(0) {}
   
   void store(Item *item);
   double val() { DBUG_ASSERT(fixed == 1); return (double) value; }
@@ -1110,7 +1222,7 @@ class Item_cache_real: public Item_cache
 {
   double value;
 public:
-  Item_cache_real(): Item_cache() {}
+  Item_cache_real(): Item_cache(), value(0) {}
 
   void store(Item *item);
   double val() { DBUG_ASSERT(fixed == 1); return value; }
@@ -1132,7 +1244,7 @@ class Item_cache_str: public Item_cache
   char buffer[80];
   String *value, value_buff;
 public:
-  Item_cache_str(): Item_cache() { }
+  Item_cache_str(): Item_cache(), value(0) { }
   
   void store(Item *item);
   double val();
@@ -1214,14 +1326,14 @@ protected:
   Item_result orig_type;
   Field *field_example;
 public:
-  Item_type_holder(THD*, Item*);
+  Item_type_holder(THD*, Item*, TABLE *);
 
   Item_result result_type () const { return item_type; }
   enum Type type() const { return TYPE_HOLDER; }
   double val();
   longlong val_int();
   String *val_str(String*);
-  bool join_types(THD *thd, Item *);
+  bool join_types(THD *thd, Item *, TABLE *);
   Field *example() { return field_example; }
   static uint32 real_length(Item *item);
   void cleanup()

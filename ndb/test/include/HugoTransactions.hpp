@@ -36,15 +36,21 @@ public:
 		bool allowConstraintViolation = true,
 		int doSleep = 0,
                 bool oneTrans = false);
+
   int scanReadRecords(Ndb*, 
 		      int records,
 		      int abort = 0,
 		      int parallelism = 0,
-		      bool committed = false);
-  int scanReadCommittedRecords(Ndb*, 
-			      int records,
-			      int abort = 0,
-			      int parallelism = 0);
+		      NdbOperation::LockMode = NdbOperation::LM_Read);
+
+  int scanReadRecords(Ndb*, 
+		      const NdbDictionary::Index*,
+		      int records,
+		      int abort = 0,
+		      int parallelism = 0,
+		      NdbOperation::LockMode = NdbOperation::LM_Read,
+		      bool sorted = false);
+
   int pkReadRecords(Ndb*, 
 		    int records,
 		    int batchsize = 1,

@@ -1105,7 +1105,6 @@ row_ins_check_foreign_constraint(
 	dict_table_t*	check_table;
 	dict_index_t*	check_index;
 	ulint		n_fields_cmp;
-	ibool		unique_search;
 	rec_t*		rec;
 	btr_pcur_t	pcur;
 	ibool		moved;
@@ -1173,7 +1172,7 @@ run_again:
 		check_index = foreign->foreign_index;
 	}
 
-	if (check_table == NULL) {
+	if (check_table == NULL || check_table->ibd_file_missing) {
 		if (check_ref) {
 			FILE*	ef = dict_foreign_err_file;
 			mutex_enter(&dict_foreign_err_mutex);
@@ -1192,7 +1191,7 @@ run_again:
 			dtuple_print(ef, entry);
 			fputs("\nBut the parent table ", ef);
 			ut_print_name(ef, trx, foreign->referenced_table_name);
-			fputs(" does not currently exist!\n", ef);
+		fputs("\nor its .ibd file does not currently exist!\n", ef);
 			mutex_exit(&dict_foreign_err_mutex);
 
 			return(DB_NO_REFERENCED_ROW);
@@ -1222,14 +1221,6 @@ run_again:
 	n_fields_cmp = dtuple_get_n_fields_cmp(entry);
 
 	dtuple_set_n_fields_cmp(entry, foreign->n_fields);
-
-	if (dict_index_get_n_unique(check_index) <= foreign->n_fields) {
-		/* We can just set a LOCK_REC_NOT_GAP type lock */
-	
-		unique_search = TRUE;
-	} else {
-		unique_search = FALSE;
-	}
 
 	btr_pcur_open(check_index, entry, PAGE_CUR_GE,
 					BTR_SEARCH_LEAF, &pcur, &mtr);
@@ -1268,17 +1259,13 @@ run_again:
 					break;
 				}
 			} else {
-				/* Found a matching record */
+				/* Found a matching record. Lock only
+				a record because we can allow inserts
+				into gaps */
 				
-				if (unique_search) {
-					err = row_ins_set_shared_rec_lock(
-							LOCK_REC_NOT_GAP,
-							rec, check_index, thr);
-				} else {
-					err = row_ins_set_shared_rec_lock(
-							LOCK_ORDINARY,
-							rec, check_index, thr);
-				}
+				err = row_ins_set_shared_rec_lock(
+						LOCK_REC_NOT_GAP,
+						rec, check_index, thr);
 				
 				if (err != DB_SUCCESS) {
 
@@ -1415,8 +1402,34 @@ row_ins_check_foreign_constraints(
 				row_mysql_freeze_data_dictionary(trx);
 			}
 
+			if (foreign->referenced_table) {
+				mutex_enter(&(dict_sys->mutex));
+
+				(foreign->referenced_table
+					->n_foreign_key_checks_running)++;
+
+				mutex_exit(&(dict_sys->mutex));
+			}
+
+			/* NOTE that if the thread ends up waiting for a lock
+			we will release dict_operation_lock temporarily!
+			But the counter on the table protects the referenced
+			table from being dropped while the check is running. */
+
 			err = row_ins_check_foreign_constraint(TRUE, foreign,
 						table, entry, thr);
+
+			if (foreign->referenced_table) {
+				mutex_enter(&(dict_sys->mutex));
+
+				ut_a(foreign->referenced_table
+					->n_foreign_key_checks_running > 0);
+				(foreign->referenced_table
+					->n_foreign_key_checks_running)--;
+
+				mutex_exit(&(dict_sys->mutex));
+			}
+
 			if (got_s_lock) {
 				row_mysql_unfreeze_data_dictionary(trx);
 			}
@@ -1509,7 +1522,6 @@ row_ins_scan_sec_index_for_duplicate(
 	ibool		moved;
 	mtr_t		mtr;
 	trx_t*		trx;
-	const char*	ptr;
 	
 	n_unique = dict_index_get_n_unique(index);
 
@@ -1630,7 +1642,6 @@ row_ins_duplicate_error_in_clust(
 	page_t*	page;
 	ulint	n_unique;
 	trx_t*	trx	= thr_get_trx(thr);
-	const char*	ptr;
 
 	UT_NOT_USED(mtr);
 	

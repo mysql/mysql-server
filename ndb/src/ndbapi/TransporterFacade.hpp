@@ -69,14 +69,11 @@ public:
 
   // Only sends to nodes which are alive
   int sendSignal(NdbApiSignal * signal, NodeId nodeId);
+  int sendSignal(NdbApiSignal*, NodeId, 
+		 LinearSectionPtr ptr[3], Uint32 secs);
   int sendFragmentedSignal(NdbApiSignal*, NodeId, 
 			   LinearSectionPtr ptr[3], Uint32 secs);
 
-  //Dirrrrty
-  int sendFragmentedSignalUnCond(NdbApiSignal*, NodeId, 
-				 LinearSectionPtr ptr[3], Uint32 secs);
-
-  
   // Is node available for running transactions
   bool   get_node_alive(NodeId nodeId) const;
   bool   get_node_stopping(NodeId nodeId) const;
@@ -130,7 +127,7 @@ private:
   friend class ExtSender; ///< @todo Hack to be able to sendSignalUnCond
   friend class GrepSS;
   friend class Ndb;
-  friend class Ndb_cluster_connection;
+  friend class Ndb_cluster_connection_impl;
 
   int sendSignalUnCond(NdbApiSignal *, NodeId nodeId);
 
@@ -224,7 +221,8 @@ private:
   } m_threads;
   
   Uint32 m_max_trans_id;
-  
+  Uint32 m_fragmented_signal_id;
+
   /**
    * execute function
    */

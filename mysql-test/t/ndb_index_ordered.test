@@ -1,7 +1,7 @@
 -- source include/have_ndb.inc
 
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1, test1, test2;
 --enable_warnings
 
 #
@@ -145,4 +145,174 @@ select * from t1 use index (bc) where b IS NULL and c IS NULL order by a;
 select * from t1 use index (bc) where b IS NULL and c = 2 order by a;
 select * from t1 use index (bc) where b < 4 order by a;
 select * from t1 use index (bc) where b IS NOT NULL order by a;
+drop table t1;
+
+#
+# Bug #6435
+CREATE TABLE test1 (
+SubscrID int(11) NOT NULL auto_increment,
+UsrID int(11) NOT NULL default '0',
+PRIMARY KEY  (SubscrID),
+KEY idx_usrid (UsrID)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+INSERT INTO test1 VALUES (2,224),(3,224),(1,224);
+
+CREATE TABLE test2 (
+SbclID int(11) NOT NULL auto_increment,
+SbcrID int(11) NOT NULL default '0',
+PRIMARY KEY  (SbclID),
+KEY idx_sbcrid (SbcrID)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+INSERT INTO test2 VALUES (3,2),(1,1),(2,1),(4,2);
+select * from test1 order by 1;
+select * from test2 order by 1;
+SELECT s.SubscrID,l.SbclID FROM test1 s left JOIN test2 l ON
+l.SbcrID=s.SubscrID WHERE s.UsrID=224 order by 1, 2;
+drop table test1;
+drop table test2;
+
+# bug#7424 + bug#7725
+
+create table t1 (
+  pk int primary key,
+  dt datetime not null,
+  da date not null,
+  ye year not null,
+  ti time not null,
+  ts timestamp not null,
+  index(dt),
+  index(da),
+  index(ye),
+  index(ti),
+  index(ts)
+) engine=ndb;
+
+insert into t1 (pk,dt,da,ye,ti,ts) values
+  (1, '1901-05-05 23:00:59', '1901-05-05', '1901', '23:00:59', '2001-01-01 23:00:59'),
+  (2, '1912-09-05 13:00:59', '1912-09-05', '1912', '13:00:59', '2001-01-01 13:00:59'),
+  (3, '1945-12-31 00:00:00', '1945-12-31', '1945', '00:00:00', '2001-01-01 00:00:00'),
+  (4, '1955-12-31 00:00:00', '1955-12-31', '1955', '00:00:00', '2001-01-01 00:00:00'),
+  (5, '1963-06-06 06:06:06', '1963-06-06', '1963', '06:06:06', '2001-01-01 06:06:06'),
+  (6, '1993-06-06 06:06:06', '1993-06-06', '1993', '06:06:06', '2001-01-01 06:06:06'),
+  (7, '2001-01-01 10:11:10', '2001-01-01', '2001', '10:11:10', '2001-01-01 10:11:10'),
+  (8, '2001-01-01 10:11:11', '2001-01-01', '2001', '10:11:11', '2001-01-01 10:11:11'),
+  (9, '2005-01-31 23:59:59', '2005-01-31', '2005', '23:59:59', '2001-01-01 23:59:59');
+
+# datetime
+select count(*)-9 from t1 use index (dt) where dt >  '1900-01-01 00:00:00';
+select count(*)-6 from t1 use index (dt) where dt >= '1955-12-31 00:00:00';
+select count(*)-5 from t1 use index (dt) where dt >  '1955-12-31 00:00:00';
+select count(*)-5 from t1 use index (dt) where dt <  '1970-03-03 22:22:22';
+select count(*)-7 from t1 use index (dt) where dt <  '2001-01-01 10:11:11';
+select count(*)-8 from t1 use index (dt) where dt <= '2001-01-01 10:11:11';
+select count(*)-9 from t1 use index (dt) where dt <= '2055-01-01 00:00:00';
+
+# date
+select count(*)-9 from t1 use index (da) where da >  '1900-01-01';
+select count(*)-6 from t1 use index (da) where da >= '1955-12-31';
+select count(*)-5 from t1 use index (da) where da >  '1955-12-31';
+select count(*)-5 from t1 use index (da) where da <  '1970-03-03';
+select count(*)-6 from t1 use index (da) where da <  '2001-01-01';
+select count(*)-8 from t1 use index (da) where da <= '2001-01-02';
+select count(*)-9 from t1 use index (da) where da <= '2055-01-01';
+
+# year
+select count(*)-9 from t1 use index (ye) where ye >  '1900';
+select count(*)-6 from t1 use index (ye) where ye >= '1955';
+select count(*)-5 from t1 use index (ye) where ye >  '1955';
+select count(*)-5 from t1 use index (ye) where ye <  '1970';
+select count(*)-6 from t1 use index (ye) where ye <  '2001';
+select count(*)-8 from t1 use index (ye) where ye <= '2001';
+select count(*)-9 from t1 use index (ye) where ye <= '2055';
+
+# time
+select count(*)-9 from t1 use index (ti) where ti >= '00:00:00';
+select count(*)-7 from t1 use index (ti) where ti >  '00:00:00';
+select count(*)-7 from t1 use index (ti) where ti >  '05:05:05';
+select count(*)-5 from t1 use index (ti) where ti >  '06:06:06';
+select count(*)-5 from t1 use index (ti) where ti <  '10:11:11';
+select count(*)-6 from t1 use index (ti) where ti <= '10:11:11';
+select count(*)-8 from t1 use index (ti) where ti <  '23:59:59';
+select count(*)-9 from t1 use index (ti) where ti <= '23:59:59';
+
+# timestamp
+select count(*)-9 from t1 use index (ts) where ts >= '2001-01-01 00:00:00';
+select count(*)-7 from t1 use index (ts) where ts >  '2001-01-01 00:00:00';
+select count(*)-7 from t1 use index (ts) where ts >  '2001-01-01 05:05:05';
+select count(*)-5 from t1 use index (ts) where ts >  '2001-01-01 06:06:06';
+select count(*)-5 from t1 use index (ts) where ts <  '2001-01-01 10:11:11';
+select count(*)-6 from t1 use index (ts) where ts <= '2001-01-01 10:11:11';
+select count(*)-8 from t1 use index (ts) where ts <  '2001-01-01 23:59:59';
+select count(*)-9 from t1 use index (ts) where ts <= '2001-01-01 23:59:59';
+
+drop table t1;
+
+# decimal (not the new 5.0 thing)
+
+create table t1 (
+  a int primary key,
+  s decimal(12),
+  t decimal(12, 5),
+  u decimal(12) unsigned,
+  v decimal(12, 5) unsigned,
+  key (s),
+  key (t),
+  key (u),
+  key (v)
+) engine=ndb;
+#
+insert into t1 values
+  ( 0, -000000000007, -0000061.00003,  000000000061,  0000965.00042),
+  ( 1, -000000000007, -0000061.00042,  000000000061,  0000965.00003),
+  ( 2, -071006035767,  4210253.00024,  000000000001,  0000001.84488),
+  ( 3,  000000007115,  0000000.77607,  000077350625,  0000018.00013),
+  ( 4, -000000068391, -0346486.00000,  000000005071,  0005334.00002),
+  ( 5, -521579890459, -1936874.00001,  000000000154,  0000003.00018),
+  ( 6, -521579890459, -1936874.00018,  000000000154,  0000003.00001),
+  ( 7,  000000000333,  0000051.39140,  000000907958,  0788643.08374),
+  ( 8,  000042731229,  0000009.00000,  000000000009,  6428667.00000),
+  ( 9, -000008159769,  0000918.00004,  000096951421,  7607730.00008);
+#
+select count(*)- 5 from t1 use index (s) where s  < -000000000007;
+select count(*)- 7 from t1 use index (s) where s <= -000000000007;
+select count(*)- 2 from t1 use index (s) where s  = -000000000007;
+select count(*)- 5 from t1 use index (s) where s >= -000000000007;
+select count(*)- 3 from t1 use index (s) where s  > -000000000007;
+#
+select count(*)- 4 from t1 use index (t) where t  < -0000061.00003;
+select count(*)- 5 from t1 use index (t) where t <= -0000061.00003;
+select count(*)- 1 from t1 use index (t) where t  = -0000061.00003;
+select count(*)- 6 from t1 use index (t) where t >= -0000061.00003;
+select count(*)- 5 from t1 use index (t) where t  > -0000061.00003;
+#
+select count(*)- 2 from t1 use index (u) where u  <  000000000061;
+select count(*)- 4 from t1 use index (u) where u <=  000000000061;
+select count(*)- 2 from t1 use index (u) where u  =  000000000061;
+select count(*)- 8 from t1 use index (u) where u >=  000000000061;
+select count(*)- 6 from t1 use index (u) where u  >  000000000061;
+#
+select count(*)- 5 from t1 use index (v) where v  <  0000965.00042;
+select count(*)- 6 from t1 use index (v) where v <=  0000965.00042;
+select count(*)- 1 from t1 use index (v) where v  =  0000965.00042;
+select count(*)- 5 from t1 use index (v) where v >=  0000965.00042;
+select count(*)- 4 from t1 use index (v) where v  >  0000965.00042;
+
+drop table t1;
+
+# bug#7798
+create table t1(a int primary key, b int not null, index(b));
+insert into t1 values (1,1), (2,2);
+connect (con1,localhost,,,test);
+connect (con2,localhost,,,test);
+connection con1;
+set autocommit=0;
+begin;
+select count(*) from t1;
+connection con2;
+ALTER TABLE t1 ADD COLUMN c int;
+connection con1;
+select a from t1 where b = 2;
+show tables;
 drop table t1;

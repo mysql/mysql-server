@@ -98,6 +98,21 @@ enum enum_binlog_formats {
   BINLOG_FORMAT_323_LESS_57, 
   BINLOG_FORMAT_323_GEQ_57 };
 
+/*
+  3 possible values for MASTER_INFO::slave_running and
+  RELAY_LOG_INFO::slave_running.
+  The values 0,1,2 are very important: to keep the diff small, I didn't
+  substitute places where we use 0/1 with the newly defined symbols. So don't change
+  these values.
+  The same way, code is assuming that in RELAY_LOG_INFO we use only values
+  0/1.
+  I started with using an enum, but
+  enum_variable=1; is not legal so would have required many line changes.
+*/
+#define MYSQL_SLAVE_NOT_RUN         0
+#define MYSQL_SLAVE_RUN_NOT_CONNECT 1
+#define MYSQL_SLAVE_RUN_CONNECT     2
+
 /****************************************************************************
 
   Replication SQL Thread
@@ -251,7 +266,8 @@ typedef struct st_relay_log_info
 
   /* if not set, the value of other members of the structure are undefined */
   bool inited;
-  volatile bool abort_slave, slave_running;
+  volatile bool abort_slave;
+  volatile uint slave_running;
 
   /* 
      Condition and its parameters from START SLAVE UNTIL clause.
@@ -385,7 +401,8 @@ typedef struct st_master_info
 #endif
   bool inited;
   enum enum_binlog_formats old_format;
-  volatile bool abort_slave, slave_running;
+  volatile bool abort_slave;
+  volatile uint slave_running;
   volatile ulong slave_run_id;
   /* 
      The difference in seconds between the clock of the master and the clock of
@@ -464,7 +481,7 @@ int terminate_slave_threads(MASTER_INFO* mi, int thread_mask,
 int terminate_slave_thread(THD* thd, pthread_mutex_t* term_mutex,
 			   pthread_mutex_t* cond_lock,
 			   pthread_cond_t* term_cond,
-			   volatile bool* slave_running);
+			   volatile uint* slave_running);
 int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
 			MASTER_INFO* mi, const char* master_info_fname,
 			const char* slave_info_fname, int thread_mask);
@@ -477,7 +494,7 @@ int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
 int start_slave_thread(pthread_handler h_func, pthread_mutex_t* start_lock,
 		       pthread_mutex_t *cond_lock,
 		       pthread_cond_t* start_cond,
-		       volatile bool *slave_running,
+		       volatile uint *slave_running,
 		       volatile ulong *slave_run_id,
 		       MASTER_INFO* mi,
                        bool high_priority);
@@ -496,7 +513,7 @@ int show_master_info(THD* thd, MASTER_INFO* mi);
 int show_binlog_info(THD* thd);
 
 /* See if the query uses any tables that should not be replicated */
-int tables_ok(THD* thd, TABLE_LIST* tables);
+bool tables_ok(THD* thd, TABLE_LIST* tables);
 
 /*
   Check to see if the database is ok to operate on with respect to the
@@ -510,8 +527,8 @@ int add_table_rule(HASH* h, const char* table_spec);
 int add_wild_table_rule(DYNAMIC_ARRAY* a, const char* table_spec);
 void init_table_rule_hash(HASH* h, bool* h_inited);
 void init_table_rule_array(DYNAMIC_ARRAY* a, bool* a_inited);
-const char *rewrite_db(const char* db);
-const char *print_slave_db_safe(const char* db);
+const char *rewrite_db(const char* db, uint32 *new_db_len);
+const char *print_slave_db_safe(const char *db);
 int check_expected_error(THD* thd, RELAY_LOG_INFO* rli, int error_code);
 void skip_load_data_infile(NET* net);
 void slave_print_error(RELAY_LOG_INFO* rli, int err_code, const char* msg, ...);
@@ -519,10 +536,11 @@ void slave_print_error(RELAY_LOG_INFO* rli, int err_code, const char* msg, ...);
 void end_slave(); /* clean up */
 void init_master_info_with_options(MASTER_INFO* mi);
 void clear_until_condition(RELAY_LOG_INFO* rli);
-void clear_slave_error_timestamp(RELAY_LOG_INFO* rli);
+void clear_slave_error(RELAY_LOG_INFO* rli);
 int init_master_info(MASTER_INFO* mi, const char* master_info_fname,
 		     const char* slave_info_fname,
-		     bool abort_if_no_master_info_file);
+		     bool abort_if_no_master_info_file,
+		     int thread_mask);
 void end_master_info(MASTER_INFO* mi);
 int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname);
 void end_relay_log_info(RELAY_LOG_INFO* rli);

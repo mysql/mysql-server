@@ -30,6 +30,37 @@ show create table t1;
 drop table t1;
 
 #
+# Check that a binary collation adds 'binary'
+# suffix into a char() column definition in
+# mysql40 and mysql2323 modes. This allows
+# not to lose the column's case sensitivity
+# when loading the dump in pre-4.1 servers. 
+#
+# Thus, in 4.0 and 3.23 modes we dump:
+#
+#   'char(10) collate xxx_bin' as 'char(10) binary' 
+#   'binary(10)' as 'binary(10)'
+#
+# In mysql-4.1 these types are different, and they will
+# be recreated differently.
+#
+# In mysqld-4.0 the the above two types were the same,
+# so it will create a 'char(10) binary' column for both definitions.
+# 
+CREATE TABLE t1 (
+ a char(10),
+ b char(10) collate latin1_bin,
+ c binary(10)
+) character set latin1;
+set @@sql_mode="";
+show create table t1;
+set @@sql_mode="mysql323";
+show create table t1;
+set @@sql_mode="mysql40";
+show create table t1;
+drop table t1;
+
+#
 # BUG#5318 - failure: 'IGNORE_SPACE' affects numeric values after DEFAULT
 #
 # Force the usage of the default

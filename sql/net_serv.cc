@@ -53,19 +53,9 @@
 #include <errno.h>
 
 #ifdef EMBEDDED_LIBRARY
-
 #undef MYSQL_SERVER
-
-#ifndef MYSQL_CLIENT
+#undef MYSQL_CLIENT
 #define MYSQL_CLIENT
-#endif
-
-#undef net_flush
-
-extern "C" {
-my_bool	net_flush(NET *net);
-}
-
 #endif /*EMBEDDED_LIBRARY */
 
 
@@ -175,8 +165,8 @@ my_bool net_realloc(NET *net, ulong length)
 
   if (length >= net->max_packet_size)
   {
-    DBUG_PRINT("error",("Packet too large. Max sixe: %lu",
-			net->max_packet_size));
+    DBUG_PRINT("error", ("Packet too large. Max size: %lu",
+               net->max_packet_size));
     net->error= 1;
     net->report_error= 1;
     net->last_errno= ER_NET_PACKET_TOO_LARGE;
@@ -261,6 +251,8 @@ my_bool
 my_net_write(NET *net,const char *packet,ulong len)
 {
   uchar buff[NET_HEADER_SIZE];
+  if (unlikely(!net->vio))                      /* nowhere to write */
+    return 0;
   /*
     Big packets are handled by splitting them in packets of MAX_PACKET_LENGTH
     length. The last packet is always a packet that is < MAX_PACKET_LENGTH.

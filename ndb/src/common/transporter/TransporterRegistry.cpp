@@ -38,6 +38,7 @@
 
 #ifdef NDB_SHM_TRANSPORTER
 #include "SHM_Transporter.hpp"
+extern int g_ndb_shm_signum;
 #endif
 
 #include "TransporterCallback.hpp"
@@ -47,6 +48,9 @@
 #include <InputStream.hpp>
 #include <OutputStream.hpp>
 
+#include <EventLogger.hpp>
+extern EventLogger g_eventLogger;
+
 SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
 {
   DBUG_ENTER("SocketServer::Session * TransporterService::newSession");
@@ -55,49 +59,10 @@ SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
     DBUG_RETURN(0);
   }
 
+  if (!m_transporter_registry->connect_server(sockfd))
   {
-    // read node id from client
-    int nodeId;
-    SocketInputStream s_input(sockfd);
-    char buf[256];
-    if (s_input.gets(buf, 256) == 0) {
-      NDB_CLOSE_SOCKET(sockfd);
-      DBUG_PRINT("error", ("Could not get node id from client"));
-      DBUG_RETURN(0);
-    }
-    if (sscanf(buf, "%d", &nodeId) != 1) {
-      NDB_CLOSE_SOCKET(sockfd);
-      DBUG_PRINT("error", ("Error in node id from client"));
-      DBUG_RETURN(0);
-    }
-
-    //check that nodeid is valid and that there is an allocated transporter
-    if ( nodeId < 0 || nodeId >= (int)m_transporter_registry->maxTransporters) {
-      NDB_CLOSE_SOCKET(sockfd); 
-      DBUG_PRINT("error", ("Node id out of range from client"));
-      DBUG_RETURN(0);
-    }
-    if (m_transporter_registry->theTransporters[nodeId] == 0) {
-      NDB_CLOSE_SOCKET(sockfd);
-      DBUG_PRINT("error", ("No transporter for this node id from client"));
-      DBUG_RETURN(0);
-    }
-    
-    //check that the transporter should be connected
-    if (m_transporter_registry->performStates[nodeId] != TransporterRegistry::CONNECTING) {
-      NDB_CLOSE_SOCKET(sockfd);
-      DBUG_PRINT("error", ("Transporter in wrong state for this node id from client"));
-      DBUG_RETURN(0);
-    }
-
-    Transporter *t= m_transporter_registry->theTransporters[nodeId];
-
-    // send info about own id (just as response to acknowledge connection)
-    SocketOutputStream s_output(sockfd);
-    s_output.println("%d", t->getLocalNodeId());
-
-    // setup transporter (transporter responsible for closing sockfd)
-    t->connect_server(sockfd);
+    NDB_CLOSE_SOCKET(sockfd);
+    DBUG_RETURN(0);
   }
 
   DBUG_RETURN(0);
@@ -184,13 +149,98 @@ TransporterRegistry::disconnectAll(){
 
 bool
 TransporterRegistry::init(NodeId nodeId) {
+  DBUG_ENTER("TransporterRegistry::init");
   nodeIdSpecified = true;
   localNodeId = nodeId;
   
   DEBUG("TransporterRegistry started node: " << localNodeId);
   
-  //  return allocateLongSignalMemoryPool(nLargeSegments);
-  return true;
+  DBUG_RETURN(true);
+}
+
+bool
+TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd)
+{
+  DBUG_ENTER("TransporterRegistry::connect_server");
+
+  // read node id from client
+  // read transporter type
+  int nodeId, remote_transporter_type= -1;
+  SocketInputStream s_input(sockfd);
+  char buf[256];
+  if (s_input.gets(buf, 256) == 0) {
+    DBUG_PRINT("error", ("Could not get node id from client"));
+    DBUG_RETURN(false);
+  }
+  int r= sscanf(buf, "%d %d", &nodeId, &remote_transporter_type);
+  switch (r) {
+  case 2:
+    break;
+  case 1:
+    // we're running version prior to 4.1.9
+    // ok, but with no checks on transporter configuration compatability
+    break;
+  default:
+    DBUG_PRINT("error", ("Error in node id from client"));
+    DBUG_RETURN(false);
+  }
+
+  DBUG_PRINT("info", ("nodeId=%d remote_transporter_type=%d",
+		      nodeId,remote_transporter_type));
+
+  //check that nodeid is valid and that there is an allocated transporter
+  if ( nodeId < 0 || nodeId >= (int)maxTransporters) {
+    DBUG_PRINT("error", ("Node id out of range from client"));
+    DBUG_RETURN(false);
+  }
+  if (theTransporters[nodeId] == 0) {
+      DBUG_PRINT("error", ("No transporter for this node id from client"));
+      DBUG_RETURN(false);
+  }
+
+  //check that the transporter should be connected
+  if (performStates[nodeId] != TransporterRegistry::CONNECTING) {
+    DBUG_PRINT("error", ("Transporter in wrong state for this node id from client"));
+    DBUG_RETURN(false);
+  }
+
+  Transporter *t= theTransporters[nodeId];
+
+  // send info about own id (just as response to acknowledge connection)
+  // send info on own transporter type
+  SocketOutputStream s_output(sockfd);
+  s_output.println("%d %d", t->getLocalNodeId(), t->m_type);
+
+  if (remote_transporter_type != -1)
+  {
+    if (remote_transporter_type != t->m_type)
+    {
+      DBUG_PRINT("error", ("Transporter types mismatch this=%d remote=%d",
+			   t->m_type, remote_transporter_type));
+      g_eventLogger.error("Incompatible configuration: Transporter type "
+			  "mismatch with node %d", nodeId);
+
+      // wait for socket close for 1 second to let message arrive at client
+      {
+	fd_set a_set;
+	FD_ZERO(&a_set);
+	FD_SET(sockfd, &a_set);
+	struct timeval timeout;
+	timeout.tv_sec  = 1; timeout.tv_usec = 0;
+	select(sockfd+1, &a_set, 0, 0, &timeout);
+      }
+      DBUG_RETURN(false);
+    }
+  }
+  else if (t->m_type == tt_SHM_TRANSPORTER)
+  {
+    g_eventLogger.warning("Unable to verify transporter compatability with node %d", nodeId);
+  }
+
+  // setup transporter (transporter responsible for closing sockfd)
+  t->connect_server(sockfd);
+
+  DBUG_RETURN(true);
 }
 
 bool
@@ -344,6 +394,7 @@ TransporterRegistry::createTransporter(SCI_TransporterConfiguration *config) {
 
 bool
 TransporterRegistry::createTransporter(SHM_TransporterConfiguration *config) {
+  DBUG_ENTER("TransporterRegistry::createTransporter SHM");
 #ifdef NDB_SHM_TRANSPORTER
   if(!nodeIdSpecified){
     init(config->localNodeId);
@@ -352,12 +403,28 @@ TransporterRegistry::createTransporter(SHM_TransporterConfiguration *config) {
   if(config->localNodeId != localNodeId)
     return false;
   
+  if (!g_ndb_shm_signum) {
+    g_ndb_shm_signum= config->signum;
+    DBUG_PRINT("info",("Block signum %d",g_ndb_shm_signum));
+    /**
+     * Make sure to block g_ndb_shm_signum
+     *   TransporterRegistry::init is run from "main" thread
+     */
+    sigset_t mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, g_ndb_shm_signum);
+    pthread_sigmask(SIG_BLOCK, &mask, 0);
+  }
+
+  if(config->signum != g_ndb_shm_signum)
+    return false;
+  
   if(theTransporters[config->remoteNodeId] != NULL)
     return false;
 
   SHM_Transporter * t = new SHM_Transporter(*this,
-					    "localhost",
-					    "localhost",
+					    config->localHostName,
+					    config->remoteHostName,
 					    config->port,
 					    localNodeId,
 					    config->remoteNodeId,
@@ -381,9 +448,9 @@ TransporterRegistry::createTransporter(SHM_TransporterConfiguration *config) {
   nTransporters++;
   nSHMTransporters++;
 
-  return true;
+  DBUG_RETURN(true);
 #else
-  return false;
+  DBUG_RETURN(false);
 #endif
 }
 
@@ -467,8 +534,9 @@ TransporterRegistry::prepareSend(const SignalHeader * const signalHeader,
   Transporter *t = theTransporters[nodeId];
   if(t != NULL && 
      (((ioStates[nodeId] != HaltOutput) && (ioStates[nodeId] != HaltIO)) || 
-      (signalHeader->theReceiversBlockNumber == 252))) {
-
+      ((signalHeader->theReceiversBlockNumber == 252) ||
+       (signalHeader->theReceiversBlockNumber == 4002)))) {
+	 
     if(t->isConnected()){
       Uint32 lenBytes = t->m_packer.getMessageLength(signalHeader, ptr);
       if(lenBytes <= MAX_MESSAGE_SIZE){
@@ -538,8 +606,9 @@ TransporterRegistry::prepareSend(const SignalHeader * const signalHeader,
   Transporter *t = theTransporters[nodeId];
   if(t != NULL && 
      (((ioStates[nodeId] != HaltOutput) && (ioStates[nodeId] != HaltIO)) || 
-      (signalHeader->theReceiversBlockNumber == 252))) {
-
+      ((signalHeader->theReceiversBlockNumber == 252)|| 
+       (signalHeader->theReceiversBlockNumber == 4002)))) {
+    
     if(t->isConnected()){
       Uint32 lenBytes = t->m_packer.getMessageLength(signalHeader, ptr);
       if(lenBytes <= MAX_MESSAGE_SIZE){
@@ -550,7 +619,7 @@ TransporterRegistry::prepareSend(const SignalHeader * const signalHeader,
 	  return SEND_OK;
 	}
 	
-
+	
 	/**
 	 * @note: on linux/i386 the granularity is 10ms
 	 *        so sleepTime = 2 generates a 10 ms sleep.
@@ -620,11 +689,28 @@ TransporterRegistry::pollReceive(Uint32 timeOutMillis){
   return retVal;
 #endif
   
-  if((nSHMTransporters+nSCITransporters) > 0)
+  if((nSCITransporters) > 0)
+  {
     timeOutMillis=0;
+  }
+
+#ifdef NDB_SHM_TRANSPORTER
+  if(nSHMTransporters > 0)
+  {
+    Uint32 res = poll_SHM(0);
+    if(res)
+    {
+      retVal |= res;
+      timeOutMillis = 0;
+    }
+  }
+#endif
+
 #ifdef NDB_TCP_TRANSPORTER
-  if(nTCPTransporters > 0)
+  if(nTCPTransporters > 0 || retVal == 0)
+  {
     retVal |= poll_TCP(timeOutMillis);
+  }
   else
     tcpReadSelectReply = 0;
 #endif
@@ -633,8 +719,11 @@ TransporterRegistry::pollReceive(Uint32 timeOutMillis){
     retVal |= poll_SCI(timeOutMillis);
 #endif
 #ifdef NDB_SHM_TRANSPORTER
-  if(nSHMTransporters > 0)
-    retVal |= poll_SHM(timeOutMillis);
+  if(nSHMTransporters > 0 && retVal == 0)
+  {
+    int res = poll_SHM(0);
+    retVal |= res;
+  }
 #endif
   return retVal;
 }
@@ -642,8 +731,8 @@ TransporterRegistry::pollReceive(Uint32 timeOutMillis){
 
 #ifdef NDB_SCI_TRANSPORTER
 Uint32
-TransporterRegistry::poll_SCI(Uint32 timeOutMillis){
- 
+TransporterRegistry::poll_SCI(Uint32 timeOutMillis)
+{
   for (int i=0; i<nSCITransporters; i++) {
     SCI_Transporter * t = theSCITransporters[i];
     if (t->isConnected()) {
@@ -657,73 +746,29 @@ TransporterRegistry::poll_SCI(Uint32 timeOutMillis){
 
 
 #ifdef NDB_SHM_TRANSPORTER
+static int g_shm_counter = 0;
 Uint32
 TransporterRegistry::poll_SHM(Uint32 timeOutMillis)
 {  
-  for(int j=0; j < 20; j++)
-  for (int i=0; i<nSHMTransporters; i++) {
-    SHM_Transporter * t = theSHMTransporters[i];
-    if (t->isConnected()) {
-      if(t->hasDataToRead()) {
-	return 1;
-      }
-    }
-  }
-  /**
-   * @note: granularity of linux/i386 timer is not good enough.
-   * Can't sleep if using SHM as it is now.
-   */
-  /*
-    if(timeOutMillis > 0)
-    NdbSleep_MilliSleep(timeOutMillis);
-    else 
-    NdbSleep_MilliSleep(1);
-  */
-  return 0;
-#if 0
-  NDB_TICKS startTime =   NdbTick_CurrentMillisecond();
-  for(int i=0; i<100; i++) {
+  for(int j=0; j < 100; j++)
+  {
     for (int i=0; i<nSHMTransporters; i++) {
       SHM_Transporter * t = theSHMTransporters[i];
       if (t->isConnected()) {
-	if(t->hasDataToRead()){
+	if(t->hasDataToRead()) {
 	  return 1;
 	}
-	else
-	  continue;
-      }
-      else
-	continue;
-    }
-
-    if(NdbTick_CurrentMillisecond() > (startTime +timeOutMillis))
-      return 0;      
-  }
-  NdbSleep_MilliSleep(5);
-  return 0;
-  
-#endif
-#if 0
-
-  for(int j=0; j < 100; j++) {
-    for (int i=0; i<nSHMTransporters; i++) {
-      SHM_Transporter * t = theSHMTransporters[i];
-      if (t->isConnected()) {
-	if(t->hasDataToRead())
-	  return 1;
       }
     }
   }
   return 0;
-#endif
 }
-
-
 #endif
 
 #ifdef NDB_OSE_TRANSPORTER
 Uint32
-TransporterRegistry::poll_OSE(Uint32 timeOutMillis){
+TransporterRegistry::poll_OSE(Uint32 timeOutMillis)
+{
   if(theOSEReceiver != NULL){
     return theOSEReceiver->doReceive(timeOutMillis);
   }
@@ -734,18 +779,18 @@ TransporterRegistry::poll_OSE(Uint32 timeOutMillis){
 
 #ifdef NDB_TCP_TRANSPORTER
 Uint32 
-TransporterRegistry::poll_TCP(Uint32 timeOutMillis){
-  
-  if (nTCPTransporters == 0){
+TransporterRegistry::poll_TCP(Uint32 timeOutMillis)
+{
+  if (false && nTCPTransporters == 0)
+  {
     tcpReadSelectReply = 0;
     return 0;
   }
   
   struct timeval timeout;
 #ifdef NDB_OSE
-
   // Return directly if there are no TCP transporters configured
-
+  
   if(timeOutMillis <= 1){
     timeout.tv_sec  = 0;
     timeout.tv_usec = 1025;
@@ -758,7 +803,7 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis){
   timeout.tv_usec = (timeOutMillis % 1000) * 1000;
 #endif
 
-  NDB_SOCKET_TYPE maxSocketValue = 0;
+  NDB_SOCKET_TYPE maxSocketValue = -1;
   
   // Needed for TCP/IP connections
   // The read- and writeset are used by select
@@ -786,23 +831,29 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis){
   maxSocketValue++; 
   
   tcpReadSelectReply = select(maxSocketValue, &tcpReadset, 0, 0, &timeout);  
+  if(false && tcpReadSelectReply == -1 && errno == EINTR)
+    ndbout_c("woke-up by signal");
+
 #ifdef NDB_WIN32
   if(tcpReadSelectReply == SOCKET_ERROR)
   {
     NdbSleep_MilliSleep(timeOutMillis);
   }
 #endif
-
+  
   return tcpReadSelectReply;
 }
 #endif
 
 
 void
-TransporterRegistry::performReceive(){
+TransporterRegistry::performReceive()
+{
 #ifdef NDB_OSE_TRANSPORTER
-  if(theOSEReceiver != 0){
-    while(theOSEReceiver->hasData()){
+  if(theOSEReceiver != 0)
+  {
+    while(theOSEReceiver->hasData())
+    {
       NodeId remoteNodeId;
       Uint32 * readPtr;
       Uint32 sz = theOSEReceiver->getReceiveData(&remoteNodeId, &readPtr);
@@ -825,16 +876,20 @@ TransporterRegistry::performReceive(){
 #endif
 
 #ifdef NDB_TCP_TRANSPORTER
-  if(tcpReadSelectReply > 0){
-    for (int i=0; i<nTCPTransporters; i++) {
+  if(tcpReadSelectReply > 0)
+  {
+    for (int i=0; i<nTCPTransporters; i++) 
+    {
       checkJobBuffer();
       TCP_Transporter *t = theTCPTransporters[i];
       const NodeId nodeId = t->getRemoteNodeId();
       const NDB_SOCKET_TYPE socket    = t->getSocket();
       if(is_connected(nodeId)){
-	if(t->isConnected() && FD_ISSET(socket, &tcpReadset)) {
+	if(t->isConnected() && FD_ISSET(socket, &tcpReadset)) 
+	{
 	  const int receiveSize = t->doReceive();
-	  if(receiveSize > 0){
+	  if(receiveSize > 0)
+	  {
 	    Uint32 * ptr;
 	    Uint32 sz = t->getReceiveData(&ptr);
 	    Uint32 szUsed = unpack(ptr, sz, nodeId, ioStates[nodeId]);
@@ -845,142 +900,165 @@ TransporterRegistry::performReceive(){
     }
   }
 #endif
-
-
+  
 #ifdef NDB_SCI_TRANSPORTER
   //performReceive
   //do prepareReceive on the SCI transporters  (prepareReceive(t,,,,))
-    for (int i=0; i<nSCITransporters; i++) {
-      checkJobBuffer();
-      SCI_Transporter  *t = theSCITransporters[i];
-      const NodeId nodeId = t->getRemoteNodeId();
-      if(is_connected(nodeId)){
-	if(t->isConnected() && t->checkConnected()){
-	  Uint32 * readPtr, * eodPtr;
-	  t->getReceivePtr(&readPtr, &eodPtr);
-	  Uint32 *newPtr = unpack(readPtr, eodPtr, nodeId, ioStates[nodeId]);
-	  t->updateReceivePtr(newPtr);
-	}
-      } 
-    }
+  for (int i=0; i<nSCITransporters; i++) 
+  {
+    checkJobBuffer();
+    SCI_Transporter  *t = theSCITransporters[i];
+    const NodeId nodeId = t->getRemoteNodeId();
+    if(is_connected(nodeId))
+    {
+      if(t->isConnected() && t->checkConnected())
+      {
+	Uint32 * readPtr, * eodPtr;
+	t->getReceivePtr(&readPtr, &eodPtr);
+	Uint32 *newPtr = unpack(readPtr, eodPtr, nodeId, ioStates[nodeId]);
+	t->updateReceivePtr(newPtr);
+      }
+    } 
+  }
 #endif
 #ifdef NDB_SHM_TRANSPORTER
-    for (int i=0; i<nSHMTransporters; i++) {
-      checkJobBuffer();
-      SHM_Transporter *t = theSHMTransporters[i];
-      const NodeId nodeId = t->getRemoteNodeId();
-      if(is_connected(nodeId)){
-	if(t->isConnected() && t->checkConnected()){
-	  Uint32 * readPtr, * eodPtr;
-	  t->getReceivePtr(&readPtr, &eodPtr);
-	  Uint32 *newPtr = unpack(readPtr, eodPtr, nodeId, ioStates[nodeId]);
-	  t->updateReceivePtr(newPtr);
-	}
-      } 
-    }
+  for (int i=0; i<nSHMTransporters; i++) 
+  {
+    checkJobBuffer();
+    SHM_Transporter *t = theSHMTransporters[i];
+    const NodeId nodeId = t->getRemoteNodeId();
+    if(is_connected(nodeId)){
+      if(t->isConnected() && t->checkConnected())
+      {
+	Uint32 * readPtr, * eodPtr;
+	t->getReceivePtr(&readPtr, &eodPtr);
+	Uint32 *newPtr = unpack(readPtr, eodPtr, nodeId, ioStates[nodeId]);
+	t->updateReceivePtr(newPtr);
+      }
+    } 
+  }
 #endif
 }
 
 static int x = 0;
 void
-TransporterRegistry::performSend(){
-    int i; 
-    sendCounter = 1;
-    
+TransporterRegistry::performSend()
+{
+  int i; 
+  sendCounter = 1;
+  
 #ifdef NDB_OSE_TRANSPORTER
-    for (int i = 0; i < nOSETransporters; i++){
-        OSE_Transporter *t = theOSETransporters[i];
-        if((is_connected(t->getRemoteNodeId()) &&
-            (t->isConnected())) {
-            t->doSend();
-        }//if
-    }//for
+  for (int i = 0; i < nOSETransporters; i++)
+  {
+    OSE_Transporter *t = theOSETransporters[i]; 
+    if(is_connected(t->getRemoteNodeId()) &&& (t->isConnected()))
+    {
+      t->doSend();
+    }//if
+  }//for
 #endif
-    
+  
 #ifdef NDB_TCP_TRANSPORTER
 #ifdef NDB_OSE
+  {
+    int maxSocketValue = 0;
+    
+    // Needed for TCP/IP connections
+    // The writeset are used by select
+    fd_set writeset;
+    FD_ZERO(&writeset);
+    
+    // Prepare for sending and receiving
+    for (i = 0; i < nTCPTransporters; i++) {
+      TCP_Transporter * t = theTCPTransporters[i];
+      
+      // If the transporter is connected
+      if ((t->hasDataToSend()) && (t->isConnected())) {
+	const int socket = t->getSocket();
+	// Find the highest socket value. It will be used by select
+	if (socket > maxSocketValue) {
+	  maxSocketValue = socket;
+	}//if
+	FD_SET(socket, &writeset);
+      }//if
+    }//for
+    
+    // The highest socket value plus one
+    if(maxSocketValue == 0)
+      return;
+    
+    maxSocketValue++; 
+    struct timeval timeout = { 0, 1025 };
+    Uint32 tmp = select(maxSocketValue, 0, &writeset, 0, &timeout);
+    
+    if (tmp == 0) 
     {
-        int maxSocketValue = 0;
-        
-        // Needed for TCP/IP connections
-        // The writeset are used by select
-        fd_set writeset;
-        FD_ZERO(&writeset);
-        
-        // Prepare for sending and receiving
-        for (i = 0; i < nTCPTransporters; i++) {
-            TCP_Transporter * t = theTCPTransporters[i];
-            
-            // If the transporter is connected
-            if ((t->hasDataToSend()) && (t->isConnected())) {
-                const int socket = t->getSocket();
-                // Find the highest socket value. It will be used by select
-                if (socket > maxSocketValue) {
-                    maxSocketValue = socket;
-                }//if
-                FD_SET(socket, &writeset);
-            }//if
-        }//for
-        
-        // The highest socket value plus one
-        if(maxSocketValue == 0)
-            return;
-        
-        maxSocketValue++; 
-        struct timeval timeout = { 0, 1025 };
-        Uint32 tmp = select(maxSocketValue, 0, &writeset, 0, &timeout);
-        
-        if (tmp == 0) {
-            return;
-        }//if
-        for (i = 0; i < nTCPTransporters; i++) {
-            TCP_Transporter *t = theTCPTransporters[i];
-            const NodeId nodeId = t->getRemoteNodeId();
-            const int socket    = t->getSocket();
-            if(is_connected(nodeId)){
-                if(t->isConnected() && FD_ISSET(socket, &writeset)) {
-                    t->doSend();
-                }//if
-            }//if
-        }//for
+      return;
+    }//if
+    for (i = 0; i < nTCPTransporters; i++) {
+      TCP_Transporter *t = theTCPTransporters[i];
+      const NodeId nodeId = t->getRemoteNodeId();
+      const int socket    = t->getSocket();
+      if(is_connected(nodeId)){
+	  if(t->isConnected() && FD_ISSET(socket, &writeset)) {
+	    t->doSend();
+	  }//if
+	}//if
+      }//for
     }
 #endif
 #ifdef NDB_TCP_TRANSPORTER
-    for (i = x; i < nTCPTransporters; i++) {
-        TCP_Transporter *t = theTCPTransporters[i];
-        if (t &&
-            (t->hasDataToSend()) &&
-            (t->isConnected()) &&
-            (is_connected(t->getRemoteNodeId()))) {
-            t->doSend();
-        }//if
-    }//for
-    for (i = 0; i < x && i < nTCPTransporters; i++) {
-        TCP_Transporter *t = theTCPTransporters[i];
-        if (t &&
-            (t->hasDataToSend()) &&
-            (t->isConnected()) &&
-            (is_connected(t->getRemoteNodeId()))) {
-            t->doSend();
-        }//if
-    }//for
-    x++;
-    if (x == nTCPTransporters) x = 0;
+  for (i = x; i < nTCPTransporters; i++) 
+  {
+    TCP_Transporter *t = theTCPTransporters[i];
+    if (t && t->hasDataToSend() && t->isConnected() &&
+	is_connected(t->getRemoteNodeId())) 
+    {
+      t->doSend();
+    }
+  }
+  for (i = 0; i < x && i < nTCPTransporters; i++) 
+  {
+    TCP_Transporter *t = theTCPTransporters[i];
+    if (t && t->hasDataToSend() && t->isConnected() &&
+	is_connected(t->getRemoteNodeId())) 
+    {
+      t->doSend();
+    }
+  }
+  x++;
+  if (x == nTCPTransporters) x = 0;
 #endif
 #endif
 #ifdef NDB_SCI_TRANSPORTER
-    //scroll through the SCI transporters, 
-    // get each transporter, check if connected, send data
-    for (i=0; i<nSCITransporters; i++) {
-      SCI_Transporter  *t = theSCITransporters[i];
-      const NodeId nodeId = t->getRemoteNodeId();
-      
-      if(is_connected(nodeId)){
-	if(t->isConnected() && t->hasDataToSend()) {
-	  t->doSend();
-	} //if
+  //scroll through the SCI transporters, 
+  // get each transporter, check if connected, send data
+  for (i=0; i<nSCITransporters; i++) {
+    SCI_Transporter  *t = theSCITransporters[i];
+    const NodeId nodeId = t->getRemoteNodeId();
+    
+    if(is_connected(nodeId))
+    {
+      if(t->isConnected() && t->hasDataToSend()) {
+	t->doSend();
       } //if
-    }  //if  
+    } //if
+  }
+#endif
+  
+#ifdef NDB_SHM_TRANSPORTER
+  for (i=0; i<nSHMTransporters; i++) 
+  {
+    SHM_Transporter  *t = theSHMTransporters[i];
+    const NodeId nodeId = t->getRemoteNodeId();
+    if(is_connected(nodeId))
+    {
+      if(t->isConnected())
+      {
+	t->doSend();
+      }
+    }
+  }
 #endif
 }
 
@@ -1026,11 +1104,8 @@ TransporterRegistry::setIOState(NodeId nodeId, IOState state) {
 static void * 
 run_start_clients_C(void * me)
 {
-  my_thread_init();
   ((TransporterRegistry*) me)->start_clients_thread();
-  my_thread_end();
-  NdbThread_Exit(0);
-  return me;
+  return 0;
 }
 
 // Run by kernel thread
@@ -1167,31 +1242,31 @@ TransporterRegistry::stop_clients()
 }
 
 void
-TransporterRegistry::add_transporter_interface(const char *interface, unsigned short port)
+TransporterRegistry::add_transporter_interface(const char *interf, unsigned short port)
 {
   DBUG_ENTER("TransporterRegistry::add_transporter_interface");
-  DBUG_PRINT("enter",("interface=%s, port= %d", interface, port));
-  if (interface && strlen(interface) == 0)
-    interface= 0;
+  DBUG_PRINT("enter",("interface=%s, port= %d", interf, port));
+  if (interf && strlen(interf) == 0)
+    interf= 0;
 
   for (unsigned i= 0; i < m_transporter_interface.size(); i++)
   {
     Transporter_interface &tmp= m_transporter_interface[i];
     if (port != tmp.m_service_port)
       continue;
-    if (interface != 0 && tmp.m_interface != 0 &&
-	strcmp(interface, tmp.m_interface) == 0)
+    if (interf != 0 && tmp.m_interface != 0 &&
+	strcmp(interf, tmp.m_interface) == 0)
     {
       DBUG_VOID_RETURN; // found match, no need to insert
     }
-    if (interface == 0 && tmp.m_interface == 0)
+    if (interf == 0 && tmp.m_interface == 0)
     {
       DBUG_VOID_RETURN; // found match, no need to insert
     }
   }
   Transporter_interface t;
   t.m_service_port= port;
-  t.m_interface= interface;
+  t.m_interface= interf;
   m_transporter_interface.push_back(t);
   DBUG_PRINT("exit",("interface and port added"));
   DBUG_VOID_RETURN;
@@ -1200,7 +1275,7 @@ TransporterRegistry::add_transporter_interface(const char *interface, unsigned s
 bool
 TransporterRegistry::start_service(SocketServer& socket_server)
 {
-  if (m_transporter_interface.size() > 0 && nodeIdSpecified != true)
+  if (m_transporter_interface.size() > 0 && !nodeIdSpecified)
   {
     ndbout_c("TransporterRegistry::startReceiving: localNodeId not specified");
     return false;
@@ -1230,9 +1305,19 @@ TransporterRegistry::start_service(SocketServer& socket_server)
   return true;
 }
 
+#ifdef NDB_SHM_TRANSPORTER
+static
+RETSIGTYPE 
+shm_sig_handler(int signo)
+{
+  g_shm_counter++;
+}
+#endif
+
 void
 TransporterRegistry::startReceiving()
 {
+  DBUG_ENTER("TransporterRegistry::startReceiving");
 #ifdef NDB_OSE_TRANSPORTER
   if(theOSEReceiver != NULL){
     theOSEReceiver->createPhantom();
@@ -1248,6 +1333,37 @@ TransporterRegistry::startReceiving()
   for(int i = 0; i<nTCPTransporters; i++)
     theTCPTransporters[i]->theReceiverPid = theReceiverPid;
 #endif
+
+#ifdef NDB_SHM_TRANSPORTER
+  m_shm_own_pid = getpid();
+  if (g_ndb_shm_signum)
+  {
+    DBUG_PRINT("info",("Install signal handler for signum %d",
+		       g_ndb_shm_signum));
+    struct sigaction sa;
+    sigemptyset(&sa.sa_mask);
+    sigaddset(&sa.sa_mask, g_ndb_shm_signum);
+    pthread_sigmask(SIG_UNBLOCK, &sa.sa_mask, 0);
+    sa.sa_handler = shm_sig_handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    int ret;
+    while((ret = sigaction(g_ndb_shm_signum, &sa, 0)) == -1 && errno == EINTR);
+    if(ret != 0)
+    {
+      DBUG_PRINT("error",("Install failed"));
+      g_eventLogger.error("Failed to install signal handler for"
+			  " SHM transporter errno: %d (%s)", errno, 
+#ifdef HAVE_STRERROR
+			  strerror(errno)
+#else
+                          ""
+#endif
+			  );
+    }
+  }
+#endif // NDB_SHM_TRANSPORTER
+  DBUG_VOID_RETURN;
 }
 
 void

@@ -27,7 +27,7 @@ Packager:	Lenz Grimmer <build@mysql.com>
 Vendor:		MySQL AB
 Requires: fileutils sh-utils
 Provides:	msqlormysql MySQL-server mysql
-BuildPrereq: ncurses-devel
+BuildRequires: ncurses-devel
 Obsoletes:	mysql
 
 # Think about what you use here since the first step is to
@@ -104,6 +104,53 @@ This package contains the standard MySQL clients and administration tools.
 %description client -l pt_BR
 Este pacote contém os clientes padrão para o MySQL.
 
+%package ndb-storage
+Release: %{release}
+Summary:	MySQL - ndbcluster storage engine
+Group:		Applications/Databases
+
+%description ndb-storage
+This package contains the ndbcluster storage engine. 
+It is necessary to have this package installed on all 
+computers that should store ndbcluster table data.
+Note that this storage engine can only be used in conjunction
+with the MySQL Max server.
+
+%{see_base}
+
+%package ndb-management
+Release: %{release}
+Summary:	MySQL - ndbcluster storage engine management
+Group:		Applications/Databases
+
+%description ndb-management
+This package contains ndbcluster storage engine management.
+It is necessary to have this package installed on at least 
+one computer in the cluster.
+
+%{see_base}
+
+%package ndb-tools
+Release: %{release}
+Summary:	MySQL - ndbcluster storage engine basic tools
+Group:		Applications/Databases
+
+%description ndb-tools
+This package contains ndbcluster storage engine basic tools.
+
+%{see_base}
+
+%package ndb-extra
+Release: %{release}
+Summary:	MySQL - ndbcluster storage engine extra tools
+Group:		Applications/Databases
+
+%description ndb-extra
+This package contains some extra ndbcluster storage engine tools for the advanced user.
+They should be used with caution.
+
+%{see_base}
+
 %package bench
 Release: %{release}
 Requires: %{name}-client perl-DBI perl
@@ -152,15 +199,23 @@ languages and applications need to dynamically load and use MySQL.
 
 %package Max
 Release: %{release}
-Summary: MySQL - server with Berkeley DB, RAID and UDF support
+Summary: MySQL - server with extended functionality
 Group: Applications/Databases
 Provides: mysql-Max
 Obsoletes: mysql-Max
 Requires: MySQL-server >= 4.0
 
 %description Max 
-Optional MySQL server binary that supports additional features like
-Berkeley DB, RAID and User Defined Functions (UDFs).
+Optional MySQL server binary that supports additional features like:
+
+ - Berkeley DB Storage Engine
+ - Ndbcluster Storage Engine interface
+ - Archive Storage Engine
+ - CSV Storage Engine
+ - Example Storage Engine
+ - MyISAM RAID
+ - User Defined Functions (UDFs).
+
 To activate this binary, just install this package in addition to
 the standard MySQL package.
 
@@ -221,7 +276,6 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
             --includedir=%{_includedir} \
             --mandir=%{_mandir} \
 	    --enable-thread-safe-client \
-	    --with-comment=\"Official MySQL RPM\" \
 	    --with-readline ;
 	    # Add this for more debugging support
 	    # --with-debug
@@ -272,8 +326,13 @@ BuildMySQL "--enable-shared \
 		--without-openssl \
 		--with-berkeley-db \
 		--with-innodb \
+		--with-ndbcluster \
 		--with-raid \
+		--with-archive \
+		--with-csv-storage-engine \
+		--with-example-storage-engine \
 		--with-embedded-server \
+		--with-comment=\"MySQL Community Edition - Max (GPL)\" \
 		--with-server-suffix='-Max'"
 
 # Save everything for debug
@@ -282,6 +341,9 @@ BuildMySQL "--enable-shared \
 # Save mysqld-max
 mv sql/mysqld sql/mysqld-max
 nm --numeric-sort sql/mysqld-max > sql/mysqld-max.sym
+
+# Install the ndb binaries
+(cd ndb; make install DESTDIR=$RBR)
 
 # Install embedded server library in the build root
 install -m 644 libmysqld/libmysqld.a $RBR%{_libdir}/mysql/
@@ -317,6 +379,7 @@ BuildMySQL "--disable-shared \
 		--with-client-ldflags='-all-static' \
 		$USE_OTHER_LIBC_DIR \
 %endif
+		--with-comment=\"MySQL Community Edition - Standard (GPL)\" \
 		--with-server-suffix='%{server_suffix}' \
 		--without-embedded-server \
 		--without-berkeley-db \
@@ -425,6 +488,14 @@ chmod -R og-rw $mysql_datadir/mysql
 # Allow safe_mysqld to start mysqld and print a message before we exit
 sleep 2
 
+
+%post ndb-storage
+mysql_clusterdir=/var/lib/mysql-cluster
+
+# Create cluster directory if needed
+if test ! -d $mysql_clusterdir; then mkdir -m755 $mysql_clusterdir; fi
+
+
 %post Max
 # Restart mysqld, to use the new binary.
 echo "Restarting mysqld."
@@ -465,6 +536,7 @@ fi
 %doc Docs/manual.{html,ps,texi,txt}
 %doc Docs/manual_toc.html
 %doc support-files/my-*.cnf
+%doc support-files/ndb-*.ini
 
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
 
@@ -546,6 +618,32 @@ fi
 %postun shared
 /sbin/ldconfig
 
+%files ndb-storage
+%defattr(-,root,root,0755)
+%attr(755, root, root) %{_sbindir}/ndbd
+
+%files ndb-management
+%defattr(-,root,root,0755)
+%attr(755, root, root) %{_sbindir}/ndb_mgmd
+%attr(755, root, root) %{_bindir}/ndb_mgm
+
+%files ndb-tools
+%defattr(-,root,root,0755)
+%attr(755, root, root) %{_bindir}/ndb_mgm
+%attr(755, root, root) %{_bindir}/ndb_restore
+%attr(755, root, root) %{_bindir}/ndb_waiter
+%attr(755, root, root) %{_bindir}/ndb_select_all
+%attr(755, root, root) %{_bindir}/ndb_select_count
+%attr(755, root, root) %{_bindir}/ndb_desc
+%attr(755, root, root) %{_bindir}/ndb_show_tables
+%attr(755, root, root) %{_bindir}/ndb_test_platform
+
+%files ndb-extra
+%defattr(-,root,root,0755)
+%attr(755, root, root) %{_bindir}/ndb_drop_index
+%attr(755, root, root) %{_bindir}/ndb_drop_table
+%attr(755, root, root) %{_bindir}/ndb_delete_all
+
 %files devel
 %defattr(-, root, root, 0755)
 %doc EXCEPTIONS-CLIENT
@@ -597,6 +695,27 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Mon Feb 14 2005 Lenz Grimmer <lenz@mysql.com>
+
+* Fixed the compilation comments and moved them into the separate build sections
+  for Max and Standard
+
+* Mon Feb 7 2005 Tomas Ulin <tomas@mysql.com>
+
+- enabled the "Ndbcluster" storage engine for the max binary
+- added extra make install in ndb subdir after Max build to get ndb binaries
+- added packages for ndbcluster storage engine
+
+* Fri Jan 14 2005 Lenz Grimmer <lenz@mysql.com>
+
+- replaced obsoleted "BuildPrereq" with "BuildRequires" instead
+
+* Thu Dec 31 2004 Lenz Grimmer <lenz@mysql.com>
+
+- enabled the "Archive" storage engine for the max binary
+- enabled the "CSV" storage engine for the max binary
+- enabled the "Example" storage engine for the max binary
+
 * Thu Aug 26 2004 Lenz Grimmer <lenz@mysql.com>
 
 - MySQL-Max now requires MySQL-server instead of MySQL (BUG 3860)

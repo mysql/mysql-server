@@ -53,8 +53,22 @@ ulonglong find_set(TYPELIB *lib, const char *str, uint length, CHARSET_INFO *cs,
     {
       const char *pos= start;
       uint var_len;
+      int mblen= 1;
 
-      for (; pos != end && *pos != field_separator; pos++) ;
+      if (cs && cs->mbminlen > 1)
+      {
+        for ( ; pos < end; pos+= mblen)
+        {
+          my_wc_t wc;
+          if ((mblen= cs->cset->mb_wc(cs, &wc, (const uchar *) pos, 
+                                               (const uchar *) end)) < 1)
+            mblen= 1; // Not to hang on a wrong multibyte sequence
+          if (wc == (my_wc_t) field_separator)
+            break;
+        }
+      }
+      else
+        for (; pos != end && *pos != field_separator; pos++) ;
       var_len= (uint) (pos - start);
       uint find= cs ? find_type2(lib, start, var_len, cs) :
                       find_type(lib, start, var_len, (bool) 0);
@@ -66,9 +80,9 @@ ulonglong find_set(TYPELIB *lib, const char *str, uint length, CHARSET_INFO *cs,
       }
       else
         found|= ((longlong) 1 << (find - 1));
-      if (pos == end)
+      if (pos >= end)
         break;
-      start= pos + 1;
+      start= pos + mblen;
     }
   }
   return found;
@@ -133,7 +147,7 @@ uint find_type(TYPELIB *lib, const char *find, uint length, bool part_match)
 
 uint find_type2(TYPELIB *typelib, const char *x, uint length, CHARSET_INFO *cs)
 {
-  int find,pos,findpos;
+  int find,pos;
   const char *j;
   DBUG_ENTER("find_type2");
   DBUG_PRINT("enter",("x: '%s'  lib: 0x%lx",x,typelib));
@@ -143,7 +157,7 @@ uint find_type2(TYPELIB *typelib, const char *x, uint length, CHARSET_INFO *cs)
     DBUG_PRINT("exit",("no count"));
     DBUG_RETURN(0);
   }
-  LINT_INIT(findpos);
+
   for (find=0, pos=0 ; (j=typelib->type_names[pos]) ; pos++)
   {
     if (!my_strnncoll(cs, (const uchar*) x, length,
@@ -153,6 +167,43 @@ uint find_type2(TYPELIB *typelib, const char *x, uint length, CHARSET_INFO *cs)
   DBUG_PRINT("exit",("Couldn't find type"));
   DBUG_RETURN(0);
 } /* find_type */
+
+
+/*
+  Un-hex all elements in a typelib
+
+  SYNOPSIS
+   unhex_type2()
+   interval       TYPELIB (struct of pointer to values + lengths + count)
+
+  NOTES
+
+  RETURN
+    N/A
+*/
+
+void unhex_type2(TYPELIB *interval)
+{
+  for (uint pos= 0; pos < interval->count; pos++)
+  {
+    char *from, *to;
+    for (from= to= (char*) interval->type_names[pos]; *from; )
+    {
+      /*
+        Note, hexchar_to_int(*from++) doesn't work
+        one some compilers, e.g. IRIX. Looks like a compiler
+        bug in inline functions in combination with arguments
+        that have a side effect. So, let's use from[0] and from[1]
+        and increment 'from' by two later.
+      */
+
+      *to++= (char) (hexchar_to_int(from[0]) << 4) +
+                     hexchar_to_int(from[1]);
+      from+= 2;
+    }
+    interval->type_lengths[pos] /= 2;
+  }
+}
 
 
 /*

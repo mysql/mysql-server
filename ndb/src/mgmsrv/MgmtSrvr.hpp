@@ -43,27 +43,34 @@ class Config;
 class SetLogLevelOrd;
 class SocketServer;
 
-class MgmStatService : public EventLoggerBase 
+class Ndb_mgmd_event_service : public EventLoggerBase 
 {
   friend class MgmtSrvr;
 public:
-  struct StatListener : public EventLoggerBase {
+  struct Event_listener : public EventLoggerBase {
     NDB_SOCKET_TYPE m_socket;
   };
   
 private:  
   class MgmtSrvr * m_mgmsrv;
-  MutexVector<StatListener> m_clients;
+  MutexVector<Event_listener> m_clients;
 public:
-  MgmStatService(class MgmtSrvr * m) : m_clients(5) {
+  Ndb_mgmd_event_service(class MgmtSrvr * m) : m_clients(5) {
     m_mgmsrv = m;
   }
   
-  void add_listener(const StatListener&);
+  void add_listener(const Event_listener&);
+  void update_max_log_level(const LogLevel&);
+  void update_log_level(const LogLevel&);
   
   void log(int eventType, const Uint32* theData, NodeId nodeId);
   
-  void stopSessions();
+  void stop_sessions();
+
+  Event_listener& operator[](unsigned i) { return m_clients[i]; }
+  const Event_listener& operator[](unsigned i) const { return m_clients[i]; }
+  void lock() { m_clients.lock(); }
+  void unlock(){ m_clients.unlock(); }
 };
 
 /**
@@ -96,7 +103,10 @@ public:
     // methods to reserve/allocate resources which
     // will be freed when running destructor
     void reserve_node(NodeId id);
-    bool is_reserved(NodeId nodeId) { return m_reserved_nodes.get(nodeId);}
+    bool is_reserved(NodeId nodeId) { return m_reserved_nodes.get(nodeId); }
+    bool is_reserved(NodeBitmask mask) { return !mask.bitAND(m_reserved_nodes).isclear(); }
+    bool isclear() { return m_reserved_nodes.isclear(); }
+    NodeId get_nodeid() const;
   private:
     MgmtSrvr &m_mgmsrv;
     NodeBitmask m_reserved_nodes;
@@ -119,7 +129,7 @@ public:
    * @param serverity the log level/serverity.
    * @return true if the severity was enabled.
    */
-  bool setEventLogFilter(int severity);
+  bool setEventLogFilter(int severity, int enable);
 
   /**
    * Returns true if the log level/severity is enabled.
@@ -172,10 +182,10 @@ public:
 
   /* Constructor */
 
-  MgmtSrvr(NodeId nodeId,                    /* Local nodeid */
-	   const BaseString &config_filename,      /* Where to save config */
-	   LocalConfig &local_config,  /* Ndb.cfg filename */
-	   Config * config); 
+  MgmtSrvr(SocketServer *socket_server,
+	   const char *config_filename,      /* Where to save config */
+	   const char *connect_string); 
+  int init();
   NodeId getOwnNodeId() const {return _ownNodeId;};
 
   /**
@@ -354,7 +364,7 @@ public:
   /**
    * Backup functionallity
    */
-  int startBackup(Uint32& backupId, bool waitCompleted = false);
+  int startBackup(Uint32& backupId, int waitCompleted= 2);
   int abortBackup(Uint32 backupId);
   int performBackup(Uint32* backupId);
 
@@ -463,7 +473,7 @@ public:
    *   @param   errorCode: Error code to get a match error text for.
    *   @return  The error text.
    */
-  const char* getErrorText(int errorCode);
+  const char* getErrorText(int errorCode, char *buf, int buf_sz);
 
   /**
    *   Get configuration
@@ -499,6 +509,9 @@ public:
   int setDbParameter(int node, int parameter, const char * value, BaseString&);
   
   const char *get_connect_address(Uint32 node_id) { return inet_ntoa(m_connect_address[node_id]); }
+  void get_connected_nodes(NodeBitmask &connected_nodes) const;
+  SocketServer *get_socket_server() { return m_socket_server; }
+
   //**************************************************************************
 private:
   //**************************************************************************
@@ -525,16 +538,16 @@ private:
   
   int _blockNumber;
   NodeId _ownNodeId;
+  SocketServer *m_socket_server;
+
   BlockReference _ownReference; 
   NdbMutex *m_configMutex;
   const Config * _config;
   Config * m_newConfig;
-  LocalConfig &m_local_config;
   BaseString m_configFilename;
   Uint32 m_nextConfigGenerationNumber;
   
   NodeBitmask m_reserved_nodes;
-  Allocated_resources m_allocated_resources;
   struct in_addr m_connect_address[MAX_NODES];
 
   //**************************************************************************
@@ -655,7 +668,7 @@ private:
    */
   static void signalReceivedNotification(void* mgmtSrvr, 
 					 NdbApiSignal* signal, 
-					 class LinearSectionPtr ptr[3]);
+					 struct LinearSectionPtr ptr[3]);
   
   /**
    *   Called from "outside" of MgmtSrvr when a DB process has died.
@@ -726,8 +739,8 @@ private:
   LogLevel m_nodeLogLevel[MAX_NODES];
   enum ndb_mgm_node_type nodeTypes[MAX_NODES];
   friend class MgmApiSession;
-  friend class MgmStatService;
-  MgmStatService m_statisticsListner;
+  friend class Ndb_mgmd_event_service;
+  Ndb_mgmd_event_service m_event_listner;
   
   /**
    * Handles the thread wich upon a 'Node is started' event will
@@ -747,6 +760,9 @@ private:
   Config *_props;
 
   int send(class NdbApiSignal* signal, Uint32 node, Uint32 node_type);
+
+  ConfigRetriever *m_config_retriever;
+
 public:
   /**
    * This method does not exist

@@ -36,6 +36,7 @@
 #include "m_string.h"
 #include "m_ctype.h"
 
+#ifdef HAVE_UCA_COLLATIONS
 
 #define MY_UCA_NPAGES 256
 #define MY_UCA_NCHARS 256
@@ -7214,8 +7215,7 @@ static int my_strnxfrm_uca(CHARSET_INFO *cs,
                            uchar *dst, uint dstlen,
                            const uchar *src, uint srclen)
 {
-  uchar *de = dst + dstlen;
-  const uchar *dst_orig = dst;
+  uchar *de = dst + (dstlen & (uint) ~1); /* add even length for easier code */
   int   s_res;
   my_uca_scanner scanner;
   scanner_handler->init(&scanner, cs, src, srclen);
@@ -7226,8 +7226,17 @@ static int my_strnxfrm_uca(CHARSET_INFO *cs,
     dst[1]= s_res & 0xFF;
     dst+= 2;
   }
-  for ( ; dst < de; *dst++='\0');
-  return dst - dst_orig;
+  s_res= cs->sort_order_big[0][0x20 * cs->sort_order[0]];
+  while (dst < de)
+  {
+    dst[0]= s_res >> 8;
+    dst[1]= s_res & 0xFF;
+    dst+= 2;
+  }
+  if (dstlen & 1) /* if odd number then fill the last char */
+    *dst= '\0';
+  
+  return dstlen;
 }
 
 
@@ -7288,6 +7297,7 @@ int my_wildcmp_uca(CHARSET_INFO *cs,
   {
     while (1)
     {
+      my_bool escaped= 0;
       if ((scan= mb_wc(cs, &w_wc, (const uchar*)wildstr,
 		       (const uchar*)wildend)) <= 0)
 	return 1;
@@ -7305,6 +7315,7 @@ int my_wildcmp_uca(CHARSET_INFO *cs,
 			(const uchar*)wildend)) <= 0)
           return 1;
         wildstr+= scan;
+        escaped= 1;
       }
       
       if ((scan= mb_wc(cs, &s_wc, (const uchar*)str,
@@ -7312,7 +7323,7 @@ int my_wildcmp_uca(CHARSET_INFO *cs,
         return 1;
       str+= scan;
       
-      if (w_wc == (my_wc_t)w_one)
+      if (!escaped && w_wc == (my_wc_t)w_one)
       {
         result= 1;				/* Found an anchor char */
       }
@@ -8567,7 +8578,7 @@ CHARSET_INFO my_charset_utf8_icelandic_uca_ci=
     NULL,		/* ident_map    */
     8,			/* strxfrm_multiply */
     1,			/* mbminlen     */
-    2,			/* mbmaxlen     */
+    3,			/* mbmaxlen     */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     &my_charset_utf8_handler,
@@ -8594,7 +8605,7 @@ CHARSET_INFO my_charset_utf8_latvian_uca_ci=
     NULL,		/* ident_map    */
     8,			/* strxfrm_multiply */
     1,			/* mbminlen     */
-    2,			/* mbmaxlen     */
+    3,			/* mbmaxlen     */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     &my_charset_utf8_handler,
@@ -8621,7 +8632,7 @@ CHARSET_INFO my_charset_utf8_romanian_uca_ci=
     NULL,		/* ident_map    */
     8,			/* strxfrm_multiply */
     1,			/* mbminlen     */
-    2,			/* mbmaxlen     */
+    3,			/* mbmaxlen     */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     &my_charset_utf8_handler,
@@ -8648,7 +8659,7 @@ CHARSET_INFO my_charset_utf8_slovenian_uca_ci=
     NULL,		/* ident_map    */
     8,			/* strxfrm_multiply */
     1,			/* mbminlen     */
-    2,			/* mbmaxlen     */
+    3,			/* mbmaxlen     */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     &my_charset_utf8_handler,
@@ -8675,7 +8686,7 @@ CHARSET_INFO my_charset_utf8_polish_uca_ci=
     NULL,		/* ident_map    */
     8,			/* strxfrm_multiply */
     1,			/* mbminlen     */
-    2,			/* mbmaxlen     */
+    3,			/* mbmaxlen     */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     &my_charset_utf8_handler,
@@ -8702,7 +8713,7 @@ CHARSET_INFO my_charset_utf8_estonian_uca_ci=
     NULL,		/* ident_map    */
     8,			/* strxfrm_multiply */
     1,			/* mbminlen     */
-    2,			/* mbmaxlen     */
+    3,			/* mbmaxlen     */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     &my_charset_utf8_handler,
@@ -8729,7 +8740,7 @@ CHARSET_INFO my_charset_utf8_spanish_uca_ci=
     NULL,		/* ident_map    */
     8,			/* strxfrm_multiply */
     1,			/* mbminlen     */
-    2,			/* mbmaxlen     */
+    3,			/* mbmaxlen     */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     &my_charset_utf8_handler,
@@ -8756,7 +8767,7 @@ CHARSET_INFO my_charset_utf8_swedish_uca_ci=
     NULL,		/* ident_map    */
     8,			/* strxfrm_multiply */
     1,			/* mbminlen     */
-    2,			/* mbmaxlen     */
+    3,			/* mbmaxlen     */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     &my_charset_utf8_handler,
@@ -8783,7 +8794,7 @@ CHARSET_INFO my_charset_utf8_turkish_uca_ci=
     NULL,		/* ident_map    */
     8,			/* strxfrm_multiply */
     1,			/* mbminlen     */
-    2,			/* mbmaxlen     */
+    3,			/* mbmaxlen     */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     &my_charset_utf8_handler,
@@ -8810,7 +8821,7 @@ CHARSET_INFO my_charset_utf8_czech_uca_ci=
     NULL,		/* ident_map    */
     8,			/* strxfrm_multiply */
     1,			/* mbminlen     */
-    2,			/* mbmaxlen     */
+    3,			/* mbmaxlen     */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     &my_charset_utf8_handler,
@@ -8838,7 +8849,7 @@ CHARSET_INFO my_charset_utf8_danish_uca_ci=
     NULL,		/* ident_map    */
     8,			/* strxfrm_multiply */
     1,			/* mbminlen     */
-    2,			/* mbmaxlen     */
+    3,			/* mbmaxlen     */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     &my_charset_utf8_handler,
@@ -8865,7 +8876,7 @@ CHARSET_INFO my_charset_utf8_lithuanian_uca_ci=
     NULL,		/* ident_map    */
     8,			/* strxfrm_multiply */
     1,			/* mbminlen     */
-    2,			/* mbmaxlen     */
+    3,			/* mbmaxlen     */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     &my_charset_utf8_handler,
@@ -8892,7 +8903,7 @@ CHARSET_INFO my_charset_utf8_slovak_uca_ci=
     NULL,		/* ident_map    */
     8,			/* strxfrm_multiply */
     1,			/* mbminlen     */
-    2,			/* mbmaxlen     */
+    3,			/* mbmaxlen     */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     &my_charset_utf8_handler,
@@ -8919,7 +8930,7 @@ CHARSET_INFO my_charset_utf8_spanish2_uca_ci=
     NULL,		/* ident_map    */
     8,			/* strxfrm_multiply */
     1,			/* mbminlen     */
-    2,			/* mbmaxlen     */
+    3,			/* mbmaxlen     */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     &my_charset_utf8_handler,
@@ -8946,7 +8957,7 @@ CHARSET_INFO my_charset_utf8_roman_uca_ci=
     NULL,		/* ident_map    */
     8,			/* strxfrm_multiply */
     1,			/* mbminlen     */
-    2,			/* mbmaxlen     */
+    3,			/* mbmaxlen     */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     &my_charset_utf8_handler,
@@ -8973,11 +8984,13 @@ CHARSET_INFO my_charset_utf8_persian_uca_ci=
     NULL,		/* ident_map    */
     8,			/* strxfrm_multiply */
     1,			/* mbminlen     */
-    2,			/* mbmaxlen     */
+    3,			/* mbmaxlen     */
     9,			/* min_sort_char */
     0xFFFF,		/* max_sort_char */
     &my_charset_utf8_handler,
     &my_collation_any_uca_handler
 };
 
-#endif
+#endif /* HAVE_CHARSET_utf8 */
+
+#endif /* HAVE_UCA_COLLATIONS */

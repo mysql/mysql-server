@@ -42,18 +42,20 @@
   handle bulk inserts as well (that is if someone was trying to read at
   the same time since we would want to flush).
 
-  A "meta" file is kept. All this file does is contain information on
-  the number of rows. 
+  A "meta" file is kept alongside the data file. This file serves two purpose.
+  The first purpose is to track the number of rows in the table. The second 
+  purpose is to determine if the table was closed properly or not. When the 
+  meta file is first opened it is marked as dirty. It is opened when the table 
+  itself is opened for writing. When the table is closed the new count for rows 
+  is written to the meta file and the file is marked as clean. If the meta file 
+  is opened and it is marked as dirty, it is assumed that a crash occured. At 
+  this point an error occurs and the user is told to rebuild the file.
+  A rebuild scans the rows and rewrites the meta file. If corruption is found
+  in the data file then the meta file is not repaired.
 
-  No attempts at durability are made. You can corrupt your data. A repair
-  method was added to repair the meta file that stores row information,
-  but if your data file gets corrupted I haven't solved that. I could
-  create a repair that would solve this, but do you want to take a 
-  chance of loosing your data?
+  At some point a recovery method for such a drastic case needs to be divised.
 
-  Locks are row level, and you will get a consistant read. Transactions
-  will be added later (they are not that hard to add at this
-  stage). 
+  Locks are row level, and you will get a consistant read. 
 
   For performance as far as table scans go it is quite fast. I don't have
   good numbers but locally it has out performed both Innodb and MyISAM. For
@@ -88,7 +90,6 @@
      compression but may speed up ordered searches).
    Checkpoint the meta file to allow for faster rebuilds.
    Dirty open (right now the meta file is repaired if a crash occured).
-   Transactions.
    Option to allow for dirty reads, this would lower the sync calls, which would make
      inserts a lot faster, but would mean highly arbitrary reads.
 
@@ -113,10 +114,11 @@
   data - The data is stored in a "row +blobs" format.
 */
 
+/* If the archive storage engine has been inited */
+static bool archive_inited= 0;
 /* Variables for archive share methods */
 pthread_mutex_t archive_mutex;
 static HASH archive_open_tables;
-static int archive_init= 0;
 
 /* The file extension */
 #define ARZ ".ARZ"               // The data file
@@ -141,6 +143,51 @@ static byte* archive_get_key(ARCHIVE_SHARE *share,uint *length,
   *length=share->table_name_length;
   return (byte*) share->table_name;
 }
+
+
+/*
+  Initialize the archive handler.
+
+  SYNOPSIS
+    archive_db_init()
+    void
+
+  RETURN
+    FALSE       OK
+    TRUE        Error
+*/
+
+bool archive_db_init()
+{
+  archive_inited= 1;
+  VOID(pthread_mutex_init(&archive_mutex, MY_MUTEX_INIT_FAST));
+  return (hash_init(&archive_open_tables, system_charset_info, 32, 0, 0,
+                    (hash_get_key) archive_get_key, 0, 0));
+}
+
+
+/*
+  Release the archive handler.
+
+  SYNOPSIS
+    archive_db_end()
+    void
+
+  RETURN
+    FALSE       OK
+*/
+
+bool archive_db_end()
+{
+  if (archive_inited)
+  {
+    hash_free(&archive_open_tables);
+    VOID(pthread_mutex_destroy(&archive_mutex));
+  }
+  archive_inited= 0;
+  return FALSE;
+}
+
 
 /*
   This method reads the header of a datafile and returns whether or not it was successful.
@@ -269,23 +316,6 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, TABLE *table)
   uint length;
   char *tmp_name;
 
-  if (!archive_init)
-  {
-    /* Hijack a mutex for init'ing the storage engine */
-    pthread_mutex_lock(&LOCK_mysql_create_db);
-    if (!archive_init)
-    {
-      VOID(pthread_mutex_init(&archive_mutex,MY_MUTEX_INIT_FAST));
-      if (hash_init(&archive_open_tables,system_charset_info,32,0,0,
-                       (hash_get_key) archive_get_key,0,0))
-      {
-        pthread_mutex_unlock(&LOCK_mysql_create_db);
-        return NULL;
-      }
-      archive_init++;
-    }
-    pthread_mutex_unlock(&LOCK_mysql_create_db);
-  }
   pthread_mutex_lock(&archive_mutex);
   length=(uint) strlen(table_name);
 
@@ -333,6 +363,7 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, TABLE *table)
       opposite.
     */
     (void)write_meta_file(share->meta_file, share->rows_recorded, TRUE);
+
     /* 
       It is expensive to open and close the data files and since you can't have
       a gzip file that can be both read and written we keep a writer open
@@ -341,10 +372,8 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, TABLE *table)
     if ((share->archive_write= gzopen(share->data_file_name, "ab")) == NULL)
       goto error2;
     if (my_hash_insert(&archive_open_tables, (byte*) share))
-      goto error2;
-    thr_lock_init(&share->lock);
-    if (pthread_mutex_init(&share->mutex,MY_MUTEX_INIT_FAST))
       goto error3;
+    thr_lock_init(&share->lock);
   }
   share->use_count++;
   pthread_mutex_unlock(&archive_mutex);
@@ -352,14 +381,13 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, TABLE *table)
   return share;
 
 error3:
-  VOID(pthread_mutex_destroy(&share->mutex));
-  thr_lock_delete(&share->lock);
   /* We close, but ignore errors since we already have errors */
   (void)gzclose(share->archive_write);
 error2:
   my_close(share->meta_file,MYF(0));
 error:
   pthread_mutex_unlock(&archive_mutex);
+  VOID(pthread_mutex_destroy(&share->mutex));
   my_free((gptr) share, MYF(0));
 
   return NULL;
@@ -381,6 +409,8 @@ int ha_archive::free_share(ARCHIVE_SHARE *share)
     VOID(pthread_mutex_destroy(&share->mutex));
     (void)write_meta_file(share->meta_file, share->rows_recorded, FALSE);
     if (gzclose(share->archive_write) == Z_ERRNO)
+      rc= 1;
+    if (my_close(share->meta_file, MYF(0)))
       rc= 1;
     my_free((gptr) share, MYF(0));
   }
@@ -493,23 +523,30 @@ int ha_archive::create(const char *name, TABLE *table_arg,
   if ((archive= gzdopen(create_file, "ab")) == NULL)
   {
     error= errno;
-    delete_table(name);
-    goto error;
+    goto error2;
   }
   if (write_data_header(archive))
   {
-    gzclose(archive);
-    goto error2;
+    error= errno;
+    goto error3;
   }
 
   if (gzclose(archive))
+  {
+    error= errno;
     goto error2;
+  }
+
+  my_close(create_file, MYF(0));
 
   DBUG_RETURN(0);
 
+error3:
+  /* We already have an error, so ignore results of gzclose. */
+  (void)gzclose(archive);
 error2:
-    error= errno;
-    delete_table(name);
+  my_close(create_file, MYF(0));
+  delete_table(name);
 error:
   /* Return error number, if we got one */
   DBUG_RETURN(error ? error : -1);
@@ -528,6 +565,7 @@ error:
 int ha_archive::write_row(byte * buf)
 {
   z_off_t written;
+  Field_blob **field;
   DBUG_ENTER("ha_archive::write_row");
 
   statistic_increment(ha_write_count,&LOCK_status);
@@ -543,7 +581,7 @@ int ha_archive::write_row(byte * buf)
     We should probably mark the table as damagaged if the record is written
     but the blob fails.
   */
-  for (Field_blob **field=table->blob_field ; *field ; field++)
+  for (field= table->blob_field ; *field ; field++)
   {
     char *ptr;
     uint32 size= (*field)->get_length();
@@ -735,7 +773,7 @@ int ha_archive::rebuild_meta_file(char *table_name, File meta_file)
   if ((rebuild_file= gzopen(data_file_name, "rb")) == NULL)
     DBUG_RETURN(errno ? errno : -1);
 
-  if (rc= read_data_header(rebuild_file))
+  if ((rc= read_data_header(rebuild_file)))
     goto error;
 
   /*
@@ -799,7 +837,7 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
     DBUG_RETURN(-1); 
   }
 
-  while (read= gzread(reader, block, IO_SIZE))
+  while ((read= gzread(reader, block, IO_SIZE)))
     gzwrite(writer, block, read);
 
   gzclose(reader);

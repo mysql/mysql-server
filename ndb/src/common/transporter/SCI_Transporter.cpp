@@ -44,7 +44,8 @@ SCI_Transporter::SCI_Transporter(TransporterRegistry &t_reg,
 				 bool chksm,  
 				 bool signalId, 
 				 Uint32 reportFreq) :  
-  Transporter(t_reg, lHostName, rHostName, r_port, _localNodeId,
+  Transporter(t_reg, tt_SCI_TRANSPORTER,
+	      lHostName, rHostName, r_port, _localNodeId,
               _remoteNodeId, 0, false, chksm, signalId) 
 {
   DBUG_ENTER("SCI_Transporter::SCI_Transporter");

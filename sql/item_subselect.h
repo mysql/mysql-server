@@ -93,7 +93,7 @@ public:
     return null_value;
   }
   bool fix_fields(THD *thd, TABLE_LIST *tables, Item **ref);
-  bool exec();
+  virtual bool exec();
   virtual void fix_length_and_dec();
   table_map used_tables() const;
   bool const_item() const;
@@ -109,6 +109,11 @@ public:
     engine_changed= 1;
     return eng == 0;
   }
+  /*
+    Used by max/min subquery to initialize value presence registration
+    mechanism. Engine call this method before rexecution query.
+  */
+  virtual void reset_value_registration() {}
 
   friend class select_subselect;
   friend class Item_in_optimizer;
@@ -150,13 +155,20 @@ public:
 };
 
 /* used in static ALL/ANY optimisation */
+class select_max_min_finder_subselect;
 class Item_maxmin_subselect :public Item_singlerow_subselect
 {
+protected:
   bool max;
+  bool was_values;  // Set if we have found at least one row
 public:
   Item_maxmin_subselect(Item_subselect *parent,
 			st_select_lex *select_lex, bool max);
   void print(String *str);
+  void cleanup();
+  bool any_value() { return was_values; }
+  void register_value() { was_values= TRUE; }
+  void reset_value_registration() { was_values= FALSE; }
 };
 
 /* exists subselect */
@@ -204,11 +216,11 @@ protected:
   bool abort_on_null;
   bool transformed;
 public:
-  Item_func_not_all *upper_not; // point on NOT before ALL subquery
+  Item_func_not_all *upper_item; // point on NOT/NOP before ALL/SOME subquery
 
   Item_in_subselect(Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect()
-    :Item_exists_subselect(), abort_on_null(0), transformed(0), upper_not(0)
+    :Item_exists_subselect(), abort_on_null(0), transformed(0), upper_item(0)
      
   {}
 
@@ -249,7 +261,7 @@ public:
 		     st_select_lex *select_lex, bool all);
 
   // only ALL subquery has upper not
-  subs_type substype() { return upper_not?ALL_SUBS:ANY_SUBS; }
+  subs_type substype() { return all?ALL_SUBS:ANY_SUBS; }
   trans_res select_transformer(JOIN *join);
   void print(String *str);
 };
@@ -291,6 +303,7 @@ public:
   static table_map calc_const_tables(TABLE_LIST *);
   virtual void print(String *str)= 0;
   virtual int change_item(Item_subselect *si, select_subselect *result)= 0;
+  virtual bool no_tables()= 0;
 };
 
 
@@ -315,6 +328,7 @@ public:
   table_map upper_select_const_tables();
   void print (String *str);
   int change_item(Item_subselect *si, select_subselect *result);
+  bool no_tables();
 };
 
 
@@ -335,6 +349,7 @@ public:
   table_map upper_select_const_tables();
   void print (String *str);
   int change_item(Item_subselect *si, select_subselect *result);
+  bool no_tables();
 };
 
 
@@ -364,6 +379,7 @@ public:
   table_map upper_select_const_tables() { return 0; }
   void print (String *str);
   int change_item(Item_subselect *si, select_subselect *result);
+  bool no_tables();
 };
 
 

@@ -76,7 +76,7 @@ static void my_coll_agg_error(Item** args, uint count, const char *fname)
 
 
 bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint count,
-                                   bool allow_superset_conversion)
+                                   uint flags)
 {
   uint i;
   c.nagg= 0;
@@ -84,11 +84,17 @@ bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint count,
   c.set(av[0]->collation);
   for (i= 1; i < count; i++)
   {
-    if (c.aggregate(av[i]->collation, allow_superset_conversion))
+    if (c.aggregate(av[i]->collation, flags))
     {
       my_coll_agg_error(av, count, func_name());
       return TRUE;
     }
+  }
+  if ((flags & MY_COLL_DISALLOW_NONE) &&
+      c.derivation == DERIVATION_NONE)
+  {
+    my_coll_agg_error(av, count, func_name());
+    return TRUE;
   }
   return FALSE;
 }
@@ -96,17 +102,9 @@ bool Item_func::agg_arg_collations(DTCollation &c, Item **av, uint count,
 
 bool Item_func::agg_arg_collations_for_comparison(DTCollation &c,
 						  Item **av, uint count,
-                                                  bool allow_superset_conv)
+                                                  uint flags)
 {
-  if (agg_arg_collations(c, av, count, allow_superset_conv))
-    return TRUE;
-
-  if (c.derivation == DERIVATION_NONE)
-  {
-    my_coll_agg_error(av, count, func_name());
-    return TRUE;
-  }
-  return FALSE;
+  return (agg_arg_collations(c, av, count, flags | MY_COLL_DISALLOW_NONE));
 }
 
 
@@ -117,6 +115,88 @@ eval_const_cond(COND *cond)
 {
   return ((Item_func*) cond)->val_int() ? TRUE : FALSE;
 }
+
+
+
+/* 
+  Collect arguments' character sets together.
+  We allow to apply automatic character set conversion in some cases.
+  The conditions when conversion is possible are:
+  - arguments A and B have different charsets
+  - A wins according to coercibility rules
+    (i.e. a column is stronger than a string constant,
+     an explicit COLLATE clause is stronger than a column)
+  - character set of A is either superset for character set of B,
+    or B is a string constant which can be converted into the
+    character set of A without data loss.
+    
+  If all of the above is true, then it's possible to convert
+  B into the character set of A, and then compare according
+  to the collation of A.
+  
+  For functions with more than two arguments:
+
+    collect(A,B,C) ::= collect(collect(A,B),C)
+*/
+
+bool Item_func::agg_arg_charsets(DTCollation &coll,
+                                 Item **args, uint nargs, uint flags)
+{
+  Item **arg, **last, *safe_args[2];
+  if (agg_arg_collations(coll, args, nargs, flags))
+    return TRUE;
+
+  /*
+    For better error reporting: save the first and the second argument.
+    We need this only if the the number of args is 3 or 2:
+    - for a longer argument list, "Illegal mix of collations"
+      doesn't display each argument's characteristics.
+    - if nargs is 1, then this error cannot happen.
+  */
+  if (nargs >=2 && nargs <= 3)
+  {
+    safe_args[0]= args[0];
+    safe_args[1]= args[1];
+  }
+
+  THD *thd= current_thd;
+  Item_arena *arena, backup;
+  bool res= FALSE;
+  /*
+    In case we're in statement prepare, create conversion item
+    in its memory: it will be reused on each execute.
+  */
+  arena= thd->change_arena_if_needed(&backup);
+
+  for (arg= args, last= args + nargs; arg < last; arg++)
+  {
+    Item* conv;
+    uint32 dummy_offset;
+    if (!String::needs_conversion(0, coll.collation,
+                                  (*arg)->collation.collation,
+                                  &dummy_offset))
+      continue;
+
+    if (!(conv= (*arg)->safe_charset_converter(coll.collation)))
+    {
+      if (nargs >=2 && nargs <= 3)
+      {
+        /* restore the original arguments for better error message */
+        args[0]= safe_args[0];
+        args[1]= safe_args[1];
+      }
+      my_coll_agg_error(args, nargs, func_name());
+      res= TRUE;
+      break; // we cannot return here, we need to restore "arena".
+    }
+    conv->fix_fields(thd, 0, &conv);
+    *arg= conv;
+  }
+  if (arena)
+    thd->restore_backup_item_arena(arena, &backup);
+  return res;
+}
+
 
 
 void Item_func::set_arguments(List<Item> &list)
@@ -184,7 +264,7 @@ Item_func::Item_func(THD *thd, Item_func *item)
     Sets as a side effect the following class variables:
       maybe_null	Set if any argument may return NULL
       with_sum_func	Set if any of the arguments contains a sum function
-      used_table_cache  Set to union of the arguments used table
+      used_tables_cache Set to union of the tables used by arguments
 
       str_value.charset If this is a string function, set this to the
 			character set for the first argument.
@@ -223,10 +303,24 @@ Item_func::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	We can't yet set item to *arg as fix_fields may change *arg
 	We shouldn't call fix_fields() twice, so check 'fixed' field first
       */
-      if ((!(*arg)->fixed && (*arg)->fix_fields(thd, tables, arg)) ||
-	  (*arg)->check_cols(allowed_arg_cols))
+      if ((!(*arg)->fixed && (*arg)->fix_fields(thd, tables, arg)))
 	return 1;				/* purecov: inspected */
+
       item= *arg;
+
+      if (allowed_arg_cols)
+      {
+        if (item->check_cols(allowed_arg_cols))
+          return 1;
+      }
+      else
+      {
+        /*  we have to fetch allowed_arg_cols from first argument */
+        DBUG_ASSERT(arg == args); // it is first argument
+        allowed_arg_cols= item->cols();
+        DBUG_ASSERT(allowed_arg_cols); // Can't be 0 any more
+      }
+
       if (item->maybe_null)
 	maybe_null=1;
 
@@ -257,24 +351,15 @@ bool Item_func::walk (Item_processor processor, byte *argument)
   return (this->*processor)(argument);
 }
 
+
+/* See comments in Item_cmp_func::split_sum_func() */
+
 void Item_func::split_sum_func(THD *thd, Item **ref_pointer_array,
                                List<Item> &fields)
 {
   Item **arg, **arg_end;
   for (arg= args, arg_end= args+arg_count; arg != arg_end ; arg++)
-  {
-    Item *item=* arg;
-    if (item->with_sum_func && item->type() != SUM_FUNC_ITEM)
-      item->split_sum_func(thd, ref_pointer_array, fields);
-    else if (item->used_tables() || item->type() == SUM_FUNC_ITEM)
-    {
-      uint el= fields.elements;
-      Item *new_item= new Item_ref(ref_pointer_array + el, 0, item->name);
-      fields.push_front(item);
-      ref_pointer_array[el]= item;
-      thd->change_item_tree(arg, new_item);
-    }
-  }
+    (*arg)->split_sum_func2(thd, ref_pointer_array, fields, arg);
 }
 
 
@@ -694,9 +779,25 @@ longlong Item_func_neg::val_int()
 
 void Item_func_neg::fix_length_and_dec()
 {
+  enum Item_result arg_result= args[0]->result_type();
+  enum Item::Type  arg_type= args[0]->type();
   decimals=args[0]->decimals;
   max_length=args[0]->max_length;
   hybrid_type= REAL_RESULT;
+  
+  /*
+    We need to account for added '-' in the following cases:
+    A) argument is a real or integer positive constant - in this case 
+    argument's max_length is set to actual number of bytes occupied, and not 
+    maximum number of bytes real or integer may require. Note that all 
+    constants are non negative so we don't need to account for removed '-'.
+    B) argument returns a string.
+  */
+  if (arg_result == STRING_RESULT || 
+      (arg_type == REAL_ITEM && ((Item_real*)args[0])->value >= 0) ||
+      (arg_type == INT_ITEM && ((Item_int*)args[0])->value > 0))
+    max_length++;
+
   if (args[0]->result_type() == INT_RESULT)
   {
     /*
@@ -1010,7 +1111,8 @@ double Item_func_round::val()
 bool Item_func_rand::fix_fields(THD *thd, struct st_table_list *tables,
                                 Item **ref)
 {
-  Item_real_func::fix_fields(thd, tables, ref);
+  if (Item_real_func::fix_fields(thd, tables, ref))
+    return TRUE;
   used_tables_cache|= RAND_TABLE_BIT;
   if (arg_count)
   {					// Only use argument once in query
@@ -1105,7 +1207,7 @@ void Item_func_min_max::fix_length_and_dec()
     cmp_type=item_cmp_type(cmp_type,args[i]->result_type());
   }
   if (cmp_type == STRING_RESULT)
-    agg_arg_collations_for_comparison(collation, args, arg_count);
+    agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV);
 }
 
 
@@ -1259,7 +1361,7 @@ longlong Item_func_coercibility::val_int()
 void Item_func_locate::fix_length_and_dec()
 {
   maybe_null=0; max_length=11;
-  agg_arg_collations_for_comparison(cmp_collation, args, 2);
+  agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV);
 }
 
 
@@ -1358,7 +1460,7 @@ void Item_func_field::fix_length_and_dec()
   for (uint i=1; i < arg_count ; i++)
     cmp_type= item_cmp_type(cmp_type, args[i]->result_type());
   if (cmp_type == STRING_RESULT)
-    agg_arg_collations_for_comparison(cmp_collation, args, arg_count);
+    agg_arg_charsets(cmp_collation, args, arg_count, MY_COLL_CMP_CONV);
 }
 
 
@@ -1521,18 +1623,21 @@ longlong Item_func_bit_count::val_int()
 
 udf_handler::~udf_handler()
 {
-  if (initialized)
+  if (!not_original)
   {
-    if (u_d->func_deinit != NULL)
+    if (initialized)
     {
-      void (*deinit)(UDF_INIT *) = (void (*)(UDF_INIT*))
-	u_d->func_deinit;
-      (*deinit)(&initid);
+      if (u_d->func_deinit != NULL)
+      {
+        void (*deinit)(UDF_INIT *) = (void (*)(UDF_INIT*))
+        u_d->func_deinit;
+        (*deinit)(&initid);
+      }
+      free_udf(u_d);
     }
-    free_udf(u_d);
+    if (buffers)				// Because of bug in ecc
+      delete [] buffers;
   }
-  if (buffers)					// Because of bug in ecc
-    delete [] buffers;
 }
 
 
@@ -1579,7 +1684,8 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
 	 arg != arg_end ;
 	 arg++,i++)
     {
-      if ((*arg)->fix_fields(thd, tables, arg))
+      if (!(*arg)->fixed && 
+          (*arg)->fix_fields(thd, tables, arg))
 	DBUG_RETURN(1);
       // we can't assign 'item' before, because fix_fields() can change arg
       Item *item= *arg;
@@ -1926,7 +2032,7 @@ void item_user_lock_release(User_level_lock *ull)
     tmp.copy(command, strlen(command), tmp.charset());
     tmp.append(ull->key,ull->key_length);
     tmp.append("\")", 2);
-    Query_log_event qev(current_thd, tmp.ptr(), tmp.length(),1);
+    Query_log_event qev(current_thd, tmp.ptr(), tmp.length(),1, FALSE);
     qev.error_code=0; // this query is always safe to run on slave
     mysql_bin_log.write(&qev);
   }
@@ -2182,14 +2288,10 @@ longlong Item_func_last_insert_id::val_int()
     longlong value=args[0]->val_int();
     current_thd->insert_id(value);
     null_value=args[0]->null_value;
-    return value;
   }
   else
-  {
-    Item *it= get_system_var(current_thd, OPT_SESSION, "last_insert_id", 14,
-			     "last_insert_id()");
-    return it->val_int();
-  }
+    current_thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+  return current_thd->insert_id();
 }
 
 /* This function is just used to test speed of different functions */
@@ -2259,6 +2361,7 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
     entry->value=0;
     entry->length=0;
     entry->update_query_id=0;
+    entry->collation.set(NULL, DERIVATION_IMPLICIT);
     /*
       If we are here, we were called from a SET or a query which sets a
       variable. Imagine it is this:
@@ -2300,7 +2403,24 @@ bool Item_func_set_user_var::fix_fields(THD *thd, TABLE_LIST *tables,
      is different from query_id).
   */
   entry->update_query_id= thd->query_id;
-  entry->collation.set(args[0]->collation);
+  /*
+    As it is wrong and confusing to associate any 
+    character set with NULL, @a should be latin2
+    after this query sequence:
+
+      SET @a=_latin2'string';
+      SET @a=NULL;
+
+    I.e. the second query should not change the charset
+    to the current default value, but should keep the 
+    original value assigned during the first query.
+    In order to do it, we don't copy charset
+    from the argument if the argument is NULL
+    and the variable has previously been initialized.
+  */
+  if (!entry->collation.collation || !args[0]->null_value)
+    entry->collation.set(args[0]->collation.collation, DERIVATION_IMPLICIT);
+  collation.set(entry->collation.collation, DERIVATION_IMPLICIT);
   cached_result_type= args[0]->result_type();
   return 0;
 }
@@ -2312,7 +2432,7 @@ Item_func_set_user_var::fix_length_and_dec()
   maybe_null=args[0]->maybe_null;
   max_length=args[0]->max_length;
   decimals=args[0]->decimals;
-  collation.set(args[0]->collation);
+  collation.set(args[0]->collation.collation, DERIVATION_IMPLICIT);
 }
 
 
@@ -2328,7 +2448,6 @@ bool Item_func_set_user_var::update_hash(void *ptr, uint length,
       my_free(entry->value,MYF(0));
     entry->value=0;
     entry->length=0;
-    entry->collation.set(cs, dv);
   }
   else
   {
@@ -2540,7 +2659,7 @@ Item_func_set_user_var::update()
       res= update_hash((void*) save_result.vstr->ptr(),
 		       save_result.vstr->length(), STRING_RESULT,
 		       save_result.vstr->charset(),
-		       args[0]->collation.derivation);
+		       DERIVATION_IMPLICIT);
     break;
   }
   case ROW_RESULT:
@@ -2873,10 +2992,10 @@ void Item_func_match::init_search(bool no_order)
   if (key == NO_SUCH_KEY)
   {
     List<Item> fields;
+    fields.push_back(new Item_string(" ",1, cmp_collation.collation));
     for (uint i=1; i < arg_count; i++)
       fields.push_back(args[i]);
-    concat=new Item_func_concat_ws(new Item_string(" ",1,
-                                   cmp_collation.collation), fields);
+    concat=new Item_func_concat_ws(fields);
     /*
       Above function used only to get value and do not need fix_fields for it:
       Item_string - basic constant
@@ -2906,16 +3025,15 @@ void Item_func_match::init_search(bool no_order)
 
   if (ft_tmp->charset() != cmp_collation.collation)
   {
+    uint dummy_errors;
     search_value.copy(ft_tmp->ptr(), ft_tmp->length(), ft_tmp->charset(),
-                      cmp_collation.collation);
+                      cmp_collation.collation, &dummy_errors);
     ft_tmp= &search_value;
   }
 
   if (join_key && !no_order)
     flags|=FT_SORTED;
-  ft_handler=table->file->ft_init_ext(flags, key,
-				      (byte*) ft_tmp->ptr(),
-				      ft_tmp->length());
+  ft_handler=table->file->ft_init_ext(flags, key, ft_tmp);
 
   if (join_key)
     table->file->ft_handler=ft_handler;
@@ -2957,12 +3075,12 @@ bool Item_func_match::fix_fields(THD *thd, TABLE_LIST *tlist, Item **ref)
   }
   /*
     Check that all columns come from the same table.
-    We've already checked that columns in MATCH are fields so 
+    We've already checked that columns in MATCH are fields so
     PARAM_TABLE_BIT can only appear from AGAINST argument.
   */
   if ((used_tables_cache & ~PARAM_TABLE_BIT) != item->used_tables())
     key=NO_SUCH_KEY;
-  
+
   if (key == NO_SUCH_KEY && !(flags & FT_BOOL))
   {
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"MATCH");

@@ -397,7 +397,7 @@ NdbScanFilterImpl::cond_col_const(Interpreter::BinaryCondition op,
   (m_operation->* branch)(4, 5, m_current.m_ownLabel);
 
   return 0;
-};
+}
 
 int
 NdbScanFilter::eq(int AttrId, Uint32 value){
@@ -478,7 +478,7 @@ NdbScanFilterImpl::cond_col(Interpreter::UnaryCondition op, Uint32 AttrId){
   Branch1 branch = table2[op].m_branches[m_current.m_group];
   (m_operation->* branch)(AttrId, m_current.m_ownLabel);
   return 0;
-};
+}
 
 int
 NdbScanFilter::isnull(int AttrId){

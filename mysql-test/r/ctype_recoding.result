@@ -166,3 +166,77 @@ ERROR HY000: Invalid utf8 character string: 'плохо'
 SET NAMES utf8;
 CREATE TABLE `goodплохо` (a int);
 ERROR HY000: Invalid utf8 character string: 'плохо` (a int)'
+set names latin1;
+create table t1 (a char(10) character set koi8r, b text character set koi8r);
+insert into t1 values ('test','test');
+insert into t1 values ('йцук','йцук');
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+Warning	1265	Data truncated for column 'b' at row 1
+drop table t1;
+set names koi8r;
+create table t1 (a char(10) character set cp1251);
+insert into t1 values (_koi8r'вася');
+select * from t1 where a=_koi8r'вася';
+a
+вася
+select * from t1 where a=concat(_koi8r'вася');
+ERROR HY000: Illegal mix of collations (cp1251_general_ci,IMPLICIT) and (koi8r_general_ci,COERCIBLE) for operation '='
+select * from t1 where a=_latin1'вася';
+ERROR HY000: Illegal mix of collations (cp1251_general_ci,IMPLICIT) and (latin1_swedish_ci,COERCIBLE) for operation '='
+drop table t1;
+set names latin1;
+set names koi8r;
+create table t1 (c1 char(10) character set cp1251);
+insert into t1 values ('ъ');
+select c1 from t1 where c1 between 'ъ' and 'ъ';
+c1
+ъ
+select ifnull(c1,'ъ'), ifnull(null,c1) from t1;
+ifnull(c1,'ъ')	ifnull(null,c1)
+ъ	ъ
+select if(1,c1,'Ж'), if(0,c1,'Ж') from t1;
+if(1,c1,'Ж')	if(0,c1,'Ж')
+ъ	Ж
+select coalesce('Ж',c1), coalesce(null,c1) from t1;
+coalesce('Ж',c1)	coalesce(null,c1)
+Ж	ъ
+select least(c1,'Ж'), greatest(c1,'Ж') from t1;
+least(c1,'Ж')	greatest(c1,'Ж')
+Ж	ъ
+select locate(c1,'ъ'), locate('ъ',c1) from t1;
+locate(c1,'ъ')	locate('ъ',c1)
+1	1
+select field(c1,'ъ'),field('ъ',c1) from t1;
+field(c1,'ъ')	field('ъ',c1)
+1	1
+select concat(c1,'Ж'), concat('Ж',c1) from t1;
+concat(c1,'Ж')	concat('Ж',c1)
+ъЖ	Жъ
+select concat_ws(c1,'Ж','ъ'), concat_ws('Ж',c1,'ъ') from t1;
+concat_ws(c1,'Ж','ъ')	concat_ws('Ж',c1,'ъ')
+Жъъ	ъЖъ
+select replace(c1,'ъ','Ж'), replace('ъ',c1,'Ж') from t1;
+replace(c1,'ъ','Ж')	replace('ъ',c1,'Ж')
+Ж	Ж
+select substring_index(c1,'ЖЖъъ',2) from t1;
+substring_index(c1,'ЖЖъъ',2)
+ъ
+select elt(1,c1,'Ж'),elt(1,'Ж',c1) from t1;
+elt(1,c1,'Ж')	elt(1,'Ж',c1)
+ъ	Ж
+select make_set(3,c1,'Ж'), make_set(3,'Ж',c1) from t1;
+make_set(3,c1,'Ж')	make_set(3,'Ж',c1)
+ъ,Ж	Ж,ъ
+select insert(c1,1,2,'Ж'),insert('Ж',1,2,c1) from t1;
+insert(c1,1,2,'Ж')	insert('Ж',1,2,c1)
+Ж	ъ
+select trim(c1 from 'ъ'),trim('ъ' from c1) from t1;
+trim(c1 from 'ъ')	trim('ъ' from c1)
+	
+select lpad(c1,3,'Ж'), lpad('Ж',3,c1) from t1;
+lpad(c1,3,'Ж')	lpad('Ж',3,c1)
+ЖЖъ	ъъЖ
+select rpad(c1,3,'Ж'), rpad('Ж',3,c1) from t1;
+rpad(c1,3,'Ж')	rpad('Ж',3,c1)
+ъЖЖ	Жъъ

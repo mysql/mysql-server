@@ -412,7 +412,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(10) character set utf8 default NULL,
-  UNIQUE KEY `a` (`c`(1))
+  UNIQUE KEY `a` TYPE HASH (`c`(1))
 ) ENGINE=HEAP DEFAULT CHARSET=latin1
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
@@ -570,7 +570,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(10) character set utf8 collate utf8_bin default NULL,
-  UNIQUE KEY `a` (`c`(1))
+  UNIQUE KEY `a` TYPE HASH (`c`(1))
 ) ENGINE=HEAP DEFAULT CHARSET=latin1
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
@@ -814,3 +814,53 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t2;
 drop table t1;
+select 'c' like '\_' as want0;
+want0
+0
+create table t1 (id integer, a varchar(100) character set utf8 collate utf8_unicode_ci);
+insert into t1 values (1, 'Test');
+select * from t1 where soundex(a) = soundex('Test');
+id	a
+1	Test
+select * from t1 where soundex(a) = soundex('TEST');
+id	a
+1	Test
+select * from t1 where soundex(a) = soundex('test');
+id	a
+1	Test
+drop table t1;
+SET collation_connection='utf8_general_ci';
+create table t1 select repeat('a',4000) a;
+delete from t1;
+insert into t1 values ('a'), ('a '), ('a\t');
+select collation(a),hex(a) from t1 order by a;
+collation(a)	hex(a)
+utf8_general_ci	6109
+utf8_general_ci	61
+utf8_general_ci	6120
+drop table t1;
+SET collation_connection='utf8_bin';
+create table t1 select repeat('a',4000) a;
+delete from t1;
+insert into t1 values ('a'), ('a '), ('a\t');
+select collation(a),hex(a) from t1 order by a;
+collation(a)	hex(a)
+utf8_bin	6109
+utf8_bin	61
+utf8_bin	6120
+drop table t1;
+CREATE TABLE t1 (
+user varchar(255) NOT NULL default ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES ('one'),('two');
+SELECT CHARSET('a');
+CHARSET('a')
+utf8
+SELECT user, CONCAT('<', user, '>') AS c FROM t1;
+user	c
+one	<one>
+two	<two>
+DROP TABLE t1;
+select convert(_koi8r'É' using utf8) < convert(_koi8r'Ê' using utf8);
+convert(_koi8r'É' using utf8) < convert(_koi8r'Ê' using utf8)
+1

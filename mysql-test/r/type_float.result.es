@@ -22,14 +22,14 @@ select * from t1;
 f1	f2
 10	10
 100000	100000
-1.23457e+09	1234567890
+1.23457e+9	1234567890
 1e+10	10000000000
 1e+15	1e+15
 1e+20	1e+20
 3.40282e+38	1e+50
 3.40282e+38	1e+150
 -10	-10
-1e-05	1e-05
+1e-5	1e-5
 1e-10	1e-10
 1e-15	1e-15
 1e-20	1e-20
@@ -137,7 +137,69 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 create table t1 (c20 char);
 insert into t1 values (5000.0);
+Warnings:
+Warning	1265	Data truncated for column 'c20' at row 1
 drop table t1;
 create table t1 (f float(54));
 ERROR 42000: Incorrect column specifier for column 'f'
 drop table if exists t1;
+create table t1 (d1 double, d2 double unsigned);
+insert into t1 set d1 = -1.0;
+update t1 set d2 = d1;
+Warnings:
+Warning	1264	Data truncated; out of range for column 'd2' at row 1
+select * from t1;
+d1	d2
+-1	0
+drop table t1;
+create table t1 (f float(4,3));
+insert into t1 values (-11.0),(-11),("-11"),(11.0),(11),("11");
+Warnings:
+Warning	1264	Data truncated; out of range for column 'f' at row 1
+Warning	1264	Data truncated; out of range for column 'f' at row 2
+Warning	1264	Data truncated; out of range for column 'f' at row 3
+Warning	1264	Data truncated; out of range for column 'f' at row 4
+Warning	1264	Data truncated; out of range for column 'f' at row 5
+Warning	1264	Data truncated; out of range for column 'f' at row 6
+select * from t1;
+f
+-9.999
+-9.999
+-9.999
+9.999
+9.999
+9.999
+drop table if exists t1;
+create table t1 (f double(4,3));
+insert into t1 values (-11.0),(-11),("-11"),(11.0),(11),("11");
+Warnings:
+Warning	1264	Data truncated; out of range for column 'f' at row 1
+Warning	1264	Data truncated; out of range for column 'f' at row 2
+Warning	1264	Data truncated; out of range for column 'f' at row 3
+Warning	1264	Data truncated; out of range for column 'f' at row 4
+Warning	1264	Data truncated; out of range for column 'f' at row 5
+Warning	1264	Data truncated; out of range for column 'f' at row 6
+select * from t1;
+f
+-9.999
+-9.999
+-9.999
+9.999
+9.999
+9.999
+drop table if exists t1;
+create table t1 (c char(20));
+insert into t1 values (5e-28);
+select * from t1;
+c
+5e-28
+drop table t1;
+create table t1 (c char(6));
+insert into t1 values (2e5),(2e6),(2e-4),(2e-5);
+select * from t1;
+c
+200000
+2e+06
+0.0002
+2e-05
+drop table t1;

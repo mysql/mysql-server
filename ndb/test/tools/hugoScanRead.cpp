@@ -35,13 +35,17 @@ int main(int argc, const char** argv){
   int _parallelism = 1;
   const char* _tabname = NULL;
   int _help = 0;
-  
+  int lock = NdbOperation::LM_Read;
+  int sorted = 0;
+
   struct getargs args[] = {
     { "aborts", 'a', arg_integer, &_abort, "percent of transactions that are aborted", "abort%" },
     { "loops", 'l', arg_integer, &_loops, "number of times to run this program(0=infinite loop)", "loops" },
     { "parallelism", 'p', arg_integer, &_parallelism, "parallelism(1-240)", "para" },
     { "records", 'r', arg_integer, &_records, "Number of records", "recs" },
-    { "usage", '?', arg_flag, &_help, "Print help", "" }
+    { "usage", '?', arg_flag, &_help, "Print help", "" },
+    { "lock", 'm', arg_integer, &lock, "lock mode", "" },
+    { "sorted", 's', arg_flag, &sorted, "sorted", "" }
   };
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0;
@@ -73,16 +77,48 @@ int main(int argc, const char** argv){
     ndbout << " Table " << _tabname << " does not exist!" << endl;
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
+
+  const NdbDictionary::Index * pIdx = 0;
+  if(optind+1 < argc)
+  {
+    pIdx = MyNdb.getDictionary()->getIndex(argv[optind+1], _tabname);
+    if(!pIdx)
+      ndbout << " Index " << argv[optind+1] << " not found" << endl;
+    else
+      if(pIdx->getType() != NdbDictionary::Index::UniqueOrderedIndex &&
+	 pIdx->getType() != NdbDictionary::Index::OrderedIndex)
+      {
+	ndbout << " Index " << argv[optind+1] << " is not scannable" << endl;
+	pIdx = 0;
+      }
+  }
   
   HugoTransactions hugoTrans(*pTab);
   int i = 0;
   while (i<_loops || _loops==0) {
     ndbout << i << ": ";
-    if(hugoTrans.scanReadRecords(&MyNdb, 
-				 0,
-				 _abort,
-				 _parallelism) != 0){
-      return NDBT_ProgramExit(NDBT_FAILED);
+    if(!pIdx)
+    {
+      if(hugoTrans.scanReadRecords(&MyNdb, 
+				   0,
+				   _abort,
+				   _parallelism,
+				   (NdbOperation::LockMode)lock) != 0)
+      {
+	return NDBT_ProgramExit(NDBT_FAILED);
+      }
+    }
+    else
+    {
+      if(hugoTrans.scanReadRecords(&MyNdb, pIdx, 
+				   0,
+				   _abort,
+				   _parallelism,
+				   (NdbOperation::LockMode)lock,
+				   sorted) != 0)
+      {
+	return NDBT_ProgramExit(NDBT_FAILED);
+      }
     }
     i++;
   }

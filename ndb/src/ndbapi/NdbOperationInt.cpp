@@ -15,21 +15,11 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-/************************************************************************************************
-Name:          NdbOperationInt.C
-Include:
-Link:
-Author:        UABRONM Mikael Ronström UAB/M/MT                         
-Date:          991029
-Version:       0.1
-Description:   Interpreted operations in NDB API
-Documentation:
-Adjust:  991029  UABRONM   First version.
-************************************************************************************************/
-#include "NdbOperation.hpp"
+#include <ndb_global.h>
+#include <NdbOperation.hpp>
 #include "NdbApiSignal.hpp"
-#include "NdbConnection.hpp"
-#include "Ndb.hpp"
+#include <NdbConnection.hpp>
+#include <Ndb.hpp>
 #include "NdbRecAttr.hpp"
 #include "NdbUtil.hpp"
 #include "Interpreter.hpp"

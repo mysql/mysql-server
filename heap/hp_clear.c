@@ -97,6 +97,7 @@ void hp_clear_keys(HP_SHARE *info)
         VOID(hp_free_level(block,block->levels,block->root,(byte*) 0));
       block->levels=0;
       block->last_allocated=0;
+      keyinfo->hash_buckets= 0;
     }
   }
   info->index_length=0;

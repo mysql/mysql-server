@@ -339,11 +339,11 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
   }
   l_time->neg= 0;
 
-  if (year_length == 2 && i >= format_position[1] && i >=format_position[2] &&
-      (l_time->month || l_time->day))
+  if (year_length == 2 && not_zero_date)
     l_time->year+= (l_time->year < YY_PART_YEAR ? 2000 : 1900);
 
-  if (number_of_fields < 3 || l_time->month > 12 ||
+  if (number_of_fields < 3 ||
+      l_time->year > 9999 || l_time->month > 12 ||
       l_time->day > 31 || l_time->hour > 23 ||
       l_time->minute > 59 || l_time->second > 59 ||
       (!(flags & TIME_FUZZY_DATE) && (l_time->month == 0 || l_time->day == 0)))
@@ -664,6 +664,10 @@ my_system_gmt_sec(const MYSQL_TIME *t, long *my_timezone, bool *in_dst_time_gap)
     I couldn't come up with a better way to get a repeatable result :(
 
     We can't use mktime() as it's buggy on many platforms and not thread safe.
+
+    Note: this code assumes that our time_t estimation is not too far away
+    from real value (we assume that localtime_r(tmp) will return something
+    within 24 hrs from t) which is probably true for all current time zones.
   */
   tmp=(time_t) (((calc_daynr((uint) t->year,(uint) t->month,(uint) t->day) -
 		  (long) days_at_timestart)*86400L + (long) t->hour*3600L +
@@ -676,7 +680,8 @@ my_system_gmt_sec(const MYSQL_TIME *t, long *my_timezone, bool *in_dst_time_gap)
   for (loop=0;
        loop < 2 &&
 	 (t->hour != (uint) l_time->tm_hour ||
-	  t->minute != (uint) l_time->tm_min);
+	  t->minute != (uint) l_time->tm_min ||
+          t->second != (uint) l_time->tm_sec);
        loop++)
   {					/* One check should be enough ? */
     /* Get difference in days */
@@ -686,15 +691,22 @@ my_system_gmt_sec(const MYSQL_TIME *t, long *my_timezone, bool *in_dst_time_gap)
     else if (days > 1)
       days= -1;
     diff=(3600L*(long) (days*24+((int) t->hour - (int) l_time->tm_hour)) +
-	  (long) (60*((int) t->minute - (int) l_time->tm_min)));
+          (long) (60*((int) t->minute - (int) l_time->tm_min)) +
+          (long) ((int) t->second - (int) l_time->tm_sec));
     current_timezone+= diff+3600;		/* Compensate for -3600 above */
     tmp+= (time_t) diff;
     localtime_r(&tmp,&tm_tmp);
     l_time=&tm_tmp;
   }
   /*
-    Fix that if we are in the not existing daylight saving time hour
-    we move the start of the next real hour
+    Fix that if we are in the non existing daylight saving time hour
+    we move the start of the next real hour.
+
+    This code doesn't handle such exotical thing as time-gaps whose length
+    is more than one hour or non-integer (latter can theoretically happen
+    if one of seconds will be removed due leap correction, or because of
+    general time correction like it happened for Africa/Monrovia time zone
+    in year 1972).
   */
   if (loop == 2 && t->hour != (uint) l_time->tm_hour)
   {
@@ -704,7 +716,8 @@ my_system_gmt_sec(const MYSQL_TIME *t, long *my_timezone, bool *in_dst_time_gap)
     else if (days > 1)
       days= -1;
     diff=(3600L*(long) (days*24+((int) t->hour - (int) l_time->tm_hour))+
-	  (long) (60*((int) t->minute - (int) l_time->tm_min)));
+	  (long) (60*((int) t->minute - (int) l_time->tm_min)) +
+          (long) ((int) t->second - (int) l_time->tm_sec));
     if (diff == 3600)
       tmp+=3600 - t->minute*60 - t->second;	/* Move to next hour */
     else if (diff == -3600)
@@ -720,10 +733,10 @@ my_system_gmt_sec(const MYSQL_TIME *t, long *my_timezone, bool *in_dst_time_gap)
 
 /* Set MYSQL_TIME structure to 0000-00-00 00:00:00.000000 */
 
-void set_zero_time(MYSQL_TIME *tm)
+void set_zero_time(MYSQL_TIME *tm, enum enum_mysql_timestamp_type time_type)
 {
   bzero((void*) tm, sizeof(*tm));
-  tm->time_type= MYSQL_TIMESTAMP_NONE;
+  tm->time_type= time_type;
 }
 
 
@@ -743,9 +756,6 @@ void set_zero_time(MYSQL_TIME *tm)
 int my_time_to_str(const MYSQL_TIME *l_time, char *to)
 {
   uint extra_hours= 0;
-  /* Get extra hours, if we are getting data from the server */
-  if (l_time->year == 0 && l_time->month == 0)
-    extra_hours= l_time->day*24;
   return my_sprintf(to, (to, "%s%02d:%02d:%02d",
                          (l_time->neg ? "-" : ""),
                          extra_hours+ l_time->hour,

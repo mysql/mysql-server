@@ -45,7 +45,7 @@ Item::Item():
 {
   marker= 0;
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
-  collation.set(default_charset(), DERIVATION_COERCIBLE);
+  collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
   name= 0;
   decimals= 0; max_length= 0;
 
@@ -69,7 +69,7 @@ Item::Item():
 }
 
 /*
-  Constructor used by Item_field, Item_ref & agregate (sum) functions.
+  Constructor used by Item_field, Item_*_ref & agregate (sum) functions.
   Used for duplicating lists in processing queries with temporary
   tables
 */
@@ -114,7 +114,7 @@ Item_ident::Item_ident(const char *db_name_par,const char *table_name_par,
   name = (char*) field_name_par;
 }
 
-// Constructor used by Item_field & Item_ref (see Item comment)
+// Constructor used by Item_field & Item_*_ref (see Item comment)
 Item_ident::Item_ident(THD *thd, Item_ident *item)
   :Item(thd, item),
    orig_db_name(item->orig_db_name),
@@ -205,6 +205,41 @@ bool Item::eq(const Item *item, bool binary_cmp) const
 }
 
 
+Item *Item::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  /*
+    Don't allow automatic conversion to non-Unicode charsets,
+    as it potentially loses data.
+  */
+  if (!(tocs->state & MY_CS_UNICODE))
+    return NULL; // safe conversion is not possible
+  return new Item_func_conv_charset(this, tocs);
+}
+
+
+Item *Item_string::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  Item_string *conv;
+  uint conv_errors;
+  String tmp, cstr, *ostr= val_str(&tmp);
+  cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &conv_errors);
+  if (conv_errors || !(conv= new Item_string(cstr.ptr(), cstr.length(),
+                                             cstr.charset(),
+                                             collation.derivation)))
+  {
+    /*
+      Safe conversion is not possible (or EOM).
+      We could not convert a string into the requested character set
+      without data loss. The target charset does not cover all the
+      characters from the string. Operation cannot be done correctly.
+    */
+    return NULL;
+  }
+  conv->str_value.copy();
+  return conv;
+}
+
+
 bool Item_string::eq(const Item *item, bool binary_cmp) const
 {
   if (type() == item->type())
@@ -259,7 +294,95 @@ CHARSET_INFO *Item::default_charset()
   return current_thd->variables.collation_connection;
 }
 
-bool DTCollation::aggregate(DTCollation &dt, bool superset_conversion)
+
+/*
+  Move SUM items out from item tree and replace with reference
+
+  SYNOPSIS
+    split_sum_func2()
+    thd			Thread handler
+    ref_pointer_array	Pointer to array of reference fields
+    fields		All fields in select
+    ref			Pointer to item
+
+  NOTES
+   This is from split_sum_func2() for items that should be split
+
+   All found SUM items are added FIRST in the fields list and
+   we replace the item with a reference.
+
+   thd->fatal_error() may be called if we are out of memory
+*/
+
+
+void Item::split_sum_func2(THD *thd, Item **ref_pointer_array,
+                           List<Item> &fields, Item **ref)
+{
+  if (type() != SUM_FUNC_ITEM && with_sum_func)
+  {
+    /* Will split complicated items and ignore simple ones */
+    split_sum_func(thd, ref_pointer_array, fields);
+  }
+  else if ((type() == SUM_FUNC_ITEM ||
+            (used_tables() & ~PARAM_TABLE_BIT)) &&
+           type() != REF_ITEM)
+  {
+    /*
+      Replace item with a reference so that we can easily calculate
+      it (in case of sum functions) or copy it (in case of fields)
+
+      The test above is to ensure we don't do a reference for things
+      that are constants (PARAM_TABLE_BIT is in effect a constant)
+      or already referenced (for example an item in HAVING)
+    */
+    uint el= fields.elements;
+    Item *new_item;    
+    ref_pointer_array[el]= this;
+    if (!(new_item= new Item_ref(ref_pointer_array + el, 0, name)))
+      return;                                   // fatal_error is set
+    fields.push_front(this);
+    ref_pointer_array[el]= this;
+    thd->change_item_tree(ref, new_item);
+  }
+}
+
+
+/*
+   Aggregate two collations together taking
+   into account their coercibility (aka derivation):
+
+   0 == DERIVATION_EXPLICIT  - an explicitely written COLLATE clause
+   1 == DERIVATION_NONE      - a mix of two different collations
+   2 == DERIVATION_IMPLICIT  - a column
+   3 == DERIVATION_COERCIBLE - a string constant
+
+   The most important rules are:
+
+   1. If collations are the same:
+      chose this collation, and the strongest derivation.
+
+   2. If collations are different:
+     - Character sets may differ, but only if conversion without
+       data loss is possible. The caller provides flags whether
+       character set conversion attempts should be done. If no
+       flags are substituted, then the character sets must be the same.
+       Currently processed flags are:
+         MY_COLL_ALLOW_SUPERSET_CONV  - allow conversion to a superset
+         MY_COLL_ALLOW_COERCIBLE_CONV - allow conversion of a coercible value
+     - two EXPLICIT collations produce an error, e.g. this is wrong:
+       CONCAT(expr1 collate latin1_swedish_ci, expr2 collate latin1_german_ci)
+     - the side with smaller derivation value wins,
+       i.e. a column is stronger than a string constant,
+       an explicit COLLATE clause is stronger than a column.
+     - if derivations are the same, we have DERIVATION_NONE,
+       we'll wait for an explicit COLLATE clause which possibly can
+       come from another argument later: for example, this is valid,
+       but we don't know yet when collecting the first two arguments:
+         CONCAT(latin1_swedish_ci_column,
+                latin1_german1_ci_column,
+                expr COLLATE latin1_german2_ci)
+*/
+bool DTCollation::aggregate(DTCollation &dt, uint flags)
 {
   nagg++;
   if (!my_charset_same(collation, dt.collation))
@@ -290,28 +413,37 @@ bool DTCollation::aggregate(DTCollation &dt, bool superset_conversion)
       else
        ; // Do nothing
     }
-    else if (superset_conversion)
+    else if ((flags & MY_COLL_ALLOW_SUPERSET_CONV) &&
+             derivation < dt.derivation &&
+             collation->state & MY_CS_UNICODE)
     {
-      if (derivation < dt.derivation &&
-          collation->state & MY_CS_UNICODE)
-        ; // Do nothing
-      else if (dt.derivation < derivation &&
-               dt.collation->state & MY_CS_UNICODE)
-      {
-        set(dt);
-        strong= nagg;
-      }
-      else
-      {
-        // Cannot convert to superset
-        set(0, DERIVATION_NONE);
-        return 1;
-      }
+      // Do nothing
+    }
+    else if ((flags & MY_COLL_ALLOW_SUPERSET_CONV) &&
+             dt.derivation < derivation &&
+             dt.collation->state & MY_CS_UNICODE)
+    {
+      set(dt);
+      strong= nagg;
+    }
+    else if ((flags & MY_COLL_ALLOW_COERCIBLE_CONV) &&
+             derivation < dt.derivation &&
+             dt.derivation >= DERIVATION_COERCIBLE)
+    {
+      // Do nothing;
+    }
+    else if ((flags & MY_COLL_ALLOW_COERCIBLE_CONV) &&
+             dt.derivation < derivation &&
+             derivation >= DERIVATION_COERCIBLE)
+    {
+      set(dt);
+      strong= nagg;
     }
     else
     {
+      // Cannot apply conversion
       set(0, DERIVATION_NONE);
-      return 1; 
+      return 1;
     }
   }
   else if (derivation < dt.derivation)
@@ -678,6 +810,12 @@ String *Item_null::val_str(String *str)
 }
 
 
+Item *Item_null::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  collation.set(tocs);
+  return this;
+}
+
 /*********************** Item_param related ******************************/
 
 /* 
@@ -751,12 +889,38 @@ void Item_param::set_double(double d)
 }
 
 
+/*
+  Set parameter value from TIME value.
+
+  SYNOPSIS
+    set_time()
+      tm             - datetime value to set (time_type is ignored)
+      type           - type of datetime value
+      max_length_arg - max length of datetime value as string
+
+  NOTE
+    If we value to be stored is not normalized, zero value will be stored
+    instead and proper warning will be produced. This function relies on
+    the fact that even wrong value sent over binary protocol fits into
+    MAX_DATE_STRING_REP_LENGTH buffer.
+*/
 void Item_param::set_time(TIME *tm, timestamp_type type, uint32 max_length_arg)
 { 
   DBUG_ENTER("Item_param::set_time");
 
   value.time= *tm;
   value.time.time_type= type;
+
+  if (value.time.year > 9999 || value.time.month > 12 ||
+      value.time.day > 31 ||
+      type != MYSQL_TIMESTAMP_TIME && value.time.hour > 23 ||
+      value.time.minute > 59 || value.time.second > 59)
+  {
+    char buff[MAX_DATE_STRING_REP_LENGTH];
+    uint length= my_TIME_to_str(&value.time, buff);
+    make_truncated_value_warning(current_thd, buff, length, type);
+    set_zero_time(&value.time, MYSQL_TIMESTAMP_ERROR);
+  }
 
   state= TIME_VALUE;
   maybe_null= 0;
@@ -773,7 +937,9 @@ bool Item_param::set_str(const char *str, ulong length)
     Assign string with no conversion: data is converted only after it's
     been written to the binary log.
   */
-  if (str_value.copy(str, length, &my_charset_bin, &my_charset_bin))
+  uint dummy_errors;
+  if (str_value.copy(str, length, &my_charset_bin, &my_charset_bin,
+                     &dummy_errors))
     DBUG_RETURN(TRUE);
   state= STRING_VALUE;
   maybe_null= 0;
@@ -974,8 +1140,9 @@ double Item_param::val()
   case LONG_DATA_VALUE:
     {
       int dummy_err;
+      char *end_not_used;
       return my_strntod(str_value.charset(), (char*) str_value.ptr(),
-                        str_value.length(), (char**) 0, &dummy_err);
+                        str_value.length(), &end_not_used, &dummy_err);
     }
   case TIME_VALUE:
     /*
@@ -1130,6 +1297,10 @@ bool Item_param::convert_str_value(THD *thd)
                               value.cs_info.character_set_client,
                               value.cs_info.final_character_set_of_str_value);
     }
+    else
+      str_value.set_charset(value.cs_info.final_character_set_of_str_value);
+    /* Here str_value is guaranteed to be in final_character_set_of_str_value */
+
     max_length= str_value.length();
     decimals= 0;
     /*
@@ -1254,6 +1425,7 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
 
 bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 {
+  enum_parsing_place place= NO_MATTER;
   DBUG_ASSERT(fixed == 0);
   if (!field)					// If field is not checked
   {
@@ -1301,8 +1473,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
 	  }
 
 	  Item_subselect *prev_subselect_item= prev_unit->item;
-          enum_parsing_place place=
-            prev_subselect_item->parsing_place;
+          place= prev_subselect_item->parsing_place;
           /*
             check table fields only if subquery used somewhere out of HAVING
             or outer SELECT do not use groupping (i.e. tables are
@@ -1326,7 +1497,7 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
                                         &not_used)) !=
 	       (Item **) not_found_item)
 	  {
-	    if (*refer && (*refer)->fixed) // Avoid crash in case of error
+	    if (refer && (*refer)->fixed) // Avoid crash in case of error
 	    {
 	      prev_subselect_item->used_tables_cache|= (*refer)->used_tables();
 	      prev_subselect_item->const_item_cache&= (*refer)->const_item();
@@ -1364,18 +1535,32 @@ bool Item_field::fix_fields(THD *thd, TABLE_LIST *tables, Item **ref)
       }
       else if (refer != (Item **)not_found_item)
       {
-	if (!(*refer)->fixed)
+	if (!last->ref_pointer_array[counter])
 	{
 	  my_error(ER_ILLEGAL_REFERENCE, MYF(0), name,
 		   "forward reference in item list");
 	  return -1;
 	}
-
-	Item_ref *rf= new Item_ref(last->ref_pointer_array + counter,
-                                   (char *)table_name, (char *)field_name);
+        DBUG_ASSERT((*refer)->fixed);
+        /*
+          Here, a subset of actions performed by Item_ref::set_properties
+          is not enough. So we pass ptr to NULL into Item_[direct]_ref
+          constructor, so no initialization is performed, and call 
+          fix_fields() below.
+        */
+        Item *save= last->ref_pointer_array[counter];
+        last->ref_pointer_array[counter]= NULL;
+	Item_ref *rf= (place == IN_HAVING ?
+                       new Item_ref(last->ref_pointer_array + counter,
+                                    (char *)table_name,
+                                    (char *)field_name) :
+                       new Item_direct_ref(last->ref_pointer_array + counter,
+                                           (char *)table_name,
+                                           (char *)field_name));
 	if (!rf)
 	  return 1;
         thd->change_item_tree(ref, rf);
+        last->ref_pointer_array[counter]= save;
 	/*
 	  rf is Item_ref => never substitute other items (in this case)
 	  during fix_fields() => we can use rf after fix_fields()
@@ -1921,11 +2106,11 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 {
   DBUG_ASSERT(fixed == 0);
   uint counter;
+  enum_parsing_place place= NO_MATTER;
   bool not_used;
   if (!ref)
   {
     TABLE_LIST *where= 0, *table_list;
-    bool upward_lookup= 0;
     SELECT_LEX_UNIT *prev_unit= thd->lex->current_select->master_unit();
     SELECT_LEX *sl= prev_unit->outer_select();
     /*
@@ -1946,7 +2131,6 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
     {
       Field *tmp= (Field*) not_found_field;
       SELECT_LEX *last= 0;
-      upward_lookup= 1;
       /*
 	We can't find table field in select list of current select,
 	consequently we have to find it in outer subselect(s).
@@ -1966,7 +2150,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
                                     &not_used)) !=
 	   (Item **)not_found_item)
 	{
-	  if (*ref && (*ref)->fixed) // Avoid crash in case of error
+	  if (ref && (*ref)->fixed) // Avoid crash in case of error
 	  {
 	    prev_subselect_item->used_tables_cache|= (*ref)->used_tables();
 	    prev_subselect_item->const_item_cache&= (*ref)->const_item();
@@ -1979,8 +2163,7 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	  // it is primary INSERT st_select_lex => skip first table resolving
 	  table_list= table_list->next;
 	}
-        enum_parsing_place place=
-            prev_subselect_item->parsing_place;
+        place= prev_subselect_item->parsing_place;
         /*
           check table fields only if subquery used somewhere out of HAVING
           or SELECT list or outer SELECT do not use groupping (i.e. tables
@@ -2011,20 +2194,10 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	return -1;
       if (ref == (Item **)not_found_item && tmp == not_found_field)
       {
-	if (upward_lookup)
-	{
-	  // We can't say exactly what absend (table or field)
-	  my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR), MYF(0),
-			  full_name(), thd->where);
-	}
-	else
-	{
-	  // Call to report error
-	  find_item_in_list(this,
-			    *(thd->lex->current_select->get_item_list()),
-			    &counter, REPORT_ALL_ERRORS, &not_used);
-	}
-        ref= 0;                                 // Safety
+        // We can't say exactly what absend (table or field)
+        my_printf_error(ER_BAD_FIELD_ERROR, ER(ER_BAD_FIELD_ERROR), MYF(0),
+                        full_name(), thd->where);
+	ref= 0;                                 // Safety
 	return 1;
       }
       if (tmp != not_found_field)
@@ -2042,14 +2215,28 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	mark_as_dependent(thd, last, thd->lex->current_select, fld);
 	return 0;
       }
-      if (!(*ref)->fixed)
+      if (!last->ref_pointer_array[counter])
       {
         my_error(ER_ILLEGAL_REFERENCE, MYF(0), name,
                  "forward reference in item list");
         return -1;
       }
+      DBUG_ASSERT((*ref)->fixed);
       mark_as_dependent(thd, last, thd->lex->current_select,
                         this);
+      if (place == IN_HAVING)
+      {
+        Item_ref *rf;
+        if (!(rf= new Item_direct_ref(last->ref_pointer_array + counter,
+                                      (char *)table_name,
+                                      (char *)field_name)))
+          return 1;
+        ref= 0;                                 // Safety
+        if (rf->fix_fields(thd, tables, ref) || rf->check_cols(1))
+	  return 1;
+        thd->change_item_tree(reference, rf);
+        return 0;
+      }
       ref= last->ref_pointer_array + counter;
     }
     else if (!ref)
@@ -2085,18 +2272,23 @@ bool Item_ref::fix_fields(THD *thd,TABLE_LIST *tables, Item **reference)
 	      "forward reference in item list"));
     return 1;
   }
-  max_length= (*ref)->max_length;
-  maybe_null= (*ref)->maybe_null;
-  decimals=   (*ref)->decimals;
-  collation.set((*ref)->collation);
-  with_sum_func= (*ref)->with_sum_func;
-  fixed= 1;
+
+  set_properties();
 
   if (ref && (*ref)->check_cols(1))
     return 1;
   return 0;
 }
 
+void Item_ref::set_properties()
+{
+  max_length= (*ref)->max_length;
+  maybe_null= (*ref)->maybe_null;
+  decimals=   (*ref)->decimals;
+  collation.set((*ref)->collation);
+  with_sum_func= (*ref)->with_sum_func;
+  fixed= 1;
+}
 
 void Item_ref::print(String *str)
 {
@@ -2143,7 +2335,7 @@ bool Item_default_value::fix_fields(THD *thd,
     fixed= 1;
     return 0;
   }
-  if (arg->fix_fields(thd, table_list, &arg))
+  if (!arg->fixed && arg->fix_fields(thd, table_list, &arg))
     return 1;
   
   if (arg->type() == REF_ITEM)
@@ -2190,7 +2382,7 @@ bool Item_insert_value::fix_fields(THD *thd,
 				   Item **items)
 {
   DBUG_ASSERT(fixed == 0);
-  if (arg->fix_fields(thd, table_list, &arg))
+  if (!arg->fixed && arg->fix_fields(thd, table_list, &arg))
     return 1;
 
   if (arg->type() == REF_ITEM)
@@ -2394,10 +2586,12 @@ double Item_cache_str::val()
   DBUG_ASSERT(fixed == 1);
   int err;
   if (value)
+  {
+    char *end_not_used;
     return my_strntod(value->charset(), (char*) value->ptr(),
-		      value->length(), (char**) 0, &err);
-  else
-    return (double)0;
+		      value->length(), &end_not_used, &err);
+  }
+  return (double)0;
 }
 
 
@@ -2500,7 +2694,53 @@ void Item_cache_row::bring_value()
 }
 
 
-Item_type_holder::Item_type_holder(THD *thd, Item *item)
+/*
+  Returns field for temporary table dependind on item type
+
+  SYNOPSIS
+    get_holder_example_field()
+    thd            - thread handler
+    item           - pointer to item
+    table          - empty table object
+
+  NOTE
+    It is possible to return field for Item_func 
+    items only if field type of this item is 
+    date or time or datetime type.
+    also see function field_types_to_be_kept() from
+    field.cc
+
+  RETURN
+    # - field
+    0 - no field
+*/
+
+Field *get_holder_example_field(THD *thd, Item *item, TABLE *table)
+{
+  DBUG_ASSERT(table);
+
+  Item_func *tmp_item= 0;
+  if (item->type() == Item::FIELD_ITEM)
+    return (((Item_field*) item)->field);
+  if (item->type() == Item::FUNC_ITEM)
+    tmp_item= (Item_func *) item;
+  else if (item->type() == Item::SUM_FUNC_ITEM)
+  {
+    Item_sum *item_sum= (Item_sum *) item;
+    if (item_sum->keep_field_type())
+    {
+      if (item_sum->args[0]->type() == Item::FIELD_ITEM)
+        return (((Item_field*) item_sum->args[0])->field);
+      if (item_sum->args[0]->type() == Item::FUNC_ITEM)
+        tmp_item= (Item_func *) item_sum->args[0];
+    }
+  }
+  return (tmp_item && field_types_to_be_kept(tmp_item->field_type()) ?
+          tmp_item->tmp_table_field(table) : 0);
+}
+
+
+Item_type_holder::Item_type_holder(THD *thd, Item *item, TABLE *table)
   :Item(thd, item), item_type(item->result_type()),
    orig_type(item_type)
 {
@@ -2510,10 +2750,7 @@ Item_type_holder::Item_type_holder(THD *thd, Item *item)
     It is safe assign pointer on field, because it will be used just after
     all JOIN::prepare calls and before any SELECT execution
   */
-  if (item->type() == Item::FIELD_ITEM)
-    field_example= ((Item_field*) item)->field;
-  else
-    field_example= 0;
+  field_example= get_holder_example_field(thd, item, table);
   max_length= real_length(item);
   maybe_null= item->maybe_null;
   collation.set(item->collation);
@@ -2553,25 +2790,23 @@ inline bool is_attr_compatible(Item *from, Item *to)
           (to->maybe_null || !from->maybe_null) &&
           (to->result_type() != STRING_RESULT ||
            from->result_type() != STRING_RESULT ||
-           my_charset_same(from->collation.collation,
-                           to->collation.collation)));
+          (from->collation.collation == to->collation.collation)));
 }
 
 
-bool Item_type_holder::join_types(THD *thd, Item *item)
+bool Item_type_holder::join_types(THD *thd, Item *item, TABLE *table)
 {
   uint32 new_length= real_length(item);
   bool use_new_field= 0, use_expression_type= 0;
   Item_result new_result_type= type_convertor[item_type][item->result_type()];
-  bool item_is_a_field= item->type() == Item::FIELD_ITEM;
-
+  Field *field= get_holder_example_field(thd, item, table);
+  bool item_is_a_field= (field != NULL);
   /*
     Check if both items point to fields: in this case we
     can adjust column types of result table in the union smartly.
   */
   if (field_example && item_is_a_field)
   {
-    Field *field= ((Item_field *)item)->field;
     /* Can 'field_example' field store data of the column? */
     if ((use_new_field=
          (!field->field_cast_compatible(field_example->field_cast_type()) ||
@@ -2612,7 +2847,7 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
         It is safe to assign a pointer to field here, because it will be used
         before any table is closed.
       */
-      field_example= ((Item_field*) item)->field;
+      field_example= field;
     }
 
     old_cs= collation.collation->name;

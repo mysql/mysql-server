@@ -108,3 +108,13 @@ SELECT a, CAST(a AS CHAR(3)) FROM t1 ORDER BY CAST(a AS CHAR(2)), a;
 SELECT a, CAST(a AS UNSIGNED) FROM t1 ORDER BY CAST(a AS CHAR) ;
 SELECT a, CAST(a AS CHAR(2)) FROM t1 ORDER BY CAST(a AS CHAR(3)), a;
 DROP TABLE t1;
+
+#
+# Test for bug #6914 "Problems using time()/date() output in expressions".
+# When we are casting datetime value to DATE/TIME we should throw away
+# time/date parts (correspondingly).
+#
+select date_add(cast('2004-12-30 12:00:00' as date), interval 0 hour);
+select timediff(cast('2004-12-30 12:00:00' as time), '12:00:00');
+# Still we should not throw away "days" part of time value
+select timediff(cast('1 12:00:00' as time), '12:00:00');

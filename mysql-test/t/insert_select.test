@@ -89,6 +89,19 @@ show binlog events;
 select * from t1;
 drop table t1, t2;
 
+# Verify that a partly-completed CREATE TABLE .. SELECT does not
+# get into the binlog (Bug #6682)
+create table t1(a int);
+insert into t1 values(1),(1);
+reset master;
+--error 1062
+create table t2(unique(a)) select a from t1;
+# The above should produce an error, *and* not appear in the binlog
+let $VERSION=`select version()`;
+--replace_result $VERSION VERSION
+show binlog events;
+drop table t1;
+
 #
 # Test of insert ... select from same table
 #
@@ -169,3 +182,18 @@ insert into t2 Select null, Field, Count From t1 Where Month=20030901 and Type=2
 select * from t2;
 
 drop table t1, t2;
+
+#
+# BUG#6034 - Error code 124:  Wrong medium type
+#
+CREATE TABLE t1 (
+  ID           int(11) NOT NULL auto_increment,
+  NO           int(11) NOT NULL default '0',
+  SEQ          int(11) NOT NULL default '0',
+  PRIMARY KEY  (ID),
+  KEY t1$NO    (SEQ,NO)
+) ENGINE=MyISAM;
+INSERT INTO t1 (SEQ, NO) SELECT "1" AS SEQ, IF(MAX(NO) IS NULL, 0, MAX(NO)) + 1 AS NO FROM t1 WHERE (SEQ = 1);
+select SQL_BUFFER_RESULT * from t1 WHERE (SEQ = 1);
+drop table t1;
+

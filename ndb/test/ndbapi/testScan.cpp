@@ -35,7 +35,8 @@ getTable(Ndb* pNdb, int i){
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
   
-  int records = ctx->getNumRecords();
+  int records = ctx->getProperty("Rows", ctx->getNumRecords());
+
   HugoTransactions hugoTrans(*ctx->getTab());
   if (hugoTrans.loadTable(GETNDB(step), records) != 0){
     return NDBT_FAILED;
@@ -90,11 +91,59 @@ int runLoadAllTables(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+char orderedPkIdxName[255];
+
+int createOrderedPkIndex(NDBT_Context* ctx, NDBT_Step* step){
+
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  Ndb* pNdb = GETNDB(step);
+  
+  // Create index    
+  BaseString::snprintf(orderedPkIdxName, sizeof(orderedPkIdxName), 
+		       "IDC_O_PK_%s", pTab->getName());
+  NdbDictionary::Index pIdx(orderedPkIdxName);
+  pIdx.setTable(pTab->getName());
+  pIdx.setType(NdbDictionary::Index::OrderedIndex);
+  pIdx.setLogging(false);
+
+  for (int c = 0; c< pTab->getNoOfColumns(); c++){
+    const NdbDictionary::Column * col = pTab->getColumn(c);
+    if(col->getPrimaryKey()){
+      pIdx.addIndexColumn(col->getName());
+    }
+  }
+  
+  if (pNdb->getDictionary()->createIndex(pIdx) != 0){
+    ndbout << "FAILED! to create index" << endl;
+    const NdbError err = pNdb->getDictionary()->getNdbError();
+    ERR(err);
+    return NDBT_FAILED;
+  }
+  
+  return NDBT_OK;
+}
+
+int createOrderedPkIndex_Drop(NDBT_Context* ctx, NDBT_Step* step){
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  Ndb* pNdb = GETNDB(step);
+  
+  // Drop index
+  if (pNdb->getDictionary()->dropIndex(orderedPkIdxName, 
+				       pTab->getName()) != 0){
+    ndbout << "FAILED! to drop index" << endl;
+    ERR(pNdb->getDictionary()->getNdbError());
+    return NDBT_FAILED;
+  }
+  
+  return NDBT_OK;
+}
+
+
 int runScanReadRandomTable(NDBT_Context* ctx, NDBT_Step* step){
   int loops = ctx->getNumLoops();
   int records = ctx->getNumRecords();
   int parallelism = ctx->getProperty("Parallelism", 240);
-  int abort = ctx->getProperty("AbortProb");
+  int abort = ctx->getProperty("AbortProb", 5);
   
   int i = 0;
   while (i<loops) {
@@ -216,9 +265,9 @@ int runVerifyTable(NDBT_Context* ctx, NDBT_Step* step){
 
 int runScanRead(NDBT_Context* ctx, NDBT_Step* step){
   int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
+  int records = ctx->getProperty("Rows", ctx->getNumRecords());
   int parallelism = ctx->getProperty("Parallelism", 240);
-  int abort = ctx->getProperty("AbortProb");
+  int abort = ctx->getProperty("AbortProb", 5);
 
   int i = 0;
   HugoTransactions hugoTrans(*ctx->getTab());
@@ -232,18 +281,66 @@ int runScanRead(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int runScanReadCommitted(NDBT_Context* ctx, NDBT_Step* step){
+int runRandScanRead(NDBT_Context* ctx, NDBT_Step* step){
   int loops = ctx->getNumLoops();
   int records = ctx->getNumRecords();
   int parallelism = ctx->getProperty("Parallelism", 240);
-  int abort = ctx->getProperty("AbortProb");
+  int abort = ctx->getProperty("AbortProb", 5);
 
   int i = 0;
   HugoTransactions hugoTrans(*ctx->getTab());
   while (i<loops && !ctx->isTestStopped()) {
     g_info << i << ": ";
-    if (hugoTrans.scanReadCommittedRecords(GETNDB(step), records, 
-					   abort, parallelism) != 0){
+    NdbOperation::LockMode lm = (NdbOperation::LockMode)(rand() % 3);
+    if (hugoTrans.scanReadRecords(GETNDB(step),
+				  records, abort, parallelism,
+				  lm) != 0){
+      return NDBT_FAILED;
+    }
+    i++;
+  }
+  return NDBT_OK;
+}
+
+int runScanReadIndex(NDBT_Context* ctx, NDBT_Step* step){
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  int parallelism = ctx->getProperty("Parallelism", 240);
+  int abort = ctx->getProperty("AbortProb", 5);
+  const NdbDictionary::Index * pIdx = 
+    GETNDB(step)->getDictionary()->getIndex(orderedPkIdxName, 
+					    ctx->getTab()->getName());
+
+  int i = 0;
+  HugoTransactions hugoTrans(*ctx->getTab());
+  while (pIdx && i<loops && !ctx->isTestStopped()) {
+    g_info << i << ": ";
+    bool sort = (rand() % 100) > 50 ? true : false;
+    NdbOperation::LockMode lm = (NdbOperation::LockMode)(rand() % 3);
+    if (hugoTrans.scanReadRecords(GETNDB(step), pIdx,
+				  records, abort, parallelism,
+				  lm,
+				  sort) != 0){
+      return NDBT_FAILED;
+    }
+    i++;
+  }
+  return NDBT_OK;
+}
+
+int runScanReadCommitted(NDBT_Context* ctx, NDBT_Step* step){
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  int parallelism = ctx->getProperty("Parallelism", 240);
+  int abort = ctx->getProperty("AbortProb", 5);
+
+  int i = 0;
+  HugoTransactions hugoTrans(*ctx->getTab());
+  while (i<loops && !ctx->isTestStopped()) {
+    g_info << i << ": ";
+    if (hugoTrans.scanReadRecords(GETNDB(step), records, 
+				  abort, parallelism, 
+				  NdbOperation::LM_CommittedRead) != 0){
       return NDBT_FAILED;
     }
     i++;
@@ -279,7 +376,20 @@ int runScanReadError(NDBT_Context* ctx, NDBT_Step* step){
   restarter.insertErrorInAllNodes(0);
   return result;
 }
-		     
+
+int
+runInsertError(NDBT_Context* ctx, NDBT_Step* step){
+  int error = ctx->getProperty("ErrorCode");
+  NdbRestarter restarter;
+
+  ctx->setProperty("ErrorCode", (Uint32)0);
+  if (restarter.insertErrorInAllNodes(error) != 0){
+    ndbout << "Could not insert error in all nodes "<<endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}     
+
 int runScanReadErrorOneNode(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
   int loops = ctx->getNumLoops();
@@ -424,7 +534,7 @@ int runScanUpdate(NDBT_Context* ctx, NDBT_Step* step){
   int loops = ctx->getNumLoops();
   int records = ctx->getNumRecords();
   int parallelism = ctx->getProperty("Parallelism", 1);
-  int abort = ctx->getProperty("AbortProb");
+  int abort = ctx->getProperty("AbortProb", 5);
   int i = 0;
   HugoTransactions hugoTrans(*ctx->getTab());
   while (i<loops) {
@@ -464,7 +574,7 @@ int runScanUpdate2(NDBT_Context* ctx, NDBT_Step* step){
   int loops = ctx->getNumLoops();
   int records = ctx->getNumRecords();
   int parallelism = ctx->getProperty("Parallelism", 240);
-  int abort = ctx->getProperty("AbortProb");
+  int abort = ctx->getProperty("AbortProb", 5);
   int i = 0;
   HugoTransactions hugoTrans(*ctx->getTab());
   while (i<loops) {
@@ -639,7 +749,7 @@ int runCheckGetValue(NDBT_Context* ctx, NDBT_Step* step){
     g_info << (unsigned)i << endl;
     if(utilTrans.scanReadRecords(GETNDB(step), 
 				 parallelism,
-				 false,
+				 NdbOperation::LM_Read,
 				 records,
 				 alist.attriblist[i]->numAttribs,
 				 alist.attriblist[i]->attribs) != 0){
@@ -647,7 +757,7 @@ int runCheckGetValue(NDBT_Context* ctx, NDBT_Step* step){
     }
     if(utilTrans.scanReadRecords(GETNDB(step), 
 				 parallelism,
-				 true,
+				 NdbOperation::LM_Read,
 				 records,
 				 alist.attriblist[i]->numAttribs,
 				 alist.attriblist[i]->attribs) != 0){
@@ -1079,7 +1189,30 @@ TESTCASE("ScanRead488",
 	 "When this limit is exceeded the scan will be aborted with errorcode "\
 	 "488."){
   INITIALIZER(runLoadTable);
-  STEPS(runScanRead, 70);
+  STEPS(runRandScanRead, 70);
+  FINALIZER(runClearTable);
+}
+TESTCASE("ScanRead488O", 
+	 "Verify scan requirement: It's only possible to have 11 concurrent "\
+	 "scans per fragment running in Ndb kernel at the same time. "\
+	 "When this limit is exceeded the scan will be aborted with errorcode "\
+	 "488."){
+  INITIALIZER(createOrderedPkIndex);
+  INITIALIZER(runLoadTable);
+  STEPS(runScanReadIndex, 70);
+  FINALIZER(createOrderedPkIndex_Drop);
+  FINALIZER(runClearTable);
+}
+TESTCASE("ScanRead488_Mixed", 
+	 "Verify scan requirement: It's only possible to have 11 concurrent "\
+	 "scans per fragment running in Ndb kernel at the same time. "\
+	 "When this limit is exceeded the scan will be aborted with errorcode "\
+	 "488."){
+  INITIALIZER(createOrderedPkIndex);
+  INITIALIZER(runLoadTable);
+  STEPS(runRandScanRead, 50);
+  STEPS(runScanReadIndex, 50);
+  FINALIZER(createOrderedPkIndex_Drop);
   FINALIZER(runClearTable);
 }
 TESTCASE("ScanRead488Timeout", 
@@ -1100,6 +1233,16 @@ TESTCASE("ScanRead100",
 	 "Verify scan requirement: Scan with 100 simultaneous threads"){
   INITIALIZER(runLoadTable);
   STEPS(runScanRead, 100);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Scan-bug8262", 
+	 ""){
+  TC_PROPERTY("Rows", 1);
+  TC_PROPERTY("ErrorCode", 8035);
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runInsertError); // Will reset error code
+  STEPS(runScanRead, 25);
+  FINALIZER(runInsertError);
   FINALIZER(runClearTable);
 }
 TESTCASE("ScanRead40RandomTable", 

@@ -58,7 +58,9 @@ void AttribList::buildAttribList(const NdbDictionary::Table* pTab){
   // Build attrib definitions that describes which attributes to build index
   // Try to build strange combinations, not just "all" or all PK's
 
-  for(int i = 1; i <= pTab->getNoOfColumns(); i++){
+  int i;
+
+  for(i = 1; i <= pTab->getNoOfColumns(); i++){
     attr = new Attrib;
     attr->numAttribs = i;
     for(int a = 0; a<i; a++)
@@ -66,7 +68,7 @@ void AttribList::buildAttribList(const NdbDictionary::Table* pTab){
     attriblist.push_back(attr);
   }
   int b = 0;
-  for(int i = pTab->getNoOfColumns()-1; i > 0; i--){
+  for(i = pTab->getNoOfColumns()-1; i > 0; i--){
     attr = new Attrib;
     attr->numAttribs = i;
     b++;
@@ -74,21 +76,21 @@ void AttribList::buildAttribList(const NdbDictionary::Table* pTab){
       attr->attribs[a] = a+b;
     attriblist.push_back(attr);
   }
-  for(int i = pTab->getNoOfColumns(); i > 0;  i--){
+  for(i = pTab->getNoOfColumns(); i > 0;  i--){
     attr = new Attrib;
     attr->numAttribs = pTab->getNoOfColumns() - i;
     for(int a = 0; a<pTab->getNoOfColumns() - i; a++)
       attr->attribs[a] = pTab->getNoOfColumns()-a-1;
     attriblist.push_back(attr); 
   }  
-  for(int i = 1; i < pTab->getNoOfColumns(); i++){
+  for(i = 1; i < pTab->getNoOfColumns(); i++){
     attr = new Attrib;
     attr->numAttribs = pTab->getNoOfColumns() - i;
     for(int a = 0; a<pTab->getNoOfColumns() - i; a++)
       attr->attribs[a] = pTab->getNoOfColumns()-a-1;
     attriblist.push_back(attr); 
   }  
-  for(int i = 1; i < pTab->getNoOfColumns(); i++){
+  for(i = 1; i < pTab->getNoOfColumns(); i++){
     attr = new Attrib;
     attr->numAttribs = 2;
     for(int a = 0; a<2; a++){
@@ -226,8 +228,8 @@ int runCreateIndexes(NDBT_Context* ctx, NDBT_Step* step){
 
 
   while (l < loops && result == NDBT_OK){
-
-    for (unsigned int i = 0; i < attrList.attriblist.size(); i++){
+    unsigned int i;
+    for (i = 0; i < attrList.attriblist.size(); i++){
       
       // Try to create index
       if (create_index(ctx, i, pTab, pNdb, attrList.attriblist[i], logged) == NDBT_FAILED)
@@ -235,7 +237,7 @@ int runCreateIndexes(NDBT_Context* ctx, NDBT_Step* step){
     }
     
     // Now drop all indexes that where created
-    for (unsigned int i = 0; i < attrList.attriblist.size(); i++){
+    for (i = 0; i < attrList.attriblist.size(); i++){
             
       // Try to drop index
       if (drop_index(i, pNdb, pTab, attrList.attriblist[i]) != NDBT_OK)
@@ -1083,8 +1085,8 @@ runUniqueNullTransactions(NDBT_Context* ctx, NDBT_Step* step){
   else
     pIdx.setType(NdbDictionary::Index::UniqueHashIndex);
   pIdx.setStoredIndex(logged);
-
-  for (int c = 0; c< pTab->getNoOfColumns(); c++){
+  int c;
+  for (c = 0; c< pTab->getNoOfColumns(); c++){
     const NdbDictionary::Column * col = pTab->getColumn(c);
     if(col->getPrimaryKey()){
       pIdx.addIndexColumn(col->getName());
@@ -1093,7 +1095,7 @@ runUniqueNullTransactions(NDBT_Context* ctx, NDBT_Step* step){
   }
   
   int colId = -1;
-  for (int c = 0; c< pTab->getNoOfColumns(); c++){
+  for (c = 0; c< pTab->getNoOfColumns(); c++){
     const NdbDictionary::Column * col = pTab->getColumn(c);
     if(col->getNullable()){
       pIdx.addIndexColumn(col->getName());

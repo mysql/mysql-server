@@ -15,8 +15,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
+#include <ndb_opts.h>
 
-#include <LocalConfig.hpp>
 #include "Configuration.hpp"
 #include <ErrorHandlingMacros.hpp>
 #include "GlobalData.hpp"
@@ -28,14 +28,13 @@
 #include <NdbOut.hpp>
 #include <WatchDog.hpp>
 
-#include <getarg.h>
-
 #include <mgmapi_configuration.hpp>
 #include <mgmapi_config_parameters_debug.h>
 #include <kernel_config_parameters.h>
 
 #include <kernel_types.h>
 #include <ndb_limits.h>
+#include <ndbapi_limits.h>
 #include "pc.hpp"
 #include <LogLevel.hpp>
 #include <NdbSleep.h>
@@ -47,80 +46,76 @@ extern "C" {
 #include <EventLogger.hpp>
 extern EventLogger g_eventLogger;
 
+enum ndbd_options {
+  OPT_INITIAL = NDB_STD_OPTIONS_LAST,
+  OPT_NODAEMON
+};
+
+NDB_STD_OPTS_VARS;
+static int _daemon, _no_daemon, _initial, _no_start;
+/**
+ * Arguments to NDB process
+ */ 
+static struct my_option my_long_options[] =
+{
+  NDB_STD_OPTS("ndbd"),
+  { "initial", OPT_INITIAL,
+    "Perform initial start of ndbd, including cleaning the file system. "
+    "Consult documentation before using this",
+    (gptr*) &_initial, (gptr*) &_initial, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "nostart", 'n',
+    "Don't start ndbd immediately. Ndbd will await command from ndb_mgmd",
+    (gptr*) &_no_start, (gptr*) &_no_start, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "daemon", 'd', "Start ndbd as daemon (default)",
+    (gptr*) &_daemon, (gptr*) &_daemon, 0,
+    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0 },
+  { "nodaemon", OPT_NODAEMON,
+    "Do not start ndbd as daemon, provided for testing purposes",
+    (gptr*) &_no_daemon, (gptr*) &_no_daemon, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+static void short_usage_sub(void)
+{
+  printf("Usage: %s [OPTIONS]\n", my_progname);
+}
+static void usage()
+{
+  short_usage_sub();
+  ndb_std_print_version();
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
+}
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument)
+{
+  return ndb_std_get_one_option(optid, opt,
+				argument ? argument : "d:t:O,/tmp/ndbd.trace");
+}
+
 bool
-Configuration::init(int argc, const char** argv){
+Configuration::init(int argc, char** argv)
+{  
+  const char *load_default_groups[]= { "mysql_cluster","ndbd",0 };
+  load_defaults("my",load_default_groups,&argc,&argv);
 
-  /**
-   * Default values for arguments
-   */
-  int _no_start = 0;
-  int _initial = 0;
-  const char* _connect_str = NULL;
-  int _daemon = 1;
-  int _no_daemon = 0;
-  int _help = 0;
-  int _print_version = 0;
-#ifndef DBUG_OFF
-  const char *debug_option= 0;
-#endif
-  
-  /**
-   * Arguments to NDB process
-   */ 
+  int ho_error;
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+    exit(ho_error);
 
-  struct getargs args[] = {
-    { "version", 'v', arg_flag, &_print_version, "Print ndbd version", "" },
-    { "nostart", 'n', arg_flag, &_no_start,
-      "Don't start ndbd immediately. Ndbd will await command from ndb_mgmd", "" },
-    { "daemon", 'd', arg_flag, &_daemon, "Start ndbd as daemon (default)", "" },
-    { "nodaemon", 0, arg_flag, &_no_daemon, "Do not start ndbd as daemon, provided for testing purposes", "" },
-#ifndef DBUG_OFF
-    { "debug", 0, arg_string, &debug_option,
-      "Specify debug options e.g. d:t:i:o,out.trace", "options" },
-#endif
-    { "initial", 0, arg_flag, &_initial,
-      "Perform initial start of ndbd, including cleaning the file system. Consult documentation before using this", "" },
-
-    { "connect-string", 'c', arg_string, &_connect_str,
-      "Set connect string for connecting to ndb_mgmd. <constr>=\"host=<hostname:port>[;nodeid=<id>]\". Overides specifying entries in NDB_CONNECTSTRING and config file",
-      "<constr>" },
-    { "usage", '?', arg_flag, &_help, "Print help", "" }
-  };
-  int num_args = sizeof(args) / sizeof(args[0]);
-  int optind = 0;
-  char desc[] = 
-    "The MySQL Cluster kernel";
-  
-  if(getarg(args, num_args, argc, argv, &optind) || _help) {
-    arg_printusage(args, num_args, argv[0], desc);
-    for (int i = 0; i < argc; i++) {
-      if (strcmp("-i",argv[i]) == 0) {
-	printf("flag depricated %s, use %s\n", "-i", "--initial");
-      }
-    }
-    return false;
-  }
   if (_no_daemon) {
     _daemon= 0;
   }
-  // check for depricated flag '-i'
-
-#ifndef DBUG_OFF
-  if (debug_option)
-    DBUG_PUSH(debug_option);
-#endif
 
   DBUG_PRINT("info", ("no_start=%d", _no_start));
   DBUG_PRINT("info", ("initial=%d", _initial));
   DBUG_PRINT("info", ("daemon=%d", _daemon));
-  DBUG_PRINT("info", ("connect_str=%s", _connect_str));
+  DBUG_PRINT("info", ("connect_str=%s", opt_connect_str));
 
   ndbSetOwnVersion();
-
-  if (_print_version) {
-    ndbPrintVersion();
-    return false;
-  }
 
   // Check the start flag
   if (_no_start)
@@ -133,8 +128,8 @@ Configuration::init(int argc, const char** argv){
     _initialStart = true;
   
   // Check connectstring
-  if (_connect_str)
-    _connectString = strdup(_connect_str);
+  if (opt_connect_str)
+    _connectString = strdup(opt_connect_str);
   
   // Check daemon flag
   if (_daemon)
@@ -146,6 +141,8 @@ Configuration::init(int argc, const char** argv){
   else
     _programName = strdup("");
   
+  globalData.ownId= 0;
+
   return true;
 }
 
@@ -185,7 +182,7 @@ Configuration::closeConfiguration(){
 }
 
 void
-Configuration::fetch_configuration(LocalConfig &local_config){
+Configuration::fetch_configuration(){
   /**
    * Fetch configuration from management server
    */
@@ -195,8 +192,17 @@ Configuration::fetch_configuration(LocalConfig &local_config){
 
   m_mgmd_port= 0;
   m_mgmd_host= 0;
-  m_config_retriever= new ConfigRetriever(local_config, NDB_VERSION, NODE_TYPE_DB);
-  if(m_config_retriever->do_connect() == -1){    
+  m_config_retriever= new ConfigRetriever(getConnectString(),
+					  NDB_VERSION, NODE_TYPE_DB);
+
+  if (m_config_retriever->hasError())
+  {
+    ERROR_SET(fatal, ERR_INVALID_CONFIG,
+	      "Could not connect initialize handle to management server",
+	      m_config_retriever->getErrorString());
+  }
+
+  if(m_config_retriever->do_connect(12,5,1) == -1){
     const char * s = m_config_retriever->getErrorString();
     if(s == 0)
       s = "No error given!";
@@ -211,13 +217,14 @@ Configuration::fetch_configuration(LocalConfig &local_config){
 
   ConfigRetriever &cr= *m_config_retriever;
   
-  if((globalData.ownId = cr.allocNodeId()) == 0){
-    for(Uint32 i = 0; i<3; i++){
-      NdbSleep_SecSleep(3);
-      if((globalData.ownId = cr.allocNodeId()) != 0)
-	break;
-    }
-  }
+  /**
+   * if we have a nodeid set (e.g in a restart situation)
+   * reuse it
+   */
+  if (globalData.ownId)
+    cr.setNodeId(globalData.ownId);
+
+  globalData.ownId = cr.allocNodeId(2 /*retry*/,3 /*delay*/);
   
   if(globalData.ownId == 0){
     ERROR_SET(fatal, ERR_INVALID_CONFIG, 
@@ -274,19 +281,19 @@ static char * get_and_validate_path(ndb_mgm_configuration_iterator &iter,
   memset(buf2, 0,sizeof(buf2));
 #ifdef NDB_WIN32
   char* szFilePart;
-  if(!GetFullPathName(path, sizeof(buf2), buf2, &szFilePart)
-     || (::GetFileAttributes(alloc_path)&FILE_ATTRIBUTE_READONLY)) 
+  if(!GetFullPathName(path, sizeof(buf2), buf2, &szFilePart) ||
+     (GetFileAttributes(buf2) & FILE_ATTRIBUTE_READONLY))
 #else
-    if((::realpath(path, buf2) == NULL)||
+  if((::realpath(path, buf2) == NULL)||
        (::access(buf2, W_OK) != 0))
 #endif
-      {
-	ERROR_SET(fatal, AFS_ERROR_INVALIDPATH, path, " Filename::init()");
-      }
-
+  {
+    ERROR_SET(fatal, AFS_ERROR_INVALIDPATH, path, " Filename::init()");
+  }
+  
   if (strcmp(&buf2[strlen(buf2) - 1], DIR_SEPARATOR))
     strcat(buf2, DIR_SEPARATOR);
-
+  
   return strdup(buf2);
 }
 
@@ -448,6 +455,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   unsigned int noOfTables = 0;
   unsigned int noOfUniqueHashIndexes = 0;
   unsigned int noOfOrderedIndexes = 0;
+  unsigned int noOfTriggers = 0;
   unsigned int noOfReplicas = 0;
   unsigned int noOfDBNodes = 0;
   unsigned int noOfAPINodes = 0;
@@ -472,6 +480,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     { CFG_DB_NO_TABLES, &noOfTables, false },
     { CFG_DB_NO_ORDERED_INDEXES, &noOfOrderedIndexes, false },
     { CFG_DB_NO_UNIQUE_HASH_INDEXES, &noOfUniqueHashIndexes, false },
+    { CFG_DB_NO_TRIGGERS, &noOfTriggers, true },
     { CFG_DB_NO_REPLICAS, &noOfReplicas, false },
     { CFG_DB_NO_ATTRIBUTES, &noOfAttributes, false },
     { CFG_DB_NO_OPS, &noOfOperations, false },
@@ -506,7 +515,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
   }
 
-  noOfDataPages = (dataMem / 8192);
+  noOfDataPages = (dataMem / 32768);
   noOfIndexPages = (indexMem / 8192);
 
   for(unsigned j = 0; j<LogLevel::LOGLEVEL_CATEGORIES; j++){
@@ -552,7 +561,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
       noOfDBNodes++; // No of NDB processes
       
       if(nodeId > MAX_NDB_NODES){
-	snprintf(buf, sizeof(buf), "Maximum node id for a ndb node is: %d", 
+		  BaseString::snprintf(buf, sizeof(buf), "Maximum node id for a ndb node is: %d", 
 		 MAX_NDB_NODES);
 	ERROR_SET(fatal, ERR_INVALID_CONFIG, msg, buf);
       }
@@ -580,11 +589,41 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   ConfigValues::Iterator it2(*ownConfig, db.m_config);
   it2.set(CFG_DB_NO_TABLES, noOfTables);
   it2.set(CFG_DB_NO_ATTRIBUTES, noOfAttributes);
+  {
+    Uint32 neededNoOfTriggers =   /* types: Insert/Update/Delete/Custom */
+      3 * noOfUniqueHashIndexes + /* for unique hash indexes, I/U/D */
+      3 * NDB_MAX_ACTIVE_EVENTS + /* for events in suma, I/U/D */
+      3 * noOfTables +            /* for backup, I/U/D */
+      noOfOrderedIndexes;         /* for ordered indexes, C */
+    if (noOfTriggers < neededNoOfTriggers)
+    {
+      noOfTriggers= neededNoOfTriggers;
+      it2.set(CFG_DB_NO_TRIGGERS, noOfTriggers);
+    }
+  }
 
   /**
    * Do size calculations
    */
   ConfigValuesFactory cfg(ownConfig);
+
+  Uint32 noOfMetaTables= noOfTables + noOfOrderedIndexes +
+                           noOfUniqueHashIndexes;
+  Uint32 noOfMetaTablesDict= noOfMetaTables;
+  if (noOfMetaTablesDict > MAX_TABLES)
+    noOfMetaTablesDict= MAX_TABLES;
+
+  {
+    /**
+     * Dict Size Alt values
+     */
+    cfg.put(CFG_DICT_ATTRIBUTE, 
+	    noOfAttributes);
+
+    cfg.put(CFG_DICT_TABLE,
+	    noOfMetaTablesDict);
+  }
+
 
   if (noOfLocalScanRecords == 0) {
     noOfLocalScanRecords = (noOfDBNodes * noOfScanRecords) + 1;
@@ -595,7 +634,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   Uint32 noOfTCScanRecords = noOfScanRecords;
 
   {
-    Uint32 noOfAccTables= noOfTables + noOfUniqueHashIndexes;
+    Uint32 noOfAccTables= noOfMetaTables/*noOfTables+noOfUniqueHashIndexes*/;
     /**
      * Acc Size Alt values
      */
@@ -635,19 +674,6 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     cfg.put(CFG_ACC_TABLE, noOfAccTables);
     
     cfg.put(CFG_ACC_SCAN, noOfLocalScanRecords);
-  }
-  
-  Uint32 noOfMetaTables= noOfTables + noOfOrderedIndexes +
-                           noOfUniqueHashIndexes;
-  {
-    /**
-     * Dict Size Alt values
-     */
-    cfg.put(CFG_DICT_ATTRIBUTE, 
-	    noOfAttributes);
-
-    cfg.put(CFG_DICT_TABLE, 
-	    noOfMetaTables);
   }
   
   {
@@ -742,8 +768,8 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 	    noOfMetaTables);
     
     cfg.put(CFG_TUP_TABLE_DESC, 
-	    4 * NO_OF_FRAG_PER_NODE * noOfAttributes* noOfReplicas +
-	    12 * NO_OF_FRAG_PER_NODE * noOfMetaTables* noOfReplicas );
+	    2 * 6 * NO_OF_FRAG_PER_NODE * noOfAttributes * noOfReplicas +
+	    2 * 10 * NO_OF_FRAG_PER_NODE * noOfMetaTables * noOfReplicas );
     
     cfg.put(CFG_TUP_STORED_PROC,
 	    noOfLocalScanRecords);
@@ -754,9 +780,9 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
      * Tux Size Alt values
      */
     cfg.put(CFG_TUX_INDEX, 
-	    noOfOrderedIndexes);
+	    noOfMetaTables /*noOfOrderedIndexes*/);
     
-    cfg.put(CFG_TUX_FRAGMENT, 
+    cfg.put(CFG_TUX_FRAGMENT,
 	    2 * NO_OF_FRAG_PER_NODE * noOfOrderedIndexes * noOfReplicas);
     
     cfg.put(CFG_TUX_ATTRIBUTE, 

@@ -41,8 +41,8 @@ public:
   static void *operator new(size_t size, MEM_ROOT *mem_root)
   { return (void*) alloc_root(mem_root, (uint) size); }
   static void operator delete(void *ptr, size_t size) { TRASH(ptr, size); }
-  static void operator delete(void *ptr, size_t size, MEM_ROOT *mem_root)
-  { TRASH(ptr, size); }
+  static void operator delete(void *ptr, MEM_ROOT *mem_root)
+  { /* never called */ }
   static void operator delete[](void *ptr, size_t size) { TRASH(ptr, size); }
 #ifdef HAVE_purify
   bool dummy;
@@ -133,6 +133,15 @@ public:
     *prev=node;
     if (!--elements)
       last= &first;
+  }
+  inline void concat(base_list *list)
+  {
+    if (!list->is_empty())
+    {
+      *last= list->first;
+      last= list->last;
+      elements+= list->elements;
+    }
   }
   inline void *pop(void)
   {

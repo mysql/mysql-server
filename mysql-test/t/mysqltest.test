@@ -6,17 +6,24 @@
 # ============================================================================
 
 # ----------------------------------------------------------------------------
+# $mysql_errno contains the return code of the last command
+# send to the server.
+# ----------------------------------------------------------------------------
+# get $mysql_errno before the first statement
+#     $mysql_errno should be -1
+eval select $mysql_errno as "before_use_test" ;
+
+
+# ----------------------------------------------------------------------------
 # Positive case(statement)
 # ----------------------------------------------------------------------------
 
 select otto from (select 1 as otto) as t1;
 # expectation = response
-!$0 select otto from (select 1 as otto) as t1;
 --error 0
 select otto from (select 1 as otto) as t1;
 
 # expectation <> response
--- // !$1054 select otto from (select 1 as otto) as t1;
 -- // --error 1054
 -- // select otto from (select 1 as otto) as t1;
 
@@ -29,12 +36,10 @@ select otto from (select 1 as otto) as t1;
 # ----------------------------------------------------------------------------
 
 # expectation <> response
-#!$0 select friedrich from (select 1 as otto) as t1;
 #--error 0
 #select friedrich from (select 1 as otto) as t1;
 
 # expectation = response
-!$1054 select friedrich from (select 1 as otto) as t1;
 --error 1054
 select friedrich from (select 1 as otto) as t1;
 
@@ -76,3 +81,208 @@ select friedrich from (select 1 as otto) as t1;
 #--error S00000
 #select friedrich from (select 1 as otto) as t1;
 
+
+# ----------------------------------------------------------------------------
+# test cases for $mysql_errno
+#
+# $mysql_errno is a builtin variable of mysqltest and contains the return code
+# of the last command send to the server.
+#
+#      The following test cases often initialize $mysql_errno to 1064 by 
+#      a command with wrong syntax.
+#      Example: --error 1064      To prevent the abort after the error.
+#               garbage ;
+# ----------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------
+# check mysql_errno = 0 after successful statement
+# ----------------------------------------------------------------------------
+select otto from (select 1 as otto) as t1;
+eval select $mysql_errno as "after_successful_stmt_errno" ;
+
+#----------------------------------------------------------------------------
+# check mysql_errno = 1064 after statement with wrong syntax
+# ----------------------------------------------------------------------------
+--error 1064
+garbage ;
+eval select $mysql_errno as "after_wrong_syntax_errno" ;
+
+# ----------------------------------------------------------------------------
+# check if let $my_var= 'abc' ; affects $mysql_errno
+# ----------------------------------------------------------------------------
+--error 1064
+garbage ;
+let $my_var= 'abc' ;
+eval select $mysql_errno as "after_let_var_equal_value" ;
+
+# ----------------------------------------------------------------------------
+# check if set @my_var= 'abc' ; affects $mysql_errno
+# ----------------------------------------------------------------------------
+--error 1064
+garbage ;
+set @my_var= 'abc' ;
+eval select $mysql_errno as "after_set_var_equal_value" ;
+
+# ----------------------------------------------------------------------------
+#  check if the setting of --disable-warnings itself affects $mysql_errno
+#  (May be --<whatever> modifies $mysql_errno.)
+# ----------------------------------------------------------------------------
+--error 1064
+garbage ;
+--disable_warnings
+eval select $mysql_errno as "after_disable_warnings_command" ;
+
+# ----------------------------------------------------------------------------
+# check if --disable-warnings + command with warning affects the errno
+# stored within $mysql_errno
+# (May be disabled warnings affect $mysql_errno.)
+# ----------------------------------------------------------------------------
+drop table if exists t1 ;
+--error 1064
+garbage ;
+drop table if exists t1 ;
+eval select $mysql_errno as "after_disable_warnings" ;
+--enable_warnings
+
+# ----------------------------------------------------------------------------
+# check if masked errors affect $mysql_errno
+# ----------------------------------------------------------------------------
+--error 1064
+garbage ;
+--error 1146
+select 3 from t1 ;
+eval select $mysql_errno as "after_minus_masked" ;
+--error 1064
+garbage ;
+--error 1146
+select 3 from t1 ;
+eval select $mysql_errno as "after_!_masked" ;
+
+# ----------------------------------------------------------------------------
+# Will manipulations of $mysql_errno be possible and visible ?
+# ----------------------------------------------------------------------------
+--error 1064
+garbage ;
+let $mysql_errno= -1;
+eval select $mysql_errno as "after_let_errno_equal_value" ;
+
+# ----------------------------------------------------------------------------
+# How affect actions on prepared statements $mysql_errno ?
+# ----------------------------------------------------------------------------
+# failing prepare
+--error 1064
+garbage ;
+--error 1146
+prepare stmt from "select 3 from t1" ;
+eval select $mysql_errno as "after_failing_prepare" ;
+create table t1 ( f1 char(10));
+
+# successful prepare
+--error 1064
+garbage ;
+prepare stmt from "select 3 from t1" ;
+eval select $mysql_errno as "after_successful_prepare" ;
+
+# successful execute
+--error 1064
+garbage ;
+execute stmt;
+eval select $mysql_errno as "after_successful_execute" ;
+
+# failing execute (table dropped)
+drop table t1;
+--error 1064
+garbage ;
+--error 1146
+execute stmt;
+eval select $mysql_errno as "after_failing_execute" ;
+
+# failing execute (unknown statement)
+--error 1064
+garbage ;
+--error 1243
+execute __stmt_;
+eval select $mysql_errno as "after_failing_execute" ;
+
+# successful deallocate
+--error 1064
+garbage ;
+deallocate prepare stmt;
+eval select $mysql_errno as "after_successful_deallocate" ;
+
+# failing deallocate ( statement handle does not exist )
+--error 1064
+garbage ;
+--error 1243
+deallocate prepare __stmt_;
+eval select $mysql_errno as "after_failing_deallocate" ;
+
+
+# ----------------------------------------------------------------------------
+# test cases for "--disable_abort_on_error"
+#
+# "--disable_abort_on_error" switches the abort of mysqltest
+# after "unmasked" failing statements off.
+#
+# The default is "--enable_abort_on_error".
+#
+# "Maskings" are
+#   --error <error number>  and  --error <error number>
+# in the line before the failing statement.
+#
+# There are some additional test case for $mysql_errno
+# because "--disable_abort_on_error" enables a new situation.
+# Example: "unmasked" statement fails + analysis of $mysql_errno
+# ----------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------
+# Switch the abort on error off and check the effect on $mysql_errno
+# ----------------------------------------------------------------------------
+--error 1064
+garbage ;
+--disable_abort_on_error
+eval select $mysql_errno as "after_--disable_abort_on_error" ;
+
+# ----------------------------------------------------------------------------
+# "unmasked" failing statement should not cause an abort
+# ----------------------------------------------------------------------------
+select 3 from t1 ;
+
+# ----------------------------------------------------------------------------
+# masked failing statements
+# ----------------------------------------------------------------------------
+# expected error = response
+--error 1146
+select 3 from t1 ;
+--error 1146
+select 3 from t1 ;
+eval select $mysql_errno as "after_!errno_masked_error" ;
+# expected error <> response
+# --error 1000
+# select 3 from t1 ;
+# --error 1000
+# select 3 from t1 ;
+
+# ----------------------------------------------------------------------------
+# Switch the abort on error on and check the effect on $mysql_errno
+# ----------------------------------------------------------------------------
+--error 1064
+garbage ;
+--enable_abort_on_error
+eval select $mysql_errno as "after_--enable_abort_on_error" ;
+
+# ----------------------------------------------------------------------------
+# masked failing statements
+# ----------------------------------------------------------------------------
+# expected error = response
+--error 1146
+select 3 from t1 ;
+
+# ----------------------------------------------------------------------------
+# check that the old default behaviour is not changed
+# Please remove the '#' to get the abort on error
+# ----------------------------------------------------------------------------
+#--error 1064
+#select 3 from t1 ;
+#
+#select 3 from t1 ;

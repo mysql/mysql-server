@@ -207,6 +207,7 @@ alter table t1 change a a text character set cp1251;
 select a,hex(a) from t1;
 alter table t1 change a a char(10) character set koi8r;
 select a,hex(a) from t1;
+delete from t1;
 
 #
 # Test ALTER TABLE .. CHARACTER SET ..
@@ -323,3 +324,26 @@ alter table t1 rename to `t1\\`;
 rename table t1 to `t1\\`;
 drop table t1;
 
+#
+# Bug #6479  ALTER TABLE ... changing charset fails for TEXT columns
+#
+# The column's character set was changed but the actual data was not
+# modified. In other words, the values were reinterpreted
+# as UTF8 instead of being converted.
+create table t1 (a text) character set koi8r;
+insert into t1 values (_koi8r'тест');
+select hex(a) from t1;
+alter table t1 convert to character set cp1251;
+select hex(a) from t1;
+drop table t1;
+
+#
+# Test for bug #7884 "Able to add invalid unique index on TIMESTAMP prefix"
+# MySQL should not think that packed field with non-zero decimals is
+# geometry field and allow to create prefix index which is
+# shorter than packed field length.
+#
+create table t1 ( a timestamp );
+--error 1089
+alter table t1 add unique ( a(1) );
+drop table t1;

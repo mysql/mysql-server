@@ -17,6 +17,8 @@
 #ifndef NdbApi_H
 #define NdbApi_H
 
+#include "ndb_init.h"
+#include "ndb_cluster_connection.hpp"
 #include "ndbapi_limits.h"
 #include "Ndb.hpp"
 #include "NdbConnection.hpp"

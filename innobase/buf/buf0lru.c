@@ -42,6 +42,10 @@ initial segment in buf_LRU_get_recent_limit */
 
 #define BUF_LRU_INITIAL_RATIO	8
 
+/* If we switch on the InnoDB monitor because there are too few available
+frames in the buffer pool, we set this to TRUE */
+ibool	buf_lru_switched_on_innodb_mon	= FALSE;
+
 /**********************************************************************
 Takes a block out of the LRU list and page hash table and sets the block
 state to BUF_BLOCK_REMOVE_HASH. */
@@ -288,6 +292,32 @@ buf_LRU_try_free_flushed_blocks(void)
 }	
 
 /**********************************************************************
+Returns TRUE if less than 15 % of the buffer pool is available. This can be
+used in heuristics to prevent huge transactions eating up the whole buffer
+pool for their locks. */
+
+ibool
+buf_LRU_buf_pool_running_out(void)
+/*==============================*/
+				/* out: TRUE if less than 15 % of buffer pool
+				left */
+{
+	ibool	ret	= FALSE;
+
+	mutex_enter(&(buf_pool->mutex));
+
+	if (!recv_recovery_on && UT_LIST_GET_LEN(buf_pool->free)
+	   + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->max_size / 7) {
+		
+		ret = TRUE;
+	}
+
+	mutex_exit(&(buf_pool->mutex));
+
+	return(ret);
+}
+
+/**********************************************************************
 Returns a free block from buf_pool. The block is taken off the free list.
 If it is empty, blocks are moved from the end of the LRU list to the free
 list. */
@@ -325,7 +355,8 @@ loop:
 	   
 	} else if (!recv_recovery_on && UT_LIST_GET_LEN(buf_pool->free)
 	   + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->max_size / 5) {
-		if (!srv_print_innodb_monitor) {
+
+		if (!buf_lru_switched_on_innodb_mon) {
 
 	   		/* Over 80 % of the buffer pool is occupied by lock
 			heaps or the adaptive hash index. This may be a memory
@@ -342,16 +373,18 @@ loop:
 "InnoDB: lock heap and hash index sizes.\n",
 			(ulong) (buf_pool->curr_size / (1024 * 1024 / UNIV_PAGE_SIZE)));
 
+			buf_lru_switched_on_innodb_mon = TRUE;
 			srv_print_innodb_monitor = TRUE;
 			os_event_set(srv_lock_timeout_thread_event);
 		}
-	} else if (!recv_recovery_on && UT_LIST_GET_LEN(buf_pool->free)
-	   + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->max_size / 4) {
+	} else if (buf_lru_switched_on_innodb_mon) {
 
 		/* Switch off the InnoDB Monitor; this is a simple way
 		to stop the monitor if the situation becomes less urgent,
-		but may also surprise users! */
+		but may also surprise users if the user also switched on the
+		monitor! */
 
+		buf_lru_switched_on_innodb_mon = FALSE;
 		srv_print_innodb_monitor = FALSE;
 	}
 	

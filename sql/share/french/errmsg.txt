@@ -209,7 +209,7 @@ character-set=latin1
 "Erreur d'écriture réseau reçue du maître",
 "Impossible de trouver un index FULLTEXT correspondant à cette liste de colonnes",
 "Impossible d'exécuter la commande car vous avez des tables verrouillées ou une transaction active",
-"Variable système '%-.64' inconnue",
+"Variable système '%-.64s' inconnue",
 "La table '%-.64s' est marquée 'crashed' et devrait être réparée",
 "La table '%-.64s' est marquée 'crashed' et le dernier 'repair' a échoué",
 "Attention: certaines tables ne supportant pas les transactions ont été changées et elles ne pourront pas être restituées",

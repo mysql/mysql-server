@@ -1,4 +1,4 @@
-SUBDIRS =	portlib debugger util logger transporter mgmcommon editline
+SUBDIRS =	portlib debugger util logger transporter mgmcommon
 
 noinst_LTLIBRARIES = libcommon.la
 
@@ -11,3 +11,5 @@ libcommon_la_LIBADD = \
               portlib/libportlib.la      \
               logger/liblogger.la       \
               util/libgeneral.la 
+
+windoze-dsp:

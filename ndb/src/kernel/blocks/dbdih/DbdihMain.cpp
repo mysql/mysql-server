@@ -2976,6 +2976,8 @@ void Dbdih::execCOPY_FRAGREF(Signal* signal)
   SystemError * const sysErr = (SystemError*)&signal->theData[0];
   sysErr->errorCode = SystemError::CopyFragRefError;
   sysErr->errorRef = reference();
+  sysErr->data1 = errorCode;
+  sysErr->data2 = 0;
   sendSignal(cntrRef, GSN_SYSTEM_ERROR, signal, 
 	     SystemError::SignalLength, JBB);
   return;
@@ -4492,6 +4494,8 @@ void Dbdih::handleTakeOverNewMaster(Signal* signal, Uint32 takeOverPtrI)
 	SystemError * const sysErr = (SystemError*)&signal->theData[0];
 	sysErr->errorCode = SystemError::CopyFragRefError;
 	sysErr->errorRef = reference();
+	sysErr->data1= 0;
+	sysErr->data2= __LINE__;
 	sendSignal(cntrRef, GSN_SYSTEM_ERROR, signal, 
 		   SystemError::SignalLength, JBB);
       }
@@ -6174,7 +6178,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal){
       break;
     case DictTabInfo::AllNodesMediumTable:
       jam();
-      noOfFragments = csystemnodes;
+      noOfFragments = 2 * csystemnodes;
       break;
     case DictTabInfo::AllNodesLargeTable:
       jam();
@@ -7080,24 +7084,22 @@ void Dbdih::execDIGETPRIMREQ(Signal* signal)
   
   ndbrequire(tabPtr.p->tabStatus == TabRecord::TS_ACTIVE);
   connectPtr.i = signal->theData[0];
-  if(connectPtr.i != RNIL){
+  if(connectPtr.i != RNIL)
+  {
     jam();
     ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
-    ndbrequire(connectPtr.p->connectState == ConnectRecord::INUSE);
-    getFragstore(tabPtr.p, fragId, fragPtr);
-    connectPtr.p->nodeCount = extractNodeInfo(fragPtr.p, connectPtr.p->nodes);
     signal->theData[0] = connectPtr.p->userpointer;
-    signal->theData[1] = passThrough;
-    signal->theData[2] = connectPtr.p->nodes[0];
-    sendSignal(connectPtr.p->userblockref, GSN_DIGETPRIMCONF, signal, 3, JBB);
-    return;
-  }//if
-  //connectPtr.i == RNIL -> question without connect record
+  }
+  else
+  {
+    jam();
+    signal->theData[0] = RNIL;
+  }
+  
   Uint32 nodes[MAX_REPLICAS];
   getFragstore(tabPtr.p, fragId, fragPtr);
   Uint32 count = extractNodeInfo(fragPtr.p, nodes);
   
-  signal->theData[0] = RNIL;
   signal->theData[1] = passThrough;
   signal->theData[2] = nodes[0];
   signal->theData[3] = nodes[1];
@@ -12944,7 +12946,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 	Uint32 nodeOrder[MAX_REPLICAS];
 	const Uint32 noOfReplicas = extractNodeInfo(fragPtr.p, nodeOrder);
 	char buf[100];
-	snprintf(buf, sizeof(buf), " Table %d Fragment %d - ", tabPtr.i, j);
+	BaseString::snprintf(buf, sizeof(buf), " Table %d Fragment %d - ", tabPtr.i, j);
 	for(Uint32 k = 0; k < noOfReplicas; k++){
 	  char tmp[100];
 	  BaseString::snprintf(tmp, sizeof(tmp), "%d ", nodeOrder[k]);
@@ -13155,7 +13157,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 	getFragstore(tabPtr.p, fid, fragPtr);
 	
 	char buf[100], buf2[100];
-	snprintf(buf, sizeof(buf), " Fragment %d: noLcpReplicas==%d ", 
+	BaseString::snprintf(buf, sizeof(buf), " Fragment %d: noLcpReplicas==%d ", 
 		 fid, fragPtr.p->noLcpReplicas);
 	
 	Uint32 num=0;

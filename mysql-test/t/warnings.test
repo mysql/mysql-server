@@ -7,6 +7,19 @@ drop table if exists t1, t2;
 SET SQL_WARNINGS=1;
 
 create table t1 (a int);
+--error 1050
+create table t1 (a int);
+show count(*) errors;
+show errors;
+show warnings;
+--error 1115
+create table t2(a int) default charset qwerty;
+show count(*) errors;
+show errors;
+--error 1064
+create table t (i);
+show count(*) errors;
+show errors;
 insert into t1 values (1);
 insert into t1 values ("hej");
 insert into t1 values ("hej"),("då");

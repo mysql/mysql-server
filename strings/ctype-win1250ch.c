@@ -503,7 +503,9 @@ static int my_strnxfrm_win1250ch(CHARSET_INFO * cs  __attribute__((unused)),
       dest[totlen] = value;
     totlen++;
   } while (value) ;
-  return totlen;
+  if (len > totlen)
+    bfill(dest + totlen, len - totlen, ' ');
+  return len;
 }
 
 #undef IS_END
@@ -624,12 +626,12 @@ static MY_COLLATION_HANDLER my_collation_czech_ci_handler =
 
 CHARSET_INFO my_charset_cp1250_czech_ci =
 {
-  34,0,0,			/* number    */
-  MY_CS_COMPILED|MY_CS_STRNXFRM,		/* state     */
-  "cp1250",			/* cs name    */
-  "cp1250_czech_cs",		/* name      */
-  "",				/* comment   */
-  NULL,				/* tailoring */
+  34,0,0,                                     /* number    */
+  MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_CSSORT, /* state     */
+  "cp1250",                                   /* cs name   */
+  "cp1250_czech_cs",                          /* name      */
+  "",                                         /* comment   */
+  NULL,                                       /* tailoring */
   ctype_win1250ch,
   to_lower_win1250ch,
   to_upper_win1250ch,

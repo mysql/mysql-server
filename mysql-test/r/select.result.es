@@ -1,4 +1,5 @@
 drop table if exists t1,t2,t3,t4;
+drop table if exists t1_1,t1_2,t9_1,t9_2;
 CREATE TABLE t1 (
 Period smallint(4) unsigned zerofill DEFAULT '0000' NOT NULL,
 Varor_period smallint(4) unsigned DEFAULT '0' NOT NULL
@@ -2056,6 +2057,10 @@ t2	1	fld3	1	fld3	A	NULL	NULL	NULL		BTREE
 drop table t4, t3, t2, t1;
 DO 1;
 DO benchmark(100,1+1),1,1;
+do default;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+do foobar;
+ERROR 42S22: Unknown column 'foobar' in 'field list'
 CREATE TABLE t1 (
 id mediumint(8) unsigned NOT NULL auto_increment,
 pseudo varchar(35) NOT NULL default '',
@@ -2348,6 +2353,27 @@ select * from t2,t3 where t2.s = t3.s;
 s	s
 two		two	
 drop table t1, t2, t3;
+create table t1 (a integer,  b integer, index(a), index(b));
+create table t2 (c integer,  d integer, index(c), index(d));
+insert into t1 values (1,2), (2,2), (3,2), (4,2);
+insert into t2 values (1,3), (2,3), (3,4), (4,4);
+explain select * from t1 left join t2 on a=c where d in (4);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ref	c,d	d	5	const	2	Using where
+1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	3	Using where
+select * from t1 left join t2 on a=c where d in (4);
+a	b	c	d
+3	2	3	4
+4	2	4	4
+explain select * from t1 left join t2 on a=c where d = 4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ref	c,d	d	5	const	2	Using where
+1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	3	Using where
+select * from t1 left join t2 on a=c where d = 4;
+a	b	c	d
+3	2	3	4
+4	2	4	4
+drop table t1, t2;
 CREATE TABLE t1 (
 i int(11) NOT NULL default '0',
 c char(10) NOT NULL default '',
@@ -2357,9 +2383,6 @@ UNIQUE KEY c (c)
 INSERT INTO t1 VALUES (1,'a');
 INSERT INTO t1 VALUES (2,'b');
 INSERT INTO t1 VALUES (3,'c');
-EXPLAIN SELECT i FROM t1 WHERE i=1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	Using index
 EXPLAIN SELECT i FROM t1 WHERE i=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	Using index

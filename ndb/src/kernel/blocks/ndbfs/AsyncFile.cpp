@@ -14,19 +14,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/**
- * O_DIRECT
- */
-#if 0
-//#ifdef NDB_LINUX
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-#endif
-
 #include <ndb_global.h>
+#include <my_sys.h>
+#include <my_pthread.h>
 
-#include "Error.hpp"
+#include <Error.hpp>
 #include "AsyncFile.hpp"
 
 #include <ErrorHandlingMacros.hpp>
@@ -35,13 +27,12 @@
 #include <NdbThread.h>
 #include <signaldata/FsOpenReq.hpp>
 
-#if 0
-#ifdef HAVE_PREAD
-// This is for pread and pwrite
-#ifndef __USE_UNIX98
-#define __USE_UNIX98
-#endif
-#endif
+// use this to test broken pread code
+//#define HAVE_BROKEN_PREAD 
+
+#ifdef HAVE_BROKEN_PREAD
+#undef HAVE_PWRITE
+#undef HAVE_PREAD
 #endif
 
 #if defined NDB_WIN32 || defined NDB_OSE || defined NDB_SOFTOSE
@@ -227,7 +218,8 @@ AsyncFile::run()
       rmrfReq(request, (char*)theFileName.c_str(), request->par.rmrf.own_directory);
       break;
     case Request:: end:
-      closeReq(request);
+      if (theFd > 0)
+        closeReq(request);
       endReq();
       return;
     default:
@@ -247,6 +239,7 @@ void AsyncFile::openReq(Request* request)
 {  
   m_openedWithSync = false;
   m_syncFrequency = 0;
+  m_syncCount= 0;
 
   // for open.flags, see signal FSOPENREQ
 #ifdef NDB_WIN32
@@ -337,7 +330,6 @@ void AsyncFile::openReq(Request* request)
     } else {
 #endif
       m_openedWithSync = false;
-      m_syncCount = 0;
       m_syncFrequency = Global_syncFreq;
 #if 0
     }
@@ -395,9 +387,12 @@ AsyncFile::readBuffer(char * buf, size_t size, off_t offset){
   if(dwSFP != offset) {
     return GetLastError();
   }
-#elif defined NDB_OSE || defined NDB_SOFTOSE
-  return_value = lseek(theFd, offset, SEEK_SET);
-  if (return_value != offset) {
+#elif ! defined(HAVE_PREAD)
+  off_t seek_val;
+  while((seek_val= lseek(theFd, offset, SEEK_SET)) == (off_t)-1 
+	&& errno == EINTR);
+  if(seek_val == (off_t)-1)
+  {
     return errno;
   }
 #endif
@@ -416,7 +411,7 @@ AsyncFile::readBuffer(char * buf, size_t size, off_t offset){
       return GetLastError();
     } 
     bytes_read = dwBytesRead;
-#elif defined NDB_OSE || defined NDB_SOFTOSE
+#elif  ! defined(HAVE_PREAD)
     return_value = ::read(theFd, buf, size);
 #else // UNIX
     return_value = ::pread(theFd, buf, size, offset);
@@ -469,7 +464,7 @@ AsyncFile::readReq( Request * request)
 void
 AsyncFile::readvReq( Request * request)
 {
-#if defined NDB_OSE || defined NDB_SOFTOSE
+#if ! defined(HAVE_PREAD)
   readReq(request);
   return;
 #elif defined NDB_WIN32
@@ -499,7 +494,7 @@ AsyncFile::readvReq( Request * request)
 
 int 
 AsyncFile::extendfile(Request* request) {
-#if defined NDB_OSE || defined NDB_SOFTOSE
+#if ! defined(HAVE_PWRITE)
   // Find max size of this file in this request
   int maxOffset = 0;
   int maxSize = 0;
@@ -608,27 +603,13 @@ AsyncFile::writeBuffer(const char * buf, size_t size, off_t offset,
   if(dwSFP != offset) {
     return GetLastError();
   }
-#elif defined NDB_OSE || defined NDB_SOFTOSE
-  return_value = lseek(theFd, offset, SEEK_SET);
-  if (return_value != offset) {
-    DEBUG(ndbout_c("AsyncFile::writeReq, err1: return_value=%d, offset=%d\n", 
-		   return_value, chunk_offset));
-    PRINT_ERRORANDFLAGS(0);
-    if (errno == 78) {
-      // Could not write beyond end of file, try to extend file
-      DEBUG(ndbout_c("AsyncFile::writeReq, Extend. file! filename=\"%s\" \n",
-		     theFileName.c_str()));
-      return_value = extendfile(request);
-      if (return_value == -1) {
-	return errno;
-      }
-      return_value = lseek(theFd, offset, SEEK_SET);
-      if (return_value != offset) {
-	return errno;
-      }
-    } else {
-      return errno;
-    }
+#elif ! defined(HAVE_PWRITE)
+  off_t seek_val;
+  while((seek_val= lseek(theFd, offset, SEEK_SET)) == (off_t)-1 
+	&& errno == EINTR);
+  if(seek_val == (off_t)-1)
+  {
+    return errno;
   }
 #endif
     
@@ -650,7 +631,7 @@ AsyncFile::writeBuffer(const char * buf, size_t size, off_t offset,
       DEBUG(ndbout_c("Warning partial write %d != %d", bytes_written, bytes_to_write));
     }
     
-#elif defined NDB_OSE || defined NDB_SOFTOSE
+#elif ! defined(HAVE_PWRITE)
     return_value = ::write(theFd, buf, bytes_to_write);
 #else // UNIX
     return_value = ::pwrite(theFd, buf, bytes_to_write, offset);
@@ -675,6 +656,7 @@ AsyncFile::writeBuffer(const char * buf, size_t size, off_t offset,
     }
 #endif
     
+    m_syncCount+= bytes_written;
     buf += bytes_written;
     size -= bytes_written;
     offset += bytes_written;
@@ -701,6 +683,10 @@ AsyncFile::closeReq(Request * request)
   hFile = INVALID_HANDLE_VALUE;
 #else
   if (-1 == ::close(theFd)) {
+#ifndef DBUG_OFF
+    if (theFd == -1)
+      abort();
+#endif
     request->error = errno;
   }
   theFd = -1;
@@ -719,7 +705,8 @@ bool AsyncFile::isOpen(){
 void
 AsyncFile::syncReq(Request * request)
 {
-  if(m_openedWithSync){
+  if(m_openedWithSync ||
+     m_syncCount == 0){
     return;
   }
 #ifdef NDB_WIN32
@@ -775,7 +762,6 @@ AsyncFile::appendReq(Request * request){
 
   if(m_syncFrequency != 0 && m_syncCount > m_syncFrequency){
     syncReq(request);
-    request->error = 0;
   }
 }
 
@@ -889,7 +875,6 @@ void AsyncFile::endReq()
 {
   // Thread is ended with return
   if (theWriteBuffer) NdbMem_Free(theWriteBuffer);
-  NdbThread_Exit(0);
 }
 
 

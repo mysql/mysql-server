@@ -138,6 +138,8 @@
 #define HA_CACHE_TBL_ASKTRANSACT 2
 #define HA_CACHE_TBL_TRANSACT    4
 
+/* Options of START TRANSACTION statement (and later of SET TRANSACTION stmt) */
+#define MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT 1
 
 enum db_type 
 { 
@@ -370,8 +372,8 @@ public:
   virtual int read_range_next();
   int compare_key(key_range *range);
   virtual int ft_init() { return HA_ERR_WRONG_COMMAND; }
-  virtual FT_INFO *ft_init_ext(uint flags,uint inx,const byte *key,
-                               uint keylen)
+  void ft_end() { ft_handler=NULL; }
+  virtual FT_INFO *ft_init_ext(uint flags, uint inx,String *key)
     { return NULL; }
   virtual int ft_read(byte *buf) { return HA_ERR_WRONG_COMMAND; }
   virtual int rnd_next(byte *buf)=0;
@@ -567,5 +569,5 @@ int ha_discover(THD* thd, const char* dbname, const char* name,
 int ha_find_files(THD *thd,const char *db,const char *path,
 		  const char *wild, bool dir,List<char>* files);
 int ha_table_exists(THD* thd, const char* db, const char* name);
-
-
+TYPELIB *ha_known_exts(void);
+int ha_start_consistent_snapshot(THD *thd);

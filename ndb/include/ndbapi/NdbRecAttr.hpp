@@ -301,13 +301,6 @@ NdbRecAttr::arraySize() const
 }
 
 inline
-Int64
-NdbRecAttr::int64_value() const 
-{
-  return *(Int64*)theRef;
-}
-
-inline
 Int32
 NdbRecAttr::int32_value() const 
 {
@@ -329,13 +322,6 @@ NdbRecAttr::char_value() const
 }
 
 inline
-Uint64
-NdbRecAttr::u_64_value() const
-{
-  return *(Uint64*)theRef;
-}
-
-inline
 Uint32
 NdbRecAttr::u_32_value() const
 {
@@ -354,20 +340,6 @@ Uint8
 NdbRecAttr::u_char_value() const
 {
   return *(Uint8*)theRef;
-}
-
-inline
-float
-NdbRecAttr::float_value() const
-{
-  return *(float*)theRef;
-}
-
-inline
-double
-NdbRecAttr::double_value() const
-{
-  return *(double*)theRef;
 }
 
 inline

@@ -21,7 +21,7 @@
  */
 
 const GrepError::ErrorDescription  GrepError::errorDescriptions[] = {
-  { GrepError::NO_ERROR,
+  { GrepError::GE_NO_ERROR,
     "No error" },
   { GrepError::SUBSCRIPTION_ID_NOMEM, 
     "Not enough resources to allocate the subscription" },
@@ -119,7 +119,7 @@ GrepError::noOfErrorDescs = sizeof(GrepError::errorDescriptions) /
  * gets the corresponding error message to an err code
  */  
 const char * 
-GrepError::getErrorDesc(GrepError::Code err) {
+GrepError::getErrorDesc(GrepError::GE_Code err) {
   
   for(Uint32 i = 0; i<noOfErrorDescs; i++){
     if(err == errorDescriptions[i].errCode){

@@ -51,7 +51,6 @@ class DictTabInfo {
   friend class Trix;
   friend class DbUtil;
   // API
-  friend class Table;
   friend class NdbSchemaOp;
   
   /**
@@ -303,15 +302,19 @@ public:
     ExtBigunsigned = NdbSqlUtil::Type::Bigunsigned,
     ExtFloat = NdbSqlUtil::Type::Float,
     ExtDouble = NdbSqlUtil::Type::Double,
-    ExtDecimal = NdbSqlUtil::Type::Decimal,
+    ExtOlddecimal = NdbSqlUtil::Type::Olddecimal,
+    ExtOlddecimalunsigned = NdbSqlUtil::Type::Olddecimalunsigned,
     ExtChar = NdbSqlUtil::Type::Char,
     ExtVarchar = NdbSqlUtil::Type::Varchar,
     ExtBinary = NdbSqlUtil::Type::Binary,
     ExtVarbinary = NdbSqlUtil::Type::Varbinary,
     ExtDatetime = NdbSqlUtil::Type::Datetime,
-    ExtTimespec = NdbSqlUtil::Type::Timespec,
+    ExtDate = NdbSqlUtil::Type::Date,
     ExtBlob = NdbSqlUtil::Type::Blob,
-    ExtText = NdbSqlUtil::Type::Text
+    ExtText = NdbSqlUtil::Type::Text,
+    ExtTime = NdbSqlUtil::Type::Time,
+    ExtYear = NdbSqlUtil::Type::Year,
+    ExtTimestamp = NdbSqlUtil::Type::Timestamp
   };
 
   // Attribute data interpretation
@@ -409,9 +412,20 @@ public:
         AttributeSize = DictTabInfo::a64Bit;
         AttributeArraySize = AttributeExtLength;
         return true;
-      case DictTabInfo::ExtDecimal:
-        // not yet implemented anywhere
-        break;
+      case DictTabInfo::ExtOlddecimal:
+        AttributeType = DictTabInfo::StringType;
+        AttributeSize = DictTabInfo::an8Bit;
+        AttributeArraySize =
+          (1 + AttributeExtPrecision + (int(AttributeExtScale) > 0)) *
+          AttributeExtLength;
+        return true;
+      case DictTabInfo::ExtOlddecimalunsigned:
+        AttributeType = DictTabInfo::StringType;
+        AttributeSize = DictTabInfo::an8Bit;
+        AttributeArraySize =
+          (0 + AttributeExtPrecision + (int(AttributeExtScale) > 0)) *
+          AttributeExtLength;
+        return true;
       case DictTabInfo::ExtChar:
       case DictTabInfo::ExtBinary:
         AttributeType = DictTabInfo::StringType;
@@ -429,10 +443,10 @@ public:
         AttributeSize = DictTabInfo::an8Bit;
         AttributeArraySize = 8 * AttributeExtLength;
         return true;
-      case DictTabInfo::ExtTimespec:
+      case DictTabInfo::ExtDate:
         AttributeType = DictTabInfo::StringType;
         AttributeSize = DictTabInfo::an8Bit;
-        AttributeArraySize = 12 * AttributeExtLength;
+        AttributeArraySize = 3 * AttributeExtLength;
         return true;
       case DictTabInfo::ExtBlob:
       case DictTabInfo::ExtText:
@@ -440,6 +454,21 @@ public:
         AttributeSize = DictTabInfo::an8Bit;
         // head + inline part [ attr precision lower half ]
         AttributeArraySize = (NDB_BLOB_HEAD_SIZE << 2) + (AttributeExtPrecision & 0xFFFF);
+        return true;
+      case DictTabInfo::ExtTime:
+        AttributeType = DictTabInfo::StringType;
+        AttributeSize = DictTabInfo::an8Bit;
+        AttributeArraySize = 3 * AttributeExtLength;
+        return true;
+      case DictTabInfo::ExtYear:
+        AttributeType = DictTabInfo::StringType;
+        AttributeSize = DictTabInfo::an8Bit;
+        AttributeArraySize = 1 * AttributeExtLength;
+        return true;
+      case DictTabInfo::ExtTimestamp:
+        AttributeType = DictTabInfo::StringType;
+        AttributeSize = DictTabInfo::an8Bit;
+        AttributeArraySize = 4 * AttributeExtLength;
         return true;
       };
       return false;

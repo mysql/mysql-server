@@ -64,7 +64,7 @@ static my_bool init_state_maps(CHARSET_INFO *cs)
     else if (my_mbcharlen(cs, i)>1)
       state_map[i]=(uchar) MY_LEX_IDENT;
 #endif
-    else if (!my_isgraph(cs,i))
+    else if (my_isspace(cs,i))
       state_map[i]=(uchar) MY_LEX_SKIP;
     else
       state_map[i]=(uchar) MY_LEX_CHAR;
@@ -215,7 +215,7 @@ static int add_collation(CHARSET_INFO *cs)
 
       if (!strcmp(cs->csname,"ucs2") )
       {
-#ifdef HAVE_CHARSET_ucs2
+#if defined(HAVE_CHARSET_ucs2) && defined(HAVE_UCA_COLLATIONS)
         new->cset= my_charset_ucs2_general_uca.cset;
         new->coll= my_charset_ucs2_general_uca.coll;
         new->strxfrm_multiply= my_charset_ucs2_general_uca.strxfrm_multiply;
@@ -228,6 +228,7 @@ static int add_collation(CHARSET_INFO *cs)
       }
       else
       {
+        uchar *sort_order= all_charsets[cs->number]->sort_order;
         simple_cs_init_functions(all_charsets[cs->number]);
         new->mbminlen= 1;
         new->mbmaxlen= 1;
@@ -236,6 +237,16 @@ static int add_collation(CHARSET_INFO *cs)
           all_charsets[cs->number]->state |= MY_CS_LOADED;
         }
         all_charsets[cs->number]->state|= MY_CS_AVAILABLE;
+        
+        /*
+          Check if case sensitive sort order: A < a < B.
+          We need MY_CS_FLAG for regex library, and for
+          case sensitivity flag for 5.0 client protocol,
+          to support isCaseSensitive() method in JDBC driver 
+        */
+        if (sort_order && sort_order['A'] < sort_order['a'] &&
+                          sort_order['a'] < sort_order['B'])
+          all_charsets[cs->number]->state|= MY_CS_CSSORT; 
       }
     }
     else
@@ -519,7 +530,7 @@ CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags)
   {
     char index_file[FN_REFLEN];
     strmov(get_charsets_dir(index_file),MY_CHARSET_INDEX);
-    my_error(EE_UNKNOWN_CHARSET, MYF(ME_BELL), cs_name, index_file);
+    my_error(EE_UNKNOWN_COLLATION, MYF(ME_BELL), cs_name, index_file);
   }
 
   return cs;
@@ -568,6 +579,23 @@ ulong escape_string_for_mysql(CHARSET_INFO *charset_info, char *to,
       while (l--)
 	*to++= *from++;
       from--;
+      continue;
+    }
+    /*
+     If the next character appears to begin a multi-byte character, we
+     escape that first byte of that apparent multi-byte character. (The
+     character just looks like a multi-byte character -- if it were actually
+     a multi-byte character, it would have been passed through in the test
+     above.)
+
+     Without this check, we can create a problem by converting an invalid
+     multi-byte character into a valid one. For example, 0xbf27 is not
+     a valid GBK character, but 0xbf5c is. (0x27 = ', 0x5c = \)
+    */
+    if (use_mb_flag && (l= my_mbcharlen(charset_info, *from)) > 1)
+    {
+      *to++= '\\';
+      *to++= *from;
       continue;
     }
 #endif

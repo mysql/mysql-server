@@ -32,7 +32,6 @@
 #define Select Lex->current_select
 #include "mysql_priv.h"
 #include "slave.h"
-#include "sql_acl.h"
 #include "lex_symbol.h"
 #include "item_create.h"
 #include <myisam.h>
@@ -131,6 +130,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	CLIENT_SYM
 %token	COMMENT_SYM
 %token	COMMIT_SYM
+%token  CONSISTENT_SYM
 %token	COUNT_SYM
 %token	CREATE
 %token	CROSS
@@ -165,6 +165,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token	SELECT_SYM
 %token	SHOW
 %token	SLAVE
+%token  SNAPSHOT_SYM
 %token	SQL_THREAD
 %token	START_SYM
 %token	STD_SYM
@@ -607,7 +608,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <simple_string>
 	remember_name remember_end opt_ident opt_db text_or_password
-	opt_constraint constraint
+	opt_constraint constraint ident_or_empty
 
 %type <string>
 	text_string opt_gconcat_separator
@@ -618,6 +619,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         table_option opt_if_not_exists opt_no_write_to_binlog opt_var_type
         opt_var_ident_type delete_option opt_temporary all_or_any opt_distinct
         opt_ignore_leaves fulltext_options spatial_type union_option
+        start_transaction_opts
 
 %type <ulong_num>
 	ULONG_NUM raid_types merge_insert_types
@@ -1109,7 +1111,7 @@ create_select:
           SELECT_SYM
           {
 	    LEX *lex=Lex;
-	    lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
+	    lex->lock_option= using_update_log ? TL_READ_NO_INSERT : TL_READ;
 	    if (lex->sql_command == SQLCOM_INSERT)
 	      lex->sql_command= SQLCOM_INSERT_SELECT;
 	    else if (lex->sql_command == SQLCOM_REPLACE)
@@ -1358,7 +1360,7 @@ field_spec:
 	field_ident
 	 {
 	   LEX *lex=Lex;
-	   lex->length=lex->dec=0; lex->type=0; lex->interval=0;
+	   lex->length=lex->dec=0; lex->type=0;
 	   lex->default_value= lex->on_update_value= 0;
 	   lex->comment=0;
 	   lex->charset=NULL;
@@ -1371,7 +1373,7 @@ field_spec:
 				lex->length,lex->dec,lex->type,
 				lex->default_value, lex->on_update_value, 
                                 lex->comment,
-				lex->change,lex->interval,lex->charset,
+				lex->change,&lex->interval_list,lex->charset,
 				lex->uint_geom_type))
 	    YYABORT;
 	};
@@ -1399,6 +1401,9 @@ type:
 	| BINARY '(' NUM ')'		{ Lex->length=$3.str;
 					  Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_STRING; }
+	| BINARY			{ Lex->length= (char*) "1";
+					  Lex->charset=&my_charset_bin;
+					  $$=FIELD_TYPE_STRING; }
 	| varchar '(' NUM ')' opt_binary { Lex->length=$3.str;
 					  $$=FIELD_TYPE_VAR_STRING; }
 	| nvarchar '(' NUM ')'		{ Lex->length=$3.str;
@@ -1410,7 +1415,7 @@ type:
 	| YEAR_SYM opt_len field_options { $$=FIELD_TYPE_YEAR; }
 	| DATE_SYM			{ $$=FIELD_TYPE_DATE; }
 	| TIME_SYM			{ $$=FIELD_TYPE_TIME; }
-	| TIMESTAMP
+	| TIMESTAMP opt_len
 	  {
 	    if (YYTHD->variables.sql_mode & MODE_MAXDB)
 	      $$=FIELD_TYPE_DATETIME;
@@ -1423,13 +1428,6 @@ type:
 	      $$=FIELD_TYPE_TIMESTAMP;
             }
 	   }
-	| TIMESTAMP '(' NUM ')'
-          { 
-            LEX *lex= Lex;
-            lex->length= $3.str;
-            lex->type|= NOT_NULL_FLAG;
-            $$= FIELD_TYPE_TIMESTAMP;
-          }
 	| DATETIME			{ $$=FIELD_TYPE_DATETIME; }
 	| TINYBLOB			{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_TINY_BLOB; }
@@ -1465,17 +1463,9 @@ type:
 	| FIXED_SYM float_options field_options
 					{ $$=FIELD_TYPE_DECIMAL;}
 	| ENUM {Lex->interval_list.empty();} '(' string_list ')' opt_binary
-	  {
-	    LEX *lex=Lex;
-	    lex->interval=typelib(lex->interval_list);
-	    $$=FIELD_TYPE_ENUM;
-	  }
+	  { $$=FIELD_TYPE_ENUM; }
 	| SET { Lex->interval_list.empty();} '(' string_list ')' opt_binary
-	  {
-	    LEX *lex=Lex;
-	    lex->interval=typelib(lex->interval_list);
-	    $$=FIELD_TYPE_SET;
-	  }
+	  { $$=FIELD_TYPE_SET; }
 	| LONG_SYM opt_binary		{ $$=FIELD_TYPE_MEDIUM_BLOB; }
 	| SERIAL_SYM
 	  {
@@ -1852,8 +1842,9 @@ alter:
 	{
 	  THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
-	  lex->sql_command = SQLCOM_ALTER_TABLE;
-	  lex->name=0;
+	  lex->sql_command= SQLCOM_ALTER_TABLE;
+	  lex->name= 0;
+	  lex->duplicates= DUP_ERROR; 
 	  if (!lex->select_lex.add_table_to_list(thd, $4, NULL,
 						 TL_OPTION_UPDATING))
 	    YYABORT;
@@ -1872,7 +1863,7 @@ alter:
 	}
 	alter_list
 	{}
-	| ALTER DATABASE ident
+	| ALTER DATABASE ident_or_empty
           {
             Lex->create_info.default_table_charset= NULL;
             Lex->create_info.used_fields= 0;
@@ -1881,8 +1872,13 @@ alter:
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command=SQLCOM_ALTER_DB;
-	    lex->name=$3.str;
+	    lex->name= $3;
 	  };
+
+
+ident_or_empty:
+	/* empty */  { $$= 0; }
+	| ident      { $$= $1.str; };
 
 
 alter_list:
@@ -1919,7 +1915,7 @@ alter_list_item:
         | MODIFY_SYM opt_column field_ident
           {
             LEX *lex=Lex;
-            lex->length=lex->dec=0; lex->type=0; lex->interval=0;
+            lex->length=lex->dec=0; lex->type=0;
             lex->default_value= lex->on_update_value= 0;
 	    lex->comment=0;
 	    lex->charset= NULL;
@@ -1934,7 +1930,7 @@ alter_list_item:
                                   lex->length,lex->dec,lex->type,
                                   lex->default_value, lex->on_update_value,
                                   lex->comment,
-				  $3.str, lex->interval, lex->charset,
+				  $3.str, &lex->interval_list, lex->charset,
 				  lex->uint_geom_type))
 	       YYABORT;
           }
@@ -2033,8 +2029,9 @@ opt_column:
 	| COLUMN_SYM	{};
 
 opt_ignore:
-	/* empty */	{ Lex->duplicates=DUP_ERROR; }
-	| IGNORE_SYM	{ Lex->duplicates=DUP_IGNORE; };
+	/* empty */	{ Lex->ignore= 0;}
+	| IGNORE_SYM	{ Lex->ignore= 1;}
+	;
 
 opt_restrict:
 	/* empty */	{}
@@ -2095,9 +2092,20 @@ slave:
 
 
 start:
-	START_SYM TRANSACTION_SYM { Lex->sql_command = SQLCOM_BEGIN;}
-	{}
+	START_SYM TRANSACTION_SYM start_transaction_opts
+        {
+           Lex->sql_command = SQLCOM_BEGIN;
+           Lex->start_transaction_opt= $3;
+        }
 	;
+
+start_transaction_opts:
+        /*empty*/ { $$ = 0; }
+        | WITH CONSISTENT_SYM SNAPSHOT_SYM
+        {
+           $$= MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT;
+        }
+        ;
 
 slave_thread_opts:
 	{ Lex->slave_thd_opt= 0; }
@@ -2381,7 +2389,10 @@ select:
 select_init:
 	SELECT_SYM select_init2
 	|
-	'(' SELECT_SYM select_part2 ')'
+	'(' select_paren ')' union_opt;
+
+select_paren:
+	SELECT_SYM select_part2
 	  {
 	    LEX *lex= Lex;
             SELECT_LEX * sel= lex->current_select;
@@ -2400,7 +2411,8 @@ select_init:
 	    if (sel->master_unit()->fake_select_lex)
               sel->master_unit()->global_parameters=
                  sel->master_unit()->fake_select_lex;
-          } union_opt;
+          }
+	| '(' select_paren ')';
 
 select_init2:
 	select_part2
@@ -2447,10 +2459,11 @@ select_into:
 select_from:
 	  FROM join_table_list where_clause group_clause having_clause
 	       opt_order_clause opt_limit_clause procedure_clause
-        | FROM DUAL_SYM /* oracle compatibility: oracle always requires FROM
-                           clause, and DUAL is system table without fields.
-                           Is "SELECT 1 FROM DUAL" any better than
-                           "SELECT 1" ? Hmmm :) */
+        | FROM DUAL_SYM opt_limit_clause
+          /* oracle compatibility: oracle always requires FROM clause,
+             and DUAL is system table without fields.
+             Is "SELECT 1 FROM DUAL" any better than "SELECT 1" ?
+          Hmmm :) */
 	;
 
 select_options:
@@ -2889,7 +2902,7 @@ simple_expr:
 	| CONCAT '(' expr_list ')'
 	  { $$= new Item_func_concat(* $3); }
 	| CONCAT_WS '(' expr ',' expr_list ')'
-	  { $$= new Item_func_concat_ws($3, *$5); }
+	  { $5->push_front($3); $$= new Item_func_concat_ws(*$5); }
 	| CONVERT_TZ_SYM '(' expr ',' expr ',' expr ')'
 	  {
 	    Lex->time_zone_tables_used= &fake_time_zone_tables_list;
@@ -3297,7 +3310,7 @@ opt_distinct:
     |DISTINCT   { $$ = 1; };
 
 opt_gconcat_separator:
-    /* empty */        { $$ = new (&YYTHD->mem_root) String(",",1,default_charset_info); }
+    /* empty */        { $$ = new (YYTHD->mem_root) String(",",1,default_charset_info); }
     |SEPARATOR_SYM text_string  { $$ = $2; };
 
 
@@ -3395,8 +3408,7 @@ when_list2:
 	  };
 
 join_table_list:
-	'(' join_table_list ')'	{ $$=$2; }
-	| join_table		{ $$=$1; }
+	join_table		{ $$=$1; }
 	| join_table_list ',' join_table_list { $$=$3; }
 	| join_table_list normal_join join_table_list { $$=$3; }
 	| join_table_list STRAIGHT_JOIN join_table_list
@@ -3473,7 +3485,7 @@ join_table:
 	}
 	| '{' ident join_table LEFT OUTER JOIN_SYM join_table ON expr '}'
 	  { add_join_on($7,$9); $7->outer_join|=JOIN_TYPE_LEFT; $$=$7; }
-        | '(' SELECT_SYM select_derived ')' opt_table_alias
+        | '(' select_derived union_opt ')' opt_table_alias
 	{
 	  LEX *lex=Lex;
 	  SELECT_LEX_UNIT *unit= lex->current_select->master_unit();
@@ -3484,9 +3496,27 @@ join_table:
 	                          (List<String> *)0)))
 
 	    YYABORT;
-	};
+	}
+	| '(' join_table_list ')'	{ $$=$2; };
 
 select_derived:
+	SELECT_SYM select_derived2
+	| '(' select_derived ')'
+	  {
+	    LEX *lex= Lex;
+            SELECT_LEX * sel= lex->current_select;
+	    if (sel->set_braces(1))
+	    {
+	      yyerror(ER(ER_SYNTAX_ERROR));
+	      YYABORT;
+	    }
+            /* select in braces, can't contain global parameters */
+	    if (sel->master_unit()->fake_select_lex)
+              sel->master_unit()->global_parameters=
+                 sel->master_unit()->fake_select_lex;
+	  };
+
+select_derived2:
         {
 	  LEX *lex= Lex;
 	  lex->derived_tables= 1;
@@ -3508,7 +3538,7 @@ select_derived:
 	{
 	  Select->parsing_place= NO_MATTER;
 	}
-	opt_select_from union_opt
+	opt_select_from
         ;
 
 opt_outer:
@@ -3551,15 +3581,15 @@ key_list_or_empty:
 key_usage_list2:
 	key_usage_list2 ',' ident
         { Select->
-	    interval_list.push_back(new (&YYTHD->mem_root) String((const char*) $3.str, $3.length,
+	    interval_list.push_back(new (YYTHD->mem_root) String((const char*) $3.str, $3.length,
 				    system_charset_info)); }
 	| ident
         { Select->
-	    interval_list.push_back(new (&YYTHD->mem_root) String((const char*) $1.str, $1.length,
+	    interval_list.push_back(new (YYTHD->mem_root) String((const char*) $1.str, $1.length,
 				    system_charset_info)); }
 	| PRIMARY_SYM
         { Select->
-	    interval_list.push_back(new (&YYTHD->mem_root) String("PRIMARY", 7,
+	    interval_list.push_back(new (YYTHD->mem_root) String("PRIMARY", 7,
 				    system_charset_info)); };
 
 using_list:
@@ -3915,11 +3945,12 @@ do:	DO_SYM
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command = SQLCOM_DO;
-	  if (!(lex->insert_list = new List_item))
-	    YYABORT;
+	  mysql_init_select(lex);
 	}
-	values
-	{}
+	expr_list
+	{
+	  Lex->insert_list= $3;
+	}
 	;
 
 /*
@@ -3998,7 +4029,9 @@ insert:
 	INSERT
 	{
 	  LEX *lex= Lex;
-	  lex->sql_command = SQLCOM_INSERT;
+	  lex->sql_command= SQLCOM_INSERT;
+	  lex->duplicates= DUP_ERROR;
+          mysql_init_select(lex);
 	  /* for subselects */
           lex->lock_option= (using_update_log) ? TL_READ_NO_INSERT : TL_READ;
 	  lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
@@ -4018,6 +4051,7 @@ replace:
 	  LEX *lex=Lex;
 	  lex->sql_command = SQLCOM_REPLACE;
 	  lex->duplicates= DUP_REPLACE;
+          mysql_init_select(lex);
 	  lex->select_lex.resolve_mode= SELECT_LEX::INSERT_MODE;
 	}
 	replace_lock_option insert2
@@ -4147,21 +4181,8 @@ expr_or_default:
 
 opt_insert_update:
         /* empty */
-        | ON DUPLICATE_SYM
-          { 
-            LEX *lex= Lex;
-            /*
-              For simplicity, let's forget about INSERT ... SELECT ... UPDATE
-              for a moment.
-            */
-	    if (lex->sql_command != SQLCOM_INSERT)
-            {
-	      yyerror(ER(ER_SYNTAX_ERROR));
-              YYABORT;
-            }
-            lex->duplicates= DUP_UPDATE;
-          }
-          KEY_SYM UPDATE_SYM update_list
+        | ON DUPLICATE_SYM	{ Lex->duplicates= DUP_UPDATE; }
+          KEY_SYM UPDATE_SYM insert_update_list
         ;
 
 /* Update rows in a table */
@@ -4173,6 +4194,7 @@ update:
 	  mysql_init_select(lex);
           lex->sql_command= SQLCOM_UPDATE;
 	  lex->lock_option= TL_UNLOCK; 	/* Will be set later */
+	  lex->duplicates= DUP_ERROR; 
         }
         opt_low_priority opt_ignore join_table_list
 	SET update_list
@@ -4197,16 +4219,28 @@ update:
 	;
 
 update_list:
-	update_list ',' simple_ident equal expr_or_default
+	update_list ',' update_elem
+	| update_elem;
+
+update_elem:
+	simple_ident equal expr_or_default
 	{
-	  if (add_item_to_list(YYTHD, $3) || add_value_to_list(YYTHD, $5))
+	  if (add_item_to_list(YYTHD, $1) || add_value_to_list(YYTHD, $3))
 	    YYABORT;
-	}
-	| simple_ident equal expr_or_default
-	  {
-	    if (add_item_to_list(YYTHD, $1) || add_value_to_list(YYTHD, $3))
-	      YYABORT;
-	  };
+	};
+
+insert_update_list:
+	insert_update_list ',' insert_update_elem
+	| insert_update_elem;
+
+insert_update_elem:
+	simple_ident equal expr_or_default
+	{
+	  LEX *lex= Lex;
+	  if (lex->update_list.push_back($1) || 
+	      lex->value_list.push_back($3))
+	    YYABORT;
+	};
 
 opt_low_priority:
 	/* empty */	{ $$= YYTHD->update_lock_default; }
@@ -4219,7 +4253,9 @@ delete:
 	{
 	  LEX *lex= Lex;
 	  lex->sql_command= SQLCOM_DELETE;
+          mysql_init_select(lex);
 	  lex->lock_option= lex->thd->update_lock_default;
+	  lex->ignore= 0;
 	  lex->select_lex.init_order();
 	}
 	opt_delete_options single_multi {}
@@ -4276,7 +4312,7 @@ opt_delete_options:
 opt_delete_option:
 	QUICK		{ Select->options|= OPTION_QUICK; }
 	| LOW_PRIORITY	{ Lex->lock_option= TL_WRITE_LOW_PRIORITY; }
-	| IGNORE_SYM	{ Lex->duplicates= DUP_IGNORE; };
+	| IGNORE_SYM	{ Lex->ignore= 1; };
 
 truncate:
 	TRUNCATE_SYM opt_table_sym table_name
@@ -4507,7 +4543,7 @@ opt_db:
 wild:
 	/* empty */
 	| LIKE TEXT_STRING_sys
-	  { Lex->wild=  new (&YYTHD->mem_root) String($2.str, $2.length,
+	  { Lex->wild=  new (YYTHD->mem_root) String($2.str, $2.length,
                                                       system_charset_info); };
 
 opt_full:
@@ -4561,7 +4597,7 @@ opt_describe_column:
 	/* empty */	{}
 	| text_string	{ Lex->wild= $1; }
 	| ident
-	  { Lex->wild= new (&YYTHD->mem_root) String((const char*) $1.str,$1.length,system_charset_info); };
+	  { Lex->wild= new (YYTHD->mem_root) String((const char*) $1.str,$1.length,system_charset_info); };
 
 
 /* flush things */
@@ -4685,6 +4721,8 @@ load:	LOAD DATA_SYM load_data_lock opt_local INFILE TEXT_STRING_sys
 	  lex->sql_command= SQLCOM_LOAD;
 	  lex->lock_option= $3;
 	  lex->local_file=  $4;
+	  lex->duplicates= DUP_ERROR;
+	  lex->ignore= 0;
 	  if (!(lex->exchange= new sql_exchange($6.str,0)))
 	    YYABORT;
 	  lex->field_list.empty();
@@ -4722,7 +4760,7 @@ load_data_lock:
 opt_duplicate:
 	/* empty */	{ Lex->duplicates=DUP_ERROR; }
 	| REPLACE	{ Lex->duplicates=DUP_REPLACE; }
-	| IGNORE_SYM	{ Lex->duplicates=DUP_IGNORE; };
+	| IGNORE_SYM	{ Lex->ignore= 1; };
 
 opt_field_term:
 	/* empty */
@@ -4802,7 +4840,7 @@ text_literal:
 
 text_string:
 	TEXT_STRING_literal
-	{ $$=  new (&YYTHD->mem_root) String($1.str,$1.length,YYTHD->variables.collation_connection); }
+	{ $$=  new (YYTHD->mem_root) String($1.str,$1.length,YYTHD->variables.collation_connection); }
 	| HEX_NUM
 	  {
 	    Item *tmp = new Item_varbinary($1.str,$1.length);
@@ -5122,6 +5160,7 @@ keyword:
 	| COMMIT_SYM		{}
 	| COMPRESSED_SYM	{}
 	| CONCURRENT		{}
+	| CONSISTENT_SYM	{}
 	| CUBE_SYM		{}
 	| DATA_SYM		{}
 	| DATETIME		{}
@@ -5262,6 +5301,7 @@ keyword:
 	| SHARE_SYM		{}
 	| SHUTDOWN		{}
 	| SLAVE			{}
+	| SNAPSHOT_SYM		{}
 	| SOUNDS_SYM		{}
 	| SQL_CACHE_SYM		{}
 	| SQL_BUFFER_RESULT	{}
@@ -5306,6 +5346,7 @@ set:
 	{
 	  LEX *lex=Lex;
 	  lex->sql_command= SQLCOM_SET_OPTION;
+          mysql_init_select(lex);
 	  lex->option_type=OPT_SESSION;
 	  lex->var_list.empty();
           lex->one_shot_set= 0;
@@ -5612,7 +5653,7 @@ revoke_command:
 	grant_privileges ON opt_table FROM user_list
 	{}
 	|
-	ALL PRIVILEGES ',' GRANT OPTION FROM user_list
+	ALL opt_privileges ',' GRANT OPTION FROM user_list
 	{
 	  Lex->sql_command = SQLCOM_REVOKE_ALL;
 	}
@@ -5638,9 +5679,13 @@ grant:
 
 grant_privileges:
 	grant_privilege_list {}
-	| ALL PRIVILEGES	{ Lex->grant = GLOBAL_ACLS;}
-	| ALL			{ Lex->grant = GLOBAL_ACLS;}
+	| ALL opt_privileges	{ Lex->grant = GLOBAL_ACLS;}
         ;
+
+opt_privileges:
+	/* empty */
+	| PRIVILEGES
+	;
 
 grant_privilege_list:
 	grant_privilege
@@ -5821,7 +5866,7 @@ column_list:
 column_list_id:
 	ident
 	{
-	  String *new_str = new (&YYTHD->mem_root) String((const char*) $1.str,$1.length,system_charset_info);
+	  String *new_str = new (YYTHD->mem_root) String((const char*) $1.str,$1.length,system_charset_info);
 	  List_iterator <LEX_COLUMN> iter(Lex->columns);
 	  class LEX_COLUMN *point;
 	  LEX *lex=Lex;
@@ -5888,7 +5933,7 @@ grant_option:
         ;
 
 begin:
-	BEGIN_SYM   { Lex->sql_command = SQLCOM_BEGIN;} opt_work {}
+	BEGIN_SYM   { Lex->sql_command = SQLCOM_BEGIN; Lex->start_transaction_opt= 0;} opt_work {}
 	;
 
 opt_work:

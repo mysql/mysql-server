@@ -277,6 +277,7 @@ public:
   virtual bool get_date(TIME *ltime,uint fuzzydate);
   virtual bool get_time(TIME *ltime);
   virtual CHARSET_INFO *charset(void) const { return &my_charset_bin; }
+  virtual CHARSET_INFO *sort_charset(void) const { return charset(); }
   virtual bool has_charset(void) const { return FALSE; }
   virtual void set_charset(CHARSET_INFO *charset) { }
   bool set_warning(const unsigned int level, const unsigned int code, 
@@ -1152,6 +1153,8 @@ public:
   bool optimize_range(uint idx, uint part) { return 0; }
   bool eq_def(Field *field);
   bool has_charset(void) const { return TRUE; }
+  /* enum and set are sorted as integers */
+  CHARSET_INFO *sort_charset(void) const { return &my_charset_bin; }
   field_cast_enum field_cast_type() { return FIELD_CAST_ENUM; }
 };
 
@@ -1198,6 +1201,7 @@ public:
   uint decimals,flags,pack_length;
   Field::utype unireg_check;
   TYPELIB *interval;			// Which interval to use
+  List<String> interval_list;
   CHARSET_INFO *charset;
   Field::geometry_type geom_type;
   Field *field;				// For alter table
@@ -1264,6 +1268,7 @@ int set_field_to_null(Field *field);
 int set_field_to_null_with_conversions(Field *field, bool no_conversions);
 bool test_if_int(const char *str, int length, const char *int_end,
 		 CHARSET_INFO *cs);
+bool field_types_to_be_kept(enum_field_types field_type);
 
 /*
   The following are for the interface with the .frm file
@@ -1274,10 +1279,10 @@ bool test_if_int(const char *str, int length, const char *int_end,
 #define FIELDFLAG_NUMBER		2
 #define FIELDFLAG_ZEROFILL		4
 #define FIELDFLAG_PACK			120	// Bits used for packing
-#define FIELDFLAG_INTERVAL		256
-#define FIELDFLAG_BITFIELD		512	// mangled with dec!
-#define FIELDFLAG_BLOB			1024	// mangled with dec!
-#define FIELDFLAG_GEOM			2048
+#define FIELDFLAG_INTERVAL		256     // mangled with decimals!
+#define FIELDFLAG_BITFIELD		512	// mangled with decimals!
+#define FIELDFLAG_BLOB			1024	// mangled with decimals!
+#define FIELDFLAG_GEOM			2048    // mangled with decimals!
 
 #define FIELDFLAG_LEFT_FULLSCREEN	8192
 #define FIELDFLAG_RIGHT_FULLSCREEN	16384
@@ -1302,10 +1307,10 @@ bool test_if_int(const char *str, int length, const char *int_end,
 #define f_decimals(x)		((uint8) (((x) >> FIELDFLAG_DEC_SHIFT) & FIELDFLAG_MAX_DEC))
 #define f_is_alpha(x)		(!f_is_num(x))
 #define f_is_binary(x)          ((x) & FIELDFLAG_BINARY) // 4.0- compatibility
-#define f_is_enum(x)            ((x) & FIELDFLAG_INTERVAL)
-#define f_is_bitfield(x)	((x) & FIELDFLAG_BITFIELD)
+#define f_is_enum(x)            (((x) & (FIELDFLAG_INTERVAL | FIELDFLAG_NUMBER)) == FIELDFLAG_INTERVAL)
+#define f_is_bitfield(x)        (((x) & (FIELDFLAG_BITFIELD | FIELDFLAG_NUMBER)) == FIELDFLAG_BITFIELD)
 #define f_is_blob(x)		(((x) & (FIELDFLAG_BLOB | FIELDFLAG_NUMBER)) == FIELDFLAG_BLOB)
-#define f_is_geom(x)		((x) & FIELDFLAG_GEOM)
+#define f_is_geom(x)		(((x) & (FIELDFLAG_GEOM | FIELDFLAG_NUMBER)) == FIELDFLAG_GEOM)
 #define f_is_equ(x)		((x) & (1+2+FIELDFLAG_PACK+31*256))
 #define f_settype(x)		(((int) x) << FIELDFLAG_PACK_SHIFT)
 #define f_maybe_null(x)		(x & FIELDFLAG_MAYBE_NULL)
