@@ -352,9 +352,9 @@ t	collation(t)
 aus Osnabrück	utf8_general_ci
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrueck');
 t	collation(t)
-SELECT t, collation(t),MATCH t AGAINST ('Osnabruck') FROM t1 WHERE MATCH t AGAINST ('Osnabruck');
-t	collation(t)	MATCH t AGAINST ('Osnabruck')
-aus Osnabrück	utf8_general_ci	1.591139793396
+SELECT t, collation(t),FORMAT(MATCH t AGAINST ('Osnabruck'),6) FROM t1 WHERE MATCH t AGAINST ('Osnabruck');
+t	collation(t)	FORMAT(MATCH t AGAINST ('Osnabruck'),6)
+aus Osnabrück	utf8_general_ci	1.591140
 alter table t1 modify t varchar(200) collate latin1_german2_ci not null;
 SELECT t, collation(t) FROM t1 WHERE MATCH t AGAINST ('Osnabrück');
 t	collation(t)

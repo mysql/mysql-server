@@ -180,9 +180,9 @@ typedef struct
   int alloced;
 } VAR;
 
-#ifdef __NETWARE__
+#if defined(__NETWARE__) || defined(__WIN__)
 /*
-  Netware doesn't proved environment variable substitution that is done
+  Netware and Windows don't proved environment variable substitution that is done
   by the shell in unix environments. We do this in the following function:
 */
 
@@ -479,7 +479,7 @@ static void free_used_memory()
   free_defaults(default_argv);
   mysql_server_end();
   my_end(MY_CHECK_ERROR);
-  DBUG_VOID_RETURN;
+//  DBUG_VOID_RETURN;
 }
 
 static void die(const char* fmt, ...)
@@ -885,8 +885,8 @@ int do_exec(struct st_query* q)
   char buf[1024];
   FILE *res_file;
   char *cmd= q->first_argument;
+	
   DBUG_ENTER("do_exec");
-
   while (*cmd && my_isspace(charset_info, *cmd))
     cmd++;
   if (!*cmd)
@@ -935,8 +935,11 @@ int do_exec(struct st_query* q)
     if (ds == &ds_tmp)
       dynstr_free(&ds_tmp);
   }
+#ifndef __WIN__
   pclose(res_file);
-  
+#else
+  _pclose(res_file);
+#endif
   DBUG_RETURN(error);
 }
 
@@ -1517,8 +1520,8 @@ void init_manager()
     die("Failed in mysql_manager_init()");
   if (!mysql_manager_connect(manager,manager_host,manager_user,
 			     manager_pass,manager_port))
-    die("Could not connect to MySQL manager: %s(%d)",manager->last_error,
-	manager->last_errno);
+    die("Could not connect to MySQL manager: %s(%d) %d",manager->last_error,
+	manager->last_errno, manager_port);
 
 }
 #endif
@@ -1575,7 +1578,7 @@ int do_connect(struct st_query* q)
     if (*con_port_str == '$')
     {
       if (!(var_port = var_get(con_port_str, 0, 0, 0)))
-	die("Unknown variable '%s'", con_port_str+1);
+	    die("Unknown variable '%s'", con_port_str+1);
       con_port = var_port->int_val;
     }
     else
@@ -1584,9 +1587,9 @@ int do_connect(struct st_query* q)
     if (*con_sock == '$')
     {
       if (!(var_sock = var_get(con_sock, 0, 0, 0)))
-	die("Unknown variable '%s'", con_sock+1);
+	    die("Unknown variable '%s'", con_sock+1);
       if (!(con_sock = (char*)my_malloc(var_sock->str_val_len+1, MYF(0))))
-	die("Out of memory");
+	    die("Out of memory");
       free_con_sock = 1;
       memcpy(con_sock, var_sock->str_val, var_sock->str_val_len);
       con_sock[var_sock->str_val_len] = 0;
@@ -1617,8 +1620,8 @@ int do_connect(struct st_query* q)
   if ((safe_connect(&next_con->mysql, con_host,
 		    con_user, con_pass,
 		    con_db, con_port, con_sock ? con_sock: 0)))
-    die("Could not open connection '%s': %s", con_name,
-	mysql_error(&next_con->mysql));
+    die("Could not open connection '%s': %s %d", con_name,
+	mysql_error(&next_con->mysql),con_port);
 
   if (!(next_con->name = my_strdup(con_name, MYF(MY_WME))))
     die(NullS);
@@ -3686,8 +3689,7 @@ static void get_replace_column(struct st_query *q)
   my_free(start, MYF(0));
 }
 
-#ifdef __NETWARE__
-
+#if defined(__NETWARE__) || defined(__WIN__)
 /*
   Substitute environment variables with text.
 
@@ -3778,9 +3780,13 @@ FILE *my_popen(const char *cmd, const char *mode __attribute__((unused)))
   FILE *res_file;
 
   subst_cmd= subst_env_var(cmd);
+#ifndef __WIN__
   res_file= popen(subst_cmd, "r0");
+#else
+  res_file= _popen(subst_cmd, "r0");
+#endif
   my_free(subst_cmd, MYF(0));
   return res_file;
 }
 
-#endif /* __NETWARE__ */
+#endif /* __NETWARE__ or  __WIN__*/
