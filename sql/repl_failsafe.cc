@@ -138,6 +138,7 @@ int update_slave_list(MYSQL* mysql)
 	goto err;
       }
       si->server_id = server_id;
+      hash_insert(&slave_list, (byte*)si);
     }
     strnmov(si->host, row[1], sizeof(si->host));
     si->port = atoi(row[port_ind]);

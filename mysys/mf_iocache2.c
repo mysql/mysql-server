@@ -38,10 +38,10 @@ void my_b_seek(IO_CACHE *info,my_off_t pos)
   }
   else if (info->type == WRITE_CACHE)
   {
-    byte* try_rc_pos;
-    try_rc_pos = info->rc_pos + (pos - info->pos_in_file);
-    if (try_rc_pos >= info->buffer && try_rc_pos <= info->rc_end)
-      info->rc_pos = try_rc_pos;
+    byte* try_write_pos;
+    try_write_pos = info->write_pos + (pos - info->pos_in_file);
+    if (try_write_pos >= info->buffer && try_write_pos <= info->write_end)
+      info->write_pos = try_write_pos;
     else
       flush_io_cache(info);
   }

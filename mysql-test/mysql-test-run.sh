@@ -177,6 +177,7 @@ while test $# -gt 0; do
     --skip-rpl) NO_SLAVE=1 ;;
     --skip-test=*) SKIP_TEST=`$ECHO "$1" | $SED -e "s;--skip-test=;;"`;;
     --do-test=*) DO_TEST=`$ECHO "$1" | $SED -e "s;--do-test=;;"`;;
+    --skip-gdb-magic) SKIP_GDB_MAGIC=1 ;;
     --wait-timeout=*)
      START_WAIT_TIMEOUT=`$ECHO "$1" | $SED -e "s;--wait-timeout=;;"`
      STOP_WAIT_TIMEOUT=$START_WAIT_TIMEOUT;;
@@ -654,7 +655,7 @@ start_master()
             --basedir=$MY_BASEDIR --init-rpl-role=master \
 	    --port=$MASTER_MYPORT \
 	    --exit-info=256 \
-	    --core
+	    --core \
             --datadir=$MASTER_MYDDIR \
 	    --pid-file=$MASTER_MYPID \
 	    --socket=$MASTER_MYSOCK \
@@ -694,13 +695,18 @@ start_master()
       "gdb -x $GDB_MASTER_INIT" $MYSQLD 
     elif [ x$DO_GDB = x1 ]
     then
-      $CAT <<__GDB_MASTER_INIT__  > $GDB_MASTER_INIT
+      ( echo set args $master_args;
+        if [ -z "$SKIP_GDB_MAGIC" ] ;
+	then
+	 cat <<EOF
 b mysql_parse
 commands 1
-dele 1
+echo If you do not want to break here anymore, type dele 1\n
+echo If you not want to break at all, use --skip-gdb-magic\n
 end
-r $master_args
-__GDB_MASTER_INIT__
+r
+EOF
+      fi )  > $GDB_MASTER_INIT     
       manager_launch master $XTERM -display $DISPLAY \
       -title "Master" -e gdb -x $GDB_MASTER_INIT $MYSQLD 
     else	    
@@ -982,7 +988,7 @@ run_testcase ()
    fi
  fi
  cd $MYSQL_TEST_DIR
-  
+   
  if [ -f $tf ] ; then
     $RM -f r/$tname.*reject
     mysql_test_args="-R r/$tname.result $EXTRA_MYSQL_TEST_OPT"
