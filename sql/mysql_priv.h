@@ -651,8 +651,13 @@ void execute_init_command(THD *thd, sys_var_str *init_command_var,
 			  rw_lock_t *var_mutex);
 extern const Field *not_found_field;
 extern const Field *view_ref_found;
+
+enum find_item_error_report_type {REPORT_ALL_ERRORS, REPORT_EXCEPT_NOT_FOUND,
+				  IGNORE_ERRORS, REPORT_EXCEPT_NON_UNIQUE,
+                                  IGNORE_EXCEPT_NON_UNIQUE};
 Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *tables,
-			    Item **ref, bool report_error,
+			    Item **ref,
+                            find_item_error_report_type report_error,
                             bool check_privileges);
 Field *
 find_field_in_table(THD *thd, TABLE_LIST *table_list,
@@ -771,8 +776,6 @@ TABLE *unlink_open_table(THD *thd,TABLE *list,TABLE *find);
 SQL_SELECT *make_select(TABLE *head, table_map const_tables,
 			table_map read_tables, COND *conds, int *error,
                         bool allow_null_cond= false);
-enum find_item_error_report_type {REPORT_ALL_ERRORS, REPORT_EXCEPT_NOT_FOUND,
-				  IGNORE_ERRORS};
 extern const Item **not_found_item;
 Item ** find_item_in_list(Item *item, List<Item> &items, uint *counter,
                           find_item_error_report_type report_error,
