@@ -641,9 +641,11 @@ void Item_func_concat_ws::fix_length_and_dec()
   max_length=separator->max_length*(arg_count-1);
   for (uint i=0 ; i < arg_count ; i++)
   {
+    DTCollation tmp(collation.collation, collation.derivation);
     max_length+=args[i]->max_length;
     if (collation.aggregate(args[i]->collation))
     {
+      collation.set(tmp); // Restore the previous value
       my_coll_agg_error(collation, args[i]->collation, func_name());
       break;
     }

@@ -339,6 +339,8 @@ select concat(_latin1'a',_latin2'a',_latin5'a');
 ERROR HY000: Illegal mix of collations (latin1_swedish_ci,COERCIBLE), (latin2_general_ci,COERCIBLE), (latin5_turkish_ci,COERCIBLE) for operation 'concat'
 select concat(_latin1'a',_latin2'a',_latin5'a',_latin7'a');
 ERROR HY000: Illegal mix of collations for operation 'concat'
+select concat_ws(_latin1'a',_latin2'a');
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,COERCIBLE) and (latin2_general_ci,COERCIBLE) for operation 'concat_ws'
 select FIELD('b','A','B');
 FIELD('b','A','B')
 2

@@ -210,7 +210,8 @@ typedef struct charset_info_st
   uint      strxfrm_multiply;
   uint      mbminlen;
   uint      mbmaxlen;
-  char      max_sort_char; /* For LIKE optimization */
+  uint16    min_sort_char;
+  uint16    max_sort_char; /* For LIKE optimization */
   
   MY_CHARSET_HANDLER *cset;
   MY_COLLATION_HANDLER *coll;
@@ -304,6 +305,13 @@ my_bool  my_like_range_simple(CHARSET_INFO *cs,
 			      uint res_length,
 			      char *min_str, char *max_str,
 			      uint *min_length, uint *max_length);
+
+my_bool  my_like_range_ucs2(CHARSET_INFO *cs,
+			    const char *ptr, uint ptr_length,
+			    pbool escape, pbool w_one, pbool w_many,
+			    uint res_length,
+			    char *min_str, char *max_str,
+			    uint *min_length, uint *max_length);
 
 
 int my_wildcmp_8bit(CHARSET_INFO *,

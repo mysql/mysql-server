@@ -21,7 +21,7 @@ select * from mysqltest.mysqltest;
 n
 4
 drop database if exists mysqltest;
-affected rows: 4
+affected rows: 1
 create database mysqltest;
 drop database mysqltest;
 flush tables with read lock;

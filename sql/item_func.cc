@@ -1545,11 +1545,11 @@ udf_handler::fix_fields(THD *thd, TABLE_LIST *tables, Item_result_field *func,
 	 arg++,i++)
     {
       if ((*arg)->fix_fields(thd, tables, arg))
-	return 1;
+	DBUG_RETURN(1);
       // we can't assign 'item' before, because fix_fields() can change arg
       Item *item= *arg;
       if (item->check_cols(1))
-	return 1;
+	DBUG_RETURN(1);
       /*
 	TODO: We should think about this. It is not always
 	right way just to set an UDF result to return my_charset_bin
