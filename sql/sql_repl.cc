@@ -256,7 +256,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, ulong pos, ushort flags)
 
   if(pos < 4)
   {
-    errmsg = "Contratulations! You have hit the magic number and can win \
+    errmsg = "Congratulations! You have hit the magic number and can win \
 sweepstakes if you report the bug";
     goto err;
   }
@@ -291,6 +291,8 @@ sweepstakes if you report the bug";
       packet->length(0);
       packet->append("\0",1);
     }
+    
+    
     if(error != LOG_READ_EOF)
     {
       switch(error)
