@@ -2111,7 +2111,7 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile \
  strings/Makefile regex/Makefile heap/Makefile \
  bdb/Makefile \
  myisam/Makefile myisammrg/Makefile \
- man/Makefile readline/Makefile \
+ man/Makefile readline/Makefile vio/Makefile \
  libmysql_r/Makefile libmysqld/Makefile libmysql/Makefile client/Makefile \
  pstack/Makefile sql/Makefile sql/share/Makefile \
  merge/Makefile dbug/Makefile scripts/Makefile \
