@@ -1,0 +1,69 @@
+# This is the BitKeeper configuration for this package.
+# 
+# Please take a minute to fill it out carefully, it needs to be accurate.
+# 
+# NOTICE: you really do want to fill this out, if something goes wrong
+# with your repository, or if someone changes the logging policy, we
+# send mail to the contact listed here for confirmation.
+# 
+# BitKeeper can maintain a log of your change comments (not your source,
+# just the comments) on a centralized server.  This is useful as your
+# project grows, it gives people a place to go see what is happening on
+# a per project basis.  This is especially useful for distributed developers.
+# 
+
+# 
+# Name of the project, such as "BitKeeper" or "The GNU C compiler".
+# 
+description: MySQL - fast and reliable SQL database 
+# 
+# Open Logging server.  This site is where users go to see the
+# changelog comments for all instances of this repository.  This must
+# be logging@openlogging.org for usage under the terms of the BKL,
+# "bk help bkl" will show you the default licensing terms.  If this
+# repository is commercial it can be an internal email address or "none"
+# to disable logging.
+# 
+logging:  logging@openlogging.org
+# 
+# If this field is set, all checkins will appear to be made by this user,
+# in effect making this a single user package.  Single user packages are
+# free from the logging constraint.  In order for the package to really
+# be free, both the single_user and the single_host field need to be set.
+# 
+single_user: 
+# 
+# If this field is set, all checkins will appear to be made on this host.
+# 
+single_host: 
+# 
+# Contact person for this project.  This is whoever is the person that
+# should be contacted with update information or contacted if BitKeeper
+# discovers a problem which requires local intervention.  Please make the
+# contact information accurate so we can support you.
+# 
+contact: Sasha Pachev <sasha@mysql.com> 
+# 
+# It is very important that this email address is filled out and accurate.
+# If someone converts your repository to open logging (which you may not
+# want), we will contact this email address for confirmation that you really
+# did want open logging.  If the email address is inaccurate and we get no
+# response from anyone else at your location after 90 days, then open logging
+# will be implicitly approved.
+# 
+email: sasha@mysql.com 
+# 
+# Add your street address if you like, it is optional.
+# 
+street: 
+city: 
+state: 
+postal: 
+country: 
+phone: 
+cell: 
+pager: 
+# 
+# Business Hours when we can contact you if you left a phone number.
+# 
+hours: 
