@@ -3880,7 +3880,7 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
   {
     memcpy(ptr,from,length);
     if (length < field_length)
-      bfill(ptr+length,field_length-length,' ');
+      field_charset->fill(field_charset,ptr+length,field_length-length,' ');
   }
   else
   {
@@ -3888,14 +3888,12 @@ int Field_string::store(const char *from,uint length,CHARSET_INFO *cs)
     if (current_thd->count_cuted_fields)
     {						// Check if we loosed some info
       const char *end=from+length;
-      for (from+=field_length ; from != end ; from++)
+      from+= field_length;
+      from+= field_charset->scan(field_charset, from, end, MY_SEQ_SPACES);
+      if (from != end)
       {
-	if (!my_isspace(field_charset,*from))
-	{
-	  current_thd->cuted_fields++;
-	  error=1;
-	  break;
-	}
+        current_thd->cuted_fields++;
+	error=1;
       }
     }
   }
