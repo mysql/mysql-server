@@ -446,7 +446,7 @@ fi
 %files server
 %defattr(-,root,root,0755)
 
-%doc COPYING EXCEPTIONS README 
+%doc COPYING EXCEPTIONS-CLIENT README 
 %doc Docs/manual.{html,ps,texi,txt}
 %doc Docs/manual_toc.html
 %doc support-files/my-*.cnf

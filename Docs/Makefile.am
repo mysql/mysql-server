@@ -26,7 +26,7 @@ EXTRA_DIST =		$(noinst_SCRIPTS) $(BUILT_SOURCES) mysqld_error.txt \
 
 all:			$(targets) txt_files
 
-txt_files:		../INSTALL-SOURCE ../COPYING ../EXCEPTIONS \
+txt_files:		../INSTALL-SOURCE ../COPYING ../EXCEPTIONS-CLIENT \
 			INSTALL-BINARY ../support-files/MacOSX/ReadMe.txt
 
 CLEAN_FILES:		$(BUILD_SOURCES)
@@ -204,7 +204,7 @@ INSTALL-BINARY:	mysql.info $(GT)
 ../COPYING:		mysql.info $(GT)
 	perl -w $(GT) mysql.info "GPL license" "MySQL FLOSS License Exception" > $@
 
-../EXCEPTIONS: mysql.info $(GT)
+../EXCEPTIONS-CLIENT: mysql.info $(GT)
 	perl -w $(GT) mysql.info "MySQL FLOSS License Exception" "Function Index" > $@
 
 ../support-files/MacOSX/ReadMe.txt:	mysql.info $(GT)
