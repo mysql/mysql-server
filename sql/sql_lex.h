@@ -227,8 +227,9 @@ protected:
   select_result *result;
   int res;
   bool describe, found_rows_for_union,
-    prepared, //prepare phase already performed for UNION (unit)
-    optimized; // optimize phase already performed for UNION (unit)
+    prepared, // prepare phase already performed for UNION (unit)
+    optimized, // optimize phase already performed for UNION (unit)
+    executed; // already executed
 public:
   /*
     Pointer to 'last' select or pointer to unit where stored
