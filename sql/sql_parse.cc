@@ -2840,7 +2840,7 @@ unsent_create_error:
         Is table which we are changing used somewhere in other parts of
         query
       */
-      if (unique_table(first_table, all_tables->next_independent()))
+      if (unique_table(first_table, all_tables->next_global))
       {
         /* Using same table for INSERT and SELECT */
         select_lex->options |= OPTION_BUFFER_RESULT;

@@ -595,7 +595,8 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
     {
       if ((!strcmp(table->db, db_name) &&
            !strcmp(table->real_name, table_name)) ||
-          (table->view &&
+          (table->view &&                      // it is VIEW and
+           table->table->table_cache_key &&    // it is not temporary table
            !strcmp(table->table->table_cache_key, db_name) &&
            !strcmp(table->table->table_name, table_name)))
         break;
@@ -620,6 +621,8 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
 
 TABLE_LIST* unique_table(TABLE_LIST *table, TABLE_LIST *table_list)
 {
+  DBUG_ENTER("unique_table");
+  DBUG_PRINT("enter", ("table alias: %s", table->alias));
   TABLE_LIST *res;
   const char *d_name= table->db, *t_name= table->real_name;
   char d_name_buff[MAX_ALIAS_NAME], t_name_buff[MAX_ALIAS_NAME];
@@ -646,13 +649,18 @@ TABLE_LIST* unique_table(TABLE_LIST *table, TABLE_LIST *table_list)
       return 0;
     }
   }
-  if ((res= find_table_in_global_list(table_list, d_name, t_name)) &&
-      res->table && res->table == table->table)
+
+  DBUG_PRINT("info", ("real table: %s.%s", d_name, t_name));
+  for(;;)
   {
-    // we found entry of this table try again.
-    return find_table_in_global_list(res->next_global, d_name, t_name);
+    if (!(res= find_table_in_global_list(table_list, d_name, t_name)) ||
+        !res->table || res->table != table->table)
+      break;
+    /* if we found entry of this table try again. */
+    table_list= res->next_global;
+    DBUG_PRINT("info", ("found same copy of table"));
   }
-  return res;
+  DBUG_RETURN(res);
 }
 
 
