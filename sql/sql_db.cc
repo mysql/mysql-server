@@ -264,9 +264,10 @@ bool mysql_change_db(THD *thd,const char *name)
     send_error(&thd->net,ER_NO_DB_ERROR);	/* purecov: inspected */
     DBUG_RETURN(1);				/* purecov: inspected */
   }
-  if (length > NAME_LEN)
+  if ((length > NAME_LEN) || check_db_name(dbname))
   {
     net_printf(&thd->net,ER_WRONG_DB_NAME, dbname);
+    x_free(dbname);
     DBUG_RETURN(1);
   }
   DBUG_PRINT("general",("Use database: %s", dbname));
