@@ -390,8 +390,8 @@ public:
   int listObjects(List& list, NdbDictionary::Object::Type type);
   int listIndexes(List& list, const char * tableName);
   
-  NdbTableImpl * getTable(const char * tableName);
-  NdbTableImpl * getTableImpl(const char * internalName);
+  NdbTableImpl * getTable(const char * tableName, void **data= 0);
+  Ndb_local_table_info * get_local_table_info(const char * internalName);
   NdbIndexImpl * getIndex(const char * indexName,
 			  const char * tableName);
   NdbIndexImpl * getIndexImpl(const char * name, const char * internalName);
@@ -410,6 +410,8 @@ public:
 
   NdbDictInterface m_receiver;
   Ndb & m_ndb;
+private:
+  Ndb_local_table_info * fetchGlobalTableImpl(const char * internalName);
 };
 
 inline
@@ -598,45 +600,28 @@ NdbDictionaryImpl::getImpl(const NdbDictionary::Dictionary & t){
 
 inline
 NdbTableImpl * 
-NdbDictionaryImpl::getTable(const char * tableName)
+NdbDictionaryImpl::getTable(const char * tableName, void **data)
 {
   const char * internalTableName = m_ndb.internalizeTableName(tableName);
-
-  return getTableImpl(internalTableName);
+  Ndb_local_table_info *info= get_local_table_info(internalTableName);
+  if (info == 0) {
+    return 0;
+  }
+  if (data) {
+    *data= info->m_local_data;
+  }
+  return info->m_table_impl;
 }
 
 inline
-NdbTableImpl * 
-NdbDictionaryImpl::getTableImpl(const char * internalTableName)
+Ndb_local_table_info * 
+NdbDictionaryImpl::get_local_table_info(const char * internalTableName)
 {
-  NdbTableImpl *ret = m_localHash.get(internalTableName);
-
-  if (ret != 0) {
-    return ret; // autoincrement already initialized
+  Ndb_local_table_info *info= m_localHash.get(internalTableName);
+  if (info != 0) {
+    return info; // autoincrement already initialized
   }
-
-  m_globalHash->lock();
-  ret = m_globalHash->get(internalTableName);
-  m_globalHash->unlock();
-
-  if (ret == 0){
-    ret = m_receiver.getTable(internalTableName, m_ndb.usingFullyQualifiedNames());
-    m_globalHash->lock();
-    m_globalHash->put(internalTableName, ret);
-    m_globalHash->unlock();
-    
-    if(ret == 0){
-      return 0;
-    }
-  }
-  m_localHash.put(internalTableName, ret);
-
-  m_ndb.theFirstTupleId[ret->getTableId()] = ~0;
-  m_ndb.theLastTupleId[ret->getTableId()]  = ~0;
-  
-  addBlobTables(*ret);
-
-  return ret;
+  return fetchGlobalTableImpl(internalTableName);
 }
 
 inline
@@ -654,9 +639,9 @@ NdbDictionaryImpl::getIndex(const char * indexName,
       internalIndexName = m_ndb.internalizeTableName(indexName); // Index is also a table
     }
     if (internalIndexName) {
-      NdbTableImpl * tab = getTableImpl(internalIndexName);
-      
-      if (tab) {
+      Ndb_local_table_info * info = get_local_table_info(internalIndexName);
+      if (info) {
+	NdbTableImpl * tab = info->m_table_impl;
         if (tab->m_index == 0)
           tab->m_index = getIndexImpl(indexName, internalIndexName);
         if (tab->m_index != 0)
