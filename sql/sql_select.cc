@@ -501,8 +501,8 @@ mysql_select(THD *thd,TABLE_LIST *tables,List<Item> &fields,COND *conds,
       select_distinct=0;
   }
   else if (select_distinct && join.tables - join.const_tables == 1 &&
-	   (thd->select_limit == HA_POS_ERROR ||
-	    (join.select_options & OPTION_FOUND_ROWS) ||
+	   ((thd->select_limit == HA_POS_ERROR ||
+	    (join.select_options & OPTION_FOUND_ROWS)) &&
 	    order &&
 	    !(skip_sort_order=
 	      test_if_skip_sort_order(&join.join_tab[join.const_tables],
@@ -2363,7 +2363,7 @@ make_simple_join(JOIN *join,TABLE *tmp_table)
   join->send_records=(ha_rows) 0;
   join->group=0;
   join->do_send_rows = 1;
-  join->row_limit=HA_POS_ERROR;
+  join->row_limit=join->thd->select_limit;
 
   join_tab->cache.buff=0;			/* No cacheing */
   join_tab->table=tmp_table;
@@ -4899,7 +4899,7 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	JOIN_TAB *jt=join->join_tab;
 	if ((join->tables == 1) && !join->tmp_table && !join->sort_and_group
 	    && !join->send_group_parts && !join->having && !jt->select_cond &&
-	    !(jt->table->file->table_flags() & HA_NOT_EXACT_COUNT))
+	    !(jt->table->file->table_flags() & HA_NOT_EXACT_COUNT) && (jt->records < INT_MAX32))
 	{
 	  /* Join over all rows in table;  Return number of found rows */
 	  join->select_options ^= OPTION_FOUND_ROWS;
@@ -6990,6 +6990,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 
   /* Don't log this into the slow query log */
   select_lex->options&= ~(QUERY_NO_INDEX_USED | QUERY_NO_GOOD_INDEX_USED);
+  thd->offset_limit=0;
   if (thd->lex.select == select_lex)
   {
     field_list.push_back(new Item_empty_string("table",NAME_LEN));
