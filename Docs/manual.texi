@@ -28438,6 +28438,12 @@ will be unsigned! @xref{Cast Functions}.
 A very small integer. The signed range is @code{-128} to @code{127}. The
 unsigned range is @code{0} to @code{255}.
 
+@tindex BOOL
+@tindex BIT
+@item BIT
+@itemx BOOL
+These are synonyms for @code{TINYINT(1)}.
+
 @tindex SMALLINT
 @item SMALLINT[(M)] [UNSIGNED] [ZEROFILL]
 
@@ -28669,12 +28675,8 @@ column that only can take 2 values: A @code{CHAR(0)}, that is not defined
 as @code{NOT NULL}, will occupy only one bit and can take only 2 values:
 @code{NULL} or @code{""}. @xref{CHAR, , @code{CHAR}}.
 
-@tindex BOOL
-@tindex BIT
-@item BIT
-@itemx BOOL
-@itemx CHAR
-These three are synonyms for @code{CHAR(1)}.
+@item CHAR
+This is a synonym for @code{CHAR(1)}.
 
 @tindex CHARACTER VARYING
 @tindex CHAR VARYING
@@ -54026,7 +54028,7 @@ ODBC or ANSI SQL92 syntax.
 Fixed syntax of @code{ALTER TABLE tbl_name ALTER COLUMN col_name SET DEFAULT
 NULL}.
 @item
-Added @code{CHAR} and @code{BIT} as synonyms for @code{CHAR(1)}.
+Added @code{CHAR} (with no length specifier) as a synonym for @code{CHAR(1)}.
 @item
 Fixed core dump when updating as a user who has only @strong{select} privilege.
 @item
