@@ -499,12 +499,15 @@ longlong Item_func_int_div::val_int()
   longlong val2=args[1]->val_int();
   if ((null_value= val2 == 0 || args[0]->null_value || args[1]->null_value))
     return 0;
-  return value/val2;
+  return (unsigned_flag ?
+	  (ulonglong) value / (ulonglong) val2 :
+	  value / val2);
 }
 
 
 void Item_func_int_div::fix_length_and_dec()
 {
+  find_num_type();
   max_length=args[0]->max_length - args[0]->decimals;
   maybe_null=1;
 }
