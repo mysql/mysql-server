@@ -7,7 +7,7 @@ thread is usually allocated per processor. Win32
 documentation does not know any UMS threads, which suggests
 that the concept is internal to SQL Server 7. It may mean that
 SQL Server 7 does all the scheduling of threads itself, even
-in i/o waits. We should maybe modify Innobase to use the same
+in i/o waits. We should maybe modify InnoDB to use the same
 technique, because thread switches within NT may be too slow.
 
 SQL Server 7 also mentions fibers, which are cooperatively
@@ -20,7 +20,7 @@ Windows 2000 will have something called thread pooling
 Another possibility could be to use some very fast user space
 thread library. This might confuse NT though.
 
-(c) 1995 Innobase Oy
+(c) 1995 InnoDB Oy
 
 Created 10/8/1995 Heikki Tuuri
 *******************************************************/
@@ -1093,7 +1093,7 @@ srv_read_init_val(
 			return(DB_ERROR);
 		}
 		
-		printf("Error in Innobase booting: keyword %s not found\n",
+		printf("Error in InnoDB booting: keyword %s not found\n",
 							keyword);
 		printf("from the initfile!\n");
 
@@ -1114,7 +1114,7 @@ skip_keyword:
 		}
 
 		printf(
-	"Error in Innobase booting: could not read first value after %s\n",
+	"Error in InnoDB booting: could not read first value after %s\n",
 								keyword);
 		printf("from the initfile!\n");
 
@@ -1140,7 +1140,7 @@ skip_keyword:
 			}
 			
 			printf(
-	"Error in Innobase booting: could not read second value after %s\n",
+	"Error in InnoDB booting: could not read second value after %s\n",
 							keyword);
 			printf("from the initfile!\n");
 
@@ -1156,7 +1156,7 @@ skip_keyword:
 		}
 
 		printf(
-	"Error in Innobase booting: numerical value too big after %s\n",
+	"Error in InnoDB booting: numerical value too big after %s\n",
 								keyword);
 		printf("in the initfile!\n");
 
@@ -1173,7 +1173,7 @@ skip_keyword:
 		}
 
 		printf(
-	"Error in Innobase booting: numerical value too big after %s\n",
+	"Error in InnoDB booting: numerical value too big after %s\n",
 							keyword);
 		printf("in the initfile!\n");
 
@@ -1523,7 +1523,7 @@ srv_general_init(void)
 }
 
 /*************************************************************************
-Normalizes init parameter values to use units we use inside Innobase. */
+Normalizes init parameter values to use units we use inside InnoDB. */
 static
 ulint
 srv_normalize_init_values(void)
@@ -1552,7 +1552,7 @@ srv_normalize_init_values(void)
 }
 
 /*************************************************************************
-Boots the Innobase server. */
+Boots the InnoDB server. */
 
 ulint
 srv_boot(void)
@@ -1562,7 +1562,7 @@ srv_boot(void)
 	ulint	err;
 
 	/* Transform the init parameter values given by MySQL to
-	use units we use inside Innobase: */
+	use units we use inside InnoDB: */
 	
 	err = srv_normalize_init_values();
 
@@ -1797,7 +1797,7 @@ loop:
 }
 
 /***********************************************************************
-Tells the Innobase server that there has been activity in the database
+Tells the InnoDB server that there has been activity in the database
 and wakes up the master thread if it is suspended (not sleeping). Used
 in the MySQL interface. Note that there is a small chance that the master
 thread stays suspended (we do not protect our operation with the kernel

@@ -1,0 +1,76 @@
+n1
+1
+2
+NULL
+count(distinct n1)
+2
+n2
+11
+12
+13
+NULL
+count(distinct n2)
+3
+s
+one
+two
+NULL
+count(distinct s)
+2
+vs
+eleven
+twevle
+thirteen
+NULL
+count(distinct vs)
+3
+t
+eleven
+twelve
+foo
+bar
+NULL
+count(distinct t)
+4
+n1	n2
+1	11
+2	11
+2	12
+2	13
+NULL	13
+2	NULL
+count(distinct n1,n2)
+4
+n1	s
+1	one
+2	two
+NULL	two
+2	NULL
+count(distinct n1,s)
+2
+s	n1	vs
+one	1	eleven
+two	2	eleven
+two	2	twevle
+two	2	thirteen
+two	NULL	thirteen
+NULL	2	thirteen
+two	2	NULL
+count(distinct s,n1,vs)
+4
+s	t
+one	eleven
+two	eleven
+two	twelve
+two	foo
+two	bar
+NULL	bar
+two	NULL
+count(distinct s,t)
+5
+count(distinct n1)	count(distinct n2)
+2	3
+count(distinct n2)	n1
+1	NULL
+1	1
+3	2

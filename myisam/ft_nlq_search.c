@@ -35,7 +35,8 @@ typedef struct st_ft_superdoc {
     double   tmp_weight;
 } FT_SUPERDOC;
 
-static int FT_SUPERDOC_cmp(FT_SUPERDOC *p1, FT_SUPERDOC *p2)
+static int FT_SUPERDOC_cmp(void* cmp_arg __attribute__((unused)),
+			   FT_SUPERDOC *p1, FT_SUPERDOC *p2)
 {
   if (p1->doc.dpos < p2->doc.dpos)
     return -1;
@@ -162,7 +163,7 @@ FT_DOCLIST *ft_nlq_search(MI_INFO *info, uint keynr, byte *query,
 
   bzero(&allocated_wtree,sizeof(allocated_wtree));
 
-  init_tree(&aio.dtree,0,sizeof(FT_SUPERDOC),(qsort_cmp)&FT_SUPERDOC_cmp,0,
+  init_tree(&aio.dtree,0,sizeof(FT_SUPERDOC),(qsort_cmp2)&FT_SUPERDOC_cmp,0,
             NULL);
 
   if(!(wtree=ft_parse(&allocated_wtree,query,query_len)))

@@ -72,351 +72,349 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 
 %token	END_OF_INPUT
 
-%token	ACTION
+%token CLOSE_SYM
+%token HANDLER_SYM
+%token LAST_SYM
+%token NEXT_SYM
+%token PREV_SYM
+%token SQL_CALC_FOUND_ROWS
+
+%token	EQ
+%token	EQUAL_SYM
+%token	GE
+%token	GT_SYM
+%token	LE
+%token	LT
+%token	NE
+%token	IS
+%token	SHIFT_LEFT
+%token	SHIFT_RIGHT
+%token  SET_VAR
+
+%token	AVG_SYM
+%token	COUNT_SYM
+%token	MAX_SYM
+%token	MIN_SYM
+%token	SUM_SYM
+%token	STD_SYM
+
 %token	ADD
+%token	ALTER
 %token	AFTER_SYM
-%token	AGAINST
+%token  ANALYZE_SYM
+%token  BEGIN_SYM
+%token	CHANGE
+%token  COMMENT_SYM
+%token  COMMIT_SYM
+%token	CREATE
+%token	CROSS
+%token	DELETE_SYM
+%token	DROP
+%token	INSERT
+%token	FLUSH_SYM
+%token	SELECT_SYM
+%token  MASTER_SYM
+%token	REPAIR
+%token  RESET_SYM
+%token  PURGE
+%token  SLAVE
+%token  START_SYM
+%token  STOP_SYM
+%token	TRUNCATE_SYM
+%token  ROLLBACK_SYM
+%token	OPTIMIZE
+%token	SHOW
+%token	UPDATE_SYM
+%token	KILL_SYM
+%token	LOAD
+%token	LOCK_SYM
+%token	UNLOCK_SYM
+
+%token	ACTION
 %token	AGGREGATE_SYM
 %token	ALL
-%token	ALTER
-%token	ANALYZE_SYM
 %token	AND
 %token	AS
 %token	ASC
-%token	ATAN
-%token	AUTOCOMMIT
 %token	AUTO_INC
+%token	AUTOCOMMIT
 %token	AVG_ROW_LENGTH
-%token	AVG_SYM
-%token	BACKUP_SYM
-%token	BEGIN_SYM
-%token	BENCHMARK_SYM
+%token  BACKUP_SYM
 %token	BERKELEY_DB_SYM
-%token	BETWEEN_SYM
-%token	BIGINT
 %token	BINARY
-%token	BIT_AND
-%token	BIT_OR
 %token	BIT_SYM
-%token	BLOB_SYM
 %token	BOOL_SYM
 %token	BOTH
 %token	BY
 %token	CASCADE
-%token	CASE_SYM
-%token	CHANGE
-%token	CHANGED
-%token	CHAR_SYM
 %token	CHECKSUM_SYM
 %token	CHECK_SYM
-%token	COALESCE
+%token	COMMITTED_SYM
 %token	COLUMNS
 %token	COLUMN_SYM
-%token	COMMENT_SYM
-%token	COMMITTED_SYM
-%token	COMMIT_SYM
-%token	COMPRESSED_SYM
-%token	CONCAT
-%token	CONCAT_WS
+%token	CONCURRENT
 %token	CONSTRAINT
-%token	COUNT_SYM
-%token	CREATE
-%token	CROSS
-%token	CURDATE
-%token	CURTIME
-%token	DATABASE
 %token	DATABASES
 %token	DATA_SYM
-%token	DATETIME
-%token	DATE_ADD_INTERVAL
-%token	DATE_SUB_INTERVAL
-%token	DATE_SYM
-%token	DAY_HOUR_SYM
-%token	DAY_MINUTE_SYM
-%token	DAY_SECOND_SYM
-%token	DAY_SYM
-%token	DECIMAL_SYM
-%token	DECODE_SYM
 %token	DEFAULT
 %token	DELAYED_SYM
 %token	DELAY_KEY_WRITE_SYM
-%token	DELETE_SYM
 %token	DESC
 %token	DESCRIBE
 %token	DISTINCT
-%token	DOUBLE_SYM
-%token	DROP
-%token	DUMPFILE
 %token	DYNAMIC_SYM
-%token	ELSE
-%token	ELT_FUNC
 %token	ENCLOSED
-%token	ENCODE_SYM
-%token	ENCRYPT
-%token	END
-%token	ENUM
-%token	EQ
-%token	EQUAL_SYM
 %token	ESCAPED
 %token	ESCAPE_SYM
 %token	EXISTS
-%token	EXPORT_SET
 %token	EXTENDED_SYM
-%token	EXTRACT_SYM
-%token	FAST_SYM
-%token	FIELD_FUNC
 %token	FILE_SYM
 %token	FIRST_SYM
 %token	FIXED_SYM
 %token	FLOAT_NUM
-%token	FLOAT_SYM
-%token	FLUSH_SYM
 %token	FOREIGN
-%token	FORMAT_SYM
-%token	FOR_SYM
 %token	FROM
-%token	FROM_UNIXTIME
 %token	FULL
-%token	FULLTEXT_SYM
-%token	FUNC_ARG0
-%token	FUNC_ARG1
-%token	FUNC_ARG2
-%token	FUNC_ARG3
-%token	GE
+%token  FULLTEXT_SYM
+%token  GEMINI_SYM
 %token	GEMINI_SPIN_RETRIES
-%token	GEMINI_SYM
-%token	GLOBAL_SYM
+%token  GLOBAL_SYM
 %token	GRANT
 %token	GRANTS
 %token	GREATEST_SYM
 %token	GROUP
-%token	GROUP_UNIQUE_USERS
-%token	GT_SYM
 %token	HAVING
 %token	HEAP_SYM
 %token	HEX_NUM
 %token	HIGH_PRIORITY
 %token	HOSTS_SYM
-%token	HOUR_MINUTE_SYM
-%token	HOUR_SECOND_SYM
-%token	HOUR_SYM
 %token	IDENT
-%token	IDENTIFIED_SYM
-%token	IF
 %token	IGNORE_SYM
 %token	INDEX
 %token	INFILE
 %token	INNER_SYM
 %token	INNOBASE_SYM
-%token	INSERT
-%token	INSERT_ID
-%token	INTERVAL_SYM
 %token	INTO
-%token	INT_SYM
 %token	IN_SYM
-%token	IS
+%token  ISOLATION
 %token	ISAM_SYM
-%token	ISOLATION
 %token	JOIN_SYM
 %token	KEYS
 %token	KEY_SYM
-%token	KILL_SYM
-%token	LAST_INSERT_ID
-%token	LE
 %token	LEADING
 %token	LEAST_SYM
-%token	LEFT
-%token	LEVEL_SYM
+%token  LEVEL_SYM
 %token	LEX_HOSTNAME
 %token	LIKE
-%token	LIMIT
 %token	LINES
-%token	LOAD
 %token	LOCAL_SYM
-%token	LOCATE
-%token	LOCK_SYM
 %token	LOGS_SYM
-%token	LONGBLOB
-%token	LONGTEXT
 %token	LONG_NUM
 %token	LONG_SYM
 %token	LOW_PRIORITY
-%token	LT
-%token	MAKE_SET_SYM
-%token	MASTER_CONNECT_RETRY_SYM
-%token	MASTER_HOST_SYM
-%token	MASTER_LOG_FILE_SYM
-%token	MASTER_LOG_POS_SYM
-%token	MASTER_PASSWORD_SYM
-%token	MASTER_PORT_SYM
-%token	MASTER_SYM
-%token	MASTER_USER_SYM
+%token  MASTER_HOST_SYM
+%token  MASTER_USER_SYM
+%token  MASTER_LOG_FILE_SYM
+%token  MASTER_LOG_POS_SYM
+%token  MASTER_PASSWORD_SYM
+%token  MASTER_PORT_SYM
+%token  MASTER_CONNECT_RETRY_SYM
 %token	MATCH
 %token	MAX_ROWS
-%token	MAX_SYM
-%token	MEDIUMBLOB
-%token	MEDIUMINT
-%token	MEDIUMTEXT
 %token	MEDIUM_SYM
 %token	MERGE_SYM
-%token	MINUTE_SECOND_SYM
-%token	MINUTE_SYM
 %token	MIN_ROWS
-%token	MIN_SYM
-%token	MODE_SYM
-%token	MODIFY_SYM
-%token	MONTH_SYM
 %token	MYISAM_SYM
 %token	NATIONAL_SYM
 %token	NATURAL
 %token	NCHAR_SYM
-%token	NE
 %token	NOT
-%token	NOW_SYM
 %token	NO_SYM
 %token	NULL_SYM
 %token	NUM
-%token	NUMERIC_SYM
 %token	ON
 %token	OPEN_SYM
-%token	OPTIMIZE
 %token	OPTION
 %token	OPTIONALLY
 %token	OR
-%token	ORDER_SYM
 %token	OR_OR_CONCAT
+%token	ORDER_SYM
 %token	OUTER
 %token	OUTFILE
+%token  DUMPFILE
 %token	PACK_KEYS_SYM
 %token	PARTIAL
-%token	PASSWORD
-%token	POSITION_SYM
-%token	PRECISION
 %token	PRIMARY_SYM
 %token	PRIVILEGES
-%token	PROCEDURE
 %token	PROCESS
 %token	PROCESSLIST_SYM
-%token	PURGE
-%token	QUICK
 %token	RAID_0_SYM
-%token	RAID_CHUNKS
-%token	RAID_CHUNKSIZE
 %token	RAID_STRIPED_SYM
 %token	RAID_TYPE
-%token	RAND
+%token	RAID_CHUNKS
+%token	RAID_CHUNKSIZE
 %token	READ_SYM
-%token	REAL
 %token	REAL_NUM
 %token	REFERENCES
 %token	REGEXP
 %token	RELOAD
 %token	RENAME
-%token	REPAIR
 %token	REPEATABLE_SYM
-%token	REPLACE
-%token	RESET_SYM
-%token	RESTORE_SYM
+%token  RESTORE_SYM
 %token	RESTRICT
 %token	REVOKE
-%token	RIGHT
-%token	ROLLBACK_SYM
-%token	ROUND
 %token	ROWS_SYM
 %token	ROW_FORMAT_SYM
 %token	ROW_SYM
-%token	SECOND_SYM
-%token	SELECT_SYM
+%token	SET
 %token	SERIALIZABLE_SYM
 %token	SESSION_SYM
-%token	SET
-%token	SET_VAR
-%token	SHARE_SYM
-%token	SHIFT_LEFT
-%token	SHIFT_RIGHT
-%token	SHOW
 %token	SHUTDOWN
-%token	SLAVE
-%token	SMALLINT
-%token	SQL_AUTO_IS_NULL
-%token	SQL_BIG_RESULT
-%token	SQL_BIG_SELECTS
-%token	SQL_BIG_TABLES
-%token	SQL_BUFFER_RESULT
-%token	SQL_LOG_BIN
-%token	SQL_LOG_OFF
-%token	SQL_LOG_UPDATE
-%token	SQL_LOW_PRIORITY_UPDATES
-%token	SQL_MAX_JOIN_SIZE
-%token	SQL_QUOTE_SHOW_CREATE
-%token	SQL_SAFE_UPDATES
-%token	SQL_SELECT_LIMIT
-%token	SQL_SMALL_RESULT
-%token	SQL_WARNINGS
 %token	STARTING
-%token	START_SYM
 %token	STATUS_SYM
-%token	STD_SYM
-%token	STOP_SYM
 %token	STRAIGHT_JOIN
-%token	STRING_SYM
-%token	SUBSTRING
-%token	SUBSTRING_INDEX
-%token	SUM_SYM
 %token	TABLES
 %token	TABLE_SYM
 %token	TEMPORARY
 %token	TERMINATED
 %token	TEXT_STRING
+%token	TO_SYM
+%token	TRAILING
+%token	TRANSACTION_SYM
+%token	TYPE_SYM
+%token	FUNC_ARG0
+%token	FUNC_ARG1
+%token	FUNC_ARG2
+%token	FUNC_ARG3
+%token	UDF_RETURNS_SYM
+%token	UDF_SONAME_SYM
+%token	UDF_SYM
+%token  UNCOMMITTED_SYM
+%token	UNION_SYM
+%token	UNIQUE_SYM
+%token	USAGE
+%token	USE_SYM
+%token	USING
+%token	VALUES
+%token	VARIABLES
+%token	WHERE
+%token	WITH
+%token	WRITE_SYM
+%token  COMPRESSED_SYM
+
+%token	BIGINT
+%token	BLOB_SYM
+%token	CHAR_SYM
+%token  CHANGED
+%token	COALESCE
+%token	DATETIME
+%token	DATE_SYM
+%token	DECIMAL_SYM
+%token	DOUBLE_SYM
+%token	ENUM
+%token	FAST_SYM
+%token	FLOAT_SYM
+%token	INT_SYM
+%token	LIMIT
+%token	LONGBLOB
+%token	LONGTEXT
+%token	MEDIUMBLOB
+%token	MEDIUMINT
+%token	MEDIUMTEXT
+%token	NUMERIC_SYM
+%token	PRECISION
+%token  QUICK
+%token	REAL
+%token	SMALLINT
+%token	STRING_SYM
 %token	TEXT_SYM
-%token	THEN_SYM
 %token	TIMESTAMP
 %token	TIME_SYM
 %token	TINYBLOB
 %token	TINYINT
 %token	TINYTEXT
-%token	TO_SYM
-%token	TRAILING
-%token	TRANSACTION_SYM
+%token	UNSIGNED
+%token	VARBINARY
+%token	VARCHAR
+%token	VARYING
+%token	ZEROFILL
+
+%token  AGAINST
+%token	ATAN
+%token	BETWEEN_SYM
+%token	BIT_AND
+%token	BIT_OR
+%token	CASE_SYM
+%token	CONCAT
+%token  CONCAT_WS
+%token	CURDATE
+%token	CURTIME
+%token	DATABASE
+%token	DATE_ADD_INTERVAL
+%token	DATE_SUB_INTERVAL
+%token	DAY_HOUR_SYM
+%token	DAY_MINUTE_SYM
+%token	DAY_SECOND_SYM
+%token	DAY_SYM
+%token	DECODE_SYM
+%token	ELSE
+%token	ELT_FUNC
+%token	ENCODE_SYM
+%token	ENCRYPT
+%token	EXPORT_SET
+%token	EXTRACT_SYM
+%token	FIELD_FUNC
+%token	FORMAT_SYM
+%token	FOR_SYM
+%token	FROM_UNIXTIME
+%token	GROUP_UNIQUE_USERS
+%token	HOUR_MINUTE_SYM
+%token	HOUR_SECOND_SYM
+%token	HOUR_SYM
+%token	IDENTIFIED_SYM
+%token	IF
+%token	INSERT_ID
+%token	INTERVAL_SYM
+%token	LAST_INSERT_ID
+%token	LEFT
+%token	LOCATE
+%token	MAKE_SET_SYM
+%token	MINUTE_SECOND_SYM
+%token	MINUTE_SYM
+%token  MODE_SYM
+%token	MODIFY_SYM
+%token	MONTH_SYM
+%token	NOW_SYM
+%token	PASSWORD
+%token	POSITION_SYM
+%token	PROCEDURE
+%token	RAND
+%token	REPLACE
+%token	RIGHT
+%token	ROUND
+%token	SECOND_SYM
+%token	SHARE_SYM
+%token	SUBSTRING
+%token	SUBSTRING_INDEX
 %token	TRIM
-%token	TRUNCATE_SYM
-%token	TYPE_SYM
 %token	UDA_CHAR_SUM
 %token	UDA_FLOAT_SUM
 %token	UDA_INT_SUM
 %token	UDF_CHAR_FUNC
 %token	UDF_FLOAT_FUNC
 %token	UDF_INT_FUNC
-%token	UDF_RETURNS_SYM
-%token	UDF_SONAME_SYM
-%token	UDF_SYM
-%token	UNCOMMITTED_SYM
-%token	UNION_SYM
-%token	UNIQUE_SYM
 %token	UNIQUE_USERS
 %token	UNIX_TIMESTAMP
-%token	UNLOCK_SYM
-%token	UNSIGNED
-%token	UPDATE_SYM
-%token	USAGE
 %token	USER
-%token	USE_SYM
-%token	USING
-%token	VALUES
-%token	VARBINARY
-%token	VARCHAR
-%token	VARIABLES
-%token	VARYING
 %token	WEEK_SYM
 %token	WHEN_SYM
-%token	WHERE
-%token	WITH
-%token	WORK_SYM
-%token	WRITE_SYM
-%token	YEARWEEK
+%token  WORK_SYM
 %token	YEAR_MONTH_SYM
 %token	YEAR_SYM
-%token	ZEROFILL
+%token	YEARWEEK
+%token  BENCHMARK_SYM
+%token  END
+%token  THEN_SYM
 
 %token	SQL_BIG_TABLES
 %token	SQL_BIG_SELECTS
@@ -431,7 +429,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 %token  SQL_BUFFER_RESULT
 %token	SQL_WARNINGS
 %token	SQL_AUTO_IS_NULL
-%token  SQL_CALC_FOUND_ROWS
 %token	SQL_SAFE_UPDATES
 %token  SQL_QUOTE_SHOW_CREATE
 %token  SQL_SLAVE_SKIP_COUNTER
@@ -527,13 +524,13 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	select_item_list select_item values_list no_braces
 	limit_clause delete_limit_clause fields opt_values values
 	procedure_list procedure_list2 procedure_item
-        when_list2 expr_list2
+        when_list2 expr_list2 handler
 	opt_precision opt_ignore opt_column opt_restrict
 	grant revoke set lock unlock string_list field_options field_option
 	field_opt_list opt_binary table_lock_list table_lock varchar
 	references opt_on_delete opt_on_delete_list opt_on_delete_item use
 	opt_delete_options opt_delete_option
-	opt_outer table_list table opt_option opt_place opt_low_priority
+	opt_outer table_list table_name opt_option opt_place opt_low_priority
 	opt_attribute opt_attribute_list attribute column_list column_list_id
 	opt_column_list grant_privileges opt_table user_list grant_option
 	grant_privilege grant_privilege_list
@@ -541,7 +538,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b,int *yystacksize);
 	equal optional_braces opt_key_definition key_usage_list2
 	opt_mi_check_type opt_to mi_check_types normal_join
 	table_to_table_list table_to_table opt_table_list opt_as
-	END_OF_INPUT
+	handler_rkey_function handler_rkey_mode handler_read_or_scan
+        END_OF_INPUT
 
 %type <NONE>
 	'-' '+' '*' '/' '%' '(' ')'
@@ -590,6 +588,7 @@ verb_clause:
 	| slave
 	| show
 	| truncate
+	| handler
 	| unlock
 	| update
 	| use
@@ -1910,7 +1909,8 @@ order_dir:
 limit_clause:
 	/* empty */
 	{
-	  Lex->select_limit= current_thd->default_select_limit;
+	  Lex->select_limit= (Lex->sql_command == SQLCOM_HA_READ) ?
+             1 : current_thd->default_select_limit;
 	  Lex->offset_limit= 0L;
 	}
 	| LIMIT ULONG_NUM
@@ -2015,10 +2015,10 @@ drop:
 
 
 table_list:
-	table
-	| table_list ',' table
+	table_name
+	| table_list ',' table_name
 
-table:
+table_name:
 	table_ident
 	{ if (!add_table_to_list($1,NULL,1)) YYABORT; }
 
@@ -2051,7 +2051,7 @@ insert2:
 	| insert_table {}
 
 insert_table:
-	table
+	table_name
 	{
 	  Lex->field_list.empty();
 	  Lex->many_values.empty();
@@ -2140,7 +2140,7 @@ values:
 /* Update rows in a table */
 
 update:
-	UPDATE_SYM opt_low_priority opt_ignore table 
+	UPDATE_SYM opt_low_priority opt_ignore table_name
         SET update_list 
         where_clause 
         opt_order_clause
@@ -2179,7 +2179,7 @@ delete:
           Lex->order_list.first=0;
           Lex->order_list.next= (byte**) &Lex->order_list.first;
         }
-        opt_delete_options FROM table
+        opt_delete_options FROM table_name
 	where_clause opt_order_clause delete_limit_clause
 
 
@@ -2192,7 +2192,7 @@ opt_delete_option:
 	| LOW_PRIORITY	{ Lex->lock_option= TL_WRITE_LOW_PRIORITY; }
 
 truncate:
-	TRUNCATE_SYM opt_table_sym table
+	TRUNCATE_SYM opt_table_sym table_name
 	{
 	  LEX* lex = Lex;
 	  lex->sql_command= SQLCOM_TRUNCATE;
@@ -2397,6 +2397,12 @@ opt_local:
 	/* empty */	{ $$=0;}
 	| LOCAL_SYM	{ $$=1;}
 
+load_data_lock:
+	/* empty */	{ Lex->lock_option= current_thd->update_lock_default; }
+	| CONCURRENT	{ Lex->lock_option= TL_WRITE_CONCURRENT_INSERT ; }
+	| LOW_PRIORITY	{ Lex->lock_option= TL_WRITE_LOW_PRIORITY; }
+
+
 opt_duplicate:
 	/* empty */	{ Lex->duplicates=DUP_ERROR; }
 	| REPLACE	{ Lex->duplicates=DUP_REPLACE; }
@@ -2550,10 +2556,12 @@ keyword:
 	| CHANGED		{}
 	| CHECKSUM_SYM		{}
 	| CHECK_SYM		{}
+	| CLOSE_SYM		{}
 	| COMMENT_SYM		{}
 	| COMMIT_SYM		{}
 	| COMMITTED_SYM		{}
 	| COMPRESSED_SYM	{}
+	| CONCURRENT		{}
 	| DATA_SYM		{}
 	| DATETIME		{}
 	| DATE_SYM		{}
@@ -2575,12 +2583,14 @@ keyword:
 	| GEMINI_SYM		{}
 	| GLOBAL_SYM		{}
 	| HEAP_SYM		{}
+	| HANDLER_SYM		{}
 	| HOSTS_SYM		{}
 	| HOUR_SYM		{}
 	| IDENTIFIED_SYM	{}
 	| ISOLATION		{}
 	| ISAM_SYM		{}
 	| INNOBASE_SYM		{}
+	| LAST_SYM		{}
 	| LEVEL_SYM		{}
 	| LOCAL_SYM		{}
 	| LOGS_SYM		{}
@@ -2603,10 +2613,12 @@ keyword:
 	| MYISAM_SYM		{}
 	| NATIONAL_SYM		{}
 	| NCHAR_SYM		{}
+	| NEXT_SYM		{}
 	| NO_SYM		{}
 	| OPEN_SYM		{}
 	| PACK_KEYS_SYM		{}
 	| PASSWORD		{}
+	| PREV_SYM		{}
 	| PROCESS		{}
 	| PROCESSLIST_SYM	{}
 	| QUICK			{}
@@ -2862,6 +2874,58 @@ lock_option:
 unlock:
 	UNLOCK_SYM table_or_tables { Lex->sql_command=SQLCOM_UNLOCK_TABLES; }
 
+
+/*
+** Handler: direct access to ISAM functions
+*/
+
+handler:
+	HANDLER_SYM table_ident OPEN_SYM opt_table_alias
+	{
+	  Lex->sql_command = SQLCOM_HA_OPEN;
+	  if (!add_table_to_list($2,$4,0))
+	    YYABORT;
+	}
+	| HANDLER_SYM table_ident CLOSE_SYM
+	{
+	  Lex->sql_command = SQLCOM_HA_CLOSE;
+	  if (!add_table_to_list($2,0,0))
+	    YYABORT;
+	}
+	| HANDLER_SYM table_ident READ_SYM handler_read_or_scan
+	{
+	  Lex->sql_command = SQLCOM_HA_READ;
+	  if (!add_table_to_list($2,0,0))
+	    YYABORT;
+        }
+        where_clause limit_clause { }
+
+handler_read_or_scan:
+	handler_scan_function         { Lex->backup_dir= 0; }
+        | ident handler_rkey_function { Lex->backup_dir= $1.str; }
+
+handler_scan_function:
+	FIRST_SYM  { Lex->ha_read_mode = RFIRST; }
+	| NEXT_SYM { Lex->ha_read_mode = RNEXT;  }
+
+handler_rkey_function:
+	FIRST_SYM  { Lex->ha_read_mode = RFIRST; }
+	| NEXT_SYM { Lex->ha_read_mode = RNEXT;  }
+	| PREV_SYM { Lex->ha_read_mode = RPREV;  }
+	| LAST_SYM { Lex->ha_read_mode = RLAST;  }
+	| handler_rkey_mode
+	{
+	  Lex->ha_read_mode = RKEY;
+	  if (!(Lex->insert_list = new List_item))
+	    YYABORT;
+	} '(' values ')' { }
+
+handler_rkey_mode:
+	  EQ     { Lex->ha_rkey_mode=HA_READ_KEY_EXACT;   }
+	| GE     { Lex->ha_rkey_mode=HA_READ_KEY_OR_NEXT; }
+	| LE     { Lex->ha_rkey_mode=HA_READ_KEY_OR_PREV; }
+	| GT_SYM { Lex->ha_rkey_mode=HA_READ_AFTER_KEY;   }
+	| LT     { Lex->ha_rkey_mode=HA_READ_BEFORE_KEY;  }
 
 /* GRANT / REVOKE */
 

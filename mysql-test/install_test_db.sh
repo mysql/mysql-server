@@ -25,8 +25,8 @@ then
  data=var/slave-data
  ldata=$fix_bin/var/slave-data
 else
- data=var/lib
- ldata=$fix_bin/var/lib
+ data=var/master-data
+ ldata=$fix_bin/var/master-data
 fi
 
 mdata=$data/mysql
@@ -193,7 +193,7 @@ then
 fi
 
 if $execdir/mysqld --no-defaults --bootstrap --skip-grant-tables \
-    --basedir=$basedir --datadir=$ldata --skip-innobase --skip-bdb --skip-gemini << END_OF_DATA
+    --basedir=$basedir --datadir=$ldata --skip-innodb --skip-bdb --skip-gemini << END_OF_DATA
 use mysql;
 $c_d
 $i_d

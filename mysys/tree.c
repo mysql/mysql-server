@@ -63,7 +63,7 @@ static void rb_delete_fixup(TREE *tree,TREE_ELEMENT ***parent);
 	/* The actuall code for handling binary trees */
 
 void init_tree(TREE *tree, uint default_alloc_size, int size,
-	       qsort_cmp compare, my_bool with_delete,
+	       qsort_cmp2 compare, my_bool with_delete,
 	       void (*free_element) (void *))
 {
   DBUG_ENTER("init_tree");
@@ -77,13 +77,14 @@ void init_tree(TREE *tree, uint default_alloc_size, int size,
   tree->size_of_element=size > 0 ? (uint) size : 0;
   tree->free=free_element;
   tree->elements_in_tree=0;
+  tree->cmp_arg = 0;
   tree->null_element.colour=BLACK;
   tree->null_element.left=tree->null_element.right=0;
   if (!free_element && size >= 0 &&
       ((uint) size <= sizeof(void*) || ((uint) size & (sizeof(void*)-1))))
   {
     tree->offset_to_key=sizeof(TREE_ELEMENT); /* Put key after element */
-    /* Fix allocation size so that we don't loose any memory */
+    /* Fix allocation size so that we don't lose any memory */
     default_alloc_size/=(sizeof(TREE_ELEMENT)+size);
     if (!default_alloc_size)
       default_alloc_size=1;
@@ -102,9 +103,9 @@ void init_tree(TREE *tree, uint default_alloc_size, int size,
   DBUG_VOID_RETURN;
 }
 
-void delete_tree(TREE *tree)
+static void free_tree(TREE *tree, myf free_flags)
 {
-  DBUG_ENTER("delete_tree");
+  DBUG_ENTER("free_tree");
   DBUG_PRINT("enter",("tree: %lx",tree));
 
   if (tree->root)				/* If initialized */
@@ -115,7 +116,7 @@ void delete_tree(TREE *tree)
     {
       if (tree->free)
 	delete_tree_element(tree,tree->root);
-      free_root(&tree->mem_root,MYF(0));
+      free_root(&tree->mem_root, free_flags);
     }
   }
   tree->root= &tree->null_element;
@@ -123,6 +124,18 @@ void delete_tree(TREE *tree)
 
   DBUG_VOID_RETURN;
 }
+
+void delete_tree(TREE* tree)
+{
+  free_tree(tree, MYF(0)); /* my_free() mem_root if applicable */
+}
+
+void reset_tree(TREE* tree)
+{
+  free_tree(tree, MYF(MY_MARK_BLOCKS_FREE));
+  /* do not my_free() mem_root if applicable, just mark blocks as free */
+}
+
 
 static void delete_tree_element(TREE *tree, TREE_ELEMENT *element)
 {
@@ -152,7 +165,8 @@ TREE_ELEMENT *tree_insert(TREE *tree, void *key, uint key_size)
   for (;;)
   {
     if (element == &tree->null_element ||
-	(cmp=(*tree->compare)(ELEMENT_KEY(tree,element),key)) == 0)
+	(cmp=(*tree->compare)(tree->cmp_arg,
+			      ELEMENT_KEY(tree,element),key)) == 0)
       break;
     if (cmp < 0)
     {
@@ -212,7 +226,8 @@ int tree_delete(TREE *tree, void *key)
   {
     if (element == &tree->null_element)
       return 1;				/* Was not in tree */
-    if ((cmp=(*tree->compare)(ELEMENT_KEY(tree,element),key)) == 0)
+    if ((cmp=(*tree->compare)(tree->cmp_arg,
+			      ELEMENT_KEY(tree,element),key)) == 0)
       break;
     if (cmp < 0)
     {
@@ -266,7 +281,8 @@ void *tree_search(TREE *tree, void *key)
   {
     if (element == &tree->null_element)
       return (void*) 0;
-    if ((cmp=(*tree->compare)(ELEMENT_KEY(tree,element),key)) == 0)
+    if ((cmp=(*tree->compare)(tree->cmp_arg,
+			      ELEMENT_KEY(tree,element),key)) == 0)
       return ELEMENT_KEY(tree,element);
     if (cmp < 0)
       element=element->right;

@@ -38,6 +38,7 @@ ulong mysqld_net_retry_count = 10L;
 ulong net_read_timeout=  NET_READ_TIMEOUT;
 ulong net_write_timeout= NET_WRITE_TIMEOUT;
 uint test_flags = 0; 
+FILE *result_file;
 
 #ifndef DBUG_OFF
 static const char* default_dbug_option = "d:t:o,/tmp/mysqlbinlog.trace";
@@ -46,18 +47,19 @@ static const char* default_dbug_option = "d:t:o,/tmp/mysqlbinlog.trace";
 static struct option long_options[] =
 {
 #ifndef DBUG_OFF
-  {"debug", 	optional_argument, 	0, '#'},
+  {"debug", 	  optional_argument, 	0, '#'},
 #endif
-  {"help", 	no_argument, 		0, '?'},
-  {"host", 	required_argument,	0, 'h'},
-  {"offset", 	required_argument,	0, 'o'},
-  {"password",	required_argument,	0, 'p'},
-  {"port", 	required_argument,	0, 'P'},
-  {"position",	required_argument,	0, 'j'},
-  {"short-form", no_argument,		0, 's'},
-  {"table", 	required_argument, 	0, 't'},
-  {"user",	required_argument,	0, 'u'},
-  {"version",	 no_argument, 		0, 'V'},
+  {"help", 	  no_argument, 		0, '?'},
+  {"host", 	  required_argument,	0, 'h'},
+  {"offset", 	  required_argument,	0, 'o'},
+  {"password",	  required_argument,	0, 'p'},
+  {"port", 	  required_argument,	0, 'P'},
+  {"position",	  required_argument,	0, 'j'},
+  {"result-file", required_argument,    0, 'r'},
+  {"short-form",  no_argument,		0, 's'},
+  {"table", 	  required_argument, 	0, 't'},
+  {"user",	  required_argument,	0, 'u'},
+  {"version",	  no_argument, 		0, 'V'},
 };
 
 void sql_print_error(const char *format,...);
@@ -106,7 +108,7 @@ static void die(const char* fmt, ...)
 
 static void print_version()
 {
-  printf("%s  Ver 1.2 for %s at %s\n",my_progname,SYSTEM_TYPE, MACHINE_TYPE);
+  printf("%s  Ver 1.3 for %s at %s\n",my_progname,SYSTEM_TYPE, MACHINE_TYPE);
 }
 
 
@@ -133,6 +135,7 @@ the mysql command line client\n\n");
 -P, --port=port         Use port to connect to the remove server\n\
 -u, --user=username     Connect to the remove server as username\n\
 -p, --password=password Password to connect to remote server\n\
+-r, --result-file=file  Direct output to a given file\n\
 -j, --position=N	Start reading the binlog at position N\n\
 -t, --table=name        Get raw table dump using COM_TABLE_DUMB\n\
 -V, --version		Print version and exit.\n\
@@ -163,17 +166,18 @@ static void dump_remote_file(NET* net, const char* fname)
 	die("Failed reading a packet during the dump of %s ", fname);
 
       if(!short_form)
-	(void)my_fwrite(stdout, (byte*) net->read_pos, packet_len, MYF(0));
+	(void)my_fwrite(result_file, (byte*) net->read_pos, packet_len,MYF(0));
     }
 
-  fflush(stdout);
+  fflush(result_file);
 }
 
 static int parse_args(int *argc, char*** argv)
 {
   int c, opt_index = 0;
 
-  while((c = getopt_long(*argc, *argv, "so:#::h:j:u:p:P:t:?V", long_options,
+  result_file = stdout;
+  while((c = getopt_long(*argc, *argv, "so:#::h:j:u:p:P:r:t:?V", long_options,
 			 &opt_index)) != EOF)
   {
     switch(c)
@@ -208,6 +212,11 @@ static int parse_args(int *argc, char*** argv)
     case 'p':
       use_remote = 1;
       pass = my_strdup(optarg, MYF(0));
+      break;
+
+    case 'r':
+      if (!(result_file = my_fopen(optarg, O_WRONLY | O_BINARY, MYF(MY_WME))))
+	exit(1);
       break;
 
     case 'u':
@@ -276,20 +285,21 @@ static void dump_remote_table(NET* net, const char* db, const char* table)
     die("Error sending the table dump command");
 
   for(;;)
-    {
-      uint packet_len = my_net_read(net);
-      if(packet_len == 0) break; // end of file
-      if(packet_len == packet_error)
-	die("Error reading packet in table dump");
-      my_fwrite(stdout, (byte*)net->read_pos, packet_len, MYF(MY_WME));
-      fflush(stdout);
-    }
+  {
+    uint packet_len = my_net_read(net);
+    if(packet_len == 0) break; // end of file
+    if(packet_len == packet_error)
+      die("Error reading packet in table dump");
+    my_fwrite(result_file, (byte*)net->read_pos, packet_len, MYF(MY_WME));
+    fflush(result_file);
+  }
 }
 
 
 static void dump_remote_log_entries(const char* logname)
 {
   char buf[128];
+  char last_db[FN_REFLEN+1] = "";
   uint len;
   NET* net = &mysql->net;
   if(!position) position = 4; // protect the innocent from spam
@@ -323,7 +333,7 @@ Unfortunately, no sweepstakes today, adjusted position to 4\n");
 					  len - 1);
     if(ev)
     {
-      ev->print(stdout, short_form);
+      ev->print(result_file, short_form, last_db);
       if(ev->get_type_code() == LOAD_EVENT)
 	dump_remote_file(net, ((Load_log_event*)ev)->fname);
       delete ev;
@@ -338,6 +348,7 @@ static void dump_local_log_entries(const char* logname)
   File fd = -1;
   IO_CACHE cache,*file= &cache;
   ulonglong rec_count = 0;
+  char last_db[FN_REFLEN+1] = "";
 
   if (logname && logname[0] != '-')
   {
@@ -349,7 +360,7 @@ static void dump_local_log_entries(const char* logname)
   }
   else
   {
-    if (init_io_cache(file, fileno(stdout), 0, READ_CACHE, (my_off_t) 0,
+    if (init_io_cache(file, fileno(result_file), 0, READ_CACHE, (my_off_t) 0,
 		      0, MYF(MY_WME | MY_NABP | MY_DONT_CHECK_FILESIZE)))
       exit(1);
     if (position)
@@ -395,9 +406,9 @@ Could not read entry at offset %s : Error in log format or read error",
     if (rec_count >= offset)
     {
       if (!short_form)
-        printf("# at %s\n",llstr(old_off,llbuff));
+        fprintf(result_file, "# at %s\n",llstr(old_off,llbuff));
 
-      ev->print(stdout, short_form);
+      ev->print(result_file, short_form, last_db);
     }
     rec_count++;
     delete ev;
@@ -445,6 +456,8 @@ int main(int argc, char** argv)
       dump_log_entries(*(argv++));
     }
   }
+  if (result_file != stdout)
+    my_fclose(result_file, MYF(0));
   if (use_remote)
     mc_mysql_close(mysql);
   return 0;

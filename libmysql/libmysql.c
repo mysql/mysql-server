@@ -16,11 +16,11 @@
    MA 02111-1307, USA */
 
 #define DONT_USE_RAID
+#include <global.h>
 #if defined(__WIN__) || defined(_WIN32) || defined(_WIN64)
 #include <winsock.h>
 #include <odbcinst.h>
 #endif
-#include <global.h>
 #include <my_sys.h>
 #include <mysys_err.h>
 #include <m_string.h>
@@ -1657,6 +1657,7 @@ mysql_close(MYSQL *mysql)
     {
       free_old_query(mysql);
       mysql->status=MYSQL_STATUS_READY; /* Force command */
+      mysql->reconnect=0;
       simple_command(mysql,COM_QUIT,NullS,0,1);
       end_server(mysql);
     }

@@ -119,6 +119,17 @@ AC_PROG_AWK
 AC_PROG_CC
 AC_PROG_CXX
 AC_PROG_CPP
+
+# Fix for sgi gcc / sgiCC which tries to emulate gcc
+if test "$CC" = "sgicc"
+then
+  ac_cv_prog_gcc="no"
+fi
+if test "$CXX" = "sgi++"
+then
+  GXX="no"
+fi
+
 if test "$ac_cv_prog_gcc" = "yes"
 then
   AS="$CC -c"
@@ -358,6 +369,9 @@ else
   case $SYSTEM_TYPE in
     *darwin*)
       FIND_PROC="$PS -uaxww | grep mysqld | grep \" \$\$PID \" > /dev/null"
+      ;;
+    *cygwin*)
+      FIND_PROC="$PS -e | grep mysqld | grep \" \$\$PID \" > /dev/null"
       ;;
     *)
       AC_MSG_ERROR([Could not find the right ps switches. Which OS is this ?. See the Installation chapter in the Reference Manual.])
@@ -724,7 +738,7 @@ int main()
 # Some system specific hacks
 #
 
-MAX_C_OPTIMIZE="-O6"
+MAX_C_OPTIMIZE="-O3"
 
 case $SYSTEM_TYPE in
   *solaris2.7*)
@@ -827,6 +841,15 @@ case $SYSTEM_TYPE in
       echo "Adding defines for AIX"
       CFLAGS="$CFLAGS -Wa,-many -DUNDEF_HAVE_INITGROUPS"
       CXXFLAGS="$CXXFLAGS -Wa,-many -DUNDEF_HAVE_INITGROUPS"
+    ;;
+dnl Is this the right match for DEC OSF on alpha?
+    *dec-osf*)
+      if test "$ac_cv_prog_gcc" = "yes" && test "$host_cpu" = "alpha"
+      then
+	  echo "Adding defines for DEC OSF on alpha"
+	  CFLAGS="$CFLAGS -mieee"
+	  CXXFLAGS="$CXXFLAGS -mieee"
+      fi
     ;;
 esac
 
@@ -1135,8 +1158,16 @@ else
 fi
 #---END:
 
-# for user definable functions (must be checked after threads on AIX)
+# Check for dlopen, needed for user definable functions
+# This must be checked after threads on AIX
+# We only need this for mysqld, not for the clients.
+
+my_save_LIBS="$LIBS"
+LIBS=""
 AC_CHECK_LIB(dl,dlopen)
+LIBDL=$LIBS
+LIBS="$my_save_LIBS"
+AC_SUBST(LIBDL)
 
 # System characteristics
 AC_SYS_RESTARTABLE_SYSCALLS
@@ -1228,7 +1259,7 @@ fi
 AC_SUBST(COMPILATION_COMMENT)
 
 AC_MSG_CHECKING("need of special linking flags")
-if test "$IS_LINUX" = "true" -a "$all_is_static" != "yes"
+if test "$IS_LINUX" = "true" -a "$ac_cv_prog_gcc" = "yes" -a "$all_is_static" != "yes"
 then
   LDFLAGS="$LDFLAGS -rdynamic"
   AC_MSG_RESULT("-rdynamic")
@@ -1306,10 +1337,11 @@ MYSQL_CXX_BOOL
 MYSQL_CHECK_LONGLONG_TO_FLOAT
 if test "$ac_cv_conv_longlong_to_float" != "yes"
 then
-  AC_MSG_ERROR([Your compiler can't convert a longlong value to a float!
+  AC_MSG_ERROR([Your compiler cannot convert a longlong value to a float!
 If you are using gcc 2.8.# you should upgrade to egcs 1.0.3 or newer and try
 again]);
 fi
+MYSQL_PTHREAD_YIELD
 
 ######################################################################
 # For readline-4.0 (We simply move the mimimum amount of stuff from
@@ -1367,7 +1399,7 @@ AC_CHECK_FUNCS(alarm bmove \
  pthread_setschedparam pthread_attr_setprio pthread_attr_setschedparam \
  pthread_attr_create pthread_getsequence_np pthread_attr_setstacksize \
  pthread_condattr_create rwlock_init pthread_rwlock_rdlock \
- dlopen dlerror fchmod getpass getpassphrase initgroups mlockall)
+ fchmod getpass getpassphrase initgroups mlockall)
 
 # Sanity check: We chould not have any fseeko symbol unless
 # large_file_support=yes
@@ -1377,6 +1409,11 @@ then
   AC_MSG_ERROR("Found fseeko symbol but large_file_support is not enabled!");
 fi]
 )
+
+my_save_LIBS="$LIBS"
+LIBS="$LIBS $LIBDL"
+AC_CHECK_FUNCS(dlopen dlerror)
+LIBS="$my_save_LIBS"
 
 # Check definition of gethostbyaddr_r (glibc2 defines this with 8 arguments)
 ac_save_CXXFLAGS="$CXXFLAGS"
@@ -1659,10 +1696,11 @@ AC_ARG_WITH(bench,
 
 if test "$with_bench" = "yes"
 then
-  bench_dirs="sql-bench mysql-test"
+  bench_dirs="sql-bench"
 else
   bench_dirs=""
 fi
+bench_dirs="$bench_dirs mysql-test"
 AC_SUBST(bench_dirs)
 
 # Don't build readline, i have it already
@@ -1923,7 +1961,7 @@ AC_MSG_RESULT([default: $default_charset; compiled in: $CHARSETS])
 
 
 MYSQL_CHECK_BDB
-MYSQL_CHECK_INNOBASE
+MYSQL_CHECK_INNODB
 MYSQL_CHECK_GEMINI
 
 # If we have threads generate some library functions and test programs
@@ -2024,14 +2062,14 @@ EOF
     fi
   fi
 
-  if test X"$have_innobase_db" = Xyes
+  if test X"$have_innodb" = Xyes
   then
     sql_server_dirs="innobase $sql_server_dirs"
-    echo "CONFIGURING FOR INNOBASE DB" 
+    echo "CONFIGURING FOR INNODB" 
     (cd innobase && sh ./configure) \
-    || AC_MSG_ERROR([could not configure Innobase DB])
+    || AC_MSG_ERROR([could not configure INNODB])
 
-    echo "END OF INNOBASE DB CONFIGURATION"
+    echo "END OF INNODB CONFIGURATION"
   fi
 
   if test "$with_posix_threads" = "no" -o "$with_mit_threads" = "yes"
@@ -2077,7 +2115,7 @@ AC_OUTPUT(Makefile extra/Makefile mysys/Makefile isam/Makefile \
  merge/Makefile dbug/Makefile scripts/Makefile \
  include/Makefile sql-bench/Makefile \
  tests/Makefile Docs/Makefile support-files/Makefile \
- mysql-test/Makefile fs/Makefile \
+ mysql-test/Makefile \
  include/mysql_version.h
  , , [
   test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h

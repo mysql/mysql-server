@@ -90,7 +90,7 @@
 "File '%-.80s' already exists",
 "Records: %ld  Deleted: %ld  Skipped: %ld  Warnings: %ld",
 "Records: %ld  Duplicates: %ld",
-"Incorrect sub part key. The used key part isn't a string or the used length is longer than the key part",
+"Incorrect sub part key. The used key part isn't a string, the used length is longer than the key part or the table handler doesn't support unique sub keys",
 "You can't delete all columns with ALTER TABLE. Use DROP TABLE instead",
 "Can't DROP '%-.64s'. Check that column/key exists",
 "Records: %ld  Duplicates: %ld  Warnings: %ld",

@@ -39,11 +39,6 @@ $opt_read_key_loop_count=$opt_loop_count;
 chomp($pwd = `pwd`); $pwd = "." if ($pwd eq '');
 require "$pwd/bench-init.pl" || die "Can't read Configuration file: $!\n";
 
-if ($opt_loop_count < 256)
-{
-  $opt_loop_count=256;		# Some tests must have some data to work!
-}
-
 if ($opt_small_test)
 {
   $opt_loop_count/=100;
@@ -61,6 +56,13 @@ elsif ($opt_small_key_tables)
 {
   $many_keys_loop_count/=10;
 }
+
+if ($opt_loop_count < 100)
+{
+  $opt_loop_count=100;		# Some tests must have some data to work!
+}
+$range_loop_count=min($opt_loop_count,$range_loop_count);
+
 
 print "Testing the speed of inserting data into 1 table and do some selects on it.\n";
 print "The tests are done with a table that has $opt_loop_count rows.\n\n";

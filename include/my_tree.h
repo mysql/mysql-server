@@ -50,17 +50,21 @@ typedef struct st_tree {
   TREE_ELEMENT *root,null_element;
   TREE_ELEMENT **parents[MAX_TREE_HIGHT];
   uint offset_to_key,elements_in_tree,size_of_element;
-  qsort_cmp compare;
+  qsort_cmp2 compare;
+  void* cmp_arg;
   MEM_ROOT mem_root;
   my_bool with_delete;
   void (*free)(void *);
 } TREE;
 
-	/* Functions on hole tree */
+	/* Functions on whole tree */
 void init_tree(TREE *tree,uint default_alloc_size, int element_size,
-	       qsort_cmp compare, my_bool with_delete,
+	       qsort_cmp2 compare, my_bool with_delete,
 	       void (*free_element)(void*));
 void delete_tree(TREE*);
+void reset_tree(TREE*);
+  /* similar to delete tree, except we do not my_free() blocks in mem_root
+   */
 #define is_tree_inited(tree) ((tree)->root != 0)
 
 	/* Functions on leafs */

@@ -1,0 +1,65 @@
+#
+# test of HANDLER ...
+#
+
+drop table if exists t1;
+create table t1 (a int, b char(10), key a(a), key b(a,b));
+insert into t1 values
+(17,"ddd"),(18,"eee"),(19,"fff"),(19,"yyy"),
+(14,"aaa"),(15,"bbb"),(16,"ccc"),(16,"xxx"),
+(20,"ggg"),(21,"hhh"),(22,"iii");
+handler t1 open as t2;
+handler t2 read a first;
+handler t2 read a next;
+handler t2 read a next;
+handler t2 read a prev;
+handler t2 read a last;
+handler t2 read a prev;
+handler t2 read a prev;
+
+handler t2 read a first;
+handler t2 read a prev;
+
+handler t2 read a last;
+handler t2 read a prev;
+handler t2 read a next;
+handler t2 read a next;
+
+handler t2 read a=(15);
+handler t2 read a=(16);
+
+!$1070 handler t2 read a=(19,"fff");
+
+handler t2 read b=(19,"fff");
+handler t2 read b=(19,"yyy");
+handler t2 read b=(19);
+
+!$1109 handler t1 read a last;
+
+handler t2 read a=(11);
+handler t2 read a>=(11);
+
+handler t2 read a=(18);
+handler t2 read a>=(18);
+handler t2 read a>(18);
+handler t2 read a<=(18);
+handler t2 read a<(18);
+
+handler t2 read a first limit 5;
+handler t2 read a next  limit 3;
+handler t2 read a prev  limit 10;
+
+handler t2 read a>=(16) limit 4;
+handler t2 read a>=(16) limit 2,2;
+handler t2 read a last  limit 3;
+
+handler t2 read a=(19);
+handler t2 read a=(19) where b="yyy";
+
+handler t2 read first;
+handler t2 read next;
+handler t2 read next;
+!$1064 handler t2 read last;
+
+handler t2 close;
+drop table if exists t1;

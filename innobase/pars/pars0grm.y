@@ -10,11 +10,11 @@ Created 12/14/1997 Heikki Tuuri
 /* The value of the semantic attribute is a pointer to a query tree node
 que_node_t */
 #define YYSTYPE que_node_t*
-#define alloca	mem_alloc
-
-#include <math.h>
 
 #include "univ.i"
+#undef alloca
+#define alloca	mem_alloc
+#include <math.h>
 #include "pars0pars.h"
 #include "mem0mem.h"
 #include "que0types.h"

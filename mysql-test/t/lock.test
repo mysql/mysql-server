@@ -21,3 +21,35 @@ LOCK TABLE t1 WRITE,t2 write;
 insert into t2 SELECT * from t1;
 update t1 set id=1 where id=-1;
 drop table t1,t2;
+
+
+#
+# Check bug with INSERT ... SELECT with lock tables
+#
+
+CREATE TABLE t1 (
+  index1 smallint(6) default NULL,
+  nr smallint(6) default NULL,
+  KEY index1(index1)
+) TYPE=MyISAM;
+
+CREATE TABLE t2 (
+  nr smallint(6) default NULL,
+  name varchar(20) default NULL
+) TYPE=MyISAM;
+
+INSERT INTO t2 VALUES (1,'item1');
+INSERT INTO t2 VALUES (2,'item2');
+
+# problem begins here!
+lock tables t1 write, t2 read;
+insert into t1 select 1,nr from t2 where name='item1';
+insert into t1 select 2,nr from t2 where name='item2';
+unlock tables;
+check table t1;
+
+# Check error message
+lock tables t1 write;
+check table t2;
+unlock tables;
+drop table t1,t2;

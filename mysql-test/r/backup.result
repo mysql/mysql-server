@@ -1,5 +1,5 @@
 Table	Op	Msg_type	Msg_text
-t1	backup	error	Failed copying .frm file: errno = X
+test.t1	backup	error	Failed copying .frm file: errno = X
 test.t1	backup	status	Operation failed
 Table	Op	Msg_type	Msg_text
 test.t1	backup	status	OK

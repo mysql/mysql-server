@@ -827,9 +827,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       pos--;
       packet_length--;
     }
-    *pos=0;
-    if (!(thd->query= (char*) thd->memdup((gptr) (packet),packet_length)))
+    if (!(thd->query= (char*) thd->memdup((gptr) (packet),packet_length+1)))
       break;
+    thd->query[packet_length]=0;
     thd->packet.shrink(net_buffer_length);	// Reclaim some memory
     if (!(specialflag & SPECIAL_NO_PRIOR))
       my_pthread_setprio(pthread_self(),QUERY_PRIOR);
@@ -1842,6 +1842,7 @@ mysql_execute_command(void)
     {
       thd->lock=thd->locked_tables;
       thd->locked_tables=0;			// Will be automaticly closed
+      end_active_trans(thd);
     }
     if (thd->global_read_lock)
     {
@@ -2008,6 +2009,24 @@ mysql_execute_command(void)
       res = mysql_show_grants(thd,lex->grant_user);
     }
     break;
+  case SQLCOM_HA_OPEN:
+    if (check_db_used(thd,tables) || check_table_access(thd,SELECT_ACL, tables))
+      goto error;
+    res = mysql_ha_open(thd, tables);
+    break;
+  case SQLCOM_HA_CLOSE:
+    if (check_db_used(thd,tables))
+      goto error;
+    res = mysql_ha_close(thd, tables);
+    break;
+  case SQLCOM_HA_READ:
+    if (check_db_used(thd,tables) || check_table_access(thd,SELECT_ACL, tables))
+      goto error;
+    res = mysql_ha_read(thd, tables, lex->ha_read_mode, lex->backup_dir,
+                    lex->insert_list, lex->ha_rkey_mode, lex->where,
+	            lex->select_limit, lex->offset_limit);
+    break;
+
   case SQLCOM_BEGIN:
     if (end_active_trans(thd))
     {
@@ -2275,7 +2294,7 @@ mysql_init_query(THD *thd)
   thd->lex.table_list.next= (byte**) &thd->lex.table_list.first;
   thd->fatal_error=0;				// Safety
   thd->last_insert_id_used=thd->query_start_used=thd->insert_id_used=0;
-  thd->sent_row_count=0;
+  thd->sent_row_count=thd->examined_row_count=0;
   DBUG_VOID_RETURN;
 }
 

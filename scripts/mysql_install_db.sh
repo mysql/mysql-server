@@ -79,13 +79,17 @@ then
   basedir=@prefix@
   bindir=@bindir@
   execdir=@libexecdir@ 
-elif test -d "$basedir/libexec"
-then
-  bindir="$basedir/bin"
-  execdir="$basedir/libexec"
 else
   bindir="$basedir/bin"
+if test -x "$basedir/libexec/mysqld"
+then
+  execdir="$basedir/libexec"
+elif test -x "@libexecdir@/mysqld"
+then
+  execdir="@libexecdir@"
+else
   execdir="$basedir/bin"
+fi
 fi
 
 mdata=$ldata/mysql
@@ -286,7 +290,7 @@ fi
 
 echo "Installing all prepared tables"
 if eval "$execdir/mysqld $defaults --bootstrap --skip-grant-tables \
-         --basedir=$basedir --datadir=$ldata --skip-innobase --skip-gemini --skip-bdb $args" << END_OF_DATA
+         --basedir=$basedir --datadir=$ldata --skip-innodb --skip-gemini --skip-bdb $args" << END_OF_DATA
 use mysql;
 $c_d
 $i_d

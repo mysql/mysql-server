@@ -788,11 +788,57 @@ String *Item_std_field::val_str(String *str)
 
 #include "sql_select.h"
 
+static int simple_raw_key_cmp(void* arg, byte* key1, byte* key2)
+{
+  return memcmp(key1, key2, (int)arg);
+}
+
+static int simple_str_key_cmp(void* arg, byte* key1, byte* key2)
+{
+  return my_sortcmp(key1, key2, (int)arg);
+}
+
+// did not make this one static - at least gcc gets confused when
+// I try to declare a static function as a friend. If you can figure
+// out the syntax to make a static function a friend, make this one
+// static
+int composite_key_cmp(void* arg, byte* key1, byte* key2)
+{
+  Item_sum_count_distinct* item = (Item_sum_count_distinct*)arg;
+  Field** field = item->table->field, **field_end;
+  field_end = field + item->table->fields;
+  for(; field < field_end; ++field)
+    {
+      int res;
+      Field* f = *field;
+      int len = f->field_length;
+      switch((*field)->type())
+	{
+	case FIELD_TYPE_STRING:
+	case FIELD_TYPE_VAR_STRING:
+	  res = f->key_cmp(key1, key2);
+	  break;
+	default:
+	  res = memcmp(key1, key2, len);
+	  break;
+	}
+      if(res)
+	return res;
+      key1 += len;
+      key2 += len;
+    }
+  return 0;
+}
+
+
+
 Item_sum_count_distinct::~Item_sum_count_distinct()
 {
   if (table)
     free_tmp_table(current_thd, table);
   delete tmp_table_param;
+  if(use_tree)
+    delete_tree(&tree);
 }
 
 
@@ -821,15 +867,70 @@ bool Item_sum_count_distinct::setup(THD *thd)
 			       0, 0, current_lex->options | thd->options)))
     return 1;
   table->file->extra(HA_EXTRA_NO_ROWS);		// Don't update rows
+
+  if(table->db_type == DB_TYPE_HEAP) // no blobs, otherwise it would be
+    // MyISAM
+    {
+      qsort_cmp2 compare_key;
+      void* cmp_arg;
+      int key_len;
+      
+      if(table->fields == 1) // if we have only one field, which is
+	// the most common use of count(distinct), it is much faster
+	// to use a simpler key compare method that can take advantage
+	// of not having to worry about other fields
+	{
+	  Field* field = table->field[0];
+	  switch(field->type())
+	    {
+	      // if we have a string, we must take care of charsets
+	      // and case sensitivity
+	    case FIELD_TYPE_STRING:
+	    case FIELD_TYPE_VAR_STRING:
+	      compare_key = (qsort_cmp2)(field->binary() ? simple_raw_key_cmp:
+					 simple_str_key_cmp);
+	      break;
+	    default: // since at this point we cannot have blobs
+	      // anything else can be compared with memcmp
+	      compare_key = (qsort_cmp2)simple_raw_key_cmp;
+	      break;
+	    }
+	  cmp_arg = (void*)(key_len = field->field_length);
+	  rec_offset = 1;
+	}
+      else // too bad, cannot cheat - there is more than one field
+	{
+	  cmp_arg = (void*)this;
+	  compare_key = (qsort_cmp2)composite_key_cmp;
+	  Field** field, **field_end;
+	  field_end = (field = table->field) + table->fields;
+	  for(key_len = 0; field < field_end; ++field)
+	    {
+	      key_len += (*field)->field_length;
+	    }
+	  rec_offset = table->reclength - key_len;
+	}
+
+      init_tree(&tree, min(max_heap_table_size, sortbuff_size/16),
+		key_len, compare_key, 0, 0);
+      tree.cmp_arg = cmp_arg;
+      use_tree = 1;
+    }
+  
   return 0;
 }
 
 
 void Item_sum_count_distinct::reset()
 {
-  table->file->extra(HA_EXTRA_NO_CACHE);
-  table->file->delete_all_rows();
-  table->file->extra(HA_EXTRA_WRITE_CACHE);
+  if(use_tree)
+    reset_tree(&tree);
+  else
+    {
+      table->file->extra(HA_EXTRA_NO_CACHE);
+      table->file->delete_all_rows();
+      table->file->extra(HA_EXTRA_WRITE_CACHE);
+    }
   (void) add();
 }
 
@@ -843,7 +944,12 @@ bool Item_sum_count_distinct::add()
     if ((*field)->is_real_null(0))
       return 0;					// Don't count NULL
 
-  if ((error=table->file->write_row(table->record[0])))
+  if(use_tree)
+    {
+      if(!tree_insert(&tree, table->record[0] + rec_offset, 0))
+	return 1;
+    }
+  else if ((error=table->file->write_row(table->record[0])))
   {
     if (error != HA_ERR_FOUND_DUPP_KEY &&
 	error != HA_ERR_FOUND_DUPP_UNIQUE)
@@ -859,6 +965,8 @@ longlong Item_sum_count_distinct::val_int()
 {
   if (!table)					// Empty query
     return LL(0);
+  if(use_tree)
+    return tree.elements_in_tree;
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   return table->file->records;
 }
