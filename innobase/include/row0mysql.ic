@@ -93,17 +93,11 @@ row_mysql_store_col_in_innobase_format(
 						|| type == DATA_BINARY) {
 		/* Remove trailing spaces. */
 
-		/* Handle UCS2 strings differently.  As no new
-		collations will be introduced in 4.1, we hardcode the
-		charset-collation codes here.  In 5.0, the logic will
-		be based on mbminlen. */
-		ulint	cset	= dtype_get_charset_coll(
-				dtype_get_prtype(dfield_get_type(dfield)));
+		/* Handle UCS2 strings differently. */
+		ulint	mbminlen	= dtype_get_mbminlen(
+						dfield_get_type(dfield));
 		ptr = row_mysql_read_var_ref(&col_len, mysql_data);
-		if (cset == 35/*ucs2_general_ci*/
-				|| cset == 90/*ucs2_bin*/
-				|| (cset >= 128/*ucs2_unicode_ci*/
-				&& cset <= 144/*ucs2_persian_ci*/)) {
+		if (mbminlen == 2) {
 			/* space=0x0020 */
 			/* Trim "half-chars", just in case. */
 			col_len &= ~1;
@@ -113,6 +107,7 @@ row_mysql_store_col_in_innobase_format(
 				col_len -= 2;
 			}
 		} else {
+			ut_a(mbminlen == 1);
 			/* space=0x20 */
 			while (col_len > 0 && ptr[col_len - 1] == 0x20) {
 				col_len--;

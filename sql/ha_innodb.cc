@@ -535,22 +535,31 @@ innobase_mysql_print_thd(
 }
 
 /**********************************************************************
-Determines whether the given character set is of variable length.
+Get the variable length bounds of the given character set.
 
 NOTE that the exact prototype of this function has to be in
 /innobase/data/data0type.ic! */
 extern "C"
-ibool
-innobase_is_mb_cset(
-/*================*/
-	ulint	cset)	/* in: MySQL charset-collation code */
+void
+innobase_get_cset_width(
+/*====================*/
+	ulint	cset,		/* in: MySQL charset-collation code */
+	ulint*	mbminlen,	/* out: minimum length of a char (in bytes) */
+	ulint*	mbmaxlen)	/* out: maximum length of a char (in bytes) */
 {
 	CHARSET_INFO*	cs;
 	ut_ad(cset < 256);
+	ut_ad(mbminlen);
+	ut_ad(mbmaxlen);
 
 	cs = all_charsets[cset];
-
-	return(cs && cs->mbminlen != cs->mbmaxlen);
+	if (cs) {
+		*mbminlen = cs->mbminlen;
+		*mbmaxlen = cs->mbmaxlen;
+	} else {
+		ut_a(cset == 0);
+		*mbminlen = *mbmaxlen = 0;
+	}
 }
 
 /**********************************************************************
@@ -2480,6 +2489,8 @@ build_template(
 		templ->type = get_innobase_type_from_mysql_type(field);
 		templ->charset = dtype_get_charset_coll_noninline(
 				index->table->cols[i].type.prtype);
+		templ->mbminlen = index->table->cols[i].type.mbminlen;
+		templ->mbmaxlen = index->table->cols[i].type.mbmaxlen;
 		templ->is_unsigned = (ulint) (field->flags & UNSIGNED_FLAG);
 
 		if (templ->type == DATA_BLOB) {
