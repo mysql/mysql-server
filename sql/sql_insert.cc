@@ -187,7 +187,8 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   thd->proc_info="update";
   if (duplic == DUP_IGNORE || duplic == DUP_REPLACE)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  if ((lock_type != TL_WRITE_DELAYED && !(specialflag & SPECIAL_SAFE_MODE)))
+  if ((lock_type != TL_WRITE_DELAYED && !(specialflag & SPECIAL_SAFE_MODE)) &&
+      values_list.elements >= MIN_ROWS_TO_USE_BULK_INSERT)
   {
     table->file->extra_opt(HA_EXTRA_WRITE_CACHE,
 			   min(thd->variables.read_buff_size,

@@ -1239,6 +1239,13 @@ bool MYSQL_LOG::write(THD *thd, IO_CACHE *cache)
 					    log_file.pos_in_file)))
       goto err;
     signal_update();
+    if (my_b_tell(&log_file) >= (my_off_t) max_binlog_size)
+    {
+      pthread_mutex_lock(&LOCK_index);
+      new_file(0); // inside mutex
+      pthread_mutex_unlock(&LOCK_index);
+    }
+
   }
   VOID(pthread_mutex_unlock(&LOCK_log));
   DBUG_RETURN(0);
