@@ -3207,22 +3207,10 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
       {
         if (!transl->item->fixed &&
             transl->item->fix_fields(thd, table_list, &transl->item))
-        {
           DBUG_RETURN(1);
-        }
-      }
-      if (sel->where && !sel->where->fixed &&
-          sel->where->fix_fields(thd, table_list, &sel->where))
-      {
-        DBUG_RETURN(1);
-      }
-      for (transl= table_list->field_translation; transl < end; transl++)
-      {
-        transl->item->rename((char *)transl->name);
       }
       DBUG_RETURN(0);
     }
-
     List_iterator_fast<Item> it(sel->item_list);
     if (!(transl=
           (Field_translator*)(thd->current_arena->
@@ -3236,9 +3224,7 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
       char *name= item->name;
       transl[i].item= item;
       if (!item->fixed && item->fix_fields(thd, table_list, &transl[i].item))
-      {
         DBUG_RETURN(1);
-      }
       transl[i++].name= name;
     }
     table_list->field_translation= transl;
