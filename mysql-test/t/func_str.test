@@ -185,3 +185,15 @@ drop table t1;
 
 select trim(trailing 'foo' from 'foo');
 select trim(leading 'foo' from 'foo');
+
+#
+# crashing bug with QUOTE() and LTRIM() or TRIM() fixed
+# Bug #7495
+#
+
+create table t1 (a varchar(80), b varchar(80));
+insert into t1 values(NULL,"12345");
+insert into t1 values(NULL,"chm");
+select quote(ltrim(concat('  ',t1.b))) from t1;
+select quote(trim(concat('  ',t1.b))) from t1;
+drop table t1;
