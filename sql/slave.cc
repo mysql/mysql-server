@@ -361,7 +361,7 @@ int terminate_slave_thread(THD* thd, pthread_mutex_t* term_lock,
     abstime.tv_sec=tv.tv_sec+2;
     abstime.tv_nsec=tv.tv_usec*1000;
 #endif
-    DBUG_ASSERT(cond_lock->count > 0 && cond_lock->thread == pthread_self());
+    DBUG_ASSERT_LOCK(cond_lock);
     pthread_cond_timedwait(term_cond, cond_lock, &abstime);
     if (*slave_running)
       KICK_SLAVE(thd);
