@@ -13,7 +13,7 @@ create table t1
   key2 int not null, 
   
   INDEX i1(key1),
-  INDEX i2(key2),
+  INDEX i2(key2)
 ) engine=innodb;
 
 --disable_query_log
