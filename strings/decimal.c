@@ -1060,6 +1060,10 @@ static int do_sub(decimal *from1, decimal *from2, decimal *to)
     carry=1;
   else if (intg2 == intg1)
   {
+    while (unlikely(stop1[frac1-1] == 0))
+      frac1--;
+    while (unlikely(stop2[frac2-1] == 0))
+      frac2--;
     while (buf1 < stop1+frac1 && buf2 < stop2+frac2 && *buf1 == *buf2)
       buf1++, buf2++;
     if (buf1 < stop1+frac1)
