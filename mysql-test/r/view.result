@@ -1222,3 +1222,11 @@ show create view v1;
 Table	Create Table
 v1	CREATE VIEW `test`.`v1` AS select 99999999999999999999999999999999999999999999999999999 AS `col1`
 drop view v1;
+create table tü (cü char);
+create view vü as select cü from tü;
+insert into vü values ('ü');
+select * from vü;
+cü
+ü
+drop view vü;
+drop table tü;
