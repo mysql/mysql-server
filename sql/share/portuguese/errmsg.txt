@@ -291,3 +291,4 @@ character-set=latin1
 "MySQL foi inicializado em modo --skip-name-resolve. Você necesita reincializá-lo sem esta opção para este grant funcionar",
 "Motor de tabela desconhecido '%s'",
 "'%s' é desatualizado. Use '%s' em seu lugar.",
+"The target table %-.100s of the %s is not updatable.",

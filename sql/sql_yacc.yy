@@ -3155,13 +3155,6 @@ join_table:
         | '(' SELECT_SYM select_derived ')' opt_table_alias
 	{
 	  LEX *lex=Lex;
-	  if (lex->sql_command == SQLCOM_UPDATE &&
-	      &lex->select_lex == lex->current_select->outer_select())
-	  {
-	    send_error(lex->thd, ER_SYNTAX_ERROR);
-	    YYABORT;
-	  }
-
 	  SELECT_LEX_UNIT *unit= lex->current_select->master_unit();
 	  lex->current_select= unit->outer_select();
 	  if (!($$= lex->current_select->
@@ -3838,6 +3831,13 @@ update:
 	  Select->set_lock_for_tables($3);
           if (lex->select_lex.table_list.elements > 1)
             lex->sql_command= SQLCOM_UPDATE_MULTI;
+	  else if (lex->select_lex.get_table_list()->derived)
+	  {
+	    /* it is single table update and it is update of derived table */
+	    net_printf(lex->thd, ER_NON_UPDATABLE_TABLE,
+		       lex->select_lex.get_table_list()->alias, "UPDATE");
+	    YYABORT;
+	  }
 	}
 	;
 

@@ -209,7 +209,7 @@ ERROR 42000: You have an error in your SQL syntax.  Check the manual that corres
 create table t1 (a int);
 insert into t1 values (1),(2),(3);
 update (select * from t1) as t1 set a = 5;
-ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use
+ERROR HY000: The target table t1 of the UPDATE is not updatable.
 delete from (select * from t1);
 ERROR 42000: You have an error in your SQL syntax.  Check the manual that corresponds to your MySQL server version for the right syntax to use near '(select * from t1)' at line 1
 insert into  (select * from t1) values (5);
@@ -244,4 +244,29 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 5	UNION	t1	ALL	NULL	NULL	NULL	NULL	2	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	
 3	UNION	t1	ALL	NULL	NULL	NULL	NULL	2	
+drop table t1;
+CREATE TABLE `t1` (
+`N` int(11) unsigned NOT NULL default '0',
+`M` tinyint(1) default '0',
+) TYPE=MyISAM DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1286	'TYPE=database_engine' is deprecated. Use 'ENGINE=database_engine' instead.
+INSERT INTO `t1` (N, M) VALUES (1, 0),(1, 0),(1, 0),(2, 0),(2, 0),(3, 0);
+UPDATE `t1` AS P1 INNER JOIN (SELECT N FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N SET P1.M = 2;
+select * from t1;
+N	M
+1	2
+1	2
+1	2
+2	2
+2	2
+3	0
+UPDATE `t1` AS P1 INNER JOIN (SELECT N FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N SET P1.M = 2, P2.N = 2;
+ERROR HY000: The target table P2 of the UPDATE is not updatable.
+delete P1.* from `t1` AS P1 INNER JOIN (SELECT N FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N;
+select * from t1;
+N	M
+3	0
+delete P1.*,P2.* from `t1` AS P1 INNER JOIN (SELECT N FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N;
+ERROR HY000: The target table P2 of the DELETE is not updatable.
 drop table t1;
