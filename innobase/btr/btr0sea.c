@@ -22,7 +22,9 @@ Created 2/17/1996 Heikki Tuuri
 ulint	btr_search_this_is_zero = 0;	/* A dummy variable to fool the
 					compiler */
 
+#ifdef UNIV_SEARCH_PERF_STAT
 ulint	btr_search_n_succ	= 0;
+#endif /* UNIV_SEARCH_PERF_STAT */
 ulint	btr_search_n_hash_fail	= 0;
 
 byte	btr_sea_pad1[64];	/* padding to prevent other memory update
