@@ -1247,26 +1247,11 @@ SQL_CRYPT *get_crypt_for_frm(void);
 
 /* query_id */
 
-typedef ulong query_id_t;
+typedef ulonglong query_id_t;
 extern query_id_t query_id;
 
-/*
-  increment query_id and return it.
-  but be sure it's never a 0
-  (2^32 at 1000 q/s rate will means an overflow every ~50 days.
-*/
-inline query_id_t next_query_id()
-{
-  if (sizeof(query_id_t) <= 5) // assuming the compiler optimizes dead code away
-  {
-    query_id_t old_query_id=query_id;
-    if (unlikely(++query_id == 0))
-      query_id=1;
-    return old_query_id;
-  }
-  else
-    return query_id++;
-}
+/* increment query_id and return it.  */
+inline query_id_t next_query_id() { return query_id++; }
 
 /* Some inline functions for more speed */
 

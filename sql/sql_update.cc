@@ -118,7 +118,7 @@ int mysql_update(THD *thd,
 {
   bool		using_limit= limit != HA_POS_ERROR;
   bool		safe_update= thd->options & OPTION_SAFE_UPDATES;
-  bool		used_key_is_modified, transactional_table, log_delayed;
+  bool		used_key_is_modified, transactional_table;
   bool          ignore_err= (thd->lex->duplicates == DUP_IGNORE);
   int           res;
   int		error=0;
@@ -474,7 +474,6 @@ int mysql_update(THD *thd,
     query_cache_invalidate3(thd, table_list, 1);
   }
 
-  log_delayed= (transactional_table || table->tmp_table);
   if ((updated || (error < 0)) && (error <= 0 || !transactional_table))
   {
     if (mysql_bin_log.is_open())
@@ -482,11 +481,11 @@ int mysql_update(THD *thd,
       if (error <= 0)
         thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
-			    log_delayed, FALSE);
+			    transactional_table, FALSE);
       if (mysql_bin_log.write(&qinfo) && transactional_table)
 	error=1;				// Rollback update
     }
-    if (!log_delayed)
+    if (!transactional_table)
       thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
   }
   if (transactional_table)
@@ -1001,7 +1000,6 @@ multi_update::initialize_tables(JOIN *join)
     DBUG_RETURN(1);
   main_table=join->join_tab->table;
   trans_safe= transactional_tables= main_table->file->has_transactions();
-  log_delayed= trans_safe || main_table->tmp_table != NO_TMP_TABLE;
   table_to_update= 0;
 
   /* Create a temporary table for keys to all tables, except main table */
@@ -1339,17 +1337,13 @@ int multi_update::do_updates(bool from_send_error)
 	    goto err;
 	}
 	updated++;
-	if (table->tmp_table != NO_TMP_TABLE)
-	  log_delayed= 1;
       }
     }
 
     if (updated != org_updated)
     {
-      if (table->tmp_table != NO_TMP_TABLE)
-	log_delayed= 1;				// Tmp tables forces delay log
       if (table->file->has_transactions())
-	log_delayed= transactional_tables= 1;
+	transactional_tables= 1;
       else
 	trans_safe= 0;				// Can't do safe rollback
     }
@@ -1370,10 +1364,8 @@ err:
 
   if (updated != org_updated)
   {
-    if (table->tmp_table != NO_TMP_TABLE)
-      log_delayed= 1;
     if (table->file->has_transactions())
-      log_delayed= transactional_tables= 1;
+      transactional_tables= 1;
     else
       trans_safe= 0;
   }
@@ -1415,11 +1407,11 @@ bool multi_update::send_eof()
       if (local_error <= 0)
         thd->clear_error();
       Query_log_event qinfo(thd, thd->query, thd->query_length,
-			    log_delayed, FALSE);
+			    transactional_tables, FALSE);
       if (mysql_bin_log.write(&qinfo) && trans_safe)
 	local_error= 1;				// Rollback update
     }
-    if (!log_delayed)
+    if (!transactional_tables)
       thd->options|=OPTION_STATUS_NO_TRANS_UPDATE;
   }
 
