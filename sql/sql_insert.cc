@@ -97,8 +97,12 @@ check_insert_fields(THD *thd,TABLE *table,List<Item> &fields,
 }
 
 
-int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
-		 List<List_item> &values_list,enum_duplicates duplic)
+int mysql_insert(THD *thd,TABLE_LIST *table_list,
+                 List<Item> &fields,
+                 List<List_item> &values_list,
+                 List<Item> &update_fields,
+                 List<Item> &update_values,
+                 enum_duplicates duplic)
 {
   int error;
   bool log_on= ((thd->options & OPTION_UPDATE_LOG) ||
@@ -126,7 +130,8 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   if ((lock_type == TL_WRITE_DELAYED &&
        ((specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) ||
 	thd->slave_thread)) ||
-      (lock_type == TL_WRITE_CONCURRENT_INSERT && duplic == DUP_REPLACE))
+      (lock_type == TL_WRITE_CONCURRENT_INSERT && duplic == DUP_REPLACE) ||
+      (duplic == DUP_UPDATE))
     lock_type=TL_WRITE;
   table_list->lock_type= lock_type;
 
@@ -166,7 +171,10 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   values= its++;
   if (check_insert_fields(thd,table,fields,*values,1) ||
       setup_tables(insert_table_list) ||
-      setup_fields(thd, insert_table_list, *values, 0, 0, 0))
+      setup_fields(thd, insert_table_list, *values, 0, 0, 0) ||
+      (duplic == DUP_UPDATE &&
+       (setup_fields(thd, insert_table_list, update_fields, 0, 0, 0) ||
+        setup_fields(thd, insert_table_list, update_values, 0, 0, 0))))
   {
     table->time_stamp= save_time_stamp;
     goto abort;
@@ -203,6 +211,8 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
 
   info.records=info.deleted=info.copied=0;
   info.handle_duplicates=duplic;
+  info.update_fields=&update_fields;
+  info.update_values=&update_values;
   // Don't count warnings for simple inserts
   if (values_list.elements > 1 || (thd->options & OPTION_WARNINGS))
     thd->count_cuted_fields = 1;
@@ -212,7 +222,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   error=0;
   id=0;
   thd->proc_info="update";
-  if (duplic == DUP_IGNORE || duplic == DUP_REPLACE)
+  if (duplic != DUP_ERROR)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   if ((bulk_insert= (values_list.elements >= MIN_ROWS_TO_USE_BULK_INSERT &&
 		     lock_type != TL_WRITE_DELAYED &&
@@ -358,7 +368,7 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list, List<Item> &fields,
   table->next_number_field=0;
   thd->count_cuted_fields=0;
   thd->next_insert_id=0;			// Reset this if wrongly used
-  if (duplic == DUP_IGNORE || duplic == DUP_REPLACE)
+  if (duplic != DUP_ERROR)
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   if (error)
     goto abort;
@@ -410,7 +420,8 @@ int write_record(TABLE *table,COPY_INFO *info)
   char *key=0;
 
   info->records++;
-  if (info->handle_duplicates == DUP_REPLACE)
+  if (info->handle_duplicates == DUP_REPLACE ||
+      info->handle_duplicates == DUP_UPDATE)
   {
     while ((error=table->file->write_row(table->record[0])))
     {
@@ -427,7 +438,9 @@ int write_record(TABLE *table,COPY_INFO *info)
 	was used.  This ensures that we don't get a problem when the
 	whole range of the key has been used.
       */
-      if (table->next_number_field && key_nr == table->next_number_index &&
+      if (info->handle_duplicates == DUP_REPLACE &&
+          table->next_number_field &&
+          key_nr == table->next_number_index &&
 	  table->file->auto_increment_column_changed)
 	goto err;
       if (table->file->table_flags() & HA_DUPP_POS)
@@ -459,16 +472,33 @@ int write_record(TABLE *table,COPY_INFO *info)
 						HA_READ_KEY_EXACT))))
 	  goto err;
       }
-      if (last_uniq_key(table,key_nr))
+      if (info->handle_duplicates == DUP_UPDATE)
       {
-	if ((error=table->file->update_row(table->record[1],table->record[0])))
-	  goto err;
-	info->deleted++;
-	break;					/* Update logfile and count */
+        /* we don't check for other UNIQUE keys - the first row
+           that matches, is updated. If update causes a conflict again,
+           an error is returned
+        */
+        restore_record(table,1);
+        if (fill_record(*info->update_fields,*info->update_values))
+          goto err;
+        if ((error=table->file->update_row(table->record[1],table->record[0])))
+          goto err;
+        info->deleted++;
+        break;
       }
-      else if ((error=table->file->delete_row(table->record[1])))
-	goto err;
-      info->deleted++;
+      else /* DUP_REPLACE */
+      {
+        if (last_uniq_key(table,key_nr))
+        {
+          if ((error=table->file->update_row(table->record[1],table->record[0])))
+            goto err;
+          info->deleted++;
+          break;					/* Update logfile and count */
+        }
+        else if ((error=table->file->delete_row(table->record[1])))
+          goto err;
+        info->deleted++;
+      }
     }
     info->copied++;
   }

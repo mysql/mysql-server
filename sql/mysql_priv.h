@@ -429,7 +429,7 @@ int mysql_alter_table(THD *thd, char *new_db, char *new_name,
 		      bool drop_primary,
 		      enum enum_duplicates handle_duplicates,
 		      enum enum_enable_or_disable keys_onoff=LEAVE_AS_IS,
-    		      bool simple_alter=0);
+		      bool simple_alter=0);
 bool mysql_rename_table(enum db_type base,
 			const char *old_db,
 			const char * old_name,
@@ -440,11 +440,12 @@ int mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys);
 int mysql_drop_index(THD *thd, TABLE_LIST *table_list,
 		     List<Alter_drop> &drop_list);
 int mysql_update(THD *thd,TABLE_LIST *tables,List<Item> &fields,
-		 List<Item> &values,COND *conds, 
+		 List<Item> &values,COND *conds,
                  ORDER *order, ha_rows limit,
 		 enum enum_duplicates handle_duplicates);
 int mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
-		 List<List_item> &values, enum_duplicates flag);
+		 List<List_item> &values, List<Item> &update_fields,
+		 List<Item> &update_values, enum_duplicates flag);
 void kill_delayed_threads(void);
 int mysql_delete(THD *thd, TABLE_LIST *table, COND *conds, ORDER *order,
                  ha_rows rows, ulong options);
