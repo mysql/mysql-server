@@ -192,6 +192,7 @@ CHARACTER_SET=latin1
 DBUSER=""
 START_WAIT_TIMEOUT=10
 STOP_WAIT_TIMEOUT=10
+TEST_REPLICATION=0
 
 while test $# -gt 0; do
   case "$1" in
@@ -264,6 +265,9 @@ while test $# -gt 0; do
       ;;
     --user-test=*)
       USER_TEST=`$ECHO "$1" | $SED -e "s;--user-test=;;"`
+      ;;
+    --rpl)
+      TEST_REPLICATION=1
       ;;
     --mysqld=*)
        TMP=`$ECHO "$1" | $SED -e "s;--mysqld=;;"`
@@ -1289,15 +1293,22 @@ $ECHO $DASH72
 
 if [ -z "$1" ] ;
 then
- if [ x$RECORD = x1 ]; then
-  $ECHO "Will not run in record mode without a specific test case."
- else
-  for tf in $TESTDIR/*.$TESTSUFFIX
-  do
-    run_testcase $tf
-  done
-  $RM -f $TIMEFILE	# Remove for full test
- fi
+  if [ x$RECORD = x1 ]; then
+    $ECHO "Will not run in record mode without a specific test case."
+  else
+    if [ x$TEST_REPLICATION = x1 ]; then
+      for tf in $TESTDIR/rpl*.$TESTSUFFIX
+      do
+        run_testcase $tf
+      done
+    else
+      for tf in $TESTDIR/*.$TESTSUFFIX
+      do
+        run_testcase $tf
+      done
+    fi
+    $RM -f $TIMEFILE	# Remove for full test
+  fi
 else
   while [ ! -z "$1" ]; do
     tname=`$BASENAME $1 .test`

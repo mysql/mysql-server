@@ -1,13 +1,13 @@
-slave start;
+start slave;
 Could not initialize master info structure, check permisions on master.info
-slave start;
+start slave;
 Could not initialize master info structure, check permisions on master.info
 change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root';
 Could not initialize master info
 reset slave;
 change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root';
 reset master;
-slave start;
+start slave;
 drop table if exists t1, t2, t3, t4;
 create temporary table temp_table (a char(80) not null);
 insert into temp_table values ("testing temporary tables");
@@ -39,7 +39,7 @@ insert into t2 values(1234);
 set insert_id=1234;
 insert into t2 values(NULL);
 set global sql_slave_skip_counter=1;
-slave start;
+start slave;
 purge master logs to 'master-bin.003';
 show master logs;
 Log_name
