@@ -405,3 +405,5 @@ operator<<(NdbOut& out, const Dbtup::Th& th)
   return out;
 }
 #endif
+
+template class Vector<Chunk>;
