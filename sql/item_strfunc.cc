@@ -2079,6 +2079,7 @@ outp:
 void Item_func_conv_charset::fix_length_and_dec()
 {
   max_length = args[0]->max_length*conv_charset->mbmaxlen;
+  coercibility= COER_IMPLICIT;
   set_charset(conv_charset);
 }
 
