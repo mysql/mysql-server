@@ -25,11 +25,11 @@ do
                 ;;
        --force) force=1
                 ;;
-       --no-defaults=*) CONFIG_FILES=/nonexistent
+       --no-defaults=*)   defaults="$1"; CONFIG_FILES=/nonexistent
                 ;;
-       --defaults-file=*) CONFIG_FILES="$eqvalue"
+       --defaults-file=*) defaults="$1"; CONFIG_FILES="$eqvalue"
                 ;;
-       --basedir=*) SETVARS="$SETVARS basedir=\"$eqvalue\"; bindir=\"$eqvalue/bon\"; execdir=\"$eqvalue/libexec\"; sbindir=\"$eqvalue/sbin\"; "
+       --basedir=*) SETVARS="$SETVARS basedir=\"$eqvalue\"; bindir=\"$eqvalue/bin\"; execdir=\"$eqvalue/libexec\"; sbindir=\"$eqvalue/sbin\"; "
                 ;;
        --ldata=*|--datadir=*) SETVARS="$SETVARS ldata=\"$eqvalue\";"
                 ;;
@@ -120,10 +120,12 @@ then
       echo "the --force option"
       exit 1
     fi
-    echo "WARNING: Your libc libraries are not 100 % compatible with this MySQL version"
-    echo "mysqld should work normally with the exception that host name resolving"
-    echo "will not work.  This means that you should use IP addresses instead"
-    echo "of hostnames when specifying MySQL privileges !"
+    echo "WARNING: The host '$hostname' could not be looked up with resolveip."
+    echo "This probably means that your libc libraries are not 100 % compatible"
+    echo "with this binary MySQL version. The MySQL deamon, mysqld, should work"
+    echo "normally with the exception that host name resolving will not work."
+    echo "This means that you should use IP addresses instead of hostnames"
+    echo "when specifying MySQL privileges !"
   fi
 fi
 
