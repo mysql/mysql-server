@@ -1424,7 +1424,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_EXECUTE:
   {
-    thd->free_list= NULL;
     mysql_stmt_execute(thd, packet, packet_length);
     break;
   }
@@ -1976,7 +1975,126 @@ mysql_execute_command(THD *thd)
     }
     break;
   }
-
+  case SQLCOM_PREPARE:
+  {   
+    char *query_str;
+    uint query_len;
+    if (lex->prepared_stmt_code_is_varref)
+    {
+      /* This is PREPARE stmt FROM @var. */
+      String str;
+      CHARSET_INFO *to_cs= thd->variables.collation_connection;
+      CHARSET_INFO *from_cs;
+      const char *buf;
+      uint  buf_len;
+      bool need_conversion;
+      LINT_INIT(from_cs); /* protected by need_conversion */
+      user_var_entry *entry;
+      uint32 unused;
+      /*
+        Convert @var contents to string in connection character set. Although 
+        it is known that int/real/NULL value cannot be a valid query we still 
+        convert it for error messages to uniform.  
+      */
+      if ((entry= 
+             (user_var_entry*)hash_search(&thd->user_vars, 
+                                          (byte*)lex->prepared_stmt_code.str,
+                                          lex->prepared_stmt_code.length))
+          && entry->value)
+      {
+        switch (entry->type)
+        {
+          case REAL_RESULT:
+            str.set(*(double*)entry->value, NOT_FIXED_DEC, to_cs);
+            buf_len= str.length();
+            buf= str.ptr();
+            need_conversion= false;
+            break;
+          case INT_RESULT:
+            str.set(*(longlong*)entry->value, to_cs);
+            buf_len= str.length();
+            buf= str.ptr();
+            need_conversion= false;
+            break;
+          case STRING_RESULT:
+            buf_len= entry->length;
+            buf= entry->value;
+            from_cs = entry->collation.collation;
+            need_conversion= String::needs_conversion(entry->length, from_cs,
+                                                      to_cs, &unused);
+            break;
+          default:
+            buf= "";
+            need_conversion= false;
+            buf_len= 0;
+            DBUG_ASSERT(0);
+        }
+      }
+      else
+      {
+        from_cs= &my_charset_bin;
+        str.set("NULL", 4, from_cs);
+        buf= str.ptr();
+        buf_len= str.length();
+        need_conversion= String::needs_conversion(str.length(), from_cs,
+                                                  to_cs, &unused);
+      }
+       
+      query_len = need_conversion? (buf_len * to_cs->mbmaxlen) : buf_len;
+      if (!(query_str= alloc_root(&thd->mem_root, query_len+1)))
+        send_error(thd, ER_OUT_OF_RESOURCES);
+      
+      if (need_conversion)
+        query_len= copy_and_convert(query_str, query_len, to_cs, buf, buf_len,
+                                    from_cs);
+      else
+        memcpy(query_str, buf, query_len);
+      query_str[query_len]= 0;
+    }
+    else
+    {
+      query_str= lex->prepared_stmt_code.str;
+      query_len= lex->prepared_stmt_code.length;
+      DBUG_PRINT("info", ("PREPARE: %.*s FROM '%.*s' \n", 
+                          lex->prepared_stmt_name.length,
+                          lex->prepared_stmt_name.str,
+                          query_len, query_str));
+    }
+    thd->command= COM_PREPARE;
+    if (!mysql_stmt_prepare(thd, query_str, query_len + 1,
+                            &lex->prepared_stmt_name))
+      send_ok(thd, 0L, 0L, "Statement prepared");
+    break;
+  }
+  case SQLCOM_EXECUTE:
+  {
+    DBUG_PRINT("info", ("EXECUTE: %.*s\n", 
+                        lex->prepared_stmt_name.length,
+                        lex->prepared_stmt_name.str));
+    mysql_sql_stmt_execute(thd, &lex->prepared_stmt_name);
+    lex->prepared_stmt_params.empty();
+    break;
+  }
+  case SQLCOM_DEALLOCATE_PREPARE:
+  {
+    Statement* stmt;
+    DBUG_PRINT("info", ("DEALLOCATE PREPARE: %.*s\n", 
+                        lex->prepared_stmt_name.length,
+                        lex->prepared_stmt_name.str));
+    if ((stmt= thd->stmt_map.find_by_name(&lex->prepared_stmt_name)))
+    {
+      thd->stmt_map.erase(stmt);
+      send_ok(thd);
+    }
+    else
+    {
+      res= -1;
+      my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0),
+               lex->prepared_stmt_name.length, lex->prepared_stmt_name.str,
+               "DEALLOCATE PREPARE");
+    }
+    break;
+  }
   case SQLCOM_DO:
     if (tables && ((res= check_table_access(thd, SELECT_ACL, tables,0)) ||
 		   (res= open_and_lock_tables(thd,tables))))
@@ -3401,7 +3519,7 @@ error:
 */
 
 int check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *tables)
-					 
+
 {
   if (check_access(thd, privilege, tables->db, &tables->grant.privilege,0,0))
     return 1;
