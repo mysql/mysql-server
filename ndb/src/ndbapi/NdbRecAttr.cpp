@@ -139,8 +139,9 @@ NdbRecAttr::receive_data(const Uint32 * data, Uint32 sz){
 
 static void
 ndbrecattr_print_string(NdbOut& out, const char *type,
-			const char *ref, unsigned sz)
+			const char *aref, unsigned sz)
 {
+  const unsigned char* ref = (const unsigned char*)aref;
   int i, len, printable= 1;
   // trailing zeroes are not printed
   for (i=sz-1; i >= 0; i--)
@@ -166,7 +167,7 @@ ndbrecattr_print_string(NdbOut& out, const char *type,
     for (i= len+1; ref[i] != 0; i++)
     out.print("%u]",len-i);
     assert((int)sz > i);
-    ndbrecattr_print_string(out,type,ref+i,sz-i);
+    ndbrecattr_print_string(out,type,aref+i,sz-i);
   }
 }
 
