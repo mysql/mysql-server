@@ -372,13 +372,17 @@ JOIN::optimize()
   }
 #endif
 
-  conds=optimize_cond(conds,&cond_value);
-  if (thd->fatal_error || thd->net.report_error)
+  conds= optimize_cond(conds,&cond_value);
+  if (thd->fatal_error)
   {
+    // quick abort
     delete procedure;
-    error = 0;
+    error= 0;
     DBUG_RETURN(1);
-  }
+  } else if (thd->net.report_error)
+    // normal error processing & cleanup
+    DBUG_RETURN(-1);
+
   if (cond_value == Item::COND_FALSE || (!unit->select_limit_cnt && !(select_options & OPTION_FOUND_ROWS)))
   {					/* Impossible cond */
     zero_result_cause= "Impossible WHERE";
@@ -7520,8 +7524,8 @@ int mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
       break;
 
   }
-  if (res > 0)
-    res= -res; // mysql_explain_select do not report error
+  if (res > 0 || thd->net.report_error)
+    res= -1; // mysql_explain_select do not report error
   DBUG_RETURN(res);
 }
 
