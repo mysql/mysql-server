@@ -497,6 +497,8 @@ static uint set_maximum_open_files(uint max_file_limit);
 static ulong find_bit_type(const char *x, TYPELIB *bit_lib);
 static void clean_up(bool print_message);
 static void clean_up_mutexes(void);
+static int test_if_case_insensitive(const char *dir_name);
+static void create_pid_file();
 
 #ifndef EMBEDDED_LIBRARY
 /****************************************************************************
@@ -1058,7 +1060,7 @@ static void set_user(const char *user)
     }
     return;
   }
-  else if (!user)
+  if (!user)
   {
     if (!opt_bootstrap)
     {
@@ -1480,16 +1482,7 @@ static void start_signal_handler(void)
 {
   // Save vm id of this process
   if (!opt_bootstrap)
-  {
-    File pidFile;
-    if ((pidFile = my_create(pidfile_name,0664, O_WRONLY, MYF(MY_WME))) >= 0)
-    {
-      char buff[21];
-      sprintf(buff,"%lu",(ulong) getpid());
-      (void) my_write(pidFile, buff,strlen(buff),MYF(MY_WME));
-      (void) my_close(pidFile,MYF(0));
-    }
-  }
+    create_pid_file();
   // no signal handler
 }
 
@@ -1775,16 +1768,8 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
 
   /* Save pid to this process (or thread on Linux) */
   if (!opt_bootstrap)
-  {
-    File pidFile;
-    if ((pidFile = my_create(pidfile_name,0664, O_WRONLY, MYF(MY_WME))) >= 0)
-    {
-      char buff[21];
-      ulong length= my_sprintf(buff, (buff,"%lu",(ulong) getpid()));
-      (void) my_write(pidFile, buff, length, MYF(MY_WME));
-      (void) my_close(pidFile,MYF(0));
-    }
-  }
+    create_pid_file();
+
 #ifdef HAVE_STACK_TRACE_ON_SEGV
   if (opt_do_pstack)
   {
@@ -2756,7 +2741,7 @@ default_service_handling(char **argv,
   }
   /* We must have servicename last */
   *pos++= ' ';
-  strmake(pos, servicename, (uint) (end+2 - pos));
+  (void) add_quoted_string(pos, servicename, end);
 
   if (Service.got_service_option(argv, "install"))
   {
@@ -4595,7 +4580,7 @@ The minimum value for this variable is 4096.",
    1, 0},
   {"table_cache", OPT_TABLE_CACHE,
    "The number of open tables for all threads.", (gptr*) &table_cache_size,
-   (gptr*) &table_cache_size, 0, GET_ULONG, REQUIRED_ARG, 64, 1, 16384, 0, 1,
+   (gptr*) &table_cache_size, 0, GET_ULONG, REQUIRED_ARG, 64, 1, ~0L, 0, 1,
    0},
   {"thread_concurrency", OPT_THREAD_CONCURRENCY,
    "Permits the application to give the threads system a hint for the desired number of threads that should be run at the same time.",
@@ -4613,7 +4598,7 @@ The minimum value for this variable is 4096.",
   {"thread_stack", OPT_THREAD_STACK,
    "The stack size for each thread.", (gptr*) &thread_stack,
    (gptr*) &thread_stack, 0, GET_ULONG, REQUIRED_ARG,DEFAULT_THREAD_STACK,
-   1024*32, ~0L, 0, 1024, 0},
+   1024L*128L, ~0L, 0, 1024, 0},
   {"transaction_alloc_block_size", OPT_TRANS_ALLOC_BLOCK_SIZE,
    "Allocation block size for transactions to be stored in binary log",
    (gptr*) &global_system_variables.trans_alloc_block_size,
@@ -4638,7 +4623,7 @@ The minimum value for this variable is 4096.",
     "The default week format used by WEEK() functions.",
     (gptr*) &global_system_variables.default_week_format,
     (gptr*) &max_system_variables.default_week_format,
-    0, GET_ULONG, REQUIRED_ARG, 0, 0, 3L, 0, 1, 0},
+    0, GET_ULONG, REQUIRED_ARG, 0, 0, 7L, 0, 1, 0},
   { "date-format", OPT_DATE_FORMAT,
     "The DATE format (For future).",
     (gptr*) &opt_date_time_formats[TIMESTAMP_DATE],
@@ -5376,11 +5361,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     my_use_symdir=0;
     break;
   case (int) OPT_BIND_ADDRESS:
-    if (!argument ||
-	(my_bind_addr= (ulong) inet_addr(argument)) == INADDR_NONE)
+    if ((my_bind_addr= (ulong) inet_addr(argument)) == INADDR_NONE)
     {
       struct hostent *ent;
-      if (argument || argument[0])
+      if (argument[0])
 	ent=gethostbyname(argument);
       else
       {
@@ -5790,6 +5774,18 @@ static void fix_paths(void)
       exit(1);
   }
 #endif /* HAVE_REPLICATION */
+
+  /*
+    Ensure that lower_case_table_names is set on system where we have case
+    insensitive names.  If this is not done the users MyISAM tables will
+    get corrupted if accesses with names of different case.
+  */
+  if (!lower_case_table_names &&
+      test_if_case_insensitive(mysql_real_data_home) == 1)
+  {
+    sql_print_error("Warning: Setting lower_case_table_names=1 becasue file system %s is case insensitive", mysql_real_data_home);
+    lower_case_table_names= 1;
+  }
 }
 
 
@@ -5941,6 +5937,61 @@ skipp: ;
   DBUG_PRINT("exit",("bit-field: %ld",(ulong) found));
   DBUG_RETURN(found);
 } /* find_bit_type */
+
+
+/*
+  Check if file system used for databases is case insensitive
+
+  SYNOPSIS
+    test_if_case_sensitive()
+    dir_name			Directory to test
+
+  RETURN
+    -1  Don't know (Test failed)
+    0   File system is case sensitive
+    1   File system is case insensitive
+*/
+
+static int test_if_case_insensitive(const char *dir_name)
+{
+  int result= 0;
+  File file;
+  char buff[FN_REFLEN], buff2[FN_REFLEN];
+  MY_STAT stat_info;
+
+  fn_format(buff, glob_hostname, dir_name, ".lower-test",
+	    MY_UNPACK_FILENAME | MY_REPLACE_EXT | MY_REPLACE_DIR);
+  fn_format(buff2, glob_hostname, dir_name, ".LOWER-TEST",
+	    MY_UNPACK_FILENAME | MY_REPLACE_EXT | MY_REPLACE_DIR);
+  (void) my_delete(buff2, MYF(0));
+  if ((file= my_create(buff, 0666, O_RDWR, MYF(0))) < 0)
+  {
+    sql_print_error("Warning: Can't create test file %s", buff);
+    return -1;
+  }
+  my_close(file, MYF(0));
+  if (my_stat(buff2, &stat_info, MYF(0)))
+    result= 1;					// Can access file
+  (void) my_delete(buff, MYF(MY_WME));
+  return result;
+}
+
+
+/* Create file to store pid number */
+
+static void create_pid_file()
+{
+  File file;
+  if ((file = my_create(pidfile_name,0664,
+			O_WRONLY | O_TRUNC, MYF(MY_WME))) >= 0)
+  {
+    char buff[21], *end;
+    end= int2str((long) getpid(), buff, 10);
+    *end++= '\n';
+    (void) my_write(file, (byte*) buff, (uint) (end-buff),MYF(MY_WME));
+    (void) my_close(file, MYF(0));
+  }
+}
 
 
 /*****************************************************************************

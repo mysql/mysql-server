@@ -36,9 +36,7 @@ a	b
 3	4
 drop table t1;
 create table t1 (i int);
-insert into t1 (i) values(1);
-insert into t1 (i) values(1);
-insert into t1 (i) values(1);
+insert into t1 (i) values(1),(1),(1);
 delete from t1 limit 1;
 update t1 set i=2 limit 1;
 delete from t1 limit 0;
@@ -50,3 +48,22 @@ i
 drop table t1;
 select 0 limit 0;
 0
+CREATE TABLE t1(id int auto_increment primary key, id2 int, index(id2));
+INSERT INTO t1 (id2) values (0),(0),(0);
+DELETE FROM t1 WHERE id=1;
+INSERT INTO t1 SET id2=0;
+SELECT * FROM t1;
+id	id2
+4	0
+2	0
+3	0
+DELETE FROM t1 WHERE id2 = 0 ORDER BY id LIMIT 1;
+SELECT * FROM t1;
+id	id2
+4	0
+3	0
+DELETE FROM t1 WHERE id2 = 0 ORDER BY id desc LIMIT 1;
+SELECT * FROM t1;
+id	id2
+3	0
+DROP TABLE t1;

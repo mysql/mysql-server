@@ -380,7 +380,7 @@ int main(int argc,char *argv[])
   put_info("Welcome to the MySQL monitor.  Commands end with ; or \\g.",
 	   INFO_INFO);
   sprintf((char*) glob_buffer.ptr(),
-	  "Your MySQL connection id is %ld to server version: %s\n",
+	  "Your MySQL connection id is %lu to server version: %s\n",
 	  mysql_thread_id(&mysql),mysql_get_server_info(&mysql));
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
 
@@ -613,8 +613,8 @@ static struct my_option my_long_options[] =
    0, 1},
   {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET, "",
    (gptr*) &max_allowed_packet, (gptr*) &max_allowed_packet, 0, GET_ULONG,
-   REQUIRED_ARG, 16 *1024L*1024L, 4096, 512*1024L*1024L, MALLOC_OVERHEAD,
-   1024, 0},
+   REQUIRED_ARG, 16 *1024L*1024L, 4096, (longlong) 2*1024L*1024L*1024L,
+   MALLOC_OVERHEAD, 1024, 0},
   {"net_buffer_length", OPT_NET_BUFFER_LENGTH, "",
    (gptr*) &net_buffer_length, (gptr*) &net_buffer_length, 0, GET_ULONG,
    REQUIRED_ARG, 16384, 1024, 512*1024*1024L, MALLOC_OVERHEAD, 1024, 0},
@@ -2346,7 +2346,7 @@ com_connect(String *buffer, char *line)
 
   if (connected)
   {
-    sprintf(buff,"Connection id:    %ld",mysql_thread_id(&mysql));
+    sprintf(buff,"Connection id:    %lu",mysql_thread_id(&mysql));
     put_info(buff,INFO_INFO);
     sprintf(buff,"Current database: %s\n",
 	    current_db ? current_db : "*** NONE ***");
@@ -2545,8 +2545,11 @@ static int
 sql_real_connect(char *host,char *database,char *user,char *password,
 		 uint silent)
 {
-  mysql_close(&mysql);
-  connected= 0;
+  if (connected)
+  {
+    connected= 0;
+    mysql_close(&mysql);
+  }
   mysql_init(&mysql);
   if (opt_connect_timeout)
   {
@@ -2652,7 +2655,7 @@ com_status(String *buffer __attribute__((unused)),
   {
     MYSQL_RES *result;
     LINT_INIT(result);
-    tee_fprintf(stdout, "\nConnection id:\t\t%ld\n",mysql_thread_id(&mysql));
+    tee_fprintf(stdout, "\nConnection id:\t\t%lu\n",mysql_thread_id(&mysql));
     if (!mysql_query(&mysql,"select DATABASE(),USER()") &&
 	(result=mysql_use_result(&mysql)))
     {
