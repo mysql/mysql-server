@@ -123,7 +123,7 @@ static int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
     DBUG_RETURN(1); // out of memory
 
   // st_select_lex_unit::prepare correctly work for single select
-  if ((res= unit->prepare(thd, derived_result, 0)))
+  if ((res= unit->prepare(thd, derived_result, 0, org_table_list->alias)))
     goto exit;
 
 	
@@ -161,7 +161,7 @@ static int mysql_derived(THD *thd, LEX *lex, SELECT_LEX_UNIT *unit,
     if (is_union)
     {
       // execute union without clean up
-      if (!(res= unit->prepare(thd, derived_result, SELECT_NO_UNLOCK)))
+      if (!(res= unit->prepare(thd, derived_result, SELECT_NO_UNLOCK, "")))
 	res= unit->exec();
     }
     else

@@ -3731,6 +3731,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
                       db ? db : "", want_access, thd->master_access));
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   ulong db_access;
+  bool  db_is_pattern= test(want_access & GRANT_ACL);
 #endif
   ulong dummy;
   if (save_priv)
@@ -3757,9 +3758,8 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     */
     db_access= thd->db_access;
     if (!(thd->master_access & SELECT_ACL) &&
-	(db && (!thd->db || strcmp(db,thd->db))))
-      db_access=acl_get(thd->host, thd->ip,
-			thd->priv_user, db, test(want_access & GRANT_ACL));
+	(db && (!thd->db || db_is_pattern || strcmp(db,thd->db))))
+      db_access=acl_get(thd->host, thd->ip, thd->priv_user, db, db_is_pattern);
     *save_priv=thd->master_access | db_access;
     DBUG_RETURN(FALSE);
   }
@@ -3777,9 +3777,8 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   if (db == any_db)
     DBUG_RETURN(FALSE);				// Allow select on anything
 
-  if (db && (!thd->db || strcmp(db,thd->db)))
-    db_access=acl_get(thd->host, thd->ip,
-		      thd->priv_user, db, test(want_access & GRANT_ACL));
+  if (db && (!thd->db || db_is_pattern || strcmp(db,thd->db)))
+    db_access=acl_get(thd->host, thd->ip, thd->priv_user, db, db_is_pattern);
   else
     db_access=thd->db_access;
   DBUG_PRINT("info",("db_access: %lu", db_access));
@@ -4539,9 +4538,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
         net_printf(thd,ER_TOO_BIG_SET,field_name); /* purecov: inspected */
         DBUG_RETURN(1);				/* purecov: inspected */
       }
-      new_field->pack_length= (interval_list->elements + 7) / 8;
-      if (new_field->pack_length > 4)
-        new_field->pack_length=8;
+      new_field->pack_length= get_set_pack_length(interval_list->elements);
 
       List_iterator<String> it(*interval_list);
       String *tmp;
@@ -4558,7 +4555,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
   case FIELD_TYPE_ENUM:
     {
       // Should be safe
-      new_field->pack_length= interval_list->elements < 256 ? 1 : 2; 
+      new_field->pack_length= get_enum_pack_length(interval_list->elements);
 
       List_iterator<String> it(*interval_list);
       String *tmp;

@@ -119,6 +119,7 @@ public:
   friend class Item_in_optimizer;
   friend bool Item_field::fix_fields(THD *, TABLE_LIST *, Item **);
   friend bool Item_ref::fix_fields(THD *, TABLE_LIST *, Item **);
+  friend bool Item_param::fix_fields(THD *, TABLE_LIST *, Item **);
 };
 
 /* single value subselect */
@@ -220,8 +221,8 @@ public:
 
   Item_in_subselect(Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect()
-    :Item_exists_subselect(), abort_on_null(0), transformed(0), upper_item(0)
-     
+    :Item_exists_subselect(), optimizer(0), abort_on_null(0), transformed(0),
+     upper_item(0)
   {}
 
   subs_type substype() { return IN_SUBS; }
@@ -232,8 +233,8 @@ public:
     was_null= 0;
   }
   trans_res select_transformer(JOIN *join);
-  trans_res single_value_transformer(JOIN *join,
-				     Comp_creator *func);
+  trans_res select_in_like_transformer(JOIN *join, Comp_creator *func);
+  trans_res single_value_transformer(JOIN *join, Comp_creator *func);
   trans_res row_value_transformer(JOIN * join);
   longlong val_int();
   double val();
