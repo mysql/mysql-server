@@ -13,8 +13,10 @@ connect (slave,localhost,root,,test,0,slave.sock);
 connection master;
 reset master;
 drop table if exists t1;
-create table t1 (a int) type=HEAP;
-insert into t1 values(10);
+# we use CREATE SELECT to verify that DELETE does not get into binlog
+# before CREATE SELECT
+create table t1 type=HEAP select 10 as a;
+insert into t1 values(11);
 save_master_pos;
 show binlog events from 79;
 connection slave;
