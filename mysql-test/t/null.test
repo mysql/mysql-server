@@ -98,3 +98,24 @@ explain select * from t1 where a between 2 and 3;
 explain select * from t1 where a between 2 and 3 or b is null;
 drop table t1;
 select cast(NULL as signed);
+
+#
+# Test case for bug #4256
+#
+
+create table t1(i int, key(i));
+insert into t1 values(1);
+insert into t1 select i*2 from t1;
+insert into t1 select i*2 from t1;
+insert into t1 select i*2 from t1;
+insert into t1 select i*2 from t1;
+insert into t1 select i*2 from t1;
+insert into t1 select i*2 from t1;
+insert into t1 select i*2 from t1;
+insert into t1 select i*2 from t1;
+insert into t1 select i*2 from t1;
+explain select * from t1 where i=2 or i is null;
+alter table t1 change i i int not null;
+explain select * from t1 where i=2 or i is null;
+drop table t1;
+
