@@ -430,7 +430,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
       *write_lock_used=table;
       if (table->db_stat & HA_READ_ONLY)
       {
-	my_error(ER_OPEN_AS_READONLY,MYF(0),table->table_name);
+	my_error(ER_OPEN_AS_READONLY, MYF(0), table->table_name);
 	my_free((gptr) sql_lock,MYF(0));
 	return 0;
       }
@@ -795,7 +795,8 @@ bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
     if (thd->global_read_lock)		// This thread had the read locks
     {
       if (is_not_commit)
-        my_error(ER_CANT_UPDATE_WITH_READLOCK,MYF(0));
+        my_message(ER_CANT_UPDATE_WITH_READLOCK,
+                   ER(ER_CANT_UPDATE_WITH_READLOCK), MYF(0));
       (void) pthread_mutex_unlock(&LOCK_open);
       /*
         We allow FLUSHer to COMMIT; we assume FLUSHer knows what it does.

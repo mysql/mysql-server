@@ -1834,4 +1834,46 @@ ndb_mgm_set_string_parameter(NdbMgmHandle handle,
   return res;
 }
 
+extern "C"
+int
+ndb_mgm_purge_stale_sessions(NdbMgmHandle handle, char **purged){
+  CHECK_HANDLE(handle, 0);
+  CHECK_CONNECTED(handle, 0);
+  
+  Properties args;
+  
+  const ParserRow<ParserDummy> reply[]= {
+    MGM_CMD("purge stale sessions reply", NULL, ""),
+    MGM_ARG("purged", String, Optional, ""),
+    MGM_ARG("result", String, Mandatory, "Error message"),
+    MGM_END()
+  };
+  
+  const Properties *prop;
+  prop= ndb_mgm_call(handle, reply, "purge stale sessions", &args);
+  
+  if(prop == NULL) {
+    SET_ERROR(handle, EIO, "Unable to purge stale sessions");
+    return -1;
+  }
+
+  int res= -1;
+  do {
+    const char * buf;
+    if(!prop->get("result", &buf) || strcmp(buf, "Ok") != 0){
+      ndbout_c("ERROR Message: %s\n", buf);
+      break;
+    }
+    if (purged) {
+      if (prop->get("purged", &buf))
+	*purged= strdup(buf);
+      else
+	*purged= 0;
+    }
+    res= 0;
+  } while(0);
+  delete prop;
+  return res;
+}
+
 template class Vector<const ParserRow<ParserDummy>*>;

@@ -131,7 +131,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
           for (table= tables; table; table= table->next_local)
           {
             if (outer_tables || (table->table->file->table_flags() &
-                                 HA_NOT_EXACT_COUNT))
+                                 HA_NOT_EXACT_COUNT) || table->schema_table)
             {
               const_result= 0;			// Can't optimize left join
               break;

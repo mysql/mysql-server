@@ -52,15 +52,30 @@ int my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
     if (*fmt == '-')
       fmt++;
     length= width= pre_zero= have_long= 0;
-    for (;my_isdigit(&my_charset_latin1,*fmt); fmt++)
+    if (*fmt == '*')
     {
-      length=length*10+ (uint) (*fmt-'0');
-      if (!length)
-        pre_zero= 1;			/* first digit was 0 */
+      fmt++;
+      length= va_arg(ap, int);
     }
+    else
+      for (; my_isdigit(&my_charset_latin1, *fmt); fmt++)
+      {
+        length= length * 10 + (uint)(*fmt - '0');
+        if (!length)
+          pre_zero= 1;			/* first digit was 0 */
+      }
     if (*fmt == '.')
-      for (fmt++;my_isdigit(&my_charset_latin1,*fmt); fmt++)
-        width=width*10+ (uint) (*fmt-'0');
+    {
+      fmt++;
+      if (*fmt == '*')
+      {
+        fmt++;
+        width= va_arg(ap, int);
+      }
+      else
+        for (; my_isdigit(&my_charset_latin1, *fmt); fmt++)
+          width= width * 10 + (uint)(*fmt - '0');
+    }
     else
       width= ~0;
     if (*fmt == 'l')

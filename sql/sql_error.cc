@@ -183,14 +183,14 @@ void push_warning_printf(THD *thd, MYSQL_ERROR::enum_warning_level level,
     Takes into account the current LIMIT
 
   RETURN VALUES
-    0	ok
-    1	Error sending data to client
+    FALSE ok
+    TRUE  Error sending data to client
 */
 
 static const char *warning_level_names[]= {"Note", "Warning", "Error", "?"};
 static int warning_level_length[]= { 4, 7, 5, 1 };
 
-my_bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
+bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
 {  
   List<Item> field_list;
   DBUG_ENTER("mysqld_show_warnings");
@@ -201,7 +201,7 @@ my_bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
 
   if (thd->protocol->send_fields(&field_list,
                                  Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
 
   MYSQL_ERROR *err;
   SELECT_LEX *sel= &thd->lex->select_lex;
@@ -225,10 +225,10 @@ my_bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
     protocol->store((uint32) err->code);
     protocol->store(err->msg, strlen(err->msg), system_charset_info);
     if (protocol->write())
-      DBUG_RETURN(1);
+      DBUG_RETURN(TRUE);
     if (!--limit)
       break;
   }
-  send_eof(thd);  
-  DBUG_RETURN(0);
+  send_eof(thd);
+  DBUG_RETURN(FALSE);
 }

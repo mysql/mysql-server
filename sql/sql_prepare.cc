@@ -123,16 +123,13 @@ inline bool is_param_null(const uchar *pos, ulong param_no)
 
 enum { STMT_QUERY_LOG_LENGTH= 8192 };
 
-enum enum_send_error { DONT_SEND_ERROR= 0, SEND_ERROR };
-
 /*
   Seek prepared statement in statement map by id: returns zero if statement
   was not found, pointer otherwise.
 */
 
 static Prepared_statement *
-find_prepared_statement(THD *thd, ulong id, const char *where,
-                        enum enum_send_error se)
+find_prepared_statement(THD *thd, ulong id, const char *where)
 {
   Statement *stmt= thd->stmt_map.find(id);
 
@@ -140,8 +137,6 @@ find_prepared_statement(THD *thd, ulong id, const char *where,
   {
     char llbuf[22];
     my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), 22, llstr(id, llbuf), where);
-    if (se == SEND_ERROR)
-      send_error(thd);
     return 0;
   }
   return (Prepared_statement *) stmt;
@@ -181,7 +176,7 @@ static bool send_prep_stmt(Prepared_statement *stmt,
 
   thd->client_stmt_id= stmt->id;
   thd->client_param_count= stmt->param_count;
-  thd->net.last_errno= 0;
+  thd->clear_error();
 
   return 0;
 }
@@ -882,24 +877,23 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
     tables	global/local table list  
 
   RETURN VALUE
-    0   ok
-    1   error, sent to the client
-   -1   error, not sent to client
+    FALSE OK
+    TRUE  error
 */
 
-static int mysql_test_insert(Prepared_statement *stmt,
-			     TABLE_LIST *table_list,
-			     List<Item> &fields, 
-			     List<List_item> &values_list,
-			     List<Item> &update_fields,
-			     List<Item> &update_values,
-			     enum_duplicates duplic)
+static bool mysql_test_insert(Prepared_statement *stmt,
+                              TABLE_LIST *table_list,
+                              List<Item> &fields, 
+                              List<List_item> &values_list,
+                              List<Item> &update_fields,
+                              List<Item> &update_values,
+                              enum_duplicates duplic)
 {
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
   List_iterator_fast<List_item> its(values_list);
   List_item *values;
-  int res;
+  bool res;
   DBUG_ENTER("mysql_test_insert");
 
   if ((res= insert_precheck(thd, table_list)))
@@ -909,9 +903,9 @@ static int mysql_test_insert(Prepared_statement *stmt,
      open temporary memory pool for temporary data allocated by derived
      tables & preparation procedure
   */
-  if ((res= open_and_lock_tables(thd, table_list)))
+  if (open_and_lock_tables(thd, table_list))
   {
-    DBUG_RETURN(res);
+    DBUG_RETURN(TRUE);
   }
 
   if ((values= its++))
@@ -932,9 +926,7 @@ static int mysql_test_insert(Prepared_statement *stmt,
       counter++;
       if (values->elements != value_count)
       {
-        my_printf_error(ER_WRONG_VALUE_COUNT_ON_ROW,
-			ER(ER_WRONG_VALUE_COUNT_ON_ROW),
-			MYF(0), counter);
+        my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
         goto error;
       }
       if (setup_fields(thd, 0, table_list, *values, 0, 0, 0))
@@ -958,14 +950,13 @@ error:
     tables	list of tables queries
 
   RETURN VALUE
-    0   success
-    1   error, sent to client
-   -1   error, not sent to client
+    FALSE success
+    TRUE  error
 */
-static int mysql_test_update(Prepared_statement *stmt,
-			     TABLE_LIST *table_list)
+static bool mysql_test_update(Prepared_statement *stmt,
+                              TABLE_LIST *table_list)
 {
-  int res;
+  bool res;
   THD *thd= stmt->thd;
   SELECT_LEX *select= &stmt->lex->select_lex;
   DBUG_ENTER("mysql_test_update");
@@ -1010,28 +1001,27 @@ static int mysql_test_update(Prepared_statement *stmt,
     tables	list of tables queries
 
   RETURN VALUE
-    0   success
-    1   error, sent to client
-   -1   error, not sent to client
+    FALSE success
+    TRUE  error
 */
 static int mysql_test_delete(Prepared_statement *stmt,
 			     TABLE_LIST *table_list)
 {
-  int res;
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
   DBUG_ENTER("mysql_test_delete");
 
-  if ((res= delete_precheck(thd, table_list)))
-    DBUG_RETURN(res);
+  if (delete_precheck(thd, table_list))
+    DBUG_RETURN(TRUE);
 
-  if (!(res=open_and_lock_tables(thd, table_list)))
+  if (!open_and_lock_tables(thd, table_list))
   {
-    res= mysql_prepare_delete(thd, table_list, &lex->select_lex.where);
+    mysql_prepare_delete(thd, table_list, &lex->select_lex.where);
     lex->unit.cleanup();
+    DBUG_RETURN(FALSE)
   }
   /* TODO: here we should send types of placeholders to the client. */ 
-  DBUG_RETURN(res);
+  DBUG_RETURN(TRUE);
 }
 
 
@@ -1046,9 +1036,8 @@ static int mysql_test_delete(Prepared_statement *stmt,
     tables	list of tables queries
 
   RETURN VALUE
-    0   success
-    1   error, sent to client
-   -1   error, not sent to client
+    FALSE success
+    TRUE  error, sent to client
 */
 
 static int mysql_test_select(Prepared_statement *stmt,
@@ -1057,7 +1046,7 @@ static int mysql_test_select(Prepared_statement *stmt,
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
   SELECT_LEX_UNIT *unit= &lex->unit;
-  int result;
+  bool result;
   DBUG_ENTER("mysql_test_select");
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -1065,32 +1054,25 @@ static int mysql_test_select(Prepared_statement *stmt,
   if (tables)
   {
     if (check_table_access(thd, privilege, tables,0))
-      DBUG_RETURN(1);
+      DBUG_RETURN(TRUE);
   }
   else if (check_access(thd, privilege, any_db,0,0,0))
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
 #endif
 
+  result= TRUE;
   if (!lex->result && !(lex->result= new (stmt->mem_root) select_send))
-  {
-    send_error(thd);
     goto err;
-  }
 
-  if ((result= open_and_lock_tables(thd, tables)))
-  {
-    result= 1;                                  // Error sent
-    send_error(thd);
+  if (open_and_lock_tables(thd, tables))
     goto err;
-  }
-  result= 1;
+
 
   thd->used_tables= 0;                        // Updated by setup_fields
 
   // JOIN::prepare calls
   if (unit->prepare(thd, 0, 0))
   {
-    send_error(thd);
     goto err_prep;
   }
   if (!text_protocol)
@@ -1120,7 +1102,7 @@ static int mysql_test_select(Prepared_statement *stmt,
         goto err_prep;
     }
   }
-  result= 0;                                    // ok
+  result= FALSE;                                    // ok
 
 err_prep:
   unit->cleanup();
@@ -1139,30 +1121,27 @@ err:
     values	list of expressions
 
   RETURN VALUE
-    0   success
-    1   error, sent to client
-   -1   error, not sent to client
+    FALSE success
+    TRUE  error, sent to client
 */
 
-static int mysql_test_do_fields(Prepared_statement *stmt,
+static bool mysql_test_do_fields(Prepared_statement *stmt,
 				TABLE_LIST *tables,
 				List<Item> *values)
 {
   DBUG_ENTER("mysql_test_do_fields");
   THD *thd= stmt->thd;
-  int res= 0;
-  if (tables && (res= check_table_access(thd, SELECT_ACL, tables, 0)))
-    DBUG_RETURN(res);
+  bool res;
+  if (tables && check_table_access(thd, SELECT_ACL, tables, 0))
+    DBUG_RETURN(TRUE);
 
-  if (tables && (res= open_and_lock_tables(thd, tables)))
+  if (tables && open_and_lock_tables(thd, tables))
   {
-    DBUG_RETURN(res);
+    DBUG_RETURN(TRUE);
   }
   res= setup_fields(thd, 0, 0, *values, 0, 0, 0);
   stmt->lex->unit.cleanup();
-  if (res)
-    DBUG_RETURN(-1);
-  DBUG_RETURN(0);
+  DBUG_RETURN(res);
 }
 
 
@@ -1176,22 +1155,21 @@ static int mysql_test_do_fields(Prepared_statement *stmt,
     values	list of expressions
 
   RETURN VALUE
-    0   success
-    1   error, sent to client
-   -1   error, not sent to client
+    FALSE success
+    TRUE  error
 */
-static int mysql_test_set_fields(Prepared_statement *stmt,
-				TABLE_LIST *tables,
-				List<set_var_base> *var_list)
+static bool mysql_test_set_fields(Prepared_statement *stmt,
+                                  TABLE_LIST *tables,
+                                  List<set_var_base> *var_list)
 {
   DBUG_ENTER("mysql_test_set_fields");
   List_iterator_fast<set_var_base> it(*var_list);
   THD *thd= stmt->thd;
   set_var_base *var;
-  int res= 0;
+  bool res= 0;
 
-  if (tables && (res= check_table_access(thd, SELECT_ACL, tables, 0)))
-    DBUG_RETURN(res);
+  if (tables && check_table_access(thd, SELECT_ACL, tables, 0))
+    DBUG_RETURN(TRUE);
 
   if (tables && (res= open_and_lock_tables(thd, tables)))
     goto error;
@@ -1200,7 +1178,7 @@ static int mysql_test_set_fields(Prepared_statement *stmt,
     if (var->light_check(thd))
     {
       stmt->lex->unit.cleanup();
-      res= -1;
+      res= TRUE;
       goto error;
     }
   }
@@ -1220,18 +1198,17 @@ error:
       specific_prepare  - function of command specific prepare
 
   RETURN VALUE
-    0   success
-    1   error, sent to client
-   -1   error, not sent to client
+    FALSE success
+    TRUE  error
 */
-static int select_like_statement_test(Prepared_statement *stmt,
-				      TABLE_LIST *tables,
-                                      int (*specific_prepare)(THD *thd))
+static bool select_like_statement_test(Prepared_statement *stmt,
+                                       TABLE_LIST *tables,
+                                       bool (*specific_prepare)(THD *thd))
 {
   DBUG_ENTER("select_like_statement_test");
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
-  int res= 0;
+  bool res= 0;
 
   if (tables && (res= open_and_lock_tables(thd, tables)))
     goto end;
@@ -1244,7 +1221,7 @@ static int select_like_statement_test(Prepared_statement *stmt,
   // JOIN::prepare calls
   if (lex->unit.prepare(thd, 0, 0))
   {
-    res= thd->net.report_error ? -1 : 1;
+    res= TRUE;
   }
 end:
   lex->unit.cleanup();
@@ -1301,16 +1278,15 @@ static int mysql_test_create_table(Prepared_statement *stmt)
     tables	list of tables queries
 
   RETURN VALUE
-    0   success
-    1   error, sent to client
-   -1   error, not sent to client
+    FALSE success
+    TRUE error
 */
-static int mysql_test_multiupdate(Prepared_statement *stmt,
+
+static bool mysql_test_multiupdate(Prepared_statement *stmt,
 				  TABLE_LIST *tables)
 {
-  int res;
-  if ((res= multi_update_precheck(stmt->thd, tables)))
-    return res;
+  if (multi_update_precheck(stmt->thd, tables))
+    return TRUE;
   /*
     here we do not pass tables for opening, tables will be opened and locked
     by mysql_multi_update_prepare
@@ -1513,15 +1489,13 @@ static int check_prepared_statement(Prepared_statement *stmt,
       All other is not supported yet
     */
     res= -1;
-    my_error(ER_UNSUPPORTED_PS, MYF(0));
+    my_message(ER_UNSUPPORTED_PS, ER(ER_UNSUPPORTED_PS), MYF(0));
     goto error;
   }
   if (res == 0)
     DBUG_RETURN(text_protocol? 0 : (send_prep_stmt(stmt, 0) ||
                                     thd->protocol->flush()));
 error:
-  if (res < 0)
-    send_error(thd,thd->killed_errno());
   DBUG_RETURN(1);
 }
 
@@ -1540,9 +1514,8 @@ static bool init_param_array(Prepared_statement *stmt)
     if (stmt->param_count > (uint) UINT_MAX16)
     {
       /* Error code to be defined in 5.0 */
-      send_error(thd, ER_UNKNOWN_ERROR,
-                 "Prepared statement contains too many placeholders.");
-      return 1;
+      my_message(ER_PS_MANY_PARAM, ER(ER_PS_MANY_PARAM), MYF(0));
+      return TRUE;
     }
     Item_param **to;
     List_iterator<Item_param> param_iterator(lex->param_list);
@@ -1551,10 +1524,7 @@ static bool init_param_array(Prepared_statement *stmt)
                        alloc_root(stmt->thd->mem_root,
                                   sizeof(Item_param*) * stmt->param_count);
     if (!stmt->param_array)
-    {
-      send_error(thd, ER_OUT_OF_RESOURCES);
-      return 1;
-    }
+      return TRUE;
     for (to= stmt->param_array;
          to < stmt->param_array + stmt->param_count;
          ++to)
@@ -1562,7 +1532,7 @@ static bool init_param_array(Prepared_statement *stmt)
       *to= param_iterator++;
     }
   }
-  return 0;
+  return FALSE;
 }
 
 
@@ -1578,10 +1548,10 @@ static bool init_param_array(Prepared_statement *stmt)
       name           NULL or statement name. For unnamed statements binary PS
                      protocol is used, for named statements text protocol is 
                      used.
-  RETURN 
-    0      OK, statement prepared successfully
-    other  Error
-  
+  RETURN
+    FALSE  OK, statement prepared successfully
+    TRUE  Error
+
   NOTES
     This function parses the query and sends the total number of parameters 
     and resultset metadata information back to client (if any), without 
@@ -1595,21 +1565,18 @@ static bool init_param_array(Prepared_statement *stmt)
    
 */
 
-int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
-                       LEX_STRING *name)
+bool mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
+                        LEX_STRING *name)
 {
   LEX *lex;
   Prepared_statement *stmt= new Prepared_statement(thd);
-  int error;
+  bool error;
   DBUG_ENTER("mysql_stmt_prepare");
 
   DBUG_PRINT("prep_query", ("%s", packet));
 
   if (stmt == 0)
-  {
-    send_error(thd, ER_OUT_OF_RESOURCES);
-    DBUG_RETURN(1);
-  }
+    DBUG_RETURN(TRUE);
 
   if (name)
   {
@@ -1618,16 +1585,14 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
                                       name->length)))
     {
       delete stmt;
-      send_error(thd, ER_OUT_OF_RESOURCES);
-      DBUG_RETURN(1);
+      DBUG_RETURN(TRUE);
     }
   }
 
   if (thd->stmt_map.insert(stmt))
   {
     delete stmt;
-    send_error(thd, ER_OUT_OF_RESOURCES);
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
   }
 
   thd->set_n_backup_statement(stmt, &thd->stmt_backup);
@@ -1639,8 +1604,7 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
     thd->restore_backup_item_arena(stmt, &thd->stmt_backup);
     /* Statement map deletes statement on erase */
     thd->stmt_map.erase(stmt);
-    send_error(thd, ER_OUT_OF_RESOURCES);
-    DBUG_RETURN(1);
+    DBUG_RETURN(TRUE);
   }
 
   mysql_log.write(thd, COM_PREPARE, "%s", packet);
@@ -1690,9 +1654,6 @@ int mysql_stmt_prepare(THD *thd, char *packet, uint packet_length,
     /* Statement map deletes statement on erase */
     thd->stmt_map.erase(stmt);
     stmt= NULL;
-    if (thd->net.report_error)
-      send_error(thd);
-    /* otherwise the error is sent inside yyparse/check_preapred_statement */
   }
   else
   {
@@ -1828,8 +1789,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
 
   packet+= 9;                               /* stmt_id + 5 bytes of flags */
 
-  if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_execute",
-                                      SEND_ERROR)))
+  if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_execute")))
     DBUG_VOID_RETURN;
 
   DBUG_PRINT("exec_query:", ("%s", stmt->query));
@@ -1837,7 +1797,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
   /* Check if we got an error when sending long data */
   if (stmt->state == Item_arena::ERROR)
   {
-    send_error(thd, stmt->last_errno, stmt->last_error);
+    my_message(stmt->last_errno, stmt->last_error, MYF(0));
     DBUG_VOID_RETURN;
   }
 
@@ -1859,10 +1819,7 @@ void mysql_stmt_execute(THD *thd, char *packet, uint packet_length)
       DBUG_PRINT("info",("Using READ_ONLY cursor"));
       if (!stmt->cursor &&
           !(stmt->cursor= new (&stmt->main_mem_root) Cursor()))
-      {
-        send_error(thd, ER_OUT_OF_RESOURCES);
         DBUG_VOID_RETURN;
-      }
       /* If lex->result is set, mysql_execute_command will use it */
       stmt->lex->result= &stmt->cursor->result;
     }
@@ -1930,7 +1887,6 @@ set_params_data_err:
   reset_stmt_params(stmt);
   my_error(ER_WRONG_ARGUMENTS, MYF(0), "mysql_stmt_execute");
 err:
-  send_error(thd);
   DBUG_VOID_RETURN;
 }
 
@@ -1956,14 +1912,12 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
   {
     my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), stmt_name->length,
              stmt_name->str, "EXECUTE");
-    send_error(thd);
     DBUG_VOID_RETURN;
   }
 
   if (stmt->param_count != thd->lex->prepared_stmt_params.elements)
   {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "EXECUTE");
-    send_error(thd);
     DBUG_VOID_RETURN;
   }
 
@@ -1976,7 +1930,6 @@ void mysql_sql_stmt_execute(THD *thd, LEX_STRING *stmt_name)
                                  &expanded_query))
   {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "EXECUTE");
-    send_error(thd);
   }
   execute_stmt(thd, stmt, &expanded_query);
   DBUG_VOID_RETURN;
@@ -2007,7 +1960,7 @@ static void execute_stmt(THD *thd, Prepared_statement *stmt,
       alloc_query(thd, (char *)expanded_query->ptr(),
                   expanded_query->length()+1))
   {
-    my_error(ER_OUTOFMEMORY, 0, expanded_query->length());
+    my_error(ER_OUTOFMEMORY, MYF(0), expanded_query->length());
     DBUG_VOID_RETURN;
   }
   /*
@@ -2066,7 +2019,6 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
       !stmt->cursor->is_open())
   {
     my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), stmt_id, "fetch");
-    send_error(thd);
     DBUG_VOID_RETURN;
   }
 
@@ -2117,8 +2069,7 @@ void mysql_stmt_reset(THD *thd, char *packet)
   
   DBUG_ENTER("mysql_stmt_reset");
 
-  if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_reset",
-                                      SEND_ERROR)))
+  if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_reset")))
     DBUG_VOID_RETURN;
 
   stmt->state= Item_arena::PREPARED;
@@ -2149,8 +2100,7 @@ void mysql_stmt_free(THD *thd, char *packet)
 
   DBUG_ENTER("mysql_stmt_free");
 
-  if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_close",
-                                      DONT_SEND_ERROR)))
+  if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_close")))
     DBUG_VOID_RETURN;
 
   /* Statement map deletes statement on erase */
@@ -2200,8 +2150,8 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
   stmt_id= uint4korr(packet);
   packet+= 4;
 
-  if (!(stmt=find_prepared_statement(thd, stmt_id, "mysql_stmt_send_long_data",
-                                     DONT_SEND_ERROR)))
+  if (!(stmt=find_prepared_statement(thd, stmt_id,
+                                     "mysql_stmt_send_long_data")))
     DBUG_VOID_RETURN;
 
   param_number= uint2korr(packet);

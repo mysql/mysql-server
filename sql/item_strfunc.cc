@@ -42,10 +42,10 @@ String my_empty_string("",default_charset_info);
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
                               const char *fname)
 {
-  my_error(ER_CANT_AGGREGATE_2COLLATIONS,MYF(0),
-  	   c1.collation->name,c1.derivation_name(),
-	   c2.collation->name,c2.derivation_name(),
-	   fname);
+  my_error(ER_CANT_AGGREGATE_2COLLATIONS, MYF(0),
+           c1.collation->name, c1.derivation_name(),
+           c2.collation->name, c2.derivation_name(),
+           fname);
 }
 
 uint nr_of_decimals(const char *str)
@@ -2226,8 +2226,8 @@ void Item_func_set_collation::fix_length_and_dec()
   if (!set_collation || 
       !my_charset_same(args[0]->collation.collation,set_collation))
   {
-    my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0), 
-      colname,args[0]->collation.collation->csname);
+    my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0),
+             colname, args[0]->collation.collation->csname);
     return;
   }
   collation.set(set_collation, DERIVATION_EXPLICIT);
@@ -2574,9 +2574,12 @@ String* Item_func_inet_ntoa::val_str(String* str)
 
     This function is very useful when you want to generate SQL statements
 
-    RETURN VALUES
+  NOTE
+    QUOTE(NULL) returns the string 'NULL' (4 letters, without quotes).
+
+  RETURN VALUES
     str		Quoted string
-    NULL	Argument to QUOTE() was NULL or out of memory.
+    NULL	Out of memory.
 */
 
 #define get_esc_bit(mask, num) (1 & (*((mask) + ((num) >> 3))) >> ((num) & 7))
@@ -2601,7 +2604,12 @@ String *Item_func_quote::val_str(String *str)
   String *arg= args[0]->val_str(str);
   uint arg_length, new_length;
   if (!arg)					// Null argument
-    goto null;
+  {
+    str->copy("NULL", 4, collation.collation);	// Return the string 'NULL'
+    null_value= 0;
+    return str;
+  }
+
   arg_length= arg->length();
   new_length= arg_length+2; /* for beginning and ending ' signs */
 

@@ -1870,12 +1870,27 @@ create procedure bug4904()
 begin
   declare continue handler for sqlstate 'HY000' begin end;
 
-  create table t2 as select * from t;
+  create table t2 as select * from t3;
+end|
+
+-- error 1146
+call bug4904()|
+
+drop procedure bug4904|
+
+create table t3 (s1 char character set latin1, s2 char character set latin2)|
+
+create procedure bug4904 ()
+begin
+  declare continue handler for sqlstate 'HY000' begin end;
+
+  select s1 from t3 union select s2 from t3; 
 end|
 
 call bug4904()|
 
 drop procedure bug4904|
+drop table t3|
 
 #
 # BUG#336

@@ -227,7 +227,7 @@ DO_CLIENT_GDB=""
 SLEEP_TIME_AFTER_RESTART=1
 SLEEP_TIME_FOR_DELETE=10
 SLEEP_TIME_FOR_FIRST_MASTER=400		# Enough time to create innodb tables
-SLEEP_TIME_FOR_SECOND_MASTER=30
+SLEEP_TIME_FOR_SECOND_MASTER=400
 SLEEP_TIME_FOR_FIRST_SLAVE=400
 SLEEP_TIME_FOR_SECOND_SLAVE=30
 CHARACTER_SET=latin1
@@ -456,6 +456,9 @@ CURRENT_TEST="$MYSQL_TEST_DIR/var/log/current_test"
 SMALL_SERVER="--key_buffer_size=1M --sort_buffer=256K --max_heap_table_size=1M"
 
 export MASTER_MYPORT MASTER_MYPORT1 SLAVE_MYPORT MYSQL_TCP_PORT MASTER_MYSOCK MASTER_MYSOCK1
+
+NDBCLUSTER_BASE_PORT=`expr $NDBCLUSTER_PORT + 2`
+NDBCLUSTER_OPTS="--port=$NDBCLUSTER_PORT --port-base=$NDBCLUSTER_BASE_PORT --data-dir=$MYSQL_TEST_DIR/var"
 
 if [ x$SOURCE_DIST = x1 ] ; then
  MY_BASEDIR=$MYSQL_TEST_DIR
@@ -941,11 +944,11 @@ start_ndbcluster()
     echo "Starting ndbcluster"
     if [ "$DO_BENCH" = 1 ]
     then
-      NDBCLUSTER_OPTS=""
+      NDBCLUSTER_EXTRA_OPTS=""
     else
-      NDBCLUSTER_OPTS="--small"
+      NDBCLUSTER_EXTRA_OPTS="--small"
     fi
-    ./ndb/ndbcluster --port-base=$NDBCLUSTER_PORT $NDBCLUSTER_OPTS --diskless --initial --data-dir=$MYSQL_TEST_DIR/var || exit 1
+    ./ndb/ndbcluster $NDBCLUSTER_OPTS $NDBCLUSTER_EXTRA_OPTS --diskless --initial || exit 1
     NDB_CONNECTSTRING="host=localhost:$NDBCLUSTER_PORT"
   else
     NDB_CONNECTSTRING="$USE_RUNNING_NDBCLUSTER"
@@ -963,7 +966,7 @@ stop_ndbcluster()
  if [ -z "$USE_RUNNING_NDBCLUSTER" ]
  then
    # Kill any running ndbcluster stuff
-   ./ndb/ndbcluster --data-dir=$MYSQL_TEST_DIR/var --port-base=$NDBCLUSTER_PORT --stop
+   ./ndb/ndbcluster $NDBCLUSTER_OPTS --stop
  fi
  fi
 }

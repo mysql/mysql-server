@@ -32,6 +32,7 @@ class Item_field;
 
 enum Derivation
 {
+  DERIVATION_IGNORABLE= 4,
   DERIVATION_COERCIBLE= 3,
   DERIVATION_IMPLICIT= 2,
   DERIVATION_NONE= 1,
@@ -99,6 +100,7 @@ public:
   {
     switch(derivation)
     {
+      case DERIVATION_IGNORABLE: return "IGNORABLE";
       case DERIVATION_COERCIBLE: return "COERCIBLE";
       case DERIVATION_IMPLICIT:  return "IMPLICIT";
       case DERIVATION_EXPLICIT:  return "EXPLICIT";
@@ -577,6 +579,7 @@ public:
     max_length= 0;
     name= name_par ? name_par : (char*) "NULL";
     fixed= 1;
+    collation.set(&my_charset_bin, DERIVATION_IGNORABLE);
   }
   enum Type type() const { return NULL_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
