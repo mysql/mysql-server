@@ -279,7 +279,7 @@ sub RunQuery {
 		  if (defined $row->{$_}) {
 		    #if (($_ eq 'type' ) and ($row->{$_} eq 'ALL')) {
 		    if ($row->{type} eq 'ALL') {
-		      push (@{$Param->{ALL}}, "$row->{$_} $_ $Param->{DB} $Param->{Query}");
+		      push (@{$Param->{ALL}}, "$Param->{Query}");
 		      #print ">> $row->{$_} $_ $Param->{DB} $Param->{Query}\n";
 		    }
 		    $Param->{IdxUseCount} ++;
