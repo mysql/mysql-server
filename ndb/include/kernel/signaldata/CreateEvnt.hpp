@@ -368,7 +368,6 @@ struct CreateEvntRef {
     EventNameTooLong = 4708,
     EventNameExists = 746,
     EventNotFound = 4731,
-    AttributeNotStored = 4245,
     AttributeNullable = 4246,
     BadRequestType = 4247,
     InvalidName = 4248,
